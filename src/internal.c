@@ -9337,8 +9337,9 @@ static void PickHashSigAlgo(WOLFSSL* ssl,
 #endif
 
 #ifdef HAVE_SESSION_TICKET
-        ret = ret ||
-              (!ssl->expect_session_ticket && ssl->session.ticketLen > 0);
+        /* server may send blank ticket which may not be expected to indicate
+         * exisiting one ok but will also be sending a new one */
+        ret = ret || (ssl->session.ticketLen > 0);
 #endif
 
         ret = ret ||
@@ -13746,7 +13747,7 @@ int DoSessionTicket(WOLFSSL* ssl,
         ret = ssl->ctx->ticketEncCb(ssl, et->key_name, et->iv, et->mac, 1,
                                     et->enc_ticket, sizeof(InternalTicket),
                                     &encLen);
-        if (ret == 0) {
+        if (ret == WOLFSSL_TICKET_RET_OK) {
             if (encLen < (int)sizeof(InternalTicket) ||
                 encLen > WOLFSSL_TICKET_ENC_SZ) {
                 WOLFSSL_MSG("Bad user ticket encrypt size");
@@ -13790,14 +13791,15 @@ int DoSessionTicket(WOLFSSL* ssl,
         ret = ssl->ctx->ticketEncCb(ssl, et->key_name, et->iv,
                                     et->enc_ticket + inLen, 0,
                                     et->enc_ticket, inLen, &outLen);
-        if (ret != 0) return ret;
+        if (ret == WOLFSSL_TICKET_RET_FATAL || ret < 0) return ret;
         if (outLen > inLen || outLen < (int)sizeof(InternalTicket)) {
             WOLFSSL_MSG("Bad user ticket decrypt len");
             return BAD_TICKET_KEY_CB_SZ;
         }
 
         /* get master secret */
-        XMEMCPY(ssl->arrays->masterSecret, it->msecret, SECRET_LEN);
+        if (ret == WOLFSSL_TICKET_RET_OK || ret == WOLFSSL_TICKET_RET_CREATE)
+            XMEMCPY(ssl->arrays->masterSecret, it->msecret, SECRET_LEN);
 
         return ret;
     }

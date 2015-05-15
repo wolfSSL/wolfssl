@@ -791,7 +791,7 @@ while (1) {  /* allow resume option */
             XMEMCPY(key_name, myKey_ctx.name, WOLFSSL_TICKET_NAME_SZ);
 
             ret = wc_RNG_GenerateBlock(&rng, iv, WOLFSSL_TICKET_IV_SZ);
-            if (ret != 0) return ret;
+            if (ret != 0) return WOLFSSL_TICKET_RET_REJECT;
 
             /* build aad from key name, iv, and length */
             XMEMCPY(tmp, key_name, WOLFSSL_TICKET_NAME_SZ);
@@ -805,7 +805,7 @@ while (1) {  /* allow resume option */
                                               ticket, inLen,
                                               ticket,
                                               mac);
-            if (ret != 0) return ret;
+            if (ret != 0) return WOLFSSL_TICKET_RET_REJECT;
             *outLen = inLen;  /* no padding in this mode */
         } else {
             /* decrypt */
@@ -821,11 +821,11 @@ while (1) {  /* allow resume option */
                                               ticket, inLen,
                                               mac,
                                               ticket);
-            if (ret != 0) return ret;
+            if (ret != 0) return WOLFSSL_TICKET_RET_REJECT;
             *outLen = inLen;  /* no padding in this mode */
         }
 
-        return 0;
+        return WOLFSSL_TICKET_RET_OK;
     }
 
 #endif

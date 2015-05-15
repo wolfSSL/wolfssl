@@ -1376,6 +1376,13 @@ WOLFSSL_API int wolfSSL_set_SessionTicket_cb(WOLFSSL*,
 #define WOLFSSL_TICKET_IV_SZ   16
 #define WOLFSSL_TICKET_MAC_SZ  32
 
+enum TicketEncRet {
+    WOLFSSL_TICKET_RET_FATAL  = -1,  /* fatal error, don't use ticket */
+    WOLFSSL_TICKET_RET_OK     =  0,  /* ok, use ticket */
+    WOLFSSL_TICKET_RET_REJECT,       /* don't use ticket, but not fatal */
+    WOLFSSL_TICKET_RET_CREATE        /* existing ticket ok and create new one */
+};
+
 typedef int (*SessionTicketEncCb)(WOLFSSL*,
                                  unsigned char key_name[WOLFSSL_TICKET_NAME_SZ],
                                  unsigned char iv[WOLFSSL_TICKET_IV_SZ],

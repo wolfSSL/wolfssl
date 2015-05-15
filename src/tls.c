@@ -1844,15 +1844,32 @@ static int TLSX_SessionTicket_Parse(WOLFSSL* ssl, byte* input, word16 length,
             if (ret == SSL_SUCCESS) {
                 ret = 0;
                 TLSX_SetResponse(ssl, SESSION_TICKET);  /* send blank ticket */
-                ssl->options.createTicket    = 1;  /* will send ticket msg */
-                ssl->options.useTicket       = 1;
+                ssl->options.createTicket = 1;  /* will send ticket msg */
+                ssl->options.useTicket    = 1;
             }
         } else {
             /* got actual ticket from client */
             ret = DoClientTicket(ssl, input, length);
-            if (ret == 0) {    /* use ticket to resume */
+            if (ret == WOLFSSL_TICKET_RET_OK) {    /* use ticket to resume */
+                WOLFSSL_MSG("Using exisitng client ticket");
                 ssl->options.useTicket = 1;
-                ssl->options.resuming = 1;
+                ssl->options.resuming  = 1;
+            } else if (ret == WOLFSSL_TICKET_RET_CREATE) {
+                WOLFSSL_MSG("Using existing client ticket, creating new one");
+                ret = TLSX_UseSessionTicket(&ssl->extensions, NULL);
+                if (ret == SSL_SUCCESS) {
+                    ret = 0;
+                    TLSX_SetResponse(ssl, SESSION_TICKET);
+                                                    /* send blank ticket */
+                    ssl->options.createTicket = 1;  /* will send ticket msg */
+                    ssl->options.useTicket    = 1;
+                    ssl->options.resuming     = 1;
+                }
+            } else if (ret == WOLFSSL_TICKET_RET_REJECT) {
+                WOLFSSL_MSG("Process client ticket rejected, not using");
+                ret = 0;  /* not fatal */
+            } else if (ret == WOLFSSL_TICKET_RET_FATAL || ret < 0) {
+                WOLFSSL_MSG("Process client ticket fatal error, not using");
             }
         }
     }
