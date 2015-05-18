@@ -1835,5 +1835,95 @@ static INLINE const char* mymktemp(char *tempfn, int len, int num)
     return tempfn;
 }
 
-#endif /* wolfSSL_TEST_H */
 
+
+#if defined(HAVE_SESSION_TICKET) && defined(HAVE_CHACHA) && \
+                                    defined(HAVE_POLY1305)
+
+    #include <wolfssl/wolfcrypt/chacha20_poly1305.h>
+
+    typedef struct key_ctx {
+        byte name[WOLFSSL_TICKET_NAME_SZ];     /* name for this context */
+        byte key[16];                          /* cipher key */
+    } key_ctx;
+
+    static key_ctx myKey_ctx;
+    static RNG rng;
+
+    static INLINE int TicketInit(void)
+    {
+        int ret = wc_InitRng(&rng);
+        if (ret != 0) return ret;
+
+        ret = wc_RNG_GenerateBlock(&rng, myKey_ctx.key, sizeof(myKey_ctx.key));
+        if (ret != 0) return ret;
+
+        ret = wc_RNG_GenerateBlock(&rng, myKey_ctx.name,sizeof(myKey_ctx.name));
+        if (ret != 0) return ret;
+
+        return 0;
+    }
+
+    static INLINE void TicketCleanup(void)
+    {
+        wc_FreeRng(&rng);
+    }
+
+    static INLINE int myTicketEncCb(WOLFSSL* ssl,
+                             byte key_name[WOLFSSL_TICKET_NAME_SZ],
+                             byte iv[WOLFSSL_TICKET_IV_SZ],
+                             byte mac[WOLFSSL_TICKET_MAC_SZ],
+                             int enc, byte* ticket, int inLen, int* outLen)
+    {
+        (void)ssl;
+
+        int ret;
+        word16 sLen = htons(inLen);
+        byte aad[WOLFSSL_TICKET_NAME_SZ + WOLFSSL_TICKET_IV_SZ + 2];
+        int  aadSz = WOLFSSL_TICKET_NAME_SZ + WOLFSSL_TICKET_IV_SZ + 2;
+        byte* tmp = aad;
+
+        if (enc) {
+            XMEMCPY(key_name, myKey_ctx.name, WOLFSSL_TICKET_NAME_SZ);
+
+            ret = wc_RNG_GenerateBlock(&rng, iv, WOLFSSL_TICKET_IV_SZ);
+            if (ret != 0) return WOLFSSL_TICKET_RET_REJECT;
+
+            /* build aad from key name, iv, and length */
+            XMEMCPY(tmp, key_name, WOLFSSL_TICKET_NAME_SZ);
+            tmp += WOLFSSL_TICKET_NAME_SZ;
+            XMEMCPY(tmp, iv, WOLFSSL_TICKET_IV_SZ);
+            tmp += WOLFSSL_TICKET_IV_SZ;
+            XMEMCPY(tmp, &sLen, 2);
+
+            ret = wc_ChaCha20Poly1305_Encrypt(myKey_ctx.key, iv,
+                                              aad, aadSz,
+                                              ticket, inLen,
+                                              ticket,
+                                              mac);
+            if (ret != 0) return WOLFSSL_TICKET_RET_REJECT;
+            *outLen = inLen;  /* no padding in this mode */
+        } else {
+            /* decrypt */
+            /* build aad from key name, iv, and length */
+            XMEMCPY(tmp, key_name, WOLFSSL_TICKET_NAME_SZ);
+            tmp += WOLFSSL_TICKET_NAME_SZ;
+            XMEMCPY(tmp, iv, WOLFSSL_TICKET_IV_SZ);
+            tmp += WOLFSSL_TICKET_IV_SZ;
+            XMEMCPY(tmp, &sLen, 2);
+
+            ret = wc_ChaCha20Poly1305_Decrypt(myKey_ctx.key, iv,
+                                              aad, aadSz,
+                                              ticket, inLen,
+                                              mac,
+                                              ticket);
+            if (ret != 0) return WOLFSSL_TICKET_RET_REJECT;
+            *outLen = inLen;  /* no padding in this mode */
+        }
+
+        return WOLFSSL_TICKET_RET_OK;
+    }
+
+#endif  /* HAVE_SESSION_TICKET && CHACHA20 && POLY1305 */
+
+#endif /* wolfSSL_TEST_H */

@@ -53,7 +53,6 @@
 
 #include "examples/echoserver/echoserver.h"
 
-
 #define SVR_COMMAND_SIZE 256
 
 static void SignalReady(void* args, word16 port)
@@ -141,6 +140,13 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
 
 #if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
     CyaSSL_CTX_set_default_passwd_cb(ctx, PasswordCallBack);
+#endif
+
+#if defined(HAVE_SESSION_TICKET) && defined(HAVE_CHACHA) && \
+                                    defined(HAVE_POLY1305)
+    if (TicketInit() != 0)
+        err_sys("unable to setup Session Ticket Key context");
+    wolfSSL_CTX_set_TicketEncCb(ctx, myTicketEncCb);
 #endif
 
 #ifndef NO_FILESYSTEM
@@ -337,6 +343,11 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
     fdCloseSession(Task_self());
 #endif
 
+#if defined(HAVE_SESSION_TICKET) && defined(HAVE_CHACHA) && \
+                                    defined(HAVE_POLY1305)
+    TicketCleanup();
+#endif
+
 #ifndef CYASSL_TIRTOS
     return 0;
 #endif
@@ -380,7 +391,5 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
 
         
 #endif /* NO_MAIN_DRIVER */
-
-
 
 
