@@ -1905,6 +1905,13 @@ static INLINE const char* mymktemp(char *tempfn, int len, int num)
             *outLen = inLen;  /* no padding in this mode */
         } else {
             /* decrypt */
+
+            /* see if we know this key */
+            if (XMEMCMP(key_name, myKey_ctx.name, WOLFSSL_TICKET_NAME_SZ) != 0){
+                printf("client presented unknown ticket key name ");
+                return WOLFSSL_TICKET_RET_FATAL;
+            }
+
             /* build aad from key name, iv, and length */
             XMEMCPY(tmp, key_name, WOLFSSL_TICKET_NAME_SZ);
             tmp += WOLFSSL_TICKET_NAME_SZ;
