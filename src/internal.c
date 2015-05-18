@@ -8021,6 +8021,9 @@ const char* wolfSSL_ERR_reason_error_string(unsigned long e)
     case BAD_TICKET_MSG_SZ:
         return "Bad session ticket message Size Error";
 
+    case BAD_TICKET_ENCRYPT:
+        return "Bad user ticket callback encrypt Error";
+
     default :
         return "unknown error number";
     }
@@ -13728,6 +13731,7 @@ int DoSessionTicket(WOLFSSL* ssl,
         ExternalTicket* et = (ExternalTicket*)ssl->session.ticket;
         int encLen;
         int ret;
+        byte zeros[WOLFSSL_TICKET_MAC_SZ];   /* biggest cmp size */
 
         /* build internal */
         it.pv.major = ssl->version.major;
@@ -13753,6 +13757,36 @@ int DoSessionTicket(WOLFSSL* ssl,
                 WOLFSSL_MSG("Bad user ticket encrypt size");
                 return BAD_TICKET_KEY_CB_SZ;
             }
+
+            /* sanity checks on encrypt callback */
+
+            /* internal ticket can't be the same if encrypted */
+            if (XMEMCMP(et->enc_ticket, &it, sizeof(InternalTicket)) == 0) {
+                WOLFSSL_MSG("User ticket encrypt didn't encrypt");
+                return BAD_TICKET_ENCRYPT;
+            }
+
+            XMEMSET(zeros, 0, sizeof(zeros));
+
+            /* name */
+            if (XMEMCMP(et->key_name, zeros, WOLFSSL_TICKET_NAME_SZ) == 0) {
+                WOLFSSL_MSG("User ticket encrypt didn't set name");
+                return BAD_TICKET_ENCRYPT;
+            }
+
+            /* iv */
+            if (XMEMCMP(et->iv, zeros, WOLFSSL_TICKET_IV_SZ) == 0) {
+                WOLFSSL_MSG("User ticket encrypt didn't set iv");
+                return BAD_TICKET_ENCRYPT;
+            }
+
+            /* mac */
+            if (XMEMCMP(et->mac, zeros, WOLFSSL_TICKET_MAC_SZ) == 0) {
+                WOLFSSL_MSG("User ticket encrypt didn't set mac");
+                return BAD_TICKET_ENCRYPT;
+            }
+
+            /* set size */
             c16toa((word16)encLen, et->enc_len);
             ssl->session.ticketLen = (word16)(encLen + WOLFSSL_TICKET_FIXED_SZ);
             if (encLen < WOLFSSL_TICKET_ENC_SZ) {
@@ -13765,7 +13799,7 @@ int DoSessionTicket(WOLFSSL* ssl,
     }
 
 
-    /* Parse ticket sent by client */
+    /* Parse ticket sent by client, returns callback return value */
     int DoClientTicket(WOLFSSL* ssl, const byte* input, word32 len)
     {
         ExternalTicket* et;

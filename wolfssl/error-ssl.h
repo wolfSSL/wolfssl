@@ -131,6 +131,7 @@ enum wolfSSL_ErrorCodes {
 
     BAD_TICKET_KEY_CB_SZ    = -398,        /* Bad session ticket key cb size */
     BAD_TICKET_MSG_SZ       = -399,        /* Bad session ticket msg size    */
+    BAD_TICKET_ENCRYPT      = -400,        /* Bad user ticket encrypt        */
 
     /* add strings to SetErrorString !!!!! */
 
