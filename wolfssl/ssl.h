@@ -1390,6 +1390,7 @@ typedef int (*SessionTicketEncCb)(WOLFSSL*,
                                  int enc, unsigned char*, int, int*);
 WOLFSSL_API int wolfSSL_CTX_set_TicketEncCb(WOLFSSL_CTX* ctx,
                                             SessionTicketEncCb);
+WOLFSSL_API int wolfSSL_CTX_set_TicketHint(WOLFSSL_CTX* ctx, int);
 
 #endif /* NO_WOLFSSL_SERVER */
 

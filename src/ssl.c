@@ -878,6 +878,17 @@ int wolfSSL_CTX_set_TicketEncCb(WOLFSSL_CTX* ctx, SessionTicketEncCb cb)
     return SSL_SUCCESS;
 }
 
+/* set hint interval, SSL_SUCCESS on ok */
+int wolfSSL_CTX_set_TicketHint(WOLFSSL_CTX* ctx, int hint)
+{
+    if (ctx == NULL)
+        return BAD_FUNC_ARG;
+
+    ctx->ticketHint = hint;
+
+    return SSL_SUCCESS;
+}
+
 #endif /* !defined(NO_WOLFSSL_CLIENT) && defined(HAVE_SESSION_TICKET) */
 
 /* Session Ticket */
