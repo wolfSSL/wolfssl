@@ -6224,16 +6224,17 @@ int wolfSSL_get_session_stats(word32* active, word32* total, word32* peak,
         }
         printf("  chi-square = %5.1f, d.f. = %d\n", chiSquare,
                                                      SESSION_ROWS - 1);
-        if (SESSION_ROWS == 11)
+        #if (SESSION_ROWS == 11)
             printf(" .05 p value =  18.3, chi-square should be less\n");
-        else if (SESSION_ROWS == 211)
+        #elif (SESSION_ROWS == 211)
             printf(".05 p value  = 244.8, chi-square should be less\n");
-        else if (SESSION_ROWS == 5981)
+        #elif (SESSION_ROWS == 5981)
             printf(".05 p value  = 6161.0, chi-square should be less\n");
-        else if (SESSION_ROWS == 3)
+        #elif (SESSION_ROWS == 3)
             printf(".05 p value  =   6.0, chi-square should be less\n");
-        else if (SESSION_ROWS == 2861)
+        #elif (SESSION_ROWS == 2861)
             printf(".05 p value  = 2985.5, chi-square should be less\n");
+        #endif
         printf("\n");
 
         return ret;
