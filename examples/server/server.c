@@ -131,6 +131,11 @@ static void Usage(void)
     printf("-c <file>   Certificate file,           default %s\n", svrCert);
     printf("-k <file>   Key file,                   default %s\n", svrKey);
     printf("-A <file>   Certificate Authority file, default %s\n", cliCert);
+#ifndef NO_DH
+    printf("-D <file>   Diffie-Hellman Params file, default %s\n", dhParam);
+    printf("-Z <num>    Minimum DH key bits,        default %d\n",
+                                 DEFAULT_MIN_DHKEY_BITS);
+#endif
     printf("-d          Disable client cert check\n");
     printf("-b          Bind to any interface instead of localhost only\n");
     printf("-s          Use pre Shared keys\n");
@@ -184,11 +189,13 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     int    serverReadyFile = 0;
     int    wc_shutdown     = 0;
     int    resume = 0;            /* do resume, and resume count */
+    int    minDhKeyBits = DEFAULT_MIN_DHKEY_BITS;
     int    ret;
     char*  cipherList = NULL;
     const char* verifyCert = cliCert;
     const char* ourCert    = svrCert;
     const char* ourKey     = svrKey;
+    const char* ourDhParam = dhParam;
     int    argc = ((func_args*)args)->argc;
     char** argv = ((func_args*)args)->argv;
 
@@ -213,15 +220,17 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     (void)needDH;
     (void)ourKey;
     (void)ourCert;
+    (void)ourDhParam;
     (void)verifyCert;
     (void)useNtruKey;
     (void)doCliCertCheck;
+    (void)minDhKeyBits;
 
 #ifdef CYASSL_TIRTOS
     fdOpenSession(Task_self());
 #endif
 
-    while ((ch = mygetopt(argc, argv, "?dbstnNufrRawPp:v:l:A:c:k:S:oO:"))
+    while ((ch = mygetopt(argc, argv, "?dbstnNufrRawPp:v:l:A:c:k:Z:S:oO:D:"))
                          != -1) {
         switch (ch) {
             case '?' :
@@ -308,6 +317,22 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
 
             case 'k' :
                 ourKey = myoptarg;
+                break;
+
+            case 'D' :
+                #ifndef NO_DH
+                    ourDhParam = myoptarg;
+                #endif
+                break;
+
+            case 'Z' :
+                #ifndef NO_DH
+                    minDhKeyBits = atoi(myoptarg);
+                    if (minDhKeyBits <= 0 || minDhKeyBits > 16000) {
+                        Usage();
+                        exit(MY_EX_USAGE);
+                    }
+                #endif
                 break;
 
             case 'N':
@@ -451,6 +476,10 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     }
 #endif
 
+#ifndef NO_DH
+    wolfSSL_CTX_SetMinDhKey_Sz(ctx, (word16)minDhKeyBits);
+#endif
+
 #ifdef HAVE_NTRU
     if (useNtruKey) {
         if (CyaSSL_CTX_use_NTRUPrivateKey_file(ctx, ourKey)
@@ -579,7 +608,7 @@ while (1) {  /* allow resume option */
     SSL_set_fd(ssl, clientfd);
     if (usePsk == 0 || useAnon == 1 || cipherList != NULL || needDH == 1) {
         #if !defined(NO_FILESYSTEM) && !defined(NO_DH) && !defined(NO_ASN)
-            CyaSSL_SetTmpDH_file(ssl, dhParam, SSL_FILETYPE_PEM);
+            CyaSSL_SetTmpDH_file(ssl, ourDhParam, SSL_FILETYPE_PEM);
         #elif !defined(NO_DH)
             SetDH(ssl);  /* repick suites with DHE, higher priority than PSK */
         #endif

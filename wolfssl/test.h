@@ -154,6 +154,11 @@
 #define CLIENT_DEFAULT_VERSION 3
 #define CLIENT_DTLS_DEFAULT_VERSION (-2)
 #define CLIENT_INVALID_VERSION (-99)
+#if !defined(NO_FILESYSTEM) && defined(WOLFSSL_MAX_STRENGTH)
+    #define DEFAULT_MIN_DHKEY_BITS 2048
+#else
+    #define DEFAULT_MIN_DHKEY_BITS 1024
+#endif
 
 /* all certs relative to wolfSSL home directory now */
 #define caCert     "./certs/ca-cert.pem"

@@ -130,6 +130,10 @@ static void Usage(void)
     printf("-c <file>   Certificate file,           default %s\n", cliCert);
     printf("-k <file>   Key file,                   default %s\n", cliKey);
     printf("-A <file>   Certificate Authority file, default %s\n", caCert);
+#ifndef NO_DH
+    printf("-Z <num>    Minimum DH key bits,        default %d\n",
+                                 DEFAULT_MIN_DHKEY_BITS);
+#endif
     printf("-b <num>    Benchmark <num> connections and print stats\n");
     printf("-s          Use pre Shared keys\n");
     printf("-t          Track wolfSSL memory use\n");
@@ -224,6 +228,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     int    atomicUser    = 0;
     int    pkCallbacks   = 0;
     int    overrideDateErrors = 0;
+    int    minDhKeyBits  = DEFAULT_MIN_DHKEY_BITS;
     char*  cipherList = NULL;
     const char* verifyCert = caCert;
     const char* ourCert    = cliCert;
@@ -269,11 +274,12 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     (void)useClientCert;
     (void)overrideDateErrors;
     (void)disableCRL;
+    (void)minDhKeyBits;
 
     StackTrap();
 
     while ((ch = mygetopt(argc, argv,
-                          "?gdDusmNrwRitfxXUPCh:p:v:l:A:c:k:b:zS:L:ToO:a"))
+                          "?gdDusmNrwRitfxXUPCh:p:v:l:A:c:k:Z:b:zS:L:ToO:a"))
                                                                         != -1) {
         switch (ch) {
             case '?' :
@@ -373,6 +379,16 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 
             case 'k' :
                 ourKey = myoptarg;
+                break;
+
+            case 'Z' :
+                #ifndef NO_DH
+                    minDhKeyBits = atoi(myoptarg);
+                    if (minDhKeyBits <= 0 || minDhKeyBits > 16000) {
+                        Usage();
+                        exit(MY_EX_USAGE);
+                    }
+                #endif
                 break;
 
             case 'b' :
@@ -569,6 +585,10 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 
     if (fewerPackets)
         wolfSSL_CTX_set_group_messages(ctx);
+
+#ifndef NO_DH
+    wolfSSL_CTX_SetMinDhKey_Sz(ctx, (word16)minDhKeyBits);
+#endif
 
     if (usePsk) {
 #ifndef NO_PSK

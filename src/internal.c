@@ -372,6 +372,10 @@ int InitSSL_Ctx(WOLFSSL_CTX* ctx, WOLFSSL_METHOD* method)
         return BAD_MUTEX_E;
     }
 
+#ifndef NO_DH
+    ctx->minDhKeySz = MIN_DHKEY_SZ;
+#endif
+
 #ifdef HAVE_ECC
     ctx->eccTempKeySz = ECDHE_SIZE;
 #endif
@@ -1536,6 +1540,10 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
     ssl->options.acceptState  = ACCEPT_BEGIN;
     ssl->options.handShakeState  = NULL_STATE;
     ssl->options.processReply = doProcessInit;
+
+#ifndef NO_DH
+    ssl->options.minDhKeySz = ctx->minDhKeySz;
+#endif
 
 #ifdef WOLFSSL_DTLS
     ssl->dtls_timeout_init              = DTLS_TIMEOUT_INIT;
@@ -8024,6 +8032,9 @@ const char* wolfSSL_ERR_reason_error_string(unsigned long e)
     case BAD_TICKET_ENCRYPT:
         return "Bad user ticket callback encrypt Error";
 
+    case DH_KEY_SIZE_E:
+        return "DH key too small Error";
+
     default :
         return "unknown error number";
     }
@@ -9755,6 +9766,12 @@ static void PickHashSigAlgo(WOLFSSL* ssl,
         if ((*inOutIdx - begin) + length > size)
             return BUFFER_ERROR;
 
+        if (length < ssl->options.minDhKeySz) {
+            WOLFSSL_MSG("Server using a DH key that is too small");
+            SendAlert(ssl, alert_fatal, handshake_failure);
+            return DH_KEY_SIZE_E;
+        }
+
         ssl->buffers.serverDH_P.buffer = (byte*) XMALLOC(length, ssl->heap,
                                                          DYNAMIC_TYPE_DH);
 
@@ -9765,6 +9782,8 @@ static void PickHashSigAlgo(WOLFSSL* ssl,
 
         XMEMCPY(ssl->buffers.serverDH_P.buffer, input + *inOutIdx, length);
         *inOutIdx += length;
+
+        ssl->options.dhKeySz = length;
 
         /* g */
         if ((*inOutIdx - begin) + OPAQUE16_LEN > size)
@@ -9885,6 +9904,12 @@ static void PickHashSigAlgo(WOLFSSL* ssl,
         if ((*inOutIdx - begin) + length > size)
             return BUFFER_ERROR;
 
+        if (length < ssl->options.minDhKeySz) {
+            WOLFSSL_MSG("Server using a DH key that is too small");
+            SendAlert(ssl, alert_fatal, handshake_failure);
+            return DH_KEY_SIZE_E;
+        }
+
         ssl->buffers.serverDH_P.buffer = (byte*) XMALLOC(length, ssl->heap,
                                                          DYNAMIC_TYPE_DH);
 
@@ -9895,6 +9920,8 @@ static void PickHashSigAlgo(WOLFSSL* ssl,
 
         XMEMCPY(ssl->buffers.serverDH_P.buffer, input + *inOutIdx, length);
         *inOutIdx += length;
+
+        ssl->options.dhKeySz = length;
 
         /* g */
         if ((*inOutIdx - begin) + OPAQUE16_LEN > size)

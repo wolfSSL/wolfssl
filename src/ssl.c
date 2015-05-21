@@ -438,6 +438,9 @@ int wolfSSL_SetTmpDH(WOLFSSL* ssl, const unsigned char* p, int pSz,
     WOLFSSL_ENTER("wolfSSL_SetTmpDH");
     if (ssl == NULL || p == NULL || g == NULL) return BAD_FUNC_ARG;
 
+    if (pSz < ssl->options.minDhKeySz)
+        return DH_KEY_SIZE_E;
+
     if (ssl->options.side != WOLFSSL_SERVER_END)
         return SIDE_ERROR;
 
@@ -486,6 +489,9 @@ int wolfSSL_CTX_SetTmpDH(WOLFSSL_CTX* ctx, const unsigned char* p, int pSz,
 {
     WOLFSSL_ENTER("wolfSSL_CTX_SetTmpDH");
     if (ctx == NULL || p == NULL || g == NULL) return BAD_FUNC_ARG;
+
+    if (pSz < ctx->minDhKeySz)
+        return DH_KEY_SIZE_E;
 
     XFREE(ctx->serverDH_P.buffer, ctx->heap, DYNAMIC_TYPE_DH);
     XFREE(ctx->serverDH_G.buffer, ctx->heap, DYNAMIC_TYPE_DH);
@@ -3891,6 +3897,35 @@ int wolfSSL_SetTmpDH_file(WOLFSSL* ssl, const char* fname, int format)
 int wolfSSL_CTX_SetTmpDH_file(WOLFSSL_CTX* ctx, const char* fname, int format)
 {
     return wolfSSL_SetTmpDH_file_wrapper(ctx, NULL, fname, format);
+}
+
+
+int wolfSSL_CTX_SetMinDhKey_Sz(WOLFSSL_CTX* ctx, word16 keySz)
+{
+    if (ctx == NULL || keySz > 16000 || keySz % 8 != 0)
+        return BAD_FUNC_ARG;
+
+    ctx->minDhKeySz = keySz / 8;
+    return SSL_SUCCESS;
+}
+
+
+int wolfSSL_SetMinDhKey_Sz(WOLFSSL* ssl, word16 keySz)
+{
+    if (ssl == NULL || keySz > 16000 || keySz % 8 != 0)
+        return BAD_FUNC_ARG;
+
+    ssl->options.minDhKeySz = keySz / 8;
+    return SSL_SUCCESS;
+}
+
+
+int wolfSSL_GetDhKey_Sz(WOLFSSL* ssl)
+{
+    if (ssl == NULL)
+        return BAD_FUNC_ARG;
+
+    return (ssl->options.dhKeySz * 8);
 }
 
 

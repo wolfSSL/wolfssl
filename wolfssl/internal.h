@@ -895,6 +895,20 @@ enum Misc {
     COPY               =   1   /* should we copy static buffer for write */
 };
 
+
+#ifndef WOLFSSL_MIN_DHKEY_BITS
+    #ifdef WOLFSSL_MAX_STRENGTH
+        #define WOLFSSL_MIN_DHKEY_BITS 2048
+    #else
+        #define WOLFSSL_MIN_DHKEY_BITS 1024
+    #endif
+#endif
+#if (WOLFSSL_MIN_DHKEY_BITS % 8)
+    #error DH minimum bit size must be multiple of 8
+#endif
+#define MIN_DHKEY_SZ (WOLFSSL_MIN_DHKEY_BITS / 8)
+
+
 #ifdef SESSION_INDEX
 /* Shift values for making a session index */
 #define SESSIDX_ROW_SHIFT 4
@@ -1508,6 +1522,9 @@ struct WOLFSSL_CTX {
     byte        quietShutdown;    /* don't send close notify */
     byte        groupMessages;    /* group handshake messages before sending */
     byte        minDowngrade;     /* minimum downgrade version */
+#ifndef NO_DH
+    word16      minDhKeySz;       /* minimum DH key size */
+#endif
     CallbackIORecv CBIORecv;
     CallbackIOSend CBIOSend;
 #ifdef WOLFSSL_DTLS
@@ -1916,6 +1933,10 @@ typedef struct Options {
     byte            minDowngrade;       /* minimum downgrade version */
     byte            connectState;       /* nonblocking resume */
     byte            acceptState;        /* nonblocking resume */
+#ifndef NO_DH
+    word16          minDhKeySz;         /* minimum DH key size */
+    word16          dhKeySz;            /* actual DH key size */
+#endif
 
 } Options;
 

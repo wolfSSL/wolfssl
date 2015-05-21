@@ -133,6 +133,8 @@ enum wolfSSL_ErrorCodes {
     BAD_TICKET_MSG_SZ       = -399,        /* Bad session ticket msg size    */
     BAD_TICKET_ENCRYPT      = -400,        /* Bad user ticket encrypt        */
 
+    DH_KEY_SIZE_E           = -401,        /* DH Key too small */
+
     /* add strings to SetErrorString !!!!! */
 
     /* begin negotiation parameter errors */
