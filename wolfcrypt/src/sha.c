@@ -198,7 +198,7 @@ int wc_ShaFinal(Sha* sha, byte* hash)
 
 #elif defined(WOLFSSL_TI_HASH)
  
-    /* defined in port/ti/ti_sha.c */
+    /* defined in port/ti/ti_hash.c */
 
 #else /* wc_ software implementation */
 

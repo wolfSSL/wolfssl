@@ -20,9 +20,15 @@
  */
 
 
+#ifdef HAVE_CONFIG_H
+    #include <config.h>
+#endif
+
+#include <wolfssl/wolfcrypt/settings.h>
+
 #include <wolfssl/wolfcrypt/types.h>
 
-#if defined(WOLFSSL_TI_HASH)||defined(TI_HASH_TEST)
+#if defined(WOLFSSL_TI_HASH)
 
 #ifdef __cplusplus
     extern "C" {
@@ -39,7 +45,7 @@
 #include <wolfssl/wolfcrypt/port/ti/ti-ccm.h>
 #include <wolfssl/wolfcrypt/logging.h>
 
-#if !defined(TI_HASH_TEST)
+#ifndef TI_DUMMY_BUILD
 #include "inc/hw_memmap.h"
 #include "inc/hw_shamd5.h"
 #include "inc/hw_ints.h"
@@ -47,6 +53,11 @@
 #include "driverlib/sysctl.h"
 #include "driverlib/rom_map.h"
 #include "driverlib/rom.h"
+#else
+#define SHAMD5_ALGO_MD5 1
+#define SHAMD5_ALGO_SHA1 2
+#define SHAMD5_ALGO_SHA256 3
+bool wolfSSL_TI_CCMInit(void) { return true ; }
 #endif
 
 static int hashInit(wolfssl_TI_Hash *hash) {
@@ -76,50 +87,33 @@ static int hashUpdate(wolfssl_TI_Hash *hash, const byte* data, word32 len)
     return 0 ;
 }
 
-static int hashFinal(wolfssl_TI_Hash *hash, byte* result, word32 algo, word32 hsize)
+static int hashGetHash(wolfssl_TI_Hash *hash, byte* result, word32 algo, word32 hsize)
 {   
-    #if !defined(TI_HASH_TEST)
     uint32_t h[16] ;
-
+#ifndef TI_DUMMY_BUILD
     wolfSSL_TI_lockCCM() ;
     ROM_SHAMD5Reset(SHAMD5_BASE);
     ROM_SHAMD5ConfigSet(SHAMD5_BASE, algo);
     ROM_SHAMD5DataProcess(SHAMD5_BASE, 
                    (uint32_t *)hash->msg, hash->used, h);
-    XMEMCPY(result, h, hsize) ;
     wolfSSL_TI_unlockCCM() ;
-    #else
-    (void) result ;
+#else
+    (void) hash ;
     (void) algo ;
-    (void) hsize ;
-    #endif
+#endif
+    XMEMCPY(result, h, hsize) ;
+
+    return 0 ;
+}
+
+static int hashFinal(wolfssl_TI_Hash *hash, byte* result, word32 algo, word32 hsize)
+{   
+    hashGetHash(hash, result, algo, hsize) ;
     XFREE(hash->msg, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     hashInit(hash) ;
     return 0 ;
 }
 
-static int hashGetHash(wolfssl_TI_Hash *hash, byte* result, word32 algo, word32 hsize)
-{   
-    #if !defined(TI_HASH_TEST)
-    uint32_t h[16] ;
-
-    wolfSSL_TI_lockCCM() ;
-    ROM_SHAMD5Reset(SHAMD5_BASE);
-    ROM_SHAMD5ConfigSet(SHAMD5_BASE, algo);
-    ROM_SHAMD5DataProcess(SHAMD5_BASE, 
-                   (uint32_t *)hash->msg, hash->used, h);
-    XMEMCPY(result, h, hsize) ;
-    wolfSSL_TI_unlockCCM() ;
-    #else
-    (void) hash ;
-    (void) result ;
-    (void) algo ;
-    (void) hsize ;
-    #endif
-    return 0 ;
-}
-
-#ifndef TI_HASH_TEST
 static int hashHash(const byte* data, word32 len, byte* hash, word32 algo, word32 hsize)
 {
     int ret = 0;
@@ -149,82 +143,39 @@ static int hashHash(const byte* data, word32 len, byte* hash, word32 algo, word3
 
     return ret;
 }
-#endif
 
 #if !defined(NO_MD5)
-
-#ifdef TI_HASH_TEST
-#define SHAMD5_ALGO_MD5 1
-void wc_InitMd5_ti(Md5* md5) ;
-void wc_Md5Update_ti(Md5* md5, const byte* data, word32 len);
-void wc_Md5Final_ti(Md5* md5, byte* hash);
-bool wolfSSL_TI_CCMInit(void) ;
-bool wolfSSL_TI_CCMInit(void) { return true ; }
-#endif 
-
-#ifdef TI_HASH_TEST
-void wc_InitMd5_ti(Md5* md5)
-#else
-void wc_InitMd5(Md5* md5)
-#endif
+WOLFSSL_API void wc_InitMd5(Md5* md5)
 {
     if (md5 == NULL)
         return ;
     if(!wolfSSL_TI_CCMInit())return  ;
-    #ifdef TI_HASH_TEST
-    hashInit(&(md5->ti)) ;
-    #else
     hashInit((wolfssl_TI_Hash *)md5) ;
-    #endif
 }
 
-#ifdef TI_HASH_TEST
-void wc_Md5Update_ti(Md5* md5, const byte* data, word32 len)
-#else
-void wc_Md5Update(Md5* md5, const byte* data, word32 len)
-#endif
+WOLFSSL_API void wc_Md5Update(Md5* md5, const byte* data, word32 len)
 {
-    #ifdef TI_HASH_TEST
-    hashUpdate(&(md5->ti), data, len) ;
-    #else
     hashUpdate((wolfssl_TI_Hash *)md5, data, len) ;
-    #endif
 }
 
-#ifdef TI_HASH_TEST
-void wc_Md5Final_ti(Md5* md5, byte* hash)
-#else
-void wc_Md5Final(Md5* md5, byte* hash)
-#endif
+WOLFSSL_API void wc_Md5Final(Md5* md5, byte* hash)
 {
-    #ifdef TI_HASH_TEST
-    hashFinal(&(md5->ti), hash, SHAMD5_ALGO_MD5, MD5_DIGEST_SIZE) ;
-    #else
     hashFinal((wolfssl_TI_Hash *)md5, hash, SHAMD5_ALGO_MD5, MD5_DIGEST_SIZE) ;
-    #endif
 }
 
-
-void wc_Md5GetHash_ti(Md5* md5, byte* hash)
+WOLFSSL_API void wc_Md5GetHash(Md5* md5, byte* hash)
 {
-    hashGetHash(&(md5->ti), hash, SHAMD5_ALGO_MD5, MD5_DIGEST_SIZE) ;
-    #ifdef TI_HASH_TEST
-    wc_Md5Final(md5, hash) ;
-    #endif
+    hashGetHash(md5, hash, SHAMD5_ALGO_MD5, MD5_DIGEST_SIZE) ;
 }
 
-#ifndef TI_HASH_TEST
 WOLFSSL_API int wc_Md5Hash(const byte*data, word32 len, byte*hash)
 { 
     return hashHash(data, len, hash, SHAMD5_ALGO_MD5, MD5_DIGEST_SIZE) ;
 }
-#endif
 
 #endif /* NO_MD5 */
 
-#ifndef TI_HASH_TEST
 #if !defined(NO_SHA)
-
 WOLFSSL_API int wc_InitSha(Sha* sha)
 {
     if (sha == NULL)
@@ -242,6 +193,12 @@ WOLFSSL_API int wc_ShaFinal(Sha* sha, byte* hash)
 {
    return hashFinal((wolfssl_TI_Hash *)sha, hash, SHAMD5_ALGO_SHA1, SHA_DIGEST_SIZE) ;
 }
+
+WOLFSSL_API int wc_ShaGetHash(Sha* sha, byte* hash)
+{
+    return hashGetHash(sha, hash, SHAMD5_ALGO_SHA1, SHA_DIGEST_SIZE) ;
+}
+
 WOLFSSL_API int wc_ShaHash(const byte*data, word32 len, byte*hash)
 { 
     return hashHash(data, len, hash, SHAMD5_ALGO_SHA1, SHA_DIGEST_SIZE) ;
@@ -266,6 +223,11 @@ WOLFSSL_API int wc_Sha224Update(Sha224* sha224, const byte* data, word32 len)
 WOLFSSL_API int wc_Sha224Final(Sha224* sha224, byte* hash)
 {
    return hashFinal((wolfssl_TI_Hash *)sha224, hash, SHAMD5_ALGO_SHA224, SHA224_DIGEST_SIZE) ;
+}
+
+WOLFSSL_API int wc_Sha224GetHash(Sha224* sha224, byte* hash)
+{
+    return hashGetHash(sha224, hash, SHAMD5_ALGO_SHA224, SHA224_DIGEST_SIZE) ;
 }
 
 WOLFSSL_API int wc_Sha224Hash(const byte* data, word32 len, byte*hash)
@@ -294,11 +256,15 @@ WOLFSSL_API int wc_Sha256Final(Sha256* sha256, byte* hash)
    return hashFinal((wolfssl_TI_Hash *)sha256, hash, SHAMD5_ALGO_SHA256, SHA256_DIGEST_SIZE) ;
 }
 
+WOLFSSL_API int wc_Sha256GetHash(Sha256* sha256, byte* hash)
+{
+    return hashGetHash(sha256, hash, SHAMD5_ALGO_SHA256, SHA_DIGEST_SIZE) ;
+}
+
 WOLFSSL_API int wc_Sha256Hash(const byte* data, word32 len, byte*hash)
 { 
     return hashHash(data, len, hash, SHAMD5_ALGO_SHA256, SHA256_DIGEST_SIZE) ;
 }
 #endif
-#endif /* TI_HASH_TEST */
 
 #endif

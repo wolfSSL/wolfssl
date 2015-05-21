@@ -166,7 +166,7 @@
 
 #elif defined(WOLFSSL_IT_HASH)
 
-    /* defined in port/ti_md5.c */
+    /* defined in port/ti_hash.c */
 
 #else /* CTaoCrypt software implementation */
 
