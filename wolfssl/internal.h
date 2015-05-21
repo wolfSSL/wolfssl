@@ -906,6 +906,9 @@ enum Misc {
 #if (WOLFSSL_MIN_DHKEY_BITS % 8)
     #error DH minimum bit size must be multiple of 8
 #endif
+#if (WOLFSSL_MIN_DHKEY_BITS > 16000)
+    #error DH minimum bit size must not be greater than 16000
+#endif
 #define MIN_DHKEY_SZ (WOLFSSL_MIN_DHKEY_BITS / 8)
 
 
