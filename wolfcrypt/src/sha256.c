@@ -56,6 +56,9 @@ int wc_Sha256Hash(const byte* data, word32 len, byte* out)
 
 #else /* else build without fips */
 
+#if !defined(NO_SHA256) && !defined(WOLFSSL_TI_HASH)
+    /* defined in port/ti/ti_sha256.c */
+
 #if !defined (ALIGN32)
     #if defined (__GNUC__)
         #define ALIGN32 __attribute__ ( (aligned (32)))
@@ -571,6 +574,22 @@ int wc_Sha256Hash(const byte* data, word32 len, byte* hash)
 #endif
 
     return ret;
+}
+
+#ifdef WOLFSSL_TI_HASH
+#include "wolfssl/wolfcrypt/port/ti/ti-hash.h"
+#endif
+int wc_Sha256GetHash(Sha256* sha256, byte* hash)
+{
+#if defined(WOLFSS_TI_HASH)
+    return wc_Sha256GetHash_TI(sha256, hash) ;
+#else
+    int ret ;
+    Sha256 save = *sha256 ;
+    ret = wc_Sha256Final(sha256, hash) ;
+    *sha256 = save ;
+    return ret ;
+#endif
 }
 
 #if defined(HAVE_INTEL_AVX1) || defined(HAVE_INTEL_AVX2)
@@ -1753,6 +1772,9 @@ static int Transform_AVX2(Sha256* sha256)
 }
 
 #endif   /* HAVE_INTEL_AVX2 */
+
+#endif   /* WOLFSSL_TI_HAHS */
+
 #endif   /* HAVE_FIPS */
 
 #endif /* NO_SHA256 */

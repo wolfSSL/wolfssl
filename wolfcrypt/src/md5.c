@@ -26,7 +26,7 @@
 
 #include <wolfssl/wolfcrypt/settings.h>
 
-#if !defined(NO_MD5)
+#if !defined(NO_MD5) && !defined(WOLFSSL_TI_HASH)
 
 #ifdef WOLFSSL_PIC32MZ_HASH
 #define wc_InitMd5   wc_InitMd5_sw
@@ -164,6 +164,10 @@
         wc_InitMd5(md5);  /* reset state */
     }
 
+#elif defined(WOLFSSL_IT_HASH)
+
+    /* defined in port/ti_md5.c */
+
 #else /* CTaoCrypt software implementation */
 
 #ifndef WOLFSSL_HAVE_MIN
@@ -176,6 +180,11 @@
 
 #endif /* WOLFSSL_HAVE_MIN */
 
+#ifdef TI_HASH_TEST
+void wc_InitMd5_ti(Md5* md5) ;
+void wc_Md5Update_ti(Md5* md5, const byte* data, word32 len) ;
+void wc_Md5Final_ti(Md5* md5, byte* hash) ;
+#endif
 
 void wc_InitMd5(Md5* md5)
 {
@@ -187,6 +196,10 @@ void wc_InitMd5(Md5* md5)
     md5->buffLen = 0;
     md5->loLen   = 0;
     md5->hiLen   = 0;
+
+#ifdef TI_HASH_TEST
+    wc_InitMd5_ti(md5) ;
+#endif
 }
 
 #ifndef FREESCALE_MMCAU
@@ -315,6 +328,10 @@ void wc_Md5Update(Md5* md5, const byte* data, word32 len)
             md5->buffLen = 0;
         }
     }
+#ifdef TI_HASH_TEST
+    wc_Md5Update_ti(md5, data, len) ;
+#endif
+
 }
 
 
@@ -359,6 +376,10 @@ void wc_Md5Final(Md5* md5, byte* hash)
     XMEMCPY(hash, md5->digest, MD5_DIGEST_SIZE);
 
     wc_InitMd5(md5);  /* reset state */
+
+#ifdef TI_HASH_TEST
+    wc_Md5Final_ti(md5, hash) ;
+#endif
 }
 
 #endif /* STM32F2_HASH */
@@ -389,4 +410,17 @@ int wc_Md5Hash(const byte* data, word32 len, byte* hash)
     return 0;
 }
 
+#if defined(WOLFSSL_TI_HASH)||defined(TI_HASH_TEST)
+#include "wolfssl/wolfcrypt/port/ti/ti-hash.h"
+#endif
+void wc_Md5GetHash(Md5* md5, byte* hash)
+{
+#if defined(WOLFSSL_TI_HASH) || defined(TI_HASH_TEST)
+    wc_Md5GetHash_ti(md5, hash) ;
+#else
+    Md5 save = *md5 ;
+    wc_Md5Final(md5, hash) ;
+    *md5 = save ;
+#endif
+}
 #endif /* NO_MD5 */

@@ -37,7 +37,6 @@
     extern "C" {
 #endif
 
-
 /* in bytes */
 enum {
 #ifdef STM32F2_HASH
@@ -53,6 +52,13 @@ enum {
 #include "port/pic32/pic32mz-crypt.h"
 #endif
 
+#ifdef TI_HASH_TEST
+#include "wolfssl/wolfcrypt/port/ti/ti-hash.h"
+#endif
+
+
+#ifndef WOLFSSL_TI_HASH
+
 /* MD5 digest */
 typedef struct Md5 {
     word32  buffLen;   /* in bytes          */
@@ -65,13 +71,26 @@ typedef struct Md5 {
     word32  digest[PIC32_HASH_SIZE / sizeof(word32)];
     pic32mz_desc desc ; /* Crypt Engine descripter */
     #endif
+
+#ifdef TI_HASH_TEST
+    wolfssl_TI_Hash ti ;
+#endif
+
 } Md5;
+
+#if defined(TI_HASH_TEST)
+void wc_Md5GetHash_ti(Md5* md5, byte* hash) ;
+#endif
+
+#else /* WOLFSSL_TI_HASH */
+    #include "wolfssl/wolfcrypt/port/ti/ti-hash.h"
+#endif
 
 WOLFSSL_API void wc_InitMd5(Md5*);
 WOLFSSL_API void wc_Md5Update(Md5*, const byte*, word32);
 WOLFSSL_API void wc_Md5Final(Md5*, byte*);
 WOLFSSL_API int  wc_Md5Hash(const byte*, word32, byte*);
-
+WOLFSSL_API void wc_Md5GetHash(Md5*, byte*);
 
 #ifdef __cplusplus
     } /* extern "C" */

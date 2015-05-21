@@ -191,6 +191,8 @@ if BUILD_PKCS7
 src_libwolfssl_la_SOURCES += wolfcrypt/src/pkcs7.c
 endif
 
+src_libwolfssl_la_SOURCES += wolfcrypt/src/port/ti/ti-hash.c
+
 # ssl files
 src_libwolfssl_la_SOURCES += \
                src/internal.c \
