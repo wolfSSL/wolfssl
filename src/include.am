@@ -74,7 +74,8 @@ endif
 src_libwolfssl_la_SOURCES += \
                wolfcrypt/src/logging.c \
                wolfcrypt/src/wc_port.c \
-               wolfcrypt/src/error.c
+               wolfcrypt/src/error.c\
+               wolfcrypt/src/port/ti/ti-hash.c
 
 if BUILD_MEMORY
 src_libwolfssl_la_SOURCES += wolfcrypt/src/memory.c
@@ -190,8 +191,6 @@ endif
 if BUILD_PKCS7
 src_libwolfssl_la_SOURCES += wolfcrypt/src/pkcs7.c
 endif
-
-src_libwolfssl_la_SOURCES += wolfcrypt/src/port/ti/ti-hash.c
 
 # ssl files
 src_libwolfssl_la_SOURCES += \

@@ -576,20 +576,13 @@ int wc_Sha256Hash(const byte* data, word32 len, byte* hash)
     return ret;
 }
 
-#ifdef WOLFSSL_TI_HASH
-#include "wolfssl/wolfcrypt/port/ti/ti-hash.h"
-#endif
 int wc_Sha256GetHash(Sha256* sha256, byte* hash)
 {
-#if defined(WOLFSS_TI_HASH)
-    return wc_Sha256GetHash_TI(sha256, hash) ;
-#else
     int ret ;
     Sha256 save = *sha256 ;
     ret = wc_Sha256Final(sha256, hash) ;
     *sha256 = save ;
     return ret ;
-#endif
 }
 
 #if defined(HAVE_INTEL_AVX1) || defined(HAVE_INTEL_AVX2)
