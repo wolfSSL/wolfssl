@@ -71,16 +71,7 @@ typedef struct Md5 {
     word32  digest[PIC32_HASH_SIZE / sizeof(word32)];
     pic32mz_desc desc ; /* Crypt Engine descripter */
     #endif
-
-#ifdef TI_HASH_TEST
-    wolfssl_TI_Hash ti ;
-#endif
-
 } Md5;
-
-#if defined(TI_HASH_TEST)
-void wc_Md5GetHash_ti(Md5* md5, byte* hash) ;
-#endif
 
 #else /* WOLFSSL_TI_HASH */
     #include "wolfssl/wolfcrypt/port/ti/ti-hash.h"
