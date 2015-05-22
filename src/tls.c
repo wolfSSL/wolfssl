@@ -72,7 +72,7 @@ static int p_hash(byte* result, word32 resLen, const byte* secret,
 #ifdef WOLFSSL_SMALL_STACK
     byte*  previous;
     byte*  current;
-    Hmac*  hmac;    
+    Hmac*  hmac;
 #else
     byte   previous[P_HASH_MAX_SIZE];  /* max size */
     byte   current[P_HASH_MAX_SIZE];   /* max size */
@@ -147,7 +147,7 @@ static int p_hash(byte* result, word32 resLen, const byte* secret,
                         break;
 
                     if ((i == lastTime) && lastLen)
-                        XMEMCPY(&result[idx], current, 
+                        XMEMCPY(&result[idx], current,
                                                  min(lastLen, P_HASH_MAX_SIZE));
                     else {
                         XMEMCPY(&result[idx], current, len);
@@ -187,7 +187,7 @@ static INLINE void get_xor(byte *digest, word32 digLen, byte* md5, byte* sha)
 {
     word32 i;
 
-    for (i = 0; i < digLen; i++) 
+    for (i = 0; i < digLen; i++)
         digest[i] = md5[i] ^ sha[i];
 }
 
@@ -288,7 +288,7 @@ static int PRF(byte* digest, word32 digLen, const byte* secret, word32 secLen,
 
         if (labLen + seedLen > MAX_PRF_LABSEED)
             return BUFFER_E;
-        
+
 #ifdef WOLFSSL_SMALL_STACK
         labelSeed = (byte*)XMALLOC(MAX_PRF_LABSEED, NULL,
                                                        DYNAMIC_TYPE_TMP_BUFFER);
@@ -430,7 +430,7 @@ int wolfSSL_DeriveTlsKeys(byte* key_data, word32 keyLen,
 int DeriveTlsKeys(WOLFSSL* ssl)
 {
     int   ret;
-    int   length = 2 * ssl->specs.hash_size + 
+    int   length = 2 * ssl->specs.hash_size +
                    2 * ssl->specs.key_size  +
                    2 * ssl->specs.iv_size;
 #ifdef WOLFSSL_SMALL_STACK
@@ -586,9 +586,9 @@ static INLINE word32 GetSEQIncrement(WOLFSSL* ssl, int verify)
     }
 #endif
     if (verify)
-        return ssl->keys.peer_sequence_number++; 
+        return ssl->keys.peer_sequence_number++;
     else
-        return ssl->keys.sequence_number++; 
+        return ssl->keys.sequence_number++;
 }
 
 
@@ -640,10 +640,10 @@ int wolfSSL_GetHmacType(WOLFSSL* ssl)
             return SHA;
         }
         #endif
-        #ifdef HAVE_BLAKE2 
+        #ifdef HAVE_BLAKE2
         case blake2b_mac:
         {
-            return BLAKE2B_ID; 
+            return BLAKE2B_ID;
         }
         #endif
         default:
@@ -667,7 +667,7 @@ int wolfSSL_SetTlsHmacInner(WOLFSSL* ssl, byte* inner, word32 sz, int content,
         c16toa((word16)GetEpoch(ssl, verify), inner);
 #endif
     c32toa(GetSEQIncrement(ssl, verify), &inner[sizeof(word32)]);
-    inner[SEQ_SZ] = (byte)content;                          
+    inner[SEQ_SZ] = (byte)content;
     inner[SEQ_SZ + ENUM_LEN]            = ssl->version.major;
     inner[SEQ_SZ + ENUM_LEN + ENUM_LEN] = ssl->version.minor;
     c16toa((word16)sz, inner + SEQ_SZ + ENUM_LEN + VERSION_SZ);
@@ -686,7 +686,7 @@ int TLS_hmac(WOLFSSL* ssl, byte* digest, const byte* in, word32 sz,
 
     if (ssl == NULL)
         return BAD_FUNC_ARG;
-    
+
 #ifdef HAVE_FUZZER
     if (ssl->fuzzerCb)
         ssl->fuzzerCb(ssl, in, sz, FUZZ_HMAC, ssl->fuzzerCtx);
@@ -735,7 +735,7 @@ static INLINE word16 TLSX_ToSemaphore(word16 type)
                 WOLFSSL_MSG("### TLSX semaphore colision or overflow detected!");
             }
     }
-    
+
     return type;
 }
 
@@ -1044,7 +1044,7 @@ int TLSX_UseSNI(TLSX** extensions, byte type, const void* data, word16 size)
         return ret;
 
     if (!extension) {
-        if ((ret = TLSX_Push(extensions, SERVER_NAME_INDICATION, (void*)sni)) 
+        if ((ret = TLSX_Push(extensions, SERVER_NAME_INDICATION, (void*)sni))
                                                                          != 0) {
             TLSX_SNI_Free(sni);
             return ret;
@@ -1053,7 +1053,7 @@ int TLSX_UseSNI(TLSX** extensions, byte type, const void* data, word16 size)
     else {
         /* push new SNI object to extension data. */
         sni->next = (SNI*)extension->data;
-        extension->data = (void*)sni;        
+        extension->data = (void*)sni;
 
         /* look for another server name of the same type to remove */
         do {
@@ -1626,7 +1626,7 @@ int TLSX_UseSupportedCurve(TLSX** extensions, word16 name)
 
                 break;
             }
-        } while ((curve = curve->next));        
+        } while ((curve = curve->next));
     }
 
     return SSL_SUCCESS;
@@ -1680,7 +1680,7 @@ static byte TLSX_SecureRenegotiation_GetSize(SecureRenegotiation* data,
 
 static word16 TLSX_SecureRenegotiation_Write(SecureRenegotiation* data,
                                                     byte* output, int isRequest)
-{   
+{
     word16 offset = OPAQUE8_LEN; /* RenegotiationInfo length */
 
     if (data->enabled) {
@@ -1696,11 +1696,11 @@ static word16 TLSX_SecureRenegotiation_Write(SecureRenegotiation* data,
     }
 
     output[0] = offset - 1;  /* info length - self */
-    
+
     return offset;
-}   
-    
-static int TLSX_SecureRenegotiation_Parse(WOLFSSL* ssl, byte* input, 
+}
+
+static int TLSX_SecureRenegotiation_Parse(WOLFSSL* ssl, byte* input,
                                                   word16 length, byte isRequest)
 {
     int ret = SECURE_RENEGOTIATION_E;
@@ -1726,7 +1726,7 @@ static int TLSX_SecureRenegotiation_Parse(WOLFSSL* ssl, byte* input,
             if (!ssl->secure_renegotiation->enabled) {
                 if (*input == 0) {
                     ssl->secure_renegotiation->enabled = 1;
-                    ret = 0;                    
+                    ret = 0;
                 }
             }
             else if (*input == 2 * TLS_FINISHED_SZ) {
@@ -1749,7 +1749,7 @@ int TLSX_UseSecureRenegotiation(TLSX** extensions)
 {
     int ret = 0;
     SecureRenegotiation* data = NULL;
-    
+
     data = (SecureRenegotiation*)XMALLOC(sizeof(SecureRenegotiation), NULL,
                                                              DYNAMIC_TYPE_TLSX);
     if (data == NULL)
@@ -2362,7 +2362,7 @@ int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte isRequest,
 #endif
 #ifndef NO_OLD_TLS
             method->downgrade = 1;
-#endif 
+#endif
         }
         return method;
     }

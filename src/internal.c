@@ -3669,7 +3669,7 @@ static int MatchDomainName(const char* pattern, int len, const char* str)
             break;
 
         if (p == '*') {
-            while (--len > 0 && 
+            while (--len > 0 &&
                          (p = (char)XTOLOWER((unsigned char)*pattern++)) == '*')
                 ;
 
