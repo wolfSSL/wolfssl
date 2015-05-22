@@ -230,6 +230,10 @@ void wc_AesFreeCavium(Aes* aes)
                                     word32 length);
     static int  wc_AesCaviumCbcDecrypt(Aes* aes, byte* out, const byte* in,
                                     word32 length);
+#elif defined(WOLFSSL_TI_CRYPT)
+    
+    /* defined in port/ti_aes.c */
+
 #else
     /* using CTaoCrypt software AES implementation */
     #define NEED_AES_TABLES
@@ -1505,6 +1509,11 @@ static void wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
     {
         return wc_AesSetKey(aes, userKey, keylen, iv, dir);
     }
+    
+#elif defined(WOLFSSL_TI_CRYPT)
+    
+    /* defined in port/ti_md5.c */
+
 #else
     static int wc_AesSetKeyLocal(Aes* aes, const byte* userKey, word32 keylen,
                 const byte* iv, int dir)
@@ -1775,17 +1784,21 @@ int wc_AesCbcDecryptWithKey(byte* out, const byte* in, word32 inSz,
     #elif defined(WOLFSSL_PIC32MZ_CRYPT)
         #error "PIC32MZ doesn't yet support AES direct"
 
+    #elif defined(WOLFSSL_TI_CRYPT)
+    
+        /* defined in port/ti_aes.c */
+    
     #else
         /* Allow direct access to one block encrypt */
         void wc_AesEncryptDirect(Aes* aes, byte* out, const byte* in)
         {
-            return wc_AesEncrypt(aes, in, out);
+            wc_AesEncrypt(aes, in, out);
         }
 
         /* Allow direct access to one block decrypt */
         void wc_AesDecryptDirect(Aes* aes, byte* out, const byte* in)
         {
-            return wc_AesDecrypt(aes, in, out);
+            wc_AesDecrypt(aes, in, out);
         }
 
     #endif /* FREESCALE_MMCAU, AES direct block */
@@ -2309,6 +2322,10 @@ int wc_AesCbcDecryptWithKey(byte* out, const byte* in, word32 inSz,
         return 0 ;
     }
 
+#elif defined(WOLFSSL_TI_CRYPT)
+    
+    /* defined in port/ti_aes.c */    
+
 #else
     int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
     {
@@ -2589,7 +2606,10 @@ int wc_AesCbcDecryptWithKey(byte* out, const byte* in, word32 inSz,
 
     #elif defined(FREESCALE_MMCAU)
         #error "Freescale mmCAU doesn't currently support AES-CTR mode"
-
+    
+    #elif defined(WOLFSSL_TI_CRYPT)
+        /* defined in port/ti/ti_aes.c */
+    
     #else
         /* Increment AES counter */
         static INLINE void IncrementAesCounter(byte* inOutCtr)
@@ -2671,7 +2691,7 @@ enum {
     CTR_SZ = 4
 };
 
-
+#if !defined(WOLFSSL_TI_CRYPT)
 static INLINE void InitGcmCounter(byte* inOutCtr)
 {
     inOutCtr[AES_BLOCK_SIZE - 4] = 0;
@@ -2776,6 +2796,10 @@ int wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len)
     if (ret == 0) {
     #ifdef FREESCALE_MMCAU
         cau_aes_encrypt(iv, rk, aes->rounds, aes->H);
+   
+    #elif defined(WOLFSSL_TI_CRYPT)
+        /* defined in port/ti/ti_aes.c */
+    
     #else
         wc_AesEncrypt(aes, iv, aes->H);
     #endif
@@ -3289,8 +3313,7 @@ static void GHASH(Aes* aes, const byte* a, word32 aSz,
 }
 
 #endif /* end GCM_WORD32 */
-
-
+ 
 int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
                    const byte* iv, word32 ivSz,
                    byte* authTag, word32 authTagSz,
@@ -3445,8 +3468,7 @@ int  wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     }
     return 0;
 }
-
-
+#endif
 
 WOLFSSL_API int wc_GmacSetKey(Gmac* gmac, const byte* key, word32 len)
 {
@@ -3478,6 +3500,7 @@ WOLFSSL_API int wc_GmacUpdate(Gmac* gmac, const byte* iv, word32 ivSz,
 
 #endif
 
+#if !defined(WOLFSSL_TI_CRYPT)
 void wc_AesCcmSetKey(Aes* aes, const byte* key, word32 keySz)
 {
     byte nonce[AES_BLOCK_SIZE];
@@ -3758,6 +3781,7 @@ int  wc_AesCcmDecrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
 
     return result;
 }
+#endif /* WOLFCRYPT_TI_CRYPT */
 
 #endif /* HAVE_AESCCM */
 

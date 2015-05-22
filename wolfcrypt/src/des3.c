@@ -944,6 +944,9 @@ int  wc_Des3_SetIV(Des3* des, const byte* iv);
         return 0;
     }
 
+#elif defined(WOLFSSL_TI_CRYPT)
+    /* defined in port/ti/ti-des3.c */
+    
 #else /* CTaoCrypt software implementation */
 
 /* permuted choice table (key) */
