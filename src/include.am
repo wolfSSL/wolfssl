@@ -49,7 +49,8 @@ endif
 src_libwolfssl_la_SOURCES += \
                wolfcrypt/src/hmac.c \
                wolfcrypt/src/random.c \
-               wolfcrypt/src/sha256.c
+               wolfcrypt/src/sha256.c \
+               wolfcrypt/src/hash.c
 
 if BUILD_RSA
 src_libwolfssl_la_SOURCES += wolfcrypt/src/rsa.c
@@ -74,8 +75,7 @@ endif
 src_libwolfssl_la_SOURCES += \
                wolfcrypt/src/logging.c \
                wolfcrypt/src/wc_port.c \
-               wolfcrypt/src/error.c\
-               wolfcrypt/src/port/ti/ti-hash.c
+               wolfcrypt/src/error.c
 
 if BUILD_MEMORY
 src_libwolfssl_la_SOURCES += wolfcrypt/src/memory.c
