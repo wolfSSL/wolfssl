@@ -392,10 +392,4 @@ int wc_Md5Hash(const byte* data, word32 len, byte* hash)
     return 0;
 }
 
-void wc_Md5GetHash(Md5* md5, byte* hash)
-{
-    Md5 save = *md5 ;
-    wc_Md5Final(md5, hash) ;
-    *md5 = save ;
-}
 #endif /* NO_MD5 */

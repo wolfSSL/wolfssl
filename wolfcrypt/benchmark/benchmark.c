@@ -1846,9 +1846,8 @@ void bench_ed25519KeySign(void)
         return ( ns / CLOCK * 2.0);
     }
 
-#elif defined(WOLFSSL_IAR_ARM_TIME) || defined (WOLFSSL_MDK_ARM)
+#elif defined(WOLFSSL_IAR_ARM_TIME) || defined (WOLFSSL_MDK_ARM) || defined(WOLFSSL_USER_TIME)
     extern   double current_time(int reset);
-
     
 #elif defined FREERTOS
 

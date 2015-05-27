@@ -452,15 +452,6 @@ int wc_ShaHash(const byte* data, word32 len, byte* hash)
 
 }
 
-int wc_ShaGetHash(Sha* sha, byte* hash)
-{
-    int ret ;
-    Sha save = *sha ;
-    ret = wc_ShaFinal(sha, hash) ;
-    *sha = save ;
-    return ret ;
-}
-
 #endif /* HAVE_FIPS */
 #endif /* NO_SHA */
 

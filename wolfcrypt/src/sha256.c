@@ -576,15 +576,6 @@ int wc_Sha256Hash(const byte* data, word32 len, byte* hash)
     return ret;
 }
 
-int wc_Sha256GetHash(Sha256* sha256, byte* hash)
-{
-    int ret ;
-    Sha256 save = *sha256 ;
-    ret = wc_Sha256Final(sha256, hash) ;
-    *sha256 = save ;
-    return ret ;
-}
-
 #if defined(HAVE_INTEL_AVX1) || defined(HAVE_INTEL_AVX2)
 
 #define _DigestToReg(S_0, S_1, S_2, S_3, S_4, S_5, S_6, S_7 )\
