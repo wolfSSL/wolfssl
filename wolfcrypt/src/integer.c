@@ -1721,15 +1721,26 @@ int mp_dr_is_modulus(mp_int *a)
 int mp_exptmod_fast (mp_int * G, mp_int * X, mp_int * P, mp_int * Y,
                      int redmode)
 {
-  mp_int  M[TAB_SIZE], res;
+  mp_int res;
   mp_digit buf, mp;
   int     err, bitbuf, bitcpy, bitcnt, mode, digidx, x, y, winsize;
-
+#ifdef WOLFSSL_SMALL_STACK
+  mp_int* M = NULL;
+#else
+  mp_int M[TAB_SIZE];
+#endif
   /* use a pointer to the reduction algorithm.  This allows us to use
    * one of many reduction algorithms without modding the guts of
    * the code with if statements everywhere.
    */
   int     (*redux)(mp_int*,mp_int*,mp_digit);
+
+#ifdef WOLFSSL_SMALL_STACK
+  M = (mp_int*) XMALLOC(sizeof(mp_int) * TAB_SIZE, NULL,
+                                                       DYNAMIC_TYPE_TMP_BUFFER);
+  if (M == NULL)
+    return MP_MEM;
+#endif
 
   /* find window size */
   x = mp_count_bits (X);
@@ -1758,6 +1769,10 @@ int mp_exptmod_fast (mp_int * G, mp_int * X, mp_int * P, mp_int * Y,
   /* init M array */
   /* init first cell */
   if ((err = mp_init(&M[1])) != MP_OKAY) {
+#ifdef WOLFSSL_SMALL_STACK
+  XFREE(M, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+
      return err;
   }
 
@@ -1768,6 +1783,11 @@ int mp_exptmod_fast (mp_int * G, mp_int * X, mp_int * P, mp_int * Y,
         mp_clear (&M[y]);
       }
       mp_clear(&M[1]);
+
+#ifdef WOLFSSL_SMALL_STACK
+      XFREE(M, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+
       return err;
     }
   }
@@ -2002,6 +2022,11 @@ LBL_M:
   for (x = 1<<(winsize-1); x < (1 << winsize); x++) {
     mp_clear (&M[x]);
   }
+
+#ifdef WOLFSSL_SMALL_STACK
+  XFREE(M, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+
   return err;
 }
 
