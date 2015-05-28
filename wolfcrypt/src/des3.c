@@ -129,6 +129,11 @@ void wc_Des3_FreeCavium(Des3* des3)
 
 #endif /* HAVE_CAVIUM */
 #else /* build without fips */
+
+#if defined(WOLFSSL_TI_CRYPT)
+    #include <wolfcrypt/src/port/ti/ti-des3.c>
+#else
+
 #include <wolfssl/wolfcrypt/error-crypt.h>
 #include <wolfssl/wolfcrypt/logging.h>
 
@@ -943,9 +948,6 @@ int  wc_Des3_SetIV(Des3* des, const byte* iv);
                 PIC32_DECRYPTION, PIC32_ALGO_TDES, PIC32_CRYPTOALGO_TCBC);
         return 0;
     }
-
-#elif defined(WOLFSSL_TI_CRYPT)
-    /* defined in port/ti/ti-des3.c */
     
 #else /* CTaoCrypt software implementation */
 
@@ -1671,5 +1673,6 @@ static int wc_Des3_CaviumCbcDecrypt(Des3* des3, byte* out, const byte* in,
 }
 
 #endif /* HAVE_CAVIUM */
+#endif /* WOLFSSL_TI_CRYPT */
 #endif /* HAVE_FIPS */
 #endif /* NO_DES3 */

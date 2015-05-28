@@ -26,7 +26,12 @@
 
 #include <wolfssl/wolfcrypt/settings.h>
 
-#if !defined(NO_MD5) && !defined(WOLFSSL_TI_HASH)
+#if !defined(NO_MD5)
+
+#if defined(WOLFSSL_TI_HASH)
+    #define WOLFSSL_TI_MD5
+    #include <wolfcrypt/src/port/ti/ti-hash.c>
+#else
 
 #ifdef WOLFSSL_PIC32MZ_HASH
 #define wc_InitMd5   wc_InitMd5_sw
@@ -163,10 +168,6 @@
 
         wc_InitMd5(md5);  /* reset state */
     }
-
-#elif defined(WOLFSSL_IT_HASH)
-
-    /* defined in port/ti_hash.c */
 
 #else /* CTaoCrypt software implementation */
 
@@ -391,5 +392,7 @@ int wc_Md5Hash(const byte* data, word32 len, byte* hash)
 
     return 0;
 }
+
+#endif /* WOLFSSL_TI_HASH */
 
 #endif /* NO_MD5 */

@@ -52,11 +52,6 @@ enum {
 #include "port/pic32/pic32mz-crypt.h"
 #endif
 
-#ifdef TI_HASH_TEST
-#include "wolfssl/wolfcrypt/port/ti/ti-hash.h"
-#endif
-
-
 #ifndef WOLFSSL_TI_HASH
 
 /* MD5 digest */
@@ -81,7 +76,6 @@ WOLFSSL_API void wc_InitMd5(Md5*);
 WOLFSSL_API void wc_Md5Update(Md5*, const byte*, word32);
 WOLFSSL_API void wc_Md5Final(Md5*, byte*);
 WOLFSSL_API int  wc_Md5Hash(const byte*, word32, byte*);
-WOLFSSL_API void wc_Md5GetHash(Md5*, byte*);
 
 #ifdef __cplusplus
     } /* extern "C" */

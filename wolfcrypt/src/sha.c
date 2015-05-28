@@ -26,7 +26,7 @@
 
 #include <wolfssl/wolfcrypt/settings.h>
 
-#if !defined(NO_SHA) && !defined(WOLFSSL_TI_HASH)
+#if !defined(NO_SHA)
 
 #include <wolfssl/wolfcrypt/sha.h>
 #include <wolfssl/wolfcrypt/logging.h>
@@ -63,6 +63,11 @@
     }
 
 #else /* else build without fips */
+
+#if defined(WOLFSSL_TI_HASH)
+    #define WOLFSSL_TI_SHA
+    #include <wolfcrypt/src/port/ti/ti-hash.c>
+#else
 
 #ifdef WOLFSSL_PIC32MZ_HASH
 #define wc_InitSha   wc_InitSha_sw
@@ -195,10 +200,6 @@ int wc_ShaFinal(Sha* sha, byte* hash)
 
     return wc_InitSha(sha);  /* reset state */
 }
-
-#elif defined(WOLFSSL_TI_HASH)
- 
-    /* defined in port/ti/ti_hash.c */
 
 #else /* wc_ software implementation */
 
@@ -453,5 +454,6 @@ int wc_ShaHash(const byte* data, word32 len, byte* hash)
 }
 
 #endif /* HAVE_FIPS */
+#endif /* WOLFSSL_TI_HASH */
 #endif /* NO_SHA */
 
