@@ -433,13 +433,15 @@ typedef byte word24[3];
             #endif
         #endif
         #if !defined(NO_DES3)
-            #if !defined(NO_RSA)
-                #define BUILD_TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA
-                #define BUILD_TLS_ECDH_RSA_WITH_3DES_EDE_CBC_SHA
-            #endif
+            #ifndef NO_SHA
+                #if !defined(NO_RSA)
+                    #define BUILD_TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA
+                    #define BUILD_TLS_ECDH_RSA_WITH_3DES_EDE_CBC_SHA
+                #endif
 
-            #define BUILD_TLS_ECDHE_ECDSA_WITH_3DES_EDE_CBC_SHA
-            #define BUILD_TLS_ECDH_ECDSA_WITH_3DES_EDE_CBC_SHA
+                #define BUILD_TLS_ECDHE_ECDSA_WITH_3DES_EDE_CBC_SHA
+                #define BUILD_TLS_ECDH_ECDSA_WITH_3DES_EDE_CBC_SHA
+            #endif /* NO_SHA */
         #endif
     #endif
 
@@ -1152,10 +1154,10 @@ struct WOLFSSL_CIPHER {
 
 typedef struct OCSP_Entry OCSP_Entry;
 
-#ifdef SHA_DIGEST_SIZE
-    #define OCSP_DIGEST_SIZE SHA_DIGEST_SIZE
+#ifdef NO_SHA
+    #define OCSP_DIGEST_SIZE SHA256_DIGEST_SIZE
 #else
-    #define OCSP_DIGEST_SIZE 160
+    #define OCSP_DIGEST_SIZE SHA_DIGEST_SIZE
 #endif
 
 #ifdef NO_ASN 
@@ -1189,10 +1191,10 @@ struct WOLFSSL_OCSP {
 
 typedef struct CRL_Entry CRL_Entry;
 
-#ifdef SHA_DIGEST_SIZE
-    #define CRL_DIGEST_SIZE SHA_DIGEST_SIZE
+#ifdef NO_SHA
+    #define CRL_DIGEST_SIZE SHA256_DIGEST_SIZE
 #else
-    #define CRL_DIGEST_SIZE 160
+    #define CRL_DIGEST_SIZE SHA_DIGEST_SIZE
 #endif
 
 #ifdef NO_ASN 

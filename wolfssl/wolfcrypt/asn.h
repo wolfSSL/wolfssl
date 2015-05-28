@@ -48,6 +48,7 @@
 #ifndef NO_MD5
     #include <wolfssl/wolfcrypt/md5.h>
 #endif
+#include <wolfssl/wolfcrypt/sha256.h>
 #include <wolfssl/wolfcrypt/asn_public.h>   /* public interface */
 #ifdef HAVE_ECC
     #include <wolfssl/wolfcrypt/ecc.h>
@@ -138,7 +139,11 @@ enum Misc_ASN {
     ASN_BOOL_SIZE       =   2,     /* including type */
     ASN_ECC_HEADER_SZ   =   2,     /* String type + 1 byte len */
     ASN_ECC_CONTEXT_SZ  =   2,     /* Content specific type + 1 byte len */
-    SHA_SIZE            =  20,
+#ifdef NO_SHA
+    KEYID_SIZE          = SHA256_DIGEST_SIZE,
+#else
+    KEYID_SIZE          = SHA_DIGEST_SIZE,
+#endif
     RSA_INTS            =   8,     /* RSA ints in private key */
     MIN_DATE_SIZE       =  13,
     MAX_DATE_SIZE       =  32,
@@ -353,10 +358,10 @@ struct DecodedCert {
     Base_entry* permittedNames;      /* Permitted name bases             */
     Base_entry* excludedNames;       /* Excluded name bases              */
 #endif /* IGNORE_NAME_CONSTRAINTS */
-    byte    subjectHash[SHA_SIZE];   /* hash of all Names                */
-    byte    issuerHash[SHA_SIZE];    /* hash of all Names                */
+    byte    subjectHash[KEYID_SIZE]; /* hash of all Names                */
+    byte    issuerHash[KEYID_SIZE];  /* hash of all Names                */
 #ifdef HAVE_OCSP
-    byte    issuerKeyHash[SHA_SIZE]; /* hash of the public Key           */
+    byte    issuerKeyHash[KEYID_SIZE]; /* hash of the public Key         */
 #endif /* HAVE_OCSP */
     byte*   signature;               /* not owned, points into raw cert  */
     char*   subjectCN;               /* CommonName                       */
@@ -379,9 +384,9 @@ struct DecodedCert {
     int     extAuthInfoSz;           /* length of the URI                */
     byte*   extCrlInfo;              /* CRL Distribution Points          */
     int     extCrlInfoSz;            /* length of the URI                */
-    byte    extSubjKeyId[SHA_SIZE];  /* Subject Key ID                   */
+    byte    extSubjKeyId[KEYID_SIZE]; /* Subject Key ID                  */
     byte    extSubjKeyIdSet;         /* Set when the SKID was read from cert */
-    byte    extAuthKeyId[SHA_SIZE];  /* Authority Key ID                 */
+    byte    extAuthKeyId[KEYID_SIZE]; /* Authority Key ID                */
     byte    extAuthKeyIdSet;         /* Set when the AKID was read from cert */
 #ifndef IGNORE_NAME_CONSTRAINTS
     byte    extNameConstraintSet;
@@ -471,10 +476,10 @@ struct DecodedCert {
 };
 
 
-#ifdef SHA_DIGEST_SIZE
-    #define SIGNER_DIGEST_SIZE SHA_DIGEST_SIZE
+#ifdef NO_SHA
+    #define SIGNER_DIGEST_SIZE SHA256_DIGEST_SIZE
 #else
-    #define SIGNER_DIGEST_SIZE 20
+    #define SIGNER_DIGEST_SIZE SHA_DIGEST_SIZE
 #endif
 
 /* CA Signers */
@@ -710,8 +715,8 @@ struct DecodedCRL {
     word32  sigLength;               /* length of signature              */
     word32  signatureOID;            /* sum of algorithm object id       */
     byte*   signature;               /* pointer into raw source, not owned */
-    byte    issuerHash[SHA_DIGEST_SIZE];  /* issuer hash                 */
-    byte    crlHash[SHA_DIGEST_SIZE];     /* raw crl data hash           */
+    byte    issuerHash[SIGNER_DIGEST_SIZE]; /* issuer hash               */
+    byte    crlHash[SIGNER_DIGEST_SIZE]; /* raw crl data hash            */
     byte    lastDate[MAX_DATE_SIZE]; /* last date updated  */
     byte    nextDate[MAX_DATE_SIZE]; /* next update date   */
     byte    lastDateFormat;          /* format of last date */

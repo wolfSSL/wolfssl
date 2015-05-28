@@ -4409,9 +4409,10 @@ int openssl_test(void)
 {
     EVP_MD_CTX md_ctx;
     testVector a, b, c, d, e, f;
-    byte       hash[SHA_DIGEST_SIZE*4];  /* max size */
+    byte       hash[SHA256_DIGEST_SIZE*2];  /* max size */
 
     (void)a;
+    (void)b;
     (void)c;
     (void)e;
     (void)f;
@@ -4436,6 +4437,8 @@ int openssl_test(void)
 
 #endif /* NO_MD5 */
 
+#ifndef NO_SHA
+
     b.input  = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
                "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
                "aaaaaaaaaa";
@@ -4452,6 +4455,8 @@ int openssl_test(void)
 
     if (memcmp(hash, b.output, SHA_DIGEST_SIZE) != 0)
         return -72;
+
+#endif /* NO_SHA */
 
 
     d.input  = "abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq";
@@ -4656,22 +4661,22 @@ int pkcs12_test(void)
     byte  derived[64];
 
     const byte verify[] = {
-        0x8A, 0xAA, 0xE6, 0x29, 0x7B, 0x6C, 0xB0, 0x46,
-        0x42, 0xAB, 0x5B, 0x07, 0x78, 0x51, 0x28, 0x4E,
-        0xB7, 0x12, 0x8F, 0x1A, 0x2A, 0x7F, 0xBC, 0xA3
+        0x27, 0xE9, 0x0D, 0x7E, 0xD5, 0xA1, 0xC4, 0x11,
+        0xBA, 0x87, 0x8B, 0xC0, 0x90, 0xF5, 0xCE, 0xBE,
+        0x5E, 0x9D, 0x5F, 0xE3, 0xD6, 0x2B, 0x73, 0xAA
     };
 
     const byte verify2[] = {
-        0x48, 0x3D, 0xD6, 0xE9, 0x19, 0xD7, 0xDE, 0x2E,
-        0x8E, 0x64, 0x8B, 0xA8, 0xF8, 0x62, 0xF3, 0xFB,
-        0xFB, 0xDC, 0x2B, 0xCB, 0x2C, 0x02, 0x95, 0x7F
+        0x90, 0x1B, 0x49, 0x70, 0xF0, 0x94, 0xF0, 0xF8,
+        0x45, 0xC0, 0xF3, 0xF3, 0x13, 0x59, 0x18, 0x6A,
+        0x35, 0xE3, 0x67, 0xFE, 0xD3, 0x21, 0xFD, 0x7C
     };
 
     int id         =  1;
     int kLen       = 24;
     int iterations =  1;
-    int ret = wc_PKCS12_PBKDF(derived, passwd, sizeof(passwd), salt, 8, iterations,
-                           kLen, SHA, id);
+    int ret = wc_PKCS12_PBKDF(derived, passwd, sizeof(passwd), salt, 8,
+                                                  iterations, kLen, SHA256, id);
 
     if (ret < 0)
         return -103;
@@ -4680,8 +4685,8 @@ int pkcs12_test(void)
         return -104;
 
     iterations = 1000;
-    ret = wc_PKCS12_PBKDF(derived, passwd2, sizeof(passwd2), salt2, 8, iterations,
-                       kLen, SHA, id);
+    ret = wc_PKCS12_PBKDF(derived, passwd2, sizeof(passwd2), salt2, 8,
+                                                  iterations, kLen, SHA256, id);
     if (ret < 0)
         return -105;
 
@@ -4701,12 +4706,12 @@ int pbkdf2_test(void)
     byte  derived[64];
 
     const byte verify[] = {
-        0xba, 0x9b, 0x3b, 0x95, 0x04, 0x4d, 0x78, 0x11, 0xec, 0xa1, 0xff, 0x3f,
-        0xea, 0x3a, 0xdb, 0x55, 0x3e, 0x54, 0x0b, 0xa0, 0x9f, 0xad, 0xe6, 0x81
+        0x43, 0x6d, 0xb5, 0xe8, 0xd0, 0xfb, 0x3f, 0x35, 0x42, 0x48, 0x39, 0xbc,
+        0x2d, 0xd4, 0xf9, 0x37, 0xd4, 0x95, 0x16, 0xa7, 0x2a, 0x9a, 0x21, 0xd1
     };
 
     int ret = wc_PBKDF2(derived, (byte*)passwd, (int)strlen(passwd), salt, 8,
-                                                         iterations, kLen, SHA);
+                                                      iterations, kLen, SHA256);
     if (ret != 0)
         return ret;
 
@@ -4717,6 +4722,7 @@ int pbkdf2_test(void)
 }
 
 
+#ifndef NO_SHA
 int pbkdf1_test(void)
 {
     char passwd[] = "password";
@@ -4738,11 +4744,15 @@ int pbkdf1_test(void)
 
     return 0;
 }
+#endif
 
 
 int pwdbased_test(void)
 {
-   int ret =  pbkdf1_test();
+   int ret = 0;
+#ifndef NO_SHA
+   ret += pbkdf1_test();
+#endif
    ret += pbkdf2_test();
 
    return ret + pkcs12_test();
@@ -4968,7 +4978,8 @@ int ecc_test(void)
     if (ret != 0)
         return -1017;
 
-#if (defined(HAVE_ECC192) && defined(HAVE_ECC224)) || defined(HAVE_ALL_CURVES)
+#if !defined(NO_SHA) && \
+    ((defined(HAVE_ECC192) && defined(HAVE_ECC224)) || defined(HAVE_ALL_CURVES))
     {
         /* test raw ECC key import */
         Sha sha;

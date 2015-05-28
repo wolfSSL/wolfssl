@@ -188,7 +188,7 @@ int wc_PKCS7_InitWithCert(PKCS7* pkcs7, byte* cert, word32 certSz)
 
         XMEMCPY(pkcs7->publicKey, dCert->publicKey, dCert->pubKeySize);
         pkcs7->publicKeySz = dCert->pubKeySize;
-        XMEMCPY(pkcs7->issuerHash, dCert->issuerHash, SHA_SIZE);
+        XMEMCPY(pkcs7->issuerHash, dCert->issuerHash, KEYID_SIZE);
         pkcs7->issuer = dCert->issuerRaw;
         pkcs7->issuerSz = dCert->issuerRawLen;
         XMEMCPY(pkcs7->issuerSn, dCert->serial, dCert->serialSz);

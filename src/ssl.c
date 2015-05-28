@@ -1797,7 +1797,7 @@ int AlreadySigner(WOLFSSL_CERT_MANAGER* cm, byte* hash)
         #else
             subjectHash = signers->subjectNameHash;
         #endif
-        if (XMEMCMP(hash, subjectHash, SHA_DIGEST_SIZE) == 0) {
+        if (XMEMCMP(hash, subjectHash, SIGNER_DIGEST_SIZE) == 0) {
             ret = 1;
             break;
         }
@@ -1831,7 +1831,7 @@ Signer* GetCA(void* vp, byte* hash)
         #else
             subjectHash = signers->subjectNameHash;
         #endif
-        if (XMEMCMP(hash, subjectHash, SHA_DIGEST_SIZE) == 0) {
+        if (XMEMCMP(hash, subjectHash, SIGNER_DIGEST_SIZE) == 0) {
             ret = signers;
             break;
         }
@@ -1861,7 +1861,8 @@ Signer* GetCAByName(void* vp, byte* hash)
     for (row = 0; row < CA_TABLE_SIZE && ret == NULL; row++) {
         signers = cm->caTable[row];
         while (signers && ret == NULL) {
-            if (XMEMCMP(hash, signers->subjectNameHash, SHA_DIGEST_SIZE) == 0) {
+            if (XMEMCMP(hash,
+                           signers->subjectNameHash, SIGNER_DIGEST_SIZE) == 0) {
                 ret = signers;
             }
             signers = signers->next;
@@ -1942,10 +1943,10 @@ int AddCA(WOLFSSL_CERT_MANAGER* cm, buffer der, int type, int verify)
         #endif
         #ifndef NO_SKID
             XMEMCPY(signer->subjectKeyIdHash, cert->extSubjKeyId,
-                                                               SHA_DIGEST_SIZE);
+                                                            SIGNER_DIGEST_SIZE);
         #endif
             XMEMCPY(signer->subjectNameHash, cert->subjectHash,
-                                                               SHA_DIGEST_SIZE);
+                                                            SIGNER_DIGEST_SIZE);
             signer->keyUsage = cert->extKeyUsageSet ? cert->extKeyUsage
                                                     : 0xFFFF;
             signer->next    = NULL; /* If Key Usage not set, all uses valid. */
@@ -7458,6 +7459,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
 #endif /* NO_MD5 */
 
 
+#ifndef NO_SHA
     void wolfSSL_SHA_Init(WOLFSSL_SHA_CTX* sha)
     {
         typedef char sha_test[sizeof(SHA_CTX) >= sizeof(Sha) ? 1 : -1];
@@ -7503,6 +7505,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         WOLFSSL_ENTER("SHA1_Final");
         SHA_Final(input, sha);
     }
+#endif /* NO_SHA */
 
 
     void wolfSSL_SHA256_Init(WOLFSSL_SHA256_CTX* sha256)
@@ -7606,12 +7609,14 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
     #endif /* NO_MD5 */
 
 
+#ifndef NO_SHA
     const WOLFSSL_EVP_MD* wolfSSL_EVP_sha1(void)
     {
         static const char* type = "SHA";
         WOLFSSL_ENTER("EVP_sha1");
         return type;
     }
+#endif /* NO_SHA */
 
 
     const WOLFSSL_EVP_MD* wolfSSL_EVP_sha256(void)
@@ -8225,11 +8230,13 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
             wolfSSL_MD5_Init((MD5_CTX*)&ctx->hash);
         }
     #endif
+    #ifndef NO_SHA
         /* has to be last since would pick or 256, 384, or 512 too */
         else if (XSTRNCMP(type, "SHA", 3) == 0) {
              ctx->macType = SHA;
              wolfSSL_SHA_Init((SHA_CTX*)&ctx->hash);
         }
+    #endif /* NO_SHA */
         else
              return BAD_FUNC_ARG;
 
@@ -12386,12 +12393,14 @@ int wolfSSL_EVP_MD_size(const WOLFSSL_EVP_MD* type)
         return BAD_FUNC_ARG;
     }
 
-    if (XSTRNCMP(type, "MD5", 3) == 0) {
-        return MD5_DIGEST_SIZE;
-    }
-    else if (XSTRNCMP(type, "SHA256", 6) == 0) {
+    if (XSTRNCMP(type, "SHA256", 6) == 0) {
         return SHA256_DIGEST_SIZE;
     }
+#ifndef NO_MD5
+    else if (XSTRNCMP(type, "MD5", 3) == 0) {
+        return MD5_DIGEST_SIZE;
+    }
+#endif
 #ifdef WOLFSSL_SHA384
     else if (XSTRNCMP(type, "SHA384", 6) == 0) {
         return SHA384_DIGEST_SIZE;
@@ -12402,10 +12411,12 @@ int wolfSSL_EVP_MD_size(const WOLFSSL_EVP_MD* type)
         return SHA512_DIGEST_SIZE;
     }
 #endif
+#ifndef NO_SHA
     /* has to be last since would pick or 256, 384, or 512 too */
     else if (XSTRNCMP(type, "SHA", 3) == 0) {
         return SHA_DIGEST_SIZE;
     }
+#endif
 
     return BAD_FUNC_ARG;
 }

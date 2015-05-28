@@ -941,9 +941,11 @@ static int DecryptKey(const char* password, int passwordSz, byte* salt,
     if (version == PKCS5v2)
         ret = wc_PBKDF2(key, (byte*)password, passwordSz, salt, saltSz, iterations,
                derivedLen, typeH);
+#ifndef NO_SHA
     else if (version == PKCS5)
         ret = wc_PBKDF1(key, (byte*)password, passwordSz, salt, saltSz, iterations,
                derivedLen, typeH);
+#endif
     else if (version == PKCS12) {
         int  i, idx = 0;
         byte unicodePasswd[MAX_UNICODE_SZ];
@@ -1447,9 +1449,9 @@ void InitDecodedCert(DecodedCert* cert, byte* source, word32 inSz, void* heap)
     cert->extAuthInfoSz   = 0;
     cert->extCrlInfo      = NULL;
     cert->extCrlInfoSz    = 0;
-    XMEMSET(cert->extSubjKeyId, 0, SHA_SIZE);
+    XMEMSET(cert->extSubjKeyId, 0, KEYID_SIZE);
     cert->extSubjKeyIdSet = 0;
-    XMEMSET(cert->extAuthKeyId, 0, SHA_SIZE);
+    XMEMSET(cert->extAuthKeyId, 0, KEYID_SIZE);
     cert->extAuthKeyIdSet = 0;
     cert->extKeyUsageSet  = 0;
     cert->extKeyUsage     = 0;
@@ -1852,11 +1854,11 @@ static int GetKey(DecodedCert* cert)
 /* process NAME, either issuer or subject */
 static int GetName(DecodedCert* cert, int nameType)
 {
-    Sha    sha;     /* MUST have SHA-1 hash for cert names */
     int    length;  /* length of all distinguished names */
     int    dummy;
     int    ret;
-    char* full = (nameType == ISSUER) ? cert->issuer : cert->subject;
+    char*  full;
+    byte*  hash;
     word32 idx;
     #ifdef OPENSSL_EXTRA
         DecodedName* dName =
@@ -1864,6 +1866,15 @@ static int GetName(DecodedCert* cert, int nameType)
     #endif /* OPENSSL_EXTRA */
 
     WOLFSSL_MSG("Getting Cert Name");
+
+    if (nameType == ISSUER) {
+        full = cert->issuer;
+        hash = cert->issuerHash;
+    }
+    else {
+        full = cert->subject;
+        hash = cert->subjectHash;
+    }
 
     if (cert->source[cert->srcIdx] == ASN_OBJECT_ID) {
         WOLFSSL_MSG("Trying optional prefix...");
@@ -1882,14 +1893,13 @@ static int GetName(DecodedCert* cert, int nameType)
     if (GetSequence(cert->source, &cert->srcIdx, &length, cert->maxIdx) < 0)
         return ASN_PARSE_E;
 
-    ret = wc_InitSha(&sha);
+#ifdef NO_SHA
+    ret = wc_Sha256Hash(&cert->source[idx], length + cert->srcIdx - idx, hash);
+#else
+    ret = wc_ShaHash(&cert->source[idx], length + cert->srcIdx - idx, hash);
+#endif
     if (ret != 0)
         return ret;
-    wc_ShaUpdate(&sha, &cert->source[idx], length + cert->srcIdx - idx);
-    if (nameType == ISSUER)
-        wc_ShaFinal(&sha, cert->issuerHash);
-    else
-        wc_ShaFinal(&sha, cert->subjectHash);
 
     length += cert->srcIdx;
     idx = 0;
@@ -3811,19 +3821,18 @@ static int DecodeAuthKeyId(byte* input, int sz, DecodedCert* cert)
         cert->extAuthKeyIdSz = length;
     #endif /* OPENSSL_EXTRA */
 
-    if (length == SHA_SIZE) {
+    if (length == KEYID_SIZE) {
         XMEMCPY(cert->extAuthKeyId, input + idx, length);
     }
     else {
-        Sha sha;
-        ret = wc_InitSha(&sha);
-        if (ret != 0)
-            return ret;
-        wc_ShaUpdate(&sha, input + idx, length);
-        wc_ShaFinal(&sha, cert->extAuthKeyId);
+    #ifdef NO_SHA
+        ret = wc_Sha256Hash(input + idx, length, cert->extAuthKeyId);
+    #else
+        ret = wc_ShaHash(input + idx, length, cert->extAuthKeyId);
+    #endif
     }
 
-    return 0;
+    return ret;
 }
 
 
@@ -3853,12 +3862,11 @@ static int DecodeSubjKeyId(byte* input, int sz, DecodedCert* cert)
         XMEMCPY(cert->extSubjKeyId, input + idx, length);
     }
     else {
-        Sha sha;
-        ret = wc_InitSha(&sha);
-        if (ret != 0)
-            return ret;
-        wc_ShaUpdate(&sha, input + idx, length);
-        wc_ShaFinal(&sha, cert->extSubjKeyId);
+    #ifdef NO_SHA
+        ret = wc_Sha256Hash(input + idx, length, cert->extSubjKeyId);
+    #else
+        ret = wc_ShaHash(input + idx, length, cert->extSubjKeyId);
+    #endif
     }
 
     return ret;
@@ -4355,12 +4363,15 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
     #ifndef NO_SKID
         if (cert->extSubjKeyIdSet == 0
                           && cert->publicKey != NULL && cert->pubKeySize > 0) {
-            Sha sha;
-            ret = wc_InitSha(&sha);
+        #ifdef NO_SHA
+            ret = wc_Sha256Hash(cert->publicKey, cert->pubKeySize,
+                                                            cert->extSubjKeyId);
+        #else
+            ret = wc_ShaHash(cert->publicKey, cert->pubKeySize,
+                                                            cert->extSubjKeyId);
+        #endif
             if (ret != 0)
                 return ret;
-            wc_ShaUpdate(&sha, cert->publicKey, cert->pubKeySize);
-            wc_ShaFinal(&sha, cert->extSubjKeyId);
         }
     #endif
 
@@ -4379,14 +4390,15 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
         if (ca) {
 #ifdef HAVE_OCSP
             /* Need the ca's public key hash for OCSP */
-            {
-                Sha sha;
-                ret = wc_InitSha(&sha);
-                if (ret != 0)
-                    return ret;
-                wc_ShaUpdate(&sha, ca->publicKey, ca->pubKeySize);
-                wc_ShaFinal(&sha, cert->issuerKeyHash);
-            }
+    #ifdef NO_SHA
+            ret = wc_Sha256Hash(ca->publicKey, ca->pubKeySize,
+                                cert->issuerKeyHash);
+    #else /* NO_SHA */
+            ret = wc_ShaHash(ca->publicKey, ca->pubKeySize,
+                                cert->issuerKeyHash);
+    #endif /* NO_SHA */
+            if (ret != 0)
+                return ret;
 #endif /* HAVE_OCSP */
             /* try to confirm/verify signature */
             if (!ConfirmSignature(cert->source + cert->certBegin,
@@ -7343,13 +7355,18 @@ int EncodeOcspRequest(OcspRequest* req)
 
     WOLFSSL_ENTER("EncodeOcspRequest");
 
+#ifdef NO_SHA
+    algoSz = SetAlgoID(SHA256h, algoArray, hashType, 0);
+#else
     algoSz = SetAlgoID(SHAh, algoArray, hashType, 0);
+#endif
 
     req->issuerHash = req->cert->issuerHash;
-    issuerSz = SetDigest(req->cert->issuerHash, SHA_SIZE, issuerArray);
-    
+    issuerSz = SetDigest(req->cert->issuerHash, KEYID_SIZE, issuerArray);
+
     req->issuerKeyHash = req->cert->issuerKeyHash;
-    issuerKeySz = SetDigest(req->cert->issuerKeyHash, SHA_SIZE, issuerKeyArray);
+    issuerKeySz = SetDigest(req->cert->issuerKeyHash,
+                                                    KEYID_SIZE, issuerKeyArray);
 
     req->serial = req->cert->serial;
     req->serialSz = req->cert->serialSz;
@@ -7453,14 +7470,14 @@ int CompareOcspReqResp(OcspRequest* req, OcspResponse* resp)
         }
     }
 
-    cmp = XMEMCMP(req->issuerHash, resp->issuerHash, SHA_DIGEST_SIZE);
+    cmp = XMEMCMP(req->issuerHash, resp->issuerHash, KEYID_SIZE);
     if (cmp != 0)
     {
         WOLFSSL_MSG("\tissuerHash mismatch");
         return cmp;
     }
 
-    cmp = XMEMCMP(req->issuerKeyHash, resp->issuerKeyHash, SHA_DIGEST_SIZE);
+    cmp = XMEMCMP(req->issuerKeyHash, resp->issuerKeyHash, KEYID_SIZE);
     if (cmp != 0)
     {
         WOLFSSL_MSG("\tissuerKeyHash mismatch");
@@ -7487,13 +7504,12 @@ int CompareOcspReqResp(OcspRequest* req, OcspResponse* resp)
 #endif
 
 
-/* store SHA1 hash of NAME */
+/* store SHA hash of NAME */
 WOLFSSL_LOCAL int GetNameHash(const byte* source, word32* idx, byte* hash,
                              int maxIdx)
 {
-    Sha    sha;
     int    length;  /* length of all distinguished names */
-    int    ret = 0;
+    int    ret;
     word32 dummy;
 
     WOLFSSL_ENTER("GetNameHash");
@@ -7515,15 +7531,15 @@ WOLFSSL_LOCAL int GetNameHash(const byte* source, word32* idx, byte* hash,
     if (GetSequence(source, idx, &length, maxIdx) < 0)
         return ASN_PARSE_E;
 
-    ret = wc_InitSha(&sha);
-    if (ret != 0)
-        return ret;
-    wc_ShaUpdate(&sha, source + dummy, length + *idx - dummy);
-    wc_ShaFinal(&sha, hash);
+#ifdef NO_SHA
+    ret = wc_Sha256Hash(source + dummy, length + *idx - dummy, hash);
+#else
+    ret = wc_ShaHash(source + dummy, length + *idx - dummy, hash);
+#endif
 
     *idx += length;
 
-    return 0;
+    return ret;
 }
 
 

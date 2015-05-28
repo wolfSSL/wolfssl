@@ -80,7 +80,7 @@ typedef struct PKCS7 {
 
     byte*  singleCert;            /* recipient cert, DER, not owner       */
     word32 singleCertSz;          /* size of recipient cert buffer, bytes */
-    byte issuerHash[SHA_SIZE];    /* hash of all alt Names                */
+    byte issuerHash[KEYID_SIZE];  /* hash of all alt Names                */
     byte*  issuer;                /* issuer name of singleCert            */
     word32 issuerSz;              /* length of issuer name                */
     byte issuerSn[MAX_SN_SZ];     /* singleCert's serial number           */
