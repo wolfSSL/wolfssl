@@ -651,5 +651,6 @@ int UnLockMutex(wolfSSL_Mutex *m)
 #endif /* SINGLE_THREADED */
         
 #if defined(WOLFSSL_TI_CRYPT) ||  defined(WOLFSSL_TI_HASH)
-    #include <wolfcrypt/src/port/ti/ti-ccm.c> /* initialize and Mutex for TI Crypt Engine */
+    #include <wolfcrypt/src/port/ti/ti-ccm.c>  /* initialize and Mutex for TI Crypt Engine */
+    #include <wolfcrypt/src/port/ti/ti-hash.c> /* md5, sha1, sha224, sha256 */
 #endif

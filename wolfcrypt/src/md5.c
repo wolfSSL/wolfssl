@@ -29,8 +29,7 @@
 #if !defined(NO_MD5)
 
 #if defined(WOLFSSL_TI_HASH)
-    #define WOLFSSL_TI_MD5
-    #include <wolfcrypt/src/port/ti/ti-hash.c>
+    /* #include <wolfcrypt/src/port/ti/ti-hash.c> included by wc_port.c */
 #else
 
 #ifdef WOLFSSL_PIC32MZ_HASH

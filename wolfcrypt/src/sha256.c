@@ -57,11 +57,7 @@ int wc_Sha256Hash(const byte* data, word32 len, byte* out)
 #else /* else build without fips */
 
 #if !defined(NO_SHA256) && defined(WOLFSSL_TI_HASH)
-    #define WOLFSSL_TI_SHA256
-    #ifdef HAVE_SHA224
-        #define WOLFSSL_TI_SHA224
-    #endif
-    #include <wolfcrypt/src/port/ti/ti-hash.c>
+    /* #include <wolfcrypt/src/port/ti/ti-hash.c> included by wc_port.c */
 #else
 
 #if !defined (ALIGN32)

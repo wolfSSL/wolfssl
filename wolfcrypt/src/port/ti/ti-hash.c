@@ -144,7 +144,7 @@ static int hashHash(const byte* data, word32 len, byte* hash, word32 algo, word3
     return ret;
 }
 
-#if !defined(NO_MD5) && defined(WOLFSSL_TI_MD5)
+#if !defined(NO_MD5)
 WOLFSSL_API void wc_InitMd5(Md5* md5)
 {
     if (md5 == NULL)
@@ -175,7 +175,7 @@ WOLFSSL_API int wc_Md5Hash(const byte*data, word32 len, byte*hash)
 
 #endif /* NO_MD5 */
 
-#if !defined(NO_SHA) && defined(WOLFSSL_TI_SHA)
+#if !defined(NO_SHA)
 WOLFSSL_API int wc_InitSha(Sha* sha)
 {
     if (sha == NULL)
@@ -206,7 +206,7 @@ WOLFSSL_API int wc_ShaHash(const byte*data, word32 len, byte*hash)
 
 #endif /* NO_SHA */
 
-#if defined(HAVE_SHA224) && defined(WOLFSSL_TI_SHA224)
+#if defined(HAVE_SHA224)
 WOLFSSL_API int wc_InitSha224(Sha224* sha224)
 {
     if (sha224 == NULL)
@@ -237,7 +237,7 @@ WOLFSSL_API int wc_Sha224Hash(const byte* data, word32 len, byte*hash)
 
 #endif /* HAVE_SHA224 */
 
-#if !defined(NO_SHA256) && defined(WOLFSSL_TI_SHA256)
+#if !defined(NO_SHA256)
 WOLFSSL_API int wc_InitSha256(Sha256* sha256)
 {
     if (sha256 == NULL)
