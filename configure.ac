@@ -680,6 +680,9 @@ then
 fi
 
 
+# for using memory optimization setting on both curve25519 and ed25519
+ENABLED_CURVED25519_SMALL=no
+
 # CURVE25519
 AC_ARG_ENABLE([curve25519],
     [AS_HELP_STRING([--enable-curve25519],[Enable Curve25519 (default: disabled)])],
@@ -687,10 +690,18 @@ AC_ARG_ENABLE([curve25519],
     [ ENABLED_CURVE25519=no ]
     )
 
+
+if test "$ENABLED_CURVE25519" = "small"
+then
+    AM_CFLAGS="$AM_CFLAGS -DCURVED25519_SMALL"
+    ENABLED_CURVED25519_SMALL=yes
+    ENABLED_CURVE25519=yes
+fi
+
 if test "$ENABLED_CURVE25519" = "yes"
 then
-    ENABLED_FEMATH=yes
     AM_CFLAGS="$AM_CFLAGS -DHAVE_CURVE25519"
+    ENABLED_FEMATH=yes
 fi
 
 
@@ -705,6 +716,13 @@ AC_ARG_ENABLE([ed25519],
     )
 
 
+if test "$ENABLED_ED25519" = "small"
+then
+    AM_CFLAGS="$AM_CFLAGS -DCURVED25519_SMALL"
+    ENABLED_CURVED25519_SMALL=yes
+    ENABLED_ED25519=yes
+fi
+
 if test "$ENABLED_ED25519" = "yes"
 then
     if test "$ENABLED_SHA512" = "no"
@@ -716,8 +734,8 @@ then
     AM_CFLAGS="$AM_CFLAGS -DHAVE_ED25519"
 fi
 
-
 AM_CONDITIONAL([BUILD_ED25519], [test "x$ENABLED_ED25519" = "xyes"])
+AM_CONDITIONAL([BUILD_CURVED25519_SMALL], [test "x$ENABLED_CURVED25519_SMALL" = "xyes"])
 AM_CONDITIONAL([BUILD_FEMATH],  [test "x$ENABLED_FEMATH" = "xyes"])
 AM_CONDITIONAL([BUILD_GEMATH],  [test "x$ENABLED_GEMATH" = "xyes"])
 
