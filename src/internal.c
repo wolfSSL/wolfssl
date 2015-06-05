@@ -6010,23 +6010,16 @@ static INLINE void CompressRounds(WOLFSSL* ssl, int rounds, const byte* dummy)
 
 
 /* check all length bytes for the pad value, return 0 on success */
-static int PadCheck(const byte* input, byte pad, int length)
+static int PadCheck(const byte* a, byte pad, int length)
 {
     int i;
-    int good = 0;
-    int bad  = 0;
+    int compareSum = 0;
 
     for (i = 0; i < length; i++) {
-        if (input[i] == pad)
-            good++;
-        else
-            bad++;
+        compareSum |= a[i] ^ pad;
     }
 
-    if (good == length)
-        return 0;
-    else
-        return 0 - bad;  /* pad check failed */
+    return compareSum;
 }
 
 
