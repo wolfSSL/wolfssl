@@ -48,7 +48,7 @@ bool wolfSSL_TI_CCMInit(void)
     if(ccm_init)return true ;
     ccm_init = true ;
 
-    SysCtlClockFreqSet((SYSCTL_XTAL_25MHZ |
+    ROM_SysCtlClockFreqSet((SYSCTL_XTAL_25MHZ |
                                        SYSCTL_OSC_MAIN |
                                        SYSCTL_USE_PLL |
                                        SYSCTL_CFG_VCO_480), 120000000);

@@ -74,7 +74,7 @@ static int  DesCbcAlign16(Des* des, byte* out, const byte* in, word32 sz, word32
     wolfSSL_TI_lockCCM() ;
     ROM_DESReset(DES_BASE);
     ROM_DESConfigSet(DES_BASE, (dir | DES_CFG_MODE_CBC | tri));
-    DESIVSet(DES_BASE, des->reg);
+    ROM_DESIVSet(DES_BASE, des->reg);
     ROM_DESKeySet(DES_BASE, des->key);
     if(dir == DES_CFG_DIR_DECRYPT)
         /* if input and output same will overwrite input iv */

@@ -89,7 +89,7 @@ static int  AesAlign16(Aes* aes, byte* out, const byte* in, word32 sz, word32 di
     ROM_AESReset(AES_BASE);
     ROM_AESConfigSet(AES_BASE, (aes->keylen | dir | 
                      (mode==AES_CFG_MODE_CTR_NOCTR ? AES_CFG_MODE_CTR : mode)));
-    AESIVSet(AES_BASE, aes->reg);
+    ROM_AESIVSet(AES_BASE, aes->reg);
     ROM_AESKey1Set(AES_BASE, aes->key, aes->keylen);
     if((dir == AES_CFG_DIR_DECRYPT)&& (mode == AES_CFG_MODE_CBC))
         /* if input and output same will overwrite input iv */
