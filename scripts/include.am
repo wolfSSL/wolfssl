@@ -12,6 +12,7 @@ if BUILD_EXAMPLES
 dist_noinst_SCRIPTS+= scripts/resume.test
 if !BUILD_IPV6
 dist_noinst_SCRIPTS+= scripts/external.test
+dist_noinst_SCRIPTS+= scripts/google.test
 endif
 endif
 

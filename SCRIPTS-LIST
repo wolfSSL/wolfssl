@@ -6,7 +6,6 @@ pre-commit.sh - our pre commit hook, saves current state before running commit
 commit-tests.sh - our commit tests, must pass before a commit is accepted, use
                   -n (--no-verify) to disable
 
-client-test.sh - example client test against google
 
 fips-check.sh - checks if current wolfSSL version works against FIPS wolfCrypt
                 comment out last line to leave working directory
@@ -23,6 +22,7 @@ certs/
 
 scripts/
  external.test - example client test against our website, part of tests
+ google.test   - example client test against google, part of tests
  resume.test   - example sessoin resume test, part of tests
  sniffer-testsuite.test -  runs snifftest on a pcap of testsuite, part of tests
                            in sniffer mode
