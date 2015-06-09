@@ -2705,7 +2705,7 @@ int wc_ecc_size(ecc_key* key)
 int wc_ecc_sig_size(ecc_key* key)
 {
     int sz = wc_ecc_size(key);
-    if (sz < 0)
+    if (sz <= 0)
         return sz;
 
     return sz * 2 + SIG_HEADER_SZ + 4;  /* (4) worst case estimate */
