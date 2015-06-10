@@ -6059,6 +6059,8 @@ static int TimingPadVerify(WOLFSSL* ssl, const byte* input, int padLen, int t,
     byte* dummy = sizeof(dmy) < MAX_PAD_SIZE ? (byte*) ssl : dmy;
     int  ret = 0;
 
+    (void)dmy;
+
     if ( (t + padLen + 1) > pLen) {
         WOLFSSL_MSG("Plain Len not long enough for pad/mac");
         PadCheck(dummy, (byte)padLen, MAX_PAD_SIZE);
@@ -6294,6 +6296,8 @@ static INLINE int VerifyMac(WOLFSSL* ssl, const byte* input, word32 msgSz,
             int  badPadLen = 0;
             byte dmy[sizeof(WOLFSSL) >= MAX_PAD_SIZE ? 1 : MAX_PAD_SIZE] = {0};
             byte* dummy = sizeof(dmy) < MAX_PAD_SIZE ? (byte*) ssl : dmy;
+
+            (void)dmy;
 
             if (pad > (msgSz - digestSz - 1)) {
                 WOLFSSL_MSG("Plain Len not long enough for pad/mac");
