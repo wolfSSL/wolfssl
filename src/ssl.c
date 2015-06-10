@@ -895,6 +895,17 @@ int wolfSSL_CTX_set_TicketHint(WOLFSSL_CTX* ctx, int hint)
     return SSL_SUCCESS;
 }
 
+/* set user context, SSL_SUCCESS on ok */
+int wolfSSL_set_TicketEncCtx(WOLFSSL* ssl, void* ctx)
+{
+    if (ssl == NULL)
+        return BAD_FUNC_ARG;
+
+    ssl->ticket_encrypt_ctx = ctx;
+
+    return SSL_SUCCESS;
+}
+
 #endif /* !defined(NO_WOLFSSL_CLIENT) && defined(HAVE_SESSION_TICKET) */
 
 /* Session Ticket */

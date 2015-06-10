@@ -2251,6 +2251,9 @@ struct WOLFSSL {
         void*                 session_ticket_ctx;
         byte                  expect_session_ticket;
     #endif
+    #if !defined(NO_WOLFSSL_SERVER) && defined(HAVE_SESSION_TICKET)
+        void*                 ticket_encrypt_ctx;  /* session encrypt context */
+    #endif
 #endif /* HAVE_TLS_EXTENSIONS */
 #ifdef HAVE_NETX
     NetX_Ctx        nxCtx;             /* NetX IO Context */
