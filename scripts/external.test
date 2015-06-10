@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 # external.test
 
@@ -8,7 +8,7 @@ ca=./certs/wolfssl-website-ca.pem
 [ ! -x ./examples/client/client ] && echo -e "\n\nClient doesn't exist" && exit 1
 
 # is our desired server there?
-ping -c 2 -i 0.2 $server
+ping -c 2 $server
 RESULT=$?
 [ $RESULT -ne 0 ] && echo -e "\n\nCouldn't find $server, skipping" && exit 0
 
