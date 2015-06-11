@@ -896,12 +896,12 @@ int wolfSSL_CTX_set_TicketHint(WOLFSSL_CTX* ctx, int hint)
 }
 
 /* set user context, SSL_SUCCESS on ok */
-int wolfSSL_set_TicketEncCtx(WOLFSSL* ssl, void* ctx)
+int wolfSSL_CTX_set_TicketEncCtx(WOLFSSL_CTX* ctx, void* userCtx)
 {
-    if (ssl == NULL)
+    if (ctx == NULL)
         return BAD_FUNC_ARG;
 
-    ssl->ticket_encrypt_ctx = ctx;
+    ctx->ticketEncCtx = userCtx;
 
     return SSL_SUCCESS;
 }

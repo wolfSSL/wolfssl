@@ -13772,7 +13772,7 @@ int DoSessionTicket(WOLFSSL* ssl,
         encLen = WOLFSSL_TICKET_ENC_SZ;  /* max size user can use */
         ret = ssl->ctx->ticketEncCb(ssl, et->key_name, et->iv, et->mac, 1,
                                     et->enc_ticket, sizeof(InternalTicket),
-                                    &encLen, ssl->ticket_encrypt_ctx);
+                                    &encLen, ssl->ctx->ticketEncCtx);
         if (ret == WOLFSSL_TICKET_RET_OK) {
             if (encLen < (int)sizeof(InternalTicket) ||
                 encLen > WOLFSSL_TICKET_ENC_SZ) {
@@ -13847,7 +13847,7 @@ int DoSessionTicket(WOLFSSL* ssl,
         ret = ssl->ctx->ticketEncCb(ssl, et->key_name, et->iv,
                                     et->enc_ticket + inLen, 0,
                                     et->enc_ticket, inLen, &outLen,
-                                    ssl->ticket_encrypt_ctx);
+                                    ssl->ctx->ticketEncCtx);
         if (ret == WOLFSSL_TICKET_RET_FATAL || ret < 0) return ret;
         if (outLen > inLen || outLen < (int)sizeof(InternalTicket)) {
             WOLFSSL_MSG("Bad user ticket decrypt len");
