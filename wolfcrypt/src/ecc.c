@@ -939,6 +939,14 @@ int ecc_map(ecc_point* P, mp_int* modulus, mp_digit* mp)
    if (P == NULL || mp == NULL || modulus == NULL)
        return ECC_BAD_ARG_E;
 
+   /* special case for point at infinity */
+   if (mp_cmp_d(P->z, 0) == MP_EQ) {
+       mp_set(P->x, 0);
+       mp_set(P->y, 0);
+       mp_set(P->z, 1);
+       return MP_OKAY;
+   }
+
    if ((err = mp_init_multi(&t1, &t2, NULL, NULL, NULL, NULL)) != MP_OKAY) {
       return MEMORY_E;
    }
@@ -1511,6 +1519,23 @@ int wc_ecc_shared_secret(ecc_key* private_key, ecc_key* public_key, byte* out,
 }
 
 
+#ifdef WOLFSSL_VALIDATE_KEYGEN
+
+/* return 1 if point is at infinity, 0 if not, < 0 on error */
+static int ecc_point_is_at_infinity(ecc_point* p)
+{
+    if (p == NULL)
+        return BAD_FUNC_ARG;
+
+    if (get_digit_count(p->x) == 0 && get_digit_count(p->y) == 0)
+        return 1;
+
+    return 0;
+}
+
+#endif /* WOLFSSL_VALIDATE_KEYGEN */
+
+
 int wc_ecc_make_key_ex(RNG* rng, ecc_key* key, const ecc_set_type* dp);
 
 /**
@@ -1626,6 +1651,23 @@ int wc_ecc_make_key_ex(RNG* rng, ecc_key* key, const ecc_set_type* dp)
    /* make the public key */
    if (err == MP_OKAY)
        err = ecc_mulmod(&key->k, base, &key->pubkey, &prime, 1);
+
+#ifdef WOLFSSL_VALIDATE_KEYGEN
+   /* validate the public key, order * pubkey = point at infinity */
+   if (err == MP_OKAY) {
+       ecc_point* inf = ecc_new_point();
+       if (inf == NULL)
+           err = MEMORY_E;
+       else {
+           err = ecc_mulmod(&order, &key->pubkey, inf, &prime, 1);
+           if (err == MP_OKAY && !ecc_point_is_at_infinity(inf))
+               err = MP_NOT_INF_E;
+
+           ecc_del_point(inf);
+       }
+   }
+#endif /* WOLFSSL_VALIDATE_KEYGEN */
+
    if (err == MP_OKAY)
        key->type = ECC_PRIVATEKEY;
 
