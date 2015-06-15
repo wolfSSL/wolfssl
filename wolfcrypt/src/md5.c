@@ -26,7 +26,7 @@
 
 #include <wolfssl/wolfcrypt/settings.h>
 
-#if !defined(NO_MD5)
+#if !defined(NO_MD5) && !defined(WOLFSSL_TI_HASH)
 
 #ifdef WOLFSSL_PIC32MZ_HASH
 #define wc_InitMd5   wc_InitMd5_sw
@@ -164,6 +164,10 @@
         wc_InitMd5(md5);  /* reset state */
     }
 
+#elif defined(WOLFSSL_IT_HASH)
+
+    /* defined in port/ti_hash.c */
+
 #else /* CTaoCrypt software implementation */
 
 #ifndef WOLFSSL_HAVE_MIN
@@ -175,7 +179,6 @@
     }
 
 #endif /* WOLFSSL_HAVE_MIN */
-
 
 void wc_InitMd5(Md5* md5)
 {

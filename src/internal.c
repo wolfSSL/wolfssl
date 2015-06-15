@@ -6928,14 +6928,14 @@ static int BuildCertHashes(WOLFSSL* ssl, Hashes* hashes)
 
     if (ssl->options.tls) {
 #if ! defined( NO_OLD_TLS )
-        wc_Md5Final(&ssl->hsHashes->hashMd5, hashes->md5);
-        wc_ShaFinal(&ssl->hsHashes->hashSha, hashes->sha);
+        wc_Md5GetHash(&ssl->hsHashes->hashMd5, hashes->md5);
+        wc_ShaGetHash(&ssl->hsHashes->hashSha, hashes->sha);
 #endif
         if (IsAtLeastTLSv1_2(ssl)) {
             int ret;
 
             #ifndef NO_SHA256
-                ret = wc_Sha256Final(&ssl->hsHashes->hashSha256,hashes->sha256);
+                ret = wc_Sha256GetHash(&ssl->hsHashes->hashSha256,hashes->sha256);
                 if (ret != 0)
                     return ret;
             #endif

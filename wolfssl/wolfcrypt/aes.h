@@ -113,6 +113,9 @@ typedef struct Aes {
     word32 iv_ce [AES_BLOCK_SIZE  /sizeof(word32)] ;
     int    keylen ;
 #endif
+#ifdef WOLFSSL_TI_CRYPT
+    int    keylen ;
+#endif
 } Aes;
 
 

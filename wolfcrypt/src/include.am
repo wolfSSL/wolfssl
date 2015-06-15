@@ -38,3 +38,11 @@ EXTRA_DIST += \
               wolfcrypt/src/fp_sqr_comba_8.i \
               wolfcrypt/src/fp_sqr_comba_9.i \
               wolfcrypt/src/fp_sqr_comba_small_set.i
+
+EXTRA_DIST += wolfcrypt/src/port/ti/ti-aes.c \
+              wolfcrypt/src/port/ti/ti-des3.c \
+              wolfcrypt/src/port/ti/ti-hash.c \
+              wolfcrypt/src/port/ti/ti-ccm.c \
+              wolfcrypt/src/port/pic32/pic32mz-hash.c
+
+
