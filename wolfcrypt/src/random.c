@@ -352,12 +352,7 @@ static INLINE void array_add(byte* d, word32 dLen, const byte* s, word32 sLen)
     }
 }
 
-/* Isn't failing the whole library more conservative? The library checks itself
- * once, and if there are any contiunous errors, we assume the whole thing is
- * dead. */
-/* XXX: Need to do a KAT self-test when this is called. 800-90 S11.3.
- * We can set the frequency of the retesting, and that'll be when it
- * is time to reseed, since we have to test the reseed anyway. */
+
 /* Returns: DRBG_SUCCESS, DRBG_NEED_RESEED, or DRBG_FAILURE */
 static int Hash_DRBG_Generate(DRBG* drbg, byte* out, word32 outSz)
 {
