@@ -1878,9 +1878,11 @@ static INLINE const char* mymktemp(char *tempfn, int len, int num)
                              byte key_name[WOLFSSL_TICKET_NAME_SZ],
                              byte iv[WOLFSSL_TICKET_IV_SZ],
                              byte mac[WOLFSSL_TICKET_MAC_SZ],
-                             int enc, byte* ticket, int inLen, int* outLen)
+                             int enc, byte* ticket, int inLen, int* outLen,
+                             void* userCtx)
     {
         (void)ssl;
+        (void)userCtx;
 
         int ret;
         word16 sLen = htons(inLen);

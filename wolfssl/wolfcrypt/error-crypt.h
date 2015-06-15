@@ -148,6 +148,7 @@ enum {
 
     MAC_CMP_FAILED_E    = -213,  /* MAC comparison failed */
     IS_POINT_E          = -214,  /* ECC is point on curve failed */
+    MP_NOT_INF_E        = -215,  /* ECC point expected at infinity error */
 
     MIN_CODE_E          = -300   /* errors -101 - -299 */
 };

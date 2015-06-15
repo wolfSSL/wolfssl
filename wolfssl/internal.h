@@ -1564,6 +1564,7 @@ struct WOLFSSL_CTX {
     TLSX* extensions;                  /* RFC 6066 TLS Extensions data */
     #if defined(HAVE_SESSION_TICKET) && !defined(NO_WOLFSSL_SEVER)
         SessionTicketEncCb ticketEncCb;   /* enc/dec session ticket Cb */
+        void*              ticketEncCtx;  /* session encrypt context */
         int                ticketHint;    /* ticket hint in seconds */
     #endif
 #endif

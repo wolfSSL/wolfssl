@@ -6010,23 +6010,16 @@ static INLINE void CompressRounds(WOLFSSL* ssl, int rounds, const byte* dummy)
 
 
 /* check all length bytes for the pad value, return 0 on success */
-static int PadCheck(const byte* input, byte pad, int length)
+static int PadCheck(const byte* a, byte pad, int length)
 {
     int i;
-    int good = 0;
-    int bad  = 0;
+    int compareSum = 0;
 
     for (i = 0; i < length; i++) {
-        if (input[i] == pad)
-            good++;
-        else
-            bad++;
+        compareSum |= a[i] ^ pad;
     }
 
-    if (good == length)
-        return 0;
-    else
-        return 0 - bad;  /* pad check failed */
+    return compareSum;
 }
 
 
@@ -6062,10 +6055,11 @@ static int TimingPadVerify(WOLFSSL* ssl, const byte* input, int padLen, int t,
                            int pLen, int content)
 {
     byte verify[MAX_DIGEST_SIZE];
-    byte dummy[MAX_PAD_SIZE];
+    byte dmy[sizeof(WOLFSSL) >= MAX_PAD_SIZE ? 1 : MAX_PAD_SIZE] = {0};
+    byte* dummy = sizeof(dmy) < MAX_PAD_SIZE ? (byte*) ssl : dmy;
     int  ret = 0;
 
-    XMEMSET(dummy, 1, sizeof(dummy));
+    (void)dmy;
 
     if ( (t + padLen + 1) > pLen) {
         WOLFSSL_MSG("Plain Len not long enough for pad/mac");
@@ -6300,9 +6294,10 @@ static INLINE int VerifyMac(WOLFSSL* ssl, const byte* input, word32 msgSz,
         else {  /* sslv3, some implementations have bad padding, but don't
                  * allow bad read */
             int  badPadLen = 0;
-            byte dummy[MAX_PAD_SIZE];
+            byte dmy[sizeof(WOLFSSL) >= MAX_PAD_SIZE ? 1 : MAX_PAD_SIZE] = {0};
+            byte* dummy = sizeof(dmy) < MAX_PAD_SIZE ? (byte*) ssl : dmy;
 
-            XMEMSET(dummy, 1, sizeof(dummy));
+            (void)dmy;
 
             if (pad > (msgSz - digestSz - 1)) {
                 WOLFSSL_MSG("Plain Len not long enough for pad/mac");
@@ -13777,7 +13772,7 @@ int DoSessionTicket(WOLFSSL* ssl,
         encLen = WOLFSSL_TICKET_ENC_SZ;  /* max size user can use */
         ret = ssl->ctx->ticketEncCb(ssl, et->key_name, et->iv, et->mac, 1,
                                     et->enc_ticket, sizeof(InternalTicket),
-                                    &encLen);
+                                    &encLen, ssl->ctx->ticketEncCtx);
         if (ret == WOLFSSL_TICKET_RET_OK) {
             if (encLen < (int)sizeof(InternalTicket) ||
                 encLen > WOLFSSL_TICKET_ENC_SZ) {
@@ -13851,7 +13846,8 @@ int DoSessionTicket(WOLFSSL* ssl,
         outLen = inLen;   /* may be reduced by user padding */
         ret = ssl->ctx->ticketEncCb(ssl, et->key_name, et->iv,
                                     et->enc_ticket + inLen, 0,
-                                    et->enc_ticket, inLen, &outLen);
+                                    et->enc_ticket, inLen, &outLen,
+                                    ssl->ctx->ticketEncCtx);
         if (ret == WOLFSSL_TICKET_RET_FATAL || ret < 0) return ret;
         if (outLen > inLen || outLen < (int)sizeof(InternalTicket)) {
             WOLFSSL_MSG("Bad user ticket decrypt len");

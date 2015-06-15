@@ -108,6 +108,9 @@
 /* Uncomment next line if using Max Strength build */
 /* #define WOLFSSL_MAX_STRENGTH */
 
+/* Uncomment next line if building for VxWorks */
+/* #define WOLFSSL_VXWORKS */
+
 #include <wolfssl/wolfcrypt/visibility.h>
 
 #ifdef WOLFSSL_USER_SETTINGS
@@ -270,6 +273,12 @@
 #ifdef FREERTOS_WINSIM
     #define FREERTOS
     #define USE_WINDOWS_API
+#endif
+
+
+#ifdef WOLFSSL_VXWORKS
+    #define NO_DEV_RANDOM
+    #define NO_WRITEV
 #endif
 
 

@@ -28,7 +28,9 @@
 
 #ifdef HAVE_ED25519
 
-#include <stdint.h>
+#ifndef CURVED25519_SMALL
+    #include <stdint.h>
+#endif
 #include <wolfssl/wolfcrypt/fe_operations.h>
 
 /*
@@ -59,6 +61,20 @@ typedef struct {
   fe T;
 } ge_p3;
 
+WOLFSSL_LOCAL int  ge_compress_key(byte* out, const byte* xIn, const byte* yIn,
+                                                                word32 keySz);
+WOLFSSL_LOCAL int  ge_frombytes_negate_vartime(ge_p3 *,const unsigned char *);
+
+WOLFSSL_LOCAL int  ge_double_scalarmult_vartime(ge_p2 *,const unsigned char *,
+                                         const ge_p3 *,const unsigned char *);
+WOLFSSL_LOCAL void ge_scalarmult_base(ge_p3 *,const unsigned char *);
+WOLFSSL_LOCAL void sc_reduce(byte* s);
+WOLFSSL_LOCAL void sc_muladd(byte* s, const byte* a, const byte* b,
+                             const byte* c);
+WOLFSSL_LOCAL void ge_tobytes(unsigned char *,const ge_p2 *);
+WOLFSSL_LOCAL void ge_p3_tobytes(unsigned char *,const ge_p3 *);
+
+#ifndef CURVED25519_SMALL
 typedef struct {
   fe X;
   fe Y;
@@ -79,10 +95,6 @@ typedef struct {
   fe T2d;
 } ge_cached;
 
-WOLFSSL_LOCAL void ge_tobytes(unsigned char *,const ge_p2 *);
-WOLFSSL_LOCAL void ge_p3_tobytes(unsigned char *,const ge_p3 *);
-WOLFSSL_LOCAL int ge_frombytes_negate_vartime(ge_p3 *,const unsigned char *);
-
 WOLFSSL_LOCAL void ge_p2_0(ge_p2 *);
 WOLFSSL_LOCAL void ge_p3_0(ge_p3 *);
 WOLFSSL_LOCAL void ge_precomp_0(ge_precomp *);
@@ -97,10 +109,7 @@ WOLFSSL_LOCAL void ge_madd(ge_p1p1 *,const ge_p3 *,const ge_precomp *);
 WOLFSSL_LOCAL void ge_msub(ge_p1p1 *,const ge_p3 *,const ge_precomp *);
 WOLFSSL_LOCAL void ge_add(ge_p1p1 *,const ge_p3 *,const ge_cached *);
 WOLFSSL_LOCAL void ge_sub(ge_p1p1 *,const ge_p3 *,const ge_cached *);
-WOLFSSL_LOCAL void ge_scalarmult_base(ge_p3 *,const unsigned char *);
-WOLFSSL_LOCAL void ge_double_scalarmult_vartime(ge_p2 *,const unsigned char *,
-                                         const ge_p3 *,const unsigned char *);
-
+#endif /* no CURVED25519_SMALL */
 #endif /* HAVE_ED25519 */
 #endif /* WOLF_CRYPT_GE_OPERATIONS_H */
 

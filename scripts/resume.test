@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 #reusme.test
 
@@ -10,7 +10,7 @@ server_pid=$no_pid
 do_cleanup() {
     echo "in cleanup"
 
-    if  [[ $server_pid != $no_pid ]]
+    if  [ $server_pid != $no_pid ]
     then
         echo "killing server"
         kill -9 $server_pid
@@ -42,7 +42,7 @@ done
 ./examples/client/client -r -p $resume_port
 client_result=$?
 
-if [[ $client_result != 0 ]] ;
+if [ $client_result != 0 ]
 then
     echo -e "client failed!"
     do_cleanup
@@ -52,7 +52,7 @@ fi
 wait $server_pid
 server_result=$?
 
-if [[ $server_result != 0 ]] ;
+if [ $server_result != 0 ]
 then
     echo -e "client failed!"
     exit 1

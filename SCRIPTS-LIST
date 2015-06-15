@@ -1,0 +1,33 @@
+autogen.sh - creates ./configure from source checkout, sets up git hooks
+
+pre-commit.sh - our pre commit hook, saves current state before running commit
+                tests to allow a resotre back to current state
+
+commit-tests.sh - our commit tests, must pass before a commit is accepted, use
+                  -n (--no-verify) to disable
+
+
+fips-check.sh - checks if current wolfSSL version works against FIPS wolfCrypt
+                comment out last line to leave working directory
+
+gencertbuf.pl - creates certs_test.h, our certs / keys C array for easy non
+                filesystem testing
+
+pull_to_vagrant.sh - synchronize to a vm without using git
+
+certs/
+ renewcerts.sh - renews test certs and crls
+ crl/
+  gencrls.sh   - generates crls, used by renewcerts.sh
+
+scripts/
+ external.test - example client test against our website, part of tests
+ google.test   - example client test against google, part of tests
+ resume.test   - example sessoin resume test, part of tests
+ sniffer-testsuite.test -  runs snifftest on a pcap of testsuite, part of tests
+                           in sniffer mode
+swig/
+ PythonBuild.sh - builds and runs simple python example
+
+valgrind-error.sh - deprecated, was used to detect valgrind errors before
+                    automake switched to concurrent tests
