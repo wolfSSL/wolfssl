@@ -9,7 +9,7 @@ XDC_INSTALL_DIR ?= C:/ti/xdctools_3_24_02_30
 SYSBIOS_INSTALL_DIR ?= C:/ti/bios_6_34_01_14
 NDK_INSTALL_DIR ?= C:/ti/ndk_2_24_00_02
 TIRTOS_INSTALLATION_DIR ?= C:/ti/tirtos_tivac_2_00_00_22
-TivaWareDir ?= C:/ti/tivaware
+TIVAWARE ?= C:/ti/tivaware
 WOLFSSL_INSTALL_DIR ?= C:/wolfssl/wolfssl-2.9.4
 
 #
@@ -40,12 +40,12 @@ XDCARGS= \
     ti.targets.arm.elf.M4F=\"$(ti.targets.arm.elf.M4F)\" \
     gnu.targets.arm.M4F=\"$(gnu.targets.arm.M4F)\" \
     iar.targets.arm.M4F=\"$(iar.targets.arm.M4F)\" \
-    TivaWareDir=\"$(TivaWareDir)\" 
+    TIVAWARE=\"$(TIVAWARE)\"
 
 #
 # Set XDCPATH to contain necessary repositories.
 #
-XDCPATH = $(SYSBIOS_INSTALL_DIR)/packages;$(NDK_INSTALL_DIR)/packages;$(WOLFSSL_INSTALL_DIR);$(TIRTOS_INSTALLATION_DIR)/packages;$(TivaWareDir);
+XDCPATH = $(SYSBIOS_INSTALL_DIR)/packages;$(NDK_INSTALL_DIR)/packages;$(WOLFSSL_INSTALL_DIR);$(TIRTOS_INSTALLATION_DIR)/packages;$(TIVAWARE);
 export XDCPATH
 
 #
