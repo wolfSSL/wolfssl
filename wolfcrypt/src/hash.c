@@ -26,8 +26,18 @@
 #include <wolfssl/wolfcrypt/settings.h>
 
 #if !defined(NO_MD5) && !defined(WOLFSSL_TI_HASH)
-
 #include <wolfssl/wolfcrypt/md5.h>
+#endif
+#if !defined(NO_SHA) && !defined(WOLFSSL_TI_HASH)
+#include <wolfssl/wolfcrypt/sha.h>
+#endif
+#if !defined(NO_SHA256)  && !defined(WOLFSSL_TI_HASH)
+#include <wolfssl/wolfcrypt/sha256.h>
+#endif
+
+#include <wolfssl/wolfcrypt/hash.h>
+
+#if !defined(NO_MD5) && !defined(WOLFSSL_TI_HASH)
 void wc_Md5GetHash(Md5* md5, byte* hash)
 {
     Md5 save = *md5 ;
@@ -37,9 +47,6 @@ void wc_Md5GetHash(Md5* md5, byte* hash)
 #endif
 
 #if !defined(NO_SHA) && !defined(WOLFSSL_TI_HASH)
-
-#include <wolfssl/wolfcrypt/sha.h>
-
 int wc_ShaGetHash(Sha* sha, byte* hash)
 {
     int ret ;
@@ -51,9 +58,6 @@ int wc_ShaGetHash(Sha* sha, byte* hash)
 #endif
 
 #if !defined(NO_SHA256)  && !defined(WOLFSSL_TI_HASH)
-
-#include <wolfssl/wolfcrypt/sha256.h>
-
 int wc_Sha256GetHash(Sha256* sha256, byte* hash)
 {
     int ret ;
@@ -62,5 +66,4 @@ int wc_Sha256GetHash(Sha256* sha256, byte* hash)
     *sha256 = save ;
     return ret ;
 }
-
 #endif
