@@ -72,6 +72,7 @@ static int hashUpdate(wolfssl_TI_Hash *hash, const byte* data, word32 len)
     void *p ;
 
     if((hash== NULL) || (data == NULL))return BAD_FUNC_ARG;
+
     if(hash->len < hash->used+len) {
         if(hash->msg == NULL) {
             p = XMALLOC(hash->used+len, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -191,7 +192,7 @@ WOLFSSL_API int wc_ShaUpdate(Sha* sha, const byte* data, word32 len)
 
 WOLFSSL_API int wc_ShaFinal(Sha* sha, byte* hash)
 {
-   return hashFinal((wolfssl_TI_Hash *)sha, hash, SHAMD5_ALGO_SHA1, SHA_DIGEST_SIZE) ;
+    return hashFinal((wolfssl_TI_Hash *)sha, hash, SHAMD5_ALGO_SHA1, SHA_DIGEST_SIZE) ;
 }
 
 WOLFSSL_API int wc_ShaGetHash(Sha* sha, byte* hash)
@@ -222,7 +223,7 @@ WOLFSSL_API int wc_Sha224Update(Sha224* sha224, const byte* data, word32 len)
 
 WOLFSSL_API int wc_Sha224Final(Sha224* sha224, byte* hash)
 {
-   return hashFinal((wolfssl_TI_Hash *)sha224, hash, SHAMD5_ALGO_SHA224, SHA224_DIGEST_SIZE) ;
+    return hashFinal((wolfssl_TI_Hash *)sha224, hash, SHAMD5_ALGO_SHA224, SHA224_DIGEST_SIZE) ;
 }
 
 WOLFSSL_API int wc_Sha224GetHash(Sha224* sha224, byte* hash)
@@ -253,16 +254,16 @@ WOLFSSL_API int wc_Sha256Update(Sha256* sha256, const byte* data, word32 len)
 
 WOLFSSL_API int wc_Sha256Final(Sha256* sha256, byte* hash)
 {
-   return hashFinal((wolfssl_TI_Hash *)sha256, hash, SHAMD5_ALGO_SHA256, SHA256_DIGEST_SIZE) ;
+    return hashFinal((wolfssl_TI_Hash *)sha256, hash, SHAMD5_ALGO_SHA256, SHA256_DIGEST_SIZE) ;
 }
 
 WOLFSSL_API int wc_Sha256GetHash(Sha256* sha256, byte* hash)
 {
-    return hashGetHash(sha256, hash, SHAMD5_ALGO_SHA256, SHA_DIGEST_SIZE) ;
+    return hashGetHash(sha256, hash, SHAMD5_ALGO_SHA256, SHA256_DIGEST_SIZE) ;
 }
 
 WOLFSSL_API int wc_Sha256Hash(const byte* data, word32 len, byte*hash)
-{ 
+{
     return hashHash(data, len, hash, SHAMD5_ALGO_SHA256, SHA256_DIGEST_SIZE) ;
 }
 #endif

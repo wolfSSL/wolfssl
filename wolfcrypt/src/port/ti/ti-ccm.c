@@ -36,6 +36,7 @@
 #include "driverlib/rom.h"
 
 #ifndef SINGLE_THREADED
+#include <wolfssl/wolfcrypt/wc_port.h>
     static wolfSSL_Mutex TI_CCM_Mutex ;
 #endif
 
@@ -48,7 +49,7 @@ bool wolfSSL_TI_CCMInit(void)
     if(ccm_init)return true ;
     ccm_init = true ;
 
-    ROM_SysCtlClockFreqSet((SYSCTL_XTAL_25MHZ |
+    SysCtlClockFreqSet((SYSCTL_XTAL_25MHZ |
                                        SYSCTL_OSC_MAIN |
                                        SYSCTL_USE_PLL |
                                        SYSCTL_CFG_VCO_480), 120000000);
