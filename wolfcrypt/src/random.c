@@ -418,12 +418,16 @@ static int Hash_DRBG_Instantiate(DRBG* drbg, const byte* seed, word32 seedSz,
 /* Returns: DRBG_SUCCESS or DRBG_FAILURE */
 static int Hash_DRBG_Uninstantiate(DRBG* drbg)
 {
-    volatile DRBG clear = {0, 0, {0}, {0}, 0};
+    word32 i;
+    int    compareSum = 0;
+    byte*  compareDrbg = (byte*)drbg;
 
     ForceZero(drbg, sizeof(DRBG));
 
-    return (ConstantCompare((byte*)drbg, (byte*)&clear, sizeof(DRBG)) == 0) ?
-        DRBG_SUCCESS : DRBG_FAILURE;
+    for (i = 0; i < sizeof(DRBG); i++)
+        compareSum |= compareDrbg[i] ^ 0;
+
+    return (compareSum == 0) ? DRBG_SUCCESS : DRBG_FAILURE;
 }
 
 /* End NIST DRBG Code */
