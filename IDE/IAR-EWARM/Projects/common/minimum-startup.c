@@ -1,4 +1,4 @@
-/* benchmark-main.c
+/* minimum-startup.c
  *
  * Copyright (C) 2006-2015 wolfSSL Inc.
  *
@@ -18,23 +18,35 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
  */
+#include <stdint.h>
+#pragma language=extended
 
-#include "stdio.h"
-
-typedef struct func_args {
-    int    argc;
-    char** argv;
-    int    return_code;
-} func_args;
-
-func_args args = { 0 } ;
-
-extern int benchmark_test(void *args) ;
-
-main(void) {
-    benchmark_test(&args) ;
-    return 0;
+extern void __iar_program_start(void);
+static void Reset(void)
+{
+    __iar_program_start();
 }
 
+static void Nmi  (void){ while(1) ; }
+static void Fault(void){ while(1) ; }
 
+static unsigned long long Stack[256*4*16] @ ".noinit";
+
+typedef union
+{
+    void (*Handler)(void);
+    uint32_t Ptr;
+} Vector;
+
+__root const Vector  __vector_table[100] @ ".intvec" =
+{
+    { .Ptr = (uint32_t)Stack + sizeof(Stack) },
+                                // stack top
+    Reset,                   // reset
+    Nmi,                        // NMI
+    Fault,                      // hard fault
+    Fault,                      // MPU fault
+    Fault,                      // bus fault
+    Fault,                      // usage fault
+};
 

@@ -174,6 +174,11 @@ void wc_AesFreeCavium(Aes* aes)
 }
 #endif
 #else /* HAVE_FIPS */
+
+#ifdef WOLFSSL_TI_CRYPT
+#include <wolfcrypt/src/port/ti/ti-aes.c>
+#else
+
 #include <wolfssl/wolfcrypt/error-crypt.h>
 #include <wolfssl/wolfcrypt/logging.h>
 #ifdef NO_INLINE
@@ -1779,13 +1784,13 @@ int wc_AesCbcDecryptWithKey(byte* out, const byte* in, word32 inSz,
         /* Allow direct access to one block encrypt */
         void wc_AesEncryptDirect(Aes* aes, byte* out, const byte* in)
         {
-            return wc_AesEncrypt(aes, in, out);
+            wc_AesEncrypt(aes, in, out);
         }
 
         /* Allow direct access to one block decrypt */
         void wc_AesDecryptDirect(Aes* aes, byte* out, const byte* in)
         {
-            return wc_AesDecrypt(aes, in, out);
+            wc_AesDecrypt(aes, in, out);
         }
 
     #endif /* FREESCALE_MMCAU, AES direct block */
@@ -3884,6 +3889,8 @@ static int AesCaviumCbcDecrypt(Aes* aes, byte* out, const byte* in,
 }
 
 #endif /* HAVE_CAVIUM */
+
+#endif /* WOLFSSL_TI_CRYPT */
 
 #endif /* HAVE_FIPS */
 

@@ -28,9 +28,10 @@ typedef struct func_args {
 
 func_args args = { 0 } ;
 
-extern int ctaocrypt_test(void *args) ;
+extern int wolfcrypt_test(void *args) ;
 
 main(void) {
-    ctaocrypt_test(&args) ;
+    wolfcrypt_test(&args) ;
     return 0;
 }
+

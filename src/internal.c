@@ -1841,11 +1841,30 @@ void SSL_ResourceFree(WOLFSSL* ssl)
 #endif
 }
 
+#ifdef WOLFSSL_TI_HASH
+static void HashFinal(WOLFSSL * ssl) {
+	byte dummyHash[32] ;
+#ifndef NO_MD5
+    wc_Md5Final(&(ssl->hsHashes->hashMd5), dummyHash) ;
+#endif
+#ifndef NO_SHA
+    wc_ShaFinal(&(ssl->hsHashes->hashSha), dummyHash) ;
+#endif
+#ifndef NO_SHA256
+    wc_Sha256Final(&(ssl->hsHashes->hashSha256), dummyHash) ;
+#endif
+}
+#else
+
+    #define HashFinal(ssl)
+
+#endif
 
 /* Free any handshake resources no longer needed */
 void FreeHandshakeResources(WOLFSSL* ssl)
 {
 
+    HashFinal(ssl) ;
 #ifdef HAVE_SECURE_RENEGOTIATION
     if (ssl->secure_renegotiation && ssl->secure_renegotiation->enabled) {
         WOLFSSL_MSG("Secure Renegotiation needs to retain handshake resources");
@@ -2685,7 +2704,6 @@ void ShrinkInputBuffer(WOLFSSL* ssl, int forcedFree)
     ssl->buffers.inputBuffer.length = usedLength;
 }
 
-
 int SendBuffered(WOLFSSL* ssl)
 {
     if (ssl->ctx->CBIOSend == NULL) {
@@ -3023,14 +3041,14 @@ static void BuildMD5(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
     wc_Md5Update(&ssl->hsHashes->hashMd5, sender, SIZEOF_SENDER);
     wc_Md5Update(&ssl->hsHashes->hashMd5, ssl->arrays->masterSecret,SECRET_LEN);
     wc_Md5Update(&ssl->hsHashes->hashMd5, PAD1, PAD_MD5);
-    wc_Md5Final(&ssl->hsHashes->hashMd5, md5_result);
+    wc_Md5GetHash(&ssl->hsHashes->hashMd5, md5_result);
 
     /* make md5 outer */
     wc_Md5Update(&ssl->hsHashes->hashMd5, ssl->arrays->masterSecret,SECRET_LEN);
     wc_Md5Update(&ssl->hsHashes->hashMd5, PAD2, PAD_MD5);
     wc_Md5Update(&ssl->hsHashes->hashMd5, md5_result, MD5_DIGEST_SIZE);
 
-    wc_Md5Final(&ssl->hsHashes->hashMd5, hashes->md5);
+    wc_Md5GetHash(&ssl->hsHashes->hashMd5, hashes->md5);
 }
 
 
@@ -3043,14 +3061,14 @@ static void BuildSHA(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
     wc_ShaUpdate(&ssl->hsHashes->hashSha, sender, SIZEOF_SENDER);
     wc_ShaUpdate(&ssl->hsHashes->hashSha, ssl->arrays->masterSecret,SECRET_LEN);
     wc_ShaUpdate(&ssl->hsHashes->hashSha, PAD1, PAD_SHA);
-    wc_ShaFinal(&ssl->hsHashes->hashSha, sha_result);
+    wc_ShaGetHash(&ssl->hsHashes->hashSha, sha_result);
 
     /* make sha outer */
     wc_ShaUpdate(&ssl->hsHashes->hashSha, ssl->arrays->masterSecret,SECRET_LEN);
     wc_ShaUpdate(&ssl->hsHashes->hashSha, PAD2, PAD_SHA);
     wc_ShaUpdate(&ssl->hsHashes->hashSha, sha_result, SHA_DIGEST_SIZE);
 
-    wc_ShaFinal(&ssl->hsHashes->hashSha, hashes->sha);
+    wc_ShaGetHash(&ssl->hsHashes->hashSha, hashes->sha);
 }
 #endif
 
@@ -3060,33 +3078,10 @@ static int BuildFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
 {
     int ret = 0;
 #ifdef WOLFSSL_SMALL_STACK
-    #ifndef NO_OLD_TLS
-    #ifndef NO_MD5
-        Md5* md5 = (Md5*)XMALLOC(sizeof(Md5), NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    #endif
-    #ifndef NO_SHA
-        Sha* sha = (Sha*)XMALLOC(sizeof(Sha), NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    #endif
-    #endif
-    #ifndef NO_SHA256
-        Sha256* sha256 = (Sha256*)XMALLOC(sizeof(Sha256), NULL,
-                                                       DYNAMIC_TYPE_TMP_BUFFER);
-    #endif
     #ifdef WOLFSSL_SHA384
         Sha384* sha384 = (Sha384*)XMALLOC(sizeof(Sha384), NULL,                                                                        DYNAMIC_TYPE_TMP_BUFFER);
     #endif
 #else
-    #ifndef NO_OLD_TLS
-    #ifndef NO_MD5
-        Md5 md5[1];
-    #endif
-    #ifndef NO_SHA
-        Sha sha[1];
-    #endif
-    #endif
-    #ifndef NO_SHA256
-        Sha256 sha256[1];
-    #endif
     #ifdef WOLFSSL_SHA384
         Sha384 sha384[1];
     #endif
@@ -3094,32 +3089,10 @@ static int BuildFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
 
 #ifdef WOLFSSL_SMALL_STACK
     if (ssl == NULL
-    #ifndef NO_OLD_TLS
-    #ifndef NO_MD5
-        || md5 == NULL
-    #endif
-    #ifndef NO_SHA
-        || sha == NULL
-    #endif
-    #endif
-    #ifndef NO_SHA256
-        || sha256 == NULL
-    #endif
     #ifdef WOLFSSL_SHA384
         || sha384 == NULL
     #endif
         ) {
-    #ifndef NO_OLD_TLS
-    #ifndef NO_MD5
-        XFREE(md5, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    #endif
-    #ifndef NO_SHA
-        XFREE(sha, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    #endif
-    #endif
-    #ifndef NO_SHA256
-        XFREE(sha256, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    #endif
     #ifdef WOLFSSL_SHA384
         XFREE(sha384, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     #endif
@@ -3128,17 +3101,6 @@ static int BuildFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
 #endif
 
     /* store current states, building requires get_digest which resets state */
-#ifndef NO_OLD_TLS
-#ifndef NO_MD5
-    md5[0] = ssl->hsHashes->hashMd5;
-#endif
-#ifndef NO_SHA
-    sha[0] = ssl->hsHashes->hashSha;
-    #endif
-#endif
-#ifndef NO_SHA256
-    sha256[0] = ssl->hsHashes->hashSha256;
-#endif
 #ifdef WOLFSSL_SHA384
     sha384[0] = ssl->hsHashes->hashSha384;
 #endif
@@ -3156,35 +3118,13 @@ static int BuildFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
 #endif
 
     /* restore */
-#ifndef NO_OLD_TLS
-    #ifndef NO_MD5
-        ssl->hsHashes->hashMd5 = md5[0];
-    #endif
-    #ifndef NO_SHA
-    ssl->hsHashes->hashSha = sha[0];
-    #endif
-#endif
     if (IsAtLeastTLSv1_2(ssl)) {
-    #ifndef NO_SHA256
-        ssl->hsHashes->hashSha256 = sha256[0];
-    #endif
     #ifdef WOLFSSL_SHA384
         ssl->hsHashes->hashSha384 = sha384[0];
     #endif
     }
 
 #ifdef WOLFSSL_SMALL_STACK
-#ifndef NO_OLD_TLS
-#ifndef NO_MD5
-    XFREE(md5, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
-#ifndef NO_SHA
-    XFREE(sha, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
-#endif
-#ifndef NO_SHA256
-    XFREE(sha256, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
 #ifdef WOLFSSL_SHA384
     XFREE(sha384, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
@@ -6700,6 +6640,7 @@ int ProcessReply(WOLFSSL* ssl)
             /* input exhausted? */
             if (ssl->buffers.inputBuffer.idx == ssl->buffers.inputBuffer.length)
                 return 0;
+
             /* more messages per record */
             else if ((ssl->buffers.inputBuffer.idx - startIdx) < ssl->curSize) {
                 WOLFSSL_MSG("More messages in record");
@@ -6912,13 +6853,6 @@ static void BuildSHA_CertVerify(WOLFSSL* ssl, byte* digest)
 static int BuildCertHashes(WOLFSSL* ssl, Hashes* hashes)
 {
     /* store current states, building requires get_digest which resets state */
-    #ifndef NO_OLD_TLS
-    Md5 md5 = ssl->hsHashes->hashMd5;
-    Sha sha = ssl->hsHashes->hashSha;
-    #endif
-    #ifndef NO_SHA256
-        Sha256 sha256 = ssl->hsHashes->hashSha256;
-    #endif
     #ifdef WOLFSSL_SHA384
         Sha384 sha384 = ssl->hsHashes->hashSha384;
     #endif
@@ -6928,14 +6862,14 @@ static int BuildCertHashes(WOLFSSL* ssl, Hashes* hashes)
 
     if (ssl->options.tls) {
 #if ! defined( NO_OLD_TLS )
-        wc_Md5Final(&ssl->hsHashes->hashMd5, hashes->md5);
-        wc_ShaFinal(&ssl->hsHashes->hashSha, hashes->sha);
+        wc_Md5GetHash(&ssl->hsHashes->hashMd5, hashes->md5);
+        wc_ShaGetHash(&ssl->hsHashes->hashSha, hashes->sha);
 #endif
         if (IsAtLeastTLSv1_2(ssl)) {
             int ret;
 
             #ifndef NO_SHA256
-                ret = wc_Sha256Final(&ssl->hsHashes->hashSha256,hashes->sha256);
+                ret = wc_Sha256GetHash(&ssl->hsHashes->hashSha256,hashes->sha256);
                 if (ret != 0)
                     return ret;
             #endif
@@ -6958,13 +6892,8 @@ static int BuildCertHashes(WOLFSSL* ssl, Hashes* hashes)
     }
 
     /* restore */
-    ssl->hsHashes->hashMd5 = md5;
-    ssl->hsHashes->hashSha = sha;
 #endif
     if (IsAtLeastTLSv1_2(ssl)) {
-        #ifndef NO_SHA256
-            ssl->hsHashes->hashSha256 = sha256;
-        #endif
         #ifdef WOLFSSL_SHA384
             ssl->hsHashes->hashSha384 = sha384;
         #endif

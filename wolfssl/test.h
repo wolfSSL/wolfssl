@@ -41,6 +41,13 @@
     #include <arpa/inet.h>
     #include <sys/socket.h>
     #include <ti/sysbios/knl/Task.h>
+    struct hostent {
+    	char *h_name; /* official name of host */
+    	char **h_aliases; /* alias list */
+    	int h_addrtype; /* host address type */
+    	int h_length; /* length of address */
+    	char **h_addr_list; /* list of addresses from name server */
+    };
     #define SOCKET_T int
 #else
     #include <string.h>
@@ -410,6 +417,8 @@ static INLINE void build_addr(SOCKADDR_IN_T* addr, const char* peer,
         #ifdef WOLFSSL_MDK_ARM
             int err;
             struct hostent* entry = gethostbyname(peer, &err);
+        #elif defined(WOLFSSL_TIRTOS)
+            struct hostent* entry = DNSGetHostByName(peer);
         #else
             struct hostent* entry = gethostbyname(peer);
         #endif
@@ -609,7 +618,7 @@ static INLINE void tcp_listen(SOCKET_T* sockfd, word16* port, int useAnyAddr,
         if (listen(*sockfd, 5) != 0)
             err_sys("tcp listen failed");
     }
-    #if defined(NO_MAIN_DRIVER) && !defined(USE_WINDOWS_API)
+    #if (defined(NO_MAIN_DRIVER) && !defined(USE_WINDOWS_API)) && !defined(WOLFSSL_TIRTOS)
         if (*port == 0) {
             socklen_t len = sizeof(addr);
             if (getsockname(*sockfd, (struct sockaddr*)&addr, &len) == 0) {
@@ -667,7 +676,7 @@ static INLINE void udp_accept(SOCKET_T* sockfd, SOCKET_T* clientfd,
     if (bind(*sockfd, (const struct sockaddr*)&addr, sizeof(addr)) != 0)
         err_sys("tcp bind failed");
 
-    #if defined(NO_MAIN_DRIVER) && !defined(USE_WINDOWS_API)
+    #if (defined(NO_MAIN_DRIVER) && !defined(USE_WINDOWS_API)) && !defined(WOLFSSL_TIRTOS)
         if (port == 0) {
             socklen_t len = sizeof(addr);
             if (getsockname(*sockfd, (struct sockaddr*)&addr, &len) == 0) {

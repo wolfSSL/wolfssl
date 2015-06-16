@@ -49,7 +49,8 @@ endif
 src_libwolfssl_la_SOURCES += \
                wolfcrypt/src/hmac.c \
                wolfcrypt/src/random.c \
-               wolfcrypt/src/sha256.c
+               wolfcrypt/src/sha256.c \
+               wolfcrypt/src/hash.c
 
 if BUILD_RSA
 src_libwolfssl_la_SOURCES += wolfcrypt/src/rsa.c
