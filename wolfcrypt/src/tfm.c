@@ -2638,10 +2638,9 @@ int mp_read_radix(mp_int *a, const char *str, int radix)
 }
 
 /* fast math conversion */
-int mp_set(fp_int *a, fp_digit b)
+void mp_set(fp_int *a, fp_digit b)
 {
     fp_set(a,b);
-    return MP_OKAY;
 }
 
 /* fast math conversion */

@@ -4888,6 +4888,10 @@ int ecc_test(void)
     if (ret != 0)
         return -1014;
 
+    ret = wc_ecc_check_key(&userA);
+    if (ret != 0)
+        return -1024;
+
     ret = wc_ecc_make_key(&rng, 32, &userB);
 
     if (ret != 0)

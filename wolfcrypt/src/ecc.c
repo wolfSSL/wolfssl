@@ -195,6 +195,7 @@ int  ecc_projective_dbl_point(ecc_point* P, ecc_point* R, mp_int* modulus,
                               mp_digit* mp);
 static int ecc_mulmod(mp_int* k, ecc_point *G, ecc_point *R, mp_int* modulus,
                       int map);
+static int ecc_check_pubkey_order(ecc_key* key, mp_int* prime, mp_int* order);
 #ifdef ECC_SHAMIR
 static int ecc_mul2add(ecc_point* A, mp_int* kA, ecc_point* B, mp_int* kB,
                        ecc_point* C, mp_int* modulus);
@@ -1519,8 +1520,6 @@ int wc_ecc_shared_secret(ecc_key* private_key, ecc_key* public_key, byte* out,
 }
 
 
-#ifdef WOLFSSL_VALIDATE_KEYGEN
-
 /* return 1 if point is at infinity, 0 if not, < 0 on error */
 static int ecc_point_is_at_infinity(ecc_point* p)
 {
@@ -1532,8 +1531,6 @@ static int ecc_point_is_at_infinity(ecc_point* p)
 
     return 0;
 }
-
-#endif /* WOLFSSL_VALIDATE_KEYGEN */
 
 
 int wc_ecc_make_key_ex(RNG* rng, ecc_key* key, const ecc_set_type* dp);
@@ -1652,20 +1649,10 @@ int wc_ecc_make_key_ex(RNG* rng, ecc_key* key, const ecc_set_type* dp)
    if (err == MP_OKAY)
        err = ecc_mulmod(&key->k, base, &key->pubkey, &prime, 1);
 
-#ifdef WOLFSSL_VALIDATE_KEYGEN
+#ifdef WOLFSSL_VALIDATE_ECC_KEYGEN
    /* validate the public key, order * pubkey = point at infinity */
-   if (err == MP_OKAY) {
-       ecc_point* inf = ecc_new_point();
-       if (inf == NULL)
-           err = MEMORY_E;
-       else {
-           err = ecc_mulmod(&order, &key->pubkey, inf, &prime, 1);
-           if (err == MP_OKAY && !ecc_point_is_at_infinity(inf))
-               err = MP_NOT_INF_E;
-
-           ecc_del_point(inf);
-       }
-   }
+   if (err == MP_OKAY)
+       err = ecc_check_pubkey_order(key, &prime, &order);
 #endif /* WOLFSSL_VALIDATE_KEYGEN */
 
    if (err == MP_OKAY)
@@ -2358,32 +2345,30 @@ int wc_ecc_export_x963_ex(ecc_key* key, byte* out, word32* outLen, int compresse
 }
 
 
-/* is pubkey point on curve ? */
-static int ecc_is_point(ecc_key* key)
+/* is ec point on curve descriped by dp ? */
+static int ecc_is_point(const ecc_set_type* dp, ecc_point* ecp, mp_int* prime)
 {
-   mp_int prime, b, t1, t2;
+   mp_int b, t1, t2;
    int err;
 
-   if ((err = mp_init_multi(&prime, &b, &t1, &t2, NULL, NULL)) != MP_OKAY) {
+   if ((err = mp_init_multi(&b, &t1, &t2, NULL, NULL, NULL)) != MP_OKAY) {
       return err;
    }
 
-   /* load prime and b */
-   err = mp_read_radix(&prime, key->dp->prime, 16);
-   if (err == MP_OKAY)
-       err = mp_read_radix(&b, key->dp->Bf, 16);
+   /* load  b */
+   err = mp_read_radix(&b, dp->Bf, 16);
 
    /* compute y^2 */
    if (err == MP_OKAY)
-       err = mp_sqr(key->pubkey.y, &t1);
+       err = mp_sqr(ecp->y, &t1);
 
    /* compute x^3 */
    if (err == MP_OKAY)
-       err = mp_sqr(key->pubkey.x, &t2);
+       err = mp_sqr(ecp->x, &t2);
    if (err == MP_OKAY)
-       err = mp_mod(&t2, &prime, &t2);
+       err = mp_mod(&t2, prime, &t2);
    if (err == MP_OKAY)
-       err = mp_mul(key->pubkey.x, &t2, &t2);
+       err = mp_mul(ecp->x, &t2, &t2);
 
    /* compute y^2 - x^3 */
    if (err == MP_OKAY)
@@ -2391,19 +2376,19 @@ static int ecc_is_point(ecc_key* key)
 
    /* compute y^2 - x^3 + 3x */
    if (err == MP_OKAY)
-       err = mp_add(&t1, key->pubkey.x, &t1);
+       err = mp_add(&t1, ecp->x, &t1);
    if (err == MP_OKAY)
-       err = mp_add(&t1, key->pubkey.x, &t1);
+       err = mp_add(&t1, ecp->x, &t1);
    if (err == MP_OKAY)
-       err = mp_add(&t1, key->pubkey.x, &t1);
+       err = mp_add(&t1, ecp->x, &t1);
    if (err == MP_OKAY)
-       err = mp_mod(&t1, &prime, &t1);
+       err = mp_mod(&t1, prime, &t1);
 
    while (err == MP_OKAY && mp_cmp_d(&t1, 0) == MP_LT) {
-      err = mp_add(&t1, &prime, &t1);
+      err = mp_add(&t1, prime, &t1);
    }
-   while (err == MP_OKAY && mp_cmp(&t1, &prime) != MP_LT) {
-      err = mp_sub(&t1, &prime, &t1);
+   while (err == MP_OKAY && mp_cmp(&t1, prime) != MP_LT) {
+      err = mp_sub(&t1, prime, &t1);
    }
 
    /* compare to b */
@@ -2415,12 +2400,151 @@ static int ecc_is_point(ecc_key* key)
        }
    }
 
-   mp_clear(&prime);
    mp_clear(&b);
    mp_clear(&t1);
    mp_clear(&t2);
 
    return err;
+}
+
+
+/* validate privkey * generator == pubkey, 0 on success */
+static int ecc_check_privkey_gen(ecc_key* key, mp_int* prime)
+{
+    ecc_point* base = NULL;
+    ecc_point* res  = NULL;
+    int        err;
+
+    if (key == NULL)
+        return BAD_FUNC_ARG;
+
+    base = ecc_new_point();
+    if (base == NULL)
+        return MEMORY_E;
+
+    /* set up base generator */
+    err = mp_read_radix(base->x, (char*)key->dp->Gx, 16);
+    if (err == MP_OKAY)
+        err = mp_read_radix(base->y, (char*)key->dp->Gy, 16);
+    if (err == MP_OKAY)
+        mp_set(base->z, 1);
+
+    if (err == MP_OKAY) {
+        res = ecc_new_point();
+        if (res == NULL)
+            err = MEMORY_E;
+        else {
+            err = ecc_mulmod(&key->k, base, res, prime, 1);
+            if (err == MP_OKAY) {
+                /* compare result to public key */
+                if (mp_cmp(res->x, key->pubkey.x) != MP_EQ ||
+                    mp_cmp(res->y, key->pubkey.y) != MP_EQ ||
+                    mp_cmp(res->z, key->pubkey.z) != MP_EQ) {
+                    /* didn't match */
+                    err = ECC_PRIV_KEY_E;
+                }
+            }
+        }
+    }
+
+    ecc_del_point(res);
+    ecc_del_point(base);
+
+    return err;
+}
+
+
+#ifdef WOLFSSL_VALIDATE_ECC_IMPORT
+
+/* check privkey generator helper, creates prime needed */
+static int ecc_check_privkey_gen_helper(ecc_key* key)
+{
+    mp_int prime;
+    int    err;
+
+    if (key == NULL)
+        return BAD_FUNC_ARG;
+
+    err = mp_init(&prime);
+    if (err != MP_OKAY)
+        return err;
+
+    err = mp_read_radix(&prime, (char*)key->dp->prime, 16);
+
+    if (err == MP_OKAY);
+        err = ecc_check_privkey_gen(key, &prime);
+
+    mp_clear(&prime);
+
+    return err;
+}
+
+#endif /* WOLFSSL_VALIDATE_ECC_IMPORT */
+
+
+/* validate order * pubkey = point at infinity, 0 on success */
+static int ecc_check_pubkey_order(ecc_key* key, mp_int* prime, mp_int* order)
+{
+    ecc_point* inf = NULL;
+    int        err;
+
+    if (key == NULL)
+        return BAD_FUNC_ARG;
+
+    inf = ecc_new_point();
+    if (inf == NULL)
+        err = MEMORY_E;
+    else {
+        err = ecc_mulmod(order, &key->pubkey, inf, prime, 1);
+        if (err == MP_OKAY && !ecc_point_is_at_infinity(inf))
+            err = ECC_INF_E;
+    }
+
+    ecc_del_point(inf);
+
+    return err;
+}
+
+
+/* perform sanity checks on ec key validity, 0 on success */
+int wc_ecc_check_key(ecc_key* key)
+{
+    mp_int prime;  /* used by multiple calls so let's cache */
+    mp_int order;  /* other callers have, so let's gen here */
+    int    err;
+
+    if (key == NULL)
+        return BAD_FUNC_ARG;
+
+    /* pubkey point cannot be at inifinity */
+    if (ecc_point_is_at_infinity(&key->pubkey))
+        return ECC_INF_E;
+
+    err = mp_init_multi(&prime, &order, NULL, NULL, NULL, NULL);
+    if (err != MP_OKAY)
+        return err;
+
+    err = mp_read_radix(&prime, (char*)key->dp->prime, 16);
+
+    /* make sure point is actually on curve */
+    if (err == MP_OKAY)
+        err = ecc_is_point(key->dp, &key->pubkey, &prime);
+
+    if (err == MP_OKAY)
+        err = mp_read_radix(&order, (char*)key->dp->order, 16);
+
+    /* pubkey * order must be at infinity */
+    if (err == MP_OKAY)
+        err = ecc_check_pubkey_order(key, &prime, &order);
+
+    /* private * base generator must equal pubkey */
+    if (err == MP_OKAY && key->type == ECC_PRIVATEKEY)
+        err = ecc_check_privkey_gen(key, &prime);
+
+    mp_clear(&order);
+    mp_clear(&prime);
+
+    return err;
 }
 
 
@@ -2558,11 +2682,10 @@ int wc_ecc_import_x963(const byte* in, word32 inLen, ecc_key* key)
    if (err == MP_OKAY)
        mp_set(key->pubkey.z, 1);
 
-   if (err == MP_OKAY) {
-       err = ecc_is_point(key);
-       if (err != MP_OKAY)
-           err = IS_POINT_E;
-   }
+#ifdef WOLFSSL_VALIDATE_ECC_IMPORT
+   if (err == MP_OKAY)
+       err = wc_ecc_check_key(key);
+#endif
 
    if (err != MP_OKAY) {
        mp_clear(key->pubkey.x);
@@ -2610,7 +2733,14 @@ int wc_ecc_import_private_key(const byte* priv, word32 privSz, const byte* pub,
 
     key->type = ECC_PRIVATEKEY;
 
-    return mp_read_unsigned_bin(&key->k, priv, privSz);
+    ret = mp_read_unsigned_bin(&key->k, priv, privSz);
+
+#ifdef WOLFSSL_VALIDATE_ECC_IMPORT
+    if (ret == MP_OKAY)
+        ret = ecc_check_privkey_gen_helper(key);
+#endif
+
+    return ret;
 }
 
 /**
@@ -2721,6 +2851,11 @@ int wc_ecc_import_raw(ecc_key* key, const char* qx, const char* qy,
         key->type = ECC_PRIVATEKEY;
         err = mp_read_radix(&key->k, d, 16);
     }
+
+#ifdef WOLFSSL_VALIDATE_ECC_IMPORT
+    if (err == MP_OKAY)
+        err = wc_ecc_check_key(key);
+#endif
 
     if (err != MP_OKAY) {
         mp_clear(key->pubkey.x);

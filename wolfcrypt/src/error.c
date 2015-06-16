@@ -322,8 +322,11 @@ const char* wc_GetErrorString(int error)
     case IS_POINT_E:
         return "ECC is point on curve failed";
 
-    case MP_NOT_INF_E:
-        return " ECC point expected at infinity error";
+    case ECC_INF_E:
+        return " ECC point at infinity error";
+
+    case ECC_PRIV_KEY_E:
+        return " ECC private key is not valid error";
 
     default:
         return "unknown error number";
