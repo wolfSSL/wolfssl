@@ -2147,14 +2147,15 @@ void DtlsMsgSet(DtlsMsg* msg, word32 seq, const byte* data, byte type,
                                               word32 fragOffset, word32 fragSz)
 {
     if (msg != NULL && data != NULL && msg->fragSz <= msg->sz &&
-                     fragOffset < msg->sz && (fragOffset + fragSz) <= msg->sz) {
+                    fragOffset <= msg->sz && (fragOffset + fragSz) <= msg->sz) {
 
         msg->seq = seq;
         msg->type = type;
         msg->fragSz += fragSz;
         /* If fragOffset is zero, this is either a full message that is out
          * of order, or the first fragment of a fragmented message. Copy the
-         * handshake message header as well as the message data. */
+         * handshake message header with the message data. Zero length messages
+         * like Server Hello Done should be saved as well. */
         if (fragOffset == 0)
             XMEMCPY(msg->buf, data - DTLS_HANDSHAKE_HEADER_SZ,
                                             fragSz + DTLS_HANDSHAKE_HEADER_SZ);
