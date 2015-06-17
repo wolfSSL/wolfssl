@@ -2165,8 +2165,8 @@ void DtlsMsgSet(DtlsMsg* msg, word32 seq, const byte* data, byte type,
              * hash routines look at a defragmented message if it had actually
              * come across as a single handshake message. */
             XMEMCPY(msg->msg + fragOffset, data, fragSz);
-            c32to24(msg->sz, msg->msg - DTLS_HANDSHAKE_FRAG_SZ);
         }
+        c32to24(msg->sz, msg->msg - DTLS_HANDSHAKE_FRAG_SZ);
     }
 }
 
