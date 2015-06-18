@@ -1,36 +1,14 @@
-wolfSSL library for TI-RTOS
+# wolfSSL library for TI-RTOS
 
-This directory contains the files that build wolfSSL library for TI-RTOS. 
-Please follow the instructions in TI-RTOS user guide (www.ti.com/tool/ti-rtos) 
-to build the wolfSSL library and the example applications.
+This directory contains the files that build wolfSSL library for TI-RTOS.
+Please follow the instructions in "Using wolfSSL with TI-RTOS" (http://processors.wiki.ti.com/index.php/Using_wolfSSL_with_TI-RTOS) to build the wolfSSL
+library and the example applications.
 
-Included Files
----------------
+Also read TI-RTOS Getting Started Guide and TI-RTOS User Guide to learn more
+about TI-RTOS (http://www.ti.com/tool/ti-rtos).
 
-1. wolfSSL library build files (packages/ti/net/wolfssl)
+## Example Application
 
-    Build instructions provided in TI-RTOS user guide (www.ti.com/tool/ti-rtos)
-
-2. wc_ test application (packages/ti/net/wolfssl/tests/wolfcrypt/test)
-
-    This application is the standard wc_ test application provided with
-    wolfSSL.
-   
-    It will be built along with the wolfSSL library. Load the built executable
-    on the target and make sure the wolfSSL library works as expected.
-
-3. wc_ benchmark application 
-   (packages/ti/net/wolfssl/tests/wolfcrypt/benchmark)
-
-    This application is the standard wc_ benchmark application provided
-    with wolfSSL.
-
-    It will be built along with the wolfSSL library. Load the built executable
-    on the target and run to get the benchmark results for the configured 
-    wolfSSL library.
-
-Examples Application
---------------------
-
-A simple 'TCP echo server with TLS' example application is provided with TI-RTOS
-product. Look in the TI-RTOS user guide for instructions to build examples.
+A simple "TCP echo server with TLS" example application is provided with TI-RTOS
+product. Look in the TI-RTOS Getting Started Guide for instructions to build
+examples.

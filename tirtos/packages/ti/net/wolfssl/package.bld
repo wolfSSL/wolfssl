@@ -5,7 +5,7 @@
 var Build = xdc.useModule('xdc.bld.BuildEnvironment');
 var Pkg = xdc.useModule('xdc.bld.PackageContents');
 
-/* make command to search for the srcs */ 
+/* make command to search for the srcs */
 Pkg.makePrologue = "vpath %.c $(subst ;,  ,$(XPKGPATH))";
 
 /* WOLFSSL sources */
@@ -17,7 +17,7 @@ var wolfSSLObjList = [
     "wolfcrypt/src/blake2b.c",
     "wolfcrypt/src/camellia.c",
     "wolfcrypt/src/chacha.c",
-    "wolfcrypt/src/coding.c", 
+    "wolfcrypt/src/coding.c",
     "wolfcrypt/src/des3.c",
     "wolfcrypt/src/dh.c",
     "wolfcrypt/src/dsa.c",
@@ -25,6 +25,7 @@ var wolfSSLObjList = [
     "wolfcrypt/src/error.c",
     "wolfcrypt/src/hc128.c",
     "wolfcrypt/src/hmac.c",
+    "wolfcrypt/src/hash.c",
     "wolfcrypt/src/integer.c",
     "wolfcrypt/src/logging.c",
     "wolfcrypt/src/md4.c",
@@ -46,11 +47,17 @@ var wolfSSLObjList = [
     "src/keys.c",
     "src/ssl.c",
     "src/tls.c",
-    ];
+];
 
 for each (var targ in Build.targets) {
     var libOptions = {incs: wolfsslPathInclude};
     var lib = Pkg.addLibrary("lib/wolfssl", targ, libOptions);
     lib.addObjects(wolfSSLObjList);
+
+    var hwLibptions = {incs: wolfsslPathInclude, defs: " -DWOLFSSL_TI_HASH "
+           + "-DWOLFSSL_TI_CRYPT -DTARGET_IS_SNOWFLAKE_RA2"};
+
+    var hwLib = Pkg.addLibrary("lib/wolfssl_tm4c_hw", targ, hwLibptions);
+    hwLib.addObjects(wolfSSLObjList);
 }
 
