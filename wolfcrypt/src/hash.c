@@ -27,16 +27,6 @@
 
 #if !defined(WOLFSSL_TI_HASH)
 
-#if !defined(NO_MD5)
-#include <wolfssl/wolfcrypt/md5.h>
-#endif
-#if !defined(NO_SHA)
-#include <wolfssl/wolfcrypt/sha.h>
-#endif
-#if !defined(NO_SHA256)
-#include <wolfssl/wolfcrypt/sha256.h>
-#endif
-
 #include <wolfssl/wolfcrypt/hash.h>
 
 #if !defined(NO_MD5)
@@ -45,6 +35,10 @@ void wc_Md5GetHash(Md5* md5, byte* hash)
     Md5 save = *md5 ;
     wc_Md5Final(md5, hash) ;
     *md5 = save ;
+}
+
+WOLFSSL_API void wc_Md5RestorePos(Md5* m1, Md5* m2) {
+    *m1 = *m2 ;
 }
 #endif
 
@@ -57,6 +51,10 @@ int wc_ShaGetHash(Sha* sha, byte* hash)
     *sha = save ;
     return ret ;
 }
+
+WOLFSSL_API void wc_ShaRestorePos(Sha* s1, Sha* s2) {
+    *s1 = *s2 ;
+}
 #endif
 
 #if !defined(NO_SHA256)
@@ -67,6 +65,10 @@ int wc_Sha256GetHash(Sha256* sha256, byte* hash)
     ret = wc_Sha256Final(sha256, hash) ;
     *sha256 = save ;
     return ret ;
+}
+
+WOLFSSL_API void wc_Sha256RestorePos(Sha256* s1, Sha256* s2) {
+    *s1 = *s2 ;
 }
 #endif
 

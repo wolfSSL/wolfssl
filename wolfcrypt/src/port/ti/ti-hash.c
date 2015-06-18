@@ -107,6 +107,10 @@ static int hashGetHash(wolfssl_TI_Hash *hash, byte* result, word32 algo, word32 
     return 0 ;
 }
 
+static void hashRestorePos(wolfssl_TI_Hash *h1, wolfssl_TI_Hash *h2) {
+	h1->used = h2->used ;
+}
+
 static int hashFinal(wolfssl_TI_Hash *hash, byte* result, word32 algo, word32 hsize)
 {   
     hashGetHash(hash, result, algo, hsize) ;
@@ -166,7 +170,11 @@ WOLFSSL_API void wc_Md5Final(Md5* md5, byte* hash)
 
 WOLFSSL_API void wc_Md5GetHash(Md5* md5, byte* hash)
 {
-    hashGetHash(md5, hash, SHAMD5_ALGO_MD5, MD5_DIGEST_SIZE) ;
+    hashGetHash((wolfssl_TI_Hash *)md5, hash, SHAMD5_ALGO_MD5, MD5_DIGEST_SIZE) ;
+}
+
+WOLFSSL_API void wc_Md5RestorePos(Md5* m1, Md5* m2) {
+	hashRestorePos((wolfssl_TI_Hash *)m1, (wolfssl_TI_Hash *)m2) ;
 }
 
 WOLFSSL_API int wc_Md5Hash(const byte*data, word32 len, byte*hash)
@@ -200,6 +208,10 @@ WOLFSSL_API int wc_ShaGetHash(Sha* sha, byte* hash)
     return hashGetHash(sha, hash, SHAMD5_ALGO_SHA1, SHA_DIGEST_SIZE) ;
 }
 
+WOLFSSL_API void wc_ShaRestorePos(Sha* s1, Sha* s2) {
+	hashRestorePos((wolfssl_TI_Hash *)s1, (wolfssl_TI_Hash *)s2) ;
+}
+
 WOLFSSL_API int wc_ShaHash(const byte*data, word32 len, byte*hash)
 { 
     return hashHash(data, len, hash, SHAMD5_ALGO_SHA1, SHA_DIGEST_SIZE) ;
@@ -231,6 +243,10 @@ WOLFSSL_API int wc_Sha224GetHash(Sha224* sha224, byte* hash)
     return hashGetHash(sha224, hash, SHAMD5_ALGO_SHA224, SHA224_DIGEST_SIZE) ;
 }
 
+WOLFSSL_API void wc_Sha224RestorePos(Sha224* s1, Sha224* s2) {
+	hashRestorePos((wolfssl_TI_Hash *)s1, (wolfssl_TI_Hash *)s2) ;
+}
+
 WOLFSSL_API int wc_Sha224Hash(const byte* data, word32 len, byte*hash)
 { 
     return hashHash(data, len, hash, SHAMD5_ALGO_SHA224, SHA224_DIGEST_SIZE) ;
@@ -260,6 +276,10 @@ WOLFSSL_API int wc_Sha256Final(Sha256* sha256, byte* hash)
 WOLFSSL_API int wc_Sha256GetHash(Sha256* sha256, byte* hash)
 {
     return hashGetHash(sha256, hash, SHAMD5_ALGO_SHA256, SHA256_DIGEST_SIZE) ;
+}
+
+WOLFSSL_API void wc_Sha256RestorePos(Sha256* s1, Sha256* s2) {
+	hashRestorePos((wolfssl_TI_Hash *)s1, (wolfssl_TI_Hash *)s2) ;
 }
 
 WOLFSSL_API int wc_Sha256Hash(const byte* data, word32 len, byte*hash)
