@@ -187,6 +187,7 @@ mkdir -p $RPM_BUILD_ROOT/
 %{_includedir}/wolfssl/wolfcrypt/fe_operations.h
 %{_includedir}/wolfssl/wolfcrypt/fips_test.h
 %{_includedir}/wolfssl/wolfcrypt/ge_operations.h
+%{_includedir}/wolfssl/wolfcrypt/hash.h
 %{_includedir}/wolfssl/wolfcrypt/hc128.h
 %{_includedir}/wolfssl/wolfcrypt/hmac.h
 %{_includedir}/wolfssl/wolfcrypt/integer.h
