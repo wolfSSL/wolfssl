@@ -7,3 +7,6 @@ dh512.pem, dh512.der:
 dh1024.pem, dh1024.der:
   1024-bit DH parameters. Used for testing the rejection of lower-bit sized DH
   keys.
+digsigku.pem:
+  ECC certificate with a KeyUsage extension without the digitalSignature bit
+  set.
