@@ -495,6 +495,10 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
             done = 1;
         #endif
 
+        #ifdef NO_SHA
+            done = 1;  /* external cert chain most likely has SHA */
+        #endif
+
         if (done) {
             printf("external test can't be run in this mode");
 
