@@ -1835,7 +1835,7 @@ void SSL_ResourceFree(WOLFSSL* ssl)
 
 #ifdef WOLFSSL_TI_HASH
 static void HashFinal(WOLFSSL * ssl) {
-	byte dummyHash[32] ;
+    byte dummyHash[32] ;
 #ifndef NO_MD5
     wc_Md5Final(&(ssl->hsHashes->hashMd5), dummyHash) ;
 #endif
@@ -3025,22 +3025,44 @@ static const byte PAD2[PAD_MD5] =
                               };
 
 /* calculate MD5 hash for finished */
+#ifdef WOLFSSL_TI_HASH
+#include <wolfssl/wolfcrypt/hash.h>
+#endif
+
 static void BuildMD5(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
 {
+
     byte md5_result[MD5_DIGEST_SIZE];
 
+#ifdef WOLFSSL_SMALL_STACK
+        Md5* md5   = (Md5*)XMALLOC(sizeof(Md5), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        Md5* md5_2 = (Md5*)XMALLOC(sizeof(Md5), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#else
+        Md5 md5[1];
+        Md5 md5_2[1];
+#endif
+
     /* make md5 inner */
+    md5[0] = ssl->hsHashes->hashMd5 ; /* Save current position */
+
     wc_Md5Update(&ssl->hsHashes->hashMd5, sender, SIZEOF_SENDER);
     wc_Md5Update(&ssl->hsHashes->hashMd5, ssl->arrays->masterSecret,SECRET_LEN);
     wc_Md5Update(&ssl->hsHashes->hashMd5, PAD1, PAD_MD5);
     wc_Md5GetHash(&ssl->hsHashes->hashMd5, md5_result);
+    wc_Md5RestorePos(&ssl->hsHashes->hashMd5, md5) ; /* Restore current position */
 
     /* make md5 outer */
-    wc_Md5Update(&ssl->hsHashes->hashMd5, ssl->arrays->masterSecret,SECRET_LEN);
-    wc_Md5Update(&ssl->hsHashes->hashMd5, PAD2, PAD_MD5);
-    wc_Md5Update(&ssl->hsHashes->hashMd5, md5_result, MD5_DIGEST_SIZE);
+    wc_InitMd5(md5_2) ;
+    wc_Md5Update(md5_2, ssl->arrays->masterSecret,SECRET_LEN);
+    wc_Md5Update(md5_2, PAD2, PAD_MD5);
+    wc_Md5Update(md5_2, md5_result, MD5_DIGEST_SIZE);
+    wc_Md5Final(md5_2, hashes->md5);
 
-    wc_Md5GetHash(&ssl->hsHashes->hashMd5, hashes->md5);
+#ifdef WOLFSSL_SMALL_STACK
+    XFREE(md5, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(md5_2, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+
 }
 
 
@@ -3049,21 +3071,36 @@ static void BuildSHA(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
 {
     byte sha_result[SHA_DIGEST_SIZE];
 
+#ifdef WOLFSSL_SMALL_STACK
+        Sha* sha = (Sha*)XMALLOC(sizeof(Sha), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        Sha* sha2 = (Sha*)XMALLOC(sizeof(Sha), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#else
+        Sha sha[1];
+        Sha sha2[1] ;
+#endif
     /* make sha inner */
+    sha[0] = ssl->hsHashes->hashSha ; /* Save current position */
+
     wc_ShaUpdate(&ssl->hsHashes->hashSha, sender, SIZEOF_SENDER);
     wc_ShaUpdate(&ssl->hsHashes->hashSha, ssl->arrays->masterSecret,SECRET_LEN);
     wc_ShaUpdate(&ssl->hsHashes->hashSha, PAD1, PAD_SHA);
     wc_ShaGetHash(&ssl->hsHashes->hashSha, sha_result);
+    wc_ShaRestorePos(&ssl->hsHashes->hashSha, sha) ; /* Restore current position */
 
     /* make sha outer */
-    wc_ShaUpdate(&ssl->hsHashes->hashSha, ssl->arrays->masterSecret,SECRET_LEN);
-    wc_ShaUpdate(&ssl->hsHashes->hashSha, PAD2, PAD_SHA);
-    wc_ShaUpdate(&ssl->hsHashes->hashSha, sha_result, SHA_DIGEST_SIZE);
+    wc_InitSha(sha2) ;
+    wc_ShaUpdate(sha2, ssl->arrays->masterSecret,SECRET_LEN);
+    wc_ShaUpdate(sha2, PAD2, PAD_SHA);
+    wc_ShaUpdate(sha2, sha_result, SHA_DIGEST_SIZE);
+    wc_ShaFinal(sha2, hashes->sha);
 
-    wc_ShaGetHash(&ssl->hsHashes->hashSha, hashes->sha);
-}
+#ifdef WOLFSSL_SMALL_STACK
+    XFREE(sha, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(sha2, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
 
+}
+#endif
 
 /* Finished doesn't support SHA512, not SHA512 cipher suites yet */
 static int BuildFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
@@ -5120,7 +5157,7 @@ static int Poly1305Tag(WOLFSSL* ssl, byte* additional, const byte* out,
     if ((ret = wc_Poly1305SetKey(ssl->auth.poly1305, cipher, keySz)) != 0)
         return ret;
 
-	/* additional input to poly1305 */
+    /* additional input to poly1305 */
     if ((ret = wc_Poly1305Update(ssl->auth.poly1305, additional, blockSz)) != 0)
         return ret;
 
@@ -5179,7 +5216,7 @@ static int Poly1305TagOld(WOLFSSL* ssl, byte* additional, const byte* out,
     if ((ret = wc_Poly1305SetKey(ssl->auth.poly1305, cipher, keySz)) != 0)
         return ret;
 
-	/* add TLS compressed length and additional input to poly1305 */
+    /* add TLS compressed length and additional input to poly1305 */
     additional[AEAD_AUTH_DATA_SZ - 2] = (msglen >> 8) & 0xff;
     additional[AEAD_AUTH_DATA_SZ - 1] =  msglen       & 0xff;
     if ((ret = wc_Poly1305Update(ssl->auth.poly1305, additional,
@@ -5219,201 +5256,201 @@ static int Poly1305TagOld(WOLFSSL* ssl, byte* additional, const byte* out,
 static int  ChachaAEADEncrypt(WOLFSSL* ssl, byte* out, const byte* input,
                               word16 sz)
 {
-	const byte* additionalSrc = input - RECORD_HEADER_SZ;
-	int ret = 0;
-	byte tag[POLY1305_AUTH_SZ];
-	byte additional[CHACHA20_BLOCK_SIZE];
-	byte nonce[AEAD_NONCE_SZ];
-	byte cipher[CHACHA20_256_KEY_SIZE]; /* generated key for poly1305 */
+    const byte* additionalSrc = input - RECORD_HEADER_SZ;
+    int ret = 0;
+    byte tag[POLY1305_AUTH_SZ];
+    byte additional[CHACHA20_BLOCK_SIZE];
+    byte nonce[AEAD_NONCE_SZ];
+    byte cipher[CHACHA20_256_KEY_SIZE]; /* generated key for poly1305 */
     #ifdef CHACHA_AEAD_TEST
         int i;
     #endif
 
-	XMEMSET(tag, 0, sizeof(tag));
-	XMEMSET(nonce, 0, AEAD_NONCE_SZ);
-	XMEMSET(cipher, 0, sizeof(cipher));
-	XMEMSET(additional, 0, CHACHA20_BLOCK_SIZE);
+    XMEMSET(tag, 0, sizeof(tag));
+    XMEMSET(nonce, 0, AEAD_NONCE_SZ);
+    XMEMSET(cipher, 0, sizeof(cipher));
+    XMEMSET(additional, 0, CHACHA20_BLOCK_SIZE);
 
-	/* get nonce */
-	c32toa(ssl->keys.sequence_number, nonce + AEAD_IMP_IV_SZ
-	       + AEAD_SEQ_OFFSET);
+    /* get nonce */
+    c32toa(ssl->keys.sequence_number, nonce + AEAD_IMP_IV_SZ
+           + AEAD_SEQ_OFFSET);
 
-	/* opaque SEQ number stored for AD */
-	c32toa(GetSEQIncrement(ssl, 0), additional + AEAD_SEQ_OFFSET);
+    /* opaque SEQ number stored for AD */
+    c32toa(GetSEQIncrement(ssl, 0), additional + AEAD_SEQ_OFFSET);
 
-	/* Store the type, version. Unfortunately, they are in
-	 * the input buffer ahead of the plaintext. */
-	#ifdef WOLFSSL_DTLS
-	    if (ssl->options.dtls) {
-	        c16toa(ssl->keys.dtls_epoch, additional);
-	        additionalSrc -= DTLS_HANDSHAKE_EXTRA;
-	    }
-	#endif
+    /* Store the type, version. Unfortunately, they are in
+     * the input buffer ahead of the plaintext. */
+    #ifdef WOLFSSL_DTLS
+        if (ssl->options.dtls) {
+            c16toa(ssl->keys.dtls_epoch, additional);
+            additionalSrc -= DTLS_HANDSHAKE_EXTRA;
+        }
+    #endif
 
-	XMEMCPY(additional + AEAD_TYPE_OFFSET, additionalSrc, 3);
+    XMEMCPY(additional + AEAD_TYPE_OFFSET, additionalSrc, 3);
 
-	#ifdef CHACHA_AEAD_TEST
-		printf("Encrypt Additional : ");
-		for (i = 0; i < CHACHA20_BLOCK_SIZE; i++) {
-		    printf("%02x", additional[i]);
-		}
-		printf("\n\n");
-		printf("input before encryption :\n");
-		for (i = 0; i < sz; i++) {
-		    printf("%02x", input[i]);
-		    if ((i + 1) % 16 == 0)
-		        printf("\n");
-		}
-		printf("\n");
-	#endif
+    #ifdef CHACHA_AEAD_TEST
+        printf("Encrypt Additional : ");
+        for (i = 0; i < CHACHA20_BLOCK_SIZE; i++) {
+            printf("%02x", additional[i]);
+        }
+        printf("\n\n");
+        printf("input before encryption :\n");
+        for (i = 0; i < sz; i++) {
+            printf("%02x", input[i]);
+            if ((i + 1) % 16 == 0)
+                printf("\n");
+        }
+        printf("\n");
+    #endif
 
-	/* set the nonce for chacha and get poly1305 key */
-	if ((ret = wc_Chacha_SetIV(ssl->encrypt.chacha, nonce, 0)) != 0)
-	    return ret;
+    /* set the nonce for chacha and get poly1305 key */
+    if ((ret = wc_Chacha_SetIV(ssl->encrypt.chacha, nonce, 0)) != 0)
+        return ret;
 
-		if ((ret = wc_Chacha_Process(ssl->encrypt.chacha, cipher,
-	                cipher, sizeof(cipher))) != 0)
-	    return ret;
+        if ((ret = wc_Chacha_Process(ssl->encrypt.chacha, cipher,
+                    cipher, sizeof(cipher))) != 0)
+        return ret;
 
-	/* encrypt the plain text */
-	if ((ret = wc_Chacha_Process(ssl->encrypt.chacha, out, input,
-	               sz - ssl->specs.aead_mac_size)) != 0)
-	    return ret;
+    /* encrypt the plain text */
+    if ((ret = wc_Chacha_Process(ssl->encrypt.chacha, out, input,
+                   sz - ssl->specs.aead_mac_size)) != 0)
+        return ret;
 
-	/* get the tag : future use of hmac could go here*/
-	if (ssl->options.oldPoly == 1) {
-	    if ((ret = Poly1305TagOld(ssl, additional, (const byte* )out,
-	                cipher, sz, tag)) != 0)
-	        return ret;
-	}
-	else {
-	    if ((ret = Poly1305Tag(ssl, additional, (const byte* )out,
-	                cipher, sz, tag)) != 0)
-	        return ret;
-	}
+    /* get the tag : future use of hmac could go here*/
+    if (ssl->options.oldPoly == 1) {
+        if ((ret = Poly1305TagOld(ssl, additional, (const byte* )out,
+                    cipher, sz, tag)) != 0)
+            return ret;
+    }
+    else {
+        if ((ret = Poly1305Tag(ssl, additional, (const byte* )out,
+                    cipher, sz, tag)) != 0)
+            return ret;
+    }
 
-	/* append tag to ciphertext */
-	XMEMCPY(out + sz - ssl->specs.aead_mac_size, tag, sizeof(tag));
+    /* append tag to ciphertext */
+    XMEMCPY(out + sz - ssl->specs.aead_mac_size, tag, sizeof(tag));
 
-	AeadIncrementExpIV(ssl);
-	ForceZero(nonce, AEAD_NONCE_SZ);
+    AeadIncrementExpIV(ssl);
+    ForceZero(nonce, AEAD_NONCE_SZ);
 
-	#ifdef CHACHA_AEAD_TEST
-	   printf("mac tag :\n");
-	    for (i = 0; i < 16; i++) {
-	       printf("%02x", tag[i]);
-	       if ((i + 1) % 16 == 0)
-	           printf("\n");
-	    }
-	   printf("\n\noutput after encrypt :\n");
-	    for (i = 0; i < sz; i++) {
-	       printf("%02x", out[i]);
-	       if ((i + 1) % 16 == 0)
-	           printf("\n");
-	    }
-	    printf("\n");
-	#endif
+    #ifdef CHACHA_AEAD_TEST
+       printf("mac tag :\n");
+        for (i = 0; i < 16; i++) {
+           printf("%02x", tag[i]);
+           if ((i + 1) % 16 == 0)
+               printf("\n");
+        }
+       printf("\n\noutput after encrypt :\n");
+        for (i = 0; i < sz; i++) {
+           printf("%02x", out[i]);
+           if ((i + 1) % 16 == 0)
+               printf("\n");
+        }
+        printf("\n");
+    #endif
 
-	return ret;
+    return ret;
 }
 
 
 static int ChachaAEADDecrypt(WOLFSSL* ssl, byte* plain, const byte* input,
                            word16 sz)
 {
-	byte additional[CHACHA20_BLOCK_SIZE];
-	byte nonce[AEAD_NONCE_SZ];
-	byte tag[POLY1305_AUTH_SZ];
-	byte cipher[CHACHA20_256_KEY_SIZE]; /* generated key for mac */
-	int ret = 0;
+    byte additional[CHACHA20_BLOCK_SIZE];
+    byte nonce[AEAD_NONCE_SZ];
+    byte tag[POLY1305_AUTH_SZ];
+    byte cipher[CHACHA20_256_KEY_SIZE]; /* generated key for mac */
+    int ret = 0;
 
-	XMEMSET(tag, 0, sizeof(tag));
-	XMEMSET(cipher, 0, sizeof(cipher));
-	XMEMSET(nonce, 0, AEAD_NONCE_SZ);
-	XMEMSET(additional, 0, CHACHA20_BLOCK_SIZE);
+    XMEMSET(tag, 0, sizeof(tag));
+    XMEMSET(cipher, 0, sizeof(cipher));
+    XMEMSET(nonce, 0, AEAD_NONCE_SZ);
+    XMEMSET(additional, 0, CHACHA20_BLOCK_SIZE);
 
     #ifdef CHACHA_AEAD_TEST
        int i;
-	   printf("input before decrypt :\n");
-	    for (i = 0; i < sz; i++) {
-	       printf("%02x", input[i]);
-	       if ((i + 1) % 16 == 0)
-	           printf("\n");
-	    }
-	    printf("\n");
-	#endif
+       printf("input before decrypt :\n");
+        for (i = 0; i < sz; i++) {
+           printf("%02x", input[i]);
+           if ((i + 1) % 16 == 0)
+               printf("\n");
+        }
+        printf("\n");
+    #endif
 
-	/* get nonce */
-	c32toa(ssl->keys.peer_sequence_number, nonce + AEAD_IMP_IV_SZ
-	        + AEAD_SEQ_OFFSET);
+    /* get nonce */
+    c32toa(ssl->keys.peer_sequence_number, nonce + AEAD_IMP_IV_SZ
+            + AEAD_SEQ_OFFSET);
 
-	/* sequence number field is 64-bits, we only use 32-bits */
-	c32toa(GetSEQIncrement(ssl, 1), additional + AEAD_SEQ_OFFSET);
+    /* sequence number field is 64-bits, we only use 32-bits */
+    c32toa(GetSEQIncrement(ssl, 1), additional + AEAD_SEQ_OFFSET);
 
-	/* get AD info */
-	additional[AEAD_TYPE_OFFSET] = ssl->curRL.type;
-	additional[AEAD_VMAJ_OFFSET] = ssl->curRL.pvMajor;
-	additional[AEAD_VMIN_OFFSET] = ssl->curRL.pvMinor;
+    /* get AD info */
+    additional[AEAD_TYPE_OFFSET] = ssl->curRL.type;
+    additional[AEAD_VMAJ_OFFSET] = ssl->curRL.pvMajor;
+    additional[AEAD_VMIN_OFFSET] = ssl->curRL.pvMinor;
 
-	/* Store the type, version. */
-	#ifdef WOLFSSL_DTLS
-	    if (ssl->options.dtls)
-	        c16toa(ssl->keys.dtls_state.curEpoch, additional);
-	#endif
+    /* Store the type, version. */
+    #ifdef WOLFSSL_DTLS
+        if (ssl->options.dtls)
+            c16toa(ssl->keys.dtls_state.curEpoch, additional);
+    #endif
 
-	#ifdef CHACHA_AEAD_TEST
-		printf("Decrypt Additional : ");
-		for (i = 0; i < CHACHA20_BLOCK_SIZE; i++) {
-		    printf("%02x", additional[i]);
-		}
-		printf("\n\n");
-	#endif
+    #ifdef CHACHA_AEAD_TEST
+        printf("Decrypt Additional : ");
+        for (i = 0; i < CHACHA20_BLOCK_SIZE; i++) {
+            printf("%02x", additional[i]);
+        }
+        printf("\n\n");
+    #endif
 
-	/* set nonce and get poly1305 key */
-	if ((ret = wc_Chacha_SetIV(ssl->decrypt.chacha, nonce, 0)) != 0)
-	    return ret;
+    /* set nonce and get poly1305 key */
+    if ((ret = wc_Chacha_SetIV(ssl->decrypt.chacha, nonce, 0)) != 0)
+        return ret;
 
-	if ((ret = wc_Chacha_Process(ssl->decrypt.chacha, cipher,
-	                cipher, sizeof(cipher))) != 0)
-	    return ret;
+    if ((ret = wc_Chacha_Process(ssl->decrypt.chacha, cipher,
+                    cipher, sizeof(cipher))) != 0)
+        return ret;
 
-	/* get the tag : future use of hmac could go here*/
-	if (ssl->options.oldPoly == 1) {
-	    if ((ret = Poly1305TagOld(ssl, additional, input, cipher,
-	                    sz, tag)) != 0)
-	        return ret;
-	}
-	else {
-	    if ((ret = Poly1305Tag(ssl, additional, input, cipher,
-	                    sz, tag)) != 0)
-	        return ret;
-	}
+    /* get the tag : future use of hmac could go here*/
+    if (ssl->options.oldPoly == 1) {
+        if ((ret = Poly1305TagOld(ssl, additional, input, cipher,
+                        sz, tag)) != 0)
+            return ret;
+    }
+    else {
+        if ((ret = Poly1305Tag(ssl, additional, input, cipher,
+                        sz, tag)) != 0)
+            return ret;
+    }
 
-	/* check mac sent along with packet */
+    /* check mac sent along with packet */
     if (ConstantCompare(input + sz - ssl->specs.aead_mac_size, tag,
                 ssl->specs.aead_mac_size) != 0) {
-	    WOLFSSL_MSG("Mac did not match");
-	    SendAlert(ssl, alert_fatal, bad_record_mac);
-	    ForceZero(nonce, AEAD_NONCE_SZ);
-	    return VERIFY_MAC_ERROR;
-	}
+        WOLFSSL_MSG("Mac did not match");
+        SendAlert(ssl, alert_fatal, bad_record_mac);
+        ForceZero(nonce, AEAD_NONCE_SZ);
+        return VERIFY_MAC_ERROR;
+    }
 
-	/* if mac was good decrypt message */
-	if ((ret = wc_Chacha_Process(ssl->decrypt.chacha, plain, input,
-	               sz - ssl->specs.aead_mac_size)) != 0)
-	    return ret;
+    /* if mac was good decrypt message */
+    if ((ret = wc_Chacha_Process(ssl->decrypt.chacha, plain, input,
+                   sz - ssl->specs.aead_mac_size)) != 0)
+        return ret;
 
-	#ifdef CHACHA_AEAD_TEST
-	   printf("plain after decrypt :\n");
-	    for (i = 0; i < sz; i++) {
-	       printf("%02x", plain[i]);
-	       if ((i + 1) % 16 == 0)
-	           printf("\n");
-	    }
-	    printf("\n");
-	#endif
+    #ifdef CHACHA_AEAD_TEST
+       printf("plain after decrypt :\n");
+        for (i = 0; i < sz; i++) {
+           printf("%02x", plain[i]);
+           if ((i + 1) % 16 == 0)
+               printf("\n");
+        }
+        printf("\n");
+    #endif
 
-	return ret;
+    return ret;
 }
 #endif /* HAVE_CHACHA && HAVE_POLY1305 */
 #endif /* HAVE_AEAD */
@@ -6811,17 +6848,33 @@ static void BuildMD5_CertVerify(WOLFSSL* ssl, byte* digest)
 {
     byte md5_result[MD5_DIGEST_SIZE];
 
+#ifdef WOLFSSL_SMALL_STACK
+        Md5* md5   = (Md5*)XMALLOC(sizeof(Md5), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        Md5* md5_2 = (Md5*)XMALLOC(sizeof(Md5), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#else
+        Md5 md5[1];
+        Md5 md5_2[1];
+#endif
+
     /* make md5 inner */
+    md5[0] = ssl->hsHashes->hashMd5 ; /* Save current position */
     wc_Md5Update(&ssl->hsHashes->hashMd5, ssl->arrays->masterSecret,SECRET_LEN);
     wc_Md5Update(&ssl->hsHashes->hashMd5, PAD1, PAD_MD5);
-    wc_Md5Final(&ssl->hsHashes->hashMd5, md5_result);
+    wc_Md5GetHash(&ssl->hsHashes->hashMd5, md5_result);
+    wc_Md5RestorePos(&ssl->hsHashes->hashMd5, md5) ; /* Restore current position */
 
     /* make md5 outer */
-    wc_Md5Update(&ssl->hsHashes->hashMd5, ssl->arrays->masterSecret, SECRET_LEN);
-    wc_Md5Update(&ssl->hsHashes->hashMd5, PAD2, PAD_MD5);
-    wc_Md5Update(&ssl->hsHashes->hashMd5, md5_result, MD5_DIGEST_SIZE);
+    wc_InitMd5(md5_2) ;
+    wc_Md5Update(md5_2, ssl->arrays->masterSecret, SECRET_LEN);
+    wc_Md5Update(md5_2, PAD2, PAD_MD5);
+    wc_Md5Update(md5_2, md5_result, MD5_DIGEST_SIZE);
 
-    wc_Md5Final(&ssl->hsHashes->hashMd5, digest);
+    wc_Md5Final(md5_2, digest);
+
+#ifdef WOLFSSL_SMALL_STACK
+    XFREE(md5, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(md5_2, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
 }
 
 
@@ -6829,17 +6882,34 @@ static void BuildSHA_CertVerify(WOLFSSL* ssl, byte* digest)
 {
     byte sha_result[SHA_DIGEST_SIZE];
 
+#ifdef WOLFSSL_SMALL_STACK
+        Sha* sha   = (Sha*)XMALLOC(sizeof(Sha), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        Sha* sha2 = (Sha*)XMALLOC(sizeof(Sha), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#else
+        Sha sha[1];
+        Sha sha2[1];
+#endif
+
     /* make sha inner */
+    sha[0] = ssl->hsHashes->hashSha ; /* Save current position */
     wc_ShaUpdate(&ssl->hsHashes->hashSha, ssl->arrays->masterSecret,SECRET_LEN);
     wc_ShaUpdate(&ssl->hsHashes->hashSha, PAD1, PAD_SHA);
-    wc_ShaFinal(&ssl->hsHashes->hashSha, sha_result);
+    wc_ShaGetHash(&ssl->hsHashes->hashSha, sha_result);
+    wc_ShaRestorePos(&ssl->hsHashes->hashSha, sha) ; /* Restore current position */
 
     /* make sha outer */
-    wc_ShaUpdate(&ssl->hsHashes->hashSha, ssl->arrays->masterSecret,SECRET_LEN);
-    wc_ShaUpdate(&ssl->hsHashes->hashSha, PAD2, PAD_SHA);
-    wc_ShaUpdate(&ssl->hsHashes->hashSha, sha_result, SHA_DIGEST_SIZE);
+    wc_InitSha(sha2) ;
+    wc_ShaUpdate(sha2, ssl->arrays->masterSecret,SECRET_LEN);
+    wc_ShaUpdate(sha2, PAD2, PAD_SHA);
+    wc_ShaUpdate(sha2, sha_result, SHA_DIGEST_SIZE);
 
-    wc_ShaFinal(&ssl->hsHashes->hashSha, digest);
+    wc_ShaFinal(sha2, digest);
+
+#ifdef WOLFSSL_SMALL_STACK
+    XFREE(sha, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(sha2, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+
 }
 #endif /* NO_CERTS */
 #endif /* NO_OLD_TLS */
