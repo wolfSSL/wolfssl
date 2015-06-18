@@ -64,6 +64,10 @@
 
 #else /* else build without fips */
 
+#if defined(WOLFSSL_TI_HASH)
+    /* #include <wolfcrypt/src/port/ti/ti-hash.c> included by wc_port.c */
+#else
+
 #ifdef WOLFSSL_PIC32MZ_HASH
 #define wc_InitSha   wc_InitSha_sw
 #define wc_ShaUpdate wc_ShaUpdate_sw
@@ -447,6 +451,8 @@ int wc_ShaHash(const byte* data, word32 len, byte* hash)
     return ret;
 
 }
+
 #endif /* HAVE_FIPS */
+#endif /* WOLFSSL_TI_HASH */
 #endif /* NO_SHA */
 

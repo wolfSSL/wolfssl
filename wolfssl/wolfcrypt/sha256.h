@@ -51,6 +51,7 @@ enum {
     SHA256_PAD_SIZE     = 56
 };
 
+#ifndef WOLFSSL_TI_HASH
 
 /* Sha256 digest */
 typedef struct Sha256 {
@@ -63,6 +64,10 @@ typedef struct Sha256 {
         pic32mz_desc desc ; /* Crypt Engine descripter */
     #endif
 } Sha256;
+
+#else /* WOLFSSL_TI_HASH */
+    #include "wolfssl/wolfcrypt/port/ti/ti-hash.h"
+#endif
 
 #endif /* HAVE_FIPS */
 

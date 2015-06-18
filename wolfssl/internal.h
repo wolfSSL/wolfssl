@@ -88,6 +88,8 @@
     #include <wolfssl/wolfcrypt/ripemd.h>
 #endif
 
+#include <wolfssl/wolfcrypt/hash.h>
+
 #ifdef WOLFSSL_CALLBACKS
     #include <wolfssl/callbacks.h>
     #include <signal.h>

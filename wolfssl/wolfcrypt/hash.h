@@ -1,4 +1,4 @@
-/* test-main.c
+/* hash.h
  *
  * Copyright (C) 2006-2015 wolfSSL Inc.
  *
@@ -16,21 +16,26 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
+#ifndef WOLF_CRYPT_HASH_H
+#define WOLF_CRYPT_HASH_H
 
-typedef struct func_args {
-    int    argc;
-    char** argv;
-    int    return_code;
-} func_args;
+#ifndef NO_MD5
+#include <wolfssl/wolfcrypt/md5.h>
+WOLFSSL_API void wc_Md5GetHash(Md5*, byte*);
+WOLFSSL_API void wc_Md5RestorePos(Md5*, Md5*) ;
+#endif
+#ifndef NO_SHA
+#include <wolfssl/wolfcrypt/sha.h>
+WOLFSSL_API int wc_ShaGetHash(Sha*, byte*);
+WOLFSSL_API void wc_ShaRestorePos(Sha*, Sha*) ;
+#endif
+#ifndef NO_SHA256
+#include <wolfssl/wolfcrypt/sha256.h>
+WOLFSSL_API int wc_Sha256GetHash(Sha256*, byte*);
+WOLFSSL_API void wc_Sha256RestorePos(Sha256*, Sha256*) ;
+#endif
 
-func_args args = { 0 } ;
-
-extern int ctaocrypt_test(void *args) ;
-
-main(void) {
-    ctaocrypt_test(&args) ;
-    return 0;
-}
+#endif

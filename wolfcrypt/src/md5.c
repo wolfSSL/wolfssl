@@ -28,6 +28,10 @@
 
 #if !defined(NO_MD5)
 
+#if defined(WOLFSSL_TI_HASH)
+    /* #include <wolfcrypt/src/port/ti/ti-hash.c> included by wc_port.c */
+#else
+
 #ifdef WOLFSSL_PIC32MZ_HASH
 #define wc_InitMd5   wc_InitMd5_sw
 #define wc_Md5Update wc_Md5Update_sw
@@ -175,7 +179,6 @@
     }
 
 #endif /* WOLFSSL_HAVE_MIN */
-
 
 void wc_InitMd5(Md5* md5)
 {
@@ -388,5 +391,7 @@ int wc_Md5Hash(const byte* data, word32 len, byte* hash)
 
     return 0;
 }
+
+#endif /* WOLFSSL_TI_HASH */
 
 #endif /* NO_MD5 */
