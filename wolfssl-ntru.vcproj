@@ -203,6 +203,10 @@
 				>
 			</File>
 			<File
+				RelativePath=".\wolfcrypt\src\hash.c"
+				>
+			</File>
+			<File
 				RelativePath=".\wolfcrypt\src\hc128.c"
 				>
 			</File>
