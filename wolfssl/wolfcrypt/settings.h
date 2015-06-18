@@ -153,6 +153,17 @@
     #define NO_FILESYSTEM
 #endif
 
+#if defined(WOLFSSL_IAR_ARM)
+    #define NO_MAIN_DRIVER
+    #define SINGLE_THREADED
+    #define USE_CERT_BUFFERS_1024
+    #define BENCH_EMBEDDED
+    #define NO_FILESYSTEM
+    #define NO_WRITEV
+    #define WOLFSSL_USER_IO
+    #define  BENCH_EMBEDDED
+#endif
+
 #ifdef MICROCHIP_PIC32
     /* #define WOLFSSL_MICROCHIP_PIC32MZ */
     #define SIZEOF_LONG_LONG 8
