@@ -145,6 +145,7 @@ enum Misc_ASN {
     KEYID_SIZE          = SHA_DIGEST_SIZE,
 #endif
     RSA_INTS            =   8,     /* RSA ints in private key */
+	DSA_INTS            =   5,     /* DSA ints in private key */
     MIN_DATE_SIZE       =  13,
     MAX_DATE_SIZE       =  32,
     ASN_GEN_TIME_SZ     =  15,     /* 7 numbers * 2 + Zulu tag */

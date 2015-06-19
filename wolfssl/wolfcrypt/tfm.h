@@ -234,6 +234,10 @@
  *
  * It defaults to 4096-bits [allowing multiplications upto 2048x2048 bits ]
  */
+
+/* For DH with 3072 bits key size */
+//#define FP_MAX_BITS		  32768
+
 #ifndef FP_MAX_BITS
     #define FP_MAX_BITS           4096
 #endif
@@ -258,6 +262,7 @@
 #define FP_OKAY     0
 #define FP_VAL      1
 #define FP_MEM      2
+#define FP_NOT_INF	3
 
 /* equalities */
 #define FP_LT        -1   /* less than */
@@ -344,7 +349,7 @@ typedef struct {
 /* #define TFM_PRESCOTT */
 
 /* Do we want timing resistant fp_exptmod() ?
- * This makes it slower but also timing invariant with respect to the exponent 
+ * This makes it slower but also timing invariant with respect to the exponent
  */
 /* #define TFM_TIMING_RESISTANT */
 
@@ -371,6 +376,9 @@ typedef struct {
 
 /* set to a small digit */
 void fp_set(fp_int *a, fp_digit b);
+
+/* check if a bit is set */
+int fp_is_bit_set(fp_int *a, fp_digit b);
 
 /* copy from a to b */
 #ifndef ALT_ECC_SIZE
@@ -645,6 +653,7 @@ void fp_sqr_comba64(fp_int *a, fp_int *b);
     #define MP_EQ   FP_EQ   /* equal to     */
     #define MP_GT   FP_GT   /* greater than */
     #define MP_VAL  FP_VAL  /* invalid */
+	#define MP_NOT_INF FP_NOT_INF /* point not at infinity */
     #define MP_OKAY FP_OKAY /* ok result    */
     #define MP_NO   FP_NO   /* yes/no result */
     #define MP_YES  FP_YES  /* yes/no result */
@@ -665,6 +674,8 @@ int  mp_mulmod (mp_int * a, mp_int * b, mp_int * c, mp_int * d);
 int  mp_mod(mp_int *a, mp_int *b, mp_int *c);
 int  mp_invmod(mp_int *a, mp_int *b, mp_int *c);
 int  mp_exptmod (mp_int * g, mp_int * x, mp_int * p, mp_int * y);
+int  mp_mul_2d(mp_int *a, int b, mp_int *c);
+
 
 int  mp_cmp(mp_int *a, mp_int *b);
 int  mp_cmp_d(mp_int *a, mp_digit b);
@@ -680,7 +691,10 @@ int  mp_iszero(mp_int* a);
 int  mp_count_bits(mp_int *a);
 int  mp_leading_bit(mp_int *a);
 int  mp_set_int(fp_int *a, fp_digit b);
+int  mp_is_bit_set (fp_int * a, fp_digit b);
 void mp_rshb(mp_int *a, int x);
+int mp_toradix (mp_int *a, char *str, int radix);
+int mp_radix_size (mp_int * a, int radix, int *size);
 
 #ifdef HAVE_ECC
     int mp_read_radix(mp_int* a, const char* str, int radix);

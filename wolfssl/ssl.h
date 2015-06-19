@@ -76,6 +76,10 @@ typedef struct WOLFSSL_SOCKADDR     WOLFSSL_SOCKADDR;
 
 typedef struct WOLFSSL_RSA            WOLFSSL_RSA;
 typedef struct WOLFSSL_DSA            WOLFSSL_DSA;
+typedef struct WOLFSSL_EC_KEY         WOLFSSL_EC_KEY;
+typedef struct WOLFSSL_EC_POINT       WOLFSSL_EC_POINT;
+typedef struct WOLFSSL_EC_GROUP       WOLFSSL_EC_GROUP;
+typedef struct WOLFSSL_ECDSA_SIG      WOLFSSL_ECDSA_SIG;
 typedef struct WOLFSSL_CIPHER         WOLFSSL_CIPHER;
 typedef struct WOLFSSL_X509_LOOKUP    WOLFSSL_X509_LOOKUP;
 typedef struct WOLFSSL_X509_LOOKUP_METHOD WOLFSSL_X509_LOOKUP_METHOD;
