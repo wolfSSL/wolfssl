@@ -55,7 +55,6 @@ EXTRA_DIST+= wolfssl.sln
 EXTRA_DIST+= wolfssl64.sln
 EXTRA_DIST+= valgrind-error.sh
 EXTRA_DIST+= gencertbuf.pl
-EXTRA_DIST+= IDE
 EXTRA_DIST+= README.md
 EXTRA_DIST+= LICENSING
 EXTRA_DIST+= INSTALL
@@ -97,6 +96,7 @@ include mcapi/wolfssl.X/nbproject/include.am
 include mcapi/zlib.X/nbproject/include.am
 include tirtos/include.am
 include scripts/include.am
+include IDE/include.am
 
 if USE_VALGRIND
 TESTS_ENVIRONMENT=./valgrind-error.sh
