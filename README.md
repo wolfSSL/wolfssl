@@ -38,6 +38,38 @@ before calling wolfSSL_new();  Though it's not recommended.
 - GNU Binutils 2.24 ld has problems with some debug builds, to fix an ld error
   add -fdebug-types-section to C_EXTRA_FLAGS
 
+#wolfSSL (Formerly CyaSSL) Release 3.6.0 (06/19/2015)
+
+##Release 3.6.0 of wolfSSL has bug fixes and new features including:
+
+- Max Strength build that only allows TLSv1.2, AEAD ciphers, and PFS (Perfect
+   Forward Secrecy).  With --enable-maxstrength
+- Server side session ticket support, the example server and echosever use the
+   example callback myTicketEncCb(), see wolfSSL_CTX_set_TicketEncCb()
+- FIPS version submitted for iOS.
+- TI Crypto Hardware Acceleration
+- DTLS fragmentation fixes
+- ECC key check validation with wc_ecc_check_key()
+- 32bit code options to reduce memory for Curve25519 and Ed25519
+- wolfSSL JNI build switch with --enable-jni
+- PicoTCP support improvements
+- DH min ephemeral key size enforcement with wolfSSL_CTX_SetMinDhKey_Sz()
+- KEEP_PEER_CERT and AltNames can now be used together
+- ChaCha20 big endian fix
+- SHA-512 signature algorithm support for key exchange and verify messages
+- ECC make key crash fix on RNG failure, ECC users must update.
+- Improvements to usage of time code.
+- Improvements to VS solution files.
+- GNU Binutils 2.24 ld has problems with some debug builds, to fix an ld error
+  add -fdebug-types-section to C_EXTRA_FLAGS
+
+- No high level security fixes that requires an update though we always
+  recommend updating to the latest (except note 14, ecc RNG failure)
+
+See INSTALL file for build instructions.
+More info can be found on-line at //http://wolfssl.com/yaSSL/Docs.html
+
+
 #wolfSSL (Formerly CyaSSL) Release 3.4.8 (04/06/2015)
 
 ##Release 3.4.8 of wolfSSL has bug fixes and new features including:
