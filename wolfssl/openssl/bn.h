@@ -61,8 +61,6 @@ WOLFSSL_API int wolfSSL_BN_hex2bn(WOLFSSL_BIGNUM**, const char* str);
 WOLFSSL_API WOLFSSL_BIGNUM* wolfSSL_BN_dup(const WOLFSSL_BIGNUM*);
 WOLFSSL_API WOLFSSL_BIGNUM* wolfSSL_BN_copy(WOLFSSL_BIGNUM*, const WOLFSSL_BIGNUM*);
 
-WOLFSSL_API int wolfSSL_BN_set_word(WOLFSSL_BIGNUM*, WOLFSSL_BN_ULONG);
-
 WOLFSSL_API int   wolfSSL_BN_dec2bn(WOLFSSL_BIGNUM**, const char* str);
 WOLFSSL_API char* wolfSSL_BN_bn2dec(const WOLFSSL_BIGNUM*);
 
@@ -141,7 +139,7 @@ typedef WOLFSSL_BN_GENCB BN_GENCB;
 #define BN_CTX_start wolfSSL_BN_CTX_start
 
 #ifdef __cplusplus
-    }  /* extern "C" */ 
+    }  /* extern "C" */
 #endif
 
 

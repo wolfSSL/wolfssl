@@ -12592,8 +12592,9 @@ int wolfSSL_RSA_sign(int type, const unsigned char* m,
 
 	if (ret == SSL_SUCCESS)
 		WOLFSSL_MSG("wolfSSL_RSA_sign success");
-	else
+	else {
 		WOLFSSL_MSG("wolfSSL_RSA_sign failed");
+	}
     return ret;
 }
 
@@ -12624,8 +12625,9 @@ int wolfSSL_RSA_public_decrypt(int flen, unsigned char* from,
 	tlen = wc_RsaSSL_Verify(from, flen, to, wolfSSL_RSA_size(rsa), (RsaKey*)rsa->internal);
 	if (tlen <= 0)
 		WOLFSSL_MSG("wolfSSL_RSA_public_decrypt failed");
-	else
+	else {
 		WOLFSSL_MSG("wolfSSL_RSA_public_decrypt success");
+	}
     return tlen;
 }
 
