@@ -2712,6 +2712,8 @@ int mp_cnt_lsb(fp_int* a)
 #endif /* HAVE_COMP_KEY */
 
 
+#if defined(WOLFSSL_KEY_GEN) || defined(HAVE_COMP_KEY)
+
 /* returns size of ASCII reprensentation */
 int mp_radix_size (mp_int *a, int radix, int *size)
 {
@@ -2817,6 +2819,8 @@ int mp_toradix (mp_int *a, char *str, int radix)
 	fp_zero (&t);
 	return FP_OKAY;
 }
+
+#endif /* defined(WOLFSSL_KEY_GEN) || defined(HAVE_COMP_KEY) */
 
 #endif /* HAVE_ECC */
 

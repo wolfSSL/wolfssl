@@ -11417,6 +11417,8 @@ int wolfSSL_BN_add(WOLFSSL_BIGNUM *r, WOLFSSL_BIGNUM *a, WOLFSSL_BIGNUM *b)
 	return 1;
 }
 
+#ifdef WOLFSSL_KEY_GEN
+
 int wolfSSL_BN_is_prime_ex(const WOLFSSL_BIGNUM *bn, int nbchecks, WOLFSSL_BN_CTX *ctx, WOLFSSL_BN_GENCB *cb)
 {
 	(void)ctx;
@@ -11443,6 +11445,7 @@ int wolfSSL_BN_is_prime_ex(const WOLFSSL_BIGNUM *bn, int nbchecks, WOLFSSL_BN_CT
 
 	return 1;
 }
+#endif /* #ifdef WOLFSSL_KEY_GEN */
 
 WOLFSSL_BN_ULONG wolfSSL_BN_mod_word(const WOLFSSL_BIGNUM *bn, WOLFSSL_BN_ULONG w)
 {
@@ -11481,7 +11484,7 @@ WOLFSSL_BN_ULONG wolfSSL_BN_mod_word(const WOLFSSL_BIGNUM *bn, WOLFSSL_BN_ULONG 
 	return ret;
 }
 
-#if defined(HAVE_ECC)
+#if (defined(WOLFSSL_KEY_GEN) || defined(HAVE_COMP_KEY)) && defined(HAVE_ECC)
 char *wolfSSL_BN_bn2hex(const WOLFSSL_BIGNUM *bn)
 {
 	int len = 0;
@@ -11541,7 +11544,7 @@ char *wolfSSL_BN_bn2hex(const WOLFSSL_BIGNUM *bn)
 
 	WOLFSSL_MSG("wolfSSL_BN_bn2hex not implemented");
 
-	return "";
+	return (char*)"";
 }
 
 int wolfSSL_BN_print_fp(FILE *fp, const WOLFSSL_BIGNUM *bn)
@@ -11553,7 +11556,7 @@ int wolfSSL_BN_print_fp(FILE *fp, const WOLFSSL_BIGNUM *bn)
 
 	return 1;
 }
-#endif /* defined(HAVE_ECC) */
+#endif /* (defined(WOLFSSL_KEY_GEN) || defined(HAVE_COMP_KEY)) && defined(HAVE_ECC) */
 
 WOLFSSL_BIGNUM *wolfSSL_BN_CTX_get(WOLFSSL_BN_CTX *ctx)
 {
@@ -13006,6 +13009,7 @@ void wolfSSL_OPENSSL_free(void* p)
     XFREE(p, NULL, 0);
 }
 
+#if defined(WOLFSSL_KEY_GEN) && !defined(NO_RSA)
 
 int wolfSSL_PEM_write_buf_RSAPrivateKey(RSA* rsa, const EVP_CIPHER* cipher,
 										unsigned char* passwd, int len,
@@ -13140,6 +13144,7 @@ int wolfSSL_PEM_write_bio_RSAPrivateKey(WOLFSSL_BIO* bio, RSA* rsa,
 
 	return SSL_FATAL_ERROR;
 }
+#endif /* defined(WOLFSSL_KEY_GEN) && !defined(NO_RSA) */
 
 WOLFSSL_API int wolfSSL_PEM_write_bio_ECPrivateKey(WOLFSSL_BIO* bio, WOLFSSL_EC_KEY* ec,
 												   const EVP_CIPHER* cipher,
