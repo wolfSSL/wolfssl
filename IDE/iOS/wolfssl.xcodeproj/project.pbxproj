@@ -153,6 +153,8 @@
 		5216472A1A8A80100062516A /* types.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = 521646BE1A8993F50062516A /* types.h */; };
 		5216472B1A8A80100062516A /* visibility.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = 521646BF1A8993F50062516A /* visibility.h */; };
 		5216472C1A8A80100062516A /* wc_port.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = 521646C01A8993F50062516A /* wc_port.h */; };
+		525BE5341B3869110054BBCD /* hash.c in Sources */ = {isa = PBXBuildFile; fileRef = 525BE5331B3869110054BBCD /* hash.c */; };
+		525BE5361B3869780054BBCD /* hash.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = 525BE5351B3869430054BBCD /* hash.h */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -162,6 +164,7 @@
 			dstPath = include/wolfssl/wolfcrypt;
 			dstSubfolderSpec = 7;
 			files = (
+				525BE5361B3869780054BBCD /* hash.h in CopyFiles */,
 				521646CD1A8A7FF30062516A /* aes.h in CopyFiles */,
 				521646CE1A8A7FF30062516A /* arc4.h in CopyFiles */,
 				521646CF1A8A7FF30062516A /* asn_public.h in CopyFiles */,
@@ -446,6 +449,8 @@
 		521646BE1A8993F50062516A /* types.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = types.h; path = ../../cyassl/ctaocrypt/types.h; sourceTree = "<group>"; };
 		521646BF1A8993F50062516A /* visibility.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = visibility.h; path = ../../cyassl/ctaocrypt/visibility.h; sourceTree = "<group>"; };
 		521646C01A8993F50062516A /* wc_port.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = wc_port.h; path = ../../cyassl/ctaocrypt/wc_port.h; sourceTree = "<group>"; };
+		525BE5331B3869110054BBCD /* hash.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = hash.c; path = ../../wolfcrypt/src/hash.c; sourceTree = "<group>"; };
+		525BE5351B3869430054BBCD /* hash.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = hash.h; path = ../../wolfssl/wolfcrypt/hash.h; sourceTree = "<group>"; };
 		52B1344D16F3C9E800C07B32 /* libwolfssl.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = libwolfssl.a; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -558,6 +563,7 @@
 				5216466C1A8993770062516A /* ecc.h */,
 				5216466D1A8993770062516A /* error-crypt.h */,
 				5216466E1A8993770062516A /* fips_test.h */,
+				525BE5351B3869430054BBCD /* hash.h */,
 				5216466F1A8993770062516A /* hc128.h */,
 				521646701A8993770062516A /* hmac.h */,
 				521646721A8993770062516A /* integer.h */,
@@ -628,6 +634,7 @@
 				5216461A1A8992CC0062516A /* dsa.c */,
 				5216461B1A8992CC0062516A /* ecc.c */,
 				5216461C1A8992CC0062516A /* error.c */,
+				525BE5331B3869110054BBCD /* hash.c */,
 				5216461D1A8992CC0062516A /* hc128.c */,
 				5216461E1A8992CC0062516A /* hmac.c */,
 				5216461F1A8992CC0062516A /* integer.c */,
@@ -752,6 +759,7 @@
 				521646341A8992CC0062516A /* asn.c in Sources */,
 				521646501A8992CC0062516A /* sha512.c in Sources */,
 				5216464A1A8992CC0062516A /* rabbit.c in Sources */,
+				525BE5341B3869110054BBCD /* hash.c in Sources */,
 				521646441A8992CC0062516A /* md5.c in Sources */,
 				5216460F1A89928E0062516A /* ssl.c in Sources */,
 				5216464D1A8992CC0062516A /* rsa.c in Sources */,
@@ -847,6 +855,17 @@
 				DSTROOT = /tmp/wolfssl_ios.dst;
 				GCC_PRECOMPILE_PREFIX_HEADER = NO;
 				GCC_PREFIX_HEADER = "";
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+					IPHONE,
+					HAVE_HASHDRBG,
+					USE_FAST_MATH,
+					HAVE_HASHDRBG,
+					HAVE_AESGCM,
+					WOLFSSL_SHA512,
+					WOLFSSL_SHA384,
+				);
 				HEADER_SEARCH_PATHS = (
 					$SRCROOT,
 					$PROJECT_DIR/../..,
@@ -867,6 +886,15 @@
 				DSTROOT = /tmp/wolfssl_ios.dst;
 				GCC_PRECOMPILE_PREFIX_HEADER = NO;
 				GCC_PREFIX_HEADER = "";
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					IPHONE,
+					HAVE_HASHDRBG,
+					USE_FAST_MATH,
+					HAVE_HASHDRBG,
+					HAVE_AESGCM,
+					WOLFSSL_SHA512,
+					WOLFSSL_SHA384,
+				);
 				HEADER_SEARCH_PATHS = (
 					$SRCROOT,
 					$PROJECT_DIR/../..,
