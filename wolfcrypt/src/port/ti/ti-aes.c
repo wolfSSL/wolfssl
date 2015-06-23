@@ -250,6 +250,7 @@ static int AesAuthArgCheck(Aes* aes, byte* out, const byte* in, word32 inSz,
                               const byte* authTag, word32 authTagSz,
                               const byte* authIn, word32 authInSz, word32 *M,  word32 *L)
 {
+    (void) authInSz ;
     if((aes == NULL)||(nonce == NULL)||(authTag== NULL)||(authIn == NULL))
         return BAD_FUNC_ARG;
     if((inSz != 0) && ((out == NULL)||(in == NULL)))

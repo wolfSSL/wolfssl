@@ -159,7 +159,10 @@ WOLFSSL_API int  wc_Des_CbcDecrypt(Des* des, byte* out, const byte* in, word32 s
 
 WOLFSSL_API int  wc_Des_CbcDecryptWithKey(byte* out, const byte* in, word32 sz,
                                           const byte* key, const byte* iv)
-{ return 0 ;}
+{   
+    (void)out; (void)in; (void)sz; (void)key; (void)iv ; 
+    return 0 ;
+}
 
 WOLFSSL_API int  wc_Des3_CbcEncrypt(Des3* des, byte* out, const byte* in, word32 sz)
 {   
@@ -173,7 +176,10 @@ WOLFSSL_API int  wc_Des3_CbcDecrypt(Des3* des, byte* out, const byte* in, word32
 
 WOLFSSL_API int  wc_Des3_CbcDecryptWithKey(byte* out, const byte* in, word32 sz,
                                                const byte* key, const byte* iv)
-{ return 0 ; }
+{ 
+     (void)out; (void)in; (void)sz; (void)key; (void)iv ; 
+     return 0 ;
+ }
 
 
 #endif /* WOLFSSL_TI_CRYPT */
