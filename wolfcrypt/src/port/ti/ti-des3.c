@@ -74,8 +74,8 @@ static int  DesCbcAlign16(Des* des, byte* out, const byte* in, word32 sz, word32
     wolfSSL_TI_lockCCM() ;
     ROM_DESReset(DES_BASE);
     ROM_DESConfigSet(DES_BASE, (dir | DES_CFG_MODE_CBC | tri));
-    ROM_DESIVSet(DES_BASE, des->reg);
-    ROM_DESKeySet(DES_BASE, des->key);
+    ROM_DESIVSet(DES_BASE, (uint32_t*)des->reg);
+    ROM_DESKeySet(DES_BASE,(uint32_t*)des->key);
     if(dir == DES_CFG_DIR_DECRYPT)
         /* if input and output same will overwrite input iv */
         XMEMCPY(des->tmp, in + sz - DES_BLOCK_SIZE, DES_BLOCK_SIZE);
@@ -159,7 +159,10 @@ WOLFSSL_API int  wc_Des_CbcDecrypt(Des* des, byte* out, const byte* in, word32 s
 
 WOLFSSL_API int  wc_Des_CbcDecryptWithKey(byte* out, const byte* in, word32 sz,
                                           const byte* key, const byte* iv)
-{ return 0 ;}
+{   
+    (void)out; (void)in; (void)sz; (void)key; (void)iv ; 
+    return -1 ;
+}
 
 WOLFSSL_API int  wc_Des3_CbcEncrypt(Des3* des, byte* out, const byte* in, word32 sz)
 {   
@@ -173,7 +176,10 @@ WOLFSSL_API int  wc_Des3_CbcDecrypt(Des3* des, byte* out, const byte* in, word32
 
 WOLFSSL_API int  wc_Des3_CbcDecryptWithKey(byte* out, const byte* in, word32 sz,
                                                const byte* key, const byte* iv)
-{ return 0 ; }
+{ 
+     (void)out; (void)in; (void)sz; (void)key; (void)iv ; 
+     return -1 ;
+ }
 
 
 #endif /* WOLFSSL_TI_CRYPT */
