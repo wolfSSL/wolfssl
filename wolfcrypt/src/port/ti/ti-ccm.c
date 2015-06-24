@@ -63,7 +63,7 @@ int wolfSSL_TI_CCMInit(void)
     WAIT(ROM_SysCtlPeripheralReady(SYSCTL_PERIPH_CCM0)) ;
     
 #ifndef SINGLE_THREADED
-    InitMutex(&TI_CCM_Mutex) ;
+    if(InitMutex(&TI_CCM_Mutex))return false ;
 #endif
 
     return true ;
