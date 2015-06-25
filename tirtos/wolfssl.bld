@@ -33,7 +33,7 @@
 
 var armOpts = " -ms ";
 var gnuOpts = " -D_POSIX_SOURCE ";
-var iarOpts = "";
+var iarOpts = " --diag_suppress=Pa134 ";
 var TivaWareDir = "";
 
 /* Uncomment the following lines to build libraries for debug mode: */
