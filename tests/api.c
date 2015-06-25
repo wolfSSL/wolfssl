@@ -904,6 +904,14 @@ static void test_wolfSSL_SNI_GetFromBuffer(void)
         0x01, 0x04, 0x03, 0x05, 0x03, 0x02, 0x03, 0x04, 0x02, 0x02, 0x02, 0x00,
         0x12, 0x00, 0x00
     };
+    
+    byte buffer5[] = { /* SSL v2.0 client hello */
+        0x00, 0x2b, 0x01, 0x03, 0x01, 0x00, 0x09, 0x00, 0x00,
+        /* dummy bytes bellow, just to pass size check */
+        0xb6, 0x03, 0x03, 0x83, 0xa3, 0xe6, 0xdc, 0x16, 0xa1, 0x43, 0xe9, 0x45,
+        0x15, 0xbd, 0x64, 0xa9, 0xb6, 0x07, 0xb4, 0x50, 0xc6, 0xdd, 0xff, 0xc2,
+        0xd3, 0x0d, 0x4f, 0x36, 0xb4, 0x41, 0x51, 0x61, 0xc1, 0xa5, 0x9e, 0x00,
+    };
 
     byte result[32] = {0};
     word32 length   = 32;
@@ -944,6 +952,22 @@ static void test_wolfSSL_SNI_GetFromBuffer(void)
                                                            0, result, &length));
     result[length] = 0;
     AssertStrEQ("api.textmate.org", (const char*) result);
+
+    /* SSL v2.0 tests */
+    AssertIntEQ(SNI_UNSUPPORTED, wolfSSL_SNI_GetFromBuffer(buffer5,
+                                          sizeof(buffer5), 0, result, &length));
+
+    buffer5[2] = 0x02;
+    AssertIntEQ(BUFFER_ERROR, wolfSSL_SNI_GetFromBuffer(buffer5,
+                                          sizeof(buffer5), 0, result, &length));
+
+    buffer5[2] = 0x01; buffer5[6] = 0x08;
+    AssertIntEQ(BUFFER_ERROR, wolfSSL_SNI_GetFromBuffer(buffer5,
+                                          sizeof(buffer5), 0, result, &length));
+    
+    buffer5[6] = 0x09; buffer5[8] = 0x01;
+    AssertIntEQ(BUFFER_ERROR, wolfSSL_SNI_GetFromBuffer(buffer5,
+                                          sizeof(buffer5), 0, result, &length));
 }
 
 static void test_wolfSSL_client_server(callback_functions* client_callbacks,

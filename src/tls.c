@@ -1108,8 +1108,30 @@ int TLSX_SNI_GetFromBuffer(const byte* clientHello, word32 helloSz,
         return INCOMPLETE_DATA;
 
     /* TLS record header */
-    if ((enum ContentType) clientHello[offset++] != handshake)
+    if ((enum ContentType) clientHello[offset++] != handshake) {
+
+        /* checking for SSLv2.0 client hello according to: */
+        /* http://tools.ietf.org/html/rfc4346#appendix-E.1 */
+        if ((enum HandShakeType) clientHello[++offset] == client_hello) {
+            offset += ENUM_LEN + VERSION_SZ; /* skip version */
+            
+            ato16(clientHello + offset, &len16);
+            offset += OPAQUE16_LEN;
+            
+            if (len16 % 3) /* cipher_spec_length must be multiple of 3 */
+                return BUFFER_ERROR;
+
+            ato16(clientHello + offset, &len16);
+            offset += OPAQUE16_LEN;
+            
+            if (len16 != 0) /* session_id_length must be 0 */
+                return BUFFER_ERROR;
+                        
+            return SNI_UNSUPPORTED;
+        }
+
         return BUFFER_ERROR;
+    }
 
     if (clientHello[offset++] != SSLv3_MAJOR)
         return BUFFER_ERROR;
