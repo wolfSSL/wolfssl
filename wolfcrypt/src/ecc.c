@@ -1573,7 +1573,7 @@ int wc_ecc_make_key_ex(RNG* rng, ecc_key* key, const ecc_set_type* dp)
 #ifdef WOLFSSL_SMALL_STACK
    byte*          buf;
 #else
-   byte           buf[ECC_MAXSIZE];
+   byte           buf[ECC_MAXSIZE_GEN];
 #endif
    int            keysize;
    int            po_init = 0;  /* prime order Init flag for clear */
@@ -1582,22 +1582,23 @@ int wc_ecc_make_key_ex(RNG* rng, ecc_key* key, const ecc_set_type* dp)
        return ECC_BAD_ARG_E;
 
 #ifdef WOLFSSL_SMALL_STACK
-   buf = (byte*)XMALLOC(ECC_MAXSIZE, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+   buf = (byte*)XMALLOC(ECC_MAXSIZE_GEN, NULL, DYNAMIC_TYPE_TMP_BUFFER);
    if (buf == NULL)
        return MEMORY_E;
 #endif
 
    key->idx = -1;
    key->dp  = dp;
-   keysize  = dp->size;
+
+   /*generate 8 extra bytes to mitigate bias from the modulo operation below*/
+   /*see section A.1.2 in 'Suite B Implementor's Guide to FIPS 186-3 (ECDSA)'*/
+   keysize  = dp->size + 8;
 
    /* allocate ram */
    base = NULL;
 
    /* make up random string */
    err = wc_RNG_GenerateBlock(rng, buf, keysize);
-   if (err == 0)
-       buf[0] |= 0x0c;
 
    /* setup the key variables */
    if (err == 0) {
@@ -1639,6 +1640,12 @@ int wc_ecc_make_key_ex(RNG* rng, ecc_key* key, const ecc_set_type* dp)
        mp_set(base->z, 1);
    if (err == MP_OKAY) 
        err = mp_read_unsigned_bin(&key->k, (byte*)buf, keysize);
+
+   /* quick sanity check to make sure we're not dealing with a 0 key */
+   if (err == MP_OKAY) {
+       if (MP_YES == mp_iszero(&key->k))
+           err = MP_ZERO_E;
+   }
 
    /* the key should be smaller than the order of base point */
    if (err == MP_OKAY) { 
