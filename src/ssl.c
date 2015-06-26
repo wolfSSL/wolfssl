@@ -2801,6 +2801,60 @@ static int ProcessChainBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
 }
 
 
+static INLINE WOLFSSL_METHOD* cm_pick_method(void)
+{
+    #ifndef NO_WOLFSSL_CLIENT
+        #ifdef NO_OLD_TLS
+            return wolfTLSv1_2_client_method();
+        #else
+            return wolfSSLv3_client_method();
+        #endif
+    #elif !defined(NO_WOLFSSL_SERVER)
+        #ifdef NO_OLD_TLS
+            return wolfTLSv1_2_server_method();
+        #else
+            return wolfSSLv3_server_method();
+        #endif
+    #else
+        return NULL;
+    #endif
+}
+
+
+/* like load verify locations, 1 for success, < 0 for error */
+int wolfSSL_CertManagerLoadCABuffer(WOLFSSL_CERT_MANAGER* cm,
+                                   const unsigned char* in, long sz, int format)
+{
+    int ret = SSL_FATAL_ERROR;
+    WOLFSSL_CTX* tmp;
+
+    WOLFSSL_ENTER("wolfSSL_CertManagerLoadCABuffer");
+
+    if (cm == NULL) {
+        WOLFSSL_MSG("No CertManager error");
+        return ret;
+    }
+    tmp = wolfSSL_CTX_new(cm_pick_method());
+
+    if (tmp == NULL) {
+        WOLFSSL_MSG("CTX new failed");
+        return ret;
+    }
+
+    /* for tmp use */
+    wolfSSL_CertManagerFree(tmp->cm);
+    tmp->cm = cm;
+
+    ret = wolfSSL_CTX_load_verify_buffer(tmp, in, sz, format);
+
+    /* don't loose our good one */
+    tmp->cm = NULL;
+    wolfSSL_CTX_free(tmp);
+
+    return ret;
+}
+
+
 /* Verify the ceritficate, SSL_SUCCESS for ok, < 0 for error */
 int wolfSSL_CertManagerVerifyBuffer(WOLFSSL_CERT_MANAGER* cm, const byte* buff,
                                    long sz, int format)
@@ -3337,26 +3391,6 @@ int wolfSSL_CertManagerVerify(WOLFSSL_CERT_MANAGER* cm, const char* fname,
 }
 
 
-static INLINE WOLFSSL_METHOD* cm_pick_method(void)
-{
-    #ifndef NO_WOLFSSL_CLIENT
-        #ifdef NO_OLD_TLS
-            return wolfTLSv1_2_client_method();
-        #else
-            return wolfSSLv3_client_method();
-        #endif      
-    #elif !defined(NO_WOLFSSL_SERVER)
-        #ifdef NO_OLD_TLS
-            return wolfTLSv1_2_server_method();
-        #else
-            return wolfSSLv3_server_method();
-        #endif
-    #else
-        return NULL;
-    #endif
-}
-
-
 /* like load verify locations, 1 for success, < 0 for error */
 int wolfSSL_CertManagerLoadCA(WOLFSSL_CERT_MANAGER* cm, const char* file,
                              const char* path)
@@ -3389,7 +3423,6 @@ int wolfSSL_CertManagerLoadCA(WOLFSSL_CERT_MANAGER* cm, const char* file,
 
     return ret;
 }
-
 
 
 /* turn on CRL if off and compiled in, set options */
