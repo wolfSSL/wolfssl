@@ -377,7 +377,7 @@ void fp_set(fp_int *a, fp_digit b);
     #define fp_copy(a, b)  (void)(((a) != (b)) ? ((void)XMEMCPY((b), (a), sizeof(fp_int))) : (void)0)
     #define fp_init_copy(a, b) fp_copy(b, a)
 #else
-    void fp_copy(fp_int *a, fp_int *b);
+    int fp_copy(fp_int *a, fp_int *b);
     void fp_init_copy(fp_int *a, fp_int *b);
 #endif
 
