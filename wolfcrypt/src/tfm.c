@@ -1056,7 +1056,8 @@ static int _fp_exptmod(fp_int * G, fp_int * X, fp_int * P, fp_int * Y)
   } 
 
   /* init M array */
-  XMEMSET(M, 0, sizeof(M)); 
+  for(x = 0; x < sizeof(M)/sizeof(fp_int); x++)
+    fp_init(&M[x]);
 
   /* now setup montgomery  */
   if ((err = fp_montgomery_setup (P, &mp)) != FP_OKAY) {
@@ -1454,6 +1455,10 @@ int fp_cmp(fp_int *a, fp_int *b)
 /* compare against a single digit */
 int fp_cmp_d(fp_int *a, fp_digit b)
 {
+  /* special case for zero*/
+  if (a->used == 0 && b == 0)
+    return FP_EQ;
+
   /* compare based on sign */
   if ((b && a->used == 0) || a->sign == FP_NEG) {
     return FP_LT;
@@ -2102,13 +2107,19 @@ int mp_sub_d(fp_int *a, fp_digit b, fp_int *c)
 
 
 #ifdef ALT_ECC_SIZE
-void fp_copy(fp_int *a, fp_int* b)
+int fp_copy(fp_int *a, fp_int* b)
 {
     if (a != b) {
+        if (b->size < a->used )
+            return FP_VAL;
+
         b->used = a->used;
         b->sign = a->sign;
+
         XMEMCPY(b->dp, a->dp, a->used * sizeof(fp_digit));
     }
+
+    return FP_OKAY;
 }
 
 void fp_init_copy(fp_int *a, fp_int* b)
