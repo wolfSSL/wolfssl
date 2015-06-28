@@ -12609,6 +12609,11 @@ int wolfSSL_RSA_public_decrypt(int flen, unsigned char* from,
 
 	WOLFSSL_MSG("wolfSSL_RSA_public_decrypt");
 
+	if (rsa == NULL || rsa->internal == NULL || from == NULL) {
+		WOLFSSL_MSG("Bad function arguments");
+		return 0;
+	}
+
 	if (padding != RSA_PKCS1_PADDING) {
 		WOLFSSL_MSG("wolfSSL_RSA_public_decrypt unsupported padding");
 		return 0;
