@@ -12073,7 +12073,7 @@ static int SetIndividualInternal(WOLFSSL_BIGNUM* bn, mp_int* mpi)
 		return SSL_FATAL_ERROR;
 	}
 
-	if (mpi == NULL && (mp_init(mpi) != MP_OKAY)) {
+	if (mpi == NULL || (mp_init(mpi) != MP_OKAY)) {
 		WOLFSSL_MSG("mpi NULL error");
 		return SSL_FATAL_ERROR;
 	}
