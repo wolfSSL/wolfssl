@@ -713,15 +713,38 @@ int TLS_hmac(WOLFSSL* ssl, byte* digest, const byte* in, word32 sz,
 
 #ifdef HAVE_TLS_EXTENSIONS
 
+/**
+ * The TLSX semaphore is used to calculate the size of the extensions to be sent
+ * from one peer to another.
+ */
 
-/** Supports up to 64 flags. Update as needed. */
+/** Supports up to 64 flags. Increase as needed. */
 #define SEMAPHORE_SIZE 8
 
-
+/**
+ * Converts the extension type (id) to an index in the semaphore.
+ *
+ * Oficial reference for TLS extension types:
+ *   http://www.iana.org/assignments/tls-extensiontype-values/tls-extensiontype-values.xml
+ *
+ * Motivation:
+ *   Previously, we used the extension type itself as the index of that
+ *   extension in the semaphore as the extension types were declared
+ *   sequentially, but maintain a semaphore as big as the number of available
+ *   extensions is no longer an option since the release of renegotiation_info.
+ *
+ * How to update:
+ *   Assign extension types that extrapolate the number of available semaphores
+ *   to the first available index going backwards in the semaphore array.
+ *   When adding a new extension type that don't extrapolate the number of
+ *   available semaphores, check for a possible collision with with a
+ *   'remapped' extension type.
+ */
 static INLINE word16 TLSX_ToSemaphore(word16 type)
 {
     switch (type) {
-        case SECURE_RENEGOTIATION:
+
+        case SECURE_RENEGOTIATION: /* 0xFF01 */
             return 63;
 
         default:
@@ -739,30 +762,45 @@ static INLINE word16 TLSX_ToSemaphore(word16 type)
     return type;
 }
 
-
+/** Checks if a specific light (tls extension) is not set in the semaphore. */
 #define IS_OFF(semaphore, light) \
     ((semaphore)[(light) / 8] ^  (byte) (0x01 << ((light) % 8)))
 
-
+/** Turn on a specific light (tls extension) in the semaphore. */
 #define TURN_ON(semaphore, light) \
     ((semaphore)[(light) / 8] |= (byte) (0x01 << ((light) % 8)))
 
+/** Creates a new extension. */
+static TLSX* TLSX_New(TLSX_Type type, void* data)
+{
+    TLSX* extension = (TLSX*)XMALLOC(sizeof(TLSX), 0, DYNAMIC_TYPE_TLSX);
 
+    if (extension) {
+        extension->type = type;
+        extension->data = data;
+        extension->resp = 0;
+        extension->next = NULL;
+    }
+
+    return extension;
+}
+
+/**
+ * Creates a new extension and pushes it to the provided list.
+ * Checks for duplicate extensions, keeps the newest.
+ */
 static int TLSX_Push(TLSX** list, TLSX_Type type, void* data)
 {
-    TLSX* extension;
+    TLSX* extension = TLSX_New(type, data);
 
-    extension = (TLSX*)XMALLOC(sizeof(TLSX), 0, DYNAMIC_TYPE_TLSX);
     if (extension == NULL)
         return MEMORY_E;
 
-    extension->type = type;
-    extension->data = data;
-    extension->resp = 0;
+    /* pushes the new extension on the list. */
     extension->next = *list;
     *list = extension;
 
-    /* remove duplicated extensions, there should be only one of each type. */
+    /* remove duplicate extensions, there should be only one of each type. */
     do {
         if (extension->next && extension->next->type == type) {
             TLSX *next = extension->next;
@@ -781,9 +819,9 @@ static int TLSX_Push(TLSX** list, TLSX_Type type, void* data)
     return 0;
 }
 
-
 #ifndef NO_WOLFSSL_SERVER
 
+/** Mark an extension to be sent back to the client. */
 void TLSX_SetResponse(WOLFSSL* ssl, TLSX_Type type);
 
 void TLSX_SetResponse(WOLFSSL* ssl, TLSX_Type type)
@@ -796,10 +834,46 @@ void TLSX_SetResponse(WOLFSSL* ssl, TLSX_Type type)
 
 #endif
 
-/* SNI - Server Name Indication */
-
+/* Server Name Indication */
 #ifdef HAVE_SNI
 
+/** Creates a new SNI object. */
+static SNI* TLSX_SNI_New(byte type, const void* data, word16 size)
+{
+    SNI* sni = (SNI*)XMALLOC(sizeof(SNI), 0, DYNAMIC_TYPE_TLSX);
+
+    if (sni) {
+        sni->type = type;
+        sni->next = NULL;
+
+    #ifndef NO_WOLFSSL_SERVER
+        sni->options = 0;
+        sni->status  = WOLFSSL_SNI_NO_MATCH;
+    #endif
+
+        switch (sni->type) {
+            case WOLFSSL_SNI_HOST_NAME:
+                sni->data.host_name = XMALLOC(size + 1, 0, DYNAMIC_TYPE_TLSX);
+
+                if (sni->data.host_name) {
+                    XSTRNCPY(sni->data.host_name, (const char*)data, size);
+                    sni->data.host_name[size] = 0;
+                } else {
+                    XFREE(sni, 0, DYNAMIC_TYPE_TLSX);
+                    sni = NULL;
+                }
+            break;
+
+            default: /* invalid type */
+                XFREE(sni, 0, DYNAMIC_TYPE_TLSX);
+                sni = NULL;
+        }
+    }
+
+    return sni;
+}
+
+/** Releases a SNI object. */
 static void TLSX_SNI_Free(SNI* sni)
 {
     if (sni) {
@@ -813,6 +887,7 @@ static void TLSX_SNI_Free(SNI* sni)
     }
 }
 
+/** Releases all SNI objects in the provided list. */
 static void TLSX_SNI_FreeAll(SNI* list)
 {
     SNI* sni;
@@ -823,48 +898,7 @@ static void TLSX_SNI_FreeAll(SNI* list)
     }
 }
 
-static int TLSX_SNI_Append(SNI** list, byte type, const void* data, word16 size)
-{
-    SNI* sni;
-
-    if (list == NULL)
-        return BAD_FUNC_ARG;
-
-    if ((sni = XMALLOC(sizeof(SNI), 0, DYNAMIC_TYPE_TLSX)) == NULL)
-        return MEMORY_E;
-
-    switch (type) {
-        case WOLFSSL_SNI_HOST_NAME: {
-            sni->data.host_name = XMALLOC(size + 1, 0, DYNAMIC_TYPE_TLSX);
-
-            if (sni->data.host_name) {
-                XSTRNCPY(sni->data.host_name, (const char*)data, size);
-                sni->data.host_name[size] = 0;
-            } else {
-                XFREE(sni, 0, DYNAMIC_TYPE_TLSX);
-                return MEMORY_E;
-            }
-        }
-        break;
-
-        default: /* invalid type */
-            XFREE(sni, 0, DYNAMIC_TYPE_TLSX);
-            return BAD_FUNC_ARG;
-    }
-
-    sni->type = type;
-    sni->next = *list;
-
-#ifndef NO_WOLFSSL_SERVER
-    sni->options = 0;
-    sni->status  = WOLFSSL_SNI_NO_MATCH;
-#endif
-
-    *list = sni;
-
-    return 0;
-}
-
+/** Tells the buffered size of the SNI objects in a list. */
 static word16 TLSX_SNI_GetSize(SNI* list)
 {
     SNI* sni;
@@ -885,6 +919,7 @@ static word16 TLSX_SNI_GetSize(SNI* list)
     return length;
 }
 
+/** Writes the SNI objects of a list in a buffer. */
 static word16 TLSX_SNI_Write(SNI* list, byte* output)
 {
     SNI* sni;
@@ -915,6 +950,7 @@ static word16 TLSX_SNI_Write(SNI* list, byte* output)
     return offset;
 }
 
+/** Finds a SNI object in the provided list. */
 static SNI* TLSX_SNI_Find(SNI *list, byte type)
 {
     SNI *sni = list;
@@ -926,17 +962,18 @@ static SNI* TLSX_SNI_Find(SNI *list, byte type)
 }
 
 #ifndef NO_WOLFSSL_SERVER
+
+/** Sets the status of a SNI object. */
 static void TLSX_SNI_SetStatus(TLSX* extensions, byte type, byte status)
 {
     TLSX* extension = TLSX_Find(extensions, SERVER_NAME_INDICATION);
     SNI* sni = TLSX_SNI_Find(extension ? extension->data : NULL, type);
 
-    if (sni) {
+    if (sni)
         sni->status = status;
-        WOLFSSL_MSG("SNI did match!");
-    }
 }
 
+/** Gets the status of a SNI object. */
 byte TLSX_SNI_Status(TLSX* extensions, byte type)
 {
     TLSX* extension = TLSX_Find(extensions, SERVER_NAME_INDICATION);
@@ -947,8 +984,10 @@ byte TLSX_SNI_Status(TLSX* extensions, byte type)
 
     return 0;
 }
-#endif
 
+#endif /* NO_WOLFSSL_SERVER */
+
+/** Parses a buffer of SNI extensions. */
 static int TLSX_SNI_Parse(WOLFSSL* ssl, byte* input, word16 length,
                                                                  byte isRequest)
 {
@@ -963,12 +1002,12 @@ static int TLSX_SNI_Parse(WOLFSSL* ssl, byte* input, word16 length,
         extension = TLSX_Find(ssl->ctx->extensions, SERVER_NAME_INDICATION);
 
     if (!extension || !extension->data)
-        return isRequest ? 0 : BUFFER_ERROR; /* not using SNI OR unexpected
-                                                SNI response from server. */
+        return isRequest ? 0             /* not using SNI.           */
+                         : BUFFER_ERROR; /* unexpected SNI response. */
 
     if (!isRequest)
-        return length ? BUFFER_ERROR : 0; /* SNI response must be empty!
-                                             Nothing else to do. */
+        return length ? BUFFER_ERROR /* SNI response MUST be empty. */
+                      : 0;           /* nothing else to do.         */
 
 #ifndef NO_WOLFSSL_SERVER
 
@@ -995,9 +1034,8 @@ static int TLSX_SNI_Parse(WOLFSSL* ssl, byte* input, word16 length,
         if (offset + size > length)
             return BUFFER_ERROR;
 
-        if (!(sni = TLSX_SNI_Find((SNI*)extension->data, type))) {
-            continue; /* not using this SNI type */
-        }
+        if (!(sni = TLSX_SNI_Find((SNI*)extension->data, type)))
+            continue; /* not using this type of SNI. */
 
         switch(type) {
             case WOLFSSL_SNI_HOST_NAME: {
@@ -1009,10 +1047,15 @@ static int TLSX_SNI_Parse(WOLFSSL* ssl, byte* input, word16 length,
                     int r = TLSX_UseSNI(&ssl->extensions,
                                                     type, input + offset, size);
 
-                    if (r != SSL_SUCCESS) return r; /* throw error */
+                    if (r != SSL_SUCCESS)
+                        return r; /* throws error. */
 
                     TLSX_SNI_SetStatus(ssl->extensions, type,
-                      matched ? WOLFSSL_SNI_REAL_MATCH : WOLFSSL_SNI_FAKE_MATCH);
+                                       matched ? WOLFSSL_SNI_REAL_MATCH
+                                               : WOLFSSL_SNI_FAKE_MATCH);
+
+                    TLSX_SetResponse(ssl, SERVER_NAME_INDICATION);
+                    WOLFSSL_MSG("SNI did match!");
 
                 } else if (!(sni->options & WOLFSSL_SNI_CONTINUE_ON_MISMATCH)) {
                     SendAlert(ssl, alert_fatal, unrecognized_name);
@@ -1022,11 +1065,52 @@ static int TLSX_SNI_Parse(WOLFSSL* ssl, byte* input, word16 length,
                 break;
             }
         }
-
-        TLSX_SetResponse(ssl, SERVER_NAME_INDICATION);
     }
 
 #endif
+
+    return 0;
+}
+
+static int TLSX_SNI_VerifyParse(WOLFSSL* ssl,  byte isRequest)
+{
+    if (isRequest) {
+    #ifndef NO_WOLFSSL_SERVER
+        TLSX* ctx_ext = TLSX_Find(ssl->ctx->extensions, SERVER_NAME_INDICATION);
+        TLSX* ssl_ext = TLSX_Find(ssl->extensions,      SERVER_NAME_INDICATION);
+        SNI* ctx_sni = ctx_ext ? ctx_ext->data : NULL;
+        SNI* ssl_sni = ssl_ext ? ssl_ext->data : NULL;
+        SNI* sni = NULL;
+
+        for (; ctx_sni; ctx_sni = ctx_sni->next) {
+            if (ctx_sni->options & WOLFSSL_SNI_ABORT_ON_ABSENCE) {
+                sni = TLSX_SNI_Find(ssl_sni, ctx_sni->type);
+
+                if (sni) {
+                    if (sni->status != WOLFSSL_SNI_NO_MATCH)
+                        continue;
+
+                    /* if ssl level overrides ctx level, it is ok. */
+                    if ((sni->options & WOLFSSL_SNI_ABORT_ON_ABSENCE) == 0)
+                        continue;
+                }
+
+                SendAlert(ssl, alert_fatal, handshake_failure);
+                return SNI_ABSENT_ERROR;
+            }
+        }
+
+        for (; ssl_sni; ssl_sni = ssl_sni->next) {
+            if (ssl_sni->options & WOLFSSL_SNI_ABORT_ON_ABSENCE) {
+                if (ssl_sni->status != WOLFSSL_SNI_NO_MATCH)
+                    continue;
+
+                SendAlert(ssl, alert_fatal, handshake_failure);
+                return SNI_ABSENT_ERROR;
+            }
+        }
+    #endif /* NO_WOLFSSL_SERVER */
+    }
 
     return 0;
 }
@@ -1035,17 +1119,16 @@ int TLSX_UseSNI(TLSX** extensions, byte type, const void* data, word16 size)
 {
     TLSX* extension = TLSX_Find(*extensions, SERVER_NAME_INDICATION);
     SNI*  sni       = NULL;
-    int   ret       = 0;
 
     if (extensions == NULL || data == NULL)
         return BAD_FUNC_ARG;
 
-    if ((ret = TLSX_SNI_Append(&sni, type, data, size)) != 0)
-        return ret;
+    if ((sni = TLSX_SNI_New(type, data, size)) == NULL)
+        return MEMORY_E;
 
     if (!extension) {
-        if ((ret = TLSX_Push(extensions, SERVER_NAME_INDICATION, (void*)sni))
-                                                                         != 0) {
+        int ret = TLSX_Push(extensions, SERVER_NAME_INDICATION, (void*)sni);
+        if (ret != 0) {
             TLSX_SNI_Free(sni);
             return ret;
         }
@@ -1055,7 +1138,7 @@ int TLSX_UseSNI(TLSX** extensions, byte type, const void* data, word16 size)
         sni->next = (SNI*)extension->data;
         extension->data = (void*)sni;
 
-        /* look for another server name of the same type to remove */
+        /* remove duplicate SNI, there should be only one of each type. */
         do {
             if (sni->next && sni->next->type == type) {
                 SNI *next = sni->next;
@@ -1063,6 +1146,8 @@ int TLSX_UseSNI(TLSX** extensions, byte type, const void* data, word16 size)
                 sni->next = next->next;
                 TLSX_SNI_Free(next);
 
+                /* there is no way to occur more than */
+                /* two SNIs of the same type.         */
                 break;
             }
         } while ((sni = sni->next));
@@ -1072,6 +1157,8 @@ int TLSX_UseSNI(TLSX** extensions, byte type, const void* data, word16 size)
 }
 
 #ifndef NO_WOLFSSL_SERVER
+
+/** Tells the SNI requested by the client. */
 word16 TLSX_SNI_GetRequest(TLSX* extensions, byte type, void** data)
 {
     TLSX* extension = TLSX_Find(extensions, SERVER_NAME_INDICATION);
@@ -1088,6 +1175,7 @@ word16 TLSX_SNI_GetRequest(TLSX* extensions, byte type, void** data)
     return 0;
 }
 
+/** Sets the options for a SNI object. */
 void TLSX_SNI_SetOptions(TLSX* extensions, byte type, byte options)
 {
     TLSX* extension = TLSX_Find(extensions, SERVER_NAME_INDICATION);
@@ -1097,6 +1185,7 @@ void TLSX_SNI_SetOptions(TLSX* extensions, byte type, byte options)
         sni->options = options;
 }
 
+/** Retrieves a SNI request from a client hello buffer. */
 int TLSX_SNI_GetFromBuffer(const byte* clientHello, word32 helloSz,
                            byte type, byte* sni, word32* inOutSz)
 {
@@ -1114,19 +1203,19 @@ int TLSX_SNI_GetFromBuffer(const byte* clientHello, word32 helloSz,
         /* http://tools.ietf.org/html/rfc4346#appendix-E.1 */
         if ((enum HandShakeType) clientHello[++offset] == client_hello) {
             offset += ENUM_LEN + VERSION_SZ; /* skip version */
-            
+
             ato16(clientHello + offset, &len16);
             offset += OPAQUE16_LEN;
-            
+
             if (len16 % 3) /* cipher_spec_length must be multiple of 3 */
                 return BUFFER_ERROR;
 
             ato16(clientHello + offset, &len16);
             offset += OPAQUE16_LEN;
-            
+
             if (len16 != 0) /* session_id_length must be 0 */
                 return BUFFER_ERROR;
-                        
+
             return SNI_UNSUPPORTED;
         }
 
@@ -1249,17 +1338,19 @@ int TLSX_SNI_GetFromBuffer(const byte* clientHello, word32 helloSz,
 
 #endif
 
-#define SNI_FREE_ALL TLSX_SNI_FreeAll
-#define SNI_GET_SIZE TLSX_SNI_GetSize
-#define SNI_WRITE    TLSX_SNI_Write
-#define SNI_PARSE    TLSX_SNI_Parse
+#define SNI_FREE_ALL     TLSX_SNI_FreeAll
+#define SNI_GET_SIZE     TLSX_SNI_GetSize
+#define SNI_WRITE        TLSX_SNI_Write
+#define SNI_PARSE        TLSX_SNI_Parse
+#define SNI_VERIFY_PARSE TLSX_SNI_VerifyParse
 
 #else
 
 #define SNI_FREE_ALL(list)
-#define SNI_GET_SIZE(list)    0
-#define SNI_WRITE(a, b)       0
-#define SNI_PARSE(a, b, c, d) 0
+#define SNI_GET_SIZE(list)     0
+#define SNI_WRITE(a, b)        0
+#define SNI_PARSE(a, b, c, d)  0
+#define SNI_VERIFY_PARSE(a, b) 0
 
 #endif /* HAVE_SNI */
 
@@ -1433,7 +1524,7 @@ static void TLSX_EllipticCurve_ValidateRequest(WOLFSSL* ssl, byte* semaphore)
         if (ssl->suites->suites[i] == ECC_BYTE)
             return;
 
-    /* No elliptic curve suite found */
+    /* turns semaphore on to avoid sending this extension. */
     TURN_ON(semaphore, TLSX_ToSemaphore(ELLIPTIC_CURVES));
 }
 
@@ -1956,7 +2047,7 @@ int TLSX_UseSessionTicket(TLSX** extensions, SessionTicket* ticket)
 
 #endif /* HAVE_SESSION_TICKET */
 
-
+/** Finds an extension in the provided list. */
 TLSX* TLSX_Find(TLSX* list, TLSX_Type type)
 {
     TLSX* extension = list;
@@ -1967,6 +2058,7 @@ TLSX* TLSX_Find(TLSX* list, TLSX_Type type)
     return extension;
 }
 
+/** Releases all extensions in the provided list. */
 void TLSX_FreeAll(TLSX* list)
 {
     TLSX* extension;
@@ -1975,6 +2067,7 @@ void TLSX_FreeAll(TLSX* list)
         list = extension->next;
 
         switch (extension->type) {
+
             case SERVER_NAME_INDICATION:
                 SNI_FREE_ALL((SNI*)extension->data);
                 break;
@@ -2004,10 +2097,12 @@ void TLSX_FreeAll(TLSX* list)
     }
 }
 
+/** Checks if the tls extensions are supported based on the protocol version. */
 int TLSX_SupportExtensions(WOLFSSL* ssl) {
     return ssl && (IsTLS(ssl) || ssl->version.major == DTLS_MAJOR);
 }
 
+/** Tells the buffered size of the extensions in a list. */
 static word16 TLSX_GetSize(TLSX* list, byte* semaphore, byte isRequest)
 {
     TLSX* extension;
@@ -2016,26 +2111,31 @@ static word16 TLSX_GetSize(TLSX* list, byte* semaphore, byte isRequest)
     while ((extension = list)) {
         list = extension->next;
 
+        /* only extensions marked as response are sent back to the client. */
         if (!isRequest && !extension->resp)
             continue; /* skip! */
 
+        /* ssl level extensions are expected to override ctx level ones. */
         if (!IS_OFF(semaphore, TLSX_ToSemaphore(extension->type)))
             continue; /* skip! */
 
-        /* type + data length */
+        /* extension type + extension data length. */
         length += HELLO_EXT_TYPE_SZ + OPAQUE16_LEN;
 
         switch (extension->type) {
+
             case SERVER_NAME_INDICATION:
+                /* SNI only sends the name on the request. */
                 if (isRequest)
                     length += SNI_GET_SIZE(extension->data);
                 break;
+
             case MAX_FRAGMENT_LENGTH:
                 length += MFL_GET_SIZE(extension->data);
                 break;
 
             case TRUNCATED_HMAC:
-                /* empty extension. */
+                /* always empty. */
                 break;
 
             case ELLIPTIC_CURVES:
@@ -2051,12 +2151,15 @@ static word16 TLSX_GetSize(TLSX* list, byte* semaphore, byte isRequest)
                 break;
         }
 
+        /* marks the extension as processed so ctx level */
+        /* extensions don't overlap with ssl level ones. */
         TURN_ON(semaphore, TLSX_ToSemaphore(extension->type));
     }
 
     return length;
 }
 
+/** Writes the extensions of a list in a buffer. */
 static word16 TLSX_Write(TLSX* list, byte* output, byte* semaphore,
                                                                  byte isRequest)
 {
@@ -2067,18 +2170,20 @@ static word16 TLSX_Write(TLSX* list, byte* output, byte* semaphore,
     while ((extension = list)) {
         list = extension->next;
 
+        /* only extensions marked as response are written in a response. */
         if (!isRequest && !extension->resp)
             continue; /* skip! */
 
+        /* ssl level extensions are expected to override ctx level ones. */
         if (!IS_OFF(semaphore, TLSX_ToSemaphore(extension->type)))
             continue; /* skip! */
 
-        /* extension type */
+        /* writes extension type. */
         c16toa(extension->type, output + offset);
         offset += HELLO_EXT_TYPE_SZ + OPAQUE16_LEN;
         length_offset = offset;
 
-        /* extension data should be written internally */
+        /* extension data should be written internally. */
         switch (extension->type) {
             case SERVER_NAME_INDICATION:
                 if (isRequest)
@@ -2090,7 +2195,7 @@ static word16 TLSX_Write(TLSX* list, byte* output, byte* semaphore,
                 break;
 
             case TRUNCATED_HMAC:
-                /* empty extension. */
+                /* always empty. */
                 break;
 
             case ELLIPTIC_CURVES:
@@ -2108,9 +2213,11 @@ static word16 TLSX_Write(TLSX* list, byte* output, byte* semaphore,
                 break;
         }
 
-        /* writing extension data length */
+        /* writes extension data length. */
         c16toa(offset - length_offset, output + length_offset - OPAQUE16_LEN);
 
+        /* marks the extension as processed so ctx level */
+        /* extensions don't overlap with ssl level ones. */
         TURN_ON(semaphore, TLSX_ToSemaphore(extension->type));
     }
 
@@ -2119,6 +2226,7 @@ static word16 TLSX_Write(TLSX* list, byte* output, byte* semaphore,
 
 #ifndef NO_WOLFSSL_CLIENT
 
+/** Tells the buffered size of extensions to be sent into the client hello. */
 word16 TLSX_GetRequestSize(WOLFSSL* ssl)
 {
     word16 length = 0;
@@ -2140,11 +2248,12 @@ word16 TLSX_GetRequestSize(WOLFSSL* ssl)
     }
 
     if (length)
-        length += OPAQUE16_LEN; /* for total length storage */
+        length += OPAQUE16_LEN; /* for total length storage. */
 
     return length;
 }
 
+/** Writes the extensions to be sent into the client hello. */
 word16 TLSX_WriteRequest(WOLFSSL* ssl, byte* output)
 {
     word16 offset = 0;
@@ -2155,6 +2264,7 @@ word16 TLSX_WriteRequest(WOLFSSL* ssl, byte* output)
         offset += OPAQUE16_LEN; /* extensions length */
 
         EC_VALIDATE_REQUEST(ssl, semaphore);
+        STK_VALIDATE_REQUEST(ssl);
 
         if (ssl->extensions)
             offset += TLSX_Write(ssl->extensions, output + offset,
@@ -2195,6 +2305,7 @@ word16 TLSX_WriteRequest(WOLFSSL* ssl, byte* output)
 
 #ifndef NO_WOLFSSL_SERVER
 
+/** Tells the buffered size of extensions to be sent into the server hello. */
 word16 TLSX_GetResponseSize(WOLFSSL* ssl)
 {
     word16 length = 0;
@@ -2211,6 +2322,7 @@ word16 TLSX_GetResponseSize(WOLFSSL* ssl)
     return length;
 }
 
+/** Writes the server hello extensions into a buffer. */
 word16 TLSX_WriteResponse(WOLFSSL *ssl, byte* output)
 {
     word16 offset = 0;
@@ -2231,6 +2343,7 @@ word16 TLSX_WriteResponse(WOLFSSL *ssl, byte* output)
 
 #endif /* NO_WOLFSSL_SERVER */
 
+/** Parses a buffer of TLS extensions. */
 int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte isRequest,
                                                                  Suites *suites)
 {
@@ -2318,6 +2431,9 @@ int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte isRequest,
         offset += size;
     }
 
+    if (ret == 0)
+        ret = SNI_VERIFY_PARSE(ssl, isRequest);
+
     return ret;
 }
 
@@ -2326,8 +2442,7 @@ int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte isRequest,
 #undef TURN_ON
 #undef SEMAPHORE_SIZE
 
-#endif
-
+#endif /* HAVE_TLS_EXTENSIONS */
 
 #ifndef NO_WOLFSSL_CLIENT
 
@@ -2465,4 +2580,3 @@ int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte isRequest,
 
 #endif /* NO_WOLFSSL_SERVER */
 #endif /* NO_TLS */
-
