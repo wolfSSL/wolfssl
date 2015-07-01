@@ -2574,7 +2574,7 @@ int wc_ecc_export_point_der(const int curve_idx, ecc_point* point, byte* out, wo
 		return LENGTH_ONLY_E;
 	}
 
-	if (point == NULL && out == NULL && outLen == NULL)
+	if (point == NULL || out == NULL || outLen == NULL)
 		return ECC_BAD_ARG_E;
 
 	numlen = ecc_sets[curve_idx].size;
