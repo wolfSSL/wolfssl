@@ -134,6 +134,7 @@ mkdir -p $RPM_BUILD_ROOT/
 %{_includedir}/cyassl/openssl/dsa.h
 %{_includedir}/cyassl/openssl/ec.h
 %{_includedir}/cyassl/openssl/ecdsa.h
+%{_includedir}/cyassl/openssl/ecdh.h
 %{_includedir}/cyassl/openssl/engine.h
 %{_includedir}/cyassl/openssl/err.h
 %{_includedir}/cyassl/openssl/evp.h
@@ -226,6 +227,7 @@ mkdir -p $RPM_BUILD_ROOT/
 %{_includedir}/wolfssl/openssl/dsa.h
 %{_includedir}/wolfssl/openssl/ec.h
 %{_includedir}/wolfssl/openssl/ecdsa.h
+%{_includedir}/wolfssl/openssl/ecdh.h
 %{_includedir}/wolfssl/openssl/engine.h
 %{_includedir}/wolfssl/openssl/err.h
 %{_includedir}/wolfssl/openssl/evp.h

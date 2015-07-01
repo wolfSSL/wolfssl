@@ -43,7 +43,10 @@ enum CertType {
     CRL_TYPE,
     CA_TYPE,
     ECC_PRIVATEKEY_TYPE,
-    CERTREQ_TYPE
+    CERTREQ_TYPE,
+	DSA_TYPE,
+	ECC_TYPE,
+	RSA_TYPE
 };
 
 
