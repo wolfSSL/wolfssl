@@ -36,6 +36,7 @@
 #define DsaVerify wc_DsaVerify
 #define DsaPublicKeyDecode wc_DsaPublicKeyDecode
 #define DsaPrivateKeyDecode wc_DsaPrivateKeyDecode
+#define DsaKeyToDer wc_DsaKeyToDer
 
 #ifdef __cplusplus
     extern "C" {
@@ -65,6 +66,8 @@ WOLFSSL_API int wc_DsaPublicKeyDecode(const byte* input, word32* inOutIdx, DsaKe
                                   word32);
 WOLFSSL_API int wc_DsaPrivateKeyDecode(const byte* input, word32* inOutIdx, DsaKey*,
                                    word32);
+
+WOLFSSL_API int wc_DsaKeyToDer(DsaKey* key, byte* output, word32 inLen);
 
 #ifdef __cplusplus
     } /* extern "C" */

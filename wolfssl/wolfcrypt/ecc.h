@@ -47,6 +47,7 @@ enum {
 /* ECC set type defined a NIST GF(p) curve */
 typedef struct {
     int size;       /* The size of the curve in octets */
+	int nid;			  /* id of this curve */
     const char* name;     /* name of this curve */
     const char* prime;    /* prime that defines the field, curve is in (hex) */
     const char* Af;       /* fields A param (hex) */
@@ -140,11 +141,19 @@ WOLFSSL_API
 int wc_ecc_shared_secret(ecc_key* private_key, ecc_key* public_key, byte* out,
                       word32* outlen);
 WOLFSSL_API
-int wc_ecc_sign_hash(const byte* in, word32 inlen, byte* out, word32 *outlen, 
-                  RNG* rng, ecc_key* key);
+int wc_ecc_shared_secret_ssh(ecc_key* private_key, ecc_point* point, byte* out, word32 *outlen);
+WOLFSSL_API
+int wc_ecc_sign_hash(const byte* in, word32 inlen, byte* out, word32 *outlen,
+					 RNG* rng, ecc_key* key);
+WOLFSSL_API
+int wc_ecc_sign_hash_ex(const byte* in, word32 inlen, RNG* rng,
+						ecc_key* key, mp_int *r, mp_int *s);
 WOLFSSL_API
 int wc_ecc_verify_hash(const byte* sig, word32 siglen, const byte* hash,
                     word32 hashlen, int* stat, ecc_key* key);
+WOLFSSL_API
+int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
+						  word32 hashlen, int* stat, ecc_key* key);
 WOLFSSL_API
 int wc_ecc_init(ecc_key* key);
 WOLFSSL_API
@@ -152,6 +161,18 @@ void wc_ecc_free(ecc_key* key);
 WOLFSSL_API
 void wc_ecc_fp_free(void);
 
+WOLFSSL_API
+ecc_point* ecc_new_point(void);
+WOLFSSL_API
+void ecc_del_point(ecc_point* p);
+WOLFSSL_API
+int ecc_copy_point(ecc_point* p, ecc_point *r);
+WOLFSSL_API
+int ecc_cmp_point(ecc_point* a, ecc_point *b);
+WOLFSSL_API
+int ecc_point_is_at_infinity(ecc_point *p);
+WOLFSSL_API
+int ecc_mulmod(mp_int* k, ecc_point *G, ecc_point *R, mp_int* modulus, int map);
 
 /* ASN key helpers */
 WOLFSSL_API
@@ -172,6 +193,10 @@ int wc_ecc_import_raw(ecc_key* key, const char* qx, const char* qy,
 
 WOLFSSL_API
 int wc_ecc_export_private_only(ecc_key* key, byte* out, word32* outLen);
+
+WOLFSSL_API
+int wc_ecc_export_point_der(const int curve_idx, ecc_point* point, byte* out, word32* outLen);
+int wc_ecc_import_point_der(byte* in, word32 inLen, const int curve_idx, ecc_point* point);
 
 /* size helper */
 WOLFSSL_API
