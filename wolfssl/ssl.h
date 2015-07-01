@@ -1283,7 +1283,10 @@ enum {
 
     /* Behave as if the requested SNI matched in a case of missmatch.  */
     /* In this case, the status will be set to WOLFSSL_SNI_FAKE_MATCH. */
-    WOLFSSL_SNI_ANSWER_ON_MISMATCH   = 0x02
+    WOLFSSL_SNI_ANSWER_ON_MISMATCH   = 0x02,
+
+    /* Abort the handshake if the client didn't send a SNI request. */
+    WOLFSSL_SNI_ABORT_ON_ABSENCE     = 0x04,
 };
 
 WOLFSSL_API void wolfSSL_SNI_SetOptions(WOLFSSL* ssl, unsigned char type,

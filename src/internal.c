@@ -8030,6 +8030,9 @@ const char* wolfSSL_ERR_reason_error_string(unsigned long e)
     case DH_KEY_SIZE_E:
         return "DH key too small Error";
 
+    case SNI_ABSENT_ERROR:
+        return "No Server Name Indication extension Error";
+
     default :
         return "unknown error number";
     }

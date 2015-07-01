@@ -1072,6 +1072,49 @@ static int TLSX_SNI_Parse(WOLFSSL* ssl, byte* input, word16 length,
     return 0;
 }
 
+static int TLSX_SNI_VerifyParse(WOLFSSL* ssl,  byte isRequest)
+{
+    if (isRequest) {
+    #ifndef NO_WOLFSSL_SERVER
+        TLSX* ctx_ext = TLSX_Find(ssl->ctx->extensions, SERVER_NAME_INDICATION);
+        TLSX* ssl_ext = TLSX_Find(ssl->extensions,      SERVER_NAME_INDICATION);
+        SNI* ctx_sni = ctx_ext ? ctx_ext->data : NULL;
+        SNI* ssl_sni = ssl_ext ? ssl_ext->data : NULL;
+        SNI* sni = NULL;
+
+        for (; ctx_sni; ctx_sni = ctx_sni->next) {
+            if (ctx_sni->options & WOLFSSL_SNI_ABORT_ON_ABSENCE) {
+                sni = TLSX_SNI_Find(ssl_sni, ctx_sni->type);
+
+                if (sni) {
+                    if (sni->status != WOLFSSL_SNI_NO_MATCH)
+                        continue;
+
+                    /* if ssl level overrides ctx level, it is ok. */
+                    if ((sni->options & WOLFSSL_SNI_ABORT_ON_ABSENCE) == 0)
+                        continue;
+                }
+
+                SendAlert(ssl, alert_fatal, handshake_failure);
+                return SNI_ABSENT_ERROR;
+            }
+        }
+
+        for (; ssl_sni; ssl_sni = ssl_sni->next) {
+            if (ssl_sni->options & WOLFSSL_SNI_ABORT_ON_ABSENCE) {
+                if (ssl_sni->status != WOLFSSL_SNI_NO_MATCH)
+                    continue;
+
+                SendAlert(ssl, alert_fatal, handshake_failure);
+                return SNI_ABSENT_ERROR;
+            }
+        }
+    #endif /* NO_WOLFSSL_SERVER */
+    }
+
+    return 0;
+}
+
 int TLSX_UseSNI(TLSX** extensions, byte type, const void* data, word16 size)
 {
     TLSX* extension = TLSX_Find(*extensions, SERVER_NAME_INDICATION);
@@ -1295,17 +1338,19 @@ int TLSX_SNI_GetFromBuffer(const byte* clientHello, word32 helloSz,
 
 #endif
 
-#define SNI_FREE_ALL TLSX_SNI_FreeAll
-#define SNI_GET_SIZE TLSX_SNI_GetSize
-#define SNI_WRITE    TLSX_SNI_Write
-#define SNI_PARSE    TLSX_SNI_Parse
+#define SNI_FREE_ALL     TLSX_SNI_FreeAll
+#define SNI_GET_SIZE     TLSX_SNI_GetSize
+#define SNI_WRITE        TLSX_SNI_Write
+#define SNI_PARSE        TLSX_SNI_Parse
+#define SNI_VERIFY_PARSE TLSX_SNI_VerifyParse
 
 #else
 
 #define SNI_FREE_ALL(list)
-#define SNI_GET_SIZE(list)    0
-#define SNI_WRITE(a, b)       0
-#define SNI_PARSE(a, b, c, d) 0
+#define SNI_GET_SIZE(list)     0
+#define SNI_WRITE(a, b)        0
+#define SNI_PARSE(a, b, c, d)  0
+#define SNI_VERIFY_PARSE(a, b) 0
 
 #endif /* HAVE_SNI */
 
@@ -2385,6 +2430,9 @@ int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte isRequest,
         /* offset should be updated here! */
         offset += size;
     }
+
+    if (ret == 0)
+        ret = SNI_VERIFY_PARSE(ssl, isRequest);
 
     return ret;
 }
