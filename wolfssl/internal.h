@@ -203,6 +203,11 @@ typedef byte word24[3];
     #error "You are trying to build max strength with requirements disabled."
 #endif
 
+/* Have QSH : Quantum-safe Handshake */
+#if defined(HAVE_QSH)
+    #define BUILD_TLS_QSH
+#endif
+
 #ifndef WOLFSSL_MAX_STRENGTH
 
     #if !defined(NO_RSA) && !defined(NO_RC4)
@@ -212,17 +217,11 @@ typedef byte word24[3];
         #if !defined(NO_MD5)
             #define BUILD_SSL_RSA_WITH_RC4_128_MD5
         #endif
-        #if !defined(NO_TLS) && defined(HAVE_NTRU) && !defined(NO_SHA)
-            #define BUILD_TLS_NTRU_RSA_WITH_RC4_128_SHA
-        #endif
     #endif
 
     #if !defined(NO_RSA) && !defined(NO_DES3)
         #if !defined(NO_SHA)
             #define BUILD_SSL_RSA_WITH_3DES_EDE_CBC_SHA
-            #if !defined(NO_TLS) && defined(HAVE_NTRU)
-                    #define BUILD_TLS_NTRU_RSA_WITH_3DES_EDE_CBC_SHA
-            #endif
         #endif
     #endif
 
@@ -230,10 +229,6 @@ typedef byte word24[3];
         #if !defined(NO_SHA)
             #define BUILD_TLS_RSA_WITH_AES_128_CBC_SHA
             #define BUILD_TLS_RSA_WITH_AES_256_CBC_SHA
-            #if defined(HAVE_NTRU)
-                    #define BUILD_TLS_NTRU_RSA_WITH_AES_128_CBC_SHA
-                    #define BUILD_TLS_NTRU_RSA_WITH_AES_256_CBC_SHA
-            #endif
         #endif
         #if !defined (NO_SHA256)
             #define BUILD_TLS_RSA_WITH_AES_128_CBC_SHA256
@@ -637,11 +632,9 @@ enum {
     TLS_RSA_WITH_AES_256_CBC_B2B256   = 0xF9,
     TLS_RSA_WITH_HC_128_B2B256        = 0xFA,   /* eSTREAM too */
 
-    /* wolfSSL extension - NTRU */
-    TLS_NTRU_RSA_WITH_RC4_128_SHA      = 0xe5,
-    TLS_NTRU_RSA_WITH_3DES_EDE_CBC_SHA = 0xe6,
-    TLS_NTRU_RSA_WITH_AES_128_CBC_SHA  = 0xe7,  /* clashes w/official SHA-256 */
-    TLS_NTRU_RSA_WITH_AES_256_CBC_SHA  = 0xe8,
+    /* wolfSSL extension - NTRU , Quantum-safe Handshake
+       first byte is 0xD0 (QSH_BYTE) */
+    TLS_QSH      = 0x01,
 
     /* SHA256 */
     TLS_DHE_RSA_WITH_AES_256_CBC_SHA256 = 0x6b,
@@ -718,6 +711,7 @@ enum {
 
 enum Misc {
     ECC_BYTE    =  0xC0,           /* ECC first cipher suite byte */
+    QSH_BYTE    = 0xD0,            /* Quantum-safe Handshake cipher suite */
     CHACHA_BYTE = 0xCC,            /* ChaCha first cipher suite */
 
     SEND_CERT       = 1,
@@ -861,7 +855,12 @@ enum Misc {
     ECDHE_SIZE          = 32,  /* ECHDE server size defaults to 256 bit */
     MAX_EXPORT_ECC_SZ   = 256, /* Export ANS X9.62 max future size */
 
+#ifdef HAVE_QSH
+    /* qsh handshake sends 600+ size keys over hello extensions */
+    MAX_HELLO_SZ       = 2048,  /* max client or server hello */
+#else
     MAX_HELLO_SZ       = 128,  /* max client or server hello */
+#endif
     MAX_CERT_VERIFY_SZ = 1024, /* max   */
     CLIENT_HELLO_FIRST =  35,  /* Protocol + RAN_LEN + sizeof(id_len) */
     MAX_SUITE_NAME     =  48,  /* maximum length of cipher suite string */
@@ -1199,7 +1198,7 @@ typedef struct CRL_Entry CRL_Entry;
     #define CRL_DIGEST_SIZE SHA_DIGEST_SIZE
 #endif
 
-#ifdef NO_ASN 
+#ifdef NO_ASN
     typedef struct RevokedCert RevokedCert;
 #endif
 
@@ -1244,7 +1243,7 @@ struct WOLFSSL_CRL {
 };
 
 
-#ifdef NO_ASN 
+#ifdef NO_ASN
     typedef struct Signer Signer;
 #endif
 
@@ -1360,7 +1359,8 @@ typedef enum {
     TRUNCATED_HMAC         = 0x0004,
     ELLIPTIC_CURVES        = 0x000a,
     SESSION_TICKET         = 0x0023,
-    SECURE_RENEGOTIATION   = 0xff01
+    SECURE_RENEGOTIATION   = 0xff01,
+    WOLFSSL_QSH            = 0x0018  /* Quantum-Safe-Hybrid */
 } TLSX_Type;
 
 typedef struct TLSX {
@@ -1373,6 +1373,7 @@ typedef struct TLSX {
 WOLFSSL_LOCAL TLSX*  TLSX_Find(TLSX* list, TLSX_Type type);
 WOLFSSL_LOCAL void   TLSX_FreeAll(TLSX* list);
 WOLFSSL_LOCAL int    TLSX_SupportExtensions(WOLFSSL* ssl);
+WOLFSSL_LOCAL int    TLSX_PopulateExtensions(WOLFSSL* ssl, byte isRequest);
 
 #ifndef NO_WOLFSSL_CLIENT
 WOLFSSL_LOCAL word16 TLSX_GetRequestSize(WOLFSSL* ssl);
@@ -1386,7 +1387,7 @@ WOLFSSL_LOCAL word16 TLSX_WriteResponse(WOLFSSL* ssl, byte* output);
 
 WOLFSSL_LOCAL int    TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length,
                                                 byte isRequest, Suites *suites);
-                                                
+
 #elif defined(HAVE_SNI)                  \
    || defined(HAVE_MAX_FRAGMENT)         \
    || defined(HAVE_TRUNCATED_HMAC)       \
@@ -1495,6 +1496,47 @@ WOLFSSL_LOCAL SessionTicket* TLSX_SessionTicket_Create(word32 lifetime,
                                                        byte* data, word16 size);
 WOLFSSL_LOCAL void TLSX_SessionTicket_Free(SessionTicket* ticket);
 #endif /* HAVE_SESSION_TICKET */
+
+#ifdef HAVE_QSH
+
+typedef struct QSHScheme {
+    word16            name; /* QSHScheme Names */
+    byte*             PK;
+    word16            PKLen;
+    struct QSHScheme* next; /* List Behavior   */
+} QSHScheme;
+
+typedef struct QSHkey {
+    word16 name;
+    buffer pub;
+    buffer pri;
+    struct QSHKey* next;
+} QSHKey;
+
+typedef struct QSHSecret {
+    QSHScheme* list;
+    buffer* SerSi;
+    buffer* CliSi;
+} QSHSecret;
+
+/* used in key exchange during handshake */
+WOLFSSL_LOCAL int TLSX_QSHCipher_Parse(WOLFSSL* ssl, const byte* input,
+                                                  word16 length, byte isServer);
+WOLFSSL_LOCAL word16 TLSX_QSHPK_Write(QSHScheme* list, byte* output);
+WOLFSSL_LOCAL word16 TLSX_QSH_GetSize(QSHScheme* list, byte isRequest);
+
+/* used by api for setting a specific QSH scheme */
+WOLFSSL_LOCAL int TLSX_UseQSHScheme(TLSX** extensions, word16 name,
+                                                     byte* pKey, word16 pKeySz);
+
+/* used when parsing in QSHCipher structs */
+WOLFSSL_LOCAL int QSH_Decrypt(QSHKey* key, byte* in, word32 szIn,
+                                                      byte* out, word16* szOut);
+#ifndef NO_WOLFSSL_SERVER
+WOLFSSL_LOCAL int TLSX_ValidateQSHScheme(TLSX** extensions, word16 name);
+#endif
+
+#endif /* HAVE_QSH */
 
 /* wolfSSL context type */
 struct WOLFSSL_CTX {
@@ -2187,10 +2229,14 @@ struct WOLFSSL {
     RsaKey*         peerRsaKey;
     byte            peerRsaKeyPresent;
 #endif
-#ifdef HAVE_NTRU
-    word16          peerNtruKeyLen;
-    byte            peerNtruKey[MAX_NTRU_PUB_KEY_SZ];
+#ifdef HAVE_QSH
+    QSHKey*         NtruKey;
+    QSHKey*         peerNtruKey;
+    QSHSecret*      QSH_secret;
     byte            peerNtruKeyPresent;
+    byte            minRequest;
+    byte            maxRequest;
+    byte            user_set_QSHSchemes;
 #endif
 #ifdef HAVE_ECC
     ecc_key*        peerEccKey;              /* peer's  ECDHE key */
