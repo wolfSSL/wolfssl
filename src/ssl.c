@@ -773,6 +773,32 @@ int wolfSSL_CTX_UseSupportedCurve(WOLFSSL_CTX* ctx, word16 name)
 #endif /* NO_WOLFSSL_CLIENT */
 #endif /* HAVE_SUPPORTED_CURVES */
 
+/* QSH quantum safe handshake */
+#ifdef HAVE_QSH
+#ifndef NO_WOLFSSL_CLIENT
+int wolfSSL_UseSupportedQSH(WOLFSSL* ssl, word16 name)
+{
+    if (ssl == NULL)
+        return BAD_FUNC_ARG;
+
+    switch (name) {
+    #ifdef HAVE_NTRU
+        case WOLFSSL_NTRU_EESS439:
+        case WOLFSSL_NTRU_EESS593:
+        case WOLFSSL_NTRU_EESS743:
+            break;
+    #endif
+        default:
+            return BAD_FUNC_ARG;
+    }
+
+    ssl->user_set_QSHSchemes = 1;
+
+    return TLSX_UseQSHScheme(&ssl->extensions, name, NULL, 0);
+}
+#endif
+#endif /* HAVE_QSH */
+
 /* Secure Renegotiation */
 #ifdef HAVE_SECURE_RENEGOTIATION
 
@@ -9754,19 +9780,9 @@ const char* wolfSSL_CIPHER_get_name(const WOLFSSL_CIPHER* cipher)
             case TLS_RSA_WITH_RABBIT_SHA :
                 return "TLS_RSA_WITH_RABBIT_SHA";
     #endif
-    #ifdef HAVE_NTRU
-        #ifndef NO_RC4
-            case TLS_NTRU_RSA_WITH_RC4_128_SHA :
-                return "TLS_NTRU_RSA_WITH_RC4_128_SHA";
-        #endif
-        #ifndef NO_DES3
-            case TLS_NTRU_RSA_WITH_3DES_EDE_CBC_SHA :
-                return "TLS_NTRU_RSA_WITH_3DES_EDE_CBC_SHA";
-        #endif
-            case TLS_NTRU_RSA_WITH_AES_128_CBC_SHA :
-                return "TLS_NTRU_RSA_WITH_AES_128_CBC_SHA";
-            case TLS_NTRU_RSA_WITH_AES_256_CBC_SHA :
-                return "TLS_NTRU_RSA_WITH_AES_256_CBC_SHA";
+    #ifdef HAVE_QSH
+            case TLS_QSH :
+                return "TLS_QSH";
     #endif /* HAVE_NTRU */
 #endif /* NO_SHA */
             case TLS_RSA_WITH_AES_128_GCM_SHA256 :

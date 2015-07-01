@@ -255,16 +255,6 @@ void simple_test(func_args* args)
         strcpy(svrArgs.argv[svrArgs.argc++], "-p");
         strcpy(svrArgs.argv[svrArgs.argc++], "0");
     #endif
-    #ifdef HAVE_NTRU
-        strcpy(svrArgs.argv[svrArgs.argc++], "-d");
-        strcpy(svrArgs.argv[svrArgs.argc++], "-n");
-        strcpy(svrArgs.argv[svrArgs.argc++], "-c");
-        strcpy(svrArgs.argv[svrArgs.argc++], "./certs/ntru-cert.pem");
-        strcpy(svrArgs.argv[svrArgs.argc++], "-k");
-        strcpy(svrArgs.argv[svrArgs.argc++], "./certs/ntru-key.raw");
-    #endif
-    /* Set the last arg later, when it is known. */
-
     args->return_code = 0;
     svrArgs.signal = args->signal;
     start_thread(server_test, &svrArgs, &serverThread);
@@ -277,7 +267,6 @@ void simple_test(func_args* args)
         strcpy(cliArgs.argv[1], "-p");
         snprintf(cliArgs.argv[2], sizeof(argc2c), "%d", svrArgs.signal->port);
     #endif
-
     client_test(&cliArgs);
     if (cliArgs.return_code != 0) {
         args->return_code = cliArgs.return_code;
@@ -306,6 +295,10 @@ void wait_tcp_ready(func_args* args)
 
 void start_thread(THREAD_FUNC fun, func_args* args, THREAD_TYPE* thread)
 {
+    int i;
+    for (i = 0; i < args->argc; i++) {
+        printf("argv %s\n", args->argv[i]);
+    }
 #if defined(_POSIX_THREADS) && !defined(__MINGW32__)
     pthread_create(thread, 0, fun, args);
     return;
