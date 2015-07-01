@@ -1269,8 +1269,8 @@ enum {
     WOLFSSL_SNI_HOST_NAME = 0
 };
 
-WOLFSSL_API int wolfSSL_UseSNI(WOLFSSL* ssl, unsigned char type, const void* data,
-                                                           unsigned short size);
+WOLFSSL_API int wolfSSL_UseSNI(WOLFSSL* ssl, unsigned char type,
+                                         const void* data, unsigned short size);
 WOLFSSL_API int wolfSSL_CTX_UseSNI(WOLFSSL_CTX* ctx, unsigned char type,
                                          const void* data, unsigned short size);
 
@@ -1278,26 +1278,30 @@ WOLFSSL_API int wolfSSL_CTX_UseSNI(WOLFSSL_CTX* ctx, unsigned char type,
 
 /* SNI options */
 enum {
-    WOLFSSL_SNI_CONTINUE_ON_MISMATCH = 0x01, /* do not abort on mismatch flag */
-    WOLFSSL_SNI_ANSWER_ON_MISMATCH   = 0x02  /* fake match on mismatch flag */
+    /* Do not abort the handshake if the requested SNI didn't match. */
+    WOLFSSL_SNI_CONTINUE_ON_MISMATCH = 0x01,
+
+    /* Behave as if the requested SNI matched in a case of missmatch.  */
+    /* In this case, the status will be set to WOLFSSL_SNI_FAKE_MATCH. */
+    WOLFSSL_SNI_ANSWER_ON_MISMATCH   = 0x02
 };
 
 WOLFSSL_API void wolfSSL_SNI_SetOptions(WOLFSSL* ssl, unsigned char type,
                                                          unsigned char options);
-WOLFSSL_API void wolfSSL_CTX_SNI_SetOptions(WOLFSSL_CTX* ctx, unsigned char type,
-                                                         unsigned char options);
+WOLFSSL_API void wolfSSL_CTX_SNI_SetOptions(WOLFSSL_CTX* ctx,
+                                     unsigned char type, unsigned char options);
 
 /* SNI status */
 enum {
     WOLFSSL_SNI_NO_MATCH   = 0,
-    WOLFSSL_SNI_FAKE_MATCH = 1, /* if WOLFSSL_SNI_ANSWER_ON_MISMATCH is enabled */
+    WOLFSSL_SNI_FAKE_MATCH = 1, /**< @see WOLFSSL_SNI_ANSWER_ON_MISMATCH */
     WOLFSSL_SNI_REAL_MATCH = 2
 };
 
 WOLFSSL_API unsigned char wolfSSL_SNI_Status(WOLFSSL* ssl, unsigned char type);
 
-WOLFSSL_API unsigned short wolfSSL_SNI_GetRequest(WOLFSSL *ssl, unsigned char type,
-                                                                   void** data);
+WOLFSSL_API unsigned short wolfSSL_SNI_GetRequest(WOLFSSL *ssl,
+                                               unsigned char type, void** data);
 WOLFSSL_API int wolfSSL_SNI_GetFromBuffer(
                  const unsigned char* clientHello, unsigned int helloSz,
                  unsigned char type, unsigned char* sni, unsigned int* inOutSz);
@@ -1463,4 +1467,3 @@ WOLFSSL_API int wolfSSL_accept_ex(WOLFSSL*, HandShakeCallBack, TimeoutCallBack,
 
 
 #endif /* WOLFSSL_SSL_H */
-
