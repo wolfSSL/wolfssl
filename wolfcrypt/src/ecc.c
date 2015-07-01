@@ -2260,10 +2260,9 @@ int wc_ecc_verify_hash(const byte* sig, word32 siglen, const byte* hash,
 	XMEMSET(&s, 0, sizeof(s));
 
 	err = DecodeECC_DSA_Sig(sig, siglen, &r, &s);
-	if (err != MP_OKAY)
-		return err;
 
-	err = wc_ecc_verify_hash_ex(&r, &s, hash, hashlen, stat, key);
+	if (err == MP_OKAY)
+	    err = wc_ecc_verify_hash_ex(&r, &s, hash, hashlen, stat, key);
 
 	mp_clear(&r);
 	mp_clear(&s);
