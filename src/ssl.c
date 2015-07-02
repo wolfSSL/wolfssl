@@ -2801,60 +2801,6 @@ static int ProcessChainBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
 }
 
 
-static INLINE WOLFSSL_METHOD* cm_pick_method(void)
-{
-    #ifndef NO_WOLFSSL_CLIENT
-        #ifdef NO_OLD_TLS
-            return wolfTLSv1_2_client_method();
-        #else
-            return wolfSSLv3_client_method();
-        #endif
-    #elif !defined(NO_WOLFSSL_SERVER)
-        #ifdef NO_OLD_TLS
-            return wolfTLSv1_2_server_method();
-        #else
-            return wolfSSLv3_server_method();
-        #endif
-    #else
-        return NULL;
-    #endif
-}
-
-
-/* like load verify locations, 1 for success, < 0 for error */
-int wolfSSL_CertManagerLoadCABuffer(WOLFSSL_CERT_MANAGER* cm,
-                                   const unsigned char* in, long sz, int format)
-{
-    int ret = SSL_FATAL_ERROR;
-    WOLFSSL_CTX* tmp;
-
-    WOLFSSL_ENTER("wolfSSL_CertManagerLoadCABuffer");
-
-    if (cm == NULL) {
-        WOLFSSL_MSG("No CertManager error");
-        return ret;
-    }
-    tmp = wolfSSL_CTX_new(cm_pick_method());
-
-    if (tmp == NULL) {
-        WOLFSSL_MSG("CTX new failed");
-        return ret;
-    }
-
-    /* for tmp use */
-    wolfSSL_CertManagerFree(tmp->cm);
-    tmp->cm = cm;
-
-    ret = wolfSSL_CTX_load_verify_buffer(tmp, in, sz, format);
-
-    /* don't loose our good one */
-    tmp->cm = NULL;
-    wolfSSL_CTX_free(tmp);
-
-    return ret;
-}
-
-
 /* Verify the ceritficate, SSL_SUCCESS for ok, < 0 for error */
 int wolfSSL_CertManagerVerifyBuffer(WOLFSSL_CERT_MANAGER* cm, const byte* buff,
                                    long sz, int format)
@@ -3391,6 +3337,26 @@ int wolfSSL_CertManagerVerify(WOLFSSL_CERT_MANAGER* cm, const char* fname,
 }
 
 
+static INLINE WOLFSSL_METHOD* cm_pick_method(void)
+{
+    #ifndef NO_WOLFSSL_CLIENT
+        #ifdef NO_OLD_TLS
+            return wolfTLSv1_2_client_method();
+        #else
+            return wolfSSLv3_client_method();
+        #endif      
+    #elif !defined(NO_WOLFSSL_SERVER)
+        #ifdef NO_OLD_TLS
+            return wolfTLSv1_2_server_method();
+        #else
+            return wolfSSLv3_server_method();
+        #endif
+    #else
+        return NULL;
+    #endif
+}
+
+
 /* like load verify locations, 1 for success, < 0 for error */
 int wolfSSL_CertManagerLoadCA(WOLFSSL_CERT_MANAGER* cm, const char* file,
                              const char* path)
@@ -3423,6 +3389,7 @@ int wolfSSL_CertManagerLoadCA(WOLFSSL_CERT_MANAGER* cm, const char* file,
 
     return ret;
 }
+
 
 
 /* turn on CRL if off and compiled in, set options */
@@ -12964,5 +12931,135 @@ void* wolfSSL_GetRsaDecCtx(WOLFSSL* ssl)
 #ifdef WOLFSSL_HAVE_CERT_SERVICE
     /* Used by autoconf to see if cert service is available */
     void wolfSSL_cert_service(void) {}
+#endif
+
+
+#ifdef OPENSSL_EXTRA /*Lighttp compatibility*/
+
+    WOLFSSL_API char WOLFSSL_CTX_use_certificate(WOLFSSL_CTX *ctx, WOLFSSL_X509 *x) {
+        (void)ctx;
+        (void)x;
+
+        return 0;
+    }
+
+    WOLFSSL_API int WOLFSSL_CTX_use_PrivateKey(WOLFSSL_CTX *ctx, WOLFSSL_EVP_PKEY *pkey) {
+        (void)ctx;
+        (void)pkey;
+
+        return 0;
+    }
+
+    WOLFSSL_API WOLFSSL_BIO *wolfSSL_BIO_new_file(const char *filename, const char *mode) {
+        (void)filename;
+        (void)mode;
+
+        return NULL;
+    }
+
+    WOLFSSL_API int wolfSSL_BIO_read_filename(WOLFSSL_BIO *b, char *name) {
+        (void)b;
+        (void)name;
+
+        return 0;
+    }
+
+    WOLFSSL_API WOLFSSL_BIO_METHOD* WOLFSSL_BIO_s_file(void) {
+        return NULL;
+    }
+
+    // void EC_KEY_free(EC_KEY *key) {
+    //     (void)key;
+    // }
+
+    // EC_KEY *EC_KEY_new_by_curve_name(int nid) {
+    //     (void)nid;
+    // }
+
+    WOLFSSL_API const char * wolf_OBJ_nid2sn(int n) {
+        (void)n;
+
+        return 0;
+    }
+
+    WOLFSSL_API int wolf_OBJ_obj2nid(const WOLFSSL_ASN1_OBJECT *o) {
+        (void)o;
+
+        return 0;
+    }
+
+    WOLFSSL_API int wolf_OBJ_sn2nid(const char *sn) {
+        (void)sn;
+
+        return 0;
+    }
+
+    WOLFSSL_API WOLFSSL_DH *PEM_read_bio_DHparams(WOLFSSL_BIO *bp, WOLFSSL_DH **x, pem_password_cb *cb, void *u) {
+        (void)bp;
+        (void)x;
+        (void)cb;
+        (void)u;
+
+        return NULL;
+    }
+
+    WOLFSSL_API WOLFSSL_X509 *PEM_read_bio_WOLFSSL_X509(WOLFSSL_BIO *bp, WOLFSSL_X509 **x, pem_password_cb *cb, void *u) {
+        (void)bp;
+        (void)x;
+        (void)cb;
+        (void)u;
+
+        return NULL;
+    }
+
+    WOLFSSL_API int PEM_write_bio_WOLFSSL_X509(WOLFSSL_BIO *bp, WOLFSSL_X509 *x) {
+        (void)bp;
+        (void)x;
+
+        return 0;
+    }
+
+    WOLFSSL_API long WOLFSSL_CTX_set_tmp_dh(WOLFSSL_CTX *ctx, WOLFSSL_DH *dh) {
+        (void)ctx;
+        (void)dh;
+
+        return 0;
+    }
+
+    WOLFSSL_API void wolfSSL_CTX_set_verify_depth(WOLFSSL_CTX *ctx,int depth) {
+        (void)ctx;
+        (void)depth;
+    }
+
+    WOLFSSL_API char *WOLFSSL_get_app_data(WOLFSSL *ssl) {
+        (void)ssl;
+
+        return 0;
+    }
+
+    WOLFSSL_API void WOLFSSL_set_app_data(WOLFSSL *ssl, char *arg) {
+        (void)ssl;
+        (void)arg;
+    }
+
+    WOLFSSL_API int WOLFSSL_X509_NAME_entry_count(WOLFSSL_X509_NAME *name) {
+        (void)name;
+
+        return 0;
+    }
+
+    WOLFSSL_API WOLFSSL_ASN1_OBJECT * WOLFSSL_X509_NAME_ENTRY_get_object(WOLFSSL_X509_NAME_ENTRY *ne) {
+        (void)ne;
+
+        return NULL;
+    }
+
+    WOLFSSL_API WOLFSSL_X509_NAME_ENTRY *WOLFSSL_X509_NAME_get_entry(WOLFSSL_X509_NAME *name, int loc) {
+        (void)name;
+        (void)loc;
+
+        return NULL;
+    }
+
 #endif
 

@@ -397,7 +397,29 @@ typedef WOLFSSL_X509_STORE_CTX X509_STORE_CTX;
 /* yassl had set the default to be 500 */
 #define SSL_get_default_timeout(ctx) 500
 
+/* Lighthttp compatability */
 
+#define SSL_CTX_use_certificate WOLFSSL_CTX_use_certificate
+#define SSL_CTX_use_PrivateKey WOLFSSL_CTX_use_PrivateKey
+#define BIO_new_file wolfSSL_BIO_new_file
+#define BIO_read_filename wolfSSL_BIO_read_filename
+#define BIO_s_file WOLFSSL_BIO_s_file
+#define EC_KEY_free EC_KEY_free
+#define EC_KEY_new_by_curve_name EC_KEY_new_by_curve_name
+#define OBJ_nid2sn wolf_OBJ_nid2sn
+#define OBJ_obj2nid wolf_OBJ_obj2nid
+#define OBJ_sn2nid wolf_OBJ_sn2nid
+#define PEM_read_bio_DHparams PEM_read_bio_DHparams
+#define PEM_read_bio_X509 PEM_read_bio_WOLFSSL_X509
+#define PEM_write_bio_X509 PEM_write_bio_WOLFSSL_X509
+#define SSL_CTX_set_tmp_dh WOLFSSL_CTX_set_tmp_dh
+#define SSL_CTX_set_verify_depth WOLFSSL_CTX_set_verify_depth
+#define SSL_get_app_data WOLFSSL_get_app_data
+#define SSL_set_app_data WOLFSSL_set_app_data
+#define X509_NAME_entry_count WOLFSSL_X509_NAME_entry_count
+#define X509_NAME_ENTRY_get_object WOLFSSL_X509_NAME_ENTRY_get_object
+#define X509_NAME_get_entry WOLFSSL_X509_NAME_get_entry
+                                
 #ifdef __cplusplus
     } /* extern "C" */
 #endif
