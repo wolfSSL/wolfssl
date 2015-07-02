@@ -2436,7 +2436,7 @@ int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
 /* import point from der */
 int wc_ecc_import_point_der(byte* in, word32 inLen, const int curve_idx, ecc_point* point)
 {
-	int err;
+	int err = 0;
 	int compressed = 0;
 
 	if (in == NULL || point == NULL || (ecc_is_valid_idx(curve_idx) == 0))

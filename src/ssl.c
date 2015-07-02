@@ -13216,37 +13216,20 @@ static int SetECPointInternal(WOLFSSL_EC_POINT *p)
 
 	point = (ecc_point*)p->internal;
 
-#ifndef ALT_ECC_SIZE
-	if (p->X != NULL && SetIndividualInternal(p->X, &point->x[0]) < 0) {
+	if (p->X != NULL && SetIndividualInternal(p->X, point->x) < 0) {
 		WOLFSSL_MSG("ecc point X error");
 		return SSL_FATAL_ERROR;
 	}
 
-	if (p->Y != NULL && SetIndividualInternal(p->Y, &point->y[0]) < 0) {
+	if (p->Y != NULL && SetIndividualInternal(p->Y, point->y) < 0) {
 		WOLFSSL_MSG("ecc point Y error");
 		return SSL_FATAL_ERROR;
 	}
 
-	if (p->Z != NULL && SetIndividualInternal(p->Z, &point->z[0]) < 0) {
+	if (p->Z != NULL && SetIndividualInternal(p->Z, point->z) < 0) {
 		WOLFSSL_MSG("ecc point Z error");
 		return SSL_FATAL_ERROR;
 	}
-#else
-	if (p->X != NULL && SetIndividualInternal(p->X, &point->x) < 0) {
-		WOLFSSL_MSG("ecc point X error");
-		return SSL_FATAL_ERROR;
-	}
-
-	if (p->Y != NULL && SetIndividualInternal(p->Y, &point->y) < 0) {
-		WOLFSSL_MSG("ecc point Y error");
-		return SSL_FATAL_ERROR;
-	}
-
-	if (p->Z != NULL && SetIndividualInternal(p->Z, &point->z) < 0) {
-		WOLFSSL_MSG("ecc point Z error");
-		return SSL_FATAL_ERROR;
-	}
-#endif
 
 	p->inSet = 1;
 
@@ -13267,37 +13250,20 @@ static int SetECPointExternal(WOLFSSL_EC_POINT *p)
 
 	point = (ecc_point*)p->internal;
 
-#ifndef ALT_ECC_SIZE
-	if (SetIndividualExternal(&p->X, &point->x[0]) < 0) {
+	if (SetIndividualExternal(&p->X, point->x) < 0) {
 		WOLFSSL_MSG("ecc point X error");
 		return SSL_FATAL_ERROR;
 	}
 
-	if (SetIndividualExternal(&p->Y, &point->y[0]) < 0) {
+	if (SetIndividualExternal(&p->Y, point->y) < 0) {
 		WOLFSSL_MSG("ecc point Y error");
 		return SSL_FATAL_ERROR;
 	}
 
-	if (SetIndividualExternal(&p->Z, &point->z[0]) < 0) {
+	if (SetIndividualExternal(&p->Z, point->z) < 0) {
 		WOLFSSL_MSG("ecc point Z error");
 		return SSL_FATAL_ERROR;
 	}
-#else
-	if (SetIndividualExternal(&p->X, &point->x) < 0) {
-		WOLFSSL_MSG("ecc point X error");
-		return SSL_FATAL_ERROR;
-	}
-
-	if (SetIndividualExternal(&p->Y, &point->y) < 0) {
-		WOLFSSL_MSG("ecc point Y error");
-		return SSL_FATAL_ERROR;
-	}
-
-	if (SetIndividualExternal(&p->Z, &point->z) < 0) {
-		WOLFSSL_MSG("ecc point Z error");
-		return SSL_FATAL_ERROR;
-	}
-#endif
 
 	p->exSet = 1;
 
