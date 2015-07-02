@@ -108,6 +108,19 @@ static int IsValidCipherSuite(const char* line, char* suite)
         found = 1;
     }
 
+    /* if QSH not enabled then do not use QSH suite */
+    #ifndef HAVE_QSH
+        if (strncmp(suite, "QSH", 3) == 0)
+            return 0;
+    #endif
+    #ifdef HAVE_QSH
+        if (strncmp(suite, "QSH", 3) == 0) {
+            if (wolfSSL_CTX_set_cipher_list(cipherSuiteCtx, suite + 4)
+                                                                 != SSL_SUCCESS)
+            return 0;
+        }
+    #endif
+
     if (found) {
         if (wolfSSL_CTX_set_cipher_list(cipherSuiteCtx, suite) == SSL_SUCCESS)
             valid = 1;
