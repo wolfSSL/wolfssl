@@ -235,8 +235,6 @@
  * It defaults to 4096-bits [allowing multiplications upto 2048x2048 bits ]
  */
 
-/* For DH with 3072 bits key size */
-//#define FP_MAX_BITS		  32768
 
 #ifndef FP_MAX_BITS
     #define FP_MAX_BITS           4096

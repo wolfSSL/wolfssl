@@ -13295,8 +13295,6 @@ static int SetECKeyExternal(WOLFSSL_EC_KEY* eckey)
 			return SSL_FATAL_ERROR;
 		}
 
-		//eckey->pub_key->internal = (ecc_point*)&(key->pubkey);
-
 		/* set the external pubkey (point) */
 		if (SetECPointExternal(eckey->pub_key) < 0) {
 			WOLFSSL_MSG("SetECKeyExternal SetECPointExternal failed");
@@ -13913,7 +13911,6 @@ int wolfSSL_EC_POINT_get_affine_coordinates_GFp(const WOLFSSL_EC_GROUP *group, c
 												WOLFSSL_BIGNUM *x, WOLFSSL_BIGNUM *y, WOLFSSL_BN_CTX *ctx)
 {
 	(void)ctx;
-	//ecc_point *p;
 
 	WOLFSSL_ENTER("wolfSSL_EC_POINT_get_affine_coordinates_GFp");
 
@@ -13930,8 +13927,6 @@ int wolfSSL_EC_POINT_get_affine_coordinates_GFp(const WOLFSSL_EC_GROUP *group, c
 			return 0;
 		}
 	}
-
-	//p = (ecc_point*)point->internal;
 
 	BN_copy(x, point->X);
 	BN_copy(y, point->Y);
