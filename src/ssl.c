@@ -2147,8 +2147,10 @@ static int wolfssl_decrypt_buffer_key(buffer* der, byte* password, int passwordS
 	if ((ret = EVP_BytesToKey(info->name, "MD5", info->iv,
 							  password, passwordSz, 1, key, iv)) <= 0) {
 
-		XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-		XFREE(iv, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        #ifdef WOLFSSL_SMALL_STACK
+		    XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+		    XFREE(iv, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        #endif
 		return ASN_INPUT_E;
 	}
 
