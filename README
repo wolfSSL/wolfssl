@@ -5,17 +5,17 @@ wolfSSL now needs all examples and tests to be run from the wolfSSL home
 directory.  This is because it finds certs and keys from ./certs/.  Trying to
 maintain the ability to run each program from its own directory, the testsuite
 directory, the main directory (for make check/test), and for the various
-different project layouts (with or without config) was becoming harder and 
+different project layouts (with or without config) was becoming harder and
 harder.  Now to run testsuite just do:
 
 ./testsuite/testsuite
 
-or 
+or
 
 make check    (when using autoconf)
 
 On *nix or Windows the examples and testsuite will check to see if the current
-directory is the source directory and if so, attempt to change to the wolfSSL 
+directory is the source directory and if so, attempt to change to the wolfSSL
 home directory.  This should work in most setup cases, if not, just follow the
 beginning of the note and specify the full path.
 
@@ -40,7 +40,7 @@ Release 3.6.0 of wolfSSL has bug fixes and new features including:
 
 - Max Strength build that only allows TLSv1.2, AEAD ciphers, and PFS (Perfect
    Forward Secrecy).  With --enable-maxstrength
-- Server side session ticket support, the example server and echosever use the
+- Server side session ticket support, the example server and echoserver use the
    example callback myTicketEncCb(), see wolfSSL_CTX_set_TicketEncCb()
 - FIPS version submitted for iOS.
 - TI Crypto Hardware Acceleration

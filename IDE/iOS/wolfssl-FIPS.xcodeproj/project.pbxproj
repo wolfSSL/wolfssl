@@ -165,6 +165,8 @@
 		521648271A8AC2990062516A /* sha512.c in Sources */ = {isa = PBXBuildFile; fileRef = 5216481A1A8AC2990062516A /* sha512.c */; };
 		521648281A8AC2990062516A /* wolfcrypt_first.c in Sources */ = {isa = PBXBuildFile; fileRef = 5216481B1A8AC2990062516A /* wolfcrypt_first.c */; };
 		521648291A8AC2990062516A /* wolfcrypt_last.c in Sources */ = {isa = PBXBuildFile; fileRef = 5216481C1A8AC2990062516A /* wolfcrypt_last.c */; };
+		525BE5BA1B38853E0054BBCD /* hash.c in Sources */ = {isa = PBXBuildFile; fileRef = 525BE5B91B38853E0054BBCD /* hash.c */; };
+		525BE5BC1B3885750054BBCD /* hash.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = 525BE5BB1B3885580054BBCD /* hash.h */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -174,6 +176,7 @@
 			dstPath = include/wolfssl/wolfcrypt;
 			dstSubfolderSpec = 7;
 			files = (
+				525BE5BC1B3885750054BBCD /* hash.h in CopyFiles */,
 				521646CD1A8A7FF30062516A /* aes.h in CopyFiles */,
 				521646CE1A8A7FF30062516A /* arc4.h in CopyFiles */,
 				521646CF1A8A7FF30062516A /* asn_public.h in CopyFiles */,
@@ -470,6 +473,8 @@
 		5216481A1A8AC2990062516A /* sha512.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = sha512.c; path = ../../ctaocrypt/src/sha512.c; sourceTree = "<group>"; };
 		5216481B1A8AC2990062516A /* wolfcrypt_first.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = wolfcrypt_first.c; path = ../../ctaocrypt/src/wolfcrypt_first.c; sourceTree = "<group>"; };
 		5216481C1A8AC2990062516A /* wolfcrypt_last.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = wolfcrypt_last.c; path = ../../ctaocrypt/src/wolfcrypt_last.c; sourceTree = "<group>"; };
+		525BE5B91B38853E0054BBCD /* hash.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = hash.c; path = ../../wolfcrypt/src/hash.c; sourceTree = "<group>"; };
+		525BE5BB1B3885580054BBCD /* hash.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = hash.h; path = ../../wolfssl/wolfcrypt/hash.h; sourceTree = "<group>"; };
 		52B1344D16F3C9E800C07B32 /* libwolfssl.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = libwolfssl.a; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -582,6 +587,7 @@
 				5216466C1A8993770062516A /* ecc.h */,
 				5216466D1A8993770062516A /* error-crypt.h */,
 				5216466E1A8993770062516A /* fips_test.h */,
+				525BE5BB1B3885580054BBCD /* hash.h */,
 				5216466F1A8993770062516A /* hc128.h */,
 				521646701A8993770062516A /* hmac.h */,
 				521646721A8993770062516A /* integer.h */,
@@ -653,6 +659,7 @@
 				5216461A1A8992CC0062516A /* dsa.c */,
 				5216461B1A8992CC0062516A /* ecc.c */,
 				5216461C1A8992CC0062516A /* error.c */,
+				525BE5B91B38853E0054BBCD /* hash.c */,
 				5216461D1A8992CC0062516A /* hc128.c */,
 				5216461E1A8992CC0062516A /* hmac.c */,
 				5216461F1A8992CC0062516A /* integer.c */,
@@ -790,6 +797,7 @@
 				521648241A8AC2990062516A /* rsa.c in Sources */,
 				5216481D1A8AC2990062516A /* aes.c in Sources */,
 				5216481E1A8AC2990062516A /* des3.c in Sources */,
+				525BE5BA1B38853E0054BBCD /* hash.c in Sources */,
 				521648251A8AC2990062516A /* sha.c in Sources */,
 				521648271A8AC2990062516A /* sha512.c in Sources */,
 				521648201A8AC2990062516A /* fips.c in Sources */,

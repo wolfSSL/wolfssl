@@ -790,6 +790,12 @@
     #define NO_OLD_TLS
 #endif
 
+/* If not forcing to use ARC4 as the DRBG, always enable Hash_DRBG */
+#undef HAVE_HASHDRBG
+#ifndef WOLFSSL_FORCE_RC4_DRBG
+    #define HAVE_HASHDRBG
+#endif
+
 /* Place any other flags or defines here */
 
 

@@ -2260,10 +2260,9 @@ int wc_ecc_verify_hash(const byte* sig, word32 siglen, const byte* hash,
 	XMEMSET(&s, 0, sizeof(s));
 
 	err = DecodeECC_DSA_Sig(sig, siglen, &r, &s);
-	if (err != MP_OKAY)
-		return err;
 
-	err = wc_ecc_verify_hash_ex(&r, &s, hash, hashlen, stat, key);
+	if (err == MP_OKAY)
+	    err = wc_ecc_verify_hash_ex(&r, &s, hash, hashlen, stat, key);
 
 	mp_clear(&r);
 	mp_clear(&s);
@@ -2437,7 +2436,7 @@ int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
 /* import point from der */
 int wc_ecc_import_point_der(byte* in, word32 inLen, const int curve_idx, ecc_point* point)
 {
-	int err;
+	int err = 0;
 	int compressed = 0;
 
 	if (in == NULL || point == NULL || (ecc_is_valid_idx(curve_idx) == 0))
@@ -2574,7 +2573,7 @@ int wc_ecc_export_point_der(const int curve_idx, ecc_point* point, byte* out, wo
 		return LENGTH_ONLY_E;
 	}
 
-	if (point == NULL && out == NULL && outLen == NULL)
+	if (point == NULL || out == NULL || outLen == NULL)
 		return ECC_BAD_ARG_E;
 
 	numlen = ecc_sets[curve_idx].size;

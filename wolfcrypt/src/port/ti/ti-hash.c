@@ -44,6 +44,7 @@
 #include <wolfssl/wolfcrypt/port/ti/ti-hash.h>
 #include <wolfssl/wolfcrypt/port/ti/ti-ccm.h>
 #include <wolfssl/wolfcrypt/logging.h>
+#include <wolfssl/wolfcrypt/hash.h>
 
 #ifndef TI_DUMMY_BUILD
 #include "inc/hw_memmap.h"
@@ -61,6 +62,7 @@ bool wolfSSL_TI_CCMInit(void) { return true ; }
 #endif
 
 static int hashInit(wolfssl_TI_Hash *hash) {
+    if(!wolfSSL_TI_CCMInit())return 1 ;
     hash->used = 0 ;
     hash->msg  = 0 ;
     hash->len  = 0 ;
@@ -154,7 +156,6 @@ WOLFSSL_API void wc_InitMd5(Md5* md5)
 {
     if (md5 == NULL)
         return ;
-    if(!wolfSSL_TI_CCMInit())return  ;
     hashInit((wolfssl_TI_Hash *)md5) ;
 }
 
@@ -189,7 +190,6 @@ WOLFSSL_API int wc_InitSha(Sha* sha)
 {
     if (sha == NULL)
         return 1 ;
-    if(!wolfSSL_TI_CCMInit())return 1 ;
     return hashInit((wolfssl_TI_Hash *)sha) ;
 }
 
@@ -224,7 +224,6 @@ WOLFSSL_API int wc_InitSha224(Sha224* sha224)
 {
     if (sha224 == NULL)
         return 1 ;
-    if(!wolfSSL_TI_CCMInit())return 1 ;
     return hashInit((wolfssl_TI_Hash *)sha224) ;
 }
 
@@ -259,7 +258,6 @@ WOLFSSL_API int wc_InitSha256(Sha256* sha256)
 {
     if (sha256 == NULL)
         return 1 ;
-    if(!wolfSSL_TI_CCMInit())return 1 ;
     return hashInit((wolfssl_TI_Hash *)sha256) ;
 }
 

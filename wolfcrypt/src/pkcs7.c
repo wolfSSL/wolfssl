@@ -1166,8 +1166,8 @@ WOLFSSL_LOCAL int wc_CreateRecipientInfo(const byte* cert, word32 certSz,
 /* build PKCS#7 envelopedData content type, return enveloped size */
 int wc_PKCS7_EncodeEnvelopedData(PKCS7* pkcs7, byte* output, word32 outputSz)
 {
-    int i, ret = 0, idx = 0;
-    int totalSz = 0, padSz = 0, desOutSz = 0;
+    int i, ret, idx = 0;
+    int totalSz, padSz, desOutSz;
 
     int contentInfoSeqSz, outerContentTypeSz, outerContentSz;
     byte contentInfoSeq[MAX_SEQ_SZ];
@@ -1180,7 +1180,6 @@ int wc_PKCS7_EncodeEnvelopedData(PKCS7* pkcs7, byte* output, word32 outputSz)
 
     RNG rng;
     int contentKeyEncSz, blockKeySz;
-    int dynamicFlag = 0;
     byte contentKeyPlain[MAX_CONTENT_KEY_LEN];
 #ifdef WOLFSSL_SMALL_STACK
     byte* contentKeyEnc;
@@ -1300,34 +1299,26 @@ int wc_PKCS7_EncodeEnvelopedData(PKCS7* pkcs7, byte* output, word32 outputSz)
         return BAD_FUNC_ARG;
     }
 
-    /* allocate encrypted content buffer, pad if necessary, PKCS#7 padding */
+    /* allocate encrypted content buffer and PKCS#7 padding */
     padSz = DES_BLOCK_SIZE - (pkcs7->contentSz % DES_BLOCK_SIZE);
     desOutSz = pkcs7->contentSz + padSz;
 
-    if (padSz != 0) {
-        plain = (byte*)XMALLOC(desOutSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        if (plain == NULL) {
+    plain = (byte*)XMALLOC(desOutSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (plain == NULL) {
 #ifdef WOLFSSL_SMALL_STACK
-            XFREE(recip, NULL, DYNAMMIC_TYPE_TMP_BUFFER);
+        XFREE(recip, NULL, DYNAMMIC_TYPE_TMP_BUFFER);
 #endif
-            return MEMORY_E;
-        }
-        XMEMCPY(plain, pkcs7->content, pkcs7->contentSz);
-        dynamicFlag = 1;
+        return MEMORY_E;
+    }
+    XMEMCPY(plain, pkcs7->content, pkcs7->contentSz);
 
-        for (i = 0; i < padSz; i++) {
-            plain[pkcs7->contentSz + i] = padSz;
-        }
-
-    } else {
-        plain = pkcs7->content;
-        desOutSz = pkcs7->contentSz;
+    for (i = 0; i < padSz; i++) {
+        plain[pkcs7->contentSz + i] = padSz;
     }
 
     encryptedContent = (byte*)XMALLOC(desOutSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (encryptedContent == NULL) {
-        if (dynamicFlag)
-            XFREE(plain, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(plain, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #ifdef WOLFSSL_SMALL_STACK
         XFREE(recip, NULL, DYNAMMIC_TYPE_TMP_BUFFER);
 #endif
@@ -1344,8 +1335,7 @@ int wc_PKCS7_EncodeEnvelopedData(PKCS7* pkcs7, byte* output, word32 outputSz)
 
     if (contentEncAlgoSz == 0) {
         XFREE(encryptedContent, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        if (dynamicFlag)
-            XFREE(plain, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(plain, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #ifdef WOLFSSL_SMALL_STACK
         XFREE(recip, NULL, DYNAMMIC_TYPE_TMP_BUFFER);
 #endif
@@ -1363,8 +1353,7 @@ int wc_PKCS7_EncodeEnvelopedData(PKCS7* pkcs7, byte* output, word32 outputSz)
 
         if (ret != 0) {
             XFREE(encryptedContent, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-            if (dynamicFlag)
-                XFREE(plain, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(plain, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #ifdef WOLFSSL_SMALL_STACK
             XFREE(recip, NULL, DYNAMMIC_TYPE_TMP_BUFFER);
 #endif
@@ -1381,8 +1370,7 @@ int wc_PKCS7_EncodeEnvelopedData(PKCS7* pkcs7, byte* output, word32 outputSz)
 
         if (ret != 0) {
             XFREE(encryptedContent, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-            if (dynamicFlag)
-                XFREE(plain, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(plain, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #ifdef WOLFSSL_SMALL_STACK
             XFREE(recip, NULL, DYNAMMIC_TYPE_TMP_BUFFER);
 #endif
@@ -1418,8 +1406,7 @@ int wc_PKCS7_EncodeEnvelopedData(PKCS7* pkcs7, byte* output, word32 outputSz)
     if (totalSz > (int)outputSz) {
         WOLFSSL_MSG("Pkcs7_encrypt output buffer too small");
         XFREE(encryptedContent, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        if (dynamicFlag)
-            XFREE(plain, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(plain, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #ifdef WOLFSSL_SMALL_STACK
         XFREE(recip, NULL, DYNAMMIC_TYPE_TMP_BUFFER);
 #endif
@@ -1457,8 +1444,7 @@ int wc_PKCS7_EncodeEnvelopedData(PKCS7* pkcs7, byte* output, word32 outputSz)
 
     ForceZero(contentKeyPlain, MAX_CONTENT_KEY_LEN);
 
-    if (dynamicFlag)
-        XFREE(plain, NULL, DYNAMMIC_TYPE_TMP_BUFFER);
+    XFREE(plain, NULL, DYNAMMIC_TYPE_TMP_BUFFER);
     XFREE(encryptedContent, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     
 #ifdef WOLFSSL_SMALL_STACK

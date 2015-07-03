@@ -27,7 +27,7 @@
 
 #if defined(WOLFSSL_TI_CRYPT) ||  defined(WOLFSSL_TI_HASH)
 
-
+#include "wolfssl/wolfcrypt/port/ti/ti-ccm.h"
 #include <stdbool.h>
 #include <stdint.h>
 
@@ -44,7 +44,7 @@
 #define WAIT(stat) { volatile int i ; for(i=0; i<TIMEOUT; i++)if(stat)break ; if(i==TIMEOUT)return(false) ; }
 
 static bool ccm_init = false ;
-bool wolfSSL_TI_CCMInit(void)
+int wolfSSL_TI_CCMInit(void)
 {
     if(ccm_init)return true ;
     ccm_init = true ;
@@ -63,18 +63,18 @@ bool wolfSSL_TI_CCMInit(void)
     WAIT(ROM_SysCtlPeripheralReady(SYSCTL_PERIPH_CCM0)) ;
     
 #ifndef SINGLE_THREADED
-    InitMutex(&TI_CCM_Mutex) ;
+    if(InitMutex(&TI_CCM_Mutex))return false ;
 #endif
 
     return true ;
 }
 
 #ifndef SINGLE_THREADED
-void wolfSSL_TI_lockCCM() {
+void wolfSSL_TI_lockCCM(void) {
     LockMutex(&TI_CCM_Mutex) ;
 }
 
-void wolfSSL_TI_unlockCCM() {
+void wolfSSL_TI_unlockCCM(void) {
     UnLockMutex(&TI_CCM_Mutex) ;
 }
 #endif

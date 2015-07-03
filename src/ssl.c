@@ -2851,6 +2851,60 @@ static int ProcessChainBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
 }
 
 
+static INLINE WOLFSSL_METHOD* cm_pick_method(void)
+{
+    #ifndef NO_WOLFSSL_CLIENT
+        #ifdef NO_OLD_TLS
+            return wolfTLSv1_2_client_method();
+        #else
+            return wolfSSLv3_client_method();
+        #endif
+    #elif !defined(NO_WOLFSSL_SERVER)
+        #ifdef NO_OLD_TLS
+            return wolfTLSv1_2_server_method();
+        #else
+            return wolfSSLv3_server_method();
+        #endif
+    #else
+        return NULL;
+    #endif
+}
+
+
+/* like load verify locations, 1 for success, < 0 for error */
+int wolfSSL_CertManagerLoadCABuffer(WOLFSSL_CERT_MANAGER* cm,
+                                   const unsigned char* in, long sz, int format)
+{
+    int ret = SSL_FATAL_ERROR;
+    WOLFSSL_CTX* tmp;
+
+    WOLFSSL_ENTER("wolfSSL_CertManagerLoadCABuffer");
+
+    if (cm == NULL) {
+        WOLFSSL_MSG("No CertManager error");
+        return ret;
+    }
+    tmp = wolfSSL_CTX_new(cm_pick_method());
+
+    if (tmp == NULL) {
+        WOLFSSL_MSG("CTX new failed");
+        return ret;
+    }
+
+    /* for tmp use */
+    wolfSSL_CertManagerFree(tmp->cm);
+    tmp->cm = cm;
+
+    ret = wolfSSL_CTX_load_verify_buffer(tmp, in, sz, format);
+
+    /* don't loose our good one */
+    tmp->cm = NULL;
+    wolfSSL_CTX_free(tmp);
+
+    return ret;
+}
+
+
 /* Verify the ceritficate, SSL_SUCCESS for ok, < 0 for error */
 int wolfSSL_CertManagerVerifyBuffer(WOLFSSL_CERT_MANAGER* cm, const byte* buff,
                                    long sz, int format)
@@ -2897,9 +2951,7 @@ int wolfSSL_CertManagerVerifyBuffer(WOLFSSL_CERT_MANAGER* cm, const byte* buff,
         info->consumed = 0;
 
         ret = PemToDer(buff, sz, CERT_TYPE, &der, cm->heap, info, &eccKey);
-
-        if (ret == 0)
-            InitDecodedCert(cert, der.buffer, der.length, cm->heap);
+        InitDecodedCert(cert, der.buffer, der.length, cm->heap);
 
     #ifdef WOLFSSL_SMALL_STACK
         XFREE(info, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -3389,26 +3441,6 @@ int wolfSSL_CertManagerVerify(WOLFSSL_CERT_MANAGER* cm, const char* fname,
 }
 
 
-static INLINE WOLFSSL_METHOD* cm_pick_method(void)
-{
-    #ifndef NO_WOLFSSL_CLIENT
-        #ifdef NO_OLD_TLS
-            return wolfTLSv1_2_client_method();
-        #else
-            return wolfSSLv3_client_method();
-        #endif
-    #elif !defined(NO_WOLFSSL_SERVER)
-        #ifdef NO_OLD_TLS
-            return wolfTLSv1_2_server_method();
-        #else
-            return wolfSSLv3_server_method();
-        #endif
-    #else
-        return NULL;
-    #endif
-}
-
-
 /* like load verify locations, 1 for success, < 0 for error */
 int wolfSSL_CertManagerLoadCA(WOLFSSL_CERT_MANAGER* cm, const char* file,
                              const char* path)
@@ -3441,7 +3473,6 @@ int wolfSSL_CertManagerLoadCA(WOLFSSL_CERT_MANAGER* cm, const char* file,
 
     return ret;
 }
-
 
 
 /* turn on CRL if off and compiled in, set options */
@@ -13185,37 +13216,20 @@ static int SetECPointInternal(WOLFSSL_EC_POINT *p)
 
 	point = (ecc_point*)p->internal;
 
-#ifndef ALT_ECC_SIZE
-	if (p->X != NULL && SetIndividualInternal(p->X, &point->x[0]) < 0) {
+	if (p->X != NULL && SetIndividualInternal(p->X, point->x) < 0) {
 		WOLFSSL_MSG("ecc point X error");
 		return SSL_FATAL_ERROR;
 	}
 
-	if (p->Y != NULL && SetIndividualInternal(p->Y, &point->y[0]) < 0) {
+	if (p->Y != NULL && SetIndividualInternal(p->Y, point->y) < 0) {
 		WOLFSSL_MSG("ecc point Y error");
 		return SSL_FATAL_ERROR;
 	}
 
-	if (p->Z != NULL && SetIndividualInternal(p->Z, &point->z[0]) < 0) {
+	if (p->Z != NULL && SetIndividualInternal(p->Z, point->z) < 0) {
 		WOLFSSL_MSG("ecc point Z error");
 		return SSL_FATAL_ERROR;
 	}
-#else
-	if (p->X != NULL && SetIndividualInternal(p->X, &point->x) < 0) {
-		WOLFSSL_MSG("ecc point X error");
-		return SSL_FATAL_ERROR;
-	}
-
-	if (p->Y != NULL && SetIndividualInternal(p->Y, &point->y) < 0) {
-		WOLFSSL_MSG("ecc point Y error");
-		return SSL_FATAL_ERROR;
-	}
-
-	if (p->Z != NULL && SetIndividualInternal(p->Z, &point->z) < 0) {
-		WOLFSSL_MSG("ecc point Z error");
-		return SSL_FATAL_ERROR;
-	}
-#endif
 
 	p->inSet = 1;
 
@@ -13236,37 +13250,20 @@ static int SetECPointExternal(WOLFSSL_EC_POINT *p)
 
 	point = (ecc_point*)p->internal;
 
-#ifndef ALT_ECC_SIZE
-	if (SetIndividualExternal(&p->X, &point->x[0]) < 0) {
+	if (SetIndividualExternal(&p->X, point->x) < 0) {
 		WOLFSSL_MSG("ecc point X error");
 		return SSL_FATAL_ERROR;
 	}
 
-	if (SetIndividualExternal(&p->Y, &point->y[0]) < 0) {
+	if (SetIndividualExternal(&p->Y, point->y) < 0) {
 		WOLFSSL_MSG("ecc point Y error");
 		return SSL_FATAL_ERROR;
 	}
 
-	if (SetIndividualExternal(&p->Z, &point->z[0]) < 0) {
+	if (SetIndividualExternal(&p->Z, point->z) < 0) {
 		WOLFSSL_MSG("ecc point Z error");
 		return SSL_FATAL_ERROR;
 	}
-#else
-	if (SetIndividualExternal(&p->X, &point->x) < 0) {
-		WOLFSSL_MSG("ecc point X error");
-		return SSL_FATAL_ERROR;
-	}
-
-	if (SetIndividualExternal(&p->Y, &point->y) < 0) {
-		WOLFSSL_MSG("ecc point Y error");
-		return SSL_FATAL_ERROR;
-	}
-
-	if (SetIndividualExternal(&p->Z, &point->z) < 0) {
-		WOLFSSL_MSG("ecc point Z error");
-		return SSL_FATAL_ERROR;
-	}
-#endif
 
 	p->exSet = 1;
 
@@ -13297,8 +13294,6 @@ static int SetECKeyExternal(WOLFSSL_EC_KEY* eckey)
 			WOLFSSL_MSG("SetECKeyExternal ecc_copy_point failed");
 			return SSL_FATAL_ERROR;
 		}
-
-		//eckey->pub_key->internal = (ecc_point*)&(key->pubkey);
 
 		/* set the external pubkey (point) */
 		if (SetECPointExternal(eckey->pub_key) < 0) {
@@ -13916,7 +13911,6 @@ int wolfSSL_EC_POINT_get_affine_coordinates_GFp(const WOLFSSL_EC_GROUP *group, c
 												WOLFSSL_BIGNUM *x, WOLFSSL_BIGNUM *y, WOLFSSL_BN_CTX *ctx)
 {
 	(void)ctx;
-	//ecc_point *p;
 
 	WOLFSSL_ENTER("wolfSSL_EC_POINT_get_affine_coordinates_GFp");
 
@@ -13933,8 +13927,6 @@ int wolfSSL_EC_POINT_get_affine_coordinates_GFp(const WOLFSSL_EC_GROUP *group, c
 			return 0;
 		}
 	}
-
-	//p = (ecc_point*)point->internal;
 
 	BN_copy(x, point->X);
 	BN_copy(y, point->Y);

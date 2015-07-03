@@ -35,6 +35,9 @@
 #endif
 
 #ifndef HAVE_FIPS /* avoid redefining structs and macros */
+#if defined(WOLFSSL_FORCE_RC4_DRBG) && defined(NO_RC4)
+    #error Cannot have WOLFSSL_FORCE_RC4_DRBG and NO_RC4 defined.
+#endif /* WOLFSSL_FORCE_RC4_DRBG && NO_RC4 */
 #if defined(HAVE_HASHDRBG) || defined(NO_RC4)
     #ifdef NO_SHA256
         #error "Hash DRBG requires SHA-256."
