@@ -175,7 +175,7 @@ WOLFSSL_API int  wc_SetDatesBuffer(Cert*, const byte*, int);
 #endif /* WOLFSSL_CERT_GEN */
 
 
-#if defined(WOLFSSL_KEY_GEN) || defined(WOLFSSL_CERT_GEN)
+#if defined(WOLFSSL_KEY_GEN) || defined(WOLFSSL_CERT_GEN) || !defined(NO_DSA)
     WOLFSSL_API int wc_DerToPem(const byte* der, word32 derSz, byte* output,
                             word32 outputSz, int type);
 #endif
