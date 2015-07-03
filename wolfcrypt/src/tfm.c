@@ -2115,6 +2115,12 @@ int mp_mul_2d(fp_int *a, int b, fp_int *c)
 	return MP_OKAY;
 }
 
+int mp_div_2d(fp_int* a, int b, fp_int* c, fp_int* d)
+{
+    fp_div_2d(a, b, c, d);
+    return MP_OKAY;
+}
+
 #ifdef ALT_ECC_SIZE
 void fp_copy(fp_int *a, fp_int* b)
 {
@@ -2692,12 +2698,6 @@ int mp_div_2(fp_int * a, fp_int * b)
 int mp_init_copy(fp_int * a, fp_int * b)
 {
     fp_init_copy(a, b);
-    return MP_OKAY;
-}
-
-int mp_div_2d(fp_int* a, int b, fp_int* c, fp_int* d)
-{
-    fp_div_2d(a, b, c, d);
     return MP_OKAY;
 }
 
