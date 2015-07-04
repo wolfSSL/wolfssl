@@ -12,24 +12,24 @@ extern "C" {
 #endif
 
 struct WOLFSSL_ECDSA_SIG {
-	WOLFSSL_BIGNUM *r;
-	WOLFSSL_BIGNUM *s;
-#if 0
-	void*          internal;     /* our EC DSA */
-	char           inSet;        /* internal set from external ? */
-	char           exSet;        /* external set from internal ? */
-#endif
+    WOLFSSL_BIGNUM *r;
+    WOLFSSL_BIGNUM *s;
 };
 
 WOLFSSL_API void wolfSSL_ECDSA_SIG_free(WOLFSSL_ECDSA_SIG *sig);
 WOLFSSL_API WOLFSSL_ECDSA_SIG *wolfSSL_ECDSA_SIG_new(void);
-WOLFSSL_API WOLFSSL_ECDSA_SIG *wolfSSL_ECDSA_do_sign(const unsigned char *dgst, int dgst_len, WOLFSSL_EC_KEY *eckey);
-WOLFSSL_API int wolfSSL_ECDSA_do_verify(const unsigned char *dgst, int dgst_len, const WOLFSSL_ECDSA_SIG *sig, WOLFSSL_EC_KEY *eckey);
+WOLFSSL_API WOLFSSL_ECDSA_SIG *wolfSSL_ECDSA_do_sign(const unsigned char *dgst,
+                                                     int dgst_len,
+                                                     WOLFSSL_EC_KEY *eckey);
+WOLFSSL_API int wolfSSL_ECDSA_do_verify(const unsigned char *dgst,
+                                        int dgst_len,
+                                        const WOLFSSL_ECDSA_SIG *sig,
+                                        WOLFSSL_EC_KEY *eckey);
 
-#define	ECDSA_SIG_free wolfSSL_ECDSA_SIG_free
-#define	ECDSA_SIG_new wolfSSL_ECDSA_SIG_new
-#define	ECDSA_do_sign wolfSSL_ECDSA_do_sign
-#define	ECDSA_do_verify wolfSSL_ECDSA_do_verify
+#define ECDSA_SIG_free wolfSSL_ECDSA_SIG_free
+#define ECDSA_SIG_new wolfSSL_ECDSA_SIG_new
+#define ECDSA_do_sign wolfSSL_ECDSA_do_sign
+#define ECDSA_do_verify wolfSSL_ECDSA_do_verify
 
 #ifdef __cplusplus
 }  /* extern "C" */

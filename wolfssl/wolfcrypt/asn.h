@@ -145,7 +145,7 @@ enum Misc_ASN {
     KEYID_SIZE          = SHA_DIGEST_SIZE,
 #endif
     RSA_INTS            =   8,     /* RSA ints in private key */
-	DSA_INTS            =   5,     /* DSA ints in private key */
+    DSA_INTS            =   5,     /* DSA ints in private key */
     MIN_DATE_SIZE       =  13,
     MAX_DATE_SIZE       =  32,
     ASN_GEN_TIME_SZ     =  15,     /* 7 numbers * 2 + Zulu tag */
@@ -521,7 +521,7 @@ WOLFSSL_TEST_API void InitDecodedCert(DecodedCert*, byte*, word32, void*);
 WOLFSSL_TEST_API void FreeDecodedCert(DecodedCert*);
 WOLFSSL_TEST_API int  ParseCert(DecodedCert*, int type, int verify, void* cm);
 
-WOLFSSL_LOCAL int ParseCertRelative(DecodedCert*, int type, int verify,void* cm);
+WOLFSSL_LOCAL int ParseCertRelative(DecodedCert*,int type,int verify,void* cm);
 WOLFSSL_LOCAL int DecodeToKey(DecodedCert*, int verify);
 
 WOLFSSL_LOCAL Signer* MakeSigner(void*);
@@ -530,7 +530,7 @@ WOLFSSL_LOCAL void    FreeSignerTable(Signer**, int, void*);
 
 
 WOLFSSL_LOCAL int ToTraditional(byte* buffer, word32 length);
-WOLFSSL_LOCAL int ToTraditionalEnc(byte* buffer, word32 length,const char*, int);
+WOLFSSL_LOCAL int ToTraditionalEnc(byte* buffer, word32 length,const char*,int);
 
 WOLFSSL_LOCAL int ValidateDate(const byte* date, byte format, int dateType);
 
@@ -550,10 +550,10 @@ WOLFSSL_LOCAL int GetAlgoId(const byte* input, word32* inOutIdx, word32* oid,
 WOLFSSL_LOCAL word32 SetLength(word32 length, byte* output);
 WOLFSSL_LOCAL word32 SetSequence(word32 len, byte* output);
 WOLFSSL_LOCAL word32 SetOctetString(word32 len, byte* output);
-WOLFSSL_LOCAL word32 SetImplicit(byte tag, byte number, word32 len,byte* output);
+WOLFSSL_LOCAL word32 SetImplicit(byte tag,byte number,word32 len,byte* output);
 WOLFSSL_LOCAL word32 SetExplicit(byte number, word32 len, byte* output);
 WOLFSSL_LOCAL word32 SetSet(word32 len, byte* output);
-WOLFSSL_LOCAL word32 SetAlgoID(int algoOID, byte* output, int type, int curveSz);
+WOLFSSL_LOCAL word32 SetAlgoID(int algoOID,byte* output,int type,int curveSz);
 WOLFSSL_LOCAL int SetMyVersion(word32 version, byte* output, int header);
 WOLFSSL_LOCAL int SetSerialNumber(const byte* sn, word32 snSz, byte* output);
 WOLFSSL_LOCAL int GetNameHash(const byte* source, word32* idx, byte* hash,
@@ -582,7 +582,7 @@ enum cert_enums {
 #ifndef NO_FILESYSTEM
 /* forward from wolfSSL */
 WOLFSSL_API
-int wolfSSL_PemCertToDer(const char* fileName, unsigned char* derBuf, int derSz);
+int wolfSSL_PemCertToDer(const char* fileName,unsigned char* derBuf,int derSz);
 #define WOLFSSL_PEMCERT_TODER_DEFINED
 #endif
 #endif
@@ -645,7 +645,7 @@ struct OcspResponse {
     word32  responseSz;      /* length of the OCSP Response */
 
     byte    producedDate[MAX_DATE_SIZE];
-							 /* Date at which this response was signed */
+                             /* Date at which this response was signed */
     byte    producedDateFormat; /* format of the producedDate */
     byte*   issuerHash;
     byte*   issuerKeyHash;
