@@ -538,7 +538,7 @@ int fp_div(fp_int *a, fp_int *b, fp_int *c, fp_int *d)
   t = y.used - 1;
 
   /* while (x >= y*b**n-t) do { q[n-t] += 1; x -= y*b**{n-t} } */
-  fp_lshd (&y, n - t);                                             /* y = y*b**{n-t} */
+  fp_lshd (&y, n - t); /* y = y*b**{n-t} */
 
   while (fp_cmp (&x, &y) != FP_LT) {
     ++(q.dp[n - t]);
@@ -966,8 +966,8 @@ int fp_mulmod(fp_int *a, fp_int *b, fp_int *c, fp_int *d)
 #ifdef TFM_TIMING_RESISTANT
 
 /* timing resistant montgomery ladder based exptmod
-
-   Based on work by Marc Joye, Sung-Ming Yen, "The Montgomery Powering Ladder", Cryptographic Hardware and Embedded Systems, CHES 2002
+   Based on work by Marc Joye, Sung-Ming Yen, "The Montgomery Powering Ladder",
+   Cryptographic Hardware and Embedded Systems, CHES 2002
 */
 static int _fp_exptmod(fp_int * G, fp_int * X, fp_int * P, fp_int * Y)
 {
@@ -1085,7 +1085,8 @@ static int _fp_exptmod(fp_int * G, fp_int * X, fp_int * P, fp_int * Y)
    }
    fp_mulmod (&M[1], &res, P, &M[1]);
 
-  /* compute the value at M[1<<(winsize-1)] by squaring M[1] (winsize-1) times */
+  /* compute the value at M[1<<(winsize-1)] by
+   * squaring M[1] (winsize-1) times */
   fp_copy (&M[1], &M[1 << (winsize - 1)]);
   for (x = 0; x < (winsize - 1); x++) {
     fp_sqr (&M[1 << (winsize - 1)], &M[1 << (winsize - 1)]);
@@ -1737,7 +1738,8 @@ void fp_read_unsigned_bin(fp_int *a, unsigned char *b, int c)
 
   /* If we know the endianness of this architecture, and we're using
      32-bit fp_digits, we can optimize this */
-#if (defined(LITTLE_ENDIAN_ORDER) || defined(BIG_ENDIAN_ORDER)) && defined(FP_32BIT)
+#if (defined(LITTLE_ENDIAN_ORDER) || defined(BIG_ENDIAN_ORDER)) && \
+    defined(FP_32BIT)
   /* But not for both simultaneously */
 #if defined(LITTLE_ENDIAN_ORDER) && defined(BIG_ENDIAN_ORDER)
 #error Both LITTLE_ENDIAN_ORDER and BIG_ENDIAN_ORDER defined.
@@ -1757,12 +1759,12 @@ void fp_read_unsigned_bin(fp_int *a, unsigned char *b, int c)
        /* Use Duff's device to unroll the loop. */
        int idx = (c - 1) & ~3;
        switch (c % 4) {
-       case 0:	do { pd[idx+0] = *b++;
-       case 3:	     pd[idx+1] = *b++;
-       case 2:	     pd[idx+2] = *b++;
-       case 1:	     pd[idx+3] = *b++;
+       case 0:    do { pd[idx+0] = *b++;
+       case 3:         pd[idx+1] = *b++;
+       case 2:         pd[idx+2] = *b++;
+       case 1:         pd[idx+3] = *b++;
                      idx -= 4;
-	 	        } while ((c -= 4) > 0);
+                 } while ((c -= 4) > 0);
        }
      }
 #else
@@ -1813,10 +1815,10 @@ void fp_set(fp_int *a, fp_digit b)
 /* chek if a bit is set */
 int fp_is_bit_set (fp_int *a, fp_digit b)
 {
-	if ((fp_digit)a->used < b/DIGIT_BIT)
-		return 0;
+    if ((fp_digit)a->used < b/DIGIT_BIT)
+        return 0;
 
-	return (int)((a->dp[b/DIGIT_BIT] >> b%DIGIT_BIT) & (fp_digit)1);
+    return (int)((a->dp[b/DIGIT_BIT] >> b%DIGIT_BIT) & (fp_digit)1);
 }
 
 int fp_count_bits (fp_int * a)
@@ -2003,7 +2005,8 @@ void mp_clear (mp_int * a)
 }
 
 /* handle up to 6 inits */
-int mp_init_multi(mp_int* a, mp_int* b, mp_int* c, mp_int* d, mp_int* e, mp_int* f)
+int mp_init_multi(mp_int* a, mp_int* b, mp_int* c, mp_int* d,
+                  mp_int* e, mp_int* f)
 {
     if (a)
         fp_init(a);
@@ -2111,8 +2114,8 @@ int mp_sub_d(fp_int *a, fp_digit b, fp_int *c)
 
 int mp_mul_2d(fp_int *a, int b, fp_int *c)
 {
-	fp_mul_2d(a, b, c);
-	return MP_OKAY;
+    fp_mul_2d(a, b, c);
+    return MP_OKAY;
 }
 
 #ifdef ALT_ECC_SIZE
@@ -2185,7 +2188,7 @@ int mp_set_int(fp_int *a, fp_digit b)
 
 int mp_is_bit_set (fp_int *a, fp_digit b)
 {
-	return fp_is_bit_set(a, b);
+    return fp_is_bit_set(a, b);
 }
 
 #if defined(WOLFSSL_KEY_GEN) || defined (HAVE_ECC)
@@ -2591,7 +2594,8 @@ int mp_add_d(fp_int *a, fp_digit b, fp_int *c)
 #ifdef HAVE_ECC
 
 /* chars used in radix conversions */
-static const char *fp_s_rmap = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz+/";
+static const char *fp_s_rmap = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ\
+                                abcdefghijklmnopqrstuvwxyz+/";
 
 static int fp_read_radix(fp_int *a, const char *str, int radix)
 {
@@ -2717,107 +2721,107 @@ int mp_cnt_lsb(fp_int* a)
 /* returns size of ASCII reprensentation */
 int mp_radix_size (mp_int *a, int radix, int *size)
 {
-	int     res, digs;
-	fp_int  t;
-	fp_digit d;
+    int     res, digs;
+    fp_int  t;
+    fp_digit d;
 
-	*size = 0;
+    *size = 0;
 
-	/* special case for binary */
-	if (radix == 2) {
-		*size = fp_count_bits (a) + (a->sign == FP_NEG ? 1 : 0) + 1;
-		return FP_YES;
-	}
+    /* special case for binary */
+    if (radix == 2) {
+        *size = fp_count_bits (a) + (a->sign == FP_NEG ? 1 : 0) + 1;
+        return FP_YES;
+    }
 
-	/* make sure the radix is in range */
-	if (radix < 2 || radix > 64) {
-		return FP_VAL;
-	}
+    /* make sure the radix is in range */
+    if (radix < 2 || radix > 64) {
+        return FP_VAL;
+    }
 
-	if (fp_iszero(a) == MP_YES) {
-		*size = 2;
-		return FP_YES;
-	}
+    if (fp_iszero(a) == MP_YES) {
+        *size = 2;
+        return FP_YES;
+    }
 
-	/* digs is the digit count */
-	digs = 0;
+    /* digs is the digit count */
+    digs = 0;
 
-	/* if it's negative add one for the sign */
-	if (a->sign == FP_NEG) {
-		++digs;
-	}
+    /* if it's negative add one for the sign */
+    if (a->sign == FP_NEG) {
+        ++digs;
+    }
 
-	/* init a copy of the input */
-	fp_init_copy (&t, a);
+    /* init a copy of the input */
+    fp_init_copy (&t, a);
 
-	/* force temp to positive */
-	t.sign = FP_ZPOS;
+    /* force temp to positive */
+    t.sign = FP_ZPOS;
 
-	/* fetch out all of the digits */
-	while (fp_iszero (&t) == FP_NO) {
-		if ((res = fp_div_d (&t, (mp_digit) radix, &t, &d)) != FP_OKAY) {
-			fp_zero (&t);
-			return res;
-		}
-		++digs;
-	}
-	fp_zero (&t);
+    /* fetch out all of the digits */
+    while (fp_iszero (&t) == FP_NO) {
+        if ((res = fp_div_d (&t, (mp_digit) radix, &t, &d)) != FP_OKAY) {
+            fp_zero (&t);
+            return res;
+        }
+        ++digs;
+    }
+    fp_zero (&t);
 
-	/* return digs + 1, the 1 is for the NULL byte that would be required. */
-	*size = digs + 1;
-	return FP_OKAY;
+    /* return digs + 1, the 1 is for the NULL byte that would be required. */
+    *size = digs + 1;
+    return FP_OKAY;
 }
 
 /* stores a bignum as a ASCII string in a given radix (2..64) */
 int mp_toradix (mp_int *a, char *str, int radix)
 {
-	int     res, digs;
-	fp_int  t;
-	fp_digit d;
-	char   *_s = str;
+    int     res, digs;
+    fp_int  t;
+    fp_digit d;
+    char   *_s = str;
 
-	/* check range of the radix */
-	if (radix < 2 || radix > 64) {
-		return FP_VAL;
-	}
+    /* check range of the radix */
+    if (radix < 2 || radix > 64) {
+        return FP_VAL;
+    }
 
-	/* quick out if its zero */
-	if (fp_iszero(a) == 1) {
-		*str++ = '0';
-		*str = '\0';
-		return FP_YES;
-	}
+    /* quick out if its zero */
+    if (fp_iszero(a) == 1) {
+        *str++ = '0';
+        *str = '\0';
+        return FP_YES;
+    }
 
-	/* init a copy of the input */
-	fp_init_copy (&t, a);
+    /* init a copy of the input */
+    fp_init_copy (&t, a);
 
-	/* if it is negative output a - */
-	if (t.sign == FP_NEG) {
-		++_s;
-		*str++ = '-';
-		t.sign = FP_ZPOS;
-	}
+    /* if it is negative output a - */
+    if (t.sign == FP_NEG) {
+        ++_s;
+        *str++ = '-';
+        t.sign = FP_ZPOS;
+    }
 
-	digs = 0;
-	while (fp_iszero (&t) == 0) {
-		if ((res = fp_div_d (&t, (fp_digit) radix, &t, &d)) != FP_OKAY) {
-			fp_zero (&t);
-			return res;
-		}
-		*str++ = fp_s_rmap[d];
-		++digs;
-	}
+    digs = 0;
+    while (fp_iszero (&t) == 0) {
+        if ((res = fp_div_d (&t, (fp_digit) radix, &t, &d)) != FP_OKAY) {
+            fp_zero (&t);
+            return res;
+        }
+        *str++ = fp_s_rmap[d];
+        ++digs;
+    }
 
-	/* reverse the digits of the string.  In this case _s points
-	 * to the first digit [exluding the sign] of the number]
-	 */
-	fp_reverse ((unsigned char *)_s, digs);
+    /* reverse the digits of the string.  In this case _s points
+     * to the first digit [exluding the sign] of the number]
+     */
+    fp_reverse ((unsigned char *)_s, digs);
 
-	/* append a NULL so the string is properly terminated */
-	*str = '\0';
+    /* append a NULL so the string is properly terminated */
+    *str = '\0';
 
-	fp_zero (&t);
-	return FP_OKAY;
+    fp_zero (&t);
+    return FP_OKAY;
 }
 
 #endif /* defined(WOLFSSL_KEY_GEN) || defined(HAVE_COMP_KEY) */
