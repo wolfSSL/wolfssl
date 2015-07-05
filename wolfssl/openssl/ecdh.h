@@ -11,8 +11,13 @@ extern C {
 #endif
 
 
-WOLFSSL_API	int wolfSSL_ECDH_compute_key(void *out, size_t outlen, const WOLFSSL_EC_POINT *pub_key,
-								 WOLFSSL_EC_KEY *ecdh, void *(*KDF) (const void *in, size_t inlen, void *out, size_t *outlen));
+WOLFSSL_API int wolfSSL_ECDH_compute_key(void *out, size_t outlen,
+                                         const WOLFSSL_EC_POINT *pub_key,
+                                         WOLFSSL_EC_KEY *ecdh,
+                                         void *(*KDF) (const void *in,
+                                                       size_t inlen,
+                                                       void *out,
+                                                       size_t *outlen));
 
 #define ECDH_compute_key wolfSSL_ECDH_compute_key
 
