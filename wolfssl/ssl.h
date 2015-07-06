@@ -65,6 +65,8 @@ typedef struct WOLFSSL_CTX      WOLFSSL_CTX;
 
 typedef struct WOLFSSL_X509       WOLFSSL_X509;
 typedef struct WOLFSSL_X509_NAME  WOLFSSL_X509_NAME;
+/**Lighttpd compatablity**/
+typedef struct WOLFSSL_X509_NAME_ENTRY WOLFSSL_X509_NAME_ENTRY;
 typedef struct WOLFSSL_X509_CHAIN WOLFSSL_X509_CHAIN;
 
 typedef struct WOLFSSL_CERT_MANAGER WOLFSSL_CERT_MANAGER;
@@ -1455,13 +1457,9 @@ WOLFSSL_API int wolfSSL_accept_ex(WOLFSSL*, HandShakeCallBack, TimeoutCallBack,
 #endif
 
 
-#ifdef __cplusplus
-    }  /* extern "C" */
-#endif
 
 #ifdef OPENSSL_EXTRA /*lighttp compatibility */
 #include <wolfssl/openssl/dh.h>
-typedef struct WOLFSSL_X509_NAME_ENTRY { } WOLFSSL_X509_NAME_ENTRY;
 
 WOLFSSL_API char WOLFSSL_CTX_use_certificate(WOLFSSL_CTX *ctx, WOLFSSL_X509 *x);
 WOLFSSL_API int WOLFSSL_CTX_use_PrivateKey(WOLFSSL_CTX *ctx, WOLFSSL_EVP_PKEY *pkey);
@@ -1481,10 +1479,14 @@ WOLFSSL_API long WOLFSSL_CTX_set_tmp_dh(WOLFSSL_CTX *ctx, WOLFSSL_DH *dh);
 WOLFSSL_API void wolfSSL_CTX_set_verify_depth(WOLFSSL_CTX *ctx,int depth);
 WOLFSSL_API char *WOLFSSL_get_app_data(WOLFSSL *ssl);
 WOLFSSL_API void WOLFSSL_set_app_data(WOLFSSL *ssl, char *arg);
-WOLFSSL_API int WOLFSSL_X509_NAME_entry_count(WOLFSSL_X509_NAME *name);
 WOLFSSL_API WOLFSSL_ASN1_OBJECT * WOLFSSL_X509_NAME_ENTRY_get_object(WOLFSSL_X509_NAME_ENTRY *ne);
 WOLFSSL_API WOLFSSL_X509_NAME_ENTRY *WOLFSSL_X509_NAME_get_entry(WOLFSSL_X509_NAME *name, int loc);
 /* end lighttp */
+#endif
+
+
+#ifdef __cplusplus
+    }  /* extern "C" */
 #endif
 
 #endif /* WOLFSSL_SSL_H */

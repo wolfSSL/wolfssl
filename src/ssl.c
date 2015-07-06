@@ -13044,12 +13044,6 @@ void* wolfSSL_GetRsaDecCtx(WOLFSSL* ssl)
         (void)arg;
     }
 
-    WOLFSSL_API int WOLFSSL_X509_NAME_entry_count(WOLFSSL_X509_NAME *name) {
-        (void)name;
-
-        return 0;
-    }
-
     WOLFSSL_API WOLFSSL_ASN1_OBJECT * WOLFSSL_X509_NAME_ENTRY_get_object(WOLFSSL_X509_NAME_ENTRY *ne) {
         (void)ne;
 

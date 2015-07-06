@@ -398,6 +398,8 @@ typedef WOLFSSL_X509_STORE_CTX X509_STORE_CTX;
 #define SSL_get_default_timeout(ctx) 500
 
 /* Lighthttp compatability */
+typedef WOLFSSL_X509_NAME_ENTRY X509_NAME_ENTRY;
+
 
 #define SSL_CTX_use_certificate WOLFSSL_CTX_use_certificate
 #define SSL_CTX_use_PrivateKey WOLFSSL_CTX_use_PrivateKey
@@ -420,6 +422,7 @@ typedef WOLFSSL_X509_STORE_CTX X509_STORE_CTX;
 #define X509_NAME_ENTRY_get_object WOLFSSL_X509_NAME_ENTRY_get_object
 #define X509_NAME_get_entry WOLFSSL_X509_NAME_get_entry
 #define X509_NAME_ENTRY WOLFSSL_X509_NAME_ENTRY                              
+
 #ifdef __cplusplus
     } /* extern "C" */
 #endif
