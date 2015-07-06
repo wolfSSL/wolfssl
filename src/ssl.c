@@ -12936,6 +12936,8 @@ void* wolfSSL_GetRsaDecCtx(WOLFSSL* ssl)
 
 #ifdef OPENSSL_EXTRA /*Lighttp compatibility*/
 
+    
+
     WOLFSSL_API char WOLFSSL_CTX_use_certificate(WOLFSSL_CTX *ctx, WOLFSSL_X509 *x) {
         (void)ctx;
         (void)x;
