@@ -19,4 +19,8 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
- 
+#ifdef WOLFCRYPT_HAVE_SRP
+
+#include <wolfssl/wolfcrypt/srp.h>
+
+#endif /* WOLFCRYPT_HAVE_SRP */

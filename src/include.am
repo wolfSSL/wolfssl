@@ -201,6 +201,10 @@ if BUILD_PKCS7
 src_libwolfssl_la_SOURCES += wolfcrypt/src/pkcs7.c
 endif
 
+if BUILD_SRP
+src_libwolfssl_la_SOURCES += wolfcrypt/src/srp.c
+endif
+
 # ssl files
 src_libwolfssl_la_SOURCES += \
                src/internal.c \
@@ -220,4 +224,3 @@ endif
 if BUILD_SNIFFER
 src_libwolfssl_la_SOURCES += src/sniffer.c
 endif
-
