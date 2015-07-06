@@ -93,7 +93,7 @@ int wc_Chacha_SetIV(ChaCha* ctx, const byte* inIv, word32 counter)
 
     XMEMCPY(temp, inIv, 12);
 
-    ctx->X[12] = LITTLE32(counter); /* block counter */
+    ctx->X[12] = counter;           /* block counter */
     ctx->X[13] = LITTLE32(temp[0]); /* fixed variable from nonce */
     ctx->X[14] = LITTLE32(temp[1]); /* counter from nonce */
     ctx->X[15] = LITTLE32(temp[2]); /* counter from nonce */
