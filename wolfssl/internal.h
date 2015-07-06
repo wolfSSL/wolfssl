@@ -2505,9 +2505,6 @@ enum encrypt_side {
 WOLFSSL_LOCAL int SetKeysSide(WOLFSSL*, enum encrypt_side);
 
 
-/**Lighttpd compatabilit*/
-struct WOLFSSL_X509_NAME_ENTRY { };
-
 #ifdef __cplusplus
     }  /* extern "C" */
 #endif

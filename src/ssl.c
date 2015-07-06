@@ -13057,5 +13057,9 @@ void* wolfSSL_GetRsaDecCtx(WOLFSSL* ssl)
         return NULL;
     }
 
+    WOLFSSL_API void WOLFSSL_X509_NAME_free(WOLFSSL_X509_NAME *name){
+        FreeX509Name(name);
+    }
+
 #endif
 

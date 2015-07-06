@@ -66,7 +66,7 @@ typedef struct WOLFSSL_CTX      WOLFSSL_CTX;
 typedef struct WOLFSSL_X509       WOLFSSL_X509;
 typedef struct WOLFSSL_X509_NAME  WOLFSSL_X509_NAME;
 /**Lighttpd compatablity**/
-typedef struct WOLFSSL_X509_NAME_ENTRY WOLFSSL_X509_NAME_ENTRY;
+typedef struct WOLFSSL_X509_NAME_ENTRY{} WOLFSSL_X509_NAME_ENTRY;
 typedef struct WOLFSSL_X509_CHAIN WOLFSSL_X509_CHAIN;
 
 typedef struct WOLFSSL_CERT_MANAGER WOLFSSL_CERT_MANAGER;
@@ -1460,6 +1460,8 @@ WOLFSSL_API int wolfSSL_accept_ex(WOLFSSL*, HandShakeCallBack, TimeoutCallBack,
 
 #ifdef OPENSSL_EXTRA /*lighttp compatibility */
 #include <wolfssl/openssl/dh.h>
+
+WOLFSSL_API void WOLFSSL_X509_NAME_free(WOLFSSL_X509_NAME *name);
 
 WOLFSSL_API char WOLFSSL_CTX_use_certificate(WOLFSSL_CTX *ctx, WOLFSSL_X509 *x);
 WOLFSSL_API int WOLFSSL_CTX_use_PrivateKey(WOLFSSL_CTX *ctx, WOLFSSL_EVP_PKEY *pkey);

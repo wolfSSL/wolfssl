@@ -400,7 +400,9 @@ typedef WOLFSSL_X509_STORE_CTX X509_STORE_CTX;
 /* Lighthttp compatability */
 typedef WOLFSSL_X509_NAME_ENTRY X509_NAME_ENTRY;
 
+# define SSL_CB_HANDSHAKE_START          0x10
 
+#define X509_NAME_free WOLFSSL_X509_NAME_free
 #define SSL_CTX_use_certificate WOLFSSL_CTX_use_certificate
 #define SSL_CTX_use_PrivateKey WOLFSSL_CTX_use_PrivateKey
 #define BIO_new_file wolfSSL_BIO_new_file
@@ -420,8 +422,8 @@ typedef WOLFSSL_X509_NAME_ENTRY X509_NAME_ENTRY;
 #define SSL_set_app_data WOLFSSL_set_app_data
 #define X509_NAME_entry_count WOLFSSL_X509_NAME_entry_count
 #define X509_NAME_ENTRY_get_object WOLFSSL_X509_NAME_ENTRY_get_object
-#define X509_NAME_get_entry WOLFSSL_X509_NAME_get_entry
-#define X509_NAME_ENTRY WOLFSSL_X509_NAME_ENTRY                              
+#define X509_NAME_get_entry WOLFSSL_X509_NAME_get_entry  
+
 
 #ifdef __cplusplus
     } /* extern "C" */
