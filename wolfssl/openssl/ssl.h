@@ -422,8 +422,9 @@ typedef WOLFSSL_X509_NAME_ENTRY X509_NAME_ENTRY;
 #define SSL_set_app_data WOLFSSL_set_app_data
 #define X509_NAME_entry_count WOLFSSL_X509_NAME_entry_count
 #define X509_NAME_ENTRY_get_object WOLFSSL_X509_NAME_ENTRY_get_object
-#define X509_NAME_get_entry WOLFSSL_X509_NAME_get_entry  
-
+#define X509_NAME_get_entry WOLFSSL_X509_NAME_get_entry
+#define sk_X509_NAME_pop_free  wolfSSL_sk_X509_NAME_pop_free
+#define SHA1 wolfSSL_SHA1
 
 #ifdef __cplusplus
     } /* extern "C" */

@@ -1457,7 +1457,7 @@ WOLFSSL_API int wolfSSL_accept_ex(WOLFSSL*, HandShakeCallBack, TimeoutCallBack,
 #endif
 
 
-
+#include <wolfssl/options.h>
 #ifdef OPENSSL_EXTRA /*lighttp compatibility */
 #include <wolfssl/openssl/dh.h>
 
@@ -1483,6 +1483,11 @@ WOLFSSL_API char *WOLFSSL_get_app_data(WOLFSSL *ssl);
 WOLFSSL_API void WOLFSSL_set_app_data(WOLFSSL *ssl, char *arg);
 WOLFSSL_API WOLFSSL_ASN1_OBJECT * WOLFSSL_X509_NAME_ENTRY_get_object(WOLFSSL_X509_NAME_ENTRY *ne);
 WOLFSSL_API WOLFSSL_X509_NAME_ENTRY *WOLFSSL_X509_NAME_get_entry(WOLFSSL_X509_NAME *name, int loc);
+WOLFSSL_API void wolfSSL_sk_X509_NAME_pop_free(STACK_OF(WOLFSSL_X509_NAME)*, void*);
+
+WOLFSSL_API unsigned char *wolfSSL_SHA1(const unsigned char *d, size_t n, unsigned char *md);
+
+
 /* end lighttp */
 #endif
 

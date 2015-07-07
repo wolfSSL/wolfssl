@@ -12934,39 +12934,45 @@ void* wolfSSL_GetRsaDecCtx(WOLFSSL* ssl)
 #endif
 
 
+
+
 #ifdef OPENSSL_EXTRA /*Lighttp compatibility*/
 
-    
+    unsigned char *wolfSSL_SHA1(const unsigned char *d, size_t n, unsigned char *md)
+    {
+        (void) *d; (void) n; (void) *md;
+        return NULL;
+    }
 
-    WOLFSSL_API char WOLFSSL_CTX_use_certificate(WOLFSSL_CTX *ctx, WOLFSSL_X509 *x) {
+    char WOLFSSL_CTX_use_certificate(WOLFSSL_CTX *ctx, WOLFSSL_X509 *x) {
         (void)ctx;
         (void)x;
 
         return 0;
     }
 
-    WOLFSSL_API int WOLFSSL_CTX_use_PrivateKey(WOLFSSL_CTX *ctx, WOLFSSL_EVP_PKEY *pkey) {
+    int WOLFSSL_CTX_use_PrivateKey(WOLFSSL_CTX *ctx, WOLFSSL_EVP_PKEY *pkey) {
         (void)ctx;
         (void)pkey;
 
         return 0;
     }
 
-    WOLFSSL_API WOLFSSL_BIO *wolfSSL_BIO_new_file(const char *filename, const char *mode) {
+    WOLFSSL_BIO *wolfSSL_BIO_new_file(const char *filename, const char *mode) {
         (void)filename;
         (void)mode;
 
         return NULL;
     }
 
-    WOLFSSL_API int wolfSSL_BIO_read_filename(WOLFSSL_BIO *b, char *name) {
+    int wolfSSL_BIO_read_filename(WOLFSSL_BIO *b, char *name) {
         (void)b;
         (void)name;
 
         return 0;
     }
 
-    WOLFSSL_API WOLFSSL_BIO_METHOD* WOLFSSL_BIO_s_file(void) {
+    WOLFSSL_BIO_METHOD* WOLFSSL_BIO_s_file(void) {
         return NULL;
     }
 
@@ -12978,25 +12984,25 @@ void* wolfSSL_GetRsaDecCtx(WOLFSSL* ssl)
     //     (void)nid;
     // }
 
-    WOLFSSL_API const char * wolf_OBJ_nid2sn(int n) {
+    const char * wolf_OBJ_nid2sn(int n) {
         (void)n;
 
         return 0;
     }
 
-    WOLFSSL_API int wolf_OBJ_obj2nid(const WOLFSSL_ASN1_OBJECT *o) {
+    int wolf_OBJ_obj2nid(const WOLFSSL_ASN1_OBJECT *o) {
         (void)o;
 
         return 0;
     }
 
-    WOLFSSL_API int wolf_OBJ_sn2nid(const char *sn) {
+    int wolf_OBJ_sn2nid(const char *sn) {
         (void)sn;
 
         return 0;
     }
 
-    WOLFSSL_API WOLFSSL_DH *PEM_read_bio_DHparams(WOLFSSL_BIO *bp, WOLFSSL_DH **x, pem_password_cb *cb, void *u) {
+    WOLFSSL_DH *PEM_read_bio_DHparams(WOLFSSL_BIO *bp, WOLFSSL_DH **x, pem_password_cb *cb, void *u) {
         (void)bp;
         (void)x;
         (void)cb;
@@ -13005,7 +13011,7 @@ void* wolfSSL_GetRsaDecCtx(WOLFSSL* ssl)
         return NULL;
     }
 
-    WOLFSSL_API WOLFSSL_X509 *PEM_read_bio_WOLFSSL_X509(WOLFSSL_BIO *bp, WOLFSSL_X509 **x, pem_password_cb *cb, void *u) {
+    WOLFSSL_X509 *PEM_read_bio_WOLFSSL_X509(WOLFSSL_BIO *bp, WOLFSSL_X509 **x, pem_password_cb *cb, void *u) {
         (void)bp;
         (void)x;
         (void)cb;
@@ -13014,51 +13020,57 @@ void* wolfSSL_GetRsaDecCtx(WOLFSSL* ssl)
         return NULL;
     }
 
-    WOLFSSL_API int PEM_write_bio_WOLFSSL_X509(WOLFSSL_BIO *bp, WOLFSSL_X509 *x) {
+    int PEM_write_bio_WOLFSSL_X509(WOLFSSL_BIO *bp, WOLFSSL_X509 *x) {
         (void)bp;
         (void)x;
 
         return 0;
     }
 
-    WOLFSSL_API long WOLFSSL_CTX_set_tmp_dh(WOLFSSL_CTX *ctx, WOLFSSL_DH *dh) {
+    long WOLFSSL_CTX_set_tmp_dh(WOLFSSL_CTX *ctx, WOLFSSL_DH *dh) {
         (void)ctx;
         (void)dh;
 
         return 0;
     }
 
-    WOLFSSL_API void wolfSSL_CTX_set_verify_depth(WOLFSSL_CTX *ctx,int depth) {
+    void wolfSSL_CTX_set_verify_depth(WOLFSSL_CTX *ctx,int depth) {
         (void)ctx;
         (void)depth;
     }
 
-    WOLFSSL_API char *WOLFSSL_get_app_data(WOLFSSL *ssl) {
+    char *WOLFSSL_get_app_data(WOLFSSL *ssl) {
         (void)ssl;
 
         return 0;
     }
 
-    WOLFSSL_API void WOLFSSL_set_app_data(WOLFSSL *ssl, char *arg) {
+    void WOLFSSL_set_app_data(WOLFSSL *ssl, char *arg) {
         (void)ssl;
         (void)arg;
     }
 
-    WOLFSSL_API WOLFSSL_ASN1_OBJECT * WOLFSSL_X509_NAME_ENTRY_get_object(WOLFSSL_X509_NAME_ENTRY *ne) {
+    WOLFSSL_ASN1_OBJECT * WOLFSSL_X509_NAME_ENTRY_get_object(WOLFSSL_X509_NAME_ENTRY *ne) {
         (void)ne;
 
         return NULL;
     }
 
-    WOLFSSL_API WOLFSSL_X509_NAME_ENTRY *WOLFSSL_X509_NAME_get_entry(WOLFSSL_X509_NAME *name, int loc) {
+    WOLFSSL_X509_NAME_ENTRY *WOLFSSL_X509_NAME_get_entry(WOLFSSL_X509_NAME *name, int loc) {
         (void)name;
         (void)loc;
 
         return NULL;
     }
 
-    WOLFSSL_API void WOLFSSL_X509_NAME_free(WOLFSSL_X509_NAME *name){
+    void WOLFSSL_X509_NAME_free(WOLFSSL_X509_NAME *name){
         FreeX509Name(name);
+        //(void) name;
+    }
+
+    void wolfSSL_sk_X509_NAME_pop_free(STACK_OF(WOLFSSL_X509_NAME)* sk, void* v){
+        (void) sk;
+        (void) v;
     }
 
 #endif
