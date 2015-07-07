@@ -76,9 +76,9 @@
 
 
 void ApiTest(void);
-int SuiteTest(void);
-int HashTest(void);
+int  SuiteTest(void);
+int  HashTest(void);
+void SrpTest(void);
 
 
 #endif /* CyaSSL_UNIT_H */
-

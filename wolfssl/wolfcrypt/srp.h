@@ -19,6 +19,8 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
+#ifdef WOLFCRYPT_HAVE_SRP
+
 #ifndef WOLFCRYPT_SRP_H
 #define WOLFCRYPT_SRP_H
 
@@ -28,20 +30,24 @@
 #include <wolfssl/wolfcrypt/sha512.h>
 #include <wolfssl/wolfcrypt/integer.h>
 
-#ifdef WOLFCRYPT_HAVE_SRP
+#ifdef __cplusplus
+    extern "C" {
+#endif
 
 enum {
-#ifdef NO_SHA
-    SRP_SHA     = 1,
+    SRP_CLIENT_SIDE  = 0,
+    SRP_SERVER_SIDE  = 1,
+#ifndef NO_SHA
+    SRP_TYPE_SHA     = 1,
 #endif
-#ifdef NO_SHA256
-    SRP_SHA256  = 2,
+#ifndef NO_SHA256
+    SRP_TYPE_SHA256  = 2,
 #endif
-#ifndef WOLFSSL_SHA384
-    SRP_SHA384  = 3,
+#ifdef WOLFSSL_SHA384
+    SRP_TYPE_SHA384  = 3,
 #endif
-#ifndef WOLFSSL_SHA512
-    SRP_SHA512  = 4,
+#ifdef WOLFSSL_SHA512
+    SRP_TYPE_SHA512  = 4,
 #endif
 
 /* Select the largest available hash for the buffer size. */
@@ -57,6 +63,21 @@ enum {
     #error "You have to have some kind of SHA hash if you want to use SRP."
 #endif
 };
+
+typedef union {
+    #ifndef NO_SHA
+        Sha sha;
+    #endif
+    #ifndef NO_SHA256
+        Sha256 sha256;
+    #endif
+    #ifdef WOLFSSL_SHA384
+        Sha384 sha384;
+    #endif
+    #ifdef WOLFSSL_SHA512
+        Sha512 sha512;
+    #endif
+} SrpHash;
 
 typedef struct {
     mp_int a;                      /**< Private ephemeral value. Random.      */
@@ -90,9 +111,15 @@ typedef struct {
         SrpClient client;
         SrpServer server;
     } specific;
+    SrpHash hash;                  /**< Hash object.                          */
 } Srp;
 
-int SrpInit(Srp* srp, byte* N, word32 nSz, byte* g, word32 gSz);
+WOLFSSL_API int wc_SrpInit(Srp* srp, byte type, byte side, byte* N, word32 nSz,
+                                                           byte* g, word32 gSz);
 
+#ifdef __cplusplus
+   } /* extern "C" */
+#endif
+
+#endif /* WOLFCRYPT_SRP_H */
 #endif /* WOLFCRYPT_HAVE_SRP */
-#endif /* WOLF_CRYPT_SRP_H */

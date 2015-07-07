@@ -134,31 +134,31 @@ static int InitHmac(Hmac* hmac, int type)
             ret = wc_InitSha(&hmac->hash.sha);
         break;
         #endif
-        
+
         #ifndef NO_SHA256
         case SHA256:
             ret = wc_InitSha256(&hmac->hash.sha256);
         break;
         #endif
-        
+
         #ifdef WOLFSSL_SHA384
         case SHA384:
             ret = wc_InitSha384(&hmac->hash.sha384);
         break;
         #endif
-        
+
         #ifdef WOLFSSL_SHA512
         case SHA512:
             ret = wc_InitSha512(&hmac->hash.sha512);
         break;
         #endif
-        
-        #ifdef HAVE_BLAKE2 
+
+        #ifdef HAVE_BLAKE2
         case BLAKE2B_ID:
             ret = wc_InitBlake2b(&hmac->hash.blake2b, BLAKE2B_256);
         break;
         #endif
-        
+
         default:
             return BAD_FUNC_ARG;
     }
@@ -287,7 +287,7 @@ int wc_HmacSetKey(Hmac* hmac, int type, const byte* key, word32 length)
         break;
         #endif
 
-        #ifdef HAVE_BLAKE2 
+        #ifdef HAVE_BLAKE2
         case BLAKE2B_ID:
         {
             hmac_block_size = BLAKE2B_BLOCKBYTES;
@@ -367,7 +367,7 @@ static int HmacKeyInnerHash(Hmac* hmac)
         break;
         #endif
 
-        #ifdef HAVE_BLAKE2 
+        #ifdef HAVE_BLAKE2
         case BLAKE2B_ID:
             ret = wc_Blake2bUpdate(&hmac->hash.blake2b,
                                          (byte*) hmac->ipad,BLAKE2B_BLOCKBYTES);
@@ -438,7 +438,7 @@ int wc_HmacUpdate(Hmac* hmac, const byte* msg, word32 length)
         break;
         #endif
 
-        #ifdef HAVE_BLAKE2 
+        #ifdef HAVE_BLAKE2
         case BLAKE2B_ID:
             ret = wc_Blake2bUpdate(&hmac->hash.blake2b, msg, length);
             if (ret != 0)
@@ -570,7 +570,7 @@ int wc_HmacFinal(Hmac* hmac, byte* hash)
         break;
         #endif
 
-        #ifdef HAVE_BLAKE2 
+        #ifdef HAVE_BLAKE2
         case BLAKE2B_ID:
         {
             ret = wc_Blake2bFinal(&hmac->hash.blake2b, (byte*) hmac->innerHash,
@@ -622,7 +622,7 @@ int wc_HmacInitCavium(Hmac* hmac, int devId)
     hmac->devId   = devId;
     hmac->magic   = WOLFSSL_HMAC_CAVIUM_MAGIC;
     hmac->data    = NULL;        /* buffered input data */
-   
+
     hmac->innerHashKeyed = 0;
 
     return 0;
@@ -650,7 +650,7 @@ static void HmacCaviumFinal(Hmac* hmac, byte* hash)
                 (byte*)hmac->ipad, hmac->dataLen, hmac->data, hash, &requestId,
                 hmac->devId) != 0) {
         WOLFSSL_MSG("Cavium Hmac failed");
-    } 
+    }
     hmac->innerHashKeyed = 0;  /* tell update to start over if used again */
 }
 
@@ -685,7 +685,7 @@ static void HmacCaviumUpdate(Hmac* hmac, const byte* msg, word32 length)
     if (hmac->dataLen)
         XMEMCPY(tmp, hmac->data,  hmac->dataLen);
     XMEMCPY(tmp + hmac->dataLen, msg, add);
-        
+
     hmac->dataLen += add;
     XFREE(hmac->data, NULL, DYNAMIC_TYPE_CAVIUM_TMP);
     hmac->data = tmp;
@@ -751,31 +751,31 @@ static INLINE int GetHashSizeByType(int type)
             return SHA_DIGEST_SIZE;
         break;
         #endif
-        
+
         #ifndef NO_SHA256
         case SHA256:
             return SHA256_DIGEST_SIZE;
         break;
         #endif
-        
+
         #ifdef WOLFSSL_SHA384
         case SHA384:
             return SHA384_DIGEST_SIZE;
         break;
         #endif
-        
+
         #ifdef WOLFSSL_SHA512
         case SHA512:
             return SHA512_DIGEST_SIZE;
         break;
         #endif
-        
-        #ifdef HAVE_BLAKE2 
+
+        #ifdef HAVE_BLAKE2
         case BLAKE2B_ID:
             return BLAKE2B_OUTBYTES;
         break;
         #endif
-        
+
         default:
             return BAD_FUNC_ARG;
         break;
@@ -824,7 +824,7 @@ int wc_HKDF(int type, const byte* inKey, word32 inKeySz,
         localSalt = tmp;
         saltSz    = hashSz;
     }
-    
+
     do {
     ret = wc_HmacSetKey(&myHmac, type, localSalt, saltSz);
     if (ret != 0)
@@ -876,4 +876,3 @@ int wc_HKDF(int type, const byte* inKey, word32 inKeySz,
 
 #endif /* HAVE_FIPS */
 #endif /* NO_HMAC */
-
