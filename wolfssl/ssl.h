@@ -530,7 +530,7 @@ WOLFSSL_API void wolfSSL_CTX_set_default_passwd_cb_userdata(WOLFSSL_CTX*,
 WOLFSSL_API void wolfSSL_CTX_set_default_passwd_cb(WOLFSSL_CTX*, pem_password_cb);
 
 
-void wolfSSL_CTX_set_info_callback(WOLFSSL_CTX* ctx, 
+WOLFSSL_API void wolfSSL_CTX_set_info_callback(WOLFSSL_CTX* ctx, 
     void (*f) (const WOLFSSL *ssl, int type, int val));
 WOLFSSL_API unsigned long wolfSSL_ERR_peek_error(void);
 WOLFSSL_API int           wolfSSL_GET_REASON(int);
