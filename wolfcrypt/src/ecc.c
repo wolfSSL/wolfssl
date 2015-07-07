@@ -87,7 +87,7 @@ const ecc_set_type ecc_sets[] = {
 #ifdef ECC112
 {
         14,
-		NID_secp111r1,
+        NID_secp111r1,
         "SECP112R1",
         "DB7C2ABF62E35E668076BEAD208B",
         "DB7C2ABF62E35E668076BEAD2088",
@@ -100,7 +100,7 @@ const ecc_set_type ecc_sets[] = {
 #ifdef ECC128
 {
         16,
-		NID_secp128r1,
+        NID_secp128r1,
         "SECP128R1",
         "FFFFFFFDFFFFFFFFFFFFFFFFFFFFFFFF",
         "FFFFFFFDFFFFFFFFFFFFFFFFFFFFFFFC",
@@ -113,7 +113,7 @@ const ecc_set_type ecc_sets[] = {
 #ifdef ECC160
 {
         20,
-		NID_secp160r1,
+        NID_secp160r1,
         "SECP160R1",
         "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF7FFFFFFF",
         "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF7FFFFFFC",
@@ -126,7 +126,7 @@ const ecc_set_type ecc_sets[] = {
 #ifdef ECC192
 {
         24,
-		NID_cert192,
+        NID_cert192,
         "ECC-192",
         "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFFFFFFFFFFFF",
         "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFFFFFFFFFFFC",
@@ -139,7 +139,7 @@ const ecc_set_type ecc_sets[] = {
 #ifdef ECC224
 {
         28,
-		NID_cert224,
+        NID_cert224,
         "ECC-224",
         "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF000000000000000000000001",
         "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFFFFFFFFFFFFFFFFFFFE",
@@ -152,7 +152,7 @@ const ecc_set_type ecc_sets[] = {
 #ifdef ECC256
 {
         32,
-		NID_X9_62_prime256v1,
+        NID_X9_62_prime256v1,
         "nistp256",
         "FFFFFFFF00000001000000000000000000000000FFFFFFFFFFFFFFFFFFFFFFFF",
         "FFFFFFFF00000001000000000000000000000000FFFFFFFFFFFFFFFFFFFFFFFC",
@@ -165,7 +165,7 @@ const ecc_set_type ecc_sets[] = {
 #ifdef ECC384
 {
         48,
-		NID_secp384r1,
+        NID_secp384r1,
         "nistp384",
         "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFFFF0000000000000000FFFFFFFF",
         "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFFFF0000000000000000FFFFFFFC",
@@ -178,7 +178,7 @@ const ecc_set_type ecc_sets[] = {
 #ifdef ECC521
 {
         66,
-		NID_secp521r1,
+        NID_secp521r1,
         "nistp521",
         "1FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF",
         "1FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFC",
@@ -1437,59 +1437,55 @@ void ecc_del_point(ecc_point* p)
 }
 
 /** Copy the value of a point to an other one
-  p	The point to copy
-  r	The created point
+  p    The point to copy
+  r    The created point
 */
 int ecc_copy_point(ecc_point* p, ecc_point *r)
 {
-	/* prevents null arguments */
-	if (p == NULL || r == NULL)
-		return 0;
+    int ret;
 
-	if (mp_copy(p->x, r->x) != MP_OKAY)
-		return 0;
-	if (mp_copy(p->y, r->y) != MP_OKAY)
-		return 0;
-	if (mp_copy(p->z, r->z) != MP_OKAY)
-		return 0;
+    /* prevents null arguments */
+    if (p == NULL || r == NULL)
+        return ECC_BAD_ARG_E;
 
-	return 1;
+    ret = mp_copy(p->x, r->x);
+    if (ret != MP_OKAY)
+        return ret;
+    ret = mp_copy(p->y, r->y);
+    if (ret != MP_OKAY)
+        return ret;
+    ret = mp_copy(p->z, r->z);
+    if (ret != MP_OKAY)
+        return ret;
+
+    return MP_OKAY;
 }
 
 /** Compare the value of a point with an other one
- a	The point to compare
- b	The othe point to compare
+ a    The point to compare
+ b    The othe point to compare
 
- return 0 if equal, 1 if not, -1 in case of error
+ return MP_EQ if equal, MP_LT/MP_GT if not, < 0 in case of error
  */
 int ecc_cmp_point(ecc_point* a, ecc_point *b)
 {
-	int ret;
+    int ret;
 
-	/* prevents null arguments */
-	if (a == NULL || b == NULL)
-		return -1;
+    /* prevents null arguments */
+    if (a == NULL || b == NULL)
+        return BAD_FUNC_ARG;
 
-	ret = mp_cmp(a->x, b->x);
-	if (ret != MP_EQ) {
-		if (ret != MP_LT && ret != MP_GT)
-			return -1;
-		return 1;
-	}
-	ret = mp_cmp(a->y, b->y);
-	if (ret != MP_EQ) {
-		if (ret != MP_LT && ret != MP_GT)
-			return -1;
-		return 1;
-	}
-	ret = mp_cmp(a->z, b->z);
-	if (ret != MP_EQ) {
-		if (ret != MP_LT && ret != MP_GT)
-			return -1;
-		return 1;
-	}
+    ret = mp_cmp(a->x, b->x);
+    if (ret != MP_EQ)
+        return ret;
+    ret = mp_cmp(a->y, b->y);
+    if (ret != MP_EQ)
+        return ret;
+    ret = mp_cmp(a->z, b->z);
+    if (ret != MP_EQ)
+        return ret;
 
-	return 0;
+    return MP_EQ;
 }
 
 /** Returns whether an ECC idx is valid or not
@@ -1582,62 +1578,64 @@ int wc_ecc_shared_secret(ecc_key* private_key, ecc_key* public_key, byte* out,
 /**
  Create an ECC shared secret between two keys
  private_key      The private ECC key
- point			  The point to use (public key)
+ point              The point to use (public key)
  out              [out] Destination of the shared secret
  Conforms to EC-DH from ANSI X9.63
  outlen           [in/out] The max size and resulting size of the shared secret
  return           MP_OKAY if successful
  */
-int wc_ecc_shared_secret_ssh(ecc_key* private_key, ecc_point* point, byte* out, word32 *outlen)
+int wc_ecc_shared_secret_ssh(ecc_key* private_key, ecc_point* point,
+                             byte* out, word32 *outlen)
 {
-	word32         x = 0;
-	ecc_point*     result;
-	mp_int         prime;
-	int            err;
+    word32         x = 0;
+    ecc_point*     result;
+    mp_int         prime;
+    int            err;
 
-	if (private_key == NULL || point == NULL || out == NULL || outlen == NULL)
-		return BAD_FUNC_ARG;
+    if (private_key == NULL || point == NULL || out == NULL || outlen == NULL)
+        return BAD_FUNC_ARG;
 
-	/* type valid? */
-	if (private_key->type != ECC_PRIVATEKEY) {
-		return ECC_BAD_ARG_E;
-	}
+    /* type valid? */
+    if (private_key->type != ECC_PRIVATEKEY) {
+        return ECC_BAD_ARG_E;
+    }
 
-	if (ecc_is_valid_idx(private_key->idx) == 0)
-		return ECC_BAD_ARG_E;
+    if (ecc_is_valid_idx(private_key->idx) == 0)
+        return ECC_BAD_ARG_E;
 
-	/* make new point */
-	result = ecc_new_point();
-	if (result == NULL) {
-		return MEMORY_E;
-	}
+    /* make new point */
+    result = ecc_new_point();
+    if (result == NULL) {
+        return MEMORY_E;
+    }
 
-	if ((err = mp_init(&prime)) != MP_OKAY) {
-		ecc_del_point(result);
-		return err;
-	}
+    if ((err = mp_init(&prime)) != MP_OKAY) {
+        ecc_del_point(result);
+        return err;
+    }
 
-	err = mp_read_radix(&prime, (char *)private_key->dp->prime, 16);
+    err = mp_read_radix(&prime, (char *)private_key->dp->prime, 16);
 
-	if (err == MP_OKAY)
-		err = ecc_mulmod(&private_key->k, point, result, &prime, 1);
+    if (err == MP_OKAY)
+        err = ecc_mulmod(&private_key->k, point, result, &prime, 1);
 
-	if (err == MP_OKAY) {
-		x = mp_unsigned_bin_size(&prime);
-		if (*outlen < x)
-			err = BUFFER_E;
-	}
+    if (err == MP_OKAY) {
+        x = mp_unsigned_bin_size(&prime);
+        if (*outlen < x)
+            err = BUFFER_E;
+    }
 
-	if (err == MP_OKAY) {
-		XMEMSET(out, 0, x);
-		err = mp_to_unsigned_bin(result->x,out + (x - mp_unsigned_bin_size(result->x)));
-		*outlen = x;
-	}
+    if (err == MP_OKAY) {
+        XMEMSET(out, 0, x);
+        err = mp_to_unsigned_bin(result->x,out +
+                                 (x - mp_unsigned_bin_size(result->x)));
+        *outlen = x;
+    }
 
-	mp_clear(&prime);
-	ecc_del_point(result);
+    mp_clear(&prime);
+    ecc_del_point(result);
 
-	return err;
+    return err;
 }
 
 
@@ -1779,23 +1777,23 @@ static int wc_ecc_make_key_ex(RNG* rng, ecc_key* key, const ecc_set_type* dp)
  */
 int wc_ecc_make_key(RNG* rng, int keysize, ecc_key* key)
 {
-	int x, err;
+    int x, err;
 
-	if (key == NULL || rng == NULL)
-		return ECC_BAD_ARG_E;
+    if (key == NULL || rng == NULL)
+        return ECC_BAD_ARG_E;
 
-	/* find key size */
-	for (x = 0; (keysize > ecc_sets[x].size) && (ecc_sets[x].size != 0); x++)
-		;
-	keysize = ecc_sets[x].size;
+    /* find key size */
+    for (x = 0; (keysize > ecc_sets[x].size) && (ecc_sets[x].size != 0); x++)
+        ;
+    keysize = ecc_sets[x].size;
 
-	if (keysize > ECC_MAXSIZE || ecc_sets[x].size == 0) {
-		return BAD_FUNC_ARG;
-	}
-	err = wc_ecc_make_key_ex(rng, key, &ecc_sets[x]);
-	key->idx = x;
+    if (keysize > ECC_MAXSIZE || ecc_sets[x].size == 0) {
+        return BAD_FUNC_ARG;
+    }
+    err = wc_ecc_make_key_ex(rng, key, &ecc_sets[x]);
+    key->idx = x;
 
-	return err;
+    return err;
 }
 
 /* Setup dynamic pointers is using normal math for proper freeing */
@@ -1823,7 +1821,7 @@ int wc_ecc_init(ecc_key* key)
     alt_fp_init(key->pubkey.z);
 #endif
 
-    return 0;
+    return MP_OKAY;
 }
 
 
@@ -1837,27 +1835,28 @@ int wc_ecc_init(ecc_key* key)
  return    MP_OKAY if successful
  */
 int wc_ecc_sign_hash(const byte* in, word32 inlen, byte* out, word32 *outlen,
-					 RNG* rng, ecc_key* key)
+                     RNG* rng, ecc_key* key)
 {
-	mp_int	r;
-	mp_int	s;
-	int		err;
+    mp_int    r;
+    mp_int    s;
+    int        err;
 
-	if (in == NULL || out == NULL || outlen == NULL || key == NULL || rng == NULL)
-		return ECC_BAD_ARG_E;
+    if (in == NULL || out == NULL || outlen == NULL ||
+        key == NULL || rng == NULL)
+        return ECC_BAD_ARG_E;
 
-	if ((err = mp_init_multi(&r, &s, NULL, NULL, NULL, NULL)) != MP_OKAY) {
-		return err;
-	}
+    if ((err = mp_init_multi(&r, &s, NULL, NULL, NULL, NULL)) != MP_OKAY) {
+        return err;
+    }
 
-	err = wc_ecc_sign_hash_ex(in, inlen, rng, key, &r, &s);
-	if (err == MP_OKAY)
-		err = StoreECC_DSA_Sig(out, outlen, &r, &s);
+    err = wc_ecc_sign_hash_ex(in, inlen, rng, key, &r, &s);
+    if (err == MP_OKAY)
+        err = StoreECC_DSA_Sig(out, outlen, &r, &s);
 
-	mp_clear(&r);
-	mp_clear(&s);
+    mp_clear(&r);
+    mp_clear(&s);
 
-	return err;
+    return err;
 }
 
 /**
@@ -1868,11 +1867,11 @@ int wc_ecc_sign_hash(const byte* in, word32 inlen, byte* out, word32 *outlen,
   outlen    [in/out] The max size and resulting size of the signature
   key       A private ECC key
   r         [out] The destination for r component of the signature
-  s			[out] The destination for s component of the signature
+  s            [out] The destination for s component of the signature
   return    MP_OKAY if successful
 */
 int wc_ecc_sign_hash_ex(const byte* in, word32 inlen, RNG* rng,
-					 ecc_key* key, mp_int *r, mp_int *s)
+                     ecc_key* key, mp_int *r, mp_int *s)
 {
    mp_int        e;
    mp_int        p;
@@ -1916,47 +1915,48 @@ int wc_ecc_sign_hash_ex(const byte* in, word32 inlen, RNG* rng,
    if (err == MP_OKAY) {
        int loop_check = 0;
        ecc_key pubkey;
-       wc_ecc_init(&pubkey);
-       for (;;) {
-           if (++loop_check > 64) {
-                err = RNG_FAILURE_E;
-                break;
+       if (wc_ecc_init(&pubkey) == MP_OKAY) {
+           for (;;) {
+               if (++loop_check > 64) {
+                    err = RNG_FAILURE_E;
+                    break;
+               }
+               err = wc_ecc_make_key_ex(rng, &pubkey, key->dp);
+               if (err != MP_OKAY) break;
+
+               /* find r = x1 mod n */
+               err = mp_mod(pubkey.pubkey.x, &p, r);
+               if (err != MP_OKAY) break;
+
+               if (mp_iszero(r) == MP_YES) {
+                   mp_clear(pubkey.pubkey.x);
+                   mp_clear(pubkey.pubkey.y);
+                   mp_clear(pubkey.pubkey.z);
+                   mp_clear(&pubkey.k);
+               }
+               else {
+                   /* find s = (e + xr)/k */
+                   err = mp_invmod(&pubkey.k, &p, &pubkey.k);
+                   if (err != MP_OKAY) break;
+
+                   err = mp_mulmod(&key->k, r, &p, s);   /* s = xr */
+                   if (err != MP_OKAY) break;
+
+                   err = mp_add(&e, s, s);               /* s = e +  xr */
+                   if (err != MP_OKAY) break;
+
+                   err = mp_mod(s, &p, s);               /* s = e +  xr */
+                   if (err != MP_OKAY) break;
+
+                   err = mp_mulmod(s, &pubkey.k, &p, s); /* s = (e + xr)/k */
+                   if (err != MP_OKAY) break;
+
+                   if (mp_iszero(s) == MP_NO)
+                       break;
+                }
            }
-           err = wc_ecc_make_key_ex(rng, &pubkey, key->dp);
-           if (err != MP_OKAY) break;
-
-           /* find r = x1 mod n */
-           err = mp_mod(pubkey.pubkey.x, &p, r);
-           if (err != MP_OKAY) break;
-
-           if (mp_iszero(r) == MP_YES) {
-               mp_clear(pubkey.pubkey.x);
-               mp_clear(pubkey.pubkey.y);
-               mp_clear(pubkey.pubkey.z);
-               mp_clear(&pubkey.k);
-           }
-           else {
-               /* find s = (e + xr)/k */
-               err = mp_invmod(&pubkey.k, &p, &pubkey.k);
-               if (err != MP_OKAY) break;
-
-               err = mp_mulmod(&key->k, r, &p, s);   /* s = xr */
-               if (err != MP_OKAY) break;
-
-               err = mp_add(&e, s, s);               /* s = e +  xr */
-               if (err != MP_OKAY) break;
-
-               err = mp_mod(s, &p, s);               /* s = e +  xr */
-               if (err != MP_OKAY) break;
-
-               err = mp_mulmod(s, &pubkey.k, &p, s); /* s = (e + xr)/k */
-               if (err != MP_OKAY) break;
-
-               if (mp_iszero(s) == MP_NO)
-                   break;
-            }
+           wc_ecc_free(&pubkey);
        }
-       wc_ecc_free(&pubkey);
    }
 
    mp_clear(&p);
@@ -2240,34 +2240,34 @@ static int ecc_mul2add(ecc_point* A, mp_int* kA,
  return      MP_OKAY if successful (even if the signature is not valid)
  */
 int wc_ecc_verify_hash(const byte* sig, word32 siglen, const byte* hash,
-					   word32 hashlen, int* stat, ecc_key* key)
+                       word32 hashlen, int* stat, ecc_key* key)
 {
-	mp_int	r;
-	mp_int	s;
-	int		err;
+    mp_int    r;
+    mp_int    s;
+    int        err;
 
-	if (sig == NULL || hash == NULL || stat == NULL || key == NULL)
-		return ECC_BAD_ARG_E;
+    if (sig == NULL || hash == NULL || stat == NULL || key == NULL)
+        return ECC_BAD_ARG_E;
 
-	/* default to invalid signature */
-	*stat = 0;
+    /* default to invalid signature */
+    *stat = 0;
 
-	/* Note, DecodeECC_DSA_Sig() calls mp_init() on r and s.
-	 * If either of those don't allocate correctly, none of
-	 * the rest of this function will execute, and everything
-	 * gets cleaned up at the end. */
-	XMEMSET(&r, 0, sizeof(r));
-	XMEMSET(&s, 0, sizeof(s));
+    /* Note, DecodeECC_DSA_Sig() calls mp_init() on r and s.
+     * If either of those don't allocate correctly, none of
+     * the rest of this function will execute, and everything
+     * gets cleaned up at the end. */
+    XMEMSET(&r, 0, sizeof(r));
+    XMEMSET(&s, 0, sizeof(s));
 
-	err = DecodeECC_DSA_Sig(sig, siglen, &r, &s);
+    err = DecodeECC_DSA_Sig(sig, siglen, &r, &s);
 
-	if (err == MP_OKAY)
-	    err = wc_ecc_verify_hash_ex(&r, &s, hash, hashlen, stat, key);
+    if (err == MP_OKAY)
+        err = wc_ecc_verify_hash_ex(&r, &s, hash, hashlen, stat, key);
 
-	mp_clear(&r);
-	mp_clear(&s);
+    mp_clear(&r);
+    mp_clear(&s);
 
-	return err;
+    return err;
 }
 
 /**
@@ -2335,7 +2335,8 @@ int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
 
    /* check for zero */
    if (err == MP_OKAY) {
-       if (mp_iszero(r) || mp_iszero(s) || mp_cmp(r, &p) != MP_LT || mp_cmp(s, &p) != MP_LT)
+       if (mp_iszero(r) || mp_iszero(s) || mp_cmp(r, &p) != MP_LT ||
+           mp_cmp(s, &p) != MP_LT)
            err = MP_ZERO_E;
    }
    /* read hash */
@@ -2434,189 +2435,193 @@ int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
 }
 
 /* import point from der */
-int wc_ecc_import_point_der(byte* in, word32 inLen, const int curve_idx, ecc_point* point)
+int wc_ecc_import_point_der(byte* in, word32 inLen, const int curve_idx,
+                            ecc_point* point)
 {
-	int err = 0;
-	int compressed = 0;
+    int err = 0;
+    int compressed = 0;
 
-	if (in == NULL || point == NULL || (ecc_is_valid_idx(curve_idx) == 0))
-		return ECC_BAD_ARG_E;
+    if (in == NULL || point == NULL || (curve_idx < 0) ||
+        (ecc_is_valid_idx(curve_idx) == 0))
+        return ECC_BAD_ARG_E;
 
-	/* must be odd */
-	if ((inLen & 1) == 0) {
-		return ECC_BAD_ARG_E;
-	}
+    /* must be odd */
+    if ((inLen & 1) == 0) {
+        return ECC_BAD_ARG_E;
+    }
 
-	/* init point */
+    /* init point */
 #ifdef ALT_ECC_SIZE
-	point->x = (mp_int*)&point->xyz[0];
-	point->y = (mp_int*)&point->xyz[1];
-	point->z = (mp_int*)&point->xyz[2];
-	alt_fp_init(point->x);
-	alt_fp_init(point->y);
-	alt_fp_init(point->z);
+    point->x = (mp_int*)&point->xyz[0];
+    point->y = (mp_int*)&point->xyz[1];
+    point->z = (mp_int*)&point->xyz[2];
+    alt_fp_init(point->x);
+    alt_fp_init(point->y);
+    alt_fp_init(point->z);
 #else
-	err = mp_init_multi(point->x, point->y, point->z, NULL,	NULL, NULL);
+    err = mp_init_multi(point->x, point->y, point->z, NULL, NULL, NULL);
 #endif
-	if (err != MP_OKAY)
-		return MEMORY_E;
+    if (err != MP_OKAY)
+        return MEMORY_E;
 
-	/* check for 4, 2, or 3 */
-	if (in[0] != 0x04 && in[0] != 0x02 && in[0] != 0x03) {
-		err = ASN_PARSE_E;
-	}
+    /* check for 4, 2, or 3 */
+    if (in[0] != 0x04 && in[0] != 0x02 && in[0] != 0x03) {
+        err = ASN_PARSE_E;
+    }
 
-	if (in[0] == 0x02 || in[0] == 0x03) {
+    if (in[0] == 0x02 || in[0] == 0x03) {
 #ifdef HAVE_COMP_KEY
-		compressed = 1;
+        compressed = 1;
 #else
-		err = NOT_COMPILED_IN;
+        err = NOT_COMPILED_IN;
 #endif
-	}
+    }
 
-	/* read data */
-	if (err == MP_OKAY)
-		err = mp_read_unsigned_bin(point->x, (byte*)in+1, (inLen-1)>>1);
+    /* read data */
+    if (err == MP_OKAY)
+        err = mp_read_unsigned_bin(point->x, (byte*)in+1, (inLen-1)>>1);
 
 #ifdef HAVE_COMP_KEY
-	if (err == MP_OKAY && compressed == 1) {   /* build y */
-		mp_int t1, t2, prime, a, b;
+    if (err == MP_OKAY && compressed == 1) {   /* build y */
+        mp_int t1, t2, prime, a, b;
 
-		if (mp_init_multi(&t1, &t2, &prime, &a, &b, NULL) != MP_OKAY)
-			err = MEMORY_E;
+        if (mp_init_multi(&t1, &t2, &prime, &a, &b, NULL) != MP_OKAY)
+            err = MEMORY_E;
 
-		/* load prime */
-		if (err == MP_OKAY)
-			err = mp_read_radix(&prime, (char *)ecc_sets[curve_idx].prime, 16);
+        /* load prime */
+        if (err == MP_OKAY)
+            err = mp_read_radix(&prime, (char *)ecc_sets[curve_idx].prime, 16);
 
-		/* load a */
-		if (err == MP_OKAY)
-			err = mp_read_radix(&a, (char *)ecc_sets[curve_idx].Af, 16);
+        /* load a */
+        if (err == MP_OKAY)
+            err = mp_read_radix(&a, (char *)ecc_sets[curve_idx].Af, 16);
 
-		/* load b */
-		if (err == MP_OKAY)
-			err = mp_read_radix(&b, (char *)ecc_sets[curve_idx].Bf, 16);
+        /* load b */
+        if (err == MP_OKAY)
+            err = mp_read_radix(&b, (char *)ecc_sets[curve_idx].Bf, 16);
 
-		/* compute x^3 */
-		if (err == MP_OKAY)
-			err = mp_sqr(point->x, &t1);
+        /* compute x^3 */
+        if (err == MP_OKAY)
+            err = mp_sqr(point->x, &t1);
 
-		if (err == MP_OKAY)
-			err = mp_mulmod(&t1, point->x, &prime, &t1);
+        if (err == MP_OKAY)
+            err = mp_mulmod(&t1, point->x, &prime, &t1);
 
-		/* compute x^3 + a*x */
-		if (err == MP_OKAY)
-			err = mp_mulmod(&a, point->x, &prime, &t2);
+        /* compute x^3 + a*x */
+        if (err == MP_OKAY)
+            err = mp_mulmod(&a, point->x, &prime, &t2);
 
-		if (err == MP_OKAY)
-			err = mp_add(&t1, &t2, &t1);
+        if (err == MP_OKAY)
+            err = mp_add(&t1, &t2, &t1);
 
-		/* compute x^3 + a*x + b */
-		if (err == MP_OKAY)
-			err = mp_add(&t1, &b, &t1);
+        /* compute x^3 + a*x + b */
+        if (err == MP_OKAY)
+            err = mp_add(&t1, &b, &t1);
 
-		/* compute sqrt(x^3 + a*x + b) */
-		if (err == MP_OKAY)
-			err = mp_sqrtmod_prime(&t1, &prime, &t2);
+        /* compute sqrt(x^3 + a*x + b) */
+        if (err == MP_OKAY)
+            err = mp_sqrtmod_prime(&t1, &prime, &t2);
 
-		/* adjust y */
-		if (err == MP_OKAY) {
-			if ((mp_isodd(&t2) && in[0] == 0x03) ||
-				(!mp_isodd(&t2) && in[0] == 0x02)) {
-				err = mp_mod(&t2, &prime, point->y);
-			}
-			else {
-				err = mp_submod(&prime, &t2, &prime, point->y);
-			}
-		}
+        /* adjust y */
+        if (err == MP_OKAY) {
+            if ((mp_isodd(&t2) && in[0] == 0x03) ||
+                (!mp_isodd(&t2) && in[0] == 0x02)) {
+                err = mp_mod(&t2, &prime, point->y);
+            }
+            else {
+                err = mp_submod(&prime, &t2, &prime, point->y);
+            }
+        }
 
-		mp_clear(&a);
-		mp_clear(&b);
-		mp_clear(&prime);
-		mp_clear(&t2);
-		mp_clear(&t1);
-	}
+        mp_clear(&a);
+        mp_clear(&b);
+        mp_clear(&prime);
+        mp_clear(&t2);
+        mp_clear(&t1);
+    }
 #endif
 
-	if (err == MP_OKAY && compressed == 0)
-		err = mp_read_unsigned_bin(point->y, (byte*)in+1+((inLen-1)>>1), (inLen-1)>>1);
-	if (err == MP_OKAY)
-		mp_set(point->z, 1);
+    if (err == MP_OKAY && compressed == 0)
+        err = mp_read_unsigned_bin(point->y,
+                                   (byte*)in+1+((inLen-1)>>1), (inLen-1)>>1);
+    if (err == MP_OKAY)
+        mp_set(point->z, 1);
 
-	if (err != MP_OKAY) {
-		mp_clear(point->x);
-		mp_clear(point->y);
-		mp_clear(point->z);
-	}
+    if (err != MP_OKAY) {
+        mp_clear(point->x);
+        mp_clear(point->y);
+        mp_clear(point->z);
+    }
 
-	return err;
+    return err;
 }
 
 /* export point to der */
-int wc_ecc_export_point_der(const int curve_idx, ecc_point* point, byte* out, word32* outLen)
+int wc_ecc_export_point_der(const int curve_idx, ecc_point* point, byte* out,
+                            word32* outLen)
 {
 #ifdef WOLFSSL_SMALL_STACK
-	byte*  buf;
+    byte*  buf;
 #else
-	byte   buf[ECC_BUFSIZE];
+    byte   buf[ECC_BUFSIZE];
 #endif
-	word32 numlen;
-	int    ret = MP_OKAY;
+    word32 numlen;
+    int    ret = MP_OKAY;
 
-	if (curve_idx < 0)
-		return ECC_BAD_ARG_E;
+    if ((curve_idx < 0) || (ecc_is_valid_idx(curve_idx) == 0))
+        return ECC_BAD_ARG_E;
 
-	/* return length needed only */
-	if (point != NULL && out == NULL && outLen != NULL) {
-		numlen = ecc_sets[curve_idx].size;
-		*outLen = 1 + 2*numlen;
-		return LENGTH_ONLY_E;
-	}
+    /* return length needed only */
+    if (point != NULL && out == NULL && outLen != NULL) {
+        numlen = ecc_sets[curve_idx].size;
+        *outLen = 1 + 2*numlen;
+        return LENGTH_ONLY_E;
+    }
 
-	if (point == NULL || out == NULL || outLen == NULL)
-		return ECC_BAD_ARG_E;
+    if (point == NULL || out == NULL || outLen == NULL)
+        return ECC_BAD_ARG_E;
 
-	numlen = ecc_sets[curve_idx].size;
+    numlen = ecc_sets[curve_idx].size;
 
-	if (*outLen < (1 + 2*numlen)) {
-		*outLen = 1 + 2*numlen;
-		return BUFFER_E;
-	}
+    if (*outLen < (1 + 2*numlen)) {
+        *outLen = 1 + 2*numlen;
+        return BUFFER_E;
+    }
 
-	/* store byte 0x04 */
-	out[0] = 0x04;
+    /* store byte 0x04 */
+    out[0] = 0x04;
 
 #ifdef WOLFSSL_SMALL_STACK
-	buf = (byte*)XMALLOC(ECC_BUFSIZE, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-	if (buf == NULL)
-		return MEMORY_E;
+    buf = (byte*)XMALLOC(ECC_BUFSIZE, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (buf == NULL)
+        return MEMORY_E;
 #endif
 
-	do {
-		/* pad and store x */
-		XMEMSET(buf, 0, ECC_BUFSIZE);
-		ret = mp_to_unsigned_bin(point->x,
-								 buf + (numlen - mp_unsigned_bin_size(point->x)));
-		if (ret != MP_OKAY)
-			break;
-		XMEMCPY(out+1, buf, numlen);
+    do {
+        /* pad and store x */
+        XMEMSET(buf, 0, ECC_BUFSIZE);
+        ret = mp_to_unsigned_bin(point->x, buf +
+                                 (numlen - mp_unsigned_bin_size(point->x)));
+        if (ret != MP_OKAY)
+            break;
+        XMEMCPY(out+1, buf, numlen);
 
-		/* pad and store y */
-		XMEMSET(buf, 0, ECC_BUFSIZE);
-		ret = mp_to_unsigned_bin(point->y,
-								 buf + (numlen - mp_unsigned_bin_size(point->y)));
-		if (ret != MP_OKAY)
-			break;
-		XMEMCPY(out+1+numlen, buf, numlen);
+        /* pad and store y */
+        XMEMSET(buf, 0, ECC_BUFSIZE);
+        ret = mp_to_unsigned_bin(point->y, buf +
+                                 (numlen - mp_unsigned_bin_size(point->y)));
+        if (ret != MP_OKAY)
+            break;
+        XMEMCPY(out+1+numlen, buf, numlen);
 
-		*outLen = 1 + 2*numlen;
-	} while (0);
+        *outLen = 1 + 2*numlen;
+    } while (0);
 
 #ifdef WOLFSSL_SMALL_STACK
-	XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
 
-	return ret;
+    return ret;
 }
 
 
@@ -2690,7 +2695,8 @@ int wc_ecc_export_x963(ecc_key* key, byte* out, word32* outLen)
 
 /* export public ECC key in ANSI X9.63 format, extended with
  * compression option */
-int wc_ecc_export_x963_ex(ecc_key* key, byte* out, word32* outLen, int compressed)
+int wc_ecc_export_x963_ex(ecc_key* key, byte* out, word32* outLen,
+                          int compressed)
 {
     if (compressed == 0)
         return wc_ecc_export_x963(key, out, outLen);
@@ -3235,8 +3241,8 @@ int wc_ecc_size(ecc_key* key)
 }
 
 
-/* worst case estimate, check actual return from wc_ecc_sign_hash for actual value
-   of signature size in octets */
+/* worst case estimate, check actual return from wc_ecc_sign_hash for actual
+   value of signature size in octets */
 int wc_ecc_sig_size(ecc_key* key)
 {
     int sz = wc_ecc_size(key);
