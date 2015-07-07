@@ -87,7 +87,6 @@ typedef struct WOLFSSL_X509_EXTENSION WOLFSSL_X509_EXTENSION;
 typedef struct WOLFSSL_ASN1_TIME      WOLFSSL_ASN1_TIME;
 typedef struct WOLFSSL_ASN1_INTEGER   WOLFSSL_ASN1_INTEGER;
 typedef struct WOLFSSL_ASN1_OBJECT    WOLFSSL_ASN1_OBJECT;
-typedef struct WOLFSSL_ASN1_STRING    WOLFSSL_ASN1_STRING;
 typedef struct WOLFSSL_dynlock_value  WOLFSSL_dynlock_value;
 
 
@@ -144,13 +143,18 @@ typedef struct WOLFSSL_X509_OBJECT {
 
 
 /**Lighttpd compatablity**/
+typedef struct WOLFSSL_ASN1_STRING{
+    char* data;
+    int length;
+}WOLFSSL_ASN1_STRING;
+
+/**Lighttpd compatablity**/
 typedef struct WOLFSSL_X509_NAME_ENTRY { 
     WOLFSSL_ASN1_OBJECT* object;
     WOLFSSL_ASN1_STRING* value;
     int set;
     int size;
 } WOLFSSL_X509_NAME_ENTRY;
-
 
 typedef struct WOLFSSL_X509_STORE_CTX {
     WOLFSSL_X509_STORE* store;    /* Store full of a CA cert chain */
