@@ -47,7 +47,7 @@ enum {
 /* ECC set type defined a NIST GF(p) curve */
 typedef struct {
     int size;       /* The size of the curve in octets */
-	int nid;			  /* id of this curve */
+    int nid;              /* id of this curve */
     const char* name;     /* name of this curve */
     const char* prime;    /* prime that defines the field, curve is in (hex) */
     const char* Af;       /* fields A param (hex) */
@@ -141,19 +141,20 @@ WOLFSSL_API
 int wc_ecc_shared_secret(ecc_key* private_key, ecc_key* public_key, byte* out,
                       word32* outlen);
 WOLFSSL_API
-int wc_ecc_shared_secret_ssh(ecc_key* private_key, ecc_point* point, byte* out, word32 *outlen);
+int wc_ecc_shared_secret_ssh(ecc_key* private_key, ecc_point* point,
+                             byte* out, word32 *outlen);
 WOLFSSL_API
 int wc_ecc_sign_hash(const byte* in, word32 inlen, byte* out, word32 *outlen,
-					 RNG* rng, ecc_key* key);
+                     RNG* rng, ecc_key* key);
 WOLFSSL_API
 int wc_ecc_sign_hash_ex(const byte* in, word32 inlen, RNG* rng,
-						ecc_key* key, mp_int *r, mp_int *s);
+                        ecc_key* key, mp_int *r, mp_int *s);
 WOLFSSL_API
 int wc_ecc_verify_hash(const byte* sig, word32 siglen, const byte* hash,
                     word32 hashlen, int* stat, ecc_key* key);
 WOLFSSL_API
 int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
-						  word32 hashlen, int* stat, ecc_key* key);
+                          word32 hashlen, int* stat, ecc_key* key);
 WOLFSSL_API
 int wc_ecc_init(ecc_key* key);
 WOLFSSL_API
@@ -195,8 +196,11 @@ WOLFSSL_API
 int wc_ecc_export_private_only(ecc_key* key, byte* out, word32* outLen);
 
 WOLFSSL_API
-int wc_ecc_export_point_der(const int curve_idx, ecc_point* point, byte* out, word32* outLen);
-int wc_ecc_import_point_der(byte* in, word32 inLen, const int curve_idx, ecc_point* point);
+int wc_ecc_export_point_der(const int curve_idx, ecc_point* point,
+                            byte* out, word32* outLen);
+WOLFSSL_API
+int wc_ecc_import_point_der(byte* in, word32 inLen, const int curve_idx,
+                            ecc_point* point);
 
 /* size helper */
 WOLFSSL_API
@@ -244,7 +248,7 @@ ecEncCtx* wc_ecc_ctx_new(int flags, RNG* rng);
 WOLFSSL_API
 void wc_ecc_ctx_free(ecEncCtx*);
 WOLFSSL_API
-int wc_ecc_ctx_reset(ecEncCtx*, RNG*);   /* reset for use again w/o alloc/free */
+int wc_ecc_ctx_reset(ecEncCtx*, RNG*);  /* reset for use again w/o alloc/free */
 
 WOLFSSL_API
 const byte* wc_ecc_ctx_get_own_salt(ecEncCtx*);

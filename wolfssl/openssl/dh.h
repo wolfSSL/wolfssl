@@ -4,21 +4,16 @@
 #ifndef WOLFSSL_DH_H_
 #define WOLFSSL_DH_H_
 
-
 #include <wolfssl/openssl/ssl.h>
 #include <wolfssl/openssl/bn.h>
-
 
 #ifdef __cplusplus
     extern "C" {
 #endif
 
-
-
-
 typedef struct WOLFSSL_DH {
-	WOLFSSL_BIGNUM* p;
-	WOLFSSL_BIGNUM* g;
+    WOLFSSL_BIGNUM* p;
+    WOLFSSL_BIGNUM* g;
     WOLFSSL_BIGNUM* pub_key;      /* openssh deference g^x */
     WOLFSSL_BIGNUM* priv_key;     /* openssh deference x   */
     void*          internal;     /* our DH */

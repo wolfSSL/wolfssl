@@ -33,7 +33,7 @@
 WOLFSSL_API int Base64_Decode(const byte* in, word32 inLen, byte* out,
                                word32* outLen);
 
-#if defined(OPENSSL_EXTRA) || defined(SESSION_CERTS) || defined(WOLFSSL_KEY_GEN)                         || defined(WOLFSSL_CERT_GEN) || defined(HAVE_WEBSERVER)
+#if defined(OPENSSL_EXTRA) || defined(SESSION_CERTS) || defined(WOLFSSL_KEY_GEN)                         || defined(WOLFSSL_CERT_GEN) || defined(HAVE_WEBSERVER)                         || !defined(NO_DSA)
     #ifndef WOLFSSL_BASE64_ENCODE
         #define WOLFSSL_BASE64_ENCODE
     #endif
