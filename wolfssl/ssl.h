@@ -65,8 +65,7 @@ typedef struct WOLFSSL_CTX      WOLFSSL_CTX;
 
 typedef struct WOLFSSL_X509       WOLFSSL_X509;
 typedef struct WOLFSSL_X509_NAME  WOLFSSL_X509_NAME;
-/**Lighttpd compatablity**/
-typedef struct WOLFSSL_X509_NAME_ENTRY{} WOLFSSL_X509_NAME_ENTRY;
+
 typedef struct WOLFSSL_X509_CHAIN WOLFSSL_X509_CHAIN;
 
 typedef struct WOLFSSL_CERT_MANAGER WOLFSSL_CERT_MANAGER;
@@ -90,6 +89,7 @@ typedef struct WOLFSSL_ASN1_INTEGER   WOLFSSL_ASN1_INTEGER;
 typedef struct WOLFSSL_ASN1_OBJECT    WOLFSSL_ASN1_OBJECT;
 typedef struct WOLFSSL_ASN1_STRING    WOLFSSL_ASN1_STRING;
 typedef struct WOLFSSL_dynlock_value  WOLFSSL_dynlock_value;
+
 
 #define WOLFSSL_ASN1_UTCTIME WOLFSSL_ASN1_TIME
 
@@ -141,6 +141,15 @@ typedef struct WOLFSSL_X509_OBJECT {
         WOLFSSL_X509_CRL* crl;           /* stunnel dereference */
     } data;
 } WOLFSSL_X509_OBJECT;
+
+
+/**Lighttpd compatablity**/
+typedef struct WOLFSSL_X509_NAME_ENTRY { 
+    WOLFSSL_ASN1_OBJECT* object;
+    WOLFSSL_ASN1_STRING* value;
+    int set;
+    int size;
+} WOLFSSL_X509_NAME_ENTRY;
 
 
 typedef struct WOLFSSL_X509_STORE_CTX {
@@ -1460,6 +1469,10 @@ WOLFSSL_API int wolfSSL_accept_ex(WOLFSSL*, HandShakeCallBack, TimeoutCallBack,
 
 #ifdef OPENSSL_EXTRA /*lighttp compatibility */
 #include <wolfssl/openssl/dh.h>
+
+
+
+
 
 WOLFSSL_API void WOLFSSL_X509_NAME_free(WOLFSSL_X509_NAME *name);
 
