@@ -1479,7 +1479,7 @@ WOLFSSL_API void WOLFSSL_X509_NAME_free(WOLFSSL_X509_NAME *name);
 WOLFSSL_API char WOLFSSL_CTX_use_certificate(WOLFSSL_CTX *ctx, WOLFSSL_X509 *x);
 WOLFSSL_API int WOLFSSL_CTX_use_PrivateKey(WOLFSSL_CTX *ctx, WOLFSSL_EVP_PKEY *pkey);
 WOLFSSL_API WOLFSSL_BIO* wolfSSL_BIO_new_file(const char *filename, const char *mode);
-WOLFSSL_API int wolfSSL_BIO_read_filename(WOLFSSL_BIO *b, char *name);
+WOLFSSL_API int wolfSSL_BIO_read_filename(WOLFSSL_BIO *b, const char *name);
 WOLFSSL_API WOLFSSL_BIO_METHOD* WOLFSSL_BIO_s_file(void);
 /* These are to be merged shortly */
 //void EC_KEY_free(EC_KEY *key);
@@ -1492,11 +1492,11 @@ WOLFSSL_API WOLFSSL_X509 *PEM_read_bio_WOLFSSL_X509(WOLFSSL_BIO *bp, WOLFSSL_X50
 WOLFSSL_API int PEM_write_bio_WOLFSSL_X509(WOLFSSL_BIO *bp, WOLFSSL_X509 *x);
 WOLFSSL_API long WOLFSSL_CTX_set_tmp_dh(WOLFSSL_CTX *ctx, WOLFSSL_DH *dh);
 WOLFSSL_API void wolfSSL_CTX_set_verify_depth(WOLFSSL_CTX *ctx,int depth);
-WOLFSSL_API char *WOLFSSL_get_app_data(WOLFSSL *ssl);
-WOLFSSL_API void WOLFSSL_set_app_data(WOLFSSL *ssl, char *arg);
+WOLFSSL_API void* WOLFSSL_get_app_data( const WOLFSSL *ssl);
+WOLFSSL_API void WOLFSSL_set_app_data(WOLFSSL *ssl, void *arg);
 WOLFSSL_API WOLFSSL_ASN1_OBJECT * WOLFSSL_X509_NAME_ENTRY_get_object(WOLFSSL_X509_NAME_ENTRY *ne);
 WOLFSSL_API WOLFSSL_X509_NAME_ENTRY *WOLFSSL_X509_NAME_get_entry(WOLFSSL_X509_NAME *name, int loc);
-WOLFSSL_API void wolfSSL_sk_X509_NAME_pop_free(STACK_OF(WOLFSSL_X509_NAME)*, void*);
+WOLFSSL_API void wolfSSL_sk_X509_NAME_pop_free(STACK_OF(WOLFSSL_X509_NAME)* sk, void f (WOLFSSL_X509_NAME*));
 
 WOLFSSL_API unsigned char *wolfSSL_SHA1(const unsigned char *d, size_t n, unsigned char *md);
 

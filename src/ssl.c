@@ -12965,7 +12965,7 @@ void* wolfSSL_GetRsaDecCtx(WOLFSSL* ssl)
         return NULL;
     }
 
-    int wolfSSL_BIO_read_filename(WOLFSSL_BIO *b, char *name) {
+    int wolfSSL_BIO_read_filename(WOLFSSL_BIO *b, const char *name) {
         (void)b;
         (void)name;
 
@@ -13039,13 +13039,14 @@ void* wolfSSL_GetRsaDecCtx(WOLFSSL* ssl)
         (void)depth;
     }
 
-    char *WOLFSSL_get_app_data(WOLFSSL *ssl) {
+    void* WOLFSSL_get_app_data( const WOLFSSL *ssl) {
+        //checkout exdata stuff...
         (void)ssl;
 
         return 0;
     }
 
-    void WOLFSSL_set_app_data(WOLFSSL *ssl, char *arg) {
+    void WOLFSSL_set_app_data(WOLFSSL *ssl, void *arg) {
         (void)ssl;
         (void)arg;
     }
@@ -13068,9 +13069,9 @@ void* wolfSSL_GetRsaDecCtx(WOLFSSL* ssl)
         //(void) name;
     }
 
-    void wolfSSL_sk_X509_NAME_pop_free(STACK_OF(WOLFSSL_X509_NAME)* sk, void* v){
+    void wolfSSL_sk_X509_NAME_pop_free(STACK_OF(WOLFSSL_X509_NAME)* sk, void f (WOLFSSL_X509_NAME*)){
         (void) sk;
-        (void) v;
+        (void) f;
     }
 
 #endif
