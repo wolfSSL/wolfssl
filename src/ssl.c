@@ -10359,8 +10359,11 @@ void* wolfSSL_get_ex_data(const WOLFSSL* ssl, int idx)
     return 0;
 }
 
-
-void wolfSSL_CTX_set_info_callback(WOLFSSL_CTX* ctx, void (*f)(void))
+/* XXX: made a change in arguement from void (*f)(void)
+ * to: void (*cb) (const WOLFSSL *ssl, int type, int val)
+ */
+void wolfSSL_CTX_set_info_callback(WOLFSSL_CTX* ctx, 
+    void (*f) (const WOLFSSL *ssl, int type, int val))
 {
     (void)ctx;
     (void)f;
