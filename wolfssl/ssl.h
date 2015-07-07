@@ -1366,6 +1366,7 @@ WOLFSSL_API int wolfSSL_CTX_UseSupportedCurve(WOLFSSL_CTX* ctx,
 #endif
 #endif
 
+
 /* Secure Renegotiation */
 #ifdef HAVE_SECURE_RENEGOTIATION
 
@@ -1413,6 +1414,29 @@ WOLFSSL_API int wolfSSL_CTX_set_TicketEncCtx(WOLFSSL_CTX* ctx, void*);
 #endif /* NO_WOLFSSL_SERVER */
 
 #endif /* HAVE_SESSION_TICKET */
+
+#ifdef HAVE_QSH
+/* Quantum-safe Crypto Schemes */
+enum {
+    WOLFSSL_NTRU_EESS439 = 0x0101, /* max plaintext length of 65  */
+    WOLFSSL_NTRU_EESS593 = 0x0102, /* max plaintext length of 86  */
+    WOLFSSL_NTRU_EESS743 = 0x0103, /* max plaintext length of 106 */
+    WOLFSSL_LWE_XXX  = 0x0201,     /* Learning With Error encryption scheme */
+    WOLFSSL_HFE_XXX  = 0x0301,     /* Hidden Field Equotion scheme */
+    WOLFSSL_NULL_QSH = 0xFFFF      /* QSHScheme is not used */
+};
+
+
+/* test if the connection is using a QSH secure connection return 1 if so */
+WOLFSSL_API int wolfSSL_isQSH(WOLFSSL* ssl);
+WOLFSSL_API int wolfSSL_UseSupportedQSH(WOLFSSL* ssl, unsigned short name);
+#ifndef NO_WOLFSSL_CLIENT
+    /* user control over sending client public key in hello
+       when flag = 1 will send keys if flag is 0 or function is not called
+       then will not send keys in the hello extension */
+    WOLFSSL_API int wolfSSL_UseClientQSHKeys(WOLFSSL* ssl, unsigned char flag);
+#endif
+#endif
 
 #define WOLFSSL_CRL_MONITOR   0x01   /* monitor this dir flag */
 #define WOLFSSL_CRL_START_MON 0x02   /* start monitoring flag */

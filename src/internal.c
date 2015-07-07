@@ -135,6 +135,10 @@ static int BuildCertHashes(WOLFSSL* ssl, Hashes* hashes);
 static void PickHashSigAlgo(WOLFSSL* ssl,
                                 const byte* hashSigAlgo, word32 hashSigAlgoSz);
 
+#ifdef HAVE_QSH
+    int QSH_Init(WOLFSSL* ssl);
+#endif
+
 #ifndef WOLFSSL_HAVE_MIN
 #define WOLFSSL_HAVE_MIN
 
@@ -166,30 +170,106 @@ int IsAtLeastTLSv1_2(const WOLFSSL* ssl)
 }
 
 
-#ifdef HAVE_NTRU
-
-static byte GetEntropy(ENTROPY_CMD cmd, byte* out)
+#ifdef HAVE_QSH
+/* free all structs that where used with QSH */
+static int QSH_FreeAll(WOLFSSL* ssl)
 {
-    /* TODO: add locking? */
-    static RNG rng;
+    QSHKey* key        = ssl->QSH_Key;
+    QSHKey* preKey     = NULL;
+    QSHSecret* secret  = ssl->QSH_secret;
+    QSHScheme* list    = NULL;
+    QSHScheme* preList = NULL;
 
-    if (cmd == INIT)
-        return (wc_InitRng(&rng) == 0) ? 1 : 0;
+    /* free elements in struct */
+    while(key) {
+        preKey = key;
+        if (key->pri.buffer)
+            XFREE(key->pri.buffer, ssl->heap, DYNAMIC_TYPE_TMP_ARRAY);
+        if (key->pub.buffer)
+            XFREE(key->pub.buffer, ssl->heap, DYNAMIC_TYPE_TMP_ARRAY);
+        key = (QSHKey*)key->next;
 
-    if (out == NULL)
-        return 0;
-
-    if (cmd == GET_BYTE_OF_ENTROPY)
-        return (wc_RNG_GenerateBlock(&rng, out, 1) == 0) ? 1 : 0;
-
-    if (cmd == GET_NUM_BYTES_PER_BYTE_OF_ENTROPY) {
-        *out = 1;
-        return 1;
+        /* free struct */
+        XFREE(preKey, ssl->heap, DYNAMIC_TYPE_TMP_ARRAY);
     }
+
+
+    /* free all of peers QSH keys */
+    key = ssl->peerQSHKey;
+    while(key) {
+        preKey = key;
+        if (key->pri.buffer)
+            XFREE(key->pri.buffer, ssl->heap, DYNAMIC_TYPE_TMP_ARRAY);
+        if (key->pub.buffer)
+            XFREE(key->pub.buffer, ssl->heap, DYNAMIC_TYPE_TMP_ARRAY);
+        key = (QSHKey*)key->next;
+
+        /* free struct */
+        XFREE(preKey, ssl->heap, DYNAMIC_TYPE_TMP_ARRAY);
+    }
+
+    /* free secret information */
+    if (secret) {
+        /* free up the QSHScheme list in QSHSecret */
+        if (secret->list)
+            list = secret->list;
+        while (list) {
+            preList = list;
+            if (list->PK)
+                XFREE(list->PK, ssl->heap, DYNAMIC_TYPE_TMP_ARRAY);
+            list = (QSHScheme*)list->next;
+            XFREE(preList, ssl->heap, DYNAMIC_TYPE_TMP_ARRAY);
+        }
+
+        /* free secret buffers */
+        if (secret->SerSi) {
+            if (secret->SerSi->buffer)
+                XFREE(secret->SerSi->buffer, ssl->heap, DYNAMIC_TYPE_TMP_ARRAY);
+            XFREE(secret->SerSi, ssl->heap, DYNAMIC_TYPE_TMP_ARRAY);
+        }
+        if (secret->CliSi) {
+            if (secret->CliSi->buffer)
+                XFREE(secret->CliSi->buffer, ssl->heap, DYNAMIC_TYPE_TMP_ARRAY);
+            XFREE(secret->CliSi, ssl->heap, DYNAMIC_TYPE_TMP_ARRAY);
+        }
+    }
+    XFREE(secret, ssl->heap, DYNAMIC_TYPE_TMP_ARRAY);
 
     return 0;
 }
+#endif
 
+
+#ifdef HAVE_NTRU
+static RNG* rng;
+static wolfSSL_Mutex* rngMutex;
+
+static word32 GetEntropy(unsigned char* out, unsigned long long num_bytes)
+{
+    int ret = 0;
+
+    if (rng == NULL) {
+        if ((rng = XMALLOC(sizeof(RNG), 0, DYNAMIC_TYPE_TLSX)) == NULL)
+            return DRBG_OUT_OF_MEMORY;
+        wc_InitRng(rng);
+    }
+
+    if (rngMutex == NULL) {
+        if ((rngMutex = XMALLOC(sizeof(wolfSSL_Mutex), 0,
+                        DYNAMIC_TYPE_TLSX)) == NULL)
+            return DRBG_OUT_OF_MEMORY;
+        InitMutex(rngMutex);
+    }
+
+    ret |= LockMutex(rngMutex);
+    ret |= wc_RNG_GenerateBlock(rng, out, (word32)num_bytes);
+    ret |= UnLockMutex(rngMutex);
+
+    if (ret != 0)
+        return DRBG_ENTROPY_FAIL;
+
+    return DRBG_OK;
+}
 #endif /* HAVE_NTRU */
 
 /* used by ssl.c too */
@@ -692,31 +772,10 @@ void InitSuites(Suites* suites, ProtocolVersion pv, word16 haveRSA,
     }
 #endif
 
-#ifdef BUILD_TLS_NTRU_RSA_WITH_AES_256_CBC_SHA
-    if (tls && haveNTRU && haveRSA) {
-        suites->suites[idx++] = 0;
-        suites->suites[idx++] = TLS_NTRU_RSA_WITH_AES_256_CBC_SHA;
-    }
-#endif
-
-#ifdef BUILD_TLS_NTRU_RSA_WITH_AES_128_CBC_SHA
-    if (tls && haveNTRU && haveRSA) {
-        suites->suites[idx++] = 0;
-        suites->suites[idx++] = TLS_NTRU_RSA_WITH_AES_128_CBC_SHA;
-    }
-#endif
-
-#ifdef BUILD_TLS_NTRU_RSA_WITH_RC4_128_SHA
-    if (tls && haveNTRU && haveRSA) {
-        suites->suites[idx++] = 0;
-        suites->suites[idx++] = TLS_NTRU_RSA_WITH_RC4_128_SHA;
-    }
-#endif
-
-#ifdef BUILD_TLS_NTRU_RSA_WITH_3DES_EDE_CBC_SHA
-    if (tls && haveNTRU && haveRSA) {
-        suites->suites[idx++] = 0;
-        suites->suites[idx++] = TLS_NTRU_RSA_WITH_3DES_EDE_CBC_SHA;
+#ifdef BUILD_TLS_QSH
+    if (tls && haveNTRU) {
+        suites->suites[idx++] = QSH_BYTE;
+        suites->suites[idx++] = TLS_QSH;
     }
 #endif
 
@@ -1596,6 +1655,11 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
 #endif
 
 #ifdef HAVE_TLS_EXTENSIONS
+#ifdef HAVE_QSH
+    #ifdef HAVE_NTRU
+        ssl->options.haveNTRU = 1;
+    #endif
+#endif
 #ifdef HAVE_MAX_FRAGMENT
     ssl->max_fragment = MAX_RECORD_SIZE;
 #endif
@@ -1979,6 +2043,10 @@ void FreeHandshakeResources(WOLFSSL* ssl)
         ssl->buffers.peerRsaKey.buffer = NULL;
     #endif /* NO_RSA */
 #endif /* HAVE_PK_CALLBACKS */
+
+#ifdef HAVE_QSH
+    QSH_FreeAll(ssl);
+#endif
 }
 
 
@@ -3214,6 +3282,17 @@ static int BuildFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
             }
         }
 
+        if (first == QSH_BYTE) {
+
+        switch (second) {
+
+        case TLS_QSH :
+            if (requirement == REQUIRES_NTRU)
+                return 1;
+            break;
+            }
+        }
+
         /* ECC extensions */
         if (first == ECC_BYTE) {
 
@@ -3437,11 +3516,6 @@ static int BuildFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
                 return 1;
             break;
 
-        case TLS_NTRU_RSA_WITH_RC4_128_SHA :
-            if (requirement == REQUIRES_NTRU)
-                return 1;
-            break;
-
         case SSL_RSA_WITH_RC4_128_MD5 :
             if (requirement == REQUIRES_RSA)
                 return 1;
@@ -3452,11 +3526,6 @@ static int BuildFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
                 return 1;
             break;
 
-        case TLS_NTRU_RSA_WITH_3DES_EDE_CBC_SHA :
-            if (requirement == REQUIRES_NTRU)
-                return 1;
-            break;
-
         case TLS_RSA_WITH_AES_128_CBC_SHA :
             if (requirement == REQUIRES_RSA)
                 return 1;
@@ -3464,11 +3533,6 @@ static int BuildFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
 
         case TLS_RSA_WITH_AES_128_CBC_SHA256 :
             if (requirement == REQUIRES_RSA)
-                return 1;
-            break;
-
-        case TLS_NTRU_RSA_WITH_AES_128_CBC_SHA :
-            if (requirement == REQUIRES_NTRU)
                 return 1;
             break;
 
@@ -3488,10 +3552,6 @@ static int BuildFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
                 return 1;
             break;
 
-        case TLS_NTRU_RSA_WITH_AES_256_CBC_SHA :
-            if (requirement == REQUIRES_NTRU)
-                return 1;
-            break;
 #endif
 
         case TLS_PSK_WITH_AES_128_GCM_SHA256 :
@@ -4272,21 +4332,6 @@ static int DoCertificate(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                 }
                 break;
         #endif /* NO_RSA */
-        #ifdef HAVE_NTRU
-            case NTRUk:
-                {
-                    if (dCert->pubKeySize > sizeof(ssl->peerNtruKey)) {
-                        ret = PEER_KEY_ERROR;
-                    }
-                    else {
-                        XMEMCPY(ssl->peerNtruKey, dCert->publicKey,
-                                                             dCert->pubKeySize);
-                        ssl->peerNtruKeyLen = (word16)dCert->pubKeySize;
-                        ssl->peerNtruKeyPresent = 1;
-                    }
-                }
-                break;
-        #endif /* HAVE_NTRU */
         #ifdef HAVE_ECC
             case ECDSAk:
                 {
@@ -8193,22 +8238,6 @@ static const char* const cipher_names[] =
     "RABBIT-SHA",
 #endif
 
-#ifdef BUILD_TLS_NTRU_RSA_WITH_RC4_128_SHA
-    "NTRU-RC4-SHA",
-#endif
-
-#ifdef BUILD_TLS_NTRU_RSA_WITH_3DES_EDE_CBC_SHA
-    "NTRU-DES-CBC3-SHA",
-#endif
-
-#ifdef BUILD_TLS_NTRU_RSA_WITH_AES_128_CBC_SHA
-    "NTRU-AES128-SHA",
-#endif
-
-#ifdef BUILD_TLS_NTRU_RSA_WITH_AES_256_CBC_SHA
-    "NTRU-AES256-SHA",
-#endif
-
 #ifdef BUILD_TLS_RSA_WITH_AES_128_CCM_8
     "AES128-CCM-8",
 #endif
@@ -8433,6 +8462,10 @@ static const char* const cipher_names[] =
     "ADH-AES128-SHA",
 #endif
 
+#ifdef BUILD_TLS_QSH
+    "QSH",
+#endif
+
 #ifdef HAVE_RENEGOTIATION_INDICATION
     "RENEGOTIATION-INFO",
 #endif
@@ -8585,22 +8618,6 @@ static int cipher_name_idx[] =
 
 #ifdef BUILD_TLS_RSA_WITH_RABBIT_SHA
     TLS_RSA_WITH_RABBIT_SHA,
-#endif
-
-#ifdef BUILD_TLS_NTRU_RSA_WITH_RC4_128_SHA
-    TLS_NTRU_RSA_WITH_RC4_128_SHA,
-#endif
-
-#ifdef BUILD_TLS_NTRU_RSA_WITH_3DES_EDE_CBC_SHA
-    TLS_NTRU_RSA_WITH_3DES_EDE_CBC_SHA,
-#endif
-
-#ifdef BUILD_TLS_NTRU_RSA_WITH_AES_128_CBC_SHA
-    TLS_NTRU_RSA_WITH_AES_128_CBC_SHA,
-#endif
-
-#ifdef BUILD_TLS_NTRU_RSA_WITH_AES_256_CBC_SHA
-    TLS_NTRU_RSA_WITH_AES_256_CBC_SHA,
 #endif
 
 #ifdef BUILD_TLS_RSA_WITH_AES_128_CCM_8
@@ -8827,6 +8844,10 @@ static int cipher_name_idx[] =
     TLS_DH_anon_WITH_AES_128_CBC_SHA,
 #endif
 
+#ifdef BUILD_TLS_QSH
+    TLS_QSH,
+#endif
+
 #ifdef HAVE_RENEGOTIATION_INDICATION
     TLS_EMPTY_RENEGOTIATION_INFO_SCSV,
 #endif
@@ -8890,6 +8911,7 @@ int SetCipherList(Suites* suites, const char* list)
         for (i = 0; i < suiteSz; i++) {
             if (XSTRNCMP(name, cipher_names[i], sizeof(name)) == 0) {
                 suites->suites[idx++] = (XSTRSTR(name, "CHACHA")) ? CHACHA_BYTE
+                                      : (XSTRSTR(name, "QSH"))    ? QSH_BYTE
                                       : (XSTRSTR(name, "EC"))     ? ECC_BYTE
                                       : (XSTRSTR(name, "CCM"))    ? ECC_BYTE
                                       : 0x00; /* normal */
@@ -9136,13 +9158,19 @@ static void PickHashSigAlgo(WOLFSSL* ssl,
             idSz = 0;
         }
 #endif
-
         length = VERSION_SZ + RAN_LEN
                + idSz + ENUM_LEN
                + ssl->suites->suiteSz + SUITE_LEN
                + COMP_LEN + ENUM_LEN;
 
 #ifdef HAVE_TLS_EXTENSIONS
+        /* auto populate extensions supported unless user defined */
+        if ((ret = TLSX_PopulateExtensions(ssl, 0)) != 0)
+            return ret;
+    #ifdef HAVE_QSH
+        if (QSH_Init(ssl) != 0)
+            return MEMORY_E;
+    #endif
         length += TLSX_GetRequestSize(ssl);
 #else
         if (IsAtLeastTLSv1_2(ssl) && ssl->suites->hashSigAlgoSz) {
@@ -9480,7 +9508,7 @@ static void PickHashSigAlgo(WOLFSSL* ssl,
 
         *inOutIdx = i;
 
-        /* tls extensions */
+
         if ( (i - begin) < helloSz) {
 #ifdef HAVE_TLS_EXTENSIONS
             if (TLSX_SupportExtensions(ssl)) {
@@ -9711,6 +9739,9 @@ static void PickHashSigAlgo(WOLFSSL* ssl,
     static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
                                    word32* inOutIdx, word32 size)
     {
+    #ifdef HAVE_QSH
+        word16 name;
+    #endif
         word16 length = 0;
         word32 begin  = *inOutIdx;
         int    ret    = 0;
@@ -9722,6 +9753,7 @@ static void PickHashSigAlgo(WOLFSSL* ssl,
         (void)input;
         (void)size;
         (void)ret;
+
 
     #ifdef WOLFSSL_CALLBACKS
         if (ssl->hsInfoOn)
@@ -9747,6 +9779,25 @@ static void PickHashSigAlgo(WOLFSSL* ssl,
 
             ssl->arrays->server_hint[min(length, MAX_PSK_ID_LEN - 1)] = 0;
             *inOutIdx += length;
+
+            /* QSH extensions */
+        #ifdef HAVE_QSH
+            if (ssl->peerQSHKeyPresent) {
+                /* extension name */
+                ato16(input + *inOutIdx, &name);
+                *inOutIdx += OPAQUE16_LEN;
+
+                if (name == WOLFSSL_QSH) {
+                    *inOutIdx += TLSX_QSHCipher_Parse(ssl, input + *inOutIdx,
+                                                                       size, 0);
+                }
+                else {
+                    /* unknown extension sent server ignored
+                       handshake */
+                    return BUFFER_ERROR;
+                }
+            }
+        #endif
 
             return 0;
         }
@@ -10317,7 +10368,6 @@ static void PickHashSigAlgo(WOLFSSL* ssl,
                 if (encSigSz != verifiedSz || !out || XMEMCMP(out, encodedSig,
                                         min(encSigSz, MAX_ENCODED_SIG_SZ)) != 0)
                     ret = VERIFY_SIGN_ERROR;
-
             #ifdef WOLFSSL_SMALL_STACK
                 XFREE(encodedSig, NULL, DYNAMIC_TYPE_TMP_BUFFER);
             #endif
@@ -10430,6 +10480,25 @@ static void PickHashSigAlgo(WOLFSSL* ssl,
         *inOutIdx += ssl->keys.padSz;
     }
 
+
+    /* QSH extensions */
+#ifdef HAVE_QSH
+    if (ssl->peerQSHKeyPresent) {
+        /* extension name */
+        ato16(input + *inOutIdx, &name);
+        *inOutIdx += OPAQUE16_LEN;
+
+        if (name == WOLFSSL_QSH) {
+            *inOutIdx += TLSX_QSHCipher_Parse(ssl, input + *inOutIdx, size, 0);
+        }
+        else {
+            /* unknown extension sent server ignored
+               handshake */
+            return BUFFER_ERROR;
+        }
+    }
+#endif
+
     return 0;
 #else  /* !NO_DH or HAVE_ECC */
         return NOT_COMPILED_IN;  /* not supported by build */
@@ -10437,6 +10506,373 @@ static void PickHashSigAlgo(WOLFSSL* ssl,
 
         #undef ERROR_OUT
     }
+
+
+#ifdef HAVE_QSH
+
+#ifdef HAVE_NTRU
+/* Encrypt a byte array using ntru
+   key    a struct containing the public key to use
+   bufIn  array to be encrypted
+   inSz   size of bufIn array
+   bufOut cipher text out
+   outSz  will be set to the new size of cipher text
+ */
+static int NtruSecretEncrypt(QSHKey* key, byte* bufIn, word32 inSz,
+        byte* bufOut, word16* outSz)
+{
+    int    ret;
+    DRBG_HANDLE drbg;
+
+    /* sanity checks on input arguments */
+    if (key == NULL || bufIn == NULL || bufOut == NULL || outSz == NULL)
+        return BAD_FUNC_ARG;
+
+    if (key->pub.buffer == NULL)
+        return BAD_FUNC_ARG;
+
+    switch (key->name) {
+        case WOLFSSL_NTRU_EESS439:
+        case WOLFSSL_NTRU_EESS593:
+        case WOLFSSL_NTRU_EESS743:
+            break;
+        default:
+            WOLFSSL_MSG("Unknown QSH encryption key!");
+            return -1;
+    }
+
+    /* set up ntru drbg */
+    ret = ntru_crypto_external_drbg_instantiate(GetEntropy, &drbg);
+    if (ret != DRBG_OK)
+        return NTRU_DRBG_ERROR;
+
+    /* encrypt the byte array */
+    ret = ntru_crypto_ntru_encrypt(drbg, key->pub.length, key->pub.buffer,
+        inSz, bufIn, outSz, bufOut);
+    ntru_crypto_drbg_uninstantiate(drbg);
+    if (ret != NTRU_OK)
+        return NTRU_ENCRYPT_ERROR;
+
+    return ret;
+}
+
+/* Decrypt a byte array using ntru
+   key    a struct containing the private key to use
+   bufIn  array to be decrypted
+   inSz   size of bufIn array
+   bufOut plain text out
+   outSz  will be set to the new size of plain text
+ */
+
+static int NtruSecretDecrypt(QSHKey* key, byte* bufIn, word32 inSz,
+        byte* bufOut, word16* outSz)
+{
+    int    ret;
+    DRBG_HANDLE drbg;
+
+    /* sanity checks on input arguments */
+    if (key == NULL || bufIn == NULL || bufOut == NULL || outSz == NULL)
+        return BAD_FUNC_ARG;
+
+    if (key->pri.buffer == NULL)
+        return BAD_FUNC_ARG;
+
+    switch (key->name) {
+        case WOLFSSL_NTRU_EESS439:
+        case WOLFSSL_NTRU_EESS593:
+        case WOLFSSL_NTRU_EESS743:
+            break;
+        default:
+            WOLFSSL_MSG("Unknown QSH decryption key!");
+            return -1;
+    }
+
+
+    /* set up drbg */
+    ret = ntru_crypto_external_drbg_instantiate(GetEntropy, &drbg);
+    if (ret != DRBG_OK)
+        return NTRU_DRBG_ERROR;
+
+    /* decrypt cipher text */
+    ret = ntru_crypto_ntru_decrypt(key->pri.length, key->pri.buffer,
+        inSz, bufIn, outSz, bufOut);
+    ntru_crypto_drbg_uninstantiate(drbg);
+    if (ret != NTRU_OK)
+        return NTRU_ENCRYPT_ERROR;
+
+    return ret;
+}
+#endif /* HAVE_NTRU */
+
+int QSH_Init(WOLFSSL* ssl)
+{
+    /* check so not initialising twice when running DTLS */
+    if (ssl->QSH_secret != NULL)
+        return 0;
+
+    /* malloc memory for holding generated secret information */
+    if ((ssl->QSH_secret =
+             XMALLOC(sizeof(QSHSecret), NULL, DYNAMIC_TYPE_TMP_BUFFER)) == NULL)
+        return MEMORY_E;
+
+    ssl->QSH_secret->CliSi = (buffer*)XMALLOC(sizeof(buffer), NULL,
+            DYNAMIC_TYPE_TMP_BUFFER);
+    if (ssl->QSH_secret->CliSi == NULL)
+        return MEMORY_E;
+
+    ssl->QSH_secret->SerSi = (buffer*)XMALLOC(sizeof(buffer), NULL,
+            DYNAMIC_TYPE_TMP_BUFFER);
+    if (ssl->QSH_secret->SerSi == NULL)
+        return MEMORY_E;
+
+    /* initialize variables */
+    ssl->QSH_secret->list = NULL;
+    ssl->QSH_secret->CliSi->length = 0;
+    ssl->QSH_secret->CliSi->buffer = NULL;
+    ssl->QSH_secret->SerSi->length = 0;
+    ssl->QSH_secret->SerSi->buffer = NULL;
+
+    return 0;
+}
+
+
+static int QSH_Encrypt(QSHKey* key, byte* in, word32 szIn,
+                                                       byte* out, word32* szOut)
+{
+    int ret = 0;
+    word16 size = *szOut;
+
+    WOLFSSL_MSG("Encrypting QSH key material");
+
+    switch (key->name) {
+    #ifdef HAVE_NTRU
+        case WOLFSSL_NTRU_EESS439:
+        case WOLFSSL_NTRU_EESS593:
+        case WOLFSSL_NTRU_EESS743:
+            ret = NtruSecretEncrypt(key, in, szIn, out, &size);
+            break;
+    #endif
+        default:
+            WOLFSSL_MSG("Unknown QSH encryption key!");
+            return -1;
+    }
+
+    *szOut = size;
+
+    return ret;
+}
+
+
+/* Decrypt using Quantum Safe Handshake algorithms */
+int QSH_Decrypt(QSHKey* key, byte* in, word32 szIn,
+                                                       byte* out, word16* szOut)
+{
+    int ret = 0;
+    word16 size = *szOut;
+
+    WOLFSSL_MSG("Decrypting QSH key material");
+
+    switch (key->name) {
+    #ifdef HAVE_NTRU
+        case WOLFSSL_NTRU_EESS439:
+        case WOLFSSL_NTRU_EESS593:
+        case WOLFSSL_NTRU_EESS743:
+            ret = NtruSecretDecrypt(key, in, szIn, out, &size);
+            break;
+    #endif
+        default:
+            WOLFSSL_MSG("Unknown QSH decryption key!");
+            return -1;
+    }
+
+    *szOut = size;
+
+    return ret;
+}
+
+
+/* Get the max cipher text for corresponding encryption scheme
+   (encrypting  48 or max plain text whichever is smaller)
+ */
+static word32 QSH_MaxSecret(QSHKey* key)
+{
+    byte isNtru = 0;
+    word16 inSz = 48;
+    word16 outSz;
+    DRBG_HANDLE drbg = 0;
+    byte bufIn[48];
+    int ret = 0;
+
+    if (key == NULL || key->pub.length == 0)
+        return 0;
+
+    switch(key->name) {
+#ifdef HAVE_NTRU
+            case WOLFSSL_NTRU_EESS439:
+                isNtru   = 1;
+                break;
+            case WOLFSSL_NTRU_EESS593:
+                isNtru   = 1;
+                break;
+            case WOLFSSL_NTRU_EESS743:
+                isNtru   = 1;
+                break;
+#endif
+        default:
+            WOLFSSL_MSG("Unknown QSH encryption scheme size!");
+            return 0;
+    }
+
+    if (isNtru) {
+        ret = ntru_crypto_external_drbg_instantiate(GetEntropy, &drbg);
+        if (ret != DRBG_OK)
+            return NTRU_DRBG_ERROR;
+        ret = ntru_crypto_ntru_encrypt(drbg, key->pub.length,
+                            key->pub.buffer, inSz, bufIn, &outSz, NULL);
+        if (ret != NTRU_OK) {
+            return NTRU_ENCRYPT_ERROR;
+        }
+        ntru_crypto_drbg_uninstantiate(drbg);
+        return outSz;
+    }
+
+    return 0;
+}
+
+/* Generate the secret byte material for pms
+   returns length on success and -1 on fail
+ */
+static int QSH_GenerateSerCliSecret(WOLFSSL* ssl, byte isServer)
+{
+    int sz       = 0;
+    int plainSz  = 48; /* lesser of 48 and max plain text able to encrypt */
+    int offset   = 0;
+    word32 tmpSz = 0;
+    buffer* buf;
+    QSHKey* current = ssl->peerQSHKey;
+    QSHScheme* schmPre = NULL;
+    QSHScheme* schm    = NULL;
+
+    if (ssl == NULL)
+        return -1;
+
+    WOLFSSL_MSG("Generating QSH secret key material");
+
+    /* get size of buffer needed */
+    while (current) {
+        if (current->pub.length != 0) {
+            sz += plainSz;
+        }
+        current = (QSHKey*)current->next;
+    }
+
+    /* allocate memory for buffer */
+    if (isServer) {
+        buf = ssl->QSH_secret->SerSi;
+    }
+    else {
+        buf = ssl->QSH_secret->CliSi;
+    }
+    buf->length = sz;
+    buf->buffer = XMALLOC(sz, buf->buffer, DYNAMIC_TYPE_TMP_BUFFER);
+    if (buf->buffer == NULL) {
+        WOLFSSL_ERROR(MEMORY_E);
+    }
+
+    /* create secret information */
+    sz = 0;
+    current = ssl->peerQSHKey;
+    while (current) {
+        schm = XMALLOC(sizeof(QSHScheme), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        if (schm == NULL)
+            return MEMORY_E;
+
+        /* initialize variables */
+        schm->name  = 0;
+        schm->PK    = NULL;
+        schm->PKLen = 0;
+        schm->next  = NULL;
+        if (ssl->QSH_secret->list == NULL) {
+            ssl->QSH_secret->list = schm;
+        }
+        else {
+            if (schmPre)
+                schmPre->next = schm;
+        }
+
+        tmpSz = QSH_MaxSecret(current);
+
+        if ((schm->PK = XMALLOC(tmpSz, 0, DYNAMIC_TYPE_TMP_BUFFER)) == NULL)
+            return -1;
+
+        /* store info for writing extension */
+        schm->name = current->name;
+
+        /* no key to use for encryption */
+        if (tmpSz == 0) {
+            current = (QSHKey*)current->next;
+            continue;
+        }
+
+        if (wc_RNG_GenerateBlock(ssl->rng, buf->buffer + offset, plainSz)
+                                                                         != 0) {
+            return -1;
+        }
+        if (QSH_Encrypt(current, buf->buffer + offset, plainSz, schm->PK,
+                                                                 &tmpSz) != 0) {
+            return -1;
+        }
+        schm->PKLen = tmpSz;
+
+        sz += tmpSz;
+        offset += plainSz;
+        schmPre = schm;
+        current = (QSHKey*)current->next;
+    }
+
+    return sz;
+}
+
+
+static word32 QSH_KeyGetSize(WOLFSSL* ssl)
+{
+    word32 sz = 0;
+    QSHKey* current = ssl->peerQSHKey;
+
+    if (ssl == NULL)
+        return -1;
+
+    sz += OPAQUE16_LEN; /* type of extension ie 0x00 0x18 */
+    sz += OPAQUE24_LEN;
+    /* get size of buffer needed */
+    while (current) {
+        sz += OPAQUE16_LEN; /* scheme id */
+        sz += OPAQUE16_LEN; /* encrypted key len*/
+        sz += QSH_MaxSecret(current);
+        current = (QSHKey*)current->next;
+    }
+
+    return sz;
+}
+
+
+/* handle QSH key Exchange
+   return 0 on success
+ */
+static word32 QSH_KeyExchangeWrite(WOLFSSL* ssl, byte isServer)
+{
+    int ret = 0;
+
+    WOLFSSL_ENTER("QSH KeyExchange");
+
+    ret = QSH_GenerateSerCliSecret(ssl, isServer);
+    if (ret < 0)
+        return MEMORY_E;
+
+    return 0;
+}
+
+#endif /* HAVE_QSH */
 
 
     int SendClientKeyExchange(WOLFSSL* ssl)
@@ -10450,6 +10886,13 @@ static void PickHashSigAlgo(WOLFSSL* ssl,
         word32 idx = 0;
         int    ret = 0;
         byte   doUserRsa = 0;
+
+    #ifdef HAVE_QSH
+        word32 qshSz = 0;
+        if (ssl->peerQSHKeyPresent) {
+            qshSz = QSH_KeyGetSize(ssl);
+        }
+    #endif
 
         (void)doUserRsa;
 
@@ -10702,62 +11145,6 @@ static void PickHashSigAlgo(WOLFSSL* ssl,
                 }
                 break;
         #endif /* !NO_DH && !NO_PSK */
-        #ifdef HAVE_NTRU
-            case ntru_kea:
-                {
-                    word32 rc;
-                    word16 cipherLen = MAX_ENCRYPT_SZ;
-                    DRBG_HANDLE drbg;
-                    static uint8_t const wolfsslStr[] = {
-                        'C', 'y', 'a', 'S', 'S', 'L', ' ', 'N', 'T', 'R', 'U'
-                    };
-
-                    ret = wc_RNG_GenerateBlock(ssl->rng,
-                                      ssl->arrays->preMasterSecret, SECRET_LEN);
-                    if (ret != 0) {
-                    #ifdef WOLFSSL_SMALL_STACK
-                        XFREE(encSecret, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-                    #endif
-                        return ret;
-                    }
-
-                    ssl->arrays->preMasterSz = SECRET_LEN;
-
-                    if (ssl->peerNtruKeyPresent == 0) {
-                    #ifdef WOLFSSL_SMALL_STACK
-                        XFREE(encSecret, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-                    #endif
-                        return NO_PEER_KEY;
-                    }
-
-                    rc = ntru_crypto_drbg_instantiate(MAX_NTRU_BITS, wolfsslStr,
-                                                 sizeof(wolfsslStr), GetEntropy,
-                                                 &drbg);
-                    if (rc != DRBG_OK) {
-                    #ifdef WOLFSSL_SMALL_STACK
-                        XFREE(encSecret, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-                    #endif
-                        return NTRU_DRBG_ERROR;
-                    }
-
-                    rc = ntru_crypto_ntru_encrypt(drbg, ssl->peerNtruKeyLen,
-                                                  ssl->peerNtruKey,
-                                                  ssl->arrays->preMasterSz,
-                                                  ssl->arrays->preMasterSecret,
-                                                  &cipherLen, encSecret);
-                    ntru_crypto_drbg_uninstantiate(drbg);
-                    if (rc != NTRU_OK) {
-                    #ifdef WOLFSSL_SMALL_STACK
-                        XFREE(encSecret, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-                    #endif
-                        return NTRU_ENCRYPT_ERROR;
-                    }
-
-                    encSz = cipherLen;
-                    ret = 0;
-                }
-                break;
-        #endif /* HAVE_NTRU */
         #ifdef HAVE_ECC
             case ecc_diffie_hellman_kea:
                 {
@@ -10855,6 +11242,11 @@ static void PickHashSigAlgo(WOLFSSL* ssl,
             if (ssl->keys.encryptionOn)
                 sendSz += MAX_MSG_EXTRA;
 
+        #ifdef HAVE_QSH
+            encSz += qshSz;
+            sendSz += qshSz;
+        #endif
+
             /* check for available size */
             if ((ret = CheckAvailableSize(ssl, sendSz)) != 0) {
             #ifdef WOLFSSL_SMALL_STACK
@@ -10867,8 +11259,35 @@ static void PickHashSigAlgo(WOLFSSL* ssl,
             output = ssl->buffers.outputBuffer.buffer +
                      ssl->buffers.outputBuffer.length;
 
+
+#ifdef HAVE_QSH
+            if (ssl->peerQSHKeyPresent) {
+                byte idxSave = idx;
+                idx = sendSz - qshSz;
+
+                if (QSH_KeyExchangeWrite(ssl, 0) != 0)
+                    return MEMORY_E;
+
+                /* extension type */
+                c16toa(WOLFSSL_QSH, output + idx);
+                idx += OPAQUE16_LEN;
+
+                /* write to output and check amount written */
+                if (TLSX_QSHPK_Write(ssl->QSH_secret->list, output + idx)
+                                                         > qshSz - OPAQUE16_LEN)
+                    return MEMORY_E;
+
+                idx = idxSave;
+            }
+#endif
+
             AddHeaders(output, encSz + tlsSz, client_key_exchange, ssl);
 
+#ifdef HAVE_QSH
+            if (ssl->peerQSHKeyPresent) {
+                encSz -= qshSz;
+            }
+#endif
             if (tlsSz) {
                 c16toa((word16)encSz, &output[idx]);
                 idx += 2;
@@ -11391,7 +11810,6 @@ int DoSessionTicket(WOLFSSL* ssl,
 
 #ifdef HAVE_TLS_EXTENSIONS
         length += TLSX_GetResponseSize(ssl);
-
     #ifdef HAVE_SESSION_TICKET
         if (ssl->options.useTicket && ssl->arrays->sessionIDSz == 0) {
             /* no session id */
@@ -11544,6 +11962,14 @@ int DoSessionTicket(WOLFSSL* ssl,
         (void)ssl;
         #define ERROR_OUT(err, eLabel) do { ret = err; goto eLabel; } while(0)
 
+    #ifdef HAVE_QSH
+        word32 qshSz = 0;
+        if (ssl->peerQSHKeyPresent) {
+            qshSz = QSH_KeyGetSize(ssl);
+        }
+    #endif
+
+
     #ifndef NO_PSK
         if (ssl->specs.kea == psk_kea)
         {
@@ -11559,6 +11985,11 @@ int DoSessionTicket(WOLFSSL* ssl,
 
             length += HINT_LEN_SZ;
             sendSz = length + HANDSHAKE_HEADER_SZ + RECORD_HEADER_SZ;
+
+        #ifdef HAVE_QSH
+            length += qshSz;
+            sendSz += qshSz;
+        #endif
 
         #ifdef WOLFSSL_DTLS
             if (ssl->options.dtls) {
@@ -11577,9 +12008,32 @@ int DoSessionTicket(WOLFSSL* ssl,
             AddHeaders(output, length, server_key_exchange, ssl);
 
             /* key data */
+        #ifdef HAVE_QSH
+            c16toa((word16)(length - qshSz - HINT_LEN_SZ), output + idx);
+        #else
             c16toa((word16)(length - HINT_LEN_SZ), output + idx);
+        #endif
             idx += HINT_LEN_SZ;
             XMEMCPY(output + idx, ssl->arrays->server_hint,length -HINT_LEN_SZ);
+
+        #ifdef HAVE_QSH
+            if (ssl->peerQSHKeyPresent) {
+                if (qshSz > 0) {
+                    idx = sendSz - qshSz;
+                    if (QSH_KeyExchangeWrite(ssl, 1) != 0)
+                        return MEMORY_E;
+
+                    /* extension type */
+                    c16toa(WOLFSSL_QSH, output + idx);
+                    idx += OPAQUE16_LEN;
+
+                    /* write to output and check amount written */
+                    if (TLSX_QSHPK_Write(ssl->QSH_secret->list, output + idx)
+                                                         > qshSz - OPAQUE16_LEN)
+                        return MEMORY_E;
+                }
+            }
+        #endif
 
         #ifdef WOLFSSL_DTLS
             if (ssl->options.dtls)
@@ -11663,6 +12117,10 @@ int DoSessionTicket(WOLFSSL* ssl,
             length += hintLen + HINT_LEN_SZ;
             sendSz = length + HANDSHAKE_HEADER_SZ + RECORD_HEADER_SZ;
 
+        #ifdef HAVE_QSH
+            length += qshSz;
+            sendSz += qshSz;
+        #endif
         #ifdef WOLFSSL_DTLS
             if (ssl->options.dtls) {
                 sendSz += DTLS_RECORD_EXTRA + DTLS_HANDSHAKE_EXTRA;
@@ -11707,6 +12165,24 @@ int DoSessionTicket(WOLFSSL* ssl,
                                   ssl->buffers.serverDH_Pub.length);
             idx += ssl->buffers.serverDH_Pub.length;
             (void)idx; /* suppress analyzer warning, and keep idx current */
+
+        #ifdef HAVE_QSH
+            if (ssl->peerQSHKeyPresent) {
+                if (qshSz > 0) {
+                    idx = sendSz - qshSz;
+                    QSH_KeyExchangeWrite(ssl, 1);
+
+                    /* extension type */
+                    c16toa(WOLFSSL_QSH, output + idx);
+                    idx += OPAQUE16_LEN;
+
+                    /* write to output and check amount written */
+                    if (TLSX_QSHPK_Write(ssl->QSH_secret->list, output + idx)
+                                                         > qshSz - OPAQUE16_LEN)
+                        return MEMORY_E;
+                }
+            }
+        #endif
 
         #ifdef WOLFSSL_DTLS
             if (ssl->options.dtls)
@@ -11866,6 +12342,10 @@ int DoSessionTicket(WOLFSSL* ssl,
 
             sendSz = length + HANDSHAKE_HEADER_SZ + RECORD_HEADER_SZ;
 
+        #ifdef HAVE_QSH
+            length += qshSz;
+            sendSz += qshSz;
+        #endif
         #ifdef WOLFSSL_DTLS
             if (ssl->options.dtls) {
                 sendSz += DTLS_RECORD_EXTRA + DTLS_HANDSHAKE_EXTRA;
@@ -12321,6 +12801,25 @@ int DoSessionTicket(WOLFSSL* ssl,
                     goto done_a;
             }
 
+#ifdef HAVE_QSH
+            if (ssl->peerQSHKeyPresent) {
+                if (qshSz > 0) {
+                    idx = sendSz - qshSz;
+                    QSH_KeyExchangeWrite(ssl, 1);
+
+                    /* extension type */
+                    c16toa(WOLFSSL_QSH, output + idx);
+                    idx += OPAQUE16_LEN;
+
+                    /* write to output and check amount written */
+                    if (TLSX_QSHPK_Write(ssl->QSH_secret->list, output + idx)
+                                                         > qshSz - OPAQUE16_LEN)
+                        return MEMORY_E;
+                }
+            }
+#endif
+
+
             AddHeaders(output, length, server_key_exchange, ssl);
 
         #ifdef WOLFSSL_DTLS
@@ -12436,6 +12935,10 @@ int DoSessionTicket(WOLFSSL* ssl,
 
             sendSz = length + HANDSHAKE_HEADER_SZ + RECORD_HEADER_SZ;
 
+        #ifdef HAVE_QSH
+            length += qshSz;
+            sendSz += qshSz;
+        #endif
         #ifdef WOLFSSL_DTLS
             if (ssl->options.dtls) {
                 sendSz += DTLS_RECORD_EXTRA + DTLS_HANDSHAKE_EXTRA;
@@ -12834,6 +13337,24 @@ int DoSessionTicket(WOLFSSL* ssl,
                 if (ret < 0) return ret;
             }
 
+    #ifdef HAVE_QSH
+            if (ssl->peerQSHKeyPresent) {
+                if (qshSz > 0) {
+                    idx = sendSz - qshSz;
+                    QSH_KeyExchangeWrite(ssl, 1);
+
+                    /* extension type */
+                    c16toa(WOLFSSL_QSH, output + idx);
+                    idx += OPAQUE16_LEN;
+
+                    /* write to output and check amount written */
+                    if (TLSX_QSHPK_Write(ssl->QSH_secret->list, output + idx)
+                                                         > qshSz - OPAQUE16_LEN)
+                        return MEMORY_E;
+                }
+            }
+    #endif
+
         #ifdef WOLFSSL_DTLS
             if (ssl->options.dtls)
                 if ((ret = DtlsPoolSave(ssl, output, sendSz)) != 0)
@@ -12886,9 +13407,6 @@ int DoSessionTicket(WOLFSSL* ssl,
         #ifndef NO_PSK
             havePSK = ssl->options.havePSK;
         #endif
-
-        if (ssl->options.haveNTRU)
-            haveRSA = 0;
 
         if (CipherRequires(first, second, REQUIRES_RSA)) {
             WOLFSSL_MSG("Requires RSA");
@@ -12956,9 +13474,21 @@ int DoSessionTicket(WOLFSSL* ssl,
 
         /* ECCDHE is always supported if ECC on */
 
+#ifdef HAVE_QSH
+        /* need to negotiate a classic suite in addition to TLS_QSH */
+        if (first == QSH_BYTE && second == TLS_QSH) {
+            if (TLSX_SupportExtensions(ssl)) {
+                ssl->peerQSHKeyPresent = 1; /* matched TLS_QSH */
+            }
+            else {
+                WOLFSSL_MSG("Version of SSL connection does not support TLS_QSH");
+            }
+            return 0;
+        }
+#endif
+
         return 1;
     }
-
 
     static int MatchSuite(WOLFSSL* ssl, Suites* peerSuites)
     {
@@ -13371,8 +13901,14 @@ int DoSessionTicket(WOLFSSL* ssl,
         /* tls extensions */
         if ((i - begin) < helloSz) {
 #ifdef HAVE_TLS_EXTENSIONS
+        #ifdef HAVE_QSH
+            QSH_Init(ssl);
+        #endif
             if (TLSX_SupportExtensions(ssl)) {
                 int ret = 0;
+                /* auto populate extensions supported unless user defined */
+                if ((ret = TLSX_PopulateExtensions(ssl, 1)) != 0)
+                    return ret;
 #else
             if (IsAtLeastTLSv1_2(ssl)) {
 #endif
@@ -13389,6 +13925,7 @@ int DoSessionTicket(WOLFSSL* ssl,
                     return BUFFER_ERROR;
 
 #ifdef HAVE_TLS_EXTENSIONS
+                /* tls extensions */
                 if ((ret = TLSX_Parse(ssl, (byte *) input + i,
                                                      totalExtSz, 1, &clSuites)))
                     return ret;
@@ -13975,6 +14512,9 @@ int DoSessionTicket(WOLFSSL* ssl,
     static int DoClientKeyExchange(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                                                                     word32 size)
     {
+        #ifdef HAVE_QSH
+            word16 name;
+        #endif
         int    ret = 0;
         word32 length = 0;
         byte*  out = NULL;
@@ -14085,7 +14625,26 @@ int DoSessionTicket(WOLFSSL* ssl,
                                                            ssl->chVersion.minor)
                             ret = PMS_VERSION_ERROR;
                         else
+                        {
+                #ifdef HAVE_QSH
+                            if (ssl->peerQSHKeyPresent) {
+                                /* extension name */
+                                ato16(input + *inOutIdx, &name);
+                                *inOutIdx += OPAQUE16_LEN;
+
+                                if (name == WOLFSSL_QSH) {
+                                    *inOutIdx += TLSX_QSHCipher_Parse(ssl, input
+                                      + *inOutIdx, size - *inOutIdx + begin, 1);
+                                }
+                                else {
+                                    /* unknown extension sent client ignored
+                                       handshake */
+                                    return BUFFER_ERROR;
+                                }
+                            }
+                #endif
                             ret = MakeMasterSecret(ssl);
+                         }
                     }
                     else {
                         ret = RSA_PRIVATE_ERROR;
@@ -14140,6 +14699,23 @@ int DoSessionTicket(WOLFSSL* ssl,
                 XMEMCPY(pms, ssl->arrays->psk_key, ssl->arrays->psk_keySz);
                 ssl->arrays->preMasterSz = ssl->arrays->psk_keySz * 2 + 4;
 
+            #ifdef HAVE_QSH
+                if (ssl->peerQSHKeyPresent) {
+                    /* extension name */
+                    ato16(input + *inOutIdx, &name);
+                    *inOutIdx += OPAQUE16_LEN;
+
+                    if (name == WOLFSSL_QSH) {
+                        *inOutIdx += TLSX_QSHCipher_Parse(ssl, input +
+                                        *inOutIdx, size - *inOutIdx + begin, 1);
+                    }
+                    else {
+                        /* unknown extension sent client ignored
+                           handshake */
+                        return BUFFER_ERROR;
+                    }
+                }
+            #endif
                 ret = MakeMasterSecret(ssl);
 
                 /* No further need for PSK */
@@ -14148,44 +14724,6 @@ int DoSessionTicket(WOLFSSL* ssl,
             }
             break;
         #endif /* NO_PSK */
-        #ifdef HAVE_NTRU
-            case ntru_kea:
-            {
-                word16 cipherLen;
-                word16 plainLen = sizeof(ssl->arrays->preMasterSecret);
-
-                if (!ssl->buffers.key.buffer)
-                    return NO_PRIVATE_KEY;
-
-                if ((*inOutIdx - begin) + OPAQUE16_LEN > size)
-                    return BUFFER_ERROR;
-
-                ato16(input + *inOutIdx, &cipherLen);
-                *inOutIdx += OPAQUE16_LEN;
-
-                if (cipherLen > MAX_NTRU_ENCRYPT_SZ)
-                    return NTRU_KEY_ERROR;
-
-                if ((*inOutIdx - begin) + cipherLen > size)
-                    return BUFFER_ERROR;
-
-                if (NTRU_OK != ntru_crypto_ntru_decrypt(
-                            (word16) ssl->buffers.key.length,
-                            ssl->buffers.key.buffer, cipherLen,
-                            input + *inOutIdx, &plainLen,
-                            ssl->arrays->preMasterSecret))
-                    return NTRU_DECRYPT_ERROR;
-
-                if (plainLen != SECRET_LEN)
-                    return NTRU_DECRYPT_ERROR;
-
-                *inOutIdx += cipherLen;
-
-                ssl->arrays->preMasterSz = plainLen;
-                ret = MakeMasterSecret(ssl);
-            }
-            break;
-        #endif /* HAVE_NTRU */
         #ifdef HAVE_ECC
             case ecc_diffie_hellman_kea:
             {
@@ -14248,6 +14786,23 @@ int DoSessionTicket(WOLFSSL* ssl,
                     return ECC_SHARED_ERROR;
 
                 ssl->arrays->preMasterSz = length;
+            #ifdef HAVE_QSH
+                if (ssl->peerQSHKeyPresent) {
+                    /* extension name */
+                    ato16(input + *inOutIdx, &name);
+                    *inOutIdx += OPAQUE16_LEN;
+
+                    if (name == WOLFSSL_QSH) {
+                        *inOutIdx += TLSX_QSHCipher_Parse(ssl, input +
+                                        *inOutIdx, size - *inOutIdx + begin, 1);
+                    }
+                    else {
+                        /* unknown extension sent client ignored
+                           handshake */
+                        return BUFFER_ERROR;
+                    }
+                }
+            #endif
                 ret = MakeMasterSecret(ssl);
             }
             break;
@@ -14282,6 +14837,23 @@ int DoSessionTicket(WOLFSSL* ssl,
 
                 *inOutIdx += clientPubSz;
 
+            #ifdef HAVE_QSH
+                if (ssl->peerQSHKeyPresent) {
+                    /* extension name */
+                    ato16(input + *inOutIdx, &name);
+                    *inOutIdx += OPAQUE16_LEN;
+
+                    if (name == WOLFSSL_QSH) {
+                        *inOutIdx += TLSX_QSHCipher_Parse(ssl, input +
+                                        *inOutIdx, size - *inOutIdx + begin, 1);
+                    }
+                    else {
+                        /* unknown extension sent client ignored
+                           handshake */
+                        return BUFFER_ERROR;
+                    }
+                }
+            #endif
                 if (ret == 0)
                     ret = MakeMasterSecret(ssl);
             }
@@ -14356,6 +14928,23 @@ int DoSessionTicket(WOLFSSL* ssl,
                 XMEMCPY(pms, ssl->arrays->psk_key, ssl->arrays->psk_keySz);
                 ssl->arrays->preMasterSz +=
                                           ssl->arrays->psk_keySz + OPAQUE16_LEN;
+            #ifdef HAVE_QSH
+                if (ssl->peerQSHKeyPresent) {
+                    /* extension name */
+                    ato16(input + *inOutIdx, &name);
+                    *inOutIdx += OPAQUE16_LEN;
+
+                    if (name == WOLFSSL_QSH) {
+                        *inOutIdx += TLSX_QSHCipher_Parse(ssl, input +
+                                        *inOutIdx, size - *inOutIdx + begin, 1);
+                    }
+                    else {
+                        /* unknown extension sent client ignored
+                           handshake */
+                        return BUFFER_ERROR;
+                    }
+                }
+            #endif
                 if (ret == 0)
                     ret = MakeMasterSecret(ssl);
 

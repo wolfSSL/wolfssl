@@ -255,14 +255,6 @@ void simple_test(func_args* args)
         strcpy(svrArgs.argv[svrArgs.argc++], "-p");
         strcpy(svrArgs.argv[svrArgs.argc++], "0");
     #endif
-    #ifdef HAVE_NTRU
-        strcpy(svrArgs.argv[svrArgs.argc++], "-d");
-        strcpy(svrArgs.argv[svrArgs.argc++], "-n");
-        strcpy(svrArgs.argv[svrArgs.argc++], "-c");
-        strcpy(svrArgs.argv[svrArgs.argc++], "./certs/ntru-cert.pem");
-        strcpy(svrArgs.argv[svrArgs.argc++], "-k");
-        strcpy(svrArgs.argv[svrArgs.argc++], "./certs/ntru-key.raw");
-    #endif
     /* Set the last arg later, when it is known. */
 
     args->return_code = 0;

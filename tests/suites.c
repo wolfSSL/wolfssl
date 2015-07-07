@@ -108,6 +108,15 @@ static int IsValidCipherSuite(const char* line, char* suite)
         found = 1;
     }
 
+    /* if QSH not enabled then do not use QSH suite */
+    #ifdef HAVE_QSH
+        if (strncmp(suite, "QSH", 3) == 0) {
+            if (wolfSSL_CTX_set_cipher_list(cipherSuiteCtx, suite + 4)
+                                                                 != SSL_SUCCESS)
+            return 0;
+        }
+    #endif
+
     if (found) {
         if (wolfSSL_CTX_set_cipher_list(cipherSuiteCtx, suite) == SSL_SUCCESS)
             valid = 1;
@@ -446,14 +455,24 @@ int SuiteTest(void)
     /* any extra cases will need another argument */
     args.argc = 2;
 
-#ifdef WOLFSSL_DTLS 
+#ifdef WOLFSSL_DTLS
     /* add dtls extra suites */
     strcpy(argv0[1], "tests/test-dtls.conf");
     printf("starting dtls extra cipher suite tests\n");
     test_harness(&args);
     if (args.return_code != 0) {
         printf("error from script %d\n", args.return_code);
-        exit(EXIT_FAILURE);  
+        exit(EXIT_FAILURE);
+    }
+#endif
+#ifdef HAVE_QSH
+    /* add dtls extra suites */
+    strcpy(argv0[1], "tests/test-qsh.conf");
+    printf("starting qsh extra cipher suite tests\n");
+    test_harness(&args);
+    if (args.return_code != 0) {
+        printf("error from script %d\n", args.return_code);
+        exit(EXIT_FAILURE);
     }
 #endif
 
