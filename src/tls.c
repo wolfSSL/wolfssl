@@ -2058,12 +2058,12 @@ int TLSX_UseSessionTicket(TLSX** extensions, SessionTicket* ticket)
 
 
 #ifdef HAVE_QSH
-static RNG rng;
+static RNG* rng;
+static wolfSSL_Mutex* rngMutex;
+
 static void TLSX_QSH_FreeAll(QSHScheme* list)
 {
     QSHScheme* current;
-
-    wc_FreeRng(&rng);
 
     while ((current = list)) {
         list = current->next;
@@ -2823,23 +2823,32 @@ static word16 TLSX_Write(TLSX* list, byte* output, byte* semaphore,
 
 
 #ifdef HAVE_NTRU
-static byte GetEntropy(ENTROPY_CMD cmd, byte* out)
+
+static word32 GetEntropy(unsigned char* out, unsigned long long num_bytes)
 {
-    if (cmd == INIT)
-        return (wc_InitRng(&rng) == 0) ? 1 : 0;
+    int ret = 0;
 
-    if (out == NULL)
-        return 0;
-
-    if (cmd == GET_BYTE_OF_ENTROPY)
-        return (wc_RNG_GenerateBlock(&rng, out, 1) == 0) ? 1 : 0;
-
-    if (cmd == GET_NUM_BYTES_PER_BYTE_OF_ENTROPY) {
-        *out = 1;
-        return 1;
+    if (rng == NULL) {
+        if ((rng = XMALLOC(sizeof(RNG), 0, DYNAMIC_TYPE_TLSX)) == NULL)
+            return DRBG_OUT_OF_MEMORY;
+        wc_InitRng(rng);
     }
 
-    return 0;
+    if (rngMutex == NULL) {
+        if ((rngMutex = XMALLOC(sizeof(wolfSSL_Mutex), 0,
+                        DYNAMIC_TYPE_TLSX)) == NULL)
+            return DRBG_OUT_OF_MEMORY;
+        InitMutex(rngMutex);
+    }
+
+    ret |= LockMutex(rngMutex);
+    ret |= wc_RNG_GenerateBlock(rng, out, (word32)num_bytes);
+    ret |= UnLockMutex(rngMutex);
+
+    if (ret != 0)
+        return DRBG_ENTROPY_FAIL;
+
+    return DRBG_OK;
 }
 #endif
 
@@ -2899,7 +2908,6 @@ static int TLSX_AddQSHKey(QSHKey** list, QSHKey* key)
 int TLSX_CreateNtruKey(WOLFSSL* ssl, int type)
 {
     int ret;
-    int ntruBits;
     int ntruType;
 
     /* variable declarations for NTRU*/
@@ -2909,32 +2917,25 @@ int TLSX_CreateNtruKey(WOLFSSL* ssl, int type)
     byte   private_key[1120];
     word16 private_key_len = sizeof(private_key);
     DRBG_HANDLE drbg;
-    static uint8_t const pers_str[] = {
-            'w', 'o', 'l', 'f', 'S', 'S', 'L', ' ', 'n', 't', 'r', 'u'
-    };
 
     if (ssl == NULL)
         return BAD_FUNC_ARG;
 
     switch (type) {
         case WOLFSSL_NTRU_EESS439:
-            ntruBits = 128;
             ntruType = NTRU_EES439EP1;
             break;
         case WOLFSSL_NTRU_EESS593:
-            ntruBits = 192;
             ntruType = NTRU_EES593EP1;
             break;
         case WOLFSSL_NTRU_EESS743:
-            ntruBits = 256;
             ntruType = NTRU_EES743EP1;
             break;
         default:
             WOLFSSL_MSG("Unknown type for creating NTRU key");
             return -1;
     }
-    ret = ntru_crypto_drbg_instantiate(ntruBits, pers_str, sizeof(pers_str),
-                                     GetEntropy, &drbg);
+    ret = ntru_crypto_external_drbg_instantiate(GetEntropy, &drbg);
     if (ret != DRBG_OK) {
         WOLFSSL_MSG("NTRU drbg instantiate failed\n");
         return ret;
@@ -2948,7 +2949,6 @@ int TLSX_CreateNtruKey(WOLFSSL* ssl, int type)
         &public_key_len, public_key, &private_key_len, private_key)) != NTRU_OK)
         return ret;
 
-    wc_FreeRng(&rng);
     ret = ntru_crypto_drbg_uninstantiate(drbg);
     if (ret != NTRU_OK) {
         WOLFSSL_MSG("NTRU drbg uninstantiate failed\n");

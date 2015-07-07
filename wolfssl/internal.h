@@ -1500,17 +1500,17 @@ WOLFSSL_LOCAL void TLSX_SessionTicket_Free(SessionTicket* ticket);
 #ifdef HAVE_QSH
 
 typedef struct QSHScheme {
-    word16            name; /* QSHScheme Names */
-    byte*             PK;
-    word16            PKLen;
     struct QSHScheme* next; /* List Behavior   */
+    byte*             PK;
+    word16            name; /* QSHScheme Names */
+    word16            PKLen;
 } QSHScheme;
 
 typedef struct QSHkey {
+    struct QSHKey* next;
     word16 name;
     buffer pub;
     buffer pri;
-    struct QSHKey* next;
 } QSHKey;
 
 typedef struct QSHSecret {

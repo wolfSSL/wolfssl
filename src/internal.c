@@ -241,28 +241,35 @@ static int QSH_FreeAll(WOLFSSL* ssl)
 
 
 #ifdef HAVE_NTRU
+static RNG* rng;
+static wolfSSL_Mutex* rngMutex;
 
-/* TODO: add locking? */
-static RNG rng;
-static byte GetEntropy(ENTROPY_CMD cmd, byte* out)
+static word32 GetEntropy(unsigned char* out, unsigned long long num_bytes)
 {
-    if (cmd == INIT)
-        return (wc_InitRng(&rng) == 0) ? 1 : 0;
+    int ret = 0;
 
-    if (out == NULL)
-        return 0;
-
-    if (cmd == GET_BYTE_OF_ENTROPY)
-        return (wc_RNG_GenerateBlock(&rng, out, 1) == 0) ? 1 : 0;
-
-    if (cmd == GET_NUM_BYTES_PER_BYTE_OF_ENTROPY) {
-        *out = 1;
-        return 1;
+    if (rng == NULL) {
+        if ((rng = XMALLOC(sizeof(RNG), 0, DYNAMIC_TYPE_TLSX)) == NULL)
+            return DRBG_OUT_OF_MEMORY;
+        wc_InitRng(rng);
     }
 
-    return 0;
-}
+    if (rngMutex == NULL) {
+        if ((rngMutex = XMALLOC(sizeof(wolfSSL_Mutex), 0,
+                        DYNAMIC_TYPE_TLSX)) == NULL)
+            return DRBG_OUT_OF_MEMORY;
+        InitMutex(rngMutex);
+    }
 
+    ret |= LockMutex(rngMutex);
+    ret |= wc_RNG_GenerateBlock(rng, out, (word32)num_bytes);
+    ret |= UnLockMutex(rngMutex);
+
+    if (ret != 0)
+        return DRBG_ENTROPY_FAIL;
+
+    return DRBG_OK;
+}
 #endif /* HAVE_NTRU */
 
 /* used by ssl.c too */
@@ -1652,14 +1659,6 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
     #ifdef HAVE_NTRU
         ssl->options.haveNTRU = 1;
     #endif
-    ssl->QSH_Key             = NULL;
-    ssl->peerQSHKey         = NULL;
-    ssl->QSH_secret          = NULL;
-    ssl->isQSH               = 0;
-    ssl->sendQSHKeys         = 0;
-    ssl->minRequest          = 0;
-    ssl->maxRequest          = 0;
-    ssl->user_set_QSHSchemes = 0;
 #endif
 #ifdef HAVE_MAX_FRAGMENT
     ssl->max_fragment = MAX_RECORD_SIZE;
@@ -1898,9 +1897,6 @@ void SSL_ResourceFree(WOLFSSL* ssl)
     #endif /* NO_RSA */
 #endif /* HAVE_PK_CALLBACKS */
 #ifdef HAVE_TLS_EXTENSIONS
-    #ifdef HAVE_QSH
-        QSH_FreeAll(ssl);
-    #endif
     TLSX_FreeAll(ssl->extensions);
 #endif
 #ifdef HAVE_NETX
@@ -2047,6 +2043,9 @@ void FreeHandshakeResources(WOLFSSL* ssl)
         ssl->buffers.peerRsaKey.buffer = NULL;
     #endif /* NO_RSA */
 #endif /* HAVE_PK_CALLBACKS */
+    #ifdef HAVE_QSH
+        QSH_FreeAll(ssl);
+    #endif
 }
 
 
@@ -10523,7 +10522,6 @@ static int NtruSecretEncrypt(QSHKey* key, byte* bufIn, word32 inSz,
 {
     int    ret;
     DRBG_HANDLE drbg;
-    word32      ntruBits = 0;
 
     /* sanity checks on input arguments */
     if (key == NULL || bufIn == NULL || bufOut == NULL || outSz == NULL)
@@ -10534,13 +10532,8 @@ static int NtruSecretEncrypt(QSHKey* key, byte* bufIn, word32 inSz,
 
     switch (key->name) {
         case WOLFSSL_NTRU_EESS439:
-            ntruBits = 128;
-            break;
         case WOLFSSL_NTRU_EESS593:
-            ntruBits = 192;
-            break;
         case WOLFSSL_NTRU_EESS743:
-            ntruBits = 256;
             break;
         default:
             WOLFSSL_MSG("Unknown QSH encryption key!");
@@ -10548,7 +10541,7 @@ static int NtruSecretEncrypt(QSHKey* key, byte* bufIn, word32 inSz,
     }
 
     /* set up ntru drbg */
-    ret = ntru_crypto_drbg_instantiate(ntruBits, NULL, 0, GetEntropy, &drbg);
+    ret = ntru_crypto_external_drbg_instantiate(GetEntropy, &drbg);
     if (ret != DRBG_OK)
         return NTRU_DRBG_ERROR;
 
@@ -10556,7 +10549,6 @@ static int NtruSecretEncrypt(QSHKey* key, byte* bufIn, word32 inSz,
     ret = ntru_crypto_ntru_encrypt(drbg, key->pub.length, key->pub.buffer,
         inSz, bufIn, outSz, bufOut);
     ntru_crypto_drbg_uninstantiate(drbg);
-    wc_FreeRng(&rng);
     if (ret != NTRU_OK)
         return NTRU_ENCRYPT_ERROR;
 
@@ -10576,7 +10568,6 @@ static int NtruSecretDecrypt(QSHKey* key, byte* bufIn, word32 inSz,
 {
     int    ret;
     DRBG_HANDLE drbg;
-    word32      ntruBits = 0;
 
     /* sanity checks on input arguments */
     if (key == NULL || bufIn == NULL || bufOut == NULL || outSz == NULL)
@@ -10587,13 +10578,8 @@ static int NtruSecretDecrypt(QSHKey* key, byte* bufIn, word32 inSz,
 
     switch (key->name) {
         case WOLFSSL_NTRU_EESS439:
-            ntruBits = 128;
-            break;
         case WOLFSSL_NTRU_EESS593:
-            ntruBits = 192;
-            break;
         case WOLFSSL_NTRU_EESS743:
-            ntruBits = 256;
             break;
         default:
             WOLFSSL_MSG("Unknown QSH decryption key!");
@@ -10602,7 +10588,7 @@ static int NtruSecretDecrypt(QSHKey* key, byte* bufIn, word32 inSz,
 
 
     /* set up drbg */
-    ret = ntru_crypto_drbg_instantiate(ntruBits, NULL, 0, GetEntropy, &drbg);
+    ret = ntru_crypto_external_drbg_instantiate(GetEntropy, &drbg);
     if (ret != DRBG_OK)
         return NTRU_DRBG_ERROR;
 
@@ -10610,7 +10596,6 @@ static int NtruSecretDecrypt(QSHKey* key, byte* bufIn, word32 inSz,
     ret = ntru_crypto_ntru_decrypt(key->pri.length, key->pri.buffer,
         inSz, bufIn, outSz, bufOut);
     ntru_crypto_drbg_uninstantiate(drbg);
-    wc_FreeRng(&rng);
     if (ret != NTRU_OK)
         return NTRU_ENCRYPT_ERROR;
 
@@ -10710,9 +10695,6 @@ int QSH_Decrypt(QSHKey* key, byte* in, word32 szIn,
  */
 static word32 QSH_MaxSecret(QSHKey* key)
 {
-#ifdef HAVE_NTRU
-    word16 ntruBits = 0;
-#endif
     byte isNtru = 0;
     word16 inSz = 48;
     word16 outSz;
@@ -10727,15 +10709,12 @@ static word32 QSH_MaxSecret(QSHKey* key)
 #ifdef HAVE_NTRU
             case WOLFSSL_NTRU_EESS439:
                 isNtru   = 1;
-                ntruBits = 128;
                 break;
             case WOLFSSL_NTRU_EESS593:
                 isNtru   = 1;
-                ntruBits = 192;
                 break;
             case WOLFSSL_NTRU_EESS743:
                 isNtru   = 1;
-                ntruBits = 256;
                 break;
 #endif
         default:
@@ -10744,8 +10723,7 @@ static word32 QSH_MaxSecret(QSHKey* key)
     }
 
     if (isNtru) {
-        ret = ntru_crypto_drbg_instantiate(ntruBits, NULL, 0,
-                                                     GetEntropy, &drbg);
+        ret = ntru_crypto_external_drbg_instantiate(GetEntropy, &drbg);
         if (ret != DRBG_OK)
             return NTRU_DRBG_ERROR;
         ret = ntru_crypto_ntru_encrypt(drbg, key->pub.length,
@@ -10754,7 +10732,6 @@ static word32 QSH_MaxSecret(QSHKey* key)
             return NTRU_ENCRYPT_ERROR;
         }
         ntru_crypto_drbg_uninstantiate(drbg);
-        wc_FreeRng(&rng);
         return outSz;
     }
 
