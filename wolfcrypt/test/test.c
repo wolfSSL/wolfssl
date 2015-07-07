@@ -1908,7 +1908,7 @@ int chacha_test(void)
     byte   plain[128];
     byte   sliver[64];
     byte   input[] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
-    word32 keySz;
+    word32 keySz = 32;
     int    ret = 0;
     int    i;
     int    times = 4;
