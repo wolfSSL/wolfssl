@@ -13074,5 +13074,17 @@ void* wolfSSL_GetRsaDecCtx(WOLFSSL* ssl)
         (void) f;
     }
 
+    int wolfSSL_X509_check_private_key(WOLFSSL_X509 *x509, WOLFSSL_EVP_PKEY *key){
+        (void) x509;
+        (void) key;
+        return 0;
+    }
+
+    STACK_OF(WOLFSSL_X509_NAME) *wolfSSL_dup_CA_list( STACK_OF(WOLFSSL_X509_NAME) *sk ){
+        (void) sk;
+        return NULL;
+    }
+
+
 #endif
 

@@ -418,7 +418,7 @@ typedef WOLFSSL_X509_NAME_ENTRY X509_NAME_ENTRY;
 #define PEM_read_bio_X509 PEM_read_bio_WOLFSSL_X509
 #define PEM_write_bio_X509 PEM_write_bio_WOLFSSL_X509
 #define SSL_CTX_set_tmp_dh WOLFSSL_CTX_set_tmp_dh
-#define SSL_CTX_set_verify_depth WOLFSSL_CTX_set_verify_depth
+#define SSL_CTX_set_verify_depth wolfSSL_CTX_set_verify_depth
 #define SSL_get_app_data WOLFSSL_get_app_data
 #define SSL_set_app_data WOLFSSL_set_app_data
 #define X509_NAME_entry_count wolfSSL_X509_NAME_entry_count
@@ -426,7 +426,8 @@ typedef WOLFSSL_X509_NAME_ENTRY X509_NAME_ENTRY;
 #define X509_NAME_get_entry WOLFSSL_X509_NAME_get_entry
 #define sk_X509_NAME_pop_free  wolfSSL_sk_X509_NAME_pop_free
 #define SHA1 wolfSSL_SHA1
-
+#define X509_check_private_key wolfSSL_X509_check_private_key
+#define SSL_dup_CA_list wolfSSL_dup_CA_list
 #ifdef __cplusplus
     } /* extern "C" */
 #endif
