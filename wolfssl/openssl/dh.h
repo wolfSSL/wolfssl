@@ -19,6 +19,10 @@ typedef struct WOLFSSL_DH {
     void*          internal;     /* our DH */
     char           inSet;        /* internal set from external ? */
     char           exSet;        /* external set from internal ? */
+    /*added for lighttpd openssl compatability, go back and add a getter in 
+     * lighttpd src code.
+     */
+     int length;
 } WOLFSSL_DH;
 
 
