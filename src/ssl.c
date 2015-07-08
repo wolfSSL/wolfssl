@@ -15230,8 +15230,9 @@ void* wolfSSL_GetRsaDecCtx(WOLFSSL* ssl)
         (void)depth;
     }
 
-    void* WOLFSSL_get_app_data( const WOLFSSL *ssl) {
-        //checkout exdata stuff...
+    void* WOLFSSL_get_app_data( const WOLFSSL *ssl)
+    {
+        /* checkout exdata stuff... */
         (void)ssl;
 
         return 0;

@@ -1497,20 +1497,16 @@ WOLFSSL_API int wolfSSL_accept_ex(WOLFSSL*, HandShakeCallBack, TimeoutCallBack,
 #endif
 
 
-//We also want this to be inside openssl extra, but clang throws an error
-#ifdef HAVE_LIGHTY   
+#ifdef OPENSSL_EXTRA /*lighttp compatibility */
+#ifdef HAVE_LIGHTY
 
-typedef struct WOLFSSL_X509_NAME_ENTRY { 
+typedef struct WOLFSSL_X509_NAME_ENTRY {
     WOLFSSL_ASN1_OBJECT* object;
     WOLFSSL_ASN1_STRING* value;
     int set;
     int size;
 } WOLFSSL_X509_NAME_ENTRY;
 
-#endif
-
-#ifdef OPENSSL_EXTRA /*lighttp compatibility */
-#ifdef HAVE_LIGHTY
 
 #include <wolfssl/openssl/dh.h>
 
