@@ -15133,3 +15133,148 @@ void* wolfSSL_GetRsaDecCtx(WOLFSSL* ssl)
     void wolfSSL_cert_service(void) {}
 #endif
 
+
+#ifdef OPENSSL_EXTRA /*Lighttp compatibility*/
+#ifdef HAVE_LIGHTY
+
+    unsigned char *wolfSSL_SHA1(const unsigned char *d, size_t n, unsigned char *md)
+    {
+        (void) *d; (void) n; (void) *md;
+        return NULL;
+    }
+
+    char WOLFSSL_CTX_use_certificate(WOLFSSL_CTX *ctx, WOLFSSL_X509 *x) {
+        (void)ctx;
+        (void)x;
+
+        return 0;
+    }
+
+    int WOLFSSL_CTX_use_PrivateKey(WOLFSSL_CTX *ctx, WOLFSSL_EVP_PKEY *pkey) {
+        (void)ctx;
+        (void)pkey;
+
+        return 0;
+    }
+
+    WOLFSSL_BIO *wolfSSL_BIO_new_file(const char *filename, const char *mode) {
+        (void)filename;
+        (void)mode;
+
+        return NULL;
+    }
+
+    int wolfSSL_BIO_read_filename(WOLFSSL_BIO *b, const char *name) {
+        (void)b;
+        (void)name;
+
+        return 0;
+    }
+
+    WOLFSSL_BIO_METHOD* WOLFSSL_BIO_s_file(void) {
+        return NULL;
+    }
+
+    const char * wolf_OBJ_nid2sn(int n) {
+        (void)n;
+
+        return 0;
+    }
+
+    int wolf_OBJ_obj2nid(const WOLFSSL_ASN1_OBJECT *o) {
+        (void)o;
+
+        return 0;
+    }
+
+    int wolf_OBJ_sn2nid(const char *sn) {
+        (void)sn;
+
+        return 0;
+    }
+
+    WOLFSSL_DH *PEM_read_bio_DHparams(WOLFSSL_BIO *bp, WOLFSSL_DH **x, pem_password_cb *cb, void *u) {
+        (void)bp;
+        (void)x;
+        (void)cb;
+        (void)u;
+
+        return NULL;
+    }
+
+    WOLFSSL_X509 *PEM_read_bio_WOLFSSL_X509(WOLFSSL_BIO *bp, WOLFSSL_X509 **x, pem_password_cb *cb, void *u) {
+        (void)bp;
+        (void)x;
+        (void)cb;
+        (void)u;
+
+        return NULL;
+    }
+
+    int PEM_write_bio_WOLFSSL_X509(WOLFSSL_BIO *bp, WOLFSSL_X509 *x) {
+        (void)bp;
+        (void)x;
+
+        return 0;
+    }
+
+    long WOLFSSL_CTX_set_tmp_dh(WOLFSSL_CTX *ctx, WOLFSSL_DH *dh) {
+        (void)ctx;
+        (void)dh;
+
+        return 0;
+    }
+
+    void wolfSSL_CTX_set_verify_depth(WOLFSSL_CTX *ctx,int depth) {
+        (void)ctx;
+        (void)depth;
+    }
+
+    void* WOLFSSL_get_app_data( const WOLFSSL *ssl) {
+        //checkout exdata stuff...
+        (void)ssl;
+
+        return 0;
+    }
+
+    void WOLFSSL_set_app_data(WOLFSSL *ssl, void *arg) {
+        (void)ssl;
+        (void)arg;
+    }
+
+    WOLFSSL_ASN1_OBJECT * WOLFSSL_X509_NAME_ENTRY_get_object(WOLFSSL_X509_NAME_ENTRY *ne) {
+        (void)ne;
+
+        return NULL;
+    }
+
+    WOLFSSL_X509_NAME_ENTRY *WOLFSSL_X509_NAME_get_entry(WOLFSSL_X509_NAME *name, int loc) {
+        (void)name;
+        (void)loc;
+
+        return NULL;
+    }
+
+    void WOLFSSL_X509_NAME_free(WOLFSSL_X509_NAME *name){
+        FreeX509Name(name);
+    }
+
+    void wolfSSL_sk_X509_NAME_pop_free(STACK_OF(WOLFSSL_X509_NAME)* sk, void f (WOLFSSL_X509_NAME*)){
+        (void) sk;
+        (void) f;
+    }
+
+    int wolfSSL_X509_check_private_key(WOLFSSL_X509 *x509, WOLFSSL_EVP_PKEY *key){
+        (void) x509;
+        (void) key;
+        return 0;
+    }
+
+    STACK_OF(WOLFSSL_X509_NAME) *wolfSSL_dup_CA_list( STACK_OF(WOLFSSL_X509_NAME) *sk ){
+        (void) sk;
+        return NULL;
+    }
+
+#endif
+#endif
+
