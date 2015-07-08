@@ -1480,11 +1480,6 @@ WOLFSSL_API int wolfSSL_accept_ex(WOLFSSL*, HandShakeCallBack, TimeoutCallBack,
 #ifdef OPENSSL_EXTRA /*lighttp compatibility */
 #ifdef HAVE_LIGHTY
 #include <wolfssl/openssl/dh.h>
-
-
-
-
-
 WOLFSSL_API void WOLFSSL_X509_NAME_free(WOLFSSL_X509_NAME *name);
 
 WOLFSSL_API char WOLFSSL_CTX_use_certificate(WOLFSSL_CTX *ctx, WOLFSSL_X509 *x);
