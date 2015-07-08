@@ -1904,10 +1904,12 @@ int chacha_test(void)
 {
     ChaCha enc;
     ChaCha dec;
-    byte   cipher[32];
-    byte   plain[32];
+    byte   cipher[128];
+    byte   plain[128];
+    byte   sliver[64];
     byte   input[] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
-    word32 keySz;
+    word32 keySz = 32;
+    int    ret = 0;
     int    i;
     int    times = 4;
 
@@ -1978,22 +1980,53 @@ int chacha_test(void)
         XMEMSET(cipher, 0, 32);
         XMEMCPY(cipher + 4, ivs[i], 8);
 
-        wc_Chacha_SetKey(&enc, keys[i], keySz);
-        wc_Chacha_SetKey(&dec, keys[i], keySz);
+        ret |= wc_Chacha_SetKey(&enc, keys[i], keySz);
+        ret |= wc_Chacha_SetKey(&dec, keys[i], keySz);
+        if (ret != 0)
+            return ret;
 
-        wc_Chacha_SetIV(&enc, cipher, 0);
-        wc_Chacha_SetIV(&dec, cipher, 0);
+        ret |= wc_Chacha_SetIV(&enc, cipher, 0);
+        ret |= wc_Chacha_SetIV(&dec, cipher, 0);
+        if (ret != 0)
+            return ret;
         XMEMCPY(plain, input, 8);
 
-        wc_Chacha_Process(&enc, cipher, plain,  (word32)8);
-        wc_Chacha_Process(&dec, plain,  cipher, (word32)8);
+        ret |= wc_Chacha_Process(&enc, cipher, plain,  (word32)8);
+        ret |= wc_Chacha_Process(&dec, plain,  cipher, (word32)8);
+        if (ret != 0)
+            return ret;
 
-        if (memcmp(test_chacha[i], cipher, 8))
+        if (XMEMCMP(test_chacha[i], cipher, 8))
             return -130 - 5 - i;
 
-        if (memcmp(plain, input, 8))
+        if (XMEMCMP(plain, input, 8))
             return -130 - i;
     }
+
+    /* test of starting at a diffrent counter
+       encrypts all of the information and decrypts starting at 2nd chunck */
+    XMEMSET(plain,  0, sizeof(plain));
+    XMEMSET(sliver, 1, sizeof(sliver)); /* set as 1's to not match plain */
+    XMEMSET(cipher, 0, sizeof(cipher));
+    XMEMCPY(cipher + 4, ivs[0], 8);
+
+    ret |= wc_Chacha_SetKey(&enc, keys[0], keySz);
+    ret |= wc_Chacha_SetKey(&dec, keys[0], keySz);
+    if (ret != 0)
+        return ret;
+
+    ret |= wc_Chacha_SetIV(&enc, cipher, 0);
+    ret |= wc_Chacha_SetIV(&dec, cipher, 1);
+    if (ret != 0)
+        return ret;
+
+    ret |= wc_Chacha_Process(&enc, cipher, plain,  sizeof(plain));
+    ret |= wc_Chacha_Process(&dec, sliver,  cipher + 64, sizeof(sliver));
+    if (ret != 0)
+        return ret;
+
+    if (XMEMCMP(plain + 64, sliver, 64))
+        return -140;
 
     return 0;
 }

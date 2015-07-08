@@ -140,7 +140,8 @@ extern "C" {
 #define MP_OKAY       0   /* ok result */
 #define MP_MEM        -2  /* out of mem */
 #define MP_VAL        -3  /* invalid input */
-#define MP_RANGE      MP_VAL
+#define MP_NOT_INF	  -4  /* point not at infinity */
+#define MP_RANGE      MP_NOT_INF
 
 #define MP_YES        1   /* yes response */
 #define MP_NO         0   /* no response */
@@ -250,6 +251,7 @@ int  mp_cmp_mag (mp_int * a, mp_int * b);
 int  mp_cmp (mp_int * a, mp_int * b);
 int  mp_cmp_d(mp_int * a, mp_digit b);
 void mp_set (mp_int * a, mp_digit b);
+int  mp_is_bit_set (mp_int * a, mp_digit b);
 int  mp_mod (mp_int * a, mp_int * b, mp_int * c);
 int  mp_div(mp_int * a, mp_int * b, mp_int * c, mp_int * d);
 int  mp_div_2(mp_int * a, mp_int * b);
@@ -287,6 +289,7 @@ int  mp_sqr (mp_int * a, mp_int * b);
 int  mp_mulmod (mp_int * a, mp_int * b, mp_int * c, mp_int * d);
 int  mp_mul_d (mp_int * a, mp_digit b, mp_int * c);
 int  mp_2expt (mp_int * a, int b);
+int  mp_set_bit (mp_int * a, int b);
 int  mp_reduce_2k_setup(mp_int *a, mp_digit *d);
 int  mp_add_d (mp_int* a, mp_digit b, mp_int* c);
 int mp_set_int (mp_int * a, unsigned long b);
@@ -296,6 +299,8 @@ int mp_sub_d (mp_int * a, mp_digit b, mp_int * c);
 /* added */
 int mp_init_multi(mp_int* a, mp_int* b, mp_int* c, mp_int* d, mp_int* e,
                   mp_int* f);
+int mp_toradix (mp_int *a, char *str, int radix);
+int mp_radix_size (mp_int * a, int radix, int *size);
 
 #if defined(HAVE_ECC) || defined(WOLFSSL_KEY_GEN)
     int mp_sqrmod(mp_int* a, mp_int* b, mp_int* c);

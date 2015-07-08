@@ -6,7 +6,7 @@
 #
 #
 
-AC_INIT([wolfssl],[3.6.0],[https://github.com/wolfssl/wolfssl/issues],[wolfssl],[http://www.wolfssl.com])
+AC_INIT([wolfssl],[3.6.1],[https://github.com/wolfssl/wolfssl/issues],[wolfssl],[http://www.wolfssl.com])
 
 AC_CONFIG_AUX_DIR([build-aux])
 
@@ -1411,7 +1411,7 @@ AC_ARG_WITH([ntru],
     [  --with-ntru=PATH        Path to NTRU install (default /usr/) ],
     [
         AC_MSG_CHECKING([for NTRU])
-        CPPFLAGS="$CPPFLAGS -DHAVE_NTRU"
+        CPPFLAGS="$CPPFLAGS -DHAVE_NTRU -DHAVE_QSH -DHAVE_TLS_EXTENSIONS"
         LIBS="$LIBS -lNTRUEncrypt"
 
         AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <ntru_crypto_drbg.h>]], [[ ntru_crypto_drbg_instantiate(0, 0, 0, 0, 0); ]])], [ ntru_linked=yes ],[ ntru_linked=no ])
@@ -1439,7 +1439,7 @@ AC_ARG_WITH([ntru],
             AC_MSG_RESULT([yes])
         fi
 
-        AM_CFLAGS="$AM_CFLAGS -DHAVE_NTRU"
+        AM_CFLAGS="$AM_CFLAGS -DHAVE_NTRU -DHAVE_QSH -DHAVE_TLS_EXTENSIONS"
         ENABLED_NTRU="yes"
     ]
 )

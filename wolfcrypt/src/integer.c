@@ -45,7 +45,23 @@
     #endif
 #endif
 
-static void bn_reverse (unsigned char *s, int len);
+/* reverse an array, used for radix code */
+static void
+bn_reverse (unsigned char *s, int len)
+{
+    int     ix, iy;
+    unsigned char t;
+
+    ix = 0;
+    iy = len - 1;
+    while (ix < iy) {
+        t     = s[ix];
+        s[ix] = s[iy];
+        s[iy] = t;
+        ++ix;
+        --iy;
+    }
+}
 
 /* math settings check */
 word32 CheckRunTimeSettings(void)
@@ -324,25 +340,6 @@ int mp_grow (mp_int * a, int size)
     }
   }
   return MP_OKAY;
-}
-
-
-/* reverse an array, used for radix code */
-void
-bn_reverse (unsigned char *s, int len)
-{
-  int     ix, iy;
-  unsigned char t;
-
-  ix = 0;
-  iy = len - 1;
-  while (ix < iy) {
-    t     = s[ix];
-    s[ix] = s[iy];
-    s[iy] = t;
-    ++ix;
-    --iy;
-  }
 }
 
 
@@ -1251,6 +1248,14 @@ void mp_set (mp_int * a, mp_digit b)
   a->used  = (a->dp[0] != 0) ? 1 : 0;
 }
 
+/* chek if a bit is set */
+int mp_is_bit_set (mp_int *a, mp_digit b)
+{
+    if ((mp_digit)a->used < b/DIGIT_BIT)
+        return 0;
+
+    return (int)((a->dp[b/DIGIT_BIT] >> b%DIGIT_BIT) & (mp_digit)1);
+}
 
 /* c = a mod b, 0 <= c < b */
 int
@@ -1883,7 +1888,8 @@ int mp_exptmod_fast (mp_int * G, mp_int * X, mp_int * P, mp_int * Y,
   }
 
   for (x = 0; x < (winsize - 1); x++) {
-    if ((err = mp_sqr (&M[(mp_digit)(1 << (winsize - 1))], &M[(mp_digit)(1 << (winsize - 1))])) != MP_OKAY) {
+    if ((err = mp_sqr (&M[(mp_digit)(1 << (winsize - 1))],
+                       &M[(mp_digit)(1 << (winsize - 1))])) != MP_OKAY) {
       goto LBL_RES;
     }
     if ((err = redux (&M[(mp_digit)(1 << (winsize - 1))], P, mp)) != MP_OKAY) {
@@ -2514,6 +2520,25 @@ mp_2expt (mp_int * a, int b)
   return MP_OKAY;
 }
 
+/* set the b bit of a */
+int
+mp_set_bit (mp_int * a, int b)
+{
+    int i = b / DIGIT_BIT, res;
+
+    /* grow a to accomodate the single bit */
+    if ((res = mp_grow (a, i + 1)) != MP_OKAY) {
+        return res;
+    }
+
+    /* set the used count of where the bit will go */
+    a->used = i + 1;
+
+    /* put the single bit in its place */
+    a->dp[i] |= ((mp_digit)1) << (b % DIGIT_BIT);
+
+    return MP_OKAY;
+}
 
 /* multiply by a digit */
 int
@@ -3168,7 +3193,8 @@ int mp_montgomery_calc_normalization (mp_int * a, mp_int * b)
   bits = mp_count_bits (b) % DIGIT_BIT;
 
   if (b->used > 1) {
-     if ((res = mp_2expt (a, (b->used - 1) * DIGIT_BIT + bits - 1)) != MP_OKAY) {
+     if ((res = mp_2expt (a, (b->used - 1) * DIGIT_BIT + bits - 1))
+         != MP_OKAY) {
         return res;
      }
   } else {
@@ -3600,7 +3626,8 @@ s_mp_mul_high_digs (mp_int * a, mp_int * b, mp_int * c, int digs)
   /* can we use the fast multiplier? */
 #ifdef BN_FAST_S_MP_MUL_HIGH_DIGS_C
   if (((a->used + b->used + 1) < MP_WARRAY)
-      && MIN (a->used, b->used) < (1 << ((CHAR_BIT * sizeof (mp_word)) - (2 * DIGIT_BIT)))) {
+      && MIN (a->used, b->used) <
+      (1 << ((CHAR_BIT * sizeof (mp_word)) - (2 * DIGIT_BIT)))) {
     return fast_s_mp_mul_high_digs (a, b, c, digs);
   }
 #endif
@@ -3794,7 +3821,8 @@ int mp_sqrmod (mp_int * a, mp_int * b, mp_int * c)
 #endif
 
 
-#if defined(HAVE_ECC) || !defined(NO_PWDBASED) || defined(WOLFSSL_SNIFFER) || defined(WOLFSSL_HAVE_WOLFSCEP) || defined(WOLFSSL_KEY_GEN)
+#if defined(HAVE_ECC) || !defined(NO_PWDBASED) || defined(WOLFSSL_SNIFFER) || \
+    defined(WOLFSSL_HAVE_WOLFSCEP) || defined(WOLFSSL_KEY_GEN)
 
 /* single digit addition */
 int mp_add_d (mp_int* a, mp_digit b, mp_int* c)
@@ -3961,7 +3989,7 @@ int mp_sub_d (mp_int * a, mp_digit b, mp_int * c)
 #endif /* defined(HAVE_ECC) || !defined(NO_PWDBASED) */
 
 
-#if defined(WOLFSSL_KEY_GEN) || defined(HAVE_COMP_KEY)
+#if defined(WOLFSSL_KEY_GEN) || defined(HAVE_COMP_KEY) || defined(HAVE_ECC)
 
 static const int lnz[16] = {
    4, 0, 1, 0, 2, 0, 1, 0, 3, 0, 1, 0, 2, 0, 1, 0
@@ -4096,7 +4124,7 @@ int mp_mod_d (mp_int * a, mp_digit b, mp_digit * c)
   return mp_div_d(a, b, NULL, c);
 }
 
-#endif /* defined(WOLFSSL_KEY_GEN) || defined(HAVE_COMP_KEY) */
+#endif /* defined(WOLFSSL_KEY_GEN)||defined(HAVE_COMP_KEY)||defined(HAVE_ECC) */
 
 #ifdef WOLFSSL_KEY_GEN
 
@@ -4448,7 +4476,8 @@ LBL_U:mp_clear (&v);
 #ifdef HAVE_ECC
 
 /* chars used in radix conversions */
-const char *mp_s_rmap = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz+/";
+const char *mp_s_rmap = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ\
+                         abcdefghijklmnopqrstuvwxyz+/";
 
 /* read a string [ASCII] in a given radix */
 int mp_read_radix (mp_int * a, const char *str, int radix)
@@ -4512,6 +4541,115 @@ int mp_read_radix (mp_int * a, const char *str, int radix)
      a->sign = neg;
   }
   return MP_OKAY;
+}
+
+/* returns size of ASCII representation */
+int mp_radix_size (mp_int *a, int radix, int *size)
+{
+    int     res, digs;
+    mp_int  t;
+    mp_digit d;
+
+    *size = 0;
+
+    /* special case for binary */
+    if (radix == 2) {
+        *size = mp_count_bits (a) + (a->sign == MP_NEG ? 1 : 0) + 1;
+        return MP_OKAY;
+    }
+
+    /* make sure the radix is in range */
+    if (radix < 2 || radix > 64) {
+        return MP_VAL;
+    }
+
+    if (mp_iszero(a) == MP_YES) {
+        *size = 2;
+        return MP_OKAY;
+    }
+
+    /* digs is the digit count */
+    digs = 0;
+
+    /* if it's negative add one for the sign */
+    if (a->sign == MP_NEG) {
+        ++digs;
+    }
+
+    /* init a copy of the input */
+    if ((res = mp_init_copy (&t, a)) != MP_OKAY) {
+        return res;
+    }
+
+    /* force temp to positive */
+    t.sign = MP_ZPOS;
+
+    /* fetch out all of the digits */
+    while (mp_iszero (&t) == MP_NO) {
+        if ((res = mp_div_d (&t, (mp_digit) radix, &t, &d)) != MP_OKAY) {
+            mp_clear (&t);
+            return res;
+        }
+        ++digs;
+    }
+    mp_clear (&t);
+
+    /* return digs + 1, the 1 is for the NULL byte that would be required. */
+    *size = digs + 1;
+    return MP_OKAY;
+}
+
+/* stores a bignum as a ASCII string in a given radix (2..64) */
+int mp_toradix (mp_int *a, char *str, int radix)
+{
+    int     res, digs;
+    mp_int  t;
+    mp_digit d;
+    char   *_s = str;
+
+    /* check range of the radix */
+    if (radix < 2 || radix > 64) {
+        return MP_VAL;
+    }
+
+    /* quick out if its zero */
+    if (mp_iszero(a) == 1) {
+        *str++ = '0';
+        *str = '\0';
+        return MP_OKAY;
+    }
+
+    if ((res = mp_init_copy (&t, a)) != MP_OKAY) {
+        return res;
+    }
+
+    /* if it is negative output a - */
+    if (t.sign == MP_NEG) {
+        ++_s;
+        *str++ = '-';
+        t.sign = MP_ZPOS;
+    }
+
+    digs = 0;
+    while (mp_iszero (&t) == 0) {
+        if ((res = mp_div_d (&t, (mp_digit) radix, &t, &d)) != MP_OKAY) {
+            mp_clear (&t);
+            return res;
+        }
+        *str++ = mp_s_rmap[d];
+        ++digs;
+    }
+
+    /* reverse the digits of the string.  In this case _s points
+     * to the first digit [exluding the sign] of the number]
+     */
+    bn_reverse ((unsigned char *)_s, digs);
+
+    /* append a NULL so the string is properly terminated */
+    *str = '\0';
+
+    mp_clear (&t);
+    return MP_OKAY;
 }
 
 #endif /* HAVE_ECC */

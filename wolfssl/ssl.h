@@ -77,6 +77,10 @@ typedef struct WOLFSSL_SOCKADDR     WOLFSSL_SOCKADDR;
 
 typedef struct WOLFSSL_RSA            WOLFSSL_RSA;
 typedef struct WOLFSSL_DSA            WOLFSSL_DSA;
+typedef struct WOLFSSL_EC_KEY         WOLFSSL_EC_KEY;
+typedef struct WOLFSSL_EC_POINT       WOLFSSL_EC_POINT;
+typedef struct WOLFSSL_EC_GROUP       WOLFSSL_EC_GROUP;
+typedef struct WOLFSSL_ECDSA_SIG      WOLFSSL_ECDSA_SIG;
 typedef struct WOLFSSL_CIPHER         WOLFSSL_CIPHER;
 typedef struct WOLFSSL_X509_LOOKUP    WOLFSSL_X509_LOOKUP;
 typedef struct WOLFSSL_X509_LOOKUP_METHOD WOLFSSL_X509_LOOKUP_METHOD;
@@ -1216,7 +1220,7 @@ WOLFSSL_API void* wolfSSL_GetRsaDecCtx(WOLFSSL* ssl);
 
 
 #ifndef NO_CERTS
-	WOLFSSL_API void wolfSSL_CTX_SetCACb(WOLFSSL_CTX*, CallbackCACache);
+    WOLFSSL_API void wolfSSL_CTX_SetCACb(WOLFSSL_CTX*, CallbackCACache);
 
     WOLFSSL_API WOLFSSL_CERT_MANAGER* wolfSSL_CertManagerNew(void);
     WOLFSSL_API void wolfSSL_CertManagerFree(WOLFSSL_CERT_MANAGER*);
@@ -1374,6 +1378,7 @@ WOLFSSL_API int wolfSSL_CTX_UseSupportedCurve(WOLFSSL_CTX* ctx,
 #endif
 #endif
 
+
 /* Secure Renegotiation */
 #ifdef HAVE_SECURE_RENEGOTIATION
 
@@ -1421,6 +1426,29 @@ WOLFSSL_API int wolfSSL_CTX_set_TicketEncCtx(WOLFSSL_CTX* ctx, void*);
 #endif /* NO_WOLFSSL_SERVER */
 
 #endif /* HAVE_SESSION_TICKET */
+
+#ifdef HAVE_QSH
+/* Quantum-safe Crypto Schemes */
+enum {
+    WOLFSSL_NTRU_EESS439 = 0x0101, /* max plaintext length of 65  */
+    WOLFSSL_NTRU_EESS593 = 0x0102, /* max plaintext length of 86  */
+    WOLFSSL_NTRU_EESS743 = 0x0103, /* max plaintext length of 106 */
+    WOLFSSL_LWE_XXX  = 0x0201,     /* Learning With Error encryption scheme */
+    WOLFSSL_HFE_XXX  = 0x0301,     /* Hidden Field Equotion scheme */
+    WOLFSSL_NULL_QSH = 0xFFFF      /* QSHScheme is not used */
+};
+
+
+/* test if the connection is using a QSH secure connection return 1 if so */
+WOLFSSL_API int wolfSSL_isQSH(WOLFSSL* ssl);
+WOLFSSL_API int wolfSSL_UseSupportedQSH(WOLFSSL* ssl, unsigned short name);
+#ifndef NO_WOLFSSL_CLIENT
+    /* user control over sending client public key in hello
+       when flag = 1 will send keys if flag is 0 or function is not called
+       then will not send keys in the hello extension */
+    WOLFSSL_API int wolfSSL_UseClientQSHKeys(WOLFSSL* ssl, unsigned char flag);
+#endif
+#endif
 
 #define WOLFSSL_CRL_MONITOR   0x01   /* monitor this dir flag */
 #define WOLFSSL_CRL_START_MON 0x02   /* start monitoring flag */

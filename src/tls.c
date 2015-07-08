@@ -36,6 +36,15 @@
     #include <wolfcrypt/src/misc.c>
 #endif
 
+#ifdef HAVE_NTRU
+    #include "ntru_crypto.h"
+    #include <wolfssl/wolfcrypt/random.h>
+#endif
+#ifdef HAVE_QSH
+    static int TLSX_AddQSHKey(QSHKey** list, QSHKey* key);
+    static byte* TLSX_QSHKeyFind_Pub(QSHKey* qsh, word16* pubLen, word16 name);
+    static int TLSX_CreateNtruKey(WOLFSSL* ssl, int type);
+#endif
 
 
 #ifndef NO_TLS
@@ -1957,6 +1966,584 @@ int TLSX_UseSessionTicket(TLSX** extensions, SessionTicket* ticket)
 #endif /* HAVE_SESSION_TICKET */
 
 
+<<<<<<< HEAD
+=======
+#ifdef HAVE_QSH
+static RNG* rng;
+static wolfSSL_Mutex* rngMutex;
+
+static void TLSX_QSH_FreeAll(QSHScheme* list)
+{
+    QSHScheme* current;
+
+    while ((current = list)) {
+        list = current->next;
+        XFREE(current, 0, DYNAMIC_TYPE_TLSX);
+    }
+}
+
+static int TLSX_QSH_Append(QSHScheme** list, word16 name, byte* pub,
+                                                                  word16 pubLen)
+{
+    QSHScheme* temp;
+
+    if (list == NULL)
+        return BAD_FUNC_ARG;
+
+    if ((temp = XMALLOC(sizeof(QSHScheme), 0, DYNAMIC_TYPE_TLSX)) == NULL)
+        return MEMORY_E;
+
+    temp->name  = name;
+    temp->PK    = pub;
+    temp->PKLen = pubLen;
+    temp->next  = *list;
+
+    *list = temp;
+
+    return 0;
+}
+
+
+/* request for server's public key : 02 indicates 0-2 requested */
+static byte TLSX_QSH_SerPKReq(byte* output, byte isRequest)
+{
+    if (isRequest) {
+        /* only request one public key from the server */
+        output[0] = 0x01;
+
+        return OPAQUE8_LEN;
+    }
+    else {
+        return 0;
+    }
+}
+
+#ifndef NO_WOLFSSL_CLIENT
+
+/* check for TLS_QSH suite */
+static void TLSX_QSH_ValidateRequest(WOLFSSL* ssl, byte* semaphore)
+{
+    int i;
+
+    for (i = 0; i < ssl->suites->suiteSz; i+= 2)
+        if (ssl->suites->suites[i] == QSH_BYTE)
+            return;
+
+    /* No QSH suite found */
+    TURN_ON(semaphore, TLSX_ToSemaphore(WOLFSSL_QSH));
+}
+
+
+/* return the size of the QSH hello extension
+   list      the list of QSHScheme structs containing id and key
+   isRequest if 1 then is being sent to the server
+ */
+word16 TLSX_QSH_GetSize(QSHScheme* list, byte isRequest)
+{
+    QSHScheme* temp = list;
+    word16 length = 0;
+
+    /* account for size of scheme list and public key list */
+    if (isRequest)
+        length = OPAQUE16_LEN;
+    length += OPAQUE24_LEN;
+
+    /* for each non null element in list add size */
+    while ((temp)) {
+        /* add public key info Scheme | Key Length | Key */
+        length += OPAQUE16_LEN;
+        length += OPAQUE16_LEN;
+        length += temp->PKLen;
+
+        /* if client add name size for scheme list
+           advance to next QSHScheme struct in list */
+        if (isRequest)
+            length += OPAQUE16_LEN;
+        temp = temp->next;
+    }
+
+    /* add length for request server public keys */
+    if (isRequest)
+        length += OPAQUE8_LEN;
+
+    return length;
+}
+
+
+/* write out a list of QSHScheme IDs */
+static word16 TLSX_QSH_Write(QSHScheme* list, byte* output)
+{
+    QSHScheme* current = list;
+    word16 length      = 0;
+
+    length += OPAQUE16_LEN;
+
+    while (current) {
+        c16toa(current->name, output + length);
+        length += OPAQUE16_LEN;
+        current = (QSHScheme*)current->next;
+    }
+
+    c16toa(length - OPAQUE16_LEN, output); /* writing list length */
+
+    return length;
+}
+
+
+/* write public key list in extension */
+static word16 TLSX_QSHPK_WriteR(QSHScheme* format, byte* output);
+static word16 TLSX_QSHPK_WriteR(QSHScheme* format, byte* output)
+{
+    word32 offset = 0;
+    word16 public_len = 0;
+
+    if (!format)
+        return offset;
+
+    /* write scheme ID */
+    c16toa(format->name, output + offset);
+    offset += OPAQUE16_LEN;
+
+    /* write public key matching scheme */
+    public_len = format->PKLen;
+    c16toa(public_len, output + offset);
+    offset += OPAQUE16_LEN;
+    if (format->PK) {
+        XMEMCPY(output+offset, format->PK, public_len);
+    }
+
+    return public_len + offset;
+}
+
+word16 TLSX_QSHPK_Write(QSHScheme* list, byte* output)
+{
+    QSHScheme* current = list;
+    word32 length = 0;
+    word24 toWire;
+
+    length += OPAQUE24_LEN;
+
+    while (current) {
+        length += TLSX_QSHPK_WriteR(current, output + length);
+        current = (QSHScheme*)current->next;
+    }
+    /* length of public keys sent */
+    c32to24(length - OPAQUE24_LEN, toWire);
+    output[0] = toWire[0];
+    output[1] = toWire[1];
+    output[2] = toWire[2];
+
+    return length;
+}
+
+#endif /* NO_WOLFSSL_CLIENT */
+#ifndef NO_WOLFSSL_SERVER
+
+static void TLSX_QSHAgreement(TLSX** extensions)
+{
+    TLSX* extension = TLSX_Find(*extensions, WOLFSSL_QSH);
+    QSHScheme* format = NULL;
+    QSHScheme* prev   = NULL;
+
+    if (extension == NULL)
+        return;
+
+    format = extension->data;
+    while (format) {
+        if (format->PKLen == 0) {
+            /* case of head */
+            if (format == extension->data) {
+                extension->data = format->next;
+            }
+            if (prev)
+                prev->next = format->next;
+            prev   = format;
+            format = format->next;
+            XFREE(format, ssl->heap, DYNAMIC_TYPE_TMP_ARRAY);
+        } else {
+            prev   = format;
+            format = format->next;
+        }
+    }
+}
+
+
+/* Parse in hello extension
+   input     the byte stream to process
+   length    length of total extension found
+   isRequest set to 1 if being sent to the server
+ */
+static int TLSX_QSH_Parse(WOLFSSL* ssl, byte* input, word16 length,
+                                                                 byte isRequest)
+{
+    byte   numKeys    = 0;
+    word16 offset     = 0;
+    word16 schemSz    = 0;
+    word16 offset_len = 0;
+    word32 offset_pk  = 0;
+    word16 name  = 0;
+    word16 PKLen = 0;
+    byte*  PK = NULL;
+    int r;
+
+    if (OPAQUE16_LEN > length)
+        return BUFFER_ERROR;
+
+    if (isRequest) {
+        ato16(input, &schemSz);
+
+        /* list of public keys avialable for QSH schemes */
+        offset_len = schemSz + OPAQUE16_LEN;
+    }
+
+    offset_pk = ((input[offset_len] << 16)   & 0xFF00000) |
+                (((input[offset_len + 1]) << 8) & 0xFF00) |
+                (input[offset_len + 2] & 0xFF);
+    offset_len += OPAQUE24_LEN;
+
+    /* check buffer size */
+    if (offset_pk > length)
+        return BUFFER_ERROR;
+
+    /* set maximum number of keys the client will accept */
+    if (!isRequest)
+        numKeys = (ssl->maxRequest < 1)? 1 : ssl->maxRequest;
+
+    /* hello extension read list of scheme ids */
+    if (isRequest) {
+
+        /* read in request for public keys */
+        ssl->minRequest = (input[length -1] >> 4) & 0xFF;
+        ssl->maxRequest = input[length -1] & 0x0F;
+
+        /* choose the min between min requested by client and 1 */
+        numKeys = (ssl->minRequest > 1) ? ssl->minRequest : 1;
+
+        if (ssl->minRequest > ssl->maxRequest)
+            return BAD_FUNC_ARG;
+
+        offset  += OPAQUE16_LEN;
+        schemSz += offset;
+        while ((offset < schemSz) && numKeys) {
+            /* Scheme ID list */
+            ato16(input + offset, &name);
+            offset += OPAQUE16_LEN;
+
+            /* validate we have scheme id */
+            if (ssl->user_set_QSHSchemes &&
+                    !TLSX_ValidateQSHScheme(&ssl->extensions, name)) {
+                continue;
+            }
+
+            /* server create keys on demand */
+            if ((r = TLSX_CreateNtruKey(ssl, name)) != 0) {
+                WOLFSSL_MSG("Error creating ntru keys");
+                return r;
+            }
+
+            /* peer sent an agreed upon scheme */
+            r = TLSX_UseQSHScheme(&ssl->extensions, name, NULL, 0);
+
+            if (r != SSL_SUCCESS) return r; /* throw error */
+
+            numKeys--;
+        }
+
+        /* choose the min between min requested by client and 1 */
+        numKeys = (ssl->minRequest > 1) ? ssl->minRequest : 1;
+    }
+
+    /* QSHPK struct */
+    offset_pk += offset_len;
+    while ((offset_len < offset_pk) && numKeys) {
+        QSHKey * temp;
+
+        if ((temp = XMALLOC(sizeof(QSHKey), 0, DYNAMIC_TYPE_TLSX)) == NULL)
+            return MEMORY_E;
+
+        /* initialize */
+        temp->next = NULL;
+        temp->pub.buffer = NULL;
+        temp->pub.length = 0;
+        temp->pri.buffer = NULL;
+        temp->pri.length = 0;
+
+        /* scheme id */
+        ato16(input + offset_len, &(temp->name));
+        offset_len += OPAQUE16_LEN;
+
+        /* public key length */
+        ato16(input + offset_len, &PKLen);
+        temp->pub.length = PKLen;
+        offset_len += OPAQUE16_LEN;
+
+
+        if (isRequest) {
+            /* validate we have scheme id */
+            if (ssl->user_set_QSHSchemes &&
+                    (!TLSX_ValidateQSHScheme(&ssl->extensions, temp->name))) {
+                offset_len += PKLen;
+                XFREE(temp, 0, DYNAMIC_TYPE_TLSX);
+                continue;
+            }
+        }
+
+        /* read in public key */
+        if (PKLen > 0) {
+            temp->pub.buffer = (byte*)XMALLOC(temp->pub.length,
+                               0, DYNAMIC_TYPE_PUBLIC_KEY);
+            XMEMCPY(temp->pub.buffer, input + offset_len, temp->pub.length);
+            offset_len += PKLen;
+        }
+        else {
+            PK = NULL;
+        }
+
+        /* use own key when adding to extensions list for sending reply */
+        PKLen = 0;
+        PK = TLSX_QSHKeyFind_Pub(ssl->QSH_Key, &PKLen, temp->name);
+        r  = TLSX_UseQSHScheme(&ssl->extensions, temp->name, PK, PKLen);
+
+        /* store peers key */
+        ssl->peerQSHKeyPresent = 1;
+        if (TLSX_AddQSHKey(&ssl->peerQSHKey, temp) != 0)
+            return MEMORY_E;
+
+        if (temp->pub.length == 0) {
+            XFREE(temp, 0, DYNAMIC_TYPE_TLSX);
+        }
+
+        if (r != SSL_SUCCESS) {return r;} /* throw error */
+
+        numKeys--;
+    }
+
+    /* reply to a QSH extension sent from client */
+    if (isRequest) {
+        TLSX_SetResponse(ssl, WOLFSSL_QSH);
+        /* only use schemes we have key generated for -- free the rest */
+        TLSX_QSHAgreement(&ssl->extensions);
+    }
+
+    return 0;
+}
+
+
+/* Used for parsing in QSHCipher structs on Key Exchange */
+int TLSX_QSHCipher_Parse(WOLFSSL* ssl, const byte* input, word16 length,
+                                                                  byte isServer)
+{
+    QSHKey* key;
+    word16 Max_Secret_Len = 48;
+    word16 offset     = 0;
+    word16 offset_len = 0;
+    word32 offset_pk  = 0;
+    word16 name       = 0;
+    word16 secretLen  = 0;
+    byte*  secret     = NULL;
+    word16 buffLen    = 0;
+    byte buff[145]; /* size enough for 3 secrets */
+    buffer* buf;
+
+    /* pointer to location where secret should be stored */
+    if (isServer) {
+        buf = ssl->QSH_secret->CliSi;
+    }
+    else {
+        buf = ssl->QSH_secret->SerSi;
+    }
+
+    offset_pk = ((input[offset_len] << 16)    & 0xFF0000) |
+                (((input[offset_len + 1]) << 8) & 0xFF00) |
+                (input[offset_len + 2] & 0xFF);
+    offset_len += OPAQUE24_LEN;
+
+    /* validating extension list length -- check if trying to read over edge
+       of buffer */
+    if (length < (offset_pk + OPAQUE24_LEN)) {
+        return BUFFER_ERROR;
+    }
+
+    /* QSHCipherList struct */
+    offset_pk += offset_len;
+    while (offset_len < offset_pk) {
+
+        /* scheme id */
+        ato16(input + offset_len, &name);
+        offset_len += OPAQUE16_LEN;
+
+        /* public key length */
+        ato16(input + offset_len, &secretLen);
+        offset_len += OPAQUE16_LEN;
+
+        /* read in public key */
+        if (secretLen > 0) {
+            secret = (byte*)(input + offset_len);
+            offset_len += secretLen;
+        }
+        else {
+            secret = NULL;
+        }
+
+        /* no secret sent */
+        if (secret == NULL)
+            continue;
+
+        /* find coresponding key */
+        key = ssl->QSH_Key;
+        while (key) {
+            if (key->name == name)
+                break;
+            else
+                key = (QSHKey*)key->next;
+        }
+
+        /* if we do not have the key than there was a big issue negotiation */
+        if (key == NULL) {
+            WOLFSSL_MSG("key was null for decryption!!!\n");
+            return MEMORY_E;
+        }
+
+        /* Decrypt sent secret */
+        buffLen = Max_Secret_Len;
+        QSH_Decrypt(key, secret, secretLen, buff + offset, &buffLen);
+        offset += buffLen;
+    }
+
+    /* allocate memory for buffer */
+    buf->length = offset;
+    buf->buffer = (byte*)XMALLOC(offset, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (buf->buffer == NULL)
+        return MEMORY_E;
+
+    /* store secrets */
+    XMEMCPY(buf->buffer, buff, offset);
+    ForceZero(buff, offset);
+
+    return offset_len;
+}
+
+
+/* return 1 on success */
+int TLSX_ValidateQSHScheme(TLSX** extensions, word16 theirs) {
+    TLSX* extension = TLSX_Find(*extensions, WOLFSSL_QSH);
+    QSHScheme* format    = NULL;
+
+    /* if no extension is sent then do not use QSH */
+    if (!extension) {
+        WOLFSSL_MSG("No QSH Extension");
+        return 0;
+    }
+
+    for (format = (QSHScheme*)extension->data; format; format = format->next) {
+        if (format->name == theirs) {
+	        WOLFSSL_MSG("Found Matching QSH Scheme");
+            return 1; /* have QSH */
+        }
+    }
+
+    return 0;
+}
+#endif /* NO_WOLFSSL_SERVER */
+
+/* test if the QSH Scheme is implemented
+   return 1 if yes 0 if no */
+static int TLSX_HaveQSHScheme(word16 name)
+{
+    switch(name) {
+        #ifdef HAVE_NTRU
+            case WOLFSSL_NTRU_EESS439:
+            case WOLFSSL_NTRU_EESS593:
+            case WOLFSSL_NTRU_EESS743:
+                    return 1;
+        #endif
+            case WOLFSSL_LWE_XXX:
+            case WOLFSSL_HFE_XXX:
+                    return 0; /* not supported yet */
+
+        default:
+            return 0;
+    }
+}
+
+
+/* Add a QSHScheme struct to list of usable ones */
+int TLSX_UseQSHScheme(TLSX** extensions, word16 name, byte* pKey, word16 pkeySz)
+{
+    TLSX*      extension = TLSX_Find(*extensions, WOLFSSL_QSH);
+    QSHScheme* format    = NULL;
+    int        ret       = 0;
+
+    /* sanity check */
+    if (extensions == NULL || (pKey == NULL && pkeySz != 0))
+        return BAD_FUNC_ARG;
+
+    /* if scheme is implemented than add */
+    if (TLSX_HaveQSHScheme(name)) {
+	    if ((ret = TLSX_QSH_Append(&format, name, pKey, pkeySz)) != 0)
+	        return ret;
+
+	    if (!extension) {
+	        if ((ret = TLSX_Push(extensions, WOLFSSL_QSH, format)) != 0) {
+	            XFREE(format, 0, DYNAMIC_TYPE_TLSX);
+	            return ret;
+	        }
+	    }
+	    else {
+	        /* push new QSH object to extension data. */
+	        format->next = (QSHScheme*)extension->data;
+	        extension->data = (void*)format;
+
+	        /* look for another format of the same name to remove (replacement) */
+	        do {
+	            if (format->next && (format->next->name == name)) {
+	                QSHScheme* next = format->next;
+
+	                format->next = next->next;
+	                XFREE(next, 0, DYNAMIC_TYPE_TLSX);
+
+	                break;
+	            }
+	        } while ((format = format->next));
+	    }
+    }
+    return SSL_SUCCESS;
+}
+
+#define QSH_FREE_ALL         TLSX_QSH_FreeAll
+#define QSH_VALIDATE_REQUEST TLSX_QSH_ValidateRequest
+
+#ifndef NO_WOLFSSL_CLIENT
+#define QSH_GET_SIZE TLSX_QSH_GetSize
+#define QSH_WRITE    TLSX_QSH_Write
+#else
+#define QSH_GET_SIZE(list)         0
+#define QSH_WRITE(a, b)            0
+#endif
+
+#ifndef NO_WOLFSSL_SERVER
+#define QSH_PARSE TLSX_QSH_Parse
+#else
+#define QSH_PARSE(a, b, c, d)      0
+#endif
+
+#define QSHPK_WRITE TLSX_QSHPK_Write
+#define QSH_SERREQ TLSX_QSH_SerPKReq
+#else
+
+#define QSH_FREE_ALL(list)
+#define QSH_GET_SIZE(list, a)      0
+#define QSH_WRITE(a, b)            0
+#define QSH_PARSE(a, b, c, d)      0
+#define QSHPK_WRITE(a, b)          0
+#define QSH_SERREQ(a, b)           0
+#define QSH_VALIDATE_REQUEST(a, b)
+
+#endif /* HAVE_QSH */
+
+
+/** Finds an extension in the provided list. */
+>>>>>>> upstream/master
 TLSX* TLSX_Find(TLSX* list, TLSX_Type type)
 {
     TLSX* extension = list;
@@ -1998,6 +2585,10 @@ void TLSX_FreeAll(TLSX* list)
             case SESSION_TICKET:
                 /* Nothing to do. */
                 break;
+
+            case WOLFSSL_QSH:
+                QSH_FREE_ALL(extension->data);
+                break;
         }
 
         XFREE(extension, 0, DYNAMIC_TYPE_TLSX);
@@ -2025,6 +2616,7 @@ static word16 TLSX_GetSize(TLSX* list, byte* semaphore, byte isRequest)
         /* type + data length */
         length += HELLO_EXT_TYPE_SZ + OPAQUE16_LEN;
 
+
         switch (extension->type) {
             case SERVER_NAME_INDICATION:
                 if (isRequest)
@@ -2048,6 +2640,10 @@ static word16 TLSX_GetSize(TLSX* list, byte* semaphore, byte isRequest)
 
             case SESSION_TICKET:
                 length += STK_GET_SIZE(extension->data, isRequest);
+                break;
+
+            case WOLFSSL_QSH:
+                length += QSH_GET_SIZE(extension->data, isRequest);
                 break;
         }
 
@@ -2106,6 +2702,14 @@ static word16 TLSX_Write(TLSX* list, byte* output, byte* semaphore,
                 offset += STK_WRITE(extension->data, output + offset,
                                                                      isRequest);
                 break;
+
+            case WOLFSSL_QSH:
+                if (isRequest) {
+                    offset += QSH_WRITE(extension->data, output + offset);
+                }
+                offset += QSHPK_WRITE(extension->data, output + offset);
+                offset += QSH_SERREQ(output + offset, isRequest);
+                break;
         }
 
         /* writing extension data length */
@@ -2117,6 +2721,284 @@ static word16 TLSX_Write(TLSX* list, byte* output, byte* semaphore,
     return offset;
 }
 
+
+#ifdef HAVE_NTRU
+
+static word32 GetEntropy(unsigned char* out, unsigned long long num_bytes)
+{
+    int ret = 0;
+
+    if (rng == NULL) {
+        if ((rng = XMALLOC(sizeof(RNG), 0, DYNAMIC_TYPE_TLSX)) == NULL)
+            return DRBG_OUT_OF_MEMORY;
+        wc_InitRng(rng);
+    }
+
+    if (rngMutex == NULL) {
+        if ((rngMutex = XMALLOC(sizeof(wolfSSL_Mutex), 0,
+                        DYNAMIC_TYPE_TLSX)) == NULL)
+            return DRBG_OUT_OF_MEMORY;
+        InitMutex(rngMutex);
+    }
+
+    ret |= LockMutex(rngMutex);
+    ret |= wc_RNG_GenerateBlock(rng, out, (word32)num_bytes);
+    ret |= UnLockMutex(rngMutex);
+
+    if (ret != 0)
+        return DRBG_ENTROPY_FAIL;
+
+    return DRBG_OK;
+}
+#endif
+
+
+#ifdef HAVE_QSH
+static int TLSX_CreateQSHKey(WOLFSSL* ssl, int type)
+{
+    int ret;
+
+    switch (type) {
+#ifdef HAVE_NTRU
+        case WOLFSSL_NTRU_EESS439:
+        case WOLFSSL_NTRU_EESS593:
+        case WOLFSSL_NTRU_EESS743:
+            ret = TLSX_CreateNtruKey(ssl, type);
+            break;
+#endif
+        default:
+            WOLFSSL_MSG("Unknown type for creating NTRU key");
+            return -1;
+    }
+
+    return ret;
+}
+
+
+static int TLSX_AddQSHKey(QSHKey** list, QSHKey* key)
+{
+    if (key == NULL)
+        return BAD_FUNC_ARG;
+
+    /* if no public key stored in key then do not add */
+    if (key->pub.length == 0 || key->pub.buffer == NULL)
+        return 0;
+
+    /* first element to be added to the list */
+    QSHKey* current = *list;
+    if (current == NULL) {
+        *list = key;
+        return 0;
+    }
+
+    while (current->next) {
+        /* can only have one of the key in the list */
+        if (current->name == key->name)
+            return -1;
+        current = (QSHKey*)current->next;
+    }
+
+    current->next = (struct QSHKey*)key;
+
+    return 0;
+}
+
+
+#ifdef HAVE_NTRU
+int TLSX_CreateNtruKey(WOLFSSL* ssl, int type)
+{
+    int ret;
+    int ntruType;
+
+    /* variable declarations for NTRU*/
+    QSHKey* temp = NULL;
+    byte   public_key[1027];
+    word16 public_key_len = sizeof(public_key);
+    byte   private_key[1120];
+    word16 private_key_len = sizeof(private_key);
+    DRBG_HANDLE drbg;
+
+    if (ssl == NULL)
+        return BAD_FUNC_ARG;
+
+    switch (type) {
+        case WOLFSSL_NTRU_EESS439:
+            ntruType = NTRU_EES439EP1;
+            break;
+        case WOLFSSL_NTRU_EESS593:
+            ntruType = NTRU_EES593EP1;
+            break;
+        case WOLFSSL_NTRU_EESS743:
+            ntruType = NTRU_EES743EP1;
+            break;
+        default:
+            WOLFSSL_MSG("Unknown type for creating NTRU key");
+            return -1;
+    }
+    ret = ntru_crypto_external_drbg_instantiate(GetEntropy, &drbg);
+    if (ret != DRBG_OK) {
+        WOLFSSL_MSG("NTRU drbg instantiate failed\n");
+        return ret;
+    }
+
+    if ((ret = ntru_crypto_ntru_encrypt_keygen(drbg, ntruType,
+                     &public_key_len, NULL, &private_key_len, NULL)) != NTRU_OK)
+        return ret;
+
+    if ((ret = ntru_crypto_ntru_encrypt_keygen(drbg, ntruType,
+        &public_key_len, public_key, &private_key_len, private_key)) != NTRU_OK)
+        return ret;
+
+    ret = ntru_crypto_drbg_uninstantiate(drbg);
+    if (ret != NTRU_OK) {
+        WOLFSSL_MSG("NTRU drbg uninstantiate failed\n");
+        return ret;
+    }
+
+    if ((temp = XMALLOC(sizeof(QSHKey), 0, DYNAMIC_TYPE_TLSX)) == NULL)
+        return MEMORY_E;
+    temp->name = type;
+    temp->pub.length = public_key_len;
+    temp->pub.buffer = XMALLOC(public_key_len, public_key,
+                                DYNAMIC_TYPE_PUBLIC_KEY);
+    XMEMCPY(temp->pub.buffer, public_key, public_key_len);
+    temp->pri.length = private_key_len;
+    temp->pri.buffer = XMALLOC(private_key_len, private_key,
+                                DYNAMIC_TYPE_ARRAYS);
+    XMEMCPY(temp->pri.buffer, private_key, private_key_len);
+    temp->next = NULL;
+
+    TLSX_AddQSHKey(&ssl->QSH_Key, temp);
+
+    return ret;
+}
+#endif
+
+
+/*
+    Used to find a public key from the list of keys
+    pubLen length of array
+    name   input the name of the scheme looking for ie WOLFSSL_NTRU_ESSXXX
+
+    returns a pointer to public key byte* or NULL if not found
+ */
+static byte* TLSX_QSHKeyFind_Pub(QSHKey* qsh, word16* pubLen, word16 name)
+{
+    QSHKey* current = qsh;
+
+    if (qsh == NULL || pubLen == NULL)
+        return NULL;
+
+    *pubLen = 0;
+
+    while(current) {
+        if (current->name == name) {
+            *pubLen = current->pub.length;
+            return current->pub.buffer;
+        }
+        current = (QSHKey*)current->next;
+    }
+
+    return NULL;
+}
+#endif /* HAVE_QSH */
+
+
+int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
+{
+    byte* public_key      = NULL;
+    word16 public_key_len = 0;
+    #ifdef HAVE_QSH
+        TLSX* extension;
+        QSHScheme* qsh;
+        QSHScheme* next;
+    #endif
+    int ret = 0;
+
+    #ifdef HAVE_QSH
+        /* add supported QSHSchemes */
+        WOLFSSL_MSG("Adding supported QSH Schemes");
+
+        /* server will add extension depending on whats parsed from client */
+        if (!isServer) {
+
+            /* test if user has set a specific scheme already */
+            if (!ssl->user_set_QSHSchemes) {
+                if (ssl->sendQSHKeys) {
+                    if ((ret = TLSX_CreateQSHKey(ssl, WOLFSSL_NTRU_EESS743)) != 0) {
+                        WOLFSSL_MSG("Error creating ntru keys");
+                        return ret;
+                    }
+                    if ((ret = TLSX_CreateQSHKey(ssl, WOLFSSL_NTRU_EESS593)) != 0) {
+                        WOLFSSL_MSG("Error creating ntru keys");
+                        return ret;
+                    }
+                    if ((ret = TLSX_CreateQSHKey(ssl, WOLFSSL_NTRU_EESS439)) != 0) {
+                        WOLFSSL_MSG("Error creating ntru keys");
+                        return ret;
+                    }
+
+                /* add NTRU 256 */
+                public_key = TLSX_QSHKeyFind_Pub(ssl->QSH_Key,
+                        &public_key_len, WOLFSSL_NTRU_EESS743);
+                }
+                if (TLSX_UseQSHScheme(&ssl->extensions, WOLFSSL_NTRU_EESS743,
+                        public_key, public_key_len) != SSL_SUCCESS)
+                    ret = -1;
+
+                /* add NTRU 196 */
+                if (ssl->sendQSHKeys) {
+                    public_key = TLSX_QSHKeyFind_Pub(ssl->QSH_Key,
+                        &public_key_len, WOLFSSL_NTRU_EESS593);
+                }
+                if (TLSX_UseQSHScheme(&ssl->extensions, WOLFSSL_NTRU_EESS593,
+                        public_key, public_key_len) != SSL_SUCCESS)
+                    ret = -1;
+
+                /* add NTRU 128 */
+                if (ssl->sendQSHKeys) {
+                    public_key = TLSX_QSHKeyFind_Pub(ssl->QSH_Key,
+                        &public_key_len, WOLFSSL_NTRU_EESS439);
+                }
+                if (TLSX_UseQSHScheme(&ssl->extensions, WOLFSSL_NTRU_EESS439,
+                        public_key, public_key_len) != SSL_SUCCESS)
+                    ret = -1;
+            }
+            else if (ssl->sendQSHKeys) {
+                /* for each scheme make a client key */
+                extension = TLSX_Find(ssl->extensions, WOLFSSL_QSH);
+                if (extension) {
+                    qsh = (QSHScheme*)extension->data;
+
+                    while (qsh) {
+                        if ((ret = TLSX_CreateQSHKey(ssl, qsh->name)) != 0)
+                            return ret;
+
+                        /* get next now because qsh could be freed */
+                        next = qsh->next;
+
+                        /* find the public key created and add to extension*/
+                        public_key = TLSX_QSHKeyFind_Pub(ssl->QSH_Key,
+                                 &public_key_len, qsh->name);
+                        if (TLSX_UseQSHScheme(&ssl->extensions, qsh->name,
+                                    public_key, public_key_len) != SSL_SUCCESS)
+                            ret = -1;
+                        qsh = next;
+                    }
+                }
+            }
+         } /* is not server */
+    #endif
+
+    (void)isServer;
+    (void)public_key;
+    (void)public_key_len;
+    (void)ssl;
+
+    return ret;
+}
+
+
 #ifndef NO_WOLFSSL_CLIENT
 
 word16 TLSX_GetRequestSize(WOLFSSL* ssl)
@@ -2127,6 +3009,7 @@ word16 TLSX_GetRequestSize(WOLFSSL* ssl)
         byte semaphore[SEMAPHORE_SIZE] = {0};
 
         EC_VALIDATE_REQUEST(ssl, semaphore);
+        QSH_VALIDATE_REQUEST(ssl, semaphore);
         STK_VALIDATE_REQUEST(ssl);
 
         if (ssl->extensions)
@@ -2155,6 +3038,11 @@ word16 TLSX_WriteRequest(WOLFSSL* ssl, byte* output)
         offset += OPAQUE16_LEN; /* extensions length */
 
         EC_VALIDATE_REQUEST(ssl, semaphore);
+<<<<<<< HEAD
+=======
+        STK_VALIDATE_REQUEST(ssl);
+        QSH_VALIDATE_REQUEST(ssl, semaphore);
+>>>>>>> upstream/master
 
         if (ssl->extensions)
             offset += TLSX_Write(ssl->extensions, output + offset,
@@ -2291,6 +3179,12 @@ int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte isRequest,
                 WOLFSSL_MSG("Session Ticket extension received");
 
                 ret = STK_PARSE(ssl, input + offset, size, isRequest);
+                break;
+
+            case WOLFSSL_QSH:
+                WOLFSSL_MSG("Quantum-Safe-Hybrid extension received");
+
+                ret = QSH_PARSE(ssl, input + offset, size, isRequest);
                 break;
 
             case HELLO_EXT_SIG_ALGO:

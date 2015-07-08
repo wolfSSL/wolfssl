@@ -43,7 +43,10 @@ enum CertType {
     CRL_TYPE,
     CA_TYPE,
     ECC_PRIVATEKEY_TYPE,
-    CERTREQ_TYPE
+    CERTREQ_TYPE,
+    DSA_TYPE,
+    ECC_TYPE,
+    RSA_TYPE
 };
 
 
@@ -147,8 +150,8 @@ WOLFSSL_API void wc_InitCert(Cert*);
 WOLFSSL_API int  wc_MakeCert(Cert*, byte* derBuffer, word32 derSz, RsaKey*,
                          ecc_key*, RNG*);
 #ifdef WOLFSSL_CERT_REQ
-    WOLFSSL_API int  wc_MakeCertReq(Cert*, byte* derBuffer, word32 derSz, RsaKey*,
-                                ecc_key*);
+    WOLFSSL_API int  wc_MakeCertReq(Cert*, byte* derBuffer, word32 derSz,
+                                    RsaKey*, ecc_key*);
 #endif
 WOLFSSL_API int  wc_SignCert(int requestSz, int sigType, byte* derBuffer,
                          word32 derSz, RsaKey*, ecc_key*, RNG*);
@@ -172,7 +175,7 @@ WOLFSSL_API int  wc_SetDatesBuffer(Cert*, const byte*, int);
 #endif /* WOLFSSL_CERT_GEN */
 
 
-#if defined(WOLFSSL_KEY_GEN) || defined(WOLFSSL_CERT_GEN)
+#if defined(WOLFSSL_KEY_GEN) || defined(WOLFSSL_CERT_GEN) || !defined(NO_DSA)
     WOLFSSL_API int wc_DerToPem(const byte* der, word32 derSz, byte* output,
                             word32 outputSz, int type);
 #endif
@@ -185,8 +188,8 @@ WOLFSSL_API int  wc_SetDatesBuffer(Cert*, const byte*, int);
 #endif
 
 /* DER encode signature */
-WOLFSSL_API word32 wc_EncodeSignature(byte* out, const byte* digest, word32 digSz,
-                                  int hashOID);
+WOLFSSL_API word32 wc_EncodeSignature(byte* out, const byte* digest,
+                                      word32 digSz, int hashOID);
 WOLFSSL_API int wc_GetCTC_HashOID(int type);
 
 #ifdef __cplusplus

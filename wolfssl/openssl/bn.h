@@ -5,6 +5,7 @@
 #define WOLFSSL_BN_H_
 
 #include <wolfssl/wolfcrypt/settings.h>
+#include <wolfssl/wolfcrypt/integer.h>
 
 #ifdef __cplusplus
     extern "C" {
@@ -16,8 +17,10 @@ typedef struct WOLFSSL_BIGNUM {
 } WOLFSSL_BIGNUM;
 
 
-typedef struct WOLFSSL_BN_CTX WOLFSSL_BN_CTX;
+#define WOLFSSL_BN_ULONG mp_digit
 
+typedef struct WOLFSSL_BN_CTX WOLFSSL_BN_CTX;
+typedef struct WOLFSSL_BN_GENCB WOLFSSL_BN_GENCB;
 
 WOLFSSL_API WOLFSSL_BN_CTX* wolfSSL_BN_CTX_new(void);
 WOLFSSL_API void           wolfSSL_BN_CTX_init(WOLFSSL_BN_CTX*);
@@ -29,9 +32,9 @@ WOLFSSL_API void           wolfSSL_BN_clear_free(WOLFSSL_BIGNUM*);
 
 
 WOLFSSL_API int wolfSSL_BN_sub(WOLFSSL_BIGNUM*, const WOLFSSL_BIGNUM*,
-	                         const WOLFSSL_BIGNUM*);
+                             const WOLFSSL_BIGNUM*);
 WOLFSSL_API int wolfSSL_BN_mod(WOLFSSL_BIGNUM*, const WOLFSSL_BIGNUM*,
-	                         const WOLFSSL_BIGNUM*, const WOLFSSL_BN_CTX*);
+                             const WOLFSSL_BIGNUM*, const WOLFSSL_BN_CTX*);
 
 WOLFSSL_API const WOLFSSL_BIGNUM* wolfSSL_BN_value_one(void);
 
@@ -47,7 +50,7 @@ WOLFSSL_API int wolfSSL_BN_cmp(const WOLFSSL_BIGNUM*, const WOLFSSL_BIGNUM*);
 
 WOLFSSL_API int wolfSSL_BN_bn2bin(const WOLFSSL_BIGNUM*, unsigned char*);
 WOLFSSL_API WOLFSSL_BIGNUM* wolfSSL_BN_bin2bn(const unsigned char*, int len,
-	                            WOLFSSL_BIGNUM* ret);
+                                WOLFSSL_BIGNUM* ret);
 
 WOLFSSL_API int wolfSSL_mask_bits(WOLFSSL_BIGNUM*, int n);
 
@@ -56,16 +59,32 @@ WOLFSSL_API int wolfSSL_BN_is_bit_set(const WOLFSSL_BIGNUM*, int n);
 WOLFSSL_API int wolfSSL_BN_hex2bn(WOLFSSL_BIGNUM**, const char* str);
 
 WOLFSSL_API WOLFSSL_BIGNUM* wolfSSL_BN_dup(const WOLFSSL_BIGNUM*);
-WOLFSSL_API WOLFSSL_BIGNUM* wolfSSL_BN_copy(WOLFSSL_BIGNUM*, const WOLFSSL_BIGNUM*);
-
-WOLFSSL_API int wolfSSL_BN_set_word(WOLFSSL_BIGNUM*, unsigned long w);
+WOLFSSL_API WOLFSSL_BIGNUM* wolfSSL_BN_copy(WOLFSSL_BIGNUM*,
+                                            const WOLFSSL_BIGNUM*);
 
 WOLFSSL_API int   wolfSSL_BN_dec2bn(WOLFSSL_BIGNUM**, const char* str);
 WOLFSSL_API char* wolfSSL_BN_bn2dec(const WOLFSSL_BIGNUM*);
 
+WOLFSSL_API int wolfSSL_BN_lshift(WOLFSSL_BIGNUM*, const WOLFSSL_BIGNUM*, int);
+WOLFSSL_API int wolfSSL_BN_add_word(WOLFSSL_BIGNUM*, WOLFSSL_BN_ULONG);
+WOLFSSL_API int wolfSSL_BN_set_bit(WOLFSSL_BIGNUM*, int);
+WOLFSSL_API int wolfSSL_BN_set_word(WOLFSSL_BIGNUM*, WOLFSSL_BN_ULONG);
+
+WOLFSSL_API int wolfSSL_BN_add(WOLFSSL_BIGNUM*, WOLFSSL_BIGNUM*,
+                               WOLFSSL_BIGNUM*);
+WOLFSSL_API char *wolfSSL_BN_bn2hex(const WOLFSSL_BIGNUM*);
+WOLFSSL_API int wolfSSL_BN_is_prime_ex(const WOLFSSL_BIGNUM*, int,
+                                       WOLFSSL_BN_CTX*, WOLFSSL_BN_GENCB*);
+WOLFSSL_API WOLFSSL_BN_ULONG wolfSSL_BN_mod_word(const WOLFSSL_BIGNUM*,
+                                                 WOLFSSL_BN_ULONG);
+WOLFSSL_API int wolfSSL_BN_print_fp(FILE*, const WOLFSSL_BIGNUM*);
+WOLFSSL_API int wolfSSL_BN_rshift(WOLFSSL_BIGNUM*, const WOLFSSL_BIGNUM*, int);
+WOLFSSL_API WOLFSSL_BIGNUM *wolfSSL_BN_CTX_get(WOLFSSL_BN_CTX *ctx);
+WOLFSSL_API void wolfSSL_BN_CTX_start(WOLFSSL_BN_CTX *ctx);
 
 typedef WOLFSSL_BIGNUM BIGNUM;
 typedef WOLFSSL_BN_CTX BN_CTX;
+typedef WOLFSSL_BN_GENCB BN_GENCB;
 
 #define BN_CTX_new        wolfSSL_BN_CTX_new
 #define BN_CTX_init       wolfSSL_BN_CTX_init
@@ -104,10 +123,25 @@ typedef WOLFSSL_BN_CTX BN_CTX;
 
 #define BN_dec2bn wolfSSL_BN_dec2bn
 #define BN_bn2dec wolfSSL_BN_bn2dec
+#define BN_bn2hex wolfSSL_BN_bn2hex
 
+#define BN_lshift wolfSSL_BN_lshift
+#define BN_add_word wolfSSL_BN_add_word
+#define BN_add wolfSSL_BN_add
+#define BN_set_word wolfSSL_BN_set_word
+#define BN_set_bit wolfSSL_BN_set_bit
+
+
+#define BN_is_prime_ex wolfSSL_BN_is_prime_ex
+#define BN_print_fp wolfSSL_BN_print_fp
+#define BN_rshift wolfSSL_BN_rshift
+#define BN_mod_word wolfSSL_BN_mod_word
+
+#define BN_CTX_get wolfSSL_BN_CTX_get
+#define BN_CTX_start wolfSSL_BN_CTX_start
 
 #ifdef __cplusplus
-    }  /* extern "C" */ 
+    }  /* extern "C" */
 #endif
 
 

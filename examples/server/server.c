@@ -181,7 +181,6 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     int    useAnon = 0;
     int    doDTLS = 0;
     int    needDH = 0;
-    int    useNtruKey   = 0;
     int    nonBlocking  = 0;
     int    trackMemory  = 0;
     int    fewerPackets = 0;
@@ -222,7 +221,6 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     (void)ourCert;
     (void)ourDhParam;
     (void)verifyCert;
-    (void)useNtruKey;
     (void)doCliCertCheck;
     (void)minDhKeyBits;
 
@@ -253,10 +251,6 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
             #ifdef USE_WOLFSSL_MEMORY
                 trackMemory = 1;
             #endif
-                break;
-
-            case 'n' :
-                useNtruKey = 1;
                 break;
 
             case 'u' :
@@ -417,7 +411,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
             method = TLSv1_2_server_method();
             break;
 #endif
-                
+
 #ifdef CYASSL_DTLS
     #ifndef NO_OLD_TLS
         case -1:
@@ -480,17 +474,8 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     wolfSSL_CTX_SetMinDhKey_Sz(ctx, (word16)minDhKeyBits);
 #endif
 
-#ifdef HAVE_NTRU
-    if (useNtruKey) {
-        if (CyaSSL_CTX_use_NTRUPrivateKey_file(ctx, ourKey)
-                                               != SSL_SUCCESS)
-            err_sys("can't load ntru key file, "
-                    "Please run from wolfSSL home dir");
-    }
-#endif
-
 #if !defined(NO_FILESYSTEM) && !defined(NO_CERTS)
-    if (!useNtruKey && !usePsk && !useAnon) {
+    if (!usePsk && !useAnon) {
         if (SSL_CTX_use_PrivateKey_file(ctx, ourKey, SSL_FILETYPE_PEM)
                                          != SSL_SUCCESS)
             err_sys("can't load server private key file, check file and run "
