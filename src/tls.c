@@ -2616,12 +2616,16 @@ int TLSX_UseQSHScheme(TLSX** extensions, word16 name, byte* pKey, word16 pkeySz)
 #define QSH_PARSE(a, b, c, d)      0
 #endif
 
+#define QSHPK_WRITE TLSX_QSHPK_Write
+#define QSH_SERREQ TLSX_QSH_SerPKReq
 #else
 
 #define QSH_FREE_ALL(list)
 #define QSH_GET_SIZE(list, a)      0
 #define QSH_WRITE(a, b)            0
 #define QSH_PARSE(a, b, c, d)      0
+#define QSHPK_WRITE(a, b)          0
+#define QSH_SERREQ(a, b)           0
 #define QSH_VALIDATE_REQUEST(a, b)
 
 #endif /* HAVE_QSH */
@@ -2805,8 +2809,8 @@ static word16 TLSX_Write(TLSX* list, byte* output, byte* semaphore,
                 if (isRequest) {
                     offset += QSH_WRITE(extension->data, output + offset);
                 }
-                offset += TLSX_QSHPK_Write(extension->data, output + offset);
-                offset += TLSX_QSH_SerPKReq(output + offset, isRequest);
+                offset += QSHPK_WRITE(extension->data, output + offset);
+                offset += QSH_SERREQ(output + offset, isRequest);
                 break;
         }
 
@@ -3014,7 +3018,6 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
         QSHScheme* next;
     #endif
     int ret = 0;
-    (void)isServer;
 
     #ifdef HAVE_QSH
         /* add supported QSHSchemes */
@@ -3090,6 +3093,11 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
             }
          } /* is not server */
     #endif
+
+    (void)isServer;
+    (void)public_key;
+    (void)public_key_len;
+    (void)ssl;
 
     return ret;
 }
