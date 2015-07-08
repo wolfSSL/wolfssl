@@ -1477,6 +1477,7 @@ WOLFSSL_API int wolfSSL_accept_ex(WOLFSSL*, HandShakeCallBack, TimeoutCallBack,
 
 
 #include <wolfssl/options.h>
+
 #ifdef OPENSSL_EXTRA /*lighttp compatibility */
 #ifdef HAVE_LIGHTY
 #include <wolfssl/openssl/dh.h>
@@ -1507,8 +1508,7 @@ WOLFSSL_API void wolfSSL_sk_X509_NAME_pop_free(STACK_OF(WOLFSSL_X509_NAME)* sk, 
 WOLFSSL_API unsigned char *wolfSSL_SHA1(const unsigned char *d, size_t n, unsigned char *md);
 WOLFSSL_API int wolfSSL_X509_check_private_key(WOLFSSL_X509*, WOLFSSL_EVP_PKEY*);
 WOLFSSL_API STACK_OF(WOLFSSL_X509_NAME) *wolfSSL_dup_CA_list( STACK_OF(WOLFSSL_X509_NAME) *sk );
-
-/* end lighttp */
+/* end lighttpd*/
 #endif
 #endif
 

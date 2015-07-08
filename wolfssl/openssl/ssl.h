@@ -401,9 +401,7 @@ typedef WOLFSSL_X509_STORE_CTX X509_STORE_CTX;
 #ifdef HAVE_LIGHTY                            
 typedef WOLFSSL_X509_NAME_ENTRY X509_NAME_ENTRY;
 
-
-# define SSL_CB_HANDSHAKE_START          0x10
-
+#define SSL_CB_HANDSHAKE_START          0x10
 #define X509_NAME_free WOLFSSL_X509_NAME_free
 #define SSL_CTX_use_certificate WOLFSSL_CTX_use_certificate
 #define SSL_CTX_use_PrivateKey WOLFSSL_CTX_use_PrivateKey
