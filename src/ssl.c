@@ -12940,6 +12940,7 @@ void* wolfSSL_GetRsaDecCtx(WOLFSSL* ssl)
 
 
 #ifdef OPENSSL_EXTRA /*Lighttp compatibility*/
+#ifdef HAVE_LIGHTY
 
     unsigned char *wolfSSL_SHA1(const unsigned char *d, size_t n, unsigned char *md)
     {
@@ -13088,6 +13089,6 @@ void* wolfSSL_GetRsaDecCtx(WOLFSSL* ssl)
         return NULL;
     }
 
-
+#endif
 #endif
 

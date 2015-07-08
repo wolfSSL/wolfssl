@@ -148,6 +148,9 @@ typedef struct WOLFSSL_ASN1_STRING{
     int length;
 }WOLFSSL_ASN1_STRING;
 
+
+#ifdef OPENSSL_EXTRA
+#ifdef HAVE_LIGHTY
 /**Lighttpd compatablity**/
 typedef struct WOLFSSL_X509_NAME_ENTRY { 
     WOLFSSL_ASN1_OBJECT* object;
@@ -155,6 +158,9 @@ typedef struct WOLFSSL_X509_NAME_ENTRY {
     int set;
     int size;
 } WOLFSSL_X509_NAME_ENTRY;
+#endif
+#endif 
+
 
 typedef struct WOLFSSL_X509_STORE_CTX {
     WOLFSSL_X509_STORE* store;    /* Store full of a CA cert chain */
@@ -1472,6 +1478,7 @@ WOLFSSL_API int wolfSSL_accept_ex(WOLFSSL*, HandShakeCallBack, TimeoutCallBack,
 
 #include <wolfssl/options.h>
 #ifdef OPENSSL_EXTRA /*lighttp compatibility */
+#ifdef HAVE_LIGHTY
 #include <wolfssl/openssl/dh.h>
 
 
@@ -1508,7 +1515,7 @@ WOLFSSL_API STACK_OF(WOLFSSL_X509_NAME) *wolfSSL_dup_CA_list( STACK_OF(WOLFSSL_X
 
 /* end lighttp */
 #endif
-
+#endif
 
 #ifdef __cplusplus
     }  /* extern "C" */
