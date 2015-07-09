@@ -1700,6 +1700,24 @@ then
 fi
 
 
+# lighty Support
+AC_ARG_ENABLE([lighty],
+    [  --enable-lighty         Enable lighttpd/lighty (default: disabled)],
+    [ ENABLED_LIGHTY=$enableval ],
+    [ ENABLED_LIGHTY=no ]
+    )
+if test "$ENABLED_LIGHTY" = "yes"
+then
+    # Requires opensslextra make sure on
+    if test "x$ENABLED_OPENSSLEXTRA" = "xno"
+    then
+        ENABLED_OPENSSLEXTRA="yes"
+        AM_CFLAGS="-DOPENSSL_EXTRA $AM_CFLAGS"
+    fi
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_LIGHTY -DHAVE_WOLFSSL_SSL_H=1"
+fi
+
+
 # PWDBASED has to come after certservice since we want it on w/o explicit on
 # PWDBASED
 AC_ARG_ENABLE([pwdbased],
@@ -2199,6 +2217,7 @@ echo "   * Anonymous cipher:          $ENABLED_ANON"
 echo "   * CODING:                    $ENABLED_CODING"
 echo "   * MEMORY:                    $ENABLED_MEMORY"
 echo "   * I/O POOL:                  $ENABLED_IOPOOL"
+echo "   * LIGHTY:                    $ENABLED_LIGHTY"
 echo "   * ERROR_STRINGS:             $ENABLED_ERROR_STRINGS"
 echo "   * DTLS:                      $ENABLED_DTLS"
 echo "   * Old TLS Versions:          $ENABLED_OLD_TLS"
