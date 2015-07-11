@@ -217,11 +217,17 @@ typedef byte word24[3];
         #if !defined(NO_MD5)
             #define BUILD_SSL_RSA_WITH_RC4_128_MD5
         #endif
+        #if !defined(NO_TLS) && defined(HAVE_NTRU) && !defined(NO_SHA)
+            #define BUILD_TLS_NTRU_RSA_WITH_RC4_128_SHA
+        #endif
     #endif
 
     #if !defined(NO_RSA) && !defined(NO_DES3)
         #if !defined(NO_SHA)
             #define BUILD_SSL_RSA_WITH_3DES_EDE_CBC_SHA
+            #if !defined(NO_TLS) && defined(HAVE_NTRU)
+                    #define BUILD_TLS_NTRU_RSA_WITH_3DES_EDE_CBC_SHA
+            #endif
         #endif
     #endif
 
@@ -229,6 +235,10 @@ typedef byte word24[3];
         #if !defined(NO_SHA)
             #define BUILD_TLS_RSA_WITH_AES_128_CBC_SHA
             #define BUILD_TLS_RSA_WITH_AES_256_CBC_SHA
+            #if defined(HAVE_NTRU)
+                    #define BUILD_TLS_NTRU_RSA_WITH_AES_128_CBC_SHA
+                    #define BUILD_TLS_NTRU_RSA_WITH_AES_256_CBC_SHA
+            #endif
         #endif
         #if !defined (NO_SHA256)
             #define BUILD_TLS_RSA_WITH_AES_128_CBC_SHA256
@@ -631,6 +641,12 @@ enum {
     TLS_RSA_WITH_AES_128_CBC_B2B256   = 0xF8,
     TLS_RSA_WITH_AES_256_CBC_B2B256   = 0xF9,
     TLS_RSA_WITH_HC_128_B2B256        = 0xFA,   /* eSTREAM too */
+
+    /* wolfSSL extension - NTRU */
+    TLS_NTRU_RSA_WITH_RC4_128_SHA      = 0xe5,
+    TLS_NTRU_RSA_WITH_3DES_EDE_CBC_SHA = 0xe6,
+    TLS_NTRU_RSA_WITH_AES_128_CBC_SHA  = 0xe7,  /* clashes w/official SHA-256 */
+    TLS_NTRU_RSA_WITH_AES_256_CBC_SHA  = 0xe8,
 
     /* wolfSSL extension - NTRU , Quantum-safe Handshake
        first byte is 0xD0 (QSH_BYTE) */
@@ -1947,6 +1963,7 @@ typedef struct Options {
     word16            haveRSA:1;          /* RSA available */
     word16            haveDH:1;           /* server DH parms set by user */
     word16            haveNTRU:1;         /* server NTRU  private key loaded */
+    byte              haveQSH:1;          /* have QSH ability */
     word16            haveECDSAsig:1;     /* server ECDSA signed cert */
     word16            haveStaticECC:1;    /* static server ECC private key */
     word16            havePeerCert:1;     /* do we have peer's cert */
@@ -2240,6 +2257,11 @@ struct WOLFSSL {
     byte            minRequest;
     byte            maxRequest;
     byte            user_set_QSHSchemes;
+#endif
+#ifdef HAVE_NTRU
+    word16          peerNtruKeyLen;
+    byte            peerNtruKey[MAX_NTRU_PUB_KEY_SZ];
+    byte            peerNtruKeyPresent;
 #endif
 #ifdef HAVE_ECC
     ecc_key*        peerEccKey;              /* peer's  ECDHE key */

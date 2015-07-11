@@ -151,7 +151,18 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
 
 #ifndef NO_FILESYSTEM
     if (doPSK == 0) {
-    #if defined(HAVE_ECC) && !defined(CYASSL_SNIFFER)
+    #ifdef HAVE_NTRU
+        /* ntru */
+        if (CyaSSL_CTX_use_certificate_file(ctx, ntruCert, SSL_FILETYPE_PEM)
+                != SSL_SUCCESS)
+            err_sys("can't load ntru cert file, "
+                    "Please run from wolfSSL home dir");
+
+        if (CyaSSL_CTX_use_NTRUPrivateKey_file(ctx, ntruKey)
+                != SSL_SUCCESS)
+            err_sys("can't load ntru key file, "
+                    "Please run from wolfSSL home dir");
+    #elif defined(HAVE_ECC) && !defined(CYASSL_SNIFFER)
         /* ecc */
         if (CyaSSL_CTX_use_certificate_file(ctx, eccCert, SSL_FILETYPE_PEM)
                 != SSL_SUCCESS)
@@ -214,8 +225,8 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
         int     clientfd;
         int     firstRead = 1;
         int     gotFirstG = 0;
-                
-#ifndef CYASSL_DTLS 
+
+#ifndef CYASSL_DTLS
         SOCKADDR_IN_T client;
         socklen_t     client_len = sizeof(client);
         clientfd = accept(sockfd, (struct sockaddr*)&client,
