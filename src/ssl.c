@@ -9873,10 +9873,24 @@ const char* wolfSSL_CIPHER_get_name(const WOLFSSL_CIPHER* cipher)
             case TLS_RSA_WITH_RABBIT_SHA :
                 return "TLS_RSA_WITH_RABBIT_SHA";
     #endif
+    #ifdef HAVE_NTRU
+        #ifndef NO_RC4
+            case TLS_NTRU_RSA_WITH_RC4_128_SHA :
+                return "TLS_NTRU_RSA_WITH_RC4_128_SHA";
+        #endif
+        #ifndef NO_DES3
+            case TLS_NTRU_RSA_WITH_3DES_EDE_CBC_SHA :
+                return "TLS_NTRU_RSA_WITH_3DES_EDE_CBC_SHA";
+        #endif
+            case TLS_NTRU_RSA_WITH_AES_128_CBC_SHA :
+                return "TLS_NTRU_RSA_WITH_AES_128_CBC_SHA";
+            case TLS_NTRU_RSA_WITH_AES_256_CBC_SHA :
+                return "TLS_NTRU_RSA_WITH_AES_256_CBC_SHA";
+    #endif /* HAVE_NTRU */
     #ifdef HAVE_QSH
             case TLS_QSH :
                 return "TLS_QSH";
-    #endif /* HAVE_NTRU */
+    #endif /* HAVE_QSH*/
 #endif /* NO_SHA */
             case TLS_RSA_WITH_AES_128_GCM_SHA256 :
                 return "TLS_RSA_WITH_AES_128_GCM_SHA256";

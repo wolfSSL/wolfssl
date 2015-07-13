@@ -877,6 +877,22 @@ int SetCipherSpecs(WOLFSSL* ssl)
         break;
 #endif
 
+#ifdef BUILD_TLS_NTRU_RSA_WITH_RC4_128_SHA
+    case TLS_NTRU_RSA_WITH_RC4_128_SHA :
+        ssl->specs.bulk_cipher_algorithm = wolfssl_rc4;
+        ssl->specs.cipher_type           = stream;
+        ssl->specs.mac_algorithm         = sha_mac;
+        ssl->specs.kea                   = ntru_kea;
+        ssl->specs.sig_algo              = rsa_sa_algo;
+        ssl->specs.hash_size             = SHA_DIGEST_SIZE;
+        ssl->specs.pad_size              = PAD_SHA;
+        ssl->specs.static_ecdh           = 0;
+        ssl->specs.key_size              = RC4_KEY_SIZE;
+        ssl->specs.iv_size               = 0;
+        ssl->specs.block_size            = 0;
+
+        break;
+#endif
 
 #ifdef BUILD_SSL_RSA_WITH_RC4_128_MD5
     case SSL_RSA_WITH_RC4_128_MD5 :
@@ -901,6 +917,23 @@ int SetCipherSpecs(WOLFSSL* ssl)
         ssl->specs.cipher_type           = block;
         ssl->specs.mac_algorithm         = sha_mac;
         ssl->specs.kea                   = rsa_kea;
+        ssl->specs.sig_algo              = rsa_sa_algo;
+        ssl->specs.hash_size             = SHA_DIGEST_SIZE;
+        ssl->specs.pad_size              = PAD_SHA;
+        ssl->specs.static_ecdh           = 0;
+        ssl->specs.key_size              = DES3_KEY_SIZE;
+        ssl->specs.block_size            = DES_BLOCK_SIZE;
+        ssl->specs.iv_size               = DES_IV_SIZE;
+
+        break;
+#endif
+
+#ifdef BUILD_TLS_NTRU_RSA_WITH_3DES_EDE_CBC_SHA
+    case TLS_NTRU_RSA_WITH_3DES_EDE_CBC_SHA :
+        ssl->specs.bulk_cipher_algorithm = wolfssl_triple_des;
+        ssl->specs.cipher_type           = block;
+        ssl->specs.mac_algorithm         = sha_mac;
+        ssl->specs.kea                   = ntru_kea;
         ssl->specs.sig_algo              = rsa_sa_algo;
         ssl->specs.hash_size             = SHA_DIGEST_SIZE;
         ssl->specs.pad_size              = PAD_SHA;
@@ -980,6 +1013,23 @@ int SetCipherSpecs(WOLFSSL* ssl)
         break;
 #endif
 
+#ifdef BUILD_TLS_NTRU_RSA_WITH_AES_128_CBC_SHA
+    case TLS_NTRU_RSA_WITH_AES_128_CBC_SHA :
+        ssl->specs.bulk_cipher_algorithm = wolfssl_aes;
+        ssl->specs.cipher_type           = block;
+        ssl->specs.mac_algorithm         = sha_mac;
+        ssl->specs.kea                   = ntru_kea;
+        ssl->specs.sig_algo              = rsa_sa_algo;
+        ssl->specs.hash_size             = SHA_DIGEST_SIZE;
+        ssl->specs.pad_size              = PAD_SHA;
+        ssl->specs.static_ecdh           = 0;
+        ssl->specs.key_size              = AES_128_KEY_SIZE;
+        ssl->specs.block_size            = AES_BLOCK_SIZE;
+        ssl->specs.iv_size               = AES_IV_SIZE;
+
+        break;
+#endif
+
 #ifdef BUILD_TLS_RSA_WITH_AES_256_CBC_SHA
     case TLS_RSA_WITH_AES_256_CBC_SHA :
         ssl->specs.bulk_cipher_algorithm = wolfssl_aes;
@@ -1005,6 +1055,23 @@ int SetCipherSpecs(WOLFSSL* ssl)
         ssl->specs.kea                   = rsa_kea;
         ssl->specs.sig_algo              = rsa_sa_algo;
         ssl->specs.hash_size             = SHA256_DIGEST_SIZE;
+        ssl->specs.pad_size              = PAD_SHA;
+        ssl->specs.static_ecdh           = 0;
+        ssl->specs.key_size              = AES_256_KEY_SIZE;
+        ssl->specs.block_size            = AES_BLOCK_SIZE;
+        ssl->specs.iv_size               = AES_IV_SIZE;
+
+        break;
+#endif
+
+#ifdef BUILD_TLS_NTRU_RSA_WITH_AES_256_CBC_SHA
+    case TLS_NTRU_RSA_WITH_AES_256_CBC_SHA :
+        ssl->specs.bulk_cipher_algorithm = wolfssl_aes;
+        ssl->specs.cipher_type           = block;
+        ssl->specs.mac_algorithm         = sha_mac;
+        ssl->specs.kea                   = ntru_kea;
+        ssl->specs.sig_algo              = rsa_sa_algo;
+        ssl->specs.hash_size             = SHA_DIGEST_SIZE;
         ssl->specs.pad_size              = PAD_SHA;
         ssl->specs.static_ecdh           = 0;
         ssl->specs.key_size              = AES_256_KEY_SIZE;

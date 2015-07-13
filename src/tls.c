@@ -2232,6 +2232,7 @@ static void TLSX_QSHAgreement(TLSX** extensions)
 {
     TLSX* extension = TLSX_Find(*extensions, WOLFSSL_QSH);
     QSHScheme* format = NULL;
+    QSHScheme* delete = NULL;
     QSHScheme* prev   = NULL;
 
     if (extension == NULL)
@@ -2246,9 +2247,10 @@ static void TLSX_QSHAgreement(TLSX** extensions)
             }
             if (prev)
                 prev->next = format->next;
-            prev   = format;
+            delete = format;
             format = format->next;
-            XFREE(format, ssl->heap, DYNAMIC_TYPE_TMP_ARRAY);
+            XFREE(delete, 0, DYNAMIC_TYPE_TMP_ARRAY);
+            delete = NULL;
         } else {
             prev   = format;
             format = format->next;
@@ -2274,6 +2276,7 @@ static int TLSX_QSH_Parse(WOLFSSL* ssl, byte* input, word16 length,
     word16 PKLen = 0;
     byte*  PK = NULL;
     int r;
+
 
     if (OPAQUE16_LEN > length)
         return BUFFER_ERROR;
@@ -2313,6 +2316,11 @@ static int TLSX_QSH_Parse(WOLFSSL* ssl, byte* input, word16 length,
 
         offset  += OPAQUE16_LEN;
         schemSz += offset;
+
+        /* check buffer size */
+        if (schemSz > length)
+            return BUFFER_ERROR;
+
         while ((offset < schemSz) && numKeys) {
             /* Scheme ID list */
             ato16(input + offset, &name);
@@ -3028,7 +3036,7 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
 
             /* test if user has set a specific scheme already */
             if (!ssl->user_set_QSHSchemes) {
-                if (ssl->sendQSHKeys) {
+                if (ssl->sendQSHKeys && ssl->QSH_Key == NULL) {
                     if ((ret = TLSX_CreateQSHKey(ssl, WOLFSSL_NTRU_EESS743)) != 0) {
                         WOLFSSL_MSG("Error creating ntru keys");
                         return ret;
@@ -3068,7 +3076,7 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
                         public_key, public_key_len) != SSL_SUCCESS)
                     ret = -1;
             }
-            else if (ssl->sendQSHKeys) {
+            else if (ssl->sendQSHKeys && ssl->QSH_Key == NULL) {
                 /* for each scheme make a client key */
                 extension = TLSX_Find(ssl->extensions, WOLFSSL_QSH);
                 if (extension) {
@@ -3191,6 +3199,15 @@ word16 TLSX_GetResponseSize(WOLFSSL* ssl)
 {
     word16 length = 0;
     byte semaphore[SEMAPHORE_SIZE] = {0};
+
+    #ifdef HAVE_QSH
+        /* change response if not using TLS_QSH */
+        if (!ssl->options.haveQSH) {
+            TLSX* ext = TLSX_Find(ssl->extensions, WOLFSSL_QSH);
+            if (ext)
+                ext->resp = 0;
+        }
+    #endif
 
     if (TLSX_SupportExtensions(ssl))
         length += TLSX_GetSize(ssl->extensions, semaphore, 0);
