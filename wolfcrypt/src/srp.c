@@ -111,39 +111,137 @@ static int SrpHashFinal(Srp* srp, byte* digest)
     }
 }
 
-int wc_SrpInit(Srp* srp, byte type, byte side, byte* N, word32 nSz,
-                                                            byte* g, word32 gSz)
+int wc_SrpInit(Srp* srp, byte type, byte side)
 {
     int ret = 0;
 
-    if (!srp || !N || !g)
+    if (!srp)
         return BAD_FUNC_ARG;
 
     if (side != SRP_CLIENT_SIDE && side != SRP_SERVER_SIDE)
         return BAD_FUNC_ARG;
 
-    srp->side = side;
-    srp->type = type; /* a valid type is checked inside SrpHashXXX functions. */
+    if (type != SRP_TYPE_SHA    && type != SRP_TYPE_SHA256 &&
+        type != SRP_TYPE_SHA384 && type != SRP_TYPE_SHA512)
+        return BAD_FUNC_ARG;
 
-    if (mp_init_multi(&srp->N, &srp->g, &srp->s, 0, 0, 0) != MP_OKAY)
+    srp->side     = side;    srp->type       = type;
+    srp->salt     = NULL;    srp->saltSz     = 0;
+    srp->username = NULL;    srp->usernameSz = 0;
+
+    if (mp_init_multi(&srp->N, &srp->g, &srp->s, &srp->u, 0, 0) != MP_OKAY)
         return MP_INIT_E;
 
-    if (mp_read_unsigned_bin(&srp->N, N, nSz) != MP_OKAY)
-        ret = MP_READ_E;
-
-    if (ret == 0 && mp_read_unsigned_bin(&srp->g, g, gSz) != MP_OKAY)
-        ret = MP_READ_E;
-
-    if (ret == 0) ret = SrpHashInit(srp);
-    if (ret == 0) ret = SrpHashUpdate(srp, N, nSz);
-    if (ret == 0) ret = SrpHashUpdate(srp, g, gSz);
-    if (ret == 0) ret = SrpHashFinal(srp, srp->k);
+    if (srp->side == SRP_CLIENT_SIDE) {
+        if (mp_init_multi(&srp->specific.client.a,
+                          &srp->specific.client.A,
+                          &srp->specific.client.B,
+                          &srp->specific.client.password, 0, 0) != MP_OKAY)
+            ret = MP_INIT_E;
+    }
+    else {
+        if (mp_init_multi(&srp->specific.server.b,
+                          &srp->specific.server.B,
+                          &srp->specific.server.A,
+                          &srp->specific.server.verifier, 0, 0) != MP_OKAY)
+            ret = MP_INIT_E;
+    }
 
     if (ret != 0) {
-        mp_clear(&srp->N); mp_clear(&srp->g); mp_clear(&srp->s);
+        mp_clear(&srp->N); mp_clear(&srp->g);
+        mp_clear(&srp->s); mp_clear(&srp->u);
     }
 
     return ret;
+}
+
+void wc_SrpTerm(Srp* srp) {
+    if (srp) {
+        mp_clear(&srp->N); mp_clear(&srp->g);
+        mp_clear(&srp->s); mp_clear(&srp->u);
+
+        XMEMSET(srp->salt, 0, srp->saltSz);
+        XFREE(srp->salt, NULL, DYNAMIC_TYPE_SRP);
+        XMEMSET(srp->username, 0, srp->usernameSz);
+        XFREE(srp->username, NULL, DYNAMIC_TYPE_SRP);
+
+        if (srp->side == SRP_CLIENT_SIDE) {
+            mp_clear(&srp->specific.client.a);
+            mp_clear(&srp->specific.client.A);
+            mp_clear(&srp->specific.client.B);
+            mp_clear(&srp->specific.client.password);
+
+            XMEMSET(srp->specific.client.x, 0, SRP_MAX_DIGEST_SIZE);
+        }
+        else {
+            mp_clear(&srp->specific.server.b);
+            mp_clear(&srp->specific.server.B);
+            mp_clear(&srp->specific.server.A);
+            mp_clear(&srp->specific.server.verifier);
+        }
+    }
+}
+
+int wc_SrpSetUsername(Srp* srp, const char* username) {
+    if (!srp || !username)
+        return BAD_FUNC_ARG;
+
+    srp->username = (byte*)XMALLOC(XSTRLEN(username), NULL, DYNAMIC_TYPE_SRP);
+    if (srp->username == NULL)
+        return MEMORY_E;
+
+    srp->usernameSz = (word32) XSTRLEN(username);
+    XMEMCPY(srp->username, username, srp->usernameSz);
+
+    return 0;
+}
+
+int wc_SrpSetParams(Srp* srp, const byte* N,    word32 nSz,
+                              const byte* g,    word32 gSz,
+                              const byte* salt, word32 saltSz)
+{
+    int ret = 0;
+
+    if (!srp || !N || !g || !salt)
+        return BAD_FUNC_ARG;
+
+    if (mp_read_unsigned_bin(&srp->N, N, nSz) != MP_OKAY)
+        return MP_READ_E;
+
+    if (mp_read_unsigned_bin(&srp->g, g, gSz) != MP_OKAY)
+        return MP_READ_E;
+
+    if ((ret = SrpHashInit(srp)) != 0)
+        return ret;
+
+    if ((ret = SrpHashUpdate(srp, (byte*) N, nSz)) != 0)
+        return ret;
+
+    if ((ret = SrpHashUpdate(srp, (byte*) g, gSz)) != 0)
+        return ret;
+
+    if ((ret = SrpHashFinal(srp, srp->k)) != 0)
+        return ret;
+
+    srp->salt = (byte*)XMALLOC(saltSz, NULL, DYNAMIC_TYPE_SRP);
+    if (srp->salt == NULL)
+        return MEMORY_E;
+
+    XMEMCPY(srp->salt, salt, saltSz);
+    srp->saltSz = saltSz;
+
+    return 0;
+}
+
+int wc_SrpSetPassword(Srp* srp, const byte* password, word32 size) {
+    if (!srp || !password || srp->side != SRP_CLIENT_SIDE)
+        return BAD_FUNC_ARG;
+
+    if (mp_read_unsigned_bin(&srp->specific.client.password, password, size)
+                                                                     != MP_OKAY)
+        return MP_READ_E;
+
+    return 0;
 }
 
 #endif /* WOLFCRYPT_HAVE_SRP */

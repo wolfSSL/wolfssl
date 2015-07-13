@@ -84,27 +84,26 @@ typedef struct {
     mp_int A;                      /**< Public ephemeral value. pow(g, a, N)  */
     mp_int B;                      /**< Server's public ephemeral value.      */
     byte   x[SRP_MAX_DIGEST_SIZE]; /**< Priv key. H(salt, H(user, ":", pswd)) */
-    byte*  pswd;                   /**< Password.                             */
-    word32 pswdSz;                 /**< Password length.                      */
+    mp_int password;               /**< Password.                             */
 } SrpClient;
 
 typedef struct {
     mp_int b;                      /**< Private ephemeral value.              */
     mp_int B;                      /**< Public ephemeral value.               */
     mp_int A;                      /**< Client's public ephemeral value.      */
-    mp_int v;                      /**< Verifier. v = pow(g, x, N)            */
+    mp_int verifier;               /**< Verifier. v = pow(g, x, N)            */
 } SrpServer;
 
 typedef struct {
+    byte   side;                   /**< Client or Server side.                */
+    byte   type;                   /**< Hash type, SHA[1:256:384:512]         */
     mp_int N;                      /**< Modulus. N = 2q+1, [q, N] are primes. */
     mp_int g;                      /**< Generator. A generator modulo N.      */
     mp_int s;                      /**< Session key.                          */
     byte   k[SRP_MAX_DIGEST_SIZE]; /**< Multiplier parameeter. H(N, g)        */
-    byte   u[SRP_MAX_DIGEST_SIZE]; /**< Random scrambling parameeter.         */
-    byte   type;                   /**< Hash type, SHA[1:256:384:512]         */
-    byte   side;                   /**< Client or Server side.                */
-    byte*  user;                   /**< Username, login.                      */
-    word32 userSz;                 /**< Username length.                      */
+    mp_int u;                      /**< Random scrambling parameeter.         */
+    byte*  username;               /**< Username, login.                      */
+    word32 usernameSz;             /**< Username length.                      */
     byte*  salt;                   /**< Small salt.                           */
     word32 saltSz;                 /**< Salt length.                          */
     union {
@@ -114,8 +113,16 @@ typedef struct {
     SrpHash hash;                  /**< Hash object.                          */
 } Srp;
 
-WOLFSSL_API int wc_SrpInit(Srp* srp, byte type, byte side, byte* N, word32 nSz,
-                                                           byte* g, word32 gSz);
+WOLFSSL_API int  wc_SrpInit(Srp* srp, byte type, byte side);
+WOLFSSL_API void wc_SrpTerm(Srp* srp);
+
+WOLFSSL_API int  wc_SrpSetUsername(Srp* srp, const char* user);
+
+WOLFSSL_API int  wc_SrpSetParams(Srp* srp, const byte* N,    word32 nSz,
+                                           const byte* g,    word32 gSz,
+                                           const byte* salt, word32 saltSz);
+
+WOLFSSL_API int  wc_SrpSetPassword(Srp* srp, const byte* password, word32 size);
 
 #ifdef __cplusplus
    } /* extern "C" */
