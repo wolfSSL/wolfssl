@@ -14554,15 +14554,14 @@ int wolfSSL_PEM_write_DSAPrivateKey(FILE *fp, WOLFSSL_DSA *dsa,
                                     unsigned char *kstr, int klen,
                                     pem_password_cb *cb, void *u)
 {
+    byte *der, *pem;
+    int  derSz = 0, pemSz = 0;
+
     (void)enc;
     (void)kstr;
     (void)klen;
     (void)cb;
     (void)u;
-
-    byte *der, *pem;
-    int    derSz = 0, pemSz = 0;
-
 
     WOLFSSL_MSG("wolfSSL_PEM_write_DSAPrivateKey");
 

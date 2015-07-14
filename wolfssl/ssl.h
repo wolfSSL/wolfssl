@@ -90,14 +90,16 @@ typedef struct WOLFSSL_X509_EXTENSION WOLFSSL_X509_EXTENSION;
 typedef struct WOLFSSL_ASN1_TIME      WOLFSSL_ASN1_TIME;
 typedef struct WOLFSSL_ASN1_INTEGER   WOLFSSL_ASN1_INTEGER;
 typedef struct WOLFSSL_ASN1_OBJECT    WOLFSSL_ASN1_OBJECT;
-
-typedef struct WOLFSSL_ASN1_STRING{
-    #ifdef HAVE_LIGHTY
-    char* data;
-    int length;
-    #endif
-}    WOLFSSL_ASN1_STRING;
 typedef struct WOLFSSL_dynlock_value  WOLFSSL_dynlock_value;
+
+#ifdef HAVE_LIGHTY
+    typedef struct WOLFSSL_ASN1_STRING{
+        char* data;
+        int length;
+    }   WOLFSSL_ASN1_STRING;
+#else
+    typedef struct WOLFSSL_ASN1_STRING WOLFSSL_ASN1_STRING;
+#endif
 
 #define WOLFSSL_ASN1_UTCTIME WOLFSSL_ASN1_TIME
 
