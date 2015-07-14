@@ -11,7 +11,7 @@
     extern "C" {
 #endif
 
-typedef struct WOLFSSL_DH {
+struct WOLFSSL_DH {
     WOLFSSL_BIGNUM* p;
     WOLFSSL_BIGNUM* g;
     WOLFSSL_BIGNUM* pub_key;      /* openssh deference g^x */
@@ -23,7 +23,7 @@ typedef struct WOLFSSL_DH {
      * lighttpd src code.
      */
      int length;
-} WOLFSSL_DH;
+};
 
 
 WOLFSSL_API WOLFSSL_DH* wolfSSL_DH_new(void);
@@ -48,4 +48,7 @@ typedef WOLFSSL_DH DH;
     }  /* extern "C" */ 
 #endif
 
+#ifdef HAVE_STUNNEL
+#define DH_generate_parameters wolfSSL_DH_generate_parameters
+#endif /* HAVE_STUNNEL */
 #endif /* header */

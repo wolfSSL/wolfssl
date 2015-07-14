@@ -1130,21 +1130,6 @@ fi
 AM_CONDITIONAL([BUILD_SHA], [test "x$ENABLED_SHA" = "xyes"])
 
 
-# MD4 
-AC_ARG_ENABLE([md4],
-    [  --enable-md4            Enable MD4 (default: disabled)],
-    [ ENABLED_MD4=$enableval ],
-    [ ENABLED_MD4=no ]
-    )
-
-if test "$ENABLED_MD4" = "no"
-then
-    AM_CFLAGS="$AM_CFLAGS -DNO_MD4"
-fi
-
-AM_CONDITIONAL([BUILD_MD4], [test "x$ENABLED_MD4" = "xyes"])
-
-
 # Web Server Build 
 AC_ARG_ENABLE([webserver],
     [  --enable-webserver      Enable Web Server (default: disabled)],
@@ -1717,6 +1702,65 @@ then
     AM_CFLAGS="$AM_CFLAGS -DHAVE_LIGHTY -DHAVE_WOLFSSL_SSL_H=1"
 fi
 
+# stunnel Support
+AC_ARG_ENABLE([stunnel],
+    [  --enable-stunnel         Enable stunnel (default: disabled)],
+    [ ENABLED_STUNNEL=$enableval ],
+    [ ENABLED_STUNNEL=no ]
+    )
+if test "$ENABLED_STUNNEL" = "yes"
+then
+    # Requires opensslextra make sure on
+    if test "x$ENABLED_OPENSSLEXTRA" = "xno"
+    then
+        ENABLED_OPENSSLEXTRA="yes"
+        AM_CFLAGS="-DOPENSSL_EXTRA $AM_CFLAGS"
+    fi
+
+    # Requires coding make sure on
+    if test "x$ENABLED_CODING" = "xno"
+    then
+        ENABLED_CODING="yes"
+    fi
+
+    # For now, requires no fastmath, turn off if on
+    if test "x$ENABLED_FASTMATH" = "xyes"
+    then
+        ENABLED_FASTMATH = "no"
+    fi
+
+    # Requires sessioncerts make sure on
+    if test "x$ENABLED_SESSIONCERTS" = "xno"
+    then
+        ENABLED_SESSIONCERTS="yes"
+        AM_CFLAGS="$AM_CFLAGS -DSESSION_CERTS"
+    fi
+
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_STUNNEL"
+fi
+
+
+# MD4
+AC_ARG_ENABLE([md4],
+    [  --enable-md4            Enable MD4 (default: disabled)],
+    [ ENABLED_MD4=$enableval ],
+    [ ENABLED_MD4=no ]
+    )
+
+
+if test "$ENABLED_MD4" = "no"
+then
+    #turn on MD4 if using stunnel
+    if test "x$ENABLED_STUNNEL" = "xyes"
+    then
+        ENABLED_MD4="yes"
+    else
+        AM_CFLAGS="$AM_CFLAGS -DNO_MD4"
+    fi
+fi
+
+AM_CONDITIONAL([BUILD_MD4], [test "x$ENABLED_MD4" = "xyes"])
+
 
 # PWDBASED has to come after certservice since we want it on w/o explicit on
 # PWDBASED
@@ -1745,7 +1789,11 @@ FASTMATH_DEFAULT=no
 
 if test "$host_cpu" = "x86_64"
 then
-FASTMATH_DEFAULT=yes
+    # fastmath turned off for stunnel by default
+    if test "x$ENABLED_STUNNEL" = "xno"
+    then
+        FASTMATH_DEFAULT=yes
+    fi
 fi
 
 # fastmath
@@ -2218,6 +2266,7 @@ echo "   * CODING:                    $ENABLED_CODING"
 echo "   * MEMORY:                    $ENABLED_MEMORY"
 echo "   * I/O POOL:                  $ENABLED_IOPOOL"
 echo "   * LIGHTY:                    $ENABLED_LIGHTY"
+echo "   * STUNNEL:                   $ENABLED_STUNNEL"
 echo "   * ERROR_STRINGS:             $ENABLED_ERROR_STRINGS"
 echo "   * DTLS:                      $ENABLED_DTLS"
 echo "   * Old TLS Versions:          $ENABLED_OLD_TLS"

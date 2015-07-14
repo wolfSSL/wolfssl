@@ -289,7 +289,7 @@ typedef WOLFSSL_X509_STORE_CTX X509_STORE_CTX;
 
 #define X509_get_serialNumber wolfSSL_X509_get_serialNumber
 
-#define ASN1_TIME_pr wolfSSL_ASN1_TIME_pr
+#define ASN1_TIME_print wolfSSL_ASN1_TIME_print
 
 #define ASN1_INTEGER_cmp wolfSSL_ASN1_INTEGER_cmp
 #define ASN1_INTEGER_get wolfSSL_ASN1_INTEGER_get
@@ -304,7 +304,7 @@ typedef WOLFSSL_X509_STORE_CTX X509_STORE_CTX;
 #define SSL_CTX_set_default_passwd_cb_userdata wolfSSL_CTX_set_default_passwd_cb_userdata
 #define SSL_CTX_set_default_passwd_cb wolfSSL_CTX_set_default_passwd_cb
 
-#define SSL_CTX_set_timeout wolfSSL_CTX_set_timeout
+#define SSL_CTX_set_timeout(ctx, to) wolfSSL_CTX_set_timeout(ctx, (unsigned int) to)
 #define SSL_CTX_set_info_callback wolfSSL_CTX_set_info_callback
 
 #define ERR_peek_error wolfSSL_ERR_peek_error
@@ -392,7 +392,8 @@ typedef WOLFSSL_X509_STORE_CTX X509_STORE_CTX;
 #define SSL_CTX_sess_set_remove_cb wolfSSL_CTX_sess_set_remove_cb
 
 #define i2d_SSL_SESSION wolfSSL_i2d_SSL_SESSION
-#define d2i_SSL_SESSION wolfSSL_d2i_SSL_SESSION
+#define d2i_SSL_SESSION(sess, val, length) \
+        wolfSSL_d2i_SSL_SESSION(sess, (const unsigned char **)val, length)
 #define SSL_SESSION_set_timeout wolfSSL_SSL_SESSION_set_timeout
 #define SSL_SESSION_get_timeout wolfSSL_SESSION_get_timeout
 #define SSL_SESSION_get_time wolfSSL_SESSION_get_time
@@ -432,6 +433,52 @@ typedef WOLFSSL_X509_NAME_ENTRY X509_NAME_ENTRY;
 #define SSL_dup_CA_list wolfSSL_dup_CA_list
 
 #endif
+
+
+#ifdef HAVE_STUNNEL
+#include <wolfssl/openssl/asn1.h>
+
+/* defined as: (SSL_ST_ACCEPT|SSL_CB_LOOP), which becomes 0x2001*/
+#define SSL_CB_ACCEPT_LOOP               0x2001 
+#define SSL2_VERSION                     0x0002
+#define SSL3_VERSION                     0x0300
+#define TLS1_VERSION                     0x0301
+#define DTLS1_VERSION                    0xFEFF
+#define SSL23_ST_SR_CLNT_HELLO_A        (0x210|0x2000)
+#define SSL3_ST_SR_CLNT_HELLO_A         (0x110|0x2000)
+#define ASN1_STRFLGS_ESC_MSB             4
+#define X509_V_ERR_CERT_REJECTED         28
+
+#define BIO_new_file                     wolfSSL_BIO_new_file
+#define PEM_read_bio_DHparams            wolfSSL_PEM_read_bio_DHparams
+#define PEM_write_bio_X509               wolfSSL_PEM_write_bio_X509
+#define SSL_alert_desc_string_long       wolfSSL_alert_desc_string_long
+#define SSL_alert_type_string_long       wolfSSL_alert_type_string_long
+#define SSL_CIPHER_get_bits              wolfSSL_CIPHER_get_bits
+#define sk_X509_NAME_num                 wolfSSL_sk_X509_NAME_num
+#define sk_X509_num                      wolfSSL_sk_X509_num
+#define X509_NAME_print_ex               wolfSSL_X509_NAME_print_ex
+#define X509_get0_pubkey_bitstr          wolfSSL_X509_get0_pubkey_bitstr
+#define SSL_CTX_get_options              wolfSSL_CTX_get_options
+
+#define SSL_CTX_flush_sessions           wolfSSL_flush_sessions
+#define SSL_CTX_add_session              wolfSSL_CTX_add_session
+#define SSL_get_SSL_CTX                  wolfSSL_get_SSL_CTX
+#define SSL_CTX_set_tmp_dh               wolfSSL_CTX_set_tmp_dh
+#define SSL_version                      wolfSSL_version
+#define SSL_get_state                    wolfSSL_get_state
+#define SSL_state_string_long            wolfSSL_state_string_long
+#define SSL_get_peer_cert_chain          wolfSSL_get_peer_cert_chain
+#define sk_X509_NAME_value               wolfSSL_sk_X509_NAME_value
+#define sk_X509_value                    wolfSSL_sk_X509_value
+#define SSL_SESSION_get_ex_data          wolfSSL_SESSION_get_ex_data
+#define SSL_SESSION_set_ex_data          wolfSSL_SESSION_set_ex_data
+#define SSL_SESSION_get_ex_new_index     wolfSSL_SESSION_get_ex_new_index
+#define SSL_SESSION_get_id               wolfSSL_SESSION_get_id
+typedef struct CRYPTO_EX_DATA            CRYPTO_EX_DATA;
+typedef WOLFSSL_ASN1_BIT_STRING    ASN1_BIT_STRING;
+
+#endif /* HAVE_STUNNEL */
 
 #ifdef __cplusplus
     } /* extern "C" */

@@ -890,7 +890,7 @@ enum Misc {
 
     MAX_WOLFSSL_FILE_SIZE = 1024 * 1024 * 4,  /* 4 mb file size alloc limit */
 
-#ifdef FORTRESS
+#if defined(FORTRESS) || defined (HAVE_STUNNEL)
     MAX_EX_DATA        =   3,  /* allow for three items of ex_data */
 #endif
 
@@ -1612,8 +1612,11 @@ struct WOLFSSL_CTX {
 #endif /* HAVE_ANON */
 #if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
     pem_password_cb passwd_cb;
-    void*            userdata;
+    void*           userdata;
 #endif /* OPENSSL_EXTRA */
+#ifdef HAVE_STUNNEL
+    void*           ex_data[MAX_EX_DATA];
+#endif
 #ifdef HAVE_OCSP
     WOLFSSL_OCSP      ocsp;
 #endif
@@ -1846,6 +1849,9 @@ struct WOLFSSL_SESSION {
 #ifdef HAVE_SESSION_TICKET
     word16       ticketLen;
     byte         ticket[SESSION_TICKET_LEN];
+#endif
+#ifdef HAVE_STUNNEL
+    void*        ex_data[MAX_EX_DATA];
 #endif
 };
 
@@ -2300,7 +2306,7 @@ struct WOLFSSL {
 #ifdef KEEP_PEER_CERT
     WOLFSSL_X509     peerCert;           /* X509 peer cert */
 #endif
-#ifdef FORTRESS
+#if defined(FORTRESS) || defined(HAVE_STUNNEL)
     void*           ex_data[MAX_EX_DATA]; /* external data, for Fortress */
 #endif
 #ifdef HAVE_CAVIUM
