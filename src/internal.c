@@ -4464,7 +4464,7 @@ static int DoCertificate(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 #else
                 store->current_cert = NULL;
 #endif
-#ifdef FORTRESS
+#if defined(HAVE_FORTRESS) || defined(HAVE_STUNNEL)
                 store->ex_data = ssl;
 #endif
                 ok = ssl->verifyCallback(0, store);

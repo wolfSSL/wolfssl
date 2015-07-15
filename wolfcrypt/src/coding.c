@@ -166,8 +166,8 @@ static int CEscape(int escaped, byte e, byte* out, word32* i, word32 max,
     else
         basic = base64Encode[e];
 
-    /* check whether to escape */
-    if (escaped) {
+    /* check whether to escape. Only escape for EncodeEsc */
+    if (escaped == 1) {
         switch ((char)basic) {
             case '+' :
                 plus     = 1;
@@ -235,8 +235,10 @@ static int DoBase64_Encode(const byte* in, word32 inLen, byte* out,
     word32 outSz = (inLen + 3 - 1) / 3 * 4;
     word32 addSz = (outSz + PEM_LINE_SZ - 1) / PEM_LINE_SZ;  /* new lines */
 
-    if (escaped)
+    if (escaped == 1)
         addSz *= 3;   /* instead of just \n, we're doing %0A triplet */
+    else if (escaped == 2)
+        addSz = 0;    /* encode without \n */
 
     outSz += addSz;
 
@@ -267,7 +269,8 @@ static int DoBase64_Encode(const byte* in, word32 inLen, byte* out,
 
         inLen -= 3;
 
-        if ((++n % (PEM_LINE_SZ / 4)) == 0 && inLen) {
+        /* Insert newline after PEM_LINE_SZ, unless no \n requested */
+        if (escaped != 2 && (++n % (PEM_LINE_SZ / 4)) == 0 && inLen) {
             ret = CEscape(escaped, '\n', out, &i, *outLen, 1);
             if (ret != 0) break;
         }
@@ -299,10 +302,10 @@ static int DoBase64_Encode(const byte* in, word32 inLen, byte* out,
             ret = CEscape(escaped, '=', out, &i, *outLen, 1);
     } 
 
-    if (ret == 0) 
+    if (ret == 0 && escaped != 2) 
         ret = CEscape(escaped, '\n', out, &i, *outLen, 1);
 
-    if (i != outSz && escaped == 0 && ret == 0)
+    if (i != outSz && escaped != 1 && ret == 0)
         return ASN_INPUT_E; 
 
     *outLen = i;
@@ -323,6 +326,10 @@ int Base64_EncodeEsc(const byte* in, word32 inLen, byte* out, word32* outLen)
     return DoBase64_Encode(in, inLen, out, outLen, 1);
 }
 
+int Base64_Encode_NoNl(const byte* in, word32 inLen, byte* out, word32* outLen)
+{
+    return DoBase64_Encode(in, inLen, out, outLen, 2);
+}
 
 #endif  /* defined(WOLFSSL_BASE64_ENCODE) */
 
