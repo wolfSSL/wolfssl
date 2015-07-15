@@ -7,7 +7,7 @@
 #include <wolfssl/openssl/bn.h>
 
 #ifdef __cplusplus
-extern C {
+extern "C" {
 #endif
 
 
