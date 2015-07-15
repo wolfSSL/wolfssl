@@ -11514,10 +11514,10 @@ int wolfSSL_BN_add(WOLFSSL_BIGNUM *r, WOLFSSL_BIGNUM *a, WOLFSSL_BIGNUM *b)
 int wolfSSL_BN_is_prime_ex(const WOLFSSL_BIGNUM *bn, int nbchecks,
                            WOLFSSL_BN_CTX *ctx, WOLFSSL_BN_GENCB *cb)
 {
+    int res;
+
     (void)ctx;
     (void)cb;
-
-    int res;
 
     WOLFSSL_MSG("wolfSSL_BN_is_prime_ex");
 
@@ -13150,12 +13150,12 @@ int wolfSSL_PEM_write_buf_RSAPrivateKey(RSA* rsa, const EVP_CIPHER* cipher,
                                         unsigned char* passwd, int len,
                                         byte **pem, int *plen)
 {
+    byte *der, *tmp;
+    int    der_max_len = 0, derSz = 0;
+
     (void)cipher;
     (void)passwd;
     (void)len;
-
-    byte *der, *tmp;
-    int    der_max_len = 0, derSz = 0;
 
     WOLFSSL_MSG("wolfSSL_PEM_write_buf_RSAPrivateKey");
 
@@ -13231,14 +13231,14 @@ int wolfSSL_PEM_write_RSAPrivateKey(FILE *fp, WOLFSSL_RSA *rsa,
                                     unsigned char *kstr, int klen,
                                     pem_password_cb *cb, void *u)
 {
+    byte*   pem;
+    int     plen, ret;
+
     (void)enc;
     (void)kstr;
     (void)klen;
     (void)cb;
     (void)u;
-
-    byte    *pem;
-    int     plen, ret;
 
     WOLFSSL_MSG("wolfSSL_PEM_write_RSAPrivateKey");
 
