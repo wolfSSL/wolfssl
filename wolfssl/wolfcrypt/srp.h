@@ -64,34 +64,37 @@ enum {
 #endif
 };
 
-typedef union {
-    #ifndef NO_SHA
-        Sha sha;
-    #endif
-    #ifndef NO_SHA256
-        Sha256 sha256;
-    #endif
-    #ifdef WOLFSSL_SHA384
-        Sha384 sha384;
-    #endif
-    #ifdef WOLFSSL_SHA512
-        Sha512 sha512;
-    #endif
+typedef struct {
+    byte type;
+    union {
+        #ifndef NO_SHA
+            Sha sha;
+        #endif
+        #ifndef NO_SHA256
+            Sha256 sha256;
+        #endif
+        #ifdef WOLFSSL_SHA384
+            Sha384 sha384;
+        #endif
+        #ifdef WOLFSSL_SHA512
+            Sha512 sha512;
+        #endif
+    } data;
 } SrpHash;
 
 typedef struct {
     mp_int a;                      /**< Private ephemeral value. Random.      */
     mp_int A;                      /**< Public ephemeral value. pow(g, a, N)  */
     mp_int B;                      /**< Server's public ephemeral value.      */
-    byte   x[SRP_MAX_DIGEST_SIZE]; /**< Priv key. H(salt, H(user, ":", pswd)) */
-    mp_int password;               /**< Password.                             */
+    mp_int x;                      /**< Priv key. H(salt, H(user, ":", pswd)) */
+    SrpHash proof;                 /**< Client proof. Sent to Server.         */
 } SrpClient;
 
 typedef struct {
     mp_int b;                      /**< Private ephemeral value.              */
     mp_int B;                      /**< Public ephemeral value.               */
     mp_int A;                      /**< Client's public ephemeral value.      */
-    mp_int verifier;               /**< Verifier. v = pow(g, x, N)            */
+    mp_int v;                      /**< Verifier. v = pow(g, x, N)            */
 } SrpServer;
 
 typedef struct {
@@ -110,7 +113,6 @@ typedef struct {
         SrpClient client;
         SrpServer server;
     } specific;
-    SrpHash hash;                  /**< Hash object.                          */
 } Srp;
 
 WOLFSSL_API int  wc_SrpInit(Srp* srp, byte type, byte side);
