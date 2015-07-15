@@ -7,6 +7,15 @@ resume_port=11112
 no_pid=-1
 server_pid=$no_pid
 
+
+remove_ready_file() {
+    if test -e /tmp/wolfssl_server_ready; then
+        echo -e "removing exisitng server_ready file"
+        rm /tmp/wolfssl_server_ready
+    fi
+}
+
+
 do_cleanup() {
     echo "in cleanup"
 
@@ -15,6 +24,7 @@ do_cleanup() {
         echo "killing server"
         kill -9 $server_pid
     fi
+    remove_ready_file
 }
 
 do_trap() {
@@ -27,10 +37,7 @@ trap do_trap INT TERM
 
 echo -e "\nStarting example server for resume test...\n"
 
-if test -e /tmp/wolfssl_server_ready; then
-    echo -e "removing exisitng server_ready file"
-    rm /tmp/wolfssl_server_ready
-fi
+remove_ready_file
 ./examples/server/server -r -R -p $resume_port &
 server_pid=$!
 
@@ -51,6 +58,7 @@ fi
 
 wait $server_pid
 server_result=$?
+remove_ready_file
 
 if [ $server_result != 0 ]
 then
