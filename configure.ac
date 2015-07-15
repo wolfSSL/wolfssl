@@ -1704,7 +1704,7 @@ fi
 
 # stunnel Support
 AC_ARG_ENABLE([stunnel],
-    [  --enable-stunnel         Enable stunnel (default: disabled)],
+    [  --enable-stunnel        Enable stunnel (default: disabled)],
     [ ENABLED_STUNNEL=$enableval ],
     [ ENABLED_STUNNEL=no ]
     )
