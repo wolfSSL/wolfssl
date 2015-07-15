@@ -36,3 +36,4 @@ WOLFSSL_API int wolfSSL_ECDSA_do_verify(const unsigned char *dgst,
 #endif
 
 #endif /* header */
+
