@@ -5,7 +5,13 @@
 
 
 /* api version compatibility */
-#define OPENSSL_VERSION_NUMBER 0x0090810fL
+#ifdef HAVE_STUNNEL
+     #define OPENSSL_VERSION_NUMBER 0x0090700fL
+#else
+     #define OPENSSL_VERSION_NUMBER 0x0090810fL
+#endif
+
+#define OPENSSL_VERSION_TEXT             LIBWOLFSSL_VERSION_STRING 
 
 
 #endif /* header */

@@ -48,6 +48,9 @@ WOLFSSL_API int Base64_Decode(const byte* in, word32 inLen, byte* out,
     WOLFSSL_API
     int Base64_EncodeEsc(const byte* in, word32 inLen, byte* out,
                                   word32* outLen);
+    WOLFSSL_API
+    int Base64_Encode_NoNl(const byte* in, word32 inLen, byte* out,
+                                  word32* outLen);
 #endif
 
 #if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER) || defined(HAVE_FIPS)
