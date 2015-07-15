@@ -15095,6 +15095,9 @@ void* wolfSSL_GetRsaDecCtx(WOLFSSL* ssl)
     unsigned char *wolfSSL_SHA1(const unsigned char *d, size_t n, unsigned char *md)
     {
         (void) *d; (void) n; (void) *md;
+        WOLFSSL_ENTER("wolfSSL_SHA1");
+        WOLFSSL_STUB("wolfssl_SHA1");
+
         return NULL;
     }
 
@@ -15102,6 +15105,7 @@ void* wolfSSL_GetRsaDecCtx(WOLFSSL* ssl)
         (void)ctx;
         (void)x;
         WOLFSSL_ENTER("WOLFSSL_CTX_use_certificate");
+        WOLFSSL_STUB("WOLFSSL_CTX_use_certificate");
 
         return 0;
     }
@@ -15110,6 +15114,7 @@ void* wolfSSL_GetRsaDecCtx(WOLFSSL* ssl)
         (void)ctx;
         (void)pkey;
         WOLFSSL_ENTER("WOLFSSL_CTX_use_PrivateKey");
+        WOLFSSL_STUB("WOLFSSL_CTX_use_PrivateKey");
 
         return 0;
     }
@@ -15118,6 +15123,7 @@ void* wolfSSL_GetRsaDecCtx(WOLFSSL* ssl)
         (void)filename;
         (void)mode;
         WOLFSSL_ENTER("wolfSSL_BIO_new_file");
+        WOLFSSL_STUB("wolfSSL_BIO_new_file");
 
         return NULL;
     }
@@ -15126,18 +15132,22 @@ void* wolfSSL_GetRsaDecCtx(WOLFSSL* ssl)
         (void)b;
         (void)name;
         WOLFSSL_ENTER("wolfSSL_BIO_read_filename");
+        WOLFSSL_STUB("wolfSSL_BIO_read_filename");
 
         return 0;
     }
 
     WOLFSSL_BIO_METHOD* WOLFSSL_BIO_s_file(void) {
         WOLFSSL_ENTER("WOLFSSL_BIO_s_file");
+        WOLFSSL_STUB("WOLFSSL_BIO_s_file");
+
         return NULL;
     }
 
     const char * wolf_OBJ_nid2sn(int n) {
         (void)n;
         WOLFSSL_ENTER("wolf_OBJ_nid2sn");
+        WOLFSSL_STUB("wolf_OBJ_nid2sn");
 
         return 0;
     }
@@ -15145,6 +15155,7 @@ void* wolfSSL_GetRsaDecCtx(WOLFSSL* ssl)
     int wolf_OBJ_obj2nid(const WOLFSSL_ASN1_OBJECT *o) {
         (void)o;
         WOLFSSL_ENTER("wolf_OBJ_obj2nid");
+        WOLFSSL_STUB("wolf_OBJ_obj2nid");
 
         return 0;
     }
@@ -15152,6 +15163,7 @@ void* wolfSSL_GetRsaDecCtx(WOLFSSL* ssl)
     int wolf_OBJ_sn2nid(const char *sn) {
         (void)sn;
         WOLFSSL_ENTER("wolf_OBJ_osn2nid");
+        WOLFSSL_STUB("wolf_OBJ_osn2nid");
 
         return 0;
     }
@@ -15162,6 +15174,7 @@ void* wolfSSL_GetRsaDecCtx(WOLFSSL* ssl)
         (void)cb;
         (void)u;
         WOLFSSL_ENTER("PEM_read_bio_DHparams");
+        WOLFSSL_STUB("PEM_read_bio_DHparams");
 
         return NULL;
     }
@@ -15172,6 +15185,7 @@ void* wolfSSL_GetRsaDecCtx(WOLFSSL* ssl)
         (void)cb;
         (void)u;
         WOLFSSL_ENTER("PEM_read_bio_WOLFSSL_X509");
+        WOLFSSL_STUB("PEM_read_bio_WOLFSSL_X509");
 
         return NULL;
     }
@@ -15180,6 +15194,7 @@ void* wolfSSL_GetRsaDecCtx(WOLFSSL* ssl)
         (void)bp;
         (void)x;
         WOLFSSL_ENTER("PEM_write_bio_WOLFSSL_X509");
+        WOLFSSL_STUB("PEM_write_bio_WOLFSSL_X509");
 
         return 0;
     }
@@ -15188,14 +15203,17 @@ void* wolfSSL_GetRsaDecCtx(WOLFSSL* ssl)
         (void)ctx;
         (void)dh;
         WOLFSSL_ENTER("WOLFSSL_CTX_set_tmp_dh");
+        WOLFSSL_STUB("WOLFSSL_CTX_set_tmp_dh");
 
         return 0;
     }
 
-    void wolfSSL_CTX_set_verify_depth(WOLFSSL_CTX *ctx,int depth) {
+    void wolfSSL_CTX_set_verify_depth(WOLFSSL_CTX *ctx, int depth) {
         (void)ctx;
         (void)depth;
         WOLFSSL_ENTER("wolfSSL_CTX_set_verify_depth");
+        WOLFSSL_STUB("wolfSSL_CTX_set_verify_depth");
+
     }
 
     void* WOLFSSL_get_app_data( const WOLFSSL *ssl)
@@ -15203,6 +15221,7 @@ void* wolfSSL_GetRsaDecCtx(WOLFSSL* ssl)
         /* checkout exdata stuff... */
         (void)ssl;
         WOLFSSL_ENTER("WOLFSSL_get_app_data");
+        WOLFSSL_STUB("WOLFSSL_get_app_data");
 
         return 0;
     }
@@ -15211,11 +15230,13 @@ void* wolfSSL_GetRsaDecCtx(WOLFSSL* ssl)
         (void)ssl;
         (void)arg;
         WOLFSSL_ENTER("WOLFSSL_set_app_data");
+        WOLFSSL_STUB("WOLFSSL_set_app_data");
     }
 
     WOLFSSL_ASN1_OBJECT * WOLFSSL_X509_NAME_ENTRY_get_object(WOLFSSL_X509_NAME_ENTRY *ne) {
         (void)ne;
         WOLFSSL_ENTER("WOLFSSL_X509_NAME_ENTRY_get_object");
+        WOLFSSL_STUB("WOLFSSL_X509_NAME_ENTRY_get_object");
 
         return NULL;
     }
@@ -15224,6 +15245,7 @@ void* wolfSSL_GetRsaDecCtx(WOLFSSL* ssl)
         (void)name;
         (void)loc;
         WOLFSSL_ENTER("WOLFSSL_X509_NAME_get_entry");
+        WOLFSSL_STUB("WOLFSSL_X509_NAME_get_entry");
 
         return NULL;
     }
@@ -15231,24 +15253,30 @@ void* wolfSSL_GetRsaDecCtx(WOLFSSL* ssl)
     void WOLFSSL_X509_NAME_free(WOLFSSL_X509_NAME *name){
         FreeX509Name(name);
         WOLFSSL_ENTER("WOLFSSL_X509_NAME_free");
+        WOLFSSL_STUB("WOLFSSL_X509_NAME_free");
     }
 
     void wolfSSL_sk_X509_NAME_pop_free(STACK_OF(WOLFSSL_X509_NAME)* sk, void f (WOLFSSL_X509_NAME*)){
         (void) sk;
         (void) f;
         WOLFSSL_ENTER("wolfSSL_sk_X509_NAME_pop_free");
+        WOLFSSL_STUB("wolfSSL_sk_X509_NAME_pop_free");
     }
 
     int wolfSSL_X509_check_private_key(WOLFSSL_X509 *x509, WOLFSSL_EVP_PKEY *key){
         (void) x509;
         (void) key;
         WOLFSSL_ENTER("wolfSSL_X509_check_private_key");
+        WOLFSSL_STUB("wolfSSL_X509_check_private_key");
+
         return SSL_SUCCESS;
     }
 
     STACK_OF(WOLFSSL_X509_NAME) *wolfSSL_dup_CA_list( STACK_OF(WOLFSSL_X509_NAME) *sk ){
         (void) sk;
         WOLFSSL_ENTER("wolfSSL_dup_CA_list");
+        WOLFSSL_STUB("wolfSSL_dup_CA_list");
+
         return NULL;
     }
 

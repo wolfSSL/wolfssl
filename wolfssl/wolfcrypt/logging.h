@@ -46,9 +46,13 @@ typedef void (*wolfSSL_Logging_cb)(const int logLevel,
 WOLFSSL_API int wolfSSL_SetLoggingCb(wolfSSL_Logging_cb log_function);
 
 #ifdef DEBUG_WOLFSSL
+    /* a is prepended to m and b is appended, creating a log msg a + m + b */
+    #define WOLFSSL_LOG_CAT(a, m, b) #a " " m " "  #b
 
     void WOLFSSL_ENTER(const char* msg);
     void WOLFSSL_LEAVE(const char* msg, int ret);
+    #define WOLFSSL_STUB(m) \
+        WOLFSSL_MSG(WOLFSSL_LOG_CAT(wolfSSL Stub, m, not implemented))
 
     void WOLFSSL_ERROR(int);
     void WOLFSSL_MSG(const char* msg);
@@ -57,6 +61,7 @@ WOLFSSL_API int wolfSSL_SetLoggingCb(wolfSSL_Logging_cb log_function);
 
     #define WOLFSSL_ENTER(m)
     #define WOLFSSL_LEAVE(m, r)
+    #define WOLFSSL_STUB(m)
 
     #define WOLFSSL_ERROR(e)
     #define WOLFSSL_MSG(m)
