@@ -408,25 +408,21 @@ typedef WOLFSSL_X509_STORE_CTX X509_STORE_CTX;
 typedef WOLFSSL_X509_NAME_ENTRY X509_NAME_ENTRY;
 
 #define SSL_CB_HANDSHAKE_START          0x10
-#define X509_NAME_free WOLFSSL_X509_NAME_free
-#define SSL_CTX_use_certificate WOLFSSL_CTX_use_certificate
-#define SSL_CTX_use_PrivateKey WOLFSSL_CTX_use_PrivateKey
-#define BIO_new_file wolfSSL_BIO_new_file
+#define X509_NAME_free wolfSSL_X509_NAME_free
+#define SSL_CTX_use_certificate wolfSSL_CTX_use_certificate
+#define SSL_CTX_use_PrivateKey wolfSSL_CTX_use_PrivateKey
 #define BIO_read_filename wolfSSL_BIO_read_filename
-#define BIO_s_file WOLFSSL_BIO_s_file
+#define BIO_s_file wolfSSL_BIO_s_file
 #define OBJ_nid2sn wolf_OBJ_nid2sn
 #define OBJ_obj2nid wolf_OBJ_obj2nid
 #define OBJ_sn2nid wolf_OBJ_sn2nid
-#define PEM_read_bio_DHparams PEM_read_bio_DHparams
 #define PEM_read_bio_X509 PEM_read_bio_WOLFSSL_X509
-#define PEM_write_bio_X509 PEM_write_bio_WOLFSSL_X509
-#define SSL_CTX_set_tmp_dh WOLFSSL_CTX_set_tmp_dh
 #define SSL_CTX_set_verify_depth wolfSSL_CTX_set_verify_depth
-#define SSL_get_app_data WOLFSSL_get_app_data
-#define SSL_set_app_data WOLFSSL_set_app_data
+#define SSL_get_app_data wolfSSL_get_app_data
+#define SSL_set_app_data wolfSSL_set_app_data
 #define X509_NAME_entry_count wolfSSL_X509_NAME_entry_count
-#define X509_NAME_ENTRY_get_object WOLFSSL_X509_NAME_ENTRY_get_object
-#define X509_NAME_get_entry WOLFSSL_X509_NAME_get_entry
+#define X509_NAME_ENTRY_get_object wolfSSL_X509_NAME_ENTRY_get_object
+#define X509_NAME_get_entry wolfSSL_X509_NAME_get_entry
 #define sk_X509_NAME_pop_free  wolfSSL_sk_X509_NAME_pop_free
 #define SHA1 wolfSSL_SHA1
 #define X509_check_private_key wolfSSL_X509_check_private_key
@@ -434,6 +430,15 @@ typedef WOLFSSL_X509_NAME_ENTRY X509_NAME_ENTRY;
 
 #endif
 
+#if defined(HAVE_STUNNEL) || defined(HAVE_LIGHTY)
+
+#define PEM_read_bio_DHparams wolfSSL_PEM_read_bio_DHparams
+#define PEM_write_bio_X509 PEM_write_bio_WOLFSSL_X509
+#define SSL_CTX_set_tmp_dh wolfSSL_CTX_set_tmp_dh
+#define BIO_new_file wolfSSL_BIO_new_file
+
+
+#endif /* HAVE_STUNNEL || HAVE_LIGHTY */
 
 #ifdef HAVE_STUNNEL
 #include <wolfssl/openssl/asn1.h>
@@ -449,9 +454,6 @@ typedef WOLFSSL_X509_NAME_ENTRY X509_NAME_ENTRY;
 #define ASN1_STRFLGS_ESC_MSB             4
 #define X509_V_ERR_CERT_REJECTED         28
 
-#define BIO_new_file                     wolfSSL_BIO_new_file
-#define PEM_read_bio_DHparams            wolfSSL_PEM_read_bio_DHparams
-#define PEM_write_bio_X509               wolfSSL_PEM_write_bio_X509
 #define SSL_alert_desc_string_long       wolfSSL_alert_desc_string_long
 #define SSL_alert_type_string_long       wolfSSL_alert_type_string_long
 #define SSL_CIPHER_get_bits              wolfSSL_CIPHER_get_bits
@@ -464,7 +466,6 @@ typedef WOLFSSL_X509_NAME_ENTRY X509_NAME_ENTRY;
 #define SSL_CTX_flush_sessions           wolfSSL_flush_sessions
 #define SSL_CTX_add_session              wolfSSL_CTX_add_session
 #define SSL_get_SSL_CTX                  wolfSSL_get_SSL_CTX
-#define SSL_CTX_set_tmp_dh               wolfSSL_CTX_set_tmp_dh
 #define SSL_version                      wolfSSL_version
 #define SSL_get_state                    wolfSSL_get_state
 #define SSL_state_string_long            wolfSSL_state_string_long
