@@ -11613,6 +11613,7 @@ char *wolfSSL_BN_bn2hex(const WOLFSSL_BIGNUM *bn)
     return buf;
 }
 
+#ifndef NO_FILESYSTEM
 /* return code compliant with OpenSSL :
  *   1 if success, 0 if error
  */
@@ -11638,6 +11639,7 @@ int wolfSSL_BN_print_fp(FILE *fp, const WOLFSSL_BIGNUM *bn)
 
     return SSL_SUCCESS;
 }
+#endif /* !defined(NO_FILESYSTEM) */
 
 #else /* defined(HAVE_ECC) */
 
@@ -11650,6 +11652,7 @@ char *wolfSSL_BN_bn2hex(const WOLFSSL_BIGNUM *bn)
     return (char*)"";
 }
 
+#ifndef NO_FILESYSTEM
 /* return code compliant with OpenSSL :
  *   1 if success, 0 if error
  */
@@ -11662,6 +11665,8 @@ int wolfSSL_BN_print_fp(FILE *fp, const WOLFSSL_BIGNUM *bn)
 
     return SSL_SUCCESS;
 }
+#endif /* !defined(NO_FILESYSTEM) */
+
 #endif /*(defined(WOLFSSL_KEY_GEN)||defined(HAVE_COMP_KEY))&&defined(HAVE_ECC)*/
 
 WOLFSSL_BIGNUM *wolfSSL_BN_CTX_get(WOLFSSL_BN_CTX *ctx)
