@@ -30,7 +30,7 @@
 
 #ifdef WOLFCRYPT_HAVE_SRP
 
-static char username[] = "username";
+static char user[] = "user";
 
 static byte N[] = {
     0x00, 0xc0, 0x37, 0xc3, 0x75, 0x88, 0xb4, 0x32, 0x98, 0x87, 0xe6, 0x1c,
@@ -76,13 +76,13 @@ static void test_SrpSetUsername(void)
     AssertIntEQ(0, wc_SrpInit(&srp, SRP_TYPE_SHA, SRP_CLIENT_SIDE));
 
     /* invalid params */
-    AssertIntEQ(BAD_FUNC_ARG, wc_SrpSetUsername(NULL, username));
+    AssertIntEQ(BAD_FUNC_ARG, wc_SrpSetUsername(NULL, user));
     AssertIntEQ(BAD_FUNC_ARG, wc_SrpSetUsername(&srp, NULL));
 
     /* success */
-    AssertIntEQ(0, wc_SrpSetUsername(&srp, username));
-    AssertIntEQ((int) XSTRLEN(username), srp.usernameSz);
-    AssertIntEQ(0, XMEMCMP(srp.username, username, srp.usernameSz));
+    AssertIntEQ(0, wc_SrpSetUsername(&srp, user));
+    AssertIntEQ((int) XSTRLEN(user), srp.userSz);
+    AssertIntEQ(0, XMEMCMP(srp.user, user, srp.userSz));
 
     wc_SrpTerm(&srp);
 }
@@ -92,6 +92,7 @@ static void test_SrpSetParams(void)
     Srp srp;
 
     AssertIntEQ(0, wc_SrpInit(&srp, SRP_TYPE_SHA, SRP_CLIENT_SIDE));
+    AssertIntEQ(0, wc_SrpSetUsername(&srp, user));
 
     /* invalid params */
     AssertIntEQ(BAD_FUNC_ARG, wc_SrpSetParams(NULL, N,    sizeof(N),

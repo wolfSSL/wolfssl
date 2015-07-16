@@ -87,7 +87,6 @@ typedef struct {
     mp_int A;                      /**< Public ephemeral value. pow(g, a, N)  */
     mp_int B;                      /**< Server's public ephemeral value.      */
     mp_int x;                      /**< Priv key. H(salt, H(user, ":", pswd)) */
-    SrpHash proof;                 /**< Client proof. Sent to Server.         */
 } SrpClient;
 
 typedef struct {
@@ -105,10 +104,12 @@ typedef struct {
     mp_int s;                      /**< Session key.                          */
     byte   k[SRP_MAX_DIGEST_SIZE]; /**< Multiplier parameeter. H(N, g)        */
     mp_int u;                      /**< Random scrambling parameeter.         */
-    byte*  username;               /**< Username, login.                      */
-    word32 usernameSz;             /**< Username length.                      */
+    byte*  user;                   /**< Username, login.                      */
+    word32 userSz;                 /**< Username length.                      */
     byte*  salt;                   /**< Small salt.                           */
     word32 saltSz;                 /**< Salt length.                          */
+    SrpHash client_proof;          /**< Client proof. Sent to Server.         */
+    SrpHash server_proof;          /**< Server proof. Sent to Client.         */
     union {
         SrpClient client;
         SrpServer server;
@@ -125,6 +126,10 @@ WOLFSSL_API int  wc_SrpSetParams(Srp* srp, const byte* N,    word32 nSz,
                                            const byte* salt, word32 saltSz);
 
 WOLFSSL_API int  wc_SrpSetPassword(Srp* srp, const byte* password, word32 size);
+
+WOLFSSL_API int  wc_SrpSetVerifier(Srp* srp, const byte* verifier, word32 size);
+
+WOLFSSL_API int  wc_SrpGetVerifier(Srp* srp, byte* verifier, word32* size);
 
 #ifdef __cplusplus
    } /* extern "C" */
