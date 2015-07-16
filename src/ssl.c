@@ -11564,25 +11564,25 @@ WOLFSSL_BN_ULONG wolfSSL_BN_mod_word(const WOLFSSL_BIGNUM *bn,
 
     if (bn == NULL || bn->internal == NULL) {
         WOLFSSL_MSG("bn NULL error");
-        return SSL_FATAL_ERROR;
+        return (WOLFSSL_BN_ULONG)SSL_FATAL_ERROR;
     }
 
     if (mp_init_multi(&mod, &res, NULL, NULL, NULL, NULL) != MP_OKAY) {
         WOLFSSL_MSG("mp_init error");
-        return SSL_FATAL_ERROR;
+        return (WOLFSSL_BN_ULONG)SSL_FATAL_ERROR;
     }
 
     if (mp_set_int(&mod, w) != MP_OKAY) {
         WOLFSSL_MSG("mp_set_int error");
         mp_clear(&mod);
-        return SSL_FATAL_ERROR;
+        return (WOLFSSL_BN_ULONG)SSL_FATAL_ERROR;
     }
 
     if (mp_mod((mp_int*)bn->internal, &mod, &res) != MP_OKAY) {
         WOLFSSL_MSG("mp_add_d error");
         mp_clear(&mod);
         mp_clear(&res);
-        return SSL_FATAL_ERROR;
+        return (WOLFSSL_BN_ULONG)SSL_FATAL_ERROR;
     }
 
     ret = res.dp[0];
