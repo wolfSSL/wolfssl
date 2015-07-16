@@ -4912,7 +4912,7 @@ static int ecc_get_key_sizes(ecEncCtx* ctx, int* encKeySz, int* ivSz,
         switch (ctx->encAlgo) {
             case ecAES_128_CBC:
                 *encKeySz = KEY_SIZE_128;
-                *ivSz     = IV_SIZE_64;
+                *ivSz     = IV_SIZE_128;
                 *blockSz  = AES_BLOCK_SIZE;
                 break;
             default:
