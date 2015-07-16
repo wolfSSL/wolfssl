@@ -7109,8 +7109,14 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
 
     void wolfSSL_set_shutdown(WOLFSSL* ssl, int opt)
     {
-        (void)ssl;
-        (void)opt;
+        WOLFSSL_ENTER("wolfSSL_set_shutdown");
+        if(ssl==NULL) {
+            WOLFSSL_MSG("Shutdown not set. ssl is null");
+            return;
+        }
+
+        ssl->options.sentNotify =  (opt&SSL_SENT_SHUTDOWN) > 0;
+        ssl->options.closeNotify = (opt&SSL_RECEIVED_SHUTDOWN) > 0;
     }
 
 
@@ -9490,9 +9496,14 @@ void wolfSSL_set_connect_state(WOLFSSL* ssl)
 
 int wolfSSL_get_shutdown(const WOLFSSL* ssl)
 {
+    WOLFSSL_ENTER("wolfSSL_get_shutdown");
+#ifdef HAVE_STUNNEL
+    return (ssl->options.sentNotify << 1) | (ssl->options.closeNotify);
+#else
     return (ssl->options.isClosed  ||
             ssl->options.connReset ||
             ssl->options.sentNotify);
+#endif
 }
 
 
