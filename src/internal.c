@@ -41,7 +41,7 @@
 #endif
 
 #ifdef HAVE_NTRU
-    #include "ntru_crypto.h"
+    #include "libntruencrypt/ntru_crypto.h"
 #endif
 
 #if defined(DEBUG_WOLFSSL) || defined(SHOW_SECRETS) || defined(CHACHA_AEAD_TEST)
@@ -247,7 +247,7 @@ static int QSH_FreeAll(WOLFSSL* ssl)
 static RNG* rng;
 static wolfSSL_Mutex* rngMutex;
 
-static word32 GetEntropy(unsigned char* out, unsigned long long num_bytes)
+static word32 GetEntropy(unsigned char* out, word32 num_bytes)
 {
     int ret = 0;
 
@@ -265,7 +265,7 @@ static word32 GetEntropy(unsigned char* out, unsigned long long num_bytes)
     }
 
     ret |= LockMutex(rngMutex);
-    ret |= wc_RNG_GenerateBlock(rng, out, (word32)num_bytes);
+    ret |= wc_RNG_GenerateBlock(rng, out, num_bytes);
     ret |= UnLockMutex(rngMutex);
 
     if (ret != 0)
@@ -10623,7 +10623,7 @@ static int NtruSecretEncrypt(QSHKey* key, byte* bufIn, word32 inSz,
     }
 
     /* set up ntru drbg */
-    ret = ntru_crypto_external_drbg_instantiate(GetEntropy, &drbg);
+    ret = ntru_crypto_drbg_external_instantiate(GetEntropy, &drbg);
     if (ret != DRBG_OK)
         return NTRU_DRBG_ERROR;
 
@@ -10670,7 +10670,7 @@ static int NtruSecretDecrypt(QSHKey* key, byte* bufIn, word32 inSz,
 
 
     /* set up drbg */
-    ret = ntru_crypto_external_drbg_instantiate(GetEntropy, &drbg);
+    ret = ntru_crypto_drbg_external_instantiate(GetEntropy, &drbg);
     if (ret != DRBG_OK)
         return NTRU_DRBG_ERROR;
 
@@ -10805,7 +10805,7 @@ static word32 QSH_MaxSecret(QSHKey* key)
     }
 
     if (isNtru) {
-        ret = ntru_crypto_external_drbg_instantiate(GetEntropy, &drbg);
+        ret = ntru_crypto_drbg_external_instantiate(GetEntropy, &drbg);
         if (ret != DRBG_OK)
             return NTRU_DRBG_ERROR;
         ret = ntru_crypto_ntru_encrypt(drbg, key->pub.length,
@@ -11251,7 +11251,7 @@ static word32 QSH_KeyExchangeWrite(WOLFSSL* ssl, byte isServer)
                         return NO_PEER_KEY;
                     }
 
-                    rc = ntru_crypto_external_drbg_instantiate(GetEntropy, &drbg);
+                    rc = ntru_crypto_drbg_external_instantiate(GetEntropy, &drbg);
                     if (rc != DRBG_OK) {
                     #ifdef WOLFSSL_SMALL_STACK
                         XFREE(encSecret, NULL, DYNAMIC_TYPE_TMP_BUFFER);
