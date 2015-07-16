@@ -167,7 +167,7 @@ static int CEscape(int escaped, byte e, byte* out, word32* i, word32 max,
         basic = base64Encode[e];
 
     /* check whether to escape. Only escape for EncodeEsc */
-    if (escaped == 1) {
+    if (escaped == ESC_NL_ENC) {
         switch ((char)basic) {
             case '+' :
                 plus     = 1;
@@ -235,9 +235,9 @@ static int DoBase64_Encode(const byte* in, word32 inLen, byte* out,
     word32 outSz = (inLen + 3 - 1) / 3 * 4;
     word32 addSz = (outSz + PEM_LINE_SZ - 1) / PEM_LINE_SZ;  /* new lines */
 
-    if (escaped == 1)
+    if (escaped == ESC_NL_ENC)
         addSz *= 3;   /* instead of just \n, we're doing %0A triplet */
-    else if (escaped == 2)
+    else if (escaped == NO_NL_ENC)
         addSz = 0;    /* encode without \n */
 
     outSz += addSz;
@@ -270,7 +270,7 @@ static int DoBase64_Encode(const byte* in, word32 inLen, byte* out,
         inLen -= 3;
 
         /* Insert newline after PEM_LINE_SZ, unless no \n requested */
-        if (escaped != 2 && (++n % (PEM_LINE_SZ / 4)) == 0 && inLen) {
+        if (escaped != NO_NL_ENC && (++n % (PEM_LINE_SZ / 4)) == 0 && inLen) {
             ret = CEscape(escaped, '\n', out, &i, *outLen, 1);
             if (ret != 0) break;
         }
@@ -302,7 +302,7 @@ static int DoBase64_Encode(const byte* in, word32 inLen, byte* out,
             ret = CEscape(escaped, '=', out, &i, *outLen, 1);
     } 
 
-    if (ret == 0 && escaped != 2) 
+    if (ret == 0 && escaped != NO_NL_ENC) 
         ret = CEscape(escaped, '\n', out, &i, *outLen, 1);
 
     if (i != outSz && escaped != 1 && ret == 0)
@@ -316,19 +316,19 @@ static int DoBase64_Encode(const byte* in, word32 inLen, byte* out,
 /* Base64 Encode, PEM style, with \n line endings */
 int Base64_Encode(const byte* in, word32 inLen, byte* out, word32* outLen)
 {
-    return DoBase64_Encode(in, inLen, out, outLen, 0);
+    return DoBase64_Encode(in, inLen, out, outLen, STD_ENC);
 }
 
 
 /* Base64 Encode, with %0A esacped line endings instead of \n */
 int Base64_EncodeEsc(const byte* in, word32 inLen, byte* out, word32* outLen)
 {
-    return DoBase64_Encode(in, inLen, out, outLen, 1);
+    return DoBase64_Encode(in, inLen, out, outLen, ESC_NL_ENC);
 }
 
 int Base64_Encode_NoNl(const byte* in, word32 inLen, byte* out, word32* outLen)
 {
-    return DoBase64_Encode(in, inLen, out, outLen, 2);
+    return DoBase64_Encode(in, inLen, out, outLen, NO_NL_ENC);
 }
 
 #endif  /* defined(WOLFSSL_BASE64_ENCODE) */

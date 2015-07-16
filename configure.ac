@@ -1730,7 +1730,7 @@ then
     # For now, requires no fastmath, turn off if on
     if test "x$ENABLED_FASTMATH" = "xyes"
     then
-        ENABLED_FASTMATH = "no"
+        ENABLED_FASTMATH="no"
     fi
 
     # Requires sessioncerts make sure on
@@ -1740,6 +1740,13 @@ then
         AM_CFLAGS="$AM_CFLAGS -DSESSION_CERTS"
     fi
 
+    # Requires crls, make sure on
+    if test "x$ENABLED_CRL" = "xno"
+    then
+        ENABLED_CRL="yes"
+        AM_CFLAGS="$AM_CFLAGS -DHAVE_CRL"
+        AM_CONDITIONAL([BUILD_CRL], [test "x$ENABLED_CRL" = "xyes"])
+    fi
     AM_CFLAGS="$AM_CFLAGS -DHAVE_STUNNEL"
 fi
 
