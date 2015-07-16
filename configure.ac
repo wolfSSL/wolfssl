@@ -1055,6 +1055,14 @@ AC_ARG_ENABLE([des3],
 
 if test "$ENABLED_DES3" = "no"
 then
+    if test "$ENABLED_AES" = "no"
+    then
+        if test "$ENABLED_CAMELLIA" = "no"
+        then
+            AC_MSG_ERROR([aes, des3, and camellia are all disabled please\
+                                                          enable one of them])
+        fi
+    fi
     AM_CFLAGS="$AM_CFLAGS -DNO_DES3"
 else
     # turn off DES3 if leanpsk on
