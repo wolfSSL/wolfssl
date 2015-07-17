@@ -148,12 +148,24 @@ then
 fi
 
 
+# OpenSSH compatibility Build
+AC_ARG_ENABLE([openssh],
+    [AS_HELP_STRING([--enable-openssh],[Enable OpenSSH compatibility build (default: disabled)])],
+    [ENABLED_OPENSSH=$enableval],
+    [ENABLED_OPENSSH=no])
+
+
 # OPENSSL Extra Compatibility
 AC_ARG_ENABLE([opensslextra],
     [  --enable-opensslextra   Enable extra OpenSSL API, size+ (default: disabled)],
     [ ENABLED_OPENSSLEXTRA=$enableval ],
     [ ENABLED_OPENSSLEXTRA=no ]
     )
+if test "$ENABLED_OPENSSH" = "yes"
+then
+    ENABLED_OPENSSLEXTRA="yes"
+fi
+
 if test "$ENABLED_OPENSSLEXTRA" = "yes"
 then
   AM_CFLAGS="-DOPENSSL_EXTRA $AM_CFLAGS"
@@ -193,6 +205,11 @@ AC_ARG_ENABLE([fortress],
     [ ENABLED_FORTRESS=$enableval ],
     [ ENABLED_FORTRESS=no ]
     )
+
+if test "$ENABLED_OPENSSH" = "yes"
+then
+    ENABLED_FORTRESS="yes"
+fi
 
 if test "$ENABLED_FORTRESS" = "yes"
 then
@@ -481,6 +498,11 @@ AC_ARG_ENABLE([nullcipher],
     [ ENABLED_NULL_CIPHER=no ]
     )
 
+if test "$ENABLED_OPENSSH" = "yes"
+then
+    ENABLED_NULL_CIPHER="yes"
+fi
+
 if test "$ENABLED_NULL_CIPHER" = "yes"
 then
     AM_CFLAGS="$AM_CFLAGS -DHAVE_NULL_CIPHER"
@@ -492,6 +514,11 @@ AC_ARG_ENABLE([ripemd],
     [ ENABLED_RIPEMD=$enableval ],
     [ ENABLED_RIPEMD=no ]
     )
+
+if test "$ENABLED_OPENSSH" = "yes"
+then
+    ENABLED_RIPEMD="yes"
+fi
 
 if test "$ENABLED_RIPEMD" = "yes"
 then
@@ -534,6 +561,11 @@ AC_ARG_ENABLE([sha512],
 if test "$ENABLED_LEANPSK" = "yes"
 then
     ENABLED_SHA512=no
+fi
+
+if test "$ENABLED_OPENSSH" = "yes"
+then
+    ENABLED_SHA512="yes"
 fi
 
 if test "$ENABLED_SHA512" = "yes"
@@ -637,6 +669,11 @@ AC_ARG_ENABLE([dsa],
     [ ENABLED_DSA=no ]
     )
 
+if test "$ENABLED_OPENSSH" = "yes"
+then
+    ENABLED_DSA="yes"
+fi
+
 if test "$ENABLED_DSA" = "no"
 then
     AM_CFLAGS="$AM_CFLAGS -DNO_DSA"
@@ -664,6 +701,11 @@ AC_ARG_ENABLE([ecc],
 if test "$ENABLED_LEANPSK" = "yes"
 then
     ENABLED_ECC=no
+fi
+
+if test "$ENABLED_OPENSSH" = "yes"
+then
+    ENABLED_ECC="yes"
 fi
 
 if test "$ENABLED_ECC" = "yes"
@@ -901,6 +943,11 @@ AC_ARG_ENABLE([dh],
     [ ENABLED_DH=yes ]
     )
 
+if test "$ENABLED_OPENSSH" = "yes"
+then
+    ENABLED_DH="yes"
+fi
+
 if test "$ENABLED_DH" = "no"
 then
     AM_CFLAGS="$AM_CFLAGS -DNO_DH"
@@ -1078,6 +1125,11 @@ AC_ARG_ENABLE([arc4],
     [ ENABLED_ARC4=$enableval ],
     [ ENABLED_ARC4=no ]
     )
+
+if test "$ENABLED_OPENSSH" = "yes"
+then
+    ENABLED_ARC4="yes"
+fi
 
 if test "$ENABLED_ARC4" = "no"
 then
@@ -2236,6 +2288,7 @@ echo
 echo "   Features "
 echo "   * Single threaded:           $ENABLED_SINGLETHREADED"
 echo "   * Filesystem:                $ENABLED_FILESYSTEM"
+echo "   * OpenSSH Build:             $ENABLED_OPENSSH"
 echo "   * OpenSSL Extra API:         $ENABLED_OPENSSLEXTRA"
 echo "   * Max Strength Build:        $ENABLED_MAXSTRENGTH"
 echo "   * fastmath:                  $ENABLED_FASTMATH"
