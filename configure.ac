@@ -1797,8 +1797,7 @@ then
         AM_CFLAGS="$AM_CFLAGS -DHAVE_CRL"
         AM_CONDITIONAL([BUILD_CRL], [test "x$ENABLED_CRL" = "xyes"])
     fi
-    # Stunnel requires timing resistant for stack reasons
-    AM_CFLAGS="$AM_CFLAGS -DHAVE_STUNNEL -DTFM_TIMING_RESISTANT"
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_STUNNEL"
 fi
 
 
