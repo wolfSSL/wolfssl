@@ -37,7 +37,7 @@
 #endif
 
 #ifdef HAVE_NTRU
-    #include "ntru_crypto.h"
+    #include "libntruencrypt/ntru_crypto.h"
     #include <wolfssl/wolfcrypt/random.h>
 #endif
 #ifdef HAVE_QSH
@@ -2836,7 +2836,7 @@ static word16 TLSX_Write(TLSX* list, byte* output, byte* semaphore,
 
 #ifdef HAVE_NTRU
 
-static word32 GetEntropy(unsigned char* out, unsigned long long num_bytes)
+static word32 GetEntropy(unsigned char* out, word32 num_bytes)
 {
     int ret = 0;
 
@@ -2854,7 +2854,7 @@ static word32 GetEntropy(unsigned char* out, unsigned long long num_bytes)
     }
 
     ret |= LockMutex(rngMutex);
-    ret |= wc_RNG_GenerateBlock(rng, out, (word32)num_bytes);
+    ret |= wc_RNG_GenerateBlock(rng, out, num_bytes);
     ret |= UnLockMutex(rngMutex);
 
     if (ret != 0)
@@ -2947,7 +2947,7 @@ int TLSX_CreateNtruKey(WOLFSSL* ssl, int type)
             WOLFSSL_MSG("Unknown type for creating NTRU key");
             return -1;
     }
-    ret = ntru_crypto_external_drbg_instantiate(GetEntropy, &drbg);
+    ret = ntru_crypto_drbg_external_instantiate(GetEntropy, &drbg);
     if (ret != DRBG_OK) {
         WOLFSSL_MSG("NTRU drbg instantiate failed\n");
         return ret;

@@ -1457,9 +1457,9 @@ AC_ARG_WITH([ntru],
     [
         AC_MSG_CHECKING([for NTRU])
         CPPFLAGS="$CPPFLAGS -DHAVE_NTRU -DHAVE_QSH -DHAVE_TLS_EXTENSIONS"
-        LIBS="$LIBS -lNTRUEncrypt"
+        LIBS="$LIBS -lntruencrypt"
 
-        AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <ntru_crypto_drbg.h>]], [[ ntru_crypto_drbg_instantiate(0, 0, 0, 0, 0); ]])], [ ntru_linked=yes ],[ ntru_linked=no ])
+        AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <libntruencrypt/ntru_crypto_drbg.h>]], [[ ntru_crypto_drbg_instantiate(0, 0, 0, 0, 0); ]])], [ ntru_linked=yes ],[ ntru_linked=no ])
 
         if test "x$ntru_linked" == "xno" ; then
             if test "x$withval" != "xno" ; then
@@ -1472,7 +1472,7 @@ AC_ARG_WITH([ntru],
             LDFLAGS="$AM_LDFLAGS -L$tryntrudir/lib"
             CPPFLAGS="$CPPFLAGS -I$tryntrudir/include"
 
-            AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <ntru_crypto_drbg.h>]], [[ ntru_crypto_drbg_instantiate(0, 0, 0, 0, 0); ]])], [ ntru_linked=yes ],[ ntru_linked=no ])
+            AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <libntruencrypt/ntru_crypto_drbg.h>]], [[ ntru_crypto_drbg_instantiate(0, 0, 0, 0, 0); ]])], [ ntru_linked=yes ],[ ntru_linked=no ])
 
             if test "x$ntru_linked" == "xno" ; then
                 AC_MSG_ERROR([NTRU isn't found.
