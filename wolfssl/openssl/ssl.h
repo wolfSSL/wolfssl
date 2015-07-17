@@ -476,8 +476,10 @@ typedef WOLFSSL_X509_NAME_ENTRY X509_NAME_ENTRY;
 #define SSL_SESSION_set_ex_data          wolfSSL_SESSION_set_ex_data
 #define SSL_SESSION_get_ex_new_index     wolfSSL_SESSION_get_ex_new_index
 #define SSL_SESSION_get_id               wolfSSL_SESSION_get_id
+#define CRYPTO_dynlock_value             WOLFSSL_dynlock_value
 typedef struct CRYPTO_EX_DATA            CRYPTO_EX_DATA;
 typedef WOLFSSL_ASN1_BIT_STRING    ASN1_BIT_STRING;
+
 
 #endif /* HAVE_STUNNEL */
 
