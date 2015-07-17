@@ -1000,6 +1000,10 @@ AC_ARG_ENABLE([aes],
 if test "$ENABLED_AES" = "no"
 then
     AM_CFLAGS="$AM_CFLAGS -DNO_AES"
+    if test "$ENABLED_FORTRESS" = "yes"
+    then
+        AC_MSG_ERROR([fortress requires aes])
+    fi
     if test "$ENABLED_ECC_ENCRYPT" = "yes"
     then
         AC_MSG_ERROR([cannot enable eccencrypt and hkdf without aes.])
