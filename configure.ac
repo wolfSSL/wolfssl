@@ -1783,12 +1783,6 @@ then
         ENABLED_CODING="yes"
     fi
 
-    # For now, requires no fastmath, turn off if on
-    if test "x$ENABLED_FASTMATH" = "xyes"
-    then
-        ENABLED_FASTMATH="no"
-    fi
-
     # Requires sessioncerts make sure on
     if test "x$ENABLED_SESSIONCERTS" = "xno"
     then
@@ -1803,7 +1797,8 @@ then
         AM_CFLAGS="$AM_CFLAGS -DHAVE_CRL"
         AM_CONDITIONAL([BUILD_CRL], [test "x$ENABLED_CRL" = "xyes"])
     fi
-    AM_CFLAGS="$AM_CFLAGS -DHAVE_STUNNEL"
+    # Stunnel requires timing resistant for stack reasons
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_STUNNEL -DTFM_TIMING_RESISTANT"
 fi
 
 
@@ -1856,11 +1851,7 @@ FASTMATH_DEFAULT=no
 
 if test "$host_cpu" = "x86_64"
 then
-    # fastmath turned off for stunnel by default
-    if test "x$ENABLED_STUNNEL" = "xno"
-    then
-        FASTMATH_DEFAULT=yes
-    fi
+    FASTMATH_DEFAULT=yes
 fi
 
 # fastmath
