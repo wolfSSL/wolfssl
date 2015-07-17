@@ -474,10 +474,10 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
             err_sys("can't load server cert file, check file and run from"
                     " wolfSSL home dir");
     }
-#endif
 
-#ifndef NO_DH
-    wolfSSL_CTX_SetMinDhKey_Sz(ctx, (word16)minDhKeyBits);
+    #ifndef NO_DH
+        wolfSSL_CTX_SetMinDhKey_Sz(ctx, (word16)minDhKeyBits);
+    #endif
 #endif
 
 #ifdef HAVE_NTRU
