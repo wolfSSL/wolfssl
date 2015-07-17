@@ -592,7 +592,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     if (fewerPackets)
         wolfSSL_CTX_set_group_messages(ctx);
 
-#ifndef NO_DH
+#if !defined(NO_DH) && !defined(NO_CERTS) && !defined(NO_FILESYSTEM)
     wolfSSL_CTX_SetMinDhKey_Sz(ctx, (word16)minDhKeyBits);
 #endif
 
