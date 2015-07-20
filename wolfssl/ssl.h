@@ -1553,6 +1553,7 @@ WOLFSSL_API int PEM_write_bio_WOLFSSL_X509(WOLFSSL_BIO *bp, WOLFSSL_X509 *x);
 
 #ifdef HAVE_STUNNEL
 
+#include <wolfssl/openssl/crypto.h>
 
 WOLFSSL_API int wolfSSL_CRYPTO_set_mem_ex_functions(void *(*m) (size_t, const char *, int),
     void *(*r) (void *, size_t, const char *, int), void (*f) (void *));
@@ -1601,7 +1602,8 @@ WOLFSSL_API void* wolfSSL_SESSION_get_ex_data(const WOLFSSL_SESSION*, int);
 
 WOLFSSL_API int   wolfSSL_SESSION_set_ex_data(WOLFSSL_SESSION*, int, void*);
 
-WOLFSSL_API int wolfSSL_SESSION_get_ex_new_index(long,void*,void*,void*,void*);
+WOLFSSL_API int wolfSSL_SESSION_get_ex_new_index(long,void*,void*,void*,
+        CRYPTO_free_func*);
 
 WOLFSSL_API int wolfSSL_X509_NAME_get_sz(WOLFSSL_X509_NAME*);
 

@@ -392,8 +392,7 @@ typedef WOLFSSL_X509_STORE_CTX X509_STORE_CTX;
 #define SSL_CTX_sess_set_remove_cb wolfSSL_CTX_sess_set_remove_cb
 
 #define i2d_SSL_SESSION wolfSSL_i2d_SSL_SESSION
-#define d2i_SSL_SESSION(sess, val, length) \
-        wolfSSL_d2i_SSL_SESSION(sess, (const unsigned char **)val, length)
+#define d2i_SSL_SESSION wolfSSL_d2i_SSL_SESSION
 #define SSL_SESSION_set_timeout wolfSSL_SSL_SESSION_set_timeout
 #define SSL_SESSION_get_timeout wolfSSL_SESSION_get_timeout
 #define SSL_SESSION_get_time wolfSSL_SESSION_get_time
@@ -477,7 +476,6 @@ typedef WOLFSSL_X509_NAME_ENTRY X509_NAME_ENTRY;
 #define SSL_SESSION_get_ex_new_index     wolfSSL_SESSION_get_ex_new_index
 #define SSL_SESSION_get_id               wolfSSL_SESSION_get_id
 #define CRYPTO_dynlock_value             WOLFSSL_dynlock_value
-typedef struct CRYPTO_EX_DATA            CRYPTO_EX_DATA;
 typedef WOLFSSL_ASN1_BIT_STRING    ASN1_BIT_STRING;
 
 

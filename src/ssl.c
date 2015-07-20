@@ -15449,7 +15449,7 @@ int wolfSSL_SESSION_set_ex_data(WOLFSSL_SESSION* session, int idx, void* data)
 
 
 int wolfSSL_SESSION_get_ex_new_index(long idx, void* data, void* cb1,
-       void* cb2, void* cb3)
+       void* cb2, CRYPTO_free_func* cb3)
 {
     WOLFSSL_ENTER("wolfSSL_SESSION_get_ex_new_index");
     (void)idx;
