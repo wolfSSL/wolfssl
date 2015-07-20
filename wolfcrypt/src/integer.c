@@ -955,7 +955,7 @@ top:
 
   /* if not zero goto step 4 */
   if (mp_iszero (&u) == 0) {
-    if (++loop_check > 1024) {
+    if (++loop_check > 4096) {
         res = MP_VAL;
         goto LBL_ERR;
     }

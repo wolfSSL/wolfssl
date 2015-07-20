@@ -932,7 +932,7 @@ top:
 
   /* if not zero goto step 4 */
   if (fp_iszero (&u) == FP_NO) {
-    if (++loop_check > 1024) /* bad input */
+    if (++loop_check > 4096) /* bad input */
       return FP_VAL;
     goto top;
   }
