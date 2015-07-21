@@ -3447,8 +3447,10 @@ int wolfSSL_CTX_load_verify_locations(WOLFSSL_CTX* ctx, const char* file,
 
     #ifdef WOLFSSL_SMALL_STACK
         name = (char*)XMALLOC(MAX_FILENAME_SZ, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        if (name == NULL)
+        if (name == NULL) {
+            closedir(dir);
             return MEMORY_E;
+        }
     #endif
 
         while ( ret == SSL_SUCCESS && (entry = readdir(dir)) != NULL) {
@@ -10780,6 +10782,7 @@ int wolfSSL_cmp_peer_cert_to_file(WOLFSSL* ssl, const char *fname)
         WOLFSSL_X509*   peer_cert = &ssl->peerCert;
         buffer         fileDer;
 
+        fileDer.buffer = 0;
         file = XFOPEN(fname, "rb");
         if (file == XBADFILE)
             return SSL_BAD_FILE;
@@ -10805,7 +10808,6 @@ int wolfSSL_cmp_peer_cert_to_file(WOLFSSL* ssl, const char *fname)
             info->set = 0;
             info->ctx = ctx;
             info->consumed = 0;
-            fileDer.buffer = 0;
 
             if ((myBuffer != NULL) &&
                 (sz > 0) &&
@@ -11158,11 +11160,14 @@ int wolfSSL_BN_bn2bin(const WOLFSSL_BIGNUM* bn, unsigned char* r)
 WOLFSSL_BIGNUM* wolfSSL_BN_bin2bn(const unsigned char* str, int len,
                             WOLFSSL_BIGNUM* ret)
 {
+    int weOwn = 0;
+
     WOLFSSL_MSG("wolfSSL_BN_bin2bn");
 
     /* if ret is null create a BN */
     if (ret == NULL) {
         ret = wolfSSL_BN_new();
+        weOwn = 1;
         if (ret == NULL)
             return NULL;
     }
@@ -11171,6 +11176,8 @@ WOLFSSL_BIGNUM* wolfSSL_BN_bin2bn(const unsigned char* str, int len,
     if (ret && ret->internal) {
         if (mp_read_unsigned_bin((mp_int*)ret->internal, str, len) != 0) {
             WOLFSSL_MSG("mp_read_unsigned_bin failure");
+            if (weOwn)
+                wolfSSL_BN_free(ret);
             return NULL;
         }
     }
@@ -11421,17 +11428,8 @@ int wolfSSL_BN_lshift(WOLFSSL_BIGNUM *r, const WOLFSSL_BIGNUM *bn, int n)
 {
     WOLFSSL_MSG("wolfSSL_BN_lshift");
 
-    if (bn == NULL || bn->internal == NULL) {
+    if (r == NULL || r->internal == NULL || bn == NULL || bn->internal == NULL){
         WOLFSSL_MSG("bn NULL error");
-        return SSL_FAILURE;
-    }
-
-    /*  create new bn for res, if not done before */
-    if (r == NULL)
-        r = wolfSSL_BN_new();
-
-    if (r == NULL) {
-        WOLFSSL_MSG("bn new error");
         return SSL_FAILURE;
     }
 
@@ -11450,17 +11448,8 @@ int wolfSSL_BN_rshift(WOLFSSL_BIGNUM *r, const WOLFSSL_BIGNUM *bn, int n)
 {
     WOLFSSL_MSG("wolfSSL_BN_rshift");
 
-    if (bn == NULL || bn->internal == NULL) {
+    if (r == NULL || r->internal == NULL || bn == NULL || bn->internal == NULL){
         WOLFSSL_MSG("bn NULL error");
-        return SSL_FAILURE;
-    }
-
-    /*  create new bn for res, if not done before */
-    if (r == NULL)
-        r = wolfSSL_BN_new();
-
-    if (r == NULL) {
-        WOLFSSL_MSG("bn new error");
         return SSL_FAILURE;
     }
 
@@ -11471,7 +11460,6 @@ int wolfSSL_BN_rshift(WOLFSSL_BIGNUM *r, const WOLFSSL_BIGNUM *bn, int n)
     }
 
     return SSL_SUCCESS;
-
 }
 
 /* return code compliant with OpenSSL :
