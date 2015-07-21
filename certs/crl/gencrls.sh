@@ -5,6 +5,9 @@
 
 
 # caCrl
+# revoke server-revoked-cert.pem
+openssl ca -config ../renewcerts/wolfssl.cnf -revoke ../server-revoked-cert.pem -keyfile ../ca-key.pem -cert ../ca-cert.pem
+
 openssl ca -config ../renewcerts/wolfssl.cnf -gencrl -crldays 1000 -out crl.pem -keyfile ../ca-key.pem -cert ../ca-cert.pem
 
 # metadata
