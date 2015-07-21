@@ -1,0 +1,126 @@
+#!/bin/bash
+
+#crl.test
+
+dir="certs/crl"
+log_file="tests/unit.log"
+result_file="make_test_result.txt"
+success_line="err = -361, CRL Cert revoked"
+exit_code="0"
+allowed_to_run="1"
+script_1="testsuite/testsuite.test"
+script_2="scripts/*.test"
+
+# trap this function so that if we exit on an error the file system will still
+# be restored and the other tests may still pass. Never call this function
+# instead use "exit <some value>" and this function will run automatically
+function restore_file_system() {
+    move_bad_crl_out
+    put_in_good_crl
+}
+trap restore_file_system EXIT
+
+function can_start() {
+
+    # NICK: need a better way of controlling when this script executes
+    # I.E. force it to be last or force it to be first
+
+    # grep for any other test scripts that may be running
+    $allowed_to_run=`ps aux | grep -i "$script_1" | grep -v "grep" | wc -l`
+    if [ $allowed_to_run -ge 1 ]
+    then
+        echo "script is running"
+    else
+        echo "script is not running"
+    fi
+}
+
+function move_good_crl_out() {
+    if test -e $dir/crl.pem; then
+        echo "moving good crl out of the way"
+        mv $dir/crl.pem $dir/crl.unrevoked
+    else
+        echo "file not found: $dir/crl.pem"
+        echo "Please make sure you're running from wolfSSL_root directory"
+        $exit_code = -1
+        echo "exiting with $exit_code"
+        exit $exit_code
+    fi
+}
+
+function put_in_bad_crl() {
+    if test -e $dir/crl.revoked; then
+        echo "moving crl with server revoked into place"
+        mv $dir/crl.revoked $dir/crl.pem
+    else
+        echo "file not found: $dir/crl.revoked"
+        echo "Please make sure you're running from wolfSSL_root directory"
+        $exit_code = -1
+        echo "exiting with $exit_code"
+        exit $exit_code
+    fi
+}
+
+function run_test() {
+
+    # NICK: is there a better way then scrubbing the .log file to get the
+    # error code -361 thoughts?
+    #consider how we might abstract this up one layer perhaps a c program.
+
+    # Redirect stdout and stderr to reduce "noise"
+    ./testsuite/testsuite.test &> scripts/ignore.txt
+    rm scripts/ignore.txt
+
+    if test -e $log_file
+    then
+        while read line;
+        do
+            if [[ "x$success_line" == "x$line" ]]
+            then
+                echo "Successful Revocation!!!!"
+            fi
+        done < $log_file
+    fi
+}
+
+function move_bad_crl_out() {
+    if test -e $dir/crl.pem; then
+        echo "moving crl with server revoked out of the way"
+        mv $dir/crl.pem $dir/crl.revoked
+    else
+        echo "file system corrupted. $dir/crl.pem missing after test"
+        $exit_code = -2
+        echo "exiting with $exit_code"
+        exit $exit_code
+    fi
+}
+
+function put_in_good_crl() {
+    if test -e $dir/crl.unrevoked; then
+        echo "moving good crl back into place"
+        mv $dir/crl.unrevoked $dir/crl.pem
+    else
+        echo "file system corrupted. $dir/crl.unrevoked missing after test"
+        $exit_code = -2
+        echo "exiting with $exit_code"
+        exit $exit_code
+    fi
+}
+
+######### begin program #########
+
+# check if testsuite is currently running
+#can_start
+
+# move good crl to crl.unrevoked
+move_good_crl_out
+
+# move revoked crl into place
+put_in_bad_crl
+
+# run the test
+run_test
+
+echo "exiting with $exit_code"
+exit $exit_code
+########## end program ##########
