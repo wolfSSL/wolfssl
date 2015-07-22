@@ -1414,7 +1414,7 @@ then
 fi
 
 
-# CRL 
+# CRL
 AC_ARG_ENABLE([crl],
     [  --enable-crl            Enable CRL (default: disabled)],
     [ ENABLED_CRL=$enableval ],
@@ -1427,7 +1427,6 @@ then
 fi
 
 AM_CONDITIONAL([BUILD_CRL], [test "x$ENABLED_CRL" = "xyes"])
-
 
 # CRL Monitor
 AC_ARG_ENABLE([crl-monitor],
