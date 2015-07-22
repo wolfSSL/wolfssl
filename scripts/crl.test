@@ -4,10 +4,12 @@
 
 log_file="scripts/client_result.txt"
 success_line="err = -361, CRL Cert revoked"
-exit_code="-1"
+exit_code=-1
 
 crl_port=11113
+#no_pid tells us process was never started if -1
 no_pid=-1
+#server_pid captured on startup, stores the id of the server process
 server_pid=$no_pid
 
 function remove_ready_file() {
@@ -17,10 +19,17 @@ function remove_ready_file() {
     fi
 }
 
+function remove_log_file() {
+    if test -e $log_file; then
+        echo -e "removing client log file"
+        rm $log_file
+    fi
+}
+
 # trap this function so if user aborts with ^C or other kill signal we still
 # get an exit that will in turn clean up the file system
 function abort_trap() {
-    $exit_code = "-1"
+    exit_code=-2 #different exit code in case of user interrupt
     echo "got abort signal, exiting with $exit_code"
     exit $exit_code
 }
@@ -39,6 +48,7 @@ function restore_file_system() {
         kill -9 $server_pid
     fi
     remove_ready_file
+    remove_log_file
 }
 trap restore_file_system EXIT
 
@@ -46,7 +56,11 @@ function run_test() {
     echo -e "\nStarting example server for crl test...\n"
 
     remove_ready_file
-    ./examples/server/server -R -p $crl_port &
+
+    # starts the server on crl_port, -R generates ready file to be used as a
+    # mutex lock, -c loads the revoked certificate. We capture the processid
+    # into the variable server_pid
+    ./examples/server/server -R -p $crl_port -c certs/server-revoked-cert.pem &
     server_pid=$!
 
     while [ ! -s /tmp/wolfssl_server_ready ]; do
@@ -54,33 +68,9 @@ function run_test() {
         sleep 0.1
     done
 
+    # starts client on crl_port and redirects output to log_file
     ./examples/client/client -p $crl_port &> $log_file
     client_result=$?
-
-    if [ $client_result != 0 ]
-    then
-        echo -e "client failed!"
-        exit 1
-    fi
-
-    wait $server_pid
-    server_result=$?
-
-    if [ $server_result != 0 ]
-    then
-        echo -e "client failed!"
-        exit 1
-    fi
-
-    echo -e "\nSuccess!\n"
-
-    # NICK: is there a better way then scrubbing the .log file to get the
-    # error code -361 thoughts?
-    #consider how we might abstract this up one layer perhaps a c program.
-
-    # Redirect stdout and stderr to reduce "noise"
-#    ./testsuite/testsuite.test &> scripts/ignore.txt
-#    rm scripts/ignore.txt
 
     if test -e $log_file
     then
@@ -99,7 +89,7 @@ function run_test() {
 
 # run the test
 run_test
-$exit_code=0
+exit_code=0
 echo "exiting with $exit_code"
 exit $exit_code
 ########## end program ##########

@@ -14,6 +14,17 @@ function setup_files() {
     touch ./demoCA/index.txt
 }
 
+function cleanup_files() {
+    rm blank.index.txt
+    rm index.*
+    rm crlnumber*
+    rm -r demoCA
+    echo "Removed ../wolfssl.cnf, blank.index.txt, index.*, crlnumber*, demoCA/"
+    echo ""
+    exit 0
+}
+trap cleanup_files EXIT
+
 #setup the files
 setup_files
 
@@ -72,14 +83,3 @@ mv tmp eccSrvCRL.pem
 #cp eccSrvCRL.pem ~/wolfssl/certs/crl/eccSrvCRL.pem
 
 exit 0
-
-function cleanup_files() {
-    rm blank.index.txt
-    rm index.*
-    rm crlnumber*
-    rm -r demoCA
-    echo "Removed ../wolfssl.cnf, blank.index.txt, index.*, crlnumber*, demoCA/"
-    echo ""
-    exit 0
-}
-trap cleanup_files EXIT
