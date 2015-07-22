@@ -45,6 +45,14 @@
     #endif
 #endif
 
+#ifdef SHOW_GEN
+    #ifdef FREESCALE_MQX
+        #include <fio.h>
+    #else
+        #include <stdio.h>
+    #endif
+#endif
+
 /* reverse an array, used for radix code */
 static void
 bn_reverse (unsigned char *s, int len)
@@ -2526,13 +2534,15 @@ mp_set_bit (mp_int * a, int b)
 {
     int i = b / DIGIT_BIT, res;
 
-    /* grow a to accomodate the single bit */
-    if ((res = mp_grow (a, i + 1)) != MP_OKAY) {
-        return res;
-    }
+    if (a->used < (int)(i + 1)) {
+        /* grow a to accomodate the single bit */
+        if ((res = mp_grow (a, i + 1)) != MP_OKAY) {
+            return res;
+        }
 
-    /* set the used count of where the bit will go */
-    a->used = i + 1;
+        /* set the used count of where the bit will go */
+        a->used = (int)(i + 1);
+    }
 
     /* put the single bit in its place */
     a->dp[i] |= ((mp_digit)1) << (b % DIGIT_BIT);
@@ -4086,12 +4096,15 @@ static int mp_div_d (mp_int * a, mp_digit b, mp_int * c, mp_digit * d)
 #endif
 
   /* no easy answer [c'est la vie].  Just division */
-  if ((res = mp_init_size(&q, a->used)) != MP_OKAY) {
-     return res;
+  if (c != NULL) {
+      if ((res = mp_init_size(&q, a->used)) != MP_OKAY) {
+        return res;
+      }
+
+      q.used = a->used;
+      q.sign = a->sign;
   }
 
-  q.used = a->used;
-  q.sign = a->sign;
   w = 0;
   for (ix = a->used - 1; ix >= 0; ix--) {
      w = (w << ((mp_word)DIGIT_BIT)) | ((mp_word)a->dp[ix]);
@@ -4102,7 +4115,8 @@ static int mp_div_d (mp_int * a, mp_digit b, mp_int * c, mp_digit * d)
       } else {
         t = 0;
       }
-      q.dp[ix] = (mp_digit)t;
+      if (c != NULL)
+        q.dp[ix] = (mp_digit)t;
   }
 
   if (d != NULL) {
@@ -4112,8 +4126,8 @@ static int mp_div_d (mp_int * a, mp_digit b, mp_int * c, mp_digit * d)
   if (c != NULL) {
      mp_clamp(&q);
      mp_exch(&q, c);
+     mp_clear(&q);
   }
-  mp_clear(&q);
 
   return res;
 }
@@ -4282,6 +4296,70 @@ static int mp_prime_is_divisible (mp_int * a, int *result)
   return MP_OKAY;
 }
 
+static const int USE_BBS = 1;
+
+int mp_rand_prime(mp_int* N, int len, RNG* rng, void* heap)
+{
+    int   err, res, type;
+    byte* buf;
+
+    if (N == NULL || rng == NULL)
+        return BAD_FUNC_ARG;
+
+    /* get type */
+    if (len < 0) {
+        type = USE_BBS;
+        len = -len;
+    } else {
+        type = 0;
+    }
+
+    /* allow sizes between 2 and 512 bytes for a prime size */
+    if (len < 2 || len > 512) {
+        return BAD_FUNC_ARG;
+    }
+
+    /* allocate buffer to work with */
+    buf = (byte*)XMALLOC(len, heap, DYNAMIC_TYPE_RSA);
+    if (buf == NULL) {
+        return MEMORY_E;
+    }
+    XMEMSET(buf, 0, len);
+
+    do {
+#ifdef SHOW_GEN
+        printf(".");
+        fflush(stdout);
+#endif
+        /* generate value */
+        err = wc_RNG_GenerateBlock(rng, buf, len);
+        if (err != 0) {
+            XFREE(buf, heap, DYNAMIC_TYPE_RSA);
+            return err;
+        }
+
+        /* munge bits */
+        buf[0]     |= 0x80 | 0x40;
+        buf[len-1] |= 0x01 | ((type & USE_BBS) ? 0x02 : 0x00);
+
+        /* load value */
+        if ((err = mp_read_unsigned_bin(N, buf, len)) != MP_OKAY) {
+            XFREE(buf, heap, DYNAMIC_TYPE_RSA);
+            return err;
+        }
+
+        /* test */
+        if ((err = mp_prime_is_prime(N, 8, &res)) != MP_OKAY) {
+            XFREE(buf, heap, DYNAMIC_TYPE_RSA);
+            return err;
+        }
+    } while (res == MP_NO);
+
+    ForceZero(buf, len);
+    XFREE(buf, heap, DYNAMIC_TYPE_RSA);
+    
+    return MP_OKAY;
+}
 
 /*
  * Sets result to 1 if probably prime, 0 otherwise
@@ -4468,8 +4546,6 @@ LBL_U:mp_clear (&v);
     return res;
 }
 
-
-
 #endif /* WOLFSSL_KEY_GEN */
 
 
@@ -4542,6 +4618,9 @@ int mp_read_radix (mp_int * a, const char *str, int radix)
   }
   return MP_OKAY;
 }
+#endif /* HAVE_ECC */
+
+#if defined(WOLFSSL_KEY_GEN) || defined(HAVE_COMP_KEY)
 
 /* returns size of ASCII representation */
 int mp_radix_size (mp_int *a, int radix, int *size)
@@ -4652,7 +4731,7 @@ int mp_toradix (mp_int *a, char *str, int radix)
     return MP_OKAY;
 }
 
-#endif /* HAVE_ECC */
+#endif /* defined(WOLFSSL_KEY_GEN) || defined(HAVE_COMP_KEY) */
 
 #endif /* USE_FAST_MATH */
 

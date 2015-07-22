@@ -84,7 +84,7 @@ typedef struct {
  */
 
 #ifndef FP_MAX_BITS_ECC
-    #define FP_MAX_BITS_ECC           512
+    #define FP_MAX_BITS_ECC           528
 #endif
 #define FP_MAX_SIZE_ECC           (FP_MAX_BITS_ECC+(8*DIGIT_BIT))
 #if FP_MAX_BITS_ECC % CHAR_BIT
@@ -163,17 +163,20 @@ WOLFSSL_API
 void wc_ecc_fp_free(void);
 
 WOLFSSL_API
-ecc_point* ecc_new_point(void);
+ecc_point* wc_ecc_new_point(void);
 WOLFSSL_API
-void ecc_del_point(ecc_point* p);
+void wc_ecc_del_point(ecc_point* p);
 WOLFSSL_API
-int ecc_copy_point(ecc_point* p, ecc_point *r);
+int wc_ecc_copy_point(ecc_point* p, ecc_point *r);
 WOLFSSL_API
-int ecc_cmp_point(ecc_point* a, ecc_point *b);
+int wc_ecc_cmp_point(ecc_point* a, ecc_point *b);
 WOLFSSL_API
-int ecc_point_is_at_infinity(ecc_point *p);
+int wc_ecc_point_is_at_infinity(ecc_point *p);
 WOLFSSL_API
-int ecc_mulmod(mp_int* k, ecc_point *G, ecc_point *R, mp_int* modulus, int map);
+int wc_ecc_is_valid_idx(int n);
+WOLFSSL_API
+int wc_ecc_mulmod(mp_int* k, ecc_point *G, ecc_point *R,
+                  mp_int* modulus, int map);
 
 /* ASN key helpers */
 WOLFSSL_API

@@ -210,7 +210,7 @@ int pbkdf2_test(void);
 #endif
 
 
-/* General big buffer size for many tests. */ 
+/* General big buffer size for many tests. */
 #define FOURK_BUF 4096
 
 
@@ -3385,6 +3385,8 @@ int rsa_test(void)
 #ifdef HAVE_CAVIUM
     wc_RsaInitCavium(&key, CAVIUM_DEV_ID);
 #endif
+
+printf("1\n");
     ret = wc_InitRsaKey(&key, 0);
     if (ret != 0) {
         free(tmp);
@@ -3445,7 +3447,7 @@ int rsa_test(void)
         free(tmp);
         return -49;
     }
-
+printf("11\n");
     bytes = fread(tmp, 1, FOURK_BUF, file2);
     fclose(file2);
 #endif
@@ -3465,7 +3467,7 @@ int rsa_test(void)
     (void)bytes;
 #endif
 
-
+printf("111\n");
 #ifdef WOLFSSL_KEY_GEN
     {
         byte*  der;
@@ -3476,7 +3478,7 @@ int rsa_test(void)
         RsaKey genKey;
         FILE*  keyFile;
         FILE*  pemFile;
-
+printf("2\n");
         ret = wc_InitRsaKey(&genKey, 0);
         if (ret != 0)
             return -300;
@@ -3502,7 +3504,7 @@ int rsa_test(void)
             free(pem);
             return -302;
         }
-
+printf("22\n");
 #ifdef FREESCALE_MQX
         keyFile = fopen("a:\\certs\\key.der", "wb");
 #else
@@ -3523,14 +3525,14 @@ int rsa_test(void)
             return -313;
         }
 
-        pemSz = wc_DerToPem(der, derSz, pem, FOURK_BUF, PRIVATEKEY_TYPE);
+        pemSz = wc_DerToPem(der, derSz, pem, FOURK_BUF, NULL, PRIVATEKEY_TYPE);
         if (pemSz < 0) {
             free(der);
             free(pem);
             wc_FreeRsaKey(&genKey);
             return -304;
         }
-
+printf("222\n");
 #ifdef FREESCALE_MQX
         pemFile = fopen("a:\\certs\\key.pem", "wb");
 #else
@@ -3567,7 +3569,7 @@ int rsa_test(void)
             wc_FreeRsaKey(&genKey);
             return -306;
         }
-
+printf("2222\n");
         wc_FreeRsaKey(&derIn);
         wc_FreeRsaKey(&genKey);
         free(pem);
@@ -3575,7 +3577,7 @@ int rsa_test(void)
     }
 #endif /* WOLFSSL_KEY_GEN */
 
-
+printf("3\n");
 #ifdef WOLFSSL_CERT_GEN
     /* self signed */
     {
@@ -3598,7 +3600,7 @@ int rsa_test(void)
             free(derCert);
             return -310;
         }
-
+printf("33\n");
         wc_InitCert(&myCert);
 
         strncpy(myCert.subject.country, "US", CTC_NAME_SIZE);
@@ -3628,7 +3630,7 @@ int rsa_test(void)
         }
         FreeDecodedCert(&decode);
 #endif
-
+printf("333\n");
 #ifdef FREESCALE_MQX
         derFile = fopen("a:\\certs\\cert.der", "wb");
 #else
@@ -3646,14 +3648,14 @@ int rsa_test(void)
             free(pem);
             return -414;
         }
-
-        pemSz = wc_DerToPem(derCert, certSz, pem, FOURK_BUF, CERT_TYPE);
+printf("4\n");
+        pemSz = wc_DerToPem(derCert, certSz, pem, FOURK_BUF, NULL, CERT_TYPE);
         if (pemSz < 0) {
             free(derCert);
             free(pem);
             return -404;
         }
-
+printf("41\n");
 #ifdef FREESCALE_MQX
         pemFile = fopen("a:\\certs\\cert.pem", "wb");
 #else
@@ -3793,7 +3795,7 @@ int rsa_test(void)
             return -416;
         }
 
-        pemSz = wc_DerToPem(derCert, certSz, pem, FOURK_BUF, CERT_TYPE);
+        pemSz = wc_DerToPem(derCert, certSz, pem, FOURK_BUF, NULL, CERT_TYPE);
         if (pemSz < 0) {
             free(derCert);
             free(pem);
@@ -3938,7 +3940,7 @@ int rsa_test(void)
             return -5414;
         }
 
-        pemSz = wc_DerToPem(derCert, certSz, pem, FOURK_BUF, CERT_TYPE);
+        pemSz = wc_DerToPem(derCert, certSz, pem, FOURK_BUF, NULL, CERT_TYPE);
         if (pemSz < 0) {
             free(pem);
             free(derCert);
@@ -4122,7 +4124,7 @@ int rsa_test(void)
             return -473;
         }
 
-        pemSz = wc_DerToPem(derCert, certSz, pem, FOURK_BUF, CERT_TYPE);
+        pemSz = wc_DerToPem(derCert, certSz, pem, FOURK_BUF, NULL, CERT_TYPE);
         if (pemSz < 0) {
             free(derCert);
             free(pem);
@@ -4207,7 +4209,7 @@ int rsa_test(void)
             return -466;
         }
 
-        pemSz = wc_DerToPem(der, derSz, pem, FOURK_BUF, CERTREQ_TYPE);
+        pemSz = wc_DerToPem(der, derSz, pem, FOURK_BUF, NULL, CERTREQ_TYPE);
         if (pemSz < 0) {
             free(pem);
             free(der);
@@ -5125,7 +5127,7 @@ int ecc_test(void)
             return -1026;
         }
 
-        pemSz = wc_DerToPem(der, derSz, pem, FOURK_BUF, ECC_PRIVATEKEY_TYPE);
+        pemSz = wc_DerToPem(der, derSz, pem, FOURK_BUF, NULL, ECC_PRIVATEKEY_TYPE);
         if (pemSz < 0) {
             return -1027;
         }

@@ -131,14 +131,6 @@ int wc_RsaFlattenPublicKey(RsaKey* key, byte* a, word32* aSz, byte* b,
     #include <wolfcrypt/src/misc.c>
 #endif
 
-#ifdef SHOW_GEN
-    #ifdef FREESCALE_MQX
-        #include <fio.h>
-    #else
-        #include <stdio.h>
-    #endif
-#endif
-
 #ifdef HAVE_CAVIUM
     static int  InitCaviumRsaKey(RsaKey* key, void* heap);
     static int  FreeCaviumRsaKey(RsaKey* key);
@@ -151,22 +143,6 @@ int wc_RsaFlattenPublicKey(RsaKey* key, byte* a, word32* aSz, byte* b,
     static int  CaviumRsaSSL_Verify(const byte* in, word32 inLen, byte* out,
                                     word32 outLen, RsaKey* key);
 #endif
-
-enum {
-    RSA_PUBLIC_ENCRYPT  = 0,
-    RSA_PUBLIC_DECRYPT  = 1,
-    RSA_PRIVATE_ENCRYPT = 2,
-    RSA_PRIVATE_DECRYPT = 3,
-
-    RSA_BLOCK_TYPE_1 = 1,
-    RSA_BLOCK_TYPE_2 = 2,
-
-    RSA_MIN_SIZE = 512,
-    RSA_MAX_SIZE = 4096,
-
-    RSA_MIN_PAD_SZ   = 11      /* seperator + 0 + pad value + 8 pads */
-};
-
 
 int wc_InitRsaKey(RsaKey* key, void* heap)
 {
@@ -610,76 +586,7 @@ int wc_RsaFlattenPublicKey(RsaKey* key, byte* e, word32* eSz, byte* n,
     return 0;
 }
 
-
 #ifdef WOLFSSL_KEY_GEN
-
-static const int USE_BBS = 1;
-
-static int rand_prime(mp_int* N, int len, RNG* rng, void* heap)
-{
-    int   err, res, type;
-    byte* buf;
-
-    (void)heap;
-    if (N == NULL || rng == NULL)
-       return BAD_FUNC_ARG; 
-
-    /* get type */
-    if (len < 0) {
-        type = USE_BBS;
-        len = -len;
-    } else {
-        type = 0;
-    }
-
-    /* allow sizes between 2 and 512 bytes for a prime size */
-    if (len < 2 || len > 512) { 
-        return BAD_FUNC_ARG;
-    }
-   
-    /* allocate buffer to work with */
-    buf = (byte*)XMALLOC(len, heap, DYNAMIC_TYPE_RSA);
-    if (buf == NULL) {
-        return MEMORY_E;
-    }
-    XMEMSET(buf, 0, len);
-
-    do {
-#ifdef SHOW_GEN
-        printf(".");
-        fflush(stdout);
-#endif
-        /* generate value */
-        err = wc_RNG_GenerateBlock(rng, buf, len);
-        if (err != 0) {
-            XFREE(buf, heap, DYNAMIC_TYPE_RSA);
-            return err;
-        }
-
-        /* munge bits */
-        buf[0]     |= 0x80 | 0x40;
-        buf[len-1] |= 0x01 | ((type & USE_BBS) ? 0x02 : 0x00);
- 
-        /* load value */
-        if ((err = mp_read_unsigned_bin(N, buf, len)) != MP_OKAY) {
-            XFREE(buf, heap, DYNAMIC_TYPE_RSA);
-            return err;
-        }
-
-        /* test */
-        if ((err = mp_prime_is_prime(N, 8, &res)) != MP_OKAY) {
-            XFREE(buf, heap, DYNAMIC_TYPE_RSA);
-            return err;
-        }
-    } while (res == MP_NO);
-
-    ForceZero(buf, len);
-    XFREE(buf, heap, DYNAMIC_TYPE_RSA);
-
-    return 0;
-}
-
-
 /* Make an RSA key for size bits, with e specified, 65537 is a good e */
 int wc_MakeRsaKey(RsaKey* key, int size, long e, RNG* rng)
 {
@@ -703,7 +610,7 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, RNG* rng)
     /* make p */
     if (err == MP_OKAY) {
         do {
-            err = rand_prime(&p, size/16, rng, key->heap); /* size in bytes/2 */
+            err = mp_rand_prime(&p, size/16, rng, key->heap); /* size in bytes/2 */
 
             if (err == MP_OKAY)
                 err = mp_sub_d(&p, 1, &tmp1);  /* tmp1 = p-1 */
@@ -716,7 +623,7 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, RNG* rng)
     /* make q */
     if (err == MP_OKAY) {
         do {
-            err = rand_prime(&q, size/16, rng, key->heap); /* size in bytes/2 */
+            err = mp_rand_prime(&q, size/16, rng, key->heap); /* size in bytes/2 */
 
             if (err == MP_OKAY)
                 err = mp_sub_d(&q, 1, &tmp1);  /* tmp1 = q-1 */

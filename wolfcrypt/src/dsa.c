@@ -27,10 +27,12 @@
 
 #ifndef NO_DSA
 
-#include <wolfssl/wolfcrypt/dsa.h>
-#include <wolfssl/wolfcrypt/sha.h>
 #include <wolfssl/wolfcrypt/random.h>
+#include <wolfssl/wolfcrypt/integer.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
+#include <wolfssl/wolfcrypt/logging.h>
+#include <wolfssl/wolfcrypt/sha.h>
+#include <wolfssl/wolfcrypt/dsa.h>
 
 
 enum {
@@ -79,6 +81,266 @@ void wc_FreeDsaKey(DsaKey* key)
     mp_clear(&key->p);
 #endif
 }
+
+#ifdef WOLFSSL_KEY_GEN
+
+int wc_MakeDsaKey(RNG *rng, DsaKey *dsa)
+{
+    unsigned char *buf;
+    int qsize, err;
+
+    if (rng == NULL || dsa == NULL)
+        return BAD_FUNC_ARG;
+
+    qsize = mp_unsigned_bin_size(&dsa->q);
+
+    /* allocate ram */
+    buf = (unsigned char *)XMALLOC(qsize, NULL,
+                                   DYNAMIC_TYPE_TMP_BUFFER);
+    if (buf == NULL)
+        return MEMORY_E;
+
+    if (mp_init(&dsa->x) != MP_OKAY) {
+        XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        return MP_INIT_E;
+    }
+
+    do {
+        /* make a random exponent mod q */
+        err = wc_RNG_GenerateBlock(rng, buf, qsize);
+        if (err != MP_OKAY) {
+            mp_clear(&dsa->x);
+            XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            return err;
+        }
+
+        /* force magnitude */
+        buf[0] |= 0xC0;
+        
+        err = mp_read_unsigned_bin(&dsa->x, buf, qsize);
+        if (err != MP_OKAY) {
+            mp_clear(&dsa->x);
+            XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            return err;
+        }
+    } while (mp_cmp_d(&dsa->x, 1) != MP_GT);
+
+    XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
+    if (mp_init(&dsa->y) != MP_OKAY) {
+        mp_clear(&dsa->x);
+        return MP_INIT_E;
+    }
+
+    /* public key : y = g^x mod p */
+    err = mp_exptmod(&dsa->g, &dsa->x, &dsa->p, &dsa->y);
+    if (err != MP_OKAY) {
+        mp_clear(&dsa->x);
+        mp_clear(&dsa->y);
+        return err;
+    }
+
+    dsa->type = DSA_PRIVATE;
+    
+    return MP_OKAY;
+}
+
+/* modulus_size in bits */
+int wc_MakeDsaParameters(RNG *rng, int modulus_size, DsaKey *dsa)
+{
+    mp_int         tmp, tmp2;
+    int            err, res, msize, qsize, loop;
+    unsigned char  *buf;
+
+    if (rng == NULL || dsa == NULL)
+        return BAD_FUNC_ARG;
+
+    /* set group size in bytes from modulus size
+     * FIPS 186-4 defines valid values (1024, 160) (2048, 256) (3072, 256)
+     */
+    switch (modulus_size) {
+        case 1024:
+            qsize = 20;
+            break;
+        case 2048:
+        case 3072:
+            qsize = 32;
+            break;
+        default:
+            return BAD_FUNC_ARG;
+            break;
+    }
+
+    /* modulus size in bytes */
+    msize = modulus_size / 8;
+
+    if (mp_init(&dsa->q) != MP_OKAY)
+        return MP_INIT_E;
+
+    /* make our prime q */
+    err = mp_rand_prime(&dsa->q, qsize, rng, NULL);
+    if (err != MP_OKAY) {
+        mp_clear(&dsa->q);
+        return err;
+    }
+
+    if (mp_init(&tmp) != MP_OKAY) {
+        mp_clear(&dsa->q);
+        return MP_INIT_E;
+    }
+
+    /* tmp = 2q  */
+    err = mp_add(&dsa->q, &dsa->q, &tmp);
+    if (err != MP_OKAY) {
+        mp_clear(&dsa->q);
+        mp_clear(&tmp);
+        return err;
+    }
+
+    /* allocate ram */
+    buf = (unsigned char *)XMALLOC(msize - qsize,
+                                   NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (buf == NULL) {
+        mp_clear(&dsa->q);
+        mp_clear(&tmp);
+        return MEMORY_E;
+    }
+
+    /* now make a random string and multply it against q */
+    err = wc_RNG_GenerateBlock(rng, buf, msize - qsize);
+    if (err != MP_OKAY) {
+        mp_clear(&dsa->q);
+        mp_clear(&tmp);
+        XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        return err;
+    }
+
+    /* force magnitude */
+    buf[0] |= 0xC0;
+
+    /* force even */
+    buf[msize - qsize - 1] &= ~1;
+
+    if (mp_init_multi(&tmp2, &dsa->p, 0, 0, 0, 0) != MP_OKAY) {
+        mp_clear(&dsa->q);
+        mp_clear(&tmp);
+        XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        return MP_INIT_E;
+    }
+
+    err = mp_read_unsigned_bin(&tmp2, buf, msize - qsize);
+    if (err != MP_OKAY) {
+        mp_clear(&dsa->q);
+        mp_clear(&dsa->p);
+        mp_clear(&tmp);
+        mp_clear(&tmp2);
+        XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        return err;
+    }
+    XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
+    /* p = tmp2 * q */
+    err = mp_mul(&dsa->q, &tmp2, &dsa->p);
+    if (err != MP_OKAY) {
+        mp_clear(&dsa->q);
+        mp_clear(&dsa->p);
+        mp_clear(&tmp);
+        mp_clear(&tmp2);
+        return err;
+    }
+
+    /* p = tmp2 * q + 1, so q is a prime divisor of p-1 */
+    err = mp_add_d(&dsa->p, 1, &dsa->p);
+    if (err != MP_OKAY) {
+        mp_clear(&dsa->q);
+        mp_clear(&dsa->p);
+        mp_clear(&tmp);
+        mp_clear(&tmp2);
+        return err;
+    }
+
+    /* loop until p is prime */
+    for (loop = 0; loop++;) {
+        err = mp_prime_is_prime(&dsa->p, 8, &res);
+        if (err != MP_OKAY) {
+            mp_clear(&dsa->q);
+            mp_clear(&dsa->p);
+            mp_clear(&tmp);
+            mp_clear(&tmp2);
+            return err;
+        }
+
+        if (res == MP_YES)
+            break;
+
+        /* p += 2q */
+        err = mp_add(&tmp, &dsa->p, &dsa->p);
+        if (err != MP_OKAY) {
+            mp_clear(&dsa->q);
+            mp_clear(&dsa->p);
+            mp_clear(&tmp);
+            mp_clear(&tmp2);
+            return err;
+        }
+    }
+
+    /* tmp2 += (2*loop)
+     * to have p = (q * tmp2) + 1 prime
+     */
+    if (loop) {
+        err = mp_add_d(&tmp2, 2*loop, &tmp2);
+        if (err != MP_OKAY) {
+            mp_clear(&dsa->q);
+            mp_clear(&dsa->p);
+            mp_clear(&tmp);
+            mp_clear(&tmp2);
+            return err;
+        }
+    }
+
+    if (mp_init(&dsa->g) != MP_OKAY) {
+        mp_clear(&dsa->q);
+        mp_clear(&dsa->p);
+        mp_clear(&tmp);
+        mp_clear(&tmp2);
+        return MP_INIT_E;
+    }
+
+    /* find a value g for which g^tmp2 != 1 */
+    mp_set(&dsa->g, 1);
+
+    do {
+        err = mp_add_d(&dsa->g, 1, &dsa->g);
+        if (err != MP_OKAY) {
+            mp_clear(&dsa->q);
+            mp_clear(&dsa->p);
+            mp_clear(&dsa->g);
+            mp_clear(&tmp);
+            mp_clear(&tmp2);
+            return err;
+        }
+
+        err = mp_exptmod(&dsa->g, &tmp2, &dsa->p, &tmp);
+        if (err != MP_OKAY) {
+            mp_clear(&dsa->q);
+            mp_clear(&dsa->p);
+            mp_clear(&dsa->g);
+            mp_clear(&tmp);
+            mp_clear(&tmp2);
+            return err;
+        }
+
+    } while (mp_cmp_d(&tmp, 1) == MP_EQ);
+
+    /* at this point tmp generates a group of order q mod p */
+    mp_exch(&tmp, &dsa->g);
+
+    mp_clear(&tmp);
+    mp_clear(&tmp2);
+
+    return MP_OKAY;
+}
+#endif /* WOLFSSL_KEY_GEN */
 
 
 int wc_DsaSign(const byte* digest, byte* out, DsaKey* key, RNG* rng)

@@ -1386,7 +1386,8 @@ int DsaPublicKeyDecode(const byte* input, word32* inOutIdx, DsaKey* key,
     if (GetInt(&key->p,  input, inOutIdx, inSz) < 0 ||
         GetInt(&key->q,  input, inOutIdx, inSz) < 0 ||
         GetInt(&key->g,  input, inOutIdx, inSz) < 0 ||
-        GetInt(&key->y,  input, inOutIdx, inSz) < 0 )  return ASN_DH_KEY_E;
+        GetInt(&key->y,  input, inOutIdx, inSz) < 0 )
+        return ASN_DH_KEY_E;
 
     key->type = DSA_PUBLIC;
     return 0;
@@ -1408,7 +1409,8 @@ int DsaPrivateKeyDecode(const byte* input, word32* inOutIdx, DsaKey* key,
         GetInt(&key->q,  input, inOutIdx, inSz) < 0 ||
         GetInt(&key->g,  input, inOutIdx, inSz) < 0 ||
         GetInt(&key->y,  input, inOutIdx, inSz) < 0 ||
-        GetInt(&key->x,  input, inOutIdx, inSz) < 0 )  return ASN_DH_KEY_E;
+        GetInt(&key->x,  input, inOutIdx, inSz) < 0 )
+        return ASN_DH_KEY_E;
 
     key->type = DSA_PRIVATE;
     return 0;
@@ -1423,9 +1425,9 @@ static mp_int* GetDsaInt(DsaKey* key, int idx)
     if (idx == 2)
         return &key->g;
     if (idx == 3)
-        return &key->x;
-    if (idx == 4)
         return &key->y;
+    if (idx == 4)
+        return &key->x;
 
     return NULL;
 }
@@ -1445,7 +1447,7 @@ int wc_DsaKeyToDer(DsaKey* key, byte* output, word32 inLen)
 {
     word32 seqSz, verSz, rawLen, intTotalLen = 0;
     word32 sizes[DSA_INTS];
-    int    i, j, outLen, ret = 0;
+    int    i, j, outLen, ret = 0, lbit;
 
     byte  seq[MAX_SEQ_SZ];
     byte  ver[MAX_VERSION_SZ];
@@ -1463,7 +1465,15 @@ int wc_DsaKeyToDer(DsaKey* key, byte* output, word32 inLen)
     /* write all big ints from key to DER tmps */
     for (i = 0; i < DSA_INTS; i++) {
         mp_int* keyInt = GetDsaInt(key, i);
-        rawLen = mp_unsigned_bin_size(keyInt);
+
+        /* leading zero */
+        if ((mp_count_bits(keyInt) & 7) == 0 || mp_iszero(keyInt) == MP_YES)
+            lbit = 1;
+        else
+            lbit = 0;
+
+        rawLen = mp_unsigned_bin_size(keyInt) + lbit;
+
         tmps[i] = (byte*)XMALLOC(rawLen + MAX_SEQ_SZ, NULL, DYNAMIC_TYPE_DSA);
         if (tmps[i] == NULL) {
             ret = MEMORY_E;
@@ -1471,12 +1481,16 @@ int wc_DsaKeyToDer(DsaKey* key, byte* output, word32 inLen)
         }
 
         tmps[i][0] = ASN_INTEGER;
-        sizes[i] = SetLength(rawLen, tmps[i] + 1) + 1;  /* int tag */
+        sizes[i] = SetLength(rawLen, tmps[i] + 1) + 1 + lbit; /* tag & lbit */
 
         if (sizes[i] <= MAX_SEQ_SZ) {
+            /* leading zero */
+            if (lbit)
+                tmps[i][sizes[i]-1] = 0x00;
+
             int err = mp_to_unsigned_bin(keyInt, tmps[i] + sizes[i]);
             if (err == MP_OKAY) {
-                sizes[i] += rawLen;
+                sizes[i] += (rawLen-lbit); /* lbit included in rawLen */
                 intTotalLen += sizes[i];
             }
             else {
@@ -4641,24 +4655,42 @@ WOLFSSL_LOCAL int SetSerialNumber(const byte* sn, word32 snSz, byte* output)
 
 
 
+const char* BEGIN_CERT         = "-----BEGIN CERTIFICATE-----";
+const char* END_CERT           = "-----END CERTIFICATE-----";
+const char* BEGIN_CERT_REQ     = "-----BEGIN CERTIFICATE REQUEST-----";
+const char* END_CERT_REQ       = "-----END CERTIFICATE REQUEST-----";
+const char* BEGIN_DH_PARAM     = "-----BEGIN DH PARAMETERS-----";
+const char* END_DH_PARAM       = "-----END DH PARAMETERS-----";
+const char* BEGIN_X509_CRL     = "-----BEGIN X509 CRL-----";
+const char* END_X509_CRL       = "-----END X509 CRL-----";
+const char* BEGIN_RSA_PRIV     = "-----BEGIN RSA PRIVATE KEY-----";
+const char* END_RSA_PRIV       = "-----END RSA PRIVATE KEY-----";
+const char* BEGIN_PRIV_KEY     = "-----BEGIN PRIVATE KEY-----";
+const char* END_PRIV_KEY       = "-----END PRIVATE KEY-----";
+const char* BEGIN_ENC_PRIV_KEY = "-----BEGIN ENCRYPTED PRIVATE KEY-----";
+const char* END_ENC_PRIV_KEY   = "-----END ENCRYPTED PRIVATE KEY-----";
+const char* BEGIN_EC_PRIV      = "-----BEGIN EC PRIVATE KEY-----";
+const char* END_EC_PRIV        = "-----END EC PRIVATE KEY-----";
+const char* BEGIN_DSA_PRIV     = "-----BEGIN DSA PRIVATE KEY-----";
+const char* END_DSA_PRIV       = "-----END DSA PRIVATE KEY-----";
 
-#if defined(WOLFSSL_KEY_GEN) || defined(WOLFSSL_CERT_GEN) || !defined(NO_DSA)
+#if defined(WOLFSSL_KEY_GEN) || defined(WOLFSSL_CERT_GEN)
 
 /* convert der buffer to pem into output, can't do inplace, der and output
    need to be different */
 int wc_DerToPem(const byte* der, word32 derSz, byte* output, word32 outSz,
-             int type)
+             byte *cipher_info, int type)
 {
 #ifdef WOLFSSL_SMALL_STACK
     char* header = NULL;
     char* footer = NULL;
 #else
-    char header[80];
-    char footer[80];
+    char header[40 + HEADER_ENCRYPTED_KEY_SIZE];
+    char footer[40];
 #endif
 
-    int headerLen = 80;
-    int footerLen = 80;
+    int headerLen = 40 + HEADER_ENCRYPTED_KEY_SIZE;
+    int footerLen = 40;
     int i;
     int err;
     int outLen;   /* return length or error */
@@ -4670,42 +4702,69 @@ int wc_DerToPem(const byte* der, word32 derSz, byte* output, word32 outSz,
     header = (char*)XMALLOC(headerLen, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (header == NULL)
         return MEMORY_E;
-    
+
     footer = (char*)XMALLOC(footerLen, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (footer == NULL) {
         XFREE(header, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         return MEMORY_E;
     }
 #endif
-
     if (type == CERT_TYPE) {
-        XSTRNCPY(header, "-----BEGIN CERTIFICATE-----\n", headerLen);
-        XSTRNCPY(footer, "-----END CERTIFICATE-----\n",   footerLen);
+        XSTRNCPY(header, BEGIN_CERT, headerLen);
+        XSTRNCAT(header, "\n", 1);
+
+        XSTRNCPY(footer, END_CERT, footerLen);
+        XSTRNCAT(footer, "\n", 1);
     }
     else if (type == PRIVATEKEY_TYPE) {
-        XSTRNCPY(header, "-----BEGIN RSA PRIVATE KEY-----\n", headerLen);
-        XSTRNCPY(footer, "-----END RSA PRIVATE KEY-----\n",   footerLen);
+        XSTRNCPY(header, BEGIN_RSA_PRIV, headerLen);
+        XSTRNCAT(header, "\n", 1);
+
+        XSTRNCPY(footer, END_RSA_PRIV, footerLen);
+        XSTRNCAT(footer, "\n", 1);
     }
-    #ifdef HAVE_ECC
+#ifndef NO_DSA
+    else if (type == DSA_PRIVATEKEY_TYPE) {
+        XSTRNCPY(header, BEGIN_DSA_PRIV, headerLen);
+        XSTRNCAT(header, "\n", 1);
+
+        XSTRNCPY(footer, END_DSA_PRIV, footerLen);
+        XSTRNCAT(footer, "\n", 1);
+    }
+#endif
+#ifdef HAVE_ECC
     else if (type == ECC_PRIVATEKEY_TYPE) {
-        XSTRNCPY(header, "-----BEGIN EC PRIVATE KEY-----\n", headerLen);
-        XSTRNCPY(footer, "-----END EC PRIVATE KEY-----\n",   footerLen);
+        XSTRNCPY(header, BEGIN_EC_PRIV, headerLen);
+        XSTRNCAT(header, "\n", 1);
+
+        XSTRNCPY(footer, END_EC_PRIV, footerLen);
+        XSTRNCAT(footer, "\n", 1);
     }
-    #endif
-    #ifdef WOLFSSL_CERT_REQ
+#endif
+#ifdef WOLFSSL_CERT_REQ
     else if (type == CERTREQ_TYPE)
     {
-        XSTRNCPY(header,
-                       "-----BEGIN CERTIFICATE REQUEST-----\n", headerLen);
-        XSTRNCPY(footer, "-----END CERTIFICATE REQUEST-----\n", footerLen);
+        XSTRNCPY(header, BEGIN_CERT_REQ, headerLen);
+        XSTRNCAT(header, "\n", 1);
+
+        XSTRNCPY(footer, END_CERT_REQ, footerLen);
+        XSTRNCAT(footer, "\n", 1);
     }
-    #endif
+#endif
     else {
 #ifdef WOLFSSL_SMALL_STACK
         XFREE(header, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         XFREE(footer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
         return BAD_FUNC_ARG;
+    }
+
+    /* extra header information for encrypted key */
+    if (cipher_info != NULL) {
+        XSTRNCAT(header, "Proc-Type: 4,ENCRYPTED\n", 23);
+        XSTRNCAT(header, "DEK-Info: ", 10);
+        XSTRNCAT(header, (char*)cipher_info, XSTRLEN((char*)cipher_info));
+        XSTRNCAT(header, "\n\n", 2);
     }
 
     headerLen = (int)XSTRLEN(header);
@@ -4762,7 +4821,6 @@ int wc_DerToPem(const byte* der, word32 derSz, byte* output, word32 outSz,
     return outLen + headerLen + footerLen;
 }
 
-
 #endif /* WOLFSSL_KEY_GEN || WOLFSSL_CERT_GEN */
 
 
@@ -4810,7 +4868,7 @@ int wc_RsaKeyToDer(RsaKey* key, byte* output, word32 inLen)
 {
     word32 seqSz, verSz, rawLen, intTotalLen = 0;
     word32 sizes[RSA_INTS];
-    int    i, j, outLen, ret = 0;
+    int    i, j, outLen, ret = 0, lbit;
 
     byte  seq[MAX_SEQ_SZ];
     byte  ver[MAX_VERSION_SZ];
@@ -4828,7 +4886,15 @@ int wc_RsaKeyToDer(RsaKey* key, byte* output, word32 inLen)
     /* write all big ints from key to DER tmps */
     for (i = 0; i < RSA_INTS; i++) {
         mp_int* keyInt = GetRsaInt(key, i);
-        rawLen = mp_unsigned_bin_size(keyInt);
+
+        /* leading zero */
+        if ((mp_count_bits(keyInt) & 7) == 0 || mp_iszero(keyInt) == MP_YES)
+            lbit = 1;
+        else
+            lbit = 0;
+
+        rawLen = mp_unsigned_bin_size(keyInt) + lbit;
+
         tmps[i] = (byte*)XMALLOC(rawLen + MAX_SEQ_SZ, key->heap,
                                  DYNAMIC_TYPE_RSA);
         if (tmps[i] == NULL) {
@@ -4837,12 +4903,16 @@ int wc_RsaKeyToDer(RsaKey* key, byte* output, word32 inLen)
         }
 
         tmps[i][0] = ASN_INTEGER;
-        sizes[i] = SetLength(rawLen, tmps[i] + 1) + 1;  /* int tag */
+        sizes[i] = SetLength(rawLen, tmps[i] + 1) + 1 + lbit; /* tag & lbit */
 
         if (sizes[i] <= MAX_SEQ_SZ) {
+            /* leading zero */
+            if (lbit)
+                tmps[i][sizes[i]-1] = 0x00;
+
             int err = mp_to_unsigned_bin(keyInt, tmps[i] + sizes[i]);
             if (err == MP_OKAY) {
-                sizes[i] += rawLen;
+                sizes[i] += (rawLen-lbit); /* lbit included in rawLen */
                 intTotalLen += sizes[i];
             }
             else {
@@ -6846,84 +6916,109 @@ int wc_EccPrivateKeyDecode(const byte* input, word32* inOutIdx, ecc_key* key,
 /* Write a Private ecc key to DER format, length on success else < 0 */
 int wc_EccKeyToDer(ecc_key* key, byte* output, word32 inLen)
 {
-    byte   curve[MAX_ALGO_SZ];
+    byte   curve[MAX_ALGO_SZ+2];
     byte   ver[MAX_VERSION_SZ];
     byte   seq[MAX_SEQ_SZ];
-    int    ret;
-    int    curveSz;
-    int    verSz;
+    byte   *prv, *pub;
+    int    ret, totalSz, curveSz, verSz;
     int    privHdrSz  = ASN_ECC_HEADER_SZ;
     int    pubHdrSz   = ASN_ECC_CONTEXT_SZ + ASN_ECC_HEADER_SZ;
-    int    curveHdrSz = ASN_ECC_CONTEXT_SZ;
-    word32 seqSz;
-    word32 idx = 0;
-    word32 pubSz = ECC_BUFSIZE;
-    word32 privSz;
-    word32 totalSz;
+
+    word32 idx = 0, prvidx = 0, pubidx = 0, curveidx = 0;
+    word32 seqSz, privSz, pubSz = ECC_BUFSIZE;
 
     if (key == NULL || output == NULL || inLen == 0)
         return BAD_FUNC_ARG;
 
-    ret = wc_ecc_export_x963(key, NULL, &pubSz);
-    if (ret != LENGTH_ONLY_E) {
+    /* curve */
+    curve[curveidx++] = ECC_PREFIX_0;
+    curveidx++ /* to put the size after computation */;
+    curveSz = SetCurve(key, curve+curveidx);
+    if (curveSz < 0)
+        return curveSz;
+    /* set computed size */
+    curve[1] = (byte)curveSz;
+    curveidx += curveSz;
+
+    /* private */
+    privSz = key->dp->size;
+    prv = (byte*)XMALLOC(privSz + privHdrSz + MAX_SEQ_SZ,
+                         NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (prv == NULL) {
+        return MEMORY_E;
+    }
+    prv[prvidx++] = ASN_OCTET_STRING;
+    prv[prvidx++] = (byte)key->dp->size;
+    ret = wc_ecc_export_private_only(key, prv + prvidx, &privSz);
+    if (ret < 0) {
+        XFREE(prv, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         return ret;
     }
-    curveSz = SetCurve(key, curve);
-    if (curveSz < 0) {
-        return curveSz;
+    prvidx += privSz;
+
+    /* public */
+    ret = wc_ecc_export_x963(key, NULL, &pubSz);
+    if (ret != LENGTH_ONLY_E) {
+        XFREE(prv, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        return ret;
     }
 
-    privSz = key->dp->size;
+    pub = (byte*)XMALLOC(pubSz + pubHdrSz + MAX_SEQ_SZ,
+                         NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (pub == NULL) {
+        XFREE(prv, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        return MEMORY_E;
+    }
 
+    pub[pubidx++] = ECC_PREFIX_1;
+    if (pubSz > 128) /* leading zero + extra size byte */
+        pubidx += SetLength(pubSz + ASN_ECC_CONTEXT_SZ + 2, pub+pubidx);
+    else /* leading zero */
+        pubidx += SetLength(pubSz + ASN_ECC_CONTEXT_SZ + 1, pub+pubidx);
+    pub[pubidx++] = ASN_BIT_STRING;
+    pubidx += SetLength(pubSz + 1, pub+pubidx);
+    pub[pubidx++] = (byte)0; /* leading zero */
+    ret = wc_ecc_export_x963(key, pub + pubidx, &pubSz);
+    if (ret != 0) {
+        XFREE(prv, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(pub, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        return ret;
+    }
+    pubidx += pubSz;
+
+    /* make headers */
     verSz = SetMyVersion(1, ver, FALSE);
-    if (verSz < 0) {
-        return verSz;
+    seqSz = SetSequence(verSz + prvidx + pubidx + curveidx, seq);
+
+    totalSz = prvidx + pubidx + curveidx + verSz + seqSz;
+    if (totalSz > (int)inLen) {
+        XFREE(prv, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(pub, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        return BAD_FUNC_ARG;
     }
 
-    totalSz = verSz + privSz + privHdrSz + curveSz + curveHdrSz +
-              pubSz + pubHdrSz + 1;  /* plus null byte b4 public */
-    seqSz = SetSequence(totalSz, seq);
-    totalSz += seqSz;
-
-    if (totalSz > inLen) {
-        return BUFFER_E;
-    }
-
-    /* write it out */
+    /* write out */
     /* seq */
     XMEMCPY(output + idx, seq, seqSz);
-    idx += seqSz;
+    idx = seqSz;
 
-   /* ver */
+    /* ver */
     XMEMCPY(output + idx, ver, verSz);
     idx += verSz;
 
     /* private */
-    output[idx++] = ASN_OCTET_STRING;
-    output[idx++] = (byte)privSz;
-    ret = wc_ecc_export_private_only(key, output + idx, &privSz);
-    if (ret < 0) {
-        return ret;
-    }
-    idx += privSz;
+    XMEMCPY(output + idx, prv, prvidx);
+    idx += prvidx;
+    XFREE(prv, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     /* curve */
-    output[idx++] = ECC_PREFIX_0;
-    output[idx++] = (byte)curveSz;
-    XMEMCPY(output + idx, curve, curveSz);
-    idx += curveSz;
+    XMEMCPY(output + idx, curve, curveidx);
+    idx += curveidx;
 
     /* public */
-    output[idx++] = ECC_PREFIX_1;
-    output[idx++] = (byte)pubSz + ASN_ECC_CONTEXT_SZ + 1;  /* plus null byte */
-    output[idx++] = ASN_BIT_STRING;
-    output[idx++] = (byte)pubSz + 1;  /* plus null byte */
-    output[idx++] = (byte)0;          /* null byte */
-    ret = wc_ecc_export_x963(key, output + idx, &pubSz);
-    if (ret != 0) {
-        return ret;
-    }
-    /* idx += pubSz if do more later */
+    XMEMCPY(output + idx, pub, pubidx);
+    idx += pubidx;
+    XFREE(pub, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     return totalSz;
 }

@@ -55,6 +55,12 @@ int wc_AesCbcDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
 }
 
 
+int wc_AesCbcEncryptWithKey(byte* out, const byte* in, word32 inSz,
+                            const byte* key, word32 keySz, const byte* iv)
+{
+    return AesCbcDecryptWithKey(out, in, inSz, key, keySz, iv);
+}
+
 int wc_AesCbcDecryptWithKey(byte* out, const byte* in, word32 inSz,
                                  const byte* key, word32 keySz, const byte* iv)
 {
@@ -1740,6 +1746,33 @@ int wc_AesCbcDecryptWithKey(byte* out, const byte* in, word32 inSz,
     ret = wc_AesSetKey(aes, key, keySz, iv, AES_DECRYPTION);
     if (ret == 0)
         ret = wc_AesCbcDecrypt(aes, out, in, inSz); 
+
+#ifdef WOLFSSL_SMALL_STACK
+    XFREE(aes, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+
+    return ret;
+}
+
+int wc_AesCbcEncryptWithKey(byte* out, const byte* in, word32 inSz,
+                            const byte* key, word32 keySz, const byte* iv)
+{
+    int  ret = 0;
+#ifdef WOLFSSL_SMALL_STACK
+    Aes* aes = NULL;
+#else
+    Aes  aes[1];
+#endif
+
+#ifdef WOLFSSL_SMALL_STACK
+    aes = (Aes*)XMALLOC(sizeof(Aes), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (aes == NULL)
+        return MEMORY_E;
+#endif
+
+    ret = wc_AesSetKey(aes, key, keySz, iv, AES_ENCRYPTION);
+    if (ret == 0)
+        ret = wc_AesCbcEncrypt(aes, out, in, inSz);
 
 #ifdef WOLFSSL_SMALL_STACK
     XFREE(aes, NULL, DYNAMIC_TYPE_TMP_BUFFER);
