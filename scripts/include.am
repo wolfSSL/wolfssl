@@ -16,4 +16,8 @@ dist_noinst_SCRIPTS+= scripts/google.test
 endif
 endif
 
+if BUILD_CRL
+dist_noinst_SCRIPTS+= scripts/crl.test
+endif
+
 EXTRA_DIST +=  scripts/testsuite.pcap
