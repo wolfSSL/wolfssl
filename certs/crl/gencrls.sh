@@ -2,7 +2,20 @@
 
 # gencrls, crl config already done, see taoCerts.txt for setup
 
+function setup_files() {
+    #set up the file system for updating the crls
+    echo "setting up the file system for generating the crls..."
+    echo ""
+    touch ./index.txt
+    touch ./crlnumber
+    echo "01" >> crlnumber
+    touch ./blank.index.txt
+    mkdir demoCA
+    touch ./demoCA/index.txt
+}
 
+#setup the files
+setup_files
 
 # caCrl
 # revoke server-revoked-cert.pem
@@ -58,3 +71,15 @@ mv tmp eccSrvCRL.pem
 # install (only needed if working outside wolfssl)
 #cp eccSrvCRL.pem ~/wolfssl/certs/crl/eccSrvCRL.pem
 
+exit 0
+
+function cleanup_files() {
+    rm blank.index.txt
+    rm index.*
+    rm crlnumber*
+    rm -r demoCA
+    echo "Removed ../wolfssl.cnf, blank.index.txt, index.*, crlnumber*, demoCA/"
+    echo ""
+    exit 0
+}
+trap cleanup_files EXIT
