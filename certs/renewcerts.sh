@@ -104,7 +104,7 @@ function run_renewcerts(){
     echo "Updating server-revoked-cert.pem"
     echo ""
     #pipe the following arguments to openssl req...
-    echo -e "US\nMontana\nBozeman\nwolfSSL\nSupport\nwww.wolfssl.com\ninfo@wolfssl.com\n.\n.\n" | openssl req -new -key server-revoked-key.pem -nodes > server-revoked-req.pem
+    echo -e "US\nMontana\nBozeman\nwolfSSL_revoked\nSupport_revoked\nwww.wolfssl.com\ninfo@wolfssl.com\n.\n.\n" | openssl req -new -key server-revoked-key.pem -nodes > server-revoked-req.pem
 
     openssl x509 -req -in server-revoked-req.pem -extfile wolfssl.cnf -extensions wolfssl_opts -days 1000 -CA ca-cert.pem -CAkey ca-key.pem -set_serial 02 > server-revoked-cert.pem
 
