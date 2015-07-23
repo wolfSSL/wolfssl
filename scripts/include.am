@@ -10,10 +10,18 @@ endif
 
 if BUILD_EXAMPLES
 dist_noinst_SCRIPTS+= scripts/resume.test
+
+if BUILD_CRL
+# make revoked test rely on completion of resume test
+dist_noinst_SCRIPTS+= scripts/crl-revoked.test
+scripts/crl-revoked.log: scripts/resume.log
+endif
+
 if !BUILD_IPV6
 dist_noinst_SCRIPTS+= scripts/external.test
 dist_noinst_SCRIPTS+= scripts/google.test
 endif
 endif
+
 
 EXTRA_DIST +=  scripts/testsuite.pcap

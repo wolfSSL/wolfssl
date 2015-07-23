@@ -98,6 +98,23 @@ function run_renewcerts(){
     mv srv_tmp.pem server-cert.pem
     cat ca_tmp.pem >> server-cert.pem
     rm ca_tmp.pem
+    ###########################################################
+    ########## update and sign server-revoked-key.pem #########
+    ###########################################################
+    echo "Updating server-revoked-cert.pem"
+    echo ""
+    #pipe the following arguments to openssl req...
+    echo -e "US\nMontana\nBozeman\nwolfSSL_revoked\nSupport_revoked\nwww.wolfssl.com\ninfo@wolfssl.com\n.\n.\n" | openssl req -new -key server-revoked-key.pem -nodes > server-revoked-req.pem
+
+    openssl x509 -req -in server-revoked-req.pem -extfile wolfssl.cnf -extensions wolfssl_opts -days 1000 -CA ca-cert.pem -CAkey ca-key.pem -set_serial 02 > server-revoked-cert.pem
+
+    rm server-revoked-req.pem
+
+    openssl x509 -in ca-cert.pem -text > ca_tmp.pem
+    openssl x509 -in server-revoked-cert.pem -text > srv_tmp.pem
+    mv srv_tmp.pem server-revoked-cert.pem
+    cat ca_tmp.pem >> server-revoked-cert.pem
+    rm ca_tmp.pem
     ############################################################
     ########## update and sign the server-ecc-rsa.pem ##########
     ############################################################
@@ -181,16 +198,6 @@ function run_renewcerts(){
     echo "We are back in the certs directory"
     echo ""
 
-    #set up the file system for updating the crls
-    echo "setting up the file system for generating the crls..."
-    echo ""
-    touch crl/index.txt
-    touch crl/crlnumber
-    echo "01" >> crl/crlnumber
-    touch crl/blank.index.txt
-    mkdir crl/demoCA
-    touch crl/demoCA/index.txt
-
     echo "Updating the crls..."
     echo ""
     cd crl
@@ -205,12 +212,6 @@ function run_renewcerts(){
     echo ""
 
     rm ../wolfssl.cnf
-    rm blank.index.txt
-    rm index.*
-    rm crlnumber*
-    rm -r demoCA
-    echo "Removed ../wolfssl.cnf, blank.index.txt, index.*, crlnumber*, demoCA/"
-    echo ""
 
 }
 
