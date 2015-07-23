@@ -258,10 +258,10 @@
 #define FP_NEG      1
 
 /* return codes */
-#define FP_OKAY     0
-#define FP_VAL      1
-#define FP_MEM      2
-#define FP_NOT_INF	3
+#define FP_OKAY      0
+#define FP_VAL      -1
+#define FP_MEM      -2
+#define FP_NOT_INF	-3
 
 /* equalities */
 #define FP_LT        -1   /* less than */

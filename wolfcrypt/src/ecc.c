@@ -2597,26 +2597,25 @@ int wc_ecc_export_point_der(const int curve_idx, ecc_point* point, byte* out,
         return MEMORY_E;
 #endif
 
-    do {
-        /* pad and store x */
-        XMEMSET(buf, 0, ECC_BUFSIZE);
-        ret = mp_to_unsigned_bin(point->x, buf +
+    /* pad and store x */
+    XMEMSET(buf, 0, ECC_BUFSIZE);
+    ret = mp_to_unsigned_bin(point->x, buf +
                                  (numlen - mp_unsigned_bin_size(point->x)));
-        if (ret != MP_OKAY)
-            break;
-        XMEMCPY(out+1, buf, numlen);
+    if (ret != MP_OKAY)
+        goto done;
+    XMEMCPY(out+1, buf, numlen);
 
-        /* pad and store y */
-        XMEMSET(buf, 0, ECC_BUFSIZE);
-        ret = mp_to_unsigned_bin(point->y, buf +
+    /* pad and store y */
+    XMEMSET(buf, 0, ECC_BUFSIZE);
+    ret = mp_to_unsigned_bin(point->y, buf +
                                  (numlen - mp_unsigned_bin_size(point->y)));
-        if (ret != MP_OKAY)
-            break;
-        XMEMCPY(out+1+numlen, buf, numlen);
+    if (ret != MP_OKAY)
+        goto done;
+    XMEMCPY(out+1+numlen, buf, numlen);
 
-        *outLen = 1 + 2*numlen;
-    } while (0);
+    *outLen = 1 + 2*numlen;
 
+done:
 #ifdef WOLFSSL_SMALL_STACK
     XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
@@ -2665,26 +2664,25 @@ int wc_ecc_export_x963(ecc_key* key, byte* out, word32* outLen)
       return MEMORY_E;
 #endif
 
-   do {
-      /* pad and store x */
-      XMEMSET(buf, 0, ECC_BUFSIZE);
-      ret = mp_to_unsigned_bin(key->pubkey.x,
+    /* pad and store x */
+    XMEMSET(buf, 0, ECC_BUFSIZE);
+    ret = mp_to_unsigned_bin(key->pubkey.x,
                          buf + (numlen - mp_unsigned_bin_size(key->pubkey.x)));
-      if (ret != MP_OKAY)
-         break;
-      XMEMCPY(out+1, buf, numlen);
+    if (ret != MP_OKAY)
+        goto done;
+    XMEMCPY(out+1, buf, numlen);
 
-      /* pad and store y */
-      XMEMSET(buf, 0, ECC_BUFSIZE);
-      ret = mp_to_unsigned_bin(key->pubkey.y,
+    /* pad and store y */
+    XMEMSET(buf, 0, ECC_BUFSIZE);
+    ret = mp_to_unsigned_bin(key->pubkey.y,
                          buf + (numlen - mp_unsigned_bin_size(key->pubkey.y)));
-      if (ret != MP_OKAY)
-         break;
-      XMEMCPY(out+1+numlen, buf, numlen);
+    if (ret != MP_OKAY)
+        goto done;
+    XMEMCPY(out+1+numlen, buf, numlen);
 
-      *outLen = 1 + 2*numlen;
-   } while (0);
+    *outLen = 1 + 2*numlen;
 
+done:
 #ifdef WOLFSSL_SMALL_STACK
    XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif

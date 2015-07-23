@@ -2749,7 +2749,7 @@ WOLFSSL_LOCAL word32 SetExplicit(byte number, word32 len, byte* output)
 
 #if defined(HAVE_ECC) && (defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_KEY_GEN))
 
-static word32 SetCurve(ecc_key* key, byte* output)
+static int SetCurve(ecc_key* key, byte* output)
 {
 
     /* curve types */

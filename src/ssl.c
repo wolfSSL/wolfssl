@@ -11750,7 +11750,6 @@ int wolfSSL_BN_print_fp(FILE *fp, const WOLFSSL_BIGNUM *bn)
 
 #endif /* defined(WOLFSSL_KEY_GEN) || defined(HAVE_COMP_KEY) */
 
-
 WOLFSSL_BIGNUM *wolfSSL_BN_CTX_get(WOLFSSL_BN_CTX *ctx)
 {
     /* ctx is not used, return new Bignum */
@@ -14275,8 +14274,6 @@ int wolfSSL_EC_GROUP_get_degree(const WOLFSSL_EC_GROUP *group)
             return SSL_FAILURE;
             break;
     }
-
-    return SSL_FAILURE;
 }
 
 /* return code compliant with OpenSSL :
@@ -14451,10 +14448,10 @@ int wolfSSL_EC_POINT_mul(const WOLFSSL_EC_GROUP *group, WOLFSSL_EC_POINT *r,
                          const WOLFSSL_BIGNUM *n, const WOLFSSL_EC_POINT *q,
                          const WOLFSSL_BIGNUM *m, WOLFSSL_BN_CTX *ctx)
 {
+    mp_int prime;
+
     (void)ctx;
     (void)n;
-
-    mp_int prime;
 
     WOLFSSL_ENTER("wolfSSL_EC_POINT_mul");
 
@@ -14517,8 +14514,9 @@ int wolfSSL_EC_POINT_cmp(const WOLFSSL_EC_GROUP *group,
                          const WOLFSSL_EC_POINT *a, const WOLFSSL_EC_POINT *b,
                          WOLFSSL_BN_CTX *ctx)
 {
-    (void)ctx;
     int ret;
+
+	(void)ctx;
     
     WOLFSSL_ENTER("wolfSSL_EC_POINT_cmp");
 
@@ -14778,7 +14776,9 @@ int wolfSSL_ECDH_compute_key(void *out, size_t outlen,
     word32 len;
     (void)KDF;
 
-    WOLFSSL_ENTER("wolfSSL_ECDH_compute_key");
+    (void)KDF;
+
+	WOLFSSL_ENTER("wolfSSL_ECDH_compute_key");
 
     if (out == NULL || pub_key == NULL || pub_key->internal == NULL ||
         ecdh == NULL || ecdh->internal == NULL) {
