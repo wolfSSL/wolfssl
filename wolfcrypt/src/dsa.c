@@ -18,6 +18,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
  */
+#include <stdio.h>
 
 #ifdef HAVE_CONFIG_H
     #include <config.h>
@@ -93,6 +94,8 @@ int wc_MakeDsaKey(RNG *rng, DsaKey *dsa)
         return BAD_FUNC_ARG;
 
     qsize = mp_unsigned_bin_size(&dsa->q);
+    if (qsize == 0)
+        return BAD_FUNC_ARG;
 
     /* allocate ram */
     buf = (unsigned char *)XMALLOC(qsize, NULL,
@@ -114,9 +117,6 @@ int wc_MakeDsaKey(RNG *rng, DsaKey *dsa)
             return err;
         }
 
-        /* force magnitude */
-        buf[0] |= 0xC0;
-        
         err = mp_read_unsigned_bin(&dsa->x, buf, qsize);
         if (err != MP_OKAY) {
             mp_clear(&dsa->x);
@@ -148,9 +148,11 @@ int wc_MakeDsaKey(RNG *rng, DsaKey *dsa)
 /* modulus_size in bits */
 int wc_MakeDsaParameters(RNG *rng, int modulus_size, DsaKey *dsa)
 {
-    mp_int         tmp, tmp2;
-    int            err, res, msize, qsize, loop;
-    unsigned char  *buf;
+    mp_int  tmp, tmp2;
+    int     err, msize, qsize,
+            loop_check_prime = 0,
+            check_prime = MP_NO;
+    unsigned char   *buf;
 
     if (rng == NULL || dsa == NULL)
         return BAD_FUNC_ARG;
@@ -174,43 +176,16 @@ int wc_MakeDsaParameters(RNG *rng, int modulus_size, DsaKey *dsa)
     /* modulus size in bytes */
     msize = modulus_size / 8;
 
-    if (mp_init(&dsa->q) != MP_OKAY)
-        return MP_INIT_E;
-
-    /* make our prime q */
-    err = mp_rand_prime(&dsa->q, qsize, rng, NULL);
-    if (err != MP_OKAY) {
-        mp_clear(&dsa->q);
-        return err;
-    }
-
-    if (mp_init(&tmp) != MP_OKAY) {
-        mp_clear(&dsa->q);
-        return MP_INIT_E;
-    }
-
-    /* tmp = 2q  */
-    err = mp_add(&dsa->q, &dsa->q, &tmp);
-    if (err != MP_OKAY) {
-        mp_clear(&dsa->q);
-        mp_clear(&tmp);
-        return err;
-    }
-
     /* allocate ram */
     buf = (unsigned char *)XMALLOC(msize - qsize,
                                    NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (buf == NULL) {
-        mp_clear(&dsa->q);
-        mp_clear(&tmp);
         return MEMORY_E;
     }
 
-    /* now make a random string and multply it against q */
+    /* make a random string that will be multplied against q */
     err = wc_RNG_GenerateBlock(rng, buf, msize - qsize);
     if (err != MP_OKAY) {
-        mp_clear(&dsa->q);
-        mp_clear(&tmp);
         XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         return err;
     }
@@ -221,9 +196,8 @@ int wc_MakeDsaParameters(RNG *rng, int modulus_size, DsaKey *dsa)
     /* force even */
     buf[msize - qsize - 1] &= ~1;
 
-    if (mp_init_multi(&tmp2, &dsa->p, 0, 0, 0, 0) != MP_OKAY) {
+    if (mp_init_multi(&tmp2, &dsa->p, &dsa->q, 0, 0, 0) != MP_OKAY) {
         mp_clear(&dsa->q);
-        mp_clear(&tmp);
         XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         return MP_INIT_E;
     }
@@ -232,25 +206,48 @@ int wc_MakeDsaParameters(RNG *rng, int modulus_size, DsaKey *dsa)
     if (err != MP_OKAY) {
         mp_clear(&dsa->q);
         mp_clear(&dsa->p);
-        mp_clear(&tmp);
         mp_clear(&tmp2);
         XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         return err;
     }
     XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
-    /* p = tmp2 * q */
-    err = mp_mul(&dsa->q, &tmp2, &dsa->p);
+    /* make our prime q */
+    err = mp_rand_prime(&dsa->q, qsize, rng, NULL);
     if (err != MP_OKAY) {
         mp_clear(&dsa->q);
         mp_clear(&dsa->p);
-        mp_clear(&tmp);
         mp_clear(&tmp2);
         return err;
     }
 
-    /* p = tmp2 * q + 1, so q is a prime divisor of p-1 */
+    /* p = random * q */
+    err = mp_mul(&dsa->q, &tmp2, &dsa->p);
+    if (err != MP_OKAY) {
+        mp_clear(&dsa->q);
+        mp_clear(&dsa->p);
+        mp_clear(&tmp2);
+        return err;
+    }
+
+    /* p = random * q + 1, so q is a prime divisor of p-1 */
     err = mp_add_d(&dsa->p, 1, &dsa->p);
+    if (err != MP_OKAY) {
+        mp_clear(&dsa->q);
+        mp_clear(&dsa->p);
+        mp_clear(&tmp2);
+        return err;
+    }
+
+    if (mp_init(&tmp) != MP_OKAY) {
+        mp_clear(&dsa->q);
+        mp_clear(&dsa->p);
+        mp_clear(&tmp2);
+        return MP_INIT_E;
+    }
+
+    /* tmp = 2q  */
+    err = mp_add(&dsa->q, &dsa->q, &tmp);
     if (err != MP_OKAY) {
         mp_clear(&dsa->q);
         mp_clear(&dsa->p);
@@ -260,8 +257,8 @@ int wc_MakeDsaParameters(RNG *rng, int modulus_size, DsaKey *dsa)
     }
 
     /* loop until p is prime */
-    for (loop = 0; loop++;) {
-        err = mp_prime_is_prime(&dsa->p, 8, &res);
+    while (check_prime == MP_NO) {
+        err = mp_prime_is_prime(&dsa->p, 8, &check_prime);
         if (err != MP_OKAY) {
             mp_clear(&dsa->q);
             mp_clear(&dsa->p);
@@ -270,25 +267,26 @@ int wc_MakeDsaParameters(RNG *rng, int modulus_size, DsaKey *dsa)
             return err;
         }
 
-        if (res == MP_YES)
-            break;
+        if (check_prime != MP_YES) {
+            /* p += 2q */
+            err = mp_add(&tmp, &dsa->p, &dsa->p);
+            if (err != MP_OKAY) {
+                mp_clear(&dsa->q);
+                mp_clear(&dsa->p);
+                mp_clear(&tmp);
+                mp_clear(&tmp2);
+                return err;
+            }
 
-        /* p += 2q */
-        err = mp_add(&tmp, &dsa->p, &dsa->p);
-        if (err != MP_OKAY) {
-            mp_clear(&dsa->q);
-            mp_clear(&dsa->p);
-            mp_clear(&tmp);
-            mp_clear(&tmp2);
-            return err;
+            loop_check_prime++;
         }
     }
 
-    /* tmp2 += (2*loop)
+    /* tmp2 += (2*loop_check_prime)
      * to have p = (q * tmp2) + 1 prime
      */
-    if (loop) {
-        err = mp_add_d(&tmp2, 2*loop, &tmp2);
+    if (loop_check_prime) {
+        err = mp_add_d(&tmp2, 2*loop_check_prime, &tmp2);
         if (err != MP_OKAY) {
             mp_clear(&dsa->q);
             mp_clear(&dsa->p);

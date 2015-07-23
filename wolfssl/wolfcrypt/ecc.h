@@ -234,6 +234,7 @@ enum {
     KEY_SIZE_128     = 16,
     KEY_SIZE_256     = 32,
     IV_SIZE_64       =  8,
+    IV_SIZE_128      = 16,
     EXCHANGE_SALT_SZ = 16,
     EXCHANGE_INFO_SZ = 23
 };

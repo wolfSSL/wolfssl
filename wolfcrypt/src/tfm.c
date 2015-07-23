@@ -933,7 +933,7 @@ top:
 
   /* if not zero goto step 4 */
   if (fp_iszero (&u) == FP_NO) {
-    if (++loop_check > 1024) /* bad input */
+    if (++loop_check > 4096) /* bad input */
       return FP_VAL;
     goto top;
   }
@@ -1840,11 +1840,11 @@ int fp_set_bit (fp_int * a, fp_digit b)
         i = b/DIGIT_BIT;
 
     /* set the used count of where the bit will go if required */
-    if (a->used < (int)(i + 1))
-        a->used = (int)(i + 1);
+    if (a->used < (int)(i+1))
+        a->used = (int)(i+1);
 
     /* put the single bit in its place */
-    a->dp[i] |= ((mp_digit)1) << (b % DIGIT_BIT);
+    a->dp[i] |= ((fp_digit)1) << (b % DIGIT_BIT);
 
     return MP_OKAY;
 }
@@ -1868,6 +1868,7 @@ int fp_count_bits (fp_int * a)
     ++r;
     q >>= ((fp_digit) 1);
   }
+
   return r;
 }
 

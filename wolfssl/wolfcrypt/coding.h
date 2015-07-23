@@ -41,12 +41,21 @@ WOLFSSL_API int Base64_Decode(const byte* in, word32 inLen, byte* out,
 
 
 #ifdef WOLFSSL_BASE64_ENCODE
+    enum Escaped {
+        WC_STD_ENC = 0,       /* normal \n line ending encoding */
+        WC_ESC_NL_ENC,        /* use escape sequence encoding   */
+        WC_NO_NL_ENC          /* no encoding at all             */
+    }; /* Encoding types */
+
     /* encode isn't */
     WOLFSSL_API
     int Base64_Encode(const byte* in, word32 inLen, byte* out,
                                   word32* outLen);
     WOLFSSL_API
     int Base64_EncodeEsc(const byte* in, word32 inLen, byte* out,
+                                  word32* outLen);
+    WOLFSSL_API
+    int Base64_Encode_NoNl(const byte* in, word32 inLen, byte* out,
                                   word32* outLen);
 #endif
 

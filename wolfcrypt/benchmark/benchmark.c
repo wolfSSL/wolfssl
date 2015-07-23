@@ -71,7 +71,7 @@
     #include "cavium_ioctl.h"
 #endif
 #ifdef HAVE_NTRU
-    #include "ntru_crypto.h"
+    #include "libntruencrypt/ntru_crypto.h"
 #endif
 
 #if defined(WOLFSSL_MDK_ARM)

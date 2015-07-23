@@ -38,6 +38,18 @@ before calling wolfSSL_new();  Though it's not recommended.
 - GNU Binutils 2.24 ld has problems with some debug builds, to fix an ld error
   add -fdebug-types-section to C_EXTRA_FLAGS
 
+#wolfSSL (Formerly CyaSSL) Release 3.6.2 (07/20/2015)
+
+##Release 3.6.2 of wolfSSL is an intermediate custom release including:
+
+- OpenSSH  compatibility with --enable-openssh
+- stunnel  compatibility with --enable-stunnel
+- lighttpd compatibility with --enable-lighty
+
+See INSTALL file for build instructions.
+More info can be found on-line at //http://wolfssl.com/yaSSL/Docs.html
+
+
 #wolfSSL (Formerly CyaSSL) Release 3.6.0 (06/19/2015)
 
 ##Release 3.6.0 of wolfSSL has bug fixes and new features including:
