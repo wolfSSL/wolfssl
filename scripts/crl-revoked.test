@@ -70,8 +70,6 @@ run_test() {
     wait $server_pid
     server_result=$?
 
-    # look up wild-card match
-    # read about "job control"
     case  "$capture_out" in
     *$revocation_code*)
         # only exit with zero on detection of the expected error code
@@ -97,7 +95,8 @@ run_test() {
 # run the test
 run_test
 
-# If we get to this exit, exit_code will be a -1 signaling failure
+# If we get to this exit, exit_code will be a 1 signaling failure
 echo "exiting with $exit_code certificate was not revoked"
 exit $exit_code
 ########## end program ##########
+
