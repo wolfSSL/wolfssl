@@ -13550,9 +13550,9 @@ int wolfSSL_PEM_write_mem_RSAPrivateKey(RSA* rsa, const EVP_CIPHER* cipher,
     }
 
     /* DER to PEM */
-    *plen = wc_DerToPem(der, derSz, tmp, *plen, cipherInfo, PRIVATEKEY_TYPE);
+    *plen = wc_DerToPemEx(der, derSz, tmp, *plen, cipherInfo, PRIVATEKEY_TYPE);
     if (*plen <= 0) {
-        WOLFSSL_MSG("wc_DerToPem failed");
+        WOLFSSL_MSG("wc_DerToPemEx failed");
         XFREE(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         XFREE(tmp, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         if (cipherInfo != NULL)
@@ -14916,9 +14916,9 @@ int wolfSSL_PEM_write_mem_ECPrivateKey(WOLFSSL_EC_KEY* ecc,
     }
 
     /* DER to PEM */
-    *plen = wc_DerToPem(der, derSz, tmp, *plen, cipherInfo, ECC_PRIVATEKEY_TYPE);
+    *plen = wc_DerToPemEx(der, derSz, tmp, *plen, cipherInfo, ECC_PRIVATEKEY_TYPE);
     if (*plen <= 0) {
-        WOLFSSL_MSG("wc_DerToPem failed");
+        WOLFSSL_MSG("wc_DerToPemEx failed");
         XFREE(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         XFREE(tmp, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         if (cipherInfo != NULL)
@@ -15085,9 +15085,9 @@ int wolfSSL_PEM_write_mem_DSAPrivateKey(WOLFSSL_DSA* dsa,
     }
 
     /* DER to PEM */
-    *plen = wc_DerToPem(der, derSz, tmp, *plen, cipherInfo, DSA_PRIVATEKEY_TYPE);
+    *plen = wc_DerToPemEx(der, derSz, tmp, *plen, cipherInfo, DSA_PRIVATEKEY_TYPE);
     if (*plen <= 0) {
-        WOLFSSL_MSG("wc_DerToPem failed");
+        WOLFSSL_MSG("wc_DerToPemEx failed");
         XFREE(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         XFREE(tmp, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         if (cipherInfo != NULL)

@@ -4676,9 +4676,16 @@ const char* END_DSA_PRIV       = "-----END DSA PRIVATE KEY-----";
 
 #if defined(WOLFSSL_KEY_GEN) || defined(WOLFSSL_CERT_GEN)
 
+/* Used for compatibility API */
+int wc_DerToPem(const byte* der, word32 derSz,
+                byte* output, word32 outSz, int type)
+{
+    return wc_DerToPemEx(der, derSz, output, outSz, NULL, type);
+}
+
 /* convert der buffer to pem into output, can't do inplace, der and output
    need to be different */
-int wc_DerToPem(const byte* der, word32 derSz, byte* output, word32 outSz,
+int wc_DerToPemEx(const byte* der, word32 derSz, byte* output, word32 outSz,
              byte *cipher_info, int type)
 {
 #ifdef WOLFSSL_SMALL_STACK

@@ -3523,7 +3523,7 @@ int rsa_test(void)
             return -313;
         }
 
-        pemSz = wc_DerToPem(der, derSz, pem, FOURK_BUF, NULL, PRIVATEKEY_TYPE);
+        pemSz = wc_DerToPem(der, derSz, pem, FOURK_BUF, PRIVATEKEY_TYPE);
         if (pemSz < 0) {
             free(der);
             free(pem);
@@ -3646,7 +3646,7 @@ int rsa_test(void)
             return -414;
         }
 
-        pemSz = wc_DerToPem(derCert, certSz, pem, FOURK_BUF, NULL, CERT_TYPE);
+        pemSz = wc_DerToPem(derCert, certSz, pem, FOURK_BUF, CERT_TYPE);
         if (pemSz < 0) {
             free(derCert);
             free(pem);
@@ -3792,7 +3792,7 @@ int rsa_test(void)
             return -416;
         }
 
-        pemSz = wc_DerToPem(derCert, certSz, pem, FOURK_BUF, NULL, CERT_TYPE);
+        pemSz = wc_DerToPem(derCert, certSz, pem, FOURK_BUF, CERT_TYPE);
         if (pemSz < 0) {
             free(derCert);
             free(pem);
@@ -3937,7 +3937,7 @@ int rsa_test(void)
             return -5414;
         }
 
-        pemSz = wc_DerToPem(derCert, certSz, pem, FOURK_BUF, NULL, CERT_TYPE);
+        pemSz = wc_DerToPem(derCert, certSz, pem, FOURK_BUF, CERT_TYPE);
         if (pemSz < 0) {
             free(pem);
             free(derCert);
@@ -4121,7 +4121,7 @@ int rsa_test(void)
             return -473;
         }
 
-        pemSz = wc_DerToPem(derCert, certSz, pem, FOURK_BUF, NULL, CERT_TYPE);
+        pemSz = wc_DerToPem(derCert, certSz, pem, FOURK_BUF, CERT_TYPE);
         if (pemSz < 0) {
             free(derCert);
             free(pem);
@@ -4206,7 +4206,7 @@ int rsa_test(void)
             return -466;
         }
 
-        pemSz = wc_DerToPem(der, derSz, pem, FOURK_BUF, NULL, CERTREQ_TYPE);
+        pemSz = wc_DerToPem(der, derSz, pem, FOURK_BUF, CERTREQ_TYPE);
         if (pemSz < 0) {
             free(pem);
             free(der);
@@ -4485,7 +4485,7 @@ int dsa_test(void)
         return -368;
     }
 
-    pemSz = wc_DerToPem(der, derSz, pem, FOURK_BUF, NULL, DSA_PRIVATEKEY_TYPE);
+    pemSz = wc_DerToPem(der, derSz, pem, FOURK_BUF, DSA_PRIVATEKEY_TYPE);
     if (pemSz < 0) {
         free(der);
         free(pem);
@@ -5227,7 +5227,7 @@ int ecc_test(void)
             return -1026;
         }
 
-        pemSz = wc_DerToPem(der, derSz, pem, FOURK_BUF, NULL, ECC_PRIVATEKEY_TYPE);
+        pemSz = wc_DerToPem(der, derSz, pem, FOURK_BUF, ECC_PRIVATEKEY_TYPE);
         if (pemSz < 0) {
             return -1027;
         }
