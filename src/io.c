@@ -210,6 +210,10 @@ static INLINE int TranslateReturnCode(int old, int sd)
         errno = RTCS_geterror(sd);
         if (errno == RTCSERR_TCP_CONN_CLOSING)
             return 0;   /* convert to BSD style closing */
+        if (errno == RTCSERR_TCP_CONN_RLSD)
+            errno = SOCKET_ECONNRESET;
+        if (errno == RTCSERR_TCP_TIMED_OUT)
+            errno = SOCKET_EAGAIN;
     }
 #endif
 
@@ -315,6 +319,8 @@ int EmbedSend(WOLFSSL* ssl, char *buf, int sz, void *ctx)
     int err;
 
     sent = (int)SEND_FUNCTION(sd, &buf[sz - len], len, ssl->wflags);
+
+    sent = TranslateReturnCode(sent, sd);
 
     if (sent < 0) {
         err = LastError();
@@ -454,6 +460,9 @@ int EmbedSendTo(WOLFSSL* ssl, char *buf, int sz, void *ctx)
     sent = (int)SENDTO_FUNCTION(sd, &buf[sz - len], len, ssl->wflags,
                                 (const struct sockaddr*)dtlsCtx->peer.sa,
                                 dtlsCtx->peer.sz);
+
+    sent = TranslateReturnCode(sent, sd);
+
     if (sent < 0) {
         err = LastError();
         WOLFSSL_MSG("Embed Send To error");
