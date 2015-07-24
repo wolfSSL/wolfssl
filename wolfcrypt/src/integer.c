@@ -3878,7 +3878,7 @@ int mp_add_d (mp_int* a, mp_digit b, mp_int* c)
         *tmpc++ &= MP_MASK;
      }
      /* set final carry */
-     if (mu != 0 && ix < c->alloc) {
+     if (ix < c->alloc) {
         ix++;
         *tmpc++  = mu;
      }
