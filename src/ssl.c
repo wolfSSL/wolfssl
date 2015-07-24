@@ -7169,13 +7169,16 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
     WOLFSSL_X509* wolfSSL_X509_STORE_CTX_get_current_cert(
                                                     WOLFSSL_X509_STORE_CTX* ctx)
     {
-        (void)ctx;
+        WOLFSSL_ENTER("wolfSSL_X509_STORE_CTX_get_current_cert");
+        if(ctx)
+            return ctx->current_cert;
         return NULL;
     }
 
 
     int wolfSSL_X509_STORE_CTX_get_error(WOLFSSL_X509_STORE_CTX* ctx)
     {
+        WOLFSSL_ENTER("wolfSSL_X509_STORE_CTX_get_error");
         if (ctx != NULL)
             return ctx->error;
         return 0;
@@ -7184,8 +7187,10 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
 
     int wolfSSL_X509_STORE_CTX_get_error_depth(WOLFSSL_X509_STORE_CTX* ctx)
     {
-        (void)ctx;
-        return 0;
+        WOLFSSL_ENTER("wolfSSL_X509_STORE_CTX_get_error_depth");
+        if(ctx)
+            return ctx->error_depth;
+        return SSL_FATAL_ERROR;
     }
 
 
@@ -8802,7 +8807,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
 
     WOLFSSL_X509_NAME* wolfSSL_X509_get_subject_name(WOLFSSL_X509* cert)
     {
-        WOLFSSL_ENTER("X509_get_subject_name");
+        WOLFSSL_ENTER("wolfSSL_X509_get_subject_name");
         if(cert)
             return &cert->subject;
         return NULL;
@@ -10153,8 +10158,7 @@ void wolfSSL_set_dynlock_destroy_callback(
 
 const char* wolfSSL_X509_verify_cert_error_string(long err)
 {
-    (void)err;
-    return 0;
+    return wolfSSL_ERR_reason_error_string(err);
 }
 
 
@@ -14865,8 +14869,8 @@ WOLFSSL_X509* wolfSSL_get_chain_X509(WOLFSSL_X509_CHAIN* chain, int idx)
 
 
 /* Get peer's PEM ceritifcate at index (idx), output to buffer if inLen big
-   enough else return error (-1), output length is in *outLen
-   SSL_SUCCESS on ok */
+   enough else return error (-1). If buffer is NULL only calculate
+   outLen. Output length is in *outLen SSL_SUCCESS on ok */
 int  wolfSSL_get_chain_cert_pem(WOLFSSL_X509_CHAIN* chain, int idx,
                                unsigned char* buf, int inLen, int* outLen)
 {
@@ -14877,10 +14881,20 @@ int  wolfSSL_get_chain_cert_pem(WOLFSSL_X509_CHAIN* chain, int idx,
     int footerLen = sizeof(footer) - 1;
     int i;
     int err;
+    word32 szNeeded = 0;
 
     WOLFSSL_ENTER("wolfSSL_get_chain_cert_pem");
-    if (!chain || !outLen || !buf)
+    if (!chain || !outLen)
         return BAD_FUNC_ARG;
+
+    /* Null output buffer return size needed in outLen */
+    if(!buf) {
+        if(Base64_Encode(chain->certs[idx].buffer, chain->certs[idx].length,
+                    NULL, &szNeeded) != LENGTH_ONLY_E)
+            return SSL_FAILURE;
+        *outLen = szNeeded + headerLen + footerLen;
+        return LENGTH_ONLY_E;
+    }
 
     /* don't even try if inLen too short */
     if (inLen < headerLen + footerLen + chain->certs[idx].length)
@@ -15256,7 +15270,7 @@ void* wolfSSL_CTX_get_ex_data(const WOLFSSL_CTX* ctx, int idx)
 {
     WOLFSSL_ENTER("wolfSSL_CTX_get_ex_data");
     #ifdef HAVE_STUNNEL
-    if(ctx != NULL && idx < MAX_EX_DATA) {
+    if(ctx != NULL && idx < MAX_EX_DATA && idx >= 0) {
         return ctx->ex_data[idx];
     }
     #else
@@ -15333,7 +15347,7 @@ void* wolfSSL_get_ex_data(const WOLFSSL* ssl, int idx)
 {
     WOLFSSL_ENTER("wolfSSL_get_ex_data");
 #if defined(FORTRESS) || defined(HAVE_STUNNEL)
-    if (ssl != NULL && idx < MAX_EX_DATA)
+    if (ssl != NULL && idx < MAX_EX_DATA && idx >= 0)
         return ssl->ex_data[idx];
 #else
     (void)ssl;
@@ -15457,7 +15471,7 @@ int wolfSSL_SESSION_get_ex_new_index(long idx, void* data, void* cb1,
 void* wolfSSL_SESSION_get_ex_data(const WOLFSSL_SESSION* session, int idx)
 {
     WOLFSSL_ENTER("wolfSSL_SESSION_get_ex_data");
-    if (session != NULL && idx < MAX_EX_DATA)
+    if (session != NULL && idx < MAX_EX_DATA && idx >= 0)
         return session->ex_data[idx];
     return NULL;
 }
@@ -15470,6 +15484,8 @@ int wolfSSL_CRYPTO_set_mem_ex_functions(void *(*m) (size_t, const char *, int),
     (void) m;
     (void) r;
     (void) f;
+    WOLFSSL_ENTER("wolfSSL_CRYPTO_set_mem_ex_functions");
+    WOLFSSL_STUB("wolfSSL_CRYPTO_set_mem_ex_functions");
 
     return SSL_FAILURE;
 }
@@ -15482,26 +15498,45 @@ WOLFSSL_DH *wolfSSL_DH_generate_parameters(int prime_len, int generator,
     (void)generator;
     (void)callback;
     (void)cb_arg;
+    WOLFSSL_ENTER("wolfSSL_DH_generate_parameters");
+    WOLFSSL_STUB("wolfSSL_DH_generate_parameters");
+
     return NULL;
 }
 
 
-void wolfSSL_ERR_load_crypto_strings(void){}
+void wolfSSL_ERR_load_crypto_strings(void)
+{
+    WOLFSSL_ENTER("wolfSSL_ERR_load_crypto_strings");
+    WOLFSSL_ENTER("wolfSSL_ERR_load_crypto_strings");
+    return;
+}
+
+
 unsigned long wolfSSL_ERR_peek_last_error(void)
 {
     unsigned long l = 0UL;
-    return l; 
+    WOLFSSL_ENTER("wolfSSL_ERR_peek_last_error");
+    WOLFSSL_STUB("wolfSSL_ERR_peek_last_error");
+
+    return l;
 }
 
 
 int wolfSSL_FIPS_mode(void)
 {
+    WOLFSSL_ENTER("wolfSSL_FIPS_mode");
+    WOLFSSL_STUB("wolfSSL_FIPS_mode");
+
     return SSL_FAILURE;
 }
 
 int wolfSSL_FIPS_mode_set(int r)
 {
     (void)r;
+    WOLFSSL_ENTER("wolfSSL_FIPS_mode_set");
+    WOLFSSL_STUB("wolfSSL_FIPS_mode_set");
+
     return SSL_FAILURE;
 }
 
@@ -15509,6 +15544,9 @@ int wolfSSL_FIPS_mode_set(int r)
 int wolfSSL_RAND_set_rand_method(const void *meth)
 {
     (void) meth;
+    WOLFSSL_ENTER("wolfSSL_RAND_set_rand_method");
+    WOLFSSL_STUB("wolfSSL_RAND_set_rand_method");
+
     return SSL_FAILURE;
 }
 
@@ -15516,6 +15554,7 @@ int wolfSSL_RAND_set_rand_method(const void *meth)
 int wolfSSL_CIPHER_get_bits(const WOLFSSL_CIPHER *c, int *alg_bits)
 {
     int ret = SSL_FAILURE;
+    WOLFSSL_ENTER("wolfSSL_CIPHER_get_bits");
     if(c != NULL && c->ssl != NULL) {
         ret = 8 * c->ssl->specs.key_size;
         if(alg_bits != NULL) {
@@ -15529,6 +15568,9 @@ int wolfSSL_CIPHER_get_bits(const WOLFSSL_CIPHER *c, int *alg_bits)
 int wolfSSL_sk_X509_NAME_num(const STACK_OF(WOLFSSL_X509_NAME) *s)
 {
     (void) s;
+    WOLFSSL_ENTER("wolfSSL_sk_X509_NAME_num");
+    WOLFSSL_STUB("wolfSSL_sk_X509_NAME_num");
+
     return SSL_FAILURE;
 }
 
@@ -15536,6 +15578,9 @@ int wolfSSL_sk_X509_NAME_num(const STACK_OF(WOLFSSL_X509_NAME) *s)
 int wolfSSL_sk_X509_num(const STACK_OF(WOLFSSL_X509) *s)
 {
     (void) s;
+    WOLFSSL_ENTER("wolfSSL_sk_X509_num");
+    WOLFSSL_STUB("wolfSSL_sk_X509_num");
+
     return SSL_FAILURE;
 }
 
@@ -15547,28 +15592,40 @@ int wolfSSL_X509_NAME_print_ex(WOLFSSL_BIO* bio, WOLFSSL_X509_NAME* nm,
     (void)nm;
     (void)indent;
     (void)flags;
+    WOLFSSL_ENTER("wolfSSL_X509_NAME_print_ex");
+    WOLFSSL_STUB("wolfSSL_X509_NAME_print_ex");
+
     return SSL_FAILURE;
 }
 
 
 WOLFSSL_ASN1_BIT_STRING* wolfSSL_X509_get0_pubkey_bitstr(const WOLFSSL_X509* x)
 {
-   (void)x;
-   return NULL;
+    (void)x;
+    WOLFSSL_ENTER("wolfSSL_X509_get0_pubkey_bitstr");
+    WOLFSSL_STUB("wolfSSL_X509_get0_pubkey_bitstr");
+
+    return NULL;
 }
 
 
 int wolfSSL_CTX_add_session(WOLFSSL_CTX* ctx, WOLFSSL_SESSION* session)
 {
-     (void)ctx;
-     (void)session;
-     return SSL_SUCCESS;
+    (void)ctx;
+    (void)session;
+    WOLFSSL_ENTER("wolfSSL_CTX_add_session");
+    WOLFSSL_STUB("wolfSSL_CTX_add_session");
+
+    return SSL_SUCCESS;
 }
 
 
 int wolfSSL_get_state(const WOLFSSL* ssl)
 {
     (void)ssl;
+    WOLFSSL_ENTER("wolfSSL_get_state");
+    WOLFSSL_STUB("wolfSSL_get_state");
+
     return SSL_FAILURE;
 }
 
@@ -15577,6 +15634,9 @@ void* wolfSSL_sk_X509_NAME_value(STACK_OF(WOLFSSL_X509_NAME)* sk, int i)
 {
     (void)sk;
     (void)i;
+    WOLFSSL_ENTER("wolfSSL_sk_X509_NAME_value");
+    WOLFSSL_STUB("wolfSSL_sk_X509_NAME_value");
+
     return NULL;
 }
 
@@ -15585,12 +15645,16 @@ void* wolfSSL_sk_X509_value(STACK_OF(WOLFSSL_X509)* sk, int i)
 {
     (void)sk;
     (void)i;
+    WOLFSSL_ENTER("wolfSSL_sk_X509_value");
+    WOLFSSL_STUB("wolfSSL_sk_X509_value");
+
     return NULL;
 }
 
 
 int wolfSSL_version(WOLFSSL* ssl)
 {
+    WOLFSSL_ENTER("wolfSSL_version");
     if (ssl->version.major == SSLv3_MAJOR) {
         switch (ssl->version.minor) {
             case SSLv3_MINOR :
@@ -15619,6 +15683,9 @@ int wolfSSL_version(WOLFSSL* ssl)
 STACK_OF(WOLFSSL_X509)* wolfSSL_get_peer_cert_chain(const WOLFSSL* ssl)
 {
     (void)ssl;
+    WOLFSSL_ENTER("wolfSSL_get_peer_cert_chain");
+    WOLFSSL_STUB("wolfSSL_get_peer_cert_chain");
+
     return NULL;
 }
 
@@ -15626,17 +15693,22 @@ STACK_OF(WOLFSSL_X509)* wolfSSL_get_peer_cert_chain(const WOLFSSL* ssl)
 long wolfSSL_CTX_get_options(WOLFSSL_CTX* ctx)
 {
     (void)ctx;
+    WOLFSSL_ENTER("wolfSSL_CTX_get_options");
+    WOLFSSL_STUB("wolfSSL_CTX_get_options");
+
     return 0;
 }
 
 
 WOLFSSL_CTX* wolfSSL_get_SSL_CTX(WOLFSSL* ssl)
 {
+    WOLFSSL_ENTER("wolfSSL_get_SSL_CTX");
     return ssl->ctx;
 }
 
 int wolfSSL_X509_NAME_get_sz(WOLFSSL_X509_NAME* name)
 {
+    WOLFSSL_ENTER("wolfSSL_X509_NAME_get_sz");
     if(!name)
         return -1;
     return name->sz;
@@ -15645,6 +15717,8 @@ int wolfSSL_X509_NAME_get_sz(WOLFSSL_X509_NAME* name)
 
 const byte* wolfSSL_SESSION_get_id(WOLFSSL_SESSION* sess, unsigned int* idLen)
 {
+    WOLFSSL_ENTER("wolfSSL_SESSION_get_id");
+    WOLFSSL_STUB("wolfSSL_SESSION_get_id");
     if(!sess || !idLen) {
         WOLFSSL_MSG("Bad func args. Please provide idLen");
         return NULL;

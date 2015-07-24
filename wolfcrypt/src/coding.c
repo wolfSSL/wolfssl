@@ -150,7 +150,7 @@ const byte base64Encode[] = { 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J',
 /* make sure *i (idx) won't exceed max, store and possibly escape to out,
  * raw means use e w/o decode,  0 on success */
 static int CEscape(int escaped, byte e, byte* out, word32* i, word32 max,
-                  int raw)
+                  int raw, int getSzOnly)
 {
     int    doEscape = 0;
     word32 needed = 1;
@@ -191,39 +191,46 @@ static int CEscape(int escaped, byte e, byte* out, word32* i, word32 max,
     }
 
     /* check size */
-    if ( (idx+needed) > max) {
+    if ( (idx+needed) > max && !getSzOnly) {
         WOLFSSL_MSG("Escape buffer max too small");
         return BUFFER_E;
     }
 
     /* store it */
     if (doEscape == 0) {
-        out[idx++] = basic;
+        if(getSzOnly)
+            idx++;
+        else
+            out[idx++] = basic;
     }
     else {
-        out[idx++] = '%';  /* start escape */
+        if(getSzOnly)
+            idx+=3;
+        else {
+            out[idx++] = '%';  /* start escape */
 
-        if (plus) {
-            out[idx++] = '2';
-            out[idx++] = 'B';
+            if (plus) {
+                out[idx++] = '2';
+                out[idx++] = 'B';
+            }
+            else if (equals) {
+                out[idx++] = '3';
+                out[idx++] = 'D';
+            }
+            else if (newline) {
+                out[idx++] = '0';
+                out[idx++] = 'A';
+            }
         }
-        else if (equals) {
-            out[idx++] = '3';
-            out[idx++] = 'D';
-        }
-        else if (newline) {
-            out[idx++] = '0';
-            out[idx++] = 'A';
-        }
-
     }
     *i = idx;
 
-    return 0;
+    return getSzOnly ? LENGTH_ONLY_E : 0;
 }
 
 
-/* internal worker, handles both escaped and normal line endings */
+/* internal worker, handles both escaped and normal line endings.
+   If out buffer is NULL, will return sz needed in outLen */
 static int DoBase64_Encode(const byte* in, word32 inLen, byte* out,
                            word32* outLen, int escaped)
 {
@@ -231,6 +238,8 @@ static int DoBase64_Encode(const byte* in, word32 inLen, byte* out,
     word32 i = 0,
            j = 0,
            n = 0;   /* new line counter */
+
+    int    getSzOnly = (out == NULL);
 
     word32 outSz = (inLen + 3 - 1) / 3 * 4;
     word32 addSz = (outSz + PEM_LINE_SZ - 1) / PEM_LINE_SZ;  /* new lines */
@@ -243,8 +252,9 @@ static int DoBase64_Encode(const byte* in, word32 inLen, byte* out,
     outSz += addSz;
 
     /* if escaped we can't predetermine size for one pass encoding, but
-     * make sure we have enough if no escapes are in input */
-    if (outSz > *outLen) return BAD_FUNC_ARG;
+     * make sure we have enough if no escapes are in input
+     * Also need to ensure outLen valid before dereference */
+    if (!outLen || (outSz > *outLen && !getSzOnly)) return BAD_FUNC_ARG;
 
     while (inLen > 2) {
         byte b1 = in[j++];
@@ -258,20 +268,20 @@ static int DoBase64_Encode(const byte* in, word32 inLen, byte* out,
         byte e4 = b3 & 0x3F;
 
         /* store */
-        ret = CEscape(escaped, e1, out, &i, *outLen, 0);
+        ret = CEscape(escaped, e1, out, &i, *outLen, 0, getSzOnly);
         if (ret != 0) break;
-        ret = CEscape(escaped, e2, out, &i, *outLen, 0);
+        ret = CEscape(escaped, e2, out, &i, *outLen, 0, getSzOnly);
         if (ret != 0) break;
-        ret = CEscape(escaped, e3, out, &i, *outLen, 0);
+        ret = CEscape(escaped, e3, out, &i, *outLen, 0, getSzOnly);
         if (ret != 0) break;
-        ret = CEscape(escaped, e4, out, &i, *outLen, 0);
+        ret = CEscape(escaped, e4, out, &i, *outLen, 0, getSzOnly);
         if (ret != 0) break;
 
         inLen -= 3;
 
         /* Insert newline after PEM_LINE_SZ, unless no \n requested */
         if (escaped != WC_NO_NL_ENC && (++n % (PEM_LINE_SZ/4)) == 0 && inLen){
-            ret = CEscape(escaped, '\n', out, &i, *outLen, 1);
+            ret = CEscape(escaped, '\n', out, &i, *outLen, 1, getSzOnly);
             if (ret != 0) break;
         }
     }
@@ -287,23 +297,23 @@ static int DoBase64_Encode(const byte* in, word32 inLen, byte* out,
         byte e2 = (byte)(((b1 & 0x3) << 4) | (b2 >> 4));
         byte e3 = (byte)((b2 & 0xF) << 2);
 
-        ret = CEscape(escaped, e1, out, &i, *outLen, 0);
+        ret = CEscape(escaped, e1, out, &i, *outLen, 0, getSzOnly);
         if (ret == 0)
-            ret = CEscape(escaped, e2, out, &i, *outLen, 0);
+            ret = CEscape(escaped, e2, out, &i, *outLen, 0, getSzOnly);
         if (ret == 0) {
             /* third */
             if (twoBytes)
-                ret = CEscape(escaped, e3, out, &i, *outLen, 0);
+                ret = CEscape(escaped, e3, out, &i, *outLen, 0, getSzOnly);
             else
-                ret = CEscape(escaped, '=', out, &i, *outLen, 1);
+                ret = CEscape(escaped, '=', out, &i, *outLen, 1, getSzOnly);
         }
         /* fourth always pad */
         if (ret == 0)
-            ret = CEscape(escaped, '=', out, &i, *outLen, 1);
+            ret = CEscape(escaped, '=', out, &i, *outLen, 1, getSzOnly);
     }
 
     if (ret == 0 && escaped != WC_NO_NL_ENC)
-        ret = CEscape(escaped, '\n', out, &i, *outLen, 1);
+        ret = CEscape(escaped, '\n', out, &i, *outLen, 1, getSzOnly);
 
     if (i != outSz && escaped != 1 && ret == 0)
         return ASN_INPUT_E;
