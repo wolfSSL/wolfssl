@@ -210,7 +210,7 @@ int pbkdf2_test(void);
 #endif
 
 
-/* General big buffer size for many tests. */ 
+/* General big buffer size for many tests. */
 #define FOURK_BUF 4096
 
 
@@ -3385,6 +3385,7 @@ int rsa_test(void)
 #ifdef HAVE_CAVIUM
     wc_RsaInitCavium(&key, CAVIUM_DEV_ID);
 #endif
+
     ret = wc_InitRsaKey(&key, 0);
     if (ret != 0) {
         free(tmp);
@@ -3464,7 +3465,6 @@ int rsa_test(void)
 #else
     (void)bytes;
 #endif
-
 
 #ifdef WOLFSSL_KEY_GEN
     {
@@ -3574,7 +3574,6 @@ int rsa_test(void)
         free(der);
     }
 #endif /* WOLFSSL_KEY_GEN */
-
 
 #ifdef WOLFSSL_CERT_GEN
     /* self signed */
@@ -4428,8 +4427,111 @@ int dsa_test(void)
     if (answer != 1) return -65;
 
     wc_FreeDsaKey(&key);
-    wc_FreeRng(&rng);
 
+#ifdef WOLFSSL_KEY_GEN
+    {
+    byte*  der;
+    byte*  pem;
+    int    derSz = 0;
+    int    pemSz = 0;
+    DsaKey derIn;
+    DsaKey genKey;
+    FILE*  keyFile;
+    FILE*  pemFile;
+
+    wc_InitDsaKey(&genKey);
+    ret = wc_MakeDsaParameters(&rng, 1024, &genKey);
+    if (ret != 0) return -362;
+
+    ret = wc_MakeDsaKey(&rng, &genKey);
+    if (ret != 0) return -363;
+
+    der = (byte*)malloc(FOURK_BUF);
+    if (der == NULL) {
+        wc_FreeDsaKey(&genKey);
+        return -364;
+    }
+    pem = (byte*)malloc(FOURK_BUF);
+    if (pem == NULL) {
+        free(der);
+        wc_FreeDsaKey(&genKey);
+        return -365;
+    }
+
+    derSz = wc_DsaKeyToDer(&genKey, der, FOURK_BUF);
+    if (derSz < 0) {
+        free(der);
+        free(pem);
+        return -366;
+    }
+
+#ifdef FREESCALE_MQX
+    keyFile = fopen("a:\\certs\\key.der", "wb");
+#else
+    keyFile = fopen("./key.der", "wb");
+#endif
+    if (!keyFile) {
+        free(der);
+        free(pem);
+        wc_FreeDsaKey(&genKey);
+        return -367;
+    }
+    ret = (int)fwrite(der, 1, derSz, keyFile);
+    fclose(keyFile);
+    if (ret != derSz) {
+        free(der);
+        free(pem);
+        wc_FreeDsaKey(&genKey);
+        return -368;
+    }
+
+    pemSz = wc_DerToPem(der, derSz, pem, FOURK_BUF, DSA_PRIVATEKEY_TYPE);
+    if (pemSz < 0) {
+        free(der);
+        free(pem);
+        wc_FreeDsaKey(&genKey);
+        return -369;
+    }
+
+#ifdef FREESCALE_MQX
+    pemFile = fopen("a:\\certs\\key.pem", "wb");
+#else
+    pemFile = fopen("./key.pem", "wb");
+#endif
+    if (!pemFile) {
+        free(der);
+        free(pem);
+        wc_FreeDsaKey(&genKey);
+        return -370;
+    }
+    ret = (int)fwrite(pem, 1, pemSz, pemFile);
+    fclose(pemFile);
+    if (ret != pemSz) {
+        free(der);
+        free(pem);
+        wc_FreeDsaKey(&genKey);
+        return -371;
+    }
+
+    wc_InitDsaKey(&derIn);
+    idx = 0;
+    ret = wc_DsaPrivateKeyDecode(der, &idx, &derIn, derSz);
+    if (ret != 0) {
+        free(der);
+        free(pem);
+        wc_FreeDsaKey(&derIn);
+        wc_FreeDsaKey(&genKey);
+        return -373;
+    }
+
+    wc_FreeDsaKey(&derIn);
+    wc_FreeDsaKey(&genKey);
+    free(pem);
+    free(der);
+    }
+#endif /* WOLFSSL_KEY_GEN */
+
+    wc_FreeRng(&rng);
     return 0;
 }
 

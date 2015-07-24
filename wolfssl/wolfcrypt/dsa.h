@@ -66,6 +66,11 @@ WOLFSSL_API int wc_DsaPrivateKeyDecode(const byte* input, word32* inOutIdx,
                                        DsaKey*, word32);
 WOLFSSL_API int wc_DsaKeyToDer(DsaKey* key, byte* output, word32 inLen);
 
+#ifdef WOLFSSL_KEY_GEN
+WOLFSSL_API int wc_MakeDsaKey(RNG *rng, DsaKey *dsa);
+WOLFSSL_API int wc_MakeDsaParameters(RNG *rng, int modulus_size, DsaKey *dsa);
+#endif
+
 #ifdef __cplusplus
     } /* extern "C" */
 #endif

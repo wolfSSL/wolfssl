@@ -36,6 +36,8 @@
     #include <wolfssl/wolfcrypt/tfm.h>
 #else
 
+#include <wolfssl/wolfcrypt/random.h> 
+
 #ifndef CHAR_BIT
     #include <limits.h>
 #endif
@@ -313,6 +315,7 @@ int mp_radix_size (mp_int * a, int radix, int *size);
     int mp_prime_is_prime (mp_int * a, int t, int *result);
     int mp_gcd (mp_int * a, mp_int * b, mp_int * c);
     int mp_lcm (mp_int * a, mp_int * b, mp_int * c);
+    int mp_rand_prime(mp_int* N, int len, RNG* rng, void* heap);
 #endif
 
 int mp_cnt_lsb(mp_int *a);

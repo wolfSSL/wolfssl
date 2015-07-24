@@ -43,6 +43,7 @@ enum CertType {
     CRL_TYPE,
     CA_TYPE,
     ECC_PRIVATEKEY_TYPE,
+    DSA_PRIVATEKEY_TYPE,
     CERTREQ_TYPE,
     DSA_TYPE,
     ECC_TYPE,
@@ -177,7 +178,9 @@ WOLFSSL_API int  wc_SetDatesBuffer(Cert*, const byte*, int);
 
 #if defined(WOLFSSL_KEY_GEN) || defined(WOLFSSL_CERT_GEN) || !defined(NO_DSA)
     WOLFSSL_API int wc_DerToPem(const byte* der, word32 derSz, byte* output,
-                            word32 outputSz, int type);
+                                word32 outputSz, int type);
+    WOLFSSL_API int wc_DerToPemEx(const byte* der, word32 derSz, byte* output,
+                                word32 outputSz, byte *cipherIno, int type);
 #endif
 
 #ifdef HAVE_ECC

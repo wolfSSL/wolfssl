@@ -410,6 +410,39 @@ int Base16_Decode(const byte* in, word32 inLen, byte* out, word32* outLen)
     return 0;
 }
 
+int Base16_Encode(const byte* in, word32 inLen, byte* out, word32* outLen)
+{
+    word32 outIdx = 0;
+    word32 i;
+    byte   hb, lb;
+
+    if (*outLen < (2 * inLen + 1))
+        return BAD_FUNC_ARG;
+
+    for (i = 0; i < inLen; i++) {
+        hb = in[i] >> 4;
+        lb = in[i] & 0x0f;
+
+        /* ASCII value */
+        hb += '0';
+        if (hb > '9')
+            hb += 7;
+
+        /* ASCII value */
+        lb += '0';
+        if (lb>'9')
+            lb += 7;
+
+        out[outIdx++] = hb;
+        out[outIdx++] = lb;
+    }
+
+    /* force 0 at this end */
+    out[outIdx++] = 0;
+
+    *outLen = outIdx;
+    return 0;
+}
 
 #endif /* (OPENSSL_EXTRA) || (HAVE_WEBSERVER) || (HAVE_FIPS) */
 
