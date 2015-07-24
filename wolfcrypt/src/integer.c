@@ -4045,7 +4045,7 @@ static int mp_div_d (mp_int * a, mp_digit b, mp_int * c, mp_digit * d)
   mp_int  q;
   mp_word w;
   mp_digit t;
-  int     res, ix;
+  int     res = MP_OKAY, ix;
 
   /* cannot divide by zero */
   if (b == 0) {

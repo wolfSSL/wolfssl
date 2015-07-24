@@ -7024,7 +7024,7 @@ int wc_EccKeyToDer(ecc_key* key, byte* output, word32 inLen)
 
     /* public */
     XMEMCPY(output + idx, pub, pubidx);
-    idx += pubidx;
+    /* idx += pubidx;  not used after write, if more data remove comment */
     XFREE(pub, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     return totalSz;
