@@ -1014,7 +1014,7 @@ int ecc_map(ecc_point* P, mp_int* modulus, mp_digit* mp)
 static int normal_ecc_mulmod(mp_int* k, ecc_point *G, ecc_point *R,
                       mp_int* modulus, int map)
 #else
-int ecc_mulmod(mp_int* k, ecc_point *G, ecc_point *R, mp_int* modulus,
+int wc_ecc_mulmod(mp_int* k, ecc_point *G, ecc_point *R, mp_int* modulus,
                int map)
 #endif
 {
@@ -1043,10 +1043,10 @@ int ecc_mulmod(mp_int* k, ecc_point *G, ecc_point *R, mp_int* modulus,
 
   /* alloc ram for window temps */
   for (i = 0; i < 8; i++) {
-      M[i] = ecc_new_point();
+      M[i] = wc_ecc_new_point();
       if (M[i] == NULL) {
          for (j = 0; j < i; j++) {
-             ecc_del_point(M[j]);
+             wc_ecc_del_point(M[j]);
          }
          mp_clear(&mu);
          return MEMORY_E;
@@ -1054,7 +1054,7 @@ int ecc_mulmod(mp_int* k, ecc_point *G, ecc_point *R, mp_int* modulus,
   }
 
    /* make a copy of G incase R==G */
-   tG = ecc_new_point();
+   tG = wc_ecc_new_point();
    if (tG == NULL)
        err = MEMORY_E;
 
@@ -1204,9 +1204,9 @@ int ecc_mulmod(mp_int* k, ecc_point *G, ecc_point *R, mp_int* modulus,
        err = ecc_map(R, modulus, &mp);
 
    mp_clear(&mu);
-   ecc_del_point(tG);
+   wc_ecc_del_point(tG);
    for (i = 0; i < 8; i++) {
-       ecc_del_point(M[i]);
+       wc_ecc_del_point(M[i]);
    }
    return err;
 }
@@ -1229,7 +1229,7 @@ int ecc_mulmod(mp_int* k, ecc_point *G, ecc_point *R, mp_int* modulus,
 static int normal_ecc_mulmod(mp_int* k, ecc_point *G, ecc_point *R,
                       mp_int* modulus, int map)
 #else
-int ecc_mulmod(mp_int* k, ecc_point *G, ecc_point *R, mp_int* modulus,
+int wc_ecc_mulmod(mp_int* k, ecc_point *G, ecc_point *R, mp_int* modulus,
               int map)
 #endif
 {
@@ -1257,10 +1257,10 @@ int ecc_mulmod(mp_int* k, ecc_point *G, ecc_point *R, mp_int* modulus,
 
   /* alloc ram for window temps */
   for (i = 0; i < 3; i++) {
-      M[i] = ecc_new_point();
+      M[i] = wc_ecc_new_point();
       if (M[i] == NULL) {
          for (j = 0; j < i; j++) {
-             ecc_del_point(M[j]);
+             wc_ecc_del_point(M[j]);
          }
          mp_clear(&mu);
          return MEMORY_E;
@@ -1268,7 +1268,7 @@ int ecc_mulmod(mp_int* k, ecc_point *G, ecc_point *R, mp_int* modulus,
   }
 
    /* make a copy of G incase R==G */
-   tG = ecc_new_point();
+   tG = wc_ecc_new_point();
    if (tG == NULL)
        err = MEMORY_E;
 
@@ -1364,9 +1364,9 @@ int ecc_mulmod(mp_int* k, ecc_point *G, ecc_point *R, mp_int* modulus,
 
    /* done */
    mp_clear(&mu);
-   ecc_del_point(tG);
+   wc_ecc_del_point(tG);
    for (i = 0; i < 3; i++) {
-       ecc_del_point(M[i]);
+       wc_ecc_del_point(M[i]);
    }
    return err;
 }
@@ -1389,7 +1389,7 @@ static void alt_fp_init(fp_int* a)
    Allocate a new ECC point
    return A newly allocated point or NULL on error
 */
-ecc_point* ecc_new_point(void)
+ecc_point* wc_ecc_new_point(void)
 {
    ecc_point* p;
 
@@ -1425,7 +1425,7 @@ ecc_point* ecc_new_point(void)
 /** Free an ECC point from memory
   p   The point to free
 */
-void ecc_del_point(ecc_point* p)
+void wc_ecc_del_point(ecc_point* p)
 {
    /* prevents free'ing null arguments */
    if (p != NULL) {
@@ -1440,7 +1440,7 @@ void ecc_del_point(ecc_point* p)
   p    The point to copy
   r    The created point
 */
-int ecc_copy_point(ecc_point* p, ecc_point *r)
+int wc_ecc_copy_point(ecc_point* p, ecc_point *r)
 {
     int ret;
 
@@ -1467,7 +1467,7 @@ int ecc_copy_point(ecc_point* p, ecc_point *r)
 
  return MP_EQ if equal, MP_LT/MP_GT if not, < 0 in case of error
  */
-int ecc_cmp_point(ecc_point* a, ecc_point *b)
+int wc_ecc_cmp_point(ecc_point* a, ecc_point *b)
 {
     int ret;
 
@@ -1492,7 +1492,7 @@ int ecc_cmp_point(ecc_point* a, ecc_point *b)
   n      The idx number to check
   return 1 if valid, 0 if not
 */
-static int ecc_is_valid_idx(int n)
+int wc_ecc_is_valid_idx(int n)
 {
    int x;
 
@@ -1533,28 +1533,28 @@ int wc_ecc_shared_secret(ecc_key* private_key, ecc_key* public_key, byte* out,
       return ECC_BAD_ARG_E;
    }
 
-   if (ecc_is_valid_idx(private_key->idx) == 0 ||
-       ecc_is_valid_idx(public_key->idx)  == 0)
+   if (wc_ecc_is_valid_idx(private_key->idx) == 0 ||
+       wc_ecc_is_valid_idx(public_key->idx)  == 0)
       return ECC_BAD_ARG_E;
 
    if (XSTRNCMP(private_key->dp->name, public_key->dp->name, ECC_MAXNAME) != 0)
       return ECC_BAD_ARG_E;
 
    /* make new point */
-   result = ecc_new_point();
+   result = wc_ecc_new_point();
    if (result == NULL) {
       return MEMORY_E;
    }
 
    if ((err = mp_init(&prime)) != MP_OKAY) {
-      ecc_del_point(result);
+      wc_ecc_del_point(result);
       return err;
    }
 
    err = mp_read_radix(&prime, (char *)private_key->dp->prime, 16);
 
    if (err == MP_OKAY)
-       err = ecc_mulmod(&private_key->k, &public_key->pubkey, result, &prime,1);
+       err = wc_ecc_mulmod(&private_key->k, &public_key->pubkey, result, &prime,1);
 
    if (err == MP_OKAY) {
        x = mp_unsigned_bin_size(&prime);
@@ -1570,7 +1570,7 @@ int wc_ecc_shared_secret(ecc_key* private_key, ecc_key* public_key, byte* out,
    }
 
    mp_clear(&prime);
-   ecc_del_point(result);
+   wc_ecc_del_point(result);
 
    return err;
 }
@@ -1600,24 +1600,24 @@ int wc_ecc_shared_secret_ssh(ecc_key* private_key, ecc_point* point,
         return ECC_BAD_ARG_E;
     }
 
-    if (ecc_is_valid_idx(private_key->idx) == 0)
+    if (wc_ecc_is_valid_idx(private_key->idx) == 0)
         return ECC_BAD_ARG_E;
 
     /* make new point */
-    result = ecc_new_point();
+    result = wc_ecc_new_point();
     if (result == NULL) {
         return MEMORY_E;
     }
 
     if ((err = mp_init(&prime)) != MP_OKAY) {
-        ecc_del_point(result);
+        wc_ecc_del_point(result);
         return err;
     }
 
     err = mp_read_radix(&prime, (char *)private_key->dp->prime, 16);
 
     if (err == MP_OKAY)
-        err = ecc_mulmod(&private_key->k, point, result, &prime, 1);
+        err = wc_ecc_mulmod(&private_key->k, point, result, &prime, 1);
 
     if (err == MP_OKAY) {
         x = mp_unsigned_bin_size(&prime);
@@ -1633,14 +1633,14 @@ int wc_ecc_shared_secret_ssh(ecc_key* private_key, ecc_point* point,
     }
 
     mp_clear(&prime);
-    ecc_del_point(result);
+    wc_ecc_del_point(result);
 
     return err;
 }
 
 
 /* return 1 if point is at infinity, 0 if not, < 0 on error */
-int ecc_point_is_at_infinity(ecc_point* p)
+int wc_ecc_point_is_at_infinity(ecc_point* p)
 {
     if (p == NULL)
         return BAD_FUNC_ARG;
@@ -1708,7 +1708,7 @@ static int wc_ecc_make_key_ex(RNG* rng, ecc_key* key, const ecc_set_type* dp)
    }
 
    if (err == MP_OKAY) {
-       base = ecc_new_point();
+       base = wc_ecc_new_point();
        if (base == NULL)
            err = MEMORY_E;
    }
@@ -1735,7 +1735,7 @@ static int wc_ecc_make_key_ex(RNG* rng, ecc_key* key, const ecc_set_type* dp)
    }
    /* make the public key */
    if (err == MP_OKAY)
-       err = ecc_mulmod(&key->k, base, &key->pubkey, &prime, 1);
+       err = wc_ecc_mulmod(&key->k, base, &key->pubkey, &prime, 1);
 
 #ifdef WOLFSSL_VALIDATE_ECC_KEYGEN
    /* validate the public key, order * pubkey = point at infinity */
@@ -1753,7 +1753,7 @@ static int wc_ecc_make_key_ex(RNG* rng, ecc_key* key, const ecc_set_type* dp)
        mp_clear(key->pubkey.z);
        mp_clear(&key->k);
    }
-   ecc_del_point(base);
+   wc_ecc_del_point(base);
    if (po_init) {
        mp_clear(&prime);
        mp_clear(&order);
@@ -1886,7 +1886,7 @@ int wc_ecc_sign_hash_ex(const byte* in, word32 inlen, RNG* rng,
    }
 
    /* is the IDX valid ?  */
-   if (ecc_is_valid_idx(key->idx) != 1) {
+   if (wc_ecc_is_valid_idx(key->idx) != 1) {
       return ECC_BAD_ARG_E;
    }
 
@@ -2059,10 +2059,10 @@ static int ecc_mul2add(ecc_point* A, mp_int* kA,
     /* allocate the table */
     if (err == MP_OKAY) {
         for (x = 0; x < 16; x++) {
-            precomp[x] = ecc_new_point();
+            precomp[x] = wc_ecc_new_point();
             if (precomp[x] == NULL) {
                 for (y = 0; y < x; ++y) {
-                    ecc_del_point(precomp[y]);
+                    wc_ecc_del_point(precomp[y]);
                 }
                 err = GEN_MEM_ERR;
                 break;
@@ -2203,7 +2203,7 @@ static int ecc_mul2add(ecc_point* A, mp_int* kA,
 
   if (tableInit) {
     for (x = 0; x < 16; x++) {
-       ecc_del_point(precomp[x]);
+       wc_ecc_del_point(precomp[x]);
     }
   }
    ForceZero(tA, ECC_BUFSIZE);
@@ -2300,7 +2300,7 @@ int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
    *stat = 0;
 
    /* is the IDX valid ?  */
-   if (ecc_is_valid_idx(key->idx) != 1) {
+   if (wc_ecc_is_valid_idx(key->idx) != 1) {
       return ECC_BAD_ARG_E;
    }
 
@@ -2320,8 +2320,8 @@ int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
    }
 
    /* allocate points */
-   mG = ecc_new_point();
-   mQ = ecc_new_point();
+   mG = wc_ecc_new_point();
+   mQ = wc_ecc_new_point();
    if (mQ  == NULL || mG == NULL)
       err = MEMORY_E;
 
@@ -2388,9 +2388,9 @@ int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
 
        /* compute u1*mG + u2*mQ = mG */
        if (err == MP_OKAY)
-           err = ecc_mulmod(&u1, mG, mG, &m, 0);
+           err = wc_ecc_mulmod(&u1, mG, mG, &m, 0);
        if (err == MP_OKAY)
-           err = ecc_mulmod(&u2, mQ, mQ, &m, 0);
+           err = wc_ecc_mulmod(&u2, mQ, mQ, &m, 0);
 
        /* find the montgomery mp */
        if (err == MP_OKAY)
@@ -2420,8 +2420,8 @@ int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
            *stat = 1;
    }
 
-   ecc_del_point(mG);
-   ecc_del_point(mQ);
+   wc_ecc_del_point(mG);
+   wc_ecc_del_point(mQ);
 
    mp_clear(&v);
    mp_clear(&w);
@@ -2442,7 +2442,7 @@ int wc_ecc_import_point_der(byte* in, word32 inLen, const int curve_idx,
     int compressed = 0;
 
     if (in == NULL || point == NULL || (curve_idx < 0) ||
-        (ecc_is_valid_idx(curve_idx) == 0))
+        (wc_ecc_is_valid_idx(curve_idx) == 0))
         return ECC_BAD_ARG_E;
 
     /* must be odd */
@@ -2568,7 +2568,7 @@ int wc_ecc_export_point_der(const int curve_idx, ecc_point* point, byte* out,
     word32 numlen;
     int    ret = MP_OKAY;
 
-    if ((curve_idx < 0) || (ecc_is_valid_idx(curve_idx) == 0))
+    if ((curve_idx < 0) || (wc_ecc_is_valid_idx(curve_idx) == 0))
         return ECC_BAD_ARG_E;
 
     /* return length needed only */
@@ -2645,7 +2645,7 @@ int wc_ecc_export_x963(ecc_key* key, byte* out, word32* outLen)
    if (key == NULL || out == NULL || outLen == NULL)
       return ECC_BAD_ARG_E;
 
-   if (ecc_is_valid_idx(key->idx) == 0) {
+   if (wc_ecc_is_valid_idx(key->idx) == 0) {
       return ECC_BAD_ARG_E;
    }
    numlen = key->dp->size;
@@ -2780,7 +2780,7 @@ static int ecc_check_privkey_gen(ecc_key* key, mp_int* prime)
     if (key == NULL)
         return BAD_FUNC_ARG;
 
-    base = ecc_new_point();
+    base = wc_ecc_new_point();
     if (base == NULL)
         return MEMORY_E;
 
@@ -2792,11 +2792,11 @@ static int ecc_check_privkey_gen(ecc_key* key, mp_int* prime)
         mp_set(base->z, 1);
 
     if (err == MP_OKAY) {
-        res = ecc_new_point();
+        res = wc_ecc_new_point();
         if (res == NULL)
             err = MEMORY_E;
         else {
-            err = ecc_mulmod(&key->k, base, res, prime, 1);
+            err = wc_ecc_mulmod(&key->k, base, res, prime, 1);
             if (err == MP_OKAY) {
                 /* compare result to public key */
                 if (mp_cmp(res->x, key->pubkey.x) != MP_EQ ||
@@ -2809,8 +2809,8 @@ static int ecc_check_privkey_gen(ecc_key* key, mp_int* prime)
         }
     }
 
-    ecc_del_point(res);
-    ecc_del_point(base);
+    wc_ecc_del_point(res);
+    wc_ecc_del_point(base);
 
     return err;
 }
@@ -2853,16 +2853,16 @@ static int ecc_check_pubkey_order(ecc_key* key, mp_int* prime, mp_int* order)
     if (key == NULL)
         return BAD_FUNC_ARG;
 
-    inf = ecc_new_point();
+    inf = wc_ecc_new_point();
     if (inf == NULL)
         err = MEMORY_E;
     else {
-        err = ecc_mulmod(order, &key->pubkey, inf, prime, 1);
-        if (err == MP_OKAY && !ecc_point_is_at_infinity(inf))
+        err = wc_ecc_mulmod(order, &key->pubkey, inf, prime, 1);
+        if (err == MP_OKAY && !wc_ecc_point_is_at_infinity(inf))
             err = ECC_INF_E;
     }
 
-    ecc_del_point(inf);
+    wc_ecc_del_point(inf);
 
     return err;
 }
@@ -2879,7 +2879,7 @@ int wc_ecc_check_key(ecc_key* key)
         return BAD_FUNC_ARG;
 
     /* pubkey point cannot be at inifinity */
-    if (ecc_point_is_at_infinity(&key->pubkey))
+    if (wc_ecc_point_is_at_infinity(&key->pubkey))
         return ECC_INF_E;
 
     err = mp_init_multi(&prime, &order, NULL, NULL, NULL, NULL);
@@ -3069,7 +3069,7 @@ int wc_ecc_export_private_only(ecc_key* key, byte* out, word32* outLen)
    if (key == NULL || out == NULL || outLen == NULL)
        return ECC_BAD_ARG_E;
 
-   if (ecc_is_valid_idx(key->idx) == 0) {
+   if (wc_ecc_is_valid_idx(key->idx) == 0) {
       return ECC_BAD_ARG_E;
    }
    numlen = key->dp->size;
@@ -3846,10 +3846,10 @@ static int find_hole(void)
    /* free entry z */
    if (z >= 0 && fp_cache[z].g) {
       mp_clear(&fp_cache[z].mu);
-      ecc_del_point(fp_cache[z].g);
+      wc_ecc_del_point(fp_cache[z].g);
       fp_cache[z].g  = NULL;
       for (x = 0; x < (1U<<FP_LUT); x++) {
-         ecc_del_point(fp_cache[z].LUT[x]);
+         wc_ecc_del_point(fp_cache[z].LUT[x]);
          fp_cache[z].LUT[x] = NULL;
       }
       fp_cache[z].lru_count = 0;
@@ -3881,7 +3881,7 @@ static int add_entry(int idx, ecc_point *g)
    unsigned x, y;
 
    /* allocate base and LUT */
-   fp_cache[idx].g = ecc_new_point();
+   fp_cache[idx].g = wc_ecc_new_point();
    if (fp_cache[idx].g == NULL) {
       return GEN_MEM_ERR;
    }
@@ -3890,19 +3890,19 @@ static int add_entry(int idx, ecc_point *g)
    if ((mp_copy(g->x, fp_cache[idx].g->x) != MP_OKAY) ||
        (mp_copy(g->y, fp_cache[idx].g->y) != MP_OKAY) ||
        (mp_copy(g->z, fp_cache[idx].g->z) != MP_OKAY)) {
-      ecc_del_point(fp_cache[idx].g);
+      wc_ecc_del_point(fp_cache[idx].g);
       fp_cache[idx].g = NULL;
       return GEN_MEM_ERR;
    }
 
    for (x = 0; x < (1U<<FP_LUT); x++) {
-      fp_cache[idx].LUT[x] = ecc_new_point();
+      fp_cache[idx].LUT[x] = wc_ecc_new_point();
       if (fp_cache[idx].LUT[x] == NULL) {
          for (y = 0; y < x; y++) {
-            ecc_del_point(fp_cache[idx].LUT[y]);
+            wc_ecc_del_point(fp_cache[idx].LUT[y]);
             fp_cache[idx].LUT[y] = NULL;
          }
-         ecc_del_point(fp_cache[idx].g);
+         wc_ecc_del_point(fp_cache[idx].g);
          fp_cache[idx].g         = NULL;
          fp_cache[idx].lru_count = 0;
          return GEN_MEM_ERR;
@@ -4042,10 +4042,10 @@ static int build_lut(int idx, mp_int* modulus, mp_digit* mp, mp_int* mu)
 
    /* err cleanup */
    for (y = 0; y < (1U<<FP_LUT); y++) {
-      ecc_del_point(fp_cache[idx].LUT[y]);
+      wc_ecc_del_point(fp_cache[idx].LUT[y]);
       fp_cache[idx].LUT[y] = NULL;
    }
-   ecc_del_point(fp_cache[idx].g);
+   wc_ecc_del_point(fp_cache[idx].g);
    fp_cache[idx].g         = NULL;
    fp_cache[idx].lru_count = 0;
    mp_clear(&fp_cache[idx].mu);
@@ -4576,7 +4576,7 @@ int ecc_mul2add(ecc_point* A, mp_int* kA,
              otherwise it's left in jacobian-montgomery form
     return MP_OKAY if successful
 */
-int ecc_mulmod(mp_int* k, ecc_point *G, ecc_point *R, mp_int* modulus,
+int wc_ecc_mulmod(mp_int* k, ecc_point *G, ecc_point *R, mp_int* modulus,
                int map)
 {
    int   idx, err = MP_OKAY;
@@ -4661,10 +4661,10 @@ static void wc_ecc_fp_free_cache(void)
    for (x = 0; x < FP_ENTRIES; x++) {
       if (fp_cache[x].g != NULL) {
          for (y = 0; y < (1U<<FP_LUT); y++) {
-            ecc_del_point(fp_cache[x].LUT[y]);
+            wc_ecc_del_point(fp_cache[x].LUT[y]);
             fp_cache[x].LUT[y] = NULL;
          }
-         ecc_del_point(fp_cache[x].g);
+         wc_ecc_del_point(fp_cache[x].g);
          fp_cache[x].g         = NULL;
          mp_clear(&fp_cache[x].mu);
          fp_cache[x].lru_count = 0;
@@ -5500,7 +5500,7 @@ int wc_ecc_export_x963_compressed(ecc_key* key, byte* out, word32* outLen)
    if (key == NULL || out == NULL || outLen == NULL)
        return ECC_BAD_ARG_E;
 
-   if (ecc_is_valid_idx(key->idx) == 0) {
+   if (wc_ecc_is_valid_idx(key->idx) == 0) {
       return ECC_BAD_ARG_E;
    }
    numlen = key->dp->size;

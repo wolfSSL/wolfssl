@@ -182,8 +182,9 @@ enum Misc_ASN {
     MAX_OCSP_EXT_SZ     = 58,      /* Max OCSP Extension length */
     MAX_OCSP_NONCE_SZ   = 18,      /* OCSP Nonce size           */
     EIGHTK_BUF          = 8192,    /* Tmp buffer size           */
-    MAX_PUBLIC_KEY_SZ   = MAX_NTRU_ENC_SZ + MAX_ALGO_SZ + MAX_SEQ_SZ * 2
+    MAX_PUBLIC_KEY_SZ   = MAX_NTRU_ENC_SZ + MAX_ALGO_SZ + MAX_SEQ_SZ * 2,
                                    /* use bigger NTRU size */
+    HEADER_ENCRYPTED_KEY_SIZE = 88 /* Extra header size for encrypted key */
 };
 
 
@@ -476,6 +477,24 @@ struct DecodedCert {
 #endif /* WOLFSSL_SEP */
 };
 
+extern const char* BEGIN_CERT;
+extern const char* END_CERT;
+extern const char* BEGIN_CERT_REQ;
+extern const char* END_CERT_REQ;
+extern const char* BEGIN_DH_PARAM;
+extern const char* END_DH_PARAM;
+extern const char* BEGIN_X509_CRL;
+extern const char* END_X509_CRL;
+extern const char* BEGIN_RSA_PRIV;
+extern const char* END_RSA_PRIV;
+extern const char* BEGIN_PRIV_KEY;
+extern const char* END_PRIV_KEY;
+extern const char* BEGIN_ENC_PRIV_KEY;
+extern const char* END_ENC_PRIV_KEY;
+extern const char* BEGIN_EC_PRIV;
+extern const char* END_EC_PRIV;
+extern const char* BEGIN_DSA_PRIV;
+extern const char* END_DSA_PRIV;
 
 #ifdef NO_SHA
     #define SIGNER_DIGEST_SIZE SHA256_DIGEST_SIZE

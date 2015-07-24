@@ -73,18 +73,18 @@ typedef struct {
  * mp_ints for the components of the point. With ALT_ECC_SIZE, the components
  * of the point are pointers that are set to each of a three item array of
  * alt_fp_ints. While an mp_int will have 4096 bits of digit inside the
- * structure, the alt_fp_int will only have 512 bits. A size value was added
+ * structure, the alt_fp_int will only have 528 bits. A size value was added
  * in the ALT case, as well, and is set by mp_init() and alt_fp_init(). The
  * functions fp_zero() and fp_copy() use the size parameter. An int needs to
  * be initialized before using it instead of just fp_zeroing it, the init will
- * call zero. FP_MAX_BITS_ECC defaults to 512, but can be set to change the
+ * call zero. FP_MAX_BITS_ECC defaults to 528, but can be set to change the
  * number of bits used in the alternate FP_INT.
  *
  * Do not enable ALT_ECC_SIZE and disable fast math in the configuration.
  */
 
 #ifndef FP_MAX_BITS_ECC
-    #define FP_MAX_BITS_ECC           512
+    #define FP_MAX_BITS_ECC           528
 #endif
 #define FP_MAX_SIZE_ECC           (FP_MAX_BITS_ECC+(8*DIGIT_BIT))
 #if FP_MAX_BITS_ECC % CHAR_BIT
@@ -163,17 +163,20 @@ WOLFSSL_API
 void wc_ecc_fp_free(void);
 
 WOLFSSL_API
-ecc_point* ecc_new_point(void);
+ecc_point* wc_ecc_new_point(void);
 WOLFSSL_API
-void ecc_del_point(ecc_point* p);
+void wc_ecc_del_point(ecc_point* p);
 WOLFSSL_API
-int ecc_copy_point(ecc_point* p, ecc_point *r);
+int wc_ecc_copy_point(ecc_point* p, ecc_point *r);
 WOLFSSL_API
-int ecc_cmp_point(ecc_point* a, ecc_point *b);
+int wc_ecc_cmp_point(ecc_point* a, ecc_point *b);
 WOLFSSL_API
-int ecc_point_is_at_infinity(ecc_point *p);
+int wc_ecc_point_is_at_infinity(ecc_point *p);
 WOLFSSL_API
-int ecc_mulmod(mp_int* k, ecc_point *G, ecc_point *R, mp_int* modulus, int map);
+int wc_ecc_is_valid_idx(int n);
+WOLFSSL_API
+int wc_ecc_mulmod(mp_int* k, ecc_point *G, ecc_point *R,
+                  mp_int* modulus, int map);
 
 /* ASN key helpers */
 WOLFSSL_API

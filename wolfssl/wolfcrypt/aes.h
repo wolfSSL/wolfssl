@@ -126,17 +126,24 @@ typedef struct Gmac {
 #endif /* HAVE_AESGCM */
 #endif /* HAVE_FIPS */
 
- WOLFSSL_API int  wc_AesSetKey(Aes* aes, const byte* key, word32 len, const byte* iv,
-                          int dir);
- WOLFSSL_API int  wc_AesSetIV(Aes* aes, const byte* iv);
- WOLFSSL_API int  wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz);
- WOLFSSL_API int  wc_AesCbcDecrypt(Aes* aes, byte* out, const byte* in, word32 sz);
- WOLFSSL_API int  wc_AesCbcDecryptWithKey(byte* out, const byte* in, word32 inSz,
-                                 const byte* key, word32 keySz, const byte* iv);
+WOLFSSL_API int  wc_AesSetKey(Aes* aes, const byte* key, word32 len,
+                              const byte* iv, int dir);
+WOLFSSL_API int  wc_AesSetIV(Aes* aes, const byte* iv);
+WOLFSSL_API int  wc_AesCbcEncrypt(Aes* aes, byte* out,
+                                  const byte* in, word32 sz);
+WOLFSSL_API int  wc_AesCbcDecrypt(Aes* aes, byte* out,
+                                  const byte* in, word32 sz);
+WOLFSSL_API int  wc_AesCbcEncryptWithKey(byte* out, const byte* in, word32 inSz,
+                                          const byte* key, word32 keySz,
+                                          const byte* iv);
+WOLFSSL_API int  wc_AesCbcDecryptWithKey(byte* out, const byte* in, word32 inSz,
+                                         const byte* key, word32 keySz,
+                                         const byte* iv);
 
 /* AES-CTR */
 #ifdef WOLFSSL_AES_COUNTER
- WOLFSSL_API void wc_AesCtrEncrypt(Aes* aes, byte* out, const byte* in, word32 sz);
+ WOLFSSL_API void wc_AesCtrEncrypt(Aes* aes, byte* out,
+                                   const byte* in, word32 sz);
 #endif
 /* AES-DIRECT */
 #if defined(WOLFSSL_AES_DIRECT)
@@ -147,30 +154,34 @@ typedef struct Gmac {
 #endif
 #ifdef HAVE_AESGCM
  WOLFSSL_API int  wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len);
- WOLFSSL_API int  wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
-                              const byte* iv, word32 ivSz,
-                              byte* authTag, word32 authTagSz,
-                              const byte* authIn, word32 authInSz);
- WOLFSSL_API int  wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
-                              const byte* iv, word32 ivSz,
-                              const byte* authTag, word32 authTagSz,
-                              const byte* authIn, word32 authInSz);
+ WOLFSSL_API int  wc_AesGcmEncrypt(Aes* aes, byte* out,
+                                   const byte* in, word32 sz,
+                                   const byte* iv, word32 ivSz,
+                                   byte* authTag, word32 authTagSz,
+                                   const byte* authIn, word32 authInSz);
+ WOLFSSL_API int  wc_AesGcmDecrypt(Aes* aes, byte* out,
+                                   const byte* in, word32 sz,
+                                   const byte* iv, word32 ivSz,
+                                   const byte* authTag, word32 authTagSz,
+                                   const byte* authIn, word32 authInSz);
 
  WOLFSSL_API int wc_GmacSetKey(Gmac* gmac, const byte* key, word32 len);
  WOLFSSL_API int wc_GmacUpdate(Gmac* gmac, const byte* iv, word32 ivSz,
-                              const byte* authIn, word32 authInSz,
-                              byte* authTag, word32 authTagSz);
+                               const byte* authIn, word32 authInSz,
+                               byte* authTag, word32 authTagSz);
 #endif /* HAVE_AESGCM */
 #ifdef HAVE_AESCCM
  WOLFSSL_API void wc_AesCcmSetKey(Aes* aes, const byte* key, word32 keySz);
- WOLFSSL_API void wc_AesCcmEncrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
-                              const byte* nonce, word32 nonceSz,
-                              byte* authTag, word32 authTagSz,
-                              const byte* authIn, word32 authInSz);
- WOLFSSL_API int  wc_AesCcmDecrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
-                              const byte* nonce, word32 nonceSz,
-                              const byte* authTag, word32 authTagSz,
-                              const byte* authIn, word32 authInSz);
+ WOLFSSL_API void wc_AesCcmEncrypt(Aes* aes, byte* out,
+                                   const byte* in, word32 inSz,
+                                   const byte* nonce, word32 nonceSz,
+                                   byte* authTag, word32 authTagSz,
+                                   const byte* authIn, word32 authInSz);
+ WOLFSSL_API int  wc_AesCcmDecrypt(Aes* aes, byte* out,
+                                   const byte* in, word32 inSz,
+                                   const byte* nonce, word32 nonceSz,
+                                   const byte* authTag, word32 authTagSz,
+                                   const byte* authIn, word32 authInSz);
 #endif /* HAVE_AESCCM */
 
 #ifdef HAVE_CAVIUM

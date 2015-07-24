@@ -24,7 +24,7 @@ struct WOLFSSL_DSA {
 
 
 WOLFSSL_API WOLFSSL_DSA* wolfSSL_DSA_new(void);
-WOLFSSL_API void        wolfSSL_DSA_free(WOLFSSL_DSA*);
+WOLFSSL_API void wolfSSL_DSA_free(WOLFSSL_DSA*);
 
 WOLFSSL_API int wolfSSL_DSA_generate_key(WOLFSSL_DSA*);
 WOLFSSL_API int wolfSSL_DSA_generate_parameters_ex(WOLFSSL_DSA*, int bits,
