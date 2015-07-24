@@ -4290,7 +4290,7 @@ int mp_rand_prime(mp_int* N, int len, RNG* rng, void* heap)
     byte* buf;
 
     if (N == NULL || rng == NULL)
-        return BAD_FUNC_ARG;
+        return MP_VAL;
 
     /* get type */
     if (len < 0) {
@@ -4302,13 +4302,13 @@ int mp_rand_prime(mp_int* N, int len, RNG* rng, void* heap)
 
     /* allow sizes between 2 and 512 bytes for a prime size */
     if (len < 2 || len > 512) {
-        return BAD_FUNC_ARG;
+        return MP_VAL;
     }
 
     /* allocate buffer to work with */
     buf = (byte*)XMALLOC(len, heap, DYNAMIC_TYPE_RSA);
     if (buf == NULL) {
-        return MEMORY_E;
+        return MP_MEM;
     }
     XMEMSET(buf, 0, len);
 
@@ -4341,7 +4341,7 @@ int mp_rand_prime(mp_int* N, int len, RNG* rng, void* heap)
         }
     } while (res == MP_NO);
 
-    ForceZero(buf, len);
+    XMEMSET(buf, 0, len);
     XFREE(buf, heap, DYNAMIC_TYPE_RSA);
     
     return MP_OKAY;
