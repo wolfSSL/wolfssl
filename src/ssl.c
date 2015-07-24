@@ -12846,8 +12846,6 @@ int wolfSSL_DSA_do_verify(const unsigned char* d, unsigned char* sig,
     ret = DsaVerify(d, sig, (DsaKey*)dsa->internal, dsacheck);
     if (ret != 0 || *dsacheck != 1) {
         WOLFSSL_MSG("DsaVerify failed");
-        printf("ret = %d\n", ret);
-        printf("*dsacheck = %d\n", *dsacheck);
         return ret;
     }
 
@@ -13507,7 +13505,10 @@ int wolfSSL_PEM_write_mem_RSAPrivateKey(RSA* rsa, const EVP_CIPHER* cipher,
         }
     }
 
-    der_max_len = 5 * wolfSSL_RSA_size(rsa) + 16;
+    /* 5 > size of n, d, p, q, d%(p-1), d(q-1), 1/q%p, e + ASN.1 additionnal
+     *  informations
+     */
+    der_max_len = 5 * wolfSSL_RSA_size(rsa) + AES_BLOCK_SIZE;
 
     der = (byte*)XMALLOC(der_max_len, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (der == NULL) {
@@ -13546,6 +13547,8 @@ int wolfSSL_PEM_write_mem_RSAPrivateKey(RSA* rsa, const EVP_CIPHER* cipher,
     if (tmp == NULL) {
         WOLFSSL_MSG("malloc failed");
         XFREE(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        if (cipherInfo != NULL)
+            XFREE(cipherInfo, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         return SSL_FAILURE;
     }
 
@@ -14873,7 +14876,9 @@ int wolfSSL_PEM_write_mem_ECPrivateKey(WOLFSSL_EC_KEY* ecc,
         }
     }
 
-    der_max_len = 4 * wc_ecc_size((ecc_key*)ecc->internal) + 16;
+    /* 4 > size of pub, priv + ASN.1 additionnal informations
+     */
+    der_max_len = 4 * wc_ecc_size((ecc_key*)ecc->internal) + AES_BLOCK_SIZE;
 
     der = (byte*)XMALLOC(der_max_len, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (der == NULL) {
@@ -14912,6 +14917,8 @@ int wolfSSL_PEM_write_mem_ECPrivateKey(WOLFSSL_EC_KEY* ecc,
     if (tmp == NULL) {
         WOLFSSL_MSG("malloc failed");
         XFREE(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        if (cipherInfo != NULL)
+            XFREE(cipherInfo, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         return SSL_FAILURE;
     }
 
@@ -15042,7 +15049,9 @@ int wolfSSL_PEM_write_mem_DSAPrivateKey(WOLFSSL_DSA* dsa,
         }
     }
 
-    der_max_len = 4 * wolfSSL_BN_num_bytes(dsa->g) + 16;
+    /* 4 > size of pub, priv, p, q, g + ASN.1 additionnal informations
+     */
+    der_max_len = 4 * wolfSSL_BN_num_bytes(dsa->g) + AES_BLOCK_SIZE;
 
     der = (byte*)XMALLOC(der_max_len, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (der == NULL) {
@@ -15081,6 +15090,8 @@ int wolfSSL_PEM_write_mem_DSAPrivateKey(WOLFSSL_DSA* dsa,
     if (tmp == NULL) {
         WOLFSSL_MSG("malloc failed");
         XFREE(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        if (cipherInfo != NULL)
+            XFREE(cipherInfo, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         return SSL_FAILURE;
     }
 
