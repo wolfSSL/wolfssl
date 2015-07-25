@@ -33,7 +33,8 @@
 #include <wolfssl/error-ssl.h>
 #include <wolfssl/wolfcrypt/coding.h>
 
-#if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
+#if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER) || \
+                              defined(WOLFSSL_KEY_GEN)
     #include <wolfssl/openssl/evp.h>
 #endif
 
@@ -1578,9 +1579,11 @@ int wolfSSL_CertPemToDer(const unsigned char* pem, int pemSz,
 static const char *EVP_AES_128_CBC = "AES-128-CBC";
 static const char *EVP_AES_192_CBC = "AES-192-CBC";
 static const char *EVP_AES_256_CBC = "AES-256-CBC";
-static const char *EVP_AES_128_CTR = "AES-128-CTR";
-static const char *EVP_AES_192_CTR = "AES-192-CTR";
-static const char *EVP_AES_256_CTR = "AES-256-CTR";
+#if defined(OPENSSL_EXTRA)
+    static const char *EVP_AES_128_CTR = "AES-128-CTR";
+    static const char *EVP_AES_192_CTR = "AES-192-CTR";
+    static const char *EVP_AES_256_CTR = "AES-256-CTR";
+#endif
 static const int  EVP_AES_SIZE = 11;
 
 static const char *EVP_DES_CBC = "DES-CBC";
@@ -1588,6 +1591,7 @@ static const int  EVP_DES_SIZE = 7;
 
 static const char *EVP_DES_EDE3_CBC = "DES-EDE3-CBC";
 static const int  EVP_DES_EDE3_SIZE = 12;
+
 
 /* our KeyPemToDer password callback, password in userData */
 static INLINE int OurPasswordCb(char* passwd, int sz, int rw, void* userdata)
@@ -2286,7 +2290,7 @@ static int wolfssl_decrypt_buffer_key(buffer* der, byte* password,
 #endif /* defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER) */
 
 
-#if defined(WOLFSSL_KEY_GEN)
+#if defined(WOLFSSL_KEY_GEN) && defined(OPENSSL_EXTRA)
 static int wolfssl_encrypt_buffer_key(byte* der, word32 derSz, byte* password,
                                       int passwordSz, EncryptedInfo* info)
 {
@@ -12697,6 +12701,7 @@ int wolfSSL_DSA_generate_parameters_ex(WOLFSSL_DSA* dsa, int bits,
 {
     int ret = SSL_FAILURE;
 
+    (void)bits;
     (void)seed;
     (void)seedLen;
     (void)counterRet;
