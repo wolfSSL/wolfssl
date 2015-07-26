@@ -28,6 +28,7 @@
 #ifdef WOLFCRYPT_HAVE_SRP
 
 #include <wolfssl/wolfcrypt/srp.h>
+#include <wolfssl/wolfcrypt/random.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
 
 static int SrpHashInit(SrpHash* hash, int type)
@@ -218,21 +219,20 @@ void wc_SrpTerm(Srp* srp)
     }
 }
 
-int wc_SrpSetUsername(Srp* srp, const char* user)
+int wc_SrpSetUsername(Srp* srp, const byte* username, word32 size)
 {
-    if (!srp || !user)
+    if (!srp || !username)
         return BAD_FUNC_ARG;
 
-    srp->user = (byte*)XMALLOC(XSTRLEN(user), NULL, DYNAMIC_TYPE_SRP);
+    srp->user = (byte*)XMALLOC(size, NULL, DYNAMIC_TYPE_SRP);
     if (srp->user == NULL)
         return MEMORY_E;
 
-    srp->userSz = (word32) XSTRLEN(user);
-    XMEMCPY(srp->user, user, srp->userSz);
+    srp->userSz = size;
+    XMEMCPY(srp->user, username, srp->userSz);
 
     return 0;
 }
-
 int wc_SrpSetParams(Srp* srp, const byte* N,    word32 nSz,
                               const byte* g,    word32 gSz,
                               const byte* salt, word32 saltSz)
@@ -240,10 +240,14 @@ int wc_SrpSetParams(Srp* srp, const byte* N,    word32 nSz,
     SrpHash hash;
     byte digest1[SRP_MAX_DIGEST_SIZE];
     byte digest2[SRP_MAX_DIGEST_SIZE];
+    byte pad = 0;
     int i, j, r;
 
-    if (!srp || !srp->user || !N || !g || !salt)
+    if (!srp || !N || !g || !salt || nSz < gSz)
         return BAD_FUNC_ARG;
+
+    if (!srp->user)
+        return SRP_CALL_ORDER_E;
 
     /* Set N */
     if (mp_read_unsigned_bin(&srp->N, N, nSz) != MP_OKAY)
@@ -269,6 +273,8 @@ int wc_SrpSetParams(Srp* srp, const byte* N,    word32 nSz,
     /* Set k = H(N, g) */
             r = SrpHashInit(&hash, srp->type);
     if (!r) r = SrpHashUpdate(&hash, (byte*) N, nSz);
+    for (i = 0; (word32)i < nSz - gSz; i++)
+        SrpHashUpdate(&hash, &pad, 1);
     if (!r) r = SrpHashUpdate(&hash, (byte*) g, gSz);
     if (!r) r = SrpHashFinal(&hash, srp->k);
 
@@ -307,8 +313,11 @@ int wc_SrpSetPassword(Srp* srp, const byte* password, word32 size)
     byte digest[SRP_MAX_DIGEST_SIZE];
     int r;
 
-    if (!srp || !srp->user || !password || srp->side != SRP_CLIENT_SIDE)
+    if (!srp || !password || srp->side != SRP_CLIENT_SIDE)
         return BAD_FUNC_ARG;
+
+    if (!srp->salt)
+        return SRP_CALL_ORDER_E;
 
     /* digest = H(username | ':' | password) */
             r = SrpHashInit(&hash, srp->type);
@@ -341,13 +350,16 @@ int wc_SrpGetVerifier(Srp* srp, byte* verifier, word32* size)
     if (!srp || !verifier || !size || srp->side != SRP_CLIENT_SIDE)
         return BAD_FUNC_ARG;
 
+    if (mp_iszero(&srp->specific.client.x))
+        return SRP_CALL_ORDER_E;
+
     r = mp_init(&v);
 
     /* v = g ^ x % N */
     if (!r) r = mp_exptmod(&srp->g, &srp->specific.client.x, &srp->N, &v);
-    if (!r) r = (int)*size < mp_unsigned_bin_size(&v) ? BUFFER_E : MP_OKAY;
+    if (!r) r = *size < (word32)mp_unsigned_bin_size(&v) ? BUFFER_E : MP_OKAY;
     if (!r) r = mp_to_unsigned_bin(&v, verifier);
-    if (!r) *size = mp_unsigned_bin_size(&srp->specific.server.v);
+    if (!r) *size = mp_unsigned_bin_size(&v);
 
     mp_clear(&v);
 
@@ -364,6 +376,109 @@ int wc_SrpSetVerifier(Srp* srp, const byte* verifier, word32 size)
         return MP_READ_E;
 
     return 0;
+}
+
+int wc_SrpSetPrivate(Srp* srp, const byte* private, word32 size) {
+    if (!srp || !private || !size)
+        return BAD_FUNC_ARG;
+
+    return mp_read_unsigned_bin(srp->type == SRP_CLIENT_SIDE
+                                ? &srp->specific.client.a
+                                : &srp->specific.server.b, private, size);
+}
+
+static int wc_SrpGenPrivate(Srp* srp, byte* private, word32 size) {
+    RNG rng;
+    int r = wc_InitRng(&rng);
+
+    if (!r) r = wc_RNG_GenerateBlock(&rng, private, size);
+    if (!r) r = wc_SrpSetPrivate(srp, private, size);
+    if (!r) wc_FreeRng(&rng);
+
+    return r;
+}
+
+int wc_SrpGenPublic(Srp* srp, byte* public, word32* size)
+{
+    byte* buf;
+    word32 len;
+    int r = 0;
+
+    if (!srp || (!public && size) || (public && !size))
+        return BAD_FUNC_ARG;
+
+    if (srp->side == SRP_CLIENT_SIDE && mp_iszero(&srp->N))
+        return SRP_CALL_ORDER_E;
+
+    if (srp->side == SRP_SERVER_SIDE && (mp_iszero(&srp->N) ||
+                                         mp_iszero(&srp->specific.server.v)))
+        return SRP_CALL_ORDER_E;
+
+    len = mp_unsigned_bin_size(&srp->N);
+    if (size && *size < len)
+        return BUFFER_E;
+
+    buf = public ? public : (byte*)XMALLOC(len, NULL, DYNAMIC_TYPE_SRP);
+    if (!buf)
+        return MEMORY_E;
+
+    if (srp->side == SRP_CLIENT_SIDE) {
+        /* a = random() */
+        if (mp_iszero(&srp->specific.client.a))
+            r = wc_SrpGenPrivate(srp, buf, len);
+
+        /* A = g ^ a % N */
+        if (!r) r = mp_exptmod(&srp->g, &srp->specific.client.a,
+                               &srp->N, &srp->specific.client.A);
+
+        /* extract public key to buffer */
+        XMEMSET(buf, 0, len);
+        if (!r) r   = mp_to_unsigned_bin(&srp->specific.client.A, buf);
+        if (!r) len = mp_unsigned_bin_size(&srp->specific.client.A);
+
+        /* Client proof = H( H(N) ^ H(g) | H(user) | salt | A) */
+        if (!r) r = SrpHashUpdate(&srp->client_proof, buf, len);
+
+        /* Server proof = H(A) */
+        if (!r) r = SrpHashUpdate(&srp->server_proof, buf, len);
+
+    } else {
+        mp_int i, j;
+
+        if (mp_init_multi(&i, &j, 0, 0, 0, 0) == MP_OKAY) {
+            /* b = random() */
+            if (mp_iszero(&srp->specific.server.b))
+                r = wc_SrpGenPrivate(srp, buf, len);
+
+            /* B = (k * v + (g ^ b % N)) % N */
+            if (!r) r = mp_read_unsigned_bin(&i, srp->k,SrpHashSize(srp->type));
+            if (!r) r = mp_exptmod(&srp->g, &srp->specific.server.b,
+                                   &srp->N, &srp->specific.server.B);
+            if (!r) r = mp_mul(&i, &srp->specific.server.v, &j);
+            if (!r) r = mp_add(&j, &srp->specific.server.B, &i);
+            if (!r) r = mp_mod(&i, &srp->N, &srp->specific.server.B);
+
+            /* extract public key to buffer */
+            XMEMSET(buf, 0, len);
+            if (!r) r   = mp_to_unsigned_bin(&srp->specific.server.B, buf);
+            if (!r) len = mp_unsigned_bin_size(&srp->specific.server.B);
+
+            /* Client proof = H( H(N) ^ H(g) | H(user) | salt | A) */
+            if (!r) r = SrpHashUpdate(&srp->client_proof, buf, len);
+
+            /* Server proof = H(A) */
+            if (!r) r = SrpHashUpdate(&srp->server_proof, buf, len);
+
+            mp_clear(&i); mp_clear(&j);
+        }
+    }
+
+    if (public)
+        *size = len;
+    else
+        XFREE(buf, NULL, DYNAMIC_TYPE_SRP);
+
+    return r;
 }
 
 #endif /* WOLFCRYPT_HAVE_SRP */

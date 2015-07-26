@@ -27,8 +27,8 @@
 
 #define Fail(description, result) do {                                         \
     printf("\nERROR - %s line %d failed with:", __FILE__, __LINE__);           \
-    printf("\n\n    test:   "); printf description;                            \
-    printf("\n\n    result: "); printf result;                                 \
+    printf("\n    expected: "); printf description;                            \
+    printf("\n    result:   "); printf result; printf("\n\n");                 \
     abort();                                                                   \
 } while(0)
 

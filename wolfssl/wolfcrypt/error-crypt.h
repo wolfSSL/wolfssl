@@ -151,6 +151,8 @@ enum {
     ECC_INF_E           = -215,  /* ECC point infinity error */
     ECC_PRIV_KEY_E      = -216,  /* ECC private key not valid error */
 
+    SRP_CALL_ORDER_E    = -217,  /* SRP function called in the wrong order. */
+
     MIN_CODE_E          = -300   /* errors -101 - -299 */
 };
 
@@ -163,5 +165,3 @@ WOLFSSL_API const char* wc_GetErrorString(int error);
     } /* extern "C" */
 #endif
 #endif /* WOLF_CRYPT_ERROR_H */
-
-

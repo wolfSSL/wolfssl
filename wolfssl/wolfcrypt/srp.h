@@ -116,20 +116,24 @@ typedef struct {
     } specific;
 } Srp;
 
-WOLFSSL_API int  wc_SrpInit(Srp* srp, byte type, byte side);
+WOLFSSL_API int wc_SrpInit(Srp* srp, byte type, byte side);
 WOLFSSL_API void wc_SrpTerm(Srp* srp);
 
-WOLFSSL_API int  wc_SrpSetUsername(Srp* srp, const char* user);
+WOLFSSL_API int wc_SrpSetUsername(Srp* srp, const byte* username, word32 size);
 
-WOLFSSL_API int  wc_SrpSetParams(Srp* srp, const byte* N,    word32 nSz,
-                                           const byte* g,    word32 gSz,
-                                           const byte* salt, word32 saltSz);
+WOLFSSL_API int wc_SrpSetParams(Srp* srp, const byte* N,    word32 nSz,
+                                          const byte* g,    word32 gSz,
+                                          const byte* salt, word32 saltSz);
 
-WOLFSSL_API int  wc_SrpSetPassword(Srp* srp, const byte* password, word32 size);
+WOLFSSL_API int wc_SrpSetPassword(Srp* srp, const byte* password, word32 size);
 
-WOLFSSL_API int  wc_SrpSetVerifier(Srp* srp, const byte* verifier, word32 size);
+WOLFSSL_API int wc_SrpSetVerifier(Srp* srp, const byte* verifier, word32 size);
 
-WOLFSSL_API int  wc_SrpGetVerifier(Srp* srp, byte* verifier, word32* size);
+WOLFSSL_API int wc_SrpGetVerifier(Srp* srp, byte* verifier, word32* size);
+
+WOLFSSL_API int wc_SrpSetPrivate(Srp* srp, const byte* private, word32 size);
+
+WOLFSSL_API int wc_SrpGenPublic(Srp* srp, byte* public, word32* size);
 
 #ifdef __cplusplus
    } /* extern "C" */
