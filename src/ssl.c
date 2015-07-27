@@ -15481,7 +15481,7 @@ int  wolfSSL_get_chain_cert_pem(WOLFSSL_X509_CHAIN* chain, int idx,
     word32 szNeeded = 0;
 
     WOLFSSL_ENTER("wolfSSL_get_chain_cert_pem");
-    if (!chain || !outLen)
+    if (!chain || !outLen || idx < 0 || idx >= wolfSSL_get_chain_count(chain))
         return BAD_FUNC_ARG;
 
     /* Null output buffer return size needed in outLen */
