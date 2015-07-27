@@ -225,7 +225,7 @@ static int CEscape(int escaped, byte e, byte* out, word32* i, word32 max,
     }
     *i = idx;
 
-    return getSzOnly ? LENGTH_ONLY_E : 0;
+    return 0;
 }
 
 
@@ -319,6 +319,8 @@ static int DoBase64_Encode(const byte* in, word32 inLen, byte* out,
         return ASN_INPUT_E;
 
     *outLen = i;
+    if(ret == 0)
+        return getSzOnly ? LENGTH_ONLY_E : 0;
     return ret;
 }
 
