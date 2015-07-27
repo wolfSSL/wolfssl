@@ -91,12 +91,6 @@ void wc_Des_SetIV(Des* des, const byte* iv)
 }
 
 
-int wc_Des_CbcEncryptWithKey(byte* out, const byte* in, word32 sz,
-                                                const byte* key, const byte* iv)
-{
-    return Des_CbcEncryptWithKey(out, in, sz, key, iv);
-}
-
 int wc_Des_CbcDecryptWithKey(byte* out, const byte* in, word32 sz,
                              const byte* key, const byte* iv)
 {
@@ -109,12 +103,6 @@ int wc_Des3_SetIV(Des3* des, const byte* iv)
     return Des3_SetIV_fips(des, iv);
 }
 
-
-int wc_Des3_CbcEncryptWithKey(byte* out, const byte* in, word32 sz,
-                              const byte* key, const byte* iv)
-{
-    return Des3_CbcEncryptWithKey(out, in, sz, key, iv);
-}
 
 int wc_Des3_CbcDecryptWithKey(byte* out, const byte* in, word32 sz,
                               const byte* key, const byte* iv)
