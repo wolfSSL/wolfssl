@@ -83,40 +83,27 @@ typedef struct {
 } SrpHash;
 
 typedef struct {
-    mp_int a;                      /**< Private ephemeral value. Random.      */
-    mp_int A;                      /**< Public ephemeral value. pow(g, a, N)  */
-    mp_int B;                      /**< Server's public ephemeral value.      */
-    mp_int x;                      /**< Priv key. H(salt, H(user, ":", pswd)) */
-} SrpClient;
-
-typedef struct {
-    mp_int b;                      /**< Private ephemeral value.              */
-    mp_int B;                      /**< Public ephemeral value.               */
-    mp_int A;                      /**< Client's public ephemeral value.      */
-    mp_int v;                      /**< Verifier. v = pow(g, x, N)            */
-} SrpServer;
-
-typedef struct {
-    byte   side;                   /**< Client or Server side.                */
-    byte   type;                   /**< Hash type, SHA[1:256:384:512]         */
-    mp_int N;                      /**< Modulus. N = 2q+1, [q, N] are primes. */
-    mp_int g;                      /**< Generator. A generator modulo N.      */
-    mp_int s;                      /**< Session key.                          */
-    byte   k[SRP_MAX_DIGEST_SIZE]; /**< Multiplier parameeter. H(N, g)        */
-    mp_int u;                      /**< Random scrambling parameeter.         */
+    byte   side; /**< SRP_CLIENT_SIDE or SRP_SERVER_SIDE */
+    byte   type; /**< Hash type, one of SRP_TYPE_SHA[|256|384|512] */
     byte*  user;                   /**< Username, login.                      */
     word32 userSz;                 /**< Username length.                      */
     byte*  salt;                   /**< Small salt.                           */
     word32 saltSz;                 /**< Salt length.                          */
+    mp_int N;                      /**< Modulus. N = 2q+1, [q, N] are primes. */
+    mp_int g;                      /**< Generator. A generator modulo N.      */
+    byte   k[SRP_MAX_DIGEST_SIZE]; /**< Multiplier parameeter. H(N, g)        */
+    mp_int auth;                   /**< Priv key. H(salt, H(user, ":", pswd)) */
+    mp_int priv;                   /**< Private ephemeral value.              */
+    mp_int pub;                    /**< Public ephemeral value.               */
+    mp_int peer;                   /**< Peer's public ephemeral value.        */
+    mp_int u;                      /**< Random scrambling parameeter.         */
     SrpHash client_proof;          /**< Client proof. Sent to Server.         */
     SrpHash server_proof;          /**< Server proof. Sent to Client.         */
-    union {
-        SrpClient client;
-        SrpServer server;
-    } specific;
+    mp_int s;                      /**< Session key.                          */
 } Srp;
 
 WOLFSSL_API int wc_SrpInit(Srp* srp, byte type, byte side);
+
 WOLFSSL_API void wc_SrpTerm(Srp* srp);
 
 WOLFSSL_API int wc_SrpSetUsername(Srp* srp, const byte* username, word32 size);
@@ -134,6 +121,8 @@ WOLFSSL_API int wc_SrpGetVerifier(Srp* srp, byte* verifier, word32* size);
 WOLFSSL_API int wc_SrpSetPrivate(Srp* srp, const byte* private, word32 size);
 
 WOLFSSL_API int wc_SrpGenPublic(Srp* srp, byte* public, word32* size);
+
+WOLFSSL_API int wc_SrpComputeKey(Srp* srp, byte* peersKey, word32 peersKeySz);
 
 #ifdef __cplusplus
    } /* extern "C" */
