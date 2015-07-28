@@ -545,37 +545,6 @@ int wc_Sha256Final(Sha256* sha256, byte* hash)
 
 
 
-int wc_Sha256Hash(const byte* data, word32 len, byte* hash)
-{
-    int ret = 0;
-#ifdef WOLFSSL_SMALL_STACK
-    Sha256* sha256;
-#else
-    Sha256 sha256[1];
-#endif
-
-#ifdef WOLFSSL_SMALL_STACK
-    sha256 = (Sha256*)XMALLOC(sizeof(Sha256), NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    if (sha256 == NULL)
-        return MEMORY_E;
-#endif
-
-    if ((ret = wc_InitSha256(sha256)) != 0) {
-        WOLFSSL_MSG("InitSha256 failed");
-    }
-    else if ((ret = wc_Sha256Update(sha256, data, len)) != 0) {
-        WOLFSSL_MSG("Sha256Update failed");
-    }
-    else if ((ret = wc_Sha256Final(sha256, hash)) != 0) {
-        WOLFSSL_MSG("Sha256Final failed");
-    }
-
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(sha256, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
-
-    return ret;
-}
 
 #if defined(HAVE_INTEL_AVX1) || defined(HAVE_INTEL_AVX2)
 

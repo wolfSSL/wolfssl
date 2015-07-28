@@ -37,6 +37,7 @@ WOLFSSL_API int wc_ShaHash(const byte*, word32, byte*);
 #include <wolfssl/wolfcrypt/sha256.h>
 WOLFSSL_API int wc_Sha256GetHash(Sha256*, byte*);
 WOLFSSL_API void wc_Sha256RestorePos(Sha256*, Sha256*) ;
+WOLFSSL_API int wc_Sha256Hash(const byte*, word32, byte*);
 #endif
 
 #endif
