@@ -83,23 +83,21 @@ typedef struct {
 } SrpHash;
 
 typedef struct {
-    byte   side; /**< SRP_CLIENT_SIDE or SRP_SERVER_SIDE */
-    byte   type; /**< Hash type, one of SRP_TYPE_SHA[|256|384|512] */
-    byte*  user;                   /**< Username, login.                      */
-    word32 userSz;                 /**< Username length.                      */
-    byte*  salt;                   /**< Small salt.                           */
-    word32 saltSz;                 /**< Salt length.                          */
-    mp_int N;                      /**< Modulus. N = 2q+1, [q, N] are primes. */
-    mp_int g;                      /**< Generator. A generator modulo N.      */
-    byte   k[SRP_MAX_DIGEST_SIZE]; /**< Multiplier parameeter. H(N, g)        */
-    mp_int auth;                   /**< Priv key. H(salt, H(user, ":", pswd)) */
-    mp_int priv;                   /**< Private ephemeral value.              */
-    mp_int pub;                    /**< Public ephemeral value.               */
-    mp_int peer;                   /**< Peer's public ephemeral value.        */
-    mp_int u;                      /**< Random scrambling parameeter.         */
-    SrpHash client_proof;          /**< Client proof. Sent to Server.         */
-    SrpHash server_proof;          /**< Server proof. Sent to Client.         */
-    mp_int s;                      /**< Session key.                          */
+    byte    side;                         /**< SRP_CLIENT_SIDE or SRP_SERVER_SIDE */
+    byte    type;                         /**< Hash type, one of SRP_TYPE_SHA[|256|384|512] */
+    byte*   user;                         /**< Username, login.                      */
+    word32  userSz;                       /**< Username length.                      */
+    byte*   salt;                         /**< Small salt.                           */
+    word32  saltSz;                       /**< Salt length.                          */
+    mp_int  N;                            /**< Modulus. N = 2q+1, [q, N] are primes. */
+    mp_int  g;                            /**< Generator. A generator modulo N.      */
+    byte    k[SRP_MAX_DIGEST_SIZE];       /**< Multiplier parameeter. H(N, g)        */
+    mp_int  auth;                         /**< client: x = H(salt, H(user, ":", pswd)) */
+    mp_int  priv;                         /**< Private ephemeral value.              */
+    mp_int  u;                            /**< Random scrambling parameeter.         */
+    SrpHash client_proof;                 /**< Client proof. Sent to Server.         */
+    SrpHash server_proof;                 /**< Server proof. Sent to Client.         */
+    byte    key[2 * SRP_MAX_DIGEST_SIZE]; /**< Session key.                          */
 } Srp;
 
 WOLFSSL_API int wc_SrpInit(Srp* srp, byte type, byte side);
@@ -120,9 +118,10 @@ WOLFSSL_API int wc_SrpGetVerifier(Srp* srp, byte* verifier, word32* size);
 
 WOLFSSL_API int wc_SrpSetPrivate(Srp* srp, const byte* private, word32 size);
 
-WOLFSSL_API int wc_SrpGenPublic(Srp* srp, byte* public, word32* size);
+WOLFSSL_API int wc_SrpGetPublic(Srp* srp, byte* public, word32* size);
 
-WOLFSSL_API int wc_SrpComputeKey(Srp* srp, byte* peersKey, word32 peersKeySz);
+WOLFSSL_API int wc_SrpComputeKey(Srp* srp, byte* clientPubKey, word32 clientPubKeySz,
+                                           byte* serverPubKey, word32 serverPubKeySz);
 
 #ifdef __cplusplus
    } /* extern "C" */
