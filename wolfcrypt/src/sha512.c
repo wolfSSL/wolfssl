@@ -47,11 +47,6 @@ int wc_Sha512Final(Sha512* sha, byte* out)
 }
 
 
-int wc_Sha512Hash(const byte* data, word32 len, byte* out)
-{
-    return Sha512Hash(data, len, out);
-}
-
 #if defined(WOLFSSL_SHA384) || defined(HAVE_AESGCM)
 
 int wc_InitSha384(Sha384* sha)
@@ -72,10 +67,6 @@ int wc_Sha384Final(Sha384* sha, byte* out)
 }
 
 
-int wc_Sha384Hash(const byte* data, word32 len, byte* out)
-{
-    return Sha384Hash(data, len, out);
-}
 #endif /* WOLFSSL_SHA384 */
 #else /* else build without using fips */
 #include <wolfssl/wolfcrypt/logging.h>

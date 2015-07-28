@@ -57,11 +57,6 @@
 	    return ShaFinal_fips(sha,out);
     }
 
-    int wc_ShaHash(const byte* data, word32 sz, byte* out)
-    {
-        return ShaHash(data, sz, out);
-    }
-
 #else /* else build without fips */
 
 #if defined(WOLFSSL_TI_HASH)

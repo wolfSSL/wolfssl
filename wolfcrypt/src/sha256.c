@@ -49,11 +49,6 @@ int wc_Sha256Final(Sha256* sha, byte* out)
 }
 
 
-int wc_Sha256Hash(const byte* data, word32 len, byte* out)
-{
-    return Sha256Hash(data, len, out);
-}
-
 #else /* else build without fips */
 
 #if !defined(NO_SHA256) && defined(WOLFSSL_TI_HASH)
