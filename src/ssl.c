@@ -12514,8 +12514,8 @@ int wolfSSL_RSA_generate_key_ex(WOLFSSL_RSA* rsa, int bits, WOLFSSL_BIGNUM* bn,
 
     WOLFSSL_ENTER("wolfSSL_RSA_generate_key_ex");
 
-    if (rsa == NULL || rsa->internal == NULL ||
-        bits < RSA_MIN_SIZE || bits > RSA_MAX_SIZE) {
+    if (rsa == NULL || rsa->internal == NULL) {
+        /* bit size checked during make key call */
         WOLFSSL_MSG("bad arguments");
         return SSL_FAILURE;
     }

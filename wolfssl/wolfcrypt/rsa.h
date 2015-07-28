@@ -47,19 +47,6 @@
 enum {
     RSA_PUBLIC   = 0,
     RSA_PRIVATE  = 1,
-
-    RSA_PUBLIC_ENCRYPT  = 0,
-    RSA_PUBLIC_DECRYPT  = 1,
-    RSA_PRIVATE_ENCRYPT = 2,
-    RSA_PRIVATE_DECRYPT = 3,
-
-    RSA_BLOCK_TYPE_1 = 1,
-    RSA_BLOCK_TYPE_2 = 2,
-
-    RSA_MIN_SIZE = 512,
-    RSA_MAX_SIZE = 4096,
-    
-    RSA_MIN_PAD_SZ   = 11      /* seperator + 0 + pad value + 8 pads */
 };
 
 
