@@ -138,5 +138,74 @@ int wc_Sha256Hash(const byte* data, word32 len, byte* hash)
 #endif /* !defined(NO_SHA256) */
 
 
+#if defined(WOLFSSL_SHA512)
+int wc_Sha512Hash(const byte* data, word32 len, byte* hash)
+{
+    int ret = 0;
+#ifdef WOLFSSL_SMALL_STACK
+    Sha512* sha512;
+#else
+    Sha512 sha512[1];
+#endif
+
+#ifdef WOLFSSL_SMALL_STACK
+    sha512 = (Sha512*)XMALLOC(sizeof(Sha512), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (sha512 == NULL)
+        return MEMORY_E;
+#endif
+
+    if ((ret = wc_InitSha512(sha512)) != 0) {
+        WOLFSSL_MSG("InitSha512 failed");
+    }
+    else if ((ret = wc_Sha512Update(sha512, data, len)) != 0) {
+        WOLFSSL_MSG("Sha512Update failed");
+    }
+    else if ((ret = wc_Sha512Final(sha512, hash)) != 0) {
+        WOLFSSL_MSG("Sha512Final failed");
+    }
+
+#ifdef WOLFSSL_SMALL_STACK
+    XFREE(sha512, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+
+    return ret;
+}
+
+#if defined(WOLFSSL_SHA384)
+int wc_Sha384Hash(const byte* data, word32 len, byte* hash)
+{
+    int ret = 0;
+#ifdef WOLFSSL_SMALL_STACK
+    Sha384* sha384;
+#else
+    Sha384 sha384[1];
+#endif
+
+#ifdef WOLFSSL_SMALL_STACK
+    sha384 = (Sha384*)XMALLOC(sizeof(Sha384), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (sha384 == NULL)
+        return MEMORY_E;
+#endif
+
+    if ((ret = wc_InitSha384(sha384)) != 0) {
+        WOLFSSL_MSG("InitSha384 failed");
+    }
+    else if ((ret = wc_Sha384Update(sha384, data, len)) != 0) {
+        WOLFSSL_MSG("Sha384Update failed");
+    }
+    else if ((ret = wc_Sha384Final(sha384, hash)) != 0) {
+        WOLFSSL_MSG("Sha384Final failed");
+    }
+
+#ifdef WOLFSSL_SMALL_STACK
+    XFREE(sha384, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+
+    return ret;
+}
+
+#endif /* defined(WOLFSSL_SHA384) */
+#endif /* defined(WOLFSSL_SHA512) */
+
 #endif /* !defined(WOLFSSL_TI_HASH) */
 
