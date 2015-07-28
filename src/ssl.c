@@ -12511,6 +12511,7 @@ int wolfSSL_RSA_generate_key_ex(WOLFSSL_RSA* rsa, int bits, WOLFSSL_BIGNUM* bn,
 
     (void)cb;
     (void)bn;
+    (void)bits;
 
     WOLFSSL_ENTER("wolfSSL_RSA_generate_key_ex");
 
