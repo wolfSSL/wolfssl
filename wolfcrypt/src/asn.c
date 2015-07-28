@@ -42,6 +42,7 @@
 #include <wolfssl/wolfcrypt/logging.h>
 
 #include <wolfssl/wolfcrypt/random.h>
+#include <wolfssl/wolfcrypt/hash.h>
 
 
 #ifndef NO_RC4

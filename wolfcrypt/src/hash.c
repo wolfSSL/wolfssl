@@ -24,6 +24,7 @@
 #endif
 
 #include <wolfssl/wolfcrypt/settings.h>
+#include <wolfssl/wolfcrypt/logging.h>
 
 #if !defined(WOLFSSL_TI_HASH)
 
@@ -55,7 +56,39 @@ int wc_ShaGetHash(Sha* sha, byte* hash)
 WOLFSSL_API void wc_ShaRestorePos(Sha* s1, Sha* s2) {
     *s1 = *s2 ;
 }
+
+int wc_ShaHash(const byte* data, word32 len, byte* hash)
+{
+    int ret = 0;
+#ifdef WOLFSSL_SMALL_STACK
+    Sha* sha;
+#else
+    Sha sha[1];
 #endif
+
+#ifdef WOLFSSL_SMALL_STACK
+    sha = (Sha*)XMALLOC(sizeof(Sha), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (sha == NULL)
+        return MEMORY_E;
+#endif
+
+    if ((ret = wc_InitSha(sha)) != 0) {
+        WOLFSSL_MSG("wc_InitSha failed");
+    }
+    else {
+        wc_ShaUpdate(sha, data, len);
+        wc_ShaFinal(sha, hash);
+    }
+
+#ifdef WOLFSSL_SMALL_STACK
+    XFREE(sha, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+
+    return ret;
+
+}
+
+#endif /* !defined(NO_SHA) */
 
 #if !defined(NO_SHA256)
 int wc_Sha256GetHash(Sha256* sha256, byte* hash)

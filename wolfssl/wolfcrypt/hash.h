@@ -31,6 +31,7 @@ WOLFSSL_API void wc_Md5RestorePos(Md5*, Md5*) ;
 #include <wolfssl/wolfcrypt/sha.h>
 WOLFSSL_API int wc_ShaGetHash(Sha*, byte*);
 WOLFSSL_API void wc_ShaRestorePos(Sha*, Sha*) ;
+WOLFSSL_API int wc_ShaHash(const byte*, word32, byte*);
 #endif
 #ifndef NO_SHA256
 #include <wolfssl/wolfcrypt/sha256.h>
