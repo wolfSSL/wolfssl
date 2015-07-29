@@ -22,6 +22,8 @@
 #ifndef WOLF_CRYPT_HASH_H
 #define WOLF_CRYPT_HASH_H
 
+#include <wolfssl/wolfcrypt/types.h>
+
 #ifndef NO_MD5
 #include <wolfssl/wolfcrypt/md5.h>
 WOLFSSL_API void wc_Md5GetHash(Md5*, byte*);
