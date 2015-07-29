@@ -25,6 +25,7 @@
 
 #include <wolfssl/wolfcrypt/settings.h>
 #include <wolfssl/wolfcrypt/logging.h>
+#include <wolfssl/wolfcrypt/error-crypt.h>
 
 #if !defined(WOLFSSL_TI_HASH)
 
