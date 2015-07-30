@@ -5,7 +5,7 @@
 
 RESULT=0
 
-if [ -n "$HAVE_FIPS_SOURCE" ];
+if [ -d ./fips ];
 then
     echo "\n\nTesting with FIPS release code...\n\n"
     ./fips-check.sh
