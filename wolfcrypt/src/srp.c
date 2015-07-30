@@ -163,6 +163,8 @@ int wc_SrpInit(Srp* srp, byte type, byte side)
 
     /* initializing variables */
 
+    XMEMSET(srp, 0, sizeof(Srp));
+
     if ((r = SrpHashInit(&srp->client_proof, type)) != 0)
         return r;
 
@@ -498,11 +500,11 @@ static int wc_SrpSetK(Srp* srp, byte* secret, word32 size)
     return r;
 }
 
-WOLFSSL_API int wc_SrpComputeKey(Srp* srp,
-                                 byte* clientPubKey, word32 clientPubKeySz,
-                                 byte* serverPubKey, word32 serverPubKeySz)
+int wc_SrpComputeKey(Srp* srp, byte* clientPubKey, word32 clientPubKeySz,
+                               byte* serverPubKey, word32 serverPubKeySz)
 {
     byte* secret;
+    word32 digestSz;
     word32 secretSz;
     mp_int i, j, s;
     int r;
@@ -524,12 +526,14 @@ WOLFSSL_API int wc_SrpComputeKey(Srp* srp,
         return MEMORY_E;
     }
 
+    digestSz = SrpHashSize(srp->type);
+
     r = wc_SrpSetU(srp, clientPubKey, clientPubKeySz,
                         serverPubKey, serverPubKeySz);
 
     if (!r && srp->side == SRP_CLIENT_SIDE) {
         /* i = B - k * v */
-        r = mp_read_unsigned_bin(&i, srp->k, SrpHashSize(srp->type));
+        r = mp_read_unsigned_bin(&i, srp->k, digestSz);
         if (!r) r = mp_exptmod(&srp->g, &srp->auth, &srp->N, &j);
         if (!r) r = mp_mulmod(&i, &j, &srp->N, &s);
         if (!r) r = mp_read_unsigned_bin(&j, serverPubKey, serverPubKeySz);
@@ -558,10 +562,62 @@ WOLFSSL_API int wc_SrpComputeKey(Srp* srp,
     if (!r) r = wc_SrpSetK(srp, secret, mp_unsigned_bin_size(&s));
 
     /* client proof = H( H(N) ^ H(g) | H(user) | salt | A | B | K) */
-    if (!r) r = SrpHashUpdate(&srp->client_proof, srp->key, sizeof(srp->key));
+    if (!r) r = SrpHashUpdate(&srp->client_proof, srp->key, digestSz * 2);
 
     XFREE(secret, NULL, DYNAMIC_TYPE_SRP);
     mp_clear(&i); mp_clear(&j); mp_clear(&s);
+
+    return r;
+}
+
+int wc_SrpGetProof(Srp* srp, byte* proof, word32* size)
+{
+    int r;
+
+    if (!srp || !proof || !size)
+        return BAD_FUNC_ARG;
+
+    if (*size < SrpHashSize(srp->type))
+        return BUFFER_E;
+
+    if ((r = SrpHashFinal(srp->side == SRP_CLIENT_SIDE
+                          ? &srp->client_proof
+                          : &srp->server_proof, proof)) != 0)
+        return r;
+
+    *size = SrpHashSize(srp->type);
+
+    if (srp->side == SRP_CLIENT_SIDE) {
+        /* server proof = H( A | client proof | K) */
+        if (!r) r = SrpHashUpdate(&srp->server_proof, proof, *size);
+        if (!r) r = SrpHashUpdate(&srp->server_proof, srp->key, (*size) * 2);
+    }
+
+    return r;
+}
+
+int wc_SrpVerifyPeersProof(Srp* srp, byte* proof, word32 size)
+{
+    byte digest[SRP_MAX_DIGEST_SIZE];
+    int r;
+
+    if (!srp || !proof)
+        return BAD_FUNC_ARG;
+
+    if (size != SrpHashSize(srp->type))
+        return BUFFER_E;
+
+    r = SrpHashFinal(srp->side == SRP_CLIENT_SIDE ? &srp->server_proof
+                                                  : &srp->client_proof, digest);
+
+    if (srp->side == SRP_SERVER_SIDE) {
+        /* server proof = H( A | client proof | K) */
+        if (!r) r = SrpHashUpdate(&srp->server_proof, proof, size);
+        if (!r) r = SrpHashUpdate(&srp->server_proof, srp->key, size * 2);
+    }
+
+    if (!r && XMEMCMP(proof, digest, size) != 0)
+        r = SRP_VERIFY_E;
 
     return r;
 }

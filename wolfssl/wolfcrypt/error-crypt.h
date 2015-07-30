@@ -152,6 +152,7 @@ enum {
     ECC_PRIV_KEY_E      = -216,  /* ECC private key not valid error */
 
     SRP_CALL_ORDER_E    = -217,  /* SRP function called in the wrong order. */
+    SRP_VERIFY_E        = -218,  /* SRP proof verification failed. */
 
     MIN_CODE_E          = -300   /* errors -101 - -299 */
 };

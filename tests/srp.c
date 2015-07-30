@@ -99,6 +99,16 @@ static byte key[] = {
     0x13, 0x6C, 0x88, 0x55
 };
 
+static byte client_proof[] = {
+    0x0D, 0x49, 0xE1, 0x9C, 0x3A, 0x88, 0x43, 0x15, 0x45, 0xA8, 0xAC, 0xAB,
+    0xEA, 0x15, 0x1A, 0xEE, 0xF9, 0x38, 0x4D, 0x21
+};
+
+static byte server_proof[] = {
+    0xBD, 0xB1, 0x20, 0x70, 0x46, 0xC9, 0xD6, 0xCC, 0xE2, 0x1D, 0x75, 0xA2,
+    0xD0, 0xAF, 0xC5, 0xBC, 0xAE, 0x12, 0xFC, 0x75
+};
+
 static void test_SrpInit(void)
 {
     Srp srp;
@@ -345,6 +355,77 @@ static void test_SrpComputeKey(void)
     wc_SrpTerm(&srv);
 }
 
+static void test_SrpGetProofAndVerify(void)
+{
+    Srp cli, srv;
+    byte clientPubKey[64];
+    byte serverPubKey[64];
+    word32 clientPubKeySz = 64;
+    word32 serverPubKeySz = 64;
+    byte clientProof[SRP_MAX_DIGEST_SIZE];
+    byte serverProof[SRP_MAX_DIGEST_SIZE];
+    word32 clientProofSz = SRP_MAX_DIGEST_SIZE;
+    word32 serverProofSz = SRP_MAX_DIGEST_SIZE;
+
+    AssertIntEQ(0, wc_SrpInit(&cli, SRP_TYPE_SHA, SRP_CLIENT_SIDE));
+    AssertIntEQ(0, wc_SrpInit(&srv, SRP_TYPE_SHA, SRP_SERVER_SIDE));
+
+    AssertIntEQ(0, wc_SrpSetUsername(&cli, username, usernameSz));
+    AssertIntEQ(0, wc_SrpSetUsername(&srv, username, usernameSz));
+
+    AssertIntEQ(0, wc_SrpSetParams(&cli, N,    sizeof(N),
+                                         g,    sizeof(g),
+                                         salt, sizeof(salt)));
+    AssertIntEQ(0, wc_SrpSetParams(&srv, N,    sizeof(N),
+                                         g,    sizeof(g),
+                                         salt, sizeof(salt)));
+
+    AssertIntEQ(0, wc_SrpSetPassword(&cli, password, passwordSz));
+    AssertIntEQ(0, wc_SrpSetVerifier(&srv, verifier, sizeof(verifier)));
+
+    AssertIntEQ(0, wc_SrpSetPrivate(&cli, a, sizeof(a)));
+    AssertIntEQ(0, wc_SrpGetPublic(&cli, clientPubKey, &clientPubKeySz));
+    AssertIntEQ(0, XMEMCMP(clientPubKey, A, clientPubKeySz));
+
+    AssertIntEQ(0, wc_SrpSetPrivate(&srv, b, sizeof(b)));
+    AssertIntEQ(0, wc_SrpGetPublic(&srv, serverPubKey, &serverPubKeySz));
+    AssertIntEQ(0, XMEMCMP(serverPubKey, B, serverPubKeySz));
+
+    AssertIntEQ(0, wc_SrpComputeKey(&cli, clientPubKey, clientPubKeySz,
+                                          serverPubKey, serverPubKeySz));
+    AssertIntEQ(0, XMEMCMP(cli.key, key, sizeof(key)));
+
+    AssertIntEQ(0, wc_SrpComputeKey(&srv, clientPubKey, clientPubKeySz,
+                                          serverPubKey, serverPubKeySz));
+    AssertIntEQ(0, XMEMCMP(srv.key, key, sizeof(key)));
+
+    /* invalid params */
+    serverProofSz = 0;
+    AssertIntEQ(BAD_FUNC_ARG, wc_SrpGetProof(NULL, clientProof,&clientProofSz));
+    AssertIntEQ(BAD_FUNC_ARG, wc_SrpGetProof(&cli, NULL,       &clientProofSz));
+    AssertIntEQ(BAD_FUNC_ARG, wc_SrpGetProof(&cli, clientProof,NULL));
+    AssertIntEQ(BUFFER_E,     wc_SrpGetProof(&srv, serverProof,&serverProofSz));
+
+    AssertIntEQ(BAD_FUNC_ARG,
+                wc_SrpVerifyPeersProof(NULL, clientProof, clientProofSz));
+    AssertIntEQ(BAD_FUNC_ARG,
+                wc_SrpVerifyPeersProof(&cli, NULL,        clientProofSz));
+    AssertIntEQ(BUFFER_E,
+                wc_SrpVerifyPeersProof(&srv, serverProof, serverProofSz));
+    serverProofSz = SRP_MAX_DIGEST_SIZE;
+
+    /* success */
+    AssertIntEQ(0, wc_SrpGetProof(&cli, clientProof, &clientProofSz));
+    AssertIntEQ(0, XMEMCMP(clientProof, client_proof, sizeof(client_proof)));
+    AssertIntEQ(0, wc_SrpVerifyPeersProof(&srv, clientProof, clientProofSz));
+    AssertIntEQ(0, wc_SrpGetProof(&srv, serverProof, &serverProofSz));
+    AssertIntEQ(0, XMEMCMP(serverProof, server_proof, sizeof(server_proof)));
+    AssertIntEQ(0, wc_SrpVerifyPeersProof(&cli, serverProof, serverProofSz));
+
+    wc_SrpTerm(&cli);
+    wc_SrpTerm(&srv);
+}
+
 #endif
 
 void SrpTest(void)
@@ -356,5 +437,6 @@ void SrpTest(void)
     test_SrpSetPassword();
     test_SrpGetPublic();
     test_SrpComputeKey();
+    test_SrpGetProofAndVerify();
 #endif
 }

@@ -123,6 +123,10 @@ WOLFSSL_API int wc_SrpGetPublic(Srp* srp, byte* public, word32* size);
 WOLFSSL_API int wc_SrpComputeKey(Srp* srp, byte* clientPubKey, word32 clientPubKeySz,
                                            byte* serverPubKey, word32 serverPubKeySz);
 
+WOLFSSL_API int wc_SrpGetProof(Srp* srp, byte* proof, word32* size);
+
+WOLFSSL_API int wc_SrpVerifyPeersProof(Srp* srp, byte* proof, word32 size);
+
 #ifdef __cplusplus
    } /* extern "C" */
 #endif
