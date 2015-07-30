@@ -4780,9 +4780,17 @@ static int SanityCheckMsgReceived(WOLFSSL* ssl, byte type)
                 }
             }
             if (ssl->msgsReceived.got_server_key_exchange == 0) {
+                int pskNoServerHint = 0;  /* not required in this case */
+
+                #ifndef NO_PSK
+                    if (ssl->specs.kea == psk_kea &&
+                                               ssl->arrays->server_hint[0] == 0)
+                        pskNoServerHint = 1;
+                #endif
                 if (ssl->specs.static_ecdh == 1 ||
                     ssl->specs.kea == rsa_kea ||
-                    ssl->specs.kea == ntru_kea) {
+                    ssl->specs.kea == ntru_kea ||
+                    pskNoServerHint) {
                     WOLFSSL_MSG("No KeyExchange required");
                 } else {
                     WOLFSSL_MSG("No ServerKeyExchange before ServerDone");
