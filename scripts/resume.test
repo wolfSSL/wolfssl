@@ -6,6 +6,7 @@
 resume_port=11112
 no_pid=-1
 server_pid=$no_pid
+counter=0
 
 
 remove_ready_file() {
@@ -41,9 +42,10 @@ remove_ready_file
 ./examples/server/server -r -R -p $resume_port &
 server_pid=$!
 
-while [ ! -s /tmp/wolfssl_server_ready ]; do
+while [ ! -s /tmp/wolfssl_server_ready -a "$counter" -lt 20 ]; do
     echo -e "waiting for server_ready file..."
     sleep 0.1
+    counter=$((counter+ 1))
 done
 
 ./examples/client/client -r -p $resume_port
