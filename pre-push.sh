@@ -7,8 +7,8 @@ RESULT=0
 
 if [ -n "$HAVE_FIPS_SOURCE" ];
 then
-    echo -e "\n\nTesting with FIPS release code...\n\n"
-    ./fips-check.sh --no-keep
+    echo "\n\nTesting with FIPS release code...\n\n"
+    ./fips-check.sh
     RESULT=$?
     [ $RESULT -ne 0 ] && echo -e "\n\nFIPS build test failed" && exit 1
 fi
