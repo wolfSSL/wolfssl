@@ -1,0 +1,19 @@
+#!/bin/sh
+#
+#
+# Our "pre-push" hook.
+
+RESULT=0
+
+if [ -n "$HAVE_FIPS_SOURCE" ];
+then
+    echo -e "\n\nTesting with FIPS release code...\n\n"
+    ./fips-check.sh --no-keep
+    RESULT=$?
+    [ $RESULT -ne 0 ] && echo -e "\n\nFIPS build test failed" && exit 1
+fi
+
+[ $RESULT -ne 0 ] && echo "\nOops, your push failed\n" && exit 1
+
+echo "\nPush tests passed!\n"
+exit 0

@@ -9,6 +9,7 @@ if test -d .git; then
     mkdir .git/hooks
   fi
   ln -s -f ../../pre-commit.sh .git/hooks/pre-commit
+  ln -s -f ../../pre-push.sh .git/hooks/pre-push
 fi
 
 # Set HAVE_FIPS_SOURCE to 1 in your .profile if you have access to the FIPS
