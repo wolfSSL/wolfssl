@@ -4331,7 +4331,9 @@ static int accel_fp_mul2add(int idx1, int idx2,
    if ((err = mp_to_unsigned_bin(&tka, kb[0])) != MP_OKAY) {
       mp_clear(&tka);
       mp_clear(&tkb);
+#ifdef WOLFSSL_SMALL_STACK
       XFREE(kb[0], NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
       return err;
    }
 
