@@ -3726,6 +3726,10 @@ int rsa_test(void)
 
         wc_InitCert(&myCert);
 
+#ifdef NO_SHA
+        myCert.sigType = CTC_SHA256wRSA;
+#endif
+
         strncpy(myCert.subject.country, "US", CTC_NAME_SIZE);
         strncpy(myCert.subject.state, "OR", CTC_NAME_SIZE);
         strncpy(myCert.subject.locality, "Portland", CTC_NAME_SIZE);
