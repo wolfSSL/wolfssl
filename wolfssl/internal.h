@@ -366,13 +366,17 @@ typedef byte word24[3];
 
     #if !defined(NO_DH) && !defined(NO_PSK) && !defined(NO_TLS)
         #ifndef NO_SHA256
-            #define BUILD_TLS_DHE_PSK_WITH_AES_128_CBC_SHA256
+            #ifndef NO_AES
+                #define BUILD_TLS_DHE_PSK_WITH_AES_128_CBC_SHA256
+            #endif
             #ifdef HAVE_NULL_CIPHER
                 #define BUILD_TLS_DHE_PSK_WITH_NULL_SHA256
             #endif
         #endif
         #ifdef WOLFSSL_SHA384
-            #define BUILD_TLS_DHE_PSK_WITH_AES_256_CBC_SHA384
+            #ifndef NO_AES
+                #define BUILD_TLS_DHE_PSK_WITH_AES_256_CBC_SHA384
+            #endif
             #ifdef HAVE_NULL_CIPHER
                 #define BUILD_TLS_DHE_PSK_WITH_NULL_SHA384
             #endif
