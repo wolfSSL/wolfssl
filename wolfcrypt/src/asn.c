@@ -905,6 +905,9 @@ static int DecryptKey(const char* password, int passwordSz, byte* salt,
     byte key[MAX_KEY_SIZE];
 #endif
 
+    (void)input;
+    (void)length;
+
     switch (id) {
         case PBE_MD5_DES:
             typeH = MD5;
