@@ -2128,6 +2128,12 @@ then
     AM_CFLAGS="$AM_CFLAGS -wd10006"
 fi
 
+# Expose HAVE___UINT128_T to options flags"
+if test "$ac_cv_type___uint128_t" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DHAVE___UINT128_T"
+fi
+
 
 LIB_SOCKET_NSL
 AX_HARDEN_CC_COMPILER_FLAGS
