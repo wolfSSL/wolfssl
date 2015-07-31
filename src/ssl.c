@@ -36,6 +36,8 @@
 #if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER) || \
                               defined(WOLFSSL_KEY_GEN)
     #include <wolfssl/openssl/evp.h>
+    /* openssl headers end, wolfssl internal headers next */
+    #include <wolfssl/wolfcrypt/wc_encrypt.h>
 #endif
 
 #ifdef OPENSSL_EXTRA
@@ -57,7 +59,6 @@
     #include <wolfssl/wolfcrypt/md4.h>
     #include <wolfssl/wolfcrypt/md5.h>
     #include <wolfssl/wolfcrypt/arc4.h>
-    #include <wolfssl/wolfcrypt/wc_encrypt.h>
     #ifdef WOLFSSL_SHA512
         #include <wolfssl/wolfcrypt/sha512.h>
     #endif
