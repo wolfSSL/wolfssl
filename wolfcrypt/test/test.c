@@ -5510,6 +5510,27 @@ int curve25519_test(void)
     if (XMEMCMP(ss, sharedB, y))
         return -1017;
 
+    /* test with 1 generated key and 1 from known test vector */
+    if (wc_curve25519_import_private_raw(sa, sizeof(sa), pa, sizeof(pa), &userA)
+        != 0)
+        return -1018;
+
+    if (wc_curve25519_make_key(&rng, 32, &userB) != 0)
+        return -1019;
+
+    if (wc_curve25519_shared_secret(&userA, &userB, sharedA, &x) != 0)
+        return -1020;
+
+    if (wc_curve25519_shared_secret(&userB, &userA, sharedB, &y) != 0)
+        return -1021;
+
+    /* compare shared secret keys to test they are the same */
+    if (y != x)
+        return -1022;
+
+    if (XMEMCMP(sharedA, sharedB, x))
+        return -1023;
+
     /* clean up keys when done */
     wc_curve25519_free(&pubKey);
     wc_curve25519_free(&userB);

@@ -733,6 +733,11 @@ AC_ARG_ENABLE([curve25519],
     )
 
 
+if test "$ENABLED_OPENSSH" = "yes"
+then
+    ENABLED_CURVE25519="yes"
+fi
+
 if test "$ENABLED_CURVE25519" = "small"
 then
     AM_CFLAGS="$AM_CFLAGS -DCURVED25519_SMALL"
@@ -757,6 +762,11 @@ AC_ARG_ENABLE([ed25519],
     [ ENABLED_ED25519=no ]
     )
 
+
+if test "$ENABLED_OPENSSH" = "yes"
+then
+    ENABLED_ED25519="yes"
+fi
 
 if test "$ENABLED_ED25519" = "small"
 then
