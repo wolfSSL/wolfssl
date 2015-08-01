@@ -40,8 +40,8 @@
 
         #if defined(CYASSL_MDK5)
             #include "cmsis_os.h"
-            #include "rl_fs.h" 
-            #include "rl_net.h" 
+            #include "rl_fs.h"
+            #include "rl_net.h"
         #else
             #include "rtl.h"
         #endif
@@ -64,6 +64,9 @@
     int myHsDoneCb(WOLFSSL* ssl, void* user_ctx);
 #endif
 
+#ifndef NO_PSK
+    static int usePskIdentityHint = 0;
+#endif
 
 
 static void NonBlockingSSL_Accept(SSL* ssl)
@@ -152,11 +155,14 @@ static void Usage(void)
     printf("-o          Perform OCSP lookup on peer certificate\n");
     printf("-O <url>    Perform OCSP lookup using <url> as responder\n");
 #endif
-#ifdef HAVE_PK_CALLBACKS 
+#ifdef HAVE_PK_CALLBACKS
     printf("-P          Public Key Callbacks\n");
 #endif
 #ifdef HAVE_ANON
     printf("-a          Anonymous server\n");
+#endif
+#ifndef NO_PSK
+    printf("-I          Do not send PSK identity hint\n");
 #endif
 }
 
@@ -230,7 +236,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     fdOpenSession(Task_self());
 #endif
 
-    while ((ch = mygetopt(argc, argv, "?dbstnNufrRawPp:v:l:A:c:k:Z:S:oO:D:"))
+    while ((ch = mygetopt(argc, argv, "?dbstnNufrRawPIp:v:l:A:c:k:Z:S:oO:D:"))
                          != -1) {
         switch (ch) {
             case '?' :
@@ -278,7 +284,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
                 break;
 
             case 'P' :
-            #ifdef HAVE_PK_CALLBACKS 
+            #ifdef HAVE_PK_CALLBACKS
                 pkCallbacks = 1;
             #endif
                 break;
@@ -361,6 +367,11 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
             case 'a' :
                 #ifdef HAVE_ANON
                     useAnon = 1;
+                #endif
+                break;
+            case 'I':
+                #ifndef NO_PSK
+                    usePskIdentityHint = 1;
                 #endif
                 break;
 
@@ -500,7 +511,10 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     if (usePsk) {
 #ifndef NO_PSK
         SSL_CTX_set_psk_server_callback(ctx, my_psk_server_cb);
-        SSL_CTX_use_psk_identity_hint(ctx, "cyassl server");
+
+        if (usePskIdentityHint == 0)
+            SSL_CTX_use_psk_identity_hint(ctx, "cyassl server");
+
         if (cipherList == NULL) {
             const char *defaultCipherList;
             #if defined(HAVE_AESGCM) && !defined(NO_DH)
@@ -643,7 +657,7 @@ while (1) {  /* allow resume option */
 
     if (SSL_write(ssl, msg, sizeof(msg)) != sizeof(msg))
         err_sys("SSL_write failed");
-        
+
     #if defined(CYASSL_MDK_SHELL) && defined(HAVE_MDK_RTX)
         os_dly_wait(500) ;
     #elif defined (CYASSL_TIRTOS)
@@ -723,10 +737,10 @@ while (1) {  /* allow resume option */
             ChangeDirBack(2);
         else if (CurrentDir("Debug") || CurrentDir("Release"))
             ChangeDirBack(3);
-   
+
 #ifdef HAVE_STACK_SIZE
         StackSizeCheck(&args, server_test);
-#else 
+#else
         server_test(&args);
 #endif
         CyaSSL_Cleanup();

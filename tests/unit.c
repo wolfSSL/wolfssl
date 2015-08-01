@@ -92,7 +92,7 @@ void wait_tcp_ready(func_args* args)
     (void)args;
 #elif defined(_POSIX_THREADS) && !defined(__MINGW32__)
     pthread_mutex_lock(&args->signal->mutex);
-    
+
     if (!args->signal->ready)
         pthread_cond_wait(&args->signal->cond, &args->signal->mutex);
     args->signal->ready = 0; /* reset */

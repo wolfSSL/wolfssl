@@ -34,7 +34,7 @@
 
 #define MAX_ARGS 40
 #define MAX_COMMAND_SZ 240
-#define MAX_SUITE_SZ 80 
+#define MAX_SUITE_SZ 80
 #define NOT_BUILT_IN -123
 #ifdef NO_OLD_TLS
     #define VERSION_TOO_OLD -124
@@ -71,7 +71,7 @@ static int IsOldTlsVersion(const char* line)
     }
 
     return 0;
-} 
+}
 #endif /* NO_OLD_TLS */
 
 
@@ -178,7 +178,7 @@ static int execute_test_case(int svr_argc, char** svr_argv,
 #endif
 
     if (addNoVerify) {
-        printf("repeating test with client cert request off\n"); 
+        printf("repeating test with client cert request off\n");
         added += 4;   /* -d plus space plus terminator */
         if (added >= MAX_COMMAND_SZ || svr_argc >= MAX_ARGS)
             printf("server command line too long\n");
@@ -190,7 +190,7 @@ static int execute_test_case(int svr_argc, char** svr_argv,
         }
     }
     if (addNonBlocking) {
-        printf("repeating test with non blocking on\n"); 
+        printf("repeating test with non blocking on\n");
         added += 4;   /* -N plus terminator */
         if (added >= MAX_COMMAND_SZ || svr_argc >= MAX_ARGS)
             printf("server command line too long\n");
@@ -219,7 +219,7 @@ static int execute_test_case(int svr_argc, char** svr_argv,
     for (i = 0; i < cli_argc; i++) {
         added += strlen(cli_argv[i]) + 2;
         if (added >= MAX_COMMAND_SZ) {
-            printf("client command line too long\n"); 
+            printf("client command line too long\n");
             break;
         }
         strcat(commandLine, cli_argv[i]);
@@ -265,14 +265,14 @@ static int execute_test_case(int svr_argc, char** svr_argv,
     /* start client */
     client_test(&cliArgs);
 
-    /* verify results */ 
+    /* verify results */
     if (cliArgs.return_code != 0) {
         printf("client_test failed\n");
         exit(EXIT_FAILURE);
     }
 
     join_thread(serverThread);
-    if (svrArgs.return_code != 0) { 
+    if (svrArgs.return_code != 0) {
         printf("server_test failed\n");
         exit(EXIT_FAILURE);
     }
@@ -281,7 +281,7 @@ static int execute_test_case(int svr_argc, char** svr_argv,
     fdCloseSession(Task_self());
 #endif
     FreeTcpReady(&ready);
-    
+
     return 0;
 }
 
@@ -345,7 +345,7 @@ static void test_harness(void* vargs)
         args->return_code = 1;
         return;
     }
-    
+
     fclose(file);
     script[sz] = 0;
 
@@ -394,7 +394,7 @@ static void test_harness(void* vargs)
                 else
                     svrArgs[svrArgsSz++] = strsep(&cursor, "\n");
                 if (*cursor == 0)  /* eof */
-                    do_it = 1; 
+                    do_it = 1;
         }
 
         if (svrArgsSz == MAX_ARGS || cliArgsSz == MAX_ARGS) {
@@ -440,7 +440,7 @@ int SuiteTest(void)
     cipherSuiteCtx = wolfSSL_CTX_new(wolfTLSv1_2_client_method());
     if (cipherSuiteCtx == NULL) {
         printf("can't get cipher suite ctx\n");
-        exit(EXIT_FAILURE);  
+        exit(EXIT_FAILURE);
     }
 
     /* default case */
@@ -449,7 +449,7 @@ int SuiteTest(void)
     test_harness(&args);
     if (args.return_code != 0) {
         printf("error from script %d\n", args.return_code);
-        exit(EXIT_FAILURE);  
+        exit(EXIT_FAILURE);
     }
 
     /* any extra cases will need another argument */
@@ -469,6 +469,17 @@ int SuiteTest(void)
     /* add dtls extra suites */
     strcpy(argv0[1], "tests/test-qsh.conf");
     printf("starting qsh extra cipher suite tests\n");
+    test_harness(&args);
+    if (args.return_code != 0) {
+        printf("error from script %d\n", args.return_code);
+        exit(EXIT_FAILURE);
+    }
+#endif
+
+#ifndef NO_PSK
+    /* add psk extra suites */
+    strcpy(argv0[1], "tests/test-psk-no-id.conf");
+    printf("starting psk no identity extra cipher suite tests\n");
     test_harness(&args);
     if (args.return_code != 0) {
         printf("error from script %d\n", args.return_code);
