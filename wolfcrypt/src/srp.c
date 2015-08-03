@@ -31,7 +31,7 @@
 #include <wolfssl/wolfcrypt/random.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
 
-static int SrpHashInit(SrpHash* hash, int type)
+static int SrpHashInit(SrpHash* hash, SrpType type)
 {
     hash->type = type;
 
@@ -117,7 +117,7 @@ static int SrpHashFinal(SrpHash* hash, byte* digest)
     }
 }
 
-static word32 SrpHashSize(byte type)
+static word32 SrpHashSize(SrpType type)
 {
     switch (type) {
     #ifndef NO_SHA
@@ -145,7 +145,7 @@ static word32 SrpHashSize(byte type)
     }
 }
 
-int wc_SrpInit(Srp* srp, byte type, byte side)
+int wc_SrpInit(Srp* srp, SrpType type, SrpSide side)
 {
     int r;
 
@@ -257,7 +257,7 @@ int wc_SrpSetParams(Srp* srp, const byte* N,    word32 nSz,
     if (!r) r = SrpHashUpdate(&hash, (byte*) g, gSz);
     if (!r) r = SrpHashFinal(&hash, srp->k);
 
-    /* Update client proof */
+    /* update client proof */
 
     /* digest1 = H(N) */
     if (!r) r = SrpHashInit(&hash, srp->type);
@@ -278,7 +278,7 @@ int wc_SrpSetParams(Srp* srp, const byte* N,    word32 nSz,
     if (!r) r = SrpHashUpdate(&hash, srp->user, srp->userSz);
     if (!r) r = SrpHashFinal(&hash, digest2);
 
-    /* Client proof = H( H(N) ^ H(g) | H(user) | salt) */
+    /* client proof = H( H(N) ^ H(g) | H(user) | salt) */
     if (!r) r = SrpHashUpdate(&srp->client_proof, digest1, j);
     if (!r) r = SrpHashUpdate(&srp->client_proof, digest2, j);
     if (!r) r = SrpHashUpdate(&srp->client_proof, salt, saltSz);
@@ -365,6 +365,7 @@ int wc_SrpSetPrivate(Srp* srp, const byte* private, word32 size)
     return mp_read_unsigned_bin(&srp->priv, private, size);
 }
 
+/** Generates random data using wolfcrypt RNG. */
 static int wc_SrpGenPrivate(Srp* srp, byte* private, word32 size)
 {
     RNG rng;
@@ -428,6 +429,7 @@ int wc_SrpGetPublic(Srp* srp, byte* public, word32* size)
     return r;
 }
 
+/** Computes the session key using the interleaved hash. */
 static int wc_SrpSetK(Srp* srp, byte* secret, word32 size)
 {
     SrpHash hash;

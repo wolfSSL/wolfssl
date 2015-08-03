@@ -34,36 +34,48 @@
     extern "C" {
 #endif
 
-enum {
-    SRP_CLIENT_SIDE  = 0,
-    SRP_SERVER_SIDE  = 1,
-#ifndef NO_SHA
-    SRP_TYPE_SHA     = 1,
-#endif
-#ifndef NO_SHA256
-    SRP_TYPE_SHA256  = 2,
-#endif
-#ifdef WOLFSSL_SHA384
-    SRP_TYPE_SHA384  = 3,
-#endif
-#ifdef WOLFSSL_SHA512
-    SRP_TYPE_SHA512  = 4,
-#endif
-
 /* Select the largest available hash for the buffer size. */
 #if defined(WOLFSSL_SHA512)
-    SRP_MAX_DIGEST_SIZE = SHA512_DIGEST_SIZE,
+    #define SRP_MAX_DIGEST_SIZE SHA512_DIGEST_SIZE
 #elif defined(WOLFSSL_SHA384)
-    SRP_MAX_DIGEST_SIZE = SHA384_DIGEST_SIZE,
+    #define SRP_MAX_DIGEST_SIZE SHA384_DIGEST_SIZE
 #elif !defined(NO_SHA256)
-    SRP_MAX_DIGEST_SIZE = SHA256_DIGEST_SIZE,
+    #define SRP_MAX_DIGEST_SIZE SHA256_DIGEST_SIZE
 #elif !defined(NO_SHA)
-    SRP_MAX_DIGEST_SIZE = SHA_DIGEST_SIZE,
+    #define SRP_MAX_DIGEST_SIZE SHA_DIGEST_SIZE
 #else
     #error "You have to have some kind of SHA hash if you want to use SRP."
 #endif
-};
 
+/**
+ * SRP side, client or server.
+ */
+typedef enum {
+    SRP_CLIENT_SIDE  = 0,
+    SRP_SERVER_SIDE  = 1,
+} SrpSide;
+
+/**
+ * SRP hash type, SHA[1|256|384|512].
+ */
+typedef enum {
+    #ifndef NO_SHA
+        SRP_TYPE_SHA    = 1,
+    #endif
+    #ifndef NO_SHA256
+        SRP_TYPE_SHA256 = 2,
+    #endif
+    #ifdef WOLFSSL_SHA384
+        SRP_TYPE_SHA384 = 3,
+    #endif
+    #ifdef WOLFSSL_SHA512
+        SRP_TYPE_SHA512 = 4,
+    #endif
+} SrpType;
+
+/**
+ * SRP hash struct.
+ */
 typedef struct {
     byte type;
     union {
@@ -83,49 +95,213 @@ typedef struct {
 } SrpHash;
 
 typedef struct {
-    byte    side;                         /**< SRP_CLIENT_SIDE or SRP_SERVER_SIDE */
-    byte    type;                         /**< Hash type, one of SRP_TYPE_SHA[|256|384|512] */
-    byte*   user;                         /**< Username, login.                      */
-    word32  userSz;                       /**< Username length.                      */
-    byte*   salt;                         /**< Small salt.                           */
-    word32  saltSz;                       /**< Salt length.                          */
-    mp_int  N;                            /**< Modulus. N = 2q+1, [q, N] are primes. */
-    mp_int  g;                            /**< Generator. A generator modulo N.      */
-    byte    k[SRP_MAX_DIGEST_SIZE];       /**< Multiplier parameeter. H(N, g)        */
-    mp_int  auth;                         /**< client: x = H(salt, H(user, ":", pswd)) */
-    mp_int  priv;                         /**< Private ephemeral value.              */
-    SrpHash client_proof;                 /**< Client proof. Sent to Server.         */
-    SrpHash server_proof;                 /**< Server proof. Sent to Client.         */
-    byte    key[2 * SRP_MAX_DIGEST_SIZE]; /**< Session key.                          */
+    SrpSide side;                         /**< Client or Server, @see SrpSide.*/
+    SrpType type;                         /**< Hash type, @see SrpType.       */
+    byte*   user;                         /**< Username, login.               */
+    word32  userSz;                       /**< Username length.               */
+    byte*   salt;                         /**< Small salt.                    */
+    word32  saltSz;                       /**< Salt length.                   */
+    mp_int  N;                            /**< N = 2q+1, [q, N] are primes.   */
+                                          /**< a.k.a. modulus.                */
+    mp_int  g;                            /**< Generator modulo N.            */
+    byte    k[SRP_MAX_DIGEST_SIZE];       /**< Multiplier parameeter. H(N, g) */
+    mp_int  auth;                         /**< x = H(salt + H(user:pswd))     */
+                                          /**< v = g ^ x % N                  */
+    mp_int  priv;                         /**< Private ephemeral value.       */
+    SrpHash client_proof;                 /**< Client proof. Sent to Server.  */
+    SrpHash server_proof;                 /**< Server proof. Sent to Client.  */
+    byte    key[2 * SRP_MAX_DIGEST_SIZE]; /**< Session key.                   */
 } Srp;
 
-WOLFSSL_API int wc_SrpInit(Srp* srp, byte type, byte side);
+/**
+ * Initializes the Srp struct for usage.
+ *
+ * @param[out] srp   the Srp structure to be initialized.
+ * @param[in]  type  the hash type to be used.
+ * @param[in]  side  the side of the communication.
+ *
+ * @return 0 on success, {@literal <} 0 on error. @see error-crypt.h
+ */
+WOLFSSL_API int wc_SrpInit(Srp* srp, SrpType type, SrpSide side);
 
+/**
+ * Releases the Srp struct resources after usage.
+ *
+ * @param[in,out] srp    the Srp structure to be terminated.
+ */
 WOLFSSL_API void wc_SrpTerm(Srp* srp);
 
+/**
+ * Sets the username.
+ *
+ * This function MUST be called after wc_SrpInit.
+ *
+ * @param[in,out] srp       the Srp structure.
+ * @param[in]     username  the buffer containing the username.
+ * @param[in]     size      the username size in bytes
+ *
+ * @return 0 on success, {@literal <} 0 on error. @see error-crypt.h
+ */
 WOLFSSL_API int wc_SrpSetUsername(Srp* srp, const byte* username, word32 size);
 
+
+/**
+ * Sets the srp parameeters based on the username.
+ *
+ * This function MUST be called after wc_SrpSetUsername.
+ *
+ * @param[in,out] srp       the Srp structure.
+ * @param[in]     N         the Modulus. N = 2q+1, [q, N] are primes.
+ * @param[in]     nSz       the N size in bytes.
+ * @param[in]     g         the Generator modulo N.
+ * @param[in]     gSz       the g size in bytes
+ * @param[in]     salt      a small random salt. Specific for each username.
+ * @param[in]     saltSz    the salt size in bytes
+ *
+ * @return 0 on success, {@literal <} 0 on error. @see error-crypt.h
+ */
 WOLFSSL_API int wc_SrpSetParams(Srp* srp, const byte* N,    word32 nSz,
                                           const byte* g,    word32 gSz,
                                           const byte* salt, word32 saltSz);
 
+/**
+ * Sets the password.
+ *
+ * Setting the password does not persists the clear password data in the
+ * srp structure. The client calculates x = H(salt + H(user:pswd)) and stores
+ * it in the auth field.
+ *
+ * This function MUST be called after wc_SrpSetParams and is CLIENT SIDE ONLY.
+ *
+ * @param[in,out] srp       the Srp structure.
+ * @param[in]     password  the buffer containing the password.
+ * @param[in]     size      the password size in bytes.
+ *
+ * @return 0 on success, {@literal <} 0 on error. @see error-crypt.h
+ */
 WOLFSSL_API int wc_SrpSetPassword(Srp* srp, const byte* password, word32 size);
 
+/**
+ * Sets the password.
+ *
+ * This function MUST be called after wc_SrpSetParams and is SERVER SIDE ONLY.
+ *
+ * @param[in,out] srp       the Srp structure.
+ * @param[in]     verifier  the buffer containing the verifier.
+ * @param[in]     size      the verifier size in bytes.
+ *
+ * @return 0 on success, {@literal <} 0 on error. @see error-crypt.h
+ */
 WOLFSSL_API int wc_SrpSetVerifier(Srp* srp, const byte* verifier, word32 size);
 
+/**
+ * Gets the verifier.
+ *
+ * The client calculates the verifier with v = g ^ x % N.
+ * This function MAY be called after wc_SrpSetPassword and is SERVER SIDE ONLY.
+ *
+ * @param[in,out] srp       the Srp structure.
+ * @param[out]    verifier  the buffer to write the verifier.
+ * @param[in,out] size      the buffer size in bytes. Will be updated with the
+ *                          verifier size.
+ *
+ * @return 0 on success, {@literal <} 0 on error. @see error-crypt.h
+ */
 WOLFSSL_API int wc_SrpGetVerifier(Srp* srp, byte* verifier, word32* size);
 
+/**
+ * Sets the private ephemeral value.
+ *
+ * The private ephemeral value is known as:
+ *   a at the client side. a = random()
+ *   b at the server side. b = random()
+ * This function is handy for unit test cases or if the developer wants to use
+ * an external random source to set the ephemeral value.
+ * This function MAY be called before wc_SrpGetPublic.
+ *
+ * @param[in,out] srp       the Srp structure.
+ * @param[in]     private   the ephemeral value.
+ * @param[in]     size      the private size in bytes.
+ *
+ * @return 0 on success, {@literal <} 0 on error. @see error-crypt.h
+ */
 WOLFSSL_API int wc_SrpSetPrivate(Srp* srp, const byte* private, word32 size);
 
+/**
+ * Gets the public ephemeral value.
+ *
+ * The public ephemeral value is known as:
+ *   A at the client side. A = g ^ a % N
+ *   B at the server side. B = (k * v + (g ˆ b % N)) % N
+ * This function MUST be called after wc_SrpSetPassword or wc_SrpSetVerifier.
+ *
+ * @param[in,out] srp       the Srp structure.
+ * @param[out]    public    the buffer to write the public ephemeral value.
+ * @param[in,out] size      the the buffer size in bytes. Will be updated with
+ *                          the ephemeral value size.
+ *
+ * @return 0 on success, {@literal <} 0 on error. @see error-crypt.h
+ */
 WOLFSSL_API int wc_SrpGetPublic(Srp* srp, byte* public, word32* size);
 
-WOLFSSL_API int wc_SrpComputeKey(Srp* srp, byte* clientPubKey, word32 clientPubKeySz,
-                                           byte* serverPubKey, word32 serverPubKeySz);
 
+/**
+ * Computes the session key.
+ *
+ * This function is handy for unit test cases or if the developer wants to use
+ * an external random source to set the ephemeral value.
+ * This function MUST be called after wc_SrpSetPassword or wc_SrpSetVerifier.
+ *
+ * @param[in,out] srp       the Srp structure.
+ * @param[out]    public    the buffer to write the public ephemeral value.
+ * @param[in,out] size      the the buffer size in bytes. Will be updated with
+                            the ephemeral value size.
+ *
+ * @return 0 on success, {@literal <} 0 on error. @see error-crypt.h
+ */
+WOLFSSL_API int wc_SrpComputeKey(Srp* srp,
+                                 byte* clientPubKey, word32 clientPubKeySz,
+                                 byte* serverPubKey, word32 serverPubKeySz);
+
+/**
+ * Gets the proof.
+ *
+ * This function MUST be called after wc_SrpComputeKey.
+ *
+ * @param[in,out] srp   the Srp structure.
+ * @param[out]    proof the buffer to write the proof.
+ * @param[in,out] size  the buffer size in bytes. Will be updated with the
+ *                          proof size.
+ *
+ * @return 0 on success, {@literal <} 0 on error. @see error-crypt.h
+ */
 WOLFSSL_API int wc_SrpGetProof(Srp* srp, byte* proof, word32* size);
 
+/**
+ * Verifies the peers proof.
+ *
+ * This function MUST be called before wc_SrpGetSessionKey.
+ *
+ * @param[in,out] srp   the Srp structure.
+ * @param[in]     proof the peers proof.
+ * @param[in]     size  the proof size in bytes.
+ *
+ * @return 0 on success, {@literal <} 0 on error. @see error-crypt.h
+ */
 WOLFSSL_API int wc_SrpVerifyPeersProof(Srp* srp, byte* proof, word32 size);
 
+/**
+ * Gets the session key.
+ *
+ * This function MUST be called after wc_SrpVerifyPeersProof.
+ *
+ * @param[in,out] srp   the Srp structure.
+ * @param[out]    key   the buffer to write the key.
+ * @param[in,out] size  the buffer size in bytes. Will be updated with the
+ *                          key size.
+ *
+ * @return 0 on success, {@literal <} 0 on error. @see error-crypt.h
+ */
 WOLFSSL_API int wc_SrpGetSessionKey(Srp* srp, byte* key, word32* size);
 
 #ifdef __cplusplus
