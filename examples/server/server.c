@@ -158,6 +158,9 @@ static void Usage(void)
 #ifdef HAVE_ANON
     printf("-a          Anonymous server\n");
 #endif
+#ifndef NO_PSK
+    printf("-I          Do not send PSK identity hint\n");
+#endif
 }
 
 THREAD_RETURN CYASSL_THREAD server_test(void* args)
@@ -199,6 +202,10 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     int    argc = ((func_args*)args)->argc;
     char** argv = ((func_args*)args)->argv;
 
+#ifndef NO_PSK
+    int sendPskIdentityHint = 1;
+#endif
+
 #ifdef HAVE_SNI
     char*  sniHostName = NULL;
 #endif
@@ -230,7 +237,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     fdOpenSession(Task_self());
 #endif
 
-    while ((ch = mygetopt(argc, argv, "?dbstnNufrRawPp:v:l:A:c:k:Z:S:oO:D:"))
+    while ((ch = mygetopt(argc, argv, "?dbstnNufrRawPIp:v:l:A:c:k:Z:S:oO:D:"))
                          != -1) {
         switch (ch) {
             case '?' :
@@ -361,6 +368,11 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
             case 'a' :
                 #ifdef HAVE_ANON
                     useAnon = 1;
+                #endif
+                break;
+            case 'I':
+                #ifndef NO_PSK
+                    sendPskIdentityHint = 0;
                 #endif
                 break;
 
@@ -500,7 +512,10 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     if (usePsk) {
 #ifndef NO_PSK
         SSL_CTX_set_psk_server_callback(ctx, my_psk_server_cb);
-        SSL_CTX_use_psk_identity_hint(ctx, "cyassl server");
+
+        if (sendPskIdentityHint == 1)
+            SSL_CTX_use_psk_identity_hint(ctx, "cyassl server");
+
         if (cipherList == NULL) {
             const char *defaultCipherList;
             #if defined(HAVE_AESGCM) && !defined(NO_DH)
