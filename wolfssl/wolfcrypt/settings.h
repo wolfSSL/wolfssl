@@ -307,6 +307,10 @@
 
 
 #ifdef FREERTOS
+    #include "FreeRTOS.h"
+    /* FreeRTOS pvPortRealloc() only in AVR32_UC3 port */
+    #define XMALLOC(s, h, type)  pvPortMalloc((s))
+    #define XFREE(p, h, type)    vPortFree((p))
     #ifndef NO_WRITEV
         #define NO_WRITEV
     #endif
@@ -328,7 +332,6 @@
     #endif
 
     #ifndef SINGLE_THREADED
-        #include "FreeRTOS.h"
         #include "semphr.h"
     #endif
 #endif
