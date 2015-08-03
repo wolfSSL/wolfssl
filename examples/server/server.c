@@ -203,7 +203,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     char** argv = ((func_args*)args)->argv;
 
 #ifndef NO_PSK
-    int doNotSendPskIdentityHint = 1;
+    int sendPskIdentityHint = 1;
 #endif
 
 #ifdef HAVE_SNI
@@ -372,7 +372,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
                 break;
             case 'I':
                 #ifndef NO_PSK
-                    doNotSendPskIdentityHint = 0;
+                    sendPskIdentityHint = 0;
                 #endif
                 break;
 
@@ -513,7 +513,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
 #ifndef NO_PSK
         SSL_CTX_set_psk_server_callback(ctx, my_psk_server_cb);
 
-        if (doNotSendPskIdentityHint == 1)
+        if (sendPskIdentityHint == 1)
             SSL_CTX_use_psk_identity_hint(ctx, "cyassl server");
 
         if (cipherList == NULL) {
