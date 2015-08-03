@@ -172,7 +172,7 @@ int wc_SrpInit(Srp* srp, byte type, byte side)
         return r;
 
     if ((r = mp_init_multi(&srp->N,    &srp->g, &srp->auth,
-                           &srp->priv, &srp->u, 0)) != 0)
+                           &srp->priv, 0, 0)) != 0)
         return r;
 
     srp->side = side;    srp->type   = type;
@@ -187,7 +187,6 @@ void wc_SrpTerm(Srp* srp)
     if (srp) {
         mp_clear(&srp->N);    mp_clear(&srp->g);
         mp_clear(&srp->auth); mp_clear(&srp->priv);
-        mp_clear(&srp->u);
 
         XMEMSET(srp->salt, 0, srp->saltSz);
         XFREE(srp->salt, NULL, DYNAMIC_TYPE_SRP);
@@ -429,68 +428,32 @@ int wc_SrpGetPublic(Srp* srp, byte* public, word32* size)
     return r;
 }
 
-static int wc_SrpSetU(Srp* srp, byte* clientPubKey, word32 clientPubKeySz,
-                                byte* serverPubKey, word32 serverPubKeySz)
-{
-    SrpHash hash;
-    byte    digest[SRP_MAX_DIGEST_SIZE];
-    word32  modulusSz = mp_unsigned_bin_size(&srp->N);
-    byte    pad = 0;
-    word32  i;
-    int     r = SrpHashInit(&hash, srp->type);
-
-    /* H(A) */
-    for (i = 0; !r && i < modulusSz - clientPubKeySz; i++)
-        r = SrpHashUpdate(&hash, &pad, 1);
-    if (!r) r = SrpHashUpdate(&hash, clientPubKey, clientPubKeySz);
-
-    /* H(A | B) */
-    for (i = 0; !r && i < modulusSz - serverPubKeySz; i++)
-        r = SrpHashUpdate(&hash, &pad, 1);
-    if (!r) r = SrpHashUpdate(&hash, serverPubKey, serverPubKeySz);
-
-    /* client proof = H( H(N) ^ H(g) | H(user) | salt | A | B) */
-    if (!r) r = SrpHashUpdate(&srp->client_proof, clientPubKey, clientPubKeySz);
-    if (!r) r = SrpHashUpdate(&srp->client_proof, serverPubKey, serverPubKeySz);
-
-    /* server proof = H(A) */
-    if (!r) r = SrpHashUpdate(&srp->server_proof, clientPubKey, clientPubKeySz);
-
-    /* set u */
-    if (!r) r = SrpHashFinal(&hash, digest);
-    if (!r) r = mp_read_unsigned_bin(&srp->u, digest, SrpHashSize(srp->type));
-
-    return r;
-}
-
 static int wc_SrpSetK(Srp* srp, byte* secret, word32 size)
 {
     SrpHash hash;
     byte digest[SRP_MAX_DIGEST_SIZE];
-    word32 digestSz = SrpHashSize(srp->type);
+    word32 i, j, digestSz = SrpHashSize(srp->type);
+    byte counter[4];
     int r;
-    word32 i = 0;
-    word32 pos = 0;
-    byte cnt[4];
 
-    for (i = 0; pos < digestSz * 2; i++) {
-        cnt[0] = (i >> 24) & 0xFF;
-        cnt[1] = (i >> 16) & 0xFF;
-        cnt[2] = (i >>  8) & 0xFF;
-        cnt[3] =  i        & 0xFF;
+    for (i = j = 0; j < 2 * digestSz; i++) {
+        counter[0] = (i >> 24) & 0xFF;
+        counter[1] = (i >> 16) & 0xFF;
+        counter[2] = (i >>  8) & 0xFF;
+        counter[3] =  i        & 0xFF;
 
         r = SrpHashInit(&hash, srp->type);
         if (!r) r = SrpHashUpdate(&hash, secret, size);
-        if (!r) r = SrpHashUpdate(&hash, cnt, 4);
+        if (!r) r = SrpHashUpdate(&hash, counter, 4);
 
-        if(pos + digestSz > digestSz * 2) {
+        if(j + digestSz > 2 * digestSz) {
             if (!r) r = SrpHashFinal(&hash, digest);
-            XMEMCPY(srp->key + pos, digest, digestSz * 2 - pos);
-            pos = digestSz * 2;
+            XMEMCPY(srp->key + j, digest, 2 * digestSz - j);
+            j = 2 * digestSz;
         }
         else {
-            if (!r) r = SrpHashFinal(&hash, srp->key + pos);
-            pos += digestSz;
+            if (!r) r = SrpHashFinal(&hash, srp->key + j);
+            j += digestSz;
         }
     }
 
@@ -503,11 +466,15 @@ static int wc_SrpSetK(Srp* srp, byte* secret, word32 size)
 int wc_SrpComputeKey(Srp* srp, byte* clientPubKey, word32 clientPubKeySz,
                                byte* serverPubKey, word32 serverPubKeySz)
 {
-    byte* secret;
-    word32 digestSz;
-    word32 secretSz;
-    mp_int i, j, s;
+    SrpHash hash;
+    byte *secret;
+    byte digest[SRP_MAX_DIGEST_SIZE];
+    word32 i, secretSz, digestSz;
+    mp_int u, s, temp1, temp2;
+    byte pad = 0;
     int r;
+
+    /* validating params */
 
     if (!srp || !clientPubKey || clientPubKeySz == 0
              || !serverPubKey || serverPubKeySz == 0)
@@ -516,56 +483,84 @@ int wc_SrpComputeKey(Srp* srp, byte* clientPubKey, word32 clientPubKeySz,
     if (mp_iszero(&srp->priv))
         return SRP_CALL_ORDER_E;
 
-    if ((r = mp_init_multi(&i, &j, &s, 0, 0, 0)) != MP_OKAY)
+    /* initializing variables */
+
+    if ((r = SrpHashInit(&hash, srp->type)) != 0)
         return r;
 
+    digestSz = SrpHashSize(srp->type);
     secretSz = mp_unsigned_bin_size(&srp->N);
-    secret = (byte*)XMALLOC(secretSz, NULL, DYNAMIC_TYPE_SRP);
-    if (secret == NULL) {
-        mp_clear(&i); mp_clear(&j); mp_clear(&s);
+
+    if ((secret = (byte*)XMALLOC(secretSz, NULL, DYNAMIC_TYPE_SRP)) == NULL)
         return MEMORY_E;
+
+    if ((r = mp_init_multi(&u, &s, &temp1, &temp2, 0, 0)) != MP_OKAY) {
+        XFREE(secret, NULL, DYNAMIC_TYPE_SRP);
+        return r;
     }
 
-    digestSz = SrpHashSize(srp->type);
+    /* building u (random scrambling parameeter) */
 
-    r = wc_SrpSetU(srp, clientPubKey, clientPubKeySz,
-                        serverPubKey, serverPubKeySz);
+    /* H(A) */
+    for (i = 0; !r && i < secretSz - clientPubKeySz; i++)
+        r = SrpHashUpdate(&hash, &pad, 1);
+    if (!r) r = SrpHashUpdate(&hash, clientPubKey, clientPubKeySz);
+
+    /* H(A | B) */
+    for (i = 0; !r && i < secretSz - serverPubKeySz; i++)
+        r = SrpHashUpdate(&hash, &pad, 1);
+    if (!r) r = SrpHashUpdate(&hash, serverPubKey, serverPubKeySz);
+
+    /* set u */
+    if (!r) r = SrpHashFinal(&hash, digest);
+    if (!r) r = mp_read_unsigned_bin(&u, digest, SrpHashSize(srp->type));
+
+    /* building s (secret) */
 
     if (!r && srp->side == SRP_CLIENT_SIDE) {
-        /* i = B - k * v */
-        r = mp_read_unsigned_bin(&i, srp->k, digestSz);
-        if (!r) r = mp_exptmod(&srp->g, &srp->auth, &srp->N, &j);
-        if (!r) r = mp_mulmod(&i, &j, &srp->N, &s);
-        if (!r) r = mp_read_unsigned_bin(&j, serverPubKey, serverPubKeySz);
-        if (!r) r = mp_sub(&j, &s, &i);
+        /* temp1 = B - k * v */
+        r = mp_read_unsigned_bin(&temp1, srp->k, digestSz);
+        if (!r) r = mp_exptmod(&srp->g, &srp->auth, &srp->N, &temp2);
+        if (!r) r = mp_mulmod(&temp1, &temp2, &srp->N, &s);
+        if (!r) r = mp_read_unsigned_bin(&temp2, serverPubKey, serverPubKeySz);
+        if (!r) r = mp_sub(&temp2, &s, &temp1);
 
-        /* j = a + u * x */
-        if (!r) r = mp_mulmod(&srp->u, &srp->auth, &srp->N, &s);
-        if (!r) r = mp_add(&srp->priv, &s, &j);
+        /* temp2 = a + u * x */
+        if (!r) r = mp_mulmod(&u, &srp->auth, &srp->N, &s);
+        if (!r) r = mp_add(&srp->priv, &s, &temp2);
 
-        /* secret = i ^ j % N */
-        if (!r) r = mp_exptmod(&i, &j, &srp->N, &s);
+        /* secret = temp1 ^ temp2 % N */
+        if (!r) r = mp_exptmod(&temp1, &temp2, &srp->N, &s);
 
     } else if (!r && srp->side == SRP_SERVER_SIDE) {
-        /* i = v ^ u % N */
-        r = mp_exptmod(&srp->auth, &srp->u, &srp->N, &i);
+        /* temp1 = v ^ u % N */
+        r = mp_exptmod(&srp->auth, &u, &srp->N, &temp1);
 
-        /* j = A * i % N */
+        /* temp2 = A * temp1 % N */
         if (!r) r = mp_read_unsigned_bin(&s, clientPubKey, clientPubKeySz);
-        if (!r) r = mp_mulmod(&s, &i, &srp->N, &j);
+        if (!r) r = mp_mulmod(&s, &temp1, &srp->N, &temp2);
 
-        /* secret = j * b % N */
-        if (!r) r = mp_exptmod(&j, &srp->priv, &srp->N, &s);
+        /* secret = temp2 * b % N */
+        if (!r) r = mp_exptmod(&temp2, &srp->priv, &srp->N, &s);
     }
+
+    /* building session key from secret */
 
     if (!r) r = mp_to_unsigned_bin(&s, secret);
     if (!r) r = wc_SrpSetK(srp, secret, mp_unsigned_bin_size(&s));
 
-    /* client proof = H( H(N) ^ H(g) | H(user) | salt | A | B | K) */
-    if (!r) r = SrpHashUpdate(&srp->client_proof, srp->key, digestSz * 2);
+    /* updating client proof = H( H(N) ^ H(g) | H(user) | salt | A | B | K) */
+
+    if (!r) r = SrpHashUpdate(&srp->client_proof, clientPubKey, clientPubKeySz);
+    if (!r) r = SrpHashUpdate(&srp->client_proof, serverPubKey, serverPubKeySz);
+    if (!r) r = SrpHashUpdate(&srp->client_proof, srp->key, 2 * digestSz);
+
+    /* updating server proof = H(A) */
+
+    if (!r) r = SrpHashUpdate(&srp->server_proof, clientPubKey, clientPubKeySz);
 
     XFREE(secret, NULL, DYNAMIC_TYPE_SRP);
-    mp_clear(&i); mp_clear(&j); mp_clear(&s);
+    mp_clear(&u); mp_clear(&s); mp_clear(&temp1); mp_clear(&temp2);
 
     return r;
 }
@@ -590,7 +585,7 @@ int wc_SrpGetProof(Srp* srp, byte* proof, word32* size)
     if (srp->side == SRP_CLIENT_SIDE) {
         /* server proof = H( A | client proof | K) */
         if (!r) r = SrpHashUpdate(&srp->server_proof, proof, *size);
-        if (!r) r = SrpHashUpdate(&srp->server_proof, srp->key, (*size) * 2);
+        if (!r) r = SrpHashUpdate(&srp->server_proof, srp->key, 2 * (*size));
     }
 
     return r;
@@ -613,13 +608,29 @@ int wc_SrpVerifyPeersProof(Srp* srp, byte* proof, word32 size)
     if (srp->side == SRP_SERVER_SIDE) {
         /* server proof = H( A | client proof | K) */
         if (!r) r = SrpHashUpdate(&srp->server_proof, proof, size);
-        if (!r) r = SrpHashUpdate(&srp->server_proof, srp->key, size * 2);
+        if (!r) r = SrpHashUpdate(&srp->server_proof, srp->key, 2 * size);
     }
 
     if (!r && XMEMCMP(proof, digest, size) != 0)
         r = SRP_VERIFY_E;
 
     return r;
+}
+
+int wc_SrpGetSessionKey(Srp* srp, byte* key, word32* size)
+{
+    word32 sz;
+
+    if (!srp || !key || !size)
+        return BAD_FUNC_ARG;
+
+    if (*size < (sz = SrpHashSize(srp->type)))
+        return BUFFER_E;
+
+    XMEMCPY(key, srp->key, sz);
+    *size = sz;
+
+    return 0;
 }
 
 #endif /* WOLFCRYPT_HAVE_SRP */

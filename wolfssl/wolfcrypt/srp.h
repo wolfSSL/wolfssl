@@ -94,7 +94,6 @@ typedef struct {
     byte    k[SRP_MAX_DIGEST_SIZE];       /**< Multiplier parameeter. H(N, g)        */
     mp_int  auth;                         /**< client: x = H(salt, H(user, ":", pswd)) */
     mp_int  priv;                         /**< Private ephemeral value.              */
-    mp_int  u;                            /**< Random scrambling parameeter.         */
     SrpHash client_proof;                 /**< Client proof. Sent to Server.         */
     SrpHash server_proof;                 /**< Server proof. Sent to Client.         */
     byte    key[2 * SRP_MAX_DIGEST_SIZE]; /**< Session key.                          */
@@ -126,6 +125,8 @@ WOLFSSL_API int wc_SrpComputeKey(Srp* srp, byte* clientPubKey, word32 clientPubK
 WOLFSSL_API int wc_SrpGetProof(Srp* srp, byte* proof, word32* size);
 
 WOLFSSL_API int wc_SrpVerifyPeersProof(Srp* srp, byte* proof, word32 size);
+
+WOLFSSL_API int wc_SrpGetSessionKey(Srp* srp, byte* key, word32* size);
 
 #ifdef __cplusplus
    } /* extern "C" */
