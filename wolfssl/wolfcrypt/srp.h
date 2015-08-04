@@ -94,23 +94,30 @@ typedef struct {
     } data;
 } SrpHash;
 
-typedef struct {
-    SrpSide side;                         /**< Client or Server, @see SrpSide.*/
-    SrpType type;                         /**< Hash type, @see SrpType.       */
-    byte*   user;                         /**< Username, login.               */
-    word32  userSz;                       /**< Username length.               */
-    byte*   salt;                         /**< Small salt.                    */
-    word32  saltSz;                       /**< Salt length.                   */
-    mp_int  N;                            /**< N = 2q+1, [q, N] are primes.   */
-                                          /**< a.k.a. modulus.                */
-    mp_int  g;                            /**< Generator modulo N.            */
-    byte    k[SRP_MAX_DIGEST_SIZE];       /**< Multiplier parameeter. H(N, g) */
-    mp_int  auth;                         /**< x = H(salt + H(user:pswd))     */
-                                          /**< v = g ^ x % N                  */
-    mp_int  priv;                         /**< Private ephemeral value.       */
-    SrpHash client_proof;                 /**< Client proof. Sent to Server.  */
-    SrpHash server_proof;                 /**< Server proof. Sent to Client.  */
-    byte    key[2 * SRP_MAX_DIGEST_SIZE]; /**< Session key.                   */
+typedef struct Srp {
+    SrpSide side;                   /**< Client or Server, @see SrpSide.      */
+    SrpType type;                   /**< Hash type, @see SrpType.             */
+    byte*   user;                   /**< Username, login.                     */
+    word32  userSz;                 /**< Username length.                     */
+    byte*   salt;                   /**< Small salt.                          */
+    word32  saltSz;                 /**< Salt length.                         */
+    mp_int  N;                      /**< Modulus. N = 2q+1, [q, N] are primes.*/
+    mp_int  g;                      /**< Generator. A generator modulo N.     */
+    byte    k[SRP_MAX_DIGEST_SIZE]; /**< Multiplier parameeter. k = H(N, g)   */
+    mp_int  auth;                   /**< Client: x = H(salt + H(user:pswd))   */
+                                    /**< Server: v = g ^ x % N                */
+    mp_int  priv;                   /**< Private ephemeral value.             */
+    SrpHash client_proof;           /**< Client proof. Sent to the Server.    */
+    SrpHash server_proof;           /**< Server proof. Sent to the Client.    */
+    byte*   key;                    /**< Session key.                         */
+    word32  keySz;                  /**< Session key length.                  */
+    int (*keyGenFunc_cb) (struct Srp* srp, byte* secret, word32 size);
+        /**< Function responsible for generating the session key.             */
+        /**< It MUST use XMALLOC with type DYNAMIC_TYPE_SRP to allocate the   */
+        /**< key buffer for this structure and set keySz to the buffer size.  */
+        /**< The default function used by this implementation is a modified   */
+        /**< version of t_mgf1 that uses the proper hash function according   */
+        /**< to srp->type.                                                    */
 } Srp;
 
 /**
@@ -289,20 +296,6 @@ WOLFSSL_API int wc_SrpGetProof(Srp* srp, byte* proof, word32* size);
  * @return 0 on success, {@literal <} 0 on error. @see error-crypt.h
  */
 WOLFSSL_API int wc_SrpVerifyPeersProof(Srp* srp, byte* proof, word32 size);
-
-/**
- * Gets the session key.
- *
- * This function MUST be called after wc_SrpVerifyPeersProof.
- *
- * @param[in,out] srp   the Srp structure.
- * @param[out]    key   the buffer to write the key.
- * @param[in,out] size  the buffer size in bytes. Will be updated with the
- *                          key size.
- *
- * @return 0 on success, {@literal <} 0 on error. @see error-crypt.h
- */
-WOLFSSL_API int wc_SrpGetSessionKey(Srp* srp, byte* key, word32* size);
 
 #ifdef __cplusplus
    } /* extern "C" */

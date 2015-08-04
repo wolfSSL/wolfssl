@@ -31,6 +31,42 @@
 #include <wolfssl/wolfcrypt/random.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
 
+/** Computes the session key using the Mask Generation Function 1. */
+static int wc_SrpSetK(Srp* srp, byte* secret, word32 size);
+
+#include <stdio.h>
+static inline void LogHex(byte* data, word32 length)
+{
+    #define LINE_LEN 16
+
+    word32 i;
+
+    printf("\t");
+
+    if (!data) {
+        printf("NULL\n");
+        return;
+    }
+
+    for (i = 0; i < LINE_LEN; i++) {
+        if (i < length)
+            printf("%02x ", data[i]);
+        else
+            printf("   ");
+    }
+
+    printf("| ");
+
+    for (i = 0; i < LINE_LEN; i++)
+        if (i < length)
+            printf("%c", 31 < data[i] && data[i] < 127 ? data[i] : '.');
+
+    printf("\n");
+
+    if (length > LINE_LEN)
+        LogHex(data + LINE_LEN, length - LINE_LEN);
+}
+
 static int SrpHashInit(SrpHash* hash, SrpType type)
 {
     hash->type = type;
@@ -178,6 +214,9 @@ int wc_SrpInit(Srp* srp, SrpType type, SrpSide side)
     srp->side = side;    srp->type   = type;
     srp->salt = NULL;    srp->saltSz = 0;
     srp->user = NULL;    srp->userSz = 0;
+    srp->key  = NULL;    srp->keySz  = 0;
+
+    srp->keyGenFunc_cb = wc_SrpSetK;
 
     return 0;
 }
@@ -192,6 +231,8 @@ void wc_SrpTerm(Srp* srp)
         XFREE(srp->salt, NULL, DYNAMIC_TYPE_SRP);
         XMEMSET(srp->user, 0, srp->userSz);
         XFREE(srp->user, NULL, DYNAMIC_TYPE_SRP);
+        XMEMSET(srp->key, 0, srp->keySz);
+        XFREE(srp->key, NULL, DYNAMIC_TYPE_SRP);
 
         XMEMSET(srp, 0, sizeof(Srp));
     }
@@ -429,7 +470,6 @@ int wc_SrpGetPublic(Srp* srp, byte* public, word32* size)
     return r;
 }
 
-/** Computes the session key using the interleaved hash. */
 static int wc_SrpSetK(Srp* srp, byte* secret, word32 size)
 {
     SrpHash hash;
@@ -438,7 +478,13 @@ static int wc_SrpSetK(Srp* srp, byte* secret, word32 size)
     byte counter[4];
     int r;
 
-    for (i = j = 0; j < 2 * digestSz; i++) {
+    srp->key = (byte*)XMALLOC(2 * digestSz, NULL, DYNAMIC_TYPE_SRP);
+    if (srp->key == NULL)
+        return MEMORY_E;
+
+    srp->keySz = 2 * digestSz;
+
+    for (i = j = 0; j < srp->keySz; i++) {
         counter[0] = (i >> 24) & 0xFF;
         counter[1] = (i >> 16) & 0xFF;
         counter[2] = (i >>  8) & 0xFF;
@@ -448,10 +494,10 @@ static int wc_SrpSetK(Srp* srp, byte* secret, word32 size)
         if (!r) r = SrpHashUpdate(&hash, secret, size);
         if (!r) r = SrpHashUpdate(&hash, counter, 4);
 
-        if(j + digestSz > 2 * digestSz) {
+        if(j + digestSz > srp->keySz) {
             if (!r) r = SrpHashFinal(&hash, digest);
-            XMEMCPY(srp->key + j, digest, 2 * digestSz - j);
-            j = 2 * digestSz;
+            XMEMCPY(srp->key + j, digest, srp->keySz - j);
+            j = srp->keySz;
         }
         else {
             if (!r) r = SrpHashFinal(&hash, srp->key + j);
@@ -549,13 +595,15 @@ int wc_SrpComputeKey(Srp* srp, byte* clientPubKey, word32 clientPubKeySz,
     /* building session key from secret */
 
     if (!r) r = mp_to_unsigned_bin(&s, secret);
-    if (!r) r = wc_SrpSetK(srp, secret, mp_unsigned_bin_size(&s));
+    if (!r) r = srp->keyGenFunc_cb(srp, secret, mp_unsigned_bin_size(&s));
+    printf("key\n");
+    LogHex(srp->key, srp->keySz);
 
     /* updating client proof = H( H(N) ^ H(g) | H(user) | salt | A | B | K) */
 
     if (!r) r = SrpHashUpdate(&srp->client_proof, clientPubKey, clientPubKeySz);
     if (!r) r = SrpHashUpdate(&srp->client_proof, serverPubKey, serverPubKeySz);
-    if (!r) r = SrpHashUpdate(&srp->client_proof, srp->key, 2 * digestSz);
+    if (!r) r = SrpHashUpdate(&srp->client_proof, srp->key,     srp->keySz);
 
     /* updating server proof = H(A) */
 
@@ -587,7 +635,7 @@ int wc_SrpGetProof(Srp* srp, byte* proof, word32* size)
     if (srp->side == SRP_CLIENT_SIDE) {
         /* server proof = H( A | client proof | K) */
         if (!r) r = SrpHashUpdate(&srp->server_proof, proof, *size);
-        if (!r) r = SrpHashUpdate(&srp->server_proof, srp->key, 2 * (*size));
+        if (!r) r = SrpHashUpdate(&srp->server_proof, srp->key, srp->keySz);
     }
 
     return r;
@@ -610,29 +658,13 @@ int wc_SrpVerifyPeersProof(Srp* srp, byte* proof, word32 size)
     if (srp->side == SRP_SERVER_SIDE) {
         /* server proof = H( A | client proof | K) */
         if (!r) r = SrpHashUpdate(&srp->server_proof, proof, size);
-        if (!r) r = SrpHashUpdate(&srp->server_proof, srp->key, 2 * size);
+        if (!r) r = SrpHashUpdate(&srp->server_proof, srp->key, srp->keySz);
     }
 
     if (!r && XMEMCMP(proof, digest, size) != 0)
         r = SRP_VERIFY_E;
 
     return r;
-}
-
-int wc_SrpGetSessionKey(Srp* srp, byte* key, word32* size)
-{
-    word32 sz;
-
-    if (!srp || !key || !size)
-        return BAD_FUNC_ARG;
-
-    if (*size < (sz = SrpHashSize(srp->type)))
-        return BUFFER_E;
-
-    XMEMCPY(key, srp->key, sz);
-    *size = sz;
-
-    return 0;
 }
 
 #endif /* WOLFCRYPT_HAVE_SRP */
