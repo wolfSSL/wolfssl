@@ -5461,9 +5461,11 @@ int curve25519_test(void)
         return -1003;
 
     /* find shared secret key */
+    x = sizeof(sharedA);
     if (wc_curve25519_shared_secret(&userA, &userB, sharedA, &x) != 0)
         return -1004;
 
+    y = sizeof(sharedB);
     if (wc_curve25519_shared_secret(&userB, &userA, sharedB, &y) != 0)
         return -1005;
 
@@ -5475,6 +5477,7 @@ int curve25519_test(void)
         return -1007;
 
     /* export a public key and import it for another user */
+    x = sizeof(exportBuf);
     if (wc_curve25519_export_public(&userA, exportBuf, &x) != 0)
         return -1008;
 
@@ -5483,6 +5486,7 @@ int curve25519_test(void)
 
     /* test shared key after importing a public key */
     XMEMSET(sharedB, 0, sizeof(sharedB));
+    y = sizeof(sharedB);
     if (wc_curve25519_shared_secret(&userB, &pubKey, sharedB, &y) != 0)
         return -1010;
 
@@ -5500,6 +5504,7 @@ int curve25519_test(void)
 
     /* test against known test vector */
     XMEMSET(sharedB, 0, sizeof(sharedB));
+    y = sizeof(sharedB);
     if (wc_curve25519_shared_secret(&userA, &userB, sharedB, &y) != 0)
         return -1014;
 
@@ -5508,11 +5513,35 @@ int curve25519_test(void)
 
     /* test swaping roles of keys and generating same shared key */
     XMEMSET(sharedB, 0, sizeof(sharedB));
+    y = sizeof(sharedB);
     if (wc_curve25519_shared_secret(&userB, &userA, sharedB, &y) != 0)
         return -1016;
 
     if (XMEMCMP(ss, sharedB, y))
         return -1017;
+
+    /* test with 1 generated key and 1 from known test vector */
+    if (wc_curve25519_import_private_raw(sa, sizeof(sa), pa, sizeof(pa), &userA)
+        != 0)
+        return -1018;
+
+    if (wc_curve25519_make_key(&rng, 32, &userB) != 0)
+        return -1019;
+
+    x = sizeof(sharedA);
+    if (wc_curve25519_shared_secret(&userA, &userB, sharedA, &x) != 0)
+        return -1020;
+
+    y = sizeof(sharedB);
+    if (wc_curve25519_shared_secret(&userB, &userA, sharedB, &y) != 0)
+        return -1021;
+
+    /* compare shared secret keys to test they are the same */
+    if (y != x)
+        return -1022;
+
+    if (XMEMCMP(sharedA, sharedB, x))
+        return -1023;
 
     /* clean up keys when done */
     wc_curve25519_free(&pubKey);
