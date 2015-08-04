@@ -291,6 +291,10 @@
 				RelativePath=".\src\tls.c"
 				>
 			</File>
+			<File
+				RelativePath="wolfcrypt\src\wc_encrypt.c"
+				>
+			</File>
 		</Filter>
 		<Filter
 			Name="Header Files"
