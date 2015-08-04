@@ -308,6 +308,7 @@
     <ClCompile Include="wolfcrypt\src\sha.c" />
     <ClCompile Include="wolfcrypt\src\sha256.c" />
     <ClCompile Include="wolfcrypt\src\sha512.c" />
+	<ClCompile Include="wolfcrypt\src\wc_encrypt.c" />
     <ClCompile Include="src\ssl.c" />
     <ClCompile Include="src\tls.c" />
   </ItemGroup>
