@@ -32,40 +32,7 @@
 #include <wolfssl/wolfcrypt/error-crypt.h>
 
 /** Computes the session key using the Mask Generation Function 1. */
-static int wc_SrpSetK(Srp* srp, byte* secret, word32 size);
-
-#include <stdio.h>
-static inline void LogHex(byte* data, word32 length)
-{
-    #define LINE_LEN 16
-
-    word32 i;
-
-    printf("\t");
-
-    if (!data) {
-        printf("NULL\n");
-        return;
-    }
-
-    for (i = 0; i < LINE_LEN; i++) {
-        if (i < length)
-            printf("%02x ", data[i]);
-        else
-            printf("   ");
-    }
-
-    printf("| ");
-
-    for (i = 0; i < LINE_LEN; i++)
-        if (i < length)
-            printf("%c", 31 < data[i] && data[i] < 127 ? data[i] : '.');
-
-    printf("\n");
-
-    if (length > LINE_LEN)
-        LogHex(data + LINE_LEN, length - LINE_LEN);
-}
+static int wc_SrpSetKey(Srp* srp, byte* secret, word32 size);
 
 static int SrpHashInit(SrpHash* hash, SrpType type)
 {
@@ -216,7 +183,7 @@ int wc_SrpInit(Srp* srp, SrpType type, SrpSide side)
     srp->user = NULL;    srp->userSz = 0;
     srp->key  = NULL;    srp->keySz  = 0;
 
-    srp->keyGenFunc_cb = wc_SrpSetK;
+    srp->keyGenFunc_cb = wc_SrpSetKey;
 
     return 0;
 }
@@ -273,9 +240,15 @@ int wc_SrpSetParams(Srp* srp, const byte* N,    word32 nSz,
     if (mp_read_unsigned_bin(&srp->N, N, nSz) != MP_OKAY)
         return MP_READ_E;
 
+    if (mp_count_bits(&srp->N) < SRP_DEFAULT_MIN_BITS)
+        return BAD_FUNC_ARG;
+
     /* Set g */
     if (mp_read_unsigned_bin(&srp->g, g, gSz) != MP_OKAY)
         return MP_READ_E;
+
+    if (mp_cmp(&srp->N, &srp->g) != MP_GT)
+        return BAD_FUNC_ARG;
 
     /* Set salt */
     if (srp->salt) {
@@ -397,13 +370,23 @@ int wc_SrpSetVerifier(Srp* srp, const byte* verifier, word32 size)
 
 int wc_SrpSetPrivate(Srp* srp, const byte* private, word32 size)
 {
+    mp_int p;
+    int r;
+
     if (!srp || !private || !size)
         return BAD_FUNC_ARG;
 
     if (mp_iszero(&srp->auth))
         return SRP_CALL_ORDER_E;
 
-    return mp_read_unsigned_bin(&srp->priv, private, size);
+    r = mp_init(&p);
+    if (!r) r = mp_read_unsigned_bin(&p, private, size);
+    if (!r) r = mp_mod(&p, &srp->N, &srp->priv);
+    if (!r) r = mp_iszero(&srp->priv) ? SRP_BAD_KEY_E : 0;
+
+    mp_clear(&p);
+
+    return r;
 }
 
 /** Generates random data using wolfcrypt RNG. */
@@ -452,6 +435,7 @@ int wc_SrpGetPublic(Srp* srp, byte* public, word32* size)
 
         if (mp_init_multi(&i, &j, 0, 0, 0, 0) == MP_OKAY) {
             if (!r) r = mp_read_unsigned_bin(&i, srp->k,SrpHashSize(srp->type));
+            if (!r) r = mp_iszero(&i) ? SRP_BAD_KEY_E : 0;
             if (!r) r = mp_exptmod(&srp->g, &srp->priv, &srp->N, &pubkey);
             if (!r) r = mp_mulmod(&i, &srp->auth, &srp->N, &j);
             if (!r) r = mp_add(&j, &pubkey, &i);
@@ -470,7 +454,7 @@ int wc_SrpGetPublic(Srp* srp, byte* public, word32* size)
     return r;
 }
 
-static int wc_SrpSetK(Srp* srp, byte* secret, word32 size)
+static int wc_SrpSetKey(Srp* srp, byte* secret, word32 size)
 {
     SrpHash hash;
     byte digest[SRP_MAX_DIGEST_SIZE];
@@ -566,11 +550,15 @@ int wc_SrpComputeKey(Srp* srp, byte* clientPubKey, word32 clientPubKeySz,
     /* building s (secret) */
 
     if (!r && srp->side == SRP_CLIENT_SIDE) {
-        /* temp1 = B - k * v */
+
+        /* temp1 = B - k * v; rejects k == 0, B == 0 and B >= N. */
         r = mp_read_unsigned_bin(&temp1, srp->k, digestSz);
+        if (!r) r = mp_iszero(&temp1) ? SRP_BAD_KEY_E : 0;
         if (!r) r = mp_exptmod(&srp->g, &srp->auth, &srp->N, &temp2);
         if (!r) r = mp_mulmod(&temp1, &temp2, &srp->N, &s);
         if (!r) r = mp_read_unsigned_bin(&temp2, serverPubKey, serverPubKeySz);
+        if (!r) r = mp_iszero(&temp2) ? SRP_BAD_KEY_E : 0;
+        if (!r) r = mp_cmp(&temp2, &srp->N) != MP_LT ? SRP_BAD_KEY_E : 0;
         if (!r) r = mp_sub(&temp2, &s, &temp1);
 
         /* temp2 = a + u * x */
@@ -584,9 +572,17 @@ int wc_SrpComputeKey(Srp* srp, byte* clientPubKey, word32 clientPubKeySz,
         /* temp1 = v ^ u % N */
         r = mp_exptmod(&srp->auth, &u, &srp->N, &temp1);
 
-        /* temp2 = A * temp1 % N */
+        /* temp2 = A * temp1 % N; rejects A == 0, A >= N */
         if (!r) r = mp_read_unsigned_bin(&s, clientPubKey, clientPubKeySz);
+        if (!r) r = mp_iszero(&s) ? SRP_BAD_KEY_E : 0;
+        if (!r) r = mp_cmp(&s, &srp->N) != MP_LT ? SRP_BAD_KEY_E : 0;
         if (!r) r = mp_mulmod(&s, &temp1, &srp->N, &temp2);
+
+        /* rejects A * v ^ u % N >= 1, A * v ^ u % N == -1 % N */
+        if (!r) r = mp_read_unsigned_bin(&temp1, (const byte*)"\001", 1);
+        if (!r) r = mp_cmp(&temp2, &temp1) != MP_GT ? SRP_BAD_KEY_E : 0;
+        if (!r) r = mp_sub(&srp->N, &temp1, &s);
+        if (!r) r = mp_cmp(&temp2, &s) == MP_EQ ? SRP_BAD_KEY_E : 0;
 
         /* secret = temp2 * b % N */
         if (!r) r = mp_exptmod(&temp2, &srp->priv, &srp->N, &s);
@@ -596,8 +592,6 @@ int wc_SrpComputeKey(Srp* srp, byte* clientPubKey, word32 clientPubKeySz,
 
     if (!r) r = mp_to_unsigned_bin(&s, secret);
     if (!r) r = srp->keyGenFunc_cb(srp, secret, mp_unsigned_bin_size(&s));
-    printf("key\n");
-    LogHex(srp->key, srp->keySz);
 
     /* updating client proof = H( H(N) ^ H(g) | H(user) | salt | A | B | K) */
 

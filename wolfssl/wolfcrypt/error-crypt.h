@@ -153,6 +153,7 @@ enum {
 
     SRP_CALL_ORDER_E    = -217,  /* SRP function called in the wrong order. */
     SRP_VERIFY_E        = -218,  /* SRP proof verification failed. */
+    SRP_BAD_KEY_E       = -219,  /* SRP bad ephemeral values. */
 
     MIN_CODE_E          = -300   /* errors -101 - -299 */
 };

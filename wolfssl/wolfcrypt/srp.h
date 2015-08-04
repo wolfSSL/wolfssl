@@ -47,6 +47,9 @@
     #error "You have to have some kind of SHA hash if you want to use SRP."
 #endif
 
+/* Set the minimum number of bits acceptable in an SRP modulus */
+#define SRP_DEFAULT_MIN_BITS 512
+
 /**
  * SRP side, client or server.
  */
