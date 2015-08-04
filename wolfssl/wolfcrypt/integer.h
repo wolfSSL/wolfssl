@@ -307,7 +307,7 @@ int mp_radix_size (mp_int * a, int radix, int *size);
 #if defined(HAVE_ECC) || defined(WOLFSSL_KEY_GEN)
     int mp_sqrmod(mp_int* a, mp_int* b, mp_int* c);
 #endif
-#ifdef HAVE_ECC
+#if defined(HAVE_ECC) || defined(WOLFSSL_KEY_GEN)
     int mp_read_radix(mp_int* a, const char* str, int radix);
 #endif
 

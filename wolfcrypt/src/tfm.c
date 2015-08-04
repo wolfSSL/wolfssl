@@ -2264,6 +2264,7 @@ static const int lnz[16] = {
    4, 0, 1, 0, 2, 0, 1, 0, 3, 0, 1, 0, 2, 0, 1, 0
 };
 
+#ifdef WOLFSSL_KEY_GEN
 /* swap the elements of two integers, for cases where you can't simply swap the
  * mp_int pointers around
  */
@@ -2275,6 +2276,7 @@ static void fp_exch (fp_int * a, fp_int * b)
     *a = *b;
     *b = t;
 }
+#endif
 
 /* Counts the number of lsbs which are zero before the first zero bit */
 int fp_cnt_lsb(fp_int *a)
@@ -2724,12 +2726,14 @@ int mp_add_d(fp_int *a, fp_digit b, fp_int *c)
 #endif  /* HAVE_ECC || !NO_PWDBASED */
 
 
-#ifdef HAVE_ECC
+#if defined(HAVE_ECC) || defined(WOLFSSL_KEY_GEN) || defined(HAVE_COMP_KEY)
 
 /* chars used in radix conversions */
 static const char *fp_s_rmap = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ\
                                 abcdefghijklmnopqrstuvwxyz+/";
+#endif
 
+#ifdef HAVE_ECC
 static int fp_read_radix(fp_int *a, const char *str, int radix)
 {
   int     y, neg;
@@ -2842,6 +2846,7 @@ int mp_cnt_lsb(fp_int* a)
 
 #endif /* HAVE_COMP_KEY */
 
+#endif /* HAVE_ECC */
 
 #if defined(WOLFSSL_KEY_GEN) || defined(HAVE_COMP_KEY)
 
@@ -2952,8 +2957,6 @@ int mp_toradix (mp_int *a, char *str, int radix)
 }
 
 #endif /* defined(WOLFSSL_KEY_GEN) || defined(HAVE_COMP_KEY) */
-
-#endif /* HAVE_ECC */
 
 #endif /* USE_FAST_MATH */
 
