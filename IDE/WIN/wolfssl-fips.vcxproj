@@ -169,8 +169,6 @@
     </ClCompile>
     <Link>
       <AdditionalDependencies>ws2_32.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <OptimizeReferences>false</OptimizeReferences>
-      <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -178,11 +176,10 @@
       <Optimization>MaxSpeed</Optimization>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <AdditionalIncludeDirectories>./;../../;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>OPENSSL_EXTRA;HAVE_THREAD_LS;WOLFSSL_KEY_GEN;HAVE_FIPS;HAVE_AESGCM;HAVE_HASHDRBG;WOLFSSL_SHA384;WOLFSSL_SHA512;NO_PSK;NO_HC128;NO_RC4;NO_RABBIT;NO_DSA;NO_MD4;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;OPENSSL_EXTRA;HAVE_THREAD_LS;WOLFSSL_KEY_GEN;HAVE_FIPS;HAVE_AESGCM;HAVE_HASHDRBG;WOLFSSL_SHA384;WOLFSSL_SHA512;NO_PSK;NO_HC128;NO_RC4;NO_RABBIT;NO_DSA;NO_MD4;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <WarningLevel>Level3</WarningLevel>
-      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='DLL Release|Win32'">
