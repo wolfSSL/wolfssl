@@ -112,6 +112,8 @@ int wc_ed25519_sign_msg(const byte* in, word32 inlen, byte* out,
     /* step 1: create nonce to use where nonce is r in
        r = H(h_b, ... ,h_2b-1,M) */
     ret = wc_Sha512Hash(key->k, ED25519_KEY_SIZE, az);
+    if (ret != 0)
+        return ret;
 
     /* apply clamp */
     az[0]  &= 248;
@@ -130,7 +132,7 @@ int wc_ed25519_sign_msg(const byte* in, word32 inlen, byte* out,
     ret = wc_Sha512Final(&sha, nonce);
     if (ret != 0)
         return ret;
-    
+
     sc_reduce(nonce);
 
     /* step 2: computing R = rB where rB is the scalar multiplication of
