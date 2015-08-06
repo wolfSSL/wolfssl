@@ -178,6 +178,7 @@
     #define USE_FAST_MATH
     #define TFM_TIMING_RESISTANT
     #define NEED_AES_TABLES
+    #define WOLFSSL_HAVE_MIN
 #endif
 
 #ifdef WOLFSSL_MICROCHIP_PIC32MZ
