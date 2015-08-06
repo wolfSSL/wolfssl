@@ -1017,18 +1017,6 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     return 0;
 }
 
-#elif defined(MBED)
-
-/* write a real one !!!, just for testing board */
-int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
-{
-    int i;
-    for (i = 0; i < sz; i++ )
-        output[i] = i;
-
-    return 0;
-}
-
 #elif defined(MICROCHIP_PIC32)
 
 #ifdef MICROCHIP_MPLAB_HARMONY
@@ -1225,7 +1213,7 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 
         return 0;
     }
-#elif defined(WOLFSSL_LPC43xx) || defined(WOLFSSL_STM32F2xx)
+#elif defined(WOLFSSL_LPC43xx) || defined(WOLFSSL_STM32F2xx) || defined(MBED)
 
     #warning "write a real random seed!!!!, just for testing now"
 
