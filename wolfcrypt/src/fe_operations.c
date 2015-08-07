@@ -107,8 +107,9 @@ void fe_0(fe h)
 
 int curve25519(byte* q, byte* n, byte* p)
 {
+#if 0
   unsigned char e[32];
-  unsigned int i;
+#endif
   fe x1;
   fe x2;
   fe z2;
@@ -120,10 +121,16 @@ int curve25519(byte* q, byte* n, byte* p)
   unsigned int swap;
   unsigned int b;
 
-  for (i = 0;i < 32;++i) e[i] = n[i];
-  e[0] &= 248;
-  e[31] &= 127;
-  e[31] |= 64;
+  /* Clamp already done during key generation and import */
+#if 0
+  {
+    unsigned int i;
+    for (i = 0;i < 32;++i) e[i] = n[i];
+    e[0] &= 248;
+    e[31] &= 127;
+    e[31] |= 64;
+  }
+#endif
 
   fe_frombytes(x1,p);
   fe_1(x2);
@@ -133,7 +140,11 @@ int curve25519(byte* q, byte* n, byte* p)
 
   swap = 0;
   for (pos = 254;pos >= 0;--pos) {
+#if 0
     b = e[pos / 8] >> (pos & 7);
+#else
+    b = n[pos / 8] >> (pos & 7);
+#endif
     b &= 1;
     swap ^= b;
     fe_cswap(x2,x3,swap);

@@ -50,6 +50,15 @@
         <itemPath>../../wolfcrypt/src/tfm.c</itemPath>
         <itemPath>../../wolfcrypt/src/wc_port.c</itemPath>
         <itemPath>../../wolfcrypt/src/port/pic32/pic32mz-hash.c</itemPath>
+        <itemPath>../../wolfcrypt/src/hash.c</itemPath>
+        <itemPath>../../wolfcrypt/src/chacha20_poly1305.c</itemPath>
+        <itemPath>../../wolfcrypt/src/curve25519.c</itemPath>
+        <itemPath>../../wolfcrypt/src/ed25519.c</itemPath>
+        <itemPath>../../wolfcrypt/src/fe_low_mem.c</itemPath>
+        <itemPath>../../wolfcrypt/src/fe_operations.c</itemPath>
+        <itemPath>../../wolfcrypt/src/ge_low_mem.c</itemPath>
+        <itemPath>../../wolfcrypt/src/ge_operations.c</itemPath>
+        <itemPath>../../wolfcrypt/src/wc_encrypt.c</itemPath>
       </logicalFolder>
       <logicalFolder name="f1" displayName="wolfssl" projectFiles="true">
         <itemPath>../../src/crl.c</itemPath>
@@ -85,7 +94,7 @@
         <targetPluginBoard></targetPluginBoard>
         <platformTool>PKOBSKDEPlatformTool</platformTool>
         <languageToolchain>XC32</languageToolchain>
-        <languageToolchainVersion></languageToolchainVersion>
+        <languageToolchainVersion>1.33</languageToolchainVersion>
         <platform>4</platform>
       </toolsSet>
       <compileType>
