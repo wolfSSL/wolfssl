@@ -46,6 +46,7 @@ nobase_include_HEADERS+= \
                          wolfssl/wolfcrypt/blake2-int.h \
                          wolfssl/wolfcrypt/blake2-impl.h \
                          wolfssl/wolfcrypt/tfm.h \
+                         wolfssl/wolfcrypt/srp.h \
                          wolfssl/wolfcrypt/types.h \
                          wolfssl/wolfcrypt/visibility.h \
                          wolfssl/wolfcrypt/logging.h \
@@ -57,4 +58,3 @@ noinst_HEADERS+= \
                          wolfssl/wolfcrypt/port/pic32/pic32mz-crypt.h \
                          wolfssl/wolfcrypt/port/ti/ti-hash.h \
                          wolfssl/wolfcrypt/port/ti/ti-ccm.h
-

@@ -53,6 +53,7 @@
 #include <wolfssl/wolfcrypt/hmac.h>
 #include <wolfssl/wolfcrypt/dh.h>
 #include <wolfssl/wolfcrypt/dsa.h>
+#include <wolfssl/wolfcrypt/srp.h>
 #include <wolfssl/wolfcrypt/hc128.h>
 #include <wolfssl/wolfcrypt/rabbit.h>
 #include <wolfssl/wolfcrypt/chacha.h>
@@ -179,6 +180,7 @@ int  camellia_test(void);
 int  rsa_test(void);
 int  dh_test(void);
 int  dsa_test(void);
+int  srp_test(void);
 int  random_test(void);
 int  pwdbased_test(void);
 int  ripemd_test(void);
@@ -498,6 +500,13 @@ int wolfcrypt_test(void* args)
         return err_sys("DSA      test failed!\n", ret);
     else
         printf( "DSA      test passed!\n");
+#endif
+
+#ifdef WOLFCRYPT_HAVE_SRP
+    if ( (ret = srp_test()) != 0)
+        return err_sys("SRP      test failed!\n", ret);
+    else
+        printf( "SRP      test passed!\n");
 #endif
 
 #ifndef NO_PWDBASED
@@ -4541,6 +4550,101 @@ int dsa_test(void)
 
 #endif /* NO_DSA */
 
+#ifdef WOLFCRYPT_HAVE_SRP
+
+int srp_test(void)
+{
+    Srp cli, srv;
+    int r;
+
+    byte clientPubKey[80]; /* A */
+    byte serverPubKey[80]; /* B */
+    word32 clientPubKeySz = 80;
+    word32 serverPubKeySz = 80;
+    byte clientProof[SRP_MAX_DIGEST_SIZE]; /* M1 */
+    byte serverProof[SRP_MAX_DIGEST_SIZE]; /* M2 */
+    word32 clientProofSz = SRP_MAX_DIGEST_SIZE;
+    word32 serverProofSz = SRP_MAX_DIGEST_SIZE;
+
+    byte username[] = "user";
+    word32 usernameSz = 4;
+
+    byte password[] = "password";
+    word32 passwordSz = 8;
+
+    byte N[] = {
+        0xC9, 0x4D, 0x67, 0xEB, 0x5B, 0x1A, 0x23, 0x46, 0xE8, 0xAB, 0x42, 0x2F,
+        0xC6, 0xA0, 0xED, 0xAE, 0xDA, 0x8C, 0x7F, 0x89, 0x4C, 0x9E, 0xEE, 0xC4,
+        0x2F, 0x9E, 0xD2, 0x50, 0xFD, 0x7F, 0x00, 0x46, 0xE5, 0xAF, 0x2C, 0xF7,
+        0x3D, 0x6B, 0x2F, 0xA2, 0x6B, 0xB0, 0x80, 0x33, 0xDA, 0x4D, 0xE3, 0x22,
+        0xE1, 0x44, 0xE7, 0xA8, 0xE9, 0xB1, 0x2A, 0x0E, 0x46, 0x37, 0xF6, 0x37,
+        0x1F, 0x34, 0xA2, 0x07, 0x1C, 0x4B, 0x38, 0x36, 0xCB, 0xEE, 0xAB, 0x15,
+        0x03, 0x44, 0x60, 0xFA, 0xA7, 0xAD, 0xF4, 0x83
+    };
+
+    byte g[] = {
+        0x02
+    };
+
+    byte salt[] = {
+        0xB2, 0xE5, 0x8E, 0xCC, 0xD0, 0xCF, 0x9D, 0x10, 0x3A, 0x56
+    };
+
+    byte verifier[] = {
+        0x7C, 0xAB, 0x17, 0xFE, 0x54, 0x3E, 0x8C, 0x13, 0xF2, 0x3D, 0x21, 0xE7,
+        0xD2, 0xAF, 0xAF, 0xDB, 0xA1, 0x52, 0x69, 0x9D, 0x49, 0x01, 0x79, 0x91,
+        0xCF, 0xD1, 0x3F, 0xE5, 0x28, 0x72, 0xCA, 0xBE, 0x13, 0xD1, 0xC2, 0xDA,
+        0x65, 0x34, 0x55, 0x8F, 0x34, 0x0E, 0x05, 0xB8, 0xB4, 0x0F, 0x7F, 0x6B,
+        0xBB, 0xB0, 0x6B, 0x50, 0xD8, 0xB1, 0xCC, 0xB7, 0x81, 0xFE, 0xD4, 0x42,
+        0xF5, 0x11, 0xBC, 0x8A, 0x28, 0xEB, 0x50, 0xB3, 0x46, 0x08, 0xBA, 0x24,
+        0xA2, 0xFB, 0x7F, 0x2E, 0x0A, 0xA5, 0x33, 0xCC
+    };
+
+    /* client knows username and password.   */
+    /* server knows N, g, salt and verifier. */
+
+            r = wc_SrpInit(&cli, SRP_TYPE_SHA, SRP_CLIENT_SIDE);
+    if (!r) r = wc_SrpSetUsername(&cli, username, usernameSz);
+
+    /* client sends username to server */
+
+    if (!r) r = wc_SrpInit(&srv, SRP_TYPE_SHA, SRP_SERVER_SIDE);
+    if (!r) r = wc_SrpSetUsername(&srv, username, usernameSz);
+    if (!r) r = wc_SrpSetParams(&srv, N,    sizeof(N),
+                                      g,    sizeof(g),
+                                      salt, sizeof(salt));
+    if (!r) r = wc_SrpSetVerifier(&srv, verifier, sizeof(verifier));
+    if (!r) r = wc_SrpGetPublic(&srv, serverPubKey, &serverPubKeySz);
+
+    /* server sends N, g, salt and B to client */
+
+    if (!r) r = wc_SrpSetParams(&cli, N,    sizeof(N),
+                                      g,    sizeof(g),
+                                      salt, sizeof(salt));
+    if (!r) r = wc_SrpSetPassword(&cli, password, passwordSz);
+    if (!r) r = wc_SrpGetPublic(&cli, clientPubKey, &clientPubKeySz);
+    if (!r) r = wc_SrpComputeKey(&cli, clientPubKey, clientPubKeySz,
+                                       serverPubKey, serverPubKeySz);
+    if (!r) r = wc_SrpGetProof(&cli, clientProof, &clientProofSz);
+
+    /* client sends A and M1 to server */
+
+    if (!r) r = wc_SrpComputeKey(&srv, clientPubKey, clientPubKeySz,
+                                       serverPubKey, serverPubKeySz);
+    if (!r) r = wc_SrpVerifyPeersProof(&srv, clientProof, clientProofSz);
+    if (!r) r = wc_SrpGetProof(&srv, serverProof, &serverProofSz);
+
+    /* server sends M2 to client */
+
+    if (!r) r = wc_SrpVerifyPeersProof(&cli, serverProof, serverProofSz);
+
+    wc_SrpTerm(&cli);
+    wc_SrpTerm(&srv);
+
+    return r;
+}
+
+#endif /* WOLFCRYPT_HAVE_SRP */
 
 #ifdef OPENSSL_EXTRA
 
