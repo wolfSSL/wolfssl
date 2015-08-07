@@ -239,7 +239,8 @@ static const char* const msgTable[] =
     "Decrypt Keys Not Set Up",
     "Late Key Load Error",
     "Got Certificate Status msg",
-    "RSA Key Missing Error"
+    "RSA Key Missing Error",
+    "Secure Renegotiation Not Supported"
 };
 
 
@@ -1814,6 +1815,14 @@ static int DoHandShake(const byte* input, int* sslBytes,
 
     if (*sslBytes < size) {
         SetError(HANDSHAKE_INPUT_STR, error, session, FATAL_ERROR_STATE);
+        return -1;
+    }
+
+    /* A session's arrays are released when the handshake is completed. */
+    if (session->sslServer->arrays == NULL &&
+        session->sslClient->arrays == NULL) {
+
+        SetError(NO_SECURE_RENEGOTIATION, error, session, FATAL_ERROR_STATE);
         return -1;
     }
     
