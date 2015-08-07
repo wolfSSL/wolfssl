@@ -464,7 +464,11 @@
     #include "mqx.h"
     #ifndef NO_FILESYSTEM
         #include "mfs.h"
-        #include "fio.h"
+        #if MQX_USE_IO_OLD
+            #include "fio.h"
+        #else
+            #include "nio.h"
+        #endif
     #endif
     #ifndef SINGLE_THREADED
         #include "mutex.h"

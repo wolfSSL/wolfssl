@@ -126,8 +126,12 @@
 
 #ifdef FREESCALE_MQX
     #include <mqx.h>
-    #include <fio.h>
     #include <stdlib.h>
+    #if MQX_USE_IO_OLD
+        #include <fio.h>
+    #else
+        #include <nio.h>
+    #endif
 #else
     #include <stdio.h>
 #endif
