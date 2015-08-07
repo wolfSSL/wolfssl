@@ -244,7 +244,7 @@ static int QSH_FreeAll(WOLFSSL* ssl)
 
 
 #ifdef HAVE_NTRU
-static RNG* rng;
+static WC_RNG* rng;
 static wolfSSL_Mutex* rngMutex;
 
 static word32 GetEntropy(unsigned char* out, word32 num_bytes)
@@ -252,7 +252,7 @@ static word32 GetEntropy(unsigned char* out, word32 num_bytes)
     int ret = 0;
 
     if (rng == NULL) {
-        if ((rng = XMALLOC(sizeof(RNG), 0, DYNAMIC_TYPE_TLSX)) == NULL)
+        if ((rng = XMALLOC(sizeof(WC_RNG), 0, DYNAMIC_TYPE_TLSX)) == NULL)
             return DRBG_OUT_OF_MEMORY;
         wc_InitRng(rng);
     }
@@ -1765,7 +1765,7 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
 #endif /* NO_PSK */
 
     /* RNG */
-    ssl->rng = (RNG*)XMALLOC(sizeof(RNG), ssl->heap, DYNAMIC_TYPE_RNG);
+    ssl->rng = (WC_RNG*)XMALLOC(sizeof(WC_RNG), ssl->heap, DYNAMIC_TYPE_RNG);
     if (ssl->rng == NULL) {
         WOLFSSL_MSG("RNG Memory error");
         return MEMORY_E;

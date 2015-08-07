@@ -42,7 +42,7 @@
 /* generate an ed25519 key pair.
  * returns 0 on success
  */
-int wc_ed25519_make_key(RNG* rng, int keySz, ed25519_key* key)
+int wc_ed25519_make_key(WC_RNG* rng, int keySz, ed25519_key* key)
 {
     byte  az[ED25519_PRV_KEY_SIZE];
     int   ret;

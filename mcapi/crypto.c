@@ -285,13 +285,13 @@ int CRYPT_HUFFMAN_DeCompress(unsigned char* out, unsigned int outSz,
 /* RNG Initialize, < 0 on error */
 int CRYPT_RNG_Initialize(CRYPT_RNG_CTX* rng)
 {
-    typedef char rng_test[sizeof(CRYPT_RNG_CTX) >= sizeof(RNG) ? 1 : -1];
+    typedef char rng_test[sizeof(CRYPT_RNG_CTX) >= sizeof(WC_RNG) ? 1 : -1];
     (void)sizeof(rng_test);
 
     if (rng == NULL)
         return BAD_FUNC_ARG;
 
-    return InitRng((RNG*)rng);
+    return InitRng((WC_RNG*)rng);
 }
 
 
@@ -301,7 +301,7 @@ int CRYPT_RNG_Get(CRYPT_RNG_CTX* rng, unsigned char* b)
     if (rng == NULL || b == NULL)
         return BAD_FUNC_ARG;
 
-    return RNG_GenerateByte((RNG*)rng, (byte*)b);
+    return RNG_GenerateByte((WC_RNG*)rng, (byte*)b);
 }
 
 
@@ -312,7 +312,7 @@ int CRYPT_RNG_BlockGenerate(CRYPT_RNG_CTX* rng, unsigned char* b,
     if (rng == NULL || b == NULL)
         return BAD_FUNC_ARG;
 
-    return RNG_GenerateBlock((RNG*)rng, b, sz);
+    return RNG_GenerateBlock((WC_RNG*)rng, b, sz);
 }
 
 
@@ -512,7 +512,7 @@ int CRYPT_RSA_PublicEncrypt(CRYPT_RSA_CTX* rsa, unsigned char* out,
         return BAD_FUNC_ARG;
 
     return RsaPublicEncrypt(in, inSz, out, outSz, (RsaKey*)rsa->holder,
-                            (RNG*)rng);
+                            (WC_RNG*)rng);
 }
 
 
@@ -614,7 +614,7 @@ int CRYPT_ECC_DHE_KeyMake(CRYPT_ECC_CTX* ecc, CRYPT_RNG_CTX* rng, int keySz)
     if (ecc == NULL || rng == NULL)
         return BAD_FUNC_ARG;
 
-    return wc_ecc_make_key((RNG*)rng, keySz, (ecc_key*)ecc->holder);
+    return wc_ecc_make_key((WC_RNG*)rng, keySz, (ecc_key*)ecc->holder);
 }
 
 
@@ -649,7 +649,7 @@ int CRYPT_ECC_DSA_HashSign(CRYPT_ECC_CTX* ecc, CRYPT_RNG_CTX* rng,
                                                                 in == NULL)
         return BAD_FUNC_ARG;
 
-    ret = wc_ecc_sign_hash(in, inSz, sig, &inOut, (RNG*)rng,
+    ret = wc_ecc_sign_hash(in, inSz, sig, &inOut, (WC_RNG*)rng,
                        (ecc_key*)ecc->holder);
     *usedSz = inOut;
 

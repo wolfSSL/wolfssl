@@ -4284,7 +4284,7 @@ static int mp_prime_is_divisible (mp_int * a, int *result)
 
 static const int USE_BBS = 1;
 
-int mp_rand_prime(mp_int* N, int len, RNG* rng, void* heap)
+int mp_rand_prime(mp_int* N, int len, WC_RNG* rng, void* heap)
 {
     int   err, res, type;
     byte* buf;

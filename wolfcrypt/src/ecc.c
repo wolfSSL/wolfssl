@@ -1652,7 +1652,7 @@ int wc_ecc_point_is_at_infinity(ecc_point* p)
 }
 
 
-static int wc_ecc_make_key_ex(RNG* rng, ecc_key* key, const ecc_set_type* dp)
+static int wc_ecc_make_key_ex(WC_RNG* rng, ecc_key* key, const ecc_set_type* dp)
 {
    int            err;
    ecc_point*     base;
@@ -1775,7 +1775,7 @@ static int wc_ecc_make_key_ex(RNG* rng, ecc_key* key, const ecc_set_type* dp)
  return       MP_OKAY if successful,
  upon error all allocated memory will be freed
  */
-int wc_ecc_make_key(RNG* rng, int keysize, ecc_key* key)
+int wc_ecc_make_key(WC_RNG* rng, int keysize, ecc_key* key)
 {
     int x, err;
 
@@ -1835,7 +1835,7 @@ int wc_ecc_init(ecc_key* key)
  return    MP_OKAY if successful
  */
 int wc_ecc_sign_hash(const byte* in, word32 inlen, byte* out, word32 *outlen,
-                     RNG* rng, ecc_key* key)
+                     WC_RNG* rng, ecc_key* key)
 {
     mp_int    r;
     mp_int    s;
@@ -1870,7 +1870,7 @@ int wc_ecc_sign_hash(const byte* in, word32 inlen, byte* out, word32 *outlen,
   s            [out] The destination for s component of the signature
   return    MP_OKAY if successful
 */
-int wc_ecc_sign_hash_ex(const byte* in, word32 inlen, RNG* rng,
+int wc_ecc_sign_hash_ex(const byte* in, word32 inlen, WC_RNG* rng,
                      ecc_key* key, mp_int *r, mp_int *s)
 {
    mp_int        e;
@@ -4834,7 +4834,7 @@ int wc_ecc_ctx_set_peer_salt(ecEncCtx* ctx, const byte* salt)
 }
 
 
-static int ecc_ctx_set_salt(ecEncCtx* ctx, int flags, RNG* rng)
+static int ecc_ctx_set_salt(ecEncCtx* ctx, int flags, WC_RNG* rng)
 {
     byte* saltBuffer = NULL;
 
@@ -4866,7 +4866,7 @@ static void ecc_ctx_init(ecEncCtx* ctx, int flags)
 
 
 /* allow ecc context reset so user doesn't have to init/free for resue */
-int wc_ecc_ctx_reset(ecEncCtx* ctx, RNG* rng)
+int wc_ecc_ctx_reset(ecEncCtx* ctx, WC_RNG* rng)
 {
     if (ctx == NULL || rng == NULL)
         return BAD_FUNC_ARG;
@@ -4877,7 +4877,7 @@ int wc_ecc_ctx_reset(ecEncCtx* ctx, RNG* rng)
 
 
 /* alloc/init and set defaults, return new Context  */
-ecEncCtx* wc_ecc_ctx_new(int flags, RNG* rng)
+ecEncCtx* wc_ecc_ctx_new(int flags, WC_RNG* rng)
 {
     int       ret = 0;
     ecEncCtx* ctx = (ecEncCtx*)XMALLOC(sizeof(ecEncCtx), 0, DYNAMIC_TYPE_ECC);

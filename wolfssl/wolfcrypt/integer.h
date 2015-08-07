@@ -315,7 +315,7 @@ int mp_radix_size (mp_int * a, int radix, int *size);
     int mp_prime_is_prime (mp_int * a, int t, int *result);
     int mp_gcd (mp_int * a, mp_int * b, mp_int * c);
     int mp_lcm (mp_int * a, mp_int * b, mp_int * c);
-    int mp_rand_prime(mp_int* N, int len, RNG* rng, void* heap);
+    int mp_rand_prime(mp_int* N, int len, WC_RNG* rng, void* heap);
 #endif
 
 int mp_cnt_lsb(mp_int *a);

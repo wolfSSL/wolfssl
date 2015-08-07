@@ -57,7 +57,7 @@ typedef struct DsaKey {
 WOLFSSL_API void wc_InitDsaKey(DsaKey* key);
 WOLFSSL_API void wc_FreeDsaKey(DsaKey* key);
 WOLFSSL_API int wc_DsaSign(const byte* digest, byte* out,
-                           DsaKey* key, RNG* rng);
+                           DsaKey* key, WC_RNG* rng);
 WOLFSSL_API int wc_DsaVerify(const byte* digest, const byte* sig,
                              DsaKey* key, int* answer);
 WOLFSSL_API int wc_DsaPublicKeyDecode(const byte* input, word32* inOutIdx,
@@ -67,8 +67,8 @@ WOLFSSL_API int wc_DsaPrivateKeyDecode(const byte* input, word32* inOutIdx,
 WOLFSSL_API int wc_DsaKeyToDer(DsaKey* key, byte* output, word32 inLen);
 
 #ifdef WOLFSSL_KEY_GEN
-WOLFSSL_API int wc_MakeDsaKey(RNG *rng, DsaKey *dsa);
-WOLFSSL_API int wc_MakeDsaParameters(RNG *rng, int modulus_size, DsaKey *dsa);
+WOLFSSL_API int wc_MakeDsaKey(WC_RNG *rng, DsaKey *dsa);
+WOLFSSL_API int wc_MakeDsaParameters(WC_RNG *rng, int modulus_size, DsaKey *dsa);
 #endif
 
 #ifdef __cplusplus

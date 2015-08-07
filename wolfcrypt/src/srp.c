@@ -404,7 +404,7 @@ int wc_SrpSetPrivate(Srp* srp, const byte* private, word32 size)
 /** Generates random data using wolfcrypt RNG. */
 static int wc_SrpGenPrivate(Srp* srp, byte* private, word32 size)
 {
-    RNG rng;
+    WC_RNG rng;
     int r = wc_InitRng(&rng);
 
     if (!r) r = wc_RNG_GenerateBlock(&rng, private, size);

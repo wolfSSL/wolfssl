@@ -43,7 +43,7 @@ typedef struct DhKey {
 WOLFSSL_API void wc_InitDhKey(DhKey* key);
 WOLFSSL_API void wc_FreeDhKey(DhKey* key);
 
-WOLFSSL_API int wc_DhGenerateKeyPair(DhKey* key, RNG* rng, byte* priv,
+WOLFSSL_API int wc_DhGenerateKeyPair(DhKey* key, WC_RNG* rng, byte* priv,
                                  word32* privSz, byte* pub, word32* pubSz);
 WOLFSSL_API int wc_DhAgree(DhKey* key, byte* agree, word32* agreeSz,
                        const byte* priv, word32 privSz, const byte* otherPub,

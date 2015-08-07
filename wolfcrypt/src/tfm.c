@@ -2412,7 +2412,7 @@ int mp_mod_d(fp_int *a, fp_digit b, fp_digit *c)
 void fp_gcd(fp_int *a, fp_int *b, fp_int *c);
 void fp_lcm(fp_int *a, fp_int *b, fp_int *c);
 int  fp_isprime(fp_int *a);
-int  fp_randprime(fp_int* N, int len, RNG* rng, void* heap);
+int  fp_randprime(fp_int* N, int len, WC_RNG* rng, void* heap);
 
 int mp_gcd(fp_int *a, fp_int *b, fp_int *c)
 {
@@ -2435,7 +2435,7 @@ int mp_prime_is_prime(mp_int* a, int t, int* result)
     return MP_OKAY;
 }
 
-int mp_rand_prime(mp_int* N, int len, RNG* rng, void* heap)
+int mp_rand_prime(mp_int* N, int len, WC_RNG* rng, void* heap)
 {
     int err;
 
@@ -2589,7 +2589,7 @@ int fp_isprime(fp_int *a)
    return FP_YES;
 }
 
-int fp_randprime(fp_int* N, int len, RNG* rng, void* heap)
+int fp_randprime(fp_int* N, int len, WC_RNG* rng, void* heap)
 {
     static const int USE_BBS = 1;
     int   err, type;

@@ -118,6 +118,12 @@
 #endif
 
 
+/* make sure old RNG name is used with CTaoCrypt FIPS */
+#ifdef HAVE_FIPS
+    #define WC_RNG RNG
+#endif
+
+
 #ifdef IPHONE
     #define SIZEOF_LONG_LONG 8
 #endif

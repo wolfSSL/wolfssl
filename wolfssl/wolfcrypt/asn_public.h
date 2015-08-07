@@ -149,15 +149,15 @@ typedef struct Cert {
 */
 WOLFSSL_API void wc_InitCert(Cert*);
 WOLFSSL_API int  wc_MakeCert(Cert*, byte* derBuffer, word32 derSz, RsaKey*,
-                         ecc_key*, RNG*);
+                         ecc_key*, WC_RNG*);
 #ifdef WOLFSSL_CERT_REQ
     WOLFSSL_API int  wc_MakeCertReq(Cert*, byte* derBuffer, word32 derSz,
                                     RsaKey*, ecc_key*);
 #endif
 WOLFSSL_API int  wc_SignCert(int requestSz, int sigType, byte* derBuffer,
-                         word32 derSz, RsaKey*, ecc_key*, RNG*);
+                         word32 derSz, RsaKey*, ecc_key*, WC_RNG*);
 WOLFSSL_API int  wc_MakeSelfCert(Cert*, byte* derBuffer, word32 derSz, RsaKey*,
-                             RNG*);
+                             WC_RNG*);
 WOLFSSL_API int  wc_SetIssuer(Cert*, const char*);
 WOLFSSL_API int  wc_SetSubject(Cert*, const char*);
 #ifdef WOLFSSL_ALT_NAMES
@@ -170,7 +170,8 @@ WOLFSSL_API int  wc_SetDatesBuffer(Cert*, const byte*, int);
 
     #ifdef HAVE_NTRU
         WOLFSSL_API int  wc_MakeNtruCert(Cert*, byte* derBuffer, word32 derSz,
-                                     const byte* ntruKey, word16 keySz, RNG*);
+                                     const byte* ntruKey, word16 keySz,
+                                     WC_RNG*);
     #endif
 
 #endif /* WOLFSSL_CERT_GEN */

@@ -797,7 +797,7 @@ void bench_blake2(void)
 
 #if !defined(NO_RSA) || !defined(NO_DH) \
                                 || defined(CYASSL_KEYGEN) || defined(HAVE_ECC)
-static RNG rng;
+static WC_RNG rng;
 #endif
 
 #ifndef NO_RSA

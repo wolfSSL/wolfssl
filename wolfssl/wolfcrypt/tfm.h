@@ -718,7 +718,7 @@ int mp_radix_size (mp_int * a, int radix, int *size);
 int  mp_gcd(fp_int *a, fp_int *b, fp_int *c);
 int  mp_lcm(fp_int *a, fp_int *b, fp_int *c);
 int  mp_prime_is_prime(mp_int* a, int t, int* result);
-int  mp_rand_prime(mp_int* N, int len, RNG* rng, void* heap);
+int  mp_rand_prime(mp_int* N, int len, WC_RNG* rng, void* heap);
 int  mp_exch(mp_int *a, mp_int *b);
 #endif /* WOLFSSL_KEY_GEN */
 

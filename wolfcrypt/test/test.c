@@ -3253,7 +3253,7 @@ int random_test(void)
 
 int random_test(void)
 {
-    RNG  rng;
+    WC_RNG rng;
     byte block[32];
     int ret;
 
@@ -3281,7 +3281,7 @@ byte GetEntropy(ENTROPY_CMD cmd, byte* out);
 
 byte GetEntropy(ENTROPY_CMD cmd, byte* out)
 {
-    static RNG rng;
+    static WC_RNG rng;
 
     if (cmd == INIT)
         return (wc_InitRng(&rng) == 0) ? 1 : 0;
@@ -3353,7 +3353,7 @@ int rsa_test(void)
     byte*   tmp;
     size_t bytes;
     RsaKey key;
-    RNG    rng;
+    WC_RNG rng;
     word32 idx = 0;
     int    ret;
     byte   in[] = "Everyone gets Friday off.";
@@ -4308,7 +4308,7 @@ int dh_test(void)
     byte   agree2[256];
     DhKey  key;
     DhKey  key2;
-    RNG    rng;
+    WC_RNG rng;
 
 #ifdef USE_CERT_BUFFERS_1024
     XMEMCPY(tmp, dh_key_der_1024, sizeof_dh_key_der_1024);
@@ -4397,7 +4397,7 @@ int dsa_test(void)
     word32 idx = 0;
     byte   tmp[1024];
     DsaKey key;
-    RNG    rng;
+    WC_RNG rng;
     Sha    sha;
     byte   hash[SHA_DIGEST_SIZE];
     byte   signature[40];
@@ -5108,7 +5108,7 @@ typedef struct rawEccVector {
 
 int ecc_test(void)
 {
-    RNG     rng;
+    WC_RNG  rng;
     byte    sharedA[1024];
     byte    sharedB[1024];
     byte    sig[1024];
@@ -5364,7 +5364,7 @@ int ecc_test(void)
 
 int ecc_encrypt_test(void)
 {
-    RNG     rng;
+    WC_RNG  rng;
     int     ret;
     ecc_key userA, userB;
     byte    msg[48];
@@ -5499,7 +5499,7 @@ int ecc_encrypt_test(void)
 
 int curve25519_test(void)
 {
-    RNG     rng;
+    WC_RNG  rng;
     byte    sharedA[32];
     byte    sharedB[32];
     byte    exportBuf[32];
@@ -5662,7 +5662,7 @@ int curve25519_test(void)
 #ifdef HAVE_ED25519
 int ed25519_test(void)
 {
-    RNG    rng;
+    WC_RNG rng;
     byte   out[ED25519_SIG_SIZE];
     byte   exportPKey[ED25519_KEY_SIZE];
     byte   exportSKey[ED25519_KEY_SIZE];
@@ -6312,8 +6312,8 @@ int pkcs7signed_test(void)
     byte* out;
     char data[] = "Hello World";
     word32 dataSz, outSz, certDerSz, keyDerSz;
-    PKCS7 msg;
-    RNG rng;
+    PKCS7  msg;
+    WC_RNG rng;
 
     byte transIdOid[] =
                { 0x06, 0x0a, 0x60, 0x86, 0x48, 0x01, 0x86, 0xF8, 0x45, 0x01,

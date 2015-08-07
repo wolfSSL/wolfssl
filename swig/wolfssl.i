@@ -27,7 +27,7 @@
     /* defn adds */
     char* wolfSSL_error_string(int err);
     int   wolfSSL_swig_connect(WOLFSSL*, const char* server, int port);
-    RNG*  GetRng(void);
+    WC_RNG* GetRng(void);
     RsaKey* GetRsaPrivateKey(const char* file);
     void    FillSignStr(unsigned char*, const char*, int);
 %}
@@ -44,11 +44,11 @@ int             wolfSSL_Init(void);
 char*           wolfSSL_error_string(int);
 int             wolfSSL_swig_connect(WOLFSSL*, const char* server, int port);
 
-int         wc_RsaSSL_Sign(const unsigned char* in, int inLen, unsigned char* out, int outLen, RsaKey* key, RNG* rng);
+int         wc_RsaSSL_Sign(const unsigned char* in, int inLen, unsigned char* out, int outLen, RsaKey* key, WC_RNG* rng);
 
 int         wc_RsaSSL_Verify(const unsigned char* in, int inLen, unsigned char* out, int outLen, RsaKey* key);
 
-RNG* GetRng(void);
+WC_RNG* GetRng(void);
 RsaKey* GetRsaPrivateKey(const char* file);
 void    FillSignStr(unsigned char*, const char*, int);
 

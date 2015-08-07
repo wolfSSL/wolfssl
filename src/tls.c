@@ -2058,7 +2058,7 @@ int TLSX_UseSessionTicket(TLSX** extensions, SessionTicket* ticket)
 
 
 #ifdef HAVE_QSH
-static RNG* rng;
+static WC_RNG* rng;
 static wolfSSL_Mutex* rngMutex;
 
 static void TLSX_QSH_FreeAll(QSHScheme* list)
@@ -2841,7 +2841,7 @@ static word32 GetEntropy(unsigned char* out, word32 num_bytes)
     int ret = 0;
 
     if (rng == NULL) {
-        if ((rng = XMALLOC(sizeof(RNG), 0, DYNAMIC_TYPE_TLSX)) == NULL)
+        if ((rng = XMALLOC(sizeof(WC_RNG), 0, DYNAMIC_TYPE_TLSX)) == NULL)
             return DRBG_OUT_OF_MEMORY;
         wc_InitRng(rng);
     }
