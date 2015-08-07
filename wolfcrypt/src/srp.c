@@ -31,6 +31,12 @@
 #include <wolfssl/wolfcrypt/random.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
 
+#ifdef NO_INLINE
+    #include <wolfssl/wolfcrypt/misc.h>
+#else
+    #include <wolfcrypt/src/misc.c>
+#endif
+
 /** Computes the session key using the Mask Generation Function 1. */
 static int wc_SrpSetKey(Srp* srp, byte* secret, word32 size);
 
@@ -194,14 +200,14 @@ void wc_SrpTerm(Srp* srp)
         mp_clear(&srp->N);    mp_clear(&srp->g);
         mp_clear(&srp->auth); mp_clear(&srp->priv);
 
-        XMEMSET(srp->salt, 0, srp->saltSz);
+        ForceZero(srp->salt, srp->saltSz);
         XFREE(srp->salt, NULL, DYNAMIC_TYPE_SRP);
-        XMEMSET(srp->user, 0, srp->userSz);
+        ForceZero(srp->user, srp->userSz);
         XFREE(srp->user, NULL, DYNAMIC_TYPE_SRP);
-        XMEMSET(srp->key, 0, srp->keySz);
+        ForceZero(srp->key, srp->keySz);
         XFREE(srp->key, NULL, DYNAMIC_TYPE_SRP);
 
-        XMEMSET(srp, 0, sizeof(Srp));
+        ForceZero(srp, sizeof(Srp));
     }
 }
 
@@ -252,7 +258,7 @@ int wc_SrpSetParams(Srp* srp, const byte* N,    word32 nSz,
 
     /* Set salt */
     if (srp->salt) {
-        XMEMSET(srp->salt, 0, srp->saltSz);
+        ForceZero(srp->salt, srp->saltSz);
         XFREE(srp->salt, NULL, DYNAMIC_TYPE_SRP);
     }
 
@@ -284,8 +290,10 @@ int wc_SrpSetParams(Srp* srp, const byte* N,    word32 nSz,
     if (!r) r = SrpHashFinal(&hash, digest2);
 
     /* digest1 = H(N) ^ H(g) */
-    for (i = 0, j = SrpHashSize(srp->type); i < j; i++)
-        digest1[i] ^= digest2[i];
+    if (r == 0) {
+        for (i = 0, j = SrpHashSize(srp->type); i < j; i++)
+            digest1[i] ^= digest2[i];
+    }
 
     /* digest2 = H(user) */
     if (!r) r = SrpHashInit(&hash, srp->type);
@@ -331,7 +339,7 @@ int wc_SrpSetPassword(Srp* srp, const byte* password, word32 size)
     /* Set x (private key) */
     if (!r) r = mp_read_unsigned_bin(&srp->auth, digest, digestSz);
 
-    XMEMSET(digest, 0, SRP_MAX_DIGEST_SIZE);
+    ForceZero(digest, SRP_MAX_DIGEST_SIZE);
 
     return r;
 }
@@ -348,6 +356,8 @@ int wc_SrpGetVerifier(Srp* srp, byte* verifier, word32* size)
         return SRP_CALL_ORDER_E;
 
     r = mp_init(&v);
+    if (r != MP_OKAY)
+        return MP_INIT_E;
 
     /* v = g ^ x % N */
     if (!r) r = mp_exptmod(&srp->g, &srp->auth, &srp->N, &v);
@@ -380,6 +390,8 @@ int wc_SrpSetPrivate(Srp* srp, const byte* private, word32 size)
         return SRP_CALL_ORDER_E;
 
     r = mp_init(&p);
+    if (r != MP_OKAY)
+        return MP_INIT_E;
     if (!r) r = mp_read_unsigned_bin(&p, private, size);
     if (!r) r = mp_mod(&p, &srp->N, &srp->priv);
     if (!r) r = mp_iszero(&srp->priv) ? SRP_BAD_KEY_E : 0;
@@ -406,10 +418,7 @@ int wc_SrpGetPublic(Srp* srp, byte* public, word32* size)
 {
     mp_int pubkey;
     word32 modulusSz;
-    int r = mp_init(&pubkey);
-
-    if (r != 0)
-        return r;
+    int r;
 
     if (!srp || !public || !size)
         return BAD_FUNC_ARG;
@@ -420,6 +429,10 @@ int wc_SrpGetPublic(Srp* srp, byte* public, word32* size)
     modulusSz = mp_unsigned_bin_size(&srp->N);
     if (*size < modulusSz)
         return BUFFER_E;
+
+    r = mp_init(&pubkey);
+    if (r != MP_OKAY)
+        return MP_INIT_E;
 
     /* priv = random() */
     if (mp_iszero(&srp->priv))
@@ -460,7 +473,7 @@ static int wc_SrpSetKey(Srp* srp, byte* secret, word32 size)
     byte digest[SRP_MAX_DIGEST_SIZE];
     word32 i, j, digestSz = SrpHashSize(srp->type);
     byte counter[4];
-    int r;
+    int r = BAD_FUNC_ARG;
 
     srp->key = (byte*)XMALLOC(2 * digestSz, NULL, DYNAMIC_TYPE_SRP);
     if (srp->key == NULL)
@@ -489,8 +502,8 @@ static int wc_SrpSetKey(Srp* srp, byte* secret, word32 size)
         }
     }
 
-    XMEMSET(digest, 0, sizeof(digest));
-    XMEMSET(&hash, 0, sizeof(SrpHash));
+    ForceZero(digest, sizeof(digest));
+    ForceZero(&hash, sizeof(SrpHash));
 
     return r;
 }
