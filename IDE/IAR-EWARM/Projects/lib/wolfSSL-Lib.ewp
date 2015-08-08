@@ -1957,7 +1957,13 @@
       <name>$PROJ_DIR$\..\..\..\..\wolfcrypt\src\error.c</name>
     </file>
     <file>
+      <name>$PROJ_DIR$\..\..\..\..\wolfcrypt\src\fe_low_mem.c</name>
+    </file>
+    <file>
       <name>$PROJ_DIR$\..\..\..\..\wolfcrypt\src\fe_operations.c</name>
+    </file>
+    <file>
+      <name>$PROJ_DIR$\..\..\..\..\wolfcrypt\src\ge_low_mem.c</name>
     </file>
     <file>
       <name>$PROJ_DIR$\..\..\..\..\wolfcrypt\src\ge_operations.c</name>
@@ -2023,7 +2029,13 @@
       <name>$PROJ_DIR$\..\..\..\..\wolfcrypt\src\sha512.c</name>
     </file>
     <file>
+      <name>$PROJ_DIR$\..\..\..\..\wolfcrypt\src\srp.c</name>
+    </file>
+    <file>
       <name>$PROJ_DIR$\..\..\..\..\wolfcrypt\src\tfm.c</name>
+    </file>
+    <file>
+      <name>$PROJ_DIR$\..\..\..\..\wolfcrypt\src\wc_encrypt.c</name>
     </file>
     <file>
       <name>$PROJ_DIR$\..\..\..\..\wolfcrypt\src\wc_port.c</name>
