@@ -14069,14 +14069,17 @@ int DoSessionTicket(WOLFSSL* ssl,
         #endif
             if (TLSX_SupportExtensions(ssl)) {
                 int ret = 0;
-                /* auto populate extensions supported unless user defined */
-                if ((ret = TLSX_PopulateExtensions(ssl, 1)) != 0)
-                    return ret;
 #else
             if (IsAtLeastTLSv1_2(ssl)) {
 #endif
                 /* Process the hello extension. Skip unsupported. */
                 word16 totalExtSz;
+
+#ifdef HAVE_TLS_EXTENSIONS
+                /* auto populate extensions supported unless user defined */
+                if ((ret = TLSX_PopulateExtensions(ssl, 1)) != 0)
+                    return ret;
+#endif
 
                 if ((i - begin) + OPAQUE16_LEN > helloSz)
                     return BUFFER_ERROR;

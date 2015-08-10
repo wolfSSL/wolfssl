@@ -1492,11 +1492,13 @@ int wc_DsaKeyToDer(DsaKey* key, byte* output, word32 inLen)
         sizes[i] = SetLength(rawLen, tmps[i] + 1) + 1 + lbit; /* tag & lbit */
 
         if (sizes[i] <= MAX_SEQ_SZ) {
+            int err;
+
             /* leading zero */
             if (lbit)
                 tmps[i][sizes[i]-1] = 0x00;
 
-            int err = mp_to_unsigned_bin(keyInt, tmps[i] + sizes[i]);
+            err = mp_to_unsigned_bin(keyInt, tmps[i] + sizes[i]);
             if (err == MP_OKAY) {
                 sizes[i] += (rawLen-lbit); /* lbit included in rawLen */
                 intTotalLen += sizes[i];
