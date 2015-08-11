@@ -111,6 +111,9 @@
 /* Uncomment next line if building for VxWorks */
 /* #define WOLFSSL_VXWORKS */
 
+/* Uncomment next line to enable deprecated less secure static DH suites */
+/* #define WOLFSSL_STATIC_DH */
+
 #include <wolfssl/wolfcrypt/visibility.h>
 
 #ifdef WOLFSSL_USER_SETTINGS
