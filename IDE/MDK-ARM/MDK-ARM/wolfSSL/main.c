@@ -23,12 +23,12 @@
     #include <config.h>
 #endif
 
-#include <cyassl/ctaocrypt/visibility.h>
-#include <cyassl/ctaocrypt/logging.h>
+#include <wolfssl/wolfcrypt/visibility.h>
+#include <wolfssl/wolfcrypt/logging.h>
 
 #include <RTL.h>
 #include <stdio.h>
-#include "cyassl_MDK_ARM.h"
+#include "wolfssl_MDK_ARM.h"
 
 /*-----------------------------------------------------------------------------
  *        Initialize a Flash Memory Card
@@ -53,11 +53,11 @@ static void init_card (void)
 /*-----------------------------------------------------------------------------
  *        TCP/IP tasks
  *----------------------------------------------------------------------------*/
-#ifdef CYASSL_KEIL_TCP_NET
+#ifdef WOLFSSL_KEIL_TCP_NET
 __task void tcp_tick (void) 
 {
     
-    CYASSL_MSG("Time tick started.") ;
+    WOLFSSL_MSG("Time tick started.") ;
     #if defined (HAVE_KEIL_RTX)
     os_itv_set (10);
     #endif
@@ -73,7 +73,7 @@ __task void tcp_tick (void)
 
 __task void tcp_poll (void)
 {
-    CYASSL_MSG("TCP polling started.\n") ;
+    WOLFSSL_MSG("TCP polling started.\n") ;
     while (1) {
         main_TcpNet ();
         #if defined (HAVE_KEIL_RTX)
@@ -83,13 +83,13 @@ __task void tcp_poll (void)
 }
 #endif
 
-#if defined(HAVE_KEIL_RTX) && defined(CYASSL_MDK_SHELL)
+#if defined(HAVE_KEIL_RTX) && defined(WOLFSSL_MDK_SHELL)
 #define SHELL_STACKSIZE 1000
 static unsigned char Shell_stack[SHELL_STACKSIZE] ;
 #endif
 
 
-#if  defined(CYASSL_MDK_SHELL)
+#if  defined(WOLFSSL_MDK_SHELL)
 extern void shell_main(void) ;
 #endif
 
@@ -104,14 +104,14 @@ extern void SER_Init(void) ;
 /*** This is the parent task entry ***/
 void main_task (void) 
 {
-    #ifdef CYASSL_KEIL_TCP_NET
+    #ifdef WOLFSSL_KEIL_TCP_NET
     init_TcpNet ();
 
     os_tsk_create (tcp_tick, 2);
     os_tsk_create (tcp_poll, 1);
     #endif
     
-    #ifdef CYASSL_MDK_SHELL 
+    #ifdef WOLFSSL_MDK_SHELL 
         #ifdef  HAVE_KEIL_RTX
            os_tsk_create_user(shell_main, 1, Shell_stack, SHELL_STACKSIZE) ;
        #else
@@ -127,7 +127,7 @@ void main_task (void)
     #endif 
 
     #ifdef   HAVE_KEIL_RTX
-    CYASSL_MSG("Terminating tcp_main\n") ;
+    WOLFSSL_MSG("Terminating tcp_main\n") ;
     os_tsk_delete_self ();
     #endif
 
@@ -137,28 +137,24 @@ void main_task (void)
     int myoptind = 0;
     char* myoptarg = NULL;
 
-#if defined(DEBUG_CYASSL)
-    extern void CyaSSL_Debugging_ON(void) ;
+#if defined(DEBUG_WOLFSSL)
+    extern void wolfSSL_Debugging_ON(void) ;
 #endif
 
 
 /*** main entry ***/
-extern void init_time(void) ;
 extern void 	SystemInit(void);
 
 int main() {
 
     SystemInit();  
-    SER_Init() ;
     #if !defined(NO_FILESYSTEM)
     init_card () ;     /* initializing SD card */
     #endif
 
-    init_time() ;
-
-    #if defined(DEBUG_CYASSL)
+    #if defined(DEBUG_WOLFSSL)
          printf("Turning ON Debug message\n") ;
-         CyaSSL_Debugging_ON() ;
+         wolfSSL_Debugging_ON() ;
     #endif
     
     #ifdef   HAVE_KEIL_RTX

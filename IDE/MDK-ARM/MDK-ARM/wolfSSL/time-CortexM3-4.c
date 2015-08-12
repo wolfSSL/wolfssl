@@ -1,4 +1,4 @@
-/* config.h
+/* time-STM32F2.c
  *
  * Copyright (C) 2006-2015 wolfSSL Inc.
  *
@@ -18,29 +18,24 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
  */
-
-
-/**** CyaSSL for KEIL-RL Configuration ****/
-
-#define __CORTEX_M3__
-#define CYASSL_MDK_ARM
-#define NO_WRITEV
-#define NO_CYASSL_DIR
-
-/* for Retarget.c */
-#define  STDIO
-#define BENCH_EMBEDDED
-
-#define CYASSL_DER_LOAD
-#define HAVE_NULL_CIPHER
-
-#if    defined(MDK_CONF_RTX_TCP_FS)
-#include "config-RTX-TCP-FS.h"
-#elif  defined(MDK_CONF_TCP_FS)
-#include "config-TCP-FS.h"
-#elif  defined(MDK_CONF_FS)
-#include "config-FS.h"
-#elif  defined(MDK_CONF_BARE_METAL)
-#include "config-BARE-METAL.h"
+ 
+#ifdef HAVE_CONFIG_H
+    #include <config.h>
 #endif
 
+
+#include <stdint.h>       
+#define DWT                 ((DWT_Type       *)     (0xE0001000UL)     ) 
+typedef struct
+{
+  uint32_t CTRL;                    /*!< Offset: 0x000 (R/W)  Control Register                          */
+  uint32_t CYCCNT;                  /*!< Offset: 0x004 (R/W)  Cycle Count Register                      */
+} DWT_Type;
+
+extern uint32_t SystemCoreClock ;
+
+double current_time(int reset) 
+{
+      if(reset) DWT->CYCCNT = 0 ;
+      return ((double)DWT->CYCCNT/SystemCoreClock) ;
+}

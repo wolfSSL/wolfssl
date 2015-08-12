@@ -34,11 +34,11 @@
     #define WOLFSSL_TRACK_MEMORY
 #endif
 
-#if defined(CYASSL_MDK_ARM)
+#if defined(WOLFSSL_MDK_ARM)
         #include <stdio.h>
         #include <string.h>
 
-        #if defined(CYASSL_MDK5)
+        #if defined(WOLFSSL_MDK5)
             #include "cmsis_os.h"
             #include "rl_fs.h" 
             #include "rl_net.h" 
@@ -46,7 +46,7 @@
             #include "rtl.h"
         #endif
 
-        #include "cyassl_MDK_ARM.h"
+        #include "wolfssl_MDK_ARM.h"
 #endif
 #include <cyassl/openssl/ssl.h>
 #include <cyassl/test.h>
@@ -179,7 +179,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     int    version = SERVER_DEFAULT_VERSION;
     int    doCliCertCheck = 1;
     int    useAnyAddr = 0;
-    word16 port = yasslPort;
+    word16 port = wolfSSLPort;
     int    usePsk = 0;
     int    useAnon = 0;
     int    doDTLS = 0;
@@ -659,7 +659,7 @@ while (1) {  /* allow resume option */
     if (SSL_write(ssl, msg, sizeof(msg)) != sizeof(msg))
         err_sys("SSL_write failed");
         
-    #if defined(CYASSL_MDK_SHELL) && defined(HAVE_MDK_RTX)
+    #if defined(WOLFSSL_MDK_SHELL) && defined(HAVE_MDK_RTX)
         os_dly_wait(500) ;
     #elif defined (CYASSL_TIRTOS)
         Task_yield();
@@ -729,7 +729,7 @@ while (1) {  /* allow resume option */
         args.argv = argv;
 
         CyaSSL_Init();
-#if defined(DEBUG_CYASSL) && !defined(CYASSL_MDK_SHELL)
+#if defined(DEBUG_CYASSL) && !defined(WOLFSSL_MDK_SHELL)
         CyaSSL_Debugging_ON();
 #endif
         if (CurrentDir("_build"))

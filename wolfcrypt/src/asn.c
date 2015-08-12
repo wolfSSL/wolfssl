@@ -113,19 +113,7 @@
     #define XTIME(t1)  mqx_time((t1))
     #define XGMTIME(c, t) mqx_gmtime((c), (t))
     #define XVALIDATE_DATE(d, f, t) ValidateDate((d), (f), (t))
-#elif defined(WOLFSSL_MDK_ARM)
-    #if defined(WOLFSSL_MDK5)
-        #include "cmsis_os.h"
-    #else
-        #include <rtl.h>
-    #endif
-    #undef RNG
-    #include "wolfssl_MDK_ARM.h"
-    #undef RNG
-    #define RNG wolfSSL_RNG /*for avoiding name conflict in "stm32f2xx.h" */
-    #define XTIME(tl)  (0)
-    #define XGMTIME(c, t) wolfssl_MDK_gmtime((c))
-    #define XVALIDATE_DATE(d, f, t)  ValidateDate((d), (f), (t))
+
 #elif defined(USER_TIME)
     /* user time, and gmtime compatible functions, there is a gmtime 
        implementation here that WINCE uses, so really just need some ticks
@@ -1456,7 +1444,8 @@ int wc_DsaKeyToDer(DsaKey* key, byte* output, word32 inLen)
     word32 seqSz, verSz, rawLen, intTotalLen = 0;
     word32 sizes[DSA_INTS];
     int    i, j, outLen, ret = 0, lbit;
-
+    int   err ;
+	
     byte  seq[MAX_SEQ_SZ];
     byte  ver[MAX_VERSION_SZ];
     byte* tmps[DSA_INTS];
@@ -1496,7 +1485,7 @@ int wc_DsaKeyToDer(DsaKey* key, byte* output, word32 inLen)
             if (lbit)
                 tmps[i][sizes[i]-1] = 0x00;
 
-            int err = mp_to_unsigned_bin(keyInt, tmps[i] + sizes[i]);
+            err = mp_to_unsigned_bin(keyInt, tmps[i] + sizes[i]);
             if (err == MP_OKAY) {
                 sizes[i] += (rawLen-lbit); /* lbit included in rawLen */
                 intTotalLen += sizes[i];

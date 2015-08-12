@@ -1,4 +1,4 @@
-/* ssl-dummy.c
+/* certs_test.c
  *
  * Copyright (C) 2006-2015 wolfSSL Inc.
  *
@@ -23,31 +23,6 @@
     #include <config.h>
 #endif
 
-#include <cyassl/ssl.h>
-#include <cyassl/internal.h>
-#include <cyassl/error-ssl.h>
-#include <cyassl/ctaocrypt/coding.h>
+/* Define initial data for cert buffers */
+#include <wolfssl/certs_test.h>
 
-Signer* GetCA(void* vp, byte* hash) 
-{ 
-    Signer*s ;
-    return  s ;
-}
-
-int CyaSSL_dtls(CYASSL* ssl)
-{
-    return ssl->options.dtls;
-}
-
-int CyaSSL_get_using_nonblock(CYASSL* ssl)
-{
-    CYASSL_ENTER("CyaSSL_get_using_nonblock");
-    CYASSL_LEAVE("CyaSSL_get_using_nonblock", ssl->options.usingNonblock);
-    return ssl->options.usingNonblock;
-}
-
-Signer* GetCAByName(void* vp, byte* hash)
-{
-    Signer * ca ;
-    return(ca) ;
-}

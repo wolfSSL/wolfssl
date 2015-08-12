@@ -67,13 +67,6 @@ typedef struct OS_Seed {
     #endif
 } OS_Seed;
 
-
-#if defined(WOLFSSL_MDK_ARM)
-#undef RNG
-#define RNG wolfSSL_RNG   /* for avoiding name conflict in "stm32f2xx.h" */
-#endif
-
-
 #if defined(HAVE_HASHDRBG) || defined(NO_RC4)
 
 

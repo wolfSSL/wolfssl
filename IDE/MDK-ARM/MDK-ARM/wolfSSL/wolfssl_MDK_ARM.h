@@ -1,4 +1,4 @@
-/* cyassl_KEIL_RL.h
+/* wolfssl_KEIL_RL.h
  *
  * Copyright (C) 2006-2015 wolfSSL Inc.
  *
@@ -22,16 +22,16 @@
 /******************************************************************************/
 /**   This file is for defining types, values for specific to KEIL-MDK-ARM.  **/
 /******************************************************************************/
-#ifndef CYASSL_KEIL_RL_H
-#define CYASSL_KEIL_RL_H
+#ifndef WOLFSSL_KEIL_RL_H
+#define WOLFSSL_KEIL_RL_H
 
 
 
 #include <stdio.h>
 
 /* Go to STDIN */
-#define fgets(buff, sz, fd)   Cyassl_fgets(buff, sz, fd) 
-extern char * Cyassl_fgets ( char * str, int num, FILE * f ) ;
+#define fgets(buff, sz, fd)   wolfssl_fgets(buff, sz, fd) 
+extern char * wolfssl_fgets ( char * str, int num, FILE * f ) ;
 
 #define SOCKET_T int
 
@@ -43,7 +43,7 @@ typedef long fd_mask;
 #define NFDBITS   (sizeof(fd_mask) * NUMBITSPERBYTE)  /* bits per mask */
 
 typedef struct fd_set {
-  fd_mask fds_bits[(FD_SETSIZE + NFDBITS - 1) / NFDBITS];
+    fd_mask fds_bits[(FD_SETSIZE + NFDBITS - 1) / NFDBITS];
 } fd_set;
 
 /*** #include <sys/types.h> ***/
@@ -52,39 +52,37 @@ struct timeval {
    long tv_usec;    /* microseconds */
 };
 
+#if defined(WOLFSSL_KEIL_TCP_NET) 
 
-/***  #include <unistd.h>  **/
-/*
- int select(int nfds, fd_set *readfds, fd_set *writefds,
-            fd_set *exceptfds, const struct timeval *timeout);
-  void FD_CLR(int fd, fd_set *set);
-  int  FD_ISSET(int fd, fd_set *set);
-  void FD_SET(int fd, fd_set *set);
-  void FD_ZERO(fd_set *set);
-*/
+#if defined(WOLFSSL_MDK5)
+#define SCK_EWOULDBLOCK     BSD_ERROR_WOULDBLOCK
+#define SCK_ETIMEOUT        BSD_ERROR_TIMEOUT
+#include "rl_net.h" 
+#endif
+ 
 typedef int socklen_t ;
 
 /* for avoiding conflict with KEIL-TCPnet BSD socket */
-/* Bodies are in cyassl_KEIL_RL.c                    */
-#define connect             Cyassl_connect
-#define accept              Cyassl_accept
-#define recv                Cyassl_recv
-#define send                Cyassl_send
-#define sleep               Cyassl_sleep
+/* Bodies are in wolfssl_KEIL_RL.c                    */
+#define connect(a,b,c)             wolfssl_connect(a,  (struct sockaddr* )(b), c) 
+#define accept              wolfssl_accept
+#define recv                wolfssl_recv
+#define send                wolfssl_send
+#define sleep               wolfssl_sleep
 
 /* for avoiding conflicting with KEIL-TCPnet TCP socket */
 /* Bodies are in test.h */
-#define tcp_connect Cyassl_tcp_connect    
-#define tcp_socket    Cyassl_tcp_soket
-#define tcp_listen      Cyassl_tcp_listen
-#define tcp_select     Cyassl_tcp_select
+#define tcp_connect wolfssl_tcp_connect    
+#define tcp_socket    wolfssl_tcp_soket
+#define tcp_listen      wolfssl_tcp_listen
+#define tcp_select     wolfssl_tcp_select
 
-extern int Cyassl_connect(int sd, const struct sockaddr * sa, int sz) ;
-extern int Cyassl_accept(int sd, struct sockaddr *addr, socklen_t *addrlen);
-extern int Cyassl_recv(int sd, void *buf, size_t len, int flags);
-extern int Cyassl_send(int sd, const void *buf, size_t len, int flags);
-extern void Cyassl_sleep(int sec) ;
-extern int Cyassl_tcp_select(int sd, int timeout) ;
+extern int wolfssl_connect(int sd,  const  struct sockaddr* sa, 	int sz) ;
+extern int wolfssl_accept(int sd, struct sockaddr*addr, socklen_t *addrlen);
+extern int wolfssl_recv(int sd, void *buf, size_t len, int flags);
+extern int wolfssl_send(int sd, const void *buf, size_t len, int flags);
+extern void wolfssl_sleep(int sec) ;
+extern int wolfssl_tcp_select(int sd, int timeout) ;
 
 /** KEIL-RL TCPnet ****/
 /* TCPnet BSD socket does not have following functions. */
@@ -95,9 +93,6 @@ extern int setsockopt(int sockfd, int level, int optname,
 extern int select(int nfds, fd_set *readfds, fd_set *writefds,
                           fd_set *exceptfds, const struct timeval *timeout);
 
-/* CyaSSL MDK-ARM time functions */
-#include <time.h>
-struct tm *Cyassl_MDK_gmtime(const time_t *c) ;
-extern double current_time(void) ;
+#endif /* WOLFSSL_KEIL_TCP_NET */
 
-#endif /* CYASSL_KEIL_RL_H */
+#endif /* WOLFSSL_KEIL_RL_H */
