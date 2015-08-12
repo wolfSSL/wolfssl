@@ -1003,7 +1003,7 @@ static int TLSX_SNI_Parse(WOLFSSL* ssl, byte* input, word16 length,
 #ifndef NO_WOLFSSL_SERVER
     word16 size = 0;
     word16 offset = 0;
-    byte forceKeep = 0;
+    int forceKeep = 0;
 #endif
 
     TLSX *extension = TLSX_Find(ssl->extensions, SERVER_NAME_INDICATION);
