@@ -101,8 +101,10 @@ static void test_wolfSSL_Method_Allocators(void)
             TEST_METHOD_ALLOCATOR(a, AssertNull)
 
 #ifndef NO_OLD_TLS
-    TEST_VALID_METHOD_ALLOCATOR(wolfSSLv3_server_method);
-    TEST_VALID_METHOD_ALLOCATOR(wolfSSLv3_client_method);
+    #ifdef WOLFSSL_ALLOW_SSLV3
+        TEST_VALID_METHOD_ALLOCATOR(wolfSSLv3_server_method);
+        TEST_VALID_METHOD_ALLOCATOR(wolfSSLv3_client_method);
+    #endif
     TEST_VALID_METHOD_ALLOCATOR(wolfTLSv1_server_method);
     TEST_VALID_METHOD_ALLOCATOR(wolfTLSv1_client_method);
     TEST_VALID_METHOD_ALLOCATOR(wolfTLSv1_1_server_method);

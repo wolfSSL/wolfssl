@@ -402,14 +402,16 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
 
 #ifdef USE_CYASSL_MEMORY
     if (trackMemory)
-        InitMemoryTracker(); 
+        InitMemoryTracker();
 #endif
 
     switch (version) {
 #ifndef NO_OLD_TLS
+    #ifdef WOLFSSL_ALLOW_SSLV3
         case 0:
             method = SSLv3_server_method();
             break;
+    #endif
 
     #ifndef NO_TLS
         case 1:

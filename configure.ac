@@ -887,6 +887,19 @@ else
 fi
 
 
+# SSLv3
+AC_ARG_ENABLE([sslv3],
+    [  --enable-sslv3         Enable SSL version 3.0 (default: disabled)],
+    [ ENABLED_SSLV3=$enableval ],
+    [ ENABLED_SSLV3=no]
+    )
+
+if test "$ENABLED_SSLV3" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ALLOW_SSLV3"
+fi
+
+
 # STACK SIZE info for examples
 AC_ARG_ENABLE([stacksize],
     [  --enable-stacksize      Enable stack size info on examples (default: disabled)],
@@ -2128,6 +2141,10 @@ AS_IF([test "x$ENABLED_MAXSTRENGTH" = "xyes" && \
       [AM_CFLAGS="$AM_CFLAGS -DNO_OLD_TLS"
        ENABLED_OLD_TLS=no])
 
+AS_IF([test "x$ENABLED_MAXSTRENGTH" = "xyes" && \
+       test "x$ENABLED_SSLV3" = "xyes"],
+      [AC_MSG_ERROR([Cannot use Max Strength and SSLv3 at the same time.])])
+
 
 # OPTIMIZE FLAGS
 if test "$GCC" = "yes"
@@ -2359,6 +2376,7 @@ echo "   * STUNNEL:                   $ENABLED_STUNNEL"
 echo "   * ERROR_STRINGS:             $ENABLED_ERROR_STRINGS"
 echo "   * DTLS:                      $ENABLED_DTLS"
 echo "   * Old TLS Versions:          $ENABLED_OLD_TLS"
+echo "   * SSL version 3.0:           $ENABLED_SSLV3"
 echo "   * OCSP:                      $ENABLED_OCSP"
 echo "   * CRL:                       $ENABLED_CRL"
 echo "   * CRL-MONITOR:               $ENABLED_CRL_MONITOR"

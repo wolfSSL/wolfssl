@@ -1765,7 +1765,7 @@ int wolfSSL_set_group_messages(WOLFSSL* ssl)
 static int SetMinVersionHelper(byte* minVersion, int version)
 {
     switch (version) {
-#ifndef NO_OLD_TLS
+#if defined(WOLFSSL_ALLOW_SSLV3) && !defined(NO_OLD_TLS)
         case WOLFSSL_SSLV3:
             *minVersion = SSLv3_MINOR;
             break;
@@ -1836,7 +1836,7 @@ int wolfSSL_SetVersion(WOLFSSL* ssl, int version)
     }
 
     switch (version) {
-#ifndef NO_OLD_TLS
+#if defined(WOLFSSL_ALLOW_SSLV3) && !defined(NO_OLD_TLS)
         case WOLFSSL_SSLV3:
             ssl->version = MakeSSLv3();
             break;
@@ -3026,16 +3026,16 @@ static int ProcessChainBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
 static INLINE WOLFSSL_METHOD* cm_pick_method(void)
 {
     #ifndef NO_WOLFSSL_CLIENT
-        #ifdef NO_OLD_TLS
-            return wolfTLSv1_2_client_method();
-        #else
+        #if defined(WOLFSSL_ALLOW_SSLV3) && !defined(NO_OLD_TLS)
             return wolfSSLv3_client_method();
+        #else
+            return wolfTLSv1_2_client_method();
         #endif
     #elif !defined(NO_WOLFSSL_SERVER)
-        #ifdef NO_OLD_TLS
-            return wolfTLSv1_2_server_method();
-        #else
+        #if defined(WOLFSSL_ALLOW_SSLV3) && !defined(NO_OLD_TLS)
             return wolfSSLv3_server_method();
+        #else
+            return wolfTLSv1_2_server_method();
         #endif
     #else
         return NULL;
@@ -5335,7 +5335,7 @@ int wolfSSL_dtls_got_timeout(WOLFSSL* ssl)
 /* client only parts */
 #ifndef NO_WOLFSSL_CLIENT
 
-    #ifndef NO_OLD_TLS
+    #if defined(WOLFSSL_ALLOW_SSLV3) && !defined(NO_OLD_TLS)
     WOLFSSL_METHOD* wolfSSLv3_client_method(void)
     {
         WOLFSSL_METHOD* method =
@@ -5623,7 +5623,7 @@ int wolfSSL_dtls_got_timeout(WOLFSSL* ssl)
 /* server only parts */
 #ifndef NO_WOLFSSL_SERVER
 
-    #ifndef NO_OLD_TLS
+    #if defined(WOLFSSL_ALLOW_SSLV3) && !defined(NO_OLD_TLS)
     WOLFSSL_METHOD* wolfSSLv3_server_method(void)
     {
         WOLFSSL_METHOD* method =

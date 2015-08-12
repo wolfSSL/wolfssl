@@ -2371,7 +2371,7 @@ DtlsMsg* DtlsMsgInsert(DtlsMsg* head, DtlsMsg* item)
 
 #endif /* WOLFSSL_DTLS */
 
-#ifndef NO_OLD_TLS
+#if defined(WOLFSSL_ALLOW_SSLV3) && !defined(NO_OLD_TLS)
 
 ProtocolVersion MakeSSLv3(void)
 {
@@ -2382,7 +2382,7 @@ ProtocolVersion MakeSSLv3(void)
     return pv;
 }
 
-#endif /* NO_OLD_TLS */
+#endif /* WOLFSSL_ALLOW_SSLV3 && !NO_OLD_TLS */
 
 
 #ifdef WOLFSSL_DTLS

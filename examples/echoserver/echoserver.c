@@ -132,8 +132,10 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
     method  = CyaDTLSv1_2_server_method();
 #elif  !defined(NO_TLS)
     method = CyaSSLv23_server_method();
-#else
+#elif defined(WOLFSSL_ALLOW_SSLV3)
     method = CyaSSLv3_server_method();
+#else
+    #error "no valid server method built in"
 #endif
     ctx    = CyaSSL_CTX_new(method);
     /* CyaSSL_CTX_set_session_cache_mode(ctx, SSL_SESS_CACHE_OFF); */
