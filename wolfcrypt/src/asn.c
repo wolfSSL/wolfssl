@@ -1481,6 +1481,8 @@ int wc_DsaKeyToDer(DsaKey* key, byte* output, word32 inLen)
         sizes[i] = SetLength(rawLen, tmps[i] + 1) + 1 + lbit; /* tag & lbit */
 
         if (sizes[i] <= MAX_SEQ_SZ) {
+            int err;
+
             /* leading zero */
             if (lbit)
                 tmps[i][sizes[i]-1] = 0x00;

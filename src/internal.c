@@ -6686,6 +6686,22 @@ int ProcessReply(WOLFSSL* ssl)
                         }
                     #endif
 
+                    /* Check for duplicate CCS message in DTLS mode.
+                     * DTLS allows for duplicate messages, and it should be
+                     * skipped. */
+                    if (ssl->options.dtls &&
+                        ssl->msgsReceived.got_change_cipher) {
+
+                        WOLFSSL_MSG("Duplicate ChangeCipher msg");
+                        if (ssl->curSize != 1) {
+                            WOLFSSL_MSG("Malicious or corrupted"
+                                        " duplicate ChangeCipher msg");
+                            return LENGTH_ERROR;
+                        }
+                        ssl->buffers.inputBuffer.idx++;
+                        break;
+                    }
+
                     ret = SanityCheckMsgReceived(ssl, change_cipher_hs);
                     if (ret != 0)
                         return ret;
@@ -14053,14 +14069,17 @@ int DoSessionTicket(WOLFSSL* ssl,
         #endif
             if (TLSX_SupportExtensions(ssl)) {
                 int ret = 0;
-                /* auto populate extensions supported unless user defined */
-                if ((ret = TLSX_PopulateExtensions(ssl, 1)) != 0)
-                    return ret;
 #else
             if (IsAtLeastTLSv1_2(ssl)) {
 #endif
                 /* Process the hello extension. Skip unsupported. */
                 word16 totalExtSz;
+
+#ifdef HAVE_TLS_EXTENSIONS
+                /* auto populate extensions supported unless user defined */
+                if ((ret = TLSX_PopulateExtensions(ssl, 1)) != 0)
+                    return ret;
+#endif
 
                 if ((i - begin) + OPAQUE16_LEN > helloSz)
                     return BUFFER_ERROR;
