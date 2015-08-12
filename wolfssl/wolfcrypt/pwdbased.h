@@ -51,9 +51,9 @@ WOLFSSL_API int wc_PKCS12_PBKDF(byte* output, const byte* passwd, int pLen,
                             int kLen, int typeH, int purpose);
 
 /* helper functions */
-WOLFSSL_LOCAL int GetDigestSize(int hashType);
-WOLFSSL_LOCAL int GetPKCS12HashSizes(int hashType, word32* v, word32* u);
-WOLFSSL_LOCAL int DoPKCS12Hash(int hashType, byte* buffer, word32 totalLen,
+WOLFSSL_LOCAL int GetDigestSize(int typeH);
+WOLFSSL_LOCAL int GetPKCS12HashSizes(int typeH, word32* v, word32* u);
+WOLFSSL_LOCAL int DoPKCS12Hash(int typeH, byte* buffer, word32 totalLen,
                                byte* Ai, word32 u, int iterations);
 
 
