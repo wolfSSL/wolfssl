@@ -107,6 +107,9 @@ static int BuildMessage(WOLFSSL* ssl, byte* output, int outSz,
     #if !defined(NO_RSA) || defined(HAVE_ECC)
         static int DoCertificateVerify(WOLFSSL* ssl, byte*, word32*, word32);
     #endif
+    #ifdef HAVE_STUNNEL
+        static int SNI_Callback(WOLFSSL* ssl);
+    #endif
 #endif
 
 
@@ -1557,25 +1560,179 @@ void FreeX509(WOLFSSL_X509* x509)
 #endif /* NO_CERTS */
 
 
+/* This function inherits a WOLFSSL_CTX's fields into an SSL object.
+   It is used during initialization and to switch an ssl's CTX with
+   wolfSSL_Set_SSL_CTX */
+int SetSSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
+{
+    if(!ssl || !ctx)
+        return BAD_FUNC_ARG;
+
+    byte havePSK = 0;
+    byte haveAnon = 0;
+    byte haveRSA = 0;
+    byte newSSL = ssl->ctx == NULL;
+    (void) haveAnon; /* Squash unused var warnings */
+
+#ifndef NO_RSA
+    haveRSA = 1;
+#endif
+#ifndef NO_PSK
+    havePSK = ctx->havePSK;
+#endif /* NO_PSK */
+#ifdef HAVE_ANON
+    haveAnon = ctx->haveAnon;
+#endif /* HAVE_ANON*/
+
+    /* decrement previous CTX reference count if exists.
+     * This should only happen if switching ctxs!*/
+    if (!newSSL) {
+        if(LockMutex(&ssl->ctx->countMutex) != 0) {
+            WOLFSSL_MSG("Couldn't lock on previous CTX count mutex");
+            return BAD_MUTEX_E;
+        }
+        WOLFSSL_MSG("Decrementing previous ctx reference count. Switching ctx.");
+        ssl->ctx->refCount--;
+        UnLockMutex(&ssl->ctx->countMutex);
+    }
+
+    /* increment CTX reference count */
+    if (LockMutex(&ctx->countMutex) != 0) {
+        WOLFSSL_MSG("Couldn't lock CTX count mutex");
+        return BAD_MUTEX_E;
+    }
+    ctx->refCount++;
+    UnLockMutex(&ctx->countMutex);
+    ssl->ctx     = ctx; /* only for passing to calls, options could change */
+    ssl->version = ctx->method->version;
+
+#ifdef HAVE_ECC
+    ssl->eccTempKeySz = ctx->eccTempKeySz;
+    ssl->pkCurveOID = ctx->pkCurveOID;
+#endif
+
+    ssl->timeout = ctx->timeout;
+    ssl->verifyCallback    = ctx->verifyCallback;
+    ssl->options.side      = ctx->method->side;
+    ssl->options.downgrade    = ctx->method->downgrade;
+    ssl->options.minDowngrade = ctx->minDowngrade;
+
+    if (ssl->options.side == WOLFSSL_SERVER_END)
+        ssl->options.haveDH = ctx->haveDH;
+
+    ssl->options.haveNTRU      = ctx->haveNTRU;
+    ssl->options.haveECDSAsig  = ctx->haveECDSAsig;
+    ssl->options.haveStaticECC = ctx->haveStaticECC;
+
+#ifndef NO_PSK
+    ssl->options.havePSK   = ctx->havePSK;
+    ssl->options.client_psk_cb = ctx->client_psk_cb;
+    ssl->options.server_psk_cb = ctx->server_psk_cb;
+#endif /* NO_PSK */
+
+#ifdef HAVE_ANON
+    ssl->options.haveAnon = ctx->haveAnon;
+#endif
+#ifndef NO_DH
+    ssl->options.minDhKeySz = ctx->minDhKeySz;
+#endif
+
+    ssl->options.sessionCacheOff      = ctx->sessionCacheOff;
+    ssl->options.sessionCacheFlushOff = ctx->sessionCacheFlushOff;
+
+    ssl->options.verifyPeer = ctx->verifyPeer;
+    ssl->options.verifyNone = ctx->verifyNone;
+    ssl->options.failNoCert = ctx->failNoCert;
+    ssl->options.sendVerify = ctx->sendVerify;
+
+    ssl->heap = ctx->heap;    /* defaults to self */
+    ssl->options.partialWrite  = ctx->partialWrite;
+    ssl->options.quietShutdown = ctx->quietShutdown;
+    ssl->options.groupMessages = ctx->groupMessages;
+
+#ifndef NO_DH
+    if (ssl->options.side == WOLFSSL_SERVER_END) {
+        ssl->buffers.serverDH_P = ctx->serverDH_P;
+        ssl->buffers.serverDH_G = ctx->serverDH_G;
+    }
+#endif
+
+#ifndef NO_CERTS
+    /* ctx still owns certificate, certChain, key, dh, and cm */
+    ssl->buffers.certificate = ctx->certificate;
+    ssl->buffers.certChain = ctx->certChain;
+    ssl->buffers.key = ctx->privateKey;
+#endif
+
+#ifdef HAVE_CAVIUM
+    ssl->devId = ctx->devId;
+#endif
+
+#ifndef NO_PSK
+    if (ctx->server_hint[0]) {   /* set in CTX */
+        XSTRNCPY(ssl->arrays->server_hint, ctx->server_hint, MAX_PSK_ID_LEN);
+        ssl->arrays->server_hint[MAX_PSK_ID_LEN - 1] = '\0';
+    }
+#endif /* NO_PSK */
+
+    if (ctx->suites)
+        *ssl->suites = *ctx->suites;
+    else
+        XMEMSET(ssl->suites, 0, sizeof(Suites));
+
+    /* make sure server has DH parms, and add PSK if there, add NTRU too */
+    if (ssl->options.side == WOLFSSL_SERVER_END)
+        InitSuites(ssl->suites, ssl->version, haveRSA, havePSK,
+                   ssl->options.haveDH, ssl->options.haveNTRU,
+                   ssl->options.haveECDSAsig, ssl->options.haveStaticECC,
+                   ssl->options.side);
+    else
+        InitSuites(ssl->suites, ssl->version, haveRSA, havePSK, TRUE,
+                   ssl->options.haveNTRU, ssl->options.haveECDSAsig,
+                   ssl->options.haveStaticECC, ssl->options.side);
+
+#ifndef NO_CERTS
+    /* make sure server has cert and key unless using PSK or Anon
+     * This should be true even if just switching ssl ctx */
+    if (ssl->options.side == WOLFSSL_SERVER_END && !havePSK && !haveAnon)
+        if (!ssl->buffers.certificate.buffer || !ssl->buffers.key.buffer) {
+            WOLFSSL_MSG("Server missing certificate and/or private key");
+            return NO_PRIVATE_KEY;
+        }
+#endif
+
+    return SSL_SUCCESS;
+}
+
+
 /* init everything to 0, NULL, default values before calling anything that may
    fail so that desctructor has a "good" state to cleanup */
 int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
 {
     int  ret;
-    byte haveRSA = 0;
-    byte havePSK = 0;
-    byte haveAnon = 0;
-
-    (void) haveAnon;
 
     XMEMSET(ssl, 0, sizeof(WOLFSSL));
 
-    ssl->ctx     = ctx; /* only for passing to calls, options could change */
-    ssl->version = ctx->method->version;
+    /* arrays */
+    ssl->arrays = (Arrays*)XMALLOC(sizeof(Arrays), ssl->heap,
+                                                           DYNAMIC_TYPE_ARRAYS);
+    if (ssl->arrays == NULL) {
+        WOLFSSL_MSG("Arrays Memory error");
+        return MEMORY_E;
+    }
+    XMEMSET(ssl->arrays, 0, sizeof(Arrays));
 
-#ifndef NO_RSA
-    haveRSA = 1;
-#endif
+    /* suites */
+    ssl->suites = (Suites*)XMALLOC(sizeof(Suites), ssl->heap,
+                                   DYNAMIC_TYPE_SUITES);
+    if (ssl->suites == NULL) {
+        WOLFSSL_MSG("Suites Memory error");
+        return MEMORY_E;
+    }
+
+    /* Initialize SSL with the appropriate fields from it's ctx */
+    if((ret =  SetSSL_CTX(ssl, ctx)) != SSL_SUCCESS)
+        return ret;
 
     ssl->buffers.inputBuffer.buffer = ssl->buffers.inputBuffer.staticBuffer;
     ssl->buffers.inputBuffer.bufferSize  = STATIC_BUFFER_LEN;
@@ -1587,12 +1744,6 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
     InitX509(&ssl->peerCert, 0);
 #endif
 
-#ifdef HAVE_ECC
-    ssl->eccTempKeySz = ctx->eccTempKeySz;
-    ssl->pkCurveOID = ctx->pkCurveOID;
-#endif
-
-    ssl->timeout = ctx->timeout;
     ssl->rfd = -1;   /* set to invalid descriptor */
     ssl->wfd = -1;
 
@@ -1607,30 +1758,6 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
     ssl->dtls_expected_rx = MAX_MTU;
 #endif
 
-    ssl->verifyCallback    = ctx->verifyCallback;
-    ssl->options.side      = ctx->method->side;
-    ssl->options.downgrade    = ctx->method->downgrade;
-    ssl->options.minDowngrade = ctx->minDowngrade;
-
-    if (ssl->options.side == WOLFSSL_SERVER_END)
-        ssl->options.haveDH = ctx->haveDH;
-
-    ssl->options.haveNTRU      = ctx->haveNTRU;
-    ssl->options.haveECDSAsig  = ctx->haveECDSAsig;
-    ssl->options.haveStaticECC = ctx->haveStaticECC;
-
-#ifndef NO_PSK
-    havePSK = ctx->havePSK;
-    ssl->options.havePSK   = ctx->havePSK;
-    ssl->options.client_psk_cb = ctx->client_psk_cb;
-    ssl->options.server_psk_cb = ctx->server_psk_cb;
-#endif /* NO_PSK */
-
-#ifdef HAVE_ANON
-    haveAnon = ctx->haveAnon;
-    ssl->options.haveAnon = ctx->haveAnon;
-#endif
-
     ssl->options.serverState = NULL_STATE;
     ssl->options.clientState = NULL_STATE;
     ssl->options.connectState = CONNECT_BEGIN;
@@ -1638,23 +1765,11 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
     ssl->options.handShakeState  = NULL_STATE;
     ssl->options.processReply = doProcessInit;
 
-#ifndef NO_DH
-    ssl->options.minDhKeySz = ctx->minDhKeySz;
-#endif
-
 #ifdef WOLFSSL_DTLS
     ssl->dtls_timeout_init              = DTLS_TIMEOUT_INIT;
     ssl->dtls_timeout_max               = DTLS_TIMEOUT_MAX;
     ssl->dtls_timeout                   = ssl->dtls_timeout_init;
 #endif
-
-    ssl->options.sessionCacheOff      = ctx->sessionCacheOff;
-    ssl->options.sessionCacheFlushOff = ctx->sessionCacheFlushOff;
-
-    ssl->options.verifyPeer = ctx->verifyPeer;
-    ssl->options.verifyNone = ctx->verifyNone;
-    ssl->options.failNoCert = ctx->failNoCert;
-    ssl->options.sendVerify = ctx->sendVerify;
 
     #ifndef NO_OLD_TLS
         ssl->hmac = SSL_hmac; /* default to SSLv3 */
@@ -1662,35 +1777,13 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
         ssl->hmac = TLS_hmac;
     #endif
 
-    ssl->heap = ctx->heap;    /* defaults to self */
-
     ssl->options.dtls = ssl->version.major == DTLS_MAJOR;
-    ssl->options.partialWrite  = ctx->partialWrite;
-    ssl->options.quietShutdown = ctx->quietShutdown;
-    ssl->options.groupMessages = ctx->groupMessages;
-
-#ifndef NO_DH
-    if (ssl->options.side == WOLFSSL_SERVER_END) {
-        ssl->buffers.serverDH_P = ctx->serverDH_P;
-        ssl->buffers.serverDH_G = ctx->serverDH_G;
-    }
-#endif
-#ifndef NO_CERTS
-    /* ctx still owns certificate, certChain, key, dh, and cm */
-    ssl->buffers.certificate = ctx->certificate;
-    ssl->buffers.certChain = ctx->certChain;
-    ssl->buffers.key = ctx->privateKey;
-#endif
 
 #ifdef WOLFSSL_DTLS
     ssl->buffers.dtlsCtx.fd = -1;
 #endif
 
     ssl->cipher.ssl = ssl;
-
-#ifdef HAVE_CAVIUM
-    ssl->devId = ctx->devId;
-#endif
 
 #ifdef HAVE_TLS_EXTENSIONS
 #ifdef HAVE_MAX_FRAGMENT
@@ -1747,30 +1840,6 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
     }
 #endif
 
-    /* increment CTX reference count */
-    if (LockMutex(&ctx->countMutex) != 0) {
-        WOLFSSL_MSG("Couldn't lock CTX count mutex");
-        return BAD_MUTEX_E;
-    }
-    ctx->refCount++;
-    UnLockMutex(&ctx->countMutex);
-
-    /* arrays */
-    ssl->arrays = (Arrays*)XMALLOC(sizeof(Arrays), ssl->heap,
-                                                           DYNAMIC_TYPE_ARRAYS);
-    if (ssl->arrays == NULL) {
-        WOLFSSL_MSG("Arrays Memory error");
-        return MEMORY_E;
-    }
-    XMEMSET(ssl->arrays, 0, sizeof(Arrays));
-
-#ifndef NO_PSK
-    if (ctx->server_hint[0]) {   /* set in CTX */
-        XSTRNCPY(ssl->arrays->server_hint, ctx->server_hint, MAX_PSK_ID_LEN);
-        ssl->arrays->server_hint[MAX_PSK_ID_LEN - 1] = '\0';
-    }
-#endif /* NO_PSK */
-
     /* RNG */
     ssl->rng = (WC_RNG*)XMALLOC(sizeof(WC_RNG), ssl->heap, DYNAMIC_TYPE_RNG);
     if (ssl->rng == NULL) {
@@ -1783,43 +1852,10 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
         return ret;
     }
 
-    /* suites */
-    ssl->suites = (Suites*)XMALLOC(sizeof(Suites), ssl->heap,
-                                   DYNAMIC_TYPE_SUITES);
-    if (ssl->suites == NULL) {
-        WOLFSSL_MSG("Suites Memory error");
-        return MEMORY_E;
-    }
-    if (ctx->suites)
-        *ssl->suites = *ctx->suites;
-    else
-        XMEMSET(ssl->suites, 0, sizeof(Suites));
-
-
-#ifndef NO_CERTS
-    /* make sure server has cert and key unless using PSK or Anon */
-    if (ssl->options.side == WOLFSSL_SERVER_END && !havePSK && !haveAnon)
-        if (!ssl->buffers.certificate.buffer || !ssl->buffers.key.buffer) {
-            WOLFSSL_MSG("Server missing certificate and/or private key");
-            return NO_PRIVATE_KEY;
-        }
-#endif
 #ifdef HAVE_SECRET_CALLBACK
     ssl->sessionSecretCb  = NULL;
     ssl->sessionSecretCtx = NULL;
 #endif
-
-    /* make sure server has DH parms, and add PSK if there, add NTRU too */
-    if (ssl->options.side == WOLFSSL_SERVER_END)
-        InitSuites(ssl->suites, ssl->version, haveRSA, havePSK,
-                   ssl->options.haveDH, ssl->options.haveNTRU,
-                   ssl->options.haveECDSAsig, ssl->options.haveStaticECC,
-                   ssl->options.side);
-    else
-        InitSuites(ssl->suites, ssl->version, haveRSA, havePSK, TRUE,
-                   ssl->options.haveNTRU, ssl->options.haveECDSAsig,
-                   ssl->options.haveStaticECC, ssl->options.side);
-
     return 0;
 }
 
@@ -14336,6 +14372,10 @@ int DoSessionTicket(WOLFSSL* ssl,
                 if ((ret = TLSX_Parse(ssl, (byte *) input + i,
                                                      totalExtSz, 1, &clSuites)))
                     return ret;
+#ifdef HAVE_STUNNEL
+                if((ret=SNI_Callback(ssl)))
+                    return ret;
+#endif /*HAVE_STUNNEL*/
 
                 i += totalExtSz;
 #else
@@ -15439,4 +15479,21 @@ int DoSessionTicket(WOLFSSL* ssl,
         return ret;
     }
 
+#ifdef HAVE_STUNNEL
+    static int SNI_Callback(WOLFSSL* ssl)
+    {
+        /* Stunnel supports a custom sni callback to switch an SSL's ctx
+        * when SNI is received. Call it now if exists */
+        if(ssl && ssl->ctx && ssl->ctx->sniRecvCb) {
+            WOLFSSL_MSG("Calling custom sni callback");
+            if(ssl->ctx->sniRecvCb(ssl, NULL, ssl->ctx->sniRecvCbArg)
+                    == alert_fatal) {
+                WOLFSSL_MSG("Error in custom sni callback. Fatal alert");
+                SendAlert(ssl, alert_fatal, unrecognized_name);
+                return FATAL_ERROR;
+            }
+        }
+        return 0;
+    }
+#endif /* HAVE_STUNNEL */
 #endif /* NO_WOLFSSL_SERVER */

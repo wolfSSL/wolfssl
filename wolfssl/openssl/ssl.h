@@ -96,7 +96,7 @@ typedef WOLFSSL_X509_STORE_CTX X509_STORE_CTX;
 #define SSL_get_verify_result(ctx)    X509_V_OK
 #define SSL_get_verify_mode           wolfSSL_SSL_get_mode
 #define SSL_get_verify_depth          wolfSSL_get_verify_depth
-#define SSL_CTX_get_verify_mode       wolfSSL_CTX_get_mode
+#define SSL_CTX_get_verify_mode       wolfSSL_CTX_get_verify_mode
 #define SSL_CTX_get_verify_depth      wolfSSL_CTX_get_verify_depth
 #define SSL_get_certificate(ctx)      0 /* used to pass to get_privatekey */
 
@@ -477,8 +477,56 @@ typedef WOLFSSL_X509_NAME_ENTRY X509_NAME_ENTRY;
 #define SSL_SESSION_get_id               wolfSSL_SESSION_get_id
 #define CRYPTO_dynlock_value             WOLFSSL_dynlock_value
 typedef WOLFSSL_ASN1_BIT_STRING    ASN1_BIT_STRING;
+typedef WOLFSSL_OCSP_REQUEST       OCSP_REQUEST;
+typedef WOLFSSL_OCSP_BASICRESP     OCSP_BASICRESP;
+typedef WOLFSSL_OCSP_REQ_CTX       OCSP_REQ_CTX;
+typedef WOLFSSL_OCSP_ONEREQ        OCSP_ONEREQ;
 
+#define V_OCSP_CERTSTATUS_UNKNOWN            2
+#define X509_V_ERR_APPLICATION_VERIFICATION 50
+#define V_OCSP_CERTSTATUS_GOOD               0
+#define V_OCSP_CERTSTATUS_REVOKED            1
+#define OCSP_RESPONSE_STATUS_SUCCESSFUL      0
 
+#define SSL_TLSEXT_ERR_OK                    0
+#define SSL_TLSEXT_ERR_ALERT_FATAL           alert_fatal
+#define SSL_TLSEXT_ERR_NOACK                 alert_warning
+#define TLSEXT_NAMETYPE_host_name            WOLFSSL_SNI_HOST_NAME
+
+#define ASN1_GENERALIZEDTIME    WOLFSSL_ASN1_TIME
+#define X509_NAME_cmp           wolfSSL_X509_NAME_cmp
+#define X509_email_free         wolfSSL_X509_email_free
+#define OCSP_REQUEST_new        wolfSSL_OCSP_REQUEST_new
+#define BIO_should_write wolfSSL_BIO_should_write
+#define BIO_should_read wolfSSL_BIO_should_read
+
+#define OCSP_check_nonce  wolfSSL_OCSP_check_nonce
+#define OCSP_cert_status_str  wolfSSL_OCSP_cert_status_str
+#define OCSP_basic_verify  wolfSSL_OCSP_basic_verify
+#define OCSP_REQ_CTX_free  wolfSSL_OCSP_REQ_CTX_free
+#define OCSP_RESPONSE_free  wolfSSL_OCSP_RESPONSE_free
+#define OCSP_BASICRESP_free  wolfSSL_OCSP_BASICRESP_free
+
+#define OCSP_response_get1_basic  wolfSSL_OCSP_response_get1_basic
+#define OCSP_resp_find_status  wolfSSL_OCSP_resp_find_status
+#define OCSP_request_add1_nonce  wolfSSL_OCSP_request_add1_nonce
+#define OCSP_request_add0_id  wolfSSL_OCSP_request_add0_id
+#define OCSP_crl_reason_str  wolfSSL_OCSP_crl_reason_str
+#define OCSP_check_validity  wolfSSL_OCSP_check_validity
+
+#define X509_STORE_CTX_get_chain  wolfSSL_X509_STORE_CTX_get_chain
+#define OCSP_sendreq_new  wolfSSL_OCSP_sendreq_new
+#define OCSP_sendreq_nbio  wolfSSL_OCSP_sendreq_nbio
+#define OCSP_cert_status_str  wolfSSL_OCSP_cert_status_str
+#define OCSP_response_status  wolfSSL_OCSP_response_status
+
+#define OCSP_response_status_str wolfSSL_OCSP_response_status_str
+#define SSL_set_tlsext_host_name wolfSSL_set_tlsext_host_name
+#define SSL_get_servername wolfSSL_get_servername
+#define SSL_set_SSL_CTX                  wolfSSL_set_SSL_CTX
+#define SSL_CTX_get_verify_callback      wolfSSL_CTX_get_verify_callback
+#define SSL_CTX_set_tlsext_servername_callback      wolfSSL_CTX_set_servername_callback
+#define SSL_CTX_set_tlsext_servername_arg           wolfSSL_CTX_set_servername_arg
 #endif /* HAVE_STUNNEL */
 
 #ifdef __cplusplus

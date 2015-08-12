@@ -70,6 +70,9 @@
     #include <wolfssl/wolfcrypt/arc4.h>
     #include <wolfssl/wolfcrypt/curve25519.h>
     #include <wolfssl/wolfcrypt/ed25519.h>
+    #ifdef HAVE_STUNNEL
+        #include <wolfssl/openssl/ocsp.h>
+    #endif /* WITH_STUNNEL */
     #ifdef WOLFSSL_SHA512
         #include <wolfssl/wolfcrypt/sha512.h>
     #endif
@@ -16342,6 +16345,355 @@ const byte* wolfSSL_SESSION_get_id(WOLFSSL_SESSION* sess, unsigned int* idLen)
     }
     *idLen = sess->sessionIDSz;
     return sess->sessionID;
+}
+
+int wolfSSL_X509_NAME_cmp(const WOLFSSL_X509_NAME *a, const WOLFSSL_X509_NAME *b)
+{
+    (void) a;
+    (void) b;
+    WOLFSSL_ENTER("wolfSSL_X509_NAME_cmp");
+    WOLFSSL_STUB("wolfSSL_X509_NAME_cmp");
+    WOLFSSL_LEAVE("wolfSSL_X509_NAME_cmp",0);
+    return SSL_SUCCESS;
+}
+
+void wolfSSL_X509_email_free(void *sk)
+{
+    (void)sk;
+    WOLFSSL_ENTER("wolfSSL_X509_email_free");
+    WOLFSSL_STUB("wolfSSL_X509_email_free");
+    WOLFSSL_LEAVE("wolfSSL_X509_email_free",0);
+}
+
+WOLFSSL_STRING* wolfSSL_X509_get1_ocsp(WOLFSSL_X509 *cert)
+{
+    WOLFSSL_ENTER("wolfSSL_X509_get1_ocsp");
+    WOLFSSL_STUB("wolfSSL_X509_get1_ocsp");
+    WOLFSSL_LEAVE("wolfSSL_X509_get1_ocsp",0);
+    (void)cert;
+    return NULL;
+}
+
+void wolfSSL_OCSP_CERTID_free(WOLFSSL_OCSP_CERTID* ocsp)
+{
+    WOLFSSL_ENTER("wolfSSL_OCSP_CERTID_free");
+    WOLFSSL_STUB("wolfSSL_OCSP_CERTID_free");
+    WOLFSSL_LEAVE("wolfSSL_OCSP_CERTID_free",0);
+    (void)ocsp;
+    return;
+}
+
+WOLFSSL_OCSP_REQUEST* wolfSSL_OCSP_REQUEST_new(void){
+    WOLFSSL_ENTER("wolfSSL_OCSP_REQUEST_new");
+    WOLFSSL_STUB("wolfSSL_OCSP_REQUEST_new");
+    WOLFSSL_OCSP_REQUEST *or = NULL;
+    return or;
+}
+
+WOLFSSL_OCSP_CERTID* wolfSSL_OCSP_cert_to_id(const WOLFSSL_EVP_MD* dgst,
+        WOLFSSL_X509* subject, WOLFSSL_X509* issuer)
+{
+    WOLFSSL_ENTER("wolfSSL_OCSP_CERTID_free");
+    WOLFSSL_STUB("wolfSSL_OCSP_CERTID_free");
+    WOLFSSL_LEAVE("wolfSSL_OCSP_CERTID_free",0);
+    (void)dgst;
+    (void)subject;
+    (void)issuer;
+    return NULL;
+}
+
+
+void wolfSSL_OCSP_REQUEST_free(WOLFSSL_OCSP_REQUEST* request)
+{
+    WOLFSSL_ENTER("wolfSSL_OCSP_REQUEST_free");
+    WOLFSSL_STUB("wolfSSL_OCSP_REQUEST_free");
+    WOLFSSL_LEAVE("wolfSSL_OCSP_REQUEST_free",0);
+    (void)request;
+    return;
+}
+
+int wolfSSL_BIO_should_write(WOLFSSL_BIO *bio)
+{
+    WOLFSSL_ENTER("wolfSSL_BIO_should_write");
+    WOLFSSL_STUB("wolfSSL_BIO_should_write");
+    WOLFSSL_LEAVE("wolfSSL_BIO_should_write",0);
+    (void) bio;
+    return SSL_SUCCESS; 
+}
+
+int BIO_should_read(WOLFSSL_BIO *bio)
+{
+    WOLFSSL_ENTER("BIO_should_read");
+    WOLFSSL_STUB("BIO_should_read");
+    WOLFSSL_LEAVE("BIO_should_read",0);
+    (void) bio;
+    return SSL_SUCCESS; 
+}
+
+int wolfSSL_OCSP_check_nonce(WOLFSSL_OCSP_REQUEST *req, WOLFSSL_OCSP_BASICRESP *bs)
+{
+    WOLFSSL_ENTER("wolfSSL_OCSP_check_nonce");
+    WOLFSSL_STUB("wolfSSL_OCSP_check_nonce");
+    WOLFSSL_LEAVE("wolfSSL_OCSP_check_nonce",0);
+    (void) req;
+    (void) bs;
+    return SSL_SUCCESS;
+}
+
+int wolfSSL_OCSP_basic_verify(WOLFSSL_OCSP_BASICRESP *bs, STACK_OF(WOLFSSL_X509) *certs,
+                      WOLFSSL_X509_STORE *st, unsigned long flags)
+{
+    WOLFSSL_ENTER("wolfSSL_OCSP_basic_verify");
+    WOLFSSL_STUB("wolfSSL_OCSP_basic_verify");
+    WOLFSSL_LEAVE("wolfSSL_OCSP_basic_verify",0);
+    (void) bs; 
+    (void) certs;
+    (void) st;
+    (void) flags;
+    return SSL_SUCCESS;
+}
+
+void wolfSSL_OCSP_REQ_CTX_free(WOLFSSL_OCSP_REQ_CTX *rctx)
+{
+    WOLFSSL_ENTER("wolfSSL_OCSP_REQ_CTX_free");
+    WOLFSSL_STUB("wolfSSL_OCSP_REQ_CTX_free");
+    WOLFSSL_LEAVE("wolfSSL_OCSP_REQ_CTX_free",0);
+    (void) rctx;
+}
+
+int wolfSSL_OCSP_RESPONSE_free( WOLFSSL_OCSP_RESPONSE* r)
+{
+    WOLFSSL_ENTER("wolfSSL_OCSP_RESPONSE_free");
+    WOLFSSL_STUB("wolfSSL_OCSP_RESPONSE_free");
+    WOLFSSL_LEAVE("wolfSSL_OCSP_RESPONSE_free",0);
+    (void) r;
+    return SSL_SUCCESS;
+}
+
+int wolfSSL_OCSP_BASICRESP_free(WOLFSSL_OCSP_BASICRESP *basic_response)
+{
+    WOLFSSL_ENTER("wolfSSL_OCSP_BASICRESP_free");
+    WOLFSSL_STUB("wolfSSL_OCSP_BASICRESP_free");
+    WOLFSSL_LEAVE("wolfSSL_OCSP_BASICRESP_free",0);
+    (void) basic_response;
+    return SSL_SUCCESS;
+}
+
+
+WOLFSSL_OCSP_BASICRESP *wolfSSL_OCSP_response_get1_basic(WOLFSSL_OCSP_RESPONSE *resp)
+{
+    WOLFSSL_ENTER("wolfSSL_OCSP_response_get1_basic");
+    WOLFSSL_STUB("wolfSSL_OCSP_response_get1_basic");
+    WOLFSSL_LEAVE("wolfSSL_OCSP_response_get1_basic",0);
+    (void) resp;
+    return NULL;
+}
+
+int wolfSSL_OCSP_resp_find_status(WOLFSSL_OCSP_BASICRESP *bs,
+        WOLFSSL_OCSP_CERTID *id, int *status,
+        int *reason, WOLFSSL_ASN1_TIME**revtime,
+        WOLFSSL_ASN1_TIME**thisupd, WOLFSSL_ASN1_TIME**nextupd)
+{
+    WOLFSSL_ENTER("wolfSSL_OCSP_resp_find_status");
+    WOLFSSL_STUB("wolfSSL_OCSP_resp_find_status");
+    WOLFSSL_LEAVE("wolfSSL_OCSP_resp_find_status",0);
+    (void) bs;
+    (void) id;
+    (void) status;
+    (void) reason;
+    (void) revtime;
+    (void) thisupd;
+    (void) nextupd;
+    return SSL_SUCCESS;
+}
+
+int wolfSSL_OCSP_request_add1_nonce(WOLFSSL_OCSP_REQUEST *req, unsigned char *val, int len)
+{
+    WOLFSSL_ENTER("wolfSSL_OCSP_request_add1_nonce");
+    WOLFSSL_STUB("wolfSSL_OCSP_request_add1_nonce");
+    WOLFSSL_LEAVE("wolfSSL_OCSP_request_add1_nonce",0);
+    (void) req;
+    (void) val;
+    (void) len;
+    return SSL_SUCCESS;
+}
+
+WOLFSSL_OCSP_ONEREQ *wolfSSL_OCSP_request_add0_id(WOLFSSL_OCSP_REQUEST *req, WOLFSSL_OCSP_CERTID *cid)
+{
+    WOLFSSL_ENTER("wolfSSL_OCSP_request_add0_id");
+    WOLFSSL_STUB("wolfSSL_OCSP_request_add0_id");
+    WOLFSSL_LEAVE("wolfSSL_OCSP_request_add0_id",0);
+    (void) req; 
+    (void) cid;
+    return NULL;
+}
+
+const char *wolfSSL_OCSP_crl_reason_str(long s)
+{
+    WOLFSSL_ENTER("wolfSSL_OCSP_crl_reason_str");
+    WOLFSSL_STUB("wolfSSL_OCSP_crl_reason_str");
+    WOLFSSL_LEAVE("wolfSSL_OCSP_crl_reason_str",0);
+    (void) s;
+    return NULL;
+}
+
+int wolfSSL_OCSP_check_validity(WOLFSSL_ASN1_TIME*thisupd,
+                        WOLFSSL_ASN1_TIME*nextupd, long sec, long maxsec)
+{
+    WOLFSSL_ENTER("wolfSSL_OCSP_check_validity");
+    WOLFSSL_STUB("wolfSSL_OCSP_check_validity");
+    WOLFSSL_LEAVE("wolfSSL_OCSP_check_validity",0);
+    (void) thisupd;
+    (void) nextupd;
+    (void) sec;
+    (void) maxsec;
+    return SSL_SUCCESS;
+}
+
+STACK_OF(WOLFSSL_X509)* wolfSSL_X509_STORE_CTX_get_chain(WOLFSSL_X509_STORE_CTX *ctx)
+{
+    WOLFSSL_ENTER("wolfSSL_X509_STORE_CTX_get_chain");
+    WOLFSSL_STUB("wolfSSL_X509_STORE_CTX_get_chain");
+    WOLFSSL_LEAVE("wolfSSL_X509_STORE_CTX_get_chain",0);
+    (void) ctx;
+    return NULL;
+}
+
+WOLFSSL_OCSP_REQ_CTX *wolfSSL_OCSP_sendreq_new(WOLFSSL_BIO *io, const char *path, WOLFSSL_OCSP_REQUEST *req, int maxline)
+{
+    WOLFSSL_ENTER("wolfSSL_OCSP_sendreq_new");
+    WOLFSSL_STUB("wolfSSL_OCSP_sendreq_new");
+    WOLFSSL_LEAVE("wolfSSL_OCSP_sendreq_new",0);
+    (void) io;
+    (void) path;
+    (void) req;
+    (void) maxline;
+    return NULL;
+}
+
+int wolfSSL_OCSP_sendreq_nbio(WOLFSSL_OCSP_RESPONSE **presp, WOLFSSL_OCSP_REQ_CTX *rctx)
+{
+    WOLFSSL_ENTER("wolfSSL_OCSP_sendreq_nbio");
+    WOLFSSL_STUB("wolfSSL_OCSP_sendreq_nbio");
+    WOLFSSL_LEAVE("wolfSSL_OCSP_sendreq_nbio",0);
+    (void) presp;
+    (void) rctx;
+    return SSL_SUCCESS;
+}
+
+
+const char *wolfSSL_OCSP_cert_status_str(long s)
+{
+    WOLFSSL_ENTER("wolfSSL_OCSP_cert_status_str");
+    WOLFSSL_STUB("wolfSSL_OCSP_cert_status_str");
+    WOLFSSL_LEAVE("wolfSSL_OCSP_cert_status_str",0);
+    (void) s;
+    return NULL;
+}
+
+int wolfSSL_OCSP_response_status(WOLFSSL_OCSP_RESPONSE *resp)
+{
+    WOLFSSL_ENTER("wolfSSL_OCSP_response_status");
+    WOLFSSL_STUB("wolfSSL_OCSP_response_status");
+    WOLFSSL_LEAVE("wolfSSL_OCSP_response_status",0);
+    (void) resp;
+    return SSL_SUCCESS;
+}
+
+
+const char *wolfSSL_OCSP_response_status_str(long s)
+{
+    WOLFSSL_ENTER("wolfSSL_OCSP_response_status_str");
+    WOLFSSL_STUB("wolfSSL_OCSP_response_status_str");
+    WOLFSSL_LEAVE("wolfSSL_OCSP_response_status_str",0);
+    (void) s;
+    return NULL;
+}
+
+
+int wolfSSL_sk_WOLFSSL_STRING_num(const STACK_OF(WOLFSSL_STRING)* string)
+{
+    WOLFSSL_ENTER("wolfSSL_sk_WOLFSSL_STRING_num");
+    WOLFSSL_STUB("wolfSSL_sk_WOLFSSL_STRING_num");
+    WOLFSSL_LEAVE("wolfSSL_sk_WOLFSSL_STRING_num",0);
+    (void) string;
+    return 0;
+}
+
+
+WOLFSSL_STRING wolfSSL_sk_WOLFSSL_STRING_value(
+        const STACK_OF(WOLFSSL_STRING)* string, int idx)
+{
+    WOLFSSL_ENTER("wolfSSL_sk_WOLFSSL_STRING_value");
+    WOLFSSL_STUB("wolfSSL_sk_WOLFSSL_STRING_value");
+    WOLFSSL_LEAVE("wolfSSL_sk_WOLFSSL_STRING_value",0);
+    (void) string;
+    (void) idx;
+    return 0;
+}
+
+
+int wolfSSL_set_tlsext_host_name(WOLFSSL* ssl, const char* host_name)
+{
+    int ret;
+    WOLFSSL_ENTER("wolfSSL_set_tlsext_host_name");
+    ret = wolfSSL_UseSNI(ssl, WOLFSSL_SNI_HOST_NAME,
+            host_name, XSTRLEN(host_name));
+    WOLFSSL_LEAVE("wolfSSL_set_tlsext_host_name", ret);
+    return ret;
+}
+
+
+const char * wolfSSL_get_servername(WOLFSSL* ssl, byte type)
+{
+    void * serverName = NULL;
+    if (ssl == NULL)
+        return NULL;
+    TLSX_SNI_GetRequest(ssl->extensions, type, &serverName);
+    return (const char *)serverName;
+}
+
+
+WOLFSSL_CTX* wolfSSL_set_SSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
+{
+    if (ssl && ctx && SetSSL_CTX(ssl, ctx) == SSL_SUCCESS)
+        return ssl->ctx;
+    return NULL;
+}
+
+
+VerifyCallback wolfSSL_CTX_get_verify_callback(WOLFSSL_CTX* ctx)
+{
+    WOLFSSL_ENTER("wolfSSL_CTX_get_verify_callback");
+    if(ctx)
+        return ctx->verifyCallback;
+    return NULL;
+}
+
+
+int wolfSSL_CTX_get_verify_mode(WOLFSSL_CTX* ctx)
+{
+    (void)ctx;
+    WOLFSSL_ENTER("wolfSSL_CTX_get_verify_mode");
+    WOLFSSL_STUB("wolfSSL_CTX_get_verify_mode");
+    WOLFSSL_LEAVE("wolfSSL_CTX_get_verify_mode",0);
+    return 0; 
+}
+
+
+void wolfSSL_CTX_set_servername_callback(WOLFSSL_CTX* ctx, CallbackSniRecv cb)
+{
+    WOLFSSL_ENTER("wolfSSL_CTX_set_servername_callback");
+    if (ctx)
+        ctx->sniRecvCb = cb;
+}
+
+
+void wolfSSL_CTX_set_servername_arg(WOLFSSL_CTX* ctx, void* arg)
+{
+    WOLFSSL_ENTER("wolfSSL_CTX_set_servername_arg");
+    if (ctx)
+        ctx->sniRecvCbArg = arg;
 }
 #endif /* OPENSSL_EXTRA and HAVE_STUNNEL */
 

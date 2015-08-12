@@ -1668,6 +1668,8 @@ struct WOLFSSL_CTX {
 #endif /* OPENSSL_EXTRA */
 #ifdef HAVE_STUNNEL
     void*           ex_data[MAX_EX_DATA];
+    CallbackSniRecv sniRecvCb;
+    void*           sniRecvCbArg;
 #endif
 #ifdef HAVE_OCSP
     WOLFSSL_OCSP      ocsp;
@@ -2418,6 +2420,8 @@ struct WOLFSSL {
 };
 
 
+WOLFSSL_LOCAL
+int  SetSSL_CTX(WOLFSSL*, WOLFSSL_CTX*);
 WOLFSSL_LOCAL
 int  InitSSL(WOLFSSL*, WOLFSSL_CTX*);
 WOLFSSL_LOCAL
