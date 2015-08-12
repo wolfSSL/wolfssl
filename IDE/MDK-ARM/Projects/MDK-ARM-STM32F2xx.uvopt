@@ -242,7 +242,7 @@
       <OPTFL>
         <tvExp>1</tvExp>
         <tvExpOptDlg>0</tvExpOptDlg>
-        <IsCurrentTarget>0</IsCurrentTarget>
+        <IsCurrentTarget>1</IsCurrentTarget>
       </OPTFL>
       <CpuCode>255</CpuCode>
       <DebugOpt>
@@ -401,7 +401,7 @@
       <OPTFL>
         <tvExp>1</tvExp>
         <tvExpOptDlg>0</tvExpOptDlg>
-        <IsCurrentTarget>1</IsCurrentTarget>
+        <IsCurrentTarget>0</IsCurrentTarget>
       </OPTFL>
       <CpuCode>255</CpuCode>
       <DebugOpt>
@@ -780,7 +780,7 @@
       <Focus>0</Focus>
       <tvExpOptDlg>0</tvExpOptDlg>
       <bDave2>0</bDave2>
-      <PathWithFileName>..\MDK-ARM\config\Net_Config.c</PathWithFileName>
+      <PathWithFileName>C:\Keil_v5\ARM\Boards\Keil\MCBSTM32F200\RL\TCPnet\Http_demo\Net_Config.c</PathWithFileName>
       <FilenameWithoutPath>Net_Config.c</FilenameWithoutPath>
       <RteFlg>0</RteFlg>
       <bShared>0</bShared>
@@ -806,8 +806,8 @@
       <Focus>0</Focus>
       <tvExpOptDlg>0</tvExpOptDlg>
       <bDave2>0</bDave2>
-      <PathWithFileName>..\MDK-ARM\config\RTX_Conf_CM.c</PathWithFileName>
-      <FilenameWithoutPath>RTX_Conf_CM.c</FilenameWithoutPath>
+      <PathWithFileName>C:\Keil_v5\ARM\Boards\Keil\MCBSTM32F200\RL\TCPnet\Http_demo\RTX_Config.c</PathWithFileName>
+      <FilenameWithoutPath>RTX_Config.c</FilenameWithoutPath>
       <RteFlg>0</RteFlg>
       <bShared>0</bShared>
     </File>
@@ -819,7 +819,7 @@
       <Focus>0</Focus>
       <tvExpOptDlg>0</tvExpOptDlg>
       <bDave2>0</bDave2>
-      <PathWithFileName>..\MDK-ARM\config\Net_Debug.c</PathWithFileName>
+      <PathWithFileName>C:\Keil_v5\ARM\Boards\Keil\MCBSTM32F200\RL\TCPnet\Http_demo\Net_Debug.c</PathWithFileName>
       <FilenameWithoutPath>Net_Debug.c</FilenameWithoutPath>
       <RteFlg>0</RteFlg>
       <bShared>0</bShared>
@@ -871,7 +871,7 @@
       <Focus>0</Focus>
       <tvExpOptDlg>0</tvExpOptDlg>
       <bDave2>0</bDave2>
-      <PathWithFileName>..\STM32F2xx\startup_stm32f2xx.s</PathWithFileName>
+      <PathWithFileName>C:\Keil_v5\ARM\Boards\Keil\MCBSTM32F200\RL\TCPnet\Http_demo\startup_stm32f2xx.s</PathWithFileName>
       <FilenameWithoutPath>startup_stm32f2xx.s</FilenameWithoutPath>
       <RteFlg>0</RteFlg>
       <bShared>0</bShared>
@@ -884,7 +884,7 @@
       <Focus>0</Focus>
       <tvExpOptDlg>0</tvExpOptDlg>
       <bDave2>0</bDave2>
-      <PathWithFileName>C:\Keil\ARM\Boards\Keil\MCBSTM32F200\RL\FlashFS\SD_File\File_Config.c</PathWithFileName>
+      <PathWithFileName>C:\Keil_v5\ARM\Boards\Keil\MCBSTM32F200\RL\FlashFS\SD_File\File_Config.c</PathWithFileName>
       <FilenameWithoutPath>File_Config.c</FilenameWithoutPath>
       <RteFlg>0</RteFlg>
       <bShared>0</bShared>
