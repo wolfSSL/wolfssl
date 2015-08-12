@@ -1323,7 +1323,6 @@ static int ProcessClientKeyExchange(const byte* input, int* sslBytes,
             wc_FreeRsaKey(&key);
             return -1;
         }
-        ret = 0;  /* not in error state */
         session->sslServer->arrays->preMasterSz = SECRET_LEN;
 
         /* store for client side as well */

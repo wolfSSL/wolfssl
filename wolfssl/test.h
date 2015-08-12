@@ -1520,6 +1520,8 @@ static INLINE int myDecryptVerifyCb(WOLFSSL* ssl,
 
     /* decrypt */
     ret = wc_AesCbcDecrypt(&decCtx->aes, decOut, decIn, decSz);
+    if (ret != 0)
+        return ret;
 
     if (wolfSSL_GetCipherType(ssl) == WOLFSSL_AEAD_TYPE) {
         *padSz = wolfSSL_GetAeadMacSize(ssl);
