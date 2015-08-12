@@ -3491,19 +3491,25 @@ int rsa_test(void)
         FILE*  pemFile;
 
         ret = wc_InitRsaKey(&genKey, 0);
-        if (ret != 0)
+        if (ret != 0) {
+            free(tmp);
             return -300;
+        }
         ret = wc_MakeRsaKey(&genKey, 1024, 65537, &rng);
-        if (ret != 0)
+        if (ret != 0) {
+            free(tmp);
             return -301;
+        }
 
         der = (byte*)malloc(FOURK_BUF);
         if (der == NULL) {
+            free(tmp);
             wc_FreeRsaKey(&genKey);
             return -307;
         }
         pem = (byte*)malloc(FOURK_BUF);
         if (pem == NULL) {
+            free(tmp);
             free(der);
             wc_FreeRsaKey(&genKey);
             return -308;
@@ -3513,6 +3519,7 @@ int rsa_test(void)
         if (derSz < 0) {
             free(der);
             free(pem);
+            free(tmp);
             return -302;
         }
 
@@ -3524,6 +3531,7 @@ int rsa_test(void)
         if (!keyFile) {
             free(der);
             free(pem);
+            free(tmp);
             wc_FreeRsaKey(&genKey);
             return -303;
         }
@@ -3532,6 +3540,7 @@ int rsa_test(void)
         if (ret != derSz) {
             free(der);
             free(pem);
+            free(tmp);
             wc_FreeRsaKey(&genKey);
             return -313;
         }
@@ -3540,6 +3549,7 @@ int rsa_test(void)
         if (pemSz < 0) {
             free(der);
             free(pem);
+            free(tmp);
             wc_FreeRsaKey(&genKey);
             return -304;
         }
@@ -3552,6 +3562,7 @@ int rsa_test(void)
         if (!pemFile) {
             free(der);
             free(pem);
+            free(tmp);
             wc_FreeRsaKey(&genKey);
             return -305;
         }
@@ -3560,6 +3571,7 @@ int rsa_test(void)
         if (ret != pemSz) {
             free(der);
             free(pem);
+            free(tmp);
             wc_FreeRsaKey(&genKey);
             return -314;
         }
@@ -3568,6 +3580,7 @@ int rsa_test(void)
         if (ret != 0) {
             free(der);
             free(pem);
+            free(tmp);
             wc_FreeRsaKey(&genKey);
             return -3060;
         }
@@ -3576,6 +3589,7 @@ int rsa_test(void)
         if (ret != 0) {
             free(der);
             free(pem);
+            free(tmp);
             wc_FreeRsaKey(&derIn);
             wc_FreeRsaKey(&genKey);
             return -306;
@@ -3603,10 +3617,13 @@ int rsa_test(void)
 #endif
 
         derCert = (byte*)malloc(FOURK_BUF);
-        if (derCert == NULL)
+        if (derCert == NULL) {
+            free(tmp);
             return -309;
+        }
         pem = (byte*)malloc(FOURK_BUF);
         if (pem == NULL) {
+            free(tmp);
             free(derCert);
             return -310;
         }
@@ -3627,6 +3644,7 @@ int rsa_test(void)
         if (certSz < 0) {
             free(derCert);
             free(pem);
+            free(tmp);
             return -401;
         }
 
@@ -3636,6 +3654,7 @@ int rsa_test(void)
         if (ret != 0) {
             free(derCert);
             free(pem);
+            free(tmp);
             return -402;
         }
         FreeDecodedCert(&decode);
@@ -3649,6 +3668,7 @@ int rsa_test(void)
         if (!derFile) {
             free(derCert);
             free(pem);
+            free(tmp);
             return -403;
         }
         ret = (int)fwrite(derCert, 1, certSz, derFile);
@@ -3656,6 +3676,7 @@ int rsa_test(void)
         if (ret != certSz) {
             free(derCert);
             free(pem);
+            free(tmp);
             return -414;
         }
 
@@ -3663,6 +3684,7 @@ int rsa_test(void)
         if (pemSz < 0) {
             free(derCert);
             free(pem);
+            free(tmp);
             return -404;
         }
 
@@ -3674,6 +3696,7 @@ int rsa_test(void)
         if (!pemFile) {
             free(derCert);
             free(pem);
+            free(tmp);
             return -405;
         }
         ret = (int)fwrite(pem, 1, pemSz, pemFile);
@@ -3681,6 +3704,7 @@ int rsa_test(void)
         if (ret != pemSz) {
             free(derCert);
             free(pem);
+            free(tmp);
             return -406;
         }
         free(pem);
@@ -3704,11 +3728,14 @@ int rsa_test(void)
 #endif
 
         derCert = (byte*)malloc(FOURK_BUF);
-        if (derCert == NULL)
+        if (derCert == NULL) {
+            free(tmp);
             return -311;
+        }
         pem = (byte*)malloc(FOURK_BUF);
         if (pem == NULL) {
             free(derCert);
+            free(tmp);
             return -312;
         }
 
@@ -3717,6 +3744,7 @@ int rsa_test(void)
         if (!file3) {
             free(derCert);
             free(pem);
+            free(tmp);
             return -412;
         }
 
@@ -3727,12 +3755,14 @@ int rsa_test(void)
         if (ret != 0) {
             free(derCert);
             free(pem);
+            free(tmp);
             return -411;
         }
         ret = wc_RsaPrivateKeyDecode(tmp, &idx3, &caKey, (word32)bytes3);
         if (ret != 0) {
             free(derCert);
             free(pem);
+            free(tmp);
             wc_FreeRsaKey(&caKey);
             return -413;
         }
@@ -3755,6 +3785,7 @@ int rsa_test(void)
         if (ret < 0) {
             free(derCert);
             free(pem);
+            free(tmp);
             wc_FreeRsaKey(&caKey);
             return -405;
         }
@@ -3763,6 +3794,7 @@ int rsa_test(void)
         if (certSz < 0) {
             free(derCert);
             free(pem);
+            free(tmp);
             wc_FreeRsaKey(&caKey);
             return -407;
         }
@@ -3772,6 +3804,7 @@ int rsa_test(void)
         if (certSz < 0) {
             free(derCert);
             free(pem);
+            free(tmp);
             wc_FreeRsaKey(&caKey);
             return -408;
         }
@@ -3783,6 +3816,7 @@ int rsa_test(void)
         if (ret != 0) {
             free(derCert);
             free(pem);
+            free(tmp);
             wc_FreeRsaKey(&caKey);
             return -409;
         }
@@ -3797,6 +3831,7 @@ int rsa_test(void)
         if (!derFile) {
             free(derCert);
             free(pem);
+            free(tmp);
             wc_FreeRsaKey(&caKey);
             return -410;
         }
@@ -3805,6 +3840,7 @@ int rsa_test(void)
         if (ret != certSz) {
             free(derCert);
             free(pem);
+            free(tmp);
             wc_FreeRsaKey(&caKey);
             return -416;
         }
@@ -3813,6 +3849,7 @@ int rsa_test(void)
         if (pemSz < 0) {
             free(derCert);
             free(pem);
+            free(tmp);
             wc_FreeRsaKey(&caKey);
             return -411;
         }
@@ -3825,6 +3862,7 @@ int rsa_test(void)
         if (!pemFile) {
             free(derCert);
             free(pem);
+            free(tmp);
             wc_FreeRsaKey(&caKey);
             return -412;
         }
@@ -3832,6 +3870,7 @@ int rsa_test(void)
         if (ret != pemSz) {
             free(derCert);
             free(pem);
+            free(tmp);
             wc_FreeRsaKey(&caKey);
             return -415;
         }
@@ -3859,11 +3898,14 @@ int rsa_test(void)
 #endif
 
         derCert = (byte*)malloc(FOURK_BUF);
-        if (derCert == NULL)
+        if (derCert == NULL) {
+            free(tmp);
             return -5311;
+        }
         pem = (byte*)malloc(FOURK_BUF);
         if (pem == NULL) {
             free(derCert);
+            free(tmp);
             return -5312;
         }
 
@@ -3872,6 +3914,7 @@ int rsa_test(void)
         if (!file3) {
             free(derCert);
             free(pem);
+            free(tmp);
             return -5412;
         }
 
@@ -3883,6 +3926,7 @@ int rsa_test(void)
         if (ret != 0) {
             free(derCert);
             free(pem);
+            free(tmp);
             return -5413;
         }
 
@@ -3902,6 +3946,7 @@ int rsa_test(void)
             free(pem);
             free(derCert);
             wc_ecc_free(&caKey);
+            free(tmp);
             return -5405;
         }
 
@@ -3910,6 +3955,7 @@ int rsa_test(void)
             free(pem);
             free(derCert);
             wc_ecc_free(&caKey);
+            free(tmp);
             return -5407;
         }
 
@@ -3919,6 +3965,7 @@ int rsa_test(void)
             free(pem);
             free(derCert);
             wc_ecc_free(&caKey);
+            free(tmp);
             return -5408;
         }
 
@@ -3926,6 +3973,7 @@ int rsa_test(void)
         InitDecodedCert(&decode, derCert, certSz, 0);
         ret = ParseCert(&decode, CERT_TYPE, NO_VERIFY, 0);
         if (ret != 0) {
+            free(tmp);
             free(pem);
             free(derCert);
             wc_ecc_free(&caKey);
@@ -3943,6 +3991,7 @@ int rsa_test(void)
             free(pem);
             free(derCert);
             wc_ecc_free(&caKey);
+            free(tmp);
             return -5410;
         }
         ret = (int)fwrite(derCert, 1, certSz, derFile);
@@ -3951,6 +4000,7 @@ int rsa_test(void)
             free(pem);
             free(derCert);
             wc_ecc_free(&caKey);
+            free(tmp);
             return -5414;
         }
 
@@ -3959,6 +4009,7 @@ int rsa_test(void)
             free(pem);
             free(derCert);
             wc_ecc_free(&caKey);
+            free(tmp);
             return -5411;
         }
 
@@ -3971,6 +4022,7 @@ int rsa_test(void)
             free(pem);
             free(derCert);
             wc_ecc_free(&caKey);
+            free(tmp);
             return -5412;
         }
         ret = (int)fwrite(pem, 1, pemSz, pemFile);
@@ -3978,6 +4030,7 @@ int rsa_test(void)
             free(pem);
             free(derCert);
             wc_ecc_free(&caKey);
+            free(tmp);
             return -5415;
         }
         fclose(pemFile);
@@ -4003,11 +4056,14 @@ int rsa_test(void)
         DecodedCert decode;
 #endif
         derCert = (byte*)malloc(FOURK_BUF);
-        if (derCert == NULL)
+        if (derCert == NULL) {
+            free(tmp);
             return -311;
+        }
         pem = (byte*)malloc(FOURK_BUF);
         if (pem == NULL) {
             free(derCert);
+            free(tmp);
             return -312;
         }
 
@@ -4024,6 +4080,7 @@ int rsa_test(void)
         if (rc != DRBG_OK) {
             free(derCert);
             free(pem);
+            free(tmp);
             return -448;
         }
 
@@ -4033,6 +4090,7 @@ int rsa_test(void)
         if (rc != NTRU_OK) {
             free(derCert);
             free(pem);
+            free(tmp);
             return -449;
         }
 
@@ -4042,6 +4100,7 @@ int rsa_test(void)
         if (rc != NTRU_OK) {
             free(derCert);
             free(pem);
+            free(tmp);
             return -450;
         }
 
@@ -4050,6 +4109,7 @@ int rsa_test(void)
         if (rc != NTRU_OK) {
             free(derCert);
             free(pem);
+            free(tmp);
             return -451;
         }
 
@@ -4058,6 +4118,7 @@ int rsa_test(void)
         if (!caFile) {
             free(derCert);
             free(pem);
+            free(tmp);
             return -452;
         }
 
@@ -4068,12 +4129,14 @@ int rsa_test(void)
         if (ret != 0) {
             free(derCert);
             free(pem);
+            free(tmp);
             return -453;
         }
         ret = wc_RsaPrivateKeyDecode(tmp, &idx3, &caKey, (word32)bytes);
         if (ret != 0) {
             free(derCert);
             free(pem);
+            free(tmp);
             return -454;
         }
 
@@ -4092,6 +4155,7 @@ int rsa_test(void)
             free(derCert);
             free(pem);
             wc_FreeRsaKey(&caKey);
+            free(tmp);
             return -455;
         }
 
@@ -4101,6 +4165,7 @@ int rsa_test(void)
             free(derCert);
             free(pem);
             wc_FreeRsaKey(&caKey);
+            free(tmp);
             return -456;
         }
 
@@ -4110,6 +4175,7 @@ int rsa_test(void)
         if (certSz < 0) {
             free(derCert);
             free(pem);
+            free(tmp);
             return -457;
         }
 
@@ -4120,6 +4186,7 @@ int rsa_test(void)
         if (ret != 0) {
             free(derCert);
             free(pem);
+            free(tmp);
             return -458;
         }
         FreeDecodedCert(&decode);
@@ -4128,6 +4195,7 @@ int rsa_test(void)
         if (!derFile) {
             free(derCert);
             free(pem);
+            free(tmp);
             return -459;
         }
         ret = (int)fwrite(derCert, 1, certSz, derFile);
@@ -4135,6 +4203,7 @@ int rsa_test(void)
         if (ret != certSz) {
             free(derCert);
             free(pem);
+            free(tmp);
             return -473;
         }
 
@@ -4142,6 +4211,7 @@ int rsa_test(void)
         if (pemSz < 0) {
             free(derCert);
             free(pem);
+            free(tmp);
             return -460;
         }
 
@@ -4149,6 +4219,7 @@ int rsa_test(void)
         if (!pemFile) {
             free(derCert);
             free(pem);
+            free(tmp);
             return -461;
         }
         ret = (int)fwrite(pem, 1, pemSz, pemFile);
@@ -4156,6 +4227,7 @@ int rsa_test(void)
         if (ret != pemSz) {
             free(derCert);
             free(pem);
+            free(tmp);
             return -474;
         }
 
@@ -4163,6 +4235,7 @@ int rsa_test(void)
         if (!ntruPrivFile) {
             free(derCert);
             free(pem);
+            free(tmp);
             return -462;
         }
         ret = (int)fwrite(private_key, 1, private_key_len, ntruPrivFile);
@@ -4170,6 +4243,7 @@ int rsa_test(void)
         if (ret != private_key_len) {
             free(pem);
             free(derCert);
+            free(tmp);
             return -475;
         }
         free(pem);
@@ -4186,11 +4260,14 @@ int rsa_test(void)
         FILE*       reqFile;
 
         der = (byte*)malloc(FOURK_BUF);
-        if (der == NULL)
+        if (der == NULL) {
+            free(tmp);
             return -463;
+        }
         pem = (byte*)malloc(FOURK_BUF);
         if (pem == NULL) {
             free(der);
+            free(tmp);
             return -464;
         }
 
@@ -4212,6 +4289,7 @@ int rsa_test(void)
         if (derSz < 0) {
             free(pem);
             free(der);
+            free(tmp);
             return -465;
         }
 
@@ -4220,6 +4298,7 @@ int rsa_test(void)
         if (derSz < 0) {
             free(pem);
             free(der);
+            free(tmp);
             return -466;
         }
 
@@ -4227,6 +4306,7 @@ int rsa_test(void)
         if (pemSz < 0) {
             free(pem);
             free(der);
+            free(tmp);
             return -467;
         }
 
@@ -4238,6 +4318,7 @@ int rsa_test(void)
         if (!reqFile) {
             free(pem);
             free(der);
+            free(tmp);
             return -468;
         }
 
@@ -4246,6 +4327,7 @@ int rsa_test(void)
         if (ret != derSz) {
             free(pem);
             free(der);
+            free(tmp);
             return -471;
         }
 
@@ -4257,6 +4339,7 @@ int rsa_test(void)
         if (!reqFile) {
             free(pem);
             free(der);
+            free(tmp);
             return -469;
         }
         ret = (int)fwrite(pem, 1, pemSz, reqFile);
@@ -4264,6 +4347,7 @@ int rsa_test(void)
         if (ret != pemSz) {
             free(pem);
             free(der);
+            free(tmp);
             return -470;
         }
 
