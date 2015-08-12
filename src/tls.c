@@ -1040,7 +1040,7 @@ static int TLSX_SNI_Parse(WOLFSSL* ssl, byte* input, word16 length,
         return BUFFER_ERROR;
 
     for (size = 0; offset < length; offset += size) {
-        SNI *sni;
+        SNI *sni = NULL;
         byte type = input[offset++];
 
         if (offset + OPAQUE16_LEN > length)
