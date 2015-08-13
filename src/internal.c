@@ -5193,6 +5193,8 @@ static int DoDtlsHandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                                 ssl->keys.dtls_expected_peer_handshake_number) {
         /* Already saw this message and processed it. It can be ignored. */
         *inOutIdx += fragSz;
+        if(type == finished )
+            *inOutIdx += ssl->keys.padSz;
         ret = 0;
     }
     else if (fragSz < size) {
