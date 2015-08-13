@@ -114,6 +114,9 @@
 /* Uncomment next line to enable deprecated less secure static DH suites */
 /* #define WOLFSSL_STATIC_DH */
 
+/* Uncomment next line to enable deprecated less secure static RSA suites */
+/* #define WOLFSSL_STATIC_RSA */
+
 #include <wolfssl/wolfcrypt/visibility.h>
 
 #ifdef WOLFSSL_USER_SETTINGS
@@ -811,6 +814,14 @@
 #undef HAVE_HASHDRBG
 #ifndef WOLFSSL_FORCE_RC4_DRBG
     #define HAVE_HASHDRBG
+#endif
+
+
+/* sniffer requires static RSA cipher suites */
+#ifdef WOLFSSL_SNIFFER
+    #ifndef WOLFSSL_STATIC_RSA
+        #define WOLFSSL_STATIC_RSA
+    #endif
 #endif
 
 /* Place any other flags or defines here */
