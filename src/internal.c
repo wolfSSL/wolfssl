@@ -1587,13 +1587,8 @@ int SetSSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
     /* decrement previous CTX reference count if exists.
      * This should only happen if switching ctxs!*/
     if (!newSSL) {
-        if(LockMutex(&ssl->ctx->countMutex) != 0) {
-            WOLFSSL_MSG("Couldn't lock on previous CTX count mutex");
-            return BAD_MUTEX_E;
-        }
-        WOLFSSL_MSG("Decrementing previous ctx reference count. Switching ctx.");
-        ssl->ctx->refCount--;
-        UnLockMutex(&ssl->ctx->countMutex);
+        WOLFSSL_MSG("freeing old ctx to decrement reference count. Switching ctx.");
+        wolfSSL_CTX_free(ssl->ctx);
     }
 
     /* increment CTX reference count */
@@ -1713,27 +1708,6 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
 
     XMEMSET(ssl, 0, sizeof(WOLFSSL));
 
-    /* arrays */
-    ssl->arrays = (Arrays*)XMALLOC(sizeof(Arrays), ssl->heap,
-                                                           DYNAMIC_TYPE_ARRAYS);
-    if (ssl->arrays == NULL) {
-        WOLFSSL_MSG("Arrays Memory error");
-        return MEMORY_E;
-    }
-    XMEMSET(ssl->arrays, 0, sizeof(Arrays));
-
-    /* suites */
-    ssl->suites = (Suites*)XMALLOC(sizeof(Suites), ssl->heap,
-                                   DYNAMIC_TYPE_SUITES);
-    if (ssl->suites == NULL) {
-        WOLFSSL_MSG("Suites Memory error");
-        return MEMORY_E;
-    }
-
-    /* Initialize SSL with the appropriate fields from it's ctx */
-    if((ret =  SetSSL_CTX(ssl, ctx)) != SSL_SUCCESS)
-        return ret;
-
     ssl->buffers.inputBuffer.buffer = ssl->buffers.inputBuffer.staticBuffer;
     ssl->buffers.inputBuffer.bufferSize  = STATIC_BUFFER_LEN;
 
@@ -1777,7 +1751,6 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
         ssl->hmac = TLS_hmac;
     #endif
 
-    ssl->options.dtls = ssl->version.major == DTLS_MAJOR;
 
 #ifdef WOLFSSL_DTLS
     ssl->buffers.dtlsCtx.fd = -1;
@@ -1801,6 +1774,29 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
     InitCipherSpecs(&ssl->specs);
 
     /* all done with init, now can return errors, call other stuff */
+
+    /* arrays */
+    ssl->arrays = (Arrays*)XMALLOC(sizeof(Arrays), ssl->heap,
+                                                           DYNAMIC_TYPE_ARRAYS);
+    if (ssl->arrays == NULL) {
+        WOLFSSL_MSG("Arrays Memory error");
+        return MEMORY_E;
+    }
+    XMEMSET(ssl->arrays, 0, sizeof(Arrays));
+
+    /* suites */
+    ssl->suites = (Suites*)XMALLOC(sizeof(Suites), ssl->heap,
+                                   DYNAMIC_TYPE_SUITES);
+    if (ssl->suites == NULL) {
+        WOLFSSL_MSG("Suites Memory error");
+        return MEMORY_E;
+    }
+
+    /* Initialize SSL with the appropriate fields from it's ctx */
+    if((ret =  SetSSL_CTX(ssl, ctx)) != SSL_SUCCESS)
+        return ret;
+
+    ssl->options.dtls = ssl->version.major == DTLS_MAJOR;
 
     /* hsHashes */
     ssl->hsHashes = (HS_Hashes*)XMALLOC(sizeof(HS_Hashes), ssl->heap,
