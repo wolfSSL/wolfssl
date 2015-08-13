@@ -5940,11 +5940,13 @@ static INLINE void Md5Rounds(int rounds, const byte* data, int sz)
 {
     Md5 md5;
     int i;
+    byte dummy[MD5_DIGEST_SIZE] ;
 
     wc_InitMd5(&md5);
 
     for (i = 0; i < rounds; i++)
         wc_Md5Update(&md5, data, sz);
+    wc_Md5Final(&md5, dummy) ; /* in case needed to release resources */
 }
 
 
@@ -5954,11 +5956,13 @@ static INLINE void ShaRounds(int rounds, const byte* data, int sz)
 {
     Sha sha;
     int i;
+    byte dummy[SHA_DIGEST_SIZE] ;
 
     wc_InitSha(&sha);  /* no error check on purpose, dummy round */
 
     for (i = 0; i < rounds; i++)
         wc_ShaUpdate(&sha, data, sz);
+    wc_ShaFinal(&sha, dummy) ; /* in case needed to release resources */
 }
 #endif
 
@@ -5969,6 +5973,7 @@ static INLINE void Sha256Rounds(int rounds, const byte* data, int sz)
 {
     Sha256 sha256;
     int i;
+    byte dummy[SHA256_DIGEST_SIZE] ;
 
     wc_InitSha256(&sha256);  /* no error check on purpose, dummy round */
 
@@ -5976,7 +5981,7 @@ static INLINE void Sha256Rounds(int rounds, const byte* data, int sz)
         wc_Sha256Update(&sha256, data, sz);
         /* no error check on purpose, dummy round */
     }
-
+    wc_Sha256Final(&sha256, dummy) ; /* in case needed to release resources */
 }
 
 #endif
@@ -5988,6 +5993,7 @@ static INLINE void Sha384Rounds(int rounds, const byte* data, int sz)
 {
     Sha384 sha384;
     int i;
+    byte dummy[SHA384_DIGEST_SIZE] ;
 
     wc_InitSha384(&sha384);  /* no error check on purpose, dummy round */
 
@@ -5995,6 +6001,7 @@ static INLINE void Sha384Rounds(int rounds, const byte* data, int sz)
         wc_Sha384Update(&sha384, data, sz);
         /* no error check on purpose, dummy round */
     }
+    wc_Sha384Final(&sha384, dummy) ; /* in case needed to release resources */
 }
 
 #endif
@@ -6006,6 +6013,7 @@ static INLINE void Sha512Rounds(int rounds, const byte* data, int sz)
 {
     Sha512 sha512;
     int i;
+    byte dummy[SHA512_DIGEST_SIZE] ;
 
     wc_InitSha512(&sha512);  /* no error check on purpose, dummy round */
 
@@ -6013,6 +6021,7 @@ static INLINE void Sha512Rounds(int rounds, const byte* data, int sz)
         wc_Sha512Update(&sha512, data, sz);
         /* no error check on purpose, dummy round */
     }
+    wc_Sha512Final(&sha512, dummy) ; /* in case needed to release resources */
 }
 
 #endif
