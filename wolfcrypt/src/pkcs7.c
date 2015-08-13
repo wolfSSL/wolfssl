@@ -945,7 +945,7 @@ int wc_PKCS7_VerifySignedData(PKCS7* pkcs7, byte* pkiMsg, word32 pkiMsgSz)
 /* create ASN.1 fomatted RecipientInfo structure, returns sequence size */
 WOLFSSL_LOCAL int wc_CreateRecipientInfo(const byte* cert, word32 certSz,
                                      int keyEncAlgo, int blockKeySz,
-                                     RNG* rng, byte* contentKeyPlain,
+                                     WC_RNG* rng, byte* contentKeyPlain,
                                      byte* contentKeyEnc,
                                      int* keyEncSz, byte* out, word32 outSz)
 {
@@ -1178,7 +1178,7 @@ int wc_PKCS7_EncodeEnvelopedData(PKCS7* pkcs7, byte* output, word32 outputSz)
     byte envDataSeq[MAX_SEQ_SZ];
     byte ver[MAX_VERSION_SZ];
 
-    RNG rng;
+    WC_RNG rng;
     int contentKeyEncSz, blockKeySz;
     byte contentKeyPlain[MAX_CONTENT_KEY_LEN];
 #ifdef WOLFSSL_SMALL_STACK

@@ -310,7 +310,7 @@ static int PRF(byte* digest, word32 digLen, const byte* secret, word32 secLen,
 
         /* If a cipher suite wants an algorithm better than sha256, it
          * should use better. */
-        if (hash_type < sha256_mac)
+        if (hash_type < sha256_mac || hash_type == blake2b_mac)
             hash_type = sha256_mac;
         ret = p_hash(digest, digLen, secret, secLen, labelSeed,
                      labLen + seedLen, hash_type);
@@ -350,7 +350,7 @@ int BuildTlsFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
 
     if (IsAtLeastTLSv1_2(ssl)) {
 #ifndef NO_SHA256
-        if (ssl->specs.mac_algorithm <= sha256_mac) {
+        if (ssl->specs.mac_algorithm <= sha256_mac || ssl->specs.mac_algorithm == blake2b_mac) {
             int ret = wc_Sha256GetHash(&ssl->hsHashes->hashSha256,handshake_hash);
 
             if (ret != 0)
@@ -2058,7 +2058,7 @@ int TLSX_UseSessionTicket(TLSX** extensions, SessionTicket* ticket)
 
 
 #ifdef HAVE_QSH
-static RNG* rng;
+static WC_RNG* rng;
 static wolfSSL_Mutex* rngMutex;
 
 static void TLSX_QSH_FreeAll(QSHScheme* list)
@@ -2841,7 +2841,7 @@ static word32 GetEntropy(unsigned char* out, word32 num_bytes)
     int ret = 0;
 
     if (rng == NULL) {
-        if ((rng = XMALLOC(sizeof(RNG), 0, DYNAMIC_TYPE_TLSX)) == NULL)
+        if ((rng = XMALLOC(sizeof(WC_RNG), 0, DYNAMIC_TYPE_TLSX)) == NULL)
             return DRBG_OUT_OF_MEMORY;
         wc_InitRng(rng);
     }

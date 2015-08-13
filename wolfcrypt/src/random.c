@@ -39,33 +39,33 @@ int wc_GenerateSeed(OS_Seed* os, byte* seed, word32 sz)
 }
 
 #ifdef HAVE_CAVIUM
-    int  wc_InitRngCavium(RNG* rng, int i)
+    int  wc_InitRngCavium(WC_RNG* rng, int i)
     {
         return InitRngCavium(rng, i);
     }
 #endif
 
 
-int  wc_InitRng(RNG* rng)
+int  wc_InitRng(WC_RNG* rng)
 {
     return InitRng_fips(rng);
 }
 
 
-int  wc_RNG_GenerateBlock(RNG* rng, byte* b, word32 sz)
+int  wc_RNG_GenerateBlock(WC_RNG* rng, byte* b, word32 sz)
 {
     return RNG_GenerateBlock_fips(rng, b, sz);
 }
 
 
-int  wc_RNG_GenerateByte(RNG* rng, byte* b)
+int  wc_RNG_GenerateByte(WC_RNG* rng, byte* b)
 {
     return RNG_GenerateByte(rng, b);
 }
 
 #if defined(HAVE_HASHDRBG) || defined(NO_RC4)
 
-    int wc_FreeRng(RNG* rng)
+    int wc_FreeRng(WC_RNG* rng)
     {
         return FreeRng_fips(rng);
     }
@@ -434,7 +434,7 @@ static int Hash_DRBG_Uninstantiate(DRBG* drbg)
 
 
 /* Get seed and key cipher */
-int wc_InitRng(RNG* rng)
+int wc_InitRng(WC_RNG* rng)
 {
     int ret = BAD_FUNC_ARG;
 
@@ -487,7 +487,7 @@ int wc_InitRng(RNG* rng)
 
 
 /* place a generated block in output */
-int wc_RNG_GenerateBlock(RNG* rng, byte* output, word32 sz)
+int wc_RNG_GenerateBlock(WC_RNG* rng, byte* output, word32 sz)
 {
     int ret;
 
@@ -536,13 +536,13 @@ int wc_RNG_GenerateBlock(RNG* rng, byte* output, word32 sz)
 }
 
 
-int wc_RNG_GenerateByte(RNG* rng, byte* b)
+int wc_RNG_GenerateByte(WC_RNG* rng, byte* b)
 {
     return wc_RNG_GenerateBlock(rng, b, 1);
 }
 
 
-int wc_FreeRng(RNG* rng)
+int wc_FreeRng(WC_RNG* rng)
 {
     int ret = BAD_FUNC_ARG;
 
@@ -687,7 +687,7 @@ static int wc_RNG_HealthTestLocal(int reseed)
 #else /* HAVE_HASHDRBG || NO_RC4 */
 
 /* Get seed and key cipher */
-int wc_InitRng(RNG* rng)
+int wc_InitRng(WC_RNG* rng)
 {
     int  ret;
 #ifdef WOLFSSL_SMALL_STACK
@@ -736,11 +736,11 @@ int wc_InitRng(RNG* rng)
 }
 
 #ifdef HAVE_CAVIUM
-    static void CaviumRNG_GenerateBlock(RNG* rng, byte* output, word32 sz);
+    static void CaviumRNG_GenerateBlock(WC_RNG* rng, byte* output, word32 sz);
 #endif
 
 /* place a generated block in output */
-int wc_RNG_GenerateBlock(RNG* rng, byte* output, word32 sz)
+int wc_RNG_GenerateBlock(WC_RNG* rng, byte* output, word32 sz)
 {
 #ifdef HAVE_INTEL_RDGEN
     if(IS_INTEL_RDRAND)
@@ -757,13 +757,13 @@ int wc_RNG_GenerateBlock(RNG* rng, byte* output, word32 sz)
 }
 
 
-int wc_RNG_GenerateByte(RNG* rng, byte* b)
+int wc_RNG_GenerateByte(WC_RNG* rng, byte* b)
 {
     return wc_RNG_GenerateBlock(rng, b, 1);
 }
 
 
-int wc_FreeRng(RNG* rng)
+int wc_FreeRng(WC_RNG* rng)
 {
     (void)rng;
     return 0;
@@ -776,7 +776,7 @@ int wc_FreeRng(RNG* rng)
 #include "cavium_common.h"
 
 /* Initiliaze RNG for use with Nitrox device */
-int wc_InitRngCavium(RNG* rng, int devId)
+int wc_InitRngCavium(WC_RNG* rng, int devId)
 {
     if (rng == NULL)
         return -1;
@@ -788,7 +788,7 @@ int wc_InitRngCavium(RNG* rng, int devId)
 }
 
 
-static void CaviumRNG_GenerateBlock(RNG* rng, byte* output, word32 sz)
+static void CaviumRNG_GenerateBlock(WC_RNG* rng, byte* output, word32 sz)
 {
     wolfssl_word offset = 0;
     word32      requestId;
@@ -1017,18 +1017,6 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     return 0;
 }
 
-#elif defined(MBED)
-
-/* write a real one !!!, just for testing board */
-int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
-{
-    int i;
-    for (i = 0; i < sz; i++ )
-        output[i] = i;
-
-    return 0;
-}
-
 #elif defined(MICROCHIP_PIC32)
 
 #ifdef MICROCHIP_MPLAB_HARMONY
@@ -1225,7 +1213,7 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 
         return 0;
     }
-#elif defined(WOLFSSL_LPC43xx) || defined(WOLFSSL_STM32F2xx)
+#elif defined(WOLFSSL_LPC43xx) || defined(WOLFSSL_STM32F2xx) || defined(MBED)
 
     #warning "write a real random seed!!!!, just for testing now"
 

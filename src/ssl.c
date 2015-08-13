@@ -36,6 +36,8 @@
 #if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER) || \
                               defined(WOLFSSL_KEY_GEN)
     #include <wolfssl/openssl/evp.h>
+    /* openssl headers end, wolfssl internal headers next */
+    #include <wolfssl/wolfcrypt/wc_encrypt.h>
 #endif
 
 #ifdef OPENSSL_EXTRA
@@ -1763,7 +1765,7 @@ int wolfSSL_set_group_messages(WOLFSSL* ssl)
 static int SetMinVersionHelper(byte* minVersion, int version)
 {
     switch (version) {
-#ifndef NO_OLD_TLS
+#if defined(WOLFSSL_ALLOW_SSLV3) && !defined(NO_OLD_TLS)
         case WOLFSSL_SSLV3:
             *minVersion = SSLv3_MINOR;
             break;
@@ -1834,7 +1836,7 @@ int wolfSSL_SetVersion(WOLFSSL* ssl, int version)
     }
 
     switch (version) {
-#ifndef NO_OLD_TLS
+#if defined(WOLFSSL_ALLOW_SSLV3) && !defined(NO_OLD_TLS)
         case WOLFSSL_SSLV3:
             ssl->version = MakeSSLv3();
             break;
@@ -3024,16 +3026,16 @@ static int ProcessChainBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
 static INLINE WOLFSSL_METHOD* cm_pick_method(void)
 {
     #ifndef NO_WOLFSSL_CLIENT
-        #ifdef NO_OLD_TLS
-            return wolfTLSv1_2_client_method();
-        #else
+        #if defined(WOLFSSL_ALLOW_SSLV3) && !defined(NO_OLD_TLS)
             return wolfSSLv3_client_method();
+        #else
+            return wolfTLSv1_2_client_method();
         #endif
     #elif !defined(NO_WOLFSSL_SERVER)
-        #ifdef NO_OLD_TLS
-            return wolfTLSv1_2_server_method();
-        #else
+        #if defined(WOLFSSL_ALLOW_SSLV3) && !defined(NO_OLD_TLS)
             return wolfSSLv3_server_method();
+        #else
+            return wolfTLSv1_2_server_method();
         #endif
     #else
         return NULL;
@@ -5333,7 +5335,7 @@ int wolfSSL_dtls_got_timeout(WOLFSSL* ssl)
 /* client only parts */
 #ifndef NO_WOLFSSL_CLIENT
 
-    #ifndef NO_OLD_TLS
+    #if defined(WOLFSSL_ALLOW_SSLV3) && !defined(NO_OLD_TLS)
     WOLFSSL_METHOD* wolfSSLv3_client_method(void)
     {
         WOLFSSL_METHOD* method =
@@ -5621,7 +5623,7 @@ int wolfSSL_dtls_got_timeout(WOLFSSL* ssl)
 /* server only parts */
 #ifndef NO_WOLFSSL_SERVER
 
-    #ifndef NO_OLD_TLS
+    #if defined(WOLFSSL_ALLOW_SSLV3) && !defined(NO_OLD_TLS)
     WOLFSSL_METHOD* wolfSSLv3_server_method(void)
     {
         WOLFSSL_METHOD* method =
@@ -10918,7 +10920,7 @@ int wolfSSL_cmp_peer_cert_to_file(WOLFSSL* ssl, const char *fname)
 #endif
 
 
-static RNG globalRNG;
+static WC_RNG globalRNG;
 static int initGlobalRNG = 0;
 
 /* SSL_SUCCESS on ok */
@@ -10945,19 +10947,19 @@ int wolfSSL_RAND_seed(const void* seed, int len)
 /* SSL_SUCCESS on ok */
 int wolfSSL_RAND_bytes(unsigned char* buf, int num)
 {
-    int    ret = 0;
-    int    initTmpRng = 0;
-    RNG*   rng = NULL;
+    int     ret = 0;
+    int     initTmpRng = 0;
+    WC_RNG* rng = NULL;
 #ifdef WOLFSSL_SMALL_STACK
-    RNG*   tmpRNG = NULL;
+    WC_RNG* tmpRNG = NULL;
 #else
-    RNG    tmpRNG[1];
+    WC_RNG  tmpRNG[1];
 #endif
 
     WOLFSSL_ENTER("wolfSSL_RAND_bytes");
 
 #ifdef WOLFSSL_SMALL_STACK
-    tmpRNG = (RNG*)XMALLOC(sizeof(RNG), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    tmpRNG = (WC_RNG*)XMALLOC(sizeof(WC_RNG), NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (tmpRNG == NULL)
         return ret;
 #endif
@@ -11283,12 +11285,12 @@ int wolfSSL_BN_rand(WOLFSSL_BIGNUM* bn, int bits, int top, int bottom)
     int           ret    = 0;
     int           len    = bits / 8;
     int           initTmpRng = 0;
-    RNG*          rng    = NULL;
+    WC_RNG*       rng    = NULL;
 #ifdef WOLFSSL_SMALL_STACK
-    RNG*          tmpRNG = NULL;
+    WC_RNG*       tmpRNG = NULL;
     byte*         buff   = NULL;
 #else
-    RNG           tmpRNG[1];
+    WC_RNG        tmpRNG[1];
     byte          buff[1024];
 #endif
 
@@ -11301,7 +11303,7 @@ int wolfSSL_BN_rand(WOLFSSL_BIGNUM* bn, int bits, int top, int bottom)
 
 #ifdef WOLFSSL_SMALL_STACK
     buff   = (byte*)XMALLOC(1024,        NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    tmpRNG = (RNG*) XMALLOC(sizeof(RNG), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    tmpRNG = (WC_RNG*) XMALLOC(sizeof(WC_RNG), NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (buff == NULL || tmpRNG == NULL) {
         XFREE(buff,   NULL, DYNAMIC_TYPE_TMP_BUFFER);
         XFREE(tmpRNG, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -11924,23 +11926,23 @@ int wolfSSL_DH_generate_key(WOLFSSL_DH* dh)
     word32         pubSz  = 768;
     word32         privSz = 768;
     int            initTmpRng = 0;
-    RNG*           rng    = NULL;
+    WC_RNG*        rng    = NULL;
 #ifdef WOLFSSL_SMALL_STACK
     unsigned char* pub    = NULL;
     unsigned char* priv   = NULL;
-    RNG*           tmpRNG = NULL;
+    WC_RNG*        tmpRNG = NULL;
 #else
     unsigned char  pub [768];
     unsigned char  priv[768];
-    RNG            tmpRNG[1];
+    WC_RNG         tmpRNG[1];
 #endif
 
     WOLFSSL_MSG("wolfSSL_DH_generate_key");
 
 #ifdef WOLFSSL_SMALL_STACK
-    tmpRNG = (RNG*)XMALLOC(sizeof(RNG),      NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    pub    = (unsigned char*)XMALLOC(pubSz,  NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    priv   = (unsigned char*)XMALLOC(privSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    tmpRNG = (WC_RNG*)XMALLOC(sizeof(WC_RNG), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    pub    = (unsigned char*)XMALLOC(pubSz,   NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    priv   = (unsigned char*)XMALLOC(privSz,  NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     if (tmpRNG == NULL || pub == NULL || priv == NULL) {
         XFREE(tmpRNG, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -12515,11 +12517,12 @@ int wolfSSL_RSA_generate_key_ex(WOLFSSL_RSA* rsa, int bits, WOLFSSL_BIGNUM* bn,
 
     (void)cb;
     (void)bn;
+    (void)bits;
 
     WOLFSSL_ENTER("wolfSSL_RSA_generate_key_ex");
 
-    if (rsa == NULL || rsa->internal == NULL ||
-        bits < RSA_MIN_SIZE || bits > RSA_MAX_SIZE) {
+    if (rsa == NULL || rsa->internal == NULL) {
+        /* bit size checked during make key call */
         WOLFSSL_MSG("bad arguments");
         return SSL_FAILURE;
     }
@@ -12527,13 +12530,13 @@ int wolfSSL_RSA_generate_key_ex(WOLFSSL_RSA* rsa, int bits, WOLFSSL_BIGNUM* bn,
 #ifdef WOLFSSL_KEY_GEN
     {
     #ifdef WOLFSSL_SMALL_STACK
-        RNG* rng = NULL;
+        WC_RNG* rng = NULL;
     #else
-        RNG  rng[1];
+        WC_RNG  rng[1];
     #endif
 
     #ifdef WOLFSSL_SMALL_STACK
-        rng = (RNG*)XMALLOC(sizeof(RNG), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        rng = (WC_RNG*)XMALLOC(sizeof(WC_RNG), NULL, DYNAMIC_TYPE_TMP_BUFFER);
         if (rng == NULL)
             return SSL_FAILURE;
     #endif
@@ -12648,15 +12651,15 @@ int wolfSSL_DSA_generate_key(WOLFSSL_DSA* dsa)
 #ifdef WOLFSSL_KEY_GEN
     {
         int initTmpRng = 0;
-        RNG *rng = NULL;
+        WC_RNG *rng = NULL;
 #ifdef WOLFSSL_SMALL_STACK
-        RNG *tmpRNG = NULL;
+        WC_RNG *tmpRNG = NULL;
 #else
-        RNG tmpRNG[1];
+        WC_RNG tmpRNG[1];
 #endif
 
 #ifdef WOLFSSL_SMALL_STACK
-        tmpRNG = (RNG*)XMALLOC(sizeof(RNG), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        tmpRNG = (WC_RNG*)XMALLOC(sizeof(WC_RNG), NULL, DYNAMIC_TYPE_TMP_BUFFER);
         if (tmpRNG == NULL)
             return SSL_FATAL_ERROR;
 #endif
@@ -12721,15 +12724,15 @@ int wolfSSL_DSA_generate_parameters_ex(WOLFSSL_DSA* dsa, int bits,
 #ifdef WOLFSSL_KEY_GEN
     {
         int initTmpRng = 0;
-        RNG *rng = NULL;
+        WC_RNG *rng = NULL;
 #ifdef WOLFSSL_SMALL_STACK
-        RNG *tmpRNG = NULL;
+        WC_RNG *tmpRNG = NULL;
 #else
-        RNG tmpRNG[1];
+        WC_RNG tmpRNG[1];
 #endif
 
 #ifdef WOLFSSL_SMALL_STACK
-        tmpRNG = (RNG*)XMALLOC(sizeof(RNG), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        tmpRNG = (WC_RNG*)XMALLOC(sizeof(WC_RNG), NULL, DYNAMIC_TYPE_TMP_BUFFER);
         if (tmpRNG == NULL)
             return SSL_FATAL_ERROR;
 #endif
@@ -12773,13 +12776,13 @@ int wolfSSL_DSA_generate_parameters_ex(WOLFSSL_DSA* dsa, int bits,
 int wolfSSL_DSA_do_sign(const unsigned char* d, unsigned char* sigRet,
                        WOLFSSL_DSA* dsa)
 {
-    int    ret = SSL_FATAL_ERROR;
-    int    initTmpRng = 0;
-    RNG*   rng = NULL;
+    int     ret = SSL_FATAL_ERROR;
+    int     initTmpRng = 0;
+    WC_RNG* rng = NULL;
 #ifdef WOLFSSL_SMALL_STACK
-    RNG*   tmpRNG = NULL;
+    WC_RNG* tmpRNG = NULL;
 #else
-    RNG    tmpRNG[1];
+    WC_RNG  tmpRNG[1];
 #endif
 
     WOLFSSL_ENTER("wolfSSL_DSA_do_sign");
@@ -12800,7 +12803,7 @@ int wolfSSL_DSA_do_sign(const unsigned char* d, unsigned char* sigRet,
     }
 
 #ifdef WOLFSSL_SMALL_STACK
-    tmpRNG = (RNG*)XMALLOC(sizeof(RNG), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    tmpRNG = (WC_RNG*)XMALLOC(sizeof(WC_RNG), NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (tmpRNG == NULL)
         return SSL_FATAL_ERROR;
 #endif
@@ -12872,17 +12875,17 @@ int wolfSSL_RSA_sign(int type, const unsigned char* m,
                            unsigned int mLen, unsigned char* sigRet,
                            unsigned int* sigLen, WOLFSSL_RSA* rsa)
 {
-    word32 outLen;
-    word32 signSz;
-    int    initTmpRng = 0;
-    RNG*   rng        = NULL;
-    int    ret        = 0;
+    word32  outLen;
+    word32  signSz;
+    int     initTmpRng = 0;
+    WC_RNG* rng        = NULL;
+    int     ret        = 0;
 #ifdef WOLFSSL_SMALL_STACK
-    RNG*   tmpRNG     = NULL;
-    byte*  encodedSig = NULL;
+    WC_RNG* tmpRNG     = NULL;
+    byte*   encodedSig = NULL;
 #else
-    RNG    tmpRNG[1];
-    byte   encodedSig[MAX_ENCODED_SIG_SZ];
+    WC_RNG  tmpRNG[1];
+    byte    encodedSig[MAX_ENCODED_SIG_SZ];
 #endif
 
     WOLFSSL_MSG("wolfSSL_RSA_sign");
@@ -12910,7 +12913,7 @@ int wolfSSL_RSA_sign(int type, const unsigned char* m,
     outLen = (word32)wolfSSL_BN_num_bytes(rsa->n);
 
 #ifdef WOLFSSL_SMALL_STACK
-    tmpRNG = (RNG*)XMALLOC(sizeof(RNG), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    tmpRNG = (WC_RNG*)XMALLOC(sizeof(WC_RNG), NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (tmpRNG == NULL)
         return 0;
 
@@ -14021,12 +14024,12 @@ int wolfSSL_EC_KEY_set_group(WOLFSSL_EC_KEY *key, WOLFSSL_EC_GROUP *group)
 
 int wolfSSL_EC_KEY_generate_key(WOLFSSL_EC_KEY *key)
 {
-    int    initTmpRng = 0;
-    RNG*   rng = NULL;
+    int     initTmpRng = 0;
+    WC_RNG* rng = NULL;
 #ifdef WOLFSSL_SMALL_STACK
-    RNG*   tmpRNG = NULL;
+    WC_RNG* tmpRNG = NULL;
 #else
-    RNG    tmpRNG[1];
+    WC_RNG  tmpRNG[1];
 #endif
 
     WOLFSSL_ENTER("wolfSSL_EC_KEY_generate_key");
@@ -14038,7 +14041,7 @@ int wolfSSL_EC_KEY_generate_key(WOLFSSL_EC_KEY *key)
     }
 
 #ifdef WOLFSSL_SMALL_STACK
-    tmpRNG = (RNG*)XMALLOC(sizeof(RNG), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    tmpRNG = (WC_RNG*)XMALLOC(sizeof(WC_RNG), NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (tmpRNG == NULL)
         return 0;
 #endif
@@ -14656,12 +14659,12 @@ WOLFSSL_ECDSA_SIG *wolfSSL_ECDSA_do_sign(const unsigned char *d, int dlen,
                                          WOLFSSL_EC_KEY *key)
 {
     WOLFSSL_ECDSA_SIG *sig = NULL;
-    int    initTmpRng = 0;
-    RNG*   rng = NULL;
+    int     initTmpRng = 0;
+    WC_RNG* rng = NULL;
 #ifdef WOLFSSL_SMALL_STACK
-    RNG*   tmpRNG = NULL;
+    WC_RNG* tmpRNG = NULL;
 #else
-    RNG    tmpRNG[1];
+    WC_RNG  tmpRNG[1];
 #endif
 
     WOLFSSL_ENTER("wolfSSL_ECDSA_do_sign");
@@ -14683,7 +14686,7 @@ WOLFSSL_ECDSA_SIG *wolfSSL_ECDSA_do_sign(const unsigned char *d, int dlen,
     }
 
 #ifdef WOLFSSL_SMALL_STACK
-    tmpRNG = (RNG*)XMALLOC(sizeof(RNG), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    tmpRNG = (WC_RNG*)XMALLOC(sizeof(WC_RNG), NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (tmpRNG == NULL)
         return NULL;
 #endif
@@ -15484,7 +15487,7 @@ int  wolfSSL_get_chain_cert_pem(WOLFSSL_X509_CHAIN* chain, int idx,
     word32 szNeeded = 0;
 
     WOLFSSL_ENTER("wolfSSL_get_chain_cert_pem");
-    if (!chain || !outLen)
+    if (!chain || !outLen || idx < 0 || idx >= wolfSSL_get_chain_count(chain))
         return BAD_FUNC_ARG;
 
     /* Null output buffer return size needed in outLen */
@@ -16344,11 +16347,11 @@ int wolfSSL_EC25519_generate_key(unsigned char *priv, unsigned int *privSz,
 #else /* WOLFSSL_KEY_GEN */
     int ret = SSL_FAILURE;
     int initTmpRng = 0;
-    RNG *rng = NULL;
+    WC_RNG *rng = NULL;
 #ifdef WOLFSSL_SMALL_STACK
-    RNG *tmpRNG = NULL;
+    WC_RNG *tmpRNG = NULL;
 #else
-    RNG tmpRNG[1];
+    WC_RNG tmpRNG[1];
 #endif
 
     WOLFSSL_ENTER("wolfSSL_EC25519_generate_key");
@@ -16360,7 +16363,7 @@ int wolfSSL_EC25519_generate_key(unsigned char *priv, unsigned int *privSz,
     }
 
 #ifdef WOLFSSL_SMALL_STACK
-    tmpRNG = (RNG*)XMALLOC(sizeof(RNG), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    tmpRNG = (WC_RNG*)XMALLOC(sizeof(WC_RNG), NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (tmpRNG == NULL)
         return SSL_FAILURE;
 #endif
@@ -16482,11 +16485,11 @@ int wolfSSL_ED25519_generate_key(unsigned char *priv, unsigned int *privSz,
 #else /* WOLFSSL_KEY_GEN */
     int ret = SSL_FAILURE;
     int initTmpRng = 0;
-    RNG *rng = NULL;
+    WC_RNG *rng = NULL;
 #ifdef WOLFSSL_SMALL_STACK
-    RNG *tmpRNG = NULL;
+    WC_RNG *tmpRNG = NULL;
 #else
-    RNG tmpRNG[1];
+    WC_RNG tmpRNG[1];
 #endif
 
     WOLFSSL_ENTER("wolfSSL_ED25519_generate_key");
@@ -16498,7 +16501,7 @@ int wolfSSL_ED25519_generate_key(unsigned char *priv, unsigned int *privSz,
     }
 
 #ifdef WOLFSSL_SMALL_STACK
-    tmpRNG = (RNG*)XMALLOC(sizeof(RNG), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    tmpRNG = (WC_RNG*)XMALLOC(sizeof(WC_RNG), NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (tmpRNG == NULL)
         return SSL_FATAL_ERROR;
 #endif

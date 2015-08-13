@@ -90,7 +90,11 @@ void wolfSSL_Debugging_OFF(void)
 #ifdef DEBUG_WOLFSSL
 
 #ifdef FREESCALE_MQX
-    #include <fio.h>
+    #if MQX_USE_IO_OLD
+        #include <fio.h>
+    #else
+        #include <nio.h>
+    #endif
 #else
     #include <stdio.h>   /* for default printf stuff */
 #endif

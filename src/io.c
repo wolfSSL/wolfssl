@@ -527,6 +527,8 @@ int EmbedGenerateCookie(WOLFSSL* ssl, byte *buf, int sz, void *ctx)
 
 #ifdef HAVE_OCSP
 
+#include <stdlib.h>   /* atoi() */
+
 
 static int Word16ToString(char* d, word16 number)
 {

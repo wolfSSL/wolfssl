@@ -525,16 +525,17 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 
 #ifdef USE_WOLFSSL_MEMORY
     if (trackMemory)
-        InitMemoryTracker(); 
+        InitMemoryTracker();
 #endif
 
     switch (version) {
 #ifndef NO_OLD_TLS
+    #ifdef WOLFSSL_ALLOW_SSLV3
         case 0:
             method = wolfSSLv3_client_method();
             break;
-                
-                
+    #endif
+
     #ifndef NO_TLS
         case 1:
             method = wolfTLSv1_client_method();
@@ -544,9 +545,9 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
             method = wolfTLSv1_1_client_method();
             break;
     #endif /* NO_TLS */
-                
+
 #endif  /* NO_OLD_TLS */
-                
+
 #ifndef NO_TLS
         case 3:
             method = wolfTLSv1_2_client_method();

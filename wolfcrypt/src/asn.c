@@ -42,6 +42,7 @@
 #include <wolfssl/wolfcrypt/logging.h>
 
 #include <wolfssl/wolfcrypt/random.h>
+#include <wolfssl/wolfcrypt/hash.h>
 
 
 #ifndef NO_RC4
@@ -66,7 +67,11 @@
 
 #ifdef WOLFSSL_DEBUG_ENCODING
     #ifdef FREESCALE_MQX
-        #include <fio.h>
+        #if MQX_USE_IO_OLD
+            #include <fio.h>
+        #else
+            #include <nio.h>
+        #endif
     #else
         #include <stdio.h>
     #endif
@@ -904,6 +909,9 @@ static int DecryptKey(const char* password, int passwordSz, byte* salt,
     byte key[MAX_KEY_SIZE];
 #endif
 
+    (void)input;
+    (void)length;
+
     switch (id) {
         case PBE_MD5_DES:
             typeH = MD5;
@@ -1484,11 +1492,13 @@ int wc_DsaKeyToDer(DsaKey* key, byte* output, word32 inLen)
         sizes[i] = SetLength(rawLen, tmps[i] + 1) + 1 + lbit; /* tag & lbit */
 
         if (sizes[i] <= MAX_SEQ_SZ) {
+            int err;
+
             /* leading zero */
             if (lbit)
                 tmps[i][sizes[i]-1] = 0x00;
 
-            int err = mp_to_unsigned_bin(keyInt, tmps[i] + sizes[i]);
+            err = mp_to_unsigned_bin(keyInt, tmps[i] + sizes[i]);
             if (err == MP_OKAY) {
                 sizes[i] += (rawLen-lbit); /* lbit included in rawLen */
                 intTotalLen += sizes[i];
@@ -4913,11 +4923,13 @@ int wc_RsaKeyToDer(RsaKey* key, byte* output, word32 inLen)
         sizes[i] = SetLength(rawLen, tmps[i] + 1) + 1 + lbit; /* tag & lbit */
 
         if (sizes[i] <= MAX_SEQ_SZ) {
+            int err;
+
             /* leading zero */
             if (lbit)
                 tmps[i][sizes[i]-1] = 0x00;
 
-            int err = mp_to_unsigned_bin(keyInt, tmps[i] + sizes[i]);
+            err = mp_to_unsigned_bin(keyInt, tmps[i] + sizes[i]);
             if (err == MP_OKAY) {
                 sizes[i] += (rawLen-lbit); /* lbit included in rawLen */
                 intTotalLen += sizes[i];
@@ -5755,7 +5767,7 @@ static int SetName(byte* output, CertName* name)
 
 /* encode info from cert into DER encoded format */
 static int EncodeCert(Cert* cert, DerCert* der, RsaKey* rsaKey, ecc_key* eccKey,
-                      RNG* rng, const byte* ntruKey, word16 ntruSz)
+                      WC_RNG* rng, const byte* ntruKey, word16 ntruSz)
 {
     int ret;
 
@@ -5927,7 +5939,7 @@ static int WriteCertBody(DerCert* der, byte* buffer)
 
 /* Make RSA signature from buffer (sz), write to sig (sigSz) */
 static int MakeSignature(const byte* buffer, int sz, byte* sig, int sigSz,
-                         RsaKey* rsaKey, ecc_key* eccKey, RNG* rng,
+                         RsaKey* rsaKey, ecc_key* eccKey, WC_RNG* rng,
                          int sigAlgoType)
 {
     int encSigSz, digestSz, typeH = 0, ret = 0;
@@ -6052,7 +6064,7 @@ static int AddSignature(byte* buffer, int bodySz, const byte* sig, int sigSz,
 
 /* Make an x509 Certificate v3 any key type from cert input, write to buffer */
 static int MakeAnyCert(Cert* cert, byte* derBuffer, word32 derSz,
-                       RsaKey* rsaKey, ecc_key* eccKey, RNG* rng,
+                       RsaKey* rsaKey, ecc_key* eccKey, WC_RNG* rng,
                        const byte* ntruKey, word16 ntruSz)
 {
     int ret;
@@ -6089,7 +6101,7 @@ static int MakeAnyCert(Cert* cert, byte* derBuffer, word32 derSz,
 
 /* Make an x509 Certificate v3 RSA or ECC from cert input, write to buffer */
 int wc_MakeCert(Cert* cert, byte* derBuffer, word32 derSz, RsaKey* rsaKey,
-             ecc_key* eccKey, RNG* rng)
+             ecc_key* eccKey, WC_RNG* rng)
 {
     return MakeAnyCert(cert, derBuffer, derSz, rsaKey, eccKey, rng, NULL, 0);
 }
@@ -6098,7 +6110,7 @@ int wc_MakeCert(Cert* cert, byte* derBuffer, word32 derSz, RsaKey* rsaKey,
 #ifdef HAVE_NTRU
 
 int wc_MakeNtruCert(Cert* cert, byte* derBuffer, word32 derSz,
-                  const byte* ntruKey, word16 keySz, RNG* rng)
+                  const byte* ntruKey, word16 keySz, WC_RNG* rng)
 {
     return MakeAnyCert(cert, derBuffer, derSz, NULL, NULL, rng, ntruKey, keySz);
 }
@@ -6314,7 +6326,7 @@ int wc_MakeCertReq(Cert* cert, byte* derBuffer, word32 derSz,
 
 
 int wc_SignCert(int requestSz, int sType, byte* buffer, word32 buffSz,
-             RsaKey* rsaKey, ecc_key* eccKey, RNG* rng)
+             RsaKey* rsaKey, ecc_key* eccKey, WC_RNG* rng)
 {
     int sigSz;
 #ifdef WOLFSSL_SMALL_STACK
@@ -6351,7 +6363,7 @@ int wc_SignCert(int requestSz, int sType, byte* buffer, word32 buffSz,
 
 
 int wc_MakeSelfCert(Cert* cert, byte* buffer, word32 buffSz,
-                    RsaKey* key, RNG* rng)
+                    RsaKey* key, WC_RNG* rng)
 {
     int ret = wc_MakeCert(cert, buffer, buffSz, key, NULL, rng);
 
@@ -7583,7 +7595,7 @@ int EncodeOcspRequest(OcspRequest* req)
 
     extSz = 0;
     if (req->useNonce) {
-        RNG rng;
+        WC_RNG rng;
         if (wc_InitRng(&rng) != 0) {
             WOLFSSL_MSG("\tCannot initialize RNG. Skipping the OSCP Nonce.");
         } else {

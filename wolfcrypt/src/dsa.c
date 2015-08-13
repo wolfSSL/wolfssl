@@ -18,7 +18,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
  */
-#include <stdio.h>
 
 #ifdef HAVE_CONFIG_H
     #include <config.h>
@@ -85,7 +84,7 @@ void wc_FreeDsaKey(DsaKey* key)
 
 #ifdef WOLFSSL_KEY_GEN
 
-int wc_MakeDsaKey(RNG *rng, DsaKey *dsa)
+int wc_MakeDsaKey(WC_RNG *rng, DsaKey *dsa)
 {
     unsigned char *buf;
     int qsize, err;
@@ -146,7 +145,7 @@ int wc_MakeDsaKey(RNG *rng, DsaKey *dsa)
 }
 
 /* modulus_size in bits */
-int wc_MakeDsaParameters(RNG *rng, int modulus_size, DsaKey *dsa)
+int wc_MakeDsaParameters(WC_RNG *rng, int modulus_size, DsaKey *dsa)
 {
     mp_int  tmp, tmp2;
     int     err, msize, qsize,
@@ -341,7 +340,7 @@ int wc_MakeDsaParameters(RNG *rng, int modulus_size, DsaKey *dsa)
 #endif /* WOLFSSL_KEY_GEN */
 
 
-int wc_DsaSign(const byte* digest, byte* out, DsaKey* key, RNG* rng)
+int wc_DsaSign(const byte* digest, byte* out, DsaKey* key, WC_RNG* rng)
 {
     mp_int k, kInv, r, s, H;
     int    ret, sz;

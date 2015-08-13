@@ -79,13 +79,13 @@ linux)
 esac
 
 git clone . $TEST_DIR
-[ $? -ne 0 ] && echo -e "\n\nCouldn't duplicate current working directory.\n\n" && exit 1
+[ $? -ne 0 ] && echo "\n\nCouldn't duplicate current working directory.\n\n" && exit 1
 
 pushd $TEST_DIR
 
 # make a clone of the last FIPS release tag
 git clone -b $CTAO_VERSION $CTAO_REPO old-tree
-[ $? -ne 0 ] && echo -e "\n\nCouldn't checkout the FIPS release.\n\n" && exit 1
+[ $? -ne 0 ] && echo "\n\nCouldn't checkout the FIPS release.\n\n" && exit 1
 
 for MOD in ${WC_MODS[@]}
 do
@@ -102,7 +102,7 @@ cp old-tree/$WC_INC_PATH/random.h $WC_INC_PATH
 
 # clone the FIPS repository
 git clone -b $FIPS_VERSION $FIPS_REPO fips
-[ $? -ne 0 ] && echo -e "\n\nCouldn't checkout the FIPS repository.\n\n" && exit 1
+[ $? -ne 0 ] && echo "\n\nCouldn't checkout the FIPS repository.\n\n" && exit 1
 
 for SRC in ${FIPS_SRCS[@]}
 do
@@ -113,7 +113,7 @@ done
 ./autogen.sh
 ./configure --enable-fips
 make
-[ $? -ne 0 ] && echo -e "\n\nMake failed. Debris left for analysis." && exit 1
+[ $? -ne 0 ] && echo "\n\nMake failed. Debris left for analysis." && exit 1
 
 NEWHASH=`./wolfcrypt/test/testwolfcrypt | sed -n 's/hash = \(.*\)/\1/p'`
 if [ -n "$NEWHASH" ]; then
@@ -122,7 +122,7 @@ if [ -n "$NEWHASH" ]; then
 fi
 
 make test
-[ $? -ne 0 ] && echo -e "\n\nTest failed. Debris left for analysis." && exit 1
+[ $? -ne 0 ] && echo "\n\nTest failed. Debris left for analysis." && exit 1
 
 # Clean up
 popd

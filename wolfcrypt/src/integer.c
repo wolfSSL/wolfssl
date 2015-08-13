@@ -47,7 +47,11 @@
 
 #ifdef SHOW_GEN
     #ifdef FREESCALE_MQX
-        #include <fio.h>
+        #if MQX_USE_IO_OLD
+            #include <fio.h>
+        #else
+            #include <nio.h>
+        #endif
     #else
         #include <stdio.h>
     #endif
@@ -4284,7 +4288,7 @@ static int mp_prime_is_divisible (mp_int * a, int *result)
 
 static const int USE_BBS = 1;
 
-int mp_rand_prime(mp_int* N, int len, RNG* rng, void* heap)
+int mp_rand_prime(mp_int* N, int len, WC_RNG* rng, void* heap)
 {
     int   err, res, type;
     byte* buf;
@@ -4535,12 +4539,14 @@ LBL_U:mp_clear (&v);
 #endif /* WOLFSSL_KEY_GEN */
 
 
-#ifdef HAVE_ECC
+#if defined(HAVE_ECC) || defined(WOLFSSL_KEY_GEN) || defined(HAVE_COMP_KEY)
 
 /* chars used in radix conversions */
 const char *mp_s_rmap = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ\
                          abcdefghijklmnopqrstuvwxyz+/";
+#endif
 
+#ifdef HAVE_ECC
 /* read a string [ASCII] in a given radix */
 int mp_read_radix (mp_int * a, const char *str, int radix)
 {

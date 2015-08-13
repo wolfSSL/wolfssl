@@ -143,6 +143,9 @@
 	#ifdef HAVE_THREAD_LS
 	    #if defined(_MSC_VER)
 	        #define THREAD_LS_T __declspec(thread)
+	    /* Thread local storage only in FreeRTOS v8.2.1 and higher */
+	    #elif defined(FREERTOS)
+	        #define THREAD_LS_T
 	    #else
 	        #define THREAD_LS_T __thread
 	    #endif
@@ -176,7 +179,7 @@
 	    #define XREALLOC(p, n, h, t) realloc((p), (n))
 	#elif !defined(MICRIUM_MALLOC) && !defined(EBSNET) \
 	        && !defined(WOLFSSL_SAFERTOS) && !defined(FREESCALE_MQX) \
-	        && !defined(WOLFSSL_LEANPSK)
+	        && !defined(WOLFSSL_LEANPSK) && !defined(FREERTOS)
 	    /* default C runtime, can install different routines at runtime via cbs */
 	    #include <wolfssl/wolfcrypt/memory.h>
 	    #define XMALLOC(s, h, t)     ((void)h, (void)t, wolfSSL_Malloc((s)))
@@ -212,7 +215,7 @@
 
 	#ifndef CTYPE_USER
 	    #include <ctype.h>
-	    #if defined(HAVE_ECC) || defined(HAVE_OCSP)
+	    #if defined(HAVE_ECC) || defined(HAVE_OCSP) || defined(WOLFSSL_KEY_GEN)
 	        #define XTOUPPER(c)     toupper((c))
 	        #define XISALPHA(c)     isalpha((c))
 	    #endif
@@ -268,7 +271,8 @@
 	    DYNAMIC_TYPE_TLSX         = 43,
 	    DYNAMIC_TYPE_OCSP         = 44,
 	    DYNAMIC_TYPE_SIGNATURE    = 45,
-	    DYNAMIC_TYPE_HASHES       = 46
+	    DYNAMIC_TYPE_HASHES       = 46,
+		DYNAMIC_TYPE_SRP          = 47,
 	};
 
 	/* max error buffer string size */

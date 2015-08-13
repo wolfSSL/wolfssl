@@ -73,7 +73,7 @@ typedef struct PKCS7 {
     word32 contentSz;             /* content size                         */
     int contentOID;               /* PKCS#7 content type OID sum          */
 
-    RNG* rng;
+    WC_RNG* rng;
 
     int hashOID;
     int encryptOID;               /* key encryption algorithm OID         */
@@ -100,7 +100,7 @@ WOLFSSL_LOCAL int wc_GetContentType(const byte* input, word32* inOutIdx,
                                 word32* oid, word32 maxIdx);
 WOLFSSL_LOCAL int wc_CreateRecipientInfo(const byte* cert, word32 certSz,
                                      int keyEncAlgo, int blockKeySz,
-                                     RNG* rng, byte* contentKeyPlain,
+                                     WC_RNG* rng, byte* contentKeyPlain,
                                      byte* contentKeyEnc,
                                      int* keyEncSz, byte* out, word32 outSz);
 

@@ -107,6 +107,7 @@
 #define CLIENT_HELLO_LATE_KEY_STR 72
 #define GOT_CERT_STATUS_STR 73
 #define RSA_KEY_MISSING_STR 74
+#define NO_SECURE_RENEGOTIATION 75
 /* !!!! also add to msgTable in sniffer.c and .rc file !!!! */
 
 

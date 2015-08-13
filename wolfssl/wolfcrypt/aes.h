@@ -133,12 +133,6 @@ WOLFSSL_API int  wc_AesCbcEncrypt(Aes* aes, byte* out,
                                   const byte* in, word32 sz);
 WOLFSSL_API int  wc_AesCbcDecrypt(Aes* aes, byte* out,
                                   const byte* in, word32 sz);
-WOLFSSL_API int  wc_AesCbcEncryptWithKey(byte* out, const byte* in, word32 inSz,
-                                          const byte* key, word32 keySz,
-                                          const byte* iv);
-WOLFSSL_API int  wc_AesCbcDecryptWithKey(byte* out, const byte* in, word32 inSz,
-                                         const byte* key, word32 keySz,
-                                         const byte* iv);
 
 /* AES-CTR */
 #ifdef WOLFSSL_AES_COUNTER

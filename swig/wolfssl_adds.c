@@ -182,9 +182,9 @@ char* wolfSSL_error_string(int err)
 }
 
 
-RNG* GetRng(void)
+WC_RNG* GetRng(void)
 {
-    RNG* rng = (RNG*)malloc(sizeof(RNG));
+    WC_RNG* rng = (WC_RNG*)malloc(sizeof(WC_RNG));
 
     if (rng)
         if (wc_InitRng(rng) != 0) {

@@ -43,7 +43,7 @@ int  wc_FreeRsaKey(RsaKey* key)
 
 
 int  wc_RsaPublicEncrypt(const byte* in, word32 inLen, byte* out,
-                                 word32 outLen, RsaKey* key, RNG* rng)
+                                 word32 outLen, RsaKey* key, WC_RNG* rng)
 {
     return RsaPublicEncrypt_fips(in, inLen, out, outLen, key, rng);
 }
@@ -64,7 +64,7 @@ int  wc_RsaPrivateDecrypt(const byte* in, word32 inLen, byte* out,
 
 
 int  wc_RsaSSL_Sign(const byte* in, word32 inLen, byte* out,
-                            word32 outLen, RsaKey* key, RNG* rng)
+                            word32 outLen, RsaKey* key, WC_RNG* rng)
 {
     return RsaSSL_Sign_fips(in, inLen, out, outLen, key, rng);
 }
@@ -96,7 +96,7 @@ int wc_RsaFlattenPublicKey(RsaKey* key, byte* a, word32* aSz, byte* b,
     return RsaFlattenPublicKey(key, a, aSz, b, bSz);
 }
 #ifdef WOLFSSL_KEY_GEN
-    int wc_MakeRsaKey(RsaKey* key, int size, long e, RNG* rng)
+    int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
     {
         return MakeRsaKey(key, size, e, rng);
     }
@@ -143,6 +143,22 @@ int wc_RsaFlattenPublicKey(RsaKey* key, byte* a, word32* aSz, byte* b,
     static int  CaviumRsaSSL_Verify(const byte* in, word32 inLen, byte* out,
                                     word32 outLen, RsaKey* key);
 #endif
+
+enum {
+    RSA_PUBLIC_ENCRYPT  = 0,
+    RSA_PUBLIC_DECRYPT  = 1,
+    RSA_PRIVATE_ENCRYPT = 2,
+    RSA_PRIVATE_DECRYPT = 3,
+
+    RSA_BLOCK_TYPE_1 = 1,
+    RSA_BLOCK_TYPE_2 = 2,
+
+    RSA_MIN_SIZE = 512,
+    RSA_MAX_SIZE = 4096,
+
+    RSA_MIN_PAD_SZ   = 11      /* seperator + 0 + pad value + 8 pads */
+};
+
 
 int wc_InitRsaKey(RsaKey* key, void* heap)
 {
@@ -203,7 +219,7 @@ int wc_FreeRsaKey(RsaKey* key)
 }
 
 static int wc_RsaPad(const byte* input, word32 inputLen, byte* pkcsBlock,
-                   word32 pkcsBlockLen, byte padValue, RNG* rng)
+                   word32 pkcsBlockLen, byte padValue, WC_RNG* rng)
 {
     if (inputLen == 0)
         return 0;
@@ -375,7 +391,7 @@ done:
 
 
 int wc_RsaPublicEncrypt(const byte* in, word32 inLen, byte* out, word32 outLen,
-                     RsaKey* key, RNG* rng)
+                     RsaKey* key, WC_RNG* rng)
 {
     int sz, ret;
 
@@ -521,7 +537,7 @@ int wc_RsaSSL_Verify(const byte* in, word32 inLen, byte* out, word32 outLen,
 
 /* for Rsa Sign */
 int wc_RsaSSL_Sign(const byte* in, word32 inLen, byte* out, word32 outLen,
-                      RsaKey* key, RNG* rng)
+                      RsaKey* key, WC_RNG* rng)
 {
     int sz, ret;
 
@@ -588,7 +604,7 @@ int wc_RsaFlattenPublicKey(RsaKey* key, byte* e, word32* eSz, byte* n,
 
 #ifdef WOLFSSL_KEY_GEN
 /* Make an RSA key for size bits, with e specified, 65537 is a good e */
-int wc_MakeRsaKey(RsaKey* key, int size, long e, RNG* rng)
+int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
 {
     mp_int p, q, tmp1, tmp2, tmp3;
     int    err;

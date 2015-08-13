@@ -2264,6 +2264,7 @@ static const int lnz[16] = {
    4, 0, 1, 0, 2, 0, 1, 0, 3, 0, 1, 0, 2, 0, 1, 0
 };
 
+#ifdef WOLFSSL_KEY_GEN
 /* swap the elements of two integers, for cases where you can't simply swap the
  * mp_int pointers around
  */
@@ -2275,6 +2276,7 @@ static void fp_exch (fp_int * a, fp_int * b)
     *a = *b;
     *b = t;
 }
+#endif
 
 /* Counts the number of lsbs which are zero before the first zero bit */
 int fp_cnt_lsb(fp_int *a)
@@ -2410,7 +2412,7 @@ int mp_mod_d(fp_int *a, fp_digit b, fp_digit *c)
 void fp_gcd(fp_int *a, fp_int *b, fp_int *c);
 void fp_lcm(fp_int *a, fp_int *b, fp_int *c);
 int  fp_isprime(fp_int *a);
-int  fp_randprime(fp_int* N, int len, RNG* rng, void* heap);
+int  fp_randprime(fp_int* N, int len, WC_RNG* rng, void* heap);
 
 int mp_gcd(fp_int *a, fp_int *b, fp_int *c)
 {
@@ -2433,7 +2435,7 @@ int mp_prime_is_prime(mp_int* a, int t, int* result)
     return MP_OKAY;
 }
 
-int mp_rand_prime(mp_int* N, int len, RNG* rng, void* heap)
+int mp_rand_prime(mp_int* N, int len, WC_RNG* rng, void* heap)
 {
     int err;
 
@@ -2587,7 +2589,7 @@ int fp_isprime(fp_int *a)
    return FP_YES;
 }
 
-int fp_randprime(fp_int* N, int len, RNG* rng, void* heap)
+int fp_randprime(fp_int* N, int len, WC_RNG* rng, void* heap)
 {
     static const int USE_BBS = 1;
     int   err, type;
@@ -2724,12 +2726,14 @@ int mp_add_d(fp_int *a, fp_digit b, fp_int *c)
 #endif  /* HAVE_ECC || !NO_PWDBASED */
 
 
-#ifdef HAVE_ECC
+#if defined(HAVE_ECC) || defined(WOLFSSL_KEY_GEN) || defined(HAVE_COMP_KEY)
 
 /* chars used in radix conversions */
 static const char *fp_s_rmap = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ\
                                 abcdefghijklmnopqrstuvwxyz+/";
+#endif
 
+#ifdef HAVE_ECC
 static int fp_read_radix(fp_int *a, const char *str, int radix)
 {
   int     y, neg;
@@ -2842,6 +2846,7 @@ int mp_cnt_lsb(fp_int* a)
 
 #endif /* HAVE_COMP_KEY */
 
+#endif /* HAVE_ECC */
 
 #if defined(WOLFSSL_KEY_GEN) || defined(HAVE_COMP_KEY)
 
@@ -2952,8 +2957,6 @@ int mp_toradix (mp_int *a, char *str, int radix)
 }
 
 #endif /* defined(WOLFSSL_KEY_GEN) || defined(HAVE_COMP_KEY) */
-
-#endif /* HAVE_ECC */
 
 #endif /* USE_FAST_MATH */
 

@@ -111,8 +111,10 @@ void echoclient_test(void* args)
     method  = DTLSv1_2_client_method();
 #elif  !defined(NO_TLS)
     method = CyaSSLv23_client_method();
-#else
+#elif defined(WOLFSSL_ALLOW_SSLV3)
     method = SSLv3_client_method();
+#else
+    #error "no valid client method type"
 #endif
     ctx    = SSL_CTX_new(method);
 

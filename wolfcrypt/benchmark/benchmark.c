@@ -32,7 +32,11 @@
 
 #ifdef FREESCALE_MQX
     #include <mqx.h>
-    #include <fio.h>
+    #if MQX_USE_IO_OLD
+        #include <fio.h>
+    #else
+        #include <nio.h>
+    #endif
 #else
     #include <stdio.h>
 #endif
@@ -194,7 +198,7 @@ static int OpenNitroxDevice(int dma_mode,int dev_id)
 #if !defined(NO_RSA) || !defined(NO_DH) \
                                 || defined(WOLFSSL_KEYGEN) || defined(HAVE_ECC)
     #define HAVE_LOCAL_RNG
-    static RNG rng;
+    static WC_RNG rng;
 #endif
 
 /* use kB instead of mB for embedded benchmarking */

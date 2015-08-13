@@ -47,19 +47,6 @@
 enum {
     RSA_PUBLIC   = 0,
     RSA_PRIVATE  = 1,
-
-    RSA_PUBLIC_ENCRYPT  = 0,
-    RSA_PUBLIC_DECRYPT  = 1,
-    RSA_PRIVATE_ENCRYPT = 2,
-    RSA_PRIVATE_DECRYPT = 3,
-
-    RSA_BLOCK_TYPE_1 = 1,
-    RSA_BLOCK_TYPE_2 = 2,
-
-    RSA_MIN_SIZE = 512,
-    RSA_MAX_SIZE = 4096,
-    
-    RSA_MIN_PAD_SZ   = 11      /* seperator + 0 + pad value + 8 pads */
 };
 
 
@@ -90,13 +77,13 @@ WOLFSSL_API int  wc_InitRsaKey(RsaKey* key, void*);
 WOLFSSL_API int  wc_FreeRsaKey(RsaKey* key);
 
 WOLFSSL_API int  wc_RsaPublicEncrypt(const byte* in, word32 inLen, byte* out,
-                                 word32 outLen, RsaKey* key, RNG* rng);
+                                 word32 outLen, RsaKey* key, WC_RNG* rng);
 WOLFSSL_API int  wc_RsaPrivateDecryptInline(byte* in, word32 inLen, byte** out,
                                         RsaKey* key);
 WOLFSSL_API int  wc_RsaPrivateDecrypt(const byte* in, word32 inLen, byte* out,
                                   word32 outLen, RsaKey* key);
 WOLFSSL_API int  wc_RsaSSL_Sign(const byte* in, word32 inLen, byte* out,
-                            word32 outLen, RsaKey* key, RNG* rng);
+                            word32 outLen, RsaKey* key, WC_RNG* rng);
 WOLFSSL_API int  wc_RsaSSL_VerifyInline(byte* in, word32 inLen, byte** out,
                                     RsaKey* key);
 WOLFSSL_API int  wc_RsaSSL_Verify(const byte* in, word32 inLen, byte* out,
@@ -118,7 +105,7 @@ WOLFSSL_API int  wc_RsaFlattenPublicKey(RsaKey*, byte*, word32*, byte*,
                                                                        word32*);
 
 #ifdef WOLFSSL_KEY_GEN
-    WOLFSSL_API int wc_MakeRsaKey(RsaKey* key, int size, long e, RNG* rng);
+    WOLFSSL_API int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng);
 #endif
 
 #ifdef HAVE_CAVIUM

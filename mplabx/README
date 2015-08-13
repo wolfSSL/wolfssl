@@ -25,13 +25,13 @@ Included Project Files
     <wolfssl_root>/mplabx/wolfssl.X/dist/default/production/wolfssl.X.a
 
 2. wolfCrypt Test App (wolfcrypt_test.X)
-    
+
     This project tests the wolfCrypt cryptography modules. It is generally
     a good idea to run this first on an embedded system after compiling
     wolfSSL in order to verify all underlying crypto is working correctly.
 
 3. wolfCrypt Benchmark App (wolfcrypt_benchmark.X)
-    
+
     This project builds the wolfCrypt benchmark application.
     For the benchmark timer, adjust CLOCK value under
     "#elif defined MICROCHIP_PIC32" in wolfcrypt/benchmark/benchmark.c
@@ -40,7 +40,7 @@ PIC32MX/PIC32MZ
 ---------------
 
 The projects are set for PIC32MX by default. For PIC32MZ, change project
-properties->Devices and add "CYASSL_MICROCHIP_PIC32M" to 
+properties->Devices and add "WOLFSSL_MICROCHIP_PIC32MZ" to
 XC32-gcc->Preprocessing and messages-> Preprocessor macros.
 
 

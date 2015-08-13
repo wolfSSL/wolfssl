@@ -46,7 +46,7 @@ const curve25519_set_type curve25519_sets[] = {
 };
 
 
-int wc_curve25519_make_key(RNG* rng, int keysize, curve25519_key* key)
+int wc_curve25519_make_key(WC_RNG* rng, int keysize, curve25519_key* key)
 {
     unsigned char basepoint[CURVE25519_KEYSIZE] = {9};
     int  ret;

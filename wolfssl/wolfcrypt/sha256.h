@@ -74,7 +74,6 @@ typedef struct Sha256 {
 WOLFSSL_API int wc_InitSha256(Sha256*);
 WOLFSSL_API int wc_Sha256Update(Sha256*, const byte*, word32);
 WOLFSSL_API int wc_Sha256Final(Sha256*, byte*);
-WOLFSSL_API int wc_Sha256Hash(const byte*, word32, byte*);
 
 #ifdef __cplusplus
     } /* extern "C" */

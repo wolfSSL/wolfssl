@@ -6,7 +6,7 @@
 #
 #
 
-AC_INIT([wolfssl],[3.6.2],[https://github.com/wolfssl/wolfssl/issues],[wolfssl],[http://www.wolfssl.com])
+AC_INIT([wolfssl],[3.6.3],[https://github.com/wolfssl/wolfssl/issues],[wolfssl],[http://www.wolfssl.com])
 
 AC_CONFIG_AUX_DIR([build-aux])
 
@@ -85,7 +85,7 @@ AC_CHECK_TYPES(__uint128_t)
 AC_C_BIGENDIAN
 # mktime check takes forever on some systems, if time supported it would be
 # highly unusual for mktime to be missing
-#AC_FUNC_MKTIME 
+#AC_FUNC_MKTIME
 
 AC_PROG_CC
 AC_PROG_CC_C_O
@@ -199,7 +199,7 @@ fi
 AM_CONDITIONAL([BUILD_IPV6], [test "x$ENABLED_IPV6" = "xyes"])
 
 
-# Fortress build 
+# Fortress build
 AC_ARG_ENABLE([fortress],
     [  --enable-fortress       Enable SSL fortress build (default: disabled)],
     [ ENABLED_FORTRESS=$enableval ],
@@ -217,7 +217,7 @@ then
 fi
 
 
-# ssl bump build 
+# ssl bump build
 AC_ARG_ENABLE([bump],
     [  --enable-bump           Enable SSL Bump build (default: disabled)],
     [ ENABLED_BUMP=$enableval ],
@@ -231,7 +231,7 @@ fi
 
 ENABLED_SLOWMATH="yes"
 
-# lean psk build 
+# lean psk build
 AC_ARG_ENABLE([leanpsk],
     [  --enable-leanpsk        Enable Lean PSK build (default: disabled)],
     [ ENABLED_LEANPSK=$enableval ],
@@ -287,7 +287,7 @@ then
 fi
 
 
-# Persistent session cache 
+# Persistent session cache
 AC_ARG_ENABLE([savesession],
     [  --enable-savesession    Enable persistent session cache (default: disabled)],
     [ ENABLED_SAVESESSION=$enableval ],
@@ -300,7 +300,7 @@ then
 fi
 
 
-# Persistent cert cache 
+# Persistent cert cache
 AC_ARG_ENABLE([savecert],
     [  --enable-savecert       Enable persistent cert cache (default: disabled)],
     [ ENABLED_SAVECERT=$enableval ],
@@ -313,7 +313,7 @@ then
 fi
 
 
-# Atomic User Record Layer  
+# Atomic User Record Layer
 AC_ARG_ENABLE([atomicuser],
     [  --enable-atomicuser     Enable Atomic User Record Layer (default: disabled)],
     [ ENABLED_ATOMICUSER=$enableval ],
@@ -326,7 +326,7 @@ then
 fi
 
 
-# Public Key Callbacks  
+# Public Key Callbacks
 AC_ARG_ENABLE([pkcallbacks],
     [  --enable-pkcallbacks    Enable Public Key Callbacks (default: disabled)],
     [ ENABLED_PKCALLBACKS=$enableval ],
@@ -491,7 +491,7 @@ fi
 AM_CONDITIONAL([BUILD_MD2], [test "x$ENABLED_MD2" = "xyes"])
 
 
-# NULL CIPHER 
+# NULL CIPHER
 AC_ARG_ENABLE([nullcipher],
     [  --enable-nullcipher     Enable wolfSSL NULL cipher support (default: disabled)],
     [ ENABLED_NULL_CIPHER=$enableval ],
@@ -650,7 +650,7 @@ then
 fi
 
 
-# HKDF 
+# HKDF
 AC_ARG_ENABLE([hkdf],
     [  --enable-hkdf           Enable HKDF (HMAC-KDF) support (default: disabled)],
     [ ENABLED_HKDF=$enableval ],
@@ -802,7 +802,7 @@ if test "$ENABLED_FPECC" = "yes"
 then
     if test "$ENABLED_ECC" = "no"
     then
-        AC_MSG_ERROR([cannot enable fpecc without enabling ecc.]) 
+        AC_MSG_ERROR([cannot enable fpecc without enabling ecc.])
     fi
     AM_CFLAGS="$AM_CFLAGS -DFP_ECC"
 fi
@@ -819,17 +819,17 @@ if test "$ENABLED_ECC_ENCRYPT" = "yes"
 then
     if test "$ENABLED_ECC" = "no"
     then
-        AC_MSG_ERROR([cannot enable eccencrypt without enabling ecc.]) 
+        AC_MSG_ERROR([cannot enable eccencrypt without enabling ecc.])
     fi
     if test "$ENABLED_HKDF" = "no"
     then
-        AC_MSG_ERROR([cannot enable eccencrypt without enabling hkdf.]) 
+        AC_MSG_ERROR([cannot enable eccencrypt without enabling hkdf.])
     fi
     AM_CFLAGS="$AM_CFLAGS -DHAVE_ECC_ENCRYPT"
 fi
 
 
-# PSK 
+# PSK
 AC_ARG_ENABLE([psk],
     [  --enable-psk            Enable PSK (default: disabled)],
     [ ENABLED_PSK=$enableval ],
@@ -867,7 +867,7 @@ else
 fi
 
 
-# OLD TLS 
+# OLD TLS
 AC_ARG_ENABLE([oldtls],
     [  --enable-oldtls         Enable old TLS versions < 1.2 (default: enabled)],
     [ ENABLED_OLD_TLS=$enableval ],
@@ -887,7 +887,20 @@ else
 fi
 
 
-# STACK SIZE info for examples 
+# SSLv3
+AC_ARG_ENABLE([sslv3],
+    [  --enable-sslv3         Enable SSL version 3.0 (default: disabled)],
+    [ ENABLED_SSLV3=$enableval ],
+    [ ENABLED_SSLV3=no]
+    )
+
+if test "$ENABLED_SSLV3" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ALLOW_SSLV3"
+fi
+
+
+# STACK SIZE info for examples
 AC_ARG_ENABLE([stacksize],
     [  --enable-stacksize      Enable stack size info on examples (default: disabled)],
     [ ENABLED_STACKSIZE=$enableval ],
@@ -902,7 +915,7 @@ then
 fi
 
 
-# MEMORY 
+# MEMORY
 AC_ARG_ENABLE([memory],
     [  --enable-memory         Enable memory callbacks (default: enabled)],
     [ ENABLED_MEMORY=$enableval ],
@@ -924,7 +937,7 @@ fi
 AM_CONDITIONAL([BUILD_MEMORY], [test "x$ENABLED_MEMORY" = "xyes"])
 
 
-# RSA 
+# RSA
 AC_ARG_ENABLE([rsa],
     [  --enable-rsa            Enable RSA (default: enabled)],
     [ ENABLED_RSA=$enableval ],
@@ -1129,7 +1142,7 @@ fi
 AM_CONDITIONAL([BUILD_DES3], [test "x$ENABLED_DES3" = "xyes"])
 
 
-# ARC4 
+# ARC4
 AC_ARG_ENABLE([arc4],
     [  --enable-arc4           Enable ARC4 (default: disabled)],
     [ ENABLED_ARC4=$enableval ],
@@ -1156,7 +1169,7 @@ fi
 AM_CONDITIONAL([BUILD_RC4], [test "x$ENABLED_ARC4" = "xyes"])
 
 
-# MD5 
+# MD5
 AC_ARG_ENABLE([md5],
     [  --enable-md5            Enable MD5 (default: enabled)],
     [ ENABLED_MD5=$enableval ],
@@ -1178,7 +1191,7 @@ fi
 AM_CONDITIONAL([BUILD_MD5], [test "x$ENABLED_MD5" = "xyes"])
 
 
-# SHA 
+# SHA
 AC_ARG_ENABLE([sha],
     [  --enable-sha            Enable SHA (default: enabled)],
     [ ENABLED_SHA=$enableval ],
@@ -1200,7 +1213,7 @@ fi
 AM_CONDITIONAL([BUILD_SHA], [test "x$ENABLED_SHA" = "xyes"])
 
 
-# Web Server Build 
+# Web Server Build
 AC_ARG_ENABLE([webserver],
     [  --enable-webserver      Enable Web Server (default: disabled)],
     [ ENABLED_WEBSERVER=$enableval ],
@@ -1214,7 +1227,7 @@ fi
 
 
 
-# HC128 
+# HC128
 AC_ARG_ENABLE([hc128],
     [  --enable-hc128          Enable HC-128 (default: disabled)],
     [ ENABLED_HC128=$enableval ],
@@ -1360,7 +1373,7 @@ else
 fi
 
 
-# Filesystem Build 
+# Filesystem Build
 AC_ARG_ENABLE([filesystem],
     [  --enable-filesystem     Enable Filesystem support (default: enabled)],
     [ ENABLED_FILESYSTEM=$enableval ],
@@ -1380,7 +1393,7 @@ else
 fi
 
 
-# inline Build 
+# inline Build
 AC_ARG_ENABLE([inline],
     [  --enable-inline         Enable inline functions (default: enabled)],
     [ ENABLED_INLINE=$enableval ],
@@ -1502,7 +1515,7 @@ AM_CONDITIONAL([BUILD_NTRU], [test "x$ENABLED_NTRU" = "xyes"])
 
 if test "$ENABLED_NTRU" = "yes" && test "$ENABLED_SMALL" = "yes"
 then
-    AC_MSG_ERROR([cannot enable ntru and small, ntru requires TLS which small turns off.]) 
+    AC_MSG_ERROR([cannot enable ntru and small, ntru requires TLS which small turns off.])
 fi
 
 # SNI
@@ -1658,6 +1671,22 @@ then
 fi
 
 
+# Secure Remote Password
+AC_ARG_ENABLE([srp],
+    [  --enable-srp            Enable Secure Remote Password (default: disabled)],
+    [ ENABLED_SRP=$enableval ],
+    [ ENABLED_SRP=no ]
+    )
+
+if test "x$ENABLED_SRP" = "xyes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFCRYPT_HAVE_SRP"
+fi
+
+AM_CONDITIONAL([BUILD_SRP], [test "x$ENABLED_SRP" = "xyes"])
+
+
+
 # Small Stack
 AC_ARG_ENABLE([smallstack],
     [  --enable-smallstack     Enable Small Stack Usage (default: disabled)],
@@ -1694,7 +1723,7 @@ fi
 AM_CONDITIONAL([USE_VALGRIND], [test "x$ENABLED_VALGRIND" = "xyes"])
 
 
-# Test certs, use internal cert functions for extra testing 
+# Test certs, use internal cert functions for extra testing
 AC_ARG_ENABLE([testcert],
     [  --enable-testcert       Enable Test Cert (default: disabled)],
     [ ENABLED_TESTCERT=$enableval ],
@@ -1725,7 +1754,7 @@ then
 fi
 
 
-# Certificate Service Support 
+# Certificate Service Support
 AC_ARG_ENABLE([certservice],
     [  --enable-certservice    Enable cert service (default: disabled)],
     [ ENABLED_CERT_SERVICE=$enableval ],
@@ -1967,7 +1996,7 @@ AC_ARG_WITH([libz],
 AM_CONDITIONAL([BUILD_LIBZ], [test "x$ENABLED_LIBZ" = "xyes"])
 
 
-# cavium 
+# cavium
 trycaviumdir=""
 AC_ARG_WITH([cavium],
     [  --with-cavium=PATH      PATH to cavium/software dir ],
@@ -2112,6 +2141,10 @@ AS_IF([test "x$ENABLED_MAXSTRENGTH" = "xyes" && \
       [AM_CFLAGS="$AM_CFLAGS -DNO_OLD_TLS"
        ENABLED_OLD_TLS=no])
 
+AS_IF([test "x$ENABLED_MAXSTRENGTH" = "xyes" && \
+       test "x$ENABLED_SSLV3" = "xyes"],
+      [AC_MSG_ERROR([Cannot use Max Strength and SSLv3 at the same time.])])
+
 
 # OPTIMIZE FLAGS
 if test "$GCC" = "yes"
@@ -2136,6 +2169,12 @@ fi
 if test "$CC" = "icc"
 then
     AM_CFLAGS="$AM_CFLAGS -wd10006"
+fi
+
+# Expose HAVE___UINT128_T to options flags"
+if test "$ac_cv_type___uint128_t" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DHAVE___UINT128_T"
 fi
 
 
@@ -2187,7 +2226,7 @@ touch ctaocrypt/src/fips.c
 touch ctaocrypt/src/fips_test.c
 echo
 
-# generate user options header 
+# generate user options header
 echo "---"
 echo "Generating user options header..."
 
@@ -2197,7 +2236,7 @@ OPTION_FILE="wolfssl/options.h"
 #fi
 rm -f $OPTION_FILE
 
-echo "/* wolfssl options.h" > $OPTION_FILE 
+echo "/* wolfssl options.h" > $OPTION_FILE
 echo " * generated from configure options" >> $OPTION_FILE
 echo " *" >> $OPTION_FILE
 echo " * Copyright (C) 2006-2015 wolfSSL Inc." >> $OPTION_FILE
@@ -2206,13 +2245,13 @@ echo " * This file is part of wolfSSL. (formerly known as CyaSSL)" >> $OPTION_FI
 echo " *" >> $OPTION_FILE
 echo " */" >> $OPTION_FILE
 
-echo "" >> $OPTION_FILE 
-echo "#pragma once" >> $OPTION_FILE 
-echo "" >> $OPTION_FILE 
-echo "#ifdef __cplusplus" >> $OPTION_FILE 
-echo "extern \"C\" {" >> $OPTION_FILE 
-echo "#endif" >> $OPTION_FILE 
-echo "" >> $OPTION_FILE 
+echo "" >> $OPTION_FILE
+echo "#pragma once" >> $OPTION_FILE
+echo "" >> $OPTION_FILE
+echo "#ifdef __cplusplus" >> $OPTION_FILE
+echo "extern \"C\" {" >> $OPTION_FILE
+echo "#endif" >> $OPTION_FILE
+echo "" >> $OPTION_FILE
 
 for option in $OPTION_FLAGS; do
     defonly=`echo $option | sed 's/-D//'`
@@ -2248,11 +2287,11 @@ for option in $OPTION_FLAGS; do
     fi
 done
 
-echo "" >> $OPTION_FILE 
-echo "#ifdef __cplusplus" >> $OPTION_FILE 
-echo "}" >> $OPTION_FILE 
-echo "#endif" >> $OPTION_FILE 
-echo "" >> $OPTION_FILE 
+echo "" >> $OPTION_FILE
+echo "#ifdef __cplusplus" >> $OPTION_FILE
+echo "}" >> $OPTION_FILE
+echo "#endif" >> $OPTION_FILE
+echo "" >> $OPTION_FILE
 echo
 
 #backwards compatability for those who have included options or version
@@ -2283,7 +2322,7 @@ echo "   * Debug enabled:             $ax_enable_debug"
 echo "   * Warnings as failure:       $ac_cv_warnings_as_errors"
 echo "   * make -j:                   $enable_jobserver"
 echo "   * VCS checkout:              $ac_cv_vcs_checkout"
-echo 
+echo
 echo "   Features "
 echo "   * Single threaded:           $ENABLED_SINGLETHREADED"
 echo "   * Filesystem:                $ENABLED_FILESYSTEM"
@@ -2337,6 +2376,7 @@ echo "   * STUNNEL:                   $ENABLED_STUNNEL"
 echo "   * ERROR_STRINGS:             $ENABLED_ERROR_STRINGS"
 echo "   * DTLS:                      $ENABLED_DTLS"
 echo "   * Old TLS Versions:          $ENABLED_OLD_TLS"
+echo "   * SSL version 3.0:           $ENABLED_SSLV3"
 echo "   * OCSP:                      $ENABLED_OCSP"
 echo "   * CRL:                       $ENABLED_CRL"
 echo "   * CRL-MONITOR:               $ENABLED_CRL_MONITOR"
@@ -2355,10 +2395,10 @@ echo "   * Session Ticket:            $ENABLED_SESSION_TICKET"
 echo "   * All TLS Extensions:        $ENABLED_TLSX"
 echo "   * PKCS#7                     $ENABLED_PKCS7"
 echo "   * wolfSCEP                   $ENABLED_WOLFSCEP"
+echo "   * Secure Remote Password     $ENABLED_SRP"
 echo "   * Small Stack:               $ENABLED_SMALL_STACK"
 echo "   * valgrind unit tests:       $ENABLED_VALGRIND"
 echo "   * LIBZ:                      $ENABLED_LIBZ"
 echo "   * Examples:                  $ENABLED_EXAMPLES"
 echo ""
 echo "---"
-

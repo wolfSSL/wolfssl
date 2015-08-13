@@ -32,6 +32,7 @@
 
 #include <wolfssl/wolfcrypt/ed25519.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
+#include <wolfssl/wolfcrypt/hash.h>
 #ifdef NO_INLINE
     #include <wolfssl/wolfcrypt/misc.h>
 #else
@@ -41,7 +42,7 @@
 /* generate an ed25519 key pair.
  * returns 0 on success
  */
-int wc_ed25519_make_key(RNG* rng, int keySz, ed25519_key* key)
+int wc_ed25519_make_key(WC_RNG* rng, int keySz, ed25519_key* key)
 {
     byte  az[ED25519_PRV_KEY_SIZE];
     int   ret;
@@ -111,6 +112,8 @@ int wc_ed25519_sign_msg(const byte* in, word32 inlen, byte* out,
     /* step 1: create nonce to use where nonce is r in
        r = H(h_b, ... ,h_2b-1,M) */
     ret = wc_Sha512Hash(key->k, ED25519_KEY_SIZE, az);
+    if (ret != 0)
+        return ret;
 
     /* apply clamp */
     az[0]  &= 248;
@@ -129,7 +132,7 @@ int wc_ed25519_sign_msg(const byte* in, word32 inlen, byte* out,
     ret = wc_Sha512Final(&sha, nonce);
     if (ret != 0)
         return ret;
-    
+
     sc_reduce(nonce);
 
     /* step 2: computing R = rB where rB is the scalar multiplication of
@@ -376,6 +379,7 @@ int wc_ed25519_export_private_only(ed25519_key* key, byte* out, word32* outLen)
 
     return 0;
 }
+
 
 /*
  export private key, including public part

@@ -61,7 +61,7 @@ typedef struct {
 
 
 WOLFSSL_API
-int wc_ed25519_make_key(RNG* rng, int keysize, ed25519_key* key);
+int wc_ed25519_make_key(WC_RNG* rng, int keysize, ed25519_key* key);
 WOLFSSL_API
 int wc_ed25519_sign_msg(const byte* in, word32 inlen, byte* out,
                         word32 *outlen, ed25519_key* key);

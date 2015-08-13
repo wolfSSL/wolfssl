@@ -134,7 +134,7 @@ extern const ecc_set_type ecc_sets[];
 
 
 WOLFSSL_API
-int wc_ecc_make_key(RNG* rng, int keysize, ecc_key* key);
+int wc_ecc_make_key(WC_RNG* rng, int keysize, ecc_key* key);
 WOLFSSL_API
 int wc_ecc_check_key(ecc_key* key);
 WOLFSSL_API
@@ -145,9 +145,9 @@ int wc_ecc_shared_secret_ssh(ecc_key* private_key, ecc_point* point,
                              byte* out, word32 *outlen);
 WOLFSSL_API
 int wc_ecc_sign_hash(const byte* in, word32 inlen, byte* out, word32 *outlen,
-                     RNG* rng, ecc_key* key);
+                     WC_RNG* rng, ecc_key* key);
 WOLFSSL_API
-int wc_ecc_sign_hash_ex(const byte* in, word32 inlen, RNG* rng,
+int wc_ecc_sign_hash_ex(const byte* in, word32 inlen, WC_RNG* rng,
                         ecc_key* key, mp_int *r, mp_int *s);
 WOLFSSL_API
 int wc_ecc_verify_hash(const byte* sig, word32 siglen, const byte* hash,
@@ -248,11 +248,11 @@ enum ecFlags {
 typedef struct ecEncCtx ecEncCtx;
 
 WOLFSSL_API
-ecEncCtx* wc_ecc_ctx_new(int flags, RNG* rng);
+ecEncCtx* wc_ecc_ctx_new(int flags, WC_RNG* rng);
 WOLFSSL_API
 void wc_ecc_ctx_free(ecEncCtx*);
 WOLFSSL_API
-int wc_ecc_ctx_reset(ecEncCtx*, RNG*);  /* reset for use again w/o alloc/free */
+int wc_ecc_ctx_reset(ecEncCtx*, WC_RNG*);  /* reset for use again w/o alloc/free */
 
 WOLFSSL_API
 const byte* wc_ecc_ctx_get_own_salt(ecEncCtx*);

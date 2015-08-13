@@ -76,7 +76,6 @@ typedef struct Sha {
 WOLFSSL_API int wc_InitSha(Sha*);
 WOLFSSL_API int wc_ShaUpdate(Sha*, const byte*, word32);
 WOLFSSL_API int wc_ShaFinal(Sha*, byte*);
-WOLFSSL_API int wc_ShaHash(const byte*, word32, byte*);
 
 #ifdef __cplusplus
     } /* extern "C" */
