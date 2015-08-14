@@ -28,6 +28,7 @@
 
 #include <wolfssl/wolfcrypt/settings.h>
 
+#ifndef CURVED25519_SMALL /* run when not defined to use small memory math */
 #ifdef HAVE_ED25519
 
 #include <wolfssl/wolfcrypt/ge_operations.h>
@@ -2600,4 +2601,5 @@ void ge_tobytes(unsigned char *s,const ge_p2 *h)
   s[31] ^= fe_isnegative(x) << 7;
 }
 #endif /* HAVE_ED25519 */
+#endif /* not defined CURVED25519_SMALL */
 

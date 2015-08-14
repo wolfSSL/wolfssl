@@ -5408,8 +5408,10 @@ int wolfSSL_dtls_got_timeout(WOLFSSL* ssl)
 
         if (ssl->buffers.outputBuffer.length > 0) {
             if ( (ssl->error = SendBuffered(ssl)) == 0) {
-                ssl->options.connectState++;
-                WOLFSSL_MSG("connect state: Advanced from buffered send");
+                if (ssl->fragOffset == 0) {
+                    ssl->options.connectState++;
+                    WOLFSSL_MSG("connect state: Advanced from buffered send");
+                }
             }
             else {
                 WOLFSSL_ERROR(ssl->error);
@@ -5724,8 +5726,10 @@ int wolfSSL_dtls_got_timeout(WOLFSSL* ssl)
 
         if (ssl->buffers.outputBuffer.length > 0) {
             if ( (ssl->error = SendBuffered(ssl)) == 0) {
-                ssl->options.acceptState++;
-                WOLFSSL_MSG("accept state: Advanced from buffered send");
+                if (ssl->fragOffset == 0) {
+                    ssl->options.acceptState++;
+                    WOLFSSL_MSG("accept state: Advanced from buffered send");
+                }
             }
             else {
                 WOLFSSL_ERROR(ssl->error);

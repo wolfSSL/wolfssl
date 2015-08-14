@@ -2277,7 +2277,7 @@ void DtlsMsgSet(DtlsMsg* msg, word32 seq, const byte* data, byte type,
             XMEMCPY(msg->buf, data - DTLS_HANDSHAKE_HEADER_SZ,
                                             fragSz + DTLS_HANDSHAKE_HEADER_SZ);
         else {
-            /* If fragOffet is non-zero, this is an additional fragment that
+            /* If fragOffset is non-zero, this is an additional fragment that
              * needs to be copied to its location in the message buffer. Also
              * copy the total size of the message over the fragment size. The
              * hash routines look at a defragmented message if it had actually
@@ -2535,6 +2535,45 @@ ProtocolVersion MakeDTLSv1_2(void)
 #endif /* USE_WINDOWS_API */
 
 
+static int HashOutputRaw(WOLFSSL* ssl, const byte* output, int sz)
+{
+#ifdef HAVE_FUZZER
+    if (ssl->fuzzerCb)
+        ssl->fuzzerCb(ssl, output, sz, FUZZ_HASH, ssl->fuzzerCtx);
+#endif
+#ifndef NO_OLD_TLS
+#ifndef NO_SHA
+    wc_ShaUpdate(&ssl->hsHashes->hashSha, output, sz);
+#endif
+#ifndef NO_MD5
+    wc_Md5Update(&ssl->hsHashes->hashMd5, output, sz);
+#endif
+#endif
+
+    if (IsAtLeastTLSv1_2(ssl)) {
+        int ret;
+
+#ifndef NO_SHA256
+        ret = wc_Sha256Update(&ssl->hsHashes->hashSha256, output, sz);
+        if (ret != 0)
+            return ret;
+#endif
+#ifdef WOLFSSL_SHA384
+        ret = wc_Sha384Update(&ssl->hsHashes->hashSha384, output, sz);
+        if (ret != 0)
+            return ret;
+#endif
+#ifdef WOLFSSL_SHA512
+        ret = wc_Sha512Update(&ssl->hsHashes->hashSha512, output, sz);
+        if (ret != 0)
+            return ret;
+#endif
+    }
+
+    return 0;
+}
+
+
 /* add output to md5 and sha handshake hashes, exclude record header */
 static int HashOutput(WOLFSSL* ssl, const byte* output, int sz, int ivSz)
 {
@@ -2658,10 +2697,13 @@ static void AddRecordHeader(byte* output, word32 length, byte type, WOLFSSL* ssl
 
 
 /* add handshake header for message */
-static void AddHandShakeHeader(byte* output, word32 length, byte type,
-                               WOLFSSL* ssl)
+static void AddHandShakeHeader(byte* output, word32 length,
+                               word32 fragOffset, word32 fragLength,
+                               byte type, WOLFSSL* ssl)
 {
     HandShakeHeader* hs;
+    (void)fragOffset;
+    (void)fragLength;
     (void)ssl;
 
     /* handshake header */
@@ -2675,8 +2717,8 @@ static void AddHandShakeHeader(byte* output, word32 length, byte type,
         /* dtls handshake header extensions */
         dtls = (DtlsHandShakeHeader*)output;
         c16toa(ssl->keys.dtls_handshake_number++, dtls->message_seq);
-        c32to24(0, dtls->fragment_offset);
-        c32to24(length, dtls->fragment_length);
+        c32to24(fragOffset, dtls->fragment_offset);
+        c32to24(fragLength, dtls->fragment_length);
     }
 #endif
 }
@@ -2685,16 +2727,37 @@ static void AddHandShakeHeader(byte* output, word32 length, byte type,
 /* add both headers for handshake message */
 static void AddHeaders(byte* output, word32 length, byte type, WOLFSSL* ssl)
 {
-    if (!ssl->options.dtls) {
-        AddRecordHeader(output, length + HANDSHAKE_HEADER_SZ, handshake, ssl);
-        AddHandShakeHeader(output + RECORD_HEADER_SZ, length, type, ssl);
-    }
+    word32 lengthAdj = HANDSHAKE_HEADER_SZ;
+    word32 outputAdj = RECORD_HEADER_SZ;
+
 #ifdef WOLFSSL_DTLS
-    else  {
-        AddRecordHeader(output, length+DTLS_HANDSHAKE_HEADER_SZ, handshake,ssl);
-        AddHandShakeHeader(output + DTLS_RECORD_HEADER_SZ, length, type, ssl);
+    if (ssl->options.dtls) {
+        lengthAdj += DTLS_HANDSHAKE_EXTRA;
+        outputAdj += DTLS_RECORD_EXTRA;
     }
 #endif
+
+    AddRecordHeader(output, length + lengthAdj, handshake, ssl);
+    AddHandShakeHeader(output + outputAdj, length, 0, length, type, ssl);
+}
+
+
+static void AddFragHeaders(byte* output, word32 fragSz, word32 fragOffset,
+                           word32 length, byte type, WOLFSSL* ssl)
+{
+    word32 lengthAdj = HANDSHAKE_HEADER_SZ;
+    word32 outputAdj = RECORD_HEADER_SZ;
+    (void)fragSz;
+
+#ifdef WOLFSSL_DTLS
+    if (ssl->options.dtls) {
+        lengthAdj += DTLS_HANDSHAKE_EXTRA;
+        outputAdj += DTLS_RECORD_EXTRA;
+    }
+#endif
+
+    AddRecordHeader(output, fragSz + lengthAdj, handshake, ssl);
+    AddHandShakeHeader(output + outputAdj, length, fragOffset, fragSz, type, ssl);
 }
 
 
@@ -4018,15 +4081,8 @@ static int DoCertificate(WOLFSSL* ssl, byte* input, word32* inOutIdx,
     c24to32(input + *inOutIdx, &listSz);
     *inOutIdx += OPAQUE24_LEN;
 
-#ifdef HAVE_MAX_FRAGMENT
-    if (listSz > ssl->max_fragment) {
-        SendAlert(ssl, alert_fatal, record_overflow);
-        return BUFFER_E;
-    }
-#else
     if (listSz > MAX_RECORD_SIZE)
         return BUFFER_E;
-#endif
 
     if ((*inOutIdx - begin) + listSz != size)
         return BUFFER_ERROR;
@@ -5193,6 +5249,8 @@ static int DoDtlsHandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                                 ssl->keys.dtls_expected_peer_handshake_number) {
         /* Already saw this message and processed it. It can be ignored. */
         *inOutIdx += fragSz;
+        if(type == finished )
+            *inOutIdx += ssl->keys.padSz;
         ret = 0;
     }
     else if (fragSz < size) {
@@ -7279,7 +7337,7 @@ int SendFinished(WOLFSSL* ssl)
     output = ssl->buffers.outputBuffer.buffer +
              ssl->buffers.outputBuffer.length;
 
-    AddHandShakeHeader(input, finishedSz, finished, ssl);
+    AddHandShakeHeader(input, finishedSz, 0, finishedSz, finished, ssl);
 
     /* make finished hashes */
     hashes = (Hashes*)&input[headerSz];
@@ -7360,117 +7418,226 @@ int SendFinished(WOLFSSL* ssl)
     return SendBuffered(ssl);
 }
 
+
 #ifndef NO_CERTS
 int SendCertificate(WOLFSSL* ssl)
 {
-    int    sendSz, length, ret = 0;
-    word32 i = RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ;
-    word32 certSz, listSz;
-    byte*  output = 0;
+    int    length, ret = 0;
+    word32 certSz, certChainSz, headerSz, listSz, maxFragment, payloadSz;
 
     if (ssl->options.usingPSK_cipher || ssl->options.usingAnon_cipher)
         return 0;  /* not needed */
 
     if (ssl->options.sendVerify == SEND_BLANK_CERT) {
         certSz = 0;
+        certChainSz = 0;
+        headerSz = CERT_HEADER_SZ;
         length = CERT_HEADER_SZ;
         listSz = 0;
     }
     else {
         certSz = ssl->buffers.certificate.length;
+        headerSz = 2 * CERT_HEADER_SZ;
         /* list + cert size */
-        length = certSz + 2 * CERT_HEADER_SZ;
+        length = certSz + headerSz;
         listSz = certSz + CERT_HEADER_SZ;
 
         /* may need to send rest of chain, already has leading size(s) */
-        if (ssl->buffers.certChain.buffer) {
-            length += ssl->buffers.certChain.length;
-            listSz += ssl->buffers.certChain.length;
+        if (certSz) {
+            certChainSz = ssl->buffers.certChain.length;
+            length += certChainSz;
+            listSz += certChainSz;
         }
     }
-    sendSz = length + RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ;
 
+    payloadSz = length;
+
+    if (ssl->fragOffset != 0)
+        length -= (ssl->fragOffset + headerSz);
+
+    if (!ssl->options.dtls) {
+        maxFragment = MAX_RECORD_SIZE;
+    }
+    else {
     #ifdef WOLFSSL_DTLS
-        if (ssl->options.dtls) {
-            sendSz += DTLS_RECORD_EXTRA + DTLS_HANDSHAKE_EXTRA;
-            i      += DTLS_RECORD_EXTRA + DTLS_HANDSHAKE_EXTRA;
-        }
-    #endif
-
-    if (ssl->keys.encryptionOn)
-        sendSz += MAX_MSG_EXTRA;
-
-    /* check for available size */
-    if ((ret = CheckAvailableSize(ssl, sendSz)) != 0)
-        return ret;
-
-    /* get ouput buffer */
-    output = ssl->buffers.outputBuffer.buffer +
-             ssl->buffers.outputBuffer.length;
-
-    AddHeaders(output, length, certificate, ssl);
-
-    /* list total */
-    c32to24(listSz, output + i);
-    i += CERT_HEADER_SZ;
-
-    /* member */
-    if (certSz) {
-        c32to24(certSz, output + i);
-        i += CERT_HEADER_SZ;
-        XMEMCPY(output + i, ssl->buffers.certificate.buffer, certSz);
-        i += certSz;
-
-        /* send rest of chain? */
-        if (ssl->buffers.certChain.buffer) {
-            XMEMCPY(output + i, ssl->buffers.certChain.buffer,
-                                ssl->buffers.certChain.length);
-            i += ssl->buffers.certChain.length;
-        }
+        maxFragment = MAX_MTU - DTLS_RECORD_HEADER_SZ
+                      - DTLS_HANDSHAKE_HEADER_SZ - 100;
+    #endif /* WOLFSSL_DTLS */
     }
 
-    if (ssl->keys.encryptionOn) {
-        byte* input;
-        int   inputSz = i - RECORD_HEADER_SZ; /* build msg adds rec hdr */
+    #ifdef HAVE_MAX_FRAGMENT
+    if (ssl->max_fragment != 0 && maxFragment >= ssl->max_fragment)
+        maxFragment = ssl->max_fragment;
+    #endif /* HAVE_MAX_FRAGMENT */
 
-        input = (byte*)XMALLOC(inputSz, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
-        if (input == NULL)
-            return MEMORY_E;
+    while (length > 0 && ret == 0) {
+        byte*  output = NULL;
+        word32 fragSz; /* How much of the certificate data are we copying? */
+        word32 i = RECORD_HEADER_SZ;
+        int    sendSz = RECORD_HEADER_SZ;
 
-        XMEMCPY(input, output + RECORD_HEADER_SZ, inputSz);
-        sendSz = BuildMessage(ssl, output, sendSz, input,inputSz,handshake);
-        XFREE(input, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        if (!ssl->options.dtls) {
+            if (ssl->fragOffset == 0)  {
+                if (headerSz + certSz + certChainSz <=
+                    maxFragment - HANDSHAKE_HEADER_SZ) {
 
-        if (sendSz < 0)
-            return sendSz;
-    } else {
-        ret = HashOutput(ssl, output, sendSz, 0);
-        if (ret != 0)
+                    fragSz = headerSz + certSz + certChainSz;
+                }
+                else {
+                    fragSz = maxFragment - HANDSHAKE_HEADER_SZ;
+                }
+                sendSz += fragSz + HANDSHAKE_HEADER_SZ;
+                i += HANDSHAKE_HEADER_SZ;
+            }
+            else {
+                fragSz = min(length, maxFragment);
+                sendSz += fragSz;
+            }
+
+            if (ssl->keys.encryptionOn)
+                sendSz += MAX_MSG_EXTRA;
+        }
+        else {
+        #ifdef WOLFSSL_DTLS
+            fragSz = min(length, maxFragment);
+            sendSz += fragSz + DTLS_RECORD_EXTRA + DTLS_HANDSHAKE_EXTRA
+                      + HANDSHAKE_HEADER_SZ;
+            i      += DTLS_RECORD_EXTRA + DTLS_HANDSHAKE_EXTRA
+                      + HANDSHAKE_HEADER_SZ;
+        #endif
+        }
+
+        /* check for available size */
+        if ((ret = CheckAvailableSize(ssl, sendSz)) != 0)
             return ret;
+
+        /* get ouput buffer */
+        output = ssl->buffers.outputBuffer.buffer +
+                 ssl->buffers.outputBuffer.length;
+
+        if (ssl->fragOffset == 0) {
+            if (!ssl->options.dtls) {
+                AddFragHeaders(output, fragSz, 0, payloadSz, certificate, ssl);
+                HashOutputRaw(ssl, output + RECORD_HEADER_SZ,
+                              HANDSHAKE_HEADER_SZ);
+            }
+            else {
+            #ifdef WOLFSSL_DTLS
+                AddHeaders(output, payloadSz, certificate, ssl);
+                HashOutputRaw(ssl,
+                              output + RECORD_HEADER_SZ + DTLS_RECORD_EXTRA,
+                              HANDSHAKE_HEADER_SZ + DTLS_HANDSHAKE_EXTRA);
+                /* Adding the headers increments these, decrement them for
+                 * actual message header. */
+                ssl->keys.dtls_sequence_number--;
+                ssl->keys.dtls_handshake_number--;
+                AddFragHeaders(output, fragSz, 0, payloadSz, certificate, ssl);
+                ssl->keys.dtls_handshake_number--;
+            #endif /* WOLFSSL_DTLS */
+            }
+
+            /* list total */
+            c32to24(listSz, output + i);
+            HashOutputRaw(ssl, output + i, CERT_HEADER_SZ);
+            i += CERT_HEADER_SZ;
+            length -= CERT_HEADER_SZ;
+            fragSz -= CERT_HEADER_SZ;
+            if (certSz) {
+                c32to24(certSz, output + i);
+                HashOutputRaw(ssl, output + i, CERT_HEADER_SZ);
+                i += CERT_HEADER_SZ;
+                length -= CERT_HEADER_SZ;
+                fragSz -= CERT_HEADER_SZ;
+
+                HashOutputRaw(ssl, ssl->buffers.certificate.buffer, certSz);
+                if (certChainSz) {
+                    HashOutputRaw(ssl,
+                                  ssl->buffers.certChain.buffer, certChainSz);
+                }
+            }
+        }
+        else {
+            if (!ssl->options.dtls) {
+                AddRecordHeader(output, fragSz, handshake, ssl);
+            }
+            else {
+            #ifdef WOLFSSL_DTLS
+                AddFragHeaders(output, fragSz, ssl->fragOffset + headerSz,
+                               payloadSz, certificate, ssl);
+                ssl->keys.dtls_handshake_number--;
+            #endif /* WOLFSSL_DTLS */
+            }
+        }
+
+        /* member */
+        if (certSz && ssl->fragOffset < certSz) {
+            word32 copySz = min(certSz - ssl->fragOffset, fragSz);
+            XMEMCPY(output + i,
+                    ssl->buffers.certificate.buffer + ssl->fragOffset, copySz);
+            i += copySz;
+            ssl->fragOffset += copySz;
+            length -= copySz;
+            fragSz -= copySz;
+        }
+        if (certChainSz && fragSz) {
+            word32 copySz = min(certChainSz + certSz - ssl->fragOffset, fragSz);
+            XMEMCPY(output + i,
+                    ssl->buffers.certChain.buffer + ssl->fragOffset - certSz,
+                    copySz);
+            i += copySz;
+            ssl->fragOffset += copySz;
+            length -= copySz;
+            fragSz -= copySz;
+        }
+
+        if (ssl->keys.encryptionOn) {
+            byte* input;
+            int   inputSz = i - RECORD_HEADER_SZ; /* build msg adds rec hdr */
+
+            input = (byte*)XMALLOC(inputSz, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
+            if (input == NULL)
+                return MEMORY_E;
+
+            XMEMCPY(input, output + RECORD_HEADER_SZ, inputSz);
+            sendSz = BuildMessage(ssl, output, sendSz, input,inputSz,handshake);
+            XFREE(input, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
+
+            if (sendSz < 0)
+                return sendSz;
+        }
+
+        #ifdef WOLFSSL_DTLS
+            if (ssl->options.dtls) {
+                if ((ret = DtlsPoolSave(ssl, output, sendSz)) != 0)
+                    return ret;
+            }
+        #endif
+
+        #ifdef WOLFSSL_CALLBACKS
+            if (ssl->hsInfoOn)
+                AddPacketName("Certificate", &ssl->handShakeInfo);
+            if (ssl->toInfoOn)
+                AddPacketInfo("Certificate", &ssl->timeoutInfo, output, sendSz,
+                               ssl->heap);
+        #endif
+
+        ssl->buffers.outputBuffer.length += sendSz;
+        if (!ssl->options.groupMessages)
+            ret = SendBuffered(ssl);
     }
 
-    #ifdef WOLFSSL_DTLS
-        if (ssl->options.dtls) {
-            if ((ret = DtlsPoolSave(ssl, output, sendSz)) != 0)
-                return ret;
-        }
-    #endif
+    if (ret != WANT_WRITE) {
+        /* Clean up the fragment offset. */
+        ssl->fragOffset = 0;
+        #ifdef WOLFSSL_DTLS
+        if (ssl->options.dtls)
+            ssl->keys.dtls_handshake_number++;
+        #endif
+        if (ssl->options.side == WOLFSSL_SERVER_END)
+            ssl->options.serverState = SERVER_CERT_COMPLETE;
+    }
 
-    #ifdef WOLFSSL_CALLBACKS
-        if (ssl->hsInfoOn) AddPacketName("Certificate", &ssl->handShakeInfo);
-        if (ssl->toInfoOn)
-            AddPacketInfo("Certificate", &ssl->timeoutInfo, output, sendSz,
-                           ssl->heap);
-    #endif
-
-    if (ssl->options.side == WOLFSSL_SERVER_END)
-        ssl->options.serverState = SERVER_CERT_COMPLETE;
-
-    ssl->buffers.outputBuffer.length += sendSz;
-    if (ssl->options.groupMessages)
-        return 0;
-    else
-        return SendBuffered(ssl);
+    return ret;
 }
 
 
