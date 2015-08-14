@@ -66,7 +66,7 @@
 #endif
 
 #ifdef WOLFSSL_DEBUG_ENCODING
-    #ifdef FREESCALE_MQX
+    #if defined(FREESCALE_MQX) || defined(FREESCALE_KSDK_MQX)
         #if MQX_USE_IO_OLD
             #include <fio.h>
         #else
@@ -109,7 +109,7 @@
     #define XTIME(t1) pic32_time((t1))
     #define XGMTIME(c, t) gmtime((c))
     #define XVALIDATE_DATE(d, f, t) ValidateDate((d), (f), (t))
-#elif defined(FREESCALE_MQX)
+#elif defined(FREESCALE_MQX) || defined(FREESCALE_KSDK_MQX)
     #define XTIME(t1)  mqx_time((t1))
     #define XGMTIME(c, t) mqx_gmtime((c), (t))
     #define XVALIDATE_DATE(d, f, t) ValidateDate((d), (f), (t))
@@ -338,7 +338,7 @@ time_t pic32_time(time_t* timer)
 #endif /* MICROCHIP_TCPIP */
 
 
-#ifdef FREESCALE_MQX
+#if defined(FREESCALE_MQX) || defined(FREESCALE_KSDK_MQX)
 
 time_t mqx_time(time_t* timer)
 {

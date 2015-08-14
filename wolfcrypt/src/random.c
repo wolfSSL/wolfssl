@@ -1080,7 +1080,7 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
         }
     #endif /* WOLFSSL_MIC32MZ_RNG */
 
-#elif defined(FREESCALE_MQX)
+#elif defined(FREESCALE_MQX) || defined(FREESCALE_KSDK_MQX)
 
     #ifdef FREESCALE_K70_RNGA
         /*

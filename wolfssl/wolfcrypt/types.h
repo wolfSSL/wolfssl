@@ -179,7 +179,8 @@
 	    #define XREALLOC(p, n, h, t) realloc((p), (n))
 	#elif !defined(MICRIUM_MALLOC) && !defined(EBSNET) \
 	        && !defined(WOLFSSL_SAFERTOS) && !defined(FREESCALE_MQX) \
-	        && !defined(WOLFSSL_LEANPSK) && !defined(FREERTOS)
+	        && !defined(FREESCALE_KSDK_MQX) && !defined(WOLFSSL_LEANPSK) \
+            && !defined(FREERTOS)
 	    /* default C runtime, can install different routines at runtime via cbs */
 	    #include <wolfssl/wolfcrypt/memory.h>
 	    #define XMALLOC(s, h, t)     ((void)h, (void)t, wolfSSL_Malloc((s)))

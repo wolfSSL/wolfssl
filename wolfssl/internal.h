@@ -115,7 +115,7 @@
     /* do nothing */
 #elif defined(EBSNET)
     /* do nothing */
-#elif defined(FREESCALE_MQX)
+#elif defined(FREESCALE_MQX) || defined(FREESCALE_KSDK_MQX)
     /* do nothing */
 #elif defined(WOLFSSL_MDK_ARM)
     #if defined(WOLFSSL_MDK5)

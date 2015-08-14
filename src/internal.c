@@ -45,7 +45,7 @@
 #endif
 
 #if defined(DEBUG_WOLFSSL) || defined(SHOW_SECRETS) || defined(CHACHA_AEAD_TEST)
-    #ifdef FREESCALE_MQX
+    #if defined(FREESCALE_MQX) || defined(FREESCALE_KSDK_MQX)
         #if MQX_USE_IO_OLD
             #include <fio.h>
         #else
@@ -2479,7 +2479,7 @@ ProtocolVersion MakeDTLSv1_2(void)
 
     #endif
 
-#elif defined(FREESCALE_MQX)
+#elif defined(FREESCALE_MQX) || defined(FREESCALE_KSDK_MQX)
 
     word32 LowResTimer(void)
     {

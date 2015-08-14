@@ -72,8 +72,11 @@
 /* Uncomment next line if building wolfSSL for LSR */
 /* #define WOLFSSL_LSR */
 
-/* Uncomment next line if building wolfSSL for Freescale MQX/RTCS/MFS */
+/* Uncomment next line if building for Freescale Classic MQX/RTCS/MFS */
 /* #define FREESCALE_MQX */
+
+/* Uncomment next line if building for Freescale KSDK MQX/RTCS/MFS */
+/* #define FREESCALE_KSDK_MQX */
 
 /* Uncomment next line if using STM32F2 */
 /* #define WOLFSSL_STM32F2 */
@@ -470,11 +473,7 @@
     #include "mqx.h"
     #ifndef NO_FILESYSTEM
         #include "mfs.h"
-        #if MQX_USE_IO_OLD
-            #include "fio.h"
-        #else
-            #include "nio.h"
-        #endif
+        #include "fio.h"
     #endif
     #ifndef SINGLE_THREADED
         #include "mutex.h"
@@ -483,6 +482,35 @@
     #define XMALLOC(s, h, t)    (void *)_mem_alloc_system((s))
     #define XFREE(p, h, t)      {void* xp = (p); if ((xp)) _mem_free((xp));}
     /* Note: MQX has no realloc, using fastmath above */
+#endif
+
+#ifdef FREESCALE_KSDK_MQX
+    #define SIZEOF_LONG_LONG 8
+    #define NO_WRITEV
+    #define NO_DEV_RANDOM
+    #define NO_RABBIT
+    #define NO_WOLFSSL_DIR
+    #define USE_FAST_MATH
+    #define TFM_TIMING_RESISTANT
+    #define NO_OLD_RNGNAME
+    #define FREESCALE_K70_RNGA
+    /* #define FREESCALE_K53_RNGB */
+    #include <mqx.h>
+    #ifndef NO_FILESYSTEM
+        #if MQX_USE_IO_OLD
+            #include <fio.h>
+        #else
+            #include <stdio.h>
+            #include <nio.h>
+        #endif
+    #endif
+    #ifndef SINGLE_THREADED
+        #include <mutex.h>
+    #endif
+
+    #define XMALLOC(s, h, t)    (void *)_mem_alloc_system((s))
+    #define XFREE(p, h, t)      {void* xp = (p); if ((xp)) _mem_free((xp));}
+    #define XREALLOC(p, n, h, t) _mem_realloc((p), (n)) /* since MQX 4.1.2 */
 #endif
 
 #ifdef WOLFSSL_STM32F2

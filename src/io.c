@@ -57,6 +57,8 @@
     #elif defined(FREESCALE_MQX)
         #include <posix.h>
         #include <rtcs.h>
+    #elif defined(FREESCALE_KSDK_MQX)
+        #include <rtcs.h>
     #elif defined(WOLFSSL_MDK_ARM)
         #if defined(WOLFSSL_MDK5)
             #include "cmsis_os.h"
@@ -129,15 +131,25 @@
     #define SOCKET_EPIPE       SYS_NET_EPIPE
     #define SOCKET_ECONNREFUSED SYS_NET_ECONNREFUSED
     #define SOCKET_ECONNABORTED SYS_NET_ECONNABORTED
-#elif defined(FREESCALE_MQX)
-    /* RTCS doesn't have an EWOULDBLOCK error */
-    #define SOCKET_EWOULDBLOCK EAGAIN
-    #define SOCKET_EAGAIN      EAGAIN
-    #define SOCKET_ECONNRESET  RTCSERR_TCP_CONN_RESET
-    #define SOCKET_EINTR       EINTR
-    #define SOCKET_EPIPE       EPIPE
-    #define SOCKET_ECONNREFUSED RTCSERR_TCP_CONN_REFUSED
-    #define SOCKET_ECONNABORTED RTCSERR_TCP_CONN_ABORTED
+#elif defined(FREESCALE_MQX) || defined(FREESCALE_KSDK_MQX)
+    #if MQX_USE_IO_OLD
+        /* RTCS old I/O doesn't have an EWOULDBLOCK */
+        #define SOCKET_EWOULDBLOCK  EAGAIN
+        #define SOCKET_EAGAIN       EAGAIN
+        #define SOCKET_ECONNRESET   RTCSERR_TCP_CONN_RESET
+        #define SOCKET_EINTR        EINTR
+        #define SOCKET_EPIPE        EPIPE
+        #define SOCKET_ECONNREFUSED RTCSERR_TCP_CONN_REFUSED
+        #define SOCKET_ECONNABORTED RTCSERR_TCP_CONN_ABORTED
+    #else
+        #define SOCKET_EWOULDBLOCK  NIO_EWOULDBLOCK
+        #define SOCKET_EAGAIN       NIO_EAGAIN
+        #define SOCKET_ECONNRESET   NIO_ECONNRESET
+        #define SOCKET_EINTR        NIO_EINTR
+        #define SOCKET_EPIPE        NIO_EPIPE
+        #define SOCKET_ECONNREFUSED NIO_ECONNREFUSED
+        #define SOCKET_ECONNABORTED NIO_ECONNABORTED
+    #endif
 #elif defined(WOLFSSL_MDK_ARM)
     #if defined(WOLFSSL_MDK5)
         #define SOCKET_EWOULDBLOCK BSD_ERROR_WOULDBLOCK
@@ -200,7 +212,7 @@ static INLINE int TranslateReturnCode(int old, int sd)
 {
     (void)sd;
 
-#ifdef FREESCALE_MQX
+#if defined(FREESCALE_MQX) || defined(FREESCALE_KSDK_MQX)
     if (old == 0) {
         errno = SOCKET_EWOULDBLOCK;
         return -1;  /* convert to BSD style wouldblock as error */
