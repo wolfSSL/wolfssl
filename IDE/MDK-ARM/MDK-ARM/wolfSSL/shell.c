@@ -19,26 +19,26 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
  */
  
- /*** tiny Shell for CyaSSL apps ***/
+ /*** tiny Shell for wolfSSL apps ***/
  
  #ifdef HAVE_CONFIG_H
     #include <config.h>
 #endif
 
-#include "cyassl/internal.h"
-#undef RNG
-#include <cyassl/ctaocrypt/logging.h>
+#include <wolfssl/wolfcrypt/logging.h>
 
-#if defined(CYASSL_MDK_ARM)
+#include <stdio.h>
+
+#if defined(WOLFSSL_MDK_ARM)
     #include <stdio.h>
     #include <string.h>
     #include <stdlib.h>
     #include <rtl.h>
-    #include "cyassl_MDK_ARM.h"
+    #include "wolfssl_MDK_ARM.h"
 #endif
 
-#ifdef CYASSL_KEIL_NET
-#include "cyassl/test.h"
+#ifdef WOLFSSL_KEIL_NET
+#include "wolfassl/test.h"
 #else
 typedef struct func_args {
     int    argc;
@@ -66,7 +66,7 @@ typedef struct func_args {
 #define ctaocrypt_test command_not_found
 #endif
 
-#ifndef CYASSL_KEIL_NET
+#ifndef WOLFSSL_KEIL_NET
 #define ipaddr_comm command_not_found
 #endif
 
@@ -75,7 +75,7 @@ typedef struct func_args {
 #endif
 
 
-#if !defined(DEBUG_CYASSL)
+#if !defined(DEBUG_WOLFSSL)
 #define dbg_comm command_not_found
 #endif
 
@@ -87,11 +87,11 @@ void command_not_found(void *argv) {
 extern void echoclient_test(void *args) ;
 extern void echoserver_test(void *args) ;
 extern void benchmark_test(void *args) ;
-extern void ctaocrypt_test(void *args) ;
+extern void wolfcrypt_test(void *args) ;
 extern void client_test(void *args) ;
 extern void server_test(void *args) ;
 extern void kill_task(void *args) ;
-extern void time_main(void *args) ;
+
 extern void ipaddr_comm(void *args) ;
 extern void stack_comm(void *args) ;
 extern void for_command(void *args) ;
@@ -103,7 +103,7 @@ extern void help_comm(void *arg) ;
 #ifndef NO_MD5
 extern void md5_test(void *arg) ;
 #endif
-#ifdef CYASSL_MD2
+#ifdef WOLFSSL_MD2
 extern void md2_test(void *arg) ;
 #endif
 #ifndef NO_MD4
@@ -115,15 +115,15 @@ extern void sha_test(void *arg) ;
 #ifndef NO_SHA256
 extern void sha256_test(void *arg) ;
 #endif
-#ifdef CYASSL_SHA384
+#ifdef WOLFSSL_SHA384
 extern void sha384_test(void *arg) ;
 #endif
 
-#ifdef CYASSL_SHA512
+#ifdef WOLFSSL_SHA512
 extern void sha512_test(void *arg) ;
 #endif
 
-#ifdef CYASSL_RIPEMD
+#ifdef WOLFSSL_RIPEMD
 extern void ripemd_test(void *arg) ;
 #endif
 #ifndef NO_HMAC
@@ -136,7 +136,7 @@ extern void hmac_sha_test(void *arg) ;
 extern void hmac_sha256_test(void *arg) ;
     #endif
 
-    #ifdef CYASSL_SHA384
+    #ifdef WOLFSSL_SHA384
 extern void hmac_sha384_test(void *arg) ;
     #endif
 #endif
@@ -206,10 +206,9 @@ static struct {
     "echoclient", echoclient_test,
     "echoserver", echoserver_test,
     "benchmark", benchmark_test,
-    "test", ctaocrypt_test,
+    "test", wolfcrypt_test,
     "client", client_test,
     "server", server_test,
-    "time", time_main,          /* get/set RTC:  [-d yy/mm/dd] [-t hh:mm:ss]*/
     "ipaddr", ipaddr_comm,      /* TBD */
     "stack", stack_comm,        /* On/Off check stack size */
     "for", for_command,         /* iterate next command X times */
@@ -220,7 +219,7 @@ static struct {
     "ec", echoclient_test,
     "es", echoserver_test,
     "bm", benchmark_test,
-    "te", ctaocrypt_test,
+    "te", wolfcrypt_test,
     "cl", client_test,
     "sv", server_test,
     "ip", ipaddr_comm,
@@ -233,7 +232,7 @@ static struct {
 #ifndef NO_MD5
   "md5",  md5_test,
 #endif
-#ifdef CYASSL_MD2
+#ifdef WOLFSSL_MD2
   "md2",  md2_test,
 #endif
 #ifndef NO_MD4
@@ -243,13 +242,13 @@ static struct {
 #ifndef NO_SHA256
   "sha256",  sha256_test,
 #endif
-#ifdef CYASSL_SHA384
+#ifdef WOLFSSL_SHA384
   "sha384",  sha384_test,
 #endif
-#ifdef CYASSL_SHA512
+#ifdef WOLFSSL_SHA512
   "sha512",  sha512_test,
 #endif
-#ifdef CYASSL_RIPEMD
+#ifdef WOLFSSL_RIPEMD
   "ripemd",  ripemd_test,
 #endif
 #ifndef NO_HMAC
@@ -260,7 +259,7 @@ static struct {
     #ifndef NO_SHA256
   "hmac_sha256",  hmac_sha256_test,
     #endif
-    #ifdef CYASSL_SHA384
+    #ifdef WOLFSSL_SHA384
   "hmac_sha384",  hmac_sha384_test,
   #endif
 #endif
@@ -362,18 +361,18 @@ static int BackGround = 0 ; /* 1: background job is running */
 /************* Embedded Shell Commands **********************************/
 #define IP_SIZE 16
 
-#ifdef CYASSL_KEIL_NET
+#ifdef WOLFSSL_KEIL_NET
 static void ipaddr_comm(void *args) 
 {
     if(((func_args *)args)->argc == 1) {
-            printf("IP addr: %s, port %d\n", yasslIP, yasslPort) ;
+            printf("IP addr: %s, port %d\n", wolfSSLIP, wolfSSLPort) ;
     } else {
         if(BackGround != 0) {
         printf("Cannot change IP addr while background server is running\n") ;
         } else if(((func_args *)args)->argc == 3 && 
                   ((func_args *)args)->argv[1][0] == '-'&& 
                   ((func_args *)args)->argv[1][1] == 'a' ) {
-/*          strcpy(yasslIP, ((func_args *)args)->argv[2]) ; */
+/*          strcpy(wolfSSLIP, ((func_args *)args)->argv[2]) ; */
         } else if(((func_args *)args)->argc == 3 && 
                   ((func_args *)args)->argv[1][0] == '-' && 
                   ((func_args *)args)->argv[1][1] == 'p' ) {
@@ -442,20 +441,20 @@ static void for_command(void *args)
 }
 
 
-#if defined(DEBUG_CYASSL)
+#if defined(DEBUG_WOLFSSL)
 
-static int CyasslDebug = 1 ;
+static int wolfsslDebug = 1 ;
 
 static void dbg_comm(void *args) 
 {
-    if(CyasslDebug == 1) {
-        CyasslDebug = 0 ;
+    if(wolfsslDebug == 1) {
+        wolfsslDebug = 0 ;
         printf("Turning OFF Debug message\n") ;
-        CyaSSL_Debugging_OFF() ;
+        wolfSSL_Debugging_OFF() ;
     } else {
-        CyasslDebug = 1 ;
+        wolfsslDebug = 1 ;
         printf("Turning ON Debug message\n") ;
-        CyaSSL_Debugging_ON() ;
+        wolfSSL_Debugging_ON() ;
     }
 }
 #endif
@@ -467,20 +466,20 @@ static void help_comm(void *args)
 
 
 
-#define BG_JOB_STACK_SIZE 12000
+#define BG_JOB_STACK_SIZE 16000
 #if (!defined(NO_SIMPLE_SERVER) && !defined(NO_ECHOSERVER)) && \
                                                    defined(HAVE_KEIL_RTX)
 static char bg_job_stack[BG_JOB_STACK_SIZE] ;
 #endif
 
-#define COMMAND_STACK_SIZE 12000
+#define COMMAND_STACK_SIZE 16000
 #if defined(HAVE_KEIL_RTX)
 static char command_stack[COMMAND_STACK_SIZE] ;
 #endif
 
 
 #ifdef  HAVE_KEIL_RTX
-static   CyaSSL_Mutex command_mutex ;
+static   wolfSSL_Mutex command_mutex ;
 #endif
 
 /***********    Invoke Forground Command  *********************/
@@ -491,7 +490,7 @@ static void command_invoke(void *args)
 
     func = (void(*)(void *))((func_args *)args)->argv[0] ; 
     #ifdef  HAVE_KEIL_RTX
-    LockMutex((CyaSSL_Mutex *)&command_mutex) ;
+    LockMutex((wolfSSL_Mutex *)&command_mutex) ;
     #endif
     iteration = for_iteration ;
     for(i=0; i< iteration; i++) {
@@ -509,7 +508,7 @@ static void command_invoke(void *args)
     if(iteration > 1) 
         for_iteration = 1 ;
     #ifdef HAVE_KEIL_RTX
-    UnLockMutex((CyaSSL_Mutex *)&command_mutex) ;
+    UnLockMutex((wolfSSL_Mutex *)&command_mutex) ;
     os_tsk_delete_self() ;
     #endif
 }
@@ -525,7 +524,7 @@ static void bg_job_invoke(void *args)
     func = (void(*)(void *))((func_args *)args)->argv[0] ; 
     func(args) ;        /* invoke command */
     stack_check(bg_job_stack, BG_JOB_STACK_SIZE) ;
-    #ifdef CYASSL_KEIL_NET
+    #ifdef WOLFSSL_KEIL_NET
     init_TcpNet ();
     #endif
     BackGround = 0 ;
@@ -550,7 +549,6 @@ void shell_main(void) {
  #if defined(HAVE_KEIL_RTX)
     InitMutex(&command_mutex) ;
 #endif
-    time_main(NULL) ;
     printf("Starting Shell\n") ;
     while(1) {
         if(getline(line,  LINESIZE, &args, &bf_flg) > 0) {
@@ -559,14 +557,14 @@ void shell_main(void) {
             args.argv[0] = (char *) commandTable[i].func ;
                 if(bf_flg == FORGROUND) {
                     #ifdef  HAVE_KEIL_RTX
-                    UnLockMutex((CyaSSL_Mutex *)&command_mutex) ;
+                    UnLockMutex((wolfSSL_Mutex *)&command_mutex) ;
                     os_tsk_create_user_ex( (void(*)(void *))&command_invoke, 7,
                             command_stack, COMMAND_STACK_SIZE, &args) ;
                     #else
                     command_invoke(&args) ;
                     #endif
                     #ifdef  HAVE_KEIL_RTX
-                    LockMutex((CyaSSL_Mutex *)&command_mutex) ;
+                    LockMutex((wolfSSL_Mutex *)&command_mutex) ;
                     #endif
                 } else {
                     #if (!defined(NO_SIMPLE_SERVER) && \

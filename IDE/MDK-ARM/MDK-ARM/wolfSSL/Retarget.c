@@ -55,7 +55,9 @@ int sendchar (int c)
 int getkey (void) 
 {
     int ch = SER_GetChar();
-
+        #if defined (HAVE_KEIL_RTX)
+        os_itv_wait ();
+        #endif
     if (ch < 0) {
         return 0;
     }
@@ -250,7 +252,7 @@ char *_sys_command_string (char *cmd, int len)
 
 void _sys_exit (int return_code) 
 {
-#ifdef CYASSL_MDK_SHELL
+#ifdef WOLFSSL_MDK_SHELL
     return ;
 #else
     /* Endless loop. */

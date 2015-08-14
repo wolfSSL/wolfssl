@@ -29,11 +29,11 @@
     #include <cyassl/ctaocrypt/ecc.h>   /* ecc_fp_free */
 #endif
 
-#if defined(CYASSL_MDK_ARM)
+#if defined(WOLFSSL_MDK_ARM)
         #include <stdio.h>
         #include <string.h>
 
-        #if defined(CYASSL_MDK5)
+        #if defined(WOLFSSL_MDK5)
             #include "cmsis_os.h"
             #include "rl_fs.h" 
             #include "rl_net.h" 
@@ -41,7 +41,7 @@
             #include "rtl.h"
         #endif
 
-        #include "cyassl_MDK_ARM.h"
+        #include "wolfssl_MDK_ARM.h"
 #endif
 
 #include <cyassl/ssl.h>
@@ -83,7 +83,7 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
     int    outCreated = 0;
     int    shutDown = 0;
     int    useAnyAddr = 0;
-    word16 port = yasslPort;
+    word16 port = wolfSSLPort;
     int    argc = ((func_args*)args)->argc;
     char** argv = ((func_args*)args)->argv;
 
@@ -114,7 +114,7 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
 #endif
 
     #if defined(NO_MAIN_DRIVER) && !defined(USE_WINDOWS_API) && \
-        !defined(CYASSL_SNIFFER) && !defined(CYASSL_MDK_SHELL) && \
+        !defined(CYASSL_SNIFFER) && !defined(WOLFSSL_MDK_SHELL) && \
         !defined(CYASSL_TIRTOS)
         port = 0;
     #endif

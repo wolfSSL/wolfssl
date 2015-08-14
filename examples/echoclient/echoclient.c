@@ -29,11 +29,11 @@
 #include <cyassl/ssl.h>
 #include <cyassl/openssl/ssl.h>
 
-#if defined(CYASSL_MDK_ARM)
+#if defined(WOLFSSL_MDK_ARM)
         #include <stdio.h>
         #include <string.h>
 
-        #if defined(CYASSL_MDK5)
+        #if defined(WOLFSSL_MDK5)
             #include "cmsis_os.h"
             #include "rl_fs.h" 
             #include "rl_net.h" 
@@ -41,7 +41,7 @@
             #include "rtl.h"
         #endif
 
-        #include "cyassl_MDK_ARM.h"
+        #include "wolfssl_MDK_ARM.h"
 #endif
 
 #include <cyassl/test.h>
@@ -74,7 +74,7 @@ void echoclient_test(void* args)
 
     ((func_args*)args)->return_code = -1; /* error state */
     
-#ifndef CYASSL_MDK_SHELL
+#ifndef WOLFSSL_MDK_SHELL
     argc = ((func_args*)args)->argc;
     argv = ((func_args*)args)->argv;
 #endif
@@ -103,7 +103,7 @@ void echoclient_test(void* args)
     doPSK = 1;
 #endif
 
-#if defined(NO_MAIN_DRIVER) && !defined(USE_WINDOWS_API) && !defined(CYASSL_MDK_SHELL)
+#if defined(NO_MAIN_DRIVER) && !defined(USE_WINDOWS_API) && !defined(WOLFSSL_MDK_SHELL)
     port = ((func_args*)args)->signal->port;
 #endif
 
@@ -157,7 +157,7 @@ void echoclient_test(void* args)
     SSL_CTX_set_default_passwd_cb(ctx, PasswordCallBack);
 #endif
 
-    #if defined(CYASSL_MDK_ARM)
+    #if defined(WOLFSSL_MDK_ARM)
     CyaSSL_CTX_set_verify(ctx, SSL_VERIFY_NONE, 0);
     #endif
 
@@ -198,7 +198,7 @@ void echoclient_test(void* args)
             break;
         }
 
-        #ifndef CYASSL_MDK_SHELL
+        #ifndef WOLFSSL_MDK_SHELL
         while (sendSz) {
             int got;
             if ( (got = SSL_read(ssl, reply, sizeof(reply)-1)) > 0) {
@@ -264,7 +264,7 @@ void echoclient_test(void* args)
         args.argv = argv;
 
         CyaSSL_Init();
-#if defined(DEBUG_CYASSL) && !defined(CYASSL_MDK_SHELL)
+#if defined(DEBUG_CYASSL) && !defined(WOLFSSL_MDK_SHELL)
         CyaSSL_Debugging_ON();
 #endif
 #ifndef CYASSL_TIRTOS

@@ -1,5 +1,5 @@
-#ifndef CYASSL_CERT_DATA_H
-#define CYASSL_CERT_DATA_H
+#ifndef WOLFSSL_CERT_DATA_H
+#define WOLFSSL_CERT_DATA_H
 
 #ifdef USE_CERT_BUFFERS_1024
 extern const unsigned char client_key_der_1024[]  ;

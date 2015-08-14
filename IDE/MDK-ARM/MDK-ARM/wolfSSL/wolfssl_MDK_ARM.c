@@ -1,4 +1,4 @@
-/* cyassl_MDK_ARM.c
+/* wolfssl_KEIL_RL.c
     *
     * Copyright (C) 2006-2015 wolfSSL Inc.
     *
@@ -27,22 +27,29 @@
     #include <config.h>
 #endif
 
-#include <stdio.h>
-#if defined (CYASSL_MDK5)
-    #include "cmsis_os.h"
-    #if defined(CYASSL_KEIL_TCP_NET)
-        #include "rl_net.h"
-    #endif
-#else
-    #include <rtl.h>
+#include <wolfssl/wolfcrypt/settings.h>
+
+#if defined(WOLFSSL_MDK_ARM)
+        #include <stdio.h>
+        #include <string.h>
+
+        #if defined(WOLFSSL_MDK5)
+            #include "cmsis_os.h"
+            #include "rl_fs.h" 
+            #include "rl_net.h" 
+        #else
+            #include "rtl.h"
+        #endif
+
+        #include "wolfssl_MDK_ARM.h"
 #endif
 
-#include "cyassl_MDK_ARM.h"
+#include "wolfssl_MDK_ARM.h"
 
-#include <cyassl/ctaocrypt/visibility.h>
-#include <cyassl/ctaocrypt/logging.h>
+#include <wolfssl/wolfcrypt/visibility.h>
+#include <wolfssl/wolfcrypt/logging.h>
 
-#if defined (CYASSL_CMSIS_RTOS)
+#if defined (WOLFSSL_CMSIS_RTOS)
         #define os_dly_wait(t)    osDelay(10*t)
 #endif
 
@@ -50,7 +57,7 @@
 /** KEIL-RL TCPnet ****/
 /** TCPnet BSD socket does not have following functions. **/
 
-#if defined(CYASSL_KEIL_TCP_NET)
+#if defined(WOLFSSL_KEIL_TCP_NET)
 char *inet_ntoa(struct in_addr in) 
 {
     #define NAMESIZE 16
@@ -69,10 +76,10 @@ unsigned long inet_addr(const char *cp)
 
 
 /*** tcp_connect is actually associated with following syassl_tcp_connect. ***/
-int Cyassl_connect(int sd, const  struct sockaddr* sa, int sz) 
+int wolfssl_connect(int sd, const  struct sockaddr* sa, int sz) 
 {
     int ret = 0 ;
-    #if defined(CYASSL_KEIL_TCP_NET)  
+    #if defined(WOLFSSL_KEIL_TCP_NET)  
     
     SOCKADDR_IN addr ;
 
@@ -83,100 +90,100 @@ int Cyassl_connect(int sd, const  struct sockaddr* sa, int sz)
         ret = connect(sd, (SOCKADDR *)&addr, sizeof(addr)) ;
         os_dly_wait(50);
     } while(ret == SCK_EWOULDBLOCK) ;
-    #ifdef DEBUG_CYASSL
+    #ifdef DEBUG_WOLFSSL
     { 
         char msg[50] ;
         sprintf(msg, "BSD Connect return code: %d\n", ret) ;
-        CYASSL_MSG(msg) ;
+        WOLFSSL_MSG(msg) ;
     }
     #endif
     
-    #endif /* CYASSL_KEIL_TCP_NET */
+    #endif /* WOLFSSL_KEIL_TCP_NET */
     return(ret ) ;
 }
 
 
-int Cyassl_accept(int sd, struct sockaddr *addr, int *addrlen) 
+int wolfssl_accept(int sd, struct sockaddr *addr, int *addrlen) 
 {
     int ret = 0 ;
 
-    #if defined(CYASSL_KEIL_TCP_NET)
+    #if defined(WOLFSSL_KEIL_TCP_NET)
     while(1) {
         #undef accept  /* Go to KEIL TCPnet accept */
         ret = accept(sd, addr,  addrlen) ;
         if(ret != SCK_EWOULDBLOCK) break ;
         os_dly_wait(1);
     } 
-    #ifdef DEBUG_CYASSL
+    #ifdef DEBUG_WOLFSSL
     {
         char msg[50] ;
         sprintf(msg, "BSD Accept return code: %d\n", ret) ;
-        CYASSL_MSG(msg) ;   
+        WOLFSSL_MSG(msg) ;   
     }
     #endif
     
-    #endif /* CYASSL_KEIL_TCP_NET */
+    #endif /* WOLFSSL_KEIL_TCP_NET */
     return(ret ) ;
 
 }
     
-int Cyassl_recv(int sd, void *buf, size_t len, int flags) 
+int wolfssl_recv(int sd, void *buf, size_t len, int flags) 
 {
     int ret  = 0;
-    #if defined(CYASSL_KEIL_TCP_NET)  
+    #if defined(WOLFSSL_KEIL_TCP_NET)  
     while(1) {
         #undef recv  /* Go to KEIL TCPnet recv */
         ret = recv(sd, buf, len,  flags) ;
         if((ret != SCK_EWOULDBLOCK) &&( ret != SCK_ETIMEOUT)) break ;
         os_dly_wait(1);
     }
-    #ifdef DEBUG_CYASSL
+    #ifdef DEBUG_WOLFSSL
     {       
         char msg[50] ;
         sprintf(msg, "BSD Recv return code: %d\n", ret) ;
-        CYASSL_MSG(msg) ;   
+        WOLFSSL_MSG(msg) ;   
     }
     #endif
 
-    #endif  /* CYASSL_KEIL_TCP_NET */
+    #endif  /* WOLFSSL_KEIL_TCP_NET */
     return(ret ) ;
 }
 
-int Cyassl_send(int sd, const void *buf, size_t len, int flags) 
+int wolfssl_send(int sd, const void *buf, size_t len, int flags) 
 {
     int  ret = 0 ;
 
-    #if defined(CYASSL_KEIL_TCP_NET)  
+    #if defined(WOLFSSL_KEIL_TCP_NET)  
     while(1) {
     #undef send  /* Go to KEIL TCPnet send */
         ret = send(sd, buf, len,  flags) ;
         if(ret != SCK_EWOULDBLOCK) break ;
         os_dly_wait(1);
     } 
-    #ifdef DEBUG_CYASSL
+    #ifdef DEBUG_WOLFSSL
     {
         char msg[50] ;
         sprintf(msg, "BSD Send return code: %d\n", ret) ;
-        CYASSL_MSG(msg) ;   
+        WOLFSSL_MSG(msg) ;   
     }
     #endif
 
-#endif  /* CYASSL_KEIL_TCP_NET */
+#endif  /* WOLFSSL_KEIL_TCP_NET */
     return(ret) ;
 
 }
 
-#endif /* CYASSL_KEIL_TCP_NET */
+#endif /* WOLFSSL_KEIL_TCP_NET */
 
-#if defined(CYASSL_KEIL_TCP_NET)  
-void Cyassl_sleep(int t) 
+#if defined(WOLFSSL_KEIL_TCP_NET)  
+void wolfssl_sleep(int t) 
 {
     #if defined(HAVE_KEIL_RTX)
     os_dly_wait(t/1000+1) ;
     #endif
 }
 
-int Cyassl_tcp_select(int sd, int timeout) 
+int wolfssl_tcp_select(int sd, int timeout) 
 {
     
     return 0 ;
@@ -184,9 +191,7 @@ int Cyassl_tcp_select(int sd, int timeout)
 }
 #endif
 
-extern int strlen(const char *s) ;
-
-FILE * CyaSSL_fopen(const char *name, const char *openmode) 
+FILE * wolfSSL_fopen(const char *name, const char *openmode) 
 {
     int i ;  FILE * ret ;
     #define PATHSIZE 100
@@ -206,30 +211,23 @@ FILE * CyaSSL_fopen(const char *name, const char *openmode)
     return(ret) ;
 }
 
-#if defined (CYASSL_MDK5)
 #define getkey getchar
 #define sendchar putchar
-#else
-extern int getkey(void) ;
-extern int sendchar(int c) ;
-#endif
 
-char * Cyassl_fgets ( char * str, int num, FILE * f ) 
+char * wolfssl_fgets ( char * str, int num, FILE * f ) 
 {
     int i ;
     
     for(i = 0 ; i< num ; i++) {
             while((str[i] = getkey()) == 0) {
-            #if defined (HAVE_KEIL_RTX) 
-						    #if !defined(CYASSL_CMSIS_RTOS)
-                    os_tsk_pass ();
-					      #else 
-                    osThreadYield ();
-                #endif
-				    #endif
+            #if defined (HAVE_KEIL_RTX) && !defined(WOLFSSL_CMSIS_RTOS)
+                os_tsk_pass ();
+            #elif defined(WOLFSSL_CMSIS_RTOS)
+                osThreadYield ();
+            #endif
         }
         if(str[i] == '\n' || str[i] == '\012' || str[i] == '\015')  {
-            sendchar('\n') ;    
+            sendchar('\n') ;
             str[i++] = '\n' ; 
             str[i] = '\0' ; 
             break ;
