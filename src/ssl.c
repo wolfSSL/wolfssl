@@ -97,17 +97,15 @@
 
 #endif /* WOLFSSSL_HAVE_MIN */
 
-#ifndef WOLFSSL_HAVE_MAX
+#if defined(WOLFSSL_DTLS) && !defined(WOLFSSL_HAVE_MAX)
 #define WOLFSSL_HAVE_MAX
 
-#ifdef WOLFSSL_DTLS
     static INLINE word32 max(word32 a, word32 b)
     {
         return a > b ? a : b;
     }
-#endif /* WOLFSSL_DTLS */
 
-#endif /* WOLFSSL_HAVE_MAX */
+#endif /* WOLFSSL_DTLS && !WOLFSSL_HAVE_MAX */
 
 
 #ifndef WOLFSSL_LEANPSK

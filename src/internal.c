@@ -7422,8 +7422,9 @@ int SendFinished(WOLFSSL* ssl)
 #ifndef NO_CERTS
 int SendCertificate(WOLFSSL* ssl)
 {
-    int    length, ret = 0;
-    word32 certSz, certChainSz, headerSz, listSz, maxFragment, payloadSz;
+    int    ret = 0;
+    word32 certSz, certChainSz, headerSz, listSz, payloadSz;
+    word32 length, maxFragment;
 
     if (ssl->options.usingPSK_cipher || ssl->options.usingAnon_cipher)
         return 0;  /* not needed */
@@ -7448,6 +7449,8 @@ int SendCertificate(WOLFSSL* ssl)
             length += certChainSz;
             listSz += certChainSz;
         }
+        else
+            certChainSz = 0;
     }
 
     payloadSz = length;
@@ -7472,7 +7475,7 @@ int SendCertificate(WOLFSSL* ssl)
 
     while (length > 0 && ret == 0) {
         byte*  output = NULL;
-        word32 fragSz; /* How much of the certificate data are we copying? */
+        word32 fragSz = 0;
         word32 i = RECORD_HEADER_SZ;
         int    sendSz = RECORD_HEADER_SZ;
 

@@ -194,9 +194,14 @@ WOLFSSL_LOCAL int UnLockMutex(wolfSSL_Mutex*);
 
 
 /* Windows API defines its own min() macro. */
-#if defined(USE_WINDOWS_API) && defined(min)
-    #define WOLFSSL_HAVE_MIN
-#endif
+#if defined(USE_WINDOWS_API)
+    #ifdef min
+        #define WOLFSSL_HAVE_MIN
+    #endif /* min */
+    #ifdef max
+        #define WOLFSSL_HAVE_MAX
+    #endif /* max */
+#endif /* USE_WINDOWS_API */
 
 
 #ifdef __cplusplus
