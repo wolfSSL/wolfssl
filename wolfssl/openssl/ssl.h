@@ -527,6 +527,12 @@ typedef WOLFSSL_OCSP_ONEREQ        OCSP_ONEREQ;
 #define SSL_CTX_get_verify_callback      wolfSSL_CTX_get_verify_callback
 #define SSL_CTX_set_tlsext_servername_callback      wolfSSL_CTX_set_servername_callback
 #define SSL_CTX_set_tlsext_servername_arg           wolfSSL_CTX_set_servername_arg
+
+/*changes for PSK*/
+#define PSK_MAX_PSK_LEN                      256
+#define PSK_MAX_IDENTITY_LEN                 128
+
+
 #endif /* HAVE_STUNNEL */
 
 #ifdef __cplusplus
