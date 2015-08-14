@@ -499,6 +499,12 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
             done = 1;  /* external cert chain most likely has SHA */
         #endif
 
+        #if !defined(HAVE_ECC) && !defined(WOLFSSL_STATIC_RSA)
+            if (!XSTRNCMP(domain, "www.google.com", 14)) {
+                done = 1;  /* google needs ECDHE or static RSA */
+            }
+        #endif
+
         if (done) {
             printf("external test can't be run in this mode");
 
