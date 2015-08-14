@@ -293,6 +293,7 @@ typedef byte word24[3];
         #endif
     #endif
 
+#if defined(WOLFSSL_STATIC_PSK)
     #if !defined(NO_PSK) && !defined(NO_AES) && !defined(NO_TLS)
         #if !defined(NO_SHA)
             #define BUILD_TLS_PSK_WITH_AES_128_CBC_SHA
@@ -317,6 +318,7 @@ typedef byte word24[3];
             #endif
         #endif
     #endif
+#endif
 
     #if !defined(NO_TLS) && defined(HAVE_NULL_CIPHER)
         #if !defined(NO_RSA)
@@ -329,7 +331,7 @@ typedef byte word24[3];
                 #endif
             #endif
         #endif
-        #if !defined(NO_PSK)
+        #if !defined(NO_PSK) && defined(WOLFSSL_STATIC_PSK)
             #if !defined(NO_SHA)
                 #define BUILD_TLS_PSK_WITH_NULL_SHA
             #endif
@@ -574,7 +576,8 @@ typedef byte word24[3];
 
 #if defined(BUILD_TLS_RSA_WITH_AES_128_CBC_SHA) || \
     defined(BUILD_TLS_RSA_WITH_AES_256_CBC_SHA) || \
-    defined(BUILD_TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256)
+    defined(BUILD_TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256) || \
+    defined(BUILD_TLS_DHE_PSK_WITH_AES_128_CBC_SHA256)
     #undef  BUILD_AES
     #define BUILD_AES
 #endif
@@ -582,7 +585,8 @@ typedef byte word24[3];
 #if defined(BUILD_TLS_RSA_WITH_AES_128_GCM_SHA256) || \
     defined(BUILD_TLS_DHE_RSA_WITH_AES_128_GCM_SHA256) || \
     defined(BUILD_TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256) || \
-    defined(BUILD_TLS_PSK_WITH_AES_128_GCM_SHA256)
+    defined(BUILD_TLS_PSK_WITH_AES_128_GCM_SHA256) || \
+    defined(BUILD_TLS_DHE_PSK_WITH_AES_128_GCM_SHA256)
     #define BUILD_AESGCM
 #endif
 

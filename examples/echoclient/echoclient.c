@@ -143,6 +143,8 @@ void echoclient_test(void* args)
         CyaSSL_CTX_set_psk_client_callback(ctx, my_psk_client_cb);
         #ifdef HAVE_NULL_CIPHER
             defaultCipherList = "PSK-NULL-SHA256";
+        #elif defined(HAVE_AESGCM) && !defined(NO_DH)
+            defaultCipherList = "DHE-PSK-AES128-GCM-SHA256";
         #else
             defaultCipherList = "PSK-AES128-CBC-SHA256";
         #endif
