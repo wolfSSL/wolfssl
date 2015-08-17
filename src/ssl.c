@@ -13534,7 +13534,7 @@ int wolfSSL_PEM_write_mem_RSAPrivateKey(RSA* rsa, const EVP_CIPHER* cipher,
     }
 
     /* Key to DER */
-    derSz = wc_RsaKeyToDer(rsa->internal, der, der_max_len);
+    derSz = wc_RsaKeyToDer((RsaKey*)rsa->internal, der, der_max_len);
     if (derSz < 0) {
         WOLFSSL_MSG("wc_RsaKeyToDer failed");
         XFREE(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -13747,7 +13747,8 @@ static int SetECKeyExternal(WOLFSSL_EC_KEY* eckey)
 
     if (eckey->pub_key->internal != NULL) {
         /* set the internal public key */
-        if (wc_ecc_copy_point(&key->pubkey, eckey->pub_key->internal) != MP_OKAY) {
+        if (wc_ecc_copy_point(&key->pubkey,
+                             (ecc_point*)eckey->pub_key->internal) != MP_OKAY) {
             WOLFSSL_MSG("SetECKeyExternal ecc_copy_point failed");
             return SSL_FATAL_ERROR;
         }
@@ -13958,7 +13959,7 @@ WOLFSSL_EC_KEY *wolfSSL_EC_KEY_new(void)
     }
     XMEMSET(external->internal, 0, sizeof(ecc_key));
 
-    wc_ecc_init(external->internal);
+    wc_ecc_init((ecc_key*)external->internal);
 
     /* public key */
     external->pub_key = (WOLFSSL_EC_POINT*)XMALLOC(sizeof(WOLFSSL_EC_POINT),
@@ -13970,7 +13971,7 @@ WOLFSSL_EC_KEY *wolfSSL_EC_KEY_new(void)
     }
     XMEMSET(external->pub_key, 0, sizeof(WOLFSSL_EC_POINT));
 
-    key = external->internal;
+    key = (ecc_key*)external->internal;
     external->pub_key->internal = (ecc_point*)&key->pubkey;
 
     /* curve group */
@@ -14309,15 +14310,15 @@ int wolfSSL_EC_GROUP_get_order(const WOLFSSL_EC_GROUP *group,
         return SSL_FAILURE;
     }
 
-    if (mp_init(order->internal) != MP_OKAY) {
+    if (mp_init((mp_int*)order->internal) != MP_OKAY) {
         WOLFSSL_MSG("wolfSSL_EC_GROUP_get_order mp_init failure");
         return SSL_FAILURE;
     }
 
-    if (mp_read_radix(order->internal, ecc_sets[group->curve_idx].order,
-                      16) != MP_OKAY) {
+    if (mp_read_radix((mp_int*)order->internal,
+                      ecc_sets[group->curve_idx].order, 16) != MP_OKAY) {
         WOLFSSL_MSG("wolfSSL_EC_GROUP_get_order mp_read order failure");
-        mp_clear(order->internal);
+        mp_clear((mp_int*)order->internal);
         return SSL_FAILURE;
     }
 
@@ -14356,7 +14357,8 @@ int wolfSSL_ECPoint_i2d(const WOLFSSL_EC_GROUP *group,
     if (out != NULL)
         wolfssl_EC_POINT_dump("i2d p", p);
 #endif
-    err = wc_ecc_export_point_der(group->curve_idx, p->internal, out, len);
+    err = wc_ecc_export_point_der(group->curve_idx, (ecc_point*)p->internal,
+                                  out, len);
     if (err != MP_OKAY && !(out == NULL && err == LENGTH_ONLY_E)) {
         WOLFSSL_MSG("wolfSSL_ECPoint_i2d wc_ecc_export_point_der failed");
         return SSL_FAILURE;
@@ -14379,7 +14381,7 @@ int wolfSSL_ECPoint_d2i(unsigned char *in, unsigned int len,
     }
 
     if (wc_ecc_import_point_der(in, len, group->curve_idx,
-                                p->internal) != MP_OKAY) {
+                                (ecc_point*)p->internal) != MP_OKAY) {
         WOLFSSL_MSG("wc_ecc_import_point_der failed");
         return SSL_FAILURE;
     }
@@ -14602,7 +14604,7 @@ int wolfSSL_EC_POINT_is_at_infinity(const WOLFSSL_EC_GROUP *group,
         }
     }
 
-    ret = wc_ecc_point_is_at_infinity(point->internal);
+    ret = wc_ecc_point_is_at_infinity((ecc_point*)point->internal);
     if (ret <= 0) {
         WOLFSSL_MSG("ecc_point_is_at_infinity failure");
         return SSL_FAILURE;
@@ -14904,7 +14906,7 @@ int wolfSSL_PEM_write_mem_ECPrivateKey(WOLFSSL_EC_KEY* ecc,
     }
 
     /* Key to DER */
-    derSz = wc_EccKeyToDer(ecc->internal, der, der_max_len);
+    derSz = wc_EccKeyToDer((ecc_key*)ecc->internal, der, der_max_len);
     if (derSz < 0) {
         WOLFSSL_MSG("wc_DsaKeyToDer failed");
         XFREE(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -15077,7 +15079,7 @@ int wolfSSL_PEM_write_mem_DSAPrivateKey(WOLFSSL_DSA* dsa,
     }
 
     /* Key to DER */
-    derSz = wc_DsaKeyToDer(dsa->internal, der, der_max_len);
+    derSz = wc_DsaKeyToDer((DsaKey*)dsa->internal, der, der_max_len);
     if (derSz < 0) {
         WOLFSSL_MSG("wc_DsaKeyToDer failed");
         XFREE(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -16020,11 +16022,11 @@ long wolfSSL_CTX_set_tmp_dh(WOLFSSL_CTX* ctx, WOLFSSL_DH* dh)
     if(pSz <= 0 || gSz <= 0)
         return SSL_FATAL_ERROR;
 
-    p = XMALLOC(pSz, ctx->heap, DYNAMIC_TYPE_DH);
+    p = (byte*)XMALLOC(pSz, ctx->heap, DYNAMIC_TYPE_DH);
     if(!p)
         return MEMORY_E;
 
-    g = XMALLOC(gSz, ctx->heap, DYNAMIC_TYPE_DH);
+    g = (byte*)XMALLOC(gSz, ctx->heap, DYNAMIC_TYPE_DH);
     if(!g) {
         XFREE(p, ctx->heap, DYNAMIC_TYPE_DH);
         return MEMORY_E;
@@ -16066,10 +16068,10 @@ int wolfSSL_SESSION_get_ex_new_index(long idx, void* data, void* cb1,
     (void)cb1;
     (void)cb2;
     (void)cb3;
-    if(XSTRNCMP(data, "redirect index", 14) == 0) {
+    if(XSTRNCMP((const char*)data, "redirect index", 14) == 0) {
         return 0;
     }
-    else if(XSTRNCMP(data, "addr index", 10) == 0) {
+    else if(XSTRNCMP((const char*)data, "addr index", 10) == 0) {
         return 1;
     }
     return SSL_FAILURE;

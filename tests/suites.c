@@ -57,7 +57,7 @@ static char svrPort[] = "0";
 static int IsSslVersion(const char* line)
 {
     const char* find = "-v ";
-    char* begin = strstr(line, find);
+    const char* begin = strstr(line, find);
 
     if (begin) {
         int version = -1;
@@ -79,7 +79,7 @@ static int IsSslVersion(const char* line)
 static int IsOldTlsVersion(const char* line)
 {
     const char* find = "-v ";
-    char* begin = strstr(line, find);
+    const char* begin = strstr(line, find);
 
     if (begin) {
         int version = -1;
