@@ -1444,8 +1444,8 @@ int wc_DsaKeyToDer(DsaKey* key, byte* output, word32 inLen)
     word32 seqSz, verSz, rawLen, intTotalLen = 0;
     word32 sizes[DSA_INTS];
     int    i, j, outLen, ret = 0, lbit;
-    int   err ;
-	
+    int    err;
+
     byte  seq[MAX_SEQ_SZ];
     byte  ver[MAX_VERSION_SZ];
     byte* tmps[DSA_INTS];
@@ -1481,8 +1481,6 @@ int wc_DsaKeyToDer(DsaKey* key, byte* output, word32 inLen)
         sizes[i] = SetLength(rawLen, tmps[i] + 1) + 1 + lbit; /* tag & lbit */
 
         if (sizes[i] <= MAX_SEQ_SZ) {
-            int err;
-
             /* leading zero */
             if (lbit)
                 tmps[i][sizes[i]-1] = 0x00;
