@@ -42,6 +42,7 @@ void wc_Md5GetHash(Md5* md5, byte* hash)
 WOLFSSL_API void wc_Md5RestorePos(Md5* m1, Md5* m2) {
     *m1 = *m2 ;
 }
+
 #endif
 
 #if !defined(NO_SHA)
@@ -136,8 +137,10 @@ int wc_Sha256Hash(const byte* data, word32 len, byte* hash)
 
     return ret;
 }
+
 #endif /* !defined(NO_SHA256) */
 
+#endif /* !defined(WOLFSSL_TI_HASH) */
 
 #if defined(WOLFSSL_SHA512)
 int wc_Sha512Hash(const byte* data, word32 len, byte* hash)
@@ -207,6 +210,3 @@ int wc_Sha384Hash(const byte* data, word32 len, byte* hash)
 
 #endif /* defined(WOLFSSL_SHA384) */
 #endif /* defined(WOLFSSL_SHA512) */
-
-#endif /* !defined(WOLFSSL_TI_HASH) */
-
