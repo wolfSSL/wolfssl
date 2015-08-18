@@ -7458,10 +7458,8 @@ int SendCertificate(WOLFSSL* ssl)
     if (ssl->fragOffset != 0)
         length -= (ssl->fragOffset + headerSz);
 
-    if (!ssl->options.dtls) {
-        maxFragment = MAX_RECORD_SIZE;
-    }
-    else {
+    maxFragment = MAX_RECORD_SIZE;
+    if (ssl->options.dtls) {
     #ifdef WOLFSSL_DTLS
         maxFragment = MAX_MTU - DTLS_RECORD_HEADER_SZ
                       - DTLS_HANDSHAKE_HEADER_SZ - 100;
@@ -7590,7 +7588,6 @@ int SendCertificate(WOLFSSL* ssl)
             i += copySz;
             ssl->fragOffset += copySz;
             length -= copySz;
-            fragSz -= copySz;
         }
 
         if (ssl->keys.encryptionOn) {
