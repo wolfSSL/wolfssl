@@ -24,6 +24,10 @@
 
 #include <wolfssl/wolfcrypt/types.h>
 
+#ifdef __cplusplus
+    extern "C" {
+#endif
+
 #ifndef NO_MD5
 #include <wolfssl/wolfcrypt/md5.h>
 WOLFSSL_API void wc_Md5GetHash(Md5*, byte*);
@@ -63,19 +67,23 @@ WOLFSSL_API int wc_Sha256Hash(const byte*, word32, byte*);
 #include <wolfssl/wolfcrypt/sha512.h>
 WOLFSSL_API int wc_Sha512Hash(const byte*, word32, byte*);
 #if defined(WOLFSSL_TI_HASH)
-WOLFSSL_API void wc_Sha512Free(Sha512*);
+    WOLFSSL_API void wc_Sha512Free(Sha512*);
 #else
-#define wc_Sha512Free(d)
+    #define wc_Sha512Free(d)
 #endif
     #if defined(WOLFSSL_SHA384)
         WOLFSSL_API int wc_Sha384Hash(const byte*, word32, byte*);
         #if defined(WOLFSSL_TI_HASH)
-        WOLFSSL_API void wc_Sha384Free(Sha384*);
+            WOLFSSL_API void wc_Sha384Free(Sha384*);
         #else
-        #define wc_Sha384Free(d)
+            #define wc_Sha384Free(d)
         #endif
     #endif /* defined(WOLFSSL_SHA384) */
 #endif /* WOLFSSL_SHA512 */
 
+
+#ifdef __cplusplus
+    } /* extern "C" */
+#endif
 
 #endif /* WOLF_CRYPT_HASH_H */
