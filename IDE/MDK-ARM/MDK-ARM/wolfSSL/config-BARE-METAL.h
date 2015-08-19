@@ -1,4 +1,4 @@
-/* config-FS.h
+/* config-BEREFOOT.h
  *
  * Copyright (C) 2006-2015 wolfSSL Inc.
  *
@@ -20,19 +20,21 @@
  */
 
 
-/**** CyaSSL for KEIL-RL Configuration ****/
+/**** wolfSSL for KEIL-RL Configuration ****/
 
 #define __CORTEX_M3__
-#define CYASSL_KEIL_RL
+#define WOLFSSL_MDK_ARM
 #define NO_WRITEV
-#define NO_CYASSL_DIR
-#define NO_MAIN_DRIVER
+#define NO_WOLFSSL_DIR
+//#define NO_MAIN_DRIVER
 
-
-#define CYASSL_DER_LOAD
+#define WOLFSSL_DER_LOAD
 #define HAVE_NULL_CIPHER
 
 #define SINGLE_THREADED
+#define NO_FILESYSTEM
+#define NO_TLS
+#define WOLFSSL_USER_IO
 
 #define NO_ECHOSERVER
 #define NO_ECHOCLIENT
@@ -41,20 +43,20 @@
 
 // <<< Use Configuration Wizard in Context Menu >>>
 
-// <h> Build Target: KEIL-FS
-//  <h> Single Threaded, With File System, No TCP-net
+// <h> Build Target: KEIL-BAREFOOT
+//  <h> Single Threaded, No File System, No TCP-net
 //   </h>
 //      <e>Command Shell
 #define MDK_CONF_SHELL 1
 #if MDK_CONF_SHELL  == 1
-#define CYASSL_MDK_SHELL
+#define WOLFSSL_MDK_SHELL
 #endif
 //  </e>
-//  <h>CyaSSL Apps
+//  <h>wolfSSL Apps
 //  <h>Crypt/Cipher
-//        <o>Cert Storage <0=> SD Card <1=> Mem Buff (1024bytes) <2=> Mem Buff (2048bytes)
-#define MDK_CONF_CERT_BUFF 0
-#if MDK_CONF_CERT_BUFF== 1
+//        <o>Cert Storage <1=> Mem Buff (1024bytes) <2=> Mem Buff (2048bytes)
+#define MDK_CONF_CERT_BUFF 1
+#if MDK_CONF_CERT_BUFF == 1
 #define USE_CERT_BUFFERS_1024
 #elif MDK_CONF_CERT_BUFF == 2
 #define USE_CERT_BUFFERS_2048
@@ -70,6 +72,7 @@
 #define MDK_CONF_CTaoCryptBenchmark 1
 #if MDK_CONF_CTaoCryptBenchmark == 0
 #define NO_CRYPT_BENCHMARK 
+#define BENCH_EMBEDDED
 #endif
 //  </e>
 //   </h>
@@ -92,55 +95,15 @@
 
 // </h>
 
-//  <h>CyaSSL Library
-//     <h>SSL (Included by default)
-//     </h>
 
-//      <e>TLS 
-#define MDK_CONF_TLS 1
-#if MDK_CONF_TLS == 0
-#define NO_TLS
-#endif
-//  </e>
-
-//      <e>CertGen
-#define MDK_CONF_CERT_GEN 0
-#if MDK_CONF_CERT_GEN == 1
-#define CYASSL_CERT_GEN
-#endif
-//  </e>
-//      <e>KeyGen
-#define MDK_CONF_KEY_GEN 0
-#if MDK_CONF_KEY_GEN == 1
-#define CYASSL_KEY_GEN
-#endif
-//  </e>
-//      <e>CRL
-#define MDK_CONF_DER_LOAD 0
-#if MDK_CONF_DER_LOAD == 1
-#define CYASSL_DER_LOAD
-#endif
-//  </e>
-//      <e>OpenSSL Extra
-#define MDK_CONF_OPENSSL_EXTRA 0
-#if MDK_CONF_OPENSSL_EXTRA == 1
-#define OPENSSL_EXTRA
-#endif
-//  </e>
-//      <h>CRL Monitor, OCSP (not supported with KEIL)
-//     </h>
-
-// </h>
-
-//  <h>CTaoCrypt Library
+//  <h>wolfCrypt Library
 
 //       <h>MD5, SHA, SHA-256, AES, RC4, ASN, RSA
 //        </h>
-
 //      <e>MD2
 #define MDK_CONF_MD2 0
 #if MDK_CONF_MD2 == 1
-#define CYASSL_MD2
+#define WOLFSSL_MD2
 #endif
 //  </e>
 //      <e>MD4
@@ -153,19 +116,19 @@
 //          <i>This has to be with SHA512
 #define MDK_CONF_SHA384 0
 #if MDK_CONF_SHA384 == 1
-#define CYASSL_SHA384
+#define WOLFSSL_SHA384
 #endif
 //  </e>
 //      <e>SHA-512          
 #define MDK_CONF_SHA512     0
 #if MDK_CONF_SHA512     == 1
-#define CYASSL_SHA512   
+#define WOLFSSL_SHA512   
 #endif
 //  </e>
 //      <e>RIPEMD
 #define MDK_CONF_RIPEMD 0
 #if MDK_CONF_RIPEMD == 1
-#define CYASSL_RIPEMD
+#define WOLFSSL_RIPEMD
 #endif
 //  </e>
 //      <e>HMAC
@@ -207,7 +170,7 @@
 //  </e>
 
 //      <e>DH
-//              <i>need this for CYASSL_SERVER, OPENSSL_EXTRA
+//              <i>need this for WOLFSSL_SERVER, OPENSSL_EXTRA
 #define MDK_CONF_DH 1
 #if MDK_CONF_DH == 0
 #define NO_DH
@@ -271,13 +234,13 @@
 //              <e>Debug Message
 #define MDK_CONF_DebugMessage 0
 #if MDK_CONF_DebugMessage == 1
-#define DEBUG_CYASSL
+#define DEBUG_WOLFSSL
 #endif
 //         </e>
 //              <e>Check malloc
 #define MDK_CONF_CheckMalloc 1
 #if MDK_CONF_CheckMalloc == 1
-#define CYASSL_MALLOC_CHECK
+#define WOLFSSL_MALLOC_CHECK
 #endif
 //         </e>
 
@@ -312,7 +275,7 @@
 //      <e>Small Stack
 #define MDK_CONF_SmallStack 1
 #if MDK_CONF_SmallStack == 0
-#define NO_CYASSL_SMALL_STACK
+#define NO_WOLFSSL_SMALL_STACK
 #endif
 //  </e>
 //      <e>Use Fast Math

@@ -115,7 +115,7 @@
     /* do nothing */
 #elif defined(EBSNET)
     /* do nothing */
-#elif defined(FREESCALE_MQX)
+#elif defined(FREESCALE_MQX) || defined(FREESCALE_KSDK_MQX)
     /* do nothing */
 #elif defined(WOLFSSL_MDK_ARM)
     #if defined(WOLFSSL_MDK5)
@@ -211,11 +211,13 @@ typedef byte word24[3];
 #ifndef WOLFSSL_MAX_STRENGTH
 
     #if !defined(NO_RSA) && !defined(NO_RC4)
-        #if !defined(NO_SHA)
-            #define BUILD_SSL_RSA_WITH_RC4_128_SHA
-        #endif
-        #if !defined(NO_MD5)
-            #define BUILD_SSL_RSA_WITH_RC4_128_MD5
+        #if defined(WOLFSSL_STATIC_RSA)
+            #if !defined(NO_SHA)
+                #define BUILD_SSL_RSA_WITH_RC4_128_SHA
+            #endif
+            #if !defined(NO_MD5)
+                #define BUILD_SSL_RSA_WITH_RC4_128_MD5
+            #endif
         #endif
         #if !defined(NO_TLS) && defined(HAVE_NTRU) && !defined(NO_SHA)
             #define BUILD_TLS_NTRU_RSA_WITH_RC4_128_SHA
@@ -224,7 +226,9 @@ typedef byte word24[3];
 
     #if !defined(NO_RSA) && !defined(NO_DES3)
         #if !defined(NO_SHA)
-            #define BUILD_SSL_RSA_WITH_3DES_EDE_CBC_SHA
+            #if defined(WOLFSSL_STATIC_RSA)
+                #define BUILD_SSL_RSA_WITH_3DES_EDE_CBC_SHA
+            #endif
             #if !defined(NO_TLS) && defined(HAVE_NTRU)
                     #define BUILD_TLS_NTRU_RSA_WITH_3DES_EDE_CBC_SHA
             #endif
@@ -233,43 +237,49 @@ typedef byte word24[3];
 
     #if !defined(NO_RSA) && !defined(NO_AES) && !defined(NO_TLS)
         #if !defined(NO_SHA)
-            #define BUILD_TLS_RSA_WITH_AES_128_CBC_SHA
-            #define BUILD_TLS_RSA_WITH_AES_256_CBC_SHA
+            #if defined(WOLFSSL_STATIC_RSA)
+                #define BUILD_TLS_RSA_WITH_AES_128_CBC_SHA
+                #define BUILD_TLS_RSA_WITH_AES_256_CBC_SHA
+            #endif
             #if defined(HAVE_NTRU)
                     #define BUILD_TLS_NTRU_RSA_WITH_AES_128_CBC_SHA
                     #define BUILD_TLS_NTRU_RSA_WITH_AES_256_CBC_SHA
             #endif
         #endif
-        #if !defined (NO_SHA256)
-            #define BUILD_TLS_RSA_WITH_AES_128_CBC_SHA256
-            #define BUILD_TLS_RSA_WITH_AES_256_CBC_SHA256
-        #endif
-        #if defined (HAVE_AESGCM)
-            #define BUILD_TLS_RSA_WITH_AES_128_GCM_SHA256
-            #if defined (WOLFSSL_SHA384)
-                #define BUILD_TLS_RSA_WITH_AES_256_GCM_SHA384
+        #if defined(WOLFSSL_STATIC_RSA)
+            #if !defined (NO_SHA256)
+                #define BUILD_TLS_RSA_WITH_AES_128_CBC_SHA256
+                #define BUILD_TLS_RSA_WITH_AES_256_CBC_SHA256
             #endif
-        #endif
-        #if defined (HAVE_AESCCM)
-            #define BUILD_TLS_RSA_WITH_AES_128_CCM_8
-            #define BUILD_TLS_RSA_WITH_AES_256_CCM_8
-        #endif
-        #if defined(HAVE_BLAKE2)
-            #define BUILD_TLS_RSA_WITH_AES_128_CBC_B2B256
-            #define BUILD_TLS_RSA_WITH_AES_256_CBC_B2B256
+            #if defined (HAVE_AESGCM)
+                #define BUILD_TLS_RSA_WITH_AES_128_GCM_SHA256
+                #if defined (WOLFSSL_SHA384)
+                    #define BUILD_TLS_RSA_WITH_AES_256_GCM_SHA384
+                #endif
+            #endif
+            #if defined (HAVE_AESCCM)
+                #define BUILD_TLS_RSA_WITH_AES_128_CCM_8
+                #define BUILD_TLS_RSA_WITH_AES_256_CCM_8
+            #endif
+            #if defined(HAVE_BLAKE2)
+                #define BUILD_TLS_RSA_WITH_AES_128_CBC_B2B256
+                #define BUILD_TLS_RSA_WITH_AES_256_CBC_B2B256
+            #endif
         #endif
     #endif
 
     #if defined(HAVE_CAMELLIA) && !defined(NO_TLS)
         #ifndef NO_RSA
-          #if !defined(NO_SHA)
-            #define BUILD_TLS_RSA_WITH_CAMELLIA_128_CBC_SHA
-            #define BUILD_TLS_RSA_WITH_CAMELLIA_256_CBC_SHA
-          #endif
+          #if defined(WOLFSSL_STATIC_RSA)
+            #if !defined(NO_SHA)
+                #define BUILD_TLS_RSA_WITH_CAMELLIA_128_CBC_SHA
+                #define BUILD_TLS_RSA_WITH_CAMELLIA_256_CBC_SHA
+            #endif
             #ifndef NO_SHA256
                 #define BUILD_TLS_RSA_WITH_CAMELLIA_128_CBC_SHA256
                 #define BUILD_TLS_RSA_WITH_CAMELLIA_256_CBC_SHA256
             #endif
+          #endif
             #if !defined(NO_DH)
               #if !defined(NO_SHA)
                 #define BUILD_TLS_DHE_RSA_WITH_CAMELLIA_128_CBC_SHA
@@ -283,6 +293,7 @@ typedef byte word24[3];
         #endif
     #endif
 
+#if defined(WOLFSSL_STATIC_PSK)
     #if !defined(NO_PSK) && !defined(NO_AES) && !defined(NO_TLS)
         #if !defined(NO_SHA)
             #define BUILD_TLS_PSK_WITH_AES_128_CBC_SHA
@@ -307,17 +318,20 @@ typedef byte word24[3];
             #endif
         #endif
     #endif
+#endif
 
     #if !defined(NO_TLS) && defined(HAVE_NULL_CIPHER)
         #if !defined(NO_RSA)
-            #if !defined(NO_SHA)
-                #define BUILD_TLS_RSA_WITH_NULL_SHA
-            #endif
-            #ifndef NO_SHA256
-                #define BUILD_TLS_RSA_WITH_NULL_SHA256
+            #if defined(WOLFSSL_STATIC_RSA)
+                #if !defined(NO_SHA)
+                    #define BUILD_TLS_RSA_WITH_NULL_SHA
+                #endif
+                #ifndef NO_SHA256
+                    #define BUILD_TLS_RSA_WITH_NULL_SHA256
+                #endif
             #endif
         #endif
-        #if !defined(NO_PSK)
+        #if !defined(NO_PSK) && defined(WOLFSSL_STATIC_PSK)
             #if !defined(NO_SHA)
                 #define BUILD_TLS_PSK_WITH_NULL_SHA
             #endif
@@ -330,6 +344,7 @@ typedef byte word24[3];
         #endif
     #endif
 
+#if defined(WOLFSSL_STATIC_RSA)
     #if !defined(NO_HC128) && !defined(NO_RSA) && !defined(NO_TLS)
         #ifndef NO_MD5
             #define BUILD_TLS_RSA_WITH_HC_128_MD5
@@ -347,6 +362,7 @@ typedef byte word24[3];
             #define BUILD_TLS_RSA_WITH_RABBIT_SHA
         #endif
     #endif
+#endif
 
     #if !defined(NO_DH) && !defined(NO_AES) && !defined(NO_TLS) && \
         !defined(NO_RSA)
@@ -560,7 +576,8 @@ typedef byte word24[3];
 
 #if defined(BUILD_TLS_RSA_WITH_AES_128_CBC_SHA) || \
     defined(BUILD_TLS_RSA_WITH_AES_256_CBC_SHA) || \
-    defined(BUILD_TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256)
+    defined(BUILD_TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256) || \
+    defined(BUILD_TLS_DHE_PSK_WITH_AES_128_CBC_SHA256)
     #undef  BUILD_AES
     #define BUILD_AES
 #endif
@@ -568,7 +585,8 @@ typedef byte word24[3];
 #if defined(BUILD_TLS_RSA_WITH_AES_128_GCM_SHA256) || \
     defined(BUILD_TLS_DHE_RSA_WITH_AES_128_GCM_SHA256) || \
     defined(BUILD_TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256) || \
-    defined(BUILD_TLS_PSK_WITH_AES_128_GCM_SHA256)
+    defined(BUILD_TLS_PSK_WITH_AES_128_GCM_SHA256) || \
+    defined(BUILD_TLS_DHE_PSK_WITH_AES_128_GCM_SHA256)
     #define BUILD_AESGCM
 #endif
 
@@ -2270,6 +2288,7 @@ struct WOLFSSL {
     int             rflags;             /* user read  flags */
     int             wflags;             /* user write flags */
     word32          timeout;            /* session timeout */
+    word32          fragOffset;         /* fragment offset */
     word16          curSize;
     RecordLayerHeader curRL;
     MsgsReceived    msgsReceived;       /* peer messages received */

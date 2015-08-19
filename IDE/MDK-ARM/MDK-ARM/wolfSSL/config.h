@@ -1,4 +1,4 @@
-/* ssl-dummy.c
+/* config.h
  *
  * Copyright (C) 2006-2015 wolfSSL Inc.
  *
@@ -19,35 +19,37 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
-#ifdef HAVE_CONFIG_H
-    #include <config.h>
+#ifndef MDK_CONFIG_H__
+#define MDK_CONFIG_H__
+/**** wolfSSL for KEIL-RL Configuration ****/
+
+#define __CORTEX_M3__
+#define WOLFSSL_MDK_ARM
+
+#define NO_WRITEV
+#define NO_WOLFSSL_DIR
+#define NO_MAIN_DRIVER
+
+/* for Retarget.c */
+#define  STDIO
+#define BENCH_EMBEDDED
+
+#define WOLFSSL_DER_LOAD
+#define HAVE_NULL_CIPHER
+#define WOLFSSL_USER_TIME
+#define NO_TIME_H
+static  int ValidateDate(const unsigned char* date, unsigned char format, int dateType){ return 1; }
+
+#if    defined(MDK_CONF_RTX_TCP_FS)
+#include "config-RTX-TCP-FS.h"
+#elif  defined(MDK_CONF_TCP_FS)
+#include "config-TCP-FS.h"
+#elif  defined(MDK_CONF_FS)
+#include "config-FS.h"
+#elif  defined(MDK_CONF_BARE_METAL)
+#include "config-BARE-METAL.h"
+#elif  defined(MDK_WOLFLIB)
+#include "config-WOLFLIB.h"
 #endif
 
-#include <cyassl/ssl.h>
-#include <cyassl/internal.h>
-#include <cyassl/error-ssl.h>
-#include <cyassl/ctaocrypt/coding.h>
-
-Signer* GetCA(void* vp, byte* hash) 
-{ 
-    Signer*s ;
-    return  s ;
-}
-
-int CyaSSL_dtls(CYASSL* ssl)
-{
-    return ssl->options.dtls;
-}
-
-int CyaSSL_get_using_nonblock(CYASSL* ssl)
-{
-    CYASSL_ENTER("CyaSSL_get_using_nonblock");
-    CYASSL_LEAVE("CyaSSL_get_using_nonblock", ssl->options.usingNonblock);
-    return ssl->options.usingNonblock;
-}
-
-Signer* GetCAByName(void* vp, byte* hash)
-{
-    Signer * ca ;
-    return(ca) ;
-}
+#endif

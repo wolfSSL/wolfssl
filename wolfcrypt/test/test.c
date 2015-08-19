@@ -99,13 +99,7 @@
 #if defined(USE_CERT_BUFFERS_1024) || defined(USE_CERT_BUFFERS_2048) \
                                    || !defined(NO_DH)
     /* include test cert and key buffers for use with NO_FILESYSTEM */
-    #if defined(WOLFSSL_MDK_ARM)
-        #include "cert_data.h"
-                        /* use certs_test.c for initial data, so other
-                                               commands can share the data. */
-    #else
         #include <wolfssl/certs_test.h>
-    #endif
 #endif
 
 #if defined(WOLFSSL_MDK_ARM)

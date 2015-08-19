@@ -24,5 +24,5 @@
 #endif
 
 /* Define initial data for cert buffers */
-#include <cyassl/certs_test.h>
+#include <wolfssl/certs_test.h>
 

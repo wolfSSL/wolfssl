@@ -27,6 +27,7 @@
 
 #include <wolfssl/wolfcrypt/settings.h>
 
+#ifndef CURVED25519_SMALL /* run when not defined to use small memory math */
 #if defined(HAVE_ED25519) || defined(HAVE_CURVE25519)
 
 #include <wolfssl/wolfcrypt/fe_operations.h>
@@ -1317,7 +1318,7 @@ Preconditions:
    |f| bounded by 1.1*2^26,1.1*2^25,1.1*2^26,1.1*2^25,etc.
 */
 
-static const unsigned char zero[32];
+static const unsigned char zero[32] = {0};
 
 int fe_isnonzero(const fe f)
 {
@@ -1405,4 +1406,5 @@ void fe_cmov(fe f,const fe g,unsigned int b)
   f[9] = f9 ^ x9;
 }
 #endif /* HAVE ED25519 or CURVE25519 */
+#endif /* not defined CURVED25519_SMALL */
 

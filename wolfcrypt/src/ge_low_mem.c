@@ -27,7 +27,8 @@
 
 #include <wolfssl/wolfcrypt/settings.h>
 
-#ifdef HAVE_ED25519
+#if defined(CURVED25519_SMALL) /* use slower code that takes less memory */
+#if defined(HAVE_ED25519)
 
 #include <wolfssl/wolfcrypt/ge_operations.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
@@ -71,12 +72,12 @@ int ge_compress_key(byte* out, const byte* xIn, const byte* yIn,
 {
 	byte tmp[F25519_SIZE];
 	byte parity;
+    byte pt[32];
     int     i;
 
 	fe_copy(tmp, xIn);
 	parity = (tmp[0] & 1) << 7;
 
-    byte pt[32];
 	fe_copy(pt, yIn);
 	pt[31] |= parity;
 
@@ -555,4 +556,5 @@ int ge_double_scalarmult_vartime(ge_p2* R, const unsigned char *h,
 }
 
 #endif /* HAVE_ED25519 */
+#endif /* CURVED25519_SMALL */
 
