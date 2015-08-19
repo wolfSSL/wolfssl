@@ -38,13 +38,29 @@ before calling wolfSSL_new();  Though it's not recommended.
 - GNU Binutils 2.24 ld has problems with some debug builds, to fix an ld error
   add -fdebug-types-section to C_EXTRA_FLAGS
 
-#wolfSSL (Formerly CyaSSL) Release 3.6.2 (07/20/2015)
+#wolfSSL (Formerly CyaSSL) Release 3.6.6 (08/20/2015)
 
-##Release 3.6.2 of wolfSSL is an intermediate custom release including:
+##Release 3.6.6 of wolfSSL has bug fixes and new features including:
 
 - OpenSSH  compatibility with --enable-openssh
 - stunnel  compatibility with --enable-stunnel
 - lighttpd compatibility with --enable-lighty
+- SSLv3 is now disabled by default, can be enabled with --enable-sslv3
+- Ephemeral key cipher suites only are now supported by default
+    To enable static ECDH cipher suites define WOLFSSL_STATIC_DH
+    To enable static  RSA cipher suites define WOLFSSL_STATIC_RSA
+    To enable static  PSK cipher suites define WOLFSSL_STATIC_PSK
+- Added QSH (quantum-safe handshake) extension with --enable-ntru
+- SRP is now part of wolfCrypt, enable with --enabe-srp
+- Certificate handshake messages can now be sent fragmented if the record
+  size is smaller than the total message size, no user action required.
+- DTLS duplicate message fixes
+- Visual Studio project files now support DLL and static builds for 32/64bit.
+- Support for new Freesacle I/O
+- FreeRTOS FIPS support
+
+- No high level security fixes that requires an update though we always
+  recommend updating to the latest
 
 See INSTALL file for build instructions.
 More info can be found on-line at //http://wolfssl.com/yaSSL/Docs.html
