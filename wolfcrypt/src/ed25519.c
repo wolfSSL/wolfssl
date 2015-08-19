@@ -380,7 +380,6 @@ int wc_ed25519_export_private_only(ed25519_key* key, byte* out, word32* outLen)
     return 0;
 }
 
-
 /*
  export private key, including public part
  outLen should contain the size of out buffer when input. outLen is than set
