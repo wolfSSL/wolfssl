@@ -889,7 +889,7 @@ fi
 
 # SSLv3
 AC_ARG_ENABLE([sslv3],
-    [  --enable-sslv3         Enable SSL version 3.0 (default: disabled)],
+    [AS_HELP_STRING([--enable-sslv3],[Enable SSL version 3.0 (default: disabled)])],
     [ ENABLED_SSLV3=$enableval ],
     [ ENABLED_SSLV3=no]
     )
