@@ -7523,15 +7523,17 @@ int SendCertificate(WOLFSSL* ssl)
         if (ssl->fragOffset == 0) {
             if (!ssl->options.dtls) {
                 AddFragHeaders(output, fragSz, 0, payloadSz, certificate, ssl);
-                HashOutputRaw(ssl, output + RECORD_HEADER_SZ,
-                              HANDSHAKE_HEADER_SZ);
+                if (!ssl->keys.encryptionOn)
+                    HashOutputRaw(ssl, output + RECORD_HEADER_SZ,
+                                  HANDSHAKE_HEADER_SZ);
             }
             else {
             #ifdef WOLFSSL_DTLS
                 AddHeaders(output, payloadSz, certificate, ssl);
-                HashOutputRaw(ssl,
-                              output + RECORD_HEADER_SZ + DTLS_RECORD_EXTRA,
-                              HANDSHAKE_HEADER_SZ + DTLS_HANDSHAKE_EXTRA);
+                if (!ssl->keys.encryptionOn)
+                    HashOutputRaw(ssl,
+                                  output + RECORD_HEADER_SZ + DTLS_RECORD_EXTRA,
+                                  HANDSHAKE_HEADER_SZ + DTLS_HANDSHAKE_EXTRA);
                 /* Adding the headers increments these, decrement them for
                  * actual message header. */
                 ssl->keys.dtls_sequence_number--;
@@ -7543,21 +7545,24 @@ int SendCertificate(WOLFSSL* ssl)
 
             /* list total */
             c32to24(listSz, output + i);
-            HashOutputRaw(ssl, output + i, CERT_HEADER_SZ);
+            if (!ssl->keys.encryptionOn)
+                HashOutputRaw(ssl, output + i, CERT_HEADER_SZ);
             i += CERT_HEADER_SZ;
             length -= CERT_HEADER_SZ;
             fragSz -= CERT_HEADER_SZ;
             if (certSz) {
                 c32to24(certSz, output + i);
-                HashOutputRaw(ssl, output + i, CERT_HEADER_SZ);
+                if (!ssl->keys.encryptionOn)
+                    HashOutputRaw(ssl, output + i, CERT_HEADER_SZ);
                 i += CERT_HEADER_SZ;
                 length -= CERT_HEADER_SZ;
                 fragSz -= CERT_HEADER_SZ;
 
-                HashOutputRaw(ssl, ssl->buffers.certificate.buffer, certSz);
-                if (certChainSz) {
-                    HashOutputRaw(ssl,
-                                  ssl->buffers.certChain.buffer, certChainSz);
+                if (!ssl->keys.encryptionOn) {
+                    HashOutputRaw(ssl, ssl->buffers.certificate.buffer, certSz);
+                    if (certChainSz)
+                        HashOutputRaw(ssl, ssl->buffers.certChain.buffer,
+                                      certChainSz);
                 }
             }
         }
