@@ -2429,7 +2429,10 @@ static int AdjustSequence(TcpInfo* tcpInfo, SnifferSession* session,
             /* adjust to expected, remove duplicate */
             *sslFrame += overlap;
             *sslBytes -= overlap;
-                
+
+            /* The following conditional block is duplicated below. It is the
+             * same action but for a different setup case. If changing this
+             * block be sure to also update the block below. */
             if (reassemblyList) {
                 word32 newEnd = *expected + *sslBytes;
                     
@@ -2460,6 +2463,30 @@ static int AdjustSequence(TcpInfo* tcpInfo, SnifferSession* session,
                                    *sslBytes, session, error);
         else if (tcpInfo->fin)
             return AddFinCapture(session, real);
+    }
+    else {
+        /* The following conditional block is duplicated above. It is the
+         * same action but for a different setup case. If changing this
+         * block be sure to also update the block above. */
+        if (reassemblyList) {
+            word32 newEnd = *expected + *sslBytes;
+
+            if (newEnd > reassemblyList->begin) {
+                Trace(OVERLAP_REASSEMBLY_BEGIN_STR);
+
+                /* remove bytes already on reassembly list */
+                *sslBytes -= newEnd - reassemblyList->begin;
+            }
+            if (newEnd > reassemblyList->end) {
+                Trace(OVERLAP_REASSEMBLY_END_STR);
+
+                /* may be past reassembly list end (could have more on list)
+                   so try to add what's past the front->end */
+                AddToReassembly(session->flags.side, reassemblyList->end +1,
+                            *sslFrame + reassemblyList->end - *expected + 1,
+                             newEnd - reassemblyList->end, session, error);
+            }
+        }
     }
     /* got expected sequence */
     *expected += *sslBytes;
