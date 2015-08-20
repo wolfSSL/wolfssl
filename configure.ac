@@ -6,7 +6,7 @@
 #
 #
 
-AC_INIT([wolfssl],[3.6.3],[https://github.com/wolfssl/wolfssl/issues],[wolfssl],[http://www.wolfssl.com])
+AC_INIT([wolfssl],[3.6.6],[https://github.com/wolfssl/wolfssl/issues],[wolfssl],[http://www.wolfssl.com])
 
 AC_CONFIG_AUX_DIR([build-aux])
 
@@ -31,7 +31,7 @@ AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_HEADERS([config.h:config.in])dnl Keep filename to 8.3 for MS-DOS.
 
 #shared library versioning
-WOLFSSL_LIBRARY_VERSION=0:2:0
+WOLFSSL_LIBRARY_VERSION=0:3:0
 #                       | | |
 #                +------+ | +---+
 #                |        |     |
@@ -889,7 +889,7 @@ fi
 
 # SSLv3
 AC_ARG_ENABLE([sslv3],
-    [  --enable-sslv3         Enable SSL version 3.0 (default: disabled)],
+    [AS_HELP_STRING([--enable-sslv3],[Enable SSL version 3.0 (default: disabled)])],
     [ ENABLED_SSLV3=$enableval ],
     [ ENABLED_SSLV3=no]
     )

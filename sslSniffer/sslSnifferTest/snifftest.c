@@ -60,6 +60,7 @@ int main(void)
 #ifndef _WIN32
     #include <sys/socket.h>    /* AF_INET */
     #include <arpa/inet.h>
+    #include <netinet/in.h>
 #endif
 
 typedef unsigned char byte;
