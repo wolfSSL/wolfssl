@@ -33,6 +33,13 @@
 #include <wolfssl/error-ssl.h>
 #include <wolfssl/wolfcrypt/coding.h>
 
+#ifndef WOLFSSL_ALLOW_NO_SUITES
+    #if defined(NO_DH) && !defined(HAVE_ECC) && !defined(WOLFSSL_STATIC_RSA) \
+                  && !defined(WOLFSSL_STATIC_DH) && !defined(WOLFSSL_STATIC_PSK)
+        #error "No cipher suites defined becuase DH disabled, ECC disabled, and no static suites defined. Please see top of README"
+    #endif
+#endif
+
 #if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER) || \
                               defined(WOLFSSL_KEY_GEN)
     #include <wolfssl/openssl/evp.h>

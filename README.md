@@ -2,27 +2,27 @@
 
 ## Note 1
 ```
-wolfSSL now needs all examples and tests to be run from the wolfSSL home
-directory.  This is because it finds certs and keys from ./certs/.  Trying to
-maintain the ability to run each program from its own directory, the testsuite
-directory, the main directory (for make check/test), and for the various
-different project layouts (with or without config) was becoming harder and 
-harder.  Now to run testsuite just do:
+wolfSSL as of 3.6.6 no longer enables SSLv3 by default.  wolfSSL also no
+longer supports static key cipher suites with PSK, RSA, or ECDH.  This means
+if you plan to use TLS cipher suites you must enable DH (DH is on  by default),
+or enable ECC (ECC is on by default on 64bit systems), or you must enable static
+key cipher suites with
+    WOLFSSL_STATI_DH
+    WOLFSSL_STATIC_RSA
+    or
+    WOLFSSL_STATIC_PSK
 
-./testsuite/testsuite
+though static key cipher suites are deprecated and will be removed from future
+versions of TLS.  They also lower your security by removing PFS.
 
-or 
-
-make check    (when using autoconf)
-
-On *nix or Windows the examples and testsuite will check to see if the current
-directory is the source directory and if so, attempt to change to the wolfSSL
-home directory.  This should work in most setup cases, if not, just follow the
-beginning of the note and specify the full path.
+When compiling ssl.c wolfSSL will now issue a comipler error if no cipher suites
+are available.  You can remove this error by defining WOLFSSL_ALLOW_NO_SUITES
+in the event that you desire that, i.e., you're not using TLS cipher suites.
 ```
 
 ## Note 2
 ```
+
 wolfSSL takes a different approach to certificate verification than OpenSSL
 does.  The default policy for the client is to verify the server, this means
 that if you don't load CAs to verify the server you'll get a connect error,
@@ -34,9 +34,6 @@ wolfSSL_CTX_set_verify(ctx, SSL_VERIFY_NONE, 0);
 
 before calling wolfSSL_new();  Though it's not recommended.
 ```
-
-- GNU Binutils 2.24 ld has problems with some debug builds, to fix an ld error
-  add -fdebug-types-section to C_EXTRA_FLAGS
 
 #wolfSSL (Formerly CyaSSL) Release 3.6.6 (08/20/2015)
 
