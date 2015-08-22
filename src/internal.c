@@ -3137,12 +3137,18 @@ static int GetRecordHeader(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     /* catch version mismatch */
     if (rh->pvMajor != ssl->version.major || rh->pvMinor != ssl->version.minor){
         if (ssl->options.side == WOLFSSL_SERVER_END &&
-            ssl->options.acceptState == ACCEPT_BEGIN)
+            ssl->options.acceptState < ACCEPT_FIRST_REPLY_DONE)
+
             WOLFSSL_MSG("Client attempting to connect with different version");
         else if (ssl->options.side == WOLFSSL_CLIENT_END &&
                                  ssl->options.downgrade &&
                                  ssl->options.connectState < FIRST_REPLY_DONE)
             WOLFSSL_MSG("Server attempting to accept with different version");
+        else if (ssl->options.dtls
+                    && (ssl->options.acceptState == ACCEPT_BEGIN
+                    || ssl->options.acceptState == CLIENT_HELLO_SENT))
+            /* Do not check version until Server Hello or Hello Again (2) */
+            WOLFSSL_MSG("Use version for formatting only in DTLS till ");
         else {
             WOLFSSL_MSG("SSL version error");
             return VERSION_ERROR;              /* only use requested version */
@@ -9591,6 +9597,13 @@ static void PickHashSigAlgo(WOLFSSL* ssl,
                  ssl->buffers.outputBuffer.length;
 
         AddHeaders(output, length, client_hello, ssl);
+#ifdef WOLFSSL_DTLS
+        if (ssl->options.dtls) {
+            DtlsRecordLayerHeader* rh = (DtlsRecordLayerHeader*)output;
+            rh->pvMajor = DTLS_MAJOR;
+            rh->pvMinor = DTLS_MINOR;
+        }
+#endif /* WOLFSSL_DTLS */
 
             /* client hello, first version */
         output[idx++] = ssl->version.major;
@@ -9736,6 +9749,10 @@ static void PickHashSigAlgo(WOLFSSL* ssl,
 
         XMEMCPY(&pv, input + *inOutIdx, OPAQUE16_LEN);
         *inOutIdx += OPAQUE16_LEN;
+
+        if (pv.major != DTLS_MAJOR ||
+                         (pv.minor != DTLS_MINOR && pv.minor != DTLSv1_2_MINOR))
+            return VERSION_ERROR;
 
         cookieSz = input[(*inOutIdx)++];
 
@@ -14190,7 +14207,11 @@ int DoSessionTicket(WOLFSSL* ssl,
         ssl->chVersion = pv;   /* store */
         i += OPAQUE16_LEN;
 
-        if (ssl->version.minor > pv.minor) {
+        if ((!ssl->options.dtls && ssl->version.minor > pv.minor) ||
+            (ssl->options.dtls && ssl->version.minor != DTLS_MINOR
+             && ssl->version.minor != DTLSv1_2_MINOR && pv.minor != DTLS_MINOR
+             && pv.minor != DTLSv1_2_MINOR)) {
+
             byte haveRSA = 0;
             byte havePSK = 0;
 
@@ -14929,9 +14950,14 @@ int DoSessionTicket(WOLFSSL* ssl,
                  ssl->buffers.outputBuffer.length;
 
         AddHeaders(output, length, hello_verify_request, ssl);
+        {
+            DtlsRecordLayerHeader* rh = (DtlsRecordLayerHeader*)output;
+            rh->pvMajor = DTLS_MAJOR;
+            rh->pvMinor = DTLS_MINOR;
+        }
 
-        output[idx++] =  ssl->chVersion.major;
-        output[idx++] =  ssl->chVersion.minor;
+        output[idx++] = DTLS_MAJOR;
+        output[idx++] = DTLS_MINOR;
 
         output[idx++] = cookieSz;
         if (ssl->ctx->CBIOCookie == NULL) {
