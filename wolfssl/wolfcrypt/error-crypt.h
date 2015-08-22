@@ -27,8 +27,6 @@
 
 #ifdef HAVE_FIPS
 	#include <cyassl/ctaocrypt/error-crypt.h>
-	#define wc_ErrorString    CTaoCryptErrorString
-	#define wc_GetErrorString CTaoCryptGetErrorString
 #endif /* HAVE_FIPS */
 
 #ifdef __cplusplus
