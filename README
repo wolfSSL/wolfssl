@@ -354,12 +354,14 @@ Release 2.6.0 CyaSSL has bug fixes and new features including:
 - ./configure builds default to fastmath option
     * Note, if on ia32 and building in shared mode this may produce a problem
       with a missing register being available because of PIC, there are at least
-      5 solutions to this:
+      6 solutions to this:
       1) --disable-fastmath , don't use fastmath
       2) --disable-shared, don't build a shared library
       3) C_EXTRA_FLAGS=-DTFM_NO_ASM , turn off assembly use
       4) use clang, it just seems to work
-      5) play around with no PIC options to force all registers being open
+      5) play around with no PIC options to force all registers being open,
+         e.g, --without-pic
+      6) if static lib is still a problem try removing fPIE
 - Many new ./configure switches for option enable/disable for example
     * rsa
     * dh
