@@ -34,11 +34,11 @@
     #define WOLFSSL_TRACK_MEMORY
 #endif
 
-#if defined(CYASSL_MDK_ARM)
+#if defined(WOLFSSL_MDK_ARM)
         #include <stdio.h>
         #include <string.h>
 
-        #if defined(CYASSL_MDK5)
+        #if defined(WOLFSSL_MDK5)
             #include "cmsis_os.h"
             #include "rl_fs.h" 
             #include "rl_net.h" 
@@ -46,7 +46,7 @@
             #include "rtl.h"
         #endif
 
-        #include "cyassl_MDK_ARM.h"
+        #include "wolfssl_MDK_ARM.h"
 #endif
 #include <cyassl/openssl/ssl.h>
 #include <cyassl/test.h>
@@ -59,6 +59,12 @@
     int srvTimeoutCB(TimeoutInfo*);
     Timeval srvTo;
 #endif
+
+#ifndef NO_HANDSHAKE_DONE_CB
+    int myHsDoneCb(WOLFSSL* ssl, void* user_ctx);
+#endif
+
+
 
 static void NonBlockingSSL_Accept(SSL* ssl)
 {
@@ -125,6 +131,11 @@ static void Usage(void)
     printf("-c <file>   Certificate file,           default %s\n", svrCert);
     printf("-k <file>   Key file,                   default %s\n", svrKey);
     printf("-A <file>   Certificate Authority file, default %s\n", cliCert);
+#ifndef NO_DH
+    printf("-D <file>   Diffie-Hellman Params file, default %s\n", dhParam);
+    printf("-Z <num>    Minimum DH key bits,        default %d\n",
+                                 DEFAULT_MIN_DHKEY_BITS);
+#endif
     printf("-d          Disable client cert check\n");
     printf("-b          Bind to any interface instead of localhost only\n");
     printf("-s          Use pre Shared keys\n");
@@ -132,7 +143,8 @@ static void Usage(void)
     printf("-u          Use UDP DTLS,"
            " add -v 2 for DTLSv1 (default), -v 3 for DTLSv1.2\n");
     printf("-f          Fewer packets/group messages\n");
-    printf("-r          Create server ready file, for external monitor\n");
+    printf("-R          Create server ready file, for external monitor\n");
+    printf("-r          Allow one client Resumption\n");
     printf("-N          Use Non-blocking sockets\n");
     printf("-S <str>    Use Host Name Indication\n");
     printf("-w          Wait for bidirectional shutdown\n");
@@ -145,6 +157,9 @@ static void Usage(void)
 #endif
 #ifdef HAVE_ANON
     printf("-a          Anonymous server\n");
+#endif
+#ifndef NO_PSK
+    printf("-I          Do not send PSK identity hint\n");
 #endif
 }
 
@@ -164,7 +179,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     int    version = SERVER_DEFAULT_VERSION;
     int    doCliCertCheck = 1;
     int    useAnyAddr = 0;
-    word16 port = yasslPort;
+    word16 port = wolfSSLPort;
     int    usePsk = 0;
     int    useAnon = 0;
     int    doDTLS = 0;
@@ -175,14 +190,21 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     int    fewerPackets = 0;
     int    pkCallbacks  = 0;
     int    serverReadyFile = 0;
-    int    wc_shutdown        = 0;
+    int    wc_shutdown     = 0;
+    int    resume = 0;            /* do resume, and resume count */
+    int    minDhKeyBits = DEFAULT_MIN_DHKEY_BITS;
     int    ret;
     char*  cipherList = NULL;
     const char* verifyCert = cliCert;
     const char* ourCert    = svrCert;
     const char* ourKey     = svrKey;
+    const char* ourDhParam = dhParam;
     int    argc = ((func_args*)args)->argc;
     char** argv = ((func_args*)args)->argv;
+
+#ifndef NO_PSK
+    int sendPskIdentityHint = 1;
+#endif
 
 #ifdef HAVE_SNI
     char*  sniHostName = NULL;
@@ -205,15 +227,18 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     (void)needDH;
     (void)ourKey;
     (void)ourCert;
+    (void)ourDhParam;
     (void)verifyCert;
     (void)useNtruKey;
     (void)doCliCertCheck;
+    (void)minDhKeyBits;
 
 #ifdef CYASSL_TIRTOS
     fdOpenSession(Task_self());
 #endif
 
-    while ((ch = mygetopt(argc, argv, "?dbstnNufrawPp:v:l:A:c:k:S:oO:")) != -1) {
+    while ((ch = mygetopt(argc, argv, "?dbstnNufrRawPIp:v:l:A:c:k:Z:S:oO:D:"))
+                         != -1) {
         switch (ch) {
             case '?' :
                 Usage();
@@ -249,8 +274,14 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
                 fewerPackets = 1;
                 break;
 
-            case 'r' :
+            case 'R' :
                 serverReadyFile = 1;
+                break;
+
+            case 'r' :
+                #ifndef NO_SESSION_CACHE
+                    resume = 1;
+                #endif
                 break;
 
             case 'P' :
@@ -295,6 +326,22 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
                 ourKey = myoptarg;
                 break;
 
+            case 'D' :
+                #ifndef NO_DH
+                    ourDhParam = myoptarg;
+                #endif
+                break;
+
+            case 'Z' :
+                #ifndef NO_DH
+                    minDhKeyBits = atoi(myoptarg);
+                    if (minDhKeyBits <= 0 || minDhKeyBits > 16000) {
+                        Usage();
+                        exit(MY_EX_USAGE);
+                    }
+                #endif
+                break;
+
             case 'N':
                 nonBlocking = 1;
                 break;
@@ -321,6 +368,11 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
             case 'a' :
                 #ifdef HAVE_ANON
                     useAnon = 1;
+                #endif
+                break;
+            case 'I':
+                #ifndef NO_PSK
+                    sendPskIdentityHint = 0;
                 #endif
                 break;
 
@@ -350,14 +402,16 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
 
 #ifdef USE_CYASSL_MEMORY
     if (trackMemory)
-        InitMemoryTracker(); 
+        InitMemoryTracker();
 #endif
 
     switch (version) {
 #ifndef NO_OLD_TLS
+    #ifdef WOLFSSL_ALLOW_SSLV3
         case 0:
             method = SSLv3_server_method();
             break;
+    #endif
 
     #ifndef NO_TLS
         case 1:
@@ -377,11 +431,13 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
             method = TLSv1_2_server_method();
             break;
 #endif
-                
+
 #ifdef CYASSL_DTLS
+    #ifndef NO_OLD_TLS
         case -1:
             method = DTLSv1_server_method();
             break;
+    #endif
 
         case -2:
             method = DTLSv1_2_server_method();
@@ -398,6 +454,13 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     ctx = SSL_CTX_new(method);
     if (ctx == NULL)
         err_sys("unable to get ctx");
+
+#if defined(HAVE_SESSION_TICKET) && defined(HAVE_CHACHA) && \
+                                    defined(HAVE_POLY1305)
+    if (TicketInit() != 0)
+        err_sys("unable to setup Session Ticket Key context");
+    wolfSSL_CTX_set_TicketEncCb(ctx, myTicketEncCb);
+#endif
 
     if (cipherList)
         if (SSL_CTX_set_cipher_list(ctx, cipherList) != SSL_SUCCESS)
@@ -427,15 +490,18 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     }
 #endif
 
+#ifndef NO_DH
+    wolfSSL_CTX_SetMinDhKey_Sz(ctx, (word16)minDhKeyBits);
+#endif
+
 #ifdef HAVE_NTRU
     if (useNtruKey) {
         if (CyaSSL_CTX_use_NTRUPrivateKey_file(ctx, ourKey)
-                                               != SSL_SUCCESS)
+                                != SSL_SUCCESS)
             err_sys("can't load ntru key file, "
                     "Please run from wolfSSL home dir");
     }
 #endif
-
 #if !defined(NO_FILESYSTEM) && !defined(NO_CERTS)
     if (!useNtruKey && !usePsk && !useAnon) {
         if (SSL_CTX_use_PrivateKey_file(ctx, ourKey, SSL_FILETYPE_PEM)
@@ -448,7 +514,10 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     if (usePsk) {
 #ifndef NO_PSK
         SSL_CTX_set_psk_server_callback(ctx, my_psk_server_cb);
-        SSL_CTX_use_psk_identity_hint(ctx, "cyassl server");
+
+        if (sendPskIdentityHint == 1)
+            SSL_CTX_use_psk_identity_hint(ctx, "cyassl server");
+
         if (cipherList == NULL) {
             const char *defaultCipherList;
             #if defined(HAVE_AESGCM) && !defined(NO_DH)
@@ -500,10 +569,31 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
             err_sys("UseSNI failed");
 #endif
 
+while (1) {  /* allow resume option */
+    if (resume > 1) {  /* already did listen, just do accept */
+        if (doDTLS == 0) {
+            SOCKADDR_IN_T client;
+            socklen_t client_len = sizeof(client);
+            clientfd = accept(sockfd, (struct sockaddr*)&client,
+                             (ACCEPT_THIRD_T)&client_len);
+        } else {
+            tcp_listen(&sockfd, &port, useAnyAddr, doDTLS);
+            clientfd = udp_read_connect(sockfd);
+        }
+        #ifdef USE_WINDOWS_API
+            if (clientfd == INVALID_SOCKET) err_sys("tcp accept failed");
+        #else
+            if (clientfd == -1) err_sys("tcp accept failed");
+        #endif
+    }
+
     ssl = SSL_new(ctx);
     if (ssl == NULL)
         err_sys("unable to get SSL");
 
+#ifndef NO_HANDSHAKE_DONE_CB
+    wolfSSL_SetHsDoneCb(ssl, myHsDoneCb, NULL);
+#endif
 #ifdef HAVE_CRL
     CyaSSL_EnableCRL(ssl, 0);
     CyaSSL_LoadCRL(ssl, crlPemDir, SSL_FILETYPE_PEM, CYASSL_CRL_MONITOR |
@@ -526,15 +616,15 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
         SetupPkCallbacks(ctx, ssl);
 #endif
 
-    tcp_accept(&sockfd, &clientfd, (func_args*)args, port, useAnyAddr, doDTLS,
-               serverReadyFile);
-    if (!doDTLS) 
-        CloseSocket(sockfd);
+    if (resume < 2) {  /* do listen and accept */
+        tcp_accept(&sockfd, &clientfd, (func_args*)args, port, useAnyAddr,
+                   doDTLS, serverReadyFile);
+    }
 
     SSL_set_fd(ssl, clientfd);
     if (usePsk == 0 || useAnon == 1 || cipherList != NULL || needDH == 1) {
         #if !defined(NO_FILESYSTEM) && !defined(NO_DH) && !defined(NO_ASN)
-            CyaSSL_SetTmpDH_file(ssl, dhParam, SSL_FILETYPE_PEM);
+            CyaSSL_SetTmpDH_file(ssl, ourDhParam, SSL_FILETYPE_PEM);
         #elif !defined(NO_DH)
             SetDH(ssl);  /* repick suites with DHE, higher priority than PSK */
         #endif
@@ -571,19 +661,29 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     if (SSL_write(ssl, msg, sizeof(msg)) != sizeof(msg))
         err_sys("SSL_write failed");
         
-    #if defined(CYASSL_MDK_SHELL) && defined(HAVE_MDK_RTX)
+    #if defined(WOLFSSL_MDK_SHELL) && defined(HAVE_MDK_RTX)
         os_dly_wait(500) ;
     #elif defined (CYASSL_TIRTOS)
         Task_yield();
     #endif
 
-    ret = SSL_shutdown(ssl);
-    if (wc_shutdown && ret == SSL_SHUTDOWN_NOT_DONE)
-        SSL_shutdown(ssl);    /* bidirectional shutdown */
+    if (doDTLS == 0) {
+        ret = SSL_shutdown(ssl);
+        if (wc_shutdown && ret == SSL_SHUTDOWN_NOT_DONE)
+            SSL_shutdown(ssl);    /* bidirectional shutdown */
+    }
     SSL_free(ssl);
+    if (resume == 1) {
+        CloseSocket(clientfd);
+        resume++;           /* only do one resume for testing */
+        continue;
+    }
+    break;  /* out of while loop, done with normal and resume option */
+}
     SSL_CTX_free(ctx);
-    
+
     CloseSocket(clientfd);
+    CloseSocket(sockfd);
     ((func_args*)args)->return_code = 0;
 
 
@@ -599,6 +699,11 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
 
 #ifdef CYASSL_TIRTOS
     fdCloseSession(Task_self());
+#endif
+
+#if defined(HAVE_SESSION_TICKET) && defined(HAVE_CHACHA) && \
+                                    defined(HAVE_POLY1305)
+    TicketCleanup();
 #endif
 
 #ifndef CYASSL_TIRTOS
@@ -626,10 +731,12 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
         args.argv = argv;
 
         CyaSSL_Init();
-#if defined(DEBUG_CYASSL) && !defined(CYASSL_MDK_SHELL)
+#if defined(DEBUG_CYASSL) && !defined(WOLFSSL_MDK_SHELL)
         CyaSSL_Debugging_ON();
 #endif
-        if (CurrentDir("server"))
+        if (CurrentDir("_build"))
+            ChangeDirBack(1);
+        else if (CurrentDir("server"))
             ChangeDirBack(2);
         else if (CurrentDir("Debug") || CurrentDir("Release"))
             ChangeDirBack(3);
@@ -669,4 +776,18 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     }
 
 #endif
+
+#ifndef NO_HANDSHAKE_DONE_CB
+    int myHsDoneCb(WOLFSSL* ssl, void* user_ctx)
+    {
+        (void)user_ctx;
+        (void)ssl;
+
+        /* printf("Notified HandShake done\n"); */
+
+        /* return negative number to end TLS connection now */
+        return 0;
+    }
+#endif
+
 

@@ -43,7 +43,11 @@ enum CertType {
     CRL_TYPE,
     CA_TYPE,
     ECC_PRIVATEKEY_TYPE,
-    CERTREQ_TYPE
+    DSA_PRIVATEKEY_TYPE,
+    CERTREQ_TYPE,
+    DSA_TYPE,
+    ECC_TYPE,
+    RSA_TYPE
 };
 
 
@@ -145,15 +149,15 @@ typedef struct Cert {
 */
 WOLFSSL_API void wc_InitCert(Cert*);
 WOLFSSL_API int  wc_MakeCert(Cert*, byte* derBuffer, word32 derSz, RsaKey*,
-                         ecc_key*, RNG*);
+                         ecc_key*, WC_RNG*);
 #ifdef WOLFSSL_CERT_REQ
-    WOLFSSL_API int  wc_MakeCertReq(Cert*, byte* derBuffer, word32 derSz, RsaKey*,
-                                ecc_key*);
+    WOLFSSL_API int  wc_MakeCertReq(Cert*, byte* derBuffer, word32 derSz,
+                                    RsaKey*, ecc_key*);
 #endif
 WOLFSSL_API int  wc_SignCert(int requestSz, int sigType, byte* derBuffer,
-                         word32 derSz, RsaKey*, ecc_key*, RNG*);
+                         word32 derSz, RsaKey*, ecc_key*, WC_RNG*);
 WOLFSSL_API int  wc_MakeSelfCert(Cert*, byte* derBuffer, word32 derSz, RsaKey*,
-                             RNG*);
+                             WC_RNG*);
 WOLFSSL_API int  wc_SetIssuer(Cert*, const char*);
 WOLFSSL_API int  wc_SetSubject(Cert*, const char*);
 #ifdef WOLFSSL_ALT_NAMES
@@ -166,15 +170,18 @@ WOLFSSL_API int  wc_SetDatesBuffer(Cert*, const byte*, int);
 
     #ifdef HAVE_NTRU
         WOLFSSL_API int  wc_MakeNtruCert(Cert*, byte* derBuffer, word32 derSz,
-                                     const byte* ntruKey, word16 keySz, RNG*);
+                                     const byte* ntruKey, word16 keySz,
+                                     WC_RNG*);
     #endif
 
 #endif /* WOLFSSL_CERT_GEN */
 
 
-#if defined(WOLFSSL_KEY_GEN) || defined(WOLFSSL_CERT_GEN)
+#if defined(WOLFSSL_KEY_GEN) || defined(WOLFSSL_CERT_GEN) || !defined(NO_DSA)
     WOLFSSL_API int wc_DerToPem(const byte* der, word32 derSz, byte* output,
-                            word32 outputSz, int type);
+                                word32 outputSz, int type);
+    WOLFSSL_API int wc_DerToPemEx(const byte* der, word32 derSz, byte* output,
+                                word32 outputSz, byte *cipherIno, int type);
 #endif
 
 #ifdef HAVE_ECC
@@ -185,8 +192,8 @@ WOLFSSL_API int  wc_SetDatesBuffer(Cert*, const byte*, int);
 #endif
 
 /* DER encode signature */
-WOLFSSL_API word32 wc_EncodeSignature(byte* out, const byte* digest, word32 digSz,
-                                  int hashOID);
+WOLFSSL_API word32 wc_EncodeSignature(byte* out, const byte* digest,
+                                      word32 digSz, int hashOID);
 WOLFSSL_API int wc_GetCTC_HashOID(int type);
 
 #ifdef __cplusplus

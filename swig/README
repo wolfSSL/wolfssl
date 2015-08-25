@@ -16,14 +16,14 @@ Please send questions to support@wolfssl.com
     sudo make install
 
 
-2) start the example echoserver from the root directory
-    ./examples/echoserver/echoserver
+2) start the example server from the root directory
+    ./examples/server/server -d
 
 3) run ./PythonBuild.sh from this directory it will
     a) build the swig wrapper file
     b) compile the swig wrapper and wolfssl wrapper files
     c) place them into a wolfssl shared library for python
-    d) run runme.py which will connect to the wolfSSL echo server, write a
+    d) run runme.py which will connect to the wolfSSL server, write a
        string, then read the result and output it
 
 

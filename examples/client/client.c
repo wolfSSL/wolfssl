@@ -130,6 +130,10 @@ static void Usage(void)
     printf("-c <file>   Certificate file,           default %s\n", cliCert);
     printf("-k <file>   Key file,                   default %s\n", cliKey);
     printf("-A <file>   Certificate Authority file, default %s\n", caCert);
+#ifndef NO_DH
+    printf("-Z <num>    Minimum DH key bits,        default %d\n",
+                                 DEFAULT_MIN_DHKEY_BITS);
+#endif
     printf("-b <num>    Benchmark <num> connections and print stats\n");
     printf("-s          Use pre Shared keys\n");
     printf("-t          Track wolfSSL memory use\n");
@@ -148,6 +152,7 @@ static void Usage(void)
 #endif
     printf("-f          Fewer packets/group messages\n");
     printf("-x          Disable client cert/key loading\n");
+    printf("-X          Driven by eXternal test case\n");
 #ifdef SHOW_SIZES
     printf("-z          Print structure sizes\n");
 #endif
@@ -172,6 +177,9 @@ static void Usage(void)
 #endif
 #ifdef HAVE_ANON
     printf("-a          Anonymous client\n");
+#endif
+#ifdef HAVE_CRL
+    printf("-C          Disable CRL\n");
 #endif
 }
 
@@ -208,7 +216,9 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     int    doPeerCheck = 1;
     int    nonBlocking = 0;
     int    resumeSession = 0;
-    int    wc_shutdown      = 0;
+    int    wc_shutdown   = 0;
+    int    disableCRL    = 0;
+    int    externalTest  = 0;
     int    ret;
     int    scr           = 0;    /* allow secure renegotiation */
     int    forceScr      = 0;    /* force client initiaed scr */
@@ -218,6 +228,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     int    atomicUser    = 0;
     int    pkCallbacks   = 0;
     int    overrideDateErrors = 0;
+    int    minDhKeyBits  = DEFAULT_MIN_DHKEY_BITS;
     char*  cipherList = NULL;
     const char* verifyCert = caCert;
     const char* ourCert    = cliCert;
@@ -262,11 +273,14 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     (void)verifyCert;
     (void)useClientCert;
     (void)overrideDateErrors;
+    (void)disableCRL;
+    (void)minDhKeyBits;
 
     StackTrap();
 
     while ((ch = mygetopt(argc, argv,
-                          "?gdDusmNrwRitfxUPh:p:v:l:A:c:k:b:zS:L:ToO:a")) != -1) {
+                          "?gdDusmNrwRitfxXUPCh:p:v:l:A:c:k:Z:b:zS:L:ToO:a"))
+                                                                        != -1) {
         switch (ch) {
             case '?' :
                 Usage();
@@ -282,6 +296,12 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 
             case 'D' :
                 overrideDateErrors = 1;
+                break;
+
+            case 'C' :
+                #ifdef HAVE_CRL
+                    disableCRL = 1;
+                #endif
                 break;
 
             case 'u' :
@@ -304,6 +324,10 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 
             case 'x' :
                 useClientCert = 0;
+                break;
+
+            case 'X' :
+                externalTest = 1;
                 break;
 
             case 'f' :
@@ -357,6 +381,16 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 
             case 'k' :
                 ourKey = myoptarg;
+                break;
+
+            case 'Z' :
+                #ifndef NO_DH
+                    minDhKeyBits = atoi(myoptarg);
+                    if (minDhKeyBits <= 0 || minDhKeyBits > 16000) {
+                        Usage();
+                        exit(MY_EX_USAGE);
+                    }
+                #endif
                 break;
 
             case 'b' :
@@ -448,6 +482,37 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 
     myoptind = 0;      /* reset for test cases */
 
+    if (externalTest) {
+        /* detect build cases that wouldn't allow test against wolfssl.com */
+        int done = 0;
+        (void)done;
+
+        #ifdef NO_RSA
+            done = 1;
+        #endif
+
+        #ifndef NO_PSK
+            done = 1;
+        #endif
+
+        #ifdef NO_SHA
+            done = 1;  /* external cert chain most likely has SHA */
+        #endif
+
+        #if !defined(HAVE_ECC) && !defined(WOLFSSL_STATIC_RSA)
+            if (!XSTRNCMP(domain, "www.google.com", 14)) {
+                done = 1;  /* google needs ECDHE or static RSA */
+            }
+        #endif
+
+        if (done) {
+            printf("external test can't be run in this mode");
+
+            ((func_args*)args)->return_code = 0;
+            exit(EXIT_SUCCESS);
+        }
+    }
+
     /* sort out DTLS versus TLS versions */
     if (version == CLIENT_INVALID_VERSION) {
         if (doDTLS)
@@ -466,16 +531,17 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 
 #ifdef USE_WOLFSSL_MEMORY
     if (trackMemory)
-        InitMemoryTracker(); 
+        InitMemoryTracker();
 #endif
 
     switch (version) {
 #ifndef NO_OLD_TLS
+    #ifdef WOLFSSL_ALLOW_SSLV3
         case 0:
             method = wolfSSLv3_client_method();
             break;
-                
-                
+    #endif
+
     #ifndef NO_TLS
         case 1:
             method = wolfTLSv1_client_method();
@@ -485,9 +551,9 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
             method = wolfTLSv1_1_client_method();
             break;
     #endif /* NO_TLS */
-                
+
 #endif  /* NO_OLD_TLS */
-                
+
 #ifndef NO_TLS
         case 3:
             method = wolfTLSv1_2_client_method();
@@ -495,9 +561,11 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 #endif
 
 #ifdef WOLFSSL_DTLS
+        #ifndef NO_OLD_TLS
         case -1:
             method = wolfDTLSv1_client_method();
             break;
+        #endif
 
         case -2:
             method = wolfDTLSv1_2_client_method();
@@ -530,6 +598,10 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 
     if (fewerPackets)
         wolfSSL_CTX_set_group_messages(ctx);
+
+#ifndef NO_DH
+    wolfSSL_CTX_SetMinDhKey_Sz(ctx, (word16)minDhKeyBits);
+#endif
 
     if (usePsk) {
 #ifndef NO_PSK
@@ -651,26 +723,39 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     if (benchmark) {
         /* time passed in number of connects give average */
         int times = benchmark;
+        int loops = resumeSession ? 2 : 1;
         int i = 0;
+        WOLFSSL_SESSION* benchSession = NULL;
 
-        double start = current_time(), avg;
+        while (loops--) {
+            int benchResume = resumeSession && loops == 0;
+            double start = current_time(), avg;
 
-        for (i = 0; i < times; i++) {
-            tcp_connect(&sockfd, host, port, doDTLS);
+            for (i = 0; i < times; i++) {
+                tcp_connect(&sockfd, host, port, doDTLS);
 
-            ssl = wolfSSL_new(ctx);
-            wolfSSL_set_fd(ssl, sockfd);
-            if (wolfSSL_connect(ssl) != SSL_SUCCESS)
-                err_sys("SSL_connect failed");
+                ssl = wolfSSL_new(ctx);
+                if (benchResume)
+                    wolfSSL_set_session(ssl, benchSession);
+                wolfSSL_set_fd(ssl, sockfd);
+                if (wolfSSL_connect(ssl) != SSL_SUCCESS)
+                    err_sys("SSL_connect failed");
 
-            wolfSSL_shutdown(ssl);
-            wolfSSL_free(ssl);
-            CloseSocket(sockfd);
+                wolfSSL_shutdown(ssl);
+                if (i == (times-1) && resumeSession) {
+                    benchSession = wolfSSL_get_session(ssl);
+                }
+                wolfSSL_free(ssl);
+                CloseSocket(sockfd);
+            }
+            avg = current_time() - start;
+            avg /= times;
+            avg *= 1000;   /* milliseconds */
+            if (benchResume)
+                printf("wolfSSL_resume  avg took: %8.3f milliseconds\n", avg);
+            else
+                printf("wolfSSL_connect avg took: %8.3f milliseconds\n", avg);
         }
-        avg = current_time() - start;
-        avg /= times;
-        avg *= 1000;   /* milliseconds */
-        printf("wolfSSL_connect avg took: %8.3f milliseconds\n", avg);
 
         wolfSSL_CTX_free(ctx);
         ((func_args*)args)->return_code = 0;
@@ -708,12 +793,14 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 
     wolfSSL_set_fd(ssl, sockfd);
 #ifdef HAVE_CRL
-    if (wolfSSL_EnableCRL(ssl, WOLFSSL_CRL_CHECKALL) != SSL_SUCCESS)
-        err_sys("can't enable crl check");
-    if (wolfSSL_LoadCRL(ssl, crlPemDir, SSL_FILETYPE_PEM, 0) != SSL_SUCCESS)
-        err_sys("can't load crl, check crlfile and date validity");
-    if (wolfSSL_SetCRL_Cb(ssl, CRL_CallBack) != SSL_SUCCESS)
-        err_sys("can't set crl callback");
+    if (disableCRL == 0) {
+        if (wolfSSL_EnableCRL(ssl, WOLFSSL_CRL_CHECKALL) != SSL_SUCCESS)
+            err_sys("can't enable crl check");
+        if (wolfSSL_LoadCRL(ssl, crlPemDir, SSL_FILETYPE_PEM, 0) != SSL_SUCCESS)
+            err_sys("can't load crl, check crlfile and date validity");
+        if (wolfSSL_SetCRL_Cb(ssl, CRL_CallBack) != SSL_SUCCESS)
+            err_sys("can't set crl callback");
+    }
 #endif
 #ifdef HAVE_SECURE_RENEGOTIATION
     if (scr) {
@@ -759,13 +846,6 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
             printf("not doing secure renegotiation on example with"
                    " nonblocking yet");
         } else {
-            #ifndef NO_SESSION_CACHE
-                if (resumeSession) {
-                    session = wolfSSL_get_session(ssl);
-                    wolfSSL_set_session(ssl, session);
-                    resumeSession = 0;  /* only resume once */
-                }
-            #endif
             if (wolfSSL_Rehandshake(ssl) != SSL_SUCCESS) {
                 int  err = wolfSSL_get_error(ssl, 0);
                 char buffer[WOLFSSL_MAX_ERROR_SZ];
@@ -811,12 +891,6 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 
 #ifndef NO_SESSION_CACHE
     if (resumeSession) {
-        if (doDTLS) {
-            strncpy(msg, "break", 6);
-            msgSz = (int)strlen(msg);
-            /* try to send session close */
-            wolfSSL_write(ssl, msg, msgSz);
-        }
         session   = wolfSSL_get_session(ssl);
         sslResume = wolfSSL_new(ctx);
     }
@@ -853,6 +927,12 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
             tcp_connect(&sockfd, host, port, 0);
         }
         wolfSSL_set_fd(sslResume, sockfd);
+#ifdef HAVE_SECURE_RENEGOTIATION
+        if (scr) {
+            if (wolfSSL_UseSecureRenegotiation(sslResume) != SSL_SUCCESS)
+                err_sys("can't enable secure renegotiation");
+        }
+#endif
         wolfSSL_set_session(sslResume, session);
 #ifdef HAVE_SESSION_TICKET
         wolfSSL_set_SessionTicket_cb(sslResume, sessionTicketCB,
@@ -948,7 +1028,9 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 #if defined(DEBUG_WOLFSSL) && !defined(WOLFSSL_MDK_SHELL) && !defined(STACK_TRAP)
         wolfSSL_Debugging_ON();
 #endif
-        if (CurrentDir("client"))
+        if (CurrentDir("_build"))
+            ChangeDirBack(1);
+        else if (CurrentDir("client"))
             ChangeDirBack(2);
         else if (CurrentDir("Debug") || CurrentDir("Release"))
             ChangeDirBack(3);

@@ -127,6 +127,14 @@ enum wolfSSL_ErrorCodes {
     SANITY_MSG_E            = -394,        /* Sanity check on msg order error */
     DUPLICATE_MSG_E         = -395,        /* Duplicate message error */
     SNI_UNSUPPORTED         = -396,        /* SSL 3.0 does not support SNI */
+    SOCKET_PEER_CLOSED_E    = -397,        /* Underlying transport closed */
+
+    BAD_TICKET_KEY_CB_SZ    = -398,        /* Bad session ticket key cb size */
+    BAD_TICKET_MSG_SZ       = -399,        /* Bad session ticket msg size    */
+    BAD_TICKET_ENCRYPT      = -400,        /* Bad user ticket encrypt        */
+
+    DH_KEY_SIZE_E           = -401,        /* DH Key too small */
+    SNI_ABSENT_ERROR        = -402,        /* No SNI request. */
 
     /* add strings to SetErrorString !!!!! */
 
@@ -158,5 +166,3 @@ void SetErrorString(int err, char* buff);
 
 
 #endif /* wolfSSL_ERROR_H */
-
-

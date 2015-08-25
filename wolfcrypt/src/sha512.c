@@ -47,11 +47,6 @@ int wc_Sha512Final(Sha512* sha, byte* out)
 }
 
 
-int wc_Sha512Hash(const byte* data, word32 len, byte* out)
-{
-    return Sha512Hash(data, len, out);
-}
-
 #if defined(WOLFSSL_SHA384) || defined(HAVE_AESGCM)
 
 int wc_InitSha384(Sha384* sha)
@@ -72,10 +67,6 @@ int wc_Sha384Final(Sha384* sha, byte* out)
 }
 
 
-int wc_Sha384Hash(const byte* data, word32 len, byte* out)
-{
-    return Sha384Hash(data, len, out);
-}
 #endif /* WOLFSSL_SHA384 */
 #else /* else build without using fips */
 #include <wolfssl/wolfcrypt/logging.h>
@@ -88,14 +79,15 @@ int wc_Sha384Hash(const byte* data, word32 len, byte* out)
 #endif
 
 
-#ifndef min
+#ifndef WOLFSSL_HAVE_MIN
+#define WOLFSSL_HAVE_MIN
 
     static INLINE word32 min(word32 a, word32 b)
     {
         return a > b ? b : a;
     }
 
-#endif /* min */
+#endif /* WOLFSSL_HAVE_MIN */
 
 #if defined(USE_INTEL_SPEEDUP)
   #define HAVE_INTEL_AVX1
@@ -208,9 +200,11 @@ int InitSha512(Sha512* sha512) {
 #define CPUID_AVX2   0x2
 #define CPUID_RDRAND 0x4
 #define CPUID_RDSEED 0x8
+#define CPUID_BMI2   0x10   /* MULX, RORX */
 
 #define IS_INTEL_AVX1       (cpuid_flags&CPUID_AVX1)
 #define IS_INTEL_AVX2       (cpuid_flags&CPUID_AVX2)
+#define IS_INTEL_BMI2       (cpuid_flags&CPUID_BMI2)
 #define IS_INTEL_RDRAND     (cpuid_flags&CPUID_RDRAND)
 #define IS_INTEL_RDSEED     (cpuid_flags&CPUID_RDSEED)
 
@@ -242,6 +236,7 @@ static int set_cpuid_flags(int sha) {
     if((cpuid_check & sha) ==0) {
         if(cpuid_flag(1, 0, ECX, 28)){ cpuid_flags |= CPUID_AVX1 ;}
         if(cpuid_flag(7, 0, EBX, 5)){  cpuid_flags |= CPUID_AVX2 ; }
+        if(cpuid_flag(7, 0, EBX, 8)) { cpuid_flags |= CPUID_BMI2 ; }
         if(cpuid_flag(1, 0, ECX, 30)){ cpuid_flags |= CPUID_RDRAND ;  } 
         if(cpuid_flag(7, 0, EBX, 18)){ cpuid_flags |= CPUID_RDSEED ;  }
 		cpuid_check |= sha ;
@@ -276,7 +271,7 @@ static void set_Transform(void) {
      if(set_cpuid_flags(CHECK_SHA512)) return ;
 
 #if defined(HAVE_INTEL_AVX2)
-     if(IS_INTEL_AVX2){ 
+     if(IS_INTEL_AVX2 && IS_INTEL_BMI2){ 
          Transform_p = Transform_AVX1_RORX; return ; 
          Transform_p = Transform_AVX2      ; 
                   /* for avoiding warning,"not used" */
@@ -605,37 +600,6 @@ int wc_Sha512Final(Sha512* sha512, byte* hash)
 }
 
 
-int wc_Sha512Hash(const byte* data, word32 len, byte* hash)
-{
-    int ret = 0;
-#ifdef WOLFSSL_SMALL_STACK
-    Sha512* sha512;
-#else
-    Sha512 sha512[1];
-#endif
-
-#ifdef WOLFSSL_SMALL_STACK
-    sha512 = (Sha512*)XMALLOC(sizeof(Sha512), NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    if (sha512 == NULL)
-        return MEMORY_E;
-#endif
-    
-    if ((ret = wc_InitSha512(sha512)) != 0) {
-        WOLFSSL_MSG("InitSha512 failed");
-    }
-    else if ((ret = wc_Sha512Update(sha512, data, len)) != 0) {
-        WOLFSSL_MSG("Sha512Update failed");
-    }
-    else if ((ret = wc_Sha512Final(sha512, hash)) != 0) {
-        WOLFSSL_MSG("Sha512Final failed");
-    }
-    
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(sha512, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
-    
-    return ret;
-}
 
 #if defined(HAVE_INTEL_AVX1)
 
@@ -1352,7 +1316,7 @@ static void set_Transform384(void) {
      Transform384_p = ((IS_INTEL_AVX1) ? Transform384_AVX1 : _Transform384) ;
 #elif defined(HAVE_INTEL_AVX2)
      #if defined(HAVE_INTEL_AVX1) && defined(HAVE_INTEL_RORX)
-     if(IS_INTEL_AVX2) { Transform384_p = Transform384_AVX1_RORX ; return ; }
+     if(IS_INTEL_AVX2 && IS_INTEL_BMI2) { Transform384_p = Transform384_AVX1_RORX ; return ; }
      #endif
      if(IS_INTEL_AVX2) { Transform384_p = Transform384_AVX2 ; return ; }
      #if defined(HAVE_INTEL_AVX1)
@@ -1559,37 +1523,6 @@ int wc_Sha384Final(Sha384* sha384, byte* hash)
 }
 
 
-int wc_Sha384Hash(const byte* data, word32 len, byte* hash)
-{
-    int ret = 0;
-#ifdef WOLFSSL_SMALL_STACK
-    Sha384* sha384;
-#else
-    Sha384 sha384[1];
-#endif
-
-#ifdef WOLFSSL_SMALL_STACK
-    sha384 = (Sha384*)XMALLOC(sizeof(Sha384), NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    if (sha384 == NULL)
-        return MEMORY_E;
-#endif
-
-    if ((ret = wc_InitSha384(sha384)) != 0) {
-        WOLFSSL_MSG("InitSha384 failed");
-    }
-    else if ((ret = wc_Sha384Update(sha384, data, len)) != 0) {
-        WOLFSSL_MSG("Sha384Update failed");
-    }
-    else if ((ret = wc_Sha384Final(sha384, hash)) != 0) {
-        WOLFSSL_MSG("Sha384Final failed");
-    }
-
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(sha384, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
-
-    return ret;
-}
 
 #if defined(HAVE_INTEL_AVX1)
  

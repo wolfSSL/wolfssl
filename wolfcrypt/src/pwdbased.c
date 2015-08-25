@@ -57,16 +57,18 @@
     #include <wolfcrypt/src/misc.c>
 #endif
 
-#ifndef min
+#ifndef WOLFSSL_HAVE_MIN
+#define WOLFSSL_HAVE_MIN
 
     static INLINE word32 min(word32 a, word32 b)
     {
         return a > b ? b : a;
     }
 
-#endif /* min */
+#endif /* WOLFSSL_HAVE_MIN */
 
 
+#ifndef NO_SHA
 /* PBKDF1 needs at least SHA available */
 int wc_PBKDF1(byte* output, const byte* passwd, int pLen, const byte* salt,
            int sLen, int iterations, int kLen, int hashType)
@@ -129,6 +131,7 @@ int wc_PBKDF1(byte* output, const byte* passwd, int pLen, const byte* salt,
 
     return 0;
 }
+#endif /* NO_SHA */
 
 
 int GetDigestSize(int hashType)
@@ -141,9 +144,11 @@ int GetDigestSize(int hashType)
             hLen = MD5_DIGEST_SIZE;
             break;
 #endif
+#ifndef NO_SHA
         case SHA:
             hLen = SHA_DIGEST_SIZE;
             break;
+#endif
 #ifndef NO_SHA256
         case SHA256:
             hLen = SHA256_DIGEST_SIZE;
@@ -263,10 +268,12 @@ int GetPKCS12HashSizes(int hashType, word32* v, word32* u)
             *u = MD5_DIGEST_SIZE;
             break;
 #endif
+#ifndef NO_SHA
         case SHA:
             *v = SHA_BLOCK_SIZE;
             *u = SHA_DIGEST_SIZE;
             break;
+#endif
 #ifndef NO_SHA256
         case SHA256:
             *v = SHA256_BLOCK_SIZE;
@@ -312,6 +319,7 @@ int DoPKCS12Hash(int hashType, byte* buffer, word32 totalLen,
             }
             break;
 #endif /* NO_MD5 */
+#ifndef NO_SHA
         case SHA:
             {
                 Sha sha;
@@ -327,6 +335,7 @@ int DoPKCS12Hash(int hashType, byte* buffer, word32 totalLen,
                 }
             }
             break;
+#endif /* NO_SHA */
 #ifndef NO_SHA256
         case SHA256:
             {

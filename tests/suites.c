@@ -36,7 +36,7 @@
 #define MAX_COMMAND_SZ 240
 #define MAX_SUITE_SZ 80 
 #define NOT_BUILT_IN -123
-#ifdef NO_OLD_TLS
+#if defined(NO_OLD_TLS) || !defined(WOLFSSL_ALLOW_SSLV3)
     #define VERSION_TOO_OLD -124
 #endif
 
@@ -52,12 +52,34 @@ static char flagSep[] = " ";
 static char svrPort[] = "0";
 
 
+#ifndef WOLFSSL_ALLOW_SSLV3
+/* if the protocol version is sslv3 return 1, else 0 */
+static int IsSslVersion(const char* line)
+{
+    const char* find = "-v ";
+    const char* begin = strstr(line, find);
+
+    if (begin) {
+        int version = -1;
+
+        begin += 3;
+
+        version = atoi(begin);
+
+        if (version == 0)
+            return 1;
+    }
+
+    return 0;
+}
+#endif /* !WOLFSSL_ALLOW_SSLV3 */
+
 #ifdef NO_OLD_TLS
 /* if the protocol version is less than tls 1.2 return 1, else 0 */
 static int IsOldTlsVersion(const char* line)
 {
     const char* find = "-v ";
-    char* begin = strstr(line, find);
+    const char* begin = strstr(line, find);
 
     if (begin) {
         int version = -1;
@@ -71,7 +93,7 @@ static int IsOldTlsVersion(const char* line)
     }
 
     return 0;
-} 
+}
 #endif /* NO_OLD_TLS */
 
 
@@ -107,6 +129,15 @@ static int IsValidCipherSuite(const char* line, char* suite)
         suite[MAX_SUITE_SZ] = '\0';
         found = 1;
     }
+
+    /* if QSH not enabled then do not use QSH suite */
+    #ifdef HAVE_QSH
+        if (strncmp(suite, "QSH", 3) == 0) {
+            if (wolfSSL_CTX_set_cipher_list(cipherSuiteCtx, suite + 4)
+                                                                 != SSL_SUCCESS)
+            return 0;
+        }
+    #endif
 
     if (found) {
         if (wolfSSL_CTX_set_cipher_list(cipherSuiteCtx, suite) == SSL_SUCCESS)
@@ -158,6 +189,15 @@ static int execute_test_case(int svr_argc, char** svr_argv,
         #endif
         return NOT_BUILT_IN;
     }
+
+#ifndef WOLFSSL_ALLOW_SSLV3
+    if (IsSslVersion(commandLine) == 1) {
+        #ifdef DEBUG_SUITE_TESTS
+            printf("protocol version on line %s is too old\n", commandLine);
+        #endif
+        return VERSION_TOO_OLD;
+    }
+#endif
 
 #ifdef NO_OLD_TLS
     if (IsOldTlsVersion(commandLine) == 1) {
@@ -446,14 +486,35 @@ int SuiteTest(void)
     /* any extra cases will need another argument */
     args.argc = 2;
 
-#ifdef WOLFSSL_DTLS 
+#ifdef WOLFSSL_DTLS
     /* add dtls extra suites */
     strcpy(argv0[1], "tests/test-dtls.conf");
     printf("starting dtls extra cipher suite tests\n");
     test_harness(&args);
     if (args.return_code != 0) {
         printf("error from script %d\n", args.return_code);
-        exit(EXIT_FAILURE);  
+        exit(EXIT_FAILURE);
+    }
+#endif
+#ifdef HAVE_QSH
+    /* add dtls extra suites */
+    strcpy(argv0[1], "tests/test-qsh.conf");
+    printf("starting qsh extra cipher suite tests\n");
+    test_harness(&args);
+    if (args.return_code != 0) {
+        printf("error from script %d\n", args.return_code);
+        exit(EXIT_FAILURE);
+    }
+#endif
+
+#ifndef NO_PSK
+    /* add psk extra suites */
+    strcpy(argv0[1], "tests/test-psk-no-id.conf");
+    printf("starting psk no identity extra cipher suite tests\n");
+    test_harness(&args);
+    if (args.return_code != 0) {
+        printf("error from script %d\n", args.return_code);
+        exit(EXIT_FAILURE);
     }
 #endif
 

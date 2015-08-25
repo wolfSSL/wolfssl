@@ -53,7 +53,7 @@
     /* do nothing */
 #elif defined(EBSNET)
     /* do nothing */
-#elif defined(FREESCALE_MQX)
+#elif defined(FREESCALE_MQX) || defined(FREESCALE_KSDK_MQX)
     /* do nothing */
 #elif defined(WOLFSSL_MDK_ARM)
     #if defined(WOLFSSL_MDK5)
@@ -98,7 +98,7 @@
         typedef OS_MUTEX wolfSSL_Mutex;
     #elif defined(EBSNET)
         typedef RTP_MUTEX wolfSSL_Mutex;
-    #elif defined(FREESCALE_MQX)
+    #elif defined(FREESCALE_MQX) || defined(FREESCALE_KSDK_MQX)
         typedef MUTEX_STRUCT wolfSSL_Mutex;
     #elif defined(WOLFSSL_MDK_ARM)
         #if defined(WOLFSSL_CMSIS_RTOS)
@@ -191,6 +191,17 @@ WOLFSSL_LOCAL int UnLockMutex(wolfSSL_Mutex*);
 #endif
 
 #endif /* NO_FILESYSTEM */
+
+
+/* Windows API defines its own min() macro. */
+#if defined(USE_WINDOWS_API)
+    #ifdef min
+        #define WOLFSSL_HAVE_MIN
+    #endif /* min */
+    #ifdef max
+        #define WOLFSSL_HAVE_MAX
+    #endif /* max */
+#endif /* USE_WINDOWS_API */
 
 
 #ifdef __cplusplus

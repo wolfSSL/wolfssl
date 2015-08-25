@@ -49,7 +49,8 @@ endif
 src_libwolfssl_la_SOURCES += \
                wolfcrypt/src/hmac.c \
                wolfcrypt/src/random.c \
-               wolfcrypt/src/sha256.c
+               wolfcrypt/src/sha256.c \
+               wolfcrypt/src/hash.c
 
 if BUILD_RSA
 src_libwolfssl_la_SOURCES += wolfcrypt/src/rsa.c
@@ -73,6 +74,7 @@ endif
 
 src_libwolfssl_la_SOURCES += \
                wolfcrypt/src/logging.c \
+               wolfcrypt/src/wc_encrypt.c \
                wolfcrypt/src/wc_port.c \
                wolfcrypt/src/error.c
 
@@ -176,11 +178,19 @@ src_libwolfssl_la_SOURCES += wolfcrypt/src/ed25519.c
 endif
 
 if BUILD_FEMATH
+if BUILD_CURVED25519_SMALL
+src_libwolfssl_la_SOURCES += wolfcrypt/src/fe_low_mem.c
+else
 src_libwolfssl_la_SOURCES += wolfcrypt/src/fe_operations.c
+endif
 endif
 
 if BUILD_GEMATH
+if BUILD_CURVED25519_SMALL
+src_libwolfssl_la_SOURCES += wolfcrypt/src/ge_low_mem.c
+else
 src_libwolfssl_la_SOURCES += wolfcrypt/src/ge_operations.c
+endif
 endif
 
 if BUILD_LIBZ
@@ -189,6 +199,10 @@ endif
 
 if BUILD_PKCS7
 src_libwolfssl_la_SOURCES += wolfcrypt/src/pkcs7.c
+endif
+
+if BUILD_SRP
+src_libwolfssl_la_SOURCES += wolfcrypt/src/srp.c
 endif
 
 # ssl files
@@ -210,4 +224,3 @@ endif
 if BUILD_SNIFFER
 src_libwolfssl_la_SOURCES += src/sniffer.c
 endif
-

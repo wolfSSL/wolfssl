@@ -3,13 +3,13 @@
 import wolfssl
 
 print ""
-print "Trying to connect to the echo server..."
+print "Trying to connect to the example server -d..."
 
 wolfssl.wolfSSL_Init()
 #wolfssl.wolfSSL_Debugging_ON()
-ctx = wolfssl.wolfSSL_CTX_new(wolfssl.wolfTLSv1_client_method())
+ctx = wolfssl.wolfSSL_CTX_new(wolfssl.wolfTLSv1_2_client_method())
 if ctx == None:
-    print "Couldn't get SSL CTX for TLSv1"
+    print "Couldn't get SSL CTX for TLSv1.2"
     exit(-1)
 
 ret = wolfssl.wolfSSL_CTX_load_verify_locations(ctx, "../certs/ca-cert.pem", None)
@@ -24,7 +24,10 @@ ret = wolfssl.wolfSSL_swig_connect(ssl, "localhost", 11111)
 if ret != wolfssl.SSL_SUCCESS:
     print "Couldn't do SSL connect"
     err    = wolfssl.wolfSSL_get_error(ssl, 0)
-    print "error string = ", wolfssl.wolfSSL_error_string(err)
+    if ret == -2:
+        print "tcp error, is example server running?"
+    else:
+        print "error string = ", wolfssl.wolfSSL_error_string(err)
     exit(-1)
 
 print "...Connected"

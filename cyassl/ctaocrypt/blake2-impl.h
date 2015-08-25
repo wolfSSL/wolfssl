@@ -36,7 +36,7 @@
 #define CTAOCRYPT_BLAKE2_IMPL_H
 
 #include <cyassl/ctaocrypt/types.h>
-#include <wolfssl/wolfcrypt/blake2_impl.h>
+#include <wolfssl/wolfcrypt/blake2-impl.h>
 
 #endif  /* CTAOCRYPT_BLAKE2_IMPL_H */
 

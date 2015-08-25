@@ -57,6 +57,8 @@
     #elif defined(FREESCALE_MQX)
         #include <posix.h>
         #include <rtcs.h>
+    #elif defined(FREESCALE_KSDK_MQX)
+        #include <rtcs.h>
     #elif defined(WOLFSSL_MDK_ARM)
         #if defined(WOLFSSL_MDK5)
             #include "cmsis_os.h"
@@ -83,7 +85,7 @@
         #endif
         #include <fcntl.h>
         #if !(defined(DEVKITPRO) || defined(HAVE_RTP_SYS) || defined(EBSNET)) \
-            || defined(WOLFSSL_PICOTCP)
+            && !(defined(WOLFSSL_PICOTCP))
             #include <sys/socket.h>
             #include <arpa/inet.h>
             #include <netinet/in.h>
@@ -129,15 +131,25 @@
     #define SOCKET_EPIPE       SYS_NET_EPIPE
     #define SOCKET_ECONNREFUSED SYS_NET_ECONNREFUSED
     #define SOCKET_ECONNABORTED SYS_NET_ECONNABORTED
-#elif defined(FREESCALE_MQX)
-    /* RTCS doesn't have an EWOULDBLOCK error */
-    #define SOCKET_EWOULDBLOCK EAGAIN
-    #define SOCKET_EAGAIN      EAGAIN
-    #define SOCKET_ECONNRESET  RTCSERR_TCP_CONN_RESET
-    #define SOCKET_EINTR       EINTR
-    #define SOCKET_EPIPE       EPIPE
-    #define SOCKET_ECONNREFUSED RTCSERR_TCP_CONN_REFUSED
-    #define SOCKET_ECONNABORTED RTCSERR_TCP_CONN_ABORTED
+#elif defined(FREESCALE_MQX) || defined(FREESCALE_KSDK_MQX)
+    #if MQX_USE_IO_OLD
+        /* RTCS old I/O doesn't have an EWOULDBLOCK */
+        #define SOCKET_EWOULDBLOCK  EAGAIN
+        #define SOCKET_EAGAIN       EAGAIN
+        #define SOCKET_ECONNRESET   RTCSERR_TCP_CONN_RESET
+        #define SOCKET_EINTR        EINTR
+        #define SOCKET_EPIPE        EPIPE
+        #define SOCKET_ECONNREFUSED RTCSERR_TCP_CONN_REFUSED
+        #define SOCKET_ECONNABORTED RTCSERR_TCP_CONN_ABORTED
+    #else
+        #define SOCKET_EWOULDBLOCK  NIO_EWOULDBLOCK
+        #define SOCKET_EAGAIN       NIO_EAGAIN
+        #define SOCKET_ECONNRESET   NIO_ECONNRESET
+        #define SOCKET_EINTR        NIO_EINTR
+        #define SOCKET_EPIPE        NIO_EPIPE
+        #define SOCKET_ECONNREFUSED NIO_ECONNREFUSED
+        #define SOCKET_ECONNABORTED NIO_ECONNABORTED
+    #endif
 #elif defined(WOLFSSL_MDK_ARM)
     #if defined(WOLFSSL_MDK5)
         #define SOCKET_EWOULDBLOCK BSD_ERROR_WOULDBLOCK
@@ -200,7 +212,7 @@ static INLINE int TranslateReturnCode(int old, int sd)
 {
     (void)sd;
 
-#ifdef FREESCALE_MQX
+#if defined(FREESCALE_MQX) || defined(FREESCALE_KSDK_MQX)
     if (old == 0) {
         errno = SOCKET_EWOULDBLOCK;
         return -1;  /* convert to BSD style wouldblock as error */
@@ -210,6 +222,10 @@ static INLINE int TranslateReturnCode(int old, int sd)
         errno = RTCS_geterror(sd);
         if (errno == RTCSERR_TCP_CONN_CLOSING)
             return 0;   /* convert to BSD style closing */
+        if (errno == RTCSERR_TCP_CONN_RLSD)
+            errno = SOCKET_ECONNRESET;
+        if (errno == RTCSERR_TCP_TIMED_OUT)
+            errno = SOCKET_EAGAIN;
     }
 #endif
 
@@ -315,6 +331,8 @@ int EmbedSend(WOLFSSL* ssl, char *buf, int sz, void *ctx)
     int err;
 
     sent = (int)SEND_FUNCTION(sd, &buf[sz - len], len, ssl->wflags);
+
+    sent = TranslateReturnCode(sent, sd);
 
     if (sent < 0) {
         err = LastError();
@@ -454,6 +472,9 @@ int EmbedSendTo(WOLFSSL* ssl, char *buf, int sz, void *ctx)
     sent = (int)SENDTO_FUNCTION(sd, &buf[sz - len], len, ssl->wflags,
                                 (const struct sockaddr*)dtlsCtx->peer.sa,
                                 dtlsCtx->peer.sz);
+
+    sent = TranslateReturnCode(sent, sd);
+
     if (sent < 0) {
         err = LastError();
         WOLFSSL_MSG("Embed Send To error");
@@ -517,6 +538,8 @@ int EmbedGenerateCookie(WOLFSSL* ssl, byte *buf, int sz, void *ctx)
 #endif /* WOLFSSL_DTLS */
 
 #ifdef HAVE_OCSP
+
+#include <stdlib.h>   /* atoi() */
 
 
 static int Word16ToString(char* d, word16 number)

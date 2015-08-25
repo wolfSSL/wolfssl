@@ -29,11 +29,11 @@
     #include <cyassl/ctaocrypt/ecc.h>   /* ecc_fp_free */
 #endif
 
-#if defined(CYASSL_MDK_ARM)
+#if defined(WOLFSSL_MDK_ARM)
         #include <stdio.h>
         #include <string.h>
 
-        #if defined(CYASSL_MDK5)
+        #if defined(WOLFSSL_MDK5)
             #include "cmsis_os.h"
             #include "rl_fs.h" 
             #include "rl_net.h" 
@@ -41,7 +41,7 @@
             #include "rtl.h"
         #endif
 
-        #include "cyassl_MDK_ARM.h"
+        #include "wolfssl_MDK_ARM.h"
 #endif
 
 #include <cyassl/ssl.h>
@@ -52,11 +52,6 @@
 #endif
 
 #include "examples/echoserver/echoserver.h"
-
-
-#ifdef SESSION_STATS
-    CYASSL_API void PrintSessionStats(void);
-#endif
 
 #define SVR_COMMAND_SIZE 256
 
@@ -88,7 +83,7 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
     int    outCreated = 0;
     int    shutDown = 0;
     int    useAnyAddr = 0;
-    word16 port = yasslPort;
+    word16 port = wolfSSLPort;
     int    argc = ((func_args*)args)->argc;
     char** argv = ((func_args*)args)->argv;
 
@@ -119,7 +114,7 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
 #endif
 
     #if defined(NO_MAIN_DRIVER) && !defined(USE_WINDOWS_API) && \
-        !defined(CYASSL_SNIFFER) && !defined(CYASSL_MDK_SHELL) && \
+        !defined(CYASSL_SNIFFER) && !defined(WOLFSSL_MDK_SHELL) && \
         !defined(CYASSL_TIRTOS)
         port = 0;
     #endif
@@ -134,17 +129,26 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
     tcp_listen(&sockfd, &port, useAnyAddr, doDTLS);
 
 #if defined(CYASSL_DTLS)
-    method  = CyaDTLSv1_server_method();
+    method  = CyaDTLSv1_2_server_method();
 #elif  !defined(NO_TLS)
     method = CyaSSLv23_server_method();
-#else
+#elif defined(WOLFSSL_ALLOW_SSLV3)
     method = CyaSSLv3_server_method();
+#else
+    #error "no valid server method built in"
 #endif
     ctx    = CyaSSL_CTX_new(method);
     /* CyaSSL_CTX_set_session_cache_mode(ctx, SSL_SESS_CACHE_OFF); */
 
 #if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
     CyaSSL_CTX_set_default_passwd_cb(ctx, PasswordCallBack);
+#endif
+
+#if defined(HAVE_SESSION_TICKET) && defined(HAVE_CHACHA) && \
+                                    defined(HAVE_POLY1305)
+    if (TicketInit() != 0)
+        err_sys("unable to setup Session Ticket Key context");
+    wolfSSL_CTX_set_TicketEncCb(ctx, myTicketEncCb);
 #endif
 
 #ifndef NO_FILESYSTEM
@@ -206,6 +210,8 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
         CyaSSL_CTX_use_psk_identity_hint(ctx, "cyassl server");
         #ifdef HAVE_NULL_CIPHER
             defaultCipherList = "PSK-NULL-SHA256";
+        #elif defined(HAVE_AESGCM) && !defined(NO_DH)
+            defaultCipherList = "DHE-PSK-AES128-GCM-SHA256";
         #else
             defaultCipherList = "PSK-AES128-CBC-SHA256";
         #endif
@@ -223,8 +229,8 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
         int     clientfd;
         int     firstRead = 1;
         int     gotFirstG = 0;
-                
-#ifndef CYASSL_DTLS 
+
+#ifndef CYASSL_DTLS
         SOCKADDR_IN_T client;
         socklen_t     client_len = sizeof(client);
         clientfd = accept(sockfd, (struct sockaddr*)&client,
@@ -275,9 +281,9 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
                 printf("client sent break command: closing session!\n");
                 break;
             }
-#ifdef SESSION_STATS
+#ifdef PRINT_SESSION_STATS
             if ( strncmp(command, "printstats", 10) == 0) {
-                PrintSessionStats();
+                CyaSSL_PrintSessionStats();
                 break;
             }
 #endif
@@ -341,6 +347,11 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
     fdCloseSession(Task_self());
 #endif
 
+#if defined(HAVE_SESSION_TICKET) && defined(HAVE_CHACHA) && \
+                                    defined(HAVE_POLY1305)
+    TicketCleanup();
+#endif
+
 #ifndef CYASSL_TIRTOS
     return 0;
 #endif
@@ -384,7 +395,5 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
 
         
 #endif /* NO_MAIN_DRIVER */
-
-
 
 

@@ -55,13 +55,6 @@ int wc_AesCbcDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
 }
 
 
-int wc_AesCbcDecryptWithKey(byte* out, const byte* in, word32 inSz,
-                                 const byte* key, word32 keySz, const byte* iv)
-{
-    return AesCbcDecryptWithKey(out, in, inSz, key, keySz, iv);
-}
-
-
 /* AES-CTR */
 #ifdef WOLFSSL_AES_COUNTER
 void wc_AesCtrEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
@@ -174,6 +167,11 @@ void wc_AesFreeCavium(Aes* aes)
 }
 #endif
 #else /* HAVE_FIPS */
+
+#ifdef WOLFSSL_TI_CRYPT
+#include <wolfcrypt/src/port/ti/ti-aes.c>
+#else
+
 #include <wolfssl/wolfcrypt/error-crypt.h>
 #include <wolfssl/wolfcrypt/logging.h>
 #ifdef NO_INLINE
@@ -1716,32 +1714,6 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
 }
 
 
-int wc_AesCbcDecryptWithKey(byte* out, const byte* in, word32 inSz,
-                                  const byte* key, word32 keySz, const byte* iv)
-{
-    int  ret = 0;
-#ifdef WOLFSSL_SMALL_STACK
-    Aes* aes = NULL;
-#else
-    Aes  aes[1];
-#endif
-
-#ifdef WOLFSSL_SMALL_STACK
-    aes = (Aes*)XMALLOC(sizeof(Aes), NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    if (aes == NULL)
-        return MEMORY_E;
-#endif
-
-    ret = wc_AesSetKey(aes, key, keySz, iv, AES_DECRYPTION);
-    if (ret == 0)
-        ret = wc_AesCbcDecrypt(aes, out, in, inSz); 
-
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(aes, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
-
-    return ret;
-}
 
 
 /* AES-DIRECT */
@@ -1779,13 +1751,13 @@ int wc_AesCbcDecryptWithKey(byte* out, const byte* in, word32 inSz,
         /* Allow direct access to one block encrypt */
         void wc_AesEncryptDirect(Aes* aes, byte* out, const byte* in)
         {
-            return wc_AesEncrypt(aes, in, out);
+            wc_AesEncrypt(aes, in, out);
         }
 
         /* Allow direct access to one block decrypt */
         void wc_AesDecryptDirect(Aes* aes, byte* out, const byte* in)
         {
-            return wc_AesDecrypt(aes, in, out);
+            wc_AesDecrypt(aes, in, out);
         }
 
     #endif /* FREESCALE_MMCAU, AES direct block */
@@ -3884,6 +3856,8 @@ static int AesCaviumCbcDecrypt(Aes* aes, byte* out, const byte* in,
 }
 
 #endif /* HAVE_CAVIUM */
+
+#endif /* WOLFSSL_TI_CRYPT */
 
 #endif /* HAVE_FIPS */
 

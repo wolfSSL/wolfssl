@@ -1,6 +1,8 @@
 # vim:ft=automake
 # All paths should be given relative to the root
 
+EXTRA_DIST+= ctaocrypt/src/misc.c
+
 nobase_include_HEADERS+= \
                          cyassl/ctaocrypt/aes.h \
                          cyassl/ctaocrypt/arc4.h \

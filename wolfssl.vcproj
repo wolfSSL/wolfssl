@@ -200,6 +200,10 @@
 				>
 			</File>
 			<File
+				RelativePath=".\wolfcrypt\src\hash.c"
+				>
+			</File>
+			<File
 				RelativePath=".\wolfcrypt\src\hc128.c"
 				>
 			</File>
@@ -285,6 +289,10 @@
 			</File>
 			<File
 				RelativePath=".\src\tls.c"
+				>
+			</File>
+			<File
+				RelativePath="wolfcrypt\src\wc_encrypt.c"
 				>
 			</File>
 		</Filter>

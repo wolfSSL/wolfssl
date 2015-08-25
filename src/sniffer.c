@@ -52,14 +52,15 @@
 #endif
 
 
-#ifndef min
+#ifndef WOLFSSL_HAVE_MIN
+#define WOLFSSL_HAVE_MIN
 
 static INLINE word32 min(word32 a, word32 b)
 {
     return a > b ? b : a;
 }
 
-#endif
+#endif /* WOLFSSL_HAVE_MIN */
 
 #ifndef WOLFSSL_SNIFFER_TIMEOUT
     #define WOLFSSL_SNIFFER_TIMEOUT 900
@@ -238,7 +239,8 @@ static const char* const msgTable[] =
     "Decrypt Keys Not Set Up",
     "Late Key Load Error",
     "Got Certificate Status msg",
-    "RSA Key Missing Error"
+    "RSA Key Missing Error",
+    "Secure Renegotiation Not Supported"
 };
 
 
@@ -1116,7 +1118,7 @@ static int SetNamedPrivateKey(const char* name, const char* address, int port,
         sniffer->server = serverIp;
         sniffer->port = port;
 
-        sniffer->ctx = SSL_CTX_new(SSLv3_client_method());
+        sniffer->ctx = SSL_CTX_new(TLSv1_client_method());
         if (!sniffer->ctx) {
             SetError(MEMORY_STR, error, NULL, 0);
 #ifdef HAVE_SNI
@@ -1321,7 +1323,6 @@ static int ProcessClientKeyExchange(const byte* input, int* sslBytes,
             wc_FreeRsaKey(&key);
             return -1;
         }
-        ret = 0;  /* not in error state */
         session->sslServer->arrays->preMasterSz = SECRET_LEN;
 
         /* store for client side as well */
@@ -1780,7 +1781,12 @@ static int ProcessFinished(const byte* input, int size, int* sslBytes,
          }
     }
 
-    FreeHandshakeResources(ssl);
+    /* If receiving a finished message from one side, free the resources
+     * from the other side's tracker. */
+    if (session->flags.side == WOLFSSL_SERVER_END)
+        FreeHandshakeResources(session->sslClient);
+    else
+        FreeHandshakeResources(session->sslServer);
 
     return ret;
 }
@@ -1808,6 +1814,14 @@ static int DoHandShake(const byte* input, int* sslBytes,
 
     if (*sslBytes < size) {
         SetError(HANDSHAKE_INPUT_STR, error, session, FATAL_ERROR_STATE);
+        return -1;
+    }
+
+    /* A session's arrays are released when the handshake is completed. */
+    if (session->sslServer->arrays == NULL &&
+        session->sslClient->arrays == NULL) {
+
+        SetError(NO_SECURE_RENEGOTIATION, error, session, FATAL_ERROR_STATE);
         return -1;
     }
     
@@ -2415,7 +2429,10 @@ static int AdjustSequence(TcpInfo* tcpInfo, SnifferSession* session,
             /* adjust to expected, remove duplicate */
             *sslFrame += overlap;
             *sslBytes -= overlap;
-                
+
+            /* The following conditional block is duplicated below. It is the
+             * same action but for a different setup case. If changing this
+             * block be sure to also update the block below. */
             if (reassemblyList) {
                 word32 newEnd = *expected + *sslBytes;
                     
@@ -2446,6 +2463,30 @@ static int AdjustSequence(TcpInfo* tcpInfo, SnifferSession* session,
                                    *sslBytes, session, error);
         else if (tcpInfo->fin)
             return AddFinCapture(session, real);
+    }
+    else {
+        /* The following conditional block is duplicated above. It is the
+         * same action but for a different setup case. If changing this
+         * block be sure to also update the block above. */
+        if (reassemblyList) {
+            word32 newEnd = *expected + *sslBytes;
+
+            if (newEnd > reassemblyList->begin) {
+                Trace(OVERLAP_REASSEMBLY_BEGIN_STR);
+
+                /* remove bytes already on reassembly list */
+                *sslBytes -= newEnd - reassemblyList->begin;
+            }
+            if (newEnd > reassemblyList->end) {
+                Trace(OVERLAP_REASSEMBLY_END_STR);
+
+                /* may be past reassembly list end (could have more on list)
+                   so try to add what's past the front->end */
+                AddToReassembly(session->flags.side, reassemblyList->end +1,
+                            *sslFrame + reassemblyList->end - *expected + 1,
+                             newEnd - reassemblyList->end, session, error);
+            }
+        }
     }
     /* got expected sequence */
     *expected += *sslBytes;
@@ -2603,30 +2644,32 @@ static int HaveMoreInput(SnifferSession* session, const byte** sslFrame,
     word32*        length = (session->flags.side == WOLFSSL_SERVER_END) ?
                                &session->sslServer->buffers.inputBuffer.length :
                                &session->sslClient->buffers.inputBuffer.length;
-    byte*          myBuffer = (session->flags.side == WOLFSSL_SERVER_END) ?
-                                session->sslServer->buffers.inputBuffer.buffer :
-                                session->sslClient->buffers.inputBuffer.buffer;
-    word32       bufferSize = (session->flags.side == WOLFSSL_SERVER_END) ?
-                            session->sslServer->buffers.inputBuffer.bufferSize :
-                            session->sslClient->buffers.inputBuffer.bufferSize;
+    byte**         myBuffer = (session->flags.side == WOLFSSL_SERVER_END) ?
+                               &session->sslServer->buffers.inputBuffer.buffer :
+                               &session->sslClient->buffers.inputBuffer.buffer;
+    word32*       bufferSize = (session->flags.side == WOLFSSL_SERVER_END) ?
+                           &session->sslServer->buffers.inputBuffer.bufferSize :
+                           &session->sslClient->buffers.inputBuffer.bufferSize;
     SSL*               ssl  = (session->flags.side == WOLFSSL_SERVER_END) ?
                             session->sslServer : session->sslClient;
     
     while (*front && ((*front)->begin == *expected) ) {
-        word32 room = bufferSize - *length;
+        word32 room = *bufferSize - *length;
         word32 packetLen = (*front)->end - (*front)->begin + 1;
 
-        if (packetLen > room && bufferSize < MAX_INPUT_SZ) {
+        if (packetLen > room && *bufferSize < MAX_INPUT_SZ) {
             if (GrowInputBuffer(ssl, packetLen, *length) < 0) {
                 SetError(MEMORY_STR, error, session, FATAL_ERROR_STATE);
                 return 0;
             }
+            room = *bufferSize - *length;   /* bufferSize is now bigger */
         }
         
         if (packetLen <= room) {
             PacketBuffer* del = *front;
+            byte*         buf = *myBuffer;
             
-            XMEMCPY(&myBuffer[*length], (*front)->data, packetLen);
+            XMEMCPY(&buf[*length], (*front)->data, packetLen);
             *length   += packetLen;
             *expected += packetLen;
             
@@ -2640,9 +2683,9 @@ static int HaveMoreInput(SnifferSession* session, const byte** sslFrame,
             break;
     }
     if (moreInput) {
-        *sslFrame = myBuffer;
+        *sslFrame = *myBuffer;
         *sslBytes = *length;
-        *end      = myBuffer + *length;
+        *end      = *myBuffer + *length;
     }
     return moreInput;
 }

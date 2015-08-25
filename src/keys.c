@@ -31,7 +31,11 @@
 #include <wolfssl/error-ssl.h>
 #if defined(SHOW_SECRETS) || defined(CHACHA_AEAD_TEST)
     #ifdef FREESCALE_MQX
-        #include <fio.h>
+        #if MQX_USE_IO_OLD
+            #include <fio.h>
+        #else
+            #include <nio.h>
+        #endif
     #else
         #include <stdio.h>
     #endif
@@ -2407,11 +2411,33 @@ int SetKeysSide(WOLFSSL* ssl, enum encrypt_side side)
                     /* Initialize the AES-GCM/CCM explicit IV to a zero. */
                     XMEMCPY(ssl->keys.aead_exp_IV, keys->aead_exp_IV,
                             AEAD_EXP_IV_SZ);
+
+                    /* Initialize encrypt implicit IV by encrypt side */
+                    if (ssl->options.side == WOLFSSL_CLIENT_END) {
+                        XMEMCPY(ssl->keys.aead_enc_imp_IV,
+                                keys->client_write_IV, AEAD_IMP_IV_SZ);
+                    } else {
+                        XMEMCPY(ssl->keys.aead_enc_imp_IV,
+                                keys->server_write_IV, AEAD_IMP_IV_SZ);
+                    }
                 }
             #endif
         }
-        if (wc_decrypt)
+        if (wc_decrypt) {
             ssl->keys.peer_sequence_number = keys->peer_sequence_number;
+            #ifdef HAVE_AEAD
+                if (ssl->specs.cipher_type == aead) {
+                    /* Initialize decrypt implicit IV by decrypt side */
+                    if (ssl->options.side == WOLFSSL_SERVER_END) {
+                        XMEMCPY(ssl->keys.aead_dec_imp_IV,
+                                keys->client_write_IV, AEAD_IMP_IV_SZ);
+                    } else {
+                        XMEMCPY(ssl->keys.aead_dec_imp_IV,
+                                keys->server_write_IV, AEAD_IMP_IV_SZ);
+                    }
+                }
+            #endif
+        }
         ssl->secure_renegotiation->cache_status++;
     }
 #endif /* HAVE_SECURE_RENEGOTIATION */
@@ -2608,9 +2634,9 @@ static int MakeSslMasterSecret(WOLFSSL* ssl)
         printf("\n");
     }
 #endif
-    
+
 #ifdef WOLFSSL_SMALL_STACK
-    shaOutput = (byte*)XMALLOC(SHA_DIGEST_SIZE, 
+    shaOutput = (byte*)XMALLOC(SHA_DIGEST_SIZE,
                                             NULL, DYNAMIC_TYPE_TMP_BUFFER);
     md5Input  = (byte*)XMALLOC(ENCRYPT_LEN + SHA_DIGEST_SIZE,
                                             NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -2686,7 +2712,7 @@ static int MakeSslMasterSecret(WOLFSSL* ssl)
     XFREE(md5,       NULL, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(sha,       NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
-    
+
     if (ret == 0)
         ret = CleanPreMaster(ssl);
     else
@@ -2700,6 +2726,48 @@ static int MakeSslMasterSecret(WOLFSSL* ssl)
 /* Master wrapper, doesn't use SSL stack space in TLS mode */
 int MakeMasterSecret(WOLFSSL* ssl)
 {
+    /* append secret to premaster : premaster | SerSi | CliSi */
+#ifdef HAVE_QSH
+    word32 offset = 0;
+
+    if (ssl->peerQSHKeyPresent) {
+        offset += ssl->arrays->preMasterSz;
+        ssl->arrays->preMasterSz += ssl->QSH_secret->CliSi->length +
+                                                 ssl->QSH_secret->SerSi->length;
+        /* test and set flag if QSH has been used */
+        if (ssl->QSH_secret->CliSi->length > 0 ||
+                ssl->QSH_secret->SerSi->length > 0)
+            ssl->isQSH = 1;
+
+        /* append secrets to the premaster */
+        if (ssl->QSH_secret->SerSi != NULL) {
+            XMEMCPY(ssl->arrays->preMasterSecret + offset,
+                ssl->QSH_secret->SerSi->buffer, ssl->QSH_secret->SerSi->length);
+        }
+        offset += ssl->QSH_secret->SerSi->length;
+        if (ssl->QSH_secret->CliSi != NULL) {
+            XMEMCPY(ssl->arrays->preMasterSecret + offset,
+                ssl->QSH_secret->CliSi->buffer, ssl->QSH_secret->CliSi->length);
+        }
+
+        /* show secret SerSi and CliSi */
+        #ifdef SHOW_SECRETS
+            word32 j;
+            printf("QSH generated secret material\n");
+            printf("SerSi        : ");
+            for (j = 0; j < ssl->QSH_secret->SerSi->length; j++) {
+                printf("%02x", ssl->QSH_secret->SerSi->buffer[j]);
+            }
+            printf("\n");
+            printf("CliSi        : ");
+            for (j = 0; j < ssl->QSH_secret->CliSi->length; j++) {
+                printf("%02x", ssl->QSH_secret->CliSi->buffer[j]);
+            }
+            printf("\n");
+        #endif
+    }
+#endif
+
 #ifdef NO_OLD_TLS
     return MakeTlsMasterSecret(ssl);
 #elif !defined(NO_TLS)

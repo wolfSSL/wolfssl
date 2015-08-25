@@ -101,8 +101,10 @@ static void test_wolfSSL_Method_Allocators(void)
             TEST_METHOD_ALLOCATOR(a, AssertNull)
 
 #ifndef NO_OLD_TLS
-    TEST_VALID_METHOD_ALLOCATOR(wolfSSLv3_server_method);
-    TEST_VALID_METHOD_ALLOCATOR(wolfSSLv3_client_method);
+    #ifdef WOLFSSL_ALLOW_SSLV3
+        TEST_VALID_METHOD_ALLOCATOR(wolfSSLv3_server_method);
+        TEST_VALID_METHOD_ALLOCATOR(wolfSSLv3_client_method);
+    #endif
     TEST_VALID_METHOD_ALLOCATOR(wolfTLSv1_server_method);
     TEST_VALID_METHOD_ALLOCATOR(wolfTLSv1_client_method);
     TEST_VALID_METHOD_ALLOCATOR(wolfTLSv1_1_server_method);
@@ -113,8 +115,10 @@ static void test_wolfSSL_Method_Allocators(void)
     TEST_VALID_METHOD_ALLOCATOR(wolfSSLv23_client_method);
 
 #ifdef WOLFSSL_DTLS
-    TEST_VALID_METHOD_ALLOCATOR(wolfDTLSv1_server_method);
-    TEST_VALID_METHOD_ALLOCATOR(wolfDTLSv1_client_method);
+    #ifndef NO_OLD_TLS
+        TEST_VALID_METHOD_ALLOCATOR(wolfDTLSv1_server_method);
+        TEST_VALID_METHOD_ALLOCATOR(wolfDTLSv1_client_method);
+    #endif
     TEST_VALID_METHOD_ALLOCATOR(wolfDTLSv1_2_server_method);
     TEST_VALID_METHOD_ALLOCATOR(wolfDTLSv1_2_client_method);
 #endif
@@ -132,9 +136,9 @@ static void test_wolfSSL_Method_Allocators(void)
 static void test_wolfSSL_CTX_new(WOLFSSL_METHOD *method)
 {
     WOLFSSL_CTX *ctx;
-    
+
     AssertNull(ctx = wolfSSL_CTX_new(NULL));
-    
+
     AssertNotNull(method);
     AssertNotNull(ctx = wolfSSL_CTX_new(method));
 
@@ -150,10 +154,10 @@ static void test_wolfSSL_CTX_use_certificate_file(void)
     AssertNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_server_method()));
 
     /* invalid context */
-    AssertFalse(wolfSSL_CTX_use_certificate_file(NULL, svrCert, 
+    AssertFalse(wolfSSL_CTX_use_certificate_file(NULL, svrCert,
                                                              SSL_FILETYPE_PEM));
     /* invalid cert file */
-    AssertFalse(wolfSSL_CTX_use_certificate_file(ctx, bogusFile, 
+    AssertFalse(wolfSSL_CTX_use_certificate_file(ctx, bogusFile,
                                                              SSL_FILETYPE_PEM));
     /* invalid cert type */
     AssertFalse(wolfSSL_CTX_use_certificate_file(ctx, svrCert, 9999));
@@ -179,10 +183,10 @@ static void test_wolfSSL_CTX_use_PrivateKey_file(void)
     AssertNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_server_method()));
 
     /* invalid context */
-    AssertFalse(wolfSSL_CTX_use_PrivateKey_file(NULL, svrKey, 
+    AssertFalse(wolfSSL_CTX_use_PrivateKey_file(NULL, svrKey,
                                                              SSL_FILETYPE_PEM));
     /* invalid key file */
-    AssertFalse(wolfSSL_CTX_use_PrivateKey_file(ctx, bogusFile, 
+    AssertFalse(wolfSSL_CTX_use_PrivateKey_file(ctx, bogusFile,
                                                              SSL_FILETYPE_PEM));
     /* invalid key type */
     AssertFalse(wolfSSL_CTX_use_PrivateKey_file(ctx, svrKey, 9999));
@@ -207,7 +211,7 @@ static void test_wolfSSL_CTX_load_verify_locations(void)
     WOLFSSL_CTX *ctx;
 
     AssertNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
-    
+
     /* invalid context */
     AssertFalse(wolfSSL_CTX_load_verify_locations(NULL, caCert, 0));
 
@@ -270,18 +274,18 @@ static void test_client_wolfSSL_new(void)
     AssertNotNull(ctx        = wolfSSL_CTX_new(wolfSSLv23_client_method()));
 
     AssertTrue(wolfSSL_CTX_load_verify_locations(ctx, caCert, 0));
-    
+
     /* invalid context */
     AssertNull(ssl = wolfSSL_new(NULL));
 
     /* success */
     AssertNotNull(ssl = wolfSSL_new(ctx_nocert));
     wolfSSL_free(ssl);
-    
+
     /* success */
     AssertNotNull(ssl = wolfSSL_new(ctx));
     wolfSSL_free(ssl);
-    
+
     wolfSSL_CTX_free(ctx);
     wolfSSL_CTX_free(ctx_nocert);
 #endif
@@ -351,7 +355,7 @@ static THREAD_RETURN WOLFSSL_THREAD test_server_nofail(void* args)
                 "Please run from wolfSSL home dir");*/
         goto done;
     }
-    
+
     ssl = wolfSSL_new(ctx);
     tcp_accept(&sockfd, &clientfd, (func_args*)args, port, 0, 0, 0);
     CloseSocket(sockfd);
@@ -380,7 +384,7 @@ static THREAD_RETURN WOLFSSL_THREAD test_server_nofail(void* args)
         input[idx] = 0;
         printf("Client message: %s\n", input);
     }
-    
+
     if (wolfSSL_write(ssl, msg, sizeof(msg)) != sizeof(msg))
     {
         /*err_sys("SSL_write failed");*/
@@ -399,7 +403,7 @@ done:
     wolfSSL_shutdown(ssl);
     wolfSSL_free(ssl);
     wolfSSL_CTX_free(ctx);
-    
+
     CloseSocket(clientfd);
     ((func_args*)args)->return_code = TEST_SUCCESS;
 
@@ -492,7 +496,7 @@ static void test_client_nofail(void* args)
 done2:
     wolfSSL_free(ssl);
     wolfSSL_CTX_free(ctx);
-    
+
     CloseSocket(sockfd);
     ((func_args*)args)->return_code = TEST_SUCCESS;
 
@@ -718,10 +722,10 @@ static void test_wolfSSL_read_write(void)
 
     StartTCP();
     InitTcpReady(&ready);
-    
+
     server_args.signal = &ready;
     client_args.signal = &ready;
-    
+
     start_thread(test_server_nofail, &server_args, &serverThread);
     wait_tcp_ready(&server_args);
     test_client_nofail(&client_args);
@@ -744,68 +748,106 @@ static void test_wolfSSL_read_write(void)
  *----------------------------------------------------------------------------*/
 
 #ifdef HAVE_SNI
+static void test_wolfSSL_UseSNI_params(void)
+{
+    WOLFSSL_CTX *ctx = wolfSSL_CTX_new(wolfSSLv23_client_method());
+    WOLFSSL     *ssl = wolfSSL_new(ctx);
+
+    AssertNotNull(ctx);
+    AssertNotNull(ssl);
+
+    /* invalid [ctx|ssl] */
+    AssertIntNE(SSL_SUCCESS, wolfSSL_CTX_UseSNI(NULL, 0, "ctx", 3));
+    AssertIntNE(SSL_SUCCESS, wolfSSL_UseSNI(    NULL, 0, "ssl", 3));
+    /* invalid type */
+    AssertIntNE(SSL_SUCCESS, wolfSSL_CTX_UseSNI(ctx, -1, "ctx", 3));
+    AssertIntNE(SSL_SUCCESS, wolfSSL_UseSNI(    ssl, -1, "ssl", 3));
+    /* invalid data */
+    AssertIntNE(SSL_SUCCESS, wolfSSL_CTX_UseSNI(ctx,  0, NULL,  3));
+    AssertIntNE(SSL_SUCCESS, wolfSSL_UseSNI(    ssl,  0, NULL,  3));
+    /* success case */
+    AssertIntEQ(SSL_SUCCESS, wolfSSL_CTX_UseSNI(ctx,  0, "ctx", 3));
+    AssertIntEQ(SSL_SUCCESS, wolfSSL_UseSNI(    ssl,  0, "ssl", 3));
+
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+}
+
+/* BEGIN of connection tests callbacks */
 static void use_SNI_at_ctx(WOLFSSL_CTX* ctx)
 {
-    byte type = WOLFSSL_SNI_HOST_NAME;
-    char name[] = "www.yassl.com";
-
     AssertIntEQ(SSL_SUCCESS,
-                    wolfSSL_CTX_UseSNI(ctx, type, (void *) name, XSTRLEN(name)));
+        wolfSSL_CTX_UseSNI(ctx, WOLFSSL_SNI_HOST_NAME, "www.wolfssl.com", 15));
 }
 
 static void use_SNI_at_ssl(WOLFSSL* ssl)
 {
-    byte type = WOLFSSL_SNI_HOST_NAME;
-    char name[] = "www.yassl.com";
-
     AssertIntEQ(SSL_SUCCESS,
-                        wolfSSL_UseSNI(ssl, type, (void *) name, XSTRLEN(name)));
+             wolfSSL_UseSNI(ssl, WOLFSSL_SNI_HOST_NAME, "www.wolfssl.com", 15));
 }
 
 static void different_SNI_at_ssl(WOLFSSL* ssl)
 {
-    byte type = WOLFSSL_SNI_HOST_NAME;
-    char name[] = "ww2.yassl.com";
-
     AssertIntEQ(SSL_SUCCESS,
-                        wolfSSL_UseSNI(ssl, type, (void *) name, XSTRLEN(name)));
+             wolfSSL_UseSNI(ssl, WOLFSSL_SNI_HOST_NAME, "ww2.wolfssl.com", 15));
 }
 
 static void use_SNI_WITH_CONTINUE_at_ssl(WOLFSSL* ssl)
 {
-    byte type = WOLFSSL_SNI_HOST_NAME;
-
     use_SNI_at_ssl(ssl);
-
-    wolfSSL_SNI_SetOptions(ssl, type, WOLFSSL_SNI_CONTINUE_ON_MISMATCH);
+    wolfSSL_SNI_SetOptions(ssl, WOLFSSL_SNI_HOST_NAME,
+                                              WOLFSSL_SNI_CONTINUE_ON_MISMATCH);
 }
 
 static void use_SNI_WITH_FAKE_ANSWER_at_ssl(WOLFSSL* ssl)
 {
-    byte type = WOLFSSL_SNI_HOST_NAME;
-
     use_SNI_at_ssl(ssl);
-
-    wolfSSL_SNI_SetOptions(ssl, type, WOLFSSL_SNI_ANSWER_ON_MISMATCH);
+    wolfSSL_SNI_SetOptions(ssl, WOLFSSL_SNI_HOST_NAME,
+                                                WOLFSSL_SNI_ANSWER_ON_MISMATCH);
 }
 
-static void verify_SNI_abort_on_client(WOLFSSL* ssl)
+static void use_MANDATORY_SNI_at_ctx(WOLFSSL_CTX* ctx)
+{
+    use_SNI_at_ctx(ctx);
+    wolfSSL_CTX_SNI_SetOptions(ctx, WOLFSSL_SNI_HOST_NAME,
+                                                  WOLFSSL_SNI_ABORT_ON_ABSENCE);
+}
+
+static void use_MANDATORY_SNI_at_ssl(WOLFSSL* ssl)
+{
+    use_SNI_at_ssl(ssl);
+    wolfSSL_SNI_SetOptions(ssl, WOLFSSL_SNI_HOST_NAME,
+                                                  WOLFSSL_SNI_ABORT_ON_ABSENCE);
+}
+
+static void use_PSEUDO_MANDATORY_SNI_at_ctx(WOLFSSL_CTX* ctx)
+{
+    use_SNI_at_ctx(ctx);
+    wolfSSL_CTX_SNI_SetOptions(ctx, WOLFSSL_SNI_HOST_NAME,
+                 WOLFSSL_SNI_ANSWER_ON_MISMATCH | WOLFSSL_SNI_ABORT_ON_ABSENCE);
+}
+
+static void verify_FATAL_ERROR_on_client(WOLFSSL* ssl)
 {
     AssertIntEQ(FATAL_ERROR, wolfSSL_get_error(ssl, 0));
 }
 
-static void verify_SNI_abort_on_server(WOLFSSL* ssl)
+static void verify_UNKNOWN_SNI_on_server(WOLFSSL* ssl)
 {
     AssertIntEQ(UNKNOWN_SNI_HOST_NAME_E, wolfSSL_get_error(ssl, 0));
 }
 
+static void verify_SNI_ABSENT_on_server(WOLFSSL* ssl)
+{
+    AssertIntEQ(SNI_ABSENT_ERROR, wolfSSL_get_error(ssl, 0));
+}
+
 static void verify_SNI_no_matching(WOLFSSL* ssl)
 {
-    byte  type    = WOLFSSL_SNI_HOST_NAME;
+    byte type = WOLFSSL_SNI_HOST_NAME;
     char* request = (char*) &type; /* to be overwriten */
 
     AssertIntEQ(WOLFSSL_SNI_NO_MATCH, wolfSSL_SNI_Status(ssl, type));
-
     AssertNotNull(request);
     AssertIntEQ(0, wolfSSL_SNI_GetRequest(ssl, type, (void**) &request));
     AssertNull(request);
@@ -813,30 +855,118 @@ static void verify_SNI_no_matching(WOLFSSL* ssl)
 
 static void verify_SNI_real_matching(WOLFSSL* ssl)
 {
-    byte   type    = WOLFSSL_SNI_HOST_NAME;
-    char*  request = NULL;
-    char   name[]  = "www.yassl.com";
-    word16 length  = XSTRLEN(name);
+    byte type = WOLFSSL_SNI_HOST_NAME;
+    char* request = NULL;
 
     AssertIntEQ(WOLFSSL_SNI_REAL_MATCH, wolfSSL_SNI_Status(ssl, type));
-
-    AssertIntEQ(length, wolfSSL_SNI_GetRequest(ssl, type, (void**) &request));
+    AssertIntEQ(15, wolfSSL_SNI_GetRequest(ssl, type, (void**) &request));
     AssertNotNull(request);
-    AssertStrEQ(name, request);
+    AssertStrEQ("www.wolfssl.com", request);
 }
 
 static void verify_SNI_fake_matching(WOLFSSL* ssl)
 {
-    byte   type    = WOLFSSL_SNI_HOST_NAME;
-    char*  request = NULL;
-    char   name[]  = "ww2.yassl.com";
-    word16 length  = XSTRLEN(name);
+    byte type = WOLFSSL_SNI_HOST_NAME;
+    char* request = NULL;
 
     AssertIntEQ(WOLFSSL_SNI_FAKE_MATCH, wolfSSL_SNI_Status(ssl, type));
-
-    AssertIntEQ(length, wolfSSL_SNI_GetRequest(ssl, type, (void**) &request));
+    AssertIntEQ(15, wolfSSL_SNI_GetRequest(ssl, type, (void**) &request));
     AssertNotNull(request);
-    AssertStrEQ(name, request);
+    AssertStrEQ("ww2.wolfssl.com", request);
+}
+/* END of connection tests callbacks */
+
+/* connection test runner */
+static void test_wolfSSL_client_server(callback_functions* client_callbacks,
+                                      callback_functions* server_callbacks)
+{
+#ifdef HAVE_IO_TESTS_DEPENDENCIES
+    tcp_ready ready;
+    func_args client_args;
+    func_args server_args;
+    THREAD_TYPE serverThread;
+
+    StartTCP();
+
+    client_args.callbacks = client_callbacks;
+    server_args.callbacks = server_callbacks;
+
+#ifdef WOLFSSL_TIRTOS
+    fdOpenSession(Task_self());
+#endif
+
+    /* RUN Server side */
+    InitTcpReady(&ready);
+    server_args.signal = &ready;
+    client_args.signal = &ready;
+    start_thread(run_wolfssl_server, &server_args, &serverThread);
+    wait_tcp_ready(&server_args);
+
+    /* RUN Client side */
+    run_wolfssl_client(&client_args);
+    join_thread(serverThread);
+
+    FreeTcpReady(&ready);
+#ifdef WOLFSSL_TIRTOS
+    fdCloseSession(Task_self());
+#endif
+
+#else
+    (void)client_callbacks;
+    (void)server_callbacks;
+#endif
+}
+
+static void test_wolfSSL_UseSNI_connection(void)
+{
+    unsigned long i;
+    callback_functions callbacks[] = {
+        /* success case at ctx */
+        {0, use_SNI_at_ctx, 0, 0},
+        {0, use_SNI_at_ctx, 0, verify_SNI_real_matching},
+
+        /* success case at ssl */
+        {0, 0, use_SNI_at_ssl, 0},
+        {0, 0, use_SNI_at_ssl, verify_SNI_real_matching},
+
+        /* default missmatch behavior */
+        {0, 0, different_SNI_at_ssl, verify_FATAL_ERROR_on_client},
+        {0, 0, use_SNI_at_ssl,       verify_UNKNOWN_SNI_on_server},
+
+        /* continue on missmatch */
+        {0, 0, different_SNI_at_ssl,         0},
+        {0, 0, use_SNI_WITH_CONTINUE_at_ssl, verify_SNI_no_matching},
+
+        /* fake answer on missmatch */
+        {0, 0, different_SNI_at_ssl,            0},
+        {0, 0, use_SNI_WITH_FAKE_ANSWER_at_ssl, verify_SNI_fake_matching},
+
+        /* sni abort - success */
+        {0, use_SNI_at_ctx,           0, 0},
+        {0, use_MANDATORY_SNI_at_ctx, 0, verify_SNI_real_matching},
+
+        /* sni abort - abort when absent (ctx) */
+        {0, 0,                        0, verify_FATAL_ERROR_on_client},
+        {0, use_MANDATORY_SNI_at_ctx, 0, verify_SNI_ABSENT_on_server},
+
+        /* sni abort - abort when absent (ssl) */
+        {0, 0, 0,                        verify_FATAL_ERROR_on_client},
+        {0, 0, use_MANDATORY_SNI_at_ssl, verify_SNI_ABSENT_on_server},
+
+        /* sni abort - success when overwriten */
+        {0, 0, 0, 0},
+        {0, use_MANDATORY_SNI_at_ctx, use_SNI_at_ssl, verify_SNI_no_matching},
+
+        /* sni abort - success when allowing missmatches */
+        {0, 0, different_SNI_at_ssl, 0},
+        {0, use_PSEUDO_MANDATORY_SNI_at_ctx, 0, verify_SNI_fake_matching},
+    };
+
+    for (i = 0; i < sizeof(callbacks) / sizeof(callback_functions); i += 2) {
+        callbacks[i    ].method = wolfSSLv23_client_method;
+        callbacks[i + 1].method = wolfSSLv23_server_method;
+        test_wolfSSL_client_server(&callbacks[i], &callbacks[i + 1]);
+    }
 }
 
 static void test_wolfSSL_SNI_GetFromBuffer(void)
@@ -903,6 +1033,14 @@ static void test_wolfSSL_SNI_GetFromBuffer(void)
         0x12, 0x00, 0x00
     };
 
+    byte buffer5[] = { /* SSL v2.0 client hello */
+        0x00, 0x2b, 0x01, 0x03, 0x01, 0x00, 0x09, 0x00, 0x00,
+        /* dummy bytes bellow, just to pass size check */
+        0xb6, 0x03, 0x03, 0x83, 0xa3, 0xe6, 0xdc, 0x16, 0xa1, 0x43, 0xe9, 0x45,
+        0x15, 0xbd, 0x64, 0xa9, 0xb6, 0x07, 0xb4, 0x50, 0xc6, 0xdd, 0xff, 0xc2,
+        0xd3, 0x0d, 0x4f, 0x36, 0xb4, 0x41, 0x51, 0x61, 0xc1, 0xa5, 0x9e, 0x00,
+    };
+
     byte result[32] = {0};
     word32 length   = 32;
 
@@ -923,7 +1061,7 @@ static void test_wolfSSL_SNI_GetFromBuffer(void)
                                                            0, result, &length));
     buffer[1] = 0x03;
 
-    AssertIntEQ(SNI_UNSUPPORTED, wolfSSL_SNI_GetFromBuffer(buffer, 
+    AssertIntEQ(SNI_UNSUPPORTED, wolfSSL_SNI_GetFromBuffer(buffer,
                                            sizeof(buffer), 0, result, &length));
     buffer[2] = 0x03;
 
@@ -942,46 +1080,22 @@ static void test_wolfSSL_SNI_GetFromBuffer(void)
                                                            0, result, &length));
     result[length] = 0;
     AssertStrEQ("api.textmate.org", (const char*) result);
-}
 
-static void test_wolfSSL_client_server(callback_functions* client_callbacks,
-                                      callback_functions* server_callbacks)
-{
-#ifdef HAVE_IO_TESTS_DEPENDENCIES
-    tcp_ready ready;
-    func_args client_args;
-    func_args server_args;
-    THREAD_TYPE serverThread;
+    /* SSL v2.0 tests */
+    AssertIntEQ(SNI_UNSUPPORTED, wolfSSL_SNI_GetFromBuffer(buffer5,
+                                          sizeof(buffer5), 0, result, &length));
 
-    StartTCP();
+    buffer5[2] = 0x02;
+    AssertIntEQ(BUFFER_ERROR, wolfSSL_SNI_GetFromBuffer(buffer5,
+                                          sizeof(buffer5), 0, result, &length));
 
-    client_args.callbacks = client_callbacks;
-    server_args.callbacks = server_callbacks;
+    buffer5[2] = 0x01; buffer5[6] = 0x08;
+    AssertIntEQ(BUFFER_ERROR, wolfSSL_SNI_GetFromBuffer(buffer5,
+                                          sizeof(buffer5), 0, result, &length));
 
-#ifdef WOLFSSL_TIRTOS
-    fdOpenSession(Task_self());
-#endif
-
-    /* RUN Server side */
-    InitTcpReady(&ready);
-    server_args.signal = &ready;
-    client_args.signal = &ready;
-    start_thread(run_wolfssl_server, &server_args, &serverThread);
-    wait_tcp_ready(&server_args);
-
-    /* RUN Client side */
-    run_wolfssl_client(&client_args);
-    join_thread(serverThread);
-
-    FreeTcpReady(&ready);
-#ifdef WOLFSSL_TIRTOS
-    fdCloseSession(Task_self());
-#endif
-    
-#else
-    (void)client_callbacks;
-    (void)server_callbacks;
-#endif
+    buffer5[6] = 0x09; buffer5[8] = 0x01;
+    AssertIntEQ(BUFFER_ERROR, wolfSSL_SNI_GetFromBuffer(buffer5,
+                                          sizeof(buffer5), 0, result, &length));
 }
 
 #endif /* HAVE_SNI */
@@ -989,70 +1103,8 @@ static void test_wolfSSL_client_server(callback_functions* client_callbacks,
 static void test_wolfSSL_UseSNI(void)
 {
 #ifdef HAVE_SNI
-    callback_functions client_callbacks = {wolfSSLv23_client_method, 0, 0, 0};
-    callback_functions server_callbacks = {wolfSSLv23_server_method, 0, 0, 0};
-
-    WOLFSSL_CTX *ctx = wolfSSL_CTX_new(wolfSSLv23_client_method());
-    WOLFSSL     *ssl = wolfSSL_new(ctx);
-
-    AssertNotNull(ctx);
-    AssertNotNull(ssl);
-
-    /* error cases */
-    AssertIntNE(SSL_SUCCESS,
-                    wolfSSL_CTX_UseSNI(NULL, 0, (void *) "ctx", XSTRLEN("ctx")));
-    AssertIntNE(SSL_SUCCESS,
-                    wolfSSL_UseSNI(    NULL, 0, (void *) "ssl", XSTRLEN("ssl")));
-    AssertIntNE(SSL_SUCCESS,
-                    wolfSSL_CTX_UseSNI(ctx, -1, (void *) "ctx", XSTRLEN("ctx")));
-    AssertIntNE(SSL_SUCCESS,
-                    wolfSSL_UseSNI(    ssl, -1, (void *) "ssl", XSTRLEN("ssl")));
-    AssertIntNE(SSL_SUCCESS,
-                    wolfSSL_CTX_UseSNI(ctx,  0, (void *) NULL,  XSTRLEN("ctx")));
-    AssertIntNE(SSL_SUCCESS,
-                    wolfSSL_UseSNI(    ssl,  0, (void *) NULL,  XSTRLEN("ssl")));
-
-    /* success case */
-    AssertIntEQ(SSL_SUCCESS,
-                    wolfSSL_CTX_UseSNI(ctx,  0, (void *) "ctx", XSTRLEN("ctx")));
-    AssertIntEQ(SSL_SUCCESS,
-                    wolfSSL_UseSNI(    ssl,  0, (void *) "ssl", XSTRLEN("ssl")));
-
-    wolfSSL_free(ssl);
-    wolfSSL_CTX_free(ctx);
-
-    /* Testing success case at ctx */
-    client_callbacks.ctx_ready = server_callbacks.ctx_ready = use_SNI_at_ctx;
-    server_callbacks.on_result = verify_SNI_real_matching;
-
-    test_wolfSSL_client_server(&client_callbacks, &server_callbacks);
-
-    /* Testing success case at ssl */
-    client_callbacks.ctx_ready = server_callbacks.ctx_ready = NULL;
-    client_callbacks.ssl_ready = server_callbacks.ssl_ready = use_SNI_at_ssl;
-
-    test_wolfSSL_client_server(&client_callbacks, &server_callbacks);
-
-    /* Testing default mismatch behaviour */
-    client_callbacks.ssl_ready = different_SNI_at_ssl;
-    client_callbacks.on_result = verify_SNI_abort_on_client;
-    server_callbacks.on_result = verify_SNI_abort_on_server;
-
-    test_wolfSSL_client_server(&client_callbacks, &server_callbacks);
-    client_callbacks.on_result = NULL;
-
-    /* Testing continue on mismatch */
-    client_callbacks.ssl_ready = different_SNI_at_ssl;
-    server_callbacks.ssl_ready = use_SNI_WITH_CONTINUE_at_ssl;
-    server_callbacks.on_result = verify_SNI_no_matching;
-
-    test_wolfSSL_client_server(&client_callbacks, &server_callbacks);
-
-    /* Testing fake answer on mismatch */
-    server_callbacks.ssl_ready = use_SNI_WITH_FAKE_ANSWER_at_ssl;
-    server_callbacks.on_result = verify_SNI_fake_matching;
-
-    test_wolfSSL_client_server(&client_callbacks, &server_callbacks);
+    test_wolfSSL_UseSNI_params();
+    test_wolfSSL_UseSNI_connection();
 
     test_wolfSSL_SNI_GetFromBuffer();
 #endif

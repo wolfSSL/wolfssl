@@ -64,7 +64,6 @@ typedef struct Sha512 {
 WOLFSSL_API int wc_InitSha512(Sha512*);
 WOLFSSL_API int wc_Sha512Update(Sha512*, const byte*, word32);
 WOLFSSL_API int wc_Sha512Final(Sha512*, byte*);
-WOLFSSL_API int wc_Sha512Hash(const byte*, word32, byte*);
 
 #if defined(WOLFSSL_SHA384)
 
@@ -91,7 +90,6 @@ typedef struct Sha384 {
 WOLFSSL_API int wc_InitSha384(Sha384*);
 WOLFSSL_API int wc_Sha384Update(Sha384*, const byte*, word32);
 WOLFSSL_API int wc_Sha384Final(Sha384*, byte*);
-WOLFSSL_API int wc_Sha384Hash(const byte*, word32, byte*);
 
 #endif /* WOLFSSL_SHA384 */
 

@@ -20,6 +20,7 @@ nobase_include_HEADERS+= \
                          wolfssl/wolfcrypt/ge_operations.h \
                          wolfssl/wolfcrypt/error-crypt.h \
                          wolfssl/wolfcrypt/fips_test.h \
+                         wolfssl/wolfcrypt/hash.h \
                          wolfssl/wolfcrypt/hc128.h \
                          wolfssl/wolfcrypt/hmac.h \
                          wolfssl/wolfcrypt/integer.h \
@@ -28,6 +29,7 @@ nobase_include_HEADERS+= \
                          wolfssl/wolfcrypt/md5.h \
                          wolfssl/wolfcrypt/misc.h \
                          wolfssl/wolfcrypt/pkcs7.h \
+                         wolfssl/wolfcrypt/wc_encrypt.h \
                          wolfssl/wolfcrypt/wc_port.h \
                          wolfssl/wolfcrypt/pwdbased.h \
                          wolfssl/wolfcrypt/rabbit.h \
@@ -44,6 +46,7 @@ nobase_include_HEADERS+= \
                          wolfssl/wolfcrypt/blake2-int.h \
                          wolfssl/wolfcrypt/blake2-impl.h \
                          wolfssl/wolfcrypt/tfm.h \
+                         wolfssl/wolfcrypt/srp.h \
                          wolfssl/wolfcrypt/types.h \
                          wolfssl/wolfcrypt/visibility.h \
                          wolfssl/wolfcrypt/logging.h \
@@ -52,5 +55,6 @@ nobase_include_HEADERS+= \
                          wolfssl/wolfcrypt/mpi_superclass.h
 
 noinst_HEADERS+= \
-                         wolfssl/wolfcrypt/port/pic32/pic32mz-crypt.h
-
+                         wolfssl/wolfcrypt/port/pic32/pic32mz-crypt.h \
+                         wolfssl/wolfcrypt/port/ti/ti-hash.h \
+                         wolfssl/wolfcrypt/port/ti/ti-ccm.h

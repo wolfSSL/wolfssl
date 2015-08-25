@@ -47,6 +47,7 @@ enum {
 /* ECC set type defined a NIST GF(p) curve */
 typedef struct {
     int size;       /* The size of the curve in octets */
+    int nid;              /* id of this curve */
     const char* name;     /* name of this curve */
     const char* prime;    /* prime that defines the field, curve is in (hex) */
     const char* Af;       /* fields A param (hex) */
@@ -72,18 +73,18 @@ typedef struct {
  * mp_ints for the components of the point. With ALT_ECC_SIZE, the components
  * of the point are pointers that are set to each of a three item array of
  * alt_fp_ints. While an mp_int will have 4096 bits of digit inside the
- * structure, the alt_fp_int will only have 512 bits. A size value was added
+ * structure, the alt_fp_int will only have 528 bits. A size value was added
  * in the ALT case, as well, and is set by mp_init() and alt_fp_init(). The
  * functions fp_zero() and fp_copy() use the size parameter. An int needs to
  * be initialized before using it instead of just fp_zeroing it, the init will
- * call zero. FP_MAX_BITS_ECC defaults to 512, but can be set to change the
+ * call zero. FP_MAX_BITS_ECC defaults to 528, but can be set to change the
  * number of bits used in the alternate FP_INT.
  *
  * Do not enable ALT_ECC_SIZE and disable fast math in the configuration.
  */
 
 #ifndef FP_MAX_BITS_ECC
-    #define FP_MAX_BITS_ECC           512
+    #define FP_MAX_BITS_ECC           528
 #endif
 #define FP_MAX_SIZE_ECC           (FP_MAX_BITS_ECC+(8*DIGIT_BIT))
 #if FP_MAX_BITS_ECC % CHAR_BIT
@@ -133,16 +134,27 @@ extern const ecc_set_type ecc_sets[];
 
 
 WOLFSSL_API
-int wc_ecc_make_key(RNG* rng, int keysize, ecc_key* key);
+int wc_ecc_make_key(WC_RNG* rng, int keysize, ecc_key* key);
+WOLFSSL_API
+int wc_ecc_check_key(ecc_key* key);
 WOLFSSL_API
 int wc_ecc_shared_secret(ecc_key* private_key, ecc_key* public_key, byte* out,
                       word32* outlen);
 WOLFSSL_API
-int wc_ecc_sign_hash(const byte* in, word32 inlen, byte* out, word32 *outlen, 
-                  RNG* rng, ecc_key* key);
+int wc_ecc_shared_secret_ssh(ecc_key* private_key, ecc_point* point,
+                             byte* out, word32 *outlen);
+WOLFSSL_API
+int wc_ecc_sign_hash(const byte* in, word32 inlen, byte* out, word32 *outlen,
+                     WC_RNG* rng, ecc_key* key);
+WOLFSSL_API
+int wc_ecc_sign_hash_ex(const byte* in, word32 inlen, WC_RNG* rng,
+                        ecc_key* key, mp_int *r, mp_int *s);
 WOLFSSL_API
 int wc_ecc_verify_hash(const byte* sig, word32 siglen, const byte* hash,
                     word32 hashlen, int* stat, ecc_key* key);
+WOLFSSL_API
+int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
+                          word32 hashlen, int* stat, ecc_key* key);
 WOLFSSL_API
 int wc_ecc_init(ecc_key* key);
 WOLFSSL_API
@@ -150,6 +162,21 @@ void wc_ecc_free(ecc_key* key);
 WOLFSSL_API
 void wc_ecc_fp_free(void);
 
+WOLFSSL_API
+ecc_point* wc_ecc_new_point(void);
+WOLFSSL_API
+void wc_ecc_del_point(ecc_point* p);
+WOLFSSL_API
+int wc_ecc_copy_point(ecc_point* p, ecc_point *r);
+WOLFSSL_API
+int wc_ecc_cmp_point(ecc_point* a, ecc_point *b);
+WOLFSSL_API
+int wc_ecc_point_is_at_infinity(ecc_point *p);
+WOLFSSL_API
+int wc_ecc_is_valid_idx(int n);
+WOLFSSL_API
+int wc_ecc_mulmod(mp_int* k, ecc_point *G, ecc_point *R,
+                  mp_int* modulus, int map);
 
 /* ASN key helpers */
 WOLFSSL_API
@@ -170,6 +197,13 @@ int wc_ecc_import_raw(ecc_key* key, const char* qx, const char* qy,
 
 WOLFSSL_API
 int wc_ecc_export_private_only(ecc_key* key, byte* out, word32* outLen);
+
+WOLFSSL_API
+int wc_ecc_export_point_der(const int curve_idx, ecc_point* point,
+                            byte* out, word32* outLen);
+WOLFSSL_API
+int wc_ecc_import_point_der(byte* in, word32 inLen, const int curve_idx,
+                            ecc_point* point);
 
 /* size helper */
 WOLFSSL_API
@@ -200,6 +234,7 @@ enum {
     KEY_SIZE_128     = 16,
     KEY_SIZE_256     = 32,
     IV_SIZE_64       =  8,
+    IV_SIZE_128      = 16,
     EXCHANGE_SALT_SZ = 16,
     EXCHANGE_INFO_SZ = 23
 };
@@ -213,11 +248,11 @@ enum ecFlags {
 typedef struct ecEncCtx ecEncCtx;
 
 WOLFSSL_API
-ecEncCtx* wc_ecc_ctx_new(int flags, RNG* rng);
+ecEncCtx* wc_ecc_ctx_new(int flags, WC_RNG* rng);
 WOLFSSL_API
 void wc_ecc_ctx_free(ecEncCtx*);
 WOLFSSL_API
-int wc_ecc_ctx_reset(ecEncCtx*, RNG*);   /* reset for use again w/o alloc/free */
+int wc_ecc_ctx_reset(ecEncCtx*, WC_RNG*);  /* reset for use again w/o alloc/free */
 
 WOLFSSL_API
 const byte* wc_ecc_ctx_get_own_salt(ecEncCtx*);

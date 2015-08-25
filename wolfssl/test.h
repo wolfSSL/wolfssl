@@ -41,6 +41,13 @@
     #include <arpa/inet.h>
     #include <sys/socket.h>
     #include <ti/sysbios/knl/Task.h>
+    struct hostent {
+    	char *h_name; /* official name of host */
+    	char **h_aliases; /* alias list */
+    	int h_addrtype; /* host address type */
+    	int h_length; /* length of address */
+    	char **h_addr_list; /* list of addresses from name server */
+    };
     #define SOCKET_T int
 #else
     #include <string.h>
@@ -154,6 +161,11 @@
 #define CLIENT_DEFAULT_VERSION 3
 #define CLIENT_DTLS_DEFAULT_VERSION (-2)
 #define CLIENT_INVALID_VERSION (-99)
+#if !defined(NO_FILESYSTEM) && defined(WOLFSSL_MAX_STRENGTH)
+    #define DEFAULT_MIN_DHKEY_BITS 2048
+#else
+    #define DEFAULT_MIN_DHKEY_BITS 1024
+#endif
 
 /* all certs relative to wolfSSL home directory now */
 #define caCert     "./certs/ca-cert.pem"
@@ -405,6 +417,8 @@ static INLINE void build_addr(SOCKADDR_IN_T* addr, const char* peer,
         #ifdef WOLFSSL_MDK_ARM
             int err;
             struct hostent* entry = gethostbyname(peer, &err);
+        #elif defined(WOLFSSL_TIRTOS)
+            struct hostent* entry = DNSGetHostByName(peer);
         #else
             struct hostent* entry = gethostbyname(peer);
         #endif
@@ -604,7 +618,7 @@ static INLINE void tcp_listen(SOCKET_T* sockfd, word16* port, int useAnyAddr,
         if (listen(*sockfd, 5) != 0)
             err_sys("tcp listen failed");
     }
-    #if defined(NO_MAIN_DRIVER) && !defined(USE_WINDOWS_API)
+    #if (defined(NO_MAIN_DRIVER) && !defined(USE_WINDOWS_API)) && !defined(WOLFSSL_TIRTOS)
         if (*port == 0) {
             socklen_t len = sizeof(addr);
             if (getsockname(*sockfd, (struct sockaddr*)&addr, &len) == 0) {
@@ -662,7 +676,7 @@ static INLINE void udp_accept(SOCKET_T* sockfd, SOCKET_T* clientfd,
     if (bind(*sockfd, (const struct sockaddr*)&addr, sizeof(addr)) != 0)
         err_sys("tcp bind failed");
 
-    #if defined(NO_MAIN_DRIVER) && !defined(USE_WINDOWS_API)
+    #if (defined(NO_MAIN_DRIVER) && !defined(USE_WINDOWS_API)) && !defined(WOLFSSL_TIRTOS)
         if (port == 0) {
             socklen_t len = sizeof(addr);
             if (getsockname(*sockfd, (struct sockaddr*)&addr, &len) == 0) {
@@ -728,7 +742,11 @@ static INLINE void tcp_accept(SOCKET_T* sockfd, SOCKET_T* clientfd,
 
     if (ready_file) {
 #ifndef NO_FILESYSTEM
-        FILE* srf = fopen("./server_ready", "w+");
+    #ifndef USE_WINDOWS_API
+        FILE* srf = fopen("/tmp/wolfssl_server_ready", "w");
+    #else
+        FILE* srf = fopen("wolfssl_server_ready", "w");
+    #endif
 
         if (srf) {
             fputs("ready", srf);
@@ -1502,6 +1520,8 @@ static INLINE int myDecryptVerifyCb(WOLFSSL* ssl,
 
     /* decrypt */
     ret = wc_AesCbcDecrypt(&decCtx->aes, decOut, decIn, decSz);
+    if (ret != 0)
+        return ret;
 
     if (wolfSSL_GetCipherType(ssl) == WOLFSSL_AEAD_TYPE) {
         *padSz = wolfSSL_GetAeadMacSize(ssl);
@@ -1588,7 +1608,7 @@ static INLINE void FreeAtomicUser(WOLFSSL* ssl)
 static INLINE int myEccSign(WOLFSSL* ssl, const byte* in, word32 inSz,
         byte* out, word32* outSz, const byte* key, word32 keySz, void* ctx)
 {
-    RNG     rng;
+    WC_RNG  rng;
     int     ret;
     word32  idx = 0;
     ecc_key myKey;
@@ -1639,7 +1659,7 @@ static INLINE int myEccVerify(WOLFSSL* ssl, const byte* sig, word32 sigSz,
 static INLINE int myRsaSign(WOLFSSL* ssl, const byte* in, word32 inSz,
         byte* out, word32* outSz, const byte* key, word32 keySz, void* ctx)
 {
-    RNG     rng;
+    WC_RNG  rng;
     int     ret;
     word32  idx = 0;
     RsaKey  myKey;
@@ -1697,7 +1717,7 @@ static INLINE int myRsaEnc(WOLFSSL* ssl, const byte* in, word32 inSz,
     int     ret;
     word32  idx = 0;
     RsaKey  myKey;
-    RNG     rng;
+    WC_RNG  rng;
 
     (void)ssl;
     (void)ctx;
@@ -1802,8 +1822,8 @@ static INLINE const char* mymktemp(char *tempfn, int len, int num)
     int x, size;
     static const char alphanum[] = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
                                    "abcdefghijklmnopqrstuvwxyz";
-    RNG rng;
-    byte out;
+    WC_RNG rng;
+    byte   out;
 
     if (tempfn == NULL || len < 1 || num < 1 || len <= num) {
         printf("Bad input\n");
@@ -1831,5 +1851,104 @@ static INLINE const char* mymktemp(char *tempfn, int len, int num)
     return tempfn;
 }
 
-#endif /* wolfSSL_TEST_H */
 
+
+#if defined(HAVE_SESSION_TICKET) && defined(HAVE_CHACHA) && \
+                                    defined(HAVE_POLY1305)
+
+    #include <wolfssl/wolfcrypt/chacha20_poly1305.h>
+
+    typedef struct key_ctx {
+        byte name[WOLFSSL_TICKET_NAME_SZ];     /* name for this context */
+        byte key[16];                          /* cipher key */
+    } key_ctx;
+
+    static key_ctx myKey_ctx;
+    static WC_RNG rng;
+
+    static INLINE int TicketInit(void)
+    {
+        int ret = wc_InitRng(&rng);
+        if (ret != 0) return ret;
+
+        ret = wc_RNG_GenerateBlock(&rng, myKey_ctx.key, sizeof(myKey_ctx.key));
+        if (ret != 0) return ret;
+
+        ret = wc_RNG_GenerateBlock(&rng, myKey_ctx.name,sizeof(myKey_ctx.name));
+        if (ret != 0) return ret;
+
+        return 0;
+    }
+
+    static INLINE void TicketCleanup(void)
+    {
+        wc_FreeRng(&rng);
+    }
+
+    static INLINE int myTicketEncCb(WOLFSSL* ssl,
+                             byte key_name[WOLFSSL_TICKET_NAME_SZ],
+                             byte iv[WOLFSSL_TICKET_IV_SZ],
+                             byte mac[WOLFSSL_TICKET_MAC_SZ],
+                             int enc, byte* ticket, int inLen, int* outLen,
+                             void* userCtx)
+    {
+        (void)ssl;
+        (void)userCtx;
+
+        int ret;
+        word16 sLen = htons(inLen);
+        byte aad[WOLFSSL_TICKET_NAME_SZ + WOLFSSL_TICKET_IV_SZ + 2];
+        int  aadSz = WOLFSSL_TICKET_NAME_SZ + WOLFSSL_TICKET_IV_SZ + 2;
+        byte* tmp = aad;
+
+        if (enc) {
+            XMEMCPY(key_name, myKey_ctx.name, WOLFSSL_TICKET_NAME_SZ);
+
+            ret = wc_RNG_GenerateBlock(&rng, iv, WOLFSSL_TICKET_IV_SZ);
+            if (ret != 0) return WOLFSSL_TICKET_RET_REJECT;
+
+            /* build aad from key name, iv, and length */
+            XMEMCPY(tmp, key_name, WOLFSSL_TICKET_NAME_SZ);
+            tmp += WOLFSSL_TICKET_NAME_SZ;
+            XMEMCPY(tmp, iv, WOLFSSL_TICKET_IV_SZ);
+            tmp += WOLFSSL_TICKET_IV_SZ;
+            XMEMCPY(tmp, &sLen, 2);
+
+            ret = wc_ChaCha20Poly1305_Encrypt(myKey_ctx.key, iv,
+                                              aad, aadSz,
+                                              ticket, inLen,
+                                              ticket,
+                                              mac);
+            if (ret != 0) return WOLFSSL_TICKET_RET_REJECT;
+            *outLen = inLen;  /* no padding in this mode */
+        } else {
+            /* decrypt */
+
+            /* see if we know this key */
+            if (XMEMCMP(key_name, myKey_ctx.name, WOLFSSL_TICKET_NAME_SZ) != 0){
+                printf("client presented unknown ticket key name ");
+                return WOLFSSL_TICKET_RET_FATAL;
+            }
+
+            /* build aad from key name, iv, and length */
+            XMEMCPY(tmp, key_name, WOLFSSL_TICKET_NAME_SZ);
+            tmp += WOLFSSL_TICKET_NAME_SZ;
+            XMEMCPY(tmp, iv, WOLFSSL_TICKET_IV_SZ);
+            tmp += WOLFSSL_TICKET_IV_SZ;
+            XMEMCPY(tmp, &sLen, 2);
+
+            ret = wc_ChaCha20Poly1305_Decrypt(myKey_ctx.key, iv,
+                                              aad, aadSz,
+                                              ticket, inLen,
+                                              mac,
+                                              ticket);
+            if (ret != 0) return WOLFSSL_TICKET_RET_REJECT;
+            *outLen = inLen;  /* no padding in this mode */
+        }
+
+        return WOLFSSL_TICKET_RET_OK;
+    }
+
+#endif  /* HAVE_SESSION_TICKET && CHACHA20 && POLY1305 */
+
+#endif /* wolfSSL_TEST_H */

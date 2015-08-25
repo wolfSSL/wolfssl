@@ -57,12 +57,11 @@
 	    return ShaFinal_fips(sha,out);
     }
 
-    int wc_ShaHash(const byte* data, word32 sz, byte* out)
-    {
-        return ShaHash(data, sz, out);
-    }
-
 #else /* else build without fips */
+
+#if defined(WOLFSSL_TI_HASH)
+    /* #include <wolfcrypt/src/port/ti/ti-hash.c> included by wc_port.c */
+#else
 
 #ifdef WOLFSSL_PIC32MZ_HASH
 #define wc_InitSha   wc_InitSha_sw
@@ -198,14 +197,15 @@ int wc_ShaFinal(Sha* sha, byte* hash)
 
 #else /* wc_ software implementation */
 
-#ifndef min
+#ifndef WOLFSSL_HAVE_MIN
+#define WOLFSSL_HAVE_MIN
 
-static INLINE word32 min(word32 a, word32 b)
-{
-    return a > b ? b : a;
-}
+    static INLINE word32 min(word32 a, word32 b)
+    {
+        return a > b ? b : a;
+    }
 
-#endif /* min */
+#endif /* WOLFSSL_HAVE_MIN */
 
 
 int wc_InitSha(Sha* sha)
@@ -416,36 +416,8 @@ int wc_ShaFinal(Sha* sha, byte* hash)
 #endif /* STM32F2_HASH */
 
 
-int wc_ShaHash(const byte* data, word32 len, byte* hash)
-{
-    int ret = 0;
-#ifdef WOLFSSL_SMALL_STACK
-    Sha* sha;
-#else
-    Sha sha[1];
-#endif
 
-#ifdef WOLFSSL_SMALL_STACK
-    sha = (Sha*)XMALLOC(sizeof(Sha), NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    if (sha == NULL)
-        return MEMORY_E;
-#endif
-
-    if ((ret = wc_InitSha(sha)) != 0) {
-        WOLFSSL_MSG("wc_InitSha failed");
-    }
-    else {
-        wc_ShaUpdate(sha, data, len);
-        wc_ShaFinal(sha, hash);
-    }
-
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(sha, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
-
-    return ret;
-
-}
 #endif /* HAVE_FIPS */
+#endif /* WOLFSSL_TI_HASH */
 #endif /* NO_SHA */
 

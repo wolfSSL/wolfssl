@@ -66,8 +66,8 @@ static int InitCRL_Entry(CRL_Entry* crle, DecodedCRL* dcrl)
 {
     WOLFSSL_ENTER("InitCRL_Entry");
 
-    XMEMCPY(crle->issuerHash, dcrl->issuerHash, SHA_DIGEST_SIZE);
-    /* XMEMCPY(crle->crlHash, dcrl->crlHash, SHA_DIGEST_SIZE);
+    XMEMCPY(crle->issuerHash, dcrl->issuerHash, CRL_DIGEST_SIZE);
+    /* XMEMCPY(crle->crlHash, dcrl->crlHash, CRL_DIGEST_SIZE);
      *   copy the hash here if needed for optimized comparisons */
     XMEMCPY(crle->lastDate, dcrl->lastDate, MAX_DATE_SIZE);
     XMEMCPY(crle->nextDate, dcrl->nextDate, MAX_DATE_SIZE);
@@ -152,7 +152,7 @@ int CheckCertCRL(WOLFSSL_CRL* crl, DecodedCert* cert)
     crle = crl->crlList;
 
     while (crle) {
-        if (XMEMCMP(crle->issuerHash, cert->issuerHash, SHA_DIGEST_SIZE) == 0) {
+        if (XMEMCMP(crle->issuerHash, cert->issuerHash, CRL_DIGEST_SIZE) == 0) {
             WOLFSSL_MSG("Found CRL Entry on list");
             WOLFSSL_MSG("Checking next date validity");
 

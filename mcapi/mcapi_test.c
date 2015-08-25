@@ -69,7 +69,7 @@ static byte ourData[OUR_DATA_SIZE];
 static byte* key = NULL;
 static byte* iv  = NULL;
 static CRYPT_RNG_CTX mcRng;
-static RNG           defRng;
+static WC_RNG        defRng;
 
 static int check_md5(void);
 static int check_sha(void);

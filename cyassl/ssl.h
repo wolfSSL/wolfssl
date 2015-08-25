@@ -615,6 +615,7 @@
 #define CyaSSL_connect_cert       wolfSSL_connect_cert
 #define CyaSSL_flush_sessions     wolfSSL_flush_sessions
 #define CyaSSL_get_using_nonblock wolfSSL_get_using_nonblock
+#define CyaSSL_PrintSessionStats  wolfSSL_PrintSessionStats
 
 /* DTLS Specific */
 #define CyaSSL_dtls                     wolfSSL_dtls

@@ -27,6 +27,7 @@
 
 #include <wolfssl/wolfcrypt/settings.h>
 
+#ifndef CURVED25519_SMALL /* run when not defined to use small memory math */
 #if defined(HAVE_ED25519) || defined(HAVE_CURVE25519)
 
 #include <wolfssl/wolfcrypt/fe_operations.h>
@@ -102,6 +103,83 @@ void fe_0(fe h)
   h[7] = 0;
   h[8] = 0;
   h[9] = 0;
+}
+
+
+int curve25519(byte* q, byte* n, byte* p)
+{
+#if 0
+  unsigned char e[32];
+#endif
+  fe x1;
+  fe x2;
+  fe z2;
+  fe x3;
+  fe z3;
+  fe tmp0;
+  fe tmp1;
+  int pos;
+  unsigned int swap;
+  unsigned int b;
+
+  /* Clamp already done during key generation and import */
+#if 0
+  {
+    unsigned int i;
+    for (i = 0;i < 32;++i) e[i] = n[i];
+    e[0] &= 248;
+    e[31] &= 127;
+    e[31] |= 64;
+  }
+#endif
+
+  fe_frombytes(x1,p);
+  fe_1(x2);
+  fe_0(z2);
+  fe_copy(x3,x1);
+  fe_1(z3);
+
+  swap = 0;
+  for (pos = 254;pos >= 0;--pos) {
+#if 0
+    b = e[pos / 8] >> (pos & 7);
+#else
+    b = n[pos / 8] >> (pos & 7);
+#endif
+    b &= 1;
+    swap ^= b;
+    fe_cswap(x2,x3,swap);
+    fe_cswap(z2,z3,swap);
+    swap = b;
+
+    /* montgomery */
+	fe_sub(tmp0,x3,z3);
+	fe_sub(tmp1,x2,z2);
+	fe_add(x2,x2,z2);
+	fe_add(z2,x3,z3);
+	fe_mul(z3,tmp0,x2);
+	fe_mul(z2,z2,tmp1);
+	fe_sq(tmp0,tmp1);
+	fe_sq(tmp1,x2);
+	fe_add(x3,z3,z2);
+	fe_sub(z2,z3,z2);
+	fe_mul(x2,tmp1,tmp0);
+	fe_sub(tmp1,tmp1,tmp0);
+	fe_sq(z2,z2);
+	fe_mul121666(z3,tmp1);
+	fe_sq(x3,x3);
+	fe_add(tmp0,tmp0,z3);
+	fe_mul(z3,x1,z2);
+	fe_mul(z2,tmp1,tmp0);
+  }
+  fe_cswap(x2,x3,swap);
+  fe_cswap(z2,z3,swap);
+
+  fe_invert(z2,z2);
+  fe_mul(x2,x2,z2);
+  fe_tobytes(q,x2);
+
+  return 0;
 }
 
 
@@ -1236,14 +1314,11 @@ void fe_neg(fe h,const fe f)
 
 
 /*
-return 1 if f == 0
-return 0 if f != 0
-
 Preconditions:
    |f| bounded by 1.1*2^26,1.1*2^25,1.1*2^26,1.1*2^25,etc.
 */
 
-static const unsigned char zero[32];
+static const unsigned char zero[32] = {0};
 
 int fe_isnonzero(const fe f)
 {
@@ -1331,4 +1406,5 @@ void fe_cmov(fe f,const fe g,unsigned int b)
   f[9] = f9 ^ x9;
 }
 #endif /* HAVE ED25519 or CURVE25519 */
+#endif /* not defined CURVED25519_SMALL */
 

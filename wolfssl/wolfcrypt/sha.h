@@ -51,6 +51,8 @@ enum {
 #include "port/pic32/pic32mz-crypt.h"
 #endif
 
+#ifndef WOLFSSL_TI_HASH
+      
 /* Sha digest */
 typedef struct Sha {
     word32  buffLen;   /* in bytes          */
@@ -64,12 +66,16 @@ typedef struct Sha {
         pic32mz_desc desc; /* Crypt Engine descripter */
     #endif
 } Sha;
+
+#else /* WOLFSSL_TI_HASH */
+    #include "wolfssl/wolfcrypt/port/ti/ti-hash.h"
+#endif
+
 #endif /* HAVE_FIPS */
 
 WOLFSSL_API int wc_InitSha(Sha*);
 WOLFSSL_API int wc_ShaUpdate(Sha*, const byte*, word32);
 WOLFSSL_API int wc_ShaFinal(Sha*, byte*);
-WOLFSSL_API int wc_ShaHash(const byte*, word32, byte*);
 
 #ifdef __cplusplus
     } /* extern "C" */

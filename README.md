@@ -2,27 +2,27 @@
 
 ## Note 1
 ```
-wolfSSL now needs all examples and tests to be run from the wolfSSL home
-directory.  This is because it finds certs and keys from ./certs/.  Trying to
-maintain the ability to run each program from its own directory, the testsuite
-directory, the main directory (for make check/test), and for the various
-different project layouts (with or without config) was becoming harder and 
-harder.  Now to run testsuite just do:
+wolfSSL as of 3.6.6 no longer enables SSLv3 by default.  wolfSSL also no
+longer supports static key cipher suites with PSK, RSA, or ECDH.  This means
+if you plan to use TLS cipher suites you must enable DH (DH is on  by default),
+or enable ECC (ECC is on by default on 64bit systems), or you must enable static
+key cipher suites with
+    WOLFSSL_STATI_DH
+    WOLFSSL_STATIC_RSA
+    or
+    WOLFSSL_STATIC_PSK
 
-./testsuite/testsuite
+though static key cipher suites are deprecated and will be removed from future
+versions of TLS.  They also lower your security by removing PFS.
 
-or 
-
-make check    (when using autoconf)
-
-On *nix or Windows the examples and testsuite will check to see if the current
-directory is the source directory and if so, attempt to change to the wolfSSL
-home directory.  This should work in most setup cases, if not, just follow the
-beginning of the note and specify the full path.
+When compiling ssl.c wolfSSL will now issue a comipler error if no cipher suites
+are available.  You can remove this error by defining WOLFSSL_ALLOW_NO_SUITES
+in the event that you desire that, i.e., you're not using TLS cipher suites.
 ```
 
 ## Note 2
 ```
+
 wolfSSL takes a different approach to certificate verification than OpenSSL
 does.  The default policy for the client is to verify the server, this means
 that if you don't load CAs to verify the server you'll get a connect error,
@@ -34,6 +34,79 @@ wolfSSL_CTX_set_verify(ctx, SSL_VERIFY_NONE, 0);
 
 before calling wolfSSL_new();  Though it's not recommended.
 ```
+
+#wolfSSL (Formerly CyaSSL) Release 3.6.6 (08/20/2015)
+
+##Release 3.6.6 of wolfSSL has bug fixes and new features including:
+
+- OpenSSH  compatibility with --enable-openssh
+- stunnel  compatibility with --enable-stunnel
+- lighttpd compatibility with --enable-lighty
+- SSLv3 is now disabled by default, can be enabled with --enable-sslv3
+- Ephemeral key cipher suites only are now supported by default
+    To enable static ECDH cipher suites define WOLFSSL_STATIC_DH
+    To enable static  RSA cipher suites define WOLFSSL_STATIC_RSA
+    To enable static  PSK cipher suites define WOLFSSL_STATIC_PSK
+- Added QSH (quantum-safe handshake) extension with --enable-ntru
+- SRP is now part of wolfCrypt, enable with --enabe-srp
+- Certificate handshake messages can now be sent fragmented if the record
+  size is smaller than the total message size, no user action required.
+- DTLS duplicate message fixes
+- Visual Studio project files now support DLL and static builds for 32/64bit.
+- Support for new Freesacle I/O
+- FreeRTOS FIPS support
+
+- No high level security fixes that requires an update though we always
+  recommend updating to the latest
+
+See INSTALL file for build instructions.
+More info can be found on-line at //http://wolfssl.com/yaSSL/Docs.html
+
+
+#wolfSSL (Formerly CyaSSL) Release 3.6.0 (06/19/2015)
+
+##Release 3.6.0 of wolfSSL has bug fixes and new features including:
+
+- Max Strength build that only allows TLSv1.2, AEAD ciphers, and PFS (Perfect
+   Forward Secrecy).  With --enable-maxstrength
+- Server side session ticket support, the example server and echosever use the
+   example callback myTicketEncCb(), see wolfSSL_CTX_set_TicketEncCb()
+- FIPS version submitted for iOS.
+- TI Crypto Hardware Acceleration
+- DTLS fragmentation fixes
+- ECC key check validation with wc_ecc_check_key()
+- 32bit code options to reduce memory for Curve25519 and Ed25519
+- wolfSSL JNI build switch with --enable-jni
+- PicoTCP support improvements
+- DH min ephemeral key size enforcement with wolfSSL_CTX_SetMinDhKey_Sz()
+- KEEP_PEER_CERT and AltNames can now be used together
+- ChaCha20 big endian fix
+- SHA-512 signature algorithm support for key exchange and verify messages
+- ECC make key crash fix on RNG failure, ECC users must update.
+- Improvements to usage of time code.
+- Improvements to VS solution files.
+- GNU Binutils 2.24 ld has problems with some debug builds, to fix an ld error
+  add -fdebug-types-section to C_EXTRA_FLAGS
+
+- No high level security fixes that requires an update though we always
+  recommend updating to the latest (except note 14, ecc RNG failure)
+
+See INSTALL file for build instructions.
+More info can be found on-line at //http://wolfssl.com/yaSSL/Docs.html
+
+
+#wolfSSL (Formerly CyaSSL) Release 3.4.8 (04/06/2015)
+
+##Release 3.4.8 of wolfSSL has bug fixes and new features including:
+
+- FIPS version submitted for iOS.
+- Max Strength build that only allows TLSv1.2, AEAD ciphers, and PFS.
+- Improvements to usage of time code.
+- Improvements to VS solution files.
+
+See INSTALL file for build instructions.
+More info can be found on-line at //http://wolfssl.com/yaSSL/Docs.html
+
 
 #wolfSSL (Formerly CyaSSL) Release 3.4.6 (03/30/2015)
 

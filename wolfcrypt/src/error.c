@@ -319,6 +319,24 @@ const char* wc_GetErrorString(int error)
     case MAC_CMP_FAILED_E:
         return "MAC comparison failed";
 
+    case IS_POINT_E:
+        return "ECC is point on curve failed";
+
+    case ECC_INF_E:
+        return " ECC point at infinity error";
+
+    case ECC_PRIV_KEY_E:
+        return " ECC private key is not valid error";
+
+    case SRP_CALL_ORDER_E:
+        return "SRP function called in the wrong order error";
+
+    case SRP_VERIFY_E:
+        return "SRP proof verification error";
+
+    case SRP_BAD_KEY_E:
+        return "SRP bad key values error";
+
     default:
         return "unknown error number";
 

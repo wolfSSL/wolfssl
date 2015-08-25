@@ -46,8 +46,9 @@
 
 enum {
     RSA_PUBLIC   = 0,
-    RSA_PRIVATE  = 1
+    RSA_PRIVATE  = 1,
 };
+
 
 /* RSA */
 typedef struct RsaKey {
@@ -76,13 +77,13 @@ WOLFSSL_API int  wc_InitRsaKey(RsaKey* key, void*);
 WOLFSSL_API int  wc_FreeRsaKey(RsaKey* key);
 
 WOLFSSL_API int  wc_RsaPublicEncrypt(const byte* in, word32 inLen, byte* out,
-                                 word32 outLen, RsaKey* key, RNG* rng);
+                                 word32 outLen, RsaKey* key, WC_RNG* rng);
 WOLFSSL_API int  wc_RsaPrivateDecryptInline(byte* in, word32 inLen, byte** out,
                                         RsaKey* key);
 WOLFSSL_API int  wc_RsaPrivateDecrypt(const byte* in, word32 inLen, byte* out,
                                   word32 outLen, RsaKey* key);
 WOLFSSL_API int  wc_RsaSSL_Sign(const byte* in, word32 inLen, byte* out,
-                            word32 outLen, RsaKey* key, RNG* rng);
+                            word32 outLen, RsaKey* key, WC_RNG* rng);
 WOLFSSL_API int  wc_RsaSSL_VerifyInline(byte* in, word32 inLen, byte** out,
                                     RsaKey* key);
 WOLFSSL_API int  wc_RsaSSL_Verify(const byte* in, word32 inLen, byte* out,
@@ -96,13 +97,15 @@ WOLFSSL_API int  wc_RsaPublicKeyDecode(const byte* input, word32* inOutIdx,
                                                                RsaKey*, word32);
 WOLFSSL_API int  wc_RsaPublicKeyDecodeRaw(const byte* n, word32 nSz,
                                         const byte* e, word32 eSz, RsaKey* key);
+#ifdef WOLFSSL_KEY_GEN
+    WOLFSSL_API int wc_RsaKeyToDer(RsaKey*, byte* output, word32 inLen);
+#endif
 #endif /* HAVE_FIPS*/
 WOLFSSL_API int  wc_RsaFlattenPublicKey(RsaKey*, byte*, word32*, byte*,
                                                                        word32*);
 
 #ifdef WOLFSSL_KEY_GEN
-    WOLFSSL_API int wc_MakeRsaKey(RsaKey* key, int size, long e, RNG* rng);
-    WOLFSSL_API int wc_RsaKeyToDer(RsaKey*, byte* output, word32 inLen);
+    WOLFSSL_API int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng);
 #endif
 
 #ifdef HAVE_CAVIUM

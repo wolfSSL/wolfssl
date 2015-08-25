@@ -4,27 +4,26 @@
 #ifndef WOLFSSL_DH_H_
 #define WOLFSSL_DH_H_
 
-
 #include <wolfssl/openssl/ssl.h>
 #include <wolfssl/openssl/bn.h>
-
 
 #ifdef __cplusplus
     extern "C" {
 #endif
 
-
-
-
-typedef struct WOLFSSL_DH {
-	WOLFSSL_BIGNUM* p;
-	WOLFSSL_BIGNUM* g;
+struct WOLFSSL_DH {
+    WOLFSSL_BIGNUM* p;
+    WOLFSSL_BIGNUM* g;
     WOLFSSL_BIGNUM* pub_key;      /* openssh deference g^x */
     WOLFSSL_BIGNUM* priv_key;     /* openssh deference x   */
     void*          internal;     /* our DH */
     char           inSet;        /* internal set from external ? */
     char           exSet;        /* external set from internal ? */
-} WOLFSSL_DH;
+    /*added for lighttpd openssl compatability, go back and add a getter in 
+     * lighttpd src code.
+     */
+     int length;
+};
 
 
 WOLFSSL_API WOLFSSL_DH* wolfSSL_DH_new(void);
@@ -49,4 +48,7 @@ typedef WOLFSSL_DH DH;
     }  /* extern "C" */ 
 #endif
 
+#ifdef HAVE_STUNNEL
+#define DH_generate_parameters wolfSSL_DH_generate_parameters
+#endif /* HAVE_STUNNEL */
 #endif /* header */

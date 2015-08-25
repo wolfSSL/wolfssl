@@ -35,6 +35,9 @@
 #endif
 
 #ifndef HAVE_FIPS /* avoid redefining structs and macros */
+#if defined(WOLFSSL_FORCE_RC4_DRBG) && defined(NO_RC4)
+    #error Cannot have WOLFSSL_FORCE_RC4_DRBG and NO_RC4 defined.
+#endif /* WOLFSSL_FORCE_RC4_DRBG && NO_RC4 */
 #if defined(HAVE_HASHDRBG) || defined(NO_RC4)
     #ifdef NO_SHA256
         #error "Hash DRBG requires SHA-256."
@@ -64,13 +67,6 @@ typedef struct OS_Seed {
     #endif
 } OS_Seed;
 
-
-#if defined(WOLFSSL_MDK_ARM)
-#undef RNG
-#define RNG wolfSSL_RNG   /* for avoiding name conflict in "stm32f2xx.h" */
-#endif
-
-
 #if defined(HAVE_HASHDRBG) || defined(NO_RC4)
 
 
@@ -81,11 +77,11 @@ struct DRBG; /* Private DRBG state */
 
 
 /* Hash-based Deterministic Random Bit Generator */
-typedef struct RNG {
+typedef struct WC_RNG {
     struct DRBG* drbg;
     OS_Seed seed;
     byte status;
-} RNG;
+} WC_RNG;
 
 
 #else /* HAVE_HASHDRBG || NO_RC4 */
@@ -96,19 +92,25 @@ typedef struct RNG {
 /* secure Random Number Generator */
 
 
-typedef struct RNG {
+typedef struct WC_RNG {
     OS_Seed seed;
     Arc4    cipher;
 #ifdef HAVE_CAVIUM
     int    devId;           /* nitrox device id */
     word32 magic;           /* using cavium magic */
 #endif
-} RNG;
+} WC_RNG;
 
 
 #endif /* HAVE_HASH_DRBG || NO_RC4 */
 
 #endif /* HAVE_FIPS */
+
+/* NO_OLD_RNGNAME removes RNG struct name to prevent possible type conflicts,
+ * can't be used with CTaoCrypt FIPS */
+#if !defined(NO_OLD_RNGNAME) && !defined(HAVE_FIPS)
+    #define RNG WC_RNG
+#endif
 
 WOLFSSL_LOCAL
 int wc_GenerateSeed(OS_Seed* os, byte* seed, word32 sz);
@@ -116,16 +118,16 @@ int wc_GenerateSeed(OS_Seed* os, byte* seed, word32 sz);
 #if defined(HAVE_HASHDRBG) || defined(NO_RC4)
 
 #ifdef HAVE_CAVIUM
-    WOLFSSL_API int  wc_InitRngCavium(RNG*, int);
+    WOLFSSL_API int  wc_InitRngCavium(WC_RNG*, int);
 #endif
 
 #endif /* HAVE_HASH_DRBG || NO_RC4 */
 
 
-WOLFSSL_API int  wc_InitRng(RNG*);
-WOLFSSL_API int  wc_RNG_GenerateBlock(RNG*, byte*, word32 sz);
-WOLFSSL_API int  wc_RNG_GenerateByte(RNG*, byte*);
-WOLFSSL_API int  wc_FreeRng(RNG*);
+WOLFSSL_API int  wc_InitRng(WC_RNG*);
+WOLFSSL_API int  wc_RNG_GenerateBlock(WC_RNG*, byte*, word32 sz);
+WOLFSSL_API int  wc_RNG_GenerateByte(WC_RNG*, byte*);
+WOLFSSL_API int  wc_FreeRng(WC_RNG*);
 
 
 #if defined(HAVE_HASHDRBG) || defined(NO_RC4)

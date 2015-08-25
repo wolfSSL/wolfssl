@@ -39,32 +39,33 @@ int wc_GenerateSeed(OS_Seed* os, byte* seed, word32 sz)
 }
 
 #ifdef HAVE_CAVIUM
-    int  wc_InitRngCavium(RNG* rng, int i)
+    int  wc_InitRngCavium(WC_RNG* rng, int i)
     {
         return InitRngCavium(rng, i);
     }
 #endif
 
 
-int  wc_InitRng(RNG* rng)
+int  wc_InitRng(WC_RNG* rng)
 {
     return InitRng_fips(rng);
 }
 
 
-int  wc_RNG_GenerateBlock(RNG* rng, byte* b, word32 sz)
+int  wc_RNG_GenerateBlock(WC_RNG* rng, byte* b, word32 sz)
 {
     return RNG_GenerateBlock_fips(rng, b, sz);
 }
 
 
-int  wc_RNG_GenerateByte(RNG* rng, byte* b)
+int  wc_RNG_GenerateByte(WC_RNG* rng, byte* b)
 {
     return RNG_GenerateByte(rng, b);
 }
 
 #if defined(HAVE_HASHDRBG) || defined(NO_RC4)
-    int wc_FreeRng(RNG* rng)
+
+    int wc_FreeRng(WC_RNG* rng)
     {
         return FreeRng_fips(rng);
     }
@@ -100,8 +101,8 @@ int  wc_RNG_GenerateByte(RNG* rng, byte* b)
     #include <windows.h>
     #include <wincrypt.h>
 #else
-    #if !defined(NO_DEV_RANDOM) && !defined(WOLFSSL_MDK_ARM) \
-                                && !defined(WOLFSSL_IAR_ARM)
+    #if !defined(NO_DEV_RANDOM) && !defined(CUSTOM_RAND_GENERATE) && \
+                          !defined(WOLFSSL_MDK_ARM) && !defined(WOLFSSL_IAR_ARM)
             #include <fcntl.h>
         #ifndef EBSNET
             #include <unistd.h>
@@ -170,6 +171,8 @@ typedef struct DRBG {
 } DRBG;
 
 
+static int wc_RNG_HealthTestLocal(int reseed);
+
 /* Hash Derivation Function */
 /* Returns: DRBG_SUCCESS or DRBG_FAILURE */
 static int Hash_df(DRBG* drbg, byte* out, word32 outSz, byte type,
@@ -201,8 +204,7 @@ static int Hash_df(DRBG* drbg, byte* out, word32 outSz, byte type,
         if (wc_Sha256Update(&sha, (byte*)&bits, sizeof(bits)) != 0)
             return DRBG_FAILURE;
 
-        /* churning V is the only string that doesn't have 
-         * the type added */
+        /* churning V is the only string that doesn't have the type added */
         if (type != drbgInitV)
             if (wc_Sha256Update(&sha, &type, sizeof(type)) != 0)
                 return DRBG_FAILURE;
@@ -338,13 +340,13 @@ static INLINE void array_add(byte* d, word32 dLen, const byte* s, word32 sLen)
         for (sIdx = sLen - 1, dIdx = dLen - 1; sIdx >= 0; dIdx--, sIdx--)
         {
             carry += d[dIdx] + s[sIdx];
-            d[dIdx] = carry;
+            d[dIdx] = (byte)carry;
             carry >>= 8;
         }
 
         for (; carry != 0 && dIdx >= 0; dIdx--) {
             carry += d[dIdx];
-            d[dIdx] = carry;
+            d[dIdx] = (byte)carry;
             carry >>= 8;
         }
     }
@@ -413,42 +415,55 @@ static int Hash_DRBG_Instantiate(DRBG* drbg, const byte* seed, word32 seedSz,
 }
 
 
-/* Returns: DRBG_SUCCESS */
+/* Returns: DRBG_SUCCESS or DRBG_FAILURE */
 static int Hash_DRBG_Uninstantiate(DRBG* drbg)
 {
+    word32 i;
+    int    compareSum = 0;
+    byte*  compareDrbg = (byte*)drbg;
+
     ForceZero(drbg, sizeof(DRBG));
 
-    return DRBG_SUCCESS;
+    for (i = 0; i < sizeof(DRBG); i++)
+        compareSum |= compareDrbg[i] ^ 0;
+
+    return (compareSum == 0) ? DRBG_SUCCESS : DRBG_FAILURE;
 }
 
 /* End NIST DRBG Code */
 
 
 /* Get seed and key cipher */
-int wc_InitRng(RNG* rng)
+int wc_InitRng(WC_RNG* rng)
 {
     int ret = BAD_FUNC_ARG;
 
     if (rng != NULL) {
-        byte entropy[ENTROPY_NONCE_SZ];
+        if (wc_RNG_HealthTestLocal(0) == 0) {
+            byte entropy[ENTROPY_NONCE_SZ];
 
-        rng->drbg = (struct DRBG*)XMALLOC(sizeof(DRBG), NULL, DYNAMIC_TYPE_RNG);
-        if (rng->drbg == NULL) {
-            ret = MEMORY_E;
-        }
-        /* This doesn't use a separate nonce. The entropy input will be
-         * the default size plus the size of the nonce making the seed
-         * size. */
-        else if (wc_GenerateSeed(&rng->seed, entropy, ENTROPY_NONCE_SZ) == 0 &&
-                 Hash_DRBG_Instantiate(rng->drbg, entropy, ENTROPY_NONCE_SZ,
-                                                     NULL, 0) == DRBG_SUCCESS) {
+            rng->drbg =
+                    (struct DRBG*)XMALLOC(sizeof(DRBG), NULL, DYNAMIC_TYPE_RNG);
+            if (rng->drbg == NULL) {
+                ret = MEMORY_E;
+            }
+            /* This doesn't use a separate nonce. The entropy input will be
+             * the default size plus the size of the nonce making the seed
+             * size. */
+            else if (wc_GenerateSeed(&rng->seed,
+                                              entropy, ENTROPY_NONCE_SZ) == 0 &&
+                     Hash_DRBG_Instantiate(rng->drbg,
+                          entropy, ENTROPY_NONCE_SZ, NULL, 0) == DRBG_SUCCESS) {
 
-            ret = Hash_DRBG_Generate(rng->drbg, NULL, 0);
+                ret = Hash_DRBG_Generate(rng->drbg, NULL, 0);
+            }
+            else
+                ret = DRBG_FAILURE;
+
+            ForceZero(entropy, ENTROPY_NONCE_SZ);
         }
         else
-            ret = DRBG_FAILURE;
-
-        ForceZero(entropy, ENTROPY_NONCE_SZ);
+            ret = DRBG_CONT_FAILURE;
 
         if (ret == DRBG_SUCCESS) {
             rng->status = DRBG_OK;
@@ -472,7 +487,7 @@ int wc_InitRng(RNG* rng)
 
 
 /* place a generated block in output */
-int wc_RNG_GenerateBlock(RNG* rng, byte* output, word32 sz)
+int wc_RNG_GenerateBlock(WC_RNG* rng, byte* output, word32 sz)
 {
     int ret;
 
@@ -485,19 +500,24 @@ int wc_RNG_GenerateBlock(RNG* rng, byte* output, word32 sz)
     ret = Hash_DRBG_Generate(rng->drbg, output, sz);
 
     if (ret == DRBG_NEED_RESEED) {
-        byte entropy[ENTROPY_SZ];
+        if (wc_RNG_HealthTestLocal(1) == 0) {
+            byte entropy[ENTROPY_SZ];
 
-        if (wc_GenerateSeed(&rng->seed, entropy, ENTROPY_SZ) == 0 &&
-            Hash_DRBG_Reseed(rng->drbg, entropy, ENTROPY_SZ) == DRBG_SUCCESS) {
+            if (wc_GenerateSeed(&rng->seed, entropy, ENTROPY_SZ) == 0 &&
+                Hash_DRBG_Reseed(rng->drbg, entropy, ENTROPY_SZ)
+                                                              == DRBG_SUCCESS) {
 
-            ret = Hash_DRBG_Generate(rng->drbg, NULL, 0);
-            if (ret == DRBG_SUCCESS)
-                ret = Hash_DRBG_Generate(rng->drbg, output, sz);
+                ret = Hash_DRBG_Generate(rng->drbg, NULL, 0);
+                if (ret == DRBG_SUCCESS)
+                    ret = Hash_DRBG_Generate(rng->drbg, output, sz);
+            }
+            else
+                ret = DRBG_FAILURE;
+
+            ForceZero(entropy, ENTROPY_SZ);
         }
         else
-            ret = DRBG_FAILURE;
-
-        ForceZero(entropy, ENTROPY_SZ);
+            ret = DRBG_CONT_FAILURE;
     }
 
     if (ret == DRBG_SUCCESS) {
@@ -516,13 +536,13 @@ int wc_RNG_GenerateBlock(RNG* rng, byte* output, word32 sz)
 }
 
 
-int wc_RNG_GenerateByte(RNG* rng, byte* b)
+int wc_RNG_GenerateByte(WC_RNG* rng, byte* b)
 {
     return wc_RNG_GenerateBlock(rng, b, 1);
 }
 
 
-int wc_FreeRng(RNG* rng)
+int wc_FreeRng(WC_RNG* rng)
 {
     int ret = BAD_FUNC_ARG;
 
@@ -545,8 +565,8 @@ int wc_FreeRng(RNG* rng)
 
 
 int wc_RNG_HealthTest(int reseed, const byte* entropyA, word32 entropyASz,
-                               const byte* entropyB, word32 entropyBSz,
-                               byte* output, word32 outputSz)
+                                  const byte* entropyB, word32 entropyBSz,
+                                  byte* output, word32 outputSz)
 {
     DRBG drbg;
 
@@ -579,15 +599,95 @@ int wc_RNG_HealthTest(int reseed, const byte* entropyA, word32 entropyASz,
         return -1;
     }
 
-    Hash_DRBG_Uninstantiate(&drbg);
+    if (Hash_DRBG_Uninstantiate(&drbg) != 0) {
+        return -1;
+    }
 
     return 0;
 }
 
+
+const byte entropyA[] = {
+    0x63, 0x36, 0x33, 0x77, 0xe4, 0x1e, 0x86, 0x46, 0x8d, 0xeb, 0x0a, 0xb4,
+    0xa8, 0xed, 0x68, 0x3f, 0x6a, 0x13, 0x4e, 0x47, 0xe0, 0x14, 0xc7, 0x00,
+    0x45, 0x4e, 0x81, 0xe9, 0x53, 0x58, 0xa5, 0x69, 0x80, 0x8a, 0xa3, 0x8f,
+    0x2a, 0x72, 0xa6, 0x23, 0x59, 0x91, 0x5a, 0x9f, 0x8a, 0x04, 0xca, 0x68
+};
+
+const byte reseedEntropyA[] = {
+    0xe6, 0x2b, 0x8a, 0x8e, 0xe8, 0xf1, 0x41, 0xb6, 0x98, 0x05, 0x66, 0xe3,
+    0xbf, 0xe3, 0xc0, 0x49, 0x03, 0xda, 0xd4, 0xac, 0x2c, 0xdf, 0x9f, 0x22,
+    0x80, 0x01, 0x0a, 0x67, 0x39, 0xbc, 0x83, 0xd3
+};
+
+const byte outputA[] = {
+    0x04, 0xee, 0xc6, 0x3b, 0xb2, 0x31, 0xdf, 0x2c, 0x63, 0x0a, 0x1a, 0xfb,
+    0xe7, 0x24, 0x94, 0x9d, 0x00, 0x5a, 0x58, 0x78, 0x51, 0xe1, 0xaa, 0x79,
+    0x5e, 0x47, 0x73, 0x47, 0xc8, 0xb0, 0x56, 0x62, 0x1c, 0x18, 0xbd, 0xdc,
+    0xdd, 0x8d, 0x99, 0xfc, 0x5f, 0xc2, 0xb9, 0x20, 0x53, 0xd8, 0xcf, 0xac,
+    0xfb, 0x0b, 0xb8, 0x83, 0x12, 0x05, 0xfa, 0xd1, 0xdd, 0xd6, 0xc0, 0x71,
+    0x31, 0x8a, 0x60, 0x18, 0xf0, 0x3b, 0x73, 0xf5, 0xed, 0xe4, 0xd4, 0xd0,
+    0x71, 0xf9, 0xde, 0x03, 0xfd, 0x7a, 0xea, 0x10, 0x5d, 0x92, 0x99, 0xb8,
+    0xaf, 0x99, 0xaa, 0x07, 0x5b, 0xdb, 0x4d, 0xb9, 0xaa, 0x28, 0xc1, 0x8d,
+    0x17, 0x4b, 0x56, 0xee, 0x2a, 0x01, 0x4d, 0x09, 0x88, 0x96, 0xff, 0x22,
+    0x82, 0xc9, 0x55, 0xa8, 0x19, 0x69, 0xe0, 0x69, 0xfa, 0x8c, 0xe0, 0x07,
+    0xa1, 0x80, 0x18, 0x3a, 0x07, 0xdf, 0xae, 0x17
+};
+
+const byte entropyB[] = {
+    0xa6, 0x5a, 0xd0, 0xf3, 0x45, 0xdb, 0x4e, 0x0e, 0xff, 0xe8, 0x75, 0xc3,
+    0xa2, 0xe7, 0x1f, 0x42, 0xc7, 0x12, 0x9d, 0x62, 0x0f, 0xf5, 0xc1, 0x19,
+    0xa9, 0xef, 0x55, 0xf0, 0x51, 0x85, 0xe0, 0xfb, 0x85, 0x81, 0xf9, 0x31,
+    0x75, 0x17, 0x27, 0x6e, 0x06, 0xe9, 0x60, 0x7d, 0xdb, 0xcb, 0xcc, 0x2e
+};
+
+const byte outputB[] = {
+    0xd3, 0xe1, 0x60, 0xc3, 0x5b, 0x99, 0xf3, 0x40, 0xb2, 0x62, 0x82, 0x64,
+    0xd1, 0x75, 0x10, 0x60, 0xe0, 0x04, 0x5d, 0xa3, 0x83, 0xff, 0x57, 0xa5,
+    0x7d, 0x73, 0xa6, 0x73, 0xd2, 0xb8, 0xd8, 0x0d, 0xaa, 0xf6, 0xa6, 0xc3,
+    0x5a, 0x91, 0xbb, 0x45, 0x79, 0xd7, 0x3f, 0xd0, 0xc8, 0xfe, 0xd1, 0x11,
+    0xb0, 0x39, 0x13, 0x06, 0x82, 0x8a, 0xdf, 0xed, 0x52, 0x8f, 0x01, 0x81,
+    0x21, 0xb3, 0xfe, 0xbd, 0xc3, 0x43, 0xe7, 0x97, 0xb8, 0x7d, 0xbb, 0x63,
+    0xdb, 0x13, 0x33, 0xde, 0xd9, 0xd1, 0xec, 0xe1, 0x77, 0xcf, 0xa6, 0xb7,
+    0x1f, 0xe8, 0xab, 0x1d, 0xa4, 0x66, 0x24, 0xed, 0x64, 0x15, 0xe5, 0x1c,
+    0xcd, 0xe2, 0xc7, 0xca, 0x86, 0xe2, 0x83, 0x99, 0x0e, 0xea, 0xeb, 0x91,
+    0x12, 0x04, 0x15, 0x52, 0x8b, 0x22, 0x95, 0x91, 0x02, 0x81, 0xb0, 0x2d,
+    0xd4, 0x31, 0xf4, 0xc9, 0xf7, 0x04, 0x27, 0xdf
+};
+
+
+static int wc_RNG_HealthTestLocal(int reseed)
+{
+    int ret = 0;
+    byte check[SHA256_DIGEST_SIZE * 4];
+
+    if (reseed) {
+        ret = wc_RNG_HealthTest(1, entropyA, sizeof(entropyA),
+                                reseedEntropyA, sizeof(reseedEntropyA),
+                                check, sizeof(check));
+        if (ret == 0) {
+            if (ConstantCompare(check, outputA, sizeof(check)) != 0)
+                ret = -1;
+        }
+    }
+    else {
+        ret = wc_RNG_HealthTest(0, entropyB, sizeof(entropyB),
+                                NULL, 0,
+                                check, sizeof(check));
+        if (ret == 0) {
+            if (ConstantCompare(check, outputB, sizeof(check)) != 0)
+                ret = -1;
+        }
+    }
+
+    return ret;
+}
+
+
 #else /* HAVE_HASHDRBG || NO_RC4 */
 
 /* Get seed and key cipher */
-int wc_InitRng(RNG* rng)
+int wc_InitRng(WC_RNG* rng)
 {
     int  ret;
 #ifdef WOLFSSL_SMALL_STACK
@@ -636,11 +736,11 @@ int wc_InitRng(RNG* rng)
 }
 
 #ifdef HAVE_CAVIUM
-    static void CaviumRNG_GenerateBlock(RNG* rng, byte* output, word32 sz);
+    static void CaviumRNG_GenerateBlock(WC_RNG* rng, byte* output, word32 sz);
 #endif
 
 /* place a generated block in output */
-int wc_RNG_GenerateBlock(RNG* rng, byte* output, word32 sz)
+int wc_RNG_GenerateBlock(WC_RNG* rng, byte* output, word32 sz)
 {
 #ifdef HAVE_INTEL_RDGEN
     if(IS_INTEL_RDRAND)
@@ -657,13 +757,13 @@ int wc_RNG_GenerateBlock(RNG* rng, byte* output, word32 sz)
 }
 
 
-int wc_RNG_GenerateByte(RNG* rng, byte* b)
+int wc_RNG_GenerateByte(WC_RNG* rng, byte* b)
 {
     return wc_RNG_GenerateBlock(rng, b, 1);
 }
 
 
-int wc_FreeRng(RNG* rng)
+int wc_FreeRng(WC_RNG* rng)
 {
     (void)rng;
     return 0;
@@ -676,7 +776,7 @@ int wc_FreeRng(RNG* rng)
 #include "cavium_common.h"
 
 /* Initiliaze RNG for use with Nitrox device */
-int wc_InitRngCavium(RNG* rng, int devId)
+int wc_InitRngCavium(WC_RNG* rng, int devId)
 {
     if (rng == NULL)
         return -1;
@@ -688,7 +788,7 @@ int wc_InitRngCavium(RNG* rng, int devId)
 }
 
 
-static void CaviumRNG_GenerateBlock(RNG* rng, byte* output, word32 sz)
+static void CaviumRNG_GenerateBlock(WC_RNG* rng, byte* output, word32 sz)
 {
     wolfssl_word offset = 0;
     word32      requestId;
@@ -917,18 +1017,6 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     return 0;
 }
 
-#elif defined(MBED)
-
-/* write a real one !!!, just for testing board */
-int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
-{
-    int i;
-    for (i = 0; i < sz; i++ )
-        output[i] = i;
-
-    return 0;
-}
-
 #elif defined(MICROCHIP_PIC32)
 
 #ifdef MICROCHIP_MPLAB_HARMONY
@@ -992,7 +1080,7 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
         }
     #endif /* WOLFSSL_MIC32MZ_RNG */
 
-#elif defined(FREESCALE_MQX)
+#elif defined(FREESCALE_MQX) || defined(FREESCALE_KSDK_MQX)
 
     #ifdef FREESCALE_K70_RNGA
         /*
@@ -1125,7 +1213,7 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 
         return 0;
     }
-#elif defined(WOLFSSL_LPC43xx) || defined(WOLFSSL_STM32F2xx)
+#elif defined(WOLFSSL_LPC43xx) || defined(WOLFSSL_STM32F2xx) || defined(MBED)
 
     #warning "write a real random seed!!!!, just for testing now"
 
@@ -1164,15 +1252,17 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     * word32 rand_gen(void);
     * #define CUSTOM_RAND_GENERATE  rand_gen  */
 
-   int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
-   {
-     int i;
+    int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
+    {
+        word32 i;
 
-     for (i = 0; i < sz; i++ )
-         output[i] = CUSTOM_RAND_GENERATE();
+        (void)os;
 
-     return 0;
-   }
+        for (i = 0; i < sz; i++ )
+            output[i] = CUSTOM_RAND_GENERATE();
+
+        return 0;
+    }
 
 #elif defined(NO_DEV_RANDOM)
 

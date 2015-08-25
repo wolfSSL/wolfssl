@@ -40,6 +40,7 @@
     #include <limits.h>
 #endif
 
+#include <wolfssl/wolfcrypt/random.h> 
 
 #ifdef __cplusplus
     extern "C" {
@@ -234,6 +235,8 @@
  *
  * It defaults to 4096-bits [allowing multiplications upto 2048x2048 bits ]
  */
+
+
 #ifndef FP_MAX_BITS
     #define FP_MAX_BITS           4096
 #endif
@@ -255,9 +258,10 @@
 #define FP_NEG      1
 
 /* return codes */
-#define FP_OKAY     0
-#define FP_VAL      1
-#define FP_MEM      2
+#define FP_OKAY      0
+#define FP_VAL      -1
+#define FP_MEM      -2
+#define FP_NOT_INF	-3
 
 /* equalities */
 #define FP_LT        -1   /* less than */
@@ -344,7 +348,7 @@ typedef struct {
 /* #define TFM_PRESCOTT */
 
 /* Do we want timing resistant fp_exptmod() ?
- * This makes it slower but also timing invariant with respect to the exponent 
+ * This makes it slower but also timing invariant with respect to the exponent
  */
 /* #define TFM_TIMING_RESISTANT */
 
@@ -366,11 +370,16 @@ typedef struct {
 
 /* zero/even/odd ? */
 #define fp_iszero(a) (((a)->used == 0) ? FP_YES : FP_NO)
-#define fp_iseven(a) (((a)->used >= 0 && (((a)->dp[0] & 1) == 0)) ? FP_YES : FP_NO)
+#define fp_iseven(a) (((a)->used > 0 && (((a)->dp[0] & 1) == 0)) ? FP_YES : FP_NO)
 #define fp_isodd(a)  (((a)->used > 0  && (((a)->dp[0] & 1) == 1)) ? FP_YES : FP_NO)
 
 /* set to a small digit */
 void fp_set(fp_int *a, fp_digit b);
+
+/* check if a bit is set */
+int fp_is_bit_set(fp_int *a, fp_digit b);
+/* set the b bit to 1 */
+int fp_set_bit (fp_int * a, fp_digit b);
 
 /* copy from a to b */
 #ifndef ALT_ECC_SIZE
@@ -645,6 +654,8 @@ void fp_sqr_comba64(fp_int *a, fp_int *b);
     #define MP_EQ   FP_EQ   /* equal to     */
     #define MP_GT   FP_GT   /* greater than */
     #define MP_VAL  FP_VAL  /* invalid */
+    #define MP_MEM  FP_MEM  /* memory error */
+	#define MP_NOT_INF FP_NOT_INF /* point not at infinity */
     #define MP_OKAY FP_OKAY /* ok result    */
     #define MP_NO   FP_NO   /* yes/no result */
     #define MP_YES  FP_YES  /* yes/no result */
@@ -665,6 +676,8 @@ int  mp_mulmod (mp_int * a, mp_int * b, mp_int * c, mp_int * d);
 int  mp_mod(mp_int *a, mp_int *b, mp_int *c);
 int  mp_invmod(mp_int *a, mp_int *b, mp_int *c);
 int  mp_exptmod (mp_int * g, mp_int * x, mp_int * p, mp_int * y);
+int  mp_mul_2d(mp_int *a, int b, mp_int *c);
+
 
 int  mp_cmp(mp_int *a, mp_int *b);
 int  mp_cmp_d(mp_int *a, mp_digit b);
@@ -679,12 +692,16 @@ int  mp_isodd(mp_int* a);
 int  mp_iszero(mp_int* a);
 int  mp_count_bits(mp_int *a);
 int  mp_leading_bit(mp_int *a);
-int  mp_set_int(fp_int *a, fp_digit b);
+int  mp_set_int(mp_int *a, mp_digit b);
+int  mp_is_bit_set (mp_int * a, mp_digit b);
+int  mp_set_bit (mp_int * a, mp_digit b);
 void mp_rshb(mp_int *a, int x);
+int mp_toradix (mp_int *a, char *str, int radix);
+int mp_radix_size (mp_int * a, int radix, int *size);
 
 #ifdef HAVE_ECC
     int mp_read_radix(mp_int* a, const char* str, int radix);
-    int mp_set(fp_int *a, fp_digit b);
+    void mp_set(fp_int *a, fp_digit b);
     int mp_sqr(fp_int *a, fp_int *b);
     int mp_montgomery_reduce(fp_int *a, fp_int *m, fp_digit mp);
     int mp_montgomery_setup(fp_int *a, fp_digit *rho);
@@ -701,6 +718,8 @@ void mp_rshb(mp_int *a, int x);
 int  mp_gcd(fp_int *a, fp_int *b, fp_int *c);
 int  mp_lcm(fp_int *a, fp_int *b, fp_int *c);
 int  mp_prime_is_prime(mp_int* a, int t, int* result);
+int  mp_rand_prime(mp_int* N, int len, WC_RNG* rng, void* heap);
+int  mp_exch(mp_int *a, mp_int *b);
 #endif /* WOLFSSL_KEY_GEN */
 
 int  mp_cnt_lsb(fp_int *a);

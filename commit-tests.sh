@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 #commit-tests.sh
 
@@ -30,13 +30,5 @@ RESULT=$?
 make -j 8 test;
 RESULT=$?
 [ $RESULT -ne 0 ] && echo -e "\n\nFull config make test failed" && exit 1
-
-if [ -n "$HAVE_FIPS_SOURCE" ];
-then
-    echo -e "\n\nTesting with FIPS release code...\n\n"
-    ./fips-check.sh
-    RESULT=$?
-    [ $RESULT -ne 0 ] && echo -e "\n\nFIPS build test failed" && exit 1
-fi
 
 exit 0

@@ -39,14 +39,15 @@
 #endif
 
 
-#ifndef min
+#ifndef WOLFSSL_HAVE_MIN
+#define WOLFSSL_HAVE_MIN
 
     static INLINE word32 min(word32 a, word32 b)
     {
         return a > b ? b : a;
     }
 
-#endif /* min */
+#endif /* WOLFSSL_HAVE_MIN */
 
 
 void wc_InitDhKey(DhKey* key)
@@ -82,7 +83,7 @@ static word32 DiscreteLogWorkFactor(word32 n)
 }
 
 
-static int GeneratePrivate(DhKey* key, RNG* rng, byte* priv, word32* privSz)
+static int GeneratePrivate(DhKey* key, WC_RNG* rng, byte* priv, word32* privSz)
 {
     int ret;
     word32 sz = mp_unsigned_bin_size(&key->p);
@@ -131,7 +132,7 @@ static int GeneratePublic(DhKey* key, const byte* priv, word32 privSz,
 }
 
 
-int wc_DhGenerateKeyPair(DhKey* key, RNG* rng, byte* priv, word32* privSz,
+int wc_DhGenerateKeyPair(DhKey* key, WC_RNG* rng, byte* priv, word32* privSz,
                       byte* pub, word32* pubSz)
 {
     int ret = GeneratePrivate(key, rng, priv, privSz);

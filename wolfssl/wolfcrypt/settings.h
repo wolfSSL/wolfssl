@@ -72,8 +72,11 @@
 /* Uncomment next line if building wolfSSL for LSR */
 /* #define WOLFSSL_LSR */
 
-/* Uncomment next line if building wolfSSL for Freescale MQX/RTCS/MFS */
+/* Uncomment next line if building for Freescale Classic MQX/RTCS/MFS */
 /* #define FREESCALE_MQX */
+
+/* Uncomment next line if building for Freescale KSDK MQX/RTCS/MFS */
+/* #define FREESCALE_KSDK_MQX */
 
 /* Uncomment next line if using STM32F2 */
 /* #define WOLFSSL_STM32F2 */
@@ -108,10 +111,25 @@
 /* Uncomment next line if using Max Strength build */
 /* #define WOLFSSL_MAX_STRENGTH */
 
+/* Uncomment next line if building for VxWorks */
+/* #define WOLFSSL_VXWORKS */
+
+/* Uncomment next line to enable deprecated less secure static DH suites */
+/* #define WOLFSSL_STATIC_DH */
+
+/* Uncomment next line to enable deprecated less secure static RSA suites */
+/* #define WOLFSSL_STATIC_RSA */
+
 #include <wolfssl/wolfcrypt/visibility.h>
 
 #ifdef WOLFSSL_USER_SETTINGS
     #include <user_settings.h>
+#endif
+
+
+/* make sure old RNG name is used with CTaoCrypt FIPS */
+#ifdef HAVE_FIPS
+    #define WC_RNG RNG
 #endif
 
 
@@ -175,6 +193,7 @@
     #define USE_FAST_MATH
     #define TFM_TIMING_RESISTANT
     #define NEED_AES_TABLES
+    #define WOLFSSL_HAVE_MIN
 #endif
 
 #ifdef WOLFSSL_MICROCHIP_PIC32MZ
@@ -244,10 +263,13 @@
 #endif
 
 #ifdef WOLFSSL_PICOTCP
-    #define errno pico_err
+    #ifndef errno
+        #define errno pico_err
+    #endif
     #include "pico_defines.h"
     #include "pico_stack.h"
     #include "pico_constants.h"
+    #include "pico_protocol.h"
     #define CUSTOM_RAND_GENERATE pico_rand
 #endif
 
@@ -267,6 +289,12 @@
 #ifdef FREERTOS_WINSIM
     #define FREERTOS
     #define USE_WINDOWS_API
+#endif
+
+
+#ifdef WOLFSSL_VXWORKS
+    #define NO_DEV_RANDOM
+    #define NO_WRITEV
 #endif
 
 
@@ -295,6 +323,10 @@
 
 
 #ifdef FREERTOS
+    #include "FreeRTOS.h"
+    /* FreeRTOS pvPortRealloc() only in AVR32_UC3 port */
+    #define XMALLOC(s, h, type)  pvPortMalloc((s))
+    #define XFREE(p, h, type)    vPortFree((p))
     #ifndef NO_WRITEV
         #define NO_WRITEV
     #endif
@@ -316,7 +348,6 @@
     #endif
 
     #ifndef SINGLE_THREADED
-        #include "FreeRTOS.h"
         #include "semphr.h"
     #endif
 #endif
@@ -340,7 +371,7 @@
         #pragma diag_suppress=11
     #endif
 
-    #include <ti/ndk/nettools/mytime/mytime.h>
+    #include <ti/sysbios/hal/Seconds.h>
 #endif
 
 #ifdef EBSNET
@@ -451,6 +482,35 @@
     #define XMALLOC(s, h, t)    (void *)_mem_alloc_system((s))
     #define XFREE(p, h, t)      {void* xp = (p); if ((xp)) _mem_free((xp));}
     /* Note: MQX has no realloc, using fastmath above */
+#endif
+
+#ifdef FREESCALE_KSDK_MQX
+    #define SIZEOF_LONG_LONG 8
+    #define NO_WRITEV
+    #define NO_DEV_RANDOM
+    #define NO_RABBIT
+    #define NO_WOLFSSL_DIR
+    #define USE_FAST_MATH
+    #define TFM_TIMING_RESISTANT
+    #define NO_OLD_RNGNAME
+    #define FREESCALE_K70_RNGA
+    /* #define FREESCALE_K53_RNGB */
+    #include <mqx.h>
+    #ifndef NO_FILESYSTEM
+        #if MQX_USE_IO_OLD
+            #include <fio.h>
+        #else
+            #include <stdio.h>
+            #include <nio.h>
+        #endif
+    #endif
+    #ifndef SINGLE_THREADED
+        #include <mutex.h>
+    #endif
+
+    #define XMALLOC(s, h, t)    (void *)_mem_alloc_system((s))
+    #define XFREE(p, h, t)      {void* xp = (p); if ((xp)) _mem_free((xp));}
+    #define XREALLOC(p, n, h, t) _mem_realloc((p), (n)) /* since MQX 4.1.2 */
 #endif
 
 #ifdef WOLFSSL_STM32F2
@@ -703,11 +763,11 @@
 
 
 /* stream ciphers except arc4 need 32bit alignment, intel ok without */
-#ifndef XSTREAM_ALIGNMENT
+#ifndef XSTREAM_ALIGN
     #if defined(__x86_64__) || defined(__ia64__) || defined(__i386__)
-        #define NO_XSTREAM_ALIGNMENT
+        #define NO_XSTREAM_ALIGN
     #else
-        #define XSTREAM_ALIGNMENT
+        #define XSTREAM_ALIGN
     #endif
 #endif
 
@@ -723,13 +783,25 @@
 #ifndef WOLFSSL_GENERAL_ALIGNMENT
     #ifdef WOLFSSL_AESNI
         #define WOLFSSL_GENERAL_ALIGNMENT 16
-    #elif defined(XSTREAM_ALIGNMENT)
+    #elif defined(XSTREAM_ALIGN)
         #define WOLFSSL_GENERAL_ALIGNMENT  4
     #elif defined(FREESCALE_MMCAU)
         #define WOLFSSL_GENERAL_ALIGNMENT  WOLFSSL_MMCAU_ALIGNMENT
     #else
         #define WOLFSSL_GENERAL_ALIGNMENT  0
     #endif
+#endif
+
+#if defined(WOLFSSL_GENERAL_ALIGNMENT) && (WOLFSSL_GENERAL_ALIGNMENT > 0)
+    #if defined(_MSC_VER)
+        #define XGEN_ALIGN __declspec(align(WOLFSSL_GENERAL_ALIGNMENT))
+    #elif defined(__GNUC__)
+        #define XGEN_ALIGN __attribute__((aligned(WOLFSSL_GENERAL_ALIGNMENT)))
+    #else
+        #define XGEN_ALIGN
+    #endif
+#else
+    #define XGEN_ALIGN
 #endif
 
 #ifdef HAVE_CRL
@@ -764,6 +836,20 @@
 #ifdef WOLFSSL_MAX_STRENGTH
     #undef NO_OLD_TLS
     #define NO_OLD_TLS
+#endif
+
+/* If not forcing to use ARC4 as the DRBG, always enable Hash_DRBG */
+#undef HAVE_HASHDRBG
+#ifndef WOLFSSL_FORCE_RC4_DRBG
+    #define HAVE_HASHDRBG
+#endif
+
+
+/* sniffer requires static RSA cipher suites */
+#ifdef WOLFSSL_SNIFFER
+    #ifndef WOLFSSL_STATIC_RSA
+        #define WOLFSSL_STATIC_RSA
+    #endif
 #endif
 
 /* Place any other flags or defines here */
