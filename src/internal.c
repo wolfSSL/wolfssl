@@ -1829,7 +1829,9 @@ void FreeArrays(WOLFSSL* ssl, int keep)
         XMEMCPY(ssl->session.sessionID, ssl->arrays->sessionID, ID_LEN);
         ssl->session.sessionIDSz = ssl->arrays->sessionIDSz;
     }
-    XFREE(ssl->arrays, ssl->heap, DYNAMIC_TYPE_ARRAYS);
+    if (ssl->arrays)
+        XFREE(ssl->arrays->pendingMsg, ssl->heap, DYNAMIC_TYPE_ARRAYS);
+    XFREE(ssl->arrays, ssl->heap, DYNAMIC_TYPE_CERT);
     ssl->arrays = NULL;
 }
 
@@ -5106,16 +5108,63 @@ static int DoHandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 static int DoHandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                           word32 totalSz)
 {
-    byte   type;
-    word32 size;
     int    ret = 0;
 
     WOLFSSL_ENTER("DoHandShakeMsg()");
 
-    if (GetHandShakeHeader(ssl, input, inOutIdx, &type, &size, totalSz) != 0)
-        return PARSE_ERROR;
+    /* If there is a pending fragmented handshake message, pending message size
+     * will be non-zero. */
+    if (ssl->arrays->pendingMsgSz == 0) {
+        byte   type;
+        word32 size;
 
-    ret = DoHandShakeMsgType(ssl, input, inOutIdx, type, size, totalSz);
+        if (GetHandShakeHeader(ssl,input, inOutIdx, &type, &size, totalSz) != 0)
+            return PARSE_ERROR;
+
+        /* size is the size of the certificate message payload */
+        if (totalSz - HANDSHAKE_HEADER_SZ < size) {
+            ssl->arrays->pendingMsgType = type;
+            ssl->arrays->pendingMsgSz = size + HANDSHAKE_HEADER_SZ;
+            ssl->arrays->pendingMsg = (byte*)XMALLOC(size + HANDSHAKE_HEADER_SZ,
+                                                     ssl->heap,
+                                                     DYNAMIC_TYPE_ARRAYS);
+            XMEMCPY(ssl->arrays->pendingMsg,
+                    input + *inOutIdx - HANDSHAKE_HEADER_SZ, totalSz);
+            ssl->arrays->pendingMsgOffset = totalSz;
+            *inOutIdx += totalSz - HANDSHAKE_HEADER_SZ;
+            return 0;
+        }
+
+        ret = DoHandShakeMsgType(ssl, input, inOutIdx, type, size, totalSz);
+    }
+    else {
+        if (totalSz + ssl->arrays->pendingMsgOffset
+                                                  > ssl->arrays->pendingMsgSz) {
+
+            return BUFFER_ERROR;
+        }
+        else {
+            XMEMCPY(ssl->arrays->pendingMsg + ssl->arrays->pendingMsgOffset,
+                    input + *inOutIdx, totalSz);
+            ssl->arrays->pendingMsgOffset += totalSz;
+            *inOutIdx += totalSz;
+        }
+
+        if (ssl->arrays->pendingMsgOffset == ssl->arrays->pendingMsgSz)
+        {
+            word32 idx = 0;
+            ret = DoHandShakeMsgType(ssl,
+                                     ssl->arrays->pendingMsg
+                                                          + HANDSHAKE_HEADER_SZ,
+                                     &idx, ssl->arrays->pendingMsgType,
+                                     ssl->arrays->pendingMsgSz
+                                                          - HANDSHAKE_HEADER_SZ,
+                                     ssl->arrays->pendingMsgSz);
+            XFREE(ssl->arrays->pendingMsg, ssl->heap, DYNAMIC_TYPE_ARRAYS);
+            ssl->arrays->pendingMsg = NULL;
+            ssl->arrays->pendingMsgSz = 0;
+        }
+    }
 
     WOLFSSL_LEAVE("DoHandShakeMsg()", ret);
     return ret;
