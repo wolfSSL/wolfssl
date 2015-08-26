@@ -2066,9 +2066,10 @@ typedef struct Options {
 } Options;
 
 typedef struct Arrays {
+    byte*           pendingMsg;         /* defrag buffer */
     word32          preMasterSz;        /* differs for DH, actual size */
-    word32          pendingMsgSz;
-    word32          pendingMsgOffset;
+    word32          pendingMsgSz;       /* defrag buffer size */
+    word32          pendingMsgOffset;   /* current offset into defrag buffer */
 #ifndef NO_PSK
     word32          psk_keySz;          /* acutal size */
     char            client_identity[MAX_PSK_ID_LEN];
@@ -2085,8 +2086,7 @@ typedef struct Arrays {
     byte            cookie[MAX_COOKIE_LEN];
     byte            cookieSz;
 #endif
-    byte            pendingMsgType;
-    byte*           pendingMsg;
+    byte            pendingMsgType;    /* defrag buffer message type */
 } Arrays;
 
 #ifndef ASN_NAME_MAX
