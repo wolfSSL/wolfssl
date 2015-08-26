@@ -738,10 +738,12 @@ void InitSuites(Suites* suites, ProtocolVersion pv, word16 haveRSA,
     word16 idx = 0;
     int    tls    = pv.major == SSLv3_MAJOR && pv.minor >= TLSv1_MINOR;
     int    tls1_2 = pv.major == SSLv3_MAJOR && pv.minor >= TLSv1_2_MINOR;
+    int    dtls   = 0;
     int    haveRSAsig = 1;
 
     (void)tls;  /* shut up compiler */
     (void)tls1_2;
+    (void)dtls;
     (void)haveDH;
     (void)havePSK;
     (void)haveNTRU;
@@ -767,6 +769,7 @@ void InitSuites(Suites* suites, ProtocolVersion pv, word16 haveRSA,
 
 #ifdef WOLFSSL_DTLS
     if (pv.major == DTLS_MAJOR) {
+        dtls   = 1;
         tls    = 1;
         tls1_2 = pv.minor <= DTLSv1_2_MINOR;
     }
@@ -801,7 +804,7 @@ void InitSuites(Suites* suites, ProtocolVersion pv, word16 haveRSA,
 #endif
 
 #ifdef BUILD_TLS_NTRU_RSA_WITH_RC4_128_SHA
-    if (tls && haveNTRU && haveRSA) {
+    if (!dtls && tls && haveNTRU && haveRSA) {
         suites->suites[idx++] = 0;
         suites->suites[idx++] = TLS_NTRU_RSA_WITH_RC4_128_SHA;
     }
@@ -1032,14 +1035,14 @@ void InitSuites(Suites* suites, ProtocolVersion pv, word16 haveRSA,
 #endif
 
 #ifdef BUILD_TLS_ECDHE_ECDSA_WITH_RC4_128_SHA
-    if (tls && haveECDSAsig) {
+    if (!dtls && tls && haveECDSAsig) {
         suites->suites[idx++] = ECC_BYTE;
         suites->suites[idx++] = TLS_ECDHE_ECDSA_WITH_RC4_128_SHA;
     }
 #endif
 
 #ifdef BUILD_TLS_ECDH_ECDSA_WITH_RC4_128_SHA
-    if (tls && haveECDSAsig && haveStaticECC) {
+    if (!dtls && tls && haveECDSAsig && haveStaticECC) {
         suites->suites[idx++] = ECC_BYTE;
         suites->suites[idx++] = TLS_ECDH_ECDSA_WITH_RC4_128_SHA;
     }
@@ -1088,14 +1091,14 @@ void InitSuites(Suites* suites, ProtocolVersion pv, word16 haveRSA,
 #endif
 
 #ifdef BUILD_TLS_ECDHE_RSA_WITH_RC4_128_SHA
-    if (tls && haveRSA) {
+    if (!dtls && tls && haveRSA) {
         suites->suites[idx++] = ECC_BYTE;
         suites->suites[idx++] = TLS_ECDHE_RSA_WITH_RC4_128_SHA;
     }
 #endif
 
 #ifdef BUILD_TLS_ECDH_RSA_WITH_RC4_128_SHA
-    if (tls && haveRSAsig && haveStaticECC) {
+    if (!dtls && tls && haveRSAsig && haveStaticECC) {
         suites->suites[idx++] = ECC_BYTE;
         suites->suites[idx++] = TLS_ECDH_RSA_WITH_RC4_128_SHA;
     }
@@ -1333,14 +1336,14 @@ void InitSuites(Suites* suites, ProtocolVersion pv, word16 haveRSA,
 #endif
 
 #ifdef BUILD_SSL_RSA_WITH_RC4_128_SHA
-    if (haveRSA ) {
+    if (!dtls && haveRSA) {
         suites->suites[idx++] = 0;
         suites->suites[idx++] = SSL_RSA_WITH_RC4_128_SHA;
     }
 #endif
 
 #ifdef BUILD_SSL_RSA_WITH_RC4_128_MD5
-    if (haveRSA ) {
+    if (!dtls && haveRSA) {
         suites->suites[idx++] = 0;
         suites->suites[idx++] = SSL_RSA_WITH_RC4_128_MD5;
     }
@@ -1354,21 +1357,21 @@ void InitSuites(Suites* suites, ProtocolVersion pv, word16 haveRSA,
 #endif
 
 #ifdef BUILD_TLS_RSA_WITH_HC_128_MD5
-    if (tls && haveRSA) {
+    if (!dtls && tls && haveRSA) {
         suites->suites[idx++] = 0;
         suites->suites[idx++] = TLS_RSA_WITH_HC_128_MD5;
     }
 #endif
 
 #ifdef BUILD_TLS_RSA_WITH_HC_128_SHA
-    if (tls && haveRSA) {
+    if (!dtls && tls && haveRSA) {
         suites->suites[idx++] = 0;
         suites->suites[idx++] = TLS_RSA_WITH_HC_128_SHA;
     }
 #endif
 
 #ifdef BUILD_TLS_RSA_WITH_HC_128_B2B256
-    if (tls && haveRSA) {
+    if (!dtls && tls && haveRSA) {
         suites->suites[idx++] = 0;
         suites->suites[idx++] = TLS_RSA_WITH_HC_128_B2B256;
     }
@@ -1389,7 +1392,7 @@ void InitSuites(Suites* suites, ProtocolVersion pv, word16 haveRSA,
 #endif
 
 #ifdef BUILD_TLS_RSA_WITH_RABBIT_SHA
-    if (tls && haveRSA) {
+    if (!dtls && tls && haveRSA) {
         suites->suites[idx++] = 0;
         suites->suites[idx++] = TLS_RSA_WITH_RABBIT_SHA;
     }
