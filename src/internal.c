@@ -1832,8 +1832,10 @@ void FreeArrays(WOLFSSL* ssl, int keep)
         XMEMCPY(ssl->session.sessionID, ssl->arrays->sessionID, ID_LEN);
         ssl->session.sessionIDSz = ssl->arrays->sessionIDSz;
     }
-    if (ssl->arrays)
+    if (ssl->arrays) {
         XFREE(ssl->arrays->pendingMsg, ssl->heap, DYNAMIC_TYPE_ARRAYS);
+        ssl->arrays->pendingMsg = NULL;
+    }
     XFREE(ssl->arrays, ssl->heap, DYNAMIC_TYPE_CERT);
     ssl->arrays = NULL;
 }
@@ -5131,6 +5133,8 @@ static int DoHandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
             ssl->arrays->pendingMsg = (byte*)XMALLOC(size + HANDSHAKE_HEADER_SZ,
                                                      ssl->heap,
                                                      DYNAMIC_TYPE_ARRAYS);
+            if (ssl->arrays->pendingMsg == NULL)
+                return MEMORY_E;
             XMEMCPY(ssl->arrays->pendingMsg,
                     input + *inOutIdx - HANDSHAKE_HEADER_SZ, totalSz);
             ssl->arrays->pendingMsgOffset = totalSz;
