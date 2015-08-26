@@ -7,7 +7,7 @@ longer supports static key cipher suites with PSK, RSA, or ECDH.  This means
 if you plan to use TLS cipher suites you must enable DH (DH is on  by default),
 or enable ECC (ECC is on by default on 64bit systems), or you must enable static
 key cipher suites with
-    WOLFSSL_STATI_DH
+    WOLFSSL_STATIC_DH
     WOLFSSL_STATIC_RSA
     or
     WOLFSSL_STATIC_PSK
