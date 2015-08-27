@@ -107,11 +107,15 @@ int  wc_RNG_GenerateByte(WC_RNG* rng, byte* b)
         #ifndef EBSNET
             #include <unistd.h>
         #endif
+    #elif defined(FREESCALE_TRNG)
+        #define TRNG_INSTANCE (0)
+        #include "fsl_device_registers.h"
+        #include "fsl_trng_driver.h"
     #else
         /* include headers that may be needed to get good seed */
     #endif
 #endif /* USE_WINDOWS_API */
-    
+
 #ifdef HAVE_INTEL_RDGEN
     static int wc_InitRng_IntelRD(void) ;
     #if defined(HAVE_HASHDRBG) || defined(NO_RC4)
@@ -1080,7 +1084,8 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
         }
     #endif /* WOLFSSL_MIC32MZ_RNG */
 
-#elif defined(FREESCALE_MQX) || defined(FREESCALE_KSDK_MQX)
+#elif defined(FREESCALE_MQX) || defined(FREESCALE_KSDK_MQX) || \
+      defined(FREESCALE_KSDK_BM)
 
     #ifdef FREESCALE_K70_RNGA
         /*
@@ -1152,6 +1157,14 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
             }
 
             return 0;
+        }
+
+    #elif defined(FREESCALE_TRNG)
+
+        int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
+        {
+            TRNG_DRV_GetRandomData(TRNG_INSTANCE, output, sz);
+            return(0);
         }
 
     #else

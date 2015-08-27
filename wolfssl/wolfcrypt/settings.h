@@ -78,6 +78,9 @@
 /* Uncomment next line if building for Freescale KSDK MQX/RTCS/MFS */
 /* #define FREESCALE_KSDK_MQX */
 
+/* Uncomment next line if building for Freescale KSDK Bare Metal */
+/* #define FREESCALE_KSDK_BM */
+
 /* Uncomment next line if using STM32F2 */
 /* #define WOLFSSL_STM32F2 */
 
@@ -461,15 +464,7 @@
 #endif
 
 #ifdef FREESCALE_MQX
-    #define SIZEOF_LONG_LONG 8
-    #define NO_WRITEV
-    #define NO_DEV_RANDOM
-    #define NO_RABBIT
-    #define NO_WOLFSSL_DIR
-    #define USE_FAST_MATH
-    #define TFM_TIMING_RESISTANT
-    #define FREESCALE_K70_RNGA
-    /* #define FREESCALE_K53_RNGB */
+    #define FREESCALE_COMMON
     #include "mqx.h"
     #ifndef NO_FILESYSTEM
         #include "mfs.h"
@@ -485,16 +480,7 @@
 #endif
 
 #ifdef FREESCALE_KSDK_MQX
-    #define SIZEOF_LONG_LONG 8
-    #define NO_WRITEV
-    #define NO_DEV_RANDOM
-    #define NO_RABBIT
-    #define NO_WOLFSSL_DIR
-    #define USE_FAST_MATH
-    #define TFM_TIMING_RESISTANT
-    #define NO_OLD_RNGNAME
-    #define FREESCALE_K70_RNGA
-    /* #define FREESCALE_K53_RNGB */
+    #define FREESCALE_COMMON
     #include <mqx.h>
     #ifndef NO_FILESYSTEM
         #if MQX_USE_IO_OLD
@@ -511,6 +497,40 @@
     #define XMALLOC(s, h, t)    (void *)_mem_alloc_system((s))
     #define XFREE(p, h, t)      {void* xp = (p); if ((xp)) _mem_free((xp));}
     #define XREALLOC(p, n, h, t) _mem_realloc((p), (n)) /* since MQX 4.1.2 */
+#endif
+
+#ifdef FREESCALE_KSDK_BM
+    #define FREESCALE_COMMON
+    #define WOLFSSL_USER_IO
+    #define SINGLE_THREADED
+    #define NO_FILESYSTEM
+    #define USE_WOLFSSL_MEMORY
+#endif
+
+#ifdef FREESCALE_COMMON
+    #define SIZEOF_LONG_LONG 8
+    #define NO_WRITEV
+    #define NO_DEV_RANDOM
+    #define NO_RABBIT
+    #define NO_WOLFSSL_DIR
+    #define USE_FAST_MATH
+    #define TFM_TIMING_RESISTANT
+
+    #if FSL_FEATURE_SOC_ENET_COUNT == 0
+        #define WOLFSSL_USER_IO
+    #endif
+
+    /* random seed */
+    #define NO_OLD_RNGNAME
+    #if FSL_FEATURE_SOC_TRNG_COUNT > 0
+        #define FREESCALE_TRNG
+    #elif !defined(FREESCALE_KSDK_BM)
+        #define FREESCALE_K70_RNGA
+        /* #define FREESCALE_K53_RNGB */
+    #endif
+
+    /* HW crypto */
+    /* #define FREESCALE_MMCAU */
 #endif
 
 #ifdef WOLFSSL_STM32F2

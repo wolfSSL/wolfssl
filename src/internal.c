@@ -2497,6 +2497,15 @@ ProtocolVersion MakeDTLSv1_2(void)
         return (word32) mqxTime.SECONDS;
     }
 
+#elif defined(FREESCALE_KSDK_BM)
+
+    #include "fsl_pit_driver.h"
+
+    word32 LowResTimer(void)
+    {
+        return PIT_DRV_GetUs();
+    }
+
 #elif defined(WOLFSSL_TIRTOS)
 
     word32 LowResTimer(void)
