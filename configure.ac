@@ -1841,6 +1841,14 @@ then
         AM_CFLAGS="$AM_CFLAGS -DHAVE_TLS_EXTENSIONS -DHAVE_SNI -DHAVE_MAX_FRAGMENT -DHAVE_TRUNCATED_HMAC -DHAVE_SUPPORTED_CURVES"
     fi
 
+    # Requires ecc make sure on
+    if test "x$ENABLED_ECC" = "xno"
+    then
+        ENABLED_OPENSSLEXTRA="yes"
+        AM_CFLAGS="$AM_CFLAGS -DHAVE_ECC -DTFM_ECC256 -DECC_SHAMIR"
+        AM_CONDITIONAL([BUILD_ECC], [test "x$ENABLED_ECC" = "xyes"])
+    fi
+
     AM_CFLAGS="$AM_CFLAGS -DHAVE_STUNNEL -DWOLFSSL_ALWAYS_VERIFY_CB"
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ALWAYS_KEEP_SNI"
 fi
@@ -1848,9 +1856,6 @@ fi
 if test "$ENABLED_PSK" = "no" && test "$ENABLED_LEANPSK" = "no" \
     && test "x$ENABLED_STUNNEL" = "xno"
 then
-    echo "Defining NO PSK"
-    echo "ENABLED_STUNNEL = $ENABLED_STUNNEL"
-    echo "ENABLED_LEANPSK = $ENABLED_LEANPSK"
     AM_CFLAGS="$AM_CFLAGS -DNO_PSK"
 fi
 
