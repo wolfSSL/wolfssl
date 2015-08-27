@@ -836,16 +836,6 @@ AC_ARG_ENABLE([psk],
     [ ENABLED_PSK=no ]
     )
 
-if test "$ENABLED_PSK" = "no" && test "$ENABLED_LEANPSK" = "no"
-then
-    AM_CFLAGS="$AM_CFLAGS -DNO_PSK"
-fi
-
-if test "$ENABLED_PSK" = "no" && test "$ENABLED_LEANPSK" = "yes"
-then
-    ENABLED_PSK=yes
-fi
-
 
 # ERROR STRINGS
 AC_ARG_ENABLE([errorstrings],
@@ -1855,6 +1845,20 @@ then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ALWAYS_KEEP_SNI"
 fi
 
+if test "$ENABLED_PSK" = "no" && test "$ENABLED_LEANPSK" = "no" \
+    && test "x$ENABLED_STUNNEL" = "xno"
+then
+    echo "Defining NO PSK"
+    echo "ENABLED_STUNNEL = $ENABLED_STUNNEL"
+    echo "ENABLED_LEANPSK = $ENABLED_LEANPSK"
+    AM_CFLAGS="$AM_CFLAGS -DNO_PSK"
+fi
+
+if test "$ENABLED_PSK" = "no" &&  \
+    (test "$ENABLED_LEANPSK" = "yes" || test "x$ENABLED_STUNNEL" = "xyes")
+then
+    ENABLED_PSK=yes
+fi
 
 # MD4
 AC_ARG_ENABLE([md4],
