@@ -113,6 +113,11 @@
     #define XTIME(t1)  mqx_time((t1))
     #define XGMTIME(c, t) mqx_gmtime((c), (t))
     #define XVALIDATE_DATE(d, f, t) ValidateDate((d), (f), (t))
+#elif defined(FREESCALE_KSDK_BM)
+    #include <time.h>
+    #define XTIME(t1)  ksdk_time((t1))
+    #define XGMTIME(c, t) gmtime((c))
+    #define XVALIDATE_DATE(d, f, t) ValidateDate((d), (f), (t))
 
 #elif defined(USER_TIME)
     /* user time, and gmtime compatible functions, there is a gmtime 
@@ -349,6 +354,27 @@ struct tm* mqx_gmtime(const time_t* clock, struct tm* tmpTime)
 }
 
 #endif /* FREESCALE_MQX */
+
+#ifdef FREESCALE_KSDK_BM
+
+/* setting for PIT timer */
+#define PIT_INSTANCE 0
+#define PIT_CHANNEL  0
+
+#include "fsl_pit_driver.h"
+
+time_t ksdk_time(time_t* timer)
+{
+    time_t localTime;
+
+    if (timer == NULL)
+        timer = &localTime;
+
+    *timer = (PIT_DRV_ReadTimerUs(PIT_INSTANCE, PIT_CHANNEL)) / 1000000;
+    return *timer;
+}
+
+#endif /* FREESCALE_KSDK_BM */
 
 #ifdef WOLFSSL_TIRTOS
 
