@@ -34,19 +34,20 @@
 #endif
 
 enum {
-    ECC_PUBLICKEY  = 1,
-    ECC_PRIVATEKEY = 2,
-    ECC_MAXNAME    = 16,     /* MAX CURVE NAME LENGTH */
-    SIG_HEADER_SZ  =  6,     /* ECC signature header size */
-    ECC_BUFSIZE    = 256,    /* for exported keys temp buffer */
-    ECC_MINSIZE    = 20,     /* MIN Private Key size */
-    ECC_MAXSIZE    = 66      /* MAX Private Key size */
+    ECC_PUBLICKEY   = 1,
+    ECC_PRIVATEKEY  = 2,
+    ECC_MAXNAME     = 16,   /* MAX CURVE NAME LENGTH */
+    SIG_HEADER_SZ   =  6,   /* ECC signature header size */
+    ECC_BUFSIZE     = 256,  /* for exported keys temp buffer */
+    ECC_MINSIZE     = 20,   /* MIN Private Key size */
+    ECC_MAXSIZE     = 66,   /* MAX Private Key size */
+    ECC_MAXSIZE_GEN = 74    /* MAX Buffer size required when generating ECC keys*/
 };
 
 
 /* ECC set type defined a NIST GF(p) curve */
 typedef struct {
-    int size;       /* The size of the curve in octets */
+    int size;             /* The size of the curve in octets */
     int nid;              /* id of this curve */
     const char* name;     /* name of this curve */
     const char* prime;    /* prime that defines the field, curve is in (hex) */
