@@ -1209,7 +1209,7 @@ int fp_exptmod(fp_int * G, fp_int * X, fp_int * P, fp_int * Y)
       fp_int tmp;
 
       /* yes, copy G and invmod it */
-      fp_copy(G, &tmp);
+      fp_init_copy(&tmp, G);
       if ((err = fp_invmod(&tmp, P, &tmp)) != FP_OKAY) {
          return err;
       }
