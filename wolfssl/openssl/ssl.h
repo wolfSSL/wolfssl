@@ -96,7 +96,7 @@ typedef WOLFSSL_X509_STORE_CTX X509_STORE_CTX;
 #define SSL_get_verify_result(ctx)    X509_V_OK
 #define SSL_get_verify_mode           wolfSSL_SSL_get_mode
 #define SSL_get_verify_depth          wolfSSL_get_verify_depth
-#define SSL_CTX_get_verify_mode       wolfSSL_CTX_get_mode
+#define SSL_CTX_get_verify_mode       wolfSSL_CTX_get_verify_mode
 #define SSL_CTX_get_verify_depth      wolfSSL_CTX_get_verify_depth
 #define SSL_get_certificate(ctx)      0 /* used to pass to get_privatekey */
 
@@ -477,6 +477,21 @@ typedef WOLFSSL_X509_NAME_ENTRY X509_NAME_ENTRY;
 #define SSL_SESSION_get_id               wolfSSL_SESSION_get_id
 #define CRYPTO_dynlock_value             WOLFSSL_dynlock_value
 typedef WOLFSSL_ASN1_BIT_STRING    ASN1_BIT_STRING;
+
+#define SSL_TLSEXT_ERR_OK                    0
+#define SSL_TLSEXT_ERR_ALERT_FATAL           alert_fatal
+#define SSL_TLSEXT_ERR_NOACK                 alert_warning
+#define TLSEXT_NAMETYPE_host_name            WOLFSSL_SNI_HOST_NAME
+
+#define SSL_set_tlsext_host_name wolfSSL_set_tlsext_host_name
+#define SSL_get_servername wolfSSL_get_servername
+#define SSL_set_SSL_CTX                  wolfSSL_set_SSL_CTX
+#define SSL_CTX_get_verify_callback      wolfSSL_CTX_get_verify_callback
+#define SSL_CTX_set_tlsext_servername_callback      wolfSSL_CTX_set_servername_callback
+#define SSL_CTX_set_tlsext_servername_arg           wolfSSL_CTX_set_servername_arg
+
+#define PSK_MAX_PSK_LEN                      256
+#define PSK_MAX_IDENTITY_LEN                 128
 
 
 #endif /* HAVE_STUNNEL */

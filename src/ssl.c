@@ -70,6 +70,9 @@
     #include <wolfssl/wolfcrypt/arc4.h>
     #include <wolfssl/wolfcrypt/curve25519.h>
     #include <wolfssl/wolfcrypt/ed25519.h>
+    #ifdef HAVE_STUNNEL
+        #include <wolfssl/openssl/ocsp.h>
+    #endif /* WITH_STUNNEL */
     #ifdef WOLFSSL_SHA512
         #include <wolfssl/wolfcrypt/sha512.h>
     #endif
@@ -16342,6 +16345,81 @@ const byte* wolfSSL_SESSION_get_id(WOLFSSL_SESSION* sess, unsigned int* idLen)
     }
     *idLen = sess->sessionIDSz;
     return sess->sessionID;
+}
+
+
+int wolfSSL_set_tlsext_host_name(WOLFSSL* ssl, const char* host_name)
+{
+    int ret;
+    WOLFSSL_ENTER("wolfSSL_set_tlsext_host_name");
+    ret = wolfSSL_UseSNI(ssl, WOLFSSL_SNI_HOST_NAME,
+            host_name, XSTRLEN(host_name));
+    WOLFSSL_LEAVE("wolfSSL_set_tlsext_host_name", ret);
+    return ret;
+}
+
+
+const char * wolfSSL_get_servername(WOLFSSL* ssl, byte type)
+{
+    void * serverName = NULL;
+    if (ssl == NULL)
+        return NULL;
+    TLSX_SNI_GetRequest(ssl->extensions, type, &serverName);
+    return (const char *)serverName;
+}
+
+
+WOLFSSL_CTX* wolfSSL_set_SSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
+{
+    if (ssl && ctx && SetSSL_CTX(ssl, ctx) == SSL_SUCCESS)
+        return ssl->ctx;
+    return NULL;
+}
+
+
+VerifyCallback wolfSSL_CTX_get_verify_callback(WOLFSSL_CTX* ctx)
+{
+    WOLFSSL_ENTER("wolfSSL_CTX_get_verify_callback");
+    if(ctx)
+        return ctx->verifyCallback;
+    return NULL;
+}
+
+
+int wolfSSL_CTX_get_verify_mode(WOLFSSL_CTX* ctx)
+{
+    WOLFSSL_ENTER("wolfSSL_CTX_get_verify_mode");
+    int mode = 0;
+
+    if(!ctx)
+        return SSL_FATAL_ERROR;
+
+    if (ctx->verifyPeer)
+        mode |= SSL_VERIFY_PEER;
+    else if (ctx->verifyNone)
+        mode |= SSL_VERIFY_NONE;
+
+    if (ctx->failNoCert)
+        mode |= SSL_VERIFY_FAIL_IF_NO_PEER_CERT;
+
+    WOLFSSL_LEAVE("wolfSSL_CTX_get_verify_mode", mode);
+    return mode;
+}
+
+
+void wolfSSL_CTX_set_servername_callback(WOLFSSL_CTX* ctx, CallbackSniRecv cb)
+{
+    WOLFSSL_ENTER("wolfSSL_CTX_set_servername_callback");
+    if (ctx)
+        ctx->sniRecvCb = cb;
+}
+
+
+void wolfSSL_CTX_set_servername_arg(WOLFSSL_CTX* ctx, void* arg)
+{
+    WOLFSSL_ENTER("wolfSSL_CTX_set_servername_arg");
+    if (ctx)
+        ctx->sniRecvCbArg = arg;
 }
 #endif /* OPENSSL_EXTRA and HAVE_STUNNEL */
 
