@@ -836,16 +836,6 @@ AC_ARG_ENABLE([psk],
     [ ENABLED_PSK=no ]
     )
 
-if test "$ENABLED_PSK" = "no" && test "$ENABLED_LEANPSK" = "no"
-then
-    AM_CFLAGS="$AM_CFLAGS -DNO_PSK"
-fi
-
-if test "$ENABLED_PSK" = "no" && test "$ENABLED_LEANPSK" = "yes"
-then
-    ENABLED_PSK=yes
-fi
-
 
 # ERROR STRINGS
 AC_ARG_ENABLE([errorstrings],
@@ -1815,6 +1805,14 @@ then
         AM_CFLAGS="-DOPENSSL_EXTRA $AM_CFLAGS"
     fi
 
+    # Requires OCSP make sure on
+    if test "x$ENABLED_OCSP" = "xno"
+    then
+        ENABLED_OCSP="yes"
+        AM_CFLAGS="$AM_CFLAGS -DHAVE_OCSP"
+        AM_CONDITIONAL([BUILD_OCSP], [test "x$ENABLED_OCSP" = "xyes"])
+    fi
+
     # Requires coding make sure on
     if test "x$ENABLED_CODING" = "xno"
     then
@@ -1835,9 +1833,37 @@ then
         AM_CFLAGS="$AM_CFLAGS -DHAVE_CRL"
         AM_CONDITIONAL([BUILD_CRL], [test "x$ENABLED_CRL" = "xyes"])
     fi
-    AM_CFLAGS="$AM_CFLAGS -DHAVE_STUNNEL"
+
+    # Requires tlsx, make sure on
+    if test "x$ENABLED_TLSX" = "xno"
+    then
+        ENABLED_TLSX="yes"
+        AM_CFLAGS="$AM_CFLAGS -DHAVE_TLS_EXTENSIONS -DHAVE_SNI -DHAVE_MAX_FRAGMENT -DHAVE_TRUNCATED_HMAC -DHAVE_SUPPORTED_CURVES"
+    fi
+
+    # Requires ecc make sure on
+    if test "x$ENABLED_ECC" = "xno"
+    then
+        ENABLED_OPENSSLEXTRA="yes"
+        AM_CFLAGS="$AM_CFLAGS -DHAVE_ECC -DTFM_ECC256 -DECC_SHAMIR"
+        AM_CONDITIONAL([BUILD_ECC], [test "x$ENABLED_ECC" = "xyes"])
+    fi
+
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_STUNNEL -DWOLFSSL_ALWAYS_VERIFY_CB"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ALWAYS_KEEP_SNI"
 fi
 
+if test "$ENABLED_PSK" = "no" && test "$ENABLED_LEANPSK" = "no" \
+    && test "x$ENABLED_STUNNEL" = "xno"
+then
+    AM_CFLAGS="$AM_CFLAGS -DNO_PSK"
+fi
+
+if test "$ENABLED_PSK" = "no" &&  \
+    (test "$ENABLED_LEANPSK" = "yes" || test "x$ENABLED_STUNNEL" = "xyes")
+then
+    ENABLED_PSK=yes
+fi
 
 # MD4
 AC_ARG_ENABLE([md4],
