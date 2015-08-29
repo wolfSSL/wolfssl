@@ -353,17 +353,20 @@ int UnLockMutex(wolfSSL_Mutex *m)
         }
 
     #elif defined (WOLFSSL_TIRTOS)
-
+        #include <xdc/runtime/Error.h>
         int InitMutex(wolfSSL_Mutex* m)
         {
            Semaphore_Params params;
-
+           Error_Block eb;
+           Error_init(&eb);
            Semaphore_Params_init(&params);
            params.mode = Semaphore_Mode_BINARY;
 
-           *m = Semaphore_create(1, &params, NULL);
-
-           return 0;
+           *m = Semaphore_create(1, &params, &eb);
+           if( Error_check( &eb )  )
+           {
+               Error_raise( &eb, Error_E_generic, "Failed to Create the semaphore.",NULL);
+           } else return 0;
         }
 
         int FreeMutex(wolfSSL_Mutex* m)
