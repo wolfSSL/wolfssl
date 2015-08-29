@@ -32,6 +32,7 @@
 #ifdef HAVE_ED25519
 
 #include <wolfssl/wolfcrypt/ge_operations.h>
+#include <wolfssl/wolfcrypt/ed25519.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
 #ifdef NO_INLINE
     #include <wolfssl/wolfcrypt/misc.h>
@@ -690,7 +691,7 @@ int ge_compress_key(byte* out, const byte* xIn, const byte* yIn, word32 keySz)
 {
     fe     x,y,z;
     ge_p3  g;
-    byte   bArray[keySz];
+    byte   bArray[ED25519_KEY_SIZE];
     word32 i;
 
     fe_0(x);
@@ -718,18 +719,18 @@ r = p + q
 */
 void ge_add(ge_p1p1 *r,const ge_p3 *p,const ge_cached *q)
 {
-	fe t0;
-	fe_add(r->X,p->Y,p->X);
-	fe_sub(r->Y,p->Y,p->X);
-	fe_mul(r->Z,r->X,q->YplusX);
-	fe_mul(r->Y,r->Y,q->YminusX);
-	fe_mul(r->T,q->T2d,p->T);
-	fe_mul(r->X,p->Z,q->Z);
-	fe_add(t0,r->X,r->X);
-	fe_sub(r->X,r->Z,r->Y);
-	fe_add(r->Y,r->Z,r->Y);
-	fe_add(r->Z,t0,r->T);
-	fe_sub(r->T,t0,r->T);
+    fe t0;
+    fe_add(r->X,p->Y,p->X);
+    fe_sub(r->Y,p->Y,p->X);
+    fe_mul(r->Z,r->X,q->YplusX);
+    fe_mul(r->Y,r->Y,q->YminusX);
+    fe_mul(r->T,q->T2d,p->T);
+    fe_mul(r->X,p->Z,q->Z);
+    fe_add(t0,r->X,r->X);
+    fe_sub(r->X,r->Z,r->Y);
+    fe_add(r->Y,r->Z,r->Y);
+    fe_add(r->Z,t0,r->T);
+    fe_sub(r->T,t0,r->T);
 }
 
 
@@ -2387,17 +2388,17 @@ r = p + q
 
 void ge_madd(ge_p1p1 *r,const ge_p3 *p,const ge_precomp *q)
 {
-	fe t0;
-	fe_add(r->X,p->Y,p->X);
-	fe_sub(r->Y,p->Y,p->X);
-	fe_mul(r->Z,r->X,q->yplusx);
-	fe_mul(r->Y,r->Y,q->yminusx);
-	fe_mul(r->T,q->xy2d,p->T);
-	fe_add(t0,p->Z,p->Z);
-	fe_sub(r->X,r->Z,r->Y);
-	fe_add(r->Y,r->Z,r->Y);
-	fe_add(r->Z,t0,r->T);
-	fe_sub(r->T,t0,r->T);
+    fe t0;
+    fe_add(r->X,p->Y,p->X);
+    fe_sub(r->Y,p->Y,p->X);
+    fe_mul(r->Z,r->X,q->yplusx);
+    fe_mul(r->Y,r->Y,q->yminusx);
+    fe_mul(r->T,q->xy2d,p->T);
+    fe_add(t0,p->Z,p->Z);
+    fe_sub(r->X,r->Z,r->Y);
+    fe_add(r->Y,r->Z,r->Y);
+    fe_add(r->Z,t0,r->T);
+    fe_sub(r->T,t0,r->T);
 }
 
 
@@ -2409,17 +2410,17 @@ r = p - q
 
 void ge_msub(ge_p1p1 *r,const ge_p3 *p,const ge_precomp *q)
 {
-	fe t0;
-	fe_add(r->X,p->Y,p->X);
-	fe_sub(r->Y,p->Y,p->X);
-	fe_mul(r->Z,r->X,q->yminusx);
-	fe_mul(r->Y,r->Y,q->yplusx);
-	fe_mul(r->T,q->xy2d,p->T);
-	fe_add(t0,p->Z,p->Z);
-	fe_sub(r->X,r->Z,r->Y);
-	fe_add(r->Y,r->Z,r->Y);
-	fe_sub(r->Z,t0,r->T);
-	fe_add(r->T,t0,r->T);
+    fe t0;
+    fe_add(r->X,p->Y,p->X);
+    fe_sub(r->Y,p->Y,p->X);
+    fe_mul(r->Z,r->X,q->yminusx);
+    fe_mul(r->Y,r->Y,q->yplusx);
+    fe_mul(r->T,q->xy2d,p->T);
+    fe_add(t0,p->Z,p->Z);
+    fe_sub(r->X,r->Z,r->Y);
+    fe_add(r->Y,r->Z,r->Y);
+    fe_sub(r->Z,t0,r->T);
+    fe_add(r->T,t0,r->T);
 }
 
 
@@ -2469,16 +2470,16 @@ r = 2 * p
 
 void ge_p2_dbl(ge_p1p1 *r,const ge_p2 *p)
 {
-	fe t0;
-	fe_sq(r->X,p->X);
-	fe_sq(r->Z,p->Y);
-	fe_sq2(r->T,p->Z);
-	fe_add(r->Y,p->X,p->Y);
-	fe_sq(t0,r->Y);
-	fe_add(r->Y,r->Z,r->X);
-	fe_sub(r->Z,r->Z,r->X);
-	fe_sub(r->X,t0,r->Y);
-	fe_sub(r->T,r->T,r->Z);
+    fe t0;
+    fe_sq(r->X,p->X);
+    fe_sq(r->Z,p->Y);
+    fe_sq2(r->T,p->Z);
+    fe_add(r->Y,p->X,p->Y);
+    fe_sq(t0,r->Y);
+    fe_add(r->Y,r->Z,r->X);
+    fe_sub(r->Z,r->Z,r->X);
+    fe_sub(r->X,t0,r->Y);
+    fe_sub(r->T,r->T,r->Z);
 }
 
 
@@ -2572,18 +2573,18 @@ r = p - q
 
 void ge_sub(ge_p1p1 *r,const ge_p3 *p,const ge_cached *q)
 {
-	fe t0;
-	fe_add(r->X,p->Y,p->X);
-	fe_sub(r->Y,p->Y,p->X);
-	fe_mul(r->Z,r->X,q->YminusX);
-	fe_mul(r->Y,r->Y,q->YplusX);
-	fe_mul(r->T,q->T2d,p->T);
-	fe_mul(r->X,p->Z,q->Z);
-	fe_add(t0,r->X,r->X);
-	fe_sub(r->X,r->Z,r->Y);
-	fe_add(r->Y,r->Z,r->Y);
-	fe_sub(r->Z,t0,r->T);
-	fe_add(r->T,t0,r->T);
+    fe t0;
+    fe_add(r->X,p->Y,p->X);
+    fe_sub(r->Y,p->Y,p->X);
+    fe_mul(r->Z,r->X,q->YminusX);
+    fe_mul(r->Y,r->Y,q->YplusX);
+    fe_mul(r->T,q->T2d,p->T);
+    fe_mul(r->X,p->Z,q->Z);
+    fe_add(t0,r->X,r->X);
+    fe_sub(r->X,r->Z,r->Y);
+    fe_add(r->Y,r->Z,r->Y);
+    fe_sub(r->Z,t0,r->T);
+    fe_add(r->T,t0,r->T);
 }
 
 
