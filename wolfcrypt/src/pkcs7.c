@@ -52,19 +52,19 @@
 WOLFSSL_LOCAL int wc_SetContentType(int pkcs7TypeOID, byte* output)
 {
     /* PKCS#7 content types, RFC 2315, section 14 */
-    static const byte pkcs7[]              = { 0x2A, 0x86, 0x48, 0x86, 0xF7,
+    const byte pkcs7[]              = { 0x2A, 0x86, 0x48, 0x86, 0xF7,
                                                0x0D, 0x01, 0x07 };
-    static const byte data[]               = { 0x2A, 0x86, 0x48, 0x86, 0xF7,
+    const byte data[]               = { 0x2A, 0x86, 0x48, 0x86, 0xF7,
                                                0x0D, 0x01, 0x07, 0x01 };
-    static const byte signedData[]         = { 0x2A, 0x86, 0x48, 0x86, 0xF7,
+    const byte signedData[]         = { 0x2A, 0x86, 0x48, 0x86, 0xF7,
                                                0x0D, 0x01, 0x07, 0x02};
-    static const byte envelopedData[]      = { 0x2A, 0x86, 0x48, 0x86, 0xF7,
+    const byte envelopedData[]      = { 0x2A, 0x86, 0x48, 0x86, 0xF7,
                                                0x0D, 0x01, 0x07, 0x03 };
-    static const byte signedAndEnveloped[] = { 0x2A, 0x86, 0x48, 0x86, 0xF7,
+    const byte signedAndEnveloped[] = { 0x2A, 0x86, 0x48, 0x86, 0xF7,
                                                0x0D, 0x01, 0x07, 0x04 };
-    static const byte digestedData[]       = { 0x2A, 0x86, 0x48, 0x86, 0xF7,
+    const byte digestedData[]       = { 0x2A, 0x86, 0x48, 0x86, 0xF7,
                                                0x0D, 0x01, 0x07, 0x05 };
-    static const byte encryptedData[]      = { 0x2A, 0x86, 0x48, 0x86, 0xF7,
+    const byte encryptedData[]      = { 0x2A, 0x86, 0x48, 0x86, 0xF7,
                                                0x0D, 0x01, 0x07, 0x06 };
 
     int idSz;
@@ -430,14 +430,17 @@ int wc_PKCS7_EncodeSignedData(PKCS7* pkcs7, byte* output, word32 outputSz)
                 { ASN_OBJECT_ID, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01,
                                  0x09, 0x04 };
 
-        PKCS7Attrib cannedAttribs[2] =
-        {
-            { contentTypeOid, sizeof(contentTypeOid),
-                             contentType, sizeof(contentType) },
-            { messageDigestOid, sizeof(messageDigestOid),
-                             esd->contentDigest, sizeof(esd->contentDigest) }
-        };
+        PKCS7Attrib cannedAttribs[2] ;
+
         word32 cannedAttribsCount = sizeof(cannedAttribs)/sizeof(PKCS7Attrib);
+				cannedAttribs[0].oid =  contentTypeOid ;
+				cannedAttribs[0].oidSz =  sizeof(contentTypeOid) ;
+				cannedAttribs[0].value = contentType ;
+				cannedAttribs[0].valueSz = sizeof(contentType) ;
+				cannedAttribs[1].oid = messageDigestOid ;
+				cannedAttribs[1].oidSz = sizeof(messageDigestOid) ;
+        cannedAttribs[1].value = esd->contentDigest ;
+        cannedAttribs[1].valueSz = sizeof(esd->contentDigest) ;
 
         esd->signedAttribsCount += cannedAttribsCount;
         esd->signedAttribsSz += EncodeAttributes(&esd->signedAttribs[0], 2,
@@ -881,14 +884,14 @@ int wc_PKCS7_VerifySignedData(PKCS7* pkcs7, byte* pkiMsg, word32 pkiMsgSz)
         {
             word32 scratch = 0;
             int plainSz = 0;
-            int digestSz = MAX_SEQ_SZ + MAX_ALGO_SZ +
-                           MAX_OCTET_STR_SZ + SHA_DIGEST_SIZE;
+            #define  DIGEST_SZ (MAX_SEQ_SZ + MAX_ALGO_SZ +\
+                           MAX_OCTET_STR_SZ + SHA_DIGEST_SIZE)
 
 #ifdef WOLFSSL_SMALL_STACK
             byte* digest;
             RsaKey* key;
 
-            digest = (byte*)XMALLOC(digestSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            digest = (byte*)XMALLOC(DIGEST_SZ, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
             if (digest == NULL)
                 return MEMORY_E;
@@ -900,12 +903,12 @@ int wc_PKCS7_VerifySignedData(PKCS7* pkcs7, byte* pkiMsg, word32 pkiMsgSz)
                 return MEMORY_E;
             }
 #else
-            byte digest[digestSz];
+            byte digest[DIGEST_SZ];
             RsaKey stack_key;
             RsaKey* key = &stack_key;
 #endif
 
-            XMEMSET(digest, 0, digestSz);
+            XMEMSET(digest, 0, DIGEST_SZ);
 
             ret = wc_InitRsaKey(key, NULL);
             if (ret != 0) {
@@ -925,7 +928,7 @@ int wc_PKCS7_VerifySignedData(PKCS7* pkcs7, byte* pkiMsg, word32 pkiMsgSz)
                 return PUBLIC_KEY_E;
             }
 
-            plainSz = wc_RsaSSL_Verify(sig, sigSz, digest, digestSz, key);
+            plainSz = wc_RsaSSL_Verify(sig, sigSz, digest, DIGEST_SZ, key);
             wc_FreeRsaKey(key);
 
 #ifdef WOLFSSL_SMALL_STACK

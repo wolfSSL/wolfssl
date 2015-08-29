@@ -6397,18 +6397,18 @@ int pkcs7signed_test(void)
     PKCS7  msg;
     WC_RNG rng;
 
-    byte transIdOid[] =
+    static byte transIdOid[] =
                { 0x06, 0x0a, 0x60, 0x86, 0x48, 0x01, 0x86, 0xF8, 0x45, 0x01,
                  0x09, 0x07 };
-    byte messageTypeOid[] =
+    static byte messageTypeOid[] =
                { 0x06, 0x0a, 0x60, 0x86, 0x48, 0x01, 0x86, 0xF8, 0x45, 0x01,
                  0x09, 0x02 };
-    byte senderNonceOid[] =
+    static byte senderNonceOid[] =
                { 0x06, 0x0a, 0x60, 0x86, 0x48, 0x01, 0x86, 0xF8, 0x45, 0x01,
                  0x09, 0x05 };
-    byte transId[(SHA_DIGEST_SIZE + 1) * 2 + 1];
-    byte messageType[] = { 0x13, 2, '1', '9' };
-    byte senderNonce[PKCS7_NONCE_SZ + 2];
+    static byte transId[(SHA_DIGEST_SIZE + 1) * 2 + 1];
+    static byte messageType[] = { 0x13, 2, '1', '9' };
+    static byte senderNonce[PKCS7_NONCE_SZ + 2];
 
     PKCS7Attrib attribs[] =
     {
