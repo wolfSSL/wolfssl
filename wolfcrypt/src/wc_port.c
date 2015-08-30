@@ -391,6 +391,7 @@ int UnLockMutex(wolfSSL_Mutex *m)
         }
 
     #elif defined(WOLFSSL_uITRON4)
+				#include "stddef.h"
         #include "kernel.h"
         int InitMutex(wolfSSL_Mutex* m)
         {
@@ -401,7 +402,7 @@ int UnLockMutex(wolfSSL_Mutex *m)
             m->sem.name    = NULL ;
 
             m->id = acre_sem(&m->sem);
-            if( m->id != NULL )
+            if( m->id != E_OK )
                 iReturn = 0;
             else
                 iReturn = BAD_MUTEX_E;
