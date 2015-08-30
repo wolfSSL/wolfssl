@@ -1565,15 +1565,15 @@ void FreeX509(WOLFSSL_X509* x509)
    wolfSSL_Set_SSL_CTX */
 int SetSSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
 {
-    if(!ssl || !ctx)
-        return BAD_FUNC_ARG;
-
     byte havePSK = 0;
     byte haveAnon = 0;
     byte haveRSA = 0;
     byte newSSL = ssl->ctx == NULL;
-    (void) haveAnon; /* Squash unused var warnings */
 
+	(void) haveAnon; /* Squash unused var warnings */
+    
+	  if(!ssl || !ctx)
+        return BAD_FUNC_ARG; 
 #ifndef NO_RSA
     haveRSA = 1;
 #endif
