@@ -4853,6 +4853,164 @@ int wc_DerToPemEx(const byte* der, word32 derSz, byte* output, word32 outSz,
 
 #endif /* WOLFSSL_KEY_GEN || WOLFSSL_CERT_GEN */
 
+#if !defined(NO_RSA) && (defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_KEY_GEN))
+/* Write a public RSA key to output */
+static int SetRsaPublicKey(byte* output, RsaKey* key, int outLen)
+{
+#ifdef WOLFSSL_SMALL_STACK
+    byte* n = NULL;
+    byte* e = NULL;
+    byte* algo = NULL;
+#else
+    byte n[MAX_RSA_INT_SZ];
+    byte e[MAX_RSA_E_SZ];
+    byte algo[MAX_ALGO_SZ];
+#endif
+    byte seq[MAX_SEQ_SZ];
+    byte len[MAX_LENGTH_SZ + 1];  /* trailing 0 */
+    int  nSz;
+    int  eSz;
+    int  algoSz;
+    int  seqSz;
+    int  lenSz;
+    int  idx;
+    int  rawLen;
+    int  leadingBit;
+    int  err;
+
+    if (output == NULL || key == NULL || outLen < MAX_SEQ_SZ)
+        return BAD_FUNC_ARG;
+
+    /* n */
+#ifdef WOLFSSL_SMALL_STACK
+    n = (byte*)XMALLOC(MAX_RSA_INT_SZ, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (n == NULL)
+        return MEMORY_E;
+#endif
+
+    leadingBit = mp_leading_bit(&key->n);
+    rawLen = mp_unsigned_bin_size(&key->n) + leadingBit;
+    n[0] = ASN_INTEGER;
+    nSz  = SetLength(rawLen, n + 1) + 1;  /* int tag */
+
+    if ( (nSz + rawLen) < MAX_RSA_INT_SZ) {
+        if (leadingBit)
+            n[nSz] = 0;
+        err = mp_to_unsigned_bin(&key->n, n + nSz + leadingBit);
+        if (err == MP_OKAY)
+            nSz += rawLen;
+        else {
+#ifdef WOLFSSL_SMALL_STACK
+            XFREE(n, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+            return MP_TO_E;
+        }
+    }
+    else {
+#ifdef WOLFSSL_SMALL_STACK
+        XFREE(n, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+        return BUFFER_E;
+    }
+
+    /* e */
+#ifdef WOLFSSL_SMALL_STACK
+    e = (byte*)XMALLOC(MAX_RSA_E_SZ, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (e == NULL) {
+#ifdef WOLFSSL_SMALL_STACK
+        XFREE(n, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+        return MEMORY_E;
+    }
+#endif
+
+    leadingBit = mp_leading_bit(&key->e);
+    rawLen = mp_unsigned_bin_size(&key->e) + leadingBit;
+    e[0] = ASN_INTEGER;
+    eSz  = SetLength(rawLen, e + 1) + 1;  /* int tag */
+
+    if ( (eSz + rawLen) < MAX_RSA_E_SZ) {
+        if (leadingBit)
+            e[eSz] = 0;
+        err = mp_to_unsigned_bin(&key->e, e + eSz + leadingBit);
+        if (err == MP_OKAY)
+            eSz += rawLen;
+        else {
+#ifdef WOLFSSL_SMALL_STACK
+            XFREE(n, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(e, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+            return MP_TO_E;
+        }
+    }
+    else {
+#ifdef WOLFSSL_SMALL_STACK
+        XFREE(n, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(e, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+        return BUFFER_E;
+    }
+
+#ifdef WOLFSSL_SMALL_STACK
+    algo = (byte*)XMALLOC(MAX_ALGO_SZ, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (algo == NULL) {
+        XFREE(n, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(e, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        return MEMORY_E;
+    }
+#endif
+
+    /* headers */
+    algoSz = SetAlgoID(RSAk, algo, keyType, 0);
+    seqSz  = SetSequence(nSz + eSz, seq);
+    lenSz  = SetLength(seqSz + nSz + eSz + 1, len);
+    len[lenSz++] = 0;   /* trailing 0 */
+
+
+    /* write */
+    idx = SetSequence(nSz + eSz + seqSz + lenSz + 1 + algoSz, output);
+        /* 1 is for ASN_BIT_STRING */
+
+    /* check output size */
+    if ( (idx + algoSz + 1 + lenSz + seqSz + nSz + eSz) > outLen) {
+        #ifdef WOLFSSL_SMALL_STACK
+            XFREE(n,    NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(e,    NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(algo, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        #endif
+
+        return BUFFER_E;
+    }
+
+    /* algo */
+    XMEMCPY(output + idx, algo, algoSz);
+    idx += algoSz;
+    /* bit string */
+    output[idx++] = ASN_BIT_STRING;
+    /* length */
+    XMEMCPY(output + idx, len, lenSz);
+    idx += lenSz;
+    /* seq */
+    XMEMCPY(output + idx, seq, seqSz);
+    idx += seqSz;
+    /* n */
+    XMEMCPY(output + idx, n, nSz);
+    idx += nSz;
+    /* e */
+    XMEMCPY(output + idx, e, eSz);
+    idx += eSz;
+
+#ifdef WOLFSSL_SMALL_STACK
+    XFREE(n,    NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(e,    NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(algo, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+
+    return idx;
+}
+#endif /* !defined(NO_RSA) && (defined(WOLFSSL_CERT_GEN) ||
+                               defined(WOLFSSL_KEY_GEN)) */
+
 
 #if defined(WOLFSSL_KEY_GEN) && !defined(NO_RSA)
 
@@ -4984,6 +5142,14 @@ int wc_RsaKeyToDer(RsaKey* key, byte* output, word32 inLen)
     FreeTmpRsas(tmps, key->heap);
 
     return outLen;
+}
+
+
+/* Convert Rsa Public key to DER format, write to output (inLen), return bytes
+   written */
+int wc_RsaKeyToPublicDer(RsaKey* key, byte* output, word32 inLen)
+{
+    return SetRsaPublicKey(output, key, inLen);
 }
 
 #endif /* WOLFSSL_KEY_GEN && !NO_RSA */
@@ -5221,144 +5387,6 @@ static int SetEccPublicKey(byte* output, ecc_key* key)
 #endif /* HAVE_ECC */
 
 
-/* Write a public RSA key to output */
-static int SetRsaPublicKey(byte* output, RsaKey* key)
-{
-#ifdef WOLFSSL_SMALL_STACK
-    byte* n = NULL;
-    byte* e = NULL;
-    byte* algo = NULL;
-#else
-    byte n[MAX_RSA_INT_SZ];
-    byte e[MAX_RSA_E_SZ];
-    byte algo[MAX_ALGO_SZ];
-#endif
-    byte seq[MAX_SEQ_SZ];
-    byte len[MAX_LENGTH_SZ + 1];  /* trailing 0 */
-    int  nSz;
-    int  eSz;
-    int  algoSz;
-    int  seqSz;
-    int  lenSz;
-    int  idx;
-    int  rawLen;
-    int  leadingBit;
-    int  err;
-
-    /* n */
-#ifdef WOLFSSL_SMALL_STACK
-    n = (byte*)XMALLOC(MAX_RSA_INT_SZ, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    if (n == NULL)
-        return MEMORY_E;
-#endif
-
-    leadingBit = mp_leading_bit(&key->n);
-    rawLen = mp_unsigned_bin_size(&key->n) + leadingBit;
-    n[0] = ASN_INTEGER;
-    nSz  = SetLength(rawLen, n + 1) + 1;  /* int tag */
-
-    if ( (nSz + rawLen) < MAX_RSA_INT_SZ) {
-        if (leadingBit)
-            n[nSz] = 0;
-        err = mp_to_unsigned_bin(&key->n, n + nSz + leadingBit);
-        if (err == MP_OKAY)
-            nSz += rawLen;
-        else {
-#ifdef WOLFSSL_SMALL_STACK
-            XFREE(n, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
-            return MP_TO_E;
-        }
-    }
-    else {
-#ifdef WOLFSSL_SMALL_STACK
-        XFREE(n, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
-        return BUFFER_E;
-    }
-
-    /* e */
-#ifdef WOLFSSL_SMALL_STACK
-    e = (byte*)XMALLOC(MAX_RSA_E_SZ, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    if (e == NULL) {
-#ifdef WOLFSSL_SMALL_STACK
-        XFREE(n, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
-        return MEMORY_E;
-    }
-#endif
-
-    leadingBit = mp_leading_bit(&key->e);
-    rawLen = mp_unsigned_bin_size(&key->e) + leadingBit;
-    e[0] = ASN_INTEGER;
-    eSz  = SetLength(rawLen, e + 1) + 1;  /* int tag */
-
-    if ( (eSz + rawLen) < MAX_RSA_E_SZ) {
-        if (leadingBit)
-            e[eSz] = 0;
-        err = mp_to_unsigned_bin(&key->e, e + eSz + leadingBit);
-        if (err == MP_OKAY)
-            eSz += rawLen;
-        else {
-#ifdef WOLFSSL_SMALL_STACK
-            XFREE(n, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-            XFREE(e, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
-            return MP_TO_E;
-        }
-    }
-    else {
-#ifdef WOLFSSL_SMALL_STACK
-        XFREE(n, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        XFREE(e, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
-        return BUFFER_E;
-    }
-
-#ifdef WOLFSSL_SMALL_STACK
-    algo = (byte*)XMALLOC(MAX_ALGO_SZ, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    if (algo == NULL) {
-        XFREE(n, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        XFREE(e, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        return MEMORY_E;
-    }
-#endif
-
-    /* headers */
-    algoSz = SetAlgoID(RSAk, algo, keyType, 0);
-    seqSz  = SetSequence(nSz + eSz, seq);
-    lenSz  = SetLength(seqSz + nSz + eSz + 1, len);
-    len[lenSz++] = 0;   /* trailing 0 */
-
-    /* write */
-    idx = SetSequence(nSz + eSz + seqSz + lenSz + 1 + algoSz, output);
-        /* 1 is for ASN_BIT_STRING */
-    /* algo */
-    XMEMCPY(output + idx, algo, algoSz);
-    idx += algoSz;
-    /* bit string */
-    output[idx++] = ASN_BIT_STRING;
-    /* length */
-    XMEMCPY(output + idx, len, lenSz);
-    idx += lenSz;
-    /* seq */
-    XMEMCPY(output + idx, seq, seqSz);
-    idx += seqSz;
-    /* n */
-    XMEMCPY(output + idx, n, nSz);
-    idx += nSz;
-    /* e */
-    XMEMCPY(output + idx, e, eSz);
-    idx += eSz;
-
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(n,    NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    XFREE(e,    NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    XFREE(algo, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
-
-    return idx;
-}
 
 
 static INLINE byte itob(int number)
@@ -5811,7 +5839,8 @@ static int EncodeCert(Cert* cert, DerCert* der, RsaKey* rsaKey, ecc_key* eccKey,
     if (cert->keyType == RSA_KEY) {
         if (rsaKey == NULL)
             return PUBLIC_KEY_E;
-        der->publicKeySz = SetRsaPublicKey(der->publicKey, rsaKey);
+        der->publicKeySz = SetRsaPublicKey(der->publicKey, rsaKey,
+                                           sizeof(der->publicKey));
         if (der->publicKeySz <= 0)
             return PUBLIC_KEY_E;
     }
@@ -6225,7 +6254,8 @@ static int EncodeCertReq(Cert* cert, DerCert* der,
     if (cert->keyType == RSA_KEY) {
         if (rsaKey == NULL)
             return PUBLIC_KEY_E;
-        der->publicKeySz = SetRsaPublicKey(der->publicKey, rsaKey);
+        der->publicKeySz = SetRsaPublicKey(der->publicKey, rsaKey,
+                                           sizeof(der->publicKey));
         if (der->publicKeySz <= 0)
             return PUBLIC_KEY_E;
     }
