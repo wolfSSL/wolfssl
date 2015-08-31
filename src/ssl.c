@@ -3084,6 +3084,26 @@ int wolfSSL_CertManagerLoadCABuffer(WOLFSSL_CERT_MANAGER* cm,
     return ret;
 }
 
+#ifdef HAVE_CRL
+
+int wolfSSL_CertManagerLoadCRLBuffer(WOLFSSL_CERT_MANAGER* cm,
+                                   const unsigned char* buff, long sz, int type)
+{
+    WOLFSSL_ENTER("wolfSSL_CertManagerLoadCRLBuffer");
+    if (cm == NULL)
+        return BAD_FUNC_ARG;
+
+    if (cm->crl == NULL) {
+        if (wolfSSL_CertManagerEnableCRL(cm, 0) != SSL_SUCCESS) {
+            WOLFSSL_MSG("Enable CRL failed");
+            return SSL_FATAL_ERROR;
+        }
+    }
+
+    return BufferLoadCRL(cm->crl, buff, sz, type);
+}
+
+#endif /* HAVE_CRL */
 
 /* Verify the ceritficate, SSL_SUCCESS for ok, < 0 for error */
 int wolfSSL_CertManagerVerifyBuffer(WOLFSSL_CERT_MANAGER* cm, const byte* buff,
