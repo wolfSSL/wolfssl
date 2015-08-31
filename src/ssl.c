@@ -3105,6 +3105,52 @@ int wolfSSL_CertManagerLoadCRLBuffer(WOLFSSL_CERT_MANAGER* cm,
 
 #endif /* HAVE_CRL */
 
+/* turn on CRL if off and compiled in, set options */
+int wolfSSL_CertManagerEnableCRL(WOLFSSL_CERT_MANAGER* cm, int options)
+{
+    int ret = SSL_SUCCESS;
+
+    (void)options;
+
+    WOLFSSL_ENTER("wolfSSL_CertManagerEnableCRL");
+    if (cm == NULL)
+        return BAD_FUNC_ARG;
+
+    #ifdef HAVE_CRL
+        if (cm->crl == NULL) {
+            cm->crl = (WOLFSSL_CRL*)XMALLOC(sizeof(WOLFSSL_CRL), cm->heap,
+                                           DYNAMIC_TYPE_CRL);
+            if (cm->crl == NULL)
+                return MEMORY_E;
+
+            if (InitCRL(cm->crl, cm) != 0) {
+                WOLFSSL_MSG("Init CRL failed");
+                FreeCRL(cm->crl, 1);
+                cm->crl = NULL;
+                return SSL_FAILURE;
+            }
+        }
+        cm->crlEnabled = 1;
+        if (options & WOLFSSL_CRL_CHECKALL)
+            cm->crlCheckAll = 1;
+    #else
+        ret = NOT_COMPILED_IN;
+    #endif
+
+    return ret;
+}
+
+
+int wolfSSL_CertManagerDisableCRL(WOLFSSL_CERT_MANAGER* cm)
+{
+    WOLFSSL_ENTER("wolfSSL_CertManagerDisableCRL");
+    if (cm == NULL)
+        return BAD_FUNC_ARG;
+
+    cm->crlEnabled = 0;
+
+    return SSL_SUCCESS;
+}
 /* Verify the ceritficate, SSL_SUCCESS for ok, < 0 for error */
 int wolfSSL_CertManagerVerifyBuffer(WOLFSSL_CERT_MANAGER* cm, const byte* buff,
                                     long sz, int format)
@@ -3678,52 +3724,6 @@ int wolfSSL_CertManagerLoadCA(WOLFSSL_CERT_MANAGER* cm, const char* file,
 }
 
 
-/* turn on CRL if off and compiled in, set options */
-int wolfSSL_CertManagerEnableCRL(WOLFSSL_CERT_MANAGER* cm, int options)
-{
-    int ret = SSL_SUCCESS;
-
-    (void)options;
-
-    WOLFSSL_ENTER("wolfSSL_CertManagerEnableCRL");
-    if (cm == NULL)
-        return BAD_FUNC_ARG;
-
-    #ifdef HAVE_CRL
-        if (cm->crl == NULL) {
-            cm->crl = (WOLFSSL_CRL*)XMALLOC(sizeof(WOLFSSL_CRL), cm->heap,
-                                           DYNAMIC_TYPE_CRL);
-            if (cm->crl == NULL)
-                return MEMORY_E;
-
-            if (InitCRL(cm->crl, cm) != 0) {
-                WOLFSSL_MSG("Init CRL failed");
-                FreeCRL(cm->crl, 1);
-                cm->crl = NULL;
-                return SSL_FAILURE;
-            }
-        }
-        cm->crlEnabled = 1;
-        if (options & WOLFSSL_CRL_CHECKALL)
-            cm->crlCheckAll = 1;
-    #else
-        ret = NOT_COMPILED_IN;
-    #endif
-
-    return ret;
-}
-
-
-int wolfSSL_CertManagerDisableCRL(WOLFSSL_CERT_MANAGER* cm)
-{
-    WOLFSSL_ENTER("wolfSSL_CertManagerDisableCRL");
-    if (cm == NULL)
-        return BAD_FUNC_ARG;
-
-    cm->crlEnabled = 0;
-
-    return SSL_SUCCESS;
-}
 
 
 int wolfSSL_CTX_check_private_key(WOLFSSL_CTX* ctx)

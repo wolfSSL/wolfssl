@@ -32,8 +32,11 @@
 #include <wolfssl/internal.h>
 #include <wolfssl/error-ssl.h>
 
-#include <dirent.h>
-#include <sys/stat.h>
+#ifndef NO_FILESYSTEM
+    #include <dirent.h>
+    #include <sys/stat.h>
+#endif
+
 #include <string.h>
 
 #ifdef HAVE_CRL_MONITOR
@@ -679,6 +682,8 @@ static int StartMonitorCRL(WOLFSSL_CRL* crl)
 
 #else /* HAVE_CRL_MONITOR */
 
+#ifndef NO_FILESYSTEM
+
 static int StartMonitorCRL(WOLFSSL_CRL* crl)
 {
     (void)crl;
@@ -689,8 +694,11 @@ static int StartMonitorCRL(WOLFSSL_CRL* crl)
     return NOT_COMPILED_IN;
 }
 
+#endif /* NO_FILESYSTEM */
+
 #endif  /* HAVE_CRL_MONITOR */
 
+#ifndef NO_FILESYSTEM
 
 /* Load CRL path files of type, SSL_SUCCESS on ok */ 
 int LoadCRL(WOLFSSL_CRL* crl, const char* path, int type, int monitor)
@@ -786,5 +794,7 @@ int LoadCRL(WOLFSSL_CRL* crl, const char* path, int type, int monitor)
 
     return ret;
 }
+
+#endif /* NO_FILESYSTEM */
 
 #endif /* HAVE_CRL */

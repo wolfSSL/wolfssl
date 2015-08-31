@@ -1298,6 +1298,10 @@ struct CRL_Monitor {
     typedef struct WOLFSSL_CRL WOLFSSL_CRL;
 #endif
 
+#if defined(HAVE_CRL) && defined(NO_FILESYSTEM)
+    #undef HAVE_CRL_MONITOR
+#endif
+
 /* wolfSSL CRL controller */
 struct WOLFSSL_CRL {
     WOLFSSL_CERT_MANAGER* cm;            /* pointer back to cert manager */
