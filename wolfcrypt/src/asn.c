@@ -182,6 +182,15 @@
     #ifndef HAVE_VALIDATE_DATE
         #define XVALIDATE_DATE(d, f, t) ValidateDate((d), (f), (t))
     #endif
+
+#elif defined(IDIRECT_DEV_TIME)
+    /*Gets the timestamp from cloak software owned by VT iDirect
+    in place of time() from <time.h> */
+    #include <time.h>
+    #define XTIME(t1)  idirect_time((t1))
+    #define XGMTIME(c) gmtime((c))
+    #define XVALIDATE_DATE(d, f, t) ValidateDate((d), (f), (t))
+
 #else
     /* default */
     /* uses complete <time.h> facility */
@@ -467,6 +476,22 @@ CPU_INT32S NetSecure_ValidateDateHandler(CPU_INT08U *date, CPU_INT08U format,
 }
 
 #endif /* MICRIUM */
+
+#if defined(IDIRECT_DEV_TIME)
+
+extern time_t getTimestamp();
+
+time_t idirect_time(time_t * timer)
+{
+    time_t sec = getTimestamp();
+
+    if (timer != NULL)
+        *timer = sec;
+
+    return sec;
+}
+
+#endif
 
 
 WOLFSSL_LOCAL int GetLength(const byte* input, word32* inOutIdx, int* len,
