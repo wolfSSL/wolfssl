@@ -1289,6 +1289,20 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 */
 
 
+#elif defined(IDIRECT_DEV_RANDOM)
+
+extern int getRandom( int sz, unsigned char *output );
+
+int GenerateSeed(OS_Seed* os, byte* output, word32 sz)
+{
+    int num_bytes_returned = 0;
+
+    num_bytes_returned = getRandom( (int) sz, (unsigned char *) output );
+
+    return 0;
+}
+
+
 #else /* !USE_WINDOWS_API && !HAVE_RPT_SYS && !MICRIUM && !NO_DEV_RANDOM */
 
 /* may block */
