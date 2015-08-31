@@ -5985,7 +5985,7 @@ static int MakeSignature(const byte* buffer, int sz, byte* sig, int sigSz,
                          int sigAlgoType)
 {
     int encSigSz, digestSz, typeH = 0, ret = 0;
-    byte digest[SHA256_DIGEST_SIZE]; /* max size */
+    byte digest[MAX_DIGEST_SIZE]; /* max size */
 #ifdef WOLFSSL_SMALL_STACK
     byte* encSig;
 #else
@@ -6028,6 +6028,15 @@ static int MakeSignature(const byte* buffer, int sz, byte* sig, int sigSz,
         case CTC_SHA256wRSA:
         case CTC_SHA256wECDSA:
         if ((ret = wc_Sha256Hash(buffer, sz, digest)) == 0) {
+            typeH    = SHA256h;
+            digestSz = SHA256_DIGEST_SIZE;
+        }
+        break;
+    #endif
+    #ifdef WOLFSSL_SHA512
+        case CTC_SHA512wRSA:
+        case CTC_SHA512wECDSA:
+        if ((ret = wc_Sha512Hash(buffer, sz, digest)) == 0) {
             typeH    = SHA256h;
             digestSz = SHA256_DIGEST_SIZE;
         }
