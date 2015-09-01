@@ -26,7 +26,7 @@
  */
 
 /**
- *  Edited by Moisés Guimarães (moisesguimaraesm@gmail.com)
+ *  Edited by Moises Guimaraes (moisesguimaraesm@gmail.com)
  *  to fit CyaSSL's needs.
  */
 
@@ -1569,7 +1569,7 @@ void fp_montgomery_calc_normalization(fp_int *a, fp_int *b)
 #endif
 
 #ifdef HAVE_INTEL_MULX
-static inline void innermul8_mulx(fp_digit *c_mulx, fp_digit *cy_mulx, fp_digit *tmpm, fp_digit mu)
+static INLINE void innermul8_mulx(fp_digit *c_mulx, fp_digit *cy_mulx, fp_digit *tmpm, fp_digit mu)
 {
     fp_digit _c0, _c1, _c2, _c3, _c4, _c5, _c6, _c7, cy ;
 
