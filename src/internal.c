@@ -1562,18 +1562,25 @@ void FreeX509(WOLFSSL_X509* x509)
 
 /* This function inherits a WOLFSSL_CTX's fields into an SSL object.
    It is used during initialization and to switch an ssl's CTX with
-   wolfSSL_Set_SSL_CTX */
+   wolfSSL_Set_SSL_CTX.  Requires ssl->suites alloc and ssl-arrays with PSK
+   SSL_SUCCESS return value on success */
 int SetSSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
 {
+    if(!ssl || !ctx || ssl->suites == NULL)
+        return BAD_FUNC_ARG;
+
+#ifndef NO_PSK
+    if (ctx->server_hint[0] && ssl->arrays == NULL) {
+        return BAD_FUNC_ARG;  /* needed for copy below */
+    }
+#endif
+
     byte havePSK = 0;
     byte haveAnon = 0;
     byte haveRSA = 0;
     byte newSSL = ssl->ctx == NULL;
+    (void) haveAnon; /* Squash unused var warnings */
 
-	(void) haveAnon; /* Squash unused var warnings */
-    
-	  if(!ssl || !ctx)
-        return BAD_FUNC_ARG; 
 #ifndef NO_RSA
     haveRSA = 1;
 #endif
@@ -1701,7 +1708,8 @@ int SetSSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
 
 
 /* init everything to 0, NULL, default values before calling anything that may
-   fail so that desctructor has a "good" state to cleanup */
+   fail so that desctructor has a "good" state to cleanup
+   0 on success */
 int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
 {
     int  ret;
@@ -1793,6 +1801,7 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
     }
 
     /* Initialize SSL with the appropriate fields from it's ctx */
+    /* requires valid arrays and suites */
     if((ret =  SetSSL_CTX(ssl, ctx)) != SSL_SUCCESS)
         return ret;
 
