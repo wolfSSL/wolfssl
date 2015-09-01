@@ -307,6 +307,54 @@
     #define USE_WINDOWS_API
 #endif
 
+#if defined(WOLFSSL_uITRON4)
+
+#define XMALLOC_USER
+#include <stddef.h>
+#define ITRON_POOL_SIZE 1024*20
+extern int uITRON4_minit(size_t poolsz) ;
+extern void *uITRON4_malloc(size_t sz) ;
+extern void *uITRON4_realloc(void *p, size_t sz) ;
+extern void uITRON4_free(void *p) ;
+
+#define XMALLOC(sz, heap, type)     uITRON4_malloc(sz)
+#define XREALLOC(p, sz, heap, type) uITRON4_realloc(p, sz)
+#define XFREE(p, heap, type)        uITRON4_free(p)
+#endif
+
+#if defined(WOLFSSL_uTKERNEL2)
+#define WOLFSSL_CLOSESOCKET
+#define XMALLOC_USER
+int uTKernel_init_mpool(unsigned int sz) ; /* initializing malloc pool */
+void *uTKernel_malloc(unsigned int sz) ;
+void *uTKernel_realloc(void *p, unsigned int sz) ;
+void   uTKernel_free(void *p) ;
+#define XMALLOC(s, h, type) uTKernel_malloc((s))
+#define XREALLOC(p, n, h, t)  uTKernel_realloc((p), (n))
+#define XFREE(p, h, type)  uTKernel_free((p))
+
+#include <stdio.h>
+#include    "tm/tmonitor.h"
+static char *fgets(char *buff, int sz, FILE *fp)
+/*static char * gets(char *buff)*/
+{
+    char * p = buff ;
+    *p = '\0' ;
+    while(1) {
+        *p = tm_getchar(-1) ;
+        tm_putchar(*p) ;
+        if(*p == '\r') {
+            tm_putchar('\n') ;
+            *p = '\0' ;
+            break ;
+        }
+        p ++ ;
+    }
+    return buff ;
+}
+
+#endif
+
 
 #if defined(WOLFSSL_LEANPSK) && !defined(XMALLOC_USER)
     #include <stdlib.h>

@@ -117,12 +117,18 @@
     /* do nothing */
 #elif defined(FREESCALE_MQX) || defined(FREESCALE_KSDK_MQX)
     /* do nothing */
+#elif defined(WOLFSSL_uITRON4)
+        /* do nothing */
+#elif defined(WOLFSSL_uTKERNEL2)
+        /* do nothing */
 #elif defined(WOLFSSL_MDK_ARM)
     #if defined(WOLFSSL_MDK5)
          #include "cmsis_os.h"
     #else
         #include <rtl.h>
     #endif
+#elif defined(WOLFSSL_CMSIS_RTOS)
+    #include "cmsis_os.h"
 #elif defined(MBED)
 #elif defined(WOLFSSL_TIRTOS)
     /* do nothing */

@@ -876,7 +876,7 @@ static int wc_InitRng_IntelRD()
 #if defined(HAVE_HASHDRBG) || defined(NO_RC4)
 
 /* return 0 on success */
-static inline int IntelRDseed32(unsigned int *seed)  
+static INLINE int IntelRDseed32(unsigned int *seed)  
 {  
     int rdseed;  unsigned char ok ;
 
@@ -889,7 +889,7 @@ static inline int IntelRDseed32(unsigned int *seed)
 }
 
 /* return 0 on success */
-static inline int IntelRDseed32_r(unsigned int *rnd)  
+static INLINE int IntelRDseed32_r(unsigned int *rnd)  
 {  
     int i ;
     for(i=0; i<INTELRD_RETRY;i++) {
@@ -924,7 +924,7 @@ static int wc_GenerateSeed_IntelRD(OS_Seed* os, byte* output, word32 sz)
 #else
 
 /* return 0 on success */
-static inline int IntelRDrand32(unsigned int *rnd)  
+static INLINE int IntelRDrand32(unsigned int *rnd)  
 {  
     int rdrand; unsigned char ok ;  
     __asm__ volatile("rdrand %0; setc %1":"=r"(rdrand), "=qm"(ok));  
@@ -936,7 +936,7 @@ static inline int IntelRDrand32(unsigned int *rnd)
 }
 
 /* return 0 on success */
-static inline int IntelRDrand32_r(unsigned int *rnd)  
+static INLINE int IntelRDrand32_r(unsigned int *rnd)  
 {  
     int i ;
     for(i=0; i<INTELRD_RETRY;i++) {
@@ -1182,7 +1182,8 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 
 #elif defined(WOLFSSL_SAFERTOS) || defined(WOLFSSL_LEANPSK) \
    || defined(WOLFSSL_IAR_ARM)  || defined(WOLFSSL_MDK_ARM) \
-   || defined(WOLFSSL_uITRON4)  || defined(WOLFSSL_uTKERNEL2)
+   || defined(WOLFSSL_uITRON4)  || defined(WOLFSSL_uTKERNEL2)\
+   || defined(WOLFSSL_GENSEED_FORTEST)
 
 #warning "write a real random seed!!!!, just for testing now"
 

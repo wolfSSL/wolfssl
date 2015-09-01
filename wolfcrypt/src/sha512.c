@@ -140,13 +140,13 @@ int InitSha512(Sha512* sha512) {
 
 #if defined(HAVE_INTEL_AVX1)
    
-   XMM Instructions/inline asm Definitions
+   XMM Instructions/INLINE asm Definitions
 
 #endif
 
 #if defined(HAVE_INTEL_AVX2)
 
-   YMM Instructions/inline asm Definitions
+   YMM Instructions/INLINE asm Definitions
 
 #endif
 
@@ -621,7 +621,7 @@ int wc_Sha512Final(Sha512* sha512, byte* hash)
 #define Ry_3(i, w) h(i)+=S0(a(i))+Maj(a(i),b(i),c(i));
 #endif
 
-#if defined(HAVE_INTEL_AVX1) /* inline Assember for Intel AVX1 instructions */
+#if defined(HAVE_INTEL_AVX1) /* INLINE Assember for Intel AVX1 instructions */
 #if defined(DEBUG_XMM)
 
 #define SAVE_REG(i)     __asm__ volatile("vmovdqu %%xmm"#i", %0 \n\t":"=m"(reg[i][0])::XMM_REGs);
@@ -785,57 +785,57 @@ static word64 mBYTE_FLIP_MASK[] =  { 0x0001020304050607, 0x08090a0b0c0d0e0f } ;
     if((i)==0)\
         MOVE_to_MEM(W_X,16, W_I) ;\
 
-static inline void Block_0_1(word64 *W_X) { Block_xx_1(0) ; }
-static inline void Block_0_2(word64 *W_X) { Block_xx_2(0) ; }
-static inline void Block_0_3(void) { Block_xx_3(0) ; }
-static inline void Block_0_4(void) { Block_xx_4(0) ; }
-static inline void Block_0_5(void) { Block_xx_5(0) ; }
-static inline void Block_0_6(word64 *W_X) { Block_xx_6(0) ; }
-static inline void Block_0_7(word64 *W_X) { Block_xx_7(2) ; }
-static inline void Block_0_8(word64 *W_X) { Block_xx_8(2) ; }
-static inline void Block_0_9(void) { Block_xx_9(2) ; }
-static inline void Block_0_10(void){ Block_xx_10(2) ; }
-static inline void Block_0_11(void){ Block_xx_11(2) ; }
-static inline void Block_0_12(word64 *W_X){ Block_xx_12(2) ; }
+static INLINE void Block_0_1(word64 *W_X) { Block_xx_1(0) ; }
+static INLINE void Block_0_2(word64 *W_X) { Block_xx_2(0) ; }
+static INLINE void Block_0_3(void) { Block_xx_3(0) ; }
+static INLINE void Block_0_4(void) { Block_xx_4(0) ; }
+static INLINE void Block_0_5(void) { Block_xx_5(0) ; }
+static INLINE void Block_0_6(word64 *W_X) { Block_xx_6(0) ; }
+static INLINE void Block_0_7(word64 *W_X) { Block_xx_7(2) ; }
+static INLINE void Block_0_8(word64 *W_X) { Block_xx_8(2) ; }
+static INLINE void Block_0_9(void) { Block_xx_9(2) ; }
+static INLINE void Block_0_10(void){ Block_xx_10(2) ; }
+static INLINE void Block_0_11(void){ Block_xx_11(2) ; }
+static INLINE void Block_0_12(word64 *W_X){ Block_xx_12(2) ; }
 
-static inline void Block_4_1(word64 *W_X) { Block_xx_1(4) ; }
-static inline void Block_4_2(word64 *W_X) { Block_xx_2(4) ; }
-static inline void Block_4_3(void) { Block_xx_3(4) ; }
-static inline void Block_4_4(void) { Block_xx_4(4) ; }
-static inline void Block_4_5(void) { Block_xx_5(4) ; }
-static inline void Block_4_6(word64 *W_X) { Block_xx_6(4) ; }
-static inline void Block_4_7(word64 *W_X) { Block_xx_7(6) ; }
-static inline void Block_4_8(word64 *W_X) { Block_xx_8(6) ; }
-static inline void Block_4_9(void) { Block_xx_9(6) ; }
-static inline void Block_4_10(void){ Block_xx_10(6) ; }
-static inline void Block_4_11(void){ Block_xx_11(6) ; }
-static inline void Block_4_12(word64 *W_X){ Block_xx_12(6) ; }
+static INLINE void Block_4_1(word64 *W_X) { Block_xx_1(4) ; }
+static INLINE void Block_4_2(word64 *W_X) { Block_xx_2(4) ; }
+static INLINE void Block_4_3(void) { Block_xx_3(4) ; }
+static INLINE void Block_4_4(void) { Block_xx_4(4) ; }
+static INLINE void Block_4_5(void) { Block_xx_5(4) ; }
+static INLINE void Block_4_6(word64 *W_X) { Block_xx_6(4) ; }
+static INLINE void Block_4_7(word64 *W_X) { Block_xx_7(6) ; }
+static INLINE void Block_4_8(word64 *W_X) { Block_xx_8(6) ; }
+static INLINE void Block_4_9(void) { Block_xx_9(6) ; }
+static INLINE void Block_4_10(void){ Block_xx_10(6) ; }
+static INLINE void Block_4_11(void){ Block_xx_11(6) ; }
+static INLINE void Block_4_12(word64 *W_X){ Block_xx_12(6) ; }
 
-static inline void Block_8_1(word64 *W_X) { Block_xx_1(8) ; }
-static inline void Block_8_2(word64 *W_X) { Block_xx_2(8) ; }
-static inline void Block_8_3(void) { Block_xx_3(8) ; }
-static inline void Block_8_4(void) { Block_xx_4(8) ; }
-static inline void Block_8_5(void) { Block_xx_5(8) ; }
-static inline void Block_8_6(word64 *W_X) { Block_xx_6(8) ; }
-static inline void Block_8_7(word64 *W_X) { Block_xx_7(10) ; }
-static inline void Block_8_8(word64 *W_X) { Block_xx_8(10) ; }
-static inline void Block_8_9(void) { Block_xx_9(10) ; }
-static inline void Block_8_10(void){ Block_xx_10(10) ; }
-static inline void Block_8_11(void){ Block_xx_11(10) ; }
-static inline void Block_8_12(word64 *W_X){ Block_xx_12(10) ; }
+static INLINE void Block_8_1(word64 *W_X) { Block_xx_1(8) ; }
+static INLINE void Block_8_2(word64 *W_X) { Block_xx_2(8) ; }
+static INLINE void Block_8_3(void) { Block_xx_3(8) ; }
+static INLINE void Block_8_4(void) { Block_xx_4(8) ; }
+static INLINE void Block_8_5(void) { Block_xx_5(8) ; }
+static INLINE void Block_8_6(word64 *W_X) { Block_xx_6(8) ; }
+static INLINE void Block_8_7(word64 *W_X) { Block_xx_7(10) ; }
+static INLINE void Block_8_8(word64 *W_X) { Block_xx_8(10) ; }
+static INLINE void Block_8_9(void) { Block_xx_9(10) ; }
+static INLINE void Block_8_10(void){ Block_xx_10(10) ; }
+static INLINE void Block_8_11(void){ Block_xx_11(10) ; }
+static INLINE void Block_8_12(word64 *W_X){ Block_xx_12(10) ; }
 
-static inline void Block_12_1(word64 *W_X) { Block_xx_1(12) ; }
-static inline void Block_12_2(word64 *W_X) { Block_xx_2(12) ; }
-static inline void Block_12_3(void) { Block_xx_3(12) ; }
-static inline void Block_12_4(void) { Block_xx_4(12) ; }
-static inline void Block_12_5(void) { Block_xx_5(12) ; }
-static inline void Block_12_6(word64 *W_X) { Block_xx_6(12) ; }
-static inline void Block_12_7(word64 *W_X) { Block_xx_7(14) ; }
-static inline void Block_12_8(word64 *W_X) { Block_xx_8(14) ; }
-static inline void Block_12_9(void) { Block_xx_9(14) ; }
-static inline void Block_12_10(void){ Block_xx_10(14) ; }
-static inline void Block_12_11(void){ Block_xx_11(14) ; }
-static inline void Block_12_12(word64 *W_X){ Block_xx_12(14) ; }
+static INLINE void Block_12_1(word64 *W_X) { Block_xx_1(12) ; }
+static INLINE void Block_12_2(word64 *W_X) { Block_xx_2(12) ; }
+static INLINE void Block_12_3(void) { Block_xx_3(12) ; }
+static INLINE void Block_12_4(void) { Block_xx_4(12) ; }
+static INLINE void Block_12_5(void) { Block_xx_5(12) ; }
+static INLINE void Block_12_6(word64 *W_X) { Block_xx_6(12) ; }
+static INLINE void Block_12_7(word64 *W_X) { Block_xx_7(14) ; }
+static INLINE void Block_12_8(word64 *W_X) { Block_xx_8(14) ; }
+static INLINE void Block_12_9(void) { Block_xx_9(14) ; }
+static INLINE void Block_12_10(void){ Block_xx_10(14) ; }
+static INLINE void Block_12_11(void){ Block_xx_11(14) ; }
+static INLINE void Block_12_12(word64 *W_X){ Block_xx_12(14) ; }
 
 #endif
 
@@ -1165,57 +1165,57 @@ static int Transform_AVX1_RORX(Sha512* sha512)
     MOVE_to_MEMy(w,0, w_4) ;\
 
 
-static inline void Block_Y_0_1(void) { Block_Y_xx_1(0, W_0y, W_4y, W_8y, W_12y) ; }
-static inline void Block_Y_0_2(void) { Block_Y_xx_2(0, W_0y, W_4y, W_8y, W_12y) ; }
-static inline void Block_Y_0_3(void) { Block_Y_xx_3(0, W_0y, W_4y, W_8y, W_12y) ; }
-static inline void Block_Y_0_4(void) { Block_Y_xx_4(0, W_0y, W_4y, W_8y, W_12y) ; }
-static inline void Block_Y_0_5(void) { Block_Y_xx_5(0, W_0y, W_4y, W_8y, W_12y) ; }
-static inline void Block_Y_0_6(void) { Block_Y_xx_6(0, W_0y, W_4y, W_8y, W_12y) ; }
-static inline void Block_Y_0_7(void) { Block_Y_xx_7(0, W_0y, W_4y, W_8y, W_12y) ; }
-static inline void Block_Y_0_8(void) { Block_Y_xx_8(0, W_0y, W_4y, W_8y, W_12y) ; }
-static inline void Block_Y_0_9(void) { Block_Y_xx_9(0, W_0y, W_4y, W_8y, W_12y) ; }
-static inline void Block_Y_0_10(void){ Block_Y_xx_10(0, W_0y, W_4y, W_8y, W_12y) ; }
-static inline void Block_Y_0_11(void){ Block_Y_xx_11(0, W_0y, W_4y, W_8y, W_12y) ; }
-static inline void Block_Y_0_12(word64 *w){ Block_Y_xx_12(0, W_0y, W_4y, W_8y, W_12y) ; }
+static INLINE void Block_Y_0_1(void) { Block_Y_xx_1(0, W_0y, W_4y, W_8y, W_12y) ; }
+static INLINE void Block_Y_0_2(void) { Block_Y_xx_2(0, W_0y, W_4y, W_8y, W_12y) ; }
+static INLINE void Block_Y_0_3(void) { Block_Y_xx_3(0, W_0y, W_4y, W_8y, W_12y) ; }
+static INLINE void Block_Y_0_4(void) { Block_Y_xx_4(0, W_0y, W_4y, W_8y, W_12y) ; }
+static INLINE void Block_Y_0_5(void) { Block_Y_xx_5(0, W_0y, W_4y, W_8y, W_12y) ; }
+static INLINE void Block_Y_0_6(void) { Block_Y_xx_6(0, W_0y, W_4y, W_8y, W_12y) ; }
+static INLINE void Block_Y_0_7(void) { Block_Y_xx_7(0, W_0y, W_4y, W_8y, W_12y) ; }
+static INLINE void Block_Y_0_8(void) { Block_Y_xx_8(0, W_0y, W_4y, W_8y, W_12y) ; }
+static INLINE void Block_Y_0_9(void) { Block_Y_xx_9(0, W_0y, W_4y, W_8y, W_12y) ; }
+static INLINE void Block_Y_0_10(void){ Block_Y_xx_10(0, W_0y, W_4y, W_8y, W_12y) ; }
+static INLINE void Block_Y_0_11(void){ Block_Y_xx_11(0, W_0y, W_4y, W_8y, W_12y) ; }
+static INLINE void Block_Y_0_12(word64 *w){ Block_Y_xx_12(0, W_0y, W_4y, W_8y, W_12y) ; }
 
-static inline void Block_Y_4_1(void) { Block_Y_xx_1(4, W_4y, W_8y, W_12y, W_0y) ; }
-static inline void Block_Y_4_2(void) { Block_Y_xx_2(4, W_4y, W_8y, W_12y, W_0y) ; }
-static inline void Block_Y_4_3(void) { Block_Y_xx_3(4, W_4y, W_8y, W_12y, W_0y) ; }
-static inline void Block_Y_4_4(void) { Block_Y_xx_4(4, W_4y, W_8y, W_12y, W_0y) ; }
-static inline void Block_Y_4_5(void) { Block_Y_xx_5(4, W_4y, W_8y, W_12y, W_0y) ; }
-static inline void Block_Y_4_6(void) { Block_Y_xx_6(4, W_4y, W_8y, W_12y, W_0y) ; }
-static inline void Block_Y_4_7(void) { Block_Y_xx_7(4, W_4y, W_8y, W_12y, W_0y) ; }
-static inline void Block_Y_4_8(void) { Block_Y_xx_8(4, W_4y, W_8y, W_12y, W_0y) ; }
-static inline void Block_Y_4_9(void) { Block_Y_xx_9(4, W_4y, W_8y, W_12y, W_0y) ; }
-static inline void Block_Y_4_10(void) { Block_Y_xx_10(4, W_4y, W_8y, W_12y, W_0y) ; }
-static inline void Block_Y_4_11(void) { Block_Y_xx_11(4, W_4y, W_8y, W_12y, W_0y) ; }
-static inline void Block_Y_4_12(word64 *w) { Block_Y_xx_12(4, W_4y, W_8y, W_12y, W_0y) ; }
+static INLINE void Block_Y_4_1(void) { Block_Y_xx_1(4, W_4y, W_8y, W_12y, W_0y) ; }
+static INLINE void Block_Y_4_2(void) { Block_Y_xx_2(4, W_4y, W_8y, W_12y, W_0y) ; }
+static INLINE void Block_Y_4_3(void) { Block_Y_xx_3(4, W_4y, W_8y, W_12y, W_0y) ; }
+static INLINE void Block_Y_4_4(void) { Block_Y_xx_4(4, W_4y, W_8y, W_12y, W_0y) ; }
+static INLINE void Block_Y_4_5(void) { Block_Y_xx_5(4, W_4y, W_8y, W_12y, W_0y) ; }
+static INLINE void Block_Y_4_6(void) { Block_Y_xx_6(4, W_4y, W_8y, W_12y, W_0y) ; }
+static INLINE void Block_Y_4_7(void) { Block_Y_xx_7(4, W_4y, W_8y, W_12y, W_0y) ; }
+static INLINE void Block_Y_4_8(void) { Block_Y_xx_8(4, W_4y, W_8y, W_12y, W_0y) ; }
+static INLINE void Block_Y_4_9(void) { Block_Y_xx_9(4, W_4y, W_8y, W_12y, W_0y) ; }
+static INLINE void Block_Y_4_10(void) { Block_Y_xx_10(4, W_4y, W_8y, W_12y, W_0y) ; }
+static INLINE void Block_Y_4_11(void) { Block_Y_xx_11(4, W_4y, W_8y, W_12y, W_0y) ; }
+static INLINE void Block_Y_4_12(word64 *w) { Block_Y_xx_12(4, W_4y, W_8y, W_12y, W_0y) ; }
 
-static inline void Block_Y_8_1(void) { Block_Y_xx_1(8, W_8y, W_12y, W_0y, W_4y) ; }
-static inline void Block_Y_8_2(void) { Block_Y_xx_2(8, W_8y, W_12y, W_0y, W_4y) ; }
-static inline void Block_Y_8_3(void) { Block_Y_xx_3(8, W_8y, W_12y, W_0y, W_4y) ; }
-static inline void Block_Y_8_4(void) { Block_Y_xx_4(8, W_8y, W_12y, W_0y, W_4y) ; }
-static inline void Block_Y_8_5(void) { Block_Y_xx_5(8, W_8y, W_12y, W_0y, W_4y) ; }
-static inline void Block_Y_8_6(void) { Block_Y_xx_6(8, W_8y, W_12y, W_0y, W_4y) ; }
-static inline void Block_Y_8_7(void) { Block_Y_xx_7(8, W_8y, W_12y, W_0y, W_4y) ; }
-static inline void Block_Y_8_8(void) { Block_Y_xx_8(8, W_8y, W_12y, W_0y, W_4y) ; }
-static inline void Block_Y_8_9(void) { Block_Y_xx_9(8, W_8y, W_12y, W_0y, W_4y) ; }
-static inline void Block_Y_8_10(void) { Block_Y_xx_10(8, W_8y, W_12y, W_0y, W_4y) ; }
-static inline void Block_Y_8_11(void) { Block_Y_xx_11(8, W_8y, W_12y, W_0y, W_4y) ; }
-static inline void Block_Y_8_12(word64 *w) { Block_Y_xx_12(8, W_8y, W_12y, W_0y, W_4y) ; }
+static INLINE void Block_Y_8_1(void) { Block_Y_xx_1(8, W_8y, W_12y, W_0y, W_4y) ; }
+static INLINE void Block_Y_8_2(void) { Block_Y_xx_2(8, W_8y, W_12y, W_0y, W_4y) ; }
+static INLINE void Block_Y_8_3(void) { Block_Y_xx_3(8, W_8y, W_12y, W_0y, W_4y) ; }
+static INLINE void Block_Y_8_4(void) { Block_Y_xx_4(8, W_8y, W_12y, W_0y, W_4y) ; }
+static INLINE void Block_Y_8_5(void) { Block_Y_xx_5(8, W_8y, W_12y, W_0y, W_4y) ; }
+static INLINE void Block_Y_8_6(void) { Block_Y_xx_6(8, W_8y, W_12y, W_0y, W_4y) ; }
+static INLINE void Block_Y_8_7(void) { Block_Y_xx_7(8, W_8y, W_12y, W_0y, W_4y) ; }
+static INLINE void Block_Y_8_8(void) { Block_Y_xx_8(8, W_8y, W_12y, W_0y, W_4y) ; }
+static INLINE void Block_Y_8_9(void) { Block_Y_xx_9(8, W_8y, W_12y, W_0y, W_4y) ; }
+static INLINE void Block_Y_8_10(void) { Block_Y_xx_10(8, W_8y, W_12y, W_0y, W_4y) ; }
+static INLINE void Block_Y_8_11(void) { Block_Y_xx_11(8, W_8y, W_12y, W_0y, W_4y) ; }
+static INLINE void Block_Y_8_12(word64 *w) { Block_Y_xx_12(8, W_8y, W_12y, W_0y, W_4y) ; }
 
-static inline void Block_Y_12_1(void) { Block_Y_xx_1(12, W_12y, W_0y, W_4y, W_8y) ; }
-static inline void Block_Y_12_2(void) { Block_Y_xx_2(12, W_12y, W_0y, W_4y, W_8y) ; }
-static inline void Block_Y_12_3(void) { Block_Y_xx_3(12, W_12y, W_0y, W_4y, W_8y) ; }
-static inline void Block_Y_12_4(void) { Block_Y_xx_4(12, W_12y, W_0y, W_4y, W_8y) ; }
-static inline void Block_Y_12_5(void) { Block_Y_xx_5(12, W_12y, W_0y, W_4y, W_8y) ; }
-static inline void Block_Y_12_6(void) { Block_Y_xx_6(12, W_12y, W_0y, W_4y, W_8y) ; }
-static inline void Block_Y_12_7(void) { Block_Y_xx_7(12, W_12y, W_0y, W_4y, W_8y) ; }
-static inline void Block_Y_12_8(void) { Block_Y_xx_8(12, W_12y, W_0y, W_4y, W_8y) ; }
-static inline void Block_Y_12_9(void) { Block_Y_xx_9(12, W_12y, W_0y, W_4y, W_8y) ; }
-static inline void Block_Y_12_10(void) { Block_Y_xx_10(12, W_12y, W_0y, W_4y, W_8y) ; }
-static inline void Block_Y_12_11(void) { Block_Y_xx_11(12, W_12y, W_0y, W_4y, W_8y) ; }
-static inline void Block_Y_12_12(word64 *w) { Block_Y_xx_12(12, W_12y, W_0y, W_4y, W_8y) ; }
+static INLINE void Block_Y_12_1(void) { Block_Y_xx_1(12, W_12y, W_0y, W_4y, W_8y) ; }
+static INLINE void Block_Y_12_2(void) { Block_Y_xx_2(12, W_12y, W_0y, W_4y, W_8y) ; }
+static INLINE void Block_Y_12_3(void) { Block_Y_xx_3(12, W_12y, W_0y, W_4y, W_8y) ; }
+static INLINE void Block_Y_12_4(void) { Block_Y_xx_4(12, W_12y, W_0y, W_4y, W_8y) ; }
+static INLINE void Block_Y_12_5(void) { Block_Y_xx_5(12, W_12y, W_0y, W_4y, W_8y) ; }
+static INLINE void Block_Y_12_6(void) { Block_Y_xx_6(12, W_12y, W_0y, W_4y, W_8y) ; }
+static INLINE void Block_Y_12_7(void) { Block_Y_xx_7(12, W_12y, W_0y, W_4y, W_8y) ; }
+static INLINE void Block_Y_12_8(void) { Block_Y_xx_8(12, W_12y, W_0y, W_4y, W_8y) ; }
+static INLINE void Block_Y_12_9(void) { Block_Y_xx_9(12, W_12y, W_0y, W_4y, W_8y) ; }
+static INLINE void Block_Y_12_10(void) { Block_Y_xx_10(12, W_12y, W_0y, W_4y, W_8y) ; }
+static INLINE void Block_Y_12_11(void) { Block_Y_xx_11(12, W_12y, W_0y, W_4y, W_8y) ; }
+static INLINE void Block_Y_12_12(word64 *w) { Block_Y_xx_12(12, W_12y, W_0y, W_4y, W_8y) ; }
 
 
 static int Transform_AVX2(Sha512* sha512)

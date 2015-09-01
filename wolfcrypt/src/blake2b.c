@@ -106,9 +106,10 @@ static INLINE int blake2b_init0( blake2b_state *S )
 int blake2b_init_param( blake2b_state *S, const blake2b_param *P )
 {
   word32 i;
+  byte *p ;
   blake2b_init0( S );
-  byte *p = ( byte * )( P );
-
+  p =  ( byte * )( P );
+  
   /* IV XOR ParamBlock */
   for( i = 0; i < 8; ++i )
     S->h[i] ^= load64( p + sizeof( S->h[i] ) * i );

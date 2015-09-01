@@ -161,7 +161,7 @@
 	#endif
 
 
-	/* idea to add global alloc override by Moisés Guimarães  */
+	/* idea to add global alloc override by Moises Guimaraes  */
 	/* default to libc stuff */
 	/* XREALLOC is used once in normal math lib, not in fast math lib */
 	/* XFREE on some embeded systems doesn't like free(0) so test  */
@@ -180,7 +180,8 @@
 	#elif !defined(MICRIUM_MALLOC) && !defined(EBSNET) \
 	        && !defined(WOLFSSL_SAFERTOS) && !defined(FREESCALE_MQX) \
 	        && !defined(FREESCALE_KSDK_MQX) && !defined(WOLFSSL_LEANPSK) \
-            && !defined(FREERTOS)
+            && !defined(FREERTOS) && !defined(WOLFSSL_uITRON4) \
+            && !defined(WOLFSSL_uTKERNEL2)
 	    /* default C runtime, can install different routines at runtime via cbs */
 	    #include <wolfssl/wolfcrypt/memory.h>
 	    #define XMALLOC(s, h, t)     ((void)h, (void)t, wolfSSL_Malloc((s)))
