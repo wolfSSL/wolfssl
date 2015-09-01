@@ -884,14 +884,15 @@ int wc_PKCS7_VerifySignedData(PKCS7* pkcs7, byte* pkiMsg, word32 pkiMsgSz)
         {
             word32 scratch = 0;
             int plainSz = 0;
-            #define  DIGEST_SZ (MAX_SEQ_SZ + MAX_ALGO_SZ +\
+            #define  MAX_PKCS7_DIGEST_SZ (MAX_SEQ_SZ + MAX_ALGO_SZ +\
                            MAX_OCTET_STR_SZ + SHA_DIGEST_SIZE)
 
 #ifdef WOLFSSL_SMALL_STACK
             byte* digest;
             RsaKey* key;
 
-            digest = (byte*)XMALLOC(DIGEST_SZ, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            digest = (byte*)XMALLOC(MAX_PKCS7_DIGEST_SZ, NULL,
+                                    DYNAMIC_TYPE_TMP_BUFFER);
 
             if (digest == NULL)
                 return MEMORY_E;
@@ -903,12 +904,12 @@ int wc_PKCS7_VerifySignedData(PKCS7* pkcs7, byte* pkiMsg, word32 pkiMsgSz)
                 return MEMORY_E;
             }
 #else
-            byte digest[DIGEST_SZ];
+            byte digest[MAX_PKCS7_DIGEST_SZ];
             RsaKey stack_key;
             RsaKey* key = &stack_key;
 #endif
 
-            XMEMSET(digest, 0, DIGEST_SZ);
+            XMEMSET(digest, 0, MAX_PKCS7_DIGEST_SZ);
 
             ret = wc_InitRsaKey(key, NULL);
             if (ret != 0) {
@@ -928,7 +929,8 @@ int wc_PKCS7_VerifySignedData(PKCS7* pkcs7, byte* pkiMsg, word32 pkiMsgSz)
                 return PUBLIC_KEY_E;
             }
 
-            plainSz = wc_RsaSSL_Verify(sig, sigSz, digest, DIGEST_SZ, key);
+            plainSz = wc_RsaSSL_Verify(sig, sigSz, digest, MAX_PKCS7_DIGEST_SZ,
+                                       key);
             wc_FreeRsaKey(key);
 
 #ifdef WOLFSSL_SMALL_STACK
