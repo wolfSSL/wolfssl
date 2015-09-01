@@ -7979,8 +7979,8 @@ static int GetCRL_Signature(const byte* source, word32* idx, DecodedCRL* dcrl,
 /* prase crl buffer into decoded state, 0 on success */
 int ParseCRL(DecodedCRL* dcrl, const byte* buff, word32 sz, void* cm)
 {
-    int     version, len;
-    word32  oid, idx = 0;
+    int     version, len, doNextDate = 1;
+    word32  oid, idx = 0, dateIdx;
     Signer* ca = NULL;
 
     WOLFSSL_MSG("ParseCRL");
@@ -8016,10 +8016,22 @@ int ParseCRL(DecodedCRL* dcrl, const byte* buff, word32 sz, void* cm)
     if (GetBasicDate(buff, &idx, dcrl->lastDate, &dcrl->lastDateFormat, sz) < 0)
         return ASN_PARSE_E;
 
-    if (GetBasicDate(buff, &idx, dcrl->nextDate, &dcrl->nextDateFormat, sz) < 0)
-        return ASN_PARSE_E;
+    dateIdx = idx;
 
-    if (!XVALIDATE_DATE(dcrl->nextDate, dcrl->nextDateFormat, AFTER)) {
+    if (GetBasicDate(buff, &idx, dcrl->nextDate, &dcrl->nextDateFormat, sz) < 0)
+    {
+#ifndef WOLFSSL_NO_CRL_NEXT_DATE
+        (void)dateIdx;
+        return ASN_PARSE_E;
+#else
+        dcrl->nextDateFormat = ASN_OTHER_TYPE;  /* skip flag */
+        doNextDate = 0;
+        idx = dateIdx;
+#endif
+    }
+
+    if (doNextDate && !XVALIDATE_DATE(dcrl->nextDate, dcrl->nextDateFormat,
+                                      AFTER)) {
         WOLFSSL_MSG("CRL after date is no longer valid");
         return ASN_AFTER_DATE_E;
     }

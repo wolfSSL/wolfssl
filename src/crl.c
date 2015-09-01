@@ -156,10 +156,18 @@ int CheckCertCRL(WOLFSSL_CRL* crl, DecodedCert* cert)
 
     while (crle) {
         if (XMEMCMP(crle->issuerHash, cert->issuerHash, CRL_DIGEST_SIZE) == 0) {
+            int doNextDate = 1;
+
             WOLFSSL_MSG("Found CRL Entry on list");
             WOLFSSL_MSG("Checking next date validity");
 
-            if (!ValidateDate(crle->nextDate, crle->nextDateFormat, AFTER)) {
+            #ifdef WOLFSSL_NO_CRL_NEXT_DATE
+                if (crle->nextDateFormat == ASN_OTHER_TYPE)
+                    doNextDate = 0;  /* skip */
+            #endif
+
+            if (doNextDate && !ValidateDate(crle->nextDate,
+                                            crle->nextDateFormat, AFTER)) {
                 WOLFSSL_MSG("CRL next date is no longer valid");
                 ret = ASN_AFTER_DATE_E;
             }
