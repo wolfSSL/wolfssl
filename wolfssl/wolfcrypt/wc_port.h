@@ -55,6 +55,8 @@
     /* do nothing */
 #elif defined(FREESCALE_MQX) || defined(FREESCALE_KSDK_MQX)
     /* do nothing */
+#elif defined(FREESCALE_FREE_RTOS)
+    #include "fsl_os_abstraction.h"
 #elif defined(WOLFSSL_uITRON4)
     #include "kernel.h"
 #elif  defined(WOLFSSL_uTKERNEL2)
@@ -104,6 +106,8 @@
         typedef RTP_MUTEX wolfSSL_Mutex;
     #elif defined(FREESCALE_MQX) || defined(FREESCALE_KSDK_MQX)
         typedef MUTEX_STRUCT wolfSSL_Mutex;
+    #elif defined(FREESCALE_FREE_RTOS)
+        typedef mutex_t wolfSSL_Mutex;
     #elif defined(WOLFSSL_uITRON4)
         typedef struct wolfSSL_Mutex {
             T_CSEM sem ;

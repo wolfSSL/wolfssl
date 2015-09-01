@@ -81,6 +81,9 @@
 /* Uncomment next line if building for Freescale KSDK Bare Metal */
 /* #define FREESCALE_KSDK_BM */
 
+/* Uncomment next line if building for Freescale FreeRTOS */
+/* #define FREESCALE_FREE_RTOS */
+
 /* Uncomment next line if using STM32F2 */
 /* #define WOLFSSL_STM32F2 */
 
@@ -555,6 +558,22 @@ static char *fgets(char *buff, int sz, FILE *fp)
     #define USE_WOLFSSL_MEMORY
 #endif
 
+#ifdef FREESCALE_FREE_RTOS
+    #define FREESCALE_COMMON
+    #define NO_FILESYSTEM
+    #define NO_MAIN_DRIVER
+    #define XMALLOC(s, h, t)  OSA_MemAlloc(s);
+    #define XFREE(p, h, t)    {void* xp = (p); if((xp)) OSA_MemFree((xp));}
+    #define XREALLOC(p, n, h, t) ksdk_realloc((p), (n), (h), (t));
+    #ifdef FREESCALE_KSDK_BM
+        #error Baremetal and FreeRTOS cannot be both enabled at the same time!
+    #endif
+    #ifndef SINGLE_THREADED
+        #include "FreeRTOS.h"
+        #include "semphr.h"
+    #endif
+#endif
+
 #ifdef FREESCALE_COMMON
     #define SIZEOF_LONG_LONG 8
     #define NO_WRITEV
@@ -572,7 +591,7 @@ static char *fgets(char *buff, int sz, FILE *fp)
     #define NO_OLD_RNGNAME
     #if FSL_FEATURE_SOC_TRNG_COUNT > 0
         #define FREESCALE_TRNG
-    #elif !defined(FREESCALE_KSDK_BM)
+    #elif !defined(FREESCALE_KSDK_BM) && !defined(FREESCALE_FREE_RTOS)
         #define FREESCALE_K70_RNGA
         /* #define FREESCALE_K53_RNGB */
     #endif
