@@ -34,10 +34,9 @@ ANDROID_FIPS_REPO=git@github.com:wolfSSL/fips.git
 ANDROID_CTAO_VERSION=v3.5.0
 ANDROID_CTAO_REPO=git@github.com:cyassl/cyassl.git
 
-#WINDOWS_FIPS_VERSION=v3.6.0
-WINDOWS_FIPS_VERSION=master
+WINDOWS_FIPS_VERSION=v3.6.6
 WINDOWS_FIPS_REPO=git@github.com:wolfSSL/fips.git
-WINDOWS_CTAO_VERSION=v3.6.0
+WINDOWS_CTAO_VERSION=v3.6.6
 WINDOWS_CTAO_REPO=git@github.com:cyassl/cyassl.git
 
 FIPS_SRCS=( fips.c fips_test.c )
