@@ -11,12 +11,12 @@
 #
 #     $ ./fips-check [version]
 #
-#     - version: linux (default), ios, android, windows
+#     - version: linux (default), ios, android, windows, freertos
 #
 
 function Usage() {
     echo "Usage: $0 [platform]"
-    echo "Where \"platform\" is one of linux (default), ios, android, windows"
+    echo "Where \"platform\" is one of linux (default), ios, android, windows, linux"
 }
 
 LINUX_FIPS_VERSION=v3.2.6
@@ -38,6 +38,11 @@ WINDOWS_FIPS_VERSION=v3.6.6
 WINDOWS_FIPS_REPO=git@github.com:wolfSSL/fips.git
 WINDOWS_CTAO_VERSION=v3.6.6
 WINDOWS_CTAO_REPO=git@github.com:cyassl/cyassl.git
+
+FREERTOS_FIPS_VERSION=v3.6.1-FreeRTOS
+FREERTOS_FIPS_REPO=git@github.com:wolfSSL/fips.git
+FREERTOS_CTAO_VERSION=v3.6.1
+FREERTOS_CTAO_REPO=git@github.com:cyassl/cyassl.git
 
 FIPS_SRCS=( fips.c fips_test.c )
 WC_MODS=( aes des3 sha sha256 sha512 rsa hmac random )
@@ -65,6 +70,12 @@ windows)
   FIPS_REPO=$WINDOWS_FIPS_REPO
   CTAO_VERSION=$WINDOWS_CTAO_VERSION
   CTAO_REPO=$WINDOWS_CTAO_REPO
+  ;;
+freertos)
+  FIPS_VERSION=$FREERTOS_FIPS_VERSION
+  FIPS_REPO=$FREERTOS_FIPS_REPO
+  CTAO_VERSION=$FREERTOS_CTAO_VERSION
+  CTAO_REPO=$FREERTOS_CTAO_REPO
   ;;
 linux)
   FIPS_VERSION=$LINUX_FIPS_VERSION
