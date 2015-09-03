@@ -166,9 +166,38 @@ int wc_SrpInit(Srp* srp, SrpType type, SrpSide side)
     if (side != SRP_CLIENT_SIDE && side != SRP_SERVER_SIDE)
         return BAD_FUNC_ARG;
 
-    if (type != SRP_TYPE_SHA    && type != SRP_TYPE_SHA256 &&
-        type != SRP_TYPE_SHA384 && type != SRP_TYPE_SHA512)
-        return BAD_FUNC_ARG;
+    switch (type) {
+        case SRP_TYPE_SHA:
+            #ifdef NO_SHA
+                return NOT_COMPILED_IN;
+            #else
+                break; /* OK */
+            #endif
+
+        case SRP_TYPE_SHA256:
+            #ifdef NO_SHA256
+                return NOT_COMPILED_IN;
+            #else
+                break; /* OK */
+            #endif
+
+        case SRP_TYPE_SHA384:
+            #ifndef WOLFSSL_SHA384
+                return NOT_COMPILED_IN;
+            #else
+                break; /* OK */
+            #endif
+
+        case SRP_TYPE_SHA512:
+            #ifndef WOLFSSL_SHA512
+                return NOT_COMPILED_IN;
+            #else
+                break; /* OK */
+            #endif
+
+        default:
+            return BAD_FUNC_ARG;
+    }
 
     /* initializing variables */
 
@@ -402,25 +431,25 @@ int wc_SrpSetPrivate(Srp* srp, const byte* private, word32 size)
 }
 
 /** Generates random data using wolfcrypt RNG. */
-static int wc_SrpGenPrivate(Srp* srp, byte* private, word32 size)
+static int wc_SrpGenPrivate(Srp* srp, byte* priv, word32 size)
 {
     WC_RNG rng;
     int r = wc_InitRng(&rng);
 
-    if (!r) r = wc_RNG_GenerateBlock(&rng, private, size);
-    if (!r) r = wc_SrpSetPrivate(srp, private, size);
+    if (!r) r = wc_RNG_GenerateBlock(&rng, priv, size);
+    if (!r) r = wc_SrpSetPrivate(srp, priv, size);
     if (!r) wc_FreeRng(&rng);
 
     return r;
 }
 
-int wc_SrpGetPublic(Srp* srp, byte* public, word32* size)
+int wc_SrpGetPublic(Srp* srp, byte* pub, word32* size)
 {
     mp_int pubkey;
     word32 modulusSz;
     int r;
 
-    if (!srp || !public || !size)
+    if (!srp || !pub || !size)
         return BAD_FUNC_ARG;
 
     if (mp_iszero(&srp->auth))
@@ -436,7 +465,7 @@ int wc_SrpGetPublic(Srp* srp, byte* public, word32* size)
 
     /* priv = random() */
     if (mp_iszero(&srp->priv))
-        r = wc_SrpGenPrivate(srp, public, modulusSz);
+        r = wc_SrpGenPrivate(srp, pub, modulusSz);
 
     /* client side: A = g ^ a % N */
     if (srp->side == SRP_CLIENT_SIDE) {
@@ -459,8 +488,8 @@ int wc_SrpGetPublic(Srp* srp, byte* public, word32* size)
     }
 
     /* extract public key to buffer */
-    XMEMSET(public, 0, modulusSz);
-    if (!r) r = mp_to_unsigned_bin(&pubkey, public);
+    XMEMSET(pub, 0, modulusSz);
+    if (!r) r = mp_to_unsigned_bin(&pubkey, pub);
     if (!r) *size = mp_unsigned_bin_size(&pubkey);
     mp_clear(&pubkey);
 

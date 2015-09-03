@@ -62,18 +62,10 @@ typedef enum {
  * SRP hash type, SHA[1|256|384|512].
  */
 typedef enum {
-    #ifndef NO_SHA
         SRP_TYPE_SHA    = 1,
-    #endif
-    #ifndef NO_SHA256
         SRP_TYPE_SHA256 = 2,
-    #endif
-    #ifdef WOLFSSL_SHA384
         SRP_TYPE_SHA384 = 3,
-    #endif
-    #ifdef WOLFSSL_SHA512
         SRP_TYPE_SHA512 = 4,
-    #endif
 } SrpType;
 
 /**
@@ -230,12 +222,12 @@ WOLFSSL_API int wc_SrpGetVerifier(Srp* srp, byte* verifier, word32* size);
  * This function MAY be called before wc_SrpGetPublic.
  *
  * @param[in,out] srp       the Srp structure.
- * @param[in]     private   the ephemeral value.
+ * @param[in]     priv      the ephemeral value.
  * @param[in]     size      the private size in bytes.
  *
  * @return 0 on success, {@literal <} 0 on error. @see error-crypt.h
  */
-WOLFSSL_API int wc_SrpSetPrivate(Srp* srp, const byte* private, word32 size);
+WOLFSSL_API int wc_SrpSetPrivate(Srp* srp, const byte* priv, word32 size);
 
 /**
  * Gets the public ephemeral value.
@@ -246,13 +238,13 @@ WOLFSSL_API int wc_SrpSetPrivate(Srp* srp, const byte* private, word32 size);
  * This function MUST be called after wc_SrpSetPassword or wc_SrpSetVerifier.
  *
  * @param[in,out] srp       the Srp structure.
- * @param[out]    public    the buffer to write the public ephemeral value.
+ * @param[out]    pub       the buffer to write the public ephemeral value.
  * @param[in,out] size      the the buffer size in bytes. Will be updated with
  *                          the ephemeral value size.
  *
  * @return 0 on success, {@literal <} 0 on error. @see error-crypt.h
  */
-WOLFSSL_API int wc_SrpGetPublic(Srp* srp, byte* public, word32* size);
+WOLFSSL_API int wc_SrpGetPublic(Srp* srp, byte* pub, word32* size);
 
 
 /**
