@@ -16,7 +16,7 @@
 
 function Usage() {
     echo "Usage: $0 [platform]"
-    echo "Where \"platform\" is one of linux (default), ios, android, windows, linux"
+    echo "Where \"platform\" is one of linux (default), ios, android, windows, freertos"
 }
 
 LINUX_FIPS_VERSION=v3.2.6
