@@ -2013,10 +2013,7 @@ void SSL_ResourceFree(WOLFSSL* ssl)
     if (ssl->buffers.outputBuffer.dynamicFlag)
         ShrinkOutputBuffer(ssl);
 #ifdef WOLFSSL_DTLS
-    if (ssl->dtls_pool != NULL) {
-        DtlsPoolReset(ssl);
-        XFREE(ssl->dtls_pool, ssl->heap, DYNAMIC_TYPE_NONE);
-    }
+    DtlsPoolDelete(ssl);
     if (ssl->dtls_msg_list != NULL) {
         DtlsMsgListDelete(ssl->dtls_msg_list, ssl->heap);
         ssl->dtls_msg_list = NULL;
@@ -2132,10 +2129,10 @@ void FreeHandshakeResources(WOLFSSL* ssl)
 
 #ifdef WOLFSSL_DTLS
     /* DTLS_POOL */
-    if (ssl->options.dtls && ssl->dtls_pool != NULL) {
-        DtlsPoolReset(ssl);
-        XFREE(ssl->dtls_pool, ssl->heap, DYNAMIC_TYPE_DTLS_POOL);
-        ssl->dtls_pool = NULL;
+    if (ssl->options.dtls) {
+        DtlsPoolDelete(ssl);
+        DtlsMsgListDelete(ssl->dtls_msg_list, ssl->heap);
+        ssl->dtls_msg_list = NULL;
     }
 #endif
 
@@ -2293,6 +2290,16 @@ void DtlsPoolReset(WOLFSSL* ssl)
         pool->used = 0;
     }
     ssl->dtls_timeout = ssl->dtls_timeout_init;
+}
+
+
+void DtlsPoolDelete(WOLFSSL* ssl)
+{
+    if (ssl->dtls_pool != NULL) {
+        DtlsPoolReset(ssl);
+        XFREE(ssl->dtls_pool, ssl->heap, DYNAMIC_TYPE_DTLS_POOL);
+        ssl->dtls_pool = NULL;
+    }
 }
 
 
