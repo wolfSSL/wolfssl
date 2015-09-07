@@ -107,11 +107,15 @@ int  wc_RNG_GenerateByte(WC_RNG* rng, byte* b)
         #ifndef EBSNET
             #include <unistd.h>
         #endif
+    #elif defined(FREESCALE_TRNG)
+        #define TRNG_INSTANCE (0)
+        #include "fsl_device_registers.h"
+        #include "fsl_trng_driver.h"
     #else
         /* include headers that may be needed to get good seed */
     #endif
 #endif /* USE_WINDOWS_API */
-    
+
 #ifdef HAVE_INTEL_RDGEN
     static int wc_InitRng_IntelRD(void) ;
     #if defined(HAVE_HASHDRBG) || defined(NO_RC4)
@@ -872,7 +876,7 @@ static int wc_InitRng_IntelRD()
 #if defined(HAVE_HASHDRBG) || defined(NO_RC4)
 
 /* return 0 on success */
-static inline int IntelRDseed32(unsigned int *seed)  
+static INLINE int IntelRDseed32(unsigned int *seed)  
 {  
     int rdseed;  unsigned char ok ;
 
@@ -885,7 +889,7 @@ static inline int IntelRDseed32(unsigned int *seed)
 }
 
 /* return 0 on success */
-static inline int IntelRDseed32_r(unsigned int *rnd)  
+static INLINE int IntelRDseed32_r(unsigned int *rnd)  
 {  
     int i ;
     for(i=0; i<INTELRD_RETRY;i++) {
@@ -920,7 +924,7 @@ static int wc_GenerateSeed_IntelRD(OS_Seed* os, byte* output, word32 sz)
 #else
 
 /* return 0 on success */
-static inline int IntelRDrand32(unsigned int *rnd)  
+static INLINE int IntelRDrand32(unsigned int *rnd)  
 {  
     int rdrand; unsigned char ok ;  
     __asm__ volatile("rdrand %0; setc %1":"=r"(rdrand), "=qm"(ok));  
@@ -932,7 +936,7 @@ static inline int IntelRDrand32(unsigned int *rnd)
 }
 
 /* return 0 on success */
-static inline int IntelRDrand32_r(unsigned int *rnd)  
+static INLINE int IntelRDrand32_r(unsigned int *rnd)  
 {  
     int i ;
     for(i=0; i<INTELRD_RETRY;i++) {
@@ -1080,7 +1084,8 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
         }
     #endif /* WOLFSSL_MIC32MZ_RNG */
 
-#elif defined(FREESCALE_MQX) || defined(FREESCALE_KSDK_MQX)
+#elif defined(FREESCALE_MQX) || defined(FREESCALE_KSDK_MQX) || \
+      defined(FREESCALE_KSDK_BM) || defined(FREESCALE_FREE_RTOS)
 
     #ifdef FREESCALE_K70_RNGA
         /*
@@ -1154,6 +1159,14 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
             return 0;
         }
 
+    #elif defined(FREESCALE_TRNG)
+
+        int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
+        {
+            TRNG_DRV_GetRandomData(TRNG_INSTANCE, output, sz);
+            return(0);
+        }
+
     #else
         #warning "write a real random seed!!!!, just for testing now"
 
@@ -1169,7 +1182,8 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 
 #elif defined(WOLFSSL_SAFERTOS) || defined(WOLFSSL_LEANPSK) \
    || defined(WOLFSSL_IAR_ARM)  || defined(WOLFSSL_MDK_ARM) \
-   || defined(WOLFSSL_uITRON4)  || defined(WOLFSSL_uTKERNEL2)
+   || defined(WOLFSSL_uITRON4)  || defined(WOLFSSL_uTKERNEL2)\
+   || defined(WOLFSSL_GENSEED_FORTEST)
 
 #warning "write a real random seed!!!!, just for testing now"
 
@@ -1274,6 +1288,20 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     return 0;
 }
 */
+
+
+#elif defined(IDIRECT_DEV_RANDOM)
+
+extern int getRandom( int sz, unsigned char *output );
+
+int GenerateSeed(OS_Seed* os, byte* output, word32 sz)
+{
+    int num_bytes_returned = 0;
+
+    num_bytes_returned = getRandom( (int) sz, (unsigned char *) output );
+
+    return 0;
+}
 
 
 #else /* !USE_WINDOWS_API && !HAVE_RPT_SYS && !MICRIUM && !NO_DEV_RANDOM */

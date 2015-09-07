@@ -26,7 +26,7 @@
  */
 
 /**
- *  Edited by Moisés Guimarães (moisesguimaraesm@gmail.com)
+ *  Edited by Moises Guimaraes (moisesguimaraesm@gmail.com)
  *  to fit CyaSSL's needs.
  */
 
@@ -1057,7 +1057,8 @@ static int _fp_exptmod(fp_int * G, fp_int * X, fp_int * P, fp_int * Y)
   }
 
   /* init M array */
-  XMEMSET(M, 0, sizeof(M));
+  for(x = 0; x < (int)(sizeof(M)/sizeof(fp_int)); x++)
+    fp_init(&M[x]);
 
   /* now setup montgomery  */
   if ((err = fp_montgomery_setup (P, &mp)) != FP_OKAY) {
@@ -1208,7 +1209,7 @@ int fp_exptmod(fp_int * G, fp_int * X, fp_int * P, fp_int * Y)
       fp_int tmp;
 
       /* yes, copy G and invmod it */
-      fp_copy(G, &tmp);
+      fp_init_copy(&tmp, G);
       if ((err = fp_invmod(&tmp, P, &tmp)) != FP_OKAY) {
          return err;
       }
@@ -1456,6 +1457,10 @@ int fp_cmp(fp_int *a, fp_int *b)
 /* compare against a single digit */
 int fp_cmp_d(fp_int *a, fp_digit b)
 {
+  /* special case for zero*/
+  if (a->used == 0 && b == 0)
+    return FP_EQ;
+
   /* compare based on sign */
   if ((b && a->used == 0) || a->sign == FP_NEG) {
     return FP_LT;
@@ -1564,7 +1569,7 @@ void fp_montgomery_calc_normalization(fp_int *a, fp_int *b)
 #endif
 
 #ifdef HAVE_INTEL_MULX
-static inline void innermul8_mulx(fp_digit *c_mulx, fp_digit *cy_mulx, fp_digit *tmpm, fp_digit mu)
+static INLINE void innermul8_mulx(fp_digit *c_mulx, fp_digit *cy_mulx, fp_digit *tmpm, fp_digit mu)
 {
     fp_digit _c0, _c1, _c2, _c3, _c4, _c5, _c6, _c7, cy ;
 
@@ -2156,9 +2161,10 @@ int mp_div_2d(fp_int* a, int b, fp_int* c, fp_int* d)
 #ifdef ALT_ECC_SIZE
 void fp_copy(fp_int *a, fp_int* b)
 {
-    if (a != b) {
+    if (a != b && b->size >= a->used) {
         b->used = a->used;
         b->sign = a->sign;
+
         XMEMCPY(b->dp, a->dp, a->used * sizeof(fp_digit));
     }
 }

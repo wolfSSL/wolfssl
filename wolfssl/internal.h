@@ -117,12 +117,18 @@
     /* do nothing */
 #elif defined(FREESCALE_MQX) || defined(FREESCALE_KSDK_MQX)
     /* do nothing */
+#elif defined(WOLFSSL_uITRON4)
+        /* do nothing */
+#elif defined(WOLFSSL_uTKERNEL2)
+        /* do nothing */
 #elif defined(WOLFSSL_MDK_ARM)
     #if defined(WOLFSSL_MDK5)
          #include "cmsis_os.h"
     #else
         #include <rtl.h>
     #endif
+#elif defined(WOLFSSL_CMSIS_RTOS)
+    #include "cmsis_os.h"
 #elif defined(MBED)
 #elif defined(WOLFSSL_TIRTOS)
     /* do nothing */
@@ -1298,6 +1304,10 @@ struct CRL_Monitor {
     typedef struct WOLFSSL_CRL WOLFSSL_CRL;
 #endif
 
+#if defined(HAVE_CRL) && defined(NO_FILESYSTEM)
+    #undef HAVE_CRL_MONITOR
+#endif
+
 /* wolfSSL CRL controller */
 struct WOLFSSL_CRL {
     WOLFSSL_CERT_MANAGER* cm;            /* pointer back to cert manager */
@@ -1668,6 +1678,8 @@ struct WOLFSSL_CTX {
 #endif /* OPENSSL_EXTRA */
 #ifdef HAVE_STUNNEL
     void*           ex_data[MAX_EX_DATA];
+    CallbackSniRecv sniRecvCb;
+    void*           sniRecvCbArg;
 #endif
 #ifdef HAVE_OCSP
     WOLFSSL_OCSP      ocsp;
@@ -2066,7 +2078,10 @@ typedef struct Options {
 } Options;
 
 typedef struct Arrays {
+    byte*           pendingMsg;         /* defrag buffer */
     word32          preMasterSz;        /* differs for DH, actual size */
+    word32          pendingMsgSz;       /* defrag buffer size */
+    word32          pendingMsgOffset;   /* current offset into defrag buffer */
 #ifndef NO_PSK
     word32          psk_keySz;          /* acutal size */
     char            client_identity[MAX_PSK_ID_LEN];
@@ -2083,6 +2098,7 @@ typedef struct Arrays {
     byte            cookie[MAX_COOKIE_LEN];
     byte            cookieSz;
 #endif
+    byte            pendingMsgType;    /* defrag buffer message type */
 } Arrays;
 
 #ifndef ASN_NAME_MAX
@@ -2414,6 +2430,8 @@ struct WOLFSSL {
 };
 
 
+WOLFSSL_LOCAL
+int  SetSSL_CTX(WOLFSSL*, WOLFSSL_CTX*);
 WOLFSSL_LOCAL
 int  InitSSL(WOLFSSL*, WOLFSSL_CTX*);
 WOLFSSL_LOCAL

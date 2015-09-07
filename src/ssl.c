@@ -33,6 +33,13 @@
 #include <wolfssl/error-ssl.h>
 #include <wolfssl/wolfcrypt/coding.h>
 
+#ifndef WOLFSSL_ALLOW_NO_SUITES
+    #if defined(NO_DH) && !defined(HAVE_ECC) && !defined(WOLFSSL_STATIC_RSA) \
+                  && !defined(WOLFSSL_STATIC_DH) && !defined(WOLFSSL_STATIC_PSK)
+        #error "No cipher suites defined becuase DH disabled, ECC disabled, and no static suites defined. Please see top of README"
+    #endif
+#endif
+
 #if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER) || \
                               defined(WOLFSSL_KEY_GEN)
     #include <wolfssl/openssl/evp.h>
@@ -63,6 +70,9 @@
     #include <wolfssl/wolfcrypt/arc4.h>
     #include <wolfssl/wolfcrypt/curve25519.h>
     #include <wolfssl/wolfcrypt/ed25519.h>
+    #ifdef HAVE_STUNNEL
+        #include <wolfssl/openssl/ocsp.h>
+    #endif /* WITH_STUNNEL */
     #ifdef WOLFSSL_SHA512
         #include <wolfssl/wolfcrypt/sha512.h>
     #endif
@@ -3074,7 +3084,73 @@ int wolfSSL_CertManagerLoadCABuffer(WOLFSSL_CERT_MANAGER* cm,
     return ret;
 }
 
+#ifdef HAVE_CRL
 
+int wolfSSL_CertManagerLoadCRLBuffer(WOLFSSL_CERT_MANAGER* cm,
+                                   const unsigned char* buff, long sz, int type)
+{
+    WOLFSSL_ENTER("wolfSSL_CertManagerLoadCRLBuffer");
+    if (cm == NULL)
+        return BAD_FUNC_ARG;
+
+    if (cm->crl == NULL) {
+        if (wolfSSL_CertManagerEnableCRL(cm, 0) != SSL_SUCCESS) {
+            WOLFSSL_MSG("Enable CRL failed");
+            return SSL_FATAL_ERROR;
+        }
+    }
+
+    return BufferLoadCRL(cm->crl, buff, sz, type);
+}
+
+#endif /* HAVE_CRL */
+
+/* turn on CRL if off and compiled in, set options */
+int wolfSSL_CertManagerEnableCRL(WOLFSSL_CERT_MANAGER* cm, int options)
+{
+    int ret = SSL_SUCCESS;
+
+    (void)options;
+
+    WOLFSSL_ENTER("wolfSSL_CertManagerEnableCRL");
+    if (cm == NULL)
+        return BAD_FUNC_ARG;
+
+    #ifdef HAVE_CRL
+        if (cm->crl == NULL) {
+            cm->crl = (WOLFSSL_CRL*)XMALLOC(sizeof(WOLFSSL_CRL), cm->heap,
+                                           DYNAMIC_TYPE_CRL);
+            if (cm->crl == NULL)
+                return MEMORY_E;
+
+            if (InitCRL(cm->crl, cm) != 0) {
+                WOLFSSL_MSG("Init CRL failed");
+                FreeCRL(cm->crl, 1);
+                cm->crl = NULL;
+                return SSL_FAILURE;
+            }
+        }
+        cm->crlEnabled = 1;
+        if (options & WOLFSSL_CRL_CHECKALL)
+            cm->crlCheckAll = 1;
+    #else
+        ret = NOT_COMPILED_IN;
+    #endif
+
+    return ret;
+}
+
+
+int wolfSSL_CertManagerDisableCRL(WOLFSSL_CERT_MANAGER* cm)
+{
+    WOLFSSL_ENTER("wolfSSL_CertManagerDisableCRL");
+    if (cm == NULL)
+        return BAD_FUNC_ARG;
+
+    cm->crlEnabled = 0;
+
+    return SSL_SUCCESS;
+}
 /* Verify the ceritficate, SSL_SUCCESS for ok, < 0 for error */
 int wolfSSL_CertManagerVerifyBuffer(WOLFSSL_CERT_MANAGER* cm, const byte* buff,
                                     long sz, int format)
@@ -3648,52 +3724,6 @@ int wolfSSL_CertManagerLoadCA(WOLFSSL_CERT_MANAGER* cm, const char* file,
 }
 
 
-/* turn on CRL if off and compiled in, set options */
-int wolfSSL_CertManagerEnableCRL(WOLFSSL_CERT_MANAGER* cm, int options)
-{
-    int ret = SSL_SUCCESS;
-
-    (void)options;
-
-    WOLFSSL_ENTER("wolfSSL_CertManagerEnableCRL");
-    if (cm == NULL)
-        return BAD_FUNC_ARG;
-
-    #ifdef HAVE_CRL
-        if (cm->crl == NULL) {
-            cm->crl = (WOLFSSL_CRL*)XMALLOC(sizeof(WOLFSSL_CRL), cm->heap,
-                                           DYNAMIC_TYPE_CRL);
-            if (cm->crl == NULL)
-                return MEMORY_E;
-
-            if (InitCRL(cm->crl, cm) != 0) {
-                WOLFSSL_MSG("Init CRL failed");
-                FreeCRL(cm->crl, 1);
-                cm->crl = NULL;
-                return SSL_FAILURE;
-            }
-        }
-        cm->crlEnabled = 1;
-        if (options & WOLFSSL_CRL_CHECKALL)
-            cm->crlCheckAll = 1;
-    #else
-        ret = NOT_COMPILED_IN;
-    #endif
-
-    return ret;
-}
-
-
-int wolfSSL_CertManagerDisableCRL(WOLFSSL_CERT_MANAGER* cm)
-{
-    WOLFSSL_ENTER("wolfSSL_CertManagerDisableCRL");
-    if (cm == NULL)
-        return BAD_FUNC_ARG;
-
-    cm->crlEnabled = 0;
-
-    return SSL_SUCCESS;
-}
 
 
 int wolfSSL_CTX_check_private_key(WOLFSSL_CTX* ctx)
@@ -16437,6 +16467,81 @@ const byte* wolfSSL_SESSION_get_id(WOLFSSL_SESSION* sess, unsigned int* idLen)
     }
     *idLen = sess->sessionIDSz;
     return sess->sessionID;
+}
+
+
+int wolfSSL_set_tlsext_host_name(WOLFSSL* ssl, const char* host_name)
+{
+    int ret;
+    WOLFSSL_ENTER("wolfSSL_set_tlsext_host_name");
+    ret = wolfSSL_UseSNI(ssl, WOLFSSL_SNI_HOST_NAME,
+            host_name, XSTRLEN(host_name));
+    WOLFSSL_LEAVE("wolfSSL_set_tlsext_host_name", ret);
+    return ret;
+}
+
+
+const char * wolfSSL_get_servername(WOLFSSL* ssl, byte type)
+{
+    void * serverName = NULL;
+    if (ssl == NULL)
+        return NULL;
+    TLSX_SNI_GetRequest(ssl->extensions, type, &serverName);
+    return (const char *)serverName;
+}
+
+
+WOLFSSL_CTX* wolfSSL_set_SSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
+{
+    if (ssl && ctx && SetSSL_CTX(ssl, ctx) == SSL_SUCCESS)
+        return ssl->ctx;
+    return NULL;
+}
+
+
+VerifyCallback wolfSSL_CTX_get_verify_callback(WOLFSSL_CTX* ctx)
+{
+    WOLFSSL_ENTER("wolfSSL_CTX_get_verify_callback");
+    if(ctx)
+        return ctx->verifyCallback;
+    return NULL;
+}
+
+
+int wolfSSL_CTX_get_verify_mode(WOLFSSL_CTX* ctx)
+{
+    WOLFSSL_ENTER("wolfSSL_CTX_get_verify_mode");
+    int mode = 0;
+
+    if(!ctx)
+        return SSL_FATAL_ERROR;
+
+    if (ctx->verifyPeer)
+        mode |= SSL_VERIFY_PEER;
+    else if (ctx->verifyNone)
+        mode |= SSL_VERIFY_NONE;
+
+    if (ctx->failNoCert)
+        mode |= SSL_VERIFY_FAIL_IF_NO_PEER_CERT;
+
+    WOLFSSL_LEAVE("wolfSSL_CTX_get_verify_mode", mode);
+    return mode;
+}
+
+
+void wolfSSL_CTX_set_servername_callback(WOLFSSL_CTX* ctx, CallbackSniRecv cb)
+{
+    WOLFSSL_ENTER("wolfSSL_CTX_set_servername_callback");
+    if (ctx)
+        ctx->sniRecvCb = cb;
+}
+
+
+void wolfSSL_CTX_set_servername_arg(WOLFSSL_CTX* ctx, void* arg)
+{
+    WOLFSSL_ENTER("wolfSSL_CTX_set_servername_arg");
+    if (ctx)
+        ctx->sniRecvCbArg = arg;
 }
 #endif /* OPENSSL_EXTRA and HAVE_STUNNEL */
 

@@ -113,6 +113,11 @@
     #define XTIME(t1)  mqx_time((t1))
     #define XGMTIME(c, t) mqx_gmtime((c), (t))
     #define XVALIDATE_DATE(d, f, t) ValidateDate((d), (f), (t))
+#elif defined(FREESCALE_KSDK_BM)
+    #include <time.h>
+    #define XTIME(t1)  ksdk_time((t1))
+    #define XGMTIME(c, t) gmtime((c))
+    #define XVALIDATE_DATE(d, f, t) ValidateDate((d), (f), (t))
 
 #elif defined(USER_TIME)
     /* user time, and gmtime compatible functions, there is a gmtime
@@ -177,6 +182,15 @@
     #ifndef HAVE_VALIDATE_DATE
         #define XVALIDATE_DATE(d, f, t) ValidateDate((d), (f), (t))
     #endif
+
+#elif defined(IDIRECT_DEV_TIME)
+    /*Gets the timestamp from cloak software owned by VT iDirect
+    in place of time() from <time.h> */
+    #include <time.h>
+    #define XTIME(t1)  idirect_time((t1))
+    #define XGMTIME(c) gmtime((c))
+    #define XVALIDATE_DATE(d, f, t) ValidateDate((d), (f), (t))
+
 #else
     /* default */
     /* uses complete <time.h> facility */
@@ -350,6 +364,27 @@ struct tm* mqx_gmtime(const time_t* clock, struct tm* tmpTime)
 
 #endif /* FREESCALE_MQX */
 
+#ifdef FREESCALE_KSDK_BM
+
+/* setting for PIT timer */
+#define PIT_INSTANCE 0
+#define PIT_CHANNEL  0
+
+#include "fsl_pit_driver.h"
+
+time_t ksdk_time(time_t* timer)
+{
+    time_t localTime;
+
+    if (timer == NULL)
+        timer = &localTime;
+
+    *timer = (PIT_DRV_ReadTimerUs(PIT_INSTANCE, PIT_CHANNEL)) / 1000000;
+    return *timer;
+}
+
+#endif /* FREESCALE_KSDK_BM */
+
 #ifdef WOLFSSL_TIRTOS
 
 time_t XTIME(time_t * timer)
@@ -441,6 +476,22 @@ CPU_INT32S NetSecure_ValidateDateHandler(CPU_INT08U *date, CPU_INT08U format,
 }
 
 #endif /* MICRIUM */
+
+#if defined(IDIRECT_DEV_TIME)
+
+extern time_t getTimestamp();
+
+time_t idirect_time(time_t * timer)
+{
+    time_t sec = getTimestamp();
+
+    if (timer != NULL)
+        *timer = sec;
+
+    return sec;
+}
+
+#endif
 
 
 WOLFSSL_LOCAL int GetLength(const byte* input, word32* inOutIdx, int* len,
@@ -4934,6 +4985,181 @@ int wc_DerToPemEx(const byte* der, word32 derSz, byte* output, word32 outSz,
 
 #endif /* WOLFSSL_KEY_GEN || WOLFSSL_CERT_GEN */
 
+#if !defined(NO_RSA) && (defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_KEY_GEN))
+/* Write a public RSA key to output */
+static int SetRsaPublicKey(byte* output, RsaKey* key,
+                           int outLen, int with_header)
+{
+#ifdef WOLFSSL_SMALL_STACK
+    byte* n = NULL;
+    byte* e = NULL;
+#else
+    byte n[MAX_RSA_INT_SZ];
+    byte e[MAX_RSA_E_SZ];
+#endif
+    byte seq[MAX_SEQ_SZ];
+    byte len[MAX_LENGTH_SZ + 1];  /* trailing 0 */
+    int  nSz;
+    int  eSz;
+    int  seqSz;
+    int  lenSz;
+    int  idx;
+    int  rawLen;
+    int  leadingBit;
+    int  err;
+
+    if (output == NULL || key == NULL || outLen < MAX_SEQ_SZ)
+        return BAD_FUNC_ARG;
+
+    /* n */
+#ifdef WOLFSSL_SMALL_STACK
+    n = (byte*)XMALLOC(MAX_RSA_INT_SZ, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (n == NULL)
+        return MEMORY_E;
+#endif
+
+    leadingBit = mp_leading_bit(&key->n);
+    rawLen = mp_unsigned_bin_size(&key->n) + leadingBit;
+    n[0] = ASN_INTEGER;
+    nSz  = SetLength(rawLen, n + 1) + 1;  /* int tag */
+
+    if ( (nSz + rawLen) < MAX_RSA_INT_SZ) {
+        if (leadingBit)
+            n[nSz] = 0;
+        err = mp_to_unsigned_bin(&key->n, n + nSz + leadingBit);
+        if (err == MP_OKAY)
+            nSz += rawLen;
+        else {
+#ifdef WOLFSSL_SMALL_STACK
+            XFREE(n, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+            return MP_TO_E;
+        }
+    }
+    else {
+#ifdef WOLFSSL_SMALL_STACK
+        XFREE(n, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+        return BUFFER_E;
+    }
+
+    /* e */
+#ifdef WOLFSSL_SMALL_STACK
+    e = (byte*)XMALLOC(MAX_RSA_E_SZ, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (e == NULL) {
+#ifdef WOLFSSL_SMALL_STACK
+        XFREE(n, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+        return MEMORY_E;
+    }
+#endif
+
+    leadingBit = mp_leading_bit(&key->e);
+    rawLen = mp_unsigned_bin_size(&key->e) + leadingBit;
+    e[0] = ASN_INTEGER;
+    eSz  = SetLength(rawLen, e + 1) + 1;  /* int tag */
+
+    if ( (eSz + rawLen) < MAX_RSA_E_SZ) {
+        if (leadingBit)
+            e[eSz] = 0;
+        err = mp_to_unsigned_bin(&key->e, e + eSz + leadingBit);
+        if (err == MP_OKAY)
+            eSz += rawLen;
+        else {
+#ifdef WOLFSSL_SMALL_STACK
+            XFREE(n, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(e, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+            return MP_TO_E;
+        }
+    }
+    else {
+#ifdef WOLFSSL_SMALL_STACK
+        XFREE(n, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(e, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+        return BUFFER_E;
+    }
+
+    seqSz  = SetSequence(nSz + eSz, seq);
+
+    /* check output size */
+    if ( (seqSz + nSz + eSz) > outLen) {
+#ifdef WOLFSSL_SMALL_STACK
+        XFREE(n,    NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(e,    NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+        return BUFFER_E;
+    }
+
+    /* headers */
+    if (with_header) {
+        int  algoSz;
+#ifdef WOLFSSL_SMALL_STACK
+        byte* algo = NULL;
+
+        algo = (byte*)XMALLOC(MAX_ALGO_SZ, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        if (algo == NULL) {
+            XFREE(n, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(e, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            return MEMORY_E;
+        }
+#else
+        byte algo[MAX_ALGO_SZ];
+#endif
+        algoSz = SetAlgoID(RSAk, algo, keyType, 0);
+        lenSz  = SetLength(seqSz + nSz + eSz + 1, len);
+        len[lenSz++] = 0;   /* trailing 0 */
+
+        /* write, 1 is for ASN_BIT_STRING */
+        idx = SetSequence(nSz + eSz + seqSz + lenSz + 1 + algoSz, output);
+
+        /* check output size */
+        if ( (idx + algoSz + 1 + lenSz + seqSz + nSz + eSz) > outLen) {
+            #ifdef WOLFSSL_SMALL_STACK
+                XFREE(n,    NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                XFREE(e,    NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                XFREE(algo, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            #endif
+
+            return BUFFER_E;
+        }
+
+        /* algo */
+        XMEMCPY(output + idx, algo, algoSz);
+        idx += algoSz;
+        /* bit string */
+        output[idx++] = ASN_BIT_STRING;
+        /* length */
+        XMEMCPY(output + idx, len, lenSz);
+        idx += lenSz;
+#ifdef WOLFSSL_SMALL_STACK
+        XFREE(algo, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+    }
+    else
+        idx = 0;
+
+    /* seq */
+    XMEMCPY(output + idx, seq, seqSz);
+    idx += seqSz;
+    /* n */
+    XMEMCPY(output + idx, n, nSz);
+    idx += nSz;
+    /* e */
+    XMEMCPY(output + idx, e, eSz);
+    idx += eSz;
+
+#ifdef WOLFSSL_SMALL_STACK
+    XFREE(n,    NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(e,    NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+
+    return idx;
+}
+#endif /* !defined(NO_RSA) && (defined(WOLFSSL_CERT_GEN) ||
+                               defined(WOLFSSL_KEY_GEN)) */
+
 
 #if defined(WOLFSSL_KEY_GEN) && !defined(NO_RSA)
 
@@ -5065,6 +5291,14 @@ int wc_RsaKeyToDer(RsaKey* key, byte* output, word32 inLen)
     FreeTmpRsas(tmps, key->heap);
 
     return outLen;
+}
+
+
+/* Convert Rsa Public key to DER format, write to output (inLen), return bytes
+   written */
+int wc_RsaKeyToPublicDer(RsaKey* key, byte* output, word32 inLen)
+{
+    return SetRsaPublicKey(output, key, inLen, 1);
 }
 
 #endif /* WOLFSSL_KEY_GEN && !NO_RSA */
@@ -5332,155 +5566,6 @@ static int SetEccPublicKey(byte* output, ecc_key* key, int with_header)
 
 
 #endif /* HAVE_ECC */
-
-
-/* Write a public RSA key to output */
-static int SetRsaPublicKey(byte* output, RsaKey* key, int with_header)
-{
-#ifdef WOLFSSL_SMALL_STACK
-    byte* n = NULL;
-    byte* e = NULL;
-    byte* algo = NULL;
-#else
-    byte n[MAX_RSA_INT_SZ];
-    byte e[MAX_RSA_E_SZ];
-    byte algo[MAX_ALGO_SZ];
-#endif
-    byte seq[MAX_SEQ_SZ];
-    byte len[MAX_LENGTH_SZ + 1];  /* trailing 0 */
-    int  nSz;
-    int  eSz;
-    int  algoSz;
-    int  seqSz;
-    int  lenSz;
-    int  idx;
-    int  rawLen;
-    int  leadingBit;
-    int  err;
-
-    /* n */
-#ifdef WOLFSSL_SMALL_STACK
-    n = (byte*)XMALLOC(MAX_RSA_INT_SZ, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    if (n == NULL)
-        return MEMORY_E;
-#endif
-
-    leadingBit = mp_leading_bit(&key->n);
-    rawLen = mp_unsigned_bin_size(&key->n) + leadingBit;
-    n[0] = ASN_INTEGER;
-    nSz  = SetLength(rawLen, n + 1) + 1;  /* int tag */
-
-    if ( (nSz + rawLen) < MAX_RSA_INT_SZ) {
-        if (leadingBit)
-            n[nSz] = 0;
-        err = mp_to_unsigned_bin(&key->n, n + nSz + leadingBit);
-        if (err == MP_OKAY)
-            nSz += rawLen;
-        else {
-#ifdef WOLFSSL_SMALL_STACK
-            XFREE(n, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
-            return MP_TO_E;
-        }
-    }
-    else {
-#ifdef WOLFSSL_SMALL_STACK
-        XFREE(n, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
-        return BUFFER_E;
-    }
-
-    /* e */
-#ifdef WOLFSSL_SMALL_STACK
-    e = (byte*)XMALLOC(MAX_RSA_E_SZ, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    if (e == NULL) {
-#ifdef WOLFSSL_SMALL_STACK
-        XFREE(n, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
-        return MEMORY_E;
-    }
-#endif
-
-    leadingBit = mp_leading_bit(&key->e);
-    rawLen = mp_unsigned_bin_size(&key->e) + leadingBit;
-    e[0] = ASN_INTEGER;
-    eSz  = SetLength(rawLen, e + 1) + 1;  /* int tag */
-
-    if ( (eSz + rawLen) < MAX_RSA_E_SZ) {
-        if (leadingBit)
-            e[eSz] = 0;
-        err = mp_to_unsigned_bin(&key->e, e + eSz + leadingBit);
-        if (err == MP_OKAY)
-            eSz += rawLen;
-        else {
-#ifdef WOLFSSL_SMALL_STACK
-            XFREE(n, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-            XFREE(e, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
-            return MP_TO_E;
-        }
-    }
-    else {
-#ifdef WOLFSSL_SMALL_STACK
-        XFREE(n, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        XFREE(e, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
-        return BUFFER_E;
-    }
-
-#ifdef WOLFSSL_SMALL_STACK
-    if (with_header) {
-        algo = (byte*)XMALLOC(MAX_ALGO_SZ, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        if (algo == NULL) {
-            XFREE(n, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-            XFREE(e, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-            return MEMORY_E;
-        }
-    }
-#endif
-
-    seqSz  = SetSequence(nSz + eSz, seq);
-
-    /* headers */
-    if (with_header) {
-        algoSz = SetAlgoID(RSAk, algo, keyType, 0);
-        lenSz  = SetLength(seqSz + nSz + eSz + 1, len);
-        len[lenSz++] = 0;   /* trailing 0 */
-
-        /* write */
-        idx = SetSequence(nSz + eSz + seqSz + lenSz + 1 + algoSz, output);
-            /* 1 is for ASN_BIT_STRING */
-        /* algo */
-        XMEMCPY(output + idx, algo, algoSz);
-        idx += algoSz;
-        /* bit string */
-        output[idx++] = ASN_BIT_STRING;
-        /* length */
-        XMEMCPY(output + idx, len, lenSz);
-        idx += lenSz;
-    }
-    else
-        idx = 0;
-
-    /* seq */
-    XMEMCPY(output + idx, seq, seqSz);
-    idx += seqSz;
-    /* n */
-    XMEMCPY(output + idx, n, nSz);
-    idx += nSz;
-    /* e */
-    XMEMCPY(output + idx, e, eSz);
-    idx += eSz;
-
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(n,    NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    XFREE(e,    NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    if (with_header)
-        XFREE(algo, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
-
-    return idx;
-}
 
 
 static INLINE byte itob(int number)
@@ -6238,7 +6323,8 @@ static int EncodeCert(Cert* cert, DerCert* der, RsaKey* rsaKey, ecc_key* eccKey,
     if (cert->keyType == RSA_KEY) {
         if (rsaKey == NULL)
             return PUBLIC_KEY_E;
-        der->publicKeySz = SetRsaPublicKey(der->publicKey, rsaKey, 1);
+        der->publicKeySz = SetRsaPublicKey(der->publicKey, rsaKey,
+                                           sizeof(der->publicKey), 1);
         if (der->publicKeySz <= 0)
             return PUBLIC_KEY_E;
     }
@@ -6501,7 +6587,7 @@ static int MakeSignature(const byte* buffer, int sz, byte* sig, int sigSz,
                          int sigAlgoType)
 {
     int encSigSz, digestSz, typeH = 0, ret = 0;
-    byte digest[SHA256_DIGEST_SIZE]; /* max size */
+    byte digest[MAX_DIGEST_SIZE]; /* max size */
 #ifdef WOLFSSL_SMALL_STACK
     byte* encSig;
 #else
@@ -6544,6 +6630,15 @@ static int MakeSignature(const byte* buffer, int sz, byte* sig, int sigSz,
         case CTC_SHA256wRSA:
         case CTC_SHA256wECDSA:
         if ((ret = wc_Sha256Hash(buffer, sz, digest)) == 0) {
+            typeH    = SHA256h;
+            digestSz = SHA256_DIGEST_SIZE;
+        }
+        break;
+    #endif
+    #ifdef WOLFSSL_SHA512
+        case CTC_SHA512wRSA:
+        case CTC_SHA512wECDSA:
+        if ((ret = wc_Sha512Hash(buffer, sz, digest)) == 0) {
             typeH    = SHA256h;
             digestSz = SHA256_DIGEST_SIZE;
         }
@@ -6769,7 +6864,8 @@ static int EncodeCertReq(Cert* cert, DerCert* der,
     if (cert->keyType == RSA_KEY) {
         if (rsaKey == NULL)
             return PUBLIC_KEY_E;
-        der->publicKeySz = SetRsaPublicKey(der->publicKey, rsaKey, 1);
+        der->publicKeySz = SetRsaPublicKey(der->publicKey, rsaKey,
+                                           sizeof(der->publicKey), 1);
         if (der->publicKeySz <= 0)
             return PUBLIC_KEY_E;
     }
@@ -7027,7 +7123,7 @@ static int SetKeyIdFromPublicKey(Cert *cert, RsaKey *rsakey, ecc_key *eckey,
 
     /* RSA public key */
     if (rsakey != NULL)
-        bufferSz = SetRsaPublicKey(buffer, rsakey, 0);
+        bufferSz = SetRsaPublicKey(buffer, rsakey, MAX_PUBLIC_KEY_SZ, 0);
 #ifdef HAVE_ECC
     /* ECC public key */
     else if (eckey != NULL)
@@ -8907,8 +9003,8 @@ static int GetCRL_Signature(const byte* source, word32* idx, DecodedCRL* dcrl,
 /* prase crl buffer into decoded state, 0 on success */
 int ParseCRL(DecodedCRL* dcrl, const byte* buff, word32 sz, void* cm)
 {
-    int     version, len;
-    word32  oid, idx = 0;
+    int     version, len, doNextDate = 1;
+    word32  oid, idx = 0, dateIdx;
     Signer* ca = NULL;
 
     WOLFSSL_MSG("ParseCRL");
@@ -8944,10 +9040,22 @@ int ParseCRL(DecodedCRL* dcrl, const byte* buff, word32 sz, void* cm)
     if (GetBasicDate(buff, &idx, dcrl->lastDate, &dcrl->lastDateFormat, sz) < 0)
         return ASN_PARSE_E;
 
-    if (GetBasicDate(buff, &idx, dcrl->nextDate, &dcrl->nextDateFormat, sz) < 0)
-        return ASN_PARSE_E;
+    dateIdx = idx;
 
-    if (!XVALIDATE_DATE(dcrl->nextDate, dcrl->nextDateFormat, AFTER)) {
+    if (GetBasicDate(buff, &idx, dcrl->nextDate, &dcrl->nextDateFormat, sz) < 0)
+    {
+#ifndef WOLFSSL_NO_CRL_NEXT_DATE
+        (void)dateIdx;
+        return ASN_PARSE_E;
+#else
+        dcrl->nextDateFormat = ASN_OTHER_TYPE;  /* skip flag */
+        doNextDate = 0;
+        idx = dateIdx;
+#endif
+    }
+
+    if (doNextDate && !XVALIDATE_DATE(dcrl->nextDate, dcrl->nextDateFormat,
+                                      AFTER)) {
         WOLFSSL_MSG("CRL after date is no longer valid");
         return ASN_AFTER_DATE_E;
     }

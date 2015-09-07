@@ -2429,7 +2429,10 @@ static int AdjustSequence(TcpInfo* tcpInfo, SnifferSession* session,
             /* adjust to expected, remove duplicate */
             *sslFrame += overlap;
             *sslBytes -= overlap;
-                
+
+            /* The following conditional block is duplicated below. It is the
+             * same action but for a different setup case. If changing this
+             * block be sure to also update the block below. */
             if (reassemblyList) {
                 word32 newEnd = *expected + *sslBytes;
                     
@@ -2460,6 +2463,30 @@ static int AdjustSequence(TcpInfo* tcpInfo, SnifferSession* session,
                                    *sslBytes, session, error);
         else if (tcpInfo->fin)
             return AddFinCapture(session, real);
+    }
+    else {
+        /* The following conditional block is duplicated above. It is the
+         * same action but for a different setup case. If changing this
+         * block be sure to also update the block above. */
+        if (reassemblyList) {
+            word32 newEnd = *expected + *sslBytes;
+
+            if (newEnd > reassemblyList->begin) {
+                Trace(OVERLAP_REASSEMBLY_BEGIN_STR);
+
+                /* remove bytes already on reassembly list */
+                *sslBytes -= newEnd - reassemblyList->begin;
+            }
+            if (newEnd > reassemblyList->end) {
+                Trace(OVERLAP_REASSEMBLY_END_STR);
+
+                /* may be past reassembly list end (could have more on list)
+                   so try to add what's past the front->end */
+                AddToReassembly(session->flags.side, reassemblyList->end +1,
+                            *sslFrame + reassemblyList->end - *expected + 1,
+                             newEnd - reassemblyList->end, session, error);
+            }
+        }
     }
     /* got expected sequence */
     *expected += *sslBytes;
@@ -2617,30 +2644,32 @@ static int HaveMoreInput(SnifferSession* session, const byte** sslFrame,
     word32*        length = (session->flags.side == WOLFSSL_SERVER_END) ?
                                &session->sslServer->buffers.inputBuffer.length :
                                &session->sslClient->buffers.inputBuffer.length;
-    byte*          myBuffer = (session->flags.side == WOLFSSL_SERVER_END) ?
-                                session->sslServer->buffers.inputBuffer.buffer :
-                                session->sslClient->buffers.inputBuffer.buffer;
-    word32       bufferSize = (session->flags.side == WOLFSSL_SERVER_END) ?
-                            session->sslServer->buffers.inputBuffer.bufferSize :
-                            session->sslClient->buffers.inputBuffer.bufferSize;
+    byte**         myBuffer = (session->flags.side == WOLFSSL_SERVER_END) ?
+                               &session->sslServer->buffers.inputBuffer.buffer :
+                               &session->sslClient->buffers.inputBuffer.buffer;
+    word32*       bufferSize = (session->flags.side == WOLFSSL_SERVER_END) ?
+                           &session->sslServer->buffers.inputBuffer.bufferSize :
+                           &session->sslClient->buffers.inputBuffer.bufferSize;
     SSL*               ssl  = (session->flags.side == WOLFSSL_SERVER_END) ?
                             session->sslServer : session->sslClient;
     
     while (*front && ((*front)->begin == *expected) ) {
-        word32 room = bufferSize - *length;
+        word32 room = *bufferSize - *length;
         word32 packetLen = (*front)->end - (*front)->begin + 1;
 
-        if (packetLen > room && bufferSize < MAX_INPUT_SZ) {
+        if (packetLen > room && *bufferSize < MAX_INPUT_SZ) {
             if (GrowInputBuffer(ssl, packetLen, *length) < 0) {
                 SetError(MEMORY_STR, error, session, FATAL_ERROR_STATE);
                 return 0;
             }
+            room = *bufferSize - *length;   /* bufferSize is now bigger */
         }
         
         if (packetLen <= room) {
             PacketBuffer* del = *front;
+            byte*         buf = *myBuffer;
             
-            XMEMCPY(&myBuffer[*length], (*front)->data, packetLen);
+            XMEMCPY(&buf[*length], (*front)->data, packetLen);
             *length   += packetLen;
             *expected += packetLen;
             
@@ -2654,9 +2683,9 @@ static int HaveMoreInput(SnifferSession* session, const byte** sslFrame,
             break;
     }
     if (moreInput) {
-        *sslFrame = myBuffer;
+        *sslFrame = *myBuffer;
         *sslBytes = *length;
-        *end      = myBuffer + *length;
+        *end      = *myBuffer + *length;
     }
     return moreInput;
 }

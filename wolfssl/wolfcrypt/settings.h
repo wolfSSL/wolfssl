@@ -78,6 +78,12 @@
 /* Uncomment next line if building for Freescale KSDK MQX/RTCS/MFS */
 /* #define FREESCALE_KSDK_MQX */
 
+/* Uncomment next line if building for Freescale KSDK Bare Metal */
+/* #define FREESCALE_KSDK_BM */
+
+/* Uncomment next line if building for Freescale FreeRTOS */
+/* #define FREESCALE_FREE_RTOS */
+
 /* Uncomment next line if using STM32F2 */
 /* #define WOLFSSL_STM32F2 */
 
@@ -304,6 +310,54 @@
     #define USE_WINDOWS_API
 #endif
 
+#if defined(WOLFSSL_uITRON4)
+
+#define XMALLOC_USER
+#include <stddef.h>
+#define ITRON_POOL_SIZE 1024*20
+extern int uITRON4_minit(size_t poolsz) ;
+extern void *uITRON4_malloc(size_t sz) ;
+extern void *uITRON4_realloc(void *p, size_t sz) ;
+extern void uITRON4_free(void *p) ;
+
+#define XMALLOC(sz, heap, type)     uITRON4_malloc(sz)
+#define XREALLOC(p, sz, heap, type) uITRON4_realloc(p, sz)
+#define XFREE(p, heap, type)        uITRON4_free(p)
+#endif
+
+#if defined(WOLFSSL_uTKERNEL2)
+#define WOLFSSL_CLOSESOCKET
+#define XMALLOC_USER
+int uTKernel_init_mpool(unsigned int sz) ; /* initializing malloc pool */
+void *uTKernel_malloc(unsigned int sz) ;
+void *uTKernel_realloc(void *p, unsigned int sz) ;
+void   uTKernel_free(void *p) ;
+#define XMALLOC(s, h, type) uTKernel_malloc((s))
+#define XREALLOC(p, n, h, t)  uTKernel_realloc((p), (n))
+#define XFREE(p, h, type)  uTKernel_free((p))
+
+#include <stdio.h>
+#include    "tm/tmonitor.h"
+static char *fgets(char *buff, int sz, FILE *fp)
+/*static char * gets(char *buff)*/
+{
+    char * p = buff ;
+    *p = '\0' ;
+    while(1) {
+        *p = tm_getchar(-1) ;
+        tm_putchar(*p) ;
+        if(*p == '\r') {
+            tm_putchar('\n') ;
+            *p = '\0' ;
+            break ;
+        }
+        p ++ ;
+    }
+    return buff ;
+}
+
+#endif
+
 
 #if defined(WOLFSSL_LEANPSK) && !defined(XMALLOC_USER)
     #include <stdlib.h>
@@ -461,15 +515,7 @@
 #endif
 
 #ifdef FREESCALE_MQX
-    #define SIZEOF_LONG_LONG 8
-    #define NO_WRITEV
-    #define NO_DEV_RANDOM
-    #define NO_RABBIT
-    #define NO_WOLFSSL_DIR
-    #define USE_FAST_MATH
-    #define TFM_TIMING_RESISTANT
-    #define FREESCALE_K70_RNGA
-    /* #define FREESCALE_K53_RNGB */
+    #define FREESCALE_COMMON
     #include "mqx.h"
     #ifndef NO_FILESYSTEM
         #include "mfs.h"
@@ -489,16 +535,7 @@
 #endif
 
 #ifdef FREESCALE_KSDK_MQX
-    #define SIZEOF_LONG_LONG 8
-    #define NO_WRITEV
-    #define NO_DEV_RANDOM
-    #define NO_RABBIT
-    #define NO_WOLFSSL_DIR
-    #define USE_FAST_MATH
-    #define TFM_TIMING_RESISTANT
-    #define NO_OLD_RNGNAME
-    #define FREESCALE_K70_RNGA
-    /* #define FREESCALE_K53_RNGB */
+    #define FREESCALE_COMMON
     #include <mqx.h>
     #ifndef NO_FILESYSTEM
         #if MQX_USE_IO_OLD
@@ -515,6 +552,56 @@
     #define XMALLOC(s, h, t)    (void *)_mem_alloc_system((s))
     #define XFREE(p, h, t)      {void* xp = (p); if ((xp)) _mem_free((xp));}
     #define XREALLOC(p, n, h, t) _mem_realloc((p), (n)) /* since MQX 4.1.2 */
+#endif
+
+#ifdef FREESCALE_KSDK_BM
+    #define FREESCALE_COMMON
+    #define WOLFSSL_USER_IO
+    #define SINGLE_THREADED
+    #define NO_FILESYSTEM
+    #define USE_WOLFSSL_MEMORY
+#endif
+
+#ifdef FREESCALE_FREE_RTOS
+    #define FREESCALE_COMMON
+    #define NO_FILESYSTEM
+    #define NO_MAIN_DRIVER
+    #define XMALLOC(s, h, t)  OSA_MemAlloc(s);
+    #define XFREE(p, h, t)    {void* xp = (p); if((xp)) OSA_MemFree((xp));}
+    #define XREALLOC(p, n, h, t) ksdk_realloc((p), (n), (h), (t));
+    #ifdef FREESCALE_KSDK_BM
+        #error Baremetal and FreeRTOS cannot be both enabled at the same time!
+    #endif
+    #ifndef SINGLE_THREADED
+        #include "FreeRTOS.h"
+        #include "semphr.h"
+    #endif
+#endif
+
+#ifdef FREESCALE_COMMON
+    #define SIZEOF_LONG_LONG 8
+    #define NO_WRITEV
+    #define NO_DEV_RANDOM
+    #define NO_RABBIT
+    #define NO_WOLFSSL_DIR
+    #define USE_FAST_MATH
+    #define TFM_TIMING_RESISTANT
+
+    #if FSL_FEATURE_SOC_ENET_COUNT == 0
+        #define WOLFSSL_USER_IO
+    #endif
+
+    /* random seed */
+    #define NO_OLD_RNGNAME
+    #if FSL_FEATURE_SOC_TRNG_COUNT > 0
+        #define FREESCALE_TRNG
+    #elif !defined(FREESCALE_KSDK_BM) && !defined(FREESCALE_FREE_RTOS)
+        #define FREESCALE_K70_RNGA
+        /* #define FREESCALE_K53_RNGB */
+    #endif
+
+    /* HW crypto */
+    /* #define FREESCALE_MMCAU */
 #endif
 
 #ifdef WOLFSSL_STM32F2
