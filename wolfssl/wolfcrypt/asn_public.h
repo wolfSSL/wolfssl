@@ -47,7 +47,10 @@ enum CertType {
     CERTREQ_TYPE,
     DSA_TYPE,
     ECC_TYPE,
-    RSA_TYPE
+    RSA_TYPE,
+    PUBLICKEY_TYPE,
+    RSA_PUBLICKEY_TYPE,
+    ECC_PUBLICKEY_TYPE
 };
 
 
@@ -79,10 +82,18 @@ enum Ctc_Encoding {
 #endif
 
 enum Ctc_Misc {
-    CTC_NAME_SIZE    =    64,
-    CTC_DATE_SIZE    =    32,
-    CTC_MAX_ALT_SIZE = 16384,   /* may be huge */
-    CTC_SERIAL_SIZE  =     8
+    CTC_NAME_SIZE     =    64,
+    CTC_DATE_SIZE     =    32,
+    CTC_MAX_ALT_SIZE  = 16384,   /* may be huge */
+    CTC_SERIAL_SIZE   =     8,
+#ifdef WOLFSSL_CERT_EXT
+    /* AKID could contains: hash + (Option) AuthCertIssuer,AuthCertSerialNum
+     * We support only hash */
+    CTC_MAX_SKID_SIZE = SHA256_DIGEST_SIZE,
+    CTC_MAX_AKID_SIZE = SHA256_DIGEST_SIZE,
+    CTC_MAX_CERTPOL_SZ = 64,
+    CTC_MAX_CERTPOL_NB = 2 /* Max number of Certificate Policy */
+#endif /* WOLFSSL_CERT_EXT */
 };
 
 typedef struct CertName {
@@ -124,6 +135,15 @@ typedef struct Cert {
     int      beforeDateSz;               /* size of copy */
     byte     afterDate[CTC_DATE_SIZE];   /* after date copy */
     int      afterDateSz;                /* size of copy */
+#endif
+#ifdef WOLFSSL_CERT_EXT
+    byte    skid[CTC_MAX_SKID_SIZE];     /* Subject Key Identifier */
+    int     skidSz;                      /* SKID size in bytes */
+    byte    akid[CTC_MAX_AKID_SIZE];     /* Authority Key Identifier */
+    int     akidSz;                      /* AKID size in bytes */
+    word16  keyUsage;                    /* Key Usage */
+    char    certPolicies[CTC_MAX_CERTPOL_NB][CTC_MAX_CERTPOL_SZ];
+    word16  certPoliciesNb;              /* Number of Cert Policy */
 #endif
 #ifdef WOLFSSL_CERT_REQ
     char     challengePw[CTC_NAME_SIZE];
@@ -168,6 +188,43 @@ WOLFSSL_API int  wc_SetSubjectBuffer(Cert*, const byte*, int);
 WOLFSSL_API int  wc_SetAltNamesBuffer(Cert*, const byte*, int);
 WOLFSSL_API int  wc_SetDatesBuffer(Cert*, const byte*, int);
 
+#ifdef WOLFSSL_CERT_EXT
+WOLFSSL_API int wc_SetAuthKeyIdFromPublicKey(Cert *cert, RsaKey *rsakey,
+                                             ecc_key *eckey);
+WOLFSSL_API int wc_SetAuthKeyIdFromCert(Cert *cert, const byte *der, int derSz);
+WOLFSSL_API int wc_SetAuthKeyId(Cert *cert, const char* file);
+WOLFSSL_API int wc_SetSubjectKeyIdFromPublicKey(Cert *cert, RsaKey *rsakey,
+                                                ecc_key *eckey);
+WOLFSSL_API int wc_SetSubjectKeyId(Cert *cert, const char* file);
+
+#ifdef HAVE_NTRU
+WOLFSSL_API int wc_SetSubjectKeyIdFromNtruPublicKey(Cert *cert, byte *ntruKey,
+                                                    word16 ntruKeySz);
+#endif
+
+/* Set the KeyUsage.
+ * Value is a string separated tokens with ','. Accepted tokens are :
+ * digitalSignature,nonRepudiation,contentCommitment,keyCertSign,cRLSign,
+ * dataEncipherment,keyAgreement,keyEncipherment,encipherOnly and decipherOnly.
+ *
+ * nonRepudiation and contentCommitment are for the same usage.
+ */
+WOLFSSL_API int wc_SetKeyUsage(Cert *cert, const char *value);
+
+/* encode Certificate Policies, return total bytes written
+ * each input value must be ITU-T X.690 formatted : a.b.c...
+ * input must be an array of values with a NULL terminated for the latest
+ * RFC5280 : non-critical */
+WOLFSSL_API int wc_SetCertificatePolicies(Cert *cert, const char **input);
+
+/* forward from wolfssl */
+WOLFSSL_API int wolfSSL_PemPubKeyToDer(const char* fileName,
+                                       unsigned char* derBuf, int derSz);
+/* forward from wolfssl */
+WOLFSSL_API int wolfSSL_PubKeyPemToDer(const unsigned char*, int,
+                                       unsigned char*, int);
+#endif /* WOLFSSL_CERT_EXT */
+
     #ifdef HAVE_NTRU
         WOLFSSL_API int  wc_MakeNtruCert(Cert*, byte* derBuffer, word32 derSz,
                                      const byte* ntruKey, word16 keySz,
@@ -186,9 +243,13 @@ WOLFSSL_API int  wc_SetDatesBuffer(Cert*, const byte*, int);
 
 #ifdef HAVE_ECC
     /* private key helpers */
-    WOLFSSL_API int wc_EccPrivateKeyDecode(const byte* input,word32* inOutIdx,
-                                         ecc_key*,word32);
+    WOLFSSL_API int wc_EccPrivateKeyDecode(const byte*, word32*,
+                                           ecc_key*, word32);
     WOLFSSL_API int wc_EccKeyToDer(ecc_key*, byte* output, word32 inLen);
+
+    /* public key helper */
+    WOLFSSL_API int wc_EccPublicKeyDecode(const byte*, word32*,
+                                              ecc_key*, word32);
 #endif
 
 /* DER encode signature */

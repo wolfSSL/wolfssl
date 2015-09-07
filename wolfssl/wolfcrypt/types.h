@@ -190,6 +190,7 @@
 
 	#ifndef STRING_USER
 	    #include <string.h>
+        #include <stdio.h> /* for snprintf */
 	    char* mystrnstr(const char* s1, const char* s2, unsigned int n);
 
 	    #define XMEMCPY(d,s,l)    memcpy((d),(s),(l))
