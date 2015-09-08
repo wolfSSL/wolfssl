@@ -40,10 +40,10 @@
     extern "C" {
 #endif
 
-/* @param typeK: (formerly keyType) was shadowing a global declaration in 
+/* @param typeK: (formerly keyType) was shadowing a global declaration in
  *                wolfssl/wolfcrypt/asn.h line 175
  */
-WOLFSSL_API 
+WOLFSSL_API
 SSL_SNIFFER_API int ssl_SetPrivateKey(const char* address, int port,
                                       const char* keyFile, int typeK,
                                       const char* password, char* error);
@@ -54,19 +54,30 @@ SSL_SNIFFER_API int ssl_SetNamedPrivateKey(const char* name,
                                            const char* keyFile, int typeK,
                                            const char* password, char* error);
 
-WOLFSSL_API 
+WOLFSSL_API
 SSL_SNIFFER_API int ssl_DecodePacket(const unsigned char* packet, int length,
                                      unsigned char* data, char* error);
 
-WOLFSSL_API 
+WOLFSSL_API
 SSL_SNIFFER_API int ssl_Trace(const char* traceFile, char* error);
-        
-        
+
+WOLFSSL_API
+SSL_SNIFFER_API int ssl_EnableRecovery(int onOff, int maxMemory, char* error);
+
+WOLFSSL_API
+SSL_SNIFFER_API int ssl_GetSessionStats(unsigned int* active,
+                                        unsigned int* total,
+                                        unsigned int* peak,
+                                        unsigned int* maxSessions,
+                                        unsigned int* missedData,
+                                        unsigned int* reassemblyMemory,
+                                        char* error);
+
 WOLFSSL_API void ssl_InitSniffer(void);
-        
+
 WOLFSSL_API void ssl_FreeSniffer(void);
 
-        
+
 /* ssl_SetPrivateKey typeKs */
 enum {
     FILETYPE_PEM = 1,

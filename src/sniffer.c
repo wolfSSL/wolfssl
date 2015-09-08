@@ -240,7 +240,10 @@ static const char* const msgTable[] =
     "Late Key Load Error",
     "Got Certificate Status msg",
     "RSA Key Missing Error",
-    "Secure Renegotiation Not Supported"
+    "Secure Renegotiation Not Supported",
+
+    /* 76 */
+    "Get Session Stats Failure"
 };
 
 
@@ -357,6 +360,13 @@ static SnifferSession* SessionTable[HASH_SIZE];
 static wolfSSL_Mutex SessionMutex;
 static int SessionCount = 0;
 
+/* Recovery of missed data switches and stats */
+static wolfSSL_Mutex RecoveryMutex;      /* for stats */
+static int RecoveryEnabled    = 0;       /* global switch */
+static int MaxRecoveryMemory  = -1;      /* per session max recovery memory */
+static word32 MissedDataSessions = 0;    /* # of sessions with missed data */
+static word32 ReassemblyMemory   = 0;    /* total reassembly memory in use */
+
 
 /* Initialize overall Sniffer */
 void ssl_InitSniffer(void)
@@ -364,6 +374,7 @@ void ssl_InitSniffer(void)
     wolfSSL_Init();
     InitMutex(&ServerListMutex);
     InitMutex(&SessionMutex);
+    InitMutex(&RecoveryMutex);
 }
 
 
@@ -485,6 +496,7 @@ void ssl_FreeSniffer(void)
     UnLockMutex(&SessionMutex);
     UnLockMutex(&ServerListMutex);
 
+    FreeMutex(&RecoveryMutex);
     FreeMutex(&SessionMutex);
     FreeMutex(&ServerListMutex);
 
@@ -2979,6 +2991,49 @@ int ssl_Trace(const char* traceFile, char* error)
     return 0;
 }
 
+
+/* Enables/Disables Recovery of missed data if later packets allow
+ * maxMemory is number of bytes to use for reassembly buffering per session,
+ * -1 means unlimited
+ * returns 0 on success, -1 on error */
+int ssl_EnableRecovery(int onOff, int maxMemory, char* error)
+{
+    (void)error;
+
+    RecoveryEnabled = onOff;
+    if (onOff)
+        MaxRecoveryMemory = maxMemory;
+
+    return 0;
+}
+
+
+
+int ssl_GetSessionStats(unsigned int* active,     unsigned int* total,
+                        unsigned int* peak,       unsigned int* maxSessions,
+                        unsigned int* missedData, unsigned int* reassemblyMem,
+                        char* error)
+{
+    int ret;
+
+    LockMutex(&RecoveryMutex);
+
+    if (missedData)
+        *missedData = MissedDataSessions;
+    if (reassemblyMem)
+        *reassemblyMem = ReassemblyMemory;
+
+    UnLockMutex(&RecoveryMutex);
+
+    ret = wolfSSL_get_session_stats(active, total, peak, maxSessions);
+
+    if (ret == SSL_SUCCESS)
+        return 0;
+    else {
+        SetError(BAD_SESSION_STATS, error, NULL, 0);
+        return -1;
+    }
+}
 
 
 

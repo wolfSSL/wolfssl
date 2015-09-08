@@ -932,10 +932,19 @@ static char *fgets(char *buff, int sz, FILE *fp)
 #endif
 
 
-/* sniffer requires static RSA cipher suites */
+/* sniffer requires:
+ * static RSA cipher suites
+ * session stats and peak stats
+ */
 #ifdef WOLFSSL_SNIFFER
     #ifndef WOLFSSL_STATIC_RSA
         #define WOLFSSL_STATIC_RSA
+    #endif
+    #ifndef WOLFSSL_SESSION_STATS
+        #define WOLFSSL_SESSION_STATS
+    #endif
+    #ifndef WOLFSSL_PEAK_SESSIONS
+        #define WOLFSSL_PEAK_SESSIONS
     #endif
 #endif
 
