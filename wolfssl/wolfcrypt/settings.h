@@ -952,6 +952,16 @@ static char *fgets(char *buff, int sz, FILE *fp)
     #endif
 #endif
 
+/* Certificate Request Extensions needs decode extras */
+#ifdef WOLFSSL_CERT_EXT
+    #ifndef RSA_DECODE_EXTRA
+        #define RSA_DECODE_EXTRA
+    #endif
+    #ifndef ECC_DECODE_EXTRA
+        #define ECC_DECODE_EXTRA
+    #endif
+#endif
+
 /* Place any other flags or defines here */
 
 

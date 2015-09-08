@@ -7987,7 +7987,7 @@ int wc_EccPublicKeyDecode(const byte* input, word32* inOutIdx,
     if (GetSequence(input, inOutIdx, &length, inSz) < 0)
         return ASN_PARSE_E;
 
-#if defined(OPENSSL_EXTRA)
+#if defined(OPENSSL_EXTRA) || defined(ECC_DECODE_EXTRA)
     {
         byte b = input[*inOutIdx];
         if (b != ASN_INTEGER) {

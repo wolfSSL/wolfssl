@@ -647,7 +647,7 @@ AC_ARG_ENABLE([certext],
 
 if test "$ENABLED_CERTEXT" = "yes"
 then
-    if test "$ENABLED_CERTEXT" = "no"
+    if test "$ENABLED_CERTGEN" = "no"
     then
         AC_MSG_ERROR([cannot enable certext without enabling certgen.])
     fi
