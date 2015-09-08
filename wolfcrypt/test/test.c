@@ -208,7 +208,9 @@ int pbkdf2_test(void);
     int pkcs7enveloped_test(void);
     int pkcs7signed_test(void);
 #endif
-
+#if defined(WOLFSSL_CERT_EXT) && defined(WOLFSSL_TEST_CERT)
+int  certext_test(void);
+#endif
 
 /* General big buffer size for many tests. */
 #define FOURK_BUF 4096
@@ -266,7 +268,6 @@ int wolfcrypt_test(void* args)
                        -1235);
 #endif /* USE_FAST_MATH */
 #endif /* !NO_BIG_INT */
-
 
 #ifndef NO_MD5
     if ( (ret = md5_test()) != 0)
@@ -484,6 +485,13 @@ int wolfcrypt_test(void* args)
         return err_sys("RSA      test failed!\n", ret);
     else
         printf( "RSA      test passed!\n");
+#endif
+
+#if defined(WOLFSSL_CERT_EXT) && defined(WOLFSSL_TEST_CERT)
+    if ( (ret = certext_test()) != 0)
+        return err_sys("CERT EXT test failed!\n", ret);
+    else
+        printf( "CERT EXT test passed!\n");
 #endif
 
 #ifndef NO_DH
@@ -3300,17 +3308,27 @@ byte GetEntropy(ENTROPY_CMD cmd, byte* out)
 
 #endif /* HAVE_NTRU */
 
+
 #ifndef NO_RSA
 
 #if !defined(USE_CERT_BUFFERS_1024) && !defined(USE_CERT_BUFFERS_2048)
     #ifdef FREESCALE_MQX
         static const char* clientKey  = "a:\\certs\\client-key.der";
         static const char* clientCert = "a:\\certs\\client-cert.der";
+        #ifdef WOLFSSL_CERT_EXT
+            static const char* clientKeyPub  = "a:\\certs\\client-keyPub.der";
+        #endif
         #ifdef WOLFSSL_CERT_GEN
             static const char* caKeyFile  = "a:\\certs\\ca-key.der";
+            #ifdef WOLFSSL_CERT_EXT
+                static const char* caKeyPubFile  = "a:\\certs\\ca-keyPub.der";
+            #endif
             static const char* caCertFile = "a:\\certs\\ca-cert.pem";
             #ifdef HAVE_ECC
                 static const char* eccCaKeyFile  = "a:\\certs\\ecc-key.der";
+                #ifdef WOLFSSL_CERT_EXT
+                static const char* eccCaKeyPubFile = "a:\\certs\\ecc-keyPub.der";
+                #endif
                 static const char* eccCaCertFile = "a:\\certs\\server-ecc.pem";
             #endif
         #endif
@@ -3319,13 +3337,25 @@ byte GetEntropy(ENTROPY_CMD cmd, byte* out)
         static char* clientCert = "certs/client-cert.der";
         void set_clientKey(char *key) {  clientKey = key ; }
         void set_clientCert(char *cert) {  clientCert = cert ; }
+        #ifdef WOLFSSL_CERT_EXT
+            static const char* clientKeyPub  = "certs/client-keyPub.der";
+            void set_clientKeyPub(char *key) { clientKeyPub = key ; }
+        #endif
         #ifdef WOLFSSL_CERT_GEN
             static char* caKeyFile  = "certs/ca-key.der";
+            #ifdef WOLFSSL_CERT_EXT
+            static const char* caKeyPubFile  = "certs/ca-keyPub.der";
+            void set_caKeyPubFile (char * key)  { caKeyPubFile = key ; }
+            #endif
             static char* caCertFile = "certs/ca-cert.pem";
             void set_caKeyFile (char * key)  { caKeyFile   = key ; }
             void set_caCertFile(char * cert) { caCertFile = cert ; }
             #ifdef HAVE_ECC
                 static const char* eccCaKeyFile  = "certs/ecc-key.der";
+                #ifdef WOLFSSL_CERT_EXT
+                static const char* eccCaKeyPubFile  = "certs/ecc-keyPub.der";
+                void set_eccCaKeyPubFile(char * key) { eccCaKeyPubFile = key ; }
+                #endif
                 static const char* eccCaCertFile = "certs/server-ecc.pem";
                 void set_eccCaKeyFile (char * key)  { eccCaKeyFile  = key ; }
                 void set_eccCaCertFile(char * cert) { eccCaCertFile = cert ; }
@@ -3334,11 +3364,17 @@ byte GetEntropy(ENTROPY_CMD cmd, byte* out)
     #else
         static const char* clientKey  = "./certs/client-key.der";
         static const char* clientCert = "./certs/client-cert.der";
+        #ifdef WOLFSSL_CERT_EXT
+            static const char* clientKeyPub  = "./certs/client-keyPub.der";
+        #endif
         #ifdef WOLFSSL_CERT_GEN
             static const char* caKeyFile  = "./certs/ca-key.der";
             static const char* caCertFile = "./certs/ca-cert.pem";
             #ifdef HAVE_ECC
                 static const char* eccCaKeyFile  = "./certs/ecc-key.der";
+                #ifdef WOLFSSL_CERT_EXT
+                static const char* eccCaKeyPubFile  = "./certs/ecc-keyPub.der";
+                #endif
                 static const char* eccCaCertFile = "./certs/server-ecc.pem";
             #endif
         #endif
@@ -3346,11 +3382,202 @@ byte GetEntropy(ENTROPY_CMD cmd, byte* out)
 #endif
 
 
+#if defined(WOLFSSL_CERT_EXT) && defined(WOLFSSL_TEST_CERT)
+int certext_test(void)
+{
+    DecodedCert cert;
+    byte*       tmp;
+    size_t      bytes;
+    FILE        *file;
+    int         ret;
+
+    /* created from rsa_test : othercert.der */
+    byte skid_rsa[]   = "\x33\xD8\x45\x66\xD7\x68\x87\x18\x7E\x54"
+                        "\x0D\x70\x27\x91\xC7\x26\xD7\x85\x65\xC0";
+
+    /* created from rsa_test : othercert.der */
+    byte akid_rsa[] = "\x27\x8E\x67\x11\x74\xC3\x26\x1D\x3F\xED"
+                      "\x33\x63\xB3\xA4\xD8\x1D\x30\xE5\xE8\xD5";
+
+#ifdef HAVE_ECC
+    /* created from rsa_test : certecc.der */
+    byte akid_ecc[] = "\x5D\x5D\x26\xEF\xAC\x7E\x36\xF9\x9B\x76"
+                      "\x15\x2B\x4A\x25\x02\x23\xEF\xB2\x89\x30";
+#endif
+
+    /* created from rsa_test : cert.der */
+    byte kid_ca[] = "\x33\xD8\x45\x66\xD7\x68\x87\x18\x7E\x54"
+                    "\x0D\x70\x27\x91\xC7\x26\xD7\x85\x65\xC0";
+
+    tmp = (byte*)malloc(FOURK_BUF);
+    if (tmp == NULL)
+        return -200;
+
+    /* load othercert.pem (Cert signed by an authority) */
+#ifdef FREESCALE_MQX
+    file = fopen("a:\\certs\\othercert.der", "rb");
+#else
+    file = fopen("./othercert.der", "rb");
+#endif
+    if (!file) {
+        free(tmp);
+        return -200;
+    }
+
+    bytes = fread(tmp, 1, FOURK_BUF, file);
+    fclose(file);
+
+    InitDecodedCert(&cert, tmp, (word32)bytes, 0);
+
+    ret = ParseCert(&cert, CERT_TYPE, NO_VERIFY, 0);
+    if (ret != 0)
+        return -201;
+
+    /* check the SKID from a RSA certificate */
+    if (XMEMCMP(skid_rsa, cert.extSubjKeyId, cert.extSubjKeyIdSz))
+        return -202;
+
+    /* check the AKID from an RSA certificate */
+    if (XMEMCMP(akid_rsa, cert.extAuthKeyId, cert.extAuthKeyIdSz))
+        return -203;
+
+    /* check the Key Usage from an RSA certificate */
+    if (!cert.extKeyUsageSet)
+        return -204;
+
+    if (cert.extKeyUsage != (KEYUSE_KEY_ENCIPHER|KEYUSE_KEY_AGREE))
+        return -205;
+
+    /* check the CA Basic Constraints from an RSA certificate */
+    if (cert.isCA)
+        return -206;
+
+    /* check the Certificate Policies Id */
+    if (cert.extCertPoliciesNb != 1)
+        return -227;
+
+    if (strncmp(cert.extCertPolicies[0], "2.16.840.1.101.3.4.1.42", 23))
+        return -228;
+
+    FreeDecodedCert(&cert);
+
+#ifdef HAVE_ECC
+    /* load certecc.pem (Cert signed by an authority) */
+#ifdef FREESCALE_MQX
+    file = fopen("a:\\certs\\certecc.der", "rb");
+#else
+    file = fopen("./certecc.der", "rb");
+#endif
+    if (!file) {
+        free(tmp);
+        return -210;
+    }
+
+    bytes = fread(tmp, 1, FOURK_BUF, file);
+    fclose(file);
+
+    InitDecodedCert(&cert, tmp, (word32)bytes, 0);
+
+    ret = ParseCert(&cert, CERT_TYPE, NO_VERIFY, 0);
+    if (ret != 0)
+        return -211;
+
+    /* check the SKID from a ECC certificate */
+    if (XMEMCMP(skid_rsa, cert.extSubjKeyId, cert.extSubjKeyIdSz))
+        return -212;
+
+    /* check the AKID from an ECC certificate */
+    if (XMEMCMP(akid_ecc, cert.extAuthKeyId, cert.extAuthKeyIdSz))
+        return -213;
+
+    /* check the Key Usage from an ECC certificate */
+    if (!cert.extKeyUsageSet)
+        return -214;
+
+    if (cert.extKeyUsage != (KEYUSE_DIGITAL_SIG|KEYUSE_CONTENT_COMMIT))
+        return -215;
+
+    /* check the CA Basic Constraints from an ECC certificate */
+    if (cert.isCA)
+        return -216;
+
+    /* check the Certificate Policies Id */
+    if (cert.extCertPoliciesNb != 2)
+        return -217;
+
+    if (strncmp(cert.extCertPolicies[0], "2.4.589440.587.101.2.1.9632587.1", 32))
+        return -218;
+
+    if (strncmp(cert.extCertPolicies[1], "1.2.13025.489.1.113549", 22))
+        return -219;
+
+    FreeDecodedCert(&cert);
+#endif /* HAVE_ECC */
+
+    /* load cert.pem (self signed certificate) */
+#ifdef FREESCALE_MQX
+    file = fopen("a:\\certs\\cert.der", "rb");
+#else
+    file = fopen("./cert.der", "rb");
+#endif
+    if (!file) {
+        free(tmp);
+        return -220;
+    }
+
+    bytes = fread(tmp, 1, FOURK_BUF, file);
+    fclose(file);
+
+    InitDecodedCert(&cert, tmp, (word32)bytes, 0);
+
+    ret = ParseCert(&cert, CERT_TYPE, NO_VERIFY, 0);
+    if (ret != 0)
+        return -221;
+
+    /* check the SKID from a CA certificate */
+    if (XMEMCMP(kid_ca, cert.extSubjKeyId, cert.extSubjKeyIdSz))
+        return -222;
+
+    /* check the AKID from an CA certificate */
+    if (XMEMCMP(kid_ca, cert.extAuthKeyId, cert.extAuthKeyIdSz))
+        return -223;
+
+    /* check the Key Usage from CA certificate */
+    if (!cert.extKeyUsageSet)
+        return -224;
+
+    if (cert.extKeyUsage != (KEYUSE_KEY_CERT_SIGN|KEYUSE_CRL_SIGN))
+        return -225;
+
+    /* check the CA Basic Constraints CA certificate */
+    if (!cert.isCA)
+        return -226;
+
+    /* check the Certificate Policies Id */
+    if (cert.extCertPoliciesNb != 2)
+        return -227;
+
+    if (strncmp(cert.extCertPolicies[0], "2.16.840.1.101.3.4.1.42", 23))
+        return -228;
+
+    if (strncmp(cert.extCertPolicies[1], "1.2.840.113549.1.9.16.6.5", 25))
+        return -229;
+
+    FreeDecodedCert(&cert);
+
+    return 0;
+}
+#endif /* defined(WOLFSSL_CERT_EXT) && defined(WOLFSSL_TEST_CERT) */
+
+
 int rsa_test(void)
 {
     byte*   tmp;
     size_t bytes;
     RsaKey key;
+#ifdef WOLFSSL_CERT_EXT
+    RsaKey keypub;
+#endif
     WC_RNG rng;
     word32 idx = 0;
     int    ret;
@@ -3359,7 +3586,7 @@ int rsa_test(void)
     byte   out[256];
     byte   plain[256];
 #if !defined(USE_CERT_BUFFERS_1024) && !defined(USE_CERT_BUFFERS_2048)
-    FILE*  file, * file2;
+    FILE    *file, *file2;
 #endif
 #ifdef WOLFSSL_TEST_CERT
     DecodedCert cert;
@@ -3472,6 +3699,42 @@ int rsa_test(void)
 #else
     (void)bytes;
 #endif
+
+#ifdef WOLFSSL_CERT_EXT
+
+#ifdef USE_CERT_BUFFERS_1024
+    XMEMCPY(tmp, client_keypub_der_1024, sizeof_client_keypub_der_1024);
+    bytes = sizeof_client_keypub_der_1024;
+#elif defined(USE_CERT_BUFFERS_2048)
+    XMEMCPY(tmp, client_keypub_der_2048, sizeof_client_keypub_der_2048);
+    bytes = sizeof_client_keypub_der_2048;
+#else
+    file = fopen(clientKeyPub, "rb");
+    if (!file) {
+        err_sys("can't open ./certs/client-keyPub.der, "
+                "Please run from wolfSSL home dir", -40);
+        free(tmp);
+        return -50;
+    }
+
+    bytes = fread(tmp, 1, FOURK_BUF, file);
+    fclose(file);
+#endif /* USE_CERT_BUFFERS */
+
+    ret = wc_InitRsaKey(&keypub, 0);
+    if (ret != 0) {
+        free(tmp);
+        return -51;
+    }
+    idx = 0;
+
+    ret = wc_RsaPublicKeyDecode(tmp, &idx, &keypub, (word32)bytes);
+    if (ret != 0) {
+        free(tmp);
+        wc_FreeRsaKey(&keypub);
+        return -52;
+    }
+#endif /* WOLFSSL_CERT_EXT */
 
 #ifdef WOLFSSL_KEY_GEN
     {
@@ -3634,6 +3897,39 @@ int rsa_test(void)
         myCert.isCA    = 1;
         myCert.sigType = CTC_SHA256wRSA;
 
+#ifdef WOLFSSL_CERT_EXT
+        /* add Policies */
+        strncpy(myCert.certPolicies[0], "2.16.840.1.101.3.4.1.42",
+                CTC_MAX_CERTPOL_SZ);
+        strncpy(myCert.certPolicies[1], "1.2.840.113549.1.9.16.6.5",
+                CTC_MAX_CERTPOL_SZ);
+        myCert.certPoliciesNb = 2;
+
+        /* add SKID from the Public Key */
+        if (wc_SetSubjectKeyIdFromPublicKey(&myCert, &keypub, NULL) != 0) {
+            free(pem);
+            free(derCert);
+            free(tmp);
+            return -398;
+        }
+
+         /* add AKID from the Public Key */
+         if (wc_SetAuthKeyIdFromPublicKey(&myCert, &keypub, NULL) != 0) {
+            free(pem);
+            free(derCert);
+            free(tmp);
+             return -399;
+        }
+
+        /* add Key Usage */
+        if (wc_SetKeyUsage(&myCert,"cRLSign,keyCertSign") != 0) {
+            free(pem);
+            free(derCert);
+            free(tmp);
+            return -400;
+        }
+#endif /* WOLFSSL_CERT_EXT */
+
         certSz = wc_MakeSelfCert(&myCert, derCert, FOURK_BUF, &key, &rng);
         if (certSz < 0) {
             free(derCert);
@@ -3775,6 +4071,37 @@ int rsa_test(void)
         strncpy(myCert.subject.commonName, "www.yassl.com", CTC_NAME_SIZE);
         strncpy(myCert.subject.email, "info@yassl.com", CTC_NAME_SIZE);
 
+#ifdef WOLFSSL_CERT_EXT
+        /* add Policies */
+        strncpy(myCert.certPolicies[0], "2.16.840.1.101.3.4.1.42",
+                CTC_MAX_CERTPOL_SZ);
+        myCert.certPoliciesNb =1;
+
+        /* add SKID from the Public Key */
+        if (wc_SetSubjectKeyIdFromPublicKey(&myCert, &key, NULL) != 0) {
+            free(pem);
+            free(derCert);
+            free(tmp);
+            return -398;
+        }
+
+        /* add AKID from the CA certificate */
+        if (wc_SetAuthKeyId(&myCert, caCertFile) != 0) {
+            free(pem);
+            free(derCert);
+            free(tmp);
+            return -399;
+        }
+
+        /* add Key Usage */
+        if (wc_SetKeyUsage(&myCert,"keyEncipherment,keyAgreement") != 0) {
+            free(pem);
+            free(derCert);
+            free(tmp);
+            return -400;
+        }
+#endif /* WOLFSSL_CERT_EXT */
+
         ret = wc_SetIssuer(&myCert, caCertFile);
         if (ret < 0) {
             free(derCert);
@@ -3802,7 +4129,6 @@ int rsa_test(void)
             wc_FreeRsaKey(&caKey);
             return -408;
         }
-
 
 #ifdef WOLFSSL_TEST_CERT
         InitDecodedCert(&decode, derCert, certSz, 0);
@@ -3887,6 +4213,9 @@ int rsa_test(void)
         size_t      bytes3;
         word32      idx3 = 0;
         FILE*       file3;
+#ifdef WOLFSSL_CERT_EXT
+        ecc_key     caKeyPub;
+#endif
 #ifdef WOLFSSL_TEST_CERT
         DecodedCert decode;
 #endif
@@ -3935,6 +4264,72 @@ int rsa_test(void)
         strncpy(myCert.subject.commonName, "www.wolfssl.com", CTC_NAME_SIZE);
         strncpy(myCert.subject.email, "info@wolfssl.com", CTC_NAME_SIZE);
 
+#ifdef WOLFSSL_CERT_EXT
+        /* add Policies */
+        strncpy(myCert.certPolicies[0], "2.4.589440.587.101.2.1.9632587.1",
+                CTC_MAX_CERTPOL_SZ);
+        strncpy(myCert.certPolicies[1], "1.2.13025.489.1.113549",
+                CTC_MAX_CERTPOL_SZ);
+        myCert.certPoliciesNb = 2;
+
+
+        file3 = fopen(eccCaKeyPubFile, "rb");
+        if (!file3) {
+            free(derCert);
+            free(pem);
+            free(tmp);
+            return -5500;
+        }
+
+        bytes3 = fread(tmp, 1, FOURK_BUF, file3);
+        fclose(file3);
+
+        wc_ecc_init(&caKeyPub);
+        if (ret != 0) {
+            free(derCert);
+            free(pem);
+            free(tmp);
+            return -5501;
+        }
+
+        idx3 = 0;
+        ret = wc_EccPublicKeyDecode(tmp, &idx3, &caKeyPub, (word32)bytes3);
+        if (ret != 0) {
+            free(derCert);
+            free(pem);
+            free(tmp);
+            wc_ecc_free(&caKeyPub);
+            return -5502;
+        }
+
+        /* add SKID from the Public Key */
+        if (wc_SetSubjectKeyIdFromPublicKey(&myCert, &key, NULL) != 0) {
+            free(pem);
+            free(derCert);
+            free(tmp);
+            wc_ecc_free(&caKeyPub);
+            return -5503;
+        }
+
+        /* add AKID from the Public Key */
+        if (wc_SetAuthKeyIdFromPublicKey(&myCert, NULL, &caKeyPub) != 0) {
+            free(pem);
+            free(derCert);
+            free(tmp);
+            wc_ecc_free(&caKeyPub);
+            return -5504;
+        }
+        wc_ecc_free(&caKeyPub);
+
+        /* add Key Usage */
+        if (wc_SetKeyUsage(&myCert,"digitalSignature,nonRepudiation") != 0) {
+            free(pem);
+            free(derCert);
+            free(tmp);
+            return -5505;
+        }
+#endif /* WOLFSSL_CERT_EXT */
+
         ret = wc_SetIssuer(&myCert, eccCaCertFile);
         if (ret < 0) {
             free(pem);
@@ -3944,7 +4339,7 @@ int rsa_test(void)
             return -5405;
         }
 
-        certSz = wc_MakeCert(&myCert, derCert, FOURK_BUF, NULL, &caKey, &rng);
+        certSz = wc_MakeCert(&myCert, derCert, FOURK_BUF, &key, NULL, &rng);
         if (certSz < 0) {
             free(pem);
             free(derCert);
@@ -4144,6 +4539,35 @@ int rsa_test(void)
         strncpy(myCert.subject.commonName, "www.yassl.com", CTC_NAME_SIZE);
         strncpy(myCert.subject.email, "info@yassl.com", CTC_NAME_SIZE);
 
+#ifdef WOLFSSL_CERT_EXT
+
+        /* add SKID from the Public Key */
+        if (wc_SetSubjectKeyIdFromNtruPublicKey(&myCert, public_key,
+                                                public_key_len) != 0) {
+            free(pem);
+            free(derCert);
+            free(tmp);
+            return -496;
+        }
+
+        /* add AKID from the CA certificate */
+        if (wc_SetAuthKeyId(&myCert, caCertFile) != 0) {
+            free(pem);
+            free(derCert);
+            free(tmp);
+            return -495;
+        }
+
+        /* add Key Usage */
+        if (wc_SetKeyUsage(&myCert,"digitalSignature,nonRepudiation,"
+                                   "keyEncipherment,keyAgreement") != 0) {
+            free(pem);
+            free(derCert);
+            free(tmp);
+            return -494;
+        }
+#endif /* WOLFSSL_CERT_EXT */
+
         ret = wc_SetIssuer(&myCert, caCertFile);
         if (ret < 0) {
             free(derCert);
@@ -4279,6 +4703,25 @@ int rsa_test(void)
         strncpy(req.subject.email, "info@yassl.com", CTC_NAME_SIZE);
         req.sigType = CTC_SHA256wRSA;
 
+#ifdef WOLFSSL_CERT_EXT
+        /* add SKID from the Public Key */
+        if (wc_SetSubjectKeyIdFromPublicKey(&req, &keypub, NULL) != 0) {
+            free(pem);
+            free(der);
+            free(tmp);
+            return -496;
+        }
+
+        /* add Key Usage */
+        if (wc_SetKeyUsage(&req,"digitalSignature,nonRepudiation,"
+                                "keyEncipherment,keyAgreement") != 0) {
+            free(pem);
+            free(der);
+            free(tmp);
+            return -494;
+        }
+#endif /* WOLFSSL_CERT_EXT */
+
         derSz = wc_MakeCertReq(&req, der, FOURK_BUF, &key, NULL);
         if (derSz < 0) {
             free(pem);
@@ -4352,6 +4795,9 @@ int rsa_test(void)
 #endif /* WOLFSSL_CERT_GEN */
 
     wc_FreeRsaKey(&key);
+#ifdef WOLFSSL_CERT_EXT
+    wc_FreeRsaKey(&keypub);
+#endif
 #ifdef HAVE_CAVIUM
     wc_RsaFreeCavium(&key);
 #endif

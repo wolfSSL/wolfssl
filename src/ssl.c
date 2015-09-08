@@ -1698,7 +1698,6 @@ int wolfSSL_KeyPemToDer(const unsigned char* pem, int pemSz,
     return ret;
 }
 
-
 #endif /* !NO_CERTS */
 
 
@@ -2401,14 +2400,15 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
 
     switch (type) {
         case CA_TYPE:       /* same as below */
-        case CERT_TYPE:     header=BEGIN_CERT;     footer=END_CERT;     break;
-        case CRL_TYPE:      header=BEGIN_X509_CRL; footer=END_X509_CRL; break;
-        case DH_PARAM_TYPE: header=BEGIN_DH_PARAM; footer=END_DH_PARAM; break;
-        case CERTREQ_TYPE:  header=BEGIN_CERT_REQ; footer=END_CERT_REQ; break;
-        case DSA_TYPE:      header=BEGIN_DSA_PRIV; footer=END_DSA_PRIV; break;
-        case ECC_TYPE:      header=BEGIN_EC_PRIV;  footer=END_EC_PRIV;  break;
-        case RSA_TYPE:      header=BEGIN_RSA_PRIV; footer=END_RSA_PRIV; break;
-        default:            header=BEGIN_RSA_PRIV; footer=END_RSA_PRIV; break;
+        case CERT_TYPE:      header=BEGIN_CERT;     footer=END_CERT;     break;
+        case CRL_TYPE:       header=BEGIN_X509_CRL; footer=END_X509_CRL; break;
+        case DH_PARAM_TYPE:  header=BEGIN_DH_PARAM; footer=END_DH_PARAM; break;
+        case CERTREQ_TYPE:   header=BEGIN_CERT_REQ; footer=END_CERT_REQ; break;
+        case DSA_TYPE:       header=BEGIN_DSA_PRIV; footer=END_DSA_PRIV; break;
+        case ECC_TYPE:       header=BEGIN_EC_PRIV;  footer=END_EC_PRIV;  break;
+        case RSA_TYPE:       header=BEGIN_RSA_PRIV; footer=END_RSA_PRIV; break;
+        case PUBLICKEY_TYPE: header=BEGIN_PUB_KEY;  footer=END_PUB_KEY;  break;
+        default:             header=BEGIN_RSA_PRIV; footer=END_RSA_PRIV; break;
     }
 
     switch (type) {
@@ -3998,6 +3998,108 @@ int wolfSSL_PemCertToDer(const char* fileName, unsigned char* derBuf, int derSz)
 
 #endif /* WOLFSSL_CERT_GEN */
 
+#ifdef WOLFSSL_CERT_EXT
+/* load pem public key from file into der buffer, return der size or error */
+int wolfSSL_PemPubKeyToDer(const char* fileName,
+                           unsigned char* derBuf, int derSz)
+{
+#ifdef WOLFSSL_SMALL_STACK
+    byte   staticBuffer[1]; /* force XMALLOC */
+#else
+    byte   staticBuffer[FILE_BUFFER_SIZE];
+#endif
+    byte*  fileBuf = staticBuffer;
+    int    dynamic = 0;
+    int    ret     = 0;
+    long   sz      = 0;
+    XFILE  file    = XFOPEN(fileName, "rb");
+    buffer converted;
+
+    WOLFSSL_ENTER("wolfSSL_PemPubKeyToDer");
+
+    if (file == XBADFILE)
+        ret = SSL_BAD_FILE;
+    else {
+        XFSEEK(file, 0, XSEEK_END);
+        sz = XFTELL(file);
+        XREWIND(file);
+
+        if (sz < 0) {
+            ret = SSL_BAD_FILE;
+        }
+        else if (sz > (long)sizeof(staticBuffer)) {
+            fileBuf = (byte*)XMALLOC(sz, 0, DYNAMIC_TYPE_FILE);
+            if (fileBuf == NULL)
+                ret = MEMORY_E;
+            else
+                dynamic = 1;
+        }
+
+        converted.buffer = 0;
+
+        if (ret == 0) {
+            if ( (ret = (int)XFREAD(fileBuf, sz, 1, file)) < 0)
+                ret = SSL_BAD_FILE;
+            else
+                ret = PemToDer(fileBuf, sz, PUBLICKEY_TYPE, &converted,
+                               0, NULL, NULL);
+
+            if (ret == 0) {
+                if (converted.length < (word32)derSz) {
+                    XMEMCPY(derBuf, converted.buffer, converted.length);
+                    ret = converted.length;
+                }
+                else
+                    ret = BUFFER_E;
+            }
+
+            XFREE(converted.buffer, 0, DYNAMIC_TYPE_CA);
+        }
+
+        XFCLOSE(file);
+        if (dynamic)
+            XFREE(fileBuf, 0, DYNAMIC_TYPE_FILE);
+    }
+
+    return ret;
+}
+
+/* Return bytes written to buff or < 0 for error */
+int wolfSSL_PubKeyPemToDer(const unsigned char* pem, int pemSz,
+                           unsigned char* buff, int buffSz)
+{
+    int     ret;
+    buffer  der;
+
+    WOLFSSL_ENTER("wolfSSL_PubKeyPemToDer");
+
+    if (pem == NULL || buff == NULL || buffSz <= 0) {
+        WOLFSSL_MSG("Bad pem der args");
+        return BAD_FUNC_ARG;
+    }
+
+    der.buffer = NULL;
+
+    ret = PemToDer(pem, pemSz, PUBLICKEY_TYPE, &der, NULL, NULL, NULL);
+    if (ret < 0) {
+        WOLFSSL_MSG("Bad Pem To Der");
+    }
+    else {
+        if (der.length <= (word32)buffSz) {
+            XMEMCPY(buff, der.buffer, der.length);
+            ret = der.length;
+        }
+        else {
+            WOLFSSL_MSG("Bad der length");
+            ret = BAD_FUNC_ARG;
+        }
+    }
+
+    XFREE(der.buffer, NULL, DYNAMIC_TYPE_KEY);
+    return ret;
+}
+
+#endif /* WOLFSSL_CERT_EXT */
 
 int wolfSSL_CTX_use_certificate_file(WOLFSSL_CTX* ctx, const char* file,
                                      int format)

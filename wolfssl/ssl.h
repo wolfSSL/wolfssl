@@ -1069,10 +1069,19 @@ WOLFSSL_API int wolfSSL_CTX_SetMinVersion(WOLFSSL_CTX* ctx, int version);
 WOLFSSL_API int wolfSSL_SetMinVersion(WOLFSSL* ssl, int version);
 WOLFSSL_API int wolfSSL_GetObjectSize(void);  /* object size based on build */
 WOLFSSL_API int wolfSSL_SetVersion(WOLFSSL* ssl, int version);
-WOLFSSL_API int wolfSSL_KeyPemToDer(const unsigned char*, int sz, unsigned char*,
-                                  int, const char*);
-WOLFSSL_API int wolfSSL_CertPemToDer(const unsigned char*, int sz, unsigned char*,
-                                   int, int);
+WOLFSSL_API int wolfSSL_KeyPemToDer(const unsigned char*, int,
+                                    unsigned char*, int, const char*);
+WOLFSSL_API int wolfSSL_CertPemToDer(const unsigned char*, int,
+                                     unsigned char*, int, int);
+#ifdef WOLFSSL_CERT_EXT
+    #ifndef WOLFSSL_PEMPUBKEY_TODER_DEFINED
+        WOLFSSL_API int wolfSSL_PemPubKeyToDer(const char* fileName,
+                                               unsigned char* derBuf, int derSz);
+        WOLFSSL_API int wolfSSL_PubKeyPemToDer(const unsigned char*, int,
+                                               unsigned char*, int);
+    #define WOLFSSL_PEMPUBKEY_TODER_DEFINED
+    #endif
+#endif /* WOLFSSL_CERT_EXT */
 
 typedef void (*CallbackCACache)(unsigned char* der, int sz, int type);
 typedef void (*CbMissingCRL)(const char* url);
