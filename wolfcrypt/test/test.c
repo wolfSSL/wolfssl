@@ -269,18 +269,6 @@ int wolfcrypt_test(void* args)
 #endif /* USE_FAST_MATH */
 #endif /* !NO_BIG_INT */
 
-    if ( (ret = rsa_test()) != 0)
-        return err_sys("RSA EXT test failed!\n", ret);
-    else
-        printf( "RSA EXT test passed!\n");
-
-#if defined(WOLFSSL_CERT_EXT) && defined(WOLFSSL_TEST_CERT)
-    if ( (ret = certext_test()) != 0)
-        return err_sys("CERT EXT test failed!\n", ret);
-    else
-        printf( "CERT EXT test passed!\n");
-#endif
-
 #ifndef NO_MD5
     if ( (ret = md5_test()) != 0)
         return err_sys("MD5      test failed!\n", ret);
@@ -497,6 +485,13 @@ int wolfcrypt_test(void* args)
         return err_sys("RSA      test failed!\n", ret);
     else
         printf( "RSA      test passed!\n");
+#endif
+
+#if defined(WOLFSSL_CERT_EXT) && defined(WOLFSSL_TEST_CERT)
+    if ( (ret = certext_test()) != 0)
+        return err_sys("CERT EXT test failed!\n", ret);
+    else
+        printf( "CERT EXT test passed!\n");
 #endif
 
 #ifndef NO_DH
@@ -3404,9 +3399,11 @@ int certext_test(void)
     byte akid_rsa[] = "\x27\x8E\x67\x11\x74\xC3\x26\x1D\x3F\xED"
                       "\x33\x63\xB3\xA4\xD8\x1D\x30\xE5\xE8\xD5";
 
+#ifdef HAVE_ECC
     /* created from rsa_test : certecc.der */
     byte akid_ecc[] = "\x5D\x5D\x26\xEF\xAC\x7E\x36\xF9\x9B\x76"
                       "\x15\x2B\x4A\x25\x02\x23\xEF\xB2\x89\x30";
+#endif
 
     /* created from rsa_test : cert.der */
     byte kid_ca[] = "\x33\xD8\x45\x66\xD7\x68\x87\x18\x7E\x54"
@@ -3433,7 +3430,6 @@ int certext_test(void)
     InitDecodedCert(&cert, tmp, (word32)bytes, 0);
 
     ret = ParseCert(&cert, CERT_TYPE, NO_VERIFY, 0);
-    printf("ret = %d\n", ret);
     if (ret != 0)
         return -201;
 
@@ -3465,7 +3461,7 @@ int certext_test(void)
 
     FreeDecodedCert(&cert);
 
-
+#ifdef HAVE_ECC
     /* load certecc.pem (Cert signed by an authority) */
 #ifdef FREESCALE_MQX
     file = fopen("a:\\certs\\certecc.der", "rb");
@@ -3516,6 +3512,7 @@ int certext_test(void)
         return -219;
 
     FreeDecodedCert(&cert);
+#endif /* HAVE_ECC */
 
     /* load cert.pem (self signed certificate) */
 #ifdef FREESCALE_MQX

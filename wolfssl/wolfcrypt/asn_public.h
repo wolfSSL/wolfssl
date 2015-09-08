@@ -217,12 +217,18 @@ WOLFSSL_API int wc_SetKeyUsage(Cert *cert, const char *value);
  * RFC5280 : non-critical */
 WOLFSSL_API int wc_SetCertificatePolicies(Cert *cert, const char **input);
 
-/* forward from wolfssl */
-WOLFSSL_API int wolfSSL_PemPubKeyToDer(const char* fileName,
-                                       unsigned char* derBuf, int derSz);
-/* forward from wolfssl */
-WOLFSSL_API int wolfSSL_PubKeyPemToDer(const unsigned char*, int,
-                                       unsigned char*, int);
+#ifndef WOLFSSL_PEMPUBKEY_TODER_DEFINED
+    #ifndef NO_FILESYSTEM
+    /* forward from wolfssl */
+    WOLFSSL_API int wolfSSL_PemPubKeyToDer(const char* fileName,
+                                           unsigned char* derBuf, int derSz);
+    #endif
+
+    /* forward from wolfssl */
+    WOLFSSL_API int wolfSSL_PubKeyPemToDer(const unsigned char*, int,
+                                           unsigned char*, int);
+    #define WOLFSSL_PEMPUBKEY_TODER_DEFINED
+#endif /* WOLFSSL_PEMPUBKEY_TODER_DEFINED */
 #endif /* WOLFSSL_CERT_EXT */
 
     #ifdef HAVE_NTRU

@@ -4049,7 +4049,6 @@ static int DecodeKeyUsage(byte* input, int sz, DecodedCert* cert)
 {
     word32 idx = 0;
     int length;
-    byte unusedBits;
     WOLFSSL_ENTER("DecodeKeyUsage");
 
     if (input[idx++] != ASN_BIT_STRING) {
@@ -4062,8 +4061,8 @@ static int DecodeKeyUsage(byte* input, int sz, DecodedCert* cert)
         return ASN_PARSE_E;
     }
 
-    unusedBits = input[idx++];
-    length--;
+    /* pass the unusedBits value */
+    idx++; length--;
 
     cert->extKeyUsage = (word16)(input[idx]);
     if (length == 2)
@@ -6034,7 +6033,8 @@ static int EncodePolicyOID(byte *out, word32 *outSz, const char *in)
     nb_val = 0;
 
     /* parse value, and set corresponding Policy OID value */
-    while ((token = strsep(&str, ".")) != NULL)
+    token = strtok(str, ".");
+    while (token != NULL)
     {
         val = (word32)atoi(token);
 
@@ -6082,6 +6082,7 @@ static int EncodePolicyOID(byte *out, word32 *outSz, const char *in)
                 out[idx++] = oid[i--];
         }
 
+        token = strtok (NULL, ".");
         nb_val++;
     }
 
@@ -7244,7 +7245,7 @@ int wc_SetSubjectKeyId(Cert *cert, const char* file)
         wc_FreeRsaKey(rsakey);
         XFREE(rsakey, NULL, DYNAMIC_TYPE_RSA);
         rsakey = NULL;
-
+#ifdef HAVE_ECC
         /* Check to load ecc public key */
         eckey = (ecc_key*) XMALLOC(sizeof(ecc_key), NULL, DYNAMIC_TYPE_ECC);
         if (eckey == NULL) {
@@ -7268,6 +7269,10 @@ int wc_SetSubjectKeyId(Cert *cert, const char* file)
             wc_ecc_free(eckey);
             return PUBLIC_KEY_E;
         }
+#else
+        XFREE(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        return PUBLIC_KEY_E;
+#endif /* HAVE_ECC */
     }
 
     XFREE(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -7276,9 +7281,10 @@ int wc_SetSubjectKeyId(Cert *cert, const char* file)
 
     wc_FreeRsaKey(rsakey);
     XFREE(rsakey, NULL, DYNAMIC_TYPE_RSA);
+#ifdef HAVE_ECC
     wc_ecc_free(eckey);
     XFREE(eckey, NULL, DYNAMIC_TYPE_ECC);
-
+#endif
     return ret;
 }
 
@@ -7379,7 +7385,8 @@ int wc_SetKeyUsage(Cert *cert, const char *value)
     XSTRNCPY(str, value, XSTRLEN(value));
 
     /* parse value, and set corresponding Key Usage value */
-    while ((token = strsep(&str, ",")) != NULL)
+    token = strtok(str, ",");
+    while (token != NULL)
     {
         len = (word32)XSTRLEN(token);
 
@@ -7404,6 +7411,8 @@ int wc_SetKeyUsage(Cert *cert, const char *value)
             cert->keyUsage |= KEYUSE_DECIPHER_ONLY;
         else
             return KEYUSAGE_E;
+
+        token = strtok(NULL, ",");
     }
 
     XFREE(str, NULL, DYNAMIC_TYPE_TMP_BUFFER);

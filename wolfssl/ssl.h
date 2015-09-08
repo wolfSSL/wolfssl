@@ -1074,11 +1074,15 @@ WOLFSSL_API int wolfSSL_KeyPemToDer(const unsigned char*, int,
 WOLFSSL_API int wolfSSL_CertPemToDer(const unsigned char*, int,
                                      unsigned char*, int, int);
 #ifdef WOLFSSL_CERT_EXT
-WOLFSSL_API int wolfSSL_PemPubKeyToDer(const char* fileName,
-                                       unsigned char* derBuf, int derSz);
-WOLFSSL_API int wolfSSL_PubKeyPemToDer(const unsigned char*, int,
-                                       unsigned char*, int);
+    #ifndef WOLFSSL_PEMPUBKEY_TODER_DEFINED
+        WOLFSSL_API int wolfSSL_PemPubKeyToDer(const char* fileName,
+                                               unsigned char* derBuf, int derSz);
+        WOLFSSL_API int wolfSSL_PubKeyPemToDer(const unsigned char*, int,
+                                               unsigned char*, int);
+    #define WOLFSSL_PEMPUBKEY_TODER_DEFINED
+    #endif
 #endif /* WOLFSSL_CERT_EXT */
+
 typedef void (*CallbackCACache)(unsigned char* der, int sz, int type);
 typedef void (*CbMissingCRL)(const char* url);
 typedef int  (*CbOCSPIO)(void*, const char*, int,
