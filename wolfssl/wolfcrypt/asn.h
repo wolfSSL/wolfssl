@@ -128,7 +128,7 @@ enum ECC_TYPES {
 };
 
 enum Misc_ASN {
-    ASN_NAME_MAX        = 256,
+    ASN_NAME_MAX        = 587,
     MAX_SALT_SIZE       =  64,     /* MAX PKCS Salt length */
     MAX_IV_SIZE         =  64,     /* MAX PKCS Iv length */
     MAX_KEY_SIZE        =  64,     /* MAX PKCS Key  length */
@@ -432,10 +432,8 @@ struct DecodedCert {
     byte*   issuerRaw;               /* pointer to issuer inside source */
     int     issuerRawLen;
 #endif
-#ifndef IGNORE_NAME_CONSTRAINT
     byte*   subjectRaw;               /* pointer to subject inside source */
     int     subjectRawLen;
-#endif
 #if defined(WOLFSSL_CERT_GEN)
     /* easy access to subject info for other sign */
     char*   subjectSN;
