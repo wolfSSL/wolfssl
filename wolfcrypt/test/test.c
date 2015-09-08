@@ -4045,7 +4045,7 @@ int rsa_test(void)
         FILE*       ntruPrivFile;
         int         certSz;
         int         pemSz;
-        word32      idx3;
+        word32      idx3 = 0;
 #ifdef WOLFSSL_TEST_CERT
         DecodedCert decode;
 #endif
