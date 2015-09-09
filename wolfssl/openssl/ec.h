@@ -100,8 +100,10 @@ int wolfSSL_EC_GROUP_get_order(const WOLFSSL_EC_GROUP *group,
                                WOLFSSL_BIGNUM *order, WOLFSSL_BN_CTX *ctx);
 WOLFSSL_API
 void wolfSSL_EC_GROUP_free(WOLFSSL_EC_GROUP *group);
+#if defined(DEBUG_WOLFSSL) && !defined(NO_FILESYSTEM)
 WOLFSSL_API
 void wolfssl_EC_POINT_dump(const char *msg, const WOLFSSL_EC_POINT *p);
+#endif
 WOLFSSL_API
 WOLFSSL_EC_POINT *wolfSSL_EC_POINT_new(const WOLFSSL_EC_GROUP *group);
 WOLFSSL_API

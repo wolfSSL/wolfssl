@@ -14184,7 +14184,7 @@ int wolfSSL_EC_KEY_set_public_key(WOLFSSL_EC_KEY *key,
         return SSL_FAILURE;
     }
 
-#ifdef DEBUG_WOLFSSL
+#if defined(DEBUG_WOLFSSL) && !defined(NO_FILESYSTEM)
     wolfssl_EC_POINT_dump("pub", pub);
     wolfssl_EC_POINT_dump("key->pub_key", key->pub_key);
 #endif
@@ -14192,7 +14192,7 @@ int wolfSSL_EC_KEY_set_public_key(WOLFSSL_EC_KEY *key,
 }
 /* End EC_KEY */
 
-#ifdef DEBUG_WOLFSSL
+#if defined(DEBUG_WOLFSSL) && !defined(NO_FILESYSTEM)
 void wolfssl_EC_POINT_dump(const char *msg, const WOLFSSL_EC_POINT *p)
 {
     char *num;
@@ -14384,9 +14384,10 @@ int wolfSSL_ECPoint_i2d(const WOLFSSL_EC_GROUP *group,
         }
     }
 
-#ifdef DEBUG_WOLFSSL
-    if (out != NULL)
+#if defined(DEBUG_WOLFSSL) && !defined(NO_FILESYSTEM)
+    if (out != NULL) {
         wolfssl_EC_POINT_dump("i2d p", p);
+    }
 #endif
     err = wc_ecc_export_point_der(group->curve_idx, (ecc_point*)p->internal,
                                   out, len);
@@ -14426,7 +14427,7 @@ int wolfSSL_ECPoint_d2i(unsigned char *in, unsigned int len,
         }
     }
 
-#ifdef DEBUG_WOLFSSL
+#if defined(DEBUG_WOLFSSL) && !defined(NO_FILESYSTEM)
     wolfssl_EC_POINT_dump("d2i p", p);
 #endif
     return SSL_SUCCESS;
