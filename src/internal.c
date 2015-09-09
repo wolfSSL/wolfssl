@@ -1557,6 +1557,54 @@ void FreeX509(WOLFSSL_X509* x509)
         XFREE(x509, NULL, DYNAMIC_TYPE_X509);
 }
 
+
+#ifndef NO_RSA
+
+/* Verify RSA signature, 0 on success */
+int VerifyRsaSign(const byte* sig, word32 sigSz,
+                  const byte* plain, word32 plainSz, RsaKey* key)
+{
+    #ifdef WOLFSSL_SMALL_STACK
+        byte* verifySig = NULL;
+    #else
+        byte verifySig[ENCRYPT_LEN];
+    #endif
+    byte* out = NULL;  /* inline result */
+    int   ret;
+
+    WOLFSSL_ENTER("VerifyRsaSign");
+
+    if (sigSz > ENCRYPT_LEN) {
+        WOLFSSL_MSG("Signature buffer too big");
+        return BUFFER_E;
+    }
+
+    #ifdef WOLFSSL_SMALL_STACK
+        verifySig = (byte*)XMALLOC(ENCRYPT_LEN, NULL,
+                                   DYNAMIC_TYPE_SIGNATURE);
+        if (verifySig == NULL)
+            return MEMORY_ERROR;
+    #endif
+
+    XMEMCPY(verifySig, sig, sigSz);
+    ret = wc_RsaSSL_VerifyInline(verifySig, sigSz, &out, key);
+
+    if (ret != (int)plainSz || !out || XMEMCMP(plain, out, plainSz) != 0) {
+        WOLFSSL_MSG("RSA Signature verification failed");
+        ret = RSA_SIGN_FAULT;
+    } else {
+        ret = 0;  /* RSA reset */
+    }
+
+    #ifdef WOLFSSL_SMALL_STACK
+        XFREE(verifySig, NULL, DYNAMIC_TYPE_SIGNATURE);
+    #endif
+
+    return ret;
+}
+
+#endif /* NO_RSA */
+
 #endif /* NO_CERTS */
 
 
@@ -8443,6 +8491,9 @@ const char* wolfSSL_ERR_reason_error_string(unsigned long e)
     case SNI_ABSENT_ERROR:
         return "No Server Name Indication extension Error";
 
+    case RSA_SIGN_FAULT:
+        return "RSA Signature Fault Error";
+
     default :
         return "unknown error number";
     }
@@ -11832,6 +11883,8 @@ static word32 QSH_KeyExchangeWrite(WOLFSSL* ssl, byte isServer)
     }
 
 #ifndef NO_CERTS
+
+
     int SendCertificateVerify(WOLFSSL* ssl)
     {
         byte              *output;
@@ -12104,8 +12157,11 @@ static word32 QSH_KeyExchangeWrite(WOLFSSL* ssl, byte isServer)
                                   VERIFY_HEADER, ENCRYPT_LEN, &key, ssl->rng);
                 }
 
-                if (ret > 0)
-                    ret = 0;  /* RSA reset */
+                if (ret > 0) {
+                    /* check for signature faults */
+                    ret = VerifyRsaSign(verify + extraSz + VERIFY_HEADER, ret,
+                                        signBuffer, signSz, &key);
+                }
             }
 #endif
 #ifdef WOLFSSL_SMALL_STACK
@@ -13147,10 +13203,16 @@ int DoSessionTicket(WOLFSSL* ssl,
                                             ssl->RsaSignCtx);
                     #endif /*HAVE_PK_CALLBACKS */
                     }
-                    else
+                    else {
                         ret = wc_RsaSSL_Sign(signBuffer, signSz, output + idx,
                                           sigSz, &rsaKey, ssl->rng);
+                    }
 
+                    if (ret > 0) {
+                        /* check for signature faults */
+                        ret = VerifyRsaSign(output + idx, ret,
+                                            signBuffer, signSz, &rsaKey);
+                    }
                     wc_FreeRsaKey(&rsaKey);
                     wc_ecc_free(&dsaKey);
 
@@ -13762,6 +13824,12 @@ int DoSessionTicket(WOLFSSL* ssl,
                     } else if (ret == 0) {
                         ret = wc_RsaSSL_Sign(signBuffer, signSz, output + idx,
                                           sigSz, &rsaKey, ssl->rng);
+                    }
+
+                    if (ret > 0) {
+                        /* check for signature faults */
+                        ret = VerifyRsaSign(output + idx, ret,
+                                            signBuffer, signSz, &rsaKey);
                     }
 
                     wc_FreeRsaKey(&rsaKey);

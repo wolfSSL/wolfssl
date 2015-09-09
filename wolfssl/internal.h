@@ -2572,6 +2572,11 @@ WOLFSSL_LOCAL void ShrinkOutputBuffer(WOLFSSL* ssl);
 
 WOLFSSL_LOCAL int VerifyClientSuite(WOLFSSL* ssl);
 #ifndef NO_CERTS
+    #ifndef NO_RSA
+        WOLFSSL_LOCAL int VerifyRsaSign(const byte* sig, word32 sigSz,
+                                        const byte* plain, word32 plainSz,
+                                        RsaKey* key);
+    #endif
     WOLFSSL_LOCAL Signer* GetCA(void* cm, byte* hash);
     #ifndef NO_SKID
         WOLFSSL_LOCAL Signer* GetCAByName(void* cm, byte* hash);
