@@ -14863,6 +14863,7 @@ int wolfSSL_ECDH_compute_key(void *out, size_t outlen,
 }
 /* End ECDH */
 
+#if !defined(NO_FILESYSTEM)
 /* return code compliant with OpenSSL :
  *   1 if success, 0 if error
  */
@@ -14875,6 +14876,7 @@ int wolfSSL_PEM_write_EC_PUBKEY(FILE *fp, WOLFSSL_EC_KEY *x)
 
     return SSL_FAILURE;
 }
+#endif /* NO_FILESYSTEM */
 
 #if defined(WOLFSSL_KEY_GEN)
 
@@ -15256,6 +15258,7 @@ int wolfSSL_EVP_PKEY_type(int type)
 }
 
 
+#if !defined(NO_FILESYSTEM)
 WOLFSSL_EVP_PKEY *wolfSSL_PEM_read_PUBKEY(FILE *fp, EVP_PKEY **x,
                                           pem_password_cb *cb, void *u)
 {
@@ -15268,9 +15271,11 @@ WOLFSSL_EVP_PKEY *wolfSSL_PEM_read_PUBKEY(FILE *fp, EVP_PKEY **x,
 
     return NULL;
 }
+#endif /* NO_FILESYSTEM */
 
 #ifndef NO_RSA
 
+#if !defined(NO_FILESYSTEM)
 WOLFSSL_RSA *wolfSSL_PEM_read_RSAPublicKey(FILE *fp, WOLFSSL_RSA **x,
                                            pem_password_cb *cb, void *u)
 {
@@ -15309,6 +15314,7 @@ int wolfSSL_PEM_write_RSA_PUBKEY(FILE *fp, WOLFSSL_RSA *x)
 
     return SSL_FAILURE;
 }
+#endif /* NO_FILESYSTEM */
 
 /* return SSL_SUCCESS if success, SSL_FATAL_ERROR if error */
 int wolfSSL_RSA_LoadDer(WOLFSSL_RSA* rsa, const unsigned char* der, int derSz)
