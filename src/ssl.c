@@ -2843,7 +2843,8 @@ static int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
             XFREE(der.buffer, heap, dynamicType);
             return BAD_FUNC_ARG;
         }
-        return AddCA(ctx->cm, der, WOLFSSL_USER_CA, ctx->verifyPeer);
+        /* verify CA unless user set to no verify */
+        return AddCA(ctx->cm, der, WOLFSSL_USER_CA, !ctx->verifyNone);
                                                       /* takes der over */
     }
     else if (type == CERT_TYPE) {

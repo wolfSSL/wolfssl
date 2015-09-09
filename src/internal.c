@@ -4278,8 +4278,8 @@ static int DoCertificate(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                 return MEMORY_E;
             XMEMCPY(add.buffer, myCert.buffer, myCert.length);
 
-            ret = AddCA(ssl->ctx->cm, add, WOLFSSL_CHAIN_CA,
-                        ssl->ctx->verifyPeer);
+            /* already verified above */
+            ret = AddCA(ssl->ctx->cm, add, WOLFSSL_CHAIN_CA, 0);
             if (ret == 1) ret = 0;   /* SSL_SUCCESS for external */
         }
         else if (ret != 0) {
