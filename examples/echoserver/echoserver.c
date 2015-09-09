@@ -23,10 +23,10 @@
     #include <config.h>
 #endif
 
-#include <cyassl/ssl.h> /* name change portability layer */
-#include <cyassl/ctaocrypt/settings.h>
+#include <wolfssl/ssl.h> /* name change portability layer */
+#include <wolfssl/wolfcrypt/settings.h>
 #ifdef HAVE_ECC
-    #include <cyassl/ctaocrypt/ecc.h>   /* ecc_fp_free */
+    #include <wolfssl/wolfcrypt/ecc.h>   /* ecc_fp_free */
 #endif
 
 #if defined(WOLFSSL_MDK_ARM)
@@ -44,8 +44,8 @@
         #include "wolfssl_MDK_ARM.h"
 #endif
 
-#include <cyassl/ssl.h>
-#include <cyassl/test.h>
+#include <wolfssl/ssl.h>
+#include <wolfssl/test.h>
 
 #ifndef NO_MAIN_DRIVER
     #define ECHO_OUT
@@ -72,11 +72,11 @@ static void SignalReady(void* args, word16 port)
 }
 
 
-THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
+THREAD_RETURN WOLFSSL_THREAD echoserver_test(void* args)
 {
     SOCKET_T       sockfd = 0;
-    CYASSL_METHOD* method = 0;
-    CYASSL_CTX*    ctx    = 0;
+    WOLFSSL_METHOD* method = 0;
+    WOLFSSL_CTX*    ctx    = 0;
 
     int    doDTLS = 0;
     int    doPSK = 0;
@@ -87,7 +87,7 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
     int    argc = ((func_args*)args)->argc;
     char** argv = ((func_args*)args)->argv;
 
-#ifdef ECHO_OUT
+#if defined(ECHO_OUT) && !defined(NO_FILESYSTEM)
     FILE* fout = stdout;
     if (argc >= 2) {
         fout = fopen(argv[1], "w");
@@ -101,11 +101,11 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
 
     ((func_args*)args)->return_code = -1; /* error state */
 
-#ifdef CYASSL_DTLS
+#ifdef WOLFSSL_DTLS
     doDTLS  = 1;
 #endif
 
-#ifdef CYASSL_LEANPSK
+#ifdef WOLFSSL_LEANPSK
     doPSK = 1;
 #endif
 
@@ -114,34 +114,34 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
 #endif
 
     #if defined(NO_MAIN_DRIVER) && !defined(USE_WINDOWS_API) && \
-        !defined(CYASSL_SNIFFER) && !defined(WOLFSSL_MDK_SHELL) && \
-        !defined(CYASSL_TIRTOS)
+        !defined(WOLFSSL_SNIFFER) && !defined(WOLFSSL_MDK_SHELL) && \
+        !defined(WOLFSSL_TIRTOS)
         port = 0;
     #endif
     #if defined(USE_ANY_ADDR)
         useAnyAddr = 1;
     #endif
 
-#ifdef CYASSL_TIRTOS
+#ifdef WOLFSSL_TIRTOS
     fdOpenSession(Task_self());
 #endif
 
     tcp_listen(&sockfd, &port, useAnyAddr, doDTLS);
 
-#if defined(CYASSL_DTLS)
-    method  = CyaDTLSv1_2_server_method();
+#if defined(WOLFSSL_DTLS)
+    method  = wolfDTLSv1_2_server_method();
 #elif  !defined(NO_TLS)
-    method = CyaSSLv23_server_method();
+    method = wolfSSLv23_server_method();
 #elif defined(WOLFSSL_ALLOW_SSLV3)
-    method = CyaSSLv3_server_method();
+    method = wolfSSLv3_server_method();
 #else
     #error "no valid server method built in"
 #endif
-    ctx    = CyaSSL_CTX_new(method);
-    /* CyaSSL_CTX_set_session_cache_mode(ctx, SSL_SESS_CACHE_OFF); */
+    ctx    = wolfSSL_CTX_new(method);
+    /* wolfSSL_CTX_set_session_cache_mode(ctx, SSL_SESS_CACHE_OFF); */
 
 #if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
-    CyaSSL_CTX_set_default_passwd_cb(ctx, PasswordCallBack);
+    wolfSSL_CTX_set_default_passwd_cb(ctx, PasswordCallBack);
 #endif
 
 #if defined(HAVE_SESSION_TICKET) && defined(HAVE_CHACHA) && \
@@ -155,23 +155,23 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
     if (doPSK == 0) {
     #ifdef HAVE_NTRU
         /* ntru */
-        if (CyaSSL_CTX_use_certificate_file(ctx, ntruCert, SSL_FILETYPE_PEM)
+        if (wolfSSL_CTX_use_certificate_file(ctx, ntruCert, SSL_FILETYPE_PEM)
                 != SSL_SUCCESS)
             err_sys("can't load ntru cert file, "
                     "Please run from wolfSSL home dir");
 
-        if (CyaSSL_CTX_use_NTRUPrivateKey_file(ctx, ntruKey)
+        if (wolfSSL_CTX_use_NTRUPrivateKey_file(ctx, ntruKey)
                 != SSL_SUCCESS)
             err_sys("can't load ntru key file, "
                     "Please run from wolfSSL home dir");
-    #elif defined(HAVE_ECC) && !defined(CYASSL_SNIFFER)
+    #elif defined(HAVE_ECC) && !defined(WOLFSSL_SNIFFER)
         /* ecc */
-        if (CyaSSL_CTX_use_certificate_file(ctx, eccCert, SSL_FILETYPE_PEM)
+        if (wolfSSL_CTX_use_certificate_file(ctx, eccCert, SSL_FILETYPE_PEM)
                 != SSL_SUCCESS)
             err_sys("can't load server cert file, "
                     "Please run from wolfSSL home dir");
 
-        if (CyaSSL_CTX_use_PrivateKey_file(ctx, eccKey, SSL_FILETYPE_PEM)
+        if (wolfSSL_CTX_use_PrivateKey_file(ctx, eccKey, SSL_FILETYPE_PEM)
                 != SSL_SUCCESS)
             err_sys("can't load server key file, "
                     "Please run from wolfSSL home dir");
@@ -179,12 +179,12 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
         /* do nothing, just don't load cert files */
     #else
         /* normal */
-        if (CyaSSL_CTX_use_certificate_file(ctx, svrCert, SSL_FILETYPE_PEM)
+        if (wolfSSL_CTX_use_certificate_file(ctx, svrCert, SSL_FILETYPE_PEM)
                 != SSL_SUCCESS)
             err_sys("can't load server cert file, "
                     "Please run from wolfSSL home dir");
 
-        if (CyaSSL_CTX_use_PrivateKey_file(ctx, svrKey, SSL_FILETYPE_PEM)
+        if (wolfSSL_CTX_use_PrivateKey_file(ctx, svrKey, SSL_FILETYPE_PEM)
                 != SSL_SUCCESS)
             err_sys("can't load server key file, "
                     "Please run from wolfSSL home dir");
@@ -192,22 +192,22 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
     } /* doPSK */
 #elif !defined(NO_CERTS)
     if (!doPSK) {
-        load_buffer(ctx, svrCert, CYASSL_CERT);
-        load_buffer(ctx, svrKey,  CYASSL_KEY);
+        load_buffer(ctx, svrCert, WOLFSSL_CERT);
+        load_buffer(ctx, svrKey,  WOLFSSL_KEY);
     }
 #endif
 
-#if defined(CYASSL_SNIFFER)
+#if defined(WOLFSSL_SNIFFER)
     /* don't use EDH, can't sniff tmp keys */
-    CyaSSL_CTX_set_cipher_list(ctx, "AES256-SHA");
+    wolfSSL_CTX_set_cipher_list(ctx, "AES256-SHA");
 #endif
 
     if (doPSK) {
 #ifndef NO_PSK
         const char *defaultCipherList;
 
-        CyaSSL_CTX_set_psk_server_callback(ctx, my_psk_server_cb);
-        CyaSSL_CTX_use_psk_identity_hint(ctx, "cyassl server");
+        wolfSSL_CTX_set_psk_server_callback(ctx, my_psk_server_cb);
+        wolfSSL_CTX_use_psk_identity_hint(ctx, "wolfssl server");
         #ifdef HAVE_NULL_CIPHER
             defaultCipherList = "PSK-NULL-SHA256";
         #elif defined(HAVE_AESGCM) && !defined(NO_DH)
@@ -215,7 +215,7 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
         #else
             defaultCipherList = "PSK-AES128-CBC-SHA256";
         #endif
-        if (CyaSSL_CTX_set_cipher_list(ctx, defaultCipherList) != SSL_SUCCESS)
+        if (wolfSSL_CTX_set_cipher_list(ctx, defaultCipherList) != SSL_SUCCESS)
             err_sys("server can't set cipher list 2");
 #endif
     }
@@ -223,14 +223,14 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
     SignalReady(args, port);
 
     while (!shutDown) {
-        CYASSL* ssl = 0;
+        WOLFSSL* ssl = 0;
         char    command[SVR_COMMAND_SIZE+1];
         int     echoSz = 0;
         int     clientfd;
         int     firstRead = 1;
         int     gotFirstG = 0;
 
-#ifndef CYASSL_DTLS
+#ifndef WOLFSSL_DTLS
         SOCKADDR_IN_T client;
         socklen_t     client_len = sizeof(client);
         clientfd = accept(sockfd, (struct sockaddr*)&client,
@@ -240,17 +240,17 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
 #endif
         if (clientfd == -1) err_sys("tcp accept failed");
 
-        ssl = CyaSSL_new(ctx);
+        ssl = wolfSSL_new(ctx);
         if (ssl == NULL) err_sys("SSL_new failed");
-        CyaSSL_set_fd(ssl, clientfd);
+        wolfSSL_set_fd(ssl, clientfd);
         #if !defined(NO_FILESYSTEM) && !defined(NO_DH) && !defined(NO_ASN)
-            CyaSSL_SetTmpDH_file(ssl, dhParam, SSL_FILETYPE_PEM);
+            wolfSSL_SetTmpDH_file(ssl, dhParam, SSL_FILETYPE_PEM);
         #elif !defined(NO_DH)
             SetDH(ssl);  /* will repick suites with DHE, higher than PSK */
         #endif
-        if (CyaSSL_accept(ssl) != SSL_SUCCESS) {
+        if (wolfSSL_accept(ssl) != SSL_SUCCESS) {
             printf("SSL_accept failed\n");
-            CyaSSL_free(ssl);
+            wolfSSL_free(ssl);
             CloseSocket(clientfd);
             continue;
         }
@@ -258,7 +258,7 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
         showPeer(ssl);
 #endif
 
-        while ( (echoSz = CyaSSL_read(ssl, command, sizeof(command)-1)) > 0) {
+        while ( (echoSz = wolfSSL_read(ssl, command, sizeof(command)-1)) > 0) {
 
             if (firstRead == 1) {
                 firstRead = 0;  /* browser may send 1 byte 'G' to start */
@@ -283,7 +283,7 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
             }
 #ifdef PRINT_SESSION_STATS
             if ( strncmp(command, "printstats", 10) == 0) {
-                CyaSSL_PrintSessionStats();
+                wolfSSL_PrintSessionStats();
                 break;
             }
 #endif
@@ -304,7 +304,7 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
                 strncpy(&command[echoSz], footer, sizeof(footer));
                 echoSz += (int)sizeof(footer);
 
-                if (CyaSSL_write(ssl, command, echoSz) != echoSz)
+                if (wolfSSL_write(ssl, command, echoSz) != echoSz)
                     err_sys("SSL_write failed");
                 break;
             }
@@ -314,22 +314,22 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
                 fputs(command, fout);
             #endif
 
-            if (CyaSSL_write(ssl, command, echoSz) != echoSz)
+            if (wolfSSL_write(ssl, command, echoSz) != echoSz)
                 err_sys("SSL_write failed");
         }
-#ifndef CYASSL_DTLS
-        CyaSSL_shutdown(ssl);
+#ifndef WOLFSSL_DTLS
+        wolfSSL_shutdown(ssl);
 #endif
-        CyaSSL_free(ssl);
+        wolfSSL_free(ssl);
         CloseSocket(clientfd);
-#ifdef CYASSL_DTLS
+#ifdef WOLFSSL_DTLS
         tcp_listen(&sockfd, &port, useAnyAddr, doDTLS);
         SignalReady(args, port);
 #endif
     }
 
     CloseSocket(sockfd);
-    CyaSSL_CTX_free(ctx);
+    wolfSSL_CTX_free(ctx);
 
 #ifdef ECHO_OUT
     if (outCreated)
@@ -343,7 +343,7 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
     ecc_fp_free();  /* free per thread cache */
 #endif
 
-#ifdef CYASSL_TIRTOS
+#ifdef WOLFSSL_TIRTOS
     fdCloseSession(Task_self());
 #endif
 
@@ -352,7 +352,7 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
     TicketCleanup();
 #endif
 
-#ifndef CYASSL_TIRTOS
+#ifndef WOLFSSL_TIRTOS
     return 0;
 #endif
 }
@@ -376,16 +376,16 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
         args.argc = argc;
         args.argv = argv;
 
-        CyaSSL_Init();
-#if defined(DEBUG_CYASSL) && !defined(CYASSL_MDK_SHELL)
-        CyaSSL_Debugging_ON();
+        wolfSSL_Init();
+#if defined(DEBUG_WOLFSSL) && !defined(WOLFSSL_MDK_SHELL)
+        wolfSSL_Debugging_ON();
 #endif
         if (CurrentDir("echoserver"))
             ChangeDirBack(2);
         else if (CurrentDir("Debug") || CurrentDir("Release"))
             ChangeDirBack(3);
         echoserver_test(&args);
-        CyaSSL_Cleanup();
+        wolfSSL_Cleanup();
 
 #ifdef HAVE_CAVIUM
         CspShutdown(CAVIUM_DEV_ID);
@@ -395,5 +395,4 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
 
         
 #endif /* NO_MAIN_DRIVER */
-
 

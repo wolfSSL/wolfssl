@@ -23,11 +23,11 @@
     #include <config.h>
 #endif
 
-#include <cyassl/ctaocrypt/settings.h>
+#include <wolfssl/wolfcrypt/settings.h>
 
-/* let's use cyassl layer AND cyassl openssl layer */
-#include <cyassl/ssl.h>
-#include <cyassl/openssl/ssl.h>
+/* let's use wolfssl layer AND wolfssl openssl layer */
+#include <wolfssl/ssl.h>
+#include <wolfssl/openssl/ssl.h>
 
 #if defined(WOLFSSL_MDK_ARM)
         #include <stdio.h>
@@ -44,7 +44,7 @@
         #include "wolfssl_MDK_ARM.h"
 #endif
 
-#include <cyassl/test.h>
+#include <wolfssl/test.h>
 
 #include "examples/echoclient/echoclient.h"
 
@@ -70,7 +70,7 @@ void echoclient_test(void* args)
     int sendSz;
     int argc    = 0;
     char** argv = 0;
-    word16 port = yasslPort;
+    word16 port = wolfSSLPort;
 
     ((func_args*)args)->return_code = -1; /* error state */
     
@@ -79,6 +79,7 @@ void echoclient_test(void* args)
     argv = ((func_args*)args)->argv;
 #endif
 
+#ifndef NO_FILESYSTEM
     if (argc >= 2) {
         fin  = fopen(argv[1], "r"); 
         inCreated = 1;
@@ -90,12 +91,13 @@ void echoclient_test(void* args)
 
     if (!fin)  err_sys("can't open input file");
     if (!fout) err_sys("can't open output file");
-
-#ifdef CYASSL_DTLS
+#endif
+	
+#ifdef WOLFSSL_DTLS
     doDTLS  = 1;
 #endif
 
-#ifdef CYASSL_LEANPSK 
+#ifdef WOLFSSL_LEANPSK 
     doPSK = 1;
 #endif
 
@@ -107,10 +109,10 @@ void echoclient_test(void* args)
     port = ((func_args*)args)->signal->port;
 #endif
 
-#if defined(CYASSL_DTLS)
+#if defined(WOLFSSL_DTLS)
     method  = DTLSv1_2_client_method();
 #elif  !defined(NO_TLS)
-    method = CyaSSLv23_client_method();
+    method = wolfSSLv23_client_method();
 #elif defined(WOLFSSL_ALLOW_SSLV3)
     method = SSLv3_client_method();
 #else
@@ -129,10 +131,10 @@ void echoclient_test(void* args)
     #endif
 #elif !defined(NO_CERTS)
     if (!doPSK)
-        load_buffer(ctx, caCert, CYASSL_CA);
+        load_buffer(ctx, caCert, WOLFSSL_CA);
 #endif
 
-#if defined(CYASSL_SNIFFER)
+#if defined(WOLFSSL_SNIFFER)
     /* don't use EDH, can't sniff tmp keys */
     SSL_CTX_set_cipher_list(ctx, "AES256-SHA");
 #endif
@@ -140,7 +142,7 @@ void echoclient_test(void* args)
 #ifndef NO_PSK
         const char *defaultCipherList;
 
-        CyaSSL_CTX_set_psk_client_callback(ctx, my_psk_client_cb);
+        wolfSSL_CTX_set_psk_client_callback(ctx, my_psk_client_cb);
         #ifdef HAVE_NULL_CIPHER
             defaultCipherList = "PSK-NULL-SHA256";
         #elif defined(HAVE_AESGCM) && !defined(NO_DH)
@@ -148,7 +150,7 @@ void echoclient_test(void* args)
         #else
             defaultCipherList = "PSK-AES128-CBC-SHA256";
         #endif
-        if (CyaSSL_CTX_set_cipher_list(ctx,defaultCipherList) !=SSL_SUCCESS)
+        if (wolfSSL_CTX_set_cipher_list(ctx,defaultCipherList) !=SSL_SUCCESS)
             err_sys("client can't set cipher list 2");
 #endif
     }
@@ -158,23 +160,23 @@ void echoclient_test(void* args)
 #endif
 
     #if defined(WOLFSSL_MDK_ARM)
-    CyaSSL_CTX_set_verify(ctx, SSL_VERIFY_NONE, 0);
+    wolfSSL_CTX_set_verify(ctx, SSL_VERIFY_NONE, 0);
     #endif
 
     ssl = SSL_new(ctx);
 
     if (doDTLS) {
         SOCKADDR_IN_T addr;
-        build_addr(&addr, yasslIP, port, 1);
-        CyaSSL_dtls_set_peer(ssl, &addr, sizeof(addr));
+        build_addr(&addr, wolfSSLIP, port, 1);
+        wolfSSL_dtls_set_peer(ssl, &addr, sizeof(addr));
         tcp_socket(&sockfd, 1);
     }
     else {
-        tcp_connect(&sockfd, yasslIP, port, 0);
+        tcp_connect(&sockfd, wolfSSLIP, port, 0);
     }
         
     SSL_set_fd(ssl, sockfd);
-#if defined(USE_WINDOWS_API) && defined(CYASSL_DTLS) && defined(NO_MAIN_DRIVER)
+#if defined(USE_WINDOWS_API) && defined(WOLFSSL_DTLS) && defined(NO_MAIN_DRIVER)
     /* let echoserver bind first, TODO: add Windows signal like pthreads does */
     Sleep(100);
 #endif
@@ -224,7 +226,7 @@ void echoclient_test(void* args)
     }
 
 
-#ifdef CYASSL_DTLS
+#ifdef WOLFSSL_DTLS
     strncpy(msg, "break", 6);
     sendSz = (int)strlen(msg);
     /* try to tell server done */
@@ -263,11 +265,11 @@ void echoclient_test(void* args)
         args.argc = argc;
         args.argv = argv;
 
-        CyaSSL_Init();
-#if defined(DEBUG_CYASSL) && !defined(WOLFSSL_MDK_SHELL)
-        CyaSSL_Debugging_ON();
+        wolfSSL_Init();
+#if defined(DEBUG_WOLFSSL) && !defined(WOLFSSL_MDK_SHELL)
+        wolfSSL_Debugging_ON();
 #endif
-#ifndef CYASSL_TIRTOS
+#ifndef WOLFSSL_TIRTOS
         if (CurrentDir("echoclient"))
             ChangeDirBack(2);
         else if (CurrentDir("Debug") || CurrentDir("Release"))
@@ -275,7 +277,7 @@ void echoclient_test(void* args)
 #endif
         echoclient_test(&args);
 
-        CyaSSL_Cleanup();
+        wolfSSL_Cleanup();
 
 #ifdef HAVE_CAVIUM
         CspShutdown(CAVIUM_DEV_ID);
@@ -284,5 +286,4 @@ void echoclient_test(void* args)
     }
         
 #endif /* NO_MAIN_DRIVER */
-
 
