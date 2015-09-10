@@ -92,5 +92,6 @@ STRINGTABLE
     75, "Secure Renegotiation Not Supported"
 
     76, "Get Session Stats Failure"
+    77, "Reassembly Buffer Size Exceeded"
 }
 

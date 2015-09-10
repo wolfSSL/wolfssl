@@ -243,7 +243,8 @@ static const char* const msgTable[] =
     "Secure Renegotiation Not Supported",
 
     /* 76 */
-    "Get Session Stats Failure"
+    "Get Session Stats Failure",
+    "Reassembly Buffer Size Exceeded"
 };
 
 
@@ -345,6 +346,8 @@ typedef struct SnifferSession {
     time_t         lastUsed;          /* last used ticks */
     PacketBuffer*  cliReassemblyList; /* client out of order packets */
     PacketBuffer*  srvReassemblyList; /* server out of order packets */
+    word32         cliReassemblyMemory; /* client packet memory used */
+    word32         srvReassemblyMemory; /* server packet memory used */
     struct SnifferSession* next;      /* for hash table list */
     byte*          ticketID;          /* mac ID of session ticket */
 } SnifferSession;
@@ -365,7 +368,14 @@ static wolfSSL_Mutex RecoveryMutex;      /* for stats */
 static int RecoveryEnabled    = 0;       /* global switch */
 static int MaxRecoveryMemory  = -1;      /* per session max recovery memory */
 static word32 MissedDataSessions = 0;    /* # of sessions with missed data */
-static word32 ReassemblyMemory   = 0;    /* total reassembly memory in use */
+
+
+static void UpdateMissedDataSessions(void)
+{
+    LockMutex(&RecoveryMutex);
+    MissedDataSessions += 1;
+    UnLockMutex(&RecoveryMutex);
+}
 
 
 /* Initialize overall Sniffer */
@@ -566,6 +576,8 @@ static void InitSession(SnifferSession* session)
     session->lastUsed       = 0;
     session->cliReassemblyList = 0;
     session->srvReassemblyList = 0;
+    session->cliReassemblyMemory = 0;
+    session->srvReassemblyMemory = 0;
     session->next           = 0;
     session->ticketID       = 0;
     
@@ -2326,18 +2338,26 @@ static int AddToReassembly(byte from, word32 seq, const byte* sslFrame,
     PacketBuffer*  curr = *front;
     PacketBuffer*  prev = curr;
     
+    word32* reassemblyMemory = (from == WOLFSSL_SERVER_END) ?
+                  &session->cliReassemblyMemory : &session->srvReassemblyMemory;
     word32  startSeq = seq;
     word32  added;
     int     bytesLeft = sslBytes;  /* could be overlapping fragment */
 
     /* if list is empty add full frame to front */
     if (!curr) {
+        if (MaxRecoveryMemory != -1 &&
+                      (int)(*reassemblyMemory + sslBytes) > MaxRecoveryMemory) {
+            SetError(REASSEMBLY_MAX_STR, error, session, FATAL_ERROR_STATE);
+            return -1;
+        }
         add = CreateBuffer(&seq, seq + sslBytes - 1, sslFrame, &bytesLeft);
         if (add == NULL) {
             SetError(MEMORY_STR, error, session, FATAL_ERROR_STATE);
             return -1;
         }
         *front = add;
+        *reassemblyMemory += sslBytes;
         return 1;
     }
     
@@ -2348,6 +2368,11 @@ static int AddToReassembly(byte from, word32 seq, const byte* sslFrame,
         if (end >= curr->begin)
             end = curr->begin - 1;
         
+        if (MaxRecoveryMemory -1 &&
+                      (int)(*reassemblyMemory + sslBytes) > MaxRecoveryMemory) {
+            SetError(REASSEMBLY_MAX_STR, error, session, FATAL_ERROR_STATE);
+            return -1;
+        }
         add = CreateBuffer(&seq, end, sslFrame, &bytesLeft);
         if (add == NULL) {
             SetError(MEMORY_STR, error, session, FATAL_ERROR_STATE);
@@ -2355,6 +2380,7 @@ static int AddToReassembly(byte from, word32 seq, const byte* sslFrame,
         }
         add->next = curr;
         *front = add;
+        *reassemblyMemory += sslBytes;
     }
     
     /* while we have bytes left, try to find a gap to fill */
@@ -2384,6 +2410,11 @@ static int AddToReassembly(byte from, word32 seq, const byte* sslFrame,
         if (added == 0)
             continue;
         
+        if (MaxRecoveryMemory != -1 &&
+                         (int)(*reassemblyMemory + added) > MaxRecoveryMemory) {
+            SetError(REASSEMBLY_MAX_STR, error, session, FATAL_ERROR_STATE);
+            return -1;
+        }
         add = CreateBuffer(&seq, seq + added - 1, &sslFrame[seq - startSeq],
                            &bytesLeft);
         if (add == NULL) {
@@ -2392,6 +2423,7 @@ static int AddToReassembly(byte from, word32 seq, const byte* sslFrame,
         }
         add->next  = prev->next;
         prev->next = add;
+        *reassemblyMemory += added;
     }
     return 1;
 }
@@ -2557,6 +2589,7 @@ static int CheckSequence(IpInfo* ipInfo, TcpInfo* tcpInfo,
     
     TraceSequence(tcpInfo->sequence, *sslBytes);
     if (CheckAck(tcpInfo, session) < 0) {
+        UpdateMissedDataSessions();
         SetError(ACK_MISSED_STR, error, session, FATAL_ERROR_STATE);
         return -1;
     }
@@ -2664,6 +2697,8 @@ static int HaveMoreInput(SnifferSession* session, const byte** sslFrame,
                            &session->sslClient->buffers.inputBuffer.bufferSize;
     SSL*               ssl  = (session->flags.side == WOLFSSL_SERVER_END) ?
                             session->sslServer : session->sslClient;
+    word32*     reassemblyMemory = (session->flags.side == WOLFSSL_SERVER_END) ?
+                  &session->cliReassemblyMemory : &session->srvReassemblyMemory;
     
     while (*front && ((*front)->begin == *expected) ) {
         word32 room = *bufferSize - *length;
@@ -2687,6 +2722,8 @@ static int HaveMoreInput(SnifferSession* session, const byte** sslFrame,
             
             /* remove used packet */
             *front = (*front)->next;
+
+            *reassemblyMemory -= packetLen;
             FreePacketBuffer(del);
             
             moreInput = 1;
@@ -3016,14 +3053,28 @@ int ssl_GetSessionStats(unsigned int* active,     unsigned int* total,
 {
     int ret;
 
-    LockMutex(&RecoveryMutex);
-
-    if (missedData)
+    if (missedData) {
+        LockMutex(&RecoveryMutex);
         *missedData = MissedDataSessions;
-    if (reassemblyMem)
-        *reassemblyMem = ReassemblyMemory;
+        UnLockMutex(&RecoveryMutex);
+    }
 
-    UnLockMutex(&RecoveryMutex);
+    if (reassemblyMem) {
+        SnifferSession* session;
+        int i;
+
+        *reassemblyMem = 0;
+        LockMutex(&SessionMutex);
+        for (i = 0; i < HASH_SIZE; i++) {
+            session = SessionTable[i];
+            while (session) {
+                *reassemblyMem += session->cliReassemblyMemory;
+                *reassemblyMem += session->srvReassemblyMemory;
+                session = session->next;
+            }
+        }
+        UnLockMutex(&SessionMutex);
+    }
 
     ret = wolfSSL_get_session_stats(active, total, peak, maxSessions);
 
