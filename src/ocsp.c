@@ -27,6 +27,7 @@
 
 #include <wolfssl/wolfcrypt/settings.h>
 
+#ifndef WOLFCRYPT_ONLY
 #ifdef HAVE_OCSP
 
 #include <wolfssl/error-ssl.h>
@@ -300,4 +301,5 @@ int CheckCertOCSP(WOLFSSL_OCSP* ocsp, DecodedCert* cert)
 
 
 #endif /* HAVE_OCSP */
+#endif /* WOLFCRYPT_ONLY */
 

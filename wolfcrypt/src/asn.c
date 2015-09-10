@@ -4474,8 +4474,30 @@ int ParseCert(DecodedCert* cert, int type, int verify, void* cm)
         WOLFSSL_LOCAL Signer* GetCAByName(void* signers, byte* hash);
     #endif
 #ifdef __cplusplus
-    } 
+    }
 #endif
+
+
+#ifdef WOLFCRYPT_ONLY
+
+/* dummy functions, not using wolfSSL so don't need actual ones */
+Signer* GetCA(void* signers, byte* hash)
+{
+    (void)hash;
+
+    return (Signer*)signers;
+}
+
+#ifndef NO_SKID
+Signer* GetCAByName(void* signers, byte* hash)
+{
+    (void)hash;
+
+    return (Signer*)signers;
+}
+#endif /* NO_SKID */
+
+#endif /* WOLFCRYPT_ONLY */
 
 
 int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)

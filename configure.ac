@@ -1909,6 +1909,20 @@ fi
 AM_CONDITIONAL([BUILD_PWDBASED], [test "x$ENABLED_PWDBASED" = "xyes"])
 
 
+# wolfCrypt Only Build
+AC_ARG_ENABLE([cryptonly],
+    [AS_HELP_STRING([--enable-cryptonly],[Enable wolfCrypt Only build (default: disabled)])],
+    [ENABLED_CRYPTONLY=$enableval],
+    [ENABLED_CRYPTONLY=no])
+
+if test "$ENABLED_CRYPTONLY" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFCRYPT_ONLY"
+fi
+
+AM_CONDITIONAL([BUILD_CRYPTONLY], [test "x$ENABLED_CRYPTONLY" = "xyes"])
+
+
 # set fastmath default
 FASTMATH_DEFAULT=no
 
@@ -1980,6 +1994,7 @@ AC_ARG_ENABLE([examples],
 
 AS_IF([test "x$ENABLED_FILESYSTEM" = "xno"], [ENABLED_EXAMPLES="no"])
 AS_IF([test "x$ENABLED_INLINE" = "xno"], [ENABLED_EXAMPLES="no"])
+AS_IF([test "x$ENABLED_CRYPTONLY" = "xyes"], [ENABLED_EXAMPLES="no"])
 AM_CONDITIONAL([BUILD_EXAMPLES], [test "x$ENABLED_EXAMPLES" = "xyes"])
 
 
@@ -2379,6 +2394,7 @@ echo "   * RABBIT:                    $ENABLED_RABBIT"
 echo "   * CHACHA:                    $ENABLED_CHACHA"
 echo "   * Hash DRBG:                 $ENABLED_HASHDRBG"
 echo "   * PWDBASED:                  $ENABLED_PWDBASED"
+echo "   * wolfCrypt Only:            $ENABLED_CRYPTONLY"
 echo "   * HKDF:                      $ENABLED_HKDF"
 echo "   * MD4:                       $ENABLED_MD4"
 echo "   * PSK:                       $ENABLED_PSK"

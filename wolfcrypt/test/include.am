@@ -2,6 +2,10 @@
 # All paths should be given relative to the root
 
 noinst_PROGRAMS+= wolfcrypt/test/testwolfcrypt
+if BUILD_CRYPTONLY
+check_PROGRAMS+= wolfcrypt/test/testwolfcrypt
+endif
+noinst_PROGRAMS+= wolfcrypt/test/testwolfcrypt
 wolfcrypt_test_testwolfcrypt_SOURCES      = wolfcrypt/test/test.c
 wolfcrypt_test_testwolfcrypt_LDADD        = src/libwolfssl.la
 wolfcrypt_test_testwolfcrypt_DEPENDENCIES = src/libwolfssl.la

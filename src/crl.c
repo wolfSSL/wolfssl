@@ -27,6 +27,7 @@
 
 #include <wolfssl/wolfcrypt/settings.h>
 
+#ifndef WOLFCRYPT_ONLY
 #ifdef HAVE_CRL
 
 #include <wolfssl/internal.h>
@@ -806,3 +807,4 @@ int LoadCRL(WOLFSSL_CRL* crl, const char* path, int type, int monitor)
 #endif /* NO_FILESYSTEM */
 
 #endif /* HAVE_CRL */
+#endif /* !WOLFCRYPT_ONLY */

@@ -25,6 +25,7 @@
 
 #include <wolfssl/wolfcrypt/settings.h>
 
+#ifndef WOLFCRYPT_ONLY
 #ifdef WOLFSSL_SNIFFER
 
 #include <assert.h>
@@ -3038,3 +3039,4 @@ int ssl_GetSessionStats(unsigned int* active,     unsigned int* total,
 
 
 #endif /* WOLFSSL_SNIFFER */
+#endif /* WOLFCRYPT_ONLY */

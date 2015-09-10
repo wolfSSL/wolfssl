@@ -26,6 +26,8 @@
 
 #include <wolfssl/wolfcrypt/settings.h>
 
+#ifndef WOLFCRYPT_ONLY
+
 #include <wolfssl/internal.h>
 #include <wolfssl/error-ssl.h>
 #include <wolfssl/wolfcrypt/asn.h>
@@ -15596,3 +15598,4 @@ int DoSessionTicket(WOLFSSL* ssl,
     }
 #endif /* HAVE_STUNNEL */
 #endif /* NO_WOLFSSL_SERVER */
+#endif /* WOLFCRYPT_ONLY */
