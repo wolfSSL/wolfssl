@@ -25,10 +25,6 @@
 #ifndef WOLFSSL_LOGGING_H
 #define WOLFSSL_LOGGING_H
 
-#ifdef DEBUG_WOLFSSL
-#include <stdio.h>
-#endif
-
 #include <wolfssl/wolfcrypt/types.h>
 
 #ifdef __cplusplus
