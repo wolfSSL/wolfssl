@@ -205,6 +205,7 @@ if BUILD_SRP
 src_libwolfssl_la_SOURCES += wolfcrypt/src/srp.c
 endif
 
+if !BUILD_CRYPTONLY
 # ssl files
 src_libwolfssl_la_SOURCES += \
                src/internal.c \
@@ -224,3 +225,5 @@ endif
 if BUILD_SNIFFER
 src_libwolfssl_la_SOURCES += src/sniffer.c
 endif
+
+endif # !BUILD_CRYPTONLY

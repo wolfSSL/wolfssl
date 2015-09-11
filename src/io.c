@@ -26,6 +26,8 @@
 
 #include <wolfssl/wolfcrypt/settings.h>
 
+#ifndef WOLFCRYPT_ONLY
+
 #ifdef _WIN32_WCE
     /* On WinCE winsock2.h must be included before windows.h for socket stuff */
     #include <winsock2.h>
@@ -1161,4 +1163,5 @@ void wolfSSL_SetIO_NetX(WOLFSSL* ssl, NX_TCP_SOCKET* nxSocket, ULONG waitOption)
 }
 
 #endif /* HAVE_NETX */
+#endif /* WOLFCRYPT_ONLY */
 

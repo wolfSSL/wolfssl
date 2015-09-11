@@ -26,6 +26,8 @@
 
 #include <wolfssl/wolfcrypt/settings.h>
 
+#ifndef WOLFCRYPT_ONLY
+
 #include <wolfssl/ssl.h>
 #include <wolfssl/internal.h>
 #include <wolfssl/error-ssl.h>
@@ -3507,3 +3509,4 @@ int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte isRequest,
 
 #endif /* NO_WOLFSSL_SERVER */
 #endif /* NO_TLS */
+#endif /* WOLFCRYPT_ONLY */

@@ -25,6 +25,8 @@
 
 #include <wolfssl/wolfcrypt/settings.h>
 
+#ifndef WOLFCRYPT_ONLY
+
 #ifdef HAVE_ERRNO_H
     #include <errno.h>
 #endif
@@ -16861,4 +16863,5 @@ int wolfSSL_ED25519_verify(const unsigned char *msg, unsigned int msgSz,
 }
 
 #endif /* OPENSSL_EXTRA && HAVE_ED25519 */
+#endif /* WOLFCRYPT_ONLY */
 
