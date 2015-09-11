@@ -7199,6 +7199,8 @@ int wc_SetAuthKeyIdFromPublicKey(Cert *cert, RsaKey *rsakey, ecc_key *eckey)
 }
 
 
+#ifndef NO_FILESYSTEM
+
 /* Set SKID from public key file in PEM */
 int wc_SetSubjectKeyId(Cert *cert, const char* file)
 {
@@ -7288,6 +7290,8 @@ int wc_SetSubjectKeyId(Cert *cert, const char* file)
     return ret;
 }
 
+#endif /* NO_FILESYSTEM */
+
 /* Set AKID from certificate contains in buffer (DER encoded) */
 int wc_SetAuthKeyIdFromCert(Cert *cert, const byte *der, int derSz)
 {
@@ -7337,6 +7341,9 @@ int wc_SetAuthKeyIdFromCert(Cert *cert, const byte *der, int derSz)
     return 0;
 }
 
+
+#ifndef NO_FILESYSTEM
+
 /* Set AKID from certificate file in PEM */
 int wc_SetAuthKeyId(Cert *cert, const char* file)
 {
@@ -7365,6 +7372,8 @@ int wc_SetAuthKeyId(Cert *cert, const char* file)
 
     return ret;
 }
+
+#endif /* NO_FILESYSTEM */
 
 /* Set KeyUsage from human readale string */
 int wc_SetKeyUsage(Cert *cert, const char *value)
