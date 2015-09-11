@@ -2585,6 +2585,11 @@ int ValidateDate(const byte* date, byte format, int dateType)
 
     localTime = XGMTIME(&ltime, tmpTime);
 
+    if (localTime == NULL) {
+        WOLFSSL_MSG("XGMTIME failed");
+        return 0;
+    }
+
     if (dateType == BEFORE) {
         if (DateLessThan(localTime, &certTime))
             return 0;
@@ -5634,7 +5639,8 @@ static void RebuildTime(time_t* in, struct tm* out)
 }
 
 
-/* Set Date validity from now until now + daysValid */
+/* Set Date validity from now until now + daysValid
+ * return size in bytes written to output, 0 on error */
 static int SetValidity(byte* output, int daysValid)
 {
     byte before[MAX_DATE_SIZE];
@@ -5660,6 +5666,11 @@ static int SetValidity(byte* output, int daysValid)
 
     ticks = XTIME(0);
     now   = XGMTIME(&ticks, tmpTime);
+
+    if (now == NULL) {
+        WOLFSSL_MSG("XGMTIME failed");
+        return 0;   /* error */
+    }
 
     /* before now */
     local = *now;
