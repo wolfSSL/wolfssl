@@ -189,6 +189,22 @@
 	    #define XREALLOC(p, n, h, t) wolfSSL_Realloc((p), (n))
 	#endif
 
+    #ifdef WOLFSSL_CERT_EXT
+        /* need snprintf for now, but breaks NO_FILESYSTEM w/ stdio.h
+         * TODO: will be fixed shortly */
+	    #ifndef SNPRINTF_USER
+            #ifdef NO_FILESYSTEM
+                #error "cert gen extensions don't support no filesystem for now"
+            #endif
+            #include <stdio.h> /* for snprintf */
+	        #ifndef USE_WINDOWS_API
+	            #define XSNPRINTF snprintf
+	        #else
+	            #define XSNPRINTF _snprintf
+            #endif
+        #endif
+    #endif
+
 	#ifndef STRING_USER
 	    #include <string.h>
 	    char* mystrnstr(const char* s1, const char* s2, unsigned int n);
@@ -208,10 +224,8 @@
 	    #define XSTRNCAT(s1,s2,n) strncat((s1),(s2),(n))
 	    #ifndef USE_WINDOWS_API
 	        #define XSTRNCASECMP(s1,s2,n) strncasecmp((s1),(s2),(n))
-	        #define XSNPRINTF snprintf
 	    #else
 	        #define XSTRNCASECMP(s1,s2,n) _strnicmp((s1),(s2),(n))
-	        #define XSNPRINTF _snprintf
 	    #endif
 	#endif
 

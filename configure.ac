@@ -226,7 +226,7 @@ AC_ARG_ENABLE([bump],
 
 if test "$ENABLED_BUMP" = "yes"
 then
-    AM_CFLAGS="$AM_CFLAGS -DLARGE_STATIC_BUFFERS -DWOLFSSL_CERT_GEN -DWOLFSSL_KEY_GEN -DHUGE_SESSION_CACHE -DOPENSSL_EXTRA -DFP_MAX_BITS=8192 -DWOLFSSL_DER_LOAD -DWOLFSSL_ALT_NAMES -DWOLFSSL_TEST_CERT"
+    AM_CFLAGS="$AM_CFLAGS -DLARGE_STATIC_BUFFERS -DWOLFSSL_CERT_GEN -DWOLFSSL_KEY_GEN -DHUGE_SESSION_CACHE -DOPENSSL_EXTRA -DFP_MAX_BITS=8192 -DWOLFSSL_DER_LOAD -DWOLFSSL_ALT_NAMES -DWOLFSSL_TEST_CERT -DWOLFSSL_CERT_EXT"
 fi
 
 ENABLED_SLOWMATH="yes"
@@ -635,6 +635,23 @@ then
         AC_MSG_ERROR([cannot enable certreq without enabling certgen.])
     fi
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_CERT_REQ"
+fi
+
+
+# CERT REQUEST EXTENSION
+AC_ARG_ENABLE([certext],
+    [  --enable-certext        Enable cert request extensions (default: disabled)],
+    [ ENABLED_CERTEXT=$enableval ],
+    [ ENABLED_CERTEXT=no ]
+    )
+
+if test "$ENABLED_CERTEXT" = "yes"
+then
+    if test "$ENABLED_CERTGEN" = "no"
+    then
+        AC_MSG_ERROR([cannot enable certext without enabling certgen.])
+    fi
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_CERT_EXT"
 fi
 
 
@@ -1651,6 +1668,11 @@ then
         ENABLED_CERTREQ="yes"
         AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_CERT_REQ"
     fi
+    if test "x$ENABLED_CERTEXT" = "xno"
+    then
+        ENABLED_CERTEXT="yes"
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_CERT_EXT"
+    fi
     if test "x$ENABLED_PKCS7" = "xno"
     then
         ENABLED_PKCS7="yes"
@@ -2374,6 +2396,7 @@ echo "   * BLAKE2:                    $ENABLED_BLAKE2"
 echo "   * keygen:                    $ENABLED_KEYGEN"
 echo "   * certgen:                   $ENABLED_CERTGEN"
 echo "   * certreq:                   $ENABLED_CERTREQ"
+echo "   * certext:                   $ENABLED_CERTEXT"
 echo "   * HC-128:                    $ENABLED_HC128"
 echo "   * RABBIT:                    $ENABLED_RABBIT"
 echo "   * CHACHA:                    $ENABLED_CHACHA"

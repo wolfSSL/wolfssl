@@ -519,7 +519,11 @@ static char *fgets(char *buff, int sz, FILE *fp)
     #include "mqx.h"
     #ifndef NO_FILESYSTEM
         #include "mfs.h"
-        #include "fio.h"
+        #if MQX_USE_IO_OLD
+            #include "fio.h"
+        #else
+            #include "nio.h"
+        #endif
     #endif
     #ifndef SINGLE_THREADED
         #include "mutex.h"
@@ -945,6 +949,16 @@ static char *fgets(char *buff, int sz, FILE *fp)
     #endif
     #ifndef WOLFSSL_PEAK_SESSIONS
         #define WOLFSSL_PEAK_SESSIONS
+    #endif
+#endif
+
+/* Certificate Request Extensions needs decode extras */
+#ifdef WOLFSSL_CERT_EXT
+    #ifndef RSA_DECODE_EXTRA
+        #define RSA_DECODE_EXTRA
+    #endif
+    #ifndef ECC_DECODE_EXTRA
+        #define ECC_DECODE_EXTRA
     #endif
 #endif
 
