@@ -842,6 +842,7 @@ enum Misc {
     RAN_LEN      = 32,         /* random length           */
     SEED_LEN     = RAN_LEN * 2, /* tls prf seed length    */
     ID_LEN       = 32,         /* session id length       */
+    COOKIE_SECRET_SZ = 14,     /* dtls cookie secret size */
     MAX_COOKIE_LEN = 32,       /* max dtls cookie size    */
     COOKIE_SZ    = 20,         /* use a 20 byte cookie    */
     SUITE_LEN    =  2,         /* cipher suite sz length  */
@@ -1951,7 +1952,6 @@ enum ConnectState {
 enum AcceptState {
     ACCEPT_BEGIN = 0,
     ACCEPT_CLIENT_HELLO_DONE,
-    HELLO_VERIFY_SENT,
     ACCEPT_FIRST_REPLY_DONE,
     SERVER_HELLO_SENT,
     CERT_SENT,
@@ -1993,6 +1993,9 @@ typedef struct Buffers {
 #endif
 #ifdef WOLFSSL_DTLS
     WOLFSSL_DTLS_CTX dtlsCtx;               /* DTLS connection context */
+    #ifndef NO_WOLFSSL_SERVER
+        buffer       dtlsCookieSecret;      /* DTLS cookie secret */
+    #endif /* NO_WOLFSSL_SERVER */
 #endif
 #ifdef HAVE_PK_CALLBACKS
     #ifdef HAVE_ECC
@@ -2603,9 +2606,6 @@ WOLFSSL_LOCAL  int GrowInputBuffer(WOLFSSL* ssl, int size, int usedLength);
 #ifndef NO_WOLFSSL_SERVER
     WOLFSSL_LOCAL int SendServerHello(WOLFSSL*);
     WOLFSSL_LOCAL int SendServerHelloDone(WOLFSSL*);
-    #ifdef WOLFSSL_DTLS
-        WOLFSSL_LOCAL int SendHelloVerifyRequest(WOLFSSL*);
-    #endif
 #endif /* NO_WOLFSSL_SERVER */
 
 #ifdef WOLFSSL_DTLS

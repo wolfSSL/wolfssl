@@ -1041,6 +1041,9 @@ typedef int (*CallbackGenCookie)(WOLFSSL* ssl, unsigned char* buf, int sz,
 WOLFSSL_API void  wolfSSL_CTX_SetGenCookie(WOLFSSL_CTX*, CallbackGenCookie);
 WOLFSSL_API void  wolfSSL_SetCookieCtx(WOLFSSL* ssl, void *ctx);
 WOLFSSL_API void* wolfSSL_GetCookieCtx(WOLFSSL* ssl);
+WOLFSSL_API int   wolfSSL_DTLS_SetCookieSecret(WOLFSSL*,
+                                               const unsigned char*,
+                                               unsigned int);
 
 
 /* I/O Callback default errors */
