@@ -14279,7 +14279,7 @@ int DoSessionTicket(WOLFSSL* ssl,
 #ifdef WOLFSSL_DTLS
         Hmac            cookieHmac;
         byte            peerCookie[MAX_COOKIE_LEN];
-        byte            peerCookieSz;
+        byte            peerCookieSz = 0;
         byte            cookieType;
         byte            cookieSz;
 #endif /* WOLFSSL_DTLS */
