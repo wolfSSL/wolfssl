@@ -5465,6 +5465,64 @@ int wolfSSL_dtls_got_timeout(WOLFSSL* ssl)
 #endif /* LEANPSK */
 
 
+#if defined(WOLFSSL_DTLS) && !defined(NO_WOLFSSL_SERVER)
+
+/* Not an SSL function, return 0 for success, error code otherwise */
+/* Prereq: ssl's RNG needs to be initialized. */
+int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
+                                 const byte* secret, word32 secretSz)
+{
+    WOLFSSL_ENTER("wolfSSL_DTLS_SetCookieSecret");
+
+    if (ssl == NULL) {
+        WOLFSSL_MSG("need a SSL object");
+        return BAD_FUNC_ARG;
+    }
+
+    if (secret != NULL && secretSz == 0) {
+        WOLFSSL_MSG("can't have a new secret without a size");
+        return BAD_FUNC_ARG;
+    }
+
+    /* If secretSz is 0, use the default size. */
+    if (secretSz == 0)
+        secretSz = COOKIE_SECRET_SZ;
+
+    if (secretSz != ssl->buffers.dtlsCookieSecret.length) {
+        byte* newSecret;
+
+        if (ssl->buffers.dtlsCookieSecret.buffer != NULL) {
+            XMEMSET(ssl->buffers.dtlsCookieSecret.buffer, 0,
+                    ssl->buffers.dtlsCookieSecret.length);
+            XFREE(ssl->buffers.dtlsCookieSecret.buffer,
+                  ssl->heap, DYNAMIC_TYPE_NONE);
+        }
+
+        newSecret = (byte*)XMALLOC(secretSz, ssl->heap, DYNAMIC_TYPE_NONE);
+        if (newSecret == NULL) {
+            ssl->buffers.dtlsCookieSecret.buffer = NULL;
+            ssl->buffers.dtlsCookieSecret.length = 0;
+            WOLFSSL_MSG("couldn't allocate new cookie secret");
+            return MEMORY_ERROR;
+        }
+        ssl->buffers.dtlsCookieSecret.buffer = newSecret;
+        ssl->buffers.dtlsCookieSecret.length = secretSz;
+    }
+
+    /* If the supplied secret is NULL, randomly generate a new secret. */
+    if (secret == NULL)
+        wc_RNG_GenerateBlock(ssl->rng,
+                             ssl->buffers.dtlsCookieSecret.buffer, secretSz);
+    else
+        XMEMCPY(ssl->buffers.dtlsCookieSecret.buffer, secret, secretSz);
+
+    WOLFSSL_LEAVE("wolfSSL_DTLS_SetCookieSecret", 0);
+    return 0;
+}
+
+#endif /* WOLFSSL_DTLS && !NO_WOLFSSL_SERVER */
+
+
 /* client only parts */
 #ifndef NO_WOLFSSL_CLIENT
 
@@ -5883,62 +5941,6 @@ int wolfSSL_dtls_got_timeout(WOLFSSL* ssl)
             WOLFSSL_MSG("accept state ACCEPT_CLIENT_HELLO_DONE");
 
         case ACCEPT_CLIENT_HELLO_DONE :
-            #ifdef WOLFSSL_DTLS
-                if (ssl->options.dtls)
-                    if ( (ssl->error = SendHelloVerifyRequest(ssl)) != 0) {
-                        WOLFSSL_ERROR(ssl->error);
-                        return SSL_FATAL_ERROR;
-                    }
-            #endif
-            ssl->options.acceptState = HELLO_VERIFY_SENT;
-            WOLFSSL_MSG("accept state HELLO_VERIFY_SENT");
-
-        case HELLO_VERIFY_SENT:
-            #ifdef WOLFSSL_DTLS
-                if (ssl->options.dtls) {
-                    ssl->options.clientState = NULL_STATE;  /* get again */
-                    /* reset messages received */
-                    XMEMSET(&ssl->msgsReceived, 0, sizeof(ssl->msgsReceived));
-                    /* re-init hashes, exclude first hello and verify request */
-#ifndef NO_OLD_TLS
-                    wc_InitMd5(&ssl->hsHashes->hashMd5);
-                    if ( (ssl->error = wc_InitSha(&ssl->hsHashes->hashSha))
-                                                                         != 0) {
-                        WOLFSSL_ERROR(ssl->error);
-                        return SSL_FATAL_ERROR;
-                    }
-#endif
-                    if (IsAtLeastTLSv1_2(ssl)) {
-                        #ifndef NO_SHA256
-                            if ( (ssl->error = wc_InitSha256(
-                                            &ssl->hsHashes->hashSha256)) != 0) {
-                               WOLFSSL_ERROR(ssl->error);
-                               return SSL_FATAL_ERROR;
-                            }
-                        #endif
-                        #ifdef WOLFSSL_SHA384
-                            if ( (ssl->error = wc_InitSha384(
-                                            &ssl->hsHashes->hashSha384)) != 0) {
-                               WOLFSSL_ERROR(ssl->error);
-                               return SSL_FATAL_ERROR;
-                            }
-                        #endif
-                        #ifdef WOLFSSL_SHA512
-                            if ( (ssl->error = wc_InitSha512(
-                                            &ssl->hsHashes->hashSha512)) != 0) {
-                               WOLFSSL_ERROR(ssl->error);
-                               return SSL_FATAL_ERROR;
-                            }
-                        #endif
-                    }
-
-                    while (ssl->options.clientState < CLIENT_HELLO_COMPLETE)
-                        if ( (ssl->error = ProcessReply(ssl)) < 0) {
-                            WOLFSSL_ERROR(ssl->error);
-                            return SSL_FATAL_ERROR;
-                        }
-                }
-            #endif
             ssl->options.acceptState = ACCEPT_FIRST_REPLY_DONE;
             WOLFSSL_MSG("accept state ACCEPT_FIRST_REPLY_DONE");
 
