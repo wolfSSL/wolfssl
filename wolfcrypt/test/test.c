@@ -208,8 +208,7 @@ int pbkdf2_test(void);
     int pkcs7enveloped_test(void);
     int pkcs7signed_test(void);
 #endif
-#if defined(WOLFSSL_CERT_EXT) && defined(WOLFSSL_TEST_CERT) \
-    && defined(OPENSSL_EXTRA)
+#if defined(WOLFSSL_CERT_EXT) && defined(WOLFSSL_TEST_CERT)
 int  certext_test(void);
 #endif
 
@@ -488,8 +487,7 @@ int wolfcrypt_test(void* args)
         printf( "RSA      test passed!\n");
 #endif
 
-#if defined(WOLFSSL_CERT_EXT) && defined(WOLFSSL_TEST_CERT) \
-    && defined(OPENSSL_EXTRA)
+#if defined(WOLFSSL_CERT_EXT) && defined(WOLFSSL_TEST_CERT)
     if ( (ret = certext_test()) != 0)
         return err_sys("CERT EXT test failed!\n", ret);
     else
@@ -3384,8 +3382,7 @@ byte GetEntropy(ENTROPY_CMD cmd, byte* out)
 #endif
 
 
-#if defined(WOLFSSL_CERT_EXT) && defined(WOLFSSL_TEST_CERT)\
-    && defined(OPENSSL_EXTRA)
+#if defined(WOLFSSL_CERT_EXT) && defined(WOLFSSL_TEST_CERT)
 int certext_test(void)
 {
     DecodedCert cert;
@@ -3437,11 +3434,11 @@ int certext_test(void)
         return -201;
 
     /* check the SKID from a RSA certificate */
-    if (XMEMCMP(skid_rsa, cert.extSubjKeyId, cert.extSubjKeyIdSz))
+    if (XMEMCMP(skid_rsa, cert.extSubjKeyId, sizeof(cert.extSubjKeyId)))
         return -202;
 
     /* check the AKID from an RSA certificate */
-    if (XMEMCMP(akid_rsa, cert.extAuthKeyId, cert.extAuthKeyIdSz))
+    if (XMEMCMP(akid_rsa, cert.extAuthKeyId, sizeof(cert.extAuthKeyId)))
         return -203;
 
     /* check the Key Usage from an RSA certificate */
@@ -3486,11 +3483,11 @@ int certext_test(void)
         return -211;
 
     /* check the SKID from a ECC certificate */
-    if (XMEMCMP(skid_rsa, cert.extSubjKeyId, cert.extSubjKeyIdSz))
+    if (XMEMCMP(skid_rsa, cert.extSubjKeyId, sizeof(cert.extSubjKeyId)))
         return -212;
 
     /* check the AKID from an ECC certificate */
-    if (XMEMCMP(akid_ecc, cert.extAuthKeyId, cert.extAuthKeyIdSz))
+    if (XMEMCMP(akid_ecc, cert.extAuthKeyId, sizeof(cert.extAuthKeyId)))
         return -213;
 
     /* check the Key Usage from an ECC certificate */
@@ -3538,11 +3535,11 @@ int certext_test(void)
         return -221;
 
     /* check the SKID from a CA certificate */
-    if (XMEMCMP(kid_ca, cert.extSubjKeyId, cert.extSubjKeyIdSz))
+    if (XMEMCMP(kid_ca, cert.extSubjKeyId, sizeof(cert.extSubjKeyId)))
         return -222;
 
     /* check the AKID from an CA certificate */
-    if (XMEMCMP(kid_ca, cert.extAuthKeyId, cert.extAuthKeyIdSz))
+    if (XMEMCMP(kid_ca, cert.extAuthKeyId, sizeof(cert.extAuthKeyId)))
         return -223;
 
     /* check the Key Usage from CA certificate */
@@ -3570,7 +3567,7 @@ int certext_test(void)
 
     return 0;
 }
-#endif /* WOLFSSL_CERT_EXT && WOLFSSL_TEST_CERT && OPENSSL_EXTRA */
+#endif /* WOLFSSL_CERT_EXT && WOLFSSL_TEST_CERT */
 
 
 int rsa_test(void)
