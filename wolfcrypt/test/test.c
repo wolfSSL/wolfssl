@@ -3434,11 +3434,11 @@ int certext_test(void)
         return -201;
 
     /* check the SKID from a RSA certificate */
-    if (XMEMCMP(skid_rsa, cert.extSubjKeyId, cert.extSubjKeyIdSz))
+    if (XMEMCMP(skid_rsa, cert.extSubjKeyId, sizeof(cert.extSubjKeyId)))
         return -202;
 
     /* check the AKID from an RSA certificate */
-    if (XMEMCMP(akid_rsa, cert.extAuthKeyId, cert.extAuthKeyIdSz))
+    if (XMEMCMP(akid_rsa, cert.extAuthKeyId, sizeof(cert.extAuthKeyId)))
         return -203;
 
     /* check the Key Usage from an RSA certificate */
@@ -3483,11 +3483,11 @@ int certext_test(void)
         return -211;
 
     /* check the SKID from a ECC certificate */
-    if (XMEMCMP(skid_rsa, cert.extSubjKeyId, cert.extSubjKeyIdSz))
+    if (XMEMCMP(skid_rsa, cert.extSubjKeyId, sizeof(cert.extSubjKeyId)))
         return -212;
 
     /* check the AKID from an ECC certificate */
-    if (XMEMCMP(akid_ecc, cert.extAuthKeyId, cert.extAuthKeyIdSz))
+    if (XMEMCMP(akid_ecc, cert.extAuthKeyId, sizeof(cert.extAuthKeyId)))
         return -213;
 
     /* check the Key Usage from an ECC certificate */
@@ -3535,11 +3535,11 @@ int certext_test(void)
         return -221;
 
     /* check the SKID from a CA certificate */
-    if (XMEMCMP(kid_ca, cert.extSubjKeyId, cert.extSubjKeyIdSz))
+    if (XMEMCMP(kid_ca, cert.extSubjKeyId, sizeof(cert.extSubjKeyId)))
         return -222;
 
     /* check the AKID from an CA certificate */
-    if (XMEMCMP(kid_ca, cert.extAuthKeyId, cert.extAuthKeyIdSz))
+    if (XMEMCMP(kid_ca, cert.extAuthKeyId, sizeof(cert.extAuthKeyId)))
         return -223;
 
     /* check the Key Usage from CA certificate */
@@ -3564,10 +3564,11 @@ int certext_test(void)
         return -229;
 
     FreeDecodedCert(&cert);
+    free(tmp);
 
     return 0;
 }
-#endif /* defined(WOLFSSL_CERT_EXT) && defined(WOLFSSL_TEST_CERT) */
+#endif /* WOLFSSL_CERT_EXT && WOLFSSL_TEST_CERT */
 
 
 int rsa_test(void)

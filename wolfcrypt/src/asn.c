@@ -4218,7 +4218,40 @@ static int DecodeNameConstraints(byte* input, int sz, DecodedCert* cert)
 }
 #endif /* IGNORE_NAME_CONSTRAINTS */
 
-#ifdef WOLFSSL_CERT_EXT
+#if defined(WOLFSSL_CERT_EXT) && !defined(WOLFSSL_SEP)
+
+static int Word32ToString(char* d, word32 number)
+{
+    int i = 0;
+
+    if (d != NULL) {
+        word32 order = 1000000000;
+        word32 digit;
+
+        if (number == 0) {
+            d[i++] = '0';
+        }
+        else {
+            while (order) {
+                digit = number / order;
+                if (i > 0 || digit != 0) {
+                    d[i++] = (char)digit + '0';
+                }
+                if (digit != 0)
+                    number %= digit * order;
+                if (order > 1)
+                    order /= 10;
+                else
+                    order = 0;
+            }
+        }
+        d[i] = 0;
+    }
+
+    return i;
+}
+
+
 /* Decode ITU-T X.690 OID format to a string representation
  * return string length */
 static int DecodePolicyOID(char *out, word32 outSz, byte *in, word32 inSz)
@@ -4232,8 +4265,9 @@ static int DecodePolicyOID(char *out, word32 outSz, byte *in, word32 inSz)
     /* first two byte must be interpreted as : 40 * int1 + int2 */
     val = (word16)in[idx++];
 
-    XSNPRINTF(out, outSz, "%d.%d", val / 40, val % 40);
-    w_bytes += XSTRLEN(out);
+    w_bytes = Word32ToString(out, val / 40);
+    out[w_bytes++] = '.';
+    w_bytes += Word32ToString(out+w_bytes, val % 40);
 
     while (idx < inSz) {
         /* init value */
@@ -4263,13 +4297,13 @@ static int DecodePolicyOID(char *out, word32 outSz, byte *in, word32 inSz)
             idx += nb_bytes;
         }
 
-        XSNPRINTF(out+XSTRLEN(out), outSz, ".%d", val);
-        w_bytes = XSTRLEN(out);
+        out[w_bytes++] = '.';
+        w_bytes += Word32ToString(out+w_bytes, val);
     }
 
     return 0;
 }
-#endif /* WOLFSSL_CERT_EXT */
+#endif /* WOLFSSL_CERT_EXT && !WOLFSSL_SEP */
 
 #if defined(WOLFSSL_SEP) || defined(WOLFSSL_CERT_EXT)
     static int DecodeCertPolicy(byte* input, int sz, DecodedCert* cert)
@@ -4794,6 +4828,9 @@ WOLFSSL_LOCAL int SetMyVersion(word32 version, byte* output, int header)
 {
     int i = 0;
 
+    if (output == NULL)
+        return BAD_FUNC_ARG;
+
     if (header) {
         output[i++] = ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED;
         output[i++] = ASN_BIT_STRING;
@@ -4811,6 +4848,9 @@ WOLFSSL_LOCAL int SetSerialNumber(const byte* sn, word32 snSz, byte* output)
     int result = 0;
 
     WOLFSSL_ENTER("SetSerialNumber");
+
+    if (sn == NULL || output == NULL)
+        return BAD_FUNC_ARG;
 
     if (snSz <= EXTERNAL_SERIAL_SIZE) {
         output[0] = ASN_INTEGER;
@@ -5856,38 +5896,47 @@ static byte GetNameId(int idx)
  */
 
 /* encode all extensions, return total bytes written */
-static int SetExtensions(byte* output, int *IdxInOut,
+static int SetExtensions(byte* out, word32 outSz, int *IdxInOut,
                          const byte* ext, int extSz)
 {
-    if (output == NULL || IdxInOut == NULL || ext == NULL)
+    if (out == NULL || IdxInOut == NULL || ext == NULL)
         return BAD_FUNC_ARG;
 
-    XMEMCPY(&output[*IdxInOut], ext, extSz);  /* extensions */
+    if (outSz < (word32)(*IdxInOut+extSz))
+        return BUFFER_E;
+
+    XMEMCPY(&out[*IdxInOut], ext, extSz);  /* extensions */
     *IdxInOut += extSz;
 
     return *IdxInOut;
 }
 
 /* encode extensions header, return total bytes written */
-static int SetExtensionsHeader(byte* output, int extSz)
+static int SetExtensionsHeader(byte* out, word32 outSz, int extSz)
 {
     byte sequence[MAX_SEQ_SZ];
     byte len[MAX_LENGTH_SZ];
     int seqSz, lenSz, idx = 0;
 
-    if (output == NULL)
+    if (out == NULL)
         return BAD_FUNC_ARG;
+
+    if (outSz < 3)
+        return BUFFER_E;
 
     seqSz = SetSequence(extSz, sequence);
 
     /* encode extensions length provided */
     lenSz = SetLength(extSz+seqSz, len);
 
-    output[idx++] = ASN_EXTENSIONS; /* extensions id */
-    XMEMCPY(&output[idx], len, lenSz);  /* length */
+    if (outSz < (word32)(lenSz+seqSz+1))
+        return BUFFER_E;
+
+    out[idx++] = ASN_EXTENSIONS; /* extensions id */
+    XMEMCPY(&out[idx], len, lenSz);  /* length */
     idx += lenSz;
 
-    XMEMCPY(&output[idx], sequence, seqSz);  /* sequence */
+    XMEMCPY(&out[idx], sequence, seqSz);  /* sequence */
     idx += seqSz;
 
     return idx;
@@ -5895,12 +5944,18 @@ static int SetExtensionsHeader(byte* output, int extSz)
 
 
 /* encode CA basic constraint true, return total bytes written */
-static int SetCa(byte* output)
+static int SetCa(byte* out, word32 outSz)
 {
     static const byte ca[] = { 0x30, 0x0c, 0x06, 0x03, 0x55, 0x1d, 0x13, 0x04,
                                0x05, 0x30, 0x03, 0x01, 0x01, 0xff };
 
-    XMEMCPY(output, ca, sizeof(ca));
+    if (out == NULL)
+        return BAD_FUNC_ARG;
+
+    if (outSz < sizeof(ca))
+        return BUFFER_E;
+
+    XMEMCPY(out, ca, sizeof(ca));
 
     return (int)sizeof(ca);
 }
@@ -5908,7 +5963,7 @@ static int SetCa(byte* output)
 
 #ifdef WOLFSSL_CERT_EXT
 /* encode OID and associated value, return total bytes written */
-static int SetOidValue(byte* out, const byte *oid, word32 oidSz,
+static int SetOidValue(byte* out, word32 outSz, const byte *oid, word32 oidSz,
                        byte *in, word32 inSz)
 {
     int idx = 0;
@@ -5916,8 +5971,14 @@ static int SetOidValue(byte* out, const byte *oid, word32 oidSz,
     if (out == NULL || oid == NULL || in == NULL)
         return BAD_FUNC_ARG;
 
+    if (outSz < 3)
+        return BUFFER_E;
+
     /* sequence,  + 1 => byte to put value size */
     idx = SetSequence(inSz + oidSz + 1, out);
+
+    if (outSz < idx + inSz + oidSz + 1)
+        return BUFFER_E;
 
     XMEMCPY(out+idx, oid, oidSz);
     idx += oidSz;
@@ -5929,7 +5990,7 @@ static int SetOidValue(byte* out, const byte *oid, word32 oidSz,
 
 /* encode Subject Key Identifier, return total bytes written
  * RFC5280 : non-critical */
-static int SetSKID(byte* output, byte *input, word32 length)
+static int SetSKID(byte* output, word32 outSz, byte *input, word32 length)
 {
     byte skid_len[MAX_LENGTH_SZ];
     byte skid_enc_len[MAX_LENGTH_SZ];
@@ -5945,9 +6006,15 @@ static int SetSKID(byte* output, byte *input, word32 length)
     /* length of encoded value */
     skid_enc_lenSz = SetLength(length + skid_lenSz + 1, skid_enc_len);
 
+    if (outSz < 3)
+        return BUFFER_E;
+
     /* sequence, + 1 => byte to put type size */
     idx = SetSequence(length + sizeof(skid_oid) + skid_lenSz + skid_enc_lenSz+1,
                       output);
+
+    if (outSz < length + sizeof(skid_oid) + skid_lenSz + skid_enc_lenSz + 1)
+        return BUFFER_E;
 
     /* put oid */
     XMEMCPY(output+idx, skid_oid, sizeof(skid_oid));
@@ -5973,7 +6040,7 @@ static int SetSKID(byte* output, byte *input, word32 length)
 
 /* encode Authority Key Identifier, return total bytes written
  * RFC5280 : non-critical */
-static int SetAKID(byte* output, byte *input, word32 length)
+static int SetAKID(byte* output, word32 outSz, byte *input, word32 length)
 {
     byte    *enc_val;
     int     ret, enc_valSz;
@@ -5989,13 +6056,15 @@ static int SetAKID(byte* output, byte *input, word32 length)
         return MEMORY_E;
 
     /* sequence for ContentSpec & value */
-    enc_valSz = SetOidValue(enc_val, akid_cs, sizeof(akid_cs), input, length);
+    enc_valSz = SetOidValue(enc_val, length+3+sizeof(akid_cs),
+                            akid_cs, sizeof(akid_cs), input, length);
     if (enc_valSz == 0) {
         XFREE(enc_val, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         return 0;
     }
 
-    ret = SetOidValue(output, akid_oid, sizeof(akid_oid), enc_val, enc_valSz);
+    ret = SetOidValue(output, outSz, akid_oid,
+                      sizeof(akid_oid), enc_val, enc_valSz);
 
     XFREE(enc_val, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     return ret;
@@ -6003,7 +6072,7 @@ static int SetAKID(byte* output, byte *input, word32 length)
 
 /* encode Key Usage, return total bytes written
  * RFC5280 : critical */
-static int SetKeyUsage(byte* output, word16 input)
+static int SetKeyUsage(byte* output, word32 outSz, word16 input)
 {
     byte ku[5];
     int unusedBits = 0;
@@ -6040,7 +6109,7 @@ static int SetKeyUsage(byte* output, word16 input)
     if (input > 255)
         ku[4] = (byte)((input >> 8) & 0xff);
 
-    return SetOidValue(output, keyusage_oid, sizeof(keyusage_oid),
+    return SetOidValue(output, outSz, keyusage_oid, sizeof(keyusage_oid),
                        ku, (int)ku[1]+2);
 }
 
@@ -6048,7 +6117,7 @@ static int SetKeyUsage(byte* output, word16 input)
 static int EncodePolicyOID(byte *out, word32 *outSz, const char *in)
 {
     word32 val, idx = 0, nb_val;
-    char *token, *str;
+    char *token, *str, *ptr;
     word32 len;
 
     if (out == NULL || outSz == NULL || *outSz < 2 || in == NULL)
@@ -6066,7 +6135,7 @@ static int EncodePolicyOID(byte *out, word32 *outSz, const char *in)
     nb_val = 0;
 
     /* parse value, and set corresponding Policy OID value */
-    token = strtok(str, ".");
+    token = XSTRTOK(str, ".", &ptr);
     while (token != NULL)
     {
         val = (word32)atoi(token);
@@ -6115,7 +6184,7 @@ static int EncodePolicyOID(byte *out, word32 *outSz, const char *in)
                 out[idx++] = oid[i--];
         }
 
-        token = strtok (NULL, ".");
+        token = XSTRTOK(NULL, ".", &ptr);
         nb_val++;
     }
 
@@ -6130,6 +6199,7 @@ static int EncodePolicyOID(byte *out, word32 *outSz, const char *in)
  * input must be an array of values with a NULL terminated for the latest
  * RFC5280 : non-critical */
 static int SetCertificatePolicies(byte *output,
+                                  word32 outputSz,
                                   char input[MAX_CERTPOL_NB][MAX_CERTPOL_SZ],
                                   word16 nb_certpol)
 {
@@ -6155,7 +6225,8 @@ static int SetCertificatePolicies(byte *output,
             return ret;
 
         /* compute sequence value for the oid */
-        ret = SetOidValue(der_oid[i], oid_oid, sizeof(oid_oid), oid, oidSz);
+        ret = SetOidValue(der_oid[i], MAX_OID_SZ, oid_oid,
+                          sizeof(oid_oid), oid, oidSz);
         if (ret <= 0)
             return ret;
         else
@@ -6174,25 +6245,31 @@ static int SetCertificatePolicies(byte *output,
         return ret;
 
     /* add Policy OID to compute final value */
-    return SetOidValue(output, certpol_oid, sizeof(certpol_oid),
+    return SetOidValue(output, outputSz, certpol_oid, sizeof(certpol_oid),
                       out, outSz);
 }
 #endif /* WOLFSSL_CERT_EXT */
 
 #ifdef WOLFSSL_ALT_NAMES
 /* encode Alternative Names, return total bytes written */
-static int SetAltNames(byte *output, byte *input, word32 length)
+static int SetAltNames(byte *out, word32 outSz, byte *input, word32 length)
 {
+    if (out == NULL || input == NULL)
+        return BAD_FUNC_ARG;
+
+    if (outSz < length)
+        return BUFFER_E;
+
     /* Alternative Names come from certificate or computed by
      * external function, so already encoded. Just copy value */
-    XMEMCPY(output, input, length);
+    XMEMCPY(out, input, length);
     return length;
 }
 #endif /* WOLFSL_ALT_NAMES */
 
 
 /* encode CertName into output, return total bytes written */
-static int SetName(byte* output, CertName* name)
+static int SetName(byte* output, word32 outputSz, CertName* name)
 {
     int          totalBytes = 0, i, idx;
 #ifdef WOLFSSL_SMALL_STACK
@@ -6200,6 +6277,12 @@ static int SetName(byte* output, CertName* name)
 #else
     EncodedName  names[NAME_ENTRIES];
 #endif
+
+    if (output == NULL || name == NULL)
+        return BAD_FUNC_ARG;
+
+    if (outputSz < 3)
+        return BUFFER_E;
 
 #ifdef WOLFSSL_SMALL_STACK
     names = (EncodedName*)XMALLOC(sizeof(EncodedName) * NAME_ENTRIES, NULL,
@@ -6312,6 +6395,13 @@ static int SetName(byte* output, CertName* name)
 
     for (i = 0; i < NAME_ENTRIES; i++) {
         if (names[i].used) {
+            if (outputSz < (word32)(idx+names[i].totalLen)) {
+#ifdef WOLFSSL_SMALL_STACK
+                XFREE(names, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+                return BUFFER_E;
+            }
+
             XMEMCPY(output + idx, names[i].encoded, names[i].totalLen);
             idx += names[i].totalLen;
         }
@@ -6333,6 +6423,9 @@ static int EncodeCert(Cert* cert, DerCert* der, RsaKey* rsaKey, ecc_key* eccKey,
     (void)eccKey;
     (void)ntruKey;
     (void)ntruSz;
+
+    if (cert == NULL || der == NULL || rng == NULL)
+        return BAD_FUNC_ARG;
 
     /* init */
     XMEMSET(der, 0, sizeof(DerCert));
@@ -6412,12 +6505,12 @@ static int EncodeCert(Cert* cert, DerCert* der, RsaKey* rsaKey, ecc_key* eccKey,
     }
 
     /* subject name */
-    der->subjectSz = SetName(der->subject, &cert->subject);
+    der->subjectSz = SetName(der->subject, sizeof(der->subject), &cert->subject);
     if (der->subjectSz == 0)
         return SUBJECT_E;
 
     /* issuer name */
-    der->issuerSz = SetName(der->issuer, cert->selfSigned ?
+    der->issuerSz = SetName(der->issuer, sizeof(der->issuer), cert->selfSigned ?
              &cert->subject : &cert->issuer);
     if (der->issuerSz == 0)
         return ISSUER_E;
@@ -6427,7 +6520,7 @@ static int EncodeCert(Cert* cert, DerCert* der, RsaKey* rsaKey, ecc_key* eccKey,
 
     /* CA */
     if (cert->isCA) {
-        der->caSz = SetCa(der->ca);
+        der->caSz = SetCa(der->ca, sizeof(der->ca));
         if (der->caSz == 0)
             return CA_TRUE_E;
 
@@ -6439,7 +6532,7 @@ static int EncodeCert(Cert* cert, DerCert* der, RsaKey* rsaKey, ecc_key* eccKey,
 #ifdef WOLFSSL_ALT_NAMES
     /* Alternative Name */
     if (cert->altNamesSz) {
-        der->altNamesSz = SetAltNames(der->altNames,
+        der->altNamesSz = SetAltNames(der->altNames, sizeof(der->altNames),
                                       cert->altNames, cert->altNamesSz);
         if (der->altNamesSz == 0)
             return ALT_NAME_E;
@@ -6457,7 +6550,8 @@ static int EncodeCert(Cert* cert, DerCert* der, RsaKey* rsaKey, ecc_key* eccKey,
         if (cert->skidSz > (int)sizeof(der->skid))
             return SKID_E;
 
-        der->skidSz = SetSKID(der->skid, cert->skid, cert->skidSz);
+        der->skidSz = SetSKID(der->skid, sizeof(der->skid),
+                              cert->skid, cert->skidSz);
         if (der->skidSz == 0)
             return SKID_E;
 
@@ -6472,7 +6566,8 @@ static int EncodeCert(Cert* cert, DerCert* der, RsaKey* rsaKey, ecc_key* eccKey,
         if (cert->akidSz > (int)sizeof(der->akid))
             return AKID_E;
 
-        der->akidSz = SetAKID(der->akid, cert->akid, cert->akidSz);
+        der->akidSz = SetAKID(der->akid, sizeof(der->akid),
+                              cert->akid, cert->akidSz);
         if (der->akidSz == 0)
             return AKID_E;
 
@@ -6483,7 +6578,8 @@ static int EncodeCert(Cert* cert, DerCert* der, RsaKey* rsaKey, ecc_key* eccKey,
 
     /* Key Usage */
     if (cert->keyUsage != 0){
-        der->keyUsageSz = SetKeyUsage(der->keyUsage, cert->keyUsage);
+        der->keyUsageSz = SetKeyUsage(der->keyUsage, sizeof(der->keyUsage),
+                                      cert->keyUsage);
         if (der->keyUsageSz == 0)
             return KEYUSAGE_E;
 
@@ -6495,6 +6591,7 @@ static int EncodeCert(Cert* cert, DerCert* der, RsaKey* rsaKey, ecc_key* eccKey,
     /* Certificate Policies */
     if (cert->certPoliciesNb != 0) {
         der->certPoliciesSz = SetCertificatePolicies(der->certPolicies,
+                                                     sizeof(der->certPolicies),
                                                      cert->certPolicies,
                                                      cert->certPoliciesNb);
         if (der->certPoliciesSz == 0)
@@ -6511,13 +6608,15 @@ static int EncodeCert(Cert* cert, DerCert* der, RsaKey* rsaKey, ecc_key* eccKey,
 
         /* put the start of extensions sequence (ID, Size) */
         der->extensionsSz = SetExtensionsHeader(der->extensions,
+                                                sizeof(der->extensions),
                                                 der->extensionsSz);
         if (der->extensionsSz == 0)
             return EXTENSIONS_E;
 
         /* put CA */
         if (der->caSz) {
-            ret = SetExtensions(der->extensions, &der->extensionsSz,
+            ret = SetExtensions(der->extensions, sizeof(der->extensions),
+                                &der->extensionsSz,
                                 der->ca, der->caSz);
             if (ret == 0)
                 return EXTENSIONS_E;
@@ -6526,7 +6625,8 @@ static int EncodeCert(Cert* cert, DerCert* der, RsaKey* rsaKey, ecc_key* eccKey,
 #ifdef WOLFSSL_ALT_NAMES
         /* put Alternative Names */
         if (der->altNamesSz) {
-            ret = SetExtensions(der->extensions, &der->extensionsSz,
+            ret = SetExtensions(der->extensions, sizeof(der->extensions),
+                                &der->extensionsSz,
                                 der->altNames, der->altNamesSz);
             if (ret == 0)
                 return EXTENSIONS_E;
@@ -6536,7 +6636,8 @@ static int EncodeCert(Cert* cert, DerCert* der, RsaKey* rsaKey, ecc_key* eccKey,
 #ifdef WOLFSSL_CERT_EXT
         /* put SKID */
         if (der->skidSz) {
-            ret = SetExtensions(der->extensions, &der->extensionsSz,
+            ret = SetExtensions(der->extensions, sizeof(der->extensions),
+                                &der->extensionsSz,
                                 der->skid, der->skidSz);
             if (ret == 0)
                 return EXTENSIONS_E;
@@ -6544,7 +6645,8 @@ static int EncodeCert(Cert* cert, DerCert* der, RsaKey* rsaKey, ecc_key* eccKey,
 
         /* put AKID */
         if (der->akidSz) {
-            ret = SetExtensions(der->extensions, &der->extensionsSz,
+            ret = SetExtensions(der->extensions, sizeof(der->extensions),
+                                &der->extensionsSz,
                                 der->akid, der->akidSz);
             if (ret == 0)
                 return EXTENSIONS_E;
@@ -6552,7 +6654,8 @@ static int EncodeCert(Cert* cert, DerCert* der, RsaKey* rsaKey, ecc_key* eccKey,
 
         /* put KeyUsage */
         if (der->keyUsageSz) {
-            ret = SetExtensions(der->extensions, &der->extensionsSz,
+            ret = SetExtensions(der->extensions, sizeof(der->extensions),
+                                &der->extensionsSz,
                                 der->keyUsage, der->keyUsageSz);
             if (ret == 0)
                 return EXTENSIONS_E;
@@ -6560,7 +6663,8 @@ static int EncodeCert(Cert* cert, DerCert* der, RsaKey* rsaKey, ecc_key* eccKey,
 
         /* put Certificate Policies */
         if (der->certPoliciesSz) {
-            ret = SetExtensions(der->extensions, &der->extensionsSz,
+            ret = SetExtensions(der->extensions, sizeof(der->extensions),
+                                &der->extensionsSz,
                                 der->certPolicies, der->certPoliciesSz);
             if (ret == 0)
                 return EXTENSIONS_E;
@@ -6883,6 +6987,9 @@ static int EncodeCertReq(Cert* cert, DerCert* der,
 {
     (void)eccKey;
 
+    if (cert == NULL || der == NULL)
+        return BAD_FUNC_ARG;
+
     /* init */
     XMEMSET(der, 0, sizeof(DerCert));
 
@@ -6890,7 +6997,7 @@ static int EncodeCertReq(Cert* cert, DerCert* der,
     der->versionSz = SetMyVersion(cert->version, der->version, FALSE);
 
     /* subject name */
-    der->subjectSz = SetName(der->subject, &cert->subject);
+    der->subjectSz = SetName(der->subject, sizeof(der->subject), &cert->subject);
     if (der->subjectSz == 0)
         return SUBJECT_E;
 
@@ -6919,7 +7026,7 @@ static int EncodeCertReq(Cert* cert, DerCert* der,
 
     /* CA */
     if (cert->isCA) {
-        der->caSz = SetCa(der->ca);
+        der->caSz = SetCa(der->ca, sizeof(der->ca));
         if (der->caSz == 0)
             return CA_TRUE_E;
 
@@ -6935,7 +7042,8 @@ static int EncodeCertReq(Cert* cert, DerCert* der,
         if (cert->skidSz > (int)sizeof(der->skid))
             return SKID_E;
 
-        der->skidSz = SetSKID(der->skid, cert->skid, cert->skidSz);
+        der->skidSz = SetSKID(der->skid, sizeof(der->skid),
+                              cert->skid, cert->skidSz);
         if (der->skidSz == 0)
             return SKID_E;
 
@@ -6946,7 +7054,8 @@ static int EncodeCertReq(Cert* cert, DerCert* der,
 
     /* Key Usage */
     if (cert->keyUsage != 0){
-        der->keyUsageSz = SetKeyUsage(der->keyUsage, cert->keyUsage);
+        der->keyUsageSz = SetKeyUsage(der->keyUsage, sizeof(der->keyUsage),
+                                      cert->keyUsage);
         if (der->keyUsageSz == 0)
             return KEYUSAGE_E;
 
@@ -6967,7 +7076,8 @@ static int EncodeCertReq(Cert* cert, DerCert* der,
 
         /* put CA */
         if (der->caSz) {
-            ret = SetExtensions(der->extensions, &der->extensionsSz,
+            ret = SetExtensions(der->extensions, sizeof(der->extensions),
+                                &der->extensionsSz,
                                 der->ca, der->caSz);
             if (ret == 0)
                 return EXTENSIONS_E;
@@ -6976,7 +7086,8 @@ static int EncodeCertReq(Cert* cert, DerCert* der,
 #ifdef WOLFSSL_CERT_EXT
         /* put SKID */
         if (der->skidSz) {
-            ret = SetExtensions(der->extensions, &der->extensionsSz,
+            ret = SetExtensions(der->extensions, sizeof(der->extensions),
+                                &der->extensionsSz,
                                 der->skid, der->skidSz);
             if (ret == 0)
                 return EXTENSIONS_E;
@@ -6984,7 +7095,8 @@ static int EncodeCertReq(Cert* cert, DerCert* der,
 
         /* put AKID */
         if (der->akidSz) {
-            ret = SetExtensions(der->extensions, &der->extensionsSz,
+            ret = SetExtensions(der->extensions, sizeof(der->extensions),
+                                &der->extensionsSz,
                                 der->akid, der->akidSz);
             if (ret == 0)
                 return EXTENSIONS_E;
@@ -6992,7 +7104,8 @@ static int EncodeCertReq(Cert* cert, DerCert* der,
 
         /* put KeyUsage */
         if (der->keyUsageSz) {
-            ret = SetExtensions(der->extensions, &der->extensionsSz,
+            ret = SetExtensions(der->extensions, sizeof(der->extensions),
+                                &der->extensionsSz,
                                 der->keyUsage, der->keyUsageSz);
             if (ret == 0)
                 return EXTENSIONS_E;
@@ -7411,7 +7524,7 @@ int wc_SetAuthKeyId(Cert *cert, const char* file)
 /* Set KeyUsage from human readale string */
 int wc_SetKeyUsage(Cert *cert, const char *value)
 {
-    char *token, *str;
+    char *token, *str, *ptr;
     word32 len;
 
     if (cert == NULL || value == NULL)
@@ -7427,7 +7540,7 @@ int wc_SetKeyUsage(Cert *cert, const char *value)
     XSTRNCPY(str, value, XSTRLEN(value));
 
     /* parse value, and set corresponding Key Usage value */
-    token = strtok(str, ",");
+    token = XSTRTOK(str, ",", &ptr);
     while (token != NULL)
     {
         len = (word32)XSTRLEN(token);
@@ -7454,7 +7567,7 @@ int wc_SetKeyUsage(Cert *cert, const char *value)
         else
             return KEYUSAGE_E;
 
-        token = strtok(NULL, ",");
+        token = XSTRTOK(NULL, ",", &ptr);
     }
 
     XFREE(str, NULL, DYNAMIC_TYPE_TMP_BUFFER);

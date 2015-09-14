@@ -189,22 +189,6 @@
 	    #define XREALLOC(p, n, h, t) wolfSSL_Realloc((p), (n))
 	#endif
 
-    #ifdef WOLFSSL_CERT_EXT
-        /* need snprintf for now, but breaks NO_FILESYSTEM w/ stdio.h
-         * TODO: will be fixed shortly */
-	    #ifndef SNPRINTF_USER
-            #ifdef NO_FILESYSTEM
-                #error "cert gen extensions don't support no filesystem for now"
-            #endif
-            #include <stdio.h> /* for snprintf */
-	        #ifndef USE_WINDOWS_API
-	            #define XSNPRINTF snprintf
-	        #else
-	            #define XSNPRINTF _snprintf
-            #endif
-        #endif
-    #endif
-
 	#ifndef STRING_USER
 	    #include <string.h>
 	    char* mystrnstr(const char* s1, const char* s2, unsigned int n);
@@ -216,8 +200,8 @@
 
 	    #define XSTRLEN(s1)       strlen((s1))
 	    #define XSTRNCPY(s1,s2,n) strncpy((s1),(s2),(n))
-	    /* strstr, strncmp, and strncat only used by wolfSSL proper, not required for
-	       CTaoCrypt only */
+	    /* strstr, strncmp, and strncat only used by wolfSSL proper,
+         * not required for wolfCrypt only */
 	    #define XSTRSTR(s1,s2)    strstr((s1),(s2))
 	    #define XSTRNSTR(s1,s2,n) mystrnstr((s1),(s2),(n))
 	    #define XSTRNCMP(s1,s2,n) strncmp((s1),(s2),(n))
@@ -227,6 +211,15 @@
 	    #else
 	        #define XSTRNCASECMP(s1,s2,n) _strnicmp((s1),(s2),(n))
 	    #endif
+
+        #ifdef WOLFSSL_CERT_EXT
+            /* use only Thread Safe version of strtok */
+            #ifndef USE_WINDOWS_API
+                #define XSTRTOK strtok_r
+            #else
+                #define XSTRTOK strtok_s
+            #endif
+        #endif
 	#endif
 
 	#ifndef CTYPE_USER
