@@ -4218,7 +4218,7 @@ static int DecodeNameConstraints(byte* input, int sz, DecodedCert* cert)
 }
 #endif /* IGNORE_NAME_CONSTRAINTS */
 
-#ifdef WOLFSSL_CERT_EXT
+#if defined(WOLFSSL_CERT_EXT) && !defined(WOLFSSL_SEP)
 
 static int Word32ToString(char* d, word32 number)
 {
@@ -4303,7 +4303,7 @@ static int DecodePolicyOID(char *out, word32 outSz, byte *in, word32 inSz)
 
     return 0;
 }
-#endif /* WOLFSSL_CERT_EXT */
+#endif /* WOLFSSL_CERT_EXT && !WOLFSSL_SEP */
 
 #if defined(WOLFSSL_SEP) || defined(WOLFSSL_CERT_EXT)
     static int DecodeCertPolicy(byte* input, int sz, DecodedCert* cert)
