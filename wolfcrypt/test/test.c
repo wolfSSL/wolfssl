@@ -208,7 +208,8 @@ int pbkdf2_test(void);
     int pkcs7enveloped_test(void);
     int pkcs7signed_test(void);
 #endif
-#if defined(WOLFSSL_CERT_EXT) && defined(WOLFSSL_TEST_CERT)
+#if defined(WOLFSSL_CERT_EXT) && defined(WOLFSSL_TEST_CERT) \
+    && defined(OPENSSL_EXTRA)
 int  certext_test(void);
 #endif
 
@@ -487,7 +488,8 @@ int wolfcrypt_test(void* args)
         printf( "RSA      test passed!\n");
 #endif
 
-#if defined(WOLFSSL_CERT_EXT) && defined(WOLFSSL_TEST_CERT)
+#if defined(WOLFSSL_CERT_EXT) && defined(WOLFSSL_TEST_CERT) \
+    && defined(OPENSSL_EXTRA)
     if ( (ret = certext_test()) != 0)
         return err_sys("CERT EXT test failed!\n", ret);
     else
@@ -3382,7 +3384,8 @@ byte GetEntropy(ENTROPY_CMD cmd, byte* out)
 #endif
 
 
-#if defined(WOLFSSL_CERT_EXT) && defined(WOLFSSL_TEST_CERT)
+#if defined(WOLFSSL_CERT_EXT) && defined(WOLFSSL_TEST_CERT)\
+    && defined(OPENSSL_EXTRA)
 int certext_test(void)
 {
     DecodedCert cert;
@@ -3567,7 +3570,7 @@ int certext_test(void)
 
     return 0;
 }
-#endif /* defined(WOLFSSL_CERT_EXT) && defined(WOLFSSL_TEST_CERT) */
+#endif /* WOLFSSL_CERT_EXT && WOLFSSL_TEST_CERT && OPENSSL_EXTRA */
 
 
 int rsa_test(void)
