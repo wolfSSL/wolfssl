@@ -13737,6 +13737,8 @@ int wolfSSL_PEM_write_mem_RSAPrivateKey(RSA* rsa, const EVP_CIPHER* cipher,
     return SSL_SUCCESS;
 }
 
+
+#ifndef NO_FILESYSTEM
 /* return code compliant with OpenSSL :
  *   1 if success, 0 if error
  */
@@ -13773,6 +13775,7 @@ int wolfSSL_PEM_write_RSAPrivateKey(FILE *fp, WOLFSSL_RSA *rsa,
     XFREE(pem, NULL, DYNAMIC_TYPE_OUT_BUFFER);
     return SSL_SUCCESS;
 }
+#endif /* NO_FILESYSTEM */
 
 int wolfSSL_PEM_write_bio_RSAPrivateKey(WOLFSSL_BIO* bio, RSA* rsa,
                                         const EVP_CIPHER* cipher,
@@ -15112,6 +15115,7 @@ int wolfSSL_PEM_write_mem_ECPrivateKey(WOLFSSL_EC_KEY* ecc,
     return SSL_SUCCESS;
 }
 
+#ifndef NO_FILESYSTEM
 /* return code compliant with OpenSSL :
  *   1 if success, 0 if error
  */
@@ -15149,6 +15153,7 @@ int wolfSSL_PEM_write_ECPrivateKey(FILE *fp, WOLFSSL_EC_KEY *ecc,
     return SSL_SUCCESS;
 }
 
+#endif /* NO_FILESYSTEM */
 #endif /* defined(WOLFSSL_KEY_GEN) */
 
 #endif /* HAVE_ECC */
@@ -15285,6 +15290,7 @@ int wolfSSL_PEM_write_mem_DSAPrivateKey(WOLFSSL_DSA* dsa,
     return SSL_SUCCESS;
 }
 
+#ifndef NO_FILESYSTEM
 /* return code compliant with OpenSSL :
  *   1 if success, 0 if error
  */
@@ -15322,8 +15328,10 @@ int wolfSSL_PEM_write_DSAPrivateKey(FILE *fp, WOLFSSL_DSA *dsa,
     return SSL_SUCCESS;
 }
 
+#endif /* NO_FILESYSTEM */
 #endif /* defined(WOLFSSL_KEY_GEN) */
 
+#ifndef NO_FILESYSTEM
 /* return code compliant with OpenSSL :
  *   1 if success, 0 if error
  */
@@ -15336,6 +15344,7 @@ int wolfSSL_PEM_write_DSA_PUBKEY(FILE *fp, WOLFSSL_DSA *x)
 
     return SSL_FAILURE;
 }
+#endif /* NO_FILESYSTEM */
 
 #endif /* #ifndef NO_DSA */
 
