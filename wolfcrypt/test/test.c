@@ -3564,6 +3564,7 @@ int certext_test(void)
         return -229;
 
     FreeDecodedCert(&cert);
+    free(tmp);
 
     return 0;
 }
