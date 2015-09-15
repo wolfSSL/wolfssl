@@ -281,7 +281,8 @@
 	    DYNAMIC_TYPE_OCSP         = 44,
 	    DYNAMIC_TYPE_SIGNATURE    = 45,
 	    DYNAMIC_TYPE_HASHES       = 46,
-		DYNAMIC_TYPE_SRP          = 47,
+        DYNAMIC_TYPE_SRP          = 47,
+        DYNAMIC_TYPE_COOKIE_PWD   = 48
 	};
 
 	/* max error buffer string size */

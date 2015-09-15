@@ -1999,7 +1999,11 @@ void SSL_ResourceFree(WOLFSSL* ssl)
     }
     XFREE(ssl->buffers.dtlsCtx.peer.sa, ssl->heap, DYNAMIC_TYPE_SOCKADDR);
     ssl->buffers.dtlsCtx.peer.sa = NULL;
+#ifndef NO_WOLFSSL_SERVER
+    XFREE(ssl->buffers.dtlsCookieSecret.buffer, ssl->heap,
+          DYNAMIC_TYPE_COOKIE_PWD);
 #endif
+#endif /* WOLFSSL_DTLS */
 #if defined(KEEP_PEER_CERT) || defined(GOAHEAD_WS)
     FreeX509(&ssl->peerCert);
 #endif
@@ -14279,7 +14283,7 @@ int DoSessionTicket(WOLFSSL* ssl,
 #ifdef WOLFSSL_DTLS
         Hmac            cookieHmac;
         byte            peerCookie[MAX_COOKIE_LEN];
-        byte            peerCookieSz;
+        byte            peerCookieSz = 0;
         byte            cookieType;
         byte            cookieSz;
 #endif /* WOLFSSL_DTLS */

@@ -34,6 +34,12 @@
 #include <wolfssl/internal.h>
 #include <wolfssl/error-ssl.h>
 #include <wolfssl/wolfcrypt/coding.h>
+#ifdef NO_INLINE
+    #include <wolfssl/wolfcrypt/misc.h>
+#else
+    #include <wolfcrypt/src/misc.c>
+#endif
+
 
 #ifndef WOLFSSL_ALLOW_NO_SUITES
     #if defined(NO_DH) && !defined(HAVE_ECC) && !defined(WOLFSSL_STATIC_RSA) \
@@ -5492,13 +5498,13 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
         byte* newSecret;
 
         if (ssl->buffers.dtlsCookieSecret.buffer != NULL) {
-            XMEMSET(ssl->buffers.dtlsCookieSecret.buffer, 0,
-                    ssl->buffers.dtlsCookieSecret.length);
+            ForceZero(ssl->buffers.dtlsCookieSecret.buffer,
+                      ssl->buffers.dtlsCookieSecret.length);
             XFREE(ssl->buffers.dtlsCookieSecret.buffer,
                   ssl->heap, DYNAMIC_TYPE_NONE);
         }
 
-        newSecret = (byte*)XMALLOC(secretSz, ssl->heap, DYNAMIC_TYPE_NONE);
+        newSecret = (byte*)XMALLOC(secretSz, ssl->heap,DYNAMIC_TYPE_COOKIE_PWD);
         if (newSecret == NULL) {
             ssl->buffers.dtlsCookieSecret.buffer = NULL;
             ssl->buffers.dtlsCookieSecret.length = 0;
