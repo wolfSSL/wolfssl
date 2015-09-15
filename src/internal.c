@@ -1578,6 +1578,11 @@ int VerifyRsaSign(const byte* sig, word32 sigSz,
 
     WOLFSSL_ENTER("VerifyRsaSign");
 
+    if (sig == NULL || plain == NULL || key == NULL) {
+        WOLFSSL_MSG("Null pointer input");
+        return BAD_FUNC_ARG;
+    }
+
     if (sigSz > ENCRYPT_LEN) {
         WOLFSSL_MSG("Signature buffer too big");
         return BUFFER_E;
