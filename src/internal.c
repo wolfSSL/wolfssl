@@ -10226,6 +10226,7 @@ static void PickHashSigAlgo(WOLFSSL* ssl,
     {
     #ifdef HAVE_QSH
         word16 name;
+        int    qshSz;
     #endif
         word16 length = 0;
         word32 begin  = *inOutIdx;
@@ -10273,8 +10274,12 @@ static void PickHashSigAlgo(WOLFSSL* ssl,
                 *inOutIdx += OPAQUE16_LEN;
 
                 if (name == WOLFSSL_QSH) {
-                    *inOutIdx += TLSX_QSHCipher_Parse(ssl, input + *inOutIdx,
-                                                                       size, 0);
+                    /* if qshSz is larger than 0 it is the length of buffer
+                       used */
+                    if ((qshSz = TLSX_QSHCipher_Parse(ssl, input + *inOutIdx,
+                                                                  size, 0)) < 0)
+                        return qshSz;
+                    *inOutIdx += qshSz;
                 }
                 else {
                     /* unknown extension sent server ignored
@@ -10974,7 +10979,11 @@ static void PickHashSigAlgo(WOLFSSL* ssl,
         *inOutIdx += OPAQUE16_LEN;
 
         if (name == WOLFSSL_QSH) {
-            *inOutIdx += TLSX_QSHCipher_Parse(ssl, input + *inOutIdx, size, 0);
+            /* if qshSz is larger than 0 it is the length of buffer used */
+            if ((qshSz = TLSX_QSHCipher_Parse(ssl, input + *inOutIdx,
+                                                                  size, 0)) < 0)
+                return qshSz;
+            *inOutIdx += qshSz;
         }
         else {
             /* unknown extension sent server ignored
@@ -15156,6 +15165,7 @@ int DoSessionTicket(WOLFSSL* ssl,
     {
         #ifdef HAVE_QSH
             word16 name;
+            int    qshSz;
         #endif
         int    ret = 0;
         word32 length = 0;
@@ -15275,8 +15285,13 @@ int DoSessionTicket(WOLFSSL* ssl,
                                 *inOutIdx += OPAQUE16_LEN;
 
                                 if (name == WOLFSSL_QSH) {
-                                    *inOutIdx += TLSX_QSHCipher_Parse(ssl, input
-                                      + *inOutIdx, size - *inOutIdx + begin, 1);
+                                    /* if qshSz is larger than 0 it is the
+                                       length of buffer used */
+                                    if ((qshSz = TLSX_QSHCipher_Parse(ssl, input
+                                                  + *inOutIdx, size - *inOutIdx
+                                                  + begin, 1)) < 0)
+                                        return qshSz;
+                                    *inOutIdx += qshSz;
                                 }
                                 else {
                                     /* unknown extension sent client ignored
@@ -15348,8 +15363,12 @@ int DoSessionTicket(WOLFSSL* ssl,
                     *inOutIdx += OPAQUE16_LEN;
 
                     if (name == WOLFSSL_QSH) {
-                        *inOutIdx += TLSX_QSHCipher_Parse(ssl, input +
-                                        *inOutIdx, size - *inOutIdx + begin, 1);
+                        /* if qshSz is larger than 0 it is the length of
+                           buffer used */
+                        if ((qshSz = TLSX_QSHCipher_Parse(ssl, input + *inOutIdx,
+                                              size - *inOutIdx + begin, 1)) < 0)
+                            return qshSz;
+                        *inOutIdx += qshSz;
                     }
                     else {
                         /* unknown extension sent client ignored
@@ -15406,8 +15425,12 @@ int DoSessionTicket(WOLFSSL* ssl,
                     *inOutIdx += OPAQUE16_LEN;
 
                     if (name == WOLFSSL_QSH) {
-                        *inOutIdx += TLSX_QSHCipher_Parse(ssl, input +
-                                        *inOutIdx, size - *inOutIdx + begin, 1);
+                        /* if qshSz is larger than 0 it is the length of
+                           buffer used */
+                        if ((qshSz = TLSX_QSHCipher_Parse(ssl, input + *inOutIdx,
+                                              size - *inOutIdx + begin, 1)) < 0)
+                            return qshSz;
+                        *inOutIdx += qshSz;
                     }
                     else {
                         /* unknown extension sent client ignored
@@ -15490,8 +15513,12 @@ int DoSessionTicket(WOLFSSL* ssl,
                     *inOutIdx += OPAQUE16_LEN;
 
                     if (name == WOLFSSL_QSH) {
-                        *inOutIdx += TLSX_QSHCipher_Parse(ssl, input +
-                                        *inOutIdx, size - *inOutIdx + begin, 1);
+                        /* if qshSz is larger than 0 it is the length of
+                           buffer used */
+                        if ((qshSz = TLSX_QSHCipher_Parse(ssl, input + *inOutIdx,
+                                              size - *inOutIdx + begin, 1)) < 0)
+                            return qshSz;
+                        *inOutIdx += qshSz;
                     }
                     else {
                         /* unknown extension sent client ignored
@@ -15541,8 +15568,12 @@ int DoSessionTicket(WOLFSSL* ssl,
                     *inOutIdx += OPAQUE16_LEN;
 
                     if (name == WOLFSSL_QSH) {
-                        *inOutIdx += TLSX_QSHCipher_Parse(ssl, input +
-                                        *inOutIdx, size - *inOutIdx + begin, 1);
+                        /* if qshSz is larger than 0 it is the length of
+                           buffer used */
+                        if ((qshSz = TLSX_QSHCipher_Parse(ssl, input + *inOutIdx,
+                                              size - *inOutIdx + begin, 1)) < 0)
+                            return qshSz;
+                        *inOutIdx += qshSz;
                     }
                     else {
                         /* unknown extension sent client ignored
@@ -15632,8 +15663,12 @@ int DoSessionTicket(WOLFSSL* ssl,
                     *inOutIdx += OPAQUE16_LEN;
 
                     if (name == WOLFSSL_QSH) {
-                        *inOutIdx += TLSX_QSHCipher_Parse(ssl, input +
-                                        *inOutIdx, size - *inOutIdx + begin, 1);
+                        /* if qshSz is larger than 0 it is the length of
+                           buffer used */
+                        if ((qshSz = TLSX_QSHCipher_Parse(ssl, input + *inOutIdx,
+                                              size - *inOutIdx + begin, 1)) < 0)
+                            return qshSz;
+                        *inOutIdx += qshSz;
                     }
                     else {
                         /* unknown extension sent client ignored
