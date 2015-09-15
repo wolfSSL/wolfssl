@@ -1618,6 +1618,12 @@ int VerifyRsaSign(const byte* sig, word32 sigSz,
    SSL_SUCCESS return value on success */
 int SetSSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
 {
+    byte havePSK = 0;
+    byte haveAnon = 0;
+    byte haveRSA = 0;
+    byte newSSL = ssl->ctx == NULL;
+    (void) haveAnon; /* Squash unused var warnings */
+
     if(!ssl || !ctx || ssl->suites == NULL)
         return BAD_FUNC_ARG;
 
@@ -1627,11 +1633,6 @@ int SetSSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
     }
 #endif
 
-    byte havePSK = 0;
-    byte haveAnon = 0;
-    byte haveRSA = 0;
-    byte newSSL = ssl->ctx == NULL;
-    (void) haveAnon; /* Squash unused var warnings */
 
 #ifndef NO_RSA
     haveRSA = 1;
