@@ -1209,9 +1209,9 @@ WOLFSSL_LOCAL
 int  SetCipherList(Suites*, const char* list);
 
 #ifndef PSK_TYPES_DEFINED
-    typedef unsigned int (*psk_client_callback)(WOLFSSL*, const char*, char*,
+    typedef unsigned int (*wc_psk_client_callback)(WOLFSSL*, const char*, char*,
                           unsigned int, unsigned char*, unsigned int);
-    typedef unsigned int (*psk_server_callback)(WOLFSSL*, const char*,
+    typedef unsigned int (*wc_psk_server_callback)(WOLFSSL*, const char*,
                           unsigned char*, unsigned int);
 #endif /* PSK_TYPES_DEFINED */
 
@@ -1666,8 +1666,8 @@ struct WOLFSSL_CTX {
 #endif
 #ifndef NO_PSK
     byte        havePSK;                /* psk key set by user */
-    psk_client_callback client_psk_cb;  /* client callback */
-    psk_server_callback server_psk_cb;  /* server callback */
+    wc_psk_client_callback client_psk_cb;  /* client callback */
+    wc_psk_server_callback server_psk_cb;  /* server callback */
     char        server_hint[MAX_PSK_ID_LEN];
 #endif /* NO_PSK */
 #ifdef HAVE_ANON
@@ -2009,8 +2009,8 @@ typedef struct Buffers {
 
 typedef struct Options {
 #ifndef NO_PSK
-    psk_client_callback client_psk_cb;
-    psk_server_callback server_psk_cb;
+    wc_psk_client_callback client_psk_cb;
+    wc_psk_server_callback server_psk_cb;
     word16            havePSK:1;            /* psk key set by user */
 #endif /* NO_PSK */
 
