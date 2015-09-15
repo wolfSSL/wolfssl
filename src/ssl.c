@@ -6945,7 +6945,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
 #ifndef NO_PSK
 
     void wolfSSL_CTX_set_psk_client_callback(WOLFSSL_CTX* ctx,
-                                         psk_client_callback cb)
+                                         wc_psk_client_callback cb)
     {
         WOLFSSL_ENTER("SSL_CTX_set_psk_client_callback");
         ctx->havePSK = 1;
@@ -6953,7 +6953,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
     }
 
 
-    void wolfSSL_set_psk_client_callback(WOLFSSL* ssl, psk_client_callback cb)
+    void wolfSSL_set_psk_client_callback(WOLFSSL* ssl,wc_psk_client_callback cb)
     {
         byte haveRSA = 1;
 
@@ -6972,7 +6972,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
 
 
     void wolfSSL_CTX_set_psk_server_callback(WOLFSSL_CTX* ctx,
-                                         psk_server_callback cb)
+                                         wc_psk_server_callback cb)
     {
         WOLFSSL_ENTER("SSL_CTX_set_psk_server_callback");
         ctx->havePSK = 1;
@@ -6980,7 +6980,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
     }
 
 
-    void wolfSSL_set_psk_server_callback(WOLFSSL* ssl, psk_server_callback cb)
+    void wolfSSL_set_psk_server_callback(WOLFSSL* ssl,wc_psk_server_callback cb)
     {
         byte haveRSA = 1;
 

@@ -723,11 +723,12 @@ enum { /* ssl Constants */
 
 
 #ifndef NO_PSK
-    typedef unsigned int (*psk_client_callback)(WOLFSSL*, const char*, char*,
+    typedef unsigned int (*wc_psk_client_callback)(WOLFSSL*, const char*, char*,
                                     unsigned int, unsigned char*, unsigned int);
     WOLFSSL_API void wolfSSL_CTX_set_psk_client_callback(WOLFSSL_CTX*,
-                                                    psk_client_callback);
-    WOLFSSL_API void wolfSSL_set_psk_client_callback(WOLFSSL*,psk_client_callback);
+                                                    wc_psk_client_callback);
+    WOLFSSL_API void wolfSSL_set_psk_client_callback(WOLFSSL*,
+                                                    wc_psk_client_callback);
 
     WOLFSSL_API const char* wolfSSL_get_psk_identity_hint(const WOLFSSL*);
     WOLFSSL_API const char* wolfSSL_get_psk_identity(const WOLFSSL*);
@@ -735,11 +736,12 @@ enum { /* ssl Constants */
     WOLFSSL_API int wolfSSL_CTX_use_psk_identity_hint(WOLFSSL_CTX*, const char*);
     WOLFSSL_API int wolfSSL_use_psk_identity_hint(WOLFSSL*, const char*);
 
-    typedef unsigned int (*psk_server_callback)(WOLFSSL*, const char*,
+    typedef unsigned int (*wc_psk_server_callback)(WOLFSSL*, const char*,
                           unsigned char*, unsigned int);
     WOLFSSL_API void wolfSSL_CTX_set_psk_server_callback(WOLFSSL_CTX*,
-                                                    psk_server_callback);
-    WOLFSSL_API void wolfSSL_set_psk_server_callback(WOLFSSL*,psk_server_callback);
+                                                    wc_psk_server_callback);
+    WOLFSSL_API void wolfSSL_set_psk_server_callback(WOLFSSL*,
+                                                    wc_psk_server_callback);
 
     #define PSK_TYPES_DEFINED
 #endif /* NO_PSK */
