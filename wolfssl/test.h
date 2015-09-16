@@ -633,6 +633,7 @@ static INLINE void tcp_listen(SOCKET_T* sockfd, word16* port, int useAnyAddr,
 }
 
 
+#if 0
 static INLINE int udp_read_connect(SOCKET_T sockfd)
 {
     SOCKADDR_IN_T cliaddr;
@@ -652,6 +653,7 @@ static INLINE int udp_read_connect(SOCKET_T sockfd)
 
     return sockfd;
 }
+#endif
 
 static INLINE void udp_accept(SOCKET_T* sockfd, SOCKET_T* clientfd,
                               int useAnyAddr, word16 port, func_args* args)
@@ -706,7 +708,7 @@ static INLINE void udp_accept(SOCKET_T* sockfd, SOCKET_T* clientfd,
     ready->port = port;
 #endif
 
-    *clientfd = udp_read_connect(*sockfd);
+    *clientfd = *sockfd;
 }
 
 static INLINE void tcp_accept(SOCKET_T* sockfd, SOCKET_T* clientfd,

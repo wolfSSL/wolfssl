@@ -578,7 +578,7 @@ while (1) {  /* allow resume option */
                              (ACCEPT_THIRD_T)&client_len);
         } else {
             tcp_listen(&sockfd, &port, useAnyAddr, doDTLS);
-            clientfd = udp_read_connect(sockfd);
+            clientfd = sockfd;
         }
         #ifdef USE_WINDOWS_API
             if (clientfd == INVALID_SOCKET) err_sys("tcp accept failed");
@@ -622,6 +622,24 @@ while (1) {  /* allow resume option */
     }
 
     SSL_set_fd(ssl, clientfd);
+#ifdef WOLFSSL_DTLS
+    if (doDTLS) {
+        SOCKADDR_IN_T cliaddr;
+        byte          b[1500];
+        int           n;
+        socklen_t     len = sizeof(cliaddr);
+
+        /* For DTLS, peek at the next datagram so we can get the client's
+         * address and set it into the ssl object later to generate the
+         * cookie. */
+        n = (int)recvfrom(sockfd, (char*)b, sizeof(b), MSG_PEEK,
+                          (struct sockaddr*)&cliaddr, &len);
+        if (n <= 0)
+            err_sys("recvfrom failed");
+
+        wolfSSL_dtls_set_peer(ssl, &cliaddr, len);
+    }
+#endif
     if (usePsk == 0 || useAnon == 1 || cipherList != NULL || needDH == 1) {
         #if !defined(NO_FILESYSTEM) && !defined(NO_DH) && !defined(NO_ASN)
             CyaSSL_SetTmpDH_file(ssl, ourDhParam, SSL_FILETYPE_PEM);

@@ -229,20 +229,33 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
         int     clientfd;
         int     firstRead = 1;
         int     gotFirstG = 0;
-
-#ifndef CYASSL_DTLS
         SOCKADDR_IN_T client;
         socklen_t     client_len = sizeof(client);
+#ifndef CYASSL_DTLS
         clientfd = accept(sockfd, (struct sockaddr*)&client,
                          (ACCEPT_THIRD_T)&client_len);
 #else
-        clientfd = udp_read_connect(sockfd);
+        clientfd = sockfd;
+        {
+            /* For DTLS, peek at the next datagram so we can get the client's
+             * address and set it into the ssl object later to generate the
+             * cookie. */
+            int n;
+            byte b[1500];
+            n = (int)recvfrom(clientfd, (char*)b, sizeof(b), MSG_PEEK,
+                              (struct sockaddr*)&client, &client_len);
+            if (n <= 0)
+                err_sys("recvfrom failed");
+        }
 #endif
         if (clientfd == -1) err_sys("tcp accept failed");
 
         ssl = CyaSSL_new(ctx);
         if (ssl == NULL) err_sys("SSL_new failed");
         CyaSSL_set_fd(ssl, clientfd);
+        #ifdef CYASSL_DTLS
+            wolfSSL_dtls_set_peer(ssl, &client, client_len);
+        #endif
         #if !defined(NO_FILESYSTEM) && !defined(NO_DH) && !defined(NO_ASN)
             CyaSSL_SetTmpDH_file(ssl, dhParam, SSL_FILETYPE_PEM);
         #elif !defined(NO_DH)
