@@ -35,6 +35,31 @@ wolfSSL_CTX_set_verify(ctx, SSL_VERIFY_NONE, 0);
 before calling wolfSSL_new();  Though it's not recommended.
 ```
 
+
+#wolfSSL (Formerly CyaSSL) Release 3.6.8 (09/17/2015)
+
+##Release 3.6.8 of wolfSSL fixes two high severity vulnerabilities.
+##It also includes bug fixes and new features including:
+
+- Two High level security fixes, all users SHOULD update.
+  a) If using wolfSSL for DTLS on the server side of a publicly accessible
+     machine you MUST update.
+  b) If using wolfSSL for TLS on the server side with private RSA keys allowing
+     ephemeral key exchange without low memory optimziations you MUST update and
+     regenerate the private RSA keys.
+
+     Please see https://www.wolfssl.com/wolfSSL/Blog/Blog.html for more details
+
+- No filesystem build fixes for various configurations
+- Certificate generation now supports several extensions including KeyUsage,
+    SKID, AKID, and Ceritifcate Policies
+- CRLs can be loaded from buffers as well as files now
+- SHA-512 Ceritifcate Signing generation
+- Fixes for sniffer reassembly processing
+
+See INSTALL file for build instructions.
+More info can be found on-line at //http://wolfssl.com/yaSSL/Docs.html
+
 #wolfSSL (Formerly CyaSSL) Release 3.6.6 (08/20/2015)
 
 ##Release 3.6.6 of wolfSSL has bug fixes and new features including:
