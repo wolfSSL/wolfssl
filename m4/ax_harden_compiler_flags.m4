@@ -62,7 +62,8 @@
 # AX_APPEND_COMPILE_FLAGS([-floop-parallelize-all],,[$ax_append_compile_cflags_extra]) -- causes RSA verify problem on x64
 # AX_APPEND_COMPILE_FLAGS([-Wunreachable-code],,[$ax_append_compile_cflags_extra])  -- older clang and when gcc had it are buggy
 
-#serial 4.1
+#serial 4.2
+# changes: deleted the clearing of CFLAGS
 
   AC_DEFUN([AX_HARDEN_LINKER_FLAGS], [
       AC_REQUIRE([AX_VCS_CHECKOUT])
@@ -97,7 +98,6 @@
 
       AC_LANG_PUSH([C])
 
-      CFLAGS=
       ac_cv_warnings_as_errors=no
       ax_append_compile_cflags_extra=
       AS_IF([test "$ac_cv_vcs_checkout" = "yes"],[

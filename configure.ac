@@ -10,6 +10,10 @@ AC_INIT([wolfssl],[3.6.8],[https://github.com/wolfssl/wolfssl/issues],[wolfssl],
 
 AC_CONFIG_AUX_DIR([build-aux])
 
+# The following sets CFLAGS to empty if unset on command line. We do not want
+# the default "-g -O2" that AC_PROG_CC sets automatically.
+: ${CFLAGS=""}
+
 AC_CANONICAL_HOST
 AC_CANONICAL_BUILD
 
