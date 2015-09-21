@@ -2134,6 +2134,8 @@ struct WOLFSSL_X509 {
     int              serialSz;
     byte             serial[EXTERNAL_SERIAL_SIZE];
     char             subjectCN[ASN_NAME_MAX];        /* common name short cut */
+    wolfSSL_Mutex    countMutex;                     /* reference count mutex */
+    int              refCount;                       /* reference count */
 #ifdef WOLFSSL_SEP
     int              deviceTypeSz;
     byte             deviceType[EXTERNAL_SERIAL_SIZE];
@@ -2633,7 +2635,7 @@ WOLFSSL_LOCAL word32  LowResTimer(void);
 
 WOLFSSL_LOCAL void InitX509Name(WOLFSSL_X509_NAME*, int);
 WOLFSSL_LOCAL void FreeX509Name(WOLFSSL_X509_NAME* name);
-WOLFSSL_LOCAL void InitX509(WOLFSSL_X509*, int);
+WOLFSSL_LOCAL int InitX509(WOLFSSL_X509*, int);
 WOLFSSL_LOCAL void FreeX509(WOLFSSL_X509*);
 #ifndef NO_CERTS
     WOLFSSL_LOCAL int  CopyDecodedToX509(WOLFSSL_X509*, DecodedCert*);

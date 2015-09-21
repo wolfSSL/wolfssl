@@ -1498,10 +1498,17 @@ void FreeX509Name(WOLFSSL_X509_NAME* name)
 
 
 /* Initialize wolfSSL X509 type */
-void InitX509(WOLFSSL_X509* x509, int dynamicFlag)
+int InitX509(WOLFSSL_X509* x509, int dynamicFlag)
 {
     InitX509Name(&x509->issuer, 0);
     InitX509Name(&x509->subject, 0);
+
+    x509->refCount = 1;
+    if (InitMutex(&x509->countMutex) < 0) {
+        WOLFSSL_MSG("Mutex error on x509 init");
+        return BAD_MUTEX_E;
+    }
+
     x509->version        = 0;
     x509->pubKey.buffer  = NULL;
     x509->sig.buffer     = NULL;
@@ -1536,14 +1543,32 @@ void InitX509(WOLFSSL_X509* x509, int dynamicFlag)
         x509->certPolicyCrit = 0;
     #endif /* WOLFSSL_SEP */
 #endif /* OPENSSL_EXTRA */
+    return 0;
 }
 
 
 /* Free wolfSSL X509 type */
 void FreeX509(WOLFSSL_X509* x509)
 {
+    int doFree = 0;
     if (x509 == NULL)
         return;
+
+    if (LockMutex(&x509->countMutex) != 0) {
+        WOLFSSL_MSG("Couldn't lock count mutex");
+        return;
+    }
+    x509->refCount--;
+    if (x509->refCount <= 0) {
+        WOLFSSL_MSG("X509 ref count 0, doing full free");
+        doFree = 1;
+    }
+    UnLockMutex(&x509->countMutex);
+
+    if (!doFree) {
+        WOLFSSL_MSG("X509 ref count not 0, no free yet");
+        return;
+    }
 
     FreeX509Name(&x509->issuer);
     FreeX509Name(&x509->subject);
@@ -1780,10 +1805,6 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
     ssl->buffers.outputBuffer.buffer = ssl->buffers.outputBuffer.staticBuffer;
     ssl->buffers.outputBuffer.bufferSize  = STATIC_BUFFER_LEN;
 
-#ifdef KEEP_PEER_CERT
-    InitX509(&ssl->peerCert, 0);
-#endif
-
     ssl->rfd = -1;   /* set to invalid descriptor */
     ssl->wfd = -1;
 
@@ -1838,6 +1859,13 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
 
     InitCiphers(ssl);
     InitCipherSpecs(&ssl->specs);
+
+#ifdef KEEP_PEER_CERT
+    if(InitX509(&ssl->peerCert, 0) != 0) {
+        WOLFSSL_MSG("Unable to initialize peer cert");
+        return MEMORY_E;
+    }
+#endif
 
     /* all done with init, now can return errors, call other stuff */
 
