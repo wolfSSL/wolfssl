@@ -8979,10 +8979,17 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
     WOLFSSL_X509* wolfSSL_get_peer_certificate(WOLFSSL* ssl)
     {
         WOLFSSL_ENTER("SSL_get_peer_certificate");
-        if (ssl->peerCert.issuer.sz)
-            return &ssl->peerCert;
-        else
-            return 0;
+        WOLFSSL_X509* peerCert;
+
+        if (ssl && ssl->peerCert.issuer.sz) {
+            peerCert = &ssl->peerCert;
+            if (LockMutex(&peerCert->countMutex) == 0 ) {
+                peerCert->refCount++;
+                UnLockMutex(&peerCert->countMutex);
+                return peerCert;
+            }
+        }
+        return 0;
     }
 
 #endif /* KEEP_PEER_CERT */
@@ -9492,8 +9499,12 @@ WOLFSSL_X509* wolfSSL_X509_d2i(WOLFSSL_X509** x509, const byte* in, int len)
             newX509 = (WOLFSSL_X509*)XMALLOC(sizeof(WOLFSSL_X509), NULL,
                                              DYNAMIC_TYPE_X509);
             if (newX509 != NULL) {
-                InitX509(newX509, 1);
-                if (CopyDecodedToX509(newX509, cert) != 0) {
+                if(!InitX509(newX509, 1)) {
+                    wolfSSL_FreeX509(newX509);
+                    XFREE(newX509, NULL, DYNAMIC_TYPE_X509);
+                    newX509 = NULL;
+                } else if (CopyDecodedToX509(newX509, cert) != 0) {
+                    wolfSSL_FreeX509(newX509);
                     XFREE(newX509, NULL, DYNAMIC_TYPE_X509);
                     newX509 = NULL;
                 }
@@ -9679,8 +9690,12 @@ WOLFSSL_X509* wolfSSL_X509_load_certificate_file(const char* fname, int format)
                 x509 = (WOLFSSL_X509*)XMALLOC(sizeof(WOLFSSL_X509), NULL,
                                                              DYNAMIC_TYPE_X509);
                 if (x509 != NULL) {
-                    InitX509(x509, 1);
-                    if (CopyDecodedToX509(x509, cert) != 0) {
+                    if(!InitX509(x509, 1)) {
+                        wolfSSL_FreeX509(x509);
+                        XFREE(x509, NULL, DYNAMIC_TYPE_X509);
+                        x509 = NULL;
+                } else if (CopyDecodedToX509(x509, cert) != 0) {
+                        wolfSSL_FreeX509(x509);
                         XFREE(x509, NULL, DYNAMIC_TYPE_X509);
                         x509 = NULL;
                     }
@@ -10189,7 +10204,8 @@ WOLFSSL_SESSION* wolfSSL_get1_session(WOLFSSL* ssl)  /* what's ref count */
 
 void wolfSSL_X509_free(WOLFSSL_X509* buf)
 {
-    FreeX509(buf);
+    WOLFSSL_ENTER("wolfSSL_X509_free");
+    wolfSSL_FreeX509(buf);
 }
 
 
@@ -15613,9 +15629,12 @@ WOLFSSL_X509* wolfSSL_get_chain_X509(WOLFSSL_X509_CHAIN* chain, int idx)
                     WOLFSSL_MSG("Failed alloc X509");
                 }
                 else {
-                    InitX509(x509, 1);
-
-                    if ((ret = CopyDecodedToX509(x509, cert)) != 0) {
+                    if(!InitX509(x509, 1)) {
+                        wolfSSL_FreeX509(x509);
+                        XFREE(x509, NULL, DYNAMIC_TYPE_X509);
+                        x509 = NULL;
+                    } else if ((ret = CopyDecodedToX509(x509, cert)) != 0) {
+                        wolfSSL_FreeX509(x509);
                         WOLFSSL_MSG("Failed to copy decoded");
                         XFREE(x509, NULL, DYNAMIC_TYPE_X509);
                         x509 = NULL;

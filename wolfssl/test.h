@@ -368,6 +368,7 @@ static INLINE void showPeer(WOLFSSL* ssl)
         ShowX509(peer, "peer's cert info:");
     else
         printf("peer has no cert!\n");
+    wolfSSL_FreeX509(peer);
 #endif
     printf("SSL version is %s\n", wolfSSL_get_version(ssl));
 
