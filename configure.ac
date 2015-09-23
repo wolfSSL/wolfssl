@@ -52,6 +52,7 @@ AC_SUBST([WOLFSSL_LIBRARY_VERSION])
 # capture user C_EXTRA_FLAGS from ./configure line, CFLAGS may hold -g -O2 even
 # if user doesn't override, no way to tell
 USER_C_EXTRA_FLAGS="$C_EXTRA_FLAGS"
+USER_CFLAGS="$CFLAGS"
 
 LT_PREREQ([2.2])
 LT_INIT([disable-static],[win32-dll])
@@ -2256,7 +2257,7 @@ esac
 
 # add user C_EXTRA_FLAGS back
 CFLAGS="$CFLAGS $USER_C_EXTRA_FLAGS"
-OPTION_FLAGS="$USER_C_EXTRA_FLAGS $AM_CFLAGS"
+OPTION_FLAGS="$USER_CFLAGS $USER_C_EXTRA_FLAGS $AM_CFLAGS"
 
 CREATE_HEX_VERSION
 AC_SUBST([AM_CPPFLAGS])
