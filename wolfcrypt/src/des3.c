@@ -1376,7 +1376,7 @@ int wc_Des_CbcEncrypt(Des* des, byte* out, const byte* in, word32 sz)
         XMEMCPY(out, des->reg, DES_BLOCK_SIZE);
 
         out += DES_BLOCK_SIZE;
-        in  += DES_BLOCK_SIZE; 
+        in  += DES_BLOCK_SIZE;
     }
     return 0;
 }
@@ -1385,19 +1385,15 @@ int wc_Des_CbcEncrypt(Des* des, byte* out, const byte* in, word32 sz)
 int wc_Des_CbcDecrypt(Des* des, byte* out, const byte* in, word32 sz)
 {
     word32 blocks = sz / DES_BLOCK_SIZE;
-    byte   hold[DES_BLOCK_SIZE];
 
     while (blocks--) {
         XMEMCPY(des->tmp, in, DES_BLOCK_SIZE);
         DesProcessBlock(des, (byte*)des->tmp, out);
         xorbuf(out, (byte*)des->reg, DES_BLOCK_SIZE);
-
-        XMEMCPY(hold, des->reg, DES_BLOCK_SIZE);
         XMEMCPY(des->reg, des->tmp, DES_BLOCK_SIZE);
-        XMEMCPY(des->tmp, hold, DES_BLOCK_SIZE);
 
         out += DES_BLOCK_SIZE;
-        in  += DES_BLOCK_SIZE; 
+        in  += DES_BLOCK_SIZE;
     }
     return 0;
 }
@@ -1419,7 +1415,7 @@ int wc_Des3_CbcEncrypt(Des3* des, byte* out, const byte* in, word32 sz)
         XMEMCPY(out, des->reg, DES_BLOCK_SIZE);
 
         out += DES_BLOCK_SIZE;
-        in  += DES_BLOCK_SIZE; 
+        in  += DES_BLOCK_SIZE;
     }
     return 0;
 }
