@@ -44,7 +44,7 @@
 #ifndef WOLFSSL_ALLOW_NO_SUITES
     #if defined(NO_DH) && !defined(HAVE_ECC) && !defined(WOLFSSL_STATIC_RSA) \
                   && !defined(WOLFSSL_STATIC_DH) && !defined(WOLFSSL_STATIC_PSK)
-        #error "No cipher suites defined becuase DH disabled, ECC disabled, and no static suites defined. Please see top of README"
+        #error "No cipher suites defined because DH disabled, ECC disabled, and no static suites defined. Please see top of README"
     #endif
 #endif
 
@@ -373,7 +373,7 @@ int wolfSSL_dtls_get_peer(WOLFSSL* ssl, void* peer, unsigned int* peerSz)
 #endif /* WOLFSSL_LEANPSK */
 
 
-/* return underlyig connect or accept, SSL_SUCCESS on ok */
+/* return underlying connect or accept, SSL_SUCCESS on ok */
 int wolfSSL_negotiate(WOLFSSL* ssl)
 {
     int err = SSL_FATAL_ERROR;
@@ -1732,7 +1732,7 @@ int wolfSSL_pending(WOLFSSL* ssl)
 
 
 #ifndef WOLFSSL_LEANPSK
-/* trun on handshake group messages for context */
+/* turn on handshake group messages for context */
 int wolfSSL_CTX_set_group_messages(WOLFSSL_CTX* ctx)
 {
     if (ctx == NULL)
@@ -1764,7 +1764,7 @@ int wolfSSL_connect_cert(WOLFSSL* ssl)
 
 
 #ifndef WOLFSSL_LEANPSK
-/* trun on handshake group messages for ssl object */
+/* turn on handshake group messages for ssl object */
 int wolfSSL_set_group_messages(WOLFSSL* ssl)
 {
     if (ssl == NULL)
@@ -1776,7 +1776,7 @@ int wolfSSL_set_group_messages(WOLFSSL* ssl)
 }
 
 
-/* make minVersion the internal equivilant SSL version */
+/* make minVersion the internal equivalent SSL version */
 static int SetMinVersionHelper(byte* minVersion, int version)
 {
     switch (version) {
