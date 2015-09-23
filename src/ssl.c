@@ -8988,12 +8988,30 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
 #endif /* KEEP_PEER_CERT */
 
 
+#if defined(KEEP_PEER_CERT) || defined(SESSION_CERTS) || defined(OPENSSSL_EXTRA)
+
+/* user externally called free X509, if dynamic go ahead with free, otherwise
+ * don't */
+static void ExternalFreeX509(WOLFSSL_X509* x509)
+{
+    WOLFSSL_ENTER("ExternalFreeX509");
+    if (x509) {
+        if (x509->dynamicMemory) {
+            FreeX509(x509);
+        } else {
+            WOLFSSL_MSG("free called on non dynamic object, not freeing");
+        }
+    }
+}
+
+#endif /* KEEP_PEER_CERT || SESSION_CERTS || OPENSSSL_EXTRA */
+
 #if defined(KEEP_PEER_CERT) || defined(SESSION_CERTS)
 
     void wolfSSL_FreeX509(WOLFSSL_X509* x509)
     {
         WOLFSSL_ENTER("wolfSSL_FreeX509");
-        FreeX509(x509);
+        ExternalFreeX509(x509);
     }
 
 
@@ -10187,9 +10205,10 @@ WOLFSSL_SESSION* wolfSSL_get1_session(WOLFSSL* ssl)  /* what's ref count */
 }
 
 
-void wolfSSL_X509_free(WOLFSSL_X509* buf)
+void wolfSSL_X509_free(WOLFSSL_X509* x509)
 {
-    FreeX509(buf);
+    WOLFSSL_ENTER("wolfSSL_X509_free");
+    ExternalFreeX509(x509);
 }
 
 
