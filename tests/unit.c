@@ -50,6 +50,9 @@ int unit_test(int argc, char** argv)
     (void)argv;
     printf("starting unit tests...\n");
 
+#if defined(DEBUG_WOLFSSL) && !defined(HAVE_VALGRIND)
+    wolfSSL_Debugging_ON();
+#endif
 #ifdef HAVE_CAVIUM
     ret = OpenNitroxDevice(CAVIUM_DIRECT, CAVIUM_DEV_ID);
     if (ret != 0)

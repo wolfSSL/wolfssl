@@ -23,8 +23,6 @@
     #include <config.h>
 #endif
 
-#include <stdio.h>
-
 #include <wolfssl/wolfcrypt/settings.h>
 
 #ifdef HAVE_IDEA

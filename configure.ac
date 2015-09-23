@@ -1155,7 +1155,7 @@ AM_CONDITIONAL([BUILD_DES3], [test "x$ENABLED_DES3" = "xyes"])
 
 # IDEA
 AC_ARG_ENABLE([idea],
-[  --enable-idea            Enable IDEA (default: disabled)],
+[AS_HELP_STRING([--enable-idea],[Enable IDEA Cipher (default: disabled)])],
 [ ENABLED_IDEA=$enableval ],
 [ ENABLED_IDEA=no ]
 )
