@@ -1153,6 +1153,22 @@ fi
 AM_CONDITIONAL([BUILD_DES3], [test "x$ENABLED_DES3" = "xyes"])
 
 
+# IDEA
+AC_ARG_ENABLE([idea],
+[  --enable-idea            Enable IDEA (default: disabled)],
+[ ENABLED_IDEA=$enableval ],
+[ ENABLED_IDEA=no ]
+)
+
+if test "x$ENABLED_IDEA" = "xyes"
+then
+AM_CFLAGS="$AM_CFLAGS -DHAVE_IDEA"
+fi
+
+AM_CONDITIONAL([BUILD_IDEA], [test "x$ENABLED_IDEA" = "xyes"])
+
+
+
 # ARC4
 AC_ARG_ENABLE([arc4],
     [  --enable-arc4           Enable ARC4 (default: disabled)],
@@ -2405,6 +2421,7 @@ echo "   * AES-NI:                    $ENABLED_AESNI"
 echo "   * AES-GCM:                   $ENABLED_AESGCM"
 echo "   * AES-CCM:                   $ENABLED_AESCCM"
 echo "   * DES3:                      $ENABLED_DES3"
+echo "   * IDEA:                      $ENABLED_IDEA"
 echo "   * Camellia:                  $ENABLED_CAMELLIA"
 echo "   * NULL Cipher:               $ENABLED_NULL_CIPHER"
 echo "   * MD5:                       $ENABLED_MD5"

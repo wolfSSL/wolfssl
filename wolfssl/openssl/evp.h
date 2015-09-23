@@ -73,6 +73,7 @@ WOLFSSL_API const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aes_256_ctr(void);
 WOLFSSL_API const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_des_cbc(void);
 WOLFSSL_API const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_des_ede3_cbc(void);
 WOLFSSL_API const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_rc4(void);
+WOLFSSL_API const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_idea_cbc(void);
 WOLFSSL_API const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_enc_null(void);
 
 
@@ -109,6 +110,9 @@ typedef union {
     Des3 des3;
 #endif
     Arc4 arc4;
+#ifdef HAVE_IDEA
+    Idea idea;
+#endif
 } WOLFSSL_Cipher;
 
 
@@ -126,6 +130,7 @@ enum {
     EVP_PKEY_RSA      = 11,
     EVP_PKEY_DSA      = 12,
 	EVP_PKEY_EC		  = 13,
+    IDEA_CBC_TYPE     = 14,
     NID_sha1          = 64,
     NID_md5           =  4
 };
@@ -224,6 +229,7 @@ typedef WOLFSSL_EVP_CIPHER_CTX EVP_CIPHER_CTX;
 #define EVP_des_cbc      wolfSSL_EVP_des_cbc
 #define EVP_des_ede3_cbc wolfSSL_EVP_des_ede3_cbc
 #define EVP_rc4          wolfSSL_EVP_rc4
+#define EVP_idea_cbc     wolfSSL_EVP_idea_cbc
 #define EVP_enc_null     wolfSSL_EVP_enc_null
 
 #define EVP_MD_size        wolfSSL_EVP_MD_size

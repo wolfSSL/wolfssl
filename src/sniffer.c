@@ -1939,6 +1939,12 @@ static int Decrypt(SSL* ssl, byte* output, const byte* input, word32 sz)
             break;
         #endif
 
+        #ifdef HAVE_IDEA
+        case wolfssl_idea:
+            wc_IdeaCbcDecrypt(ssl->decrypt.idea, output, input, sz);
+            break;
+        #endif
+
         default:
             Trace(BAD_DECRYPT_TYPE);
             ret = -1;
