@@ -166,6 +166,11 @@ void wc_AesFreeCavium(Aes* aes)
     AesFreeCavium(aes);
 }
 #endif
+
+#ifdef WOLFSSL_AESNI
+void wc_wolfHasAesni() { /* Do Nothing */ }
+#endif
+
 #else /* HAVE_FIPS */
 
 #ifdef WOLFSSL_TI_CRYPT
@@ -950,6 +955,9 @@ static int Check_CPU_support_AES(void)
 static int checkAESNI = 0;
 static int haveAESNI  = 0;
 
+#ifdef WOLFSSL_AESNI
+void wc_wolfHasAesni() { /* Do Nothing */ }
+#endif
 
 /* tell C compiler these are asm functions in case any mix up of ABI underscore
    prefix between clang/gcc/llvm etc */
