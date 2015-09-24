@@ -950,6 +950,7 @@ static int Check_CPU_support_AES(void)
 static int checkAESNI = 0;
 static int haveAESNI  = 0;
 
+void wc_wolfHasAesni() { /* Do Nothing */ }
 
 /* tell C compiler these are asm functions in case any mix up of ABI underscore
    prefix between clang/gcc/llvm etc */
