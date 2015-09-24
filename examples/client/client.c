@@ -203,8 +203,10 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 
     word16 port   = wolfSSLPort;
     char* host   = (char*)wolfSSLIP;
-    const char* domain = "www.wolfssl.com";
-
+    const char* domain = "localhost";  /* can't default to www.wolfssl.com
+                                          because can't tell if we're really
+                                          going there to detect old chacha-poly
+                                       */
     int    ch;
     int    version = CLIENT_INVALID_VERSION;
     int    usePsk   = 0;
@@ -784,8 +786,9 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     }
 
 #ifdef HAVE_POLY1305
-    /* use old poly to connect with google server */
-    if (!XSTRNCMP(domain, "www.google.com", 14)) {
+    /* use old poly to connect with google and wolfssl.com server */
+    if (!XSTRNCMP(domain, "www.google.com", 14) ||
+        !XSTRNCMP(domain, "www.wolfssl.com", 15)) {
         if (wolfSSL_use_old_poly(ssl, 1) != 0)
             err_sys("unable to set to old poly");
     }
