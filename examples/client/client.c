@@ -502,8 +502,9 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
         #endif
 
         #if !defined(HAVE_ECC) && !defined(WOLFSSL_STATIC_RSA)
-            if (!XSTRNCMP(domain, "www.google.com", 14)) {
-                done = 1;  /* google needs ECDHE or static RSA */
+            if (!XSTRNCMP(domain, "www.google.com", 14) ||
+                !XSTRNCMP(domain, "www.wolfssl.com", 15)) {
+                done = 1;  /* google/wolfssl need ECDHE or static RSA */
             }
         #endif
 
