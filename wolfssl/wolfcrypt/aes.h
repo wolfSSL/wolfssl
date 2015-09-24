@@ -126,6 +126,10 @@ typedef struct Gmac {
 #endif /* HAVE_AESGCM */
 #endif /* HAVE_FIPS */
 
+#ifdef WOLFSSL_AESNI
+WOLFSSL_API void wc_wolfHasAesni(void);
+#endif
+
 WOLFSSL_API int  wc_AesSetKey(Aes* aes, const byte* key, word32 len,
                               const byte* iv, int dir);
 WOLFSSL_API int  wc_AesSetIV(Aes* aes, const byte* iv);
