@@ -46,17 +46,19 @@
  */
 static INLINE word16 idea_mult(word16 x, word16 y)
 {
-    word32  mul, res;
+    long mul, res;
 
-    mul = (word32)x * (word32)y;
+    mul = x * y;
     if (mul) {
         res = (mul & IDEA_MASK) - (mul >> 16);
-        res -= (res >> 16);
         return (word16) ((res <=0 ? res+IDEA_MODULO : res) & IDEA_MASK);
     }
 
-    /* x == 0 or y == 0 */
-    return (-x -y + 1);
+    if (!x)
+        return (IDEA_MODULO - y);
+
+    /* !y */
+    return (IDEA_MODULO - x);
 }
 
 /* compute 1/a modulo 2^16+1 using Extended euclidean algorithm
@@ -97,7 +99,7 @@ static INLINE word16 idea_invmod(word16 x)
             d -= b;
         }
     } while (u);
-    
+
     /* d is now the inverse, put positive value if required */
     if (d < 0)
         d += IDEA_MODULO;
@@ -243,8 +245,8 @@ int wc_IdeaCbcEncrypt(Idea *idea, byte* out, const byte* in, word32 len)
 
     blocks = len / IDEA_BLOCK_SIZE;
     while (blocks--) {
-        xorbuf(idea->reg, in, IDEA_BLOCK_SIZE);
-        wc_IdeaCipher(idea, idea->reg, idea->reg);
+        xorbuf((byte*)idea->reg, in, IDEA_BLOCK_SIZE);
+        wc_IdeaCipher(idea, (byte*)idea->reg, (byte*)idea->reg);
         XMEMCPY(out, idea->reg, IDEA_BLOCK_SIZE);
 
         out += IDEA_BLOCK_SIZE;
@@ -257,17 +259,16 @@ int wc_IdeaCbcEncrypt(Idea *idea, byte* out, const byte* in, word32 len)
 int wc_IdeaCbcDecrypt(Idea *idea, byte* out, const byte* in, word32 len)
 {
     int  blocks;
-    byte tmp[IDEA_BLOCK_SIZE];
 
     if (idea == NULL || out == NULL || in == NULL)
         return BAD_FUNC_ARG;
 
     blocks = len / IDEA_BLOCK_SIZE;
     while (blocks--) {
-        XMEMCPY(tmp, in, IDEA_BLOCK_SIZE);
-        wc_IdeaCipher(idea, out, tmp);
-        xorbuf(out, idea->reg, IDEA_BLOCK_SIZE);
-        XMEMCPY(idea->reg, tmp, IDEA_BLOCK_SIZE);
+        XMEMCPY((byte*)idea->tmp, in, IDEA_BLOCK_SIZE);
+        wc_IdeaCipher(idea, out, (byte*)idea->tmp);
+        xorbuf(out, (byte*)idea->reg, IDEA_BLOCK_SIZE);
+        XMEMCPY(idea->reg, idea->tmp, IDEA_BLOCK_SIZE);
 
         out += IDEA_BLOCK_SIZE;
         in  += IDEA_BLOCK_SIZE;

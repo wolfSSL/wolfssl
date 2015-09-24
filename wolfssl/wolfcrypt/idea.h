@@ -45,8 +45,9 @@ enum {
 
 /* IDEA encryption and decryption */
 typedef struct Idea {
-    byte   reg[IDEA_BLOCK_SIZE];    /* for CBC mode */
-    word16 skey[IDEA_SK_NUM];       /* 832 bits expanded key */
+    word32  reg[IDEA_BLOCK_SIZE / sizeof(word32)]; /* for CBC mode */
+    word32  tmp[IDEA_BLOCK_SIZE / sizeof(word32)]; /* for CBC mode */
+    word16  skey[IDEA_SK_NUM]; /* 832 bits expanded key */
 } Idea;
 
 WOLFSSL_API int wc_IdeaSetKey(Idea *idea, const byte* key, word16 keySz,
