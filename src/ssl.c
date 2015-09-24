@@ -2459,8 +2459,11 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
         headerEnd++;
     else if (headerEnd[1] == '\n')
         headerEnd += 2;
-    else
+    else {
+        if (info)
+            info->consumed = (long)(headerEnd+2 - (char*)buff);
         return SSL_BAD_FILE;
+    }
 
     if (type == PRIVATEKEY_TYPE) {
         if (eccKey)
@@ -2517,8 +2520,11 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
 
     /* find footer */
     footerEnd = XSTRNSTR((char*)buff, footer, sz);
-    if (!footerEnd)
+    if (!footerEnd) {
+        if (info)
+            info->consumed = longSz; /* No more certs if no footer */
         return SSL_BAD_FILE;
+    }
 
     consumedEnd = footerEnd + XSTRLEN(footer);
 
@@ -2528,8 +2534,11 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
             consumedEnd++;
         else if (consumedEnd[1] == '\n')
             consumedEnd += 2;
-        else
+        else {
+            if (info)
+                info->consumed = (long)(consumedEnd+2 - (char*)buff);
             return SSL_BAD_FILE;
+        }
     }
 
     if (info)
@@ -2664,6 +2673,10 @@ static int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
 
     if (format == SSL_FILETYPE_PEM) {
         ret = PemToDer(buff, sz, type, &der, heap, info, &eccKey);
+
+        if (used)
+            *used = info->consumed;
+
         if (ret < 0) {
         #ifdef WOLFSSL_SMALL_STACK
             XFREE(info, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -2671,9 +2684,6 @@ static int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
             XFREE(der.buffer, heap, dynamicType);
             return ret;
         }
-
-        if (used)
-            *used = info->consumed;
 
         /* we may have a user cert chain, try to consume */
         if (userChain && type == CERT_TYPE && info->consumed < sz) {
@@ -3022,20 +3032,29 @@ static int ProcessChainBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
         ret = ProcessBuffer(ctx, buff + used, sz - used, format, type, ssl,
                             &consumed, 0);
 
-        if (ret == SSL_NO_PEM_HEADER && gotOne) {
-            WOLFSSL_MSG("We got one good PEM file so stuff at end ok");
-            ret = SSL_SUCCESS;
-            break;
-        }
-
         if (ret < 0)
-            break;
-
-        WOLFSSL_MSG("   Processed a CA");
-        gotOne = 1;
+        {
+            if(consumed > 0) { /* Made progress in file */
+                WOLFSSL_ERROR(ret);
+                WOLFSSL_MSG("CA Parse failed, with progress in file.");
+                WOLFSSL_MSG("Search for other certs in file");
+            } else {
+                WOLFSSL_MSG("CA Parse failed, no progress in file.");
+                WOLFSSL_MSG("Do not continue search for other certs in file");
+                break;
+            }
+        } else {
+            WOLFSSL_MSG("   Processed a CA");
+            gotOne = 1;
+        }
         used += consumed;
     }
 
+    if(gotOne)
+    {
+        WOLFSSL_MSG("Processed at least one valid CA. Other stuff OK");
+        return SSL_SUCCESS;
+    }
     return ret;
 }
 
