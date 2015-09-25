@@ -66,7 +66,7 @@ int UnLockMutex(wolfSSL_Mutex *m)
 
 #else /* MULTI_THREAD */
 
-    #if defined(FREERTOS)
+    #if defined(FREERTOS)  || defined(FREERTOS_TCP)
 
         int InitMutex(wolfSSL_Mutex* m)
         {
