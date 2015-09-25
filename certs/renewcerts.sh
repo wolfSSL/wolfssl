@@ -81,6 +81,19 @@ function run_renewcerts(){
 
     openssl x509 -in ca-cert.pem -text > tmp.pem
     mv tmp.pem ca-cert.pem
+    ############################################################
+    ##### update the self-signed (1024-bit) ca-cert.pem ########
+    ############################################################
+    echo "Updating 1024-bit ca-cert.pem"
+    echo ""
+    #pipe the following arguments to openssl req...
+    echo -e  "US\nMontana\nBozeman\nSawtooth\nConsulting_1024\nwww.wolfssl.com\ninfo@wolfssl.com\n.\n.\n" | openssl req -new -key \1024/ca-key.pem -nodes -out \1024/ca-cert.csr
+
+    openssl x509 -req -in \1024/ca-cert.csr -days 1000 -extfile wolfssl.cnf -extensions wolfssl_opts -signkey \1024/ca-key.pem -out \1024/ca-cert.pem
+    rm \1024/ca-cert.csr
+
+    openssl x509 -in \1024/ca-cert.pem -text > \1024/tmp.pem
+    mv \1024/tmp.pem \1024/ca-cert.pem
     ###########################################################
     ########## update and sign server-cert.pem ################
     ###########################################################
@@ -115,6 +128,23 @@ function run_renewcerts(){
     mv srv_tmp.pem server-revoked-cert.pem
     cat ca_tmp.pem >> server-revoked-cert.pem
     rm ca_tmp.pem
+    ###########################################################
+    #### update and sign (1024-bit) server-cert.pem ###########
+    ###########################################################
+    echo "Updating 1024-bit server-cert.pem"
+    echo ""
+    #pipe the following arguments to openssl req...
+    echo -e "US\nMontana\nBozeman\nwolfSSL\nSupport_1024\nwww.wolfssl.com\ninfo@wolfssl.com\n.\n.\n" | openssl req -new -key \1024/server-key.pem -nodes > \1024/server-req.pem
+
+    openssl x509 -req -in \1024/server-req.pem -extfile wolfssl.cnf -extensions wolfssl_opts -days 1000 -CA \1024/ca-cert.pem -CAkey \1024/ca-key.pem -set_serial 01 > \1024/server-cert.pem
+
+    rm \1024/server-req.pem
+
+    openssl x509 -in \1024/ca-cert.pem -text > \1024/ca_tmp.pem
+    openssl x509 -in \1024/server-cert.pem -text > \1024/srv_tmp.pem
+    mv \1024/srv_tmp.pem \1024/server-cert.pem
+    cat \1024/ca_tmp.pem >> \1024/server-cert.pem
+    rm \1024/ca_tmp.pem
     ############################################################
     ########## update and sign the server-ecc-rsa.pem ##########
     ############################################################
