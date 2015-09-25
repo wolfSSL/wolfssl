@@ -57,7 +57,7 @@
 /* Uncomment next line if using FreeRTOS */
 /* #define FREERTOS */
 
-/* Uncomment next line if using FreeRTOS-Plus TCP */
+/* Uncomment next line if using FreeRTOS+ TCP */
 /* #define FREERTOS_TCP */
 
 /* Uncomment next line if using FreeRTOS Windows Simulator */
@@ -416,10 +416,7 @@ static char *fgets(char *buff, int sz, FILE *fp)
 #define XFREE(p, h, type)    vPortFree((p))
 #endif
 
-#define CUSTOM_RAND_GENERATE testRandGen /* for test use only */
-static int testRandGen(void) {
-	return 0;
-}
+#define WOLFSSL_GENSEED_FORTEST
 
 #define NO_WOLFSSL_DIR
 #define NO_WRITEV
