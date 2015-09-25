@@ -48,17 +48,20 @@ static INLINE word16 idea_mult(word16 x, word16 y)
 {
     long mul, res;
 
-    mul = x * y;
+    mul = (long)x * (long)y;
     if (mul) {
         res = (mul & IDEA_MASK) - (mul >> 16);
-        return (word16) ((res <=0 ? res+IDEA_MODULO : res) & IDEA_MASK);
+        if (res <= 0)
+            res += IDEA_MODULO;
+
+        return (word16) (res & IDEA_MASK);
     }
 
     if (!x)
-        return (IDEA_MODULO - y);
+        return ((IDEA_MODULO - y) & IDEA_MASK);
 
     /* !y */
-    return (IDEA_MODULO - x);
+    return ((IDEA_MODULO - x) & IDEA_MASK);
 }
 
 /* compute 1/a modulo 2^16+1 using Extended euclidean algorithm
@@ -98,10 +101,10 @@ static INLINE word16 idea_invmod(word16 x)
             v -= u;
             d -= b;
         }
-    } while (u);
+    } while (u != 0);
 
     /* d is now the inverse, put positive value if required */
-    if (d < 0)
+    while (d < 0)
         d += IDEA_MODULO;
 
     return (word16)(d & IDEA_MASK);
