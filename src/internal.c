@@ -5942,8 +5942,8 @@ static INLINE int Encrypt(WOLFSSL* ssl, byte* out, const byte* input, word16 sz)
 
         #ifdef HAVE_IDEA
             case wolfssl_idea:
-                wc_IdeaCbcEncrypt(ssl->encrypt.idea, out, input, sz);
-                 break;
+                ret = wc_IdeaCbcEncrypt(ssl->encrypt.idea, out, input, sz);
+                break;
         #endif
 
             default:
@@ -6103,7 +6103,7 @@ static INLINE int Decrypt(WOLFSSL* ssl, byte* plain, const byte* input,
 
         #ifdef HAVE_IDEA
             case wolfssl_idea:
-                wc_IdeaCbcDecrypt(ssl->decrypt.idea, plain, input, sz);
+                ret = wc_IdeaCbcDecrypt(ssl->decrypt.idea, plain, input, sz);
                 break;
         #endif
 
