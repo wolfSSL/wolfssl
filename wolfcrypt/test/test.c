@@ -3358,6 +3358,74 @@ int idea_test(void)
             return -1;
         }
     }
+
+    /* random test for CBC */
+    {
+        WC_RNG rng;
+        byte key[IDEA_KEY_SIZE], iv[IDEA_BLOCK_SIZE],
+        rnd[1000], enc[1000], dec[1000];
+
+        /* random values */
+        ret = wc_InitRng(&rng);
+        if (ret != 0)
+            return -39;
+
+        for (i = 0; i < 1000; i++) {
+            /* random key */
+            ret = wc_RNG_GenerateBlock(&rng, key, sizeof(key));
+            if (ret != 0)
+                return -40;
+
+            /* random iv */
+            ret = wc_RNG_GenerateBlock(&rng, iv, sizeof(iv));
+            if (ret != 0)
+                return -40;
+
+            /* random data */
+            ret = wc_RNG_GenerateBlock(&rng, rnd, sizeof(rnd));
+            if (ret != 0)
+                return -41;
+
+            /* Set encryption key */
+            memset(&idea, 0, sizeof(Idea));
+            ret = wc_IdeaSetKey(&idea, key, IDEA_KEY_SIZE, iv, IDEA_ENCRYPTION);
+            if (ret != 0) {
+                printf("wc_IdeaSetKey (enc) failed\n");
+                return -42;
+            }
+
+            /* Data encryption */
+            memset(enc, 0, sizeof(enc));
+            ret = wc_IdeaCbcEncrypt(&idea, enc, rnd, sizeof(rnd));
+            if (ret != 0) {
+                printf("wc_IdeaCbcEncrypt failed\n");
+                return -43;
+            }
+
+            /* Set decryption key */
+            memset(&idea, 0, sizeof(Idea));
+            ret = wc_IdeaSetKey(&idea, key, IDEA_KEY_SIZE, iv, IDEA_DECRYPTION);
+            if (ret != 0) {
+                printf("wc_IdeaSetKey (enc) failed\n");
+                return -44;
+            }
+
+            /* Data decryption */
+            memset(dec, 0, sizeof(dec));
+            ret = wc_IdeaCbcDecrypt(&idea, dec, enc, sizeof(enc));
+            if (ret != 0) {
+                printf("wc_IdeaCbcDecrypt failed\n");
+                return -45;
+            }
+
+            if (XMEMCMP(rnd, dec, sizeof(rnd))) {
+                printf("Bad CBC decryption\n");
+                return -46;
+            }
+        }
+
+        wc_FreeRng(&rng);
+    }
     
     return 0;
 }
