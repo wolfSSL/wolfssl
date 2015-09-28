@@ -4,11 +4,24 @@
 
 lib_LTLIBRARIES+= src/libwolfssl.la
 src_libwolfssl_la_SOURCES =
-
 src_libwolfssl_la_LDFLAGS = ${AM_LDFLAGS} -no-undefined -version-info ${WOLFSSL_LIBRARY_VERSION}
-src_libwolfssl_la_LIBADD = $(LIBM)
+src_libwolfssl_la_LIBADD = $(LIBM) $(LIB_ADD) $(LIB_STATIC_ADD)
 src_libwolfssl_la_CFLAGS = -DBUILDING_WOLFSSL $(AM_CFLAGS)
 src_libwolfssl_la_CPPFLAGS = -DBUILDING_WOLFSSL $(AM_CPPFLAGS)
+
+# install the packaged IPP libraries
+if BUILD_FAST_RSA
+
+# Link needed IPP libraries
+noinst_SCRIPTS+=IPP_links
+IPP_links:
+	@$(IPPLINK)
+
+ippdir = $(libdir)
+ipp_DATA = $(IPPLIBS)
+
+include_HEADERS+=$(IPPHEADERS)
+endif # BUILD_FAST_RSA
 
 # fips first  file
 if BUILD_FIPS
@@ -52,8 +65,14 @@ src_libwolfssl_la_SOURCES += \
                wolfcrypt/src/sha256.c \
                wolfcrypt/src/hash.c
 
+if !BUILD_USER_RSA
 if BUILD_RSA
+if BUILD_FAST_RSA
+src_libwolfssl_la_SOURCES += wolfcrypt/user-crypto/src/rsa.c
+else
 src_libwolfssl_la_SOURCES += wolfcrypt/src/rsa.c
+endif
+endif
 endif
 
 if BUILD_AES
