@@ -508,6 +508,11 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
             }
         #endif
 
+        #if !defined(HAVE_AESGCM) && defined(NO_AES) && \
+            !(defined(HAVE_CHACHA) && defined(HAVE_POLY1305))
+            done = 1;  /* need at least on of these for external tests */
+        #endif
+
         if (done) {
             printf("external test can't be run in this mode");
 
