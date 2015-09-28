@@ -105,6 +105,9 @@ static INLINE word16 idea_invmod(word16 x)
     while (d < 0)
         d += IDEA_MODULO;
 
+    /* d must be < IDEA_MODULO */
+    d %= IDEA_MODULO;
+
     return (word16)(d & IDEA_MASK);
 }
 
