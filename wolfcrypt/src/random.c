@@ -102,7 +102,7 @@ int  wc_RNG_GenerateByte(WC_RNG* rng, byte* b)
     #include <wincrypt.h>
 #else
     #if !defined(NO_DEV_RANDOM) && !defined(CUSTOM_RAND_GENERATE) && \
-                          !defined(WOLFSSL_MDK_ARM) && !defined(WOLFSSL_IAR_ARM)
+        !defined(WOLFSSL_GENSEED_FORTEST) && !defined(WOLFSSL_MDK_ARM) && !defined(WOLFSSL_IAR_ARM)
             #include <fcntl.h>
         #ifndef EBSNET
             #include <unistd.h>
@@ -1185,7 +1185,11 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
    || defined(WOLFSSL_uITRON4)  || defined(WOLFSSL_uTKERNEL2)\
    || defined(WOLFSSL_GENSEED_FORTEST)
 
+#ifndef _MSC_VER
 #warning "write a real random seed!!!!, just for testing now"
+#else
+#pragma message("Warning: write a real random seed!!!!, just for testing now")
+#endif
 
 int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 {
