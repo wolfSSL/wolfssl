@@ -77,6 +77,8 @@
         static int errno;
     #elif defined(WOLFSSL_TIRTOS)
         #include <sys/socket.h>
+    #elif defined(FREERTOS_TCP)
+        #include "FreeRTOS_Sockets.h"
     #elif defined(WOLFSSL_IAR_ARM)
         /* nothing */
     #else
@@ -178,6 +180,14 @@
     #define SOCKET_EPIPE        PICO_ERR_EIO
     #define SOCKET_ECONNREFUSED PICO_ERR_ECONNREFUSED
     #define SOCKET_ECONNABORTED PICO_ERR_ESHUTDOWN
+#elif defined(FREERTOS_TCP)
+    #define SOCKET_EWOULDBLOCK FREERTOS_EWOULDBLOCK
+    #define SOCKET_EAGAIN       FREERTOS_EWOULDBLOCK
+    #define SOCKET_ECONNRESET   FREERTOS_SOCKET_ERROR
+    #define SOCKET_EINTR        FREERTOS_SOCKET_ERROR
+    #define SOCKET_EPIPE        FREERTOS_SOCKET_ERROR
+    #define SOCKET_ECONNREFUSED FREERTOS_SOCKET_ERROR
+    #define SOCKET_ECONNABORTED FREERTOS_SOCKET_ERROR
 #else
     #define SOCKET_EWOULDBLOCK EWOULDBLOCK
     #define SOCKET_EAGAIN      EAGAIN
@@ -201,6 +211,9 @@
 #elif defined(WOLFSSL_PICOTCP)
     #define SEND_FUNCTION pico_send
     #define RECV_FUNCTION pico_recv
+#elif defined(FREERTOS_TCP)
+    #define RECV_FUNCTION(a,b,c,d)  FreeRTOS_recv((Socket_t)(a),(void*)(b), (size_t)(c), (BaseType_t)(d))
+    #define SEND_FUNCTION(a,b,c,d)  FreeRTOS_send((Socket_t)(a),(void*)(b), (size_t)(c), (BaseType_t)(d))
 #else
     #define SEND_FUNCTION send
     #define RECV_FUNCTION recv
