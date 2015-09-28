@@ -141,7 +141,7 @@ int wc_IdeaSetKey(Idea *idea, const byte* key, word16 keySz,
         word16  enckey[IDEA_SK_NUM];
 
         /* put encryption key in tmp buffer */
-        memcpy(enckey, idea->skey, sizeof(idea->skey));
+        XMEMCPY(enckey, idea->skey, sizeof(idea->skey));
 
         idx = 0;
 

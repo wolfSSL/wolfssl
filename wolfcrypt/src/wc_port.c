@@ -461,7 +461,7 @@ int UnLockMutex(wolfSSL_Mutex *m)
           if(p) {
               ercd = get_mpl(ID_wolfssl_MPOOL, sz, (VP)&newp);
               if (ercd == E_OK) {
-                  memcpy(newp, p, sz) ;
+                  XMEMCPY(newp, p, sz) ;
                   ercd = rel_mpl(ID_wolfssl_MPOOL, (VP)p);
                   if (ercd == E_OK) {
                       return newp;
@@ -552,7 +552,7 @@ int UnLockMutex(wolfSSL_Mutex *m)
           if(p) {
               ercd = tk_get_mpl(ID_wolfssl_MPOOL, sz, (VP)&newp, TMO_FEVR);
               if (ercd == E_OK) {
-                  memcpy(newp, p, sz) ;
+                  XMEMCPY(newp, p, sz) ;
                   ercd = tk_rel_mpl(ID_wolfssl_MPOOL, (VP)p);
                   if (ercd == E_OK) {
                       return newp;

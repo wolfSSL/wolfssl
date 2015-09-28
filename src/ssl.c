@@ -8549,7 +8549,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
             case AES_192_CBC_TYPE :
             case AES_256_CBC_TYPE :
                 WOLFSSL_MSG("AES CBC");
-                memcpy(ctx->iv, &ctx->cipher.aes.reg, AES_BLOCK_SIZE);
+                XMEMCPY(ctx->iv, &ctx->cipher.aes.reg, AES_BLOCK_SIZE);
                 break;
 
 #ifdef WOLFSSL_AES_COUNTER
@@ -8557,7 +8557,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
             case AES_192_CTR_TYPE :
             case AES_256_CTR_TYPE :
                 WOLFSSL_MSG("AES CTR");
-                memcpy(ctx->iv, &ctx->cipher.aes.reg, AES_BLOCK_SIZE);
+                XMEMCPY(ctx->iv, &ctx->cipher.aes.reg, AES_BLOCK_SIZE);
                 break;
 #endif /* WOLFSSL_AES_COUNTER */
 
@@ -8566,19 +8566,19 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
 #ifndef NO_DES3
             case DES_CBC_TYPE :
                 WOLFSSL_MSG("DES CBC");
-                memcpy(ctx->iv, &ctx->cipher.des.reg, DES_BLOCK_SIZE);
+                XMEMCPY(ctx->iv, &ctx->cipher.des.reg, DES_BLOCK_SIZE);
                 break;
 
             case DES_EDE3_CBC_TYPE :
                 WOLFSSL_MSG("DES EDE3 CBC");
-                memcpy(ctx->iv, &ctx->cipher.des3.reg, DES_BLOCK_SIZE);
+                XMEMCPY(ctx->iv, &ctx->cipher.des3.reg, DES_BLOCK_SIZE);
                 break;
 #endif
 
 #ifdef HAVE_IDEA
             case IDEA_CBC_TYPE :
                 WOLFSSL_MSG("IDEA CBC");
-                memcpy(ctx->iv, &ctx->cipher.idea.reg, IDEA_BLOCK_SIZE);
+                XMEMCPY(ctx->iv, &ctx->cipher.idea.reg, IDEA_BLOCK_SIZE);
                 break;
 #endif
             case ARC4_TYPE :
@@ -8616,7 +8616,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
             case AES_192_CBC_TYPE :
             case AES_256_CBC_TYPE :
                 WOLFSSL_MSG("AES CBC");
-                memcpy(&ctx->cipher.aes.reg, ctx->iv, AES_BLOCK_SIZE);
+                XMEMCPY(&ctx->cipher.aes.reg, ctx->iv, AES_BLOCK_SIZE);
                 break;
 
 #ifdef WOLFSSL_AES_COUNTER
@@ -8624,7 +8624,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
             case AES_192_CTR_TYPE :
             case AES_256_CTR_TYPE :
                 WOLFSSL_MSG("AES CTR");
-                memcpy(&ctx->cipher.aes.reg, ctx->iv, AES_BLOCK_SIZE);
+                XMEMCPY(&ctx->cipher.aes.reg, ctx->iv, AES_BLOCK_SIZE);
                 break;
 #endif
 
@@ -8633,19 +8633,19 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
 #ifndef NO_DES3
             case DES_CBC_TYPE :
                 WOLFSSL_MSG("DES CBC");
-                memcpy(&ctx->cipher.des.reg, ctx->iv, DES_BLOCK_SIZE);
+                XMEMCPY(&ctx->cipher.des.reg, ctx->iv, DES_BLOCK_SIZE);
                 break;
 
             case DES_EDE3_CBC_TYPE :
                 WOLFSSL_MSG("DES EDE3 CBC");
-                memcpy(&ctx->cipher.des3.reg, ctx->iv, DES_BLOCK_SIZE);
+                XMEMCPY(&ctx->cipher.des3.reg, ctx->iv, DES_BLOCK_SIZE);
                 break;
 #endif
 
 #ifdef HAVE_IDEA
             case IDEA_CBC_TYPE :
                 WOLFSSL_MSG("IDEA CBC");
-                memcpy(&ctx->cipher.idea.reg, ctx->iv, IDEA_BLOCK_SIZE);
+                XMEMCPY(&ctx->cipher.idea.reg, ctx->iv, IDEA_BLOCK_SIZE);
                 break;
 #endif
             case ARC4_TYPE :
@@ -13500,7 +13500,7 @@ void wolfSSL_3des_iv(WOLFSSL_EVP_CIPHER_CTX* ctx, int doset,
     if (doset)
         wc_Des3_SetIV(&ctx->cipher.des3, iv);  /* OpenSSL compat, no ret */
     else
-        memcpy(iv, &ctx->cipher.des3.reg, DES_BLOCK_SIZE);
+        XMEMCPY(iv, &ctx->cipher.des3.reg, DES_BLOCK_SIZE);
 }
 
 #endif /* NO_DES3 */
@@ -13523,7 +13523,7 @@ void wolfSSL_aes_ctr_iv(WOLFSSL_EVP_CIPHER_CTX* ctx, int doset,
     if (doset)
         wc_AesSetIV(&ctx->cipher.aes, iv);  /* OpenSSL compat, no ret */
     else
-        memcpy(iv, &ctx->cipher.aes.reg, AES_BLOCK_SIZE);
+        XMEMCPY(iv, &ctx->cipher.aes.reg, AES_BLOCK_SIZE);
 }
 
 #endif /* NO_AES */
@@ -13832,7 +13832,7 @@ int wolfSSL_PEM_write_mem_RSAPrivateKey(RSA* rsa, const EVP_CIPHER* cipher,
     XMEMSET(*pem, 0, (*plen)+1);
 
     if (XMEMCPY(*pem, tmp, *plen) == NULL) {
-        WOLFSSL_MSG("memcpy failed");
+        WOLFSSL_MSG("XMEMCPY failed");
         XFREE(pem, NULL, DYNAMIC_TYPE_OUT_BUFFER);
         XFREE(tmp, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         return SSL_FAILURE;
@@ -15210,7 +15210,7 @@ int wolfSSL_PEM_write_mem_ECPrivateKey(WOLFSSL_EC_KEY* ecc,
     XMEMSET(*pem, 0, (*plen)+1);
 
     if (XMEMCPY(*pem, tmp, *plen) == NULL) {
-        WOLFSSL_MSG("memcpy failed");
+        WOLFSSL_MSG("XMEMCPY failed");
         XFREE(pem, NULL, DYNAMIC_TYPE_OUT_BUFFER);
         XFREE(tmp, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         return SSL_FAILURE;
@@ -15385,7 +15385,7 @@ int wolfSSL_PEM_write_mem_DSAPrivateKey(WOLFSSL_DSA* dsa,
     XMEMSET(*pem, 0, (*plen)+1);
 
     if (XMEMCPY(*pem, tmp, *plen) == NULL) {
-        WOLFSSL_MSG("memcpy failed");
+        WOLFSSL_MSG("XMEMCPY failed");
         XFREE(pem, NULL, DYNAMIC_TYPE_OUT_BUFFER);
         XFREE(tmp, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         return SSL_FAILURE;
