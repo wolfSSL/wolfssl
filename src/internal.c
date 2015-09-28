@@ -611,6 +611,10 @@ void InitCiphers(WOLFSSL* ssl)
 #ifdef HAVE_ONE_TIME_AUTH
     ssl->auth.setup    = 0;
 #endif
+#ifdef HAVE_IDEA
+    ssl->encrypt.idea = NULL;
+    ssl->decrypt.idea = NULL;
+#endif
 }
 
 
@@ -666,6 +670,10 @@ void FreeCiphers(WOLFSSL* ssl)
 #endif
 #ifdef HAVE_POLY1305
     XFREE(ssl->auth.poly1305, ssl->heap, DYNAMIC_TYPE_CIPHER);
+#endif
+#ifdef HAVE_IDEA
+    XFREE(ssl->encrypt.idea, ssl->heap, DYNAMIC_TYPE_CIPHER);
+    XFREE(ssl->decrypt.idea, ssl->heap, DYNAMIC_TYPE_CIPHER);
 #endif
 }
 
@@ -1458,6 +1466,13 @@ void InitSuites(Suites* suites, ProtocolVersion pv, word16 haveRSA,
     if (tls && haveDH && haveRSA) {
         suites->suites[idx++] = 0;
         suites->suites[idx++] = TLS_DHE_RSA_WITH_CAMELLIA_256_CBC_SHA256;
+    }
+#endif
+
+#ifdef BUILD_SSL_RSA_WITH_IDEA_CBC_SHA
+    if (haveRSA) {
+        suites->suites[idx++] = 0;
+        suites->suites[idx++] = SSL_RSA_WITH_IDEA_CBC_SHA;
     }
 #endif
 
@@ -3784,6 +3799,11 @@ static int BuildFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
             if (requirement == REQUIRES_NTRU)
                 return 1;
             break;
+
+        case SSL_RSA_WITH_IDEA_CBC_SHA :
+            if (requirement == REQUIRES_RSA)
+                return 1;
+            break;
 #endif
 
         case TLS_PSK_WITH_AES_128_GCM_SHA256 :
@@ -5920,6 +5940,12 @@ static INLINE int Encrypt(WOLFSSL* ssl, byte* out, const byte* input, word16 sz)
                 break;
         #endif
 
+        #ifdef HAVE_IDEA
+            case wolfssl_idea:
+                ret = wc_IdeaCbcEncrypt(ssl->encrypt.idea, out, input, sz);
+                break;
+        #endif
+
             default:
                 WOLFSSL_MSG("wolfSSL Encrypt programming error");
                 ret = ENCRYPT_ERROR;
@@ -6072,6 +6098,12 @@ static INLINE int Decrypt(WOLFSSL* ssl, byte* plain, const byte* input,
                 if (input != plain) {
                     XMEMMOVE(plain, input, sz);
                 }
+                break;
+        #endif
+
+        #ifdef HAVE_IDEA
+            case wolfssl_idea:
+                ret = wc_IdeaCbcDecrypt(ssl->decrypt.idea, plain, input, sz);
                 break;
         #endif
 
@@ -6814,6 +6846,7 @@ int ProcessReply(WOLFSSL* ssl)
                                   ssl->buffers.inputBuffer.idx,
                                   ssl->curSize);
                     if (ret < 0) {
+                        WOLFSSL_MSG("Decrypt failed");
                         WOLFSSL_ERROR(ret);
                         return DECRYPT_ERROR;
                     }
@@ -6830,6 +6863,7 @@ int ProcessReply(WOLFSSL* ssl)
                                     &ssl->keys.padSz);
                 }
                 if (ret < 0) {
+                    WOLFSSL_MSG("VerifyMac failed");
                     WOLFSSL_ERROR(ret);
                     return DECRYPT_ERROR;
                 }
@@ -8874,6 +8908,10 @@ static const char* const cipher_names[] =
 #ifdef HAVE_RENEGOTIATION_INDICATION
     "RENEGOTIATION-INFO",
 #endif
+
+#ifdef BUILD_SSL_RSA_WITH_IDEA_CBC_SHA
+    "IDEA-CBC-SHA",
+#endif
 };
 
 
@@ -9271,6 +9309,10 @@ static int cipher_name_idx[] =
 
 #ifdef HAVE_RENEGOTIATION_INDICATION
     TLS_EMPTY_RENEGOTIATION_INFO_SCSV,
+#endif
+
+#ifdef BUILD_SSL_RSA_WITH_IDEA_CBC_SHA
+    SSL_RSA_WITH_IDEA_CBC_SHA,
 #endif
 };
 
