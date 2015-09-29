@@ -1,6 +1,6 @@
 ## Wind River Workbench using VxWorks with wolfSSL
 ###SETUP:
-####Steps (There is many ways to set this up, this is one example)
+####Steps (There are many ways to set this up, this is one example)
 1. Open WorkBench and go to File > Import > Existing Projects Into Workspace
 2. Make sure the correct path to wolfSSL header files(wolfssl/wolfssl) is 
 selected by right clicking the project and going to Properties > Build 
@@ -15,6 +15,7 @@ a wolfcrypt folder within the project. It will be \<name\_of\_project\>/wolfcryp
 Alnternatively, add wolfssl to the include path, #include 
 \<wolfssl/wolfcrypt/src/misc.c\>.
 6. Make sure TFM\_X86 is undefined. 
+
 ####Necessary Files
 You will need the following files to replicate this build:
 * vxsim\_linux\_1\_0\_2\_2 (directory)
