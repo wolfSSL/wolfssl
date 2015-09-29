@@ -111,7 +111,11 @@
 	    #ifdef _MSC_VER
 	        #define INLINE __inline
 	    #elif defined(__GNUC__)
-	        #define INLINE inline
+               #ifdef WOLFSSL_VXWORKS
+                   #define INLINE __inline__ 
+               #else
+                   #define INLINE inline
+               #endif
 	    #elif defined(__IAR_SYSTEMS_ICC__)
 	        #define INLINE inline
 	    #elif defined(THREADX)
