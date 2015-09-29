@@ -79,6 +79,9 @@
         #include <sys/socket.h>
     #elif defined(WOLFSSL_IAR_ARM)
         /* nothing */
+	#elif defined(WOLFSSL_VXWORKS)
+		#include <sockLib.h>
+		#include <errno.h>
     #else
         #include <sys/types.h>
         #include <errno.h>

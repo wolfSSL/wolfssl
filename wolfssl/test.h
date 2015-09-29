@@ -49,6 +49,19 @@
     	char **h_addr_list; /* list of addresses from name server */
     };
     #define SOCKET_T int
+#elif defined(WOLFSSL_VXWORKS)
+    #include <hostLib.h>
+    #include <sockLib.h>
+    #include <arpa/inet.h>
+    #include <string.h>
+    #include <selectLib.h>
+    #include <sys/types.h>
+    #include <netinet/in.h>
+    #include <fcntl.h>
+    #include <sys/time.h>
+    #include <netdb.h>
+	#include <pthread.h>
+    #define SOCKET_T int
 #else
     #include <string.h>
     #include <sys/types.h>
@@ -419,6 +432,8 @@ static INLINE void build_addr(SOCKADDR_IN_T* addr, const char* peer,
             struct hostent* entry = gethostbyname(peer, &err);
         #elif defined(WOLFSSL_TIRTOS)
             struct hostent* entry = DNSGetHostByName(peer);
+        #elif defined(WOLFSSL_VXWORKS)
+            struct hostent* entry = (struct hostent*)hostGetByName(peer);
         #else
             struct hostent* entry = gethostbyname(peer);
         #endif
@@ -774,7 +789,8 @@ static INLINE void tcp_set_nonblocking(SOCKET_T* sockfd)
         int ret = ioctlsocket(*sockfd, FIONBIO, &blocking);
         if (ret == SOCKET_ERROR)
             err_sys("ioctlsocket failed");
-    #elif defined(WOLFSSL_MDK_ARM) || defined (WOLFSSL_TIRTOS)
+    #elif defined(WOLFSSL_MDK_ARM) || defined (WOLFSSL_TIRTOS)  \
+        || defined(WOLFSSL_VXWORKS)
          /* non blocking not suppported, for now */ 
     #else
         int flags = fcntl(*sockfd, F_GETFL, 0);
