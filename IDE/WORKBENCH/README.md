@@ -50,7 +50,7 @@ You will need the following files to replicate this build:
 * usrRtpAppInit.c (should be created when you create a new VxWorks image)
     Leave unchanged
 * This project was tested with a pre-built image in the VxWorks distribution
-called vsb\_vxsim\_linux. \<BEGIN\> \$(VSB\_DIR) line in the .wpj file may need to be 
+called vsb\_vxsim\_linux. \<BEGIN\> $(VSB\_DIR) line in the .wpj file may need to be 
 changed according to the VxWorks package being used. 
 
 ###VXWORKS SIMULATOR:
