@@ -50,14 +50,12 @@ You will need the following files to replicate this build:
 * usrRtpAppInit.c (should be created when you create a new VxWorks image)
     Leave unchanged
 * This project was tested with a pre-built image in the VxWorks distribution
-called vsb\_vxsim\_linux. <BEGIN> $(VSB\_DIR) line in the .wpj file may need to be 
+called vsb\_vxsim\_linux. \<BEGIN\> \$(VSB\_DIR) line in the .wpj file may need to be 
 changed according to the VxWorks package being used. 
 
 ###VXWORKS SIMULATOR:
 In "Open Connection Details" under VxWorks Simulator which is in the connections
-dropdown. Choose IDE/WORKBENCH/wolfssl-vxworks-image/default/vxWorks as the 
-kernel image after building the project. Select simnetd from the dropdown and 
-enter 192.168.200.1 as the IP address.
+dropdown. After the project has been build, choose the corresponding kernel image, typically called project/default/VxWorks. Select simnetd from the dropdown and enter 192.168.200.1 as the IP address.
 
 To connect to a server running on the VxWorks Simulator, enter these commands
 into the host terminal (for Ubuntu 14.04):
