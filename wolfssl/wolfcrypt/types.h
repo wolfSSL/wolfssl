@@ -112,7 +112,7 @@
 	        #define INLINE __inline
 	    #elif defined(__GNUC__)
                #ifdef WOLFSSL_VXWORKS
-                   #define INLINE __inline__ 
+                   #define INLINE __inline__
                #else
                    #define INLINE inline
                #endif
