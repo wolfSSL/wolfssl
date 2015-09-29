@@ -2,7 +2,8 @@
 # included from Top Level Makefile.am
 # All paths should be given relative to the root
 
-include IDE/WIN/include.am
 include IDE/iOS/include.am
+include IDE/WIN/include.am
+include IDE/WORKBENCH/include.am
 
 EXTRA_DIST+= IDE/IAR-EWARM IDE/MDK-ARM IDE/MDK5-ARM IDE/MYSQL
