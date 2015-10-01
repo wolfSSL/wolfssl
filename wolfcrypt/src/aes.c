@@ -3565,9 +3565,20 @@ void wc_AesCcmEncrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
     byte B[AES_BLOCK_SIZE];
     byte lenSz;
     word32 i;
+    byte mask     = 0xFF;
+    word32 wordSz = (word32)sizeof(word32);
 
     #ifdef FREESCALE_MMCAU
-        byte* key = (byte*)aes->key;
+        byte* key;
+    #endif
+
+    /* sanity check on arugments */
+    if (aes == NULL || out == NULL || in == NULL || nonce == NULL
+            || authTag == NULL || nonceSz < 7 || nonceSz > 13)
+        return;
+
+    #ifdef FREESCALE_MMCAU
+        key = (byte*)aes->key;
     #endif
 
     XMEMCPY(B+1, nonce, nonceSz);
@@ -3575,8 +3586,11 @@ void wc_AesCcmEncrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
     B[0] = (authInSz > 0 ? 64 : 0)
          + (8 * (((byte)authTagSz - 2) / 2))
          + (lenSz - 1);
-    for (i = 0; i < lenSz; i++)
-        B[AES_BLOCK_SIZE - 1 - i] = (inSz >> (8 * i)) & 0xFF;
+    for (i = 0; i < lenSz; i++) {
+        if (mask && i >= wordSz)
+            mask = 0x00;
+        B[AES_BLOCK_SIZE - 1 - i] = (inSz >> ((8 * i) & mask)) & mask;
+    }
 
     #ifdef FREESCALE_MMCAU
         cau_aes_encrypt(B, key, aes->rounds, A);
@@ -3640,9 +3654,20 @@ int  wc_AesCcmDecrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
     byte lenSz;
     word32 i, oSz;
     int result = 0;
+    byte mask     = 0xFF;
+    word32 wordSz = (word32)sizeof(word32);
 
     #ifdef FREESCALE_MMCAU
-        byte* key = (byte*)aes->key;
+        byte* key;
+    #endif
+
+    /* sanity check on arugments */
+    if (aes == NULL || out == NULL || in == NULL || nonce == NULL
+            || authTag == NULL || nonceSz < 7 || nonceSz > 13)
+        return BAD_FUNC_ARG;
+
+    #ifdef FREESCALE_MMCAU
+        key = (byte*)aes->key;
     #endif
 
     o = out;
@@ -3693,8 +3718,11 @@ int  wc_AesCcmDecrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
     B[0] = (authInSz > 0 ? 64 : 0)
          + (8 * (((byte)authTagSz - 2) / 2))
          + (lenSz - 1);
-    for (i = 0; i < lenSz; i++)
-        B[AES_BLOCK_SIZE - 1 - i] = (inSz >> (8 * i)) & 0xFF;
+    for (i = 0; i < lenSz; i++) {
+        if (mask && i >= wordSz)
+            mask = 0x00;
+        B[AES_BLOCK_SIZE - 1 - i] = (inSz >> ((8 * i) & mask)) & mask;
+    }
 
     #ifdef FREESCALE_MMCAU
         cau_aes_encrypt(B, key, aes->rounds, A);
