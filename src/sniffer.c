@@ -3042,7 +3042,6 @@ doPart:
                     }
                 }
                 else {
-                    printf("JOHN: ret = %d\n", ret);
                     SetError(BAD_APP_DATA_STR, error,session,FATAL_ERROR_STATE);
                     return -1;
                 }
