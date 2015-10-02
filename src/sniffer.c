@@ -246,6 +246,7 @@ static const char* const msgTable[] =
     "Get Session Stats Failure",
     "Reassembly Buffer Size Exceeded",
     "Dropping Lost Fragment",
+    "Dropping Partial Record",
     "Clear ACK Fault"
 };
 
@@ -2528,10 +2529,7 @@ static int AdjustSequence(TcpInfo* tcpInfo, SnifferSession* session,
         else if (tcpInfo->fin)
             return AddFinCapture(session, real);
     }
-    else {
-        /* The following conditional block is duplicated above. It is the
-         * same action but for a different setup case. If changing this
-         * block be sure to also update the block above. */
+    else if (*sslBytes > 0) {
         if (skipPartial) {
             AddToReassembly(session->flags.side, real,
                                           *sslFrame, *sslBytes, session, error);
@@ -2541,6 +2539,9 @@ static int AdjustSequence(TcpInfo* tcpInfo, SnifferSession* session,
                 *expected += 1;
             return 0;
         }
+        /* The following conditional block is duplicated above. It is the
+         * same action but for a different setup case. If changing this
+         * block be sure to also update the block above. */
         else if (reassemblyList) {
             word32 newEnd = *expected + *sslBytes;
 
@@ -2600,25 +2601,23 @@ static int FindNextRecordInAssembly(SnifferSession* session,
             curr->data[1] == pv.major &&
             curr->data[2] == pv.minor) {
 
-            word32 length;
+            if (ssl->buffers.inputBuffer.length > 0)
+                Trace(DROPPING_PARTIAL_RECORD);
 
             *sslBytes = curr->end - curr->begin + 1;
-            length = ssl->buffers.inputBuffer.length;
             if ( (word32)*sslBytes > ssl->buffers.inputBuffer.bufferSize) {
-                if (GrowInputBuffer(ssl, *sslBytes, length) < 0) {
+                if (GrowInputBuffer(ssl, *sslBytes, 0) < 0) {
                     SetError(MEMORY_STR, error, session, FATAL_ERROR_STATE);
                     return -1;
                 }
             }
 
-            XMEMCPY(&ssl->buffers.inputBuffer.buffer[length],
-                    curr->data, *sslBytes);
+            XMEMCPY(ssl->buffers.inputBuffer.buffer, curr->data, *sslBytes);
 
             *front = curr->next;
             *reassemblyMemory -= *sslBytes;
             FreePacketBuffer(curr);
 
-            *sslBytes += length;
             ssl->buffers.inputBuffer.length = *sslBytes;
             *sslFrame = ssl->buffers.inputBuffer.buffer;
             *end = *sslFrame + *sslBytes;
