@@ -117,6 +117,17 @@ static void NonBlockingSSL_Connect(WOLFSSL* ssl)
 }
 
 
+static void ShowCiphers(void)
+{
+    char ciphers[4096];
+
+    int ret = wolfSSL_get_ciphers(ciphers, (int)sizeof(ciphers));
+
+    if (ret == SSL_SUCCESS)
+        printf("%s\n", ciphers);
+}
+
+
 static void Usage(void)
 {
     printf("client "    LIBWOLFSSL_VERSION_STRING
@@ -139,6 +150,7 @@ static void Usage(void)
     printf("-t          Track wolfSSL memory use\n");
     printf("-d          Disable peer checks\n");
     printf("-D          Override Date Errors example\n");
+    printf("-e          List Every cipher suite available, \n");
     printf("-g          Send server HTTP GET\n");
     printf("-u          Use UDP DTLS,"
            " add -v 2 for DTLSv1 (default), -v 3 for DTLSv1.2\n");
@@ -281,7 +293,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     StackTrap();
 
     while ((ch = mygetopt(argc, argv,
-                          "?gdDusmNrwRitfxXUPCh:p:v:l:A:c:k:Z:b:zS:L:ToO:a"))
+                          "?gdeDusmNrwRitfxXUPCh:p:v:l:A:c:k:Z:b:zS:L:ToO:a"))
                                                                         != -1) {
         switch (ch) {
             case '?' :
@@ -295,6 +307,10 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
             case 'd' :
                 doPeerCheck = 0;
                 break;
+
+            case 'e' :
+                ShowCiphers();
+                exit(EXIT_SUCCESS);
 
             case 'D' :
                 overrideDateErrors = 1;
