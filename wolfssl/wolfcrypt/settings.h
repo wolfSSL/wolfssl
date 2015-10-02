@@ -381,9 +381,13 @@ static char *fgets(char *buff, int sz, FILE *fp)
 
 #ifdef FREERTOS
     #include "FreeRTOS.h"
+
     /* FreeRTOS pvPortRealloc() only in AVR32_UC3 port */
-    #define XMALLOC(s, h, type)  pvPortMalloc((s))
-    #define XFREE(p, h, type)    vPortFree((p))
+    #if !defined(XMALLOC_USER) && !defined(NO_WOLFSSL_MEMORY)
+        #define XMALLOC(s, h, type)  pvPortMalloc((s))
+        #define XFREE(p, h, type)    vPortFree((p))
+    #endif
+
     #ifndef NO_WRITEV
         #define NO_WRITEV
     #endif
