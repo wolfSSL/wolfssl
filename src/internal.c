@@ -5895,13 +5895,15 @@ static INLINE int Encrypt(WOLFSSL* ssl, byte* out, const byte* input, word16 sz)
                                  ssl->keys.aead_enc_imp_IV, AEAD_IMP_IV_SZ);
                     XMEMCPY(nonce + AEAD_IMP_IV_SZ,
                                      ssl->keys.aead_exp_IV, AEAD_EXP_IV_SZ);
-                    wc_AesCcmEncrypt(ssl->encrypt.aes,
+                    ret = wc_AesCcmEncrypt(ssl->encrypt.aes,
                         out + AEAD_EXP_IV_SZ, input + AEAD_EXP_IV_SZ,
                             sz - AEAD_EXP_IV_SZ - ssl->specs.aead_mac_size,
                         nonce, AEAD_NONCE_SZ,
                         out + sz - ssl->specs.aead_mac_size,
                         ssl->specs.aead_mac_size,
                         additional, AEAD_AUTH_DATA_SZ);
+                    if (ret != 0)
+                        return ret;
                     AeadIncrementExpIV(ssl);
                     ForceZero(nonce, AEAD_NONCE_SZ);
                 }

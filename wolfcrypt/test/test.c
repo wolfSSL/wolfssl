@@ -2955,8 +2955,10 @@ int aesccm_test(void)
 
     wc_AesCcmSetKey(&enc, k, sizeof(k));
     /* AES-CCM encrypt and decrypt both use AES encrypt internally */
-    wc_AesCcmEncrypt(&enc, c2, p, sizeof(c2), iv, sizeof(iv),
+    result = wc_AesCcmEncrypt(&enc, c2, p, sizeof(c2), iv, sizeof(iv),
                                                  t2, sizeof(t2), a, sizeof(a));
+    if (result != 0)
+        return -106;
     if (memcmp(c, c2, sizeof(c2)))
         return -107;
     if (memcmp(t, t2, sizeof(t2)))

@@ -134,13 +134,19 @@ void wc_AesCcmSetKey(Aes* aes, const byte* key, word32 keySz)
 }
 
 
-void wc_AesCcmEncrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
+int wc_AesCcmEncrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
                               const byte* nonce, word32 nonceSz,
                               byte* authTag, word32 authTagSz,
                               const byte* authIn, word32 authInSz)
 {
+    /* sanity check on arugments */
+    if (aes == NULL || out == NULL || in == NULL || nonce == NULL
+            || authTag == NULL || nonceSz < 7 || nonceSz > 13)
+        return BAD_FUNC_ARG;
+
     AesCcmEncrypt(aes, out, in, inSz, nonce, nonceSz, authTag, authTagSz,
                   authIn, authInSz);
+    return 0;
 }
 
 
@@ -3556,7 +3562,8 @@ static INLINE void AesCcmCtrInc(byte* B, word32 lenSz)
 }
 
 
-void wc_AesCcmEncrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
+/* return 0 on success */
+int wc_AesCcmEncrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
                    const byte* nonce, word32 nonceSz,
                    byte* authTag, word32 authTagSz,
                    const byte* authIn, word32 authInSz)
@@ -3575,7 +3582,7 @@ void wc_AesCcmEncrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
     /* sanity check on arugments */
     if (aes == NULL || out == NULL || in == NULL || nonce == NULL
             || authTag == NULL || nonceSz < 7 || nonceSz > 13)
-        return;
+        return BAD_FUNC_ARG;
 
     #ifdef FREESCALE_MMCAU
         key = (byte*)aes->key;
@@ -3640,6 +3647,8 @@ void wc_AesCcmEncrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
 
     ForceZero(A, AES_BLOCK_SIZE);
     ForceZero(B, AES_BLOCK_SIZE);
+
+    return 0;
 }
 
 
