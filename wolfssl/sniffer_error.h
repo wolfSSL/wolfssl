@@ -111,6 +111,8 @@
 
 #define BAD_SESSION_STATS 76
 #define REASSEMBLY_MAX_STR 77
+#define DROPPING_LOST_FRAG_STR 78
+#define CLEAR_ACK_FAULT 79
 /* !!!! also add to msgTable in sniffer.c and .rc file !!!! */
 
 

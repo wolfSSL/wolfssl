@@ -93,5 +93,7 @@ STRINGTABLE
 
     76, "Get Session Stats Failure"
     77, "Reassembly Buffer Size Exceeded"
+    78, "Dropping Lost Fragment"
+    79, "Clear ACK Fault"
 }
 
