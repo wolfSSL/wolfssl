@@ -5857,8 +5857,7 @@ static INLINE int Encrypt(WOLFSSL* ssl, byte* out, const byte* input, word16 sz)
                                  out + sz - ssl->specs.aead_mac_size,
                                  ssl->specs.aead_mac_size,
                                  additional, AEAD_AUTH_DATA_SZ);
-                    if (ret == 0)
-                        AeadIncrementExpIV(ssl);
+                    AeadIncrementExpIV(ssl);
                     ForceZero(nonce, AEAD_NONCE_SZ);
                 }
                 break;
@@ -5902,8 +5901,6 @@ static INLINE int Encrypt(WOLFSSL* ssl, byte* out, const byte* input, word16 sz)
                         out + sz - ssl->specs.aead_mac_size,
                         ssl->specs.aead_mac_size,
                         additional, AEAD_AUTH_DATA_SZ);
-                    if (ret != 0)
-                        return ret;
                     AeadIncrementExpIV(ssl);
                     ForceZero(nonce, AEAD_NONCE_SZ);
                 }

@@ -989,6 +989,12 @@ top:
       goto LBL_ERR;
     }
   }
+  /* too big */
+  while (mp_cmp_mag(&D, b) != MP_LT) {
+      if ((res = mp_sub(&D, b, &D)) != MP_OKAY) {
+         goto LBL_ERR;
+      }
+  }
   mp_exch (&D, c);
   c->sign = neg;
   res = MP_OKAY;
