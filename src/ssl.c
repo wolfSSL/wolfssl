@@ -295,6 +295,8 @@ int wolfSSL_get_ciphers(char* buf, int len)
 
             if (i < size - 1)
                 *buf++ = delim;
+            else
+                *buf++ = '\0';
         }
         else
             return BUFFER_E;
