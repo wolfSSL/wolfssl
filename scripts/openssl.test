@@ -34,7 +34,7 @@ command -v openssl >/dev/null 2>&1 || { echo >&2 "Requires openssl command, but 
 
 echo -e "\nTesting for _build directory as part of distcheck, different paths"
 currentDir=`pwd`
-if [ $currentDir == *"_build" ]
+if [[ $currentDir == *"_build" ]]
 then
     echo -e "_build directory detected, moving a directory back"
     cd ..
