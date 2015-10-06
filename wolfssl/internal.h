@@ -1125,9 +1125,6 @@ struct WOLFSSL_METHOD {
 };
 
 
-/* defautls to client */
-WOLFSSL_LOCAL void InitSSL_Method(WOLFSSL_METHOD*, ProtocolVersion);
-
 /* for sniffer */
 WOLFSSL_LOCAL int DoFinished(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                             word32 size, word32 totalSz, int sniff);

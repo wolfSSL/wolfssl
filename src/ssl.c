@@ -174,8 +174,7 @@ WOLFSSL_CTX* wolfSSL_CTX_new(WOLFSSL_METHOD* method)
         }
     }
     else {
-        WOLFSSL_MSG("Alloc CTX failed, method freed");
-        XFREE(method, NULL, DYNAMIC_TYPE_METHOD);
+        WOLFSSL_MSG("Alloc CTX failed");
     }
 
     WOLFSSL_LEAVE("WOLFSSL_CTX_new", 0);
@@ -5556,13 +5555,17 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
     #if defined(WOLFSSL_ALLOW_SSLV3) && !defined(NO_OLD_TLS)
     WOLFSSL_METHOD* wolfSSLv3_client_method(void)
     {
-        WOLFSSL_METHOD* method =
-                              (WOLFSSL_METHOD*) XMALLOC(sizeof(WOLFSSL_METHOD),
-                                                        0, DYNAMIC_TYPE_METHOD);
+        static WOLFSSL_METHOD method = {
+            .version = {
+                .major = SSLv3_MAJOR,
+                .minor = SSLv3_MINOR
+            },
+            .side = WOLFSSL_CLIENT_END,
+            .downgrade = 0
+        };
         WOLFSSL_ENTER("SSLv3_client_method");
-        if (method)
-            InitSSL_Method(method, MakeSSLv3());
-        return method;
+
+        return &method;
     }
     #endif
 
@@ -5571,25 +5574,33 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
         #ifndef NO_OLD_TLS
         WOLFSSL_METHOD* wolfDTLSv1_client_method(void)
         {
-            WOLFSSL_METHOD* method =
-                              (WOLFSSL_METHOD*) XMALLOC(sizeof(WOLFSSL_METHOD),
-                                                        0, DYNAMIC_TYPE_METHOD);
+            static WOLFSSL_METHOD method = {
+                .version = {
+                    .major = DTLS_MAJOR,
+                    .minor = DTLS_MINOR
+                },
+                .side = WOLFSSL_CLIENT_END,
+                .downgrade = 0
+            };
             WOLFSSL_ENTER("DTLSv1_client_method");
-            if (method)
-                InitSSL_Method(method, MakeDTLSv1());
-            return method;
+
+            return &method;
         }
         #endif  /* NO_OLD_TLS */
 
         WOLFSSL_METHOD* wolfDTLSv1_2_client_method(void)
         {
-            WOLFSSL_METHOD* method =
-                              (WOLFSSL_METHOD*) XMALLOC(sizeof(WOLFSSL_METHOD),
-                                                        0, DYNAMIC_TYPE_METHOD);
+             static WOLFSSL_METHOD method = {
+                .version = {
+                    .major = DTLS_MAJOR,
+                    .minor = DTLSv1_2_MINOR
+                },
+                .side = WOLFSSL_CLIENT_END,
+                .downgrade = 0
+            };
             WOLFSSL_ENTER("DTLSv1_2_client_method");
-            if (method)
-                InitSSL_Method(method, MakeDTLSv1_2());
-            return method;
+
+            return &method;
         }
     #endif
 
@@ -5846,15 +5857,17 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
     #if defined(WOLFSSL_ALLOW_SSLV3) && !defined(NO_OLD_TLS)
     WOLFSSL_METHOD* wolfSSLv3_server_method(void)
     {
-        WOLFSSL_METHOD* method =
-                              (WOLFSSL_METHOD*) XMALLOC(sizeof(WOLFSSL_METHOD),
-                                                        0, DYNAMIC_TYPE_METHOD);
+        static WOLFSSL_METHOD method = {
+            .version = {
+                .major = SSLv3_MAJOR,
+                .minor = SSLv3_MINOR
+            },
+            .side = WOLFSSL_SERVER_END,
+            .downgrade = 0
+        };
+
         WOLFSSL_ENTER("SSLv3_server_method");
-        if (method) {
-            InitSSL_Method(method, MakeSSLv3());
-            method->side = WOLFSSL_SERVER_END;
-        }
-        return method;
+        return &method;
     }
     #endif
 
@@ -5864,29 +5877,33 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
         #ifndef NO_OLD_TLS
         WOLFSSL_METHOD* wolfDTLSv1_server_method(void)
         {
-            WOLFSSL_METHOD* method =
-                              (WOLFSSL_METHOD*) XMALLOC(sizeof(WOLFSSL_METHOD),
-                                                        0, DYNAMIC_TYPE_METHOD);
+            static WOLFSSL_METHOD method = {
+                .version = {
+                    .major = DTLS_MAJOR,
+                    .minor = DTLS_MINOR
+                },
+                .side = WOLFSSL_SERVER_END,
+                .downgrade = 0
+            };
+
             WOLFSSL_ENTER("DTLSv1_server_method");
-            if (method) {
-                InitSSL_Method(method, MakeDTLSv1());
-                method->side = WOLFSSL_SERVER_END;
-            }
-            return method;
+            return &method;
         }
         #endif /* NO_OLD_TLS */
 
         WOLFSSL_METHOD* wolfDTLSv1_2_server_method(void)
         {
-            WOLFSSL_METHOD* method =
-                              (WOLFSSL_METHOD*) XMALLOC(sizeof(WOLFSSL_METHOD),
-                                                        0, DYNAMIC_TYPE_METHOD);
+            static WOLFSSL_METHOD method = {
+                .version = {
+                    .major = DTLS_MAJOR,
+                    .minor = DTLSv1_2_MINOR
+                },
+                .side = WOLFSSL_SERVER_END,
+                .downgrade = 0
+            };
+
             WOLFSSL_ENTER("DTLSv1_2_server_method");
-            if (method) {
-                InitSSL_Method(method, MakeDTLSv1_2());
-                method->side = WOLFSSL_SERVER_END;
-            }
-            return method;
+            return &method;
         }
     #endif
 
