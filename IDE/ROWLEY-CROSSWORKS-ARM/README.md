@@ -43,3 +43,10 @@ To enable Freescale MMCAU:
 * `test_main.c`: The main function entrypoint for test application.
 * `user_libc.c`: Defines stubs for functions required by libc. It also wraps hardware functions for UART, RTC and Random Number Generator (RNG).
 * `user_settings.h`: This is the custom user configuration file for WolfSSL.
+
+# Functions required by the WolfSSL Library
+
+If you are writting your own application, the following functions need to be implemented to support the WolfSSL library:
+
+* `double current_time(int reset)`: Returns a doulbe as seconds.milliseconds.
+* `int custom_rand_generate(void)`: Returns a 32-bit randomly generated number.
