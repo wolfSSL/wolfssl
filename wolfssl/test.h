@@ -109,7 +109,8 @@
 
 /* HPUX doesn't use socklent_t for third parameter to accept, unless
    _XOPEN_SOURCE_EXTENDED is defined */
-#if !defined(__hpux__) && !defined(WOLFSSL_MDK_ARM) && !defined(WOLFSSL_IAR_ARM)
+#if !defined(__hpux__) && !defined(WOLFSSL_MDK_ARM) && \
+    !defined(WOLFSSL_IAR_ARM) && !defined(WOLFSSL_ROWLEY_ARM)
     typedef socklen_t* ACCEPT_THIRD_T;
 #else
     #if defined _XOPEN_SOURCE_EXTENDED
