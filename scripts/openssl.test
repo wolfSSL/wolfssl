@@ -28,6 +28,13 @@ do_trap() {
 
 trap do_trap INT TERM
 
+if test -n "$WOLFSSL_OPENSSL_TEST"; then
+    echo "WOLFSSL_OPENSSL_TEST set, running test..."
+else
+    echo "WOLFSSL_OPENSSL_TEST NOT set, won't run"
+    exit 0
+fi
+
 echo -e "\nTesting existence of openssl command...\n"
 command -v openssl >/dev/null 2>&1 || { echo >&2 "Requires openssl command, but it's not installed.  Ending."; exit 0; }
 

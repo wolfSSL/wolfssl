@@ -10,7 +10,6 @@ endif
 
 if BUILD_EXAMPLES
 dist_noinst_SCRIPTS+= scripts/resume.test
-dist_noinst_SCRIPTS+= scripts/openssl.test
 
 if BUILD_CRL
 # make revoked test rely on completion of resume test
@@ -21,6 +20,7 @@ endif
 if !BUILD_IPV6
 dist_noinst_SCRIPTS+= scripts/external.test
 dist_noinst_SCRIPTS+= scripts/google.test
+dist_noinst_SCRIPTS+= scripts/openssl.test
 endif
 endif
 
