@@ -5267,8 +5267,8 @@ static int DoHandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 
     WOLFSSL_ENTER("DoHandShakeMsg()");
 
-    /* If there is a pending fragmented handshake message, pending message size
-     * will be non-zero. */
+    /* If there is a pending fragmented handshake message,
+     * pending message size will be non-zero. */
     if (ssl->arrays->pendingMsgSz == 0) {
         byte   type;
         word32 size;
@@ -5276,8 +5276,16 @@ static int DoHandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
         if (GetHandShakeHeader(ssl,input, inOutIdx, &type, &size, totalSz) != 0)
             return PARSE_ERROR;
 
+        /* Cap the maximum size of a handshake message to something reasonable.
+         * By default is the maximum size of a certificate message assuming
+         * nine 2048-bit RSA certificates in the chain. */
+        if (size > MAX_HANDSHAKE_SZ) {
+            WOLFSSL_MSG("Handshake message too large");
+            return HANDSHAKE_SIZE_ERROR;
+        }
+
         /* size is the size of the certificate message payload */
-        if (totalSz - HANDSHAKE_HEADER_SZ < size) {
+        if (ssl->curSize < size) {
             ssl->arrays->pendingMsgType = type;
             ssl->arrays->pendingMsgSz = size + HANDSHAKE_HEADER_SZ;
             ssl->arrays->pendingMsg = (byte*)XMALLOC(size + HANDSHAKE_HEADER_SZ,
@@ -5286,25 +5294,25 @@ static int DoHandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
             if (ssl->arrays->pendingMsg == NULL)
                 return MEMORY_E;
             XMEMCPY(ssl->arrays->pendingMsg,
-                    input + *inOutIdx - HANDSHAKE_HEADER_SZ, totalSz);
-            ssl->arrays->pendingMsgOffset = totalSz;
-            *inOutIdx += totalSz - HANDSHAKE_HEADER_SZ;
+                    input + *inOutIdx - HANDSHAKE_HEADER_SZ, ssl->curSize);
+            ssl->arrays->pendingMsgOffset = ssl->curSize;
+            *inOutIdx += ssl->curSize - HANDSHAKE_HEADER_SZ;
             return 0;
         }
 
         ret = DoHandShakeMsgType(ssl, input, inOutIdx, type, size, totalSz);
     }
     else {
-        if (totalSz + ssl->arrays->pendingMsgOffset
+        if (ssl->curSize + ssl->arrays->pendingMsgOffset
                                                   > ssl->arrays->pendingMsgSz) {
 
             return BUFFER_ERROR;
         }
         else {
             XMEMCPY(ssl->arrays->pendingMsg + ssl->arrays->pendingMsgOffset,
-                    input + *inOutIdx, totalSz);
-            ssl->arrays->pendingMsgOffset += totalSz;
-            *inOutIdx += totalSz;
+                    input + *inOutIdx, ssl->curSize);
+            ssl->arrays->pendingMsgOffset += ssl->curSize;
+            *inOutIdx += ssl->curSize;
         }
 
         if (ssl->arrays->pendingMsgOffset == ssl->arrays->pendingMsgSz)
@@ -8552,6 +8560,9 @@ const char* wolfSSL_ERR_reason_error_string(unsigned long e)
 
     case RSA_SIGN_FAULT:
         return "RSA Signature Fault Error";
+
+    case HANDSHAKE_SIZE_ERROR:
+        return "Handshake message too large Error";
 
     default :
         return "unknown error number";

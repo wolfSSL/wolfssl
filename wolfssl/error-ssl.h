@@ -136,6 +136,7 @@ enum wolfSSL_ErrorCodes {
     DH_KEY_SIZE_E           = -401,        /* DH Key too small */
     SNI_ABSENT_ERROR        = -402,        /* No SNI request. */
     RSA_SIGN_FAULT          = -403,        /* RSA Sign fault */
+    HANDSHAKE_SIZE_ERROR    = -404,        /* Handshake message too large */
 
     /* add strings to SetErrorString !!!!! */
 
