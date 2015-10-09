@@ -2679,6 +2679,7 @@ ProtocolVersion MakeDTLSv1_2(void)
 #endif /* USE_WINDOWS_API */
 
 
+#ifndef NO_ASN
 static int HashOutputRaw(WOLFSSL* ssl, const byte* output, int sz)
 {
 #ifdef HAVE_FUZZER
@@ -2716,6 +2717,7 @@ static int HashOutputRaw(WOLFSSL* ssl, const byte* output, int sz)
 
     return 0;
 }
+#endif /* NO_ASN */
 
 
 /* add output to md5 and sha handshake hashes, exclude record header */
@@ -2886,6 +2888,7 @@ static void AddHeaders(byte* output, word32 length, byte type, WOLFSSL* ssl)
 }
 
 
+#ifndef NO_ASN
 static void AddFragHeaders(byte* output, word32 fragSz, word32 fragOffset,
                            word32 length, byte type, WOLFSSL* ssl)
 {
@@ -2903,6 +2906,7 @@ static void AddFragHeaders(byte* output, word32 fragSz, word32 fragOffset,
     AddRecordHeader(output, fragSz + lengthAdj, handshake, ssl);
     AddHandShakeHeader(output + outputAdj, length, fragOffset, fragSz, type, ssl);
 }
+#endif
 
 
 /* return bytes received, -1 on error */
