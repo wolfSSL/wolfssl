@@ -102,6 +102,9 @@
 /* Uncomment next line if building for IAR EWARM */
 /* #define WOLFSSL_IAR_ARM */
 
+/* Uncomment next line if building for Rowley CrossWorks ARM */
+/* #define WOLFSSL_ROWLEY_ARM */
+
 /* Uncomment next line if using TI-RTOS settings */
 /* #define WOLFSSL_TIRTOS */
 
@@ -180,7 +183,7 @@
     #define NO_FILESYSTEM
 #endif
 
-#if defined(WOLFSSL_IAR_ARM)
+#if defined(WOLFSSL_IAR_ARM) || defined(WOLFSSL_ROWLEY_ARM)
     #define NO_MAIN_DRIVER
     #define SINGLE_THREADED
     #define USE_CERT_BUFFERS_1024
@@ -188,7 +191,7 @@
     #define NO_FILESYSTEM
     #define NO_WRITEV
     #define WOLFSSL_USER_IO
-    #define  BENCH_EMBEDDED
+    #define BENCH_EMBEDDED
 #endif
 
 #ifdef MICROCHIP_PIC32

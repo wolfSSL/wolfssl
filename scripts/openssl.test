@@ -1,0 +1,127 @@
+#!/bin/bash
+
+#openssl.test
+
+# need a unique port since may run the same time as testsuite
+openssl_port=11114
+no_pid=-1
+server_pid=$no_pid
+wolf_suites_tested=0
+wolf_suites_total=0
+counter=0
+
+do_cleanup() {
+    echo "in cleanup"
+
+    if  [ $server_pid != $no_pid ]
+    then
+        echo "killing server"
+        kill -9 $server_pid
+    fi
+}
+
+do_trap() {
+    echo "got trap"
+    do_cleanup
+    exit -1
+}
+
+trap do_trap INT TERM
+
+if test -n "$WOLFSSL_OPENSSL_TEST"; then
+    echo "WOLFSSL_OPENSSL_TEST set, running test..."
+else
+    echo "WOLFSSL_OPENSSL_TEST NOT set, won't run"
+    exit 0
+fi
+
+echo -e "\nTesting existence of openssl command...\n"
+command -v openssl >/dev/null 2>&1 || { echo >&2 "Requires openssl command, but it's not installed.  Ending."; exit 0; }
+
+
+echo -e "\nTesting for _build directory as part of distcheck, different paths"
+currentDir=`pwd`
+if [[ $currentDir == *"_build" ]]
+then
+    echo -e "_build directory detected, moving a directory back"
+    cd ..
+fi
+
+echo -e "\nStarting openssl server...\n"
+
+openssl s_server -accept $openssl_port -cert ./certs/server-cert.pem -key ./certs/server-key.pem  -quiet -www  -dhparam ./certs/dh2048.pem -dcert ./certs/server-ecc.pem -dkey ./certs/ecc-key.pem &
+server_pid=$!
+
+
+# get openssl ciphers
+open_ciphers=`openssl ciphers`
+IFS=':'  read -ra opensslArray <<< "$open_ciphers"
+
+# get wolfssl ciphers
+wolf_ciphers=`./examples/client/client -e`
+IFS=':'  read -ra wolfsslArray <<< "$wolf_ciphers"
+
+# server should be ready, let's make sure
+server_ready=0
+while [ "$counter" -lt 20 ]; do
+    echo -e "waiting for openssl s_server ready..."
+    nc -z localhost $openssl_port
+    nc_result=$?
+    if [ $nc_result == 0 ]
+    then
+        echo -e "openssl s_server ready!"
+        server_ready=1
+        break
+    fi
+    sleep 0.1
+    counter=$((counter+ 1))
+done
+
+
+if [ $server_ready == 0 ]
+then
+    echo -e "Couldn't verify openssl server is running, timeout error"
+    do_cleanup
+    exit -1
+fi
+
+for wolfSuite in "${wolfsslArray[@]}"; do
+
+    echo -e "trying wolfSSL cipher suite $wolfSuite"
+    matchSuite=0
+    wolf_suites_total=$((wolf_suites_total + 1))
+
+    for openSuite in "${opensslArray[@]}"; do
+        if [ $openSuite == $wolfSuite ]
+        then
+            echo -e "Matched to OpenSSL suite support"
+            matchSuite=1
+        fi
+    done
+
+    if [ $matchSuite == 0 ]
+    then
+        echo -e "Couldn't match suite, continuing..."
+        continue
+    fi
+
+    ./examples/client/client -p $openssl_port -g -l $wolfSuite
+    client_result=$?
+
+    if [ $client_result != 0 ]
+    then
+        echo -e "client failed!"
+        do_cleanup
+        exit 1
+    fi
+    wolf_suites_tested=$((wolf_suites_tested+1))
+
+done
+
+kill -9 $server_pid
+
+echo -e "wolfSSL total suites   $wolf_suites_total"
+echo -e "wolfSSL suites tested  $wolf_suites_tested"
+echo -e "\nSuccess!\n"
+
+exit 0

@@ -1016,6 +1016,19 @@ enum Misc {
     #define MAX_CHAIN_DEPTH 9
 #endif
 
+/* max size of a certificate message payload */
+/* assumes MAX_CHAIN_DEPTH number of certificates at 2kb per certificate */
+#ifndef MAX_CERTIFICATE_SZ
+    #define MAX_CERTIFICATE_SZ \
+                CERT_HEADER_SZ + \
+                (MAX_X509_SIZE + CERT_HEADER_SZ) * MAX_CHAIN_DEPTH
+#endif
+
+/* max size of a handshake message, currently set to the certificate */
+#ifndef MAX_HANDSHAKE_SZ
+    #define MAX_HANDSHAKE_SZ MAX_CERTIFICATE_SZ
+#endif
+
 #ifndef SESSION_TICKET_LEN
     #define SESSION_TICKET_LEN 256
 #endif
@@ -2114,7 +2127,10 @@ typedef struct Options {
 } Options;
 
 typedef struct Arrays {
+    byte*           pendingMsg;         /* defrag buffer */
     word32          preMasterSz;        /* differs for DH, actual size */
+    word32          pendingMsgSz;       /* defrag buffer size */
+    word32          pendingMsgOffset;   /* current offset into defrag buffer */
 #ifndef NO_PSK
     word32          psk_keySz;          /* acutal size */
     char            client_identity[MAX_PSK_ID_LEN];

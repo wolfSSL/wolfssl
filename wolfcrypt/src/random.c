@@ -102,7 +102,8 @@ int  wc_RNG_GenerateByte(WC_RNG* rng, byte* b)
     #include <wincrypt.h>
 #else
     #if !defined(NO_DEV_RANDOM) && !defined(CUSTOM_RAND_GENERATE) && \
-        !defined(WOLFSSL_GENSEED_FORTEST) && !defined(WOLFSSL_MDK_ARM) && !defined(WOLFSSL_IAR_ARM)
+        !defined(WOLFSSL_GENSEED_FORTEST) && !defined(WOLFSSL_MDK_ARM) && \
+        !defined(WOLFSSL_IAR_ARM) && !defined(WOLFSSL_ROWLEY_ARM)
             #include <fcntl.h>
         #ifndef EBSNET
             #include <unistd.h>
