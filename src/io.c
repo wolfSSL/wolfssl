@@ -64,15 +64,12 @@
     #elif defined(WOLFSSL_MDK_ARM) || defined(WOLFSSL_KEIL_TCP_NET)
         #if defined(WOLFSSL_MDK5) || defined(WOLFSSL_KEIL_TCP_NET)
             #include "cmsis_os.h"
-            #include "rl_net.h"
         #else
             #include <rtl.h>
         #endif
-        static int errno;
+        #include "errno.h"
         #define SOCKET_T int
         #include "rl_net.h"
-        /* for avoiding name conflict in "stm32f2xx.h" */
-        static int errno;
     #elif defined(WOLFSSL_TIRTOS)
         #include <sys/socket.h>
     #elif defined(FREERTOS_TCP)
