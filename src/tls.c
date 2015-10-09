@@ -912,7 +912,7 @@ static word16 TLSX_ALPN_GetSize(ALPN *list)
         list = alpn->next;
 
         length++; /* protocol name length is on one byte */
-        length += XSTRLEN(alpn->protocol_name);
+        length += (word16)XSTRLEN(alpn->protocol_name);
     }
     
     return length;
@@ -928,7 +928,7 @@ static word16 TLSX_ALPN_Write(ALPN *list, byte *output)
     while ((alpn = list)) {
         list = alpn->next;
 
-        length = XSTRLEN(alpn->protocol_name);
+        length = (word16)XSTRLEN(alpn->protocol_name);
 
         /* protocol name length */
         output[offset++] = (byte)length;
@@ -955,7 +955,7 @@ static ALPN* TLSX_ALPN_Find(ALPN *list, char *protocol_name, word16 size)
 
     alpn = list;
     while (alpn != NULL && (
-           XSTRLEN(alpn->protocol_name) != size ||
+           (word16)XSTRLEN(alpn->protocol_name) != size ||
            XSTRNCMP(alpn->protocol_name, protocol_name, size)))
         alpn = alpn->next;
 
@@ -1040,7 +1040,7 @@ static int TLSX_ALPN_ParseAndSet(WOLFSSL *ssl, byte *input, word16 length,
 
     /* set the matching negociated protocol */
     r = TLSX_SetALPN(&ssl->extensions,
-                     alpn->protocol_name, XSTRLEN(alpn->protocol_name));
+                     alpn->protocol_name, (word16)XSTRLEN(alpn->protocol_name));
     if (r != SSL_SUCCESS) {
         WOLFSSL_MSG("TLSX_UseALPN failed");
         return BUFFER_ERROR;
@@ -1116,7 +1116,7 @@ int TLSX_ALPN_GetRequest(TLSX* extensions, void** data, word16 *dataSz)
     }
 
     *data = alpn->protocol_name;
-    *dataSz = XSTRLEN(*data);
+    *dataSz = (word16)XSTRLEN(*data);
 
     return SSL_SUCCESS;
 }
