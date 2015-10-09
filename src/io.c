@@ -61,20 +61,15 @@
         #include <rtcs.h>
     #elif defined(FREESCALE_KSDK_MQX)
         #include <rtcs.h>
-    #elif defined(WOLFSSL_MDK_ARM)
-        #if defined(WOLFSSL_MDK5)
+    #elif defined(WOLFSSL_MDK_ARM) || defined(WOLFSSL_KEIL_TCP_NET)
+        #if defined(WOLFSSL_MDK5) || defined(WOLFSSL_KEIL_TCP_NET)
             #include "cmsis_os.h"
-            #include "rl_fs.h" 
-            #include "rl_net.h" 
         #else
             #include <rtl.h>
         #endif
-        #undef RNG
-        #include "WOLFSSL_MDK_ARM.h"
-        #undef RNG
-        #define RNG wolfSSL_RNG 
-        /* for avoiding name conflict in "stm32f2xx.h" */
-        static int errno;
+        #include "errno.h"
+        #define SOCKET_T int
+        #include "rl_net.h"
     #elif defined(WOLFSSL_TIRTOS)
         #include <sys/socket.h>
     #elif defined(FREERTOS_TCP)
@@ -157,8 +152,8 @@
         #define SOCKET_ECONNREFUSED NIO_ECONNREFUSED
         #define SOCKET_ECONNABORTED NIO_ECONNABORTED
     #endif
-#elif defined(WOLFSSL_MDK_ARM)
-    #if defined(WOLFSSL_MDK5)
+#elif defined(WOLFSSL_MDK_ARM)|| defined(WOLFSSL_KEIL_TCP_NET)
+    #if defined(WOLFSSL_MDK5)|| defined(WOLFSSL_KEIL_TCP_NET)
         #define SOCKET_EWOULDBLOCK BSD_ERROR_WOULDBLOCK
         #define SOCKET_EAGAIN      BSD_ERROR_LOCKED
         #define SOCKET_ECONNRESET  BSD_ERROR_CLOSED

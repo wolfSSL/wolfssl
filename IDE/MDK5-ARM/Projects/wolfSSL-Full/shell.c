@@ -19,37 +19,40 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
  */
  
- /*** tiny Shell for CyaSSL apps ***/
+ /*** tiny Shell for wolfSSL apps ***/
  
  #ifdef HAVE_CONFIG_H
     #include <config.h>
 #endif
 
-#include "cyassl/internal.h"
-#undef RNG
-#include <cyassl/ctaocrypt/logging.h>
 
-#if defined(CYASSL_MDK_ARM)
+#include "wolfssl/internal.h"
+#include <wolfssl/wolfcrypt/logging.h>
+
+#if defined(WOLFSSL_MDK_ARM) || defined(WOLFSSL_KEIL_TCP_NET)
     #include <stdio.h>
     #include <string.h>
     #include <stdlib.h>
-        #if defined(CYASSL_MDK5)
+        #if defined(WOLFSSL_MDK5) || defined(WOLFSSL_KEIL_TCP_NET)
             #include "cmsis_os.h"
         #include "rl_fs.h" 
     #else
             #include <rtl.h>
         #endif
-    #include "cyassl_MDK_ARM.h"
 #endif
 
-#ifdef CYASSL_KEIL_NET
-#include "cyassl/test.h"
+#ifdef WOLFSSL_KEIL_TCP_NET
+#include "wolfssl/test.h"
 #else
 typedef struct func_args {
     int    argc;
     char** argv;
     int    return_code;
 } func_args;
+#endif
+
+#if defined(WOLFSSL_CMSIS_RTOS)
+#define HAVE_KEIL_RTX
 #endif
 
 #ifdef NO_ECHOCLIENT
@@ -71,7 +74,7 @@ typedef struct func_args {
 #define ctaocrypt_test command_not_found
 #endif
 
-#ifndef CYASSL_KEIL_NET
+#ifndef WOLFSSL_KEIL_TCP_NET
 #define ipaddr_comm command_not_found
 #endif
 
@@ -80,7 +83,7 @@ typedef struct func_args {
 #endif
 
 
-#if !defined(DEBUG_CYASSL)
+#if !defined(DEBUG_WOLFSSL)
 #define dbg_comm command_not_found
 #endif
 
@@ -92,7 +95,7 @@ void command_not_found(void *argv) {
 extern void echoclient_test(void *args) ;
 extern void echoserver_test(void *args) ;
 extern void benchmark_test(void *args) ;
-extern void ctaocrypt_test(void *args) ;
+extern void wolfcrypt_test(void *args) ;
 extern void client_test(void *args) ;
 extern void server_test(void *args) ;
 extern void kill_task(void *args) ;
@@ -107,7 +110,7 @@ extern void help_comm(void *arg) ;
 #ifndef NO_MD5
 extern void md5_test(void *arg) ;
 #endif
-#ifdef CYASSL_MD2
+#ifdef WOLFSSL_MD2
 extern void md2_test(void *arg) ;
 #endif
 #ifndef NO_MD4
@@ -119,15 +122,15 @@ extern void sha_test(void *arg) ;
 #ifndef NO_SHA256
 extern void sha256_test(void *arg) ;
 #endif
-#ifdef CYASSL_SHA384
+#ifdef WOLFSSL_SHA384
 extern void sha384_test(void *arg) ;
 #endif
 
-#ifdef CYASSL_SHA512
+#ifdef WOLFSSL_SHA512
 extern void sha512_test(void *arg) ;
 #endif
 
-#ifdef CYASSL_RIPEMD
+#ifdef WOLFSSL_RIPEMD
 extern void ripemd_test(void *arg) ;
 #endif
 #ifndef NO_HMAC
@@ -140,7 +143,7 @@ extern void hmac_sha_test(void *arg) ;
 extern void hmac_sha256_test(void *arg) ;
     #endif
 
-    #ifdef CYASSL_SHA384
+    #ifdef WOLFSSL_SHA384
 extern void hmac_sha384_test(void *arg) ;
     #endif
 #endif
@@ -210,7 +213,7 @@ static struct {
     "echoclient", echoclient_test,
     "echoserver", echoserver_test,
     "benchmark", benchmark_test,
-    "test", ctaocrypt_test,
+    "test", wolfcrypt_test,
     "client", client_test,
     "server", server_test,
     "ipaddr", ipaddr_comm,      /* TBD */
@@ -223,7 +226,7 @@ static struct {
     "ec", echoclient_test,
     "es", echoserver_test,
     "bm", benchmark_test,
-    "te", ctaocrypt_test,
+    "te", wolfcrypt_test,
     "cl", client_test,
     "sv", server_test,
     "ip", ipaddr_comm,
@@ -236,7 +239,7 @@ static struct {
 #ifndef NO_MD5
   "md5",  md5_test,
 #endif
-#ifdef CYASSL_MD2
+#ifdef WOLFSSL_MD2
   "md2",  md2_test,
 #endif
 #ifndef NO_MD4
@@ -246,13 +249,13 @@ static struct {
 #ifndef NO_SHA256
   "sha256",  sha256_test,
 #endif
-#ifdef CYASSL_SHA384
+#ifdef WOLFSSL_SHA384
   "sha384",  sha384_test,
 #endif
-#ifdef CYASSL_SHA512
+#ifdef WOLFSSL_SHA512
   "sha512",  sha512_test,
 #endif
-#ifdef CYASSL_RIPEMD
+#ifdef WOLFSSL_RIPEMD
   "ripemd",  ripemd_test,
 #endif
 #ifndef NO_HMAC
@@ -263,7 +266,7 @@ static struct {
     #ifndef NO_SHA256
   "hmac_sha256",  hmac_sha256_test,
     #endif
-    #ifdef CYASSL_SHA384
+    #ifdef WOLFSSL_SHA384
   "hmac_sha384",  hmac_sha384_test,
   #endif
 #endif
@@ -324,6 +327,38 @@ enum jobtype { FORGROUND, BACKGROUND }  ;
 
 static int BackGround = 0 ; /* 1: background job is running */
 
+char * wolfssl_fgets ( char * str, int num, FILE * f ) 
+{
+    int i ;
+    
+    for(i = 0 ; i< num ; i++) {
+            while((str[i] = getchar()) == 0) {
+            #if defined (HAVE_KEIL_RTX) && !defined(WOLFSSL_CMSIS_RTOS)
+                os_tsk_pass ();
+            #else 
+                osThreadYield ();
+            #endif
+        }
+        if(str[i] == '\n' || str[i] == '\012' || str[i] == '\015')  {
+            putchar('\n') ;
+            str[i++] = '\n' ; 
+            str[i] = '\0' ; 
+            break ;
+        } else if(str[i] == '\010') { /* BS */
+            if(i) { /* erace one char */
+                putchar('\010') ; putchar(' ') ; putchar('\010') ; 
+                i = (i>0 ? (i-2) : -1 ) ;
+                continue ;
+            } 
+        } else if(str[i] == '\033'  || str[i] == '\004' ) {  /* ESC or ^D */
+            str[i] = '\0' ;
+            return(0) ;
+        }
+        putchar(str[i]) ;
+    }
+    return(str) ;
+}
+
 /*******  Get Command Line *****************************/
 static int getline(char * line, int sz, func_args *args, int*bf_flg) 
 {
@@ -337,7 +372,7 @@ static int getline(char * line, int sz, func_args *args, int*bf_flg)
     
     putchar('>') ;
     fflush(stdout) ;
-    ret = fgets(line, sz, stdin) ;
+    ret = wolfssl_fgets(line, sz, stdin) ;
     
     #define SHELL_ERROR_FGETS -102
     if(ret != line) return(SHELL_ERROR_FGETS) ;
@@ -367,11 +402,11 @@ static int getline(char * line, int sz, func_args *args, int*bf_flg)
 /************* Embedded Shell Commands **********************************/
 #define IP_SIZE 16
 
-#ifdef CYASSL_KEIL_NET
+#ifdef WOLFSSL_KEIL_TCP_NET
 static void ipaddr_comm(void *args) 
 {
     if(((func_args *)args)->argc == 1) {
-            printf("IP addr: %s, port %d\n", yasslIP, yasslPort) ;
+            printf("IP addr: %s, port %d\n", wolfSSLIP, wolfSSLPort) ;
     } else {
         if(BackGround != 0) {
         printf("Cannot change IP addr while background server is running\n") ;
@@ -447,20 +482,20 @@ static void for_command(void *args)
 }
 
 
-#if defined(DEBUG_CYASSL)
+#if defined(DEBUG_WOLFSSL)
 
-static int CyasslDebug = 1 ;
+static int wolfsslDebug = 1 ;
 
 static void dbg_comm(void *args) 
 {
-    if(CyasslDebug == 1) {
-        CyasslDebug = 0 ;
+    if(wolfsslDebug == 1) {
+        wolfsslDebug = 0 ;
         printf("Turning OFF Debug message\n") ;
-        CyaSSL_Debugging_OFF() ;
+        wolfSSL_Debugging_OFF() ;
     } else {
-        CyasslDebug = 1 ;
+        wolfasslDebug = 1 ;
         printf("Turning ON Debug message\n") ;
-        CyaSSL_Debugging_ON() ;
+        wolfSSL_Debugging_ON() ;
     }
 }
 #endif
@@ -489,28 +524,28 @@ static void help_comm(void *args)
 
 
 
-#define BG_JOB_STACK_SIZE 8000
+#define BG_JOB_STACK_SIZE 16000
 #if (!defined(NO_SIMPLE_SERVER) && !defined(NO_ECHOSERVER)) && \
                                                    defined(HAVE_KEIL_RTX)
-#if !defined(CYASSL_CMSIS_RTOS)
+#if !defined(WOLFSSL_CMSIS_RTOS)
 static char bg_job_stack[BG_JOB_STACK_SIZE] ;
 #endif
 
 #endif
 
-#define COMMAND_STACK_SIZE 10000
-#if defined(HAVE_KEIL_RTX) && !defined(CYASSL_CMSIS_RTOS)
+#define COMMAND_STACK_SIZE 24000
+#if defined(HAVE_KEIL_RTX) && !defined(WOLFSSL_CMSIS_RTOS)
 static char command_stack[COMMAND_STACK_SIZE] ;
 #endif
 
 
-#ifdef  HAVE_KEIL_RTX
-static   CyaSSL_Mutex command_mutex ;
+#if defined(HAVE_KEIL_RTX) || defined(WOLFSSL_CMSIS_RTOS)
+static   wolfSSL_Mutex command_mutex ;
 #endif
 
 void exit_command(void) {
 	  printf("Command Aborted\n") ;
-    #ifdef CYASSL_CMSIS_RTOS
+    #ifdef WOLFSSL_CMSIS_RTOS
         osThreadTerminate(osThreadGetId()) ;
     #else
         os_tsk_delete_self() ;
@@ -525,19 +560,19 @@ static void command_invoke(void const *args)
     int i,iteration ;
     
     func = (void(*)(void const *))((func_args *)args)->argv[0] ; 
-    #ifdef  HAVE_KEIL_RTX
-    LockMutex((CyaSSL_Mutex *)&command_mutex) ;
+    #if defined(HAVE_KEIL_RTX)
+    LockMutex((wolfSSL_Mutex *)&command_mutex) ;
     #endif
     iteration = for_iteration ;
     for(i=0; i< iteration; i++) {
         if(iteration > 1) printf("--- Start for %d ---->\n", i) ;
-        #if defined(HAVE_KEIL_RTX) && !defined(CYASSL_CMSIS_RTOS)
+        #if defined(HAVE_KEIL_RTX) && !defined(WOLFSSL_CMSIS_RTOS)
         stack_fill(command_stack, COMMAND_STACK_SIZE) ;
         #endif
                 
         func(args) ;        /* invoke command */
                 
-        #if defined(HAVE_KEIL_RTX)&& !defined(CYASSL_CMSIS_RTOS)
+        #if defined(HAVE_KEIL_RTX)&& !defined(WOLFSSL_CMSIS_RTOS)
         stack_check(command_stack, COMMAND_STACK_SIZE) ;
         #endif
     }
@@ -546,8 +581,8 @@ static void command_invoke(void const *args)
     for_iteration = 1 ;
     osDelay(20000) ;
     #ifdef HAVE_KEIL_RTX
-        UnLockMutex((CyaSSL_Mutex *)&command_mutex) ;
-        #ifdef CYASSL_CMSIS_RTOS
+        UnLockMutex((wolfSSL_Mutex *)&command_mutex) ;
+        #ifdef WOLFSSL_CMSIS_RTOS
             osThreadTerminate(osThreadGetId()) ;
         #else
             os_tsk_delete_self() ;
@@ -555,26 +590,26 @@ static void command_invoke(void const *args)
     #endif
 }
 
-#if defined(HAVE_KEIL_RTX)
+#if defined(HAVE_KEIL_RTX) || defined(WOLFSSL_CMSIS_RTOS)
 /*******  Invoke Background Job   *******************************/
 static void bg_job_invoke(void const *args) 
 {
     void (*func)(void const * ) ;
     BackGround = 1 ; 
-    #if defined(HAVE_KEIL_RTX)&& !defined(CYASSL_CMSIS_RTOS)
+    #if defined(HAVE_KEIL_RTX)&& !defined(WOLFSSL_CMSIS_RTOS)
     stack_fill(bg_job_stack, BG_JOB_STACK_SIZE) ;
     #endif
 
     func = (void(*)(void const *))((func_args *)args)->argv[0] ; 
     func(args) ;        /* invoke command */
-    #if defined(HAVE_KEIL_RTX) && !defined(CYASSL_CMSIS_RTOS)
+    #if defined(HAVE_KEIL_RTX) && !defined(WOLFSSL_CMSIS_RTOS)
     stack_check(bg_job_stack, BG_JOB_STACK_SIZE) ;
     #endif
     
     osDelay(20000) ;
     BackGround = 0 ;
 
-    #ifdef CYASSL_CMSIS_RTOS
+    #ifdef WOLFSSL_CMSIS_RTOS
         osThreadTerminate(osThreadGetId()) ;
     #else   
         os_tsk_delete_self() ; ;
@@ -585,7 +620,7 @@ static void bg_job_invoke(void const *args)
 #define LINESIZE 100
 static char line[LINESIZE] ;
 
-#if defined(CYASSL_CMSIS_RTOS)
+#if defined(WOLFSSL_CMSIS_RTOS)
     osThreadDef (command_invoke, osPriorityAboveNormal , 1, COMMAND_STACK_SIZE) ;
     osThreadDef (bg_job_invoke, osPriorityNormal , 1 , BG_JOB_STACK_SIZE) ;
 #endif
@@ -594,11 +629,11 @@ void shell_main(void *arg) {
     int i ; 
     func_args args ;
     int bf_flg ;
-   
+    osThreadId 	 cmd ;
     i = BackGround ; 
         /* Dummy for avoiding warning: BackGround is defined but not used. */
     
- #if defined(HAVE_KEIL_RTX)
+ #if defined(HAVE_KEIL_RTX) 
     InitMutex(&command_mutex) ;
 #endif
     help_comm(NULL) ;
@@ -610,20 +645,25 @@ void shell_main(void *arg) {
             if(strcmp(commandTable[i].command, args.argv[0]) == 0) {
             args.argv[0] = (char *) commandTable[i].func ;
                 if(bf_flg == FORGROUND) {
-                    #if defined(HAVE_KEIL_RTX) && !defined(CYASSL_CMSIS_RTOS)
-                        UnLockMutex((CyaSSL_Mutex *)&command_mutex) ;
+                    #if defined(HAVE_KEIL_RTX) && !defined(WOLFSSL_CMSIS_RTOS)
+                        UnLockMutex((wolfSSL_Mutex *)&command_mutex) ;
                         os_tsk_create_user_ex( (void(*)(void *))&command_invoke, 7,
                                  command_stack, COMMAND_STACK_SIZE, &args) ;
+                        os_tsk_pass ();
                     #else
-                        #if defined(CYASSL_CMSIS_RTOS)
-                             UnLockMutex((CyaSSL_Mutex *)&command_mutex) ;
-                             osThreadCreate (osThread (command_invoke) , &args);   
+                        #if defined(WOLFSSL_CMSIS_RTOS)
+                             UnLockMutex((wolfSSL_Mutex *)&command_mutex) ;
+                             cmd = osThreadCreate (osThread (command_invoke) , &args); 
+                             if(cmd == NULL) {
+															     printf("Cannon create command thread\n") ;
+														 }
+												     osThreadYield ();
                         #else
                               command_invoke(&args) ;
                         #endif
                     #endif
                     #ifdef  HAVE_KEIL_RTX
-                    LockMutex((CyaSSL_Mutex *)&command_mutex) ;
+                    LockMutex((wolfSSL_Mutex *)&command_mutex) ;
                     #endif
                 } else {
                     #if (!defined(NO_SIMPLE_SERVER) && \
@@ -634,7 +674,7 @@ void shell_main(void *arg) {
                     } else {
                         printf("\"%s\" is running with the background mode.\n", 
                                                      commandTable[i].command) ;
-                        #if  defined(HAVE_KEIL_RTX) && !defined(CYASSL_CMSIS_RTOS)
+                        #if  defined(HAVE_KEIL_RTX) && !defined(WOLFSSL_CMSIS_RTOS)
                              os_tsk_create_user_ex( (void(*)(void *))&bg_job_invoke, 
                                    6, bg_job_stack, BG_JOB_STACK_SIZE, &args) ;
                         #else
