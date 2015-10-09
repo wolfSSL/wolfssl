@@ -8500,6 +8500,9 @@ const char* wolfSSL_ERR_reason_error_string(unsigned long e)
     case RSA_SIGN_FAULT:
         return "RSA Signature Fault Error";
 
+    case UNKNOWN_ALPN_PROTOCOL_NAME_E:
+        return "Unrecognized protocol name Error";
+
     default :
         return "unknown error number";
     }

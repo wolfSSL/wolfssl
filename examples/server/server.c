@@ -161,6 +161,9 @@ static void Usage(void)
 #ifndef NO_PSK
     printf("-I          Do not send PSK identity hint\n");
 #endif
+#ifdef HAVE_ALPN
+    printf("-L <str>   Application-Layer Protocole Name\n");
+#endif
 }
 
 THREAD_RETURN CYASSL_THREAD server_test(void* args)
@@ -194,6 +197,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     int    resume = 0;            /* do resume, and resume count */
     int    minDhKeyBits = DEFAULT_MIN_DHKEY_BITS;
     int    ret;
+    char*  alpnList = NULL;
     char*  cipherList = NULL;
     const char* verifyCert = cliCert;
     const char* ourCert    = svrCert;
@@ -232,12 +236,13 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     (void)useNtruKey;
     (void)doCliCertCheck;
     (void)minDhKeyBits;
+    (void)alpnList;
 
 #ifdef CYASSL_TIRTOS
     fdOpenSession(Task_self());
 #endif
 
-    while ((ch = mygetopt(argc, argv, "?dbstnNufrRawPIp:v:l:A:c:k:Z:S:oO:D:"))
+    while ((ch = mygetopt(argc, argv, "?dbstnNufrRawPIp:v:l:A:c:k:Z:S:oO:D:L:"))
                          != -1) {
         switch (ch) {
             case '?' :
@@ -376,6 +381,11 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
                 #endif
                 break;
 
+            case 'L' :
+                #ifdef HAVE_ALPN
+                    alpnList = myoptarg;
+                #endif
+                break;
             default:
                 Usage();
                 exit(MY_EX_USAGE);
@@ -622,6 +632,14 @@ while (1) {  /* allow resume option */
     }
 
     SSL_set_fd(ssl, clientfd);
+
+#ifdef HAVE_ALPN
+    if (alpnList != NULL) {
+        printf("ALPN accepted protocols list : %s\n", alpnList);
+        wolfSSL_UseALPN(ssl, alpnList, (word32)XSTRLEN(alpnList));
+    }
+#endif
+
 #ifdef WOLFSSL_DTLS
     if (doDTLS) {
         SOCKADDR_IN_T cliaddr;
@@ -663,6 +681,20 @@ while (1) {  /* allow resume option */
     NonBlockingSSL_Accept(ssl);
 #endif
     showPeer(ssl);
+
+#ifdef HAVE_ALPN
+    {
+        char *protocol_name = NULL;
+        word16 protocol_nameSz = 0;
+
+        if (wolfSSL_ALPN_GetProtocol(ssl, &protocol_name,
+                                     &protocol_nameSz) != SSL_SUCCESS)
+            printf("Getting ALPN protocol name failed\n");
+        else
+            printf("Send ALPN protocol : %s (%d)\n",
+                   protocol_name, protocol_nameSz);
+    }
+#endif
 
     idx = SSL_read(ssl, input, sizeof(input)-1);
     if (idx > 0) {

@@ -1565,6 +1565,19 @@ AC_ARG_ENABLE([maxfragment],
     [ ENABLED_MAX_FRAGMENT=no ]
     )
 
+# ALPN
+AC_ARG_ENABLE([alpn],
+    [  --enable-alpn            Enable ALPN (default: disabled)],
+    [ ENABLED_ALPN=$enableval ],
+    [ ENABLED_ALPN=no ]
+    )
+
+if test "x$ENABLED_ALPN" = "xyes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_TLS_EXTENSIONS -DHAVE_ALPN"
+fi
+
+# Maximum Fragment Length
 if test "x$ENABLED_MAX_FRAGMENT" = "xyes"
 then
     AM_CFLAGS="$AM_CFLAGS -DHAVE_TLS_EXTENSIONS -DHAVE_MAX_FRAGMENT"
@@ -1647,7 +1660,8 @@ then
 	ENABLED_MAX_FRAGMENT=yes
 	ENABLED_TRUNCATED_HMAC=yes
 	ENABLED_SUPPORTED_CURVES=yes
-    AM_CFLAGS="$AM_CFLAGS -DHAVE_TLS_EXTENSIONS -DHAVE_SNI -DHAVE_MAX_FRAGMENT -DHAVE_TRUNCATED_HMAC -DHAVE_SUPPORTED_CURVES"
+	ENABLED_ALPN=yes
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_TLS_EXTENSIONS -DHAVE_SNI -DHAVE_MAX_FRAGMENT -DHAVE_TRUNCATED_HMAC -DHAVE_SUPPORTED_CURVES -DHAVE_ALPN"
 fi
 
 # PKCS7
@@ -2473,6 +2487,7 @@ echo "   * Atomic User Record Layer:  $ENABLED_ATOMICUSER"
 echo "   * Public Key Callbacks:      $ENABLED_PKCALLBACKS"
 echo "   * NTRU:                      $ENABLED_NTRU"
 echo "   * SNI:                       $ENABLED_SNI"
+echo "   * ALPN:                      $ENABLED_ALPN"
 echo "   * Maximum Fragment Length:   $ENABLED_MAX_FRAGMENT"
 echo "   * Truncated HMAC:            $ENABLED_TRUNCATED_HMAC"
 echo "   * Renegotiation Indication:  $ENABLED_RENEGOTIATION_INDICATION"

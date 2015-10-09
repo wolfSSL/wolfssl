@@ -882,6 +882,69 @@ int wolfSSL_UseSupportedQSH(WOLFSSL* ssl, word16 name)
 #endif /* NO_WOLFSSL_CLIENT */
 #endif /* HAVE_QSH */
 
+
+/* Application-Layer Procotol Name */
+#ifdef HAVE_ALPN
+
+int wolfSSL_UseALPN(WOLFSSL* ssl, char *protocol_name_list,
+                    word32 protocol_name_listSz)
+{
+    char    *list, *ptr, *token[10];
+    word16  len;
+    int     idx = 0;
+    int     ret = SSL_FAILURE;
+
+    WOLFSSL_ENTER("wolfSSL_UseALPN");
+
+    if (ssl == NULL || protocol_name_list == NULL)
+        return BAD_FUNC_ARG;
+
+    if (protocol_name_listSz > (WOLFSSL_MAX_ALPN_NUMBER *
+                                WOLFSSL_MAX_ALPN_PROTO_NAME_LEN +
+                                WOLFSSL_MAX_ALPN_NUMBER)) {
+        WOLFSSL_MSG("Invalid arguments, procolt name list too long");
+        return BAD_FUNC_ARG;
+    }
+
+    list = (char *)XMALLOC(protocol_name_listSz+1, NULL,
+                           DYNAMIC_TYPE_TMP_BUFFER);
+    if (list == NULL) {
+        WOLFSSL_MSG("Memory failure");
+        return MEMORY_ERROR;
+    }
+
+    XMEMSET(list, 0, protocol_name_listSz+1);
+    XSTRNCPY(list, protocol_name_list, protocol_name_listSz);
+
+    /* read all protocol name from the list */
+    token[idx] = XSTRTOK(list, ",", &ptr);
+    while (token[idx] != NULL)
+        token[++idx] = XSTRTOK(NULL, ",", &ptr);
+
+    /* add protocol name list in the TLS extension in reverse order */
+    while ((idx--) > 0) {
+        len = (word16)XSTRLEN(token[idx]);
+
+        ret = TLSX_UseALPN(&ssl->extensions, token[idx], len);
+        if (ret != SSL_SUCCESS) {
+            WOLFSSL_MSG("TLSX_UseALPN failure");
+            break;
+        }
+    }
+
+    XFREE(list, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
+    return ret;
+}
+
+int wolfSSL_ALPN_GetProtocol(WOLFSSL* ssl, char **protocol_name, word16 *size)
+{
+    return TLSX_ALPN_GetRequest(ssl ? ssl->extensions : NULL,
+                           (void **)protocol_name, size);
+}
+
+#endif /* HAVE_ALPN */
+
 /* Secure Renegotiation */
 #ifdef HAVE_SECURE_RENEGOTIATION
 

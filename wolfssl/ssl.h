@@ -187,7 +187,8 @@ enum AlertDescription {
     protocol_version        = 70,
     #endif
     no_renegotiation        = 100,
-    unrecognized_name       = 112
+    unrecognized_name       = 112,
+    no_application_protocol = 120
 };
 
 
@@ -1345,6 +1346,28 @@ WOLFSSL_API int wolfSSL_SNI_GetFromBuffer(
 
 #endif
 #endif
+
+/* Application-Layer Protocol Name */
+#ifdef HAVE_ALPN
+
+/* ALPN status code */
+enum {
+    WOLFSSL_ALPN_NO_MATCH = 0,
+    WOLFSSL_ALPN_MATCH    = 1
+};
+
+enum {
+    WOLFSSL_MAX_ALPN_PROTO_NAME_LEN = 255,
+    WOLFSSL_MAX_ALPN_NUMBER = 257
+};
+
+WOLFSSL_API int wolfSSL_UseALPN(WOLFSSL* ssl, char *protocol_name_list,
+                                unsigned int protocol_name_listSz);
+
+WOLFSSL_API int wolfSSL_ALPN_GetProtocol(WOLFSSL* ssl, char **protocol_name,
+                                         unsigned short *size);
+
+#endif /* HAVE_ALPN */
 
 /* Maximum Fragment Length */
 #ifdef HAVE_MAX_FRAGMENT

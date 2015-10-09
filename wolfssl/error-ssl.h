@@ -137,6 +137,8 @@ enum wolfSSL_ErrorCodes {
     SNI_ABSENT_ERROR        = -402,        /* No SNI request. */
     RSA_SIGN_FAULT          = -403,        /* RSA Sign fault */
 
+    UNKNOWN_ALPN_PROTOCOL_NAME_E = -404,   /* Unrecognized protocol name Error*/
+
     /* add strings to SetErrorString !!!!! */
 
     /* begin negotiation parameter errors */
