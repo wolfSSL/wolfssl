@@ -2577,7 +2577,7 @@ ProtocolVersion MakeDTLSv1_2(void)
 
     word32 LowResTimer(void)
     {
-        NET_SECURE_OS_TICK  clk;
+        NET_SECURE_OS_TICK  clk = 0;
 
         #if (NET_SECURE_MGR_CFG_EN == DEF_ENABLED)
             clk = NetSecure_OS_TimeGet();

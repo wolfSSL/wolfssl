@@ -382,6 +382,7 @@ void file_test(const char* file, byte* check)
         ret = wc_Sha256Update(&sha256, buf, i);
         if (ret != 0) {
             printf("Can't wc_Sha256Update %d\n", ret);
+            fclose(f);
             return;
         }
     }
@@ -389,6 +390,7 @@ void file_test(const char* file, byte* check)
     ret = wc_Sha256Final(&sha256, shasum);
     if (ret != 0) {
         printf("Can't wc_Sha256Final %d\n", ret);
+        fclose(f);
         return;
     }
 

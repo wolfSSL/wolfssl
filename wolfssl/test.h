@@ -918,7 +918,7 @@ static INLINE unsigned int my_psk_server_cb(WOLFSSL* ssl, const char* identity,
         sz = ftell(file);
         rewind(file);
         fread(buff, sizeof(buff), 1, file);
-  
+
         if (type == WOLFSSL_CA) {
             if (wolfSSL_CTX_load_verify_buffer(ctx, buff, sz, SSL_FILETYPE_PEM)
                                               != SSL_SUCCESS)
@@ -934,6 +934,7 @@ static INLINE unsigned int my_psk_server_cb(WOLFSSL* ssl, const char* identity,
                         SSL_FILETYPE_PEM) != SSL_SUCCESS)
                 err_sys("can't load buffer key file");
         }
+        fclose(file);
     }
 
 #endif /* NO_FILESYSTEM */
