@@ -1099,20 +1099,13 @@ static INLINE int OpenNitroxDevice(int dma_mode,int dev_id)
 /* do back x number of directories */
 static INLINE void ChangeDirBack(int x)
 {
-    char path[MAX_PATH];
-
-    if (x == 1)
-        strncpy(path, "..\\", MAX_PATH);
-    else if (x == 2)
-        strncpy(path, "..\\..\\", MAX_PATH);
-    else if (x == 3)
-        strncpy(path, "..\\..\\..\\", MAX_PATH);
-    else if (x == 4)
-        strncpy(path, "..\\..\\..\\..\\", MAX_PATH);
-    else
-        strncpy(path, ".\\", MAX_PATH);
-    
-    SetCurrentDirectoryA(path);
+	char path[MAX_PATH];
+	XMEMSET(path, 0, MAX_PATH);
+	XSTRNCAT(path, ".\\", MAX_PATH);
+	while (x-- > 0) {
+		XSTRNCAT(path, "..\\", MAX_PATH);
+	}
+	SetCurrentDirectoryA(path);
 }
 
 /* does current dir contain str */
@@ -1148,20 +1141,14 @@ static INLINE int CurrentDir(const char* str)
 static INLINE void ChangeDirBack(int x)
 {
     char path[MAX_PATH];
-
-    if (x == 1)
-        strncpy(path, "../", MAX_PATH);
-    else if (x == 2)
-        strncpy(path, "../../", MAX_PATH);
-    else if (x == 3)
-        strncpy(path, "../../../", MAX_PATH);
-    else if (x == 4)
-        strncpy(path, "../../../../", MAX_PATH);
-    else
-        strncpy(path, "./", MAX_PATH);
-    
-    if (chdir(path) < 0)
-        printf("chdir to %s failed\n", path);
+	XMEMSET(path, 0, MAX_PATH);
+	XSTRNCAT(path, "./", MAX_PATH);
+	while (x-- > 0) {
+        XSTRNCAT(path, "../", MAX_PATH);
+	}
+	if (chdir(path) < 0) {
+		printf("chdir to %s failed\n", path);
+	}
 }
 
 /* does current dir contain str */

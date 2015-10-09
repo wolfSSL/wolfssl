@@ -5,3 +5,6 @@
 EXTRA_DIST+= IDE/iOS/README.md
 EXTRA_DIST+= IDE/iOS/wolfssl-FIPS.xcodeproj/project.pbxproj
 EXTRA_DIST+= IDE/iOS/wolfssl.xcodeproj/project.pbxproj
+EXTRA_DIST+= IDE/iOS/wolfssl.xcworkspace
+EXTRA_DIST+= IDE/iOS/wolfssl_testsuite.xcodeproj
+EXTRA_DIST+= IDE/iOS/user_settings.h

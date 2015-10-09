@@ -1,14 +1,35 @@
-# wolfSSL and wolfCrypt iOS Xcode Projects
+# wolfSSL and wolfCrypt Xcode Projects for OS X and iOS
 
-This directory contains two xcodeproj:
+This directory contains the following files:
 
-1. `wolfssl.xcodeproj` -- builds wolfSSL and wolfCrypt
-2. `wolfssl-FIPS.xcodeproj` -- builds wolfSSL and wolfCrypt-FIPS if available
+1. `wolfssl.xcworkspace` -- workspace with library and testsuite client
+2. `wolfssl_testsuite.xcodeproj` -- project to run the testsuite.
+3. `wolfssl.xcodeproj` -- project to build OS/x and iOS libraries for wolfSSL and/or wolfCrypt
+4. `wolfssl-FIPS.xcodeproj` -- project to build wolfSSL and wolfCrypt-FIPS if available
+5. `user_settings.h` -- custom library settings, which are shared across projects
 
-Both projects will build the library `libwolfssl.a` and produce a directory
-named `include` with the wolfSSL and wolfCrypt headers, and the CyaSSL and
-CtaoCrypt compatibility headers. Specific build options may be added to the
-`IPHONE` section of the file `wolfssl/wolfcrypt/settings.h`.
+The library will output as `libwolfssl_osx.a` or 'libwolfssl_ios.a` depending on 
+the target. It will also copy the wolfSSL/wolfCrypt (and the CyaSSL/CtaoCrypt 
+compatibility) headers into an `include` directory located in 
+`Build/Products/Debug` or `Build/Products/Release`.
+
+For the library and testsuite to link properly the build location needs to be 
+configured as realitive to workspace.
+1. File -> Workspace Settings (or Xcode -> Preferences -> Locations -> Locations)
+2. Derived Data -> Advanced
+3. Custom -> Relative to Workspace
+4. Products -> Build/Products
+
+These Xcode projects define the `WOLFSSL_USER_SETTINGS` preprocessor 
+to enable the `user_settings.h` file for setting macros across 
+multiple projects.
+
+If needed the Xcode preprocessors can be modifed with these steps:
+1. Click on the Project in "Project Navigator".
+2. Click on the "Build Settings" tab.
+3. Scroll down to the "Apple LLVM 6.0 - Preprocessing" section.
+4. Open the disclosure for "Preprocessor Macros" and use the "+" and 
+"-" buttons to modify. Remember to do this for both Debug and Release.
 
 ## wolfSSL
 
@@ -35,7 +56,7 @@ You can make an archive for a device, as well. That is a release build.
 
 # Installing libwolfssl.a
 
-Simply drag the file libwolfssl.a and the directory `include` and drop it into
+Simply drag the file libwolfssl_XXX_.a and the directory `include` and drop it into
 your project file list pane where it makes sense for you. Allow it to copy the
 files over to the project directory. This should automatically add the library
 to the list of libraries to link against.
@@ -52,10 +73,7 @@ Add the path to the include directory to the list "Header Search Paths".
 
 ## When using FIPS
 
-When using the FIPS version, on the target window, in the "Build Settings" tab,
-scroll down to the "Apple LLVM 6.0 - Preprocessing" section. Open the disclosure
-for "Preprocessor Macros" and add the following under both `Release` and
-`Debug`:
+When using the FIPS version the following preprocessors need to be defined:
 
 * `IPHONE`
 * `HAVE_FIPS`
