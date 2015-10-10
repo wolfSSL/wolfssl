@@ -29,6 +29,25 @@
 #include <wolfssl/test.h>
 #include "wolfcrypt/test/test.h"
 
+/* This function changes the current directory to the wolfssl root */
+static void ChangeDirToRoot(void)
+{
+    /* Normal Command Line=_build, Visual Studio=testsuite */
+    if (CurrentDir("testsuite") || CurrentDir("_build")) {
+        ChangeDirBack(1);
+    }
+
+    /* Xcode: To output application to correct location: */
+    /* 1. Xcode->Preferences->Locations->Locations */
+    /* 2. Derived Data Advanced -> Custom */
+    /* 3. Relative to Workspace, Build/Products */
+    /* Build/Products/Debug or Build/Products/Release */
+    else if (CurrentDir("Debug") || CurrentDir("Release")) {
+    ChangeDirBack(5);
+    }
+}
+
+
 #ifndef SINGLE_THREADED
 
 #include <wolfssl/openssl/ssl.h>
@@ -52,24 +71,6 @@ static const char *outputName;
 
 int myoptind = 0;
 char* myoptarg = NULL;
-
-// This function changes the current directory to the wolfssl root
-static void ChangeDirToRoot(void)
-{
-	/* Normal Command Line=_build, Visual Studio=testsuite */
-	if (CurrentDir("testsuite") || CurrentDir("_build")) {
-		ChangeDirBack(1);
-	}
-	
-	/* Xcode: To output application to correct location: */
-	/* 1. Xcode->Preferences->Locations->Locations */
-	/* 2. Derived Data Advanced -> Custom */
-	/* 3. Relative to Workspace, Build/Products */
-	/* Build/Products/Debug or Build/Products/Release */
-	else if (CurrentDir("Debug") || CurrentDir("Release")) {
-		ChangeDirBack(5);
-	}
-}
 
 #ifndef NO_TESTSUITE_MAIN_DRIVER
 
