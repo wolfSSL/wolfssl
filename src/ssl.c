@@ -5556,12 +5556,12 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
     WOLFSSL_METHOD* wolfSSLv3_client_method(void)
     {
         static WOLFSSL_METHOD method = {
-            .version = {
-                .major = SSLv3_MAJOR,
-                .minor = SSLv3_MINOR
+            {
+                SSLv3_MAJOR,
+                SSLv3_MINOR
             },
-            .side = WOLFSSL_CLIENT_END,
-            .downgrade = 0
+            WOLFSSL_CLIENT_END,
+            0
         };
         WOLFSSL_ENTER("SSLv3_client_method");
 
@@ -5575,12 +5575,12 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
         WOLFSSL_METHOD* wolfDTLSv1_client_method(void)
         {
             static WOLFSSL_METHOD method = {
-                .version = {
-                    .major = DTLS_MAJOR,
-                    .minor = DTLS_MINOR
+                {
+                    DTLS_MAJOR,
+                    DTLS_MINOR
                 },
-                .side = WOLFSSL_CLIENT_END,
-                .downgrade = 0
+                WOLFSSL_CLIENT_END,
+                0
             };
             WOLFSSL_ENTER("DTLSv1_client_method");
 
@@ -5591,12 +5591,12 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
         WOLFSSL_METHOD* wolfDTLSv1_2_client_method(void)
         {
              static WOLFSSL_METHOD method = {
-                .version = {
-                    .major = DTLS_MAJOR,
-                    .minor = DTLSv1_2_MINOR
+                {
+                    DTLS_MAJOR,
+                    DTLSv1_2_MINOR
                 },
-                .side = WOLFSSL_CLIENT_END,
-                .downgrade = 0
+                WOLFSSL_CLIENT_END,
+                0
             };
             WOLFSSL_ENTER("DTLSv1_2_client_method");
 
@@ -5858,12 +5858,12 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
     WOLFSSL_METHOD* wolfSSLv3_server_method(void)
     {
         static WOLFSSL_METHOD method = {
-            .version = {
-                .major = SSLv3_MAJOR,
-                .minor = SSLv3_MINOR
+            {
+                SSLv3_MAJOR,
+                SSLv3_MINOR
             },
-            .side = WOLFSSL_SERVER_END,
-            .downgrade = 0
+            WOLFSSL_SERVER_END,
+            0
         };
 
         WOLFSSL_ENTER("SSLv3_server_method");
@@ -5878,12 +5878,12 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
         WOLFSSL_METHOD* wolfDTLSv1_server_method(void)
         {
             static WOLFSSL_METHOD method = {
-                .version = {
-                    .major = DTLS_MAJOR,
-                    .minor = DTLS_MINOR
+                {
+                    DTLS_MAJOR,
+                    DTLS_MINOR
                 },
-                .side = WOLFSSL_SERVER_END,
-                .downgrade = 0
+                WOLFSSL_SERVER_END,
+                0
             };
 
             WOLFSSL_ENTER("DTLSv1_server_method");
@@ -5894,12 +5894,12 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
         WOLFSSL_METHOD* wolfDTLSv1_2_server_method(void)
         {
             static WOLFSSL_METHOD method = {
-                .version = {
-                    .major = DTLS_MAJOR,
-                    .minor = DTLSv1_2_MINOR
+                {
+                    DTLS_MAJOR,
+                    DTLSv1_2_MINOR
                 },
-                .side = WOLFSSL_SERVER_END,
-                .downgrade = 0
+                WOLFSSL_SERVER_END,
+                0
             };
 
             WOLFSSL_ENTER("DTLSv1_2_server_method");

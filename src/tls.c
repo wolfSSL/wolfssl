@@ -3380,12 +3380,12 @@ int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte isRequest,
     WOLFSSL_METHOD* wolfTLSv1_client_method(void)
     {
         static WOLFSSL_METHOD method = {
-            .version = {
-               .major = SSLv3_MAJOR,
-               .minor = TLSv1_MINOR
+            {
+               SSLv3_MAJOR,
+               TLSv1_MINOR
             },
-            .side = WOLFSSL_CLIENT_END,
-            .downgrade = 0
+            WOLFSSL_CLIENT_END,
+            0
         };
 
         return &method;
@@ -3395,12 +3395,12 @@ int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte isRequest,
     WOLFSSL_METHOD* wolfTLSv1_1_client_method(void)
     {
         static WOLFSSL_METHOD method = {
-            .version = {
-                .major = SSLv3_MAJOR,
-                .minor = TLSv1_1_MINOR
+            {
+                SSLv3_MAJOR,
+                TLSv1_1_MINOR
             },
-            .side = WOLFSSL_CLIENT_END,
-            .downgrade = 0
+            WOLFSSL_CLIENT_END,
+            0
         };
 
         return &method;
@@ -3413,12 +3413,12 @@ int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte isRequest,
     WOLFSSL_METHOD* wolfTLSv1_2_client_method(void)
     {
          static WOLFSSL_METHOD method = {
-            .version = {
-                .major = SSLv3_MAJOR,
-                .minor = TLSv1_2_MINOR
+            {
+                SSLv3_MAJOR,
+                TLSv1_2_MINOR
             },
-            .side = WOLFSSL_CLIENT_END,
-            .downgrade = 0
+            WOLFSSL_CLIENT_END,
+            0
         };
 
         return &method;
@@ -3430,19 +3430,19 @@ int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte isRequest,
     WOLFSSL_METHOD* wolfSSLv23_client_method(void)
     {
           static WOLFSSL_METHOD method = {
-            .version = {
-                .major = SSLv3_MAJOR,
+            {
+                SSLv3_MAJOR,
 #ifndef NO_SHA256         /* 1.2 requires SHA256 */
-                .minor = TLSv1_2_MINOR
+                TLSv1_2_MINOR
 #else
-                .minor = TLSv1_1_MINOR
+                TLSv1_1_MINOR
 #endif
             },
-            .side = WOLFSSL_CLIENT_END,
+            WOLFSSL_CLIENT_END,
 #ifndef NO_OLD_TLS
-            .downgrade = 1
+            1
 #else
-            .downgrade = 0
+            0
 #endif
         };
 
@@ -3461,12 +3461,12 @@ int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte isRequest,
     WOLFSSL_METHOD* wolfTLSv1_server_method(void)
     {
         static WOLFSSL_METHOD method = {
-            .version = {
-                .major = SSLv3_MAJOR,
-                .minor = TLSv1_MINOR
+            {
+                SSLv3_MAJOR,
+                TLSv1_MINOR
             },
-            .side = WOLFSSL_SERVER_END,
-            .downgrade = 0
+            WOLFSSL_SERVER_END,
+            0
         };
 
         return &method;
@@ -3477,11 +3477,11 @@ int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte isRequest,
     {
          static WOLFSSL_METHOD method = {
             .version = {
-                .major = SSLv3_MAJOR,
-                .minor = TLSv1_1_MINOR
+                SSLv3_MAJOR,
+                TLSv1_1_MINOR
             },
-            .side = WOLFSSL_SERVER_END,
-            .downgrade = 0
+            WOLFSSL_SERVER_END,
+            0
         };
 
         return &method;
@@ -3494,12 +3494,12 @@ int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte isRequest,
     WOLFSSL_METHOD* wolfTLSv1_2_server_method(void)
     {
         static WOLFSSL_METHOD method = {
-            .version = {
-               .major = SSLv3_MAJOR,
-               .minor = TLSv1_2_MINOR
+            {
+               SSLv3_MAJOR,
+               TLSv1_2_MINOR
             },
-            .side = WOLFSSL_SERVER_END,
-            .downgrade = 0
+            WOLFSSL_SERVER_END,
+            0
         };
         return &method;
     }
@@ -3510,19 +3510,19 @@ int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte isRequest,
     WOLFSSL_METHOD* wolfSSLv23_server_method(void)
     {
         static WOLFSSL_METHOD method = {
-            .version = {
-               .major = SSLv3_MAJOR,
+            {
+               SSLv3_MAJOR,
 #ifndef NO_SHA256         /* 1.2 requires SHA256 */
-               .minor = TLSv1_2_MINOR
+               TLSv1_2_MINOR
 #else
-               .minor = TLSv1_1_MINOR
+               TLSv1_1_MINOR
 #endif
             },
-            .side = WOLFSSL_SERVER_END,
+            WOLFSSL_SERVER_END,
 #ifndef NO_OLD_TLS
-            .downgrade = 1
+            1
 #else
-            .downgrade = 0
+            0
 #endif /* !NO_OLD_TLS */
         };
 
