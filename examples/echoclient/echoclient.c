@@ -22,27 +22,29 @@
 #ifdef HAVE_CONFIG_H
     #include <config.h>
 #endif
-
+ 
 #include <cyassl/ctaocrypt/settings.h>
 
 /* let's use cyassl layer AND cyassl openssl layer */
 #include <cyassl/ssl.h>
 #include <cyassl/openssl/ssl.h>
 
-#if defined(WOLFSSL_MDK_ARM)
+#if defined(WOLFSSL_MDK_ARM) || defined(WOLFSSL_KEIL_TCP_NET)
         #include <stdio.h>
         #include <string.h>
 
-        #if defined(WOLFSSL_MDK5)
-            #include "cmsis_os.h"
-            #include "rl_fs.h" 
-            #include "rl_net.h" 
+        #if defined(WOLFSSL_MDK5) || defined(WOLFSSL_KEIL_TCP_NET)
+            #include "cmsis_os.h" 
+            #include "rl_net.h"
         #else
             #include "rtl.h"
         #endif
-
-        #include "wolfssl_MDK_ARM.h"
+        #if defined(WOLFSSL_MDK_SHELL)
+            char * wolfssl_fgets ( char * str, int num, FILE * f ) ;
+            #define fgets wolfssl_fgets
+        #endif
 #endif
+
 
 #include <cyassl/test.h>
 

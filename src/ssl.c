@@ -3494,13 +3494,6 @@ int wolfSSL_CTX_SetOCSP_Cb(WOLFSSL_CTX* ctx, CbOCSPIO ioCb,
 
 #ifndef NO_FILESYSTEM
 
-    #if defined(WOLFSSL_MDK_ARM)
-        extern FILE * wolfSSL_fopen(const char *name, const char *mode) ;
-        #define XFOPEN     wolfSSL_fopen
-    #else
-        #define XFOPEN     fopen
-    #endif
-
 /* process a file with name fname into ctx of format and type
    userChain specifies a user certificate chain to pass during handshake */
 int ProcessFile(WOLFSSL_CTX* ctx, const char* fname, int format, int type,
@@ -7580,7 +7573,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
 
 #ifdef USE_WINDOWS_API
     #define CloseSocket(s) closesocket(s)
-#elif defined(WOLFSSL_MDK_ARM)
+#elif defined(WOLFSSL_MDK_ARM)  || defined(WOLFSSL_KEIL_TCP_NET)
     #define CloseSocket(s) closesocket(s)
     extern int closesocket(int) ;
 #else
