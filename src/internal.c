@@ -5268,8 +5268,11 @@ static int DoHandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                           word32 totalSz)
 {
     int    ret = 0;
+    word32 inputLength;
 
     WOLFSSL_ENTER("DoHandShakeMsg()");
+
+    inputLength = ssl->buffers.inputBuffer.length - *inOutIdx;
 
     /* If there is a pending fragmented handshake message,
      * pending message size will be non-zero. */
@@ -5289,7 +5292,7 @@ static int DoHandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
         }
 
         /* size is the size of the certificate message payload */
-        if (ssl->curSize < size) {
+        if (inputLength - HANDSHAKE_HEADER_SZ < size) {
             ssl->arrays->pendingMsgType = type;
             ssl->arrays->pendingMsgSz = size + HANDSHAKE_HEADER_SZ;
             ssl->arrays->pendingMsg = (byte*)XMALLOC(size + HANDSHAKE_HEADER_SZ,
@@ -5298,25 +5301,26 @@ static int DoHandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
             if (ssl->arrays->pendingMsg == NULL)
                 return MEMORY_E;
             XMEMCPY(ssl->arrays->pendingMsg,
-                    input + *inOutIdx - HANDSHAKE_HEADER_SZ, ssl->curSize);
-            ssl->arrays->pendingMsgOffset = ssl->curSize;
-            *inOutIdx += ssl->curSize - HANDSHAKE_HEADER_SZ;
+                    input + *inOutIdx - HANDSHAKE_HEADER_SZ,
+                    inputLength);
+            ssl->arrays->pendingMsgOffset = inputLength;
+            *inOutIdx += inputLength - HANDSHAKE_HEADER_SZ;
             return 0;
         }
 
         ret = DoHandShakeMsgType(ssl, input, inOutIdx, type, size, totalSz);
     }
     else {
-        if (ssl->curSize + ssl->arrays->pendingMsgOffset
+        if (inputLength + ssl->arrays->pendingMsgOffset
                                                   > ssl->arrays->pendingMsgSz) {
 
             return BUFFER_ERROR;
         }
         else {
             XMEMCPY(ssl->arrays->pendingMsg + ssl->arrays->pendingMsgOffset,
-                    input + *inOutIdx, ssl->curSize);
-            ssl->arrays->pendingMsgOffset += ssl->curSize;
-            *inOutIdx += ssl->curSize;
+                    input + *inOutIdx, inputLength);
+            ssl->arrays->pendingMsgOffset += inputLength;
+            *inOutIdx += inputLength;
         }
 
         if (ssl->arrays->pendingMsgOffset == ssl->arrays->pendingMsgSz)
