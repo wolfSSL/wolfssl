@@ -5272,6 +5272,16 @@ static int DoHandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 
     WOLFSSL_ENTER("DoHandShakeMsg()");
 
+    if (ssl->arrays == NULL) {
+        byte   type;
+        word32 size;
+
+        if (GetHandShakeHeader(ssl,input,inOutIdx,&type, &size, totalSz) != 0)
+            return PARSE_ERROR;
+
+        return DoHandShakeMsgType(ssl, input, inOutIdx, type, size, totalSz);
+    }
+
     inputLength = ssl->buffers.inputBuffer.length - *inOutIdx;
 
     /* If there is a pending fragmented handshake message,
