@@ -136,6 +136,9 @@ static void Usage(void)
     printf("-Z <num>    Minimum DH key bits,        default %d\n",
                                  DEFAULT_MIN_DHKEY_BITS);
 #endif
+#ifdef HAVE_ALPN
+    printf("-L <str>    Application-Layer Protocole Name ({C,F}:<list>)\n");
+#endif
     printf("-d          Disable client cert check\n");
     printf("-b          Bind to any interface instead of localhost only\n");
     printf("-s          Use pre Shared keys\n");
@@ -194,6 +197,8 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     int    resume = 0;            /* do resume, and resume count */
     int    minDhKeyBits = DEFAULT_MIN_DHKEY_BITS;
     int    ret;
+    char*  alpnList = NULL;
+    unsigned char alpn_opt = 0;
     char*  cipherList = NULL;
     const char* verifyCert = cliCert;
     const char* ourCert    = svrCert;
@@ -232,12 +237,14 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     (void)useNtruKey;
     (void)doCliCertCheck;
     (void)minDhKeyBits;
+    (void)alpnList;
+    (void)alpn_opt;
 
 #ifdef CYASSL_TIRTOS
     fdOpenSession(Task_self());
 #endif
 
-    while ((ch = mygetopt(argc, argv, "?dbstnNufrRawPIp:v:l:A:c:k:Z:S:oO:D:"))
+    while ((ch = mygetopt(argc, argv, "?dbstnNufrRawPIp:v:l:A:c:k:Z:S:oO:D:L:"))
                          != -1) {
         switch (ch) {
             case '?' :
@@ -376,6 +383,23 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
                 #endif
                 break;
 
+            case 'L' :
+                #ifdef HAVE_ALPN
+                    alpnList = myoptarg;
+
+                    if (alpnList[0] == 'C' && alpnList[1] == ':')
+                        alpn_opt = WOLFSSL_ALPN_CONTINUE_ON_MISMATCH;
+                    else if (alpnList[0] == 'F' && alpnList[1] == ':')
+                        alpn_opt = WOLFSSL_ALPN_FAILED_ON_MISMATCH;
+                    else {
+                        Usage();
+                        exit(MY_EX_USAGE);
+                    }
+
+                    alpnList += 2;
+
+                #endif
+                break;
             default:
                 Usage();
                 exit(MY_EX_USAGE);
@@ -622,6 +646,14 @@ while (1) {  /* allow resume option */
     }
 
     SSL_set_fd(ssl, clientfd);
+
+#ifdef HAVE_ALPN
+    if (alpnList != NULL) {
+        printf("ALPN accepted protocols list : %s\n", alpnList);
+        wolfSSL_UseALPN(ssl, alpnList, (word32)XSTRLEN(alpnList), alpn_opt);
+    }
+#endif
+
 #ifdef WOLFSSL_DTLS
     if (doDTLS) {
         SOCKADDR_IN_T cliaddr;
@@ -663,6 +695,23 @@ while (1) {  /* allow resume option */
     NonBlockingSSL_Accept(ssl);
 #endif
     showPeer(ssl);
+
+#ifdef HAVE_ALPN
+    if (alpnList != NULL) {
+        int err;
+        char *protocol_name = NULL;
+        word16 protocol_nameSz = 0;
+
+        err = wolfSSL_ALPN_GetProtocol(ssl, &protocol_name, &protocol_nameSz);
+        if (err == SSL_SUCCESS)
+            printf("Sent ALPN protocol : %s (%d)\n",
+                   protocol_name, protocol_nameSz);
+        else if (err == SSL_ALPN_NOT_FOUND)
+            printf("No ALPN response sent (no match)\n");
+        else
+            printf("Getting ALPN protocol name failed\n");
+    }
+#endif
 
     idx = SSL_read(ssl, input, sizeof(input)-1);
     if (idx > 0) {

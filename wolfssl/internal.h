@@ -1466,7 +1466,8 @@ typedef enum {
     ELLIPTIC_CURVES        = 0x000a,
     SESSION_TICKET         = 0x0023,
     SECURE_RENEGOTIATION   = 0xff01,
-    WOLFSSL_QSH            = 0x0018  /* Quantum-Safe-Hybrid */
+    WOLFSSL_QSH            = 0x0018, /* Quantum-Safe-Hybrid */
+    WOLFSSL_ALPN           = 0x0010  /* Application-Layer Protocol Name */
 } TLSX_Type;
 
 typedef struct TLSX {
@@ -1499,7 +1500,8 @@ WOLFSSL_LOCAL int    TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length,
    || defined(HAVE_TRUNCATED_HMAC)       \
    || defined(HAVE_SUPPORTED_CURVES)     \
    || defined(HAVE_SECURE_RENEGOTIATION) \
-   || defined(HAVE_SESSION_TICKET)
+   || defined(HAVE_SESSION_TICKET) \
+   || defined(HAVE_ALPN)
 
 #error Using TLS extensions requires HAVE_TLS_EXTENSIONS to be defined.
 
@@ -1532,6 +1534,24 @@ WOLFSSL_LOCAL int    TLSX_SNI_GetFromBuffer(const byte* buffer, word32 bufferSz,
 #endif
 
 #endif /* HAVE_SNI */
+
+/* Application-layer Protocol Name */
+#ifdef HAVE_ALPN
+typedef struct ALPN {
+    char*        protocol_name; /* ALPN protocol name */
+    struct ALPN* next;          /* List Behavior      */
+    byte         options;       /* Behaviour options */
+    byte         negociated;    /* ALPN protocol negociated or not */
+} ALPN;
+
+WOLFSSL_LOCAL int TLSX_ALPN_GetRequest(TLSX* extensions,
+                                       void** data, word16 *dataSz);
+
+WOLFSSL_LOCAL int TLSX_UseALPN(TLSX** extensions, const void* data,
+                               word16 size, byte options);
+
+WOLFSSL_LOCAL int TLSX_ALPN_SetOptions(TLSX** extensions, const byte option);
+#endif /* HAVE_ALPN */
 
 /* Maximum Fragment Length */
 #ifdef HAVE_MAX_FRAGMENT

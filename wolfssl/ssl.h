@@ -187,7 +187,8 @@ enum AlertDescription {
     protocol_version        = 70,
     #endif
     no_renegotiation        = 100,
-    unrecognized_name       = 112
+    unrecognized_name       = 112,
+    no_application_protocol = 120
 };
 
 
@@ -673,6 +674,7 @@ enum { /* ssl Constants */
     SSL_SUCCESS         =  1,
     SSL_SHUTDOWN_NOT_DONE =  2,  /* call wolfSSL_shutdown again to complete */
 
+    SSL_ALPN_NOT_FOUND  = -9,
     SSL_BAD_CERTTYPE    = -8,
     SSL_BAD_STAT        = -7,
     SSL_BAD_PATH        = -6,
@@ -1346,6 +1348,31 @@ WOLFSSL_API int wolfSSL_SNI_GetFromBuffer(
 
 #endif
 #endif
+
+/* Application-Layer Protocol Name */
+#ifdef HAVE_ALPN
+
+/* ALPN status code */
+enum {
+    WOLFSSL_ALPN_NO_MATCH = 0,
+    WOLFSSL_ALPN_MATCH    = 1,
+    WOLFSSL_ALPN_CONTINUE_ON_MISMATCH = 2,
+    WOLFSSL_ALPN_FAILED_ON_MISMATCH = 4,
+};
+
+enum {
+    WOLFSSL_MAX_ALPN_PROTO_NAME_LEN = 255,
+    WOLFSSL_MAX_ALPN_NUMBER = 257
+};
+
+WOLFSSL_API int wolfSSL_UseALPN(WOLFSSL* ssl, char *protocol_name_list,
+                                unsigned int protocol_name_listSz,
+                                unsigned char options);
+
+WOLFSSL_API int wolfSSL_ALPN_GetProtocol(WOLFSSL* ssl, char **protocol_name,
+                                         unsigned short *size);
+
+#endif /* HAVE_ALPN */
 
 /* Maximum Fragment Length */
 #ifdef HAVE_MAX_FRAGMENT
