@@ -654,6 +654,7 @@ int wc_Des3_SetKey(Des3* des3, const byte* key, const byte* iv, int dir)
         int i;
         int offset = 0;
         int len = sz;
+        int ret = 0;
         byte *iv;
         byte temp_block[DES_BLOCK_SIZE];
 
@@ -672,7 +673,12 @@ int wc_Des3_SetKey(Des3* des3, const byte* key, const byte* iv, int dir)
             for (i = 0; i < DES_BLOCK_SIZE; i++)
                 temp_block[i] ^= iv[i];
 
+            ret = wolfSSL_CryptHwMutexLock();
+            if(ret != 0) {
+                return ret;
+            }
             cau_des_encrypt(temp_block, (byte*)des->key, out + offset);
+            wolfSSL_CryptHwMutexUnLock();
 
             len    -= DES_BLOCK_SIZE;
             offset += DES_BLOCK_SIZE;
@@ -681,7 +687,7 @@ int wc_Des3_SetKey(Des3* des3, const byte* key, const byte* iv, int dir)
             XMEMCPY(iv, out + offset - DES_BLOCK_SIZE, DES_BLOCK_SIZE);
         }
 
-        return 0;
+        return ret;
     }
 
     int wc_Des_CbcDecrypt(Des* des, byte* out, const byte* in, word32 sz)
@@ -689,6 +695,7 @@ int wc_Des3_SetKey(Des3* des3, const byte* key, const byte* iv, int dir)
         int i;
         int offset = 0;
         int len = sz;
+        int ret = 0;
         byte* iv;
         byte temp_block[DES_BLOCK_SIZE];
 
@@ -703,7 +710,12 @@ int wc_Des3_SetKey(Des3* des3, const byte* key, const byte* iv, int dir)
         {
             XMEMCPY(temp_block, in + offset, DES_BLOCK_SIZE);
 
+            ret = wolfSSL_CryptHwMutexLock();
+            if(ret != 0) {
+                return ret;
+            }
             cau_des_decrypt(in + offset, (byte*)des->key, out + offset);
+            wolfSSL_CryptHwMutexUnLock();
 
             /* XOR block with IV for CBC */
             for (i = 0; i < DES_BLOCK_SIZE; i++)
@@ -716,7 +728,7 @@ int wc_Des3_SetKey(Des3* des3, const byte* key, const byte* iv, int dir)
             offset += DES_BLOCK_SIZE;
         }
 
-        return 0;
+        return ret;
     }
 
     int wc_Des3_CbcEncrypt(Des3* des, byte* out, const byte* in, word32 sz)
@@ -724,6 +736,7 @@ int wc_Des3_SetKey(Des3* des3, const byte* key, const byte* iv, int dir)
         int i;
         int offset = 0;
         int len = sz;
+        int ret = 0;
 
         byte *iv;
         byte temp_block[DES_BLOCK_SIZE];
@@ -743,9 +756,14 @@ int wc_Des3_SetKey(Des3* des3, const byte* key, const byte* iv, int dir)
             for (i = 0; i < DES_BLOCK_SIZE; i++)
                 temp_block[i] ^= iv[i];
 
+            ret = wolfSSL_CryptHwMutexLock();
+            if(ret != 0) {
+                return ret;
+            }
             cau_des_encrypt(temp_block  , (byte*)des->key[0], out + offset);
             cau_des_decrypt(out + offset, (byte*)des->key[1], out + offset);
             cau_des_encrypt(out + offset, (byte*)des->key[2], out + offset);
+            wolfSSL_CryptHwMutexUnLock();
 
             len    -= DES_BLOCK_SIZE;
             offset += DES_BLOCK_SIZE;
@@ -754,7 +772,7 @@ int wc_Des3_SetKey(Des3* des3, const byte* key, const byte* iv, int dir)
             XMEMCPY(iv, out + offset - DES_BLOCK_SIZE, DES_BLOCK_SIZE);
         }
 
-        return 0;
+        return ret;
     }
 
     int wc_Des3_CbcDecrypt(Des3* des, byte* out, const byte* in, word32 sz)
@@ -762,6 +780,7 @@ int wc_Des3_SetKey(Des3* des3, const byte* key, const byte* iv, int dir)
         int i;
         int offset = 0;
         int len = sz;
+        int ret = 0;
 
         byte* iv;
         byte temp_block[DES_BLOCK_SIZE];
@@ -777,9 +796,14 @@ int wc_Des3_SetKey(Des3* des3, const byte* key, const byte* iv, int dir)
         {
             XMEMCPY(temp_block, in + offset, DES_BLOCK_SIZE);
 
+            ret = wolfSSL_CryptHwMutexLock();
+            if(ret != 0) {
+                return ret;
+            }
             cau_des_decrypt(in + offset , (byte*)des->key[2], out + offset);
             cau_des_encrypt(out + offset, (byte*)des->key[1], out + offset);
             cau_des_decrypt(out + offset, (byte*)des->key[0], out + offset);
+            wolfSSL_CryptHwMutexUnLock();
 
             /* XOR block with IV for CBC */
             for (i = 0; i < DES_BLOCK_SIZE; i++)
@@ -792,7 +816,7 @@ int wc_Des3_SetKey(Des3* des3, const byte* key, const byte* iv, int dir)
             offset += DES_BLOCK_SIZE;
         }
 
-        return 0;
+        return ret;
     }
 
 
