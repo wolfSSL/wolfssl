@@ -1540,13 +1540,17 @@ WOLFSSL_LOCAL int    TLSX_SNI_GetFromBuffer(const byte* buffer, word32 bufferSz,
 typedef struct ALPN {
     char*        protocol_name; /* ALPN protocol name */
     struct ALPN* next;          /* List Behavior      */
+    byte         options;       /* Behaviour options */
+    byte         negociated;    /* ALPN protocol negociated or not */
 } ALPN;
 
 WOLFSSL_LOCAL int TLSX_ALPN_GetRequest(TLSX* extensions,
                                        void** data, word16 *dataSz);
 
 WOLFSSL_LOCAL int TLSX_UseALPN(TLSX** extensions, const void* data,
-                               word16 size);
+                               word16 size, byte options);
+
+WOLFSSL_LOCAL int TLSX_ALPN_SetOptions(TLSX** extensions, const byte option);
 #endif /* HAVE_ALPN */
 
 /* Maximum Fragment Length */

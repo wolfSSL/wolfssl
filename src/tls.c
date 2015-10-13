@@ -867,6 +867,8 @@ static ALPN* TLSX_ALPN_New(char *protocol_name, word16 protocol_nameSz)
     }
 
     alpn->next = NULL;
+    alpn->negociated = 0;
+    alpn->options = 0;
 
     alpn->protocol_name = XMALLOC(protocol_nameSz + 1, 0, DYNAMIC_TYPE_TLSX);
     if (alpn->protocol_name == NULL) {
@@ -977,6 +979,8 @@ static int TLSX_SetALPN(TLSX** extensions, const void* data, word16 size)
         return MEMORY_E;
     }
 
+    alpn->negociated = 1;
+
     ret = TLSX_Push(extensions, WOLFSSL_ALPN, (void*)alpn);
     if (ret != 0) {
         TLSX_ALPN_Free(alpn);
@@ -995,7 +999,7 @@ static int TLSX_ALPN_ParseAndSet(WOLFSSL *ssl, byte *input, word16 length,
     word16 offset = 0;
     int    r = BUFFER_ERROR;
     TLSX   *extension;
-    ALPN   *alpn = NULL;
+    ALPN   *alpn = NULL, *list;
 
     extension = TLSX_Find(ssl->extensions, WOLFSSL_ALPN);
     if (extension == NULL)
@@ -1017,14 +1021,15 @@ static int TLSX_ALPN_ParseAndSet(WOLFSSL *ssl, byte *input, word16 length,
     if (length != OPAQUE16_LEN + size)
         return BUFFER_ERROR;
 
+    list = (ALPN*)extension->data;
+
     for (size = 0; offset < length; offset += size) {
 
         size = input[offset++];
         if (offset + size > length)
             return BUFFER_ERROR;
 
-        alpn = TLSX_ALPN_Find((ALPN*)extension->data,
-                              (char*)input + offset, size);
+        alpn = TLSX_ALPN_Find(list, (char*)input + offset, size);
         if (alpn != NULL) {
             WOLFSSL_MSG("ALPN protocol match");
             break;
@@ -1034,13 +1039,21 @@ static int TLSX_ALPN_ParseAndSet(WOLFSSL *ssl, byte *input, word16 length,
     if (alpn == NULL) {
         WOLFSSL_MSG("No ALPN protocol match");
 
+        /* do nothing if no protocol match between client and server and option
+         is set to continue (like OpenSSL) */
+        if (list->options & WOLFSSL_ALPN_CONTINUE_ON_MISMATCH) {
+            WOLFSSL_MSG("Continue on mismatch");
+            return 0;
+        }
+
         SendAlert(ssl, alert_fatal, no_application_protocol);
         return UNKNOWN_ALPN_PROTOCOL_NAME_E;
     }
 
     /* set the matching negociated protocol */
     r = TLSX_SetALPN(&ssl->extensions,
-                     alpn->protocol_name, (word16)XSTRLEN(alpn->protocol_name));
+                     alpn->protocol_name,
+                     (word16)XSTRLEN(alpn->protocol_name));
     if (r != SSL_SUCCESS) {
         WOLFSSL_MSG("TLSX_UseALPN failed");
         return BUFFER_ERROR;
@@ -1057,7 +1070,7 @@ static int TLSX_ALPN_ParseAndSet(WOLFSSL *ssl, byte *input, word16 length,
 }
 
 /** Add a protocol name to the list of accepted usable ones */
-int TLSX_UseALPN(TLSX** extensions, const void* data, word16 size)
+int TLSX_UseALPN(TLSX** extensions, const void* data, word16 size, byte options)
 {
     ALPN *alpn;
     TLSX *extension;
@@ -1071,6 +1084,9 @@ int TLSX_UseALPN(TLSX** extensions, const void* data, word16 size)
         WOLFSSL_MSG("Memory failure");
         return MEMORY_E;
     }
+
+    /* Set Options of ALPN */
+    alpn->options = options;
 
     extension = TLSX_Find(*extensions, WOLFSSL_ALPN);
     if (extension == NULL) {
@@ -1101,13 +1117,28 @@ int TLSX_ALPN_GetRequest(TLSX* extensions, void** data, word16 *dataSz)
     extension = TLSX_Find(extensions, WOLFSSL_ALPN);
     if (extension == NULL) {
         WOLFSSL_MSG("TLS extension not found");
-        return SSL_FATAL_ERROR;
+        return SSL_ALPN_NOT_FOUND;
     }
 
     alpn = (ALPN *)extension->data;
     if (alpn == NULL) {
         WOLFSSL_MSG("ALPN extension not found");
-        return WOLFSSL_ALPN_NO_MATCH;
+        *data = NULL;
+        *dataSz = 0;
+        return SSL_FATAL_ERROR;
+    }
+
+    if (alpn->negociated != 1) {
+
+        /* consider as an error */
+        if (alpn->options & WOLFSSL_ALPN_FAILED_ON_MISMATCH) {
+            WOLFSSL_MSG("No protocol match with peer -> Failed");
+            return SSL_FATAL_ERROR;
+        }
+
+        /* continue without negociated protocol */
+        WOLFSSL_MSG("No protocol match with peer -> Continue");
+        return SSL_ALPN_NOT_FOUND;
     }
 
     if (alpn->next != NULL) {

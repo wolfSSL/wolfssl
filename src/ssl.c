@@ -889,7 +889,7 @@ int wolfSSL_UseSupportedQSH(WOLFSSL* ssl, word16 name)
 #ifdef HAVE_ALPN
 
 int wolfSSL_UseALPN(WOLFSSL* ssl, char *protocol_name_list,
-                    word32 protocol_name_listSz)
+                    word32 protocol_name_listSz, byte options)
 {
     char    *list, *ptr, *token[10];
     word16  len;
@@ -904,9 +904,16 @@ int wolfSSL_UseALPN(WOLFSSL* ssl, char *protocol_name_list,
     if (protocol_name_listSz > (WOLFSSL_MAX_ALPN_NUMBER *
                                 WOLFSSL_MAX_ALPN_PROTO_NAME_LEN +
                                 WOLFSSL_MAX_ALPN_NUMBER)) {
-        WOLFSSL_MSG("Invalid arguments, procolt name list too long");
+        WOLFSSL_MSG("Invalid arguments, protocol name list too long");
         return BAD_FUNC_ARG;
     }
+
+    if (!(options & WOLFSSL_ALPN_CONTINUE_ON_MISMATCH) &&
+        !(options & WOLFSSL_ALPN_FAILED_ON_MISMATCH)) {
+            WOLFSSL_MSG("Invalid arguments, options not supported");
+            return BAD_FUNC_ARG;
+        }
+
 
     list = (char *)XMALLOC(protocol_name_listSz+1, NULL,
                            DYNAMIC_TYPE_TMP_BUFFER);
@@ -927,7 +934,7 @@ int wolfSSL_UseALPN(WOLFSSL* ssl, char *protocol_name_list,
     while ((idx--) > 0) {
         len = (word16)XSTRLEN(token[idx]);
 
-        ret = TLSX_UseALPN(&ssl->extensions, token[idx], len);
+        ret = TLSX_UseALPN(&ssl->extensions, token[idx], len, options);
         if (ret != SSL_SUCCESS) {
             WOLFSSL_MSG("TLSX_UseALPN failure");
             break;

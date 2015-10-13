@@ -1215,7 +1215,19 @@ static void use_ALPN_all(WOLFSSL* ssl)
                         0x73, 0x70, 0x64, 0x79, 0x2f, 0x31, 0x2c,
                         0x73, 0x70, 0x64, 0x79, 0x2f, 0x32, 0x2c,
                         0x73, 0x70, 0x64, 0x79, 0x2f, 0x33};
-    AssertIntEQ(SSL_SUCCESS, wolfSSL_UseALPN(ssl, alpn_list, sizeof(alpn_list)));
+    AssertIntEQ(SSL_SUCCESS, wolfSSL_UseALPN(ssl, alpn_list, sizeof(alpn_list),
+                                             WOLFSSL_ALPN_FAILED_ON_MISMATCH));
+}
+
+static void use_ALPN_all_continue(WOLFSSL* ssl)
+{
+    /* http/1.1,spdy/1,spdy/2,spdy/3 */
+    char alpn_list[] = {0x68, 0x74, 0x74, 0x70, 0x2f, 0x31, 0x2e, 0x31, 0x2c,
+        0x73, 0x70, 0x64, 0x79, 0x2f, 0x31, 0x2c,
+        0x73, 0x70, 0x64, 0x79, 0x2f, 0x32, 0x2c,
+        0x73, 0x70, 0x64, 0x79, 0x2f, 0x33};
+    AssertIntEQ(SSL_SUCCESS, wolfSSL_UseALPN(ssl, alpn_list, sizeof(alpn_list),
+                                             WOLFSSL_ALPN_CONTINUE_ON_MISMATCH));
 }
 
 static void use_ALPN_one(WOLFSSL* ssl)
@@ -1223,7 +1235,8 @@ static void use_ALPN_one(WOLFSSL* ssl)
     /* spdy/2 */
     char proto[] = {0x73, 0x70, 0x64, 0x79, 0x2f, 0x32};
 
-    AssertIntEQ(SSL_SUCCESS, wolfSSL_UseALPN(ssl, proto, sizeof(proto)));
+    AssertIntEQ(SSL_SUCCESS, wolfSSL_UseALPN(ssl, proto, sizeof(proto),
+                                             WOLFSSL_ALPN_FAILED_ON_MISMATCH));
 }
 
 static void use_ALPN_unknown(WOLFSSL* ssl)
@@ -1231,7 +1244,17 @@ static void use_ALPN_unknown(WOLFSSL* ssl)
     /* http/2.0 */
     char proto[] = {0x68, 0x74, 0x74, 0x70, 0x2f, 0x32, 0x2e, 0x30};
 
-    AssertIntEQ(SSL_SUCCESS, wolfSSL_UseALPN(ssl, proto, sizeof(proto)));
+    AssertIntEQ(SSL_SUCCESS, wolfSSL_UseALPN(ssl, proto, sizeof(proto),
+                                             WOLFSSL_ALPN_FAILED_ON_MISMATCH));
+}
+
+static void use_ALPN_unknown_continue(WOLFSSL* ssl)
+{
+    /* http/2.0 */
+    char proto[] = {0x68, 0x74, 0x74, 0x70, 0x2f, 0x32, 0x2e, 0x30};
+
+    AssertIntEQ(SSL_SUCCESS, wolfSSL_UseALPN(ssl, proto, sizeof(proto),
+                                             WOLFSSL_ALPN_CONTINUE_ON_MISMATCH));
 }
 
 static void verify_ALPN_not_matching_spdy3(WOLFSSL* ssl)
@@ -1242,14 +1265,24 @@ static void verify_ALPN_not_matching_spdy3(WOLFSSL* ssl)
     char *proto;
     word16 protoSz = 0;
 
-    printf("verify_ALPN_not_matching GetProtocol(ssl) = %d\n",
-           wolfSSL_ALPN_GetProtocol(ssl, &proto, &protoSz));
-
     AssertIntEQ(SSL_SUCCESS, wolfSSL_ALPN_GetProtocol(ssl, &proto, &protoSz));
 
     /* check value */
     AssertIntNE(1, sizeof(nego_proto) == protoSz);
     AssertIntNE(0, XMEMCMP(nego_proto, proto, sizeof(nego_proto)));
+}
+
+static void verify_ALPN_not_matching_continue(WOLFSSL* ssl)
+{
+    char *proto = NULL;
+    word16 protoSz = 0;
+
+    AssertIntEQ(SSL_ALPN_NOT_FOUND,
+                wolfSSL_ALPN_GetProtocol(ssl, &proto, &protoSz));
+
+    /* check value */
+    AssertIntEQ(1, 0 == protoSz);
+    AssertIntEQ(1, NULL == proto);
 }
 
 static void verify_ALPN_matching_http1(WOLFSSL* ssl)
@@ -1258,9 +1291,6 @@ static void verify_ALPN_matching_http1(WOLFSSL* ssl)
     char nego_proto[] = {0x68, 0x74, 0x74, 0x70, 0x2f, 0x31, 0x2e, 0x31};
     char *proto;
     word16 protoSz = 0;
-
-    printf("verify_ALPN_matching GetProtocol(ssl) = %d\n",
-           wolfSSL_ALPN_GetProtocol(ssl, &proto, &protoSz));
 
     AssertIntEQ(SSL_SUCCESS, wolfSSL_ALPN_GetProtocol(ssl, &proto, &protoSz));
 
@@ -1276,16 +1306,12 @@ static void verify_ALPN_matching_spdy2(WOLFSSL* ssl)
     char *proto;
     word16 protoSz = 0;
 
-    printf("verify_ALPN_matching GetProtocol(ssl) = %d\n",
-           wolfSSL_ALPN_GetProtocol(ssl, &proto, &protoSz));
-
     AssertIntEQ(SSL_SUCCESS, wolfSSL_ALPN_GetProtocol(ssl, &proto, &protoSz));
 
     /* check value */
     AssertIntEQ(1, sizeof(nego_proto) == protoSz);
     AssertIntEQ(0, XMEMCMP(nego_proto, proto, protoSz));
 }
-
 
 static void test_wolfSSL_UseALPN_connection(void)
 {
@@ -1306,6 +1332,10 @@ static void test_wolfSSL_UseALPN_connection(void)
         /* success case none for client */
         {0, 0, 0, 0},
         {0, 0, use_ALPN_all, 0},
+
+        /* success case missmatch behavior but option 'continue' set */
+        {0, 0, use_ALPN_all_continue, verify_ALPN_not_matching_continue},
+        {0, 0, use_ALPN_unknown_continue, 0},
 
         /* missmatch behavior with same list
          * the first and only this one must be taken */
@@ -1345,13 +1375,16 @@ static void test_wolfSSL_UseALPN_params(void)
 
     /* error cases */
     AssertIntNE(SSL_SUCCESS,
-                wolfSSL_UseALPN(NULL, http1, sizeof(http1)));
-    AssertIntNE(SSL_SUCCESS, wolfSSL_UseALPN(ssl, NULL, 0));
+                wolfSSL_UseALPN(NULL, http1, sizeof(http1),
+                                WOLFSSL_ALPN_FAILED_ON_MISMATCH));
+    AssertIntNE(SSL_SUCCESS, wolfSSL_UseALPN(ssl, NULL, 0,
+                                             WOLFSSL_ALPN_FAILED_ON_MISMATCH));
 
     /* success case */
     /* http1 only */
     AssertIntEQ(SSL_SUCCESS,
-                wolfSSL_UseALPN(ssl, http1, sizeof(http1)));
+                wolfSSL_UseALPN(ssl, http1, sizeof(http1),
+                                WOLFSSL_ALPN_FAILED_ON_MISMATCH));
 
     /* http1, spdy1 */
     memcpy(buff, http1, sizeof(http1));
@@ -1359,7 +1392,8 @@ static void test_wolfSSL_UseALPN_params(void)
     buff[idx++] = ',';
     memcpy(buff+idx, spdy1, sizeof(spdy1));
     idx += sizeof(spdy1);
-    AssertIntEQ(SSL_SUCCESS, wolfSSL_UseALPN(ssl, buff, idx));
+    AssertIntEQ(SSL_SUCCESS, wolfSSL_UseALPN(ssl, buff, idx,
+                                             WOLFSSL_ALPN_FAILED_ON_MISMATCH));
 
     /* http1, spdy2, spdy1 */
     memcpy(buff, http1, sizeof(http1));
@@ -1370,7 +1404,8 @@ static void test_wolfSSL_UseALPN_params(void)
     buff[idx++] = ',';
     memcpy(buff+idx, spdy1, sizeof(spdy1));
     idx += sizeof(spdy1);
-    AssertIntEQ(SSL_SUCCESS, wolfSSL_UseALPN(ssl, buff, idx));
+    AssertIntEQ(SSL_SUCCESS, wolfSSL_UseALPN(ssl, buff, idx,
+                                             WOLFSSL_ALPN_FAILED_ON_MISMATCH));
 
     /* spdy3, http1, spdy2, spdy1 */
     memcpy(buff, spdy3, sizeof(spdy3));
@@ -1384,7 +1419,8 @@ static void test_wolfSSL_UseALPN_params(void)
     buff[idx++] = ',';
     memcpy(buff+idx, spdy1, sizeof(spdy1));
     idx += sizeof(spdy1);
-    AssertIntEQ(SSL_SUCCESS, wolfSSL_UseALPN(ssl, buff, idx));
+    AssertIntEQ(SSL_SUCCESS, wolfSSL_UseALPN(ssl, buff, idx,
+                                             WOLFSSL_ALPN_CONTINUE_ON_MISMATCH));
 
     wolfSSL_free(ssl);
     wolfSSL_CTX_free(ctx);
