@@ -138,6 +138,8 @@ enum wolfSSL_ErrorCodes {
     RSA_SIGN_FAULT          = -403,        /* RSA Sign fault */
     HANDSHAKE_SIZE_ERROR    = -404,        /* Handshake message too large */
 
+    UNKNOWN_ALPN_PROTOCOL_NAME_E = -405,   /* Unrecognized protocol name Error*/
+
     /* add strings to SetErrorString !!!!! */
 
     /* begin negotiation parameter errors */

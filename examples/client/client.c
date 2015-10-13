@@ -193,6 +193,9 @@ static void Usage(void)
 #ifdef HAVE_CRL
     printf("-C          Disable CRL\n");
 #endif
+#ifdef HAVE_ALPN
+    printf("-n <str>   Application-Layer Protocole Name ({C,F}:<list>)\n");
+#endif
 }
 
 THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
@@ -243,6 +246,8 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     int    pkCallbacks   = 0;
     int    overrideDateErrors = 0;
     int    minDhKeyBits  = DEFAULT_MIN_DHKEY_BITS;
+    char*  alpnList = NULL;
+    unsigned char alpn_opt = 0;
     char*  cipherList = NULL;
     const char* verifyCert = caCert;
     const char* ourCert    = cliCert;
@@ -289,11 +294,13 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     (void)overrideDateErrors;
     (void)disableCRL;
     (void)minDhKeyBits;
+    (void)alpnList;
+    (void)alpn_opt;
 
     StackTrap();
 
     while ((ch = mygetopt(argc, argv,
-                          "?gdeDusmNrwRitfxXUPCh:p:v:l:A:c:k:Z:b:zS:L:ToO:a"))
+                          "?gdeDusmNrwRitfxXUPCh:p:v:l:A:c:k:Z:b:zS:L:ToO:an:"))
                                                                         != -1) {
         switch (ch) {
             case '?' :
@@ -489,6 +496,24 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
             case 'a' :
                 #ifdef HAVE_ANON
                     useAnon = 1;
+                #endif
+                break;
+
+            case 'n' :
+                #ifdef HAVE_ALPN
+                    alpnList = myoptarg;
+
+                    if (alpnList[0] == 'C' && alpnList[1] == ':')
+                        alpn_opt = WOLFSSL_ALPN_CONTINUE_ON_MISMATCH;
+                    else if (alpnList[0] == 'F' && alpnList[1] == ':')
+                        alpn_opt = WOLFSSL_ALPN_FAILED_ON_MISMATCH;
+                    else {
+                        Usage();
+                        exit(MY_EX_USAGE);
+                    }
+
+                    alpnList += 2;
+
                 #endif
                 break;
 
@@ -797,6 +822,14 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     #ifdef HAVE_SESSION_TICKET
     wolfSSL_set_SessionTicket_cb(ssl, sessionTicketCB, (void*)"initial session");
     #endif
+
+#ifdef HAVE_ALPN
+    if (alpnList != NULL) {
+       printf("ALPN accepted protocols list : %s\n", alpnList);
+       wolfSSL_UseALPN(ssl, alpnList, (word32)XSTRLEN(alpnList), alpn_opt);
+    }
+#endif
+
     if (doDTLS) {
         SOCKADDR_IN_T addr;
         build_addr(&addr, host, port, 1);
@@ -864,6 +897,23 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     NonBlockingSSL_Connect(ssl);  /* will keep retrying on timeout */
 #endif
     showPeer(ssl);
+
+#ifdef HAVE_ALPN
+    if (alpnList != NULL) {
+        int err;
+        char *protocol_name = NULL;
+        word16 protocol_nameSz = 0;
+
+        err = wolfSSL_ALPN_GetProtocol(ssl, &protocol_name, &protocol_nameSz);
+        if (err == SSL_SUCCESS)
+            printf("Received ALPN protocol : %s (%d)\n",
+                   protocol_name, protocol_nameSz);
+        else if (err == SSL_ALPN_NOT_FOUND)
+            printf("Not received ALPN response (no match with server)\n");
+        else
+            printf("Getting ALPN protocol name failed\n");
+    }
+#endif
 
 #ifdef HAVE_SECURE_RENEGOTIATION
     if (scr && forceScr) {
@@ -952,6 +1002,13 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
             tcp_connect(&sockfd, host, port, 0);
         }
         wolfSSL_set_fd(sslResume, sockfd);
+#ifdef HAVE_ALPN
+        if (alpnList != NULL) {
+            printf("ALPN accepted protocols list : %s\n", alpnList);
+            wolfSSL_UseALPN(sslResume, alpnList, (word32)XSTRLEN(alpnList),
+                            alpn_opt);
+        }
+#endif
 #ifdef HAVE_SECURE_RENEGOTIATION
         if (scr) {
             if (wolfSSL_UseSecureRenegotiation(sslResume) != SSL_SUCCESS)
@@ -984,6 +1041,24 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
         else
             printf("didn't reuse session id!!!\n");
 
+#ifdef HAVE_ALPN
+        if (alpnList != NULL) {
+            int err;
+            char *protocol_name = NULL;
+            word16 protocol_nameSz = 0;
+
+            printf("Sending ALPN accepted list : %s\n", alpnList);
+            err = wolfSSL_ALPN_GetProtocol(sslResume, &protocol_name,
+                                           &protocol_nameSz);
+            if (err == SSL_SUCCESS)
+                printf("Received ALPN protocol : %s (%d)\n",
+                       protocol_name, protocol_nameSz);
+            else if (err == SSL_ALPN_NOT_FOUND)
+                printf("Not received ALPN response (no match with server)\n");
+            else
+                printf("Getting ALPN protocol name failed\n");
+        }
+#endif
         if (wolfSSL_write(sslResume, resumeMsg, resumeSz) != resumeSz)
             err_sys("SSL_write failed");
 
