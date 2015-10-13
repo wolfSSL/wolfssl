@@ -172,7 +172,7 @@ static void Usage(void)
     printf("-S <str>    Use Host Name Indication\n");
 #endif
 #ifdef HAVE_MAX_FRAGMENT
-    printf("-L <num>    Use Maximum Fragment Length [1-5]\n");
+    printf("-F <num>    Use Maximum Fragment Length [1-5]\n");
 #endif
 #ifdef HAVE_TRUNCATED_HMAC
     printf("-T          Use Truncated HMAC\n");
@@ -293,7 +293,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     StackTrap();
 
     while ((ch = mygetopt(argc, argv,
-                          "?gdeDusmNrwRitfxXUPCh:p:v:l:A:c:k:Z:b:zS:L:ToO:a"))
+                          "?gdeDusmNrwRitfxXUPCh:p:v:l:A:c:k:Z:b:zS:F:ToO:a"))
                                                                         != -1) {
         switch (ch) {
             case '?' :
@@ -456,7 +456,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
                 #endif
                 break;
 
-            case 'L' :
+            case 'F' :
                 #ifdef HAVE_MAX_FRAGMENT
                     maxFragment = atoi(myoptarg);
                     if (maxFragment < WOLFSSL_MFL_2_9 ||
