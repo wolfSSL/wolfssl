@@ -56,7 +56,7 @@ SSL_SNIFFER_API int ssl_SetNamedPrivateKey(const char* name,
 
 WOLFSSL_API
 SSL_SNIFFER_API int ssl_DecodePacket(const unsigned char* packet, int length,
-                                     unsigned char* data, char* error);
+                                     unsigned char** data, char* error);
 
 WOLFSSL_API
 SSL_SNIFFER_API int ssl_Trace(const char* traceFile, char* error);
