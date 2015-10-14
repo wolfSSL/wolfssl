@@ -99,13 +99,13 @@ WOLFSSL_API int  wc_RsaPublicKeyDecodeRaw(const byte* n, word32 nSz,
                                         const byte* e, word32 eSz, RsaKey* key);
 #ifdef WOLFSSL_KEY_GEN
     WOLFSSL_API int wc_RsaKeyToDer(RsaKey*, byte* output, word32 inLen);
-    WOLFSSL_API int wc_RsaKeyToPublicDer(RsaKey*, byte* output, word32 inLen);
 #endif
 #endif /* HAVE_FIPS*/
 WOLFSSL_API int  wc_RsaFlattenPublicKey(RsaKey*, byte*, word32*, byte*,
                                                                        word32*);
 
 #ifdef WOLFSSL_KEY_GEN
+    WOLFSSL_API int wc_RsaKeyToPublicDer(RsaKey*, byte* output, word32 inLen);
     WOLFSSL_API int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng);
 #endif
 

@@ -146,6 +146,9 @@ static void Usage(void)
                                  DEFAULT_MIN_DHKEY_BITS);
 #endif
     printf("-b <num>    Benchmark <num> connections and print stats\n");
+#ifdef HAVE_ALPN
+    printf("-L <str>    Application-Layer Protocole Name ({C,F}:<list>)\n");
+#endif
     printf("-s          Use pre Shared keys\n");
     printf("-t          Track wolfSSL memory use\n");
     printf("-d          Disable peer checks\n");
@@ -172,7 +175,7 @@ static void Usage(void)
     printf("-S <str>    Use Host Name Indication\n");
 #endif
 #ifdef HAVE_MAX_FRAGMENT
-    printf("-L <num>    Use Maximum Fragment Length [1-5]\n");
+    printf("-F <num>    Use Maximum Fragment Length [1-5]\n");
 #endif
 #ifdef HAVE_TRUNCATED_HMAC
     printf("-T          Use Truncated HMAC\n");
@@ -192,9 +195,6 @@ static void Usage(void)
 #endif
 #ifdef HAVE_CRL
     printf("-C          Disable CRL\n");
-#endif
-#ifdef HAVE_ALPN
-    printf("-n <str>   Application-Layer Protocole Name ({C,F}:<list>)\n");
 #endif
 }
 
@@ -463,7 +463,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
                 #endif
                 break;
 
-            case 'L' :
+            case 'F' :
                 #ifdef HAVE_MAX_FRAGMENT
                     maxFragment = atoi(myoptarg);
                     if (maxFragment < WOLFSSL_MFL_2_9 ||
@@ -909,7 +909,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
             printf("Received ALPN protocol : %s (%d)\n",
                    protocol_name, protocol_nameSz);
         else if (err == SSL_ALPN_NOT_FOUND)
-            printf("Not received ALPN response (no match with server)\n");
+            printf("No ALPN response received (no match with server)\n");
         else
             printf("Getting ALPN protocol name failed\n");
     }

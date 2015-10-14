@@ -136,6 +136,9 @@ static void Usage(void)
     printf("-Z <num>    Minimum DH key bits,        default %d\n",
                                  DEFAULT_MIN_DHKEY_BITS);
 #endif
+#ifdef HAVE_ALPN
+    printf("-L <str>    Application-Layer Protocole Name ({C,F}:<list>)\n");
+#endif
     printf("-d          Disable client cert check\n");
     printf("-b          Bind to any interface instead of localhost only\n");
     printf("-s          Use pre Shared keys\n");
@@ -160,9 +163,6 @@ static void Usage(void)
 #endif
 #ifndef NO_PSK
     printf("-I          Do not send PSK identity hint\n");
-#endif
-#ifdef HAVE_ALPN
-    printf("-L <str>   Application-Layer Protocole Name ({C,F}:<list>)\n");
 #endif
 }
 
@@ -704,10 +704,10 @@ while (1) {  /* allow resume option */
 
         err = wolfSSL_ALPN_GetProtocol(ssl, &protocol_name, &protocol_nameSz);
         if (err == SSL_SUCCESS)
-            printf("Send ALPN protocol : %s (%d)\n",
+            printf("Sent ALPN protocol : %s (%d)\n",
                    protocol_name, protocol_nameSz);
         else if (err == SSL_ALPN_NOT_FOUND)
-            printf("Not send ALPN response (no match with server)\n");
+            printf("No ALPN response sent (no match)\n");
         else
             printf("Getting ALPN protocol name failed\n");
     }

@@ -29,6 +29,25 @@
 #include <wolfssl/test.h>
 #include "wolfcrypt/test/test.h"
 
+/* This function changes the current directory to the wolfssl root */
+static void ChangeDirToRoot(void)
+{
+    /* Normal Command Line=_build, Visual Studio=testsuite */
+    if (CurrentDir("testsuite") || CurrentDir("_build")) {
+        ChangeDirBack(1);
+    }
+
+    /* Xcode: To output application to correct location: */
+    /* 1. Xcode->Preferences->Locations->Locations */
+    /* 2. Derived Data Advanced -> Custom */
+    /* 3. Relative to Workspace, Build/Products */
+    /* Build/Products/Debug or Build/Products/Release */
+    else if (CurrentDir("Debug") || CurrentDir("Release")) {
+    ChangeDirBack(5);
+    }
+}
+
+
 #ifndef SINGLE_THREADED
 
 #include <wolfssl/openssl/ssl.h>
@@ -52,7 +71,6 @@ static const char *outputName;
 
 int myoptind = 0;
 char* myoptarg = NULL;
-
 
 #ifndef NO_TESTSUITE_MAIN_DRIVER
 
@@ -100,13 +118,7 @@ int testsuite_test(int argc, char** argv)
 #endif
 
 #if !defined(WOLFSSL_TIRTOS)
-    if (CurrentDir("testsuite") || CurrentDir("_build"))
-        ChangeDirBack(1);
-    else if (CurrentDir("Debug") || CurrentDir("Release"))
-        ChangeDirBack(3);          /* Xcode->Preferences->Locations->Locations*/
-                                   /* Derived Data Advanced -> Custom  */
-                                   /* Relative to Workspace, Build/Products */
-                                   /* Debug or Release */
+	ChangeDirToRoot();
 #endif
 
 #ifdef WOLFSSL_TIRTOS
@@ -382,6 +394,7 @@ void file_test(const char* file, byte* check)
         ret = wc_Sha256Update(&sha256, buf, i);
         if (ret != 0) {
             printf("Can't wc_Sha256Update %d\n", ret);
+            fclose(f);
             return;
         }
     }
@@ -389,6 +402,7 @@ void file_test(const char* file, byte* check)
     ret = wc_Sha256Final(&sha256, shasum);
     if (ret != 0) {
         printf("Can't wc_Sha256Final %d\n", ret);
+        fclose(f);
         return;
     }
 
@@ -417,13 +431,7 @@ int main(int argc, char** argv)
     server_args.argc = argc;
     server_args.argv = argv;
 
-    if (CurrentDir("testsuite") || CurrentDir("_build"))
-        ChangeDirBack(1);
-    else if (CurrentDir("Debug") || CurrentDir("Release"))
-        ChangeDirBack(3);          /* Xcode->Preferences->Locations->Locations*/
-                                   /* Derived Data Advanced -> Custom  */
-                                   /* Relative to Workspace, Build/Products */
-                                   /* Debug or Release */
+    ChangeDirToRoot();
 
     wolfcrypt_test(&server_args);
     if (server_args.return_code != 0) return server_args.return_code;

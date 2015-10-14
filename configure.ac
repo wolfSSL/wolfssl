@@ -1902,6 +1902,7 @@ then
     if test "x$ENABLED_ECC" = "xno"
     then
         ENABLED_OPENSSLEXTRA="yes"
+        ENABLED_ECC="yes"
         AM_CFLAGS="$AM_CFLAGS -DHAVE_ECC -DTFM_ECC256 -DECC_SHAMIR"
         AM_CONDITIONAL([BUILD_ECC], [test "x$ENABLED_ECC" = "xyes"])
     fi
@@ -2318,11 +2319,6 @@ AC_OUTPUT
 echo "---"
 echo "Running make clean..."
 make clean >/dev/null 2>&1
-# Touch files that may not be in repository
-echo "Touching File..."
-touch ctaocrypt/src/fips.c
-touch ctaocrypt/src/fips_test.c
-echo
 
 # generate user options header
 echo "---"

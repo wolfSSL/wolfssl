@@ -301,8 +301,14 @@ static void set_Transform(void) {
 
 int wc_InitSha256(Sha256* sha256)
 {
+    int ret = 0;
     #ifdef FREESCALE_MMCAU
+        ret = wolfSSL_CryptHwMutexLock();
+        if(ret != 0) {
+            return ret;
+        }
         cau_sha256_initialize_output(sha256->digest);
+        wolfSSL_CryptHwMutexUnLock();
     #else
         sha256->digest[0] = 0x6A09E667L;
         sha256->digest[1] = 0xBB67AE85L;
@@ -322,7 +328,7 @@ int wc_InitSha256(Sha256* sha256)
     set_Transform() ; /* choose best Transform function under this runtime environment */
 #endif
 
-    return 0;
+    return ret;
 }
 
 
@@ -349,9 +355,12 @@ static const ALIGN32 word32 K[64] = {
 
 static int Transform(Sha256* sha256, byte* buf)
 {
-    cau_sha256_hash_n(buf, 1, sha256->digest);
-
-    return 0;
+    int ret = wolfSSL_CryptHwMutexLock();
+    if(ret == 0) {
+        cau_sha256_hash_n(buf, 1, sha256->digest);
+        wolfSSL_CryptHwMutexUnLock();
+    }
+    return ret;
 }
 
 #endif /* FREESCALE_MMCAU */

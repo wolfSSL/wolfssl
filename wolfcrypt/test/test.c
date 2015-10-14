@@ -4447,6 +4447,7 @@ int rsa_test(void)
             free(derCert);
             free(pem);
             free(tmp);
+            fclose(pemFile);
             wc_FreeRsaKey(&caKey);
             return -415;
         }

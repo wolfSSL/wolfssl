@@ -217,6 +217,25 @@ void wc_AesFreeCavium(Aes* aes)
      * Guide (See note in README).
      * NOTE: no support for AES-CTR */
     #include "cau_api.h"
+
+    static int wc_AesEncrypt(Aes* aes, const byte* inBlock, byte* outBlock)
+    {    
+        int ret = wolfSSL_CryptHwMutexLock();
+        if(ret == 0) {
+            cau_aes_encrypt(inBlock, (byte*)aes->key, aes->rounds, outBlock);
+            wolfSSL_CryptHwMutexUnLock();
+        }
+        return ret;
+    }
+    static int wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
+    {    
+        int ret = wolfSSL_CryptHwMutexLock();
+        if(ret == 0) {
+            cau_aes_decrypt(inBlock, (byte*)aes->key, aes->rounds, outBlock);
+            wolfSSL_CryptHwMutexUnLock();
+        }
+        return ret;
+    }
 #elif defined(WOLFSSL_PIC32MZ_CRYPT)
     /* NOTE: no support for AES-CCM/Direct */
     #define DEBUG_WOLFSSL
@@ -1490,6 +1509,7 @@ static void wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
     int wc_AesSetKey(Aes* aes, const byte* userKey, word32 keylen, const byte* iv,
                   int dir)
     {
+        int ret;
         byte *rk = (byte*)aes->key;
 
         if (!((keylen == 16) || (keylen == 24) || (keylen == 32)))
@@ -1499,9 +1519,16 @@ static void wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
             return BAD_FUNC_ARG;
 
         aes->rounds = keylen/4 + 6;
-        cau_aes_set_key(userKey, keylen*8, rk);
-
-        return wc_AesSetIV(aes, iv);
+		
+        ret = wolfSSL_CryptHwMutexLock();
+        if(ret == 0) {
+            cau_aes_set_key(userKey, keylen*8, rk);
+            wolfSSL_CryptHwMutexUnLock();
+            
+            ret = wc_AesSetIV(aes, iv);
+        }
+        
+        return ret;
     }
 
     int wc_AesSetKeyDirect(Aes* aes, const byte* userKey, word32 keylen,
@@ -1724,27 +1751,7 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
 
 /* AES-DIRECT */
 #if defined(WOLFSSL_AES_DIRECT)
-    #if defined(FREESCALE_MMCAU)
-
-        /* Allow direct access to one block encrypt */
-        void wc_AesEncryptDirect(Aes* aes, byte* out, const byte* in)
-        {
-            byte* key;
-            key = (byte*)aes->key;
-
-            return cau_aes_encrypt(in, key, aes->rounds, out);
-        }
-
-        /* Allow direct access to one block decrypt */
-        void wc_AesDecryptDirect(Aes* aes, byte* out, const byte* in)
-        {
-            byte* key;
-            key = (byte*)aes->key;
-
-            return cau_aes_decrypt(in, key, aes->rounds, out);
-        }
-
-    #elif defined(STM32F2_CRYPTO)
+    #if defined(STM32F2_CRYPTO)
         #error "STM32F2 crypto doesn't yet support AES direct"
 
     #elif defined(HAVE_COLDFIRE_SEC)
@@ -1766,7 +1773,7 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
             wc_AesDecrypt(aes, in, out);
         }
 
-    #endif /* FREESCALE_MMCAU, AES direct block */
+    #endif /* AES direct block */
 #endif /* WOLFSSL_AES_DIRECT */
 
 
@@ -2109,11 +2116,10 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
         int offset = 0;
         int len = sz;
 
-        byte *iv, *enc_key;
+        byte *iv;
         byte temp_block[AES_BLOCK_SIZE];
 
         iv      = (byte*)aes->reg;
-        enc_key = (byte*)aes->key;
 
         if ((wolfssl_word)out % WOLFSSL_MMCAU_ALIGNMENT) {
             WOLFSSL_MSG("Bad cau_aes_encrypt alignment");
@@ -2128,7 +2134,7 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
             for (i = 0; i < AES_BLOCK_SIZE; i++)
                 temp_block[i] ^= iv[i];
 
-            cau_aes_encrypt(temp_block, enc_key, aes->rounds, out + offset);
+            wc_AesEncrypt(aes, temp_block, out + offset);
 
             len    -= AES_BLOCK_SIZE;
             offset += AES_BLOCK_SIZE;
@@ -2146,11 +2152,10 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
         int offset = 0;
         int len = sz;
 
-        byte* iv, *dec_key;
+        byte* iv;
         byte temp_block[AES_BLOCK_SIZE];
 
         iv      = (byte*)aes->reg;
-        dec_key = (byte*)aes->key;
 
         if ((wolfssl_word)out % WOLFSSL_MMCAU_ALIGNMENT) {
             WOLFSSL_MSG("Bad cau_aes_decrypt alignment");
@@ -2161,8 +2166,8 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
         {
             XMEMCPY(temp_block, in + offset, AES_BLOCK_SIZE);
 
-            cau_aes_decrypt(in + offset, dec_key, aes->rounds, out + offset);
-
+            wc_AesEncrypt(aes, in + offset, out + offset);
+            
             /* XOR block with IV for CBC */
             for (i = 0; i < AES_BLOCK_SIZE; i++)
                 (out + offset)[i] ^= iv[i];
@@ -2741,10 +2746,6 @@ int wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len)
     int  ret;
     byte iv[AES_BLOCK_SIZE];
 
-    #ifdef FREESCALE_MMCAU
-        byte* rk = (byte*)aes->key;
-    #endif
-
     if (!((len == 16) || (len == 24) || (len == 32)))
         return BAD_FUNC_ARG;
 
@@ -2752,11 +2753,7 @@ int wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len)
     ret = wc_AesSetKey(aes, key, len, iv, AES_ENCRYPTION);
 
     if (ret == 0) {
-    #ifdef FREESCALE_MMCAU
-        cau_aes_encrypt(iv, rk, aes->rounds, aes->H);
-    #else
         wc_AesEncrypt(aes, iv, aes->H);
-    #endif
     #ifdef GCM_TABLE
         GenerateM0(aes);
     #endif /* GCM_TABLE */
@@ -3282,10 +3279,6 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     byte *ctr ;
     byte scratch[AES_BLOCK_SIZE];
 
-#ifdef FREESCALE_MMCAU
-    byte* key = (byte*)aes->key;
-#endif
-
     WOLFSSL_ENTER("AesGcmEncrypt");
 
 #ifdef WOLFSSL_PIC32MZ_CRYPT
@@ -3306,13 +3299,9 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     while (blocks--) {
         IncrementGcmCounter(ctr);
         #ifndef WOLFSSL_PIC32MZ_CRYPT
-            #ifdef FREESCALE_MMCAU
-                cau_aes_encrypt(ctr, key, aes->rounds, scratch);
-            #else
-                wc_AesEncrypt(aes, ctr, scratch);
-            #endif
-        xorbuf(scratch, p, AES_BLOCK_SIZE);
-        XMEMCPY(c, scratch, AES_BLOCK_SIZE);
+            wc_AesEncrypt(aes, ctr, scratch);
+            xorbuf(scratch, p, AES_BLOCK_SIZE);
+            XMEMCPY(c, scratch, AES_BLOCK_SIZE);
         #endif
         p += AES_BLOCK_SIZE;
         c += AES_BLOCK_SIZE;
@@ -3320,11 +3309,7 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
 
     if (partial != 0) {
         IncrementGcmCounter(ctr);
-        #ifdef FREESCALE_MMCAU
-            cau_aes_encrypt(ctr, key, aes->rounds, scratch);
-        #else
-            wc_AesEncrypt(aes, ctr, scratch);
-        #endif
+        wc_AesEncrypt(aes, ctr, scratch);
         xorbuf(scratch, p, partial);
         XMEMCPY(c, scratch, partial);
 
@@ -3332,11 +3317,7 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
 
     GHASH(aes, authIn, authInSz, out, sz, authTag, authTagSz);
     InitGcmCounter(ctr);
-    #ifdef FREESCALE_MMCAU
-        cau_aes_encrypt(ctr, key, aes->rounds, scratch);
-    #else
-        wc_AesEncrypt(aes, ctr, scratch);
-    #endif
+    wc_AesEncrypt(aes, ctr, scratch);
     xorbuf(authTag, scratch, authTagSz);
 
     return 0;
@@ -3355,10 +3336,6 @@ int  wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     byte counter[AES_BLOCK_SIZE];
     byte *ctr ;
     byte scratch[AES_BLOCK_SIZE];
-
-#ifdef FREESCALE_MMCAU
-    byte* key = (byte*)aes->key;
-#endif
 
     WOLFSSL_ENTER("AesGcmDecrypt");
 
@@ -3379,11 +3356,7 @@ int  wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
         byte EKY0[AES_BLOCK_SIZE];
 
         GHASH(aes, authIn, authInSz, in, sz, Tprime, sizeof(Tprime));
-        #ifdef FREESCALE_MMCAU
-            cau_aes_encrypt(ctr, key, aes->rounds, EKY0);
-        #else
-            wc_AesEncrypt(aes, ctr, EKY0);
-        #endif
+        wc_AesEncrypt(aes, ctr, EKY0);
         xorbuf(Tprime, EKY0, sizeof(Tprime));
 
         if (ConstantCompare(authTag, Tprime, authTagSz) != 0) {
@@ -3400,24 +3373,16 @@ int  wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     while (blocks--) {
         IncrementGcmCounter(ctr);
         #ifndef WOLFSSL_PIC32MZ_CRYPT
-            #ifdef FREESCALE_MMCAU
-                cau_aes_encrypt(ctr, key, aes->rounds, scratch);
-            #else
-                wc_AesEncrypt(aes, ctr, scratch);
-            #endif
-        xorbuf(scratch, c, AES_BLOCK_SIZE);
-        XMEMCPY(p, scratch, AES_BLOCK_SIZE);
+            wc_AesEncrypt(aes, ctr, scratch);
+            xorbuf(scratch, c, AES_BLOCK_SIZE);
+            XMEMCPY(p, scratch, AES_BLOCK_SIZE);
         #endif
         p += AES_BLOCK_SIZE;
         c += AES_BLOCK_SIZE;
     }
     if (partial != 0) {
         IncrementGcmCounter(ctr);
-        #ifdef FREESCALE_MMCAU
-            cau_aes_encrypt(ctr, key, aes->rounds, scratch);
-        #else
-            wc_AesEncrypt(aes, ctr, scratch);
-        #endif
+        wc_AesEncrypt(aes, ctr, scratch);
         xorbuf(scratch, c, partial);
         XMEMCPY(p, scratch, partial);
     }
@@ -3470,31 +3435,19 @@ void wc_AesCcmSetKey(Aes* aes, const byte* key, word32 keySz)
 
 static void roll_x(Aes* aes, const byte* in, word32 inSz, byte* out)
 {
-    #ifdef FREESCALE_MMCAU
-        byte* key = (byte*)aes->key;
-    #endif
-
     /* process the bulk of the data */
     while (inSz >= AES_BLOCK_SIZE) {
         xorbuf(out, in, AES_BLOCK_SIZE);
         in += AES_BLOCK_SIZE;
         inSz -= AES_BLOCK_SIZE;
 
-        #ifdef FREESCALE_MMCAU
-            cau_aes_encrypt(out, key, aes->rounds, out);
-        #else
-            wc_AesEncrypt(aes, out, out);
-        #endif
+        wc_AesEncrypt(aes, out, out);
     }
 
     /* process remainder of the data */
     if (inSz > 0) {
         xorbuf(out, in, inSz);
-        #ifdef FREESCALE_MMCAU
-            cau_aes_encrypt(out, key, aes->rounds, out);
-        #else
-            wc_AesEncrypt(aes, out, out);
-        #endif
+        wc_AesEncrypt(aes, out, out);
     }
 }
 
@@ -3503,10 +3456,6 @@ static void roll_auth(Aes* aes, const byte* in, word32 inSz, byte* out)
 {
     word32 authLenSz;
     word32 remainder;
-
-    #ifdef FREESCALE_MMCAU
-        byte* key = (byte*)aes->key;
-    #endif
 
     /* encode the length in */
     if (inSz <= 0xFEFF) {
@@ -3541,11 +3490,7 @@ static void roll_auth(Aes* aes, const byte* in, word32 inSz, byte* out)
         xorbuf(out + authLenSz, in, inSz);
         inSz = 0;
     }
-    #ifdef FREESCALE_MMCAU
-        cau_aes_encrypt(out, key, aes->rounds, out);
-    #else
-        wc_AesEncrypt(aes, out, out);
-    #endif
+    wc_AesEncrypt(aes, out, out);
 
     if (inSz > 0)
         roll_x(aes, in, inSz, out);
@@ -3575,18 +3520,10 @@ int wc_AesCcmEncrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
     byte mask     = 0xFF;
     word32 wordSz = (word32)sizeof(word32);
 
-    #ifdef FREESCALE_MMCAU
-        byte* key;
-    #endif
-
     /* sanity check on arugments */
     if (aes == NULL || out == NULL || in == NULL || nonce == NULL
             || authTag == NULL || nonceSz < 7 || nonceSz > 13)
         return BAD_FUNC_ARG;
-
-    #ifdef FREESCALE_MMCAU
-        key = (byte*)aes->key;
-    #endif
 
     XMEMCPY(B+1, nonce, nonceSz);
     lenSz = AES_BLOCK_SIZE - 1 - (byte)nonceSz;
@@ -3599,11 +3536,8 @@ int wc_AesCcmEncrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
         B[AES_BLOCK_SIZE - 1 - i] = (inSz >> ((8 * i) & mask)) & mask;
     }
 
-    #ifdef FREESCALE_MMCAU
-        cau_aes_encrypt(B, key, aes->rounds, A);
-    #else
-        wc_AesEncrypt(aes, B, A);
-    #endif
+    wc_AesEncrypt(aes, B, A);
+
     if (authInSz > 0)
         roll_auth(aes, authIn, authInSz, A);
     if (inSz > 0)
@@ -3613,20 +3547,12 @@ int wc_AesCcmEncrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
     B[0] = lenSz - 1;
     for (i = 0; i < lenSz; i++)
         B[AES_BLOCK_SIZE - 1 - i] = 0;
-    #ifdef FREESCALE_MMCAU
-        cau_aes_encrypt(B, key, aes->rounds, A);
-    #else
-        wc_AesEncrypt(aes, B, A);
-    #endif
+    wc_AesEncrypt(aes, B, A);
     xorbuf(authTag, A, authTagSz);
 
     B[15] = 1;
     while (inSz >= AES_BLOCK_SIZE) {
-        #ifdef FREESCALE_MMCAU
-            cau_aes_encrypt(B, key, aes->rounds, A);
-        #else
-            wc_AesEncrypt(aes, B, A);
-        #endif
+        wc_AesEncrypt(aes, B, A);
         xorbuf(A, in, AES_BLOCK_SIZE);
         XMEMCPY(out, A, AES_BLOCK_SIZE);
 
@@ -3636,11 +3562,7 @@ int wc_AesCcmEncrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
         out += AES_BLOCK_SIZE;
     }
     if (inSz > 0) {
-        #ifdef FREESCALE_MMCAU
-            cau_aes_encrypt(B, key, aes->rounds, A);
-        #else
-            wc_AesEncrypt(aes, B, A);
-        #endif
+        wc_AesEncrypt(aes, B, A);
         xorbuf(A, in, inSz);
         XMEMCPY(out, A, inSz);
     }
@@ -3666,18 +3588,10 @@ int  wc_AesCcmDecrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
     byte mask     = 0xFF;
     word32 wordSz = (word32)sizeof(word32);
 
-    #ifdef FREESCALE_MMCAU
-        byte* key;
-    #endif
-
     /* sanity check on arugments */
     if (aes == NULL || out == NULL || in == NULL || nonce == NULL
             || authTag == NULL || nonceSz < 7 || nonceSz > 13)
         return BAD_FUNC_ARG;
-
-    #ifdef FREESCALE_MMCAU
-        key = (byte*)aes->key;
-    #endif
 
     o = out;
     oSz = inSz;
@@ -3690,11 +3604,7 @@ int  wc_AesCcmDecrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
     B[15] = 1;
 
     while (oSz >= AES_BLOCK_SIZE) {
-        #ifdef FREESCALE_MMCAU
-            cau_aes_encrypt(B, key, aes->rounds, A);
-        #else
-            wc_AesEncrypt(aes, B, A);
-        #endif
+        wc_AesEncrypt(aes, B, A);
         xorbuf(A, in, AES_BLOCK_SIZE);
         XMEMCPY(o, A, AES_BLOCK_SIZE);
 
@@ -3704,22 +3614,14 @@ int  wc_AesCcmDecrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
         o += AES_BLOCK_SIZE;
     }
     if (inSz > 0) {
-        #ifdef FREESCALE_MMCAU
-            cau_aes_encrypt(B, key, aes->rounds, A);
-        #else
-            wc_AesEncrypt(aes, B, A);
-        #endif
+        wc_AesEncrypt(aes, B, A);
         xorbuf(A, in, oSz);
         XMEMCPY(o, A, oSz);
     }
 
     for (i = 0; i < lenSz; i++)
         B[AES_BLOCK_SIZE - 1 - i] = 0;
-    #ifdef FREESCALE_MMCAU
-        cau_aes_encrypt(B, key, aes->rounds, A);
-    #else
-        wc_AesEncrypt(aes, B, A);
-    #endif
+    wc_AesEncrypt(aes, B, A);
 
     o = out;
     oSz = inSz;
@@ -3733,11 +3635,8 @@ int  wc_AesCcmDecrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
         B[AES_BLOCK_SIZE - 1 - i] = (inSz >> ((8 * i) & mask)) & mask;
     }
 
-    #ifdef FREESCALE_MMCAU
-        cau_aes_encrypt(B, key, aes->rounds, A);
-    #else
-        wc_AesEncrypt(aes, B, A);
-    #endif
+    wc_AesEncrypt(aes, B, A);
+
     if (authInSz > 0)
         roll_auth(aes, authIn, authInSz, A);
     if (inSz > 0)
@@ -3746,11 +3645,7 @@ int  wc_AesCcmDecrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
     B[0] = lenSz - 1;
     for (i = 0; i < lenSz; i++)
         B[AES_BLOCK_SIZE - 1 - i] = 0;
-    #ifdef FREESCALE_MMCAU
-        cau_aes_encrypt(B, key, aes->rounds, B);
-    #else
-        wc_AesEncrypt(aes, B, B);
-    #endif
+    wc_AesEncrypt(aes, B, B);
     xorbuf(A, B, authTagSz);
 
     if (ConstantCompare(A, authTag, authTagSz) != 0) {

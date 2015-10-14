@@ -34,6 +34,44 @@
 #endif
 
 
+#if WOLFSSL_CRYPT_HW_MUTEX
+/* Mutex for protection of cryptograpghy hardware */
+static wolfSSL_Mutex wcCryptHwMutex;
+static int wcCryptHwMutexInit = 0;
+
+int wolfSSL_CryptHwMutexInit(void) {
+    int ret = 0;
+    if(wcCryptHwMutexInit == 0) {
+        ret = InitMutex(&wcCryptHwMutex);
+        if(ret == 0) {
+            wcCryptHwMutexInit = 1;
+        }
+    }
+    return ret;
+}
+
+int wolfSSL_CryptHwMutexLock(void) {
+    int ret = BAD_MUTEX_E;
+
+    /* Make sure HW Mutex has been initialized */
+    wolfSSL_CryptHwMutexInit();
+
+    if(wcCryptHwMutexInit) {
+        ret = LockMutex(&wcCryptHwMutex);
+    }
+    return ret;
+}
+
+int wolfSSL_CryptHwMutexUnLock(void) {
+    int ret = BAD_MUTEX_E;
+    
+    if(wcCryptHwMutexInit) {
+        ret = UnLockMutex(&wcCryptHwMutex);
+    }
+    return ret;
+}
+#endif /* WOLFSSL_CRYPT_HW_MUTEX */
+
 
 #ifdef SINGLE_THREADED
 

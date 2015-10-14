@@ -136,7 +136,34 @@
         #error Need a mutex type in multithreaded mode
     #endif /* USE_WINDOWS_API */
 #endif /* SINGLE_THREADED */
+        
+/* Enable crypt HW mutex for Freescale MMCAU */
+#if defined(FREESCALE_MMCAU)
+    #ifndef WOLFSSL_CRYPT_HW_MUTEX
+        #define WOLFSSL_CRYPT_HW_MUTEX  1
+    #endif
+#endif /* FREESCALE_MMCAU */
 
+#ifndef WOLFSSL_CRYPT_HW_MUTEX
+    #define WOLFSSL_CRYPT_HW_MUTEX  0
+#endif
+
+#if WOLFSSL_CRYPT_HW_MUTEX
+    /* wolfSSL_CryptHwMutexInit is called on first wolfSSL_CryptHwMutexLock, 
+       however it's recommended to call this directly on Hw init to avoid possible 
+       race condition where two calls to wolfSSL_CryptHwMutexLock are made at 
+       the same time. */
+    int wolfSSL_CryptHwMutexInit(void);
+    int wolfSSL_CryptHwMutexLock(void);
+    int wolfSSL_CryptHwMutexUnLock(void);
+#else
+    /* Define stubs, since HW mutex is disabled */
+    #define wolfSSL_CryptHwMutexInit()      0 /* Success */
+    #define wolfSSL_CryptHwMutexLock()      0 /* Success */
+    #define wolfSSL_CryptHwMutexUnLock()    0 /* Success */
+#endif /* WOLFSSL_CRYPT_HW_MUTEX */
+
+/* Mutex functions */
 WOLFSSL_LOCAL int InitMutex(wolfSSL_Mutex*);
 WOLFSSL_LOCAL int FreeMutex(wolfSSL_Mutex*);
 WOLFSSL_LOCAL int LockMutex(wolfSSL_Mutex*);

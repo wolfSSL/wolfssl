@@ -49,7 +49,7 @@
 
 #ifdef FREESCALE_MMCAU
     #include "cau_api.h"
-    #define XTRANSFORM(S,B)  cau_md5_hash_n((B), 1, (unsigned char*)(S)->digest)
+    #define XTRANSFORM(S,B)  Transform((S), (B))
 #else
     #define XTRANSFORM(S,B)  Transform((S))
 #endif
@@ -191,6 +191,18 @@ void wc_InitMd5(Md5* md5)
     md5->loLen   = 0;
     md5->hiLen   = 0;
 }
+
+#ifdef FREESCALE_MMCAU
+static int Transform(Md5* md5, byte* data)
+{
+    int ret = wolfSSL_CryptHwMutexLock();
+    if(ret == 0) {
+        cau_md5_hash_n(data, 1, (unsigned char*)md5->digest);
+        wolfSSL_CryptHwMutexUnLock();
+    }
+    return ret;
+}
+#endif /* FREESCALE_MMCAU */
 
 #ifndef FREESCALE_MMCAU
 

@@ -50,8 +50,21 @@
 #if defined(NO_WOLFSSL_MEMORY) && !defined(NO_CYASSL_MEMORY)
     #define NO_CYASSL_MEMORY
 #endif
-#ifdef WOLFSSL_KEY_GEN
+#if defined(WOLFSSL_KEY_GEN) && !defined(CYASSL_KEY_GEN)
     #define CYASSL_KEY_GEN
+#endif
+
+/* AES */
+#if defined(WOLFSSL_AES_DIRECT) && !defined(CYASSL_AES_DIRECT)
+    #define CYASSL_AES_DIRECT
+#endif
+#if defined(WOLFSSL_AES_COUNTER) && !defined(CYASSL_AES_COUNTER)
+    #define CYASSL_AES_COUNTER
+#endif
+
+/* DES */
+#if defined(WOLFSSL_DES_ECB) && !defined(CYASSL_DES_ECB)
+    #define CYASSL_DES_ECB
 #endif
 
 #endif /* CTAO_CRYPT_SETTINGS_C_H */

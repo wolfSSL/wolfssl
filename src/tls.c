@@ -567,7 +567,7 @@ static INLINE void ato16(const byte* c, word16* u16)
     *u16 = (c[0] << 8) | (c[1]);
 }
 
-#ifdef HAVE_SNI
+#if defined(HAVE_SNI) && !defined(NO_WOLFSSL_SERVER)
 /* convert a 24 bit integer into a 32 bit one */
 static INLINE void c24to32(const word24 u24, word32* u32)
 {
@@ -1282,6 +1282,8 @@ static word16 TLSX_SNI_Write(SNI* list, byte* output)
     return offset;
 }
 
+#ifndef NO_WOLFSSL_SERVER
+
 /** Finds a SNI object in the provided list. */
 static SNI* TLSX_SNI_Find(SNI *list, byte type)
 {
@@ -1293,7 +1295,6 @@ static SNI* TLSX_SNI_Find(SNI *list, byte type)
     return sni;
 }
 
-#ifndef NO_WOLFSSL_SERVER
 
 /** Sets the status of a SNI object. */
 static void TLSX_SNI_SetStatus(TLSX* extensions, byte type, byte status)
@@ -1334,7 +1335,8 @@ static int TLSX_SNI_Parse(WOLFSSL* ssl, byte* input, word16 length,
     if (!extension)
         extension = TLSX_Find(ssl->ctx->extensions, SERVER_NAME_INDICATION);
 
-
+    (void)isRequest;
+    (void)input;
 
     if (!extension || !extension->data) {
 #if defined(WOLFSSL_ALWAYS_KEEP_SNI) && !defined(NO_WOLFSSL_SERVER)
@@ -1429,6 +1431,8 @@ static int TLSX_SNI_Parse(WOLFSSL* ssl, byte* input, word16 length,
 
 static int TLSX_SNI_VerifyParse(WOLFSSL* ssl,  byte isRequest)
 {
+    (void)ssl;
+
     if (isRequest) {
     #ifndef NO_WOLFSSL_SERVER
         TLSX* ctx_ext = TLSX_Find(ssl->ctx->extensions, SERVER_NAME_INDICATION);
@@ -1721,6 +1725,8 @@ static word16 TLSX_MFL_Write(byte* data, byte* output)
 static int TLSX_MFL_Parse(WOLFSSL* ssl, byte* input, word16 length,
                                                                  byte isRequest)
 {
+    (void)isRequest;
+
     if (length != ENUM_LEN)
         return BUFFER_ERROR;
 
@@ -1795,6 +1801,8 @@ int TLSX_UseMaxFragment(TLSX** extensions, byte mfl)
 static int TLSX_THM_Parse(WOLFSSL* ssl, byte* input, word16 length,
                                                                  byte isRequest)
 {
+    (void)isRequest;
+
     if (length != 0 || input == NULL)
         return BUFFER_ERROR;
 
