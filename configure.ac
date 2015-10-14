@@ -2319,11 +2319,6 @@ AC_OUTPUT
 echo "---"
 echo "Running make clean..."
 make clean >/dev/null 2>&1
-# Touch files that may not be in repository
-echo "Touching File..."
-touch ctaocrypt/src/fips.c
-touch ctaocrypt/src/fips_test.c
-echo
 
 # generate user options header
 echo "---"
