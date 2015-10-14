@@ -8100,6 +8100,10 @@ int wc_EccPrivateKeyDecode(const byte* input, word32* inOutIdx, ecc_key* key,
             else if (GetLength(input, inOutIdx, &length, inSz) < 0) {
                 ret = ASN_PARSE_E;
             }
+            else if (length <= 0) {
+                /* pubkey needs some size */
+                ret = ASN_INPUT_E;
+            }
             else {
                 b = input[*inOutIdx];
                 *inOutIdx += 1;
