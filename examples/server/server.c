@@ -699,8 +699,8 @@ while (1) {  /* allow resume option */
 #ifdef HAVE_ALPN
     if (alpnList != NULL) {
         int err;
-        char *protocol_name = NULL;
-        word16 protocol_nameSz = 0;
+        char *protocol_name = NULL, *list = NULL;
+        word16 protocol_nameSz = 0, listSz = 0;
 
         err = wolfSSL_ALPN_GetProtocol(ssl, &protocol_name, &protocol_nameSz);
         if (err == SSL_SUCCESS)
@@ -710,6 +710,15 @@ while (1) {  /* allow resume option */
             printf("No ALPN response sent (no match)\n");
         else
             printf("Getting ALPN protocol name failed\n");
+
+        err = wolfSSL_ALPN_GetPeerProtocol(ssl, &list, &listSz);
+        if (err == SSL_SUCCESS)
+            printf("List of protocol names sent by Client: %s (%d)\n",
+                   list, listSz);
+        else
+            printf("Get list of client's protocol name failed\n");
+
+        XFREE(list, NULL, DYNAMIC_TMP_OUT_BUFFER);
     }
 #endif
 

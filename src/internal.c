@@ -1843,6 +1843,9 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
 #ifdef HAVE_MAX_FRAGMENT
     ssl->max_fragment = MAX_RECORD_SIZE;
 #endif
+#ifdef HAVE_ALPN
+    ssl->alpn_client_list = NULL;
+#endif
 #endif
 
     /* default alert state (none) */
@@ -2063,7 +2066,14 @@ void SSL_ResourceFree(WOLFSSL* ssl)
 #endif /* HAVE_PK_CALLBACKS */
 #ifdef HAVE_TLS_EXTENSIONS
     TLSX_FreeAll(ssl->extensions);
+
+#ifdef HAVE_ALPN
+    if (ssl->alpn_client_list != NULL) {
+        XFREE(ssl->alpn_client_list, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        ssl->alpn_client_list = NULL;
+    }
 #endif
+#endif /* HAVE_TLS_EXTENSIONS */
 #ifdef HAVE_NETX
     if (ssl->nxCtx.nxPacket)
         nx_packet_release(ssl->nxCtx.nxPacket);

@@ -1372,6 +1372,8 @@ WOLFSSL_API int wolfSSL_UseALPN(WOLFSSL* ssl, char *protocol_name_list,
 WOLFSSL_API int wolfSSL_ALPN_GetProtocol(WOLFSSL* ssl, char **protocol_name,
                                          unsigned short *size);
 
+WOLFSSL_API int wolfSSL_ALPN_GetPeerProtocol(WOLFSSL* ssl, char **list,
+                                             unsigned short *listSz);
 #endif /* HAVE_ALPN */
 
 /* Maximum Fragment Length */

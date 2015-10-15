@@ -1551,6 +1551,7 @@ WOLFSSL_LOCAL int TLSX_UseALPN(TLSX** extensions, const void* data,
                                word16 size, byte options);
 
 WOLFSSL_LOCAL int TLSX_ALPN_SetOptions(TLSX** extensions, const byte option);
+
 #endif /* HAVE_ALPN */
 
 /* Maximum Fragment Length */
@@ -2448,6 +2449,9 @@ struct WOLFSSL {
     #ifdef HAVE_SECURE_RENEGOTIATION
         SecureRenegotiation* secure_renegotiation; /* valid pointer indicates */
     #endif                                         /* user turned on */
+    #ifdef HAVE_ALPN
+        char*   alpn_client_list;  /* keep the client's list */
+    #endif                         /* of accepted protocols */
     #if !defined(NO_WOLFSSL_CLIENT) && defined(HAVE_SESSION_TICKET)
         CallbackSessionTicket session_ticket_cb;
         void*                 session_ticket_ctx;

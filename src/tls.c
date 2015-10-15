@@ -995,11 +995,11 @@ static int TLSX_SetALPN(TLSX** extensions, const void* data, word16 size)
 static int TLSX_ALPN_ParseAndSet(WOLFSSL *ssl, byte *input, word16 length,
                                  byte isRequest)
 {
-    word16 size = 0;
-    word16 offset = 0;
-    int    r = BUFFER_ERROR;
-    TLSX   *extension;
-    ALPN   *alpn = NULL, *list;
+    word16  size = 0, offset = 0, idx = 0;
+    int     r = BUFFER_ERROR;
+    byte    match = 0;
+    TLSX    *extension;
+    ALPN    *alpn = NULL, *list;
 
     extension = TLSX_Find(ssl->extensions, WOLFSSL_ALPN);
     if (extension == NULL)
@@ -1023,20 +1023,46 @@ static int TLSX_ALPN_ParseAndSet(WOLFSSL *ssl, byte *input, word16 length,
 
     list = (ALPN*)extension->data;
 
+    /* keep the list sent by client */
+    if (isRequest) {
+        if (ssl->alpn_client_list != NULL)
+            XFREE(ssl->alpn_client_list, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
+        ssl->alpn_client_list = (char *)XMALLOC(size, NULL,
+                                                DYNAMIC_TYPE_TMP_BUFFER);
+        if (ssl->alpn_client_list == NULL)
+            return MEMORY_ERROR;
+    }
+
     for (size = 0; offset < length; offset += size) {
 
         size = input[offset++];
         if (offset + size > length)
             return BUFFER_ERROR;
 
-        alpn = TLSX_ALPN_Find(list, (char*)input + offset, size);
-        if (alpn != NULL) {
-            WOLFSSL_MSG("ALPN protocol match");
-            break;
+        if (isRequest) {
+            XMEMCPY(ssl->alpn_client_list+idx, (char*)input + offset, size);
+            idx += size;
+            ssl->alpn_client_list[idx++] = ',';
+        }
+
+        if (!match) {
+            alpn = TLSX_ALPN_Find(list, (char*)input + offset, size);
+            if (alpn != NULL) {
+                WOLFSSL_MSG("ALPN protocol match");
+                match = 1;
+
+                /* skip reading other values if not required */
+                if (!isRequest)
+                    break;
+            }
         }
     }
 
-    if (alpn == NULL) {
+    if (isRequest)
+        ssl->alpn_client_list[idx-1] = 0;
+
+    if (!match) {
         WOLFSSL_MSG("No ALPN protocol match");
 
         /* do nothing if no protocol match between client and server and option
@@ -1159,7 +1185,7 @@ int TLSX_ALPN_GetRequest(TLSX* extensions, void** data, word16 *dataSz)
 
 #else /* HAVE_ALPN */
 
-#define ALPN_FREE_ALL(list)
+#define ALPN_FREE_ALL(list)     0
 #define ALPN_GET_SIZE(list)     0
 #define ALPN_WRITE(a, b)        0
 #define ALPN_PARSE(a, b, c, d)  0

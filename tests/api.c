@@ -1313,6 +1313,26 @@ static void verify_ALPN_matching_spdy2(WOLFSSL* ssl)
     AssertIntEQ(0, XMEMCMP(nego_proto, proto, protoSz));
 }
 
+static void verify_ALPN_client_list(WOLFSSL* ssl)
+{
+    /* http/1.1,spdy/1,spdy/2,spdy/3 */
+    char alpn_list[] = {0x68, 0x74, 0x74, 0x70, 0x2f, 0x31, 0x2e, 0x31, 0x2c,
+                        0x73, 0x70, 0x64, 0x79, 0x2f, 0x31, 0x2c,
+                        0x73, 0x70, 0x64, 0x79, 0x2f, 0x32, 0x2c,
+                        0x73, 0x70, 0x64, 0x79, 0x2f, 0x33};
+    char    *clist = NULL;
+    word16  clistSz = 0;
+
+    AssertIntEQ(SSL_SUCCESS, wolfSSL_ALPN_GetPeerProtocol(ssl, &clist,
+                                                          &clistSz));
+
+    /* check value */
+    AssertIntEQ(1, sizeof(alpn_list) == clistSz);
+    AssertIntEQ(0, XMEMCMP(alpn_list, clist, clistSz));
+
+    XFREE(clist, 0, DYNAMIC_TYPE_OUT_BUFFER);
+}
+
 static void test_wolfSSL_UseALPN_connection(void)
 {
     unsigned long i;
@@ -1336,6 +1356,10 @@ static void test_wolfSSL_UseALPN_connection(void)
         /* success case missmatch behavior but option 'continue' set */
         {0, 0, use_ALPN_all_continue, verify_ALPN_not_matching_continue},
         {0, 0, use_ALPN_unknown_continue, 0},
+
+        /* success case read protocol send by client */
+        {0, 0, use_ALPN_all, 0},
+        {0, 0, use_ALPN_one, verify_ALPN_client_list},
 
         /* missmatch behavior with same list
          * the first and only this one must be taken */
