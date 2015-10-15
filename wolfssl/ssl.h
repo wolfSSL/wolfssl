@@ -1680,6 +1680,11 @@ WOLFSSL_API void wolfSSL_CTX_set_servername_callback(WOLFSSL_CTX *,
 WOLFSSL_API void wolfSSL_CTX_set_servername_arg(WOLFSSL_CTX *, void*);
 #endif /* HAVE_STUNNEL */
 
+#ifdef WOLFSSL_JNI
+WOLFSSL_API int wolfSSL_set_jobject(WOLFSSL* ssl, void* objPtr);
+WOLFSSL_API void* wolfSSL_get_jobject(WOLFSSL* ssl);
+#endif /* WOLFSSL_JNI */
+
 #ifdef __cplusplus
     }  /* extern "C" */
 #endif

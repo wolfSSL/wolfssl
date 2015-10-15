@@ -17044,5 +17044,29 @@ int wolfSSL_ED25519_verify(const unsigned char *msg, unsigned int msgSz,
 }
 
 #endif /* OPENSSL_EXTRA && HAVE_ED25519 */
+
+#ifdef WOLFSSL_JNI
+
+int wolfSSL_set_jobject(WOLFSSL* ssl, void* objPtr)
+{
+    WOLFSSL_ENTER("wolfSSL_set_jobject");
+    if (ssl != NULL)
+    {
+        ssl->jObjectRef = objPtr;
+        return SSL_SUCCESS;
+    }
+    return SSL_FAILURE;
+}
+
+void* wolfSSL_get_jobject(WOLFSSL* ssl)
+{
+    WOLFSSL_ENTER("wolfSSL_get_jobject");
+    if (ssl != NULL)
+        return ssl->jObjectRef;
+    return NULL;
+}
+
+#endif /* WOLFSSL_JNI */
+
 #endif /* WOLFCRYPT_ONLY */
 
