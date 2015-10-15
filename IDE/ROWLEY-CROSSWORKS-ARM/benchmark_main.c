@@ -66,4 +66,19 @@ RSA 1024 decryption took 573.000 milliseconds, avg over 1 iterations
 DH  1024 key generation  253.000 milliseconds, avg over 1 iterations
 DH  1024 key agreement   311.000 milliseconds, avg over 1 iterations
 Benchmark Test 1: Return code 0
+
+SAMPLE OUTPUT: Freescale K64 running at 96MHz with MMCAU enabled:
+Benchmark Test 1:
+AES      25 kB took 0.019 seconds,    1.285 MB/s
+ARC4     25 kB took 0.033 seconds,    0.740 MB/s
+RABBIT   25 kB took 0.028 seconds,    0.872 MB/s
+3DES     25 kB took 0.026 seconds,    0.939 MB/s
+MD5      25 kB took 0.005 seconds,    4.883 MB/s
+SHA      25 kB took 0.008 seconds,    3.052 MB/s
+SHA-256  25 kB took 0.013 seconds,    1.878 MB/s
+RSA 1024 encryption took 89.000 milliseconds, avg over 1 iterations
+RSA 1024 decryption took 573.000 milliseconds, avg over 1 iterations
+DH  1024 key generation  250.000 milliseconds, avg over 1 iterations
+DH  1024 key agreement   308.000 milliseconds, avg over 1 iterations
+Benchmark Test 1: Return code 0
 */
