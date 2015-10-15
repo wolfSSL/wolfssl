@@ -191,8 +191,8 @@ int ClientBenchmarkThroughput(WOLFSSL_CTX* ctx, char* host, word16 port,
         conn_time = current_time() - start;
 
         /* Allocate TX/RX buffers */
-        tx_buffer = (char*)XMALLOC(TEST_BUFFER_SIZE, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        rx_buffer = (char*)XMALLOC(TEST_BUFFER_SIZE, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        tx_buffer = (char*)malloc(TEST_BUFFER_SIZE);
+        rx_buffer = (char*)malloc(TEST_BUFFER_SIZE);
         if(tx_buffer && rx_buffer) {
             WC_RNG rng;
 
@@ -211,7 +211,7 @@ int ClientBenchmarkThroughput(WOLFSSL_CTX* ctx, char* host, word16 port,
                 /* Perform TX and RX of bytes */
                 xfer_bytes = 0;
                 while(throughput > xfer_bytes) {
-                    int len, rx_pos;
+                    int len, rx_pos, select_ret;
 
                     /* Determine packet size */
                     len = min(TEST_BUFFER_SIZE, throughput - xfer_bytes);
@@ -226,7 +226,7 @@ int ClientBenchmarkThroughput(WOLFSSL_CTX* ctx, char* host, word16 port,
                     tx_time += current_time() - start;
 
                     /* Perform RX */
-                    int select_ret = tcp_select(sockfd, 1); /* Timeout=1 second */
+                    select_ret = tcp_select(sockfd, 1); /* Timeout=1 second */
                     if (select_ret == TEST_RECV_READY) {
                         start = current_time();
                         rx_pos = 0;
@@ -260,10 +260,10 @@ int ClientBenchmarkThroughput(WOLFSSL_CTX* ctx, char* host, word16 port,
             }
         }
         else {
-            err_sys("Buffer alloc failed");
+            err_sys("Client buffer malloc failed");
         }
-        if(tx_buffer) XFREE(tx_buffer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        if(rx_buffer) XFREE(rx_buffer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        if(tx_buffer) free(tx_buffer);
+        if(rx_buffer) free(rx_buffer);
     }
     else {
         err_sys("wolfSSL_connect failed");

@@ -1938,17 +1938,17 @@ static INLINE const char* mymktemp(char *tempfn, int len, int num)
     } key_ctx;
 
     static key_ctx myKey_ctx;
-    static WC_RNG rng;
+    static WC_RNG myKey_rng;
 
     static INLINE int TicketInit(void)
     {
-        int ret = wc_InitRng(&rng);
+        int ret = wc_InitRng(&myKey_rng);
         if (ret != 0) return ret;
 
-        ret = wc_RNG_GenerateBlock(&rng, myKey_ctx.key, sizeof(myKey_ctx.key));
+        ret = wc_RNG_GenerateBlock(&myKey_rng, myKey_ctx.key, sizeof(myKey_ctx.key));
         if (ret != 0) return ret;
 
-        ret = wc_RNG_GenerateBlock(&rng, myKey_ctx.name,sizeof(myKey_ctx.name));
+        ret = wc_RNG_GenerateBlock(&myKey_rng, myKey_ctx.name,sizeof(myKey_ctx.name));
         if (ret != 0) return ret;
 
         return 0;
@@ -1956,7 +1956,7 @@ static INLINE const char* mymktemp(char *tempfn, int len, int num)
 
     static INLINE void TicketCleanup(void)
     {
-        wc_FreeRng(&rng);
+        wc_FreeRng(&myKey_rng);
     }
 
     static INLINE int myTicketEncCb(WOLFSSL* ssl,
@@ -1978,7 +1978,7 @@ static INLINE const char* mymktemp(char *tempfn, int len, int num)
         if (enc) {
             XMEMCPY(key_name, myKey_ctx.name, WOLFSSL_TICKET_NAME_SZ);
 
-            ret = wc_RNG_GenerateBlock(&rng, iv, WOLFSSL_TICKET_IV_SZ);
+            ret = wc_RNG_GenerateBlock(&myKey_rng, iv, WOLFSSL_TICKET_IV_SZ);
             if (ret != 0) return WOLFSSL_TICKET_RET_REJECT;
 
             /* build aad from key name, iv, and length */

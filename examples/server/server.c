@@ -123,7 +123,7 @@ static void NonBlockingSSL_Accept(SSL* ssl)
 int ServerEchoData(SSL* ssl, int clientfd, int echoData, int throughput)
 {
     int ret = 0;
-    char* buffer = (char*)XMALLOC(TEST_BUFFER_SIZE, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    char* buffer = (char*)malloc(TEST_BUFFER_SIZE);
     if(buffer) {
         double start, rx_time = 0, tx_time = 0;
         int xfer_bytes = 0;
@@ -162,7 +162,7 @@ int ServerEchoData(SSL* ssl, int clientfd, int echoData, int throughput)
                 xfer_bytes += len;
             }
         }
-        XFREE(buffer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        free(buffer);
 
         if(throughput) {
             printf("wolfSSL Server Benchmark %d bytes\n"
@@ -175,7 +175,7 @@ int ServerEchoData(SSL* ssl, int clientfd, int echoData, int throughput)
         }
     }
     else {
-        err_sys("Server buffer XMALLOC failed");
+        err_sys("Server buffer malloc failed");
     }
 
     return EXIT_SUCCESS;
