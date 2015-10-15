@@ -40,8 +40,8 @@
 
         #if defined(WOLFSSL_MDK5)
             #include "cmsis_os.h"
-            #include "rl_fs.h" 
-            #include "rl_net.h" 
+            #include "rl_fs.h"
+            #include "rl_net.h"
         #else
             #include "rtl.h"
         #endif
@@ -81,10 +81,11 @@ static void NonBlockingSSL_Accept(SSL* ssl)
                                   error == SSL_ERROR_WANT_WRITE)) {
         int currTimeout = 1;
 
-        if (error == SSL_ERROR_WANT_READ)
-            printf("... server would read block\n");
-        else
-            printf("... server would write block\n");
+        if (error == SSL_ERROR_WANT_READ) {
+            /* printf("... server would read block\n"); */
+        } else {
+            /* printf("... server would write block\n"); */
+        }
 
 #ifdef CYASSL_DTLS
         currTimeout = CyaSSL_dtls_get_current_timeout(ssl);
@@ -118,6 +119,68 @@ static void NonBlockingSSL_Accept(SSL* ssl)
         err_sys("SSL_accept failed");
 }
 
+/* Echo number of bytes specified by -e arg */
+int ServerEchoData(SSL* ssl, int clientfd, int echoData, int throughput)
+{
+    int ret = 0;
+    char* buffer = (char*)XMALLOC(TEST_BUFFER_SIZE, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if(buffer) {
+        double start, rx_time = 0, tx_time = 0;
+        int xfer_bytes = 0;
+        while((echoData && throughput == 0) || (!echoData && xfer_bytes < throughput)) {
+            int select_ret = tcp_select(clientfd, 1); /* Timeout=1 second */
+            if (select_ret == TEST_RECV_READY) {
+                int len = min(TEST_BUFFER_SIZE, throughput - xfer_bytes);
+                int rx_pos = 0;
+                if(throughput) {
+                    start = current_time();
+                }
+                while(rx_pos < len) {
+                    ret = SSL_read(ssl, &buffer[rx_pos], len - rx_pos);
+                    if (ret <= 0) {
+                        int readErr = SSL_get_error(ssl, 0);
+                        if (readErr != SSL_ERROR_WANT_READ) {
+                            printf("SSL_read error %d!\n", readErr);
+                            err_sys("SSL_read failed");
+                        }
+                    }
+                    else {
+                        rx_pos += ret;
+                    }
+                }
+                if(throughput) {
+                    rx_time += current_time() - start;
+                    start = current_time();
+                }
+                if (SSL_write(ssl, buffer, len) != len) {
+                    err_sys("SSL_write failed");
+                }
+                if(throughput) {
+                    tx_time += current_time() - start;
+                }
+
+                xfer_bytes += len;
+            }
+        }
+        XFREE(buffer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
+        if(throughput) {
+            printf("wolfSSL Server Benchmark %d bytes\n"
+                "\tRX      %8.3f ms (%8.3f MBps)\n"
+                "\tTX      %8.3f ms (%8.3f MBps)\n",
+                throughput,
+                tx_time * 1000, throughput / tx_time / 1024 / 1024,
+                rx_time * 1000, throughput / rx_time / 1024 / 1024
+            );
+        }
+    }
+    else {
+        err_sys("Server buffer XMALLOC failed");
+    }
+
+    return EXIT_SUCCESS;
+}
+
 
 static void Usage(void)
 {
@@ -127,7 +190,7 @@ static void Usage(void)
     printf("-p <num>    Port to listen on, not 0, default %d\n", yasslPort);
     printf("-v <num>    SSL version [0-3], SSLv3(0) - TLS1.2(3)), default %d\n",
                                  SERVER_DEFAULT_VERSION);
-    printf("-l <str>    Cipher list\n");
+    printf("-l <str>    Cipher suite list (: delimited)\n");
     printf("-c <file>   Certificate file,           default %s\n", svrCert);
     printf("-k <file>   Key file,                   default %s\n", svrKey);
     printf("-A <file>   Certificate Authority file, default %s\n", cliCert);
@@ -144,7 +207,7 @@ static void Usage(void)
     printf("-s          Use pre Shared keys\n");
     printf("-t          Track wolfSSL memory use\n");
     printf("-u          Use UDP DTLS,"
-           " add -v 2 for DTLSv1 (default), -v 3 for DTLSv1.2\n");
+           " add -v 2 for DTLSv1, -v 3 for DTLSv1.2 (default)\n");
     printf("-f          Fewer packets/group messages\n");
     printf("-R          Create server ready file, for external monitor\n");
     printf("-r          Allow one client Resumption\n");
@@ -155,7 +218,7 @@ static void Usage(void)
     printf("-o          Perform OCSP lookup on peer certificate\n");
     printf("-O <url>    Perform OCSP lookup using <url> as responder\n");
 #endif
-#ifdef HAVE_PK_CALLBACKS 
+#ifdef HAVE_PK_CALLBACKS
     printf("-P          Public Key Callbacks\n");
 #endif
 #ifdef HAVE_ANON
@@ -164,20 +227,22 @@ static void Usage(void)
 #ifndef NO_PSK
     printf("-I          Do not send PSK identity hint\n");
 #endif
+    printf("-i          Loop indefinitely (allow repeated connections)\n");
+    printf("-e          Echo data mode (return raw bytes received)\n");
+    printf("-B <num>    Benchmark throughput using <num> bytes and print stats\n");
 }
 
 THREAD_RETURN CYASSL_THREAD server_test(void* args)
 {
-    SOCKET_T sockfd   = 0;
-    SOCKET_T clientfd = 0;
+    SOCKET_T sockfd   = WOLFSSL_SOCKET_INVALID;
+    SOCKET_T clientfd = WOLFSSL_SOCKET_INVALID;
 
     SSL_METHOD* method = 0;
     SSL_CTX*    ctx    = 0;
     SSL*        ssl    = 0;
 
-    char   msg[] = "I hear you fa shizzle!";
+    const char msg[] = "I hear you fa shizzle!";
     char   input[80];
-    int    idx;
     int    ch;
     int    version = SERVER_DEFAULT_VERSION;
     int    doCliCertCheck = 1;
@@ -194,8 +259,13 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     int    pkCallbacks  = 0;
     int    serverReadyFile = 0;
     int    wc_shutdown     = 0;
-    int    resume = 0;            /* do resume, and resume count */
+    int    resume = 0;
+    int    resumeCount = 0;
+    int    loopIndefinitely = 0;
+    int    echoData = 0;
+    int    throughput;
     int    minDhKeyBits = DEFAULT_MIN_DHKEY_BITS;
+    int    doListen = 1;
     int    ret;
     char*  alpnList = NULL;
     unsigned char alpn_opt = 0;
@@ -244,7 +314,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     fdOpenSession(Task_self());
 #endif
 
-    while ((ch = mygetopt(argc, argv, "?dbstnNufrRawPIp:v:l:A:c:k:Z:S:oO:D:L:"))
+    while ((ch = mygetopt(argc, argv, "?dbstnNufrRawPIp:v:l:A:c:k:Z:S:oO:D:L:ieB:"))
                          != -1) {
         switch (ch) {
             case '?' :
@@ -292,7 +362,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
                 break;
 
             case 'P' :
-            #ifdef HAVE_PK_CALLBACKS 
+            #ifdef HAVE_PK_CALLBACKS
                 pkCallbacks = 1;
             #endif
                 break;
@@ -400,6 +470,23 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
 
                 #endif
                 break;
+
+            case 'i' :
+                loopIndefinitely = 1;
+                break;
+
+            case 'e' :
+                echoData = 1;
+                break;
+
+            case 'B':
+                throughput = atoi(myoptarg);
+                if (throughput <= 0) {
+                    Usage();
+                    exit(MY_EX_USAGE);
+                }
+                break;
+
             default:
                 Usage();
                 exit(MY_EX_USAGE);
@@ -593,164 +680,174 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
             err_sys("UseSNI failed");
 #endif
 
-while (1) {  /* allow resume option */
-    if (resume > 1) {  /* already did listen, just do accept */
-        if (doDTLS == 0) {
-            SOCKADDR_IN_T client;
-            socklen_t client_len = sizeof(client);
-            clientfd = accept(sockfd, (struct sockaddr*)&client,
-                             (ACCEPT_THIRD_T)&client_len);
-        } else {
-            tcp_listen(&sockfd, &port, useAnyAddr, doDTLS);
-            clientfd = sockfd;
+    while (1) {
+        /* allow resume option */
+        if(resumeCount > 1) {
+            if (doDTLS == 0) {
+                SOCKADDR_IN_T client;
+                socklen_t client_len = sizeof(client);
+                clientfd = accept(sockfd, (struct sockaddr*)&client,
+                                 (ACCEPT_THIRD_T)&client_len);
+            } else {
+                tcp_listen(&sockfd, &port, useAnyAddr, doDTLS);
+                clientfd = sockfd;
+            }
+            if(WOLFSSL_SOCKET_IS_INVALID(clientfd)) {
+                err_sys("tcp accept failed");
+            }
+            resumeCount = 0;
         }
-        #ifdef USE_WINDOWS_API
-            if (clientfd == INVALID_SOCKET) err_sys("tcp accept failed");
-        #else
-            if (clientfd == -1) err_sys("tcp accept failed");
-        #endif
-    }
 
-    ssl = SSL_new(ctx);
-    if (ssl == NULL)
-        err_sys("unable to get SSL");
+        ssl = SSL_new(ctx);
+        if (ssl == NULL)
+            err_sys("unable to get SSL");
 
 #ifndef NO_HANDSHAKE_DONE_CB
-    wolfSSL_SetHsDoneCb(ssl, myHsDoneCb, NULL);
+        wolfSSL_SetHsDoneCb(ssl, myHsDoneCb, NULL);
 #endif
 #ifdef HAVE_CRL
-    CyaSSL_EnableCRL(ssl, 0);
-    CyaSSL_LoadCRL(ssl, crlPemDir, SSL_FILETYPE_PEM, CYASSL_CRL_MONITOR |
-                                                     CYASSL_CRL_START_MON);
-    CyaSSL_SetCRL_Cb(ssl, CRL_CallBack);
+        CyaSSL_EnableCRL(ssl, 0);
+        CyaSSL_LoadCRL(ssl, crlPemDir, SSL_FILETYPE_PEM, CYASSL_CRL_MONITOR |
+                                                         CYASSL_CRL_START_MON);
+        CyaSSL_SetCRL_Cb(ssl, CRL_CallBack);
 #endif
 #ifdef HAVE_OCSP
-    if (useOcsp) {
-        if (ocspUrl != NULL) {
-            CyaSSL_CTX_SetOCSP_OverrideURL(ctx, ocspUrl);
-            CyaSSL_CTX_EnableOCSP(ctx, CYASSL_OCSP_NO_NONCE
-                                                    | CYASSL_OCSP_URL_OVERRIDE);
+        if (useOcsp) {
+            if (ocspUrl != NULL) {
+                CyaSSL_CTX_SetOCSP_OverrideURL(ctx, ocspUrl);
+                CyaSSL_CTX_EnableOCSP(ctx, CYASSL_OCSP_NO_NONCE
+                                                        | CYASSL_OCSP_URL_OVERRIDE);
+            }
+            else
+                CyaSSL_CTX_EnableOCSP(ctx, CYASSL_OCSP_NO_NONCE);
         }
-        else
-            CyaSSL_CTX_EnableOCSP(ctx, CYASSL_OCSP_NO_NONCE);
-    }
 #endif
 #ifdef HAVE_PK_CALLBACKS
-    if (pkCallbacks)
-        SetupPkCallbacks(ctx, ssl);
+        if (pkCallbacks)
+            SetupPkCallbacks(ctx, ssl);
 #endif
 
-    if (resume < 2) {  /* do listen and accept */
+        /* do accept */
         tcp_accept(&sockfd, &clientfd, (func_args*)args, port, useAnyAddr,
-                   doDTLS, serverReadyFile);
-    }
+                       doDTLS, serverReadyFile, doListen);
+        doListen = 0; /* Don't listen next time */
 
-    SSL_set_fd(ssl, clientfd);
+        SSL_set_fd(ssl, clientfd);
 
 #ifdef HAVE_ALPN
-    if (alpnList != NULL) {
-        printf("ALPN accepted protocols list : %s\n", alpnList);
-        wolfSSL_UseALPN(ssl, alpnList, (word32)XSTRLEN(alpnList), alpn_opt);
-    }
+        if (alpnList != NULL) {
+            printf("ALPN accepted protocols list : %s\n", alpnList);
+            wolfSSL_UseALPN(ssl, alpnList, (word32)XSTRLEN(alpnList), alpn_opt);
+        }
 #endif
 
 #ifdef WOLFSSL_DTLS
-    if (doDTLS) {
-        SOCKADDR_IN_T cliaddr;
-        byte          b[1500];
-        int           n;
-        socklen_t     len = sizeof(cliaddr);
+        if (doDTLS) {
+            SOCKADDR_IN_T cliaddr;
+            byte          b[1500];
+            int           n;
+            socklen_t     len = sizeof(cliaddr);
 
-        /* For DTLS, peek at the next datagram so we can get the client's
-         * address and set it into the ssl object later to generate the
-         * cookie. */
-        n = (int)recvfrom(sockfd, (char*)b, sizeof(b), MSG_PEEK,
-                          (struct sockaddr*)&cliaddr, &len);
-        if (n <= 0)
-            err_sys("recvfrom failed");
+            /* For DTLS, peek at the next datagram so we can get the client's
+             * address and set it into the ssl object later to generate the
+             * cookie. */
+            n = (int)recvfrom(sockfd, (char*)b, sizeof(b), MSG_PEEK,
+                              (struct sockaddr*)&cliaddr, &len);
+            if (n <= 0)
+                err_sys("recvfrom failed");
 
-        wolfSSL_dtls_set_peer(ssl, &cliaddr, len);
-    }
+            wolfSSL_dtls_set_peer(ssl, &cliaddr, len);
+        }
 #endif
-    if (usePsk == 0 || useAnon == 1 || cipherList != NULL || needDH == 1) {
-        #if !defined(NO_FILESYSTEM) && !defined(NO_DH) && !defined(NO_ASN)
-            CyaSSL_SetTmpDH_file(ssl, ourDhParam, SSL_FILETYPE_PEM);
-        #elif !defined(NO_DH)
-            SetDH(ssl);  /* repick suites with DHE, higher priority than PSK */
-        #endif
-    }
+        if (usePsk == 0 || useAnon == 1 || cipherList != NULL || needDH == 1) {
+            #if !defined(NO_FILESYSTEM) && !defined(NO_DH) && !defined(NO_ASN)
+                CyaSSL_SetTmpDH_file(ssl, ourDhParam, SSL_FILETYPE_PEM);
+            #elif !defined(NO_DH)
+                SetDH(ssl);  /* repick suites with DHE, higher priority than PSK */
+            #endif
+        }
 
 #ifndef CYASSL_CALLBACKS
-    if (nonBlocking) {
-        CyaSSL_set_using_nonblock(ssl, 1);
-        tcp_set_nonblocking(&clientfd);
-        NonBlockingSSL_Accept(ssl);
-    } else if (SSL_accept(ssl) != SSL_SUCCESS) {
-        int err = SSL_get_error(ssl, 0);
-        char buffer[CYASSL_MAX_ERROR_SZ];
-        printf("error = %d, %s\n", err, ERR_error_string(err, buffer));
-        err_sys("SSL_accept failed");
-    }
+        if (nonBlocking) {
+            CyaSSL_set_using_nonblock(ssl, 1);
+            tcp_set_nonblocking(&clientfd);
+            NonBlockingSSL_Accept(ssl);
+        } else if (SSL_accept(ssl) != SSL_SUCCESS) {
+            int err = SSL_get_error(ssl, 0);
+            char buffer[CYASSL_MAX_ERROR_SZ];
+            printf("error = %d, %s\n", err, ERR_error_string(err, buffer));
+            err_sys("SSL_accept failed");
+        }
 #else
-    NonBlockingSSL_Accept(ssl);
+        NonBlockingSSL_Accept(ssl);
 #endif
-    showPeer(ssl);
+        showPeer(ssl);
 
 #ifdef HAVE_ALPN
-    if (alpnList != NULL) {
-        int err;
-        char *protocol_name = NULL;
-        word16 protocol_nameSz = 0;
+        if (alpnList != NULL) {
+            int err;
+            char *protocol_name = NULL;
+            word16 protocol_nameSz = 0;
 
-        err = wolfSSL_ALPN_GetProtocol(ssl, &protocol_name, &protocol_nameSz);
-        if (err == SSL_SUCCESS)
-            printf("Sent ALPN protocol : %s (%d)\n",
-                   protocol_name, protocol_nameSz);
-        else if (err == SSL_ALPN_NOT_FOUND)
-            printf("No ALPN response sent (no match)\n");
-        else
-            printf("Getting ALPN protocol name failed\n");
-    }
+            err = wolfSSL_ALPN_GetProtocol(ssl, &protocol_name, &protocol_nameSz);
+            if (err == SSL_SUCCESS)
+                printf("Sent ALPN protocol : %s (%d)\n",
+                       protocol_name, protocol_nameSz);
+            else if (err == SSL_ALPN_NOT_FOUND)
+                printf("No ALPN response sent (no match)\n");
+            else
+                printf("Getting ALPN protocol name failed\n");
+        }
 #endif
 
-    idx = SSL_read(ssl, input, sizeof(input)-1);
-    if (idx > 0) {
-        input[idx] = 0;
-        printf("Client message: %s\n", input);
+        if(echoData == 0 && throughput == 0) {
+            ret = SSL_read(ssl, input, sizeof(input)-1);
+            if (ret > 0) {
+                input[ret] = 0;
+                printf("Client message: %s\n", input);
 
-    }
-    else if (idx < 0) {
-        int readErr = SSL_get_error(ssl, 0);
-        if (readErr != SSL_ERROR_WANT_READ)
-            err_sys("SSL_read failed");
-    }
+            }
+            else if (ret < 0) {
+                int readErr = SSL_get_error(ssl, 0);
+                if (readErr != SSL_ERROR_WANT_READ)
+                    err_sys("SSL_read failed");
+            }
 
-    if (SSL_write(ssl, msg, sizeof(msg)) != sizeof(msg))
-        err_sys("SSL_write failed");
-        
-    #if defined(WOLFSSL_MDK_SHELL) && defined(HAVE_MDK_RTX)
+            if (SSL_write(ssl, msg, sizeof(msg)) != sizeof(msg))
+                err_sys("SSL_write failed");
+        }
+        else {
+            ServerEchoData(ssl, clientfd, echoData, throughput);
+        }
+
+#if defined(WOLFSSL_MDK_SHELL) && defined(HAVE_MDK_RTX)
         os_dly_wait(500) ;
-    #elif defined (CYASSL_TIRTOS)
+#elif defined (CYASSL_TIRTOS)
         Task_yield();
-    #endif
+#endif
 
-    if (doDTLS == 0) {
-        ret = SSL_shutdown(ssl);
-        if (wc_shutdown && ret == SSL_SHUTDOWN_NOT_DONE)
-            SSL_shutdown(ssl);    /* bidirectional shutdown */
-    }
-    SSL_free(ssl);
-    if (resume == 1) {
+        if (doDTLS == 0) {
+            ret = SSL_shutdown(ssl);
+            if (wc_shutdown && ret == SSL_SHUTDOWN_NOT_DONE)
+                SSL_shutdown(ssl);    /* bidirectional shutdown */
+        }
+        SSL_free(ssl);
+
         CloseSocket(clientfd);
-        resume++;           /* only do one resume for testing */
-        continue;
-    }
-    break;  /* out of while loop, done with normal and resume option */
-}
+
+        if (resume == 1) {
+            resumeCount++;           /* only do one resume for testing */
+            continue;
+        }
+
+        if(!loopIndefinitely) {
+            break;  /* out of while loop, done with normal and resume option */
+        }
+    } /* while(1) */
+
+    CloseSocket(sockfd);
     SSL_CTX_free(ctx);
 
-    CloseSocket(clientfd);
-    CloseSocket(sockfd);
     ((func_args*)args)->return_code = 0;
 
 
@@ -807,10 +904,10 @@ while (1) {  /* allow resume option */
             ChangeDirBack(2);
         else if (CurrentDir("Debug") || CurrentDir("Release"))
             ChangeDirBack(3);
-   
+
 #ifdef HAVE_STACK_SIZE
         StackSizeCheck(&args, server_test);
-#else 
+#else
         server_test(&args);
 #endif
         CyaSSL_Cleanup();

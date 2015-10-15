@@ -72,10 +72,7 @@ include support/include.am
 include wolfcrypt/benchmark/include.am
 include wolfcrypt/src/include.am
 include wolfcrypt/test/include.am
-include examples/client/include.am
-include examples/server/include.am
-include examples/echoclient/include.am
-include examples/echoserver/include.am
+include examples/include.am
 include testsuite/include.am
 include tests/include.am
 include sslSniffer/sslSnifferTest/include.am
