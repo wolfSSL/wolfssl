@@ -1830,6 +1830,81 @@ then
 fi
 
 
+# wolfSSL JNI
+AC_ARG_ENABLE([jni],
+    [  --enable-jni            Enable wolfSSL JNI (default: disabled)],
+    [ ENABLED_JNI=$enableval ],
+    [ ENABLED_JNI=no ]
+    )
+if test "$ENABLED_JNI" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_JNI"
+
+    # Enable prereqs if not already enabled
+    if test "x$ENABLED_DTLS" = "xno"
+    then
+        ENABLED_DTLS="yes"
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DTLS"
+    fi
+    if test "x$ENABLED_OPENSSLEXTRA" = "xno"
+    then
+        ENABLED_OPENSSLEXTRA="yes"
+        AM_CFLAGS="$AM_CFLAGS -DOPENSSL_EXTRA"
+    fi
+    if test "x$ENABLED_CRL" = "xno"
+    then
+        ENABLED_CRL="yes"
+        AM_CFLAGS="$AM_CFLAGS -DHAVE_CRL"
+        AM_CONDITIONAL([BUILD_CRL], [test "x$ENABLED_CRL" = "xyes"])
+    fi
+    if test "x$ENABLED_OCSP" = "xno"
+    then
+        ENABLED_OCSP="yes"
+        AM_CFLAGS="$AM_CFLAGS -DHAVE_OCSP"
+        AM_CONDITIONAL([BUILD_OCSP], [test "x$ENABLED_OCSP" = "xyes"])
+    fi
+    if test "x$ENABLED_CRL_MONITOR" = "xno"
+    then
+        ENABLED_CRL_MONITOR="yes"
+        AM_CFLAGS="$AM_CFLAGS -DHAVE_CRL_MONITOR"
+    fi
+    if test "x$ENABLED_SAVESESSION" = "xno"
+    then
+        ENABLED_SAVESESSION="yes"
+        AM_CFLAGS="$AM_CFLAGS -DPERSIST_SESSION_CACHE"
+    fi
+    if test "x$ENABLED_SAVECERT" = "xno"
+    then
+        ENABLED_SAVECERT="yes"
+        AM_CFLAGS="$AM_CFLAGS -DPERSIST_CERT_CACHE"
+    fi
+    if test "x$ENABLED_ATOMICUSER" = "xno"
+    then
+        ENABLED_ATOMICUSER="yes"
+        AM_CFLAGS="$AM_CFLAGS -DATOMIC_USER"
+    fi
+    if test "x$ENABLED_ECC" = "xno"
+    then
+        ENABLED_ECC="yes"
+        AM_CFLAGS="$AM_CFLAGS -DHAVE_ECC"
+    fi
+    if test "x$ENABLED_PKCALLBACKS" = "xno"
+    then
+        ENABLED_PKCALLBACKS="yes"
+        AM_CFLAGS="$AM_CFLAGS -DHAVE_PK_CALLBACKS"
+    fi
+    if test "x$ENABLED_DH" = "xno"
+    then
+        ENABLED_DH="yes"
+        AM_CFLAGS="$AM_CFLAGS -DHAVE_DH"
+    fi
+    if test "x$ENABLED_PSK" = "xno"
+    then
+        ENABLED_PSK="yes"
+    fi
+fi
+
+
 # lighty Support
 AC_ARG_ENABLE([lighty],
     [  --enable-lighty         Enable lighttpd/lighty (default: disabled)],
@@ -2154,75 +2229,6 @@ then
 fi
 
 AM_CONDITIONAL([BUILD_MCAPI], [test "x$ENABLED_MCAPI" = "xyes"])
-
-
-# wolfSSL JNI
-AC_ARG_ENABLE([jni],
-    [  --enable-jni            Enable wolfSSL JNI (default: disabled)],
-    [ ENABLED_JNI=$enableval ],
-    [ ENABLED_JNI=no ]
-    )
-if test "$ENABLED_JNI" = "yes"
-then
-    # Enable prereqs if not already enabled
-    if test "x$ENABLED_DTLS" = "xno"
-    then
-        ENABLED_DTLS="yes"
-        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DTLS"
-    fi
-    if test "x$ENABLED_OPENSSLEXTRA" = "xno"
-    then
-        ENABLED_OPENSSLEXTRA="yes"
-        AM_CFLAGS="$AM_CFLAGS -DOPENSSL_EXTRA"
-    fi
-    if test "x$ENABLED_CRL" = "xno"
-    then
-        ENABLED_CRL="yes"
-        AM_CFLAGS="$AM_CFLAGS -DHAVE_CRL"
-        AM_CONDITIONAL([BUILD_CRL], [test "x$ENABLED_CRL" = "xyes"])
-    fi
-    if test "x$ENABLED_OCSP" = "xno"
-    then
-        ENABLED_OCSP="yes"
-        AM_CFLAGS="$AM_CFLAGS -DHAVE_OCSP"
-        AM_CONDITIONAL([BUILD_OCSP], [test "x$ENABLED_OCSP" = "xyes"])
-    fi
-    if test "x$ENABLED_CRL_MONITOR" = "xno"
-    then
-        ENABLED_CRL_MONITOR="yes"
-        AM_CFLAGS="$AM_CFLAGS -DHAVE_CRL_MONITOR"
-    fi
-    if test "x$ENABLED_SAVESESSION" = "xno"
-    then
-        ENABLED_SAVESESSION="yes"
-        AM_CFLAGS="$AM_CFLAGS -DPERSIST_SESSION_CACHE"
-    fi
-    if test "x$ENABLED_SAVECERT" = "xno"
-    then
-        ENABLED_SAVECERT="yes"
-        AM_CFLAGS="$AM_CFLAGS -DPERSIST_CERT_CACHE"
-    fi
-    if test "x$ENABLED_ATOMICUSER" = "xno"
-    then
-        ENABLED_ATOMICUSER="yes"
-        AM_CFLAGS="$AM_CFLAGS -DATOMIC_USER"
-    fi
-    if test "x$ENABLED_ECC" = "xno"
-    then
-        ENABLED_ECC="yes"
-        AM_CFLAGS="$AM_CFLAGS -DHAVE_ECC"
-    fi
-    if test "x$ENABLED_PKCALLBACKS" = "xno"
-    then
-        ENABLED_PKCALLBACKS="yes"
-        AM_CFLAGS="$AM_CFLAGS -DHAVE_PK_CALLBACKS"
-    fi
-    if test "x$ENABLED_DH" = "xno"
-    then
-        ENABLED_DH="yes"
-        AM_CFLAGS="$AM_CFLAGS -DHAVE_DH"
-    fi
-fi
 
 
 # Check for build-type conflicts
