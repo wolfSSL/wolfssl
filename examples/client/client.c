@@ -461,7 +461,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     StackTrap();
 
     while ((ch = mygetopt(argc, argv,
-                          "?gdeDusmNrwRitfxXUPCh:p:v:l:A:c:k:Z:b:zS:L:ToO:an:B:"))
+                          "?gdeDusmNrwRitfxXUPCh:p:v:l:A:c:k:Z:b:zS:L:ToO:aB:"))
                                                                         != -1) {
         switch (ch) {
             case '?' :
@@ -668,7 +668,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
                 #endif
                 break;
 
-            case 'n' :
+            case 'L' :
                 #ifdef HAVE_ALPN
                     alpnList = myoptarg;
 
