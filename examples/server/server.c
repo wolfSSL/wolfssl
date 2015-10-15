@@ -263,7 +263,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     int    resumeCount = 0;
     int    loopIndefinitely = 0;
     int    echoData = 0;
-    int    throughput;
+    int    throughput = 0;
     int    minDhKeyBits = DEFAULT_MIN_DHKEY_BITS;
     int    doListen = 1;
     int    ret;
@@ -695,7 +695,6 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
             if(WOLFSSL_SOCKET_IS_INVALID(clientfd)) {
                 err_sys("tcp accept failed");
             }
-            resumeCount = 0;
         }
 
         ssl = SSL_new(ctx);
@@ -835,10 +834,11 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
 
         CloseSocket(clientfd);
 
-        if (resume == 1) {
+        if (resume == 1 && resumeCount == 0) {
             resumeCount++;           /* only do one resume for testing */
             continue;
         }
+        resumeCount = 0;
 
         if(!loopIndefinitely) {
             break;  /* out of while loop, done with normal and resume option */
