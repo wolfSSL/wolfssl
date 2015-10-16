@@ -804,7 +804,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
             else
                 printf("Get list of client's protocol name failed\n");
 
-            XFREE(list, NULL, DYNAMIC_TMP_OUT_BUFFER);
+            free(list);
         }
 #endif
         if(echoData == 0 && throughput == 0) {
