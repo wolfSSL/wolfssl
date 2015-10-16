@@ -143,6 +143,8 @@ int ClientBenchmarkConnections(WOLFSSL_CTX* ctx, char* host, word16 port,
         for (i = 0; i < times; i++) {
             SOCKET_T sockfd;
             WOLFSSL* ssl = wolfSSL_new(ctx);
+            if (ssl == NULL)
+                err_sys("unable to get SSL object");
 
             tcp_connect(&sockfd, host, port, doDTLS, ssl);
 
@@ -181,6 +183,8 @@ int ClientBenchmarkThroughput(WOLFSSL_CTX* ctx, char* host, word16 port,
 
     start = current_time();
     ssl = wolfSSL_new(ctx);
+    if (ssl == NULL)
+        err_sys("unable to get SSL object");
     tcp_connect(&sockfd, host, port, doDTLS, ssl);
     wolfSSL_set_fd(ssl, sockfd);
     if (wolfSSL_connect(ssl) == SSL_SUCCESS) {
@@ -1101,6 +1105,8 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     if (resumeSession) {
         session   = wolfSSL_get_session(ssl);
         sslResume = wolfSSL_new(ctx);
+        if (sslResume == NULL)
+            err_sys("unable to get SSL object");
     }
 #endif
 
