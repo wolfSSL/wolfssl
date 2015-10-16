@@ -785,8 +785,8 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
 #ifdef HAVE_ALPN
         if (alpnList != NULL) {
             int err;
-            char *protocol_name = NULL;
-            word16 protocol_nameSz = 0;
+            char *protocol_name = NULL, *list = NULL;
+            word16 protocol_nameSz = 0, listSz = 0;
 
             err = wolfSSL_ALPN_GetProtocol(ssl, &protocol_name, &protocol_nameSz);
             if (err == SSL_SUCCESS)
@@ -796,9 +796,17 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
                 printf("No ALPN response sent (no match)\n");
             else
                 printf("Getting ALPN protocol name failed\n");
+
+            err = wolfSSL_ALPN_GetPeerProtocol(ssl, &list, &listSz);
+            if (err == SSL_SUCCESS)
+                printf("List of protocol names sent by Client: %s (%d)\n",
+                       list, listSz);
+            else
+                printf("Get list of client's protocol name failed\n");
+
+            free(list);
         }
 #endif
-
         if(echoData == 0 && throughput == 0) {
             ret = SSL_read(ssl, input, sizeof(input)-1);
             if (ret > 0) {

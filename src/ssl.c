@@ -949,7 +949,29 @@ int wolfSSL_UseALPN(WOLFSSL* ssl, char *protocol_name_list,
 int wolfSSL_ALPN_GetProtocol(WOLFSSL* ssl, char **protocol_name, word16 *size)
 {
     return TLSX_ALPN_GetRequest(ssl ? ssl->extensions : NULL,
-                           (void **)protocol_name, size);
+                               (void **)protocol_name, size);
+}
+
+int wolfSSL_ALPN_GetPeerProtocol(WOLFSSL* ssl, char **list, word16 *listSz)
+{
+    if (list == NULL || listSz == NULL)
+        return BAD_FUNC_ARG;
+
+    if (ssl->alpn_client_list == NULL)
+        return BUFFER_ERROR;
+
+    *listSz = (word16)XSTRLEN(ssl->alpn_client_list);
+    if (*listSz == 0)
+        return BUFFER_ERROR;
+
+    *list = (char *)XMALLOC((*listSz)+1, NULL, DYNAMIC_TYPE_OUT_BUFFER);
+    if (*list == NULL)
+        return MEMORY_ERROR;
+
+    XSTRNCPY(*list, ssl->alpn_client_list, (*listSz)+1);
+    (*list)[*listSz] = 0;
+
+    return SSL_SUCCESS;
 }
 
 #endif /* HAVE_ALPN */
