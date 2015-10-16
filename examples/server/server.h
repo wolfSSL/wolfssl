@@ -22,3 +22,7 @@
 #pragma once
 
 THREAD_RETURN WOLFSSL_THREAD server_test(void* args);
+
+/* Echo bytes using buffer of TEST_BUFFER_SIZE until [echoData] bytes are complete. */
+/* If [bechmarkThroughput] set the statistcs will be output at the end */
+int ServerEchoData(WOLFSSL* ssl, int clientfd, int echoData, int benchmarkThroughput);

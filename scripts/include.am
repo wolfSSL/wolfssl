@@ -10,6 +10,7 @@ endif
 
 if BUILD_EXAMPLES
 dist_noinst_SCRIPTS+= scripts/resume.test
+EXTRA_DIST+= scripts/benchmark.test 
 
 if BUILD_CRL
 # make revoked test rely on completion of resume test

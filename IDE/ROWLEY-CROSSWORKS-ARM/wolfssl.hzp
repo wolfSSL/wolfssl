@@ -307,10 +307,6 @@
     batch_build_configurations="V7EM THUMB * Release"
     inherited_configurations="ARM;V7EM;Release;Kineits;Flash;THUMB" />
   <configuration
-    Name="MMCAU"
-    hidden="Yes"
-    linker_additional_options="-L $(ProjectDir) -l lib_mmcau.a" />
-  <configuration
     Name="Common"
     build_intermediate_directory="$(ProjectName)_$(Configuration)"
     build_output_directory="$(ProjectName)_$(Configuration)" />

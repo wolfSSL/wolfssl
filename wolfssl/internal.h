@@ -2484,6 +2484,9 @@ struct WOLFSSL {
         SessionSecretCb sessionSecretCb;
         void*           sessionSecretCtx;
 #endif /* HAVE_SECRET_CALLBACK */
+#ifdef WOLFSSL_JNI
+        void* jObjectRef;     /* reference to WolfSSLSession in JNI wrapper */
+#endif /* WOLFSSL_JNI */
 };
 
 

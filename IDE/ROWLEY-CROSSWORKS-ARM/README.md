@@ -31,8 +31,8 @@ To enable Freescale MMCAU:
 
 1. [Download the MMCAU library](http://www.freescale.com/products/arm-processors/kinetis-cortex-m/k-series/k7x-glcd-mcus/crypto-acceleration-unit-cau-and-mmcau-software-library:CAUAP).
 2. Copy the `lib_mmcau.a` and `cau_api.h` files into the project.
-3. Add `-L $(ProjectDir) -l lib_mmcau.a` to project "Additional Linker Options" OR goto "Build Configuration" and check "MMCAU".
-4. Enable the "FREESCALE_MMCAU" define in "user_settings.h" and make sure its value is 1.
+3. Enable the `FREESCALE_MMCAU` define in `user_settings.h` and make sure its value is `1`.
+4. Add the `lib_mmcau.a` file to `Source Files` in the application project.
 
 # Project Files
 

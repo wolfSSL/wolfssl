@@ -164,16 +164,7 @@ void echoclient_test(void* args)
     #endif
 
     ssl = SSL_new(ctx);
-
-    if (doDTLS) {
-        SOCKADDR_IN_T addr;
-        build_addr(&addr, yasslIP, port, 1);
-        CyaSSL_dtls_set_peer(ssl, &addr, sizeof(addr));
-        tcp_socket(&sockfd, 1);
-    }
-    else {
-        tcp_connect(&sockfd, yasslIP, port, 0);
-    }
+    tcp_connect(&sockfd, yasslIP, port, doDTLS, ssl);
         
     SSL_set_fd(ssl, sockfd);
 #if defined(USE_WINDOWS_API) && defined(CYASSL_DTLS) && defined(NO_MAIN_DRIVER)
