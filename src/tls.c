@@ -1185,7 +1185,7 @@ int TLSX_ALPN_GetRequest(TLSX* extensions, void** data, word16 *dataSz)
 
 #else /* HAVE_ALPN */
 
-#define ALPN_FREE_ALL(list)     0
+#define ALPN_FREE_ALL(list)
 #define ALPN_GET_SIZE(list)     0
 #define ALPN_WRITE(a, b)        0
 #define ALPN_PARSE(a, b, c, d)  0
