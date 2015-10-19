@@ -1973,7 +1973,7 @@ static int Decrypt(SSL* ssl, byte* output, const byte* input, word32 sz)
 
         #ifdef HAVE_AESGCM
         case wolfssl_aes_gcm:
-            if (sz >= AEAD_EXP_IV_SZ + ssl->specs.aead_mac_size)
+            if (sz >= (word32)(AEAD_EXP_IV_SZ + ssl->specs.aead_mac_size))
             {
                 byte nonce[AEAD_NONCE_SZ];
                 XMEMCPY(nonce, ssl->keys.aead_dec_imp_IV, AEAD_IMP_IV_SZ);
@@ -1986,12 +1986,15 @@ static int Decrypt(SSL* ssl, byte* output, const byte* input, word32 sz)
                             nonce, AEAD_NONCE_SZ,
                             NULL, 0,
                             NULL, 0) < 0) {
+                    Trace(BAD_DECRYPT);
                     ret = -1;
                 }
                 ForceZero(nonce, AEAD_NONCE_SZ);
             }
-            else
+            else {
                 Trace(BAD_DECRYPT_SIZE);
+                ret = -1;
+            }
             break;
          #endif
 
