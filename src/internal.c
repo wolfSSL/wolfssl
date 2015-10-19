@@ -2416,7 +2416,7 @@ void DtlsMsgSet(DtlsMsg* msg, word32 seq, const byte* data, byte type,
                                               word32 fragOffset, word32 fragSz)
 {
     if (msg != NULL && data != NULL && msg->fragSz <= msg->sz &&
-                    fragOffset <= msg->sz && (fragOffset + fragSz) <= msg->sz) {
+                                             (fragOffset + fragSz) <= msg->sz) {
 
         msg->seq = seq;
         msg->type = type;
