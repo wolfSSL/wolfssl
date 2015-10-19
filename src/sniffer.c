@@ -248,7 +248,10 @@ static const char* const msgTable[] =
     "Reassembly Buffer Size Exceeded",
     "Dropping Lost Fragment",
     "Dropping Partial Record",
-    "Clear ACK Fault"
+    "Clear ACK Fault",
+
+    /* 81 */
+    "Bad Decrypt Size"
 };
 
 
@@ -1968,6 +1971,30 @@ static int Decrypt(SSL* ssl, byte* output, const byte* input, word32 sz)
             break;
         #endif
 
+        #ifdef HAVE_AESGCM
+        case wolfssl_aes_gcm:
+            if (sz >= AEAD_EXP_IV_SZ + ssl->specs.aead_mac_size)
+            {
+                byte nonce[AEAD_NONCE_SZ];
+                XMEMCPY(nonce, ssl->keys.aead_dec_imp_IV, AEAD_IMP_IV_SZ);
+                XMEMCPY(nonce + AEAD_IMP_IV_SZ, input, AEAD_EXP_IV_SZ);
+
+                if (wc_AesGcmEncrypt(ssl->decrypt.aes,
+                            output,
+                            input + AEAD_EXP_IV_SZ,
+                            sz - AEAD_EXP_IV_SZ - ssl->specs.aead_mac_size,
+                            nonce, AEAD_NONCE_SZ,
+                            NULL, 0,
+                            NULL, 0) < 0) {
+                    ret = -1;
+                }
+                ForceZero(nonce, AEAD_NONCE_SZ);
+            }
+            else
+                Trace(BAD_DECRYPT_SIZE);
+            break;
+         #endif
+
         default:
             Trace(BAD_DECRYPT_TYPE);
             ret = -1;
@@ -1996,7 +2023,12 @@ static const byte* DecryptMessage(SSL* ssl, const byte* input, word32 sz,
         *advance = ssl->specs.block_size;
     }
 
-    ssl->keys.padSz = ssl->specs.hash_size;
+    if (ssl->specs.cipher_type == aead) {
+        *advance = ssl->specs.aead_mac_size;
+        ssl->keys.padSz = ssl->specs.aead_mac_size;
+    }
+    else
+        ssl->keys.padSz = ssl->specs.hash_size;
 
     if (ssl->specs.cipher_type == block)
         ssl->keys.padSz += *(output + sz - ivExtra - 1) + 1;

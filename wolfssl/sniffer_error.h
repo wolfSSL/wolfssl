@@ -114,6 +114,8 @@
 #define DROPPING_LOST_FRAG_STR 78
 #define DROPPING_PARTIAL_RECORD 79
 #define CLEAR_ACK_FAULT 80
+
+#define BAD_DECRYPT_SIZE 81
 /* !!!! also add to msgTable in sniffer.c and .rc file !!!! */
 
 

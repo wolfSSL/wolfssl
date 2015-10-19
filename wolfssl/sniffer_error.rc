@@ -96,5 +96,7 @@ STRINGTABLE
     78, "Dropping Lost Fragment"
     79, "Dropping Partial Record"
     80, "Clear ACK Fault"
+
+    81, "Bad Decrypt Size"
 }
 
