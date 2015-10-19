@@ -1,4 +1,4 @@
-/* config-FS.h
+/* config-Crypt.h
  *
  * Copyright (C) 2006-2015 wolfSSL Inc.
  *
@@ -26,7 +26,7 @@
 
 //  <h>Cert/Key Strage
 //        <o>Cert Storage <0=> SD Card <1=> Mem Buff (1024bytes) <2=> Mem Buff (2048bytes)
-#define MDK_CONF_CERT_BUFF 0
+#define MDK_CONF_CERT_BUFF 2
 #if MDK_CONF_CERT_BUFF== 1
 #define USE_CERT_BUFFERS_1024
 #elif MDK_CONF_CERT_BUFF == 2
@@ -36,13 +36,10 @@
 
 //  <h>Crypt Algrithm
 
-//       <h>MD5, SHA, SHA-256, AES, RC4, ASN, RSA
-//        </h>
-
 //      <e>MD2
-#define MDK_CONF_MD2 0
+#define MDK_CONF_MD2 1
 #if MDK_CONF_MD2 == 1
-#define CYASSL_MD2
+#define WOLFSSL_MD2
 #endif
 //  </e>
 //      <e>MD4
@@ -51,23 +48,46 @@
 #define NO_MD4
 #endif
 //  </e>
+//      <e>MD5
+#define MDK_CONF_MD5 1
+#if MDK_CONF_MD5 == 0
+#define NO_MD5
+#endif
+//  </e>
+//      <e>SHA
+#define MDK_CONF_SHA  1
+#if MDK_CONF_SHA == 0
+#define NO_SHA
+#endif
+//  </e>
+//      <e>SHA-256
+#define MDK_CONF_SHA256 1
+#if MDK_CONF_SHA256 == 0
+#define NO_SHA256
+#endif
+//  </e>
 //      <e>SHA-384
-//          <i>This has to be with SHA512
-#define MDK_CONF_SHA384 0
+#define MDK_CONF_SHA384 1
 #if MDK_CONF_SHA384 == 1
-#define CYASSL_SHA384
+#define WOLFSSL_SHA384
 #endif
 //  </e>
 //      <e>SHA-512          
-#define MDK_CONF_SHA512     0
+#define MDK_CONF_SHA512     1
 #if MDK_CONF_SHA512     == 1
-#define CYASSL_SHA512   
+#define WOLFSSL_SHA512   
 #endif
 //  </e>
 //      <e>RIPEMD
-#define MDK_CONF_RIPEMD 0
+#define MDK_CONF_RIPEMD 1
 #if MDK_CONF_RIPEMD == 1
-#define CYASSL_RIPEMD
+#define WOLFSSL_RIPEMD
+#endif
+//  </e>
+//      <e>BLAKE2
+#define MDK_CONF_BLAKE2 0
+#if MDK_CONF_BLAKE2 == 1
+#define HAVE_BLAKE2
 #endif
 //  </e>
 //      <e>HMAC
@@ -76,40 +96,83 @@
 #define NO_HMAC
 #endif
 //  </e>
-//      <e>HC128
-#define MDK_CONF_HC128 0
-#if MDK_CONF_HC128 == 1
-#define HAVE_HC128
+//      <e>HMAC KDF
+#define MDK_CONF_HKDF 1
+#if MDK_CONF_HKDF == 1
+#define HAVE_HKDF
 #endif
 //  </e>
-//  <e>RABBIT
+
+//      <e>AES CCM
+#define MDK_CONF_AESCCM 1
+#if MDK_CONF_AESCCM == 1
+#define HAVE_AESCCM
+#endif
+//  </e>
+//      <e>AES GCM
+#define MDK_CONF_AESGCM 1
+#if MDK_CONF_AESGCM == 1
+#define HAVE_AESGCM
+#endif
+//  </e>
+
+//      <e>RC4
+#define MDK_CONF_RC4 1
+#if MDK_CONF_RC4 == 0
+#define NO_RC4
+#endif
+//  </e>
+
+//      <e>HC128
+#define MDK_CONF_HC128 1
+#if MDK_CONF_AESGCM == 0
+#define NO_HC128
+#endif
+//  </e>
+
+//      <e>RABBIT
 #define MDK_CONF_RABBIT 1
-#if MDK_CONF_RABBI == 0
+#if MDK_CONF_RABBIT == 0
 #define NO_RABBIT
 #endif
 //  </e>
 
-//      <e>AEAD     
-#define MDK_CONF_AEAD 0
-#if MDK_CONF_AEAD == 1
-#define HAVE_AEAD
+//      <e>CHACHA
+#define MDK_CONF_CHACHA 1
+#if MDK_CONF_CHACHA == 1
+#define HAVE_CHACHA
 #endif
 //  </e>
+
+//      <e>POLY1305
+#define MDK_CONF_POLY1305 1
+#if MDK_CONF_POLY1305 == 0
+#define HAVE_POLY1305
+#endif
+//  </e>
+
 //      <e>DES3
 #define MDK_CONF_DES3 1
 #if MDK_CONF_DES3 == 0
 #define NO_DES3
 #endif
 //  </e>
+
+//      <e>AES
+#define MDK_CONF_AES 1
+#if MDK_CONF_AES == 0
+#define NO_AES
+#endif
+//  </e>
+
 //      <e>CAMELLIA
-#define MDK_CONF_CAMELLIA 0
+#define MDK_CONF_CAMELLIA 1
 #if MDK_CONF_CAMELLIA == 1
 #define HAVE_CAMELLIA
 #endif
 //  </e>
 
 //      <e>DH
-//              <i>need this for CYASSL_SERVER, OPENSSL_EXTRA
 #define MDK_CONF_DH 1
 #if MDK_CONF_DH == 0
 #define NO_DH
@@ -121,6 +184,14 @@
 #define NO_DSA
 #endif
 //  </e>
+
+//      <e>SRP
+#define MDK_CONF_SRP 1 
+#if MDK_CONF_SRP == 1
+#define HAVE_SRP
+#endif
+//  </e>
+
 //      <e>PWDBASED
 #define MDK_CONF_PWDBASED 1
 #if MDK_CONF_PWDBASED == 0
@@ -129,30 +200,35 @@
 //  </e>
 
 //      <e>ECC
-#define MDK_CONF_ECC 0
+#define MDK_CONF_ECC 1
 #if MDK_CONF_ECC == 1
 #define HAVE_ECC
 #endif
 //  </e>
-//      <e>PSK
-#define MDK_CONF_PSK 1
-#if MDK_CONF_PSK == 0
-#define NO_PSK
+
+//      <e>CURVE25519
+#define MDK_CONF_CURVE25519 1
+#if MDK_CONF_CURVE25519 == 1
+#define HAVE_CURVE25519
+#define CURVED25519_SMALL
+//#define TFM_ECC256
 #endif
 //  </e>
-//      <e>AESCCM (Turn off Hardware Crypt)
-#define MDK_CONF_AESCCM 0
-#if MDK_CONF_AESCCM == 1
-#define HAVE_AESCCM
+
+//      <e>ED25519
+#define MDK_CONF_ED25519 1
+#if MDK_CONF_ED25519 == 1
+#define HAVE_ED25519
 #endif
 //  </e>
-//      <e>AESGCM (Turn off Hardware Crypt)
-#define MDK_CONF_AESGCM 0
-#if MDK_CONF_AESGCM == 1
-#define HAVE_AESGCM
-#define BUILD_AESGCM
+
+//      <e>PKCS7
+#define MDK_CONF_PKCS7 0
+#if MDK_CONF_PKCS7 == 1
+#define HAVE_PKCS7
 #endif
 //  </e>
+
 //      <e>NTRU (need License, "crypto_ntru.h")
 #define MDK_CONF_NTRU 0
 #if MDK_CONF_NTRU == 1
@@ -178,6 +254,48 @@
 //  </e>
 
 // </h>
+
+//  <h>Other Settings
+
+//      <e>Use Fast Math
+#define MDK_CONF_FASTMATH 1
+#if MDK_CONF_FASTMATH == 1
+#define USE_FAST_MATH
+#define TFM_TIMING_RESISTANT
+#endif
+//  </e>
+//      <e>Small Stack
+#define MDK_CONF_SmallStack 0
+#if MDK_CONF_SmallStack == 0
+#define NO_WOLFSSL_SMALL_STACK
+#endif
+//  </e>
+//      <e>ErrNo.h
+#define MDK_CONF_ErrNo 1
+#if MDK_CONF_ErrNo == 1
+#define HAVE_ERRNO
+#endif
+//  </e>
+//      <e>Error Strings
+#define MDK_CONF_ErrorStrings 1
+#if MDK_CONF_ErrorStrings == 0
+#define NO_ERROR_STRINGS
+#endif
+//  </e>
+//      <e>zlib (need "zlib.h")
+#define MDK_CONF_LIBZ 0
+#if MDK_CONF_LIBZ == 1
+#define HAVE_LIBZ
+#endif
+//  </e>
+//      <e>CAVIUM (need CAVIUM headers)
+#define MDK_CONF_CAVIUM 0
+#if MDK_CONF_CAVIUM == 1
+#define HAVE_CAVIUM
+#endif
+//  </e>
+
+//  </h>
 
 
 

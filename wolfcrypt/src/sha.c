@@ -72,7 +72,7 @@
 
 #ifdef FREESCALE_MMCAU
     #include "cau_api.h"
-    #define XTRANSFORM(S,B)  cau_sha1_hash_n((B), 1, ((S))->digest)
+    #define XTRANSFORM(S,B)  Transform((S), (B))
 #else
     #define XTRANSFORM(S,B)  Transform((S))
 #endif
@@ -210,8 +210,14 @@ int wc_ShaFinal(Sha* sha, byte* hash)
 
 int wc_InitSha(Sha* sha)
 {
+    int ret = 0;
 #ifdef FREESCALE_MMCAU
+    ret = wolfSSL_CryptHwMutexLock();
+    if(ret != 0) {
+        return ret;
+    }
     cau_sha1_initialize_output(sha->digest);
+    wolfSSL_CryptHwMutexUnLock();
 #else
     sha->digest[0] = 0x67452301L;
     sha->digest[1] = 0xEFCDAB89L;
@@ -224,9 +230,21 @@ int wc_InitSha(Sha* sha)
     sha->loLen   = 0;
     sha->hiLen   = 0;
 
-    return 0;
+    return ret;
 }
 
+#ifdef FREESCALE_MMCAU
+static int Transform(Sha* sha, byte* data)
+{
+    int ret = wolfSSL_CryptHwMutexLock();
+    if(ret == 0) {
+        cau_sha1_hash_n(data, 1, sha->digest);
+        wolfSSL_CryptHwMutexUnLock();
+    }
+    return ret;
+}
+#endif /* FREESCALE_MMCAU */
+        
 #ifndef FREESCALE_MMCAU
 
 #define blk0(i) (W[i] = sha->buffer[i])

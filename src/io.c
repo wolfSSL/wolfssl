@@ -61,24 +61,24 @@
         #include <rtcs.h>
     #elif defined(FREESCALE_KSDK_MQX)
         #include <rtcs.h>
-    #elif defined(WOLFSSL_MDK_ARM)
-        #if defined(WOLFSSL_MDK5)
+    #elif defined(WOLFSSL_MDK_ARM) || defined(WOLFSSL_KEIL_TCP_NET)
+        #if defined(WOLFSSL_MDK5) || defined(WOLFSSL_KEIL_TCP_NET)
             #include "cmsis_os.h"
-            #include "rl_fs.h" 
-            #include "rl_net.h" 
         #else
             #include <rtl.h>
         #endif
-        #undef RNG
-        #include "WOLFSSL_MDK_ARM.h"
-        #undef RNG
-        #define RNG wolfSSL_RNG 
-        /* for avoiding name conflict in "stm32f2xx.h" */
-        static int errno;
+        #include "errno.h"
+        #define SOCKET_T int
+        #include "rl_net.h"
     #elif defined(WOLFSSL_TIRTOS)
         #include <sys/socket.h>
+    #elif defined(FREERTOS_TCP)
+        #include "FreeRTOS_Sockets.h"
     #elif defined(WOLFSSL_IAR_ARM)
         /* nothing */
+    #elif defined(WOLFSSL_VXWORKS)
+        #include <sockLib.h>
+        #include <errno.h>
     #else
         #include <sys/types.h>
         #include <errno.h>
@@ -152,8 +152,8 @@
         #define SOCKET_ECONNREFUSED NIO_ECONNREFUSED
         #define SOCKET_ECONNABORTED NIO_ECONNABORTED
     #endif
-#elif defined(WOLFSSL_MDK_ARM)
-    #if defined(WOLFSSL_MDK5)
+#elif defined(WOLFSSL_MDK_ARM)|| defined(WOLFSSL_KEIL_TCP_NET)
+    #if defined(WOLFSSL_MDK5)|| defined(WOLFSSL_KEIL_TCP_NET)
         #define SOCKET_EWOULDBLOCK BSD_ERROR_WOULDBLOCK
         #define SOCKET_EAGAIN      BSD_ERROR_LOCKED
         #define SOCKET_ECONNRESET  BSD_ERROR_CLOSED
@@ -178,6 +178,14 @@
     #define SOCKET_EPIPE        PICO_ERR_EIO
     #define SOCKET_ECONNREFUSED PICO_ERR_ECONNREFUSED
     #define SOCKET_ECONNABORTED PICO_ERR_ESHUTDOWN
+#elif defined(FREERTOS_TCP)
+    #define SOCKET_EWOULDBLOCK FREERTOS_EWOULDBLOCK
+    #define SOCKET_EAGAIN       FREERTOS_EWOULDBLOCK
+    #define SOCKET_ECONNRESET   FREERTOS_SOCKET_ERROR
+    #define SOCKET_EINTR        FREERTOS_SOCKET_ERROR
+    #define SOCKET_EPIPE        FREERTOS_SOCKET_ERROR
+    #define SOCKET_ECONNREFUSED FREERTOS_SOCKET_ERROR
+    #define SOCKET_ECONNABORTED FREERTOS_SOCKET_ERROR
 #else
     #define SOCKET_EWOULDBLOCK EWOULDBLOCK
     #define SOCKET_EAGAIN      EAGAIN
@@ -201,6 +209,9 @@
 #elif defined(WOLFSSL_PICOTCP)
     #define SEND_FUNCTION pico_send
     #define RECV_FUNCTION pico_recv
+#elif defined(FREERTOS_TCP)
+    #define RECV_FUNCTION(a,b,c,d)  FreeRTOS_recv((Socket_t)(a),(void*)(b), (size_t)(c), (BaseType_t)(d))
+    #define SEND_FUNCTION(a,b,c,d)  FreeRTOS_send((Socket_t)(a),(void*)(b), (size_t)(c), (BaseType_t)(d))
 #else
     #define SEND_FUNCTION send
     #define RECV_FUNCTION recv

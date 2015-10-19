@@ -248,7 +248,7 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
                 err_sys("recvfrom failed");
         }
 #endif
-        if (clientfd == -1) err_sys("tcp accept failed");
+        if (WOLFSSL_SOCKET_IS_INVALID(clientfd)) err_sys("tcp accept failed");
 
         ssl = CyaSSL_new(ctx);
         if (ssl == NULL) err_sys("SSL_new failed");

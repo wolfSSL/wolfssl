@@ -357,7 +357,7 @@ static THREAD_RETURN WOLFSSL_THREAD test_server_nofail(void* args)
     }
 
     ssl = wolfSSL_new(ctx);
-    tcp_accept(&sockfd, &clientfd, (func_args*)args, port, 0, 0, 0);
+    tcp_accept(&sockfd, &clientfd, (func_args*)args, port, 0, 0, 0, 1);
     CloseSocket(sockfd);
 
     wolfSSL_set_fd(ssl, clientfd);
@@ -467,9 +467,8 @@ static void test_client_nofail(void* args)
         goto done2;
     }
 
-    tcp_connect(&sockfd, wolfSSLIP, ((func_args*)args)->signal->port, 0);
-
     ssl = wolfSSL_new(ctx);
+    tcp_connect(&sockfd, wolfSSLIP, ((func_args*)args)->signal->port, 0, ssl);
     wolfSSL_set_fd(ssl, sockfd);
     if (wolfSSL_connect(ssl) != SSL_SUCCESS)
     {
@@ -507,8 +506,8 @@ done2:
     return;
 }
 
-/* SNI helper functions */
-#ifdef HAVE_SNI
+/* SNI / ALPN helper functions */
+#if defined(HAVE_SNI) || defined(HAVE_ALPN)
 
 static THREAD_RETURN WOLFSSL_THREAD run_wolfssl_server(void* args)
 {
@@ -557,7 +556,7 @@ static THREAD_RETURN WOLFSSL_THREAD run_wolfssl_server(void* args)
 
     ssl = wolfSSL_new(ctx);
 
-    tcp_accept(&sfd, &cfd, (func_args*)args, port, 0, 0, 0);
+    tcp_accept(&sfd, &cfd, (func_args*)args, port, 0, 0, 0, 1);
     CloseSocket(sfd);
 
     wolfSSL_set_fd(ssl, cfd);
@@ -650,9 +649,8 @@ static void run_wolfssl_client(void* args)
     if (callbacks->ctx_ready)
         callbacks->ctx_ready(ctx);
 
-    tcp_connect(&sfd, wolfSSLIP, ((func_args*)args)->signal->port, 0);
-
     ssl = wolfSSL_new(ctx);
+    tcp_connect(&sfd, wolfSSLIP, ((func_args*)args)->signal->port, 0, ssl);
     wolfSSL_set_fd(ssl, sfd);
 
     if (callbacks->ssl_ready)
@@ -685,7 +683,7 @@ static void run_wolfssl_client(void* args)
 #endif
 }
 
-#endif /* HAVE_SNI */
+#endif /* defined(HAVE_SNI) || defined(HAVE_ALPN) */
 #endif /* io tests dependencies */
 
 
@@ -746,6 +744,51 @@ static void test_wolfSSL_read_write(void)
 /*----------------------------------------------------------------------------*
  | TLS extensions tests
  *----------------------------------------------------------------------------*/
+
+#if defined(HAVE_SNI) || defined(HAVE_ALPN)
+/* connection test runner */
+static void test_wolfSSL_client_server(callback_functions* client_callbacks,
+                                       callback_functions* server_callbacks)
+{
+#ifdef HAVE_IO_TESTS_DEPENDENCIES
+    tcp_ready ready;
+    func_args client_args;
+    func_args server_args;
+    THREAD_TYPE serverThread;
+
+    StartTCP();
+
+    client_args.callbacks = client_callbacks;
+    server_args.callbacks = server_callbacks;
+
+#ifdef WOLFSSL_TIRTOS
+    fdOpenSession(Task_self());
+#endif
+
+    /* RUN Server side */
+    InitTcpReady(&ready);
+    server_args.signal = &ready;
+    client_args.signal = &ready;
+    start_thread(run_wolfssl_server, &server_args, &serverThread);
+    wait_tcp_ready(&server_args);
+
+    /* RUN Client side */
+    run_wolfssl_client(&client_args);
+    join_thread(serverThread);
+
+    FreeTcpReady(&ready);
+#ifdef WOLFSSL_TIRTOS
+    fdCloseSession(Task_self());
+#endif
+
+#else
+    (void)client_callbacks;
+    (void)server_callbacks;
+#endif
+}
+
+#endif /* defined(HAVE_SNI) || defined(HAVE_ALPN) */
+
 
 #ifdef HAVE_SNI
 static void test_wolfSSL_UseSNI_params(void)
@@ -827,11 +870,6 @@ static void use_PSEUDO_MANDATORY_SNI_at_ctx(WOLFSSL_CTX* ctx)
                  WOLFSSL_SNI_ANSWER_ON_MISMATCH | WOLFSSL_SNI_ABORT_ON_ABSENCE);
 }
 
-static void verify_FATAL_ERROR_on_client(WOLFSSL* ssl)
-{
-    AssertIntEQ(FATAL_ERROR, wolfSSL_get_error(ssl, 0));
-}
-
 static void verify_UNKNOWN_SNI_on_server(WOLFSSL* ssl)
 {
     AssertIntEQ(UNKNOWN_SNI_HOST_NAME_E, wolfSSL_get_error(ssl, 0));
@@ -874,48 +912,12 @@ static void verify_SNI_fake_matching(WOLFSSL* ssl)
     AssertNotNull(request);
     AssertStrEQ("ww2.wolfssl.com", request);
 }
-/* END of connection tests callbacks */
 
-/* connection test runner */
-static void test_wolfSSL_client_server(callback_functions* client_callbacks,
-                                      callback_functions* server_callbacks)
+static void verify_FATAL_ERROR_on_client(WOLFSSL* ssl)
 {
-#ifdef HAVE_IO_TESTS_DEPENDENCIES
-    tcp_ready ready;
-    func_args client_args;
-    func_args server_args;
-    THREAD_TYPE serverThread;
-
-    StartTCP();
-
-    client_args.callbacks = client_callbacks;
-    server_args.callbacks = server_callbacks;
-
-#ifdef WOLFSSL_TIRTOS
-    fdOpenSession(Task_self());
-#endif
-
-    /* RUN Server side */
-    InitTcpReady(&ready);
-    server_args.signal = &ready;
-    client_args.signal = &ready;
-    start_thread(run_wolfssl_server, &server_args, &serverThread);
-    wait_tcp_ready(&server_args);
-
-    /* RUN Client side */
-    run_wolfssl_client(&client_args);
-    join_thread(serverThread);
-
-    FreeTcpReady(&ready);
-#ifdef WOLFSSL_TIRTOS
-    fdCloseSession(Task_self());
-#endif
-
-#else
-    (void)client_callbacks;
-    (void)server_callbacks;
-#endif
+    AssertIntEQ(FATAL_ERROR, wolfSSL_get_error(ssl, 0));
 }
+/* END of connection tests callbacks */
 
 static void test_wolfSSL_UseSNI_connection(void)
 {
@@ -1197,6 +1199,264 @@ static void test_wolfSSL_UseSupportedCurve(void)
 #endif
 }
 
+#ifdef HAVE_ALPN
+
+static void verify_ALPN_FATAL_ERROR_on_client(WOLFSSL* ssl)
+{
+    AssertIntEQ(UNKNOWN_ALPN_PROTOCOL_NAME_E, wolfSSL_get_error(ssl, 0));
+}
+
+static void use_ALPN_all(WOLFSSL* ssl)
+{
+    /* http/1.1,spdy/1,spdy/2,spdy/3 */
+    char alpn_list[] = {0x68, 0x74, 0x74, 0x70, 0x2f, 0x31, 0x2e, 0x31, 0x2c,
+                        0x73, 0x70, 0x64, 0x79, 0x2f, 0x31, 0x2c,
+                        0x73, 0x70, 0x64, 0x79, 0x2f, 0x32, 0x2c,
+                        0x73, 0x70, 0x64, 0x79, 0x2f, 0x33};
+    AssertIntEQ(SSL_SUCCESS, wolfSSL_UseALPN(ssl, alpn_list, sizeof(alpn_list),
+                                             WOLFSSL_ALPN_FAILED_ON_MISMATCH));
+}
+
+static void use_ALPN_all_continue(WOLFSSL* ssl)
+{
+    /* http/1.1,spdy/1,spdy/2,spdy/3 */
+    char alpn_list[] = {0x68, 0x74, 0x74, 0x70, 0x2f, 0x31, 0x2e, 0x31, 0x2c,
+        0x73, 0x70, 0x64, 0x79, 0x2f, 0x31, 0x2c,
+        0x73, 0x70, 0x64, 0x79, 0x2f, 0x32, 0x2c,
+        0x73, 0x70, 0x64, 0x79, 0x2f, 0x33};
+    AssertIntEQ(SSL_SUCCESS, wolfSSL_UseALPN(ssl, alpn_list, sizeof(alpn_list),
+                                             WOLFSSL_ALPN_CONTINUE_ON_MISMATCH));
+}
+
+static void use_ALPN_one(WOLFSSL* ssl)
+{
+    /* spdy/2 */
+    char proto[] = {0x73, 0x70, 0x64, 0x79, 0x2f, 0x32};
+
+    AssertIntEQ(SSL_SUCCESS, wolfSSL_UseALPN(ssl, proto, sizeof(proto),
+                                             WOLFSSL_ALPN_FAILED_ON_MISMATCH));
+}
+
+static void use_ALPN_unknown(WOLFSSL* ssl)
+{
+    /* http/2.0 */
+    char proto[] = {0x68, 0x74, 0x74, 0x70, 0x2f, 0x32, 0x2e, 0x30};
+
+    AssertIntEQ(SSL_SUCCESS, wolfSSL_UseALPN(ssl, proto, sizeof(proto),
+                                             WOLFSSL_ALPN_FAILED_ON_MISMATCH));
+}
+
+static void use_ALPN_unknown_continue(WOLFSSL* ssl)
+{
+    /* http/2.0 */
+    char proto[] = {0x68, 0x74, 0x74, 0x70, 0x2f, 0x32, 0x2e, 0x30};
+
+    AssertIntEQ(SSL_SUCCESS, wolfSSL_UseALPN(ssl, proto, sizeof(proto),
+                                             WOLFSSL_ALPN_CONTINUE_ON_MISMATCH));
+}
+
+static void verify_ALPN_not_matching_spdy3(WOLFSSL* ssl)
+{
+    /* spdy/3 */
+    char nego_proto[] = {0x73, 0x70, 0x64, 0x79, 0x2f, 0x33};
+
+    char *proto;
+    word16 protoSz = 0;
+
+    AssertIntEQ(SSL_SUCCESS, wolfSSL_ALPN_GetProtocol(ssl, &proto, &protoSz));
+
+    /* check value */
+    AssertIntNE(1, sizeof(nego_proto) == protoSz);
+    AssertIntNE(0, XMEMCMP(nego_proto, proto, sizeof(nego_proto)));
+}
+
+static void verify_ALPN_not_matching_continue(WOLFSSL* ssl)
+{
+    char *proto = NULL;
+    word16 protoSz = 0;
+
+    AssertIntEQ(SSL_ALPN_NOT_FOUND,
+                wolfSSL_ALPN_GetProtocol(ssl, &proto, &protoSz));
+
+    /* check value */
+    AssertIntEQ(1, 0 == protoSz);
+    AssertIntEQ(1, NULL == proto);
+}
+
+static void verify_ALPN_matching_http1(WOLFSSL* ssl)
+{
+    /* http/1.1 */
+    char nego_proto[] = {0x68, 0x74, 0x74, 0x70, 0x2f, 0x31, 0x2e, 0x31};
+    char *proto;
+    word16 protoSz = 0;
+
+    AssertIntEQ(SSL_SUCCESS, wolfSSL_ALPN_GetProtocol(ssl, &proto, &protoSz));
+
+    /* check value */
+    AssertIntEQ(1, sizeof(nego_proto) == protoSz);
+    AssertIntEQ(0, XMEMCMP(nego_proto, proto, protoSz));
+}
+
+static void verify_ALPN_matching_spdy2(WOLFSSL* ssl)
+{
+    /* spdy/2 */
+    char nego_proto[] = {0x73, 0x70, 0x64, 0x79, 0x2f, 0x32};
+    char *proto;
+    word16 protoSz = 0;
+
+    AssertIntEQ(SSL_SUCCESS, wolfSSL_ALPN_GetProtocol(ssl, &proto, &protoSz));
+
+    /* check value */
+    AssertIntEQ(1, sizeof(nego_proto) == protoSz);
+    AssertIntEQ(0, XMEMCMP(nego_proto, proto, protoSz));
+}
+
+static void verify_ALPN_client_list(WOLFSSL* ssl)
+{
+    /* http/1.1,spdy/1,spdy/2,spdy/3 */
+    char alpn_list[] = {0x68, 0x74, 0x74, 0x70, 0x2f, 0x31, 0x2e, 0x31, 0x2c,
+                        0x73, 0x70, 0x64, 0x79, 0x2f, 0x31, 0x2c,
+                        0x73, 0x70, 0x64, 0x79, 0x2f, 0x32, 0x2c,
+                        0x73, 0x70, 0x64, 0x79, 0x2f, 0x33};
+    char    *clist = NULL;
+    word16  clistSz = 0;
+
+    AssertIntEQ(SSL_SUCCESS, wolfSSL_ALPN_GetPeerProtocol(ssl, &clist,
+                                                          &clistSz));
+
+    /* check value */
+    AssertIntEQ(1, sizeof(alpn_list) == clistSz);
+    AssertIntEQ(0, XMEMCMP(alpn_list, clist, clistSz));
+
+    XFREE(clist, 0, DYNAMIC_TYPE_OUT_BUFFER);
+}
+
+static void test_wolfSSL_UseALPN_connection(void)
+{
+    unsigned long i;
+    callback_functions callbacks[] = {
+        /* success case same list */
+        {0, 0, use_ALPN_all, 0},
+        {0, 0, use_ALPN_all, verify_ALPN_matching_http1},
+
+        /* success case only one for server */
+        {0, 0, use_ALPN_all, 0},
+        {0, 0, use_ALPN_one, verify_ALPN_matching_spdy2},
+
+        /* success case only one for client */
+        {0, 0, use_ALPN_one, 0},
+        {0, 0, use_ALPN_all, verify_ALPN_matching_spdy2},
+
+        /* success case none for client */
+        {0, 0, 0, 0},
+        {0, 0, use_ALPN_all, 0},
+
+        /* success case missmatch behavior but option 'continue' set */
+        {0, 0, use_ALPN_all_continue, verify_ALPN_not_matching_continue},
+        {0, 0, use_ALPN_unknown_continue, 0},
+
+        /* success case read protocol send by client */
+        {0, 0, use_ALPN_all, 0},
+        {0, 0, use_ALPN_one, verify_ALPN_client_list},
+
+        /* missmatch behavior with same list
+         * the first and only this one must be taken */
+        {0, 0, use_ALPN_all, 0},
+        {0, 0, use_ALPN_all, verify_ALPN_not_matching_spdy3},
+
+        /* default missmatch behavior */
+        {0, 0, use_ALPN_all, 0},
+        {0, 0, use_ALPN_unknown, verify_ALPN_FATAL_ERROR_on_client},
+    };
+
+    for (i = 0; i < sizeof(callbacks) / sizeof(callback_functions); i += 2) {
+        callbacks[i    ].method = wolfSSLv23_client_method;
+        callbacks[i + 1].method = wolfSSLv23_server_method;
+        test_wolfSSL_client_server(&callbacks[i], &callbacks[i + 1]);
+    }
+}
+
+static void test_wolfSSL_UseALPN_params(void)
+{
+    /* "http/1.1" */
+    char http1[] = {0x68, 0x74, 0x74, 0x70, 0x2f, 0x31, 0x2e, 0x31};
+    /* "spdy/1" */
+    char spdy1[] = {0x73, 0x70, 0x64, 0x79, 0x2f, 0x31};
+    /* "spdy/2" */
+    char spdy2[] = {0x73, 0x70, 0x64, 0x79, 0x2f, 0x32};
+    /* "spdy/3" */
+    char spdy3[] = {0x73, 0x70, 0x64, 0x79, 0x2f, 0x33};
+    char buff[256];
+    word32 idx;
+
+    WOLFSSL_CTX *ctx = wolfSSL_CTX_new(wolfSSLv23_client_method());
+    WOLFSSL     *ssl = wolfSSL_new(ctx);
+
+    AssertNotNull(ctx);
+    AssertNotNull(ssl);
+
+    /* error cases */
+    AssertIntNE(SSL_SUCCESS,
+                wolfSSL_UseALPN(NULL, http1, sizeof(http1),
+                                WOLFSSL_ALPN_FAILED_ON_MISMATCH));
+    AssertIntNE(SSL_SUCCESS, wolfSSL_UseALPN(ssl, NULL, 0,
+                                             WOLFSSL_ALPN_FAILED_ON_MISMATCH));
+
+    /* success case */
+    /* http1 only */
+    AssertIntEQ(SSL_SUCCESS,
+                wolfSSL_UseALPN(ssl, http1, sizeof(http1),
+                                WOLFSSL_ALPN_FAILED_ON_MISMATCH));
+
+    /* http1, spdy1 */
+    memcpy(buff, http1, sizeof(http1));
+    idx = sizeof(http1);
+    buff[idx++] = ',';
+    memcpy(buff+idx, spdy1, sizeof(spdy1));
+    idx += sizeof(spdy1);
+    AssertIntEQ(SSL_SUCCESS, wolfSSL_UseALPN(ssl, buff, idx,
+                                             WOLFSSL_ALPN_FAILED_ON_MISMATCH));
+
+    /* http1, spdy2, spdy1 */
+    memcpy(buff, http1, sizeof(http1));
+    idx = sizeof(http1);
+    buff[idx++] = ',';
+    memcpy(buff+idx, spdy2, sizeof(spdy2));
+    idx += sizeof(spdy2);
+    buff[idx++] = ',';
+    memcpy(buff+idx, spdy1, sizeof(spdy1));
+    idx += sizeof(spdy1);
+    AssertIntEQ(SSL_SUCCESS, wolfSSL_UseALPN(ssl, buff, idx,
+                                             WOLFSSL_ALPN_FAILED_ON_MISMATCH));
+
+    /* spdy3, http1, spdy2, spdy1 */
+    memcpy(buff, spdy3, sizeof(spdy3));
+    idx = sizeof(spdy3);
+    buff[idx++] = ',';
+    memcpy(buff+idx, http1, sizeof(http1));
+    idx += sizeof(http1);
+    buff[idx++] = ',';
+    memcpy(buff+idx, spdy2, sizeof(spdy2));
+    idx += sizeof(spdy2);
+    buff[idx++] = ',';
+    memcpy(buff+idx, spdy1, sizeof(spdy1));
+    idx += sizeof(spdy1);
+    AssertIntEQ(SSL_SUCCESS, wolfSSL_UseALPN(ssl, buff, idx,
+                                             WOLFSSL_ALPN_CONTINUE_ON_MISMATCH));
+
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+}
+#endif /* HAVE_ALPN  */
+
+static void test_wolfSSL_UseALPN(void)
+{
+#ifdef HAVE_ALPN
+    test_wolfSSL_UseALPN_connection();
+    test_wolfSSL_UseALPN_params();
+#endif
+}
+
 /*----------------------------------------------------------------------------*
  | Main
  *----------------------------------------------------------------------------*/
@@ -1220,6 +1480,7 @@ void ApiTest(void)
     test_wolfSSL_UseMaxFragment();
     test_wolfSSL_UseTruncatedHMAC();
     test_wolfSSL_UseSupportedCurve();
+    test_wolfSSL_UseALPN();
 
     test_wolfSSL_Cleanup();
     printf(" End API Tests\n");

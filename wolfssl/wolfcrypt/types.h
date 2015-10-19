@@ -111,7 +111,11 @@
 	    #ifdef _MSC_VER
 	        #define INLINE __inline
 	    #elif defined(__GNUC__)
-	        #define INLINE inline
+               #ifdef WOLFSSL_VXWORKS
+                   #define INLINE __inline__
+               #else
+                   #define INLINE inline
+               #endif
 	    #elif defined(__IAR_SYSTEMS_ICC__)
 	        #define INLINE inline
 	    #elif defined(THREADX)
@@ -155,7 +159,7 @@
 
 
 	/* Micrium will use Visual Studio for compilation but not the Win32 API */
-	#if defined(_WIN32) && !defined(MICRIUM) && !defined(FREERTOS) \
+	#if defined(_WIN32) && !defined(MICRIUM) && !defined(FREERTOS) && !defined(FREERTOS_TCP) \
 	        && !defined(EBSNET)
 	    #define USE_WINDOWS_API
 	#endif
@@ -180,7 +184,7 @@
 	#elif !defined(MICRIUM_MALLOC) && !defined(EBSNET) \
 	        && !defined(WOLFSSL_SAFERTOS) && !defined(FREESCALE_MQX) \
 	        && !defined(FREESCALE_KSDK_MQX) && !defined(FREESCALE_FREE_RTOS) \
-            && !defined(WOLFSSL_LEANPSK) && !defined(FREERTOS) \
+            && !defined(WOLFSSL_LEANPSK) && !defined(FREERTOS) && !defined(FREERTOS_TCP)\
             && !defined(WOLFSSL_uITRON4) && !defined(WOLFSSL_uTKERNEL2)
 	    /* default C runtime, can install different routines at runtime via cbs */
 	    #include <wolfssl/wolfcrypt/memory.h>
@@ -212,7 +216,7 @@
 	        #define XSTRNCASECMP(s1,s2,n) _strnicmp((s1),(s2),(n))
 	    #endif
 
-        #ifdef WOLFSSL_CERT_EXT
+        #if defined(WOLFSSL_CERT_EXT) || defined(HAVE_ALPN)
             /* use only Thread Safe version of strtok */
             #ifndef USE_WINDOWS_API
                 #define XSTRTOK strtok_r

@@ -54,6 +54,7 @@
 #include <wolfssl/wolfcrypt/dh.h>
 #include <wolfssl/wolfcrypt/dsa.h>
 #include <wolfssl/wolfcrypt/srp.h>
+#include <wolfssl/wolfcrypt/idea.h>
 #include <wolfssl/wolfcrypt/hc128.h>
 #include <wolfssl/wolfcrypt/rabbit.h>
 #include <wolfssl/wolfcrypt/chacha.h>
@@ -210,6 +211,9 @@ int pbkdf2_test(void);
 #endif
 #if defined(WOLFSSL_CERT_EXT) && defined(WOLFSSL_TEST_CERT)
 int  certext_test(void);
+#endif
+#ifdef HAVE_IDEA
+int idea_test(void);
 #endif
 
 /* General big buffer size for many tests. */
@@ -473,6 +477,13 @@ int wolfcrypt_test(void* args)
         return err_sys("CAMELLIA test failed!\n", ret);
     else
         printf( "CAMELLIA test passed!\n");
+#endif
+
+#ifdef HAVE_IDEA
+    if ( (ret = idea_test()) != 0)
+        return err_sys("IDEA     test failed!\n", ret);
+    else
+        printf( "IDEA     test passed!\n");
 #endif
 
     if ( (ret = random_test()) != 0)
@@ -2944,8 +2955,10 @@ int aesccm_test(void)
 
     wc_AesCcmSetKey(&enc, k, sizeof(k));
     /* AES-CCM encrypt and decrypt both use AES encrypt internally */
-    wc_AesCcmEncrypt(&enc, c2, p, sizeof(c2), iv, sizeof(iv),
+    result = wc_AesCcmEncrypt(&enc, c2, p, sizeof(c2), iv, sizeof(iv),
                                                  t2, sizeof(t2), a, sizeof(a));
+    if (result != 0)
+        return -106;
     if (memcmp(c, c2, sizeof(c2)))
         return -107;
     if (memcmp(t, t2, sizeof(t2)))
@@ -3177,6 +3190,248 @@ int camellia_test(void)
     return 0;
 }
 #endif /* HAVE_CAMELLIA */
+
+#ifdef HAVE_IDEA
+int idea_test(void)
+{
+    int ret;
+    word16 i, j;
+
+    Idea idea;
+    byte data[IDEA_BLOCK_SIZE];
+
+    /* Project NESSIE test vectors */
+#define IDEA_NB_TESTS   6
+#define IDEA_NB_TESTS_EXTRA 4
+
+    const byte v_key[IDEA_NB_TESTS][IDEA_KEY_SIZE] = {
+        { 0x37, 0x37, 0x37, 0x37, 0x37, 0x37, 0x37, 0x37,
+            0x37, 0x37, 0x37, 0x37, 0x37, 0x37, 0x37, 0x37 },
+        { 0x57, 0x57, 0x57, 0x57, 0x57, 0x57, 0x57, 0x57,
+            0x57, 0x57, 0x57, 0x57, 0x57, 0x57, 0x57, 0x57 },
+        { 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+            0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F },
+        { 0x2B, 0xD6, 0x45, 0x9F, 0x82, 0xC5, 0xB3, 0x00,
+            0x95, 0x2C, 0x49, 0x10, 0x48, 0x81, 0xFF, 0x48 },
+        { 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+            0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F },
+        { 0x2B, 0xD6, 0x45, 0x9F, 0x82, 0xC5, 0xB3, 0x00,
+            0x95, 0x2C, 0x49, 0x10, 0x48, 0x81, 0xFF, 0x48 },
+    };
+
+    const byte v1_plain[IDEA_NB_TESTS][IDEA_BLOCK_SIZE] = {
+        { 0x37, 0x37, 0x37, 0x37, 0x37, 0x37, 0x37, 0x37 },
+        { 0x57, 0x57, 0x57, 0x57, 0x57, 0x57, 0x57, 0x57 },
+        { 0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77 },
+        { 0xEA, 0x02, 0x47, 0x14, 0xAD, 0x5C, 0x4D, 0x84 },
+        { 0xDB, 0x2D, 0x4A, 0x92, 0xAA, 0x68, 0x27, 0x3F },
+        { 0xF1, 0x29, 0xA6, 0x60, 0x1E, 0xF6, 0x2A, 0x47 },
+    };
+
+    byte v1_cipher[IDEA_NB_TESTS][IDEA_BLOCK_SIZE] = {
+        { 0x54, 0xCF, 0x21, 0xE3, 0x89, 0xD8, 0x73, 0xEC },
+        { 0x85, 0x52, 0x4D, 0x41, 0x0E, 0xB4, 0x28, 0xAE },
+        { 0xF5, 0x26, 0xAB, 0x9A, 0x62, 0xC0, 0xD2, 0x58 },
+        { 0xC8, 0xFB, 0x51, 0xD3, 0x51, 0x66, 0x27, 0xA8 },
+        { 0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77 },
+        { 0xEA, 0x02, 0x47, 0x14, 0xAD, 0x5C, 0x4D, 0x84 },
+    };
+
+    byte v1_cipher_100[IDEA_NB_TESTS_EXTRA][IDEA_BLOCK_SIZE]  = {
+        { 0x12, 0x46, 0x2F, 0xD0, 0xFB, 0x3A, 0x63, 0x39 },
+        { 0x15, 0x61, 0xE8, 0xC9, 0x04, 0x54, 0x8B, 0xE9 },
+        { 0x42, 0x12, 0x2A, 0x94, 0xB0, 0xF6, 0xD2, 0x43 },
+        { 0x53, 0x4D, 0xCD, 0x48, 0xDD, 0xD5, 0xF5, 0x9C },
+    };
+
+    byte v1_cipher_1000[IDEA_NB_TESTS_EXTRA][IDEA_BLOCK_SIZE] = {
+        { 0x44, 0x1B, 0x38, 0x5C, 0x77, 0x29, 0x75, 0x34 },
+        { 0xF0, 0x4E, 0x58, 0x88, 0x44, 0x99, 0x22, 0x2D },
+        { 0xB3, 0x5F, 0x93, 0x7F, 0x6A, 0xA0, 0xCD, 0x1F },
+        { 0x9A, 0xEA, 0x46, 0x8F, 0x42, 0x9B, 0xBA, 0x15 },
+    };
+
+    /* CBC test */
+    const char *message = "International Data Encryption Algorithm";
+    byte msg_enc[40], msg_dec[40];
+
+    for (i = 0; i < IDEA_NB_TESTS; i++) {
+        /* Set encryption key */
+        memset(&idea, 0, sizeof(Idea));
+        ret = wc_IdeaSetKey(&idea, v_key[i], IDEA_KEY_SIZE,
+                            NULL, IDEA_ENCRYPTION);
+        if (ret != 0) {
+            printf("wc_IdeaSetKey (enc) failed\n");
+            return -1;
+        }
+
+        /* Data encryption */
+        wc_IdeaCipher(&idea, data, v1_plain[i]);
+        if (XMEMCMP(&v1_cipher[i], data, IDEA_BLOCK_SIZE)) {
+            printf("Bad encryption\n");
+            return -1;
+        }
+
+        /* Set decryption key */
+        memset(&idea, 0, sizeof(Idea));
+        ret = wc_IdeaSetKey(&idea, v_key[i], IDEA_KEY_SIZE,
+                            NULL, IDEA_DECRYPTION);
+        if (ret != 0) {
+            printf("wc_IdeaSetKey (dec) failed\n");
+            return -1;
+        }
+
+        /* Data decryption */
+        wc_IdeaCipher(&idea, data, data);
+        if (XMEMCMP(v1_plain[i], data, IDEA_BLOCK_SIZE)) {
+            printf("Bad decryption\n");
+            return -1;
+        }
+
+        /* Set encryption key */
+        memset(&idea, 0, sizeof(Idea));
+        ret = wc_IdeaSetKey(&idea, v_key[i], IDEA_KEY_SIZE,
+                            v_key[i], IDEA_ENCRYPTION);
+        if (ret != 0) {
+            printf("wc_IdeaSetKey (enc) failed\n");
+            return -1;
+        }
+
+        memset(msg_enc, 0, sizeof(msg_enc));
+        ret = wc_IdeaCbcEncrypt(&idea, msg_enc, (byte *)message,
+                                (word32)strlen(message)+1);
+        if (ret != 0) {
+            printf("wc_IdeaCbcEncrypt failed\n");
+            return -1;
+        }
+
+        /* Set decryption key */
+        memset(&idea, 0, sizeof(Idea));
+        ret = wc_IdeaSetKey(&idea, v_key[i], IDEA_KEY_SIZE,
+                            v_key[i], IDEA_DECRYPTION);
+        if (ret != 0) {
+            printf("wc_IdeaSetKey (dec) failed\n");
+            return -1;
+        }
+
+        memset(msg_dec, 0, sizeof(msg_dec));
+        ret = wc_IdeaCbcDecrypt(&idea, msg_dec, msg_enc,
+                                (word32)strlen(message)+1);
+        if (ret != 0) {
+            printf("wc_IdeaCbcDecrypt failed\n");
+            return -1;
+        }
+
+        if (XMEMCMP(message, msg_dec, (word32)strlen(message))) {
+            printf("Bad CBC decryption\n");
+            return -1;
+        }
+    }
+
+    for (i = 0; i < IDEA_NB_TESTS_EXTRA; i++) {
+        /* Set encryption key */
+        memset(&idea, 0, sizeof(Idea));
+        ret = wc_IdeaSetKey(&idea, v_key[i], IDEA_KEY_SIZE,
+                            NULL, IDEA_ENCRYPTION);
+        if (ret != 0) {
+            printf("wc_IdeaSetKey (enc) failed\n");
+            return -1;
+        }
+
+        /* 100 times data encryption */
+        XMEMCPY(data, v1_plain[i], IDEA_BLOCK_SIZE);
+        for (j = 0; j < 100; j++) {
+            wc_IdeaCipher(&idea, data, data);
+        }
+
+        if (XMEMCMP(v1_cipher_100[i], data, IDEA_BLOCK_SIZE)) {
+            printf("Bad encryption (100 times)\n");
+            return -1;
+        }
+
+        /* 1000 times data encryption */
+        XMEMCPY(data, v1_plain[i], IDEA_BLOCK_SIZE);
+        for (j = 0; j < 1000; j++) {
+            wc_IdeaCipher(&idea, data, data);
+        }
+
+        if (XMEMCMP(v1_cipher_1000[i], data, IDEA_BLOCK_SIZE)) {
+            printf("Bad encryption (100 times)\n");
+            return -1;
+        }
+    }
+
+    /* random test for CBC */
+    {
+        WC_RNG rng;
+        byte key[IDEA_KEY_SIZE], iv[IDEA_BLOCK_SIZE],
+        rnd[1000], enc[1000], dec[1000];
+
+        /* random values */
+        ret = wc_InitRng(&rng);
+        if (ret != 0)
+            return -39;
+
+        for (i = 0; i < 1000; i++) {
+            /* random key */
+            ret = wc_RNG_GenerateBlock(&rng, key, sizeof(key));
+            if (ret != 0)
+                return -40;
+
+            /* random iv */
+            ret = wc_RNG_GenerateBlock(&rng, iv, sizeof(iv));
+            if (ret != 0)
+                return -40;
+
+            /* random data */
+            ret = wc_RNG_GenerateBlock(&rng, rnd, sizeof(rnd));
+            if (ret != 0)
+                return -41;
+
+            /* Set encryption key */
+            memset(&idea, 0, sizeof(Idea));
+            ret = wc_IdeaSetKey(&idea, key, IDEA_KEY_SIZE, iv, IDEA_ENCRYPTION);
+            if (ret != 0) {
+                printf("wc_IdeaSetKey (enc) failed\n");
+                return -42;
+            }
+
+            /* Data encryption */
+            memset(enc, 0, sizeof(enc));
+            ret = wc_IdeaCbcEncrypt(&idea, enc, rnd, sizeof(rnd));
+            if (ret != 0) {
+                printf("wc_IdeaCbcEncrypt failed\n");
+                return -43;
+            }
+
+            /* Set decryption key */
+            memset(&idea, 0, sizeof(Idea));
+            ret = wc_IdeaSetKey(&idea, key, IDEA_KEY_SIZE, iv, IDEA_DECRYPTION);
+            if (ret != 0) {
+                printf("wc_IdeaSetKey (enc) failed\n");
+                return -44;
+            }
+
+            /* Data decryption */
+            memset(dec, 0, sizeof(dec));
+            ret = wc_IdeaCbcDecrypt(&idea, dec, enc, sizeof(enc));
+            if (ret != 0) {
+                printf("wc_IdeaCbcDecrypt failed\n");
+                return -45;
+            }
+
+            if (XMEMCMP(rnd, dec, sizeof(rnd))) {
+                printf("Bad CBC decryption\n");
+                return -46;
+            }
+        }
+
+        wc_FreeRng(&rng);
+    }
+    
+    return 0;
+}
+#endif /* HAVE_IDEA */
 
 
 #if defined(HAVE_HASHDRBG) || defined(NO_RC4)
@@ -4192,6 +4447,7 @@ int rsa_test(void)
             free(derCert);
             free(pem);
             free(tmp);
+            fclose(pemFile);
             wc_FreeRsaKey(&caKey);
             return -415;
         }

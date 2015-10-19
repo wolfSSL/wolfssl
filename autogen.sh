@@ -15,6 +15,9 @@ fi
 # If this is a source checkout then call autoreconf with error as well
 if test -d .git; then
   WARNINGS="all,error"
+  # touch fips files for non fips distribution
+  touch ./ctaocrypt/src/fips.c
+  touch ./ctaocrypt/src/fips_test.c
 else
   WARNINGS="all"
 fi

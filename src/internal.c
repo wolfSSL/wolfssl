@@ -611,6 +611,10 @@ void InitCiphers(WOLFSSL* ssl)
 #ifdef HAVE_ONE_TIME_AUTH
     ssl->auth.setup    = 0;
 #endif
+#ifdef HAVE_IDEA
+    ssl->encrypt.idea = NULL;
+    ssl->decrypt.idea = NULL;
+#endif
 }
 
 
@@ -666,6 +670,10 @@ void FreeCiphers(WOLFSSL* ssl)
 #endif
 #ifdef HAVE_POLY1305
     XFREE(ssl->auth.poly1305, ssl->heap, DYNAMIC_TYPE_CIPHER);
+#endif
+#ifdef HAVE_IDEA
+    XFREE(ssl->encrypt.idea, ssl->heap, DYNAMIC_TYPE_CIPHER);
+    XFREE(ssl->decrypt.idea, ssl->heap, DYNAMIC_TYPE_CIPHER);
 #endif
 }
 
@@ -1461,6 +1469,13 @@ void InitSuites(Suites* suites, ProtocolVersion pv, word16 haveRSA,
     }
 #endif
 
+#ifdef BUILD_SSL_RSA_WITH_IDEA_CBC_SHA
+    if (haveRSA) {
+        suites->suites[idx++] = 0;
+        suites->suites[idx++] = SSL_RSA_WITH_IDEA_CBC_SHA;
+    }
+#endif
+
     suites->suiteSz = idx;
 
     InitSuitesHashSigAlgo(suites, haveECDSAsig, haveRSAsig, 0);
@@ -1828,6 +1843,9 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
 #ifdef HAVE_MAX_FRAGMENT
     ssl->max_fragment = MAX_RECORD_SIZE;
 #endif
+#ifdef HAVE_ALPN
+    ssl->alpn_client_list = NULL;
+#endif
 #endif
 
     /* default alert state (none) */
@@ -1941,6 +1959,10 @@ void FreeArrays(WOLFSSL* ssl, int keep)
         XMEMCPY(ssl->session.sessionID, ssl->arrays->sessionID, ID_LEN);
         ssl->session.sessionIDSz = ssl->arrays->sessionIDSz;
     }
+    if (ssl->arrays) {
+        XFREE(ssl->arrays->pendingMsg, ssl->heap, DYNAMIC_TYPE_ARRAYS);
+        ssl->arrays->pendingMsg = NULL;
+    }
     XFREE(ssl->arrays, ssl->heap, DYNAMIC_TYPE_CERT);
     ssl->arrays = NULL;
 }
@@ -2044,7 +2066,14 @@ void SSL_ResourceFree(WOLFSSL* ssl)
 #endif /* HAVE_PK_CALLBACKS */
 #ifdef HAVE_TLS_EXTENSIONS
     TLSX_FreeAll(ssl->extensions);
+
+#ifdef HAVE_ALPN
+    if (ssl->alpn_client_list != NULL) {
+        XFREE(ssl->alpn_client_list, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        ssl->alpn_client_list = NULL;
+    }
 #endif
+#endif /* HAVE_TLS_EXTENSIONS */
 #ifdef HAVE_NETX
     if (ssl->nxCtx.nxPacket)
         nx_packet_release(ssl->nxCtx.nxPacket);
@@ -2558,7 +2587,7 @@ ProtocolVersion MakeDTLSv1_2(void)
 
     word32 LowResTimer(void)
     {
-        NET_SECURE_OS_TICK  clk;
+        NET_SECURE_OS_TICK  clk = 0;
 
         #if (NET_SECURE_MGR_CFG_EN == DEF_ENABLED)
             clk = NetSecure_OS_TimeGet();
@@ -2660,6 +2689,7 @@ ProtocolVersion MakeDTLSv1_2(void)
 #endif /* USE_WINDOWS_API */
 
 
+#ifndef NO_CERTS
 static int HashOutputRaw(WOLFSSL* ssl, const byte* output, int sz)
 {
 #ifdef HAVE_FUZZER
@@ -2697,6 +2727,7 @@ static int HashOutputRaw(WOLFSSL* ssl, const byte* output, int sz)
 
     return 0;
 }
+#endif /* NO_CERTS */
 
 
 /* add output to md5 and sha handshake hashes, exclude record header */
@@ -2867,6 +2898,7 @@ static void AddHeaders(byte* output, word32 length, byte type, WOLFSSL* ssl)
 }
 
 
+#ifndef NO_CERTS
 static void AddFragHeaders(byte* output, word32 fragSz, word32 fragOffset,
                            word32 length, byte type, WOLFSSL* ssl)
 {
@@ -2884,6 +2916,7 @@ static void AddFragHeaders(byte* output, word32 fragSz, word32 fragOffset,
     AddRecordHeader(output, fragSz + lengthAdj, handshake, ssl);
     AddHandShakeHeader(output + outputAdj, length, fragOffset, fragSz, type, ssl);
 }
+#endif /* NO_CERTS */
 
 
 /* return bytes received, -1 on error */
@@ -3782,6 +3815,11 @@ static int BuildFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
 
         case TLS_NTRU_RSA_WITH_AES_256_CBC_SHA :
             if (requirement == REQUIRES_NTRU)
+                return 1;
+            break;
+
+        case SSL_RSA_WITH_IDEA_CBC_SHA :
+            if (requirement == REQUIRES_RSA)
                 return 1;
             break;
 #endif
@@ -5239,16 +5277,87 @@ static int DoHandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 static int DoHandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                           word32 totalSz)
 {
-    byte   type;
-    word32 size;
     int    ret = 0;
+    word32 inputLength;
 
     WOLFSSL_ENTER("DoHandShakeMsg()");
 
-    if (GetHandShakeHeader(ssl, input, inOutIdx, &type, &size, totalSz) != 0)
-        return PARSE_ERROR;
+    if (ssl->arrays == NULL) {
+        byte   type;
+        word32 size;
 
-    ret = DoHandShakeMsgType(ssl, input, inOutIdx, type, size, totalSz);
+        if (GetHandShakeHeader(ssl,input,inOutIdx,&type, &size, totalSz) != 0)
+            return PARSE_ERROR;
+
+        return DoHandShakeMsgType(ssl, input, inOutIdx, type, size, totalSz);
+    }
+
+    inputLength = ssl->buffers.inputBuffer.length - *inOutIdx;
+
+    /* If there is a pending fragmented handshake message,
+     * pending message size will be non-zero. */
+    if (ssl->arrays->pendingMsgSz == 0) {
+        byte   type;
+        word32 size;
+
+        if (GetHandShakeHeader(ssl,input, inOutIdx, &type, &size, totalSz) != 0)
+            return PARSE_ERROR;
+
+        /* Cap the maximum size of a handshake message to something reasonable.
+         * By default is the maximum size of a certificate message assuming
+         * nine 2048-bit RSA certificates in the chain. */
+        if (size > MAX_HANDSHAKE_SZ) {
+            WOLFSSL_MSG("Handshake message too large");
+            return HANDSHAKE_SIZE_ERROR;
+        }
+
+        /* size is the size of the certificate message payload */
+        if (inputLength - HANDSHAKE_HEADER_SZ < size) {
+            ssl->arrays->pendingMsgType = type;
+            ssl->arrays->pendingMsgSz = size + HANDSHAKE_HEADER_SZ;
+            ssl->arrays->pendingMsg = (byte*)XMALLOC(size + HANDSHAKE_HEADER_SZ,
+                                                     ssl->heap,
+                                                     DYNAMIC_TYPE_ARRAYS);
+            if (ssl->arrays->pendingMsg == NULL)
+                return MEMORY_E;
+            XMEMCPY(ssl->arrays->pendingMsg,
+                    input + *inOutIdx - HANDSHAKE_HEADER_SZ,
+                    inputLength);
+            ssl->arrays->pendingMsgOffset = inputLength;
+            *inOutIdx += inputLength - HANDSHAKE_HEADER_SZ;
+            return 0;
+        }
+
+        ret = DoHandShakeMsgType(ssl, input, inOutIdx, type, size, totalSz);
+    }
+    else {
+        if (inputLength + ssl->arrays->pendingMsgOffset
+                                                  > ssl->arrays->pendingMsgSz) {
+
+            return BUFFER_ERROR;
+        }
+        else {
+            XMEMCPY(ssl->arrays->pendingMsg + ssl->arrays->pendingMsgOffset,
+                    input + *inOutIdx, inputLength);
+            ssl->arrays->pendingMsgOffset += inputLength;
+            *inOutIdx += inputLength;
+        }
+
+        if (ssl->arrays->pendingMsgOffset == ssl->arrays->pendingMsgSz)
+        {
+            word32 idx = 0;
+            ret = DoHandShakeMsgType(ssl,
+                                     ssl->arrays->pendingMsg
+                                                          + HANDSHAKE_HEADER_SZ,
+                                     &idx, ssl->arrays->pendingMsgType,
+                                     ssl->arrays->pendingMsgSz
+                                                          - HANDSHAKE_HEADER_SZ,
+                                     ssl->arrays->pendingMsgSz);
+            XFREE(ssl->arrays->pendingMsg, ssl->heap, DYNAMIC_TYPE_ARRAYS);
+            ssl->arrays->pendingMsg = NULL;
+            ssl->arrays->pendingMsgSz = 0;
+        }
+    }
 
     WOLFSSL_LEAVE("DoHandShakeMsg()", ret);
     return ret;
@@ -5837,8 +5946,7 @@ static INLINE int Encrypt(WOLFSSL* ssl, byte* out, const byte* input, word16 sz)
                                  out + sz - ssl->specs.aead_mac_size,
                                  ssl->specs.aead_mac_size,
                                  additional, AEAD_AUTH_DATA_SZ);
-                    if (ret == 0)
-                        AeadIncrementExpIV(ssl);
+                    AeadIncrementExpIV(ssl);
                     ForceZero(nonce, AEAD_NONCE_SZ);
                 }
                 break;
@@ -5875,7 +5983,7 @@ static INLINE int Encrypt(WOLFSSL* ssl, byte* out, const byte* input, word16 sz)
                                  ssl->keys.aead_enc_imp_IV, AEAD_IMP_IV_SZ);
                     XMEMCPY(nonce + AEAD_IMP_IV_SZ,
                                      ssl->keys.aead_exp_IV, AEAD_EXP_IV_SZ);
-                    wc_AesCcmEncrypt(ssl->encrypt.aes,
+                    ret = wc_AesCcmEncrypt(ssl->encrypt.aes,
                         out + AEAD_EXP_IV_SZ, input + AEAD_EXP_IV_SZ,
                             sz - AEAD_EXP_IV_SZ - ssl->specs.aead_mac_size,
                         nonce, AEAD_NONCE_SZ,
@@ -5917,6 +6025,12 @@ static INLINE int Encrypt(WOLFSSL* ssl, byte* out, const byte* input, word16 sz)
                 if (input != out) {
                     XMEMMOVE(out, input, sz);
                 }
+                break;
+        #endif
+
+        #ifdef HAVE_IDEA
+            case wolfssl_idea:
+                ret = wc_IdeaCbcEncrypt(ssl->encrypt.idea, out, input, sz);
                 break;
         #endif
 
@@ -6072,6 +6186,12 @@ static INLINE int Decrypt(WOLFSSL* ssl, byte* plain, const byte* input,
                 if (input != plain) {
                     XMEMMOVE(plain, input, sz);
                 }
+                break;
+        #endif
+
+        #ifdef HAVE_IDEA
+            case wolfssl_idea:
+                ret = wc_IdeaCbcDecrypt(ssl->decrypt.idea, plain, input, sz);
                 break;
         #endif
 
@@ -6814,6 +6934,7 @@ int ProcessReply(WOLFSSL* ssl)
                                   ssl->buffers.inputBuffer.idx,
                                   ssl->curSize);
                     if (ret < 0) {
+                        WOLFSSL_MSG("Decrypt failed");
                         WOLFSSL_ERROR(ret);
                         return DECRYPT_ERROR;
                     }
@@ -6830,6 +6951,7 @@ int ProcessReply(WOLFSSL* ssl)
                                     &ssl->keys.padSz);
                 }
                 if (ret < 0) {
+                    WOLFSSL_MSG("VerifyMac failed");
                     WOLFSSL_ERROR(ret);
                     return DECRYPT_ERROR;
                 }
@@ -8467,6 +8589,12 @@ const char* wolfSSL_ERR_reason_error_string(unsigned long e)
     case RSA_SIGN_FAULT:
         return "RSA Signature Fault Error";
 
+    case UNKNOWN_ALPN_PROTOCOL_NAME_E:
+        return "Unrecognized protocol name Error";
+
+    case HANDSHAKE_SIZE_ERROR:
+        return "Handshake message too large Error";
+
     default :
         return "unknown error number";
     }
@@ -8874,6 +9002,10 @@ static const char* const cipher_names[] =
 #ifdef HAVE_RENEGOTIATION_INDICATION
     "RENEGOTIATION-INFO",
 #endif
+
+#ifdef BUILD_SSL_RSA_WITH_IDEA_CBC_SHA
+    "IDEA-CBC-SHA",
+#endif
 };
 
 
@@ -9271,6 +9403,10 @@ static int cipher_name_idx[] =
 
 #ifdef HAVE_RENEGOTIATION_INDICATION
     TLS_EMPTY_RENEGOTIATION_INFO_SCSV,
+#endif
+
+#ifdef BUILD_SSL_RSA_WITH_IDEA_CBC_SHA
+    SSL_RSA_WITH_IDEA_CBC_SHA,
 #endif
 };
 

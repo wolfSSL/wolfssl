@@ -143,6 +143,7 @@ int main(int argc, char** argv)
     ssl_InitSniffer();   /* dll load on Windows */
 #endif
     ssl_Trace("./tracefile.txt", err);
+    ssl_EnableRecovery(1, -1, err);
 
     if (argc == 1) {
         /* normal case, user chooses device and port */

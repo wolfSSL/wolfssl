@@ -950,6 +950,10 @@ top:
   while (D.sign == FP_NEG) {
     fp_add (&D, b, &D);
   }
+  /* too big */
+  while (fp_cmp_mag(&D, b) != FP_LT) {
+    fp_sub(&D, b, &D);
+  }
   fp_copy (&D, c);
   c->sign = neg;
   return FP_OKAY;

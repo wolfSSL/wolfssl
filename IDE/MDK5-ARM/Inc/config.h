@@ -20,43 +20,38 @@
  */
 
 #define __CORTEX_M3__
-#define CYASSL_MDK_ARM
-#define CYASSL_MDK5
-#define CYASSL_CMSIS_RTOS
 
-#define NO_WRITEV
-#define NO_CYASSL_DIR
-#define BENCH_EMBEDDED
-
-#define CYASSL_DER_LOAD
-#define HAVE_NULL_CIPHER
-#define NO_MAIN_DRIVER
-
-#if  defined(MDK_CONF_CYASSL)
-#define CYASSL_MDK_SHELL
+#if  defined(MDK_CONF_full)
 #include "config-Crypt.h"
-#include "config-CyaSSL.h"
+#include "config-wolfSSL.h"
+
 #elif  defined(MDK_CONF_SimpleClient)
 #include "config-Crypt.h"
-#include "config-CyaSSL.h"
+#include "config-wolfSSL.h"
+
 #elif  defined(MDK_CONF_SimpleServer)
 #include "config-Crypt.h"
-#include "config-CyaSSL.h"
+#include "config-wolfSSL.h"
+
 #elif  defined(MDK_CONF_EchoClient)
 #include "config-Crypt.h"
-#include "config-CyaSSL.h"
+#include "config-wolfSSL.h"
+
 #elif  defined(MDK_CONF_EchoServer)
 #include "config-Crypt.h"
-#include "config-CyaSSL.h"
+#include "config-wolfSSL.h"
+
 #elif  defined(MDK_CONF_Benchmark)
 #define SINGLE_THREADED
-#define NO_INLINE
-#include "config-Crypt.h"
-#elif  defined(MDK_CONF_CryptTest)
-#define SINGLE_THREADED
-#define NO_INLINE
 #include "config-Crypt.h"
 
+#elif  defined(MDK_CONF_CryptTest)
+#define SINGLE_THREADED
+#include "config-Crypt.h"
+
+#elif  defined(MDK_CONF_wolfSSL_lib)
+#include "config-Crypt.h"
+#include "config-wolfSSL.h"
 #endif
 
 

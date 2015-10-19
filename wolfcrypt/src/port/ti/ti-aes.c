@@ -522,12 +522,12 @@ WOLFSSL_API void wc_AesCcmSetKey(Aes* aes, const byte* key, word32 keySz)
     AesAuthSetKey(aes, key, keySz) ;
 }
 
-WOLFSSL_API void wc_AesCcmEncrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
+WOLFSSL_API int wc_AesCcmEncrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
                               const byte* nonce, word32 nonceSz,
                               byte* authTag, word32 authTagSz,
                               const byte* authIn, word32 authInSz)
 { 
-    AesAuthEncrypt(aes, out, in, inSz, nonce, nonceSz, authTag, authTagSz,
+    return AesAuthEncrypt(aes, out, in, inSz, nonce, nonceSz, authTag, authTagSz,
                               authIn, authInSz, AES_CFG_MODE_CCM) ;
 }
 

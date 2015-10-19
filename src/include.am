@@ -224,6 +224,10 @@ if BUILD_SRP
 src_libwolfssl_la_SOURCES += wolfcrypt/src/srp.c
 endif
 
+if BUILD_IDEA
+src_libwolfssl_la_SOURCES += wolfcrypt/src/idea.c
+endif
+
 if !BUILD_CRYPTONLY
 # ssl files
 src_libwolfssl_la_SOURCES += \

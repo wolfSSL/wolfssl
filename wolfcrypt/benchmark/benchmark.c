@@ -61,6 +61,9 @@
 #ifdef HAVE_ECC
     #include <wolfssl/wolfcrypt/ecc.h>
 #endif
+#ifdef HAVE_IDEA
+    #include <wolfssl/wolfcrypt/idea.h>
+#endif
 #ifdef HAVE_CURVE25519
     #include <wolfssl/wolfcrypt/curve25519.h>
 #endif
@@ -121,6 +124,7 @@
 
 
 void bench_des(void);
+void bench_idea(void);
 void bench_arc4(void);
 void bench_hc128(void);
 void bench_rabbit(void);
@@ -302,6 +306,9 @@ int benchmark_test(void *args)
 #endif
 #ifndef NO_DES3
     bench_des();
+#endif
+#ifdef HAVE_IDEA
+    bench_idea();
 #endif
     
     printf("\n");
@@ -659,6 +666,41 @@ void bench_des(void)
 #endif
 }
 #endif
+
+
+#ifdef HAVE_IDEA
+void bench_idea(void)
+{
+    Idea   enc;
+    double start, total, persec;
+    int    i, ret;
+
+    ret = wc_IdeaSetKey(&enc, key, IDEA_KEY_SIZE, iv, IDEA_ENCRYPTION);
+    if (ret != 0) {
+        printf("Des3_SetKey failed, ret = %d\n", ret);
+        return;
+    }
+    start = current_time(1);
+    BEGIN_INTEL_CYCLES
+
+    for(i = 0; i < numBlocks; i++)
+        wc_IdeaCbcEncrypt(&enc, plain, cipher, sizeof(plain));
+
+    END_INTEL_CYCLES
+    total = current_time(0) - start;
+
+    persec = 1 / total * numBlocks;
+#ifdef BENCH_EMBEDDED
+    /* since using kB, convert to MB/s */
+    persec = persec / 1024;
+#endif
+
+    printf("IDEA     %d %s took %5.3f seconds, %8.3f MB/s", numBlocks,
+                                              blockType, total, persec);
+    SHOW_INTEL_CYCLES
+    printf("\n");
+}
+#endif /* HAVE_IDEA */
 
 
 #ifndef NO_RC4

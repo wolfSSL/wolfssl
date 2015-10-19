@@ -567,7 +567,7 @@ static INLINE void ato16(const byte* c, word16* u16)
     *u16 = (c[0] << 8) | (c[1]);
 }
 
-#ifdef HAVE_SNI
+#if defined(HAVE_SNI) && !defined(NO_WOLFSSL_SERVER)
 /* convert a 24 bit integer into a 32 bit one */
 static INLINE void c24to32(const word24 u24, word32* u32)
 {
@@ -845,6 +845,353 @@ void TLSX_SetResponse(WOLFSSL* ssl, TLSX_Type type)
 
 #endif
 
+
+#ifdef HAVE_ALPN
+/** Creates a new ALPN object, providing protocol name to use. */
+static ALPN* TLSX_ALPN_New(char *protocol_name, word16 protocol_nameSz)
+{
+    ALPN *alpn;
+
+    WOLFSSL_ENTER("TLSX_ALPN_New");
+
+    if (protocol_name == NULL ||
+        protocol_nameSz > WOLFSSL_MAX_ALPN_PROTO_NAME_LEN) {
+        WOLFSSL_MSG("Invalid arguments");
+        return NULL;
+    }
+
+    alpn = (ALPN*)XMALLOC(sizeof(ALPN), 0, DYNAMIC_TYPE_TLSX);
+    if (alpn == NULL) {
+        WOLFSSL_MSG("Memory failure");
+        return NULL;
+    }
+
+    alpn->next = NULL;
+    alpn->negociated = 0;
+    alpn->options = 0;
+
+    alpn->protocol_name = XMALLOC(protocol_nameSz + 1, 0, DYNAMIC_TYPE_TLSX);
+    if (alpn->protocol_name == NULL) {
+        WOLFSSL_MSG("Memory failure");
+        XFREE(alpn, 0, DYNAMIC_TYPE_TLSX);
+        return NULL;
+    }
+
+    XMEMCPY(alpn->protocol_name, protocol_name, protocol_nameSz);
+    alpn->protocol_name[protocol_nameSz] = 0;
+
+    return alpn;
+}
+
+/** Releases an ALPN object. */
+static void TLSX_ALPN_Free(ALPN *alpn)
+{
+    if (alpn == NULL)
+        return;
+
+    XFREE(alpn->protocol_name, 0, DYNAMIC_TYPE_TLSX);
+    XFREE(alpn, 0, DYNAMIC_TYPE_TLSX);
+}
+
+/** Releases all ALPN objects in the provided list. */
+static void TLSX_ALPN_FreeAll(ALPN *list)
+{
+    ALPN* alpn;
+
+    while ((alpn = list)) {
+        list = alpn->next;
+        TLSX_ALPN_Free(alpn);
+    }
+}
+
+/** Tells the buffered size of the ALPN objects in a list. */
+static word16 TLSX_ALPN_GetSize(ALPN *list)
+{
+    ALPN* alpn;
+    word16 length = OPAQUE16_LEN; /* list length */
+
+    while ((alpn = list)) {
+        list = alpn->next;
+
+        length++; /* protocol name length is on one byte */
+        length += (word16)XSTRLEN(alpn->protocol_name);
+    }
+    
+    return length;
+}
+
+/** Writes the ALPN objects of a list in a buffer. */
+static word16 TLSX_ALPN_Write(ALPN *list, byte *output)
+{
+    ALPN* alpn;
+    word16 length = 0;
+    word16 offset = OPAQUE16_LEN; /* list length offset */
+
+    while ((alpn = list)) {
+        list = alpn->next;
+
+        length = (word16)XSTRLEN(alpn->protocol_name);
+
+        /* protocol name length */
+        output[offset++] = (byte)length;
+
+        /* protocol name value */
+        XMEMCPY(output + offset, alpn->protocol_name, length);
+
+        offset += length;
+    }
+
+    /* writing list length */
+    c16toa(offset - OPAQUE16_LEN, output);
+    
+    return offset;
+}
+
+/** Finds a protocol name in the provided ALPN list */
+static ALPN* TLSX_ALPN_Find(ALPN *list, char *protocol_name, word16 size)
+{
+    ALPN *alpn;
+
+    if (list == NULL || protocol_name == NULL)
+        return NULL;
+
+    alpn = list;
+    while (alpn != NULL && (
+           (word16)XSTRLEN(alpn->protocol_name) != size ||
+           XSTRNCMP(alpn->protocol_name, protocol_name, size)))
+        alpn = alpn->next;
+
+    return alpn;
+}
+
+/** Set the ALPN matching client and server requirements */
+static int TLSX_SetALPN(TLSX** extensions, const void* data, word16 size)
+{
+    ALPN *alpn;
+    int  ret;
+
+    if (extensions == NULL || data == NULL)
+        return BAD_FUNC_ARG;
+
+    alpn = TLSX_ALPN_New((char *)data, size);
+    if (alpn == NULL) {
+        WOLFSSL_MSG("Memory failure");
+        return MEMORY_E;
+    }
+
+    alpn->negociated = 1;
+
+    ret = TLSX_Push(extensions, WOLFSSL_ALPN, (void*)alpn);
+    if (ret != 0) {
+        TLSX_ALPN_Free(alpn);
+        return ret;
+    }
+
+    return SSL_SUCCESS;
+}
+
+/** Parses a buffer of ALPN extensions and set the first one matching
+ * client and server requirements */
+static int TLSX_ALPN_ParseAndSet(WOLFSSL *ssl, byte *input, word16 length,
+                                 byte isRequest)
+{
+    word16  size = 0, offset = 0, idx = 0;
+    int     r = BUFFER_ERROR;
+    byte    match = 0;
+    TLSX    *extension;
+    ALPN    *alpn = NULL, *list;
+
+    extension = TLSX_Find(ssl->extensions, WOLFSSL_ALPN);
+    if (extension == NULL)
+        extension = TLSX_Find(ssl->ctx->extensions, WOLFSSL_ALPN);
+
+    if (extension == NULL || extension->data == NULL) {
+        WOLFSSL_MSG("No ALPN extensions not used or bad");
+        return isRequest ? 0             /* not using ALPN */
+                         : BUFFER_ERROR; /* unexpected ALPN response */
+    }
+
+    if (OPAQUE16_LEN > length)
+        return BUFFER_ERROR;
+
+    ato16(input, &size);
+    offset += OPAQUE16_LEN;
+
+    /* validating alpn list length */
+    if (length != OPAQUE16_LEN + size)
+        return BUFFER_ERROR;
+
+    list = (ALPN*)extension->data;
+
+    /* keep the list sent by client */
+    if (isRequest) {
+        if (ssl->alpn_client_list != NULL)
+            XFREE(ssl->alpn_client_list, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
+        ssl->alpn_client_list = (char *)XMALLOC(size, NULL,
+                                                DYNAMIC_TYPE_TMP_BUFFER);
+        if (ssl->alpn_client_list == NULL)
+            return MEMORY_ERROR;
+    }
+
+    for (size = 0; offset < length; offset += size) {
+
+        size = input[offset++];
+        if (offset + size > length)
+            return BUFFER_ERROR;
+
+        if (isRequest) {
+            XMEMCPY(ssl->alpn_client_list+idx, (char*)input + offset, size);
+            idx += size;
+            ssl->alpn_client_list[idx++] = ',';
+        }
+
+        if (!match) {
+            alpn = TLSX_ALPN_Find(list, (char*)input + offset, size);
+            if (alpn != NULL) {
+                WOLFSSL_MSG("ALPN protocol match");
+                match = 1;
+
+                /* skip reading other values if not required */
+                if (!isRequest)
+                    break;
+            }
+        }
+    }
+
+    if (isRequest)
+        ssl->alpn_client_list[idx-1] = 0;
+
+    if (!match) {
+        WOLFSSL_MSG("No ALPN protocol match");
+
+        /* do nothing if no protocol match between client and server and option
+         is set to continue (like OpenSSL) */
+        if (list->options & WOLFSSL_ALPN_CONTINUE_ON_MISMATCH) {
+            WOLFSSL_MSG("Continue on mismatch");
+            return 0;
+        }
+
+        SendAlert(ssl, alert_fatal, no_application_protocol);
+        return UNKNOWN_ALPN_PROTOCOL_NAME_E;
+    }
+
+    /* set the matching negociated protocol */
+    r = TLSX_SetALPN(&ssl->extensions,
+                     alpn->protocol_name,
+                     (word16)XSTRLEN(alpn->protocol_name));
+    if (r != SSL_SUCCESS) {
+        WOLFSSL_MSG("TLSX_UseALPN failed");
+        return BUFFER_ERROR;
+    }
+
+    /* reply to ALPN extension sent from client */
+    if (isRequest) {
+#ifndef NO_WOLFSSL_SERVER
+        TLSX_SetResponse(ssl, WOLFSSL_ALPN);
+#endif
+    }
+
+    return 0;
+}
+
+/** Add a protocol name to the list of accepted usable ones */
+int TLSX_UseALPN(TLSX** extensions, const void* data, word16 size, byte options)
+{
+    ALPN *alpn;
+    TLSX *extension;
+    int  ret;
+
+    if (extensions == NULL || data == NULL)
+        return BAD_FUNC_ARG;
+
+    alpn = TLSX_ALPN_New((char *)data, size);
+    if (alpn == NULL) {
+        WOLFSSL_MSG("Memory failure");
+        return MEMORY_E;
+    }
+
+    /* Set Options of ALPN */
+    alpn->options = options;
+
+    extension = TLSX_Find(*extensions, WOLFSSL_ALPN);
+    if (extension == NULL) {
+        ret = TLSX_Push(extensions, WOLFSSL_ALPN, (void*)alpn);
+        if (ret != 0) {
+            TLSX_ALPN_Free(alpn);
+            return ret;
+        }
+    }
+    else {
+        /* push new ALPN object to extension data. */
+        alpn->next = (ALPN*)extension->data;
+        extension->data = (void*)alpn;
+    }
+
+    return SSL_SUCCESS;
+}
+
+/** Get the protocol name set by the server */
+int TLSX_ALPN_GetRequest(TLSX* extensions, void** data, word16 *dataSz)
+{
+    TLSX *extension;
+    ALPN *alpn;
+
+    if (extensions == NULL || data == NULL || dataSz == NULL)
+        return BAD_FUNC_ARG;
+
+    extension = TLSX_Find(extensions, WOLFSSL_ALPN);
+    if (extension == NULL) {
+        WOLFSSL_MSG("TLS extension not found");
+        return SSL_ALPN_NOT_FOUND;
+    }
+
+    alpn = (ALPN *)extension->data;
+    if (alpn == NULL) {
+        WOLFSSL_MSG("ALPN extension not found");
+        *data = NULL;
+        *dataSz = 0;
+        return SSL_FATAL_ERROR;
+    }
+
+    if (alpn->negociated != 1) {
+
+        /* consider as an error */
+        if (alpn->options & WOLFSSL_ALPN_FAILED_ON_MISMATCH) {
+            WOLFSSL_MSG("No protocol match with peer -> Failed");
+            return SSL_FATAL_ERROR;
+        }
+
+        /* continue without negociated protocol */
+        WOLFSSL_MSG("No protocol match with peer -> Continue");
+        return SSL_ALPN_NOT_FOUND;
+    }
+
+    if (alpn->next != NULL) {
+        WOLFSSL_MSG("Only one protocol name must be accepted");
+        return SSL_FATAL_ERROR;
+    }
+
+    *data = alpn->protocol_name;
+    *dataSz = (word16)XSTRLEN(*data);
+
+    return SSL_SUCCESS;
+}
+
+#define ALPN_FREE_ALL     TLSX_ALPN_FreeAll
+#define ALPN_GET_SIZE     TLSX_ALPN_GetSize
+#define ALPN_WRITE        TLSX_ALPN_Write
+#define ALPN_PARSE        TLSX_ALPN_ParseAndSet
+
+#else /* HAVE_ALPN */
+
+#define ALPN_FREE_ALL(list)
+#define ALPN_GET_SIZE(list)     0
+#define ALPN_WRITE(a, b)        0
+#define ALPN_PARSE(a, b, c, d)  0
+
+#endif /* HAVE_ALPN */
+
 /* Server Name Indication */
 #ifdef HAVE_SNI
 
@@ -961,6 +1308,8 @@ static word16 TLSX_SNI_Write(SNI* list, byte* output)
     return offset;
 }
 
+#ifndef NO_WOLFSSL_SERVER
+
 /** Finds a SNI object in the provided list. */
 static SNI* TLSX_SNI_Find(SNI *list, byte type)
 {
@@ -972,7 +1321,6 @@ static SNI* TLSX_SNI_Find(SNI *list, byte type)
     return sni;
 }
 
-#ifndef NO_WOLFSSL_SERVER
 
 /** Sets the status of a SNI object. */
 static void TLSX_SNI_SetStatus(TLSX* extensions, byte type, byte status)
@@ -1013,7 +1361,8 @@ static int TLSX_SNI_Parse(WOLFSSL* ssl, byte* input, word16 length,
     if (!extension)
         extension = TLSX_Find(ssl->ctx->extensions, SERVER_NAME_INDICATION);
 
-
+    (void)isRequest;
+    (void)input;
 
     if (!extension || !extension->data) {
 #if defined(WOLFSSL_ALWAYS_KEEP_SNI) && !defined(NO_WOLFSSL_SERVER)
@@ -1108,6 +1457,8 @@ static int TLSX_SNI_Parse(WOLFSSL* ssl, byte* input, word16 length,
 
 static int TLSX_SNI_VerifyParse(WOLFSSL* ssl,  byte isRequest)
 {
+    (void)ssl;
+
     if (isRequest) {
     #ifndef NO_WOLFSSL_SERVER
         TLSX* ctx_ext = TLSX_Find(ssl->ctx->extensions, SERVER_NAME_INDICATION);
@@ -1400,6 +1751,8 @@ static word16 TLSX_MFL_Write(byte* data, byte* output)
 static int TLSX_MFL_Parse(WOLFSSL* ssl, byte* input, word16 length,
                                                                  byte isRequest)
 {
+    (void)isRequest;
+
     if (length != ENUM_LEN)
         return BUFFER_ERROR;
 
@@ -1474,6 +1827,8 @@ int TLSX_UseMaxFragment(TLSX** extensions, byte mfl)
 static int TLSX_THM_Parse(WOLFSSL* ssl, byte* input, word16 length,
                                                                  byte isRequest)
 {
+    (void)isRequest;
+
     if (length != 0 || input == NULL)
         return BUFFER_ERROR;
 
@@ -2712,6 +3067,10 @@ void TLSX_FreeAll(TLSX* list)
             case WOLFSSL_QSH:
                 QSH_FREE_ALL(extension->data);
                 break;
+
+            case WOLFSSL_ALPN:
+                ALPN_FREE_ALL((ALPN*)extension->data);
+                break;
         }
 
         XFREE(extension, 0, DYNAMIC_TYPE_TLSX);
@@ -2775,6 +3134,11 @@ static word16 TLSX_GetSize(TLSX* list, byte* semaphore, byte isRequest)
             case WOLFSSL_QSH:
                 length += QSH_GET_SIZE(extension->data, isRequest);
                 break;
+
+            case WOLFSSL_ALPN:
+                length += ALPN_GET_SIZE(extension->data);
+                break;
+
         }
 
         /* marks the extension as processed so ctx level */
@@ -2844,6 +3208,10 @@ static word16 TLSX_Write(TLSX* list, byte* output, byte* semaphore,
                 }
                 offset += QSHPK_WRITE(extension->data, output + offset);
                 offset += QSH_SERREQ(output + offset, isRequest);
+                break;
+
+            case WOLFSSL_ALPN:
+                offset += ALPN_WRITE(extension->data, output + offset);
                 break;
         }
 
@@ -3333,6 +3701,12 @@ int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte isRequest,
                 WOLFSSL_MSG("Quantum-Safe-Hybrid extension received");
 
                 ret = QSH_PARSE(ssl, input + offset, size, isRequest);
+                break;
+
+            case WOLFSSL_ALPN:
+                WOLFSSL_MSG("ALPN extension received");
+
+                ret = ALPN_PARSE(ssl, input + offset, size, isRequest);
                 break;
 
             case HELLO_EXT_SIG_ALGO:

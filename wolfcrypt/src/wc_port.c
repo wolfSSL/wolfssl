@@ -34,6 +34,44 @@
 #endif
 
 
+#if WOLFSSL_CRYPT_HW_MUTEX
+/* Mutex for protection of cryptograpghy hardware */
+static wolfSSL_Mutex wcCryptHwMutex;
+static int wcCryptHwMutexInit = 0;
+
+int wolfSSL_CryptHwMutexInit(void) {
+    int ret = 0;
+    if(wcCryptHwMutexInit == 0) {
+        ret = InitMutex(&wcCryptHwMutex);
+        if(ret == 0) {
+            wcCryptHwMutexInit = 1;
+        }
+    }
+    return ret;
+}
+
+int wolfSSL_CryptHwMutexLock(void) {
+    int ret = BAD_MUTEX_E;
+
+    /* Make sure HW Mutex has been initialized */
+    wolfSSL_CryptHwMutexInit();
+
+    if(wcCryptHwMutexInit) {
+        ret = LockMutex(&wcCryptHwMutex);
+    }
+    return ret;
+}
+
+int wolfSSL_CryptHwMutexUnLock(void) {
+    int ret = BAD_MUTEX_E;
+    
+    if(wcCryptHwMutexInit) {
+        ret = UnLockMutex(&wcCryptHwMutex);
+    }
+    return ret;
+}
+#endif /* WOLFSSL_CRYPT_HW_MUTEX */
+
 
 #ifdef SINGLE_THREADED
 
@@ -66,7 +104,7 @@ int UnLockMutex(wolfSSL_Mutex *m)
 
 #else /* MULTI_THREAD */
 
-    #if defined(FREERTOS)
+    #if defined(FREERTOS)  || defined(FREERTOS_TCP)
 
         int InitMutex(wolfSSL_Mutex* m)
         {
@@ -461,7 +499,7 @@ int UnLockMutex(wolfSSL_Mutex *m)
           if(p) {
               ercd = get_mpl(ID_wolfssl_MPOOL, sz, (VP)&newp);
               if (ercd == E_OK) {
-                  memcpy(newp, p, sz) ;
+                  XMEMCPY(newp, p, sz) ;
                   ercd = rel_mpl(ID_wolfssl_MPOOL, (VP)p);
                   if (ercd == E_OK) {
                       return newp;
@@ -552,7 +590,7 @@ int UnLockMutex(wolfSSL_Mutex *m)
           if(p) {
               ercd = tk_get_mpl(ID_wolfssl_MPOOL, sz, (VP)&newp, TMO_FEVR);
               if (ercd == E_OK) {
-                  memcpy(newp, p, sz) ;
+                  XMEMCPY(newp, p, sz) ;
                   ercd = tk_rel_mpl(ID_wolfssl_MPOOL, (VP)p);
                   if (ercd == E_OK) {
                       return newp;

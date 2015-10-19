@@ -88,6 +88,10 @@
     #include <wolfssl/wolfcrypt/ripemd.h>
 #endif
 
+#ifdef HAVE_IDEA
+    #include <wolfssl/wolfcrypt/idea.h>
+#endif
+
 #include <wolfssl/wolfcrypt/hash.h>
 
 #ifdef WOLFSSL_CALLBACKS
@@ -111,7 +115,7 @@
     #endif
 #elif defined(MICRIUM)
     /* do nothing, just don't pick Unix */
-#elif defined(FREERTOS) || defined(WOLFSSL_SAFERTOS)
+#elif defined(FREERTOS) || defined(FREERTOS_TCP) || defined(WOLFSSL_SAFERTOS)
     /* do nothing */
 #elif defined(EBSNET)
     /* do nothing */
@@ -238,6 +242,12 @@ typedef byte word24[3];
             #if !defined(NO_TLS) && defined(HAVE_NTRU)
                     #define BUILD_TLS_NTRU_RSA_WITH_3DES_EDE_CBC_SHA
             #endif
+        #endif
+    #endif
+
+    #if !defined(NO_RSA) && defined(HAVE_IDEA)
+        #if !defined(NO_SHA) && defined(WOLFSSL_STATIC_RSA)
+            #define BUILD_SSL_RSA_WITH_IDEA_CBC_SHA
         #endif
     #endif
 
@@ -642,6 +652,9 @@ typedef byte word24[3];
     #define HAVE_PFS
 #endif
 
+#if defined(BUILD_SSL_RSA_WITH_IDEA_CBC_SHA)
+    #define BUILD_IDEA
+#endif
 
 /* actual cipher values, 2nd byte */
 enum {
@@ -661,6 +674,7 @@ enum {
     SSL_RSA_WITH_RC4_128_SHA          = 0x05,
     SSL_RSA_WITH_RC4_128_MD5          = 0x04,
     SSL_RSA_WITH_3DES_EDE_CBC_SHA     = 0x0A,
+    SSL_RSA_WITH_IDEA_CBC_SHA         = 0x07,
 
     /* ECC suites, first byte is 0xC0 (ECC_BYTE) */
     TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA    = 0x14,
@@ -1000,6 +1014,19 @@ enum Misc {
 /* max cert chain peer depth */
 #ifndef MAX_CHAIN_DEPTH
     #define MAX_CHAIN_DEPTH 9
+#endif
+
+/* max size of a certificate message payload */
+/* assumes MAX_CHAIN_DEPTH number of certificates at 2kb per certificate */
+#ifndef MAX_CERTIFICATE_SZ
+    #define MAX_CERTIFICATE_SZ \
+                CERT_HEADER_SZ + \
+                (MAX_X509_SIZE + CERT_HEADER_SZ) * MAX_CHAIN_DEPTH
+#endif
+
+/* max size of a handshake message, currently set to the certificate */
+#ifndef MAX_HANDSHAKE_SZ
+    #define MAX_HANDSHAKE_SZ MAX_CERTIFICATE_SZ
 #endif
 
 #ifndef SESSION_TICKET_LEN
@@ -1439,7 +1466,8 @@ typedef enum {
     ELLIPTIC_CURVES        = 0x000a,
     SESSION_TICKET         = 0x0023,
     SECURE_RENEGOTIATION   = 0xff01,
-    WOLFSSL_QSH            = 0x0018  /* Quantum-Safe-Hybrid */
+    WOLFSSL_QSH            = 0x0018, /* Quantum-Safe-Hybrid */
+    WOLFSSL_ALPN           = 0x0010  /* Application-Layer Protocol Name */
 } TLSX_Type;
 
 typedef struct TLSX {
@@ -1472,7 +1500,8 @@ WOLFSSL_LOCAL int    TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length,
    || defined(HAVE_TRUNCATED_HMAC)       \
    || defined(HAVE_SUPPORTED_CURVES)     \
    || defined(HAVE_SECURE_RENEGOTIATION) \
-   || defined(HAVE_SESSION_TICKET)
+   || defined(HAVE_SESSION_TICKET) \
+   || defined(HAVE_ALPN)
 
 #error Using TLS extensions requires HAVE_TLS_EXTENSIONS to be defined.
 
@@ -1505,6 +1534,25 @@ WOLFSSL_LOCAL int    TLSX_SNI_GetFromBuffer(const byte* buffer, word32 bufferSz,
 #endif
 
 #endif /* HAVE_SNI */
+
+/* Application-layer Protocol Name */
+#ifdef HAVE_ALPN
+typedef struct ALPN {
+    char*        protocol_name; /* ALPN protocol name */
+    struct ALPN* next;          /* List Behavior      */
+    byte         options;       /* Behaviour options */
+    byte         negociated;    /* ALPN protocol negociated or not */
+} ALPN;
+
+WOLFSSL_LOCAL int TLSX_ALPN_GetRequest(TLSX* extensions,
+                                       void** data, word16 *dataSz);
+
+WOLFSSL_LOCAL int TLSX_UseALPN(TLSX** extensions, const void* data,
+                               word16 size, byte options);
+
+WOLFSSL_LOCAL int TLSX_ALPN_SetOptions(TLSX** extensions, const byte option);
+
+#endif /* HAVE_ALPN */
 
 /* Maximum Fragment Length */
 #ifdef HAVE_MAX_FRAGMENT
@@ -1842,6 +1890,9 @@ typedef struct Ciphers {
 #ifdef BUILD_RABBIT
     Rabbit* rabbit;
 #endif
+#ifdef HAVE_IDEA
+    Idea* idea;
+#endif
     byte    setup;       /* have we set it up flag for detection */
 } Ciphers;
 
@@ -2081,7 +2132,10 @@ typedef struct Options {
 } Options;
 
 typedef struct Arrays {
+    byte*           pendingMsg;         /* defrag buffer */
     word32          preMasterSz;        /* differs for DH, actual size */
+    word32          pendingMsgSz;       /* defrag buffer size */
+    word32          pendingMsgOffset;   /* current offset into defrag buffer */
 #ifndef NO_PSK
     word32          psk_keySz;          /* acutal size */
     char            client_identity[MAX_PSK_ID_LEN];
@@ -2395,6 +2449,9 @@ struct WOLFSSL {
     #ifdef HAVE_SECURE_RENEGOTIATION
         SecureRenegotiation* secure_renegotiation; /* valid pointer indicates */
     #endif                                         /* user turned on */
+    #ifdef HAVE_ALPN
+        char*   alpn_client_list;  /* keep the client's list */
+    #endif                         /* of accepted protocols */
     #if !defined(NO_WOLFSSL_CLIENT) && defined(HAVE_SESSION_TICKET)
         CallbackSessionTicket session_ticket_cb;
         void*                 session_ticket_ctx;
@@ -2427,6 +2484,9 @@ struct WOLFSSL {
         SessionSecretCb sessionSecretCb;
         void*           sessionSecretCtx;
 #endif /* HAVE_SECRET_CALLBACK */
+#ifdef WOLFSSL_JNI
+        void* jObjectRef;     /* reference to WolfSSLSession in JNI wrapper */
+#endif /* WOLFSSL_JNI */
 };
 
 

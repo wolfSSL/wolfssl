@@ -92,5 +92,11 @@ STRINGTABLE
     75, "Secure Renegotiation Not Supported"
 
     76, "Get Session Stats Failure"
+    77, "Reassembly Buffer Size Exceeded"
+    78, "Dropping Lost Fragment"
+    79, "Dropping Partial Record"
+    80, "Clear ACK Fault"
+
+    81, "Bad Decrypt Size"
 }
 

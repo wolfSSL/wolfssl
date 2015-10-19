@@ -6240,7 +6240,7 @@ static int SetCertificatePolicies(byte *output,
 
     for (i = 0; i < nb_certpol; i++) {
         oidSz = sizeof(oid);
-        memset(oid, 0, oidSz);
+        XMEMSET(oid, 0, oidSz);
 
         ret = EncodePolicyOID(oid, &oidSz, input[i]);
         if (ret != 0)
@@ -8121,6 +8121,10 @@ int wc_EccPrivateKeyDecode(const byte* input, word32* inOutIdx, ecc_key* key,
             }
             else if (GetLength(input, inOutIdx, &length, inSz) < 0) {
                 ret = ASN_PARSE_E;
+            }
+            else if (length <= 0) {
+                /* pubkey needs some size */
+                ret = ASN_INPUT_E;
             }
             else {
                 b = input[*inOutIdx];

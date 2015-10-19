@@ -6,7 +6,7 @@
 #
 #
 
-AC_INIT([wolfssl],[3.6.8],[https://github.com/wolfssl/wolfssl/issues],[wolfssl],[http://www.wolfssl.com])
+AC_INIT([wolfssl],[3.6.9],[https://github.com/wolfssl/wolfssl/issues],[wolfssl],[http://www.wolfssl.com])
 
 AC_CONFIG_AUX_DIR([build-aux])
 
@@ -1156,6 +1156,22 @@ fi
 AM_CONDITIONAL([BUILD_DES3], [test "x$ENABLED_DES3" = "xyes"])
 
 
+# IDEA
+AC_ARG_ENABLE([idea],
+[AS_HELP_STRING([--enable-idea],[Enable IDEA Cipher (default: disabled)])],
+[ ENABLED_IDEA=$enableval ],
+[ ENABLED_IDEA=no ]
+)
+
+if test "x$ENABLED_IDEA" = "xyes"
+then
+AM_CFLAGS="$AM_CFLAGS -DHAVE_IDEA"
+fi
+
+AM_CONDITIONAL([BUILD_IDEA], [test "x$ENABLED_IDEA" = "xyes"])
+
+
+
 # ARC4
 AC_ARG_ENABLE([arc4],
     [  --enable-arc4           Enable ARC4 (default: disabled)],
@@ -1608,6 +1624,19 @@ AC_ARG_ENABLE([maxfragment],
     [ ENABLED_MAX_FRAGMENT=no ]
     )
 
+# ALPN
+AC_ARG_ENABLE([alpn],
+    [  --enable-alpn            Enable ALPN (default: disabled)],
+    [ ENABLED_ALPN=$enableval ],
+    [ ENABLED_ALPN=no ]
+    )
+
+if test "x$ENABLED_ALPN" = "xyes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_TLS_EXTENSIONS -DHAVE_ALPN"
+fi
+
+# Maximum Fragment Length
 if test "x$ENABLED_MAX_FRAGMENT" = "xyes"
 then
     AM_CFLAGS="$AM_CFLAGS -DHAVE_TLS_EXTENSIONS -DHAVE_MAX_FRAGMENT"
@@ -1690,7 +1719,8 @@ then
 	ENABLED_MAX_FRAGMENT=yes
 	ENABLED_TRUNCATED_HMAC=yes
 	ENABLED_SUPPORTED_CURVES=yes
-    AM_CFLAGS="$AM_CFLAGS -DHAVE_TLS_EXTENSIONS -DHAVE_SNI -DHAVE_MAX_FRAGMENT -DHAVE_TRUNCATED_HMAC -DHAVE_SUPPORTED_CURVES"
+	ENABLED_ALPN=yes
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_TLS_EXTENSIONS -DHAVE_SNI -DHAVE_MAX_FRAGMENT -DHAVE_TRUNCATED_HMAC -DHAVE_SUPPORTED_CURVES -DHAVE_ALPN"
 fi
 
 # PKCS7
@@ -1859,6 +1889,81 @@ then
 fi
 
 
+# wolfSSL JNI
+AC_ARG_ENABLE([jni],
+    [  --enable-jni            Enable wolfSSL JNI (default: disabled)],
+    [ ENABLED_JNI=$enableval ],
+    [ ENABLED_JNI=no ]
+    )
+if test "$ENABLED_JNI" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_JNI"
+
+    # Enable prereqs if not already enabled
+    if test "x$ENABLED_DTLS" = "xno"
+    then
+        ENABLED_DTLS="yes"
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DTLS"
+    fi
+    if test "x$ENABLED_OPENSSLEXTRA" = "xno"
+    then
+        ENABLED_OPENSSLEXTRA="yes"
+        AM_CFLAGS="$AM_CFLAGS -DOPENSSL_EXTRA"
+    fi
+    if test "x$ENABLED_CRL" = "xno"
+    then
+        ENABLED_CRL="yes"
+        AM_CFLAGS="$AM_CFLAGS -DHAVE_CRL"
+        AM_CONDITIONAL([BUILD_CRL], [test "x$ENABLED_CRL" = "xyes"])
+    fi
+    if test "x$ENABLED_OCSP" = "xno"
+    then
+        ENABLED_OCSP="yes"
+        AM_CFLAGS="$AM_CFLAGS -DHAVE_OCSP"
+        AM_CONDITIONAL([BUILD_OCSP], [test "x$ENABLED_OCSP" = "xyes"])
+    fi
+    if test "x$ENABLED_CRL_MONITOR" = "xno"
+    then
+        ENABLED_CRL_MONITOR="yes"
+        AM_CFLAGS="$AM_CFLAGS -DHAVE_CRL_MONITOR"
+    fi
+    if test "x$ENABLED_SAVESESSION" = "xno"
+    then
+        ENABLED_SAVESESSION="yes"
+        AM_CFLAGS="$AM_CFLAGS -DPERSIST_SESSION_CACHE"
+    fi
+    if test "x$ENABLED_SAVECERT" = "xno"
+    then
+        ENABLED_SAVECERT="yes"
+        AM_CFLAGS="$AM_CFLAGS -DPERSIST_CERT_CACHE"
+    fi
+    if test "x$ENABLED_ATOMICUSER" = "xno"
+    then
+        ENABLED_ATOMICUSER="yes"
+        AM_CFLAGS="$AM_CFLAGS -DATOMIC_USER"
+    fi
+    if test "x$ENABLED_ECC" = "xno"
+    then
+        ENABLED_ECC="yes"
+        AM_CFLAGS="$AM_CFLAGS -DHAVE_ECC"
+    fi
+    if test "x$ENABLED_PKCALLBACKS" = "xno"
+    then
+        ENABLED_PKCALLBACKS="yes"
+        AM_CFLAGS="$AM_CFLAGS -DHAVE_PK_CALLBACKS"
+    fi
+    if test "x$ENABLED_DH" = "xno"
+    then
+        ENABLED_DH="yes"
+        AM_CFLAGS="$AM_CFLAGS -DHAVE_DH"
+    fi
+    if test "x$ENABLED_PSK" = "xno"
+    then
+        ENABLED_PSK="yes"
+    fi
+fi
+
+
 # lighty Support
 AC_ARG_ENABLE([lighty],
     [  --enable-lighty         Enable lighttpd/lighty (default: disabled)],
@@ -1931,6 +2036,7 @@ then
     if test "x$ENABLED_ECC" = "xno"
     then
         ENABLED_OPENSSLEXTRA="yes"
+        ENABLED_ECC="yes"
         AM_CFLAGS="$AM_CFLAGS -DHAVE_ECC -DTFM_ECC256 -DECC_SHAMIR"
         AM_CONDITIONAL([BUILD_ECC], [test "x$ENABLED_ECC" = "xyes"])
     fi
@@ -2315,75 +2421,6 @@ fi
 AM_CONDITIONAL([BUILD_MCAPI], [test "x$ENABLED_MCAPI" = "xyes"])
 
 
-# wolfSSL JNI
-AC_ARG_ENABLE([jni],
-    [  --enable-jni            Enable wolfSSL JNI (default: disabled)],
-    [ ENABLED_JNI=$enableval ],
-    [ ENABLED_JNI=no ]
-    )
-if test "$ENABLED_JNI" = "yes"
-then
-    # Enable prereqs if not already enabled
-    if test "x$ENABLED_DTLS" = "xno"
-    then
-        ENABLED_DTLS="yes"
-        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DTLS"
-    fi
-    if test "x$ENABLED_OPENSSLEXTRA" = "xno"
-    then
-        ENABLED_OPENSSLEXTRA="yes"
-        AM_CFLAGS="$AM_CFLAGS -DOPENSSL_EXTRA"
-    fi
-    if test "x$ENABLED_CRL" = "xno"
-    then
-        ENABLED_CRL="yes"
-        AM_CFLAGS="$AM_CFLAGS -DHAVE_CRL"
-        AM_CONDITIONAL([BUILD_CRL], [test "x$ENABLED_CRL" = "xyes"])
-    fi
-    if test "x$ENABLED_OCSP" = "xno"
-    then
-        ENABLED_OCSP="yes"
-        AM_CFLAGS="$AM_CFLAGS -DHAVE_OCSP"
-        AM_CONDITIONAL([BUILD_OCSP], [test "x$ENABLED_OCSP" = "xyes"])
-    fi
-    if test "x$ENABLED_CRL_MONITOR" = "xno"
-    then
-        ENABLED_CRL_MONITOR="yes"
-        AM_CFLAGS="$AM_CFLAGS -DHAVE_CRL_MONITOR"
-    fi
-    if test "x$ENABLED_SAVESESSION" = "xno"
-    then
-        ENABLED_SAVESESSION="yes"
-        AM_CFLAGS="$AM_CFLAGS -DPERSIST_SESSION_CACHE"
-    fi
-    if test "x$ENABLED_SAVECERT" = "xno"
-    then
-        ENABLED_SAVECERT="yes"
-        AM_CFLAGS="$AM_CFLAGS -DPERSIST_CERT_CACHE"
-    fi
-    if test "x$ENABLED_ATOMICUSER" = "xno"
-    then
-        ENABLED_ATOMICUSER="yes"
-        AM_CFLAGS="$AM_CFLAGS -DATOMIC_USER"
-    fi
-    if test "x$ENABLED_ECC" = "xno"
-    then
-        ENABLED_ECC="yes"
-        AM_CFLAGS="$AM_CFLAGS -DHAVE_ECC"
-    fi
-    if test "x$ENABLED_PKCALLBACKS" = "xno"
-    then
-        ENABLED_PKCALLBACKS="yes"
-        AM_CFLAGS="$AM_CFLAGS -DHAVE_PK_CALLBACKS"
-    fi
-    if test "x$ENABLED_DH" = "xno"
-    then
-        ENABLED_DH="yes"
-        AM_CFLAGS="$AM_CFLAGS -DHAVE_DH"
-    fi
-fi
-
-
 # Check for build-type conflicts
 AS_IF([test "x$ENABLED_MAXSTRENGTH" = "xyes" && \
        test "x$ENABLED_LEANPSK" = "xyes"],
@@ -2480,11 +2517,6 @@ AC_OUTPUT
 echo "---"
 echo "Running make clean..."
 make clean >/dev/null 2>&1
-# Touch files that may not be in repository
-echo "Touching File..."
-touch ctaocrypt/src/fips.c
-touch ctaocrypt/src/fips_test.c
-echo
 
 # generate user options header
 echo "---"
@@ -2598,6 +2630,7 @@ echo "   * AES-NI:                    $ENABLED_AESNI"
 echo "   * AES-GCM:                   $ENABLED_AESGCM"
 echo "   * AES-CCM:                   $ENABLED_AESCCM"
 echo "   * DES3:                      $ENABLED_DES3"
+echo "   * IDEA:                      $ENABLED_IDEA"
 echo "   * Camellia:                  $ENABLED_CAMELLIA"
 echo "   * NULL Cipher:               $ENABLED_NULL_CIPHER"
 echo "   * MD5:                       $ENABLED_MD5"
@@ -2648,6 +2681,7 @@ echo "   * Atomic User Record Layer:  $ENABLED_ATOMICUSER"
 echo "   * Public Key Callbacks:      $ENABLED_PKCALLBACKS"
 echo "   * NTRU:                      $ENABLED_NTRU"
 echo "   * SNI:                       $ENABLED_SNI"
+echo "   * ALPN:                      $ENABLED_ALPN"
 echo "   * Maximum Fragment Length:   $ENABLED_MAX_FRAGMENT"
 echo "   * Truncated HMAC:            $ENABLED_TRUNCATED_HMAC"
 echo "   * Renegotiation Indication:  $ENABLED_RENEGOTIATION_INDICATION"
