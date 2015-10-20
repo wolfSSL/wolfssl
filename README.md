@@ -1031,7 +1031,7 @@ aren't fully implemented at this time but will be for the next release.
 
 For general build instructions see rc1 below.
 
-## CyaSSL Release Candidiate 3 rc3-1.0.0 (2/25/2009)
+## CyaSSL Release Candidate 3 rc3-1.0.0 (2/25/2009)
 
 
 Release Candidate 3 for CyaSSL 1.0.0 adds bug fixes and adds a project file for
@@ -1042,7 +1042,7 @@ lost when cyassl i/o was re-implemented but is now fixed.
 
 For general build instructions see rc1 below.
 
-## CyaSSL Release Candidiate 2 rc2-1.0.0 (1/21/2009)
+## CyaSSL Release Candidate 2 rc2-1.0.0 (1/21/2009)
 
 
 Release Candidate 2 for CyaSSL 1.0.0 adds bug fixes and adds two new stream
@@ -1077,7 +1077,7 @@ For linking purposes you'll need
 For general build instructions see rc1 below.
 
 
-## CyaSSL Release Candidiate 1 rc1-1.0.0 (12/17/2008)
+## CyaSSL Release Candidate 1 rc1-1.0.0 (12/17/2008)
 
 
 Release Candidate 1 for CyaSSL 1.0.0 contains major internal changes.  Several
