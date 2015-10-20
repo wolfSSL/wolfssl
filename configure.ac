@@ -2278,7 +2278,7 @@ AC_ARG_ENABLE([fast-rsa],
 
 if test "$ENABLED_USER_RSA" = "no" && test "$ENABLED_FIPS" = "no"; then
 
-if test "$enable_shared" = "no" && test "$ENABLED_USER_RSA" = "yes"; then
+if test "$enable_shared" = "no" && test "$ENABLED_FAST_RSA" = "yes"; then
     if test "$ac_cv_sizeof_long" = "4" && test "$ac_cv_sizeof_long_long" = "8"; then
         ipplib="lib_32" # 32 bit OS detected
     fi
