@@ -20,8 +20,14 @@
  */
 
 
-/*  ssl.h defines openssl compatibility layer 
+/*  ssl.h defines openssl compatibility layer
  *
  */
+#ifndef CYASSL_OPENSSL_H_
+#define CYASSL_OPENSSL_H_
 
+#include <cyassl/ssl.h>
 #include <wolfssl/openssl/ssl.h>
+
+#endif
+

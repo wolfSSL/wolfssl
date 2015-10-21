@@ -7,6 +7,14 @@ ca=./certs/wolfssl-website-ca.pem
 
 [ ! -x ./examples/client/client ] && echo -e "\n\nClient doesn't exist" && exit 1
 
+# cloudflare seems to change CAs quickly, disabled by default
+if test -n "$WOLFSSL_EXTERNAL_TEST"; then
+    echo "WOLFSSL_EXTERNAL_TEST set, running test..."
+else
+    echo "WOLFSSL_EXTERNAL_TEST NOT set, won't run"
+    exit 0
+fi
+
 # is our desired server there?
 ping -c 2 $server
 RESULT=$?
