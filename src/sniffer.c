@@ -2950,7 +2950,8 @@ static int HaveMoreInput(SnifferSession* session, const byte** sslFrame,
 /* Process Message(s) from sslFrame */
 /* return Number of bytes on success, 0 for no data yet, and -1 on error */
 static int ProcessMessage(const byte* sslFrame, SnifferSession* session,
-                          int sslBytes, byte* data, const byte* end,char* error)
+                          int sslBytes, byte** data, const byte* end,
+                          char* error)
 {
     const byte*       sslBegin = sslFrame;
     const byte*       recordEnd;   /* end of record indicator */
@@ -3076,8 +3077,14 @@ doPart:
                     ret = ssl->buffers.clearOutputBuffer.length;
                     TraceGotData(ret);
                     if (ret) {  /* may be blank message */
-                        XMEMCPY(&data[decoded],
-                               ssl->buffers.clearOutputBuffer.buffer, ret);
+                        *data = realloc(*data, decoded + ret);
+                        if (*data == NULL) {
+                            SetError(MEMORY_STR, error, session,
+                                     FATAL_ERROR_STATE);
+                            return -1;
+                        }
+                        XMEMCPY(*data + decoded,
+                                ssl->buffers.clearOutputBuffer.buffer, ret);
                         TraceAddedData(ret, decoded);
                         decoded += ret;
                         ssl->buffers.clearOutputBuffer.length = 0;
@@ -3179,7 +3186,7 @@ static int RemoveFatalSession(IpInfo* ipInfo, TcpInfo* tcpInfo,
 
 /* Passes in an IP/TCP packet for decoding (ethernet/localhost frame) removed */
 /* returns Number of bytes on success, 0 for no data yet, and -1 on error */
-int ssl_DecodePacket(const byte* packet, int length, byte* data, char* error)
+int ssl_DecodePacket(const byte* packet, int length, byte** data, char* error)
 {
     TcpInfo           tcpInfo;
     IpInfo            ipInfo;
