@@ -4357,7 +4357,6 @@ static int DoCertificate(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 #if defined(HAVE_OCSP) || defined(HAVE_CRL)
         if (ret == 0) {
             int doCrlLookup = 1;
-            (void)doCrlLookup;
 #ifdef HAVE_OCSP
             if (ssl->ctx->cm->ocspEnabled && ssl->ctx->cm->ocspCheckAll) {
                 WOLFSSL_MSG("Doing Non Leaf OCSP check");
@@ -4380,6 +4379,8 @@ static int DoCertificate(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                     WOLFSSL_MSG("\tCRL check not ok");
                 }
             }
+#else
+            (void)doCrlLookup;
 #endif /* HAVE_CRL */
         }
 #endif /* HAVE_OCSP || HAVE_CRL */
@@ -4447,7 +4448,6 @@ static int DoCertificate(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 #if defined(HAVE_OCSP) || defined(HAVE_CRL)
         if (fatal == 0) {
             int doCrlLookup = 1;
-            (void)doCrlLookup;
 #ifdef HAVE_OCSP
             if (ssl->ctx->cm->ocspEnabled) {
                 WOLFSSL_MSG("Doing Leaf OCSP check");
@@ -4469,6 +4469,8 @@ static int DoCertificate(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                     fatal = 0;
                 }
             }
+#else
+            (void)doCrlLookup;
 #endif /* HAVE_CRL */
         }
 #endif /* HAVE_OCSP || HAVE_CRL */
@@ -4776,6 +4778,101 @@ static int DoCertificate(WOLFSSL* ssl, byte* input, word32* inOutIdx,
     return ret;
 }
 
+
+static int DoCertificateStatus(WOLFSSL* ssl, byte* input, word32* inOutIdx,
+                                                                    word32 size)
+{
+    int    ret = 0;
+    byte   status_type;
+    word32 status_length;
+
+    if (size < ENUM_LEN + OPAQUE24_LEN)
+        return BUFFER_ERROR;
+
+    status_type = input[(*inOutIdx)++];
+
+    c24to32(input + *inOutIdx, &status_length);
+    *inOutIdx += OPAQUE24_LEN;
+
+    if (size != ENUM_LEN + OPAQUE24_LEN + status_length)
+        return BUFFER_ERROR;
+
+    switch (status_type) {
+    #if defined(HAVE_CERTIFICATE_STATUS_REQUEST)
+
+        case WOLFSSL_CSR_OCSP: {
+
+        #ifdef WOLFSSL_SMALL_STACK
+            CertStatus* status;
+            OcspResponse* response;
+        #else
+            CertStatus status[1];
+            OcspResponse response[1];
+        #endif
+
+            do {
+                #ifdef HAVE_CERTIFICATE_STATUS_REQUEST
+                    if (ssl->status_request) {
+                        ssl->status_request = 0;
+                        break;
+                    }
+                #endif
+                #ifdef HAVE_CERTIFICATE_STATUS_REQUEST_V2
+                    if (ssl->status_request_v2) {
+                        ssl->status_request_v2 = 0;
+                        break;
+                    }
+                #endif
+                return BUFFER_ERROR;
+            } while(0);
+
+        #ifdef WOLFSSL_SMALL_STACK
+            status = (CertStatus*)XMALLOC(sizeof(CertStatus), NULL,
+                                                       DYNAMIC_TYPE_TMP_BUFFER);
+            response = (OcspResponse*)XMALLOC(sizeof(OcspResponse), NULL,
+                                                       DYNAMIC_TYPE_TMP_BUFFER);
+
+            if (status == NULL || response == NULL) {
+                if (status)    XFREE(status,   NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                if (response)  XFREE(response, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
+                return MEMORY_ERROR;
+            }
+        #endif
+
+            InitOcspResponse(response, status, input +*inOutIdx, status_length);
+
+            if ((ret = OcspResponseDecode(response)) == 0) {
+                if (response->responseStatus != OCSP_SUCCESSFUL)
+                    ret = FATAL_ERROR;
+                /* TODO CSR */
+                /*else if (CompareOcspReqResp(request, response) != 0)
+                    ret = FATAL_ERROR; */
+                else if (response->status->status != CERT_GOOD)
+                    ret = FATAL_ERROR;
+            }
+
+            *inOutIdx += status_length;
+
+        #ifdef WOLFSSL_SMALL_STACK
+            XFREE(status,   NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(response, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        #endif
+
+        }
+        break;
+    #endif
+
+        default:
+            ret = BUFFER_ERROR;
+    }
+
+    if (ret != 0)
+        SendAlert(ssl, alert_fatal, bad_certificate_status_response);
+
+    return ret;
+}
+
 #endif /* !NO_CERTS */
 
 
@@ -4972,6 +5069,26 @@ static int SanityCheckMsgReceived(WOLFSSL* ssl, byte type)
             break;
 
 #ifndef NO_WOLFSSL_CLIENT
+        case certificate_status:
+            if (ssl->msgsReceived.got_certificate_status) {
+                WOLFSSL_MSG("Duplicate CertificateSatatus received");
+                return DUPLICATE_MSG_E;
+            }
+            ssl->msgsReceived.got_certificate_status = 1;
+
+            if (ssl->msgsReceived.got_certificate == 0) {
+                WOLFSSL_MSG("No Certificate before CertificateStatus");
+                return OUT_OF_ORDER_E;
+            }
+            if (ssl->msgsReceived.got_server_key_exchange != 0) {
+                WOLFSSL_MSG("CertificateStatus after ServerKeyExchange");
+                return OUT_OF_ORDER_E;
+            }
+
+            break;
+#endif
+
+#ifndef NO_WOLFSSL_CLIENT
         case server_key_exchange:
             if (ssl->msgsReceived.got_server_key_exchange) {
                 WOLFSSL_MSG("Duplicate ServerKeyExchange received");
@@ -4979,9 +5096,17 @@ static int SanityCheckMsgReceived(WOLFSSL* ssl, byte type)
             }
             ssl->msgsReceived.got_server_key_exchange = 1;
 
-            if ( ssl->msgsReceived.got_server_hello == 0) {
-                WOLFSSL_MSG("No ServerHello before Cert");
+            if (ssl->msgsReceived.got_server_hello == 0) {
+                WOLFSSL_MSG("No ServerHello before ServerKeyExchange");
                 return OUT_OF_ORDER_E;
+            }
+            if (ssl->msgsReceived.got_certificate_status == 0) {
+#ifdef HAVE_CERTIFICATE_STATUS_REQUEST
+                if (ssl->status_request) {
+                    WOLFSSL_MSG("No CertificateStatus before ServerKeyExchange");
+                    return OUT_OF_ORDER_E;
+                }
+#endif
             }
 
             break;
@@ -5224,7 +5349,12 @@ static int DoHandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 #ifndef NO_CERTS
     case certificate:
         WOLFSSL_MSG("processing certificate");
-        ret =  DoCertificate(ssl, input, inOutIdx, size);
+        ret = DoCertificate(ssl, input, inOutIdx, size);
+        break;
+
+    case certificate_status:
+        WOLFSSL_MSG("processing certificate status");
+        ret = DoCertificateStatus(ssl, input, inOutIdx, size);
         break;
 #endif
 

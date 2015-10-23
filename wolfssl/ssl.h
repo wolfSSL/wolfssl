@@ -188,6 +188,7 @@ enum AlertDescription {
     #endif
     no_renegotiation                = 100,
     unrecognized_name               = 112, /**< RFC 6066, section 3 */
+    bad_certificate_status_response = 113, /**< RFC 6066, section 8 */
     no_application_protocol         = 120
 };
 
@@ -1402,6 +1403,24 @@ WOLFSSL_API int wolfSSL_CTX_UseMaxFragment(WOLFSSL_CTX* ctx, unsigned char mfl);
 
 WOLFSSL_API int wolfSSL_UseTruncatedHMAC(WOLFSSL* ssl);
 WOLFSSL_API int wolfSSL_CTX_UseTruncatedHMAC(WOLFSSL_CTX* ctx);
+
+#endif
+#endif
+
+/* Certificate Status Request */
+/* Certificate Status Type */
+enum {
+    WOLFSSL_CSR_OCSP = 1
+};
+
+#ifdef HAVE_CERTIFICATE_STATUS_REQUEST
+#ifndef NO_WOLFSSL_CLIENT
+
+WOLFSSL_API int wolfSSL_UseCertificateStatusRequest(WOLFSSL* ssl,
+                                                     unsigned char status_type);
+
+WOLFSSL_API int wolfSSL_CTX_UseCertificateStatusRequest(WOLFSSL_CTX* ctx,
+                                                     unsigned char status_type);
 
 #endif
 #endif

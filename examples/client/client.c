@@ -425,7 +425,10 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     byte maxFragment = 0;
 #endif
 #ifdef HAVE_TRUNCATED_HMAC
-    byte  truncatedHMAC = 0;
+    byte truncatedHMAC = 0;
+#endif
+#ifdef HAVE_CERTIFICATE_STATUS_REQUEST
+    byte statusRequest = 0;
 #endif
 
 
@@ -465,8 +468,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     StackTrap();
 
     while ((ch = mygetopt(argc, argv,
-                          "?gdeDusmNrwRitfxXUPCh:p:v:l:A:c:k:Z:b:zS:L:ToO:aB:"))
-                                                                        != -1) {
+                "?gdeDusmNrwRitfxXUPCh:p:v:l:A:c:k:Z:b:zS:L:ToO:aB:W")) != -1) {
         switch (ch) {
             case '?' :
                 Usage();
@@ -650,6 +652,12 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
             case 'T' :
                 #ifdef HAVE_TRUNCATED_HMAC
                     truncatedHMAC = 1;
+                #endif
+                break;
+
+            case 'W' :
+                #ifdef HAVE_CERTIFICATE_STATUS_REQUEST
+                    statusRequest = 1;
                 #endif
                 break;
 
@@ -937,6 +945,12 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     if (truncatedHMAC)
         if (wolfSSL_CTX_UseTruncatedHMAC(ctx) != SSL_SUCCESS)
             err_sys("UseTruncatedHMAC failed");
+#endif
+#ifdef HAVE_CERTIFICATE_STATUS_REQUEST
+    if (statusRequest)
+        if (wolfSSL_CTX_UseCertificateStatusRequest(ctx, WOLFSSL_CSR_OCSP)
+                                                                 != SSL_SUCCESS)
+            err_sys("UseCertificateStatusRequest failed");
 #endif
 #ifdef HAVE_SESSION_TICKET
     if (wolfSSL_CTX_UseSessionTicket(ctx) != SSL_SUCCESS)
@@ -1320,4 +1334,3 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     }
 
 #endif
-

@@ -1463,7 +1463,8 @@ typedef enum {
     TLSX_SERVER_NAME                = 0x0000, /* a.k.a. SNI  */
     TLSX_MAX_FRAGMENT_LENGTH        = 0x0001,
     TLSX_TRUNCATED_HMAC             = 0x0004,
-    TLSX_SUPPORTED_GROUPS           = 0x000a,
+    TLSX_STATUS_REQUEST             = 0x0005, /* a.k.a. OCSP stappling   */
+    TLSX_SUPPORTED_GROUPS           = 0x000a, /* a.k.a. Supported Curves */
     TLSX_APPLICATION_LAYER_PROTOCOL = 0x0010, /* a.k.a. ALPN */
     TLSX_QUANTUM_SAFE_HYBRID        = 0x0018, /* a.k.a. QSH  */
     TLSX_SESSION_TICKET             = 0x0023,
@@ -1498,6 +1499,7 @@ WOLFSSL_LOCAL int    TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length,
 #elif defined(HAVE_SNI)                           \
    || defined(HAVE_MAX_FRAGMENT)                  \
    || defined(HAVE_TRUNCATED_HMAC)                \
+   || defined(HAVE_CERTIFICATE_STATUS_REQUEST)    \
    || defined(HAVE_SUPPORTED_CURVES)              \
    || defined(HAVE_ALPN)                          \
    || defined(HAVE_QSH)                           \
@@ -1568,6 +1570,18 @@ WOLFSSL_LOCAL int TLSX_UseMaxFragment(TLSX** extensions, byte mfl);
 WOLFSSL_LOCAL int TLSX_UseTruncatedHMAC(TLSX** extensions);
 
 #endif /* HAVE_TRUNCATED_HMAC */
+
+/** Certificate Status Request - RFC 6066 (session 8) */
+#ifdef HAVE_CERTIFICATE_STATUS_REQUEST
+
+typedef struct {
+    byte status_type;
+} CertificateStatusRequest;
+
+WOLFSSL_LOCAL int TLSX_UseCertificateStatusRequest(TLSX** extensions,
+                                                              byte status_type);
+
+#endif
 
 /** Supported Elliptic Curves - RFC 4492 (session 4) */
 #ifdef HAVE_SUPPORTED_CURVES
@@ -2301,6 +2315,7 @@ typedef struct MsgsReceived {
     word16 got_hello_verify_request:1;
     word16 got_session_ticket:1;
     word16 got_certificate:1;
+    word16 got_certificate_status:1;
     word16 got_server_key_exchange:1;
     word16 got_certificate_request:1;
     word16 got_server_hello_done:1;
@@ -2451,6 +2466,9 @@ struct WOLFSSL {
     #endif
     #ifdef HAVE_TRUNCATED_HMAC
         byte truncated_hmac;
+    #endif
+    #ifdef HAVE_CERTIFICATE_STATUS_REQUEST
+        byte status_request;
     #endif
     #ifdef HAVE_SECURE_RENEGOTIATION
         SecureRenegotiation* secure_renegotiation; /* valid pointer indicates */

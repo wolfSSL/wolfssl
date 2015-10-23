@@ -1886,6 +1886,139 @@ int TLSX_UseTruncatedHMAC(TLSX** extensions)
 #endif /* HAVE_TRUNCATED_HMAC */
 
 /******************************************************************************/
+/* Certificate Status Request                                                 */
+/******************************************************************************/
+
+#ifdef HAVE_CERTIFICATE_STATUS_REQUEST
+
+#ifndef HAVE_OCSP
+#error Status Request Extension requires OCSP. \
+       Use --enable-ocsp in the configure script or define HAVE_OCSP.
+#endif
+
+static void TLSX_CSR_Free(CertificateStatusRequest* csr)
+{
+    switch (csr->status_type) {
+        case WOLFSSL_CSR_OCSP:
+        /* nothing to release for now... */
+        break;
+    }
+
+    XFREE(csr, NULL, DYNAMIC_TYPE_TLSX);
+}
+
+static word16 TLSX_CSR_GetSize(CertificateStatusRequest* csr, byte isRequest)
+{
+    /* shut up compiler warnings */
+    (void) csr; (void) isRequest;
+
+#ifndef NO_WOLFSSL_CLIENT
+    if (isRequest) {
+        switch (csr->status_type) {
+            case WOLFSSL_CSR_OCSP:
+                return ENUM_LEN + 2 * OPAQUE16_LEN;
+        }
+    }
+#endif
+
+    return 0;
+}
+
+static word16 TLSX_CSR_Write(CertificateStatusRequest* csr, byte* output,
+                                                                 byte isRequest)
+{
+    /* shut up compiler warnings */
+    (void) csr; (void) output; (void) isRequest;
+
+#ifndef NO_WOLFSSL_CLIENT
+    if (isRequest) {
+        word16 offset = 0;
+
+        /* type */
+        output[offset++] = csr->status_type;
+
+        switch (csr->status_type) {
+            case WOLFSSL_CSR_OCSP:
+                /* responder id list */
+                c16toa(0, output + offset);
+                offset += OPAQUE16_LEN;
+
+                /* request extensions */
+                c16toa(0, output + offset);
+                offset += OPAQUE16_LEN;
+            break;
+        }
+
+        return offset;
+    }
+#endif
+
+    return 0;
+}
+
+static int TLSX_CSR_Parse(WOLFSSL* ssl, byte* input, word16 length,
+                                                                 byte isRequest)
+{
+    /* shut up compiler warnings */
+    (void) ssl; (void) input;
+
+    if (!isRequest) {
+        ssl->status_request = 1;
+
+        return length ? BUFFER_ERROR : 0; /* extension_data MUST be empty. */
+    }
+
+    return 0;
+}
+
+int TLSX_UseCertificateStatusRequest(TLSX** extensions, byte status_type)
+{
+    CertificateStatusRequest* csr = NULL;
+    int ret = 0;
+
+    if (!extensions)
+        return BAD_FUNC_ARG;
+
+    csr = (CertificateStatusRequest*)XMALLOC(sizeof(CertificateStatusRequest),
+                                             NULL, DYNAMIC_TYPE_TLSX);
+    if (!csr)
+        return MEMORY_E;
+
+    csr->status_type = status_type;
+
+    switch (status_type) {
+        case WOLFSSL_CSR_OCSP:
+            /* nothing to handle for now... */
+            break;
+
+        default:
+            XFREE(csr, NULL, DYNAMIC_TYPE_TLSX);
+            return BAD_FUNC_ARG;
+    }
+
+    if ((ret = TLSX_Push(extensions, TLSX_STATUS_REQUEST, csr)) != 0) {
+        XFREE(csr, NULL, DYNAMIC_TYPE_TLSX);
+        return ret;
+    }
+
+    return SSL_SUCCESS;
+}
+
+#define CSR_FREE_ALL TLSX_CSR_Free
+#define CSR_GET_SIZE TLSX_CSR_GetSize
+#define CSR_WRITE    TLSX_CSR_Write
+#define CSR_PARSE    TLSX_CSR_Parse
+
+#else
+
+#define CSR_FREE_ALL(data)
+#define CSR_GET_SIZE(a, b)    0
+#define CSR_WRITE(a, b, c)    0
+#define CSR_PARSE(a, b, c, d) 0
+
+#endif /* HAVE_CERTIFICATE_STATUS_REQUEST */
+
+/******************************************************************************/
 /* Supported Elliptic Curves                                                  */
 /******************************************************************************/
 
@@ -3094,6 +3227,10 @@ void TLSX_FreeAll(TLSX* list)
                 EC_FREE_ALL(extension->data);
                 break;
 
+            case TLSX_STATUS_REQUEST:
+                CSR_FREE_ALL(extension->data);
+                break;
+
             case TLSX_RENEGOTIATION_INFO:
                 SCR_FREE_ALL(extension->data);
                 break;
@@ -3159,6 +3296,10 @@ static word16 TLSX_GetSize(TLSX* list, byte* semaphore, byte isRequest)
 
             case TLSX_SUPPORTED_GROUPS:
                 length += EC_GET_SIZE(extension->data);
+                break;
+
+            case TLSX_STATUS_REQUEST:
+                length += CSR_GET_SIZE(extension->data, isRequest);
                 break;
 
             case TLSX_RENEGOTIATION_INFO:
@@ -3228,6 +3369,11 @@ static word16 TLSX_Write(TLSX* list, byte* output, byte* semaphore,
 
             case TLSX_SUPPORTED_GROUPS:
                 offset += EC_WRITE(extension->data, output + offset);
+                break;
+
+            case TLSX_STATUS_REQUEST:
+                offset += CSR_WRITE(extension->data, output + offset,
+                                                                     isRequest);
                 break;
 
             case TLSX_RENEGOTIATION_INFO:
@@ -3721,6 +3867,12 @@ int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte isRequest,
                 WOLFSSL_MSG("Elliptic Curves extension received");
 
                 ret = EC_PARSE(ssl, input + offset, size, isRequest);
+                break;
+
+            case TLSX_STATUS_REQUEST:
+                WOLFSSL_MSG("Certificate Status Request extension received");
+
+                ret = CSR_PARSE(ssl, input + offset, size, isRequest);
                 break;
 
             case TLSX_RENEGOTIATION_INFO:

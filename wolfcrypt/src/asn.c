@@ -43,7 +43,11 @@
 
 #include <wolfssl/wolfcrypt/random.h>
 #include <wolfssl/wolfcrypt/hash.h>
-
+#ifdef NO_INLINE
+    #include <wolfssl/wolfcrypt/misc.h>
+#else
+    #include <wolfcrypt/src/misc.c>
+#endif
 
 #ifndef NO_RC4
     #include <wolfssl/wolfcrypt/arc4.h>
@@ -8856,18 +8860,11 @@ int EncodeOcspRequest(OcspRequest* req)
     algoSz = SetAlgoID(SHAh, algoArray, hashType, 0);
 #endif
 
-    req->issuerHash = req->cert->issuerHash;
-    issuerSz = SetDigest(req->cert->issuerHash, KEYID_SIZE, issuerArray);
+    issuerSz    = SetDigest(req->issuerHash,    KEYID_SIZE,    issuerArray);
+    issuerKeySz = SetDigest(req->issuerKeyHash, KEYID_SIZE,    issuerKeyArray);
+    snSz        = SetSerialNumber(req->serial,  req->serialSz, snArray);
+    extSz       = 0;
 
-    req->issuerKeyHash = req->cert->issuerKeyHash;
-    issuerKeySz = SetDigest(req->cert->issuerKeyHash,
-                                                    KEYID_SIZE, issuerKeyArray);
-
-    req->serial = req->cert->serial;
-    req->serialSz = req->cert->serialSz;
-    snSz = SetSerialNumber(req->cert->serial, req->cert->serialSz, snArray);
-
-    extSz = 0;
     if (req->useNonce) {
         WC_RNG rng;
         if (wc_InitRng(&rng) != 0) {
@@ -8885,25 +8882,30 @@ int EncodeOcspRequest(OcspRequest* req)
     }
 
     totalSz = algoSz + issuerSz + issuerKeySz + snSz;
-
     for (i = 4; i >= 0; i--) {
         seqSz[i] = SetSequence(totalSz, seqArray[i]);
         totalSz += seqSz[i];
         if (i == 2) totalSz += extSz;
     }
+
     totalSz = 0;
     for (i = 0; i < 5; i++) {
         XMEMCPY(output + totalSz, seqArray[i], seqSz[i]);
         totalSz += seqSz[i];
     }
+
     XMEMCPY(output + totalSz, algoArray, algoSz);
     totalSz += algoSz;
+
     XMEMCPY(output + totalSz, issuerArray, issuerSz);
     totalSz += issuerSz;
+
     XMEMCPY(output + totalSz, issuerKeyArray, issuerKeySz);
     totalSz += issuerKeySz;
+
     XMEMCPY(output + totalSz, snArray, snSz);
     totalSz += snSz;
+
     if (extSz != 0) {
         XMEMCPY(output + totalSz, extArray, extSz);
         totalSz += extSz;
@@ -8918,14 +8920,16 @@ void InitOcspRequest(OcspRequest* req, DecodedCert* cert, byte useNonce,
 {
     WOLFSSL_ENTER("InitOcspRequest");
 
-    req->cert = cert;
-    req->useNonce = useNonce;
-    req->nonceSz = 0;
-    req->issuerHash = NULL;
-    req->issuerKeyHash = NULL;
-    req->serial = NULL;
-    req->dest = dest;
-    req->destSz = destSz;
+    ForceZero(req, sizeof(OcspRequest));
+
+    req->cert          = cert;
+    req->useNonce      = useNonce;
+    req->issuerHash    = cert->issuerHash;
+    req->issuerKeyHash = cert->issuerKeyHash;
+    req->serial        = cert->serial;
+    req->serialSz      = cert->serialSz;
+    req->dest          = dest;
+    req->destSz        = destSz;
 }
 
 

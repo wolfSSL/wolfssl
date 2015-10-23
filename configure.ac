@@ -1595,6 +1595,18 @@ then
     AM_CFLAGS="$AM_CFLAGS -DHAVE_TLS_EXTENSIONS -DHAVE_TRUNCATED_HMAC"
 fi
 
+# Certificate Status Request : a.k.a. OCSP stapling
+AC_ARG_ENABLE([statusrequest],
+    [  --enable-statusrequest  Enable Certificate Status Request (default: disabled)],
+    [ ENABLED_CERTIFICATE_STATUS_REQUEST=$enableval ],
+    [ ENABLED_CERTIFICATE_STATUS_REQUEST=no ]
+    )
+
+if test "x$ENABLED_CERTIFICATE_STATUS_REQUEST" = "xyes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_TLS_EXTENSIONS -DHAVE_CERTIFICATE_STATUS_REQUEST"
+fi
+
 # Renegotiation Indication - (FAKE Secure Renegotiation)
 AC_ARG_ENABLE([renegotiation-indication],
     [AS_HELP_STRING([--enable-renegotiation-indication],[Enable Renegotiation Indication (default: disabled)])],
@@ -2492,6 +2504,7 @@ echo "   * Server Name Indication:    $ENABLED_SNI"
 echo "   * ALPN:                      $ENABLED_ALPN"
 echo "   * Maximum Fragment Length:   $ENABLED_MAX_FRAGMENT"
 echo "   * Truncated HMAC:            $ENABLED_TRUNCATED_HMAC"
+echo "   * Status Request:            $ENABLED_CERTIFICATE_STATUS_REQUEST"
 echo "   * Supported Elliptic Curves: $ENABLED_SUPPORTED_CURVES"
 echo "   * Session Ticket:            $ENABLED_SESSION_TICKET"
 echo "   * Renegotiation Indication:  $ENABLED_RENEGOTIATION_INDICATION"
