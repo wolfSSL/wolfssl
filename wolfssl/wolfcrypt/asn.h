@@ -779,4 +779,3 @@ WOLFSSL_LOCAL void FreeDecodedCRL(DecodedCRL*);
 
 #endif /* !NO_ASN */
 #endif /* WOLF_CRYPT_ASN_H */
-

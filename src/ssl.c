@@ -690,8 +690,9 @@ int wolfSSL_UseSNI(WOLFSSL* ssl, byte type, const void* data, word16 size)
     return TLSX_UseSNI(&ssl->extensions, type, data, size);
 }
 
-int wolfSSL_CTX_UseSNI(WOLFSSL_CTX* ctx, byte type,
-                       const void* data, word16 size)
+
+int wolfSSL_CTX_UseSNI(WOLFSSL_CTX* ctx, byte type, const void* data,
+                                                                    word16 size)
 {
     if (ctx == NULL)
         return BAD_FUNC_ARG;
@@ -707,16 +708,19 @@ void wolfSSL_SNI_SetOptions(WOLFSSL* ssl, byte type, byte options)
         TLSX_SNI_SetOptions(ssl->extensions, type, options);
 }
 
+
 void wolfSSL_CTX_SNI_SetOptions(WOLFSSL_CTX* ctx, byte type, byte options)
 {
     if (ctx && ctx->extensions)
         TLSX_SNI_SetOptions(ctx->extensions, type, options);
 }
 
+
 byte wolfSSL_SNI_Status(WOLFSSL* ssl, byte type)
 {
     return TLSX_SNI_Status(ssl ? ssl->extensions : NULL, type);
 }
+
 
 word16 wolfSSL_SNI_GetRequest(WOLFSSL* ssl, byte type, void** data)
 {
@@ -728,6 +732,7 @@ word16 wolfSSL_SNI_GetRequest(WOLFSSL* ssl, byte type, void** data)
 
     return 0;
 }
+
 
 int wolfSSL_SNI_GetFromBuffer(const byte* clientHello, word32 helloSz,
                               byte type, byte* sni, word32* inOutSz)
@@ -745,6 +750,7 @@ int wolfSSL_SNI_GetFromBuffer(const byte* clientHello, word32 helloSz,
 
 #ifdef HAVE_MAX_FRAGMENT
 #ifndef NO_WOLFSSL_CLIENT
+
 int wolfSSL_UseMaxFragment(WOLFSSL* ssl, byte mfl)
 {
     if (ssl == NULL)
@@ -753,6 +759,7 @@ int wolfSSL_UseMaxFragment(WOLFSSL* ssl, byte mfl)
     return TLSX_UseMaxFragment(&ssl->extensions, mfl);
 }
 
+
 int wolfSSL_CTX_UseMaxFragment(WOLFSSL_CTX* ctx, byte mfl)
 {
     if (ctx == NULL)
@@ -760,11 +767,13 @@ int wolfSSL_CTX_UseMaxFragment(WOLFSSL_CTX* ctx, byte mfl)
 
     return TLSX_UseMaxFragment(&ctx->extensions, mfl);
 }
+
 #endif /* NO_WOLFSSL_CLIENT */
 #endif /* HAVE_MAX_FRAGMENT */
 
 #ifdef HAVE_TRUNCATED_HMAC
 #ifndef NO_WOLFSSL_CLIENT
+
 int wolfSSL_UseTruncatedHMAC(WOLFSSL* ssl)
 {
     if (ssl == NULL)
@@ -773,6 +782,7 @@ int wolfSSL_UseTruncatedHMAC(WOLFSSL* ssl)
     return TLSX_UseTruncatedHMAC(&ssl->extensions);
 }
 
+
 int wolfSSL_CTX_UseTruncatedHMAC(WOLFSSL_CTX* ctx)
 {
     if (ctx == NULL)
@@ -780,6 +790,7 @@ int wolfSSL_CTX_UseTruncatedHMAC(WOLFSSL_CTX* ctx)
 
     return TLSX_UseTruncatedHMAC(&ctx->extensions);
 }
+
 #endif /* NO_WOLFSSL_CLIENT */
 #endif /* HAVE_TRUNCATED_HMAC */
 
@@ -807,6 +818,7 @@ int wolfSSL_UseSupportedCurve(WOLFSSL* ssl, word16 name)
 
     return TLSX_UseSupportedCurve(&ssl->extensions, name);
 }
+
 
 int wolfSSL_CTX_UseSupportedCurve(WOLFSSL_CTX* ctx, word16 name)
 {
@@ -885,7 +897,7 @@ int wolfSSL_UseSupportedQSH(WOLFSSL* ssl, word16 name)
 #endif /* HAVE_QSH */
 
 
-/* Application-Layer Procotol Name */
+/* Application-Layer Procotol Negotiation */
 #ifdef HAVE_ALPN
 
 int wolfSSL_UseALPN(WOLFSSL* ssl, char *protocol_name_list,
@@ -988,7 +1000,7 @@ int wolfSSL_UseSecureRenegotiation(WOLFSSL* ssl)
         ret = TLSX_UseSecureRenegotiation(&ssl->extensions);
 
     if (ret == SSL_SUCCESS) {
-        TLSX* extension = TLSX_Find(ssl->extensions, SECURE_RENEGOTIATION);
+        TLSX* extension = TLSX_Find(ssl->extensions, TLSX_RENEGOTIATION_INFO);
 
         if (extension)
             ssl->secure_renegotiation = (SecureRenegotiation*)extension->data;
@@ -2475,7 +2487,7 @@ static int wolfssl_encrypt_buffer_key(byte* der, word32 derSz, byte* password,
 #ifdef WOLFSSL_SMALL_STACK
     XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
-    
+
     if (ret == MP_OKAY)
         return SSL_SUCCESS;
     else if (ret == SSL_BAD_FILE)
@@ -11849,7 +11861,7 @@ char *wolfSSL_BN_bn2dec(const WOLFSSL_BIGNUM *bn)
         XFREE(buf, NULL, DYNAMIC_TYPE_ECC);
         return NULL;
     }
-    
+
     return buf;
 }
 #else
@@ -14872,7 +14884,7 @@ int wolfSSL_EC_POINT_cmp(const WOLFSSL_EC_GROUP *group,
     int ret;
 
 	(void)ctx;
-    
+
     WOLFSSL_ENTER("wolfSSL_EC_POINT_cmp");
 
     if (group == NULL || a == NULL || a->internal == NULL || b == NULL ||
@@ -15342,7 +15354,7 @@ int wolfSSL_PEM_write_ECPrivateKey(FILE *fp, WOLFSSL_EC_KEY *ecc,
         WOLFSSL_MSG("ECC private key file write failed");
         return SSL_FAILURE;
     }
-    
+
     XFREE(pem, NULL, DYNAMIC_TYPE_OUT_BUFFER);
     return SSL_SUCCESS;
 }
@@ -15517,7 +15529,7 @@ int wolfSSL_PEM_write_DSAPrivateKey(FILE *fp, WOLFSSL_DSA *dsa,
         WOLFSSL_MSG("DSA private key file write failed");
         return SSL_FAILURE;
     }
-    
+
     XFREE(pem, NULL, DYNAMIC_TYPE_OUT_BUFFER);
     return SSL_SUCCESS;
 }
@@ -17091,4 +17103,3 @@ void* wolfSSL_get_jobject(WOLFSSL* ssl)
 #endif /* WOLFSSL_JNI */
 
 #endif /* WOLFCRYPT_ONLY */
-

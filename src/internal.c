@@ -4450,6 +4450,7 @@ static int DoCertificate(WOLFSSL* ssl, byte* input, word32* inOutIdx,
             (void)doCrlLookup;
 #ifdef HAVE_OCSP
             if (ssl->ctx->cm->ocspEnabled) {
+                WOLFSSL_MSG("Doing Leaf OCSP check");
                 ret = CheckCertOCSP(ssl->ctx->cm->ocsp, dCert);
                 doCrlLookup = (ret == OCSP_CERT_UNKNOWN);
                 if (ret != 0) {
@@ -10363,7 +10364,7 @@ static void PickHashSigAlgo(WOLFSSL* ssl,
                 ato16(input + *inOutIdx, &name);
                 *inOutIdx += OPAQUE16_LEN;
 
-                if (name == WOLFSSL_QSH) {
+                if (name == TLSX_QUANTUM_SAFE_HYBRID) {
                     /* if qshSz is larger than 0 it is the length of buffer
                        used */
                     if ((qshSz = TLSX_QSHCipher_Parse(ssl, input + *inOutIdx,
@@ -11068,7 +11069,7 @@ static void PickHashSigAlgo(WOLFSSL* ssl,
         ato16(input + *inOutIdx, &name);
         *inOutIdx += OPAQUE16_LEN;
 
-        if (name == WOLFSSL_QSH) {
+        if (name == TLSX_QUANTUM_SAFE_HYBRID) {
             /* if qshSz is larger than 0 it is the length of buffer used */
             if ((qshSz = TLSX_QSHCipher_Parse(ssl, input + *inOutIdx,
                                                                   size, 0)) < 0)
@@ -11904,7 +11905,7 @@ static word32 QSH_KeyExchangeWrite(WOLFSSL* ssl, byte isServer)
                     return MEMORY_E;
 
                 /* extension type */
-                c16toa(WOLFSSL_QSH, output + idx);
+                c16toa(TLSX_QUANTUM_SAFE_HYBRID, output + idx);
                 idx += OPAQUE16_LEN;
 
                 /* write to output and check amount written */
@@ -12664,7 +12665,7 @@ int DoSessionTicket(WOLFSSL* ssl,
                         return MEMORY_E;
 
                     /* extension type */
-                    c16toa(WOLFSSL_QSH, output + idx);
+                    c16toa(TLSX_QUANTUM_SAFE_HYBRID, output + idx);
                     idx += OPAQUE16_LEN;
 
                     /* write to output and check amount written */
@@ -12813,7 +12814,7 @@ int DoSessionTicket(WOLFSSL* ssl,
                     QSH_KeyExchangeWrite(ssl, 1);
 
                     /* extension type */
-                    c16toa(WOLFSSL_QSH, output + idx);
+                    c16toa(TLSX_QUANTUM_SAFE_HYBRID, output + idx);
                     idx += OPAQUE16_LEN;
 
                     /* write to output and check amount written */
@@ -13454,7 +13455,7 @@ int DoSessionTicket(WOLFSSL* ssl,
                     QSH_KeyExchangeWrite(ssl, 1);
 
                     /* extension type */
-                    c16toa(WOLFSSL_QSH, output + idx);
+                    c16toa(TLSX_QUANTUM_SAFE_HYBRID, output + idx);
                     idx += OPAQUE16_LEN;
 
                     /* write to output and check amount written */
@@ -13996,7 +13997,7 @@ int DoSessionTicket(WOLFSSL* ssl,
                     QSH_KeyExchangeWrite(ssl, 1);
 
                     /* extension type */
-                    c16toa(WOLFSSL_QSH, output + idx);
+                    c16toa(TLSX_QUANTUM_SAFE_HYBRID, output + idx);
                     idx += OPAQUE16_LEN;
 
                     /* write to output and check amount written */
@@ -15374,7 +15375,7 @@ int DoSessionTicket(WOLFSSL* ssl,
                                 ato16(input + *inOutIdx, &name);
                                 *inOutIdx += OPAQUE16_LEN;
 
-                                if (name == WOLFSSL_QSH) {
+                                if (name == TLSX_QUANTUM_SAFE_HYBRID) {
                                     /* if qshSz is larger than 0 it is the
                                        length of buffer used */
                                     if ((qshSz = TLSX_QSHCipher_Parse(ssl, input
@@ -15452,7 +15453,7 @@ int DoSessionTicket(WOLFSSL* ssl,
                     ato16(input + *inOutIdx, &name);
                     *inOutIdx += OPAQUE16_LEN;
 
-                    if (name == WOLFSSL_QSH) {
+                    if (name == TLSX_QUANTUM_SAFE_HYBRID) {
                         /* if qshSz is larger than 0 it is the length of
                            buffer used */
                         if ((qshSz = TLSX_QSHCipher_Parse(ssl, input + *inOutIdx,
@@ -15514,7 +15515,7 @@ int DoSessionTicket(WOLFSSL* ssl,
                     ato16(input + *inOutIdx, &name);
                     *inOutIdx += OPAQUE16_LEN;
 
-                    if (name == WOLFSSL_QSH) {
+                    if (name == TLSX_QUANTUM_SAFE_HYBRID) {
                         /* if qshSz is larger than 0 it is the length of
                            buffer used */
                         if ((qshSz = TLSX_QSHCipher_Parse(ssl, input + *inOutIdx,
@@ -15602,7 +15603,7 @@ int DoSessionTicket(WOLFSSL* ssl,
                     ato16(input + *inOutIdx, &name);
                     *inOutIdx += OPAQUE16_LEN;
 
-                    if (name == WOLFSSL_QSH) {
+                    if (name == TLSX_QUANTUM_SAFE_HYBRID) {
                         /* if qshSz is larger than 0 it is the length of
                            buffer used */
                         if ((qshSz = TLSX_QSHCipher_Parse(ssl, input + *inOutIdx,
@@ -15657,7 +15658,7 @@ int DoSessionTicket(WOLFSSL* ssl,
                     ato16(input + *inOutIdx, &name);
                     *inOutIdx += OPAQUE16_LEN;
 
-                    if (name == WOLFSSL_QSH) {
+                    if (name == TLSX_QUANTUM_SAFE_HYBRID) {
                         /* if qshSz is larger than 0 it is the length of
                            buffer used */
                         if ((qshSz = TLSX_QSHCipher_Parse(ssl, input + *inOutIdx,
@@ -15752,7 +15753,7 @@ int DoSessionTicket(WOLFSSL* ssl,
                     ato16(input + *inOutIdx, &name);
                     *inOutIdx += OPAQUE16_LEN;
 
-                    if (name == WOLFSSL_QSH) {
+                    if (name == TLSX_QUANTUM_SAFE_HYBRID) {
                         /* if qshSz is larger than 0 it is the length of
                            buffer used */
                         if ((qshSz = TLSX_QSHCipher_Parse(ssl, input + *inOutIdx,

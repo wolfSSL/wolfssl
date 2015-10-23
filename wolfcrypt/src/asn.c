@@ -8602,8 +8602,13 @@ static int DecodeResponseData(byte* source,
     if (DecodeSingleResponse(source, &idx, resp, size) < 0)
         return ASN_PARSE_E;
 
-    if (DecodeOcspRespExtensions(source, &idx, resp, size) < 0)
-        return ASN_PARSE_E;
+    /*
+     * Check the length of the ResponseData against the current index to
+     * see if there are extensions, they are optional.
+     */
+    if (idx - prev_idx < resp->responseSz)
+        if (DecodeOcspRespExtensions(source, &idx, resp, size) < 0)
+            return ASN_PARSE_E;
 
     *ioIndex = idx;
     return 0;

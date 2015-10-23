@@ -310,7 +310,7 @@ static void Usage(void)
 #endif
     printf("-b <num>    Benchmark <num> connections and print stats\n");
 #ifdef HAVE_ALPN
-    printf("-L <str>    Application-Layer Protocole Name ({C,F}:<list>)\n");
+    printf("-L <str>    Application-Layer Protocol Negotiation ({C,F}:<list>)\n");
 #endif
     printf("-B <num>    Benchmark throughput using <num> bytes and print stats\n");
     printf("-s          Use pre Shared keys\n");
