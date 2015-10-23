@@ -2298,7 +2298,6 @@ int AddCA(WOLFSSL_CERT_MANAGER* cm, buffer der, int type, int verify)
 
 #endif /* NO_SESSION_CACHE */
 
-
 int wolfSSL_Init(void)
 {
     int ret = SSL_SUCCESS;
@@ -2318,6 +2317,11 @@ int wolfSSL_Init(void)
             WOLFSSL_MSG("Bad Lock Mutex count");
             return BAD_MUTEX_E;
         }
+
+        /* Initialize crypto for use with TLS connection */
+        if (wolfcrypt_Init() != 0)
+            ret = WC_FAILURE_E;
+
         initRefCount++;
         UnLockMutex(&count_mutex);
     }

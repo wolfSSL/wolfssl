@@ -77,7 +77,6 @@ enum {
 };
 
 
-static int ippSet = 0;
 int wc_InitRsaKey(RsaKey* key, void* heap)
 {
 
@@ -86,15 +85,6 @@ int wc_InitRsaKey(RsaKey* key, void* heap)
     if (key == NULL)
         return USER_CRYPTO_ERROR;
 
-    if (!ippSet) {
-        USER_DEBUG(("Setting up IPP Library\n"));
-        /* Selects the right optimizations to use */
-        if (ippInit() != ippStsNoErr) {
-            USER_DEBUG(("Error setting up optimized library to use!\n"));
-            return USER_CRYPTO_ERROR;
-        }
-        ippSet = 1;
-    }
     /* set full struct as 0 */
     ForceZero(key, sizeof(RsaKey));
 
@@ -579,39 +569,61 @@ int wc_FreeRsaKey(RsaKey* key)
     if (key == NULL)
         return 0;
 
-    if (key->pPub != NULL)
+    USER_DEBUG(("Entering wc_FreeRsaKey\n"));
+
+    if (key->pPub != NULL) {
         XFREE(key->pPub, NULL, DYNAMIC_TYPE_KEY);
+        key->pPub = NULL;
+    }
 
     if (key->pPrv != NULL) {
         /* write over senstive information */
         ForceZero(key->pPrv, key->prvSz);
         XFREE(key->pPrv, NULL, DYNAMIC_TYPE_KEY);
+        key->pPrv = NULL;
     }
 
-    if (key->n != NULL)
+    if (key->n != NULL) {
         XFREE(key->n, NULL, DYNAMIC_TYPE_ARRAYS);
+        key->n = NULL;
+    }
 
-    if (key->e != NULL)
+    if (key->e != NULL) {
         XFREE(key->e, NULL, DYNAMIC_TYPE_ARRAYS);
+        key->e = NULL;
+    }
 
-    if (key->dipp != NULL)
+    if (key->dipp != NULL) {
         XFREE(key->dipp, NULL, DYNAMIC_TYPE_ARRAYS);
+        key->dipp = NULL;
+    }
 
-    if (key->pipp != NULL)
+    if (key->pipp != NULL) {
         XFREE(key->pipp, NULL, DYNAMIC_TYPE_ARRAYS);
+        key->pipp = NULL;
+    }
 
-    if (key->qipp != NULL)
+    if (key->qipp != NULL) {
         XFREE(key->qipp, NULL, DYNAMIC_TYPE_ARRAYS);
+        key->qipp = NULL;
+    }
 
-    if (key->dPipp != NULL)
+    if (key->dPipp != NULL) {
         XFREE(key->dPipp, NULL, DYNAMIC_TYPE_ARRAYS);
+        key->dPipp = NULL;
+    }
 
-    if (key->dQipp != NULL)
+    if (key->dQipp != NULL) {
         XFREE(key->dQipp, NULL, DYNAMIC_TYPE_ARRAYS);
+        key->dQipp = NULL;
+    }
 
-    if (key->uipp != NULL)
+    if (key->uipp != NULL) {
         XFREE(key->uipp, NULL, DYNAMIC_TYPE_ARRAYS);
+        key->uipp = NULL;
+    }
 
+    USER_DEBUG(("\tExit wc_FreeRsaKey\n"));
     (void)key;
 
     return 0;
@@ -1151,12 +1163,26 @@ int wc_RsaPrivateDecrypt(const byte* in, word32 inLen, byte* out, word32 outLen,
 int wc_RsaPrivateDecryptInline(byte* in, word32 inLen, byte** out, RsaKey* key)
 {
     int outSz;
+    byte* tmp;
 
     USER_DEBUG(("Entering wc_RsaPrivateDecryptInline\n"));
 
-    outSz = wc_RsaPrivateDecrypt(in, inLen, in, inLen, key);
-    *out = in;
+    /* allocate a buffer for max decrypted text */
+    tmp = XMALLOC(key->sz, NULL, DYNAMIC_TYPE_ARRAYS);
+    if (tmp == NULL)
+        return USER_CRYPTO_ERROR;
 
+    outSz = wc_RsaPrivateDecrypt(in, inLen, tmp, key->sz, key);
+    if (outSz >= 0) {
+        XMEMCPY(in, tmp, outSz);
+        *out = in;
+    }
+    else {
+        XFREE(tmp, NULL, DYNAMIC_TYPE_ARRAYS);
+        return USER_CRYPTO_ERROR;
+    }
+
+    XFREE(tmp, NULL, DYNAMIC_TYPE_ARRAYS);
     USER_DEBUG(("\tExit wc_RsaPrivateDecryptInline\n"));
 
     return outSz;
