@@ -3078,7 +3078,9 @@ doPart:
                     TraceGotData(ret);
                     if (ret) {  /* may be blank message */
                         byte* tmpData;  /* don't leak on realloc free */
-                        tmpData = (byte*)realloc(*data, decoded + ret);
+                        /* add an extra byte at end of allocation in case user
+                         * wants to null terminate plaintext */
+                        tmpData = (byte*)realloc(*data, decoded + ret + 1);
                         if (tmpData == NULL) {
                             free(*data);
                             *data = NULL;
