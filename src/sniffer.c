@@ -3077,12 +3077,16 @@ doPart:
                     ret = ssl->buffers.clearOutputBuffer.length;
                     TraceGotData(ret);
                     if (ret) {  /* may be blank message */
-                        *data = realloc(*data, decoded + ret);
-                        if (*data == NULL) {
+                        byte* tmpData;  /* don't leak on realloc free */
+                        tmpData = (byte*)realloc(*data, decoded + ret);
+                        if (tmpData == NULL) {
+                            free(*data);
+                            *data = NULL;
                             SetError(MEMORY_STR, error, session,
                                      FATAL_ERROR_STATE);
                             return -1;
                         }
+                        *data = tmpData;
                         XMEMCPY(*data + decoded,
                                 ssl->buffers.clearOutputBuffer.buffer, ret);
                         TraceAddedData(ret, decoded);
