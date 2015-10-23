@@ -946,12 +946,6 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
         if (wolfSSL_CTX_UseTruncatedHMAC(ctx) != SSL_SUCCESS)
             err_sys("UseTruncatedHMAC failed");
 #endif
-#ifdef HAVE_CERTIFICATE_STATUS_REQUEST
-    if (statusRequest)
-        if (wolfSSL_CTX_UseCertificateStatusRequest(ctx, WOLFSSL_CSR_OCSP)
-                                                                 != SSL_SUCCESS)
-            err_sys("UseCertificateStatusRequest failed");
-#endif
 #ifdef HAVE_SESSION_TICKET
     if (wolfSSL_CTX_UseSessionTicket(ctx) != SSL_SUCCESS)
         err_sys("UseSessionTicket failed");
@@ -987,6 +981,12 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
        printf("ALPN accepted protocols list : %s\n", alpnList);
        wolfSSL_UseALPN(ssl, alpnList, (word32)XSTRLEN(alpnList), alpn_opt);
     }
+#endif
+#ifdef HAVE_CERTIFICATE_STATUS_REQUEST
+    if (statusRequest)
+        if (wolfSSL_UseCertificateStatusRequest(ssl, WOLFSSL_CSR_OCSP)
+                                                                 != SSL_SUCCESS)
+            err_sys("UseCertificateStatusRequest failed");
 #endif
 
     tcp_connect(&sockfd, host, port, doDTLS, ssl);

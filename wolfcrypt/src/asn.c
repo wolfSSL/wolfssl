@@ -8848,7 +8848,7 @@ int EncodeOcspRequest(OcspRequest* req)
     byte issuerKeyArray[MAX_ENCODED_DIG_SZ];
     byte snArray[MAX_SN_SZ];
     byte extArray[MAX_OCSP_EXT_SZ];
-    byte* output = req->dest;
+    byte* output = req->request;
     word32 seqSz[5], algoSz, issuerSz, issuerKeySz, snSz, extSz, totalSz;
     int i;
 
@@ -8915,21 +8915,41 @@ int EncodeOcspRequest(OcspRequest* req)
 }
 
 
-void InitOcspRequest(OcspRequest* req, DecodedCert* cert, byte useNonce,
+int InitOcspRequest(OcspRequest* req, DecodedCert* cert, byte useNonce,
                                                     byte* dest, word32 destSz)
 {
     WOLFSSL_ENTER("InitOcspRequest");
 
+    if (req == NULL)
+        return BAD_FUNC_ARG;
+
     ForceZero(req, sizeof(OcspRequest));
 
-    req->cert          = cert;
-    req->useNonce      = useNonce;
-    req->issuerHash    = cert->issuerHash;
-    req->issuerKeyHash = cert->issuerKeyHash;
-    req->serial        = cert->serial;
-    req->serialSz      = cert->serialSz;
-    req->dest          = dest;
-    req->destSz        = destSz;
+    if (cert) {
+        XMEMCPY(req->issuerHash,    cert->issuerHash,    KEYID_SIZE);
+        XMEMCPY(req->issuerKeyHash, cert->issuerKeyHash, KEYID_SIZE);
+
+        req->serial = (byte*)XMALLOC(cert->serialSz, NULL, DYNAMIC_TYPE_OCSP);
+        if (req->serial == NULL)
+            return MEMORY_E;
+
+        XMEMCPY(req->serial, cert->serial, cert->serialSz);
+        req->serialSz = cert->serialSz;
+    }
+
+    req->useNonce  = useNonce;
+    req->request   = dest;
+    req->requestSz = destSz;
+
+    return 0;
+}
+
+void FreeOcspRequest(OcspRequest* req)
+{
+    WOLFSSL_ENTER("FreeOcspRequest");
+
+    if (req && req->serial)
+        XFREE(req->serial, NULL, DYNAMIC_TYPE_OCSP);
 }
 
 

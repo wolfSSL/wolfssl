@@ -4447,12 +4447,28 @@ static int DoCertificate(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 
 #if defined(HAVE_OCSP) || defined(HAVE_CRL)
         if (fatal == 0) {
-            int doCrlLookup = 1;
+            int doLookup = 1;
+
+#ifdef HAVE_CERTIFICATE_STATUS_REQUEST
+            if (ssl->options.side == WOLFSSL_CLIENT_END) {
+                switch (ssl->status_request) {
+                    case WOLFSSL_CSR_OCSP: {
+                        OcspRequest* request =
+                                           TLSX_CSR_GetRequest(ssl->extensions);
+
+                        fatal = InitOcspRequest(request, dCert, 0, NULL, 0);
+                        doLookup = 0;
+                    }
+                    break;
+                }
+            }
+#endif
+
 #ifdef HAVE_OCSP
-            if (ssl->ctx->cm->ocspEnabled) {
+            if (doLookup && ssl->ctx->cm->ocspEnabled) {
                 WOLFSSL_MSG("Doing Leaf OCSP check");
                 ret = CheckCertOCSP(ssl->ctx->cm->ocsp, dCert);
-                doCrlLookup = (ret == OCSP_CERT_UNKNOWN);
+                doLookup = (ret == OCSP_CERT_UNKNOWN);
                 if (ret != 0) {
                     WOLFSSL_MSG("\tOCSP Lookup not ok");
                     fatal = 0;
@@ -4461,7 +4477,7 @@ static int DoCertificate(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 #endif /* HAVE_OCSP */
 
 #ifdef HAVE_CRL
-            if (doCrlLookup && ssl->ctx->cm->crlEnabled) {
+            if (doLookup && ssl->ctx->cm->crlEnabled) {
                 WOLFSSL_MSG("Doing Leaf CRL check");
                 ret = CheckCertCRL(ssl->ctx->cm->crl, dCert);
                 if (ret != 0) {
@@ -4469,14 +4485,13 @@ static int DoCertificate(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                     fatal = 0;
                 }
             }
-#else
-            (void)doCrlLookup;
 #endif /* HAVE_CRL */
+            (void)doLookup;
         }
 #endif /* HAVE_OCSP || HAVE_CRL */
 
 #ifdef KEEP_PEER_CERT
-        {
+        if (fatal == 0) {
         /* set X509 format for peer cert even if fatal */
         int copyRet = CopyDecodedToX509(&ssl->peerCert, dCert);
         if (copyRet == MEMORY_E)
@@ -4801,6 +4816,7 @@ static int DoCertificateStatus(WOLFSSL* ssl, byte* input, word32* inOutIdx,
     #if defined(HAVE_CERTIFICATE_STATUS_REQUEST)
 
         case WOLFSSL_CSR_OCSP: {
+            OcspRequest* request = TLSX_CSR_GetRequest(ssl->extensions);
 
         #ifdef WOLFSSL_SMALL_STACK
             CertStatus* status;
@@ -4814,12 +4830,6 @@ static int DoCertificateStatus(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                 #ifdef HAVE_CERTIFICATE_STATUS_REQUEST
                     if (ssl->status_request) {
                         ssl->status_request = 0;
-                        break;
-                    }
-                #endif
-                #ifdef HAVE_CERTIFICATE_STATUS_REQUEST_V2
-                    if (ssl->status_request_v2) {
-                        ssl->status_request_v2 = 0;
                         break;
                     }
                 #endif
@@ -4844,12 +4854,11 @@ static int DoCertificateStatus(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 
             if ((ret = OcspResponseDecode(response)) == 0) {
                 if (response->responseStatus != OCSP_SUCCESSFUL)
-                    ret = FATAL_ERROR;
-                /* TODO CSR */
-                /*else if (CompareOcspReqResp(request, response) != 0)
-                    ret = FATAL_ERROR; */
+                    ret = BAD_CERTIFICATE_STATUS_ERROR;
+                else if (CompareOcspReqResp(request, response) != 0)
+                    ret = BAD_CERTIFICATE_STATUS_ERROR;
                 else if (response->status->status != CERT_GOOD)
-                    ret = FATAL_ERROR;
+                    ret = BAD_CERTIFICATE_STATUS_ERROR;
             }
 
             *inOutIdx += status_length;
@@ -8729,6 +8738,9 @@ const char* wolfSSL_ERR_reason_error_string(unsigned long e)
 
     case UNKNOWN_ALPN_PROTOCOL_NAME_E:
         return "Unrecognized protocol name Error";
+
+    case BAD_CERTIFICATE_STATUS_ERROR:
+        return "Bad Certificate Status Message Error";
 
     case HANDSHAKE_SIZE_ERROR:
         return "Handshake message too large Error";

@@ -227,13 +227,15 @@ int CheckCertOCSP(WOLFSSL_OCSP* ocsp, DecodedCert* cert)
     }
 #endif
 
-    InitOcspRequest(ocspRequest, cert, ocsp->cm->ocspSendNonce,
+    result = InitOcspRequest(ocspRequest, cert, ocsp->cm->ocspSendNonce,
                                                          ocspReqBuf, ocspReqSz);
-    ocspReqSz = EncodeOcspRequest(ocspRequest);
-    
-    if (ocsp->cm->ocspIOCb)
-        result = ocsp->cm->ocspIOCb(ocsp->cm->ocspIOCtx, url, urlSz,
+    if (result == 0) {
+        ocspReqSz = EncodeOcspRequest(ocspRequest);
+
+        if (ocsp->cm->ocspIOCb)
+            result = ocsp->cm->ocspIOCb(ocsp->cm->ocspIOCtx, url, urlSz,
                                            ocspReqBuf, ocspReqSz, &ocspRespBuf);
+    }
 
     if (result >= 0 && ocspRespBuf) {
         XMEMSET(newStatus, 0, sizeof(CertStatus));
@@ -275,6 +277,7 @@ int CheckCertOCSP(WOLFSSL_OCSP* ocsp, DecodedCert* cert)
     else
         result = OCSP_LOOKUP_FAIL;
 
+    FreeOcspRequest(ocspRequest);
     XFREE(ocspReqBuf, NULL, DYNAMIC_TYPE_IN_BUFFER);
 
 #ifdef WOLFSSL_SMALL_STACK

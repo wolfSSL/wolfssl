@@ -1900,7 +1900,7 @@ static void TLSX_CSR_Free(CertificateStatusRequest* csr)
 {
     switch (csr->status_type) {
         case WOLFSSL_CSR_OCSP:
-        /* nothing to release for now... */
+            FreeOcspRequest(&csr->data.ocspRequest);
         break;
     }
 
@@ -1963,12 +1963,36 @@ static int TLSX_CSR_Parse(WOLFSSL* ssl, byte* input, word16 length,
     (void) ssl; (void) input;
 
     if (!isRequest) {
-        ssl->status_request = 1;
+#ifndef NO_WOLFSSL_CLIENT
+        TLSX* extension = TLSX_Find(ssl->extensions, TLSX_STATUS_REQUEST);
+        CertificateStatusRequest* csr = extension ? extension->data : NULL;
+
+        if (csr == NULL)
+            return BUFFER_ERROR; /* unexpected extension */
+
+        ssl->status_request = csr->status_type;
 
         return length ? BUFFER_ERROR : 0; /* extension_data MUST be empty. */
+#endif
     }
 
     return 0;
+}
+
+void* TLSX_CSR_GetRequest(TLSX* extensions)
+{
+    TLSX* extension = TLSX_Find(extensions, TLSX_STATUS_REQUEST);
+    CertificateStatusRequest* csr = extension ? extension->data : NULL;
+
+    if (csr) {
+        switch (csr->status_type) {
+            case WOLFSSL_CSR_OCSP:
+                return &csr->data.ocspRequest;
+            break;
+        }
+    }
+
+    return NULL;
 }
 
 int TLSX_UseCertificateStatusRequest(TLSX** extensions, byte status_type)
@@ -1988,7 +2012,7 @@ int TLSX_UseCertificateStatusRequest(TLSX** extensions, byte status_type)
 
     switch (status_type) {
         case WOLFSSL_CSR_OCSP:
-            /* nothing to handle for now... */
+            ForceZero(&csr->data.ocspRequest, sizeof(OcspRequest));
             break;
 
         default:
