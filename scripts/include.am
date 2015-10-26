@@ -21,9 +21,11 @@ endif
 if !BUILD_IPV6
 dist_noinst_SCRIPTS+= scripts/external.test
 dist_noinst_SCRIPTS+= scripts/google.test
-dist_noinst_SCRIPTS+= scripts/openssl.test
+#dist_noinst_SCRIPTS+= scripts/openssl.test
 endif
 endif
 
 
 EXTRA_DIST +=  scripts/testsuite.pcap
+# leave openssl.test as extra until non bash works
+EXTRA_DIST +=  scripts/openssl.test

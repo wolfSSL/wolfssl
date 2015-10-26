@@ -5,6 +5,6 @@ includedir=${prefix}/include
 
 Name: wolfssl
 Description: wolfssl C library.
-Version: 3.6.9
+Version: 3.6.9d
 Libs: -L${libdir} -lwolfssl
 Cflags: -I${includedir}

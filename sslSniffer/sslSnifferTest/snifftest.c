@@ -296,7 +296,7 @@ int main(int argc, char** argv)
         packetNumber++;
         if (packet) {
 
-            byte data[65535+16384];  /* may have a partial 16k record cached */
+            byte* data = NULL;
 
             if (header.caplen > 40)  { /* min ip(20) + min tcp(20) */
 				packet        += frame;
@@ -305,7 +305,7 @@ int main(int argc, char** argv)
             else
                 continue;
 
-            ret = ssl_DecodePacket(packet, header.caplen, data, err);
+            ret = ssl_DecodePacket(packet, header.caplen, &data, err);
             if (ret < 0) {
                 printf("ssl_Decode ret = %d, %s\n", ret, err);
                 hadBadPacket = 1;
@@ -313,6 +313,8 @@ int main(int argc, char** argv)
             if (ret > 0) {
                 data[ret] = 0;
 				printf("SSL App Data(%d:%d):%s\n", packetNumber, ret, data);
+                free(data);
+                data = NULL;
             }
         }
         else if (saveFile)
