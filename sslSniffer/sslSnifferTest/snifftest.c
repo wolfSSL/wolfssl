@@ -313,8 +313,7 @@ int main(int argc, char** argv)
             if (ret > 0) {
                 data[ret] = 0;
 				printf("SSL App Data(%d:%d):%s\n", packetNumber, ret, data);
-                free(data);
-                data = NULL;
+                ssl_FreeDecodeBuffer(&data, err);
             }
         }
         else if (saveFile)

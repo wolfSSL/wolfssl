@@ -3229,6 +3229,21 @@ int ssl_DecodePacket(const byte* packet, int length, byte** data, char* error)
 }
 
 
+/* Deallocator for the decoded data buffer. */
+/* returns 0 on success, -1 on error */
+int ssl_FreeDecodeBuffer(byte** data, char* error)
+{
+    (void)error;
+
+    if (data != NULL) {
+        free(*data);
+        *data = NULL;
+    }
+
+    return 0;
+}
+
+
 /* Enables (if traceFile)/ Disables debug tracing */
 /* returns 0 on success, -1 on error */
 int ssl_Trace(const char* traceFile, char* error)
