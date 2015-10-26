@@ -8645,12 +8645,13 @@ static int DecodeCerts(byte* source,
     return 0;
 }
 
-static int DecodeBasicOcspResponse(byte* source,
-                            word32* ioIndex, OcspResponse* resp, word32 size)
+static int DecodeBasicOcspResponse(byte* source, word32* ioIndex,
+                                      OcspResponse* resp, word32 size, void* cm)
 {
     int length;
     word32 idx = *ioIndex;
     word32 end_index;
+    int ret;
 
     WOLFSSL_ENTER("DecodeBasicOcspResponse");
 
@@ -8686,13 +8687,12 @@ static int DecodeBasicOcspResponse(byte* source,
     if (idx < end_index)
     {
         DecodedCert cert;
-        int ret;
 
         if (DecodeCerts(source, &idx, resp, size) < 0)
             return ASN_PARSE_E;
 
         InitDecodedCert(&cert, resp->cert, resp->certSz, 0);
-        ret = ParseCertRelative(&cert, CA_TYPE, NO_VERIFY, 0);
+        ret = ParseCertRelative(&cert, CERT_TYPE, VERIFY, cm);
         if (ret < 0)
             return ret;
 
@@ -8702,6 +8702,20 @@ static int DecodeBasicOcspResponse(byte* source,
         FreeDecodedCert(&cert);
 
         if (ret == 0)
+        {
+            WOLFSSL_MSG("\tOCSP Confirm signature failed");
+            return ASN_OCSP_CONFIRM_E;
+        }
+    }
+    else {
+        Signer* ca = GetCA(cm, resp->issuerHash);
+
+        if (ca)
+            ret = ConfirmSignature(resp->response, resp->responseSz,
+                                   ca->publicKey, ca->pubKeySize, ca->keyOID,
+                                   resp->sig, resp->sigSz, resp->sigOID, NULL);
+
+        if (!ca || ret == 0)
         {
             WOLFSSL_MSG("\tOCSP Confirm signature failed");
             return ASN_OCSP_CONFIRM_E;
@@ -8735,7 +8749,7 @@ void InitOcspResponse(OcspResponse* resp, CertStatus* status,
 }
 
 
-int OcspResponseDecode(OcspResponse* resp)
+int OcspResponseDecode(OcspResponse* resp, void* cm)
 {
     int length = 0;
     word32 idx = 0;
@@ -8779,7 +8793,7 @@ int OcspResponseDecode(OcspResponse* resp)
     if (GetLength(source, &idx, &length, size) < 0)
         return ASN_PARSE_E;
 
-    if (DecodeBasicOcspResponse(source, &idx, resp, size) < 0)
+    if (DecodeBasicOcspResponse(source, &idx, resp, size, cm) < 0)
         return ASN_PARSE_E;
 
     return 0;

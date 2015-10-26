@@ -720,7 +720,7 @@ struct OcspRequest {
 
 
 WOLFSSL_LOCAL void InitOcspResponse(OcspResponse*, CertStatus*, byte*, word32);
-WOLFSSL_LOCAL int  OcspResponseDecode(OcspResponse*);
+WOLFSSL_LOCAL int  OcspResponseDecode(OcspResponse*, void*);
 
 WOLFSSL_LOCAL int    InitOcspRequest(OcspRequest*, DecodedCert*, byte);
 WOLFSSL_LOCAL void   FreeOcspRequest(OcspRequest*);

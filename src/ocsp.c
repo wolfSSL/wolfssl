@@ -294,7 +294,7 @@ int CheckOcspRequest(WOLFSSL_OCSP* ocsp, OcspRequest* ocspRequest)
         XMEMSET(newStatus, 0, sizeof(CertStatus));
 
         InitOcspResponse(ocspResponse, newStatus, response, ret);
-        OcspResponseDecode(ocspResponse);
+        OcspResponseDecode(ocspResponse, ocsp->cm);
 
         if (ocspResponse->responseStatus != OCSP_SUCCESSFUL)
             ret = OCSP_LOOKUP_FAIL;
