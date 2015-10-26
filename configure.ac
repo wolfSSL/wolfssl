@@ -2300,6 +2300,9 @@ if test "$enable_shared" = "no" && test "$ENABLED_FAST_RSA" = "yes"; then
     AC_CHECK_FILES([$srcdir/IPP/$ipplib/libippcore.a $srcdir/IPP/$ipplib/libippcp.a], [], [ENABLED_FAST_RSA=no])
     AC_CHECK_FILES([$srcdir/IPP/include/ipp.h $srcdir/IPP/include/ippcp.h], [AM_CPPFLAGS="-I$srcdir/IPP/include $AM_CPPFLAGS"], [ENABLED_FAST_RSA=no])
     LIB_STATIC_ADD="$srcdir/IPP/$ipplib/libippcp.a $srcdir/IPP/$ipplib/libippcore.a"
+    if test "$ENABLED_FAST_RSA" = "no"; then
+        AC_MSG_ERROR([Could not find fast rsa libraries])
+    fi
 else
 # just check link and see if user has already exported paths
 if test "$ENABLED_FAST_RSA" = "yes"
@@ -2361,11 +2364,18 @@ if test "$ENABLED_FAST_RSA" = "yes"; then
     LDFLAGS=${STORE_LDFLAGS}
     CPPFLAGS=${STORE_CPPFLAGS}
     IPPHEADERS="${srcdir}/IPP/include/*.h"
+
+    # Error out on not finding libraries
+    if test "$ENABLED_FAST_RSA" = "no"; then
+        AC_MSG_ERROR([Could not find fast rsa libraries])
+    fi
 fi
 fi # end of if found exported paths
 fi # end of if for shared library
 else # if user rsa is set than do not use fast rsa option
-    ENABLED_FAST_RSA=no
+    if test "$ENABLED_FAST_RSA" = "yes"; then
+        AC_MSG_ERROR([Could not use fast rsa libraries with user crypto or fips])
+    fi
 fi # end of if for user rsa crypto
 
 AC_MSG_CHECKING([for fast RSA])
