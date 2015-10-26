@@ -709,25 +709,22 @@ struct OcspResponse {
 struct OcspRequest {
     byte   issuerHash[KEYID_SIZE];
     byte   issuerKeyHash[KEYID_SIZE];
-    byte*  serial;     /* copy of the serial number in source cert; OWNED */
+    byte*  serial;   /* copy of the serial number in source cert */
     int    serialSz;
+    byte*  url;      /* copy of the extAuthInfo in source cert */
+    int    urlSz;
 
-    byte    nonce[MAX_OCSP_NONCE_SZ];
-    int     nonceSz;
-    byte    useNonce;
-
-    byte*   request;   /* pointer to the destination ASN.1 buffer; NOT OWNED */
-    word32  requestSz; /* length of the destination buffer */
+    byte   nonce[MAX_OCSP_NONCE_SZ];
+    int    nonceSz;
 };
 
 
 WOLFSSL_LOCAL void InitOcspResponse(OcspResponse*, CertStatus*, byte*, word32);
 WOLFSSL_LOCAL int  OcspResponseDecode(OcspResponse*);
 
-WOLFSSL_LOCAL int  InitOcspRequest(OcspRequest*, DecodedCert*,
-                                                          byte, byte*, word32);
+WOLFSSL_LOCAL int  InitOcspRequest(OcspRequest*, DecodedCert*, byte);
 WOLFSSL_LOCAL void FreeOcspRequest(OcspRequest*);
-WOLFSSL_LOCAL int  EncodeOcspRequest(OcspRequest*);
+WOLFSSL_LOCAL int  EncodeOcspRequest(OcspRequest*, byte*, word32);
 
 WOLFSSL_LOCAL int  CompareOcspReqResp(OcspRequest*, OcspResponse*);
 

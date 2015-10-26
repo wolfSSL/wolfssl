@@ -4451,15 +4451,9 @@ static int DoCertificate(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 
 #ifdef HAVE_CERTIFICATE_STATUS_REQUEST
             if (ssl->options.side == WOLFSSL_CLIENT_END) {
-                switch (ssl->status_request) {
-                    case WOLFSSL_CSR_OCSP: {
-                        OcspRequest* request =
-                                           TLSX_CSR_GetRequest(ssl->extensions);
-
-                        fatal = InitOcspRequest(request, dCert, 0, NULL, 0);
-                        doLookup = 0;
-                    }
-                    break;
+                if (ssl->status_request) {
+                    fatal = TLSX_CSR_InitRequest(ssl->extensions, dCert);
+                    doLookup = 0;
                 }
             }
 #endif
@@ -5112,8 +5106,11 @@ static int SanityCheckMsgReceived(WOLFSSL* ssl, byte type)
             if (ssl->msgsReceived.got_certificate_status == 0) {
 #ifdef HAVE_CERTIFICATE_STATUS_REQUEST
                 if (ssl->status_request) {
+                    int ret;
+
                     WOLFSSL_MSG("No CertificateStatus before ServerKeyExchange");
-                    return OUT_OF_ORDER_E;
+                    if ((ret = TLSX_CSR_ForceRequest(ssl)) != 0)
+                        return ret;
                 }
 #endif
             }
@@ -8736,14 +8733,17 @@ const char* wolfSSL_ERR_reason_error_string(unsigned long e)
     case RSA_SIGN_FAULT:
         return "RSA Signature Fault Error";
 
+    case HANDSHAKE_SIZE_ERROR:
+        return "Handshake message too large Error";
+
     case UNKNOWN_ALPN_PROTOCOL_NAME_E:
         return "Unrecognized protocol name Error";
 
     case BAD_CERTIFICATE_STATUS_ERROR:
         return "Bad Certificate Status Message Error";
 
-    case HANDSHAKE_SIZE_ERROR:
-        return "Handshake message too large Error";
+    case OCSP_INVALID_STATUS:
+        return "Invalid OCSP Status Error";
 
     default :
         return "unknown error number";

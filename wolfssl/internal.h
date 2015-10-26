@@ -1255,7 +1255,7 @@ struct WOLFSSL_CIPHER {
 };
 
 
-typedef struct OCSP_Entry OCSP_Entry;
+typedef struct OcspEntry OcspEntry;
 
 #ifdef NO_SHA
     #define OCSP_DIGEST_SIZE SHA256_DIGEST_SIZE
@@ -1268,12 +1268,12 @@ typedef struct OCSP_Entry OCSP_Entry;
     typedef struct CertStatus CertStatus;
 #endif
 
-struct OCSP_Entry {
-    OCSP_Entry* next;                        /* next entry             */
-    byte    issuerHash[OCSP_DIGEST_SIZE];    /* issuer hash            */
-    byte    issuerKeyHash[OCSP_DIGEST_SIZE]; /* issuer public key hash */
-    CertStatus* status;                      /* OCSP response list     */
-    int         totalStatus;                 /* number on list         */
+struct OcspEntry {
+    OcspEntry*  next;                            /* next entry             */
+    byte        issuerHash[OCSP_DIGEST_SIZE];    /* issuer hash            */
+    byte        issuerKeyHash[OCSP_DIGEST_SIZE]; /* issuer public key hash */
+    CertStatus* status;                          /* OCSP response list     */
+    int         totalStatus;                     /* number on list         */
 };
 
 
@@ -1284,7 +1284,7 @@ struct OCSP_Entry {
 /* wolfSSL OCSP controller */
 struct WOLFSSL_OCSP {
     WOLFSSL_CERT_MANAGER* cm;            /* pointer back to cert manager */
-    OCSP_Entry*          ocspList;      /* OCSP response list */
+    OcspEntry*            ocspList;      /* OCSP response list */
     wolfSSL_Mutex         ocspLock;      /* OCSP list lock */
 };
 
@@ -1577,14 +1577,15 @@ WOLFSSL_LOCAL int TLSX_UseTruncatedHMAC(TLSX** extensions);
 typedef struct {
     byte status_type;
     union {
-        OcspRequest ocspRequest;
-    } data;
+        OcspRequest ocsp;
+    } request;
 } CertificateStatusRequest;
 
-WOLFSSL_LOCAL int TLSX_UseCertificateStatusRequest(TLSX** extensions,
+WOLFSSL_LOCAL int     TLSX_UseCertificateStatusRequest(TLSX** extensions,
                                                               byte status_type);
-WOLFSSL_LOCAL void* TLSX_CSR_GetRequest(TLSX* extensions);
-
+WOLFSSL_LOCAL int     TLSX_CSR_InitRequest(TLSX* extensions, DecodedCert* cert);
+WOLFSSL_LOCAL void*   TLSX_CSR_GetRequest(TLSX* extensions);
+WOLFSSL_LOCAL int     TLSX_CSR_ForceRequest(WOLFSSL* ssl);
 
 #endif
 

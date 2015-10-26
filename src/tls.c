@@ -1900,7 +1900,7 @@ static void TLSX_CSR_Free(CertificateStatusRequest* csr)
 {
     switch (csr->status_type) {
         case WOLFSSL_CSR_OCSP:
-            FreeOcspRequest(&csr->data.ocspRequest);
+            FreeOcspRequest(&csr->request.ocsp);
         break;
     }
 
@@ -1959,6 +1959,8 @@ static word16 TLSX_CSR_Write(CertificateStatusRequest* csr, byte* output,
 static int TLSX_CSR_Parse(WOLFSSL* ssl, byte* input, word16 length,
                                                                  byte isRequest)
 {
+    int ret = 0;
+
     /* shut up compiler warnings */
     (void) ssl; (void) input;
 
@@ -1967,13 +1969,41 @@ static int TLSX_CSR_Parse(WOLFSSL* ssl, byte* input, word16 length,
         TLSX* extension = TLSX_Find(ssl->extensions, TLSX_STATUS_REQUEST);
         CertificateStatusRequest* csr = extension ? extension->data : NULL;
 
-        if (csr == NULL)
-            return BUFFER_ERROR; /* unexpected extension */
+        if (!csr) {
+            /* look at context level */
 
-        ssl->status_request = csr->status_type;
+            extension = TLSX_Find(ssl->ctx->extensions, TLSX_STATUS_REQUEST);
+            csr = extension ? extension->data : NULL;
+
+            if (!csr)
+                return BUFFER_ERROR; /* unexpected extension */
+
+            /* enable extension at ssl level */
+            ret = TLSX_UseCertificateStatusRequest(&ssl->extensions,
+                                                   csr->status_type);
+            if (ret != SSL_SUCCESS)
+                return ret;
+        }
+
+        ssl->status_request = 1;
 
         return length ? BUFFER_ERROR : 0; /* extension_data MUST be empty. */
 #endif
+    }
+
+    return ret;
+}
+
+int TLSX_CSR_InitRequest(TLSX* extensions, DecodedCert* cert)
+{
+    TLSX* extension = TLSX_Find(extensions, TLSX_STATUS_REQUEST);
+    CertificateStatusRequest* csr = extension ? extension->data : NULL;
+
+    if (csr) {
+        switch (csr->status_type) {
+            case WOLFSSL_CSR_OCSP:
+                return InitOcspRequest(&csr->request.ocsp, cert, 0);
+        }
     }
 
     return 0;
@@ -1987,7 +2017,7 @@ void* TLSX_CSR_GetRequest(TLSX* extensions)
     if (csr) {
         switch (csr->status_type) {
             case WOLFSSL_CSR_OCSP:
-                return &csr->data.ocspRequest;
+                return &csr->request.ocsp;
             break;
         }
     }
@@ -1995,30 +2025,41 @@ void* TLSX_CSR_GetRequest(TLSX* extensions)
     return NULL;
 }
 
+int TLSX_CSR_ForceRequest(WOLFSSL* ssl)
+{
+    TLSX* extension = TLSX_Find(ssl->extensions, TLSX_STATUS_REQUEST);
+    CertificateStatusRequest* csr = extension ? extension->data : NULL;
+
+    if (csr) {
+        switch (csr->status_type) {
+            case WOLFSSL_CSR_OCSP:
+                if (ssl->ctx->cm->ocspEnabled)
+                    return CheckOcspRequest(ssl->ctx->cm->ocsp,
+                                                            &csr->request.ocsp);
+                else
+                    return OCSP_LOOKUP_FAIL;
+        }
+    }
+
+    return 0;
+}
+
 int TLSX_UseCertificateStatusRequest(TLSX** extensions, byte status_type)
 {
     CertificateStatusRequest* csr = NULL;
     int ret = 0;
 
-    if (!extensions)
+    if (!extensions || status_type != WOLFSSL_CSR_OCSP)
         return BAD_FUNC_ARG;
 
-    csr = (CertificateStatusRequest*)XMALLOC(sizeof(CertificateStatusRequest),
-                                             NULL, DYNAMIC_TYPE_TLSX);
+    csr = (CertificateStatusRequest*)
+             XMALLOC(sizeof(CertificateStatusRequest), NULL, DYNAMIC_TYPE_TLSX);
     if (!csr)
         return MEMORY_E;
 
+    ForceZero(csr, sizeof(CertificateStatusRequest));
+
     csr->status_type = status_type;
-
-    switch (status_type) {
-        case WOLFSSL_CSR_OCSP:
-            ForceZero(&csr->data.ocspRequest, sizeof(OcspRequest));
-            break;
-
-        default:
-            XFREE(csr, NULL, DYNAMIC_TYPE_TLSX);
-            return BAD_FUNC_ARG;
-    }
 
     if ((ret = TLSX_Push(extensions, TLSX_STATUS_REQUEST, csr)) != 0) {
         XFREE(csr, NULL, DYNAMIC_TYPE_TLSX);

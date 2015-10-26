@@ -804,6 +804,15 @@ int wolfSSL_UseCertificateStatusRequest(WOLFSSL* ssl, byte status_type)
     return TLSX_UseCertificateStatusRequest(&ssl->extensions, status_type);
 }
 
+
+int wolfSSL_CTX_UseCertificateStatusRequest(WOLFSSL_CTX* ctx, byte status_type)
+{
+    if (ctx == NULL || ctx->method->side != WOLFSSL_CLIENT_END)
+        return BAD_FUNC_ARG;
+
+    return TLSX_UseCertificateStatusRequest(&ctx->extensions, status_type);
+}
+
 #endif /* HAVE_CERTIFICATE_STATUS_REQUEST */
 
 /* Elliptic Curves */

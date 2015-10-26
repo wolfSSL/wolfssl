@@ -1419,6 +1419,9 @@ enum {
 WOLFSSL_API int wolfSSL_UseCertificateStatusRequest(WOLFSSL* ssl,
                                                      unsigned char status_type);
 
+WOLFSSL_API int wolfSSL_CTX_UseCertificateStatusRequest(WOLFSSL_CTX* ctx,
+                                                     unsigned char status_type);
+
 #endif
 #endif
 

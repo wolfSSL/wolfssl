@@ -8839,7 +8839,7 @@ static word32 SetOcspReqExtensions(word32 extSz, byte* output,
 }
 
 
-int EncodeOcspRequest(OcspRequest* req)
+int EncodeOcspRequest(OcspRequest* req, byte* output, word32 size)
 {
     byte seqArray[5][MAX_SEQ_SZ];
     /* The ASN.1 of the OCSP Request is an onion of sequences */
@@ -8848,7 +8848,6 @@ int EncodeOcspRequest(OcspRequest* req)
     byte issuerKeyArray[MAX_ENCODED_DIG_SZ];
     byte snArray[MAX_SN_SZ];
     byte extArray[MAX_OCSP_EXT_SZ];
-    byte* output = req->request;
     word32 seqSz[5], algoSz, issuerSz, issuerKeySz, snSz, extSz, totalSz;
     int i;
 
@@ -8865,21 +8864,9 @@ int EncodeOcspRequest(OcspRequest* req)
     snSz        = SetSerialNumber(req->serial,  req->serialSz, snArray);
     extSz       = 0;
 
-    if (req->useNonce) {
-        WC_RNG rng;
-        if (wc_InitRng(&rng) != 0) {
-            WOLFSSL_MSG("\tCannot initialize RNG. Skipping the OSCP Nonce.");
-        } else {
-            if (wc_RNG_GenerateBlock(&rng, req->nonce, MAX_OCSP_NONCE_SZ) != 0)
-                WOLFSSL_MSG("\tCannot run RNG. Skipping the OSCP Nonce.");
-            else {
-                req->nonceSz = MAX_OCSP_NONCE_SZ;
-                extSz = SetOcspReqExtensions(MAX_OCSP_EXT_SZ, extArray,
+    if (req->nonceSz)
+        extSz = SetOcspReqExtensions(MAX_OCSP_EXT_SZ, extArray,
                                                       req->nonce, req->nonceSz);
-            }
-            wc_FreeRng(&rng);
-        }
-    }
 
     totalSz = algoSz + issuerSz + issuerKeySz + snSz;
     for (i = 4; i >= 0; i--) {
@@ -8887,6 +8874,9 @@ int EncodeOcspRequest(OcspRequest* req)
         totalSz += seqSz[i];
         if (i == 2) totalSz += extSz;
     }
+
+    if (totalSz > size)
+        return BUFFER_E;
 
     totalSz = 0;
     for (i = 0; i < 5; i++) {
@@ -8915,8 +8905,7 @@ int EncodeOcspRequest(OcspRequest* req)
 }
 
 
-int InitOcspRequest(OcspRequest* req, DecodedCert* cert, byte useNonce,
-                                                    byte* dest, word32 destSz)
+int InitOcspRequest(OcspRequest* req, DecodedCert* cert, byte useNonce)
 {
     WOLFSSL_ENTER("InitOcspRequest");
 
@@ -8929,17 +8918,42 @@ int InitOcspRequest(OcspRequest* req, DecodedCert* cert, byte useNonce,
         XMEMCPY(req->issuerHash,    cert->issuerHash,    KEYID_SIZE);
         XMEMCPY(req->issuerKeyHash, cert->issuerKeyHash, KEYID_SIZE);
 
-        req->serial = (byte*)XMALLOC(cert->serialSz, NULL, DYNAMIC_TYPE_OCSP);
+        req->serial = (byte*)XMALLOC(cert->serialSz, NULL,
+                                                     DYNAMIC_TYPE_OCSP_REQUEST);
         if (req->serial == NULL)
             return MEMORY_E;
 
         XMEMCPY(req->serial, cert->serial, cert->serialSz);
         req->serialSz = cert->serialSz;
+
+        if (cert->extAuthInfoSz != 0 && cert->extAuthInfo != NULL) {
+            req->url = (byte*)XMALLOC(cert->extAuthInfoSz, NULL,
+                                                     DYNAMIC_TYPE_OCSP_REQUEST);
+            if (req->url == NULL) {
+                XFREE(req->serial, NULL, DYNAMIC_TYPE_OCSP);
+                return MEMORY_E;
+            }
+
+            XMEMCPY(req->url, cert->extAuthInfo, cert->extAuthInfoSz);
+            req->urlSz = cert->extAuthInfoSz;
+        }
+
     }
 
-    req->useNonce  = useNonce;
-    req->request   = dest;
-    req->requestSz = destSz;
+    if (useNonce) {
+        WC_RNG rng;
+
+        if (wc_InitRng(&rng) != 0) {
+            WOLFSSL_MSG("\tCannot initialize RNG. Skipping the OSCP Nonce.");
+        } else {
+            if (wc_RNG_GenerateBlock(&rng, req->nonce, MAX_OCSP_NONCE_SZ) != 0)
+                WOLFSSL_MSG("\tCannot run RNG. Skipping the OSCP Nonce.");
+            else
+                req->nonceSz = MAX_OCSP_NONCE_SZ;
+
+            wc_FreeRng(&rng);
+        }
+    }
 
     return 0;
 }
@@ -8948,8 +8962,13 @@ void FreeOcspRequest(OcspRequest* req)
 {
     WOLFSSL_ENTER("FreeOcspRequest");
 
-    if (req && req->serial)
-        XFREE(req->serial, NULL, DYNAMIC_TYPE_OCSP);
+    if (req) {
+        if (req->serial)
+            XFREE(req->serial, NULL, DYNAMIC_TYPE_OCSP_REQUEST);
+
+        if (req->url)
+            XFREE(req->url, NULL, DYNAMIC_TYPE_OCSP_REQUEST);
+    }
 }
 
 
@@ -8973,7 +8992,7 @@ int CompareOcspReqResp(OcspRequest* req, OcspResponse* resp)
 
     /* Nonces are not critical. The responder may not necessarily add
      * the nonce to the response. */
-    if (req->useNonce && resp->nonceSz != 0) {
+    if (req->nonceSz && resp->nonceSz != 0) {
         cmp = req->nonceSz - resp->nonceSz;
         if (cmp != 0)
         {

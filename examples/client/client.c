@@ -983,10 +983,13 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     }
 #endif
 #ifdef HAVE_CERTIFICATE_STATUS_REQUEST
-    if (statusRequest)
+    if (statusRequest) {
         if (wolfSSL_UseCertificateStatusRequest(ssl, WOLFSSL_CSR_OCSP)
                                                                  != SSL_SUCCESS)
             err_sys("UseCertificateStatusRequest failed");
+
+        wolfSSL_CTX_EnableOCSP(ctx, WOLFSSL_OCSP_NO_NONCE);
+    }
 #endif
 
     tcp_connect(&sockfd, host, port, doDTLS, ssl);
