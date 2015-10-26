@@ -1576,13 +1576,14 @@ WOLFSSL_LOCAL int TLSX_UseTruncatedHMAC(TLSX** extensions);
 
 typedef struct {
     byte status_type;
+    byte options;
     union {
         OcspRequest ocsp;
     } request;
 } CertificateStatusRequest;
 
 WOLFSSL_LOCAL int     TLSX_UseCertificateStatusRequest(TLSX** extensions,
-                                                              byte status_type);
+                                                byte status_type, byte options);
 WOLFSSL_LOCAL int     TLSX_CSR_InitRequest(TLSX* extensions, DecodedCert* cert);
 WOLFSSL_LOCAL void*   TLSX_CSR_GetRequest(TLSX* extensions);
 WOLFSSL_LOCAL int     TLSX_CSR_ForceRequest(WOLFSSL* ssl);

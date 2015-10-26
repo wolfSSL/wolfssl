@@ -1909,6 +1909,8 @@ static void TLSX_CSR_Free(CertificateStatusRequest* csr)
 
 static word16 TLSX_CSR_GetSize(CertificateStatusRequest* csr, byte isRequest)
 {
+    word16 size = 0;
+
     /* shut up compiler warnings */
     (void) csr; (void) isRequest;
 
@@ -1916,12 +1918,15 @@ static word16 TLSX_CSR_GetSize(CertificateStatusRequest* csr, byte isRequest)
     if (isRequest) {
         switch (csr->status_type) {
             case WOLFSSL_CSR_OCSP:
-                return ENUM_LEN + 2 * OPAQUE16_LEN;
+                size += ENUM_LEN + 2 * OPAQUE16_LEN;
+
+                if (csr->request.ocsp.nonceSz)
+                    size += MAX_OCSP_EXT_SZ;
         }
     }
 #endif
 
-    return 0;
+    return size;
 }
 
 static word16 TLSX_CSR_Write(CertificateStatusRequest* csr, byte* output,
@@ -1933,6 +1938,7 @@ static word16 TLSX_CSR_Write(CertificateStatusRequest* csr, byte* output,
 #ifndef NO_WOLFSSL_CLIENT
     if (isRequest) {
         word16 offset = 0;
+        word16 length = 0;
 
         /* type */
         output[offset++] = csr->status_type;
@@ -1944,8 +1950,15 @@ static word16 TLSX_CSR_Write(CertificateStatusRequest* csr, byte* output,
                 offset += OPAQUE16_LEN;
 
                 /* request extensions */
-                c16toa(0, output + offset);
-                offset += OPAQUE16_LEN;
+                if (csr->request.ocsp.nonceSz)
+                    length = EncodeOcspRequestExtensions(
+                                                 &csr->request.ocsp,
+                                                 output + offset + OPAQUE16_LEN,
+                                                 MAX_OCSP_EXT_SZ);
+
+                c16toa(length, output + offset);
+                offset += OPAQUE16_LEN + length;
+
             break;
         }
 
@@ -1980,9 +1993,25 @@ static int TLSX_CSR_Parse(WOLFSSL* ssl, byte* input, word16 length,
 
             /* enable extension at ssl level */
             ret = TLSX_UseCertificateStatusRequest(&ssl->extensions,
-                                                   csr->status_type);
+                                                csr->status_type, csr->options);
             if (ret != SSL_SUCCESS)
                 return ret;
+
+            switch (csr->status_type) {
+                case WOLFSSL_CSR_OCSP:
+                    /* propagate nonce */
+                    if (csr->request.ocsp.nonceSz) {
+                        OcspRequest* request =
+                                           TLSX_CSR_GetRequest(ssl->extensions);
+
+                        if (request) {
+                            XMEMCPY(request->nonce, csr->request.ocsp.nonce,
+                                                    csr->request.ocsp.nonceSz);
+                            request->nonceSz = csr->request.ocsp.nonceSz;
+                        }
+                    }
+                break;
+            }
         }
 
         ssl->status_request = 1;
@@ -1998,15 +2027,29 @@ int TLSX_CSR_InitRequest(TLSX* extensions, DecodedCert* cert)
 {
     TLSX* extension = TLSX_Find(extensions, TLSX_STATUS_REQUEST);
     CertificateStatusRequest* csr = extension ? extension->data : NULL;
+    int ret = 0;
 
     if (csr) {
         switch (csr->status_type) {
-            case WOLFSSL_CSR_OCSP:
-                return InitOcspRequest(&csr->request.ocsp, cert, 0);
+            case WOLFSSL_CSR_OCSP: {
+                byte nonce[MAX_OCSP_NONCE_SZ];
+                int  nonceSz = csr->request.ocsp.nonceSz;
+
+                /* preserve nonce */
+                XMEMCPY(nonce, csr->request.ocsp.nonce, nonceSz);
+
+                if ((ret = InitOcspRequest(&csr->request.ocsp, cert, 0)) != 0)
+                    return ret;
+
+                /* restore nonce */
+                XMEMCPY(csr->request.ocsp.nonce, nonce, nonceSz);
+                csr->request.ocsp.nonceSz = nonceSz;
+            }
+            break;
         }
     }
 
-    return 0;
+    return ret;
 }
 
 void* TLSX_CSR_GetRequest(TLSX* extensions)
@@ -2044,7 +2087,8 @@ int TLSX_CSR_ForceRequest(WOLFSSL* ssl)
     return 0;
 }
 
-int TLSX_UseCertificateStatusRequest(TLSX** extensions, byte status_type)
+int TLSX_UseCertificateStatusRequest(TLSX** extensions, byte status_type,
+                                                                   byte options)
 {
     CertificateStatusRequest* csr = NULL;
     int ret = 0;
@@ -2060,6 +2104,23 @@ int TLSX_UseCertificateStatusRequest(TLSX** extensions, byte status_type)
     ForceZero(csr, sizeof(CertificateStatusRequest));
 
     csr->status_type = status_type;
+    csr->options     = options;
+
+    switch (csr->status_type) {
+        case WOLFSSL_CSR_OCSP:
+            if (options & WOLFSSL_CSR_OCSP_USE_NONCE) {
+                WC_RNG rng;
+
+                if (wc_InitRng(&rng) == 0) {
+                    if (wc_RNG_GenerateBlock(&rng, csr->request.ocsp.nonce,
+                                                        MAX_OCSP_NONCE_SZ) == 0)
+                        csr->request.ocsp.nonceSz = MAX_OCSP_NONCE_SZ;
+
+                    wc_FreeRng(&rng);
+                }
+            }
+        break;
+    }
 
     if ((ret = TLSX_Push(extensions, TLSX_STATUS_REQUEST, csr)) != 0) {
         XFREE(csr, NULL, DYNAMIC_TYPE_TLSX);

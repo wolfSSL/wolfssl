@@ -8786,53 +8786,40 @@ int OcspResponseDecode(OcspResponse* resp)
 }
 
 
-static word32 SetOcspReqExtensions(word32 extSz, byte* output,
-                                            const byte* nonce, word32 nonceSz)
+word32 EncodeOcspRequestExtensions(OcspRequest* req, byte* output, word32 size)
 {
     static const byte NonceObjId[] = { 0x2b, 0x06, 0x01, 0x05, 0x05, 0x07,
                                        0x30, 0x01, 0x02 };
-    byte seqArray[5][MAX_SEQ_SZ];
-    word32 seqSz[5], totalSz;
+    byte seqArray[6][MAX_SEQ_SZ];
+    word32 seqSz[6], totalSz = (word32)sizeof(NonceObjId);
 
     WOLFSSL_ENTER("SetOcspReqExtensions");
 
-    if (nonce == NULL || nonceSz == 0) return 0;
+    if (!req || !output || !req->nonceSz)
+        return 0;
 
-    seqArray[0][0] = ASN_OCTET_STRING;
-    seqSz[0] = 1 + SetLength(nonceSz, &seqArray[0][1]);
+    totalSz += req->nonceSz;
+    totalSz += seqSz[0] = SetOctetString(req->nonceSz, seqArray[0]);
+    totalSz += seqSz[1] = SetOctetString(req->nonceSz + seqSz[0], seqArray[1]);
+    seqArray[2][0] = ASN_OBJECT_ID;
+    totalSz += seqSz[2] = 1 + SetLength(sizeof(NonceObjId), &seqArray[2][1]);
+    totalSz += seqSz[3] = SetSequence(totalSz, seqArray[3]);
+    totalSz += seqSz[4] = SetSequence(totalSz, seqArray[4]);
+    totalSz += seqSz[5] = SetExplicit(2, totalSz, seqArray[5]);
 
-    seqArray[1][0] = ASN_OBJECT_ID;
-    seqSz[1] = 1 + SetLength(sizeof(NonceObjId), &seqArray[1][1]);
-
-    totalSz = seqSz[0] + seqSz[1] + nonceSz + (word32)sizeof(NonceObjId);
-
-    seqSz[2] = SetSequence(totalSz, seqArray[2]);
-    totalSz += seqSz[2];
-
-    seqSz[3] = SetSequence(totalSz, seqArray[3]);
-    totalSz += seqSz[3];
-
-    seqArray[4][0] = (ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC | 2);
-    seqSz[4] = 1 + SetLength(totalSz, &seqArray[4][1]);
-    totalSz += seqSz[4];
-
-    if (totalSz < extSz)
+    if (totalSz < size)
     {
         totalSz = 0;
-        XMEMCPY(output + totalSz, seqArray[4], seqSz[4]);
-        totalSz += seqSz[4];
-        XMEMCPY(output + totalSz, seqArray[3], seqSz[3]);
-        totalSz += seqSz[3];
-        XMEMCPY(output + totalSz, seqArray[2], seqSz[2]);
-        totalSz += seqSz[2];
-        XMEMCPY(output + totalSz, seqArray[1], seqSz[1]);
-        totalSz += seqSz[1];
+        XMEMCPY(output + totalSz, seqArray[5], seqSz[5]); totalSz += seqSz[5];
+        XMEMCPY(output + totalSz, seqArray[4], seqSz[4]); totalSz += seqSz[4];
+        XMEMCPY(output + totalSz, seqArray[3], seqSz[3]); totalSz += seqSz[3];
+        XMEMCPY(output + totalSz, seqArray[2], seqSz[2]); totalSz += seqSz[2];
         XMEMCPY(output + totalSz, NonceObjId, sizeof(NonceObjId));
         totalSz += (word32)sizeof(NonceObjId);
-        XMEMCPY(output + totalSz, seqArray[0], seqSz[0]);
-        totalSz += seqSz[0];
-        XMEMCPY(output + totalSz, nonce, nonceSz);
-        totalSz += nonceSz;
+        XMEMCPY(output + totalSz, seqArray[1], seqSz[1]); totalSz += seqSz[1];
+        XMEMCPY(output + totalSz, seqArray[0], seqSz[0]); totalSz += seqSz[0];
+        XMEMCPY(output + totalSz, req->nonce, req->nonceSz);
+        totalSz += req->nonceSz;
     }
 
     return totalSz;
@@ -8865,8 +8852,7 @@ int EncodeOcspRequest(OcspRequest* req, byte* output, word32 size)
     extSz       = 0;
 
     if (req->nonceSz)
-        extSz = SetOcspReqExtensions(MAX_OCSP_EXT_SZ, extArray,
-                                                      req->nonce, req->nonceSz);
+        extSz = EncodeOcspRequestExtensions(req, extArray, MAX_OCSP_EXT_SZ);
 
     totalSz = algoSz + issuerSz + issuerKeySz + snSz;
     for (i = 4; i >= 0; i--) {

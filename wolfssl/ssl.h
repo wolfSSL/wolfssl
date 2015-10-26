@@ -1413,14 +1413,19 @@ enum {
     WOLFSSL_CSR_OCSP = 1
 };
 
+/* Certificate Status Options (flags) */
+enum {
+    WOLFSSL_CSR_OCSP_USE_NONCE = 0x01
+};
+
 #ifdef HAVE_CERTIFICATE_STATUS_REQUEST
 #ifndef NO_WOLFSSL_CLIENT
 
 WOLFSSL_API int wolfSSL_UseCertificateStatusRequest(WOLFSSL* ssl,
-                                                     unsigned char status_type);
+                              unsigned char status_type, unsigned char options);
 
 WOLFSSL_API int wolfSSL_CTX_UseCertificateStatusRequest(WOLFSSL_CTX* ctx,
-                                                     unsigned char status_type);
+                              unsigned char status_type, unsigned char options);
 
 #endif
 #endif

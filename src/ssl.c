@@ -796,21 +796,25 @@ int wolfSSL_CTX_UseTruncatedHMAC(WOLFSSL_CTX* ctx)
 
 #ifdef HAVE_CERTIFICATE_STATUS_REQUEST
 
-int wolfSSL_UseCertificateStatusRequest(WOLFSSL* ssl, byte status_type)
+int wolfSSL_UseCertificateStatusRequest(WOLFSSL* ssl, byte status_type,
+                                                                   byte options)
 {
     if (ssl == NULL || ssl->options.side != WOLFSSL_CLIENT_END)
         return BAD_FUNC_ARG;
 
-    return TLSX_UseCertificateStatusRequest(&ssl->extensions, status_type);
+    return TLSX_UseCertificateStatusRequest(&ssl->extensions, status_type,
+                                                                       options);
 }
 
 
-int wolfSSL_CTX_UseCertificateStatusRequest(WOLFSSL_CTX* ctx, byte status_type)
+int wolfSSL_CTX_UseCertificateStatusRequest(WOLFSSL_CTX* ctx, byte status_type,
+                                                                   byte options)
 {
     if (ctx == NULL || ctx->method->side != WOLFSSL_CLIENT_END)
         return BAD_FUNC_ARG;
 
-    return TLSX_UseCertificateStatusRequest(&ctx->extensions, status_type);
+    return TLSX_UseCertificateStatusRequest(&ctx->extensions, status_type,
+                                                                       options);
 }
 
 #endif /* HAVE_CERTIFICATE_STATUS_REQUEST */
