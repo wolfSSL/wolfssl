@@ -164,20 +164,20 @@ static int SetIndividualExternal(WOLFSSL_BIGNUM** bn, IppsBigNumState* in)
     if (ret != ippStsNoErr)
         return USER_CRYPTO_ERROR;
 
-    data = XMALLOC(sz, NULL, DYNAMIC_TYPE_ARRAYS);
+    data = XMALLOC(sz, NULL, DYNAMIC_TYPE_USER_CRYPTO);
     if (data == NULL)
         return USER_CRYPTO_ERROR;
 
     ret = ippsGetOctString_BN(data, sz, in);
     if (ret != ippStsNoErr) {
-        XFREE(data, NULL, DYNAMIC_TYPE_ARRAYS);
+        XFREE(data, NULL, DYNAMIC_TYPE_USER_CRYPTO);
         return USER_CRYPTO_ERROR;
     }
 
     /* store the data into a wolfSSL Big Number */
     *bn = wolfSSL_BN_bin2bn(data, sz, *bn);
 
-    XFREE(data, NULL, DYNAMIC_TYPE_ARRAYS);
+    XFREE(data, NULL, DYNAMIC_TYPE_USER_CRYPTO);
 
     return 0;
 }
@@ -204,7 +204,7 @@ static int SetIndividualInternal(WOLFSSL_BIGNUM* bn, IppsBigNumState** mpi)
         if (ret != ippStsNoErr)
             return USER_CRYPTO_ERROR;
 
-        *mpi = XMALLOC(ctxSz, 0, DYNAMIC_TYPE_ARRAYS);
+        *mpi = XMALLOC(ctxSz, 0, DYNAMIC_TYPE_USER_CRYPTO);
         if (*mpi == NULL)
             return USER_CRYPTO_ERROR;
 
@@ -223,24 +223,24 @@ static int SetIndividualInternal(WOLFSSL_BIGNUM* bn, IppsBigNumState** mpi)
         return USER_CRYPTO_ERROR;
     }
 
-    data = XMALLOC(length, NULL, DYNAMIC_TYPE_ARRAYS);
+    data = XMALLOC(length, NULL, DYNAMIC_TYPE_USER_CRYPTO);
     if (data == NULL)
         return USER_CRYPTO_ERROR;
 
     /* extract the wolfSSL BigNum and store it into IPP BigNum */
     if (wolfSSL_BN_bn2bin(bn, data) < 0) {
-        XFREE(data, NULL, DYNAMIC_TYPE_ARRAYS);
+        XFREE(data, NULL, DYNAMIC_TYPE_USER_CRYPTO);
         USER_DEBUG(("error in getting bin from wolfssl bn\n"));
         return USER_CRYPTO_ERROR;
     }
 
     ret = ippsSetOctString_BN(data, length, *mpi);
     if (ret != ippStsNoErr) {
-        XFREE(data, NULL, DYNAMIC_TYPE_ARRAYS);
+        XFREE(data, NULL, DYNAMIC_TYPE_USER_CRYPTO);
         return USER_CRYPTO_ERROR;
     }
 
-    XFREE(data, NULL, DYNAMIC_TYPE_ARRAYS);
+    XFREE(data, NULL, DYNAMIC_TYPE_USER_CRYPTO);
 
     return 0;
 }
@@ -403,13 +403,14 @@ int SetRsaInternal(WOLFSSL_RSA* rsa)
         return USER_CRYPTO_ERROR;
     }
 
-    key->pPub = XMALLOC(ctxSz, NULL, DYNAMIC_TYPE_KEY);
+    key->pPub = XMALLOC(ctxSz, NULL, DYNAMIC_TYPE_USER_CRYPTO);
     if (key->pPub == NULL)
         return USER_CRYPTO_ERROR;
 
     ret = ippsRSA_InitPublicKey(key->nSz, key->eSz, key->pPub, ctxSz);
     if (ret != ippStsNoErr) {
-        USER_DEBUG(("ippsRSA_InitPublicKey error %s\n", ippGetStatusString(ret)));
+        USER_DEBUG(("ippsRSA_InitPublicKey error %s\n",
+                    ippGetStatusString(ret)));
         return USER_CRYPTO_ERROR;
     }
 
@@ -455,13 +456,14 @@ int SetRsaInternal(WOLFSSL_RSA* rsa)
         }
 
         key->prvSz = ctxSz;
-        key->pPrv = XMALLOC(ctxSz, 0, DYNAMIC_TYPE_KEY);
+        key->pPrv = XMALLOC(ctxSz, 0, DYNAMIC_TYPE_USER_CRYPTO);
         if (key->pPrv == NULL)
             return USER_CRYPTO_ERROR;
 
         ret = ippsRSA_InitPrivateKeyType2(pSz, qSz, key->pPrv, ctxSz);
         if (ret != ippStsNoErr) {
-            USER_DEBUG(("ippsRSA_InitPrivateKey error %s\n", ippGetStatusString(ret)));
+            USER_DEBUG(("ippsRSA_InitPrivateKey error %s\n",
+                        ippGetStatusString(ret)));
             return USER_CRYPTO_ERROR;
         }
 
@@ -572,54 +574,54 @@ int wc_FreeRsaKey(RsaKey* key)
     USER_DEBUG(("Entering wc_FreeRsaKey\n"));
 
     if (key->pPub != NULL) {
-        XFREE(key->pPub, NULL, DYNAMIC_TYPE_KEY);
+        XFREE(key->pPub, NULL, DYNAMIC_TYPE_USER_CRYPTO);
         key->pPub = NULL;
     }
 
     if (key->pPrv != NULL) {
         /* write over senstive information */
         ForceZero(key->pPrv, key->prvSz);
-        XFREE(key->pPrv, NULL, DYNAMIC_TYPE_KEY);
+        XFREE(key->pPrv, NULL, DYNAMIC_TYPE_USER_CRYPTO);
         key->pPrv = NULL;
     }
 
     if (key->n != NULL) {
-        XFREE(key->n, NULL, DYNAMIC_TYPE_ARRAYS);
+        XFREE(key->n, NULL, DYNAMIC_TYPE_USER_CRYPTO);
         key->n = NULL;
     }
 
     if (key->e != NULL) {
-        XFREE(key->e, NULL, DYNAMIC_TYPE_ARRAYS);
+        XFREE(key->e, NULL, DYNAMIC_TYPE_USER_CRYPTO);
         key->e = NULL;
     }
 
     if (key->dipp != NULL) {
-        XFREE(key->dipp, NULL, DYNAMIC_TYPE_ARRAYS);
+        XFREE(key->dipp, NULL, DYNAMIC_TYPE_USER_CRYPTO);
         key->dipp = NULL;
     }
 
     if (key->pipp != NULL) {
-        XFREE(key->pipp, NULL, DYNAMIC_TYPE_ARRAYS);
+        XFREE(key->pipp, NULL, DYNAMIC_TYPE_USER_CRYPTO);
         key->pipp = NULL;
     }
 
     if (key->qipp != NULL) {
-        XFREE(key->qipp, NULL, DYNAMIC_TYPE_ARRAYS);
+        XFREE(key->qipp, NULL, DYNAMIC_TYPE_USER_CRYPTO);
         key->qipp = NULL;
     }
 
     if (key->dPipp != NULL) {
-        XFREE(key->dPipp, NULL, DYNAMIC_TYPE_ARRAYS);
+        XFREE(key->dPipp, NULL, DYNAMIC_TYPE_USER_CRYPTO);
         key->dPipp = NULL;
     }
 
     if (key->dQipp != NULL) {
-        XFREE(key->dQipp, NULL, DYNAMIC_TYPE_ARRAYS);
+        XFREE(key->dQipp, NULL, DYNAMIC_TYPE_USER_CRYPTO);
         key->dQipp = NULL;
     }
 
     if (key->uipp != NULL) {
-        XFREE(key->uipp, NULL, DYNAMIC_TYPE_ARRAYS);
+        XFREE(key->uipp, NULL, DYNAMIC_TYPE_USER_CRYPTO);
         key->uipp = NULL;
     }
 
@@ -699,7 +701,7 @@ static int GetInt(IppsBigNumState** mpi, const byte* input, word32* inOutIdx,
     if (ret != ippStsNoErr)
         return USER_CRYPTO_ERROR;
 
-    *mpi = XMALLOC(ctxSz, 0, DYNAMIC_TYPE_ARRAYS);
+    *mpi = XMALLOC(ctxSz, 0, DYNAMIC_TYPE_USER_CRYPTO);
     if (*mpi == NULL)
         return USER_CRYPTO_ERROR;
 
@@ -806,19 +808,21 @@ int wc_RsaPrivateKeyDecode(const byte* input, word32* inOutIdx, RsaKey* key,
         return USER_CRYPTO_ERROR;
     }
 
-    key->pPub = XMALLOC(ctxSz, NULL, DYNAMIC_TYPE_KEY);
+    key->pPub = XMALLOC(ctxSz, NULL, DYNAMIC_TYPE_USER_CRYPTO);
     if (key->pPub == NULL)
         return USER_CRYPTO_ERROR;
 
     ret = ippsRSA_InitPublicKey(key->nSz, key->eSz, key->pPub, ctxSz);
     if (ret != ippStsNoErr) {
-        USER_DEBUG(("ippsRSA_InitPublicKey error %s\n", ippGetStatusString(ret)));
+        USER_DEBUG(("ippsRSA_InitPublicKey error %s\n",
+                    ippGetStatusString(ret)));
         return USER_CRYPTO_ERROR;
     }
 
     ret = ippsRSA_SetPublicKey(key->n, key->e, key->pPub);
     if (ret != ippStsNoErr) {
-        USER_DEBUG(("ippsRSA_SetPublicKey error %s\n", ippGetStatusString(ret)));
+        USER_DEBUG(("ippsRSA_SetPublicKey error %s\n",
+                    ippGetStatusString(ret)));
         return USER_CRYPTO_ERROR;
     }
 
@@ -856,20 +860,22 @@ int wc_RsaPrivateKeyDecode(const byte* input, word32* inOutIdx, RsaKey* key,
     }
 
     key->prvSz = ctxSz;
-    key->pPrv = XMALLOC(ctxSz, 0, DYNAMIC_TYPE_KEY);
+    key->pPrv = XMALLOC(ctxSz, 0, DYNAMIC_TYPE_USER_CRYPTO);
     if (key->pPrv == NULL)
         return USER_CRYPTO_ERROR;
 
     ret = ippsRSA_InitPrivateKeyType2(pSz, qSz, key->pPrv, ctxSz);
     if (ret != ippStsNoErr) {
-        USER_DEBUG(("ippsRSA_InitPrivateKey error %s\n", ippGetStatusString(ret)));
+        USER_DEBUG(("ippsRSA_InitPrivateKey error %s\n",
+                    ippGetStatusString(ret)));
         return USER_CRYPTO_ERROR;
     }
 
     ret = ippsRSA_SetPrivateKeyType2(key->pipp, key->qipp, key->dPipp,
             key->dQipp, key->uipp, key->pPrv);
     if (ret != ippStsNoErr) {
-        USER_DEBUG(("ippsRSA_SetPrivateKey error %s\n", ippGetStatusString(ret)));
+        USER_DEBUG(("ippsRSA_SetPrivateKey error %s\n",
+                    ippGetStatusString(ret)));
         return USER_CRYPTO_ERROR;
     }
 
@@ -972,19 +978,21 @@ int wc_RsaPublicKeyDecode(const byte* input, word32* inOutIdx, RsaKey* key,
         return USER_CRYPTO_ERROR;
     }
 
-    key->pPub = XMALLOC(ctxSz, NULL, DYNAMIC_TYPE_KEY);
+    key->pPub = XMALLOC(ctxSz, NULL, DYNAMIC_TYPE_USER_CRYPTO);
     if (key->pPub == NULL)
         return USER_CRYPTO_ERROR;
 
     ret = ippsRSA_InitPublicKey(key->nSz, key->eSz, key->pPub, ctxSz);
     if (ret != ippStsNoErr) {
-        USER_DEBUG(("ippsRSA_InitPublicKey error %s\n", ippGetStatusString(ret)));
+        USER_DEBUG(("ippsRSA_InitPublicKey error %s\n",
+                    ippGetStatusString(ret)));
         return USER_CRYPTO_ERROR;
     }
 
     ret = ippsRSA_SetPublicKey(key->n, key->e, key->pPub);
     if (ret != ippStsNoErr) {
-        USER_DEBUG(("ippsRSA_SetPublicKey error %s\n", ippGetStatusString(ret)));
+        USER_DEBUG(("ippsRSA_SetPublicKey error %s\n",
+                    ippGetStatusString(ret)));
         return USER_CRYPTO_ERROR;
     }
 
@@ -1011,7 +1019,7 @@ int wc_RsaPublicKeyDecodeRaw(const byte* n, word32 nSz, const byte* e,
     if (ret != ippStsNoErr)
         return USER_CRYPTO_ERROR;
 
-    key->n = XMALLOC(ctxSz, 0, DYNAMIC_TYPE_ARRAYS);
+    key->n = XMALLOC(ctxSz, 0, DYNAMIC_TYPE_USER_CRYPTO);
     if (key->n == NULL)
         return USER_CRYPTO_ERROR;
 
@@ -1028,7 +1036,7 @@ int wc_RsaPublicKeyDecodeRaw(const byte* n, word32 nSz, const byte* e,
     if (ret != ippStsNoErr)
         return USER_CRYPTO_ERROR;
 
-    key->e = XMALLOC(ctxSz, 0, DYNAMIC_TYPE_ARRAYS);
+    key->e = XMALLOC(ctxSz, 0, DYNAMIC_TYPE_USER_CRYPTO);
     if (key->e == NULL)
         return USER_CRYPTO_ERROR;
 
@@ -1053,19 +1061,21 @@ int wc_RsaPublicKeyDecodeRaw(const byte* n, word32 nSz, const byte* e,
         return USER_CRYPTO_ERROR;
     }
 
-    key->pPub = XMALLOC(ctxSz, NULL, DYNAMIC_TYPE_KEY);
+    key->pPub = XMALLOC(ctxSz, NULL, DYNAMIC_TYPE_USER_CRYPTO);
     if (key->pPub == NULL)
         return USER_CRYPTO_ERROR;
 
     ret = ippsRSA_InitPublicKey(nSz, eSz, key->pPub, ctxSz);
     if (ret != ippStsNoErr) {
-        USER_DEBUG(("ippsRSA_InitPublicKey error %s\n", ippGetStatusString(ret)));
+        USER_DEBUG(("ippsRSA_InitPublicKey error %s\n",
+                    ippGetStatusString(ret)));
         return USER_CRYPTO_ERROR;
     }
 
     ret = ippsRSA_SetPublicKey(key->n,key->e, key->pPub);
     if (ret != ippStsNoErr) {
-        USER_DEBUG(("ippsRSA_SetPublicKey error %s\n", ippGetStatusString(ret)));
+        USER_DEBUG(("ippsRSA_SetPublicKey error %s\n",
+                    ippGetStatusString(ret)));
         return USER_CRYPTO_ERROR;
     }
 
@@ -1096,19 +1106,20 @@ int wc_RsaPublicEncrypt(const byte* in, word32 inLen, byte* out, word32 outLen,
     if (ret != ippStsNoErr)
         return USER_CRYPTO_ERROR;
 
-    scratchBuffer = XMALLOC(scratchSz*(sizeof(Ipp8u)), 0, DYNAMIC_TYPE_ARRAYS);
+    scratchBuffer = XMALLOC(scratchSz*(sizeof(Ipp8u)), 0,
+                            DYNAMIC_TYPE_USER_CRYPTO);
     if (scratchBuffer == NULL)
         return USER_CRYPTO_ERROR;
 
     ret = ippsRSAEncrypt_PKCSv15((Ipp8u*)in, inLen, NULL, (Ipp8u*)out,
             key->pPub, scratchBuffer);
     if (ret != ippStsNoErr) {
-        XFREE(scratchBuffer, NULL, DYNAMIC_TYPE_ARRAYS);
+        XFREE(scratchBuffer, NULL, DYNAMIC_TYPE_USER_CRYPTO);
         USER_DEBUG(("encrypt error of %s\n", ippGetStatusString(ret)));
         return USER_CRYPTO_ERROR;
     }
 
-    XFREE(scratchBuffer, NULL, DYNAMIC_TYPE_ARRAYS);
+    XFREE(scratchBuffer, NULL, DYNAMIC_TYPE_USER_CRYPTO);
 
     (void)rng;
     return key->sz;
@@ -1138,7 +1149,8 @@ int wc_RsaPrivateDecrypt(const byte* in, word32 inLen, byte* out, word32 outLen,
         return USER_CRYPTO_ERROR;
     }
 
-    scratchBuffer = XMALLOC(scratchSz*(sizeof(Ipp8u)), 0, DYNAMIC_TYPE_ARRAYS);
+    scratchBuffer = XMALLOC(scratchSz*(sizeof(Ipp8u)), 0,
+                                        DYNAMIC_TYPE_USER_CRYPTO);
     if (scratchBuffer == NULL) {
         return USER_CRYPTO_ERROR;
     }
@@ -1147,12 +1159,12 @@ int wc_RsaPrivateDecrypt(const byte* in, word32 inLen, byte* out, word32 outLen,
     ret = ippsRSADecrypt_PKCSv15((Ipp8u*)in, (Ipp8u*)out, &outSz, key->pPrv,
             scratchBuffer);
     if (ret != ippStsNoErr) {
-        XFREE(scratchBuffer, NULL, DYNAMIC_TYPE_ARRAYS);
+        XFREE(scratchBuffer, NULL, DYNAMIC_TYPE_USER_CRYPTO);
         USER_DEBUG(("decrypt error of %s\n", ippGetStatusString(ret)));
         return USER_CRYPTO_ERROR;
     }
 
-    XFREE(scratchBuffer, NULL, DYNAMIC_TYPE_ARRAYS);
+    XFREE(scratchBuffer, NULL, DYNAMIC_TYPE_USER_CRYPTO);
 
     return outSz;
 }
@@ -1168,7 +1180,7 @@ int wc_RsaPrivateDecryptInline(byte* in, word32 inLen, byte** out, RsaKey* key)
     USER_DEBUG(("Entering wc_RsaPrivateDecryptInline\n"));
 
     /* allocate a buffer for max decrypted text */
-    tmp = XMALLOC(key->sz, NULL, DYNAMIC_TYPE_ARRAYS);
+    tmp = XMALLOC(key->sz, NULL, DYNAMIC_TYPE_USER_CRYPTO);
     if (tmp == NULL)
         return USER_CRYPTO_ERROR;
 
@@ -1178,11 +1190,11 @@ int wc_RsaPrivateDecryptInline(byte* in, word32 inLen, byte** out, RsaKey* key)
         *out = in;
     }
     else {
-        XFREE(tmp, NULL, DYNAMIC_TYPE_ARRAYS);
+        XFREE(tmp, NULL, DYNAMIC_TYPE_USER_CRYPTO);
         return USER_CRYPTO_ERROR;
     }
 
-    XFREE(tmp, NULL, DYNAMIC_TYPE_ARRAYS);
+    XFREE(tmp, NULL, DYNAMIC_TYPE_USER_CRYPTO);
     USER_DEBUG(("\tExit wc_RsaPrivateDecryptInline\n"));
 
     return outSz;
@@ -1194,13 +1206,13 @@ static int FreeHelper(IppsBigNumState* pTxt, IppsBigNumState* cTxt,
         Ipp8u* scratchBuffer, void* pPub)
 {
     if (pTxt != NULL)
-        XFREE(pTxt, NULL, DYNAMIC_TYPE_ARRAYS);
+        XFREE(pTxt, NULL, DYNAMIC_TYPE_USER_CRYPTO);
     if (cTxt != NULL)
-        XFREE(cTxt, NULL, DYNAMIC_TYPE_ARRAYS);
+        XFREE(cTxt, NULL, DYNAMIC_TYPE_USER_CRYPTO);
     if (scratchBuffer != NULL)
-        XFREE(scratchBuffer, NULL, DYNAMIC_TYPE_ARRAYS);
+        XFREE(scratchBuffer, NULL, DYNAMIC_TYPE_USER_CRYPTO);
     if (pPub != NULL)
-        XFREE(pPub, NULL, DYNAMIC_TYPE_ARRAYS);
+        XFREE(pPub, NULL, DYNAMIC_TYPE_USER_CRYPTO);
 
     return 0;
 }
@@ -1240,14 +1252,15 @@ int wc_RsaSSL_VerifyInline(byte* in, word32 inLen, byte** out, RsaKey* key)
         return USER_CRYPTO_ERROR;
     }
 
-    pPub = XMALLOC(ctxSz, 0, DYNAMIC_TYPE_KEY);
+    pPub = XMALLOC(ctxSz, 0, DYNAMIC_TYPE_USER_CRYPTO);
     if (pPub == NULL)
         return USER_CRYPTO_ERROR;
 
     ret = ippsRSA_InitPrivateKeyType1(key->nSz, key->eSz, pPub, ctxSz);
     if (ret != ippStsNoErr) {
         FreeHelper(pTxt, cTxt, scratchBuffer, pPub);
-        USER_DEBUG(("ippsRSA_InitPrivateKey error %s\n", ippGetStatusString(ret)));
+        USER_DEBUG(("ippsRSA_InitPrivateKey error %s\n",
+                    ippGetStatusString(ret)));
         return USER_CRYPTO_ERROR;
     }
 
@@ -1255,7 +1268,8 @@ int wc_RsaSSL_VerifyInline(byte* in, word32 inLen, byte** out, RsaKey* key)
     ret = ippsRSA_SetPrivateKeyType1(key->n, key->e, pPub);
     if (ret != ippStsNoErr) {
         FreeHelper(pTxt, cTxt, scratchBuffer, pPub);
-        USER_DEBUG(("ippsRSA_SetPrivateKey error %s\n", ippGetStatusString(ret)));
+        USER_DEBUG(("ippsRSA_SetPrivateKey error %s\n",
+                    ippGetStatusString(ret)));
         return USER_CRYPTO_ERROR;
     }
 
@@ -1266,7 +1280,8 @@ int wc_RsaSSL_VerifyInline(byte* in, word32 inLen, byte** out, RsaKey* key)
         return USER_CRYPTO_ERROR;
     }
 
-    scratchBuffer = XMALLOC(scratchSz*(sizeof(Ipp8u)), 0, DYNAMIC_TYPE_ARRAYS);
+    scratchBuffer = XMALLOC(scratchSz*(sizeof(Ipp8u)), 0,
+                            DYNAMIC_TYPE_USER_CRYPTO);
     if (scratchBuffer == NULL) {
         FreeHelper(pTxt, cTxt, scratchBuffer, pPub);
         return USER_CRYPTO_ERROR;
@@ -1279,7 +1294,7 @@ int wc_RsaSSL_VerifyInline(byte* in, word32 inLen, byte** out, RsaKey* key)
         return USER_CRYPTO_ERROR;
     }
 
-    pTxt = XMALLOC(ctxSz, 0, DYNAMIC_TYPE_ARRAYS);
+    pTxt = XMALLOC(ctxSz, 0, DYNAMIC_TYPE_USER_CRYPTO);
     if (pTxt == NULL) {
         FreeHelper(pTxt, cTxt, scratchBuffer, pPub);
         return USER_CRYPTO_ERROR;
@@ -1304,7 +1319,7 @@ int wc_RsaSSL_VerifyInline(byte* in, word32 inLen, byte** out, RsaKey* key)
         return USER_CRYPTO_ERROR;
     }
 
-    cTxt = XMALLOC(ctxSz, 0, DYNAMIC_TYPE_ARRAYS);
+    cTxt = XMALLOC(ctxSz, 0, DYNAMIC_TYPE_USER_CRYPTO);
     if (cTxt == NULL) {
         FreeHelper(pTxt, cTxt, scratchBuffer, pPub);
         return USER_CRYPTO_ERROR;
@@ -1356,7 +1371,7 @@ int wc_RsaSSL_Verify(const byte* in, word32 inLen, byte* out, word32 outLen,
     if (out == NULL || in == NULL || key == NULL)
         return USER_CRYPTO_ERROR;
 
-    tmp = (byte*)XMALLOC(inLen, key->heap, DYNAMIC_TYPE_RSA);
+    tmp = (byte*)XMALLOC(inLen, key->heap, DYNAMIC_TYPE_USER_CRYPTO);
     if (tmp == NULL) {
         return USER_CRYPTO_ERROR;
     }
@@ -1366,7 +1381,7 @@ int wc_RsaSSL_Verify(const byte* in, word32 inLen, byte* out, word32 outLen,
     /* verify signature and test if output buffer is large enough */
     plainLen = wc_RsaSSL_VerifyInline(tmp, inLen, &pad, key);
     if (plainLen < 0) {
-        XFREE(tmp, NULL, DYNAMIC_TYPE_RSA);
+        XFREE(tmp, NULL, DYNAMIC_TYPE_USER_CRYPTO);
         return plainLen;
     }
 
@@ -1376,7 +1391,7 @@ int wc_RsaSSL_Verify(const byte* in, word32 inLen, byte* out, word32 outLen,
         XMEMCPY(out, pad, plainLen);
 
     ForceZero(tmp, inLen);
-    XFREE(tmp, NULL, DYNAMIC_TYPE_RSA);
+    XFREE(tmp, NULL, DYNAMIC_TYPE_USER_CRYPTO);
 
     return plainLen;
 }
@@ -1407,7 +1422,7 @@ int wc_RsaSSL_Sign(const byte* in, word32 inLen, byte* out, word32 outLen,
     }
 
     prvSz = ctxSz; /* used later to overright sensitive memory */
-    pPrv = XMALLOC(ctxSz, 0, DYNAMIC_TYPE_KEY);
+    pPrv = XMALLOC(ctxSz, 0, DYNAMIC_TYPE_USER_CRYPTO);
     if (pPrv == NULL) {
         USER_DEBUG(("memeory error assinging pPrv\n"));
         return USER_CRYPTO_ERROR;
@@ -1416,14 +1431,16 @@ int wc_RsaSSL_Sign(const byte* in, word32 inLen, byte* out, word32 outLen,
     ret = ippsRSA_InitPublicKey(key->nSz, key->dSz, pPrv, ctxSz);
     if (ret != ippStsNoErr) {
         FreeHelper(pTxt, cTxt, scratchBuffer, pPrv);
-        USER_DEBUG(("ippsRSA_InitPrivateKey error %s\n", ippGetStatusString(ret)));
+        USER_DEBUG(("ippsRSA_InitPrivateKey error %s\n",
+                    ippGetStatusString(ret)));
         return USER_CRYPTO_ERROR;
     }
 
     ret = ippsRSA_SetPublicKey(key->n, key->dipp, pPrv);
     if (ret != ippStsNoErr) {
         FreeHelper(pTxt, cTxt, scratchBuffer, pPrv);
-        USER_DEBUG(("ippsRSA_SetPrivateKey error %s\n", ippGetStatusString(ret)));
+        USER_DEBUG(("ippsRSA_SetPrivateKey error %s\n",
+                    ippGetStatusString(ret)));
         return USER_CRYPTO_ERROR;
     }
 
@@ -1436,7 +1453,8 @@ int wc_RsaSSL_Sign(const byte* in, word32 inLen, byte* out, word32 outLen,
         return USER_CRYPTO_ERROR;
     }
 
-    scratchBuffer = XMALLOC(scratchSz*(sizeof(Ipp8u)), 0, DYNAMIC_TYPE_ARRAYS);
+    scratchBuffer = XMALLOC(scratchSz*(sizeof(Ipp8u)), 0,
+                            DYNAMIC_TYPE_USER_CRYPTO);
     if (scratchBuffer == NULL) {
         FreeHelper(pTxt, cTxt, scratchBuffer, pPrv);
         USER_DEBUG(("memory error assigning scratch buffer\n"));
@@ -1456,7 +1474,7 @@ int wc_RsaSSL_Sign(const byte* in, word32 inLen, byte* out, word32 outLen,
         return USER_CRYPTO_ERROR;
     }
 
-    pTxt = XMALLOC(ctxSz, 0, DYNAMIC_TYPE_ARRAYS);
+    pTxt = XMALLOC(ctxSz, 0, DYNAMIC_TYPE_USER_CRYPTO);
     if (pTxt == NULL) {
         FreeHelper(pTxt, cTxt, scratchBuffer, pPrv);
         return USER_CRYPTO_ERROR;
@@ -1481,7 +1499,7 @@ int wc_RsaSSL_Sign(const byte* in, word32 inLen, byte* out, word32 outLen,
         return USER_CRYPTO_ERROR;
     }
 
-    cTxt = XMALLOC(ctxSz, 0, DYNAMIC_TYPE_ARRAYS);
+    cTxt = XMALLOC(ctxSz, 0, DYNAMIC_TYPE_USER_CRYPTO);
     if (cTxt == NULL) {
         FreeHelper(pTxt, cTxt, scratchBuffer, pPrv);
         return USER_CRYPTO_ERROR;
@@ -1624,7 +1642,7 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
         return USER_CRYPTO_ERROR;
     }
 
-    rndParam = XMALLOC(ctxSz, NULL, DYNAMIC_TYPE_ARRAYS);
+    rndParam = XMALLOC(ctxSz, NULL, DYNAMIC_TYPE_USER_CRYPTO);
     if (rndParam == NULL)
         return USER_CRYPTO_ERROR;
 
@@ -1642,7 +1660,7 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
         return USER_CRYPTO_ERROR;
     }
 
-    pPrime = XMALLOC(ctxSz, NULL, DYNAMIC_TYPE_ARRAYS);
+    pPrime = XMALLOC(ctxSz, NULL, DYNAMIC_TYPE_USER_CRYPTO);
     if (pPrime == NULL)
         return USER_CRYPTO_ERROR;
 
@@ -1668,7 +1686,7 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
     }
 
     key->prvSz = ctxSz; /* used when freeing private key */
-    key->pPrv = XMALLOC(ctxSz, NULL, DYNAMIC_TYPE_ARRAYS);
+    key->pPrv = XMALLOC(ctxSz, NULL, DYNAMIC_TYPE_USER_CRYPTO);
     if (key->pPrv == NULL)
         return USER_CRYPTO_ERROR;
 
@@ -1688,7 +1706,7 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
         return USER_CRYPTO_ERROR;
     }
 
-    scratchBuffer = XMALLOC(scratchSz, 0, DYNAMIC_TYPE_ARRAYS);
+    scratchBuffer = XMALLOC(scratchSz, 0, DYNAMIC_TYPE_USER_CRYPTO);
     if (scratchBuffer == NULL)
         return USER_CRYPTO_ERROR;
 
@@ -1698,7 +1716,7 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
     if (ret != ippStsNoErr)
         return USER_CRYPTO_ERROR;
 
-    pSrcPublicExp = XMALLOC(ctxSz, 0, DYNAMIC_TYPE_ARRAYS);
+    pSrcPublicExp = XMALLOC(ctxSz, 0, DYNAMIC_TYPE_USER_CRYPTO);
     if (pSrcPublicExp == NULL)
         return USER_CRYPTO_ERROR;
 
@@ -1714,7 +1732,7 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
     if (ret != ippStsNoErr)
         return USER_CRYPTO_ERROR;
 
-    key->n = XMALLOC(ctxSz, 0, DYNAMIC_TYPE_ARRAYS);
+    key->n = XMALLOC(ctxSz, 0, DYNAMIC_TYPE_USER_CRYPTO);
     if (key->n == NULL)
         return USER_CRYPTO_ERROR;
 
@@ -1728,7 +1746,7 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
     if (ret != ippStsNoErr)
         return USER_CRYPTO_ERROR;
 
-    key->e = XMALLOC(ctxSz, 0, DYNAMIC_TYPE_ARRAYS);
+    key->e = XMALLOC(ctxSz, 0, DYNAMIC_TYPE_USER_CRYPTO);
     if (key->e == NULL)
         return USER_CRYPTO_ERROR;
 
@@ -1741,7 +1759,7 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
     if (ret != ippStsNoErr)
         return USER_CRYPTO_ERROR;
 
-    key->dipp = XMALLOC(ctxSz, 0, DYNAMIC_TYPE_ARRAYS);
+    key->dipp = XMALLOC(ctxSz, 0, DYNAMIC_TYPE_USER_CRYPTO);
     if (key->dipp == NULL)
         return USER_CRYPTO_ERROR;
 
@@ -1789,19 +1807,21 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
         return USER_CRYPTO_ERROR;
     }
 
-    key->pPub = XMALLOC(ctxSz, NULL, DYNAMIC_TYPE_KEY);
+    key->pPub = XMALLOC(ctxSz, NULL, DYNAMIC_TYPE_USER_CRYPTO);
     if (key->pPub == NULL)
         return USER_CRYPTO_ERROR;
 
     ret = ippsRSA_InitPublicKey(key->nSz, key->eSz, key->pPub, ctxSz);
     if (ret != ippStsNoErr) {
-        USER_DEBUG(("ippsRSA_InitPublicKey error %s\n", ippGetStatusString(ret)));
+        USER_DEBUG(("ippsRSA_InitPublicKey error %s\n",
+                    ippGetStatusString(ret)));
         return USER_CRYPTO_ERROR;
     }
 
     ret = ippsRSA_SetPublicKey(key->n, key->e, key->pPub);
     if (ret != ippStsNoErr) {
-        USER_DEBUG(("ippsRSA_SetPublicKey error %s\n", ippGetStatusString(ret)));
+        USER_DEBUG(("ippsRSA_SetPublicKey error %s\n",
+                    ippGetStatusString(ret)));
         return USER_CRYPTO_ERROR;
     }
 
@@ -1811,7 +1831,7 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
     if (ret != ippStsNoErr)
         return USER_CRYPTO_ERROR;
 
-    key->pipp = XMALLOC(ctxSz, 0, DYNAMIC_TYPE_ARRAYS);
+    key->pipp = XMALLOC(ctxSz, 0, DYNAMIC_TYPE_USER_CRYPTO);
     if (key->pipp == NULL)
         return USER_CRYPTO_ERROR;
 
@@ -1820,7 +1840,7 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
         return USER_CRYPTO_ERROR;
 
     /* set up q BN for key */
-    key->qipp = XMALLOC(ctxSz, 0, DYNAMIC_TYPE_ARRAYS);
+    key->qipp = XMALLOC(ctxSz, 0, DYNAMIC_TYPE_USER_CRYPTO);
     if (key->qipp == NULL)
         return USER_CRYPTO_ERROR;
 
@@ -1829,7 +1849,7 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
         return USER_CRYPTO_ERROR;
 
     /* set up dP BN for key */
-    key->dPipp = XMALLOC(ctxSz, 0, DYNAMIC_TYPE_ARRAYS);
+    key->dPipp = XMALLOC(ctxSz, 0, DYNAMIC_TYPE_USER_CRYPTO);
     if (key->dPipp == NULL)
         return USER_CRYPTO_ERROR;
 
@@ -1838,7 +1858,7 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
         return USER_CRYPTO_ERROR;
 
     /* set up dQ BN for key */
-    key->dQipp = XMALLOC(ctxSz, 0, DYNAMIC_TYPE_ARRAYS);
+    key->dQipp = XMALLOC(ctxSz, 0, DYNAMIC_TYPE_USER_CRYPTO);
     if (key->dQipp == NULL)
         return USER_CRYPTO_ERROR;
 
@@ -1847,7 +1867,7 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
         return USER_CRYPTO_ERROR;
 
     /* set up u BN for key */
-    key->uipp = XMALLOC(ctxSz, 0, DYNAMIC_TYPE_ARRAYS);
+    key->uipp = XMALLOC(ctxSz, 0, DYNAMIC_TYPE_USER_CRYPTO);
     if (key->uipp == NULL)
         return USER_CRYPTO_ERROR;
 
@@ -1865,10 +1885,10 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
     }
 
     /* clean up memory used */
-    XFREE(pSrcPublicExp, NULL, DYNAMIC_TYPE_ARRAYS);
-    XFREE(scratchBuffer, NULL, DYNAMIC_TYPE_ARRAYS);
-    XFREE(pPrime, NULL, DYNAMIC_TYPE_ARRAYS);
-    XFREE(rndParam, NULL, DYNAMIC_TYPE_ARRAYS);
+    XFREE(pSrcPublicExp, NULL, DYNAMIC_TYPE_USER_CRYPTO);
+    XFREE(scratchBuffer, NULL, DYNAMIC_TYPE_USER_CRYPTO);
+    XFREE(pPrime, NULL, DYNAMIC_TYPE_USER_CRYPTO);
+    XFREE(rndParam, NULL, DYNAMIC_TYPE_USER_CRYPTO);
 
     (void)rng;
 
@@ -2025,7 +2045,7 @@ static int SetRsaPublicKey(byte* output, RsaKey* key,
 
     /* n */
 #ifdef WOLFSSL_SMALL_STACK
-    n = (byte*)XMALLOC(MAX_RSA_INT_SZ, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    n = (byte*)XMALLOC(MAX_RSA_INT_SZ, NULL, DYNAMIC_TYPE_USER_CRYPTO);
     if (n == NULL)
         return USER_CRYPTO_ERROR;
 #endif
@@ -2046,24 +2066,24 @@ static int SetRsaPublicKey(byte* output, RsaKey* key,
             nSz += rawLen;
         else {
 #ifdef WOLFSSL_SMALL_STACK
-            XFREE(n, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(n, NULL, DYNAMIC_TYPE_USER_CRYPTO);
 #endif
             return USER_CRYPTO_ERROR;
         }
     }
     else {
 #ifdef WOLFSSL_SMALL_STACK
-        XFREE(n, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(n, NULL, DYNAMIC_TYPE_USER_CRYPTO);
 #endif
         return USER_CRYPTO_ERROR;
     }
 
     /* e */
 #ifdef WOLFSSL_SMALL_STACK
-    e = (byte*)XMALLOC(MAX_RSA_E_SZ, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    e = (byte*)XMALLOC(MAX_RSA_E_SZ, NULL, DYNAMIC_TYPE_USER_CRYPTO);
     if (e == NULL) {
 #ifdef WOLFSSL_SMALL_STACK
-        XFREE(n, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(n, NULL, DYNAMIC_TYPE_USER_CRYPTO);
 #endif
         return USER_CRYPTO_ERROR;
     }
@@ -2085,16 +2105,16 @@ static int SetRsaPublicKey(byte* output, RsaKey* key,
             eSz += rawLen;
         else {
 #ifdef WOLFSSL_SMALL_STACK
-            XFREE(n, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-            XFREE(e, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(n, NULL, DYNAMIC_TYPE_USER_CRYPTO);
+            XFREE(e, NULL, DYNAMIC_TYPE_USER_CRYPTO);
 #endif
             return USER_CRYPTO_ERROR;
         }
     }
     else {
 #ifdef WOLFSSL_SMALL_STACK
-        XFREE(n, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        XFREE(e, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(n, NULL, DYNAMIC_TYPE_USER_CRYPTO);
+        XFREE(e, NULL, DYNAMIC_TYPE_USER_CRYPTO);
 #endif
         return USER_CRYPTO_ERROR;
     }
@@ -2104,8 +2124,8 @@ static int SetRsaPublicKey(byte* output, RsaKey* key,
     /* check output size */
     if ( (seqSz + nSz + eSz) > outLen) {
 #ifdef WOLFSSL_SMALL_STACK
-        XFREE(n,    NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        XFREE(e,    NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(n,    NULL, DYNAMIC_TYPE_USER_CRYPTO);
+        XFREE(e,    NULL, DYNAMIC_TYPE_USER_CRYPTO);
 #endif
         return USER_CRYPTO_ERROR;
     }
@@ -2116,10 +2136,10 @@ static int SetRsaPublicKey(byte* output, RsaKey* key,
 #ifdef WOLFSSL_SMALL_STACK
         byte* algo = NULL;
 
-        algo = (byte*)XMALLOC(MAX_ALGO_SZ, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        algo = (byte*)XMALLOC(MAX_ALGO_SZ, NULL, DYNAMIC_TYPE_USER_CRYPTO);
         if (algo == NULL) {
-            XFREE(n, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-            XFREE(e, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(n, NULL, DYNAMIC_TYPE_USER_CRYPTO);
+            XFREE(e, NULL, DYNAMIC_TYPE_USER_CRYPTO);
             return USER_CRYPTO_ERROR;
         }
 #else
@@ -2135,9 +2155,9 @@ static int SetRsaPublicKey(byte* output, RsaKey* key,
         /* check output size */
         if ( (idx + algoSz + 1 + lenSz + seqSz + nSz + eSz) > outLen) {
             #ifdef WOLFSSL_SMALL_STACK
-                XFREE(n,    NULL, DYNAMIC_TYPE_TMP_BUFFER);
-                XFREE(e,    NULL, DYNAMIC_TYPE_TMP_BUFFER);
-                XFREE(algo, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                XFREE(n,    NULL, DYNAMIC_TYPE_USER_CRYPTO);
+                XFREE(e,    NULL, DYNAMIC_TYPE_USER_CRYPTO);
+                XFREE(algo, NULL, DYNAMIC_TYPE_USER_CRYPTO);
             #endif
 
             return USER_CRYPTO_ERROR;
@@ -2152,7 +2172,7 @@ static int SetRsaPublicKey(byte* output, RsaKey* key,
         XMEMCPY(output + idx, len, lenSz);
         idx += lenSz;
 #ifdef WOLFSSL_SMALL_STACK
-        XFREE(algo, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(algo, NULL, DYNAMIC_TYPE_USER_CRYPTO);
 #endif
     }
     else
@@ -2169,8 +2189,8 @@ static int SetRsaPublicKey(byte* output, RsaKey* key,
     idx += eSz;
 
 #ifdef WOLFSSL_SMALL_STACK
-    XFREE(n,    NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    XFREE(e,    NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(n,    NULL, DYNAMIC_TYPE_USER_CRYPTO);
+    XFREE(e,    NULL, DYNAMIC_TYPE_USER_CRYPTO);
 #endif
 
     return idx;
@@ -2208,7 +2228,7 @@ static INLINE void FreeTmpRsas(byte** tmps, void* heap)
     (void)heap;
 
     for (i = 0; i < RSA_INTS; i++)
-        XFREE(tmps[i], heap, DYNAMIC_TYPE_RSA);
+        XFREE(tmps[i], heap, DYNAMIC_TYPE_USER_CRYPTO);
 }
 
 
@@ -2252,7 +2272,7 @@ int wc_RsaKeyToDer(RsaKey* key, byte* output, word32 inLen)
         rawLen += lbit;
 
         tmps[i] = (byte*)XMALLOC(rawLen + MAX_SEQ_SZ, key->heap,
-                                 DYNAMIC_TYPE_RSA);
+                                 DYNAMIC_TYPE_USER_CRYPTO);
         if (tmps[i] == NULL) {
             ret = USER_CRYPTO_ERROR;
             break;
