@@ -202,6 +202,9 @@
 #endif
 
 
+/* allow user to define on fp_digit, fp_word types */
+#ifndef WOLFSSL_BIGINT_TYPES
+
 /* some default configurations.
  */
 #if defined(FP_64BIT)
@@ -226,6 +229,8 @@
       typedef unsigned int       fp_word;
    #endif
 #endif
+
+#endif /* WOLFSSL_BIGINT_TYPES */
 
 /* # of digits this is */
 #define DIGIT_BIT  (int)((CHAR_BIT) * sizeof(fp_digit))
