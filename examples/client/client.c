@@ -348,6 +348,9 @@ static void Usage(void)
     printf("-o          Perform OCSP lookup on peer certificate\n");
     printf("-O <url>    Perform OCSP lookup using <url> as responder\n");
 #endif
+#ifdef HAVE_CERTIFICATE_STATUS_REQUEST
+    printf("-W          Use OCSP Stapling\n");
+#endif
 #ifdef ATOMIC_USER
     printf("-U          Atomic User Record Layer Callbacks\n");
 #endif
