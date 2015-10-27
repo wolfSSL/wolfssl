@@ -244,6 +244,8 @@ int benchmark_test(void *args)
 {
 #endif
 
+    wolfcrypt_Init();
+
     #if defined(DEBUG_WOLFSSL) && !defined(HAVE_VALGRIND)
         wolfSSL_Debugging_ON();
     #endif
@@ -259,7 +261,7 @@ int benchmark_test(void *args)
         printf("Cavium OpenNitroxDevice failed\n");
         exit(-1);
     }
-#endif /* HAVE_CAVIUM */
+    #endif /* HAVE_CAVIUM */
 
 #if defined(HAVE_LOCAL_RNG)
     {

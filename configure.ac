@@ -106,6 +106,8 @@ OPTIMIZE_CFLAGS="-Os -fomit-frame-pointer"
 OPTIMIZE_FAST_CFLAGS="-O2 -fomit-frame-pointer"
 OPTIMIZE_HUGE_CFLAGS="-funroll-loops -DTFM_SMALL_SET -DTFM_HUGE_SET"
 DEBUG_CFLAGS="-g -DDEBUG -DDEBUG_WOLFSSL"
+LIB_ADD=
+LIB_STATIC_ADD=
 
 thread_ls_on=no
 # Thread local storage
@@ -1499,11 +1501,68 @@ fi
 AM_CONDITIONAL([BUILD_CRL_MONITOR], [test "x$ENABLED_CRL_MONITOR" = "xyes"])
 
 
+# USER CRYPTO
+ENABLED_USER_CRYPTO="no"
+ENABLED_USER_RSA="no"
+AC_DEFINE([BUILD_USER_RSA], [], [User RSA is being defined])
+trycryptodir=""
+AC_ARG_WITH([user-crypto],
+    [AS_HELP_STRING([--with-user-crypto=PATH],[Path to USER_CRYPTO install (default /usr/local)])],
+    [
+        CPPFLAGS="$CPPFLAGS -DHAVE_USER_CRYPTO"
+        LIBS="$LIBS -lusercrypto"
+
+        if test "x$withval" != "xno" ; then
+            trycryptodir=$withval
+        fi
+        if test "x$withval" == "xyes" ; then
+            trycryptodir="/usr/local"
+        fi
+
+        LDFLAGS="$LDFLAGS -L$trycryptodir/lib"
+        CPPFLAGS="$CPPFLAGS -I$trycryptodir/include"
+
+        #Look for RSA Init function in usercrypto lib
+        AC_CHECK_LIB([usercrypto], [wc_InitRsaKey], [user_rsa_linked=yes], [user_rsa_linked=no])
+
+       if test "x$user_rsa_linked" == "xyes" ; then
+            AC_MSG_NOTICE([User user_rsa.h being used])
+            AM_CFLAGS="$AM_CFLAGS -DHAVE_USER_RSA"
+            ENABLED_USER_RSA=yes
+            ENABLED_USER_CRYPTO=yes
+       fi
+
+
+        #Display check and find result of link attempts
+        AC_MSG_CHECKING([for USER_CRYPTO])
+        if test "x$ENABLED_USER_CRYPTO" == "xno" ; then
+            AC_MSG_RESULT([no])
+            AC_MSG_ERROR([USER_CRYPTO not found. Either move to /usr/include and /usr/lib or
+                    Specify its path using --with-user-crypto=/dir/])
+        else
+            AC_MSG_RESULT([yes])
+            # Check if .la is available if not then rely on exported path
+            AC_CHECK_FILE($trycryptodir/lib/libusercrypto.la, [LIB_ADD="$trycryptodir/lib/libusercrypto.la $LIB_ADD"], [LIB_ADD="-lusercrypto $LIB_ADD"])
+            AM_LDFLAGS="$AM_LDFLAGS -L$trycryptodir/lib"
+            AM_CFLAGS="$AM_CFLAGS -DHAVE_USER_CRYPTO"
+        fi
+    ]
+)
+
+AM_CONDITIONAL([BUILD_USER_RSA], [test "x$ENABLED_USER_RSA" == "xyes"] )
+AM_CONDITIONAL([BUILD_USER_CRYPTO], [test "x$ENABLED_USER_CRYPTO" = "xyes"])
+
+if test "$ENABLED_USER_CRYPTO" = "yes" && test "$ENABLED_FIPS" = "yes"
+then
+    AC_MSG_ERROR([cannot enable user crypto and fips, user crypto posibility of using code in fips boundary.])
+fi
+
+
 # NTRU
 ENABLED_NTRU="no"
 tryntrudir=""
 AC_ARG_WITH([ntru],
-    [  --with-ntru=PATH        Path to NTRU install (default /usr/) ],
+    [AS_HELP_STRING([--with-ntru=PATH],[Path to NTRU install (default /usr/)])],
     [
         AC_MSG_CHECKING([for NTRU])
         CPPFLAGS="$CPPFLAGS -DHAVE_NTRU -DHAVE_QSH -DHAVE_TLS_EXTENSIONS"
@@ -1519,7 +1578,7 @@ AC_ARG_WITH([ntru],
                 tryntrudir="/usr"
             fi
 
-            LDFLAGS="$AM_LDFLAGS -L$tryntrudir/lib"
+            LDFLAGS="$AM_LDFLAGS $LDFLAGS -L$tryntrudir/lib"
             CPPFLAGS="$CPPFLAGS -I$tryntrudir/include"
 
             AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <libntruencrypt/ntru_crypto_drbg.h>]], [[ ntru_crypto_drbg_instantiate(0, 0, 0, 0, 0); ]])], [ ntru_linked=yes ],[ ntru_linked=no ])
@@ -2201,6 +2260,147 @@ AC_ARG_WITH([cavium],
 )
 
 
+# Fast RSA using Intel IPP
+ippdir="${srcdir}/IPP"
+ipplib="lib" # if autoconf guesses 32 changes lib directory
+fastRSA_headers=no
+
+# set up variables used
+IPPLIBS=
+IPPHEADERS=
+IPPLINK=
+
+AC_ARG_ENABLE([fast-rsa],
+    [AS_HELP_STRING([--enable-fast-rsa],[Enable RSA using Intel IPP (default: disabled)])],
+    [ ENABLED_FAST_RSA=$enableval ],
+    [ ENABLED_FAST_RSA=no ],
+    )
+
+if test "$ENABLED_USER_RSA" = "no" && test "$ENABLED_FIPS" = "no"; then
+
+if test "$enable_shared" = "no" && test "$ENABLED_FAST_RSA" = "yes"; then
+    if test "$ac_cv_sizeof_long" = "4" && test "$ac_cv_sizeof_long_long" = "8"; then
+        ipplib="lib_32" # 32 bit OS detected
+    fi
+
+    case $host_os in
+    *darwin*)
+        ipplib="$ipplib/mac_static"
+        AC_MSG_ERROR([Issue with static linking to libippcp.a on Mac.
+                Dynamic IPP libraries supported on Mac])
+        break;;
+
+    *linux*)
+        ipplib="$ipplib/linux_static"
+        break;;
+    *)
+        ENABLED_FAST_RSA=no
+    esac
+
+    AC_CHECK_FILES([$srcdir/IPP/$ipplib/libippcore.a $srcdir/IPP/$ipplib/libippcp.a], [], [ENABLED_FAST_RSA=no])
+    AC_CHECK_FILES([$srcdir/IPP/include/ipp.h $srcdir/IPP/include/ippcp.h], [AM_CPPFLAGS="-I$srcdir/IPP/include $AM_CPPFLAGS"], [ENABLED_FAST_RSA=no])
+    LIB_STATIC_ADD="$srcdir/IPP/$ipplib/libippcp.a $srcdir/IPP/$ipplib/libippcore.a"
+    if test "$ENABLED_FAST_RSA" = "no"; then
+        AC_MSG_ERROR([Could not find fast rsa libraries])
+    fi
+else
+# just check link and see if user has already exported paths
+if test "$ENABLED_FAST_RSA" = "yes"
+    then
+        AC_MSG_NOTICE([Checking if IPP crypto library installed])
+        AC_CHECK_HEADER([ippcp.h], [AC_CHECK_LIB([ippcp], [ippsRSAEncrypt_PKCSv15], [LIBS="$LIBS -lippcore"; fastRSA_headers=yes], [AS_UNSET([ac_cv_lib_ippcp_ippsRSAEncrypt_PKCSv15]); fastRSA_headers=no])], [fastRSA_headers=no])
+    if test "$fastRSA_headers" = "yes"; then
+        AM_LDFLAGS="${AM_LDFLAGS} -lippcore -lippcp"
+    fi
+fi
+
+# Don't cache the result so it can be checked again
+AS_UNSET([ac_cv_header_ippcp_h])
+AS_UNSET([ac_cv_header_ipp_h])
+
+if test "$fastRSA_headers" = "no"; then
+dnl set default paths
+if test "$ENABLED_FAST_RSA" = "yes"; then
+    AC_MSG_NOTICE([Using local IPP crypto library])
+    # build and default locations on linux and mac
+    STORE_LDFLAGS=${LDFLAGS}
+    STORE_CPPFLAGS=${CPPFLAGS}
+    if test "$ac_cv_sizeof_long" = "4" && test "$ac_cv_sizeof_long_long" = "8"; then
+        ipplib="lib_32" # 32 bit OS detected
+    fi
+    # using LDFLAGS instead of AM_ temporarily to test link to library
+    LDFLAGS="-L$ippdir/$ipplib -lippcp -lippcore"
+    CPPFLAGS="-I$ippdir/include"
+    AC_CHECK_HEADERS([ippcp.h], [AC_CHECK_LIB([ippcp], [ippsRSAEncrypt_PKCSv15], [], [ENABLED_FAST_RSA=no])], [ENABLED_FAST_RSA=no])
+
+    if test "$ENABLED_FAST_RSA" = "yes"; then
+    # was succesfull so add tested LDFLAGS to AM_ flags
+    AM_LDFLAGS="${AM_LDFLAGS} ${LDFLAGS}"
+    AM_CPPFLAGS="${AM_CPPFLAGS} ${CPPFLAGS}"
+
+    case $host_os in
+    *darwin*)
+        name="$ippdir/$ipplib/libippcp"
+        IPPLIBS="${name}.dylib ${name}-9.0.dylib ${name}e9-9.0.dylib ${name}g9-9.0.dylib ${name}h9-9.0.dylib ${name}k0-9.0.dylib ${name}l9-9.0.dylib ${name}n8-9.0.dylib ${name}p8-9.0.dylib ${name}s8-9.0.dylib ${name}y8-9.0.dylib IPP/lib/libippcore.dylib IPP/lib/libippcore-9.0.dylib"
+        IPPLINK="mkdir -p src/.libs && ln -f ${name}.dylib src/.libs/libippcp.dylib && ln -f ${srcdir}/${name}-9.0.dylib src/.libs/libippcp-9.0.dylib && ln -f ${srcdir}/${name}e9-9.0.dylib src/.libs/libippcpe9-9.0.dylib && ln -f ${srcdir}/${name}g9-9.0.dylib src/.libs/libippcpg9-9.0.dylib && ln -f ${srcdir}/${name}h9-9.0.dylib src/.libs/libippcph9-9.0.dylib && ln -f ${srcdir}/${name}k0-9.0.dylib src/.libs/libippcpk0-9.0.dylib && ln -f ${srcdir}/${name}l9-9.0.dylib src/.libs/libippcpl9-9.0.dylib && ln -f ${srcdir}/${name}n8-9.0.dylib src/.libs/libippcpn8-9.0.dylib && ln -f ${srcdir}/${name}p8-9.0.dylib src/.libs/libippcpp8-9.0.dylib && ln -f ${srcdir}/${name}s8-9.0.dylib src/.libs/libippcps8-9.0.dylib && ln -f ${srcdir}/${name}y8-9.0.dylib src/.libs/libippcpy8-9.0.dylib && ln -f ${srcdir}/IPP/lib/libippcore.dylib src/.libs/libippcore.dylib && ln -f ${srcdir}/IPP/lib/libippcore-9.0.dylib src/.libs/libippcore-9.0.dylib"
+        break;;
+
+    *linux*)
+        if test "$ac_cv_sizeof_long" = "4" && test "$ac_cv_sizeof_long_long" = "8"; then
+            name="$ippdir/$ipplib/libippcp"
+            IPPLIBS="${name}.so.9.0 ${name}g9.so.9.0 ${name}h9.so.9.0 ${name}p8.so.9.0 ${name}px.so.9.0 ${name}s8.so.9.0 ${name}.so ${name}w7.so.9.0 IPP/$ipplib/libippcore.so"
+            IPPLINK="mkdir -p src/.libs && ln -f ${name}.so.9.0 src/.libs/libippcp.so.9.0 && ln -f ${name}g9.so.9.0 src/.libs/libippcpg9.so.9.0 && ln -f ${name}h9.so.9.0 src/.libs/libippcph9.so.9.0 && ln -f ${name}p8.so.9.0 src/.libs/libippcpp8.so.9.0 && ln -f ${name}px.so.9.0 src/.libs/libippcppx.so.9.0 && ln -f ${name}s8.so.9.0 src/.libs/libippcps8.so.9.0 && ln -f ${name}.so src/.libs/libippcp.so && ln -f ${name}w7.so.9.0 src/.libs/libippcpw7.so.9.0 && ln -f IPP/$ipplib/libippcore.so src/.libs/libippcore.so && ln -f IPP/$ipplib/libippcore.so.9.0 src/.libs/libippcore.so.9.0"
+            else
+            name="$ippdir/$ipplib/libippcp"
+            IPPLIBS="${name}.so.9.0 ${name}e9.so.9.0 ${name}k0.so.9.0 ${name}l9.so.9.0 ${name}m7.so.9.0 ${name}mx.so.9.0 ${name}.so ${name}n8.so.9.0 ${name}y8.so.9.0 IPP/lib/libippcore.so"
+            IPPLINK="mkdir -p src/.libs && ln -f ${name}.so.9.0 src/.libs/libippcp.so.9.0 && ln -f ${name}e9.so.9.0 src/.libs/libippcpe9.so.9.0 && ln -f ${name}k0.so.9.0 src/.libs/libippcpk0.so.9.0 && ln -f ${name}l9.so.9.0 src/.libs/libippcpl9.so.9.0 && ln -f ${name}m7.so.9.0 src/.libs/libippcpm7.so.9.0 && ln -f ${name}mx.so.9.0 src/.libs/libippcpmx.so.9.0 && ln -f ${name}.so src/.libs/libippcp.so && ln -f ${name}n8.so.9.0 src/.libs/libippcpn8.so.9.0 && ln -f ${name}y8.so.9.0 src/.libs/libippcpy8.so.9.0 && ln -f IPP/lib/libippcore.so src/.libs/libippcore.so && ln -f IPP/lib/libippcore.so.9.0 src/.libs/libippcore.so.9.0"
+        fi
+        break;;
+    *)
+        ENABLED_FAST_RSA=no
+    esac
+    fi
+    # restore LDFLAGS to user set
+    LDFLAGS=${STORE_LDFLAGS}
+    CPPFLAGS=${STORE_CPPFLAGS}
+    IPPHEADERS="${srcdir}/IPP/include/*.h"
+
+    # Error out on not finding libraries
+    if test "$ENABLED_FAST_RSA" = "no"; then
+        AC_MSG_ERROR([Could not find fast rsa libraries])
+    fi
+fi
+fi # end of if found exported paths
+fi # end of if for shared library
+else # if user rsa is set than do not use fast rsa option
+    if test "$ENABLED_FAST_RSA" = "yes"; then
+        AC_MSG_ERROR([Could not use fast rsa libraries with user crypto or fips])
+    fi
+fi # end of if for user rsa crypto
+
+AC_MSG_CHECKING([for fast RSA])
+if test "$ENABLED_FAST_RSA" = "yes"; then
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_FAST_RSA -DHAVE_USER_RSA"
+    # add in user crypto header that uses Intel IPP
+    AM_CPPFLAGS="$AM_CPPFLAGS -I$srcdir/wolfcrypt/user-crypto/include"
+    if test "$enable_shared" = "yes"; then
+        LIBS="$LIBS -lippcore"
+        LIB_ADD="-lippcp -lippcore $LIB_ADD"
+    else
+        LIB_ADD="$srcdir/IPP/$ipplib/libippcp.a $srcdir/IPP/$ipplib/libippcore.a $LIB_ADD"
+    fi
+    AC_MSG_RESULT([yes])
+else
+    AC_MSG_RESULT([no])
+fi
+
+AC_SUBST([IPPLIBS])
+AC_SUBST([IPPHEADERS])
+AC_SUBST([IPPLINK])
+# Found IPP library now build in user crypto to use it
+AM_CONDITIONAL([BUILD_FAST_RSA], [test "x$ENABLED_FAST_RSA" = "xyes"])
+
+
 # microchip api
 AC_ARG_ENABLE([mcapi],
     [  --enable-mcapi          Enable Microchip API (default: disabled)],
@@ -2300,6 +2500,8 @@ CREATE_HEX_VERSION
 AC_SUBST([AM_CPPFLAGS])
 AC_SUBST([AM_CFLAGS])
 AC_SUBST([AM_LDFLAGS])
+AC_SUBST([LIB_ADD])
+AC_SUBST([LIB_STATIC_ADD])
 
 # FINAL
 AC_CONFIG_FILES([stamp-h], [echo timestamp > stamp-h])
@@ -2504,5 +2706,7 @@ echo "   * Small Stack:               $ENABLED_SMALL_STACK"
 echo "   * valgrind unit tests:       $ENABLED_VALGRIND"
 echo "   * LIBZ:                      $ENABLED_LIBZ"
 echo "   * Examples:                  $ENABLED_EXAMPLES"
+echo "   * User Crypto:               $ENABLED_USER_CRYPTO"
+echo "   * Fast RSA:                  $ENABLED_FAST_RSA"
 echo ""
 echo "---"

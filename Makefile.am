@@ -17,6 +17,7 @@ BUILT_SOURCES=
 EXTRA_DIST=
 dist_doc_DATA=
 dist_noinst_SCRIPTS =
+noinst_SCRIPTS =
 check_SCRIPTS =
 
 #includes additional rules from aminclude.am
@@ -58,6 +59,16 @@ EXTRA_DIST+= gencertbuf.pl
 EXTRA_DIST+= README.md
 EXTRA_DIST+= LICENSING
 EXTRA_DIST+= INSTALL
+EXTRA_DIST+= IPP/
+
+# user crypto plug in example
+EXTRA_DIST+= wolfcrypt/user-crypto/configure.ac
+EXTRA_DIST+= wolfcrypt/user-crypto/autogen.sh
+EXTRA_DIST+= wolfcrypt/user-crypto/include/user_rsa.h
+EXTRA_DIST+= wolfcrypt/user-crypto/src/rsa.c
+EXTRA_DIST+= wolfcrypt/user-crypto/lib/.gitkeep
+EXTRA_DIST+= wolfcrypt/user-crypto/README.txt
+EXTRA_DIST+= wolfcrypt/user-crypto/Makefile.am
 
 include cyassl/include.am
 include wolfssl/include.am

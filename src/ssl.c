@@ -2298,7 +2298,6 @@ int AddCA(WOLFSSL_CERT_MANAGER* cm, buffer der, int type, int verify)
 
 #endif /* NO_SESSION_CACHE */
 
-
 int wolfSSL_Init(void)
 {
     int ret = SSL_SUCCESS;
@@ -2318,6 +2317,11 @@ int wolfSSL_Init(void)
             WOLFSSL_MSG("Bad Lock Mutex count");
             return BAD_MUTEX_E;
         }
+
+        /* Initialize crypto for use with TLS connection */
+        if (wolfcrypt_Init() != 0)
+            ret = WC_FAILURE_E;
+
         initRefCount++;
         UnLockMutex(&count_mutex);
     }
@@ -12551,7 +12555,8 @@ void wolfSSL_RSA_free(WOLFSSL_RSA* rsa)
 #endif /* NO_RSA */
 
 
-#if !defined(NO_RSA) || !defined(NO_DSA)
+#if (!defined(NO_RSA) && !defined(HAVE_USER_RSA) && !defined(HAVE_FAST_RSA)) \
+    || !defined(NO_DSA) || defined(HAVE_ECC)
 static int SetIndividualExternal(WOLFSSL_BIGNUM** bn, mp_int* mpi)
 {
     WOLFSSL_MSG("Entering SetIndividualExternal");
@@ -12703,7 +12708,8 @@ static int SetDsaInternal(WOLFSSL_DSA* dsa)
 #endif /* NO_DSA */
 
 
-#ifndef NO_RSA
+#if !defined(NO_RSA)
+#if !defined(HAVE_USER_RSA) && !defined(HAVE_FAST_RSA)
 /* WolfSSL -> OpenSSL */
 static int SetRsaExternal(WOLFSSL_RSA* rsa)
 {
@@ -12832,7 +12838,7 @@ static int SetRsaInternal(WOLFSSL_RSA* rsa)
 
     return SSL_SUCCESS;
 }
-
+#endif /* HAVE_USER_RSA */
 
 /* return compliant with OpenSSL
  *   1 if success, 0 if error
