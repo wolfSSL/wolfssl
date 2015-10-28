@@ -8824,14 +8824,28 @@ word32 EncodeOcspRequestExtensions(OcspRequest* req, byte* output, word32 size)
     if (totalSz < size)
     {
         totalSz = 0;
-        XMEMCPY(output + totalSz, seqArray[5], seqSz[5]); totalSz += seqSz[5];
-        XMEMCPY(output + totalSz, seqArray[4], seqSz[4]); totalSz += seqSz[4];
-        XMEMCPY(output + totalSz, seqArray[3], seqSz[3]); totalSz += seqSz[3];
-        XMEMCPY(output + totalSz, seqArray[2], seqSz[2]); totalSz += seqSz[2];
+        
+        XMEMCPY(output + totalSz, seqArray[5], seqSz[5]);
+        totalSz += seqSz[5];
+        
+        XMEMCPY(output + totalSz, seqArray[4], seqSz[4]);
+        totalSz += seqSz[4];
+        
+        XMEMCPY(output + totalSz, seqArray[3], seqSz[3]);
+        totalSz += seqSz[3];
+        
+        XMEMCPY(output + totalSz, seqArray[2], seqSz[2]);
+        totalSz += seqSz[2];
+        
         XMEMCPY(output + totalSz, NonceObjId, sizeof(NonceObjId));
         totalSz += (word32)sizeof(NonceObjId);
-        XMEMCPY(output + totalSz, seqArray[1], seqSz[1]); totalSz += seqSz[1];
-        XMEMCPY(output + totalSz, seqArray[0], seqSz[0]); totalSz += seqSz[0];
+        
+        XMEMCPY(output + totalSz, seqArray[1], seqSz[1]);
+        totalSz += seqSz[1];
+        
+        XMEMCPY(output + totalSz, seqArray[0], seqSz[0]);
+        totalSz += seqSz[0];
+        
         XMEMCPY(output + totalSz, req->nonce, req->nonceSz);
         totalSz += req->nonceSz;
     }
