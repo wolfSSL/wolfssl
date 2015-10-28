@@ -32,13 +32,25 @@ before calling wolfSSL_new();  Though it's not recommended.
 
 *** end Notes ***
 
-wolfSSL (Formerly CyaSSL) Release 3.6.9 (10/05/2015)
+ ********* wolfSSL (Formerly CyaSSL) Release 3.7.0 (10/26/2015)
 
-Release 3.6.9 of wolfSSL has bug fixes and new features including:
+Release 3.7.0 of wolfSSL has bug fixes and new features including:
 
+- ALPN extension support added for HTTP2 connections with --enable-alpn
+- Change of example/client/client max fragment flag -L -> -F
+- Throughput benchmarking, added scripts/benchmark.test
+- Sniffer API ssl_FreeDecodeBuffer added
+- Addition of AES_GCM to Sniffer
+- Sniffer change to handle unlimited decrypt buffer size
 - New option for the sniffer where it will try to pick up decoding after a
   sequence number acknowldgement fault. Also includes some additional stats.
+- JNI API setter and getter function for jobject added
+- User RSA crypto plugin abstraction. An example placed in wolfcrypt/user-crypto
+- fix to asn configuration bug
 - AES-GCM/CCM fixes.
+- Port for Rowley added
+- Rowley Crossworks bare metal examples added
+- MDK5-ARM project update
 - FreeRTOS support updates.
 - VXWorks support updates.
 - Added the IDEA cipher and support in wolfSSL.
@@ -46,7 +58,7 @@ Release 3.6.9 of wolfSSL has bug fixes and new features including:
 - CFLAGS is usable when configuring source.
 
 - No high level security fixes that requires an update though we always
-  recommend updating to the latest
+recommend updating to the latest
 
 See INSTALL file for build instructions.
 More info can be found on-line at //http://wolfssl.com/yaSSL/Docs.html
