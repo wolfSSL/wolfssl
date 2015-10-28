@@ -78,7 +78,11 @@ typedef struct WOLFSSL_SOCKADDR     WOLFSSL_SOCKADDR;
 #define WOLFSSL_TYPES_DEFINED
 
 
+#ifndef WOLFSSL_RSA_TYPE_DEFINED /* guard on redeclaration */
 typedef struct WOLFSSL_RSA            WOLFSSL_RSA;
+#define WOLFSSL_RSA_TYPE_DEFINED
+#endif
+
 typedef struct WOLFSSL_DSA            WOLFSSL_DSA;
 typedef struct WOLFSSL_EC_KEY         WOLFSSL_EC_KEY;
 typedef struct WOLFSSL_EC_POINT       WOLFSSL_EC_POINT;

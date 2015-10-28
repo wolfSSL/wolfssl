@@ -77,6 +77,10 @@ extern "C" {
     #undef MP_64BIT
 #endif
 
+
+/* allow user to define on mp_digit, mp_word, DIGIT_BIT types */
+#ifndef WOLFSSL_BIGINT_TYPES
+
 /* some default configurations.
  *
  * A "mp_digit" must be able to hold DIGIT_BIT + 1 bits
@@ -119,6 +123,7 @@ extern "C" {
 #endif
 #endif
 
+#endif /* WOLFSSL_BIGINT_TYPES */
 
 /* otherwise the bits per digit is calculated automatically from the size of
    a mp_digit */

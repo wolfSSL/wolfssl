@@ -26,12 +26,36 @@
 #include <wolfssl/wolfcrypt/settings.h>
 #include <wolfssl/wolfcrypt/types.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
+#include <wolfssl/wolfcrypt/logging.h>
 
+/* IPP header files for library initialization */
+#ifdef HAVE_FAST_RSA
+#include <ipp.h>
+#include <ippcp.h>
+#endif
 
 #ifdef _MSC_VER
     /* 4996 warning to use MS extensions e.g., strcpy_s instead of strncpy */
     #pragma warning(disable: 4996)
 #endif
+
+
+/* Used to initialize state for wolfcrypt
+   return 0 on success
+ */
+int wolfcrypt_Init()
+{
+    /* if defined have fast RSA then initialize Intel IPP */
+    #ifdef HAVE_FAST_RSA
+        WOLFSSL_MSG("Setting up IPP Library");
+        if (ippInit() != ippStsNoErr) {
+            WOLFSSL_MSG("Error setting up optimized Intel library to use!");
+            return -1;
+        }
+    #endif
+
+    return 0;
+}
 
 
 #if WOLFSSL_CRYPT_HW_MUTEX

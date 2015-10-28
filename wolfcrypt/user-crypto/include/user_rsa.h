@@ -1,4 +1,4 @@
-/* rsa.h
+/* user_rsa.h
  *
  * Copyright (C) 2006-2015 wolfSSL Inc.
  *
@@ -19,36 +19,35 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
-#ifndef WOLF_CRYPT_RSA_H
-#define WOLF_CRYPT_RSA_H
+/*
+ Created to use intel's IPP see their license for linking to intel's IPP library
+ */
 
-#include <wolfssl/wolfcrypt/types.h>
+#ifndef USER_WOLF_CRYPT_RSA_H
+#define USER_WOLF_CRYPT_RSA_H
+
+#include <wolfssl/wolfcrypt/settings.h>
 
 #ifndef NO_RSA
 
-/* allow for user to plug in own crypto */
-#if !defined(HAVE_FIPS) && (defined(HAVE_USER_RSA) || defined(HAVE_FAST_RSA))
-    #include "user_rsa.h"
-#else
+#include <wolfssl/wolfcrypt/types.h>
+#include <wolfssl/wolfcrypt/random.h>
 
-#ifdef HAVE_FIPS
-/* for fips @wc_fips */
-#include <cyassl/ctaocrypt/rsa.h>
-#if defined(CYASSL_KEY_GEN) && !defined(WOLFSSL_KEY_GEN)
-    #define WOLFSSL_KEY_GEN
-#endif
-#else
-    #include <wolfssl/wolfcrypt/integer.h>
-    #include <wolfssl/wolfcrypt/random.h>
-#endif /* HAVE_FIPS */
+/* intels crypto */
+#include <ipp.h>
+#include <ippcp.h>
 
 #ifdef __cplusplus
     extern "C" {
 #endif
 
-/* avoid redefinition of structs */
-#if !defined(HAVE_FIPS)
-#define WOLFSSL_RSA_CAVIUM_MAGIC 0xBEEF0006
+/* needed for WOLFSSL_RSA type but use macro guard against redefine */
+#if defined(OPENSSL_EXTRA) && !defined(WOLFSSL_TYPES_DEFINED) \
+        && !defined(WOLFSSL_RSA_TYPE_DEFINED)
+    struct WOLFSSL_RSA;
+    typedef struct WOLFSSL_RSA WOLFSSL_RSA;
+    #define WOLFSSL_RSA_TYPE_DEFINED
+#endif
 
 enum {
     RSA_PUBLIC   = 0,
@@ -58,44 +57,40 @@ enum {
 
 /* RSA */
 typedef struct RsaKey {
-    mp_int n, e, d, p, q, dP, dQ, u;
+    IppsBigNumState* n;
+    IppsBigNumState* e;
+    IppsBigNumState* dipp;
+    IppsBigNumState* pipp;
+    IppsBigNumState* qipp;
+    IppsBigNumState* dPipp;
+    IppsBigNumState* dQipp;
+    IppsBigNumState* uipp;
+    int nSz, eSz, dSz;
+    IppsRSAPublicKeyState*  pPub;
+    IppsRSAPrivateKeyState* pPrv;
+    word32 prvSz; /* size of private key */
+    word32 sz;    /* size of signature */
     int   type;                               /* public or private */
     void* heap;                               /* for user memory overrides */
-#ifdef HAVE_CAVIUM
-    int    devId;           /* nitrox device id */
-    word32 magic;           /* using cavium magic */
-    word64 contextHandle;   /* nitrox context memory handle */
-    byte*  c_n;             /* cavium byte buffers for key parts */
-    byte*  c_e;
-    byte*  c_d;
-    byte*  c_p;
-    byte*  c_q;
-    byte*  c_dP;
-    byte*  c_dQ;
-    byte*  c_u;             /* sizes in bytes */
-    word16 c_nSz, c_eSz, c_dSz, c_pSz, c_qSz, c_dP_Sz, c_dQ_Sz, c_uSz;
-#endif
 } RsaKey;
-#endif /*HAVE_FIPS */
 
 WOLFSSL_API int  wc_InitRsaKey(RsaKey* key, void*);
 WOLFSSL_API int  wc_FreeRsaKey(RsaKey* key);
 
 WOLFSSL_API int  wc_RsaPublicEncrypt(const byte* in, word32 inLen, byte* out,
-                                 word32 outLen, RsaKey* key, WC_RNG* rng);
+                                     word32 outLen, RsaKey* key, WC_RNG* rng);
 WOLFSSL_API int  wc_RsaPrivateDecryptInline(byte* in, word32 inLen, byte** out,
-                                        RsaKey* key);
+                                            RsaKey* key);
 WOLFSSL_API int  wc_RsaPrivateDecrypt(const byte* in, word32 inLen, byte* out,
-                                  word32 outLen, RsaKey* key);
+                                      word32 outLen, RsaKey* key);
 WOLFSSL_API int  wc_RsaSSL_Sign(const byte* in, word32 inLen, byte* out,
-                            word32 outLen, RsaKey* key, WC_RNG* rng);
+                                word32 outLen, RsaKey* key, WC_RNG* rng);
 WOLFSSL_API int  wc_RsaSSL_VerifyInline(byte* in, word32 inLen, byte** out,
-                                    RsaKey* key);
+                                        RsaKey* key);
 WOLFSSL_API int  wc_RsaSSL_Verify(const byte* in, word32 inLen, byte* out,
-                              word32 outLen, RsaKey* key);
+                                  word32 outLen, RsaKey* key);
 WOLFSSL_API int  wc_RsaEncryptSize(RsaKey* key);
 
-#ifndef HAVE_FIPS /* to avoid asn duplicate symbols @wc_fips */
 WOLFSSL_API int  wc_RsaPrivateKeyDecode(const byte* input, word32* inOutIdx,
                                                                RsaKey*, word32);
 WOLFSSL_API int  wc_RsaPublicKeyDecode(const byte* input, word32* inOutIdx,
@@ -104,25 +99,31 @@ WOLFSSL_API int  wc_RsaPublicKeyDecodeRaw(const byte* n, word32 nSz,
                                         const byte* e, word32 eSz, RsaKey* key);
 #ifdef WOLFSSL_KEY_GEN
     WOLFSSL_API int wc_RsaKeyToDer(RsaKey*, byte* output, word32 inLen);
-#endif
-#endif /* HAVE_FIPS*/
-WOLFSSL_API int  wc_RsaFlattenPublicKey(RsaKey*, byte*, word32*, byte*,
-                                                                       word32*);
-
-#ifdef WOLFSSL_KEY_GEN
     WOLFSSL_API int wc_RsaKeyToPublicDer(RsaKey*, byte* output, word32 inLen);
     WOLFSSL_API int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng);
 #endif
+WOLFSSL_API int  wc_RsaFlattenPublicKey(RsaKey*, byte*, word32*, byte*,
+                                                                       word32*);
 
-#ifdef HAVE_CAVIUM
-    WOLFSSL_API int  wc_RsaInitCavium(RsaKey*, int);
-    WOLFSSL_API void wc_RsaFreeCavium(RsaKey*);
+
+#ifdef WOLFSSL_CERT_GEN
+        /* abstracted BN operations with RSA key */
+    WOLFSSL_API int wc_Rsa_leading_bit(void* BN);
+    WOLFSSL_API int wc_Rsa_unsigned_bin_size(void* BN);
+
+        /* return MP_OKAY on success */
+    WOLFSSL_API int wc_Rsa_to_unsigned_bin(void* BN, byte* in, int inLen);
 #endif
-#endif /* HAVE_USER_RSA */
+
+#ifdef OPENSSL_EXTRA /* abstracted functions to deal with rsa key */
+    WOLFSSL_API int SetRsaExternal(WOLFSSL_RSA* rsa);
+    WOLFSSL_API int SetRsaInternal(WOLFSSL_RSA* rsa);
+#endif
 #ifdef __cplusplus
     } /* extern "C" */
 #endif
 
 #endif /* NO_RSA */
-#endif /* WOLF_CRYPT_RSA_H */
+#endif /* USER_WOLF_CRYPT_RSA_H */
+
 

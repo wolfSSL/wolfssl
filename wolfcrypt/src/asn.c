@@ -806,6 +806,7 @@ static int CaviumRsaPrivateKeyDecode(const byte* input, word32* inOutIdx,
 
 #endif /* HAVE_CAVIUM */
 
+#ifndef HAVE_USER_RSA
 int wc_RsaPrivateKeyDecode(const byte* input, word32* inOutIdx, RsaKey* key,
                         word32 inSz)
 {
@@ -835,7 +836,7 @@ int wc_RsaPrivateKeyDecode(const byte* input, word32* inOutIdx, RsaKey* key,
 
     return 0;
 }
-
+#endif /* HAVE_USER_RSA */
 #endif /* NO_RSA */
 
 /* Remove PKCS8 header, move beginning of traditional to beginning of input */
@@ -1260,6 +1261,7 @@ int ToTraditionalEnc(byte* input, word32 sz,const char* password,int passwordSz)
 
 #ifndef NO_RSA
 
+#ifndef HAVE_USER_RSA
 int wc_RsaPublicKeyDecode(const byte* input, word32* inOutIdx, RsaKey* key,
                        word32 inSz)
 {
@@ -1354,7 +1356,7 @@ int wc_RsaPublicKeyDecodeRaw(const byte* n, word32 nSz, const byte* e,
 
     return 0;
 }
-
+#endif /* HAVE_USER_RSA */
 #endif
 
 #ifndef NO_DH
@@ -5055,7 +5057,9 @@ int wc_DerToPemEx(const byte* der, word32 derSz, byte* output, word32 outSz,
 
 #endif /* WOLFSSL_KEY_GEN || WOLFSSL_CERT_GEN */
 
-#if !defined(NO_RSA) && (defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_KEY_GEN))
+#if !defined(NO_RSA) && (defined(WOLFSSL_CERT_GEN) || (defined(WOLFSSL_KEY_GEN) && !defined(HAVE_USER_RSA)))
+/* USER RSA ifdef portions used instead of refactor in consideration for
+   possible fips build */
 /* Write a public RSA key to output */
 static int SetRsaPublicKey(byte* output, RsaKey* key,
                            int outLen, int with_header)
@@ -5088,15 +5092,24 @@ static int SetRsaPublicKey(byte* output, RsaKey* key,
         return MEMORY_E;
 #endif
 
+#ifdef HAVE_USER_RSA
+    leadingBit = wc_Rsa_leading_bit(key->n);
+    rawLen = wc_Rsa_unsigned_bin_size(key->n) + leadingBit;
+#else
     leadingBit = mp_leading_bit(&key->n);
     rawLen = mp_unsigned_bin_size(&key->n) + leadingBit;
+#endif
     n[0] = ASN_INTEGER;
     nSz  = SetLength(rawLen, n + 1) + 1;  /* int tag */
 
     if ( (nSz + rawLen) < MAX_RSA_INT_SZ) {
         if (leadingBit)
             n[nSz] = 0;
+#ifdef HAVE_USER_RSA
+        err = wc_Rsa_to_unsigned_bin(key->n, n + nSz, rawLen);
+#else
         err = mp_to_unsigned_bin(&key->n, n + nSz + leadingBit);
+#endif
         if (err == MP_OKAY)
             nSz += rawLen;
         else {
@@ -5124,15 +5137,24 @@ static int SetRsaPublicKey(byte* output, RsaKey* key,
     }
 #endif
 
+#ifdef HAVE_USER_RSA
+    leadingBit = wc_Rsa_leading_bit(key->e);
+    rawLen = wc_Rsa_unsigned_bin_size(key->e) + leadingBit;
+#else
     leadingBit = mp_leading_bit(&key->e);
     rawLen = mp_unsigned_bin_size(&key->e) + leadingBit;
+#endif
     e[0] = ASN_INTEGER;
     eSz  = SetLength(rawLen, e + 1) + 1;  /* int tag */
 
     if ( (eSz + rawLen) < MAX_RSA_E_SZ) {
         if (leadingBit)
             e[eSz] = 0;
+#ifdef HAVE_USER_RSA
+        err = wc_Rsa_to_unsigned_bin(key->e, e + eSz, rawLen);
+#else
         err = mp_to_unsigned_bin(&key->e, e + eSz + leadingBit);
+#endif
         if (err == MP_OKAY)
             eSz += rawLen;
         else {
@@ -5231,7 +5253,7 @@ static int SetRsaPublicKey(byte* output, RsaKey* key,
                                defined(WOLFSSL_KEY_GEN)) */
 
 
-#if defined(WOLFSSL_KEY_GEN) && !defined(NO_RSA)
+#if defined(WOLFSSL_KEY_GEN) && !defined(NO_RSA) && !defined(HAVE_USER_RSA)
 
 
 static mp_int* GetRsaInt(RsaKey* key, int idx)

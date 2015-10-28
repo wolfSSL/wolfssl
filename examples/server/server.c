@@ -125,7 +125,7 @@ int ServerEchoData(SSL* ssl, int clientfd, int echoData, int throughput)
     int ret = 0;
     char* buffer = (char*)malloc(TEST_BUFFER_SIZE);
     if(buffer) {
-        double start, rx_time = 0, tx_time = 0;
+        double start = 0, rx_time = 0, tx_time = 0;
         int xfer_bytes = 0;
         while((echoData && throughput == 0) || (!echoData && xfer_bytes < throughput)) {
             int select_ret = tcp_select(clientfd, 1); /* Timeout=1 second */
