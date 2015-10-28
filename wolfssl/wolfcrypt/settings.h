@@ -305,6 +305,10 @@
 
 
 #ifdef WOLFSSL_VXWORKS
+    #define WOLFSSL_HAVE_MIN
+    #define USE_FAST_MATH
+    #define TFM_TIMING_RESISTANT
+    #define NO_MAIN_DRIVER
     #define NO_DEV_RANDOM
     #define NO_WRITEV
 #endif
