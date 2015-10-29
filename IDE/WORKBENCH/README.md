@@ -31,6 +31,7 @@ in wolfcrypt/src/random.c.
 The wolfCrypt test application will test each of the cryptographic algorithms
 and output the status for each. This should return success for each algorithm
 if everything is working.
+
 1. In usrAppInit.c, make a call to the wolfCrypt test application by adding
 the following to the usrAppInit() function:
 
@@ -54,6 +55,7 @@ wolfcrypt/test/test.c or wolfssl/test.h to those of the filesystem in use.
 
 #####1.2.2 Example Client
 The wolfSSL example client can be found in wolfssl/examples/client.
+
 1. Add client.c and client.h from the examples/client folder to the Workbench
 project.
 2. In usrAppInit.c, inlucde the func\_args as described in the Test Application
@@ -72,10 +74,15 @@ The -d option disables peer checks, -b allows for binding to any interface.
 #####1.2.3 Example Server
 The example server requires more configuration than the client if using the
 VxWorks simulator.
+
 1. Add server.c and server.h from the wolfssl/examples/server folder to the
 Workbench project.
 2. In usrAppInit.c, inlcude the func\args as described in the Test and Client
 applications and add a call to the server function:
+    func_args args = { 0 };
+    tcp_ready ready;
+    InitTcpReady(&ready);
+    args.signal = &ready;
     server_test(&args);
 3. Add the server.h header file to the includes at the top of usrAppInit.c.
 4. Start the server by following the directions in Section 2 for setting up
