@@ -1160,87 +1160,43 @@ static INLINE int OpenNitroxDevice(int dma_mode,int dev_id)
 #endif /* HAVE_CAVIUM */
 
 
-#ifdef USE_WINDOWS_API
+/* Wolf Root Directory Helper */
+/* KEIL-RL File System does not support relative directry */
+#if !defined(WOLFSSL_MDK_ARM) && !defined(WOLFSSL_KEIL_FS) && !defined(WOLFSSL_TIRTOS)
+    #ifndef MAX_PATH
+        #define MAX_PATH 256
+    #endif
 
-/* do back x number of directories */
-static INLINE void ChangeDirBack(int x)
-{
-    char path[MAX_PATH];
-    XMEMSET(path, 0, MAX_PATH);
-    XSTRNCAT(path, ".\\", MAX_PATH);
-    while (x-- > 0) {
-        XSTRNCAT(path, "..\\", MAX_PATH);
+    /* Maximum depth to search for WolfSSL root */
+    #define MAX_WOLF_ROOT_DEPTH 5
+
+    static INLINE int ChangeToWolfRoot(void)
+    {
+        int depth;
+        XFILE file;
+        char path[MAX_PATH];
+        XMEMSET(path, 0, MAX_PATH);
+
+        for(depth = 0; depth < MAX_WOLF_ROOT_DEPTH; depth++) {
+            file = XFOPEN(ntruCert, "rb");
+            if (file != XBADFILE) {
+                XFCLOSE(file);
+                break;
+            }
+            #ifdef USE_WINDOWS_API
+                XSTRNCAT(path, "..\\", MAX_PATH);
+                SetCurrentDirectoryA(path);
+            #else
+                XSTRNCAT(path, "../", MAX_PATH);
+                if (chdir(path) < 0) {
+                    printf("chdir to %s failed\n", path);
+                    break;
+                }
+            #endif
+        }
+        return depth;
     }
-    SetCurrentDirectoryA(path);
-}
-
-/* does current dir contain str */
-static INLINE int CurrentDir(const char* str)
-{
-    char  path[MAX_PATH];
-    char* baseName;
-
-    GetCurrentDirectoryA(sizeof(path), path);
-
-    baseName = strrchr(path, '\\');
-    if (baseName)
-        baseName++;
-    else
-        baseName = path;
-
-    if (strstr(baseName, str))
-        return 1;
-
-    return 0;
-}
-
-#elif defined(WOLFSSL_MDK_ARM) || defined(WOLFSSL_KEIL_FS)
-    /* KEIL-RL File System does not support relative directry */
-#elif defined(WOLFSSL_TIRTOS)
-#else
-
-#ifndef MAX_PATH
-    #define MAX_PATH 256
-#endif
-
-/* do back x number of directories */
-static INLINE void ChangeDirBack(int x)
-{
-    char path[MAX_PATH];
-    XMEMSET(path, 0, MAX_PATH);
-    XSTRNCAT(path, "./", MAX_PATH);
-    while (x-- > 0) {
-        XSTRNCAT(path, "../", MAX_PATH);
-    }
-    if (chdir(path) < 0) {
-        printf("chdir to %s failed\n", path);
-    }
-}
-
-/* does current dir contain str */
-static INLINE int CurrentDir(const char* str)
-{
-    char  path[MAX_PATH];
-    char* baseName;
-
-    if (getcwd(path, sizeof(path)) == NULL) {
-        printf("no current dir?\n");
-        return 0;
-    }
-
-    baseName = strrchr(path, '/');
-    if (baseName)
-        baseName++;
-    else
-        baseName = path;
-
-    if (strstr(baseName, str))
-        return 1;
-
-    return 0;
-}
-
-#endif /* USE_WINDOWS_API */
+#endif /* !defined(WOLFSSL_MDK_ARM) && !defined(WOLFSSL_KEIL_FS) && !defined(WOLFSSL_TIRTOS) */
 
 
 #ifdef USE_WOLFSSL_MEMORY
