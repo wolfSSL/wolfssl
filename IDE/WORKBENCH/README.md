@@ -35,20 +35,20 @@ if everything is working.
 1. In usrAppInit.c, make a call to the wolfCrypt test application by adding
 the following to the usrAppInit() function:
 
-    typedef struct func_args {
-        int    argc;
-        char** argv;
-        int    return_code;
-    } func_args;
+        typedef struct func_args {
+            int    argc;
+            char** argv;
+            int    return_code;
+        } func_args;
 
-    func_args args;
+        func_args args;
 
     wolfcrypt_test(&args);
 2. Include these header files in usrAppInit.c:
-    #include <wolfcrypt/test/test.h>
-    #include <wolfssl/ssl.h>
-    #include <wolfssl/wolfcrypt/settings.h>
-    #include <wolfssl/test.h>
+        #include <wolfcrypt/test/test.h>
+        #include <wolfssl/ssl.h>
+        #include <wolfssl/wolfcrypt/settings.h>
+        #include <wolfssl/test.h>
 3. Start the simulator and check that all wolfCrypt tests pass. If there is a
 certificate file error, adjust the caCert file locations in
 wolfcrypt/test/test.c or wolfssl/test.h to those of the filesystem in use.
