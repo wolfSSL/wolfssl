@@ -1172,29 +1172,35 @@ static INLINE int OpenNitroxDevice(int dma_mode,int dev_id)
 
     static INLINE int ChangeToWolfRoot(void)
     {
-        int depth;
-        XFILE file;
-        char path[MAX_PATH];
-        XMEMSET(path, 0, MAX_PATH);
+        #if !defined(NO_FILESYSTEM) 
+            int depth;
+            XFILE file;
+            char path[MAX_PATH];
+            XMEMSET(path, 0, MAX_PATH);
 
-        for(depth = 0; depth < MAX_WOLF_ROOT_DEPTH; depth++) {
-            file = XFOPEN(ntruCert, "rb");
-            if (file != XBADFILE) {
-                XFCLOSE(file);
-                break;
-            }
-            #ifdef USE_WINDOWS_API
-                XSTRNCAT(path, "..\\", MAX_PATH);
-                SetCurrentDirectoryA(path);
-            #else
-                XSTRNCAT(path, "../", MAX_PATH);
-                if (chdir(path) < 0) {
-                    printf("chdir to %s failed\n", path);
-                    break;
+            for(depth = 0; depth <= MAX_WOLF_ROOT_DEPTH; depth++) {
+                file = XFOPEN(ntruKey, "rb");
+                if (file != XBADFILE) {
+                    XFCLOSE(file);
+                    return depth;
                 }
-            #endif
-        }
-        return depth;
+                #ifdef USE_WINDOWS_API
+                    XSTRNCAT(path, "..\\", MAX_PATH);
+                    SetCurrentDirectoryA(path);
+                #else
+                    XSTRNCAT(path, "../", MAX_PATH);
+                    if (chdir(path) < 0) {
+                        printf("chdir to %s failed\n", path);
+                        break;
+                    }
+                #endif
+            }
+        
+            err_sys("wolf root not found");
+            return -1;
+        #else
+            return 0;
+        #endif
     }
 #endif /* !defined(WOLFSSL_MDK_ARM) && !defined(WOLFSSL_KEIL_FS) && !defined(WOLFSSL_TIRTOS) */
 
