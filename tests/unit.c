@@ -60,10 +60,7 @@ int unit_test(int argc, char** argv)
 #endif /* HAVE_CAVIUM */
 
 #ifndef WOLFSSL_TIRTOS
-    if (CurrentDir("tests") || CurrentDir("_build"))
-        ChangeDirBack(1);
-    else if (CurrentDir("Debug") || CurrentDir("Release"))
-        ChangeDirBack(3);
+    ChangeToWolfRoot();
 #endif
 
     ApiTest();

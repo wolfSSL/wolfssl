@@ -45,6 +45,11 @@
  */
 int wolfcrypt_Init()
 {
+    #if WOLFSSL_CRYPT_HW_MUTEX
+        /* If crypto hardware mutex protection is enabled, then initialize it */
+        wolfSSL_CryptHwMutexInit();
+    #endif
+
     /* if defined have fast RSA then initialize Intel IPP */
     #ifdef HAVE_FAST_RSA
         WOLFSSL_MSG("Setting up IPP Library");

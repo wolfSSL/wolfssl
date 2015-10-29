@@ -1263,12 +1263,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 #if defined(DEBUG_WOLFSSL) && !defined(WOLFSSL_MDK_SHELL) && !defined(STACK_TRAP)
         wolfSSL_Debugging_ON();
 #endif
-        if (CurrentDir("_build"))
-            ChangeDirBack(1);
-        else if (CurrentDir("client"))
-            ChangeDirBack(2);
-        else if (CurrentDir("Debug") || CurrentDir("Release"))
-            ChangeDirBack(3);
+        ChangeToWolfRoot();
 
 #ifdef HAVE_STACK_SIZE
         StackSizeCheck(&args, client_test);
