@@ -79,11 +79,13 @@ VxWorks simulator.
 Workbench project.
 2. In usrAppInit.c, inlcude the func\args as described in the Test and Client
 applications and add a call to the server function:
-    func_args args = { 0 };
-    tcp_ready ready;
-    InitTcpReady(&ready);
-    args.signal = &ready;
-    server_test(&args);
+    
+        func_args args = { 0 };
+        tcp_ready ready;
+        InitTcpReady(&ready);
+        args.signal = &ready;
+        server_test(&args);
+
 3. Add the server.h header file to the includes at the top of usrAppInit.c.
 4. Start the server by following the directions in Section 2 for setting up
 the VxWorks Simulator.
@@ -93,6 +95,7 @@ The -d option disables peer checks.
 Note: If there are certificate file errors, the file paths in wolfssl/test.h
 will need to be adjusted to follow the paths located on the filesystem used
 by the VxWorks project.
+
 ####1.3 Necessary Files
 The following files are required to replicate this build:
 * vxsim\_linux\_1\_0\_2\_2 (directory)
