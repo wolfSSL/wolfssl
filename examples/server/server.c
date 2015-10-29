@@ -314,6 +314,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     fdOpenSession(Task_self());
 #endif
 
+#ifndef WOLFSSL_VXWORKS
     while ((ch = mygetopt(argc, argv, "?dbstnNufrRawPIp:v:l:A:c:k:Z:S:oO:D:L:ieB:"))
                          != -1) {
         switch (ch) {
@@ -494,6 +495,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     }
 
     myoptind = 0;      /* reset for test cases */
+#endif /* !WOLFSSL_VXWORKS */
 
     /* sort out DTLS versus TLS versions */
     if (version == CLIENT_INVALID_VERSION) {
