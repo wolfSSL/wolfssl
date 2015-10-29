@@ -464,6 +464,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 
     StackTrap();
 
+#ifndef WOLFSSL_VXWORKS
     while ((ch = mygetopt(argc, argv,
                           "?gdeDusmNrwRitfxXUPCh:p:v:l:A:c:k:Z:b:zS:L:ToO:aB:"))
                                                                         != -1) {
@@ -697,6 +698,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     }
 
     myoptind = 0;      /* reset for test cases */
+#endif /* !WOLFSSL_VXWORKS */
 
     if (externalTest) {
         /* detect build cases that wouldn't allow test against wolfssl.com */
