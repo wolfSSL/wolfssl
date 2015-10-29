@@ -123,8 +123,7 @@ The following files are required to replicate this build:
 called vsb\_vxsim\_linux.
 
 ###2 VXWORKS SIMULATOR:
-######The VxWorks simulator was used for testing the wolfSSL example
-######applications (server, client, benchmark, and test).
+######The VxWorks simulator was used for testing the wolfSSL example applications (server, client, benchmark, and test).
 ######These are the steps to reproduce this testing method.
 
 Go to "Open Connection Details" under VxWorks Simulator which is in the connections
