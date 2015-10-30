@@ -984,8 +984,9 @@ static char *fgets(char *buff, int sz, FILE *fp)
     #endif
 #endif
 
-/* Certificate Request Extensions needs decode extras */
-#ifdef WOLFSSL_CERT_EXT
+/* Decode Public Key extras on by default, user can turn off with
+ * WOLFSSL_NO_DECODE_EXTRA */
+#ifndef WOLFSSL_NO_DECODE_EXTRA
     #ifndef RSA_DECODE_EXTRA
         #define RSA_DECODE_EXTRA
     #endif
