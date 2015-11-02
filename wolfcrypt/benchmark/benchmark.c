@@ -483,11 +483,12 @@ void bench_aesgcm(void)
     persec = persec / 1024;
 #endif
 
-    printf("AES-GCM Encrypt %d %s took %5.3f seconds, %8.3f MB/s", numBlocks,
+    printf("AES-GCM  %d %s took %5.3f seconds, %8.3f MB/s", numBlocks,
                                               blockType, total, persec);
     SHOW_INTEL_CYCLES
     printf("\n");
 
+#if 0
     start = current_time(1);
     BEGIN_INTEL_CYCLES
 
@@ -508,6 +509,7 @@ void bench_aesgcm(void)
                                               blockType, total, persec);
     SHOW_INTEL_CYCLES
     printf("\n");
+#endif
 }
 #endif
 
