@@ -2357,7 +2357,7 @@ int wolfSSL_Init(void)
 
         /* Initialize crypto for use with TLS connection */
         if (wolfcrypt_Init() != 0)
-            ret = WC_FAILURE_E;
+            ret = WC_INIT_E;
 
         initRefCount++;
         UnLockMutex(&count_mutex);
