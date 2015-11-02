@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 #openssl.test
 
@@ -41,7 +41,7 @@ command -v openssl >/dev/null 2>&1 || { echo >&2 "Requires openssl command, but 
 
 echo -e "\nTesting for _build directory as part of distcheck, different paths"
 currentDir=`pwd`
-if [[ $currentDir == *"_build" ]]
+if [ $currentDir = *"_build" ]
 then
     echo -e "_build directory detected, moving a directory back"
     cd ..
@@ -49,17 +49,13 @@ fi
 
 echo -e "\nStarting openssl server...\n"
 
-openssl s_server -accept $openssl_port -cert ./certs/server-cert.pem -key ./certs/server-key.pem  -quiet -www  -dhparam ./certs/dh2048.pem -dcert ./certs/server-ecc.pem -dkey ./certs/ecc-key.pem &
+openssl s_server -accept $openssl_port -cert ./certs/server-cert.pem -key ./certs/server-key.pem  -quiet -CAfile ./certs/client-cert.pem -www  -dhparam ./certs/dh2048.pem -dcert ./certs/server-ecc.pem -dkey ./certs/ecc-key.pem -Verify 10 -verify_return_error &
 server_pid=$!
 
 
-# get openssl ciphers
-open_ciphers=`openssl ciphers`
-IFS=':'  read -ra opensslArray <<< "$open_ciphers"
 
 # get wolfssl ciphers
 wolf_ciphers=`./examples/client/client -e`
-IFS=':'  read -ra wolfsslArray <<< "$wolf_ciphers"
 
 # server should be ready, let's make sure
 server_ready=0
@@ -67,7 +63,7 @@ while [ "$counter" -lt 20 ]; do
     echo -e "waiting for openssl s_server ready..."
     nc -z localhost $openssl_port
     nc_result=$?
-    if [ $nc_result == 0 ]
+    if [ $nc_result = 0 ]
     then
         echo -e "openssl s_server ready!"
         server_ready=1
@@ -78,45 +74,86 @@ while [ "$counter" -lt 20 ]; do
 done
 
 
-if [ $server_ready == 0 ]
+if [ $server_ready = 0 ]
 then
     echo -e "Couldn't verify openssl server is running, timeout error"
     do_cleanup
     exit -1
 fi
 
-for wolfSuite in "${wolfsslArray[@]}"; do
+OIFS=$IFS # store old seperator to reset
+IFS=$'\:' # set delimiter
+set -f # no globbing
 
-    echo -e "trying wolfSSL cipher suite $wolfSuite"
-    matchSuite=0
-    wolf_suites_total=$((wolf_suites_total + 1))
+wolf_versions=`./examples/client/client -V`
+wolf_versions="$wolf_versions:4" #:4 will test without -v flag
 
-    for openSuite in "${opensslArray[@]}"; do
-        if [ $openSuite == $wolfSuite ]
-        then
+wolf_temp_suites_total=0
+wolf_temp_suites_tested=0
+
+for version in $wolf_versions;
+do
+    echo -e "version = $version"
+    # get openssl ciphers depending on version
+    case $version in "0")
+        openssl_ciphers=`openssl ciphers "SSLv3"`
+        ;;
+    "1")
+        openssl_ciphers=`openssl ciphers "TLSv1"`
+        ;;
+    "2")
+        openssl_ciphers=`openssl ciphers "TLSv1.1"`
+        ;;
+    "3")
+        openssl_ciphers=`openssl ciphers "TLSv1.2"`
+        ;;
+    "4") #test all suites
+        openssl_ciphers=`openssl ciphers "ALL"`
+        ;;
+    esac
+
+    for wolfSuite in $wolf_ciphers; do
+        echo -e "trying wolfSSL cipher suite $wolfSuite"
+        wolf_temp_suites_total=$((wolf_temp_suites_total + 1))
+        matchSuite=0;
+
+        case ":$openssl_ciphers:" in *":$wolfSuite:"*) # add extra : for edge cases
             echo -e "Matched to OpenSSL suite support"
-            matchSuite=1
+            matchSuite=1;;
+        esac
+
+        if [ $matchSuite = 0 ]
+        then
+            echo -e "Couldn't match suite, continuing..."
+            continue
         fi
+
+        if [ $version -lt 4 ]
+        then
+            ./examples/client/client -p $openssl_port -g -r -l $wolfSuite -v $version
+        else
+            # do all versions
+            ./examples/client/client -p $openssl_port -g -r -l $wolfSuite
+        fi
+
+        client_result=$?
+
+        if [ $client_result != 0 ]
+        then
+            echo -e "client failed! Suite = $wolfSuite version = $version"
+            do_cleanup
+            exit 1
+        fi
+        wolf_temp_suites_tested=$((wolf_temp_suites_tested+1))
+
     done
-
-    if [ $matchSuite == 0 ]
-    then
-        echo -e "Couldn't match suite, continuing..."
-        continue
-    fi
-
-    ./examples/client/client -p $openssl_port -g -l $wolfSuite
-    client_result=$?
-
-    if [ $client_result != 0 ]
-    then
-        echo -e "client failed!"
-        do_cleanup
-        exit 1
-    fi
-    wolf_suites_tested=$((wolf_suites_tested+1))
-
+    wolf_suites_tested=$((wolf_temp_suites_tested+wolf_suites_tested))
+    wolf_suites_total=$((wolf_temp_suites_total+wolf_suites_total))
+    echo -e "wolfSSL suites tested with version:$version  $wolf_temp_suites_tested"
+    wolf_temp_suites_total=0
+    wolf_temp_suites_tested=0
 done
+IFS=$OIFS #restore separator
 
 kill -9 $server_pid
 

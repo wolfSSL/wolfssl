@@ -127,6 +127,15 @@ static void ShowCiphers(void)
         printf("%s\n", ciphers);
 }
 
+/* Shows which versions are valid */
+static void ShowVersions(void)
+{
+#ifdef WOLFSSL_ALLOW_SSLV3
+    printf("0:");
+#endif
+    printf("1:2:3\n");
+}
+
 int ClientBenchmarkConnections(WOLFSSL_CTX* ctx, char* host, word16 port,
     int doDTLS, int benchmark, int resumeSession)
 {
@@ -300,6 +309,7 @@ static void Usage(void)
     printf("-p <num>    Port to connect on, not 0, default %d\n", wolfSSLPort);
     printf("-v <num>    SSL version [0-3], SSLv3(0) - TLS1.2(3)), default %d\n",
                                  CLIENT_DEFAULT_VERSION);
+    printf("-V          Prints valid ssl version numbers, SSLv3(0) - TLS1.2(3)\n");
     printf("-l <str>    Cipher suite list (: delimited)\n");
     printf("-c <file>   Certificate file,           default %s\n", cliCert);
     printf("-k <file>   Key file,                   default %s\n", cliKey);
@@ -375,8 +385,8 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 
     WOLFSSL*         sslResume = 0;
     WOLFSSL_SESSION* session = 0;
-    char         resumeMsg[] = "resuming wolfssl!";
-    int          resumeSz    = sizeof(resumeMsg);
+    char         resumeMsg[32] = "resuming wolfssl!";
+    int          resumeSz    = (int)strlen(resumeMsg);
 
     char msg[32] = "hello wolfssl!";   /* GET may make bigger */
     char reply[80];
@@ -472,7 +482,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 
 #ifndef WOLFSSL_VXWORKS
     while ((ch = mygetopt(argc, argv,
-                "?gdeDusmNrwRitfxXUPCh:p:v:l:A:c:k:Z:b:zS:L:ToO:aB:W")) != -1) {
+               "?gdeDusmNrwRitfxXUPCVh:p:v:l:A:c:k:Z:b:zS:L:ToO:aB:W")) != -1) {
         switch (ch) {
             case '?' :
                 Usage();
@@ -562,6 +572,10 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
                     exit(MY_EX_USAGE);
                 }
                 break;
+
+            case 'V' :
+                ShowVersions();
+                exit(EXIT_SUCCESS);
 
             case 'l' :
                 cipherList = myoptarg;
@@ -1096,6 +1110,10 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
         msgSz = 28;
         strncpy(msg, "GET /index.html HTTP/1.0\r\n\r\n", msgSz);
         msg[msgSz] = '\0';
+
+        resumeSz = msgSz;
+        strncpy(resumeMsg, "GET /index.html HTTP/1.0\r\n\r\n", resumeSz);
+        resumeMsg[resumeSz] = '\0';
     }
     if (wolfSSL_write(ssl, msg, msgSz) != msgSz)
         err_sys("SSL_write failed");
@@ -1176,7 +1194,6 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
                                     (void*)"resumed session");
 #endif
 
-        showPeer(sslResume);
 #ifndef WOLFSSL_CALLBACKS
         if (nonBlocking) {
             wolfSSL_set_using_nonblock(sslResume, 1);
@@ -1190,6 +1207,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
         timeout.tv_usec = 0;
         NonBlockingSSL_Connect(ssl);  /* will keep retrying on timeout */
 #endif
+        showPeer(sslResume);
 
         if (wolfSSL_session_reused(sslResume))
             printf("reused session id\n");
@@ -1228,11 +1246,28 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
             #endif
         }
 
-        input = wolfSSL_read(sslResume, reply, sizeof(reply)-1);
-        if (input > 0) {
-            reply[input] = 0;
-            printf("Server resume response: %s\n", reply);
+    input = wolfSSL_read(sslResume, reply, sizeof(reply)-1);
+
+    if (input > 0) {
+        reply[input] = 0;
+        printf("Server resume response: %s\n", reply);
+
+        if (sendGET) {  /* get html */
+            while (1) {
+                input = wolfSSL_read(sslResume, reply, sizeof(reply)-1);
+                if (input > 0) {
+                    reply[input] = 0;
+                    printf("%s\n", reply);
+                }
+                else
+                    break;
+            }
         }
+    } else if (input < 0) {
+        int readErr = wolfSSL_get_error(ssl, 0);
+        if (readErr != SSL_ERROR_WANT_READ)
+            err_sys("wolfSSL_read failed");
+    }
 
         /* try to send session break */
         wolfSSL_write(sslResume, msg, msgSz);
