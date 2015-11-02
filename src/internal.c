@@ -4365,7 +4365,6 @@ static int DoCertificate(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 #if defined(HAVE_OCSP) || defined(HAVE_CRL)
         if (ret == 0) {
             int doCrlLookup = 1;
-            (void)doCrlLookup;
 #ifdef HAVE_OCSP
             if (ssl->ctx->cm->ocspEnabled && ssl->ctx->cm->ocspCheckAll) {
                 WOLFSSL_MSG("Doing Non Leaf OCSP check");
@@ -4388,6 +4387,8 @@ static int DoCertificate(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                     WOLFSSL_MSG("\tCRL check not ok");
                 }
             }
+#else
+            (void)doCrlLookup;
 #endif /* HAVE_CRL */
         }
 #endif /* HAVE_OCSP || HAVE_CRL */
@@ -4454,12 +4455,22 @@ static int DoCertificate(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 
 #if defined(HAVE_OCSP) || defined(HAVE_CRL)
         if (fatal == 0) {
-            int doCrlLookup = 1;
-            (void)doCrlLookup;
+            int doLookup = 1;
+
+#ifdef HAVE_CERTIFICATE_STATUS_REQUEST
+            if (ssl->options.side == WOLFSSL_CLIENT_END) {
+                if (ssl->status_request) {
+                    fatal = TLSX_CSR_InitRequest(ssl->extensions, dCert);
+                    doLookup = 0;
+                }
+            }
+#endif
+
 #ifdef HAVE_OCSP
-            if (ssl->ctx->cm->ocspEnabled) {
+            if (doLookup && ssl->ctx->cm->ocspEnabled) {
+                WOLFSSL_MSG("Doing Leaf OCSP check");
                 ret = CheckCertOCSP(ssl->ctx->cm->ocsp, dCert);
-                doCrlLookup = (ret == OCSP_CERT_UNKNOWN);
+                doLookup = (ret == OCSP_CERT_UNKNOWN);
                 if (ret != 0) {
                     WOLFSSL_MSG("\tOCSP Lookup not ok");
                     fatal = 0;
@@ -4468,7 +4479,7 @@ static int DoCertificate(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 #endif /* HAVE_OCSP */
 
 #ifdef HAVE_CRL
-            if (doCrlLookup && ssl->ctx->cm->crlEnabled) {
+            if (doLookup && ssl->ctx->cm->crlEnabled) {
                 WOLFSSL_MSG("Doing Leaf CRL check");
                 ret = CheckCertCRL(ssl->ctx->cm->crl, dCert);
                 if (ret != 0) {
@@ -4477,11 +4488,12 @@ static int DoCertificate(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                 }
             }
 #endif /* HAVE_CRL */
+            (void)doLookup;
         }
 #endif /* HAVE_OCSP || HAVE_CRL */
 
 #ifdef KEEP_PEER_CERT
-        {
+        if (fatal == 0) {
         /* set X509 format for peer cert even if fatal */
         int copyRet = CopyDecodedToX509(&ssl->peerCert, dCert);
         if (copyRet == MEMORY_E)
@@ -4783,6 +4795,95 @@ static int DoCertificate(WOLFSSL* ssl, byte* input, word32* inOutIdx,
     return ret;
 }
 
+
+static int DoCertificateStatus(WOLFSSL* ssl, byte* input, word32* inOutIdx,
+                                                                    word32 size)
+{
+    int    ret = 0;
+    byte   status_type;
+    word32 status_length;
+
+    if (size < ENUM_LEN + OPAQUE24_LEN)
+        return BUFFER_ERROR;
+
+    status_type = input[(*inOutIdx)++];
+
+    c24to32(input + *inOutIdx, &status_length);
+    *inOutIdx += OPAQUE24_LEN;
+
+    if (size != ENUM_LEN + OPAQUE24_LEN + status_length)
+        return BUFFER_ERROR;
+
+    switch (status_type) {
+    #if defined(HAVE_CERTIFICATE_STATUS_REQUEST)
+
+        case WOLFSSL_CSR_OCSP: {
+            OcspRequest* request = TLSX_CSR_GetRequest(ssl->extensions);
+
+        #ifdef WOLFSSL_SMALL_STACK
+            CertStatus* status;
+            OcspResponse* response;
+        #else
+            CertStatus status[1];
+            OcspResponse response[1];
+        #endif
+
+            do {
+                #ifdef HAVE_CERTIFICATE_STATUS_REQUEST
+                    if (ssl->status_request) {
+                        ssl->status_request = 0;
+                        break;
+                    }
+                #endif
+                return BUFFER_ERROR;
+            } while(0);
+
+        #ifdef WOLFSSL_SMALL_STACK
+            status = (CertStatus*)XMALLOC(sizeof(CertStatus), NULL,
+                                                       DYNAMIC_TYPE_TMP_BUFFER);
+            response = (OcspResponse*)XMALLOC(sizeof(OcspResponse), NULL,
+                                                       DYNAMIC_TYPE_TMP_BUFFER);
+
+            if (status == NULL || response == NULL) {
+                if (status)    XFREE(status,   NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                if (response)  XFREE(response, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
+                return MEMORY_ERROR;
+            }
+        #endif
+
+            InitOcspResponse(response, status, input +*inOutIdx, status_length);
+
+            if ((ret = OcspResponseDecode(response, ssl->ctx->cm)) == 0) {
+                if (response->responseStatus != OCSP_SUCCESSFUL)
+                    ret = BAD_CERTIFICATE_STATUS_ERROR;
+                else if (CompareOcspReqResp(request, response) != 0)
+                    ret = BAD_CERTIFICATE_STATUS_ERROR;
+                else if (response->status->status != CERT_GOOD)
+                    ret = BAD_CERTIFICATE_STATUS_ERROR;
+            }
+
+            *inOutIdx += status_length;
+
+        #ifdef WOLFSSL_SMALL_STACK
+            XFREE(status,   NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(response, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        #endif
+
+        }
+        break;
+    #endif
+
+        default:
+            ret = BUFFER_ERROR;
+    }
+
+    if (ret != 0)
+        SendAlert(ssl, alert_fatal, bad_certificate_status_response);
+
+    return ret;
+}
+
 #endif /* !NO_CERTS */
 
 
@@ -4979,6 +5080,26 @@ static int SanityCheckMsgReceived(WOLFSSL* ssl, byte type)
             break;
 
 #ifndef NO_WOLFSSL_CLIENT
+        case certificate_status:
+            if (ssl->msgsReceived.got_certificate_status) {
+                WOLFSSL_MSG("Duplicate CertificateSatatus received");
+                return DUPLICATE_MSG_E;
+            }
+            ssl->msgsReceived.got_certificate_status = 1;
+
+            if (ssl->msgsReceived.got_certificate == 0) {
+                WOLFSSL_MSG("No Certificate before CertificateStatus");
+                return OUT_OF_ORDER_E;
+            }
+            if (ssl->msgsReceived.got_server_key_exchange != 0) {
+                WOLFSSL_MSG("CertificateStatus after ServerKeyExchange");
+                return OUT_OF_ORDER_E;
+            }
+
+            break;
+#endif
+
+#ifndef NO_WOLFSSL_CLIENT
         case server_key_exchange:
             if (ssl->msgsReceived.got_server_key_exchange) {
                 WOLFSSL_MSG("Duplicate ServerKeyExchange received");
@@ -4986,9 +5107,20 @@ static int SanityCheckMsgReceived(WOLFSSL* ssl, byte type)
             }
             ssl->msgsReceived.got_server_key_exchange = 1;
 
-            if ( ssl->msgsReceived.got_server_hello == 0) {
-                WOLFSSL_MSG("No ServerHello before Cert");
+            if (ssl->msgsReceived.got_server_hello == 0) {
+                WOLFSSL_MSG("No ServerHello before ServerKeyExchange");
                 return OUT_OF_ORDER_E;
+            }
+            if (ssl->msgsReceived.got_certificate_status == 0) {
+#ifdef HAVE_CERTIFICATE_STATUS_REQUEST
+                if (ssl->status_request) {
+                    int ret;
+
+                    WOLFSSL_MSG("No CertificateStatus before ServerKeyExchange");
+                    if ((ret = TLSX_CSR_ForceRequest(ssl)) != 0)
+                        return ret;
+                }
+#endif
             }
 
             break;
@@ -5231,7 +5363,12 @@ static int DoHandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 #ifndef NO_CERTS
     case certificate:
         WOLFSSL_MSG("processing certificate");
-        ret =  DoCertificate(ssl, input, inOutIdx, size);
+        ret = DoCertificate(ssl, input, inOutIdx, size);
+        break;
+
+    case certificate_status:
+        WOLFSSL_MSG("processing certificate status");
+        ret = DoCertificateStatus(ssl, input, inOutIdx, size);
         break;
 #endif
 
@@ -8604,11 +8741,17 @@ const char* wolfSSL_ERR_reason_error_string(unsigned long e)
     case RSA_SIGN_FAULT:
         return "RSA Signature Fault Error";
 
+    case HANDSHAKE_SIZE_ERROR:
+        return "Handshake message too large Error";
+
     case UNKNOWN_ALPN_PROTOCOL_NAME_E:
         return "Unrecognized protocol name Error";
 
-    case HANDSHAKE_SIZE_ERROR:
-        return "Handshake message too large Error";
+    case BAD_CERTIFICATE_STATUS_ERROR:
+        return "Bad Certificate Status Message Error";
+
+    case OCSP_INVALID_STATUS:
+        return "Invalid OCSP Status Error";
 
     default :
         return "unknown error number";
@@ -10371,7 +10514,7 @@ static void PickHashSigAlgo(WOLFSSL* ssl,
                 ato16(input + *inOutIdx, &name);
                 *inOutIdx += OPAQUE16_LEN;
 
-                if (name == WOLFSSL_QSH) {
+                if (name == TLSX_QUANTUM_SAFE_HYBRID) {
                     /* if qshSz is larger than 0 it is the length of buffer
                        used */
                     if ((qshSz = TLSX_QSHCipher_Parse(ssl, input + *inOutIdx,
@@ -11076,7 +11219,7 @@ static void PickHashSigAlgo(WOLFSSL* ssl,
         ato16(input + *inOutIdx, &name);
         *inOutIdx += OPAQUE16_LEN;
 
-        if (name == WOLFSSL_QSH) {
+        if (name == TLSX_QUANTUM_SAFE_HYBRID) {
             /* if qshSz is larger than 0 it is the length of buffer used */
             if ((qshSz = TLSX_QSHCipher_Parse(ssl, input + *inOutIdx,
                                                                   size, 0)) < 0)
@@ -11912,7 +12055,7 @@ static word32 QSH_KeyExchangeWrite(WOLFSSL* ssl, byte isServer)
                     return MEMORY_E;
 
                 /* extension type */
-                c16toa(WOLFSSL_QSH, output + idx);
+                c16toa(TLSX_QUANTUM_SAFE_HYBRID, output + idx);
                 idx += OPAQUE16_LEN;
 
                 /* write to output and check amount written */
@@ -12672,7 +12815,7 @@ int DoSessionTicket(WOLFSSL* ssl,
                         return MEMORY_E;
 
                     /* extension type */
-                    c16toa(WOLFSSL_QSH, output + idx);
+                    c16toa(TLSX_QUANTUM_SAFE_HYBRID, output + idx);
                     idx += OPAQUE16_LEN;
 
                     /* write to output and check amount written */
@@ -12821,7 +12964,7 @@ int DoSessionTicket(WOLFSSL* ssl,
                     QSH_KeyExchangeWrite(ssl, 1);
 
                     /* extension type */
-                    c16toa(WOLFSSL_QSH, output + idx);
+                    c16toa(TLSX_QUANTUM_SAFE_HYBRID, output + idx);
                     idx += OPAQUE16_LEN;
 
                     /* write to output and check amount written */
@@ -13462,7 +13605,7 @@ int DoSessionTicket(WOLFSSL* ssl,
                     QSH_KeyExchangeWrite(ssl, 1);
 
                     /* extension type */
-                    c16toa(WOLFSSL_QSH, output + idx);
+                    c16toa(TLSX_QUANTUM_SAFE_HYBRID, output + idx);
                     idx += OPAQUE16_LEN;
 
                     /* write to output and check amount written */
@@ -14004,7 +14147,7 @@ int DoSessionTicket(WOLFSSL* ssl,
                     QSH_KeyExchangeWrite(ssl, 1);
 
                     /* extension type */
-                    c16toa(WOLFSSL_QSH, output + idx);
+                    c16toa(TLSX_QUANTUM_SAFE_HYBRID, output + idx);
                     idx += OPAQUE16_LEN;
 
                     /* write to output and check amount written */
@@ -15382,7 +15525,7 @@ int DoSessionTicket(WOLFSSL* ssl,
                                 ato16(input + *inOutIdx, &name);
                                 *inOutIdx += OPAQUE16_LEN;
 
-                                if (name == WOLFSSL_QSH) {
+                                if (name == TLSX_QUANTUM_SAFE_HYBRID) {
                                     /* if qshSz is larger than 0 it is the
                                        length of buffer used */
                                     if ((qshSz = TLSX_QSHCipher_Parse(ssl, input
@@ -15460,7 +15603,7 @@ int DoSessionTicket(WOLFSSL* ssl,
                     ato16(input + *inOutIdx, &name);
                     *inOutIdx += OPAQUE16_LEN;
 
-                    if (name == WOLFSSL_QSH) {
+                    if (name == TLSX_QUANTUM_SAFE_HYBRID) {
                         /* if qshSz is larger than 0 it is the length of
                            buffer used */
                         if ((qshSz = TLSX_QSHCipher_Parse(ssl, input + *inOutIdx,
@@ -15522,7 +15665,7 @@ int DoSessionTicket(WOLFSSL* ssl,
                     ato16(input + *inOutIdx, &name);
                     *inOutIdx += OPAQUE16_LEN;
 
-                    if (name == WOLFSSL_QSH) {
+                    if (name == TLSX_QUANTUM_SAFE_HYBRID) {
                         /* if qshSz is larger than 0 it is the length of
                            buffer used */
                         if ((qshSz = TLSX_QSHCipher_Parse(ssl, input + *inOutIdx,
@@ -15610,7 +15753,7 @@ int DoSessionTicket(WOLFSSL* ssl,
                     ato16(input + *inOutIdx, &name);
                     *inOutIdx += OPAQUE16_LEN;
 
-                    if (name == WOLFSSL_QSH) {
+                    if (name == TLSX_QUANTUM_SAFE_HYBRID) {
                         /* if qshSz is larger than 0 it is the length of
                            buffer used */
                         if ((qshSz = TLSX_QSHCipher_Parse(ssl, input + *inOutIdx,
@@ -15665,7 +15808,7 @@ int DoSessionTicket(WOLFSSL* ssl,
                     ato16(input + *inOutIdx, &name);
                     *inOutIdx += OPAQUE16_LEN;
 
-                    if (name == WOLFSSL_QSH) {
+                    if (name == TLSX_QUANTUM_SAFE_HYBRID) {
                         /* if qshSz is larger than 0 it is the length of
                            buffer used */
                         if ((qshSz = TLSX_QSHCipher_Parse(ssl, input + *inOutIdx,
@@ -15760,7 +15903,7 @@ int DoSessionTicket(WOLFSSL* ssl,
                     ato16(input + *inOutIdx, &name);
                     *inOutIdx += OPAQUE16_LEN;
 
-                    if (name == WOLFSSL_QSH) {
+                    if (name == TLSX_QUANTUM_SAFE_HYBRID) {
                         /* if qshSz is larger than 0 it is the length of
                            buffer used */
                         if ((qshSz = TLSX_QSHCipher_Parse(ssl, input + *inOutIdx,

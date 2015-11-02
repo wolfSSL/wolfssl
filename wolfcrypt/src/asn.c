@@ -43,7 +43,11 @@
 
 #include <wolfssl/wolfcrypt/random.h>
 #include <wolfssl/wolfcrypt/hash.h>
-
+#ifdef NO_INLINE
+    #include <wolfssl/wolfcrypt/misc.h>
+#else
+    #include <wolfcrypt/src/misc.c>
+#endif
 
 #ifndef NO_RC4
     #include <wolfssl/wolfcrypt/arc4.h>
@@ -8624,8 +8628,13 @@ static int DecodeResponseData(byte* source,
     if (DecodeSingleResponse(source, &idx, resp, size) < 0)
         return ASN_PARSE_E;
 
-    if (DecodeOcspRespExtensions(source, &idx, resp, size) < 0)
-        return ASN_PARSE_E;
+    /*
+     * Check the length of the ResponseData against the current index to
+     * see if there are extensions, they are optional.
+     */
+    if (idx - prev_idx < resp->responseSz)
+        if (DecodeOcspRespExtensions(source, &idx, resp, size) < 0)
+            return ASN_PARSE_E;
 
     *ioIndex = idx;
     return 0;
@@ -8658,12 +8667,13 @@ static int DecodeCerts(byte* source,
     return 0;
 }
 
-static int DecodeBasicOcspResponse(byte* source,
-                            word32* ioIndex, OcspResponse* resp, word32 size)
+static int DecodeBasicOcspResponse(byte* source, word32* ioIndex,
+                                      OcspResponse* resp, word32 size, void* cm)
 {
     int length;
     word32 idx = *ioIndex;
     word32 end_index;
+    int ret;
 
     WOLFSSL_ENTER("DecodeBasicOcspResponse");
 
@@ -8699,13 +8709,12 @@ static int DecodeBasicOcspResponse(byte* source,
     if (idx < end_index)
     {
         DecodedCert cert;
-        int ret;
 
         if (DecodeCerts(source, &idx, resp, size) < 0)
             return ASN_PARSE_E;
 
         InitDecodedCert(&cert, resp->cert, resp->certSz, 0);
-        ret = ParseCertRelative(&cert, CA_TYPE, NO_VERIFY, 0);
+        ret = ParseCertRelative(&cert, CERT_TYPE, VERIFY, cm);
         if (ret < 0)
             return ret;
 
@@ -8715,6 +8724,20 @@ static int DecodeBasicOcspResponse(byte* source,
         FreeDecodedCert(&cert);
 
         if (ret == 0)
+        {
+            WOLFSSL_MSG("\tOCSP Confirm signature failed");
+            return ASN_OCSP_CONFIRM_E;
+        }
+    }
+    else {
+        Signer* ca = GetCA(cm, resp->issuerHash);
+
+        if (ca)
+            ret = ConfirmSignature(resp->response, resp->responseSz,
+                                   ca->publicKey, ca->pubKeySize, ca->keyOID,
+                                   resp->sig, resp->sigSz, resp->sigOID, NULL);
+
+        if (!ca || ret == 0)
         {
             WOLFSSL_MSG("\tOCSP Confirm signature failed");
             return ASN_OCSP_CONFIRM_E;
@@ -8748,7 +8771,7 @@ void InitOcspResponse(OcspResponse* resp, CertStatus* status,
 }
 
 
-int OcspResponseDecode(OcspResponse* resp)
+int OcspResponseDecode(OcspResponse* resp, void* cm)
 {
     int length = 0;
     word32 idx = 0;
@@ -8792,67 +8815,68 @@ int OcspResponseDecode(OcspResponse* resp)
     if (GetLength(source, &idx, &length, size) < 0)
         return ASN_PARSE_E;
 
-    if (DecodeBasicOcspResponse(source, &idx, resp, size) < 0)
+    if (DecodeBasicOcspResponse(source, &idx, resp, size, cm) < 0)
         return ASN_PARSE_E;
 
     return 0;
 }
 
 
-static word32 SetOcspReqExtensions(word32 extSz, byte* output,
-                                            const byte* nonce, word32 nonceSz)
+word32 EncodeOcspRequestExtensions(OcspRequest* req, byte* output, word32 size)
 {
     static const byte NonceObjId[] = { 0x2b, 0x06, 0x01, 0x05, 0x05, 0x07,
                                        0x30, 0x01, 0x02 };
-    byte seqArray[5][MAX_SEQ_SZ];
-    word32 seqSz[5], totalSz;
+    byte seqArray[6][MAX_SEQ_SZ];
+    word32 seqSz[6], totalSz = (word32)sizeof(NonceObjId);
 
     WOLFSSL_ENTER("SetOcspReqExtensions");
 
-    if (nonce == NULL || nonceSz == 0) return 0;
+    if (!req || !output || !req->nonceSz)
+        return 0;
 
-    seqArray[0][0] = ASN_OCTET_STRING;
-    seqSz[0] = 1 + SetLength(nonceSz, &seqArray[0][1]);
+    totalSz += req->nonceSz;
+    totalSz += seqSz[0] = SetOctetString(req->nonceSz, seqArray[0]);
+    totalSz += seqSz[1] = SetOctetString(req->nonceSz + seqSz[0], seqArray[1]);
+    seqArray[2][0] = ASN_OBJECT_ID;
+    totalSz += seqSz[2] = 1 + SetLength(sizeof(NonceObjId), &seqArray[2][1]);
+    totalSz += seqSz[3] = SetSequence(totalSz, seqArray[3]);
+    totalSz += seqSz[4] = SetSequence(totalSz, seqArray[4]);
+    totalSz += seqSz[5] = SetExplicit(2, totalSz, seqArray[5]);
 
-    seqArray[1][0] = ASN_OBJECT_ID;
-    seqSz[1] = 1 + SetLength(sizeof(NonceObjId), &seqArray[1][1]);
-
-    totalSz = seqSz[0] + seqSz[1] + nonceSz + (word32)sizeof(NonceObjId);
-
-    seqSz[2] = SetSequence(totalSz, seqArray[2]);
-    totalSz += seqSz[2];
-
-    seqSz[3] = SetSequence(totalSz, seqArray[3]);
-    totalSz += seqSz[3];
-
-    seqArray[4][0] = (ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC | 2);
-    seqSz[4] = 1 + SetLength(totalSz, &seqArray[4][1]);
-    totalSz += seqSz[4];
-
-    if (totalSz < extSz)
+    if (totalSz < size)
     {
         totalSz = 0;
+        
+        XMEMCPY(output + totalSz, seqArray[5], seqSz[5]);
+        totalSz += seqSz[5];
+        
         XMEMCPY(output + totalSz, seqArray[4], seqSz[4]);
         totalSz += seqSz[4];
+        
         XMEMCPY(output + totalSz, seqArray[3], seqSz[3]);
         totalSz += seqSz[3];
+        
         XMEMCPY(output + totalSz, seqArray[2], seqSz[2]);
         totalSz += seqSz[2];
-        XMEMCPY(output + totalSz, seqArray[1], seqSz[1]);
-        totalSz += seqSz[1];
+        
         XMEMCPY(output + totalSz, NonceObjId, sizeof(NonceObjId));
         totalSz += (word32)sizeof(NonceObjId);
+        
+        XMEMCPY(output + totalSz, seqArray[1], seqSz[1]);
+        totalSz += seqSz[1];
+        
         XMEMCPY(output + totalSz, seqArray[0], seqSz[0]);
         totalSz += seqSz[0];
-        XMEMCPY(output + totalSz, nonce, nonceSz);
-        totalSz += nonceSz;
+        
+        XMEMCPY(output + totalSz, req->nonce, req->nonceSz);
+        totalSz += req->nonceSz;
     }
 
     return totalSz;
 }
 
 
-int EncodeOcspRequest(OcspRequest* req)
+int EncodeOcspRequest(OcspRequest* req, byte* output, word32 size)
 {
     byte seqArray[5][MAX_SEQ_SZ];
     /* The ASN.1 of the OCSP Request is an onion of sequences */
@@ -8861,7 +8885,6 @@ int EncodeOcspRequest(OcspRequest* req)
     byte issuerKeyArray[MAX_ENCODED_DIG_SZ];
     byte snArray[MAX_SN_SZ];
     byte extArray[MAX_OCSP_EXT_SZ];
-    byte* output = req->dest;
     word32 seqSz[5], algoSz, issuerSz, issuerKeySz, snSz, extSz, totalSz;
     int i;
 
@@ -8873,54 +8896,42 @@ int EncodeOcspRequest(OcspRequest* req)
     algoSz = SetAlgoID(SHAh, algoArray, hashType, 0);
 #endif
 
-    req->issuerHash = req->cert->issuerHash;
-    issuerSz = SetDigest(req->cert->issuerHash, KEYID_SIZE, issuerArray);
+    issuerSz    = SetDigest(req->issuerHash,    KEYID_SIZE,    issuerArray);
+    issuerKeySz = SetDigest(req->issuerKeyHash, KEYID_SIZE,    issuerKeyArray);
+    snSz        = SetSerialNumber(req->serial,  req->serialSz, snArray);
+    extSz       = 0;
 
-    req->issuerKeyHash = req->cert->issuerKeyHash;
-    issuerKeySz = SetDigest(req->cert->issuerKeyHash,
-                                                    KEYID_SIZE, issuerKeyArray);
-
-    req->serial = req->cert->serial;
-    req->serialSz = req->cert->serialSz;
-    snSz = SetSerialNumber(req->cert->serial, req->cert->serialSz, snArray);
-
-    extSz = 0;
-    if (req->useNonce) {
-        WC_RNG rng;
-        if (wc_InitRng(&rng) != 0) {
-            WOLFSSL_MSG("\tCannot initialize RNG. Skipping the OSCP Nonce.");
-        } else {
-            if (wc_RNG_GenerateBlock(&rng, req->nonce, MAX_OCSP_NONCE_SZ) != 0)
-                WOLFSSL_MSG("\tCannot run RNG. Skipping the OSCP Nonce.");
-            else {
-                req->nonceSz = MAX_OCSP_NONCE_SZ;
-                extSz = SetOcspReqExtensions(MAX_OCSP_EXT_SZ, extArray,
-                                                      req->nonce, req->nonceSz);
-            }
-            wc_FreeRng(&rng);
-        }
-    }
+    if (req->nonceSz)
+        extSz = EncodeOcspRequestExtensions(req, extArray, MAX_OCSP_EXT_SZ);
 
     totalSz = algoSz + issuerSz + issuerKeySz + snSz;
-
     for (i = 4; i >= 0; i--) {
         seqSz[i] = SetSequence(totalSz, seqArray[i]);
         totalSz += seqSz[i];
         if (i == 2) totalSz += extSz;
     }
+
+    if (totalSz > size)
+        return BUFFER_E;
+
     totalSz = 0;
     for (i = 0; i < 5; i++) {
         XMEMCPY(output + totalSz, seqArray[i], seqSz[i]);
         totalSz += seqSz[i];
     }
+
     XMEMCPY(output + totalSz, algoArray, algoSz);
     totalSz += algoSz;
+
     XMEMCPY(output + totalSz, issuerArray, issuerSz);
     totalSz += issuerSz;
+
     XMEMCPY(output + totalSz, issuerKeyArray, issuerKeySz);
     totalSz += issuerKeySz;
+
     XMEMCPY(output + totalSz, snArray, snSz);
     totalSz += snSz;
+
     if (extSz != 0) {
         XMEMCPY(output + totalSz, extArray, extSz);
         totalSz += extSz;
@@ -8930,19 +8941,70 @@ int EncodeOcspRequest(OcspRequest* req)
 }
 
 
-void InitOcspRequest(OcspRequest* req, DecodedCert* cert, byte useNonce,
-                                                    byte* dest, word32 destSz)
+int InitOcspRequest(OcspRequest* req, DecodedCert* cert, byte useNonce)
 {
     WOLFSSL_ENTER("InitOcspRequest");
 
-    req->cert = cert;
-    req->useNonce = useNonce;
-    req->nonceSz = 0;
-    req->issuerHash = NULL;
-    req->issuerKeyHash = NULL;
-    req->serial = NULL;
-    req->dest = dest;
-    req->destSz = destSz;
+    if (req == NULL)
+        return BAD_FUNC_ARG;
+
+    ForceZero(req, sizeof(OcspRequest));
+
+    if (cert) {
+        XMEMCPY(req->issuerHash,    cert->issuerHash,    KEYID_SIZE);
+        XMEMCPY(req->issuerKeyHash, cert->issuerKeyHash, KEYID_SIZE);
+
+        req->serial = (byte*)XMALLOC(cert->serialSz, NULL,
+                                                     DYNAMIC_TYPE_OCSP_REQUEST);
+        if (req->serial == NULL)
+            return MEMORY_E;
+
+        XMEMCPY(req->serial, cert->serial, cert->serialSz);
+        req->serialSz = cert->serialSz;
+
+        if (cert->extAuthInfoSz != 0 && cert->extAuthInfo != NULL) {
+            req->url = (byte*)XMALLOC(cert->extAuthInfoSz, NULL,
+                                                     DYNAMIC_TYPE_OCSP_REQUEST);
+            if (req->url == NULL) {
+                XFREE(req->serial, NULL, DYNAMIC_TYPE_OCSP);
+                return MEMORY_E;
+            }
+
+            XMEMCPY(req->url, cert->extAuthInfo, cert->extAuthInfoSz);
+            req->urlSz = cert->extAuthInfoSz;
+        }
+
+    }
+
+    if (useNonce) {
+        WC_RNG rng;
+
+        if (wc_InitRng(&rng) != 0) {
+            WOLFSSL_MSG("\tCannot initialize RNG. Skipping the OSCP Nonce.");
+        } else {
+            if (wc_RNG_GenerateBlock(&rng, req->nonce, MAX_OCSP_NONCE_SZ) != 0)
+                WOLFSSL_MSG("\tCannot run RNG. Skipping the OSCP Nonce.");
+            else
+                req->nonceSz = MAX_OCSP_NONCE_SZ;
+
+            wc_FreeRng(&rng);
+        }
+    }
+
+    return 0;
+}
+
+void FreeOcspRequest(OcspRequest* req)
+{
+    WOLFSSL_ENTER("FreeOcspRequest");
+
+    if (req) {
+        if (req->serial)
+            XFREE(req->serial, NULL, DYNAMIC_TYPE_OCSP_REQUEST);
+
+        if (req->url)
+            XFREE(req->url, NULL, DYNAMIC_TYPE_OCSP_REQUEST);
+    }
 }
 
 
@@ -8966,7 +9028,7 @@ int CompareOcspReqResp(OcspRequest* req, OcspResponse* resp)
 
     /* Nonces are not critical. The responder may not necessarily add
      * the nonce to the response. */
-    if (req->useNonce && resp->nonceSz != 0) {
+    if (req->nonceSz && resp->nonceSz != 0) {
         cmp = req->nonceSz - resp->nonceSz;
         if (cmp != 0)
         {

@@ -188,7 +188,7 @@ enum Misc_ASN {
     MAX_CERTPOL_SZ      = CTC_MAX_CERTPOL_SZ,
 #endif
     MAX_OCSP_EXT_SZ     = 58,      /* Max OCSP Extension length */
-    MAX_OCSP_NONCE_SZ   = 18,      /* OCSP Nonce size           */
+    MAX_OCSP_NONCE_SZ   = 16,      /* OCSP Nonce size           */
     EIGHTK_BUF          = 8192,    /* Tmp buffer size           */
     MAX_PUBLIC_KEY_SZ   = MAX_NTRU_ENC_SZ + MAX_ALGO_SZ + MAX_SEQ_SZ * 2,
                                    /* use bigger NTRU size */
@@ -707,28 +707,26 @@ struct OcspResponse {
 
 
 struct OcspRequest {
-    DecodedCert* cert;
+    byte   issuerHash[KEYID_SIZE];
+    byte   issuerKeyHash[KEYID_SIZE];
+    byte*  serial;   /* copy of the serial number in source cert */
+    int    serialSz;
+    byte*  url;      /* copy of the extAuthInfo in source cert */
+    int    urlSz;
 
-    byte    useNonce;
-    byte    nonce[MAX_OCSP_NONCE_SZ];
-    int     nonceSz;
-
-    byte*   issuerHash;      /* pointer to issuerHash in source cert */
-    byte*   issuerKeyHash;   /* pointer to issuerKeyHash in source cert */
-    byte*   serial;          /* pointer to serial number in source cert */
-    int     serialSz;        /* length of the serial number */
-
-    byte*   dest;            /* pointer to the destination ASN.1 buffer */
-    word32  destSz;          /* length of the destination buffer */
+    byte   nonce[MAX_OCSP_NONCE_SZ];
+    int    nonceSz;
 };
 
 
 WOLFSSL_LOCAL void InitOcspResponse(OcspResponse*, CertStatus*, byte*, word32);
-WOLFSSL_LOCAL int  OcspResponseDecode(OcspResponse*);
+WOLFSSL_LOCAL int  OcspResponseDecode(OcspResponse*, void*);
 
-WOLFSSL_LOCAL void InitOcspRequest(OcspRequest*, DecodedCert*,
-                                                          byte, byte*, word32);
-WOLFSSL_LOCAL int  EncodeOcspRequest(OcspRequest*);
+WOLFSSL_LOCAL int    InitOcspRequest(OcspRequest*, DecodedCert*, byte);
+WOLFSSL_LOCAL void   FreeOcspRequest(OcspRequest*);
+WOLFSSL_LOCAL int    EncodeOcspRequest(OcspRequest*, byte*, word32);
+WOLFSSL_LOCAL word32 EncodeOcspRequestExtensions(OcspRequest*, byte*, word32);
+
 
 WOLFSSL_LOCAL int  CompareOcspReqResp(OcspRequest*, OcspResponse*);
 
@@ -779,4 +777,3 @@ WOLFSSL_LOCAL void FreeDecodedCRL(DecodedCRL*);
 
 #endif /* !NO_ASN */
 #endif /* WOLF_CRYPT_ASN_H */
-

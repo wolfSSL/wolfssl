@@ -10,4 +10,5 @@ rsync -rvt /$SRC/.git         ~/$DST/
 rsync -rvt /$SRC/IDE          ~/$DST/
 rsync -rvt /$SRC/mcapi        ~/$DST/
 rsync -rvt /$SRC/mplabx       ~/$DST/
+rsync -rvt /$SRC/certs        ~/$DST/
 rsync -rvt /$SRC/configure.ac ~/$DST/

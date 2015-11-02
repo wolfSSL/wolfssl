@@ -310,7 +310,7 @@ static void Usage(void)
 #endif
     printf("-b <num>    Benchmark <num> connections and print stats\n");
 #ifdef HAVE_ALPN
-    printf("-L <str>    Application-Layer Protocole Name ({C,F}:<list>)\n");
+    printf("-L <str>    Application-Layer Protocol Negotiation ({C,F}:<list>)\n");
 #endif
     printf("-B <num>    Benchmark throughput using <num> bytes and print stats\n");
     printf("-s          Use pre Shared keys\n");
@@ -347,6 +347,9 @@ static void Usage(void)
 #ifdef HAVE_OCSP
     printf("-o          Perform OCSP lookup on peer certificate\n");
     printf("-O <url>    Perform OCSP lookup using <url> as responder\n");
+#endif
+#ifdef HAVE_CERTIFICATE_STATUS_REQUEST
+    printf("-W          Use OCSP Stapling\n");
 #endif
 #ifdef ATOMIC_USER
     printf("-U          Atomic User Record Layer Callbacks\n");
@@ -425,7 +428,10 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     byte maxFragment = 0;
 #endif
 #ifdef HAVE_TRUNCATED_HMAC
-    byte  truncatedHMAC = 0;
+    byte truncatedHMAC = 0;
+#endif
+#ifdef HAVE_CERTIFICATE_STATUS_REQUEST
+    byte statusRequest = 0;
 #endif
 
 
@@ -466,8 +472,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 
 #ifndef WOLFSSL_VXWORKS
     while ((ch = mygetopt(argc, argv,
-                          "?gdeDusmNrwRitfxXUPCh:p:v:l:A:c:k:Z:b:zS:L:ToO:aB:"))
-                                                                        != -1) {
+                "?gdeDusmNrwRitfxXUPCh:p:v:l:A:c:k:Z:b:zS:L:ToO:aB:W")) != -1) {
         switch (ch) {
             case '?' :
                 Usage();
@@ -651,6 +656,12 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
             case 'T' :
                 #ifdef HAVE_TRUNCATED_HMAC
                     truncatedHMAC = 1;
+                #endif
+                break;
+
+            case 'W' :
+                #ifdef HAVE_CERTIFICATE_STATUS_REQUEST
+                    statusRequest = 1;
                 #endif
                 break;
 
@@ -974,6 +985,15 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     if (alpnList != NULL) {
        printf("ALPN accepted protocols list : %s\n", alpnList);
        wolfSSL_UseALPN(ssl, alpnList, (word32)XSTRLEN(alpnList), alpn_opt);
+    }
+#endif
+#ifdef HAVE_CERTIFICATE_STATUS_REQUEST
+    if (statusRequest) {
+        if (wolfSSL_UseCertificateStatusRequest(ssl, WOLFSSL_CSR_OCSP,
+                                     WOLFSSL_CSR_OCSP_USE_NONCE) != SSL_SUCCESS)
+            err_sys("UseCertificateStatusRequest failed");
+
+        wolfSSL_CTX_EnableOCSP(ctx, WOLFSSL_OCSP_NO_NONCE);
     }
 #endif
 
@@ -1317,4 +1337,3 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     }
 
 #endif
-

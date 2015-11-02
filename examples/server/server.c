@@ -200,7 +200,7 @@ static void Usage(void)
                                  DEFAULT_MIN_DHKEY_BITS);
 #endif
 #ifdef HAVE_ALPN
-    printf("-L <str>    Application-Layer Protocole Name ({C,F}:<list>)\n");
+    printf("-L <str>    Application-Layer Protocol Negotiation ({C,F}:<list>)\n");
 #endif
     printf("-d          Disable client cert check\n");
     printf("-b          Bind to any interface instead of localhost only\n");

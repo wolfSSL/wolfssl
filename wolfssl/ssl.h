@@ -170,35 +170,36 @@ typedef struct WOLFSSL_X509_STORE_CTX {
 
 /* Valid Alert types from page 16/17 */
 enum AlertDescription {
-    close_notify            = 0,
-    unexpected_message      = 10,
-    bad_record_mac          = 20,
-    record_overflow         = 22,
-    decompression_failure   = 30,
-    handshake_failure       = 40,
-    no_certificate          = 41,
-    bad_certificate         = 42,
-    unsupported_certificate = 43,
-    certificate_revoked     = 44,
-    certificate_expired     = 45,
-    certificate_unknown     = 46,
-    illegal_parameter       = 47,
-    decrypt_error           = 51,
+    close_notify                    =   0,
+    unexpected_message              =  10,
+    bad_record_mac                  =  20,
+    record_overflow                 =  22,
+    decompression_failure           =  30,
+    handshake_failure               =  40,
+    no_certificate                  =  41,
+    bad_certificate                 =  42,
+    unsupported_certificate         =  43,
+    certificate_revoked             =  44,
+    certificate_expired             =  45,
+    certificate_unknown             =  46,
+    illegal_parameter               =  47,
+    decrypt_error                   =  51,
     #ifdef WOLFSSL_MYSQL_COMPATIBLE
     /* catch name conflict for enum protocol with MYSQL build */
-    wc_protocol_version     = 70,
+    wc_protocol_version             =  70,
     #else
-    protocol_version        = 70,
+    protocol_version                =  70,
     #endif
-    no_renegotiation        = 100,
-    unrecognized_name       = 112,
-    no_application_protocol = 120
+    no_renegotiation                = 100,
+    unrecognized_name               = 112, /**< RFC 6066, section 3 */
+    bad_certificate_status_response = 113, /**< RFC 6066, section 8 */
+    no_application_protocol         = 120
 };
 
 
 enum AlertLevel {
     alert_warning = 1,
-    alert_fatal = 2
+    alert_fatal   = 2
 };
 
 
@@ -1353,7 +1354,7 @@ WOLFSSL_API int wolfSSL_SNI_GetFromBuffer(
 #endif
 #endif
 
-/* Application-Layer Protocol Name */
+/* Application-Layer Protocol Negotiation */
 #ifdef HAVE_ALPN
 
 /* ALPN status code */
@@ -1406,6 +1407,29 @@ WOLFSSL_API int wolfSSL_CTX_UseMaxFragment(WOLFSSL_CTX* ctx, unsigned char mfl);
 
 WOLFSSL_API int wolfSSL_UseTruncatedHMAC(WOLFSSL* ssl);
 WOLFSSL_API int wolfSSL_CTX_UseTruncatedHMAC(WOLFSSL_CTX* ctx);
+
+#endif
+#endif
+
+/* Certificate Status Request */
+/* Certificate Status Type */
+enum {
+    WOLFSSL_CSR_OCSP = 1
+};
+
+/* Certificate Status Options (flags) */
+enum {
+    WOLFSSL_CSR_OCSP_USE_NONCE = 0x01
+};
+
+#ifdef HAVE_CERTIFICATE_STATUS_REQUEST
+#ifndef NO_WOLFSSL_CLIENT
+
+WOLFSSL_API int wolfSSL_UseCertificateStatusRequest(WOLFSSL* ssl,
+                              unsigned char status_type, unsigned char options);
+
+WOLFSSL_API int wolfSSL_CTX_UseCertificateStatusRequest(WOLFSSL_CTX* ctx,
+                              unsigned char status_type, unsigned char options);
 
 #endif
 #endif

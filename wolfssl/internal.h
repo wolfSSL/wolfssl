@@ -868,7 +868,7 @@ enum Misc {
     COMP_LEN     =  1,         /* compression length      */
     CURVE_LEN    =  2,         /* ecc named curve length  */
     SERVER_ID_LEN = 20,        /* server session id length  */
-    
+
     HANDSHAKE_HEADER_SZ   = 4,  /* type + length(3)        */
     RECORD_HEADER_SZ      = 5,  /* type + version + len(2) */
     CERT_HEADER_SZ        = 3,  /* always 3 bytes          */
@@ -897,7 +897,7 @@ enum Misc {
     MAX_PRF_LABSEED     = 128, /* Maximum label + seed len */
     MAX_PRF_DIG         = 224, /* Maximum digest len      */
     MAX_REQUEST_SZ      = 256, /* Maximum cert req len (no auth yet */
-    SESSION_FLUSH_COUNT = 256, /* Flush session cache unless user turns off */ 
+    SESSION_FLUSH_COUNT = 256, /* Flush session cache unless user turns off */
 
     RC4_KEY_SIZE        = 16,  /* always 128bit           */
     DES_KEY_SIZE        =  8,  /* des                     */
@@ -1156,7 +1156,7 @@ enum {
 
 /* only the sniffer needs space in the buffer for extra MTU record(s) */
 #ifdef WOLFSSL_SNIFFER
-    #define MTU_EXTRA MAX_MTU * 3 
+    #define MTU_EXTRA MAX_MTU * 3
 #else
     #define MTU_EXTRA 0
 #endif
@@ -1174,9 +1174,9 @@ enum {
     #define RECORD_SIZE MAX_RECORD_SIZE
 #else
     #ifdef WOLFSSL_DTLS
-        #define RECORD_SIZE MAX_MTU 
+        #define RECORD_SIZE MAX_MTU
     #else
-        #define RECORD_SIZE 128 
+        #define RECORD_SIZE 128
     #endif
 #endif
 
@@ -1255,7 +1255,7 @@ struct WOLFSSL_CIPHER {
 };
 
 
-typedef struct OCSP_Entry OCSP_Entry;
+typedef struct OcspEntry OcspEntry;
 
 #ifdef NO_SHA
     #define OCSP_DIGEST_SIZE SHA256_DIGEST_SIZE
@@ -1263,17 +1263,17 @@ typedef struct OCSP_Entry OCSP_Entry;
     #define OCSP_DIGEST_SIZE SHA_DIGEST_SIZE
 #endif
 
-#ifdef NO_ASN 
+#ifdef NO_ASN
     /* no_asn won't have */
     typedef struct CertStatus CertStatus;
 #endif
 
-struct OCSP_Entry {
-    OCSP_Entry* next;                        /* next entry             */
-    byte    issuerHash[OCSP_DIGEST_SIZE];    /* issuer hash            */ 
-    byte    issuerKeyHash[OCSP_DIGEST_SIZE]; /* issuer public key hash */
-    CertStatus* status;                      /* OCSP response list     */
-    int         totalStatus;                 /* number on list         */
+struct OcspEntry {
+    OcspEntry*  next;                            /* next entry             */
+    byte        issuerHash[OCSP_DIGEST_SIZE];    /* issuer hash            */
+    byte        issuerKeyHash[OCSP_DIGEST_SIZE]; /* issuer public key hash */
+    CertStatus* status;                          /* OCSP response list     */
+    int         totalStatus;                     /* number on list         */
 };
 
 
@@ -1284,7 +1284,7 @@ struct OCSP_Entry {
 /* wolfSSL OCSP controller */
 struct WOLFSSL_OCSP {
     WOLFSSL_CERT_MANAGER* cm;            /* pointer back to cert manager */
-    OCSP_Entry*          ocspList;      /* OCSP response list */
+    OcspEntry*            ocspList;      /* OCSP response list */
     wolfSSL_Mutex         ocspLock;      /* OCSP list lock */
 };
 
@@ -1307,8 +1307,8 @@ typedef struct CRL_Entry CRL_Entry;
 /* Complete CRL */
 struct CRL_Entry {
     CRL_Entry* next;                      /* next entry */
-    byte    issuerHash[CRL_DIGEST_SIZE];  /* issuer hash                 */ 
-    /* byte    crlHash[CRL_DIGEST_SIZE];      raw crl data hash           */ 
+    byte    issuerHash[CRL_DIGEST_SIZE];  /* issuer hash                 */
+    /* byte    crlHash[CRL_DIGEST_SIZE];      raw crl data hash           */
     /* restore the hash here if needed for optimized comparisons */
     byte    lastDate[MAX_DATE_SIZE]; /* last date updated  */
     byte    nextDate[MAX_DATE_SIZE]; /* next update date   */
@@ -1456,18 +1456,19 @@ typedef struct Keys {
 
 
 
-/* RFC 6066 TLS Extensions */
+/** TLS Extensions - RFC 6066 */
 #ifdef HAVE_TLS_EXTENSIONS
 
 typedef enum {
-    SERVER_NAME_INDICATION = 0x0000,
-    MAX_FRAGMENT_LENGTH    = 0x0001,
-    TRUNCATED_HMAC         = 0x0004,
-    ELLIPTIC_CURVES        = 0x000a,
-    SESSION_TICKET         = 0x0023,
-    SECURE_RENEGOTIATION   = 0xff01,
-    WOLFSSL_QSH            = 0x0018, /* Quantum-Safe-Hybrid */
-    WOLFSSL_ALPN           = 0x0010  /* Application-Layer Protocol Name */
+    TLSX_SERVER_NAME                = 0x0000, /* a.k.a. SNI  */
+    TLSX_MAX_FRAGMENT_LENGTH        = 0x0001,
+    TLSX_TRUNCATED_HMAC             = 0x0004,
+    TLSX_STATUS_REQUEST             = 0x0005, /* a.k.a. OCSP stappling   */
+    TLSX_SUPPORTED_GROUPS           = 0x000a, /* a.k.a. Supported Curves */
+    TLSX_APPLICATION_LAYER_PROTOCOL = 0x0010, /* a.k.a. ALPN */
+    TLSX_QUANTUM_SAFE_HYBRID        = 0x0018, /* a.k.a. QSH  */
+    TLSX_SESSION_TICKET             = 0x0023,
+    TLSX_RENEGOTIATION_INFO         = 0xff01
 } TLSX_Type;
 
 typedef struct TLSX {
@@ -1495,19 +1496,21 @@ WOLFSSL_LOCAL word16 TLSX_WriteResponse(WOLFSSL* ssl, byte* output);
 WOLFSSL_LOCAL int    TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length,
                                                 byte isRequest, Suites *suites);
 
-#elif defined(HAVE_SNI)                  \
-   || defined(HAVE_MAX_FRAGMENT)         \
-   || defined(HAVE_TRUNCATED_HMAC)       \
-   || defined(HAVE_SUPPORTED_CURVES)     \
-   || defined(HAVE_SECURE_RENEGOTIATION) \
-   || defined(HAVE_SESSION_TICKET) \
-   || defined(HAVE_ALPN)
+#elif defined(HAVE_SNI)                           \
+   || defined(HAVE_MAX_FRAGMENT)                  \
+   || defined(HAVE_TRUNCATED_HMAC)                \
+   || defined(HAVE_CERTIFICATE_STATUS_REQUEST)    \
+   || defined(HAVE_SUPPORTED_CURVES)              \
+   || defined(HAVE_ALPN)                          \
+   || defined(HAVE_QSH)                           \
+   || defined(HAVE_SESSION_TICKET)                \
+   || defined(HAVE_SECURE_RENEGOTIATION)
 
 #error Using TLS extensions requires HAVE_TLS_EXTENSIONS to be defined.
 
 #endif /* HAVE_TLS_EXTENSIONS */
 
-/* Server Name Indication */
+/** Server Name Indication - RFC 6066 (session 3) */
 #ifdef HAVE_SNI
 
 typedef struct SNI {
@@ -1535,7 +1538,7 @@ WOLFSSL_LOCAL int    TLSX_SNI_GetFromBuffer(const byte* buffer, word32 bufferSz,
 
 #endif /* HAVE_SNI */
 
-/* Application-layer Protocol Name */
+/* Application-Layer Protocol Negotiation - RFC 7301 */
 #ifdef HAVE_ALPN
 typedef struct ALPN {
     char*        protocol_name; /* ALPN protocol name */
@@ -1554,19 +1557,40 @@ WOLFSSL_LOCAL int TLSX_ALPN_SetOptions(TLSX** extensions, const byte option);
 
 #endif /* HAVE_ALPN */
 
-/* Maximum Fragment Length */
+/** Maximum Fragment Length Negotiation - RFC 6066 (session 4) */
 #ifdef HAVE_MAX_FRAGMENT
 
 WOLFSSL_LOCAL int TLSX_UseMaxFragment(TLSX** extensions, byte mfl);
 
 #endif /* HAVE_MAX_FRAGMENT */
 
+/** Truncated HMAC - RFC 6066 (session 7) */
 #ifdef HAVE_TRUNCATED_HMAC
 
 WOLFSSL_LOCAL int TLSX_UseTruncatedHMAC(TLSX** extensions);
 
 #endif /* HAVE_TRUNCATED_HMAC */
 
+/** Certificate Status Request - RFC 6066 (session 8) */
+#ifdef HAVE_CERTIFICATE_STATUS_REQUEST
+
+typedef struct {
+    byte status_type;
+    byte options;
+    union {
+        OcspRequest ocsp;
+    } request;
+} CertificateStatusRequest;
+
+WOLFSSL_LOCAL int     TLSX_UseCertificateStatusRequest(TLSX** extensions,
+                                                byte status_type, byte options);
+WOLFSSL_LOCAL int     TLSX_CSR_InitRequest(TLSX* extensions, DecodedCert* cert);
+WOLFSSL_LOCAL void*   TLSX_CSR_GetRequest(TLSX* extensions);
+WOLFSSL_LOCAL int     TLSX_CSR_ForceRequest(WOLFSSL* ssl);
+
+#endif
+
+/** Supported Elliptic Curves - RFC 4492 (session 4) */
 #ifdef HAVE_SUPPORTED_CURVES
 
 typedef struct EllipticCurve {
@@ -1583,6 +1607,7 @@ WOLFSSL_LOCAL int TLSX_ValidateEllipticCurves(WOLFSSL* ssl, byte first,
 
 #endif /* HAVE_SUPPORTED_CURVES */
 
+/** Renegotiation Indication - RFC 5746 */
 #ifdef HAVE_SECURE_RENEGOTIATION
 
 enum key_cache_state {
@@ -1592,7 +1617,6 @@ enum key_cache_state {
     SCR_CACHE_PARTIAL,          /* partial restore to real keys */
     SCR_CACHE_COMPLETE          /* complete restore to real keys */
 };
-
 
 /* Additional Conection State according to rfc5746 section 3.1 */
 typedef struct SecureRenegotiation {
@@ -1609,6 +1633,7 @@ WOLFSSL_LOCAL int TLSX_UseSecureRenegotiation(TLSX** extensions);
 
 #endif /* HAVE_SECURE_RENEGOTIATION */
 
+/** Session Ticket - RFC 5077 (session 3.2) */
 #ifdef HAVE_SESSION_TICKET
 
 typedef struct SessionTicket {
@@ -1617,13 +1642,15 @@ typedef struct SessionTicket {
     word16 size;
 } SessionTicket;
 
-WOLFSSL_LOCAL int  TLSX_UseSessionTicket(TLSX** extensions, 
+WOLFSSL_LOCAL int  TLSX_UseSessionTicket(TLSX** extensions,
                                                          SessionTicket* ticket);
 WOLFSSL_LOCAL SessionTicket* TLSX_SessionTicket_Create(word32 lifetime,
                                                        byte* data, word16 size);
 WOLFSSL_LOCAL void TLSX_SessionTicket_Free(SessionTicket* ticket);
+
 #endif /* HAVE_SESSION_TICKET */
 
+/** Quantum-Safe-Hybrid - draft-whyte-qsh-tls12-00 */
 #ifdef HAVE_QSH
 
 typedef struct QSHScheme {
@@ -1753,7 +1780,7 @@ struct WOLFSSL_CTX {
         CallbackEccSign   EccSignCb;    /* User EccSign   Callback handler */
         CallbackEccVerify EccVerifyCb;  /* User EccVerify Callback handler */
     #endif /* HAVE_ECC */
-    #ifndef NO_RSA 
+    #ifndef NO_RSA
         CallbackRsaSign   RsaSignCb;    /* User RsaSign   Callback handler */
         CallbackRsaVerify RsaVerifyCb;  /* User RsaVerify Callback handler */
         CallbackRsaEnc    RsaEncCb;     /* User Rsa Public Encrypt  handler */
@@ -1803,7 +1830,7 @@ void InitCipherSpecs(CipherSpecs* cs);
 
 
 /* Supported Message Authentication Codes from page 43 */
-enum MACAlgorithm { 
+enum MACAlgorithm {
     no_mac,
     md5_mac,
     sha_mac,
@@ -1817,10 +1844,10 @@ enum MACAlgorithm {
 
 
 /* Supported Key Exchange Protocols */
-enum KeyExchangeAlgorithm { 
+enum KeyExchangeAlgorithm {
     no_kea,
-    rsa_kea, 
-    diffie_hellman_kea, 
+    rsa_kea,
+    diffie_hellman_kea,
     fortezza_kea,
     psk_kea,
     dhe_psk_kea,
@@ -1846,8 +1873,8 @@ enum EccCurves {
 
 
 /* Valid client certificate request types from page 27 */
-enum ClientCertificateType {    
-    rsa_sign            = 1, 
+enum ClientCertificateType {
+    rsa_sign            = 1,
     dss_sign            = 2,
     rsa_fixed_dh        = 3,
     dss_fixed_dh        = 4,
@@ -2177,7 +2204,7 @@ struct WOLFSSL_X509_NAME {
     #define EXTERNAL_SERIAL_SIZE 32
 #endif
 
-#ifdef NO_ASN 
+#ifdef NO_ASN
     typedef struct DNS_entry DNS_entry;
 #endif
 
@@ -2295,6 +2322,7 @@ typedef struct MsgsReceived {
     word16 got_hello_verify_request:1;
     word16 got_session_ticket:1;
     word16 got_certificate:1;
+    word16 got_certificate_status:1;
     word16 got_server_key_exchange:1;
     word16 got_certificate_request:1;
     word16 got_server_hello_done:1;
@@ -2446,6 +2474,9 @@ struct WOLFSSL {
     #ifdef HAVE_TRUNCATED_HMAC
         byte truncated_hmac;
     #endif
+    #ifdef HAVE_CERTIFICATE_STATUS_REQUEST
+        byte status_request;
+    #endif
     #ifdef HAVE_SECURE_RENEGOTIATION
         SecureRenegotiation* secure_renegotiation; /* valid pointer indicates */
     #endif                                         /* user turned on */
@@ -2529,20 +2560,20 @@ typedef struct EncryptedInfo {
 #ifdef WOLFSSL_CALLBACKS
     WOLFSSL_LOCAL
     void InitHandShakeInfo(HandShakeInfo*);
-    WOLFSSL_LOCAL 
+    WOLFSSL_LOCAL
     void FinishHandShakeInfo(HandShakeInfo*, const WOLFSSL*);
-    WOLFSSL_LOCAL 
+    WOLFSSL_LOCAL
     void AddPacketName(const char*, HandShakeInfo*);
 
     WOLFSSL_LOCAL
     void InitTimeoutInfo(TimeoutInfo*);
-    WOLFSSL_LOCAL 
+    WOLFSSL_LOCAL
     void FreeTimeoutInfo(TimeoutInfo*, void*);
-    WOLFSSL_LOCAL 
+    WOLFSSL_LOCAL
     void AddPacketInfo(const char*, TimeoutInfo*, const byte*, int, void*);
-    WOLFSSL_LOCAL 
+    WOLFSSL_LOCAL
     void AddLateName(const char*, TimeoutInfo*);
-    WOLFSSL_LOCAL 
+    WOLFSSL_LOCAL
     void AddLateRecordHeader(const RecordLayerHeader* rl, TimeoutInfo* info);
 #endif
 
@@ -2550,10 +2581,10 @@ typedef struct EncryptedInfo {
 /* Record Layer Header identifier from page 12 */
 enum ContentType {
     no_type            = 0,
-    change_cipher_spec = 20, 
-    alert              = 21, 
-    handshake          = 22, 
-    application_data   = 23 
+    change_cipher_spec = 20,
+    alert              = 21,
+    handshake          = 22,
+    application_data   = 23
 };
 
 
@@ -2576,16 +2607,16 @@ typedef struct DtlsHandShakeHeader {
 
 enum HandShakeType {
     no_shake            = -1,
-    hello_request       = 0, 
-    client_hello        = 1, 
+    hello_request       = 0,
+    client_hello        = 1,
     server_hello        = 2,
     hello_verify_request = 3,       /* DTLS addition */
     session_ticket      =  4,
-    certificate         = 11, 
+    certificate         = 11,
     server_key_exchange = 12,
-    certificate_request = 13, 
+    certificate_request = 13,
     server_hello_done   = 14,
-    certificate_verify  = 15, 
+    certificate_verify  = 15,
     client_key_exchange = 16,
     finished            = 20,
     certificate_status  = 22,
@@ -2685,7 +2716,7 @@ WOLFSSL_LOCAL  int GrowInputBuffer(WOLFSSL* ssl, int size, int usedLength);
 #endif /* WOLFSSL_DTLS */
 
 #ifndef NO_TLS
-    
+
 
 #endif /* NO_TLS */
 
@@ -2721,4 +2752,3 @@ WOLFSSL_LOCAL int SetKeysSide(WOLFSSL*, enum encrypt_side);
 #endif
 
 #endif /* wolfSSL_INT_H */
-
