@@ -46,6 +46,8 @@
 #ifdef WOLFSSL_AESNI
 
 #include <wmmintrin.h>
+#include <emmintrin.h>
+#include <smmintrin.h>
 
 #if !defined (ALIGN16)
     #if defined (__GNUC__)

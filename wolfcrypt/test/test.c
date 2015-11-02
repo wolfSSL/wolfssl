@@ -390,7 +390,7 @@ int wolfcrypt_test(void* args)
 
 #ifdef HAVE_AESGCM
     if ( (ret = gmac_test()) != 0)
-        return err_sys("GMAC     test passed!\n", ret);
+        return err_sys("GMAC     test failed!\n", ret);
     else
         printf( "GMAC     test passed!\n");
 #endif

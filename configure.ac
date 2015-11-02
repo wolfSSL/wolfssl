@@ -452,6 +452,7 @@ then
             AM_CFLAGS="$AM_CFLAGS -maes -msse4"
         fi
     fi
+    AS_IF([test "x$ENABLED_AESGCM" != "xno"],[AM_CCASFLAGS="$AM_CCASFLAGS -DHAVE_AESGCM"])
 fi
 
 if test "$ENABLED_INTELASM" = "yes"
@@ -2500,6 +2501,7 @@ CREATE_HEX_VERSION
 AC_SUBST([AM_CPPFLAGS])
 AC_SUBST([AM_CFLAGS])
 AC_SUBST([AM_LDFLAGS])
+AC_SUBST([AM_CCASFLAGS])
 AC_SUBST([LIB_ADD])
 AC_SUBST([LIB_STATIC_ADD])
 
@@ -2619,6 +2621,7 @@ echo "   * C Flags:                   $CFLAGS"
 echo "   * C++ Compiler:              $CXX"
 echo "   * C++ Flags:                 $CXXFLAGS"
 echo "   * CPP Flags:                 $CPPFLAGS"
+echo "   * CCAS Flags:                $CCASFLAGS"
 echo "   * LIB Flags:                 $LIB"
 echo "   * Debug enabled:             $ax_enable_debug"
 echo "   * Warnings as failure:       $ac_cv_warnings_as_errors"
