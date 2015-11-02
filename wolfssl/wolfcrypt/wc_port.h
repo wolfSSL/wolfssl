@@ -170,7 +170,7 @@ WOLFSSL_LOCAL int LockMutex(wolfSSL_Mutex*);
 WOLFSSL_LOCAL int UnLockMutex(wolfSSL_Mutex*);
 
 /* main crypto initialization function */
-WOLFSSL_API int wolfcrypt_Init(void);
+WOLFSSL_API int wolfCrypt_Init(void);
 
 /* filesystem abstraction layer, used by ssl.c */
 #ifndef NO_FILESYSTEM

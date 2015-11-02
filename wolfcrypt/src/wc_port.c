@@ -43,7 +43,7 @@
 /* Used to initialize state for wolfcrypt
    return 0 on success
  */
-int wolfcrypt_Init()
+int wolfCrypt_Init()
 {
     #if WOLFSSL_CRYPT_HW_MUTEX
         /* If crypto hardware mutex protection is enabled, then initialize it */

@@ -159,8 +159,15 @@ WOLFSSL_CTX* wolfSSL_CTX_new(WOLFSSL_METHOD* method)
 
     WOLFSSL_ENTER("WOLFSSL_CTX_new");
 
-    if (initRefCount == 0)
-        wolfSSL_Init(); /* user no longer forced to call Init themselves */
+    if (initRefCount == 0) {
+        /* user no longer forced to call Init themselves */
+        int ret = wolfSSL_Init();
+        if (ret != SSL_SUCCESS) {
+            WOLFSSL_MSG("wolfSSL_Init failed");
+            WOLFSSL_LEAVE("WOLFSSL_CTX_new", 0);
+            return NULL;
+        }
+    }
 
     if (method == NULL)
         return ctx;
@@ -2337,33 +2344,35 @@ int AddCA(WOLFSSL_CERT_MANAGER* cm, buffer der, int type, int verify)
 
 int wolfSSL_Init(void)
 {
-    int ret = SSL_SUCCESS;
-
     WOLFSSL_ENTER("wolfSSL_Init");
 
     if (initRefCount == 0) {
+        /* Initialize crypto for use with TLS connection */
+        if (wolfCrypt_Init() != 0) {
+            WOLFSSL_MSG("Bad wolfCrypt Init");
+            return WC_INIT_E;
+        }
 #ifndef NO_SESSION_CACHE
-        if (InitMutex(&session_mutex) != 0)
-            ret = BAD_MUTEX_E;
-#endif
-        if (InitMutex(&count_mutex) != 0)
-            ret = BAD_MUTEX_E;
-    }
-    if (ret == SSL_SUCCESS) {
-        if (LockMutex(&count_mutex) != 0) {
-            WOLFSSL_MSG("Bad Lock Mutex count");
+        if (InitMutex(&session_mutex) != 0) {
+            WOLFSSL_MSG("Bad Init Mutex session");
             return BAD_MUTEX_E;
         }
-
-        /* Initialize crypto for use with TLS connection */
-        if (wolfcrypt_Init() != 0)
-            ret = WC_INIT_E;
-
-        initRefCount++;
-        UnLockMutex(&count_mutex);
+#endif
+        if (InitMutex(&count_mutex) != 0) {
+            WOLFSSL_MSG("Bad Init Mutex count");
+            return BAD_MUTEX_E;
+        }
     }
 
-    return ret;
+    if (LockMutex(&count_mutex) != 0) {
+        WOLFSSL_MSG("Bad Lock Mutex count");
+        return BAD_MUTEX_E;
+    }
+
+    initRefCount++;
+    UnLockMutex(&count_mutex);
+
+    return SSL_SUCCESS;
 }
 
 
@@ -7352,8 +7361,10 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
     int wolfSSL_add_all_algorithms(void)
     {
         WOLFSSL_ENTER("wolfSSL_add_all_algorithms");
-        wolfSSL_Init();
-        return SSL_SUCCESS;
+        if (wolfSSL_Init() == SSL_SUCCESS)
+            return SSL_SUCCESS;
+        else
+            return SSL_FATAL_ERROR;
     }
 
 

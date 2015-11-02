@@ -244,7 +244,7 @@ int benchmark_test(void *args)
 {
 #endif
 
-    wolfcrypt_Init();
+    wolfCrypt_Init();
 
     #if defined(DEBUG_WOLFSSL) && !defined(HAVE_VALGRIND)
         wolfSSL_Debugging_ON();
