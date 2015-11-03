@@ -8673,7 +8673,7 @@ static int DecodeBasicOcspResponse(byte* source, word32* ioIndex,
     int length;
     word32 idx = *ioIndex;
     word32 end_index;
-    int ret;
+    int ret = -1;
 
     WOLFSSL_ENTER("DecodeBasicOcspResponse");
 
@@ -8733,10 +8733,11 @@ static int DecodeBasicOcspResponse(byte* source, word32* ioIndex,
         Signer* ca = GetCA(cm, resp->issuerHash);
 
         if (ca)
+        {
             ret = ConfirmSignature(resp->response, resp->responseSz,
                                    ca->publicKey, ca->pubKeySize, ca->keyOID,
                                    resp->sig, resp->sigSz, resp->sigOID, NULL);
-
+        }
         if (!ca || ret == 0)
         {
             WOLFSSL_MSG("\tOCSP Confirm signature failed");
