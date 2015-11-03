@@ -2554,6 +2554,9 @@ int ValidateDate(const byte* date, byte format, int dateType)
     struct tm* localTime;
     struct tm* tmpTime = NULL;
     int    i = 0;
+    int    timeDiff = 0 ;
+    int    diffHH = 0 ; int diffMM = 0 ;
+    int    diffSign = 0 ;
 
 #if defined(FREESCALE_MQX) || defined(TIME_OVERRIDES)
     struct tm tmpTimeStorage;
@@ -2584,11 +2587,18 @@ int ValidateDate(const byte* date, byte format, int dateType)
     GetTime((int*)&certTime.tm_min,  date, &i);
     GetTime((int*)&certTime.tm_sec,  date, &i);
 
-        if (date[i] != 'Z') {     /* only Zulu supported for this profile */
-        WOLFSSL_MSG("Only Zulu time supported for this profile");
+    if ((date[i] == '+') || (date[i] == '-')) {
+        WOLFSSL_MSG("Using time differential, not Zulu") ;
+        diffSign = date[i++] == '+' ? 1 : -1 ;
+        GetTime(&diffHH, date, &i);
+        GetTime(&diffMM, date, &i);
+        timeDiff = diffSign * (diffHH*60 + diffMM) * 60 ;
+    } else if (date[i] != 'Z') {
+        WOLFSSL_MSG("UTCtime, niether Zulu or time differential") ;
         return 0;
     }
 
+    ltime -= (time_t)timeDiff ;
     localTime = XGMTIME(&ltime, tmpTime);
 
     if (localTime == NULL) {
@@ -9379,4 +9389,3 @@ int ParseCRL(DecodedCRL* dcrl, const byte* buff, word32 sz, void* cm)
 
 
 #endif /* WOLFSSL_SEP */
-
