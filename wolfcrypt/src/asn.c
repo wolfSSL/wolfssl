@@ -2588,16 +2588,17 @@ int ValidateDate(const byte* date, byte format, int dateType)
     GetTime((int*)&certTime.tm_sec,  date, &i);
 
     if ((date[i] == '+') || (date[i] == '-')) {
-        diffSign = date[i++]=='+' ? 1 : -1 ;
-        GetTime((int*)&diffHH,  date, &i);
-        GetTime((int*)&diffMM,  date, &i);
+        WOLFSSL_MSG("Using time differential, not Zulu") ;
+        diffSign = date[i++] == '+' ? 1 : -1 ;
+        GetTime(&diffHH, date, &i);
+        GetTime(&diffMM, date, &i);
         timeDiff = diffSign * (diffHH*60 + diffMM) * 60 ;
     } else if (date[i] != 'Z') {
-            WOLFSSL_MSG("UTCtime, niether Zulu or time differential") ;
-            return 0;
+        WOLFSSL_MSG("UTCtime, niether Zulu or time differential") ;
+        return 0;
     }
 
-    ltime -= timeDiff ;
+    ltime -= (time_t)timeDiff ;
     localTime = XGMTIME(&ltime, tmpTime);
 
     if (localTime == NULL) {
