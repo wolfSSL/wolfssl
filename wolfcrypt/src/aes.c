@@ -2651,17 +2651,9 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
 #endif
 
 enum {
-    CTR_SZ = 4
+    NONCE_SZ = 12,
+    CTR_SZ   = 4
 };
-
-
-static INLINE void InitGcmCounter(byte* inOutCtr)
-{
-    inOutCtr[AES_BLOCK_SIZE - 4] = 0;
-    inOutCtr[AES_BLOCK_SIZE - 3] = 0;
-    inOutCtr[AES_BLOCK_SIZE - 2] = 0;
-    inOutCtr[AES_BLOCK_SIZE - 1] = 1;
-}
 
 
 static INLINE void IncrementGcmCounter(byte* inOutCtr)
@@ -2751,6 +2743,12 @@ int wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len)
 
     XMEMSET(iv, 0, AES_BLOCK_SIZE);
     ret = wc_AesSetKey(aes, key, len, iv, AES_ENCRYPTION);
+
+    #ifdef WOLFSSL_AESNI
+        /* AES-NI code generates its own H value. */
+        if (haveAESNI)
+            return ret;
+    #endif /* WOLFSSL_AESNI */
 
     if (ret == 0) {
         wc_AesEncrypt(aes, iv, aes->H);
@@ -3696,6 +3694,7 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     const byte* p = in;
     byte* c = out;
     byte counter[AES_BLOCK_SIZE];
+    byte initialCounter[AES_BLOCK_SIZE];
     byte *ctr ;
     byte scratch[AES_BLOCK_SIZE];
 
@@ -3715,9 +3714,15 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     ctr = counter ;
 #endif
 
-    XMEMSET(ctr, 0, AES_BLOCK_SIZE);
-    XMEMCPY(ctr, iv, ivSz);
-    InitGcmCounter(ctr);
+    XMEMSET(initialCounter, 0, AES_BLOCK_SIZE);
+    if (ivSz == NONCE_SZ) {
+        XMEMCPY(initialCounter, iv, ivSz);
+        initialCounter[AES_BLOCK_SIZE - 1] = 1;
+    }
+    else {
+        GHASH(aes, NULL, 0, iv, ivSz, initialCounter, AES_BLOCK_SIZE);
+    }
+    XMEMCPY(ctr, initialCounter, AES_BLOCK_SIZE);
 
 #ifdef WOLFSSL_PIC32MZ_CRYPT
     if(blocks)
@@ -3744,8 +3749,7 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     }
 
     GHASH(aes, authIn, authInSz, out, sz, authTag, authTagSz);
-    InitGcmCounter(ctr);
-    wc_AesEncrypt(aes, ctr, scratch);
+    wc_AesEncrypt(aes, initialCounter, scratch);
     xorbuf(authTag, scratch, authTagSz);
 
     return 0;
@@ -3762,6 +3766,7 @@ int  wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     const byte* c = in;
     byte* p = out;
     byte counter[AES_BLOCK_SIZE];
+    byte initialCounter[AES_BLOCK_SIZE];
     byte *ctr ;
     byte scratch[AES_BLOCK_SIZE];
 
@@ -3782,9 +3787,15 @@ int  wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     ctr = counter ;
 #endif
 
-    XMEMSET(ctr, 0, AES_BLOCK_SIZE);
-    XMEMCPY(ctr, iv, ivSz);
-    InitGcmCounter(ctr);
+    XMEMSET(initialCounter, 0, AES_BLOCK_SIZE);
+    if (ivSz == NONCE_SZ) {
+        XMEMCPY(initialCounter, iv, ivSz);
+        initialCounter[AES_BLOCK_SIZE - 1] = 1;
+    }
+    else {
+        GHASH(aes, NULL, 0, iv, ivSz, initialCounter, AES_BLOCK_SIZE);
+    }
+    XMEMCPY(ctr, initialCounter, AES_BLOCK_SIZE);
 
     /* Calculate the authTag again using the received auth data and the
      * cipher text. */
