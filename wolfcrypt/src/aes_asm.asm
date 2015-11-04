@@ -983,6 +983,10 @@ gfmul PROC
         ; xmm1 holds operand b (128 bits)
         ; r8  holds the pointer to output (128 bits)
 
+        ; convert to what we had for att&t convention
+        movdqa  xmm0, [rcx]
+        movdqa  xmm1, [rdx]
+
         ; on microsoft xmm6-xmm15 are non volaitle, let's save on stack and restore at end
         sub rsp,8+4*16  ; 8 = align stack , 4 xmm6-9 16 bytes each
         movdqa [rsp+0], xmm6
