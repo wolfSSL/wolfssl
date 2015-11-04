@@ -8742,14 +8742,9 @@ static int DecodeBasicOcspResponse(byte* source, word32* ioIndex,
     else {
         Signer* ca = GetCA(cm, resp->issuerHash);
 
-        if (ca)
-        {
-            ret = ConfirmSignature(resp->response, resp->responseSz,
-                                   ca->publicKey, ca->pubKeySize, ca->keyOID,
-                                   resp->sig, resp->sigSz, resp->sigOID, NULL);
-        }
-        if (!ca || ret == 0)
-        {
+        if (!ca || !ConfirmSignature(resp->response, resp->responseSz, 
+                                     ca->publicKey, ca->pubKeySize, ca->keyOID, 
+                                  resp->sig, resp->sigSz, resp->sigOID, NULL)) {
             WOLFSSL_MSG("\tOCSP Confirm signature failed");
             return ASN_OCSP_CONFIRM_E;
         }
