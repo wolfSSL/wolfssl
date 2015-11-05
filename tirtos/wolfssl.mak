@@ -1,27 +1,17 @@
 #
 #  ======== wolfssl.mak ========
 #
+include ./products.mak
 
-# USER OPTIONAL STEP: These variables are set when building wolfssl
-# through the tirtos.mak
-# Set up dependencies
-XDC_INSTALL_DIR ?= C:/ti/xdctools_3_24_02_30
-SYSBIOS_INSTALL_DIR ?= C:/ti/bios_6_34_01_14
-NDK_INSTALL_DIR ?= C:/ti/ndk_2_24_00_02
-TIRTOS_INSTALLATION_DIR ?= C:/ti/tirtos_tivac_2_00_00_22
-TIVAWARE ?= C:/ti/tivaware
-WOLFSSL_INSTALL_DIR ?= C:/wolfssl/wolfssl-2.9.4
+# Enable older TI-RTOS 2.14-based variables
+ifeq ($(BIOS_INSTALL_DIR),)
+    BIOS_INSTALL_DIR=$(SYSBIOS_INSTALL_DIR)
+endif
+ifeq ($(TIVAWARE_INSTALL_DIR),)
+    TIVAWARE_INSTALL_DIR=$(TIVAWARE)
+endif
 
-#
-# Set location of various cgtools
-# These variables can be set here or on the command line. These
-# variables are set when building wolfssl through tirtos.mak
-# USER OPTIONAL STEP: user can define below paths to compilers
-ti.targets.arm.elf.M4F ?=
-
-gnu.targets.arm.M4F ?=
-
-iar.targets.arm.M4F ?=
+WOLFSSL_INSTALL_DIR=$(CURDIR)/../
 
 #
 # Set XDCARGS to some of the variables above.  XDCARGS are passed
@@ -40,12 +30,12 @@ XDCARGS= \
     ti.targets.arm.elf.M4F=\"$(ti.targets.arm.elf.M4F)\" \
     gnu.targets.arm.M4F=\"$(gnu.targets.arm.M4F)\" \
     iar.targets.arm.M4F=\"$(iar.targets.arm.M4F)\" \
-    TIVAWARE=\"$(TIVAWARE)\"
+    NDK=\"$(NDK_INSTALL_DIR)\"
 
 #
 # Set XDCPATH to contain necessary repositories.
 #
-XDCPATH = $(SYSBIOS_INSTALL_DIR)/packages;$(NDK_INSTALL_DIR)/packages;$(WOLFSSL_INSTALL_DIR);$(TIRTOS_INSTALLATION_DIR)/packages;$(TIVAWARE);
+XDCPATH = $(BIOS_INSTALL_DIR)/packages;$(NDK_INSTALL_DIR)/packages;$(WOLFSSL_INSTALL_DIR);$(TIVAWARE_INSTALL_DIR)
 export XDCPATH
 
 #
