@@ -905,7 +905,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
                                                     | WOLFSSL_OCSP_URL_OVERRIDE);
         }
         else
-            wolfSSL_CTX_EnableOCSP(ctx, WOLFSSL_OCSP_NO_NONCE);
+            wolfSSL_CTX_EnableOCSP(ctx, 0);
     }
 #endif
 
@@ -1007,7 +1007,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
                                      WOLFSSL_CSR_OCSP_USE_NONCE) != SSL_SUCCESS)
             err_sys("UseCertificateStatusRequest failed");
 
-        wolfSSL_CTX_EnableOCSP(ctx, WOLFSSL_OCSP_NO_NONCE);
+        wolfSSL_CTX_EnableOCSP(ctx, 0);
     }
 #endif
 

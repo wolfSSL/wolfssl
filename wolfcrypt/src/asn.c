@@ -8579,6 +8579,17 @@ static int DecodeOcspRespExtensions(byte* source,
         }
 
         if (oid == OCSP_NONCE_OID) {
+            /* get data inside extra OCTET_STRING */
+            if (source[idx++] != ASN_OCTET_STRING) {
+                WOLFSSL_MSG("\tfail: should be an OCTET STRING");
+                return ASN_PARSE_E;
+            }
+
+            if (GetLength(source, &idx, &length, sz) < 0) {
+                WOLFSSL_MSG("\tfail: extension data length");
+                return ASN_PARSE_E;
+            }
+            
             resp->nonce = source + idx;
             resp->nonceSz = length;
         }
