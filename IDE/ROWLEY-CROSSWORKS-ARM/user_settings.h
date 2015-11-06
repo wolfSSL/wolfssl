@@ -18,7 +18,8 @@
 
 /* Custom functions */
 extern int custom_rand_generate(void);
-#define CUSTOM_RAND_GENERATE custom_rand_generate
+#define CUSTOM_RAND_GENERATE  custom_rand_generate
+#define CUSTOM_RAND_TYPE      word32
 #define WOLFSSL_USER_CURRTIME
 
 /* Debugging - Optional */
