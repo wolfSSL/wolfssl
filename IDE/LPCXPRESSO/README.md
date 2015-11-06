@@ -11,6 +11,8 @@ To use, install the NXP LPCXpresso IDE and import the projects in a new workspac
 7. Repeat the process but for step 4 choose "IDE/LPCXPRESSO" as the folder.
 8. Import the "wolf_demo", "lpc_board_nxp_lpcxpresso_1837" and "lpc_chip_18xx" projects.
 
+To setup this example to work with different baords/chips you will need to locate the LPCOpen sources for LPCXpresso on the NXP website and import the board and chip projects. Then you will need to update the "wolf_demo" project properties to reference these projects (C/C++ General -> Paths and Symbols -> References). See the [LPCOpen v2.xx LPCXpresso quickstart guide for all platforms](https://www.lpcware.com/content/project/lpcopen-platform-nxp-lpc-microcontrollers/lpcopen-v200-quickstart-guides/lpcopen-1) for additional information.
+
 
 ## WolfSSL example projects:
 
