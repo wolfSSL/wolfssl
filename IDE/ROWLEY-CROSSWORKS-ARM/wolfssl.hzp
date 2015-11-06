@@ -10,12 +10,14 @@
       project_type="Library" />
     <folder Name="Source Files">
       <configuration Name="Common" filter="c;cpp;cxx;cc;h;s;inc" />
-      <folder
-        Name="wolfcrypt"
-        exclude="*.asm;*.s"
-        filter=""
-        path="../../wolfcrypt"
-        recurse="Yes" />
+      <folder Name="wolfcrypt">
+        <folder Name="benchmark" path="../../wolfcrypt/benchmark" />
+        <folder Name="src" path="../../wolfcrypt/src" />
+        <folder Name="test" path="../../wolfcrypt/test" />
+        <folder Name="user-crypto" path="../../wolfcrypt/user-crypto">
+          <configuration Name="Common" build_exclude_from_build="Yes" />
+        </folder>
+      </folder>
       <folder
         Name="wolfssl"
         exclude="*.asm;*.s"
@@ -24,6 +26,12 @@
         recurse="Yes" />
       <file file_name="user_settings.h" />
       <file file_name="README.md" />
+      <folder
+        Name="source"
+        exclude=""
+        filter=""
+        path="../../src"
+        recurse="No" />
     </folder>
   </project>
   <project Name="test">

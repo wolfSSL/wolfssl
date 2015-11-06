@@ -29,7 +29,7 @@ double current_time(int reset)
     return time;
 }
 
-int custom_rand_generate(void)
+uint32_t custom_rand_generate(void)
 {
     return hw_rand();
 }
