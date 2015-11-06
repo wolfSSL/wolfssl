@@ -2,10 +2,6 @@
 extern uint32_t xTaskGetTickCount(void);
 
 /* Configuration */
-#ifndef FREERTOS
-#define FREERTOS
-#endif
-#define WOLFSSL_LWIP
 #define WOLFSSL_USER_IO
 #define WOLFSSL_GENERAL_ALIGNMENT 4
 #define WOLFSSL_SMALL_STACK
@@ -74,6 +70,7 @@ extern uint32_t xTaskGetTickCount(void);
 /* Custom functions */
 extern uint32_t rand_gen(void);
 #define CUSTOM_RAND_GENERATE rand_gen
+#define CUSTOM_RAND_TYPE     uint32_t
 
 extern double current_time(int reset);
 #define WOLFSSL_USER_CURRTIME
