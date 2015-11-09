@@ -200,7 +200,12 @@
     /* uses complete <time.h> facility */
     #include <time.h>
     #define XTIME(tl)     time((tl))
-    #define XGMTIME(c, t) gmtime((c))
+    #ifdef HAVE_GMTIME_R
+        #define XGMTIME(c, t) gmtime_r((c), (t))
+        #define NEED_TMP_TIME
+    #else
+        #define XGMTIME(c, t) gmtime((c))
+    #endif
     #define XVALIDATE_DATE(d, f, t) ValidateDate((d), (f), (t))
 #endif
 
@@ -2558,7 +2563,7 @@ int ValidateDate(const byte* date, byte format, int dateType)
     int    diffHH = 0 ; int diffMM = 0 ;
     int    diffSign = 0 ;
 
-#if defined(FREESCALE_MQX) || defined(TIME_OVERRIDES)
+#if defined(FREESCALE_MQX) || defined(TIME_OVERRIDES) || defined(NEED_TMP_TIME)
     struct tm tmpTimeStorage;
     tmpTime = &tmpTimeStorage;
 #else
@@ -5754,7 +5759,7 @@ static int SetValidity(byte* output, int daysValid)
     struct tm* tmpTime = NULL;
     struct tm  local;
 
-#if defined(FREESCALE_MQX) || defined(TIME_OVERRIDES)
+#if defined(FREESCALE_MQX) || defined(TIME_OVERRIDES) || defined(NEED_TMP_TIME)
     /* for use with gmtime_r */
     struct tm tmpTimeStorage;
     tmpTime = &tmpTimeStorage;
