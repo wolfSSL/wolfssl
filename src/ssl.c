@@ -2551,6 +2551,9 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
     int         sz          = (int)longSz;
     int         encrypted_key = 0;
 
+    (void)dynamicType;
+    (void)heap;
+
     WOLFSSL_ENTER("PemToDer");
 
     switch (type) {
