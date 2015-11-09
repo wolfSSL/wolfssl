@@ -119,6 +119,8 @@ static void wolfssl_log(const int logLevel, const char *const logMessage)
             fflush(stdout) ;
             printf("%s\n", logMessage);
             fflush(stdout) ;
+#elif defined(WOLFSSL_LOG_PRINTF)
+            printf("%s\n", logMessage);
 #else
             fprintf(stderr, "%s\n", logMessage);
 #endif
