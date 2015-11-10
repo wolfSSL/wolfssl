@@ -1,5 +1,5 @@
 ## Wind River Workbench using VxWorks with wolfSSL
-####1.1 Steps
+####1 Steps
 1. Start by creating a new VxWorks image in Workbench by going to File > New >
 Project and then selecting VxWorks Image Project.
 
@@ -26,8 +26,8 @@ Workbench workspace folder. This is where the simulator looks for the filesystem
 \#ifdef WOLFSSL\_VXWORKS, a new GenerateSeed() function will need to be defined
 in wolfcrypt/src/random.c.
 
-####1.2 Testing wolfSSL with VxWorks:
-#####1.2.1 wolfCrypt Test and Benchmark Applications
+####2 Testing wolfSSL with VxWorks:
+#####2.1 wolfCrypt Test and Benchmark Applications
 The wolfCrypt test application will test each of the cryptographic algorithms
 and output the status for each as a success or failure. The benchmark application will output the runtime of
 the cryptographic algorithms in milliseconds.
@@ -54,7 +54,7 @@ by adding the following to the usrAppInit() function:
 
 3. Start the simulator and check that all wolfCrypt tests pass.
 
-#####1.2.2 Example Client
+#####2.2 Example Client
 The wolfSSL example client.c file can be found in wolfssl/examples/client.
 
 1. In usrAppInit.c, inlucde the func\_args as described in the Test Application
@@ -72,7 +72,7 @@ The -d option disables peer checks, -b allows for binding to any interface.
 
 5. Start the example client in Workbench.
 
-#####1.2.3 Example Server
+#####2.3 Example Server
 The example server requires more configuration than the client if using the
 VxWorks simulator.
 
@@ -104,7 +104,7 @@ connect to the server is the same as above.
     ./examples/client/client -d
 The -d option disables peer checks.
 
-####1.3 Necessary Files
+####3 Necessary Files
 The following files are required to replicate this build:
 * vxsim\_linux\_1\_0\_2\_2 (directory)
 * Includes
