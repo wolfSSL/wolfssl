@@ -5398,6 +5398,23 @@ int dsa_test(void)
 
 #ifdef WOLFCRYPT_HAVE_SRP
 
+static int generate_random_salt(byte *buf, word32 size)
+{
+    int ret = -1;
+    WC_RNG rng;
+
+    if(NULL == buf || !size)
+        return -1;
+
+    if (buf && size && wc_InitRng(&rng) == 0) {
+        ret = wc_RNG_GenerateBlock(&rng, (byte *)buf, size); 
+
+        wc_FreeRng(&rng);        
+    }
+
+    return ret;
+}
+
 int srp_test(void)
 {
     Srp cli, srv;
@@ -5432,25 +5449,28 @@ int srp_test(void)
         0x02
     };
 
-    byte salt[] = {
-        0xB2, 0xE5, 0x8E, 0xCC, 0xD0, 0xCF, 0x9D, 0x10, 0x3A, 0x56
-    };
+    byte salt[10];
 
-    byte verifier[] = {
-        0x7C, 0xAB, 0x17, 0xFE, 0x54, 0x3E, 0x8C, 0x13, 0xF2, 0x3D, 0x21, 0xE7,
-        0xD2, 0xAF, 0xAF, 0xDB, 0xA1, 0x52, 0x69, 0x9D, 0x49, 0x01, 0x79, 0x91,
-        0xCF, 0xD1, 0x3F, 0xE5, 0x28, 0x72, 0xCA, 0xBE, 0x13, 0xD1, 0xC2, 0xDA,
-        0x65, 0x34, 0x55, 0x8F, 0x34, 0x0E, 0x05, 0xB8, 0xB4, 0x0F, 0x7F, 0x6B,
-        0xBB, 0xB0, 0x6B, 0x50, 0xD8, 0xB1, 0xCC, 0xB7, 0x81, 0xFE, 0xD4, 0x42,
-        0xF5, 0x11, 0xBC, 0x8A, 0x28, 0xEB, 0x50, 0xB3, 0x46, 0x08, 0xBA, 0x24,
-        0xA2, 0xFB, 0x7F, 0x2E, 0x0A, 0xA5, 0x33, 0xCC
-    };
+    byte verifier[80];
+    word32 v_size = sizeof(verifier);
+
+    /* generating random salt */
+    
+    r = generate_random_salt(salt, sizeof(salt));
 
     /* client knows username and password.   */
     /* server knows N, g, salt and verifier. */
 
-            r = wc_SrpInit(&cli, SRP_TYPE_SHA, SRP_CLIENT_SIDE);
+    if (!r) r = wc_SrpInit(&cli, SRP_TYPE_SHA, SRP_CLIENT_SIDE);
     if (!r) r = wc_SrpSetUsername(&cli, username, usernameSz);
+
+    /* loading N, g and salt in advance to generate the verifier. */
+
+    if (!r) r = wc_SrpSetParams(&cli, N,    sizeof(N),
+                                      g,    sizeof(g),
+                                      salt, sizeof(salt));
+    if (!r) r = wc_SrpSetPassword(&cli, password, passwordSz);
+    if (!r) r = wc_SrpGetVerifier(&cli, verifier, &v_size);
 
     /* client sends username to server */
 
@@ -5459,15 +5479,11 @@ int srp_test(void)
     if (!r) r = wc_SrpSetParams(&srv, N,    sizeof(N),
                                       g,    sizeof(g),
                                       salt, sizeof(salt));
-    if (!r) r = wc_SrpSetVerifier(&srv, verifier, sizeof(verifier));
+    if (!r) r = wc_SrpSetVerifier(&srv, verifier, v_size);
     if (!r) r = wc_SrpGetPublic(&srv, serverPubKey, &serverPubKeySz);
 
     /* server sends N, g, salt and B to client */
 
-    if (!r) r = wc_SrpSetParams(&cli, N,    sizeof(N),
-                                      g,    sizeof(g),
-                                      salt, sizeof(salt));
-    if (!r) r = wc_SrpSetPassword(&cli, password, passwordSz);
     if (!r) r = wc_SrpGetPublic(&cli, clientPubKey, &clientPubKeySz);
     if (!r) r = wc_SrpComputeKey(&cli, clientPubKey, clientPubKeySz,
                                        serverPubKey, serverPubKeySz);
