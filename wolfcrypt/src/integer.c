@@ -3828,7 +3828,8 @@ int mp_sqrmod (mp_int * a, mp_int * b, mp_int * c)
 
 
 #if defined(HAVE_ECC) || !defined(NO_PWDBASED) || defined(WOLFSSL_SNIFFER) || \
-    defined(WOLFSSL_HAVE_WOLFSCEP) || defined(WOLFSSL_KEY_GEN)
+    defined(WOLFSSL_HAVE_WOLFSCEP) || defined(WOLFSSL_KEY_GEN) || \
+    defined(OPENSSL_EXTRA)
 
 /* single digit addition */
 int mp_add_d (mp_int* a, mp_digit b, mp_int* c)
