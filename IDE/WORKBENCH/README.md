@@ -1,5 +1,4 @@
 ## Wind River Workbench using VxWorks with wolfSSL
-###1 SETUP:
 ####1.1 Steps
 1. Start by creating a new VxWorks image in Workbench by going to File > New >
 Project and then selecting VxWorks Image Project.
