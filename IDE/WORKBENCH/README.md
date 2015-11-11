@@ -53,7 +53,8 @@ Choose Browse and select the wolfssl directory. Click ok.
 5. If not using a filesystem, right click on project, go to Properties > 
 Build Properties > Variables.
 Highlight EXTRA\_DEFINE. Click Edit and add the following to this line:
-    -DUSE\_CERT\_BUFFERS\_2048 -DNO\_FILESYSTEM
+    
+    -DUSE_CERT_BUFFERS_2048 -DNO_FILESYSTEM
 
 6. If using a filesystem, copy the certs folder in wolfssl to the Wind River
 Workbench workspace folder. This is where the simulator looks for the filesystem. 
@@ -69,6 +70,7 @@ and output the status for each as a success or failure. The benchmark applicatio
 the cryptographic algorithms in milliseconds.
 
 1. Include these header files in usrAppInit.c:
+       
         #include <wolfcrypt/test/test.h>
         #include <wolfssl/ssl.h>
         #include <wolfssl/wolfcrypt/settings.h>
@@ -85,8 +87,8 @@ by adding the following to the usrAppInit() function:
 
         func_args args;
 
-    wolfcrypt_test(&args);
-    wolfcrypt_benchmark(&args);
+        wolfcrypt_test(&args);
+        wolfcrypt_benchmark(&args);
 
 3. Start the simulator and check that all wolfCrypt tests pass.
 
@@ -95,7 +97,8 @@ The wolfSSL example client.c file can be found in wolfssl/examples/client.
 
 1. In usrAppInit.c, inlucde the func\_args as described in the Test Application
 section, and add a call to the client function:
-    client_test(&args);
+
+        client_test(&args);
 
 2. Add the /examples/client/client.h header file to the includes at the top of usrAppInit.c.
 
@@ -103,8 +106,10 @@ section, and add a call to the client function:
 
 4. If using the example server from within the wolfSSL directory on the host
 machine to connect the client to, configure and make wolfSSL and then run:
-    ./examples/server/server -d -b
-The -d option disables peer checks, -b allows for binding to any interface.
+
+        ./examples/server/server -d -b
+    
+    The -d option disables peer checks, -b allows for binding to any interface.
 
 5. Start the example client in Workbench.
 
@@ -123,19 +128,23 @@ VxWorks simulator.
         server_test(&args);
 
 3. Start the server and complete the following:
-Go to "Open Connection Details" under VxWorks Simulator which is in the connections
-dropdown. Choose the corresponding kernel image, typically called
-project/default/VxWorks. Select simnetd from the dropdown and enter
-192.168.200.1 as the IP address.
+    Go to "Open Connection Details" under VxWorks Simulator which is in the connections
+    dropdown. Choose the corresponding kernel image, typically called
+    project/default/VxWorks. Select simnetd from the dropdown and enter
+    192.168.200.1 as the IP address. To connect to the server running on the VxWorks Simulator, enter these commands
+    into the host terminal any directory (for Ubuntu 14.04):
 
-To connect to the server running on the VxWorks Simulator, enter these commands
-into the host terminal any directory (for Ubuntu 14.04):
-    sudo openvpn --mktun --dev tap0
-In Wind River directory:
-    sudo vxworks-7/host/x86-linux2/bin/vxsimnetd
-This will start the vxsimnetd application. Leave it open. The IP address to
-connect to the server is the same as above.
+        sudo openvpn --mktun --dev tap0
+    
+    In Wind River directory:
+
+        sudo vxworks-7/host/x86-linux2/bin/vxsimnetd
+    
+    This will start the vxsimnetd application. Leave it open. The IP address to
+    connect to the server is the same as above.
 
 4. Start the client on the host machine:
-    ./examples/client/client -d
-The -d option disables peer checks.
+
+        ./examples/client/client -d
+    
+    The -d option disables peer checks.
