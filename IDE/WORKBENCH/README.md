@@ -1,5 +1,5 @@
 ## Wind River Workbench using VxWorks with wolfSSL
-####1 Necessary Files
+####1 Necessary Files if Using VxWorks Simulator
 The following files are required to replicate this build:
 * vxsim\_linux\_1\_0\_2\_2 (directory)
 * Includes
