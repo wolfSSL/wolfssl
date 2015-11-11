@@ -449,6 +449,7 @@ static char *fgets(char *buff, int sz, FILE *fp)
     #define USE_CERT_BUFFERS_2048
     #define NO_ERROR_STRINGS
     #define USER_TIME
+    #define HAVE_ECC
 
     #ifdef __IAR_SYSTEMS_ICC__
         #pragma diag_suppress=Pa089
