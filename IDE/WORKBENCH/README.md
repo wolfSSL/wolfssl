@@ -43,7 +43,7 @@ Highlight EXTRA\_DEFINE. Click Edit and add the following to this line:
     
 6. If using a filesystem and running the wolfCrypt test and benchmark applications, copy the certs folder in \<path\_to\_wolfssl\>/wolfssl to the Wind River Workbench workspace folder. This is where the simulator looks for the filesystem. 
 
-7. If NO\_DEV\_RANDOM is defined in wolfssl/wolfcrypt/settings.h inside the
+7. If NO\_DEV\_RANDOM is defined in \<path\to\_wolfssl\>wolfssl/wolfcrypt/settings.h inside the
 \#ifdef WOLFSSL\_VXWORKS block, a new GenerateSeed() function will need to be defined
 in wolfcrypt/src/random.c.
 
