@@ -31,7 +31,7 @@ In the wolfcrypt/src folder, uncheck aes\_asm.asm and aes\_asm.s.
     
     Click ok.
 
-4. In wolfssl/wolfssl/wolfcrypt/settings.h, uncomment #define WOLFSSL_VXWORKS
+4. In \<path\_to\_wolfssl\>/wolfssl/wolfcrypt/settings.h, uncomment #define WOLFSSL_VXWORKS
 
 5. If not using a filesystem, right click on project, go to Properties > 
 Build Properties > Variables.
@@ -39,11 +39,12 @@ Highlight EXTRA\_DEFINE. Click Edit and add the following to this line:
     
         -DUSE_CERT_BUFFERS_2048 -DNO_FILESYSTEM
 
-6. If using a filesystem, copy the certs folder in wolfssl to the Wind River
-Workbench workspace folder. This is where the simulator looks for the filesystem. 
+    USE\_CERT\_BUFFERS is only necessary for the wolfCrypt test and benchmark applications.
+    
+6. If using a filesystem and running the wolfCrypt test and benchmark applications, copy the certs folder in \<path\_to\_wolfssl\>/wolfssl to the Wind River Workbench workspace folder. This is where the simulator looks for the filesystem. 
 
-7. If NO\_\_DEV\_RANDOM remains defined in wolfssl/wolfcrypt/settings.h under
-\#ifdef WOLFSSL\_VXWORKS, a new GenerateSeed() function will need to be defined
+7. If NO\_DEV\_RANDOM is defined in wolfssl/wolfcrypt/settings.h inside the
+\#ifdef WOLFSSL\_VXWORKS block, a new GenerateSeed() function will need to be defined
 in wolfcrypt/src/random.c.
 
 ####3 Testing wolfSSL with VxWorks:
@@ -55,6 +56,7 @@ the cryptographic algorithms in milliseconds.
 1. Include these header files in usrAppInit.c:
        
         #include <wolfcrypt/test/test.h>
+        #include <wolfcrypt/benchmark/benchmark.h>
         #include <wolfssl/ssl.h>
         #include <wolfssl/wolfcrypt/settings.h>
         #include <wolfssl/test.h>
