@@ -34,7 +34,7 @@
 var armOpts = " -ms ";
 var gnuOpts = " -D_POSIX_SOURCE ";
 var iarOpts = " --diag_suppress=Pa134 ";
-var TivaWareDir = "";
+var ndkDir = "";
 
 /* Uncomment the following lines to build libraries for debug mode: */
 // Pkg.attrs.profile = "debug";
@@ -57,7 +57,7 @@ var ccOpts = {
 for (arg = 0; arg < arguments.length; arg++) {
     /*
      * Get the compiler's installation directory.
-     * For "ti.targets.arm.elf.M4F=/vendors/arm/6.1.0", 
+     * For "ti.targets.arm.elf.M4F=/vendors/arm/6.1.0",
      * we get "/vendors/arm/6.1.0"
      */
     var targetName = arguments[arg].split("=")[0];
@@ -68,8 +68,8 @@ for (arg = 0; arg < arguments.length; arg++) {
         continue;
     }
 
-    if (targetName.match(/^TIVAWARE/) ) {
-        TivaWareDir = rootDir;
+    if (targetName.match(/^NDK/) ) {
+        ndkDir = rootDir;
         continue;
     }
 
@@ -81,9 +81,9 @@ for (arg = 0; arg < arguments.length; arg++) {
 }
 
 /* Include Path (needed to find NDK headers) */
-var ndkPath = "$(NDK_INSTALL_DIR)/packages/ti/ndk/";
-var wolfsslPathInclude = " -I" + ndkPath + "/inc/bsd -DWOLFSSL_TIRTOS ";
+var wolfsslPathInclude = " -I" + ndkDir + "/packages/ti/ndk/inc/bsd "
+        + "-DWOLFSSL_TIRTOS ";
 
 /* lib/ is a generated directory that 'xdc clean' should remove */
-var Pkg = xdc.useModule('xdc.bld.PackageContents'); 
+var Pkg = xdc.useModule('xdc.bld.PackageContents');
 Pkg.generatedFiles.$add("lib/");
