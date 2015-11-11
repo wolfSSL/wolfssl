@@ -54,7 +54,7 @@ Choose Browse and select the wolfssl directory. Click ok.
 Build Properties > Variables.
 Highlight EXTRA\_DEFINE. Click Edit and add the following to this line:
     
-    -DUSE_CERT_BUFFERS_2048 -DNO_FILESYSTEM
+        -DUSE_CERT_BUFFERS_2048 -DNO_FILESYSTEM
 
 6. If using a filesystem, copy the certs folder in wolfssl to the Wind River
 Workbench workspace folder. This is where the simulator looks for the filesystem. 
