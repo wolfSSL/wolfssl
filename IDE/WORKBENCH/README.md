@@ -19,7 +19,7 @@ called vip\_vxsim\_linux\_gnu.
 1. Start by creating a new VxWorks image in Workbench by going to File > New >
 Project and then selecting VxWorks Image Project.
 
-2. Right click on the project and go to Import > Filesystem. Choose the path
+2. Right click on the project and go to Import > General > Filesystem. Choose the path
 to the wolfSSL library here. Uncheck everything except the examples, src and 
 wolfcrypt directories.
 In the wolfcrypt/src folder, uncheck aes\_asm.asm and aes\_asm.s.
