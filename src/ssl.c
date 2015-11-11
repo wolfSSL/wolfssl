@@ -9952,13 +9952,10 @@ void wolfSSL_set_connect_state(WOLFSSL* ssl)
 int wolfSSL_get_shutdown(const WOLFSSL* ssl)
 {
     WOLFSSL_ENTER("wolfSSL_get_shutdown");
-#ifdef HAVE_STUNNEL
-    return (ssl->options.sentNotify << 1) | (ssl->options.closeNotify);
-#else
-    return (ssl->options.isClosed  ||
-            ssl->options.connReset ||
-            ssl->options.sentNotify);
-#endif
+    /* in OpenSSL, SSL_SENT_SHUTDOWN = 1, when closeNotifySent   *
+     * SSL_RECEIVED_SHUTDOWN = 2, from close notify or fatal err */
+    return ((ssl->options.closeNotify||ssl->options.connReset) << 1)
+            | (ssl->options.sentNotify);
 }
 
 
