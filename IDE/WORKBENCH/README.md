@@ -43,7 +43,7 @@ Highlight EXTRA\_DEFINE. Click Edit and add the following to this line:
     
 6. If using a filesystem and running the wolfCrypt test and benchmark applications, copy the certs folder in \<path\_to\_wolfssl\>/wolfssl to the Wind River Workbench workspace folder. This is where the simulator looks for the filesystem. 
 
-7. If NO\_DEV\_RANDOM is defined in \<path\to\_wolfssl\>wolfssl/wolfcrypt/settings.h inside the
+7. If NO\_DEV\_RANDOM is defined in \<path\_to\_wolfssl\>wolfssl/wolfcrypt/settings.h inside the
 \#ifdef WOLFSSL\_VXWORKS block, a new GenerateSeed() function will need to be defined
 in wolfcrypt/src/random.c.
 
@@ -75,34 +75,45 @@ by adding the following to the usrAppInit() function:
         wolfcrypt_test(&args);
         wolfcrypt_benchmark(&args);
 
-3. Start the simulator and check that all wolfCrypt tests pass.
+3. Start the simulator by clicking the "Connect 'VxWorks Simulator'" button to the right of the "VxWorks Simulator" dropdown. Verify in the terminal at the bottom that all wolfCrypt tests pass.
 
 #####3.2 Example Client
-The wolfSSL example client.c file can be found in wolfssl/examples/client.
+The wolfSSL example client.c file can be found in \<path\_to\_wolfssl\>/wolfssl/examples/client.
 
-1. In usrAppInit.c, inlucde the func\_args as described in the Test Application
+1. Add the following include to usrAppInit.c:
+
+        #include </examples/client/client.h> 
+
+2. In usrAppInit.c, include the func\_args as described in the Test Application
 section, and add a call to the client function:
 
         client_test(&args);
-
-2. Add the /examples/client/client.h header file to the includes at the top of usrAppInit.c.
-
-3. The wolfSSLIP will need to be changed to the IP address to connect to. If using the VxWorks Simulator, localhost will not work. NAT should be selected in the Simulator Connection Advanced setup. To do this, click the dropdown button next to VxWorks Simulator at the top of Workbench and select Open Connection Details. Make sure the correct image file is selected for you project: <Project\_Dir>/default/VxWorks. Then click Advanced and select NAT as the Network Config. Click OK and Apply.
-
-4. If using the example server from within the wolfSSL directory on the host
-machine to connect the client to, configure and make wolfSSL and then run:
-
-        ./examples/server/server -d -b
     
-    The -d option disables peer checks, -b allows for binding to any interface.
+3. The char* host in examples/client/client.c will need to be changed to the IP address to connect to. For example:
 
-5. Start the example client in Workbench.
+    char* host = "192.168.15.1";
+    
+    If using the VxWorks Simulator, localhost will not work. NAT should be selected in the Simulator Connection Advanced setup. To do this, click the dropdown button next to VxWorks Simulator at the top of Workbench and select Open Connection Details. Make sure the correct image file is selected for you project: <Project\_Dir>/default/VxWorks. Then click Advanced and select NAT as the Network Config. Click OK and Apply.
+
+4. There is an example server in \<path\_to\_wolfssl\> that can be used for testing the client. wolfSSL will first need to be built. Follow the instructions [here](https://www.wolfssl.com/wolfSSL/Docs-wolfssl-manual-2-building-wolfssl.html) to do so. See the [wolfSSL manual]( https://wolfssl.com/wolfSSL/Docs-wolfssl-manual-3-getting-started.html) for instructions on setting up the example server. From within \<path\_to\_wolfssl\>/wolfssl, the following command can be used to run the server on the host machine:
+
+    ./examples/server/server -d -b
+
+5. Start the example client in Workbench by following step 3 in section 3.1. 
+
+6. The following output should be expected in the simulator terminal:
+
+    SSL version is TLSv1.2
+    SSL cipher suite is TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384
+    Server response: I hear you fa shizzle!
 
 #####3.3 Example Server
 The example server requires more configuration than the client if using the
 VxWorks simulator.
 
-1. Add the server.h header file to the includes at the top of usrAppInit.c.
+1. Add the following include to usrAppInit.c:
+
+        #include </examples/server/server.h> 
 
 2. In usrAppInit.c, add:
     
@@ -117,7 +128,7 @@ VxWorks simulator.
     dropdown. Choose the corresponding kernel image, typically called
     project/default/VxWorks. Select simnetd from the dropdown and enter
     192.168.200.1 as the IP address. To connect to the server running on the VxWorks Simulator, enter these commands
-    into the host terminal any directory (for Ubuntu 14.04):
+    into the host terminal from any directory (for Ubuntu 14.04):
 
         sudo openvpn --mktun --dev tap0
     
@@ -125,11 +136,17 @@ VxWorks simulator.
 
         sudo vxworks-7/host/x86-linux2/bin/vxsimnetd
     
-    This will start the vxsimnetd application. Leave it open. The IP address to
-    connect to the server is the same as above.
+    This will start the vxsimnetd application. Leave it running in the background. 
 
-4. Start the client on the host machine:
+4. There is an example client in \<path\_to\_wolfssl\>/wolfssl/examples. Again, wolfSSL will first need to be built. Follow the instructions [here](https://www.wolfssl.com/wolfSSL/Docs-wolfssl-manual-2-building-wolfssl.html) to do so. See the [wolfSSL manual]( https://wolfssl.com/wolfSSL/Docs-wolfssl-manual-3-getting-started.html) for instructions on how to set up the client. From within \<path\_to\_wolfssl\>/wolfssl, the following command can be used to run the client on the host machine:
 
-        ./examples/client/client -d
+        ./examples/client/client -h 192.168.200.1 -d
     
     The -d option disables peer checks.
+    
+5. The following output should be expected in the simulator terminal:
+
+    SSL version is TLSv1.2
+    SSL cipher suite is TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384
+    Client message: hello wolfssl!
+
