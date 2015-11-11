@@ -75,7 +75,7 @@ by adding the following to the usrAppInit() function:
         wolfcrypt_test(&args);
         wolfcrypt_benchmark(&args);
 
-3. Start the simulator by clicking the "Connect 'VxWorks Simulator'" button to the right of the "VxWorks Simulator" dropdown. Verify in the terminal at the bottom that all wolfCrypt tests pass.
+3. Start the simulator by clicking the "Connect 'VxWorks Simulator'" button to the right of the "VxWorks Simulator" dropdown. Verify in the simulator terminal that all wolfCrypt tests pass.
 
 #####3.2 Example Client
 The wolfSSL example client.c file can be found in \<path\_to\_wolfssl\>/wolfssl/examples/client.
@@ -91,21 +91,21 @@ section, and add a call to the client function:
     
 3. The char* host in examples/client/client.c will need to be changed to the IP address to connect to. For example:
 
-    char* host = "192.168.15.1";
+        char* host = "192.168.15.1";
     
     If using the VxWorks Simulator, localhost will not work. NAT should be selected in the Simulator Connection Advanced setup. To do this, click the dropdown button next to VxWorks Simulator at the top of Workbench and select Open Connection Details. Make sure the correct image file is selected for you project: <Project\_Dir>/default/VxWorks. Then click Advanced and select NAT as the Network Config. Click OK and Apply.
 
 4. There is an example server in \<path\_to\_wolfssl\> that can be used for testing the client. wolfSSL will first need to be built. Follow the instructions [here](https://www.wolfssl.com/wolfSSL/Docs-wolfssl-manual-2-building-wolfssl.html) to do so. See the [wolfSSL manual]( https://wolfssl.com/wolfSSL/Docs-wolfssl-manual-3-getting-started.html) for instructions on setting up the example server. From within \<path\_to\_wolfssl\>/wolfssl, the following command can be used to run the server on the host machine:
 
-    ./examples/server/server -d -b
+        ./examples/server/server -d -b
 
 5. Start the example client in Workbench by following step 3 in section 3.1. 
 
 6. The following output should be expected in the simulator terminal:
 
-    SSL version is TLSv1.2
-    SSL cipher suite is TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384
-    Server response: I hear you fa shizzle!
+        SSL version is TLSv1.2
+        SSL cipher suite is TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384
+        Server response: I hear you fa shizzle!
 
 #####3.3 Example Server
 The example server requires more configuration than the client if using the
@@ -146,7 +146,7 @@ VxWorks simulator.
     
 5. The following output should be expected in the simulator terminal:
 
-    SSL version is TLSv1.2
-    SSL cipher suite is TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384
-    Client message: hello wolfssl!
+        SSL version is TLSv1.2
+        SSL cipher suite is TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384
+        Client message: hello wolfssl!
 
