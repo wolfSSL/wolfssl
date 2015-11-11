@@ -24,9 +24,12 @@ to the wolfSSL library here. Uncheck everything except the examples, src and
 wolfcrypt directories.
 In the wolfcrypt/src folder, uncheck aes\_asm.asm and aes\_asm.s.
 
-3. Include the path to the wolfSSL header files, wolfssl/wolfssl:
-To do this, right click the project and go to Properties > Build Properties > Paths.
-Choose Browse and select the wolfssl directory. Click ok.
+3. To include the path to the wolfSSL header files, right click on the project and go to Properties > Build Properties > Paths.
+    Choose Browse and select:
+
+        <path_to_wolfssl>/wolfssl
+    
+    Click ok.
 
 4. In wolfssl/wolfssl/wolfcrypt/settings.h, uncomment #define WOLFSSL_VXWORKS
 
