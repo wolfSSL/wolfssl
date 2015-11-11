@@ -2,40 +2,20 @@
 ####1 Necessary Files if Using VxWorks Simulator
 The following files are required to replicate this build:
 * vxsim\_linux\_1\_0\_2\_2 (directory)
-* Includes
-    * compilers/gnu-4.8.1.5/include/c++/4.8
-    * compilers/gnu-4.8.1.5/include/c++/4.8/i586-wrs-vxworks
-    * compilers/gnu-4.8.1.5/lib/gcc/i586-wrs-vxworks/4.8.1/include
-    * compilers/gnu-4.8.1.5/lib/gcc/i586-wrs-vxworks/4.8.1/include-fixed
-    * vsb\_vxsim\_linux/share/h
-    * vsb\_vxsim\_linux/krnl/h/system
-    * vsb\_vxsim\_linux/krnl/h/public
-    * vsb\_vxsim\_linux/krnl/configlette
-    * vsb\_vxsim\_linux/h
-* usrAppInit.c (should be created when with new VxWorks image)
-    * Include this at the top:
-        #include <wolfssl/wolfcrypt/settings.h>
-        #include <wolfcrypt/test/test.h>
-        #include <wolfssl/ssl.h> /* name change portability layer */
-        #include <wolfssl/test.h>
-        extern int benchmark_test(void* args);
-        extern THREAD\_RETURN WOLFSSL\_THREAD client\_test(void* args);
-        extern THREAD\_RETURN WOLFSSL\_THREAD server\_test(void* args);
-    * Inside main function UsrAppInit (void):
-        func\_args args = { 0 };
-        tcp\_ready ready;
-        InitTcpReady(&ready);
-        args.signal = &ready;
-        benchmark\_test(NULL);
-        wolfcrypt\_test(NULL);
-        /* client\_test(NULL); */
-        /*server\_test(&args);*/
-* usrRtpAppInit.c (should be created when with new VxWorks image)
-    Leave unchanged
-* This project was tested with a pre-built image in the VxWorks distribution
-called vsb\_vxsim\_linux.
+* compilers/gnu-4.8.1.5/include/c++/4.8
+* compilers/gnu-4.8.1.5/include/c++/4.8/i586-wrs-vxworks
+* compilers/gnu-4.8.1.5/lib/gcc/i586-wrs-vxworks/4.8.1/include
+* compilers/gnu-4.8.1.5/lib/gcc/i586-wrs-vxworks/4.8.1/include-fixed
+* vsb\_vxsim\_linux/share/h
+* vsb\_vxsim\_linux/krnl/h/system
+* vsb\_vxsim\_linux/krnl/h/public
+* vsb\_vxsim\_linux/krnl/configlette
+* vsb\_vxsim\_linux/h
 
-####2 Steps
+Note: This project was tested with a pre-built image in the VxWorks distribution
+called vip\_vxsim\_linux\_gnu.
+
+####2 Steps to Add wolfSSL to Workbench Project
 1. Start by creating a new VxWorks image in Workbench by going to File > New >
 Project and then selecting VxWorks Image Project.
 
