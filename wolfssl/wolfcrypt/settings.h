@@ -305,6 +305,10 @@
 
 
 #ifdef WOLFSSL_VXWORKS
+    /* VxWorks simulator incorrectly detects building for i386 */
+    #ifdef VXWORKS_SIM
+        #define TFM_NO_ASM
+    #endif
     #define WOLFSSL_HAVE_MIN
     #define USE_FAST_MATH
     #define TFM_TIMING_RESISTANT
