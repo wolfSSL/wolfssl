@@ -27,9 +27,128 @@
 #include <wolfssl/wolfcrypt/logging.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
 
-#if !defined(WOLFSSL_TI_HASH)
-
 #include <wolfssl/wolfcrypt/hash.h>
+
+#ifdef WOLFSSL_MD2
+#include <wolfssl/wolfcrypt/md2.h>
+#endif
+#ifndef NO_MD4
+#include <wolfssl/wolfcrypt/md4.h>
+#endif
+#ifndef NO_MD5
+#include <wolfssl/wolfcrypt/md5.h>
+#endif
+
+
+/* Get Hash digest size */
+word32 wc_HashGetDigestSize(enum wc_HashType hash_type)
+{
+    word32 dig_size = 0;
+    switch(hash_type)
+    {
+#ifdef WOLFSSL_MD2
+        case WC_HASH_TYPE_MD2:
+            dig_size = MD2_DIGEST_SIZE;
+            break;
+#endif
+#ifndef NO_MD4
+        case WC_HASH_TYPE_MD4:
+            dig_size = MD4_DIGEST_SIZE;
+            break;
+#endif
+#ifndef NO_MD5
+        case WC_HASH_TYPE_MD5:
+            dig_size = MD5_DIGEST_SIZE;
+            break;
+#endif
+#ifndef NO_SHA
+        case WC_HASH_TYPE_SHA:
+            dig_size = SHA_DIGEST_SIZE;
+            break;
+#endif
+#ifndef NO_SHA256
+        case WC_HASH_TYPE_SHA256:
+            dig_size = SHA256_DIGEST_SIZE;
+            break;
+#endif
+#ifdef WOLFSSL_SHA512
+#ifdef WOLFSSL_SHA384
+        case WC_HASH_TYPE_SHA384:
+            dig_size = SHA384_DIGEST_SIZE;
+            break;
+#endif /* WOLFSSL_SHA384 */
+        case WC_HASH_TYPE_SHA512:
+            dig_size = SHA512_DIGEST_SIZE;
+            break;
+#endif /* WOLFSSL_SHA512 */
+
+        case WC_HASH_TYPE_NONE:
+        default:
+            break;
+    }
+    return dig_size;
+}
+
+/* Generic Hashing Wrapper */
+int wc_Hash(enum wc_HashType hash_type, const byte* data,
+    word32 data_len, byte* hash, word32 hash_len)
+{
+    int ret = 0;
+    word32 dig_size;
+
+    /* Validate hash buffer size */
+    dig_size = wc_HashGetDigestSize(hash_type);
+    if (hash_len < dig_size) {
+        return BUFFER_E;
+    }
+
+    switch(hash_type)
+    {
+#ifdef WOLFSSL_MD2
+        case WC_HASH_TYPE_MD2:
+            ret = wc_Md2Hash(data, data_len, hash);
+            break;
+#endif
+#ifndef NO_MD4
+        case WC_HASH_TYPE_MD4:
+            ret = wc_Md4Hash(data, data_len, hash);
+            break;
+#endif
+#ifndef NO_MD5
+        case WC_HASH_TYPE_MD5:
+            ret = wc_Md5Hash(data, data_len, hash);
+            break;
+#endif
+#ifndef NO_SHA
+        case WC_HASH_TYPE_SHA:
+            ret = wc_ShaHash(data, data_len, hash);
+            break;
+#endif
+#ifndef NO_SHA256
+        case WC_HASH_TYPE_SHA256:
+            ret = wc_Sha256Hash(data, data_len, hash);
+            break;
+#endif
+#ifdef WOLFSSL_SHA512
+#ifdef WOLFSSL_SHA384
+        case WC_HASH_TYPE_SHA384:
+            ret = wc_Sha384Hash(data, data_len, hash);
+            break;
+#endif /* WOLFSSL_SHA384 */
+        case WC_HASH_TYPE_SHA512:
+            ret = wc_Sha512Hash(data, data_len, hash);
+            break;
+#endif /* WOLFSSL_SHA512 */
+
+        case WC_HASH_TYPE_NONE:
+        default:
+            break;
+    }
+    return ret;
+}
+
+
+#if !defined(WOLFSSL_TI_HASH)
 
 #if !defined(NO_MD5)
 void wc_Md5GetHash(Md5* md5, byte* hash)
@@ -55,7 +174,7 @@ int wc_ShaGetHash(Sha* sha, byte* hash)
     return ret ;
 }
 
-WOLFSSL_API void wc_ShaRestorePos(Sha* s1, Sha* s2) {
+void wc_ShaRestorePos(Sha* s1, Sha* s2) {
     *s1 = *s2 ;
 }
 
@@ -102,7 +221,7 @@ int wc_Sha256GetHash(Sha256* sha256, byte* hash)
     return ret ;
 }
 
-WOLFSSL_API void wc_Sha256RestorePos(Sha256* s1, Sha256* s2) {
+void wc_Sha256RestorePos(Sha256* s1, Sha256* s2) {
     *s1 = *s2 ;
 }
 
