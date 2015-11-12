@@ -503,7 +503,7 @@ static INLINE void build_addr(SOCKADDR_IN_T* addr, const char* peer,
         #elif defined(WOLFSSL_TIRTOS)
             struct hostent* entry = DNSGetHostByName(peer);
         #elif defined(WOLFSSL_VXWORKS)
-            struct hostent* entry = (struct hostent*)hostGetByName(peer);
+            struct hostent* entry = (struct hostent*)hostGetByName((char*)peer);
         #else
             struct hostent* entry = gethostbyname(peer);
         #endif
