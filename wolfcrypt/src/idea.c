@@ -44,12 +44,11 @@
  */
 static INLINE word16 idea_mult(word16 x, word16 y)
 {
-    word32 mul;
-    long res;
+    long mul, res;
 
-    mul = (word32)x * (word32)y;
+    mul = (long)x * (long)y;
     if (mul) {
-        res = (mul & IDEA_MASK) - (mul >> 16);
+        res = (mul & IDEA_MASK) - ((word32)mul >> 16);
         if (res <= 0)
             res += IDEA_MODULO;
 
