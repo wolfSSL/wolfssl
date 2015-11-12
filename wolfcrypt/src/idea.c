@@ -211,17 +211,17 @@ void wc_IdeaCipher(Idea *idea, byte* out, const byte* in)
         x[3] = idea_mult(x[3], idea->skey[skey_idx++]);
 
         t2 = x[0] ^ x[2];
-        t2 = idea_mult(t2, idea->skey[skey_idx++]);
+        t2 = idea_mult((word16)t2, idea->skey[skey_idx++]);
         t1 = (t2 + (x[1] ^ x[3])) & IDEA_MASK;
-        t1 = idea_mult(t1, idea->skey[skey_idx++]);
+        t1 = idea_mult((word16)t1, idea->skey[skey_idx++]);
         t2 = (t1 + t2) & IDEA_MASK;
 
         x[0] ^= t1;
         x[3] ^= t2;
 
         t2 ^= x[1];
-        x[1] = x[2] ^ t1;
-        x[2] = t2;
+        x[1] = x[2] ^ (word16)t1;
+        x[2] = (word16)t2;
     }
 
     x[0] = idea_mult(x[0], idea->skey[skey_idx++]);

@@ -8532,8 +8532,9 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
             if (enc == 0 || enc == 1)
                 ctx->enc = enc ? 1 : 0;
             if (key) {
-                ret = wc_IdeaSetKey(&ctx->cipher.idea, key, ctx->keyLen, iv,
-                                    ctx->enc ? IDEA_ENCRYPTION : IDEA_DECRYPTION);
+                ret = wc_IdeaSetKey(&ctx->cipher.idea, key, (word16)ctx->keyLen,
+                                    iv, ctx->enc ? IDEA_ENCRYPTION :
+                                                   IDEA_DECRYPTION);
                 if (ret != 0)
                     return ret;
             }
