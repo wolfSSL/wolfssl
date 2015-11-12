@@ -9968,6 +9968,7 @@ int wolfSSL_session_reused(WOLFSSL* ssl)
 #ifdef OPENSSL_EXTRA
 void wolfSSL_SESSION_free(WOLFSSL_SESSION* session)
 {
+    /* No need to free since cache is static */
     (void)session;
 }
 #endif
@@ -10410,10 +10411,10 @@ char* wolfSSL_CIPHER_description(WOLFSSL_CIPHER* cipher, char* in, int len)
 }
 
 
-WOLFSSL_SESSION* wolfSSL_get1_session(WOLFSSL* ssl)  /* what's ref count */
+WOLFSSL_SESSION* wolfSSL_get1_session(WOLFSSL* ssl)
 {
-    (void)ssl;
-    return 0;
+    /* sessions are stored statically, no need for reference count */
+    return wolfSSL_get_session(ssl);
 }
 
 
