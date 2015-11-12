@@ -23,8 +23,8 @@ Project and then selecting VxWorks Image Project.
 to the wolfSSL library here. Uncheck everything except the examples, src and 
 wolfcrypt directories. Uncheck the following:
 
-        wolfcrypt/src/aes\_asm.asm
-        wolfcrypt/src/aes\_asm.s
+        wolfcrypt/src/aes_asm.asm
+        wolfcrypt/src/aes_asm.s
         examples/echoclient/
         examples/echoserver/
         wolcrypt/user-crypto
