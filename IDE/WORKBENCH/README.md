@@ -112,7 +112,7 @@ section, and add a call to the client function:
 
 5. If using the VxWorks Simulator, localhost will not work. NAT should be selected in the Simulator Connection Advanced setup. To do this, click the dropdown button next to VxWorks Simulator at the top of Workbench and select "Open Connection Details". Make sure the correct kernel image file is selected for you project as stated in section 3.1 step 4. Then click Advanced and select NAT as the Network Config. Click OK and Apply.
 
-6. There is an example server in \<path\_to\_wolfssl\> that can be used for testing the client. wolfSSL will first need to be built. Follow the instructions [here](https://www.wolfssl.com/wolfSSL/Docs-wolfssl-manual-2-building-wolfssl.html) to do so. See the [wolfSSL manual]( https://wolfssl.com/wolfSSL/Docs-wolfssl-manual-3-getting-started.html) for instructions on setting up the example server. From within ```<path_to_wolfssl>/wolfssl```, the following command can be used to run the server on the host machine:
+6. There is an example server in ```<path_to_wolfssl>``` that can be used for testing the client. wolfSSL will first need to be built. Follow the instructions [here](https://www.wolfssl.com/wolfSSL/Docs-wolfssl-manual-2-building-wolfssl.html) to do so. See the [wolfSSL manual]( https://wolfssl.com/wolfSSL/Docs-wolfssl-manual-3-getting-started.html) for instructions on setting up the example server. From within ```<path_to_wolfssl>/wolfssl```, the following command can be used to run the server on the host machine:
 
         ./examples/server/server -d -b
 
