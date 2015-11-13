@@ -161,7 +161,7 @@ Note: The wolfSSL example server and client cannot run at the same time on the V
     
     This will start the vxsimnetd application. Leave it running in the background. 
 
-5. There is an example client in ```<path_to_wolfssl>/wolfssl/examples```. Again, wolfSSL will first need to be built. Follow the instructions [here](https://www.wolfssl.com/wolfSSL/Docs-wolfssl-manual-2-building-wolfssl.html) to do so. See the [wolfSSL manual]( https://wolfssl.com/wolfSSL/Docs-wolfssl-manual-3-getting-started.html) for instructions on how to set up the client. From within \<path\_to\_wolfssl\>/wolfssl, the following command can be used to run the client on the host machine:
+5. There is an example client in ```<path_to_wolfssl>/wolfssl/examples```. Again, wolfSSL will first need to be built. Follow the instructions [here](https://www.wolfssl.com/wolfSSL/Docs-wolfssl-manual-2-building-wolfssl.html) to do so. See the [wolfSSL manual]( https://wolfssl.com/wolfSSL/Docs-wolfssl-manual-3-getting-started.html) for instructions on how to set up the client. From within ```<path_to_wolfssl>/wolfssl```, the following command can be used to run the client on the host machine:
 
         ./examples/client/client -h 192.168.200.1 -d
     
