@@ -1967,7 +1967,8 @@ then
     if test "x$ENABLED_ECC" = "xno"
     then
         ENABLED_ECC="yes"
-        AM_CFLAGS="$AM_CFLAGS -DHAVE_ECC"
+        AM_CFLAGS="$AM_CFLAGS -DHAVE_ECC -DTFM_ECC256 -DECC_SHAMIR"
+        AM_CONDITIONAL([BUILD_ECC], [test "x$ENABLED_ECC" = "xyes"])
     fi
     if test "x$ENABLED_PKCALLBACKS" = "xno"
     then
