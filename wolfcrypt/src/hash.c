@@ -41,9 +41,9 @@
 
 
 /* Get Hash digest size */
-word32 wc_HashGetDigestSize(enum wc_HashType hash_type)
+int wc_HashGetDigestSize(enum wc_HashType hash_type)
 {
-    word32 dig_size = 0;
+    int dig_size = BAD_FUNC_ARG;
     switch(hash_type)
     {
 #ifdef WOLFSSL_MD2
@@ -93,7 +93,7 @@ word32 wc_HashGetDigestSize(enum wc_HashType hash_type)
 int wc_Hash(enum wc_HashType hash_type, const byte* data,
     word32 data_len, byte* hash, word32 hash_len)
 {
-    int ret = 0;
+    int ret = BAD_FUNC_ARG;
     word32 dig_size;
 
     /* Validate hash buffer size */
@@ -142,6 +142,7 @@ int wc_Hash(enum wc_HashType hash_type, const byte* data,
 
         case WC_HASH_TYPE_NONE:
         default:
+            WOLFSSL_MSG("wc_Hash: Bad hash type");
             break;
     }
     return ret;

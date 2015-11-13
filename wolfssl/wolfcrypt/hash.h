@@ -54,7 +54,7 @@ enum wc_HashType {
 #endif /* WOLFSSL_SHA512 */
 };
 
-WOLFSSL_API word32 wc_HashGetDigestSize(enum wc_HashType hash_type);
+WOLFSSL_API int wc_HashGetDigestSize(enum wc_HashType hash_type);
 WOLFSSL_API int wc_Hash(enum wc_HashType hash_type,
     const byte* data, word32 data_len,
     byte* hash, word32 hash_len);

@@ -40,7 +40,7 @@ enum wc_SignatureType {
 #endif
 };
 
-WOLFSSL_API word32 wc_SignatureGetSize(enum wc_SignatureType sig_type,
+WOLFSSL_API int wc_SignatureGetSize(enum wc_SignatureType sig_type,
     const void* key, word32 key_len);
 
 WOLFSSL_API int wc_SignatureVerify(

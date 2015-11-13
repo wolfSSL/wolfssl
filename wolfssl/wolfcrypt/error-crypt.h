@@ -162,6 +162,7 @@ enum {
     CERTPOLICIES_E      = -227,  /* setting Certificate Policies error */
 
     WC_INIT_E           = -228,  /* wolfcrypt failed to initialize */
+    SIG_VERIFY_E        = -229,  /* wolfcrypt signature verify error */
 
     MIN_CODE_E          = -300   /* errors -101 - -299 */
 };
