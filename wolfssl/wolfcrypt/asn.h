@@ -675,6 +675,9 @@ struct CertStatus {
     byte nextDate[MAX_DATE_SIZE];
     byte thisDateFormat;
     byte nextDateFormat;
+
+    byte*  rawOcspResponse;
+    word32 rawOcspResponseSz;
 };
 
 

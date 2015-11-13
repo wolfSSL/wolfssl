@@ -1361,22 +1361,26 @@ struct WOLFSSL_CRL {
 /* wolfSSL Certificate Manager */
 struct WOLFSSL_CERT_MANAGER {
     Signer*         caTable[CA_TABLE_SIZE]; /* the CA signer table */
-    void*           heap;               /* heap helper */
-    WOLFSSL_CRL*    crl;                /* CRL checker */
-    WOLFSSL_OCSP*   ocsp;               /* OCSP checker */
-    char*           ocspOverrideURL;    /* use this responder */
-    void*           ocspIOCtx;          /* I/O callback CTX */
-    CallbackCACache caCacheCallback;    /* CA cache addition callback */
-    CbMissingCRL    cbMissingCRL;       /* notify through cb of missing crl */
-    CbOCSPIO        ocspIOCb;           /* I/O callback for OCSP lookup */
-    CbOCSPRespFree  ocspRespFreeCb;     /* Frees OCSP Response from IO Cb */
-    wolfSSL_Mutex   caLock;             /* CA list lock */
-    byte            crlEnabled;         /* is CRL on ? */
-    byte            crlCheckAll;        /* always leaf, but all ? */
-    byte            ocspEnabled;        /* is OCSP on ? */
-    byte            ocspCheckAll;       /* always leaf, but all ? */
-    byte            ocspSendNonce;      /* send the OCSP nonce ? */
-    byte            ocspUseOverrideURL; /* ignore cert's responder, override */
+    void*           heap;                /* heap helper */
+    WOLFSSL_CRL*    crl;                 /* CRL checker */
+    WOLFSSL_OCSP*   ocsp;                /* OCSP checker */
+#if !defined(NO_WOLFSSL_SEVER) && defined(HAVE_CERTIFICATE_STATUS_REQUEST)
+    WOLFSSL_OCSP*   ocsp_stapling;       /* OCSP checker for OCSP stapling */
+#endif
+    char*           ocspOverrideURL;     /* use this responder */
+    void*           ocspIOCtx;           /* I/O callback CTX */
+    CallbackCACache caCacheCallback;     /* CA cache addition callback */
+    CbMissingCRL    cbMissingCRL;        /* notify through cb of missing crl */
+    CbOCSPIO        ocspIOCb;            /* I/O callback for OCSP lookup */
+    CbOCSPRespFree  ocspRespFreeCb;      /* Frees OCSP Response from IO Cb */
+    wolfSSL_Mutex   caLock;              /* CA list lock */
+    byte            crlEnabled;          /* is CRL on ? */
+    byte            crlCheckAll;         /* always leaf, but all ? */
+    byte            ocspEnabled;         /* is OCSP on ? */
+    byte            ocspCheckAll;        /* always leaf, but all ? */
+    byte            ocspSendNonce;       /* send the OCSP nonce ? */
+    byte            ocspUseOverrideURL;  /* ignore cert's responder, override */
+    byte            ocspStaplingEnabled; /* is OCSP Stapling on ? */
 };
 
 WOLFSSL_LOCAL int CM_SaveCertCache(WOLFSSL_CERT_MANAGER*, const char*);
@@ -2033,6 +2037,7 @@ enum AcceptState {
     ACCEPT_FIRST_REPLY_DONE,
     SERVER_HELLO_SENT,
     CERT_SENT,
+    CERT_STATUS_SENT,
     KEY_EXCHANGE_SENT,
     CERT_REQ_SENT,
     SERVER_HELLO_DONE,
@@ -2640,6 +2645,7 @@ WOLFSSL_LOCAL int DoClientTicket(WOLFSSL*, const byte*, word32);
 WOLFSSL_LOCAL int SendData(WOLFSSL*, const void*, int);
 WOLFSSL_LOCAL int SendCertificate(WOLFSSL*);
 WOLFSSL_LOCAL int SendCertificateRequest(WOLFSSL*);
+WOLFSSL_LOCAL int SendCertificateStatus(WOLFSSL*);
 WOLFSSL_LOCAL int SendServerKeyExchange(WOLFSSL*);
 WOLFSSL_LOCAL int SendBuffered(WOLFSSL*);
 WOLFSSL_LOCAL int ReceiveData(WOLFSSL*, byte*, int, int);

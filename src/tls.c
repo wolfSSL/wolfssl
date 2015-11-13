@@ -1891,11 +1891,6 @@ int TLSX_UseTruncatedHMAC(TLSX** extensions)
 
 #ifdef HAVE_CERTIFICATE_STATUS_REQUEST
 
-#ifndef HAVE_OCSP
-#error Status Request Extension requires OCSP. \
-       Use --enable-ocsp in the configure script or define HAVE_OCSP.
-#endif
-
 static void TLSX_CSR_Free(CertificateStatusRequest* csr)
 {
     switch (csr->status_type) {
@@ -1972,7 +1967,7 @@ static word16 TLSX_CSR_Write(CertificateStatusRequest* csr, byte* output,
 static int TLSX_CSR_Parse(WOLFSSL* ssl, byte* input, word16 length,
                                                                  byte isRequest)
 {
-    int ret = 0;
+    int ret;
 
     /* shut up compiler warnings */
     (void) ssl; (void) input;
@@ -2019,8 +2014,56 @@ static int TLSX_CSR_Parse(WOLFSSL* ssl, byte* input, word16 length,
         return length ? BUFFER_ERROR : 0; /* extension_data MUST be empty. */
 #endif
     }
+    else {
+#ifndef NO_WOLFSSL_SERVER
+        byte   status_type;
+        word16 offset = 0;
+        word16 size = 0;
 
-    return ret;
+        if (length < ENUM_LEN)
+            return BUFFER_ERROR;
+
+        status_type = input[offset++];
+
+        switch (status_type) {
+            case WOLFSSL_CSR_OCSP: {
+
+                /* skip responder_id_list */
+                if (length - offset < OPAQUE16_LEN)
+                    return BUFFER_ERROR;
+
+                ato16(input + offset, &size);
+                offset += OPAQUE16_LEN + size;
+
+                /* skip request_extensions */
+                if (length - offset < OPAQUE16_LEN)
+                    return BUFFER_ERROR;
+
+                ato16(input + offset, &size);
+                offset += OPAQUE16_LEN + size;
+
+                if (offset > length)
+                    return BUFFER_ERROR;
+
+                /* is able to send OCSP response? */
+                if (ssl->ctx->cm == NULL || !ssl->ctx->cm->ocspStaplingEnabled)
+                    return 0;
+            }
+            break;
+        }
+
+        ret = TLSX_UseCertificateStatusRequest(&ssl->extensions, status_type,
+                                                                             0);
+        if (ret != SSL_SUCCESS)
+            return ret; /* throw error */
+
+        TLSX_SetResponse(ssl, TLSX_STATUS_REQUEST);
+        ssl->status_request = status_type;
+
+#endif
+    }
+
+    return 0;
 }
 
 int TLSX_CSR_InitRequest(TLSX* extensions, DecodedCert* cert)
@@ -2078,7 +2121,7 @@ int TLSX_CSR_ForceRequest(WOLFSSL* ssl)
             case WOLFSSL_CSR_OCSP:
                 if (ssl->ctx->cm->ocspEnabled)
                     return CheckOcspRequest(ssl->ctx->cm->ocsp,
-                                                            &csr->request.ocsp);
+                                                      &csr->request.ocsp, NULL);
                 else
                     return OCSP_LOOKUP_FAIL;
         }

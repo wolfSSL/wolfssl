@@ -725,6 +725,9 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
                 CyaSSL_CTX_EnableOCSP(ctx, CYASSL_OCSP_NO_NONCE);
         }
 #endif
+#if defined(HAVE_CERTIFICATE_STATUS_REQUEST)
+        wolfSSL_CTX_EnableOCSPStapling(ctx);
+#endif
 #ifdef HAVE_PK_CALLBACKS
         if (pkCallbacks)
             SetupPkCallbacks(ctx, ssl);

@@ -8776,20 +8776,13 @@ void InitOcspResponse(OcspResponse* resp, CertStatus* status,
 {
     WOLFSSL_ENTER("InitOcspResponse");
 
+    XMEMSET(status, 0, sizeof(CertStatus));
+    XMEMSET(resp,   0, sizeof(OcspResponse));
+
     resp->responseStatus = -1;
-    resp->response = NULL;
-    resp->responseSz = 0;
-    resp->producedDateFormat = 0;
-    resp->issuerHash = NULL;
-    resp->issuerKeyHash = NULL;
-    resp->sig = NULL;
-    resp->sigSz = 0;
-    resp->sigOID = 0;
-    resp->status = status;
-    resp->nonce = NULL;
-    resp->nonceSz = 0;
-    resp->source = source;
-    resp->maxIdx = inSz;
+    resp->status         = status;
+    resp->source         = source;
+    resp->maxIdx         = inSz;
 }
 
 

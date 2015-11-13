@@ -4368,7 +4368,7 @@ static int DoCertificate(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 #ifdef HAVE_OCSP
             if (ssl->ctx->cm->ocspEnabled && ssl->ctx->cm->ocspCheckAll) {
                 WOLFSSL_MSG("Doing Non Leaf OCSP check");
-                ret = CheckCertOCSP(ssl->ctx->cm->ocsp, dCert);
+                ret = CheckCertOCSP(ssl->ctx->cm->ocsp, dCert, NULL);
                 doCrlLookup = (ret == OCSP_CERT_UNKNOWN);
                 if (ret != 0) {
                     doCrlLookup = 0;
@@ -4469,7 +4469,7 @@ static int DoCertificate(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 #ifdef HAVE_OCSP
             if (doLookup && ssl->ctx->cm->ocspEnabled) {
                 WOLFSSL_MSG("Doing Leaf OCSP check");
-                ret = CheckCertOCSP(ssl->ctx->cm->ocsp, dCert);
+                ret = CheckCertOCSP(ssl->ctx->cm->ocsp, dCert, NULL);
                 doLookup = (ret == OCSP_CERT_UNKNOWN);
                 if (ret != 0) {
                     WOLFSSL_MSG("\tOCSP Lookup not ok");
@@ -8141,6 +8141,86 @@ int SendCertificateRequest(WOLFSSL* ssl)
     else
         return SendBuffered(ssl);
 }
+
+
+int SendCertificateStatus(WOLFSSL* ssl)
+{
+    int ret = 0;
+    byte status_type = 0;
+
+    WOLFSSL_ENTER("SendCertificateStatus");
+
+    (void) ssl;
+
+#ifdef HAVE_CERTIFICATE_STATUS_REQUEST
+    status_type = ssl->status_request;
+#endif
+
+    switch (status_type) {
+#if defined HAVE_CERTIFICATE_STATUS_REQUEST
+        case WOLFSSL_CSR_OCSP: {
+            buffer response = {NULL, 0};
+            buffer der = ssl->buffers.certificate;
+#ifdef WOLFSSL_SMALL_STACK
+            DecodedCert* cert = NULL;
+#else
+            DecodedCert  cert[1];
+#endif
+
+            /* unable to fetch status. skip. */
+            if (ssl->ctx->cm == NULL || ssl->ctx->cm->ocspStaplingEnabled == 0)
+                return 0;
+            if (der.buffer == NULL || der.length == 0)
+                return 0;
+
+#ifdef WOLFSSL_SMALL_STACK
+            cert = (DecodedCert*)XMALLOC(sizeof(DecodedCert), NULL,
+                                                       DYNAMIC_TYPE_TMP_BUFFER);
+            if (cert == NULL)
+                return MEMORY_E;
+#endif
+
+            InitDecodedCert(cert, der.buffer, der.length, NULL);
+
+            if ((ret = ParseCertRelative(cert, CERT_TYPE, NO_VERIFY,
+                                                          ssl->ctx->cm)) != 0) {
+                WOLFSSL_MSG("ParseCert failed");
+            }
+            else {
+                ret = CheckCertOCSP(ssl->ctx->cm->ocsp_stapling, cert,
+                                                                     &response);
+
+                if (response.buffer) {
+                    if (ret == OCSP_CERT_REVOKED || ret == OCSP_CERT_UNKNOWN) {
+                        ret = 0; /* Forward status to client */
+                    }
+
+                    if (ret == 0) {
+
+                    }
+
+                    XFREE(response.buffer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                }
+
+                if (ret == OCSP_LOOKUP_FAIL)
+                    ret = 0; /* Suppressing, not critical */
+            }
+
+            FreeDecodedCert(cert);
+#ifdef WOLFSSL_SMALL_STACK
+            XFREE(cert, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+        }
+        break;
+#endif
+
+        default:
+        break;
+    }
+
+    return ret;
+}
+
 #endif /* !NO_CERTS */
 
 
