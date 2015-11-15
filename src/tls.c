@@ -1921,7 +1921,7 @@ static word16 TLSX_CSR_GetSize(CertificateStatusRequest* csr, byte isRequest)
                 size += ENUM_LEN + 2 * OPAQUE16_LEN;
 
                 if (csr->request.ocsp.nonceSz)
-                    size += MAX_OCSP_EXT_SZ;
+                    size += OCSP_NONCE_EXT_SZ;
         }
     }
 #endif
