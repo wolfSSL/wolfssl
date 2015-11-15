@@ -8143,6 +8143,78 @@ int SendCertificateRequest(WOLFSSL* ssl)
 }
 
 
+#ifdef HAVE_CERTIFICATE_STATUS_REQUEST
+static int BuildCertificateStatus(WOLFSSL* ssl, byte type, buffer status)
+{
+    byte*  output  = NULL;
+    word32 idx     = RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ;
+    word32 length  = ENUM_LEN + OPAQUE24_LEN + status.length;
+    int    sendSz  = idx + length;
+    int    ret     = 0;
+
+    WOLFSSL_ENTER("BuildCertificateStatus");
+
+    if (ssl->keys.encryptionOn)
+        sendSz += MAX_MSG_EXTRA;
+
+    if ((ret = CheckAvailableSize(ssl, sendSz)) == 0) {
+        output = ssl->buffers.outputBuffer.buffer +
+                 ssl->buffers.outputBuffer.length;
+
+        AddHeaders(output, length, certificate_status, ssl);
+
+        output[idx++] = type;
+
+        c32to24(status.length, output + idx);
+        idx += OPAQUE24_LEN;
+
+        XMEMCPY(output + idx, status.buffer, status.length);
+        idx += status.length;
+
+        if (ssl->keys.encryptionOn) {
+            byte* input;
+            int   inputSz = idx - RECORD_HEADER_SZ;
+
+            input = (byte*)XMALLOC(inputSz, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
+            if (input == NULL)
+                return MEMORY_E;
+
+            XMEMCPY(input, output + RECORD_HEADER_SZ, inputSz);
+            sendSz = BuildMessage(ssl, output, sendSz, input,inputSz,handshake);
+            XFREE(input, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
+
+            if (sendSz < 0)
+                ret = sendSz;
+        }
+        else
+            ret = HashOutput(ssl, output, sendSz, 0);
+
+    #ifdef WOLFSSL_DTLS
+        if (ret == 0 && ssl->options.dtls)
+            ret = DtlsPoolSave(ssl, output, sendSz));
+    #endif
+
+    #ifdef WOLFSSL_CALLBACKS
+        if (ret == 0 && ssl->hsInfoOn)
+            AddPacketName("CertificateStatus", &ssl->handShakeInfo);
+        if (ret == 0 && ssl->toInfoOn)
+            AddPacketInfo("CertificateStatus", &ssl->timeoutInfo, output,
+                                                             sendSz, ssl->heap);
+    #endif
+
+        if (ret == 0) {
+            ssl->buffers.outputBuffer.length += sendSz;
+            if (!ssl->options.groupMessages)
+                ret = SendBuffered(ssl);
+        }
+    }
+
+    WOLFSSL_LEAVE("BuildCertificateStatus", ret);
+    return ret;
+}
+#endif
+
+
 int SendCertificateStatus(WOLFSSL* ssl)
 {
     int ret = 0;
@@ -8182,7 +8254,7 @@ int SendCertificateStatus(WOLFSSL* ssl)
 
             InitDecodedCert(cert, der.buffer, der.length, NULL);
 
-            if ((ret = ParseCertRelative(cert, CERT_TYPE, NO_VERIFY,
+            if ((ret = ParseCertRelative(cert, CERT_TYPE, VERIFY,
                                                           ssl->ctx->cm)) != 0) {
                 WOLFSSL_MSG("ParseCert failed");
             }
@@ -8190,20 +8262,18 @@ int SendCertificateStatus(WOLFSSL* ssl)
                 ret = CheckCertOCSP(ssl->ctx->cm->ocsp_stapling, cert,
                                                                      &response);
 
+                /* Suppressing, not critical */
+                if (ret == OCSP_CERT_REVOKED
+                ||  ret == OCSP_CERT_UNKNOWN
+                ||  ret == OCSP_LOOKUP_FAIL)
+                    ret = 0;
+
                 if (response.buffer) {
-                    if (ret == OCSP_CERT_REVOKED || ret == OCSP_CERT_UNKNOWN) {
-                        ret = 0; /* Forward status to client */
-                    }
-
-                    if (ret == 0) {
-
-                    }
+                    if (ret == 0)
+                        ret = BuildCertificateStatus(ssl,status_type, response);
 
                     XFREE(response.buffer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
                 }
-
-                if (ret == OCSP_LOOKUP_FAIL)
-                    ret = 0; /* Suppressing, not critical */
             }
 
             FreeDecodedCert(cert);
