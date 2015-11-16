@@ -110,8 +110,6 @@ int wc_SignatureVerify(
     /* Perform hash of data */
     ret = wc_Hash(hash_type, data, data_len, hash_data, hash_len);
     if(ret == 0) {
-        /* Default to bad argument */
-        ret = BAD_FUNC_ARG;
 
         /* Verify signature using hash as data */
         switch(sig_type) {
@@ -150,6 +148,7 @@ int wc_SignatureVerify(
 
             case WC_SIGNATURE_TYPE_NONE:
             default:
+                ret = BAD_FUNC_ARG;
                 break;
         }
     }
@@ -198,9 +197,6 @@ int wc_SignatureGenerate(
     /* Perform hash of data */
     ret = wc_Hash(hash_type, data, data_len, hash_data, hash_len);
     if (ret == 0) {
-        /* Default to bad argument */
-        ret = BAD_FUNC_ARG;
-
         /* Create signature using hash as data */
         switch(sig_type) {
 #ifdef HAVE_ECC
@@ -223,6 +219,7 @@ int wc_SignatureGenerate(
 
             case WC_SIGNATURE_TYPE_NONE:
             default:
+                ret = BAD_FUNC_ARG;
                 break;
         }
     }
