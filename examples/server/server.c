@@ -726,7 +726,10 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
         }
 #endif
 #if defined(HAVE_CERTIFICATE_STATUS_REQUEST)
-        wolfSSL_CTX_EnableOCSPStapling(ctx);
+        if (wolfSSL_CTX_EnableOCSPStapling(ctx) != SSL_SUCCESS)
+            err_sys("can't enable OCSP Stapling Certificate Manager");
+        if (SSL_CTX_load_verify_locations(ctx, caCert, 0) != SSL_SUCCESS)
+            err_sys("can't load ca file, Please run from wolfSSL home dir");
 #endif
 #ifdef HAVE_PK_CALLBACKS
         if (pkCallbacks)
