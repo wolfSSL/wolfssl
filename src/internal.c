@@ -542,6 +542,13 @@ void SSL_CtxResourceFree(WOLFSSL_CTX* ctx)
 #endif
 #ifdef HAVE_TLS_EXTENSIONS
     TLSX_FreeAll(ctx->extensions);
+
+    #ifdef HAVE_CERTIFICATE_STATUS_REQUEST
+        if (ctx->certOcspRequest) {
+            FreeOcspRequest(ctx->certOcspRequest);
+            XFREE(ctx->certOcspRequest, NULL, DYNAMIC_TYPE_OCSP_REQUEST);
+        }
+    #endif
 #endif
 }
 
@@ -8231,35 +8238,69 @@ int SendCertificateStatus(WOLFSSL* ssl)
     switch (status_type) {
 #if defined HAVE_CERTIFICATE_STATUS_REQUEST
         case WOLFSSL_CSR_OCSP: {
+            OcspRequest* request = ssl->ctx->certOcspRequest;
             buffer response = {NULL, 0};
-            buffer der = ssl->buffers.certificate;
-#ifdef WOLFSSL_SMALL_STACK
-            DecodedCert* cert = NULL;
-#else
-            DecodedCert  cert[1];
-#endif
 
             /* unable to fetch status. skip. */
             if (ssl->ctx->cm == NULL || ssl->ctx->cm->ocspStaplingEnabled == 0)
                 return 0;
-            if (der.buffer == NULL || der.length == 0)
-                return 0;
+
+            if (!request || ssl->buffers.weOwnCert) {
+                buffer der = ssl->buffers.certificate;
+            #ifdef WOLFSSL_SMALL_STACK
+                DecodedCert* cert = NULL;
+            #else
+                DecodedCert  cert[1];
+            #endif
+
+                /* unable to fetch status. skip. */
+                if (der.buffer == NULL || der.length == 0)
+                    return 0;
 
 #ifdef WOLFSSL_SMALL_STACK
-            cert = (DecodedCert*)XMALLOC(sizeof(DecodedCert), NULL,
+                cert = (DecodedCert*)XMALLOC(sizeof(DecodedCert), NULL,
                                                        DYNAMIC_TYPE_TMP_BUFFER);
-            if (cert == NULL)
-                return MEMORY_E;
+                if (cert == NULL)
+                    return MEMORY_E;
 #endif
 
-            InitDecodedCert(cert, der.buffer, der.length, NULL);
+                InitDecodedCert(cert, der.buffer, der.length, NULL);
 
-            if ((ret = ParseCertRelative(cert, CERT_TYPE, VERIFY,
+                if ((ret = ParseCertRelative(cert, CERT_TYPE, VERIFY,
                                                           ssl->ctx->cm)) != 0) {
-                WOLFSSL_MSG("ParseCert failed");
+                    WOLFSSL_MSG("ParseCert failed");
+                }
+                else {
+                    request = (OcspRequest*)XMALLOC(sizeof(OcspRequest), NULL,
+                                                     DYNAMIC_TYPE_OCSP_REQUEST);
+                    if (request == NULL) {
+                        FreeDecodedCert(cert);
+#ifdef WOLFSSL_SMALL_STACK
+                        XFREE(cert, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+                        return MEMORY_E;
+                    }
+
+                    ret = InitOcspRequest(request, cert, 0);
+                    if (ret != 0) {
+                        XFREE(request, NULL, DYNAMIC_TYPE_OCSP_REQUEST);
+                    }
+                    else if (!ssl->buffers.weOwnCert && 0 == LockMutex(
+                                      &ssl->ctx->cm->ocsp_stapling->ocspLock)) {
+                        if (!ssl->ctx->certOcspRequest)
+                            ssl->ctx->certOcspRequest = request;
+                        UnLockMutex(&ssl->ctx->cm->ocsp_stapling->ocspLock);
+                    }
+                }
+
+                FreeDecodedCert(cert);
+#ifdef WOLFSSL_SMALL_STACK
+                XFREE(cert, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
             }
-            else {
-                ret = CheckCertOCSP(ssl->ctx->cm->ocsp_stapling, cert,
+
+            if (ret == 0) {
+                ret = CheckOcspRequest(ssl->ctx->cm->ocsp_stapling, request,
                                                                      &response);
 
                 /* Suppressing, not critical */
@@ -8274,12 +8315,11 @@ int SendCertificateStatus(WOLFSSL* ssl)
 
                     XFREE(response.buffer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
                 }
+
             }
 
-            FreeDecodedCert(cert);
-#ifdef WOLFSSL_SMALL_STACK
-            XFREE(cert, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+            if (request != ssl->ctx->certOcspRequest)
+                XFREE(request, NULL, DYNAMIC_TYPE_OCSP_REQUEST);
         }
         break;
 #endif
