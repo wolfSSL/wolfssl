@@ -2729,20 +2729,6 @@ int aesgcm_test(void)
      * Counter Mode of Operation (GCM) by McGrew and
      * Viega.
      */
-    const byte k[] =
-    {
-        0xfe, 0xff, 0xe9, 0x92, 0x86, 0x65, 0x73, 0x1c,
-        0x6d, 0x6a, 0x8f, 0x94, 0x67, 0x30, 0x83, 0x08,
-        0xfe, 0xff, 0xe9, 0x92, 0x86, 0x65, 0x73, 0x1c,
-        0x6d, 0x6a, 0x8f, 0x94, 0x67, 0x30, 0x83, 0x08
-    };
-
-    const byte iv[] =
-    {
-        0xca, 0xfe, 0xba, 0xbe, 0xfa, 0xce, 0xdb, 0xad,
-        0xde, 0xca, 0xf8, 0x88
-    };
-
     const byte p[] =
     {
         0xd9, 0x31, 0x32, 0x25, 0xf8, 0x84, 0x06, 0xe5,
@@ -2762,7 +2748,21 @@ int aesgcm_test(void)
         0xab, 0xad, 0xda, 0xd2
     };
 
-    const byte c[] =
+    const byte k1[] =
+    {
+        0xfe, 0xff, 0xe9, 0x92, 0x86, 0x65, 0x73, 0x1c,
+        0x6d, 0x6a, 0x8f, 0x94, 0x67, 0x30, 0x83, 0x08,
+        0xfe, 0xff, 0xe9, 0x92, 0x86, 0x65, 0x73, 0x1c,
+        0x6d, 0x6a, 0x8f, 0x94, 0x67, 0x30, 0x83, 0x08
+    };
+
+    const byte iv1[] =
+    {
+        0xca, 0xfe, 0xba, 0xbe, 0xfa, 0xce, 0xdb, 0xad,
+        0xde, 0xca, 0xf8, 0x88
+    };
+
+    const byte c1[] =
     {
         0x52, 0x2d, 0xc1, 0xf0, 0x99, 0x56, 0x7d, 0x07,
         0xf4, 0x7f, 0x37, 0xa3, 0x2a, 0x84, 0x42, 0x7d,
@@ -2774,37 +2774,98 @@ int aesgcm_test(void)
         0xbc, 0xc9, 0xf6, 0x62
     };
 
-    const byte t[] =
+    const byte t1[] =
     {
         0x76, 0xfc, 0x6e, 0xce, 0x0f, 0x4e, 0x17, 0x68,
         0xcd, 0xdf, 0x88, 0x53, 0xbb, 0x2d, 0x55, 0x1b
     };
 
-    byte t2[sizeof(t)];
-    byte p2[sizeof(c)];
-    byte c2[sizeof(p)];
+#ifndef HAVE_FIPS
+    /* Test Case 12, uses same plaintext and AAD data. */
+    const byte k2[] =
+    {
+        0xfe, 0xff, 0xe9, 0x92, 0x86, 0x65, 0x73, 0x1c,
+        0x6d, 0x6a, 0x8f, 0x94, 0x67, 0x30, 0x83, 0x08,
+        0xfe, 0xff, 0xe9, 0x92, 0x86, 0x65, 0x73, 0x1c
+    };
 
-    int result;
+    const byte iv2[] =
+    {
+        0x93, 0x13, 0x22, 0x5d, 0xf8, 0x84, 0x06, 0xe5,
+        0x55, 0x90, 0x9c, 0x5a, 0xff, 0x52, 0x69, 0xaa,
+        0x6a, 0x7a, 0x95, 0x38, 0x53, 0x4f, 0x7d, 0xa1,
+        0xe4, 0xc3, 0x03, 0xd2, 0xa3, 0x18, 0xa7, 0x28,
+        0xc3, 0xc0, 0xc9, 0x51, 0x56, 0x80, 0x95, 0x39,
+        0xfc, 0xf0, 0xe2, 0x42, 0x9a, 0x6b, 0x52, 0x54,
+        0x16, 0xae, 0xdb, 0xf5, 0xa0, 0xde, 0x6a, 0x57,
+        0xa6, 0x37, 0xb3, 0x9b
+    };
 
-    memset(t2, 0, sizeof(t2));
-    memset(c2, 0, sizeof(c2));
-    memset(p2, 0, sizeof(p2));
+    const byte c2[] =
+    {
+        0xd2, 0x7e, 0x88, 0x68, 0x1c, 0xe3, 0x24, 0x3c,
+        0x48, 0x30, 0x16, 0x5a, 0x8f, 0xdc, 0xf9, 0xff,
+        0x1d, 0xe9, 0xa1, 0xd8, 0xe6, 0xb4, 0x47, 0xef,
+        0x6e, 0xf7, 0xb7, 0x98, 0x28, 0x66, 0x6e, 0x45,
+        0x81, 0xe7, 0x90, 0x12, 0xaf, 0x34, 0xdd, 0xd9,
+        0xe2, 0xf0, 0x37, 0x58, 0x9b, 0x29, 0x2d, 0xb3,
+        0xe6, 0x7c, 0x03, 0x67, 0x45, 0xfa, 0x22, 0xe7,
+        0xe9, 0xb7, 0x37, 0x3b
+    };
 
-    wc_AesGcmSetKey(&enc, k, sizeof(k));
+    const byte t2[] =
+    {
+        0xdc, 0xf5, 0x66, 0xff, 0x29, 0x1c, 0x25, 0xbb,
+        0xb8, 0x56, 0x8f, 0xc3, 0xd3, 0x76, 0xa6, 0xd9
+    };
+#endif /* HAVE_FIPS */
+
+    byte resultT[sizeof(t1)];
+    byte resultP[sizeof(p)];
+    byte resultC[sizeof(p)];
+    int  result;
+
+    memset(resultT, 0, sizeof(resultT));
+    memset(resultC, 0, sizeof(resultC));
+    memset(resultP, 0, sizeof(resultP));
+
+    wc_AesGcmSetKey(&enc, k1, sizeof(k1));
     /* AES-GCM encrypt and decrypt both use AES encrypt internally */
-    wc_AesGcmEncrypt(&enc, c2, p, sizeof(c2), iv, sizeof(iv),
-                                                 t2, sizeof(t2), a, sizeof(a));
-    if (memcmp(c, c2, sizeof(c2)))
+    wc_AesGcmEncrypt(&enc, resultC, p, sizeof(p), iv1, sizeof(iv1),
+                                        resultT, sizeof(resultT), a, sizeof(a));
+    if (memcmp(c1, resultC, sizeof(resultC)))
         return -68;
-    if (memcmp(t, t2, sizeof(t2)))
+    if (memcmp(t1, resultT, sizeof(resultT)))
         return -69;
 
-    result = wc_AesGcmDecrypt(&enc, p2, c2, sizeof(p2), iv, sizeof(iv),
-                                                 t2, sizeof(t2), a, sizeof(a));
+    result = wc_AesGcmDecrypt(&enc, resultP, resultC, sizeof(resultC),
+                      iv1, sizeof(iv1), resultT, sizeof(resultT), a, sizeof(a));
     if (result != 0)
         return -70;
-    if (memcmp(p, p2, sizeof(p2)))
+    if (memcmp(p, resultP, sizeof(resultP)))
         return -71;
+
+#ifndef HAVE_FIPS
+    memset(resultT, 0, sizeof(resultT));
+    memset(resultC, 0, sizeof(resultC));
+    memset(resultP, 0, sizeof(resultP));
+
+    wc_AesGcmSetKey(&enc, k2, sizeof(k2));
+    /* AES-GCM encrypt and decrypt both use AES encrypt internally */
+    wc_AesGcmEncrypt(&enc, resultC, p, sizeof(p), iv2, sizeof(iv2),
+                                        resultT, sizeof(resultT), a, sizeof(a));
+    if (memcmp(c2, resultC, sizeof(resultC)))
+        return -230;
+    if (memcmp(t2, resultT, sizeof(resultT)))
+        return -231;
+
+    result = wc_AesGcmDecrypt(&enc, resultP, resultC, sizeof(resultC),
+                      iv2, sizeof(iv2), resultT, sizeof(resultT), a, sizeof(a));
+    if (result != 0)
+        return -232;
+    if (memcmp(p, resultP, sizeof(resultP)))
+        return -233;
+#endif /* HAVE_FIPS */
 
     return 0;
 }
@@ -5337,6 +5398,23 @@ int dsa_test(void)
 
 #ifdef WOLFCRYPT_HAVE_SRP
 
+static int generate_random_salt(byte *buf, word32 size)
+{
+    int ret = -1;
+    WC_RNG rng;
+
+    if(NULL == buf || !size)
+        return -1;
+
+    if (buf && size && wc_InitRng(&rng) == 0) {
+        ret = wc_RNG_GenerateBlock(&rng, (byte *)buf, size); 
+
+        wc_FreeRng(&rng);        
+    }
+
+    return ret;
+}
+
 int srp_test(void)
 {
     Srp cli, srv;
@@ -5371,25 +5449,28 @@ int srp_test(void)
         0x02
     };
 
-    byte salt[] = {
-        0xB2, 0xE5, 0x8E, 0xCC, 0xD0, 0xCF, 0x9D, 0x10, 0x3A, 0x56
-    };
+    byte salt[10];
 
-    byte verifier[] = {
-        0x7C, 0xAB, 0x17, 0xFE, 0x54, 0x3E, 0x8C, 0x13, 0xF2, 0x3D, 0x21, 0xE7,
-        0xD2, 0xAF, 0xAF, 0xDB, 0xA1, 0x52, 0x69, 0x9D, 0x49, 0x01, 0x79, 0x91,
-        0xCF, 0xD1, 0x3F, 0xE5, 0x28, 0x72, 0xCA, 0xBE, 0x13, 0xD1, 0xC2, 0xDA,
-        0x65, 0x34, 0x55, 0x8F, 0x34, 0x0E, 0x05, 0xB8, 0xB4, 0x0F, 0x7F, 0x6B,
-        0xBB, 0xB0, 0x6B, 0x50, 0xD8, 0xB1, 0xCC, 0xB7, 0x81, 0xFE, 0xD4, 0x42,
-        0xF5, 0x11, 0xBC, 0x8A, 0x28, 0xEB, 0x50, 0xB3, 0x46, 0x08, 0xBA, 0x24,
-        0xA2, 0xFB, 0x7F, 0x2E, 0x0A, 0xA5, 0x33, 0xCC
-    };
+    byte verifier[80];
+    word32 v_size = sizeof(verifier);
+
+    /* generating random salt */
+    
+    r = generate_random_salt(salt, sizeof(salt));
 
     /* client knows username and password.   */
     /* server knows N, g, salt and verifier. */
 
-            r = wc_SrpInit(&cli, SRP_TYPE_SHA, SRP_CLIENT_SIDE);
+    if (!r) r = wc_SrpInit(&cli, SRP_TYPE_SHA, SRP_CLIENT_SIDE);
     if (!r) r = wc_SrpSetUsername(&cli, username, usernameSz);
+
+    /* loading N, g and salt in advance to generate the verifier. */
+
+    if (!r) r = wc_SrpSetParams(&cli, N,    sizeof(N),
+                                      g,    sizeof(g),
+                                      salt, sizeof(salt));
+    if (!r) r = wc_SrpSetPassword(&cli, password, passwordSz);
+    if (!r) r = wc_SrpGetVerifier(&cli, verifier, &v_size);
 
     /* client sends username to server */
 
@@ -5398,15 +5479,11 @@ int srp_test(void)
     if (!r) r = wc_SrpSetParams(&srv, N,    sizeof(N),
                                       g,    sizeof(g),
                                       salt, sizeof(salt));
-    if (!r) r = wc_SrpSetVerifier(&srv, verifier, sizeof(verifier));
+    if (!r) r = wc_SrpSetVerifier(&srv, verifier, v_size);
     if (!r) r = wc_SrpGetPublic(&srv, serverPubKey, &serverPubKeySz);
 
     /* server sends N, g, salt and B to client */
 
-    if (!r) r = wc_SrpSetParams(&cli, N,    sizeof(N),
-                                      g,    sizeof(g),
-                                      salt, sizeof(salt));
-    if (!r) r = wc_SrpSetPassword(&cli, password, passwordSz);
     if (!r) r = wc_SrpGetPublic(&cli, clientPubKey, &clientPubKeySz);
     if (!r) r = wc_SrpComputeKey(&cli, clientPubKey, clientPubKeySz,
                                        serverPubKey, serverPubKeySz);

@@ -200,7 +200,12 @@
     /* uses complete <time.h> facility */
     #include <time.h>
     #define XTIME(tl)     time((tl))
-    #define XGMTIME(c, t) gmtime((c))
+    #ifdef HAVE_GMTIME_R
+        #define XGMTIME(c, t) gmtime_r((c), (t))
+        #define NEED_TMP_TIME
+    #else
+        #define XGMTIME(c, t) gmtime((c))
+    #endif
     #define XVALIDATE_DATE(d, f, t) ValidateDate((d), (f), (t))
 #endif
 
@@ -2554,8 +2559,11 @@ int ValidateDate(const byte* date, byte format, int dateType)
     struct tm* localTime;
     struct tm* tmpTime = NULL;
     int    i = 0;
+    int    timeDiff = 0 ;
+    int    diffHH = 0 ; int diffMM = 0 ;
+    int    diffSign = 0 ;
 
-#if defined(FREESCALE_MQX) || defined(TIME_OVERRIDES)
+#if defined(FREESCALE_MQX) || defined(TIME_OVERRIDES) || defined(NEED_TMP_TIME)
     struct tm tmpTimeStorage;
     tmpTime = &tmpTimeStorage;
 #else
@@ -2584,11 +2592,18 @@ int ValidateDate(const byte* date, byte format, int dateType)
     GetTime((int*)&certTime.tm_min,  date, &i);
     GetTime((int*)&certTime.tm_sec,  date, &i);
 
-        if (date[i] != 'Z') {     /* only Zulu supported for this profile */
-        WOLFSSL_MSG("Only Zulu time supported for this profile");
+    if ((date[i] == '+') || (date[i] == '-')) {
+        WOLFSSL_MSG("Using time differential, not Zulu") ;
+        diffSign = date[i++] == '+' ? 1 : -1 ;
+        GetTime(&diffHH, date, &i);
+        GetTime(&diffMM, date, &i);
+        timeDiff = diffSign * (diffHH*60 + diffMM) * 60 ;
+    } else if (date[i] != 'Z') {
+        WOLFSSL_MSG("UTCtime, niether Zulu or time differential") ;
         return 0;
     }
 
+    ltime -= (time_t)timeDiff ;
     localTime = XGMTIME(&ltime, tmpTime);
 
     if (localTime == NULL) {
@@ -5744,7 +5759,7 @@ static int SetValidity(byte* output, int daysValid)
     struct tm* tmpTime = NULL;
     struct tm  local;
 
-#if defined(FREESCALE_MQX) || defined(TIME_OVERRIDES)
+#if defined(FREESCALE_MQX) || defined(TIME_OVERRIDES) || defined(NEED_TMP_TIME)
     /* for use with gmtime_r */
     struct tm tmpTimeStorage;
     tmpTime = &tmpTimeStorage;
@@ -8569,6 +8584,17 @@ static int DecodeOcspRespExtensions(byte* source,
         }
 
         if (oid == OCSP_NONCE_OID) {
+            /* get data inside extra OCTET_STRING */
+            if (source[idx++] != ASN_OCTET_STRING) {
+                WOLFSSL_MSG("\tfail: should be an OCTET STRING");
+                return ASN_PARSE_E;
+            }
+
+            if (GetLength(source, &idx, &length, sz) < 0) {
+                WOLFSSL_MSG("\tfail: extension data length");
+                return ASN_PARSE_E;
+            }
+            
             resp->nonce = source + idx;
             resp->nonceSz = length;
         }
@@ -8673,7 +8699,7 @@ static int DecodeBasicOcspResponse(byte* source, word32* ioIndex,
     int length;
     word32 idx = *ioIndex;
     word32 end_index;
-    int ret;
+    int ret = -1;
 
     WOLFSSL_ENTER("DecodeBasicOcspResponse");
 
@@ -8732,13 +8758,9 @@ static int DecodeBasicOcspResponse(byte* source, word32* ioIndex,
     else {
         Signer* ca = GetCA(cm, resp->issuerHash);
 
-        if (ca)
-            ret = ConfirmSignature(resp->response, resp->responseSz,
-                                   ca->publicKey, ca->pubKeySize, ca->keyOID,
-                                   resp->sig, resp->sigSz, resp->sigOID, NULL);
-
-        if (!ca || ret == 0)
-        {
+        if (!ca || !ConfirmSignature(resp->response, resp->responseSz, 
+                                     ca->publicKey, ca->pubKeySize, ca->keyOID, 
+                                  resp->sig, resp->sigSz, resp->sigOID, NULL)) {
             WOLFSSL_MSG("\tOCSP Confirm signature failed");
             return ASN_OCSP_CONFIRM_E;
         }
@@ -9378,4 +9400,3 @@ int ParseCRL(DecodedCRL* dcrl, const byte* buff, word32 sz, void* cm)
 
 
 #endif /* WOLFSSL_SEP */
-

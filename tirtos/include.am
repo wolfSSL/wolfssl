@@ -6,6 +6,7 @@ EXTRA_DIST += \
          tirtos/README \
          tirtos/wolfssl.bld \
          tirtos/wolfssl.mak \
+         tirtos/products.mak \
          tirtos/packages/ti/net/wolfssl/package.bld \
          tirtos/packages/ti/net/wolfssl/package.xdc \
          tirtos/packages/ti/net/wolfssl/package.xs \

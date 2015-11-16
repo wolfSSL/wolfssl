@@ -3254,7 +3254,7 @@ int wc_ecc_sig_size(ecc_key* key)
     if (sz <= 0)
         return sz;
 
-    return sz * 2 + SIG_HEADER_SZ + 4;  /* (4) worst case estimate */
+    return (sz * 2) + SIG_HEADER_SZ + ECC_MAX_PAD_SZ;
 }
 
 

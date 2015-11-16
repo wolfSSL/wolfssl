@@ -72,7 +72,7 @@ static void reset_engine(pic32mz_desc *desc, int algo)
             uc_desc->bd[i].NXTPTR = KVA_TO_PA(&uc_desc->bd[0]);
         XMEMSET((void *)&dataBuffer[i], 0, PIC32_BLOCK_SIZE);
     }
-    uc_desc->bd[0].BD_CTRL.SA_FETCH_EN = 1; // Fetch the security association on the first BD
+    uc_desc->bd[0].BD_CTRL.SA_FETCH_EN = 1; /* Fetch the security association on the first BD */
     desc->dbPtr = 0;
     desc->currBd = 0;
     desc->msgSize = 0;
@@ -86,49 +86,45 @@ static void reset_engine(pic32mz_desc *desc, int algo)
 
 #define PIC32MZ_IF_RAM(addr) (KVA_TO_PA(addr) < 0x80000)
 
-static void update_data_size(pic32mz_desc *desc, word32 msgSize)
-{
-    desc->msgSize = msgSize;
-}
-
-static void update_engine(pic32mz_desc *desc, const char *input, word32 len,
+static void update_engine(pic32mz_desc *desc, const byte *input, word32 len,
                     word32 *hash)
 {
    int total ;
     pic32mz_desc    *uc_desc = KVA0_TO_KVA1(desc);
 
     uc_desc->bd[desc->currBd].UPDPTR = KVA_TO_PA(hash);
-    // Add the data to the current buffer. If the buffer fills, start processing it
-    // and fill the next one.
+    /* Add the data to the current buffer. If the buffer fills, start processing it
+       and fill the next one. */
     while (len)
     {
-        // If the engine is processing the current BD, spin.
-//        if (uc_desc->bd[desc->currBd].BD_CTRL.DESC_EN)
-//            continue;
+        /* If the engine is processing the current BD, spin.
+        if (uc_desc->bd[desc->currBd].BD_CTRL.DESC_EN)
+            continue; */
         if (desc->msgSize)
         {
-            // If we've been given the message size, we can process along the
-            // way.
-            // Enable the current buffer descriptor if it is full.
+            /* If we've been given the message size, we can process along the
+               way.
+               Enable the current buffer descriptor if it is full. */
             if (desc->dbPtr >= PIC32_BLOCK_SIZE)
             {
-                // Wrap up the buffer descriptor and enable it so the engine can process
+                /* Wrap up the buffer descriptor and enable it so the engine can process */
                 uc_desc->bd[desc->currBd].MSGLEN = desc->msgSize;
                 uc_desc->bd[desc->currBd].BD_CTRL.BUFLEN = desc->dbPtr;
                 uc_desc->bd[desc->currBd].BD_CTRL.LAST_BD = 0;
                 uc_desc->bd[desc->currBd].BD_CTRL.LIFM = 0;
-                //SYS_DEVCON_DataCacheClean((word32)desc, sizeof(pic32mz_desc));
+                /* SYS_DEVCON_DataCacheClean((word32)desc, sizeof(pic32mz_desc)); */
                 uc_desc->bd[desc->currBd].BD_CTRL.DESC_EN = 1;
-                // Move to the next buffer descriptor, or wrap around.
+                /* Move to the next buffer descriptor, or wrap around. */
                 desc->currBd++;
                 if (desc->currBd >= PIC32MZ_MAX_BD)
                     desc->currBd = 0;
-                // Wait until the engine has processed the new BD.
+                /* Wait until the engine has processed the new BD. */
                 while (uc_desc->bd[desc->currBd].BD_CTRL.DESC_EN);
                 uc_desc->bd[desc->currBd].UPDPTR = KVA_TO_PA(hash);
                 desc->dbPtr = 0;
             }
-            if (!PIC32MZ_IF_RAM(input)) // If we're inputting from flash, let the BD have the address and max the buffer size
+            if (!PIC32MZ_IF_RAM(input)) /* If we're inputting from flash, let the BD have 
+                                         the address and max the buffer size */
             {
                 uc_desc->bd[desc->currBd].SRCADDR = KVA_TO_PA(input);
                 total = (len > PIC32MZ_MAX_BLOCK ? PIC32MZ_MAX_BLOCK : len);
@@ -140,7 +136,7 @@ static void update_engine(pic32mz_desc *desc, const char *input, word32 len,
             {
                 if (len > PIC32_BLOCK_SIZE - desc->dbPtr)
                 {
-                    // We have more data than can be put in the buffer. Fill what we can.
+                    /* We have more data than can be put in the buffer. Fill what we can.*/
                     total = PIC32_BLOCK_SIZE - desc->dbPtr;
                     XMEMCPY(&dataBuffer[desc->currBd][desc->dbPtr], input, total);
                     len -= total;
@@ -149,7 +145,7 @@ static void update_engine(pic32mz_desc *desc, const char *input, word32 len,
                 }
                 else
                 {
-                    // Fill up what we have, but don't turn on the engine.
+                    /* Fill up what we have, but don't turn on the engine.*/
                     XMEMCPY(&dataBuffer[desc->currBd][desc->dbPtr], input, len);
                     desc->dbPtr += len;
                     len = 0;
@@ -158,13 +154,13 @@ static void update_engine(pic32mz_desc *desc, const char *input, word32 len,
         }
         else
         {
-            // We have to buffer everything and keep track of how much has been
-            // added in order to get a total size. If the buffer fills, we move
-            // to the next one. If we try to add more when the last buffer is
-            // full, we error out.
+            /* We have to buffer everything and keep track of how much has been
+               added in order to get a total size. If the buffer fills, we move
+               to the next one. If we try to add more when the last buffer is
+               full, we error out. */
             if (desc->dbPtr == PIC32_BLOCK_SIZE)
             {
-                // We filled the last BD buffer, so move on to the next one
+                /* We filled the last BD buffer, so move on to the next one */
                 uc_desc->bd[desc->currBd].BD_CTRL.LAST_BD = 0;
                 uc_desc->bd[desc->currBd].BD_CTRL.LIFM = 0;
                 uc_desc->bd[desc->currBd].BD_CTRL.BUFLEN = PIC32_BLOCK_SIZE;
@@ -178,7 +174,7 @@ static void update_engine(pic32mz_desc *desc, const char *input, word32 len,
             }
             if (len > PIC32_BLOCK_SIZE - desc->dbPtr)
             {
-                // We have more data than can be put in the buffer. Fill what we can.
+                /* We have more data than can be put in the buffer. Fill what we can. */
                 total = PIC32_BLOCK_SIZE - desc->dbPtr;
                 XMEMCPY(&dataBuffer[desc->currBd][desc->dbPtr], input, total);
                 len -= total;
@@ -188,7 +184,7 @@ static void update_engine(pic32mz_desc *desc, const char *input, word32 len,
             }
             else
             {
-                // Fill up what we have
+                /* Fill up what we have */
                 XMEMCPY(&dataBuffer[desc->currBd][desc->dbPtr], input, len);
                 desc->dbPtr += len;
                 desc->processed += len;
@@ -199,7 +195,7 @@ static void update_engine(pic32mz_desc *desc, const char *input, word32 len,
 }
 
 static void start_engine(pic32mz_desc *desc) {
-    // Wrap up the last buffer descriptor and enable it
+    /* Wrap up the last buffer descriptor and enable it */
     int i ;
     int bufferLen ;
     pic32mz_desc *uc_desc = KVA0_TO_KVA1(desc);
@@ -212,8 +208,8 @@ static void start_engine(pic32mz_desc *desc) {
     uc_desc->bd[desc->currBd].BD_CTRL.LIFM = 1;
     if (desc->msgSize == 0)
     {
-        // We were not given the size, so now we have to go through every BD
-        // and give it what will be processed, and enable them.
+        /* We were not given the size, so now we have to go through every BD
+           and give it what will be processed, and enable them. */
         for (i = desc->currBd; i >= 0; i--)
         {
             uc_desc->bd[i].MSGLEN = desc->processed;
@@ -249,17 +245,6 @@ void wait_engine(pic32mz_desc *desc, char *hash, int hash_sz) {
     {
         *intptr = ntohl(*intptr);
     }
-}
-
-static int fillBuff(char *buff, int *bufflen, const char *data, int len, int blocksz)
-{
-    int room, copysz ;
-
-    room = blocksz - *bufflen ;
-    copysz = (len <= room) ? len : room ;
-    XMEMCPY(buff, data, copysz) ;
-    *bufflen += copysz ;
-    return (*bufflen == blocksz) ? 1 : 0 ;
 }
 
 #endif

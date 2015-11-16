@@ -314,7 +314,9 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     fdOpenSession(Task_self());
 #endif
 
-#ifndef WOLFSSL_VXWORKS
+#ifdef WOLFSSL_VXWORKS
+    useAnyAddr = 1;
+#else
     while ((ch = mygetopt(argc, argv, "?dbstnNufrRawPIp:v:l:A:c:k:Z:S:oO:D:L:ieB:"))
                          != -1) {
         switch (ch) {

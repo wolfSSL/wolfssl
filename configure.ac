@@ -70,6 +70,7 @@ m4_ifdef([AM_SILENT_RULES],[AM_SILENT_RULES([yes])])
 AC_CHECK_FUNCS([gethostbyname])
 AC_CHECK_FUNCS([getaddrinfo])
 AC_CHECK_FUNCS([gettimeofday])
+AC_CHECK_FUNCS([gmtime_r])
 AC_CHECK_FUNCS([inet_ntoa])
 AC_CHECK_FUNCS([memset])
 AC_CHECK_FUNCS([socket])
@@ -1966,7 +1967,8 @@ then
     if test "x$ENABLED_ECC" = "xno"
     then
         ENABLED_ECC="yes"
-        AM_CFLAGS="$AM_CFLAGS -DHAVE_ECC"
+        AM_CFLAGS="$AM_CFLAGS -DHAVE_ECC -DTFM_ECC256 -DECC_SHAMIR"
+        AM_CONDITIONAL([BUILD_ECC], [test "x$ENABLED_ECC" = "xyes"])
     fi
     if test "x$ENABLED_PKCALLBACKS" = "xno"
     then

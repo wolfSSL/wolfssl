@@ -167,7 +167,7 @@ void hw_uart_printchar(int c)
     UART_PORT->D = (uint8_t)c; /* Send the character */
 }
 
-int hw_rand(void)
+uint32_t hw_rand(void)
 {
     while((RNG->SR & RNG_SR_OREG_LVL(0xF)) == 0) {}; /* Wait until FIFO has a value available */
     return RNG->OR; /* Return next value in FIFO output register */

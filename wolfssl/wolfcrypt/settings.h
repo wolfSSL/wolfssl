@@ -305,6 +305,10 @@
 
 
 #ifdef WOLFSSL_VXWORKS
+    /* VxWorks simulator incorrectly detects building for i386 */
+    #ifdef VXWORKS_SIM
+        #define TFM_NO_ASM
+    #endif
     #define WOLFSSL_HAVE_MIN
     #define USE_FAST_MATH
     #define TFM_TIMING_RESISTANT
@@ -449,6 +453,7 @@ static char *fgets(char *buff, int sz, FILE *fp)
     #define USE_CERT_BUFFERS_2048
     #define NO_ERROR_STRINGS
     #define USER_TIME
+    #define HAVE_ECC
 
     #ifdef __IAR_SYSTEMS_ICC__
         #pragma diag_suppress=Pa089

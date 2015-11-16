@@ -2382,7 +2382,7 @@ int wolfSSL_Init(void)
 static int wolfssl_decrypt_buffer_key(buffer* der, byte* password,
                                       int passwordSz, EncryptedInfo* info)
 {
-    int ret;
+    int ret = SSL_BAD_FILE;
 
 #ifdef WOLFSSL_SMALL_STACK
     byte* key      = NULL;
@@ -2434,7 +2434,7 @@ static int wolfssl_decrypt_buffer_key(buffer* der, byte* password,
                                         key, info->iv);
 #endif /* NO_DES3 */
 #ifndef NO_AES
-    else if (XSTRNCMP(info->name, EVP_AES_128_CBC, EVP_AES_SIZE) == 0)
+    if (XSTRNCMP(info->name, EVP_AES_128_CBC, EVP_AES_SIZE) == 0)
         ret = wc_AesCbcDecryptWithKey(der->buffer, der->buffer, der->length,
                                       key, AES_128_KEY_SIZE, info->iv);
     else if (XSTRNCMP(info->name, EVP_AES_192_CBC, EVP_AES_SIZE) == 0)
@@ -2444,8 +2444,6 @@ static int wolfssl_decrypt_buffer_key(buffer* der, byte* password,
         ret = wc_AesCbcDecryptWithKey(der->buffer, der->buffer, der->length,
                                       key, AES_256_KEY_SIZE, info->iv);
 #endif /* NO_AES */
-    else
-        ret = SSL_BAD_FILE;
 
 #ifdef WOLFSSL_SMALL_STACK
     XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -2465,7 +2463,7 @@ static int wolfssl_decrypt_buffer_key(buffer* der, byte* password,
 static int wolfssl_encrypt_buffer_key(byte* der, word32 derSz, byte* password,
                                       int passwordSz, EncryptedInfo* info)
 {
-    int ret;
+    int ret = SSL_BAD_FILE;
 
 #ifdef WOLFSSL_SMALL_STACK
     byte* key      = NULL;
@@ -2509,7 +2507,7 @@ static int wolfssl_encrypt_buffer_key(byte* der, word32 derSz, byte* password,
         ret = wc_Des3_CbcEncryptWithKey(der, der, derSz, key, info->iv);
 #endif /* NO_DES3 */
 #ifndef NO_AES
-    else if (XSTRNCMP(info->name, EVP_AES_128_CBC, EVP_AES_SIZE) == 0)
+    if (XSTRNCMP(info->name, EVP_AES_128_CBC, EVP_AES_SIZE) == 0)
         ret = wc_AesCbcEncryptWithKey(der, der, derSz,
                                       key, AES_128_KEY_SIZE, info->iv);
     else if (XSTRNCMP(info->name, EVP_AES_192_CBC, EVP_AES_SIZE) == 0)
@@ -2519,8 +2517,6 @@ static int wolfssl_encrypt_buffer_key(byte* der, word32 derSz, byte* password,
         ret = wc_AesCbcEncryptWithKey(der, der, derSz,
                                       key, AES_256_KEY_SIZE, info->iv);
 #endif /* NO_AES */
-    else
-        ret = SSL_BAD_FILE;
 
 #ifdef WOLFSSL_SMALL_STACK
     XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -2554,6 +2550,9 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
     int         dynamicType = 0;
     int         sz          = (int)longSz;
     int         encrypted_key = 0;
+
+    (void)dynamicType;
+    (void)heap;
 
     WOLFSSL_ENTER("PemToDer");
 
@@ -8332,17 +8331,15 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
     }
 
 
-    /* SSL_SUCCESS on ok */
+    /* return SSL_SUCCESS on ok, 0 on failure to match API compatibility */
     int  wolfSSL_EVP_CipherInit(WOLFSSL_EVP_CIPHER_CTX* ctx,
                                const WOLFSSL_EVP_CIPHER* type, byte* key,
                                byte* iv, int enc)
     {
-#if defined(NO_AES) && defined(NO_DES3) && !defined(HAVE_IDEA)
+        int ret = -1;  /* failure local, during function 0 means success
+                          because internal functions work that way */
         (void)iv;
         (void)enc;
-#else
-        int ret = 0;
-#endif
 
         WOLFSSL_ENTER("wolfSSL_EVP_CipherInit");
         if (ctx == NULL) {
@@ -8475,7 +8472,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
 #endif /* NO_AES */
 
 #ifndef NO_DES3
-        else if (ctx->cipherType == DES_CBC_TYPE ||
+        if (ctx->cipherType == DES_CBC_TYPE ||
                  (type && XSTRNCMP(type, EVP_DES_CBC, EVP_DES_SIZE) == 0)) {
             WOLFSSL_MSG(EVP_DES_CBC);
             ctx->cipherType = DES_CBC_TYPE;
@@ -8515,7 +8512,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         }
 #endif /* NO_DES3 */
 #ifndef NO_RC4
-        else if (ctx->cipherType == ARC4_TYPE || (type &&
+        if (ctx->cipherType == ARC4_TYPE || (type &&
                                      XSTRNCMP(type, "ARC4", 4) == 0)) {
             WOLFSSL_MSG("ARC4");
             ctx->cipherType = ARC4_TYPE;
@@ -8523,10 +8520,11 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
                 ctx->keyLen = 16;  /* default to 128 */
             if (key)
                 wc_Arc4SetKey(&ctx->cipher.arc4, key, ctx->keyLen);
+            ret = 0;  /* success */
         }
 #endif /* NO_RC4 */
 #ifdef HAVE_IDEA
-        else if (ctx->cipherType == IDEA_CBC_TYPE ||
+        if (ctx->cipherType == IDEA_CBC_TYPE ||
                  (type && XSTRNCMP(type, EVP_IDEA_CBC, EVP_IDEA_SIZE) == 0)) {
             WOLFSSL_MSG(EVP_IDEA_CBC);
             ctx->cipherType = IDEA_CBC_TYPE;
@@ -8534,8 +8532,9 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
             if (enc == 0 || enc == 1)
                 ctx->enc = enc ? 1 : 0;
             if (key) {
-                ret = wc_IdeaSetKey(&ctx->cipher.idea, key, ctx->keyLen, iv,
-                                    ctx->enc ? IDEA_ENCRYPTION : IDEA_DECRYPTION);
+                ret = wc_IdeaSetKey(&ctx->cipher.idea, key, (word16)ctx->keyLen,
+                                    iv, ctx->enc ? IDEA_ENCRYPTION :
+                                                   IDEA_DECRYPTION);
                 if (ret != 0)
                     return ret;
             }
@@ -8544,17 +8543,18 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
                 wc_IdeaSetIV(&ctx->cipher.idea, iv);
         }
 #endif /* HAVE_IDEA */
-        else if (ctx->cipherType == NULL_CIPHER_TYPE || (type &&
+        if (ctx->cipherType == NULL_CIPHER_TYPE || (type &&
                                      XSTRNCMP(type, "NULL", 4) == 0)) {
             WOLFSSL_MSG("NULL cipher");
             ctx->cipherType = NULL_CIPHER_TYPE;
             ctx->keyLen = 0;
+            ret = 0;  /* success */
         }
+
+        if (ret == 0)
+            return SSL_SUCCESS;
         else
-            return 0;   /* failure */
-
-
-        return SSL_SUCCESS;
+            return 0;  /* overall failure */
     }
 
 
@@ -9953,13 +9953,10 @@ void wolfSSL_set_connect_state(WOLFSSL* ssl)
 int wolfSSL_get_shutdown(const WOLFSSL* ssl)
 {
     WOLFSSL_ENTER("wolfSSL_get_shutdown");
-#ifdef HAVE_STUNNEL
-    return (ssl->options.sentNotify << 1) | (ssl->options.closeNotify);
-#else
-    return (ssl->options.isClosed  ||
-            ssl->options.connReset ||
-            ssl->options.sentNotify);
-#endif
+    /* in OpenSSL, SSL_SENT_SHUTDOWN = 1, when closeNotifySent   *
+     * SSL_RECEIVED_SHUTDOWN = 2, from close notify or fatal err */
+    return ((ssl->options.closeNotify||ssl->options.connReset) << 1)
+            | (ssl->options.sentNotify);
 }
 
 
@@ -9971,6 +9968,7 @@ int wolfSSL_session_reused(WOLFSSL* ssl)
 #ifdef OPENSSL_EXTRA
 void wolfSSL_SESSION_free(WOLFSSL_SESSION* session)
 {
+    /* No need to free since cache is static */
     (void)session;
 }
 #endif
@@ -10413,10 +10411,10 @@ char* wolfSSL_CIPHER_description(WOLFSSL_CIPHER* cipher, char* in, int len)
 }
 
 
-WOLFSSL_SESSION* wolfSSL_get1_session(WOLFSSL* ssl)  /* what's ref count */
+WOLFSSL_SESSION* wolfSSL_get1_session(WOLFSSL* ssl)
 {
-    (void)ssl;
-    return 0;
+    /* sessions are stored statically, no need for reference count */
+    return wolfSSL_get_session(ssl);
 }
 
 

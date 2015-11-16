@@ -361,6 +361,9 @@ const char* wc_GetErrorString(int error)
     case WC_INIT_E:
         return "wolfCrypt Initialize Failure error";
 
+    case SIG_VERIFY_E:
+        return "Signature verify error";
+
     default:
         return "unknown error number";
 

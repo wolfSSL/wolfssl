@@ -32,6 +32,12 @@
 
 #include <wolfssl/wolfcrypt/random.h>
 
+#if defined(CUSTOM_RAND_GENERATE) && !defined(CUSTOM_RAND_TYPE)
+/* To maintain compatiblity the default return vaule from CUSTOM_RAND_GENERATE is byte */
+#define CUSTOM_RAND_TYPE    byte
+#endif
+
+
 #ifdef HAVE_FIPS
 int wc_GenerateSeed(OS_Seed* os, byte* seed, word32 sz)
 {
@@ -973,8 +979,22 @@ static int wc_GenerateRand_IntelRD(OS_Seed* os, byte* output, word32 sz)
 #endif /* HAVE_INTEL_RDGEN */
 
 
-#if defined(USE_WINDOWS_API)
+/* wc_GenerateSeed Implementations */
+#if defined(CUSTOM_RAND_GENERATE_SEED)
 
+    /* Implement your own random generation function
+     * Return 0 to indicate success
+     * int rand_gen_seed(byte* output, word32 sz);
+     * #define CUSTOM_RAND_GENERATE_SEED  rand_gen_seed */
+
+    int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
+    {
+        (void)os;
+        return CUSTOM_RAND_GENERATE_SEED(output, sz);
+    }
+
+
+#elif defined(USE_WINDOWS_API)
 
 int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 {
@@ -1088,7 +1108,7 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 #elif defined(FREESCALE_MQX) || defined(FREESCALE_KSDK_MQX) || \
       defined(FREESCALE_KSDK_BM) || defined(FREESCALE_FREE_RTOS)
 
-    #ifdef FREESCALE_K70_RNGA
+    #if defined(FREESCALE_K70_RNGA) || defined(FREESCALE_RNGA)
         /*
          * wc_Generates a RNG seed using the Random Number Generator Accelerator
          * on the Kinetis K70. Documentation located in Chapter 37 of
@@ -1122,7 +1142,7 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
             return 0;
         }
 
-    #elif defined(FREESCALE_K53_RNGB)
+    #elif defined(FREESCALE_K53_RNGB) || defined(FREESCALE_RNGB)
         /*
          * wc_Generates a RNG seed using the Random Number Generator (RNGB)
          * on the Kinetis K53. Documentation located in Chapter 33 of
@@ -1165,7 +1185,7 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
         int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
         {
             TRNG_DRV_GetRandomData(TRNG_INSTANCE, output, sz);
-            return(0);
+            return 0;
         }
 
     #else
@@ -1273,12 +1293,25 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 
     int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     {
-        word32 i;
+        word32 i = 0;
 
         (void)os;
-
-        for (i = 0; i < sz; i++ )
-            output[i] = CUSTOM_RAND_GENERATE();
+        
+        while (i < sz) 
+        {
+            /* If not aligned or there is odd/remainder */
+            if( (i + sizeof(CUSTOM_RAND_TYPE)) > sz || 
+                ((wolfssl_word)&output[i] % sizeof(CUSTOM_RAND_TYPE)) != 0
+            ) {
+                /* Single byte at a time */
+                output[i++] = (byte)CUSTOM_RAND_GENERATE();
+            }
+            else {
+                /* Use native 8, 16, 32 or 64 copy instruction */
+                *((CUSTOM_RAND_TYPE*)&output[i]) = CUSTOM_RAND_GENERATE();
+                i += sizeof(CUSTOM_RAND_TYPE);
+            }
+        }
 
         return 0;
     }

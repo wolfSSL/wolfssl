@@ -42,6 +42,7 @@ nobase_include_HEADERS+= \
                          wolfssl/wolfcrypt/sha256.h \
                          wolfssl/wolfcrypt/sha512.h \
                          wolfssl/wolfcrypt/sha.h \
+                         wolfssl/wolfcrypt/signature.h \
                          wolfssl/wolfcrypt/blake2.h \
                          wolfssl/wolfcrypt/blake2-int.h \
                          wolfssl/wolfcrypt/blake2-impl.h \
