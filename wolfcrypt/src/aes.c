@@ -4105,7 +4105,7 @@ int  wc_AesCcmDecrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
 
 #ifdef HAVE_CAVIUM
 
-#include <wolfssl/ctaocrypt/logging.h>
+#include <wolfssl/wolfcrypt/logging.h>
 #include "cavium_common.h"
 
 /* Initiliaze Aes for use with Nitrox device */
@@ -4156,7 +4156,7 @@ static int wc_AesCaviumSetKey(Aes* aes, const byte* key, word32 length,
 }
 
 
-static int AesCaviumCbcEncrypt(Aes* aes, byte* out, const byte* in,
+static int wc_AesCaviumCbcEncrypt(Aes* aes, byte* out, const byte* in,
                                word32 length)
 {
     wolfssl_word offset = 0;
@@ -4189,7 +4189,7 @@ static int AesCaviumCbcEncrypt(Aes* aes, byte* out, const byte* in,
     return 0;
 }
 
-static int AesCaviumCbcDecrypt(Aes* aes, byte* out, const byte* in,
+static int wc_AesCaviumCbcDecrypt(Aes* aes, byte* out, const byte* in,
                                word32 length)
 {
     word32 requestId;

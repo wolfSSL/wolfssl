@@ -1859,13 +1859,13 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
 #ifdef HAVE_CAVIUM
         if (devId != NO_CAVIUM_DEVICE) {
             if (enc) {
-                if (Arc4InitCavium(enc->arc4, devId) != 0) {
+                if (wc_Arc4InitCavium(enc->arc4, devId) != 0) {
                     WOLFSSL_MSG("Arc4InitCavium failed in SetKeys");
                     return CAVIUM_INIT_E;
                 }
             }
             if (dec) {
-                if (Arc4InitCavium(dec->arc4, devId) != 0) {
+                if (wc_Arc4InitCavium(dec->arc4, devId) != 0) {
                     WOLFSSL_MSG("Arc4InitCavium failed in SetKeys");
                     return CAVIUM_INIT_E;
                 }
@@ -2048,13 +2048,13 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
 #ifdef HAVE_CAVIUM
         if (devId != NO_CAVIUM_DEVICE) {
             if (enc) {
-                if (Des3_InitCavium(enc->des3, devId) != 0) {
+                if (wc_Des3_InitCavium(enc->des3, devId) != 0) {
                     WOLFSSL_MSG("Des3_InitCavium failed in SetKeys");
                     return CAVIUM_INIT_E;
                 }
             }
             if (dec) {
-                if (Des3_InitCavium(dec->des3, devId) != 0) {
+                if (wc_Des3_InitCavium(dec->des3, devId) != 0) {
                     WOLFSSL_MSG("Des3_InitCavium failed in SetKeys");
                     return CAVIUM_INIT_E;
                 }
