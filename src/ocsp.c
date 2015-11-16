@@ -362,7 +362,7 @@ int CheckOcspRequest(WOLFSSL_OCSP* ocsp, OcspRequest* ocspRequest,
                         }
                     }
 
-                    if (responseBuffer && responseBuffer->buffer) {
+                    if (status && responseBuffer && responseBuffer->buffer) {
                         status->rawOcspResponse = (byte*)XMALLOC(
                                                    responseBuffer->length, NULL,
                                                    DYNAMIC_TYPE_OCSP_STATUS);
