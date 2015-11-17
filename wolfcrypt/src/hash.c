@@ -29,16 +29,6 @@
 
 #include <wolfssl/wolfcrypt/hash.h>
 
-#ifdef WOLFSSL_MD2
-#include <wolfssl/wolfcrypt/md2.h>
-#endif
-#ifndef NO_MD4
-#include <wolfssl/wolfcrypt/md4.h>
-#endif
-#ifndef NO_MD5
-#include <wolfssl/wolfcrypt/md5.h>
-#endif
-
 
 /* Get Hash digest size */
 int wc_HashGetDigestSize(enum wc_HashType hash_type)
@@ -46,16 +36,6 @@ int wc_HashGetDigestSize(enum wc_HashType hash_type)
     int dig_size = BAD_FUNC_ARG;
     switch(hash_type)
     {
-#ifdef WOLFSSL_MD2
-        case WC_HASH_TYPE_MD2:
-            dig_size = MD2_DIGEST_SIZE;
-            break;
-#endif
-#ifndef NO_MD4
-        case WC_HASH_TYPE_MD4:
-            dig_size = MD4_DIGEST_SIZE;
-            break;
-#endif
 #ifndef NO_MD5
         case WC_HASH_TYPE_MD5:
             dig_size = MD5_DIGEST_SIZE;
@@ -82,8 +62,16 @@ int wc_HashGetDigestSize(enum wc_HashType hash_type)
             break;
 #endif /* WOLFSSL_SHA512 */
 
+        /* Not Supported */
+#ifdef WOLFSSL_MD2
+        case WC_HASH_TYPE_MD2:
+#endif
+#ifndef NO_MD4
+        case WC_HASH_TYPE_MD4:
+#endif
         case WC_HASH_TYPE_NONE:
         default:
+            dig_size = BAD_FUNC_ARG;
             break;
     }
     return dig_size;
@@ -101,19 +89,15 @@ int wc_Hash(enum wc_HashType hash_type, const byte* data,
     if (hash_len < dig_size) {
         return BUFFER_E;
     }
+    
+    /* Supress possible unused arg if all hashing is disabled */
+    (void)data;
+    (void)data_len;
+    (void)hash;
+    (void)hash_len;
 
     switch(hash_type)
     {
-#ifdef WOLFSSL_MD2
-        case WC_HASH_TYPE_MD2:
-            ret = wc_Md2Hash(data, data_len, hash);
-            break;
-#endif
-#ifndef NO_MD4
-        case WC_HASH_TYPE_MD4:
-            ret = wc_Md4Hash(data, data_len, hash);
-            break;
-#endif
 #ifndef NO_MD5
         case WC_HASH_TYPE_MD5:
             ret = wc_Md5Hash(data, data_len, hash);
@@ -140,9 +124,17 @@ int wc_Hash(enum wc_HashType hash_type, const byte* data,
             break;
 #endif /* WOLFSSL_SHA512 */
 
+        /* Not Supported */
+#ifdef WOLFSSL_MD2
+        case WC_HASH_TYPE_MD2:
+#endif
+#ifndef NO_MD4
+        case WC_HASH_TYPE_MD4:
+#endif
         case WC_HASH_TYPE_NONE:
         default:
             WOLFSSL_MSG("wc_Hash: Bad hash type");
+            ret = BAD_FUNC_ARG;
             break;
     }
     return ret;

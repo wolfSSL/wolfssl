@@ -35,12 +35,23 @@
 #include <wolfssl/wolfcrypt/rsa.h>
 #endif
 
+/* If ECC and RSA are disabled then disable signature wrapper */
+#if !defined(HAVE_ECC) && defined(NO_RSA)
+#undef NO_SIG_WRAPPER
+#define NO_SIG_WRAPPER
+#endif
+
+/* Signature wrapper disabled check */
 #ifndef NO_SIG_WRAPPER
 
 int wc_SignatureGetSize(enum wc_SignatureType sig_type,
     const void* key, word32 key_len)
 {
     int sig_len = BAD_FUNC_ARG;
+
+    /* Supress possible unused args if all signature types are disabled */
+    (void)key;
+    (void)key_len;
 
     switch(sig_type) {
 #ifdef HAVE_ECC
@@ -169,6 +180,9 @@ int wc_SignatureGenerate(
     int ret, hash_len;
     byte *hash_data = NULL;
 
+    /* Supress possible unused arg if all signature types are disabled */
+    (void)rng;
+    
     /* Check arguments */
     if (data == NULL || data_len <= 0 || sig == NULL || sig_len == NULL ||
         *sig_len <= 0 || key == NULL || key_len <= 0) {
