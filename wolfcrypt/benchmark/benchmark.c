@@ -122,6 +122,7 @@
     #pragma warning(disable: 4996)
 #endif
 
+#include "wolfcrypt/benchmark/benchmark.h"
 
 void bench_des(void);
 void bench_idea(void);

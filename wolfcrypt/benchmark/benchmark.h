@@ -1,4 +1,4 @@
-/* wolfcrypt/test/test.h
+/* wolfcrypt/benchmark/benchmark.h
  *
  * Copyright (C) 2006-2015 wolfSSL Inc.
  *
@@ -25,9 +25,8 @@
     extern "C" {
 #endif
 
-int wolfcrypt_test(void* args);
+int benchmark_test(void* args);
 
 #ifdef __cplusplus
     }  /* extern "C" */
 #endif
-
