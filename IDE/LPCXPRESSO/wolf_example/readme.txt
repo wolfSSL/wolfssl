@@ -1,9 +1,7 @@
-AES example
-
-Example description
-This example illustrates the use of ECB and CBC modes of encryption decryption with and without DMA.
-Three types of keys can be used - Software key( user defined) , Random key from RNG 
-and AES keys in the OTP.
+wolfSSL example
 
 Target board LPC43S37 Xpresso board
-The board communicates to the PC terminal through UART0.
+The board communicates to the PC terminal through UART0 at 115200.
+This example builds the wolfSSL library, test and benchmark examples.
+Use 't' to launch the WolfSSL Test
+Use 'b' to launch the WolfSSL Benchmark
