@@ -186,8 +186,13 @@
     /* do nothing */
 #else
     #ifndef SINGLE_THREADED
-        #define WOLFSSL_PTHREADS
-        #include <pthread.h>
+        #if defined(WOLFSSL_LINUXKM)
+            #define WOLFSSL_KTHREADS
+            #include <linux/kthread.h>
+        #else
+            #define WOLFSSL_PTHREADS
+            #include <pthread.h>
+        #endif
     #endif
     #if defined(OPENSSL_EXTRA) && !defined(NO_FILESYSTEM)
         #include <unistd.h>      /* for close of BIO */

@@ -346,6 +346,13 @@
         #define XFREE(p, h, t)       {void* xp = (p); if((xp)) free((xp));}
         #define XREALLOC(p, n, h, t) realloc((p), (n))
         #endif
+
+    #elif defined(WOLFSSL_LINUXKM)
+        #include <linux/slab.h>
+        #define XMALLOC(s, h, t)     ((void)h, (void)t, kmalloc((s), GFP_KERNEL))
+        #define XFREE(p, h, t)       {void* xp = (p); if((xp)) kfree((xp));}
+        #define XREALLOC(p, n, h, t) krealloc((p), (n), GFP_KERNEL)
+
     #elif !defined(MICRIUM_MALLOC) && !defined(EBSNET) \
             && !defined(WOLFSSL_SAFERTOS) && !defined(FREESCALE_MQX) \
             && !defined(FREESCALE_KSDK_MQX) && !defined(FREESCALE_FREE_RTOS) \
@@ -437,12 +444,17 @@
         #define USE_WOLF_STRSEP
     #endif
 
-    #ifndef STRING_USER
-        #include <string.h>
-        #define XMEMCPY(d,s,l)    memcpy((d),(s),(l))
-        #define XMEMSET(b,c,l)    memset((b),(c),(l))
-        #define XMEMCMP(s1,s2,n)  memcmp((s1),(s2),(n))
-        #define XMEMMOVE(d,s,l)   memmove((d),(s),(l))
+	#ifndef STRING_USER
+        #if defined(WOLFSSL_LINUXKM)
+            #include <linux/string.h>
+        #else    
+    	    #include <string.h>
+        #endif
+
+	    #define XMEMCPY(d,s,l)    memcpy((d),(s),(l))
+	    #define XMEMSET(b,c,l)    memset((b),(c),(l))
+	    #define XMEMCMP(s1,s2,n)  memcmp((s1),(s2),(n))
+	    #define XMEMMOVE(d,s,l)   memmove((d),(s),(l))
 
         #define XSTRLEN(s1)       strlen((s1))
         #define XSTRNCPY(s1,s2,n) strncpy((s1),(s2),(n))
@@ -565,9 +577,13 @@
         #endif
     #endif /* OPENSSL_EXTRA */
 
-    #ifndef CTYPE_USER
-        #include <ctype.h>
-        #if defined(HAVE_ECC) || defined(HAVE_OCSP) || \
+	#ifndef CTYPE_USER
+        #if defined(WOLFSSL_LINUXKM)
+            #include <linux/ctype.h>
+        #else
+            #include <ctype.h>
+        #endif
+	    #if defined(HAVE_ECC) || defined(HAVE_OCSP) || \
             defined(WOLFSSL_KEY_GEN) || !defined(NO_DSA)
             #define XTOUPPER(c)     toupper((c))
             #define XISALPHA(c)     isalpha((c))

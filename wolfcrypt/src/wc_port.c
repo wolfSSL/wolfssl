@@ -2262,6 +2262,23 @@ time_t wiced_pseudo_unix_epoch_time(time_t * timer)
     #endif /* !NO_CRYPT_BENCHMARK */
 #endif /* WOLFSSL_TELIT_M2MB */
 
+
+#if defined(WOLFSSL_LINUXKM)
+
+unsigned long long GetUNIXCompatibleTime(void)
+{
+    struct timespec ts;
+    getnstimeofday(&ts);
+    return ts.tv_sec * 1000000000LL + ts.tv_nsec;
+}
+
+time_t XTIME(time_t * timer)
+{
+    return (time_t) (GetUNIXCompatibleTime() / 1000000000LL);
+}
+
+#endif /* WOLFSSL_LINUXKM */
+
 #endif /* !NO_ASN_TIME */
 
 #ifndef WOLFSSL_LEANPSK

@@ -2289,6 +2289,17 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
             return 0;
         }
     #endif /* end WOLFSSL_ESPWROOM32 */
+ 
+#elif defined(WOLFSSL_LINUXKM)
+    #include <linux/random.h>
+    int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
+    {
+        (void)os;
+
+        get_random_bytes(output, sz);
+
+        return 0;
+    }
 
 #elif defined(WOLFSSL_RENESAS_TSIP)
 #if defined(WOLFSSL_RENESA_TSIP_IAREWRX)

@@ -71,7 +71,7 @@
 
 #if defined(DEBUG_WOLFSSL) || defined(SHOW_SECRETS) || \
     defined(CHACHA_AEAD_TEST) || defined(WOLFSSL_SESSION_EXPORT_DEBUG)
-    #ifndef NO_STDIO_FILESYSTEM
+    #if !defined(NO_STDIO_FILESYSTEM) && !defined(WOLFSSL_LINUXKM)
         #include <stdio.h>
     #endif
 #endif
@@ -7641,6 +7641,16 @@ ProtocolVersion MakeDTLSv1_2(void)
     word32 LowResTimer(void)
     {
         return k_uptime_get() / 1000;
+    }
+
+#elif defined(WOLFSSL_LINUXKM)
+    #include <linux/time.h>
+    #include <linux/ktime.h>
+    word32 LowResTimer(void)
+    {
+        struct timespec ts;
+        getnstimeofday(&ts);
+        return ts.tv_sec * 1000000000LL + ts.tv_nsec;
     }
 
 #else

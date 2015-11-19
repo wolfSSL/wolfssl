@@ -215,6 +215,10 @@
 /* Uncomment next line if using Solaris OS*/
 /* #define WOLFSSL_SOLARIS */
 
+/* Uncomment next line if building for Linux Kernel Module */
+/* #define WOLFSSL_LINUXKM */
+
+
 #include <wolfssl/wolfcrypt/visibility.h>
 
 #ifdef WOLFSSL_USER_SETTINGS
@@ -2060,6 +2064,18 @@ extern void uITRON4_free(void *p) ;
 /* for backwards compatibility */
 #if defined(TEST_IPV6) && !defined(WOLFSSL_IPV6)
     #define WOLFSSL_IPV6
+#endif
+
+
+#ifdef WOLFSSL_LINUXKM
+    #define NO_DEV_RANDOM
+    #define NO_WRITEV
+    #define NO_FILESYSTEM
+    #define SIZEOF_LONG         8
+    #define SIZEOF_LONG_LONG    8
+    #define CHAR_BIT            8
+    #define WOLFSSL_HAVE_MIN
+    #define WOLFSSL_HAVE_MAX
 #endif
 
 

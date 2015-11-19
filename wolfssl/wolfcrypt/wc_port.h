@@ -156,9 +156,14 @@
 
 #else
     #ifndef SINGLE_THREADED
-        #ifndef  WOLFSSL_USER_MUTEX
-            #define WOLFSSL_PTHREADS
-            #include <pthread.h>
+        #ifndef WOLFSSL_USER_MUTEX
+            #if defined(WOLFSSL_LINUXKM)
+                #define WOLFSSL_KTHREADS
+                #include <linux/kthread.h>
+            #else
+                #define WOLFSSL_PTHREADS
+                #include <pthread.h>
+            #endif
         #endif
     #endif
     #if (defined(OPENSSL_EXTRA) || defined(GOAHEAD_WS)) && \
@@ -242,6 +247,8 @@
         typedef M2MB_OS_MTX_HANDLE wolfSSL_Mutex;
     #elif defined(WOLFSSL_USER_MUTEX)
         /* typedef User_Mutex wolfSSL_Mutex; */
+    #elif defined(WOLFSSL_LINUXKM)
+        typedef struct mutex wolfSSL_Mutex;
     #else
         #error Need a mutex type in multithreaded mode
     #endif /* USE_WINDOWS_API */
@@ -645,6 +652,14 @@ WOLFSSL_API int wolfCrypt_Cleanup(void);
     #define WOLFSSL_GMTIME
     #define USE_WOLF_TM
 
+
+#elif defined(WOLFSSL_LINUXKM)
+    #include <linux/time.h>
+    #include <linux/ktime.h>
+
+    /* forward declaration */
+    struct tm* gmtime(const time_t* timer);
+    #define XGMTIME(c, t) gmtime((c))
 #else
     /* default */
     /* uses complete <time.h> facility */
