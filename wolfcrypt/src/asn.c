@@ -1760,9 +1760,9 @@ void FreeDecodedCert(DecodedCert* cert)
         FreeNameSubtrees(cert->excludedNames, cert->heap);
 #endif /* IGNORE_NAME_CONSTRAINTS */
 #ifdef WOLFSSL_SEP
-    XFREE(cert->deviceType, cert->heap, 0);
-    XFREE(cert->hwType, cert->heap, 0);
-    XFREE(cert->hwSerialNum, cert->heap, 0);
+    XFREE(cert->deviceType, cert->heap, DYNAMIC_TYPE_X509_EXT);
+    XFREE(cert->hwType, cert->heap, DYNAMIC_TYPE_X509_EXT);
+    XFREE(cert->hwSerialNum, cert->heap, DYNAMIC_TYPE_X509_EXT);
 #endif /* WOLFSSL_SEP */
 #ifdef OPENSSL_EXTRA
     if (cert->issuerName.fullName != NULL)
@@ -3756,7 +3756,8 @@ static int DecodeAltNames(byte* input, int sz, DecodedCert* cert)
                 return ASN_PARSE_E;
             }
 
-            cert->hwType = (byte*)XMALLOC(strLen, cert->heap, 0);
+            cert->hwType = (byte*)XMALLOC(strLen, cert->heap,
+                                          DYNAMIC_TYPE_X509_EXT);
             if (cert->hwType == NULL) {
                 WOLFSSL_MSG("\tOut of Memory");
                 return MEMORY_E;
@@ -3776,7 +3777,8 @@ static int DecodeAltNames(byte* input, int sz, DecodedCert* cert)
                 return ASN_PARSE_E;
             }
 
-            cert->hwSerialNum = (byte*)XMALLOC(strLen + 1, cert->heap, 0);
+            cert->hwSerialNum = (byte*)XMALLOC(strLen + 1, cert->heap,
+                                               DYNAMIC_TYPE_X509_EXT);
             if (cert->hwSerialNum == NULL) {
                 WOLFSSL_MSG("\tOut of Memory");
                 return MEMORY_E;
@@ -4359,7 +4361,8 @@ static int DecodePolicyOID(char *out, word32 outSz, byte *in, word32 inSz)
 
         if (length > 0) {
 #if defined(WOLFSSL_SEP)
-            cert->deviceType = (byte*)XMALLOC(length, cert->heap, 0);
+            cert->deviceType = (byte*)XMALLOC(length, cert->heap,
+                                              DYNAMIC_TYPE_X509_EXT);
             if (cert->deviceType == NULL) {
                 WOLFSSL_MSG("\tCouldn't alloc memory for deviceType");
                 return MEMORY_E;

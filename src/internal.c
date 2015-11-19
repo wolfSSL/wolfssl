@@ -1567,8 +1567,8 @@ void FreeX509(WOLFSSL_X509* x509)
     XFREE(x509->derCert.buffer, NULL, DYNAMIC_TYPE_SUBJECT_CN);
     XFREE(x509->sig.buffer, NULL, DYNAMIC_TYPE_SIGNATURE);
     #ifdef OPENSSL_EXTRA
-        XFREE(x509->authKeyId, NULL, 0);
-        XFREE(x509->subjKeyId, NULL, 0);
+        XFREE(x509->authKeyId, NULL, DYNAMIC_TYPE_X509_EXT);
+        XFREE(x509->subjKeyId, NULL, DYNAMIC_TYPE_X509_EXT);
     #endif /* OPENSSL_EXTRA */
     if (x509->altNames)
         FreeAltNames(x509->altNames, NULL);
@@ -4195,7 +4195,8 @@ int CopyDecodedToX509(WOLFSSL_X509* x509, DecodedCert* dCert)
     x509->authKeyIdSet = dCert->extAuthKeyIdSet;
     x509->authKeyIdCrit = dCert->extAuthKeyIdCrit;
     if (dCert->extAuthKeyIdSrc != NULL && dCert->extAuthKeyIdSz != 0) {
-        x509->authKeyId = (byte*)XMALLOC(dCert->extAuthKeyIdSz, NULL, 0);
+        x509->authKeyId = (byte*)XMALLOC(dCert->extAuthKeyIdSz, NULL,
+                                         DYNAMIC_TYPE_X509_EXT);
         if (x509->authKeyId != NULL) {
             XMEMCPY(x509->authKeyId,
                                  dCert->extAuthKeyIdSrc, dCert->extAuthKeyIdSz);
@@ -4207,7 +4208,8 @@ int CopyDecodedToX509(WOLFSSL_X509* x509, DecodedCert* dCert)
     x509->subjKeyIdSet = dCert->extSubjKeyIdSet;
     x509->subjKeyIdCrit = dCert->extSubjKeyIdCrit;
     if (dCert->extSubjKeyIdSrc != NULL && dCert->extSubjKeyIdSz != 0) {
-        x509->subjKeyId = (byte*)XMALLOC(dCert->extSubjKeyIdSz, NULL, 0);
+        x509->subjKeyId = (byte*)XMALLOC(dCert->extSubjKeyIdSz, NULL,
+                                         DYNAMIC_TYPE_X509_EXT);
         if (x509->subjKeyId != NULL) {
             XMEMCPY(x509->subjKeyId,
                                  dCert->extSubjKeyIdSrc, dCert->extSubjKeyIdSz);

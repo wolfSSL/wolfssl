@@ -3514,10 +3514,10 @@ int wolfSSL_CertManagerSetOCSPOverrideURL(WOLFSSL_CERT_MANAGER* cm,
     if (cm == NULL)
         return BAD_FUNC_ARG;
 
-    XFREE(cm->ocspOverrideURL, cm->heap, 0);
+    XFREE(cm->ocspOverrideURL, cm->heap, DYNAMIC_TYPE_URL);
     if (url != NULL) {
         int urlSz = (int)XSTRLEN(url) + 1;
-        cm->ocspOverrideURL = (char*)XMALLOC(urlSz, cm->heap, 0);
+        cm->ocspOverrideURL = (char*)XMALLOC(urlSz, cm->heap, DYNAMIC_TYPE_URL);
         if (cm->ocspOverrideURL != NULL) {
             XMEMCPY(cm->ocspOverrideURL, url, urlSz);
         }
@@ -10687,11 +10687,12 @@ WOLFSSL_X509_STORE* wolfSSL_X509_STORE_new(void)
 {
     WOLFSSL_X509_STORE* store = NULL;
 
-    store = (WOLFSSL_X509_STORE*)XMALLOC(sizeof(WOLFSSL_X509_STORE), NULL, 0);
+    store = (WOLFSSL_X509_STORE*)XMALLOC(sizeof(WOLFSSL_X509_STORE), NULL,
+                                         DYNAMIC_TYPE_X509_STORE);
     if (store != NULL) {
         store->cm = wolfSSL_CertManagerNew();
         if (store->cm == NULL) {
-            XFREE(store, NULL, 0);
+            XFREE(store, NULL, DYNAMIC_TYPE_X509_STORE);
             store = NULL;
         }
     }
@@ -10705,7 +10706,7 @@ void wolfSSL_X509_STORE_free(WOLFSSL_X509_STORE* store)
     if (store != NULL) {
         if (store->cm != NULL)
         wolfSSL_CertManagerFree(store->cm);
-        XFREE(store, NULL, 0);
+        XFREE(store, NULL, DYNAMIC_TYPE_X509_STORE);
     }
 }
 
@@ -10731,8 +10732,8 @@ int wolfSSL_X509_STORE_get_by_subject(WOLFSSL_X509_STORE_CTX* ctx, int idx,
 WOLFSSL_X509_STORE_CTX* wolfSSL_X509_STORE_CTX_new(void)
 {
     WOLFSSL_X509_STORE_CTX* ctx = (WOLFSSL_X509_STORE_CTX*)XMALLOC(
-                                    sizeof(WOLFSSL_X509_STORE_CTX), NULL, 0);
-
+                                    sizeof(WOLFSSL_X509_STORE_CTX), NULL,
+                                    DYNAMIC_TYPE_X509_CTX);
     if (ctx != NULL)
         wolfSSL_X509_STORE_CTX_init(ctx, NULL, NULL, NULL);
 
@@ -10767,7 +10768,7 @@ void wolfSSL_X509_STORE_CTX_free(WOLFSSL_X509_STORE_CTX* ctx)
             wolfSSL_X509_STORE_free(ctx->store);
         if (ctx->current_cert != NULL)
             wolfSSL_FreeX509(ctx->current_cert);
-        XFREE(ctx, NULL, 0);
+        XFREE(ctx, NULL, DYNAMIC_TYPE_X509_CTX);
     }
 }
 
@@ -10858,8 +10859,8 @@ void wolfSSL_EVP_PKEY_free(WOLFSSL_EVP_PKEY* key)
 {
     if (key != NULL) {
         if (key->pkey.ptr != NULL)
-            XFREE(key->pkey.ptr, NULL, 0);
-        XFREE(key, NULL, 0);
+            XFREE(key->pkey.ptr, NULL, DYNAMIC_TYPE_PUBLIC_KEY);
+        XFREE(key, NULL, DYNAMIC_TYPE_PUBLIC_KEY);
     }
 }
 
@@ -13768,7 +13769,7 @@ void wolfSSL_OPENSSL_free(void* p)
 {
     WOLFSSL_MSG("wolfSSL_OPENSSL_free");
 
-    XFREE(p, NULL, 0);
+    XFREE(p, NULL, DYNAMIC_TYPE_OPENSSL);
 }
 
 #if defined(WOLFSSL_KEY_GEN)
