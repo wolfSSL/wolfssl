@@ -12,7 +12,12 @@
       <configuration Name="Common" filter="c;cpp;cxx;cc;h;s;inc" />
       <folder Name="wolfcrypt">
         <folder Name="benchmark" path="../../wolfcrypt/benchmark" />
-        <folder Name="src" path="../../wolfcrypt/src" />
+        <folder
+          Name="src"
+          exclude=".asm;.s"
+          filter=""
+          path="../../wolfcrypt/src"
+          recurse="No" />
         <folder Name="test" path="../../wolfcrypt/test" />
         <folder Name="user-crypto" path="../../wolfcrypt/user-crypto">
           <configuration Name="Common" build_exclude_from_build="Yes" />
@@ -60,7 +65,7 @@
       target_script_file="$(TargetsDir)/Kinetis/Kinetis_Target.js" />
     <folder Name="Source Files">
       <configuration Name="Common" filter="c;cpp;cxx;cc;h;s;asm;inc" />
-      <file file_name="user_libc.c" />
+      <file file_name="retarget.c" />
       <file file_name="kinetis_hw.c" />
       <file file_name="hw.h" />
       <file file_name="test_main.c" />
@@ -99,7 +104,7 @@
       target_script_file="$(TargetsDir)/Kinetis/Kinetis_Target.js" />
     <folder Name="Source Files">
       <configuration Name="Common" filter="c;cpp;cxx;cc;h;s;asm;inc" />
-      <file file_name="user_libc.c" />
+      <file file_name="retarget.c" />
       <file file_name="kinetis_hw.c" />
       <file file_name="hw.h" />
       <file file_name="benchmark_main.c" />
