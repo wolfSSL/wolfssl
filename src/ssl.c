@@ -16735,7 +16735,7 @@ const byte* wolfSSL_SESSION_get_id(WOLFSSL_SESSION* sess, unsigned int* idLen)
     return sess->sessionID;
 }
 
-
+#ifdef HAVE_SNI
 int wolfSSL_set_tlsext_host_name(WOLFSSL* ssl, const char* host_name)
 {
     int ret;
@@ -16755,6 +16755,7 @@ const char * wolfSSL_get_servername(WOLFSSL* ssl, byte type)
     TLSX_SNI_GetRequest(ssl->extensions, type, &serverName);
     return (const char *)serverName;
 }
+#endif /* HAVE_SNI */
 
 
 WOLFSSL_CTX* wolfSSL_set_SSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
@@ -16776,8 +16777,8 @@ VerifyCallback wolfSSL_CTX_get_verify_callback(WOLFSSL_CTX* ctx)
 
 int wolfSSL_CTX_get_verify_mode(WOLFSSL_CTX* ctx)
 {
-    WOLFSSL_ENTER("wolfSSL_CTX_get_verify_mode");
     int mode = 0;
+    WOLFSSL_ENTER("wolfSSL_CTX_get_verify_mode");
 
     if(!ctx)
         return SSL_FATAL_ERROR;
