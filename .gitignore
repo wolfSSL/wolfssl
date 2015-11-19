@@ -17,6 +17,7 @@ config.*
 *.suo
 *.sdf
 *.opensdf
+*.cmd
 ipch/
 build-aux/
 rpm/spec

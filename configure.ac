@@ -3365,6 +3365,19 @@ then
 fi
 
 
+# Linux Kernel Module
+AC_ARG_ENABLE([linuxkm],
+    [  --enable-linuxkm        Enable Linux Kernel Module (default: disabled)],
+    [ ENABLED_LINUXKM=$enableval ],
+    [ ENABLED_LINUXKM=no ]
+    )
+
+if test "x$ENABLED_LINUXKM" = "xyes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_LINUXKM"
+fi
+
+
 #valgrind
 AC_ARG_ENABLE([valgrind],
     [AS_HELP_STRING([--enable-valgrind],[Enable valgrind for unit tests (default: disabled)])],
@@ -5630,6 +5643,7 @@ echo "   * wolfSSH                     $ENABLED_WOLFSSH"
 echo "   * wolfSCEP                    $ENABLED_WOLFSCEP"
 echo "   * Secure Remote Password      $ENABLED_SRP"
 echo "   * Small Stack:                $ENABLED_SMALL_STACK"
+echo "   * Linux Kernel Module:        $ENABLED_LINUXKM"
 echo "   * valgrind unit tests:        $ENABLED_VALGRIND"
 echo "   * LIBZ:                       $ENABLED_LIBZ"
 echo "   * Examples:                   $ENABLED_EXAMPLES"

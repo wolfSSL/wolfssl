@@ -186,7 +186,12 @@
     /* do nothing */
 #else
     #ifndef SINGLE_THREADED
-        #ifndef  WOLFSSL_USER_MUTEX
+        #if defined(WOLFSSL_LINUXKM)
+            #define WOLFSSL_KTHREADS
+            #include <linux/kthread.h>
+        #elif defined(WOLFSSL_USER_MUTEX)
+            /* do nothing */
+        #else
             #define WOLFSSL_PTHREADS
             #include <pthread.h>
         #endif
