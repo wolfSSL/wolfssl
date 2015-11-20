@@ -17,8 +17,8 @@
  ****************************************************************************/
 
 /* UART definitions */
-#define LPC_UART			LPC_USART0
-#define UARTx_IRQn			USART0_IRQn
+#define LPC_UART            LPC_USART0
+#define UARTx_IRQn          USART0_IRQn
 
 
 /*****************************************************************************
@@ -31,8 +31,8 @@ typedef struct func_args {
 } func_args;
 
 const char menu1[] = "\r\n"
-	"\tt. WolfSSL Test\r\n"
-	"\tb. WolfSSL Benchmark\r\n";
+    "\tt. WolfSSL Test\r\n"
+    "\tb. WolfSSL Benchmark\r\n";
 
 /*****************************************************************************
  * Private functions
@@ -43,53 +43,53 @@ const char menu1[] = "\r\n"
  ****************************************************************************/
 int main(void)
 {
-	int opt = 0;
-	uint8_t buffer[1];
-	func_args args;
-	
-	SystemCoreClockUpdate();
-	Board_Init();
-	Board_UART_Init(LPC_UART);
-	Chip_UART_Init(LPC_UART);
-	Chip_UART_SetBaud(LPC_UART, 115200);
-	Chip_UART_ConfigData(LPC_UART, UART_LCR_WLEN8 | UART_LCR_SBS_1BIT);	/* Default 8-N-1 */
-	Chip_UART_TXEnable(LPC_UART);
-	Chip_UART_SetupFIFOS(LPC_UART, (UART_FCR_FIFO_EN | UART_FCR_RX_RS |
-									UART_FCR_TX_RS | UART_FCR_DMAMODE_SEL | UART_FCR_TRG_LEV0));
-	Chip_UART_IntEnable(LPC_UART, (UART_IER_ABEOINT | UART_IER_ABTOINT));
-	NVIC_SetPriority(UARTx_IRQn, 1);
-	NVIC_EnableIRQ(UARTx_IRQn);
+    int opt = 0;
+    uint8_t buffer[1];
+    func_args args;
 
-	Chip_OTP_Init();
+    SystemCoreClockUpdate();
+    Board_Init();
+    Board_UART_Init(LPC_UART);
+    Chip_UART_Init(LPC_UART);
+    Chip_UART_SetBaud(LPC_UART, 115200);
+    Chip_UART_ConfigData(LPC_UART, UART_LCR_WLEN8 | UART_LCR_SBS_1BIT); /* Default 8-N-1 */
+    Chip_UART_TXEnable(LPC_UART);
+    Chip_UART_SetupFIFOS(LPC_UART, (UART_FCR_FIFO_EN | UART_FCR_RX_RS |
+                                    UART_FCR_TX_RS | UART_FCR_DMAMODE_SEL | UART_FCR_TRG_LEV0));
+    Chip_UART_IntEnable(LPC_UART, (UART_IER_ABEOINT | UART_IER_ABTOINT));
+    NVIC_SetPriority(UARTx_IRQn, 1);
+    NVIC_EnableIRQ(UARTx_IRQn);
 
-	while (1) {
-		DEBUGOUT("\r\n\t\t\t\tMENU\r\n");
-		DEBUGOUT(menu1);
-		DEBUGOUT("Please select one of the above options: ");
+    Chip_OTP_Init();
 
-		opt = 0;
-		while (opt == 0) {
-			opt = Chip_UART_Read(LPC_UART, buffer, sizeof(buffer));
-		}
+    while (1) {
+        DEBUGOUT("\r\n\t\t\t\tMENU\r\n");
+        DEBUGOUT(menu1);
+        DEBUGOUT("Please select one of the above options: ");
 
-		switch (buffer[0]) {
+        opt = 0;
+        while (opt == 0) {
+            opt = Chip_UART_Read(LPC_UART, buffer, sizeof(buffer));
+        }
 
-		case 't':
-			memset(&args, 0, sizeof(args));
-			printf("\nCrypt Test\n");
-			wolfcrypt_test(&args);
-			printf("Crypt Test: Return code %d\n", args.return_code);
-			break;
+        switch (buffer[0]) {
 
-		case 'b':
-			memset(&args, 0, sizeof(args));
-			printf("\nBenchmark Test\n");
-			benchmark_test(&args);
-			printf("Benchmark Test: Return code %d\n", args.return_code);
-			break;
+        case 't':
+            memset(&args, 0, sizeof(args));
+            printf("\nCrypt Test\n");
+            wolfcrypt_test(&args);
+            printf("Crypt Test: Return code %d\n", args.return_code);
+            break;
 
-		// All other cases go here
-		default: DEBUGOUT("\r\nSelection out of range\r\n"); break;
-		}
-	}
+        case 'b':
+            memset(&args, 0, sizeof(args));
+            printf("\nBenchmark Test\n");
+            benchmark_test(&args);
+            printf("Benchmark Test: Return code %d\n", args.return_code);
+            break;
+
+        // All other cases go here
+        default: DEBUGOUT("\r\nSelection out of range\r\n"); break;
+        }
+    }
 }
