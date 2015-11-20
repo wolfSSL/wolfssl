@@ -169,3 +169,6 @@ wolfcrypt/user-crypto/missing
 wolfcrypt/user-crypto/Makefile.in
 wolfcrypt/user-crypto/lib/libusercrypto.*
 *.hzs
+
+# wolfSSL CSharp wrapper
+wrapper/CSharp/x64/
