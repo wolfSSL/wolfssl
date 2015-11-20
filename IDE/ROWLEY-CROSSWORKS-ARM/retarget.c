@@ -1,4 +1,4 @@
-/* user_libc.c
+/* retarget.c
  *
  * Copyright (C) 2006-2015 wolfSSL Inc.
  *
