@@ -168,3 +168,4 @@ wolfcrypt/user-crypto/m4
 wolfcrypt/user-crypto/missing
 wolfcrypt/user-crypto/Makefile.in
 wolfcrypt/user-crypto/lib/libusercrypto.*
+*.hzs

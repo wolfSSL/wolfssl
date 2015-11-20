@@ -1,4 +1,4 @@
-/* user_libc.c
+/* retarget.c
  *
  * Copyright (C) 2006-2015 wolfSSL Inc.
  *
@@ -40,23 +40,7 @@ int __putchar(int c, __printf_tag_ptr ctx)
     hw_uart_printchar(c);
 }
 
-
-// Rowley CrossWorks, runtime support.
-//
-//  Copyright (c) 2001-2015 Rowley Associates Limited.
-//
-// This file may be distributed under the terms of the License Agreement
-// provided with this software.
-//
-// THIS FILE IS PROVIDED AS IS WITH NO WARRANTY OF ANY KIND, INCLUDING THE
-// WARRANTY OF DESIGN, MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
-
-#include <__libc.h>
-
-#if defined(__CROSSWORKS_ARM) || defined(__SES_ARM)
-
 extern unsigned char __stack_process_start__[];
-
 unsigned char * __aeabi_read_tp(void)
 {
     // thread-local storage addressing refers to the thread pointer
@@ -64,15 +48,7 @@ unsigned char * __aeabi_read_tp(void)
     return (__stack_process_start__);
 }
 
-#elif defined(__CROSSWORKS_AVR) || defined(__CROSSWORKS_MSP430)
-
-unsigned char * __RAL_read_tp(void)
-{
-  return 0;
-}
-
-#endif
-
+/* Stubs */
 void __heap_lock(void)
 {
 }
