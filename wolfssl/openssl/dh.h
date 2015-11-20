@@ -49,6 +49,7 @@ typedef WOLFSSL_DH DH;
 #endif
 
 #ifdef HAVE_STUNNEL
-#define DH_generate_parameters wolfSSL_DH_generate_parameters
+#define DH_generate_parameters    wolfSSL_DH_generate_parameters
+#define DH_generate_parameters_ex wolfSSL_DH_generate_parameters_ex
 #endif /* HAVE_STUNNEL */
 #endif /* header */
