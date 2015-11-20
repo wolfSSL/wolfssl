@@ -4329,85 +4329,6 @@ int wolfSSL_CTX_use_certificate_chain_file(WOLFSSL_CTX* ctx, const char* file)
 
 #ifndef NO_DH
 
-/* server wrapper for ctx or ssl Diffie-Hellman parameters */
-static int wolfSSL_SetTmpDH_buffer_wrapper(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
-                                           const unsigned char* buf,
-                                           long sz, int format)
-{
-    buffer der;
-    int    ret      = 0;
-    int    weOwnDer = 0;
-    word32 pSz = MAX_DH_SIZE;
-    word32 gSz = MAX_DH_SIZE;
-#ifdef WOLFSSL_SMALL_STACK
-    byte*  p = NULL;
-    byte*  g = NULL;
-#else
-    byte   p[MAX_DH_SIZE];
-    byte   g[MAX_DH_SIZE];
-#endif
-
-    der.buffer = (byte*)buf;
-    der.length = (word32)sz;
-
-#ifdef WOLFSSL_SMALL_STACK
-    p = (byte*)XMALLOC(pSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    g = (byte*)XMALLOC(gSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-
-    if (p == NULL || g == NULL) {
-        XFREE(p, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        XFREE(g, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        return MEMORY_E;
-    }
-#endif
-
-    if (format != SSL_FILETYPE_ASN1 && format != SSL_FILETYPE_PEM)
-        ret = SSL_BAD_FILETYPE;
-    else {
-        if (format == SSL_FILETYPE_PEM) {
-            der.buffer = NULL;
-            ret = PemToDer(buf, sz, DH_PARAM_TYPE, &der, ctx->heap, NULL,NULL);
-            weOwnDer = 1;
-        }
-
-        if (ret == 0) {
-            if (wc_DhParamsLoad(der.buffer, der.length, p, &pSz, g, &gSz) < 0)
-                ret = SSL_BAD_FILETYPE;
-            else if (ssl)
-                ret = wolfSSL_SetTmpDH(ssl, p, pSz, g, gSz);
-            else
-                ret = wolfSSL_CTX_SetTmpDH(ctx, p, pSz, g, gSz);
-        }
-    }
-
-    if (weOwnDer)
-        XFREE(der.buffer, ctx->heap, DYNAMIC_TYPE_KEY);
-
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(p, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    XFREE(g, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
-
-    return ret;
-}
-
-
-/* server Diffie-Hellman parameters, SSL_SUCCESS on ok */
-int wolfSSL_SetTmpDH_buffer(WOLFSSL* ssl, const unsigned char* buf, long sz,
-                           int format)
-{
-    return wolfSSL_SetTmpDH_buffer_wrapper(ssl->ctx, ssl, buf, sz, format);
-}
-
-
-/* server ctx Diffie-Hellman parameters, SSL_SUCCESS on ok */
-int wolfSSL_CTX_SetTmpDH_buffer(WOLFSSL_CTX* ctx, const unsigned char* buf,
-                               long sz, int format)
-{
-    return wolfSSL_SetTmpDH_buffer_wrapper(ctx, NULL, buf, sz, format);
-}
-
-
 /* server Diffie-Hellman parameters */
 static int wolfSSL_SetTmpDH_file_wrapper(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
                                         const char* fname, int format)
@@ -4421,8 +4342,12 @@ static int wolfSSL_SetTmpDH_file_wrapper(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
     int    dynamic = 0;
     int    ret;
     long   sz = 0;
-    XFILE  file = XFOPEN(fname, "rb");
+    XFILE  file;
 
+    if (ctx == NULL || ssl == NULL || fname == NULL)
+        return BAD_FUNC_ARG;
+
+    file = XFOPEN(fname, "rb");
     if (file == XBADFILE) return SSL_BAD_FILE;
     XFSEEK(file, 0, XSEEK_END);
     sz = XFTELL(file);
@@ -4461,6 +4386,9 @@ static int wolfSSL_SetTmpDH_file_wrapper(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
 /* server Diffie-Hellman parameters */
 int wolfSSL_SetTmpDH_file(WOLFSSL* ssl, const char* fname, int format)
 {
+    if (ssl == NULL)
+        return BAD_FUNC_ARG;
+
     return wolfSSL_SetTmpDH_file_wrapper(ssl->ctx, ssl, fname, format);
 }
 
@@ -7276,6 +7204,96 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         return ProcessBuffer(ctx, in, sz, SSL_FILETYPE_PEM, CERT_TYPE, NULL,
                              NULL, 1);
     }
+
+
+#ifndef NO_DH
+
+    /* server wrapper for ctx or ssl Diffie-Hellman parameters */
+    static int wolfSSL_SetTmpDH_buffer_wrapper(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
+                                               const unsigned char* buf,
+                                               long sz, int format)
+    {
+        buffer der;
+        int    ret      = 0;
+        int    weOwnDer = 0;
+        word32 pSz = MAX_DH_SIZE;
+        word32 gSz = MAX_DH_SIZE;
+    #ifdef WOLFSSL_SMALL_STACK
+        byte*  p = NULL;
+        byte*  g = NULL;
+    #else
+        byte   p[MAX_DH_SIZE];
+        byte   g[MAX_DH_SIZE];
+    #endif
+
+        if (ctx == NULL || ssl == NULL || buf == NULL)
+            return BAD_FUNC_ARG;
+
+        der.buffer = (byte*)buf;
+        der.length = (word32)sz;
+
+    #ifdef WOLFSSL_SMALL_STACK
+        p = (byte*)XMALLOC(pSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        g = (byte*)XMALLOC(gSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
+        if (p == NULL || g == NULL) {
+            XFREE(p, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(g, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            return MEMORY_E;
+        }
+    #endif
+
+        if (format != SSL_FILETYPE_ASN1 && format != SSL_FILETYPE_PEM)
+            ret = SSL_BAD_FILETYPE;
+        else {
+            if (format == SSL_FILETYPE_PEM) {
+                der.buffer = NULL;
+                ret = PemToDer(buf, sz, DH_PARAM_TYPE, &der, ctx->heap, NULL,NULL);
+                weOwnDer = 1;
+            }
+
+            if (ret == 0) {
+                if (wc_DhParamsLoad(der.buffer, der.length, p, &pSz, g, &gSz) < 0)
+                    ret = SSL_BAD_FILETYPE;
+                else if (ssl)
+                    ret = wolfSSL_SetTmpDH(ssl, p, pSz, g, gSz);
+                else
+                    ret = wolfSSL_CTX_SetTmpDH(ctx, p, pSz, g, gSz);
+            }
+        }
+
+        if (weOwnDer)
+            XFREE(der.buffer, ctx->heap, DYNAMIC_TYPE_KEY);
+
+    #ifdef WOLFSSL_SMALL_STACK
+        XFREE(p, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(g, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    #endif
+
+        return ret;
+    }
+
+
+    /* server Diffie-Hellman parameters, SSL_SUCCESS on ok */
+    int wolfSSL_SetTmpDH_buffer(WOLFSSL* ssl, const unsigned char* buf, long sz,
+                               int format)
+    {
+        if (ssl == NULL)
+            return BAD_FUNC_ARG;
+
+        return wolfSSL_SetTmpDH_buffer_wrapper(ssl->ctx, ssl, buf, sz, format);
+    }
+
+
+    /* server ctx Diffie-Hellman parameters, SSL_SUCCESS on ok */
+    int wolfSSL_CTX_SetTmpDH_buffer(WOLFSSL_CTX* ctx, const unsigned char* buf,
+                                   long sz, int format)
+    {
+        return wolfSSL_SetTmpDH_buffer_wrapper(ctx, NULL, buf, sz, format);
+    }
+
+#endif /* NO_DH */
+
 
     int wolfSSL_use_certificate_buffer(WOLFSSL* ssl,
                                  const unsigned char* in, long sz, int format)
