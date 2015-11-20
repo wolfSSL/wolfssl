@@ -171,6 +171,12 @@ namespace wolfSSL.CSharp {
         public static readonly int CBIO_ERR_CONN_CLOSE = -5;
         public static readonly int CBIO_ERR_TIMEOUT    = -6;
 
+        public static readonly int ERROR_LOG = 0;
+        public static readonly int INFO_LOG  = 1;
+        public static readonly int ENTER_LOG = 2;
+        public static readonly int LEAVE_LOG = 3;
+        public static readonly int OTHER_LOG = 4;
+
         public static readonly int SUCCESS = 1;
         public static readonly int FAILURE = 0;
 
@@ -187,7 +193,7 @@ namespace wolfSSL.CSharp {
         {
             if (sz <= 0)
             {
-                log(1, "wolfssl recieve error, size less than 0");
+                log(ERROR_LOG, "wolfssl recieve error, size less than 0");
                 return wolfssl.CBIO_ERR_GENERAL;
             }
 
@@ -225,7 +231,7 @@ namespace wolfSSL.CSharp {
         {
             if (sz <= 0)
             {
-                log(1, "wolfssl send error, size less than 0");
+                log(ERROR_LOG, "wolfssl send error, size less than 0");
                 return wolfssl.CBIO_ERR_GENERAL;
             }
 
@@ -244,12 +250,12 @@ namespace wolfSSL.CSharp {
             }
             catch (Exception e)
             {
-                log(1, "socket connection issue "+ e.ToString());
+                log(ERROR_LOG, "socket connection issue "+ e.ToString());
                 return wolfssl.CBIO_ERR_CONN_CLOSE;
             }
         }
 
-        
+
         /// <summary>
         /// Call back used for sending DTLS information
         /// </summary>
@@ -262,7 +268,7 @@ namespace wolfSSL.CSharp {
         {
             if (sz <= 0)
             {
-                log(1, "wolfssl dtls send error, size less than 0");
+                log(ERROR_LOG, "wolfssl dtls send error, size less than 0");
                 return wolfssl.CBIO_ERR_GENERAL;
             }
 
@@ -281,12 +287,12 @@ namespace wolfSSL.CSharp {
             }
             catch (Exception e)
             {
-                log(1, "socket connection issue " + e.ToString());
+                log(ERROR_LOG, "socket connection issue " + e.ToString());
                 return wolfssl.CBIO_ERR_CONN_CLOSE;
             }
         }
 
-        
+
         /// <summary>
         /// Call back to allow recieving DTLS information
         /// </summary>
@@ -300,7 +306,7 @@ namespace wolfSSL.CSharp {
 
             if (sz <= 0)
             {
-                log(1, "wolfssl dtls recieve error, size less than 0");
+                log(ERROR_LOG, "wolfssl dtls recieve error, size less than 0");
                 return wolfssl.CBIO_ERR_GENERAL;
             }
 
@@ -316,7 +322,7 @@ namespace wolfSSL.CSharp {
             catch (Exception e)
             {
                 /* issue with receive or size of buffer */
-                log(1, "socket read issue "+ e.ToString());
+                log(ERROR_LOG, "socket read issue "+ e.ToString());
                 return wolfssl.CBIO_ERR_CONN_CLOSE;
             }
 
@@ -339,7 +345,7 @@ namespace wolfSSL.CSharp {
             }
             catch (Exception e)
             {
-                log(1, e.ToString());
+                log(ERROR_LOG, e.ToString());
                 return IntPtr.Zero;
             }
         }
@@ -360,7 +366,7 @@ namespace wolfSSL.CSharp {
             }
             catch (Exception e)
             {
-                log(1, "accept error " + e.ToString());
+                log(ERROR_LOG, "accept error " + e.ToString());
                 return FAILURE;
             }
         }
@@ -381,7 +387,7 @@ namespace wolfSSL.CSharp {
             }
             catch (Exception e)
             {
-                log(1, "connect error " + e.ToString());
+                log(ERROR_LOG, "connect error " + e.ToString());
                 return FAILURE;
             }
         }
@@ -404,7 +410,7 @@ namespace wolfSSL.CSharp {
             }
             catch (Exception e)
             {
-                log(1, "wolfssl read error " + e.ToString());
+                log(ERROR_LOG, "wolfssl read error " + e.ToString());
                 return FAILURE;
             }
         }
@@ -427,7 +433,7 @@ namespace wolfSSL.CSharp {
             }
             catch (Exception e)
             {
-                log(1, "wolfssl write error " + e.ToString());
+                log(ERROR_LOG, "wolfssl write error " + e.ToString());
                 return FAILURE;
             }
         }
@@ -458,7 +464,7 @@ namespace wolfSSL.CSharp {
             }
             catch (Exception e)
             {
-                log(1, "wolfssl free error " + e.ToString());
+                log(ERROR_LOG, "wolfssl free error " + e.ToString());
             }
         }
 
@@ -478,7 +484,7 @@ namespace wolfSSL.CSharp {
             }
             catch (Exception e)
             {
-                log(1, "wolfssl shutdwon error " + e.ToString());
+                log(ERROR_LOG, "wolfssl shutdwon error " + e.ToString());
                 return FAILURE;
             }
         }
@@ -497,7 +503,7 @@ namespace wolfSSL.CSharp {
             }
             catch (Exception e)
             {
-                log(1, "wolfssl setIORecv error " + e.ToString());
+                log(ERROR_LOG, "wolfssl setIORecv error " + e.ToString());
             }
         }
 
@@ -515,11 +521,11 @@ namespace wolfSSL.CSharp {
             }
             catch (Exception e)
             {
-                log(1, "wolfssl setIOSend error " + e.ToString());
+                log(ERROR_LOG, "wolfssl setIOSend error " + e.ToString());
             }
         }
 
-        
+
         /// <summary>
         /// Create a new CTX structure
         /// </summary>
@@ -543,7 +549,7 @@ namespace wolfSSL.CSharp {
             }
             catch (Exception e)
             {
-                log(1, "ctx_new error " + e.ToString());
+                log(ERROR_LOG, "ctx_new error " + e.ToString());
                 return IntPtr.Zero;
             }
         }
@@ -572,7 +578,7 @@ namespace wolfSSL.CSharp {
             }
             catch (Exception e)
             {
-                log(1, "ctx_dtls_new error " + e.ToString());
+                log(ERROR_LOG, "ctx_dtls_new error " + e.ToString());
                 return IntPtr.Zero;
             }
         }
@@ -590,7 +596,7 @@ namespace wolfSSL.CSharp {
             }
             catch (Exception e)
             {
-                log(1, "wolfssl ctx free error " + e.ToString());
+                log(ERROR_LOG, "wolfssl ctx free error " + e.ToString());
             }
         }
 
@@ -609,7 +615,7 @@ namespace wolfSSL.CSharp {
             }
             catch (Exception e)
             {
-                log(1, "wolfssl psk identity hint error " + e.ToString());
+                log(ERROR_LOG, "wolfssl psk identity hint error " + e.ToString());
                 return FAILURE;
             }
         }
@@ -628,7 +634,7 @@ namespace wolfSSL.CSharp {
             }
             catch (Exception e)
             {
-                log(1, "wolfssl psk server callback error " + e.ToString());
+                log(ERROR_LOG, "wolfssl psk server callback error " + e.ToString());
             }
         }
 
@@ -646,7 +652,7 @@ namespace wolfSSL.CSharp {
             }
             catch (Exception e)
             {
-                log(1, "wolfssl psk server callback error " + e.ToString());
+                log(ERROR_LOG, "wolfssl psk server callback error " + e.ToString());
             }
         }
 
@@ -676,7 +682,7 @@ namespace wolfSSL.CSharp {
             }
             catch (Exception e)
             {
-                log(1, "Error setting up fd!! " + e.ToString());
+                log(ERROR_LOG, "Error setting up fd!! " + e.ToString());
                 return FAILURE;
             }
 
@@ -703,7 +709,7 @@ namespace wolfSSL.CSharp {
             }
             catch (Exception e)
             {
-                log(1, "wolfssl get_fd error " + e.ToString());
+                log(ERROR_LOG, "wolfssl get_fd error " + e.ToString());
                 return null;
             }
         }
@@ -742,7 +748,7 @@ namespace wolfSSL.CSharp {
             }
             catch (Exception e)
             {
-                log(1, "Error setting up fd!! " + e.ToString());
+                log(ERROR_LOG, "Error setting up fd!! " + e.ToString());
                 return FAILURE;
             }
 
@@ -769,7 +775,7 @@ namespace wolfSSL.CSharp {
             }
             catch (Exception e)
             {
-                log(1, "wolfssl get_dtls_fd error " + e.ToString());
+                log(ERROR_LOG, "wolfssl get_dtls_fd error " + e.ToString());
                 return null;
             }
         }
@@ -789,7 +795,7 @@ namespace wolfSSL.CSharp {
             }
             catch (Exception e)
             {
-                log(1, "wolfssl get_ciphers error " + e.ToString());
+                log(ERROR_LOG, "wolfssl get_ciphers error " + e.ToString());
                 return FAILURE;
             }
         }
@@ -807,7 +813,7 @@ namespace wolfSSL.CSharp {
             }
             catch (Exception e)
             {
-                log(1, "wolfssl init error " + e.ToString());
+                log(ERROR_LOG, "wolfssl init error " + e.ToString());
                 return FAILURE;
             }
         }
@@ -825,7 +831,7 @@ namespace wolfSSL.CSharp {
             }
             catch (Exception e)
             {
-                log(1, "wolfssl cleanup error " + e.ToString());
+                log(ERROR_LOG, "wolfssl cleanup error " + e.ToString());
                 return FAILURE;
             }
         }
@@ -843,7 +849,7 @@ namespace wolfSSL.CSharp {
             }
             catch (Exception e)
             {
-                log(1, "wolfssl error " + e.ToString());
+                log(ERROR_LOG, "wolfssl error " + e.ToString());
                 return IntPtr.Zero;
             }
         }
@@ -861,7 +867,7 @@ namespace wolfSSL.CSharp {
             }
             catch (Exception e)
             {
-                log(1, "wolfssl error " + e.ToString());
+                log(ERROR_LOG, "wolfssl error " + e.ToString());
                 return IntPtr.Zero;
             }
         }
@@ -879,7 +885,7 @@ namespace wolfSSL.CSharp {
             }
             catch (Exception e)
             {
-                log(1, "wolfssl error " + e.ToString());
+                log(ERROR_LOG, "wolfssl error " + e.ToString());
                 return IntPtr.Zero;
             }
         }
@@ -897,7 +903,7 @@ namespace wolfSSL.CSharp {
             }
             catch (Exception e)
             {
-                log(1, "wolfssl error " + e.ToString());
+                log(ERROR_LOG, "wolfssl error " + e.ToString());
                 return IntPtr.Zero;
             }
         }
@@ -915,7 +921,7 @@ namespace wolfSSL.CSharp {
             }
             catch (Exception e)
             {
-                log(1, "wolfssl error " + e.ToString());
+                log(ERROR_LOG, "wolfssl error " + e.ToString());
                 return IntPtr.Zero;
             }
         }
@@ -933,7 +939,7 @@ namespace wolfSSL.CSharp {
             }
             catch (Exception e)
             {
-                log(1, "wolfssl error " + e.ToString());
+                log(ERROR_LOG, "wolfssl error " + e.ToString());
                 return IntPtr.Zero;
             }
         }
@@ -962,7 +968,7 @@ namespace wolfSSL.CSharp {
             }
             catch (Exception e)
             {
-                log(1, "wolfssl get current cipher error " + e.ToString());
+                log(ERROR_LOG, "wolfssl get current cipher error " + e.ToString());
                 return null;
             }
         }
@@ -982,7 +988,7 @@ namespace wolfSSL.CSharp {
             }
             catch (Exception e)
             {
-                log(1, "wolfssl ctx set cipher list error " + e.ToString());
+                log(ERROR_LOG, "wolfssl ctx set cipher list error " + e.ToString());
                 return FAILURE;
             }
         }
@@ -1002,7 +1008,7 @@ namespace wolfSSL.CSharp {
             }
             catch (Exception e)
             {
-                log(1, "wolfssl set cipher error " + e.ToString());
+                log(ERROR_LOG, "wolfssl set cipher error " + e.ToString());
                 return FAILURE;
             }
         }
@@ -1030,7 +1036,7 @@ namespace wolfSSL.CSharp {
             }
             catch (Exception e)
             {
-                log(1, "wolfssl get version error " + e.ToString());
+                log(ERROR_LOG, "wolfssl get version error " + e.ToString());
                 return null;
             }
         }
@@ -1063,7 +1069,7 @@ namespace wolfSSL.CSharp {
             }
             catch (Exception e)
             {
-                log(1, "wolfssl get error, error " + e.ToString());
+                log(ERROR_LOG, "wolfssl get error, error " + e.ToString());
                 return null;
             }
         }
@@ -1084,7 +1090,7 @@ namespace wolfSSL.CSharp {
             }
             catch (Exception e)
             {
-                log(1, "wolfssl ctx use cert file error " + e.ToString());
+                log(ERROR_LOG, "wolfssl ctx use cert file error " + e.ToString());
                 return FAILURE;
             }
         }
@@ -1105,7 +1111,7 @@ namespace wolfSSL.CSharp {
             }
             catch (Exception e)
             {
-                log(1, "wolfssl ctx use key file error " + e.ToString());
+                log(ERROR_LOG, "wolfssl ctx use key file error " + e.ToString());
                 return FAILURE;
             }
         }
@@ -1126,7 +1132,7 @@ namespace wolfSSL.CSharp {
             }
             catch (Exception e)
             {
-                log(1, "wolfssl set tmp dh file error " + e.ToString());
+                log(ERROR_LOG, "wolfssl set tmp dh file error " + e.ToString());
                 return FAILURE;
             }
         }
@@ -1146,7 +1152,7 @@ namespace wolfSSL.CSharp {
             }
             catch (Exception e)
             {
-                log(1, "wolfssl ctx set min dh key error " + e.ToString());
+                log(ERROR_LOG, "wolfssl ctx set min dh key error " + e.ToString());
                 return FAILURE;
             }
         }
