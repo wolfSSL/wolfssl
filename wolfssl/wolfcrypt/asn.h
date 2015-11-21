@@ -198,11 +198,19 @@ enum Misc_ASN {
 
 
 enum Oid_Types {
-    hashType  = 0,
-    sigType   = 1,
-    keyType   = 2,
-    curveType = 3,
-    blkType   = 4
+    hashType         = 0,
+    sigType          = 1,
+    keyType          = 2,
+    curveType        = 3,
+    blkType          = 4,
+    ocspType         = 5,
+    certExtType      = 6,
+    certAuthInfoType = 7,
+    certPolicyType   = 8,
+    certAltNameType  = 9,
+    certKeyUseType   = 10,
+    kdfType          = 11,
+    ignoreType
 };
 
 
@@ -250,7 +258,6 @@ enum Extensions_Sum {
     ALT_NAMES_OID   = 131,
     CRL_DIST_OID    = 145,
     AUTH_INFO_OID   = 69,
-    CA_ISSUER_OID   = 117,
     AUTH_KEY_OID    = 149,
     SUBJ_KEY_OID    = 128,
     CERT_POLICY_OID = 146,
@@ -585,8 +592,10 @@ WOLFSSL_LOCAL int GetMyVersion(const byte* input, word32* inOutIdx,
                               int* version);
 WOLFSSL_LOCAL int GetInt(mp_int* mpi, const byte* input, word32* inOutIdx,
                         word32 maxIdx);
+WOLFSSL_LOCAL int GetObjectId(const byte* input, word32* inOutIdx, word32* oid,
+                              word32 oidType, word32 maxIdx);
 WOLFSSL_LOCAL int GetAlgoId(const byte* input, word32* inOutIdx, word32* oid,
-                           word32 maxIdx);
+                           word32 oidType, word32 maxIdx);
 WOLFSSL_LOCAL word32 SetLength(word32 length, byte* output);
 WOLFSSL_LOCAL word32 SetSequence(word32 len, byte* output);
 WOLFSSL_LOCAL word32 SetOctetString(word32 len, byte* output);

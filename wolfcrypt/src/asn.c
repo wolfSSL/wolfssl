@@ -678,12 +678,440 @@ WOLFSSL_LOCAL int GetInt(mp_int* mpi, const byte* input, word32* inOutIdx,
 }
 
 
-static int GetObjectId(const byte* input, word32* inOutIdx, word32* oid,
-                     word32 maxIdx)
+/* hashType */
+static const byte hashMd2hOid[] = {42, 134, 72, 134, 247, 13, 2, 2};
+static const byte hashMd5hOid[] = {42, 134, 72, 134, 247, 13, 2, 5};
+static const byte hashSha1hOid[] = {43, 14, 3, 2, 26};
+static const byte hashSha256hOid[] = {96, 134, 72, 1, 101, 3, 4, 2, 1};
+static const byte hashSha384hOid[] = {96, 134, 72, 1, 101, 3, 4, 2, 2};
+static const byte hashSha512hOid[] = {96, 134, 72, 1, 101, 3, 4, 2, 3};
+
+/* sigType */
+#ifndef NO_DSA
+    static const byte sigSha1wDsaOid[] = {42, 134, 72, 206, 56, 4, 3};
+#endif /* NO_DSA */
+#ifndef NO_RSA
+    static const byte sigMd2wRsaOid[] = {42, 134, 72, 134, 247, 13, 1, 1, 2};
+    static const byte sigMd5wRsaOid[] = {42, 134, 72, 134, 247, 13, 1, 1, 4};
+    static const byte sigSha1wRsaOid[] = {42, 134, 72, 134, 247, 13, 1, 1, 5};
+    static const byte sigSha256wRsaOid[] = {42, 134, 72, 134, 247, 13, 1, 1,11};
+    static const byte sigSha384wRsaOid[] = {42, 134, 72, 134, 247, 13, 1, 1,12};
+    static const byte sigSha512wRsaOid[] = {42, 134, 72, 134, 247, 13, 1, 1,13};
+#endif /* NO_RSA */
+#ifdef HAVE_ECC
+    static const byte sigSha1wEcdsaOid[] = {42, 134, 72, 206, 61, 4, 1};
+    static const byte sigSha256wEcdsaOid[] = {42, 134, 72, 206, 61, 4, 3, 2};
+    static const byte sigSha384wEcdsaOid[] = {42, 134, 72, 206, 61, 4, 3, 3};
+    static const byte sigSha512wEcdsaOid[] = {42, 134, 72, 206, 61, 4, 3, 4};
+#endif /* HAVE_ECC */
+
+/* keyType */
+#ifndef NO_DSA
+    static const byte keyDsaOid[] = {42, 134, 72, 206, 56, 4, 1};
+#endif /* NO_DSA */
+#ifndef NO_RSA
+    static const byte keyRsaOid[] = {42, 134, 72, 134, 247, 13, 1, 1, 1};
+#endif /* NO_RSA */
+#ifdef HAVE_NTRU
+    static const byte keyNtruOid[] = {43, 6, 1, 4, 1, 193, 22, 1, 1, 1, 1};
+#endif /* HAVE_NTRU */
+#ifdef HAVE_ECC
+    static const byte keyEcdsaOid[] = {42, 134, 72, 206, 61, 2, 1};
+#endif /* HAVE_ECC */
+
+/* curveType */
+#ifdef HAVE_ECC
+    #if defined(HAVE_ALL_CURVES) || defined(HAVE_ECC192)
+        static const byte curve192v1Oid[] = {42, 134, 72, 206, 61, 3, 1, 1};
+    #endif /* HAVE_ALL_CURVES || HAVE_ECC192 */
+    #if defined(HAVE_ALL_CURVES) || !defined(NO_ECC256)
+        static const byte curve256v1Oid[] = {42, 134, 72, 206, 61, 3, 1, 7};
+    #endif /* HAVE_ALL_CURVES || HAVE_ECC256 */
+    #if defined(HAVE_ALL_CURVES) || defined(HAVE_ECC160)
+        static const byte curve160r1Oid[] = {43, 129, 4, 0, 2};
+    #endif /* HAVE_ALL_CURVES || HAVE_ECC160 */
+    #if defined(HAVE_ALL_CURVES) || defined(HAVE_ECC224)
+        static const byte curve224r1Oid[] = {43, 129, 4, 0, 33};
+    #endif /* HAVE_ALL_CURVES || HAVE_ECC224 */
+    #if defined(HAVE_ALL_CURVES) || defined(HAVE_ECC384)
+        static const byte curve384r1Oid[] = {43, 129, 4, 0, 34};
+    #endif /* HAVE_ALL_CURVES || HAVE_ECC384 */
+    #if defined(HAVE_ALL_CURVES) || defined(HAVE_ECC521)
+        static const byte curve521r1Oid[] = {43, 129, 4, 0, 35};
+    #endif /* HAVE_ALL_CURVES || HAVE_ECC521 */
+#endif /* HAVE_ECC */
+
+/* blkType */
+static const byte blkDesCbcOid[]  = {43, 14, 3, 2, 7};
+static const byte blkDes3CbcOid[] = {42, 134, 72, 134, 247, 13, 3, 7};
+
+/* ocspType */
+#ifdef HAVE_OCSP
+    static const byte ocspBasicOid[] = {43, 6, 1, 5, 5, 7, 48, 1, 1};
+    static const byte ocspNonceOid[] = {43, 6, 1, 5, 5, 7, 48, 1, 2};
+#endif /* HAVE_OCSP */
+
+/* certExtType */
+static const byte extBasicCaOid[] = {85, 29, 19};
+static const byte extAltNamesOid[] = {85, 29, 17};
+static const byte extCrlDistOid[] = {85, 29, 31};
+static const byte extAuthInfoOid[] = {43, 6, 1, 5, 5, 7, 1, 1};
+static const byte extAuthKeyOid[] = {85, 29, 35};
+static const byte extSubjKeyOid[] = {85, 29, 14};
+static const byte extCertPolicyOid[] = {85, 29, 32};
+static const byte extKeyUsageOid[] = {85, 29, 15};
+static const byte extInhibitAnyOid[] = {85, 29, 54};
+static const byte extExtKeyUsageOid[] = {85, 29, 37};
+static const byte extNameConsOid[] = {85, 29, 30};
+
+/* certAuthInfoType */
+static const byte extAuthInfoOcspOid[] = {43, 6, 1, 5, 5, 7, 48, 1};
+static const byte extAuthInfoCaIssuerOid[] = {43, 6, 1, 5, 5, 7, 48, 2};
+
+/* certPolicyType */
+static const byte extCertPolicyAnyOid[] = {85, 29, 32, 0};
+
+/* certKeyUseType */
+static const byte extAltNamesHwNameOid[] = {43, 6, 1, 5, 5, 7, 8, 4};
+
+/* certKeyUseType */
+static const byte extExtKeyUsageAnyOid[] = {85, 29, 37, 0};
+static const byte extExtKeyUsageServerAuthOid[] = {43, 6, 1, 5, 5, 7, 3, 1};
+static const byte extExtKeyUsageClientAuthOid[] = {43, 6, 1, 5, 5, 7, 3, 2};
+static const byte extExtKeyUsageOcspSignOid[] = {43, 6, 1, 5, 5, 7, 3, 9};
+
+/* kdfType */
+static const byte pbkdf2Oid[] = {42, 134, 72, 134, 247, 13, 1, 5, 12};
+
+static const byte* OidFromId(word32 id, word32 type, word32* oidSz)
+{
+    const byte* oid = NULL;
+
+    *oidSz = 0;
+
+    switch (type) {
+
+        case hashType:
+            switch (id) {
+                case MD2h:
+                    oid = hashMd2hOid;
+                    *oidSz = sizeof(hashMd2hOid);
+                    break;
+                case MD5h:
+                    oid = hashMd5hOid;
+                    *oidSz = sizeof(hashMd5hOid);
+                    break;
+                case SHAh:
+                    oid = hashSha1hOid;
+                    *oidSz = sizeof(hashSha1hOid);
+                    break;
+                case SHA256h:
+                    oid = hashSha256hOid;
+                    *oidSz = sizeof(hashSha256hOid);
+                    break;
+                case SHA384h:
+                    oid = hashSha384hOid;
+                    *oidSz = sizeof(hashSha384hOid);
+                    break;
+                case SHA512h:
+                    oid = hashSha512hOid;
+                    *oidSz = sizeof(hashSha512hOid);
+                    break;
+            }
+            break;
+
+        case sigType:
+            switch (id) {
+                #ifndef NO_DSA
+                case CTC_SHAwDSA:
+                    oid = sigSha1wDsaOid;
+                    *oidSz = sizeof(sigSha1wDsaOid);
+                    break;
+                #endif /* NO_DSA */
+                #ifndef NO_RSA
+                case CTC_MD2wRSA:
+                    oid = sigMd2wRsaOid;
+                    *oidSz = sizeof(sigMd2wRsaOid);
+                    break;
+                case CTC_MD5wRSA:
+                    oid = sigMd5wRsaOid;
+                    *oidSz = sizeof(sigMd5wRsaOid);
+                    break;
+                case CTC_SHAwRSA:
+                    oid = sigSha1wRsaOid;
+                    *oidSz = sizeof(sigSha1wRsaOid);
+                    break;
+                case CTC_SHA256wRSA:
+                    oid = sigSha256wRsaOid;
+                    *oidSz = sizeof(sigSha256wRsaOid);
+                    break;
+                case CTC_SHA384wRSA:
+                    oid = sigSha384wRsaOid;
+                    *oidSz = sizeof(sigSha384wRsaOid);
+                    break;
+                case CTC_SHA512wRSA:
+                    oid = sigSha512wRsaOid;
+                    *oidSz = sizeof(sigSha512wRsaOid);
+                    break;
+                #endif /* NO_RSA */
+                #ifdef HAVE_ECC
+                case CTC_SHAwECDSA:
+                    oid = sigSha1wEcdsaOid;
+                    *oidSz = sizeof(sigSha1wEcdsaOid);
+                    break;
+                case CTC_SHA256wECDSA:
+                    oid = sigSha256wEcdsaOid;
+                    *oidSz = sizeof(sigSha256wEcdsaOid);
+                    break;
+                case CTC_SHA384wECDSA:
+                    oid = sigSha384wEcdsaOid;
+                    *oidSz = sizeof(sigSha384wEcdsaOid);
+                    break;
+                case CTC_SHA512wECDSA:
+                    oid = sigSha512wEcdsaOid;
+                    *oidSz = sizeof(sigSha512wEcdsaOid);
+                    break;
+                #endif /* HAVE_ECC */
+                default:
+                    break;
+            }
+            break;
+
+        case keyType:
+            switch (id) {
+                #ifndef NO_DSA
+                case DSAk:
+                    oid = keyDsaOid;
+                    *oidSz = sizeof(keyDsaOid);
+                    break;
+                #endif /* NO_DSA */
+                #ifndef NO_RSA
+                case RSAk:
+                    oid = keyRsaOid;
+                    *oidSz = sizeof(keyRsaOid);
+                    break;
+                #endif /* NO_RSA */
+                #ifdef HAVE_NTRU
+                case NTRUk:
+                    oid = keyNtruOid;
+                    *oidSz = sizeof(keyNtruOid);
+                    break;
+                #endif /* HAVE_NTRU */
+                #ifdef HAVE_ECC
+                case ECDSAk:
+                    oid = keyEcdsaOid;
+                    *oidSz = sizeof(keyEcdsaOid);
+                    break;
+                #endif /* HAVE_ECC */
+                default:
+                    break;
+            }
+            break;
+
+        #ifdef HAVE_ECC
+        case curveType:
+            switch (id) {
+                #if defined(HAVE_ALL_CURVES) || !defined(NO_ECC256)
+                case ECC_256R1:
+                    oid = curve256v1Oid;
+                    *oidSz = sizeof(curve256v1Oid);
+                    break;
+                #endif /* HAVE_ALL_CURVES || HAVE_ECC256 */
+                #if defined(HAVE_ALL_CURVES) || defined(HAVE_ECC384)
+                case ECC_384R1:
+                    oid = curve384r1Oid;
+                    *oidSz = sizeof(curve384r1Oid);
+                    break;
+                #endif /* HAVE_ALL_CURVES || HAVE_ECC384 */
+                #if defined(HAVE_ALL_CURVES) || defined(HAVE_ECC521)
+                case ECC_521R1:
+                    oid = curve521r1Oid;
+                    *oidSz = sizeof(curve521r1Oid);
+                    break;
+                #endif /* HAVE_ALL_CURVES || HAVE_ECC521 */
+                #if defined(HAVE_ALL_CURVES) || defined(HAVE_ECC160)
+                case ECC_160R1:
+                    oid = curve160r1Oid;
+                    *oidSz = sizeof(curve160r1Oid);
+                    break;
+                #endif /* HAVE_ALL_CURVES || HAVE_ECC160 */
+                #if defined(HAVE_ALL_CURVES) || defined(HAVE_ECC192)
+                case ECC_192R1:
+                    oid = curve192v1Oid;
+                    *oidSz = sizeof(curve192v1Oid);
+                    break;
+                #endif /* HAVE_ALL_CURVES || HAVE_ECC192 */
+                #if defined(HAVE_ALL_CURVES) || defined(HAVE_ECC224)
+                case ECC_224R1:
+                    oid = curve224r1Oid;
+                    *oidSz = sizeof(curve224r1Oid);
+                    break;
+                #endif /* HAVE_ALL_CURVES || HAVE_ECC224 */
+                default:
+                    break;
+            }
+            break;
+        #endif /* HAVE_ECC */
+
+        case blkType:
+            switch (id) {
+                case DESb:
+                    oid = blkDesCbcOid;
+                    *oidSz = sizeof(blkDesCbcOid);
+                    break;
+                case DES3b:
+                    oid = blkDes3CbcOid;
+                    *oidSz = sizeof(blkDes3CbcOid);
+                    break;
+            }
+            break;
+
+        #ifdef HAVE_OCSP
+        case ocspType:
+            switch (id) {
+                case OCSP_BASIC_OID:
+                    oid = ocspBasicOid;
+                    *oidSz = sizeof(ocspBasicOid);
+                    break;
+                case OCSP_NONCE_OID:
+                    oid = ocspNonceOid;
+                    *oidSz = sizeof(ocspNonceOid);
+                    break;
+            }
+            break;
+        #endif /* HAVE_OCSP */
+
+        case certExtType:
+            switch (id) {
+                case BASIC_CA_OID:
+                    oid = extBasicCaOid;
+                    *oidSz = sizeof(extBasicCaOid);
+                    break;
+                case ALT_NAMES_OID:
+                    oid = extAltNamesOid;
+                    *oidSz = sizeof(extAltNamesOid);
+                    break;
+                case CRL_DIST_OID:
+                    oid = extCrlDistOid;
+                    *oidSz = sizeof(extCrlDistOid);
+                    break;
+                case AUTH_INFO_OID:
+                    oid = extAuthInfoOid;
+                    *oidSz = sizeof(extAuthInfoOid);
+                    break;
+                case AUTH_KEY_OID:
+                    oid = extAuthKeyOid;
+                    *oidSz = sizeof(extAuthKeyOid);
+                    break;
+                case SUBJ_KEY_OID:
+                    oid = extSubjKeyOid;
+                    *oidSz = sizeof(extSubjKeyOid);
+                    break;
+                case CERT_POLICY_OID:
+                    oid = extCertPolicyOid;
+                    *oidSz = sizeof(extCertPolicyOid);
+                    break;
+                case KEY_USAGE_OID:
+                    oid = extKeyUsageOid;
+                    *oidSz = sizeof(extKeyUsageOid);
+                    break;
+                case INHIBIT_ANY_OID:
+                    oid = extInhibitAnyOid;
+                    *oidSz = sizeof(extInhibitAnyOid);
+                    break;
+                case EXT_KEY_USAGE_OID:
+                    oid = extExtKeyUsageOid;
+                    *oidSz = sizeof(extExtKeyUsageOid);
+                    break;
+                case NAME_CONS_OID:
+                    oid = extNameConsOid;
+                    *oidSz = sizeof(extNameConsOid);
+                    break;
+            }
+            break;
+
+        case certAuthInfoType:
+            switch (id) {
+                case AIA_OCSP_OID:
+                    oid = extAuthInfoOcspOid;
+                    *oidSz = sizeof(extAuthInfoOcspOid);
+                    break;
+                case AIA_CA_ISSUER_OID:
+                    oid = extAuthInfoCaIssuerOid;
+                    *oidSz = sizeof(extAuthInfoCaIssuerOid);
+                    break;
+            }
+            break;
+
+        case certPolicyType:
+            switch (id) {
+                case CP_ANY_OID:
+                    oid = extCertPolicyAnyOid;
+                    *oidSz = sizeof(extCertPolicyAnyOid);
+                    break;
+            }
+            break;
+
+        case certAltNameType:
+            switch (id) {
+                case HW_NAME_OID:
+                    oid = extAltNamesHwNameOid;
+                    *oidSz = sizeof(extAltNamesHwNameOid);
+                    break;
+            }
+            break;
+
+        case certKeyUseType:
+            switch (id) {
+                case EKU_ANY_OID:
+                    oid = extExtKeyUsageAnyOid;
+                    *oidSz = sizeof(extExtKeyUsageAnyOid);
+                    break;
+                case EKU_SERVER_AUTH_OID:
+                    oid = extExtKeyUsageServerAuthOid;
+                    *oidSz = sizeof(extExtKeyUsageServerAuthOid);
+                    break;
+                case EKU_CLIENT_AUTH_OID:
+                    oid = extExtKeyUsageClientAuthOid;
+                    *oidSz = sizeof(extExtKeyUsageClientAuthOid);
+                    break;
+                case EKU_OCSP_SIGN_OID:
+                    oid = extExtKeyUsageOcspSignOid;
+                    *oidSz = sizeof(extExtKeyUsageOcspSignOid);
+                    break;
+            }
+
+        case kdfType:
+            switch (id) {
+                case PBKDF2_OID:
+                    oid = pbkdf2Oid;
+                    *oidSz = sizeof(pbkdf2Oid);
+                    break;
+            }
+            break;
+
+        case ignoreType:
+        default:
+            break;
+    }
+
+    return oid;
+}
+
+
+WOLFSSL_LOCAL int GetObjectId(const byte* input, word32* inOutIdx, word32* oid,
+                              word32 oidType, word32 maxIdx)
 {
     int    length;
     word32 i = *inOutIdx;
+#ifndef NO_VERIFY_OID
+    word32 actualOidSz = 0;
+    const byte* actualOid;
+#endif /* NO_VERIFY_OID */
     byte   b;
+
+    (void)oidType;
+    WOLFSSL_ENTER("GetObjectId()");
     *oid = 0;
 
     b = input[i++];
@@ -693,18 +1121,62 @@ static int GetObjectId(const byte* input, word32* inOutIdx, word32* oid,
     if (GetLength(input, &i, &length, maxIdx) < 0)
         return ASN_PARSE_E;
 
-    while(length--)
-        *oid += input[i++];
+#ifndef NO_VERIFY_OID
+    actualOid = &input[i];
+    if (length > 0)
+        actualOidSz = (word32)length;
+#endif /* NO_VERIFY_OID */
+
+    while(length--) {
+        /* odd HC08 compiler behavior here when input[i++] */
+        *oid += input[i];
+        i++;
+    }
     /* just sum it up for now */
 
     *inOutIdx = i;
+
+#ifndef NO_VERIFY_OID
+    {
+        const byte* checkOid = NULL;
+        word32 checkOidSz;
+
+        if (oidType != ignoreType) {
+            checkOid = OidFromId(*oid, oidType, &checkOidSz);
+
+            if (checkOid == NULL ||
+                checkOidSz != actualOidSz ||
+                XMEMCMP(actualOid, checkOid, checkOidSz) != 0) {
+
+                WOLFSSL_MSG("OID Check Failed");
+                return ASN_UNKNOWN_OID_E;
+            }
+        }
+    }
+#endif /* NO_VERIFY_OID */
+
+    return 0;
+}
+
+
+static int SkipObjectId(const byte* input, word32* inOutIdx, word32 maxIdx)
+{
+    int    length;
+
+    if (input[(*inOutIdx)++] != ASN_OBJECT_ID)
+        return ASN_OBJECT_ID_E;
+
+    if (GetLength(input, inOutIdx, &length, maxIdx) < 0)
+        return ASN_PARSE_E;
+
+    *inOutIdx += length;
 
     return 0;
 }
 
 
 WOLFSSL_LOCAL int GetAlgoId(const byte* input, word32* inOutIdx, word32* oid,
-                     word32 maxIdx)
+                     word32 oidType, word32 maxIdx)
 {
     int    length;
     word32 i = *inOutIdx;
@@ -716,31 +1188,18 @@ WOLFSSL_LOCAL int GetAlgoId(const byte* input, word32* inOutIdx, word32* oid,
     if (GetSequence(input, &i, &length, maxIdx) < 0)
         return ASN_PARSE_E;
 
-    b = input[i++];
-    if (b != ASN_OBJECT_ID)
+    if (GetObjectId(input, &i, oid, oidType, maxIdx) < 0)
         return ASN_OBJECT_ID_E;
 
-    if (GetLength(input, &i, &length, maxIdx) < 0)
-        return ASN_PARSE_E;
-
-    while(length--) {
-        /* odd HC08 compiler behavior here when input[i++] */
-        *oid += input[i];
-        i++;
-    }
-    /* just sum it up for now */
-
     /* could have NULL tag and 0 terminator, but may not */
-    b = input[i++];
+    b = input[i];
 
     if (b == ASN_TAG_NULL) {
+        i++;
         b = input[i++];
         if (b != 0)
             return ASN_EXPECT_0_E;
     }
-    else
-    /* go back, didn't have it */
-        i--;
 
     *inOutIdx = i;
 
@@ -856,7 +1315,7 @@ int ToTraditional(byte* input, word32 sz)
     if (GetMyVersion(input, &inOutIdx, &version) < 0)
         return ASN_PARSE_E;
 
-    if (GetAlgoId(input, &inOutIdx, &oid, sz) < 0)
+    if (GetAlgoId(input, &inOutIdx, &oid, sigType, sz) < 0)
         return ASN_PARSE_E;
 
     if (input[inOutIdx] == ASN_OBJECT_ID) {
@@ -1133,7 +1592,7 @@ int ToTraditionalEnc(byte* input, word32 sz,const char* password,int passwordSz)
     if (GetSequence(input, &inOutIdx, &length, sz) < 0)
         return ASN_PARSE_E;
 
-    if (GetAlgoId(input, &inOutIdx, &oid, sz) < 0)
+    if (GetAlgoId(input, &inOutIdx, &oid, sigType, sz) < 0)
         return ASN_PARSE_E;
 
     first  = input[inOutIdx - 2];   /* PKCS version alwyas 2nd to last byte */
@@ -1147,7 +1606,7 @@ int ToTraditionalEnc(byte* input, word32 sz,const char* password,int passwordSz)
         if (GetSequence(input, &inOutIdx, &length, sz) < 0)
             return ASN_PARSE_E;
 
-        if (GetAlgoId(input, &inOutIdx, &oid, sz) < 0)
+        if (GetAlgoId(input, &inOutIdx, &oid, kdfType, sz) < 0)
             return ASN_PARSE_E;
 
         if (oid != PBKDF2_OID)
@@ -1192,7 +1651,8 @@ int ToTraditionalEnc(byte* input, word32 sz,const char* password,int passwordSz)
 
     if (version == PKCS5v2) {
         /* get encryption algo */
-        if (GetAlgoId(input, &inOutIdx, &oid, sz) < 0) {
+        /* JOHN: New type. Need a little more research. */
+        if (GetAlgoId(input, &inOutIdx, &oid, blkType, sz) < 0) {
 #ifdef WOLFSSL_SMALL_STACK
             XFREE(salt,  NULL, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(cbcIv, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -1285,14 +1745,8 @@ int wc_RsaPublicKeyDecode(const byte* input, word32* inOutIdx, RsaKey* key,
         if (GetSequence(input, inOutIdx, &length, inSz) < 0)
             return ASN_PARSE_E;
 
-        b = input[(*inOutIdx)++];
-        if (b != ASN_OBJECT_ID)
-            return ASN_OBJECT_ID_E;
-
-        if (GetLength(input, inOutIdx, &length, inSz) < 0)
+        if (SkipObjectId(input, inOutIdx, inSz) < 0)
             return ASN_PARSE_E;
-
-        *inOutIdx += length;   /* skip past */
 
         /* could have NULL tag and 0 terminator, but may not */
         b = input[(*inOutIdx)++];
@@ -1898,7 +2352,8 @@ static int GetKey(DecodedCert* cert)
     if (GetSequence(cert->source, &cert->srcIdx, &length, cert->maxIdx) < 0)
         return ASN_PARSE_E;
 
-    if (GetAlgoId(cert->source, &cert->srcIdx, &cert->keyOID, cert->maxIdx) < 0)
+    if (GetAlgoId(cert->source, &cert->srcIdx,
+                  &cert->keyOID, keyType, cert->maxIdx) < 0)
         return ASN_PARSE_E;
 
     switch (cert->keyOID) {
@@ -1986,17 +2441,11 @@ static int GetKey(DecodedCert* cert)
     #ifdef HAVE_ECC
         case ECDSAk:
         {
-            int    oidSz = 0;
-            byte   b = cert->source[cert->srcIdx++];
+            byte b;
 
-            if (b != ASN_OBJECT_ID)
-                return ASN_OBJECT_ID_E;
-
-            if (GetLength(cert->source,&cert->srcIdx,&oidSz,cert->maxIdx) < 0)
+            if (GetObjectId(cert->source, &cert->srcIdx,
+                            &cert->pkCurveOID, curveType, cert->maxIdx) < 0)
                 return ASN_PARSE_E;
-
-            while(oidSz--)
-                cert->pkCurveOID += cert->source[cert->srcIdx++];
 
             if (CheckCurve(cert->pkCurveOID) < 0)
                 return ECC_CURVE_OID_E;
@@ -2699,7 +3148,7 @@ int DecodeToKey(DecodedCert* cert, int verify)
     WOLFSSL_MSG("Got Cert Header");
 
     if ( (ret = GetAlgoId(cert->source, &cert->srcIdx, &cert->signatureOID,
-                          cert->maxIdx)) < 0)
+                          sigType, cert->maxIdx)) < 0)
         return ret;
 
     WOLFSSL_MSG("Got Algo ID");
@@ -2925,216 +3374,35 @@ static int SetCurve(ecc_key* key, byte* output)
 
 WOLFSSL_LOCAL word32 SetAlgoID(int algoOID, byte* output, int type, int curveSz)
 {
-    /* adding TAG_NULL and 0 to end */
-
-    /* hashTypes */
-    static const byte shaAlgoID[]    = { 0x2b, 0x0e, 0x03, 0x02, 0x1a,
-                                         0x05, 0x00 };
-    static const byte sha256AlgoID[] = { 0x60, 0x86, 0x48, 0x01, 0x65, 0x03,
-                                         0x04, 0x02, 0x01, 0x05, 0x00 };
-    static const byte sha384AlgoID[] = { 0x60, 0x86, 0x48, 0x01, 0x65, 0x03,
-                                         0x04, 0x02, 0x02, 0x05, 0x00 };
-    static const byte sha512AlgoID[] = { 0x60, 0x86, 0x48, 0x01, 0x65, 0x03,
-                                         0x04, 0x02, 0x03, 0x05, 0x00 };
-    static const byte md5AlgoID[]    = { 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d,
-                                         0x02, 0x05, 0x05, 0x00  };
-    static const byte md2AlgoID[]    = { 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d,
-                                         0x02, 0x02, 0x05, 0x00};
-
-    /* blkTypes, no NULL tags because IV is there instead */
-    static const byte desCbcAlgoID[]  = { 0x2B, 0x0E, 0x03, 0x02, 0x07 };
-    static const byte des3CbcAlgoID[] = { 0x2A, 0x86, 0x48, 0x86, 0xF7,
-                                          0x0D, 0x03, 0x07 };
-
-    /* RSA sigTypes */
-    #ifndef NO_RSA
-        static const byte md5wRSA_AlgoID[] = { 0x2a, 0x86, 0x48, 0x86, 0xf7,
-                                            0x0d, 0x01, 0x01, 0x04, 0x05, 0x00};
-        static const byte shawRSA_AlgoID[] = { 0x2a, 0x86, 0x48, 0x86, 0xf7,
-                                            0x0d, 0x01, 0x01, 0x05, 0x05, 0x00};
-        static const byte sha256wRSA_AlgoID[] = { 0x2a, 0x86, 0x48, 0x86, 0xf7,
-                                            0x0d, 0x01, 0x01, 0x0b, 0x05, 0x00};
-        static const byte sha384wRSA_AlgoID[] = {0x2a, 0x86, 0x48, 0x86, 0xf7,
-                                            0x0d, 0x01, 0x01, 0x0c, 0x05, 0x00};
-        static const byte sha512wRSA_AlgoID[] = {0x2a, 0x86, 0x48, 0x86, 0xf7,
-                                            0x0d, 0x01, 0x01, 0x0d, 0x05, 0x00};
-    #endif /* NO_RSA */
-
-    /* ECDSA sigTypes */
-    #ifdef HAVE_ECC
-        static const byte shawECDSA_AlgoID[] = { 0x2a, 0x86, 0x48, 0xCE, 0x3d,
-                                                 0x04, 0x01, 0x05, 0x00};
-        static const byte sha256wECDSA_AlgoID[] = { 0x2a, 0x86, 0x48, 0xCE,0x3d,
-                                                 0x04, 0x03, 0x02, 0x05, 0x00};
-        static const byte sha384wECDSA_AlgoID[] = { 0x2a, 0x86, 0x48, 0xCE,0x3d,
-                                                 0x04, 0x03, 0x03, 0x05, 0x00};
-        static const byte sha512wECDSA_AlgoID[] = { 0x2a, 0x86, 0x48, 0xCE,0x3d,
-                                                 0x04, 0x03, 0x04, 0x05, 0x00};
-    #endif /* HAVE_ECC */
-
-    /* RSA keyType */
-    #ifndef NO_RSA
-        static const byte RSA_AlgoID[] = { 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d,
-                                            0x01, 0x01, 0x01, 0x05, 0x00};
-    #endif /* NO_RSA */
-
-    #ifdef HAVE_ECC
-        /* ECC keyType */
-        /* no tags, so set tagSz smaller later */
-        static const byte ECC_AlgoID[] = { 0x2a, 0x86, 0x48, 0xCE, 0x3d,
-                                           0x02, 0x01};
-    #endif /* HAVE_ECC */
-
-    int    algoSz = 0;
-    int    tagSz  = 2;   /* tag null and terminator */
-    word32 idSz, seqSz;
+    word32 tagSz, idSz, seqSz, algoSz = 0;
     const  byte* algoName = 0;
-    byte ID_Length[MAX_LENGTH_SZ];
-    byte seqArray[MAX_SEQ_SZ + 1];  /* add object_id to end */
+    byte   ID_Length[MAX_LENGTH_SZ];
+    byte   seqArray[MAX_SEQ_SZ + 1];  /* add object_id to end */
 
-    if (type == hashType) {
-        switch (algoOID) {
-        case SHAh:
-            algoSz = sizeof(shaAlgoID);
-            algoName = shaAlgoID;
-            break;
+    tagSz = (type == hashType || type == sigType ||
+             (type == keyType && algoOID == RSAk)) ? 2 : 0;
 
-        case SHA256h:
-            algoSz = sizeof(sha256AlgoID);
-            algoName = sha256AlgoID;
-            break;
+    algoName = OidFromId(algoOID, type, &algoSz);
 
-        case SHA384h:
-            algoSz = sizeof(sha384AlgoID);
-            algoName = sha384AlgoID;
-            break;
-
-        case SHA512h:
-            algoSz = sizeof(sha512AlgoID);
-            algoName = sha512AlgoID;
-            break;
-
-        case MD2h:
-            algoSz = sizeof(md2AlgoID);
-            algoName = md2AlgoID;
-            break;
-
-        case MD5h:
-            algoSz = sizeof(md5AlgoID);
-            algoName = md5AlgoID;
-            break;
-
-        default:
-            WOLFSSL_MSG("Unknown Hash Algo");
-            return 0;  /* UNKOWN_HASH_E; */
-        }
-    }
-    else if (type == blkType) {
-        switch (algoOID) {
-        case DESb:
-            algoSz = sizeof(desCbcAlgoID);
-            algoName = desCbcAlgoID;
-            tagSz = 0;
-            break;
-        case DES3b:
-            algoSz = sizeof(des3CbcAlgoID);
-            algoName = des3CbcAlgoID;
-            tagSz = 0;
-            break;
-        default:
-            WOLFSSL_MSG("Unknown Block Algo");
-            return 0;
-        }
-    }
-    else if (type == sigType) {    /* sigType */
-        switch (algoOID) {
-        #ifndef NO_RSA
-            case CTC_MD5wRSA:
-                algoSz = sizeof(md5wRSA_AlgoID);
-                algoName = md5wRSA_AlgoID;
-                break;
-
-            case CTC_SHAwRSA:
-                algoSz = sizeof(shawRSA_AlgoID);
-                algoName = shawRSA_AlgoID;
-                break;
-
-            case CTC_SHA256wRSA:
-                algoSz = sizeof(sha256wRSA_AlgoID);
-                algoName = sha256wRSA_AlgoID;
-                break;
-
-            case CTC_SHA384wRSA:
-                algoSz = sizeof(sha384wRSA_AlgoID);
-                algoName = sha384wRSA_AlgoID;
-                break;
-
-            case CTC_SHA512wRSA:
-                algoSz = sizeof(sha512wRSA_AlgoID);
-                algoName = sha512wRSA_AlgoID;
-                break;
-        #endif /* NO_RSA */
-        #ifdef HAVE_ECC
-            case CTC_SHAwECDSA:
-                algoSz = sizeof(shawECDSA_AlgoID);
-                algoName = shawECDSA_AlgoID;
-                break;
-
-            case CTC_SHA256wECDSA:
-                algoSz = sizeof(sha256wECDSA_AlgoID);
-                algoName = sha256wECDSA_AlgoID;
-                break;
-
-            case CTC_SHA384wECDSA:
-                algoSz = sizeof(sha384wECDSA_AlgoID);
-                algoName = sha384wECDSA_AlgoID;
-                break;
-
-            case CTC_SHA512wECDSA:
-                algoSz = sizeof(sha512wECDSA_AlgoID);
-                algoName = sha512wECDSA_AlgoID;
-                break;
-        #endif /* HAVE_ECC */
-        default:
-            WOLFSSL_MSG("Unknown Signature Algo");
-            return 0;
-        }
-    }
-    else if (type == keyType) {    /* keyType */
-        switch (algoOID) {
-        #ifndef NO_RSA
-            case RSAk:
-                algoSz = sizeof(RSA_AlgoID);
-                algoName = RSA_AlgoID;
-                break;
-        #endif /* NO_RSA */
-        #ifdef HAVE_ECC
-            case ECDSAk:
-                algoSz = sizeof(ECC_AlgoID);
-                algoName = ECC_AlgoID;
-                tagSz = 0;
-                break;
-        #endif /* HAVE_ECC */
-        default:
-            WOLFSSL_MSG("Unknown Key Algo");
-            return 0;
-        }
-    }
-    else {
-        WOLFSSL_MSG("Unknown Algo type");
+    if (algoName == NULL) {
+        WOLFSSL_MSG("Unknown Algorithm");
         return 0;
     }
 
-    idSz  = SetLength(algoSz - tagSz, ID_Length); /* don't include tags */
-    seqSz = SetSequence(idSz + algoSz + 1 + curveSz, seqArray);
+    idSz  = SetLength(algoSz, ID_Length);
+    seqSz = SetSequence(idSz + algoSz + 1 + tagSz + curveSz, seqArray);
                  /* +1 for object id, curveID of curveSz follows for ecc */
     seqArray[seqSz++] = ASN_OBJECT_ID;
 
     XMEMCPY(output, seqArray, seqSz);
     XMEMCPY(output + seqSz, ID_Length, idSz);
     XMEMCPY(output + seqSz + idSz, algoName, algoSz);
+    if (tagSz == 2) {
+        output[seqSz + idSz + algoSz] = ASN_TAG_NULL;
+        output[seqSz + idSz + algoSz + 1] = 0;
+    }
 
-    return seqSz + idSz + algoSz;
+    return seqSz + idSz + algoSz + tagSz;
 
 }
 
@@ -3721,7 +3989,7 @@ static int DecodeAltNames(byte* input, int sz, DecodedCert* cert)
             /* Consume the rest of this sequence. */
             length -= (strLen + idx - lenStartIdx);
 
-            if (GetObjectId(input, &idx, &oid, sz) < 0) {
+            if (GetObjectId(input, &idx, &oid, certAltNameType, sz) < 0) {
                 WOLFSSL_MSG("\tbad OID");
                 return ASN_PARSE_E;
             }
@@ -3972,7 +4240,7 @@ static int DecodeAuthInfo(byte* input, int sz, DecodedCert* cert)
             return ASN_PARSE_E;
 
         oid = 0;
-        if (GetObjectId(input, &idx, &oid, sz) < 0)
+        if (GetObjectId(input, &idx, &oid, certAuthInfoType, sz) < 0)
             return ASN_PARSE_E;
 
         /* Only supporting URIs right now. */
@@ -4118,7 +4386,7 @@ static int DecodeExtKeyUsage(byte* input, int sz, DecodedCert* cert)
     #endif
 
     while (idx < (word32)sz) {
-        if (GetObjectId(input, &idx, &oid, sz) < 0)
+        if (GetObjectId(input, &idx, &oid, certKeyUseType, sz) < 0)
             return ASN_PARSE_E;
 
         switch (oid) {
@@ -4458,7 +4726,7 @@ static int DecodeCertExtensions(DecodedCert* cert)
         }
 
         oid = 0;
-        if (GetObjectId(input, &idx, &oid, sz) < 0) {
+        if (GetObjectId(input, &idx, &oid, certExtType, sz) < 0) {
             WOLFSSL_MSG("\tfail: OBJECT ID");
             return ASN_PARSE_E;
         }
@@ -4707,7 +4975,7 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
     }
 
     if ((ret = GetAlgoId(cert->source, &cert->srcIdx, &confirmOID,
-                         cert->maxIdx)) < 0)
+                         sigType, cert->maxIdx)) < 0)
         return ret;
 
     if ((ret = GetSignature(cert)) < 0)
@@ -7685,7 +7953,7 @@ static int SetAltNamesFromCert(Cert* cert, const byte* der, int derSz)
                 decoded->srcIdx = startIdx;
 
                 if (GetAlgoId(decoded->source, &decoded->srcIdx, &oid,
-                              decoded->maxIdx) < 0) {
+                              certExtType, decoded->maxIdx) < 0) {
                     ret = ASN_PARSE_E;
                     break;
                 }
@@ -8444,7 +8712,7 @@ static int DecodeSingleResponse(byte* source,
     if (GetSequence(source, &idx, &length, size) < 0)
         return ASN_PARSE_E;
     /* Skip the hash algorithm */
-    if (GetAlgoId(source, &idx, &oid, size) < 0)
+    if (GetAlgoId(source, &idx, &oid, ignoreType, size) < 0)
         return ASN_PARSE_E;
     /* Save reference to the hash of CN */
     if (source[idx++] != ASN_OCTET_STRING)
@@ -8564,7 +8832,7 @@ static int DecodeOcspRespExtensions(byte* source,
         }
 
         oid = 0;
-        if (GetObjectId(source, &idx, &oid, sz) < 0) {
+        if (GetObjectId(source, &idx, &oid, ocspType, sz) < 0) {
             WOLFSSL_MSG("\tfail: OBJECT ID");
             return ASN_PARSE_E;
         }
@@ -8717,7 +8985,7 @@ static int DecodeBasicOcspResponse(byte* source, word32* ioIndex,
         return ASN_PARSE_E;
 
     /* Get the signature algorithm */
-    if (GetAlgoId(source, &idx, &resp->sigOID, size) < 0)
+    if (GetAlgoId(source, &idx, &resp->sigOID, sigType, size) < 0)
         return ASN_PARSE_E;
 
     /* Obtain pointer to the start of the signature, and save the size */
@@ -8830,7 +9098,7 @@ int OcspResponseDecode(OcspResponse* resp, void* cm)
         return ASN_PARSE_E;
 
     /* Check ObjectID for the resposeBytes */
-    if (GetObjectId(source, &idx, &oid, size) < 0)
+    if (GetObjectId(source, &idx, &oid, ocspType, size) < 0)
         return ASN_PARSE_E;
     if (oid != OCSP_BASIC_OID)
         return ASN_PARSE_E;
@@ -9308,7 +9576,7 @@ int ParseCRL(DecodedCRL* dcrl, const byte* buff, word32 sz, void* cm)
             return ASN_PARSE_E;
     }
 
-    if (GetAlgoId(buff, &idx, &oid, sz) < 0)
+    if (GetAlgoId(buff, &idx, &oid, ignoreType, sz) < 0)
         return ASN_PARSE_E;
 
     if (GetNameHash(buff, &idx, dcrl->issuerHash, sz) < 0)
@@ -9352,7 +9620,7 @@ int ParseCRL(DecodedCRL* dcrl, const byte* buff, word32 sz, void* cm)
     if (idx != dcrl->sigIndex)
         idx = dcrl->sigIndex;   /* skip extensions */
 
-    if (GetAlgoId(buff, &idx, &dcrl->signatureOID, sz) < 0)
+    if (GetAlgoId(buff, &idx, &dcrl->signatureOID, sigType, sz) < 0)
         return ASN_PARSE_E;
 
     if (GetCRL_Signature(buff, &idx, dcrl, sz) < 0)
