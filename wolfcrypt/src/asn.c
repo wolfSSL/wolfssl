@@ -8520,6 +8520,8 @@ static int DecodeSingleResponse(byte* source,
         if (GetBasicDate(source, &idx, cs->nextDate,
                                                 &cs->nextDateFormat, size) < 0)
             return ASN_PARSE_E;
+        if (!XVALIDATE_DATE(cs->nextDate, cs->nextDateFormat, AFTER))
+            return ASN_AFTER_DATE_E;
     }
     if (((int)(idx - prevIndex) < wrapperSz) &&
         (source[idx] == (ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC | 1)))
@@ -8594,7 +8596,7 @@ static int DecodeOcspRespExtensions(byte* source,
                 WOLFSSL_MSG("\tfail: extension data length");
                 return ASN_PARSE_E;
             }
-            
+
             resp->nonce = source + idx;
             resp->nonceSz = length;
         }
@@ -8758,8 +8760,8 @@ static int DecodeBasicOcspResponse(byte* source, word32* ioIndex,
     else {
         Signer* ca = GetCA(cm, resp->issuerHash);
 
-        if (!ca || !ConfirmSignature(resp->response, resp->responseSz, 
-                                     ca->publicKey, ca->pubKeySize, ca->keyOID, 
+        if (!ca || !ConfirmSignature(resp->response, resp->responseSz,
+                                     ca->publicKey, ca->pubKeySize, ca->keyOID,
                                   resp->sig, resp->sigSz, resp->sigOID, NULL)) {
             WOLFSSL_MSG("\tOCSP Confirm signature failed");
             return ASN_OCSP_CONFIRM_E;
@@ -8861,28 +8863,28 @@ word32 EncodeOcspRequestExtensions(OcspRequest* req, byte* output, word32 size)
     if (totalSz < size)
     {
         totalSz = 0;
-        
+
         XMEMCPY(output + totalSz, seqArray[5], seqSz[5]);
         totalSz += seqSz[5];
-        
+
         XMEMCPY(output + totalSz, seqArray[4], seqSz[4]);
         totalSz += seqSz[4];
-        
+
         XMEMCPY(output + totalSz, seqArray[3], seqSz[3]);
         totalSz += seqSz[3];
-        
+
         XMEMCPY(output + totalSz, seqArray[2], seqSz[2]);
         totalSz += seqSz[2];
-        
+
         XMEMCPY(output + totalSz, NonceObjId, sizeof(NonceObjId));
         totalSz += (word32)sizeof(NonceObjId);
-        
+
         XMEMCPY(output + totalSz, seqArray[1], seqSz[1]);
         totalSz += seqSz[1];
-        
+
         XMEMCPY(output + totalSz, seqArray[0], seqSz[0]);
         totalSz += seqSz[0];
-        
+
         XMEMCPY(output + totalSz, req->nonce, req->nonceSz);
         totalSz += req->nonceSz;
     }

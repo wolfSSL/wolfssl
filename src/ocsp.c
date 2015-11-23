@@ -216,17 +216,19 @@ static int GetOcspStatus(WOLFSSL_OCSP* ocsp, OcspRequest* request,
         if (ValidateDate((*status)->thisDate, (*status)->thisDateFormat, BEFORE)
         &&  ((*status)->nextDate[0] != 0)
         &&  ValidateDate((*status)->nextDate, (*status)->nextDateFormat, AFTER))
+        {
             ret = xstat2err((*status)->status);
 
-        if (responseBuffer) {
-            responseBuffer->buffer = (byte*)XMALLOC(
+            if (responseBuffer) {
+                responseBuffer->buffer = (byte*)XMALLOC(
                    (*status)->rawOcspResponseSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
-            if (responseBuffer->buffer) {
-                responseBuffer->length = (*status)->rawOcspResponseSz;
-                XMEMCPY(responseBuffer->buffer,
-                        (*status)->rawOcspResponse,
-                        (*status)->rawOcspResponseSz);
+                if (responseBuffer->buffer) {
+                    responseBuffer->length = (*status)->rawOcspResponseSz;
+                    XMEMCPY(responseBuffer->buffer,
+                            (*status)->rawOcspResponse,
+                            (*status)->rawOcspResponseSz);
+                }
             }
         }
     }
