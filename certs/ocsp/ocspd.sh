@@ -5,4 +5,5 @@ openssl ocsp -index index.txt       \
              -rsigner ocsp-cert.pem \
              -rkey ocsp-key.pem     \
              -CA ../ca-cert.pem     \
+             -nmin 1                \
              -text
