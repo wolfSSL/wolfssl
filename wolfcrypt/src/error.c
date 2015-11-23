@@ -364,6 +364,9 @@ const char* wc_GetErrorString(int error)
     case SIG_VERIFY_E:
         return "Signature verify error";
 
+    case BAD_COND_E:
+        return "Bad condition variable operation error";
+
     default:
         return "unknown error number";
 

@@ -163,6 +163,7 @@ enum {
 
     WC_INIT_E           = -228,  /* wolfcrypt failed to initialize */
     SIG_VERIFY_E        = -229,  /* wolfcrypt signature verify error */
+    BAD_COND_E          = -230,  /* Bad condition variable operation */
 
     MIN_CODE_E          = -300   /* errors -101 - -299 */
 };

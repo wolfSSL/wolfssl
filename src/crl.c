@@ -58,10 +58,15 @@ int InitCRL(WOLFSSL_CRL* crl, WOLFSSL_CERT_MANAGER* cm)
     crl->tid   =  0;
     crl->mfd   = -1;    /* mfd for bsd is kqueue fd, eventfd for linux */
     crl->setup = 0;     /* thread setup done predicate */
-    pthread_cond_init(&crl->cond, 0);
+    if (pthread_cond_init(&crl->cond, 0) != 0) {
+        WOLFSSL_MSG("Pthread condition init failed");
+        return BAD_COND_E;
+    }
 #endif
-    if (InitMutex(&crl->crlLock) != 0)
-        return BAD_MUTEX_E; 
+    if (InitMutex(&crl->crlLock) != 0) {
+        WOLFSSL_MSG("Init Mutex failed");
+        return BAD_MUTEX_E;
+    }
 
     return 0;
 }
@@ -329,6 +334,8 @@ int BufferLoadCRL(WOLFSSL_CRL* crl, const byte* buff, long sz, int type)
 /* Signal Monitor thread is setup, save status to setup flag, 0 on success */
 static int SignalSetup(WOLFSSL_CRL* crl, int status)
 {
+    int ret;
+
     /* signal to calling thread we're setup */
     if (LockMutex(&crl->crlLock) != 0) {
         WOLFSSL_MSG("LockMutex crlLock failed");
@@ -336,9 +343,12 @@ static int SignalSetup(WOLFSSL_CRL* crl, int status)
     }
 
         crl->setup = status;
-        pthread_cond_signal(&crl->cond);
+        ret = pthread_cond_signal(&crl->cond);
 
     UnLockMutex(&crl->crlLock);
+
+    if (ret != 0)
+        return BAD_COND_E;
 
     return 0;
 }
@@ -501,6 +511,8 @@ static void* DoMonitor(void* arg)
         fDER = open(crl->monitors[1].path, XEVENT_MODE);
         if (fDER == -1) {
             WOLFSSL_MSG("DER event dir open failed");
+            if (fPEM != -1)
+                close(fPEM);
             close(crl->mfd);
             SignalSetup(crl, MONITOR_SETUP_E);
             return NULL;
@@ -516,8 +528,14 @@ static void* DoMonitor(void* arg)
                 NOTE_DELETE | NOTE_EXTEND | NOTE_WRITE | NOTE_ATTRIB, 0, 0);
 
     /* signal to calling thread we're setup */
-    if (SignalSetup(crl, 1) != 0)
+    if (SignalSetup(crl, 1) != 0) {
+        if (fPEM != -1)
+            close(fPEM);
+        if (fDER != -1)
+            close(fDER);
+        close(crl->mfd);
         return NULL;
+    }
 
     for (;;) {
         struct kevent event;
@@ -642,8 +660,17 @@ static void* DoMonitor(void* arg)
 #endif
 
     /* signal to calling thread we're setup */
-    if (SignalSetup(crl, 1) != 0)
+    if (SignalSetup(crl, 1) != 0) {
+        #ifdef WOLFSSL_SMALL_STACK
+            XFREE(buff, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        #endif
+
+        if (wd > 0)
+            inotify_rm_watch(notifyFd, wd);
+        close(crl->mfd);
+        close(notifyFd);
         return NULL;
+    }
 
     for (;;) {
         fd_set readfds;
@@ -725,8 +752,12 @@ static int StartMonitorCRL(WOLFSSL_CRL* crl)
         return BAD_MUTEX_E;
     }
 
-        while (crl->setup == 0)
-            pthread_cond_wait(&crl->cond, &crl->crlLock);
+        while (crl->setup == 0) {
+            if (pthread_cond_wait(&crl->cond, &crl->crlLock) != 0) {
+                ret = BAD_COND_E;
+                break;
+            }
+        }
 
         if (crl->setup < 0)
             ret = crl->setup;  /* store setup error */
