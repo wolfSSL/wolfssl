@@ -1339,12 +1339,14 @@ struct CRL_Monitor {
 /* wolfSSL CRL controller */
 struct WOLFSSL_CRL {
     WOLFSSL_CERT_MANAGER* cm;            /* pointer back to cert manager */
-    CRL_Entry*           crlList;       /* our CRL list */
+    CRL_Entry*            crlList;       /* our CRL list */
     wolfSSL_Mutex         crlLock;       /* CRL list lock */
-    CRL_Monitor          monitors[2];   /* PEM and DER possible */
+    CRL_Monitor           monitors[2];   /* PEM and DER possible */
 #ifdef HAVE_CRL_MONITOR
-    pthread_t            tid;           /* monitoring thread */
-    int                  mfd;           /* monitor fd, -1 if no init yet */
+    pthread_cond_t        cond;          /* condition to signal setup */
+    pthread_t             tid;           /* monitoring thread */
+    int                   mfd;           /* monitor fd, -1 if no init yet */
+    int                   setup;         /* thread is setup predicate */
 #endif
 };
 

@@ -266,6 +266,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     int    throughput = 0;
     int    minDhKeyBits = DEFAULT_MIN_DHKEY_BITS;
     int    doListen = 1;
+    int    crlFlags = 0;
     int    ret;
     char*  alpnList = NULL;
     unsigned char alpn_opt = 0;
@@ -309,6 +310,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     (void)minDhKeyBits;
     (void)alpnList;
     (void)alpn_opt;
+    (void)crlFlags;
 
 #ifdef CYASSL_TIRTOS
     fdOpenSession(Task_self());
@@ -709,10 +711,16 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
         wolfSSL_SetHsDoneCb(ssl, myHsDoneCb, NULL);
 #endif
 #ifdef HAVE_CRL
-        CyaSSL_EnableCRL(ssl, 0);
-        CyaSSL_LoadCRL(ssl, crlPemDir, SSL_FILETYPE_PEM, CYASSL_CRL_MONITOR |
-                                                         CYASSL_CRL_START_MON);
-        CyaSSL_SetCRL_Cb(ssl, CRL_CallBack);
+#ifdef HAVE_CRL_MONITOR
+        crlFlags = CYASSL_CRL_MONITOR | CYASSL_CRL_START_MON;
+#endif
+        if (CyaSSL_EnableCRL(ssl, 0) != SSL_SUCCESS)
+            err_sys("unable to enable CRL");
+        if (CyaSSL_LoadCRL(ssl, crlPemDir, SSL_FILETYPE_PEM, crlFlags)
+                                                                 != SSL_SUCCESS)
+            err_sys("unable to load CRL");
+        if (CyaSSL_SetCRL_Cb(ssl, CRL_CallBack) != SSL_SUCCESS)
+            err_sys("unable to set CRL callback url");
 #endif
 #ifdef HAVE_OCSP
         if (useOcsp) {

@@ -94,7 +94,7 @@ enum wolfSSL_ErrorCodes {
     OCSP_CERT_REVOKED            = -360,   /* OCSP Certificate revoked */
     CRL_CERT_REVOKED             = -361,   /* CRL Certificate revoked */
     CRL_MISSING                  = -362,   /* CRL Not loaded */
-    MONITOR_RUNNING_E            = -363,   /* CRL Monitor already running */
+    MONITOR_SETUP_E              = -363,   /* CRL Monitor setup error */
     THREAD_CREATE_E              = -364,   /* Thread Create Error */
     OCSP_NEED_URL                = -365,   /* OCSP need an URL for lookup */
     OCSP_CERT_UNKNOWN            = -366,   /* OCSP responder doesn't know */
