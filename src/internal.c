@@ -8626,8 +8626,8 @@ const char* wolfSSL_ERR_reason_error_string(unsigned long e)
     case CRL_MISSING:
         return "CRL missing, not loaded";
 
-    case MONITOR_RUNNING_E:
-        return "CRL monitor already running";
+    case MONITOR_SETUP_E:
+        return "CRL monitor setup error";
 
     case THREAD_CREATE_E:
         return "Thread creation problem";
