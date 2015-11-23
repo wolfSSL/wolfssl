@@ -202,6 +202,23 @@ function run_renewcerts(){
     openssl x509 -in server-ecc-comp.pem -text > tmp.pem
     mv tmp.pem server-ecc-comp.pem
 
+    ###########################################################
+    ########## update and sign ocsp-cert.pem ##################
+    ###########################################################
+    echo "Updating ocsp-cert.pem"
+    echo ""
+    #pipe the following arguments to openssl req...
+    echo -e "US\nMontana\nBozeman\nwolfSSL\nSupport\ocsp.wolfssl.com\ninfo@wolfssl.com\n.\n.\n" | openssl req -new -key ocsp/ocsp-key.pem -nodes > ocsp-req.pem
+
+    openssl x509 -req -in ocsp-req.pem -extfile wolfssl.cnf -extensions v3_ocsp -days 1000 -CA ca-cert.pem -CAkey ca-key.pem -set_serial 03 > ocsp/ocsp-cert.pem
+
+    rm ocsp-req.pem
+
+    openssl x509 -in ca-cert.pem -text > ca_tmp.pem
+    openssl x509 -in ocsp/ocsp-cert.pem -text > ocsp_tmp.pem
+    mv ocsp_tmp.pem ocsp/ocsp-cert.pem
+    cat ca_tmp.pem >> ocsp/ocsp-cert.pem
+    rm ca_tmp.pem
     ############################################################
     ########## make .der files from .pem files #################
     ############################################################
@@ -302,7 +319,7 @@ elif [ ! -z "$1" ]; then
         echo ""
         echo ""
     #else the argument was invalid, tell user to use -h or -help
-    else 
+    else
         echo ""
         echo "That is not a valid option."
         echo ""
@@ -328,7 +345,7 @@ else
 
     # check options.h a second time, if the user had
     # ntru installed on their system and in the default
-    # path location, then it will now be defined, if the 
+    # path location, then it will now be defined, if the
     # user does not have ntru on their system this will fail
     # again and we will not update any certs until user installs
     # ntru in the default location

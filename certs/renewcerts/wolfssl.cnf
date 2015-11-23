@@ -1,5 +1,5 @@
 #
-# wolfssl configuration file 
+# wolfssl configuration file
 #
 HOME        = .
 RANDFILE    = $ENV::HOME/.rnd
@@ -20,7 +20,7 @@ default_ca  = CA_default        # The default ca section
 [ CA_default ]
 
 ####################################################################
-# CHANGE THIS LINE TO BE YOUR WOLFSSL_ROOT DIRECTORY                #
+# CHANGE THIS LINE TO BE YOUR WOLFSSL_ROOT DIRECTORY               #
 #                                                                  #
 dir             = $HOME./..                                        #
 ####################################################################
@@ -124,6 +124,7 @@ authorityKeyIdentifier=keyid,issuer
 subjectKeyIdentifier=hash
 authorityKeyIdentifier=keyid:always,issuer:always
 basicConstraints=CA:true
+authorityInfoAccess = OCSP;URI:http://localhost:22222
 
 # Extensions to add to a certificate request
 [ v3_req ]
@@ -139,6 +140,14 @@ basicConstraints = CA:true
 # CRL extensions.
 [ crl_ext ]
 authorityKeyIdentifier=keyid:always
+
+# OCSP extensions.
+[ v3_ocsp ]
+subjectKeyIdentifier=hash
+authorityKeyIdentifier=keyid:always,issuer:always
+keyUsage = nonRepudiation, digitalSignature, keyEncipherment
+extendedKeyUsage = OCSPSigning
+basicConstraints = CA:false
 
 # These extensions should be added when creating a proxy certificate
 [ proxy_cert_ext ]
@@ -158,7 +167,7 @@ dir                     = ./demoCA                              # directory
 serial                  = $dir/tsaserial                        # (mandatory)
 crypto_device           = builtin                               # engine
 signer_cert             = $dir/tsacert.pem                      # certificate
-certs                   = $dir/cacert.pem                       # chain 
+certs                   = $dir/cacert.pem                       # chain
 signer_key              = $dir/private/tsakey.pem               # (optional)
 default_policy          = tsa_policy1                           # Policy
 other_policies          = tsa_policy2, tsa_policy3              # (optional)
