@@ -1185,10 +1185,10 @@ static INLINE int OpenNitroxDevice(int dma_mode,int dev_id)
                     return depth;
                 }
                 #ifdef USE_WINDOWS_API
-                    XSTRNCAT(path, "..\\", MAX_PATH);
+                    XSTRNCAT(path, "..\\", MAX_PATH - XSTRLEN(path));
                     SetCurrentDirectoryA(path);
                 #else
-                    XSTRNCAT(path, "../", MAX_PATH);
+                    XSTRNCAT(path, "../", MAX_PATH - XSTRLEN(path));
                     if (chdir(path) < 0) {
                         printf("chdir to %s failed\n", path);
                         break;
