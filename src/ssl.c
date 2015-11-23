@@ -826,6 +826,31 @@ int wolfSSL_CTX_UseCertificateStatusRequest(WOLFSSL_CTX* ctx, byte status_type,
 
 #endif /* HAVE_CERTIFICATE_STATUS_REQUEST */
 
+#ifdef HAVE_CERTIFICATE_STATUS_REQUEST_V2
+
+int wolfSSL_UseCertificateStatusRequestV2(WOLFSSL* ssl, byte status_type,
+                                                                   byte options)
+{
+    if (ssl == NULL || ssl->options.side != WOLFSSL_CLIENT_END)
+        return BAD_FUNC_ARG;
+
+    return TLSX_UseCertificateStatusRequestV2(&ssl->extensions, status_type,
+                                                                       options);
+}
+
+
+int wolfSSL_CTX_UseCertificateStatusRequestV2(WOLFSSL_CTX* ctx,
+                                                 byte status_type, byte options)
+{
+    if (ctx == NULL || ctx->method->side != WOLFSSL_CLIENT_END)
+        return BAD_FUNC_ARG;
+
+    return TLSX_UseCertificateStatusRequestV2(&ctx->extensions, status_type,
+                                                                       options);
+}
+
+#endif /* HAVE_CERTIFICATE_STATUS_REQUEST_V2 */
+
 /* Elliptic Curves */
 #ifdef HAVE_SUPPORTED_CURVES
 #ifndef NO_WOLFSSL_CLIENT
@@ -1643,7 +1668,8 @@ void wolfSSL_CertManagerFree(WOLFSSL_CERT_MANAGER* cm)
         #ifdef HAVE_OCSP
             if (cm->ocsp)
                 FreeOCSP(cm->ocsp, 1);
-        #if defined(HAVE_CERTIFICATE_STATUS_REQUEST)
+        #if defined(HAVE_CERTIFICATE_STATUS_REQUEST) \
+         || defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
             if (cm->ocsp_stapling)
                 FreeOCSP(cm->ocsp_stapling, 1);
         #endif
@@ -3473,7 +3499,8 @@ int wolfSSL_CertManagerEnableOCSPStapling(WOLFSSL_CERT_MANAGER* cm)
     if (cm == NULL)
         return BAD_FUNC_ARG;
 
-    #if defined(HAVE_CERTIFICATE_STATUS_REQUEST)
+    #if defined(HAVE_CERTIFICATE_STATUS_REQUEST) \
+     || defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
         if (cm->ocsp_stapling == NULL) {
             cm->ocsp_stapling = (WOLFSSL_OCSP*)XMALLOC(sizeof(WOLFSSL_OCSP),
                                                    cm->heap, DYNAMIC_TYPE_OCSP);
@@ -3669,7 +3696,8 @@ int wolfSSL_CTX_SetOCSP_Cb(WOLFSSL_CTX* ctx, CbOCSPIO ioCb,
         return BAD_FUNC_ARG;
 }
 
-#if defined(HAVE_CERTIFICATE_STATUS_REQUEST)
+#if defined(HAVE_CERTIFICATE_STATUS_REQUEST) \
+ || defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
 int wolfSSL_CTX_EnableOCSPStapling(WOLFSSL_CTX* ctx)
 {
     WOLFSSL_ENTER("wolfSSL_CTX_EnableOCSPStapling");

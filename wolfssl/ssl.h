@@ -1439,6 +1439,30 @@ WOLFSSL_API int wolfSSL_CTX_UseCertificateStatusRequest(WOLFSSL_CTX* ctx,
 #endif
 #endif
 
+/* Certificate Status Request v2 */
+/* Certificate Status Type */
+enum {
+    WOLFSSL_CSR2_OCSP = 1,
+    WOLFSSL_CSR2_OCSP_MULTI = 2
+};
+
+/* Certificate Status v2 Options (flags) */
+enum {
+    WOLFSSL_CSR2_OCSP_USE_NONCE = 0x01
+};
+
+#ifdef HAVE_CERTIFICATE_STATUS_REQUEST_V2
+#ifndef NO_WOLFSSL_CLIENT
+
+WOLFSSL_API int wolfSSL_UseCertificateStatusRequestV2(WOLFSSL* ssl,
+                              unsigned char status_type, unsigned char options);
+
+WOLFSSL_API int wolfSSL_CTX_UseCertificateStatusRequestV2(WOLFSSL_CTX* ctx,
+                              unsigned char status_type, unsigned char options);
+
+#endif
+#endif
+
 /* Elliptic Curves */
 enum {
     WOLFSSL_ECC_SECP160R1 = 0x10,

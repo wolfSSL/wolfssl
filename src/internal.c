@@ -4822,9 +4822,11 @@ static int DoCertificateStatus(WOLFSSL* ssl, byte* input, word32* inOutIdx,
         return BUFFER_ERROR;
 
     switch (status_type) {
-    #if defined(HAVE_CERTIFICATE_STATUS_REQUEST)
+    #if defined(HAVE_CERTIFICATE_STATUS_REQUEST) \
+     || defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
 
-        case WOLFSSL_CSR_OCSP: {
+        /* WOLFSSL_CSR_OCSP overlaps with WOLFSSL_CSR2_OCSP */
+        case WOLFSSL_CSR2_OCSP: {
             OcspRequest* request = TLSX_CSR_GetRequest(ssl->extensions);
 
         #ifdef WOLFSSL_SMALL_STACK
@@ -4839,6 +4841,12 @@ static int DoCertificateStatus(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                 #ifdef HAVE_CERTIFICATE_STATUS_REQUEST
                     if (ssl->status_request) {
                         ssl->status_request = 0;
+                        break;
+                    }
+                #endif
+                #ifdef HAVE_CERTIFICATE_STATUS_REQUEST_V2
+                    if (ssl->status_request_v2) {
+                        ssl->status_request_v2 = 0;
                         break;
                     }
                 #endif
@@ -8147,7 +8155,8 @@ int SendCertificateRequest(WOLFSSL* ssl)
 }
 
 
-#ifdef HAVE_CERTIFICATE_STATUS_REQUEST
+#if defined(HAVE_CERTIFICATE_STATUS_REQUEST) \
+ || defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
 static int BuildCertificateStatus(WOLFSSL* ssl, byte type, buffer status)
 {
     byte*  output  = NULL;
@@ -8232,9 +8241,15 @@ int SendCertificateStatus(WOLFSSL* ssl)
     status_type = ssl->status_request;
 #endif
 
+#ifdef HAVE_CERTIFICATE_STATUS_REQUEST_V2
+    status_type = status_type ? status_type : ssl->status_request_v2;
+#endif
+
     switch (status_type) {
-#if defined HAVE_CERTIFICATE_STATUS_REQUEST
-        case WOLFSSL_CSR_OCSP: {
+#if defined(HAVE_CERTIFICATE_STATUS_REQUEST) \
+ || defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
+        /* case WOLFSSL_CSR_OCSP: */
+        case WOLFSSL_CSR2_OCSP: {
             OcspRequest* request = ssl->ctx->certOcspRequest;
             buffer response = {NULL, 0};
 
@@ -8318,6 +8333,11 @@ int SendCertificateStatus(WOLFSSL* ssl)
             if (request != ssl->ctx->certOcspRequest)
                 XFREE(request, NULL, DYNAMIC_TYPE_OCSP_REQUEST);
         }
+        break;
+#endif
+
+#if defined HAVE_CERTIFICATE_STATUS_REQUEST_V2
+        case WOLFSSL_CSR2_OCSP_MULTI:
         break;
 #endif
 

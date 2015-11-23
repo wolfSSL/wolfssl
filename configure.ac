@@ -1676,6 +1676,26 @@ then
     fi
 fi
 
+# Certificate Status Request v2 : a.k.a. OCSP stapling v2
+AC_ARG_ENABLE([ocspstapling2],
+    [AS_HELP_STRING([--enable-ocspstapling2],[Enable Certificate Status Request v2 - a.k.a. OCSP Stapling v2 (default: disabled)])],
+    [ ENABLED_CERTIFICATE_STATUS_REQUEST_V2=$enableval ],
+    [ ENABLED_CERTIFICATE_STATUS_REQUEST_V2=no ]
+    )
+
+if test "x$ENABLED_CERTIFICATE_STATUS_REQUEST_V2" = "xyes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_TLS_EXTENSIONS -DHAVE_CERTIFICATE_STATUS_REQUEST_V2"
+
+    # Requires OCSP make sure on
+    if test "x$ENABLED_OCSP" = "xno"
+    then
+        ENABLED_OCSP="yes"
+        AM_CFLAGS="$AM_CFLAGS -DHAVE_OCSP"
+        AM_CONDITIONAL([BUILD_OCSP], [test "x$ENABLED_OCSP" = "xyes"])
+    fi
+fi
+
 # Renegotiation Indication - (FAKE Secure Renegotiation)
 AC_ARG_ENABLE([renegotiation-indication],
     [AS_HELP_STRING([--enable-renegotiation-indication],[Enable Renegotiation Indication (default: disabled)])],
@@ -2720,6 +2740,7 @@ echo "   * ALPN:                       $ENABLED_ALPN"
 echo "   * Maximum Fragment Length:    $ENABLED_MAX_FRAGMENT"
 echo "   * Truncated HMAC:             $ENABLED_TRUNCATED_HMAC"
 echo "   * Certificate Status Request: $ENABLED_CERTIFICATE_STATUS_REQUEST"
+echo "   * Certificate Status Request v2: $ENABLED_CERTIFICATE_STATUS_REQUEST_V2"
 echo "   * Supported Elliptic Curves:  $ENABLED_SUPPORTED_CURVES"
 echo "   * Session Ticket:             $ENABLED_SESSION_TICKET"
 echo "   * Renegotiation Indication:   $ENABLED_RENEGOTIATION_INDICATION"

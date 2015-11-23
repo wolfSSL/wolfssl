@@ -725,7 +725,8 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
                 CyaSSL_CTX_EnableOCSP(ctx, CYASSL_OCSP_NO_NONCE);
         }
 #endif
-#if defined(HAVE_CERTIFICATE_STATUS_REQUEST)
+#if defined(HAVE_CERTIFICATE_STATUS_REQUEST) \
+ || defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
         if (wolfSSL_CTX_EnableOCSPStapling(ctx) != SSL_SUCCESS)
             err_sys("can't enable OCSP Stapling Certificate Manager");
         if (SSL_CTX_load_verify_locations(ctx, caCert, 0) != SSL_SUCCESS)

@@ -358,7 +358,8 @@ static void Usage(void)
     printf("-o          Perform OCSP lookup on peer certificate\n");
     printf("-O <url>    Perform OCSP lookup using <url> as responder\n");
 #endif
-#ifdef HAVE_CERTIFICATE_STATUS_REQUEST
+#if defined(HAVE_CERTIFICATE_STATUS_REQUEST) \
+ || defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
     printf("-W          Use OCSP Stapling\n");
 #endif
 #ifdef ATOMIC_USER
@@ -440,7 +441,8 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 #ifdef HAVE_TRUNCATED_HMAC
     byte truncatedHMAC = 0;
 #endif
-#ifdef HAVE_CERTIFICATE_STATUS_REQUEST
+#if defined(HAVE_CERTIFICATE_STATUS_REQUEST) \
+ || defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
     byte statusRequest = 0;
 #endif
 
@@ -674,7 +676,8 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
                 break;
 
             case 'W' :
-                #ifdef HAVE_CERTIFICATE_STATUS_REQUEST
+                #if defined(HAVE_CERTIFICATE_STATUS_REQUEST) \
+                 || defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
                     statusRequest = 1;
                 #endif
                 break;
@@ -1005,6 +1008,15 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     if (statusRequest) {
         if (wolfSSL_UseCertificateStatusRequest(ssl, WOLFSSL_CSR_OCSP,
                                      WOLFSSL_CSR_OCSP_USE_NONCE) != SSL_SUCCESS)
+            err_sys("UseCertificateStatusRequest failed");
+
+        wolfSSL_CTX_EnableOCSP(ctx, 0);
+    }
+#endif
+#ifdef HAVE_CERTIFICATE_STATUS_REQUEST_V2
+    if (statusRequest) {
+        if (wolfSSL_UseCertificateStatusRequestV2(ssl, WOLFSSL_CSR2_OCSP,
+                                    WOLFSSL_CSR2_OCSP_USE_NONCE) != SSL_SUCCESS)
             err_sys("UseCertificateStatusRequest failed");
 
         wolfSSL_CTX_EnableOCSP(ctx, 0);
