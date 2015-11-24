@@ -19,10 +19,6 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
-/*
- Created to use intel's IPP see their license for linking to intel's IPP library
- */
-
 #ifdef HAVE_CONFIG_H /* configure options when using autoconf */
     #include <config.h>
 #endif
@@ -566,6 +562,88 @@ static int RsaUnPad(const byte *pkcsBlock, unsigned int pkcsBlockLen,
 }
 
 
+/* Set up memory and structure for a Big Number
+ * returns ippStsNoErr on success
+ */
+static IppStatus init_bn(IppsBigNumState** in, int sz)
+{
+    int ctxSz;
+    IppStatus ret;
+
+    ret = ippsBigNumGetSize(sz, &ctxSz);
+    if (ret != ippStsNoErr) {
+        return ret;
+    }
+
+    *in = XMALLOC(ctxSz, 0, DYNAMIC_TYPE_USER_CRYPTO);
+    if (*in == NULL) {
+        return ippStsNoMemErr;
+    }
+
+    ret = ippsBigNumInit(sz, *in);
+    if (ret != ippStsNoErr) {
+        return ret;
+    }
+
+    return ippStsNoErr;
+}
+
+
+/* Set up memory and structure for a Montgomery struct
+ * returns ippStsNoErr on success
+ */
+static IppStatus init_mont(IppsMontState** mont, IppsBigNumState* modul)
+{
+    int ctxSz, mSz;
+    Ipp32u*    m;
+    IppStatus  ret;
+
+    ret = ippsExtGet_BN(NULL, &ctxSz, NULL, modul);
+    if (ret != ippStsNoErr) {
+        return ret;
+    }
+
+    mSz = (ctxSz/32)+((ctxSz % 32)? 1: 0);
+    m = XMALLOC(mSz * sizeof(Ipp32u), 0, DYNAMIC_TYPE_USER_CRYPTO);
+    if (m == NULL) {
+        return ippStsNoMemErr;
+    }
+
+    ret = ippsExtGet_BN(NULL, NULL, m, modul);
+    if (ret != ippStsNoErr) {
+        return ret;
+    }
+
+    ret = ippsMontGetSize(IppsBinaryMethod, mSz, &ctxSz);
+    if (ret != ippStsNoErr) {
+        return ret;
+    }
+
+    /* 2. Allocate working buffer using malloc */
+    *mont = XMALLOC(ctxSz, 0, DYNAMIC_TYPE_USER_CRYPTO);
+    if (mont == NULL) {
+        return ippStsNoMemErr;
+    }
+    ret = ippsMontInit(IppsBinaryMethod, mSz, *mont);
+    if (ret != ippStsNoErr) {
+        USER_DEBUG(("ippsMontInit error of %s\n", ippGetStatusString(ret)));
+        return ret;
+    }
+
+    /* 3. Call the function MontSet to set big number module */
+    ret = ippsMontSet(m, mSz, *mont);
+    if (ret != ippStsNoErr) {
+        USER_DEBUG(("ippsMontSet error of %s\n", ippGetStatusString(ret)));
+        return ret;
+    }
+
+    XFREE(m, NULL, DYNAMIC_TYPE_USER_CRYPTO);
+
+    return ippStsNoErr;
+}
+
+
+
 int wc_FreeRsaKey(RsaKey* key)
 {
     if (key == NULL)
@@ -1015,15 +1093,7 @@ int wc_RsaPublicKeyDecodeRaw(const byte* n, word32 nSz, const byte* e,
         return USER_CRYPTO_ERROR;
 
     /* set up IPP key states -- read in n */
-    ret = ippsBigNumGetSize(nSz, &ctxSz);
-    if (ret != ippStsNoErr)
-        return USER_CRYPTO_ERROR;
-
-    key->n = XMALLOC(ctxSz, 0, DYNAMIC_TYPE_USER_CRYPTO);
-    if (key->n == NULL)
-        return USER_CRYPTO_ERROR;
-
-    ret = ippsBigNumInit(nSz, key->n);
+    ret = init_bn(&key->n, nSz);
     if (ret != ippStsNoErr)
         return USER_CRYPTO_ERROR;
 
@@ -1032,15 +1102,7 @@ int wc_RsaPublicKeyDecodeRaw(const byte* n, word32 nSz, const byte* e,
         return USER_CRYPTO_ERROR;
 
     /* read in e */
-    ret = ippsBigNumGetSize(eSz, &ctxSz);
-    if (ret != ippStsNoErr)
-        return USER_CRYPTO_ERROR;
-
-    key->e = XMALLOC(ctxSz, 0, DYNAMIC_TYPE_USER_CRYPTO);
-    if (key->e == NULL)
-        return USER_CRYPTO_ERROR;
-
-    ret = ippsBigNumInit(eSz, key->e);
+    ret = init_bn(&key->e, eSz);
     if (ret != ippStsNoErr)
         return USER_CRYPTO_ERROR;
 
@@ -1264,7 +1326,6 @@ int wc_RsaSSL_VerifyInline(byte* in, word32 inLen, byte** out, RsaKey* key)
         return USER_CRYPTO_ERROR;
     }
 
-
     ret = ippsRSA_SetPrivateKeyType1(key->n, key->e, pPub);
     if (ret != ippStsNoErr) {
         FreeHelper(pTxt, cTxt, scratchBuffer, pPub);
@@ -1288,24 +1349,11 @@ int wc_RsaSSL_VerifyInline(byte* in, word32 inLen, byte** out, RsaKey* key)
     }
 
     /* load plain and cipher into big num states */
-    ret = ippsBigNumGetSize(key->sz, &ctxSz);
+    ret = init_bn(&pTxt, key->sz);
     if (ret != ippStsNoErr) {
         FreeHelper(pTxt, cTxt, scratchBuffer, pPub);
         return USER_CRYPTO_ERROR;
     }
-
-    pTxt = XMALLOC(ctxSz, 0, DYNAMIC_TYPE_USER_CRYPTO);
-    if (pTxt == NULL) {
-        FreeHelper(pTxt, cTxt, scratchBuffer, pPub);
-        return USER_CRYPTO_ERROR;
-    }
-
-    ret = ippsBigNumInit(key->sz, pTxt);
-    if (ret != ippStsNoErr) {
-        FreeHelper(pTxt, cTxt, scratchBuffer, pPub);
-        return USER_CRYPTO_ERROR;
-    }
-
     ret = ippsSetOctString_BN((Ipp8u*)in, key->sz, pTxt);
     if (ret != ippStsNoErr) {
         FreeHelper(pTxt, cTxt, scratchBuffer, pPub);
@@ -1313,24 +1361,11 @@ int wc_RsaSSL_VerifyInline(byte* in, word32 inLen, byte** out, RsaKey* key)
     }
 
     /* set up cipher to hold signature */
-    ret = ippsBigNumGetSize(key->sz, &ctxSz);
+    ret = init_bn(&cTxt, key->sz);
     if (ret != ippStsNoErr) {
         FreeHelper(pTxt, cTxt, scratchBuffer, pPub);
         return USER_CRYPTO_ERROR;
     }
-
-    cTxt = XMALLOC(ctxSz, 0, DYNAMIC_TYPE_USER_CRYPTO);
-    if (cTxt == NULL) {
-        FreeHelper(pTxt, cTxt, scratchBuffer, pPub);
-        return USER_CRYPTO_ERROR;
-    }
-
-    ret = ippsBigNumInit(key->sz, cTxt);
-    if (ret != ippStsNoErr) {
-        FreeHelper(pTxt, cTxt, scratchBuffer, pPub);
-        return USER_CRYPTO_ERROR;
-    }
-
     ret = ippsSetOctString_BN((Ipp8u*)in, key->sz, cTxt);
     if (ret != ippStsNoErr) {
         FreeHelper(pTxt, cTxt, scratchBuffer, pPub);
@@ -1397,147 +1432,278 @@ int wc_RsaSSL_Verify(const byte* in, word32 inLen, byte* out, word32 outLen,
 }
 
 
+/* Check if a > b , if so c = a mod b
+   return ippStsNoErr on success */
+static IppStatus reduce(IppsBigNumState* a, IppsBigNumState* b,
+        IppsBigNumState* c)
+{
+    IppStatus ret;
+
+    if ((ret = ippsMod_BN(a, b, c)) != ippStsNoErr)
+        return ret;
+
+    return ippStsNoErr;
+}
+
+
+static IppStatus exptmod(IppsBigNumState* a, IppsBigNumState* b,
+        IppsMontState* mont, IppsBigNumState* out, IppsBigNumState* one)
+{
+    IppStatus ret;
+
+    ret = ippsMontForm(a, mont, a);
+    if (ret != ippStsNoErr) {
+        USER_DEBUG(("ippsMontForm error of %s\n", ippGetStatusString(ret)));
+        return ret;
+    }
+
+    /* a = a^b mod mont */
+    ret = ippsMontExp(a, b, mont, out);
+    if (ret != ippStsNoErr) {
+        USER_DEBUG(("ippsMontExp error of %s\n", ippGetStatusString(ret)));
+        return ret;
+    }
+
+    /* convert back from montgomery */
+    ret = ippsMontMul(out, one, mont, out);
+    if (ret != ippStsNoErr) {
+        USER_DEBUG(("ippsMontMul error of %s\n", ippGetStatusString(ret)));
+        return ret;
+    }
+
+    return ippStsNoErr;
+}
+
+
 /* for Rsa Sign */
 int wc_RsaSSL_Sign(const byte* in, word32 inLen, byte* out, word32 outLen,
                       RsaKey* key, WC_RNG* rng)
 {
     int sz;
-    int scratchSz;
-    int ctxSz;
-    int prvSz;
     IppStatus ret;
-    Ipp8u* scratchBuffer = NULL;
-    IppsRSAPublicKeyState* pPrv = NULL;
-    IppsBigNumState* pTxt = NULL;
-    IppsBigNumState* cTxt = NULL;
+    word32 outSz = outLen;
+
+    IppsMontState* pMont;
+    IppsMontState* qMont;
+
+    IppsBigNumState* one;
+    IppsBigNumState* tmp;
+    IppsBigNumState* tmpP;
+    IppsBigNumState* tmpQ;
+    IppsBigNumState* tmpa;
+    IppsBigNumState* tmpb;
+
+    IppsBigNumSGN sa, sb;
+
+    Ipp8u o[1];
+    o[0] = 1;
+
+    USER_DEBUG(("Entering wc_RsaSSL_Sign\n"));
 
     sz = key->sz;
 
-    /* set up public key state using private key values */
-    ret = ippsRSA_GetSizePublicKey(key->nSz, key->dSz, &ctxSz);
-    if (ret != ippStsNoErr) {
-        USER_DEBUG(("ippsRSA_GetSizePrivateKey error %s\n",
-                ippGetStatusString(ret)));
+    if (in == NULL || out == NULL || key == NULL || rng == NULL) {
+        USER_DEBUG(("Bad argument to wc_RsaSSL_Sign\n"));
         return USER_CRYPTO_ERROR;
     }
 
-    prvSz = ctxSz; /* used later to overright sensitive memory */
-    pPrv = XMALLOC(ctxSz, 0, DYNAMIC_TYPE_USER_CRYPTO);
-    if (pPrv == NULL) {
-        USER_DEBUG(("memeory error assinging pPrv\n"));
+    if (sz > (int)outLen) {
+        USER_DEBUG(("Bad argument outLen to wc_RsaSSL_Sign\n"));
         return USER_CRYPTO_ERROR;
     }
 
-    ret = ippsRSA_InitPublicKey(key->nSz, key->dSz, pPrv, ctxSz);
-    if (ret != ippStsNoErr) {
-        FreeHelper(pTxt, cTxt, scratchBuffer, pPrv);
-        USER_DEBUG(("ippsRSA_InitPrivateKey error %s\n",
-                    ippGetStatusString(ret)));
-        return USER_CRYPTO_ERROR;
-    }
-
-    ret = ippsRSA_SetPublicKey(key->n, key->dipp, pPrv);
-    if (ret != ippStsNoErr) {
-        FreeHelper(pTxt, cTxt, scratchBuffer, pPrv);
-        USER_DEBUG(("ippsRSA_SetPrivateKey error %s\n",
-                    ippGetStatusString(ret)));
-        return USER_CRYPTO_ERROR;
-    }
-
-    /* set size of scratch buffer */
-    ret = ippsRSA_GetBufferSizePublicKey(&scratchSz, pPrv);
-    if (ret != ippStsNoErr) {
-        FreeHelper(pTxt, cTxt, scratchBuffer, pPrv);
-        USER_DEBUG(("ippsRSA_GetBufferSizePublicKey error %s\n",
-                ippGetStatusString(ret)));
-        return USER_CRYPTO_ERROR;
-    }
-
-    scratchBuffer = XMALLOC(scratchSz*(sizeof(Ipp8u)), 0,
-                            DYNAMIC_TYPE_USER_CRYPTO);
-    if (scratchBuffer == NULL) {
-        FreeHelper(pTxt, cTxt, scratchBuffer, pPrv);
-        USER_DEBUG(("memory error assigning scratch buffer\n"));
+    if (inLen > (word32)(sz - RSA_MIN_PAD_SZ)) {
+        USER_DEBUG(("Bad argument inLen to wc_RsaSSL_Sign\n"));
         return USER_CRYPTO_ERROR;
     }
 
     /* Set up needed pkcs v15 padding */
     if (wc_RsaPad(in, inLen, out, sz, RSA_BLOCK_TYPE_1, rng) != 0) {
-        FreeHelper(pTxt, cTxt, scratchBuffer, pPrv);
+        USER_DEBUG(("RSA Padding error\n"));
         return USER_CRYPTO_ERROR;
     }
 
-    /* load plain and cipher into big num states */
-    ret = ippsBigNumGetSize(sz, &ctxSz);
+    /* tmp = intput to sign */
+    ret = init_bn(&tmp, sz);
     if (ret != ippStsNoErr) {
-        FreeHelper(pTxt, cTxt, scratchBuffer, pPrv);
+        USER_DEBUG(("init_BN error of %s\n", ippGetStatusString(ret)));
         return USER_CRYPTO_ERROR;
     }
-
-    pTxt = XMALLOC(ctxSz, 0, DYNAMIC_TYPE_USER_CRYPTO);
-    if (pTxt == NULL) {
-        FreeHelper(pTxt, cTxt, scratchBuffer, pPrv);
-        return USER_CRYPTO_ERROR;
-    }
-
-    ret = ippsBigNumInit(sz, pTxt);
+    ret = ippsSetOctString_BN(out, sz, tmp);
     if (ret != ippStsNoErr) {
-        FreeHelper(pTxt, cTxt, scratchBuffer, pPrv);
+        USER_DEBUG(("ippsSetOctString_BN error of %s\n", ippGetStatusString(ret)));
         return USER_CRYPTO_ERROR;
     }
 
-    ret = ippsSetOctString_BN((Ipp8u*)out, sz, pTxt);
+    /* tmpP = tmp mod p */
+    ret = init_bn(&tmpP, sz);
     if (ret != ippStsNoErr) {
-        FreeHelper(pTxt, cTxt, scratchBuffer, pPrv);
+        USER_DEBUG(("init_BN error of %s\n", ippGetStatusString(ret)));
         return USER_CRYPTO_ERROR;
     }
 
-    /* set up cipher to hold signature */
-    ret = ippsBigNumGetSize(outLen, &ctxSz);
+    /* tmpQ = tmp mod q */
+    ret = init_bn(&tmpQ, sz);
     if (ret != ippStsNoErr) {
-        FreeHelper(pTxt, cTxt, scratchBuffer, pPrv);
+        USER_DEBUG(("init_BN error of %s\n", ippGetStatusString(ret)));
         return USER_CRYPTO_ERROR;
     }
 
-    cTxt = XMALLOC(ctxSz, 0, DYNAMIC_TYPE_USER_CRYPTO);
-    if (cTxt == NULL) {
-        FreeHelper(pTxt, cTxt, scratchBuffer, pPrv);
-        return USER_CRYPTO_ERROR;
-    }
-
-    ret = ippsBigNumInit(outLen, cTxt);
+    /* tmpa */
+    ret = init_bn(&tmpa, sz);
     if (ret != ippStsNoErr) {
-        FreeHelper(pTxt, cTxt, scratchBuffer, pPrv);
+        USER_DEBUG(("init_BN error of %s\n", ippGetStatusString(ret)));
         return USER_CRYPTO_ERROR;
     }
 
-    ret = ippsSetOctString_BN((Ipp8u*)out, outLen, cTxt);
+    /* tmpb */
+    ret = init_bn(&tmpb, sz);
     if (ret != ippStsNoErr) {
-        FreeHelper(pTxt, cTxt, scratchBuffer, pPrv);
+        USER_DEBUG(("init_BN error of %s\n", ippGetStatusString(ret)));
         return USER_CRYPTO_ERROR;
     }
 
-    /* encrypt using private key */
-    ret = ippsRSA_Encrypt(pTxt, cTxt, pPrv, scratchBuffer);
+    /* one : used for conversion from Montgomery to classical */
+    ret = init_bn(&one, sz);
     if (ret != ippStsNoErr) {
-        FreeHelper(pTxt, cTxt, scratchBuffer, pPrv);
-        USER_DEBUG(("sign error of %s\n", ippGetStatusString(ret)));
+        USER_DEBUG(("init_BN error of %s\n", ippGetStatusString(ret)));
         return USER_CRYPTO_ERROR;
     }
-
-    /* get output string from big number structure */
-    ret = ippsGetOctString_BN((Ipp8u*)out, sz, cTxt);
+    ret = ippsSetOctString_BN(o, 1, one);
     if (ret != ippStsNoErr) {
-        FreeHelper(pTxt, cTxt, scratchBuffer, pPrv);
-        USER_DEBUG(("BN get string error of %s\n", ippGetStatusString(ret)));
+        USER_DEBUG(("ippsSetOctString_BN error of %s\n",
+                    ippGetStatusString(ret)));
         return USER_CRYPTO_ERROR;
     }
 
-    /* clean up memory used */
-    ForceZero(pPrv, prvSz); /* clear senstive memory */
-    FreeHelper(pTxt, cTxt, scratchBuffer, pPrv);
+    /**
+      Set up Montgomery state
+      */
+    ret = init_mont(&pMont, key->pipp);
+    if (ret != ippStsNoErr) {
+        USER_DEBUG(("init_mont error of %s\n", ippGetStatusString(ret)));
+        return USER_CRYPTO_ERROR;
+    }
 
-    return sz;
+    ret = init_mont(&qMont, key->qipp);
+    if (ret != ippStsNoErr) {
+        USER_DEBUG(("init_mont error of %s\n", ippGetStatusString(ret)));
+        return USER_CRYPTO_ERROR;
+    }
+
+    /**
+      Check and reduce input
+      This is needed for calls to MontExp since required value of a < modulus
+      */
+    ret = reduce(tmp, key->pipp, tmpP);
+    if (ret != ippStsNoErr)
+    {
+        USER_DEBUG(("reduce error of %s\n", ippGetStatusString(ret)));
+        return USER_CRYPTO_ERROR;
+    }
+
+    ret = reduce(tmp, key->qipp, tmpQ);
+    if (ret != ippStsNoErr)
+    {
+        USER_DEBUG(("reduce error of %s\n", ippGetStatusString(ret)));
+        return USER_CRYPTO_ERROR;
+    }
+
+    /* tmpa = (tmp mod p)^dP mod p */
+    ret = exptmod(tmpP, key->dPipp, pMont, tmpa, one);
+    if (ret != ippStsNoErr) {
+        USER_DEBUG(("exptmod error of %s\n", ippGetStatusString(ret)));
+        return USER_CRYPTO_ERROR;
+    }
+
+    /* tmpb = (tmp mod q)^dQ mod q */
+    ret = exptmod(tmpQ, key->dQipp, qMont, tmpb, one);
+    if (ret != ippStsNoErr) {
+        USER_DEBUG(("exptmod error of %s\n", ippGetStatusString(ret)));
+        return USER_CRYPTO_ERROR;
+    }
+
+    /* tmp = (tmpa - tmpb) * qInv (mod p) */
+    ret = ippsSub_BN(tmpa, tmpb, tmp);
+    if (ret != ippStsNoErr) {
+        USER_DEBUG(("ippsSub_BN error of %s\n", ippGetStatusString(ret)));
+        return USER_CRYPTO_ERROR;
+    }
+
+    ret = ippsMul_BN(tmp, key->uipp, tmp);
+    if (ret != ippStsNoErr) {
+        USER_DEBUG(("ippsMul_BN error of %s\n", ippGetStatusString(ret)));
+        return USER_CRYPTO_ERROR;
+    }
+
+    /* mod performed the same was as wolfSSL fp_mod -- tmpa is just scratch */
+   ret = ippsDiv_BN(tmp, key->pipp, tmpa, tmp);
+   if (ret != ippStsNoErr) {
+        USER_DEBUG(("ippsDiv_BN error of %s\n", ippGetStatusString(ret)));
+        return USER_CRYPTO_ERROR;
+   }
+
+    /* Check sign of values and perform conditional add */
+    ret = ippsExtGet_BN(&sa, NULL, NULL, tmp);
+    if (ret != ippStsNoErr) {
+        USER_DEBUG(("ippsExtGet_BN error of %s\n", ippGetStatusString(ret)));
+        return USER_CRYPTO_ERROR;
+    }
+    ret = ippsExtGet_BN(&sb, NULL, NULL, key->pipp);
+    if (ret != ippStsNoErr) {
+        USER_DEBUG(("ippsExtGet_BN error of %s\n", ippGetStatusString(ret)));
+        return USER_CRYPTO_ERROR;
+    }
+    if (sa != sb) {
+        ret = ippsAdd_BN(tmp, key->pipp, tmp);
+        if (ret != ippStsNoErr) {
+            USER_DEBUG(("ippsAdd_BN error of %s\n", ippGetStatusString(ret)));
+            return USER_CRYPTO_ERROR;
+        }
+    }
+
+    /* tmp = tmpb + q * tmp */
+    ret = ippsMul_BN(tmp, key->qipp, tmp);
+    if (ret != ippStsNoErr) {
+        USER_DEBUG(("ippsSub_BN error of %s\n", ippGetStatusString(ret)));
+        return USER_CRYPTO_ERROR;
+    }
+
+
+    ret = ippsAdd_BN(tmp, tmpb, tmp);
+    if (ret != ippStsNoErr) {
+        USER_DEBUG(("ippsSub_BN error of %s\n", ippGetStatusString(ret)));
+        return USER_CRYPTO_ERROR;
+    }
+
+    /* Extract the output */
+    ret = ippsGetOctString_BN(out, sz, tmp);
+    if (ret != ippStsNoErr) {
+        USER_DEBUG(("ippsGetOctString_BN error of %s\n",
+                    ippGetStatusString(ret)));
+        return USER_CRYPTO_ERROR;
+    }
+
+    outSz = sz;
+
+    XFREE(pMont, NULL, DYNAMIC_TYPE_USER_CRYPTO);
+    XFREE(qMont, NULL, DYNAMIC_TYPE_USER_CRYPTO);
+
+    XFREE(one, NULL, DYNAMIC_TYPE_USER_CRYPTO);
+
+    /* clear memory by setting BN to one and then free */
+    ippsSetOctString_BN(o, 1, tmp);
+    XFREE(tmp, NULL, DYNAMIC_TYPE_USER_CRYPTO);
+    ippsSetOctString_BN(o, 1, tmpP);
+    XFREE(tmpP, NULL, DYNAMIC_TYPE_USER_CRYPTO);
+    ippsSetOctString_BN(o, 1, tmpQ);
+    XFREE(tmpQ, NULL, DYNAMIC_TYPE_USER_CRYPTO);
+    ippsSetOctString_BN(o, 1, tmpa);
+    XFREE(tmpa, NULL, DYNAMIC_TYPE_USER_CRYPTO);
+    ippsSetOctString_BN(o, 1, tmpb);
+    XFREE(tmpb, NULL, DYNAMIC_TYPE_USER_CRYPTO);
+
+    return outSz;
 }
 
 
@@ -1599,6 +1765,27 @@ int wc_RsaFlattenPublicKey(RsaKey* key, byte* e, word32* eSz, byte* n,
     return 0;
 }
 
+
+IppStatus wolfSSL_rng(Ipp32u* pData, int nBits, void* pEbsParams);
+IppStatus wolfSSL_rng(Ipp32u* pData, int nBits, void* pEbsParams)
+{
+    int nBytes;
+
+    if (pData == NULL) {
+        USER_DEBUG(("error with wolfSSL_rng argument\n"));
+        return ippStsErr;
+    }
+
+    nBytes = (nBits/8) + ((nBits % 8)? 1: 0);
+    if (wc_RNG_GenerateBlock(pEbsParams, (byte*)pData, nBytes) != 0) {
+        USER_DEBUG(("error in generating random wolfSSL block\n"));
+        return ippStsErr;
+    }
+
+    return ippStsNoErr;
+}
+
+
 #ifdef WOLFSSL_KEY_GEN
 /* Make an RSA key for size bits, with e specified, 65537 is a good e */
 int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
@@ -1612,8 +1799,6 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
     Ipp8u* scratchBuffer;
     int trys = 8; /* Miller-Rabin test parameter */
     IppsPrimeState* pPrime;
-    IppBitSupplier rndFunc;
-    IppsPRNGState* rndParam; /* rng context */
 
     int qBitSz; /* size of q factor */
     int bytSz; /* size of key in bytes */
@@ -1621,8 +1806,9 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
 
     USER_DEBUG(("Entering wc_MakeRsaKey\n"));
 
-    qBitSz = size / 2;
-    bytSz  = size / 8;
+    /* get byte size and individual private key size -- round up */
+    qBitSz = (size / 2) + ((size % 2)? 1: 0);
+    bytSz  = (size / 8) + ((size % 8)? 1: 0);
 
     if (key == NULL)
         return USER_CRYPTO_ERROR;
@@ -1634,24 +1820,7 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
         return USER_CRYPTO_ERROR;
 
     key->type = RSA_PRIVATE;
-
-    /* set up rng */
-    ret = ippsPRNGGetSize(&ctxSz);
-    if (ret != ippStsNoErr) {
-        USER_DEBUG(("ippsPRNGGetSize error of %s\n", ippGetStatusString(ret)));
-        return USER_CRYPTO_ERROR;
-    }
-
-    rndParam = XMALLOC(ctxSz, NULL, DYNAMIC_TYPE_USER_CRYPTO);
-    if (rndParam == NULL)
-        return USER_CRYPTO_ERROR;
-
-    /*@TODO size of seed bits used hard set at 256 */
-    ret = ippsPRNGInit(256, rndParam);
-    if (ret != ippStsNoErr) {
-        USER_DEBUG(("ippsPRNGInit error of %s\n", ippGetStatusString(ret)));
-        return USER_CRYPTO_ERROR;
-    }
+    key->sz   = bytSz;
 
     /* initialize prime number */
     ret = ippsPrimeGetSize(size, &ctxSz); /* size in bits */
@@ -1667,12 +1836,6 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
     ret = ippsPrimeInit(size, pPrime);
     if (ret != ippStsNoErr) {
         USER_DEBUG(("ippsPrimeInit error of %s\n", ippGetStatusString(ret)));
-        return USER_CRYPTO_ERROR;
-    }
-
-    ret = ippsPrimeGen(size, 100, pPrime, ippsPRNGen, rndParam);
-    if (ret != ippStsNoErr) {
-        USER_DEBUG(("ippsPrimeGen error of %s\n", ippGetStatusString(ret)));
         return USER_CRYPTO_ERROR;
     }
 
@@ -1712,68 +1875,35 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
 
     /* set up initial value of pScrPublicExp */
     leng = (int)sizeof(long); /* # of Ipp32u in long */
-    ret = ippsBigNumGetSize(leng, &ctxSz);
+    ret = init_bn(&pSrcPublicExp, leng);
     if (ret != ippStsNoErr)
         return USER_CRYPTO_ERROR;
 
-    pSrcPublicExp = XMALLOC(ctxSz, 0, DYNAMIC_TYPE_USER_CRYPTO);
-    if (pSrcPublicExp == NULL)
-        return USER_CRYPTO_ERROR;
-
-    ret = ippsBigNumInit(leng, pSrcPublicExp);
-    if (ret != ippStsNoErr)
-        return USER_CRYPTO_ERROR;
     ret = ippsSetOctString_BN((Ipp8u*)&e, leng, pSrcPublicExp);
     if (ret != ippStsNoErr)
         return USER_CRYPTO_ERROR;
 
     /* initializing key->n */
-    ret = ippsBigNumGetSize(bytSz, &ctxSz);
-    if (ret != ippStsNoErr)
-        return USER_CRYPTO_ERROR;
-
-    key->n = XMALLOC(ctxSz, 0, DYNAMIC_TYPE_USER_CRYPTO);
-    if (key->n == NULL)
-        return USER_CRYPTO_ERROR;
-
-    key->nSz = size;
-    ret = ippsBigNumInit(bytSz, key->n);
+    ret = init_bn(&key->n, bytSz);
     if (ret != ippStsNoErr)
         return USER_CRYPTO_ERROR;
 
     /* initializing public exponent key->e */
-    ret = ippsBigNumGetSize(leng, &ctxSz);
-    if (ret != ippStsNoErr)
-        return USER_CRYPTO_ERROR;
-
-    key->e = XMALLOC(ctxSz, 0, DYNAMIC_TYPE_USER_CRYPTO);
-    if (key->e == NULL)
-        return USER_CRYPTO_ERROR;
-
-    ret = ippsBigNumInit(leng, key->e);
+    ret = init_bn(&key->e, leng);
     if (ret != ippStsNoErr)
         return USER_CRYPTO_ERROR;
 
     /* private exponent key->dipp */
-    ret = ippsBigNumGetSize(bytSz, &ctxSz);
+    ret = init_bn(&key->dipp, bytSz);
     if (ret != ippStsNoErr)
         return USER_CRYPTO_ERROR;
 
-    key->dipp = XMALLOC(ctxSz, 0, DYNAMIC_TYPE_USER_CRYPTO);
-    if (key->dipp == NULL)
-        return USER_CRYPTO_ERROR;
-
-    ret = ippsBigNumInit(bytSz, key->dipp);
-    if (ret != ippStsNoErr)
-        return USER_CRYPTO_ERROR;
-
-    rndFunc = ippsPRNGen;
     /* call IPP to generate keys, if inseficent entropy error call again
      using for loop to avoid infinte loop */
     for (i = 0; i < 5; i++) {
         ret = ippsRSA_GenerateKeys(pSrcPublicExp, key->n, key->e,
                 key->dipp, key->pPrv, scratchBuffer, trys, pPrime,
-                rndFunc, rndParam);
+                wolfSSL_rng, rng);
         if (ret == ippStsNoErr) {
             break;
         }
@@ -1784,6 +1914,12 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
                     ippGetStatusString(ret)));
             return USER_CRYPTO_ERROR;
         }
+    }
+    /* catch if still did not generate a good key */
+    if (ret != ippStsNoErr) {
+        USER_DEBUG(("ippsRSA_GeneratKeys error of %s\n",
+                ippGetStatusString(ret)));
+        return USER_CRYPTO_ERROR;
     }
 
     /* get bn sizes needed for private key set up */
@@ -1827,51 +1963,27 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
 
     /* get private key information for key struct */
     leng = size/16; /* size of q, p, u, dP, dQ */
-    ret = ippsBigNumGetSize(leng, &ctxSz); /* get needed ctxSz and use */
-    if (ret != ippStsNoErr)
-        return USER_CRYPTO_ERROR;
-
-    key->pipp = XMALLOC(ctxSz, 0, DYNAMIC_TYPE_USER_CRYPTO);
-    if (key->pipp == NULL)
-        return USER_CRYPTO_ERROR;
-
-    ret = ippsBigNumInit(leng, key->pipp);
+    ret = init_bn(&key->pipp, leng);
     if (ret != ippStsNoErr)
         return USER_CRYPTO_ERROR;
 
     /* set up q BN for key */
-    key->qipp = XMALLOC(ctxSz, 0, DYNAMIC_TYPE_USER_CRYPTO);
-    if (key->qipp == NULL)
-        return USER_CRYPTO_ERROR;
-
-    ret = ippsBigNumInit(leng, key->qipp);
+    ret = init_bn(&key->qipp, leng);
     if (ret != ippStsNoErr)
         return USER_CRYPTO_ERROR;
 
     /* set up dP BN for key */
-    key->dPipp = XMALLOC(ctxSz, 0, DYNAMIC_TYPE_USER_CRYPTO);
-    if (key->dPipp == NULL)
-        return USER_CRYPTO_ERROR;
-
-    ret = ippsBigNumInit(leng, key->dPipp);
+    ret = init_bn(&key->dPipp, leng);
     if (ret != ippStsNoErr)
         return USER_CRYPTO_ERROR;
 
     /* set up dQ BN for key */
-    key->dQipp = XMALLOC(ctxSz, 0, DYNAMIC_TYPE_USER_CRYPTO);
-    if (key->dQipp == NULL)
-        return USER_CRYPTO_ERROR;
-
-    ret = ippsBigNumInit(leng, key->dQipp);
+    ret = init_bn(&key->dQipp, leng);
     if (ret != ippStsNoErr)
         return USER_CRYPTO_ERROR;
 
     /* set up u BN for key */
-    key->uipp = XMALLOC(ctxSz, 0, DYNAMIC_TYPE_USER_CRYPTO);
-    if (key->uipp == NULL)
-        return USER_CRYPTO_ERROR;
-
-    ret = ippsBigNumInit(leng, key->uipp);
+    ret = init_bn(&key->uipp, leng);
     if (ret != ippStsNoErr)
         return USER_CRYPTO_ERROR;
 
@@ -1888,9 +2000,6 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
     XFREE(pSrcPublicExp, NULL, DYNAMIC_TYPE_USER_CRYPTO);
     XFREE(scratchBuffer, NULL, DYNAMIC_TYPE_USER_CRYPTO);
     XFREE(pPrime, NULL, DYNAMIC_TYPE_USER_CRYPTO);
-    XFREE(rndParam, NULL, DYNAMIC_TYPE_USER_CRYPTO);
-
-    (void)rng;
 
     return 0;
 }
