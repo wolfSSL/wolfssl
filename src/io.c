@@ -62,14 +62,14 @@
     #elif defined(FREESCALE_KSDK_MQX)
         #include <rtcs.h>
     #elif defined(WOLFSSL_MDK_ARM) || defined(WOLFSSL_KEIL_TCP_NET)
-        #if defined(WOLFSSL_MDK5) || defined(WOLFSSL_KEIL_TCP_NET)
+        #if !defined(WOLFSSL_MDK_ARM)
             #include "cmsis_os.h"
+            #include "rl_net.h"
         #else
             #include <rtl.h>
         #endif
         #include "errno.h"
         #define SOCKET_T int
-        #include "rl_net.h"
     #elif defined(WOLFSSL_TIRTOS)
         #include <sys/socket.h>
     #elif defined(FREERTOS_TCP)
@@ -153,7 +153,7 @@
         #define SOCKET_ECONNABORTED NIO_ECONNABORTED
     #endif
 #elif defined(WOLFSSL_MDK_ARM)|| defined(WOLFSSL_KEIL_TCP_NET)
-    #if defined(WOLFSSL_MDK5)|| defined(WOLFSSL_KEIL_TCP_NET)
+    #if !defined(WOLFSSL_MDK_ARM)
         #define SOCKET_EWOULDBLOCK BSD_ERROR_WOULDBLOCK
         #define SOCKET_EAGAIN      BSD_ERROR_LOCKED
         #define SOCKET_ECONNRESET  BSD_ERROR_CLOSED
