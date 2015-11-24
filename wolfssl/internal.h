@@ -1589,11 +1589,11 @@ typedef struct {
     } request;
 } CertificateStatusRequest;
 
-WOLFSSL_LOCAL int     TLSX_UseCertificateStatusRequest(TLSX** extensions,
+WOLFSSL_LOCAL int   TLSX_UseCertificateStatusRequest(TLSX** extensions,
                                                 byte status_type, byte options);
-WOLFSSL_LOCAL int     TLSX_CSR_InitRequest(TLSX* extensions, DecodedCert* cert);
-WOLFSSL_LOCAL void*   TLSX_CSR_GetRequest(TLSX* extensions);
-WOLFSSL_LOCAL int     TLSX_CSR_ForceRequest(WOLFSSL* ssl);
+WOLFSSL_LOCAL int   TLSX_CSR_InitRequest(TLSX* extensions, DecodedCert* cert);
+WOLFSSL_LOCAL void* TLSX_CSR_GetRequest(TLSX* extensions);
+WOLFSSL_LOCAL int   TLSX_CSR_ForceRequest(WOLFSSL* ssl);
 
 #endif
 
@@ -1610,8 +1610,11 @@ typedef struct CSRIv2 {
     struct CSRIv2* next;
 } CertificateStatusRequestItemV2;
 
-WOLFSSL_LOCAL int TLSX_UseCertificateStatusRequestV2(TLSX** extensions,
+WOLFSSL_LOCAL int   TLSX_UseCertificateStatusRequestV2(TLSX** extensions,
                                                 byte status_type, byte options);
+WOLFSSL_LOCAL int   TLSX_CSR2_InitRequests(TLSX* extensions, DecodedCert* cert);
+WOLFSSL_LOCAL void* TLSX_CSR2_GetRequest(TLSX* extensions, byte status_type);
+WOLFSSL_LOCAL int   TLSX_CSR2_ForceRequest(WOLFSSL* ssl);
 
 #endif
 
@@ -1790,8 +1793,14 @@ struct WOLFSSL_CTX {
 #endif
 #ifdef HAVE_TLS_EXTENSIONS
     TLSX* extensions;                  /* RFC 6066 TLS Extensions data */
-    #if defined(HAVE_CERTIFICATE_STATUS_REQUEST) && !defined(NO_WOLFSSL_SERVER)
-        OcspRequest* certOcspRequest;
+    #ifndef NO_WOLFSSL_SERVER
+        #if defined(HAVE_CERTIFICATE_STATUS_REQUEST) \
+         || defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
+            OcspRequest* certOcspRequest;
+        #endif
+        #if defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
+            OcspRequest* chainOcspRequest[MAX_CHAIN_DEPTH];
+        #endif
     #endif
     #if defined(HAVE_SESSION_TICKET) && !defined(NO_WOLFSSL_SEVER)
         SessionTicketEncCb ticketEncCb;   /* enc/dec session ticket Cb */

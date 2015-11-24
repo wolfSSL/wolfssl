@@ -526,6 +526,10 @@ int InitSSL_Ctx(WOLFSSL_CTX* ctx, WOLFSSL_METHOD* method)
 /* In case contexts are held in array and don't want to free actual ctx */
 void SSL_CtxResourceFree(WOLFSSL_CTX* ctx)
 {
+    int i;
+
+    (void)i;
+
     XFREE(ctx->method, ctx->heap, DYNAMIC_TYPE_METHOD);
     if (ctx->suites)
         XFREE(ctx->suites, ctx->heap, DYNAMIC_TYPE_SUITES);
@@ -534,22 +538,39 @@ void SSL_CtxResourceFree(WOLFSSL_CTX* ctx)
     XFREE(ctx->serverDH_G.buffer, ctx->heap, DYNAMIC_TYPE_DH);
     XFREE(ctx->serverDH_P.buffer, ctx->heap, DYNAMIC_TYPE_DH);
 #endif
+
 #ifndef NO_CERTS
     XFREE(ctx->privateKey.buffer, ctx->heap, DYNAMIC_TYPE_KEY);
     XFREE(ctx->certificate.buffer, ctx->heap, DYNAMIC_TYPE_CERT);
     XFREE(ctx->certChain.buffer, ctx->heap, DYNAMIC_TYPE_CERT);
     wolfSSL_CertManagerFree(ctx->cm);
 #endif
+
 #ifdef HAVE_TLS_EXTENSIONS
     TLSX_FreeAll(ctx->extensions);
 
-    #ifdef HAVE_CERTIFICATE_STATUS_REQUEST
-        if (ctx->certOcspRequest) {
-            FreeOcspRequest(ctx->certOcspRequest);
-            XFREE(ctx->certOcspRequest, NULL, DYNAMIC_TYPE_OCSP_REQUEST);
-        }
-    #endif
+#ifndef NO_WOLFSSL_SERVER
+
+#if defined(HAVE_CERTIFICATE_STATUS_REQUEST) \
+ || defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
+    if (ctx->certOcspRequest) {
+        FreeOcspRequest(ctx->certOcspRequest);
+        XFREE(ctx->certOcspRequest, NULL, DYNAMIC_TYPE_OCSP_REQUEST);
+    }
 #endif
+
+#if defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
+    for (i = 0; i < MAX_CHAIN_DEPTH; i++) {
+        if (ctx->chainOcspRequest[i]) {
+            FreeOcspRequest(ctx->chainOcspRequest[i]);
+            XFREE(ctx->chainOcspRequest[i], NULL, DYNAMIC_TYPE_OCSP_REQUEST);
+        }
+    }
+#endif
+
+#endif /* NO_WOLFSSL_SERVER */
+
+#endif /* HAVE_TLS_EXTENSIONS */
 }
 
 
@@ -4464,14 +4485,21 @@ static int DoCertificate(WOLFSSL* ssl, byte* input, word32* inOutIdx,
         if (fatal == 0) {
             int doLookup = 1;
 
-#ifdef HAVE_CERTIFICATE_STATUS_REQUEST
+            /* TODO CSR2 */
             if (ssl->options.side == WOLFSSL_CLIENT_END) {
+#ifdef HAVE_CERTIFICATE_STATUS_REQUEST
                 if (ssl->status_request) {
                     fatal = TLSX_CSR_InitRequest(ssl->extensions, dCert);
                     doLookup = 0;
                 }
-            }
 #endif
+#ifdef HAVE_CERTIFICATE_STATUS_REQUEST_V2
+                if (ssl->status_request_v2) {
+                    fatal = TLSX_CSR2_InitRequests(ssl->extensions, dCert);
+                    doLookup = 0;
+                }
+#endif
+            }
 
 #ifdef HAVE_OCSP
             if (doLookup && ssl->ctx->cm->ocspEnabled) {
@@ -4827,7 +4855,7 @@ static int DoCertificateStatus(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 
         /* WOLFSSL_CSR_OCSP overlaps with WOLFSSL_CSR2_OCSP */
         case WOLFSSL_CSR2_OCSP: {
-            OcspRequest* request = TLSX_CSR_GetRequest(ssl->extensions);
+            OcspRequest* request;
 
         #ifdef WOLFSSL_SMALL_STACK
             CertStatus* status;
@@ -4840,18 +4868,24 @@ static int DoCertificateStatus(WOLFSSL* ssl, byte* input, word32* inOutIdx,
             do {
                 #ifdef HAVE_CERTIFICATE_STATUS_REQUEST
                     if (ssl->status_request) {
+                        request = TLSX_CSR_GetRequest(ssl->extensions);
                         ssl->status_request = 0;
                         break;
                     }
                 #endif
                 #ifdef HAVE_CERTIFICATE_STATUS_REQUEST_V2
                     if (ssl->status_request_v2) {
+                        request = TLSX_CSR2_GetRequest(ssl->extensions,
+                                                             WOLFSSL_CSR2_OCSP);
                         ssl->status_request_v2 = 0;
                         break;
                     }
                 #endif
                 return BUFFER_ERROR;
             } while(0);
+
+            if (request == NULL)
+                return BAD_CERTIFICATE_STATUS_ERROR; /* not expected */
 
         #ifdef WOLFSSL_SMALL_STACK
             status = (CertStatus*)XMALLOC(sizeof(CertStatus), NULL,
@@ -5130,6 +5164,15 @@ static int SanityCheckMsgReceived(WOLFSSL* ssl, byte type)
 
                     WOLFSSL_MSG("No CertificateStatus before ServerKeyExchange");
                     if ((ret = TLSX_CSR_ForceRequest(ssl)) != 0)
+                        return ret;
+                }
+#endif
+#ifdef HAVE_CERTIFICATE_STATUS_REQUEST_V2
+                if (ssl->status_request_v2) {
+                    int ret;
+
+                    WOLFSSL_MSG("No CertificateStatus before ServerKeyExchange");
+                    if ((ret = TLSX_CSR2_ForceRequest(ssl)) != 0)
                         return ret;
                 }
 #endif
