@@ -27,7 +27,7 @@ wolfcrypt directories. Uncheck the following:
         wolfcrypt/src/aes_asm.s
         examples/echoclient/
         examples/echoserver/
-        wolcrypt/user-crypto
+        wolfcrypt/user-crypto
     
     Leave "Create top level folder" unchecked. Click Finish. 
 
@@ -38,23 +38,15 @@ wolfcrypt directories. Uncheck the following:
     
     Click ok.
 
-4. In \<path\_to\_wolfssl\>/wolfssl/wolfcrypt/settings.h, uncomment #define WOLFSSL_VXWORKS
+4. In ```<path_to_wolfssl>/wolfssl/wolfcrypt/settings.h```, uncomment #define WOLFSSL_VXWORKS
 
-5. If not using a filesystem, right click on project, go to Properties > 
-Build Properties > Variables.
-Highlight EXTRA\_DEFINE. Click Edit and add the following to this line:
-    
-        -DUSE_CERT_BUFFERS_2048 -DNO_FILESYSTEM
-
-    USE\_CERT\_BUFFERS is only necessary for the wolfCrypt test and benchmark applications.
-        
-6. If using the VxWorks simulator add the following to EXTRA\_DEFINE:
+5. If using the VxWorks simulator add the following to EXTRA\_DEFINE:
 
         -DVXWORKS_SIM /* only if using the VxWorks simulator */
 
-7. If using a filesystem and running the wolfCrypt test and benchmark applications, copy the certs folder in \<path\_to\_wolfssl\>/wolfssl to the Wind River Workbench workspace folder. This is where the simulator looks for the filesystem. 
+6. Copy the certs folder in ```<path_to_wolfssl>/``` to the Wind River Workbench workspace folder. This is where the simulator looks for the filesystem.
 
-8. If NO\_DEV\_RANDOM is defined in \<path\_to\_wolfssl\>wolfssl/wolfcrypt/settings.h inside the
+7. If NO\_DEV\_RANDOM is defined in ```<path_to_wolfssl>wolfssl/wolfcrypt/settings.h``` inside the
 \#ifdef WOLFSSL\_VXWORKS block, a new GenerateSeed() function will need to be defined
 in wolfcrypt/src/random.c.
 
@@ -90,10 +82,10 @@ by adding the following to the usrAppInit() function:
 
 3. Right click on the project and select "Build Project".
 
-4. To run the VxWorks simulator, click the dropdown list next to "VxWorks Simulator" at the top of Workbench and go to "Open Connection Details". Add the correct Kernel Image file. This will be located in ```workspace/<project\_name>/default/vxWorks```. Click Apply. Start the simulator by clicking the green, "Connect 'VxWorks Simulator'" button to the right of the "VxWorks Simulator" dropdown list. Verify in the simulator terminal that all wolfCrypt tests pass.
+4. To run the VxWorks simulator, click the dropdown list next to "VxWorks Simulator" at the top of Workbench and go to "Open Connection Details". Add the correct Kernel Image file. This will be located in ```workspace/<project_name>/default/vxWorks```. Click Apply. Start the simulator by clicking the green, "Connect 'VxWorks Simulator'" button to the right of the "VxWorks Simulator" dropdown list. Verify in the simulator terminal that all wolfCrypt tests pass.
 
 #####3.2 Example Client
-The wolfSSL example client.c file can be found in \<path\_to\_wolfssl\>/wolfssl/examples/client.
+The wolfSSL example client.c file can be found in ```<path_to_wolfssl>/wolfssl/examples/client```.
 
 1. Add the following include to usrAppInit.c:
 
@@ -104,7 +96,7 @@ section, and add a call to the client function:
 
         client_test(&args);
     
-3. The char* host in examples/client/client.c will need to be changed to the IP address to connect to. For example:
+3. The char* host in ```examples/client/client.c``` will need to be changed to the IP address to connect to. For example:
 
         char* host = "192.168.15.1";
     
@@ -112,7 +104,7 @@ section, and add a call to the client function:
 
 5. If using the VxWorks Simulator, localhost will not work. NAT should be selected in the Simulator Connection Advanced setup. To do this, click the dropdown button next to VxWorks Simulator at the top of Workbench and select "Open Connection Details". Make sure the correct kernel image file is selected for you project as stated in section 3.1 step 4. Then click Advanced and select NAT as the Network Config. Click OK and Apply.
 
-6. There is an example server in \<path\_to\_wolfssl\> that can be used for testing the client. wolfSSL will first need to be built. Follow the instructions [here](https://www.wolfssl.com/wolfSSL/Docs-wolfssl-manual-2-building-wolfssl.html) to do so. See the [wolfSSL manual]( https://wolfssl.com/wolfSSL/Docs-wolfssl-manual-3-getting-started.html) for instructions on setting up the example server. From within \<path\_to\_wolfssl\>/wolfssl, the following command can be used to run the server on the host machine:
+6. There is an example server in ```<path_to_wolfssl>``` that can be used for testing the client. wolfSSL will first need to be built. Follow the instructions [here](https://www.wolfssl.com/wolfSSL/Docs-wolfssl-manual-2-building-wolfssl.html) to do so. See the [wolfSSL manual]( https://wolfssl.com/wolfSSL/Docs-wolfssl-manual-3-getting-started.html) for instructions on setting up the example server. From within ```<path_to_wolfssl>/wolfssl```, the following command can be used to run the server on the host machine:
 
         ./examples/server/server -d -b
 
@@ -161,7 +153,7 @@ Note: The wolfSSL example server and client cannot run at the same time on the V
     
     This will start the vxsimnetd application. Leave it running in the background. 
 
-5. There is an example client in \<path\_to\_wolfssl\>/wolfssl/examples. Again, wolfSSL will first need to be built. Follow the instructions [here](https://www.wolfssl.com/wolfSSL/Docs-wolfssl-manual-2-building-wolfssl.html) to do so. See the [wolfSSL manual]( https://wolfssl.com/wolfSSL/Docs-wolfssl-manual-3-getting-started.html) for instructions on how to set up the client. From within \<path\_to\_wolfssl\>/wolfssl, the following command can be used to run the client on the host machine:
+5. There is an example client in ```<path_to_wolfssl>/wolfssl/examples``` . Again, wolfSSL will first need to be built. Follow the instructions [here](https://www.wolfssl.com/wolfSSL/Docs-wolfssl-manual-2-building-wolfssl.html) to do so. See the [wolfSSL manual]( https://wolfssl.com/wolfSSL/Docs-wolfssl-manual-3-getting-started.html) for instructions on how to set up the client. From within ```<path_to_wolfssl>/wolfssl``` , the following command can be used to run the client on the host machine:
 
         ./examples/client/client -h 192.168.200.1 -d
     
