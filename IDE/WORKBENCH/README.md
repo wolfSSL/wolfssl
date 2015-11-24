@@ -27,7 +27,7 @@ wolfcrypt directories. Uncheck the following:
         wolfcrypt/src/aes_asm.s
         examples/echoclient/
         examples/echoserver/
-        wolcrypt/user-crypto
+        wolfcrypt/user-crypto
     
     Leave "Create top level folder" unchecked. Click Finish. 
 
@@ -40,21 +40,13 @@ wolfcrypt directories. Uncheck the following:
 
 4. In ```<path_to_wolfssl>/wolfssl/wolfcrypt/settings.h```, uncomment #define WOLFSSL_VXWORKS
 
-5. If not using a filesystem, right click on project, go to Properties > 
-Build Properties > Variables.
-Highlight EXTRA\_DEFINE. Click Edit and add the following to this line:
-    
-        -DUSE_CERT_BUFFERS_2048 -DNO_FILESYSTEM
-
-    USE\_CERT\_BUFFERS is only necessary for the wolfCrypt test and benchmark applications.
-        
-6. If using the VxWorks simulator add the following to EXTRA\_DEFINE:
+5. If using the VxWorks simulator add the following to EXTRA\_DEFINE:
 
         -DVXWORKS_SIM /* only if using the VxWorks simulator */
 
-7. If using a filesystem and running the wolfCrypt test and benchmark applications, copy the certs folder in ```<path_to_wolfssl>/wolfssl``` to the Wind River Workbench workspace folder. This is where the simulator looks for the filesystem. 
+6. Copy the certs folder in ```<path_to_wolfssl>/``` to the Wind River Workbench workspace folder. This is where the simulator looks for the filesystem.
 
-8. If NO\_DEV\_RANDOM is defined in ```<path_to_wolfssl>wolfssl/wolfcrypt/settings.h``` inside the
+7. If NO\_DEV\_RANDOM is defined in ```<path_to_wolfssl>wolfssl/wolfcrypt/settings.h``` inside the
 \#ifdef WOLFSSL\_VXWORKS block, a new GenerateSeed() function will need to be defined
 in wolfcrypt/src/random.c.
 
