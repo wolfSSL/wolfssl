@@ -1000,6 +1000,16 @@ static char *fgets(char *buff, int sz, FILE *fp)
     #endif
 #endif
 
+/* C Sharp wrapper defines */
+#ifdef HAVE_CSHARP
+    #ifndef WOLFSSL_DTLS
+        #define WOLFSSL_DTLS
+    #endif
+    #undef NO_PSK
+    #undef NO_SHA256
+    #undef NO_DH
+#endif
+
 /* Place any other flags or defines here */
 
 
