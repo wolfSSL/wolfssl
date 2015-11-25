@@ -482,7 +482,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 
 #ifndef WOLFSSL_VXWORKS
     while ((ch = mygetopt(argc, argv,
-               "?gdeDusmNrwRitfxXUPCVh:p:v:l:A:c:k:Z:b:zS:L:ToO:aB:W")) != -1) {
+             "?gdeDusmNrwRitfxXUPCVh:p:v:l:A:c:k:Z:b:zS:F:L:ToO:aB:W")) != -1) {
         switch (ch) {
             case '?' :
                 Usage();
