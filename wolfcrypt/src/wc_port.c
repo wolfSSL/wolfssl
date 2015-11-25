@@ -45,6 +45,7 @@
  */
 int wolfCrypt_Init()
 {
+    int ret = 0;
     #if WOLFSSL_CRYPT_HW_MUTEX
         /* If crypto hardware mutex protection is enabled, then initialize it */
         wolfSSL_CryptHwMutexInit();
@@ -52,14 +53,18 @@ int wolfCrypt_Init()
 
     /* if defined have fast RSA then initialize Intel IPP */
     #ifdef HAVE_FAST_RSA
-        WOLFSSL_MSG("Setting up IPP Library");
-        if (ippInit() != ippStsNoErr) {
-            WOLFSSL_MSG("Error setting up optimized Intel library to use!");
-            return -1;
+        WOLFSSL_MSG("Attempting to use optimized IPP Library");
+        if ((ret = ippInit()) != ippStsNoErr) {
+            /* possible to get a CPU feature support status on optimized IPP
+              library but still use default library and see competitve speeds */
+            WOLFSSL_MSG("Warning when trying to set up optimization");
+            WOLFSSL_MSG(ippGetStatusString(ret));
+            WOLFSSL_MSG("Using default fast IPP library");
+            ret = 0;
         }
     #endif
 
-    return 0;
+    return ret;
 }
 
 
