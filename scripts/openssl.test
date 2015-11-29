@@ -9,6 +9,27 @@ server_pid=$no_pid
 wolf_suites_tested=0
 wolf_suites_total=0
 counter=0
+testing_summary="OpenSSL Interop Testing Summary:\nVersion\tTested\t#Found\t#Tested\n"
+versionName="Invalid"
+
+version_name() {
+    case $version in "0")
+        versionName="SSLv3"
+        ;;
+    "1")
+        versionName="TLSv1"
+        ;;
+    "2")
+        versionName="TLSv1.1"
+        ;;
+    "3")
+        versionName="TLSv1.2"
+        ;;
+    "4")
+        versionName="ALL"
+        ;;
+    esac
+}
 
 do_cleanup() {
     echo "in cleanup"
@@ -97,18 +118,53 @@ do
     # get openssl ciphers depending on version
     case $version in "0")
         openssl_ciphers=`openssl ciphers "SSLv3"`
+        sslv3_sup=$?
+        if [ $sslv3_sup != 0 ]
+        then
+            echo -e "Not testing SSLv3. No OpenSSL support for 'SSLv3' modifier"
+            testing_summary="$testing_summary SSLv3\tNo\tN/A\tN/A\t (No OpenSSL Support for cipherstring)\n"
+            continue
+        fi
         ;;
     "1")
         openssl_ciphers=`openssl ciphers "TLSv1"`
+        tlsv1_sup=$?
+        if [ $tlsv1_sup != 0 ]
+        then
+            echo -e "Not testing TLSv1. No OpenSSL support for 'TLSv1' modifier"
+            testing_summary="$testing_summary TLSv1\tNo\tN/A\tN/A\t (No OpenSSL Support for cipherstring)\n"
+            continue
+        fi
         ;;
     "2")
         openssl_ciphers=`openssl ciphers "TLSv1.1"`
+        tlsv1_1_sup=$?
+        if [ $tlsv1_1_sup != 0 ]
+        then
+            echo -e "Not testing TLSv1.1. No OpenSSL support for 'TLSv1.1' modifier"
+            testing_summary="${testing_summary}TLSv1.1\tNo\tN/A\tN/A\t (No OpenSSL Support for cipherstring)\n"
+            continue
+        fi
         ;;
     "3")
         openssl_ciphers=`openssl ciphers "TLSv1.2"`
+        tlsv1_2_sup=$?
+        if [ $tlsv1_2_sup != 0 ]
+        then
+            echo -e "Not testing TLSv1.2. No OpenSSL support for 'TLSv1.2' modifier"
+            testing_summary="$testing_summary TLSv1.2\tNo\tN/A\tN/A\t (No OpenSSL Support for cipherstring)\n"
+            continue
+        fi
         ;;
     "4") #test all suites
         openssl_ciphers=`openssl ciphers "ALL"`
+        all_sup=$?
+        if [ $all_sup != 0 ]
+        then
+            echo -e "Not testing ALL. No OpenSSL support for ALL modifier"
+            testing_summary="$testing_summary ALL\tNo\tN/A\tN/A\t (No OpenSSL Support for cipherstring)\n"
+            continue
+        fi
         ;;
     esac
 
@@ -150,6 +206,8 @@ do
     wolf_suites_tested=$((wolf_temp_suites_tested+wolf_suites_tested))
     wolf_suites_total=$((wolf_temp_suites_total+wolf_suites_total))
     echo -e "wolfSSL suites tested with version:$version  $wolf_temp_suites_tested"
+    version_name
+    testing_summary="$testing_summary$versionName\tYes\t$wolf_temp_suites_total\t$wolf_temp_suites_tested\n"
     wolf_temp_suites_total=0
     wolf_temp_suites_tested=0
 done
@@ -159,6 +217,6 @@ kill -9 $server_pid
 
 echo -e "wolfSSL total suites   $wolf_suites_total"
 echo -e "wolfSSL suites tested  $wolf_suites_tested"
-echo -e "\nSuccess!\n"
-
+echo -e "\nSuccess!\n\n\n\n"
+echo -e "$testing_summary"
 exit 0

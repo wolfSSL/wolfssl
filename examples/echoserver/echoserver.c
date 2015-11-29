@@ -29,19 +29,18 @@
     #include <cyassl/ctaocrypt/ecc.h>   /* ecc_fp_free */
 #endif
 
-#if defined(WOLFSSL_MDK_ARM)
+#if defined(WOLFSSL_MDK_ARM) || defined(WOLFSSL_KEIL_TCP_NET)
         #include <stdio.h>
         #include <string.h>
 
-        #if defined(WOLFSSL_MDK5)
+        #if !defined(WOLFSSL_MDK_ARM)
             #include "cmsis_os.h"
             #include "rl_fs.h" 
             #include "rl_net.h" 
         #else
             #include "rtl.h"
+            #include "wolfssl_MDK_ARM.h"
         #endif
-
-        #include "wolfssl_MDK_ARM.h"
 #endif
 
 #include <cyassl/ssl.h>

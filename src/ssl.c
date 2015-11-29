@@ -5695,9 +5695,17 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
 
         if (ssl->buffers.outputBuffer.length > 0) {
             if ( (ssl->error = SendBuffered(ssl)) == 0) {
+                /* fragOffset is non-zero when sending fragments. On the last
+                 * fragment, fragOffset is zero again, and the state can be
+                 * advanced. */
                 if (ssl->fragOffset == 0) {
                     ssl->options.connectState++;
-                    WOLFSSL_MSG("connect state: Advanced from buffered send");
+                    WOLFSSL_MSG("connect state: "
+                                "Advanced from last buffered fragment send");
+                }
+                else {
+                    WOLFSSL_MSG("connect state: "
+                                "Not advanced, more fragments to send");
                 }
             }
             else {
@@ -6013,9 +6021,17 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
 
         if (ssl->buffers.outputBuffer.length > 0) {
             if ( (ssl->error = SendBuffered(ssl)) == 0) {
+                /* fragOffset is non-zero when sending fragments. On the last
+                 * fragment, fragOffset is zero again, and the state can be
+                 * advanced. */
                 if (ssl->fragOffset == 0) {
                     ssl->options.acceptState++;
-                    WOLFSSL_MSG("accept state: Advanced from buffered send");
+                    WOLFSSL_MSG("accept state: "
+                                "Advanced from last buffered fragment send");
+                }
+                else {
+                    WOLFSSL_MSG("accept state: "
+                                "Not advanced, more fragments to send");
                 }
             }
             else {

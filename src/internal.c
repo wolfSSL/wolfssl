@@ -2371,13 +2371,12 @@ DtlsMsg* DtlsMsgNew(word32 sz, void* heap)
     msg = (DtlsMsg*)XMALLOC(sizeof(DtlsMsg), heap, DYNAMIC_TYPE_DTLS_MSG);
 
     if (msg != NULL) {
+        XMEMSET(msg, 0, sizeof(DtlsMsg));
         msg->buf = (byte*)XMALLOC(sz + DTLS_HANDSHAKE_HEADER_SZ,
-                                                     heap, DYNAMIC_TYPE_NONE);
+                                                heap, DYNAMIC_TYPE_DTLS_BUFFER);
         if (msg->buf != NULL) {
-            msg->next = NULL;
-            msg->seq = 0;
             msg->sz = sz;
-            msg->fragSz = 0;
+            msg->type = no_shake;
             msg->msg = msg->buf + DTLS_HANDSHAKE_HEADER_SZ;
         }
         else {
@@ -2394,8 +2393,14 @@ void DtlsMsgDelete(DtlsMsg* item, void* heap)
     (void)heap;
 
     if (item != NULL) {
+        DtlsFrag* cur = item->fragList;
+        while (cur != NULL) {
+            DtlsFrag* next = cur->next;
+            XFREE(cur, heap, DYNAMIC_TYPE_DTLS_FRAG);
+            cur = next;
+        }
         if (item->buf != NULL)
-            XFREE(item->buf, heap, DYNAMIC_TYPE_NONE);
+            XFREE(item->buf, heap, DYNAMIC_TYPE_DTLS_BUFFER);
         XFREE(item, heap, DYNAMIC_TYPE_DTLS_MSG);
     }
 }
@@ -2412,32 +2417,127 @@ void DtlsMsgListDelete(DtlsMsg* head, void* heap)
 }
 
 
-void DtlsMsgSet(DtlsMsg* msg, word32 seq, const byte* data, byte type,
-                                              word32 fragOffset, word32 fragSz)
+/* Create a DTLS Fragment from *begin - end, adjust new *begin and bytesLeft */
+static DtlsFrag* CreateFragment(word32* begin, word32 end, const byte* data,
+                                byte* buf, word32* bytesLeft, void* heap)
+{
+    DtlsFrag* newFrag;
+    word32 added = end - *begin + 1;
+
+    newFrag = (DtlsFrag*)XMALLOC(sizeof(DtlsFrag), heap,
+                                 DYNAMIC_TYPE_DTLS_FRAG);
+    if (newFrag != NULL) {
+        newFrag->next = NULL;
+        newFrag->begin = *begin;
+        newFrag->end = end;
+
+        XMEMCPY(buf + *begin, data, added);
+        *bytesLeft -= added;
+        *begin = newFrag->end + 1;
+    }
+
+    return newFrag;
+}
+
+
+int DtlsMsgSet(DtlsMsg* msg, word32 seq, const byte* data, byte type,
+                                   word32 fragOffset, word32 fragSz, void* heap)
 {
     if (msg != NULL && data != NULL && msg->fragSz <= msg->sz &&
                                              (fragOffset + fragSz) <= msg->sz) {
+        DtlsFrag* cur = msg->fragList;
+        DtlsFrag* prev = cur;
+        DtlsFrag* newFrag;
+        word32 bytesLeft = fragSz; /* could be overlapping fragment */
+        word32 startOffset = fragOffset;
+        word32 added;
 
         msg->seq = seq;
         msg->type = type;
-        msg->fragSz += fragSz;
-        /* If fragOffset is zero, this is either a full message that is out
-         * of order, or the first fragment of a fragmented message. Copy the
-         * handshake message header with the message data. Zero length messages
-         * like Server Hello Done should be saved as well. */
-        if (fragOffset == 0)
+
+        if (fragOffset == 0) {
             XMEMCPY(msg->buf, data - DTLS_HANDSHAKE_HEADER_SZ,
-                                            fragSz + DTLS_HANDSHAKE_HEADER_SZ);
-        else {
-            /* If fragOffset is non-zero, this is an additional fragment that
-             * needs to be copied to its location in the message buffer. Also
-             * copy the total size of the message over the fragment size. The
-             * hash routines look at a defragmented message if it had actually
-             * come across as a single handshake message. */
-            XMEMCPY(msg->msg + fragOffset, data, fragSz);
+                    DTLS_HANDSHAKE_HEADER_SZ);
+            c32to24(msg->sz, msg->msg - DTLS_HANDSHAKE_FRAG_SZ);
         }
-        c32to24(msg->sz, msg->msg - DTLS_HANDSHAKE_FRAG_SZ);
+
+        /* if no mesage data, just return */
+        if (fragSz == 0)
+            return 0;
+
+        /* if list is empty add full fragment to front */
+        if (cur == NULL) {
+            newFrag = CreateFragment(&fragOffset, fragOffset + fragSz - 1, data,
+                                     msg->msg, &bytesLeft, heap);
+            if (newFrag == NULL)
+                return MEMORY_E;
+
+            msg->fragSz = fragSz;
+            msg->fragList = newFrag;
+
+            return 0;
+        }
+
+        /* add to front if before current front, up to next->begin */
+        if (fragOffset < cur->begin) {
+            word32 end = fragOffset + fragSz - 1;
+
+            if (end >= cur->begin)
+                end = cur->begin - 1;
+
+            added = end - fragOffset + 1;
+            newFrag = CreateFragment(&fragOffset, end, data, msg->msg,
+                                     &bytesLeft, heap);
+            if (newFrag == NULL)
+                return MEMORY_E;
+
+            msg->fragSz += added;
+
+            newFrag->next = cur;
+            msg->fragList = newFrag;
+        }
+
+        /* while we have bytes left, try to find a gap to fill */
+        while (bytesLeft > 0) {
+            /* get previous packet in list */
+            while (cur && (fragOffset >= cur->begin)) {
+                prev = cur;
+                cur = cur->next;
+            }
+
+            /* don't add duplicate data */
+            if (prev->end >= fragOffset) {
+                if ( (fragOffset + bytesLeft - 1) <= prev->end)
+                    return 0;
+                fragOffset = prev->end + 1;
+                bytesLeft = startOffset + fragSz - fragOffset;
+            }
+
+            if (cur == NULL)
+                /* we're at the end */
+                added = bytesLeft;
+            else
+                /* we're in between two frames */
+                added = min(bytesLeft, cur->begin - fragOffset);
+
+            /* data already there */
+            if (added == 0)
+                continue;
+
+            newFrag = CreateFragment(&fragOffset, fragOffset + added - 1,
+                                     data + fragOffset - startOffset,
+                                     msg->msg, &bytesLeft, heap);
+            if (newFrag == NULL)
+                return MEMORY_E;
+
+            msg->fragSz += added;
+
+            newFrag->next = prev->next;
+            prev->next = newFrag;
+        }
     }
+
+    return 0;
 }
 
 
@@ -2459,14 +2559,16 @@ DtlsMsg* DtlsMsgStore(DtlsMsg* head, word32 seq, const byte* data,
      * starting at offset fragOffset, and add fragSz to msg->fragSz. If
      * the seq is in the list and it isn't full, copy fragSz bytes from
      * data to msg->msg starting at offset fragOffset, and add fragSz to
-     * msg->fragSz. The new item should be inserted into the list in its
+     * msg->fragSz. Insertions take into account data already in the list
+     * in case there are overlaps in the handshake message due to retransmit
+     * messages. The new item should be inserted into the list in its
      * proper position.
      *
      * 1. Find seq in list, or where seq should go in list. If seq not in
      *    list, create new item and insert into list. Either case, keep
      *    pointer to item.
-     * 2. If msg->fragSz + fragSz < sz, copy data to msg->msg at offset
-     *    fragOffset. Add fragSz to msg->fragSz.
+     * 2. Copy the data from the message to the stored message where it
+     *    belongs without overlaps.
      */
 
     if (head != NULL) {
@@ -2474,17 +2576,25 @@ DtlsMsg* DtlsMsgStore(DtlsMsg* head, word32 seq, const byte* data,
         if (cur == NULL) {
             cur = DtlsMsgNew(dataSz, heap);
             if (cur != NULL) {
-                DtlsMsgSet(cur, seq, data, type, fragOffset, fragSz);
+                if (DtlsMsgSet(cur, seq, data, type,
+                                                fragOffset, fragSz, heap) < 0) {
+                    DtlsMsgDelete(cur, heap);
+                    return head;
+                }
                 head = DtlsMsgInsert(head, cur);
             }
         }
         else {
-            DtlsMsgSet(cur, seq, data, type, fragOffset, fragSz);
+            /* If this fails, the data is just dropped. */
+            DtlsMsgSet(cur, seq, data, type, fragOffset, fragSz, heap);
         }
     }
     else {
         head = DtlsMsgNew(dataSz, heap);
-        DtlsMsgSet(head, seq, data, type, fragOffset, fragSz);
+        if (DtlsMsgSet(head, seq, data, type, fragOffset, fragSz, heap) < 0) {
+            DtlsMsgDelete(head, heap);
+            return NULL;
+        }
     }
 
     return head;

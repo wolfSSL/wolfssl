@@ -70,6 +70,7 @@ EXTRA_DIST+= wolfcrypt/user-crypto/lib/.gitkeep
 EXTRA_DIST+= wolfcrypt/user-crypto/README.txt
 EXTRA_DIST+= wolfcrypt/user-crypto/Makefile.am
 
+include wrapper/include.am
 include cyassl/include.am
 include wolfssl/include.am
 include certs/include.am

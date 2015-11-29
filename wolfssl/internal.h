@@ -2292,14 +2292,23 @@ typedef struct DtlsPool {
     int             used;
 } DtlsPool;
 
+
+typedef struct DtlsFrag {
+    word32 begin;
+    word32 end;
+    struct DtlsFrag* next;
+} DtlsFrag;
+
+
 typedef struct DtlsMsg {
     struct DtlsMsg* next;
-    word32          seq;       /* Handshake sequence number    */
-    word32          sz;        /* Length of whole mesage       */
-    word32          fragSz;    /* Length of fragments received */
-    byte            type;
     byte*           buf;
     byte*           msg;
+    DtlsFrag*       fragList;
+    word32          fragSz;    /* Length of fragments received */
+    word32          seq;       /* Handshake sequence number    */
+    word32          sz;        /* Length of whole mesage       */
+    word16          type;
 } DtlsMsg;
 
 
@@ -2709,8 +2718,8 @@ WOLFSSL_LOCAL  int GrowInputBuffer(WOLFSSL* ssl, int size, int usedLength);
     WOLFSSL_LOCAL DtlsMsg* DtlsMsgNew(word32, void*);
     WOLFSSL_LOCAL void DtlsMsgDelete(DtlsMsg*, void*);
     WOLFSSL_LOCAL void DtlsMsgListDelete(DtlsMsg*, void*);
-    WOLFSSL_LOCAL void DtlsMsgSet(DtlsMsg*, word32, const byte*, byte,
-                                                             word32, word32);
+    WOLFSSL_LOCAL int  DtlsMsgSet(DtlsMsg*, word32, const byte*, byte,
+                                                       word32, word32, void*);
     WOLFSSL_LOCAL DtlsMsg* DtlsMsgFind(DtlsMsg*, word32);
     WOLFSSL_LOCAL DtlsMsg* DtlsMsgStore(DtlsMsg*, word32, const byte*, word32,
                                                 byte, word32, word32, void*);

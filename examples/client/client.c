@@ -25,19 +25,18 @@
 
 #include <wolfssl/ssl.h>
 
-#if defined(WOLFSSL_MDK_ARM)
+#if defined(WOLFSSL_MDK_ARM) || defined(WOLFSSL_KEIL_TCP_NET)
         #include <stdio.h>
         #include <string.h>
 
-        #if defined(WOLFSSL_MDK5)
+        #if !defined(WOLFSSL_MDK_ARM)
             #include "cmsis_os.h"
             #include "rl_fs.h"
             #include "rl_net.h"
         #else
             #include "rtl.h"
+            #include "wolfssl_MDK_ARM.h"
         #endif
-
-        #include "wolfssl_MDK_ARM.h"
 #endif
 
 #include <wolfssl/wolfcrypt/settings.h>
@@ -482,7 +481,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 
 #ifndef WOLFSSL_VXWORKS
     while ((ch = mygetopt(argc, argv,
-               "?gdeDusmNrwRitfxXUPCVh:p:v:l:A:c:k:Z:b:zS:L:ToO:aB:W")) != -1) {
+             "?gdeDusmNrwRitfxXUPCVh:p:v:l:A:c:k:Z:b:zS:F:L:ToO:aB:W")) != -1) {
         switch (ch) {
             case '?' :
                 Usage();
