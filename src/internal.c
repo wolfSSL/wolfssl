@@ -4850,6 +4850,7 @@ static int DoCertificateStatus(WOLFSSL* ssl, byte* input, word32* inOutIdx,
         return BUFFER_ERROR;
 
     switch (status_type) {
+
     #if defined(HAVE_CERTIFICATE_STATUS_REQUEST) \
      || defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
 
@@ -4873,6 +4874,7 @@ static int DoCertificateStatus(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                         break;
                     }
                 #endif
+
                 #ifdef HAVE_CERTIFICATE_STATUS_REQUEST_V2
                     if (ssl->status_request_v2) {
                         request = TLSX_CSR2_GetRequest(ssl->extensions,
@@ -4881,6 +4883,7 @@ static int DoCertificateStatus(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                         break;
                     }
                 #endif
+
                 return BUFFER_ERROR;
             } while(0);
 
@@ -8200,15 +8203,33 @@ int SendCertificateRequest(WOLFSSL* ssl)
 
 #if defined(HAVE_CERTIFICATE_STATUS_REQUEST) \
  || defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
-static int BuildCertificateStatus(WOLFSSL* ssl, byte type, buffer status)
+static int BuildCertificateStatus(WOLFSSL* ssl, byte type, buffer* status,
+                                                                     byte count)
 {
     byte*  output  = NULL;
     word32 idx     = RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ;
-    word32 length  = ENUM_LEN + OPAQUE24_LEN + status.length;
-    int    sendSz  = idx + length;
+    word32 length  = ENUM_LEN;
+    int    sendSz  = 0;
     int    ret     = 0;
+    int    i       = 0;
 
     WOLFSSL_ENTER("BuildCertificateStatus");
+
+    switch (type) {
+        case WOLFSSL_CSR2_OCSP_MULTI:
+            length += OPAQUE24_LEN;
+            /* followed by */
+
+        case WOLFSSL_CSR2_OCSP:
+            for (i = 0; i < count; i++)
+                length += OPAQUE24_LEN + status[i].length;
+        break;
+
+        default:
+            return 0;
+    }
+
+    sendSz = idx + length;
 
     if (ssl->keys.encryptionOn)
         sendSz += MAX_MSG_EXTRA;
@@ -8221,11 +8242,18 @@ static int BuildCertificateStatus(WOLFSSL* ssl, byte type, buffer status)
 
         output[idx++] = type;
 
-        c32to24(status.length, output + idx);
-        idx += OPAQUE24_LEN;
+        if (type == WOLFSSL_CSR2_OCSP_MULTI) {
+            c32to24(length - (ENUM_LEN + OPAQUE24_LEN), output + idx);
+            idx += OPAQUE24_LEN;
+        }
 
-        XMEMCPY(output + idx, status.buffer, status.length);
-        idx += status.length;
+        for (i = 0; i < count; i++) {
+            c32to24(status[i].length, output + idx);
+            idx += OPAQUE24_LEN;
+
+            XMEMCPY(output + idx, status[i].buffer, status[i].length);
+            idx += status[i].length;
+        }
 
         if (ssl->keys.encryptionOn) {
             byte* input;
@@ -8280,17 +8308,18 @@ int SendCertificateStatus(WOLFSSL* ssl)
 
     (void) ssl;
 
-#ifdef HAVE_CERTIFICATE_STATUS_REQUEST
-    status_type = ssl->status_request;
-#endif
+    #ifdef HAVE_CERTIFICATE_STATUS_REQUEST
+        status_type = ssl->status_request;
+    #endif
 
-#ifdef HAVE_CERTIFICATE_STATUS_REQUEST_V2
-    status_type = status_type ? status_type : ssl->status_request_v2;
-#endif
+    #ifdef HAVE_CERTIFICATE_STATUS_REQUEST_V2
+        status_type = status_type ? status_type : ssl->status_request_v2;
+    #endif
 
     switch (status_type) {
-#if defined(HAVE_CERTIFICATE_STATUS_REQUEST) \
- || defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
+
+    #if defined(HAVE_CERTIFICATE_STATUS_REQUEST) \
+     || defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
         /* case WOLFSSL_CSR_OCSP: */
         case WOLFSSL_CSR2_OCSP: {
             OcspRequest* request = ssl->ctx->certOcspRequest;
@@ -8302,22 +8331,22 @@ int SendCertificateStatus(WOLFSSL* ssl)
 
             if (!request || ssl->buffers.weOwnCert) {
                 buffer der = ssl->buffers.certificate;
-            #ifdef WOLFSSL_SMALL_STACK
-                DecodedCert* cert = NULL;
-            #else
-                DecodedCert  cert[1];
-            #endif
+                #ifdef WOLFSSL_SMALL_STACK
+                    DecodedCert* cert = NULL;
+                #else
+                    DecodedCert  cert[1];
+                #endif
 
                 /* unable to fetch status. skip. */
                 if (der.buffer == NULL || der.length == 0)
                     return 0;
 
-#ifdef WOLFSSL_SMALL_STACK
-                cert = (DecodedCert*)XMALLOC(sizeof(DecodedCert), NULL,
+                #ifdef WOLFSSL_SMALL_STACK
+                    cert = (DecodedCert*)XMALLOC(sizeof(DecodedCert), NULL,
                                                        DYNAMIC_TYPE_TMP_BUFFER);
-                if (cert == NULL)
-                    return MEMORY_E;
-#endif
+                    if (cert == NULL)
+                        return MEMORY_E;
+                #endif
 
                 InitDecodedCert(cert, der.buffer, der.length, NULL);
 
@@ -8330,9 +8359,11 @@ int SendCertificateStatus(WOLFSSL* ssl)
                                                      DYNAMIC_TYPE_OCSP_REQUEST);
                     if (request == NULL) {
                         FreeDecodedCert(cert);
-#ifdef WOLFSSL_SMALL_STACK
-                        XFREE(cert, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+
+                        #ifdef WOLFSSL_SMALL_STACK
+                            XFREE(cert, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                        #endif
+
                         return MEMORY_E;
                     }
 
@@ -8349,9 +8380,10 @@ int SendCertificateStatus(WOLFSSL* ssl)
                 }
 
                 FreeDecodedCert(cert);
-#ifdef WOLFSSL_SMALL_STACK
-                XFREE(cert, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+
+                #ifdef WOLFSSL_SMALL_STACK
+                    XFREE(cert, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                #endif
             }
 
             if (ret == 0) {
@@ -8366,7 +8398,8 @@ int SendCertificateStatus(WOLFSSL* ssl)
 
                 if (response.buffer) {
                     if (ret == 0)
-                        ret = BuildCertificateStatus(ssl,status_type, response);
+                        ret = BuildCertificateStatus(ssl, status_type,
+                                                                  &response, 1);
 
                     XFREE(response.buffer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
                 }
@@ -8377,12 +8410,103 @@ int SendCertificateStatus(WOLFSSL* ssl)
                 XFREE(request, NULL, DYNAMIC_TYPE_OCSP_REQUEST);
         }
         break;
-#endif
 
-#if defined HAVE_CERTIFICATE_STATUS_REQUEST_V2
-        case WOLFSSL_CSR2_OCSP_MULTI:
+    #endif /* HAVE_CERTIFICATE_STATUS_REQUEST    */
+           /* HAVE_CERTIFICATE_STATUS_REQUEST_V2 */
+
+    #if defined HAVE_CERTIFICATE_STATUS_REQUEST_V2
+        case WOLFSSL_CSR2_OCSP_MULTI: {
+            OcspRequest* request = ssl->ctx->certOcspRequest;
+            buffer response = {NULL, 0};
+
+            /* unable to fetch status. skip. */
+            if (ssl->ctx->cm == NULL || ssl->ctx->cm->ocspStaplingEnabled == 0)
+                return 0;
+
+            if (!request || ssl->buffers.weOwnCert) {
+                buffer der = ssl->buffers.certificate;
+                #ifdef WOLFSSL_SMALL_STACK
+                    DecodedCert* cert = NULL;
+                #else
+                    DecodedCert  cert[1];
+                #endif
+
+                /* unable to fetch status. skip. */
+                if (der.buffer == NULL || der.length == 0)
+                    return 0;
+
+                #ifdef WOLFSSL_SMALL_STACK
+                    cert = (DecodedCert*)XMALLOC(sizeof(DecodedCert), NULL,
+                                                   DYNAMIC_TYPE_TMP_BUFFER);
+                    if (cert == NULL)
+                        return MEMORY_E;
+                #endif
+
+                InitDecodedCert(cert, der.buffer, der.length, NULL);
+
+                if ((ret = ParseCertRelative(cert, CERT_TYPE, VERIFY,
+                                                          ssl->ctx->cm)) != 0) {
+                    WOLFSSL_MSG("ParseCert failed");
+                }
+                else {
+                    request = (OcspRequest*)XMALLOC(sizeof(OcspRequest), NULL,
+                                                     DYNAMIC_TYPE_OCSP_REQUEST);
+                    if (request == NULL) {
+                        FreeDecodedCert(cert);
+
+                        #ifdef WOLFSSL_SMALL_STACK
+                            XFREE(cert, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                        #endif
+
+                        return MEMORY_E;
+                    }
+
+                    ret = InitOcspRequest(request, cert, 0);
+                    if (ret != 0) {
+                        XFREE(request, NULL, DYNAMIC_TYPE_OCSP_REQUEST);
+                    }
+                    else if (!ssl->buffers.weOwnCert && 0 == LockMutex(
+                                      &ssl->ctx->cm->ocsp_stapling->ocspLock)) {
+                        if (!ssl->ctx->certOcspRequest)
+                            ssl->ctx->certOcspRequest = request;
+
+                        UnLockMutex(&ssl->ctx->cm->ocsp_stapling->ocspLock);
+                    }
+                }
+
+                FreeDecodedCert(cert);
+
+                #ifdef WOLFSSL_SMALL_STACK
+                    XFREE(cert, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                #endif
+            }
+
+            if (ret == 0) {
+                ret = CheckOcspRequest(ssl->ctx->cm->ocsp_stapling, request,
+                                                                     &response);
+
+                /* Suppressing, not critical */
+                if (ret == OCSP_CERT_REVOKED
+                ||  ret == OCSP_CERT_UNKNOWN
+                ||  ret == OCSP_LOOKUP_FAIL)
+                    ret = 0;
+
+                if (response.buffer) {
+                    if (ret == 0)
+                        ret = BuildCertificateStatus(ssl, status_type,
+                                                                  &response, 1);
+
+                    XFREE(response.buffer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                }
+
+            }
+
+            if (request != ssl->ctx->certOcspRequest)
+                XFREE(request, NULL, DYNAMIC_TYPE_OCSP_REQUEST);
+        }
         break;
-#endif
+
+    #endif /* HAVE_CERTIFICATE_STATUS_REQUEST_V2 */
 
         default:
         break;
