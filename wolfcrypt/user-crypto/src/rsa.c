@@ -160,7 +160,7 @@ static int SetIndividualExternal(WOLFSSL_BIGNUM** bn, IppsBigNumState* in)
     if (ret != ippStsNoErr)
         return USER_CRYPTO_ERROR;
 
-    data = XMALLOC(sz, NULL, DYNAMIC_TYPE_USER_CRYPTO);
+    data = (byte*)XMALLOC(sz, NULL, DYNAMIC_TYPE_USER_CRYPTO);
     if (data == NULL)
         return USER_CRYPTO_ERROR;
 
@@ -200,13 +200,15 @@ static int SetIndividualInternal(WOLFSSL_BIGNUM* bn, IppsBigNumState** mpi)
         if (ret != ippStsNoErr)
             return USER_CRYPTO_ERROR;
 
-        *mpi = XMALLOC(ctxSz, 0, DYNAMIC_TYPE_USER_CRYPTO);
+        *mpi = (IppsBigNumState*)XMALLOC(ctxSz, 0, DYNAMIC_TYPE_USER_CRYPTO);
         if (*mpi == NULL)
             return USER_CRYPTO_ERROR;
 
         ret = ippsBigNumInit(length, *mpi);
-        if (ret != ippStsNoErr)
+        if (ret != ippStsNoErr) {
+            XFREE(*mpi, NULL, DYNAMIC_TYPE_USER_CRYPTO);
             return USER_CRYPTO_ERROR;
+        }
 
     }
 
@@ -219,7 +221,7 @@ static int SetIndividualInternal(WOLFSSL_BIGNUM* bn, IppsBigNumState** mpi)
         return USER_CRYPTO_ERROR;
     }
 
-    data = XMALLOC(length, NULL, DYNAMIC_TYPE_USER_CRYPTO);
+    data = (Ipp8u*)XMALLOC(length, NULL, DYNAMIC_TYPE_USER_CRYPTO);
     if (data == NULL)
         return USER_CRYPTO_ERROR;
 
@@ -399,7 +401,8 @@ int SetRsaInternal(WOLFSSL_RSA* rsa)
         return USER_CRYPTO_ERROR;
     }
 
-    key->pPub = XMALLOC(ctxSz, NULL, DYNAMIC_TYPE_USER_CRYPTO);
+    key->pPub = (IppsRSAPublicKeyState*)XMALLOC(ctxSz, NULL,
+                                                      DYNAMIC_TYPE_USER_CRYPTO);
     if (key->pPub == NULL)
         return USER_CRYPTO_ERROR;
 
@@ -452,7 +455,8 @@ int SetRsaInternal(WOLFSSL_RSA* rsa)
         }
 
         key->prvSz = ctxSz;
-        key->pPrv = XMALLOC(ctxSz, 0, DYNAMIC_TYPE_USER_CRYPTO);
+        key->pPrv = (IppsRSAPrivateKeyState*)XMALLOC(ctxSz, 0,
+                                                      DYNAMIC_TYPE_USER_CRYPTO);
         if (key->pPrv == NULL)
             return USER_CRYPTO_ERROR;
 
@@ -575,13 +579,15 @@ static IppStatus init_bn(IppsBigNumState** in, int sz)
         return ret;
     }
 
-    *in = XMALLOC(ctxSz, 0, DYNAMIC_TYPE_USER_CRYPTO);
+    *in = (IppsBigNumState*)XMALLOC(ctxSz, 0, DYNAMIC_TYPE_USER_CRYPTO);
     if (*in == NULL) {
         return ippStsNoMemErr;
     }
 
     ret = ippsBigNumInit(sz, *in);
     if (ret != ippStsNoErr) {
+        XFREE(*in, NULL, DYNAMIC_TYPE_USER_CRYPTO);
+        *in = NULL;
         return ret;
     }
 
@@ -592,41 +598,51 @@ static IppStatus init_bn(IppsBigNumState** in, int sz)
 /* Set up memory and structure for a Montgomery struct
  * returns ippStsNoErr on success
  */
-static IppStatus init_mont(IppsMontState** mont, IppsBigNumState* modul)
+static IppStatus init_mont(IppsMontState** mont, int* ctxSz,
+                                                         IppsBigNumState* modul)
 {
-    int ctxSz, mSz;
-    Ipp32u*    m;
-    IppStatus  ret;
+    int       mSz;
+    Ipp32u*   m;
+    IppStatus ret;
 
-    ret = ippsExtGet_BN(NULL, &ctxSz, NULL, modul);
+    ret = ippsExtGet_BN(NULL, ctxSz, NULL, modul);
     if (ret != ippStsNoErr) {
         return ret;
     }
 
-    mSz = (ctxSz/32)+((ctxSz % 32)? 1: 0);
-    m = XMALLOC(mSz * sizeof(Ipp32u), 0, DYNAMIC_TYPE_USER_CRYPTO);
+    /* convert bits to Ipp32u array size and round up
+       32 is number of bits in type */
+    mSz = (*ctxSz/32)+((*ctxSz % 32)? 1: 0);
+    m = (Ipp32u*)XMALLOC(mSz * sizeof(Ipp32u), 0, DYNAMIC_TYPE_USER_CRYPTO);
     if (m == NULL) {
+        XFREE(m, NULL, DYNAMIC_TYPE_USER_CRYPTO);
         return ippStsNoMemErr;
     }
 
     ret = ippsExtGet_BN(NULL, NULL, m, modul);
     if (ret != ippStsNoErr) {
+        XFREE(m, NULL, DYNAMIC_TYPE_USER_CRYPTO);
         return ret;
     }
 
-    ret = ippsMontGetSize(IppsBinaryMethod, mSz, &ctxSz);
+    ret = ippsMontGetSize(IppsSlidingWindows, mSz, ctxSz);
     if (ret != ippStsNoErr) {
+        XFREE(m, NULL, DYNAMIC_TYPE_USER_CRYPTO);
         return ret;
     }
 
     /* 2. Allocate working buffer using malloc */
-    *mont = XMALLOC(ctxSz, 0, DYNAMIC_TYPE_USER_CRYPTO);
+    *mont = (IppsMontState*)XMALLOC(*ctxSz, 0, DYNAMIC_TYPE_USER_CRYPTO);
     if (mont == NULL) {
+        XFREE(m, NULL, DYNAMIC_TYPE_USER_CRYPTO);
         return ippStsNoMemErr;
     }
-    ret = ippsMontInit(IppsBinaryMethod, mSz, *mont);
+    ret = ippsMontInit(IppsSlidingWindows, mSz, *mont);
     if (ret != ippStsNoErr) {
         USER_DEBUG(("ippsMontInit error of %s\n", ippGetStatusString(ret)));
+        XFREE(m, NULL, DYNAMIC_TYPE_USER_CRYPTO);
+        XFREE(*mont, NULL, DYNAMIC_TYPE_USER_CRYPTO);
+        *mont = NULL;
         return ret;
     }
 
@@ -634,6 +650,9 @@ static IppStatus init_mont(IppsMontState** mont, IppsBigNumState* modul)
     ret = ippsMontSet(m, mSz, *mont);
     if (ret != ippStsNoErr) {
         USER_DEBUG(("ippsMontSet error of %s\n", ippGetStatusString(ret)));
+        XFREE(m, NULL, DYNAMIC_TYPE_USER_CRYPTO);
+        XFREE(*mont, NULL, DYNAMIC_TYPE_USER_CRYPTO);
+        *mont = NULL;
         return ret;
     }
 
@@ -779,7 +798,7 @@ static int GetInt(IppsBigNumState** mpi, const byte* input, word32* inOutIdx,
     if (ret != ippStsNoErr)
         return USER_CRYPTO_ERROR;
 
-    *mpi = XMALLOC(ctxSz, 0, DYNAMIC_TYPE_USER_CRYPTO);
+    *mpi = (IppsBigNumState*)XMALLOC(ctxSz, 0, DYNAMIC_TYPE_USER_CRYPTO);
     if (*mpi == NULL)
         return USER_CRYPTO_ERROR;
 
@@ -886,7 +905,8 @@ int wc_RsaPrivateKeyDecode(const byte* input, word32* inOutIdx, RsaKey* key,
         return USER_CRYPTO_ERROR;
     }
 
-    key->pPub = XMALLOC(ctxSz, NULL, DYNAMIC_TYPE_USER_CRYPTO);
+    key->pPub = (IppsRSAPublicKeyState*)XMALLOC(ctxSz, NULL,
+                                                      DYNAMIC_TYPE_USER_CRYPTO);
     if (key->pPub == NULL)
         return USER_CRYPTO_ERROR;
 
@@ -938,7 +958,8 @@ int wc_RsaPrivateKeyDecode(const byte* input, word32* inOutIdx, RsaKey* key,
     }
 
     key->prvSz = ctxSz;
-    key->pPrv = XMALLOC(ctxSz, 0, DYNAMIC_TYPE_USER_CRYPTO);
+    key->pPrv = (IppsRSAPrivateKeyState*)XMALLOC(ctxSz, 0,
+                                                      DYNAMIC_TYPE_USER_CRYPTO);
     if (key->pPrv == NULL)
         return USER_CRYPTO_ERROR;
 
@@ -1056,7 +1077,8 @@ int wc_RsaPublicKeyDecode(const byte* input, word32* inOutIdx, RsaKey* key,
         return USER_CRYPTO_ERROR;
     }
 
-    key->pPub = XMALLOC(ctxSz, NULL, DYNAMIC_TYPE_USER_CRYPTO);
+    key->pPub = (IppsRSAPublicKeyState*)XMALLOC(ctxSz, NULL,
+                                                      DYNAMIC_TYPE_USER_CRYPTO);
     if (key->pPub == NULL)
         return USER_CRYPTO_ERROR;
 
@@ -1123,7 +1145,8 @@ int wc_RsaPublicKeyDecodeRaw(const byte* n, word32 nSz, const byte* e,
         return USER_CRYPTO_ERROR;
     }
 
-    key->pPub = XMALLOC(ctxSz, NULL, DYNAMIC_TYPE_USER_CRYPTO);
+    key->pPub = (IppsRSAPublicKeyState*)XMALLOC(ctxSz, NULL,
+                                                      DYNAMIC_TYPE_USER_CRYPTO);
     if (key->pPub == NULL)
         return USER_CRYPTO_ERROR;
 
@@ -1168,8 +1191,8 @@ int wc_RsaPublicEncrypt(const byte* in, word32 inLen, byte* out, word32 outLen,
     if (ret != ippStsNoErr)
         return USER_CRYPTO_ERROR;
 
-    scratchBuffer = XMALLOC(scratchSz*(sizeof(Ipp8u)), 0,
-                            DYNAMIC_TYPE_USER_CRYPTO);
+    scratchBuffer = (Ipp8u*)XMALLOC(scratchSz*(sizeof(Ipp8u)), 0,
+                                                      DYNAMIC_TYPE_USER_CRYPTO);
     if (scratchBuffer == NULL)
         return USER_CRYPTO_ERROR;
 
@@ -1211,8 +1234,8 @@ int wc_RsaPrivateDecrypt(const byte* in, word32 inLen, byte* out, word32 outLen,
         return USER_CRYPTO_ERROR;
     }
 
-    scratchBuffer = XMALLOC(scratchSz*(sizeof(Ipp8u)), 0,
-                                        DYNAMIC_TYPE_USER_CRYPTO);
+    scratchBuffer = (Ipp8u*)XMALLOC(scratchSz*(sizeof(Ipp8u)), 0,
+                                                      DYNAMIC_TYPE_USER_CRYPTO);
     if (scratchBuffer == NULL) {
         return USER_CRYPTO_ERROR;
     }
@@ -1242,7 +1265,7 @@ int wc_RsaPrivateDecryptInline(byte* in, word32 inLen, byte** out, RsaKey* key)
     USER_DEBUG(("Entering wc_RsaPrivateDecryptInline\n"));
 
     /* allocate a buffer for max decrypted text */
-    tmp = XMALLOC(key->sz, NULL, DYNAMIC_TYPE_USER_CRYPTO);
+    tmp = (byte*)XMALLOC(key->sz, NULL, DYNAMIC_TYPE_USER_CRYPTO);
     if (tmp == NULL)
         return USER_CRYPTO_ERROR;
 
@@ -1314,7 +1337,7 @@ int wc_RsaSSL_VerifyInline(byte* in, word32 inLen, byte** out, RsaKey* key)
         return USER_CRYPTO_ERROR;
     }
 
-    pPub = XMALLOC(ctxSz, 0, DYNAMIC_TYPE_USER_CRYPTO);
+    pPub = (IppsRSAPrivateKeyState*)XMALLOC(ctxSz, 0, DYNAMIC_TYPE_USER_CRYPTO);
     if (pPub == NULL)
         return USER_CRYPTO_ERROR;
 
@@ -1341,8 +1364,8 @@ int wc_RsaSSL_VerifyInline(byte* in, word32 inLen, byte** out, RsaKey* key)
         return USER_CRYPTO_ERROR;
     }
 
-    scratchBuffer = XMALLOC(scratchSz*(sizeof(Ipp8u)), 0,
-                            DYNAMIC_TYPE_USER_CRYPTO);
+    scratchBuffer = (Ipp8u*)XMALLOC(scratchSz*(sizeof(Ipp8u)), 0,
+                                                      DYNAMIC_TYPE_USER_CRYPTO);
     if (scratchBuffer == NULL) {
         FreeHelper(pTxt, cTxt, scratchBuffer, pPub);
         return USER_CRYPTO_ERROR;
@@ -1475,23 +1498,58 @@ static IppStatus exptmod(IppsBigNumState* a, IppsBigNumState* b,
 }
 
 
+static void Free_BN(IppsBigNumState* bn)
+{
+    int sz, ctxSz;
+    IppStatus ret;
+
+    if (bn != NULL) {
+        ret = ippStsNoErr;
+        ret |= ippsGetSize_BN(bn, &sz);
+        ret |= ippsBigNumGetSize(sz, &ctxSz);
+        if (ret == ippStsNoErr) {
+            ForceZero(bn, ctxSz);
+        }
+        else {
+            USER_DEBUG(("Issue with clearing a struct in RsaSSL_Sign free\n"));
+        }
+        XFREE(bn, NULL, DYNAMIC_TYPE_USER_CRYPTO);
+        bn = NULL;
+    }
+}
+
+
+/* free up memory used during CRT sign operation */
+static void FreeSignHelper(IppsBigNumState* one, IppsBigNumState* tmp,
+        IppsBigNumState* tmpP, IppsBigNumState* tmpQ, IppsBigNumState* tmpa,
+        IppsBigNumState* tmpb)
+{
+    Free_BN(one);
+    Free_BN(tmp);
+    Free_BN(tmpP);
+    Free_BN(tmpQ);
+    Free_BN(tmpa);
+    Free_BN(tmpb);
+}
+
+
 /* for Rsa Sign */
 int wc_RsaSSL_Sign(const byte* in, word32 inLen, byte* out, word32 outLen,
                       RsaKey* key, WC_RNG* rng)
 {
-    int sz;
+    int sz, pSz, qSz;
     IppStatus ret;
     word32 outSz = outLen;
 
-    IppsMontState* pMont;
-    IppsMontState* qMont;
+    IppsMontState* pMont = NULL;
+    IppsMontState* qMont = NULL;
 
-    IppsBigNumState* one;
-    IppsBigNumState* tmp;
-    IppsBigNumState* tmpP;
-    IppsBigNumState* tmpQ;
-    IppsBigNumState* tmpa;
-    IppsBigNumState* tmpb;
+    IppsBigNumState* one  = NULL;
+    IppsBigNumState* tmp  = NULL;
+    IppsBigNumState* tmpP = NULL;
+    IppsBigNumState* tmpQ = NULL;
+    IppsBigNumState* tmpa = NULL;
+    IppsBigNumState* tmpb = NULL;
 
     IppsBigNumSGN sa, sb;
 
@@ -1504,6 +1562,13 @@ int wc_RsaSSL_Sign(const byte* in, word32 inLen, byte* out, word32 outLen,
 
     if (in == NULL || out == NULL || key == NULL || rng == NULL) {
         USER_DEBUG(("Bad argument to wc_RsaSSL_Sign\n"));
+        return USER_CRYPTO_ERROR;
+    }
+
+    /* sanity check on key being used */
+    if (key->pipp == NULL || key->qipp == NULL || key->uipp == NULL ||
+            key->dPipp == NULL || key->dQipp == NULL) {
+        USER_DEBUG(("Bad key argument to wc_RsaSSL_Sign\n"));
         return USER_CRYPTO_ERROR;
     }
 
@@ -1527,11 +1592,14 @@ int wc_RsaSSL_Sign(const byte* in, word32 inLen, byte* out, word32 outLen,
     ret = init_bn(&tmp, sz);
     if (ret != ippStsNoErr) {
         USER_DEBUG(("init_BN error of %s\n", ippGetStatusString(ret)));
+        FreeSignHelper(one, tmp, tmpP, tmpQ, tmpa, tmpb);
         return USER_CRYPTO_ERROR;
     }
     ret = ippsSetOctString_BN(out, sz, tmp);
     if (ret != ippStsNoErr) {
-        USER_DEBUG(("ippsSetOctString_BN error of %s\n", ippGetStatusString(ret)));
+        USER_DEBUG(("ippsSetOctString_BN error of %s\n",
+                                                      ippGetStatusString(ret)));
+        FreeSignHelper(one, tmp, tmpP, tmpQ, tmpa, tmpb);
         return USER_CRYPTO_ERROR;
     }
 
@@ -1539,6 +1607,7 @@ int wc_RsaSSL_Sign(const byte* in, word32 inLen, byte* out, word32 outLen,
     ret = init_bn(&tmpP, sz);
     if (ret != ippStsNoErr) {
         USER_DEBUG(("init_BN error of %s\n", ippGetStatusString(ret)));
+        FreeSignHelper(one, tmp, tmpP, tmpQ, tmpa, tmpb);
         return USER_CRYPTO_ERROR;
     }
 
@@ -1546,6 +1615,7 @@ int wc_RsaSSL_Sign(const byte* in, word32 inLen, byte* out, word32 outLen,
     ret = init_bn(&tmpQ, sz);
     if (ret != ippStsNoErr) {
         USER_DEBUG(("init_BN error of %s\n", ippGetStatusString(ret)));
+        FreeSignHelper(one, tmp, tmpP, tmpQ, tmpa, tmpb);
         return USER_CRYPTO_ERROR;
     }
 
@@ -1553,6 +1623,7 @@ int wc_RsaSSL_Sign(const byte* in, word32 inLen, byte* out, word32 outLen,
     ret = init_bn(&tmpa, sz);
     if (ret != ippStsNoErr) {
         USER_DEBUG(("init_BN error of %s\n", ippGetStatusString(ret)));
+        FreeSignHelper(one, tmp, tmpP, tmpQ, tmpa, tmpb);
         return USER_CRYPTO_ERROR;
     }
 
@@ -1560,6 +1631,7 @@ int wc_RsaSSL_Sign(const byte* in, word32 inLen, byte* out, word32 outLen,
     ret = init_bn(&tmpb, sz);
     if (ret != ippStsNoErr) {
         USER_DEBUG(("init_BN error of %s\n", ippGetStatusString(ret)));
+        FreeSignHelper(one, tmp, tmpP, tmpQ, tmpa, tmpb);
         return USER_CRYPTO_ERROR;
     }
 
@@ -1567,27 +1639,39 @@ int wc_RsaSSL_Sign(const byte* in, word32 inLen, byte* out, word32 outLen,
     ret = init_bn(&one, sz);
     if (ret != ippStsNoErr) {
         USER_DEBUG(("init_BN error of %s\n", ippGetStatusString(ret)));
+        FreeSignHelper(one, tmp, tmpP, tmpQ, tmpa, tmpb);
         return USER_CRYPTO_ERROR;
     }
     ret = ippsSetOctString_BN(o, 1, one);
     if (ret != ippStsNoErr) {
         USER_DEBUG(("ippsSetOctString_BN error of %s\n",
                     ippGetStatusString(ret)));
+        FreeSignHelper(one, tmp, tmpP, tmpQ, tmpa, tmpb);
         return USER_CRYPTO_ERROR;
     }
 
     /**
       Set up Montgomery state
       */
-    ret = init_mont(&pMont, key->pipp);
+    ret = init_mont(&pMont, &pSz, key->pipp);
     if (ret != ippStsNoErr) {
         USER_DEBUG(("init_mont error of %s\n", ippGetStatusString(ret)));
+        if (pMont != NULL) {
+            XFREE(pMont, NULL, DYNAMIC_TYPE_USER_CRYPTO);
+        }
+        FreeSignHelper(one, tmp, tmpP, tmpQ, tmpa, tmpb);
         return USER_CRYPTO_ERROR;
     }
 
-    ret = init_mont(&qMont, key->qipp);
+    ret = init_mont(&qMont, &qSz, key->qipp);
     if (ret != ippStsNoErr) {
         USER_DEBUG(("init_mont error of %s\n", ippGetStatusString(ret)));
+        if (qMont != NULL) {
+            XFREE(qMont, NULL, DYNAMIC_TYPE_USER_CRYPTO);
+        }
+        ForceZero(pMont, pSz);
+        XFREE(pMont, NULL, DYNAMIC_TYPE_USER_CRYPTO);
+        FreeSignHelper(one, tmp, tmpP, tmpQ, tmpa, tmpb);
         return USER_CRYPTO_ERROR;
     }
 
@@ -1599,6 +1683,11 @@ int wc_RsaSSL_Sign(const byte* in, word32 inLen, byte* out, word32 outLen,
     if (ret != ippStsNoErr)
     {
         USER_DEBUG(("reduce error of %s\n", ippGetStatusString(ret)));
+        ForceZero(pMont, pSz);
+        ForceZero(qMont, qSz);
+        XFREE(qMont, NULL, DYNAMIC_TYPE_USER_CRYPTO);
+        XFREE(pMont, NULL, DYNAMIC_TYPE_USER_CRYPTO);
+        FreeSignHelper(one, tmp, tmpP, tmpQ, tmpa, tmpb);
         return USER_CRYPTO_ERROR;
     }
 
@@ -1606,6 +1695,11 @@ int wc_RsaSSL_Sign(const byte* in, word32 inLen, byte* out, word32 outLen,
     if (ret != ippStsNoErr)
     {
         USER_DEBUG(("reduce error of %s\n", ippGetStatusString(ret)));
+        ForceZero(pMont, pSz);
+        ForceZero(qMont, qSz);
+        XFREE(qMont, NULL, DYNAMIC_TYPE_USER_CRYPTO);
+        XFREE(pMont, NULL, DYNAMIC_TYPE_USER_CRYPTO);
+        FreeSignHelper(one, tmp, tmpP, tmpQ, tmpa, tmpb);
         return USER_CRYPTO_ERROR;
     }
 
@@ -1613,6 +1707,11 @@ int wc_RsaSSL_Sign(const byte* in, word32 inLen, byte* out, word32 outLen,
     ret = exptmod(tmpP, key->dPipp, pMont, tmpa, one);
     if (ret != ippStsNoErr) {
         USER_DEBUG(("exptmod error of %s\n", ippGetStatusString(ret)));
+        ForceZero(pMont, pSz);
+        ForceZero(qMont, qSz);
+        XFREE(qMont, NULL, DYNAMIC_TYPE_USER_CRYPTO);
+        XFREE(pMont, NULL, DYNAMIC_TYPE_USER_CRYPTO);
+        FreeSignHelper(one, tmp, tmpP, tmpQ, tmpa, tmpb);
         return USER_CRYPTO_ERROR;
     }
 
@@ -1620,6 +1719,11 @@ int wc_RsaSSL_Sign(const byte* in, word32 inLen, byte* out, word32 outLen,
     ret = exptmod(tmpQ, key->dQipp, qMont, tmpb, one);
     if (ret != ippStsNoErr) {
         USER_DEBUG(("exptmod error of %s\n", ippGetStatusString(ret)));
+        ForceZero(pMont, pSz);
+        ForceZero(qMont, qSz);
+        XFREE(qMont, NULL, DYNAMIC_TYPE_USER_CRYPTO);
+        XFREE(pMont, NULL, DYNAMIC_TYPE_USER_CRYPTO);
+        FreeSignHelper(one, tmp, tmpP, tmpQ, tmpa, tmpb);
         return USER_CRYPTO_ERROR;
     }
 
@@ -1627,12 +1731,22 @@ int wc_RsaSSL_Sign(const byte* in, word32 inLen, byte* out, word32 outLen,
     ret = ippsSub_BN(tmpa, tmpb, tmp);
     if (ret != ippStsNoErr) {
         USER_DEBUG(("ippsSub_BN error of %s\n", ippGetStatusString(ret)));
+        ForceZero(pMont, pSz);
+        ForceZero(qMont, qSz);
+        XFREE(qMont, NULL, DYNAMIC_TYPE_USER_CRYPTO);
+        XFREE(pMont, NULL, DYNAMIC_TYPE_USER_CRYPTO);
+        FreeSignHelper(one, tmp, tmpP, tmpQ, tmpa, tmpb);
         return USER_CRYPTO_ERROR;
     }
 
     ret = ippsMul_BN(tmp, key->uipp, tmp);
     if (ret != ippStsNoErr) {
         USER_DEBUG(("ippsMul_BN error of %s\n", ippGetStatusString(ret)));
+        ForceZero(pMont, pSz);
+        ForceZero(qMont, qSz);
+        XFREE(qMont, NULL, DYNAMIC_TYPE_USER_CRYPTO);
+        XFREE(pMont, NULL, DYNAMIC_TYPE_USER_CRYPTO);
+        FreeSignHelper(one, tmp, tmpP, tmpQ, tmpa, tmpb);
         return USER_CRYPTO_ERROR;
     }
 
@@ -1640,6 +1754,11 @@ int wc_RsaSSL_Sign(const byte* in, word32 inLen, byte* out, word32 outLen,
    ret = ippsDiv_BN(tmp, key->pipp, tmpa, tmp);
    if (ret != ippStsNoErr) {
         USER_DEBUG(("ippsDiv_BN error of %s\n", ippGetStatusString(ret)));
+        ForceZero(pMont, pSz);
+        ForceZero(qMont, qSz);
+        XFREE(qMont, NULL, DYNAMIC_TYPE_USER_CRYPTO);
+        XFREE(pMont, NULL, DYNAMIC_TYPE_USER_CRYPTO);
+        FreeSignHelper(one, tmp, tmpP, tmpQ, tmpa, tmpb);
         return USER_CRYPTO_ERROR;
    }
 
@@ -1647,17 +1766,32 @@ int wc_RsaSSL_Sign(const byte* in, word32 inLen, byte* out, word32 outLen,
     ret = ippsExtGet_BN(&sa, NULL, NULL, tmp);
     if (ret != ippStsNoErr) {
         USER_DEBUG(("ippsExtGet_BN error of %s\n", ippGetStatusString(ret)));
+        ForceZero(pMont, pSz);
+        ForceZero(qMont, qSz);
+        XFREE(qMont, NULL, DYNAMIC_TYPE_USER_CRYPTO);
+        XFREE(pMont, NULL, DYNAMIC_TYPE_USER_CRYPTO);
+        FreeSignHelper(one, tmp, tmpP, tmpQ, tmpa, tmpb);
         return USER_CRYPTO_ERROR;
     }
     ret = ippsExtGet_BN(&sb, NULL, NULL, key->pipp);
     if (ret != ippStsNoErr) {
         USER_DEBUG(("ippsExtGet_BN error of %s\n", ippGetStatusString(ret)));
+        ForceZero(pMont, pSz);
+        ForceZero(qMont, qSz);
+        XFREE(qMont, NULL, DYNAMIC_TYPE_USER_CRYPTO);
+        XFREE(pMont, NULL, DYNAMIC_TYPE_USER_CRYPTO);
+        FreeSignHelper(one, tmp, tmpP, tmpQ, tmpa, tmpb);
         return USER_CRYPTO_ERROR;
     }
     if (sa != sb) {
         ret = ippsAdd_BN(tmp, key->pipp, tmp);
         if (ret != ippStsNoErr) {
             USER_DEBUG(("ippsAdd_BN error of %s\n", ippGetStatusString(ret)));
+            ForceZero(pMont, pSz);
+            ForceZero(qMont, qSz);
+            XFREE(qMont, NULL, DYNAMIC_TYPE_USER_CRYPTO);
+            XFREE(pMont, NULL, DYNAMIC_TYPE_USER_CRYPTO);
+            FreeSignHelper(one, tmp, tmpP, tmpQ, tmpa, tmpb);
             return USER_CRYPTO_ERROR;
         }
     }
@@ -1666,6 +1800,11 @@ int wc_RsaSSL_Sign(const byte* in, word32 inLen, byte* out, word32 outLen,
     ret = ippsMul_BN(tmp, key->qipp, tmp);
     if (ret != ippStsNoErr) {
         USER_DEBUG(("ippsSub_BN error of %s\n", ippGetStatusString(ret)));
+        ForceZero(pMont, pSz);
+        ForceZero(qMont, qSz);
+        XFREE(qMont, NULL, DYNAMIC_TYPE_USER_CRYPTO);
+        XFREE(pMont, NULL, DYNAMIC_TYPE_USER_CRYPTO);
+        FreeSignHelper(one, tmp, tmpP, tmpQ, tmpa, tmpb);
         return USER_CRYPTO_ERROR;
     }
 
@@ -1673,6 +1812,11 @@ int wc_RsaSSL_Sign(const byte* in, word32 inLen, byte* out, word32 outLen,
     ret = ippsAdd_BN(tmp, tmpb, tmp);
     if (ret != ippStsNoErr) {
         USER_DEBUG(("ippsSub_BN error of %s\n", ippGetStatusString(ret)));
+        ForceZero(pMont, pSz);
+        ForceZero(qMont, qSz);
+        XFREE(qMont, NULL, DYNAMIC_TYPE_USER_CRYPTO);
+        XFREE(pMont, NULL, DYNAMIC_TYPE_USER_CRYPTO);
+        FreeSignHelper(one, tmp, tmpP, tmpQ, tmpa, tmpb);
         return USER_CRYPTO_ERROR;
     }
 
@@ -1681,27 +1825,22 @@ int wc_RsaSSL_Sign(const byte* in, word32 inLen, byte* out, word32 outLen,
     if (ret != ippStsNoErr) {
         USER_DEBUG(("ippsGetOctString_BN error of %s\n",
                     ippGetStatusString(ret)));
+        ForceZero(pMont, pSz);
+        ForceZero(qMont, qSz);
+        XFREE(qMont, NULL, DYNAMIC_TYPE_USER_CRYPTO);
+        XFREE(pMont, NULL, DYNAMIC_TYPE_USER_CRYPTO);
+        FreeSignHelper(one, tmp, tmpP, tmpQ, tmpa, tmpb);
         return USER_CRYPTO_ERROR;
     }
 
     outSz = sz;
 
-    XFREE(pMont, NULL, DYNAMIC_TYPE_USER_CRYPTO);
+    /* clear memory and free */
+    ForceZero(pMont, pSz);
+    ForceZero(qMont, qSz);
     XFREE(qMont, NULL, DYNAMIC_TYPE_USER_CRYPTO);
-
-    XFREE(one, NULL, DYNAMIC_TYPE_USER_CRYPTO);
-
-    /* clear memory by setting BN to one and then free */
-    ippsSetOctString_BN(o, 1, tmp);
-    XFREE(tmp, NULL, DYNAMIC_TYPE_USER_CRYPTO);
-    ippsSetOctString_BN(o, 1, tmpP);
-    XFREE(tmpP, NULL, DYNAMIC_TYPE_USER_CRYPTO);
-    ippsSetOctString_BN(o, 1, tmpQ);
-    XFREE(tmpQ, NULL, DYNAMIC_TYPE_USER_CRYPTO);
-    ippsSetOctString_BN(o, 1, tmpa);
-    XFREE(tmpa, NULL, DYNAMIC_TYPE_USER_CRYPTO);
-    ippsSetOctString_BN(o, 1, tmpb);
-    XFREE(tmpb, NULL, DYNAMIC_TYPE_USER_CRYPTO);
+    XFREE(pMont, NULL, DYNAMIC_TYPE_USER_CRYPTO);
+    FreeSignHelper(one, tmp, tmpP, tmpQ, tmpa, tmpb);
 
     return outSz;
 }
@@ -1829,7 +1968,7 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
         return USER_CRYPTO_ERROR;
     }
 
-    pPrime = XMALLOC(ctxSz, NULL, DYNAMIC_TYPE_USER_CRYPTO);
+    pPrime = (IppsPrimeState*)XMALLOC(ctxSz, NULL, DYNAMIC_TYPE_USER_CRYPTO);
     if (pPrime == NULL)
         return USER_CRYPTO_ERROR;
 
@@ -1849,7 +1988,8 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
     }
 
     key->prvSz = ctxSz; /* used when freeing private key */
-    key->pPrv = XMALLOC(ctxSz, NULL, DYNAMIC_TYPE_USER_CRYPTO);
+    key->pPrv = (IppsRSAPrivateKeyState*)XMALLOC(ctxSz, NULL,
+                                                      DYNAMIC_TYPE_USER_CRYPTO);
     if (key->pPrv == NULL)
         return USER_CRYPTO_ERROR;
 
@@ -1869,7 +2009,7 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
         return USER_CRYPTO_ERROR;
     }
 
-    scratchBuffer = XMALLOC(scratchSz, 0, DYNAMIC_TYPE_USER_CRYPTO);
+    scratchBuffer = (Ipp8u*)XMALLOC(scratchSz, 0, DYNAMIC_TYPE_USER_CRYPTO);
     if (scratchBuffer == NULL)
         return USER_CRYPTO_ERROR;
 
@@ -1943,7 +2083,8 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
         return USER_CRYPTO_ERROR;
     }
 
-    key->pPub = XMALLOC(ctxSz, NULL, DYNAMIC_TYPE_USER_CRYPTO);
+    key->pPub = (IppsRSAPublicKeyState*)XMALLOC(ctxSz, NULL,
+                                                      DYNAMIC_TYPE_USER_CRYPTO);
     if (key->pPub == NULL)
         return USER_CRYPTO_ERROR;
 
@@ -2381,7 +2522,7 @@ int wc_RsaKeyToDer(RsaKey* key, byte* output, word32 inLen)
         rawLen += lbit;
 
         tmps[i] = (byte*)XMALLOC(rawLen + MAX_SEQ_SZ, key->heap,
-                                 DYNAMIC_TYPE_USER_CRYPTO);
+                                                      DYNAMIC_TYPE_USER_CRYPTO);
         if (tmps[i] == NULL) {
             ret = USER_CRYPTO_ERROR;
             break;
