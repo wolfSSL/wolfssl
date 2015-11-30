@@ -4344,7 +4344,7 @@ static int wolfSSL_SetTmpDH_file_wrapper(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
     long   sz = 0;
     XFILE  file;
 
-    if (ctx == NULL || ssl == NULL || fname == NULL)
+    if (ctx == NULL || fname == NULL)
         return BAD_FUNC_ARG;
 
     file = XFOPEN(fname, "rb");
@@ -7242,7 +7242,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         byte   g[MAX_DH_SIZE];
     #endif
 
-        if (ctx == NULL || ssl == NULL || buf == NULL)
+        if (ctx == NULL || buf == NULL)
             return BAD_FUNC_ARG;
 
         der.buffer = (byte*)buf;

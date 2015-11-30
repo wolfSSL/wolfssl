@@ -256,7 +256,8 @@ static void test_wolfSSL_CTX_SetTmpDH_file(void)
                 bogusFile, SSL_FILETYPE_PEM));
 
     /* success */
-    AssertTrue(wolfSSL_CTX_SetTmpDH_file(ctx, dhParam, SSL_FILETYPE_PEM));
+    AssertIntEQ(SSL_SUCCESS, wolfSSL_CTX_SetTmpDH_file(ctx, dhParam,
+                SSL_FILETYPE_PEM));
 
     wolfSSL_CTX_free(ctx);
 #endif
@@ -280,7 +281,7 @@ static void test_wolfSSL_CTX_SetTmpDH_buffer(void)
                 sizeof_dsa_key_der_2048, SSL_FILETYPE_ASN1));
 
     /* success */
-    AssertIntNE(SSL_SUCCESS, wolfSSL_CTX_SetTmpDH_buffer(ctx, dh_key_der_2048,
+    AssertIntEQ(SSL_SUCCESS, wolfSSL_CTX_SetTmpDH_buffer(ctx, dh_key_der_2048,
                 sizeof_dh_key_der_2048, SSL_FILETYPE_ASN1));
 
     wolfSSL_CTX_free(ctx);
@@ -352,7 +353,11 @@ static void test_wolfSSL_SetTmpDH_file(void)
     WOLFSSL_CTX *ctx;
     WOLFSSL *ssl;
 
-    AssertNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+    AssertNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_server_method()));
+    AssertTrue(wolfSSL_CTX_use_certificate_file(ctx, svrCert,
+                SSL_FILETYPE_PEM));
+    AssertTrue(wolfSSL_CTX_use_PrivateKey_file(ctx, svrKey,
+                SSL_FILETYPE_PEM));
     AssertNotNull(ssl = wolfSSL_new(ctx));
 
     /* invalid ssl */
@@ -366,7 +371,8 @@ static void test_wolfSSL_SetTmpDH_file(void)
                 bogusFile, SSL_FILETYPE_PEM));
 
     /* success */
-    AssertTrue(wolfSSL_SetTmpDH_file(ssl, dhParam, SSL_FILETYPE_PEM));
+    AssertIntEQ(SSL_SUCCESS, wolfSSL_SetTmpDH_file(ssl, dhParam,
+                SSL_FILETYPE_PEM));
 
     wolfSSL_free(ssl);
     wolfSSL_CTX_free(ctx);
@@ -379,7 +385,11 @@ static void test_wolfSSL_SetTmpDH_buffer(void)
     WOLFSSL_CTX *ctx;
     WOLFSSL *ssl;
 
-    AssertNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+    AssertNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_server_method()));
+    AssertTrue(wolfSSL_CTX_use_certificate_buffer(ctx, server_cert_der_2048,
+                sizeof_server_cert_der_2048, SSL_FILETYPE_ASN1));
+    AssertTrue(wolfSSL_CTX_use_PrivateKey_buffer(ctx, server_key_der_2048,
+                sizeof_server_key_der_2048, SSL_FILETYPE_ASN1));
     AssertNotNull(ssl = wolfSSL_new(ctx));
 
     /* invalid ssl */
@@ -393,11 +403,12 @@ static void test_wolfSSL_SetTmpDH_buffer(void)
                 sizeof_dsa_key_der_2048, SSL_FILETYPE_ASN1));
 
     /* success */
-    AssertIntNE(SSL_SUCCESS, wolfSSL_SetTmpDH_buffer(ssl, dh_key_der_2048,
+    AssertIntEQ(SSL_SUCCESS, wolfSSL_SetTmpDH_buffer(ssl, dh_key_der_2048,
                 sizeof_dh_key_der_2048, SSL_FILETYPE_ASN1));
 
     wolfSSL_free(ssl);
     wolfSSL_CTX_free(ctx);
+    printf("SUCCESS4\n");
 #endif
 }
 
