@@ -1453,7 +1453,6 @@ typedef struct Keys {
     word32 encryptSz;             /* last size of encrypted data   */
     word32 padSz;                 /* how much to advance after decrypt part */
     byte   encryptionOn;          /* true after change cipher spec */
-    byte   decryptedCur;          /* only decrypt current record once */
 } Keys;
 
 
