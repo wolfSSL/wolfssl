@@ -71,9 +71,10 @@ for (my $i = 0; $i < $num_1024; $i++) {
     print OUT_FILE "};\n";
     print OUT_FILE "static const int sizeof_$sname = sizeof($sname);\n\n";
 }
+print OUT_FILE "#endif /* USE_CERT_BUFFERS_1024 */\n\n";
 
 # convert and print 2048-bit certs/keys
-print OUT_FILE "#elif defined(USE_CERT_BUFFERS_2048)\n\n";
+print OUT_FILE "#ifdef USE_CERT_BUFFERS_2048\n\n";
 for (my $i = 0; $i < $num_2048; $i++) {
 
     my $fname = $fileList_2048[$i][0];
@@ -87,7 +88,7 @@ for (my $i = 0; $i < $num_2048; $i++) {
     print OUT_FILE "static const int sizeof_$sname = sizeof($sname);\n\n";
 }
 
-print OUT_FILE "#endif /* USE_CERT_BUFFERS_1024 */\n\n";
+print OUT_FILE "#endif /* USE_CERT_BUFFERS_2048 */\n\n";
 print OUT_FILE "/* dh1024 p */
 static const unsigned char dh_p[] =
 {
@@ -108,7 +109,7 @@ static const unsigned char dh_p[] =
 static const unsigned char dh_g[] =
 {
   0x02,
-};\n\n\n";
+};\n\n";
 print OUT_FILE "#endif /* WOLFSSL_CERTS_TEST_H */\n\n";
 
 # close certs_test.h file

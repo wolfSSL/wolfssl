@@ -606,7 +606,9 @@ static const unsigned char server_cert_der_1024[] =
 };
 static const int sizeof_server_cert_der_1024 = sizeof(server_cert_der_1024);
 
-#elif defined(USE_CERT_BUFFERS_2048)
+#endif /* USE_CERT_BUFFERS_1024 */
+
+#ifdef USE_CERT_BUFFERS_2048
 
 /* ./certs/client-key.der, 2048-bit */
 static const unsigned char client_key_der_2048[] =
@@ -1526,7 +1528,7 @@ static const unsigned char server_cert_der_2048[] =
 };
 static const int sizeof_server_cert_der_2048 = sizeof(server_cert_der_2048);
 
-#endif /* USE_CERT_BUFFERS_1024 */
+#endif /* USE_CERT_BUFFERS_2048 */
 
 /* dh1024 p */
 static const unsigned char dh_p[] =
@@ -1549,7 +1551,6 @@ static const unsigned char dh_g[] =
 {
   0x02,
 };
-
 
 #endif /* WOLFSSL_CERTS_TEST_H */
 
