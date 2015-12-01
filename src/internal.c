@@ -278,13 +278,14 @@ static word32 GetEntropy(unsigned char* out, word32 num_bytes)
     int ret = 0;
 
     if (rng == NULL) {
-        if ((rng = XMALLOC(sizeof(WC_RNG), 0, DYNAMIC_TYPE_TLSX)) == NULL)
+        if ((rng = (WC_RNG*)XMALLOC(sizeof(WC_RNG), 0,
+                                                    DYNAMIC_TYPE_TLSX)) == NULL)
             return DRBG_OUT_OF_MEMORY;
         wc_InitRng(rng);
     }
 
     if (rngMutex == NULL) {
-        if ((rngMutex = XMALLOC(sizeof(wolfSSL_Mutex), 0,
+        if ((rngMutex = (wolfSSL_Mutex*)XMALLOC(sizeof(wolfSSL_Mutex), 0,
                         DYNAMIC_TYPE_TLSX)) == NULL)
             return DRBG_OUT_OF_MEMORY;
         InitMutex(rngMutex);
@@ -11460,8 +11461,8 @@ int QSH_Init(WOLFSSL* ssl)
         return 0;
 
     /* malloc memory for holding generated secret information */
-    if ((ssl->QSH_secret =
-             XMALLOC(sizeof(QSHSecret), NULL, DYNAMIC_TYPE_TMP_BUFFER)) == NULL)
+    if ((ssl->QSH_secret = (QSHSecret*)XMALLOC(sizeof(QSHSecret), NULL,
+                    DYNAMIC_TYPE_TMP_BUFFER)) == NULL)
         return MEMORY_E;
 
     ssl->QSH_secret->CliSi = (buffer*)XMALLOC(sizeof(buffer), NULL,
@@ -11623,7 +11624,7 @@ static int QSH_GenerateSerCliSecret(WOLFSSL* ssl, byte isServer)
         buf = ssl->QSH_secret->CliSi;
     }
     buf->length = sz;
-    buf->buffer = XMALLOC(sz, buf->buffer, DYNAMIC_TYPE_TMP_BUFFER);
+    buf->buffer = (byte*)XMALLOC(sz, buf->buffer, DYNAMIC_TYPE_TMP_BUFFER);
     if (buf->buffer == NULL) {
         WOLFSSL_ERROR(MEMORY_E);
     }
@@ -11632,7 +11633,8 @@ static int QSH_GenerateSerCliSecret(WOLFSSL* ssl, byte isServer)
     sz = 0;
     current = ssl->peerQSHKey;
     while (current) {
-        schm = XMALLOC(sizeof(QSHScheme), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        schm = (QSHScheme*)XMALLOC(sizeof(QSHScheme), NULL,
+                                                       DYNAMIC_TYPE_TMP_BUFFER);
         if (schm == NULL)
             return MEMORY_E;
 
@@ -11651,7 +11653,8 @@ static int QSH_GenerateSerCliSecret(WOLFSSL* ssl, byte isServer)
 
         tmpSz = QSH_MaxSecret(current);
 
-        if ((schm->PK = XMALLOC(tmpSz, 0, DYNAMIC_TYPE_TMP_BUFFER)) == NULL)
+        if ((schm->PK = (byte*)XMALLOC(tmpSz, 0,
+                                              DYNAMIC_TYPE_TMP_BUFFER)) == NULL)
             return -1;
 
         /* store info for writing extension */

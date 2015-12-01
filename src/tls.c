@@ -2752,7 +2752,8 @@ static int TLSX_QSH_Append(QSHScheme** list, word16 name, byte* pub,
     if (list == NULL)
         return BAD_FUNC_ARG;
 
-    if ((temp = XMALLOC(sizeof(QSHScheme), NULL, DYNAMIC_TYPE_TLSX)) == NULL)
+    if ((temp = (QSHScheme*)XMALLOC(sizeof(QSHScheme), NULL,
+                                                    DYNAMIC_TYPE_TLSX)) == NULL)
         return MEMORY_E;
 
     temp->name  = name;
@@ -3028,7 +3029,8 @@ static int TLSX_QSH_Parse(WOLFSSL* ssl, byte* input, word16 length,
     while ((offset_len < offset_pk) && numKeys) {
         QSHKey * temp;
 
-        if ((temp = XMALLOC(sizeof(QSHKey), NULL, DYNAMIC_TYPE_TLSX)) == NULL)
+        if ((temp = (QSHKey*)XMALLOC(sizeof(QSHKey), NULL,
+                                                    DYNAMIC_TYPE_TLSX)) == NULL)
             return MEMORY_E;
 
         /* initialize */
@@ -3544,13 +3546,14 @@ static word32 GetEntropy(unsigned char* out, word32 num_bytes)
     int ret = 0;
 
     if (rng == NULL) {
-        if ((rng = XMALLOC(sizeof(WC_RNG), NULL, DYNAMIC_TYPE_TLSX)) == NULL)
+        if ((rng = (WC_RNG*)XMALLOC(sizeof(WC_RNG), NULL,
+                                                    DYNAMIC_TYPE_TLSX)) == NULL)
             return DRBG_OUT_OF_MEMORY;
         wc_InitRng(rng);
     }
 
     if (rngMutex == NULL) {
-        if ((rngMutex = XMALLOC(sizeof(wolfSSL_Mutex), NULL,
+        if ((rngMutex = (wolfSSL_Mutex*)XMALLOC(sizeof(wolfSSL_Mutex), NULL,
                                                     DYNAMIC_TYPE_TLSX)) == NULL)
             return DRBG_OUT_OF_MEMORY;
         InitMutex(rngMutex);
@@ -3670,15 +3673,16 @@ int TLSX_CreateNtruKey(WOLFSSL* ssl, int type)
         return ret;
     }
 
-    if ((temp = XMALLOC(sizeof(QSHKey), NULL, DYNAMIC_TYPE_TLSX)) == NULL)
+    if ((temp = (QSHKey*)XMALLOC(sizeof(QSHKey), NULL,
+                                                    DYNAMIC_TYPE_TLSX)) == NULL)
         return MEMORY_E;
     temp->name = type;
     temp->pub.length = public_key_len;
-    temp->pub.buffer = XMALLOC(public_key_len, public_key,
+    temp->pub.buffer = (byte*)XMALLOC(public_key_len, public_key,
                                 DYNAMIC_TYPE_PUBLIC_KEY);
     XMEMCPY(temp->pub.buffer, public_key, public_key_len);
     temp->pri.length = private_key_len;
-    temp->pri.buffer = XMALLOC(private_key_len, private_key,
+    temp->pri.buffer = (byte*)XMALLOC(private_key_len, private_key,
                                 DYNAMIC_TYPE_ARRAYS);
     XMEMCPY(temp->pri.buffer, private_key, private_key_len);
     temp->next = NULL;
