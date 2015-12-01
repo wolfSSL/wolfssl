@@ -1603,9 +1603,9 @@ WOLFSSL_LOCAL int   TLSX_CSR_ForceRequest(WOLFSSL* ssl);
 typedef struct CSRIv2 {
     byte status_type;
     byte options;
-    word16 request_length;
+    word16 requests;
     union {
-        OcspRequest ocsp;
+        OcspRequest ocsp[1 + MAX_CHAIN_DEPTH];
     } request;
     struct CSRIv2* next;
 } CertificateStatusRequestItemV2;
@@ -1613,7 +1613,8 @@ typedef struct CSRIv2 {
 WOLFSSL_LOCAL int   TLSX_UseCertificateStatusRequestV2(TLSX** extensions,
                                                 byte status_type, byte options);
 WOLFSSL_LOCAL int   TLSX_CSR2_InitRequests(TLSX* extensions, DecodedCert* cert);
-WOLFSSL_LOCAL void* TLSX_CSR2_GetRequest(TLSX* extensions, byte status_type);
+WOLFSSL_LOCAL void* TLSX_CSR2_GetRequest(TLSX* extensions, byte status_type,
+                                                                    byte index);
 WOLFSSL_LOCAL int   TLSX_CSR2_ForceRequest(WOLFSSL* ssl);
 
 #endif
