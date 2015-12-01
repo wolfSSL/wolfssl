@@ -12688,7 +12688,7 @@ int DoSessionTicket(WOLFSSL* ssl,
         ssl->session.ticketLen = 0;
     }
 
-    if (IsEncryptionOn(ssl)) {
+    if (IsEncryptionOn(ssl, 0)) {
         *inOutIdx += ssl->keys.padSz;
     }
 
