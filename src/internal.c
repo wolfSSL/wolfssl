@@ -3425,6 +3425,9 @@ static int GetRecordHeader(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             return UNKNOWN_RECORD_TYPE;
     }
 
+    /* haven't decrypted this record yet */
+    ssl->keys.decryptedCur = 0;
+
     return 0;
 }
 
@@ -7172,7 +7175,7 @@ int ProcessReply(WOLFSSL* ssl)
         /* the record layer is here */
         case runProcessingOneMessage:
 
-            if (IsEncryptionOn(ssl, 0))
+            if (IsEncryptionOn(ssl, 0) && ssl->keys.decryptedCur == 0)
             {
                 ret = SanityCheckCipherText(ssl, ssl->curSize);
                 if (ret < 0)
@@ -7224,6 +7227,7 @@ int ProcessReply(WOLFSSL* ssl)
                     return DECRYPT_ERROR;
                 }
                 ssl->keys.encryptSz    = ssl->curSize;
+                ssl->keys.decryptedCur = 1;
             }
 
             if (ssl->options.dtls) {
