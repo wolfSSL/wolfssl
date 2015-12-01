@@ -3374,6 +3374,11 @@ static int GetRecordHeader(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 #endif
     }
 
+#ifdef WOLFSSL_DTLS
+    if (ssl->options.dtls && !DtlsCheckWindow(&ssl->keys.dtls_state))
+        return SEQUENCE_ERROR;
+#endif
+
     /* catch version mismatch */
     if (rh->pvMajor != ssl->version.major || rh->pvMinor != ssl->version.minor){
         if (ssl->options.side == WOLFSSL_SERVER_END &&
@@ -3394,13 +3399,6 @@ static int GetRecordHeader(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             return VERSION_ERROR;              /* only use requested version */
         }
     }
-
-#ifdef WOLFSSL_DTLS
-    if (ssl->options.dtls) {
-        if (DtlsCheckWindow(&ssl->keys.dtls_state) != 1)
-            return SEQUENCE_ERROR;
-    }
-#endif
 
     /* record layer length check */
 #ifdef HAVE_MAX_FRAGMENT
