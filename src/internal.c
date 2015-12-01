@@ -10975,22 +10975,25 @@ static void PickHashSigAlgo(WOLFSSL* ssl,
         (void)hashAlgo;
 
         /* save message for hash verify */
-        if (verifySz > MAX_DH_SZ)
+        if (verifySz > MAX_DH_SZ) {
             ERROR_OUT(BUFFER_ERROR, done);
+        }
 
     #ifdef WOLFSSL_SMALL_STACK
         messageVerify = (byte*)XMALLOC(MAX_DH_SZ, NULL,
                                                        DYNAMIC_TYPE_TMP_BUFFER);
-        if (messageVerify == NULL)
+        if (messageVerify == NULL) {
             ERROR_OUT(MEMORY_E, done);
+        }
     #endif
 
         XMEMCPY(messageVerify, input + begin, verifySz);
 
         if (IsAtLeastTLSv1_2(ssl)) {
             byte setHash = 0;
-            if ((*inOutIdx - begin) + ENUM_LEN + ENUM_LEN > size)
+            if ((*inOutIdx - begin) + ENUM_LEN + ENUM_LEN > size) {
                 ERROR_OUT(BUFFER_ERROR, done);
+            }
 
             hashAlgo = input[(*inOutIdx)++];
             sigAlgo  = input[(*inOutIdx)++];
@@ -11045,22 +11048,25 @@ static void PickHashSigAlgo(WOLFSSL* ssl,
         }
 
         /* signature */
-        if ((*inOutIdx - begin) + OPAQUE16_LEN > size)
+        if ((*inOutIdx - begin) + OPAQUE16_LEN > size) {
             ERROR_OUT(BUFFER_ERROR, done);
+        }
 
         ato16(input + *inOutIdx, &length);
         *inOutIdx += OPAQUE16_LEN;
 
-        if ((*inOutIdx - begin) + length > size)
+        if ((*inOutIdx - begin) + length > size) {
             ERROR_OUT(BUFFER_ERROR, done);
+        }
 
         /* inOutIdx updated at the end of the function */
 
         /* verify signature */
     #ifdef WOLFSSL_SMALL_STACK
         hash = (byte*)XMALLOC(FINISHED_SZ, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        if (hash == NULL)
+        if (hash == NULL) {
             ERROR_OUT(MEMORY_E, done);
+        }
     #endif
 
 #ifndef NO_OLD_TLS
@@ -11068,8 +11074,9 @@ static void PickHashSigAlgo(WOLFSSL* ssl,
     #ifdef WOLFSSL_SMALL_STACK
         if (doMd5) {
             md5 = (Md5*)XMALLOC(sizeof(Md5), NULL, DYNAMIC_TYPE_TMP_BUFFER);
-            if (md5 == NULL)
+            if (md5 == NULL) {
                 ERROR_OUT(MEMORY_E, done);
+            }
         }
     #endif
         if (doMd5) {
@@ -11083,13 +11090,16 @@ static void PickHashSigAlgo(WOLFSSL* ssl,
     #ifdef WOLFSSL_SMALL_STACK
         if (doSha) {
             sha = (Sha*)XMALLOC(sizeof(Sha), NULL, DYNAMIC_TYPE_TMP_BUFFER);
-            if (sha == NULL)
+            if (sha == NULL) {
                 ERROR_OUT(MEMORY_E, done);
+            }
         }
     #endif
         if (doSha) {
             ret = wc_InitSha(sha);
-            if (ret != 0) goto done;
+            if (ret != 0) {
+                goto done;
+            }
             wc_ShaUpdate(sha, ssl->arrays->clientRandom, RAN_LEN);
             wc_ShaUpdate(sha, ssl->arrays->serverRandom, RAN_LEN);
             wc_ShaUpdate(sha, messageVerify, verifySz);
@@ -11104,8 +11114,9 @@ static void PickHashSigAlgo(WOLFSSL* ssl,
                                                        DYNAMIC_TYPE_TMP_BUFFER);
             hash256 = (byte*)XMALLOC(SHA256_DIGEST_SIZE, NULL,
                                                        DYNAMIC_TYPE_TMP_BUFFER);
-            if (sha256 == NULL || hash256 == NULL)
+            if (sha256 == NULL || hash256 == NULL) {
                 ERROR_OUT(MEMORY_E, done);
+            }
         }
     #endif
         if (doSha256) {
@@ -11114,9 +11125,12 @@ static void PickHashSigAlgo(WOLFSSL* ssl,
                                         RAN_LEN))
             &&  !(ret = wc_Sha256Update(sha256, ssl->arrays->serverRandom,
                                         RAN_LEN))
-            &&  !(ret = wc_Sha256Update(sha256, messageVerify, verifySz)))
+            &&  !(ret = wc_Sha256Update(sha256, messageVerify, verifySz))) {
                   ret = wc_Sha256Final(sha256, hash256);
-            if (ret != 0) goto done;
+            }
+            if (ret != 0) {
+                goto done;
+            }
         }
 #endif
 
@@ -11127,8 +11141,9 @@ static void PickHashSigAlgo(WOLFSSL* ssl,
                                                        DYNAMIC_TYPE_TMP_BUFFER);
             hash384 = (byte*)XMALLOC(SHA384_DIGEST_SIZE, NULL,
                                                        DYNAMIC_TYPE_TMP_BUFFER);
-            if (sha384 == NULL || hash384 == NULL)
+            if (sha384 == NULL || hash384 == NULL) {
                 ERROR_OUT(MEMORY_E, done);
+            }
         }
     #endif
         if (doSha384) {
@@ -11137,9 +11152,12 @@ static void PickHashSigAlgo(WOLFSSL* ssl,
                                         RAN_LEN))
             &&  !(ret = wc_Sha384Update(sha384, ssl->arrays->serverRandom,
                                         RAN_LEN))
-            &&  !(ret = wc_Sha384Update(sha384, messageVerify, verifySz)))
+            &&  !(ret = wc_Sha384Update(sha384, messageVerify, verifySz))) {
                   ret = wc_Sha384Final(sha384, hash384);
-            if (ret != 0) goto done;
+            }
+            if (ret != 0) {
+                goto done;
+            }
         }
 #endif
 
@@ -11150,8 +11168,9 @@ static void PickHashSigAlgo(WOLFSSL* ssl,
                                                        DYNAMIC_TYPE_TMP_BUFFER);
             hash512 = (byte*)XMALLOC(SHA512_DIGEST_SIZE, NULL,
                                                        DYNAMIC_TYPE_TMP_BUFFER);
-            if (sha512 == NULL || hash512 == NULL)
+            if (sha512 == NULL || hash512 == NULL) {
                 ERROR_OUT(MEMORY_E, done);
+            }
         }
     #endif
         if (doSha512) {
@@ -11160,15 +11179,20 @@ static void PickHashSigAlgo(WOLFSSL* ssl,
                                         RAN_LEN))
             &&  !(ret = wc_Sha512Update(sha512, ssl->arrays->serverRandom,
                                         RAN_LEN))
-            &&  !(ret = wc_Sha512Update(sha512, messageVerify, verifySz)))
+            &&  !(ret = wc_Sha512Update(sha512, messageVerify, verifySz))) {
                   ret = wc_Sha512Final(sha512, hash512);
-            if (ret != 0) goto done;
+            }
+            if (ret != 0) {
+                goto done;
+            }
         }
 #endif
 
+        switch (sigAlgo)
+        {
 #ifndef NO_RSA
         /* rsa */
-        if (sigAlgo == rsa_sa_algo)
+        case rsa_sa_algo:
         {
             byte*  out        = NULL;
             byte   doUserRsa  = 0;
@@ -11179,8 +11203,9 @@ static void PickHashSigAlgo(WOLFSSL* ssl,
                     doUserRsa = 1;
             #endif /*HAVE_PK_CALLBACKS */
 
-            if (ssl->peerRsaKey == NULL || !ssl->peerRsaKeyPresent)
+            if (ssl->peerRsaKey == NULL || !ssl->peerRsaKeyPresent) {
                 ERROR_OUT(NO_PEER_KEY, done);
+            }
 
             if (doUserRsa) {
             #ifdef HAVE_PK_CALLBACKS
@@ -11192,9 +11217,10 @@ static void PickHashSigAlgo(WOLFSSL* ssl,
                                                  ssl->RsaVerifyCtx);
             #endif /*HAVE_PK_CALLBACKS */
             }
-            else
+            else {
                 verifiedSz = wc_RsaSSL_VerifyInline((byte *)input + *inOutIdx,
                                                  length, &out, ssl->peerRsaKey);
+            }
 
             if (IsAtLeastTLSv1_2(ssl)) {
                 word32 encSigSz;
@@ -11245,31 +11271,38 @@ static void PickHashSigAlgo(WOLFSSL* ssl,
             #ifdef WOLFSSL_SMALL_STACK
                 encodedSig = (byte*)XMALLOC(MAX_ENCODED_SIG_SZ, NULL,
                                                        DYNAMIC_TYPE_TMP_BUFFER);
-                if (encodedSig == NULL)
+                if (encodedSig == NULL) {
                     ERROR_OUT(MEMORY_E, done);
+                }
             #endif
 
-                if (digest == NULL)
+                if (digest == NULL) {
                     ERROR_OUT(ALGO_ID_E, done);
+                }
                 encSigSz = wc_EncodeSignature(encodedSig, digest, digestSz,
                                               typeH);
                 if (encSigSz != verifiedSz || !out || XMEMCMP(out, encodedSig,
-                                        min(encSigSz, MAX_ENCODED_SIG_SZ)) != 0)
+                                        min(encSigSz, MAX_ENCODED_SIG_SZ)) != 0) {
                     ret = VERIFY_SIGN_ERROR;
+                }
             #ifdef WOLFSSL_SMALL_STACK
                 XFREE(encodedSig, NULL, DYNAMIC_TYPE_TMP_BUFFER);
             #endif
-                if (ret != 0)
+                if (ret != 0) {
                     goto done;
+                }
             }
             else if (verifiedSz != FINISHED_SZ || !out || XMEMCMP(out,
-                                                        hash, FINISHED_SZ) != 0)
+                                                        hash, FINISHED_SZ) != 0) {
                 ERROR_OUT(VERIFY_SIGN_ERROR, done);
-        } else
+            }
+            break;
+        }
 #endif
 #ifdef HAVE_ECC
         /* ecdsa */
-        if (sigAlgo == ecc_dsa_sa_algo) {
+        case ecc_dsa_sa_algo: 
+        {
             int verify = 0;
 #ifndef NO_OLD_TLS
             byte* digest = &hash[MD5_DIGEST_SIZE];
@@ -11281,8 +11314,9 @@ static void PickHashSigAlgo(WOLFSSL* ssl,
             byte doUserEcc = 0;
 
             #ifdef HAVE_PK_CALLBACKS
-                if (ssl->ctx->EccVerifyCb)
+                if (ssl->ctx->EccVerifyCb) {
                     doUserEcc = 1;
+                }
             #endif
 
             if (!ssl->peerEccDsaKeyPresent)
@@ -11327,12 +11361,15 @@ static void PickHashSigAlgo(WOLFSSL* ssl,
                 ret = wc_ecc_verify_hash(input + *inOutIdx, length,
                                  digest, digestSz, &verify, ssl->peerEccDsaKey);
             }
-            if (ret != 0 || verify == 0)
+            if (ret != 0 || verify == 0) {
                 ERROR_OUT(VERIFY_SIGN_ERROR, done);
+            }
+            break;
         }
-        else
 #endif /* HAVE_ECC */
+        default:
             ERROR_OUT(ALGO_ID_E, done);
+        } /* switch (sigAlgo) */
 
         /* signature length */
         *inOutIdx += length;
@@ -11360,8 +11397,9 @@ static void PickHashSigAlgo(WOLFSSL* ssl,
         XFREE(hash,          NULL, DYNAMIC_TYPE_TMP_BUFFER);
         XFREE(messageVerify, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
-        if (ret != 0)
+        if (ret != 0) {
             return ret;
+        }
     }
 
     if (ssl->keys.encryptionOn) {
@@ -11379,8 +11417,9 @@ static void PickHashSigAlgo(WOLFSSL* ssl,
         if (name == TLSX_QUANTUM_SAFE_HYBRID) {
             /* if qshSz is larger than 0 it is the length of buffer used */
             if ((qshSz = TLSX_QSHCipher_Parse(ssl, input + *inOutIdx,
-                                                                  size, 0)) < 0)
+                                                            size, 0)) < 0) {
                 return qshSz;
+            }
             *inOutIdx += qshSz;
         }
         else {
