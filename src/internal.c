@@ -12740,20 +12740,32 @@ int DoSessionTicket(WOLFSSL* ssl,
             }
         #endif
         /* now write to output */
-            /* first version */
+        /* first version */
         output[idx++] = ssl->version.major;
         output[idx++] = ssl->version.minor;
 
-            /* then random */
+        /* then random and session id */
         if (!ssl->options.resuming) {
-            ret = wc_RNG_GenerateBlock(ssl->rng, ssl->arrays->serverRandom,
-                                                                       RAN_LEN);
+            /* generate random part and session id */
+            ret = wc_RNG_GenerateBlock(ssl->rng, output + idx, 
+                RAN_LEN + sizeof(sessIdSz) + sessIdSz);
             if (ret != 0)
                 return ret;
-        }
 
-        XMEMCPY(output + idx, ssl->arrays->serverRandom, RAN_LEN);
-        idx += RAN_LEN;
+            /* store info in SSL context for later */
+            XMEMCPY(ssl->arrays->serverRandom, output + idx, RAN_LEN);
+            idx += RAN_LEN;
+            output[idx++] = sessIdSz;
+            XMEMCPY(ssl->arrays->sessionID, output + idx, sessIdSz);
+        }
+        else {
+            /* If resuming, use info from SSL context */
+            XMEMCPY(output + idx, ssl->arrays->serverRandom, RAN_LEN);
+            idx += RAN_LEN;
+            output[idx++] = sessIdSz;
+            XMEMCPY(output + idx, ssl->arrays->sessionID, sessIdSz);
+        }
+        idx += sessIdSz;
 
 #ifdef SHOW_SECRETS
         {
@@ -12764,31 +12776,18 @@ int DoSessionTicket(WOLFSSL* ssl,
             printf("\n");
         }
 #endif
-            /* then session id */
-        output[idx++] = sessIdSz;
-        if (sessIdSz) {
 
-            if (!ssl->options.resuming) {
-                ret = wc_RNG_GenerateBlock(ssl->rng, ssl->arrays->sessionID,
-                                           sessIdSz);
-                if (ret != 0) return ret;
-            }
-
-            XMEMCPY(output + idx, ssl->arrays->sessionID, sessIdSz);
-            idx += sessIdSz;
-        }
-
-            /* then cipher suite */
+        /* then cipher suite */
         output[idx++] = ssl->options.cipherSuite0;
         output[idx++] = ssl->options.cipherSuite;
 
-            /* then compression */
+        /* then compression */
         if (ssl->options.usingCompression)
             output[idx++] = ZLIB_COMPRESSION;
         else
             output[idx++] = NO_COMPRESSION;
 
-            /* last, extensions */
+        /* last, extensions */
 #ifdef HAVE_TLS_EXTENSIONS
         TLSX_WriteResponse(ssl, output + idx);
 #endif
@@ -12805,13 +12804,13 @@ int DoSessionTicket(WOLFSSL* ssl,
         if (ret != 0)
             return ret;
 
-        #ifdef WOLFSSL_CALLBACKS
-            if (ssl->hsInfoOn)
-                AddPacketName("ServerHello", &ssl->handShakeInfo);
-            if (ssl->toInfoOn)
-                AddPacketInfo("ServerHello", &ssl->timeoutInfo, output, sendSz,
-                              ssl->heap);
-        #endif
+    #ifdef WOLFSSL_CALLBACKS
+        if (ssl->hsInfoOn)
+            AddPacketName("ServerHello", &ssl->handShakeInfo);
+        if (ssl->toInfoOn)
+            AddPacketInfo("ServerHello", &ssl->timeoutInfo, output, sendSz,
+                          ssl->heap);
+    #endif
 
         ssl->options.serverState = SERVER_HELLO_COMPLETE;
 
