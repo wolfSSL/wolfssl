@@ -3376,8 +3376,11 @@ static int GetRecordHeader(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     }
 
 #ifdef WOLFSSL_DTLS
-    if (ssl->options.dtls && !DtlsCheckWindow(&ssl->keys.dtls_state))
-        return SEQUENCE_ERROR;
+    if (ssl->options.dtls &&
+        (!DtlsCheckWindow(&ssl->keys.dtls_state) ||
+         (ssl->options.handShakeDone && ssl->keys.dtls_state.curEpoch == 0))) {
+            return SEQUENCE_ERROR;
+    }
 #endif
 
     /* catch version mismatch */
@@ -7140,6 +7143,7 @@ int ProcessReply(WOLFSSL* ssl)
                                        &ssl->curRL, &ssl->curSize);
 #ifdef WOLFSSL_DTLS
             if (ssl->options.dtls && ret == SEQUENCE_ERROR) {
+                WOLFSSL_MSG("Silently dropping out of order DTLS message");
                 ssl->options.processReply = doProcessInit;
                 ssl->buffers.inputBuffer.length = 0;
                 ssl->buffers.inputBuffer.idx = 0;
