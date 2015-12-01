@@ -15628,18 +15628,21 @@ int DoSessionTicket(WOLFSSL* ssl,
         }
 
         #ifndef NO_CERTS
-            if (ssl->options.verifyPeer && ssl->options.failNoCert)
+            if (ssl->options.verifyPeer && ssl->options.failNoCert) {
                 if (!ssl->options.havePeerCert) {
                     WOLFSSL_MSG("client didn't present peer cert");
                     return NO_PEER_CERT;
                 }
+            }
         #endif
 
         #ifdef WOLFSSL_CALLBACKS
-            if (ssl->hsInfoOn)
+            if (ssl->hsInfoOn) {
                 AddPacketName("ClientKeyExchange", &ssl->handShakeInfo);
-            if (ssl->toInfoOn)
+            }
+            if (ssl->toInfoOn) {
                 AddLateName("ClientKeyExchange", &ssl->timeoutInfo);
+            }
         #endif
 
         switch (ssl->specs.kea) {
@@ -15651,18 +15654,22 @@ int DoSessionTicket(WOLFSSL* ssl,
                 byte   doUserRsa = 0;
 
                 #ifdef HAVE_PK_CALLBACKS
-                    if (ssl->ctx->RsaDecCb)
+                    if (ssl->ctx->RsaDecCb) {
                         doUserRsa = 1;
+                    }
                 #endif
 
                 ret = wc_InitRsaKey(&key, ssl->heap);
-                if (ret != 0) return ret;
+                if (ret != 0) {
+                    return ret;
+                }
 
-                if (ssl->buffers.key.buffer)
-                    ret = wc_RsaPrivateKeyDecode(ssl->buffers.key.buffer, &idx,
-                                             &key, ssl->buffers.key.length);
-                else
+                if (!ssl->buffers.key.buffer) {
                     return NO_PRIVATE_KEY;
+                }
+                
+                ret = wc_RsaPrivateKeyDecode(ssl->buffers.key.buffer, &idx,
+                                             &key, ssl->buffers.key.length);
 
                 if (ret == 0) {
                     length = wc_RsaEncryptSize(&key);
@@ -15671,8 +15678,9 @@ int DoSessionTicket(WOLFSSL* ssl,
                     if (ssl->options.tls) {
                         word16 check;
 
-                        if ((*inOutIdx - begin) + OPAQUE16_LEN > size)
+                        if ((*inOutIdx - begin) + OPAQUE16_LEN > size) {
                             return BUFFER_ERROR;
+                        }
 
                         ato16(input + *inOutIdx, &check);
                         *inOutIdx += OPAQUE16_LEN;
@@ -15711,8 +15719,9 @@ int DoSessionTicket(WOLFSSL* ssl,
                         if (ssl->arrays->preMasterSecret[0] !=
                                                            ssl->chVersion.major
                             || ssl->arrays->preMasterSecret[1] !=
-                                                           ssl->chVersion.minor)
+                                                           ssl->chVersion.minor) {
                             ret = PMS_VERSION_ERROR;
+                        }
                         else
                         {
                 #ifdef HAVE_QSH
@@ -15726,8 +15735,9 @@ int DoSessionTicket(WOLFSSL* ssl,
                                        length of buffer used */
                                     if ((qshSz = TLSX_QSHCipher_Parse(ssl, input
                                                   + *inOutIdx, size - *inOutIdx
-                                                  + begin, 1)) < 0)
+                                                  + begin, 1)) < 0) {
                                         return qshSz;
+                                    }
                                     *inOutIdx += qshSz;
                                 }
                                 else {
@@ -15755,17 +15765,20 @@ int DoSessionTicket(WOLFSSL* ssl,
                 byte* pms = ssl->arrays->preMasterSecret;
                 word16 ci_sz;
 
-                if ((*inOutIdx - begin) + OPAQUE16_LEN > size)
+                if ((*inOutIdx - begin) + OPAQUE16_LEN > size) {
                     return BUFFER_ERROR;
+                }
 
                 ato16(input + *inOutIdx, &ci_sz);
                 *inOutIdx += OPAQUE16_LEN;
 
-                if (ci_sz > MAX_PSK_ID_LEN)
+                if (ci_sz > MAX_PSK_ID_LEN) {
                     return CLIENT_ID_ERROR;
+                }
 
-                if ((*inOutIdx - begin) + ci_sz > size)
+                if ((*inOutIdx - begin) + ci_sz > size) {
                     return BUFFER_ERROR;
+                }
 
                 XMEMCPY(ssl->arrays->client_identity, input + *inOutIdx, ci_sz);
                 *inOutIdx += ci_sz;
@@ -15776,8 +15789,9 @@ int DoSessionTicket(WOLFSSL* ssl,
                     MAX_PSK_KEY_LEN);
 
                 if (ssl->arrays->psk_keySz == 0 ||
-                                       ssl->arrays->psk_keySz > MAX_PSK_KEY_LEN)
+                                       ssl->arrays->psk_keySz > MAX_PSK_KEY_LEN) {
                     return PSK_KEY_ERROR;
+                }
 
                 /* make psk pre master secret */
                 /* length of key + length 0s + length of key + key */
@@ -15803,8 +15817,9 @@ int DoSessionTicket(WOLFSSL* ssl,
                         /* if qshSz is larger than 0 it is the length of
                            buffer used */
                         if ((qshSz = TLSX_QSHCipher_Parse(ssl, input + *inOutIdx,
-                                              size - *inOutIdx + begin, 1)) < 0)
+                                              size - *inOutIdx + begin, 1)) < 0) {
                             return qshSz;
+                        }
                         *inOutIdx += qshSz;
                     }
                     else {
@@ -15828,30 +15843,36 @@ int DoSessionTicket(WOLFSSL* ssl,
                 word16 cipherLen;
                 word16 plainLen = sizeof(ssl->arrays->preMasterSecret);
 
-                if (!ssl->buffers.key.buffer)
+                if (!ssl->buffers.key.buffer) {
                     return NO_PRIVATE_KEY;
+                }
 
-                if ((*inOutIdx - begin) + OPAQUE16_LEN > size)
+                if ((*inOutIdx - begin) + OPAQUE16_LEN > size) {
                     return BUFFER_ERROR;
+                }
 
                 ato16(input + *inOutIdx, &cipherLen);
                 *inOutIdx += OPAQUE16_LEN;
 
-                if (cipherLen > MAX_NTRU_ENCRYPT_SZ)
+                if (cipherLen > MAX_NTRU_ENCRYPT_SZ) {
                     return NTRU_KEY_ERROR;
+                }
 
-                if ((*inOutIdx - begin) + cipherLen > size)
+                if ((*inOutIdx - begin) + cipherLen > size) {
                     return BUFFER_ERROR;
+                }
 
                 if (NTRU_OK != ntru_crypto_ntru_decrypt(
                             (word16) ssl->buffers.key.length,
                             ssl->buffers.key.buffer, cipherLen,
                             input + *inOutIdx, &plainLen,
-                            ssl->arrays->preMasterSecret))
+                            ssl->arrays->preMasterSecret)) {
                     return NTRU_DECRYPT_ERROR;
+                }
 
-                if (plainLen != SECRET_LEN)
+                if (plainLen != SECRET_LEN) {
                     return NTRU_DECRYPT_ERROR;
+                }
 
                 *inOutIdx += cipherLen;
 
@@ -15865,8 +15886,9 @@ int DoSessionTicket(WOLFSSL* ssl,
                         /* if qshSz is larger than 0 it is the length of
                            buffer used */
                         if ((qshSz = TLSX_QSHCipher_Parse(ssl, input + *inOutIdx,
-                                              size - *inOutIdx + begin, 1)) < 0)
+                                              size - *inOutIdx + begin, 1)) < 0) {
                             return qshSz;
+                        }
                         *inOutIdx += qshSz;
                     }
                     else {
@@ -15884,13 +15906,15 @@ int DoSessionTicket(WOLFSSL* ssl,
         #ifdef HAVE_ECC
             case ecc_diffie_hellman_kea:
             {
-                if ((*inOutIdx - begin) + OPAQUE8_LEN > size)
+                if ((*inOutIdx - begin) + OPAQUE8_LEN > size) {
                     return BUFFER_ERROR;
+                }
 
                 length = input[(*inOutIdx)++];
 
-                if ((*inOutIdx - begin) + length > size)
+                if ((*inOutIdx - begin) + length > size) {
                     return BUFFER_ERROR;
+                }
 
                 if (ssl->peerEccKey == NULL) {
                     /* alloc/init on demand */
@@ -15907,8 +15931,9 @@ int DoSessionTicket(WOLFSSL* ssl,
                     wc_ecc_init(ssl->peerEccKey);
                 }
 
-                if (wc_ecc_import_x963(input + *inOutIdx, length, ssl->peerEccKey))
+                if (wc_ecc_import_x963(input + *inOutIdx, length, ssl->peerEccKey)) {
                     return ECC_PEERKEY_ERROR;
+                }
 
                 *inOutIdx += length;
                 ssl->peerEccKeyPresent = 1;
@@ -15923,9 +15948,10 @@ int DoSessionTicket(WOLFSSL* ssl,
                     ret = wc_EccPrivateKeyDecode(ssl->buffers.key.buffer, &i,
                                            &staticKey, ssl->buffers.key.length);
 
-                    if (ret == 0)
+                    if (ret == 0) {
                         ret = wc_ecc_shared_secret(&staticKey, ssl->peerEccKey,
                                          ssl->arrays->preMasterSecret, &length);
+                    }
 
                     wc_ecc_free(&staticKey);
                 }
@@ -15939,8 +15965,9 @@ int DoSessionTicket(WOLFSSL* ssl,
                     }
                 }
 
-                if (ret != 0)
+                if (ret != 0) {
                     return ECC_SHARED_ERROR;
+                }
 
                 ssl->arrays->preMasterSz = length;
             #ifdef HAVE_QSH
@@ -15953,8 +15980,9 @@ int DoSessionTicket(WOLFSSL* ssl,
                         /* if qshSz is larger than 0 it is the length of
                            buffer used */
                         if ((qshSz = TLSX_QSHCipher_Parse(ssl, input + *inOutIdx,
-                                              size - *inOutIdx + begin, 1)) < 0)
+                                              size - *inOutIdx + begin, 1)) < 0) {
                             return qshSz;
+                        }
                         *inOutIdx += qshSz;
                     }
                     else {
@@ -15974,26 +16002,29 @@ int DoSessionTicket(WOLFSSL* ssl,
                 word16 clientPubSz;
                 DhKey  dhKey;
 
-                if ((*inOutIdx - begin) + OPAQUE16_LEN > size)
+                if ((*inOutIdx - begin) + OPAQUE16_LEN > size) {
                     return BUFFER_ERROR;
+                }
 
                 ato16(input + *inOutIdx, &clientPubSz);
                 *inOutIdx += OPAQUE16_LEN;
 
-                if ((*inOutIdx - begin) + clientPubSz > size)
+                if ((*inOutIdx - begin) + clientPubSz > size) {
                     return BUFFER_ERROR;
+                }
 
                 wc_InitDhKey(&dhKey);
                 ret = wc_DhSetKey(&dhKey, ssl->buffers.serverDH_P.buffer,
                                        ssl->buffers.serverDH_P.length,
                                        ssl->buffers.serverDH_G.buffer,
                                        ssl->buffers.serverDH_G.length);
-                if (ret == 0)
+                if (ret == 0) {
                     ret = wc_DhAgree(&dhKey, ssl->arrays->preMasterSecret,
                                          &ssl->arrays->preMasterSz,
                                           ssl->buffers.serverDH_Priv.buffer,
                                           ssl->buffers.serverDH_Priv.length,
                                           input + *inOutIdx, clientPubSz);
+                }
                 wc_FreeDhKey(&dhKey);
 
                 *inOutIdx += clientPubSz;
@@ -16008,8 +16039,9 @@ int DoSessionTicket(WOLFSSL* ssl,
                         /* if qshSz is larger than 0 it is the length of
                            buffer used */
                         if ((qshSz = TLSX_QSHCipher_Parse(ssl, input + *inOutIdx,
-                                              size - *inOutIdx + begin, 1)) < 0)
+                                              size - *inOutIdx + begin, 1)) < 0) {
                             return qshSz;
+                        }
                         *inOutIdx += qshSz;
                     }
                     else {
@@ -16019,8 +16051,9 @@ int DoSessionTicket(WOLFSSL* ssl,
                     }
                 }
             #endif
-                if (ret == 0)
+                if (ret == 0) {
                     ret = MakeMasterSecret(ssl);
+                }
             }
             break;
         #endif /* NO_DH */
@@ -16032,16 +16065,19 @@ int DoSessionTicket(WOLFSSL* ssl,
                 DhKey  dhKey;
 
                 /* Read in the PSK hint */
-                if ((*inOutIdx - begin) + OPAQUE16_LEN > size)
+                if ((*inOutIdx - begin) + OPAQUE16_LEN > size) {
                     return BUFFER_ERROR;
+                }
 
                 ato16(input + *inOutIdx, &clientSz);
                 *inOutIdx += OPAQUE16_LEN;
-                if (clientSz > MAX_PSK_ID_LEN)
+                if (clientSz > MAX_PSK_ID_LEN) {
                     return CLIENT_ID_ERROR;
+                }
 
-                if ((*inOutIdx - begin) + clientSz > size)
+                if ((*inOutIdx - begin) + clientSz > size) {
                     return BUFFER_ERROR;
+                }
 
                 XMEMCPY(ssl->arrays->client_identity,
                                                    input + *inOutIdx, clientSz);
@@ -16050,26 +16086,29 @@ int DoSessionTicket(WOLFSSL* ssl,
                                                                               0;
 
                 /* Read in the DHE business */
-                if ((*inOutIdx - begin) + OPAQUE16_LEN > size)
+                if ((*inOutIdx - begin) + OPAQUE16_LEN > size) {
                     return BUFFER_ERROR;
+                }
 
                 ato16(input + *inOutIdx, &clientSz);
                 *inOutIdx += OPAQUE16_LEN;
 
-                if ((*inOutIdx - begin) + clientSz > size)
+                if ((*inOutIdx - begin) + clientSz > size) {
                     return BUFFER_ERROR;
+                }
 
                 wc_InitDhKey(&dhKey);
                 ret = wc_DhSetKey(&dhKey, ssl->buffers.serverDH_P.buffer,
                                        ssl->buffers.serverDH_P.length,
                                        ssl->buffers.serverDH_G.buffer,
                                        ssl->buffers.serverDH_G.length);
-                if (ret == 0)
+                if (ret == 0) {
                     ret = wc_DhAgree(&dhKey, pms + OPAQUE16_LEN,
                                           &ssl->arrays->preMasterSz,
                                           ssl->buffers.serverDH_Priv.buffer,
                                           ssl->buffers.serverDH_Priv.length,
                                           input + *inOutIdx, clientSz);
+                }
                 wc_FreeDhKey(&dhKey);
 
                 *inOutIdx += clientSz;
@@ -16084,8 +16123,9 @@ int DoSessionTicket(WOLFSSL* ssl,
                     MAX_PSK_KEY_LEN);
 
                 if (ssl->arrays->psk_keySz == 0 ||
-                                       ssl->arrays->psk_keySz > MAX_PSK_KEY_LEN)
+                                       ssl->arrays->psk_keySz > MAX_PSK_KEY_LEN) {
                     return PSK_KEY_ERROR;
+                }
 
                 c16toa((word16) ssl->arrays->psk_keySz, pms);
                 pms += OPAQUE16_LEN;
@@ -16103,8 +16143,9 @@ int DoSessionTicket(WOLFSSL* ssl,
                         /* if qshSz is larger than 0 it is the length of
                            buffer used */
                         if ((qshSz = TLSX_QSHCipher_Parse(ssl, input + *inOutIdx,
-                                              size - *inOutIdx + begin, 1)) < 0)
+                                              size - *inOutIdx + begin, 1)) < 0) {
                             return qshSz;
+                        }
                         *inOutIdx += qshSz;
                     }
                     else {
@@ -16138,8 +16179,9 @@ int DoSessionTicket(WOLFSSL* ssl,
         if (ret == 0) {
             ssl->options.clientState = CLIENT_KEYEXCHANGE_COMPLETE;
             #ifndef NO_CERTS
-                if (ssl->options.verifyPeer)
+                if (ssl->options.verifyPeer) {
                     ret = BuildCertHashes(ssl, &ssl->hsHashes->certHashes);
+                }
             #endif
         }
 
