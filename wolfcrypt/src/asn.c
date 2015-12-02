@@ -2793,6 +2793,7 @@ static int GetName(DecodedCert* cert, int nameType)
                                               cert->heap, DYNAMIC_TYPE_ALTNAME);
                         if (emailName->name == NULL) {
                             WOLFSSL_MSG("\tOut of Memory");
+                            XFREE(emailName, cert->heap, DYNAMIC_TYPE_ALTNAME);
                             return MEMORY_E;
                         }
                         XMEMCPY(emailName->name,
@@ -4453,6 +4454,7 @@ static int DecodeSubtree(byte* input, int sz, Base_entry** head, void* heap)
             entry->name = (char*)XMALLOC(strLength, heap, DYNAMIC_TYPE_ALTNAME);
             if (entry->name == NULL) {
                 WOLFSSL_MSG("allocate error");
+                XFREE(entry, heap, DYNAMIC_TYPE_ALTNAME);
                 return MEMORY_E;
             }
 

@@ -2040,13 +2040,10 @@ void SSL_ResourceFree(WOLFSSL* ssl)
           DYNAMIC_TYPE_COOKIE_PWD);
 #endif
 #endif /* WOLFSSL_DTLS */
-#if defined(KEEP_PEER_CERT) || defined(GOAHEAD_WS)
-    FreeX509(&ssl->peerCert);
-#endif
 #if defined(OPENSSL_EXTRA) || defined(GOAHEAD_WS)
-    wolfSSL_BIO_free(ssl->biord);
-    if (ssl->biord != ssl->biowr)        /* in case same as write */
+    if (ssl->biord != ssl->biowr)        /* only free write if different */
         wolfSSL_BIO_free(ssl->biowr);
+    wolfSSL_BIO_free(ssl->biord);        /* always free read bio */
 #endif
 #ifdef HAVE_LIBZ
     FreeStreams(ssl);
@@ -2089,6 +2086,9 @@ void SSL_ResourceFree(WOLFSSL* ssl)
 #ifdef HAVE_NETX
     if (ssl->nxCtx.nxPacket)
         nx_packet_release(ssl->nxCtx.nxPacket);
+#endif
+#if defined(KEEP_PEER_CERT) || defined(GOAHEAD_WS)
+    FreeX509(&(ssl->peerCert));   /* clang thinks this frees ssl itslef */
 #endif
 }
 
@@ -8130,14 +8130,22 @@ int SendCertificate(WOLFSSL* ssl)
         }
 
         if (IsEncryptionOn(ssl, 1)) {
-            byte* input;
+            byte* input = NULL;
             int   inputSz = i - RECORD_HEADER_SZ; /* build msg adds rec hdr */
 
-            input = (byte*)XMALLOC(inputSz, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
-            if (input == NULL)
-                return MEMORY_E;
+            if (inputSz < 0) {
+                WOLFSSL_MSG("Send Cert bad inputSz");
+                return BUFFER_E;
+            }
 
-            XMEMCPY(input, output + RECORD_HEADER_SZ, inputSz);
+            if (inputSz > 0) {  /* clang thinks could be zero, let's help */
+                input = (byte*)XMALLOC(inputSz, ssl->heap,
+                                       DYNAMIC_TYPE_TMP_BUFFER);
+                if (input == NULL)
+                    return MEMORY_E;
+                XMEMCPY(input, output + RECORD_HEADER_SZ, inputSz);
+            }
+
             sendSz = BuildMessage(ssl, output, sendSz, input,inputSz,handshake);
             XFREE(input, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
 

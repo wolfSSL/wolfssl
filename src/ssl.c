@@ -2913,7 +2913,8 @@ static int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
             WOLFSSL_MSG("Finished Processing Cert Chain");
 
             /* only retain actual size used */
-            shrinked = (byte*)XMALLOC(idx, heap, dynamicType);
+            if (idx > 0)  /* clang thinks it can be zero, let's help analysis */
+                shrinked = (byte*)XMALLOC(idx, heap, dynamicType);
             if (shrinked) {
                 if (ssl) {
                     if (ssl->buffers.certChain.buffer &&
@@ -2936,7 +2937,7 @@ static int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
             if (dynamicBuffer)
                 XFREE(chainBuffer, heap, DYNAMIC_TYPE_FILE);
 
-            if (shrinked == NULL) {
+            if (idx > 0 && shrinked == NULL) {
             #ifdef WOLFSSL_SMALL_STACK
                 XFREE(info, NULL, DYNAMIC_TYPE_TMP_BUFFER);
             #endif
@@ -14843,6 +14844,7 @@ WOLFSSL_EC_POINT *wolfSSL_EC_POINT_new(const WOLFSSL_EC_GROUP *group)
     p->internal = wc_ecc_new_point();
     if (p->internal == NULL) {
         WOLFSSL_MSG("ecc_new_point failure");
+        XFREE(p, NULL, DYNAMIC_TYPE_ECC);
         return NULL;
     }
 
@@ -15061,6 +15063,7 @@ WOLFSSL_ECDSA_SIG *wolfSSL_ECDSA_SIG_new(void)
         return NULL;
     }
 
+    sig->s = NULL;
     sig->r = wolfSSL_BN_new();
     if (sig->r == NULL) {
         WOLFSSL_MSG("wolfSSL_ECDSA_SIG_new malloc ECDSA r failure");
@@ -15143,10 +15146,12 @@ WOLFSSL_ECDSA_SIG *wolfSSL_ECDSA_do_sign(const unsigned char *d, int dlen,
                 else if (SetIndividualExternal(&(sig->r), &sig_r)!=SSL_SUCCESS){
                     WOLFSSL_MSG("ecdsa r key error");
                     wolfSSL_ECDSA_SIG_free(sig);
+                    sig = NULL;
                 }
                 else if (SetIndividualExternal(&(sig->s), &sig_s)!=SSL_SUCCESS){
                     WOLFSSL_MSG("ecdsa s key error");
                     wolfSSL_ECDSA_SIG_free(sig);
+                    sig = NULL;
                 }
 
                 mp_clear(&sig_r);
