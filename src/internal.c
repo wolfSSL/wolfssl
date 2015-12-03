@@ -14158,17 +14158,17 @@ int DoSessionTicket(WOLFSSL* ssl,
                         doUserRsa = 1;
                 #endif
 
-                #ifdef WOLFSSL_SMALL_STACK
-                    encodedSig = (byte*)XMALLOC(MAX_ENCODED_SIG_SZ, NULL,
-                                                       DYNAMIC_TYPE_TMP_BUFFER);
-                    if (encodedSig == NULL)
-                        ERROR_OUT(MEMORY_E, done_b);
-                #endif
-
                     if (IsAtLeastTLSv1_2(ssl)) {
                         byte* digest   = &hash[MD5_DIGEST_SIZE];
                         int   typeH    = SHAh;
                         int   digestSz = SHA_DIGEST_SIZE;
+                        
+                    #ifdef WOLFSSL_SMALL_STACK
+                        encodedSig = (byte*)XMALLOC(MAX_ENCODED_SIG_SZ, NULL,
+                                                      DYNAMIC_TYPE_TMP_BUFFER);
+                        if (encodedSig == NULL)
+                            ERROR_OUT(MEMORY_E, done_b);
+                    #endif
 
                         if (ssl->suites->hashAlgo == sha256_mac) {
                         #ifndef NO_SHA256
