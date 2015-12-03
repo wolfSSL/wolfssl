@@ -59,7 +59,7 @@ EXTRA_DIST+= gencertbuf.pl
 EXTRA_DIST+= README.md
 EXTRA_DIST+= LICENSING
 EXTRA_DIST+= INSTALL
-EXTRA_DIST+= IPP/
+EXTRA_DIST+= IPP
 
 # user crypto plug in example
 EXTRA_DIST+= wolfcrypt/user-crypto/configure.ac
