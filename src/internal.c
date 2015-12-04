@@ -12857,14 +12857,14 @@ int DoSessionTicket(WOLFSSL* ssl,
             if (ret != 0)
                 return ret;
 
-            /* store info in SSL context for later */
+            /* store info in SSL for later */
             XMEMCPY(ssl->arrays->serverRandom, output + idx, RAN_LEN);
             idx += RAN_LEN;
             output[idx++] = sessIdSz;
             XMEMCPY(ssl->arrays->sessionID, output + idx, sessIdSz);
         }
         else {
-            /* If resuming, use info from SSL context */
+            /* If resuming, use info from SSL */
             XMEMCPY(output + idx, ssl->arrays->serverRandom, RAN_LEN);
             idx += RAN_LEN;
             output[idx++] = sessIdSz;

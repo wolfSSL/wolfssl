@@ -113,7 +113,7 @@ int wc_SignatureVerify(
     }
 
     /* Allocate temporary buffer for hash data */
-    hash_data = XMALLOC(hash_len, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    hash_data = (byte*)XMALLOC(hash_len, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (hash_data == NULL) {
         return MEMORY_E;
     }
@@ -141,7 +141,7 @@ int wc_SignatureVerify(
 #ifndef NO_RSA
             case WC_SIGNATURE_TYPE_RSA:
             {
-                byte *plain_data = XMALLOC(hash_len, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                byte *plain_data = (byte*)XMALLOC(hash_len, NULL, DYNAMIC_TYPE_TMP_BUFFER);
                 if (plain_data) {
                     /* Perform verification of signature using provided RSA key */
                     ret = wc_RsaSSL_Verify(sig, sig_len, plain_data, hash_len, (RsaKey*)key);
@@ -203,7 +203,7 @@ int wc_SignatureGenerate(
     }
 
     /* Allocate temporary buffer for hash data */
-    hash_data = XMALLOC(hash_len, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    hash_data = (byte*)XMALLOC(hash_len, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (hash_data == NULL) {
         return MEMORY_E;
     }
