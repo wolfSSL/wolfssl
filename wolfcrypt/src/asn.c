@@ -1144,9 +1144,9 @@ WOLFSSL_LOCAL int GetObjectId(const byte* input, word32* inOutIdx, word32* oid,
         if (oidType != ignoreType) {
             checkOid = OidFromId(*oid, oidType, &checkOidSz);
 
-            if (checkOid == NULL ||
-                checkOidSz != actualOidSz ||
-                XMEMCMP(actualOid, checkOid, checkOidSz) != 0) {
+            if (checkOid != NULL &&
+                (checkOidSz != actualOidSz ||
+                 XMEMCMP(actualOid, checkOid, checkOidSz) != 0)) {
 
                 WOLFSSL_MSG("OID Check Failed");
                 return ASN_UNKNOWN_OID_E;
