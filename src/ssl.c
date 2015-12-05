@@ -17145,7 +17145,9 @@ int wolfSSL_ED25519_verify(const unsigned char *msg, unsigned int msgSz,
     if ((ret = wc_ed25519_verify_msg((byte*)sig, sigSz, msg, msgSz,
                                      &check, &key)) != MP_OKAY) {
         WOLFSSL_MSG("wc_ed25519_verify_msg failed");
-        fprintf(stderr, "err code = %d, sigSz=%d, msgSz=%d\n", ret, sigSz, msgSz);
+        /* Disable until a better solution then fprintf to stderr */
+        /* fprintf(stderr, "err code = %d, sigSz=%d, msgSz=%d\n", ret,
+                                                              sigSz, msgSz); */
     }
     else if (!check)
         WOLFSSL_MSG("wc_ed25519_verify_msg failed (signature invalid)");
