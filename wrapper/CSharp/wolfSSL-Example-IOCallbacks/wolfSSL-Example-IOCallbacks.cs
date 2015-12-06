@@ -1,37 +1,91 @@
-/* wolfSSL-TLS-PSK-Server.cs
- *
- * Copyright (C) 2006-2015 wolfSSL Inc.
- *
- * This file is part of wolfSSL. (formerly known as CyaSSL)
- *
- * wolfSSL is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * wolfSSL is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
- */
-
-using System;
-using System.Runtime.InteropServices;
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Text;
-using System.Threading;
-using System.IO;
+using System.Threading.Tasks;
 using System.Net;
 using System.Net.Sockets;
+using System.Runtime.InteropServices;
+using System.IO;
 using wolfSSL.CSharp;
 
 
-
-public class wolfSSL_TLS_PSK_Server
+class wolfSSL_Example_IOCallbacks
 {
+    /// <summary>
+    /// Example call back to allow recieving TLS information
+    /// </summary>
+    /// <param name="ssl">structure of ssl passed in</param>
+    /// <param name="buf">buffer to contain recieved msg</param>
+    /// <param name="sz">size of buffer for receiving</param>
+    /// <param name="ctx">information passed in from set_fd</param>
+    /// <returns>size of message recieved</returns>
+    private static int wolfSSLCbIORecv(IntPtr ssl, IntPtr buf, int sz, IntPtr ctx)
+    {
+        if (sz <= 0)
+        {
+            wolfssl.log(wolfssl.ERROR_LOG, "wolfssl recieve error, size less than 0");
+            return wolfssl.CBIO_ERR_GENERAL;
+        }
+
+        int amtRecv = 0;
+
+        try
+        {
+            System.Runtime.InteropServices.GCHandle gch;
+            gch = GCHandle.FromIntPtr(ctx);
+            Socket con = (System.Net.Sockets.Socket)gch.Target;
+
+            Byte[] msg = new Byte[sz];
+            amtRecv = con.Receive(msg, msg.Length, 0);
+            Marshal.Copy(msg, 0, buf, sz);
+        }
+        catch (Exception e)
+        {
+            wolfssl.log(wolfssl.ENTER_LOG, "Error in recive " + e.ToString());
+            return wolfssl.CBIO_ERR_CONN_CLOSE;
+        }
+
+        Console.WriteLine("Example custom receive got {0:D} bytes", amtRecv);
+        return amtRecv;
+    }
+
+
+    /// <summary>
+    /// Example call back used for sending TLS information
+    /// </summary>
+    /// <param name="ssl">pointer to ssl struct</param>
+    /// <param name="buf">buffer containing information to send</param>
+    /// <param name="sz">size of buffer to send</param>
+    /// <param name="ctx">object that was set as fd</param>
+    /// <returns>amount of information sent</returns>
+    private static int wolfSSLCbIOSend(IntPtr ssl, IntPtr buf, int sz, IntPtr ctx)
+    {
+        if (sz <= 0)
+        {
+            wolfssl.log(wolfssl.ERROR_LOG, "wolfssl send error, size less than 0");
+            return wolfssl.CBIO_ERR_GENERAL;
+        }
+
+        try
+        {
+            System.Runtime.InteropServices.GCHandle gch;
+            gch = GCHandle.FromIntPtr(ctx);
+            Socket con = (System.Net.Sockets.Socket)gch.Target;
+
+            Byte[] msg = new Byte[sz];
+            Marshal.Copy(buf, msg, 0, sz);
+
+            con.Send(msg, 0, msg.Length, SocketFlags.None);
+            Console.WriteLine("Example custom send sent {0:D} bytes", sz);
+            return sz;
+        }
+        catch (Exception e)
+        {
+            wolfssl.log(wolfssl.ERROR_LOG, "socket connection issue " + e.ToString());
+            return wolfssl.CBIO_ERR_CONN_CLOSE;
+        }
+    }
 
 
     /// <summary>
@@ -68,7 +122,7 @@ public class wolfSSL_TLS_PSK_Server
     }
 
 
-    public static void Main(string[] args)
+    static void Main(string[] args)
     {
         IntPtr ctx;
         IntPtr ssl;
@@ -79,7 +133,6 @@ public class wolfSSL_TLS_PSK_Server
         /* These paths should be changed according to use */
         string fileCert = @"server-cert.pem";
         string fileKey = @"server-key.pem";
-        StringBuilder dhparam = new StringBuilder("dh2048.pem");
 
         StringBuilder buff = new StringBuilder(1024);
         StringBuilder reply = new StringBuilder("Hello, this is the wolfSSL C# wrapper");
@@ -116,33 +169,36 @@ public class wolfSSL_TLS_PSK_Server
             return;
         }
 
-
         StringBuilder ciphers = new StringBuilder(new String(' ', 4096));
         wolfssl.get_ciphers(ciphers, 4096);
         Console.WriteLine("Ciphers : " + ciphers.ToString());
 
-        short minDhKey = 128;
-        wolfssl.CTX_SetMinDhKey_Sz(ctx, minDhKey);
         Console.Write("Setting cipher suite to ");
-
-        /* In order to use static PSK build wolfSSL with the preprocessor flag WOLFSSL_STATIC_PSK */
-        StringBuilder set_cipher = new StringBuilder("DHE-PSK-AES128-CBC-SHA256");
+        /* To use static PSK build wolfSSL with WOLFSSL_STATIC_PSK preprocessor flag */
+        StringBuilder set_cipher = new StringBuilder("PSK-AES128-CBC-SHA256");
         Console.WriteLine(set_cipher);
         if (wolfssl.CTX_set_cipher_list(ctx, set_cipher) != wolfssl.SUCCESS)
         {
             Console.WriteLine("Failed to set cipher suite");
+            Console.WriteLine("If using static PSK make sure wolfSSL was built with preprocessor flag WOLFSSL_STATIC_PSK");
+            wolfssl.CTX_free(ctx);
             return;
         }
 
-        /* Test psk use with DHE */
+        /* Test psk use */
         StringBuilder hint = new StringBuilder("cyassl server");
         if (wolfssl.CTX_use_psk_identity_hint(ctx, hint) != wolfssl.SUCCESS)
         {
             Console.WriteLine("Error setting hint");
-            wolfssl.CTX_free(ctx);
             return;
         }
         wolfssl.CTX_set_psk_server_callback(ctx, psk_cb);
+
+        /* Set using custom IO callbacks
+           delegate memory is allocated when calling SetIO**** function and freed with ctx free
+         */
+        wolfssl.SetIORecv(ctx, new wolfssl.CallbackIORecv_delegate(wolfSSLCbIORecv));
+        wolfssl.SetIOSend(ctx, new wolfssl.CallbackIOSend_delegate(wolfSSLCbIOSend));
 
         /* set up TCP socket */
         IPAddress ip = IPAddress.Parse("0.0.0.0"); //bind to any
@@ -152,13 +208,6 @@ public class wolfSSL_TLS_PSK_Server
         Console.WriteLine("Started TCP and waiting for a connection");
         fd = tcp.AcceptSocket();
         ssl = wolfssl.new_ssl(ctx);
-        if (ssl == IntPtr.Zero)
-        {
-            Console.WriteLine("Error creating ssl object");
-            tcp.Stop();
-            wolfssl.CTX_free(ctx);
-            return;
-        }
 
         Console.WriteLine("Connection made wolfSSL_accept ");
         if (wolfssl.set_fd(ssl, fd) != wolfssl.SUCCESS)
@@ -169,8 +218,6 @@ public class wolfSSL_TLS_PSK_Server
             clean(ssl, ctx);
             return;
         }
-
-        wolfssl.SetTmpDH_file(ssl, dhparam, wolfssl.SSL_FILETYPE_PEM);
 
         if (wolfssl.accept(ssl) != wolfssl.SUCCESS)
         {

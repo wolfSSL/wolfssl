@@ -5,11 +5,11 @@ using System.Runtime.InteropServices;
 // General Information about an assembly is controlled through the following 
 // set of attributes. Change these attribute values to modify the information
 // associated with an assembly.
-[assembly: AssemblyTitle("wolfSSL-TLS-PSK-Server")]
+[assembly: AssemblyTitle("wolfSSL-Example-IOCallbacks")]
 [assembly: AssemblyDescription("")]
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("wolfSSL")]
-[assembly: AssemblyProduct("wolfSSL-TLS-PSK-Server")]
+[assembly: AssemblyProduct("wolfSSL-Example-IOCallbacks")]
 [assembly: AssemblyCopyright("Copyright wolfSSL 2015")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
@@ -20,7 +20,7 @@ using System.Runtime.InteropServices;
 [assembly: ComVisible(false)]
 
 // The following GUID is for the ID of the typelib if this project is exposed to COM
-[assembly: Guid("1de70ade-16d5-4c90-9657-c19c2762bca6")]
+[assembly: Guid("c0ac38b1-1984-4659-b36a-20362dc47f99")]
 
 // Version information for an assembly consists of the following four values:
 //

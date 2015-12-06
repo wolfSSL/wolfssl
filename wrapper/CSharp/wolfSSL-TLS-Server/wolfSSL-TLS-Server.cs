@@ -39,6 +39,15 @@ public class wolfSSL_TLS_CSHarp
         Console.WriteLine(msg);
     }
 
+
+    private static void clean(IntPtr ssl, IntPtr ctx)
+    {
+        wolfssl.free(ssl);
+        wolfssl.CTX_free(ctx);
+        wolfssl.Cleanup();
+    }
+
+
     public static void Main(string[] args)
     {
         IntPtr ctx;
@@ -58,25 +67,34 @@ public class wolfSSL_TLS_CSHarp
 
         wolfssl.Init();
 
+
         Console.WriteLine("Calling ctx Init from wolfSSL");
         ctx = wolfssl.CTX_new(wolfssl.usev23_server());
+        if (ctx == IntPtr.Zero)
+        {
+            Console.WriteLine("Error in creating ctx structure");
+            return;
+        }
         Console.WriteLine("Finished init of ctx .... now load in cert and key");
 
         if (!File.Exists(fileCert) || !File.Exists(fileKey))
         {
             Console.WriteLine("Could not find cert or key file");
+            wolfssl.CTX_free(ctx);
             return;
         }
 
         if (wolfssl.CTX_use_certificate_file(ctx, fileCert, wolfssl.SSL_FILETYPE_PEM) != wolfssl.SUCCESS)
         {
             Console.WriteLine("Error in setting cert file");
+            wolfssl.CTX_free(ctx);
             return;
         }
 
         if (wolfssl.CTX_use_PrivateKey_file(ctx, fileKey, wolfssl.SSL_FILETYPE_PEM) != wolfssl.SUCCESS)
         {
             Console.WriteLine("Error in setting key file");
+            wolfssl.CTX_free(ctx);
             return;
         }
 
@@ -96,21 +114,31 @@ public class wolfSSL_TLS_CSHarp
         Console.WriteLine("Started TCP and waiting for a connection");
         fd = tcp.AcceptSocket();
         ssl = wolfssl.new_ssl(ctx);
+        if (ssl == IntPtr.Zero)
+        {
+            Console.WriteLine("Error in creating ssl object");
+            wolfssl.CTX_free(ctx);
+            return;
+        }
 
         Console.WriteLine("Connection made wolfSSL_accept ");
         if (wolfssl.set_fd(ssl, fd) != wolfssl.SUCCESS)
         {
             /* get and print out the error */
             Console.Write(wolfssl.get_error(ssl));
+            tcp.Stop();
+            clean(ssl, ctx);
             return;
         }
 
         wolfssl.SetTmpDH_file(ssl, dhparam, wolfssl.SSL_FILETYPE_PEM);
 
-        if (wolfssl.accept(ssl) != 1)
+        if (wolfssl.accept(ssl) != wolfssl.SUCCESS)
         {
             /* get and print out the error */
             Console.Write(wolfssl.get_error(ssl));
+            tcp.Stop();
+            clean(ssl, ctx);
             return;
         }
 
@@ -122,6 +150,8 @@ public class wolfSSL_TLS_CSHarp
         if (wolfssl.read(ssl, buff, 1023) < 0)
         {
             Console.WriteLine("Error in read");
+            tcp.Stop();
+            clean(ssl, ctx);
             return;
         }
         Console.WriteLine(buff);
@@ -129,14 +159,14 @@ public class wolfSSL_TLS_CSHarp
         if (wolfssl.write(ssl, reply, reply.Length) != reply.Length)
         {
             Console.WriteLine("Error in write");
+            tcp.Stop();
+            clean(ssl, ctx);
             return;
         }
 
         wolfssl.shutdown(ssl);
-        wolfssl.free(ssl);
         fd.Close();
-
-        wolfssl.CTX_free(ctx);
-        wolfssl.Cleanup();
+        tcp.Stop();
+        clean(ssl, ctx);
     }
 }
