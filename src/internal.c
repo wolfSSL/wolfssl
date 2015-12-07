@@ -12836,14 +12836,17 @@ int DoSessionTicket(WOLFSSL* ssl,
                  ssl->buffers.outputBuffer.length;
 
         sendSz = length + HANDSHAKE_HEADER_SZ + RECORD_HEADER_SZ;
+        #ifdef WOLFSSL_DTLS
+        if (ssl->options.dtls) {
+            /* Server Hello should use the same sequence number as the
+             * Client Hello. */
+            ssl->keys.dtls_sequence_number = ssl->keys.dtls_state.curSeq;
+            idx    += DTLS_RECORD_EXTRA + DTLS_HANDSHAKE_EXTRA;
+            sendSz += DTLS_RECORD_EXTRA + DTLS_HANDSHAKE_EXTRA;
+        }
+        #endif /* WOLFSSL_DTLS */
         AddHeaders(output, length, server_hello, ssl);
 
-        #ifdef WOLFSSL_DTLS
-            if (ssl->options.dtls) {
-                idx    += DTLS_RECORD_EXTRA + DTLS_HANDSHAKE_EXTRA;
-                sendSz += DTLS_RECORD_EXTRA + DTLS_HANDSHAKE_EXTRA;
-            }
-        #endif
         /* now write to output */
         /* first version */
         output[idx++] = ssl->version.major;
@@ -15693,6 +15696,9 @@ int DoSessionTicket(WOLFSSL* ssl,
         output = ssl->buffers.outputBuffer.buffer +
                  ssl->buffers.outputBuffer.length;
 
+        /* Hello Verify Request should use the same sequence number as the
+         * Client Hello. */
+        ssl->keys.dtls_sequence_number = ssl->keys.dtls_state.curSeq;
         AddHeaders(output, length, hello_verify_request, ssl);
         {
             DtlsRecordLayerHeader* rh = (DtlsRecordLayerHeader*)output;
