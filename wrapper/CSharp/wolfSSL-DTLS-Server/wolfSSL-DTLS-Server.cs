@@ -41,6 +41,14 @@ public class wolfSSL_DTLS_Server
     }
 
 
+    private static void clean(IntPtr ssl, IntPtr ctx)
+    {
+        wolfssl.free(ssl);
+        wolfssl.CTX_free(ctx);
+        wolfssl.Cleanup();
+    }
+
+
     public static void Main(string[] args)
     {
         IntPtr ctx;
@@ -61,11 +69,18 @@ public class wolfSSL_DTLS_Server
 
         Console.WriteLine("Calling ctx Init from wolfSSL");
         ctx = wolfssl.CTX_dtls_new(wolfssl.useDTLSv1_2_server());
-        Console.WriteLine("Finished init of ctx .... now load in cert and key");
+        if (ctx == IntPtr.Zero)
+        {
+            Console.WriteLine("Error creating ctx structure");
+            wolfssl.CTX_free(ctx);
+            return;
+        }
 
+        Console.WriteLine("Finished init of ctx .... now load in cert and key");
         if (!File.Exists(fileCert) || !File.Exists(fileKey))
         {
             Console.WriteLine("Could not find cert or key file");
+            wolfssl.CTX_free(ctx);
             return;
         }
 
@@ -73,13 +88,15 @@ public class wolfSSL_DTLS_Server
         if (wolfssl.CTX_use_certificate_file(ctx, fileCert, wolfssl.SSL_FILETYPE_PEM) != wolfssl.SUCCESS)
         {
             Console.WriteLine("Error setting cert file");
+            wolfssl.CTX_free(ctx);
             return;
         }
 
 
-        if (wolfssl.CTX_use_PrivateKey_file(ctx, fileKey, 1) != wolfssl.SUCCESS)
+        if (wolfssl.CTX_use_PrivateKey_file(ctx, fileKey, wolfssl.SSL_FILETYPE_PEM) != wolfssl.SUCCESS)
         {
             Console.WriteLine("Error setting key file");
+            wolfssl.CTX_free(ctx);
             return;
         }
 
@@ -92,24 +109,36 @@ public class wolfSSL_DTLS_Server
         Console.WriteLine("Started UDP and waiting for a connection");
 
         ssl = wolfssl.new_ssl(ctx);
+        if (ssl == IntPtr.Zero)
+        {
+            Console.WriteLine("Error creating ssl object");
+            wolfssl.CTX_free(ctx);
+            return;
+        }
 
         if (wolfssl.SetTmpDH_file(ssl, dhparam, wolfssl.SSL_FILETYPE_PEM) != wolfssl.SUCCESS)
         {
             Console.WriteLine("Error in setting dhparam");
             Console.WriteLine(wolfssl.get_error(ssl));
+            udp.Close();
+            clean(ssl, ctx);
             return;
         }
 
         if (wolfssl.set_dtls_fd(ssl, udp, ep) != wolfssl.SUCCESS)
         {
             Console.WriteLine(wolfssl.get_error(ssl));
+            udp.Close();
+            clean(ssl, ctx);
             return;
         }
 
         if (wolfssl.accept(ssl) != wolfssl.SUCCESS)
         {
-           Console.WriteLine(wolfssl.get_error(ssl));
-           return;
+            Console.WriteLine(wolfssl.get_error(ssl));
+            udp.Close();
+            clean(ssl, ctx);
+            return;
         }
 
         /* print out results of TLS/SSL accept */
@@ -128,6 +157,8 @@ public class wolfSSL_DTLS_Server
         {
             Console.WriteLine("Error reading message");
             Console.WriteLine(wolfssl.get_error(ssl));
+            udp.Close();
+            clean(ssl, ctx);
             return;
         }
         Console.WriteLine(buff);
@@ -136,15 +167,14 @@ public class wolfSSL_DTLS_Server
         {
             Console.WriteLine("Error writing message");
             Console.WriteLine(wolfssl.get_error(ssl));
+            udp.Close();
+            clean(ssl, ctx);
             return;
         }
 
         Console.WriteLine("At the end freeing stuff");
-        wolfssl.shutdown(ssl);
-        wolfssl.free(ssl);
         udp.Close();
-
-        wolfssl.CTX_free(ctx);
-        wolfssl.Cleanup();
+        wolfssl.shutdown(ssl);
+        clean(ssl, ctx);
     }
 }
