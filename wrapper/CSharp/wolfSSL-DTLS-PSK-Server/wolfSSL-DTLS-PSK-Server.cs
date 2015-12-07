@@ -48,7 +48,7 @@ public class wolfSSL_DTLS_PSK_Server
         /* perform a check on the identity sent across 
          * log function must be set for print out of logging information
          */
-        wolfssl.log(1, "PSK Client Identity = " + identity);
+        wolfssl.log(wolfssl.INFO_LOG, "PSK Client Identity = " + identity);
 
         /* Use desired key, note must be a key smaller than max key size parameter 
             Replace this with desired key. Is trivial one for testing */
@@ -58,6 +58,14 @@ public class wolfSSL_DTLS_PSK_Server
         Marshal.Copy(tmp, 0, key, 4);
 
         return (uint)4;
+    }
+
+
+    private static void clean(IntPtr ssl, IntPtr ctx)
+    {
+        wolfssl.free(ssl);
+        wolfssl.CTX_free(ctx);
+        wolfssl.Cleanup();
     }
 
 
@@ -80,11 +88,18 @@ public class wolfSSL_DTLS_PSK_Server
 
         Console.WriteLine("Calling ctx Init from wolfSSL");
         ctx = wolfssl.CTX_dtls_new(wolfssl.useDTLSv1_2_server());
+        if (ctx == IntPtr.Zero)
+        {
+            Console.WriteLine("Error creating ctx structure");
+            return;
+        }
+
         Console.WriteLine("Finished init of ctx .... now load in cert and key");
 
         if (!File.Exists(fileCert) || !File.Exists(fileKey))
         {
             Console.WriteLine("Could not find cert or key file");
+            wolfssl.CTX_free(ctx);
             return;
         }
 
@@ -92,20 +107,27 @@ public class wolfSSL_DTLS_PSK_Server
         if (wolfssl.CTX_use_certificate_file(ctx, fileCert, wolfssl.SSL_FILETYPE_PEM) != wolfssl.SUCCESS)
         {
             Console.WriteLine("Error setting cert file");
+            wolfssl.CTX_free(ctx);
             return;
         }
 
 
-        if (wolfssl.CTX_use_PrivateKey_file(ctx, fileKey, 1) != wolfssl.SUCCESS)
+        if (wolfssl.CTX_use_PrivateKey_file(ctx, fileKey, wolfssl.SSL_FILETYPE_PEM) != wolfssl.SUCCESS)
         {
             Console.WriteLine("Error setting key file");
+            wolfssl.CTX_free(ctx);
             return;
         }
 
 
         /* Test psk use with DHE */
         StringBuilder hint = new StringBuilder("cyassl server");
-        wolfssl.CTX_use_psk_identity_hint(ctx, hint);
+        if (wolfssl.CTX_use_psk_identity_hint(ctx, hint) != wolfssl.SUCCESS)
+        {
+            Console.WriteLine("Error setting hint");
+            wolfssl.CTX_free(ctx);
+            return;
+        }
         wolfssl.CTX_set_psk_server_callback(ctx, psk_cb);
 
         short minDhKey = 128;
@@ -116,6 +138,7 @@ public class wolfSSL_DTLS_PSK_Server
         if (wolfssl.CTX_set_cipher_list(ctx, set_cipher) != wolfssl.SUCCESS)
         {
             Console.WriteLine("Failed to set cipher suite");
+            wolfssl.CTX_free(ctx);
             return;
         }
 
@@ -125,23 +148,36 @@ public class wolfSSL_DTLS_PSK_Server
         Console.WriteLine("Started UDP and waiting for a connection");
 
         ssl = wolfssl.new_ssl(ctx);
+        if (ssl == IntPtr.Zero)
+        {
+            Console.WriteLine("Error creating ssl object");
+            udp.Close();
+            wolfssl.CTX_free(ctx);
+            return;
+        }
 
         if (wolfssl.SetTmpDH_file(ssl, dhparam, wolfssl.SSL_FILETYPE_PEM) != wolfssl.SUCCESS)
         {
             Console.WriteLine("Error in setting dhparam");
             Console.WriteLine(wolfssl.get_error(ssl));
+            udp.Close();
+            clean(ssl, ctx);
             return;
         }
 
         if (wolfssl.set_dtls_fd(ssl, udp, ep) != wolfssl.SUCCESS)
         {
             Console.WriteLine(wolfssl.get_error(ssl));
+            udp.Close();
+            clean(ssl, ctx);
             return;
         }
 
         if (wolfssl.accept(ssl) != wolfssl.SUCCESS)
         {
            Console.WriteLine(wolfssl.get_error(ssl));
+           udp.Close();
+           clean(ssl, ctx);
            return;
         }
 
@@ -161,6 +197,8 @@ public class wolfSSL_DTLS_PSK_Server
         {
             Console.WriteLine("Error reading message");
             Console.WriteLine(wolfssl.get_error(ssl));
+            udp.Close();
+            clean(ssl, ctx);
             return;
         }
         Console.WriteLine(buff);
@@ -169,15 +207,14 @@ public class wolfSSL_DTLS_PSK_Server
         {
             Console.WriteLine("Error writing message");
             Console.WriteLine(wolfssl.get_error(ssl));
+            udp.Close();
+            clean(ssl, ctx);
             return;
         }
 
         Console.WriteLine("At the end freeing stuff");
         wolfssl.shutdown(ssl);
-        wolfssl.free(ssl);
         udp.Close();
-
-        wolfssl.CTX_free(ctx);
-        wolfssl.Cleanup();
+        clean(ssl, ctx);
     }
 }
