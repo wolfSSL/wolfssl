@@ -13310,9 +13310,16 @@ int wolfSSL_RSA_sign(int type, const unsigned char* m,
         return 0;
     }
 
-    if (type != NID_md5 && type != NID_sha1) {
-        WOLFSSL_MSG("Bad md type");
-        return 0;
+    switch (type) {
+        case NID_md2:       break;
+        case NID_md5:       break;
+        case NID_sha1:      break;
+        case NID_sha256:    break;
+        case NID_sha384:    break;
+        case NID_sha512:    break;
+        default:
+            WOLFSSL_MSG("This NID_ is not yet implemented");
+            return 0;
     }
 
     if (rsa->inSet == 0)
@@ -13356,7 +13363,16 @@ int wolfSSL_RSA_sign(int type, const unsigned char* m,
     }
 
     if (rng) {
-        type = (type == NID_md5) ? MD5h : SHAh;
+
+        switch (type) {
+            case NID_md2:       type = MD2h;    break;
+            case NID_md5:       type = MD5h;    break;
+            case NID_sha1:      type = SHAh;    break;
+            case NID_sha256:    type = SHA256h; break;
+            case NID_sha384:    type = SHA384h; break;
+            case NID_sha512:    type = SHA512h; break;
+            /* no default, already checked if NID is supported */
+        }
 
         signSz = wc_EncodeSignature(encodedSig, m, mLen, type);
         if (signSz == 0) {
