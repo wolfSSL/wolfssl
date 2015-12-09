@@ -1274,13 +1274,13 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
         unsigned char seed[1024];
         int           i = 0;
 
-        for (i=0; i < sizeof(seed); i++) {
-            seed[i]= i*3%256;
+        for (i = 0; i < sizeof(seed); i++) {
+            seed[i] = i * 3 % 256;
         }
         /* build entropy */
         (void) randAdd(seed, 0, 0);
-        for (i=4; i<=sizeof(seed); i*=2) {
-            (void) randAdd (seed, i-1, i);
+        for (i = 4; i <= sizeof(seed); i*=2) {
+            (void) randAdd (seed, i - 1, i);
         }
 
         status = randBytes (output, sz);
