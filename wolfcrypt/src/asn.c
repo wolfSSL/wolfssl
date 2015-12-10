@@ -1980,11 +1980,7 @@ int wc_DsaKeyToDer(DsaKey* key, byte* output, word32 inLen)
         mp_int* keyInt = GetDsaInt(key, i);
 
         /* leading zero */
-        if ((mp_count_bits(keyInt) & 7) == 0 || mp_iszero(keyInt) == MP_YES)
-            lbit = 1;
-        else
-            lbit = 0;
-
+        lbit = mp_leading_bit(keyInt);
         rawLen = mp_unsigned_bin_size(keyInt) + lbit;
 
         tmps[i] = (byte*)XMALLOC(rawLen + MAX_SEQ_SZ, NULL, DYNAMIC_TYPE_DSA);
@@ -5606,11 +5602,7 @@ int wc_RsaKeyToDer(RsaKey* key, byte* output, word32 inLen)
         mp_int* keyInt = GetRsaInt(key, i);
 
         /* leading zero */
-        if ((mp_count_bits(keyInt) & 7) == 0 || mp_iszero(keyInt) == MP_YES)
-            lbit = 1;
-        else
-            lbit = 0;
-
+        lbit = mp_leading_bit(keyInt);
         rawLen = mp_unsigned_bin_size(keyInt) + lbit;
 
         tmps[i] = (byte*)XMALLOC(rawLen + MAX_SEQ_SZ, key->heap,
