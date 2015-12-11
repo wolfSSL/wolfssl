@@ -1272,6 +1272,7 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz) {
         STATUS        status;
 
+        /* RANDOM ENTORPY INJECT component must be enabled in VSB project */
         status = randBytes (output, sz);
         if (status == ERROR) {
             printf("Random seed failed! Enable RANDOM ENTROPY INJECT.");
