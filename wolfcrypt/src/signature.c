@@ -175,7 +175,7 @@ int wc_SignatureGenerate(
     enum wc_HashType hash_type, enum wc_SignatureType sig_type,
     const byte* data, word32 data_len,
     byte* sig, word32 *sig_len,
-    const void* key, word32 key_len, RNG* rng)
+    const void* key, word32 key_len, WC_RNG* rng)
 {
     int ret, hash_len;
     byte *hash_data = NULL;
