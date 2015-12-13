@@ -1676,6 +1676,8 @@ then
     fi
 fi
 
+AM_CONDITIONAL([BUILD_OCSP_STAPLING], [test "x$ENABLED_CERTIFICATE_STATUS_REQUEST" = "xyes"])
+
 # Certificate Status Request v2 : a.k.a. OCSP stapling v2
 AC_ARG_ENABLE([ocspstapling2],
     [AS_HELP_STRING([--enable-ocspstapling2],[Enable Certificate Status Request v2 - a.k.a. OCSP Stapling v2 (default: disabled)])],
@@ -1695,6 +1697,8 @@ then
         AM_CONDITIONAL([BUILD_OCSP], [test "x$ENABLED_OCSP" = "xyes"])
     fi
 fi
+
+AM_CONDITIONAL([BUILD_OCSP_STAPLING_V2], [test "x$ENABLED_CERTIFICATE_STATUS_REQUEST_V2" = "xyes"])
 
 # Renegotiation Indication - (FAKE Secure Renegotiation)
 AC_ARG_ENABLE([renegotiation-indication],

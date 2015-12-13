@@ -1,10 +1,8 @@
 #!/bin/bash
 
-openssl ocsp                         \
-    -index index1.txt                \
-    -port 22221                      \
-    -rsigner ocsp-responder-cert.pem \
-    -rkey ocsp-responder-key.pem     \
-    -CA intermediate1-ca-cert.pem    \
-    -nmin 1                          \
-    -text
+openssl ocsp -port 22221 -nmin 1 -text            \
+    -index   certs/ocsp/index1.txt                \
+    -rsigner certs/ocsp/ocsp-responder-cert.pem   \
+    -rkey    certs/ocsp/ocsp-responder-key.pem    \
+    -CA      certs/ocsp/intermediate1-ca-cert.pem \
+    $@

@@ -729,7 +729,9 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
  || defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
         if (wolfSSL_CTX_EnableOCSPStapling(ctx) != SSL_SUCCESS)
             err_sys("can't enable OCSP Stapling Certificate Manager");
-        if (SSL_CTX_load_verify_locations(ctx, caCert, 0) != SSL_SUCCESS)
+        if (SSL_CTX_load_verify_locations(ctx, "certs/ocsp/intermediate1-ca-cert.pem", 0) != SSL_SUCCESS)
+            err_sys("can't load ca file, Please run from wolfSSL home dir");
+        if (SSL_CTX_load_verify_locations(ctx, "certs/ocsp/intermediate2-ca-cert.pem", 0) != SSL_SUCCESS)
             err_sys("can't load ca file, Please run from wolfSSL home dir");
 #endif
 #ifdef HAVE_PK_CALLBACKS
@@ -967,5 +969,3 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
         return 0;
     }
 #endif
-
-

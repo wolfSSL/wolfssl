@@ -4491,7 +4491,6 @@ static int DoCertificate(WOLFSSL* ssl, byte* input, word32* inOutIdx,
         if (fatal == 0) {
             int doLookup = 1;
 
-            /* TODO CSR2 */
             if (ssl->options.side == WOLFSSL_CLIENT_END) {
 #ifdef HAVE_CERTIFICATE_STATUS_REQUEST
                 if (ssl->status_request) {

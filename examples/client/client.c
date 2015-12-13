@@ -484,7 +484,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 
 #ifndef WOLFSSL_VXWORKS
     while ((ch = mygetopt(argc, argv,
-               "?gdeDusmNrwRitfxXUPCVh:p:v:l:A:c:k:Z:b:zS:L:ToO:aB:W")) != -1) {
+               "?gdeDusmNrwRitfxXUPCVh:p:v:l:A:c:k:Z:b:zS:L:ToO:aB:W:")) != -1) {
         switch (ch) {
             case '?' :
                 Usage();
@@ -678,7 +678,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
             case 'W' :
                 #if defined(HAVE_CERTIFICATE_STATUS_REQUEST) \
                  || defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
-                    statusRequest = 1;
+                    statusRequest = atoi(myoptarg);
                 #endif
                 break;
 
@@ -1006,18 +1006,35 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 #endif
 #ifdef HAVE_CERTIFICATE_STATUS_REQUEST
     if (statusRequest) {
-        if (wolfSSL_UseCertificateStatusRequest(ssl, WOLFSSL_CSR_OCSP,
+        switch (statusRequest) {
+            case WOLFSSL_CSR_OCSP:
+                if (wolfSSL_UseCertificateStatusRequest(ssl, WOLFSSL_CSR_OCSP,
                                      WOLFSSL_CSR_OCSP_USE_NONCE) != SSL_SUCCESS)
-            err_sys("UseCertificateStatusRequest failed");
+                    err_sys("UseCertificateStatusRequest failed");
+
+            break;
+        }
 
         wolfSSL_CTX_EnableOCSP(ctx, 0);
     }
 #endif
 #ifdef HAVE_CERTIFICATE_STATUS_REQUEST_V2
     if (statusRequest) {
-        if (wolfSSL_UseCertificateStatusRequestV2(ssl, WOLFSSL_CSR2_OCSP,
-                                    WOLFSSL_CSR2_OCSP_USE_NONCE) != SSL_SUCCESS)
-            err_sys("UseCertificateStatusRequest failed");
+        switch (statusRequest) {
+            case WOLFSSL_CSR2_OCSP:
+                if (wolfSSL_UseCertificateStatusRequestV2(ssl,
+                    WOLFSSL_CSR2_OCSP, WOLFSSL_CSR2_OCSP_USE_NONCE)
+                                                                 != SSL_SUCCESS)
+                    err_sys("UseCertificateStatusRequest failed");
+            break;
+            case WOLFSSL_CSR2_OCSP_MULTI:
+                if (wolfSSL_UseCertificateStatusRequestV2(ssl,
+                    WOLFSSL_CSR2_OCSP_MULTI, 0)
+                                                                 != SSL_SUCCESS)
+                    err_sys("UseCertificateStatusRequest failed");
+            break;
+
+        }
 
         wolfSSL_CTX_EnableOCSP(ctx, 0);
     }
