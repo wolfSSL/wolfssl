@@ -2449,7 +2449,7 @@ static int TLSX_CSR2_Parse(WOLFSSL* ssl, byte* input, word16 length,
     return 0;
 }
 
-int TLSX_CSR2_InitRequests(TLSX* extensions, DecodedCert* cert)
+int TLSX_CSR2_InitRequests(TLSX* extensions, DecodedCert* cert, byte isPeer)
 {
     TLSX* extension = TLSX_Find(extensions, TLSX_STATUS_REQUEST_V2);
     CertificateStatusRequestItemV2* csr2 = extension ? extension->data : NULL;
@@ -2458,7 +2458,7 @@ int TLSX_CSR2_InitRequests(TLSX* extensions, DecodedCert* cert)
     for (; csr2; csr2 = csr2->next) {
         switch (csr2->status_type) {
             case WOLFSSL_CSR2_OCSP:
-                if (csr2->requests != 0)
+                if (!isPeer || csr2->requests != 0)
                     break;
 
                 /* followed by */
@@ -2501,8 +2501,10 @@ void* TLSX_CSR2_GetRequest(TLSX* extensions, byte status_type, byte index)
                     /* followed by */
 
                 case WOLFSSL_CSR2_OCSP_MULTI:
-                    return index < csr2->requests ? &csr2->request.ocsp[index]
-                                                  : NULL;
+                    /* requests are initialized in the reverse order */
+                    return index < csr2->requests
+                         ? &csr2->request.ocsp[csr2->requests - index - 1]
+                         : NULL;
                 break;
             }
         }

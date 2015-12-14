@@ -23,6 +23,7 @@ authorityInfoAccess    = OCSP;URI:http://localhost:22222
 basicConstraints       = CA:true
 subjectKeyIdentifier   = hash
 authorityKeyIdentifier = keyid:always,issuer:always
+keyUsage               = keyCertSign, cRLSign
 authorityInfoAccess    = OCSP;URI:http://localhost:22220
 
 # OCSP extensions.

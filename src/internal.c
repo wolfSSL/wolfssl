@@ -4397,7 +4397,7 @@ static int DoCertificate(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 #ifdef HAVE_OCSP
         #ifdef HAVE_CERTIFICATE_STATUS_REQUEST_V2
             if (ssl->status_request_v2)
-                ret = TLSX_CSR2_InitRequests(ssl->extensions, dCert);
+                ret = TLSX_CSR2_InitRequests(ssl->extensions, dCert, 0);
             else /* skips OCSP and force CRL check */
         #endif
             if (ssl->ctx->cm->ocspEnabled && ssl->ctx->cm->ocspCheckAll) {
@@ -4500,7 +4500,7 @@ static int DoCertificate(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 #endif
 #ifdef HAVE_CERTIFICATE_STATUS_REQUEST_V2
                 if (ssl->status_request_v2) {
-                    fatal = TLSX_CSR2_InitRequests(ssl->extensions, dCert);
+                    fatal = TLSX_CSR2_InitRequests(ssl->extensions, dCert, 1);
                     doLookup = 0;
                 }
 #endif
@@ -5003,7 +5003,7 @@ static int DoCertificateStatus(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                             ret = BAD_CERTIFICATE_STATUS_ERROR;
                         else if (CompareOcspReqResp(request, response) == 0)
                             break;
-                        else if (index == 1)
+                        else if (index == 1) /* server cert must be OK */
                             ret = BAD_CERTIFICATE_STATUS_ERROR;
                     }
 

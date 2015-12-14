@@ -598,7 +598,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
 
 #if !defined(NO_FILESYSTEM) && !defined(NO_CERTS)
     if (!usePsk && !useAnon) {
-        if (SSL_CTX_use_certificate_file(ctx, ourCert, SSL_FILETYPE_PEM)
+        if (SSL_CTX_use_certificate_chain_file(ctx, ourCert)
                                          != SSL_SUCCESS)
             err_sys("can't load server cert file, check file and run from"
                     " wolfSSL home dir");

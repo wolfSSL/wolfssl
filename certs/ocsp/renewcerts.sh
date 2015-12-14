@@ -10,6 +10,7 @@ openssl x509                  \
     -extensions v3_ca         \
     -days 1000                \
     -signkey root-ca-key.pem  \
+    -set_serial 99            \
     -out root-ca-cert.pem
 
 rm root-ca-cert.csr
@@ -35,11 +36,9 @@ function update_cert() {
         -out $1-cert.pem
 
     rm $1-cert.csr
-    openssl x509 -in $3-cert.pem -text > $3_tmp.pem
     openssl x509 -in $1-cert.pem -text > $1_tmp.pem
     mv $1_tmp.pem $1-cert.pem
-    cat $3_tmp.pem >> $1-cert.pem
-    rm $3_tmp.pem
+    cat $3-cert.pem >> $1-cert.pem
 }
 
 update_cert intermediate1-ca "wolfSSL intermediate CA"         root-ca          v3_ca   01
