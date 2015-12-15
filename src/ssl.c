@@ -803,8 +803,7 @@ int wolfSSL_CTX_UseTruncatedHMAC(WOLFSSL_CTX* ctx)
 
 #ifdef HAVE_CERTIFICATE_STATUS_REQUEST
 
-int wolfSSL_UseCertificateStatusRequest(WOLFSSL* ssl, byte status_type,
-                                                                   byte options)
+int wolfSSL_UseOCSPStapling(WOLFSSL* ssl, byte status_type, byte options)
 {
     if (ssl == NULL || ssl->options.side != WOLFSSL_CLIENT_END)
         return BAD_FUNC_ARG;
@@ -814,7 +813,7 @@ int wolfSSL_UseCertificateStatusRequest(WOLFSSL* ssl, byte status_type,
 }
 
 
-int wolfSSL_CTX_UseCertificateStatusRequest(WOLFSSL_CTX* ctx, byte status_type,
+int wolfSSL_CTX_UseOCSPStapling(WOLFSSL_CTX* ctx, byte status_type,
                                                                    byte options)
 {
     if (ctx == NULL || ctx->method->side != WOLFSSL_CLIENT_END)
@@ -828,8 +827,7 @@ int wolfSSL_CTX_UseCertificateStatusRequest(WOLFSSL_CTX* ctx, byte status_type,
 
 #ifdef HAVE_CERTIFICATE_STATUS_REQUEST_V2
 
-int wolfSSL_UseCertificateStatusRequestV2(WOLFSSL* ssl, byte status_type,
-                                                                   byte options)
+int wolfSSL_UseOCSPStaplingV2(WOLFSSL* ssl, byte status_type, byte options)
 {
     if (ssl == NULL || ssl->options.side != WOLFSSL_CLIENT_END)
         return BAD_FUNC_ARG;
@@ -839,7 +837,7 @@ int wolfSSL_UseCertificateStatusRequestV2(WOLFSSL* ssl, byte status_type,
 }
 
 
-int wolfSSL_CTX_UseCertificateStatusRequestV2(WOLFSSL_CTX* ctx,
+int wolfSSL_CTX_UseOCSPStaplingV2(WOLFSSL_CTX* ctx,
                                                  byte status_type, byte options)
 {
     if (ctx == NULL || ctx->method->side != WOLFSSL_CLIENT_END)

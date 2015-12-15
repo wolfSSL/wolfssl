@@ -1430,10 +1430,10 @@ enum {
 #ifdef HAVE_CERTIFICATE_STATUS_REQUEST
 #ifndef NO_WOLFSSL_CLIENT
 
-WOLFSSL_API int wolfSSL_UseCertificateStatusRequest(WOLFSSL* ssl,
+WOLFSSL_API int wolfSSL_UseOCSPStapling(WOLFSSL* ssl,
                               unsigned char status_type, unsigned char options);
 
-WOLFSSL_API int wolfSSL_CTX_UseCertificateStatusRequest(WOLFSSL_CTX* ctx,
+WOLFSSL_API int wolfSSL_CTX_UseOCSPStapling(WOLFSSL_CTX* ctx,
                               unsigned char status_type, unsigned char options);
 
 #endif
@@ -1454,10 +1454,10 @@ enum {
 #ifdef HAVE_CERTIFICATE_STATUS_REQUEST_V2
 #ifndef NO_WOLFSSL_CLIENT
 
-WOLFSSL_API int wolfSSL_UseCertificateStatusRequestV2(WOLFSSL* ssl,
+WOLFSSL_API int wolfSSL_UseOCSPStaplingV2(WOLFSSL* ssl,
                               unsigned char status_type, unsigned char options);
 
-WOLFSSL_API int wolfSSL_CTX_UseCertificateStatusRequestV2(WOLFSSL_CTX* ctx,
+WOLFSSL_API int wolfSSL_CTX_UseOCSPStaplingV2(WOLFSSL_CTX* ctx,
                               unsigned char status_type, unsigned char options);
 
 #endif

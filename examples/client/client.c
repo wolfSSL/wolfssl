@@ -1008,7 +1008,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     if (statusRequest) {
         switch (statusRequest) {
             case WOLFSSL_CSR_OCSP:
-                if (wolfSSL_UseCertificateStatusRequest(ssl, WOLFSSL_CSR_OCSP,
+                if (wolfSSL_UseOCSPStapling(ssl, WOLFSSL_CSR_OCSP,
                                      WOLFSSL_CSR_OCSP_USE_NONCE) != SSL_SUCCESS)
                     err_sys("UseCertificateStatusRequest failed");
 
@@ -1022,13 +1022,13 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     if (statusRequest) {
         switch (statusRequest) {
             case WOLFSSL_CSR2_OCSP:
-                if (wolfSSL_UseCertificateStatusRequestV2(ssl,
+                if (wolfSSL_UseOCSPStaplingV2(ssl,
                     WOLFSSL_CSR2_OCSP, WOLFSSL_CSR2_OCSP_USE_NONCE)
                                                                  != SSL_SUCCESS)
                     err_sys("UseCertificateStatusRequest failed");
             break;
             case WOLFSSL_CSR2_OCSP_MULTI:
-                if (wolfSSL_UseCertificateStatusRequestV2(ssl,
+                if (wolfSSL_UseOCSPStaplingV2(ssl,
                     WOLFSSL_CSR2_OCSP_MULTI, 0)
                                                                  != SSL_SUCCESS)
                     err_sys("UseCertificateStatusRequest failed");
