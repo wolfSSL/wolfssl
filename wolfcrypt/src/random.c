@@ -1285,6 +1285,23 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
         return 0;
     }
 
+#elif defined(WOLFSSL_VXWORKS)
+
+    #include <randomNumGen.h>
+
+    int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz) {
+        STATUS        status;
+
+        /* RANDOM ENTORPY INJECT component must be enabled in VSB project */
+        status = randBytes (output, sz);
+        if (status == ERROR) {
+            WOLFSSL_MSG("Random seed failed! Enable RANDOM ENTROPY INJECT.");
+            return RNG_FAILURE_E;
+        }
+
+        return 0;
+    }
+
 #elif defined(CUSTOM_RAND_GENERATE)
 
    /* Implement your own random generation function
