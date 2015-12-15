@@ -41,9 +41,14 @@ function update_cert() {
     cat $3-cert.pem >> $1-cert.pem
 }
 
-update_cert intermediate1-ca "wolfSSL intermediate CA"         root-ca          v3_ca   01
-update_cert intermediate2-ca "wolfSSL REVOKED intermediate CA" root-ca          v3_ca   02 # REVOKED
-update_cert ocsp-responder   "wolfSSL OCSP Responder"          root-ca          v3_ocsp 03
-update_cert server1          "www1.wolfssl.com"                intermediate1-ca v3_req1 04
-update_cert server2          "www2.wolfssl.com"                intermediate1-ca v3_req1 05 # REVOKED
-update_cert server3          "www3.wolfssl.com"                intermediate2-ca v3_req2 06
+update_cert intermediate1-ca "wolfSSL intermediate CA 1"       root-ca          v3_ca   01
+update_cert intermediate2-ca "wolfSSL intermediate CA 2"       root-ca          v3_ca   02
+update_cert intermediate3-ca "wolfSSL REVOKED intermediate CA" root-ca          v3_ca   03 # REVOKED
+
+update_cert ocsp-responder   "wolfSSL OCSP Responder"          root-ca          v3_ocsp 04
+
+update_cert server1          "www1.wolfssl.com"                intermediate1-ca v3_req1 05
+update_cert server2          "www2.wolfssl.com"                intermediate1-ca v3_req1 06 # REVOKED
+update_cert server3          "www3.wolfssl.com"                intermediate2-ca v3_req2 07
+update_cert server4          "www4.wolfssl.com"                intermediate2-ca v3_req2 08 # REVOKED
+update_cert server5          "www5.wolfssl.com"                intermediate3-ca v3_req3 09

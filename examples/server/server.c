@@ -733,6 +733,8 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
             err_sys("can't load ca file, Please run from wolfSSL home dir");
         if (SSL_CTX_load_verify_locations(ctx, "certs/ocsp/intermediate2-ca-cert.pem", 0) != SSL_SUCCESS)
             err_sys("can't load ca file, Please run from wolfSSL home dir");
+        if (SSL_CTX_load_verify_locations(ctx, "certs/ocsp/intermediate3-ca-cert.pem", 0) != SSL_SUCCESS)
+            err_sys("can't load ca file, Please run from wolfSSL home dir");
 #endif
 #ifdef HAVE_PK_CALLBACKS
         if (pkCallbacks)

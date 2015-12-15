@@ -18,6 +18,14 @@ authorityKeyIdentifier = keyid:always,issuer:always
 keyUsage               = nonRepudiation, digitalSignature, keyEncipherment
 authorityInfoAccess    = OCSP;URI:http://localhost:22222
 
+# Extensions to add to a certificate request (intermediate3-ca)
+[ v3_req3 ]
+basicConstraints       = CA:false
+subjectKeyIdentifier   = hash
+authorityKeyIdentifier = keyid:always,issuer:always
+keyUsage               = nonRepudiation, digitalSignature, keyEncipherment
+authorityInfoAccess    = OCSP;URI:http://localhost:22223
+
 # Extensions for a typical CA
 [ v3_ca ]
 basicConstraints       = CA:true
