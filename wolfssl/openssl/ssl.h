@@ -431,6 +431,8 @@ typedef WOLFSSL_X509_NAME_ENTRY X509_NAME_ENTRY;
 
 #if defined(HAVE_STUNNEL) || defined(HAVE_LIGHTY)
 
+#define OBJ_nid2ln wolf_OBJ_nid2ln
+#define OBJ_txt2nid wolf_OBJ_txt2nid
 #define PEM_read_bio_DHparams wolfSSL_PEM_read_bio_DHparams
 #define PEM_write_bio_X509 PEM_write_bio_WOLFSSL_X509
 #define SSL_CTX_set_tmp_dh wolfSSL_CTX_set_tmp_dh
@@ -477,6 +479,8 @@ typedef WOLFSSL_X509_NAME_ENTRY X509_NAME_ENTRY;
 #define SSL_SESSION_get_id               wolfSSL_SESSION_get_id
 #define CRYPTO_dynlock_value             WOLFSSL_dynlock_value
 typedef WOLFSSL_ASN1_BIT_STRING    ASN1_BIT_STRING;
+#define X509_STORE_get1_certs            wolfSSL_X509_STORE_get1_certs
+#define sk_X509_pop_free                 wolfSSL_sk_X509_pop_free
 
 #define SSL_TLSEXT_ERR_OK                    0
 #define SSL_TLSEXT_ERR_ALERT_FATAL           alert_fatal
@@ -492,6 +496,8 @@ typedef WOLFSSL_ASN1_BIT_STRING    ASN1_BIT_STRING;
 
 #define PSK_MAX_PSK_LEN                      256
 #define PSK_MAX_IDENTITY_LEN                 128
+#define ERR_remove_thread_state WOLFSSL_ERR_remove_thread_state
+#define SSL_CTX_clear_options wolfSSL_CTX_clear_options
 
 
 #endif /* HAVE_STUNNEL */
