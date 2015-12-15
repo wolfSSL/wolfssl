@@ -61,6 +61,10 @@ EXTRA_DIST+= LICENSING
 EXTRA_DIST+= INSTALL
 EXTRA_DIST+= IPP
 
+if BUILD_FAST_RSA
+include_HEADERS += wolfcrypt/user-crypto/include/user_rsa.h
+endif
+
 # user crypto plug in example
 EXTRA_DIST+= wolfcrypt/user-crypto/configure.ac
 EXTRA_DIST+= wolfcrypt/user-crypto/autogen.sh
