@@ -91,22 +91,56 @@ int wc_InitRsaKey(RsaKey* key, void* heap)
 }
 
 
-#ifdef WOLFSSL_CERT_GEN /* three functions needed for cert gen */
+/* three functions needed for cert and key gen */
+#if defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_KEY_GEN)
 /* return 1 if there is a leading bit*/
 int wc_Rsa_leading_bit(void* bn)
 {
     int ret = 0;
-    if (ippsExtGet_BN(NULL, &ret, NULL, bn) != ippStsNoErr) {
-        USER_DEBUG(("Rsa leading bit error\n"));
+    int dataSz;
+    Ipp32u* data;
+    Ipp32u  q;
+    int qSz = sizeof(Ipp32u);
+
+    if (ippsExtGet_BN(NULL, &dataSz, NULL, bn) != ippStsNoErr) {
+        USER_DEBUG(("ippsExtGet_BN Rsa leading bit error\n"));
         return USER_CRYPTO_ERROR;
     }
-    return (ret % 8)? 1 : 0; /* if mod 8 bit then an extra byte is needed */
+
+    /* convert from size in binary to Ipp32u */
+    dataSz = dataSz / 32 + ((dataSz % 32)? 1 : 0);
+    data = (Ipp32u*)XMALLOC(dataSz * sizeof(Ipp32u), NULL,
+                                                      DYNAMIC_TYPE_USER_CRYPTO);
+    if (data == NULL) {
+        USER_DEBUG(("Rsa leading bit memory error\n"));
+        return 0;
+    }
+
+    /* extract value from BN */
+    if (ippsExtGet_BN(NULL, NULL, data, bn) != ippStsNoErr) {
+        USER_DEBUG(("Rsa leading bit error\n"));
+        XFREE(data, NULL, DYNAMIC_TYPE_USER_CRYPTO);
+        return 0;
+    }
+
+    /* use method like what's used in wolfssl tfm.c  */
+    q = data[dataSz - 1];
+
+    ret = 0;
+    while (qSz > 0) {
+        if (q != 0)
+            ret = (q & 0x80) != 0;
+        q >>= 8;
+        qSz--;
+    }
+
+    XFREE(data, NULL, DYNAMIC_TYPE_USER_CRYPTO);
+
+    return ret;
 }
 
 
-/* get the size in bytes of BN
-   cuts off if extra byte is needed so recommended to check wc_Rsa_leading_bit
-   and adding it to this return value before mallocing memory needed */
+/* get the size in bytes of BN */
 int wc_Rsa_unsigned_bin_size(void* bn)
 {
     int ret = 0;
@@ -114,7 +148,7 @@ int wc_Rsa_unsigned_bin_size(void* bn)
         USER_DEBUG(("Rsa unsigned bin size error\n"));
         return USER_CRYPTO_ERROR;
     }
-    return ret / 8; /* size in bytes */
+    return (ret / 8) + ((ret % 8)? 1: 0); /* size in bytes */
 }
 
 #ifndef MP_OKAY
@@ -125,12 +159,12 @@ int wc_Rsa_unsigned_bin_size(void* bn)
 int wc_Rsa_to_unsigned_bin(void* bn, byte* in, int inLen)
 {
     if (ippsGetOctString_BN((Ipp8u*)in, inLen, bn) != ippStsNoErr) {
-        USER_DEBUG(("Rsa unsigned bin error\n"));
+        USER_DEBUG(("Rsa to unsigned bin error\n"));
         return USER_CRYPTO_ERROR;
     }
     return MP_OKAY;
 }
-#endif /* WOLFSSL_CERT_GEN */
+#endif /* WOLFSSL_CERT_GEN or WOLFSSL_KEY_GEN */
 
 
 #ifdef OPENSSL_EXTRA /* functions needed for openssl compatibility layer */
@@ -1936,6 +1970,7 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
 
     IppsBigNumState* pSrcPublicExp;
     Ipp8u* scratchBuffer;
+    Ipp8u  eAry[8];
     int trys = 8; /* Miller-Rabin test parameter */
     IppsPrimeState* pPrime;
 
@@ -2015,11 +2050,16 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
 
     /* set up initial value of pScrPublicExp */
     leng = (int)sizeof(long); /* # of Ipp32u in long */
+
+    /* place the value of e into the array eAry then load into BN */
+    for (i = 0; i < leng; i++) {
+        eAry[i] = (e >> (8 * (leng - 1 - i))) & 0XFF;
+    }
     ret = init_bn(&pSrcPublicExp, leng);
     if (ret != ippStsNoErr)
         return USER_CRYPTO_ERROR;
 
-    ret = ippsSetOctString_BN((Ipp8u*)&e, leng, pSrcPublicExp);
+    ret = ippsSetOctString_BN(eAry, leng, pSrcPublicExp);
     if (ret != ippStsNoErr)
         return USER_CRYPTO_ERROR;
 
@@ -2300,10 +2340,12 @@ static int SetRsaPublicKey(byte* output, RsaKey* key,
         return USER_CRYPTO_ERROR;
 #endif
 
-    if (ippsExtGet_BN(NULL, &rawLen, NULL, key->n) != ippStsNoErr)
+    leadingBit = wc_Rsa_leading_bit(key->n);
+    rawLen = wc_Rsa_unsigned_bin_size(key->n);
+    if ((int)rawLen < 0) {
         return USER_CRYPTO_ERROR;
-    leadingBit = rawLen % 8; /* check for if an extra byte is needed */
-    rawLen = rawLen/8;       /* convert to byte size */
+    }
+
     rawLen = rawLen + leadingBit;
     n[0] = ASN_INTEGER;
     nSz  = SetLength(rawLen, n + 1) + 1;  /* int tag */
@@ -2339,10 +2381,12 @@ static int SetRsaPublicKey(byte* output, RsaKey* key,
     }
 #endif
 
-    if (ippsExtGet_BN(NULL, &rawLen, NULL, key->e) != ippStsNoErr)
+    leadingBit = wc_Rsa_leading_bit(key->e);
+    rawLen = wc_Rsa_unsigned_bin_size(key->e);
+    if ((int)rawLen < 0) {
         return USER_CRYPTO_ERROR;
-    leadingBit = rawLen % 8;
-    rawLen = rawLen/8;
+    }
+
     rawLen = rawLen + leadingBit;
     e[0] = ASN_INTEGER;
     eSz  = SetLength(rawLen, e + 1) + 1;  /* int tag */
@@ -2510,15 +2554,18 @@ int wc_RsaKeyToDer(RsaKey* key, byte* output, word32 inLen)
         Ipp32u isZero;
         IppsBigNumState* keyInt = GetRsaInt(key, i);
 
-        /* leading zero */
         ippsCmpZero_BN(keyInt, &isZero); /* makes isZero 0 if true */
-        ippsExtGet_BN(NULL, (int*)&rawLen, NULL, keyInt); /* bit length */
-        if (rawLen % 8 || !isZero)
+        rawLen = wc_Rsa_unsigned_bin_size(keyInt);
+        if ((int)rawLen < 0) {
+            return USER_CRYPTO_ERROR;
+        }
+
+        /* leading zero */
+        if (!isZero || wc_Rsa_leading_bit(keyInt))
             lbit = 1;
         else
             lbit = 0;
 
-        rawLen /= 8; /* convert to bytes */
         rawLen += lbit;
 
         tmps[i] = (byte*)XMALLOC(rawLen + MAX_SEQ_SZ, key->heap,
@@ -2548,6 +2595,8 @@ int wc_RsaKeyToDer(RsaKey* key, byte* output, word32 inLen)
             }
             else {
                 ret = USER_CRYPTO_ERROR;
+                USER_DEBUG(("ippsGetOctString_BN error %s\n",
+                                                      ippGetStatusString(err)));
                 break;
             }
         }
