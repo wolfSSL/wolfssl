@@ -1802,7 +1802,7 @@ int SetCipherSpecs(WOLFSSL* ssl)
 enum KeyStuff {
     MASTER_ROUNDS = 3,
     PREFIX        = 3,     /* up to three letters for master prefix */
-    KEY_PREFIX    = 7      /* up to 7 prefix letters for key rounds */
+    KEY_PREFIX    = 9      /* up to 9 prefix letters for key rounds */
 
 
 };
@@ -1832,6 +1832,12 @@ static int SetPrefix(byte* sha_input, int idx)
         break;
     case 6:
         XMEMCPY(sha_input, "GGGGGGG", 7);
+        break;
+    case 7:
+        XMEMCPY(sha_input, "HHHHHHHH", 8);
+        break;
+    case 8:
+        XMEMCPY(sha_input, "IIIIIIIII", 9);
         break;
     default:
         WOLFSSL_MSG("Set Prefix error, bad input");
