@@ -16422,6 +16422,23 @@ void* wolfSSL_get_ex_data(const WOLFSSL* ssl, int idx)
 
 
 #if defined(HAVE_LIGHTY) || defined(HAVE_STUNNEL)
+char * wolf_OBJ_nid2ln(int n) {
+    (void)n;
+    WOLFSSL_ENTER("wolf_OBJ_nid2ln");
+    WOLFSSL_STUB("wolf_OBJ_nid2ln");
+
+    return NULL;
+}
+
+int wolf_OBJ_txt2nid(const char* s) {
+    (void)s;
+    WOLFSSL_ENTER("wolf_OBJ_txt2nid");
+    WOLFSSL_STUB("wolf_OBJ_txt2nid");
+
+    return 0;
+}
+
+
 WOLFSSL_BIO *wolfSSL_BIO_new_file(const char *filename, const char *mode) {
     (void)filename;
     (void)mode;
@@ -16502,6 +16519,13 @@ long wolfSSL_CTX_set_tmp_dh(WOLFSSL_CTX* ctx, WOLFSSL_DH* dh)
 
 /* stunnel compatability functions*/
 #if defined(OPENSSL_EXTRA) && defined(HAVE_STUNNEL)
+void WOLFSSL_ERR_remove_thread_state(void* pid)
+{
+    (void) pid;
+    return;
+}
+
+
 int wolfSSL_SESSION_set_ex_data(WOLFSSL_SESSION* session, int idx, void* data)
 {
     WOLFSSL_ENTER("wolfSSL_SESSION_set_ex_data");
@@ -16565,6 +16589,19 @@ WOLFSSL_DH *wolfSSL_DH_generate_parameters(int prime_len, int generator,
     WOLFSSL_STUB("wolfSSL_DH_generate_parameters");
 
     return NULL;
+}
+
+int wolfSSL_DH_generate_parameters_ex(WOLFSSL_DH* dh, int prime_len, int generator,
+                           void (*callback) (int, int, void *))
+{
+    (void)prime_len;
+    (void)generator;
+    (void)callback;
+    (void)dh;
+    WOLFSSL_ENTER("wolfSSL_DH_generate_parameters_ex");
+    WOLFSSL_STUB("wolfSSL_DH_generate_parameters_ex");
+
+    return -1;
 }
 
 
@@ -16865,6 +16902,52 @@ void wolfSSL_CTX_set_servername_arg(WOLFSSL_CTX* ctx, void* arg)
     if (ctx)
         ctx->sniRecvCbArg = arg;
 }
+
+
+long wolfSSL_CTX_clear_options(WOLFSSL_CTX* ctx, long opt)
+{
+    WOLFSSL_ENTER("SSL_CTX_clear_options");
+    WOLFSSL_STUB("SSL_CTX_clear_options");
+    (void)ctx;
+    (void)opt;
+    return opt;
+}
+
+void wolfSSL_THREADID_set_callback(void(*threadid_func)(void*))
+{
+    WOLFSSL_ENTER("wolfSSL_THREADID_set_callback");
+    WOLFSSL_STUB("wolfSSL_THREADID_set_callback");
+    (void)threadid_func;
+    return;
+}
+
+void wolfSSL_THREADID_set_numeric(void* id, unsigned long val)
+{
+    WOLFSSL_ENTER("wolfSSL_THREADID_set_numeric");
+    WOLFSSL_STUB("wolfSSL_THREADID_set_numeric");
+    (void)id;
+    (void)val;
+    return;
+}
+
+
+WOLFSSL_X509* wolfSSL_X509_STORE_get1_certs(WOLFSSL_X509_STORE_CTX* ctx,
+                                                WOLFSSL_X509_NAME* name)
+{
+    WOLFSSL_ENTER("wolfSSL_X509_STORE_get1_certs");
+    WOLFSSL_STUB("wolfSSL_X509_STORE_get1_certs");
+    (void)ctx;
+    (void)name;
+    return NULL;
+}
+
+void wolfSSL_sk_X509_pop_free(STACK_OF(WOLFSSL_X509)* sk, void f (WOLFSSL_X509*)){
+    (void) sk;
+    (void) f;
+    WOLFSSL_ENTER("wolfSSL_sk_X509_pop_free");
+    WOLFSSL_STUB("wolfSSL_sk_X509_pop_free");
+}
+
 #endif /* OPENSSL_EXTRA and HAVE_STUNNEL */
 
 #if defined(OPENSSL_EXTRA) && defined(HAVE_CURVE25519)

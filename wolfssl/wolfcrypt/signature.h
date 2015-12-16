@@ -54,7 +54,7 @@ WOLFSSL_API int wc_SignatureGenerate(
     const byte* data, word32 data_len,
     byte* sig, word32 *sig_len,
     const void* key, word32 key_len,
-    RNG* rng);
+    WC_RNG* rng);
 
 #ifdef __cplusplus
     } /* extern "C" */

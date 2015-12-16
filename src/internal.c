@@ -84,7 +84,7 @@ WOLFSSL_CALLBACKS needs LARGE_STATIC_BUFFERS, please add LARGE_STATIC_BUFFERS
 #endif
 
 static int BuildMessage(WOLFSSL* ssl, byte* output, int outSz,
-                        const byte* input, int inSz, int type);
+                        const byte* input, int inSz, int type, int hashOutput);
 
 #ifndef NO_WOLFSSL_CLIENT
     static int DoHelloVerifyRequest(WOLFSSL* ssl, const byte* input, word32*,
@@ -967,14 +967,14 @@ void InitSuites(Suites* suites, ProtocolVersion pv, word16 haveRSA,
 #endif
 
 #ifdef BUILD_TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256
-    if (tls && haveRSA) {
+    if (tls1_2 && haveRSA) {
         suites->suites[idx++] = CHACHA_BYTE;
         suites->suites[idx++] = TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256;
     }
 #endif
 
 #ifdef BUILD_TLS_DHE_RSA_WITH_CHACHA20_POLY1305_SHA256
-    if (tls && haveRSA) {
+    if (tls1_2 && haveRSA) {
         suites->suites[idx++] = CHACHA_BYTE;
         suites->suites[idx++] = TLS_DHE_RSA_WITH_CHACHA20_POLY1305_SHA256;
     }
@@ -2282,6 +2282,7 @@ int DtlsPoolSave(WOLFSSL* ssl, const byte *src, int sz)
             return MEMORY_ERROR;
         }
         XMEMCPY(pBuf->buffer, src, sz);
+        pool->epoch[pool->used] = ssl->keys.dtls_epoch;
         pBuf->length = (word32)sz;
         pool->used++;
     }
@@ -2331,40 +2332,53 @@ int DtlsPoolTimeout(WOLFSSL* ssl)
 
 int DtlsPoolSend(WOLFSSL* ssl)
 {
-    int ret;
-    DtlsPool *pool = ssl->dtls_pool;
+    DtlsPool* pool = ssl->dtls_pool;
 
     if (pool != NULL && pool->used > 0) {
-        int i;
-        for (i = 0; i < pool->used; i++) {
-            int sendResult;
-            buffer* buf = &pool->buf[i];
+        int ret = 0;
+        int     i;
+        buffer* buf;
 
-            DtlsRecordLayerHeader* dtls = (DtlsRecordLayerHeader*)buf->buffer;
+        for (i = 0, buf = pool->buf; i < pool->used; i++, buf++) {
+            if (pool->epoch[i] == 0) {
+                DtlsRecordLayerHeader* dtls;
 
-            word16 message_epoch;
-            ato16(dtls->epoch, &message_epoch);
-            if (message_epoch == ssl->keys.dtls_epoch) {
-                /* Increment record sequence number on retransmitted handshake
-                 * messages */
-                c32to48(ssl->keys.dtls_sequence_number, dtls->sequence_number);
-                ssl->keys.dtls_sequence_number++;
+                dtls = (DtlsRecordLayerHeader*)buf->buffer;
+                c32to48(ssl->keys.dtls_prev_sequence_number++,
+                                                         dtls->sequence_number);
+                if ((ret = CheckAvailableSize(ssl, buf->length)) != 0)
+                    return ret;
+
+                XMEMCPY(ssl->buffers.outputBuffer.buffer,
+                        buf->buffer, buf->length);
+                ssl->buffers.outputBuffer.idx = 0;
+                ssl->buffers.outputBuffer.length = buf->length;
             }
-            else {
-                /* The Finished message is sent with the next epoch, keep its
-                 * sequence number */
+            else if (pool->epoch[i] == ssl->keys.dtls_epoch) {
+                byte*  input;
+                byte*  output;
+                int    inputSz, sendSz;
+
+                input = buf->buffer;
+                inputSz = buf->length;
+                sendSz = inputSz + MAX_MSG_EXTRA;
+
+                if ((ret = CheckAvailableSize(ssl, sendSz)) != 0)
+                    return ret;
+
+                output = ssl->buffers.outputBuffer.buffer +
+                         ssl->buffers.outputBuffer.length;
+                sendSz = BuildMessage(ssl, output, sendSz, input, inputSz,
+                                      handshake, 0);
+                if (sendSz < 0)
+                    return BUILD_MSG_ERROR;
+
+                ssl->buffers.outputBuffer.length += sendSz;
             }
 
-            if ((ret = CheckAvailableSize(ssl, buf->length)) != 0)
+            ret = SendBuffered(ssl);
+            if (ret < 0) {
                 return ret;
-
-            XMEMCPY(ssl->buffers.outputBuffer.buffer, buf->buffer, buf->length);
-            ssl->buffers.outputBuffer.idx = 0;
-            ssl->buffers.outputBuffer.length = buf->length;
-
-            sendResult = SendBuffered(ssl);
-            if (sendResult < 0) {
-                return sendResult;
             }
         }
     }
@@ -5091,14 +5105,6 @@ int DoFinished(WOLFSSL* ssl, const byte* input, word32* inOutIdx, word32 size,
         if (!ssl->options.resuming) {
             ssl->options.handShakeState = HANDSHAKE_DONE;
             ssl->options.handShakeDone  = 1;
-
-#ifdef WOLFSSL_DTLS
-            if (ssl->options.dtls) {
-                /* Other side has received our Finished, go to next epoch */
-                ssl->keys.dtls_epoch++;
-                ssl->keys.dtls_sequence_number = 1;
-            }
-#endif
         }
     }
     else {
@@ -5106,14 +5112,6 @@ int DoFinished(WOLFSSL* ssl, const byte* input, word32* inOutIdx, word32 size,
         if (ssl->options.resuming) {
             ssl->options.handShakeState = HANDSHAKE_DONE;
             ssl->options.handShakeDone  = 1;
-
-#ifdef WOLFSSL_DTLS
-            if (ssl->options.dtls) {
-                /* Other side has received our Finished, go to next epoch */
-                ssl->keys.dtls_epoch++;
-                ssl->keys.dtls_sequence_number = 1;
-            }
-#endif
         }
     }
 
@@ -7464,7 +7462,7 @@ int SendChangeCipher(WOLFSSL* ssl)
 
         input[0] = 1;  /* turn it on */
         sendSz = BuildMessage(ssl, output, sendSz, input, inputSz,
-                              change_cipher_spec);
+                              change_cipher_spec, 0);
         if (sendSz < 0)
             return sendSz;
     }
@@ -7694,7 +7692,7 @@ static int BuildCertHashes(WOLFSSL* ssl, Hashes* hashes)
 
 /* Build SSL Message, encrypted */
 static int BuildMessage(WOLFSSL* ssl, byte* output, int outSz,
-                        const byte* input, int inSz, int type)
+                        const byte* input, int inSz, int type, int hashOutput)
 {
 #ifdef HAVE_TRUNCATED_HMAC
     word32 digestSz = min(ssl->specs.hash_size,
@@ -7769,7 +7767,7 @@ static int BuildMessage(WOLFSSL* ssl, byte* output, int outSz,
     XMEMCPY(output + idx, input, inSz);
     idx += inSz;
 
-    if (type == handshake) {
+    if (type == handshake && hashOutput) {
         ret = HashOutput(ssl, output, headerSz + inSz, ivSz);
         if (ret != 0)
             return ret;
@@ -7843,11 +7841,6 @@ int SendFinished(WOLFSSL* ssl)
     int              headerSz = HANDSHAKE_HEADER_SZ;
     int              outputSz;
 
-    #ifdef WOLFSSL_DTLS
-        word32 sequence_number = ssl->keys.dtls_sequence_number;
-        word16 epoch           = ssl->keys.dtls_epoch;
-    #endif
-
     /* setup encrypt keys */
     if ((ret = SetKeysSide(ssl, ENCRYPT_SIDE_ONLY)) != 0)
         return ret;
@@ -7859,11 +7852,11 @@ int SendFinished(WOLFSSL* ssl)
 
     #ifdef WOLFSSL_DTLS
         if (ssl->options.dtls) {
-            /* Send Finished message with the next epoch, but don't commit that
-             * change until the other end confirms its reception. */
             headerSz += DTLS_HANDSHAKE_EXTRA;
             ssl->keys.dtls_epoch++;
-            ssl->keys.dtls_sequence_number = 0;  /* reset after epoch change */
+            ssl->keys.dtls_prev_sequence_number =
+                    ssl->keys.dtls_sequence_number;
+            ssl->keys.dtls_sequence_number = 0;
         }
     #endif
 
@@ -7890,17 +7883,17 @@ int SendFinished(WOLFSSL* ssl)
     }
 #endif
 
+    #ifdef WOLFSSL_DTLS
+        if (ssl->options.dtls) {
+            if ((ret = DtlsPoolSave(ssl, input, headerSz + finishedSz)) != 0)
+                return ret;
+        }
+    #endif
+
     sendSz = BuildMessage(ssl, output, outputSz, input, headerSz + finishedSz,
-                          handshake);
+                          handshake, 1);
     if (sendSz < 0)
         return BUILD_MSG_ERROR;
-
-    #ifdef WOLFSSL_DTLS
-    if (ssl->options.dtls) {
-        ssl->keys.dtls_epoch = epoch;
-        ssl->keys.dtls_sequence_number = sequence_number;
-    }
-    #endif
 
     if (!ssl->options.resuming) {
 #ifndef NO_SESSION_CACHE
@@ -7909,36 +7902,14 @@ int SendFinished(WOLFSSL* ssl)
         if (ssl->options.side == WOLFSSL_SERVER_END) {
             ssl->options.handShakeState = HANDSHAKE_DONE;
             ssl->options.handShakeDone  = 1;
-            #ifdef WOLFSSL_DTLS
-                if (ssl->options.dtls) {
-                    /* Other side will soon receive our Finished, go to next
-                     * epoch. */
-                    ssl->keys.dtls_epoch++;
-                    ssl->keys.dtls_sequence_number = 1;
-                }
-            #endif
         }
     }
     else {
         if (ssl->options.side == WOLFSSL_CLIENT_END) {
             ssl->options.handShakeState = HANDSHAKE_DONE;
             ssl->options.handShakeDone  = 1;
-            #ifdef WOLFSSL_DTLS
-                if (ssl->options.dtls) {
-                    /* Other side will soon receive our Finished, go to next
-                     * epoch. */
-                    ssl->keys.dtls_epoch++;
-                    ssl->keys.dtls_sequence_number = 1;
-                }
-            #endif
         }
     }
-    #ifdef WOLFSSL_DTLS
-        if (ssl->options.dtls) {
-            if ((ret = DtlsPoolSave(ssl, output, sendSz)) != 0)
-                return ret;
-        }
-    #endif
 
     #ifdef WOLFSSL_CALLBACKS
         if (ssl->hsInfoOn) AddPacketName("Finished", &ssl->handShakeInfo);
@@ -8146,7 +8117,7 @@ int SendCertificate(WOLFSSL* ssl)
                 XMEMCPY(input, output + RECORD_HEADER_SZ, inputSz);
             }
 
-            sendSz = BuildMessage(ssl, output, sendSz, input,inputSz,handshake);
+            sendSz = BuildMessage(ssl, output,sendSz,input,inputSz,handshake,1);
             XFREE(input, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
 
             if (sendSz < 0)
@@ -8361,7 +8332,7 @@ int SendData(WOLFSSL* ssl, const void* data, int sz)
         }
 #endif
         sendSz = BuildMessage(ssl, out, outputSz, sendBuffer, buffSz,
-                              application_data);
+                              application_data, 0);
         if (sendSz < 0)
             return BUILD_MSG_ERROR;
 
@@ -8512,7 +8483,7 @@ int SendAlert(WOLFSSL* ssl, int severity, int type)
     /* only send encrypted alert if handshake actually complete, otherwise
        other side may not be able to handle it */
     if (IsEncryptionOn(ssl, 1) && ssl->options.handShakeDone)
-        sendSz = BuildMessage(ssl, output, outputSz, input, ALERT_SIZE, alert);
+        sendSz = BuildMessage(ssl, output, outputSz, input, ALERT_SIZE,alert,0);
     else {
 
         AddRecordHeader(output, ALERT_SIZE, alert, ssl);
@@ -10141,7 +10112,7 @@ static void PickHashSigAlgo(WOLFSSL* ssl,
                 return MEMORY_E;
 
             XMEMCPY(input, output + RECORD_HEADER_SZ, inputSz);
-            sendSz = BuildMessage(ssl, output, sendSz, input,inputSz,handshake);
+            sendSz = BuildMessage(ssl, output,sendSz,input,inputSz,handshake,1);
             XFREE(input, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
 
             if (sendSz < 0)
@@ -12313,7 +12284,7 @@ static word32 QSH_KeyExchangeWrite(WOLFSSL* ssl, byte isServer)
 
                 XMEMCPY(input, output + RECORD_HEADER_SZ, inputSz);
                 sendSz = BuildMessage(ssl, output, sendSz, input, inputSz,
-                                      handshake);
+                                      handshake, 1);
                 XFREE(input, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
                 if (sendSz < 0) {
                 #ifdef WOLFSSL_SMALL_STACK
@@ -12686,7 +12657,7 @@ static word32 QSH_KeyExchangeWrite(WOLFSSL* ssl, byte isServer)
                         XMEMCPY(input, output + RECORD_HEADER_SZ, inputSz);
                         sendSz = BuildMessage(ssl, output,
                                               MAX_CERT_VERIFY_SZ +MAX_MSG_EXTRA,
-                                              input, inputSz, handshake);
+                                              input, inputSz, handshake, 1);
                         XFREE(input, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
 
                         if (sendSz < 0)

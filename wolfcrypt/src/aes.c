@@ -2166,7 +2166,7 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
         {
             XMEMCPY(temp_block, in + offset, AES_BLOCK_SIZE);
 
-            wc_AesEncrypt(aes, in + offset, out + offset);
+            wc_AesDecrypt(aes, in + offset, out + offset);
             
             /* XOR block with IV for CBC */
             for (i = 0; i < AES_BLOCK_SIZE; i++)

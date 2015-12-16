@@ -1620,6 +1620,8 @@ WOLFSSL_API STACK_OF(WOLFSSL_X509_NAME) *wolfSSL_dup_CA_list( STACK_OF(WOLFSSL_X
 
 #if defined(HAVE_STUNNEL) || defined(HAVE_LIGHTY)
 
+WOLFSSL_API char * wolf_OBJ_nid2ln(int n);
+WOLFSSL_API int wolf_OBJ_txt2nid(const char *sn);
 WOLFSSL_API WOLFSSL_BIO* wolfSSL_BIO_new_file(const char *filename, const char *mode);
 WOLFSSL_API long wolfSSL_CTX_set_tmp_dh(WOLFSSL_CTX*, WOLFSSL_DH*);
 WOLFSSL_API WOLFSSL_DH *wolfSSL_PEM_read_bio_DHparams(WOLFSSL_BIO *bp,
@@ -1642,6 +1644,9 @@ WOLFSSL_API int wolfSSL_CRYPTO_set_mem_ex_functions(void *(*m) (size_t, const ch
 
 WOLFSSL_API WOLFSSL_DH *wolfSSL_DH_generate_parameters(int prime_len, int generator,
     void (*callback) (int, int, void *), void *cb_arg);
+
+WOLFSSL_API int wolfSSL_DH_generate_parameters_ex(WOLFSSL_DH*, int, int,
+                           void (*callback) (int, int, void *));
 
 WOLFSSL_API void wolfSSL_ERR_load_crypto_strings(void);
 
@@ -1708,6 +1713,19 @@ WOLFSSL_API void wolfSSL_CTX_set_servername_callback(WOLFSSL_CTX *,
         CallbackSniRecv);
 
 WOLFSSL_API void wolfSSL_CTX_set_servername_arg(WOLFSSL_CTX *, void*);
+
+WOLFSSL_API void WOLFSSL_ERR_remove_thread_state(void*);
+
+WOLFSSL_API long wolfSSL_CTX_clear_options(WOLFSSL_CTX*, long);
+
+WOLFSSL_API void wolfSSL_THREADID_set_callback(void (*threadid_func)(void*));
+
+WOLFSSL_API void wolfSSL_THREADID_set_numeric(void* id, unsigned long val);
+
+WOLFSSL_API WOLFSSL_X509* wolfSSL_X509_STORE_get1_certs(WOLFSSL_X509_STORE_CTX*,
+                                                        WOLFSSL_X509_NAME*);
+
+WOLFSSL_API void wolfSSL_sk_X509_pop_free(STACK_OF(WOLFSSL_X509)* sk, void f (WOLFSSL_X509*));
 #endif /* HAVE_STUNNEL */
 
 #ifdef WOLFSSL_JNI

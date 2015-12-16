@@ -1445,8 +1445,9 @@ typedef struct Keys {
     word16 dtls_peer_handshake_number;
     word16 dtls_expected_peer_handshake_number;
 
-    word16 dtls_epoch;                          /* Current tx epoch    */
     word32 dtls_sequence_number;                /* Current tx sequence */
+    word32 dtls_prev_sequence_number;           /* Previous epoch's seq number*/
+    word16 dtls_epoch;                          /* Current tx epoch    */
     word16 dtls_handshake_number;               /* Current tx handshake seq */
 #endif
 
@@ -2289,6 +2290,7 @@ typedef struct DtlsRecordLayerHeader {
 
 typedef struct DtlsPool {
     buffer          buf[DTLS_POOL_SZ];
+    word16          epoch[DTLS_POOL_SZ];
     int             used;
 } DtlsPool;
 

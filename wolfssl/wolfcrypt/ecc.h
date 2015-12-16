@@ -85,6 +85,10 @@ typedef struct {
  * Do not enable ALT_ECC_SIZE and disable fast math in the configuration.
  */
 
+#ifndef USE_FAST_MATH
+    #error USE_FAST_MATH must be defined to use ALT_ECC_SIZE
+#endif
+
 #ifndef FP_MAX_BITS_ECC
     #define FP_MAX_BITS_ECC           528
 #endif
