@@ -14723,7 +14723,7 @@ int DoSessionTicket(WOLFSSL* ssl,
         ato16(&input[idx], &clSuites.suiteSz);
         idx += 2;
 
-        if (clSuites.suiteSz > MAX_SUITE_SZ)
+        if (clSuites.suiteSz > WOLFSSL_MAX_SUITE_SZ)
             return BUFFER_ERROR;
         clSuites.hashSigAlgoSz = 0;
 
@@ -15005,7 +15005,7 @@ int DoSessionTicket(WOLFSSL* ssl,
         if ((i - begin) + clSuites.suiteSz + OPAQUE8_LEN > helloSz)
             return BUFFER_ERROR;
 
-        if (clSuites.suiteSz > MAX_SUITE_SZ)
+        if (clSuites.suiteSz > WOLFSSL_MAX_SUITE_SZ)
             return BUFFER_ERROR;
 
         XMEMCPY(clSuites.suites, input + i, clSuites.suiteSz);
