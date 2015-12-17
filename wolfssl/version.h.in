@@ -19,8 +19,9 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
+#ifndef WOLFSSL_VERSION_H
+#define WOLFSSL_VERSION_H
 
-#pragma once
 
 #ifdef __cplusplus
 extern "C" {
@@ -32,4 +33,7 @@ extern "C" {
 #ifdef __cplusplus
 }
 #endif
+
+
+#endif /* WOLFSSL_VERSION_H */
 

@@ -1,4 +1,7 @@
-#pragma once
+
+#ifndef WOLFSSL_ROWLEY_HW_H
+#define WOLFSSL_ROWLEY_HW_H
+
 
 #include <__cross_studio_io.h>
 #include <__libc.h>
@@ -11,3 +14,7 @@ uint32_t hw_get_time_msec(void);
 void hw_uart_printchar(int c);
 void hw_watchdog_disable(void);
 uint32_t hw_rand(void);
+
+
+#endif /* WOLFSSL_ROWLEY_HW_H */
+

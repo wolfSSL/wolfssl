@@ -21,7 +21,9 @@
 
 /* default blank options for autoconf */
 
-#pragma once
+#ifndef WOLFSSL_OPTIONS_H
+#define WOLFSSL_OPTIONS_H
+
 
 #ifdef __cplusplus
 extern "C" {
@@ -31,4 +33,7 @@ extern "C" {
 #ifdef __cplusplus
 }
 #endif
+
+
+#endif /* WOLFSSL_OPTIONS_H */
 

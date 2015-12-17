@@ -2581,7 +2581,9 @@ echo " *" >> $OPTION_FILE
 echo " */" >> $OPTION_FILE
 
 echo "" >> $OPTION_FILE
-echo "#pragma once" >> $OPTION_FILE
+echo "#ifndef WOLFSSL_OPTIONS_H" >> $OPTION_FILE
+echo "#define WOLFSSL_OPTIONS_H" >> $OPTION_FILE
+echo "" >> $OPTION_FILE
 echo "" >> $OPTION_FILE
 echo "#ifdef __cplusplus" >> $OPTION_FILE
 echo "extern \"C\" {" >> $OPTION_FILE
@@ -2627,6 +2629,9 @@ echo "#ifdef __cplusplus" >> $OPTION_FILE
 echo "}" >> $OPTION_FILE
 echo "#endif" >> $OPTION_FILE
 echo "" >> $OPTION_FILE
+echo "" >> $OPTION_FILE
+echo "#endif /* WOLFSSL_OPTIONS_H */" >> $OPTION_FILE
+echo "" >> $OPTION_FILE
 echo
 
 #backwards compatability for those who have included options or version
@@ -2639,6 +2644,10 @@ while read -r line
 do
     echo "$line" >> cyassl/options.h
 done < $OPTION_FILE
+
+# switch ifdef protection in cyassl/option.h to CYASSL_OPTONS_H, remove bak
+sed -i.bak 's/WOLFSSL_OPTIONS_H/CYASSL_OPTIONS_H/g' cyassl/options.h
+rm cyassl/options.h.bak
 
 # output config summary
 echo "---"

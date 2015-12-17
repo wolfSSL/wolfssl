@@ -19,6 +19,12 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
-#pragma once
+#ifndef WOLFSSL_ECHOSERVER_H
+#define WOLFSSL_ECHOSERVER_H
+
 
 THREAD_RETURN WOLFSSL_THREAD echoserver_test(void* args);
+
+
+#endif /* WOLFSSL_ECHOSERVER_H */
+

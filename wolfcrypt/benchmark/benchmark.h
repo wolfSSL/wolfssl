@@ -19,7 +19,9 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
-#pragma once
+#ifndef WOLFCRYPT_BENCHMARK_H
+#define WOLFCRYPT_BENCHMARK_H
+
 
 #ifdef __cplusplus
     extern "C" {
@@ -30,3 +32,7 @@ int benchmark_test(void* args);
 #ifdef __cplusplus
     }  /* extern "C" */
 #endif
+
+
+#endif /* WOLFCRYPT_BENCHMARK_H */
+
