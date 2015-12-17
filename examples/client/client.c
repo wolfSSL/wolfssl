@@ -890,7 +890,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 #if defined(WOLFSSL_SNIFFER)
     if (cipherList == NULL) {
         /* don't use EDH, can't sniff tmp keys */
-        if (wolfSSL_CTX_set_cipher_list(ctx, "AES256-SHA256") != SSL_SUCCESS) {
+        if (wolfSSL_CTX_set_cipher_list(ctx, "AES128-SHA") != SSL_SUCCESS) {
             err_sys("client can't set cipher list 3");
         }
     }
