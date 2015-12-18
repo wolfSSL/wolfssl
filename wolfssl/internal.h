@@ -852,7 +852,6 @@ enum Misc {
     MAX_DH_SIZE    = 513,      /* 4096 bit plus possible leading 0 */
     SESSION_HINT_SZ = 4,       /* session timeout hint */
 
-    MAX_SUITE_SZ = 200,        /* 100 suites for now! */
     RAN_LEN      = 32,         /* random length           */
     SEED_LEN     = RAN_LEN * 2, /* tls prf seed length    */
     ID_LEN       = 32,         /* session id length       */
@@ -986,6 +985,12 @@ enum Misc {
     NO_COPY            =   0,  /* should we copy static buffer for write */
     COPY               =   1   /* should we copy static buffer for write */
 };
+
+
+#ifndef WOLFSSL_MAX_SUITE_SZ
+    #define WOLFSSL_MAX_SUITE_SZ 300
+    /* 150 suites for now! */
+#endif
 
 
 #ifndef WOLFSSL_MIN_DHKEY_BITS
@@ -1221,7 +1226,7 @@ typedef struct {
 typedef struct Suites {
     word16 suiteSz;                 /* suite length in bytes        */
     word16 hashSigAlgoSz;           /* SigAlgo extension length in bytes */
-    byte   suites[MAX_SUITE_SZ];
+    byte   suites[WOLFSSL_MAX_SUITE_SZ];
     byte   hashSigAlgo[HELLO_EXT_SIGALGO_MAX]; /* sig/algo to offer */
     byte   setSuites;               /* user set suites from default */
     byte   hashAlgo;                /* selected hash algorithm */
