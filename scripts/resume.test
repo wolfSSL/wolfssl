@@ -1,9 +1,11 @@
 #!/bin/sh
 
-#reusme.test
+#resume.test
 
 # need a unique resume port since may run the same time as testsuite
-resume_port=11112
+PWD=`pwd`
+resume_port=`$PWD/scripts/port_random.sh 2>&1`
+echo "port selected for test: $resume_port"
 no_pid=-1
 server_pid=$no_pid
 counter=0

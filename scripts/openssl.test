@@ -3,7 +3,8 @@
 #openssl.test
 
 # need a unique port since may run the same time as testsuite
-openssl_port=11114
+PWD=`pwd`
+openssl_portp=`$PWD/scripts/port_random.sh 2>&1`
 no_pid=-1
 server_pid=$no_pid
 wolf_suites_tested=0

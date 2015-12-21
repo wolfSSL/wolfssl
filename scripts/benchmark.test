@@ -15,7 +15,8 @@ if [ "$#" -lt 2 ]; then
 fi
 
 # Use unique benchmark port so it won't conflict with any other tests
-bench_port=11113
+PWD=`pwd`
+bench_port=`$PWD/scripts/port_random.sh 2>&1`
 no_pid=-1
 server_pid=$no_pid
 counter=0
