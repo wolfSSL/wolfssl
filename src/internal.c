@@ -10088,12 +10088,14 @@ static void PickHashSigAlgo(WOLFSSL* ssl,
         {
             int i;
             /* add in the extensions length */
-            c16toa(HELLO_EXT_LEN + ssl->suites->hashSigAlgoSz, output + idx);
+            c16toa((word16)(HELLO_EXT_LEN + ssl->suites->hashSigAlgoSz),
+                    output + idx);
             idx += 2;
 
             c16toa(HELLO_EXT_SIG_ALGO, output + idx);
             idx += 2;
-            c16toa(HELLO_EXT_SIGALGO_SZ+ssl->suites->hashSigAlgoSz, output+idx);
+            c16toa((word16)(HELLO_EXT_SIGALGO_SZ + ssl->suites->hashSigAlgoSz),
+                    output+idx);
             idx += 2;
             c16toa(ssl->suites->hashSigAlgoSz, output + idx);
             idx += 2;
@@ -14886,8 +14888,8 @@ int DoSessionTicket(WOLFSSL* ssl,
              && ssl->version.minor != DTLSv1_2_MINOR && pv.minor != DTLS_MINOR
              && pv.minor != DTLSv1_2_MINOR)) {
 
-            byte haveRSA = 0;
-            byte havePSK = 0;
+            word16 haveRSA = 0;
+            word16 havePSK = 0;
 
             if (!ssl->options.downgrade) {
                 WOLFSSL_MSG("Client trying to connect with lesser version");
