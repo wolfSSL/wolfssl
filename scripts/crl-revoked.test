@@ -7,6 +7,7 @@ revocation_code="-361"
 exit_code=1
 counter=0
 crl_port=`$PWD/scripts/port_random.sh 2>&1`
+echo "port selected for test: $crl_port"
 #no_pid tells us process was never started if -1
 no_pid=-1
 #server_pid captured on startup, stores the id of the server process

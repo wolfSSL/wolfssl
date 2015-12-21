@@ -17,6 +17,7 @@ fi
 # Use unique benchmark port so it won't conflict with any other tests
 PWD=`pwd`
 bench_port=`$PWD/scripts/port_random.sh 2>&1`
+echo "port selected for test: $bench_port"
 no_pid=-1
 server_pid=$no_pid
 counter=0
