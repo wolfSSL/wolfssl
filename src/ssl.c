@@ -13311,7 +13311,7 @@ int wolfSSL_RSA_sign(int type, const unsigned char* m,
     }
 
     switch (type) {
-    #ifndef WOLFSSL_MD2
+    #ifdef WOLFSSL_MD2
         case NID_md2:       type = MD2h;    break;
     #endif
     #ifndef NO_MD5
