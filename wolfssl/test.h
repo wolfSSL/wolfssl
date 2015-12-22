@@ -455,7 +455,12 @@ static INLINE void showPeer(WOLFSSL* ssl)
     printf("SSL version is %s\n", wolfSSL_get_version(ssl));
 
     cipher = wolfSSL_get_current_cipher(ssl);
+#ifdef HAVE_QSH
+    printf("SSL cipher suite is %s%s\n", (wolfSSL_isQSH(ssl))? "QSH:": "",
+            wolfSSL_CIPHER_get_name(cipher));
+#else
     printf("SSL cipher suite is %s\n", wolfSSL_CIPHER_get_name(cipher));
+#endif
 
 #if defined(SESSION_CERTS) && defined(SHOW_CERTS)
     {
