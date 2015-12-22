@@ -1,11 +1,15 @@
 #!/bin/sh
 
 #crl.test
+server_result=1
+NUM_RETRY=0
 
+PWD=`pwd`
 revocation_code="-361"
 exit_code=1
 counter=0
-crl_port=11113
+crl_port=`$PWD/scripts/port_random.sh 2>&1`
+echo "port selected for test: $crl_port"
 #no_pid tells us process was never started if -1
 no_pid=-1
 #server_pid captured on startup, stores the id of the server process
@@ -53,8 +57,16 @@ run_test() {
     # starts the server on crl_port, -R generates ready file to be used as a
     # mutex lock, -c loads the revoked certificate. We capture the processid
     # into the variable server_pid
-    ./examples/server/server -R -p $crl_port -c certs/server-revoked-cert.pem \
+    while [ $server_result -ne 0 ] && [ $NUM_RETRY -lt 10 ]; do
+        ./examples/server/server -R -p $crl_port -c certs/server-revoked-cert.pem \
                                              -k certs/server-revoked-key.pem &
+        server_result=$?
+        if [ $server_result -ne 0 ]; then
+            crl_port=`$PWD/scripts/port_random.sh 2>&1`
+            echo "tcp bind failed, choosing a new port and trying again" >&2
+            let NUM_RETRY=NUM_RETRY+1
+        fi
+    done
     server_pid=$!
 
     while [ ! -s /tmp/wolfssl_server_ready -a "$counter" -lt 20 ]; do

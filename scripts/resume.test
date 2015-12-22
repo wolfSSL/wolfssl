@@ -1,13 +1,16 @@
 #!/bin/sh
 
-#reusme.test
+#resume.test
+server_result=1
+NUM_RETRY=0
 
 # need a unique resume port since may run the same time as testsuite
-resume_port=11112
+PWD=`pwd`
+resume_port=`$PWD/scripts/port_random.sh 2>&1`
+echo "port selected for test: $resume_port"
 no_pid=-1
 server_pid=$no_pid
 counter=0
-
 
 remove_ready_file() {
     if test -e /tmp/wolfssl_server_ready; then
@@ -39,7 +42,18 @@ trap do_trap INT TERM
 echo -e "\nStarting example server for resume test...\n"
 
 remove_ready_file
-./examples/server/server -r -R -p $resume_port &
+
+    #if tcp bind fails try another port and run again
+while [ $server_result -ne 0 ] && [ $NUM_RETRY -lt 10 ]; do
+    ./examples/server/server -r -R -p $resume_port &
+    server_result=$?
+    if [ $server_result -ne 0 ]; then
+        resume_port=`$PWD/scripts/port_random.sh 2>&1`
+        echo "tcp bind failed, choosing new port and trying again" >&2
+        let NUM_RETRY=NUM_RETRY+1
+    fi
+done
+
 server_pid=$!
 
 while [ ! -s /tmp/wolfssl_server_ready -a "$counter" -lt 20 ]; do
