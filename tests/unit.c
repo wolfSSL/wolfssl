@@ -155,26 +155,3 @@ void join_thread(THREAD_TYPE thread)
 }
 
 
-void InitTcpReady(tcp_ready* ready)
-{
-    ready->ready = 0;
-    ready->port = 0;
-#ifdef SINGLE_THREADED
-#elif defined(_POSIX_THREADS) && !defined(__MINGW32__)
-      pthread_mutex_init(&ready->mutex, 0);
-      pthread_cond_init(&ready->cond, 0);
-#endif
-}
-
-
-void FreeTcpReady(tcp_ready* ready)
-{
-#ifdef SINGLE_THREADED
-    (void)ready;
-#elif defined(_POSIX_THREADS) && !defined(__MINGW32__)
-    pthread_mutex_destroy(&ready->mutex);
-    pthread_cond_destroy(&ready->cond);
-#else
-    (void)ready;
-#endif
-}

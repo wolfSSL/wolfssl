@@ -195,6 +195,7 @@ static void Usage(void)
     printf("-c <file>   Certificate file,           default %s\n", svrCert);
     printf("-k <file>   Key file,                   default %s\n", svrKey);
     printf("-A <file>   Certificate Authority file, default %s\n", cliCert);
+    printf("-R <file>   Create Ready file for external monitor default none\n");
 #ifndef NO_DH
     printf("-D <file>   Diffie-Hellman Params file, default %s\n", dhParam);
     printf("-Z <num>    Minimum DH key bits,        default %d\n",
@@ -210,7 +211,6 @@ static void Usage(void)
     printf("-u          Use UDP DTLS,"
            " add -v 2 for DTLSv1, -v 3 for DTLSv1.2 (default)\n");
     printf("-f          Fewer packets/group messages\n");
-    printf("-R          Create server ready file, for external monitor\n");
     printf("-r          Allow one client Resumption\n");
     printf("-N          Use Non-blocking sockets\n");
     printf("-S <str>    Use Host Name Indication\n");
@@ -258,7 +258,6 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     int    trackMemory  = 0;
     int    fewerPackets = 0;
     int    pkCallbacks  = 0;
-    int    serverReadyFile = 0;
     int    wc_shutdown     = 0;
     int    resume = 0;
     int    resumeCount = 0;
@@ -269,6 +268,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     int    doListen = 1;
     int    crlFlags = 0;
     int    ret;
+    char*  serverReadyFile = NULL;
     char*  alpnList = NULL;
     unsigned char alpn_opt = 0;
     char*  cipherList = NULL;
@@ -276,6 +276,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     const char* ourCert    = svrCert;
     const char* ourKey     = svrKey;
     const char* ourDhParam = dhParam;
+    tcp_ready*  readySignal = NULL;
     int    argc = ((func_args*)args)->argc;
     char** argv = ((func_args*)args)->argv;
 
@@ -312,6 +313,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     (void)alpnList;
     (void)alpn_opt;
     (void)crlFlags;
+    (void)readySignal;
 
 #ifdef CYASSL_TIRTOS
     fdOpenSession(Task_self());
@@ -320,7 +322,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
 #ifdef WOLFSSL_VXWORKS
     useAnyAddr = 1;
 #else
-    while ((ch = mygetopt(argc, argv, "?dbstnNufrRawPIp:v:l:A:c:k:Z:S:oO:D:L:ieB:"))
+    while ((ch = mygetopt(argc, argv, "?dbstnNufrawPIR:p:v:l:A:c:k:Z:S:oO:D:L:ieB:"))
                          != -1) {
         switch (ch) {
             case '?' :
@@ -358,7 +360,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
                 break;
 
             case 'R' :
-                serverReadyFile = 1;
+                serverReadyFile = myoptarg;
                 break;
 
             case 'r' :
@@ -375,7 +377,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
 
             case 'p' :
                 port = (word16)atoi(myoptarg);
-                #if !defined(NO_MAIN_DRIVER) || defined(USE_WINDOWS_API)
+                #if defined(USE_WINDOWS_API)
                     if (port == 0)
                         err_sys("port number cannot be 0");
                 #endif
@@ -740,8 +742,12 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
 #endif
 
         /* do accept */
+        readySignal = ((func_args*)args)->signal;
+        if (readySignal) {
+            readySignal->srfName = serverReadyFile;
+        }
         tcp_accept(&sockfd, &clientfd, (func_args*)args, port, useAnyAddr,
-                       doDTLS, serverReadyFile, doListen);
+                       doDTLS, serverReadyFile ? 1 : 0, doListen);
         doListen = 0; /* Don't listen next time */
 
         SSL_set_fd(ssl, clientfd);
@@ -903,6 +909,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     int main(int argc, char** argv)
     {
         func_args args;
+        tcp_ready ready;
 
 #ifdef HAVE_CAVIUM
         int ret = OpenNitroxDevice(CAVIUM_DIRECT, CAVIUM_DEV_ID);
@@ -914,6 +921,8 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
 
         args.argc = argc;
         args.argv = argv;
+        args.signal = &ready;
+        InitTcpReady(&ready);
 
         CyaSSL_Init();
 #if defined(DEBUG_CYASSL) && !defined(WOLFSSL_MDK_SHELL)
@@ -927,6 +936,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
         server_test(&args);
 #endif
         CyaSSL_Cleanup();
+        FreeTcpReady(&ready);
 
 #ifdef HAVE_CAVIUM
         CspShutdown(CAVIUM_DEV_ID);

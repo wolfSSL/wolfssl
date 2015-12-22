@@ -267,6 +267,7 @@
 typedef struct tcp_ready {
     word16 ready;              /* predicate */
     word16 port;
+    char*  srfName;     /* server ready file name */
 #if defined(_POSIX_THREADS) && !defined(__MINGW32__)
     pthread_mutex_t mutex;
     pthread_cond_t  cond;
@@ -274,8 +275,30 @@ typedef struct tcp_ready {
 } tcp_ready;
 
 
-void InitTcpReady(tcp_ready*);
-void FreeTcpReady(tcp_ready*);
+static INLINE void InitTcpReady(tcp_ready* ready)
+{
+    ready->ready = 0;
+    ready->port = 0;
+    ready->srfName = NULL;
+#ifdef SINGLE_THREADED
+#elif defined(_POSIX_THREADS) && !defined(__MINGW32__)
+      pthread_mutex_init(&ready->mutex, 0);
+      pthread_cond_init(&ready->cond, 0);
+#endif
+}
+
+
+static INLINE void FreeTcpReady(tcp_ready* ready)
+{
+#ifdef SINGLE_THREADED
+    (void)ready;
+#elif defined(_POSIX_THREADS) && !defined(__MINGW32__)
+    pthread_mutex_destroy(&ready->mutex);
+    pthread_cond_destroy(&ready->cond);
+#else
+    (void)ready;
+#endif
+}
 
 typedef WOLFSSL_METHOD* (*method_provider)(void);
 typedef void (*ctx_callback)(WOLFSSL_CTX* ctx);
@@ -295,6 +318,9 @@ typedef struct func_args {
     tcp_ready* signal;
     callback_functions *callbacks;
 } func_args;
+
+
+
 
 void wait_tcp_ready(func_args*);
 
@@ -702,7 +728,7 @@ static INLINE void tcp_listen(SOCKET_T* sockfd, word16* port, int useAnyAddr,
         if (listen(*sockfd, 5) != 0)
             err_sys("tcp listen failed");
     }
-    #if (defined(NO_MAIN_DRIVER) && !defined(USE_WINDOWS_API)) && !defined(WOLFSSL_TIRTOS)
+    #if !defined(USE_WINDOWS_API) && !defined(WOLFSSL_TIRTOS)
         if (*port == 0) {
             socklen_t len = sizeof(addr);
             if (getsockname(*sockfd, (struct sockaddr*)&addr, &len) == 0) {
@@ -815,11 +841,13 @@ static INLINE void tcp_accept(SOCKET_T* sockfd, SOCKET_T* clientfd,
         /* signal ready to tcp_accept */
         {
         tcp_ready* ready = args->signal;
-        pthread_mutex_lock(&ready->mutex);
-        ready->ready = 1;
-        ready->port = port;
-        pthread_cond_signal(&ready->cond);
-        pthread_mutex_unlock(&ready->mutex);
+        if (ready) {
+            pthread_mutex_lock(&ready->mutex);
+            ready->ready = 1;
+            ready->port = port;
+            pthread_cond_signal(&ready->cond);
+            pthread_mutex_unlock(&ready->mutex);
+        }
         }
     #elif defined (WOLFSSL_TIRTOS)
         /* Need mutex? */
@@ -829,18 +857,24 @@ static INLINE void tcp_accept(SOCKET_T* sockfd, SOCKET_T* clientfd,
     #endif
 
         if (ready_file) {
-    #ifndef NO_FILESYSTEM
-        #ifndef USE_WINDOWS_API
-            FILE* srf = fopen("/tmp/wolfssl_server_ready", "w");
-        #else
-            FILE* srf = fopen("wolfssl_server_ready", "w");
-        #endif
+        #ifndef NO_FILESYSTEM
+            FILE* srf = NULL;
+            tcp_ready* ready = args ? args->signal : NULL;
 
-            if (srf) {
-                fputs("ready", srf);
-                fclose(srf);
+            if (ready) {
+                srf = fopen(ready->srfName, "w");
+
+                if (srf) {
+                    /* let's write port sever is listening on to ready file
+                       external monitor can then do ephemeral ports by passing
+                       -p 0 to server on supported platforms with -R ready_file
+                       client can then wait for exisitence of ready_file and see
+                       which port the server is listening on. */
+                    fprintf(srf, "%d\n", (int)port);
+                    fclose(srf);
+                }
             }
-    #endif
+        #endif
         }
     }
 
