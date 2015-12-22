@@ -74,7 +74,7 @@ fi
 
 echo -e "\nStarting openssl server...\n"
 
-while [ $server_result -ne 0 ] && [ $NUM_RETRY -lt 5 ]; do
+while [ $server_result -ne 0 ] && [ $NUM_RETRY -lt 10 ]; do
     openssl s_server -accept $openssl_port -cert ./certs/server-cert.pem -key ./certs/server-key.pem  -quiet -CAfile ./certs/client-cert.pem -www  -dhparam ./certs/dh2048.pem -dcert ./certs/server-ecc.pem -dkey ./certs/ecc-key.pem -Verify 10 -verify_return_error &
     server_result=$?
     if [ $server_result -ne 0 ]; then

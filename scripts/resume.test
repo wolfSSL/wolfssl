@@ -2,7 +2,7 @@
 
 #resume.test
 server_result=1
-TCP_BIND_ERR=-77
+NUM_RETRY=0
 
 # need a unique resume port since may run the same time as testsuite
 PWD=`pwd`
@@ -44,12 +44,13 @@ echo -e "\nStarting example server for resume test...\n"
 remove_ready_file
 
     #if tcp bind fails try another port and run again
-while [ $server_result -ne 0 ]; do
+while [ $server_result -ne 0 ] && [ $NUM_RETRY -lt 10 ]; do
     ./examples/server/server -r -R -p $resume_port &
     server_result=$?
-    if [ $server_result -eq $TCP_BIND_ERR ]; then
+    if [ $server_result -ne 0 ]; then
         resume_port=`$PWD/scripts/port_random.sh 2>&1`
         echo "tcp bind failed, choosing new port and trying again" >&2
+        let NUM_RETRY=NUM_RETRY+1
     fi
 done
 
