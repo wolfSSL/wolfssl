@@ -1,6 +1,8 @@
 #!/bin/sh
 
 #benchmark.test
+server_result=1
+TCP_BIND_ERR=-77
 
 if [ "$#" -lt 2 ]; then
     echo "Usage: $0 [mode] [num] [clientargs] [serverargs]" >&2
@@ -57,7 +59,14 @@ remove_ready_file
 if [ $1 == 1 ]
 then
     # start server in loop mode with port
-    ./examples/server/server -i -p $bench_port $4 &
+    while [ $server_result -ne 0 ]; do
+        ./examples/server/server -i -p $bench_port $4 &
+        server_result=$?
+        if [$server_result -eq $TCP_BIND_ERR ]; then
+            resume_port=`$PWD/scripts/port_random.sh 2>&1`
+            echo "tcp bind failed, choosing new port and trying again" >&2
+        fi
+    done
     server_pid=$!
 fi
 

@@ -227,6 +227,8 @@
 #define CLIENT_DEFAULT_VERSION 3
 #define CLIENT_DTLS_DEFAULT_VERSION (-2)
 #define CLIENT_INVALID_VERSION (-99)
+#define TCP_GET_NEW_PORT (-77)
+
 #if !defined(NO_FILESYSTEM) && defined(WOLFSSL_MAX_STRENGTH)
     #define DEFAULT_MIN_DHKEY_BITS 2048
 #else
@@ -314,7 +316,9 @@ static const word16      wolfSSLPort = 11111;
 static INLINE void err_sys(const char* msg)
 {
     printf("wolfSSL error: %s\n", msg);
-    if (msg)
+    if (XSTRNCMP(msg, "tcp bind failed", 15) == 0)
+        exit(TCP_GET_NEW_PORT);
+    else if (msg)
         exit(EXIT_FAILURE);
 }
 

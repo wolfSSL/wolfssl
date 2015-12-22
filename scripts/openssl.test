@@ -1,10 +1,12 @@
 #!/bin/sh
 
 #openssl.test
+server_result=1
+NUM_RETRY=0
 
 # need a unique port since may run the same time as testsuite
 PWD=`pwd`
-openssl_portp=`$PWD/scripts/port_random.sh 2>&1`
+openssl_port=`$PWD/scripts/port_random.sh 2>&1`
 echo "port selected for test: $openssl_portp"
 no_pid=-1
 server_pid=$no_pid
@@ -72,7 +74,14 @@ fi
 
 echo -e "\nStarting openssl server...\n"
 
-openssl s_server -accept $openssl_port -cert ./certs/server-cert.pem -key ./certs/server-key.pem  -quiet -CAfile ./certs/client-cert.pem -www  -dhparam ./certs/dh2048.pem -dcert ./certs/server-ecc.pem -dkey ./certs/ecc-key.pem -Verify 10 -verify_return_error &
+while [ $server_result -ne 0 ] && [ $NUM_RETRY -lt 5 ]; do
+    openssl s_server -accept $openssl_port -cert ./certs/server-cert.pem -key ./certs/server-key.pem  -quiet -CAfile ./certs/client-cert.pem -www  -dhparam ./certs/dh2048.pem -dcert ./certs/server-ecc.pem -dkey ./certs/ecc-key.pem -Verify 10 -verify_return_error &
+    server_result=$?
+    if [ $server_result -ne 0 ]; then
+        openssl_port=`$PWD/scripts/port_random.sh 2>&1`
+        let NUM_RETRY=NUM_RETRY+1
+    fi
+done
 server_pid=$!
 
 

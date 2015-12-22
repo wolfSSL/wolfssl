@@ -1,6 +1,8 @@
 #!/bin/sh
 
 #crl.test
+server_result=1
+TCP_BIND_ERR=-77
 
 PWD=`pwd`
 revocation_code="-361"
@@ -55,8 +57,15 @@ run_test() {
     # starts the server on crl_port, -R generates ready file to be used as a
     # mutex lock, -c loads the revoked certificate. We capture the processid
     # into the variable server_pid
-    ./examples/server/server -R -p $crl_port -c certs/server-revoked-cert.pem \
+    while [ $server_result -ne 0 ]; do
+        ./examples/server/server -R -p $crl_port -c certs/server-revoked-cert.pem \
                                              -k certs/server-revoked-key.pem &
+        server_result=$?
+        if [ $server_result -eq $TCP_BIND_ERR ]; then
+            crl_port=`$PWD/scripts/port_random.sh 2>&1`
+            echo "tcp bind failed, choosing a new port and trying again" >&2
+        fi
+    done
     server_pid=$!
 
     while [ ! -s /tmp/wolfssl_server_ready -a "$counter" -lt 20 ]; do
