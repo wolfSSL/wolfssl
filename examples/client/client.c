@@ -129,10 +129,13 @@ static void ShowCiphers(void)
 /* Shows which versions are valid */
 static void ShowVersions(void)
 {
+#ifndef NO_OLD_TLS
 #ifdef WOLFSSL_ALLOW_SSLV3
     printf("0:");
-#endif
-    printf("1:2:3\n");
+#endif /* WOLFSSL_ALLOW_SSLV3 */
+    printf("1:2:");
+#endif /* NO_OLD_TLS */
+    printf("3\n");
 }
 
 int ClientBenchmarkConnections(WOLFSSL_CTX* ctx, char* host, word16 port,
