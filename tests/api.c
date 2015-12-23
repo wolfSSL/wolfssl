@@ -97,7 +97,6 @@ static void test_wolfSSL_Method_Allocators(void)
         do {                                            \
             WOLFSSL_METHOD *method;                      \
             condition(method = allocator());            \
-            XFREE(method, 0, DYNAMIC_TYPE_METHOD);      \
         } while(0)
 
     #define TEST_VALID_METHOD_ALLOCATOR(a) \

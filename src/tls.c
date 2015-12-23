@@ -4073,23 +4073,31 @@ int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte isRequest,
 
     WOLFSSL_METHOD* wolfTLSv1_client_method(void)
     {
-        WOLFSSL_METHOD* method =
-                             (WOLFSSL_METHOD*) XMALLOC(sizeof(WOLFSSL_METHOD), 0,
-                                                      DYNAMIC_TYPE_METHOD);
-        if (method)
-            InitSSL_Method(method, MakeTLSv1());
-        return method;
+        static WOLFSSL_METHOD method = {
+            {
+               SSLv3_MAJOR,
+               TLSv1_MINOR
+            },
+            WOLFSSL_CLIENT_END,
+            0
+        };
+
+        return &method;
     }
 
 
     WOLFSSL_METHOD* wolfTLSv1_1_client_method(void)
     {
-        WOLFSSL_METHOD* method =
-                              (WOLFSSL_METHOD*) XMALLOC(sizeof(WOLFSSL_METHOD), 0,
-                                                       DYNAMIC_TYPE_METHOD);
-        if (method)
-            InitSSL_Method(method, MakeTLSv1_1());
-        return method;
+        static WOLFSSL_METHOD method = {
+            {
+                SSLv3_MAJOR,
+                TLSv1_1_MINOR
+            },
+            WOLFSSL_CLIENT_END,
+            0
+        };
+
+        return &method;
     }
 
 #endif /* !NO_OLD_TLS */
@@ -4098,12 +4106,16 @@ int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte isRequest,
 
     WOLFSSL_METHOD* wolfTLSv1_2_client_method(void)
     {
-        WOLFSSL_METHOD* method =
-                              (WOLFSSL_METHOD*) XMALLOC(sizeof(WOLFSSL_METHOD), 0,
-                                                       DYNAMIC_TYPE_METHOD);
-        if (method)
-            InitSSL_Method(method, MakeTLSv1_2());
-        return method;
+         static WOLFSSL_METHOD method = {
+            {
+                SSLv3_MAJOR,
+                TLSv1_2_MINOR
+            },
+            WOLFSSL_CLIENT_END,
+            0
+        };
+
+        return &method;
     }
 
 #endif
@@ -4111,20 +4123,24 @@ int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte isRequest,
 
     WOLFSSL_METHOD* wolfSSLv23_client_method(void)
     {
-        WOLFSSL_METHOD* method =
-                              (WOLFSSL_METHOD*) XMALLOC(sizeof(WOLFSSL_METHOD), 0,
-                                                       DYNAMIC_TYPE_METHOD);
-        if (method) {
+          static WOLFSSL_METHOD method = {
+            {
+                SSLv3_MAJOR,
 #ifndef NO_SHA256         /* 1.2 requires SHA256 */
-            InitSSL_Method(method, MakeTLSv1_2());
+                TLSv1_2_MINOR
 #else
-            InitSSL_Method(method, MakeTLSv1_1());
+                TLSv1_1_MINOR
 #endif
+            },
+            WOLFSSL_CLIENT_END,
 #ifndef NO_OLD_TLS
-            method->downgrade = 1;
+            1
+#else
+            0
 #endif
-        }
-        return method;
+        };
+
+        return &method;
     }
 
 
@@ -4138,27 +4154,31 @@ int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte isRequest,
 
     WOLFSSL_METHOD* wolfTLSv1_server_method(void)
     {
-        WOLFSSL_METHOD* method =
-                              (WOLFSSL_METHOD*) XMALLOC(sizeof(WOLFSSL_METHOD), 0,
-                                                       DYNAMIC_TYPE_METHOD);
-        if (method) {
-            InitSSL_Method(method, MakeTLSv1());
-            method->side = WOLFSSL_SERVER_END;
-        }
-        return method;
+        static WOLFSSL_METHOD method = {
+            {
+                SSLv3_MAJOR,
+                TLSv1_MINOR
+            },
+            WOLFSSL_SERVER_END,
+            0
+        };
+
+        return &method;
     }
 
 
     WOLFSSL_METHOD* wolfTLSv1_1_server_method(void)
     {
-        WOLFSSL_METHOD* method =
-                              (WOLFSSL_METHOD*) XMALLOC(sizeof(WOLFSSL_METHOD), 0,
-                                                       DYNAMIC_TYPE_METHOD);
-        if (method) {
-            InitSSL_Method(method, MakeTLSv1_1());
-            method->side = WOLFSSL_SERVER_END;
-        }
-        return method;
+         static WOLFSSL_METHOD method = {
+            .version = {
+                SSLv3_MAJOR,
+                TLSv1_1_MINOR
+            },
+            WOLFSSL_SERVER_END,
+            0
+        };
+
+        return &method;
     }
 
 #endif /* !NO_OLD_TLS */
@@ -4167,14 +4187,15 @@ int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte isRequest,
 
     WOLFSSL_METHOD* wolfTLSv1_2_server_method(void)
     {
-        WOLFSSL_METHOD* method =
-                              (WOLFSSL_METHOD*) XMALLOC(sizeof(WOLFSSL_METHOD), 0,
-                                                       DYNAMIC_TYPE_METHOD);
-        if (method) {
-            InitSSL_Method(method, MakeTLSv1_2());
-            method->side = WOLFSSL_SERVER_END;
-        }
-        return method;
+        static WOLFSSL_METHOD method = {
+            {
+               SSLv3_MAJOR,
+               TLSv1_2_MINOR
+            },
+            WOLFSSL_SERVER_END,
+            0
+        };
+        return &method;
     }
 
 #endif
@@ -4182,21 +4203,24 @@ int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte isRequest,
 
     WOLFSSL_METHOD* wolfSSLv23_server_method(void)
     {
-        WOLFSSL_METHOD* method =
-                              (WOLFSSL_METHOD*) XMALLOC(sizeof(WOLFSSL_METHOD), 0,
-                                                       DYNAMIC_TYPE_METHOD);
-        if (method) {
+        static WOLFSSL_METHOD method = {
+            {
+               SSLv3_MAJOR,
 #ifndef NO_SHA256         /* 1.2 requires SHA256 */
-            InitSSL_Method(method, MakeTLSv1_2());
+               TLSv1_2_MINOR
 #else
-            InitSSL_Method(method, MakeTLSv1_1());
+               TLSv1_1_MINOR
 #endif
-            method->side      = WOLFSSL_SERVER_END;
+            },
+            WOLFSSL_SERVER_END,
 #ifndef NO_OLD_TLS
-            method->downgrade = 1;
+            1
+#else
+            0
 #endif /* !NO_OLD_TLS */
-        }
-        return method;
+        };
+
+        return &method;
     }
 
 

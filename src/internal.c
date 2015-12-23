@@ -458,14 +458,6 @@ static INLINE void ato32(const byte* c, word32* u32)
 #endif /* HAVE_LIBZ */
 
 
-void InitSSL_Method(WOLFSSL_METHOD* method, ProtocolVersion pv)
-{
-    method->version    = pv;
-    method->side       = WOLFSSL_CLIENT_END;
-    method->downgrade  = 0;
-}
-
-
 /* Initialze SSL context, return 0 on success */
 int InitSSL_Ctx(WOLFSSL_CTX* ctx, WOLFSSL_METHOD* method)
 {
@@ -541,7 +533,6 @@ int InitSSL_Ctx(WOLFSSL_CTX* ctx, WOLFSSL_METHOD* method)
 /* In case contexts are held in array and don't want to free actual ctx */
 void SSL_CtxResourceFree(WOLFSSL_CTX* ctx)
 {
-    XFREE(ctx->method, ctx->heap, DYNAMIC_TYPE_METHOD);
     if (ctx->suites)
         XFREE(ctx->suites, ctx->heap, DYNAMIC_TYPE_SUITES);
 
