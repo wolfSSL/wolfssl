@@ -5,16 +5,22 @@
 revocation_code="-361"
 exit_code=1
 counter=0
-crl_port=11113
+# need a unique resume port since may run the same time as testsuite
+# use server port zero hack to get one
+crl_port=0
 #no_pid tells us process was never started if -1
 no_pid=-1
 #server_pid captured on startup, stores the id of the server process
 server_pid=$no_pid
+# let's use absolute path to a local dir (make distcheck may be in sub dir)
+# also let's add some randomness by adding pid in case multiple 'make check's
+# per source tree
+ready_file=`pwd`/wolfssl_crl_ready$$
 
 remove_ready_file() {
-    if test -e /tmp/wolfssl_server_ready; then
-        echo -e "removing exisitng server_ready file"
-        rm /tmp/wolfssl_server_ready
+    if test -e $ready_file; then
+        echo -e "removing exisitng ready file"
+        rm $ready_file
     fi
 }
 
@@ -53,15 +59,25 @@ run_test() {
     # starts the server on crl_port, -R generates ready file to be used as a
     # mutex lock, -c loads the revoked certificate. We capture the processid
     # into the variable server_pid
-    ./examples/server/server -R -p $crl_port -c certs/server-revoked-cert.pem \
-                                             -k certs/server-revoked-key.pem &
+    ./examples/server/server -R $ready_file -p $crl_port \
+             -c certs/server-revoked-cert.pem -k certs/server-revoked-key.pem &
     server_pid=$!
 
-    while [ ! -s /tmp/wolfssl_server_ready -a "$counter" -lt 20 ]; do
-        echo -e "waiting for server_ready file..."
+    while [ ! -s $ready_file -a "$counter" -lt 20 ]; do
+        echo -e "waiting for ready file..."
         sleep 0.1
         counter=$((counter+ 1))
     done
+
+    if test -e $ready_file; then
+        echo -e "found ready file, starting client..."
+    else
+        echo -e "NO ready file ending test..."
+        exit 1
+    fi
+
+    # get created port 0 ephemeral port
+    crl_port=`cat $ready_file`
 
     # starts client on crl_port and captures the output from client
     capture_out=$(./examples/client/client -p $crl_port 2>&1)
