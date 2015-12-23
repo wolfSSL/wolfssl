@@ -52,6 +52,10 @@
 
 #include "examples/client/client.h"
 
+/* Note on using port 0: the client and server standalone examples don't
+ * utilize the port 0 port sharing; that is used by the testsuite which uses
+ * this code and sets up the correct port numbers when the internal thread,
+ * using the server code, uses port 0. */
 
 #ifdef WOLFSSL_CALLBACKS
     int handShakeCB(HandShakeInfo*);
@@ -129,10 +133,13 @@ static void ShowCiphers(void)
 /* Shows which versions are valid */
 static void ShowVersions(void)
 {
+#ifndef NO_OLD_TLS
 #ifdef WOLFSSL_ALLOW_SSLV3
     printf("0:");
-#endif
-    printf("1:2:3\n");
+#endif /* WOLFSSL_ALLOW_SSLV3 */
+    printf("1:2:");
+#endif /* NO_OLD_TLS */
+    printf("3\n");
 }
 
 int ClientBenchmarkConnections(WOLFSSL_CTX* ctx, char* host, word16 port,
