@@ -54,10 +54,10 @@
 
 #include "examples/server/server.h"
 
-/* Note on using port 0: the client and server standalone examples don't
- * utilize the port 0 port sharing; that is used by the testsuite which uses
- * this code and sets up the correct port numbers when the internal thread,
- * using the server code, uses port 0. */
+/* Note on using port 0: if the server uses port 0 to bind an ephemeral port
+ * number and is using the ready file for scripted testing, the code in
+ * test.h will write the actual port number into the ready file for use
+ * by the client. */
 
 #ifdef CYASSL_CALLBACKS
     int srvHandShakeCB(HandShakeInfo*);
