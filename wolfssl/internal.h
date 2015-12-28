@@ -2317,7 +2317,7 @@ typedef struct DtlsMsg {
     word32          fragSz;    /* Length of fragments received */
     word32          seq;       /* Handshake sequence number    */
     word32          sz;        /* Length of whole mesage       */
-    word16          type;
+    byte            type;
 } DtlsMsg;
 
 
@@ -2626,7 +2626,6 @@ typedef struct DtlsHandShakeHeader {
 
 
 enum HandShakeType {
-    no_shake            = -1,
     hello_request       = 0,
     client_hello        = 1,
     server_hello        = 2,
@@ -2640,9 +2639,10 @@ enum HandShakeType {
     client_key_exchange = 16,
     finished            = 20,
     certificate_status  = 22,
-    change_cipher_hs    = 55      /* simulate unique handshake type for sanity
+    change_cipher_hs    = 55,     /* simulate unique handshake type for sanity
                                      checks.  record layer change_cipher
                                      conflicts with handshake finished */
+    no_shake            = 255     /* used to initialize the DtlsMsg record */
 };
 
 
