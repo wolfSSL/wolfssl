@@ -919,7 +919,7 @@ static word16 TLSX_ALPN_GetSize(ALPN *list)
         length++; /* protocol name length is on one byte */
         length += (word16)XSTRLEN(alpn->protocol_name);
     }
-    
+
     return length;
 }
 
@@ -946,7 +946,7 @@ static word16 TLSX_ALPN_Write(ALPN *list, byte *output)
 
     /* writing list length */
     c16toa(offset - OPAQUE16_LEN, output);
-    
+
     return offset;
 }
 
@@ -1891,11 +1891,6 @@ int TLSX_UseTruncatedHMAC(TLSX** extensions)
 
 #ifdef HAVE_CERTIFICATE_STATUS_REQUEST
 
-#ifndef HAVE_OCSP
-#error Status Request Extension requires OCSP. \
-       Use --enable-ocsp in the configure script or define HAVE_OCSP.
-#endif
-
 static void TLSX_CSR_Free(CertificateStatusRequest* csr)
 {
     switch (csr->status_type) {
@@ -1922,6 +1917,7 @@ static word16 TLSX_CSR_GetSize(CertificateStatusRequest* csr, byte isRequest)
 
                 if (csr->request.ocsp.nonceSz)
                     size += OCSP_NONCE_EXT_SZ;
+            break;
         }
     }
 #endif
@@ -1954,7 +1950,7 @@ static word16 TLSX_CSR_Write(CertificateStatusRequest* csr, byte* output,
                     length = EncodeOcspRequestExtensions(
                                                  &csr->request.ocsp,
                                                  output + offset + OPAQUE16_LEN,
-                                                 MAX_OCSP_EXT_SZ);
+                                                 OCSP_NONCE_EXT_SZ);
 
                 c16toa(length, output + offset);
                 offset += OPAQUE16_LEN + length;
@@ -1972,7 +1968,7 @@ static word16 TLSX_CSR_Write(CertificateStatusRequest* csr, byte* output,
 static int TLSX_CSR_Parse(WOLFSSL* ssl, byte* input, word16 length,
                                                                  byte isRequest)
 {
-    int ret = 0;
+    int ret;
 
     /* shut up compiler warnings */
     (void) ssl; (void) input;
@@ -2019,8 +2015,63 @@ static int TLSX_CSR_Parse(WOLFSSL* ssl, byte* input, word16 length,
         return length ? BUFFER_ERROR : 0; /* extension_data MUST be empty. */
 #endif
     }
+    else {
+#ifndef NO_WOLFSSL_SERVER
+        byte   status_type;
+        word16 offset = 0;
+        word16 size = 0;
 
-    return ret;
+        if (length < ENUM_LEN)
+            return BUFFER_ERROR;
+
+        status_type = input[offset++];
+
+        switch (status_type) {
+            case WOLFSSL_CSR_OCSP: {
+
+                /* skip responder_id_list */
+                if (length - offset < OPAQUE16_LEN)
+                    return BUFFER_ERROR;
+
+                ato16(input + offset, &size);
+                offset += OPAQUE16_LEN + size;
+
+                /* skip request_extensions */
+                if (length - offset < OPAQUE16_LEN)
+                    return BUFFER_ERROR;
+
+                ato16(input + offset, &size);
+                offset += OPAQUE16_LEN + size;
+
+                if (offset > length)
+                    return BUFFER_ERROR;
+
+                /* is able to send OCSP response? */
+                if (ssl->ctx->cm == NULL || !ssl->ctx->cm->ocspStaplingEnabled)
+                    return 0;
+            }
+            break;
+        }
+
+        /* if using status_request and already sending it, skip this one */
+        #ifdef HAVE_CERTIFICATE_STATUS_REQUEST_V2
+        if (ssl->status_request_v2)
+            return 0;
+        #endif
+
+        /* accept the first good status_type and return */
+        ret = TLSX_UseCertificateStatusRequest(&ssl->extensions, status_type,
+                                                                             0);
+        if (ret != SSL_SUCCESS)
+            return ret; /* throw error */
+
+        TLSX_SetResponse(ssl, TLSX_STATUS_REQUEST);
+        ssl->status_request = status_type;
+
+#endif
+    }
+
+    return 0;
 }
 
 int TLSX_CSR_InitRequest(TLSX* extensions, DecodedCert* cert)
@@ -2078,7 +2129,7 @@ int TLSX_CSR_ForceRequest(WOLFSSL* ssl)
             case WOLFSSL_CSR_OCSP:
                 if (ssl->ctx->cm->ocspEnabled)
                     return CheckOcspRequest(ssl->ctx->cm->ocsp,
-                                                            &csr->request.ocsp);
+                                                      &csr->request.ocsp, NULL);
                 else
                     return OCSP_LOOKUP_FAIL;
         }
@@ -2143,6 +2194,420 @@ int TLSX_UseCertificateStatusRequest(TLSX** extensions, byte status_type,
 #define CSR_PARSE(a, b, c, d) 0
 
 #endif /* HAVE_CERTIFICATE_STATUS_REQUEST */
+
+/******************************************************************************/
+/* Certificate Status Request v2                                              */
+/******************************************************************************/
+
+#ifdef HAVE_CERTIFICATE_STATUS_REQUEST_V2
+
+static void TLSX_CSR2_FreeAll(CertificateStatusRequestItemV2* csr2)
+{
+    CertificateStatusRequestItemV2* next;
+
+    for (; csr2; csr2 = next) {
+        next = csr2->next;
+
+        switch (csr2->status_type) {
+            case WOLFSSL_CSR2_OCSP:
+            case WOLFSSL_CSR2_OCSP_MULTI:
+                while(csr2->requests--)
+                    FreeOcspRequest(&csr2->request.ocsp[csr2->requests]);
+            break;
+        }
+
+        XFREE(csr2, NULL, DYNAMIC_TYPE_TLSX);
+    }
+}
+
+static word16 TLSX_CSR2_GetSize(CertificateStatusRequestItemV2* csr2,
+                                                                 byte isRequest)
+{
+    word16 size = 0;
+
+    /* shut up compiler warnings */
+    (void) csr2; (void) isRequest;
+
+#ifndef NO_WOLFSSL_CLIENT
+    if (isRequest) {
+        CertificateStatusRequestItemV2* next;
+
+        for (size = OPAQUE16_LEN; csr2; csr2 = next) {
+            next = csr2->next;
+
+            switch (csr2->status_type) {
+                case WOLFSSL_CSR2_OCSP:
+                case WOLFSSL_CSR2_OCSP_MULTI:
+                    size += ENUM_LEN + 3 * OPAQUE16_LEN;
+
+                    if (csr2->request.ocsp[0].nonceSz)
+                        size += OCSP_NONCE_EXT_SZ;
+                break;
+            }
+        }
+    }
+#endif
+
+    return size;
+}
+
+static word16 TLSX_CSR2_Write(CertificateStatusRequestItemV2* csr2,
+                                                   byte* output, byte isRequest)
+{
+    /* shut up compiler warnings */
+    (void) csr2; (void) output; (void) isRequest;
+
+#ifndef NO_WOLFSSL_CLIENT
+    if (isRequest) {
+        word16 offset;
+        word16 length;
+
+        for (offset = OPAQUE16_LEN; csr2 != NULL; csr2 = csr2->next) {
+            /* status_type */
+            output[offset++] = csr2->status_type;
+
+            /* request */
+            switch (csr2->status_type) {
+                case WOLFSSL_CSR2_OCSP:
+                case WOLFSSL_CSR2_OCSP_MULTI:
+                    /* request_length */
+                    length = 2 * OPAQUE16_LEN;
+
+                    if (csr2->request.ocsp[0].nonceSz)
+                        length += OCSP_NONCE_EXT_SZ;
+
+                    c16toa(length, output + offset);
+                    offset += OPAQUE16_LEN;
+
+                    /* responder id list */
+                    c16toa(0, output + offset);
+                    offset += OPAQUE16_LEN;
+
+                    /* request extensions */
+                    length = 0;
+
+                    if (csr2->request.ocsp[0].nonceSz)
+                        length = EncodeOcspRequestExtensions(
+                                                 &csr2->request.ocsp[0],
+                                                 output + offset + OPAQUE16_LEN,
+                                                 OCSP_NONCE_EXT_SZ);
+
+                    c16toa(length, output + offset);
+                    offset += OPAQUE16_LEN + length;
+                break;
+            }
+        }
+
+        /* list size */
+        c16toa(offset - OPAQUE16_LEN, output);
+
+        return offset;
+    }
+#endif
+
+    return 0;
+}
+
+static int TLSX_CSR2_Parse(WOLFSSL* ssl, byte* input, word16 length,
+                                                                 byte isRequest)
+{
+    int ret;
+
+    /* shut up compiler warnings */
+    (void) ssl; (void) input;
+
+    if (!isRequest) {
+#ifndef NO_WOLFSSL_CLIENT
+        TLSX* extension = TLSX_Find(ssl->extensions, TLSX_STATUS_REQUEST_V2);
+        CertificateStatusRequestItemV2* csr2 = extension ? extension->data
+                                                         : NULL;
+
+        if (!csr2) {
+            /* look at context level */
+
+            extension = TLSX_Find(ssl->ctx->extensions, TLSX_STATUS_REQUEST_V2);
+            csr2 = extension ? extension->data : NULL;
+
+            if (!csr2)
+                return BUFFER_ERROR; /* unexpected extension */
+
+            /* enable extension at ssl level */
+            for (; csr2; csr2 = csr2->next) {
+                ret = TLSX_UseCertificateStatusRequestV2(&ssl->extensions,
+                                              csr2->status_type, csr2->options);
+                if (ret != SSL_SUCCESS)
+                    return ret;
+
+                switch (csr2->status_type) {
+                    case WOLFSSL_CSR2_OCSP:
+                        /* followed by */
+                    case WOLFSSL_CSR2_OCSP_MULTI:
+                        /* propagate nonce */
+                        if (csr2->request.ocsp[0].nonceSz) {
+                            OcspRequest* request =
+                                        TLSX_CSR2_GetRequest(ssl->extensions,
+                                                          csr2->status_type, 0);
+
+                            if (request) {
+                                XMEMCPY(request->nonce,
+                                        csr2->request.ocsp[0].nonce,
+                                        csr2->request.ocsp[0].nonceSz);
+
+                                request->nonceSz =
+                                                  csr2->request.ocsp[0].nonceSz;
+                            }
+                        }
+                    break;
+                }
+            }
+
+        }
+
+        ssl->status_request_v2 = 1;
+
+        return length ? BUFFER_ERROR : 0; /* extension_data MUST be empty. */
+#endif
+    }
+    else {
+#ifndef NO_WOLFSSL_SERVER
+        byte   status_type;
+        word16 request_length;
+        word16 offset = 0;
+        word16 size = 0;
+
+        /* list size */
+        ato16(input + offset, &request_length);
+        offset += OPAQUE16_LEN;
+
+        if (length - OPAQUE16_LEN != request_length)
+            return BUFFER_ERROR;
+
+        while (length > offset) {
+            if (length - offset < ENUM_LEN + OPAQUE16_LEN)
+                return BUFFER_ERROR;
+
+            status_type = input[offset++];
+
+            ato16(input + offset, &request_length);
+            offset += OPAQUE16_LEN;
+
+            if (length - offset < request_length)
+                return BUFFER_ERROR;
+
+            switch (status_type) {
+                case WOLFSSL_CSR2_OCSP:
+                case WOLFSSL_CSR2_OCSP_MULTI:
+                    /* skip responder_id_list */
+                    if (length - offset < OPAQUE16_LEN)
+                        return BUFFER_ERROR;
+
+                    ato16(input + offset, &size);
+                    offset += OPAQUE16_LEN + size;
+
+                    /* skip request_extensions */
+                    if (length - offset < OPAQUE16_LEN)
+                        return BUFFER_ERROR;
+
+                    ato16(input + offset, &size);
+                    offset += OPAQUE16_LEN + size;
+
+                    if (offset > length)
+                        return BUFFER_ERROR;
+
+                    /* is able to send OCSP response? */
+                    if (ssl->ctx->cm == NULL
+                    || !ssl->ctx->cm->ocspStaplingEnabled)
+                        continue;
+                break;
+
+                default:
+                    /* unkown status type, skipping! */
+                    offset += request_length;
+                    continue;
+            }
+
+            /* if using status_request and already sending it, skip this one */
+            #ifdef HAVE_CERTIFICATE_STATUS_REQUEST
+            if (ssl->status_request)
+                return 0;
+            #endif
+
+            /* accept the first good status_type and return */
+            ret = TLSX_UseCertificateStatusRequestV2(&ssl->extensions,
+                                                                status_type, 0);
+            if (ret != SSL_SUCCESS)
+                return ret; /* throw error */
+
+            TLSX_SetResponse(ssl, TLSX_STATUS_REQUEST_V2);
+            ssl->status_request_v2 = status_type;
+
+            return 0;
+        }
+#endif
+    }
+
+    return 0;
+}
+
+int TLSX_CSR2_InitRequests(TLSX* extensions, DecodedCert* cert, byte isPeer)
+{
+    TLSX* extension = TLSX_Find(extensions, TLSX_STATUS_REQUEST_V2);
+    CertificateStatusRequestItemV2* csr2 = extension ? extension->data : NULL;
+    int ret = 0;
+
+    for (; csr2; csr2 = csr2->next) {
+        switch (csr2->status_type) {
+            case WOLFSSL_CSR2_OCSP:
+                if (!isPeer || csr2->requests != 0)
+                    break;
+
+                /* followed by */
+
+            case WOLFSSL_CSR2_OCSP_MULTI: {
+                if (csr2->requests < 1 + MAX_CHAIN_DEPTH) {
+                    byte nonce[MAX_OCSP_NONCE_SZ];
+                    int  nonceSz = csr2->request.ocsp[0].nonceSz;
+
+                    /* preserve nonce, replicating nonce of ocsp[0] */
+                    XMEMCPY(nonce, csr2->request.ocsp[0].nonce, nonceSz);
+
+                    if ((ret = InitOcspRequest(
+                            &csr2->request.ocsp[csr2->requests], cert, 0)) != 0)
+                        return ret;
+
+                    /* restore nonce */
+                    XMEMCPY(csr2->request.ocsp[csr2->requests].nonce,
+                                                                nonce, nonceSz);
+                    csr2->request.ocsp[csr2->requests].nonceSz = nonceSz;
+                    csr2->requests++;
+                }
+            }
+            break;
+        }
+    }
+
+    return ret;
+}
+
+void* TLSX_CSR2_GetRequest(TLSX* extensions, byte status_type, byte index)
+{
+    TLSX* extension = TLSX_Find(extensions, TLSX_STATUS_REQUEST_V2);
+    CertificateStatusRequestItemV2* csr2 = extension ? extension->data : NULL;
+
+    for (; csr2; csr2 = csr2->next) {
+        if (csr2->status_type == status_type) {
+            switch (csr2->status_type) {
+                case WOLFSSL_CSR2_OCSP:
+                    /* followed by */
+
+                case WOLFSSL_CSR2_OCSP_MULTI:
+                    /* requests are initialized in the reverse order */
+                    return index < csr2->requests
+                         ? &csr2->request.ocsp[csr2->requests - index - 1]
+                         : NULL;
+                break;
+            }
+        }
+    }
+
+    return NULL;
+}
+
+int TLSX_CSR2_ForceRequest(WOLFSSL* ssl)
+{
+    TLSX* extension = TLSX_Find(ssl->extensions, TLSX_STATUS_REQUEST_V2);
+    CertificateStatusRequestItemV2* csr2 = extension ? extension->data : NULL;
+
+    /* forces only the first one */
+    if (csr2) {
+        switch (csr2->status_type) {
+            case WOLFSSL_CSR2_OCSP:
+                /* followed by */
+
+            case WOLFSSL_CSR2_OCSP_MULTI:
+                if (ssl->ctx->cm->ocspEnabled)
+                    return CheckOcspRequest(ssl->ctx->cm->ocsp,
+                                                  &csr2->request.ocsp[0], NULL);
+                else
+                    return OCSP_LOOKUP_FAIL;
+        }
+    }
+
+    return 0;
+}
+
+int TLSX_UseCertificateStatusRequestV2(TLSX** extensions, byte status_type,
+                                                                   byte options)
+{
+    TLSX* extension = NULL;
+    CertificateStatusRequestItemV2* csr2 = NULL;
+    int ret = 0;
+
+    if (!extensions)
+        return BAD_FUNC_ARG;
+
+    if (status_type != WOLFSSL_CSR2_OCSP
+    &&  status_type != WOLFSSL_CSR2_OCSP_MULTI)
+        return BAD_FUNC_ARG;
+
+    csr2 = (CertificateStatusRequestItemV2*)
+       XMALLOC(sizeof(CertificateStatusRequestItemV2), NULL, DYNAMIC_TYPE_TLSX);
+    if (!csr2)
+        return MEMORY_E;
+
+    ForceZero(csr2, sizeof(CertificateStatusRequestItemV2));
+
+    csr2->status_type = status_type;
+    csr2->options     = options;
+    csr2->next        = NULL;
+
+    switch (csr2->status_type) {
+        case WOLFSSL_CSR2_OCSP:
+        case WOLFSSL_CSR2_OCSP_MULTI:
+            if (options & WOLFSSL_CSR2_OCSP_USE_NONCE) {
+                WC_RNG rng;
+
+                if (wc_InitRng(&rng) == 0) {
+                    if (wc_RNG_GenerateBlock(&rng, csr2->request.ocsp[0].nonce,
+                                                        MAX_OCSP_NONCE_SZ) == 0)
+                        csr2->request.ocsp[0].nonceSz = MAX_OCSP_NONCE_SZ;
+
+                    wc_FreeRng(&rng);
+                }
+            }
+        break;
+    }
+
+    /* append new item */
+    if ((extension = TLSX_Find(*extensions, TLSX_STATUS_REQUEST_V2))) {
+        CertificateStatusRequestItemV2* last =
+                               (CertificateStatusRequestItemV2*)extension->data;
+
+        for (; last->next; last = last->next);
+
+        last->next = csr2;
+    }
+    else if ((ret = TLSX_Push(extensions, TLSX_STATUS_REQUEST_V2, csr2))) {
+        XFREE(csr2, NULL, DYNAMIC_TYPE_TLSX);
+        return ret;
+    }
+
+    return SSL_SUCCESS;
+}
+
+#define CSR2_FREE_ALL TLSX_CSR2_FreeAll
+#define CSR2_GET_SIZE TLSX_CSR2_GetSize
+#define CSR2_WRITE    TLSX_CSR2_Write
+#define CSR2_PARSE    TLSX_CSR2_Parse
+
+#else
+
+#define CSR2_FREE_ALL(data)
+#define CSR2_GET_SIZE(a, b)    0
+#define CSR2_WRITE(a, b, c)    0
+#define CSR2_PARSE(a, b, c, d) 0
+
+#endif /* HAVE_CERTIFICATE_STATUS_REQUEST_V2 */
 
 /******************************************************************************/
 /* Supported Elliptic Curves                                                  */
@@ -3359,6 +3824,10 @@ void TLSX_FreeAll(TLSX* list)
                 CSR_FREE_ALL(extension->data);
                 break;
 
+            case TLSX_STATUS_REQUEST_V2:
+                CSR2_FREE_ALL(extension->data);
+                break;
+
             case TLSX_RENEGOTIATION_INFO:
                 SCR_FREE_ALL(extension->data);
                 break;
@@ -3428,6 +3897,10 @@ static word16 TLSX_GetSize(TLSX* list, byte* semaphore, byte isRequest)
 
             case TLSX_STATUS_REQUEST:
                 length += CSR_GET_SIZE(extension->data, isRequest);
+                break;
+
+            case TLSX_STATUS_REQUEST_V2:
+                length += CSR2_GET_SIZE(extension->data, isRequest);
                 break;
 
             case TLSX_RENEGOTIATION_INFO:
@@ -3501,6 +3974,11 @@ static word16 TLSX_Write(TLSX* list, byte* output, byte* semaphore,
 
             case TLSX_STATUS_REQUEST:
                 offset += CSR_WRITE(extension->data, output + offset,
+                                                                     isRequest);
+                break;
+
+            case TLSX_STATUS_REQUEST_V2:
+                offset += CSR2_WRITE(extension->data, output + offset,
                                                                      isRequest);
                 break;
 
@@ -4003,6 +4481,12 @@ int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte isRequest,
                 WOLFSSL_MSG("Certificate Status Request extension received");
 
                 ret = CSR_PARSE(ssl, input + offset, size, isRequest);
+                break;
+
+            case TLSX_STATUS_REQUEST_V2:
+                WOLFSSL_MSG("Certificate Status Request v2 extension received");
+
+                ret = CSR2_PARSE(ssl, input + offset, size, isRequest);
                 break;
 
             case TLSX_RENEGOTIATION_INFO:

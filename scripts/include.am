@@ -9,8 +9,9 @@ dist_noinst_SCRIPTS+= scripts/sniffer-testsuite.test
 endif
 
 if BUILD_EXAMPLES
+
 dist_noinst_SCRIPTS+= scripts/resume.test
-EXTRA_DIST+= scripts/benchmark.test 
+EXTRA_DIST+= scripts/benchmark.test
 
 if BUILD_CRL
 # make revoked test rely on completion of resume test
@@ -23,6 +24,27 @@ dist_noinst_SCRIPTS+= scripts/external.test
 dist_noinst_SCRIPTS+= scripts/google.test
 #dist_noinst_SCRIPTS+= scripts/openssl.test
 endif
+
+if BUILD_OCSP
+dist_noinst_SCRIPTS+= scripts/ocsp.test
+endif
+
+if BUILD_OCSP_STAPLING
+dist_noinst_SCRIPTS+= scripts/ocsp-stapling.test
+scripts/ocsp-stapling.log: scripts/ocsp.log
+endif
+
+if BUILD_OCSP_STAPLING_V2
+dist_noinst_SCRIPTS+= scripts/ocsp-stapling2.test
+
+if BUILD_OCSP_STAPLING
+scripts/ocsp-stapling2.log: scripts/ocsp-stapling.log
+else
+scripts/ocsp-stapling2.log: scripts/ocsp.log
+endif
+
+endif
+
 endif
 
 

@@ -1658,7 +1658,7 @@ fi
 
 # Certificate Status Request : a.k.a. OCSP Stapling
 AC_ARG_ENABLE([ocspstapling],
-    [AS_HELP_STRING([--enable-ocspstapling],[Enable Certificate Status Request - a.k.a. OCSP Stapling (default: disabled)])],
+    [AS_HELP_STRING([--enable-ocspstapling],[Enable OCSP Stapling (default: disabled)])],
     [ ENABLED_CERTIFICATE_STATUS_REQUEST=$enableval ],
     [ ENABLED_CERTIFICATE_STATUS_REQUEST=no ]
     )
@@ -1675,6 +1675,30 @@ then
         AM_CONDITIONAL([BUILD_OCSP], [test "x$ENABLED_OCSP" = "xyes"])
     fi
 fi
+
+AM_CONDITIONAL([BUILD_OCSP_STAPLING], [test "x$ENABLED_CERTIFICATE_STATUS_REQUEST" = "xyes"])
+
+# Certificate Status Request v2 : a.k.a. OCSP stapling v2
+AC_ARG_ENABLE([ocspstapling2],
+    [AS_HELP_STRING([--enable-ocspstapling2],[Enable OCSP Stapling v2 (default: disabled)])],
+    [ ENABLED_CERTIFICATE_STATUS_REQUEST_V2=$enableval ],
+    [ ENABLED_CERTIFICATE_STATUS_REQUEST_V2=no ]
+    )
+
+if test "x$ENABLED_CERTIFICATE_STATUS_REQUEST_V2" = "xyes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_TLS_EXTENSIONS -DHAVE_CERTIFICATE_STATUS_REQUEST_V2"
+
+    # Requires OCSP make sure on
+    if test "x$ENABLED_OCSP" = "xno"
+    then
+        ENABLED_OCSP="yes"
+        AM_CFLAGS="$AM_CFLAGS -DHAVE_OCSP"
+        AM_CONDITIONAL([BUILD_OCSP], [test "x$ENABLED_OCSP" = "xyes"])
+    fi
+fi
+
+AM_CONDITIONAL([BUILD_OCSP_STAPLING_V2], [test "x$ENABLED_CERTIFICATE_STATUS_REQUEST_V2" = "xyes"])
 
 # Renegotiation Indication - (FAKE Secure Renegotiation)
 AC_ARG_ENABLE([renegotiation-indication],
@@ -2737,7 +2761,8 @@ echo "   * Server Name Indication:     $ENABLED_SNI"
 echo "   * ALPN:                       $ENABLED_ALPN"
 echo "   * Maximum Fragment Length:    $ENABLED_MAX_FRAGMENT"
 echo "   * Truncated HMAC:             $ENABLED_TRUNCATED_HMAC"
-echo "   * Certificate Status Request: $ENABLED_CERTIFICATE_STATUS_REQUEST"
+echo "   * OCSP Stapling:              $ENABLED_CERTIFICATE_STATUS_REQUEST"
+echo "   * OCSP Stapling v2:           $ENABLED_CERTIFICATE_STATUS_REQUEST_V2"
 echo "   * Supported Elliptic Curves:  $ENABLED_SUPPORTED_CURVES"
 echo "   * Session Ticket:             $ENABLED_SESSION_TICKET"
 echo "   * Renegotiation Indication:   $ENABLED_RENEGOTIATION_INDICATION"

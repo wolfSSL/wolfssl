@@ -610,7 +610,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
 
 #if !defined(NO_FILESYSTEM) && !defined(NO_CERTS)
     if (!usePsk && !useAnon) {
-        if (SSL_CTX_use_certificate_file(ctx, ourCert, SSL_FILETYPE_PEM)
+        if (SSL_CTX_use_certificate_chain_file(ctx, ourCert)
                                          != SSL_SUCCESS)
             err_sys("can't load server cert file, check file and run from"
                     " wolfSSL home dir");
@@ -742,6 +742,17 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
             else
                 CyaSSL_CTX_EnableOCSP(ctx, CYASSL_OCSP_NO_NONCE);
         }
+#endif
+#if defined(HAVE_CERTIFICATE_STATUS_REQUEST) \
+ || defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
+        if (wolfSSL_CTX_EnableOCSPStapling(ctx) != SSL_SUCCESS)
+            err_sys("can't enable OCSP Stapling Certificate Manager");
+        if (SSL_CTX_load_verify_locations(ctx, "certs/ocsp/intermediate1-ca-cert.pem", 0) != SSL_SUCCESS)
+            err_sys("can't load ca file, Please run from wolfSSL home dir");
+        if (SSL_CTX_load_verify_locations(ctx, "certs/ocsp/intermediate2-ca-cert.pem", 0) != SSL_SUCCESS)
+            err_sys("can't load ca file, Please run from wolfSSL home dir");
+        if (SSL_CTX_load_verify_locations(ctx, "certs/ocsp/intermediate3-ca-cert.pem", 0) != SSL_SUCCESS)
+            err_sys("can't load ca file, Please run from wolfSSL home dir");
 #endif
 #ifdef HAVE_PK_CALLBACKS
         if (pkCallbacks)
@@ -986,5 +997,3 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
         return 0;
     }
 #endif
-
-

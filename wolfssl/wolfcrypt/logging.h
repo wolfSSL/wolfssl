@@ -56,6 +56,7 @@ WOLFSSL_API int wolfSSL_SetLoggingCb(wolfSSL_Logging_cb log_function);
 
     void WOLFSSL_ERROR(int);
     void WOLFSSL_MSG(const char* msg);
+    void WOLFSSL_BUFFER(byte* buffer, word32 length);
 
 #else /* DEBUG_WOLFSSL   */
 
@@ -65,6 +66,7 @@ WOLFSSL_API int wolfSSL_SetLoggingCb(wolfSSL_Logging_cb log_function);
 
     #define WOLFSSL_ERROR(e)
     #define WOLFSSL_MSG(m)
+    #define WOLFSSL_BUFFER(b, l)
 
 #endif /* DEBUG_WOLFSSL  */
 

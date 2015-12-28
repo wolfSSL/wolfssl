@@ -1370,22 +1370,27 @@ struct WOLFSSL_CRL {
 /* wolfSSL Certificate Manager */
 struct WOLFSSL_CERT_MANAGER {
     Signer*         caTable[CA_TABLE_SIZE]; /* the CA signer table */
-    void*           heap;               /* heap helper */
-    WOLFSSL_CRL*    crl;                /* CRL checker */
-    WOLFSSL_OCSP*   ocsp;               /* OCSP checker */
-    char*           ocspOverrideURL;    /* use this responder */
-    void*           ocspIOCtx;          /* I/O callback CTX */
-    CallbackCACache caCacheCallback;    /* CA cache addition callback */
-    CbMissingCRL    cbMissingCRL;       /* notify through cb of missing crl */
-    CbOCSPIO        ocspIOCb;           /* I/O callback for OCSP lookup */
-    CbOCSPRespFree  ocspRespFreeCb;     /* Frees OCSP Response from IO Cb */
-    wolfSSL_Mutex   caLock;             /* CA list lock */
-    byte            crlEnabled;         /* is CRL on ? */
-    byte            crlCheckAll;        /* always leaf, but all ? */
-    byte            ocspEnabled;        /* is OCSP on ? */
-    byte            ocspCheckAll;       /* always leaf, but all ? */
-    byte            ocspSendNonce;      /* send the OCSP nonce ? */
-    byte            ocspUseOverrideURL; /* ignore cert's responder, override */
+    void*           heap;                /* heap helper */
+    WOLFSSL_CRL*    crl;                 /* CRL checker */
+    WOLFSSL_OCSP*   ocsp;                /* OCSP checker */
+#if !defined(NO_WOLFSSL_SEVER) && (defined(HAVE_CERTIFICATE_STATUS_REQUEST) \
+                               ||  defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2))
+    WOLFSSL_OCSP*   ocsp_stapling;       /* OCSP checker for OCSP stapling */
+#endif
+    char*           ocspOverrideURL;     /* use this responder */
+    void*           ocspIOCtx;           /* I/O callback CTX */
+    CallbackCACache caCacheCallback;     /* CA cache addition callback */
+    CbMissingCRL    cbMissingCRL;        /* notify through cb of missing crl */
+    CbOCSPIO        ocspIOCb;            /* I/O callback for OCSP lookup */
+    CbOCSPRespFree  ocspRespFreeCb;      /* Frees OCSP Response from IO Cb */
+    wolfSSL_Mutex   caLock;              /* CA list lock */
+    byte            crlEnabled;          /* is CRL on ? */
+    byte            crlCheckAll;         /* always leaf, but all ? */
+    byte            ocspEnabled;         /* is OCSP on ? */
+    byte            ocspCheckAll;        /* always leaf, but all ? */
+    byte            ocspSendNonce;       /* send the OCSP nonce ? */
+    byte            ocspUseOverrideURL;  /* ignore cert's responder, override */
+    byte            ocspStaplingEnabled; /* is OCSP Stapling on ? */
 };
 
 WOLFSSL_LOCAL int CM_SaveCertCache(WOLFSSL_CERT_MANAGER*, const char*);
@@ -1476,6 +1481,7 @@ typedef enum {
     TLSX_STATUS_REQUEST             = 0x0005, /* a.k.a. OCSP stappling   */
     TLSX_SUPPORTED_GROUPS           = 0x000a, /* a.k.a. Supported Curves */
     TLSX_APPLICATION_LAYER_PROTOCOL = 0x0010, /* a.k.a. ALPN */
+    TLSX_STATUS_REQUEST_V2          = 0x0011, /* a.k.a. OCSP stappling v2 */
     TLSX_QUANTUM_SAFE_HYBRID        = 0x0018, /* a.k.a. QSH  */
     TLSX_SESSION_TICKET             = 0x0023,
     TLSX_RENEGOTIATION_INFO         = 0xff01
@@ -1510,6 +1516,7 @@ WOLFSSL_LOCAL int    TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length,
    || defined(HAVE_MAX_FRAGMENT)                  \
    || defined(HAVE_TRUNCATED_HMAC)                \
    || defined(HAVE_CERTIFICATE_STATUS_REQUEST)    \
+   || defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2) \
    || defined(HAVE_SUPPORTED_CURVES)              \
    || defined(HAVE_ALPN)                          \
    || defined(HAVE_QSH)                           \
@@ -1592,11 +1599,33 @@ typedef struct {
     } request;
 } CertificateStatusRequest;
 
-WOLFSSL_LOCAL int     TLSX_UseCertificateStatusRequest(TLSX** extensions,
+WOLFSSL_LOCAL int   TLSX_UseCertificateStatusRequest(TLSX** extensions,
                                                 byte status_type, byte options);
-WOLFSSL_LOCAL int     TLSX_CSR_InitRequest(TLSX* extensions, DecodedCert* cert);
-WOLFSSL_LOCAL void*   TLSX_CSR_GetRequest(TLSX* extensions);
-WOLFSSL_LOCAL int     TLSX_CSR_ForceRequest(WOLFSSL* ssl);
+WOLFSSL_LOCAL int   TLSX_CSR_InitRequest(TLSX* extensions, DecodedCert* cert);
+WOLFSSL_LOCAL void* TLSX_CSR_GetRequest(TLSX* extensions);
+WOLFSSL_LOCAL int   TLSX_CSR_ForceRequest(WOLFSSL* ssl);
+
+#endif
+
+/** Certificate Status Request v2 - RFC 6961 */
+#ifdef HAVE_CERTIFICATE_STATUS_REQUEST_V2
+
+typedef struct CSRIv2 {
+    byte status_type;
+    byte options;
+    word16 requests;
+    union {
+        OcspRequest ocsp[1 + MAX_CHAIN_DEPTH];
+    } request;
+    struct CSRIv2* next;
+} CertificateStatusRequestItemV2;
+
+WOLFSSL_LOCAL int   TLSX_UseCertificateStatusRequestV2(TLSX** extensions,
+                                                byte status_type, byte options);
+WOLFSSL_LOCAL int   TLSX_CSR2_InitRequests(TLSX* extensions, DecodedCert* cert, byte isPeer);
+WOLFSSL_LOCAL void* TLSX_CSR2_GetRequest(TLSX* extensions, byte status_type,
+                                                                    byte index);
+WOLFSSL_LOCAL int   TLSX_CSR2_ForceRequest(WOLFSSL* ssl);
 
 #endif
 
@@ -1775,6 +1804,15 @@ struct WOLFSSL_CTX {
 #endif
 #ifdef HAVE_TLS_EXTENSIONS
     TLSX* extensions;                  /* RFC 6066 TLS Extensions data */
+    #ifndef NO_WOLFSSL_SERVER
+        #if defined(HAVE_CERTIFICATE_STATUS_REQUEST) \
+         || defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
+            OcspRequest* certOcspRequest;
+        #endif
+        #if defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
+            OcspRequest* chainOcspRequest[MAX_CHAIN_DEPTH];
+        #endif
+    #endif
     #if defined(HAVE_SESSION_TICKET) && !defined(NO_WOLFSSL_SEVER)
         SessionTicketEncCb ticketEncCb;   /* enc/dec session ticket Cb */
         void*              ticketEncCtx;  /* session encrypt context */
@@ -2043,6 +2081,7 @@ enum AcceptState {
     ACCEPT_FIRST_REPLY_DONE,
     SERVER_HELLO_SENT,
     CERT_SENT,
+    CERT_STATUS_SENT,
     KEY_EXCHANGE_SENT,
     CERT_REQ_SENT,
     SERVER_HELLO_DONE,
@@ -2497,6 +2536,9 @@ struct WOLFSSL {
     #ifdef HAVE_CERTIFICATE_STATUS_REQUEST
         byte status_request;
     #endif
+    #ifdef HAVE_CERTIFICATE_STATUS_REQUEST_V2
+        byte status_request_v2;
+    #endif
     #ifdef HAVE_SECURE_RENEGOTIATION
         SecureRenegotiation* secure_renegotiation; /* valid pointer indicates */
     #endif                                         /* user turned on */
@@ -2660,6 +2702,7 @@ WOLFSSL_LOCAL int DoClientTicket(WOLFSSL*, const byte*, word32);
 WOLFSSL_LOCAL int SendData(WOLFSSL*, const void*, int);
 WOLFSSL_LOCAL int SendCertificate(WOLFSSL*);
 WOLFSSL_LOCAL int SendCertificateRequest(WOLFSSL*);
+WOLFSSL_LOCAL int SendCertificateStatus(WOLFSSL*);
 WOLFSSL_LOCAL int SendServerKeyExchange(WOLFSSL*);
 WOLFSSL_LOCAL int SendBuffered(WOLFSSL*);
 WOLFSSL_LOCAL int ReceiveData(WOLFSSL*, byte*, int, int);

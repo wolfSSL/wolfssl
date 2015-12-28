@@ -1269,6 +1269,9 @@ WOLFSSL_API void* wolfSSL_GetRsaDecCtx(WOLFSSL* ssl);
     WOLFSSL_API int wolfSSL_CertManagerSetOCSP_Cb(WOLFSSL_CERT_MANAGER*,
                                                CbOCSPIO, CbOCSPRespFree, void*);
 
+    WOLFSSL_API int wolfSSL_CertManagerEnableOCSPStapling(
+                                                      WOLFSSL_CERT_MANAGER* cm);
+
     WOLFSSL_API int wolfSSL_EnableCRL(WOLFSSL* ssl, int options);
     WOLFSSL_API int wolfSSL_DisableCRL(WOLFSSL* ssl);
     WOLFSSL_API int wolfSSL_LoadCRL(WOLFSSL*, const char*, int, int);
@@ -1287,6 +1290,8 @@ WOLFSSL_API void* wolfSSL_GetRsaDecCtx(WOLFSSL* ssl);
     WOLFSSL_API int wolfSSL_CTX_SetOCSP_OverrideURL(WOLFSSL_CTX*, const char*);
     WOLFSSL_API int wolfSSL_CTX_SetOCSP_Cb(WOLFSSL_CTX*,
                                                CbOCSPIO, CbOCSPRespFree, void*);
+
+    WOLFSSL_API int wolfSSL_CTX_EnableOCSPStapling(WOLFSSL_CTX*);
 #endif /* !NO_CERTS */
 
 /* end of handshake frees temporary arrays, if user needs for get_keys or
@@ -1425,10 +1430,34 @@ enum {
 #ifdef HAVE_CERTIFICATE_STATUS_REQUEST
 #ifndef NO_WOLFSSL_CLIENT
 
-WOLFSSL_API int wolfSSL_UseCertificateStatusRequest(WOLFSSL* ssl,
+WOLFSSL_API int wolfSSL_UseOCSPStapling(WOLFSSL* ssl,
                               unsigned char status_type, unsigned char options);
 
-WOLFSSL_API int wolfSSL_CTX_UseCertificateStatusRequest(WOLFSSL_CTX* ctx,
+WOLFSSL_API int wolfSSL_CTX_UseOCSPStapling(WOLFSSL_CTX* ctx,
+                              unsigned char status_type, unsigned char options);
+
+#endif
+#endif
+
+/* Certificate Status Request v2 */
+/* Certificate Status Type */
+enum {
+    WOLFSSL_CSR2_OCSP = 1,
+    WOLFSSL_CSR2_OCSP_MULTI = 2
+};
+
+/* Certificate Status v2 Options (flags) */
+enum {
+    WOLFSSL_CSR2_OCSP_USE_NONCE = 0x01
+};
+
+#ifdef HAVE_CERTIFICATE_STATUS_REQUEST_V2
+#ifndef NO_WOLFSSL_CLIENT
+
+WOLFSSL_API int wolfSSL_UseOCSPStaplingV2(WOLFSSL* ssl,
+                              unsigned char status_type, unsigned char options);
+
+WOLFSSL_API int wolfSSL_CTX_UseOCSPStaplingV2(WOLFSSL_CTX* ctx,
                               unsigned char status_type, unsigned char options);
 
 #endif

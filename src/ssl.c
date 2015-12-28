@@ -803,8 +803,7 @@ int wolfSSL_CTX_UseTruncatedHMAC(WOLFSSL_CTX* ctx)
 
 #ifdef HAVE_CERTIFICATE_STATUS_REQUEST
 
-int wolfSSL_UseCertificateStatusRequest(WOLFSSL* ssl, byte status_type,
-                                                                   byte options)
+int wolfSSL_UseOCSPStapling(WOLFSSL* ssl, byte status_type, byte options)
 {
     if (ssl == NULL || ssl->options.side != WOLFSSL_CLIENT_END)
         return BAD_FUNC_ARG;
@@ -814,7 +813,7 @@ int wolfSSL_UseCertificateStatusRequest(WOLFSSL* ssl, byte status_type,
 }
 
 
-int wolfSSL_CTX_UseCertificateStatusRequest(WOLFSSL_CTX* ctx, byte status_type,
+int wolfSSL_CTX_UseOCSPStapling(WOLFSSL_CTX* ctx, byte status_type,
                                                                    byte options)
 {
     if (ctx == NULL || ctx->method->side != WOLFSSL_CLIENT_END)
@@ -825,6 +824,30 @@ int wolfSSL_CTX_UseCertificateStatusRequest(WOLFSSL_CTX* ctx, byte status_type,
 }
 
 #endif /* HAVE_CERTIFICATE_STATUS_REQUEST */
+
+#ifdef HAVE_CERTIFICATE_STATUS_REQUEST_V2
+
+int wolfSSL_UseOCSPStaplingV2(WOLFSSL* ssl, byte status_type, byte options)
+{
+    if (ssl == NULL || ssl->options.side != WOLFSSL_CLIENT_END)
+        return BAD_FUNC_ARG;
+
+    return TLSX_UseCertificateStatusRequestV2(&ssl->extensions, status_type,
+                                                                       options);
+}
+
+
+int wolfSSL_CTX_UseOCSPStaplingV2(WOLFSSL_CTX* ctx,
+                                                 byte status_type, byte options)
+{
+    if (ctx == NULL || ctx->method->side != WOLFSSL_CLIENT_END)
+        return BAD_FUNC_ARG;
+
+    return TLSX_UseCertificateStatusRequestV2(&ctx->extensions, status_type,
+                                                                       options);
+}
+
+#endif /* HAVE_CERTIFICATE_STATUS_REQUEST_V2 */
 
 /* Elliptic Curves */
 #ifdef HAVE_SUPPORTED_CURVES
@@ -1643,6 +1666,11 @@ void wolfSSL_CertManagerFree(WOLFSSL_CERT_MANAGER* cm)
         #ifdef HAVE_OCSP
             if (cm->ocsp)
                 FreeOCSP(cm->ocsp, 1);
+        #if defined(HAVE_CERTIFICATE_STATUS_REQUEST) \
+         || defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
+            if (cm->ocsp_stapling)
+                FreeOCSP(cm->ocsp_stapling, 1);
+        #endif
         #endif
         FreeSignerTable(cm->caTable, CA_TABLE_SIZE, NULL);
         FreeMutex(&cm->caLock);
@@ -3461,6 +3489,43 @@ int wolfSSL_CertManagerDisableOCSP(WOLFSSL_CERT_MANAGER* cm)
     return SSL_SUCCESS;
 }
 
+/* turn on OCSP Stapling if off and compiled in, set options */
+int wolfSSL_CertManagerEnableOCSPStapling(WOLFSSL_CERT_MANAGER* cm)
+{
+    int ret = SSL_SUCCESS;
+
+    WOLFSSL_ENTER("wolfSSL_CertManagerEnableOCSPStapling");
+    if (cm == NULL)
+        return BAD_FUNC_ARG;
+
+    #if defined(HAVE_CERTIFICATE_STATUS_REQUEST) \
+     || defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
+        if (cm->ocsp_stapling == NULL) {
+            cm->ocsp_stapling = (WOLFSSL_OCSP*)XMALLOC(sizeof(WOLFSSL_OCSP),
+                                                   cm->heap, DYNAMIC_TYPE_OCSP);
+            if (cm->ocsp_stapling == NULL)
+                return MEMORY_E;
+
+            if (InitOCSP(cm->ocsp_stapling, cm) != 0) {
+                WOLFSSL_MSG("Init OCSP failed");
+                FreeOCSP(cm->ocsp_stapling, 1);
+                cm->ocsp_stapling = NULL;
+                return SSL_FAILURE;
+            }
+        }
+        cm->ocspStaplingEnabled = 1;
+
+        #ifndef WOLFSSL_USER_IO
+            cm->ocspIOCb = EmbedOcspLookup;
+            cm->ocspRespFreeCb = EmbedOcspRespFree;
+        #endif /* WOLFSSL_USER_IO */
+    #else
+        ret = NOT_COMPILED_IN;
+    #endif
+
+    return ret;
+}
+
 
 #ifdef HAVE_OCSP
 
@@ -3495,7 +3560,7 @@ int wolfSSL_CertManagerCheckOCSP(WOLFSSL_CERT_MANAGER* cm, byte* der, int sz)
     if ((ret = ParseCertRelative(cert, CERT_TYPE, NO_VERIFY, cm)) != 0) {
         WOLFSSL_MSG("ParseCert failed");
     }
-    else if ((ret = CheckCertOCSP(cm->ocsp, cert)) != 0) {
+    else if ((ret = CheckCertOCSP(cm->ocsp, cert, NULL)) != 0) {
         WOLFSSL_MSG("CheckCertOCSP failed");
     }
 
@@ -3630,6 +3695,17 @@ int wolfSSL_CTX_SetOCSP_Cb(WOLFSSL_CTX* ctx, CbOCSPIO ioCb,
         return BAD_FUNC_ARG;
 }
 
+#if defined(HAVE_CERTIFICATE_STATUS_REQUEST) \
+ || defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
+int wolfSSL_CTX_EnableOCSPStapling(WOLFSSL_CTX* ctx)
+{
+    WOLFSSL_ENTER("wolfSSL_CTX_EnableOCSPStapling");
+    if (ctx)
+        return wolfSSL_CertManagerEnableOCSPStapling(ctx->cm);
+    else
+        return BAD_FUNC_ARG;
+}
+#endif
 
 #endif /* HAVE_OCSP */
 
@@ -6077,6 +6153,15 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
             WOLFSSL_MSG("accept state CERT_SENT");
 
         case CERT_SENT :
+            if (!ssl->options.resuming)
+                if ( (ssl->error = SendCertificateStatus(ssl)) != 0) {
+                    WOLFSSL_ERROR(ssl->error);
+                    return SSL_FATAL_ERROR;
+                }
+            ssl->options.acceptState = CERT_STATUS_SENT;
+            WOLFSSL_MSG("accept state CERT_STATUS_SENT");
+
+        case CERT_STATUS_SENT :
             if (!ssl->options.resuming)
                 if ( (ssl->error = SendServerKeyExchange(ssl)) != 0) {
                     WOLFSSL_ERROR(ssl->error);

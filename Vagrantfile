@@ -17,10 +17,10 @@ cd $LIB.$VER/ && ./autogen.sh && ./configure -q && make -s
 sudo make install && cd .. && rm -rf $LIB.$VER*
 
 
-SRC=vagrant
 DST=wolfssl
 
-cp -rp /$SRC/ $DST/
+cp -rp /vagrant/ $DST/
+chown -hR vagrant:vagrant $DST/
 
 echo "cd $DST"                                         >> .bashrc
 echo "read -p 'Sync $DST? (y/n) ' -n 1 -r"             >> .bashrc
@@ -30,20 +30,13 @@ echo "    echo -e '\e[0;32mRunning $DST sync\e[0m'"    >> .bashrc
 echo "    ./pull_to_vagrant.sh"                        >> .bashrc
 echo "fi"                                              >> .bashrc
 
-cd $DST
-./autogen.sh
-./configure
-make check
-
-cd ..
-chown -hR vagrant:vagrant $DST/ /tmp/output
 
 SCRIPT
 
 VAGRANTFILE_API_VERSION = "2"
 
 Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
-  config.vm.box = "hashicorp/precise64"
+  config.vm.box = "ubuntu/trusty64"
   config.vm.provision "shell", inline: $setup
   config.vm.network "forwarded_port", guest: 11111, host: 33333
 
