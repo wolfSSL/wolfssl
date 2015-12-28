@@ -17,6 +17,13 @@ enum  {
 	RSA_PKCS1_PADDING = 1
  };
 
+/* rsaTypes */
+enum {
+    NID_sha256 = 672,
+    NID_sha384 = 673,
+    NID_sha512 = 674
+};
+
 struct WOLFSSL_RSA {
 	WOLFSSL_BIGNUM* n;
 	WOLFSSL_BIGNUM* e;
