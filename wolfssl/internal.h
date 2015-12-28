@@ -229,7 +229,8 @@ typedef byte word24[3];
                 #define BUILD_SSL_RSA_WITH_RC4_128_MD5
             #endif
         #endif
-        #if !defined(NO_TLS) && defined(HAVE_NTRU) && !defined(NO_SHA)
+        #if !defined(NO_TLS) && defined(HAVE_NTRU) && !defined(NO_SHA) \
+            && defined(WOLFSSL_STATIC_RSA)
             #define BUILD_TLS_NTRU_RSA_WITH_RC4_128_SHA
         #endif
     #endif
@@ -239,7 +240,8 @@ typedef byte word24[3];
             #if defined(WOLFSSL_STATIC_RSA)
                 #define BUILD_SSL_RSA_WITH_3DES_EDE_CBC_SHA
             #endif
-            #if !defined(NO_TLS) && defined(HAVE_NTRU)
+            #if !defined(NO_TLS) && defined(HAVE_NTRU) \
+                && defined(WOLFSSL_STATIC_RSA)
                     #define BUILD_TLS_NTRU_RSA_WITH_3DES_EDE_CBC_SHA
             #endif
         #endif
@@ -257,7 +259,7 @@ typedef byte word24[3];
                 #define BUILD_TLS_RSA_WITH_AES_128_CBC_SHA
                 #define BUILD_TLS_RSA_WITH_AES_256_CBC_SHA
             #endif
-            #if defined(HAVE_NTRU)
+            #if defined(HAVE_NTRU) && defined(WOLFSSL_STATIC_RSA)
                     #define BUILD_TLS_NTRU_RSA_WITH_AES_128_CBC_SHA
                     #define BUILD_TLS_NTRU_RSA_WITH_AES_256_CBC_SHA
             #endif

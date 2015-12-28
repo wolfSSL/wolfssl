@@ -234,6 +234,9 @@ static void Usage(void)
 #endif
     printf("-i          Loop indefinitely (allow repeated connections)\n");
     printf("-e          Echo data mode (return raw bytes received)\n");
+#ifdef HAVE_NTRU
+    printf("-n          Use NTRU key (needed for NTRU suites)\n");
+#endif
     printf("-B <num>    Benchmark throughput using <num> bytes and print stats\n");
 }
 
