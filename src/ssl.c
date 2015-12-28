@@ -468,8 +468,8 @@ int wolfSSL_GetObjectSize(void)
 int wolfSSL_SetTmpDH(WOLFSSL* ssl, const unsigned char* p, int pSz,
                     const unsigned char* g, int gSz)
 {
-    byte havePSK = 0;
-    byte haveRSA = 1;
+    word16 havePSK = 0;
+    word16 haveRSA = 1;
 
     WOLFSSL_ENTER("wolfSSL_SetTmpDH");
     if (ssl == NULL || p == NULL || g == NULL) return BAD_FUNC_ARG;
@@ -1983,8 +1983,8 @@ int wolfSSL_SetMinVersion(WOLFSSL* ssl, int version)
 
 int wolfSSL_SetVersion(WOLFSSL* ssl, int version)
 {
-    byte haveRSA = 1;
-    byte havePSK = 0;
+    word16 haveRSA = 1;
+    word16 havePSK = 0;
 
     WOLFSSL_ENTER("wolfSSL_SetVersion");
 
@@ -5971,8 +5971,8 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
 
     int wolfSSL_accept(WOLFSSL* ssl)
     {
-        byte havePSK = 0;
-        byte haveAnon = 0;
+        word16 havePSK = 0;
+        word16 haveAnon = 0;
         WOLFSSL_ENTER("SSL_accept()");
 
         #ifdef HAVE_ERRNO_H
@@ -7494,8 +7494,8 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
 
     void wolfSSL_set_accept_state(WOLFSSL* ssl)
     {
-        byte haveRSA = 1;
-        byte havePSK = 0;
+        word16 haveRSA = 1;
+        word16 havePSK = 0;
 
         WOLFSSL_ENTER("SSL_set_accept_state");
         ssl->options.side = WOLFSSL_SERVER_END;
@@ -11768,7 +11768,12 @@ int wolfSSL_BN_is_bit_set(const WOLFSSL_BIGNUM* bn, int n)
         return SSL_FAILURE;
     }
 
-    return mp_is_bit_set((mp_int*)bn->internal, n);
+    if (n > DIGIT_BIT) {
+        WOLFSSL_MSG("input bit count too large");
+        return SSL_FAILURE;
+    }
+
+    return mp_is_bit_set((mp_int*)bn->internal, (mp_digit)n);
 }
 
 /* return code compliant with OpenSSL :
