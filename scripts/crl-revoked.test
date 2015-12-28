@@ -19,7 +19,7 @@ ready_file=`pwd`/wolfssl_crl_ready$$
 
 remove_ready_file() {
     if test -e $ready_file; then
-        echo -e "removing exisitng ready file"
+        echo -e "removing existing ready file"
         rm $ready_file
     fi
 }
