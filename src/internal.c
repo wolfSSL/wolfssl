@@ -8358,7 +8358,7 @@ static int BuildCertificateStatus(WOLFSSL* ssl, byte type, buffer* status,
             idx += status[i].length;
         }
 
-        if (ssl->keys.encryptionOn) {
+        if (IsEncryptionOn(ssl, 1)) {
             byte* input;
             int   inputSz = idx - RECORD_HEADER_SZ;
 
@@ -8367,7 +8367,8 @@ static int BuildCertificateStatus(WOLFSSL* ssl, byte type, buffer* status,
                 return MEMORY_E;
 
             XMEMCPY(input, output + RECORD_HEADER_SZ, inputSz);
-            sendSz = BuildMessage(ssl, output, sendSz, input,inputSz,handshake);
+            sendSz = BuildMessage(ssl, output, sendSz, input, inputSz,
+                                                                  handshake, 1);
             XFREE(input, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
 
             if (sendSz < 0)
