@@ -6153,11 +6153,13 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
             WOLFSSL_MSG("accept state CERT_SENT");
 
         case CERT_SENT :
+            #ifndef NO_CERTS
             if (!ssl->options.resuming)
                 if ( (ssl->error = SendCertificateStatus(ssl)) != 0) {
                     WOLFSSL_ERROR(ssl->error);
                     return SSL_FATAL_ERROR;
                 }
+            #endif
             ssl->options.acceptState = CERT_STATUS_SENT;
             WOLFSSL_MSG("accept state CERT_STATUS_SENT");
 
