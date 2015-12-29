@@ -1,0 +1,45 @@
+We can only test using AES ciphers with static RSA and ECDHE suites
+
+See details on the external site below.
+NOTE: 3DES only is supported with EDE which we currently do not have or we
+      would also be able to test with DES3 configured.
+
+
+Details about www.globalsign.com
+Last updated on: 12/29/2015
+
+
+Supported versions: TLSv1.0 TLSv1.1 TLSv1.2
+Deflate compression: no
+Supported cipher suites (ORDER IS NOT SIGNIFICANT):
+  TLSv1.0
+     RSA_WITH_3DES_EDE_CBC_SHA
+     RSA_WITH_AES_128_CBC_SHA
+     RSA_WITH_AES_256_CBC_SHA
+     TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA
+     TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA
+     TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA
+  (TLSv1.1: idem)
+  TLSv1.2
+     RSA_WITH_3DES_EDE_CBC_SHA
+     RSA_WITH_AES_128_CBC_SHA
+     RSA_WITH_AES_256_CBC_SHA
+     RSA_WITH_AES_128_CBC_SHA256
+     RSA_WITH_AES_256_CBC_SHA256
+     TLS_RSA_WITH_AES_128_GCM_SHA256
+     TLS_RSA_WITH_AES_256_GCM_SHA384
+     TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA
+     TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA
+     TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA
+     TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256
+     TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384
+     TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256
+     TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384
+----------------------
+Server certificate(s):
+  1e56de3544b0c928cfff3af3fcb038db19bf0dc0: CN=www.globalsign.com, O=GMO GlobalSign Inc, STREET=Two International Drive, L=Portsmouth, ST=New Hampshire, C=US, OID.1.3.6.1.4.1.311.60.2.1.2=New Hampshire, OID.1.3.6.1.4.1.311.60.2.1.3=US, SERIALNUMBER=578611, OID.2.5.4.15=Private Organization
+----------------------
+Minimal encryption strength:     strong encryption (96-bit or more)
+Achievable encryption strength:  strong encryption (96-bit or more)
+BEAST status: vulnerable
+CRIME status: protected

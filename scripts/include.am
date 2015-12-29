@@ -25,9 +25,13 @@ dist_noinst_SCRIPTS+= scripts/google.test
 #dist_noinst_SCRIPTS+= scripts/openssl.test
 endif
 
+# www.globalsign.com only supports AES and 3DES ciphers see OCSP_README for
+# details
 if BUILD_OCSP
+if BUILD_AES
 dist_noinst_SCRIPTS+= scripts/ocsp.test
-endif
+endif #BUILD_AES
+endif #BUILD_OCSP
 
 if BUILD_OCSP_STAPLING
 dist_noinst_SCRIPTS+= scripts/ocsp-stapling.test
