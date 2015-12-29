@@ -2774,7 +2774,7 @@ ProtocolVersion MakeDTLSv1_2(void)
 
     word32 LowResTimer(void)
     {
-        return (word32) TickGet();
+        return (word32) (TickGet() / TICKS_PER_SECOND);
     }
 
 
@@ -2786,14 +2786,15 @@ ProtocolVersion MakeDTLSv1_2(void)
 
         word32 LowResTimer(void)
         {
-            return (word32) SYS_TMR_TickCountGet();
+            return (word32) (SYS_TMR_TickCountGet() /
+                             SYS_TMR_TickCounterFrequencyGet());
         }
 
     #else
 
         word32 LowResTimer(void)
         {
-            return (word32) SYS_TICK_Get();
+            return (word32) (SYS_TICK_Get() / SYS_TICK_TicksPerSecondGet());
         }
 
     #endif
