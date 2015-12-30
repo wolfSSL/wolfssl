@@ -866,7 +866,7 @@ static int process_http_response(int sfd, byte** respBuf,
         }
     } while (state != phr_http_end);
 
-    recvBuf = (byte*)XMALLOC(recvBufSz, NULL, DYNAMIC_TYPE_IN_BUFFER);
+    recvBuf = (byte*)XMALLOC(recvBufSz, NULL, DYNAMIC_TYPE_OCSP);
     if (recvBuf == NULL) {
         WOLFSSL_MSG("process_http_response couldn't create response buffer");
         return -1;
@@ -936,7 +936,7 @@ int EmbedOcspLookup(void* ctx, const char* url, int urlSz,
          * free this buffer. */
         int   httpBufSz = SCRATCH_BUFFER_SIZE;
         byte* httpBuf   = (byte*)XMALLOC(httpBufSz, NULL, 
-                                                        DYNAMIC_TYPE_IN_BUFFER);
+                                                        DYNAMIC_TYPE_OCSP);
 
         if (httpBuf == NULL) {
             WOLFSSL_MSG("Unable to create OCSP response buffer");
@@ -962,7 +962,7 @@ int EmbedOcspLookup(void* ctx, const char* url, int urlSz,
             }
 
             close(sfd);
-            XFREE(httpBuf, NULL, DYNAMIC_TYPE_IN_BUFFER);
+            XFREE(httpBuf, NULL, DYNAMIC_TYPE_OCSP);
         }
     }
 
@@ -980,7 +980,7 @@ void EmbedOcspRespFree(void* ctx, byte *resp)
     (void)ctx;
 
     if (resp)
-        XFREE(resp, NULL, DYNAMIC_TYPE_IN_BUFFER);
+        XFREE(resp, NULL, DYNAMIC_TYPE_OCSP);
 }
 
 

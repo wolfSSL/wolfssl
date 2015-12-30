@@ -1449,7 +1449,7 @@ static void verify_ALPN_client_list(WOLFSSL* ssl)
     AssertIntEQ(1, sizeof(alpn_list) == clistSz);
     AssertIntEQ(0, XMEMCMP(alpn_list, clist, clistSz));
 
-    XFREE(clist, 0, DYNAMIC_TYPE_OUT_BUFFER);
+    XFREE(clist, 0, DYNAMIC_TYPE_TLSX);
 }
 
 static void test_wolfSSL_UseALPN_connection(void)

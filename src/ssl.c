@@ -1031,7 +1031,7 @@ int wolfSSL_ALPN_GetPeerProtocol(WOLFSSL* ssl, char **list, word16 *listSz)
     if (*listSz == 0)
         return BUFFER_ERROR;
 
-    *list = (char *)XMALLOC((*listSz)+1, NULL, DYNAMIC_TYPE_OUT_BUFFER);
+    *list = (char *)XMALLOC((*listSz)+1, NULL, DYNAMIC_TYPE_TLSX);
     if (*list == NULL)
         return MEMORY_ERROR;
 
@@ -14110,7 +14110,7 @@ int wolfSSL_PEM_write_mem_RSAPrivateKey(RSA* rsa, const EVP_CIPHER* cipher,
     if (cipherInfo != NULL)
         XFREE(cipherInfo, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
-    *pem = (byte*)XMALLOC((*plen)+1, NULL, DYNAMIC_TYPE_OUT_BUFFER);
+    *pem = (byte*)XMALLOC((*plen)+1, NULL, DYNAMIC_TYPE_KEY);
     if (*pem == NULL) {
         WOLFSSL_MSG("malloc failed");
         XFREE(tmp, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -14120,7 +14120,7 @@ int wolfSSL_PEM_write_mem_RSAPrivateKey(RSA* rsa, const EVP_CIPHER* cipher,
 
     if (XMEMCPY(*pem, tmp, *plen) == NULL) {
         WOLFSSL_MSG("XMEMCPY failed");
-        XFREE(pem, NULL, DYNAMIC_TYPE_OUT_BUFFER);
+        XFREE(pem, NULL, DYNAMIC_TYPE_KEY);
         XFREE(tmp, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         return SSL_FAILURE;
     }
@@ -14164,7 +14164,7 @@ int wolfSSL_PEM_write_RSAPrivateKey(FILE *fp, WOLFSSL_RSA *rsa,
         return SSL_FAILURE;
     }
 
-    XFREE(pem, NULL, DYNAMIC_TYPE_OUT_BUFFER);
+    XFREE(pem, NULL, DYNAMIC_TYPE_KEY);
     return SSL_SUCCESS;
 }
 #endif /* NO_FILESYSTEM */
@@ -15492,7 +15492,7 @@ int wolfSSL_PEM_write_mem_ECPrivateKey(WOLFSSL_EC_KEY* ecc,
     if (cipherInfo != NULL)
         XFREE(cipherInfo, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
-    *pem = (byte*)XMALLOC((*plen)+1, NULL, DYNAMIC_TYPE_OUT_BUFFER);
+    *pem = (byte*)XMALLOC((*plen)+1, NULL, DYNAMIC_TYPE_KEY);
     if (*pem == NULL) {
         WOLFSSL_MSG("malloc failed");
         XFREE(tmp, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -15502,7 +15502,7 @@ int wolfSSL_PEM_write_mem_ECPrivateKey(WOLFSSL_EC_KEY* ecc,
 
     if (XMEMCPY(*pem, tmp, *plen) == NULL) {
         WOLFSSL_MSG("XMEMCPY failed");
-        XFREE(pem, NULL, DYNAMIC_TYPE_OUT_BUFFER);
+        XFREE(pem, NULL, DYNAMIC_TYPE_KEY);
         XFREE(tmp, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         return SSL_FAILURE;
     }
@@ -15545,7 +15545,7 @@ int wolfSSL_PEM_write_ECPrivateKey(FILE *fp, WOLFSSL_EC_KEY *ecc,
         return SSL_FAILURE;
     }
 
-    XFREE(pem, NULL, DYNAMIC_TYPE_OUT_BUFFER);
+    XFREE(pem, NULL, DYNAMIC_TYPE_KEY);
     return SSL_SUCCESS;
 }
 
@@ -15667,7 +15667,7 @@ int wolfSSL_PEM_write_mem_DSAPrivateKey(WOLFSSL_DSA* dsa,
     if (cipherInfo != NULL)
         XFREE(cipherInfo, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
-    *pem = (byte*)XMALLOC((*plen)+1, NULL, DYNAMIC_TYPE_OUT_BUFFER);
+    *pem = (byte*)XMALLOC((*plen)+1, NULL, DYNAMIC_TYPE_KEY);
     if (*pem == NULL) {
         WOLFSSL_MSG("malloc failed");
         XFREE(tmp, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -15677,7 +15677,7 @@ int wolfSSL_PEM_write_mem_DSAPrivateKey(WOLFSSL_DSA* dsa,
 
     if (XMEMCPY(*pem, tmp, *plen) == NULL) {
         WOLFSSL_MSG("XMEMCPY failed");
-        XFREE(pem, NULL, DYNAMIC_TYPE_OUT_BUFFER);
+        XFREE(pem, NULL, DYNAMIC_TYPE_KEY);
         XFREE(tmp, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         return SSL_FAILURE;
     }
@@ -15720,7 +15720,7 @@ int wolfSSL_PEM_write_DSAPrivateKey(FILE *fp, WOLFSSL_DSA *dsa,
         return SSL_FAILURE;
     }
 
-    XFREE(pem, NULL, DYNAMIC_TYPE_OUT_BUFFER);
+    XFREE(pem, NULL, DYNAMIC_TYPE_KEY);
     return SSL_SUCCESS;
 }
 
