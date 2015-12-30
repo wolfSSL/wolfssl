@@ -1,0 +1,34 @@
+# vim:ft=automake
+# All paths should be given relative to the root
+#
+
+EXTRA_DIST += \
+        certs/ocsp/index0.txt \
+        certs/ocsp/index1.txt \
+        certs/ocsp/index2.txt \
+        certs/ocsp/index3.txt \
+        certs/ocsp/openssl.cnf \
+        certs/ocsp/ocspd0.sh \
+        certs/ocsp/ocspd1.sh \
+        certs/ocsp/ocspd2.sh \
+        certs/ocsp/ocspd3.sh \
+        certs/ocsp/intermediate1-ca-key.pem \
+        certs/ocsp/intermediate1-ca-cert.pem \
+        certs/ocsp/intermediate2-ca-key.pem \
+        certs/ocsp/intermediate2-ca-cert.pem \
+        certs/ocsp/intermediate3-ca-key.pem \
+        certs/ocsp/intermediate3-ca-cert.pem \
+        certs/ocsp/ocsp-responder-key.pem \
+        certs/ocsp/ocsp-responder-cert.pem \
+        certs/ocsp/server1-key.pem \
+        certs/ocsp/server1-cert.pem \
+        certs/ocsp/server2-key.pem \
+        certs/ocsp/server2-cert.pem \
+        certs/ocsp/server3-key.pem \
+        certs/ocsp/server3-cert.pem \
+        certs/ocsp/server4-key.pem \
+        certs/ocsp/server4-cert.pem \
+        certs/ocsp/server5-key.pem \
+        certs/ocsp/server5-cert.pem \
+        certs/ocsp/root-ca-key.pem \
+        certs/ocsp/root-ca-cert.pem
