@@ -13,7 +13,10 @@ key cipher suites with
     WOLFSSL_STATIC_PSK
 
 though static key cipher suites are deprecated and will be removed from future
-versions of TLS.  They also lower your security by removing PFS.
+versions of TLS.  They also lower your security by removing PFS. Since current
+NTRU suites available do not use ephemeral keys, WOLFSSL_STATIC_RSA needs to be
+used in order to build with NTRU suites.
+
 
 When compiling ssl.c wolfSSL will now issue a comipler error if no cipher suites
 are available.  You can remove this error by defining WOLFSSL_ALLOW_NO_SUITES
@@ -34,6 +37,29 @@ wolfSSL_CTX_set_verify(ctx, SSL_VERIFY_NONE, 0);
 
 before calling wolfSSL_new();  Though it's not recommended.
 ```
+
+# wolfSSL (Formerly CyaSSL) Release 3.8.0 (12/30/2015)
+
+##Release 3.8.0 of wolfSSL has bug fixes and new features including:
+
+- Example client/server with VxWorks
+- AESNI use with AES-GCM
+- Stunnel compatibility enhancements
+- Single shot hash and signature/verify API added
+- Update cavium nitrox port
+- LPCXpresso IDE support added
+- C# wrapper to support wolfSSL use by a C# program
+- (BETA version)OCSP stapling added
+- Update OpenSSH compatibility
+- Improve DTLS handshake when retransmitting finished message
+- fix idea_mult() for 16 and 32bit systems
+- fix LowResTimer on Microchip ports
+
+- No high level security fixes that requires an update though we always
+recommend updating to the latest
+
+See INSTALL file for build instructions.
+More info can be found on-line at //http://wolfssl.com/yaSSL/Docs.html
 
 # wolfSSL (Formerly CyaSSL) Release 3.7.0 (10/26/2015)
 

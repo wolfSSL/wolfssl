@@ -68,8 +68,8 @@ mkdir -p $RPM_BUILD_ROOT/
 %{_docdir}/wolfssl/README.txt
 %{_libdir}/libwolfssl.la
 %{_libdir}/libwolfssl.so
-%{_libdir}/libwolfssl.so.1
-%{_libdir}/libwolfssl.so.1.1.0
+%{_libdir}/libwolfssl.so.3
+%{_libdir}/libwolfssl.so.3.1.0
 
 %files devel
 %defattr(-,root,root,-)
@@ -134,6 +134,8 @@ mkdir -p $RPM_BUILD_ROOT/
 %{_includedir}/cyassl/openssl/dsa.h
 %{_includedir}/cyassl/openssl/ec.h
 %{_includedir}/cyassl/openssl/ecdsa.h
+%{_includedir}/cyassl/openssl/ec25519.h
+%{_includedir}/cyassl/openssl/ed25519.h
 %{_includedir}/cyassl/openssl/ecdh.h
 %{_includedir}/cyassl/openssl/engine.h
 %{_includedir}/cyassl/openssl/err.h
@@ -192,6 +194,7 @@ mkdir -p $RPM_BUILD_ROOT/
 %{_includedir}/wolfssl/wolfcrypt/hc128.h
 %{_includedir}/wolfssl/wolfcrypt/hmac.h
 %{_includedir}/wolfssl/wolfcrypt/integer.h
+%{_includedir}/wolfssl/wolfcrypt/idea.h
 %{_includedir}/wolfssl/wolfcrypt/logging.h
 %{_includedir}/wolfssl/wolfcrypt/md2.h
 %{_includedir}/wolfssl/wolfcrypt/md4.h
@@ -209,12 +212,15 @@ mkdir -p $RPM_BUILD_ROOT/
 %{_includedir}/wolfssl/wolfcrypt/ripemd.h
 %{_includedir}/wolfssl/wolfcrypt/rsa.h
 %{_includedir}/wolfssl/wolfcrypt/settings.h
+%{_includedir}/wolfssl/wolfcrypt/signature.h
 %{_includedir}/wolfssl/wolfcrypt/sha.h
 %{_includedir}/wolfssl/wolfcrypt/sha256.h
 %{_includedir}/wolfssl/wolfcrypt/sha512.h
+%{_includedir}/wolfssl/wolfcrypt/srp.h
 %{_includedir}/wolfssl/wolfcrypt/tfm.h
 %{_includedir}/wolfssl/wolfcrypt/types.h
 %{_includedir}/wolfssl/wolfcrypt/visibility.h
+%{_includedir}/wolfssl/wolfcrypt/wc_encrypt.h
 %{_includedir}/wolfssl/error-ssl.h
 %{_includedir}/wolfssl/ocsp.h
 %{_includedir}/wolfssl/openssl/asn1.h
@@ -227,6 +233,8 @@ mkdir -p $RPM_BUILD_ROOT/
 %{_includedir}/wolfssl/openssl/dsa.h
 %{_includedir}/wolfssl/openssl/ec.h
 %{_includedir}/wolfssl/openssl/ecdsa.h
+%{_includedir}/wolfssl/openssl/ec25519.h
+%{_includedir}/wolfssl/openssl/ed25519.h
 %{_includedir}/wolfssl/openssl/ecdh.h
 %{_includedir}/wolfssl/openssl/engine.h
 %{_includedir}/wolfssl/openssl/err.h
@@ -259,6 +267,9 @@ mkdir -p $RPM_BUILD_ROOT/
 %{_libdir}/pkgconfig/wolfssl.pc
 
 %changelog
+* Wed Dec 30 2015 Jacob Barthelmeh <jacob@wolfssl.com>
+- Added headers for curve25519 and ed25519 openssl compatibility
+- Added headers for Idea, srp, signature, and wc_encrypt
 * Tue Mar 31 2015 John Safranek <john@wolfssl.com>
 - Added recent new wolfcrypt headers for curve25519
 * Fri Jan 09 2015 John Safranek <john@wolfssl.com>
