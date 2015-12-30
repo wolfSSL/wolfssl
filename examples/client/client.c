@@ -743,6 +743,16 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
             done = 1;
         #endif
 
+        /* www.globalsign.com does not respond to ipv6 ocsp requests */
+        #if defined(TEST_IPV6) && defined(HAVE_OCSP)
+            done = 1;
+        #endif
+
+        /* www.globalsign.com has limited supported cipher suites */
+        #if defined(NO_AES) && defined(HAVE_OCSP)
+            done = 1;
+        #endif
+
         #ifndef NO_PSK
             done = 1;
         #endif
