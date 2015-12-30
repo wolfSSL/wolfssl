@@ -290,7 +290,7 @@ int CheckOcspRequest(WOLFSSL_OCSP* ocsp, OcspRequest* ocspRequest,
         return 0;
     }
 
-    request = (byte*)XMALLOC(requestSz, NULL, DYNAMIC_TYPE_IN_BUFFER);
+    request = (byte*)XMALLOC(requestSz, NULL, DYNAMIC_TYPE_OCSP);
     if (request == NULL) {
         WOLFSSL_LEAVE("CheckCertOCSP", MEMORY_ERROR);
         return MEMORY_ERROR;
@@ -306,7 +306,7 @@ int CheckOcspRequest(WOLFSSL_OCSP* ocsp, OcspRequest* ocspRequest,
         if (newStatus)    XFREE(newStatus,    NULL, DYNAMIC_TYPE_TMP_BUFFER);
         if (ocspResponse) XFREE(ocspResponse, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
-        XFREE(request, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(request, NULL, DYNAMIC_TYPE_OCSP);
 
         WOLFSSL_LEAVE("CheckCertOCSP", MEMORY_ERROR);
         return MEMORY_E;
