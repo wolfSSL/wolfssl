@@ -794,7 +794,7 @@ AES_192_Key_Expansion PROC
 	movdqa [rsp+0], xmm6
 
 	movdqu  xmm1,[rdi]
-	movdqu	xmm3,16[rdi]
+	movq	xmm3,qword ptr 16[rdi]
 	movdqa	[rsi],xmm1
 	movdqa	xmm5,xmm3
 

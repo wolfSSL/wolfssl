@@ -657,7 +657,7 @@ AES_192_Key_Expansion:
 # parameter 2: %rsi
 
 movdqu (%rdi), %xmm1
-movdqu 16(%rdi), %xmm3
+movq 16(%rdi), %xmm3
 movdqa %xmm1, (%rsi)
 movdqa %xmm3, %xmm5
 
