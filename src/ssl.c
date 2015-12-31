@@ -17191,6 +17191,10 @@ int wolfSSL_ED25519_generate_key(unsigned char *priv, unsigned int *privSz,
 {
 #ifndef WOLFSSL_KEY_GEN
     WOLFSSL_MSG("No Key Gen built in");
+    (void) priv;
+    (void) privSz;
+    (void) pub;
+    (void) pubSz;
     return SSL_FAILURE;
 #else /* WOLFSSL_KEY_GEN */
     int ret = SSL_FAILURE;
@@ -17264,6 +17268,12 @@ int wolfSSL_ED25519_sign(const unsigned char *msg, unsigned int msgSz,
 {
 #ifndef WOLFSSL_KEY_GEN
     WOLFSSL_MSG("No Key Gen built in");
+    (void) msg;
+    (void) msgSz;
+    (void) priv;
+    (void) privSz;
+    (void) sig;
+    (void) sigSz;
     return SSL_FAILURE;
 #else /* WOLFSSL_KEY_GEN */
     ed25519_key key;
@@ -17311,6 +17321,12 @@ int wolfSSL_ED25519_verify(const unsigned char *msg, unsigned int msgSz,
 {
 #ifndef WOLFSSL_KEY_GEN
     WOLFSSL_MSG("No Key Gen built in");
+    (void) msg;
+    (void) msgSz;
+    (void) pub;
+    (void) pubSz;
+    (void) sig;
+    (void) sigSz;
     return SSL_FAILURE;
 #else /* WOLFSSL_KEY_GEN */
     ed25519_key key;
