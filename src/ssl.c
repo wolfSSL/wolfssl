@@ -17053,6 +17053,10 @@ int wolfSSL_EC25519_generate_key(unsigned char *priv, unsigned int *privSz,
 {
 #ifndef WOLFSSL_KEY_GEN
     WOLFSSL_MSG("No Key Gen built in");
+    (void) priv;
+    (void) privSz;
+    (void) pub;
+    (void) pubSz;
     return SSL_FAILURE;
 #else /* WOLFSSL_KEY_GEN */
     int ret = SSL_FAILURE;
@@ -17127,6 +17131,12 @@ int wolfSSL_EC25519_shared_key(unsigned char *shared, unsigned int *sharedSz,
 {
 #ifndef WOLFSSL_KEY_GEN
     WOLFSSL_MSG("No Key Gen built in");
+    (void) shared;
+    (void) sharedSz;
+    (void) priv;
+    (void) privSz;
+    (void) pub;
+    (void) pubSz;
     return SSL_FAILURE;
 #else /* WOLFSSL_KEY_GEN */
     int ret = SSL_FAILURE;
