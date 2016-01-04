@@ -1604,7 +1604,7 @@ int TLSX_SNI_GetFromBuffer(const byte* clientHello, word32 helloSz,
                 return BUFFER_ERROR;
 
             ato16(clientHello + offset, &len16);
-            offset += OPAQUE16_LEN;
+            /* Returning SNI_UNSUPPORTED do not increment offset here */
 
             if (len16 != 0) /* session_id_length must be 0 */
                 return BUFFER_ERROR;
