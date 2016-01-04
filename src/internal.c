@@ -1519,6 +1519,11 @@ void InitSuites(Suites* suites, ProtocolVersion pv, word16 haveRSA,
     }
 #endif
 
+    /* account for  unused variable warnings ifdef WOLFSSL_DTLS  */
+#ifdef WOLFSSL_DTLS
+    (void) dtls;
+    (void) tls;
+#endif
     suites->suiteSz = idx;
 
     InitSuitesHashSigAlgo(suites, haveECDSAsig, haveRSAsig, 0);
@@ -15438,7 +15443,7 @@ int DoSessionTicket(WOLFSSL* ssl,
                 #error "DTLS needs either SHA or SHA-256"
             #endif /* NO_SHA && NO_SHA256 */
 
-            #ifndef NO_SHA
+            #if !defined(NO_SHA) && defined(NO_SHA256)
                 cookieType = SHA;
                 cookieSz = SHA_DIGEST_SIZE;
             #endif /* NO_SHA */
