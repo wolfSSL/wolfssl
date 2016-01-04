@@ -25,7 +25,7 @@ then "Browse" and select:
 
 4. In ```<path_to_wolfssl>/wolfssl/wolfcrypt/settings.h```, uncomment
 
-    #define WOLFSSL_VXWORKS
+        #define WOLFSSL_VXWORKS
 
 5. If using the VxWorks simulator add the following to EXTRA\_DEFINE:
 
