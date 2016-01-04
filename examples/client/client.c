@@ -753,6 +753,14 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
             done = 1;
         #endif
 
+        /* www.globalsign.com only supports static RSA or ECDHE with AES */
+        /* We cannot expect users to have on static RSA so test for ECC only
+         * as some users will most likely be on 32-bit systems where ECC
+         * is not enabled by default */
+        #if defined(HAVE_OCSP) && !defined(HAVE_ECC)
+            done = 1;
+        #endif
+
         #ifndef NO_PSK
             done = 1;
         #endif
