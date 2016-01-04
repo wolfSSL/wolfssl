@@ -1,3 +1,5 @@
+#!/bin/sh
+
 openssl req                \
     -new                   \
     -key  root-ca-key.pem  \

@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 openssl ocsp -port 22222 -nmin 1                  \
     -index   certs/ocsp/index2.txt                \
