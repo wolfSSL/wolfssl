@@ -1265,17 +1265,29 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
         return 0;
     }
 
-#elif defined(WOLFSSL_VXWORKS)
+#elif defined(WOLFSSL_VXWORKS) && defined(VXWORKS_SIM)
 
     #include <randomNumGen.h>
 
     int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz) {
         STATUS        status;
+        unsigned char seed[1024];
+        int           i = 0;
 
-        /* RANDOM ENTORPY INJECT component must be enabled in VSB project */
+        /* cannot generate true entropy with VxWorks simulator */
+        #warning "VxWorks simulator for testing purposes only!"
+
+        for (i = 0; i < sizeof(seed); i++) {
+            seed[i] = i * 3 % 256;
+        }
+        /* build entropy */
+        (void) randAdd(seed, 0, 0);
+        for (i = 4; i <= sizeof(seed); i*=2) {
+            (void) randAdd (seed, i - 1, i);
+        }
+
         status = randBytes (output, sz);
         if (status == ERROR) {
-            WOLFSSL_MSG("Random seed failed! Enable RANDOM ENTROPY INJECT.");
             return RNG_FAILURE_E;
         }
 
