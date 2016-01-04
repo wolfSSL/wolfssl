@@ -1374,7 +1374,7 @@ typedef THREAD_RETURN WOLFSSL_THREAD (*thread_func)(void* args);
 static INLINE void StackSizeCheck(func_args* args, thread_func tf)
 {
     int            ret, i, used;
-    unsigned char* myStack;
+    unsigned char* myStack = NULL;
     int            stackSize = 1024*128;
     pthread_attr_t myAttr;
     pthread_t      threadId;
