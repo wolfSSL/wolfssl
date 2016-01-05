@@ -3145,6 +3145,12 @@ static int AES_GCM_decrypt(const unsigned char *in,
         tmp4 = _mm_shuffle_epi8(tmp4, BSWAP_MASK);
     }
 
+    /* Acknowledge the dead store and continue */
+    (void) tmp1;
+    (void) tmp2;
+    (void) tmp3;
+    (void) tmp4;
+
     for (k = i*4; k < nbytes/16; k++) {
         tmp1 = _mm_shuffle_epi8(ctr1, BSWAP_EPI64);
         ctr1 = _mm_add_epi32(ctr1, ONE);
