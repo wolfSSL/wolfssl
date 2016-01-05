@@ -1374,7 +1374,7 @@ typedef THREAD_RETURN WOLFSSL_THREAD (*thread_func)(void* args);
 static INLINE void StackSizeCheck(func_args* args, thread_func tf)
 {
     int            ret, i, used;
-    unsigned char* myStack;
+    unsigned char* myStack = NULL;
     int            stackSize = 1024*128;
     pthread_attr_t myAttr;
     pthread_t      threadId;
@@ -1385,10 +1385,10 @@ static INLINE void StackSizeCheck(func_args* args, thread_func tf)
 #endif
 
     ret = posix_memalign((void**)&myStack, sysconf(_SC_PAGESIZE), stackSize);
-    if (ret != 0)
+    if (ret != 0 || myStack == NULL)
         err_sys("posix_memalign failed\n");
 
-    memset(myStack, 0x01, stackSize);
+    XMEMSET(myStack, 0x01, stackSize);
 
     ret = pthread_attr_init(&myAttr);
     if (ret != 0)
