@@ -829,6 +829,9 @@ void InitSuites(Suites* suites, ProtocolVersion pv, word16 haveRSA,
     if (pv.major == DTLS_MAJOR) {
         dtls   = 1;
         tls    = 1;
+        /* May be dead assignments dependant upon configuration */
+        (void) dtls;
+        (void) tls;
         tls1_2 = pv.minor <= DTLSv1_2_MINOR;
     }
 #endif
@@ -15438,7 +15441,7 @@ int DoSessionTicket(WOLFSSL* ssl,
                 #error "DTLS needs either SHA or SHA-256"
             #endif /* NO_SHA && NO_SHA256 */
 
-            #ifndef NO_SHA
+            #if !defined(NO_SHA) && defined(NO_SHA256)
                 cookieType = SHA;
                 cookieSz = SHA_DIGEST_SIZE;
             #endif /* NO_SHA */
