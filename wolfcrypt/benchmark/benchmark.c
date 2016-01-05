@@ -1262,6 +1262,41 @@ void bench_rsa(void)
     printf("RSA %d decryption took %6.3f milliseconds, avg over %d"
            " iterations\n", rsaKeySz, milliEach, ntimes);
 
+#if !defined(HAVE_FAST_RSA) && !defined(NO_SHA256) && !defined(HAVE_FIPS)
+    start = current_time(1);
+
+    for (i = 0; i < ntimes; i++)
+        ret = wc_RsaPublicEncrypt_ex(message,len,enc,sizeof(enc), &rsaKey, &rng,
+                  WC_RSA_OAEP_PAD, WC_HASH_TYPE_SHA256, WC_MGF1SHA256, NULL, 0);
+
+    total = current_time(0) - start;
+    each  = total / ntimes;   /* per second   */
+    milliEach = each * 1000; /* milliseconds */
+
+    printf("RSA-OAEP %d encryption %6.3f milliseconds, avg over %d"
+           " iterations\n", rsaKeySz, milliEach, ntimes);
+
+    if (ret < 0) {
+        printf("Rsa Public OAEP Encrypt failed\n");
+        return;
+    }
+
+    start = current_time(1);
+
+    for (i = 0; i < ntimes; i++) {
+         byte  out[256];  /* for up to 2048 bit */
+         wc_RsaPrivateDecrypt_ex(enc, (word32)ret, out, sizeof(out), &rsaKey,
+                  WC_RSA_OAEP_PAD, WC_HASH_TYPE_SHA256, WC_MGF1SHA256, NULL, 0);
+    }
+
+    total = current_time(0) - start;
+    each  = total / ntimes;   /* per second   */
+    milliEach = each * 1000; /* milliseconds */
+
+    printf("RSA-OAEP %d decryption %6.3f milliseconds, avg over %d"
+           " iterations\n", rsaKeySz, milliEach, ntimes);
+#endif /* !HAVE_FAST_RSA  && !NO_SHA256 && !HAVE_FIPS */
+
     wc_FreeRsaKey(&rsaKey);
 #ifdef HAVE_CAVIUM
     wc_RsaFreeCavium(&rsaKey);
