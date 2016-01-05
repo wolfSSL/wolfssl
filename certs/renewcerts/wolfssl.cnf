@@ -124,7 +124,6 @@ authorityKeyIdentifier=keyid,issuer
 subjectKeyIdentifier=hash
 authorityKeyIdentifier=keyid:always,issuer:always
 basicConstraints=CA:true
-authorityInfoAccess = OCSP;URI:http://localhost:22222
 
 # Extensions to add to a certificate request
 [ v3_req ]
@@ -140,14 +139,6 @@ basicConstraints = CA:true
 # CRL extensions.
 [ crl_ext ]
 authorityKeyIdentifier=keyid:always
-
-# OCSP extensions.
-[ v3_ocsp ]
-subjectKeyIdentifier=hash
-authorityKeyIdentifier=keyid:always,issuer:always
-keyUsage = nonRepudiation, digitalSignature, keyEncipherment
-extendedKeyUsage = OCSPSigning
-basicConstraints = CA:false
 
 # These extensions should be added when creating a proxy certificate
 [ proxy_cert_ext ]
