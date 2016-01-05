@@ -832,6 +832,9 @@ void InitSuites(Suites* suites, ProtocolVersion pv, word16 haveRSA,
         tls1_2 = pv.minor <= DTLSv1_2_MINOR;
     }
 #endif
+        /* May be dead assignments dependant upon configuration */
+        (void) dtls;
+        (void) tls;
 
 #ifdef HAVE_RENEGOTIATION_INDICATION
     if (side == WOLFSSL_CLIENT_END) {
@@ -1519,11 +1522,6 @@ void InitSuites(Suites* suites, ProtocolVersion pv, word16 haveRSA,
     }
 #endif
 
-    /* account for  unused variable warnings ifdef WOLFSSL_DTLS  */
-#ifdef WOLFSSL_DTLS
-    (void) dtls;
-    (void) tls;
-#endif
     suites->suiteSz = idx;
 
     InitSuitesHashSigAlgo(suites, haveECDSAsig, haveRSAsig, 0);
