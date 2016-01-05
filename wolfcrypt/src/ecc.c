@@ -4449,10 +4449,10 @@ static int accel_fp_mul2add(int idx1, int idx2,
    XFREE(kb[1], NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
 
+    #undef KB_SIZE
+
     if (err != MP_OKAY)
         return err;
-
-#undef KB_SIZE
 
    return ecc_map(R, modulus, mp);
 }
