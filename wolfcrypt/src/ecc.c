@@ -4192,7 +4192,8 @@ static int accel_fp_mul(int idx, mp_int* k, ecc_point *R, mp_int* modulus,
    }
 
    if (err == MP_OKAY) {
-      z = 0;
+      z = 0;    /* mp_to_unsigned_bin != MP_OKAY z will be declared/not set */
+      (void) z; /* Acknowledge the unused assignment */
       ForceZero(kb, KB_SIZE);
       /* map R back from projective space */
       if (map) {
@@ -4449,6 +4450,9 @@ static int accel_fp_mul2add(int idx1, int idx2,
 #endif
 
 #undef KB_SIZE
+
+    if (err != MP_OKAY)
+        return err;
 
    return ecc_map(R, modulus, mp);
 }
