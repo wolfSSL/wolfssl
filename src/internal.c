@@ -829,12 +829,12 @@ void InitSuites(Suites* suites, ProtocolVersion pv, word16 haveRSA,
     if (pv.major == DTLS_MAJOR) {
         dtls   = 1;
         tls    = 1;
-        tls1_2 = pv.minor <= DTLSv1_2_MINOR;
-    }
-#endif
         /* May be dead assignments dependant upon configuration */
         (void) dtls;
         (void) tls;
+        tls1_2 = pv.minor <= DTLSv1_2_MINOR;
+    }
+#endif
 
 #ifdef HAVE_RENEGOTIATION_INDICATION
     if (side == WOLFSSL_CLIENT_END) {
