@@ -125,6 +125,10 @@ int mp_init (mp_int * a)
 {
   int i;
 
+  /* Safeguard against passing in a null pointer */
+  if (a == NULL)
+    return MP_VAL;
+
   /* allocate memory required and clear it */
   a->dp = OPT_CAST(mp_digit) XMALLOC (sizeof (mp_digit) * MP_PREC, 0,
                                       DYNAMIC_TYPE_BIGINT);
@@ -274,6 +278,10 @@ int
 mp_copy (mp_int * a, mp_int * b)
 {
   int     res, n;
+
+  /* Safeguard against passing in a null pointer */
+  if (a == NULL || b == NULL)
+    return MP_VAL;
 
   /* if dst == src do nothing */
   if (a == b) {
