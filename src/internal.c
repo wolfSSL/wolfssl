@@ -2373,10 +2373,13 @@ int DtlsPoolSend(WOLFSSL* ssl)
         for (i = 0, buf = pool->buf; i < pool->used; i++, buf++) {
             if (pool->epoch[i] == 0) {
                 DtlsRecordLayerHeader* dtls;
+                word32*                seqNumber;
 
                 dtls = (DtlsRecordLayerHeader*)buf->buffer;
-                c32to48(ssl->keys.dtls_prev_sequence_number++,
-                                                         dtls->sequence_number);
+                seqNumber = (ssl->keys.dtls_epoch == 0) ?
+                                &ssl->keys.dtls_sequence_number :
+                                &ssl->keys.dtls_prev_sequence_number;
+                c32to48((*seqNumber)++, dtls->sequence_number);
                 if ((ret = CheckAvailableSize(ssl, buf->length)) != 0)
                     return ret;
 
