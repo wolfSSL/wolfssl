@@ -132,6 +132,9 @@
 /* Uncomment next line to enable deprecated less secure static RSA suites */
 /* #define WOLFSSL_STATIC_RSA */
 
+/* Uncomment next line if building for ARDUINO */
+/* #define WOLFSSL_ARDUINO */
+
 #include <wolfssl/wolfcrypt/visibility.h>
 
 #ifdef WOLFSSL_USER_SETTINGS
@@ -315,6 +318,24 @@
     #define NO_MAIN_DRIVER
     #define NO_DEV_RANDOM
     #define NO_WRITEV
+#endif
+
+
+#ifdef WOLFSSL_ARDUINO
+    #define NO_WRITEV
+    #define NO_WOLFSSL_DIR
+    #define SINGLE_THREADED
+    #define NO_DEV_RANDOM
+    #ifndef INTEL_GALILEO /* Galileo has time.h compatibility */
+        #define TIME_OVERRIDES /* must define XTIME and XGMTIME externally */
+    #endif
+    #define WOLFSSL_USER_IO
+    #define HAVE_ECC
+    #define NO_DH
+    #define NO_SESSION_CACHE
+    #define USE_SLOW_SHA
+    #define NO_WOLFSSL_SERVER
+    #define NO_ERROR_STRINGS
 #endif
 
 
