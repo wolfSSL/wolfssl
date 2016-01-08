@@ -24,6 +24,7 @@
 #endif
 
 #include <wolfssl/wolfcrypt/settings.h>
+#include <wolfcrypt/benchmark/benchmark.h>
 
 typedef struct func_args {
     int    argc;
@@ -34,11 +35,8 @@ typedef struct func_args {
 func_args args = { 0 } ;
 
 extern double current_time(int reset) ;
-extern int benchmark_test(void *args) ;
 
 main(void) {
     benchmark_test(&args) ;
     return 0;
 }
-
-

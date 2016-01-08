@@ -29,24 +29,6 @@
 #include <wolfssl/test.h>
 #include "wolfcrypt/test/test.h"
 
-/* This function changes the current directory to the wolfssl root */
-static void ChangeDirToRoot(void)
-{
-    /* Normal Command Line=_build, Visual Studio=testsuite */
-    if (CurrentDir("testsuite") || CurrentDir("_build")) {
-        ChangeDirBack(1);
-    }
-
-    /* Xcode: To output application to correct location: */
-    /* 1. Xcode->Preferences->Locations->Locations */
-    /* 2. Derived Data Advanced -> Custom */
-    /* 3. Relative to Workspace, Build/Products */
-    /* Build/Products/Debug or Build/Products/Release */
-    else if (CurrentDir("Debug") || CurrentDir("Release")) {
-    ChangeDirBack(5);
-    }
-}
-
 
 #ifndef SINGLE_THREADED
 
@@ -118,7 +100,7 @@ int testsuite_test(int argc, char** argv)
 #endif
 
 #if !defined(WOLFSSL_TIRTOS)
-	ChangeDirToRoot();
+	ChangeToWolfRoot();
 #endif
 
 #ifdef WOLFSSL_TIRTOS
@@ -351,28 +333,6 @@ void join_thread(THREAD_TYPE thread)
 }
 
 
-void InitTcpReady(tcp_ready* ready)
-{
-    ready->ready = 0;
-    ready->port = 0;
-#if defined(_POSIX_THREADS) && !defined(__MINGW32__)
-      pthread_mutex_init(&ready->mutex, 0);
-      pthread_cond_init(&ready->cond, 0);
-#endif
-}
-
-
-void FreeTcpReady(tcp_ready* ready)
-{
-#if defined(_POSIX_THREADS) && !defined(__MINGW32__)
-    pthread_mutex_destroy(&ready->mutex);
-    pthread_cond_destroy(&ready->cond);
-#else
-    (void)ready;
-#endif
-}
-
-
 void file_test(const char* file, byte* check)
 {
     FILE* f;
@@ -431,7 +391,7 @@ int main(int argc, char** argv)
     server_args.argc = argc;
     server_args.argv = argv;
 
-    ChangeDirToRoot();
+    ChangeToWolfRoot();
 
     wolfcrypt_test(&server_args);
     if (server_args.return_code != 0) return server_args.return_code;

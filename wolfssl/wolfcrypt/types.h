@@ -287,7 +287,14 @@
 	    DYNAMIC_TYPE_HASHES       = 46,
         DYNAMIC_TYPE_SRP          = 47,
         DYNAMIC_TYPE_COOKIE_PWD   = 48,
-        DYNAMIC_TYPE_USER_CRYPTO  = 49
+        DYNAMIC_TYPE_USER_CRYPTO  = 49,
+        DYNAMIC_TYPE_OCSP_REQUEST = 50,
+        DYNAMIC_TYPE_X509_EXT     = 51,
+        DYNAMIC_TYPE_X509_STORE   = 52,
+        DYNAMIC_TYPE_X509_CTX     = 53,
+        DYNAMIC_TYPE_URL          = 54,
+        DYNAMIC_TYPE_DTLS_FRAG    = 55,
+        DYNAMIC_TYPE_DTLS_BUFFER  = 56
 	};
 
 	/* max error buffer string size */

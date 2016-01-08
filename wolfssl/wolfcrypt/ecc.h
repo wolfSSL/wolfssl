@@ -41,7 +41,8 @@ enum {
     ECC_BUFSIZE     = 256,  /* for exported keys temp buffer */
     ECC_MINSIZE     = 20,   /* MIN Private Key size */
     ECC_MAXSIZE     = 66,   /* MAX Private Key size */
-    ECC_MAXSIZE_GEN = 74    /* MAX Buffer size required when generating ECC keys*/
+    ECC_MAXSIZE_GEN = 74,   /* MAX Buffer size required when generating ECC keys*/
+    ECC_MAX_PAD_SZ  = 4     /* ECC maximum padding size */
 };
 
 
@@ -83,6 +84,10 @@ typedef struct {
  *
  * Do not enable ALT_ECC_SIZE and disable fast math in the configuration.
  */
+
+#ifndef USE_FAST_MATH
+    #error USE_FAST_MATH must be defined to use ALT_ECC_SIZE
+#endif
 
 #ifndef FP_MAX_BITS_ECC
     #define FP_MAX_BITS_ECC           528

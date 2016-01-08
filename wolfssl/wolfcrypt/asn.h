@@ -187,8 +187,9 @@ enum Misc_ASN {
     MAX_CERTPOL_NB      = CTC_MAX_CERTPOL_NB,/* Max number of Cert Policy */
     MAX_CERTPOL_SZ      = CTC_MAX_CERTPOL_SZ,
 #endif
+    OCSP_NONCE_EXT_SZ   = 37,      /* OCSP Nonce Extension size */
     MAX_OCSP_EXT_SZ     = 58,      /* Max OCSP Extension length */
-    MAX_OCSP_NONCE_SZ   = 18,      /* OCSP Nonce size           */
+    MAX_OCSP_NONCE_SZ   = 16,      /* OCSP Nonce size           */
     EIGHTK_BUF          = 8192,    /* Tmp buffer size           */
     MAX_PUBLIC_KEY_SZ   = MAX_NTRU_ENC_SZ + MAX_ALGO_SZ + MAX_SEQ_SZ * 2,
                                    /* use bigger NTRU size */
@@ -197,11 +198,19 @@ enum Misc_ASN {
 
 
 enum Oid_Types {
-    hashType  = 0,
-    sigType   = 1,
-    keyType   = 2,
-    curveType = 3,
-    blkType   = 4
+    hashType         = 0,
+    sigType          = 1,
+    keyType          = 2,
+    curveType        = 3,
+    blkType          = 4,
+    ocspType         = 5,
+    certExtType      = 6,
+    certAuthInfoType = 7,
+    certPolicyType   = 8,
+    certAltNameType  = 9,
+    certKeyUseType   = 10,
+    kdfType          = 11,
+    ignoreType
 };
 
 
@@ -249,7 +258,6 @@ enum Extensions_Sum {
     ALT_NAMES_OID   = 131,
     CRL_DIST_OID    = 145,
     AUTH_INFO_OID   = 69,
-    CA_ISSUER_OID   = 117,
     AUTH_KEY_OID    = 149,
     SUBJ_KEY_OID    = 128,
     CERT_POLICY_OID = 146,
@@ -584,8 +592,10 @@ WOLFSSL_LOCAL int GetMyVersion(const byte* input, word32* inOutIdx,
                               int* version);
 WOLFSSL_LOCAL int GetInt(mp_int* mpi, const byte* input, word32* inOutIdx,
                         word32 maxIdx);
+WOLFSSL_LOCAL int GetObjectId(const byte* input, word32* inOutIdx, word32* oid,
+                              word32 oidType, word32 maxIdx);
 WOLFSSL_LOCAL int GetAlgoId(const byte* input, word32* inOutIdx, word32* oid,
-                           word32 maxIdx);
+                           word32 oidType, word32 maxIdx);
 WOLFSSL_LOCAL word32 SetLength(word32 length, byte* output);
 WOLFSSL_LOCAL word32 SetSequence(word32 len, byte* output);
 WOLFSSL_LOCAL word32 SetOctetString(word32 len, byte* output);
@@ -674,6 +684,9 @@ struct CertStatus {
     byte nextDate[MAX_DATE_SIZE];
     byte thisDateFormat;
     byte nextDateFormat;
+
+    byte*  rawOcspResponse;
+    word32 rawOcspResponseSz;
 };
 
 
@@ -707,28 +720,26 @@ struct OcspResponse {
 
 
 struct OcspRequest {
-    DecodedCert* cert;
+    byte   issuerHash[KEYID_SIZE];
+    byte   issuerKeyHash[KEYID_SIZE];
+    byte*  serial;   /* copy of the serial number in source cert */
+    int    serialSz;
+    byte*  url;      /* copy of the extAuthInfo in source cert */
+    int    urlSz;
 
-    byte    useNonce;
-    byte    nonce[MAX_OCSP_NONCE_SZ];
-    int     nonceSz;
-
-    byte*   issuerHash;      /* pointer to issuerHash in source cert */
-    byte*   issuerKeyHash;   /* pointer to issuerKeyHash in source cert */
-    byte*   serial;          /* pointer to serial number in source cert */
-    int     serialSz;        /* length of the serial number */
-
-    byte*   dest;            /* pointer to the destination ASN.1 buffer */
-    word32  destSz;          /* length of the destination buffer */
+    byte   nonce[MAX_OCSP_NONCE_SZ];
+    int    nonceSz;
 };
 
 
 WOLFSSL_LOCAL void InitOcspResponse(OcspResponse*, CertStatus*, byte*, word32);
-WOLFSSL_LOCAL int  OcspResponseDecode(OcspResponse*);
+WOLFSSL_LOCAL int  OcspResponseDecode(OcspResponse*, void*);
 
-WOLFSSL_LOCAL void InitOcspRequest(OcspRequest*, DecodedCert*,
-                                                          byte, byte*, word32);
-WOLFSSL_LOCAL int  EncodeOcspRequest(OcspRequest*);
+WOLFSSL_LOCAL int    InitOcspRequest(OcspRequest*, DecodedCert*, byte);
+WOLFSSL_LOCAL void   FreeOcspRequest(OcspRequest*);
+WOLFSSL_LOCAL int    EncodeOcspRequest(OcspRequest*, byte*, word32);
+WOLFSSL_LOCAL word32 EncodeOcspRequestExtensions(OcspRequest*, byte*, word32);
+
 
 WOLFSSL_LOCAL int  CompareOcspReqResp(OcspRequest*, OcspResponse*);
 
@@ -779,4 +790,3 @@ WOLFSSL_LOCAL void FreeDecodedCRL(DecodedCRL*);
 
 #endif /* !NO_ASN */
 #endif /* WOLF_CRYPT_ASN_H */
-

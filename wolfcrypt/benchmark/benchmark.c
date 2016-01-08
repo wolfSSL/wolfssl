@@ -122,6 +122,7 @@
     #pragma warning(disable: 4996)
 #endif
 
+#include "wolfcrypt/benchmark/benchmark.h"
 
 void bench_des(void);
 void bench_idea(void);
@@ -244,7 +245,7 @@ int benchmark_test(void *args)
 {
 #endif
 
-    wolfcrypt_Init();
+    wolfCrypt_Init();
 
     #if defined(DEBUG_WOLFSSL) && !defined(HAVE_VALGRIND)
         wolfSSL_Debugging_ON();
@@ -487,6 +488,29 @@ void bench_aesgcm(void)
                                               blockType, total, persec);
     SHOW_INTEL_CYCLES
     printf("\n");
+
+#if 0
+    start = current_time(1);
+    BEGIN_INTEL_CYCLES
+
+    for(i = 0; i < numBlocks; i++)
+        wc_AesGcmDecrypt(&enc, plain, cipher, sizeof(cipher), iv, 12,
+                        tag, 16, additional, 13);
+
+    END_INTEL_CYCLES
+    total = current_time(0) - start;
+
+    persec = 1 / total * numBlocks;
+#ifdef BENCH_EMBEDDED
+    /* since using kB, convert to MB/s */
+    persec = persec / 1024;
+#endif
+
+    printf("AES-GCM Decrypt %d %s took %5.3f seconds, %8.3f MB/s", numBlocks,
+                                              blockType, total, persec);
+    SHOW_INTEL_CYCLES
+    printf("\n");
+#endif
 }
 #endif
 

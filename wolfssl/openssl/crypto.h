@@ -14,6 +14,8 @@
 WOLFSSL_API const char*   wolfSSLeay_version(int type);
 WOLFSSL_API unsigned long wolfSSLeay(void);
 
+#define CRYPTO_THREADID void
+
 #define SSLeay_version wolfSSLeay_version
 #define SSLeay wolfSSLeay
 
@@ -28,6 +30,8 @@ WOLFSSL_API unsigned long wolfSSLeay(void);
 typedef struct CRYPTO_EX_DATA            CRYPTO_EX_DATA;
 typedef void (CRYPTO_free_func)(void*parent, void*ptr, CRYPTO_EX_DATA *ad, int idx,
         long argl, void* argp);
+#define CRYPTO_THREADID_set_callback wolfSSL_THREADID_set_callback
+#define CRYPTO_THREADID_set_numeric wolfSSL_THREADID_set_numeric
 #endif /* HAVE_STUNNEL */
 
 #endif /* header */

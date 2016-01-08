@@ -119,6 +119,8 @@ static void wolfssl_log(const int logLevel, const char *const logMessage)
             fflush(stdout) ;
             printf("%s\n", logMessage);
             fflush(stdout) ;
+#elif defined(WOLFSSL_LOG_PRINTF)
+            printf("%s\n", logMessage);
 #else
             fprintf(stderr, "%s\n", logMessage);
 #endif
@@ -131,6 +133,44 @@ void WOLFSSL_MSG(const char* msg)
 {
     if (loggingEnabled)
         wolfssl_log(INFO_LOG , msg);
+}
+
+
+void WOLFSSL_BUFFER(byte* buffer, word32 length)
+{
+    #define LINE_LEN 16
+
+    if (loggingEnabled) {
+        word32 i;
+        char line[80];
+
+        if (!buffer) {
+            wolfssl_log(INFO_LOG, "\tNULL");
+
+            return;
+        }
+
+        sprintf(line, "\t");
+
+        for (i = 0; i < LINE_LEN; i++) {
+            if (i < length)
+                sprintf(line + 1 + i * 3,"%02x ", buffer[i]);
+            else
+                sprintf(line + 1 + i * 3, "   ");
+        }
+
+        sprintf(line + 1 + LINE_LEN * 3, "| ");
+
+        for (i = 0; i < LINE_LEN; i++)
+            if (i < length)
+                sprintf(line + 3 + LINE_LEN * 3 + i,
+                     "%c", 31 < buffer[i] && buffer[i] < 127 ? buffer[i] : '.');
+
+        wolfssl_log(INFO_LOG, line);
+
+        if (length > LINE_LEN)
+            WOLFSSL_BUFFER(buffer + LINE_LEN, length - LINE_LEN);
+    }
 }
 
 

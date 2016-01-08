@@ -60,10 +60,7 @@ int unit_test(int argc, char** argv)
 #endif /* HAVE_CAVIUM */
 
 #ifndef WOLFSSL_TIRTOS
-    if (CurrentDir("tests") || CurrentDir("_build"))
-        ChangeDirBack(1);
-    else if (CurrentDir("Debug") || CurrentDir("Release"))
-        ChangeDirBack(3);
+    ChangeToWolfRoot();
 #endif
 
     ApiTest();
@@ -158,26 +155,3 @@ void join_thread(THREAD_TYPE thread)
 }
 
 
-void InitTcpReady(tcp_ready* ready)
-{
-    ready->ready = 0;
-    ready->port = 0;
-#ifdef SINGLE_THREADED
-#elif defined(_POSIX_THREADS) && !defined(__MINGW32__)
-      pthread_mutex_init(&ready->mutex, 0);
-      pthread_cond_init(&ready->cond, 0);
-#endif
-}
-
-
-void FreeTcpReady(tcp_ready* ready)
-{
-#ifdef SINGLE_THREADED
-    (void)ready;
-#elif defined(_POSIX_THREADS) && !defined(__MINGW32__)
-    pthread_mutex_destroy(&ready->mutex);
-    pthread_cond_destroy(&ready->cond);
-#else
-    (void)ready;
-#endif
-}

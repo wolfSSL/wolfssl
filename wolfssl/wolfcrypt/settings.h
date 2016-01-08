@@ -474,6 +474,7 @@ static char *fgets(char *buff, int sz, FILE *fp)
     #define USE_CERT_BUFFERS_2048
     #define NO_ERROR_STRINGS
     #define USER_TIME
+    #define HAVE_ECC
 
     #ifdef __IAR_SYSTEMS_ICC__
         #pragma diag_suppress=Pa089
@@ -1009,14 +1010,25 @@ static char *fgets(char *buff, int sz, FILE *fp)
     #endif
 #endif
 
-/* Certificate Request Extensions needs decode extras */
-#ifdef WOLFSSL_CERT_EXT
+/* Decode Public Key extras on by default, user can turn off with
+ * WOLFSSL_NO_DECODE_EXTRA */
+#ifndef WOLFSSL_NO_DECODE_EXTRA
     #ifndef RSA_DECODE_EXTRA
         #define RSA_DECODE_EXTRA
     #endif
     #ifndef ECC_DECODE_EXTRA
         #define ECC_DECODE_EXTRA
     #endif
+#endif
+
+/* C Sharp wrapper defines */
+#ifdef HAVE_CSHARP
+    #ifndef WOLFSSL_DTLS
+        #define WOLFSSL_DTLS
+    #endif
+    #undef NO_PSK
+    #undef NO_SHA256
+    #undef NO_DH
 #endif
 
 /* Place any other flags or defines here */

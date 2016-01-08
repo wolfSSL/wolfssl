@@ -38,6 +38,12 @@
 #include <wolfssl/test.h>
 #include <tests/unit.h>
 
+/* enable testing buffer load functions */
+#ifndef USE_CERT_BUFFERS_2048
+    #define USE_CERT_BUFFERS_2048
+#endif
+#include <wolfssl/certs_test.h>
+
 /*----------------------------------------------------------------------------*
  | Constants
  *----------------------------------------------------------------------------*/
@@ -232,6 +238,56 @@ static void test_wolfSSL_CTX_load_verify_locations(void)
 #endif
 }
 
+static void test_wolfSSL_CTX_SetTmpDH_file(void)
+{
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && !defined(NO_DH)
+    WOLFSSL_CTX *ctx;
+
+    AssertNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+
+    /* invalid context */
+    AssertIntNE(SSL_SUCCESS, wolfSSL_CTX_SetTmpDH_file(NULL,
+                dhParam, SSL_FILETYPE_PEM));
+
+    /* invalid dhParam file */
+    AssertIntNE(SSL_SUCCESS, wolfSSL_CTX_SetTmpDH_file(ctx,
+                NULL, SSL_FILETYPE_PEM));
+    AssertIntNE(SSL_SUCCESS, wolfSSL_CTX_SetTmpDH_file(ctx,
+                bogusFile, SSL_FILETYPE_PEM));
+
+    /* success */
+    AssertIntEQ(SSL_SUCCESS, wolfSSL_CTX_SetTmpDH_file(ctx, dhParam,
+                SSL_FILETYPE_PEM));
+
+    wolfSSL_CTX_free(ctx);
+#endif
+}
+
+static void test_wolfSSL_CTX_SetTmpDH_buffer(void)
+{
+#if !defined(NO_CERTS) && !defined(NO_DH)
+    WOLFSSL_CTX *ctx;
+
+    AssertNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+
+    /* invalid context */
+    AssertIntNE(SSL_SUCCESS, wolfSSL_CTX_SetTmpDH_buffer(NULL, dh_key_der_2048,
+                sizeof_dh_key_der_2048, SSL_FILETYPE_ASN1));
+
+    /* invalid dhParam file */
+    AssertIntNE(SSL_SUCCESS, wolfSSL_CTX_SetTmpDH_buffer(NULL, NULL,
+                0, SSL_FILETYPE_ASN1));
+    AssertIntNE(SSL_SUCCESS, wolfSSL_CTX_SetTmpDH_buffer(ctx, dsa_key_der_2048,
+                sizeof_dsa_key_der_2048, SSL_FILETYPE_ASN1));
+
+    /* success */
+    AssertIntEQ(SSL_SUCCESS, wolfSSL_CTX_SetTmpDH_buffer(ctx, dh_key_der_2048,
+                sizeof_dh_key_der_2048, SSL_FILETYPE_ASN1));
+
+    wolfSSL_CTX_free(ctx);
+#endif
+}
+
 /*----------------------------------------------------------------------------*
  | SSL
  *----------------------------------------------------------------------------*/
@@ -288,6 +344,71 @@ static void test_client_wolfSSL_new(void)
 
     wolfSSL_CTX_free(ctx);
     wolfSSL_CTX_free(ctx_nocert);
+#endif
+}
+
+static void test_wolfSSL_SetTmpDH_file(void)
+{
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && !defined(NO_DH)
+    WOLFSSL_CTX *ctx;
+    WOLFSSL *ssl;
+
+    AssertNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_server_method()));
+    AssertTrue(wolfSSL_CTX_use_certificate_file(ctx, svrCert,
+                SSL_FILETYPE_PEM));
+    AssertTrue(wolfSSL_CTX_use_PrivateKey_file(ctx, svrKey,
+                SSL_FILETYPE_PEM));
+    AssertNotNull(ssl = wolfSSL_new(ctx));
+
+    /* invalid ssl */
+    AssertIntNE(SSL_SUCCESS, wolfSSL_SetTmpDH_file(NULL,
+                dhParam, SSL_FILETYPE_PEM));
+
+    /* invalid dhParam file */
+    AssertIntNE(SSL_SUCCESS, wolfSSL_SetTmpDH_file(ssl,
+                NULL, SSL_FILETYPE_PEM));
+    AssertIntNE(SSL_SUCCESS, wolfSSL_SetTmpDH_file(ssl,
+                bogusFile, SSL_FILETYPE_PEM));
+
+    /* success */
+    AssertIntEQ(SSL_SUCCESS, wolfSSL_SetTmpDH_file(ssl, dhParam,
+                SSL_FILETYPE_PEM));
+
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+#endif
+}
+
+static void test_wolfSSL_SetTmpDH_buffer(void)
+{
+#if !defined(NO_CERTS) && !defined(NO_DH)
+    WOLFSSL_CTX *ctx;
+    WOLFSSL *ssl;
+
+    AssertNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_server_method()));
+    AssertTrue(wolfSSL_CTX_use_certificate_buffer(ctx, server_cert_der_2048,
+                sizeof_server_cert_der_2048, SSL_FILETYPE_ASN1));
+    AssertTrue(wolfSSL_CTX_use_PrivateKey_buffer(ctx, server_key_der_2048,
+                sizeof_server_key_der_2048, SSL_FILETYPE_ASN1));
+    AssertNotNull(ssl = wolfSSL_new(ctx));
+
+    /* invalid ssl */
+    AssertIntNE(SSL_SUCCESS, wolfSSL_SetTmpDH_buffer(NULL, dh_key_der_2048,
+                sizeof_dh_key_der_2048, SSL_FILETYPE_ASN1));
+
+    /* invalid dhParam file */
+    AssertIntNE(SSL_SUCCESS, wolfSSL_SetTmpDH_buffer(NULL, NULL,
+                0, SSL_FILETYPE_ASN1));
+    AssertIntNE(SSL_SUCCESS, wolfSSL_SetTmpDH_buffer(ssl, dsa_key_der_2048,
+                sizeof_dsa_key_der_2048, SSL_FILETYPE_ASN1));
+
+    /* success */
+    AssertIntEQ(SSL_SUCCESS, wolfSSL_SetTmpDH_buffer(ssl, dh_key_der_2048,
+                sizeof_dh_key_der_2048, SSL_FILETYPE_ASN1));
+
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+    printf("SUCCESS4\n");
 #endif
 }
 
@@ -1328,7 +1449,7 @@ static void verify_ALPN_client_list(WOLFSSL* ssl)
     AssertIntEQ(1, sizeof(alpn_list) == clistSz);
     AssertIntEQ(0, XMEMCMP(alpn_list, clist, clistSz));
 
-    XFREE(clist, 0, DYNAMIC_TYPE_OUT_BUFFER);
+    XFREE(clist, 0, DYNAMIC_TYPE_TLSX);
 }
 
 static void test_wolfSSL_UseALPN_connection(void)
@@ -1471,8 +1592,12 @@ void ApiTest(void)
     test_wolfSSL_CTX_use_certificate_file();
     test_wolfSSL_CTX_use_PrivateKey_file();
     test_wolfSSL_CTX_load_verify_locations();
+    test_wolfSSL_CTX_SetTmpDH_file();
+    test_wolfSSL_CTX_SetTmpDH_buffer();
     test_server_wolfSSL_new();
     test_client_wolfSSL_new();
+    test_wolfSSL_SetTmpDH_file();
+    test_wolfSSL_SetTmpDH_buffer();
     test_wolfSSL_read_write();
 
     /* TLS extensions tests */

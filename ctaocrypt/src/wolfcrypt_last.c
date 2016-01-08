@@ -30,6 +30,12 @@
 
 #ifdef HAVE_FIPS
 
+#ifdef USE_WINDOWS_API
+    #pragma code_seg(".fipsA$l")
+    #pragma const_seg(".fipsB$l")
+#endif
+
+
 /* last function of text/code segment */
 int wolfCrypt_FIPS_last(void);
 int wolfCrypt_FIPS_last(void)

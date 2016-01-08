@@ -34,25 +34,30 @@
     #define WOLFSSL_TRACK_MEMORY
 #endif
 
-#if defined(WOLFSSL_MDK_ARM)
+#if defined(WOLFSSL_MDK_ARM) || defined(WOLFSSL_KEIL_TCP_NET)
         #include <stdio.h>
         #include <string.h>
 
-        #if defined(WOLFSSL_MDK5)
+        #if  !defined(WOLFSSL_MDK_ARM)
             #include "cmsis_os.h"
             #include "rl_fs.h"
             #include "rl_net.h"
         #else
             #include "rtl.h"
+            #include "wolfssl_MDK_ARM.h"
         #endif
 
-        #include "wolfssl_MDK_ARM.h"
+
 #endif
 #include <cyassl/openssl/ssl.h>
 #include <cyassl/test.h>
 
 #include "examples/server/server.h"
 
+/* Note on using port 0: if the server uses port 0 to bind an ephemeral port
+ * number and is using the ready file for scripted testing, the code in
+ * test.h will write the actual port number into the ready file for use
+ * by the client. */
 
 #ifdef CYASSL_CALLBACKS
     int srvHandShakeCB(HandShakeInfo*);
@@ -194,13 +199,14 @@ static void Usage(void)
     printf("-c <file>   Certificate file,           default %s\n", svrCert);
     printf("-k <file>   Key file,                   default %s\n", svrKey);
     printf("-A <file>   Certificate Authority file, default %s\n", cliCert);
+    printf("-R <file>   Create Ready file for external monitor default none\n");
 #ifndef NO_DH
     printf("-D <file>   Diffie-Hellman Params file, default %s\n", dhParam);
     printf("-Z <num>    Minimum DH key bits,        default %d\n",
                                  DEFAULT_MIN_DHKEY_BITS);
 #endif
 #ifdef HAVE_ALPN
-    printf("-L <str>    Application-Layer Protocole Name ({C,F}:<list>)\n");
+    printf("-L <str>    Application-Layer Protocol Negotiation ({C,F}:<list>)\n");
 #endif
     printf("-d          Disable client cert check\n");
     printf("-b          Bind to any interface instead of localhost only\n");
@@ -209,7 +215,6 @@ static void Usage(void)
     printf("-u          Use UDP DTLS,"
            " add -v 2 for DTLSv1, -v 3 for DTLSv1.2 (default)\n");
     printf("-f          Fewer packets/group messages\n");
-    printf("-R          Create server ready file, for external monitor\n");
     printf("-r          Allow one client Resumption\n");
     printf("-N          Use Non-blocking sockets\n");
     printf("-S <str>    Use Host Name Indication\n");
@@ -229,6 +234,9 @@ static void Usage(void)
 #endif
     printf("-i          Loop indefinitely (allow repeated connections)\n");
     printf("-e          Echo data mode (return raw bytes received)\n");
+#ifdef HAVE_NTRU
+    printf("-n          Use NTRU key (needed for NTRU suites)\n");
+#endif
     printf("-B <num>    Benchmark throughput using <num> bytes and print stats\n");
 }
 
@@ -257,7 +265,6 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     int    trackMemory  = 0;
     int    fewerPackets = 0;
     int    pkCallbacks  = 0;
-    int    serverReadyFile = 0;
     int    wc_shutdown     = 0;
     int    resume = 0;
     int    resumeCount = 0;
@@ -266,7 +273,9 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     int    throughput = 0;
     int    minDhKeyBits = DEFAULT_MIN_DHKEY_BITS;
     int    doListen = 1;
+    int    crlFlags = 0;
     int    ret;
+    char*  serverReadyFile = NULL;
     char*  alpnList = NULL;
     unsigned char alpn_opt = 0;
     char*  cipherList = NULL;
@@ -274,6 +283,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     const char* ourCert    = svrCert;
     const char* ourKey     = svrKey;
     const char* ourDhParam = dhParam;
+    tcp_ready*  readySignal = NULL;
     int    argc = ((func_args*)args)->argc;
     char** argv = ((func_args*)args)->argv;
 
@@ -309,6 +319,8 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     (void)minDhKeyBits;
     (void)alpnList;
     (void)alpn_opt;
+    (void)crlFlags;
+    (void)readySignal;
 
 #ifdef CYASSL_TIRTOS
     fdOpenSession(Task_self());
@@ -317,7 +329,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
 #ifdef WOLFSSL_VXWORKS
     useAnyAddr = 1;
 #else
-    while ((ch = mygetopt(argc, argv, "?dbstnNufrRawPIp:v:l:A:c:k:Z:S:oO:D:L:ieB:"))
+    while ((ch = mygetopt(argc, argv, "?dbstnNufrawPIR:p:v:l:A:c:k:Z:S:oO:D:L:ieB:"))
                          != -1) {
         switch (ch) {
             case '?' :
@@ -355,7 +367,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
                 break;
 
             case 'R' :
-                serverReadyFile = 1;
+                serverReadyFile = myoptarg;
                 break;
 
             case 'r' :
@@ -372,7 +384,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
 
             case 'p' :
                 port = (word16)atoi(myoptarg);
-                #if !defined(NO_MAIN_DRIVER) || defined(USE_WINDOWS_API)
+                #if defined(USE_WINDOWS_API)
                     if (port == 0)
                         err_sys("port number cannot be 0");
                 #endif
@@ -598,7 +610,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
 
 #if !defined(NO_FILESYSTEM) && !defined(NO_CERTS)
     if (!usePsk && !useAnon) {
-        if (SSL_CTX_use_certificate_file(ctx, ourCert, SSL_FILETYPE_PEM)
+        if (SSL_CTX_use_certificate_chain_file(ctx, ourCert)
                                          != SSL_SUCCESS)
             err_sys("can't load server cert file, check file and run from"
                     " wolfSSL home dir");
@@ -672,7 +684,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
 #if defined(CYASSL_SNIFFER)
     /* don't use EDH, can't sniff tmp keys */
     if (cipherList == NULL) {
-        if (SSL_CTX_set_cipher_list(ctx, "AES256-SHA256") != SSL_SUCCESS)
+        if (SSL_CTX_set_cipher_list(ctx, "AES128-SHA") != SSL_SUCCESS)
             err_sys("server can't set cipher list 3");
     }
 #endif
@@ -709,10 +721,16 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
         wolfSSL_SetHsDoneCb(ssl, myHsDoneCb, NULL);
 #endif
 #ifdef HAVE_CRL
-        CyaSSL_EnableCRL(ssl, 0);
-        CyaSSL_LoadCRL(ssl, crlPemDir, SSL_FILETYPE_PEM, CYASSL_CRL_MONITOR |
-                                                         CYASSL_CRL_START_MON);
-        CyaSSL_SetCRL_Cb(ssl, CRL_CallBack);
+#ifdef HAVE_CRL_MONITOR
+        crlFlags = CYASSL_CRL_MONITOR | CYASSL_CRL_START_MON;
+#endif
+        if (CyaSSL_EnableCRL(ssl, 0) != SSL_SUCCESS)
+            err_sys("unable to enable CRL");
+        if (CyaSSL_LoadCRL(ssl, crlPemDir, SSL_FILETYPE_PEM, crlFlags)
+                                                                 != SSL_SUCCESS)
+            err_sys("unable to load CRL");
+        if (CyaSSL_SetCRL_Cb(ssl, CRL_CallBack) != SSL_SUCCESS)
+            err_sys("unable to set CRL callback url");
 #endif
 #ifdef HAVE_OCSP
         if (useOcsp) {
@@ -725,14 +743,29 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
                 CyaSSL_CTX_EnableOCSP(ctx, CYASSL_OCSP_NO_NONCE);
         }
 #endif
+#if defined(HAVE_CERTIFICATE_STATUS_REQUEST) \
+ || defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
+        if (wolfSSL_CTX_EnableOCSPStapling(ctx) != SSL_SUCCESS)
+            err_sys("can't enable OCSP Stapling Certificate Manager");
+        if (SSL_CTX_load_verify_locations(ctx, "certs/ocsp/intermediate1-ca-cert.pem", 0) != SSL_SUCCESS)
+            err_sys("can't load ca file, Please run from wolfSSL home dir");
+        if (SSL_CTX_load_verify_locations(ctx, "certs/ocsp/intermediate2-ca-cert.pem", 0) != SSL_SUCCESS)
+            err_sys("can't load ca file, Please run from wolfSSL home dir");
+        if (SSL_CTX_load_verify_locations(ctx, "certs/ocsp/intermediate3-ca-cert.pem", 0) != SSL_SUCCESS)
+            err_sys("can't load ca file, Please run from wolfSSL home dir");
+#endif
 #ifdef HAVE_PK_CALLBACKS
         if (pkCallbacks)
             SetupPkCallbacks(ctx, ssl);
 #endif
 
         /* do accept */
+        readySignal = ((func_args*)args)->signal;
+        if (readySignal) {
+            readySignal->srfName = serverReadyFile;
+        }
         tcp_accept(&sockfd, &clientfd, (func_args*)args, port, useAnyAddr,
-                       doDTLS, serverReadyFile, doListen);
+                       doDTLS, serverReadyFile ? 1 : 0, doListen);
         doListen = 0; /* Don't listen next time */
 
         SSL_set_fd(ssl, clientfd);
@@ -894,6 +927,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     int main(int argc, char** argv)
     {
         func_args args;
+        tcp_ready ready;
 
 #ifdef HAVE_CAVIUM
         int ret = OpenNitroxDevice(CAVIUM_DIRECT, CAVIUM_DEV_ID);
@@ -905,17 +939,14 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
 
         args.argc = argc;
         args.argv = argv;
+        args.signal = &ready;
+        InitTcpReady(&ready);
 
         CyaSSL_Init();
 #if defined(DEBUG_CYASSL) && !defined(WOLFSSL_MDK_SHELL)
         CyaSSL_Debugging_ON();
 #endif
-        if (CurrentDir("_build"))
-            ChangeDirBack(1);
-        else if (CurrentDir("server"))
-            ChangeDirBack(2);
-        else if (CurrentDir("Debug") || CurrentDir("Release"))
-            ChangeDirBack(3);
+        ChangeToWolfRoot();
 
 #ifdef HAVE_STACK_SIZE
         StackSizeCheck(&args, server_test);
@@ -923,6 +954,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
         server_test(&args);
 #endif
         CyaSSL_Cleanup();
+        FreeTcpReady(&ready);
 
 #ifdef HAVE_CAVIUM
         CspShutdown(CAVIUM_DEV_ID);
@@ -965,5 +997,3 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
         return 0;
     }
 #endif
-
-

@@ -715,11 +715,11 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
 
 #ifdef HAVE_CAVIUM
 
-#include <cyassl/ctaocrypt/logging.h>
+#include <wolfssl/wolfcrypt/logging.h>
 #include "cavium_common.h"
 
 /* Initiliaze RSA for use with Nitrox device */
-int RsaInitCavium(RsaKey* rsa, int devId)
+int wc_RsaInitCavium(RsaKey* rsa, int devId)
 {
     if (rsa == NULL)
         return -1;

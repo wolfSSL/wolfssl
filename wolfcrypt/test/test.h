@@ -1,4 +1,4 @@
-/* ctaocrypt/test/test.h
+/* wolfcrypt/test/test.h
  *
  * Copyright (C) 2006-2015 wolfSSL Inc.
  *
@@ -19,7 +19,9 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
-#pragma once
+#ifndef WOLFCRYPT_TEST_H
+#define WOLFCRYPT_TEST_H
+
 
 #ifdef __cplusplus
     extern "C" {
@@ -30,4 +32,7 @@ int wolfcrypt_test(void* args);
 #ifdef __cplusplus
     }  /* extern "C" */
 #endif
+
+
+#endif /* WOLFCRYPT_TEST_H */
 

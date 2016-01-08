@@ -1,0 +1,7 @@
+# vim:ft=automake
+# All paths should be given relative to the root
+#
+
+EXTRA_DIST += \
+	     certs/external/ca-globalsign-root-r2.pem \
+	     certs/external/ca-verisign-g5.pem

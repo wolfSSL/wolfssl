@@ -39,7 +39,9 @@ typedef struct WOLFSSL_OCSP WOLFSSL_OCSP;
 WOLFSSL_LOCAL int  InitOCSP(WOLFSSL_OCSP*, WOLFSSL_CERT_MANAGER*);
 WOLFSSL_LOCAL void FreeOCSP(WOLFSSL_OCSP*, int dynamic);
 
-WOLFSSL_LOCAL int  CheckCertOCSP(WOLFSSL_OCSP*, DecodedCert*);
+WOLFSSL_LOCAL int  CheckCertOCSP(WOLFSSL_OCSP*, DecodedCert*, void*);
+WOLFSSL_LOCAL int  CheckOcspRequest(WOLFSSL_OCSP* ocsp,
+                                               OcspRequest* ocspRequest, void*);
 
 #ifdef __cplusplus
     }  /* extern "C" */

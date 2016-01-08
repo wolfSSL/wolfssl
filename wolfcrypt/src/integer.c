@@ -125,6 +125,10 @@ int mp_init (mp_int * a)
 {
   int i;
 
+  /* Safeguard against passing in a null pointer */
+  if (a == NULL)
+    return MP_VAL;
+
   /* allocate memory required and clear it */
   a->dp = OPT_CAST(mp_digit) XMALLOC (sizeof (mp_digit) * MP_PREC, 0,
                                       DYNAMIC_TYPE_BIGINT);
@@ -274,6 +278,10 @@ int
 mp_copy (mp_int * a, mp_int * b)
 {
   int     res, n;
+
+  /* Safeguard against passing in a null pointer */
+  if (a == NULL || b == NULL)
+    return MP_VAL;
 
   /* if dst == src do nothing */
   if (a == b) {
@@ -665,7 +673,7 @@ int mp_mul_2d (mp_int * a, int b, mp_int * c)
       rr = (*tmpc >> shift) & mask;
 
       /* shift the current word and OR in the carry */
-      *tmpc = ((*tmpc << d) | r) & MP_MASK;
+      *tmpc = (mp_digit)(((*tmpc << d) | r) & MP_MASK);
       ++tmpc;
 
       /* set the carry to the carry bits of the current word */
@@ -1262,7 +1270,7 @@ int mp_cmp_d(mp_int * a, mp_digit b)
 void mp_set (mp_int * a, mp_digit b)
 {
   mp_zero (a);
-  a->dp[0] = b & MP_MASK;
+  a->dp[0] = (mp_digit)(b & MP_MASK);
   a->used  = (a->dp[0] != 0) ? 1 : 0;
 }
 
@@ -2089,7 +2097,7 @@ mp_montgomery_setup (mp_int * n, mp_digit * rho)
 
   /* rho = -1/m mod b */
   /* TAO, switched mp_word casts to mp_digit to shut up compiler */
-  *rho = (((mp_digit)1 << ((mp_digit) DIGIT_BIT)) - x) & MP_MASK;
+  *rho = (mp_digit)((((mp_digit)1 << ((mp_digit) DIGIT_BIT)) - x) & MP_MASK);
 
   return MP_OKAY;
 }
@@ -2719,7 +2727,7 @@ int mp_mul_2(mp_int * a, mp_int * b)
       rr = *tmpa >> ((mp_digit)(DIGIT_BIT - 1));
 
       /* now shift up this digit, add in the carry [from the previous] */
-      *tmpb++ = ((*tmpa++ << ((mp_digit)1)) | r) & MP_MASK;
+      *tmpb++ = (mp_digit)(((*tmpa++ << ((mp_digit)1)) | r) & MP_MASK);
 
       /* copy the carry that would be from the source
        * digit into the next iteration
@@ -2929,7 +2937,7 @@ int fast_s_mp_sqr (mp_int * a, mp_int * b)
     mp_digit *tmpb;
     tmpb = b->dp;
     for (ix = 0; ix < pa; ix++) {
-      *tmpb++ = W[ix] & MP_MASK;
+      *tmpb++ = (mp_digit)(W[ix] & MP_MASK);
     }
 
     /* clear unused digits [that existed in the old copy of c] */
@@ -3018,7 +3026,7 @@ int fast_s_mp_mul_digs (mp_int * a, mp_int * b, mp_int * c, int digs)
       }
 
       /* store term */
-      W[ix] = ((mp_digit)_W) & MP_MASK;
+      W[ix] = (mp_digit)(((mp_digit)_W) & MP_MASK);
 
       /* make next carry */
       _W = _W >> ((mp_word)DIGIT_BIT);
@@ -3741,7 +3749,7 @@ int fast_s_mp_mul_high_digs (mp_int * a, mp_int * b, mp_int * c, int digs)
       }
 
       /* store term */
-      W[ix] = ((mp_digit)_W) & MP_MASK;
+      W[ix] = (mp_digit)(((mp_digit)_W) & MP_MASK);
 
       /* make next carry */
       _W = _W >> ((mp_word)DIGIT_BIT);
@@ -3828,7 +3836,8 @@ int mp_sqrmod (mp_int * a, mp_int * b, mp_int * c)
 
 
 #if defined(HAVE_ECC) || !defined(NO_PWDBASED) || defined(WOLFSSL_SNIFFER) || \
-    defined(WOLFSSL_HAVE_WOLFSCEP) || defined(WOLFSSL_KEY_GEN)
+    defined(WOLFSSL_HAVE_WOLFSCEP) || defined(WOLFSSL_KEY_GEN) || \
+    defined(OPENSSL_EXTRA)
 
 /* single digit addition */
 int mp_add_d (mp_int* a, mp_digit b, mp_int* c)

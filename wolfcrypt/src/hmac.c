@@ -105,10 +105,10 @@ int wc_HKDF(int type, const byte* inKey, word32 inKeySz,
 
 
 #ifdef HAVE_CAVIUM
-    static void HmacCaviumFinal(Hmac* hmac, byte* hash);
-    static void HmacCaviumUpdate(Hmac* hmac, const byte* msg, word32 length);
-    static void HmacCaviumSetKey(Hmac* hmac, int type, const byte* key,
-                                 word32 length);
+    static int HmacCaviumFinal(Hmac* hmac, byte* hash);
+    static int HmacCaviumUpdate(Hmac* hmac, const byte* msg, word32 length);
+    static int HmacCaviumSetKey(Hmac* hmac, int type, const byte* key,
+                                word32 length);
 #endif
 
 static int InitHmac(Hmac* hmac, int type)
@@ -642,7 +642,7 @@ void wc_HmacFreeCavium(Hmac* hmac)
 }
 
 
-static void HmacCaviumFinal(Hmac* hmac, byte* hash)
+static int HmacCaviumFinal(Hmac* hmac, byte* hash)
 {
     word32 requestId;
 
@@ -650,12 +650,15 @@ static void HmacCaviumFinal(Hmac* hmac, byte* hash)
                 (byte*)hmac->ipad, hmac->dataLen, hmac->data, hash, &requestId,
                 hmac->devId) != 0) {
         WOLFSSL_MSG("Cavium Hmac failed");
+        return -1;
     }
     hmac->innerHashKeyed = 0;  /* tell update to start over if used again */
+
+    return 0;
 }
 
 
-static void HmacCaviumUpdate(Hmac* hmac, const byte* msg, word32 length)
+static int HmacCaviumUpdate(Hmac* hmac, const byte* msg, word32 length)
 {
     word16 add = (word16)length;
     word32 total;
@@ -663,7 +666,7 @@ static void HmacCaviumUpdate(Hmac* hmac, const byte* msg, word32 length)
 
     if (length > WOLFSSL_MAX_16BIT) {
         WOLFSSL_MSG("Too big msg for cavium hmac");
-        return;
+        return -1;
     }
 
     if (hmac->innerHashKeyed == 0) {  /* starting new */
@@ -674,13 +677,13 @@ static void HmacCaviumUpdate(Hmac* hmac, const byte* msg, word32 length)
     total = add + hmac->dataLen;
     if (total > WOLFSSL_MAX_16BIT) {
         WOLFSSL_MSG("Too big msg for cavium hmac");
-        return;
+        return -1;
     }
 
     tmp = XMALLOC(hmac->dataLen + add, NULL,DYNAMIC_TYPE_CAVIUM_TMP);
     if (tmp == NULL) {
         WOLFSSL_MSG("Out of memory for cavium update");
-        return;
+        return -1;
     }
     if (hmac->dataLen)
         XMEMCPY(tmp, hmac->data,  hmac->dataLen);
@@ -689,11 +692,13 @@ static void HmacCaviumUpdate(Hmac* hmac, const byte* msg, word32 length)
     hmac->dataLen += add;
     XFREE(hmac->data, NULL, DYNAMIC_TYPE_CAVIUM_TMP);
     hmac->data = tmp;
+
+    return 0;
 }
 
 
-static void HmacCaviumSetKey(Hmac* hmac, int type, const byte* key,
-                             word32 length)
+static int HmacCaviumSetKey(Hmac* hmac, int type, const byte* key,
+                            word32 length)
 {
     hmac->macType = (byte)type;
     if (type == MD5)
@@ -711,6 +716,8 @@ static void HmacCaviumSetKey(Hmac* hmac, int type, const byte* key,
     hmac->keyLen = (word16)length;
     /* store key in ipad */
     XMEMCPY(hmac->ipad, key, length);
+
+    return 0;
 }
 
 #endif /* HAVE_CAVIUM */

@@ -33,11 +33,12 @@
         #include <stdio.h>
         #include <string.h>
 
-        #if defined(WOLFSSL_MDK5) || defined(WOLFSSL_KEIL_TCP_NET)
+        #if !defined(WOLFSSL_MDK_ARM)
             #include "cmsis_os.h" 
             #include "rl_net.h"
         #else
             #include "rtl.h"
+            #include "wolfssl_MDK_ARM.h"
         #endif
         #if defined(WOLFSSL_MDK_SHELL)
             char * wolfssl_fgets ( char * str, int num, FILE * f ) ;
@@ -261,10 +262,7 @@ void echoclient_test(void* args)
         CyaSSL_Debugging_ON();
 #endif
 #ifndef CYASSL_TIRTOS
-        if (CurrentDir("echoclient"))
-            ChangeDirBack(2);
-        else if (CurrentDir("Debug") || CurrentDir("Release"))
-            ChangeDirBack(3);
+        ChangeToWolfRoot();
 #endif
         echoclient_test(&args);
 

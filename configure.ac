@@ -6,7 +6,7 @@
 #
 #
 
-AC_INIT([wolfssl],[3.6.9d],[https://github.com/wolfssl/wolfssl/issues],[wolfssl],[http://www.wolfssl.com])
+AC_INIT([wolfssl],[3.8.0],[https://github.com/wolfssl/wolfssl/issues],[wolfssl],[http://www.wolfssl.com])
 
 AC_CONFIG_AUX_DIR([build-aux])
 
@@ -35,7 +35,7 @@ AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_HEADERS([config.h:config.in])dnl Keep filename to 8.3 for MS-DOS.
 
 #shared library versioning
-WOLFSSL_LIBRARY_VERSION=1:0:0
+WOLFSSL_LIBRARY_VERSION=4:0:1
 #                       | | |
 #                +------+ | +---+
 #                |        |     |
@@ -70,6 +70,7 @@ m4_ifdef([AM_SILENT_RULES],[AM_SILENT_RULES([yes])])
 AC_CHECK_FUNCS([gethostbyname])
 AC_CHECK_FUNCS([getaddrinfo])
 AC_CHECK_FUNCS([gettimeofday])
+AC_CHECK_FUNCS([gmtime_r])
 AC_CHECK_FUNCS([inet_ntoa])
 AC_CHECK_FUNCS([memset])
 AC_CHECK_FUNCS([socket])
@@ -452,6 +453,7 @@ then
             AM_CFLAGS="$AM_CFLAGS -maes -msse4"
         fi
     fi
+    AS_IF([test "x$ENABLED_AESGCM" != "xno"],[AM_CCASFLAGS="$AM_CCASFLAGS -DHAVE_AESGCM"])
 fi
 
 if test "$ENABLED_INTELASM" = "yes"
@@ -1467,6 +1469,50 @@ then
 fi
 
 
+# Certificate Status Request : a.k.a. OCSP Stapling
+AC_ARG_ENABLE([ocspstapling],
+    [AS_HELP_STRING([--enable-ocspstapling],[Enable OCSP Stapling (default: disabled)])],
+    [ ENABLED_CERTIFICATE_STATUS_REQUEST=$enableval ],
+    [ ENABLED_CERTIFICATE_STATUS_REQUEST=no ]
+    )
+
+if test "x$ENABLED_CERTIFICATE_STATUS_REQUEST" = "xyes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_TLS_EXTENSIONS -DHAVE_CERTIFICATE_STATUS_REQUEST"
+
+    # Requires OCSP make sure on
+    if test "x$ENABLED_OCSP" = "xno"
+    then
+        ENABLED_OCSP="yes"
+        AM_CFLAGS="$AM_CFLAGS -DHAVE_OCSP"
+        AM_CONDITIONAL([BUILD_OCSP], [test "x$ENABLED_OCSP" = "xyes"])
+    fi
+fi
+
+AM_CONDITIONAL([BUILD_OCSP_STAPLING], [test "x$ENABLED_CERTIFICATE_STATUS_REQUEST" = "xyes"])
+
+# Certificate Status Request v2 : a.k.a. OCSP stapling v2
+AC_ARG_ENABLE([ocspstapling2],
+    [AS_HELP_STRING([--enable-ocspstapling2],[Enable OCSP Stapling v2 (default: disabled)])],
+    [ ENABLED_CERTIFICATE_STATUS_REQUEST_V2=$enableval ],
+    [ ENABLED_CERTIFICATE_STATUS_REQUEST_V2=no ]
+    )
+
+if test "x$ENABLED_CERTIFICATE_STATUS_REQUEST_V2" = "xyes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_TLS_EXTENSIONS -DHAVE_CERTIFICATE_STATUS_REQUEST_V2"
+
+    # Requires OCSP make sure on
+    if test "x$ENABLED_OCSP" = "xno"
+    then
+        ENABLED_OCSP="yes"
+        AM_CFLAGS="$AM_CFLAGS -DHAVE_OCSP"
+        AM_CONDITIONAL([BUILD_OCSP], [test "x$ENABLED_OCSP" = "xyes"])
+    fi
+fi
+
+AM_CONDITIONAL([BUILD_OCSP_STAPLING_V2], [test "x$ENABLED_CERTIFICATE_STATUS_REQUEST_V2" = "xyes"])
+
 # CRL
 AC_ARG_ENABLE([crl],
     [  --enable-crl            Enable CRL (default: disabled)],
@@ -1945,7 +1991,8 @@ then
     if test "x$ENABLED_ECC" = "xno"
     then
         ENABLED_ECC="yes"
-        AM_CFLAGS="$AM_CFLAGS -DHAVE_ECC"
+        AM_CFLAGS="$AM_CFLAGS -DHAVE_ECC -DTFM_ECC256 -DECC_SHAMIR"
+        AM_CONDITIONAL([BUILD_ECC], [test "x$ENABLED_ECC" = "xyes"])
     fi
     if test "x$ENABLED_PKCALLBACKS" = "xno"
     then
@@ -2262,8 +2309,9 @@ AC_ARG_WITH([cavium],
 
 # Fast RSA using Intel IPP
 ippdir="${srcdir}/IPP"
-ipplib="lib" # if autoconf guesses 32 changes lib directory
-fastRSA_headers=no
+ipplib="lib" # if autoconf guesses 32bit system changes lib directory
+fastRSA_found=no
+abs_path=`pwd`
 
 # set up variables used
 IPPLIBS=
@@ -2278,11 +2326,12 @@ AC_ARG_ENABLE([fast-rsa],
 
 if test "$ENABLED_USER_RSA" = "no" && test "$ENABLED_FIPS" = "no"; then
 
-if test "$enable_shared" = "no" && test "$ENABLED_FAST_RSA" = "yes"; then
     if test "$ac_cv_sizeof_long" = "4" && test "$ac_cv_sizeof_long_long" = "8"; then
         ipplib="lib_32" # 32 bit OS detected
     fi
 
+#   Use static IPP Libraries
+if test "$enable_shared" = "no" && test "$ENABLED_FAST_RSA" = "yes"; then
     case $host_os in
     *darwin*)
         ipplib="$ipplib/mac_static"
@@ -2299,92 +2348,100 @@ if test "$enable_shared" = "no" && test "$ENABLED_FAST_RSA" = "yes"; then
 
     AC_CHECK_FILES([$srcdir/IPP/$ipplib/libippcore.a $srcdir/IPP/$ipplib/libippcp.a], [], [ENABLED_FAST_RSA=no])
     AC_CHECK_FILES([$srcdir/IPP/include/ipp.h $srcdir/IPP/include/ippcp.h], [AM_CPPFLAGS="-I$srcdir/IPP/include $AM_CPPFLAGS"], [ENABLED_FAST_RSA=no])
-    LIB_STATIC_ADD="$srcdir/IPP/$ipplib/libippcp.a $srcdir/IPP/$ipplib/libippcore.a"
+    LIB_STATIC_ADD="$srcdir/IPP/$ipplib/libippcp.a $srcdir/IPP/$ipplib/libippcore.a $LIB_STATIC_ADD"
     if test "$ENABLED_FAST_RSA" = "no"; then
         AC_MSG_ERROR([Could not find fast rsa libraries])
     fi
 else
-# just check link and see if user has already exported paths
-if test "$ENABLED_FAST_RSA" = "yes"
-    then
-        AC_MSG_NOTICE([Checking if IPP crypto library installed])
-        AC_CHECK_HEADER([ippcp.h], [AC_CHECK_LIB([ippcp], [ippsRSAEncrypt_PKCSv15], [LIBS="$LIBS -lippcore"; fastRSA_headers=yes], [AS_UNSET([ac_cv_lib_ippcp_ippsRSAEncrypt_PKCSv15]); fastRSA_headers=no])], [fastRSA_headers=no])
-    if test "$fastRSA_headers" = "yes"; then
-        AM_LDFLAGS="${AM_LDFLAGS} -lippcore -lippcp"
-    fi
-fi
 
-# Don't cache the result so it can be checked again
-AS_UNSET([ac_cv_header_ippcp_h])
-AS_UNSET([ac_cv_header_ipp_h])
-
-if test "$fastRSA_headers" = "no"; then
-dnl set default paths
+#   Check for and use bundled IPP libraries
 if test "$ENABLED_FAST_RSA" = "yes"; then
     AC_MSG_NOTICE([Using local IPP crypto library])
-    # build and default locations on linux and mac
-    STORE_LDFLAGS=${LDFLAGS}
-    STORE_CPPFLAGS=${CPPFLAGS}
-    if test "$ac_cv_sizeof_long" = "4" && test "$ac_cv_sizeof_long_long" = "8"; then
-        ipplib="lib_32" # 32 bit OS detected
-    fi
-    # using LDFLAGS instead of AM_ temporarily to test link to library
-    LDFLAGS="-L$ippdir/$ipplib -lippcp -lippcore"
-    CPPFLAGS="-I$ippdir/include"
-    AC_CHECK_HEADERS([ippcp.h], [AC_CHECK_LIB([ippcp], [ippsRSAEncrypt_PKCSv15], [], [ENABLED_FAST_RSA=no])], [ENABLED_FAST_RSA=no])
 
-    if test "$ENABLED_FAST_RSA" = "yes"; then
-    # was succesfull so add tested LDFLAGS to AM_ flags
-    AM_LDFLAGS="${AM_LDFLAGS} ${LDFLAGS}"
-    AM_CPPFLAGS="${AM_CPPFLAGS} ${CPPFLAGS}"
+    AC_CHECK_FILES([$abs_path/IPP/include/ippcp.h],
+    [
+        # build and default locations on linux and mac
+        STORE_LDFLAGS=${LDFLAGS}
+        STORE_CPPFLAGS=${CPPFLAGS}
 
-    case $host_os in
-    *darwin*)
+        # using LDFLAGS instead of AM_ temporarily to test link to library
+        LDFLAGS="-L$ippdir/$ipplib -lippcp -lippcore"
+        CPPFLAGS="-I$ippdir/include"
+        AC_CHECK_HEADERS([ippcp.h], [AC_CHECK_LIB([ippcp], [ippsRSAEncrypt_PKCSv15], [fastRSA_found=yes], [fastRSA_found=no])], [fastRSA_found=no])
         name="$ippdir/$ipplib/libippcp"
-        IPPLIBS="${name}.dylib ${name}-9.0.dylib ${name}e9-9.0.dylib ${name}g9-9.0.dylib ${name}h9-9.0.dylib ${name}k0-9.0.dylib ${name}l9-9.0.dylib ${name}n8-9.0.dylib ${name}p8-9.0.dylib ${name}s8-9.0.dylib ${name}y8-9.0.dylib IPP/lib/libippcore.dylib IPP/lib/libippcore-9.0.dylib"
-        IPPLINK="mkdir -p src/.libs && ln -f ${name}.dylib src/.libs/libippcp.dylib && ln -f ${srcdir}/${name}-9.0.dylib src/.libs/libippcp-9.0.dylib && ln -f ${srcdir}/${name}e9-9.0.dylib src/.libs/libippcpe9-9.0.dylib && ln -f ${srcdir}/${name}g9-9.0.dylib src/.libs/libippcpg9-9.0.dylib && ln -f ${srcdir}/${name}h9-9.0.dylib src/.libs/libippcph9-9.0.dylib && ln -f ${srcdir}/${name}k0-9.0.dylib src/.libs/libippcpk0-9.0.dylib && ln -f ${srcdir}/${name}l9-9.0.dylib src/.libs/libippcpl9-9.0.dylib && ln -f ${srcdir}/${name}n8-9.0.dylib src/.libs/libippcpn8-9.0.dylib && ln -f ${srcdir}/${name}p8-9.0.dylib src/.libs/libippcpp8-9.0.dylib && ln -f ${srcdir}/${name}s8-9.0.dylib src/.libs/libippcps8-9.0.dylib && ln -f ${srcdir}/${name}y8-9.0.dylib src/.libs/libippcpy8-9.0.dylib && ln -f ${srcdir}/IPP/lib/libippcore.dylib src/.libs/libippcore.dylib && ln -f ${srcdir}/IPP/lib/libippcore-9.0.dylib src/.libs/libippcore-9.0.dylib"
-        break;;
+        case $host_os in
+        *darwin*)
+            # check file existence and conditionally set variables
+            AC_CHECK_FILES([$abs_path/IPP/$ipplib/libippcp.dylib], [
+            IPPLIBS="${name}.dylib ${name}-9.0.dylib ${name}e9-9.0.dylib ${name}g9-9.0.dylib ${name}h9-9.0.dylib ${name}k0-9.0.dylib ${name}l9-9.0.dylib ${name}n8-9.0.dylib ${name}p8-9.0.dylib ${name}s8-9.0.dylib ${name}y8-9.0.dylib IPP/lib/libippcore.dylib IPP/lib/libippcore-9.0.dylib"
+            IPPLINK="mkdir -p src/.libs && ln -f ${name}.dylib src/.libs/libippcp.dylib && ln -f ${srcdir}/${name}-9.0.dylib src/.libs/libippcp-9.0.dylib && ln -f ${srcdir}/${name}e9-9.0.dylib src/.libs/libippcpe9-9.0.dylib && ln -f ${srcdir}/${name}g9-9.0.dylib src/.libs/libippcpg9-9.0.dylib && ln -f ${srcdir}/${name}h9-9.0.dylib src/.libs/libippcph9-9.0.dylib && ln -f ${srcdir}/${name}k0-9.0.dylib src/.libs/libippcpk0-9.0.dylib && ln -f ${srcdir}/${name}l9-9.0.dylib src/.libs/libippcpl9-9.0.dylib && ln -f ${srcdir}/${name}n8-9.0.dylib src/.libs/libippcpn8-9.0.dylib && ln -f ${srcdir}/${name}p8-9.0.dylib src/.libs/libippcpp8-9.0.dylib && ln -f ${srcdir}/${name}s8-9.0.dylib src/.libs/libippcps8-9.0.dylib && ln -f ${srcdir}/${name}y8-9.0.dylib src/.libs/libippcpy8-9.0.dylib && ln -f ${srcdir}/IPP/lib/libippcore.dylib src/.libs/libippcore.dylib && ln -f ${srcdir}/IPP/lib/libippcore-9.0.dylib src/.libs/libippcore-9.0.dylib"
+            ], [fastRSA_found=no])
+            break;;
 
-    *linux*)
-        if test "$ac_cv_sizeof_long" = "4" && test "$ac_cv_sizeof_long_long" = "8"; then
-            name="$ippdir/$ipplib/libippcp"
-            IPPLIBS="${name}.so.9.0 ${name}g9.so.9.0 ${name}h9.so.9.0 ${name}p8.so.9.0 ${name}px.so.9.0 ${name}s8.so.9.0 ${name}.so ${name}w7.so.9.0 IPP/$ipplib/libippcore.so"
-            IPPLINK="mkdir -p src/.libs && ln -f ${name}.so.9.0 src/.libs/libippcp.so.9.0 && ln -f ${name}g9.so.9.0 src/.libs/libippcpg9.so.9.0 && ln -f ${name}h9.so.9.0 src/.libs/libippcph9.so.9.0 && ln -f ${name}p8.so.9.0 src/.libs/libippcpp8.so.9.0 && ln -f ${name}px.so.9.0 src/.libs/libippcppx.so.9.0 && ln -f ${name}s8.so.9.0 src/.libs/libippcps8.so.9.0 && ln -f ${name}.so src/.libs/libippcp.so && ln -f ${name}w7.so.9.0 src/.libs/libippcpw7.so.9.0 && ln -f IPP/$ipplib/libippcore.so src/.libs/libippcore.so && ln -f IPP/$ipplib/libippcore.so.9.0 src/.libs/libippcore.so.9.0"
-            else
-            name="$ippdir/$ipplib/libippcp"
-            IPPLIBS="${name}.so.9.0 ${name}e9.so.9.0 ${name}k0.so.9.0 ${name}l9.so.9.0 ${name}m7.so.9.0 ${name}mx.so.9.0 ${name}.so ${name}n8.so.9.0 ${name}y8.so.9.0 IPP/lib/libippcore.so"
-            IPPLINK="mkdir -p src/.libs && ln -f ${name}.so.9.0 src/.libs/libippcp.so.9.0 && ln -f ${name}e9.so.9.0 src/.libs/libippcpe9.so.9.0 && ln -f ${name}k0.so.9.0 src/.libs/libippcpk0.so.9.0 && ln -f ${name}l9.so.9.0 src/.libs/libippcpl9.so.9.0 && ln -f ${name}m7.so.9.0 src/.libs/libippcpm7.so.9.0 && ln -f ${name}mx.so.9.0 src/.libs/libippcpmx.so.9.0 && ln -f ${name}.so src/.libs/libippcp.so && ln -f ${name}n8.so.9.0 src/.libs/libippcpn8.so.9.0 && ln -f ${name}y8.so.9.0 src/.libs/libippcpy8.so.9.0 && ln -f IPP/lib/libippcore.so src/.libs/libippcore.so && ln -f IPP/lib/libippcore.so.9.0 src/.libs/libippcore.so.9.0"
+        *linux*)
+            # check file existence and conditionally set variables
+            AC_CHECK_FILES([$abs_path/IPP/$ipplib/libippcp.so.9.0], [
+            if test "$ac_cv_sizeof_long" = "4" && test "$ac_cv_sizeof_long_long" = "8"; then
+                IPPLIBS="${name}.so.9.0 ${name}g9.so.9.0 ${name}h9.so.9.0 ${name}p8.so.9.0 ${name}px.so.9.0 ${name}s8.so.9.0 ${name}.so ${name}w7.so.9.0 IPP/$ipplib/libippcore.so IPP/$ipplib/libippcore.so.9.0"
+                IPPLINK="mkdir -p src/.libs && ln -f ${name}.so.9.0 src/.libs/libippcp.so.9.0 && ln -f ${name}g9.so.9.0 src/.libs/libippcpg9.so.9.0 && ln -f ${name}h9.so.9.0 src/.libs/libippcph9.so.9.0 && ln -f ${name}p8.so.9.0 src/.libs/libippcpp8.so.9.0 && ln -f ${name}px.so.9.0 src/.libs/libippcppx.so.9.0 && ln -f ${name}s8.so.9.0 src/.libs/libippcps8.so.9.0 && ln -f ${name}.so src/.libs/libippcp.so && ln -f ${name}w7.so.9.0 src/.libs/libippcpw7.so.9.0 && ln -f IPP/$ipplib/libippcore.so src/.libs/libippcore.so && ln -f IPP/$ipplib/libippcore.so.9.0 src/.libs/libippcore.so.9.0"
+                else
+                IPPLIBS="${name}.so.9.0 ${name}e9.so.9.0 ${name}k0.so.9.0 ${name}l9.so.9.0 ${name}m7.so.9.0 ${name}mx.so.9.0 ${name}.so ${name}n8.so.9.0 ${name}y8.so.9.0 IPP/lib/libippcore.so IPP/lib/libippcore.so.9.0"
+                IPPLINK="mkdir -p src/.libs && ln -f ${name}.so.9.0 src/.libs/libippcp.so.9.0 && ln -f ${name}e9.so.9.0 src/.libs/libippcpe9.so.9.0 && ln -f ${name}k0.so.9.0 src/.libs/libippcpk0.so.9.0 && ln -f ${name}l9.so.9.0 src/.libs/libippcpl9.so.9.0 && ln -f ${name}m7.so.9.0 src/.libs/libippcpm7.so.9.0 && ln -f ${name}mx.so.9.0 src/.libs/libippcpmx.so.9.0 && ln -f ${name}.so src/.libs/libippcp.so && ln -f ${name}n8.so.9.0 src/.libs/libippcpn8.so.9.0 && ln -f ${name}y8.so.9.0 src/.libs/libippcpy8.so.9.0 && ln -f IPP/lib/libippcore.so src/.libs/libippcore.so && ln -f IPP/lib/libippcore.so.9.0 src/.libs/libippcore.so.9.0"
+            fi
+            ], [fastRSA_found=no])
+            break;;
+        *)
+            fastRSA_found=no
+        esac
+
+        if test "$fastRSA_found" = "yes"; then
+            # was succesfull so add tested LDFLAGS to AM_ flags
+            AM_LDFLAGS="${AM_LDFLAGS} ${LDFLAGS}"
+            AM_CPPFLAGS="${AM_CPPFLAGS} ${CPPFLAGS}"
+            IPPHEADERS="${srcdir}/IPP/include/*.h"
         fi
-        break;;
-    *)
-        ENABLED_FAST_RSA=no
-    esac
-    fi
-    # restore LDFLAGS to user set
-    LDFLAGS=${STORE_LDFLAGS}
-    CPPFLAGS=${STORE_CPPFLAGS}
-    IPPHEADERS="${srcdir}/IPP/include/*.h"
+
+        # restore LDFLAGS to user set
+        LDFLAGS=${STORE_LDFLAGS}
+        CPPFLAGS=${STORE_CPPFLAGS}
+    ], [fastRSA_found=no])
+fi
+
+# Don't cache the result so it can be checked
+AS_UNSET([ac_cv_header_ippcp_h])
+AS_UNSET([ac_cv_header_ipp_h])
+AS_UNSET([ac_cv_lib_ippcp_ippsRSAEncrypt_PKCSv15]);
+
+#   Check link and see if user has pre-existing IPP Libraries if not using local
+if test "$ENABLED_FAST_RSA" = "yes" && test "$fastRSA_found" = "no"; then
+    AC_MSG_NOTICE([Checking if IPP crypto library installed])
+    AC_CHECK_HEADER([ippcp.h], [AC_CHECK_LIB([ippcp], [ippsRSAEncrypt_PKCSv15],
+        [
+            fastRSA_found=yes
+            AM_LDFLAGS="${AM_LDFLAGS} -lippcore -lippcp"
+        ], [ fastRSA_found=no])
+    ], [fastRSA_found=no])
 
     # Error out on not finding libraries
-    if test "$ENABLED_FAST_RSA" = "no"; then
+    if test "$fastRSA_found" = "no"; then
         AC_MSG_ERROR([Could not find fast rsa libraries])
     fi
 fi
-fi # end of if found exported paths
 fi # end of if for shared library
 else # if user rsa is set than do not use fast rsa option
     if test "$ENABLED_FAST_RSA" = "yes"; then
         AC_MSG_ERROR([Could not use fast rsa libraries with user crypto or fips])
     fi
-fi # end of if for user rsa crypto
+fi # end of if for user rsa crypto or fips
 
+#   End result of checking for IPP Libraries
 AC_MSG_CHECKING([for fast RSA])
 if test "$ENABLED_FAST_RSA" = "yes"; then
     AM_CFLAGS="$AM_CFLAGS -DHAVE_FAST_RSA -DHAVE_USER_RSA"
     # add in user crypto header that uses Intel IPP
     AM_CPPFLAGS="$AM_CPPFLAGS -I$srcdir/wolfcrypt/user-crypto/include"
     if test "$enable_shared" = "yes"; then
-        LIBS="$LIBS -lippcore"
+        LIBS="$LIBS -lippcore -lippcp"
         LIB_ADD="-lippcp -lippcore $LIB_ADD"
     else
         LIB_ADD="$srcdir/IPP/$ipplib/libippcp.a $srcdir/IPP/$ipplib/libippcore.a $LIB_ADD"
@@ -2397,7 +2454,6 @@ fi
 AC_SUBST([IPPLIBS])
 AC_SUBST([IPPHEADERS])
 AC_SUBST([IPPLINK])
-# Found IPP library now build in user crypto to use it
 AM_CONDITIONAL([BUILD_FAST_RSA], [test "x$ENABLED_FAST_RSA" = "xyes"])
 
 
@@ -2500,6 +2556,7 @@ CREATE_HEX_VERSION
 AC_SUBST([AM_CPPFLAGS])
 AC_SUBST([AM_CFLAGS])
 AC_SUBST([AM_LDFLAGS])
+AC_SUBST([AM_CCASFLAGS])
 AC_SUBST([LIB_ADD])
 AC_SUBST([LIB_STATIC_ADD])
 
@@ -2548,7 +2605,9 @@ echo " *" >> $OPTION_FILE
 echo " */" >> $OPTION_FILE
 
 echo "" >> $OPTION_FILE
-echo "#pragma once" >> $OPTION_FILE
+echo "#ifndef WOLFSSL_OPTIONS_H" >> $OPTION_FILE
+echo "#define WOLFSSL_OPTIONS_H" >> $OPTION_FILE
+echo "" >> $OPTION_FILE
 echo "" >> $OPTION_FILE
 echo "#ifdef __cplusplus" >> $OPTION_FILE
 echo "extern \"C\" {" >> $OPTION_FILE
@@ -2594,6 +2653,9 @@ echo "#ifdef __cplusplus" >> $OPTION_FILE
 echo "}" >> $OPTION_FILE
 echo "#endif" >> $OPTION_FILE
 echo "" >> $OPTION_FILE
+echo "" >> $OPTION_FILE
+echo "#endif /* WOLFSSL_OPTIONS_H */" >> $OPTION_FILE
+echo "" >> $OPTION_FILE
 echo
 
 #backwards compatability for those who have included options or version
@@ -2607,106 +2669,113 @@ do
     echo "$line" >> cyassl/options.h
 done < $OPTION_FILE
 
+# switch ifdef protection in cyassl/option.h to CYASSL_OPTONS_H, remove bak
+sed -i.bak 's/WOLFSSL_OPTIONS_H/CYASSL_OPTIONS_H/g' cyassl/options.h
+rm cyassl/options.h.bak
+
 # output config summary
 echo "---"
 echo "Configuration summary for $PACKAGE_NAME version $VERSION"
 echo ""
-echo "   * Installation prefix:       $prefix"
-echo "   * System type:               $host_vendor-$host_os"
-echo "   * Host CPU:                  $host_cpu"
-echo "   * C Compiler:                $CC"
-echo "   * C Flags:                   $CFLAGS"
-echo "   * C++ Compiler:              $CXX"
-echo "   * C++ Flags:                 $CXXFLAGS"
-echo "   * CPP Flags:                 $CPPFLAGS"
-echo "   * LIB Flags:                 $LIB"
-echo "   * Debug enabled:             $ax_enable_debug"
-echo "   * Warnings as failure:       $ac_cv_warnings_as_errors"
-echo "   * make -j:                   $enable_jobserver"
-echo "   * VCS checkout:              $ac_cv_vcs_checkout"
+echo "   * Installation prefix:        $prefix"
+echo "   * System type:                $host_vendor-$host_os"
+echo "   * Host CPU:                   $host_cpu"
+echo "   * C Compiler:                 $CC"
+echo "   * C Flags:                    $CFLAGS"
+echo "   * C++ Compiler:               $CXX"
+echo "   * C++ Flags:                  $CXXFLAGS"
+echo "   * CPP Flags:                  $CPPFLAGS"
+echo "   * CCAS Flags:                 $CCASFLAGS"
+echo "   * LIB Flags:                  $LIB"
+echo "   * Debug enabled:              $ax_enable_debug"
+echo "   * Warnings as failure:        $ac_cv_warnings_as_errors"
+echo "   * make -j:                    $enable_jobserver"
+echo "   * VCS checkout:               $ac_cv_vcs_checkout"
 echo
 echo "   Features "
-echo "   * Single threaded:           $ENABLED_SINGLETHREADED"
-echo "   * Filesystem:                $ENABLED_FILESYSTEM"
-echo "   * OpenSSH Build:             $ENABLED_OPENSSH"
-echo "   * OpenSSL Extra API:         $ENABLED_OPENSSLEXTRA"
-echo "   * Max Strength Build:        $ENABLED_MAXSTRENGTH"
-echo "   * fastmath:                  $ENABLED_FASTMATH"
-echo "   * sniffer:                   $ENABLED_SNIFFER"
-echo "   * snifftest:                 $ENABLED_SNIFFTEST"
-echo "   * ARC4:                      $ENABLED_ARC4"
-echo "   * AES:                       $ENABLED_AES"
-echo "   * AES-NI:                    $ENABLED_AESNI"
-echo "   * AES-GCM:                   $ENABLED_AESGCM"
-echo "   * AES-CCM:                   $ENABLED_AESCCM"
-echo "   * DES3:                      $ENABLED_DES3"
-echo "   * IDEA:                      $ENABLED_IDEA"
-echo "   * Camellia:                  $ENABLED_CAMELLIA"
-echo "   * NULL Cipher:               $ENABLED_NULL_CIPHER"
-echo "   * MD5:                       $ENABLED_MD5"
-echo "   * RIPEMD:                    $ENABLED_RIPEMD"
-echo "   * SHA:                       $ENABLED_SHA"
-echo "   * SHA-512:                   $ENABLED_SHA512"
-echo "   * BLAKE2:                    $ENABLED_BLAKE2"
-echo "   * keygen:                    $ENABLED_KEYGEN"
-echo "   * certgen:                   $ENABLED_CERTGEN"
-echo "   * certreq:                   $ENABLED_CERTREQ"
-echo "   * certext:                   $ENABLED_CERTEXT"
-echo "   * HC-128:                    $ENABLED_HC128"
-echo "   * RABBIT:                    $ENABLED_RABBIT"
-echo "   * CHACHA:                    $ENABLED_CHACHA"
-echo "   * Hash DRBG:                 $ENABLED_HASHDRBG"
-echo "   * PWDBASED:                  $ENABLED_PWDBASED"
-echo "   * wolfCrypt Only:            $ENABLED_CRYPTONLY"
-echo "   * HKDF:                      $ENABLED_HKDF"
-echo "   * MD4:                       $ENABLED_MD4"
-echo "   * PSK:                       $ENABLED_PSK"
-echo "   * Poly1305:                  $ENABLED_POLY1305"
-echo "   * LEANPSK:                   $ENABLED_LEANPSK"
-echo "   * RSA:                       $ENABLED_RSA"
-echo "   * DSA:                       $ENABLED_DSA"
-echo "   * DH:                        $ENABLED_DH"
-echo "   * ECC:                       $ENABLED_ECC"
-echo "   * CURVE25519:                $ENABLED_CURVE25519"
-echo "   * ED25519:                   $ENABLED_ED25519"
-echo "   * FPECC:                     $ENABLED_FPECC"
-echo "   * ECC_ENCRYPT:               $ENABLED_ECC_ENCRYPT"
-echo "   * ASN:                       $ENABLED_ASN"
-echo "   * Anonymous cipher:          $ENABLED_ANON"
-echo "   * CODING:                    $ENABLED_CODING"
-echo "   * MEMORY:                    $ENABLED_MEMORY"
-echo "   * I/O POOL:                  $ENABLED_IOPOOL"
-echo "   * LIGHTY:                    $ENABLED_LIGHTY"
-echo "   * STUNNEL:                   $ENABLED_STUNNEL"
-echo "   * ERROR_STRINGS:             $ENABLED_ERROR_STRINGS"
-echo "   * DTLS:                      $ENABLED_DTLS"
-echo "   * Old TLS Versions:          $ENABLED_OLD_TLS"
-echo "   * SSL version 3.0:           $ENABLED_SSLV3"
-echo "   * OCSP:                      $ENABLED_OCSP"
-echo "   * CRL:                       $ENABLED_CRL"
-echo "   * CRL-MONITOR:               $ENABLED_CRL_MONITOR"
-echo "   * Persistent session cache:  $ENABLED_SAVESESSION"
-echo "   * Persistent cert    cache:  $ENABLED_SAVECERT"
-echo "   * Atomic User Record Layer:  $ENABLED_ATOMICUSER"
-echo "   * Public Key Callbacks:      $ENABLED_PKCALLBACKS"
-echo "   * NTRU:                      $ENABLED_NTRU"
-echo "   * SNI:                       $ENABLED_SNI"
-echo "   * ALPN:                      $ENABLED_ALPN"
-echo "   * Maximum Fragment Length:   $ENABLED_MAX_FRAGMENT"
-echo "   * Truncated HMAC:            $ENABLED_TRUNCATED_HMAC"
-echo "   * Renegotiation Indication:  $ENABLED_RENEGOTIATION_INDICATION"
-echo "   * Secure Renegotiation:      $ENABLED_SECURE_RENEGOTIATION"
-echo "   * Supported Elliptic Curves: $ENABLED_SUPPORTED_CURVES"
-echo "   * Session Ticket:            $ENABLED_SESSION_TICKET"
-echo "   * All TLS Extensions:        $ENABLED_TLSX"
-echo "   * PKCS#7                     $ENABLED_PKCS7"
-echo "   * wolfSCEP                   $ENABLED_WOLFSCEP"
-echo "   * Secure Remote Password     $ENABLED_SRP"
-echo "   * Small Stack:               $ENABLED_SMALL_STACK"
-echo "   * valgrind unit tests:       $ENABLED_VALGRIND"
-echo "   * LIBZ:                      $ENABLED_LIBZ"
-echo "   * Examples:                  $ENABLED_EXAMPLES"
-echo "   * User Crypto:               $ENABLED_USER_CRYPTO"
-echo "   * Fast RSA:                  $ENABLED_FAST_RSA"
+echo "   * Single threaded:            $ENABLED_SINGLETHREADED"
+echo "   * Filesystem:                 $ENABLED_FILESYSTEM"
+echo "   * OpenSSH Build:              $ENABLED_OPENSSH"
+echo "   * OpenSSL Extra API:          $ENABLED_OPENSSLEXTRA"
+echo "   * Max Strength Build:         $ENABLED_MAXSTRENGTH"
+echo "   * fastmath:                   $ENABLED_FASTMATH"
+echo "   * sniffer:                    $ENABLED_SNIFFER"
+echo "   * snifftest:                  $ENABLED_SNIFFTEST"
+echo "   * ARC4:                       $ENABLED_ARC4"
+echo "   * AES:                        $ENABLED_AES"
+echo "   * AES-NI:                     $ENABLED_AESNI"
+echo "   * AES-GCM:                    $ENABLED_AESGCM"
+echo "   * AES-CCM:                    $ENABLED_AESCCM"
+echo "   * DES3:                       $ENABLED_DES3"
+echo "   * IDEA:                       $ENABLED_IDEA"
+echo "   * Camellia:                   $ENABLED_CAMELLIA"
+echo "   * NULL Cipher:                $ENABLED_NULL_CIPHER"
+echo "   * MD5:                        $ENABLED_MD5"
+echo "   * RIPEMD:                     $ENABLED_RIPEMD"
+echo "   * SHA:                        $ENABLED_SHA"
+echo "   * SHA-512:                    $ENABLED_SHA512"
+echo "   * BLAKE2:                     $ENABLED_BLAKE2"
+echo "   * keygen:                     $ENABLED_KEYGEN"
+echo "   * certgen:                    $ENABLED_CERTGEN"
+echo "   * certreq:                    $ENABLED_CERTREQ"
+echo "   * certext:                    $ENABLED_CERTEXT"
+echo "   * HC-128:                     $ENABLED_HC128"
+echo "   * RABBIT:                     $ENABLED_RABBIT"
+echo "   * CHACHA:                     $ENABLED_CHACHA"
+echo "   * Hash DRBG:                  $ENABLED_HASHDRBG"
+echo "   * PWDBASED:                   $ENABLED_PWDBASED"
+echo "   * wolfCrypt Only:             $ENABLED_CRYPTONLY"
+echo "   * HKDF:                       $ENABLED_HKDF"
+echo "   * MD4:                        $ENABLED_MD4"
+echo "   * PSK:                        $ENABLED_PSK"
+echo "   * Poly1305:                   $ENABLED_POLY1305"
+echo "   * LEANPSK:                    $ENABLED_LEANPSK"
+echo "   * RSA:                        $ENABLED_RSA"
+echo "   * DSA:                        $ENABLED_DSA"
+echo "   * DH:                         $ENABLED_DH"
+echo "   * ECC:                        $ENABLED_ECC"
+echo "   * CURVE25519:                 $ENABLED_CURVE25519"
+echo "   * ED25519:                    $ENABLED_ED25519"
+echo "   * FPECC:                      $ENABLED_FPECC"
+echo "   * ECC_ENCRYPT:                $ENABLED_ECC_ENCRYPT"
+echo "   * ASN:                        $ENABLED_ASN"
+echo "   * Anonymous cipher:           $ENABLED_ANON"
+echo "   * CODING:                     $ENABLED_CODING"
+echo "   * MEMORY:                     $ENABLED_MEMORY"
+echo "   * I/O POOL:                   $ENABLED_IOPOOL"
+echo "   * LIGHTY:                     $ENABLED_LIGHTY"
+echo "   * STUNNEL:                    $ENABLED_STUNNEL"
+echo "   * ERROR_STRINGS:              $ENABLED_ERROR_STRINGS"
+echo "   * DTLS:                       $ENABLED_DTLS"
+echo "   * Old TLS Versions:           $ENABLED_OLD_TLS"
+echo "   * SSL version 3.0:            $ENABLED_SSLV3"
+echo "   * OCSP:                       $ENABLED_OCSP"
+echo "   * OCSP Stapling:              $ENABLED_CERTIFICATE_STATUS_REQUEST"
+echo "   * OCSP Stapling v2:           $ENABLED_CERTIFICATE_STATUS_REQUEST_V2"
+echo "   * CRL:                        $ENABLED_CRL"
+echo "   * CRL-MONITOR:                $ENABLED_CRL_MONITOR"
+echo "   * Persistent session cache:   $ENABLED_SAVESESSION"
+echo "   * Persistent cert    cache:   $ENABLED_SAVECERT"
+echo "   * Atomic User Record Layer:   $ENABLED_ATOMICUSER"
+echo "   * Public Key Callbacks:       $ENABLED_PKCALLBACKS"
+echo "   * NTRU:                       $ENABLED_NTRU"
+echo "   * Server Name Indication:     $ENABLED_SNI"
+echo "   * ALPN:                       $ENABLED_ALPN"
+echo "   * Maximum Fragment Length:    $ENABLED_MAX_FRAGMENT"
+echo "   * Truncated HMAC:             $ENABLED_TRUNCATED_HMAC"
+echo "   * Supported Elliptic Curves:  $ENABLED_SUPPORTED_CURVES"
+echo "   * Session Ticket:             $ENABLED_SESSION_TICKET"
+echo "   * Renegotiation Indication:   $ENABLED_RENEGOTIATION_INDICATION"
+echo "   * Secure Renegotiation:       $ENABLED_SECURE_RENEGOTIATION"
+echo "   * All TLS Extensions:         $ENABLED_TLSX"
+echo "   * PKCS#7                      $ENABLED_PKCS7"
+echo "   * wolfSCEP                    $ENABLED_WOLFSCEP"
+echo "   * Secure Remote Password      $ENABLED_SRP"
+echo "   * Small Stack:                $ENABLED_SMALL_STACK"
+echo "   * valgrind unit tests:        $ENABLED_VALGRIND"
+echo "   * LIBZ:                       $ENABLED_LIBZ"
+echo "   * Examples:                   $ENABLED_EXAMPLES"
+echo "   * User Crypto:                $ENABLED_USER_CRYPTO"
+echo "   * Fast RSA:                   $ENABLED_FAST_RSA"
 echo ""
 echo "---"

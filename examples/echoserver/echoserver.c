@@ -29,19 +29,18 @@
     #include <cyassl/ctaocrypt/ecc.h>   /* ecc_fp_free */
 #endif
 
-#if defined(WOLFSSL_MDK_ARM)
+#if defined(WOLFSSL_MDK_ARM) || defined(WOLFSSL_KEIL_TCP_NET)
         #include <stdio.h>
         #include <string.h>
 
-        #if defined(WOLFSSL_MDK5)
+        #if !defined(WOLFSSL_MDK_ARM)
             #include "cmsis_os.h"
             #include "rl_fs.h" 
             #include "rl_net.h" 
         #else
             #include "rtl.h"
+            #include "wolfssl_MDK_ARM.h"
         #endif
-
-        #include "wolfssl_MDK_ARM.h"
 #endif
 
 #include <cyassl/ssl.h>
@@ -153,7 +152,7 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
 
 #ifndef NO_FILESYSTEM
     if (doPSK == 0) {
-    #ifdef HAVE_NTRU
+    #if defined(HAVE_NTRU) && defined(WOLFSSL_STATIC_RSA)
         /* ntru */
         if (CyaSSL_CTX_use_certificate_file(ctx, ntruCert, SSL_FILETYPE_PEM)
                 != SSL_SUCCESS)
@@ -393,10 +392,7 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
 #if defined(DEBUG_CYASSL) && !defined(CYASSL_MDK_SHELL)
         CyaSSL_Debugging_ON();
 #endif
-        if (CurrentDir("echoserver"))
-            ChangeDirBack(2);
-        else if (CurrentDir("Debug") || CurrentDir("Release"))
-            ChangeDirBack(3);
+        ChangeToWolfRoot();
         echoserver_test(&args);
         CyaSSL_Cleanup();
 

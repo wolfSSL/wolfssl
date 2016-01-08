@@ -267,6 +267,7 @@
 typedef struct tcp_ready {
     word16 ready;              /* predicate */
     word16 port;
+    char*  srfName;     /* server ready file name */
 #if defined(_POSIX_THREADS) && !defined(__MINGW32__)
     pthread_mutex_t mutex;
     pthread_cond_t  cond;
@@ -274,8 +275,30 @@ typedef struct tcp_ready {
 } tcp_ready;
 
 
-void InitTcpReady(tcp_ready*);
-void FreeTcpReady(tcp_ready*);
+static INLINE void InitTcpReady(tcp_ready* ready)
+{
+    ready->ready = 0;
+    ready->port = 0;
+    ready->srfName = NULL;
+#ifdef SINGLE_THREADED
+#elif defined(_POSIX_THREADS) && !defined(__MINGW32__)
+      pthread_mutex_init(&ready->mutex, 0);
+      pthread_cond_init(&ready->cond, 0);
+#endif
+}
+
+
+static INLINE void FreeTcpReady(tcp_ready* ready)
+{
+#ifdef SINGLE_THREADED
+    (void)ready;
+#elif defined(_POSIX_THREADS) && !defined(__MINGW32__)
+    pthread_mutex_destroy(&ready->mutex);
+    pthread_cond_destroy(&ready->cond);
+#else
+    (void)ready;
+#endif
+}
 
 typedef WOLFSSL_METHOD* (*method_provider)(void);
 typedef void (*ctx_callback)(WOLFSSL_CTX* ctx);
@@ -295,6 +318,9 @@ typedef struct func_args {
     tcp_ready* signal;
     callback_functions *callbacks;
 } func_args;
+
+
+
 
 void wait_tcp_ready(func_args*);
 
@@ -455,7 +481,12 @@ static INLINE void showPeer(WOLFSSL* ssl)
     printf("SSL version is %s\n", wolfSSL_get_version(ssl));
 
     cipher = wolfSSL_get_current_cipher(ssl);
+#ifdef HAVE_QSH
+    printf("SSL cipher suite is %s%s\n", (wolfSSL_isQSH(ssl))? "QSH:": "",
+            wolfSSL_CIPHER_get_name(cipher));
+#else
     printf("SSL cipher suite is %s\n", wolfSSL_CIPHER_get_name(cipher));
+#endif
 
 #if defined(SESSION_CERTS) && defined(SHOW_CERTS)
     {
@@ -702,7 +733,7 @@ static INLINE void tcp_listen(SOCKET_T* sockfd, word16* port, int useAnyAddr,
         if (listen(*sockfd, 5) != 0)
             err_sys("tcp listen failed");
     }
-    #if (defined(NO_MAIN_DRIVER) && !defined(USE_WINDOWS_API)) && !defined(WOLFSSL_TIRTOS)
+    #if !defined(USE_WINDOWS_API) && !defined(WOLFSSL_TIRTOS)
         if (*port == 0) {
             socklen_t len = sizeof(addr);
             if (getsockname(*sockfd, (struct sockaddr*)&addr, &len) == 0) {
@@ -815,11 +846,13 @@ static INLINE void tcp_accept(SOCKET_T* sockfd, SOCKET_T* clientfd,
         /* signal ready to tcp_accept */
         {
         tcp_ready* ready = args->signal;
-        pthread_mutex_lock(&ready->mutex);
-        ready->ready = 1;
-        ready->port = port;
-        pthread_cond_signal(&ready->cond);
-        pthread_mutex_unlock(&ready->mutex);
+        if (ready) {
+            pthread_mutex_lock(&ready->mutex);
+            ready->ready = 1;
+            ready->port = port;
+            pthread_cond_signal(&ready->cond);
+            pthread_mutex_unlock(&ready->mutex);
+        }
         }
     #elif defined (WOLFSSL_TIRTOS)
         /* Need mutex? */
@@ -829,18 +862,24 @@ static INLINE void tcp_accept(SOCKET_T* sockfd, SOCKET_T* clientfd,
     #endif
 
         if (ready_file) {
-    #ifndef NO_FILESYSTEM
-        #ifndef USE_WINDOWS_API
-            FILE* srf = fopen("/tmp/wolfssl_server_ready", "w");
-        #else
-            FILE* srf = fopen("wolfssl_server_ready", "w");
-        #endif
+        #ifndef NO_FILESYSTEM
+            FILE* srf = NULL;
+            tcp_ready* ready = args ? args->signal : NULL;
 
-            if (srf) {
-                fputs("ready", srf);
-                fclose(srf);
+            if (ready) {
+                srf = fopen(ready->srfName, "w");
+
+                if (srf) {
+                    /* let's write port sever is listening on to ready file
+                       external monitor can then do ephemeral ports by passing
+                       -p 0 to server on supported platforms with -R ready_file
+                       client can then wait for exisitence of ready_file and see
+                       which port the server is listening on. */
+                    fprintf(srf, "%d\n", (int)port);
+                    fclose(srf);
+                }
             }
-    #endif
+        #endif
         }
     }
 
@@ -1160,87 +1199,49 @@ static INLINE int OpenNitroxDevice(int dma_mode,int dev_id)
 #endif /* HAVE_CAVIUM */
 
 
-#ifdef USE_WINDOWS_API
+/* Wolf Root Directory Helper */
+/* KEIL-RL File System does not support relative directry */
+#if !defined(WOLFSSL_MDK_ARM) && !defined(WOLFSSL_KEIL_FS) && !defined(WOLFSSL_TIRTOS)
+    #ifndef MAX_PATH
+        #define MAX_PATH 256
+    #endif
 
-/* do back x number of directories */
-static INLINE void ChangeDirBack(int x)
-{
-    char path[MAX_PATH];
-    XMEMSET(path, 0, MAX_PATH);
-    XSTRNCAT(path, ".\\", MAX_PATH);
-    while (x-- > 0) {
-        XSTRNCAT(path, "..\\", MAX_PATH);
+    /* Maximum depth to search for WolfSSL root */
+    #define MAX_WOLF_ROOT_DEPTH 5
+
+    static INLINE int ChangeToWolfRoot(void)
+    {
+        #if !defined(NO_FILESYSTEM) 
+            int depth;
+            XFILE file;
+            char path[MAX_PATH];
+            XMEMSET(path, 0, MAX_PATH);
+
+            for(depth = 0; depth <= MAX_WOLF_ROOT_DEPTH; depth++) {
+                file = XFOPEN(ntruKey, "rb");
+                if (file != XBADFILE) {
+                    XFCLOSE(file);
+                    return depth;
+                }
+                #ifdef USE_WINDOWS_API
+                    XSTRNCAT(path, "..\\", MAX_PATH - XSTRLEN(path));
+                    SetCurrentDirectoryA(path);
+                #else
+                    XSTRNCAT(path, "../", MAX_PATH - XSTRLEN(path));
+                    if (chdir(path) < 0) {
+                        printf("chdir to %s failed\n", path);
+                        break;
+                    }
+                #endif
+            }
+        
+            err_sys("wolf root not found");
+            return -1;
+        #else
+            return 0;
+        #endif
     }
-    SetCurrentDirectoryA(path);
-}
-
-/* does current dir contain str */
-static INLINE int CurrentDir(const char* str)
-{
-    char  path[MAX_PATH];
-    char* baseName;
-
-    GetCurrentDirectoryA(sizeof(path), path);
-
-    baseName = strrchr(path, '\\');
-    if (baseName)
-        baseName++;
-    else
-        baseName = path;
-
-    if (strstr(baseName, str))
-        return 1;
-
-    return 0;
-}
-
-#elif defined(WOLFSSL_MDK_ARM) || defined(WOLFSSL_KEIL_FS)
-    /* KEIL-RL File System does not support relative directry */
-#elif defined(WOLFSSL_TIRTOS)
-#else
-
-#ifndef MAX_PATH
-    #define MAX_PATH 256
-#endif
-
-/* do back x number of directories */
-static INLINE void ChangeDirBack(int x)
-{
-    char path[MAX_PATH];
-    XMEMSET(path, 0, MAX_PATH);
-    XSTRNCAT(path, "./", MAX_PATH);
-    while (x-- > 0) {
-        XSTRNCAT(path, "../", MAX_PATH);
-    }
-    if (chdir(path) < 0) {
-        printf("chdir to %s failed\n", path);
-    }
-}
-
-/* does current dir contain str */
-static INLINE int CurrentDir(const char* str)
-{
-    char  path[MAX_PATH];
-    char* baseName;
-
-    if (getcwd(path, sizeof(path)) == NULL) {
-        printf("no current dir?\n");
-        return 0;
-    }
-
-    baseName = strrchr(path, '/');
-    if (baseName)
-        baseName++;
-    else
-        baseName = path;
-
-    if (strstr(baseName, str))
-        return 1;
-
-    return 0;
-}
-
-#endif /* USE_WINDOWS_API */
+#endif /* !defined(WOLFSSL_MDK_ARM) && !defined(WOLFSSL_KEIL_FS) && !defined(WOLFSSL_TIRTOS) */
 
 
 #ifdef USE_WOLFSSL_MEMORY
@@ -1373,7 +1374,7 @@ typedef THREAD_RETURN WOLFSSL_THREAD (*thread_func)(void* args);
 static INLINE void StackSizeCheck(func_args* args, thread_func tf)
 {
     int            ret, i, used;
-    unsigned char* myStack;
+    unsigned char* myStack = NULL;
     int            stackSize = 1024*128;
     pthread_attr_t myAttr;
     pthread_t      threadId;
@@ -1384,10 +1385,10 @@ static INLINE void StackSizeCheck(func_args* args, thread_func tf)
 #endif
 
     ret = posix_memalign((void**)&myStack, sysconf(_SC_PAGESIZE), stackSize);
-    if (ret != 0)
+    if (ret != 0 || myStack == NULL)
         err_sys("posix_memalign failed\n");
 
-    memset(myStack, 0x01, stackSize);
+    XMEMSET(myStack, 0x01, stackSize);
 
     ret = pthread_attr_init(&myAttr);
     if (ret != 0)

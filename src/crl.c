@@ -55,11 +55,18 @@ int InitCRL(WOLFSSL_CRL* crl, WOLFSSL_CERT_MANAGER* cm)
     crl->monitors[0].path = NULL;
     crl->monitors[1].path = NULL;
 #ifdef HAVE_CRL_MONITOR
-    crl->tid =  0;
-    crl->mfd = -1;   /* mfd for bsd is kqueue fd, eventfd for linux */
+    crl->tid   =  0;
+    crl->mfd   = -1;    /* mfd for bsd is kqueue fd, eventfd for linux */
+    crl->setup = 0;     /* thread setup done predicate */
+    if (pthread_cond_init(&crl->cond, 0) != 0) {
+        WOLFSSL_MSG("Pthread condition init failed");
+        return BAD_COND_E;
+    }
 #endif
-    if (InitMutex(&crl->crlLock) != 0)
-        return BAD_MUTEX_E; 
+    if (InitMutex(&crl->crlLock) != 0) {
+        WOLFSSL_MSG("Init Mutex failed");
+        return BAD_MUTEX_E;
+    }
 
     return 0;
 }
@@ -120,7 +127,7 @@ void FreeCRL(WOLFSSL_CRL* crl, int dynamic)
         FreeCRL_Entry(tmp);
         XFREE(tmp, NULL, DYNAMIC_TYPE_CRL_ENTRY);
         tmp = next;
-    }	
+    }
 
 #ifdef HAVE_CRL_MONITOR
     if (crl->tid != 0) {
@@ -128,10 +135,10 @@ void FreeCRL(WOLFSSL_CRL* crl, int dynamic)
         if (StopMonitor(crl->mfd) == 0)
             pthread_join(crl->tid, NULL);
         else {
-            WOLFSSL_MSG("stop monitor failed, cancel instead");
-            pthread_cancel(crl->tid);
+            WOLFSSL_MSG("stop monitor failed");
         }
     }
+    pthread_cond_destroy(&crl->cond);
 #endif
     FreeMutex(&crl->crlLock);
     if (dynamic)   /* free self */
@@ -324,6 +331,29 @@ int BufferLoadCRL(WOLFSSL_CRL* crl, const byte* buff, long sz, int type)
 #ifdef HAVE_CRL_MONITOR
 
 
+/* Signal Monitor thread is setup, save status to setup flag, 0 on success */
+static int SignalSetup(WOLFSSL_CRL* crl, int status)
+{
+    int ret;
+
+    /* signal to calling thread we're setup */
+    if (LockMutex(&crl->crlLock) != 0) {
+        WOLFSSL_MSG("LockMutex crlLock failed");
+        return BAD_MUTEX_E;
+    }
+
+        crl->setup = status;
+        ret = pthread_cond_signal(&crl->cond);
+
+    UnLockMutex(&crl->crlLock);
+
+    if (ret != 0)
+        return BAD_COND_E;
+
+    return 0;
+}
+
+
 /* read in new CRL entries and save new list */
 static int SwapLists(WOLFSSL_CRL* crl)
 {
@@ -451,6 +481,7 @@ static void* DoMonitor(void* arg)
     crl->mfd = kqueue();
     if (crl->mfd == -1) {
         WOLFSSL_MSG("kqueue failed");
+        SignalSetup(crl, MONITOR_SETUP_E);
         return NULL;
     }
 
@@ -458,6 +489,7 @@ static void* DoMonitor(void* arg)
     EV_SET(&change, CRL_CUSTOM_FD, EVFILT_USER, EV_ADD, 0, 0, NULL);
     if (kevent(crl->mfd, &change, 1, NULL, 0, NULL) < 0) {
         WOLFSSL_MSG("kevent monitor customer event failed");
+        SignalSetup(crl, MONITOR_SETUP_E);
         close(crl->mfd);
         return NULL;
     }
@@ -469,6 +501,7 @@ static void* DoMonitor(void* arg)
         fPEM = open(crl->monitors[0].path, XEVENT_MODE);
         if (fPEM == -1) {
             WOLFSSL_MSG("PEM event dir open failed");
+            SignalSetup(crl, MONITOR_SETUP_E);
             close(crl->mfd);
             return NULL;
         }
@@ -478,7 +511,10 @@ static void* DoMonitor(void* arg)
         fDER = open(crl->monitors[1].path, XEVENT_MODE);
         if (fDER == -1) {
             WOLFSSL_MSG("DER event dir open failed");
+            if (fPEM != -1)
+                close(fPEM);
             close(crl->mfd);
+            SignalSetup(crl, MONITOR_SETUP_E);
             return NULL;
         }
     }
@@ -490,6 +526,16 @@ static void* DoMonitor(void* arg)
     if (fDER != -1)
         EV_SET(&change, fDER, EVFILT_VNODE, EV_ADD | EV_ENABLE | EV_ONESHOT,
                 NOTE_DELETE | NOTE_EXTEND | NOTE_WRITE | NOTE_ATTRIB, 0, 0);
+
+    /* signal to calling thread we're setup */
+    if (SignalSetup(crl, 1) != 0) {
+        if (fPEM != -1)
+            close(fPEM);
+        if (fDER != -1)
+            close(fDER);
+        close(crl->mfd);
+        return NULL;
+    }
 
     for (;;) {
         struct kevent event;
@@ -571,6 +617,7 @@ static void* DoMonitor(void* arg)
     crl->mfd = eventfd(0, 0);  /* our custom shutdown event */
     if (crl->mfd < 0) {
         WOLFSSL_MSG("eventfd failed");
+        SignalSetup(crl, MONITOR_SETUP_E);
         return NULL;
     }
 
@@ -578,6 +625,7 @@ static void* DoMonitor(void* arg)
     if (notifyFd < 0) {
         WOLFSSL_MSG("inotify failed");
         close(crl->mfd);
+        SignalSetup(crl, MONITOR_SETUP_E);
         return NULL;
     }
 
@@ -588,6 +636,7 @@ static void* DoMonitor(void* arg)
             WOLFSSL_MSG("PEM notify add watch failed");
             close(crl->mfd);
             close(notifyFd);
+            SignalSetup(crl, MONITOR_SETUP_E);
             return NULL;
         }
     }
@@ -599,6 +648,7 @@ static void* DoMonitor(void* arg)
             WOLFSSL_MSG("DER notify add watch failed");
             close(crl->mfd);
             close(notifyFd);
+            SignalSetup(crl, MONITOR_SETUP_E);
             return NULL;
         }
     }
@@ -608,6 +658,19 @@ static void* DoMonitor(void* arg)
     if (buff == NULL)
         return NULL;
 #endif
+
+    /* signal to calling thread we're setup */
+    if (SignalSetup(crl, 1) != 0) {
+        #ifdef WOLFSSL_SMALL_STACK
+            XFREE(buff, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        #endif
+
+        if (wd > 0)
+            inotify_rm_watch(notifyFd, wd);
+        close(crl->mfd);
+        close(notifyFd);
+        return NULL;
+    }
 
     for (;;) {
         fd_set readfds;
@@ -666,26 +729,47 @@ static void* DoMonitor(void* arg)
 /* Start Monitoring the CRL path(s) in a thread */
 static int StartMonitorCRL(WOLFSSL_CRL* crl)
 {
-    pthread_attr_t attr;
+    int ret = SSL_SUCCESS;
 
     WOLFSSL_ENTER("StartMonitorCRL");
 
-    if (crl == NULL) 
+    if (crl == NULL)
         return BAD_FUNC_ARG;
 
     if (crl->tid != 0) {
         WOLFSSL_MSG("Monitor thread already running");
-        return MONITOR_RUNNING_E;
+        return ret;  /* that's ok, someone already started */
     }
 
-    pthread_attr_init(&attr);
-
-    if (pthread_create(&crl->tid, &attr, DoMonitor, crl) != 0) {
+    if (pthread_create(&crl->tid, NULL, DoMonitor, crl) != 0) {
         WOLFSSL_MSG("Thread creation error");
         return THREAD_CREATE_E;
     }
 
-    return SSL_SUCCESS;
+    /* wait for setup to complete */
+    if (LockMutex(&crl->crlLock) != 0) {
+        WOLFSSL_MSG("LockMutex crlLock error");
+        return BAD_MUTEX_E;
+    }
+
+        while (crl->setup == 0) {
+            if (pthread_cond_wait(&crl->cond, &crl->crlLock) != 0) {
+                ret = BAD_COND_E;
+                break;
+            }
+        }
+
+        if (crl->setup < 0)
+            ret = crl->setup;  /* store setup error */
+
+    UnLockMutex(&crl->crlLock);
+
+    if (ret < 0) {
+        WOLFSSL_MSG("DoMonitor setup failure");
+        crl->tid = 0;  /* thread already done */
+    }
+
+    return ret;
 }
 
 

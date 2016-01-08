@@ -1,5 +1,5 @@
 #
-# wolfssl configuration file 
+# wolfssl configuration file
 #
 HOME        = .
 RANDFILE    = $ENV::HOME/.rnd
@@ -20,7 +20,7 @@ default_ca  = CA_default        # The default ca section
 [ CA_default ]
 
 ####################################################################
-# CHANGE THIS LINE TO BE YOUR WOLFSSL_ROOT DIRECTORY                #
+# CHANGE THIS LINE TO BE YOUR WOLFSSL_ROOT DIRECTORY               #
 #                                                                  #
 dir             = $HOME./..                                        #
 ####################################################################
@@ -158,7 +158,7 @@ dir                     = ./demoCA                              # directory
 serial                  = $dir/tsaserial                        # (mandatory)
 crypto_device           = builtin                               # engine
 signer_cert             = $dir/tsacert.pem                      # certificate
-certs                   = $dir/cacert.pem                       # chain 
+certs                   = $dir/cacert.pem                       # chain
 signer_key              = $dir/private/tsakey.pem               # (optional)
 default_policy          = tsa_policy1                           # Policy
 other_policies          = tsa_policy2, tsa_policy3              # (optional)

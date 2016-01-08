@@ -39,13 +39,15 @@
 
 #ifndef HAVE_FIPS /* to avoid redefinition of macros */
 #ifdef HAVE_CAVIUM
-    #include <wolfssl/ctaocrypt/logging.h>
+    #include <wolfssl/wolfcrypt/logging.h>
     #include "cavium_common.h"
 #endif
 
 #ifdef WOLFSSL_AESNI
 
 #include <wmmintrin.h>
+#include <emmintrin.h>
+#include <smmintrin.h>
 
 #if !defined (ALIGN16)
     #if defined (__GNUC__)

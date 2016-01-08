@@ -170,35 +170,36 @@ typedef struct WOLFSSL_X509_STORE_CTX {
 
 /* Valid Alert types from page 16/17 */
 enum AlertDescription {
-    close_notify            = 0,
-    unexpected_message      = 10,
-    bad_record_mac          = 20,
-    record_overflow         = 22,
-    decompression_failure   = 30,
-    handshake_failure       = 40,
-    no_certificate          = 41,
-    bad_certificate         = 42,
-    unsupported_certificate = 43,
-    certificate_revoked     = 44,
-    certificate_expired     = 45,
-    certificate_unknown     = 46,
-    illegal_parameter       = 47,
-    decrypt_error           = 51,
+    close_notify                    =   0,
+    unexpected_message              =  10,
+    bad_record_mac                  =  20,
+    record_overflow                 =  22,
+    decompression_failure           =  30,
+    handshake_failure               =  40,
+    no_certificate                  =  41,
+    bad_certificate                 =  42,
+    unsupported_certificate         =  43,
+    certificate_revoked             =  44,
+    certificate_expired             =  45,
+    certificate_unknown             =  46,
+    illegal_parameter               =  47,
+    decrypt_error                   =  51,
     #ifdef WOLFSSL_MYSQL_COMPATIBLE
     /* catch name conflict for enum protocol with MYSQL build */
-    wc_protocol_version     = 70,
+    wc_protocol_version             =  70,
     #else
-    protocol_version        = 70,
+    protocol_version                =  70,
     #endif
-    no_renegotiation        = 100,
-    unrecognized_name       = 112,
-    no_application_protocol = 120
+    no_renegotiation                = 100,
+    unrecognized_name               = 112, /**< RFC 6066, section 3 */
+    bad_certificate_status_response = 113, /**< RFC 6066, section 8 */
+    no_application_protocol         = 120
 };
 
 
 enum AlertLevel {
     alert_warning = 1,
-    alert_fatal = 2
+    alert_fatal   = 2
 };
 
 
@@ -1268,6 +1269,9 @@ WOLFSSL_API void* wolfSSL_GetRsaDecCtx(WOLFSSL* ssl);
     WOLFSSL_API int wolfSSL_CertManagerSetOCSP_Cb(WOLFSSL_CERT_MANAGER*,
                                                CbOCSPIO, CbOCSPRespFree, void*);
 
+    WOLFSSL_API int wolfSSL_CertManagerEnableOCSPStapling(
+                                                      WOLFSSL_CERT_MANAGER* cm);
+
     WOLFSSL_API int wolfSSL_EnableCRL(WOLFSSL* ssl, int options);
     WOLFSSL_API int wolfSSL_DisableCRL(WOLFSSL* ssl);
     WOLFSSL_API int wolfSSL_LoadCRL(WOLFSSL*, const char*, int, int);
@@ -1286,6 +1290,8 @@ WOLFSSL_API void* wolfSSL_GetRsaDecCtx(WOLFSSL* ssl);
     WOLFSSL_API int wolfSSL_CTX_SetOCSP_OverrideURL(WOLFSSL_CTX*, const char*);
     WOLFSSL_API int wolfSSL_CTX_SetOCSP_Cb(WOLFSSL_CTX*,
                                                CbOCSPIO, CbOCSPRespFree, void*);
+
+    WOLFSSL_API int wolfSSL_CTX_EnableOCSPStapling(WOLFSSL_CTX*);
 #endif /* !NO_CERTS */
 
 /* end of handshake frees temporary arrays, if user needs for get_keys or
@@ -1353,7 +1359,7 @@ WOLFSSL_API int wolfSSL_SNI_GetFromBuffer(
 #endif
 #endif
 
-/* Application-Layer Protocol Name */
+/* Application-Layer Protocol Negotiation */
 #ifdef HAVE_ALPN
 
 /* ALPN status code */
@@ -1406,6 +1412,53 @@ WOLFSSL_API int wolfSSL_CTX_UseMaxFragment(WOLFSSL_CTX* ctx, unsigned char mfl);
 
 WOLFSSL_API int wolfSSL_UseTruncatedHMAC(WOLFSSL* ssl);
 WOLFSSL_API int wolfSSL_CTX_UseTruncatedHMAC(WOLFSSL_CTX* ctx);
+
+#endif
+#endif
+
+/* Certificate Status Request */
+/* Certificate Status Type */
+enum {
+    WOLFSSL_CSR_OCSP = 1
+};
+
+/* Certificate Status Options (flags) */
+enum {
+    WOLFSSL_CSR_OCSP_USE_NONCE = 0x01
+};
+
+#ifdef HAVE_CERTIFICATE_STATUS_REQUEST
+#ifndef NO_WOLFSSL_CLIENT
+
+WOLFSSL_API int wolfSSL_UseOCSPStapling(WOLFSSL* ssl,
+                              unsigned char status_type, unsigned char options);
+
+WOLFSSL_API int wolfSSL_CTX_UseOCSPStapling(WOLFSSL_CTX* ctx,
+                              unsigned char status_type, unsigned char options);
+
+#endif
+#endif
+
+/* Certificate Status Request v2 */
+/* Certificate Status Type */
+enum {
+    WOLFSSL_CSR2_OCSP = 1,
+    WOLFSSL_CSR2_OCSP_MULTI = 2
+};
+
+/* Certificate Status v2 Options (flags) */
+enum {
+    WOLFSSL_CSR2_OCSP_USE_NONCE = 0x01
+};
+
+#ifdef HAVE_CERTIFICATE_STATUS_REQUEST_V2
+#ifndef NO_WOLFSSL_CLIENT
+
+WOLFSSL_API int wolfSSL_UseOCSPStaplingV2(WOLFSSL* ssl,
+                              unsigned char status_type, unsigned char options);
+
+WOLFSSL_API int wolfSSL_CTX_UseOCSPStaplingV2(WOLFSSL_CTX* ctx,
+                              unsigned char status_type, unsigned char options);
 
 #endif
 #endif
@@ -1596,6 +1649,8 @@ WOLFSSL_API STACK_OF(WOLFSSL_X509_NAME) *wolfSSL_dup_CA_list( STACK_OF(WOLFSSL_X
 
 #if defined(HAVE_STUNNEL) || defined(HAVE_LIGHTY)
 
+WOLFSSL_API char * wolf_OBJ_nid2ln(int n);
+WOLFSSL_API int wolf_OBJ_txt2nid(const char *sn);
 WOLFSSL_API WOLFSSL_BIO* wolfSSL_BIO_new_file(const char *filename, const char *mode);
 WOLFSSL_API long wolfSSL_CTX_set_tmp_dh(WOLFSSL_CTX*, WOLFSSL_DH*);
 WOLFSSL_API WOLFSSL_DH *wolfSSL_PEM_read_bio_DHparams(WOLFSSL_BIO *bp,
@@ -1618,6 +1673,9 @@ WOLFSSL_API int wolfSSL_CRYPTO_set_mem_ex_functions(void *(*m) (size_t, const ch
 
 WOLFSSL_API WOLFSSL_DH *wolfSSL_DH_generate_parameters(int prime_len, int generator,
     void (*callback) (int, int, void *), void *cb_arg);
+
+WOLFSSL_API int wolfSSL_DH_generate_parameters_ex(WOLFSSL_DH*, int, int,
+                           void (*callback) (int, int, void *));
 
 WOLFSSL_API void wolfSSL_ERR_load_crypto_strings(void);
 
@@ -1684,6 +1742,19 @@ WOLFSSL_API void wolfSSL_CTX_set_servername_callback(WOLFSSL_CTX *,
         CallbackSniRecv);
 
 WOLFSSL_API void wolfSSL_CTX_set_servername_arg(WOLFSSL_CTX *, void*);
+
+WOLFSSL_API void WOLFSSL_ERR_remove_thread_state(void*);
+
+WOLFSSL_API long wolfSSL_CTX_clear_options(WOLFSSL_CTX*, long);
+
+WOLFSSL_API void wolfSSL_THREADID_set_callback(void (*threadid_func)(void*));
+
+WOLFSSL_API void wolfSSL_THREADID_set_numeric(void* id, unsigned long val);
+
+WOLFSSL_API WOLFSSL_X509* wolfSSL_X509_STORE_get1_certs(WOLFSSL_X509_STORE_CTX*,
+                                                        WOLFSSL_X509_NAME*);
+
+WOLFSSL_API void wolfSSL_sk_X509_pop_free(STACK_OF(WOLFSSL_X509)* sk, void f (WOLFSSL_X509*));
 #endif /* HAVE_STUNNEL */
 
 #ifdef WOLFSSL_JNI

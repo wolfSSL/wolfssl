@@ -106,7 +106,7 @@ WOLFSSL_API int  wc_RsaFlattenPublicKey(RsaKey*, byte*, word32*, byte*,
                                                                        word32*);
 
 
-#ifdef WOLFSSL_CERT_GEN
+#if defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_KEY_GEN)
         /* abstracted BN operations with RSA key */
     WOLFSSL_API int wc_Rsa_leading_bit(void* BN);
     WOLFSSL_API int wc_Rsa_unsigned_bin_size(void* BN);

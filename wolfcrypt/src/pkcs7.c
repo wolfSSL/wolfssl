@@ -129,26 +129,9 @@ WOLFSSL_LOCAL int wc_SetContentType(int pkcs7TypeOID, byte* output)
 int wc_GetContentType(const byte* input, word32* inOutIdx, word32* oid,
                    word32 maxIdx)
 {
-    int length;
-    word32 i = *inOutIdx;
-    byte b;
-    *oid = 0;
-
     WOLFSSL_ENTER("wc_GetContentType");
-
-    b = input[i++];
-    if (b != ASN_OBJECT_ID)
-        return ASN_OBJECT_ID_E;
-
-    if (GetLength(input, &i, &length, maxIdx) < 0)
+    if (GetObjectId(input, inOutIdx, oid, ignoreType, maxIdx) < 0)
         return ASN_PARSE_E;
-
-    while(length--) {
-        *oid += input[i];
-        i++;
-    }
-
-    *inOutIdx = i;
 
     return 0;
 }
@@ -1609,7 +1592,7 @@ WOLFSSL_API int wc_PKCS7_DecodeEnvelopedData(PKCS7* pkcs7, byte* pkiMsg,
         XFREE(serialNum, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
         
-        if (GetAlgoId(pkiMsg, &idx, &encOID, pkiMsgSz) < 0) {
+        if (GetAlgoId(pkiMsg, &idx, &encOID, keyType, pkiMsgSz) < 0) {
 #ifdef WOLFSSL_SMALL_STACK
             XFREE(encryptedKey, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
@@ -1670,7 +1653,7 @@ WOLFSSL_API int wc_PKCS7_DecodeEnvelopedData(PKCS7* pkcs7, byte* pkiMsg,
         return ASN_PARSE_E;
     }
 
-    if (GetAlgoId(pkiMsg, &idx, &encOID, pkiMsgSz) < 0) {
+    if (GetAlgoId(pkiMsg, &idx, &encOID, blkType, pkiMsgSz) < 0) {
 #ifdef WOLFSSL_SMALL_STACK
         XFREE(encryptedKey, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif

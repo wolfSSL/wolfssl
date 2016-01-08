@@ -3,16 +3,22 @@
 #reusme.test
 
 # need a unique resume port since may run the same time as testsuite
-resume_port=11112
+# use server port zero hack to get one
+resume_port=0
 no_pid=-1
 server_pid=$no_pid
 counter=0
+# let's use absolute path to a local dir (make distcheck may be in sub dir)
+# also let's add some randomness by adding pid in case multiple 'make check's
+# per source tree
+ready_file=`pwd`/wolfssl_resume_ready$$
 
+echo "ready file $ready_file"
 
 remove_ready_file() {
-    if test -e /tmp/wolfssl_server_ready; then
-        echo -e "removing exisitng server_ready file"
-        rm /tmp/wolfssl_server_ready
+    if test -e $ready_file; then
+        echo -e "removing existing ready file"
+    rm $ready_file
     fi
 }
 
@@ -39,14 +45,25 @@ trap do_trap INT TERM
 echo -e "\nStarting example server for resume test...\n"
 
 remove_ready_file
-./examples/server/server -r -R -p $resume_port &
+./examples/server/server -r -R $ready_file -p $resume_port &
 server_pid=$!
 
-while [ ! -s /tmp/wolfssl_server_ready -a "$counter" -lt 20 ]; do
-    echo -e "waiting for server_ready file..."
+while [ ! -s $ready_file -a "$counter" -lt 20 ]; do
+    echo -e "waiting for ready file..."
     sleep 0.1
     counter=$((counter+ 1))
 done
+
+if test -e $ready_file; then
+    echo -e "found ready file, starting client..."
+else
+    echo -e "NO ready file ending test..."
+    do_cleanup
+    exit 1
+fi
+
+# get created port 0 ephemeral port
+resume_port=`cat $ready_file`
 
 ./examples/client/client -r -p $resume_port
 client_result=$?

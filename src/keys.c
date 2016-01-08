@@ -1802,7 +1802,7 @@ int SetCipherSpecs(WOLFSSL* ssl)
 enum KeyStuff {
     MASTER_ROUNDS = 3,
     PREFIX        = 3,     /* up to three letters for master prefix */
-    KEY_PREFIX    = 7      /* up to 7 prefix letters for key rounds */
+    KEY_PREFIX    = 9      /* up to 9 prefix letters for key rounds */
 
 
 };
@@ -1833,6 +1833,12 @@ static int SetPrefix(byte* sha_input, int idx)
     case 6:
         XMEMCPY(sha_input, "GGGGGGG", 7);
         break;
+    case 7:
+        XMEMCPY(sha_input, "HHHHHHHH", 8);
+        break;
+    case 8:
+        XMEMCPY(sha_input, "IIIIIIIII", 9);
+        break;
     default:
         WOLFSSL_MSG("Set Prefix error, bad input");
         return 0; 
@@ -1859,13 +1865,13 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
 #ifdef HAVE_CAVIUM
         if (devId != NO_CAVIUM_DEVICE) {
             if (enc) {
-                if (Arc4InitCavium(enc->arc4, devId) != 0) {
+                if (wc_Arc4InitCavium(enc->arc4, devId) != 0) {
                     WOLFSSL_MSG("Arc4InitCavium failed in SetKeys");
                     return CAVIUM_INIT_E;
                 }
             }
             if (dec) {
-                if (Arc4InitCavium(dec->arc4, devId) != 0) {
+                if (wc_Arc4InitCavium(dec->arc4, devId) != 0) {
                     WOLFSSL_MSG("Arc4InitCavium failed in SetKeys");
                     return CAVIUM_INIT_E;
                 }
@@ -2048,13 +2054,13 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
 #ifdef HAVE_CAVIUM
         if (devId != NO_CAVIUM_DEVICE) {
             if (enc) {
-                if (Des3_InitCavium(enc->des3, devId) != 0) {
+                if (wc_Des3_InitCavium(enc->des3, devId) != 0) {
                     WOLFSSL_MSG("Des3_InitCavium failed in SetKeys");
                     return CAVIUM_INIT_E;
                 }
             }
             if (dec) {
-                if (Des3_InitCavium(dec->des3, devId) != 0) {
+                if (wc_Des3_InitCavium(dec->des3, devId) != 0) {
                     WOLFSSL_MSG("Des3_InitCavium failed in SetKeys");
                     return CAVIUM_INIT_E;
                 }

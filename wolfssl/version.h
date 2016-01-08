@@ -19,17 +19,21 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
+#ifndef WOLFSSL_VERSION_H
+#define WOLFSSL_VERSION_H
 
-#pragma once
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-#define LIBWOLFSSL_VERSION_STRING "3.6.9d"
-#define LIBWOLFSSL_VERSION_HEX 0x03006009
+#define LIBWOLFSSL_VERSION_STRING "3.8.0"
+#define LIBWOLFSSL_VERSION_HEX 0x03008000
 
 #ifdef __cplusplus
 }
 #endif
+
+
+#endif /* WOLFSSL_VERSION_H */
 

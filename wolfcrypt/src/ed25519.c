@@ -171,6 +171,7 @@ int wc_ed25519_sign_msg(const byte* in, word32 inlen, byte* out,
    msg     the array of bytes containing the message
    msglen  length of msg array
    stat    will be 1 on successful verify and 0 on unsuccessful
+   return  0 and stat of 1 on success
 */
 int wc_ed25519_verify_msg(byte* sig, word32 siglen, const byte* msg,
                           word32 msglen, int* stat, ed25519_key* key)
@@ -229,7 +230,7 @@ int wc_ed25519_verify_msg(byte* sig, word32 siglen, const byte* msg,
     /* comparison of R created to R in sig */
     ret = ConstantCompare(rcheck, sig, ED25519_SIG_SIZE/2);
     if (ret != 0)
-        return ret;
+        return SIG_VERIFY_E;
 
     /* set the verification status */
     *stat = 1;

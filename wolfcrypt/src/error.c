@@ -337,6 +337,36 @@ const char* wc_GetErrorString(int error)
     case SRP_BAD_KEY_E:
         return "SRP bad key values error";
 
+    case ASN_NO_SKID:
+        return "ASN no Subject Key Identifier found error";
+
+    case ASN_NO_AKID:
+        return "ASN no Authority Key Identifier found error";
+
+    case ASN_NO_KEYUSAGE:
+        return "ASN no Key Usage found error";
+
+    case SKID_E:
+        return "Setting Subject Key Identifier error";
+
+    case AKID_E:
+        return "Setting Authority Key Identifier error";
+
+    case KEYUSAGE_E:
+        return "Bad Key Usage value error";
+
+    case CERTPOLICIES_E:
+        return "Setting Certificate Policies error";
+
+    case WC_INIT_E:
+        return "wolfCrypt Initialize Failure error";
+
+    case SIG_VERIFY_E:
+        return "Signature verify error";
+
+    case BAD_COND_E:
+        return "Bad condition variable operation error";
+
     default:
         return "unknown error number";
 

@@ -302,7 +302,7 @@ elif [ ! -z "$1" ]; then
         echo ""
         echo ""
     #else the argument was invalid, tell user to use -h or -help
-    else 
+    else
         echo ""
         echo "That is not a valid option."
         echo ""
@@ -328,7 +328,7 @@ else
 
     # check options.h a second time, if the user had
     # ntru installed on their system and in the default
-    # path location, then it will now be defined, if the 
+    # path location, then it will now be defined, if the
     # user does not have ntru on their system this will fail
     # again and we will not update any certs until user installs
     # ntru in the default location

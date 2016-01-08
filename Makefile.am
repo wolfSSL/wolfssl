@@ -59,27 +59,22 @@ EXTRA_DIST+= gencertbuf.pl
 EXTRA_DIST+= README.md
 EXTRA_DIST+= LICENSING
 EXTRA_DIST+= INSTALL
-EXTRA_DIST+= IPP/
+EXTRA_DIST+= IPP
 
-# user crypto plug in example
-EXTRA_DIST+= wolfcrypt/user-crypto/configure.ac
-EXTRA_DIST+= wolfcrypt/user-crypto/autogen.sh
-EXTRA_DIST+= wolfcrypt/user-crypto/include/user_rsa.h
-EXTRA_DIST+= wolfcrypt/user-crypto/src/rsa.c
-EXTRA_DIST+= wolfcrypt/user-crypto/lib/.gitkeep
-EXTRA_DIST+= wolfcrypt/user-crypto/README.txt
-EXTRA_DIST+= wolfcrypt/user-crypto/Makefile.am
-
+include wrapper/include.am
 include cyassl/include.am
 include wolfssl/include.am
 include certs/include.am
 include certs/1024/include.am
 include certs/crl/include.am
+include certs/external/include.am
+include certs/ocsp/include.am
 include doc/include.am
 include swig/include.am
 
 include src/include.am
 include support/include.am
+include wolfcrypt/user-crypto/include.am
 include wolfcrypt/benchmark/include.am
 include wolfcrypt/src/include.am
 include wolfcrypt/test/include.am

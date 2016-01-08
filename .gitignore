@@ -112,11 +112,11 @@ cov-int
 cyassl.tgz
 *.log
 *.trs
-IDE\MDK-ARM\Projects/
-IDE\MDK-ARM\STM32F2xx_StdPeriph_Lib/inc
-IDE\MDK-ARM\STM32F2xx_StdPeriph_Lib/src
-IDE\MDK-ARM\LPC43xx\Drivers/
-IDE\MDK-ARM\LPC43xx\LPC43xx/
+IDE/MDK-ARM/Projects/
+IDE/MDK-ARM/STM32F2xx_StdPeriph_Lib/inc
+IDE/MDK-ARM/STM32F2xx_StdPeriph_Lib/src
+IDE/MDK-ARM/LPC43xx/Drivers/
+IDE/MDK-ARM/LPC43xx/LPC43xx/
 *.gcno
 *.gcda
 *.gcov
@@ -168,3 +168,7 @@ wolfcrypt/user-crypto/m4
 wolfcrypt/user-crypto/missing
 wolfcrypt/user-crypto/Makefile.in
 wolfcrypt/user-crypto/lib/libusercrypto.*
+*.hzs
+
+# wolfSSL CSharp wrapper
+wrapper/CSharp/x64/
