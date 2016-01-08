@@ -1265,26 +1265,22 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
         return 0;
     }
 
-#elif defined(WOLFSSL_VXWORKS) && defined(VXWORKS_SIM)
+#elif defined(WOLFSSL_VXWORKS)
 
     #include <randomNumGen.h>
 
     int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz) {
         STATUS        status;
-        unsigned char seed[1024];
-        int           i = 0;
 
-        /* cannot generate true entropy with VxWorks simulator */
-        #warning "VxWorks simulator for testing purposes only!"
+        #ifdef VXWORKS_SIM
+            /* cannot generate true entropy with VxWorks simulator */
+            #warning "not enough entropy, simulator for testing only"
+            int i = 0;
 
-        for (i = 0; i < sizeof(seed); i++) {
-            seed[i] = i * 3 % 256;
-        }
-        /* build entropy */
-        (void) randAdd(seed, 0, 0);
-        for (i = 4; i <= sizeof(seed); i*=2) {
-            (void) randAdd (seed, i - 1, i);
-        }
+            for (i = 0; i < 1000; i++) {
+                randomAddTimeStamp();
+            }
+        #endif
 
         status = randBytes (output, sz);
         if (status == ERROR) {

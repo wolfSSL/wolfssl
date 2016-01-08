@@ -38,6 +38,18 @@ click "Edit". Enter the above define to the end of the line.
 6. Copy the certs folder in ```<path_to_wolfssl>/``` to the Wind River Workbench
 workspace folder. This is where the simulator looks for the filesystem.
 
+7. Include Entropy:
+
+    - Create a new project, similar to step 1 but choose VxWorks Source Build
+    Project as the type of project instead of VxWorks Image Project.
+    - In the project directory, double click "Source Build Configuration" and
+    under os > core > CORE\_KERNEL Menu > VxWorks Kernel Component
+    Configuration find "Inject entropy in interrupts". Double click this.
+    - Go back to your VIP project. Right click the project and select "Properties".
+    - In "Properties", select "Project References". Check the box next to the
+    new project you created. Click "Ok".
+    - Rebuild the project.
+
 ####2 Testing wolfSSL with VxWorks:
 #####2.1 wolfCrypt Test and Benchmark Applications
 The wolfCrypt test application will test each of the cryptographic algorithms
