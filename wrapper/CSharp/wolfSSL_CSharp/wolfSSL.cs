@@ -564,7 +564,7 @@ namespace wolfSSL.CSharp {
         /// Read message from secure connection
         /// </summary>
         /// <param name="ssl">structure containing info about connection</param>
-        /// <param name="buf">object to hold incoming message</param>
+        /// <param name="buf">object to hold incoming message (Unicode format)</param>
         /// <param name="sz">size of available memory in buf</param>
         /// <returns>amount of data read on success</returns>
         public static int read(IntPtr ssl, StringBuilder buf, int sz)
@@ -616,7 +616,7 @@ namespace wolfSSL.CSharp {
         /// Read message from secure connection using a byte array
         /// </summary>
         /// <param name="ssl">structure containing info about connection</param>
-        /// <param name="buf">object to hold incoming message</param>
+        /// <param name="buf">object to hold incoming message (raw bytes)</param>
         /// <param name="sz">size of available memory in buf</param>
         /// <returns>amount of data read on success</returns>
         public static int read(IntPtr ssl, byte[] buf, int sz)
@@ -679,8 +679,8 @@ namespace wolfSSL.CSharp {
                 }
 
                 data = Marshal.AllocHGlobal(sz);
-                Marshal.Copy(System.Text.Encoding.UTF8.GetBytes(buf.ToString()), 0,
-                       data, System.Text.Encoding.UTF8.GetByteCount(buf.ToString()));
+                Marshal.Copy(System.Text.Encoding.Default.GetBytes(buf.ToString()), 0,
+                       data, System.Text.Encoding.Default.GetByteCount(buf.ToString()));
                 ret = wolfSSL_write(sslCtx, data, sz);
                 Marshal.FreeHGlobal(data);
                 return ret;
