@@ -1292,10 +1292,18 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz) {
         STATUS        status;
 
-        /* RANDOM ENTORPY INJECT component must be enabled in VSB project */
+        #ifdef VXWORKS_SIM
+            /* cannot generate true entropy with VxWorks simulator */
+            #warning "not enough entropy, simulator for testing only"
+            int i = 0;
+
+            for (i = 0; i < 1000; i++) {
+                randomAddTimeStamp();
+            }
+        #endif
+
         status = randBytes (output, sz);
         if (status == ERROR) {
-            WOLFSSL_MSG("Random seed failed! Enable RANDOM ENTROPY INJECT.");
             return RNG_FAILURE_E;
         }
 
