@@ -45,25 +45,33 @@ static int SrpHashInit(SrpHash* hash, SrpType type)
     hash->type = type;
 
     switch (type) {
-    #ifndef NO_SHA
         case SRP_TYPE_SHA:
-            return wc_InitSha(&hash->data.sha);
-    #endif
+            #ifndef NO_SHA
+                return wc_InitSha(&hash->data.sha);
+            #else
+                return BAD_FUNC_ARG;
+            #endif
 
-    #ifndef NO_SHA256
         case SRP_TYPE_SHA256:
-            return wc_InitSha256(&hash->data.sha256);
-    #endif
+            #ifndef NO_SHA256
+                return wc_InitSha256(&hash->data.sha256);
+            #else
+                return BAD_FUNC_ARG;
+            #endif
 
-    #ifdef WOLFSSL_SHA384
         case SRP_TYPE_SHA384:
-            return wc_InitSha384(&hash->data.sha384);
-    #endif
+            #ifdef WOLFSSL_SHA384
+                return wc_InitSha384(&hash->data.sha384);
+            #else
+                return BAD_FUNC_ARG;
+            #endif
 
-    #ifdef WOLFSSL_SHA512
         case SRP_TYPE_SHA512:
-            return wc_InitSha512(&hash->data.sha512);
-    #endif
+            #ifdef WOLFSSL_SHA512
+                return wc_InitSha512(&hash->data.sha512);
+            #else
+                return BAD_FUNC_ARG;
+            #endif
 
         default:
             return BAD_FUNC_ARG;
@@ -73,25 +81,33 @@ static int SrpHashInit(SrpHash* hash, SrpType type)
 static int SrpHashUpdate(SrpHash* hash, const byte* data, word32 size)
 {
     switch (hash->type) {
-    #ifndef NO_SHA
         case SRP_TYPE_SHA:
-            return wc_ShaUpdate(&hash->data.sha, data, size);
-    #endif
+            #ifndef NO_SHA
+                return wc_ShaUpdate(&hash->data.sha, data, size);
+            #else
+                return BAD_FUNC_ARG;
+            #endif
 
-    #ifndef NO_SHA256
         case SRP_TYPE_SHA256:
-            return wc_Sha256Update(&hash->data.sha256, data, size);
-    #endif
+            #ifndef NO_SHA256
+                return wc_Sha256Update(&hash->data.sha256, data, size);
+            #else
+                return BAD_FUNC_ARG;
+            #endif
 
-    #ifdef WOLFSSL_SHA384
         case SRP_TYPE_SHA384:
-            return wc_Sha384Update(&hash->data.sha384, data, size);
-    #endif
+            #ifdef WOLFSSL_SHA384
+                return wc_Sha384Update(&hash->data.sha384, data, size);
+            #else
+                return BAD_FUNC_ARG;
+            #endif
 
-    #ifdef WOLFSSL_SHA512
         case SRP_TYPE_SHA512:
-            return wc_Sha512Update(&hash->data.sha512, data, size);
-    #endif
+            #ifdef WOLFSSL_SHA512
+                return wc_Sha512Update(&hash->data.sha512, data, size);
+            #else
+                return BAD_FUNC_ARG;
+            #endif
 
         default:
             return BAD_FUNC_ARG;
@@ -101,25 +117,33 @@ static int SrpHashUpdate(SrpHash* hash, const byte* data, word32 size)
 static int SrpHashFinal(SrpHash* hash, byte* digest)
 {
     switch (hash->type) {
-    #ifndef NO_SHA
         case SRP_TYPE_SHA:
-            return wc_ShaFinal(&hash->data.sha, digest);
-    #endif
+            #ifndef NO_SHA
+                return wc_ShaFinal(&hash->data.sha, digest);
+            #else
+                return BAD_FUNC_ARG;
+            #endif
 
-    #ifndef NO_SHA256
         case SRP_TYPE_SHA256:
-            return wc_Sha256Final(&hash->data.sha256, digest);
-    #endif
+            #ifndef NO_SHA256
+                return wc_Sha256Final(&hash->data.sha256, digest);
+            #else
+                return BAD_FUNC_ARG;
+            #endif
 
-    #ifdef WOLFSSL_SHA384
         case SRP_TYPE_SHA384:
-            return wc_Sha384Final(&hash->data.sha384, digest);
-    #endif
+            #ifdef WOLFSSL_SHA384
+                return wc_Sha384Final(&hash->data.sha384, digest);
+            #else
+                return BAD_FUNC_ARG;
+            #endif
 
-    #ifdef WOLFSSL_SHA512
         case SRP_TYPE_SHA512:
-            return wc_Sha512Final(&hash->data.sha512, digest);
-    #endif
+            #ifdef WOLFSSL_SHA512
+                return wc_Sha512Final(&hash->data.sha512, digest);
+            #else
+                return BAD_FUNC_ARG;
+            #endif
 
         default:
             return BAD_FUNC_ARG;
@@ -129,25 +153,33 @@ static int SrpHashFinal(SrpHash* hash, byte* digest)
 static word32 SrpHashSize(SrpType type)
 {
     switch (type) {
-    #ifndef NO_SHA
         case SRP_TYPE_SHA:
-            return SHA_DIGEST_SIZE;
-    #endif
+            #ifndef NO_SHA
+                return SHA_DIGEST_SIZE;
+            #else
+                return 0;
+            #endif
 
-    #ifndef NO_SHA256
         case SRP_TYPE_SHA256:
-            return SHA256_DIGEST_SIZE;
-    #endif
+            #ifndef NO_SHA256
+                return SHA256_DIGEST_SIZE;
+            #else
+                return 0;
+            #endif
 
-    #ifdef WOLFSSL_SHA384
         case SRP_TYPE_SHA384:
-            return SHA384_DIGEST_SIZE;
-    #endif
+            #ifdef WOLFSSL_SHA384
+                return SHA384_DIGEST_SIZE;
+            #else
+                return 0;
+            #endif
 
-    #ifdef WOLFSSL_SHA512
         case SRP_TYPE_SHA512:
-            return SHA512_DIGEST_SIZE;
-    #endif
+            #ifdef WOLFSSL_SHA512
+                return SHA512_DIGEST_SIZE;
+            #else
+                return 0;
+            #endif
 
         default:
             return 0;
