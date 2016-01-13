@@ -31,9 +31,9 @@ then "Browse" and select:
 
         -DVXWORKS_SIM /* only if using the VxWorks simulator */
 
-This can be done by right clicking on the project in Project Explorer, going to
-Build Properties and selecting the "Variables" tab. Highlight EXTRA\_DEFINE and
-click "Edit". Enter the above define to the end of the line.
+    This can be done by right clicking on the project in Project Explorer, going to
+    Build Properties and selecting the "Variables" tab. Highlight EXTRA\_DEFINE and
+    click "Edit". Enter the above define to the end of the line.
 
 6. Copy the certs folder in ```<path_to_wolfssl>/``` to the Wind River Workbench
 workspace folder. This is where the simulator looks for the filesystem.
