@@ -3981,6 +3981,7 @@ int rsa_test(void)
         return -48;
     }
 
+    #ifndef WC_NO_RSA_OAEP
     /* OAEP padding testing */
     #if !defined(HAVE_FAST_RSA) && !defined(HAVE_FIPS)
     #ifndef NO_SHA
@@ -4113,6 +4114,7 @@ int rsa_test(void)
         return -445;
     }
     #endif /* !HAVE_FAST_RSA && !HAVE_FIPS */
+    #endif /* WC_NO_RSA_OAEP */
 
 #if defined(WOLFSSL_MDK_ARM)
     #define sizeof(s) strlen((char *)(s))

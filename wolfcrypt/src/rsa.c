@@ -219,6 +219,7 @@ int wc_FreeRsaKey(RsaKey* key)
 }
 
 
+#ifndef WC_NO_RSA_OAEP
 /* Uses MGF1 standard as a mask generation function
    hType: hash type used
    seed:  seed to use for generating mask
@@ -229,20 +230,41 @@ int wc_FreeRsaKey(RsaKey* key)
 static int wc_MGF1(int hType, byte* seed, word32 seedSz,
                                                         byte* out, word32 outSz)
 {
-    byte tmp[1024]; /* needs to be large enough for seed size plus counter(4) */
+    byte* tmp;
+    /* needs to be large enough for seed size plus counter(4) */
+    byte  tmpA[WC_MAX_DIGEST_SIZE + 4];
+    byte   tmpF;     /* 1 if dynamic memory needs freed */
+    word32 tmpSz;
     int hLen;
     int ret;
     word32 counter;
     word32 idx;
-
-    if ((sizeof(tmp) - 4) < seedSz) {
-        WOLFSSL_MSG("seedSz to wc_MGF1 larger than preset array size");
-        return BAD_FUNC_ARG;
-    }
-
     hLen    = wc_HashGetDigestSize(hType);
     counter = 0;
     idx     = 0;
+
+    /* check error return of wc_HashGetDigestSize */
+    if (hLen < 0) {
+        return hLen;
+    }
+
+    /* if tmp is not large enough than use some dynamic memory */
+    if ((seedSz + 4) > sizeof(tmpA) || (word32)hLen > sizeof(tmpA)) {
+        /* find largest amount of memory needed which will be the max of
+         * hLen and (seedSz + 4) since tmp is used to store the hash digest */
+        tmpSz = ((seedSz + 4) > (word32)hLen)? seedSz + 4: (word32)hLen;
+        tmp = (byte*)XMALLOC(tmpSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        if (tmp == NULL) {
+            return MEMORY_E;
+        }
+        tmpF = 1; /* make sure to free memory when done */
+    }
+    else {
+        /* use array on the stack */
+        tmpSz = sizeof(tmpA);
+        tmp  = tmpA;
+        tmpF = 0; /* no need to free memory at end */
+    }
 
     do {
         int i = 0;
@@ -255,7 +277,7 @@ static int wc_MGF1(int hType, byte* seed, word32 seedSz,
         tmp[seedSz + 3] = (counter)       & 0xFF;
 
         /* hash and append to existing output */
-        if ((ret = wc_Hash(hType, tmp, (seedSz + 4), tmp, sizeof(tmp))) != 0) {
+        if ((ret = wc_Hash(hType, tmp, (seedSz + 4), tmp, tmpSz)) != 0) {
             return ret;
         }
 
@@ -265,6 +287,11 @@ static int wc_MGF1(int hType, byte* seed, word32 seedSz,
         counter++;
     }
     while (idx < outSz);
+
+    /* check for if dynamic memory was needed, then free */
+    if (tmpF) {
+        XFREE(tmp, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    }
 
     return 0;
 }
@@ -326,9 +353,14 @@ static int wc_RsaPad_OAEP(const byte* input, word32 inputLen, byte* pkcsBlock,
 
     byte* dbMask;
 
-    byte lHash[128]; /* must be large enough to contain largest hash */
-    byte seed[128];  /* seed needs to be as large as hash digest */
-
+    #ifdef WOLFSSL_SMALL_STACK
+        byte* lHash = NULL;
+        byte* seed  = NULL;
+    #else
+        /* must be large enough to contain largest hash */
+        byte lHash[WC_MAX_DIGEST_SIZE];
+        byte seed[ WC_MAX_DIGEST_SIZE];
+    #endif
 
     /* can use with no lable but catch if no lable provided while having
        length > 0 */
@@ -342,13 +374,40 @@ static int wc_RsaPad_OAEP(const byte* input, word32 inputLen, byte* pkcsBlock,
         return hLen;
     }
 
+    #ifdef WOLFSSL_SMALL_STACK
+        lHash = (byte*)XMALLOC(hLen, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        if (lHash == NULL) {
+            return MEMORY_E;
+        }
+        seed = (byte*)XMALLOC(hLen, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        if (seed == NULL) {
+            return MEMORY_E;
+        }
+    #else
+        /* hLen should never be larger than lHash since size is max digest size,
+           but check before blindly calling wc_Hash */
+        if ((word32)hLen > sizeof(lHash)) {
+            WOLFSSL_MSG("OAEP lHash to small for digest!!");
+            return MEMORY_E;
+        }
+    #endif
+
     if ((ret = wc_Hash(hType, optLabel, labelLen,
-                                                  lHash, sizeof(lHash))) != 0) {
+                                                  lHash, hLen)) != 0) {
         WOLFSSL_MSG("OAEP hash type possibly not supported or lHash to small");
+        #ifdef WOLFSSL_SMALL_STACK
+            XFREE(lHash, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(seed,  NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        #endif
         return ret;
     }
 
+    /* handles check of location for idx as well as psLen */
     if (inputLen > (pkcsBlockLen - 2 * hLen - 2)) {
+        #ifdef WOLFSSL_SMALL_STACK
+            XFREE(lHash, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(seed,  NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        #endif
         return BAD_FUNC_ARG;
     }
 
@@ -356,6 +415,10 @@ static int wc_RsaPad_OAEP(const byte* input, word32 inputLen, byte* pkcsBlock,
     idx = pkcsBlockLen - 1 - inputLen;
     psLen = pkcsBlockLen - inputLen - 2 * hLen - 2;
     if (pkcsBlockLen < inputLen) { /*make sure not writing over end of buffer */
+        #ifdef WOLFSSL_SMALL_STACK
+            XFREE(lHash, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(seed,  NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        #endif
         return BUFFER_E;
     }
     XMEMCPY(pkcsBlock + (pkcsBlockLen - inputLen), input, inputLen);
@@ -364,19 +427,36 @@ static int wc_RsaPad_OAEP(const byte* input, word32 inputLen, byte* pkcsBlock,
         pkcsBlock[idx--] = 0x00;
         psLen--;
     }
+
     idx = idx - hLen + 1;
     XMEMCPY(pkcsBlock + idx, lHash, hLen);
 
     /* generate random seed */
     if ((ret = wc_RNG_GenerateBlock(rng, seed, hLen)) != 0) {
+        #ifdef WOLFSSL_SMALL_STACK
+            XFREE(lHash, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(seed,  NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        #endif
         return ret;
     }
 
     /* create maskedDB from dbMask */
     dbMask = (byte*)XMALLOC(pkcsBlockLen - hLen - 1, NULL, DYNAMIC_TYPE_RSA);
+    if (dbMask == NULL) {
+        #ifdef WOLFSSL_SMALL_STACK
+            XFREE(lHash, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(seed,  NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        #endif
+        return MEMORY_E;
+    }
+
     ret = wc_MGF(mgf, seed, hLen, dbMask, pkcsBlockLen - hLen - 1);
     if (ret != 0) {
         XFREE(dbMask, NULL, DYNAMIC_TYPE_RSA);
+        #ifdef WOLFSSL_SMALL_STACK
+            XFREE(lHash, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(seed,  NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        #endif
         return ret;
     }
 
@@ -395,6 +475,10 @@ static int wc_RsaPad_OAEP(const byte* input, word32 inputLen, byte* pkcsBlock,
     /* create seedMask inline */
     if ((ret = wc_MGF(mgf, pkcsBlock + hLen + 1, pkcsBlockLen - hLen - 1,
                                                    pkcsBlock + 1, hLen)) != 0) {
+        #ifdef WOLFSSL_SMALL_STACK
+            XFREE(lHash, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(seed,  NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        #endif
         return ret;
     }
 
@@ -405,10 +489,15 @@ static int wc_RsaPad_OAEP(const byte* input, word32 inputLen, byte* pkcsBlock,
         idx++;
     }
 
+    #ifdef WOLFSSL_SMALL_STACK
+        XFREE(lHash, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(seed,  NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    #endif
     (void)padValue;
 
     return 0;
 }
+#endif /* WC_NO_RSA_OAEP */
 
 
 static int wc_RsaPad(const byte* input, word32 inputLen, byte* pkcsBlock,
@@ -444,6 +533,7 @@ static int wc_RsaPad(const byte* input, word32 inputLen, byte* pkcsBlock,
 }
 
 
+#ifndef WC_NO_RSA_OAEP
 /* helper function to direct which padding is used */
 static int wc_RsaPad_ex(const byte* input, word32 inputLen, byte* pkcsBlock,
                    word32 pkcsBlockLen, byte padValue, WC_RNG* rng, int padType,
@@ -488,19 +578,25 @@ static int wc_RsaUnPad_OAEP(byte *pkcsBlock, unsigned int pkcsBlockLen,
 {
     int hLen;
     int ret;
-    byte h[128]; /* max digest size */
-    byte tmp[1024];
+    byte h[WC_MAX_DIGEST_SIZE]; /* max digest size */
+    byte* tmp;
     word32 idx;
 
-    XMEMSET(tmp, 0, sizeof(tmp));
     hLen = wc_HashGetDigestSize(hType);
     if ((hLen < 0) || (pkcsBlockLen < (2 * (word32)hLen + 2))) {
         return BAD_FUNC_ARG;
     }
 
+    tmp = XMALLOC(pkcsBlockLen, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (tmp == NULL) {
+        return MEMORY_E;
+    }
+    XMEMSET(tmp, 0, pkcsBlockLen);
+
     /* find seedMask value */
     if ((ret = wc_MGF(mgf, (byte*)(pkcsBlock + (hLen + 1)),
                                     pkcsBlockLen - hLen - 1, tmp, hLen)) != 0) {
+        XFREE(tmp, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         return ret;
     }
 
@@ -512,6 +608,7 @@ static int wc_RsaUnPad_OAEP(byte *pkcsBlock, unsigned int pkcsBlockLen,
     /* get dbMask value */
     if ((ret = wc_MGF(mgf, tmp, hLen, tmp + hLen,
                                                pkcsBlockLen - hLen - 1)) != 0) {
+        XFREE(tmp, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         return ret;
     }
 
@@ -519,6 +616,9 @@ static int wc_RsaUnPad_OAEP(byte *pkcsBlock, unsigned int pkcsBlockLen,
     for (idx = 0; idx < (pkcsBlockLen - hLen - 1); idx++) {
         pkcsBlock[hLen + 1 + idx] = pkcsBlock[hLen + 1 + idx] ^ tmp[idx + hLen];
     }
+
+    /* done with use of tmp buffer */
+    XFREE(tmp, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     /* advance idx to index of PS and msg seperator */
     idx = hLen + 2 + hLen;
@@ -548,6 +648,7 @@ static int wc_RsaUnPad_OAEP(byte *pkcsBlock, unsigned int pkcsBlockLen,
     *output = (byte*)(pkcsBlock + idx);
     return pkcsBlockLen - idx;
 }
+#endif /* WC_NO_RSA_OAEP */
 
 
 /* UnPad plaintext, set start to *output, return length of plaintext,
@@ -593,6 +694,7 @@ static int RsaUnPad(const byte *pkcsBlock, unsigned int pkcsBlockLen,
 }
 
 
+#ifndef WC_NO_RSA_OAEP
 /* helper function to direct unpadding */
 static int wc_RsaUnPad_ex(byte* pkcsBlock, word32 pkcsBlockLen, byte** out,
                           byte padValue, int padType, int hType, int mgf,
@@ -627,6 +729,8 @@ static int wc_RsaUnPad_ex(byte* pkcsBlock, word32 pkcsBlockLen, byte** out,
 
     return ret;
 }
+#endif /* WC_NO_RSA_OAEP */
+
 
 static int wc_RsaFunction(const byte* in, word32 inLen, byte* out,
                           word32* outLen, int type, RsaKey* key)
@@ -753,6 +857,7 @@ int wc_RsaPublicEncrypt(const byte* in, word32 inLen, byte* out, word32 outLen,
 }
 
 
+#ifndef WC_NO_RSA_OAEP
 /* Gives the option of chossing padding type
    in : input to be encrypted
    inLen: length of input buffer
@@ -794,6 +899,7 @@ int wc_RsaPublicEncrypt_ex(const byte* in, word32 inLen, byte* out,
 
     return sz;
 }
+#endif /* WC_NO_RSA_OAEP */
 
 
 int wc_RsaPrivateDecryptInline(byte* in, word32 inLen, byte** out, RsaKey* key)
@@ -818,6 +924,7 @@ int wc_RsaPrivateDecryptInline(byte* in, word32 inLen, byte** out, RsaKey* key)
 }
 
 
+#ifndef WC_NO_RSA_OAEP
 /* Gives the option of chossing padding type
    in : input to be decrypted
    inLen: length of input buffer
@@ -832,6 +939,16 @@ int wc_RsaPrivateDecryptInline_ex(byte* in, word32 inLen, byte** out,
          RsaKey* key, int type, int hash, int mgf, byte* label, word32 labelSz)
 {
     int ret;
+
+    /* sanity check on arguments */
+    if (in == NULL || key == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    /* check if given a label size but not given a label buffer */
+    if (label == NULL && labelSz > 0) {
+        return BAD_FUNC_ARG;
+    }
 
 #ifdef HAVE_CAVIUM
     if (key->magic == WOLFSSL_RSA_CAVIUM_MAGIC) {
@@ -850,6 +967,7 @@ int wc_RsaPrivateDecryptInline_ex(byte* in, word32 inLen, byte** out,
     return wc_RsaUnPad_ex(in, inLen, out, RSA_BLOCK_TYPE_2, type, hash, mgf,
                                                                 label, labelSz);
 }
+#endif /* WC_NO_RSA_OAEP */
 
 
 int wc_RsaPrivateDecrypt(const byte* in, word32 inLen, byte* out, word32 outLen,
@@ -887,6 +1005,7 @@ int wc_RsaPrivateDecrypt(const byte* in, word32 inLen, byte* out, word32 outLen,
 }
 
 
+#ifndef WC_NO_RSA_OAEP
 /* Gives the option of chossing padding type
    in : input to be decrypted
    inLen: length of input buffer
@@ -905,6 +1024,16 @@ int wc_RsaPrivateDecrypt_ex(const byte* in, word32 inLen, byte* out, word32 outL
     byte*  tmp;
     byte*  pad = 0;
 
+    /* sanity check on arguments */
+    if (out == NULL || in == NULL || key == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    /* check if given a label size but not given a label buffer */
+    if (label == NULL && labelSz > 0) {
+        return BAD_FUNC_ARG;
+    }
+
 #ifdef HAVE_CAVIUM
     if (key->magic == WOLFSSL_RSA_CAVIUM_MAGIC)
         return CaviumRsaPrivateDecrypt(in, inLen, out, outLen, key);
@@ -922,7 +1051,7 @@ int wc_RsaPrivateDecrypt_ex(const byte* in, word32 inLen, byte* out, word32 outL
         XFREE(tmp, key->heap, DYNAMIC_TYPE_RSA);
         return plainLen;
     }
-    if (plainLen > (int)outLen)
+    if (plainLen > (int)outLen || pad == NULL)
         plainLen = BAD_FUNC_ARG;
     else
         XMEMCPY(out, pad, plainLen);
@@ -932,6 +1061,7 @@ int wc_RsaPrivateDecrypt_ex(const byte* in, word32 inLen, byte* out, word32 outL
 
     return plainLen;
 }
+#endif /* WC_NO_RSA_OAEP */
 
 
 /* for Rsa Verify */
@@ -952,7 +1082,7 @@ int wc_RsaSSL_VerifyInline(byte* in, word32 inLen, byte** out, RsaKey* key)
             < 0) {
         return ret;
     }
-  
+
     return RsaUnPad(in, inLen, out, RSA_BLOCK_TYPE_1);
 }
 
@@ -1018,7 +1148,7 @@ int wc_RsaSSL_Sign(const byte* in, word32 inLen, byte* out, word32 outLen,
     if ((ret = wc_RsaFunction(out, sz, out, &outLen,
                               RSA_PRIVATE_ENCRYPT,key)) < 0)
         sz = ret;
-    
+
     return sz;
 }
 
@@ -1187,7 +1317,7 @@ int wc_RsaInitCavium(RsaKey* rsa, int devId)
 
     rsa->devId = devId;
     rsa->magic = WOLFSSL_RSA_CAVIUM_MAGIC;
-   
+
     return 0;
 }
 
@@ -1229,7 +1359,7 @@ static int InitCaviumRsaKey(RsaKey* key, void* heap)
     key->c_dP_Sz = 0;
     key->c_dQ_Sz = 0;
     key->c_uSz   = 0;
-    
+
     return 0;
 }
 
