@@ -195,15 +195,20 @@ namespace wolfSSL.CSharp {
         private extern static void wolfSSL_CTX_free(IntPtr ctx);
 
 
+
         /********************************
          * PSK
          */
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
         public delegate uint psk_delegate(IntPtr ssl, string identity, IntPtr key, uint max_sz);
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+        public delegate uint psk_client_delegate(IntPtr ssl, string hint, IntPtr identity, uint id_max_len, IntPtr key, uint max_sz);
         [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
         private extern static void wolfSSL_set_psk_server_callback(IntPtr ssl, psk_delegate psk_cb);
         [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
         private extern static void wolfSSL_CTX_set_psk_server_callback(IntPtr ctx, psk_delegate psk_cb);
+        [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
+        private extern static void wolfSSL_CTX_set_psk_client_callback(IntPtr ctx, psk_client_delegate psk_cb);
         [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
         private extern static int wolfSSL_CTX_use_psk_identity_hint(IntPtr ctx, StringBuilder identity);
 
@@ -218,9 +223,9 @@ namespace wolfSSL.CSharp {
         [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
         private extern static int wolfSSL_connect(IntPtr ssl);
         [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
-        private extern static int wolfSSL_read(IntPtr ssl, StringBuilder buf, int sz);
+        private extern static int wolfSSL_read(IntPtr ssl, IntPtr buf, int sz);
         [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
-        private extern static int wolfSSL_write(IntPtr ssl, StringBuilder buf, int sz);
+        private extern static int wolfSSL_write(IntPtr ssl, IntPtr buf, int sz);
         [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
         private extern static int wolfSSL_shutdown(IntPtr ssl);
         [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
@@ -559,7 +564,7 @@ namespace wolfSSL.CSharp {
         /// Read message from secure connection
         /// </summary>
         /// <param name="ssl">structure containing info about connection</param>
-        /// <param name="buf">object to hold incoming message</param>
+        /// <param name="buf">object to hold incoming message (Unicode format)</param>
         /// <param name="sz">size of available memory in buf</param>
         /// <returns>amount of data read on success</returns>
         public static int read(IntPtr ssl, StringBuilder buf, int sz)
@@ -569,13 +574,35 @@ namespace wolfSSL.CSharp {
             try
             {
                 IntPtr sslCtx = unwrap(ssl);
+                IntPtr data;
+                int ret;
+                byte[] msg;
+
                 if (sslCtx == IntPtr.Zero)
                 {
-                    log(ERROR_LOG, "connect error");
+                    log(ERROR_LOG, "read error");
                     return FAILURE;
                 }
+                data = Marshal.AllocHGlobal(sz);
 
-                return wolfSSL_read(sslCtx, buf, sz);
+                ret = wolfSSL_read(sslCtx, data, sz);
+
+                if (ret >= 0)
+                {
+                    /* Get data that was sent accross and store it using a literal read of
+                     * the conversion from bytes to character. Takes care of if
+                     * a null terminator is part of the message read.
+                     */
+                    msg = new byte[ret];
+                    Marshal.Copy(data, msg, 0, ret);
+                    for (int i = 0; i < ret; i++)
+                    {
+                        buf.Append(@Convert.ToChar(msg[i]));
+                    }
+                }
+                Marshal.FreeHGlobal(data);
+
+                return ret;
             }
             catch (Exception e)
             {
@@ -583,6 +610,49 @@ namespace wolfSSL.CSharp {
                 return FAILURE;
             }
         }
+
+
+        /// <summary>
+        /// Read message from secure connection using a byte array
+        /// </summary>
+        /// <param name="ssl">structure containing info about connection</param>
+        /// <param name="buf">object to hold incoming message (raw bytes)</param>
+        /// <param name="sz">size of available memory in buf</param>
+        /// <returns>amount of data read on success</returns>
+        public static int read(IntPtr ssl, byte[] buf, int sz)
+        {
+            if (ssl == IntPtr.Zero)
+                return FAILURE;
+            try
+            {
+                IntPtr sslCtx = unwrap(ssl);
+                IntPtr data;
+                int ret;
+
+                if (sslCtx == IntPtr.Zero)
+                {
+                    log(ERROR_LOG, "wolfssl read error");
+                    return FAILURE;
+                }
+                data = Marshal.AllocHGlobal(sz);
+
+                ret = wolfSSL_read(sslCtx, data, sz);
+
+                if (ret >= 0)
+                {
+                    Marshal.Copy(data, buf, 0, ret);
+                }
+                Marshal.FreeHGlobal(data);
+
+                return ret;
+            }
+            catch (Exception e)
+            {
+                log(ERROR_LOG, "wolfssl read error " + e.ToString());
+                return FAILURE;
+            }
+        }
+
 
 
         /// <summary>
@@ -599,13 +669,59 @@ namespace wolfSSL.CSharp {
             try
             {
                 IntPtr sslCtx = unwrap(ssl);
+                IntPtr data;
+                int ret;
+
                 if (sslCtx == IntPtr.Zero)
                 {
-                    log(ERROR_LOG, "connect error");
+                    log(ERROR_LOG, "write error");
                     return FAILURE;
                 }
 
-                return wolfSSL_write(sslCtx, buf, sz);
+                data = Marshal.AllocHGlobal(sz);
+                Marshal.Copy(System.Text.Encoding.Default.GetBytes(buf.ToString()), 0,
+                       data, System.Text.Encoding.Default.GetByteCount(buf.ToString()));
+                ret = wolfSSL_write(sslCtx, data, sz);
+                Marshal.FreeHGlobal(data);
+                return ret;
+
+            }
+            catch (Exception e)
+            {
+                log(ERROR_LOG, "wolfssl write error " + e.ToString());
+                return FAILURE;
+            }
+        }
+
+
+        /// <summary>
+        /// Write message to secure connection
+        /// </summary>
+        /// <param name="ssl">structure containing connection info</param>
+        /// <param name="buf">message to send</param>
+        /// <param name="sz">size of the message</param>
+        /// <returns>amount sent on success</returns>
+        public static int write(IntPtr ssl, byte[] buf, int sz)
+        {
+            if (ssl == IntPtr.Zero)
+                return FAILURE;
+            try
+            {
+                IntPtr sslCtx = unwrap(ssl);
+                IntPtr data;
+                int ret;
+
+                if (sslCtx == IntPtr.Zero)
+                {
+                    log(ERROR_LOG, "write error");
+                    return FAILURE;
+                }
+                data = Marshal.AllocHGlobal(sz);
+                Marshal.Copy(buf, 0, data, sz);
+                ret = wolfSSL_write(sslCtx, data, sz);
+                Marshal.FreeHGlobal(data);
+                return ret;
+
             }
             catch (Exception e)
             {
@@ -865,6 +981,28 @@ namespace wolfSSL.CSharp {
             catch (Exception e)
             {
                 log(ERROR_LOG, "wolfssl psk server callback error " + e.ToString());
+            }
+        }
+
+
+        /// <summary>
+        /// Set the function to use for PSK connections
+        /// </summary>
+        /// <param name="ctx">pointer to CTX that the function is set in</param>
+        /// <param name="psk_cb">PSK function to use</param>
+        public static void CTX_set_psk_client_callback(IntPtr ctx, psk_client_delegate psk_cb)
+        {
+            try
+            {
+                GCHandle gch = GCHandle.FromIntPtr(ctx);
+                ctx_handles handles = (ctx_handles)gch.Target;
+
+                handles.set_psk(GCHandle.Alloc(psk_cb));
+                wolfSSL_CTX_set_psk_client_callback(handles.get_ctx(), psk_cb);
+            }
+            catch (Exception e)
+            {
+                log(ERROR_LOG, "wolfssl psk client callback error " + e.ToString());
             }
         }
 
