@@ -29,7 +29,7 @@
 #include <wolfssl/wolfcrypt/sha512.h>
 #include <wolfssl/wolfcrypt/srp.h>
 
-#ifdef WOLFCRYPT_HAVE_SRP
+#if defined(WOLFCRYPT_HAVE_SRP) && defined(WOLFSSL_SHA512)
 
 static byte username[] = "user";
 static word32 usernameSz = 4;
@@ -683,7 +683,7 @@ static void test_SrpKeyGenFunc_cb(void)
 
 void SrpTest(void)
 {
-#ifdef WOLFCRYPT_HAVE_SRP
+#if defined(WOLFCRYPT_HAVE_SRP) && defined(WOLFSSL_SHA512)
     test_SrpInit();
     test_SrpSetUsername();
     test_SrpSetParams();
