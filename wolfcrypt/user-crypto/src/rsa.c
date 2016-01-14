@@ -2353,7 +2353,7 @@ static int SetRsaPublicKey(byte* output, RsaKey* key,
     if ( (nSz + rawLen) < MAX_RSA_INT_SZ) {
         if (leadingBit)
             n[nSz] = 0;
-        err = ippsGetOctString_BN((Ipp8u*)n + nSz, rawLen, key->n);
+        err = ippsGetOctString_BN((Ipp8u*)n + nSz, rawLen - leadingBit, key->n);
         if (err == ippStsNoErr)
             nSz += rawLen;
         else {
@@ -2394,7 +2394,7 @@ static int SetRsaPublicKey(byte* output, RsaKey* key,
     if ( (eSz + rawLen) < MAX_RSA_E_SZ) {
         if (leadingBit)
             e[eSz] = 0;
-        err = ippsGetOctString_BN((Ipp8u*)e + eSz, rawLen, key->e);
+        err = ippsGetOctString_BN((Ipp8u*)e + eSz, rawLen - leadingBit, key->e);
         if (err == ippStsNoErr)
             eSz += rawLen;
         else {
@@ -2587,7 +2587,7 @@ int wc_RsaKeyToDer(RsaKey* key, byte* output, word32 inLen)
 
             /* extract data*/
             err = ippsGetOctString_BN((Ipp8u*)(tmps[i] + sizes[i]),
-                    rawLen, keyInt);
+                    rawLen - lbit, keyInt);
             if (err == ippStsOk) {
                 sizes[i] += (rawLen-lbit); /* lbit included in rawLen */
                 intTotalLen += sizes[i];
