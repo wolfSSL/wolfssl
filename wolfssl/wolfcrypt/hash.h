@@ -54,6 +54,22 @@ enum wc_HashType {
 #endif /* WOLFSSL_SHA512 */
 };
 
+/* Find largest possible digest size
+   Note if this gets up to the size of 80 or over check smallstack build */
+#if defined(WOLFSSL_SHA512)
+    #define WC_MAX_DIGEST_SIZE SHA512_DIGEST_SIZE
+#elif defined(WOLFSSL_SHA384)
+    #define WC_MAX_DIGEST_SIZE SHA384_DIGEST_SIZE
+#elif !defined(NO_SHA256)
+    #define WC_MAX_DIGEST_SIZE SHA256_DIGEST_SIZE
+#elif !defined(NO_SHA)
+    #define WC_MAX_DIGEST_SIZE SHA_DIGEST_SIZE
+#elif !defined(NO_MD5)
+    #define WC_MAX_DIGEST_SIZE MD5_DIGEST_SIZE
+#else
+    #define WC_MAX_DIGEST_SIZE 64 /* default to max size of 64 */
+#endif
+
 WOLFSSL_API int wc_HashGetDigestSize(enum wc_HashType hash_type);
 WOLFSSL_API int wc_Hash(enum wc_HashType hash_type,
     const byte* data, word32 data_len,

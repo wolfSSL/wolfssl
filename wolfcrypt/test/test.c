@@ -3886,7 +3886,6 @@ int certext_test(void)
 }
 #endif /* WOLFSSL_CERT_EXT && WOLFSSL_TEST_CERT */
 
-
 int rsa_test(void)
 {
     byte*   tmp;
@@ -3981,6 +3980,142 @@ int rsa_test(void)
         free(tmp);
         return -48;
     }
+
+    #ifndef WC_NO_RSA_OAEP
+    /* OAEP padding testing */
+    #if !defined(HAVE_FAST_RSA) && !defined(HAVE_FIPS)
+    #ifndef NO_SHA
+    XMEMSET(plain, 0, sizeof(plain));
+    ret = wc_RsaPublicEncrypt_ex(in, inLen, out, sizeof(out), &key, &rng,
+                       WC_RSA_OAEP_PAD, WC_HASH_TYPE_SHA, WC_MGF1SHA1, NULL, 0);
+    if (ret < 0) {
+        free(tmp);
+        return -143;
+    }
+    ret = wc_RsaPrivateDecrypt_ex(out, ret, plain, sizeof(plain), &key,
+                       WC_RSA_OAEP_PAD, WC_HASH_TYPE_SHA, WC_MGF1SHA1, NULL, 0);
+    if (ret < 0) {
+        free(tmp);
+        return -144;
+    }
+    if (XMEMCMP(plain, in, inLen)) {
+        free(tmp);
+        return -145;
+    }
+    #endif /* NO_SHA */
+
+    #ifndef NO_SHA256
+    XMEMSET(plain, 0, sizeof(plain));
+    ret = wc_RsaPublicEncrypt_ex(in, inLen, out, sizeof(out), &key, &rng,
+                  WC_RSA_OAEP_PAD, WC_HASH_TYPE_SHA256, WC_MGF1SHA256, NULL, 0);
+    if (ret < 0) {
+        free(tmp);
+        return -243;
+    }
+    ret = wc_RsaPrivateDecrypt_ex(out, ret, plain, sizeof(plain), &key,
+                  WC_RSA_OAEP_PAD, WC_HASH_TYPE_SHA256, WC_MGF1SHA256, NULL, 0);
+    if (ret < 0) {
+        free(tmp);
+        return -244;
+    }
+    if (XMEMCMP(plain, in, inLen)) {
+        free(tmp);
+        return -245;
+    }
+
+    /* check fails if not using the same optional label */
+    XMEMSET(plain, 0, sizeof(plain));
+    ret = wc_RsaPublicEncrypt_ex(in, inLen, out, sizeof(out), &key, &rng,
+                  WC_RSA_OAEP_PAD, WC_HASH_TYPE_SHA256, WC_MGF1SHA256, NULL, 0);
+    if (ret < 0) {
+        free(tmp);
+        return -246;
+    }
+    ret = wc_RsaPrivateDecrypt_ex(out, ret, plain, sizeof(plain), &key,
+           WC_RSA_OAEP_PAD, WC_HASH_TYPE_SHA256, WC_MGF1SHA256, in, sizeof(in));
+    if (ret > 0) { /* in this case decrypt should fail */
+        free(tmp);
+        return -247;
+    }
+
+    /* check using optional label with encrypt/decrypt */
+    XMEMSET(plain, 0, sizeof(plain));
+    ret = wc_RsaPublicEncrypt_ex(in, inLen, out, sizeof(out), &key, &rng,
+           WC_RSA_OAEP_PAD, WC_HASH_TYPE_SHA256, WC_MGF1SHA256, in, sizeof(in));
+    if (ret < 0) {
+        free(tmp);
+        return -248;
+    }
+    ret = wc_RsaPrivateDecrypt_ex(out, ret, plain, sizeof(plain), &key,
+           WC_RSA_OAEP_PAD, WC_HASH_TYPE_SHA256, WC_MGF1SHA256, in, sizeof(in));
+    if (ret < 0) {
+        free(tmp);
+        return -249;
+    }
+    if (XMEMCMP(plain, in, inLen)) {
+        free(tmp);
+        return -250;
+    }
+
+        #ifndef NO_SHA
+        /* check fail using missmatch hash algorithms */
+        XMEMSET(plain, 0, sizeof(plain));
+        ret = wc_RsaPublicEncrypt_ex(in, inLen, out, sizeof(out), &key, &rng,
+                WC_RSA_OAEP_PAD, WC_HASH_TYPE_SHA, WC_MGF1SHA1, in, sizeof(in));
+        if (ret < 0) {
+            free(tmp);
+            return -251;
+        }
+        ret = wc_RsaPrivateDecrypt_ex(out, ret, plain, sizeof(plain), &key,
+           WC_RSA_OAEP_PAD, WC_HASH_TYPE_SHA256, WC_MGF1SHA256, in, sizeof(in));
+        if (ret > 0) { /* should fail */
+            free(tmp);
+            return -252;
+        }
+        #endif /* NO_SHA*/
+    #endif /* NO_SHA256 */
+
+    #ifdef WOLFSSL_SHA512
+    XMEMSET(plain, 0, sizeof(plain));
+    ret = wc_RsaPublicEncrypt_ex(in, inLen, out, sizeof(out), &key, &rng,
+                  WC_RSA_OAEP_PAD, WC_HASH_TYPE_SHA512, WC_MGF1SHA512, NULL, 0);
+    if (ret < 0) {
+        free(tmp);
+        return -343;
+    }
+    ret = wc_RsaPrivateDecrypt_ex(out, ret, plain, sizeof(plain), &key,
+                  WC_RSA_OAEP_PAD, WC_HASH_TYPE_SHA512, WC_MGF1SHA512, NULL, 0);
+    if (ret < 0) {
+        free(tmp);
+        return -344;
+    }
+    if (XMEMCMP(plain, in, inLen)) {
+        free(tmp);
+        return -345;
+    }
+    #endif /* NO_SHA */
+
+    /* check using pkcsv15 padding with _ex API */
+    XMEMSET(plain, 0, sizeof(plain));
+    ret = wc_RsaPublicEncrypt_ex(in, inLen, out, sizeof(out), &key, &rng,
+                  WC_RSA_PKCSV15_PAD, 0, 0, NULL, 0);
+    if (ret < 0) {
+        free(tmp);
+        return -443;
+    }
+    ret = wc_RsaPrivateDecrypt_ex(out, ret, plain, sizeof(plain), &key,
+                  WC_RSA_PKCSV15_PAD, 0, 0, NULL, 0);
+    if (ret < 0) {
+        free(tmp);
+        return -444;
+    }
+    if (XMEMCMP(plain, in, inLen)) {
+        free(tmp);
+        return -445;
+    }
+    #endif /* !HAVE_FAST_RSA && !HAVE_FIPS */
+    #endif /* WC_NO_RSA_OAEP */
+
 #if defined(WOLFSSL_MDK_ARM)
     #define sizeof(s) strlen((char *)(s))
 #endif

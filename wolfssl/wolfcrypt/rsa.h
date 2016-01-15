@@ -42,6 +42,9 @@
     #include <wolfssl/wolfcrypt/random.h>
 #endif /* HAVE_FIPS */
 
+/* header file needed for OAEP padding */
+#include <wolfssl/wolfcrypt/hash.h>
+
 #ifdef __cplusplus
     extern "C" {
 #endif
@@ -105,6 +108,30 @@ WOLFSSL_API int  wc_RsaPublicKeyDecodeRaw(const byte* n, word32 nSz,
 #ifdef WOLFSSL_KEY_GEN
     WOLFSSL_API int wc_RsaKeyToDer(RsaKey*, byte* output, word32 inLen);
 #endif
+
+/*
+   choice of padding added after fips, so not avialable when using fips RSA
+ */
+
+/* Mask Generation Function Identifiers */
+#define WC_MGF1SHA1   26
+#define WC_MGF1SHA256 1
+#define WC_MGF1SHA384 2
+#define WC_MGF1SHA512 3
+
+/* Padding types */
+#define WC_RSA_PKCSV15_PAD 0
+#define WC_RSA_OAEP_PAD    1
+
+WOLFSSL_API int  wc_RsaPublicEncrypt_ex(const byte* in, word32 inLen, byte* out,
+                      word32 outLen, RsaKey* key, WC_RNG* rng,
+                      int type, int hash, int mgf, byte* label, word32 lableSz);
+WOLFSSL_API int  wc_RsaPrivateDecrypt_ex(const byte* in, word32 inLen,
+                      byte* out, word32 outLen, RsaKey* key,
+                      int type, int hash, int mgf, byte* label, word32 lableSz);
+WOLFSSL_API int  wc_RsaPrivateDecryptInline_ex(byte* in, word32 inLen,
+                      byte** out, RsaKey* key,
+                      int type, int hash, int mgf, byte* label, word32 lableSz);
 #endif /* HAVE_FIPS*/
 WOLFSSL_API int  wc_RsaFlattenPublicKey(RsaKey*, byte*, word32*, byte*,
                                                                        word32*);
