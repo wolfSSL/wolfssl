@@ -238,11 +238,12 @@ static const XGEN_ALIGN byte iv[] =
 int main(int argc, char** argv)
 
 {
-  (void)argc;
-  (void)argv;
+    (void)argc;
+    (void)argv;
 #else
 int benchmark_test(void *args) 
 {
+    (void)args;
 #endif
 
     wolfCrypt_Init();
