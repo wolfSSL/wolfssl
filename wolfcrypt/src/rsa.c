@@ -278,6 +278,10 @@ static int wc_MGF1(int hType, byte* seed, word32 seedSz,
 
         /* hash and append to existing output */
         if ((ret = wc_Hash(hType, tmp, (seedSz + 4), tmp, tmpSz)) != 0) {
+            /* check for if dynamic memory was needed, then free */
+            if (tmpF) {
+                XFREE(tmp, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            }
             return ret;
         }
 
@@ -381,6 +385,7 @@ static int wc_RsaPad_OAEP(const byte* input, word32 inputLen, byte* pkcsBlock,
         }
         seed = (byte*)XMALLOC(hLen, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         if (seed == NULL) {
+            XFREE(lHash, NULL, DYNAMIC_TYPE_TMP_BUFFER);
             return MEMORY_E;
         }
     #else
