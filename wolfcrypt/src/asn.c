@@ -117,7 +117,7 @@
     #define XTIME(t1)  mqx_time((t1))
     #define XGMTIME(c, t) mqx_gmtime((c), (t))
     #define XVALIDATE_DATE(d, f, t) ValidateDate((d), (f), (t))
-#elif defined(FREESCALE_KSDK_BM)
+#elif defined(FREESCALE_KSDK_BM) || defined(FREESCALE_FREE_RTOS)
     #include <time.h>
     #define XTIME(t1)  ksdk_time((t1))
     #define XGMTIME(c, t) gmtime((c))
@@ -373,11 +373,7 @@ struct tm* mqx_gmtime(const time_t* clock, struct tm* tmpTime)
 
 #endif /* FREESCALE_MQX */
 
-#ifdef FREESCALE_KSDK_BM
-
-/* setting for PIT timer */
-#define PIT_INSTANCE 0
-#define PIT_CHANNEL  0
+#if defined(FREESCALE_KSDK_BM) || defined(FREESCALE_FREE_RTOS)
 
 #include "fsl_pit_driver.h"
 
@@ -3010,7 +3006,8 @@ int ValidateDate(const byte* date, byte format, int dateType)
     int    diffHH = 0 ; int diffMM = 0 ;
     int    diffSign = 0 ;
 
-#if defined(FREESCALE_MQX) || defined(TIME_OVERRIDES) || defined(NEED_TMP_TIME)
+#if defined(FREESCALE_MQX) || defined(FREESCALE_KSDK_MQX) || \
+    defined(TIME_OVERRIDES) || defined(NEED_TMP_TIME)
     struct tm tmpTimeStorage;
     tmpTime = &tmpTimeStorage;
 #else
@@ -5999,7 +5996,7 @@ static int CopyValidity(byte* output, Cert* cert)
 /* for systems where mktime() doesn't normalize fully */
 static void RebuildTime(time_t* in, struct tm* out)
 {
-    #ifdef FREESCALE_MQX
+    #if defined(FREESCALE_MQX) || defined(FREESCALE_KSDK_MQX)
         out = localtime_r(in, out);
     #else
         (void)in;
@@ -6025,7 +6022,8 @@ static int SetValidity(byte* output, int daysValid)
     struct tm* tmpTime = NULL;
     struct tm  local;
 
-#if defined(FREESCALE_MQX) || defined(TIME_OVERRIDES) || defined(NEED_TMP_TIME)
+#if defined(FREESCALE_MQX) || defined(FREESCALE_KSDK_MQX) || \
+    defined(TIME_OVERRIDES) || defined(NEED_TMP_TIME)
     /* for use with gmtime_r */
     struct tm tmpTimeStorage;
     tmpTime = &tmpTimeStorage;

@@ -610,6 +610,10 @@ static char *fgets(char *buff, int sz, FILE *fp)
     #define XMALLOC(s, h, t)    (void *)_mem_alloc_system((s))
     #define XFREE(p, h, t)      {void* xp = (p); if ((xp)) _mem_free((xp));}
     #define XREALLOC(p, n, h, t) _mem_realloc((p), (n)) /* since MQX 4.1.2 */
+
+    #define MQX_FILE_PTR FILE *
+    #define IO_SEEK_SET  SEEK_SET
+    #define IO_SEEK_END  SEEK_END
 #endif
 
 #ifdef FREESCALE_KSDK_BM
@@ -624,9 +628,8 @@ static char *fgets(char *buff, int sz, FILE *fp)
     #define FREESCALE_COMMON
     #define NO_FILESYSTEM
     #define NO_MAIN_DRIVER
-    #define XMALLOC(s, h, t)  OSA_MemAlloc(s);
+    #define XMALLOC(s, h, t)  OSA_MemAlloc(s);(void)h;(void)t;
     #define XFREE(p, h, t)    {void* xp = (p); if((xp)) OSA_MemFree((xp));}
-    #define XREALLOC(p, n, h, t) ksdk_realloc((p), (n), (h), (t));
     #ifdef FREESCALE_KSDK_BM
         #error Baremetal and FreeRTOS cannot be both enabled at the same time!
     #endif
@@ -638,24 +641,46 @@ static char *fgets(char *buff, int sz, FILE *fp)
 
 #ifdef FREESCALE_COMMON
     #define SIZEOF_LONG_LONG 8
+
+    /* disable features */
     #define NO_WRITEV
     #define NO_DEV_RANDOM
     #define NO_RABBIT
     #define NO_WOLFSSL_DIR
+
+    /* enable features */
     #define USE_FAST_MATH
+
+    /* memory reduction */
     #define TFM_TIMING_RESISTANT
 
-    #if FSL_FEATURE_SOC_ENET_COUNT == 0
-        #define WOLFSSL_USER_IO
+    /* setting for PIT timer */
+    #define PIT_INSTANCE 0
+    #define PIT_CHANNEL  0
+
+    /* CW GCC workaround. gmtime() is not available */
+    #if defined(__GNUC__)
+        #define USER_TIME
+    #endif
+
+    #if defined(FREESCALE_KSDK_MQX) || defined(FREESCALE_KSDK_BM) || \
+        defined(FREESCALE_FREE_RTOS)
+        #include "fsl_device_registers.h"
     #endif
 
     /* random seed */
     #define NO_OLD_RNGNAME
-    #if FSL_FEATURE_SOC_TRNG_COUNT > 0
+    #if (FSL_FEATURE_SOC_TRNG_COUNT > 0)
         #define FREESCALE_TRNG
+        #define TRNG_INSTANCE (0)
+    #elif (FSL_FEATURE_SOC_RNG_COUNT > 0)
+        #include "fsl_rnga_driver.h"
+        #define FREESCALE_RNGA
+        #define RNGA_INSTANCE (0)
     #elif !defined(FREESCALE_KSDK_BM) && !defined(FREESCALE_FREE_RTOS)
-        #define FREESCALE_K70_RNGA
+        /* defaulting to K70 RNGA, user should change if different */
         /* #define FREESCALE_K53_RNGB */
+        #define FREESCALE_K70_RNGA
     #endif
 
     /* HW crypto */

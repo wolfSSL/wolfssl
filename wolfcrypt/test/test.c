@@ -119,7 +119,7 @@
     #include "cavium_ioctl.h"
 #endif
 
-#ifdef FREESCALE_MQX
+#if defined(FREESCALE_MQX) || defined(FREESCALE_KSDK_MQX)
     #include <mqx.h>
     #include <stdlib.h>
     #if MQX_USE_IO_OLD

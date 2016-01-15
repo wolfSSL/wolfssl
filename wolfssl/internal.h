@@ -121,6 +121,8 @@
     /* do nothing */
 #elif defined(FREESCALE_MQX) || defined(FREESCALE_KSDK_MQX)
     /* do nothing */
+#elif defined(FREESCALE_FREE_RTOS)
+    #include "fsl_os_abstraction.h"
 #elif defined(WOLFSSL_uITRON4)
         /* do nothing */
 #elif defined(WOLFSSL_uTKERNEL2)
