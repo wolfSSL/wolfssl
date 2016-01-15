@@ -695,7 +695,7 @@ static void* DoMonitor(void* arg)
             break;
         }
 
-        length = read(notifyFd, buff, 8192);
+        length = (int) read(notifyFd, buff, 8192);
         if (length < 0) {
             WOLFSSL_MSG("notify read problem, continue");
             continue;
