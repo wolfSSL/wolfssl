@@ -1512,6 +1512,8 @@ static void wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
         int ret;
         byte *rk = (byte*)aes->key;
 
+        (void)dir;
+
         if (!((keylen == 16) || (keylen == 24) || (keylen == 32)))
             return BAD_FUNC_ARG;
 
