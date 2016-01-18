@@ -454,6 +454,7 @@ static int wc_RsaPad_OAEP(const byte* input, word32 inputLen, byte* pkcsBlock,
         #endif
         return MEMORY_E;
     }
+    XMEMSET(dbMask, 0, pkcsBlockLen - hLen - 1); /* help static analyzer */
 
     ret = wc_MGF(mgf, seed, hLen, dbMask, pkcsBlockLen - hLen - 1);
     if (ret != 0) {
