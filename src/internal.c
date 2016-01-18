@@ -8488,7 +8488,7 @@ static int BuildCertificateStatus(WOLFSSL* ssl, byte type, buffer* status,
 
     #ifdef WOLFSSL_DTLS
         if (ret == 0 && ssl->options.dtls)
-            ret = DtlsPoolSave(ssl, output, sendSz));
+            ret = DtlsPoolSave(ssl, output, sendSz);
     #endif
 
     #ifdef WOLFSSL_CALLBACKS
