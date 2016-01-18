@@ -11298,7 +11298,7 @@ static void PickHashSigAlgo(WOLFSSL* ssl,
                 return BUFFER_ERROR;
             }
 
-            ssl->buffers.serverDH_Pub.buffer = 
+            ssl->buffers.serverDH_Pub.buffer =
                 (byte*) XMALLOC(length, ssl->heap, DYNAMIC_TYPE_DH);
 
             if (ssl->buffers.serverDH_Pub.buffer) {
@@ -11308,7 +11308,7 @@ static void PickHashSigAlgo(WOLFSSL* ssl,
                 return MEMORY_ERROR;
             }
 
-            XMEMCPY(ssl->buffers.serverDH_Pub.buffer, input + *inOutIdx, 
+            XMEMCPY(ssl->buffers.serverDH_Pub.buffer, input + *inOutIdx,
                 length);
             *inOutIdx += length;
             break;
@@ -11320,7 +11320,7 @@ static void PickHashSigAlgo(WOLFSSL* ssl,
         {
             byte b;
 
-            if ((*inOutIdx - begin) + ENUM_LEN + OPAQUE16_LEN + 
+            if ((*inOutIdx - begin) + ENUM_LEN + OPAQUE16_LEN +
                 OPAQUE8_LEN > size) {
                 return BUFFER_ERROR;
             }
@@ -11359,7 +11359,7 @@ static void PickHashSigAlgo(WOLFSSL* ssl,
                 wc_ecc_init(ssl->peerEccKey);
             }
 
-            if (wc_ecc_import_x963(input + *inOutIdx, length, 
+            if (wc_ecc_import_x963(input + *inOutIdx, length,
                 ssl->peerEccKey) != 0) {
                 return ECC_PEERKEY_ERROR;
             }
@@ -11409,7 +11409,7 @@ static void PickHashSigAlgo(WOLFSSL* ssl,
             return DH_KEY_SIZE_E;
         }
 
-        ssl->buffers.serverDH_P.buffer = (byte*) XMALLOC(length, ssl->heap, 
+        ssl->buffers.serverDH_P.buffer = (byte*) XMALLOC(length, ssl->heap,
                                                          DYNAMIC_TYPE_DH);
 
         if (ssl->buffers.serverDH_P.buffer) {
@@ -11876,7 +11876,7 @@ static void PickHashSigAlgo(WOLFSSL* ssl,
 #endif
 #ifdef HAVE_ECC
         /* ecdsa */
-        case ecc_dsa_sa_algo: 
+        case ecc_dsa_sa_algo:
         {
             int verify = 0;
 #ifndef NO_OLD_TLS
@@ -13411,7 +13411,7 @@ int DoSessionTicket(WOLFSSL* ssl,
         /* then random and session id */
         if (!ssl->options.resuming) {
             /* generate random part and session id */
-            ret = wc_RNG_GenerateBlock(ssl->rng, output + idx, 
+            ret = wc_RNG_GenerateBlock(ssl->rng, output + idx,
                 RAN_LEN + sizeof(sessIdSz) + sessIdSz);
             if (ret != 0)
                 return ret;
@@ -14047,7 +14047,7 @@ int DoSessionTicket(WOLFSSL* ssl,
 
         #ifdef HAVE_FUZZER
             if (ssl->fuzzerCb) {
-                ssl->fuzzerCb(ssl, output + preSigIdx, preSigSz, 
+                ssl->fuzzerCb(ssl, output + preSigIdx, preSigSz,
                                                FUZZ_SIGNATURE, ssl->fuzzerCtx);
             }
         #endif
@@ -14565,7 +14565,7 @@ int DoSessionTicket(WOLFSSL* ssl,
                     return NO_PRIVATE_KEY;
                 }
 
-                ret = wc_RsaPrivateKeyDecode(ssl->buffers.key.buffer, &i, 
+                ret = wc_RsaPrivateKeyDecode(ssl->buffers.key.buffer, &i,
                                              &rsaKey, ssl->buffers.key.length);
                 if (ret == 0) {
                     sigSz = wc_RsaEncryptSize(&rsaKey);
@@ -14632,7 +14632,7 @@ int DoSessionTicket(WOLFSSL* ssl,
 
         #ifdef HAVE_FUZZER
             if (ssl->fuzzerCb) {
-                ssl->fuzzerCb(ssl, output + preSigIdx, preSigSz, 
+                ssl->fuzzerCb(ssl, output + preSigIdx, preSigSz,
                                                FUZZ_SIGNATURE, ssl->fuzzerCtx);
             }
         #endif
@@ -14917,7 +14917,7 @@ int DoSessionTicket(WOLFSSL* ssl,
                         byte* digest   = &hash[MD5_DIGEST_SIZE];
                         int   typeH    = SHAh;
                         int   digestSz = SHA_DIGEST_SIZE;
-                        
+
                     #ifdef WOLFSSL_SMALL_STACK
                         encodedSig = (byte*)XMALLOC(MAX_ENCODED_SIG_SZ, NULL,
                                                       DYNAMIC_TYPE_TMP_BUFFER);
@@ -16355,7 +16355,7 @@ int DoSessionTicket(WOLFSSL* ssl,
                 if (!ssl->buffers.key.buffer) {
                     return NO_PRIVATE_KEY;
                 }
-                
+
                 ret = wc_RsaPrivateKeyDecode(ssl->buffers.key.buffer, &idx,
                                              &key, ssl->buffers.key.length);
 
