@@ -1587,7 +1587,7 @@ static INLINE void innermul8_mulx(fp_digit *c_mulx, fp_digit *cy_mulx, fp_digit 
 /* computes x/R == x (mod N) via Montgomery Reduction */
 static void fp_montgomery_reduce_mulx(fp_int *a, fp_int *m, fp_digit mp)
 {
-   fp_digit c[FP_SIZE], *_c, *tmpm, mu = 0;
+   fp_digit c[FP_SIZE+1], *_c, *tmpm, mu = 0;
    int      oldused, x, y, pa;
 
    /* bail if too large */
@@ -1664,7 +1664,7 @@ static void fp_montgomery_reduce_mulx(fp_int *a, fp_int *m, fp_digit mp)
 /* computes x/R == x (mod N) via Montgomery Reduction */
 void fp_montgomery_reduce(fp_int *a, fp_int *m, fp_digit mp)
 {
-   fp_digit c[FP_SIZE], *_c, *tmpm, mu = 0;
+   fp_digit c[FP_SIZE+1], *_c, *tmpm, mu = 0;
    int      oldused, x, y, pa;
 
    IF_HAVE_INTEL_MULX(fp_montgomery_reduce_mulx(a, m, mp), return) ;
