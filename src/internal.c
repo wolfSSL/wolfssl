@@ -3943,7 +3943,7 @@ static int BuildFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
             return 0;
         }   /* switch */
         }   /* if     */
-        if (first != ECC_BYTE) {   /* normal suites */
+        if (first != ECC_BYTE && first != CHACHA_BYTE) {   /* normal suites */
         switch (second) {
 
 #ifndef NO_RSA
