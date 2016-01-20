@@ -4098,13 +4098,13 @@ int rsa_test(void)
     /* check using pkcsv15 padding with _ex API */
     XMEMSET(plain, 0, sizeof(plain));
     ret = wc_RsaPublicEncrypt_ex(in, inLen, out, sizeof(out), &key, &rng,
-                  WC_RSA_PKCSV15_PAD, 0, 0, NULL, 0);
+                  WC_RSA_PKCSV15_PAD, WC_HASH_TYPE_NONE, 0, NULL, 0);
     if (ret < 0) {
         free(tmp);
         return -443;
     }
     ret = wc_RsaPrivateDecrypt_ex(out, ret, plain, sizeof(plain), &key,
-                  WC_RSA_PKCSV15_PAD, 0, 0, NULL, 0);
+                  WC_RSA_PKCSV15_PAD, WC_HASH_TYPE_NONE, 0, NULL, 0);
     if (ret < 0) {
         free(tmp);
         return -444;
