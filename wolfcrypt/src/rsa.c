@@ -227,7 +227,7 @@ int wc_FreeRsaKey(RsaKey* key)
    out:   mask output after generation
    outSz: size of output buffer
  */
-static int wc_MGF1(int hType, byte* seed, word32 seedSz,
+static int wc_MGF1(enum wc_HashType hType, byte* seed, word32 seedSz,
                                                         byte* out, word32 outSz)
 {
     byte* tmp;
@@ -347,7 +347,7 @@ static int wc_MGF(int type, byte* seed, word32 seedSz,
 
 static int wc_RsaPad_OAEP(const byte* input, word32 inputLen, byte* pkcsBlock,
         word32 pkcsBlockLen, byte padValue, WC_RNG* rng,
-        int hType, int mgf, byte* optLabel, word32 labelLen)
+        enum wc_HashType hType, int mgf, byte* optLabel, word32 labelLen)
 {
     int ret;
     int hLen;
@@ -542,8 +542,8 @@ static int wc_RsaPad(const byte* input, word32 inputLen, byte* pkcsBlock,
 #ifndef WC_NO_RSA_OAEP
 /* helper function to direct which padding is used */
 static int wc_RsaPad_ex(const byte* input, word32 inputLen, byte* pkcsBlock,
-                   word32 pkcsBlockLen, byte padValue, WC_RNG* rng, int padType,
-                   int hType, int mgf, byte* optLabel, word32 labelLen)
+               word32 pkcsBlockLen, byte padValue, WC_RNG* rng, int padType,
+               enum wc_HashType hType, int mgf, byte* optLabel, word32 labelLen)
 {
     int ret;
 
@@ -580,7 +580,8 @@ static int wc_RsaPad_ex(const byte* input, word32 inputLen, byte* pkcsBlock,
 /* UnPad plaintext, set start to *output, return length of plaintext,
  * < 0 on error */
 static int wc_RsaUnPad_OAEP(byte *pkcsBlock, unsigned int pkcsBlockLen,
-             byte **output, int hType, int mgf, byte* optLabel, word32 labelLen)
+                            byte **output, enum wc_HashType hType, int mgf,
+                            byte* optLabel, word32 labelLen)
 {
     int hLen;
     int ret;
@@ -593,7 +594,7 @@ static int wc_RsaUnPad_OAEP(byte *pkcsBlock, unsigned int pkcsBlockLen,
         return BAD_FUNC_ARG;
     }
 
-    tmp = XMALLOC(pkcsBlockLen, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    tmp = (byte*)XMALLOC(pkcsBlockLen, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (tmp == NULL) {
         return MEMORY_E;
     }
@@ -703,8 +704,8 @@ static int RsaUnPad(const byte *pkcsBlock, unsigned int pkcsBlockLen,
 #ifndef WC_NO_RSA_OAEP
 /* helper function to direct unpadding */
 static int wc_RsaUnPad_ex(byte* pkcsBlock, word32 pkcsBlockLen, byte** out,
-                          byte padValue, int padType, int hType, int mgf,
-                          byte* optLabel, word32 labelLen)
+                          byte padValue, int padType, enum wc_HashType hType,
+                          int mgf, byte* optLabel, word32 labelLen)
 {
     int ret;
 
@@ -877,8 +878,8 @@ int wc_RsaPublicEncrypt(const byte* in, word32 inLen, byte* out, word32 outLen,
    label : optional label
    labelSz : size of optional label buffer */
 int wc_RsaPublicEncrypt_ex(const byte* in, word32 inLen, byte* out,
-                      word32 outLen, RsaKey* key, WC_RNG* rng,
-                      int type, int hash, int mgf, byte* label, word32 labelSz)
+                    word32 outLen, RsaKey* key, WC_RNG* rng, int type,
+                    enum wc_HashType hash, int mgf, byte* label, word32 labelSz)
 {
     int sz, ret;
 
@@ -942,7 +943,8 @@ int wc_RsaPrivateDecryptInline(byte* in, word32 inLen, byte** out, RsaKey* key)
    label : optional label
    labelSz : size of optional label buffer */
 int wc_RsaPrivateDecryptInline_ex(byte* in, word32 inLen, byte** out,
-         RsaKey* key, int type, int hash, int mgf, byte* label, word32 labelSz)
+                          RsaKey* key, int type, enum wc_HashType hash, int mgf,
+                          byte* label, word32 labelSz)
 {
     int ret;
 
@@ -1024,7 +1026,8 @@ int wc_RsaPrivateDecrypt(const byte* in, word32 inLen, byte* out, word32 outLen,
    label : optional label
    labelSz : size of optional label buffer */
 int wc_RsaPrivateDecrypt_ex(const byte* in, word32 inLen, byte* out, word32 outLen,
-         RsaKey* key, int type, int hash, int mgf, byte* label, word32 labelSz)
+                          RsaKey* key, int type, enum wc_HashType hash, int mgf,
+                          byte* label, word32 labelSz)
 {
     int plainLen;
     byte*  tmp;

@@ -124,14 +124,14 @@ WOLFSSL_API int  wc_RsaPublicKeyDecodeRaw(const byte* n, word32 nSz,
 #define WC_RSA_OAEP_PAD    1
 
 WOLFSSL_API int  wc_RsaPublicEncrypt_ex(const byte* in, word32 inLen, byte* out,
-                      word32 outLen, RsaKey* key, WC_RNG* rng,
-                      int type, int hash, int mgf, byte* label, word32 lableSz);
+                   word32 outLen, RsaKey* key, WC_RNG* rng, int type,
+                   enum wc_HashType hash, int mgf, byte* label, word32 lableSz);
 WOLFSSL_API int  wc_RsaPrivateDecrypt_ex(const byte* in, word32 inLen,
-                      byte* out, word32 outLen, RsaKey* key,
-                      int type, int hash, int mgf, byte* label, word32 lableSz);
+                   byte* out, word32 outLen, RsaKey* key, int type,
+                   enum wc_HashType hash, int mgf, byte* label, word32 lableSz);
 WOLFSSL_API int  wc_RsaPrivateDecryptInline_ex(byte* in, word32 inLen,
-                      byte** out, RsaKey* key,
-                      int type, int hash, int mgf, byte* label, word32 lableSz);
+                      byte** out, RsaKey* key, int type, enum wc_HashType hash,
+                      int mgf, byte* label, word32 lableSz);
 #endif /* HAVE_FIPS*/
 WOLFSSL_API int  wc_RsaFlattenPublicKey(RsaKey*, byte*, word32*, byte*,
                                                                        word32*);
