@@ -594,7 +594,7 @@ static int wc_RsaUnPad_OAEP(byte *pkcsBlock, unsigned int pkcsBlockLen,
         return BAD_FUNC_ARG;
     }
 
-    tmp = XMALLOC(pkcsBlockLen, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    tmp = (byte*)XMALLOC(pkcsBlockLen, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (tmp == NULL) {
         return MEMORY_E;
     }
