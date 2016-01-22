@@ -1736,8 +1736,6 @@ WOLFSSL_API WOLFSSL_CTX* wolfSSL_set_SSL_CTX(WOLFSSL*,WOLFSSL_CTX*);
 
 WOLFSSL_API VerifyCallback wolfSSL_CTX_get_verify_callback(WOLFSSL_CTX*);
 
-WOLFSSL_API int wolfSSL_CTX_get_verify_mode(WOLFSSL_CTX* ctx);
-
 WOLFSSL_API void wolfSSL_CTX_set_servername_callback(WOLFSSL_CTX *,
         CallbackSniRecv);
 
@@ -1756,6 +1754,12 @@ WOLFSSL_API WOLFSSL_X509* wolfSSL_X509_STORE_get1_certs(WOLFSSL_X509_STORE_CTX*,
 
 WOLFSSL_API void wolfSSL_sk_X509_pop_free(STACK_OF(WOLFSSL_X509)* sk, void f (WOLFSSL_X509*));
 #endif /* HAVE_STUNNEL */
+
+#if defined(HAVE_STUNNEL) || defined(WOLFSSL_MYSQL_COMPATIBLE)
+
+WOLFSSL_API int wolfSSL_CTX_get_verify_mode(WOLFSSL_CTX* ctx);
+
+#endif
 
 #ifdef WOLFSSL_JNI
 WOLFSSL_API int wolfSSL_set_jobject(WOLFSSL* ssl, void* objPtr);
