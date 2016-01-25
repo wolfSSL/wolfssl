@@ -2816,7 +2816,7 @@ ProtocolVersion MakeDTLSv1_2(void)
         return (word32) mqxTime.SECONDS;
     }
 
-#elif defined(FREESCALE_KSDK_BM)
+#elif defined(FREESCALE_KSDK_BM) || defined(FREESCALE_FREE_RTOS)
 
     #include "fsl_pit_driver.h"
 

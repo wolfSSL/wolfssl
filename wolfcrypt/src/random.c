@@ -114,10 +114,6 @@ int  wc_RNG_GenerateByte(WC_RNG* rng, byte* b)
         #ifndef EBSNET
             #include <unistd.h>
         #endif
-    #elif defined(FREESCALE_TRNG)
-        #define TRNG_INSTANCE (0)
-        #include "fsl_device_registers.h"
-        #include "fsl_trng_driver.h"
     #else
         /* include headers that may be needed to get good seed */
     #endif
@@ -1185,6 +1181,15 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
         int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
         {
             TRNG_DRV_GetRandomData(TRNG_INSTANCE, output, sz);
+            return 0;
+        }
+
+
+    #elif defined(FREESCALE_RNGA)
+
+        int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
+        {
+            RNGA_DRV_GetRandomData(RNGA_INSTANCE, output, sz);
             return 0;
         }
 

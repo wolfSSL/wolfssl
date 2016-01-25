@@ -138,7 +138,8 @@ int UnLockMutex(wolfSSL_Mutex *m)
 
 #else /* MULTI_THREAD */
 
-    #if defined(FREERTOS)  || defined(FREERTOS_TCP)
+    #if defined(FREERTOS)  || defined(FREERTOS_TCP) || \
+        defined(FREESCALE_FREE_RTOS)
 
         int InitMutex(wolfSSL_Mutex* m)
         {
@@ -390,7 +391,7 @@ int UnLockMutex(wolfSSL_Mutex *m)
             return 0;
         }
 
-    #elif defined(FREESCALE_MQX)
+    #elif defined(FREESCALE_MQX) || defined(FREESCALE_KSDK_MQX)
 
         int InitMutex(wolfSSL_Mutex* m)
         {
