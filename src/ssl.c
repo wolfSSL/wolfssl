@@ -16961,27 +16961,6 @@ VerifyCallback wolfSSL_CTX_get_verify_callback(WOLFSSL_CTX* ctx)
 }
 
 
-int wolfSSL_CTX_get_verify_mode(WOLFSSL_CTX* ctx)
-{
-    int mode = 0;
-    WOLFSSL_ENTER("wolfSSL_CTX_get_verify_mode");
-
-    if(!ctx)
-        return SSL_FATAL_ERROR;
-
-    if (ctx->verifyPeer)
-        mode |= SSL_VERIFY_PEER;
-    else if (ctx->verifyNone)
-        mode |= SSL_VERIFY_NONE;
-
-    if (ctx->failNoCert)
-        mode |= SSL_VERIFY_FAIL_IF_NO_PEER_CERT;
-
-    WOLFSSL_LEAVE("wolfSSL_CTX_get_verify_mode", mode);
-    return mode;
-}
-
-
 void wolfSSL_CTX_set_servername_callback(WOLFSSL_CTX* ctx, CallbackSniRecv cb)
 {
     WOLFSSL_ENTER("wolfSSL_CTX_set_servername_callback");
@@ -17043,6 +17022,30 @@ void wolfSSL_sk_X509_pop_free(STACK_OF(WOLFSSL_X509)* sk, void f (WOLFSSL_X509*)
 }
 
 #endif /* OPENSSL_EXTRA and HAVE_STUNNEL */
+
+
+#if (defined(OPENSSL_EXTRA) && defined(HAVE_STUNNEL)) \
+    || defined(WOLFSSL_MYSQL_COMPATIBLE)
+int wolfSSL_CTX_get_verify_mode(WOLFSSL_CTX* ctx)
+{
+    int mode = 0;
+    WOLFSSL_ENTER("wolfSSL_CTX_get_verify_mode");
+
+    if(!ctx)
+        return SSL_FATAL_ERROR;
+
+    if (ctx->verifyPeer)
+        mode |= SSL_VERIFY_PEER;
+    else if (ctx->verifyNone)
+        mode |= SSL_VERIFY_NONE;
+
+    if (ctx->failNoCert)
+        mode |= SSL_VERIFY_FAIL_IF_NO_PEER_CERT;
+
+    WOLFSSL_LEAVE("wolfSSL_CTX_get_verify_mode", mode);
+    return mode;
+}
+#endif
 
 #if defined(OPENSSL_EXTRA) && defined(HAVE_CURVE25519)
 /* return 1 if success, 0 if error
