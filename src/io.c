@@ -39,7 +39,7 @@
 
 /* if user writes own I/O callbacks they can define WOLFSSL_USER_IO to remove
    automatic setting of default I/O functions EmbedSend() and EmbedReceive()
-   but they'll still need SetCallback xxx() at end of file 
+   but they'll still need SetCallback xxx() at end of file
 */
 #ifndef WOLFSSL_USER_IO
 
@@ -86,8 +86,13 @@
             #include <unistd.h>
         #endif
         #include <fcntl.h>
-        #if !(defined(DEVKITPRO) || defined(HAVE_RTP_SYS) || defined(EBSNET)) \
-            && !(defined(WOLFSSL_PICOTCP))
+
+        #if defined(HAVE_RTP_SYS)
+            #include <socket.h>
+        #elif defined(EBSNET)
+            #include "rtipapi.h"  /* errno */
+            #include "socket.h"
+        #elif !defined(DEVKITPRO) && !defined(WOLFSSL_PICOTCP)
             #include <sys/socket.h>
             #include <arpa/inet.h>
             #include <netinet/in.h>
@@ -98,13 +103,6 @@
                 #include <sys/ioctl.h>
             #endif
         #endif
-        #ifdef HAVE_RTP_SYS
-            #include <socket.h>
-        #endif
-        #ifdef EBSNET
-            #include "rtipapi.h"  /* errno */
-            #include "socket.h"
-        #endif
     #endif
 #endif /* USE_WINDOWS_API */
 
@@ -112,7 +110,7 @@
     #include <sys/filio.h>
 #endif
 
-#ifdef USE_WINDOWS_API 
+#ifdef USE_WINDOWS_API
     /* no epipe yet */
     #ifndef WSAEPIPE
         #define WSAEPIPE       -12345
@@ -218,8 +216,8 @@
 #endif
 
 
-/* Translates return codes returned from 
- * send() and recv() if need be. 
+/* Translates return codes returned from
+ * send() and recv() if need be.
  */
 static INLINE int TranslateReturnCode(int old, int sd)
 {
@@ -247,7 +245,7 @@ static INLINE int TranslateReturnCode(int old, int sd)
 
 static INLINE int LastError(void)
 {
-#ifdef USE_WINDOWS_API 
+#ifdef USE_WINDOWS_API
     return WSAGetLastError();
 #elif defined(EBSNET)
     return xn_getlasterror();
@@ -372,7 +370,7 @@ int EmbedSend(WOLFSSL* ssl, char *buf, int sz, void *ctx)
             return WOLFSSL_CBIO_ERR_GENERAL;
         }
     }
- 
+
     return sent;
 }
 
@@ -513,7 +511,7 @@ int EmbedSendTo(WOLFSSL* ssl, char *buf, int sz, void *ctx)
             return WOLFSSL_CBIO_ERR_GENERAL;
         }
     }
- 
+
     return sent;
 }
 
@@ -709,14 +707,14 @@ static int decode_url(const char* url, int urlSz,
         else
         {
             int i, cur;
-    
+
             /* need to break the url down into scheme, address, and port */
             /*     "http://example.com:8080/" */
             /*     "http://[::1]:443/"        */
             if (XSTRNCMP(url, "http://", 7) == 0) {
                 cur = 7;
             } else cur = 0;
-    
+
             i = 0;
             if (url[cur] == '[') {
                 cur++;
@@ -734,7 +732,7 @@ static int decode_url(const char* url, int urlSz,
             }
             outName[i] = 0;
             /* Need to pick out the path after the domain name */
-    
+
             if (cur < urlSz && url[cur] == ':') {
                 char port[6];
                 int j;
@@ -745,7 +743,7 @@ static int decode_url(const char* url, int urlSz,
                         i < 6) {
                     port[i++] = url[cur++];
                 }
-    
+
                 for (j = 0; j < i; j++) {
                     if (port[j] < '0' || port[j] > '9') return -1;
                     bigPort = (bigPort * 10) + (port[j] - '0');
@@ -754,7 +752,7 @@ static int decode_url(const char* url, int urlSz,
             }
             else
                 *outPort = 80;
-    
+
             if (cur < urlSz && url[cur] == '/') {
                 i = 0;
                 while (cur < urlSz && url[cur] != 0 && i < 80) {
@@ -841,7 +839,7 @@ static int process_http_response(int sfd, byte** respBuf,
                     WOLFSSL_MSG("process_http_response not ocsp-response");
                     return -1;
                 }
-                
+
                 if (state == phr_http_start) state = phr_have_type;
                 else if (state == phr_have_length) state = phr_wait_end;
                 else {
@@ -861,7 +859,7 @@ static int process_http_response(int sfd, byte** respBuf,
                     return -1;
                 }
             }
-            
+
             start = end + 2;
         }
     } while (state != phr_http_end);
@@ -912,7 +910,7 @@ int EmbedOcspLookup(void* ctx, const char* url, int urlSz,
     path = (char*)XMALLOC(80, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (path == NULL)
         return -1;
-    
+
     domainName = (char*)XMALLOC(80, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (domainName == NULL) {
         XFREE(path, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -935,7 +933,7 @@ int EmbedOcspLookup(void* ctx, const char* url, int urlSz,
         /* Note, the library uses the EmbedOcspRespFree() callback to
          * free this buffer. */
         int   httpBufSz = SCRATCH_BUFFER_SIZE;
-        byte* httpBuf   = (byte*)XMALLOC(httpBufSz, NULL, 
+        byte* httpBuf   = (byte*)XMALLOC(httpBufSz, NULL,
                                                         DYNAMIC_TYPE_OCSP);
 
         if (httpBuf == NULL) {
@@ -1002,13 +1000,13 @@ WOLFSSL_API void wolfSSL_SetIOSend(WOLFSSL_CTX *ctx, CallbackIOSend CBIOSend)
 
 WOLFSSL_API void wolfSSL_SetIOReadCtx(WOLFSSL* ssl, void *rctx)
 {
-	ssl->IOCB_ReadCtx = rctx;
+    ssl->IOCB_ReadCtx = rctx;
 }
 
 
 WOLFSSL_API void wolfSSL_SetIOWriteCtx(WOLFSSL* ssl, void *wctx)
 {
-	ssl->IOCB_WriteCtx = wctx;
+    ssl->IOCB_WriteCtx = wctx;
 }
 
 
@@ -1032,7 +1030,7 @@ WOLFSSL_API void* wolfSSL_GetIOWriteCtx(WOLFSSL* ssl)
 
 WOLFSSL_API void wolfSSL_SetIOReadFlags(WOLFSSL* ssl, int flags)
 {
-    ssl->rflags = flags; 
+    ssl->rflags = flags;
 }
 
 
@@ -1052,14 +1050,14 @@ WOLFSSL_API void wolfSSL_CTX_SetGenCookie(WOLFSSL_CTX* ctx, CallbackGenCookie cb
 
 WOLFSSL_API void wolfSSL_SetCookieCtx(WOLFSSL* ssl, void *ctx)
 {
-	ssl->IOCB_CookieCtx = ctx;
+    ssl->IOCB_CookieCtx = ctx;
 }
 
 
 WOLFSSL_API void* wolfSSL_GetCookieCtx(WOLFSSL* ssl)
 {
     if (ssl)
-	    return ssl->IOCB_CookieCtx;
+        return ssl->IOCB_CookieCtx;
 
     return NULL;
 }

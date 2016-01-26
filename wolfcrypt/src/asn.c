@@ -95,61 +95,43 @@
 #endif
 
 
-#ifdef HAVE_RTP_SYS
+#if defined(HAVE_RTP_SYS)
     /* uses parital <time.h> structures */
-    #define XTIME(tl)  (0)
-    #define XGMTIME(c, t) my_gmtime((c))
-    #define XVALIDATE_DATE(d, f, t) ValidateDate((d), (f), (t))
+    #define XTIME(tl)       (0)
+    #define XGMTIME(c, t)   rtpsys_gmtime((c))
+
 #elif defined(MICRIUM)
     #if (NET_SECURE_MGR_CFG_EN == DEF_ENABLED)
-        #define XVALIDATE_DATE(d,f,t) NetSecure_ValidateDateHandler((d),(f),(t))
+        #define XVALIDATE_DATE(d, f, t) NetSecure_ValidateDateHandler((d), (f), (t))
     #else
         #define XVALIDATE_DATE(d, f, t) (0)
     #endif
     #define NO_TIME_H
     /* since Micrium not defining XTIME or XGMTIME, CERT_GEN not available */
+
 #elif defined(MICROCHIP_TCPIP_V5) || defined(MICROCHIP_TCPIP)
     #include <time.h>
-    #define XTIME(t1) pic32_time((t1))
-    #define XGMTIME(c, t) gmtime((c))
-    #define XVALIDATE_DATE(d, f, t) ValidateDate((d), (f), (t))
+    #define XTIME(t1)       pic32_time((t1))
+
 #elif defined(FREESCALE_MQX) || defined(FREESCALE_KSDK_MQX)
-    #define XTIME(t1)  mqx_time((t1))
-    #define XGMTIME(c, t) mqx_gmtime((c), (t))
-    #define XVALIDATE_DATE(d, f, t) ValidateDate((d), (f), (t))
+    #define XTIME(t1)       mqx_time((t1))
+    #define HAVE_GMTIME_R
+
 #elif defined(FREESCALE_KSDK_BM) || defined(FREESCALE_FREE_RTOS)
     #include <time.h>
-    #define XTIME(t1)  ksdk_time((t1))
-    #define XGMTIME(c, t) gmtime((c))
-    #define XVALIDATE_DATE(d, f, t) ValidateDate((d), (f), (t))
+    #define XTIME(t1)       ksdk_time((t1))
 
 #elif defined(USER_TIME)
     /* user time, and gmtime compatible functions, there is a gmtime
        implementation here that WINCE uses, so really just need some ticks
        since the EPOCH
     */
-
-    struct tm {
-    int tm_sec;     /* seconds after the minute [0-60] */
-    int tm_min;     /* minutes after the hour [0-59] */
-    int tm_hour;    /* hours since midnight [0-23] */
-    int tm_mday;    /* day of the month [1-31] */
-    int tm_mon;     /* months since January [0-11] */
-    int tm_year;    /* years since 1900 */
-    int tm_wday;    /* days since Sunday [0-6] */
-    int tm_yday;    /* days since January 1 [0-365] */
-    int tm_isdst;   /* Daylight Savings Time flag */
-    long    tm_gmtoff;  /* offset from CUT in seconds */
-    char    *tm_zone;   /* timezone abbreviation */
-    };
-    typedef long time_t;
+    #define WOLFSSL_GMTIME
+    #define USE_WOLF_TM
+    #define USE_WOLF_TIME_T
 
     /* forward declaration */
-    struct tm* gmtime(const time_t* timer);
     extern time_t XTIME(time_t * timer);
-
-    #define XGMTIME(c, t) gmtime((c))
-    #define XVALIDATE_DATE(d, f, t) ValidateDate((d), (f), (t))
 
     #ifdef STACK_TRAP
         /* for stack trap tracking, don't call os gmtime on OS X/linux,
@@ -160,63 +142,75 @@
 
 #elif defined(TIME_OVERRIDES)
     /* user would like to override time() and gmtime() functionality */
-
     #ifndef HAVE_TIME_T_TYPE
-        typedef long time_t;
+        #define USE_WOLF_TIME_T
     #endif
-    extern time_t XTIME(time_t * timer);
-
     #ifndef HAVE_TM_TYPE
-        struct tm {
-            int  tm_sec;     /* seconds after the minute [0-60] */
-            int  tm_min;     /* minutes after the hour [0-59] */
-            int  tm_hour;    /* hours since midnight [0-23] */
-            int  tm_mday;    /* day of the month [1-31] */
-            int  tm_mon;     /* months since January [0-11] */
-            int  tm_year;    /* years since 1900 */
-            int  tm_wday;    /* days since Sunday [0-6] */
-            int  tm_yday;    /* days since January 1 [0-365] */
-            int  tm_isdst;   /* Daylight Savings Time flag */
-            long tm_gmtoff;  /* offset from CUT in seconds */
-            char *tm_zone;   /* timezone abbreviation */
-        };
+        #define USE_WOLF_TM
     #endif
-    extern struct tm* XGMTIME(const time_t* timer, struct tm* tmp);
 
-    #ifndef HAVE_VALIDATE_DATE
-        #define XVALIDATE_DATE(d, f, t) ValidateDate((d), (f), (t))
-    #endif
+    /* forward declarations */
+    extern time_t XTIME(time_t * timer);
+    extern struct tm* XGMTIME(const time_t* timer, struct tm* tmp);
+    #define NEED_TMP_TIME
 
 #elif defined(IDIRECT_DEV_TIME)
     /*Gets the timestamp from cloak software owned by VT iDirect
     in place of time() from <time.h> */
     #include <time.h>
-    #define XTIME(t1)  idirect_time((t1))
-    #define XGMTIME(c) gmtime((c))
-    #define XVALIDATE_DATE(d, f, t) ValidateDate((d), (f), (t))
+    #define XTIME(t1)       idirect_time((t1))
+
+#elif defined(_WIN32_WCE)
+    #include <windows.h>
+    #define XTIME(t1)       windows_time((t1))
+    #define WOLFSSL_GMTIME
 
 #else
     /* default */
     /* uses complete <time.h> facility */
     #include <time.h>
-    #define XTIME(tl)     time((tl))
-    #ifdef HAVE_GMTIME_R
-        #define XGMTIME(c, t) gmtime_r((c), (t))
-        #define NEED_TMP_TIME
-    #else
-        #define XGMTIME(c, t) gmtime((c))
-    #endif
-    #define XVALIDATE_DATE(d, f, t) ValidateDate((d), (f), (t))
 #endif
 
 
-#ifdef _WIN32_WCE
-/* no time() or gmtime() even though in time.h header?? */
+/* Map default time functions */
+#if !defined(XTIME) && !defined(TIME_OVERRIDES) && !defined(USER_TIME)
+    #define XTIME(tl)       time((tl))
+#endif
+#if !defined(XGMTIME) && !defined(TIME_OVERRIDES)
+    #ifdef HAVE_GMTIME_R
+        #define XGMTIME(c, t)   gmtime_r((c), (t))
+        #define NEED_TMP_TIME
+    #else
+        #define XGMTIME(c, t)   gmtime((c))
+    #endif
+#endif
+#if !defined(XVALIDATE_DATE) && !defined(HAVE_VALIDATE_DATE)
+    #define USE_WOLF_VALIDDATE
+    #define XVALIDATE_DATE(d, f, t) ValidateDate((d), (f), (t))
+#endif
 
-#include <windows.h>
+#if defined(USE_WOLF_TM)
+    struct tm {
+        int  tm_sec;     /* seconds after the minute [0-60] */
+        int  tm_min;     /* minutes after the hour [0-59] */
+        int  tm_hour;    /* hours since midnight [0-23] */
+        int  tm_mday;    /* day of the month [1-31] */
+        int  tm_mon;     /* months since January [0-11] */
+        int  tm_year;    /* years since 1900 */
+        int  tm_wday;    /* days since Sunday [0-6] */
+        int  tm_yday;    /* days since January 1 [0-365] */
+        int  tm_isdst;   /* Daylight Savings Time flag */
+        long tm_gmtoff;  /* offset from CUT in seconds */
+        char *tm_zone;   /* timezone abbreviation */
+    };
+#endif /* USE_WOLF_TM */
+#if defined(USE_WOLF_TIME_T)
+    typedef long time_t;
+#endif
 
 
-time_t time(time_t* timer)
+#if defined(_WIN32_WCE)
+time_t windows_time(time_t* timer)
 {
     SYSTEMTIME     sysTime;
     FILETIME       fTime;
@@ -238,10 +232,9 @@ time_t time(time_t* timer)
 
     return *timer;
 }
-
 #endif /*  _WIN32_WCE */
-#if defined( _WIN32_WCE ) || defined( USER_TIME )
 
+#if defined(WOLFSSL_GMTIME)
 struct tm* gmtime(const time_t* timer)
 {
     #define YEAR0          1900
@@ -289,15 +282,13 @@ struct tm* gmtime(const time_t* timer)
 
     return ret;
 }
+#endif /* WOLFSSL_GMTIME */
 
-#endif /* _WIN32_WCE  || USER_TIME */
 
-
-#ifdef HAVE_RTP_SYS
-
+#if defined(HAVE_RTP_SYS)
 #define YEAR0          1900
 
-struct tm* my_gmtime(const time_t* timer)       /* has a gmtime() but hangs */
+struct tm* rtpsys_gmtime(const time_t* timer)       /* has a gmtime() but hangs */
 {
     static struct tm st_time;
     struct tm* ret = &st_time;
@@ -365,12 +356,6 @@ time_t mqx_time(time_t* timer)
     return *timer;
 }
 
-/* CodeWarrior GCC toolchain only has gmtime_r(), no gmtime() */
-struct tm* mqx_gmtime(const time_t* clock, struct tm* tmpTime)
-{
-    return gmtime_r(clock, tmpTime);
-}
-
 #endif /* FREESCALE_MQX */
 
 #if defined(FREESCALE_KSDK_BM) || defined(FREESCALE_FREE_RTOS)
@@ -390,7 +375,7 @@ time_t ksdk_time(time_t* timer)
 
 #endif /* FREESCALE_KSDK_BM */
 
-#ifdef WOLFSSL_TIRTOS
+#if defined(WOLFSSL_TIRTOS)
 
 time_t XTIME(time_t * timer)
 {
@@ -405,6 +390,7 @@ time_t XTIME(time_t * timer)
 }
 
 #endif /* WOLFSSL_TIRTOS */
+
 
 static INLINE word32 btoi(byte b)
 {
@@ -496,7 +482,7 @@ time_t idirect_time(time_t * timer)
     return sec;
 }
 
-#endif
+#endif /* IDIRECT_DEV_TIME */
 
 
 WOLFSSL_LOCAL int GetLength(const byte* input, word32* inOutIdx, int* len,
@@ -2954,7 +2940,7 @@ static int GetName(DecodedCert* cert, int nameType)
 }
 
 
-#ifndef NO_TIME_H
+#if !defined(NO_TIME_H) && defined(USE_WOLF_VALIDDATE)
 
 /* to the second */
 static int DateGreaterThan(const struct tm* a, const struct tm* b)
@@ -2992,7 +2978,6 @@ static INLINE int DateLessThan(const struct tm* a, const struct tm* b)
     return DateGreaterThan(b,a);
 }
 
-
 /* like atoi but only use first byte */
 /* Make sure before and after dates are valid */
 int ValidateDate(const byte* date, byte format, int dateType)
@@ -3006,8 +2991,7 @@ int ValidateDate(const byte* date, byte format, int dateType)
     int    diffHH = 0 ; int diffMM = 0 ;
     int    diffSign = 0 ;
 
-#if defined(FREESCALE_MQX) || defined(FREESCALE_KSDK_MQX) || \
-    defined(TIME_OVERRIDES) || defined(NEED_TMP_TIME)
+#if defined(NEED_TMP_TIME)
     struct tm tmpTimeStorage;
     tmpTime = &tmpTimeStorage;
 #else
@@ -3065,8 +3049,7 @@ int ValidateDate(const byte* date, byte format, int dateType)
 
     return 1;
 }
-
-#endif /* NO_TIME_H */
+#endif /* !NO_TIME_H && USE_WOLF_VALIDDATE */
 
 
 static int GetDate(DecodedCert* cert, int dateType)
@@ -6022,8 +6005,7 @@ static int SetValidity(byte* output, int daysValid)
     struct tm* tmpTime = NULL;
     struct tm  local;
 
-#if defined(FREESCALE_MQX) || defined(FREESCALE_KSDK_MQX) || \
-    defined(TIME_OVERRIDES) || defined(NEED_TMP_TIME)
+#if defined(NEED_TMP_TIME)
     /* for use with gmtime_r */
     struct tm tmpTimeStorage;
     tmpTime = &tmpTimeStorage;
