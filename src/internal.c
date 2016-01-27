@@ -9366,6 +9366,9 @@ const char* wolfSSL_ERR_reason_error_string(unsigned long e)
     case UNKNOWN_SNI_HOST_NAME_E:
         return "Unrecognized host name Error";
 
+    case UNKNOWN_MAX_FRAG_LEN_E:
+        return "Unrecognized max frag len Error";
+
     case KEYUSE_SIGNATURE_E:
         return "Key Use digitalSignature not set Error";
 

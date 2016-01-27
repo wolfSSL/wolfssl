@@ -142,13 +142,13 @@ enum wolfSSL_ErrorCodes {
     BAD_CERTIFICATE_STATUS_ERROR = -406,   /* Bad certificate status message */
     OCSP_INVALID_STATUS          = -407,   /* Invalid OCSP Status */
 
-    /* add strings to SetErrorString !!!!! */
+    /* add strings to wolfSSL_ERR_reason_error_string in internal.c !!!!! */
 
     /* begin negotiation parameter errors */
     UNSUPPORTED_SUITE            = -500,        /* unsupported cipher suite */
     MATCH_SUITE_ERROR            = -501         /* can't match cipher suite */
     /* end negotiation parameter errors only 10 for now */
-    /* add strings to SetErrorString !!!!! */
+    /* add strings to wolfSSL_ERR_reason_error_string in internal.c !!!!! */
 
     /* no error stings go down here, add above negotiation errors !!!! */
 };
