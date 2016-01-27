@@ -112,6 +112,7 @@
 #elif defined(MICROCHIP_TCPIP_V5) || defined(MICROCHIP_TCPIP)
     #include <time.h>
     #define XTIME(t1)       pic32_time((t1))
+    #define XGMTIME(c, t)   gmtime((c))
 
 #elif defined(FREESCALE_MQX) || defined(FREESCALE_KSDK_MQX)
     #define XTIME(t1)       mqx_time((t1))
@@ -120,6 +121,7 @@
 #elif defined(FREESCALE_KSDK_BM) || defined(FREESCALE_FREE_RTOS)
     #include <time.h>
     #define XTIME(t1)       ksdk_time((t1))
+    #define XGMTIME(c, t)   gmtime((c))
 
 #elif defined(USER_TIME)
     /* user time, and gmtime compatible functions, there is a gmtime
@@ -145,6 +147,7 @@
     in place of time() from <time.h> */
     #include <time.h>
     #define XTIME(t1)       idirect_time((t1))
+    #define XGMTIME(c, t)   gmtime((c))
 
 #elif defined(_WIN32_WCE)
     #include <windows.h>
@@ -163,11 +166,11 @@
     #define XTIME(tl)       time((tl))
 #endif
 #if !defined(XGMTIME) && !defined(TIME_OVERRIDES)
-    #ifdef HAVE_GMTIME_R
+    #if defined(WOLFSSL_GMTIME) || !defined(HAVE_GMTIME_R)
+        #define XGMTIME(c, t)   gmtime((c))
+    #else
         #define XGMTIME(c, t)   gmtime_r((c), (t))
         #define NEED_TMP_TIME
-    #else
-        #define XGMTIME(c, t)   gmtime((c))
     #endif
 #endif
 #if !defined(XVALIDATE_DATE) && !defined(HAVE_VALIDATE_DATE)
@@ -197,6 +200,7 @@
 
 /* forward declarations */
 #if defined(USER_TIME)
+    struct tm* gmtime(const time_t* timer);
     extern time_t XTIME(time_t * timer);
 
     #ifdef STACK_TRAP
