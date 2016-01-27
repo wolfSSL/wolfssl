@@ -34,7 +34,7 @@
 #endif
 
 
-/* error codes */
+/* error codes, add string for new errors !!! */
 enum {
     MAX_CODE_E         = -100,  /* errors -101 - -299 */
     OPEN_RAN_E         = -101,  /* opening random device error */
@@ -166,6 +166,9 @@ enum {
     BAD_COND_E          = -230,  /* Bad condition variable operation */
 
     MIN_CODE_E          = -300   /* errors -101 - -299 */
+
+    /* add new companion error id strings for any new error codes
+       wolfcrypt/src/error.c !!! */
 };
 
 
