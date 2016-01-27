@@ -130,16 +130,6 @@
     #define USE_WOLF_TM
     #define USE_WOLF_TIME_T
 
-    /* forward declaration */
-    extern time_t XTIME(time_t * timer);
-
-    #ifdef STACK_TRAP
-        /* for stack trap tracking, don't call os gmtime on OS X/linux,
-           uses a lot of stack spce */
-        extern time_t time(time_t * timer);
-        #define XTIME(tl)  time((tl))
-    #endif /* STACK_TRAP */
-
 #elif defined(TIME_OVERRIDES)
     /* user would like to override time() and gmtime() functionality */
     #ifndef HAVE_TIME_T_TYPE
@@ -148,10 +138,6 @@
     #ifndef HAVE_TM_TYPE
         #define USE_WOLF_TM
     #endif
-
-    /* forward declarations */
-    extern time_t XTIME(time_t * timer);
-    extern struct tm* XGMTIME(const time_t* timer, struct tm* tmp);
     #define NEED_TMP_TIME
 
 #elif defined(IDIRECT_DEV_TIME)
@@ -189,6 +175,7 @@
     #define XVALIDATE_DATE(d, f, t) ValidateDate((d), (f), (t))
 #endif
 
+/* wolf struct tm and time_t */
 #if defined(USE_WOLF_TM)
     struct tm {
         int  tm_sec;     /* seconds after the minute [0-60] */
@@ -206,6 +193,22 @@
 #endif /* USE_WOLF_TM */
 #if defined(USE_WOLF_TIME_T)
     typedef long time_t;
+#endif
+
+/* forward declarations */
+#if defined(USER_TIME)
+    extern time_t XTIME(time_t * timer);
+
+    #ifdef STACK_TRAP
+        /* for stack trap tracking, don't call os gmtime on OS X/linux,
+           uses a lot of stack spce */
+        extern time_t time(time_t * timer);
+        #define XTIME(tl)  time((tl))
+    #endif /* STACK_TRAP */
+
+#elif defined(TIME_OVERRIDES)
+    extern time_t XTIME(time_t * timer);
+    extern struct tm* XGMTIME(const time_t* timer, struct tm* tmp);
 #endif
 
 
