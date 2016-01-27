@@ -60,6 +60,62 @@ int SetCipherSpecs(WOLFSSL* ssl)
     if (ssl->options.cipherSuite0 == CHACHA_BYTE) {
     
     switch (ssl->options.cipherSuite) {
+#ifdef BUILD_TLS_ECDHE_RSA_WITH_CHACHA20_OLD_POLY1305_SHA256
+    case TLS_ECDHE_RSA_WITH_CHACHA20_OLD_POLY1305_SHA256:
+        ssl->specs.bulk_cipher_algorithm = wolfssl_chacha;
+        ssl->specs.cipher_type           = aead;
+        ssl->specs.mac_algorithm         = sha256_mac;
+        ssl->specs.kea                   = ecc_diffie_hellman_kea;
+        ssl->specs.sig_algo              = rsa_sa_algo;
+        ssl->specs.hash_size             = SHA256_DIGEST_SIZE;
+        ssl->specs.pad_size              = PAD_SHA;
+        ssl->specs.static_ecdh           = 0;
+        ssl->specs.key_size              = CHACHA20_256_KEY_SIZE;
+        ssl->specs.block_size            = CHACHA20_BLOCK_SIZE;
+        ssl->specs.iv_size               = CHACHA20_IV_SIZE;
+        ssl->specs.aead_mac_size         = POLY1305_AUTH_SZ;
+        ssl->options.oldPoly             = 1; /* use old poly1305 padding */
+
+        break;
+#endif
+
+#ifdef BUILD_TLS_ECDHE_ECDSA_WITH_CHACHA20_OLD_POLY1305_SHA256
+    case TLS_ECDHE_ECDSA_WITH_CHACHA20_OLD_POLY1305_SHA256:
+        ssl->specs.bulk_cipher_algorithm = wolfssl_chacha;
+        ssl->specs.cipher_type           = aead;
+        ssl->specs.mac_algorithm         = sha256_mac;
+        ssl->specs.kea                   = ecc_diffie_hellman_kea;
+        ssl->specs.sig_algo              = ecc_dsa_sa_algo;
+        ssl->specs.hash_size             = SHA256_DIGEST_SIZE;
+        ssl->specs.pad_size              = PAD_SHA;
+        ssl->specs.static_ecdh           = 0;
+        ssl->specs.key_size              = CHACHA20_256_KEY_SIZE;
+        ssl->specs.block_size            = CHACHA20_BLOCK_SIZE;
+        ssl->specs.iv_size               = CHACHA20_IV_SIZE;
+        ssl->specs.aead_mac_size         = POLY1305_AUTH_SZ;
+        ssl->options.oldPoly             = 1; /* use old poly1305 padding */
+
+        break;
+#endif
+
+#ifdef BUILD_TLS_DHE_RSA_WITH_CHACHA20_OLD_POLY1305_SHA256
+    case TLS_DHE_RSA_WITH_CHACHA20_OLD_POLY1305_SHA256:
+        ssl->specs.bulk_cipher_algorithm = wolfssl_chacha;
+        ssl->specs.cipher_type           = aead;
+        ssl->specs.mac_algorithm         = sha256_mac;
+        ssl->specs.kea                   = diffie_hellman_kea;
+        ssl->specs.sig_algo              = rsa_sa_algo;
+        ssl->specs.hash_size             = SHA256_DIGEST_SIZE;
+        ssl->specs.pad_size              = PAD_SHA;
+        ssl->specs.static_ecdh           = 0;
+        ssl->specs.key_size              = CHACHA20_256_KEY_SIZE;
+        ssl->specs.block_size            = CHACHA20_BLOCK_SIZE;
+        ssl->specs.iv_size               = CHACHA20_IV_SIZE;
+        ssl->specs.aead_mac_size         = POLY1305_AUTH_SZ;
+        ssl->options.oldPoly             = 1; /* use old poly1305 padding */
+
+        break;
+#endif
 #ifdef BUILD_TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256
     case TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256:
         ssl->specs.bulk_cipher_algorithm = wolfssl_chacha;
@@ -74,6 +130,7 @@ int SetCipherSpecs(WOLFSSL* ssl)
         ssl->specs.block_size            = CHACHA20_BLOCK_SIZE;
         ssl->specs.iv_size               = CHACHA20_IV_SIZE;
         ssl->specs.aead_mac_size         = POLY1305_AUTH_SZ;
+        ssl->options.oldPoly             = 0; /* use recent padding RFC */
 
         break;
 #endif
@@ -92,6 +149,7 @@ int SetCipherSpecs(WOLFSSL* ssl)
         ssl->specs.block_size            = CHACHA20_BLOCK_SIZE;
         ssl->specs.iv_size               = CHACHA20_IV_SIZE;
         ssl->specs.aead_mac_size         = POLY1305_AUTH_SZ;
+        ssl->options.oldPoly             = 0; /* use recent padding RFC */
 
         break;
 #endif
@@ -110,6 +168,7 @@ int SetCipherSpecs(WOLFSSL* ssl)
         ssl->specs.block_size            = CHACHA20_BLOCK_SIZE;
         ssl->specs.iv_size               = CHACHA20_IV_SIZE;
         ssl->specs.aead_mac_size         = POLY1305_AUTH_SZ;
+        ssl->options.oldPoly             = 0; /* use recent padding RFC */
 
         break;
 #endif
@@ -1916,14 +1975,14 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
                 chachaRet = wc_Chacha_SetKey(enc->chacha, keys->client_write_key,
                                           specs->key_size);
                 XMEMCPY(keys->aead_enc_imp_IV, keys->client_write_IV,
-                        AEAD_IMP_IV_SZ);
+                        CHACHA20_IV_SIZE);
                 if (chachaRet != 0) return chachaRet;
             }
             if (dec) {
                 chachaRet = wc_Chacha_SetKey(dec->chacha, keys->server_write_key,
                                           specs->key_size);
                 XMEMCPY(keys->aead_dec_imp_IV, keys->server_write_IV,
-                        AEAD_IMP_IV_SZ);
+                        CHACHA20_IV_SIZE);
                 if (chachaRet != 0) return chachaRet;
             }
         }
@@ -1932,14 +1991,14 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
                 chachaRet = wc_Chacha_SetKey(enc->chacha, keys->server_write_key,
                                           specs->key_size);
                 XMEMCPY(keys->aead_enc_imp_IV, keys->server_write_IV,
-                        AEAD_IMP_IV_SZ);
+                        CHACHA20_IV_SIZE);
                 if (chachaRet != 0) return chachaRet;
             }
             if (dec) {
                 chachaRet = wc_Chacha_SetKey(dec->chacha, keys->client_write_key,
                                           specs->key_size);
                 XMEMCPY(keys->aead_dec_imp_IV, keys->client_write_IV,
-                        AEAD_IMP_IV_SZ);
+                        CHACHA20_IV_SIZE);
                 if (chachaRet != 0) return chachaRet;
             }
         }
@@ -2489,10 +2548,10 @@ int SetKeysSide(WOLFSSL* ssl, enum encrypt_side side)
                     /* Initialize encrypt implicit IV by encrypt side */
                     if (ssl->options.side == WOLFSSL_CLIENT_END) {
                         XMEMCPY(ssl->keys.aead_enc_imp_IV,
-                                keys->client_write_IV, AEAD_IMP_IV_SZ);
+                                keys->client_write_IV, AEAD_NONCE_SZ);
                     } else {
                         XMEMCPY(ssl->keys.aead_enc_imp_IV,
-                                keys->server_write_IV, AEAD_IMP_IV_SZ);
+                                keys->server_write_IV, AEAD_NONCE_SZ);
                     }
                 }
             #endif
@@ -2504,10 +2563,10 @@ int SetKeysSide(WOLFSSL* ssl, enum encrypt_side side)
                     /* Initialize decrypt implicit IV by decrypt side */
                     if (ssl->options.side == WOLFSSL_SERVER_END) {
                         XMEMCPY(ssl->keys.aead_dec_imp_IV,
-                                keys->client_write_IV, AEAD_IMP_IV_SZ);
+                                keys->client_write_IV, AEAD_NONCE_SZ);
                     } else {
                         XMEMCPY(ssl->keys.aead_dec_imp_IV,
-                                keys->server_write_IV, AEAD_IMP_IV_SZ);
+                                keys->server_write_IV, AEAD_NONCE_SZ);
                     }
                 }
             #endif

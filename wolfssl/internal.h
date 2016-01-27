@@ -521,6 +521,18 @@ typedef byte word24[3];
             #endif /* NO_SHA */
         #endif
     #endif
+    #if defined(HAVE_CHACHA) && defined(HAVE_POLY1305) && !defined(NO_SHA256) \
+        && !defined(NO_OLD_POLY1305)
+        #ifdef HAVE_ECC
+            #define BUILD_TLS_ECDHE_ECDSA_WITH_CHACHA20_OLD_POLY1305_SHA256
+            #ifndef NO_RSA
+                #define BUILD_TLS_ECDHE_RSA_WITH_CHACHA20_OLD_POLY1305_SHA256
+            #endif
+        #endif
+        #if !defined(NO_DH) && !defined(NO_RSA)
+            #define BUILD_TLS_DHE_RSA_WITH_CHACHA20_OLD_POLY1305_SHA256
+        #endif
+    #endif
 
 #endif /* !WOLFSSL_MAX_STRENGTH */
 
@@ -787,9 +799,14 @@ enum {
     TLS_DHE_RSA_WITH_CAMELLIA_256_CBC_SHA256 = 0xc4,
 
     /* chacha20-poly1305 suites first byte is 0xCC (CHACHA_BYTE) */
-    TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256   = 0x13,
-    TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256 = 0x14,
-    TLS_DHE_RSA_WITH_CHACHA20_POLY1305_SHA256     = 0x15,
+    TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256   = 0xa8,
+    TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256 = 0xa9,
+    TLS_DHE_RSA_WITH_CHACHA20_POLY1305_SHA256     = 0xaa,
+
+    /* chacha20-poly1305 earlier version of nonce and padding (CHACHA_BYTE) */
+    TLS_ECDHE_RSA_WITH_CHACHA20_OLD_POLY1305_SHA256   = 0x13,
+    TLS_ECDHE_ECDSA_WITH_CHACHA20_OLD_POLY1305_SHA256 = 0x14,
+    TLS_DHE_RSA_WITH_CHACHA20_OLD_POLY1305_SHA256     = 0x15,
 
     /* Renegotiation Indication Extension Special Suite */
     TLS_EMPTY_RENEGOTIATION_INFO_SCSV        = 0xff
@@ -933,7 +950,7 @@ enum Misc {
 
     CHACHA20_256_KEY_SIZE = 32,  /* for 256 bit             */
     CHACHA20_128_KEY_SIZE = 16,  /* for 128 bit             */
-    CHACHA20_IV_SIZE      =  8,  /* 64 bits for iv          */
+    CHACHA20_IV_SIZE      = 12,  /* 96 bits for iv          */
 
     POLY1305_AUTH_SZ    = 16,  /* 128 bits                */
 
@@ -1448,8 +1465,8 @@ typedef struct Keys {
     byte server_write_IV[AES_IV_SIZE];
 #ifdef HAVE_AEAD
     byte aead_exp_IV[AEAD_EXP_IV_SZ];
-    byte aead_enc_imp_IV[AEAD_IMP_IV_SZ];
-    byte aead_dec_imp_IV[AEAD_IMP_IV_SZ];
+    byte aead_enc_imp_IV[AEAD_NONCE_SZ]; /* full size needed for chacha-poly */
+    byte aead_dec_imp_IV[AEAD_NONCE_SZ];
 #endif
 
     word32 peer_sequence_number;

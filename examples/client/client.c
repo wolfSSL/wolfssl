@@ -1071,16 +1071,6 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 #endif
 
     tcp_connect(&sockfd, host, port, doDTLS, ssl);
-
-#ifdef HAVE_POLY1305
-    /* use old poly to connect with google and wolfssl.com server */
-    if (!XSTRNCMP(domain, "www.google.com", 14) ||
-        !XSTRNCMP(domain, "www.wolfssl.com", 15)) {
-        if (wolfSSL_use_old_poly(ssl, 1) != 0)
-            err_sys("unable to set to old poly");
-    }
-#endif
-
     wolfSSL_set_fd(ssl, sockfd);
 #ifdef HAVE_CRL
     if (disableCRL == 0) {

@@ -235,6 +235,8 @@ void wolfSSL_free(WOLFSSL* ssl)
 int wolfSSL_use_old_poly(WOLFSSL* ssl, int value)
 {
     WOLFSSL_ENTER("SSL_use_old_poly");
+    WOLFSSL_MSG("Warning SSL connection auto detects old/new and this function"
+            "is depriciated");
     ssl->options.oldPoly = value;
     WOLFSSL_LEAVE("SSL_use_old_poly", 0);
     return 0;
@@ -423,7 +425,7 @@ int wolfSSL_GetObjectSize(void)
     printf("    sizeof rabbit       = %lu\n", sizeof(Rabbit));
 #endif
 #ifdef HAVE_CHACHA
-    printf("    sizeof chacha       = %lu\n", sizeof(Chacha));
+    printf("    sizeof chacha       = %lu\n", sizeof(ChaCha));
 #endif
     printf("sizeof cipher specs     = %lu\n", sizeof(CipherSpecs));
     printf("sizeof keys             = %lu\n", sizeof(Keys));
@@ -10169,16 +10171,25 @@ const char* wolfSSL_CIPHER_get_name(const WOLFSSL_CIPHER* cipher)
         if (cipher->ssl->options.cipherSuite0 == CHACHA_BYTE) {
         /* ChaCha suites */
         switch (cipher->ssl->options.cipherSuite) {
-#ifdef HAVE_CHACHA
+#ifdef HAVE_POLY1305
 #ifndef NO_RSA
             case TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256 :
                 return "TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256";
 
             case TLS_DHE_RSA_WITH_CHACHA20_POLY1305_SHA256 :
                 return "TLS_DHE_RSA_WITH_CHACHA20_POLY1305_SHA256";
+
+            case TLS_ECDHE_RSA_WITH_CHACHA20_OLD_POLY1305_SHA256 :
+                return "TLS_ECDHE_RSA_WITH_CHACHA20_OLD_POLY1305_SHA256";
+
+            case TLS_DHE_RSA_WITH_CHACHA20_OLD_POLY1305_SHA256 :
+                return "TLS_DHE_RSA_WITH_CHACHA20_OLD_POLY1305_SHA256";
 #endif
             case TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256 :
                 return "TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256";
+
+            case TLS_ECDHE_ECDSA_WITH_CHACHA20_OLD_POLY1305_SHA256 :
+                return "TLS_ECDHE_ECDSA_WITH_CHACHA20_OLD_POLY1305_SHA256";
 #endif
             }
         }
