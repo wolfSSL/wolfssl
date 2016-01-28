@@ -2802,6 +2802,8 @@ WOLFSSL_LOCAL void c32to24(word32 in, word24 out);
 
 WOLFSSL_LOCAL const char* const* GetCipherNames(void);
 WOLFSSL_LOCAL int GetCipherNamesSize(void);
+WOLFSSL_LOCAL const int* GetCipherIdxs(void);
+WOLFSSL_LOCAL int GetCipherIdxsSize(void);
 
 
 enum encrypt_side {

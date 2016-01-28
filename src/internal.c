@@ -10270,6 +10270,15 @@ int GetCipherNamesSize(void)
     return (int)(sizeof(cipher_names) / sizeof(char*));
 }
 
+const int* GetCipherIdxs(void)
+{
+    return cipher_name_idx;
+}
+
+int GetCipherIdxsSize(void)
+{
+    return (int)(sizeof(cipher_name_idx) / sizeof(int));
+}
 
 /**
 Set the enabled cipher suites.

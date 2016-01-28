@@ -311,6 +311,29 @@ int wolfSSL_get_ciphers(char* buf, int len)
     return SSL_SUCCESS;
 }
 
+int wolfSSL_get_cipher_idxs(int* buf, int len)
+{
+    const int* ciphers = GetCipherIdxs();
+    int  size     = GetCipherIdxsSize();
+    int  i;
+
+    if (buf == NULL || len <= 0)
+        return BAD_FUNC_ARG;
+
+    /* Add each member to the buffer delimitted by a : */
+    for (i = 0; i < size && i < len; i++) {
+        buf[i] = ciphers[i];
+    }
+
+    if (size > len)
+        return BUFFER_E;
+
+    for (; i < len; i++) {
+        buf[i] = -1;
+    }
+
+    return SSL_SUCCESS;
+}
 
 int wolfSSL_get_fd(const WOLFSSL* ssl)
 {
