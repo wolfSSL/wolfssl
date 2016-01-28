@@ -85,6 +85,8 @@ STATIC INLINE word32 ByteReverseWord32(word32 value)
     return (word32)__lwbrx(&value,0);
 #elif defined(KEIL_INTRINSICS)
     return (word32)__rev(value);
+#elif defined(GCC_BUILTINS)
+    return __builtin_bswap32(value);
 #elif defined(FAST_ROTATE)
     /* 5 instructions with rotate instruction, 9 without */
     return (rotrFixed(value, 8U) & 0xff00ff00) |
@@ -125,7 +127,9 @@ STATIC INLINE word64 rotrFixed64(word64 x, word64 y)
 
 STATIC INLINE word64 ByteReverseWord64(word64 value)
 {
-#ifdef WOLFCRYPT_SLOW_WORD64
+#if defined(GCC_BUILTINS)
+	return __builtin_bswap64(value);
+#elif defined(WOLFCRYPT_SLOW_WORD64)
 	return (word64)(ByteReverseWord32((word32)value)) << 32 | 
                     ByteReverseWord32((word32)(value>>32));
 #else

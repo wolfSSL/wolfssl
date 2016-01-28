@@ -136,10 +136,15 @@
 	#elif defined(__MWERKS__) && TARGET_CPU_PPC
 	    #define PPC_INTRINSICS
 	    #define FAST_ROTATE
-	#elif defined(__GNUC__) && defined(__i386__)
+	#elif defined(__GNUC__)
+	    #if __GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 3)
+	        #define GCC_BUILTINS
+	    #endif
+	    #if defined(__i386__)
 	        /* GCC does peephole optimizations which should result in using rotate
 	           instructions  */
-	    #define FAST_ROTATE
+	        #define FAST_ROTATE
+	    #endif
 	#endif
 
 
