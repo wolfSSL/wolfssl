@@ -1244,6 +1244,8 @@ void InitSuites(Suites*, ProtocolVersion, word16, word16, word16, word16,
                 word16, word16, int);
 WOLFSSL_LOCAL
 int  SetCipherList(Suites*, const char* list);
+WOLFSSL_LOCAL
+int  GetCipherIANAList(Suites*, unsigned char* buf, int len, int* num_ids);
 
 #ifndef PSK_TYPES_DEFINED
     typedef unsigned int (*wc_psk_client_callback)(WOLFSSL*, const char*, char*,
@@ -2800,9 +2802,12 @@ WOLFSSL_LOCAL void FreeX509(WOLFSSL_X509*);
 /* used by ssl.c and wolfssl_int.c */
 WOLFSSL_LOCAL void c32to24(word32 in, word24 out);
 
-WOLFSSL_LOCAL const char* const* GetCipherNames(void);
+typedef struct CipherSuiteInfo {
+    const char* name;                    /* cipher name */
+    int idx;                             /* IANA value, second byte */
+} CipherSuiteInfo;
+WOLFSSL_LOCAL CipherSuiteInfo const* GetCipherNames(void);
 WOLFSSL_LOCAL int GetCipherNamesSize(void);
-
 
 enum encrypt_side {
     ENCRYPT_SIDE_ONLY = 1,

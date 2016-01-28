@@ -268,19 +268,18 @@ int wolfSSL_set_fd(WOLFSSL* ssl, int fd)
   */
 char* wolfSSL_get_cipher_list(int priority)
 {
-    const char* const* ciphers = GetCipherNames();
+    CipherSuiteInfo const* ciphers = GetCipherNames();
 
     if (priority >= GetCipherNamesSize() || priority < 0) {
         return 0;
     }
 
-    return (char*)ciphers[priority];
+    return (char*)ciphers[priority].name;
 }
-
 
 int wolfSSL_get_ciphers(char* buf, int len)
 {
-    const char* const* ciphers = GetCipherNames();
+    CipherSuiteInfo const* ciphers = GetCipherNames();
     int  totalInc = 0;
     int  step     = 0;
     char delim    = ':';
@@ -292,13 +291,13 @@ int wolfSSL_get_ciphers(char* buf, int len)
 
     /* Add each member to the buffer delimitted by a : */
     for (i = 0; i < size; i++) {
-        step = (int)(XSTRLEN(ciphers[i]) + 1);  /* delimiter */
+        step = (int)(XSTRLEN(ciphers[i].name) + 1);  /* delimiter */
         totalInc += step;
 
         /* Check to make sure buf is large enough and will not overflow */
         if (totalInc < len) {
-            XSTRNCPY(buf, ciphers[i], XSTRLEN(ciphers[i]));
-            buf += XSTRLEN(ciphers[i]);
+            XSTRNCPY(buf, ciphers[i].name, XSTRLEN(ciphers[i].name));
+            buf += XSTRLEN(ciphers[i].name);
 
             if (i < size - 1)
                 *buf++ = delim;
@@ -310,7 +309,6 @@ int wolfSSL_get_ciphers(char* buf, int len)
     }
     return SSL_SUCCESS;
 }
-
 
 int wolfSSL_get_fd(const WOLFSSL* ssl)
 {
@@ -5568,6 +5566,23 @@ int wolfSSL_CTX_set_cipher_list(WOLFSSL_CTX* ctx, const char* list)
     return (SetCipherList(ctx->suites, list)) ? SSL_SUCCESS : SSL_FAILURE;
 }
 
+int wolfSSL_CTX_get_cipher_iana_list(WOLFSSL_CTX* ctx, unsigned char* buf, int len, int* num_ids)
+{
+    WOLFSSL_ENTER("wolfSSL_CTX_get_cipher_iana_list");
+
+    /* alloc/init on demand only */
+    if (ctx->suites == NULL) {
+        ctx->suites = (Suites*)XMALLOC(sizeof(Suites), ctx->heap,
+                                       DYNAMIC_TYPE_SUITES);
+        if (ctx->suites == NULL) {
+            WOLFSSL_MSG("Memory alloc for Suites failed");
+            return SSL_FAILURE;
+        }
+        XMEMSET(ctx->suites, 0, sizeof(Suites));
+    }
+
+    return (GetCipherIANAList(ctx->suites, buf, len, num_ids)) ? SSL_SUCCESS : SSL_FAILURE;
+}
 
 int wolfSSL_set_cipher_list(WOLFSSL* ssl, const char* list)
 {
@@ -5575,6 +5590,11 @@ int wolfSSL_set_cipher_list(WOLFSSL* ssl, const char* list)
     return (SetCipherList(ssl->suites, list)) ? SSL_SUCCESS : SSL_FAILURE;
 }
 
+int wolfSSL_get_cipher_iana_list(WOLFSSL* ssl, unsigned char* buf, int len, int* num_ids)
+{
+    WOLFSSL_ENTER("wolfSSL_get_cipher_iana_list");
+    return (GetCipherIANAList(ssl->suites, buf, len, num_ids)) ? SSL_SUCCESS : SSL_FAILURE;
+}
 
 #ifndef WOLFSSL_LEANPSK
 #ifdef WOLFSSL_DTLS
