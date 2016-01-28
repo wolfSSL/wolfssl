@@ -985,8 +985,21 @@ static int wc_GenerateRand_IntelRD(OS_Seed* os, byte* output, word32 sz)
 
     int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     {
-        (void)os;
+        (void)os; /* Suppress unused arg warning */
         return CUSTOM_RAND_GENERATE_SEED(output, sz);
+    }
+    
+#elif defined(CUSTOM_RAND_GENERATE_SEED_OS)
+
+    /* Implement your own random generation function, 
+     *  which includes OS_Seed.
+     * Return 0 to indicate success
+     * int rand_gen_seed(OS_Seed* os, byte* output, word32 sz);
+     * #define CUSTOM_RAND_GENERATE_SEED_OS  rand_gen_seed */
+
+    int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz) 
+    {
+        return CUSTOM_RAND_GENERATE_SEED_OS(os, output, sz);
     }
 
 
