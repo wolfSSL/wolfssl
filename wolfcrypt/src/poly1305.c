@@ -127,6 +127,16 @@
 	}
 #endif
 
+
+static void U32TO64(word32 v, byte* p) {
+    XMEMSET(p, 0, 8);
+    p[0] = (v & 0xFF);
+    p[1] = (v >>  8) & 0xFF;
+    p[2] = (v >> 16) & 0xFF;
+    p[3] = (v >> 24) & 0xFF;
+}
+
+
 static void poly1305_blocks(Poly1305* ctx, const unsigned char *m,
                             size_t bytes) {
 
@@ -549,6 +559,82 @@ int wc_Poly1305Update(Poly1305* ctx, const byte* m, word32 bytes) {
 		ctx->leftover += bytes;
 	}
     return 0;
+}
+
+
+/*  Takes in an initialized Poly1305 struct that has a key loaded and creates
+    a MAC (tag) using recent TLS AEAD padding scheme.
+    ctx        : Initialized Poly1305 struct to use
+    additional : Additional data to use
+    addSz      : Size of additional buffer
+    input      : Input buffer to create tag from
+    sz         : Size of input buffer
+    tag        : Buffer to hold created tag
+    tagSz      : Size of input tag buffer (must be at least
+                 WC_POLY1305_MAC_SZ(16))
+ */
+int wc_Poly1305_MAC(Poly1305* ctx, byte* additional, word32 addSz,
+                    byte* input, word32 sz, byte* tag, word32 tagSz)
+{
+    int ret;
+    byte padding[WC_POLY1305_PAD_SZ - 1];
+    word32 paddingLen;
+    byte little64[8];
+
+    XMEMSET(padding, 0, sizeof(padding));
+
+    /* sanity check on arguments */
+    if (ctx == NULL || input == NULL || tag == NULL ||
+                                                   tagSz < WC_POLY1305_MAC_SZ) {
+        return BAD_FUNC_ARG;
+    }
+
+    if (additional == NULL && addSz > 0) {
+        return BAD_FUNC_ARG;
+    }
+
+    /* additional data plus padding */
+    if ((ret = wc_Poly1305Update(ctx, additional, addSz)) != 0) {
+        return ret;
+    }
+    paddingLen = -addSz & (WC_POLY1305_PAD_SZ - 1);
+    if (paddingLen) {
+        if ((ret = wc_Poly1305Update(ctx, padding, paddingLen)) != 0) {
+            return ret;
+        }
+    }
+
+    /* input plus padding */
+    if ((ret = wc_Poly1305Update(ctx, input, sz)) != 0) {
+        return ret;
+    }
+    paddingLen = -sz & (WC_POLY1305_PAD_SZ - 1);
+    if (paddingLen) {
+        if ((ret = wc_Poly1305Update(ctx, padding, paddingLen)) != 0) {
+            return ret;
+        }
+    }
+
+    /* size of additional data and input as little endian 64 bit types */
+    U32TO64(addSz, little64);
+    ret = wc_Poly1305Update(ctx, little64, sizeof(little64));
+    if (ret)
+    {
+        return ret;
+    }
+
+    U32TO64(sz, little64);
+    ret = wc_Poly1305Update(ctx, little64, sizeof(little64));
+    if (ret)
+    {
+        return ret;
+    }
+
+    /* Finalize the auth tag */
+    ret = wc_Poly1305Final(ctx, tag);
+
+    return ret;
+
 }
 #endif /* HAVE_POLY1305 */
 

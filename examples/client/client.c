@@ -1024,6 +1024,34 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     ssl = wolfSSL_new(ctx);
     if (ssl == NULL)
         err_sys("unable to get SSL object");
+
+    #ifdef HAVE_SUPPORTED_CURVES /* add curves to supported curves extension */
+        if (wolfSSL_UseSupportedCurve(ssl, WOLFSSL_ECC_SECP256R1)
+                != SSL_SUCCESS) {
+            err_sys("unable to set curve secp256r1");
+        }
+        if (wolfSSL_UseSupportedCurve(ssl, WOLFSSL_ECC_SECP384R1)
+                != SSL_SUCCESS) {
+            err_sys("unable to set curve secp384r1");
+        }
+        if (wolfSSL_UseSupportedCurve(ssl, WOLFSSL_ECC_SECP521R1)
+                != SSL_SUCCESS) {
+            err_sys("unable to set curve secp521r1");
+        }
+        if (wolfSSL_UseSupportedCurve(ssl, WOLFSSL_ECC_SECP224R1)
+                != SSL_SUCCESS) {
+            err_sys("unable to set curve secp224r1");
+        }
+        if (wolfSSL_UseSupportedCurve(ssl, WOLFSSL_ECC_SECP192R1)
+                != SSL_SUCCESS) {
+            err_sys("unable to set curve secp192r1");
+        }
+        if (wolfSSL_UseSupportedCurve(ssl, WOLFSSL_ECC_SECP160R1)
+                != SSL_SUCCESS) {
+            err_sys("unable to set curve secp160r1");
+        }
+    #endif
+
     #ifdef HAVE_SESSION_TICKET
     wolfSSL_set_SessionTicket_cb(ssl, sessionTicketCB, (void*)"initial session");
     #endif
@@ -1071,16 +1099,6 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 #endif
 
     tcp_connect(&sockfd, host, port, doDTLS, ssl);
-
-#ifdef HAVE_POLY1305
-    /* use old poly to connect with google and wolfssl.com server */
-    if (!XSTRNCMP(domain, "www.google.com", 14) ||
-        !XSTRNCMP(domain, "www.wolfssl.com", 15)) {
-        if (wolfSSL_use_old_poly(ssl, 1) != 0)
-            err_sys("unable to set to old poly");
-    }
-#endif
-
     wolfSSL_set_fd(ssl, sockfd);
 #ifdef HAVE_CRL
     if (disableCRL == 0) {

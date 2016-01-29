@@ -60,6 +60,62 @@ int SetCipherSpecs(WOLFSSL* ssl)
     if (ssl->options.cipherSuite0 == CHACHA_BYTE) {
     
     switch (ssl->options.cipherSuite) {
+#ifdef BUILD_TLS_ECDHE_RSA_WITH_CHACHA20_OLD_POLY1305_SHA256
+    case TLS_ECDHE_RSA_WITH_CHACHA20_OLD_POLY1305_SHA256:
+        ssl->specs.bulk_cipher_algorithm = wolfssl_chacha;
+        ssl->specs.cipher_type           = aead;
+        ssl->specs.mac_algorithm         = sha256_mac;
+        ssl->specs.kea                   = ecc_diffie_hellman_kea;
+        ssl->specs.sig_algo              = rsa_sa_algo;
+        ssl->specs.hash_size             = SHA256_DIGEST_SIZE;
+        ssl->specs.pad_size              = PAD_SHA;
+        ssl->specs.static_ecdh           = 0;
+        ssl->specs.key_size              = CHACHA20_256_KEY_SIZE;
+        ssl->specs.block_size            = CHACHA20_BLOCK_SIZE;
+        ssl->specs.iv_size               = CHACHA20_IV_SIZE;
+        ssl->specs.aead_mac_size         = POLY1305_AUTH_SZ;
+        ssl->options.oldPoly             = 1; /* use old poly1305 padding */
+
+        break;
+#endif
+
+#ifdef BUILD_TLS_ECDHE_ECDSA_WITH_CHACHA20_OLD_POLY1305_SHA256
+    case TLS_ECDHE_ECDSA_WITH_CHACHA20_OLD_POLY1305_SHA256:
+        ssl->specs.bulk_cipher_algorithm = wolfssl_chacha;
+        ssl->specs.cipher_type           = aead;
+        ssl->specs.mac_algorithm         = sha256_mac;
+        ssl->specs.kea                   = ecc_diffie_hellman_kea;
+        ssl->specs.sig_algo              = ecc_dsa_sa_algo;
+        ssl->specs.hash_size             = SHA256_DIGEST_SIZE;
+        ssl->specs.pad_size              = PAD_SHA;
+        ssl->specs.static_ecdh           = 0;
+        ssl->specs.key_size              = CHACHA20_256_KEY_SIZE;
+        ssl->specs.block_size            = CHACHA20_BLOCK_SIZE;
+        ssl->specs.iv_size               = CHACHA20_IV_SIZE;
+        ssl->specs.aead_mac_size         = POLY1305_AUTH_SZ;
+        ssl->options.oldPoly             = 1; /* use old poly1305 padding */
+
+        break;
+#endif
+
+#ifdef BUILD_TLS_DHE_RSA_WITH_CHACHA20_OLD_POLY1305_SHA256
+    case TLS_DHE_RSA_WITH_CHACHA20_OLD_POLY1305_SHA256:
+        ssl->specs.bulk_cipher_algorithm = wolfssl_chacha;
+        ssl->specs.cipher_type           = aead;
+        ssl->specs.mac_algorithm         = sha256_mac;
+        ssl->specs.kea                   = diffie_hellman_kea;
+        ssl->specs.sig_algo              = rsa_sa_algo;
+        ssl->specs.hash_size             = SHA256_DIGEST_SIZE;
+        ssl->specs.pad_size              = PAD_SHA;
+        ssl->specs.static_ecdh           = 0;
+        ssl->specs.key_size              = CHACHA20_256_KEY_SIZE;
+        ssl->specs.block_size            = CHACHA20_BLOCK_SIZE;
+        ssl->specs.iv_size               = CHACHA20_IV_SIZE;
+        ssl->specs.aead_mac_size         = POLY1305_AUTH_SZ;
+        ssl->options.oldPoly             = 1; /* use old poly1305 padding */
+
+        break;
+#endif
 #ifdef BUILD_TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256
     case TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256:
         ssl->specs.bulk_cipher_algorithm = wolfssl_chacha;
@@ -74,6 +130,7 @@ int SetCipherSpecs(WOLFSSL* ssl)
         ssl->specs.block_size            = CHACHA20_BLOCK_SIZE;
         ssl->specs.iv_size               = CHACHA20_IV_SIZE;
         ssl->specs.aead_mac_size         = POLY1305_AUTH_SZ;
+        ssl->options.oldPoly             = 0; /* use recent padding RFC */
 
         break;
 #endif
@@ -92,6 +149,7 @@ int SetCipherSpecs(WOLFSSL* ssl)
         ssl->specs.block_size            = CHACHA20_BLOCK_SIZE;
         ssl->specs.iv_size               = CHACHA20_IV_SIZE;
         ssl->specs.aead_mac_size         = POLY1305_AUTH_SZ;
+        ssl->options.oldPoly             = 0; /* use recent padding RFC */
 
         break;
 #endif
@@ -110,6 +168,7 @@ int SetCipherSpecs(WOLFSSL* ssl)
         ssl->specs.block_size            = CHACHA20_BLOCK_SIZE;
         ssl->specs.iv_size               = CHACHA20_IV_SIZE;
         ssl->specs.aead_mac_size         = POLY1305_AUTH_SZ;
+        ssl->options.oldPoly             = 0; /* use recent padding RFC */
 
         break;
 #endif
@@ -538,7 +597,7 @@ int SetCipherSpecs(WOLFSSL* ssl)
         ssl->specs.static_ecdh           = 0;
         ssl->specs.key_size              = AES_128_KEY_SIZE;
         ssl->specs.block_size            = AES_BLOCK_SIZE;
-        ssl->specs.iv_size               = AEAD_IMP_IV_SZ;
+        ssl->specs.iv_size               = AESGCM_IMP_IV_SZ;
         ssl->specs.aead_mac_size         = AES_GCM_AUTH_SZ;
 
         break;
@@ -556,7 +615,7 @@ int SetCipherSpecs(WOLFSSL* ssl)
         ssl->specs.static_ecdh           = 0;
         ssl->specs.key_size              = AES_256_KEY_SIZE;
         ssl->specs.block_size            = AES_BLOCK_SIZE;
-        ssl->specs.iv_size               = AEAD_IMP_IV_SZ;
+        ssl->specs.iv_size               = AESGCM_IMP_IV_SZ;
         ssl->specs.aead_mac_size         = AES_GCM_AUTH_SZ;
 
         break;
@@ -574,7 +633,7 @@ int SetCipherSpecs(WOLFSSL* ssl)
         ssl->specs.static_ecdh           = 0;
         ssl->specs.key_size              = AES_128_KEY_SIZE;
         ssl->specs.block_size            = AES_BLOCK_SIZE;
-        ssl->specs.iv_size               = AEAD_IMP_IV_SZ;
+        ssl->specs.iv_size               = AESGCM_IMP_IV_SZ;
         ssl->specs.aead_mac_size         = AES_GCM_AUTH_SZ;
 
         break;
@@ -592,7 +651,7 @@ int SetCipherSpecs(WOLFSSL* ssl)
         ssl->specs.static_ecdh           = 0;
         ssl->specs.key_size              = AES_256_KEY_SIZE;
         ssl->specs.block_size            = AES_BLOCK_SIZE;
-        ssl->specs.iv_size               = AEAD_IMP_IV_SZ;
+        ssl->specs.iv_size               = AESGCM_IMP_IV_SZ;
         ssl->specs.aead_mac_size         = AES_GCM_AUTH_SZ;
 
         break;
@@ -610,7 +669,7 @@ int SetCipherSpecs(WOLFSSL* ssl)
         ssl->specs.static_ecdh           = 1;
         ssl->specs.key_size              = AES_128_KEY_SIZE;
         ssl->specs.block_size            = AES_BLOCK_SIZE;
-        ssl->specs.iv_size               = AEAD_IMP_IV_SZ;
+        ssl->specs.iv_size               = AESGCM_IMP_IV_SZ;
         ssl->specs.aead_mac_size         = AES_GCM_AUTH_SZ;
 
         break;
@@ -628,7 +687,7 @@ int SetCipherSpecs(WOLFSSL* ssl)
         ssl->specs.static_ecdh           = 1;
         ssl->specs.key_size              = AES_256_KEY_SIZE;
         ssl->specs.block_size            = AES_BLOCK_SIZE;
-        ssl->specs.iv_size               = AEAD_IMP_IV_SZ;
+        ssl->specs.iv_size               = AESGCM_IMP_IV_SZ;
         ssl->specs.aead_mac_size         = AES_GCM_AUTH_SZ;
 
         break;
@@ -646,7 +705,7 @@ int SetCipherSpecs(WOLFSSL* ssl)
         ssl->specs.static_ecdh           = 1;
         ssl->specs.key_size              = AES_128_KEY_SIZE;
         ssl->specs.block_size            = AES_BLOCK_SIZE;
-        ssl->specs.iv_size               = AEAD_IMP_IV_SZ;
+        ssl->specs.iv_size               = AESGCM_IMP_IV_SZ;
         ssl->specs.aead_mac_size         = AES_GCM_AUTH_SZ;
 
         break;
@@ -664,7 +723,7 @@ int SetCipherSpecs(WOLFSSL* ssl)
         ssl->specs.static_ecdh           = 1;
         ssl->specs.key_size              = AES_256_KEY_SIZE;
         ssl->specs.block_size            = AES_BLOCK_SIZE;
-        ssl->specs.iv_size               = AEAD_IMP_IV_SZ;
+        ssl->specs.iv_size               = AESGCM_IMP_IV_SZ;
         ssl->specs.aead_mac_size         = AES_GCM_AUTH_SZ;
 
         break;
@@ -682,7 +741,7 @@ int SetCipherSpecs(WOLFSSL* ssl)
         ssl->specs.static_ecdh           = 0;
         ssl->specs.key_size              = AES_128_KEY_SIZE;
         ssl->specs.block_size            = AES_BLOCK_SIZE;
-        ssl->specs.iv_size               = AEAD_IMP_IV_SZ;
+        ssl->specs.iv_size               = AESGCM_IMP_IV_SZ;
         ssl->specs.aead_mac_size         = AES_CCM_8_AUTH_SZ;
 
         break;
@@ -700,7 +759,7 @@ int SetCipherSpecs(WOLFSSL* ssl)
         ssl->specs.static_ecdh           = 0;
         ssl->specs.key_size              = AES_256_KEY_SIZE;
         ssl->specs.block_size            = AES_BLOCK_SIZE;
-        ssl->specs.iv_size               = AEAD_IMP_IV_SZ;
+        ssl->specs.iv_size               = AESGCM_IMP_IV_SZ;
         ssl->specs.aead_mac_size         = AES_CCM_8_AUTH_SZ;
 
         break;
@@ -719,7 +778,7 @@ int SetCipherSpecs(WOLFSSL* ssl)
         ssl->specs.static_ecdh           = 0;
         ssl->specs.key_size              = AES_128_KEY_SIZE;
         ssl->specs.block_size            = AES_BLOCK_SIZE;
-        ssl->specs.iv_size               = AEAD_IMP_IV_SZ;
+        ssl->specs.iv_size               = AESGCM_IMP_IV_SZ;
         ssl->specs.aead_mac_size         = AES_CCM_8_AUTH_SZ;
 
         break;
@@ -737,7 +796,7 @@ int SetCipherSpecs(WOLFSSL* ssl)
         ssl->specs.static_ecdh           = 0;
         ssl->specs.key_size              = AES_256_KEY_SIZE;
         ssl->specs.block_size            = AES_BLOCK_SIZE;
-        ssl->specs.iv_size               = AEAD_IMP_IV_SZ;
+        ssl->specs.iv_size               = AESGCM_IMP_IV_SZ;
         ssl->specs.aead_mac_size         = AES_CCM_8_AUTH_SZ;
 
         break;
@@ -755,7 +814,7 @@ int SetCipherSpecs(WOLFSSL* ssl)
         ssl->specs.static_ecdh           = 0;
         ssl->specs.key_size              = AES_128_KEY_SIZE;
         ssl->specs.block_size            = AES_BLOCK_SIZE;
-        ssl->specs.iv_size               = AEAD_IMP_IV_SZ;
+        ssl->specs.iv_size               = AESGCM_IMP_IV_SZ;
         ssl->specs.aead_mac_size         = AES_CCM_8_AUTH_SZ;
 
         ssl->options.usingPSK_cipher     = 1;
@@ -774,7 +833,7 @@ int SetCipherSpecs(WOLFSSL* ssl)
         ssl->specs.static_ecdh           = 0;
         ssl->specs.key_size              = AES_256_KEY_SIZE;
         ssl->specs.block_size            = AES_BLOCK_SIZE;
-        ssl->specs.iv_size               = AEAD_IMP_IV_SZ;
+        ssl->specs.iv_size               = AESGCM_IMP_IV_SZ;
         ssl->specs.aead_mac_size         = AES_CCM_8_AUTH_SZ;
 
         ssl->options.usingPSK_cipher     = 1;
@@ -793,7 +852,7 @@ int SetCipherSpecs(WOLFSSL* ssl)
         ssl->specs.static_ecdh           = 0;
         ssl->specs.key_size              = AES_128_KEY_SIZE;
         ssl->specs.block_size            = AES_BLOCK_SIZE;
-        ssl->specs.iv_size               = AEAD_IMP_IV_SZ;
+        ssl->specs.iv_size               = AESGCM_IMP_IV_SZ;
         ssl->specs.aead_mac_size         = AES_CCM_16_AUTH_SZ;
 
         ssl->options.usingPSK_cipher     = 1;
@@ -812,7 +871,7 @@ int SetCipherSpecs(WOLFSSL* ssl)
         ssl->specs.static_ecdh           = 0;
         ssl->specs.key_size              = AES_256_KEY_SIZE;
         ssl->specs.block_size            = AES_BLOCK_SIZE;
-        ssl->specs.iv_size               = AEAD_IMP_IV_SZ;
+        ssl->specs.iv_size               = AESGCM_IMP_IV_SZ;
         ssl->specs.aead_mac_size         = AES_CCM_16_AUTH_SZ;
 
         ssl->options.usingPSK_cipher     = 1;
@@ -831,7 +890,7 @@ int SetCipherSpecs(WOLFSSL* ssl)
         ssl->specs.static_ecdh           = 0;
         ssl->specs.key_size              = AES_128_KEY_SIZE;
         ssl->specs.block_size            = AES_BLOCK_SIZE;
-        ssl->specs.iv_size               = AEAD_IMP_IV_SZ;
+        ssl->specs.iv_size               = AESGCM_IMP_IV_SZ;
         ssl->specs.aead_mac_size         = AES_CCM_16_AUTH_SZ;
 
         ssl->options.usingPSK_cipher     = 1;
@@ -850,7 +909,7 @@ int SetCipherSpecs(WOLFSSL* ssl)
         ssl->specs.static_ecdh           = 0;
         ssl->specs.key_size              = AES_256_KEY_SIZE;
         ssl->specs.block_size            = AES_BLOCK_SIZE;
-        ssl->specs.iv_size               = AEAD_IMP_IV_SZ;
+        ssl->specs.iv_size               = AESGCM_IMP_IV_SZ;
         ssl->specs.aead_mac_size         = AES_CCM_16_AUTH_SZ;
 
         ssl->options.usingPSK_cipher     = 1;
@@ -1099,7 +1158,7 @@ int SetCipherSpecs(WOLFSSL* ssl)
         ssl->specs.static_ecdh           = 0;
         ssl->specs.key_size              = AES_128_KEY_SIZE;
         ssl->specs.block_size            = AES_BLOCK_SIZE;
-        ssl->specs.iv_size               = AEAD_IMP_IV_SZ;
+        ssl->specs.iv_size               = AESGCM_IMP_IV_SZ;
         ssl->specs.aead_mac_size         = AES_GCM_AUTH_SZ;
 
         ssl->options.usingPSK_cipher     = 1;
@@ -1118,7 +1177,7 @@ int SetCipherSpecs(WOLFSSL* ssl)
         ssl->specs.static_ecdh           = 0;
         ssl->specs.key_size              = AES_256_KEY_SIZE;
         ssl->specs.block_size            = AES_BLOCK_SIZE;
-        ssl->specs.iv_size               = AEAD_IMP_IV_SZ;
+        ssl->specs.iv_size               = AESGCM_IMP_IV_SZ;
         ssl->specs.aead_mac_size         = AES_GCM_AUTH_SZ;
 
         ssl->options.usingPSK_cipher     = 1;
@@ -1137,7 +1196,7 @@ int SetCipherSpecs(WOLFSSL* ssl)
         ssl->specs.static_ecdh           = 0;
         ssl->specs.key_size              = AES_128_KEY_SIZE;
         ssl->specs.block_size            = AES_BLOCK_SIZE;
-        ssl->specs.iv_size               = AEAD_IMP_IV_SZ;
+        ssl->specs.iv_size               = AESGCM_IMP_IV_SZ;
         ssl->specs.aead_mac_size         = AES_GCM_AUTH_SZ;
 
         ssl->options.usingPSK_cipher     = 1;
@@ -1156,7 +1215,7 @@ int SetCipherSpecs(WOLFSSL* ssl)
         ssl->specs.static_ecdh           = 0;
         ssl->specs.key_size              = AES_256_KEY_SIZE;
         ssl->specs.block_size            = AES_BLOCK_SIZE;
-        ssl->specs.iv_size               = AEAD_IMP_IV_SZ;
+        ssl->specs.iv_size               = AESGCM_IMP_IV_SZ;
         ssl->specs.aead_mac_size         = AES_GCM_AUTH_SZ;
 
         ssl->options.usingPSK_cipher     = 1;
@@ -1543,7 +1602,7 @@ int SetCipherSpecs(WOLFSSL* ssl)
         ssl->specs.static_ecdh           = 0;
         ssl->specs.key_size              = AES_128_KEY_SIZE;
         ssl->specs.block_size            = AES_BLOCK_SIZE;
-        ssl->specs.iv_size               = AEAD_IMP_IV_SZ;
+        ssl->specs.iv_size               = AESGCM_IMP_IV_SZ;
         ssl->specs.aead_mac_size         = AES_GCM_AUTH_SZ;
 
         break;
@@ -1561,7 +1620,7 @@ int SetCipherSpecs(WOLFSSL* ssl)
         ssl->specs.static_ecdh           = 0;
         ssl->specs.key_size              = AES_256_KEY_SIZE;
         ssl->specs.block_size            = AES_BLOCK_SIZE;
-        ssl->specs.iv_size               = AEAD_IMP_IV_SZ;
+        ssl->specs.iv_size               = AESGCM_IMP_IV_SZ;
         ssl->specs.aead_mac_size         = AES_GCM_AUTH_SZ;
 
         break;
@@ -1579,7 +1638,7 @@ int SetCipherSpecs(WOLFSSL* ssl)
         ssl->specs.static_ecdh           = 0;
         ssl->specs.key_size              = AES_128_KEY_SIZE;
         ssl->specs.block_size            = AES_BLOCK_SIZE;
-        ssl->specs.iv_size               = AEAD_IMP_IV_SZ;
+        ssl->specs.iv_size               = AESGCM_IMP_IV_SZ;
         ssl->specs.aead_mac_size         = AES_GCM_AUTH_SZ;
 
         break;
@@ -1597,7 +1656,7 @@ int SetCipherSpecs(WOLFSSL* ssl)
         ssl->specs.static_ecdh           = 0;
         ssl->specs.key_size              = AES_256_KEY_SIZE;
         ssl->specs.block_size            = AES_BLOCK_SIZE;
-        ssl->specs.iv_size               = AEAD_IMP_IV_SZ;
+        ssl->specs.iv_size               = AESGCM_IMP_IV_SZ;
         ssl->specs.aead_mac_size         = AES_GCM_AUTH_SZ;
 
         break;
@@ -1899,6 +1958,14 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
 
     
 #if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
+    /* Check that the max implicit iv size is suffecient */
+    #if (AEAD_MAX_IMP_SZ < 12) /* CHACHA20_IMP_IV_SZ */
+        #error AEAD_MAX_IMP_SZ is too small for ChaCha20
+    #endif
+    #if (MAX_WRITE_IV_SZ < 12) /* CHACHA20_IMP_IV_SZ */
+        #error MAX_WRITE_IV_SZ is too small for ChaCha20
+    #endif
+
     if (specs->bulk_cipher_algorithm == wolfssl_chacha) {
         int chachaRet;
         if (enc && enc->chacha == NULL)
@@ -1916,14 +1983,14 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
                 chachaRet = wc_Chacha_SetKey(enc->chacha, keys->client_write_key,
                                           specs->key_size);
                 XMEMCPY(keys->aead_enc_imp_IV, keys->client_write_IV,
-                        AEAD_IMP_IV_SZ);
+                        CHACHA20_IMP_IV_SZ);
                 if (chachaRet != 0) return chachaRet;
             }
             if (dec) {
                 chachaRet = wc_Chacha_SetKey(dec->chacha, keys->server_write_key,
                                           specs->key_size);
                 XMEMCPY(keys->aead_dec_imp_IV, keys->server_write_IV,
-                        AEAD_IMP_IV_SZ);
+                        CHACHA20_IMP_IV_SZ);
                 if (chachaRet != 0) return chachaRet;
             }
         }
@@ -1932,14 +1999,14 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
                 chachaRet = wc_Chacha_SetKey(enc->chacha, keys->server_write_key,
                                           specs->key_size);
                 XMEMCPY(keys->aead_enc_imp_IV, keys->server_write_IV,
-                        AEAD_IMP_IV_SZ);
+                        CHACHA20_IMP_IV_SZ);
                 if (chachaRet != 0) return chachaRet;
             }
             if (dec) {
                 chachaRet = wc_Chacha_SetKey(dec->chacha, keys->client_write_key,
                                           specs->key_size);
                 XMEMCPY(keys->aead_dec_imp_IV, keys->client_write_IV,
-                        AEAD_IMP_IV_SZ);
+                        CHACHA20_IMP_IV_SZ);
                 if (chachaRet != 0) return chachaRet;
             }
         }
@@ -1952,6 +2019,11 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
 #endif
 
 #ifdef HAVE_HC128
+    /* check that buffer sizes are sufficient */
+    #if (MAX_WRITE_IV_SZ < 16) /* HC_128_IV_SIZE */
+        #error MAX_WRITE_IV_SZ too small for HC128
+    #endif
+
     if (specs->bulk_cipher_algorithm == wolfssl_hc128) {
         int hcRet;
         if (enc && enc->hc128 == NULL)
@@ -1996,6 +2068,11 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
 #endif
     
 #ifdef BUILD_RABBIT
+    /* check that buffer sizes are sufficient */
+    #if (MAX_WRITE_IV_SZ < 8) /* RABBIT_IV_SIZE */
+        #error MAX_WRITE_IV_SZ too small for RABBIT
+    #endif
+
     if (specs->bulk_cipher_algorithm == wolfssl_rabbit) {
         int rabRet;
         if (enc && enc->rabbit == NULL)
@@ -2040,6 +2117,11 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
 #endif
     
 #ifdef BUILD_DES3
+    /* check that buffer sizes are sufficient */
+    #if (MAX_WRITE_IV_SZ < 8) /* DES_IV_SIZE */
+        #error MAX_WRITE_IV_SZ too small for 3DES
+    #endif
+
     if (specs->bulk_cipher_algorithm == wolfssl_triple_des) {
         int desRet = 0;
 
@@ -2099,6 +2181,11 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
 #endif
 
 #ifdef BUILD_AES
+    /* check that buffer sizes are sufficient */
+    #if (MAX_WRITE_IV_SZ < 16) /* AES_IV_SIZE */
+        #error MAX_WRITE_IV_SZ too small for AES
+    #endif
+
     if (specs->bulk_cipher_algorithm == wolfssl_aes) {
         int aesRet = 0;
 
@@ -2162,6 +2249,17 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
 #endif
 
 #ifdef BUILD_AESGCM
+    /* check that buffer sizes are sufficient */
+    #if (AEAD_MAX_IMP_SZ < 4) /* AESGCM_IMP_IV_SZ */
+        #error AEAD_MAX_IMP_SZ too small for AESGCM
+    #endif
+    #if (AEAD_MAX_EXP_SZ < 8) /* AESGCM_EXP_IV_SZ */
+        #error AEAD_MAX_EXP_SZ too small for AESGCM
+    #endif
+    #if (MAX_WRITE_IV_SZ < 4) /* AESGCM_IMP_IV_SZ */
+        #error MAX_WRITE_IV_SZ too small for AESGCM
+    #endif
+
     if (specs->bulk_cipher_algorithm == wolfssl_aes_gcm) {
         int gcmRet;
 
@@ -2180,14 +2278,14 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
                                       specs->key_size);
                 if (gcmRet != 0) return gcmRet;
                 XMEMCPY(keys->aead_enc_imp_IV, keys->client_write_IV,
-                        AEAD_IMP_IV_SZ);
+                        AESGCM_IMP_IV_SZ);
             }
             if (dec) {
                 gcmRet = wc_AesGcmSetKey(dec->aes, keys->server_write_key,
                                       specs->key_size);
                 if (gcmRet != 0) return gcmRet;
                 XMEMCPY(keys->aead_dec_imp_IV, keys->server_write_IV,
-                        AEAD_IMP_IV_SZ);
+                        AESGCM_IMP_IV_SZ);
             }
         }
         else {
@@ -2196,14 +2294,14 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
                                       specs->key_size);
                 if (gcmRet != 0) return gcmRet;
                 XMEMCPY(keys->aead_enc_imp_IV, keys->server_write_IV,
-                        AEAD_IMP_IV_SZ);
+                        AESGCM_IMP_IV_SZ);
             }
             if (dec) {
                 gcmRet = wc_AesGcmSetKey(dec->aes, keys->client_write_key,
                                       specs->key_size);
                 if (gcmRet != 0) return gcmRet;
                 XMEMCPY(keys->aead_dec_imp_IV, keys->client_write_IV,
-                        AEAD_IMP_IV_SZ);
+                        AESGCM_IMP_IV_SZ);
             }
         }
         if (enc)
@@ -2214,6 +2312,17 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
 #endif
 
 #ifdef HAVE_AESCCM
+    /* check that buffer sizes are sufficient (CCM is same size as GCM) */
+    #if (AEAD_MAX_IMP_SZ < 4) /* AESGCM_IMP_IV_SZ */
+        #error AEAD_MAX_IMP_SZ too small for AESCCM
+    #endif
+    #if (AEAD_MAX_EXP_SZ < 8) /* AESGCM_EXP_IV_SZ */
+        #error AEAD_MAX_EXP_SZ too small for AESCCM
+    #endif
+    #if (MAX_WRITE_IV_SZ < 4) /* AESGCM_IMP_IV_SZ */
+        #error MAX_WRITE_IV_SZ too small for AESCCM
+    #endif
+
     if (specs->bulk_cipher_algorithm == wolfssl_aes_ccm) {
         if (enc && enc->aes == NULL)
             enc->aes = (Aes*)XMALLOC(sizeof(Aes), heap, DYNAMIC_TYPE_CIPHER);
@@ -2228,24 +2337,24 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
             if (enc) {
                 wc_AesCcmSetKey(enc->aes, keys->client_write_key, specs->key_size);
                 XMEMCPY(keys->aead_enc_imp_IV, keys->client_write_IV,
-                        AEAD_IMP_IV_SZ);
+                        AESGCM_IMP_IV_SZ);
             }
             if (dec) {
                 wc_AesCcmSetKey(dec->aes, keys->server_write_key, specs->key_size);
                 XMEMCPY(keys->aead_dec_imp_IV, keys->server_write_IV,
-                        AEAD_IMP_IV_SZ);
+                        AESGCM_IMP_IV_SZ);
             }
         }
         else {
             if (enc) {
                 wc_AesCcmSetKey(enc->aes, keys->server_write_key, specs->key_size);
                 XMEMCPY(keys->aead_enc_imp_IV, keys->server_write_IV,
-                        AEAD_IMP_IV_SZ);
+                        AESGCM_IMP_IV_SZ);
             }
             if (dec) {
                 wc_AesCcmSetKey(dec->aes, keys->client_write_key, specs->key_size);
                 XMEMCPY(keys->aead_dec_imp_IV, keys->client_write_IV,
-                        AEAD_IMP_IV_SZ);
+                        AESGCM_IMP_IV_SZ);
             }
         }
         if (enc)
@@ -2256,6 +2365,11 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
 #endif
 
 #ifdef HAVE_CAMELLIA
+    /* check that buffer sizes are sufficient */
+    #if (MAX_WRITE_IV_SZ < 16) /* CAMELLIA_IV_SIZE */
+        #error MAX_WRITE_IV_SZ too small for CAMELLIA
+    #endif
+
     if (specs->bulk_cipher_algorithm == wolfssl_camellia) {
         int camRet;
 
@@ -2303,6 +2417,11 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
 #endif
 
 #ifdef HAVE_IDEA
+    /* check that buffer sizes are sufficient */
+    #if (MAX_WRITE_IV_SZ < 8) /* IDEA_IV_SIZE */
+        #error MAX_WRITE_IV_SZ too small for IDEA
+    #endif
+
     if (specs->bulk_cipher_algorithm == wolfssl_idea) {
         int ideaRet;
 
@@ -2469,14 +2588,14 @@ int SetKeysSide(WOLFSSL* ssl, enum encrypt_side side)
             XMEMCPY(ssl->keys.client_write_key,
                     keys->client_write_key, AES_256_KEY_SIZE);
             XMEMCPY(ssl->keys.client_write_IV,
-                    keys->client_write_IV, AES_IV_SIZE);
+                    keys->client_write_IV, MAX_WRITE_IV_SZ);
         } else {
             XMEMCPY(ssl->keys.server_write_MAC_secret,
                     keys->server_write_MAC_secret, MAX_DIGEST_SIZE);
             XMEMCPY(ssl->keys.server_write_key,
                     keys->server_write_key, AES_256_KEY_SIZE);
             XMEMCPY(ssl->keys.server_write_IV,
-                    keys->server_write_IV, AES_IV_SIZE);
+                    keys->server_write_IV, MAX_WRITE_IV_SZ);
         }
         if (wc_encrypt) {
             ssl->keys.sequence_number = keys->sequence_number;
@@ -2484,15 +2603,15 @@ int SetKeysSide(WOLFSSL* ssl, enum encrypt_side side)
                 if (ssl->specs.cipher_type == aead) {
                     /* Initialize the AES-GCM/CCM explicit IV to a zero. */
                     XMEMCPY(ssl->keys.aead_exp_IV, keys->aead_exp_IV,
-                            AEAD_EXP_IV_SZ);
+                            AEAD_MAX_EXP_SZ);
 
                     /* Initialize encrypt implicit IV by encrypt side */
                     if (ssl->options.side == WOLFSSL_CLIENT_END) {
                         XMEMCPY(ssl->keys.aead_enc_imp_IV,
-                                keys->client_write_IV, AEAD_IMP_IV_SZ);
+                                keys->client_write_IV, AEAD_MAX_IMP_SZ);
                     } else {
                         XMEMCPY(ssl->keys.aead_enc_imp_IV,
-                                keys->server_write_IV, AEAD_IMP_IV_SZ);
+                                keys->server_write_IV, AEAD_MAX_IMP_SZ);
                     }
                 }
             #endif
@@ -2504,10 +2623,10 @@ int SetKeysSide(WOLFSSL* ssl, enum encrypt_side side)
                     /* Initialize decrypt implicit IV by decrypt side */
                     if (ssl->options.side == WOLFSSL_SERVER_END) {
                         XMEMCPY(ssl->keys.aead_dec_imp_IV,
-                                keys->client_write_IV, AEAD_IMP_IV_SZ);
+                                keys->client_write_IV, AEAD_MAX_IMP_SZ);
                     } else {
                         XMEMCPY(ssl->keys.aead_dec_imp_IV,
-                                keys->server_write_IV, AEAD_IMP_IV_SZ);
+                                keys->server_write_IV, AEAD_MAX_IMP_SZ);
                     }
                 }
             #endif
@@ -2555,7 +2674,7 @@ int StoreKeys(WOLFSSL* ssl, const byte* keyData)
 #ifdef HAVE_AEAD
     if (ssl->specs.cipher_type == aead) {
         /* Initialize the AES-GCM/CCM explicit IV to a zero. */
-        XMEMSET(keys->aead_exp_IV, 0, AEAD_EXP_IV_SZ);
+        XMEMSET(keys->aead_exp_IV, 0, AEAD_MAX_EXP_SZ);
     }
 #endif
 

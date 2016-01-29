@@ -46,8 +46,10 @@ enum {
     POLY1305 = 7,
     POLY1305_BLOCK_SIZE = 16,
     POLY1305_DIGEST_SIZE = 16,
-    POLY1305_PAD_SIZE = 56
 };
+
+#define WC_POLY1305_PAD_SZ 16
+#define WC_POLY1305_MAC_SZ 16
 
 /* Poly1305 state */
 typedef struct Poly1305 {
@@ -71,7 +73,8 @@ typedef struct Poly1305 {
 WOLFSSL_API int wc_Poly1305SetKey(Poly1305* poly1305, const byte* key, word32 kySz);
 WOLFSSL_API int wc_Poly1305Update(Poly1305* poly1305, const byte*, word32);
 WOLFSSL_API int wc_Poly1305Final(Poly1305* poly1305, byte* tag);
-
+WOLFSSL_API int wc_Poly1305_MAC(Poly1305* ctx, byte* additional, word32 addSz,
+                               byte* input, word32 sz, byte* tag, word32 tagSz);
 #ifdef __cplusplus
     } /* extern "C" */
 #endif

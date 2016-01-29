@@ -1263,6 +1263,28 @@ void InitSuites(Suites* suites, ProtocolVersion pv, word16 haveRSA,
     }
 #endif
 
+#ifdef BUILD_TLS_ECDHE_ECDSA_WITH_CHACHA20_OLD_POLY1305_SHA256
+    if (tls1_2 && haveECDSAsig) {
+        suites->suites[idx++] = CHACHA_BYTE;
+        suites->suites[idx++] =
+                              TLS_ECDHE_ECDSA_WITH_CHACHA20_OLD_POLY1305_SHA256;
+    }
+#endif
+
+#ifdef BUILD_TLS_ECDHE_RSA_WITH_CHACHA20_OLD_POLY1305_SHA256
+    if (tls1_2 && haveRSA) {
+        suites->suites[idx++] = CHACHA_BYTE;
+        suites->suites[idx++] = TLS_ECDHE_RSA_WITH_CHACHA20_OLD_POLY1305_SHA256;
+    }
+#endif
+
+#ifdef BUILD_TLS_DHE_RSA_WITH_CHACHA20_OLD_POLY1305_SHA256
+    if (tls1_2 && haveRSA) {
+        suites->suites[idx++] = CHACHA_BYTE;
+        suites->suites[idx++] = TLS_DHE_RSA_WITH_CHACHA20_OLD_POLY1305_SHA256;
+    }
+#endif
+
 #ifdef BUILD_TLS_RSA_WITH_NULL_SHA
     if (tls && haveRSA) {
         suites->suites[idx++] = 0;
@@ -2008,8 +2030,9 @@ void FreeArrays(WOLFSSL* ssl, int keep)
     if (ssl->arrays) {
         XFREE(ssl->arrays->pendingMsg, ssl->heap, DYNAMIC_TYPE_ARRAYS);
         ssl->arrays->pendingMsg = NULL;
+        ForceZero(ssl->arrays, sizeof(Arrays)); /* clear arrays struct */
     }
-    XFREE(ssl->arrays, ssl->heap, DYNAMIC_TYPE_CERT);
+    XFREE(ssl->arrays, ssl->heap, DYNAMIC_TYPE_ARRAYS);
     ssl->arrays = NULL;
 }
 
@@ -2030,6 +2053,9 @@ void SSL_ResourceFree(WOLFSSL* ssl)
     XFREE(ssl->suites, ssl->heap, DYNAMIC_TYPE_SUITES);
     XFREE(ssl->hsHashes, ssl->heap, DYNAMIC_TYPE_HASHES);
     XFREE(ssl->buffers.domainName.buffer, ssl->heap, DYNAMIC_TYPE_DOMAIN);
+
+    /* clear keys struct after session */
+    ForceZero(&(ssl->keys), sizeof(Keys));
 
 #ifndef NO_DH
     XFREE(ssl->buffers.serverDH_Priv.buffer, ssl->heap, DYNAMIC_TYPE_DH);
@@ -3721,6 +3747,23 @@ static int BuildFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
             break;
 
         case TLS_DHE_RSA_WITH_CHACHA20_POLY1305_SHA256 :
+            if (requirement == REQUIRES_RSA)
+                return 1;
+            if (requirement == REQUIRES_DHE)
+                return 1;
+            break;
+
+        case TLS_ECDHE_RSA_WITH_CHACHA20_OLD_POLY1305_SHA256 :
+            if (requirement == REQUIRES_RSA)
+                return 1;
+            break;
+
+        case TLS_ECDHE_ECDSA_WITH_CHACHA20_OLD_POLY1305_SHA256 :
+            if (requirement == REQUIRES_ECC_DSA)
+                return 1;
+            break;
+
+        case TLS_DHE_RSA_WITH_CHACHA20_OLD_POLY1305_SHA256 :
             if (requirement == REQUIRES_RSA)
                 return 1;
             if (requirement == REQUIRES_DHE)
@@ -5992,72 +6035,13 @@ static INLINE word32 GetSEQIncrement(WOLFSSL* ssl, int verify)
 static INLINE void AeadIncrementExpIV(WOLFSSL* ssl)
 {
     int i;
-    for (i = AEAD_EXP_IV_SZ-1; i >= 0; i--) {
+    for (i = AEAD_MAX_EXP_SZ-1; i >= 0; i--) {
         if (++ssl->keys.aead_exp_IV[i]) return;
     }
 }
 
 
 #if defined(HAVE_POLY1305) && defined(HAVE_CHACHA)
-/*more recent rfc's concatonate input for poly1305 differently*/
-static int Poly1305Tag(WOLFSSL* ssl, byte* additional, const byte* out,
-                       byte* cipher, word16 sz, byte* tag)
-{
-    int ret       = 0;
-    int paddingSz = 0;
-    int msglen    = (sz - ssl->specs.aead_mac_size);
-    word32 keySz  = 32;
-    int blockSz   = 16;
-    byte padding[16];
-
-    if (msglen < 0)
-        return INPUT_CASE_ERROR;
-
-    XMEMSET(padding, 0, sizeof(padding));
-
-    if ((ret = wc_Poly1305SetKey(ssl->auth.poly1305, cipher, keySz)) != 0)
-        return ret;
-
-    /* additional input to poly1305 */
-    if ((ret = wc_Poly1305Update(ssl->auth.poly1305, additional, blockSz)) != 0)
-        return ret;
-
-    /* cipher input */
-    if ((ret = wc_Poly1305Update(ssl->auth.poly1305, out, msglen)) != 0)
-        return ret;
-
-    /* handle padding for cipher input to make it 16 bytes long */
-    if (msglen % 16 != 0) {
-          paddingSz = (16 - (sz - ssl->specs.aead_mac_size) % 16);
-          if (paddingSz < 0)
-              return INPUT_CASE_ERROR;
-
-          if ((ret = wc_Poly1305Update(ssl->auth.poly1305, padding, paddingSz))
-                 != 0)
-              return ret;
-    }
-
-    /* add size of AD and size of cipher to poly input */
-    XMEMSET(padding, 0, sizeof(padding));
-    padding[0] = blockSz;
-
-    /* 32 bit size of cipher to 64 bit endian */
-    padding[8]  =  msglen       & 0xff;
-    padding[9]  = (msglen >> 8) & 0xff;
-    padding[10] = (msglen >>16) & 0xff;
-    padding[11] = (msglen >>24) & 0xff;
-    if ((ret = wc_Poly1305Update(ssl->auth.poly1305, padding, sizeof(padding)))
-                != 0)
-        return ret;
-
-    /* generate tag */
-    if ((ret = wc_Poly1305Final(ssl->auth.poly1305, tag)) != 0)
-        return ret;
-
-    return ret;
-}
-
-
 /* Used for the older version of creating AEAD tags with Poly1305 */
 static int Poly1305TagOld(WOLFSSL* ssl, byte* additional, const byte* out,
                        byte* cipher, word16 sz, byte* tag)
@@ -6077,9 +6061,6 @@ static int Poly1305TagOld(WOLFSSL* ssl, byte* additional, const byte* out,
     if ((ret = wc_Poly1305SetKey(ssl->auth.poly1305, cipher, keySz)) != 0)
         return ret;
 
-    /* add TLS compressed length and additional input to poly1305 */
-    additional[AEAD_AUTH_DATA_SZ - 2] = (msglen >> 8) & 0xff;
-    additional[AEAD_AUTH_DATA_SZ - 1] =  msglen       & 0xff;
     if ((ret = wc_Poly1305Update(ssl->auth.poly1305, additional,
                    AEAD_AUTH_DATA_SZ)) != 0)
         return ret;
@@ -6118,42 +6099,48 @@ static int  ChachaAEADEncrypt(WOLFSSL* ssl, byte* out, const byte* input,
                               word16 sz)
 {
     const byte* additionalSrc = input - RECORD_HEADER_SZ;
-    int ret = 0;
+    int ret       = 0;
+    word32 msgLen = (sz - ssl->specs.aead_mac_size);
     byte tag[POLY1305_AUTH_SZ];
-    byte additional[CHACHA20_BLOCK_SIZE];
-    byte nonce[AEAD_NONCE_SZ];
-    byte cipher[CHACHA20_256_KEY_SIZE]; /* generated key for poly1305 */
+    byte add[AEAD_AUTH_DATA_SZ];
+    byte nonce[CHACHA20_NONCE_SZ];
+    byte poly[CHACHA20_256_KEY_SIZE]; /* generated key for poly1305 */
     #ifdef CHACHA_AEAD_TEST
         int i;
     #endif
 
-    XMEMSET(tag, 0, sizeof(tag));
-    XMEMSET(nonce, 0, AEAD_NONCE_SZ);
-    XMEMSET(cipher, 0, sizeof(cipher));
-    XMEMSET(additional, 0, CHACHA20_BLOCK_SIZE);
+    XMEMSET(tag,   0, sizeof(tag));
+    XMEMSET(nonce, 0, sizeof(nonce));
+    XMEMSET(poly,  0, sizeof(poly));
+    XMEMSET(add,   0, sizeof(add));
 
-    /* get nonce */
-    c32toa(ssl->keys.sequence_number, nonce + AEAD_IMP_IV_SZ
-           + AEAD_SEQ_OFFSET);
+    if (ssl->options.oldPoly != 0) {
+        /* get nonce */
+        c32toa(ssl->keys.sequence_number, nonce + CHACHA20_OLD_OFFSET);
+    }
 
     /* opaque SEQ number stored for AD */
-    c32toa(GetSEQIncrement(ssl, 0), additional + AEAD_SEQ_OFFSET);
+    c32toa(GetSEQIncrement(ssl, 0), add + AEAD_SEQ_OFFSET);
 
     /* Store the type, version. Unfortunately, they are in
      * the input buffer ahead of the plaintext. */
     #ifdef WOLFSSL_DTLS
         if (ssl->options.dtls) {
-            c16toa(ssl->keys.dtls_epoch, additional);
+            c16toa(ssl->keys.dtls_epoch, add);
             additionalSrc -= DTLS_HANDSHAKE_EXTRA;
         }
     #endif
 
-    XMEMCPY(additional + AEAD_TYPE_OFFSET, additionalSrc, 3);
+    /* add TLS message size to additional data */
+    add[AEAD_AUTH_DATA_SZ - 2] = (msgLen >> 8) & 0xff;
+    add[AEAD_AUTH_DATA_SZ - 1] =  msgLen       & 0xff;
+
+    XMEMCPY(add + AEAD_TYPE_OFFSET, additionalSrc, 3);
 
     #ifdef CHACHA_AEAD_TEST
         printf("Encrypt Additional : ");
-        for (i = 0; i < CHACHA20_BLOCK_SIZE; i++) {
-            printf("%02x", additional[i]);
+        for (i = 0; i < AEAD_AUTH_DATA_SZ; i++) {
+            printf("%02x", add[i]);
         }
         printf("\n\n");
         printf("input before encryption :\n");
@@ -6165,36 +6152,65 @@ static int  ChachaAEADEncrypt(WOLFSSL* ssl, byte* out, const byte* input,
         printf("\n");
     #endif
 
-    /* set the nonce for chacha and get poly1305 key */
-    if ((ret = wc_Chacha_SetIV(ssl->encrypt.chacha, nonce, 0)) != 0)
-        return ret;
+    if (ssl->options.oldPoly == 0) {
+        /* nonce is formed by 4 0x00 byte padded to the left followed by 8 byte
+         * record sequence number XORed with client_write_IV/server_write_IV */
+        XMEMCPY(nonce, ssl->keys.aead_enc_imp_IV, CHACHA20_IMP_IV_SZ);
+        nonce[4]  ^= add[0];
+        nonce[5]  ^= add[1];
+        nonce[6]  ^= add[2];
+        nonce[7]  ^= add[3];
+        nonce[8]  ^= add[4];
+        nonce[9]  ^= add[5];
+        nonce[10] ^= add[6];
+        nonce[11] ^= add[7];
+    }
 
-        if ((ret = wc_Chacha_Process(ssl->encrypt.chacha, cipher,
-                    cipher, sizeof(cipher))) != 0)
+    /* set the nonce for chacha and get poly1305 key */
+    if ((ret = wc_Chacha_SetIV(ssl->encrypt.chacha, nonce, 0)) != 0) {
+        ForceZero(nonce, CHACHA20_NONCE_SZ);
+        return ret;
+    }
+
+    ForceZero(nonce, CHACHA20_NONCE_SZ); /* done with nonce, clear it */
+    /* create Poly1305 key using chacha20 keystream */
+    if ((ret = wc_Chacha_Process(ssl->encrypt.chacha, poly,
+                                                      poly, sizeof(poly))) != 0)
         return ret;
 
     /* encrypt the plain text */
-    if ((ret = wc_Chacha_Process(ssl->encrypt.chacha, out, input,
-                   sz - ssl->specs.aead_mac_size)) != 0)
+    if ((ret = wc_Chacha_Process(ssl->encrypt.chacha, out,
+                                                         input, msgLen)) != 0) {
+        ForceZero(poly, sizeof(poly));
         return ret;
+    }
 
-    /* get the tag : future use of hmac could go here*/
-    if (ssl->options.oldPoly == 1) {
-        if ((ret = Poly1305TagOld(ssl, additional, (const byte* )out,
-                    cipher, sz, tag)) != 0)
+    /* get the poly1305 tag using either old padding scheme or more recent */
+    if (ssl->options.oldPoly != 0) {
+        if ((ret = Poly1305TagOld(ssl, add, (const byte* )out,
+                                                         poly, sz, tag)) != 0) {
+            ForceZero(poly, sizeof(poly));
             return ret;
+        }
     }
     else {
-        if ((ret = Poly1305Tag(ssl, additional, (const byte* )out,
-                    cipher, sz, tag)) != 0)
+        if ((ret = wc_Poly1305SetKey(ssl->auth.poly1305, poly,
+                                                          sizeof(poly))) != 0) {
+            ForceZero(poly, sizeof(poly));
             return ret;
+        }
+        if ((ret = wc_Poly1305_MAC(ssl->auth.poly1305, add,
+                            sizeof(add), out, msgLen, tag, sizeof(tag))) != 0) {
+            ForceZero(poly, sizeof(poly));
+            return ret;
+        }
     }
+    ForceZero(poly, sizeof(poly)); /* done with poly1305 key, clear it */
 
     /* append tag to ciphertext */
-    XMEMCPY(out + sz - ssl->specs.aead_mac_size, tag, sizeof(tag));
+    XMEMCPY(out + msgLen, tag, sizeof(tag));
 
     AeadIncrementExpIV(ssl);
-    ForceZero(nonce, AEAD_NONCE_SZ);
 
     #ifdef CHACHA_AEAD_TEST
        printf("mac tag :\n");
@@ -6219,16 +6235,12 @@ static int  ChachaAEADEncrypt(WOLFSSL* ssl, byte* out, const byte* input,
 static int ChachaAEADDecrypt(WOLFSSL* ssl, byte* plain, const byte* input,
                            word16 sz)
 {
-    byte additional[CHACHA20_BLOCK_SIZE];
-    byte nonce[AEAD_NONCE_SZ];
+    byte add[AEAD_AUTH_DATA_SZ];
+    byte nonce[CHACHA20_NONCE_SZ];
     byte tag[POLY1305_AUTH_SZ];
-    byte cipher[CHACHA20_256_KEY_SIZE]; /* generated key for mac */
-    int ret = 0;
-
-    XMEMSET(tag, 0, sizeof(tag));
-    XMEMSET(cipher, 0, sizeof(cipher));
-    XMEMSET(nonce, 0, AEAD_NONCE_SZ);
-    XMEMSET(additional, 0, CHACHA20_BLOCK_SIZE);
+    byte poly[CHACHA20_256_KEY_SIZE]; /* generated key for mac */
+    int ret    = 0;
+    int msgLen = (sz - ssl->specs.aead_mac_size);
 
     #ifdef CHACHA_AEAD_TEST
        int i;
@@ -6241,64 +6253,99 @@ static int ChachaAEADDecrypt(WOLFSSL* ssl, byte* plain, const byte* input,
         printf("\n");
     #endif
 
-    /* get nonce */
-    c32toa(ssl->keys.peer_sequence_number, nonce + AEAD_IMP_IV_SZ
-            + AEAD_SEQ_OFFSET);
+    XMEMSET(tag,   0, sizeof(tag));
+    XMEMSET(poly,  0, sizeof(poly));
+    XMEMSET(nonce, 0, sizeof(nonce));
+    XMEMSET(add,   0, sizeof(add));
+
+    if (ssl->options.oldPoly != 0) {
+        /* get nonce */
+        c32toa(ssl->keys.peer_sequence_number, nonce + CHACHA20_OLD_OFFSET);
+    }
 
     /* sequence number field is 64-bits, we only use 32-bits */
-    c32toa(GetSEQIncrement(ssl, 1), additional + AEAD_SEQ_OFFSET);
+    c32toa(GetSEQIncrement(ssl, 1), add + AEAD_SEQ_OFFSET);
 
     /* get AD info */
-    additional[AEAD_TYPE_OFFSET] = ssl->curRL.type;
-    additional[AEAD_VMAJ_OFFSET] = ssl->curRL.pvMajor;
-    additional[AEAD_VMIN_OFFSET] = ssl->curRL.pvMinor;
+    add[AEAD_TYPE_OFFSET] = ssl->curRL.type;
+    add[AEAD_VMAJ_OFFSET] = ssl->curRL.pvMajor;
+    add[AEAD_VMIN_OFFSET] = ssl->curRL.pvMinor;
 
     /* Store the type, version. */
     #ifdef WOLFSSL_DTLS
         if (ssl->options.dtls)
-            c16toa(ssl->keys.dtls_state.curEpoch, additional);
+            c16toa(ssl->keys.dtls_state.curEpoch, add);
     #endif
+
+    /* add TLS message size to additional data */
+    add[AEAD_AUTH_DATA_SZ - 2] = (msgLen >> 8) & 0xff;
+    add[AEAD_AUTH_DATA_SZ - 1] =  msgLen       & 0xff;
 
     #ifdef CHACHA_AEAD_TEST
         printf("Decrypt Additional : ");
-        for (i = 0; i < CHACHA20_BLOCK_SIZE; i++) {
-            printf("%02x", additional[i]);
+        for (i = 0; i < AEAD_AUTH_DATA_SZ; i++) {
+            printf("%02x", add[i]);
         }
         printf("\n\n");
     #endif
 
+    if (ssl->options.oldPoly == 0) {
+        /* nonce is formed by 4 0x00 byte padded to the left followed by 8 byte
+         * record sequence number XORed with client_write_IV/server_write_IV */
+        XMEMCPY(nonce, ssl->keys.aead_dec_imp_IV, CHACHA20_IMP_IV_SZ);
+        nonce[4]  ^= add[0];
+        nonce[5]  ^= add[1];
+        nonce[6]  ^= add[2];
+        nonce[7]  ^= add[3];
+        nonce[8]  ^= add[4];
+        nonce[9]  ^= add[5];
+        nonce[10] ^= add[6];
+        nonce[11] ^= add[7];
+    }
+
     /* set nonce and get poly1305 key */
-    if ((ret = wc_Chacha_SetIV(ssl->decrypt.chacha, nonce, 0)) != 0)
+    if ((ret = wc_Chacha_SetIV(ssl->decrypt.chacha, nonce, 0)) != 0) {
+        ForceZero(nonce, CHACHA20_NONCE_SZ);
+        return ret;
+    }
+
+    ForceZero(nonce, CHACHA20_NONCE_SZ); /* done with nonce, clear it */
+    /* use chacha20 keystream to get poly1305 key for tag */
+    if ((ret = wc_Chacha_Process(ssl->decrypt.chacha, poly,
+                                                      poly, sizeof(poly))) != 0)
         return ret;
 
-    if ((ret = wc_Chacha_Process(ssl->decrypt.chacha, cipher,
-                    cipher, sizeof(cipher))) != 0)
-        return ret;
-
-    /* get the tag : future use of hmac could go here*/
-    if (ssl->options.oldPoly == 1) {
-        if ((ret = Poly1305TagOld(ssl, additional, input, cipher,
-                        sz, tag)) != 0)
+    /* get the tag using Poly1305 */
+    if (ssl->options.oldPoly != 0) {
+        if ((ret = Poly1305TagOld(ssl, add, input, poly, sz, tag)) != 0) {
+            ForceZero(poly, sizeof(poly));
             return ret;
+        }
     }
     else {
-        if ((ret = Poly1305Tag(ssl, additional, input, cipher,
-                        sz, tag)) != 0)
+        if ((ret = wc_Poly1305SetKey(ssl->auth.poly1305, poly,
+                                                          sizeof(poly))) != 0) {
+            ForceZero(poly, sizeof(poly));
             return ret;
+        }
+        if ((ret = wc_Poly1305_MAC(ssl->auth.poly1305, add,
+                   sizeof(add), (byte*)input, msgLen, tag, sizeof(tag))) != 0) {
+            ForceZero(poly, sizeof(poly));
+            return ret;
+        }
     }
+    ForceZero(poly, sizeof(poly)); /* done with poly1305 key, clear it */
 
-    /* check mac sent along with packet */
-    if (ConstantCompare(input + sz - ssl->specs.aead_mac_size, tag,
-                ssl->specs.aead_mac_size) != 0) {
-        WOLFSSL_MSG("Mac did not match");
+    /* check tag sent along with packet */
+    if (ConstantCompare(input + msgLen, tag, ssl->specs.aead_mac_size) != 0) {
+        WOLFSSL_MSG("MAC did not match");
         SendAlert(ssl, alert_fatal, bad_record_mac);
-        ForceZero(nonce, AEAD_NONCE_SZ);
         return VERIFY_MAC_ERROR;
     }
 
-    /* if mac was good decrypt message */
-    if ((ret = wc_Chacha_Process(ssl->decrypt.chacha, plain, input,
-                   sz - ssl->specs.aead_mac_size)) != 0)
+    /* if the tag was good decrypt message */
+    if ((ret = wc_Chacha_Process(ssl->decrypt.chacha, plain,
+                                                           input, msgLen)) != 0)
         return ret;
 
     #ifdef CHACHA_AEAD_TEST
@@ -6358,7 +6405,7 @@ static INLINE int Encrypt(WOLFSSL* ssl, byte* out, const byte* input, word16 sz)
             case wolfssl_aes_gcm:
                 {
                     byte additional[AEAD_AUTH_DATA_SZ];
-                    byte nonce[AEAD_NONCE_SZ];
+                    byte nonce[AESGCM_NONCE_SZ];
                     const byte* additionalSrc = input - 5;
 
                     XMEMSET(additional, 0, AEAD_AUTH_DATA_SZ);
@@ -6379,30 +6426,31 @@ static INLINE int Encrypt(WOLFSSL* ssl, byte* out, const byte* input, word16 sz)
 
                     /* Store the length of the plain text minus the explicit
                      * IV length minus the authentication tag size. */
-                    c16toa(sz - AEAD_EXP_IV_SZ - ssl->specs.aead_mac_size,
+                    c16toa(sz - AESGCM_EXP_IV_SZ - ssl->specs.aead_mac_size,
                                                 additional + AEAD_LEN_OFFSET);
                     XMEMCPY(nonce,
-                                 ssl->keys.aead_enc_imp_IV, AEAD_IMP_IV_SZ);
-                    XMEMCPY(nonce + AEAD_IMP_IV_SZ,
-                                     ssl->keys.aead_exp_IV, AEAD_EXP_IV_SZ);
+                                 ssl->keys.aead_enc_imp_IV, AESGCM_IMP_IV_SZ);
+                    XMEMCPY(nonce + AESGCM_IMP_IV_SZ,
+                                     ssl->keys.aead_exp_IV, AESGCM_EXP_IV_SZ);
                     ret = wc_AesGcmEncrypt(ssl->encrypt.aes,
-                                 out + AEAD_EXP_IV_SZ, input + AEAD_EXP_IV_SZ,
-                                 sz - AEAD_EXP_IV_SZ - ssl->specs.aead_mac_size,
-                                 nonce, AEAD_NONCE_SZ,
+                               out + AESGCM_EXP_IV_SZ, input + AESGCM_EXP_IV_SZ,
+                               sz - AESGCM_EXP_IV_SZ - ssl->specs.aead_mac_size,
+                                 nonce, AESGCM_NONCE_SZ,
                                  out + sz - ssl->specs.aead_mac_size,
                                  ssl->specs.aead_mac_size,
                                  additional, AEAD_AUTH_DATA_SZ);
                     AeadIncrementExpIV(ssl);
-                    ForceZero(nonce, AEAD_NONCE_SZ);
+                    ForceZero(nonce, AESGCM_NONCE_SZ);
                 }
                 break;
         #endif
 
         #ifdef HAVE_AESCCM
+            /* AEAD CCM uses same size as macros for AESGCM */
             case wolfssl_aes_ccm:
                 {
                     byte additional[AEAD_AUTH_DATA_SZ];
-                    byte nonce[AEAD_NONCE_SZ];
+                    byte nonce[AESGCM_NONCE_SZ];
                     const byte* additionalSrc = input - 5;
 
                     XMEMSET(additional, 0, AEAD_AUTH_DATA_SZ);
@@ -6423,21 +6471,21 @@ static INLINE int Encrypt(WOLFSSL* ssl, byte* out, const byte* input, word16 sz)
 
                     /* Store the length of the plain text minus the explicit
                      * IV length minus the authentication tag size. */
-                    c16toa(sz - AEAD_EXP_IV_SZ - ssl->specs.aead_mac_size,
+                    c16toa(sz - AESGCM_EXP_IV_SZ - ssl->specs.aead_mac_size,
                                                 additional + AEAD_LEN_OFFSET);
                     XMEMCPY(nonce,
-                                 ssl->keys.aead_enc_imp_IV, AEAD_IMP_IV_SZ);
-                    XMEMCPY(nonce + AEAD_IMP_IV_SZ,
-                                     ssl->keys.aead_exp_IV, AEAD_EXP_IV_SZ);
+                                 ssl->keys.aead_enc_imp_IV, AESGCM_IMP_IV_SZ);
+                    XMEMCPY(nonce + AESGCM_IMP_IV_SZ,
+                                     ssl->keys.aead_exp_IV, AESGCM_EXP_IV_SZ);
                     ret = wc_AesCcmEncrypt(ssl->encrypt.aes,
-                        out + AEAD_EXP_IV_SZ, input + AEAD_EXP_IV_SZ,
-                            sz - AEAD_EXP_IV_SZ - ssl->specs.aead_mac_size,
-                        nonce, AEAD_NONCE_SZ,
+                        out + AESGCM_EXP_IV_SZ, input + AESGCM_EXP_IV_SZ,
+                            sz - AESGCM_EXP_IV_SZ - ssl->specs.aead_mac_size,
+                        nonce, AESGCM_NONCE_SZ,
                         out + sz - ssl->specs.aead_mac_size,
                         ssl->specs.aead_mac_size,
                         additional, AEAD_AUTH_DATA_SZ);
                     AeadIncrementExpIV(ssl);
-                    ForceZero(nonce, AEAD_NONCE_SZ);
+                    ForceZero(nonce, AESGCM_NONCE_SZ);
                 }
                 break;
         #endif
@@ -6527,7 +6575,7 @@ static INLINE int Decrypt(WOLFSSL* ssl, byte* plain, const byte* input,
             case wolfssl_aes_gcm:
             {
                 byte additional[AEAD_AUTH_DATA_SZ];
-                byte nonce[AEAD_NONCE_SZ];
+                byte nonce[AESGCM_NONCE_SZ];
 
                 XMEMSET(additional, 0, AEAD_AUTH_DATA_SZ);
 
@@ -6543,31 +6591,32 @@ static INLINE int Decrypt(WOLFSSL* ssl, byte* plain, const byte* input,
                 additional[AEAD_VMAJ_OFFSET] = ssl->curRL.pvMajor;
                 additional[AEAD_VMIN_OFFSET] = ssl->curRL.pvMinor;
 
-                c16toa(sz - AEAD_EXP_IV_SZ - ssl->specs.aead_mac_size,
+                c16toa(sz - AESGCM_EXP_IV_SZ - ssl->specs.aead_mac_size,
                                         additional + AEAD_LEN_OFFSET);
-                XMEMCPY(nonce, ssl->keys.aead_dec_imp_IV, AEAD_IMP_IV_SZ);
-                XMEMCPY(nonce + AEAD_IMP_IV_SZ, input, AEAD_EXP_IV_SZ);
+                XMEMCPY(nonce, ssl->keys.aead_dec_imp_IV, AESGCM_IMP_IV_SZ);
+                XMEMCPY(nonce + AESGCM_IMP_IV_SZ, input, AESGCM_EXP_IV_SZ);
                 if (wc_AesGcmDecrypt(ssl->decrypt.aes,
-                            plain + AEAD_EXP_IV_SZ,
-                            input + AEAD_EXP_IV_SZ,
-                                sz - AEAD_EXP_IV_SZ - ssl->specs.aead_mac_size,
-                            nonce, AEAD_NONCE_SZ,
+                            plain + AESGCM_EXP_IV_SZ,
+                            input + AESGCM_EXP_IV_SZ,
+                               sz - AESGCM_EXP_IV_SZ - ssl->specs.aead_mac_size,
+                            nonce, AESGCM_NONCE_SZ,
                             input + sz - ssl->specs.aead_mac_size,
                             ssl->specs.aead_mac_size,
                             additional, AEAD_AUTH_DATA_SZ) < 0) {
                     SendAlert(ssl, alert_fatal, bad_record_mac);
                     ret = VERIFY_MAC_ERROR;
                 }
-                ForceZero(nonce, AEAD_NONCE_SZ);
+                ForceZero(nonce, AESGCM_NONCE_SZ);
             }
             break;
         #endif
 
         #ifdef HAVE_AESCCM
+            /* AESGCM AEAD macros use same size as AESCCM */
             case wolfssl_aes_ccm:
             {
                 byte additional[AEAD_AUTH_DATA_SZ];
-                byte nonce[AEAD_NONCE_SZ];
+                byte nonce[AESGCM_NONCE_SZ];
 
                 XMEMSET(additional, 0, AEAD_AUTH_DATA_SZ);
 
@@ -6583,22 +6632,22 @@ static INLINE int Decrypt(WOLFSSL* ssl, byte* plain, const byte* input,
                 additional[AEAD_VMAJ_OFFSET] = ssl->curRL.pvMajor;
                 additional[AEAD_VMIN_OFFSET] = ssl->curRL.pvMinor;
 
-                c16toa(sz - AEAD_EXP_IV_SZ - ssl->specs.aead_mac_size,
+                c16toa(sz - AESGCM_EXP_IV_SZ - ssl->specs.aead_mac_size,
                                         additional + AEAD_LEN_OFFSET);
-                XMEMCPY(nonce, ssl->keys.aead_dec_imp_IV, AEAD_IMP_IV_SZ);
-                XMEMCPY(nonce + AEAD_IMP_IV_SZ, input, AEAD_EXP_IV_SZ);
+                XMEMCPY(nonce, ssl->keys.aead_dec_imp_IV, AESGCM_IMP_IV_SZ);
+                XMEMCPY(nonce + AESGCM_IMP_IV_SZ, input, AESGCM_EXP_IV_SZ);
                 if (wc_AesCcmDecrypt(ssl->decrypt.aes,
-                            plain + AEAD_EXP_IV_SZ,
-                            input + AEAD_EXP_IV_SZ,
-                                sz - AEAD_EXP_IV_SZ - ssl->specs.aead_mac_size,
-                            nonce, AEAD_NONCE_SZ,
+                            plain + AESGCM_EXP_IV_SZ,
+                            input + AESGCM_EXP_IV_SZ,
+                               sz - AESGCM_EXP_IV_SZ - ssl->specs.aead_mac_size,
+                            nonce, AESGCM_NONCE_SZ,
                             input + sz - ssl->specs.aead_mac_size,
                             ssl->specs.aead_mac_size,
                             additional, AEAD_AUTH_DATA_SZ) < 0) {
                     SendAlert(ssl, alert_fatal, bad_record_mac);
                     ret = VERIFY_MAC_ERROR;
                 }
-                ForceZero(nonce, AEAD_NONCE_SZ);
+                ForceZero(nonce, AESGCM_NONCE_SZ);
             }
             break;
         #endif
@@ -6677,7 +6726,7 @@ static int SanityCheckCipherText(WOLFSSL* ssl, word32 encryptSz)
     else if (ssl->specs.cipher_type == aead) {
         minLength = ssl->specs.aead_mac_size;    /* authTag size */
         if (ssl->specs.bulk_cipher_algorithm != wolfssl_chacha)
-           minLength += AEAD_EXP_IV_SZ;          /* explicit IV  */
+           minLength += AESGCM_EXP_IV_SZ;          /* explicit IV  */
     }
 
     if (encryptSz < minLength) {
@@ -6963,7 +7012,7 @@ int DoApplicationData(WOLFSSL* ssl, byte* input, word32* inOutIdx)
     }
     else if (ssl->specs.cipher_type == aead) {
         if (ssl->specs.bulk_cipher_algorithm != wolfssl_chacha)
-            ivExtra = AEAD_EXP_IV_SZ;
+            ivExtra = AESGCM_EXP_IV_SZ;
     }
 
     dataSz = msgSz - ivExtra - ssl->keys.padSz;
@@ -7365,7 +7414,7 @@ int ProcessReply(WOLFSSL* ssl)
                         /* go past TLSv1.1 IV */
                     if (ssl->specs.cipher_type == aead &&
                             ssl->specs.bulk_cipher_algorithm != wolfssl_chacha)
-                        ssl->buffers.inputBuffer.idx += AEAD_EXP_IV_SZ;
+                        ssl->buffers.inputBuffer.idx += AESGCM_EXP_IV_SZ;
                 #endif /* ATOMIC_USER */
                 }
                 else {
@@ -7384,7 +7433,7 @@ int ProcessReply(WOLFSSL* ssl)
                         /* go past TLSv1.1 IV */
                     if (ssl->specs.cipher_type == aead &&
                             ssl->specs.bulk_cipher_algorithm != wolfssl_chacha)
-                        ssl->buffers.inputBuffer.idx += AEAD_EXP_IV_SZ;
+                        ssl->buffers.inputBuffer.idx += AESGCM_EXP_IV_SZ;
 
                     ret = VerifyMac(ssl, ssl->buffers.inputBuffer.buffer +
                                     ssl->buffers.inputBuffer.idx,
@@ -7914,10 +7963,10 @@ static int BuildMessage(WOLFSSL* ssl, byte* output, int outSz,
 #ifdef HAVE_AEAD
     if (ssl->specs.cipher_type == aead) {
         if (ssl->specs.bulk_cipher_algorithm != wolfssl_chacha)
-            ivSz = AEAD_EXP_IV_SZ;
+            ivSz = AESGCM_EXP_IV_SZ;
 
         sz += (ivSz + ssl->specs.aead_mac_size - digestSz);
-        XMEMCPY(iv, ssl->keys.aead_exp_IV, AEAD_EXP_IV_SZ);
+        XMEMCPY(iv, ssl->keys.aead_exp_IV, AESGCM_EXP_IV_SZ);
     }
 #endif
     if (sz > (word32)outSz) {
@@ -9837,6 +9886,18 @@ static const char* const cipher_names[] =
     "DHE-RSA-CHACHA20-POLY1305",
 #endif
 
+#ifdef BUILD_TLS_ECDHE_RSA_WITH_CHACHA20_OLD_POLY1305_SHA256
+    "ECDHE-RSA-CHACHA20-POLY1305-OLD",
+#endif
+
+#ifdef BUILD_TLS_ECDHE_ECDSA_WITH_CHACHA20_OLD_POLY1305_SHA256
+    "ECDHE-ECDSA-CHACHA20-POLY1305-OLD",
+#endif
+
+#ifdef BUILD_TLS_DHE_RSA_WITH_CHACHA20_OLD_POLY1305_SHA256
+    "DHE-RSA-CHACHA20-POLY1305-OLD",
+#endif
+
 #ifdef BUILD_TLS_DH_anon_WITH_AES_128_CBC_SHA
     "ADH-AES128-SHA",
 #endif
@@ -10237,6 +10298,18 @@ static int cipher_name_idx[] =
 
 #ifdef BUILD_TLS_DHE_RSA_WITH_CHACHA20_POLY1305_SHA256
     TLS_DHE_RSA_WITH_CHACHA20_POLY1305_SHA256,
+#endif
+
+#ifdef BUILD_TLS_ECDHE_RSA_WITH_CHACHA20_OLD_POLY1305_SHA256
+    TLS_ECDHE_RSA_WITH_CHACHA20_OLD_POLY1305_SHA256,
+#endif
+
+#ifdef BUILD_TLS_ECDHE_ECDSA_WITH_CHACHA20_OLD_POLY1305_SHA256
+    TLS_ECDHE_ECDSA_WITH_CHACHA20_OLD_POLY1305_SHA256,
+#endif
+
+#ifdef BUILD_TLS_DHE_RSA_WITH_CHACHA20_OLD_POLY1305_SHA256
+    TLS_DHE_RSA_WITH_CHACHA20_OLD_POLY1305_SHA256,
 #endif
 
 #ifdef BUILD_TLS_DH_anon_WITH_AES_128_CBC_SHA
