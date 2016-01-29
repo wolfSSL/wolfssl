@@ -820,7 +820,7 @@ enum {
 
 
 enum Misc {
-    ECC_BYTE    =  0xC0,           /* ECC first cipher suite byte */
+    ECC_BYTE    = 0xC0,            /* ECC first cipher suite byte */
     QSH_BYTE    = 0xD0,            /* Quantum-safe Handshake cipher suite */
     CHACHA_BYTE = 0xCC,            /* ChaCha first cipher suite */
 
@@ -929,15 +929,21 @@ enum Misc {
     AES_IV_SIZE         = 16,  /* always block size       */
     AES_128_KEY_SIZE    = 16,  /* for 128 bit             */
 
-    AEAD_SEQ_OFFSET     = 4,        /* Auth Data: Sequence number */
-    AEAD_TYPE_OFFSET    = 8,        /* Auth Data: Type            */
-    AEAD_VMAJ_OFFSET    = 9,        /* Auth Data: Major Version   */
-    AEAD_VMIN_OFFSET    = 10,       /* Auth Data: Minor Version   */
-    AEAD_LEN_OFFSET     = 11,       /* Auth Data: Length          */
-    AEAD_AUTH_DATA_SZ   = 13,       /* Size of the data to authenticate */
-    AEAD_IMP_IV_SZ      = 4,        /* Size of the implicit IV     */
-    AEAD_EXP_IV_SZ      = 8,        /* Size of the explicit IV     */
-    AEAD_NONCE_SZ       = AEAD_EXP_IV_SZ + AEAD_IMP_IV_SZ,
+    AEAD_SEQ_OFFSET     = 4,   /* Auth Data: Sequence number */
+    AEAD_TYPE_OFFSET    = 8,   /* Auth Data: Type            */
+    AEAD_VMAJ_OFFSET    = 9,   /* Auth Data: Major Version   */
+    AEAD_VMIN_OFFSET    = 10,  /* Auth Data: Minor Version   */
+    AEAD_LEN_OFFSET     = 11,  /* Auth Data: Length          */
+    AEAD_AUTH_DATA_SZ   = 13,  /* Size of the data to authenticate */
+    AESGCM_IMP_IV_SZ    = 4,   /* Size of GCM/CCM AEAD implicit IV */
+    AESGCM_EXP_IV_SZ    = 8,   /* Size of GCM/CCM AEAD explicit IV */
+    AESGCM_NONCE_SZ     = AESGCM_EXP_IV_SZ + AESGCM_IMP_IV_SZ,
+
+    CHACHA20_IMP_IV_SZ  = 12,  /* Size of ChaCha20 AEAD implicit IV */
+    CHACHA20_NONCE_SZ   = 12,  /* Size of ChacCha20 nonce           */
+    CHACHA20_OLD_OFFSET = 8,   /* Offset for seq # in old poly1305  */
+
+    /* For any new implicit/explicit IV size adjust AEAD_MAX_***_SZ */
 
     AES_GCM_AUTH_SZ     = 16, /* AES-GCM Auth Tag length    */
     AES_CCM_16_AUTH_SZ  = 16, /* AES-CCM-16 Auth Tag length */
@@ -1007,6 +1013,17 @@ enum Misc {
     NO_COPY            =   0,  /* should we copy static buffer for write */
     COPY               =   1   /* should we copy static buffer for write */
 };
+
+
+/* Set max implicit IV size for AEAD cipher suites */
+#ifdef HAVE_CHACHA
+    #define AEAD_MAX_IMP_SZ 12
+#else
+    #define AEAD_MAX_IMP_SZ 4
+#endif
+
+/* Set max explicit IV size for AEAD cipher suites */
+#define AEAD_MAX_EXP_SZ 8
 
 
 #ifndef WOLFSSL_MAX_SUITE_SZ
@@ -1455,18 +1472,20 @@ typedef struct WOLFSSL_DTLS_CTX {
 #endif /* WOLFSSL_DTLS */
 
 
+#define MAX_WRITE_IV_SZ 16 /* max size of client/server write_IV */
+
 /* keys and secrets */
 typedef struct Keys {
     byte client_write_MAC_secret[MAX_DIGEST_SIZE];   /* max sizes */
     byte server_write_MAC_secret[MAX_DIGEST_SIZE];
     byte client_write_key[AES_256_KEY_SIZE];         /* max sizes */
     byte server_write_key[AES_256_KEY_SIZE];
-    byte client_write_IV[AES_IV_SIZE];               /* max sizes */
-    byte server_write_IV[AES_IV_SIZE];
+    byte client_write_IV[MAX_WRITE_IV_SZ];               /* max sizes */
+    byte server_write_IV[MAX_WRITE_IV_SZ];
 #ifdef HAVE_AEAD
-    byte aead_exp_IV[AEAD_EXP_IV_SZ];
-    byte aead_enc_imp_IV[AEAD_NONCE_SZ]; /* full size needed for chacha-poly */
-    byte aead_dec_imp_IV[AEAD_NONCE_SZ];
+    byte aead_exp_IV[AEAD_MAX_EXP_SZ];
+    byte aead_enc_imp_IV[AEAD_MAX_IMP_SZ];
+    byte aead_dec_imp_IV[AEAD_MAX_IMP_SZ];
 #endif
 
     word32 peer_sequence_number;

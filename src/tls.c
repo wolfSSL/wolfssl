@@ -2657,7 +2657,8 @@ static void TLSX_EllipticCurve_ValidateRequest(WOLFSSL* ssl, byte* semaphore)
     int i;
 
     for (i = 0; i < ssl->suites->suiteSz; i+= 2)
-        if (ssl->suites->suites[i] == ECC_BYTE)
+        if (ssl->suites->suites[i] == ECC_BYTE ||
+                                          ssl->suites->suites[i] == CHACHA_BYTE)
             return;
 
     /* turns semaphore on to avoid sending this extension. */
@@ -2734,7 +2735,7 @@ static int TLSX_EllipticCurve_Parse(WOLFSSL* ssl, byte* input, word16 length,
 }
 
 int TLSX_ValidateEllipticCurves(WOLFSSL* ssl, byte first, byte second) {
-    TLSX*          extension = (first == ECC_BYTE)
+    TLSX*          extension = (first == ECC_BYTE || first == CHACHA_BYTE)
                              ? TLSX_Find(ssl->extensions, TLSX_SUPPORTED_GROUPS)
                              : NULL;
     EllipticCurve* curve     = NULL;
@@ -2773,6 +2774,7 @@ int TLSX_ValidateEllipticCurves(WOLFSSL* ssl, byte first, byte second) {
             default: continue; /* unsupported curve */
         }
 
+        if (first == ECC_BYTE) {
         switch (second) {
 #ifndef NO_DSA
             /* ECDHE_ECDSA */
@@ -2834,6 +2836,33 @@ int TLSX_ValidateEllipticCurves(WOLFSSL* ssl, byte first, byte second) {
                 sig = 1;
                 key = 1;
             break;
+        }
+        }
+
+        /* ChaCha20-Poly1305 ECC cipher suites */
+        if (first == CHACHA_BYTE) {
+        switch (second) {
+#ifndef NO_DSA
+            /* ECDHE_ECDSA */
+            case TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256 :
+            case TLS_ECDHE_ECDSA_WITH_CHACHA20_OLD_POLY1305_SHA256 :
+                sig |= ssl->pkCurveOID == oid;
+                key |= ssl->eccTempKeySz == octets;
+            break;
+#endif
+#ifndef NO_RSA
+            /* ECDHE_RSA */
+            case TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256 :
+            case TLS_ECDHE_RSA_WITH_CHACHA20_OLD_POLY1305_SHA256 :
+                sig = 1;
+                key |= ssl->eccTempKeySz == octets;
+            break;
+#endif
+            default:
+                sig = 1;
+                key = 1;
+            break;
+        }
         }
     }
 
