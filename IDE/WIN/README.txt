@@ -67,3 +67,4 @@ Additionally one may enable:
  * OPENSSL_EXTRA
  * WOLFSSL_KEY_GEN
 
+These settings are defined in IDE/WIN/user_settings.h.

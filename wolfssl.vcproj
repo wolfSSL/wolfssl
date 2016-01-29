@@ -41,8 +41,8 @@
 			<Tool
 				Name="VCCLCompilerTool"
 				Optimization="0"
-				AdditionalIncludeDirectories="./"
-				PreprocessorDefinitions="OPENSSL_EXTRA;WOLFSSL_RIPEMD;WOLFSSL_SHA512;NO_PSK;WOLFSSL_SNIFFER"
+				AdditionalIncludeDirectories="./;./IDE/WIN"
+				PreprocessorDefinitions="WOLFSSL_SNIFFER;WOLFSSL_USER_SETTINGS;CYASSL_USER_SETTINGS"
 				MinimalRebuild="true"
 				BasicRuntimeChecks="3"
 				RuntimeLibrary="3"
@@ -106,8 +106,8 @@
 				Name="VCCLCompilerTool"
 				Optimization="2"
 				EnableIntrinsicFunctions="true"
-				AdditionalIncludeDirectories="./"
-				PreprocessorDefinitions="OPENSSL_EXTRA;WOLFSSL_RIPEMD;WOLFSSL_SHA512;NO_PSK;WOLFSSL_SNIFFER"
+				AdditionalIncludeDirectories="./;./IDE/WIN"
+				PreprocessorDefinitions="WOLFSSL_SNIFFER;WOLFSSL_USER_SETTINGS;CYASSL_USER_SETTINGS"
 				RuntimeLibrary="2"
 				EnableFunctionLevelLinking="true"
 				UsePrecompiledHeader="0"
@@ -284,6 +284,10 @@
 				>
 			</File>
 			<File
+				RelativePath=".\wolfcrypt\src\signature.c"
+				>
+			</File>
+			<File
 				RelativePath=".\src\ssl.c"
 				>
 			</File>
@@ -292,7 +296,7 @@
 				>
 			</File>
 			<File
-				RelativePath="wolfcrypt\src\wc_encrypt.c"
+				RelativePath=".\wolfcrypt\src\wc_encrypt.c"
 				>
 			</File>
 		</Filter>

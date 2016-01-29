@@ -291,6 +291,10 @@
 				>
 			</File>
 			<File
+				RelativePath=".\wolfcrypt\src\signature.c"
+				>
+			</File>
+			<File
 				RelativePath=".\src\ssl.c"
 				>
 			</File>
