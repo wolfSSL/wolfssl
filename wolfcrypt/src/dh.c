@@ -30,7 +30,7 @@
 #include <wolfssl/wolfcrypt/dh.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
 
-#ifndef USER_MATH_LIB
+#if !defined(USER_MATH_LIB) && !defined(WOLFSSL_DH_CONST)
     #include <math.h>
     #define XPOW(x,y) pow((x),(y))
     #define XLOG(x)   log((x))
@@ -39,7 +39,7 @@
 #endif
 
 
-#ifndef WOLFSSL_HAVE_MIN
+#if !defined(WOLFSSL_HAVE_MIN) && !defined(WOLFSSL_DH_CONST)
 #define WOLFSSL_HAVE_MIN
 
     static INLINE word32 min(word32 a, word32 b)
@@ -72,6 +72,8 @@ void wc_FreeDhKey(DhKey* key)
 }
 
 
+/* if defined to not use floating point values do not compile in */
+#ifndef WOLFSSL_DH_CONST
 static word32 DiscreteLogWorkFactor(word32 n)
 {
     /* assuming discrete log takes about the same time as factoring */
@@ -81,14 +83,51 @@ static word32 DiscreteLogWorkFactor(word32 n)
         return (word32)(2.4 * XPOW((double)n, 1.0/3.0) *
                 XPOW(XLOG((double)n), 2.0/3.0) - 5);
 }
+#endif /* WOLFSSL_DH_CONST*/
+
+
+/* if not using fixed points use DiscreteLogWorkFactor function for unsual size
+   otherwise round up on size needed */
+#ifndef WOLFSSL_DH_CONST
+    #define WOLFSSL_DH_ROUND(x)
+#else
+    #define WOLFSSL_DH_ROUND(x) \
+        do {                    \
+            if (x % 128) {      \
+                x &= 0xffffff80;\
+                x += 128;       \
+            }                   \
+        }                       \
+        while (0)
+#endif
 
 
 static int GeneratePrivate(DhKey* key, WC_RNG* rng, byte* priv, word32* privSz)
 {
     int ret;
     word32 sz = mp_unsigned_bin_size(&key->p);
-    sz = min(sz, 2 * DiscreteLogWorkFactor(sz * WOLFSSL_BIT_SIZE) /
+
+    /* predetermined values that operation would return for size */
+    WOLFSSL_DH_ROUND(sz); /* if using fixed points only, than round up */
+    switch (sz) {
+        case 128:  sz = 21; break;
+        case 256:  sz = 29; break;
+        case 384:  sz = 34; break;
+        case 512:  sz = 39; break;
+        case 640:  sz = 42; break;
+        case 768:  sz = 46; break;
+        case 896:  sz = 49; break;
+        case 1024: sz = 52; break;
+        default:
+            #ifndef WOLFSSL_DH_CONST
+                /* if using floating points and size of p is not in table */
+                sz = min(sz, 2 * DiscreteLogWorkFactor(sz * WOLFSSL_BIT_SIZE) /
                                            WOLFSSL_BIT_SIZE + 1);
+                break;
+            #else
+                return BAD_FUNC_ARG;
+            #endif
+    }
 
     ret = wc_RNG_GenerateBlock(rng, priv, sz);
     if (ret != 0)
@@ -107,7 +146,7 @@ static int GeneratePublic(DhKey* key, const byte* priv, word32 privSz,
 {
     int ret = 0;
 
-    mp_int x; 
+    mp_int x;
     mp_int y;
 
     if (mp_init_multi(&x, &y, 0, 0, 0, 0) != MP_OKAY)
