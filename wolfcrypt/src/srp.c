@@ -605,7 +605,7 @@ int wc_SrpComputeKey(Srp* srp, byte* clientPubKey, word32 clientPubKeySz,
         return r;
     }
 
-    /* building u (random scrambling parameeter) */
+    /* building u (random scrambling parameter) */
 
     /* H(A) */
     for (i = 0; !r && i < secretSz - clientPubKeySz; i++)

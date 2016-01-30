@@ -467,7 +467,7 @@ void fp_mul_comba(fp_int *A, fp_int *B, fp_int *C)
       tmpx = A->dp + tx;
       tmpy = B->dp + ty;
 
-      /* this is the number of times the loop will iterrate, essentially its
+      /* this is the number of times the loop will iterate, essentially its
          while (tx++ < a->used && ty-- >= 0) { ... }
        */
       iy = MIN(A->used-tx, ty+1);
@@ -1401,7 +1401,7 @@ void fp_sqr_comba(fp_int *A, fp_int *B)
       tmpx = A->dp + tx;
       tmpy = A->dp + ty;
 
-      /* this is the number of times the loop will iterrate,
+      /* this is the number of times the loop will iterate,
          while (tx++ < a->used && ty-- >= 0) { ... }
        */
       iy = MIN(A->used-tx, ty+1);
@@ -2010,7 +2010,7 @@ void fp_sub_d(fp_int *a, fp_digit b, fp_int *c)
 }
 
 
-/* CyaSSL callers from normal lib */
+/* wolfSSL callers from normal lib */
 
 /* init a new mp_int */
 int mp_init (mp_int * a)
@@ -2860,7 +2860,7 @@ int mp_cnt_lsb(fp_int* a)
 
 #if defined(WOLFSSL_KEY_GEN) || defined(HAVE_COMP_KEY)
 
-/* returns size of ASCII reprensentation */
+/* returns size of ASCII representation */
 int mp_radix_size (mp_int *a, int radix, int *size)
 {
     int     res, digs;
@@ -2955,7 +2955,7 @@ int mp_toradix (mp_int *a, char *str, int radix)
     }
 
     /* reverse the digits of the string.  In this case _s points
-     * to the first digit [exluding the sign] of the number]
+     * to the first digit [excluding the sign] of the number]
      */
     fp_reverse ((unsigned char *)_s, digs);
 

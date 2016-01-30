@@ -1327,7 +1327,7 @@ enum {
     /* Do not abort the handshake if the requested SNI didn't match. */
     WOLFSSL_SNI_CONTINUE_ON_MISMATCH = 0x01,
 
-    /* Behave as if the requested SNI matched in a case of missmatch.  */
+    /* Behave as if the requested SNI matched in a case of mismatch.  */
     /* In this case, the status will be set to WOLFSSL_SNI_FAKE_MATCH. */
     WOLFSSL_SNI_ANSWER_ON_MISMATCH   = 0x02,
 
@@ -1539,7 +1539,7 @@ enum {
     WOLFSSL_NTRU_EESS593 = 0x0102, /* max plaintext length of 86  */
     WOLFSSL_NTRU_EESS743 = 0x0103, /* max plaintext length of 106 */
     WOLFSSL_LWE_XXX  = 0x0201,     /* Learning With Error encryption scheme */
-    WOLFSSL_HFE_XXX  = 0x0301,     /* Hidden Field Equotion scheme */
+    WOLFSSL_HFE_XXX  = 0x0301,     /* Hidden Field Equation scheme */
     WOLFSSL_NULL_QSH = 0xFFFF      /* QSHScheme is not used */
 };
 
@@ -1559,7 +1559,7 @@ WOLFSSL_API int wolfSSL_UseSupportedQSH(WOLFSSL* ssl, unsigned short name);
 #define WOLFSSL_CRL_START_MON 0x02   /* start monitoring flag */
 
 
-/* notify user the hanshake is done */
+/* notify user the handshake is done */
 typedef int (*HandShakeDoneCb)(WOLFSSL*, void*);
 WOLFSSL_API int wolfSSL_SetHsDoneCb(WOLFSSL*, HandShakeDoneCb, void*);
 

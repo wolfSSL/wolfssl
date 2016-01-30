@@ -2029,8 +2029,8 @@ int chacha_test(void)
             return -130 - i;
     }
 
-    /* test of starting at a diffrent counter
-       encrypts all of the information and decrypts starting at 2nd chunck */
+    /* test of starting at a different counter
+       encrypts all of the information and decrypts starting at 2nd chunk */
     XMEMSET(plain,  0, sizeof(plain));
     XMEMSET(sliver, 1, sizeof(sliver)); /* set as 1's to not match plain */
     XMEMSET(cipher, 0, sizeof(cipher));
@@ -4122,7 +4122,7 @@ int rsa_test(void)
     }
 
         #ifndef NO_SHA
-        /* check fail using missmatch hash algorithms */
+        /* check fail using mismatch hash algorithms */
         XMEMSET(plain, 0, sizeof(plain));
         ret = wc_RsaPublicEncrypt_ex(in, inLen, out, sizeof(out), &key, &rng,
                 WC_RSA_OAEP_PAD, WC_HASH_TYPE_SHA, WC_MGF1SHA1, in, sizeof(in));
@@ -7123,7 +7123,7 @@ int ed25519_test(void)
     wc_FreeRng(&rng);
 #endif
 
-    /* hush warrnings of unused keySz and sigSz */
+    /* hush warnings of unused keySz and sigSz */
     (void)keySz;
     (void)sigSz;
 

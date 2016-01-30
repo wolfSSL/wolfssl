@@ -90,7 +90,7 @@ int wc_Hash(enum wc_HashType hash_type, const byte* data,
         return BUFFER_E;
     }
     
-    /* Supress possible unused arg if all hashing is disabled */
+    /* Suppress possible unused arg if all hashing is disabled */
     (void)data;
     (void)data_len;
     (void)hash;

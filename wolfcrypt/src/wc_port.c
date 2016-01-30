@@ -56,7 +56,7 @@ int wolfCrypt_Init()
         WOLFSSL_MSG("Attempting to use optimized IPP Library");
         if ((ret = ippInit()) != ippStsNoErr) {
             /* possible to get a CPU feature support status on optimized IPP
-              library but still use default library and see competitve speeds */
+              library but still use default library and see competitive speeds */
             WOLFSSL_MSG("Warning when trying to set up optimization");
             WOLFSSL_MSG(ippGetStatusString(ret));
             WOLFSSL_MSG("Using default fast IPP library");
@@ -69,7 +69,7 @@ int wolfCrypt_Init()
 
 
 #if WOLFSSL_CRYPT_HW_MUTEX
-/* Mutex for protection of cryptograpghy hardware */
+/* Mutex for protection of cryptography hardware */
 static wolfSSL_Mutex wcCryptHwMutex;
 static int wcCryptHwMutexInit = 0;
 

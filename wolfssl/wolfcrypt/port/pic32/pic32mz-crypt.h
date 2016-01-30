@@ -110,7 +110,7 @@ typedef struct bufferDescriptor {
 #define PIC32_HASH_SIZE 32
 
 #define PIC32MZ_MAX_BD   2
-typedef struct {      /* Crypt Engine descripter */
+typedef struct {      /* Crypt Engine descriptor */
     int bdCount ;
     int err   ;
     volatile bufferDescriptor 

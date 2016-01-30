@@ -870,7 +870,7 @@ static ALPN* TLSX_ALPN_New(char *protocol_name, word16 protocol_nameSz)
     }
 
     alpn->next = NULL;
-    alpn->negociated = 0;
+    alpn->negotiated = 0;
     alpn->options = 0;
 
     alpn->protocol_name = XMALLOC(protocol_nameSz + 1, 0, DYNAMIC_TYPE_TLSX);
@@ -982,7 +982,7 @@ static int TLSX_SetALPN(TLSX** extensions, const void* data, word16 size)
         return MEMORY_E;
     }
 
-    alpn->negociated = 1;
+    alpn->negotiated = 1;
 
     ret = TLSX_Push(extensions, TLSX_APPLICATION_LAYER_PROTOCOL, (void*)alpn);
     if (ret != 0) {
@@ -1080,7 +1080,7 @@ static int TLSX_ALPN_ParseAndSet(WOLFSSL *ssl, byte *input, word16 length,
         return UNKNOWN_ALPN_PROTOCOL_NAME_E;
     }
 
-    /* set the matching negociated protocol */
+    /* set the matching negotiated protocol */
     r = TLSX_SetALPN(&ssl->extensions,
                      alpn->protocol_name,
                      (word16)XSTRLEN(alpn->protocol_name));
@@ -1159,7 +1159,7 @@ int TLSX_ALPN_GetRequest(TLSX* extensions, void** data, word16 *dataSz)
         return SSL_FATAL_ERROR;
     }
 
-    if (alpn->negociated != 1) {
+    if (alpn->negotiated != 1) {
 
         /* consider as an error */
         if (alpn->options & WOLFSSL_ALPN_FAILED_ON_MISMATCH) {
@@ -1167,7 +1167,7 @@ int TLSX_ALPN_GetRequest(TLSX* extensions, void** data, word16 *dataSz)
             return SSL_FATAL_ERROR;
         }
 
-        /* continue without negociated protocol */
+        /* continue without negotiated protocol */
         WOLFSSL_MSG("No protocol match with peer -> Continue");
         return SSL_ALPN_NOT_FOUND;
     }
@@ -2421,7 +2421,7 @@ static int TLSX_CSR2_Parse(WOLFSSL* ssl, byte* input, word16 length,
                 break;
 
                 default:
-                    /* unkown status type, skipping! */
+                    /* unknown status type, skipping! */
                     offset += request_length;
                     continue;
             }
@@ -2740,8 +2740,8 @@ int TLSX_ValidateEllipticCurves(WOLFSSL* ssl, byte first, byte second) {
                              : NULL;
     EllipticCurve* curve     = NULL;
     word32         oid       = 0;
-    word16         octets    = 0; /* acording to 'ecc_set_type ecc_sets[];' */
-    int            sig       = 0; /* valitade signature */
+    word16         octets    = 0; /* according to 'ecc_set_type ecc_sets[];' */
+    int            sig       = 0; /* validate signature */
     int            key       = 0; /* validate key       */
 
     (void)oid;
@@ -3452,7 +3452,7 @@ static int TLSX_QSH_Parse(WOLFSSL* ssl, byte* input, word16 length,
     if (isRequest) {
         ato16(input, &schemSz);
 
-        /* list of public keys avialable for QSH schemes */
+        /* list of public keys available for QSH schemes */
         offset_len = schemSz + OPAQUE16_LEN;
     }
 
@@ -3655,7 +3655,7 @@ int TLSX_QSHCipher_Parse(WOLFSSL* ssl, const byte* input, word16 length,
         if (secret == NULL)
             continue;
 
-        /* find coresponding key */
+        /* find corresponding key */
         key = ssl->QSH_Key;
         while (key) {
             if (key->name == name)

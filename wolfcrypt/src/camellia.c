@@ -510,7 +510,7 @@ static int camellia_setup128(const unsigned char *key, u32 *subkey)
 #endif
 
     /**
-     *  k == kll || klr || krl || krr (|| is concatination)
+     *  k == kll || klr || krl || krr (|| is concatenation)
      */
     kll = GETU32(key     );
     klr = GETU32(key +  4);
@@ -744,7 +744,7 @@ static int camellia_setup256(const unsigned char *key, u32 *subkey)
 
     /**
      *  key = (kll || klr || krl || krr || krll || krlr || krrl || krrr)
-     *  (|| is concatination)
+     *  (|| is concatenation)
      */
 
     kll  = GETU32(key     );
@@ -1138,7 +1138,7 @@ static void camellia_encrypt128(const u32 *subkey, u32 *io)
 
 static void camellia_decrypt128(const u32 *subkey, u32 *io)
 {
-    u32 il,ir,t0,t1;               /* temporary valiables */
+    u32 il,ir,t0,t1;               /* temporary variables */
     
     /* pre whitening but absorb kw2*/
     io[0] ^= CamelliaSubkeyL(24);
@@ -1231,7 +1231,7 @@ static void camellia_decrypt128(const u32 *subkey, u32 *io)
  */
 static void camellia_encrypt256(const u32 *subkey, u32 *io)
 {
-    u32 il,ir,t0,t1;           /* temporary valiables */
+    u32 il,ir,t0,t1;           /* temporary variables */
 
     /* pre whitening but absorb kw2*/
     io[0] ^= CamelliaSubkeyL(0);
@@ -1345,7 +1345,7 @@ static void camellia_encrypt256(const u32 *subkey, u32 *io)
 
 static void camellia_decrypt256(const u32 *subkey, u32 *io)
 {
-    u32 il,ir,t0,t1;           /* temporary valiables */
+    u32 il,ir,t0,t1;           /* temporary variables */
 
     /* pre whitening but absorb kw2*/
     io[0] ^= CamelliaSubkeyL(32);

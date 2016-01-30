@@ -33,7 +33,7 @@
 #include <wolfssl/wolfcrypt/random.h>
 
 #if defined(CUSTOM_RAND_GENERATE) && !defined(CUSTOM_RAND_TYPE)
-/* To maintain compatiblity the default return vaule from CUSTOM_RAND_GENERATE is byte */
+/* To maintain compatibility the default return value from CUSTOM_RAND_GENERATE is byte */
 #define CUSTOM_RAND_TYPE    byte
 #endif
 
@@ -782,7 +782,7 @@ int wc_FreeRng(WC_RNG* rng)
 #include <wolfssl/ctaocrypt/logging.h>
 #include "cavium_common.h"
 
-/* Initiliaze RNG for use with Nitrox device */
+/* Initialize RNG for use with Nitrox device */
 int wc_InitRngCavium(WC_RNG* rng, int devId)
 {
     if (rng == NULL)

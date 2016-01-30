@@ -93,7 +93,7 @@ WOLFSSL_LOCAL void fe_inv__distinct(byte *r, const byte *x);
 
 /* Conditional copy. If condition == 0, then zero is copied to dst. If
  * condition == 1, then one is copied to dst. Any other value results in
- * undefined behaviour.
+ * undefined behavior.
  */
 WOLFSSL_LOCAL void fe_select(byte *dst, const byte *zero, const byte *one,
 		   byte condition);
@@ -117,7 +117,7 @@ WOLFSSL_LOCAL void fe_sqrt(byte *r, const byte *x);
 
 /* Conditional copy. If condition == 0, then zero is copied to dst. If
  * condition == 1, then one is copied to dst. Any other value results in
- * undefined behaviour.
+ * undefined behavior.
  */
 WOLFSSL_LOCAL void fprime_select(byte *dst, const byte *zero, const byte *one,
 		                         byte condition);

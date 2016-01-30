@@ -1169,7 +1169,7 @@ struct WOLFSSL_METHOD {
 };
 
 
-/* defautls to client */
+/* defaults to client */
 WOLFSSL_LOCAL void InitSSL_Method(WOLFSSL_METHOD*, ProtocolVersion);
 
 /* for sniffer */
@@ -1228,7 +1228,7 @@ enum {
 /* user option to turn off 16K output option */
 /* if using small static buffers (default) and SSL_write tries to write data
    larger than the record we have, dynamically get it, unless user says only
-   write in static buffer chuncks  */
+   write in static buffer chunks  */
 #ifndef STATIC_CHUNKS_ONLY
     #define OUTPUT_RECORD_SIZE MAX_RECORD_SIZE
 #else
@@ -1517,10 +1517,10 @@ typedef enum {
     TLSX_SERVER_NAME                = 0x0000, /* a.k.a. SNI  */
     TLSX_MAX_FRAGMENT_LENGTH        = 0x0001,
     TLSX_TRUNCATED_HMAC             = 0x0004,
-    TLSX_STATUS_REQUEST             = 0x0005, /* a.k.a. OCSP stappling   */
+    TLSX_STATUS_REQUEST             = 0x0005, /* a.k.a. OCSP stapling   */
     TLSX_SUPPORTED_GROUPS           = 0x000a, /* a.k.a. Supported Curves */
     TLSX_APPLICATION_LAYER_PROTOCOL = 0x0010, /* a.k.a. ALPN */
-    TLSX_STATUS_REQUEST_V2          = 0x0011, /* a.k.a. OCSP stappling v2 */
+    TLSX_STATUS_REQUEST_V2          = 0x0011, /* a.k.a. OCSP stapling v2 */
     TLSX_QUANTUM_SAFE_HYBRID        = 0x0018, /* a.k.a. QSH  */
     TLSX_SESSION_TICKET             = 0x0023,
     TLSX_RENEGOTIATION_INFO         = 0xff01
@@ -1574,7 +1574,7 @@ typedef struct SNI {
     union { char* host_name; } data;    /* SNI Data          */
     struct SNI*                next;    /* List Behavior     */
 #ifndef NO_WOLFSSL_SERVER
-    byte                       options; /* Behaviour options */
+    byte                       options; /* Behavior options */
     byte                       status;  /* Matching result   */
 #endif
 } SNI;
@@ -1599,8 +1599,8 @@ WOLFSSL_LOCAL int    TLSX_SNI_GetFromBuffer(const byte* buffer, word32 bufferSz,
 typedef struct ALPN {
     char*        protocol_name; /* ALPN protocol name */
     struct ALPN* next;          /* List Behavior      */
-    byte         options;       /* Behaviour options */
-    byte         negociated;    /* ALPN protocol negociated or not */
+    byte         options;       /* Behavior options */
+    byte         negotiated;    /* ALPN protocol negotiated or not */
 } ALPN;
 
 WOLFSSL_LOCAL int TLSX_ALPN_GetRequest(TLSX* extensions,
@@ -1696,7 +1696,7 @@ enum key_cache_state {
     SCR_CACHE_COMPLETE          /* complete restore to real keys */
 };
 
-/* Additional Conection State according to rfc5746 section 3.1 */
+/* Additional Connection State according to rfc5746 section 3.1 */
 typedef struct SecureRenegotiation {
    byte                 enabled;  /* secure_renegotiation flag in rfc */
    byte                 startScr; /* server requested client to start scr */
@@ -2196,7 +2196,7 @@ typedef struct Options {
     word16            dtls:1;             /* using datagrams ? */
     word16            connReset:1;        /* has the peer reset */
     word16            isClosed:1;         /* if we consider conn closed */
-    word16            closeNotify:1;      /* we've recieved a close notify */
+    word16            closeNotify:1;      /* we've received a close notify */
     word16            sentNotify:1;       /* we've sent a close notify */
     word16            usingCompression:1; /* are we using compression */
     word16            haveRSA:1;          /* RSA available */
@@ -2252,7 +2252,7 @@ typedef struct Arrays {
     word32          pendingMsgSz;       /* defrag buffer size */
     word32          pendingMsgOffset;   /* current offset into defrag buffer */
 #ifndef NO_PSK
-    word32          psk_keySz;          /* acutal size */
+    word32          psk_keySz;          /* actual size */
     char            client_identity[MAX_PSK_ID_LEN];
     char            server_hint[MAX_PSK_ID_LEN];
     byte            psk_key[MAX_PSK_KEY_LEN];
@@ -2412,7 +2412,7 @@ typedef struct DtlsMsg {
 #endif
 
 
-/* Handshake messages recevied from peer (plus change cipher */
+/* Handshake messages received from peer (plus change cipher */
 typedef struct MsgsReceived {
     word16 got_hello_request:1;
     word16 got_client_hello:1;
@@ -2534,7 +2534,7 @@ struct WOLFSSL {
     byte            didStreamInit;      /* for stream init and end */
 #endif
 #ifdef WOLFSSL_DTLS
-    int             dtls_timeout_init;  /* starting timeout vaule */
+    int             dtls_timeout_init;  /* starting timeout value */
     int             dtls_timeout_max;   /* maximum timeout value */
     int             dtls_timeout;       /* current timeout value, changes */
     DtlsPool*       dtls_pool;
@@ -2700,7 +2700,7 @@ typedef struct HandShakeHeader {
 typedef struct DtlsHandShakeHeader {
     byte            type;
     word24          length;
-    byte            message_seq[2];    /* start at 0, restransmit gets same # */
+    byte            message_seq[2];    /* start at 0, retransmit gets same # */
     word24          fragment_offset;   /* bytes in previous fragments */
     word24          fragment_length;   /* length of this fragment */
 } DtlsHandShakeHeader;

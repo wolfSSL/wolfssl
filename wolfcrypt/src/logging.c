@@ -198,7 +198,7 @@ void WOLFSSL_ERROR(int error)
 {
     if (loggingEnabled) {
         char buffer[80];
-        sprintf(buffer, "wolfSSL error occured, error = %d", error);
+        sprintf(buffer, "wolfSSL error occurred, error = %d", error);
         wolfssl_log(ERROR_LOG , buffer);
     }
 }

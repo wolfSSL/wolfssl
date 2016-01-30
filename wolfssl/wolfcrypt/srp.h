@@ -98,7 +98,7 @@ typedef struct Srp {
     word32  saltSz;                 /**< Salt length.                         */
     mp_int  N;                      /**< Modulus. N = 2q+1, [q, N] are primes.*/
     mp_int  g;                      /**< Generator. A generator modulo N.     */
-    byte    k[SRP_MAX_DIGEST_SIZE]; /**< Multiplier parameeter. k = H(N, g)   */
+    byte    k[SRP_MAX_DIGEST_SIZE]; /**< Multiplier parameter. k = H(N, g)   */
     mp_int  auth;                   /**< Client: x = H(salt + H(user:pswd))   */
                                     /**< Server: v = g ^ x % N                */
     mp_int  priv;                   /**< Private ephemeral value.             */
@@ -148,7 +148,7 @@ WOLFSSL_API int wc_SrpSetUsername(Srp* srp, const byte* username, word32 size);
 
 
 /**
- * Sets the srp parameeters based on the username.
+ * Sets the srp parameters based on the username.
  *
  * This function MUST be called after wc_SrpSetUsername.
  *

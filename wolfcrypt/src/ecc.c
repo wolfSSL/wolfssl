@@ -1053,7 +1053,7 @@ int wc_ecc_mulmod(mp_int* k, ecc_point *G, ecc_point *R, mp_int* modulus,
       }
   }
 
-   /* make a copy of G incase R==G */
+   /* make a copy of G in case R==G */
    tG = wc_ecc_new_point();
    if (tG == NULL)
        err = MEMORY_E;
@@ -1154,7 +1154,7 @@ int wc_ecc_mulmod(mp_int* k, ecc_point *G, ecc_point *R, mp_int* modulus,
                    }
                    if (err != MP_OKAY) break;  /* out of first for(;;) */
 
-                   /* then add, bitbuf will be 8..15 [8..2^WINSIZE] guaranted */
+                   /* then add, bitbuf will be 8..15 [8..2^WINSIZE] guaranteed */
                    err = ecc_projective_add_point(R,M[bitbuf-8],R,modulus,&mp);
                }
                if (err != MP_OKAY) break;
@@ -1267,7 +1267,7 @@ int wc_ecc_mulmod(mp_int* k, ecc_point *G, ecc_point *R, mp_int* modulus,
       }
   }
 
-   /* make a copy of G incase R==G */
+   /* make a copy of G in case R==G */
    tG = wc_ecc_new_point();
    if (tG == NULL)
        err = MEMORY_E;
@@ -1463,7 +1463,7 @@ int wc_ecc_copy_point(ecc_point* p, ecc_point *r)
 
 /** Compare the value of a point with an other one
  a    The point to compare
- b    The othe point to compare
+ b    The other point to compare
 
  return MP_EQ if equal, MP_LT/MP_GT if not, < 0 in case of error
  */
@@ -2714,7 +2714,7 @@ int wc_ecc_export_x963_ex(ecc_key* key, byte* out, word32* outLen,
 }
 
 
-/* is ec point on curve descriped by dp ? */
+/* is ec point on curve described by dp ? */
 static int ecc_is_point(const ecc_set_type* dp, ecc_point* ecp, mp_int* prime)
 {
    mp_int b, t1, t2;
@@ -2885,7 +2885,7 @@ int wc_ecc_check_key(ecc_key* key)
     if (key == NULL)
         return BAD_FUNC_ARG;
 
-    /* pubkey point cannot be at inifinity */
+    /* pubkey point cannot be at infinity */
     if (wc_ecc_point_is_at_infinity(&key->pubkey))
         return ECC_INF_E;
 
@@ -4876,7 +4876,7 @@ static void ecc_ctx_init(ecEncCtx* ctx, int flags)
 }
 
 
-/* allow ecc context reset so user doesn't have to init/free for resue */
+/* allow ecc context reset so user doesn't have to init/free for reuse */
 int wc_ecc_ctx_reset(ecEncCtx* ctx, WC_RNG* rng)
 {
     if (ctx == NULL || rng == NULL)

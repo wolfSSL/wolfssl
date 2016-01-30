@@ -266,7 +266,7 @@ int wolfSSL_set_fd(WOLFSSL* ssl, int fd)
 
 
 /**
-  * Get the name of cipher at priotity level passed in.
+  * Get the name of cipher at priority level passed in.
   */
 char* wolfSSL_get_cipher_list(int priority)
 {
@@ -292,7 +292,7 @@ int wolfSSL_get_ciphers(char* buf, int len)
     if (buf == NULL || len <= 0)
         return BAD_FUNC_ARG;
 
-    /* Add each member to the buffer delimitted by a : */
+    /* Add each member to the buffer delimited by a : */
     for (i = 0; i < size; i++) {
         step = (int)(XSTRLEN(ciphers[i]) + 1);  /* delimiter */
         totalInc += step;
@@ -954,7 +954,7 @@ int wolfSSL_UseSupportedQSH(WOLFSSL* ssl, word16 name)
 #endif /* HAVE_QSH */
 
 
-/* Application-Layer Procotol Negotiation */
+/* Application-Layer Protocol Negotiation */
 #ifdef HAVE_ALPN
 
 int wolfSSL_UseALPN(WOLFSSL* ssl, char *protocol_name_list,
@@ -1320,7 +1320,7 @@ int wolfSSL_shutdown(WOLFSSL* ssl)
         return ret;
     }
 
-    /* call wolfSSL_shutdown again for bidirectional shudown */
+    /* call wolfSSL_shutdown again for bidirectional shutdown */
     if (ssl->options.sentNotify && !ssl->options.closeNotify) {
         ret = wolfSSL_read(ssl, &tmp, 0);
         if (ret < 0) {
@@ -2800,7 +2800,7 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
 }
 
 
-/* process the buffer buff, legnth sz, into ctx of format and type
+/* process the buffer buff, length sz, into ctx of format and type
    used tracks bytes consumed, userChain specifies a user cert chain
    to pass during the handshake */
 static int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
@@ -3360,7 +3360,7 @@ int wolfSSL_CertManagerDisableCRL(WOLFSSL_CERT_MANAGER* cm)
 
     return SSL_SUCCESS;
 }
-/* Verify the ceritficate, SSL_SUCCESS for ok, < 0 for error */
+/* Verify the certificate, SSL_SUCCESS for ok, < 0 for error */
 int wolfSSL_CertManagerVerifyBuffer(WOLFSSL_CERT_MANAGER* cm, const byte* buff,
                                     long sz, int format)
 {
@@ -3889,7 +3889,7 @@ int wolfSSL_CTX_load_verify_locations(WOLFSSL_CTX* ctx, const char* file,
 }
 
 
-/* Verify the ceritficate, SSL_SUCCESS for ok, < 0 for error */
+/* Verify the certificate, SSL_SUCCESS for ok, < 0 for error */
 int wolfSSL_CertManagerVerify(WOLFSSL_CERT_MANAGER* cm, const char* fname,
                              int format)
 {
@@ -4396,7 +4396,7 @@ long wolfSSL_CTX_get_verify_depth(WOLFSSL_CTX* ctx)
 
 int wolfSSL_CTX_use_certificate_chain_file(WOLFSSL_CTX* ctx, const char* file)
 {
-   /* procces up to MAX_CHAIN_DEPTH plus subject cert */
+   /* process up to MAX_CHAIN_DEPTH plus subject cert */
    WOLFSSL_ENTER("wolfSSL_CTX_use_certificate_chain_file");
    if (ProcessFile(ctx, file, SSL_FILETYPE_PEM,CERT_TYPE,NULL,1, NULL)
                    == SSL_SUCCESS)
@@ -4508,7 +4508,7 @@ int wolfSSL_use_PrivateKey_file(WOLFSSL* ssl, const char* file, int format)
 
 int wolfSSL_use_certificate_chain_file(WOLFSSL* ssl, const char* file)
 {
-   /* procces up to MAX_CHAIN_DEPTH plus subject cert */
+   /* process up to MAX_CHAIN_DEPTH plus subject cert */
    WOLFSSL_ENTER("wolfSSL_use_certificate_chain_file");
    if (ProcessFile(ssl->ctx, file, SSL_FILETYPE_PEM, CERT_TYPE,
                    ssl, 1, NULL) == SSL_SUCCESS)
@@ -4595,7 +4595,7 @@ void wolfSSL_CTX_set_verify(WOLFSSL_CTX* ctx, int mode, VerifyCallback vc)
     WOLFSSL_ENTER("wolfSSL_CTX_set_verify");
     if (mode & SSL_VERIFY_PEER) {
         ctx->verifyPeer = 1;
-        ctx->verifyNone = 0;  /* in case perviously set */
+        ctx->verifyNone = 0;  /* in case previously set */
     }
 
     if (mode == SSL_VERIFY_NONE) {
@@ -4615,7 +4615,7 @@ void wolfSSL_set_verify(WOLFSSL* ssl, int mode, VerifyCallback vc)
     WOLFSSL_ENTER("wolfSSL_set_verify");
     if (mode & SSL_VERIFY_PEER) {
         ssl->options.verifyPeer = 1;
-        ssl->options.verifyNone = 0;  /* in case perviously set */
+        ssl->options.verifyNone = 0;  /* in case previously set */
     }
 
     if (mode == SSL_VERIFY_NONE) {
@@ -4776,7 +4776,7 @@ int wolfSSL_SetServerID(WOLFSSL* ssl, const byte* id, int len, int newSession)
 
 #if defined(PERSIST_SESSION_CACHE)
 
-/* for persistance, if changes to layout need to increment and modify
+/* for persistence, if changes to layout need to increment and modify
    save_session_cache() and restore_session_cache and memory versions too */
 #define WOLFSSL_CACHE_VERSION 2
 
@@ -4857,7 +4857,7 @@ int wolfSSL_memsave_session_cache(void* mem, int sz)
 }
 
 
-/* Restore the persistant session cache from memory */
+/* Restore the persistent session cache from memory */
 int wolfSSL_memrestore_session_cache(const void* mem, int sz)
 {
     int    i;
@@ -4974,7 +4974,7 @@ int wolfSSL_save_session_cache(const char *fname)
 }
 
 
-/* Restore the persistant session cache from file */
+/* Restore the persistent session cache from file */
 /* doesn't use memstore because of additional memory use */
 int wolfSSL_restore_session_cache(const char *fname)
 {
@@ -5117,7 +5117,7 @@ typedef struct {
     int signerSz;                /* sizeof Signer object */
 } CertCacheHeader;
 
-/* current cert persistance layout is:
+/* current cert persistence layout is:
 
    1) CertCacheHeader
    2) caTable
@@ -6331,7 +6331,7 @@ int wolfSSL_Cleanup(void)
 #ifndef NO_SESSION_CACHE
 
 
-/* some session IDs aren't random afterall, let's make them random */
+/* some session IDs aren't random after all, let's make them random */
 static INLINE word32 HashSession(const byte* sessionID, word32 len, int* error)
 {
     byte digest[MAX_DIGEST_SIZE];
@@ -6352,7 +6352,7 @@ static INLINE word32 HashSession(const byte* sessionID, word32 len, int* error)
 
 void wolfSSL_flush_sessions(WOLFSSL_CTX* ctx, long tm)
 {
-    /* static table now, no flusing needed */
+    /* static table now, no flushing needed */
     (void)ctx;
     (void)tm;
 }
@@ -6968,7 +6968,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
 
     typedef struct itimerval Itimerval;
 
-    /* don't keep calling simple functions while setting up timer and singals
+    /* don't keep calling simple functions while setting up timer and signals
        if no inlining these are the next best */
 
     #define AddTimes(a, b, c)                       \
@@ -14060,7 +14060,7 @@ int wolfSSL_PEM_write_mem_RSAPrivateKey(RSA* rsa, const EVP_CIPHER* cipher,
         }
     }
 
-    /* 5 > size of n, d, p, q, d%(p-1), d(q-1), 1/q%p, e + ASN.1 additionnal
+    /* 5 > size of n, d, p, q, d%(p-1), d(q-1), 1/q%p, e + ASN.1 additional
      *  informations
      */
     der_max_len = 5 * wolfSSL_RSA_size(rsa) + AES_BLOCK_SIZE;
@@ -15443,7 +15443,7 @@ int wolfSSL_PEM_write_mem_ECPrivateKey(WOLFSSL_EC_KEY* ecc,
         }
     }
 
-    /* 4 > size of pub, priv + ASN.1 additionnal informations
+    /* 4 > size of pub, priv + ASN.1 additional informations
      */
     der_max_len = 4 * wc_ecc_size((ecc_key*)ecc->internal) + AES_BLOCK_SIZE;
 
@@ -15618,7 +15618,7 @@ int wolfSSL_PEM_write_mem_DSAPrivateKey(WOLFSSL_DSA* dsa,
         }
     }
 
-    /* 4 > size of pub, priv, p, q, g + ASN.1 additionnal informations
+    /* 4 > size of pub, priv, p, q, g + ASN.1 additional informations
      */
     der_max_len = 4 * wolfSSL_BN_num_bytes(dsa->g) + AES_BLOCK_SIZE;
 
@@ -15959,7 +15959,7 @@ int wolfSSL_get_chain_count(WOLFSSL_X509_CHAIN* chain)
 }
 
 
-/* Get peer's ASN.1 DER ceritifcate at index (idx) length in bytes */
+/* Get peer's ASN.1 DER certificate at index (idx) length in bytes */
 int wolfSSL_get_chain_length(WOLFSSL_X509_CHAIN* chain, int idx)
 {
     WOLFSSL_ENTER("wolfSSL_get_chain_length");
@@ -15970,7 +15970,7 @@ int wolfSSL_get_chain_length(WOLFSSL_X509_CHAIN* chain, int idx)
 }
 
 
-/* Get peer's ASN.1 DER ceritifcate at index (idx) */
+/* Get peer's ASN.1 DER certificate at index (idx) */
 byte* wolfSSL_get_chain_cert(WOLFSSL_X509_CHAIN* chain, int idx)
 {
     WOLFSSL_ENTER("wolfSSL_get_chain_cert");
@@ -15981,7 +15981,7 @@ byte* wolfSSL_get_chain_cert(WOLFSSL_X509_CHAIN* chain, int idx)
 }
 
 
-/* Get peer's wolfSSL X509 ceritifcate at index (idx) */
+/* Get peer's wolfSSL X509 certificate at index (idx) */
 WOLFSSL_X509* wolfSSL_get_chain_X509(WOLFSSL_X509_CHAIN* chain, int idx)
 {
     int          ret;
@@ -16033,7 +16033,7 @@ WOLFSSL_X509* wolfSSL_get_chain_X509(WOLFSSL_X509_CHAIN* chain, int idx)
 }
 
 
-/* Get peer's PEM ceritifcate at index (idx), output to buffer if inLen big
+/* Get peer's PEM certificate at index (idx), output to buffer if inLen big
    enough else return error (-1). If buffer is NULL only calculate
    outLen. Output length is in *outLen SSL_SUCCESS on ok */
 int  wolfSSL_get_chain_cert_pem(WOLFSSL_X509_CHAIN* chain, int idx,
@@ -16622,7 +16622,7 @@ long wolfSSL_CTX_set_tmp_dh(WOLFSSL_CTX* ctx, WOLFSSL_DH* dh)
 #endif /* HAVE_LIGHTY || HAVE_STUNNEL */
 
 
-/* stunnel compatability functions*/
+/* stunnel compatibility functions*/
 #if defined(OPENSSL_EXTRA) && defined(HAVE_STUNNEL)
 void WOLFSSL_ERR_remove_thread_state(void* pid)
 {

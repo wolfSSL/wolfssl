@@ -238,7 +238,7 @@
 /* Max size of any number in bits.  Basically the largest size you will be
  * multiplying should be half [or smaller] of FP_MAX_SIZE-four_digit
  *
- * It defaults to 4096-bits [allowing multiplications upto 2048x2048 bits ]
+ * It defaults to 4096-bits [allowing multiplications up to 2048x2048 bits ]
  */
 
 
@@ -344,7 +344,7 @@ typedef struct {
 #endif
 
 /* do we want some overflow checks
-   Not required if you make sure your numbers are within range (e.g. by default a modulus for fp_exptmod() can only be upto 2048 bits long)
+   Not required if you make sure your numbers are within range (e.g. by default a modulus for fp_exptmod() can only be up to 2048 bits long)
  */
 /* #define TFM_CHECK */
 
@@ -514,7 +514,7 @@ int fp_exptmod(fp_int *a, fp_int *b, fp_int *c, fp_int *d);
 /*#define TFM_PRIME_2MSB_OFF 0x0004 */ /* force 2nd MSB to 0 */
 /*#define TFM_PRIME_2MSB_ON  0x0008 */ /* force 2nd MSB to 1 */
 
-/* callback for fp_prime_random, should fill dst with random bytes and return how many read [upto len] */
+/* callback for fp_prime_random, should fill dst with random bytes and return how many read [up to len] */
 /*typedef int tfm_prime_callback(unsigned char *dst, int len, void *dat);*/
 
 /*#define fp_prime_random(a, t, size, bbs, cb, dat) fp_prime_random_ex(a, t, ((size) * 8) + 1, (bbs==1)?TFM_PRIME_BBS:0, cb, dat)*/

@@ -570,7 +570,7 @@ WOLFSSL_LOCAL int GetSet(const byte* input, word32* inOutIdx, int* len,
 }
 
 
-/* winodws header clash for WinCE using GetVersion */
+/* Windows header clash for WinCE using GetVersion */
 WOLFSSL_LOCAL int GetMyVersion(const byte* input, word32* inOutIdx,
                                int* version)
 {
@@ -1392,7 +1392,7 @@ static int CheckAlgoV2(int oid, int* id)
 }
 
 
-/* Decrypt intput in place from parameters based on id */
+/* Decrypt input in place from parameters based on id */
 static int DecryptKey(const char* password, int passwordSz, byte* salt,
                       int saltSz, int iterations, int id, byte* input,
                       int length, int version, byte* cbcIv)
@@ -1585,7 +1585,7 @@ int ToTraditionalEnc(byte* input, word32 sz,const char* password,int passwordSz)
     if (GetAlgoId(input, &inOutIdx, &oid, sigType, sz) < 0)
         return ASN_PARSE_E;
 
-    first  = input[inOutIdx - 2];   /* PKCS version alwyas 2nd to last byte */
+    first  = input[inOutIdx - 2];   /* PKCS version always 2nd to last byte */
     second = input[inOutIdx - 1];   /* version.algo, algo id last byte */
 
     if (CheckAlgo(first, second, &id, &version) < 0)
@@ -2292,7 +2292,7 @@ static int StoreRsaKey(DecodedCert* cert)
 
 #ifdef HAVE_ECC
 
-    /* return 0 on sucess if the ECC curve oid sum is supported */
+    /* return 0 on success if the ECC curve oid sum is supported */
     static int CheckCurve(word32 oid)
     {
         int ret = 0;
@@ -3525,7 +3525,7 @@ static int ConfirmSignature(const byte* buf, word32 bufSz,
         break;
     #endif
         default:
-            WOLFSSL_MSG("Verify Signautre has unsupported type");
+            WOLFSSL_MSG("Verify Signature has unsupported type");
     }
 
     if (typeH == 0) {
@@ -3575,7 +3575,7 @@ static int ConfirmSignature(const byte* buf, word32 bufSz,
 #endif
 
             if (sigSz > MAX_ENCODED_SIG_SZ) {
-                WOLFSSL_MSG("Verify Signautre is too big");
+                WOLFSSL_MSG("Verify Signature is too big");
             }
             else if (wc_InitRsaKey(pubKey, heap) != 0) {
                 WOLFSSL_MSG("InitRsaKey failed");
@@ -4838,7 +4838,7 @@ static int DecodeCertExtensions(DecodedCert* cert)
             default:
                 /* While it is a failure to not support critical extensions,
                  * still parse the certificate ignoring the unsupported
-                 * extention to allow caller to accept it with the verify
+                 * extension to allow caller to accept it with the verify
                  * callback. */
                 if (critical)
                     criticalFail = 1;
@@ -5678,7 +5678,7 @@ int wc_RsaKeyToPublicDer(RsaKey* key, byte* output, word32 inLen)
 #endif /* WOLFSSL_HAVE_MIN */
 
 
-/* Initialize and Set Certficate defaults:
+/* Initialize and Set Certificate defaults:
    version    = 3 (0x2)
    serial     = 0
    sigType    = SHA_WITH_RSA
@@ -5777,7 +5777,7 @@ typedef struct DerCert {
     int  sizeSz;                       /* encoded size length */
     int  versionSz;                    /* encoded version length */
     int  serialSz;                     /* encoded serial length */
-    int  sigAlgoSz;                    /* enocded sig alog length */
+    int  sigAlgoSz;                    /* encoded sig alog length */
     int  issuerSz;                     /* encoded issuer length */
     int  subjectSz;                    /* encoded subject length */
     int  validitySz;                   /* encoded validity length */
@@ -6527,7 +6527,7 @@ static int SetCertificatePolicies(byte *output,
             der_oidSz[i] = (word32)ret;
     }
 
-    /* concatene oid, keep two byte for sequence/size of the created value */
+    /* concatenate oid, keep two byte for sequence/size of the created value */
     for (i = 0, outSz = 2; i < nb_certpol; i++) {
         XMEMCPY(out+outSz, der_oid[i], der_oidSz[i]);
         outSz += der_oidSz[i];
@@ -7815,7 +7815,7 @@ int wc_SetAuthKeyId(Cert *cert, const char* file)
 
 #endif /* NO_FILESYSTEM */
 
-/* Set KeyUsage from human readale string */
+/* Set KeyUsage from human readable string */
 int wc_SetKeyUsage(Cert *cert, const char *value)
 {
     char *token, *str, *ptr;
@@ -8266,7 +8266,7 @@ int StoreECC_DSA_Sig(byte* out, word32* outLen, mp_int* r, mp_int* s)
 }
 
 
-/* Der Decode ECC-DSA Signautre, r & s stored as big ints */
+/* Der Decode ECC-DSA Signature, r & s stored as big ints */
 int DecodeECC_DSA_Sig(const byte* sig, word32 sigLen, mp_int* r, mp_int* s)
 {
     word32 idx = 0;

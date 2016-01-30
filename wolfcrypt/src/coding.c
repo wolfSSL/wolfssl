@@ -332,7 +332,7 @@ int Base64_Encode(const byte* in, word32 inLen, byte* out, word32* outLen)
 }
 
 
-/* Base64 Encode, with %0A esacped line endings instead of \n */
+/* Base64 Encode, with %0A escaped line endings instead of \n */
 int Base64_EncodeEsc(const byte* in, word32 inLen, byte* out, word32* outLen)
 {
     return DoBase64_Encode(in, inLen, out, outLen, WC_ESC_NL_ENC);

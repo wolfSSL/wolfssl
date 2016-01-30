@@ -484,7 +484,7 @@ void ge_tobytes(unsigned char *s,const ge_p2 *h)
 
 
 /*
-   Test if the public key can be uncommpressed and negate it (-X,Y,Z,-T)
+   Test if the public key can be uncompressed and negate it (-X,Y,Z,-T)
    return 0 on success
  */
 int ge_frombytes_negate_vartime(ge_p3 *p,const unsigned char *s)

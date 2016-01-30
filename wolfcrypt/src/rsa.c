@@ -156,7 +156,7 @@ enum {
     RSA_MIN_SIZE = 512,
     RSA_MAX_SIZE = 4096,
 
-    RSA_MIN_PAD_SZ   = 11      /* seperator + 0 + pad value + 8 pads */
+    RSA_MIN_PAD_SZ   = 11      /* separator + 0 + pad value + 8 pads */
 };
 
 
@@ -335,7 +335,7 @@ static int wc_MGF(int type, byte* seed, word32 seedSz,
             ret = BAD_FUNC_ARG;
     }
 
-    /* in case of default avoid unused warrning */
+    /* in case of default avoid unused warning */
     (void)seed;
     (void)seedSz;
     (void)out;
@@ -416,7 +416,7 @@ static int wc_RsaPad_OAEP(const byte* input, word32 inputLen, byte* pkcsBlock,
         return BAD_FUNC_ARG;
     }
 
-    /* concatinate lHash || PS || 0x01 || msg */
+    /* concatenate lHash || PS || 0x01 || msg */
     idx = pkcsBlockLen - 1 - inputLen;
     psLen = pkcsBlockLen - inputLen - 2 * hLen - 2;
     if (pkcsBlockLen < inputLen) { /*make sure not writing over end of buffer */
@@ -427,7 +427,7 @@ static int wc_RsaPad_OAEP(const byte* input, word32 inputLen, byte* pkcsBlock,
         return BUFFER_E;
     }
     XMEMCPY(pkcsBlock + (pkcsBlockLen - inputLen), input, inputLen);
-    pkcsBlock[idx--] = 0x01; /* PS and M seperator */
+    pkcsBlock[idx--] = 0x01; /* PS and M separator */
     while (psLen > 0 && idx > 0) {
         pkcsBlock[idx--] = 0x00;
         psLen--;
@@ -566,7 +566,7 @@ static int wc_RsaPad_ex(const byte* input, word32 inputLen, byte* pkcsBlock,
             ret = RSA_PAD_E;
     }
 
-    /* silence warrning if not used with padding scheme */
+    /* silence warning if not used with padding scheme */
     (void)padType;
     (void)hType;
     (void)mgf;
@@ -619,7 +619,7 @@ static int wc_RsaUnPad_OAEP(byte *pkcsBlock, unsigned int pkcsBlockLen,
         return ret;
     }
 
-    /* get DB vaule by doing maskedDB xor dbMask */
+    /* get DB value by doing maskedDB xor dbMask */
     for (idx = 0; idx < (pkcsBlockLen - hLen - 1); idx++) {
         pkcsBlock[hLen + 1 + idx] = pkcsBlock[hLen + 1 + idx] ^ tmp[idx + hLen];
     }
@@ -627,7 +627,7 @@ static int wc_RsaUnPad_OAEP(byte *pkcsBlock, unsigned int pkcsBlockLen,
     /* done with use of tmp buffer */
     XFREE(tmp, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
-    /* advance idx to index of PS and msg seperator */
+    /* advance idx to index of PS and msg separator */
     idx = hLen + 2 + hLen;
     while (idx < pkcsBlockLen && pkcsBlock[idx] == 0) {idx++;}
 
@@ -637,14 +637,14 @@ static int wc_RsaUnPad_OAEP(byte *pkcsBlock, unsigned int pkcsBlockLen,
     }
 
     /* say no to chosen ciphertext attack.
-       Comparision of lHash, Y, and seperator value needs to all happen in
+       Comparison of lHash, Y, and separator value needs to all happen in
        constant time.
        Attackers should not be able to get error condition from the timing of
        these checks.
      */
     ret = 0;
     ret |= ConstantCompare(pkcsBlock + hLen + 1, h, hLen);
-    ret += pkcsBlock[idx++] ^ 0x01; /* seperator value is 0x01 */
+    ret += pkcsBlock[idx++] ^ 0x01; /* separator value is 0x01 */
     ret += pkcsBlock[0]     ^ 0x00; /* Y, the first value, should be 0 */
 
     if (ret != 0) {
@@ -727,7 +727,7 @@ static int wc_RsaUnPad_ex(byte* pkcsBlock, word32 pkcsBlockLen, byte** out,
             ret = RSA_PAD_E;
     }
 
-    /* silence warrning if not used with padding scheme */
+    /* silence warning if not used with padding scheme */
     (void)padType;
     (void)hType;
     (void)mgf;
@@ -865,12 +865,12 @@ int wc_RsaPublicEncrypt(const byte* in, word32 inLen, byte* out, word32 outLen,
 
 
 #ifndef WC_NO_RSA_OAEP
-/* Gives the option of chossing padding type
+/* Gives the option of choosing padding type
    in : input to be encrypted
    inLen: length of input buffer
    out: encrypted output
    outLen: length of encrypted output buffer
-   key   : wolfSSL initialised RSA key struct
+   key   : wolfSSL initialized RSA key struct
    rng   : wolfSSL initialized random number struct
    type  : type of padding to use ie WC_RSA_OAEP_PAD
    hash  : type of hash algorithm to use found in wolfssl/wolfcrypt/hash.h
@@ -932,11 +932,11 @@ int wc_RsaPrivateDecryptInline(byte* in, word32 inLen, byte** out, RsaKey* key)
 
 
 #ifndef WC_NO_RSA_OAEP
-/* Gives the option of chossing padding type
+/* Gives the option of choosing padding type
    in : input to be decrypted
    inLen: length of input buffer
    out: pointer to place of decrypted message
-   key   : wolfSSL initialised RSA key struct
+   key   : wolfSSL initialized RSA key struct
    type  : type of padding to use ie WC_RSA_OAEP_PAD
    hash  : type of hash algorithm to use found in wolfssl/wolfcrypt/hash.h
    mgf   : type of mask generation function to use
@@ -1014,12 +1014,12 @@ int wc_RsaPrivateDecrypt(const byte* in, word32 inLen, byte* out, word32 outLen,
 
 
 #ifndef WC_NO_RSA_OAEP
-/* Gives the option of chossing padding type
+/* Gives the option of choosing padding type
    in : input to be decrypted
    inLen: length of input buffer
    out:  decrypted message
    outLen: length of decrypted message in bytes
-   key   : wolfSSL initialised RSA key struct
+   key   : wolfSSL initialized RSA key struct
    type  : type of padding to use ie WC_RSA_OAEP_PAD
    hash  : type of hash algorithm to use found in wolfssl/wolfcrypt/hash.h
    mgf   : type of mask generation function to use
@@ -1230,7 +1230,7 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
 
             if (err == MP_OKAY)
                 err = mp_gcd(&tmp1, &tmp3, &tmp2);  /* tmp2 = gcd(p-1, e) */
-        } while (err == MP_OKAY && mp_cmp_d(&tmp2, 1) != 0);  /* e divdes p-1 */
+        } while (err == MP_OKAY && mp_cmp_d(&tmp2, 1) != 0);  /* e divides p-1 */
     }
 
     /* make q */
@@ -1243,7 +1243,7 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
 
             if (err == MP_OKAY)
                 err = mp_gcd(&tmp1, &tmp3, &tmp2);  /* tmp2 = gcd(q-1, e) */
-        } while (err == MP_OKAY && mp_cmp_d(&tmp2, 1) != 0);  /* e divdes q-1 */
+        } while (err == MP_OKAY && mp_cmp_d(&tmp2, 1) != 0);  /* e divides q-1 */
     }
 
     if (err == MP_OKAY)
@@ -1315,7 +1315,7 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
 #include <wolfssl/wolfcrypt/logging.h>
 #include "cavium_common.h"
 
-/* Initiliaze RSA for use with Nitrox device */
+/* Initialize RSA for use with Nitrox device */
 int wc_RsaInitCavium(RsaKey* rsa, int devId)
 {
     if (rsa == NULL)

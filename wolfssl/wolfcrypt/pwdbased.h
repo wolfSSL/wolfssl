@@ -37,7 +37,7 @@
 #endif
 
 /*
- * hashType renamed to typeH to avoid shadowing global declation here:
+ * hashType renamed to typeH to avoid shadowing global declaration here:
  * wolfssl/wolfcrypt/asn.h line 173 in enum Oid_Types
  */
 WOLFSSL_API int wc_PBKDF1(byte* output, const byte* passwd, int pLen,
