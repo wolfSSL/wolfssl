@@ -209,8 +209,10 @@ static int QSH_FreeAll(WOLFSSL* ssl)
     /* free elements in struct */
     while (key) {
         preKey = key;
-        if (key->pri.buffer)
+        if (key->pri.buffer) {
+            ForceZero(key->pri.buffer, key->pri.length);
             XFREE(key->pri.buffer, ssl->heap, DYNAMIC_TYPE_TMP_ARRAY);
+        }
         if (key->pub.buffer)
             XFREE(key->pub.buffer, ssl->heap, DYNAMIC_TYPE_TMP_ARRAY);
         key = (QSHKey*)key->next;
@@ -225,8 +227,10 @@ static int QSH_FreeAll(WOLFSSL* ssl)
     key = ssl->peerQSHKey;
     while (key) {
         preKey = key;
-        if (key->pri.buffer)
+        if (key->pri.buffer) {
+            ForceZero(key->pri.buffer, key->pri.length);
             XFREE(key->pri.buffer, ssl->heap, DYNAMIC_TYPE_TMP_ARRAY);
+        }
         if (key->pub.buffer)
             XFREE(key->pub.buffer, ssl->heap, DYNAMIC_TYPE_TMP_ARRAY);
         key = (QSHKey*)key->next;
@@ -251,13 +255,19 @@ static int QSH_FreeAll(WOLFSSL* ssl)
 
         /* free secret buffers */
         if (secret->SerSi) {
-            if (secret->SerSi->buffer)
+            if (secret->SerSi->buffer) {
+                /* clear extra secret material that supplemented Master Secret*/
+                ForceZero(secret->SerSi->buffer, secret->SerSi->length);
                 XFREE(secret->SerSi->buffer, ssl->heap, DYNAMIC_TYPE_TMP_ARRAY);
+            }
             XFREE(secret->SerSi, ssl->heap, DYNAMIC_TYPE_TMP_ARRAY);
         }
         if (secret->CliSi) {
-            if (secret->CliSi->buffer)
+            if (secret->CliSi->buffer) {
+                /* clear extra secret material that supplemented Master Secret*/
+                ForceZero(secret->CliSi->buffer, secret->CliSi->length);
                 XFREE(secret->CliSi->buffer, ssl->heap, DYNAMIC_TYPE_TMP_ARRAY);
+            }
             XFREE(secret->CliSi, ssl->heap, DYNAMIC_TYPE_TMP_ARRAY);
         }
     }
@@ -2058,6 +2068,10 @@ void SSL_ResourceFree(WOLFSSL* ssl)
     ForceZero(&(ssl->keys), sizeof(Keys));
 
 #ifndef NO_DH
+    if (ssl->buffers.serverDH_Priv.buffer) {
+        ForceZero(ssl->buffers.serverDH_Priv.buffer,
+                                             ssl->buffers.serverDH_Priv.length);
+    }
     XFREE(ssl->buffers.serverDH_Priv.buffer, ssl->heap, DYNAMIC_TYPE_DH);
     XFREE(ssl->buffers.serverDH_Pub.buffer, ssl->heap, DYNAMIC_TYPE_DH);
     /* parameters (p,g) may be owned by ctx */
@@ -2071,8 +2085,13 @@ void SSL_ResourceFree(WOLFSSL* ssl)
         XFREE(ssl->buffers.certificate.buffer, ssl->heap, DYNAMIC_TYPE_CERT);
     if (ssl->buffers.weOwnCertChain)
         XFREE(ssl->buffers.certChain.buffer, ssl->heap, DYNAMIC_TYPE_CERT);
-    if (ssl->buffers.weOwnKey)
+    if (ssl->buffers.weOwnKey) {
+        if (ssl->buffers.key.buffer) {
+            ForceZero(ssl->buffers.key.buffer, ssl->buffers.key.length);
+        }
         XFREE(ssl->buffers.key.buffer, ssl->heap, DYNAMIC_TYPE_KEY);
+        ssl->buffers.key.buffer = NULL;
+    }
 #endif
 #ifndef NO_RSA
     if (ssl->peerRsaKey) {
@@ -2251,6 +2270,10 @@ void FreeHandshakeResources(WOLFSSL* ssl)
     }
 #endif
 #ifndef NO_DH
+    if (ssl->buffers.serverDH_Priv.buffer) {
+        ForceZero(ssl->buffers.serverDH_Priv.buffer,
+                                             ssl->buffers.serverDH_Priv.length);
+    }
     XFREE(ssl->buffers.serverDH_Priv.buffer, ssl->heap, DYNAMIC_TYPE_DH);
     ssl->buffers.serverDH_Priv.buffer = NULL;
     XFREE(ssl->buffers.serverDH_Pub.buffer, ssl->heap, DYNAMIC_TYPE_DH);
@@ -2273,6 +2296,9 @@ void FreeHandshakeResources(WOLFSSL* ssl)
         ssl->buffers.certChain.buffer = NULL;
     }
     if (ssl->buffers.weOwnKey) {
+        if (ssl->buffers.key.buffer) {
+            ForceZero(ssl->buffers.key.buffer, ssl->buffers.key.length);
+        }
         XFREE(ssl->buffers.key.buffer, ssl->heap, DYNAMIC_TYPE_KEY);
         ssl->buffers.key.buffer = NULL;
     }

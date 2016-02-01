@@ -36,6 +36,11 @@
 
 /* in case user set USE_FAST_MATH there */
 #include <wolfssl/wolfcrypt/settings.h>
+#ifdef NO_INLINE
+    #include <wolfssl/wolfcrypt/misc.h>
+#else
+    #include <wolfcrypt/src/misc.c>
+#endif
 
 #ifdef USE_FAST_MATH
 
@@ -2031,7 +2036,7 @@ void fp_zero(fp_int *a)
 {
     a->used = 0;
     a->sign = FP_ZPOS;
-    XMEMSET(a->dp, 0, a->size * sizeof(fp_digit));
+    ForceZero(a->dp, a->size * sizeof(fp_digit));
 }
 #endif
 

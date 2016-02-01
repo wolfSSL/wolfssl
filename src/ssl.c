@@ -7454,6 +7454,9 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
 
         if (ssl->buffers.weOwnKey) {
             WOLFSSL_MSG("Unloading key");
+            if (ssl->buffers.key.buffer) {
+                ForceZero(ssl->buffers.key.buffer, ssl->buffers.key.length);
+            }
             XFREE(ssl->buffers.key.buffer, ssl->heap, DYNAMIC_TYPE_KEY);
             ssl->buffers.weOwnKey = 0;
             ssl->buffers.key.length = 0;
