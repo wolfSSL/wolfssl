@@ -28,6 +28,9 @@
 
 #include <wolfssl/wolfcrypt/settings.h>
 
+/* Macro to disable benchmark */
+#ifndef NO_CRYPT_BENCHMARK
+
 #include <string.h>
 
 #ifdef FREESCALE_MQX
@@ -2012,3 +2015,4 @@ static INLINE word64 get_intel_cycles(void)
 }
 
 #endif /* HAVE_GET_CYCLES */
+#endif /* !NO_CRYPT_BENCHMARK */
