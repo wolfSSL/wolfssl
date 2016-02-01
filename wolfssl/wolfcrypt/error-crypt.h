@@ -139,7 +139,7 @@ enum {
     HMAC_KAT_FIPS_E     = -206,  /* HMAC KAT failure */
     RSA_KAT_FIPS_E      = -207,  /* RSA KAT failure */
     DRBG_KAT_FIPS_E     = -208,  /* HASH DRBG KAT failure */
-    DRBG_CONT_FIPS_E    = -209,  /* HASH DRBG Continious test failure */
+    DRBG_CONT_FIPS_E    = -209,  /* HASH DRBG Continuous test failure */
     AESGCM_KAT_FIPS_E   = -210,  /* AESGCM KAT failure */
     THREAD_STORE_KEY_E  = -211,  /* Thread local storage key create failure */
     THREAD_STORE_SET_E  = -212,  /* Thread local storage key set failure */

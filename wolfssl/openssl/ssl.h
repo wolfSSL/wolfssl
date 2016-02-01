@@ -151,7 +151,7 @@ typedef WOLFSSL_X509_STORE_CTX X509_STORE_CTX;
 #define SSL_set_session wolfSSL_set_session
 #define SSL_get_session wolfSSL_get_session
 #define SSL_flush_sessions wolfSSL_flush_sessions
-/* assume unlimited temporarly */
+/* assume unlimited temporarily */
 #define SSL_CTX_get_session_cache_mode(ctx) 0
 
 #define SSL_CTX_set_verify wolfSSL_CTX_set_verify
@@ -401,7 +401,7 @@ typedef WOLFSSL_X509_STORE_CTX X509_STORE_CTX;
 /* yassl had set the default to be 500 */
 #define SSL_get_default_timeout(ctx) 500
 
-/* Lighthttp compatability */
+/* Lighthttp compatibility */
 
 #ifdef HAVE_LIGHTY                       
 typedef WOLFSSL_X509_NAME_ENTRY X509_NAME_ENTRY;

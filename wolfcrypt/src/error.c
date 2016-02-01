@@ -110,7 +110,7 @@ const char* wc_GetErrorString(int error)
         return "Buffer error, output too small or input too big";
 
     case ALGO_ID_E :
-        return "Setting Cert AlogID error";
+        return "Setting Cert AlgoID error";
 
     case PUBLIC_KEY_E :
         return "Setting Cert Public Key error";
@@ -170,7 +170,7 @@ const char* wc_GetErrorString(int error)
         return "ASN signature error, mismatched oid";
 
     case ASN_TIME_E :
-        return "ASN time error, unkown time type";
+        return "ASN time error, unknown time type";
 
     case ASN_INPUT_E :
         return "ASN input error, not enough data";

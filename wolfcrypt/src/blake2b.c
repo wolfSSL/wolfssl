@@ -403,7 +403,7 @@ int main( int argc, char **argv )
 
 /* wolfCrypt API */
 
-/* Init Blake2b digest, track size incase final doesn't want to "remember" */
+/* Init Blake2b digest, track size in case final doesn't want to "remember" */
 int wc_InitBlake2b(Blake2b* b2b, word32 digestSz)
 {
     b2b->digestSz = digestSz;

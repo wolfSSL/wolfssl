@@ -952,7 +952,7 @@ static char *fgets(char *buff, int sz, FILE *fp)
 #endif
 
 /* if using hardware crypto and have alignment requirements, specify the
-   requirement here.  The record header of SSL/TLS will prvent easy alignment.
+   requirement here.  The record header of SSL/TLS will prevent easy alignment.
    This hint tries to help as much as possible.  */
 #ifndef WOLFSSL_GENERAL_ALIGNMENT
     #ifdef WOLFSSL_AESNI

@@ -438,7 +438,7 @@ static INLINE void ato32(const byte* c, word32* u32)
     }
 
 
-    /* decompress in to out, returnn out size or error */
+    /* decompress in to out, return out size or error */
     static int myDeCompress(WOLFSSL* ssl, byte* in,int inSz, byte* out,int outSz)
     {
         int    err;
@@ -466,7 +466,7 @@ void InitSSL_Method(WOLFSSL_METHOD* method, ProtocolVersion pv)
 }
 
 
-/* Initialze SSL context, return 0 on success */
+/* Initialize SSL context, return 0 on success */
 int InitSSL_Ctx(WOLFSSL_CTX* ctx, WOLFSSL_METHOD* method)
 {
     XMEMSET(ctx, 0, sizeof(WOLFSSL_CTX));
@@ -1849,7 +1849,7 @@ int SetSSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
 
 
 /* init everything to 0, NULL, default values before calling anything that may
-   fail so that desctructor has a "good" state to cleanup
+   fail so that destructor has a "good" state to cleanup
    0 on success */
 int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
 {
@@ -6049,7 +6049,7 @@ static int Poly1305TagOld(WOLFSSL* ssl, byte* additional, const byte* out,
     int ret       = 0;
     int msglen    = (sz - ssl->specs.aead_mac_size);
     word32 keySz  = 32;
-    byte padding[8]; /* used to temporarly store lengths */
+    byte padding[8]; /* used to temporarily store lengths */
 
 #ifdef CHACHA_AEAD_TEST
       printf("Using old version of poly1305 input.\n");
@@ -7665,7 +7665,7 @@ int SendChangeCipher(WOLFSSL* ssl)
     if ((ret = CheckAvailableSize(ssl, sendSz)) != 0)
         return ret;
 
-    /* get ouput buffer */
+    /* get output buffer */
     output = ssl->buffers.outputBuffer.buffer +
              ssl->buffers.outputBuffer.length;
 
@@ -8077,7 +8077,7 @@ int SendFinished(WOLFSSL* ssl)
         }
     #endif
 
-    /* get ouput buffer */
+    /* get output buffer */
     output = ssl->buffers.outputBuffer.buffer +
              ssl->buffers.outputBuffer.length;
 
@@ -8234,7 +8234,7 @@ int SendCertificate(WOLFSSL* ssl)
         if ((ret = CheckAvailableSize(ssl, sendSz)) != 0)
             return ret;
 
-        /* get ouput buffer */
+        /* get output buffer */
         output = ssl->buffers.outputBuffer.buffer +
                  ssl->buffers.outputBuffer.length;
 
@@ -8404,7 +8404,7 @@ int SendCertificateRequest(WOLFSSL* ssl)
     if ((ret = CheckAvailableSize(ssl, sendSz)) != 0)
         return ret;
 
-    /* get ouput buffer */
+    /* get output buffer */
     output = ssl->buffers.outputBuffer.buffer +
              ssl->buffers.outputBuffer.length;
 
@@ -8950,7 +8950,7 @@ int SendData(WOLFSSL* ssl, const void* data, int sz)
         if ((ret = CheckAvailableSize(ssl, outputSz)) != 0)
             return ssl->error = ret;
 
-        /* get ouput buffer */
+        /* get output buffer */
         out = ssl->buffers.outputBuffer.buffer +
               ssl->buffers.outputBuffer.length;
 
@@ -9082,7 +9082,7 @@ int SendAlert(WOLFSSL* ssl, int severity, int type)
     int  outputSz;
     int  dtlsExtra = 0;
 
-    /* if sendalert is called again for nonbloking */
+    /* if sendalert is called again for nonblocking */
     if (ssl->options.sendAlertState != 0) {
         ret = SendBuffered(ssl);
         if (ret == 0)
@@ -9100,7 +9100,7 @@ int SendAlert(WOLFSSL* ssl, int severity, int type)
     if ((ret = CheckAvailableSize(ssl, outputSz)) != 0)
         return ret;
 
-    /* get ouput buffer */
+    /* get output buffer */
     output = ssl->buffers.outputBuffer.buffer +
              ssl->buffers.outputBuffer.length;
 
@@ -10671,7 +10671,7 @@ static void PickHashSigAlgo(WOLFSSL* ssl,
         if ((ret = CheckAvailableSize(ssl, sendSz)) != 0)
             return ret;
 
-        /* get ouput buffer */
+        /* get output buffer */
         output = ssl->buffers.outputBuffer.buffer +
                  ssl->buffers.outputBuffer.length;
 
@@ -10867,7 +10867,7 @@ static void PickHashSigAlgo(WOLFSSL* ssl,
 
 #ifdef HAVE_SESSION_TICKET
         /* server may send blank ticket which may not be expected to indicate
-         * exisiting one ok but will also be sending a new one */
+         * existing one ok but will also be sending a new one */
         ret = ret || (ssl->session.ticketLen > 0);
 #endif
 
@@ -12890,7 +12890,7 @@ static word32 QSH_KeyExchangeWrite(WOLFSSL* ssl, byte isServer)
                 return ret;
             }
 
-            /* get ouput buffer */
+            /* get output buffer */
             output = ssl->buffers.outputBuffer.buffer +
                      ssl->buffers.outputBuffer.length;
 
@@ -13037,7 +13037,7 @@ static word32 QSH_KeyExchangeWrite(WOLFSSL* ssl, byte isServer)
         if ((ret = CheckAvailableSize(ssl, sendSz)) != 0)
             return ret;
 
-        /* get ouput buffer */
+        /* get output buffer */
         output = ssl->buffers.outputBuffer.buffer +
                  ssl->buffers.outputBuffer.length;
 
@@ -13463,7 +13463,7 @@ int DoSessionTicket(WOLFSSL* ssl,
         if ((ret = CheckAvailableSize(ssl, MAX_HELLO_SZ)) != 0)
             return ret;
 
-        /* get ouput buffer */
+        /* get output buffer */
         output = ssl->buffers.outputBuffer.buffer +
                  ssl->buffers.outputBuffer.length;
 
@@ -13647,7 +13647,7 @@ int DoSessionTicket(WOLFSSL* ssl,
                 return ret;
             }
 
-            /* get ouput buffer */
+            /* get output buffer */
             output = ssl->buffers.outputBuffer.buffer +
                      ssl->buffers.outputBuffer.length;
 
@@ -13796,7 +13796,7 @@ int DoSessionTicket(WOLFSSL* ssl,
                 return ret;
             }
 
-            /* get ouput buffer */
+            /* get output buffer */
             output = ssl->buffers.outputBuffer.buffer +
                      ssl->buffers.outputBuffer.length;
 
@@ -14041,7 +14041,7 @@ int DoSessionTicket(WOLFSSL* ssl,
                 goto done_a;
             }
 
-            /* get ouput buffer */
+            /* get output buffer */
             output = ssl->buffers.outputBuffer.buffer +
                      ssl->buffers.outputBuffer.length;
 
@@ -14679,7 +14679,7 @@ int DoSessionTicket(WOLFSSL* ssl,
                 return ret;
             }
 
-            /* get ouput buffer */
+            /* get output buffer */
             output = ssl->buffers.outputBuffer.buffer +
                      ssl->buffers.outputBuffer.length;
 
@@ -16082,7 +16082,7 @@ int DoSessionTicket(WOLFSSL* ssl,
         if ((ret = CheckAvailableSize(ssl, sendSz)) != 0)
             return ret;
 
-        /* get ouput buffer */
+        /* get output buffer */
         output = ssl->buffers.outputBuffer.buffer +
                  ssl->buffers.outputBuffer.length;
 
@@ -16282,7 +16282,7 @@ int DoSessionTicket(WOLFSSL* ssl,
         if ((ret = CheckAvailableSize(ssl, sendSz)) != 0)
             return ret;
 
-        /* get ouput buffer */
+        /* get output buffer */
         output = ssl->buffers.outputBuffer.buffer +
                  ssl->buffers.outputBuffer.length;
 
@@ -16324,7 +16324,7 @@ int DoSessionTicket(WOLFSSL* ssl,
         if ((ret = CheckAvailableSize(ssl, sendSz)) != 0)
             return ret;
 
-        /* get ouput buffer */
+        /* get output buffer */
         output = ssl->buffers.outputBuffer.buffer +
                  ssl->buffers.outputBuffer.length;
 

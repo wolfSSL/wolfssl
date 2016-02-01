@@ -35,7 +35,7 @@
     extern "C" {
 #endif
 
-#ifndef HAVE_FIPS /* to avoid redifinition of macros */
+#ifndef HAVE_FIPS /* to avoid redefinition of macros */
 #define WOLFSSL_3DES_CAVIUM_MAGIC 0xBEEF0003
 
 enum {

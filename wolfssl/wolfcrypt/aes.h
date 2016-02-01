@@ -108,7 +108,7 @@ typedef struct Aes {
     word64  contextHandle;   /* nitrox context memory handle */
 #endif
 #ifdef WOLFSSL_AES_COUNTER
-    word32  left;            /* unsued bytes left from last call */
+    word32  left;            /* unused bytes left from last call */
 #endif
 #ifdef WOLFSSL_PIC32MZ_CRYPT
     word32 key_ce[AES_BLOCK_SIZE*2/sizeof(word32)] ;

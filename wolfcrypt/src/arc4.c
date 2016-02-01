@@ -105,7 +105,7 @@ void wc_Arc4Process(Arc4* arc4, byte* out, const byte* in, word32 length)
 #include <wolfssl/wolfcrypt/logging.h>
 #include "cavium_common.h"
 
-/* Initiliaze Arc4 for use with Nitrox device */
+/* Initialize Arc4 for use with Nitrox device */
 int wc_Arc4InitCavium(Arc4* arc4, int devId)
 {
     if (arc4 == NULL)

@@ -83,7 +83,7 @@
 
    /* To safely undefine these you have to make sure your RSA key won't exceed the Comba threshold
     * which is roughly 255 digits [7140 bits for 32-bit machines, 15300 bits for 64-bit machines] 
-    * which means roughly speaking you can handle upto 2536-bit RSA keys with these defined without
+    * which means roughly speaking you can handle up to 2536-bit RSA keys with these defined without
     * trouble.  
     */
    #undef  BN_S_MP_MUL_DIGS_C

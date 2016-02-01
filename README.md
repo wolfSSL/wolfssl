@@ -18,7 +18,7 @@ NTRU suites available do not use ephemeral keys, WOLFSSL_STATIC_RSA needs to be
 used in order to build with NTRU suites.
 
 
-When compiling ssl.c wolfSSL will now issue a comipler error if no cipher suites
+When compiling ssl.c wolfSSL will now issue a compiler error if no cipher suites
 are available.  You can remove this error by defining WOLFSSL_ALLOW_NO_SUITES
 in the event that you desire that, i.e., you're not using TLS cipher suites.
 ```

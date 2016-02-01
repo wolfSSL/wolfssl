@@ -1382,7 +1382,7 @@ void bench_rsaKeyGen(void)
 
     total = current_time(0) - start;
     each  = total / genTimes;  /* per second  */
-    milliEach = each * 1000;   /* millisconds */
+    milliEach = each * 1000;   /* milliseconds */
     printf("\n");
     printf("RSA 1024 key generation  %6.3f milliseconds, avg over %d"
            " iterations\n", milliEach, genTimes);
@@ -1398,7 +1398,7 @@ void bench_rsaKeyGen(void)
 
     total = current_time(0) - start;
     each  = total / genTimes;  /* per second  */
-    milliEach = each * 1000;   /* millisconds */
+    milliEach = each * 1000;   /* milliseconds */
     printf("RSA 2048 key generation  %6.3f milliseconds, avg over %d"
            " iterations\n", milliEach, genTimes);
 }
@@ -1655,7 +1655,7 @@ void bench_eccKeyGen(void)
 
     total = current_time(0) - start;
     each  = total / genTimes;  /* per second  */
-    milliEach = each * 1000;   /* millisconds */
+    milliEach = each * 1000;   /* milliseconds */
     printf("\n");
     printf("ECC  256 key generation  %6.3f milliseconds, avg over %d"
            " iterations\n", milliEach, genTimes);
@@ -1700,7 +1700,7 @@ void bench_eccKeyAgree(void)
 
     total = current_time(0) - start;
     each  = total / agreeTimes;  /* per second  */
-    milliEach = each * 1000;   /* millisconds */
+    milliEach = each * 1000;   /* milliseconds */
     printf("EC-DHE   key agreement   %6.3f milliseconds, avg over %d"
            " iterations\n", milliEach, agreeTimes);
 
@@ -1722,7 +1722,7 @@ void bench_eccKeyAgree(void)
 
     total = current_time(0) - start;
     each  = total / agreeTimes;  /* per second  */
-    milliEach = each * 1000;   /* millisconds */
+    milliEach = each * 1000;   /* milliseconds */
     printf("EC-DSA   sign   time     %6.3f milliseconds, avg over %d"
            " iterations\n", milliEach, agreeTimes);
 
@@ -1739,7 +1739,7 @@ void bench_eccKeyAgree(void)
 
     total = current_time(0) - start;
     each  = total / agreeTimes;  /* per second  */
-    milliEach = each * 1000;     /* millisconds */
+    milliEach = each * 1000;     /* milliseconds */
     printf("EC-DSA   verify time     %6.3f milliseconds, avg over %d"
            " iterations\n", milliEach, agreeTimes);
 
@@ -1765,7 +1765,7 @@ void bench_curve25519KeyGen(void)
 
     total = current_time(0) - start;
     each  = total / genTimes;  /* per second  */
-    milliEach = each * 1000;   /* millisconds */
+    milliEach = each * 1000;   /* milliseconds */
     printf("\n");
     printf("CURVE25519 256 key generation %6.3f milliseconds, avg over %d"
            " iterations\n", milliEach, genTimes);
@@ -1808,7 +1808,7 @@ void bench_curve25519KeyAgree(void)
 
     total = current_time(0) - start;
     each  = total / agreeTimes;  /* per second  */
-    milliEach = each * 1000;   /* millisconds */
+    milliEach = each * 1000;   /* milliseconds */
     printf("CURVE25519 key agreement      %6.3f milliseconds, avg over %d"
            " iterations\n", milliEach, agreeTimes);
 
@@ -1835,7 +1835,7 @@ void bench_ed25519KeyGen(void)
 
     total = current_time(0) - start;
     each  = total / genTimes;  /* per second  */
-    milliEach = each * 1000;   /* millisconds */
+    milliEach = each * 1000;   /* milliseconds */
     printf("\n");
     printf("ED25519  key generation  %6.3f milliseconds, avg over %d"
            " iterations\n", milliEach, genTimes);
@@ -1876,7 +1876,7 @@ void bench_ed25519KeySign(void)
 
     total = current_time(0) - start;
     each  = total / agreeTimes;  /* per second  */
-    milliEach = each * 1000;   /* millisconds */
+    milliEach = each * 1000;   /* milliseconds */
     printf("ED25519  sign   time     %6.3f milliseconds, avg over %d"
            " iterations\n", milliEach, agreeTimes);
 
@@ -1894,7 +1894,7 @@ void bench_ed25519KeySign(void)
 
     total = current_time(0) - start;
     each  = total / agreeTimes;  /* per second  */
-    milliEach = each * 1000;     /* millisconds */
+    milliEach = each * 1000;     /* milliseconds */
     printf("ED25519  verify time     %6.3f milliseconds, avg over %d"
            " iterations\n", milliEach, agreeTimes);
 

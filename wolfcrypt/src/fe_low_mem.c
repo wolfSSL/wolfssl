@@ -212,7 +212,7 @@ static int prime_msb(const byte *p)
 
    /*
        Test for any hot bits.
-       As soon as one instance is incountered set shift to 0.
+       As soon as one instance is encountered set shift to 0.
     */
 	for (i = F25519_SIZE - 1; i >= 0; i--) {
         shift &= ((shift ^ ((-p[i] | p[i]) >> 7)) & 1);

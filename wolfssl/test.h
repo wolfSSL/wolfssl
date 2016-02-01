@@ -873,7 +873,7 @@ static INLINE void tcp_accept(SOCKET_T* sockfd, SOCKET_T* clientfd,
                     /* let's write port sever is listening on to ready file
                        external monitor can then do ephemeral ports by passing
                        -p 0 to server on supported platforms with -R ready_file
-                       client can then wait for exisitence of ready_file and see
+                       client can then wait for existence of ready_file and see
                        which port the server is listening on. */
                     fprintf(srf, "%d\n", (int)port);
                     fclose(srf);
@@ -900,7 +900,7 @@ static INLINE void tcp_set_nonblocking(SOCKET_T* sockfd)
             err_sys("ioctlsocket failed");
     #elif defined(WOLFSSL_MDK_ARM) || defined(WOLFSSL_KEIL_TCP_NET) \
         || defined (WOLFSSL_TIRTOS)|| defined(WOLFSSL_VXWORKS)
-         /* non blocking not suppported, for now */
+         /* non blocking not supported, for now */
     #else
         int flags = fcntl(*sockfd, F_GETFL, 0);
         if (flags < 0)
@@ -1200,7 +1200,7 @@ static INLINE int OpenNitroxDevice(int dma_mode,int dev_id)
 
 
 /* Wolf Root Directory Helper */
-/* KEIL-RL File System does not support relative directry */
+/* KEIL-RL File System does not support relative directory */
 #if !defined(WOLFSSL_MDK_ARM) && !defined(WOLFSSL_KEIL_FS) && !defined(WOLFSSL_TIRTOS)
     #ifndef MAX_PATH
         #define MAX_PATH 256

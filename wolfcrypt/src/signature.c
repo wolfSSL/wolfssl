@@ -49,7 +49,7 @@ int wc_SignatureGetSize(enum wc_SignatureType sig_type,
 {
     int sig_len = BAD_FUNC_ARG;
 
-    /* Supress possible unused args if all signature types are disabled */
+    /* Suppress possible unused args if all signature types are disabled */
     (void)key;
     (void)key_len;
 
@@ -180,7 +180,7 @@ int wc_SignatureGenerate(
     int ret, hash_len;
     byte *hash_data = NULL;
 
-    /* Supress possible unused arg if all signature types are disabled */
+    /* Suppress possible unused arg if all signature types are disabled */
     (void)rng;
     
     /* Check arguments */

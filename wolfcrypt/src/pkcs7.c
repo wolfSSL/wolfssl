@@ -930,7 +930,7 @@ int wc_PKCS7_VerifySignedData(PKCS7* pkcs7, byte* pkiMsg, word32 pkiMsgSz)
 }
 
 
-/* create ASN.1 fomatted RecipientInfo structure, returns sequence size */
+/* create ASN.1 formatted RecipientInfo structure, returns sequence size */
 WOLFSSL_LOCAL int wc_CreateRecipientInfo(const byte* cert, word32 certSz,
                                      int keyEncAlgo, int blockKeySz,
                                      WC_RNG* rng, byte* contentKeyPlain,

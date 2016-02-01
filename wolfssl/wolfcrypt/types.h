@@ -309,7 +309,7 @@
 
 
 
-	/* settings detection for compile vs runtime math incombatibilities */
+	/* settings detection for compile vs runtime math incompatibilities */
 	enum {
 	#if !defined(USE_FAST_MATH) && !defined(SIZEOF_LONG) && !defined(SIZEOF_LONG_LONG)
 	    CTC_SETTINGS = 0x0

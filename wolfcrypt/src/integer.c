@@ -436,7 +436,7 @@ void mp_zero (mp_int * a)
 /* trim unused digits
  *
  * This is used to ensure that leading zero digits are
- * trimed and the leading "used" digit will be non-zero
+ * trimmed and the leading "used" digit will be non-zero
  * Typically very fast.  Also fixes the sign if there
  * are no more leading digits
  */
@@ -720,7 +720,7 @@ int mp_lshd (mp_int * a, int b)
     bottom = a->dp + a->used - 1 - b;
 
     /* much like mp_rshd this is implemented using a sliding window
-     * except the window goes the otherway around.  Copying from
+     * except the window goes the other way around.  Copying from
      * the bottom to the top.  see bn_mp_rshd.c for more info.
      */
     for (x = a->used - 1; x >= b; x--) {
@@ -739,7 +739,7 @@ int mp_lshd (mp_int * a, int b)
 
 /* this is a shell function that calls either the normal or Montgomery
  * exptmod functions.  Originally the call to the montgomery code was
- * embedded in the normal function but that wasted alot of stack space
+ * embedded in the normal function but that wasted a lot of stack space
  * for nothing (since 99% of the time the Montgomery code would be called)
  */
 int mp_exptmod (mp_int * G, mp_int * X, mp_int * P, mp_int * Y)
@@ -1184,7 +1184,7 @@ LBL_ERR:mp_clear(&x);
 }
 
 
-/* compare maginitude of two ints (unsigned) */
+/* compare magnitude of two ints (unsigned) */
 int mp_cmp_mag (mp_int * a, mp_int * b)
 {
   int     n;
@@ -1541,7 +1541,7 @@ s_mp_add (mp_int * a, mp_int * b, mp_int * c)
     /* add carry */
     *tmpc++ = u;
 
-    /* clear digits above oldused */
+    /* clear digits above olduse */
     for (i = c->used; i < olduse; i++) {
       *tmpc++ = 0;
     }
@@ -2245,7 +2245,7 @@ int fast_mp_montgomery_reduce (mp_int * x, mp_int * n, mp_digit rho)
       *tmpx++ = (mp_digit)(*_W++ & ((mp_word) MP_MASK));
     }
 
-    /* zero oldused digits, if the input a was larger than
+    /* zero olduse digits, if the input a was larger than
      * m->used+1 we'll have to clear the digits
      */
     for (; ix < olduse; ix++) {
@@ -2526,7 +2526,7 @@ mp_set_bit (mp_int * a, int b)
     int i = b / DIGIT_BIT, res;
 
     if (a->used < (int)(i + 1)) {
-        /* grow a to accomodate the single bit */
+        /* grow a to accommodate the single bit */
         if ((res = mp_grow (a, i + 1)) != MP_OKAY) {
             return res;
         }
@@ -2543,7 +2543,7 @@ mp_set_bit (mp_int * a, int b)
 
 /* computes a = 2**b
  *
- * Simple algorithm which zeroes the int, set the required bit
+ * Simple algorithm which zeros the int, set the required bit
  */
 int
 mp_2expt (mp_int * a, int b)
@@ -2698,7 +2698,7 @@ int mp_mul_2(mp_int * a, mp_int * b)
 {
   int     x, res, oldused;
 
-  /* grow to accomodate result */
+  /* grow to accommodate result */
   if (b->alloc < a->used + 1) {
     if ((res = mp_grow (b, a->used + 1)) != MP_OKAY) {
       return res;
@@ -2898,7 +2898,7 @@ int fast_s_mp_sqr (mp_int * a, mp_int * b)
       tmpx = a->dp + tx;
       tmpy = a->dp + ty;
 
-      /* this is the number of times the loop will iterrate, essentially
+      /* this is the number of times the loop will iterate, essentially
          while (tx++ < a->used && ty-- >= 0) { ... }
        */
       iy = MIN(a->used-tx, ty+1);
@@ -3014,7 +3014,7 @@ int fast_s_mp_mul_digs (mp_int * a, mp_int * b, mp_int * c, int digs)
       tmpx = a->dp + tx;
       tmpy = b->dp + ty;
 
-      /* this is the number of times the loop will iterrate, essentially
+      /* this is the number of times the loop will iterate, essentially
          while (tx++ < a->used && ty-- >= 0) { ... }
        */
       iy = MIN(a->used-tx, ty+1);
@@ -3123,7 +3123,7 @@ int s_mp_sqr (mp_int * a, mp_int * b)
 }
 
 
-/* multiplies |a| * |b| and only computes upto digs digits of result
+/* multiplies |a| * |b| and only computes up to digs digits of result
  * HAC pp. 595, Algorithm 14.12  Modified so you can control how
  * many digits of output are created.
  */
@@ -3196,8 +3196,8 @@ int s_mp_mul_digs (mp_int * a, mp_int * b, mp_int * c, int digs)
 /*
  * shifts with subtractions when the result is greater than b.
  *
- * The method is slightly modified to shift B unconditionally upto just under
- * the leading bit of b.  This saves alot of multiple precision shifting.
+ * The method is slightly modified to shift B unconditionally up to just under
+ * the leading bit of b.  This saves a lot of multiple precision shifting.
  */
 int mp_montgomery_calc_normalization (mp_int * a, mp_int * b)
 {
@@ -3467,7 +3467,7 @@ LBL_M:
 
 
 /* pre-calculate the value required for Barrett reduction
- * For a given modulus "b" it calulates the value required in "a"
+ * For a given modulus "b" it calculates the value required in "a"
  */
 int mp_reduce_setup (mp_int * a, mp_int * b)
 {
@@ -3738,7 +3738,7 @@ int fast_s_mp_mul_high_digs (mp_int * a, mp_int * b, mp_int * c, int digs)
       tmpx = a->dp + tx;
       tmpy = b->dp + ty;
 
-      /* this is the number of times the loop will iterrate, essentially its
+      /* this is the number of times the loop will iterate, essentially its
          while (tx++ < a->used && ty-- >= 0) { ... }
        */
       iy = MIN(a->used-tx, ty+1);
@@ -4727,7 +4727,7 @@ int mp_toradix (mp_int *a, char *str, int radix)
     }
 
     /* reverse the digits of the string.  In this case _s points
-     * to the first digit [exluding the sign] of the number]
+     * to the first digit [excluding the sign] of the number]
      */
     bn_reverse ((unsigned char *)_s, digs);
 

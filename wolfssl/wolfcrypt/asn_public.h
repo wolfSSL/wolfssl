@@ -156,7 +156,7 @@ typedef struct Cert {
 
 
 
-/* Initialize and Set Certficate defaults:
+/* Initialize and Set Certificate defaults:
    version    = 3 (0x2)
    serial     = 0 (Will be randomly generated)
    sigType    = SHA_WITH_RSA

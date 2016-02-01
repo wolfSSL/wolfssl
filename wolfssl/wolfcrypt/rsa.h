@@ -110,7 +110,7 @@ WOLFSSL_API int  wc_RsaPublicKeyDecodeRaw(const byte* n, word32 nSz,
 #endif
 
 /*
-   choice of padding added after fips, so not avialable when using fips RSA
+   choice of padding added after fips, so not available when using fips RSA
  */
 
 /* Mask Generation Function Identifiers */

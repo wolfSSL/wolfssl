@@ -45,7 +45,7 @@
 #endif
 
 
-/* Initialze CRL members */
+/* Initialize CRL members */
 int InitCRL(WOLFSSL_CRL* crl, WOLFSSL_CERT_MANAGER* cm)
 {
     WOLFSSL_ENTER("InitCRL");
@@ -72,7 +72,7 @@ int InitCRL(WOLFSSL_CRL* crl, WOLFSSL_CERT_MANAGER* cm)
 }
 
 
-/* Initialze CRL Entry */
+/* Initialize CRL Entry */
 static int InitCRL_Entry(CRL_Entry* crle, DecodedCRL* dcrl)
 {
     WOLFSSL_ENTER("InitCRL_Entry");

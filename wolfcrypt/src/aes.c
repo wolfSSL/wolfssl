@@ -139,7 +139,7 @@ int wc_AesCcmEncrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
                               byte* authTag, word32 authTagSz,
                               const byte* authIn, word32 authInSz)
 {
-    /* sanity check on arugments */
+    /* sanity check on arguments */
     if (aes == NULL || out == NULL || in == NULL || nonce == NULL
             || authTag == NULL || nonceSz < 7 || nonceSz > 13)
         return BAD_FUNC_ARG;
@@ -2544,7 +2544,7 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
                 out+= odd ;
                 sz -= odd ;
             }
-            odd = sz % AES_BLOCK_SIZE ;  /* if there is tail flagment */
+            odd = sz % AES_BLOCK_SIZE ;  /* if there is tail fragment */
             if(sz / AES_BLOCK_SIZE) {
                 even = (sz/AES_BLOCK_SIZE)*AES_BLOCK_SIZE ;
                 wc_AesCrypt(aes, out, in, even, PIC32_ENCRYPTION, PIC32_ALGO_AES,
@@ -2611,7 +2611,7 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
                 aes->left = 0;
             }
 
-            /* handle non block size remaining and sotre unused byte count in left */
+            /* handle non block size remaining and store unused byte count in left */
             if (sz) {
                 wc_AesEncrypt(aes, (byte*)aes->reg, (byte*)aes->tmp);
                 IncrementAesCounter((byte*)aes->reg);
@@ -3183,7 +3183,7 @@ static int AES_GCM_decrypt(const unsigned char *in,
             out[k*16+j]=((unsigned char*)&last_block)[j];
     }
 
-    return 1; /* when sucessful returns 1 */
+    return 1; /* when successful returns 1 */
 }
 
 #endif /* WOLFSSL_AESNI */
@@ -3976,7 +3976,7 @@ int wc_AesCcmEncrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
     byte mask     = 0xFF;
     word32 wordSz = (word32)sizeof(word32);
 
-    /* sanity check on arugments */
+    /* sanity check on arguments */
     if (aes == NULL || out == NULL || in == NULL || nonce == NULL
             || authTag == NULL || nonceSz < 7 || nonceSz > 13)
         return BAD_FUNC_ARG;
@@ -4044,7 +4044,7 @@ int  wc_AesCcmDecrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
     byte mask     = 0xFF;
     word32 wordSz = (word32)sizeof(word32);
 
-    /* sanity check on arugments */
+    /* sanity check on arguments */
     if (aes == NULL || out == NULL || in == NULL || nonce == NULL
             || authTag == NULL || nonceSz < 7 || nonceSz > 13)
         return BAD_FUNC_ARG;
@@ -4127,7 +4127,7 @@ int  wc_AesCcmDecrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
 #include <wolfssl/wolfcrypt/logging.h>
 #include "cavium_common.h"
 
-/* Initiliaze Aes for use with Nitrox device */
+/* Initialize Aes for use with Nitrox device */
 int wc_AesInitCavium(Aes* aes, int devId)
 {
     if (aes == NULL)

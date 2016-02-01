@@ -176,7 +176,7 @@ int wc_IdeaSetKey(Idea *idea, const byte* key, word16 keySz,
     return wc_IdeaSetIV(idea, iv);
 }
 
-/* set the IV in the Idea key structuve */
+/* set the IV in the Idea key structure */
 int wc_IdeaSetIV(Idea *idea, const byte* iv)
 {
     if (idea == NULL)

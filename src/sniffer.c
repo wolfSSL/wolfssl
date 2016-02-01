@@ -76,8 +76,8 @@ enum {
     ETHER_IF_ADDR_LEN  = 6,   /* ethernet interface address length */
     LOCAL_IF_ADDR_LEN  = 4,   /* localhost interface address length, !windows */
     TCP_PROTO          = 6,   /* TCP_PROTOCOL */
-    IP_HDR_SZ          = 20,  /* IP header legnth, min */
-    TCP_HDR_SZ         = 20,  /* TCP header legnth, min */
+    IP_HDR_SZ          = 20,  /* IP header length, min */
+    TCP_HDR_SZ         = 20,  /* TCP header length, min */
     IPV4               = 4,   /* IP version 4 */
     TCP_PROTOCOL       = 6,   /* TCP Protocol id */
     TRACE_MSG_SZ       = 80,  /* Trace Message buffer size */
@@ -630,7 +630,7 @@ typedef struct TcpPseudoHdr {
     word32  dst;        /* destination address */
     byte    rsv;        /* reserved, always 0 */
     byte    protocol;   /* IP protocol */
-    word16  legnth;     /* tcp header length + data length (doesn't include */
+    word16  length;     /* tcp header length + data length (doesn't include */
                         /* pseudo header length) network order */
 } TcpPseudoHdr;
 
@@ -868,7 +868,7 @@ static void TraceAddedData(int newBytes, int existingBytes)
 {
     if (TraceOn) {
         fprintf(TraceFile,
-                "\t%d bytes added to %d exisiting bytes in User Buffer\n",
+                "\t%d bytes added to %d existing bytes in User Buffer\n",
                 newBytes, existingBytes);
     }
 }
@@ -2238,7 +2238,7 @@ int TcpChecksum(IpInfo* ipInfo, TcpInfo* tcpInfo, int dataLen,
     pseudo.dst = ipInfo->dst;
     pseudo.rsv = 0;
     pseudo.protocol = TCP_PROTO;
-    pseudo.legnth = htons(tcpInfo->length + dataLen);
+    pseudo.length = htons(tcpInfo->length + dataLen);
     
     /* pseudo header sum */
     while (count >= 2) {
@@ -2322,7 +2322,7 @@ static int CheckSession(IpInfo* ipInfo, TcpInfo* tcpInfo, int sslBytes,
         *session = CreateSession(ipInfo, tcpInfo, error);
         if (*session == NULL) {
             *session = GetSnifferSession(ipInfo, tcpInfo);
-            /* already had exisiting, so OK */
+            /* already had existing, so OK */
             if (*session)
                 return 1;
             
@@ -2837,7 +2837,7 @@ static int CheckPreRecord(IpInfo* ipInfo, TcpInfo* tcpInfo,
     }
     
     /* if current partial data, add to end of partial */
-    /* if skipping, the data is alread at the end of partial */
+    /* if skipping, the data is already at the end of partial */
     if ( !skipPartial &&
          (length = ssl->buffers.inputBuffer.length) ) {
         Trace(PARTIAL_ADD_STR);
@@ -2955,7 +2955,7 @@ static int ProcessMessage(const byte* sslFrame, SnifferSession* session,
 {
     const byte*       sslBegin = sslFrame;
     const byte*       recordEnd;   /* end of record indicator */
-    const byte*       inRecordEnd; /* indictor from input stream not decrypt */
+    const byte*       inRecordEnd; /* indicator from input stream not decrypt */
     RecordLayerHeader rh;
     int               rhSize = 0;
     int               ret;

@@ -607,7 +607,7 @@ int wc_HmacFinal(Hmac* hmac, byte* hash)
 
 #ifdef HAVE_CAVIUM
 
-/* Initiliaze Hmac for use with Nitrox device */
+/* Initialize Hmac for use with Nitrox device */
 int wc_HmacInitCavium(Hmac* hmac, int devId)
 {
     if (hmac == NULL)

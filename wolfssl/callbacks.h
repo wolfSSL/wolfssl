@@ -54,7 +54,7 @@ typedef struct timeval Timeval;
 
 typedef struct packetInfo_st {
     char           packetName[MAX_PACKETNAME_SZ + 1]; /* SSL packet name */
-    Timeval        timestamp;                       /* when it occured    */
+    Timeval        timestamp;                       /* when it occurred    */
     unsigned char  value[MAX_VALUE_SZ];             /* if fits, it's here */ 
     unsigned char* bufferValue;                     /* otherwise here (non 0) */
     int            valueSz;                         /* sz of value or buffer */

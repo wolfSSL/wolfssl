@@ -99,7 +99,7 @@ int wc_Des3_SetIV(Des3* des, const byte* iv)
 
 #ifdef HAVE_CAVIUM
 
-/* Initiliaze Des3 for use with Nitrox device */
+/* Initialize Des3 for use with Nitrox device */
 int wc_Des3_InitCavium(Des3* des3, int devId)
 {
     return Des3_InitCavium(des3, devId);
@@ -1511,7 +1511,7 @@ int wc_Des3_SetIV(Des3* des, const byte* iv)
 
 #include "cavium_common.h"
 
-/* Initiliaze Des3 for use with Nitrox device */
+/* Initialize Des3 for use with Nitrox device */
 int wc_Des3_InitCavium(Des3* des3, int devId)
 {
     if (des3 == NULL)

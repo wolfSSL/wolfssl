@@ -63,7 +63,7 @@ typedef struct Sha {
         word32  digest[SHA_DIGEST_SIZE / sizeof(word32)];
     #else
         word32  digest[PIC32_HASH_SIZE / sizeof(word32)];
-        pic32mz_desc desc; /* Crypt Engine descripter */
+        pic32mz_desc desc; /* Crypt Engine descriptor */
     #endif
 } Sha;
 
