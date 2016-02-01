@@ -1285,6 +1285,13 @@ void InitSuites(Suites* suites, ProtocolVersion pv, word16 haveRSA,
     }
 #endif
 
+#ifdef BUILD_TLS_ECDHE_ECDSA_WITH_NULL_SHA
+    if (tls && haveECDSAsig) {
+        suites->suites[idx++] = ECC_BYTE;
+        suites->suites[idx++] = TLS_ECDHE_ECDSA_WITH_NULL_SHA;
+    }
+#endif
+
 #ifdef BUILD_TLS_RSA_WITH_NULL_SHA
     if (tls && haveRSA) {
         suites->suites[idx++] = 0;
@@ -3978,6 +3985,11 @@ static int BuildFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
             if (requirement == REQUIRES_PSK)
                 return 1;
             if (requirement == REQUIRES_DHE)
+                return 1;
+            break;
+
+        case TLS_ECDHE_ECDSA_WITH_NULL_SHA :
+            if (requirement == REQUIRES_ECC_DSA)
                 return 1;
             break;
 
@@ -9913,6 +9925,10 @@ static const char* const cipher_names[] =
 #ifdef BUILD_SSL_RSA_WITH_IDEA_CBC_SHA
     "IDEA-CBC-SHA",
 #endif
+
+#ifdef BUILD_TLS_ECDHE_ECDSA_WITH_NULL_SHA
+    "ECDHE-ECDSA-NULL-SHA",
+#endif
 };
 
 
@@ -10326,6 +10342,10 @@ static int cipher_name_idx[] =
 
 #ifdef BUILD_SSL_RSA_WITH_IDEA_CBC_SHA
     SSL_RSA_WITH_IDEA_CBC_SHA,
+#endif
+
+#ifdef BUILD_TLS_ECDHE_ECDSA_WITH_NULL_SHA
+    TLS_ECDHE_ECDSA_WITH_NULL_SHA,
 #endif
 };
 
