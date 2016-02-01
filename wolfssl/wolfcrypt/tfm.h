@@ -369,8 +369,8 @@ typedef struct {
     void fp_init(fp_int *a);
     void fp_zero(fp_int *a);
 #else
-    #define fp_init(a)  (void)ForceZero((a), sizeof(fp_int))
-    #define fp_zero(a)  fp_init(a)
+    #define fp_init(a)  (void)XMEMSET((a), 0, sizeof(fp_int))
+    #define fp_zero(a)  ForceZero((a), sizeof(fp_int))
 #endif
 
 /* zero/even/odd ? */
