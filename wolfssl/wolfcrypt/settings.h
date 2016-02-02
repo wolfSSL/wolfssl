@@ -162,6 +162,8 @@
     #define NO_FILESYSTEM
     #define NO_SHA512
     #define NO_DH
+    /* Allows use of DH with fixed points if uncommented and NO_DH is removed */
+    /* WOLFSSL_DH_CONST */
     #define NO_DSA
     #define NO_HC128
     #define NO_RSA
@@ -246,6 +248,8 @@
     #define NO_DEV_RANDOM
     #define NO_SHA512
     #define NO_DH
+    /* Allows use of DH with fixed points if uncommented and NO_DH is removed */
+    /* WOLFSSL_DH_CONST */
     #define NO_DSA
     #define NO_HC128
     #define HAVE_ECC
@@ -267,6 +271,8 @@
     #define NO_RSA
     #define NO_DSA
     #define NO_DH
+    /* Allows use of DH with fixed points if uncommented and NO_DH is removed */
+    /* WOLFSSL_DH_CONST */
     #define NO_CERTS
     #define NO_PWDBASED
     #define NO_DES3
@@ -533,6 +539,8 @@ static char *fgets(char *buff, int sz, FILE *fp)
     #define NO_WRITEV
     #define NO_SHA512
     #define NO_DH
+    /* Allows use of DH with fixed points if uncommented and NO_DH is removed */
+    /* WOLFSSL_DH_CONST */
     #define NO_DSA
     #define NO_HC128
     #define NO_DEV_RANDOM
