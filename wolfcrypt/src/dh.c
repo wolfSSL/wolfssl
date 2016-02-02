@@ -107,8 +107,11 @@ static int GeneratePrivate(DhKey* key, WC_RNG* rng, byte* priv, word32* privSz)
     int ret;
     word32 sz = mp_unsigned_bin_size(&key->p);
 
-    /* predetermined values that operation would return for size */
-    WOLFSSL_DH_ROUND(sz); /* if using fixed points only, than round up */
+    /* Table of predetermined values from the operation
+       2 * DiscreteLogWorkFactor(sz * WOLFSSL_BIT_SIZE) / WOLFSSL_BIT_SIZE + 1
+       Sizes in table checked against RFC 3526
+     */
+    WOLFSSL_DH_ROUND(sz); /* if using fixed points only, then round up */
     switch (sz) {
         case 128:  sz = 21; break;
         case 256:  sz = 29; break;
