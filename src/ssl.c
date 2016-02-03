@@ -10305,6 +10305,14 @@ const char* wolfSSL_CIPHER_get_name(const WOLFSSL_CIPHER* cipher)
             case TLS_ECDH_ECDSA_WITH_AES_256_GCM_SHA384 :
                 return "TLS_ECDH_ECDSA_WITH_AES_256_GCM_SHA384";
 #endif
+            case TLS_ECDHE_ECDSA_WITH_NULL_SHA :
+                return "TLS_ECDHE_ECDSA_WITH_NULL_SHA";
+#ifndef NO_PSK
+            case TLS_ECDHE_PSK_WITH_NULL_SHA256 :
+                return "TLS_ECDHE_PSK_WITH_NULL_SHA256";
+            case TLS_ECDHE_PSK_WITH_AES_128_CBC_SHA256 :
+                return "TLS_ECDHE_PSK_WITH_AES_128_CBC_SHA256";
+#endif
 #endif /* HAVE_ECC */
 
 #ifdef HAVE_AESCCM

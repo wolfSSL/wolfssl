@@ -528,6 +528,9 @@ typedef byte word24[3];
                 #define BUILD_TLS_ECDHE_PSK_WITH_NULL_SHA256
             #endif
         #endif
+        #if !defined(NO_PSK) && !defined(NO_SHA256) && !defined(NO_AES)
+            #define BUILD_TLS_ECDHE_PSK_WITH_AES_128_CBC_SHA256
+        #endif
     #endif
     #if defined(HAVE_CHACHA) && defined(HAVE_POLY1305) && !defined(NO_SHA256) \
         && !defined(NO_OLD_POLY1305)
@@ -715,6 +718,7 @@ enum {
     TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384 = 0x24,
     TLS_ECDHE_ECDSA_WITH_NULL_SHA           = 0x06,
     TLS_ECDHE_PSK_WITH_NULL_SHA256          = 0x3a,
+    TLS_ECDHE_PSK_WITH_AES_128_CBC_SHA256   = 0x37,
 
     /* static ECDH, first byte is 0xC0 (ECC_BYTE) */
     TLS_ECDH_RSA_WITH_AES_256_CBC_SHA    = 0x0F,

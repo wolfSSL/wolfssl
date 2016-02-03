@@ -1362,6 +1362,13 @@ void InitSuites(Suites* suites, ProtocolVersion pv, word16 haveRSA,
     }
 #endif
 
+#ifdef BUILD_TLS_ECDHE_PSK_WITH_AES_128_CBC_SHA256
+    if (tls && havePSK) {
+        suites->suites[idx++] = ECC_BYTE;
+        suites->suites[idx++] = TLS_ECDHE_PSK_WITH_AES_128_CBC_SHA256;
+    }
+#endif
+
 #ifdef BUILD_TLS_PSK_WITH_AES_128_CCM
     if (tls && havePSK) {
         suites->suites[idx++] = ECC_BYTE;
@@ -3997,6 +4004,16 @@ static int BuildFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
 
         case TLS_ECDHE_ECDSA_WITH_NULL_SHA :
             if (requirement == REQUIRES_ECC_DSA)
+                return 1;
+            break;
+
+        case TLS_ECDHE_PSK_WITH_NULL_SHA256 :
+            if (requirement == REQUIRES_PSK)
+                return 1;
+            break;
+
+        case TLS_ECDHE_PSK_WITH_AES_128_CBC_SHA256 :
+            if (requirement == REQUIRES_PSK)
                 return 1;
             break;
 
@@ -9941,6 +9958,10 @@ static const char* const cipher_names[] =
 #ifdef BUILD_TLS_ECDHE_PSK_WITH_NULL_SHA256
     "ECDHE-PSK-NULL-SHA256",
 #endif
+
+#ifdef BUILD_TLS_ECDHE_PSK_WITH_AES_128_CBC_SHA256
+    "ECDHE-PSK-AES128-CBC-SHA256",
+#endif
 };
 
 
@@ -10362,6 +10383,10 @@ static int cipher_name_idx[] =
 
 #ifdef BUILD_TLS_ECDHE_PSK_WITH_NULL_SHA256
     TLS_ECDHE_PSK_WITH_NULL_SHA256,
+#endif
+
+#ifdef BUILD_TLS_ECDHE_PSK_WITH_AES_128_CBC_SHA256
+    TLS_ECDHE_PSK_WITH_AES_128_CBC_SHA256,
 #endif
 };
 
