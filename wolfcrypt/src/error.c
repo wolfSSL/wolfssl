@@ -367,6 +367,12 @@ const char* wc_GetErrorString(int error)
     case BAD_COND_E:
         return "Bad condition variable operation error";
 
+    case SIG_TYPE_E:
+        return "Signature type not enabled/available";
+
+    case HASH_TYPE_E:
+        return "Hash type not enabled/available";
+
     default:
         return "unknown error number";
 
