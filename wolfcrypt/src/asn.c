@@ -9641,7 +9641,7 @@ int ParseCRL(DecodedCRL* dcrl, const byte* buff, word32 sz, void* cm)
 }
 
 #endif /* HAVE_CRL */
-#endif
+#endif /* !NO_ASN */
 
 #ifdef WOLFSSL_SEP
 
