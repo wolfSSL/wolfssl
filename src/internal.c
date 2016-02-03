@@ -1404,6 +1404,13 @@ void InitSuites(Suites* suites, ProtocolVersion pv, word16 haveRSA,
     }
 #endif
 
+#ifdef BUILD_TLS_ECDHE_PSK_WITH_NULL_SHA256
+    if (tls && havePSK) {
+        suites->suites[idx++] = ECC_BYTE;
+        suites->suites[idx++] = TLS_ECDHE_PSK_WITH_NULL_SHA256;
+    }
+#endif
+
 #ifdef BUILD_TLS_DHE_PSK_WITH_NULL_SHA256
     if (tls && haveDH && havePSK) {
         suites->suites[idx++] = 0;
@@ -5497,6 +5504,7 @@ static int SanityCheckMsgReceived(WOLFSSL* ssl, byte type)
             if (ssl->msgsReceived.got_certificate == 0) {
                 if (ssl->specs.kea == psk_kea ||
                     ssl->specs.kea == dhe_psk_kea ||
+                    ssl->specs.kea == ecdhe_psk_kea ||
                     ssl->options.usingAnon_cipher) {
                     WOLFSSL_MSG("No Cert required");
                 } else {
@@ -9929,6 +9937,10 @@ static const char* const cipher_names[] =
 #ifdef BUILD_TLS_ECDHE_ECDSA_WITH_NULL_SHA
     "ECDHE-ECDSA-NULL-SHA",
 #endif
+
+#ifdef BUILD_TLS_ECDHE_PSK_WITH_NULL_SHA256
+    "ECDHE-PSK-NULL-SHA256",
+#endif
 };
 
 
@@ -10346,6 +10358,10 @@ static int cipher_name_idx[] =
 
 #ifdef BUILD_TLS_ECDHE_ECDSA_WITH_NULL_SHA
     TLS_ECDHE_ECDSA_WITH_NULL_SHA,
+#endif
+
+#ifdef BUILD_TLS_ECDHE_PSK_WITH_NULL_SHA256
+    TLS_ECDHE_PSK_WITH_NULL_SHA256,
 #endif
 };
 
@@ -11573,6 +11589,80 @@ static void PickHashSigAlgo(WOLFSSL* ssl,
         break;
     }
     #endif /* !NO_DH || !NO_PSK */
+
+    #if defined(HAVE_ECC) && !defined(NO_PSK)
+    case ecdhe_psk_kea:
+    {
+        byte b;
+
+        if ((*inOutIdx - begin) + OPAQUE16_LEN > size) {
+            return BUFFER_ERROR;
+        }
+
+        ato16(input + *inOutIdx, &length);
+        *inOutIdx += OPAQUE16_LEN;
+
+        if ((*inOutIdx - begin) + length > size) {
+            return BUFFER_ERROR;
+        }
+
+        /* get PSK server hint from the wire */
+        XMEMCPY(ssl->arrays->server_hint, input + *inOutIdx,
+            min(length, MAX_PSK_ID_LEN));
+
+        ssl->arrays->server_hint[min(length, MAX_PSK_ID_LEN - 1)] = 0;
+        *inOutIdx += length;
+
+
+        if ((*inOutIdx - begin) + ENUM_LEN + OPAQUE16_LEN +
+            OPAQUE8_LEN > size) {
+            return BUFFER_ERROR;
+        }
+
+        /* Check curve name and ID */
+        b = input[(*inOutIdx)++];
+        if (b != named_curve) {
+            return ECC_CURVETYPE_ERROR;
+        }
+
+        *inOutIdx += 1;   /* curve type, eat leading 0 */
+        b = input[(*inOutIdx)++];
+        if (CheckCurveId(b) != 0) {
+            return ECC_CURVE_ERROR;
+        }
+
+        length = input[(*inOutIdx)++];
+
+        if ((*inOutIdx - begin) + length > size) {
+            return BUFFER_ERROR;
+        }
+
+        if (ssl->peerEccKey == NULL) {
+            /* alloc/init on demand */
+            ssl->peerEccKey = (ecc_key*)XMALLOC(sizeof(ecc_key),
+                                         ssl->ctx->heap, DYNAMIC_TYPE_ECC);
+            if (ssl->peerEccKey == NULL) {
+                WOLFSSL_MSG("PeerEccKey Memory error");
+                return MEMORY_E;
+            }
+            wc_ecc_init(ssl->peerEccKey);
+        } else if (ssl->peerEccKeyPresent) {  /* don't leak on reuse */
+            wc_ecc_free(ssl->peerEccKey);
+            ssl->peerEccKeyPresent = 0;
+            wc_ecc_init(ssl->peerEccKey);
+        }
+
+        if (wc_ecc_import_x963(input + *inOutIdx, length,
+            ssl->peerEccKey) != 0) {
+            return ECC_PEERKEY_ERROR;
+        }
+
+        *inOutIdx += length;
+        ssl->peerEccKeyPresent = 1;
+
+        break;
+    }
+    #endif /* HAVE_ECC || !NO_PSK */
     } /* switch() */
 
     #if !defined(NO_DH) || defined(HAVE_ECC)
@@ -12616,6 +12706,11 @@ static word32 QSH_KeyExchangeWrite(WOLFSSL* ssl, byte isServer)
                 {
                     byte* pms = ssl->arrays->preMasterSecret;
 
+                    /* sanity check that PSK client callback has been set */
+                    if (ssl->options.client_psk_cb == NULL) {
+                        WOLFSSL_MSG("No client PSK callback set");
+                        return PSK_KEY_ERROR;
+                    }
                     ssl->arrays->psk_keySz = ssl->options.client_psk_cb(ssl,
                         ssl->arrays->server_hint, ssl->arrays->client_identity,
                         MAX_PSK_ID_LEN, ssl->arrays->psk_key, MAX_PSK_KEY_LEN);
@@ -12676,6 +12771,11 @@ static word32 QSH_KeyExchangeWrite(WOLFSSL* ssl, byte isServer)
                         return NO_PEER_KEY;
                     }
 
+                    /* sanity check that PSK client callback has been set */
+                    if (ssl->options.client_psk_cb == NULL) {
+                        WOLFSSL_MSG("No client PSK callback set");
+                        return PSK_KEY_ERROR;
+                    }
                     ssl->arrays->psk_keySz = ssl->options.client_psk_cb(ssl,
                          ssl->arrays->server_hint, ssl->arrays->client_identity,
                          MAX_PSK_ID_LEN, ssl->arrays->psk_key, MAX_PSK_KEY_LEN);
@@ -12749,6 +12849,117 @@ static word32 QSH_KeyExchangeWrite(WOLFSSL* ssl, byte isServer)
                 }
                 break;
         #endif /* !NO_DH && !NO_PSK */
+        #if defined(HAVE_ECC) && !defined(NO_PSK)
+            case ecdhe_psk_kea:
+                {
+                    byte* pms = ssl->arrays->preMasterSecret;
+                    byte* es  = encSecret;
+                    ecc_key  myKey;
+                    ecc_key* peerKey = NULL;
+                    word32   size = MAX_ENCRYPT_SZ;
+                    word32   esSz = 0;
+
+                    /* sanity check that PSK client callback has been set */
+                    if (ssl->options.client_psk_cb == NULL) {
+                        WOLFSSL_MSG("No client PSK callback set");
+                        return PSK_KEY_ERROR;
+                    }
+
+                    /* Send PSK client identity */
+                    ssl->arrays->psk_keySz = ssl->options.client_psk_cb(ssl,
+                         ssl->arrays->server_hint, ssl->arrays->client_identity,
+                         MAX_PSK_ID_LEN, ssl->arrays->psk_key, MAX_PSK_KEY_LEN);
+                    if (ssl->arrays->psk_keySz == 0 ||
+                                     ssl->arrays->psk_keySz > MAX_PSK_KEY_LEN) {
+                    #ifdef WOLFSSL_SMALL_STACK
+                        XFREE(encSecret, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                    #endif
+                        return PSK_KEY_ERROR;
+                    }
+                    esSz = (word32)XSTRLEN(ssl->arrays->client_identity);
+
+                    if (esSz > MAX_PSK_ID_LEN) {
+                    #ifdef WOLFSSL_SMALL_STACK
+                        XFREE(encSecret, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                    #endif
+                        return CLIENT_ID_ERROR;
+                    }
+
+                    /* place size and identity in output buffer sz:identity */
+                    c16toa((word16)esSz, es);
+                    es += OPAQUE16_LEN;
+                    XMEMCPY(es, ssl->arrays->client_identity, esSz);
+                    es += esSz;
+                    encSz = esSz + OPAQUE16_LEN;
+
+                    /* Send Client ECC public key */
+                    if (!ssl->peerEccKey || !ssl->peerEccKeyPresent ||
+                                            !ssl->peerEccKey->dp) {
+                    #ifdef WOLFSSL_SMALL_STACK
+                        XFREE(encSecret, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                    #endif
+                        return NO_PEER_KEY;
+                    }
+                    peerKey = ssl->peerEccKey;
+
+                    if (peerKey == NULL) {
+                    #ifdef WOLFSSL_SMALL_STACK
+                        XFREE(encSecret, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                    #endif
+                        return NO_PEER_KEY;
+                    }
+
+                    wc_ecc_init(&myKey);
+                    ret = wc_ecc_make_key(ssl->rng, peerKey->dp->size, &myKey);
+                    if (ret != 0) {
+                    #ifdef WOLFSSL_SMALL_STACK
+                        XFREE(encSecret, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                    #endif
+                        return ECC_MAKEKEY_ERROR;
+                    }
+
+                    /* Place ECC key in output buffer, leaving room for size */
+                    ret = wc_ecc_export_x963(&myKey, es + 1, &size);
+                    *es = size; /* place size of key in output buffer */
+                    encSz += size + 1;
+
+                    if (ret != 0)
+                        ret = ECC_EXPORT_ERROR;
+                    else {
+                        size = sizeof(ssl->arrays->preMasterSecret);
+                        /* Create shared ECC key leaveing room at the begining
+                           of buffer for size of shared key */
+                        ret  = wc_ecc_shared_secret(&myKey, peerKey,
+                            ssl->arrays->preMasterSecret + OPAQUE16_LEN, &size);
+                        if (ret != 0)
+                            ret = ECC_SHARED_ERROR;
+                    }
+
+                    wc_ecc_free(&myKey);
+                    if (ret != 0) {
+                    #ifdef WOLFSSL_SMALL_STACK
+                        XFREE(encSecret, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                    #endif
+                        return ret;
+                    }
+
+                    /* Create pre master secret is the concatination of
+                       eccSize + eccSharedKey + pskSize + pskKey */
+                    c16toa((word16)size, pms);
+                    ssl->arrays->preMasterSz += OPAQUE16_LEN + size;
+                    pms += ssl->arrays->preMasterSz;
+
+                    c16toa((word16)ssl->arrays->psk_keySz, pms);
+                    pms += OPAQUE16_LEN;
+                    XMEMCPY(pms, ssl->arrays->psk_key, ssl->arrays->psk_keySz);
+                    ssl->arrays->preMasterSz +=
+                                          ssl->arrays->psk_keySz + OPAQUE16_LEN;
+
+                    ForceZero(ssl->arrays->psk_key, ssl->arrays->psk_keySz);
+                    ssl->arrays->psk_keySz = 0; /* No further need */
+                }
+                break;
+        #endif /* HAVE_ECC && !NO_PSK */
         #ifdef HAVE_NTRU
             case ntru_kea:
                 {
@@ -12881,7 +13092,8 @@ static word32 QSH_KeyExchangeWrite(WOLFSSL* ssl, byte isServer)
                 tlsSz = 2;
 
             if (ssl->specs.kea == ecc_diffie_hellman_kea ||
-                ssl->specs.kea == dhe_psk_kea)  /* always off */
+                ssl->specs.kea == dhe_psk_kea ||
+                ssl->specs.kea == ecdhe_psk_kea)  /* always off */
                 tlsSz = 0;
 
             sendSz = encSz + tlsSz + HANDSHAKE_HEADER_SZ + RECORD_HEADER_SZ;
@@ -13904,6 +14116,169 @@ int DoSessionTicket(WOLFSSL* ssl,
             break;
         }
     #endif /* !NO_DH && !NO_PSK */
+
+    #if defined(HAVE_ECC) && !defined(NO_PSK)
+        case ecdhe_psk_kea:
+        {
+            word32   hintLen;
+            word32   length, idx = RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ;
+            int      sendSz;
+            byte     *output;
+            ecc_key  dsaKey;
+        #ifdef WOLFSSL_SMALL_STACK
+            byte*    exportBuf = NULL;
+        #else
+            byte     exportBuf[MAX_EXPORT_ECC_SZ];
+        #endif
+            word32   expSz = MAX_EXPORT_ECC_SZ;
+
+            /* curve type, named curve, length(1) */
+            length = ENUM_LEN + CURVE_LEN + ENUM_LEN;
+            /* pub key size */
+            WOLFSSL_MSG("Using ephemeral ECDH");
+
+            /* need ephemeral key now, create it if missing */
+            if (ssl->eccTempKey == NULL) {
+                /* alloc/init on demand */
+                ssl->eccTempKey = (ecc_key*)XMALLOC(sizeof(ecc_key),
+                                             ssl->ctx->heap, DYNAMIC_TYPE_ECC);
+                if (ssl->eccTempKey == NULL) {
+                    WOLFSSL_MSG("EccTempKey Memory error");
+                    return MEMORY_E;
+                }
+                wc_ecc_init(ssl->eccTempKey);
+            }
+            if (ssl->eccTempKeyPresent == 0) {
+                if (wc_ecc_make_key(ssl->rng, ssl->eccTempKeySz,
+                                 ssl->eccTempKey) != 0) {
+                    return ECC_MAKEKEY_ERROR;
+                }
+                ssl->eccTempKeyPresent = 1;
+            }
+
+        #ifdef WOLFSSL_SMALL_STACK
+            exportBuf = (byte*)XMALLOC(MAX_EXPORT_ECC_SZ, NULL,
+                                                      DYNAMIC_TYPE_TMP_BUFFER);
+            if (exportBuf == NULL) {
+                return MEMORY_E;
+            }
+        #endif
+
+            if (wc_ecc_export_x963(ssl->eccTempKey, exportBuf, &expSz) != 0) {
+                #ifdef WOLFSSL_SMALL_STACK
+                    XFREE(exportBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                #endif
+                return ECC_EXPORT_ERROR;
+            }
+            length += expSz;
+
+            /* include size part */
+            hintLen = (word32)XSTRLEN(ssl->arrays->server_hint);
+            if (hintLen > MAX_PSK_ID_LEN) {
+                #ifdef WOLFSSL_SMALL_STACK
+                    XFREE(exportBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                #endif
+                return SERVER_HINT_ERROR;
+            }
+            length += hintLen + HINT_LEN_SZ;
+            sendSz = length + HANDSHAKE_HEADER_SZ + RECORD_HEADER_SZ;
+
+        #ifdef HAVE_QSH
+            length += qshSz;
+            sendSz += qshSz;
+        #endif
+        #ifdef WOLFSSL_DTLS
+            if (ssl->options.dtls) {
+                sendSz += DTLS_RECORD_EXTRA + DTLS_HANDSHAKE_EXTRA;
+                idx    += DTLS_RECORD_EXTRA + DTLS_HANDSHAKE_EXTRA;
+            }
+        #endif
+            /* check for available size */
+            if ((ret = CheckAvailableSize(ssl, sendSz)) != 0) {
+                wc_ecc_free(&dsaKey);
+                #ifdef WOLFSSL_SMALL_STACK
+                    XFREE(exportBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                #endif
+                return ret;
+            }
+
+            /* get output buffer */
+            output = ssl->buffers.outputBuffer.buffer +
+                     ssl->buffers.outputBuffer.length;
+
+            /* key data */
+            c16toa((word16)hintLen, output + idx);
+            idx += HINT_LEN_SZ;
+            XMEMCPY(output + idx, ssl->arrays->server_hint, hintLen);
+            idx += hintLen;
+
+            /* ECC key exchange data */
+            output[idx++] = named_curve;
+            output[idx++] = 0x00;          /* leading zero */
+            output[idx++] = SetCurveId(wc_ecc_size(ssl->eccTempKey));
+            output[idx++] = (byte)expSz;
+            XMEMCPY(output + idx, exportBuf, expSz);
+            #ifdef WOLFSSL_SMALL_STACK
+                XFREE(exportBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            #endif
+
+        #ifdef HAVE_QSH
+            if (ssl->peerQSHKeyPresent) {
+                if (qshSz > 0) {
+                    idx = sendSz - qshSz;
+                    QSH_KeyExchangeWrite(ssl, 1);
+
+                    /* extension type */
+                    c16toa(TLSX_QUANTUM_SAFE_HYBRID, output + idx);
+                    idx += OPAQUE16_LEN;
+
+                    /* write to output and check amount written */
+                    if (TLSX_QSHPK_Write(ssl->QSH_secret->list, output + idx)
+                                                      > qshSz - OPAQUE16_LEN) {
+                        return MEMORY_E;
+                    }
+                }
+            }
+        #endif
+
+
+            AddHeaders(output, length, server_key_exchange, ssl);
+
+        #ifdef WOLFSSL_DTLS
+            if (ssl->options.dtls) {
+                if ((ret = DtlsPoolSave(ssl, output, sendSz)) != 0) {
+                    return ret;
+                }
+            }
+        #endif
+
+            ret = HashOutput(ssl, output, sendSz, 0);
+
+            if (ret != 0) {
+                return ret;
+            }
+
+        #ifdef WOLFSSL_CALLBACKS
+            if (ssl->hsInfoOn) {
+                AddPacketName("ServerKeyExchange", &ssl->handShakeInfo);
+            }
+            if (ssl->toInfoOn) {
+                AddPacketInfo("ServerKeyExchange", &ssl->timeoutInfo, output,
+                                                            sendSz, ssl->heap);
+            }
+        #endif
+
+            ssl->buffers.outputBuffer.length += sendSz;
+            if (ssl->options.groupMessages) {
+                ret = 0;
+            }
+            else {
+                ret = SendBuffered(ssl);
+            }
+            ssl->options.serverState = SERVER_KEYEXCHANGE_COMPLETE;
+            break;
+        }
+    #endif /* HAVE_ECC && !NO_PSK */
 
     #ifdef HAVE_ECC
         case ecc_diffie_hellman_kea:
@@ -16549,6 +16924,12 @@ int DoSessionTicket(WOLFSSL* ssl,
                 byte* pms = ssl->arrays->preMasterSecret;
                 word16 ci_sz;
 
+                /* sanity check that PSK server callback has been set */
+                if (ssl->options.server_psk_cb == NULL) {
+                    WOLFSSL_MSG("No server PSK callback set");
+                    return PSK_KEY_ERROR;
+                }
+
                 if ((*inOutIdx - begin) + OPAQUE16_LEN > size) {
                     return BUFFER_ERROR;
                 }
@@ -16848,6 +17229,12 @@ int DoSessionTicket(WOLFSSL* ssl,
                 word16 clientSz;
                 DhKey  dhKey;
 
+                /* sanity check that PSK server callback has been set */
+                if (ssl->options.server_psk_cb == NULL) {
+                    WOLFSSL_MSG("No server PSK callback set");
+                    return PSK_KEY_ERROR;
+                }
+
                 /* Read in the PSK hint */
                 if ((*inOutIdx - begin) + OPAQUE16_LEN > size) {
                     return BUFFER_ERROR;
@@ -16948,6 +17335,141 @@ int DoSessionTicket(WOLFSSL* ssl,
             }
             break;
         #endif /* !NO_DH && !NO_PSK */
+        #if defined(HAVE_ECC) && !defined(NO_PSK)
+            case ecdhe_psk_kea:
+            {
+                byte* pms = ssl->arrays->preMasterSecret;
+                word16 clientSz;
+
+                /* sanity check that PSK server callback has been set */
+                if (ssl->options.server_psk_cb == NULL) {
+                    WOLFSSL_MSG("No server PSK callback set");
+                    return PSK_KEY_ERROR;
+                }
+
+                /* Read in the PSK hint */
+                if ((*inOutIdx - begin) + OPAQUE16_LEN > size) {
+                    return BUFFER_ERROR;
+                }
+
+                ato16(input + *inOutIdx, &clientSz);
+                *inOutIdx += OPAQUE16_LEN;
+                if (clientSz > MAX_PSK_ID_LEN) {
+                    return CLIENT_ID_ERROR;
+                }
+
+                if ((*inOutIdx - begin) + clientSz > size) {
+                    return BUFFER_ERROR;
+                }
+
+                XMEMCPY(ssl->arrays->client_identity,
+                                                   input + *inOutIdx, clientSz);
+                *inOutIdx += clientSz;
+                ssl->arrays->client_identity[min(clientSz, MAX_PSK_ID_LEN-1)] =
+                                                                              0;
+
+                /* ECC key */
+                if ((*inOutIdx - begin) + OPAQUE8_LEN > size) {
+                    return BUFFER_ERROR;
+                }
+
+                length = input[(*inOutIdx)++];
+
+                if ((*inOutIdx - begin) + length > size) {
+                    return BUFFER_ERROR;
+                }
+
+                if (ssl->peerEccKey == NULL) {
+                    /* alloc/init on demand */
+                    ssl->peerEccKey = (ecc_key*)XMALLOC(sizeof(ecc_key),
+                                              ssl->ctx->heap, DYNAMIC_TYPE_ECC);
+                    if (ssl->peerEccKey == NULL) {
+                        WOLFSSL_MSG("PeerEccKey Memory error");
+                        return MEMORY_E;
+                    }
+                    wc_ecc_init(ssl->peerEccKey);
+                } else if (ssl->peerEccKeyPresent) {  /* don't leak on reuse */
+                    wc_ecc_free(ssl->peerEccKey);
+                    ssl->peerEccKeyPresent = 0;
+                    wc_ecc_init(ssl->peerEccKey);
+                }
+
+                if (wc_ecc_import_x963(input + *inOutIdx, length,
+                                                             ssl->peerEccKey)) {
+                    return ECC_PEERKEY_ERROR;
+                }
+
+                *inOutIdx += length;
+                ssl->peerEccKeyPresent = 1;
+
+                length = sizeof(ssl->arrays->preMasterSecret);
+
+                    if (ssl->eccTempKeyPresent == 0) {
+                        WOLFSSL_MSG("Ecc ephemeral key not made correctly");
+                        ret = ECC_MAKEKEY_ERROR;
+                    } else {
+                        ret = wc_ecc_shared_secret(ssl->eccTempKey,
+                              ssl->peerEccKey, ssl->arrays->preMasterSecret +
+                              OPAQUE16_LEN, &length);
+                    }
+
+                if (ret != 0) {
+                    return ECC_SHARED_ERROR;
+                }
+
+                c16toa((word16)length, pms);
+                ssl->arrays->preMasterSz += OPAQUE16_LEN + length;
+                pms += ssl->arrays->preMasterSz;
+
+                /* Use the PSK hint to look up the PSK and add it to the
+                 * preMasterSecret here. */
+                ssl->arrays->psk_keySz = ssl->options.server_psk_cb(ssl,
+                    ssl->arrays->client_identity, ssl->arrays->psk_key,
+                    MAX_PSK_KEY_LEN);
+
+                if (ssl->arrays->psk_keySz == 0 ||
+                                       ssl->arrays->psk_keySz > MAX_PSK_KEY_LEN) {
+                    return PSK_KEY_ERROR;
+                }
+
+                c16toa((word16) ssl->arrays->psk_keySz, pms);
+                pms += OPAQUE16_LEN;
+
+                XMEMCPY(pms, ssl->arrays->psk_key, ssl->arrays->psk_keySz);
+                ssl->arrays->preMasterSz +=
+                                          ssl->arrays->psk_keySz + OPAQUE16_LEN;
+
+            #ifdef HAVE_QSH
+                if (ssl->options.haveQSH) {
+                    /* extension name */
+                    ato16(input + *inOutIdx, &name);
+                    *inOutIdx += OPAQUE16_LEN;
+
+                    if (name == TLSX_QUANTUM_SAFE_HYBRID) {
+                        /* if qshSz is larger than 0 it is the length of
+                           buffer used */
+                        if ((qshSz = TLSX_QSHCipher_Parse(ssl, input + *inOutIdx,
+                                            size - *inOutIdx + begin, 1)) < 0) {
+                            return qshSz;
+                        }
+                        *inOutIdx += qshSz;
+                    }
+                    else {
+                        /* unknown extension sent client ignored
+                           handshake */
+                        return BUFFER_ERROR;
+                    }
+                }
+            #endif
+                if (ret == 0)
+                    ret = MakeMasterSecret(ssl);
+
+                /* No further need for PSK */
+                ForceZero(ssl->arrays->psk_key, ssl->arrays->psk_keySz);
+                ssl->arrays->psk_keySz = 0;
+            }
+            break;
+        #endif /* HAVE_ECC && !NO_PSK */
             default:
             {
                 WOLFSSL_MSG("Bad kea type");
