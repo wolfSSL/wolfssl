@@ -5995,12 +5995,29 @@ static int DoDtlsHandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
     if (ssl->keys.dtls_peer_handshake_number >
                                 ssl->keys.dtls_expected_peer_handshake_number) {
         /* Current message is out of order. It will get stored in the list.
-         * Storing also takes care of defragmentation. */
-        ssl->dtls_msg_list = DtlsMsgStore(ssl->dtls_msg_list,
-                        ssl->keys.dtls_peer_handshake_number, input + *inOutIdx,
-                        size, type, fragOffset, fragSz, ssl->heap);
-        *inOutIdx += fragSz;
-        ret = 0;
+         * Storing also takes care of defragmentation. If the messages is a
+         * client hello, we need to process this out of order; the server
+         * is not supposed to keep state, but the second client hello will
+         * have a different handshake sequence number than is expected, and
+         * the server shouldn't be expecting any particular handshake sequence
+         * number. (If the cookie changes multiple times in quick succession,
+         * the client could be sending multiple new client hello messages
+         * with newer and newer cookies.) */
+        if (type != client_hello) {
+            ssl->dtls_msg_list = DtlsMsgStore(ssl->dtls_msg_list,
+                            ssl->keys.dtls_peer_handshake_number,
+                            input + *inOutIdx, size, type,
+                            fragOffset, fragSz, ssl->heap);
+            *inOutIdx += fragSz;
+            ret = 0;
+        }
+        else {
+            ret = DoHandShakeMsgType(ssl, input, inOutIdx, type, size, totalSz);
+            if (ret == 0) {
+                ssl->keys.dtls_expected_peer_handshake_number =
+                    ssl->keys.dtls_peer_handshake_number + 1;
+            }
+        }
     }
     else if (ssl->keys.dtls_peer_handshake_number <
                                 ssl->keys.dtls_expected_peer_handshake_number) {
@@ -15739,6 +15756,8 @@ int DoSessionTicket(WOLFSSL* ssl,
                 /* Send newCookie to client in a HelloVerifyRequest message
                  * and let the state machine alone. */
                 ssl->msgsReceived.got_client_hello = 0;
+                ssl->keys.dtls_handshake_number = 0;
+                ssl->keys.dtls_expected_peer_handshake_number = 0;
                 *inOutIdx += helloSz;
                 return SendHelloVerifyRequest(ssl, newCookie, cookieSz);
             }
