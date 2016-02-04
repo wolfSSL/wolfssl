@@ -1362,6 +1362,27 @@ void InitSuites(Suites* suites, ProtocolVersion pv, word16 haveRSA,
     }
 #endif
 
+#ifdef BUILD_TLS_PSK_WITH_CHACHA20_POLY1305_SHA256
+    if (tls && havePSK) {
+        suites->suites[idx++] = CHACHA_BYTE;
+        suites->suites[idx++] = TLS_PSK_WITH_CHACHA20_POLY1305_SHA256;
+    }
+#endif
+
+#ifdef BUILD_TLS_ECDHE_PSK_WITH_CHACHA20_POLY1305_SHA256
+    if (tls && havePSK) {
+        suites->suites[idx++] = CHACHA_BYTE;
+        suites->suites[idx++] = TLS_ECDHE_PSK_WITH_CHACHA20_POLY1305_SHA256;
+    }
+#endif
+
+#ifdef BUILD_TLS_DHE_PSK_WITH_CHACHA20_POLY1305_SHA256
+    if (tls && havePSK) {
+        suites->suites[idx++] = CHACHA_BYTE;
+        suites->suites[idx++] = TLS_DHE_PSK_WITH_CHACHA20_POLY1305_SHA256;
+    }
+#endif
+
 #ifdef BUILD_TLS_ECDHE_PSK_WITH_AES_128_CBC_SHA256
     if (tls && havePSK) {
         suites->suites[idx++] = ECC_BYTE;
@@ -3786,6 +3807,24 @@ static int BuildFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
 
         case TLS_DHE_RSA_WITH_CHACHA20_OLD_POLY1305_SHA256 :
             if (requirement == REQUIRES_RSA)
+                return 1;
+            if (requirement == REQUIRES_DHE)
+                return 1;
+            break;
+
+
+        case TLS_ECDHE_PSK_WITH_CHACHA20_POLY1305_SHA256 :
+            if (requirement == REQUIRES_PSK)
+                return 1;
+            break;
+
+        case TLS_PSK_WITH_CHACHA20_POLY1305_SHA256 :
+            if (requirement == REQUIRES_PSK)
+                return 1;
+            break;
+
+        case TLS_DHE_PSK_WITH_CHACHA20_POLY1305_SHA256 :
+            if (requirement == REQUIRES_PSK)
                 return 1;
             if (requirement == REQUIRES_DHE)
                 return 1;
@@ -9962,6 +10001,18 @@ static const char* const cipher_names[] =
 #ifdef BUILD_TLS_ECDHE_PSK_WITH_AES_128_CBC_SHA256
     "ECDHE-PSK-AES128-CBC-SHA256",
 #endif
+
+#ifdef BUILD_TLS_PSK_WITH_CHACHA20_POLY1305_SHA256
+    "PSK-CHACHA20-POLY1305",
+#endif
+
+#ifdef BUILD_TLS_ECDHE_PSK_WITH_CHACHA20_POLY1305_SHA256
+    "ECDHE-PSK-CHACHA20-POLY1305",
+#endif
+
+#ifdef BUILD_TLS_DHE_PSK_WITH_CHACHA20_POLY1305_SHA256
+    "DHE-PSK-CHACHA20-POLY1305",
+#endif
 };
 
 
@@ -10387,6 +10438,18 @@ static int cipher_name_idx[] =
 
 #ifdef BUILD_TLS_ECDHE_PSK_WITH_AES_128_CBC_SHA256
     TLS_ECDHE_PSK_WITH_AES_128_CBC_SHA256,
+#endif
+
+#ifdef BUILD_TLS_PSK_WITH_CHACHA20_POLY1305_SHA256
+    TLS_PSK_WITH_CHACHA20_POLY1305_SHA256,
+#endif
+
+#ifdef BUILD_TLS_ECDHE_PSK_WITH_CHACHA20_POLY1305_SHA256
+    TLS_ECDHE_PSK_WITH_CHACHA20_POLY1305_SHA256,
+#endif
+
+#ifdef BUILD_TLS_DHE_PSK_WITH_CHACHA20_POLY1305_SHA256
+    TLS_DHE_PSK_WITH_CHACHA20_POLY1305_SHA256,
 #endif
 };
 

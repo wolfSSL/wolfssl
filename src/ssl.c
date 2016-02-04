@@ -10190,7 +10190,15 @@ const char* wolfSSL_CIPHER_get_name(const WOLFSSL_CIPHER* cipher)
 
             case TLS_ECDHE_ECDSA_WITH_CHACHA20_OLD_POLY1305_SHA256 :
                 return "TLS_ECDHE_ECDSA_WITH_CHACHA20_OLD_POLY1305_SHA256";
-#endif
+#ifndef NO_PSK
+            case TLS_ECDHE_PSK_WITH_CHACHA20_POLY1305_SHA256 :
+                return "TLS_ECDHE_PSK_WITH_CHACHA20_POLY1305_SHA256";
+            case TLS_PSK_WITH_CHACHA20_POLY1305_SHA256 :
+                return "TLS_PSK_WITH_CHACHA20_POLY1305_SHA256";
+            case TLS_DHE_PSK_WITH_CHACHA20_POLY1305_SHA256 :
+                return "TLS_DHE_PSK_WITH_CHACHA20_POLY1305_SHA256";
+#endif /* NO_PSK */
+#endif /* HAVE_POLY1305 */
             }
         }
 #endif

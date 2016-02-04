@@ -532,8 +532,8 @@ typedef byte word24[3];
             #define BUILD_TLS_ECDHE_PSK_WITH_AES_128_CBC_SHA256
         #endif
     #endif
-    #if defined(HAVE_CHACHA) && defined(HAVE_POLY1305) && !defined(NO_SHA256) \
-        && !defined(NO_OLD_POLY1305)
+    #if defined(HAVE_CHACHA) && defined(HAVE_POLY1305) && !defined(NO_SHA256)
+        #if !defined(NO_OLD_POLY1305)
         #ifdef HAVE_ECC
             #define BUILD_TLS_ECDHE_ECDSA_WITH_CHACHA20_OLD_POLY1305_SHA256
             #ifndef NO_RSA
@@ -543,6 +543,16 @@ typedef byte word24[3];
         #if !defined(NO_DH) && !defined(NO_RSA)
             #define BUILD_TLS_DHE_RSA_WITH_CHACHA20_OLD_POLY1305_SHA256
         #endif
+        #endif /* NO_OLD_POLY1305 */
+        #if !defined(NO_PSK)
+            #define BUILD_TLS_PSK_WITH_CHACHA20_POLY1305_SHA256
+            #ifdef HAVE_ECC
+                #define BUILD_TLS_ECDHE_PSK_WITH_CHACHA20_POLY1305_SHA256
+            #endif
+            #ifndef NO_DH
+                #define BUILD_TLS_DHE_PSK_WITH_CHACHA20_POLY1305_SHA256
+            #endif
+        #endif /* !NO_PSK */
     #endif
 
 #endif /* !WOLFSSL_MAX_STRENGTH */
@@ -816,6 +826,9 @@ enum {
     TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256   = 0xa8,
     TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256 = 0xa9,
     TLS_DHE_RSA_WITH_CHACHA20_POLY1305_SHA256     = 0xaa,
+    TLS_ECDHE_PSK_WITH_CHACHA20_POLY1305_SHA256   = 0xac,
+    TLS_PSK_WITH_CHACHA20_POLY1305_SHA256         = 0xab,
+    TLS_DHE_PSK_WITH_CHACHA20_POLY1305_SHA256     = 0xad,
 
     /* chacha20-poly1305 earlier version of nonce and padding (CHACHA_BYTE) */
     TLS_ECDHE_RSA_WITH_CHACHA20_OLD_POLY1305_SHA256   = 0x13,
