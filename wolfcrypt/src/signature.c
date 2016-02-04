@@ -94,6 +94,8 @@ int wc_SignatureGetSize(enum wc_SignatureType sig_type,
             else {
                 WOLFSSL_MSG("wc_SignatureGetSize: Invalid ECC key size");
             }
+#else
+            ret = SIG_TYPE_E;
 #endif
             break;
 
@@ -106,11 +108,14 @@ int wc_SignatureGetSize(enum wc_SignatureType sig_type,
             else {
                 WOLFSSL_MSG("wc_SignatureGetSize: Invalid RsaKey key size");
             }
+#else
+            ret = SIG_TYPE_E;
 #endif
             break;
 
         case WC_SIGNATURE_TYPE_NONE:
         default:
+            sig_len = BAD_FUNC_ARG;
             break;
     }
     return sig_len;
@@ -155,9 +160,6 @@ int wc_SignatureVerify(
     /* Perform hash of data */
     ret = wc_Hash(hash_type, data, data_len, hash_data, hash_len);
     if(ret == 0) {
-        /* Default ret to SIG_TYPE_E */
-        ret = SIG_TYPE_E;
-
         /* Verify signature using hash as data */
         switch(sig_type) {
             case WC_SIGNATURE_TYPE_ECC:
@@ -170,12 +172,15 @@ int wc_SignatureVerify(
                 if (ret != 0 || is_valid_sig != 1) {
                     ret = SIG_VERIFY_E;
                 }
+#else
+                ret = SIG_TYPE_E;
 #endif
                 break;
             }
 
             case WC_SIGNATURE_TYPE_RSA_W_ENC:
 #if defined(NO_RSA) || defined(NO_ASN)
+                ret = SIG_TYPE_E;
                 break;
 #else
                 ret = wc_SignatureRsaEncode(hash_type, &hash_data, &hash_len);
@@ -217,6 +222,8 @@ int wc_SignatureVerify(
                 else {
                     ret = MEMORY_E;
                 }
+#else
+                ret = SIG_TYPE_E;
 #endif
                 break;
             }
@@ -277,20 +284,20 @@ int wc_SignatureGenerate(
     /* Perform hash of data */
     ret = wc_Hash(hash_type, data, data_len, hash_data, hash_len);
     if (ret == 0) {
-        /* Default ret to SIG_TYPE_E */
-        ret = SIG_TYPE_E;
-
         /* Create signature using hash as data */
         switch(sig_type) {
             case WC_SIGNATURE_TYPE_ECC:
 #ifdef HAVE_ECC
                 /* Create signature using provided ECC key */
                 ret = wc_ecc_sign_hash(hash_data, hash_len, sig, sig_len, rng, (ecc_key*)key);
+#else
+                ret = SIG_TYPE_E;
 #endif
                 break;
 
             case WC_SIGNATURE_TYPE_RSA_W_ENC:
 #if defined(NO_RSA) || defined(NO_ASN)
+                ret = SIG_TYPE_E;
                 break;
 #else
                 ret = wc_SignatureRsaEncode(hash_type, &hash_data, &hash_len);
@@ -310,6 +317,8 @@ int wc_SignatureGenerate(
                     *sig_len = ret;
                     ret = 0; /* Success */
                 }
+#else
+                ret = SIG_TYPE_E;
 #endif
                 break;
 
