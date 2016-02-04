@@ -74,13 +74,6 @@ enum Ctc_Encoding {
     CTC_PRINTABLE  = 0x13  /* printable */
 };
 
-
-#ifdef WOLFSSL_CERT_GEN
-
-#ifndef HAVE_ECC
-    typedef struct ecc_key ecc_key;
-#endif
-
 enum Ctc_Misc {
     CTC_NAME_SIZE     =    64,
     CTC_DATE_SIZE     =    32,
@@ -89,12 +82,18 @@ enum Ctc_Misc {
 #ifdef WOLFSSL_CERT_EXT
     /* AKID could contains: hash + (Option) AuthCertIssuer,AuthCertSerialNum
      * We support only hash */
-    CTC_MAX_SKID_SIZE = SHA256_DIGEST_SIZE,
-    CTC_MAX_AKID_SIZE = SHA256_DIGEST_SIZE,
+    CTC_MAX_SKID_SIZE = 32, /* SHA256_DIGEST_SIZE */
+    CTC_MAX_AKID_SIZE = 32, /* SHA256_DIGEST_SIZE */
     CTC_MAX_CERTPOL_SZ = 64,
     CTC_MAX_CERTPOL_NB = 2 /* Max number of Certificate Policy */
 #endif /* WOLFSSL_CERT_EXT */
 };
+
+#ifdef WOLFSSL_CERT_GEN
+
+#ifndef HAVE_ECC
+    typedef struct ecc_key ecc_key;
+#endif
 
 typedef struct CertName {
     char country[CTC_NAME_SIZE];
@@ -217,18 +216,6 @@ WOLFSSL_API int wc_SetKeyUsage(Cert *cert, const char *value);
  * RFC5280 : non-critical */
 WOLFSSL_API int wc_SetCertificatePolicies(Cert *cert, const char **input);
 
-#ifndef WOLFSSL_PEMPUBKEY_TODER_DEFINED
-    #ifndef NO_FILESYSTEM
-    /* forward from wolfssl */
-    WOLFSSL_API int wolfSSL_PemPubKeyToDer(const char* fileName,
-                                           unsigned char* derBuf, int derSz);
-    #endif
-
-    /* forward from wolfssl */
-    WOLFSSL_API int wolfSSL_PubKeyPemToDer(const unsigned char*, int,
-                                           unsigned char*, int);
-    #define WOLFSSL_PEMPUBKEY_TODER_DEFINED
-#endif /* WOLFSSL_PEMPUBKEY_TODER_DEFINED */
 #endif /* WOLFSSL_CERT_EXT */
 
     #ifdef HAVE_NTRU
@@ -239,6 +226,20 @@ WOLFSSL_API int wc_SetCertificatePolicies(Cert *cert, const char **input);
 
 #endif /* WOLFSSL_CERT_GEN */
 
+#if defined(WOLFSSL_CERT_EXT) || defined(WOLFSSL_PUB_PEM_TO_DER)
+    #ifndef WOLFSSL_PEMPUBKEY_TODER_DEFINED
+        #ifndef NO_FILESYSTEM
+        /* forward from wolfssl */
+        WOLFSSL_API int wolfSSL_PemPubKeyToDer(const char* fileName,
+                                               unsigned char* derBuf, int derSz);
+        #endif
+
+        /* forward from wolfssl */
+        WOLFSSL_API int wolfSSL_PubKeyPemToDer(const unsigned char*, int,
+                                               unsigned char*, int);
+        #define WOLFSSL_PEMPUBKEY_TODER_DEFINED
+    #endif /* WOLFSSL_PEMPUBKEY_TODER_DEFINED */
+#endif /* WOLFSSL_CERT_EXT || WOLFSSL_PUB_PEM_TO_DER */
 
 #if defined(WOLFSSL_KEY_GEN) || defined(WOLFSSL_CERT_GEN) || !defined(NO_DSA)
     WOLFSSL_API int wc_DerToPem(const byte* der, word32 derSz, byte* output,

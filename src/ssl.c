@@ -4249,6 +4249,7 @@ int wolfSSL_PemCertToDer(const char* fileName, unsigned char* derBuf, int derSz)
 #endif /* WOLFSSL_CERT_GEN */
 
 #ifdef WOLFSSL_CERT_EXT
+#ifndef NO_FILESYSTEM
 /* load pem public key from file into der buffer, return der size or error */
 int wolfSSL_PemPubKeyToDer(const char* fileName,
                            unsigned char* derBuf, int derSz)
@@ -4313,6 +4314,7 @@ int wolfSSL_PemPubKeyToDer(const char* fileName,
 
     return ret;
 }
+#endif /* NO_FILESYSTEM */
 
 /* Return bytes written to buff or < 0 for error */
 int wolfSSL_PubKeyPemToDer(const unsigned char* pem, int pemSz,
