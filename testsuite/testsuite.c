@@ -110,10 +110,12 @@ int testsuite_test(int argc, char** argv)
     server_args.signal = &ready;
     InitTcpReady(&ready);
 
+#ifndef NO_CRYPT_TEST
     /* wc_ test */
     wolfcrypt_test(&server_args);
     if (server_args.return_code != 0) return server_args.return_code;
- 
+#endif
+
     /* Simple wolfSSL client server test */
     simple_test(&server_args);
     if (server_args.return_code != 0) return server_args.return_code;
