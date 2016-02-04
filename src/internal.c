@@ -13008,19 +13008,27 @@ static word32 QSH_KeyExchangeWrite(WOLFSSL* ssl, byte isServer)
 
                     /* Place ECC key in output buffer, leaving room for size */
                     ret = wc_ecc_export_x963(&myKey, es + 1, &size);
-                    *es = size; /* place size of key in output buffer */
+                    *es = (byte)size; /* place size of key in output buffer */
                     encSz += size + 1;
 
-                    if (ret != 0)
+                    if (ret != 0) {
+                    #ifdef WOLFSSL_SMALL_STACK
+                        XFREE(encSecret, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                    #endif
                         ret = ECC_EXPORT_ERROR;
+                    }
                     else {
                         size = sizeof(ssl->arrays->preMasterSecret);
                         /* Create shared ECC key leaveing room at the begining
                            of buffer for size of shared key */
                         ret  = wc_ecc_shared_secret(&myKey, peerKey,
                             ssl->arrays->preMasterSecret + OPAQUE16_LEN, &size);
-                        if (ret != 0)
+                        if (ret != 0) {
+                        #ifdef WOLFSSL_SMALL_STACK
+                            XFREE(encSecret, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                        #endif
                             ret = ECC_SHARED_ERROR;
+                        }
                     }
 
                     wc_ecc_free(&myKey);
@@ -17492,14 +17500,14 @@ int DoSessionTicket(WOLFSSL* ssl,
 
                 length = sizeof(ssl->arrays->preMasterSecret);
 
-                    if (ssl->eccTempKeyPresent == 0) {
-                        WOLFSSL_MSG("Ecc ephemeral key not made correctly");
-                        ret = ECC_MAKEKEY_ERROR;
-                    } else {
-                        ret = wc_ecc_shared_secret(ssl->eccTempKey,
-                              ssl->peerEccKey, ssl->arrays->preMasterSecret +
-                              OPAQUE16_LEN, &length);
-                    }
+                if (ssl->eccTempKeyPresent == 0) {
+                    WOLFSSL_MSG("Ecc ephemeral key not made correctly");
+                    ret = ECC_MAKEKEY_ERROR;
+                } else {
+                    ret = wc_ecc_shared_secret(ssl->eccTempKey,
+                          ssl->peerEccKey, ssl->arrays->preMasterSecret +
+                          OPAQUE16_LEN, &length);
+                }
 
                 if (ret != 0) {
                     return ECC_SHARED_ERROR;
