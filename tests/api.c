@@ -354,10 +354,17 @@ static void test_wolfSSL_SetTmpDH_file(void)
     WOLFSSL *ssl;
 
     AssertNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_server_method()));
+#ifndef NO_RSA
     AssertTrue(wolfSSL_CTX_use_certificate_file(ctx, svrCert,
                 SSL_FILETYPE_PEM));
     AssertTrue(wolfSSL_CTX_use_PrivateKey_file(ctx, svrKey,
                 SSL_FILETYPE_PEM));
+#else
+    AssertTrue(wolfSSL_CTX_use_certificate_file(ctx, eccCert,
+                SSL_FILETYPE_PEM));
+    AssertTrue(wolfSSL_CTX_use_PrivateKey_file(ctx, eccKey,
+                SSL_FILETYPE_PEM));
+#endif
     AssertNotNull(ssl = wolfSSL_new(ctx));
 
     /* invalid ssl */

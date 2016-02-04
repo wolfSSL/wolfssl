@@ -196,6 +196,9 @@ int wc_FreeRsaKey(RsaKey* key)
 {
     (void)key;
 
+    if (key == NULL)
+        return 0;
+
 #ifdef HAVE_CAVIUM
     if (key->magic == WOLFSSL_RSA_CAVIUM_MAGIC)
         return FreeCaviumRsaKey(key);
@@ -213,6 +216,17 @@ int wc_FreeRsaKey(RsaKey* key)
     }
     mp_clear(&key->e);
     mp_clear(&key->n);
+#else
+    /* still clear private key memory information when free'd */
+    if (key->type == RSA_PRIVATE) {
+        mp_clear(&key->u);
+        mp_clear(&key->dQ);
+        mp_clear(&key->u);
+        mp_clear(&key->dP);
+        mp_clear(&key->q);
+        mp_clear(&key->p);
+        mp_clear(&key->d);
+    }
 #endif
 
     return 0;
