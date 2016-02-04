@@ -535,7 +535,7 @@ int wc_Poly1305Update(Poly1305* ctx, const byte* m, word32 bytes) {
 			want = bytes;
 		for (i = 0; i < want; i++)
 			ctx->buffer[ctx->leftover + i] = m[i];
-		bytes -= want;
+		bytes -= (word32)want;
 		m += want;
 		ctx->leftover += want;
 		if (ctx->leftover < POLY1305_BLOCK_SIZE)
@@ -549,7 +549,7 @@ int wc_Poly1305Update(Poly1305* ctx, const byte* m, word32 bytes) {
 		size_t want = (bytes & ~(POLY1305_BLOCK_SIZE - 1));
 		poly1305_blocks(ctx, m, want);
 		m += want;
-		bytes -= want;
+		bytes -= (word32)want;
 	}
 
 	/* store leftover */

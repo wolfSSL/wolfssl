@@ -635,7 +635,7 @@ static int tcp_connect(SOCKET_T* sockfd, const char* ip, word16 port)
     }
     #endif /* HAVE_GETADDRINFO */
 
-    *sockfd = socket(addr.ss_family, SOCK_STREAM, 0);
+    *sockfd = (SOCKET_T)socket(addr.ss_family, SOCK_STREAM, 0);
 
 #ifdef USE_WINDOWS_API
     if (*sockfd == INVALID_SOCKET) {

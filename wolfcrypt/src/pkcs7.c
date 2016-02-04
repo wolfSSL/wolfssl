@@ -1301,7 +1301,7 @@ int wc_PKCS7_EncodeEnvelopedData(PKCS7* pkcs7, byte* output, word32 outputSz)
     XMEMCPY(plain, pkcs7->content, pkcs7->contentSz);
 
     for (i = 0; i < padSz; i++) {
-        plain[pkcs7->contentSz + i] = padSz;
+        plain[pkcs7->contentSz + i] = (byte)padSz;
     }
 
     encryptedContent = (byte*)XMALLOC(desOutSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);

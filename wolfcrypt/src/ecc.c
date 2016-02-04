@@ -2142,7 +2142,7 @@ static int ecc_mul2add(ecc_point* A, mp_int* kA,
     bitbufB = tB[0];
 
     /* for every byte of the multiplicands */
-    for (x = -1;; ) {
+    for (x = (unsigned)-1;; ) {
         /* grab a nibble */
         if (++nibble == 4) {
             ++x; if (x == len) break;
