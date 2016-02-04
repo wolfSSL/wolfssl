@@ -368,9 +368,11 @@ typedef struct {
 #ifdef ALT_ECC_SIZE
     void fp_init(fp_int *a);
     void fp_zero(fp_int *a);
+    void fp_clear(fp_int *a); /* uses ForceZero to clear sensitive memory */
 #else
     #define fp_init(a)  (void)XMEMSET((a), 0, sizeof(fp_int))
-    #define fp_zero(a)  ForceZero((a), sizeof(fp_int))
+    #define fp_zero(a)  fp_init(a)
+    #define fp_clear(a) ForceZero((a), sizeof(fp_int));
 #endif
 
 /* zero/even/odd ? */
