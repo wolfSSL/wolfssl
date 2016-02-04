@@ -186,7 +186,11 @@
 			UniqueIdentifier="{93995380-89BD-4b04-88EB-625FBE52EBFB}"
 			>
 			<File
-				RelativePath="..\include\sniffer.h"
+				RelativePath="..\wolfssl\sniffer.h"
+				>
+			</File>
+			<File
+				RelativePath="..\IDE\WIN\user_settings.h"
 				>
 			</File>
 		</Filter>
@@ -196,7 +200,7 @@
 			UniqueIdentifier="{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}"
 			>
 			<File
-				RelativePath="..\cyassl\sniffer_error.rc"
+				RelativePath="..\wolfssl\sniffer_error.rc"
 				>
 			</File>
 		</Filter>

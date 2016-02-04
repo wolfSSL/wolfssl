@@ -177,6 +177,13 @@
 			<File
 				RelativePath=".\wolfcrypt\src\coding.c"
 				>
+			<File
+				RelativePath=".\wolfcrypt\src\chacha.c"
+				>
+			</File>
+			<File
+				RelativePath=".\wolfcrypt\src\chacha20_poly1305.c"
+				>
 			</File>
 			<File
 				RelativePath=".\src\crl.c"
@@ -254,6 +261,13 @@
 				RelativePath=".\src\ocsp.c"
 				>
 			</File>
+			<File
+				RelativePath=".\wolfcrypt\src\pkcs7.c"
+				>
+			</File>
+			<File
+				RelativePath=".\wolfcrypt\src\poly1305.c"
+				>
 			<File
 				RelativePath=".\wolfcrypt\src\wc_port.c"
 				>

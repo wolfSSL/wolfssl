@@ -176,6 +176,14 @@
 				>
 			</File>
 			<File
+				RelativePath=".\wolfcrypt\src\chacha.c"
+				>
+			</File>
+			<File
+				RelativePath=".\wolfcrypt\src\chacha20_poly1305.c"
+				>
+			</File>
+			<File
 				RelativePath=".\src\crl.c"
 				>
 			</File>
@@ -248,6 +256,14 @@
 				>
 			</File>
 			<File
+				RelativePath=".\wolfcrypt\src\pkcs7.c"
+				>
+			</File>
+			<File
+				RelativePath=".\wolfcrypt\src\poly1305.c"
+				>
+			</File>
+			<File
 				RelativePath=".\wolfcrypt\src\wc_port.c"
 				>
 			</File>
@@ -305,6 +321,10 @@
 			Filter="h;hpp;hxx;hm;inl;inc;xsd"
 			UniqueIdentifier="{93995380-89BD-4b04-88EB-625FBE52EBFB}"
 			>
+			<File
+				RelativePath="IDE\WIN\user_settings.h"
+				>
+			</File>
 		</Filter>
 		<Filter
 			Name="Resource Files"

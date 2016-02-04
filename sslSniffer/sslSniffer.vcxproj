@@ -171,6 +171,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\wolfssl\sniffer.h" />
+    <ClInclude Include="..\IDE\WIN\user_settings.h" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="..\wolfssl\sniffer_error.rc" />
