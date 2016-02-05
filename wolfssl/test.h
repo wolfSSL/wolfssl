@@ -1212,27 +1212,23 @@ static INLINE int OpenNitroxDevice(int dma_mode,int dev_id)
     static INLINE int ChangeToWolfRoot(void)
     {
         #if !defined(NO_FILESYSTEM) 
-            int depth;
+            int depth, res;
             XFILE file;
-            char path[MAX_PATH];
-            XMEMSET(path, 0, MAX_PATH);
-
             for(depth = 0; depth <= MAX_WOLF_ROOT_DEPTH; depth++) {
                 file = XFOPEN(ntruKey, "rb");
                 if (file != XBADFILE) {
                     XFCLOSE(file);
                     return depth;
                 }
-                #ifdef USE_WINDOWS_API
-                    XSTRNCAT(path, "..\\", MAX_PATH - XSTRLEN(path));
-                    SetCurrentDirectoryA(path);
-                #else
-                    XSTRNCAT(path, "../", MAX_PATH - XSTRLEN(path));
-                    if (chdir(path) < 0) {
-                        printf("chdir to %s failed\n", path);
-                        break;
-                    }
-                #endif
+            #ifdef USE_WINDOWS_API
+                res = SetCurrentDirectoryA("..\\");
+            #else
+                res = chdir("../");
+            #endif
+                if (res < 0) {
+                    printf("chdir to ../ failed!\n");
+                    break;
+                }
             }
         
             err_sys("wolf root not found");
