@@ -2202,7 +2202,7 @@ typedef struct Options {
     word16            haveRSA:1;          /* RSA available */
     word16            haveDH:1;           /* server DH parms set by user */
     word16            haveNTRU:1;         /* server NTRU  private key loaded */
-    byte              haveQSH:1;          /* have QSH ability */
+    word16            haveQSH:1;          /* have QSH ability */
     word16            haveECDSAsig:1;     /* server ECDSA signed cert */
     word16            haveStaticECC:1;    /* static server ECC private key */
     word16            havePeerCert:1;     /* do we have peer's cert */

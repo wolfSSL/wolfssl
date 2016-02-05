@@ -199,7 +199,7 @@ static int calculateAuthTag(
 
         /* -- padding1: pad the AAD to 16 bytes */
 
-        paddingLen = -inAADLen & (CHACHA20_POLY1305_MAC_PADDING_ALIGNMENT - 1);
+        paddingLen = -(int)inAADLen & (CHACHA20_POLY1305_MAC_PADDING_ALIGNMENT - 1);
         if (paddingLen)
         {
             err += wc_Poly1305Update(&poly1305Ctx, padding, paddingLen);
@@ -221,7 +221,7 @@ static int calculateAuthTag(
 
     /* -- padding2: pad the ciphertext to 16 bytes */
 
-    paddingLen = -inCiphertextLen &
+    paddingLen = -(int)inCiphertextLen &
                                   (CHACHA20_POLY1305_MAC_PADDING_ALIGNMENT - 1);
     if (paddingLen)
     {
@@ -264,10 +264,10 @@ static void word32ToLittle64(const word32 inLittle32, byte outLittle64[8])
 {
     XMEMSET(outLittle64, 0, 8);
 
-    outLittle64[0] = (inLittle32 & 0x000000FF);
-    outLittle64[1] = (inLittle32 & 0x0000FF00) >> 8;
-    outLittle64[2] = (inLittle32 & 0x00FF0000) >> 16;
-    outLittle64[3] = (inLittle32 & 0xFF000000) >> 24;
+    outLittle64[0] = (byte)(inLittle32 & 0x000000FF);
+    outLittle64[1] = (byte)((inLittle32 & 0x0000FF00) >> 8);
+    outLittle64[2] = (byte)((inLittle32 & 0x00FF0000) >> 16);
+    outLittle64[3] = (byte)((inLittle32 & 0xFF000000) >> 24);
 }
 
 

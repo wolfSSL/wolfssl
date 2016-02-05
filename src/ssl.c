@@ -237,7 +237,7 @@ int wolfSSL_use_old_poly(WOLFSSL* ssl, int value)
     WOLFSSL_ENTER("SSL_use_old_poly");
     WOLFSSL_MSG("Warning SSL connection auto detects old/new and this function"
             "is depriciated");
-    ssl->options.oldPoly = value;
+    ssl->options.oldPoly = (word16)value;
     WOLFSSL_LEAVE("SSL_use_old_poly", 0);
     return 0;
 }
