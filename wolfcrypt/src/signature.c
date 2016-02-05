@@ -95,7 +95,7 @@ int wc_SignatureGetSize(enum wc_SignatureType sig_type,
                 WOLFSSL_MSG("wc_SignatureGetSize: Invalid ECC key size");
             }
 #else
-            ret = SIG_TYPE_E;
+            sig_len = SIG_TYPE_E;
 #endif
             break;
 
@@ -109,7 +109,7 @@ int wc_SignatureGetSize(enum wc_SignatureType sig_type,
                 WOLFSSL_MSG("wc_SignatureGetSize: Invalid RsaKey key size");
             }
 #else
-            ret = SIG_TYPE_E;
+            sig_len = SIG_TYPE_E;
 #endif
             break;
 
