@@ -2236,6 +2236,14 @@ AS_IF([test "x$ENABLED_INLINE" = "xno"], [ENABLED_EXAMPLES="no"])
 AS_IF([test "x$ENABLED_CRYPTONLY" = "xyes"], [ENABLED_EXAMPLES="no"])
 AM_CONDITIONAL([BUILD_EXAMPLES], [test "x$ENABLED_EXAMPLES" = "xyes"])
 
+# Enable wolfCrypt test and benchmark
+AC_ARG_ENABLE([crypttests],
+    [  --enable-crypttests     Enable Crypt Bench/Test  (default: enabled)],
+    [ ENABLED_CRYPT_TESTS=$enableval ],
+    [ ENABLED_CRYPT_TESTS=yes ]
+    )
+
+AM_CONDITIONAL([BUILD_WOLFCRYPT_TESTS], [test "x$ENABLED_CRYPT_TESTS" = "xyes"])
 
 # LIBZ
 ENABLED_LIBZ="no"

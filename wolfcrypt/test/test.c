@@ -7568,5 +7568,8 @@ int pkcs7signed_test(void)
 }
 
 #endif /* HAVE_PKCS7 */
-
+#else
+    #ifndef NO_MAIN_DRIVER
+        int main() { return 0; }
+    #endif
 #endif /* NO_CRYPT_TEST */

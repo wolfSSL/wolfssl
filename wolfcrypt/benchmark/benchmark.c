@@ -2015,4 +2015,8 @@ static INLINE word64 get_intel_cycles(void)
 }
 
 #endif /* HAVE_GET_CYCLES */
+#else
+    #ifndef NO_MAIN_DRIVER
+        int main() { return 0; }
+    #endif
 #endif /* !NO_CRYPT_BENCHMARK */
