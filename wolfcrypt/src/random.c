@@ -22,7 +22,7 @@
 #ifdef HAVE_CONFIG_H
     #include <config.h>
 #endif
- 
+
 #include <wolfssl/wolfcrypt/settings.h>
 
 /* on HPUX 11 you may need to install /dev/random see
@@ -122,7 +122,7 @@ int  wc_RNG_GenerateByte(WC_RNG* rng, byte* b)
 #ifdef HAVE_INTEL_RDGEN
     static int wc_InitRng_IntelRD(void) ;
     #if defined(HAVE_HASHDRBG) || defined(NO_RC4)
-	static int wc_GenerateSeed_IntelRD(OS_Seed* os, byte* output, word32 sz) ;
+    static int wc_GenerateSeed_IntelRD(OS_Seed* os, byte* output, word32 sz) ;
     #else
     static int wc_GenerateRand_IntelRD(OS_Seed* os, byte* output, word32 sz) ;
     #endif
@@ -843,20 +843,20 @@ static void CaviumRNG_GenerateBlock(WC_RNG* rng, byte* output, word32 sz)
 
 #define EAX 0
 #define EBX 1
-#define ECX 2 
+#define ECX 2
 #define EDX 3
 
 static word32 cpuid_flag(word32 leaf, word32 sub, word32 num, word32 bit) {
     int got_intel_cpu=0;
-    unsigned int reg[5]; 
-    
+    unsigned int reg[5];
+
     reg[4] = '\0' ;
-    cpuid(reg, 0, 0);  
-    if(memcmp((char *)&(reg[EBX]), "Genu", 4) == 0 &&  
-                memcmp((char *)&(reg[EDX]), "ineI", 4) == 0 &&  
-                memcmp((char *)&(reg[ECX]), "ntel", 4) == 0) {  
-        got_intel_cpu = 1;  
-    }    
+    cpuid(reg, 0, 0);
+    if(memcmp((char *)&(reg[EBX]), "Genu", 4) == 0 &&
+                memcmp((char *)&(reg[EDX]), "ineI", 4) == 0 &&
+                memcmp((char *)&(reg[ECX]), "ntel", 4) == 0) {
+        got_intel_cpu = 1;
+    }
     if (got_intel_cpu) {
         cpuid(reg, leaf, sub);
         return((reg[num]>>bit)&0x1) ;
@@ -867,7 +867,7 @@ static word32 cpuid_flag(word32 leaf, word32 sub, word32 num, word32 bit) {
 static int wc_InitRng_IntelRD()
 {
     if(cpuid_check==0) {
-        if(cpuid_flag(1, 0, ECX, 30)){ cpuid_flags |= CPUID_RDRAND ;} 
+        if(cpuid_flag(1, 0, ECX, 30)){ cpuid_flags |= CPUID_RDRAND ;}
         if(cpuid_flag(7, 0, EBX, 18)){ cpuid_flags |= CPUID_RDSEED ;}
         cpuid_check = 1 ;
     }
@@ -879,11 +879,11 @@ static int wc_InitRng_IntelRD()
 #if defined(HAVE_HASHDRBG) || defined(NO_RC4)
 
 /* return 0 on success */
-static INLINE int IntelRDseed32(unsigned int *seed)  
-{  
+static INLINE int IntelRDseed32(unsigned int *seed)
+{
     int rdseed;  unsigned char ok ;
 
-    __asm__ volatile("rdseed %0; setc %1":"=r"(rdseed), "=qm"(ok));  
+    __asm__ volatile("rdseed %0; setc %1":"=r"(rdseed), "=qm"(ok));
     if(ok){
         *seed = rdseed ;
         return 0 ;
@@ -892,8 +892,8 @@ static INLINE int IntelRDseed32(unsigned int *seed)
 }
 
 /* return 0 on success */
-static INLINE int IntelRDseed32_r(unsigned int *rnd)  
-{  
+static INLINE int IntelRDseed32_r(unsigned int *rnd)
+{
     int i ;
     for(i=0; i<INTELRD_RETRY;i++) {
        if(IntelRDseed32(rnd) == 0) return 0 ;
@@ -927,10 +927,10 @@ static int wc_GenerateSeed_IntelRD(OS_Seed* os, byte* output, word32 sz)
 #else
 
 /* return 0 on success */
-static INLINE int IntelRDrand32(unsigned int *rnd)  
-{  
-    int rdrand; unsigned char ok ;  
-    __asm__ volatile("rdrand %0; setc %1":"=r"(rdrand), "=qm"(ok));  
+static INLINE int IntelRDrand32(unsigned int *rnd)
+{
+    int rdrand; unsigned char ok ;
+    __asm__ volatile("rdrand %0; setc %1":"=r"(rdrand), "=qm"(ok));
     if(ok){
         *rnd = rdrand;
         return 0 ;
@@ -939,8 +939,8 @@ static INLINE int IntelRDrand32(unsigned int *rnd)
 }
 
 /* return 0 on success */
-static INLINE int IntelRDrand32_r(unsigned int *rnd)  
-{  
+static INLINE int IntelRDrand32_r(unsigned int *rnd)
+{
     int i ;
     for(i=0; i<INTELRD_RETRY;i++) {
        if(IntelRDrand32(rnd) == 0) return 0 ;
@@ -985,8 +985,21 @@ static int wc_GenerateRand_IntelRD(OS_Seed* os, byte* output, word32 sz)
 
     int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     {
-        (void)os;
+        (void)os; /* Suppress unused arg warning */
         return CUSTOM_RAND_GENERATE_SEED(output, sz);
+    }
+
+#elif defined(CUSTOM_RAND_GENERATE_SEED_OS)
+
+    /* Implement your own random generation function,
+     *  which includes OS_Seed.
+     * Return 0 to indicate success
+     * int rand_gen_seed(OS_Seed* os, byte* output, word32 sz);
+     * #define CUSTOM_RAND_GENERATE_SEED_OS  rand_gen_seed */
+
+    int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
+    {
+        return CUSTOM_RAND_GENERATE_SEED_OS(os, output, sz);
     }
 
 
@@ -1326,11 +1339,11 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
         word32 i = 0;
 
         (void)os;
-        
-        while (i < sz) 
+
+        while (i < sz)
         {
             /* If not aligned or there is odd/remainder */
-            if( (i + sizeof(CUSTOM_RAND_TYPE)) > sz || 
+            if( (i + sizeof(CUSTOM_RAND_TYPE)) > sz ||
                 ((wolfssl_word)&output[i] % sizeof(CUSTOM_RAND_TYPE)) != 0
             ) {
                 /* Single byte at a time */
