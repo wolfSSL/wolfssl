@@ -47,7 +47,7 @@
 #ifndef NO_SIG_WRAPPER
 
 #if !defined(NO_RSA) && !defined(NO_ASN)
-static int wc_SignatureRsaEncode(enum wc_HashType hash_type, byte** hash_data,
+static int wc_SignatureAsnEncode(enum wc_HashType hash_type, byte** hash_data,
     word32* hash_len)
 {
     int ret = wc_HashGetOID(hash_type);
@@ -55,7 +55,7 @@ static int wc_SignatureRsaEncode(enum wc_HashType hash_type, byte** hash_data,
         int oid = ret;
 
         /* Allocate buffer for hash and encoded ASN header */
-        word32 digest_len = *hash_len + MAX_ALGO_SZ;
+        word32 digest_len = *hash_len + MAX_ENCODED_HEADER_SZ;
         byte *digest_buf = (byte*)XMALLOC(digest_len, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         if (digest_buf) {
             ret = wc_EncodeSignature(digest_buf, *hash_data, *hash_len, oid);
@@ -66,6 +66,9 @@ static int wc_SignatureRsaEncode(enum wc_HashType hash_type, byte** hash_data,
                 XFREE(*hash_data, NULL, DYNAMIC_TYPE_TMP_BUFFER);
                 *hash_data = digest_buf;
                 *hash_len = digest_len;
+            }
+            else {
+                XFREE(digest_buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
             }
         }
         else {
@@ -88,6 +91,7 @@ int wc_SignatureGetSize(enum wc_SignatureType sig_type,
     switch(sig_type) {
         case WC_SIGNATURE_TYPE_ECC:
 #ifdef HAVE_ECC
+            /* Santity check that void* key is at least ecc_key in size */
             if (key_len >= sizeof(ecc_key)) {
                 sig_len = wc_ecc_sig_size((ecc_key*)key);
             }
@@ -102,6 +106,7 @@ int wc_SignatureGetSize(enum wc_SignatureType sig_type,
         case WC_SIGNATURE_TYPE_RSA_W_ENC:
         case WC_SIGNATURE_TYPE_RSA:
 #ifndef NO_RSA
+            /* Santity check that void* key is at least RsaKey in size */
             if (key_len >= sizeof(RsaKey)) {
                 sig_len = wc_RsaEncryptSize((RsaKey*)key);
             }
@@ -183,7 +188,7 @@ int wc_SignatureVerify(
                 ret = SIG_TYPE_E;
                 break;
 #else
-                ret = wc_SignatureRsaEncode(hash_type, &hash_data, &hash_len);
+                ret = wc_SignatureAsnEncode(hash_type, &hash_data, &hash_len);
                 /* Check for error */
                 if (ret < 0) {
                     break;
@@ -300,7 +305,7 @@ int wc_SignatureGenerate(
                 ret = SIG_TYPE_E;
                 break;
 #else
-                ret = wc_SignatureRsaEncode(hash_type, &hash_data, &hash_len);
+                ret = wc_SignatureAsnEncode(hash_type, &hash_data, &hash_len);
                 /* Check for error */
                 if (ret < 0) {
                     break;
