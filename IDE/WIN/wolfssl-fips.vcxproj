@@ -258,9 +258,6 @@
     <ClCompile Include="..\..\ctaocrypt\src\sha512.c">
       <ObjectFileName>$(IntDir)ctaocrypt\</ObjectFileName>
     </ClCompile>
-    <ClCompile Include="..\..\ctaocrypt\src\signature.c">
-      <ObjectFileName>$(IntDir)ctaocrypt\</ObjectFileName>
-    </ClCompile>
     <ClCompile Include="..\..\ctaocrypt\src\fips.c">
       <ObjectFileName>$(IntDir)ctaocrypt\</ObjectFileName>
       <WholeProgramOptimization Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</WholeProgramOptimization>
@@ -319,6 +316,9 @@
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(IntDir)%(Filename).obj</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='DLL Release|x64'">$(IntDir)%(Filename).obj</Outputs>
     </CustomBuild>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="user_settings.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
