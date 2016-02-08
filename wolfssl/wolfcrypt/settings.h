@@ -658,18 +658,17 @@ static char *fgets(char *buff, int sz, FILE *fp)
 
     /* enable features */
     #define USE_FAST_MATH
+    #define HAVE_ECC
+    #define HAVE_AESGCM
 
     /* memory reduction */
     #define TFM_TIMING_RESISTANT
+    #define ECC_TIMING_RESISTANT
+    #define ALT_ECC_SIZE
 
     /* setting for PIT timer */
     #define PIT_INSTANCE 0
     #define PIT_CHANNEL  0
-
-    /* CW GCC workaround. gmtime() is not available */
-    #if defined(__GNUC__)
-        #define USER_TIME
-    #endif
 
     #if defined(FREESCALE_KSDK_MQX) || defined(FREESCALE_KSDK_BM) || \
         defined(FREESCALE_FREE_RTOS)
