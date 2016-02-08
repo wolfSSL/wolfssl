@@ -7023,7 +7023,7 @@ static int MakeSignature(const byte* buffer, int sz, byte* sig, int sigSz,
 #ifdef WOLFSSL_SMALL_STACK
     byte* encSig;
 #else
-    byte encSig[MAX_ENCODED_HEADER_SZ];
+    byte encSig[MAX_DER_DIGEST_SZ];
 #endif
 
     (void)digest;
@@ -7085,7 +7085,7 @@ static int MakeSignature(const byte* buffer, int sz, byte* sig, int sigSz,
         return ret;
 
 #ifdef WOLFSSL_SMALL_STACK
-    encSig = (byte*)XMALLOC(MAX_ENCODED_HEADER_SZ,
+    encSig = (byte*)XMALLOC(MAX_DER_DIGEST_SZ,
                                                  NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (encSig == NULL)
         return MEMORY_E;

@@ -47,7 +47,7 @@
 #ifndef NO_SIG_WRAPPER
 
 #if !defined(NO_RSA) && !defined(NO_ASN)
-static int wc_SignatureAsnEncode(enum wc_HashType hash_type, byte** hash_data,
+static int wc_SignatureDerEncode(enum wc_HashType hash_type, byte** hash_data,
     word32* hash_len)
 {
     int ret = wc_HashGetOID(hash_type);
@@ -55,7 +55,7 @@ static int wc_SignatureAsnEncode(enum wc_HashType hash_type, byte** hash_data,
         int oid = ret;
 
         /* Allocate buffer for hash and encoded ASN header */
-        word32 digest_len = *hash_len + MAX_ENCODED_HEADER_SZ;
+        word32 digest_len = *hash_len + MAX_DER_DIGEST_SZ;
         byte *digest_buf = (byte*)XMALLOC(digest_len, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         if (digest_buf) {
             ret = wc_EncodeSignature(digest_buf, *hash_data, *hash_len, oid);
@@ -188,7 +188,7 @@ int wc_SignatureVerify(
                 ret = SIG_TYPE_E;
                 break;
 #else
-                ret = wc_SignatureAsnEncode(hash_type, &hash_data, &hash_len);
+                ret = wc_SignatureDerEncode(hash_type, &hash_data, &hash_len);
                 /* Check for error */
                 if (ret < 0) {
                     break;
@@ -305,7 +305,7 @@ int wc_SignatureGenerate(
                 ret = SIG_TYPE_E;
                 break;
 #else
-                ret = wc_SignatureAsnEncode(hash_type, &hash_data, &hash_len);
+                ret = wc_SignatureDerEncode(hash_type, &hash_data, &hash_len);
                 /* Check for error */
                 if (ret < 0) {
                     break;
