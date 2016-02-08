@@ -1818,6 +1818,7 @@ struct WOLFSSL_CTX {
     byte        verifyPeer;
     byte        verifyNone;
     byte        failNoCert;
+    byte        failNoCertxPSK;   /* fail if no cert with the exception of PSK*/
     byte        sessionCacheOff;
     byte        sessionCacheFlushOff;
     byte        sendVerify;       /* for client side */
@@ -2216,6 +2217,7 @@ typedef struct Options {
     word16            verifyPeer:1;
     word16            verifyNone:1;
     word16            failNoCert:1;
+    word16            failNoCertxPSK:1;   /* fail for no cert except with PSK */
     word16            downgrade:1;        /* allow downgrade of versions */
     word16            resuming:1;
     word16            haveSessionId:1;    /* server may not send */

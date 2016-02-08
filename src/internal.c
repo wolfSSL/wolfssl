@@ -1835,10 +1835,11 @@ int SetSSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
     ssl->options.sessionCacheOff      = ctx->sessionCacheOff;
     ssl->options.sessionCacheFlushOff = ctx->sessionCacheFlushOff;
 
-    ssl->options.verifyPeer = ctx->verifyPeer;
-    ssl->options.verifyNone = ctx->verifyNone;
-    ssl->options.failNoCert = ctx->failNoCert;
-    ssl->options.sendVerify = ctx->sendVerify;
+    ssl->options.verifyPeer     = ctx->verifyPeer;
+    ssl->options.verifyNone     = ctx->verifyNone;
+    ssl->options.failNoCert     = ctx->failNoCert;
+    ssl->options.failNoCertxPSK = ctx->failNoCertxPSK;
+    ssl->options.sendVerify     = ctx->sendVerify;
 
     ssl->heap = ctx->heap;    /* defaults to self */
     ssl->options.partialWrite  = ctx->partialWrite;
@@ -16932,6 +16933,14 @@ int DoSessionTicket(WOLFSSL* ssl,
         #ifndef NO_CERTS
             if (ssl->options.verifyPeer && ssl->options.failNoCert) {
                 if (!ssl->options.havePeerCert) {
+                    WOLFSSL_MSG("client didn't present peer cert");
+                    return NO_PEER_CERT;
+                }
+            }
+
+            if (ssl->options.verifyPeer && ssl->options.failNoCertxPSK) {
+                if (!ssl->options.havePeerCert &&
+                                                 !ssl->options.usingPSK_cipher){
                     WOLFSSL_MSG("client didn't present peer cert");
                     return NO_PEER_CERT;
                 }

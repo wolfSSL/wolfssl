@@ -4608,6 +4608,11 @@ void wolfSSL_CTX_set_verify(WOLFSSL_CTX* ctx, int mode, VerifyCallback vc)
     if (mode & SSL_VERIFY_FAIL_IF_NO_PEER_CERT)
         ctx->failNoCert = 1;
 
+    if (mode & SSL_VERIFY_FAIL_EXCEPT_PSK) {
+        ctx->failNoCert    = 0; /* fail on all is set to fail on PSK */
+        ctx->failNoCertxPSK = 1;
+    }
+
     ctx->verifyCallback = vc;
 }
 
@@ -4627,6 +4632,11 @@ void wolfSSL_set_verify(WOLFSSL* ssl, int mode, VerifyCallback vc)
 
     if (mode & SSL_VERIFY_FAIL_IF_NO_PEER_CERT)
         ssl->options.failNoCert = 1;
+
+    if (mode & SSL_VERIFY_FAIL_EXCEPT_PSK) {
+        ssl->options.failNoCert    = 0; /* fail on all is set to fail on PSK */
+        ssl->options.failNoCertxPSK = 1;
+    }
 
     ssl->verifyCallback = vc;
 }
@@ -17073,6 +17083,9 @@ int wolfSSL_CTX_get_verify_mode(WOLFSSL_CTX* ctx)
 
     if (ctx->failNoCert)
         mode |= SSL_VERIFY_FAIL_IF_NO_PEER_CERT;
+
+    if (ctx->failNoCertxPSK)
+        mode |= SSL_VERIFY_FAIL_EXCEPT_PSK;
 
     WOLFSSL_LEAVE("wolfSSL_CTX_get_verify_mode", mode);
     return mode;
