@@ -13018,9 +13018,11 @@ static word32 QSH_KeyExchangeWrite(WOLFSSL* ssl, byte isServer)
                         ret = ECC_EXPORT_ERROR;
                     }
                     else {
-                        size = sizeof(ssl->arrays->preMasterSecret);
                         /* Create shared ECC key leaveing room at the begining
-                           of buffer for size of shared key */
+                           of buffer for size of shared key. Note sizeof
+                           preMasterSecret is ENCRYPT_LEN currently 512 */
+                        size = sizeof(ssl->arrays->preMasterSecret)
+                                                                 - OPAQUE16_LEN;
                         ret  = wc_ecc_shared_secret(&myKey, peerKey,
                             ssl->arrays->preMasterSecret + OPAQUE16_LEN, &size);
                         if (ret != 0) {
@@ -17498,6 +17500,7 @@ int DoSessionTicket(WOLFSSL* ssl,
                 *inOutIdx += length;
                 ssl->peerEccKeyPresent = 1;
 
+                /* Note sizeof preMasterSecret is ENCRYPT_LEN currently 512 */
                 length = sizeof(ssl->arrays->preMasterSecret);
 
                 if (ssl->eccTempKeyPresent == 0) {
