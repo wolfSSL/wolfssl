@@ -22,12 +22,13 @@
     #define NO_RABBIT
     #define NO_DSA
     #define NO_MD4
-#elif defined(WOLFSSL_SNIFFER)
+#elif defined(WOLFSSL_LIB)
     /* The lib */
     #define OPENSSL_EXTRA
     #define WOLFSSL_RIPEMD
     #define WOLFSSL_SHA512
     #define NO_PSK
+    #define WOLFSSL_SNIFFER
 #else
     /* The servers and clients */
     #define OPENSSL_EXTRA

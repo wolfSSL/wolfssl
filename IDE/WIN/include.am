@@ -6,3 +6,4 @@ EXTRA_DIST+= IDE/WIN/README.txt
 EXTRA_DIST+= IDE/WIN/test.vcxproj
 EXTRA_DIST+= IDE/WIN/wolfssl-fips.sln
 EXTRA_DIST+= IDE/WIN/wolfssl-fips.vcxproj
+EXTRA_DIST+= IDE/WIN/user_settings.h
