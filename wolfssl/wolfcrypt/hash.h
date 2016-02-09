@@ -31,27 +31,13 @@
 /* Hash types */
 enum wc_HashType {
     WC_HASH_TYPE_NONE = 0,
-#ifdef WOLFSSL_MD2
     WC_HASH_TYPE_MD2 = 1,
-#endif
-#ifndef NO_MD4
     WC_HASH_TYPE_MD4 = 2,
-#endif
-#ifndef NO_MD5
     WC_HASH_TYPE_MD5 = 3,
-#endif
-#ifndef NO_SHA
-    WC_HASH_TYPE_SHA = 4,
-#endif
-#ifndef NO_SHA256
+    WC_HASH_TYPE_SHA = 4, /* SHA-1 (not old SHA-0) */
     WC_HASH_TYPE_SHA256 = 5,
-#endif
-#ifdef WOLFSSL_SHA512
-#ifdef WOLFSSL_SHA384
     WC_HASH_TYPE_SHA384 = 6,
-#endif /* WOLFSSL_SHA384 */
     WC_HASH_TYPE_SHA512 = 7,
-#endif /* WOLFSSL_SHA512 */
 };
 
 /* Find largest possible digest size
@@ -68,6 +54,10 @@ enum wc_HashType {
     #define WC_MAX_DIGEST_SIZE MD5_DIGEST_SIZE
 #else
     #define WC_MAX_DIGEST_SIZE 64 /* default to max size of 64 */
+#endif
+
+#ifndef NO_ASN
+WOLFSSL_API int wc_HashGetOID(enum wc_HashType hash_type);
 #endif
 
 WOLFSSL_API int wc_HashGetDigestSize(enum wc_HashType hash_type);

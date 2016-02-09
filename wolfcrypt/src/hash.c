@@ -26,49 +26,96 @@
 #include <wolfssl/wolfcrypt/settings.h>
 #include <wolfssl/wolfcrypt/logging.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
+#ifndef NO_ASN
+#include <wolfssl/wolfcrypt/asn.h>
+#endif
 
 #include <wolfssl/wolfcrypt/hash.h>
 
 
+#ifndef NO_ASN
+int wc_HashGetOID(enum wc_HashType hash_type)
+{
+    int oid = HASH_TYPE_E; /* Default to hash type error */
+    switch(hash_type)
+    {
+        case WC_HASH_TYPE_MD2:
+#ifdef WOLFSSL_MD2
+            oid = MD2h;
+#endif
+            break;
+        case WC_HASH_TYPE_MD5:
+#ifndef NO_MD5
+            oid = MD5h;
+#endif
+            break;
+        case WC_HASH_TYPE_SHA:
+#ifndef NO_SHA
+            oid = SHAh;
+#endif
+            break;
+        case WC_HASH_TYPE_SHA256:
+#ifndef NO_SHA256
+            oid = SHA256h;
+#endif
+            break;
+        case WC_HASH_TYPE_SHA384:
+#if defined(WOLFSSL_SHA512) && defined(WOLFSSL_SHA384)
+            oid = SHA384h;
+#endif
+            break;
+        case WC_HASH_TYPE_SHA512:
+#ifdef WOLFSSL_SHA512
+            oid = SHA512h;
+#endif
+            break;
+
+        /* Not Supported */
+        case WC_HASH_TYPE_MD4:
+        case WC_HASH_TYPE_NONE:
+        default:
+            oid = BAD_FUNC_ARG;
+            break;
+    }
+    return oid;
+}
+#endif
+
 /* Get Hash digest size */
 int wc_HashGetDigestSize(enum wc_HashType hash_type)
 {
-    int dig_size = BAD_FUNC_ARG;
+    int dig_size = HASH_TYPE_E; /* Default to hash type error */
     switch(hash_type)
     {
-#ifndef NO_MD5
         case WC_HASH_TYPE_MD5:
+#ifndef NO_MD5
             dig_size = MD5_DIGEST_SIZE;
-            break;
 #endif
-#ifndef NO_SHA
+            break;
         case WC_HASH_TYPE_SHA:
+#ifndef NO_SHA
             dig_size = SHA_DIGEST_SIZE;
-            break;
 #endif
-#ifndef NO_SHA256
+            break;
         case WC_HASH_TYPE_SHA256:
+#ifndef NO_SHA256
             dig_size = SHA256_DIGEST_SIZE;
-            break;
 #endif
-#ifdef WOLFSSL_SHA512
-#ifdef WOLFSSL_SHA384
+            break;
         case WC_HASH_TYPE_SHA384:
+#if defined(WOLFSSL_SHA512) && defined(WOLFSSL_SHA384)
             dig_size = SHA384_DIGEST_SIZE;
+#endif
             break;
-#endif /* WOLFSSL_SHA384 */
         case WC_HASH_TYPE_SHA512:
+#ifdef WOLFSSL_SHA512
             dig_size = SHA512_DIGEST_SIZE;
+#endif
             break;
-#endif /* WOLFSSL_SHA512 */
 
         /* Not Supported */
-#ifdef WOLFSSL_MD2
         case WC_HASH_TYPE_MD2:
-#endif
-#ifndef NO_MD4
         case WC_HASH_TYPE_MD4:
-#endif
         case WC_HASH_TYPE_NONE:
         default:
             dig_size = BAD_FUNC_ARG;
@@ -81,7 +128,7 @@ int wc_HashGetDigestSize(enum wc_HashType hash_type)
 int wc_Hash(enum wc_HashType hash_type, const byte* data,
     word32 data_len, byte* hash, word32 hash_len)
 {
-    int ret = BAD_FUNC_ARG;
+    int ret = HASH_TYPE_E; /* Default to hash type error */
     word32 dig_size;
 
     /* Validate hash buffer size */
@@ -98,42 +145,37 @@ int wc_Hash(enum wc_HashType hash_type, const byte* data,
 
     switch(hash_type)
     {
-#ifndef NO_MD5
         case WC_HASH_TYPE_MD5:
+#ifndef NO_MD5
             ret = wc_Md5Hash(data, data_len, hash);
-            break;
 #endif
-#ifndef NO_SHA
+            break;
         case WC_HASH_TYPE_SHA:
+#ifndef NO_SHA
             ret = wc_ShaHash(data, data_len, hash);
-            break;
 #endif
-#ifndef NO_SHA256
+            break;
         case WC_HASH_TYPE_SHA256:
+#ifndef NO_SHA256
             ret = wc_Sha256Hash(data, data_len, hash);
-            break;
 #endif
-#ifdef WOLFSSL_SHA512
-#ifdef WOLFSSL_SHA384
+            break;
         case WC_HASH_TYPE_SHA384:
+#if defined(WOLFSSL_SHA512) && defined(WOLFSSL_SHA384)
             ret = wc_Sha384Hash(data, data_len, hash);
+#endif
             break;
-#endif /* WOLFSSL_SHA384 */
         case WC_HASH_TYPE_SHA512:
+#ifdef WOLFSSL_SHA512
             ret = wc_Sha512Hash(data, data_len, hash);
+#endif
             break;
-#endif /* WOLFSSL_SHA512 */
 
         /* Not Supported */
-#ifdef WOLFSSL_MD2
         case WC_HASH_TYPE_MD2:
-#endif
-#ifndef NO_MD4
         case WC_HASH_TYPE_MD4:
-#endif
         case WC_HASH_TYPE_NONE:
         default:
-            WOLFSSL_MSG("wc_Hash: Bad hash type");
             ret = BAD_FUNC_ARG;
             break;
     }

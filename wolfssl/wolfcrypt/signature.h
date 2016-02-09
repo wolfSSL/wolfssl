@@ -32,12 +32,9 @@
 
 enum wc_SignatureType {
     WC_SIGNATURE_TYPE_NONE = 0,
-#ifdef HAVE_ECC
     WC_SIGNATURE_TYPE_ECC = 1,
-#endif
-#ifndef NO_RSA
     WC_SIGNATURE_TYPE_RSA = 2,
-#endif
+    WC_SIGNATURE_TYPE_RSA_W_ENC = 3, /* Adds ASN algo header via wc_EncodeSignature */
 };
 
 WOLFSSL_API int wc_SignatureGetSize(enum wc_SignatureType sig_type,
