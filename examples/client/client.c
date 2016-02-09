@@ -737,20 +737,19 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     if (externalTest) {
         /* detect build cases that wouldn't allow test against wolfssl.com */
         int done = 0;
-        (void)done;
 
         #ifdef NO_RSA
-            done = 1;
+            done += 1;
         #endif
 
         /* www.globalsign.com does not respond to ipv6 ocsp requests */
         #if defined(TEST_IPV6) && defined(HAVE_OCSP)
-            if (!done) done = 1;
+            done += 1;
         #endif
 
         /* www.globalsign.com has limited supported cipher suites */
         #if defined(NO_AES) && defined(HAVE_OCSP)
-            if (!done) done = 1;
+            done += 1;
         #endif
 
         /* www.globalsign.com only supports static RSA or ECDHE with AES */
@@ -758,36 +757,36 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
          * as some users will most likely be on 32-bit systems where ECC
          * is not enabled by default */
         #if defined(HAVE_OCSP) && !defined(HAVE_ECC)
-            if (!done) done = 1;
+            done += 1;
         #endif
 
         #ifndef NO_PSK
-            if (!done) done = 1;
+            done += 1;
         #endif
 
         #ifdef NO_SHA
-            if (!done) done = 1;  /* external cert chain most likely has SHA */
+            done += 1;  /* external cert chain most likely has SHA */
         #endif
 
         #if !defined(HAVE_ECC) && !defined(WOLFSSL_STATIC_RSA)
             if (!XSTRNCMP(domain, "www.google.com", 14) ||
                 !XSTRNCMP(domain, "www.wolfssl.com", 15)) {
                 /* google/wolfssl need ECDHE or static RSA */
-                if (!done) done = 1;
+                done += 1;
             }
         #endif
 
         #if !defined(WOLFSSL_SHA384)
             if (!XSTRNCMP(domain, "www.wolfssl.com", 15)) {
                 /* wolfssl need sha384 for cert chain verify */
-                if (!done) done = 1;
+                done += 1;
             }
         #endif
 
         #if !defined(HAVE_AESGCM) && defined(NO_AES) && \
             !(defined(HAVE_CHACHA) && defined(HAVE_POLY1305))
             /* need at least on of these for external tests */
-            if (!done) done = 1;
+            done += 1;
         #endif
 
         if (done) {
