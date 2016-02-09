@@ -47,9 +47,11 @@
 static WOLFSSL_CTX* cipherSuiteCtx = NULL;
 static char nonblockFlag[] = "-N";
 static char noVerifyFlag[] = "-d";
-static char portFlag[] = "-p";
 static char flagSep[] = " ";
-static char svrPort[] = "0";
+#if !defined(USE_WINDOWS_API) && !defined(WOLFSSL_TIRTOS)
+    static char portFlag[] = "-p";
+    static char svrPort[] = "0";
+#endif
 
 
 #ifndef WOLFSSL_ALLOW_SSLV3
