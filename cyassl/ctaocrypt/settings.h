@@ -26,9 +26,6 @@
 #ifndef CTAO_CRYPT_SETTINGS_H
 #define CTAO_CRYPT_SETTINGS_H
 
-/* for reverse compatibility after name change */
-#include <cyassl/ctaocrypt/settings_comp.h>
-
 #ifdef __cplusplus
     extern "C" {
 #endif
@@ -112,6 +109,9 @@
 #ifdef CYASSL_USER_SETTINGS
     #include <user_settings.h>
 #endif
+
+/* for reverse compatibility after name change */
+#include <cyassl/ctaocrypt/settings_comp.h>
 
 
 #ifdef COMVERGE

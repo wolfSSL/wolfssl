@@ -110,8 +110,8 @@
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
       <Optimization>Disabled</Optimization>
-      <AdditionalIncludeDirectories>..\..\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;OPENSSL_EXTRA;HAVE_FIPS;HAVE_AESGCM;HAVE_HASHDRBG;WOLFSSL_SHA384;WOLFSSL_SHA512;NO_PSK;NO_HC128;NO_RC4;NO_RABBIT;NO_DSA;NO_MD4;USE_CERT_BUFFERS_2048;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>.\;..\..\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;HAVE_FIPS;USE_CERT_BUFFERS_2048;WOLFSSL_USER_SETTINGS;CYASSL_USER_SETTINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
       <PrecompiledHeader />
@@ -129,8 +129,8 @@
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
       <Optimization>Disabled</Optimization>
-      <AdditionalIncludeDirectories>..\..\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;OPENSSL_EXTRA;HAVE_FIPS;HAVE_AESGCM;HAVE_HASHDRBG;WOLFSSL_SHA384;WOLFSSL_SHA512;NO_PSK;NO_HC128;NO_RC4;NO_RABBIT;NO_DSA;NO_MD4;USE_CERT_BUFFERS_2048;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>.\;..\..\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;HAVE_FIPS;USE_CERT_BUFFERS_2048;WOLFSSL_USER_SETTINGS;CYASSL_USER_SETTINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
       <PrecompiledHeader />
@@ -146,8 +146,8 @@
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <ClCompile>
-      <AdditionalIncludeDirectories>..\..\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;OPENSSL_EXTRA;HAVE_FIPS;HAVE_AESGCM;HAVE_HASHDRBG;WOLFSSL_SHA384;WOLFSSL_SHA512;NO_PSK;NO_HC128;NO_RC4;NO_RABBIT;NO_DSA;NO_MD4;USE_CERT_BUFFERS_2048;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>.\;..\..\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;HAVE_FIPS;USE_CERT_BUFFERS_2048;WOLFSSL_USER_SETTINGS;CYASSL_USER_SETTINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
       <PrecompiledHeader />
       <WarningLevel>Level3</WarningLevel>
@@ -166,8 +166,8 @@
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
-      <AdditionalIncludeDirectories>..\..\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;OPENSSL_EXTRA;HAVE_FIPS;HAVE_AESGCM;HAVE_HASHDRBG;WOLFSSL_SHA384;WOLFSSL_SHA512;NO_PSK;NO_HC128;NO_RC4;NO_RABBIT;NO_DSA;NO_MD4;USE_CERT_BUFFERS_2048;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>.\;..\..\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;HAVE_FIPS;USE_CERT_BUFFERS_2048;WOLFSSL_USER_SETTINGS;CYASSL_USER_SETTINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
       <PrecompiledHeader />
       <WarningLevel>Level3</WarningLevel>
@@ -186,8 +186,8 @@
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='DLL Debug|Win32'">
     <ClCompile>
       <Optimization>Disabled</Optimization>
-      <AdditionalIncludeDirectories>..\..\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;OPENSSL_EXTRA;HAVE_FIPS;HAVE_AESGCM;HAVE_HASHDRBG;WOLFSSL_SHA384;WOLFSSL_SHA512;NO_PSK;NO_HC128;NO_RC4;NO_RABBIT;NO_DSA;NO_MD4;USE_CERT_BUFFERS_2048;CYASSL_DLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>.\;..\..\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;HAVE_FIPS;USE_CERT_BUFFERS_2048;WOLFSSL_USER_SETTINGS;CYASSL_USER_SETTINGS;CYASSL_DLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
       <PrecompiledHeader />
@@ -206,8 +206,8 @@
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='DLL Debug|x64'">
     <ClCompile>
       <Optimization>Disabled</Optimization>
-      <AdditionalIncludeDirectories>..\..\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>_DEBUG;_CONSOLE;OPENSSL_EXTRA;HAVE_FIPS;HAVE_AESGCM;HAVE_HASHDRBG;WOLFSSL_SHA384;WOLFSSL_SHA512;NO_PSK;NO_HC128;NO_RC4;NO_RABBIT;NO_DSA;NO_MD4;USE_CERT_BUFFERS_2048;CYASSL_DLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>.\;..\..\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>_DEBUG;_CONSOLE;HAVE_FIPS;USE_CERT_BUFFERS_2048;WOLFSSL_USER_SETTINGS;CYASSL_USER_SETTINGS;CYASSL_DLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
       <PrecompiledHeader />
@@ -224,8 +224,8 @@
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='DLL Release|Win32'">
     <ClCompile>
-      <AdditionalIncludeDirectories>..\..\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;OPENSSL_EXTRA;HAVE_FIPS;HAVE_AESGCM;HAVE_HASHDRBG;WOLFSSL_SHA384;WOLFSSL_SHA512;NO_PSK;NO_HC128;NO_RC4;NO_RABBIT;NO_DSA;NO_MD4;USE_CERT_BUFFERS_2048;CYASSL_DLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>.\;..\..\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;HAVE_FIPS;USE_CERT_BUFFERS_2048;WOLFSSL_USER_SETTINGS;CYASSL_USER_SETTINGS;CYASSL_DLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
       <PrecompiledHeader />
       <WarningLevel>Level3</WarningLevel>
@@ -244,8 +244,8 @@
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='DLL Release|x64'">
     <ClCompile>
-      <AdditionalIncludeDirectories>..\..\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;OPENSSL_EXTRA;HAVE_FIPS;HAVE_AESGCM;HAVE_HASHDRBG;WOLFSSL_SHA384;WOLFSSL_SHA512;NO_PSK;NO_HC128;NO_RC4;NO_RABBIT;NO_DSA;NO_MD4;USE_CERT_BUFFERS_2048;CYASSL_DLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>.\;..\..\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;HAVE_FIPS;USE_CERT_BUFFERS_2048;WOLFSSL_USER_SETTINGS;CYASSL_USER_SETTINGS;CYASSL_DLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
       <PrecompiledHeader />
       <WarningLevel>Level3</WarningLevel>

@@ -41,8 +41,8 @@
 			<Tool
 				Name="VCCLCompilerTool"
 				Optimization="0"
-				AdditionalIncludeDirectories="./"
-				PreprocessorDefinitions="OPENSSL_EXTRA;WOLFSSL_RIPEMD;WOLFSSL_SHA512;NO_PSK;WOLFSSL_SNIFFER"
+				AdditionalIncludeDirectories="./;./IDE/WIN"
+				PreprocessorDefinitions="WOLFSSL_LIB;WOLFSSL_USER_SETTINGS;CYASSL_USER_SETTINGS"
 				MinimalRebuild="true"
 				BasicRuntimeChecks="3"
 				RuntimeLibrary="3"
@@ -106,8 +106,8 @@
 				Name="VCCLCompilerTool"
 				Optimization="2"
 				EnableIntrinsicFunctions="true"
-				AdditionalIncludeDirectories="./"
-				PreprocessorDefinitions="OPENSSL_EXTRA;WOLFSSL_RIPEMD;WOLFSSL_SHA512;NO_PSK;WOLFSSL_SNIFFER"
+				AdditionalIncludeDirectories="./;./IDE/WIN"
+				PreprocessorDefinitions="WOLFSSL_LIB;WOLFSSL_USER_SETTINGS;CYASSL_USER_SETTINGS"
 				RuntimeLibrary="2"
 				EnableFunctionLevelLinking="true"
 				UsePrecompiledHeader="0"
@@ -173,6 +173,14 @@
 			</File>
 			<File
 				RelativePath=".\wolfcrypt\src\coding.c"
+				>
+			</File>
+			<File
+				RelativePath=".\wolfcrypt\src\chacha.c"
+				>
+			</File>
+			<File
+				RelativePath=".\wolfcrypt\src\chacha20_poly1305.c"
 				>
 			</File>
 			<File
@@ -248,6 +256,14 @@
 				>
 			</File>
 			<File
+				RelativePath=".\wolfcrypt\src\pkcs7.c"
+				>
+			</File>
+			<File
+				RelativePath=".\wolfcrypt\src\poly1305.c"
+				>
+			</File>
+			<File
 				RelativePath=".\wolfcrypt\src\wc_port.c"
 				>
 			</File>
@@ -284,6 +300,10 @@
 				>
 			</File>
 			<File
+				RelativePath=".\wolfcrypt\src\signature.c"
+				>
+			</File>
+			<File
 				RelativePath=".\src\ssl.c"
 				>
 			</File>
@@ -292,7 +312,7 @@
 				>
 			</File>
 			<File
-				RelativePath="wolfcrypt\src\wc_encrypt.c"
+				RelativePath=".\wolfcrypt\src\wc_encrypt.c"
 				>
 			</File>
 		</Filter>
@@ -301,6 +321,10 @@
 			Filter="h;hpp;hxx;hm;inl;inc;xsd"
 			UniqueIdentifier="{93995380-89BD-4b04-88EB-625FBE52EBFB}"
 			>
+			<File
+				RelativePath="IDE\WIN\user_settings.h"
+				>
+			</File>
 		</Filter>
 		<Filter
 			Name="Resource Files"
