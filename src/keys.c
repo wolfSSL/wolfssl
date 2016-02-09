@@ -58,7 +58,7 @@ int SetCipherSpecs(WOLFSSL* ssl)
 
     /* Chacha extensions, 0xcc */
     if (ssl->options.cipherSuite0 == CHACHA_BYTE) {
-    
+
     switch (ssl->options.cipherSuite) {
 #ifdef BUILD_TLS_ECDHE_RSA_WITH_CHACHA20_OLD_POLY1305_SHA256
     case TLS_ECDHE_RSA_WITH_CHACHA20_OLD_POLY1305_SHA256:
@@ -172,6 +172,66 @@ int SetCipherSpecs(WOLFSSL* ssl)
 
         break;
 #endif
+
+#ifdef BUILD_TLS_PSK_WITH_CHACHA20_POLY1305_SHA256
+    case TLS_PSK_WITH_CHACHA20_POLY1305_SHA256:
+        ssl->specs.bulk_cipher_algorithm = wolfssl_chacha;
+        ssl->specs.cipher_type           = aead;
+        ssl->specs.mac_algorithm         = sha256_mac;
+        ssl->specs.kea                   = psk_kea;
+        ssl->specs.sig_algo              = anonymous_sa_algo;
+        ssl->specs.hash_size             = SHA256_DIGEST_SIZE;
+        ssl->specs.pad_size              = PAD_SHA;
+        ssl->specs.static_ecdh           = 0;
+        ssl->specs.key_size              = CHACHA20_256_KEY_SIZE;
+        ssl->specs.block_size            = CHACHA20_BLOCK_SIZE;
+        ssl->specs.iv_size               = CHACHA20_IV_SIZE;
+        ssl->specs.aead_mac_size         = POLY1305_AUTH_SZ;
+
+        ssl->options.oldPoly             = 0; /* use recent padding RFC */
+        ssl->options.usingPSK_cipher     = 1;
+        break;
+#endif
+
+#ifdef BUILD_TLS_ECDHE_PSK_WITH_CHACHA20_POLY1305_SHA256
+    case TLS_ECDHE_PSK_WITH_CHACHA20_POLY1305_SHA256:
+        ssl->specs.bulk_cipher_algorithm = wolfssl_chacha;
+        ssl->specs.cipher_type           = aead;
+        ssl->specs.mac_algorithm         = sha256_mac;
+        ssl->specs.kea                   = ecdhe_psk_kea;
+        ssl->specs.sig_algo              = anonymous_sa_algo;
+        ssl->specs.hash_size             = SHA256_DIGEST_SIZE;
+        ssl->specs.pad_size              = PAD_SHA;
+        ssl->specs.static_ecdh           = 0;
+        ssl->specs.key_size              = CHACHA20_256_KEY_SIZE;
+        ssl->specs.block_size            = CHACHA20_BLOCK_SIZE;
+        ssl->specs.iv_size               = CHACHA20_IV_SIZE;
+        ssl->specs.aead_mac_size         = POLY1305_AUTH_SZ;
+
+        ssl->options.oldPoly             = 0; /* use recent padding RFC */
+        ssl->options.usingPSK_cipher     = 1;
+        break;
+#endif
+
+#ifdef BUILD_TLS_DHE_PSK_WITH_CHACHA20_POLY1305_SHA256
+    case TLS_DHE_PSK_WITH_CHACHA20_POLY1305_SHA256:
+        ssl->specs.bulk_cipher_algorithm = wolfssl_chacha;
+        ssl->specs.cipher_type           = aead;
+        ssl->specs.mac_algorithm         = sha256_mac;
+        ssl->specs.kea                   = dhe_psk_kea;
+        ssl->specs.sig_algo              = anonymous_sa_algo;
+        ssl->specs.hash_size             = SHA256_DIGEST_SIZE;
+        ssl->specs.pad_size              = PAD_SHA;
+        ssl->specs.static_ecdh           = 0;
+        ssl->specs.key_size              = CHACHA20_256_KEY_SIZE;
+        ssl->specs.block_size            = CHACHA20_BLOCK_SIZE;
+        ssl->specs.iv_size               = CHACHA20_IV_SIZE;
+        ssl->specs.aead_mac_size         = POLY1305_AUTH_SZ;
+
+        ssl->options.oldPoly             = 0; /* use recent padding RFC */
+        ssl->options.usingPSK_cipher     = 1;
+        break;
+#endif
     default:
         WOLFSSL_MSG("Unsupported cipher suite, SetCipherSpecs ChaCha");
         return UNSUPPORTED_SUITE;
@@ -180,7 +240,7 @@ int SetCipherSpecs(WOLFSSL* ssl)
 
     /* ECC extensions, or AES-CCM */
     if (ssl->options.cipherSuite0 == ECC_BYTE) {
-    
+
     switch (ssl->options.cipherSuite) {
 
 #ifdef HAVE_ECC
@@ -762,6 +822,59 @@ int SetCipherSpecs(WOLFSSL* ssl)
         ssl->specs.iv_size               = AESGCM_IMP_IV_SZ;
         ssl->specs.aead_mac_size         = AES_CCM_8_AUTH_SZ;
 
+        break;
+#endif
+
+#ifdef BUILD_TLS_ECDHE_ECDSA_WITH_NULL_SHA
+    case TLS_ECDHE_ECDSA_WITH_NULL_SHA :
+        ssl->specs.bulk_cipher_algorithm = wolfssl_cipher_null;
+        ssl->specs.cipher_type           = stream;
+        ssl->specs.mac_algorithm         = sha_mac;
+        ssl->specs.kea                   = ecc_diffie_hellman_kea;
+        ssl->specs.sig_algo              = ecc_dsa_sa_algo;
+        ssl->specs.hash_size             = SHA_DIGEST_SIZE;
+        ssl->specs.pad_size              = PAD_SHA;
+        ssl->specs.static_ecdh           = 0;
+        ssl->specs.key_size              = 0;
+        ssl->specs.block_size            = 0;
+        ssl->specs.iv_size               = 0;
+
+    break;
+#endif
+
+#ifdef BUILD_TLS_ECDHE_PSK_WITH_NULL_SHA256
+    case TLS_ECDHE_PSK_WITH_NULL_SHA256 :
+        ssl->specs.bulk_cipher_algorithm = wolfssl_cipher_null;
+        ssl->specs.cipher_type           = stream;
+        ssl->specs.mac_algorithm         = sha256_mac;
+        ssl->specs.kea                   = ecdhe_psk_kea;
+        ssl->specs.sig_algo              = anonymous_sa_algo;
+        ssl->specs.hash_size             = SHA256_DIGEST_SIZE;
+        ssl->specs.pad_size              = PAD_SHA;
+        ssl->specs.static_ecdh           = 0;
+        ssl->specs.key_size              = 0;
+        ssl->specs.block_size            = 0;
+        ssl->specs.iv_size               = 0;
+
+        ssl->options.usingPSK_cipher     = 1;
+        break;
+#endif
+
+#ifdef BUILD_TLS_ECDHE_PSK_WITH_AES_128_CBC_SHA256
+    case TLS_ECDHE_PSK_WITH_AES_128_CBC_SHA256 :
+        ssl->specs.bulk_cipher_algorithm = wolfssl_aes;
+        ssl->specs.cipher_type           = block;
+        ssl->specs.mac_algorithm         = sha256_mac;
+        ssl->specs.kea                   = ecdhe_psk_kea;
+        ssl->specs.sig_algo              = anonymous_sa_algo;
+        ssl->specs.hash_size             = SHA256_DIGEST_SIZE;
+        ssl->specs.pad_size              = PAD_SHA;
+        ssl->specs.static_ecdh           = 0;
+        ssl->specs.key_size              = AES_128_KEY_SIZE;
+        ssl->specs.block_size            = AES_BLOCK_SIZE;
+        ssl->specs.iv_size               = AES_IV_SIZE;
+
+        ssl->options.usingPSK_cipher     = 1;
         break;
 #endif
 #endif /* HAVE_ECC */
