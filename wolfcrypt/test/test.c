@@ -6172,11 +6172,14 @@ int ecc_test(void)
     WC_RNG  rng;
     byte    sharedA[1024];
     byte    sharedB[1024];
+#ifndef NO_ASN
     byte    sig[1024];
+    int     verify;
+#endif
     byte    digest[20];
     byte    exportBuf[1024];
     word32  x, y;
-    int     i, verify, ret;
+    int     i, ret;
     ecc_key userA, userB, pubKey;
 
     ret = wc_InitRng(&rng);
@@ -6266,6 +6269,7 @@ int ecc_test(void)
     for (i = 0; i < (int)sizeof(digest); i++)
         digest[i] = (byte)i;
 
+#ifndef NO_ASN
     x = sizeof(sig);
     ret = wc_ecc_sign_hash(digest, sizeof(digest), sig, &x, &rng, &userA);
 
@@ -6280,6 +6284,7 @@ int ecc_test(void)
 
     if (verify != 1)
         return -1016;
+#endif
 
     x = sizeof(exportBuf);
     ret = wc_ecc_export_private_only(&userA, exportBuf, &x);

@@ -1032,7 +1032,7 @@ AC_ARG_ENABLE([asn],
 if test "$ENABLED_ASN" = "no"
 then
     AM_CFLAGS="$AM_CFLAGS -DNO_ASN -DNO_CERTS"
-    if test "$ENABLED_DH" = "no"
+    if test "$ENABLED_DH" = "no" && test "$ENABLED_ECC" == "no"
     then
         # DH needs bigint
         AM_CFLAGS="$AM_CFLAGS -DNO_BIG_INT"
@@ -1056,18 +1056,21 @@ then
     AC_MSG_ERROR([please disable dsa if disabling asn.])
 fi
 
-if test "$ENABLED_ECC" = "yes" && test "$ENABLED_ASN" = "no"
+if test "x$ENABLED_CRYPTONLY" = "xyes"
 then
-    AC_MSG_ERROR([please disable ecc if disabling asn.])
-fi
+    if test "$ENABLED_ECC" = "yes" && test "$ENABLED_ASN" = "no"
+    then
+        AC_MSG_ERROR([please disable ecc if disabling asn.])
+    fi
 
-if test "$ENABLED_PSK" = "no" && test "$ENABLED_ASN" = "no"
-then
-    AC_MSG_ERROR([please enable psk if disabling asn.])
+    if test "$ENABLED_PSK" = "no" && test "$ENABLED_ASN" = "no"
+    then
+        AC_MSG_ERROR([please enable psk if disabling asn.])
+    fi
 fi
 
 # DH needs bigint
-if test "$ENABLED_ASN" = "no" && test "$ENABLED_DH" = "no"
+if test "$ENABLED_ASN" = "no" && test "$ENABLED_DH" = "no" && test "$ENABLED_ECC" = "no"
 then
     ENABLED_FASTMATH=no
     ENABLED_SLOWMATH=no
@@ -2182,7 +2185,7 @@ then
     # turn off fastmth if leanpsk on or asn off (w/o dh)
     if test "$ENABLED_LEANPSK" = "yes" || test "$ENABLED_ASN" = "no"
     then
-        if test "$ENABLED_DH" = "no"
+        if test "$ENABLED_DH" = "no" && test "$ENABLED_ECC" = "no"
         then
             ENABLED_FASTMATH=no
         else

@@ -1671,7 +1671,9 @@ void bench_eccKeyAgree(void)
     double start, total, each, milliEach;
     int    i, ret;
     byte   shared[32];
+#ifndef NO_ASN
     byte   sig[64+16];  /* der encoding too */
+#endif
     byte   digest[32];
     word32 x = 0;
 
@@ -1712,6 +1714,7 @@ void bench_eccKeyAgree(void)
         digest[i] = (byte)i;
 
 
+#ifndef NO_ASN
     start = current_time(1);
 
     for(i = 0; i < agreeTimes; i++) {
@@ -1739,6 +1742,7 @@ void bench_eccKeyAgree(void)
             return; 
         }
     }
+#endif
 
     total = current_time(0) - start;
     each  = total / agreeTimes;  /* per second  */

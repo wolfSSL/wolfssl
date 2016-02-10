@@ -1832,6 +1832,7 @@ int wc_ecc_init(ecc_key* key)
 }
 
 
+#ifndef NO_ASN
 /**
  Sign a message digest
  in        The message digest to sign
@@ -1865,6 +1866,7 @@ int wc_ecc_sign_hash(const byte* in, word32 inlen, byte* out, word32 *outlen,
 
     return err;
 }
+#endif /* !NO_ASN */
 
 /**
   Sign a message digest
@@ -2226,6 +2228,7 @@ static int ecc_mul2add(ecc_point* A, mp_int* kA,
 
 
 
+#ifndef NO_ASN
 /* verify
  *
  * w  = s^-1 mod n
@@ -2276,6 +2279,7 @@ int wc_ecc_verify_hash(const byte* sig, word32 siglen, const byte* hash,
 
     return err;
 }
+#endif /* !NO_ASN */
 
 /**
    Verify an ECC signature
@@ -3112,6 +3116,7 @@ int wc_ecc_import_private_key(const byte* priv, word32 privSz, const byte* pub,
     return ret;
 }
 
+#ifndef NO_ASN
 /**
    Convert ECC R,S to signature
    r       R component of signature
@@ -3151,6 +3156,7 @@ int wc_ecc_rs_to_sig(const char* r, const char* s, byte* out, word32* outlen)
 
     return err;
 }
+#endif /* !NO_ASN */
 
 /**
    Import raw ECC key
