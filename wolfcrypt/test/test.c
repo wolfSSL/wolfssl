@@ -6172,7 +6172,8 @@ int ecc_test(void)
     WC_RNG  rng;
     byte    sharedA[1024];
     byte    sharedB[1024];
-#ifndef NO_ASN
+#if !defined(NO_ASN) || (!defined(NO_SHA) && \
+        ((defined(HAVE_ECC192) && defined(HAVE_ECC224)) || defined(HAVE_ALL_CURVES)))
     byte    sig[1024];
     int     verify;
 #endif

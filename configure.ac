@@ -1034,7 +1034,7 @@ then
     AM_CFLAGS="$AM_CFLAGS -DNO_ASN -DNO_CERTS"
     if test "$ENABLED_DH" = "no" && test "$ENABLED_ECC" == "no"
     then
-        # DH needs bigint
+        # DH and ECC need bigint
         AM_CFLAGS="$AM_CFLAGS -DNO_BIG_INT"
     fi
 else
@@ -1056,20 +1056,7 @@ then
     AC_MSG_ERROR([please disable dsa if disabling asn.])
 fi
 
-if test "x$ENABLED_CRYPTONLY" = "xyes"
-then
-    if test "$ENABLED_ECC" = "yes" && test "$ENABLED_ASN" = "no"
-    then
-        AC_MSG_ERROR([please disable ecc if disabling asn.])
-    fi
-
-    if test "$ENABLED_PSK" = "no" && test "$ENABLED_ASN" = "no"
-    then
-        AC_MSG_ERROR([please enable psk if disabling asn.])
-    fi
-fi
-
-# DH needs bigint
+# DH and ECC need bigint
 if test "$ENABLED_ASN" = "no" && test "$ENABLED_DH" = "no" && test "$ENABLED_ECC" = "no"
 then
     ENABLED_FASTMATH=no
@@ -2164,6 +2151,19 @@ fi
 
 AM_CONDITIONAL([BUILD_CRYPTONLY], [test "x$ENABLED_CRYPTONLY" = "xyes"])
 
+if test "x$ENABLED_CRYPTONLY" = "xno"
+then
+    if test "x$ENABLED_PSK" = "xno" && test "x$ENABLED_ASN" = "xno"
+    then
+        AC_MSG_ERROR([please enable psk if disabling asn.])
+    fi
+
+    if test "x$ENABLED_ECC" = "xyes" && test "x$ENABLED_ASN" = "xno"
+    then
+        AC_MSG_ERROR([please disable ecc if disabling asn.])
+    fi
+fi
+
 
 # set fastmath default
 FASTMATH_DEFAULT=no
@@ -2182,7 +2182,7 @@ AC_ARG_ENABLE([fastmath],
 
 if test "x$ENABLED_FASTMATH" = "xyes"
 then
-    # turn off fastmth if leanpsk on or asn off (w/o dh)
+    # turn off fastmth if leanpsk on or asn off (w/o DH and ECC)
     if test "$ENABLED_LEANPSK" = "yes" || test "$ENABLED_ASN" = "no"
     then
         if test "$ENABLED_DH" = "no" && test "$ENABLED_ECC" = "no"
