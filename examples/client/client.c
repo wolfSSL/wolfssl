@@ -768,7 +768,8 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
             done += 1;  /* external cert chain most likely has SHA */
         #endif
 
-        #if !defined(HAVE_ECC) && !defined(WOLFSSL_STATIC_RSA)
+        #if !defined(HAVE_ECC) && !defined(WOLFSSL_STATIC_RSA) \
+            || ( defined(HAVE_ECC) && !defined(HAVE_SUPPORTED_CURVES) )
             if (!XSTRNCMP(domain, "www.google.com", 14) ||
                 !XSTRNCMP(domain, "www.wolfssl.com", 15)) {
                 /* google/wolfssl need ECDHE or static RSA */
