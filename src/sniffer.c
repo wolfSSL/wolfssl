@@ -1041,9 +1041,7 @@ static int LoadKeyFile(byte** keyBuf, word32* keyBufSz,
                 const char* password)
 {
     byte* loadBuf;
-    byte* saveBuf;
     long fileSz = 0;
-    int saveBufSz;
     XFILE file;
     int ret;
 
@@ -1067,10 +1065,21 @@ static int LoadKeyFile(byte** keyBuf, word32* keyBufSz,
     XFCLOSE(file);
 
     if (typeKey == SSL_FILETYPE_PEM) {
-        saveBuf = (byte*)malloc(fileSz);
+        byte* saveBuf   = (byte*)malloc(fileSz);
+        int   saveBufSz = 0;
 
-        saveBufSz = wolfSSL_KeyPemToDer(loadBuf, (int)fileSz,
+        ret = -1;
+        if (saveBuf != NULL) {
+            saveBufSz = wolfSSL_KeyPemToDer(loadBuf, (int)fileSz,
                                                 saveBuf, (int)fileSz, password);
+            if (saveBufSz < 0) {
+                saveBufSz = 0;
+                free(saveBuf);
+            }
+            else
+                ret = 0;
+        }
+
         free(loadBuf);
 
         *keyBuf = saveBuf;
@@ -1080,7 +1089,6 @@ static int LoadKeyFile(byte** keyBuf, word32* keyBufSz,
         *keyBuf = loadBuf;
         *keyBufSz = (word32)fileSz;
     }
-
 
     if (ret < 0) {
         return -1;
