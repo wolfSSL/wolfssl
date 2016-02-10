@@ -94,6 +94,16 @@ function run_renewcerts(){
 
     openssl x509 -in \1024/ca-cert.pem -text > \1024/tmp.pem
     mv \1024/tmp.pem \1024/ca-cert.pem
+    ############################################################
+    ########## update the self-signed rsa-signed-ecc-ca.pem ####
+    ############################################################
+    echo "Updating rsa-signed-ecc-ca.pem"
+    echo ""
+    #pipe the following arguments to openssl req...
+    echo -e  "US\nMontana\nBozeman\nwolfSSL\nConsulting_rsa-ecc\nwww.wolfssl.com\ninfo@wolfssl.com\n.\n.\n" | openssl req -new -key ca-key.pem -nodes -out ca-rsa-ecc-cert.csr
+
+    openssl x509 -req -in ca-rsa-ecc-cert.csr -days 1000 -extfile wolfssl.cnf -extensions wolfssl_opts -signkey ca-key.pem -out rsa-signed-ecc-ca.pem
+    rm ca-rsa-ecc-cert.csr
     ###########################################################
     ########## update and sign server-cert.pem ################
     ###########################################################
@@ -202,6 +212,17 @@ function run_renewcerts(){
     openssl x509 -in server-ecc-comp.pem -text > tmp.pem
     mv tmp.pem server-ecc-comp.pem
 
+    ############################################################
+    ###### update rsa-signed-ecc-cert.pem             ##########
+    ############################################################
+    echo "Updating rsa-signed-ecc-cert.pem"
+    echo ""
+    #pipe the following arguments to openssl req...
+    echo -e "US\nMontana\nBozeman\nwolfSSL\nConsulting_rsa-ecc\nwww.wolfssl.com\ninfo@wolfssl.com\n.\n.\n" | openssl req -new -key rsa-ecc-key.pem -out server-rsa-signed-ecc.csr
+
+
+    openssl req -x509 -in server-rsa-signed-ecc.csr -days 1000 -key ca-key.pem -out rsa-signed-ecc-cert.pem
+    rm server-rsa-signed-ecc.csr
     ############################################################
     ########## make .der files from .pem files #################
     ############################################################

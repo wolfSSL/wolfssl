@@ -1302,7 +1302,7 @@ typedef struct Suites {
 
 WOLFSSL_LOCAL
 void InitSuites(Suites*, ProtocolVersion, word16, word16, word16, word16,
-                word16, word16, int);
+                word16, word16, word16, int);
 WOLFSSL_LOCAL
 int  SetCipherList(Suites*, const char* list);
 
@@ -1823,6 +1823,7 @@ struct WOLFSSL_CTX {
     byte        sessionCacheFlushOff;
     byte        sendVerify;       /* for client side */
     byte        haveRSA;          /* RSA available */
+    byte        haveECC;          /* ECC available */
     byte        haveDH;           /* server DH parms set by user */
     byte        haveNTRU;         /* server private NTRU  key loaded */
     byte        haveECDSAsig;     /* server cert signed w/ ECDSA */
@@ -2230,6 +2231,7 @@ typedef struct Options {
     word16            sentNotify:1;       /* we've sent a close notify */
     word16            usingCompression:1; /* are we using compression */
     word16            haveRSA:1;          /* RSA available */
+    word16            haveECC:1;          /* ECC available */
     word16            haveDH:1;           /* server DH parms set by user */
     word16            haveNTRU:1;         /* server NTRU  private key loaded */
     word16            haveQSH:1;          /* have QSH ability */
