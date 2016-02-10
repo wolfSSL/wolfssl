@@ -818,6 +818,7 @@ void InitSuites(Suites* suites, ProtocolVersion pv, word16 haveRSA,
     (void)havePSK;
     (void)haveNTRU;
     (void)haveStaticECC;
+    (void)haveECC;
 
     if (suites == NULL) {
         WOLFSSL_MSG("InitSuites pointer error");
@@ -15729,9 +15730,9 @@ int DoSessionTicket(WOLFSSL* ssl,
         }
 
         if (CipherRequires(first, second, REQUIRES_ECC)) {
-            WOLFSSL_MSG("Requires ECCDSA");
+            WOLFSSL_MSG("Requires ECC");
             if (ssl->options.haveECC == 0) {
-                WOLFSSL_MSG("Don't have ECCDSA");
+                WOLFSSL_MSG("Don't have ECC");
                 return 0;
             }
         }
@@ -15812,7 +15813,6 @@ int DoSessionTicket(WOLFSSL* ssl,
                 if (ssl->suites->suites[i]   == peerSuites->suites[j] &&
                     ssl->suites->suites[i+1] == peerSuites->suites[j+1] ) {
 
-                    WOLFSSL_MSG("found one suite match");
                     if (VerifyServerSuite(ssl, i)) {
                         int result;
                         WOLFSSL_MSG("Verified suite validity");
