@@ -47,6 +47,9 @@ endif
 
 endif
 
+if BUILD_PSK
+dist_noinst_SCRIPTS+= scripts/psk.test
+endif
 
 EXTRA_DIST +=  scripts/testsuite.pcap
 # leave openssl.test as extra until non bash works
