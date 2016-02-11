@@ -1148,7 +1148,7 @@ WOLFSSL_LOCAL int GetObjectId(const byte* input, word32* inOutIdx, word32* oid,
 }
 
 
-#ifndef HAVE_USER_RSA
+#if !defined(NO_RSA) && !defined(HAVE_USER_RSA) && (defined(OPENSSL_EXTRA) || defined(RSA_DECODE_EXTRA))
 static int SkipObjectId(const byte* input, word32* inOutIdx, word32 maxIdx)
 {
     int    length;
