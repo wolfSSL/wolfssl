@@ -498,8 +498,18 @@ int SuiteTest(void)
         exit(EXIT_FAILURE);
     }
 #endif
+#ifndef WC_STRICT_SIG
+    /* add extra signature test suites */
+    strcpy(argv0[1], "tests/test-sig.conf");
+    printf("starting sig extra cipher suite tests\n");
+    test_harness(&args);
+    if (args.return_code != 0) {
+        printf("error from script %d\n", args.return_code);
+        exit(EXIT_FAILURE);
+    }
+#endif
 #ifdef HAVE_QSH
-    /* add dtls extra suites */
+    /* add QSH extra suites */
     strcpy(argv0[1], "tests/test-qsh.conf");
     printf("starting qsh extra cipher suite tests\n");
     test_harness(&args);
