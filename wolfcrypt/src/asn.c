@@ -1148,7 +1148,9 @@ WOLFSSL_LOCAL int GetObjectId(const byte* input, word32* inOutIdx, word32* oid,
 }
 
 
+#ifndef NO_RSA
 #ifndef HAVE_USER_RSA
+#if defined(OPENSSL_EXTRA) || defined(RSA_DECODE_EXTRA)
 static int SkipObjectId(const byte* input, word32* inOutIdx, word32 maxIdx)
 {
     int    length;
@@ -1163,7 +1165,9 @@ static int SkipObjectId(const byte* input, word32* inOutIdx, word32 maxIdx)
 
     return 0;
 }
-#endif
+#endif /* OPENSSL_EXTRA || RSA_DECODE_EXTRA */
+#endif /* !HAVE_USER_RSA */
+#endif /* !NO_RSA */
 
 WOLFSSL_LOCAL int GetAlgoId(const byte* input, word32* inOutIdx, word32* oid,
                      word32 oidType, word32 maxIdx)
