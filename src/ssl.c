@@ -515,7 +515,8 @@ int wolfSSL_SetTmpDH(WOLFSSL* ssl, const unsigned char* p, int pSz,
     #endif
     InitSuites(ssl->suites, ssl->version, haveRSA, havePSK, ssl->options.haveDH,
                ssl->options.haveNTRU, ssl->options.haveECDSAsig,
-               ssl->options.haveStaticECC, ssl->options.side);
+               ssl->options.haveECC, ssl->options.haveStaticECC,
+               ssl->options.side);
 
     WOLFSSL_LEAVE("wolfSSL_SetTmpDH", 0);
     return SSL_SUCCESS;
@@ -2059,7 +2060,8 @@ int wolfSSL_SetVersion(WOLFSSL* ssl, int version)
 
     InitSuites(ssl->suites, ssl->version, haveRSA, havePSK, ssl->options.haveDH,
                 ssl->options.haveNTRU, ssl->options.haveECDSAsig,
-                ssl->options.haveStaticECC, ssl->options.side);
+                ssl->options.haveECC, ssl->options.haveStaticECC,
+                ssl->options.side);
 
     return SSL_SUCCESS;
 }
@@ -3182,10 +3184,26 @@ static int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
         }
 
     #ifdef HAVE_ECC
-        if (ctx)
+        if (ctx) {
             ctx->pkCurveOID = cert->pkCurveOID;
-        if (ssl)
+        #ifndef WC_STRICT_SIG
+            if (cert->keyOID == ECDSAk) {
+                ctx->haveECC = 1;
+            }
+        #else
+            ctx->haveECC = ctx->haveECDSAsig;
+        #endif
+        }
+        if (ssl) {
             ssl->pkCurveOID = cert->pkCurveOID;
+        #ifndef WC_STRICT_SIG
+            if (cert->keyOID == ECDSAk) {
+                ssl->options.haveECC = 1;
+            }
+        #else
+            ssl->options.haveECC = ssl->options.haveECDSAsig;
+        #endif
+        }
     #endif
 
         FreeDecodedCert(cert);
@@ -4608,6 +4626,11 @@ void wolfSSL_CTX_set_verify(WOLFSSL_CTX* ctx, int mode, VerifyCallback vc)
     if (mode & SSL_VERIFY_FAIL_IF_NO_PEER_CERT)
         ctx->failNoCert = 1;
 
+    if (mode & SSL_VERIFY_FAIL_EXCEPT_PSK) {
+        ctx->failNoCert    = 0; /* fail on all is set to fail on PSK */
+        ctx->failNoCertxPSK = 1;
+    }
+
     ctx->verifyCallback = vc;
 }
 
@@ -4627,6 +4650,11 @@ void wolfSSL_set_verify(WOLFSSL* ssl, int mode, VerifyCallback vc)
 
     if (mode & SSL_VERIFY_FAIL_IF_NO_PEER_CERT)
         ssl->options.failNoCert = 1;
+
+    if (mode & SSL_VERIFY_FAIL_EXCEPT_PSK) {
+        ssl->options.failNoCert    = 0; /* fail on all is set to fail on PSK */
+        ssl->options.failNoCertxPSK = 1;
+    }
 
     ssl->verifyCallback = vc;
 }
@@ -7170,8 +7198,8 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         #endif
         InitSuites(ssl->suites, ssl->version, haveRSA, TRUE,
                    ssl->options.haveDH, ssl->options.haveNTRU,
-                   ssl->options.haveECDSAsig, ssl->options.haveStaticECC,
-                   ssl->options.side);
+                   ssl->options.haveECDSAsig, ssl->options.haveECC,
+                   ssl->options.haveStaticECC, ssl->options.side);
     }
 
 
@@ -7197,8 +7225,8 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         #endif
         InitSuites(ssl->suites, ssl->version, haveRSA, TRUE,
                    ssl->options.haveDH, ssl->options.haveNTRU,
-                   ssl->options.haveECDSAsig, ssl->options.haveStaticECC,
-                   ssl->options.side);
+                   ssl->options.haveECDSAsig, ssl->options.haveECC,
+                   ssl->options.haveStaticECC, ssl->options.side);
     }
 
 
@@ -7603,8 +7631,8 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         #endif
         InitSuites(ssl->suites, ssl->version, haveRSA, havePSK,
                    ssl->options.haveDH, ssl->options.haveNTRU,
-                   ssl->options.haveECDSAsig, ssl->options.haveStaticECC,
-                   ssl->options.side);
+                   ssl->options.haveECDSAsig, ssl->options.haveECC,
+                   ssl->options.haveStaticECC, ssl->options.side);
     }
 #endif
 
@@ -17073,6 +17101,9 @@ int wolfSSL_CTX_get_verify_mode(WOLFSSL_CTX* ctx)
 
     if (ctx->failNoCert)
         mode |= SSL_VERIFY_FAIL_IF_NO_PEER_CERT;
+
+    if (ctx->failNoCertxPSK)
+        mode |= SSL_VERIFY_FAIL_EXCEPT_PSK;
 
     WOLFSSL_LEAVE("wolfSSL_CTX_get_verify_mode", mode);
     return mode;

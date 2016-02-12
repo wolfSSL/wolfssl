@@ -257,6 +257,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     int    useAnyAddr = 0;
     word16 port = wolfSSLPort;
     int    usePsk = 0;
+    int    usePskPlus = 0;
     int    useAnon = 0;
     int    doDTLS = 0;
     int    needDH = 0;
@@ -329,7 +330,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
 #ifdef WOLFSSL_VXWORKS
     useAnyAddr = 1;
 #else
-    while ((ch = mygetopt(argc, argv, "?dbstnNufrawPIR:p:v:l:A:c:k:Z:S:oO:D:L:ieB:"))
+    while ((ch = mygetopt(argc, argv, "?dbstnNufrawPIR:p:v:l:A:c:k:Z:S:oO:D:L:ieB:j"))
                          != -1) {
         switch (ch) {
             case '?' :
@@ -346,6 +347,10 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
 
             case 's' :
                 usePsk = 1;
+                break;
+
+            case 'j' :
+                usePskPlus = 1;
                 break;
 
             case 't' :
@@ -609,7 +614,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
 #endif
 
 #if !defined(NO_FILESYSTEM) && !defined(NO_CERTS)
-    if (!usePsk && !useAnon) {
+    if ((!usePsk || usePskPlus) && !useAnon) {
         if (SSL_CTX_use_certificate_chain_file(ctx, ourCert)
                                          != SSL_SUCCESS)
             err_sys("can't load server cert file, check file and run from"
@@ -630,7 +635,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     }
 #endif
 #if !defined(NO_FILESYSTEM) && !defined(NO_CERTS)
-    if (!useNtruKey && !usePsk && !useAnon) {
+    if (!useNtruKey && (!usePsk || usePskPlus) && !useAnon) {
         if (SSL_CTX_use_PrivateKey_file(ctx, ourKey, SSL_FILETYPE_PEM)
                                          != SSL_SUCCESS)
             err_sys("can't load server private key file, check file and run "
@@ -638,14 +643,14 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     }
 #endif
 
-    if (usePsk) {
+    if (usePsk || usePskPlus) {
 #ifndef NO_PSK
         SSL_CTX_set_psk_server_callback(ctx, my_psk_server_cb);
 
         if (sendPskIdentityHint == 1)
             SSL_CTX_use_psk_identity_hint(ctx, "cyassl server");
 
-        if (cipherList == NULL) {
+        if (cipherList == NULL && !usePskPlus) {
             const char *defaultCipherList;
             #if defined(HAVE_AESGCM) && !defined(NO_DH)
                 defaultCipherList = "DHE-PSK-AES128-GCM-SHA256";
@@ -672,13 +677,15 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     }
 
 #if !defined(NO_FILESYSTEM) && !defined(NO_CERTS)
-    /* if not using PSK, verify peer with certs */
-    if (doCliCertCheck && usePsk == 0 && useAnon == 0) {
+    /* if not using PSK, verify peer with certs
+       if using PSK Plus then verify peer certs except PSK suites */
+    if (doCliCertCheck && (usePsk == 0 || usePskPlus) && useAnon == 0) {
         SSL_CTX_set_verify(ctx, SSL_VERIFY_PEER |
-                                SSL_VERIFY_FAIL_IF_NO_PEER_CERT,0);
+                                ((usePskPlus)? SSL_VERIFY_FAIL_EXCEPT_PSK :
+                                SSL_VERIFY_FAIL_IF_NO_PEER_CERT),0);
         if (SSL_CTX_load_verify_locations(ctx, verifyCert, 0) != SSL_SUCCESS)
             err_sys("can't load ca file, Please run from wolfSSL home dir");
-    }
+   }
 #endif
 
 #if defined(CYASSL_SNIFFER)
@@ -795,7 +802,8 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
             wolfSSL_dtls_set_peer(ssl, &cliaddr, len);
         }
 #endif
-        if (usePsk == 0 || useAnon == 1 || cipherList != NULL || needDH == 1) {
+        if ((usePsk == 0 || usePskPlus) || useAnon == 1 || cipherList != NULL
+                                                               || needDH == 1) {
             #if !defined(NO_FILESYSTEM) && !defined(NO_DH) && !defined(NO_ASN)
                 CyaSSL_SetTmpDH_file(ssl, ourDhParam, SSL_FILETYPE_PEM);
             #elif !defined(NO_DH)

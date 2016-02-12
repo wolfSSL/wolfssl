@@ -2495,6 +2495,9 @@ fi
 AM_CONDITIONAL([BUILD_MCAPI], [test "x$ENABLED_MCAPI" = "xyes"])
 
 
+# check if PSK was enabled for conditionally running psk.test script
+AM_CONDITIONAL([BUILD_PSK], [test "x$ENABLED_PSK" = "xyes"])
+
 # Check for build-type conflicts
 AS_IF([test "x$ENABLED_MAXSTRENGTH" = "xyes" && \
        test "x$ENABLED_LEANPSK" = "xyes"],

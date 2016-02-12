@@ -698,6 +698,7 @@ enum { /* ssl Constants */
     SSL_VERIFY_PEER                 = 1,
     SSL_VERIFY_FAIL_IF_NO_PEER_CERT = 2,
     SSL_VERIFY_CLIENT_ONCE          = 4,
+    SSL_VERIFY_FAIL_EXCEPT_PSK      = 8,
 
     SSL_SESS_CACHE_OFF                = 30,
     SSL_SESS_CACHE_CLIENT             = 31,
