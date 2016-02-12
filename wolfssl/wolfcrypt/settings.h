@@ -1004,6 +1004,31 @@ static char *fgets(char *buff, int sz, FILE *fp)
     #endif
 #endif
 
+/* ECC Configs */
+#ifdef HAVE_ECC
+    /* By default enable Sign, Verify, DHE, Key Import and Key Export unless explicitly disabled */
+    #ifndef NO_ECC_SIGN
+        #undef HAVE_ECC_SIGN
+        #define HAVE_ECC_SIGN
+    #endif
+    #ifndef NO_ECC_VERIFY
+        #undef HAVE_ECC_VERIFY
+        #define HAVE_ECC_VERIFY
+    #endif
+    #ifndef NO_ECC_DHE
+        #undef HAVE_ECC_DHE
+        #define HAVE_ECC_DHE
+    #endif
+    #ifndef NO_ECC_KEY_IMPORT
+        #undef HAVE_ECC_KEY_IMPORT
+        #define HAVE_ECC_KEY_IMPORT
+    #endif
+    #ifndef NO_ECC_KEY_EXPORT
+        #undef HAVE_ECC_KEY_EXPORT
+        #define HAVE_ECC_KEY_EXPORT
+    #endif
+#endif /* HAVE_ECC */
+
 /* if desktop type system and fastmath increase default max bits */
 #ifdef WOLFSSL_X86_64_BUILD
     #ifdef USE_FAST_MATH

@@ -27,6 +27,34 @@
 /* in case user set HAVE_ECC there */
 #include <wolfssl/wolfcrypt/settings.h>
 
+/*
+Possible ECC enable options:
+ * HAVE_ECC:            Overall control of ECC                  default: on
+ * HAVE_ECC_ENCRYPT:    ECC encrypt/decrypt w/AES and HKDF      default: off
+ * HAVE_ECC_SIGN:       ECC sign                                default: on
+ * HAVE_ECC_VERIFY:     ECC verify                              default: on
+ * HAVE_ECC_DHE:        ECC build shared secret                 default: on
+ * HAVE_ECC_KEY_IMPORT: ECC Key import                          default: on
+ * HAVE_ECC_KEY_EXPORT: ECC Key export                          default: on
+ * ECC_SHAMIR:          Enables Shamir calc method              default: on
+ * HAVE_COMP_KEY:       Enables compressed key                  default: off
+ * WOLFSSL_VALIDATE_ECC_IMPORT: Validate ECC key on import      default: off
+*/
+
+/*
+ECC Curves:
+ * ECC_USER_CURVES: Allows custom combination of key sizes below
+ * HAVE_ALL_CURVES: Enable all key sizes (on unless ECC_USER_CURVES is defined)
+ * HAVE_ECC112: 112 bit key
+ * HAVE_ECC128: 128 bit key
+ * HAVE_ECC160: 160 bit key
+ * HAVE_ECC192: 192 bit key
+ * HAVE_ECC224: 224 bit key
+ * NO_ECC256: Disables 256 bit key (on by default)
+ * HAVE_ECC384: 384 bit key
+ * HAVE_ECC521: 521 bit key
+*/
+
 #ifdef HAVE_ECC
 
 #include <wolfssl/wolfcrypt/ecc.h>
@@ -1506,13 +1534,13 @@ int wc_ecc_is_valid_idx(int n)
    return 0;
 }
 
-
+#ifdef HAVE_ECC_DHE
 /**
   Create an ECC shared secret between two keys
   private_key      The private ECC key
   public_key       The public key
   out              [out] Destination of the shared secret
-                   Conforms to EC-DH from ANSI X9.63
+                         Conforms to EC-DH from ANSI X9.63
   outlen           [in/out] The max size and resulting size of the shared secret
   return           MP_OKAY if successful
 */
@@ -1533,10 +1561,12 @@ int wc_ecc_shared_secret(ecc_key* private_key, ecc_key* public_key, byte* out,
       return ECC_BAD_ARG_E;
    }
 
+   /* Verify domain params supplied */
    if (wc_ecc_is_valid_idx(private_key->idx) == 0 ||
        wc_ecc_is_valid_idx(public_key->idx)  == 0)
       return ECC_BAD_ARG_E;
 
+   /* Verify curve name matches */
    if (XSTRNCMP(private_key->dp->name, public_key->dp->name, ECC_MAXNAME) != 0)
       return ECC_BAD_ARG_E;
 
@@ -1576,14 +1606,14 @@ int wc_ecc_shared_secret(ecc_key* private_key, ecc_key* public_key, byte* out,
 }
 
 /**
- Create an ECC shared secret between two keys
+ Create an ECC shared secret between private key and public point
  private_key      The private ECC key
- point              The point to use (public key)
+ point            The point to use (public key)
  out              [out] Destination of the shared secret
- Conforms to EC-DH from ANSI X9.63
+                        Conforms to EC-DH from ANSI X9.63
  outlen           [in/out] The max size and resulting size of the shared secret
  return           MP_OKAY if successful
- */
+*/
 int wc_ecc_shared_secret_ssh(ecc_key* private_key, ecc_point* point,
                              byte* out, word32 *outlen)
 {
@@ -1600,6 +1630,7 @@ int wc_ecc_shared_secret_ssh(ecc_key* private_key, ecc_point* point,
         return ECC_BAD_ARG_E;
     }
 
+    /* Verify domain params supplied */
     if (wc_ecc_is_valid_idx(private_key->idx) == 0)
         return ECC_BAD_ARG_E;
 
@@ -1637,7 +1668,7 @@ int wc_ecc_shared_secret_ssh(ecc_key* private_key, ecc_point* point,
 
     return err;
 }
-
+#endif /* HAVE_ECC_DHE */
 
 /* return 1 if point is at infinity, 0 if not, < 0 on error */
 int wc_ecc_point_is_at_infinity(ecc_point* p)
@@ -1832,6 +1863,8 @@ int wc_ecc_init(ecc_key* key)
 }
 
 
+#ifdef HAVE_ECC_SIGN
+
 #ifndef NO_ASN
 /**
  Sign a message digest
@@ -1973,7 +2006,7 @@ int wc_ecc_sign_hash_ex(const byte* in, word32 inlen, WC_RNG* rng,
 
    return err;
 }
-
+#endif /* HAVE_ECC_SIGN */
 
 /**
   Free an ECC key from memory
@@ -2227,7 +2260,7 @@ static int ecc_mul2add(ecc_point* A, mp_int* kA,
 #endif /* ECC_SHAMIR */
 
 
-
+#ifdef HAVE_ECC_VERIFY
 #ifndef NO_ASN
 /* verify
  *
@@ -2444,7 +2477,9 @@ int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
 
    return err;
 }
+#endif /* HAVE_ECC_VERIFY */
 
+#ifdef HAVE_ECC_KEY_IMPORT
 /* import point from der */
 int wc_ecc_import_point_der(byte* in, word32 inLen, const int curve_idx,
                             ecc_point* point)
@@ -2566,7 +2601,9 @@ int wc_ecc_import_point_der(byte* in, word32 inLen, const int curve_idx,
 
     return err;
 }
+#endif /* HAVE_ECC_KEY_IMPORT */
 
+#ifdef HAVE_ECC_KEY_EXPORT
 /* export point to der */
 int wc_ecc_export_point_der(const int curve_idx, ecc_point* point, byte* out,
                             word32* outLen)
@@ -2716,7 +2753,7 @@ int wc_ecc_export_x963_ex(ecc_key* key, byte* out, word32* outLen,
 
     return NOT_COMPILED_IN;
 }
-
+#endif /* HAVE_ECC_KEY_EXPORT */
 
 /* is ec point on curve described by dp ? */
 static int ecc_is_point(const ecc_set_type* dp, ecc_point* ecp, mp_int* prime)
@@ -2920,7 +2957,7 @@ int wc_ecc_check_key(ecc_key* key)
     return err;
 }
 
-
+#ifdef HAVE_ECC_KEY_IMPORT
 /* import public ECC key in ANSI X9.63 format */
 int wc_ecc_import_x963(const byte* in, word32 inLen, ecc_key* key)
 {
@@ -3069,8 +3106,9 @@ int wc_ecc_import_x963(const byte* in, word32 inLen, ecc_key* key)
 
    return err;
 }
+#endif /* HAVE_ECC_KEY_IMPORT */
 
-
+#ifdef HAVE_ECC_KEY_EXPORT
 /* export ecc private key only raw, outLen is in/out size
    return MP_OKAY on success */
 int wc_ecc_export_private_only(ecc_key* key, byte* out, word32* outLen)
@@ -3094,8 +3132,9 @@ int wc_ecc_export_private_only(ecc_key* key, byte* out, word32* outLen)
    return mp_to_unsigned_bin(&key->k, out + (numlen -
                                              mp_unsigned_bin_size(&key->k)));
 }
+#endif /* HAVE_ECC_KEY_EXPORT */
 
-
+#ifdef HAVE_ECC_KEY_IMPORT
 /* ecc private key import, public key in ANSI X9.63 format, private raw */
 int wc_ecc_import_private_key(const byte* priv, word32 privSz, const byte* pub,
                            word32 pubSz, ecc_key* key)
@@ -3115,6 +3154,7 @@ int wc_ecc_import_private_key(const byte* priv, word32 privSz, const byte* pub,
 
     return ret;
 }
+#endif /* HAVE_ECC_KEY_IMPORT */
 
 #ifndef NO_ASN
 /**
@@ -3158,6 +3198,7 @@ int wc_ecc_rs_to_sig(const char* r, const char* s, byte* out, word32* outlen)
 }
 #endif /* !NO_ASN */
 
+#ifdef HAVE_ECC_KEY_IMPORT
 /**
    Import raw ECC key
    key       The destination ecc_key structure
@@ -3241,7 +3282,7 @@ int wc_ecc_import_raw(ecc_key* key, const char* qx, const char* qy,
 
     return err;
 }
-
+#endif /* HAVE_ECC_KEY_IMPORT */
 
 /* key size in octets */
 int wc_ecc_size(ecc_key* key)

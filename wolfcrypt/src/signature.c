@@ -38,7 +38,7 @@
 #endif
 
 /* If ECC and RSA are disabled then disable signature wrapper */
-#if !defined(HAVE_ECC) && defined(NO_RSA)
+#if (!defined(HAVE_ECC) || (defined(HAVE_ECC) && !defined(NO_ASN))) && defined(NO_RSA)
     #undef NO_SIG_WRAPPER
     #define NO_SIG_WRAPPER
 #endif
@@ -54,7 +54,7 @@ static int wc_SignatureDerEncode(enum wc_HashType hash_type, byte** hash_data,
     if (ret > 0) {
         int oid = ret;
 
-        /* Allocate buffer for hash and encoded ASN header */
+        /* Allocate buffer for hash and max DER encoded */
         word32 digest_len = *hash_len + MAX_DER_DIGEST_SZ;
         byte *digest_buf = (byte*)XMALLOC(digest_len, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         if (digest_buf) {
@@ -62,7 +62,7 @@ static int wc_SignatureDerEncode(enum wc_HashType hash_type, byte** hash_data,
             if (ret > 0) {
                 digest_len = ret;
 
-                /* Replace hash with digest (encoded ASN header + hash) */
+                /* Replace hash with digest (DER encoding + hash) */
                 XFREE(*hash_data, NULL, DYNAMIC_TYPE_TMP_BUFFER);
                 *hash_data = digest_buf;
                 *hash_len = digest_len;
@@ -194,7 +194,7 @@ int wc_SignatureVerify(
                     break;
                 }
                 /* Otherwise fall-through and perform normal RSA verify against updated
-                 * hash + encoded ASN header */
+                 * DER encoding + hash */
 #endif
 
             case WC_SIGNATURE_TYPE_RSA:
@@ -310,8 +310,8 @@ int wc_SignatureGenerate(
                 if (ret < 0) {
                     break;
                 }
-                /* Otherwise fall-through and perform normal RSA verify against updated
-                 * hash + encoded ASN header */
+                /* Otherwise fall-through and perform normal RSA sign against updated
+                 * DER encoding + hash */
 #endif
 
             case WC_SIGNATURE_TYPE_RSA:
