@@ -38,7 +38,8 @@
 #endif
 
 /* If ECC and RSA are disabled then disable signature wrapper */
-#if (!defined(HAVE_ECC) || (defined(HAVE_ECC) && !defined(NO_ASN))) && defined(NO_RSA)
+#if (!defined(HAVE_ECC) || (defined(HAVE_ECC) && !defined(HAVE_ECC_SIGN) \
+    && !defined(HAVE_ECC_VERIFY))) && defined(NO_RSA)
     #undef NO_SIG_WRAPPER
     #define NO_SIG_WRAPPER
 #endif
@@ -169,7 +170,7 @@ int wc_SignatureVerify(
         switch(sig_type) {
             case WC_SIGNATURE_TYPE_ECC:
             {
-#ifdef HAVE_ECC
+#if defined(HAVE_ECC) && defined(HAVE_ECC_VERIFY)
                 int is_valid_sig = 0;
 
                 /* Perform verification of signature using provided ECC key */
@@ -292,7 +293,7 @@ int wc_SignatureGenerate(
         /* Create signature using hash as data */
         switch(sig_type) {
             case WC_SIGNATURE_TYPE_ECC:
-#ifdef HAVE_ECC
+#if defined(HAVE_ECC) && defined(HAVE_ECC_SIGN)
                 /* Create signature using provided ECC key */
                 ret = wc_ecc_sign_hash(hash_data, hash_len, sig, sig_len, rng, (ecc_key*)key);
 #else

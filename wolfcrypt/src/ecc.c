@@ -57,6 +57,10 @@ ECC Curves:
 
 #ifdef HAVE_ECC
 
+#if (defined(HAVE_ECC_SIGN) || defined(HAVE_ECC_VERIFY)) && defined(NO_ASN)
+    #error ASN must be enabled for ECC sign/verify
+#endif
+
 #include <wolfssl/wolfcrypt/ecc.h>
 #include <wolfssl/openssl/ec.h>
 #include <wolfssl/wolfcrypt/asn.h>

@@ -25,6 +25,13 @@
 
 #include <wolfssl/wolfcrypt/settings.h>
 
+/*
+ASN Options:
+ * NO_ASN_TIME: Disables time parts of the ASN code for systems without an RTC
+    or wishing to save space.
+ * IGNORE_NAME_CONSTRAINTS: Skip ASN name checks.
+*/
+
 #ifndef NO_ASN
 
 #ifdef HAVE_RTP_SYS
@@ -94,7 +101,7 @@
     #define FALSE 0
 #endif
 
-
+#ifndef NO_ASN_TIME
 #if defined(HAVE_RTP_SYS)
     /* uses parital <time.h> structures */
     #define XTIME(tl)       (0)
@@ -491,6 +498,7 @@ time_t idirect_time(time_t * timer)
 
 #endif /* IDIRECT_DEV_TIME */
 
+#endif /* !NO_ASN_TIME */
 
 WOLFSSL_LOCAL int GetLength(const byte* input, word32* inOutIdx, int* len,
                            word32 maxIdx)
@@ -617,7 +625,7 @@ static int GetShortInt(const byte* input, word32* inOutIdx, int* number)
 }
 #endif /* !NO_PWDBASED */
 
-
+#ifndef NO_ASN_TIME
 /* May not have one, not an error */
 static int GetExplicitVersion(const byte* input, word32* inOutIdx, int* version)
 {
@@ -634,7 +642,7 @@ static int GetExplicitVersion(const byte* input, word32* inOutIdx, int* version)
 
     return 0;
 }
-
+#endif /* !NO_ASN_TIME */
 
 WOLFSSL_LOCAL int GetInt(mp_int* mpi, const byte* input, word32* inOutIdx,
                   word32 maxIdx)
@@ -2212,7 +2220,7 @@ void FreeDecodedCert(DecodedCert* cert)
 #endif /* OPENSSL_EXTRA */
 }
 
-
+#ifndef NO_ASN_TIME
 static int GetCertHeader(DecodedCert* cert)
 {
     int ret = 0, len;
@@ -2264,6 +2272,7 @@ static int GetCertHeader(DecodedCert* cert)
 
     return ret;
 }
+#endif /* !NO_ASN_TIME */
 
 #if !defined(NO_RSA)
 /* Store Rsa Key, may save later, Dsa could use in future */
@@ -2327,7 +2336,7 @@ static int StoreRsaKey(DecodedCert* cert)
 
 #endif /* HAVE_ECC */
 
-
+#ifndef NO_ASN_TIME
 static int GetKey(DecodedCert* cert)
 {
     int length;
@@ -3184,7 +3193,7 @@ static int GetSignature(DecodedCert* cert)
 
     return 0;
 }
-
+#endif /* !NO_ASN_TIME */
 
 static word32 SetDigest(const byte* digest, word32 digSz, byte* output)
 {
@@ -3444,7 +3453,7 @@ int wc_GetCTC_HashOID(int type)
     };
 }
 
-
+#ifndef NO_ASN_TIME
 /* return true (1) or false (0) for Confirmation */
 static int ConfirmSignature(const byte* buf, word32 bufSz,
     const byte* key, word32 keySz, word32 keyOID,
@@ -4494,6 +4503,7 @@ static int DecodeNameConstraints(byte* input, int sz, DecodedCert* cert)
     return 0;
 }
 #endif /* IGNORE_NAME_CONSTRAINTS */
+#endif /* NO_ASN_TIME */
 
 #if defined(WOLFSSL_CERT_EXT) && !defined(WOLFSSL_SEP)
 
@@ -4670,7 +4680,7 @@ static int DecodePolicyOID(char *out, word32 outSz, byte *in, word32 inSz)
     }
 #endif /* WOLFSSL_SEP */
 
-
+#ifndef NO_ASN_TIME
 static int DecodeCertExtensions(DecodedCert* cert)
 /*
  *  Processing the Certificate Extensions. This does not modify the current
@@ -4884,6 +4894,7 @@ int ParseCert(DecodedCert* cert, int type, int verify, void* cm)
 
     return ret;
 }
+#endif /* !NO_ASN_TIME */
 
 
 /* from SSL proper, for locking can't do find here anymore */
@@ -4920,7 +4931,7 @@ Signer* GetCAByName(void* signers, byte* hash)
 
 #endif /* WOLFCRYPT_ONLY */
 
-
+#ifndef NO_ASN_TIME
 int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
 {
     word32 confirmOID;
@@ -5043,7 +5054,7 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
 
     return 0;
 }
-
+#endif /* !NO_ASN_TIME */
 
 /* Create and init an new signer */
 Signer* MakeSigner(void* heap)
