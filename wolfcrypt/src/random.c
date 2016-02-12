@@ -89,6 +89,38 @@ int  wc_RNG_GenerateByte(WC_RNG* rng, byte* b)
 #else /* else build without fips */
 #include <wolfssl/wolfcrypt/error-crypt.h>
 
+/* Allow custom RNG system */
+#ifdef CUSTOM_RAND_GENERATE_BLOCK
+
+int wc_InitRng(WC_RNG* rng)
+{
+    (void)rng;
+    return 0;
+}
+
+int wc_RNG_GenerateBlock(WC_RNG* rng, byte* output, word32 sz)
+{
+    (void)rng;
+    XMEMSET(output, 0, sz);
+    return CUSTOM_RAND_GENERATE_BLOCK(output, sz);
+}
+
+
+int wc_RNG_GenerateByte(WC_RNG* rng, byte* b)
+{
+    return wc_RNG_GenerateBlock(rng, b, 1);
+}
+
+
+int wc_FreeRng(WC_RNG* rng)
+{
+    (void)rng;
+    return 0;
+}
+
+#else
+
+/* Use HASHDRGB with SHA256 */
 #if defined(HAVE_HASHDRBG) || defined(NO_RC4)
 
     #include <wolfssl/wolfcrypt/sha256.h>
@@ -1432,5 +1464,6 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 }
 
 #endif /* USE_WINDOWS_API */
+#endif /* CUSTOM_RAND_GENERATE_BLOCK */
 #endif /* HAVE_FIPS */
 

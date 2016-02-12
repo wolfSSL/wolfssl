@@ -1019,9 +1019,9 @@ static char *fgets(char *buff, int sz, FILE *fp)
     #define NO_OLD_TLS
 #endif
 
-/* If not forcing to use ARC4 as the DRBG, always enable Hash_DRBG */
+/* If not forcing ARC4 as the DRBG or using custom RNG block gen, enable Hash_DRBG */
 #undef HAVE_HASHDRBG
-#ifndef WOLFSSL_FORCE_RC4_DRBG
+#if !defined(WOLFSSL_FORCE_RC4_DRBG) && !defined(CUSTOM_RAND_GENERATE_BLOCK)
     #define HAVE_HASHDRBG
 #endif
 

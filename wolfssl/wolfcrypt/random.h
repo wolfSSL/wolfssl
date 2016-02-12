@@ -67,8 +67,8 @@ typedef struct OS_Seed {
     #endif
 } OS_Seed;
 
-#if defined(HAVE_HASHDRBG) || defined(NO_RC4)
 
+#if (defined(HAVE_HASHDRBG) || defined(NO_RC4)) && !defined(CUSTOM_RAND_GENERATE_BLOCK)
 
 #define DRBG_SEED_LEN (440/8)
 
@@ -84,8 +84,8 @@ typedef struct WC_RNG {
 } WC_RNG;
 
 
-#else /* HAVE_HASHDRBG || NO_RC4 */
 
+#else /* (HAVE_HASHDRBG || NO_RC4) && !CUSTOM_RAND_GENERATE_BLOCK */
 
 #define WOLFSSL_RNG_CAVIUM_MAGIC 0xBEEF0004
 
@@ -94,7 +94,9 @@ typedef struct WC_RNG {
 
 typedef struct WC_RNG {
     OS_Seed seed;
+#ifndef NO_RC4
     Arc4    cipher;
+#endif
 #ifdef HAVE_CAVIUM
     int    devId;           /* nitrox device id */
     word32 magic;           /* using cavium magic */
@@ -102,8 +104,8 @@ typedef struct WC_RNG {
 } WC_RNG;
 
 
-#endif /* HAVE_HASH_DRBG || NO_RC4 */
 
+#endif /* (HAVE_HASHDRBG || NO_RC4) && !CUSTOM_RAND_GENERATE_BLOCK */
 #endif /* HAVE_FIPS */
 
 /* NO_OLD_RNGNAME removes RNG struct name to prevent possible type conflicts,

@@ -3559,7 +3559,7 @@ int idea_test(void)
 #endif /* HAVE_IDEA */
 
 
-#if defined(HAVE_HASHDRBG) || defined(NO_RC4)
+#if (defined(HAVE_HASHDRBG) || defined(NO_RC4)) && !defined(CUSTOM_RAND_GENERATE_BLOCK)
 
 int random_test(void)
 {
@@ -3635,7 +3635,7 @@ int random_test(void)
     return 0;
 }
 
-#else /* HAVE_HASHDRBG || NO_RC4 */
+#else /* (HAVE_HASHDRBG || NO_RC4) && !CUSTOM_RAND_GENERATE_BLOCK */
 
 int random_test(void)
 {
@@ -3658,7 +3658,7 @@ int random_test(void)
     return 0;
 }
 
-#endif /* HAVE_HASHDRBG || NO_RC4 */
+#endif /* (HAVE_HASHDRBG || NO_RC4) && !CUSTOM_RAND_GENERATE_BLOCK */
 
 
 #ifdef HAVE_NTRU
