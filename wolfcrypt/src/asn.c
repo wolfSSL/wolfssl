@@ -2272,7 +2272,6 @@ static int GetCertHeader(DecodedCert* cert)
 
     return ret;
 }
-#endif /* !NO_ASN_TIME */
 
 #if !defined(NO_RSA)
 /* Store Rsa Key, may save later, Dsa could use in future */
@@ -2297,6 +2296,7 @@ static int StoreRsaKey(DecodedCert* cert)
     return 0;
 }
 #endif
+#endif /* !NO_ASN_TIME */
 
 
 #ifdef HAVE_ECC
