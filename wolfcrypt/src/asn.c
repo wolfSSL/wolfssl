@@ -4908,7 +4908,7 @@ int ParseCert(DecodedCert* cert, int type, int verify, void* cm)
 #endif
 
 
-#ifdef WOLFCRYPT_ONLY
+#if defined(WOLFCRYPT_ONLY) || defined(NO_CERTS)
 
 /* dummy functions, not using wolfSSL so don't need actual ones */
 Signer* GetCA(void* signers, byte* hash)
@@ -4927,7 +4927,7 @@ Signer* GetCAByName(void* signers, byte* hash)
 }
 #endif /* NO_SKID */
 
-#endif /* WOLFCRYPT_ONLY */
+#endif /* WOLFCRYPT_ONLY || NO_CERTS */
 
 #ifndef NO_ASN_TIME
 int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)

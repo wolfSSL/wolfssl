@@ -142,10 +142,9 @@ static int SSL_hmac(WOLFSSL* ssl, byte* digest, const byte* in, word32 sz,
 
 #ifndef NO_CERTS
 static int BuildCertHashes(WOLFSSL* ssl, Hashes* hashes);
-#endif
-
 static void PickHashSigAlgo(WOLFSSL* ssl,
                                 const byte* hashSigAlgo, word32 hashSigAlgoSz);
+#endif
 
 #ifdef HAVE_QSH
     int QSH_Init(WOLFSSL* ssl);
@@ -10594,7 +10593,7 @@ int SetCipherList(Suites* suites, const char* list)
     return ret;
 }
 
-
+#ifndef NO_CERTS
 static void PickHashSigAlgo(WOLFSSL* ssl,
                              const byte* hashSigAlgo, word32 hashSigAlgoSz)
 {
@@ -10630,7 +10629,7 @@ static void PickHashSigAlgo(WOLFSSL* ssl,
         }
     }
 }
-
+#endif
 
 #ifdef WOLFSSL_CALLBACKS
 
