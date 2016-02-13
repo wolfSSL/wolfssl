@@ -4563,7 +4563,7 @@ static int DoCertificate(WOLFSSL* ssl, byte* input, word32* inOutIdx,
     int    anyError = 0;
     int    totalCerts = 0;    /* number of certs in certs buffer */
     int    count;
-    buffer certs[MAX_CHAIN_DEPTH];
+    DerBuffer certs[MAX_CHAIN_DEPTH];
 
 #ifdef WOLFSSL_SMALL_STACK
     char*                  domain = NULL;
@@ -4643,7 +4643,7 @@ static int DoCertificate(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 
     /* verify up to peer's first */
     while (count > 1) {
-        buffer myCert = certs[count - 1];
+        DerBuffer myCert = certs[count - 1];
         byte* subjectHash;
 
         InitDecodedCert(dCert, myCert.buffer, myCert.length, ssl->heap);
@@ -4662,10 +4662,11 @@ static int DoCertificate(WOLFSSL* ssl, byte* input, word32* inOutIdx,
             WOLFSSL_MSG("Chain cert not verified by option, not adding as CA");
         }
         else if (ret == 0 && !AlreadySigner(ssl->ctx->cm, subjectHash)) {
-            buffer add;
+            DerBuffer add;
+            add.dynType = DYNAMIC_TYPE_CA;
             add.length = myCert.length;
-            add.buffer = (byte*)XMALLOC(myCert.length, ssl->heap,
-                                        DYNAMIC_TYPE_CA);
+            add.buffer = (byte*)XMALLOC(myCert.length, ssl->heap, add.dynType);
+
             WOLFSSL_MSG("Adding CA from chain");
 
             if (add.buffer == NULL)
@@ -4673,7 +4674,7 @@ static int DoCertificate(WOLFSSL* ssl, byte* input, word32* inOutIdx,
             XMEMCPY(add.buffer, myCert.buffer, myCert.length);
 
             /* already verified above */
-            ret = AddCA(ssl->ctx->cm, add, WOLFSSL_CHAIN_CA, 0);
+            ret = AddCA(ssl->ctx->cm, &add, WOLFSSL_CHAIN_CA, 0);
             if (ret == 1) ret = 0;   /* SSL_SUCCESS for external */
         }
         else if (ret != 0) {
@@ -4729,7 +4730,7 @@ static int DoCertificate(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 
     /* peer's, may not have one if blank client cert sent by TLSv1.2 */
     if (count) {
-        buffer myCert = certs[0];
+        DerBuffer myCert = certs[0];
         int    fatal  = 0;
 
         WOLFSSL_MSG("Verifying Peer's cert");
@@ -8711,7 +8712,7 @@ int SendCertificateStatus(WOLFSSL* ssl)
                 return 0;
 
             if (!request || ssl->buffers.weOwnCert) {
-                buffer der = ssl->buffers.certificate;
+                DerBuffer der = ssl->buffers.certificate;
                 #ifdef WOLFSSL_SMALL_STACK
                     DecodedCert* cert = NULL;
                 #else
@@ -8808,7 +8809,7 @@ int SendCertificateStatus(WOLFSSL* ssl)
                 return 0;
 
             if (!request || ssl->buffers.weOwnCert) {
-                buffer der = ssl->buffers.certificate;
+                DerBuffer der = ssl->buffers.certificate;
                 #ifdef WOLFSSL_SMALL_STACK
                     DecodedCert* cert = NULL;
                 #else
@@ -8881,7 +8882,7 @@ int SendCertificateStatus(WOLFSSL* ssl)
 
             if (ret == 0 && (!ssl->ctx->chainOcspRequest[0]
                                               || ssl->buffers.weOwnCertChain)) {
-                buffer der = {NULL, 0};
+                DerBuffer der = {NULL, 0, 0};
                 word32 idx = 0;
                 #ifdef WOLFSSL_SMALL_STACK
                     DecodedCert* cert = NULL;

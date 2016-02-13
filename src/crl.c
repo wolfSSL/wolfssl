@@ -263,7 +263,7 @@ int BufferLoadCRL(WOLFSSL_CRL* crl, const byte* buff, long sz, int type)
 {
     int          ret = SSL_SUCCESS;
     const byte*  myBuffer = buff;    /* if DER ok, otherwise switch */
-    buffer       der;
+    DerBuffer    der;
 #ifdef WOLFSSL_SMALL_STACK
     DecodedCRL*  dcrl;
 #else
