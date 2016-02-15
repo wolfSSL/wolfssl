@@ -1211,10 +1211,12 @@ typedef struct buffer {
     word32 length;
 } buffer;
 
-/* DER Buffer */
+/* wolfSSL DER buffer */
 typedef struct DerBuffer {
     byte*  buffer;
+    void* heap;
     word32 length;
+    int type; /* enum CertType */
     int dynType; /* DYNAMIC_TYPE_* */
 } DerBuffer;
 
@@ -2683,6 +2685,11 @@ typedef struct EncryptedInfo {
 
 
 #ifndef NO_CERTS
+
+    WOLFSSL_LOCAL int InitDer(DerBuffer* der);
+    WOLFSSL_LOCAL int AllocDer(DerBuffer* der, word32 length, int type, void* heap);
+    WOLFSSL_LOCAL void FreeDer(DerBuffer* der);
+
     WOLFSSL_LOCAL int PemToDer(const unsigned char* buff, long sz, int type,
                               DerBuffer* der, void* heap, EncryptedInfo* info,
                               int* eccKey);

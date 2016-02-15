@@ -270,7 +270,7 @@ int BufferLoadCRL(WOLFSSL_CRL* crl, const byte* buff, long sz, int type)
     DecodedCRL   dcrl[1];
 #endif
 
-    der.buffer = NULL;
+    InitDer(&der);
 
     WOLFSSL_ENTER("BufferLoadCRL");
 
@@ -321,8 +321,7 @@ int BufferLoadCRL(WOLFSSL_CRL* crl, const byte* buff, long sz, int type)
     XFREE(dcrl, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
 
-    if (der.buffer)
-        XFREE(der.buffer, NULL, DYNAMIC_TYPE_CRL);
+    FreeDer(&der);
 
     return ret ? ret : SSL_SUCCESS; /* convert 0 to SSL_SUCCESS */
 }
