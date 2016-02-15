@@ -771,11 +771,15 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
         #if !defined(HAVE_ECC) && !defined(WOLFSSL_STATIC_RSA) \
             || ( defined(HAVE_ECC) && !defined(HAVE_SUPPORTED_CURVES) \
                   && !defined(WOLFSSL_STATIC_RSA) )
-            if (!XSTRNCMP(domain, "www.google.com", 14) ||
-                !XSTRNCMP(domain, "www.wolfssl.com", 15)) {
-                /* google/wolfssl need ECDHE or static RSA */
+            /* google needs ECDHE+Supported Curves or static RSA */
+            if (!XSTRNCMP(domain, "www.google.com", 14))
                 done += 1;
-            }
+        #endif
+
+        #if !defined(HAVE_ECC) && !defined(WOLFSSL_STATIC_RSA)
+            /* wolfssl needs ECDHE or static RSA */
+            if (!XSTRNCMP(domain, "www.wolfssl.com", 15))
+                done += 1;
         #endif
 
         #if !defined(WOLFSSL_SHA384)
