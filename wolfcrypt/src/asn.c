@@ -7657,7 +7657,7 @@ int wc_SetSubjectKeyId(Cert *cert, const char* file)
     if (cert == NULL || file == NULL)
         return BAD_FUNC_ARG;
 
-    der = (byte*)XMALLOC(MAX_PUBLIC_KEY_SZ, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    der = (byte*)XMALLOC(MAX_PUBLIC_KEY_SZ, NULL, DYNAMIC_TYPE_CERT);
     if (der == NULL) {
         WOLFSSL_MSG("wc_SetSubjectKeyId memory Problem");
         return MEMORY_E;
@@ -7673,14 +7673,14 @@ int wc_SetSubjectKeyId(Cert *cert, const char* file)
     /* Load PubKey in internal structure */
     rsakey = (RsaKey*) XMALLOC(sizeof(RsaKey), NULL, DYNAMIC_TYPE_RSA);
     if (rsakey == NULL) {
-        XFREE(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(der, NULL, DYNAMIC_TYPE_CERT);
         return MEMORY_E;
     }
 
     if (wc_InitRsaKey(rsakey, NULL) != 0) {
         WOLFSSL_MSG("wc_InitRsaKey failure");
         XFREE(rsakey, NULL, DYNAMIC_TYPE_RSA);
-        XFREE(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(der, NULL, DYNAMIC_TYPE_CERT);
         return MEMORY_E;
     }
 
@@ -7695,7 +7695,7 @@ int wc_SetSubjectKeyId(Cert *cert, const char* file)
         /* Check to load ecc public key */
         eckey = (ecc_key*) XMALLOC(sizeof(ecc_key), NULL, DYNAMIC_TYPE_ECC);
         if (eckey == NULL) {
-            XFREE(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(der, NULL, DYNAMIC_TYPE_CERT);
             return MEMORY_E;
         }
 
@@ -7703,7 +7703,7 @@ int wc_SetSubjectKeyId(Cert *cert, const char* file)
             WOLFSSL_MSG("wc_ecc_init failure");
             wc_ecc_free(eckey);
             XFREE(eckey, NULL, DYNAMIC_TYPE_ECC);
-            XFREE(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(der, NULL, DYNAMIC_TYPE_CERT);
             return MEMORY_E;
         }
 
@@ -7711,17 +7711,17 @@ int wc_SetSubjectKeyId(Cert *cert, const char* file)
         ret = wc_EccPublicKeyDecode(der, &idx, eckey, derSz);
         if (ret != 0) {
             WOLFSSL_MSG("wc_EccPublicKeyDecode failed");
-            XFREE(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(der, NULL, DYNAMIC_TYPE_CERT);
             wc_ecc_free(eckey);
             return PUBLIC_KEY_E;
         }
 #else
-        XFREE(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(der, NULL, DYNAMIC_TYPE_CERT);
         return PUBLIC_KEY_E;
 #endif /* HAVE_ECC */
     }
 
-    XFREE(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(der, NULL, DYNAMIC_TYPE_CERT);
 
     ret = wc_SetSubjectKeyIdFromPublicKey(cert, rsakey, eckey);
 

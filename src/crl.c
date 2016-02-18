@@ -270,12 +270,15 @@ int BufferLoadCRL(WOLFSSL_CRL* crl, const byte* buff, long sz, int type)
     DecodedCRL   dcrl[1];
 #endif
 
-    InitDer(&der);
-
     WOLFSSL_ENTER("BufferLoadCRL");
 
     if (crl == NULL || buff == NULL || sz == 0)
         return BAD_FUNC_ARG;
+
+    ret = InitDer(&der);
+    if (ret < 0) {
+        return ret;
+    }
 
     if (type == SSL_FILETYPE_PEM) {
         int eccKey = 0;   /* not used */
@@ -289,6 +292,7 @@ int BufferLoadCRL(WOLFSSL_CRL* crl, const byte* buff, long sz, int type)
         }
         else {
             WOLFSSL_MSG("Pem to Der failed");
+            FreeDer(&der);
             return -1;
         }
     }
@@ -296,9 +300,7 @@ int BufferLoadCRL(WOLFSSL_CRL* crl, const byte* buff, long sz, int type)
 #ifdef WOLFSSL_SMALL_STACK
     dcrl = (DecodedCRL*)XMALLOC(sizeof(DecodedCRL), NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (dcrl == NULL) {
-        if (der.buffer)
-            XFREE(der.buffer, NULL, DYNAMIC_TYPE_CRL);
-
+        FreeDer(&der);
         return MEMORY_E;
     }
 #endif

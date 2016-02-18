@@ -1211,14 +1211,16 @@ typedef struct buffer {
     word32 length;
 } buffer;
 
-/* wolfSSL DER buffer */
-typedef struct DerBuffer {
-    byte*  buffer;
-    void* heap;
-    word32 length;
-    int type; /* enum CertType */
-    int dynType; /* DYNAMIC_TYPE_* */
-} DerBuffer;
+#ifndef NO_CERTS
+    /* wolfSSL DER buffer */
+    typedef struct DerBuffer {
+        byte*  buffer;
+        void* heap;
+        word32 length;
+        int type; /* enum CertType */
+        int dynType; /* DYNAMIC_TYPE_* */
+    } DerBuffer;
+#endif /* !NO_CERTS */
 
 
 enum {

@@ -565,9 +565,9 @@ void SSL_CtxResourceFree(WOLFSSL_CTX* ctx)
 #endif
 
 #ifndef NO_CERTS
-    XFREE(ctx->privateKey.buffer, ctx->heap, DYNAMIC_TYPE_KEY);
-    XFREE(ctx->certificate.buffer, ctx->heap, DYNAMIC_TYPE_CERT);
-    XFREE(ctx->certChain.buffer, ctx->heap, DYNAMIC_TYPE_CERT);
+    FreeDer(&ctx->privateKey);
+    FreeDer(&ctx->certificate);
+    FreeDer(&ctx->certChain);
     wolfSSL_CertManagerFree(ctx->cm);
 #endif
 
@@ -1640,7 +1640,7 @@ void InitX509(WOLFSSL_X509* x509, int dynamicFlag)
     x509->version        = 0;
     x509->pubKey.buffer  = NULL;
     x509->sig.buffer     = NULL;
-    x509->derCert.buffer = NULL;
+    InitDer(&x509->derCert);
     x509->altNames       = NULL;
     x509->altNamesNext   = NULL;
     x509->dynamicMemory  = (byte)dynamicFlag;
@@ -1684,7 +1684,7 @@ void FreeX509(WOLFSSL_X509* x509)
     FreeX509Name(&x509->subject);
     if (x509->pubKey.buffer)
         XFREE(x509->pubKey.buffer, NULL, DYNAMIC_TYPE_PUBLIC_KEY);
-    XFREE(x509->derCert.buffer, NULL, DYNAMIC_TYPE_SUBJECT_CN);
+    FreeDer(&x509->derCert);
     XFREE(x509->sig.buffer, NULL, DYNAMIC_TYPE_SIGNATURE);
     #ifdef OPENSSL_EXTRA
         XFREE(x509->authKeyId, NULL, DYNAMIC_TYPE_X509_EXT);
@@ -1854,9 +1854,9 @@ int SetSSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
 
 #ifndef NO_CERTS
     /* ctx still owns certificate, certChain, key, dh, and cm */
-    ssl->buffers.certificate = ctx->certificate;
-    ssl->buffers.certChain = ctx->certChain;
-    ssl->buffers.key = ctx->privateKey;
+    XMEMCPY(&ssl->buffers.certificate, &ctx->certificate, sizeof(DerBuffer));
+    XMEMCPY(&ssl->buffers.certChain, &ctx->certChain, sizeof(DerBuffer));
+    XMEMCPY(&ssl->buffers.key, &ctx->privateKey, sizeof(DerBuffer));
 #endif
 
 #ifdef HAVE_CAVIUM
@@ -2123,17 +2123,7 @@ void SSL_ResourceFree(WOLFSSL* ssl)
     }
 #endif
 #ifndef NO_CERTS
-    if (ssl->buffers.weOwnCert)
-        XFREE(ssl->buffers.certificate.buffer, ssl->heap, DYNAMIC_TYPE_CERT);
-    if (ssl->buffers.weOwnCertChain)
-        XFREE(ssl->buffers.certChain.buffer, ssl->heap, DYNAMIC_TYPE_CERT);
-    if (ssl->buffers.weOwnKey) {
-        if (ssl->buffers.key.buffer) {
-            ForceZero(ssl->buffers.key.buffer, ssl->buffers.key.length);
-        }
-        XFREE(ssl->buffers.key.buffer, ssl->heap, DYNAMIC_TYPE_KEY);
-        ssl->buffers.key.buffer = NULL;
-    }
+    wolfSSL_UnloadCertsKeys(ssl);
 #endif
 #ifndef NO_RSA
     if (ssl->peerRsaKey) {
@@ -2329,21 +2319,7 @@ void FreeHandshakeResources(WOLFSSL* ssl)
     }
 #endif
 #ifndef NO_CERTS
-    if (ssl->buffers.weOwnCert) {
-        XFREE(ssl->buffers.certificate.buffer, ssl->heap, DYNAMIC_TYPE_CERT);
-        ssl->buffers.certificate.buffer = NULL;
-    }
-    if (ssl->buffers.weOwnCertChain) {
-        XFREE(ssl->buffers.certChain.buffer, ssl->heap, DYNAMIC_TYPE_CERT);
-        ssl->buffers.certChain.buffer = NULL;
-    }
-    if (ssl->buffers.weOwnKey) {
-        if (ssl->buffers.key.buffer) {
-            ForceZero(ssl->buffers.key.buffer, ssl->buffers.key.length);
-        }
-        XFREE(ssl->buffers.key.buffer, ssl->heap, DYNAMIC_TYPE_KEY);
-        ssl->buffers.key.buffer = NULL;
-    }
+    wolfSSL_UnloadCertsKeys(ssl);
 #endif
 #ifdef HAVE_PK_CALLBACKS
     #ifdef HAVE_ECC
@@ -4487,14 +4463,9 @@ int CopyDecodedToX509(WOLFSSL_X509* x509, DecodedCert* dCert)
     }
 
     /* store cert for potential retrieval */
-    x509->derCert.buffer = (byte*)XMALLOC(dCert->maxIdx, NULL,
-                                          DYNAMIC_TYPE_CERT);
-    if (x509->derCert.buffer == NULL) {
-        ret = MEMORY_E;
-    }
-    else {
+    ret = AllocDer(&x509->derCert, dCert->maxIdx, CERT_TYPE, NULL);
+    if (ret == 0) {
         XMEMCPY(x509->derCert.buffer, dCert->source, dCert->maxIdx);
-        x509->derCert.length = dCert->maxIdx;
     }
 
     x509->altNames       = dCert->altNames;
@@ -4555,7 +4526,7 @@ int CopyDecodedToX509(WOLFSSL_X509* x509, DecodedCert* dCert)
 
 
 static int DoCertificate(WOLFSSL* ssl, byte* input, word32* inOutIdx,
-                                                                    word32 size)
+                                                                word32 size)
 {
     word32 listSz;
     word32 begin = *inOutIdx;
@@ -4610,6 +4581,10 @@ static int DoCertificate(WOLFSSL* ssl, byte* input, word32* inOutIdx,
         if ((*inOutIdx - begin) + certSz > size)
             return BUFFER_ERROR;
 
+        ret = InitDer(&certs[totalCerts]);
+        if (ret < 0) {
+            return 0;
+        }
         certs[totalCerts].length = certSz;
         certs[totalCerts].buffer = input + *inOutIdx;
 
@@ -4663,14 +4638,19 @@ static int DoCertificate(WOLFSSL* ssl, byte* input, word32* inOutIdx,
         }
         else if (ret == 0 && !AlreadySigner(ssl->ctx->cm, subjectHash)) {
             DerBuffer add;
-            add.dynType = DYNAMIC_TYPE_CA;
-            add.length = myCert.length;
-            add.buffer = (byte*)XMALLOC(myCert.length, ssl->heap, add.dynType);
+            ret = InitDer(&add);
+            if (ret == 0) {
+                ret = AllocDer(&add, myCert.length, CA_TYPE, ssl->heap);
+            }
+            if (ret < 0) {
+            #ifdef WOLFSSL_SMALL_STACK
+                XFREE(dCert, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            #endif
+                return ret;
+            }
 
             WOLFSSL_MSG("Adding CA from chain");
 
-            if (add.buffer == NULL)
-                return MEMORY_E;
             XMEMCPY(add.buffer, myCert.buffer, myCert.length);
 
             /* already verified above */
@@ -4828,10 +4808,10 @@ static int DoCertificate(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 
 #ifdef KEEP_PEER_CERT
         if (fatal == 0) {
-        /* set X509 format for peer cert even if fatal */
-        int copyRet = CopyDecodedToX509(&ssl->peerCert, dCert);
-        if (copyRet == MEMORY_E)
-            fatal = 1;
+            /* set X509 format for peer cert even if fatal */
+            int copyRet = CopyDecodedToX509(&ssl->peerCert, dCert);
+            if (copyRet == MEMORY_E)
+                fatal = 1;
         }
 #endif
 
@@ -8882,13 +8862,18 @@ int SendCertificateStatus(WOLFSSL* ssl)
 
             if (ret == 0 && (!ssl->ctx->chainOcspRequest[0]
                                               || ssl->buffers.weOwnCertChain)) {
-                DerBuffer der = {NULL, 0, 0};
+                DerBuffer der;
                 word32 idx = 0;
                 #ifdef WOLFSSL_SMALL_STACK
                     DecodedCert* cert = NULL;
                 #else
                     DecodedCert  cert[1];
                 #endif
+
+                ret = InitDer(&der);
+                if (ret < 0) {
+                    return  ret;
+                }
 
                 #ifdef WOLFSSL_SMALL_STACK
                     cert = (DecodedCert*)XMALLOC(sizeof(DecodedCert), NULL,
