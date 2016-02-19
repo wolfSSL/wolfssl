@@ -4226,8 +4226,9 @@ int wolfSSL_PemCertToDer(const char* fileName, unsigned char* derBuf, int derSz)
 
     WOLFSSL_ENTER("wolfSSL_PemCertToDer");
 
-    if (file == XBADFILE)
+    if (file == XBADFILE) {
         ret = SSL_BAD_FILE;
+    }
     else {
         XFSEEK(file, 0, XSEEK_END);
         sz = XFTELL(file);
@@ -4243,38 +4244,41 @@ int wolfSSL_PemCertToDer(const char* fileName, unsigned char* derBuf, int derSz)
             else
                 dynamic = 1;
         }
-
-        ret = InitDer(&converted);
+        
         if (ret == 0) {
-            if ( (ret = (int)XFREAD(fileBuf, sz, 1, file)) < 0)
-                ret = SSL_BAD_FILE;
-            else {
-            #ifdef WOLFSSL_SMALL_STACK
-                info = (EncryptedInfo*)XMALLOC(sizeof(EncryptedInfo), NULL,
-                                               DYNAMIC_TYPE_TMP_BUFFER);
-                if (info == NULL)
-                    ret = MEMORY_E;
-                else
-            #endif
-                {
-                    ret = PemToDer(fileBuf, sz, CA_TYPE, &converted,
-                                   0, info, &ecc);
-                #ifdef WOLFSSL_SMALL_STACK
-                    XFREE(info, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-                #endif
-                }
-            }
-
+            ret = InitDer(&converted);
             if (ret == 0) {
-                if (converted.length < (word32)derSz) {
-                    XMEMCPY(derBuf, converted.buffer, converted.length);
-                    ret = converted.length;
+                if ( (ret = (int)XFREAD(fileBuf, sz, 1, file)) < 0) {
+                    ret = SSL_BAD_FILE;
                 }
-                else
-                    ret = BUFFER_E;
-            }
+                else {
+                #ifdef WOLFSSL_SMALL_STACK
+                    info = (EncryptedInfo*)XMALLOC(sizeof(EncryptedInfo), NULL,
+                                                   DYNAMIC_TYPE_TMP_BUFFER);
+                    if (info == NULL)
+                        ret = MEMORY_E;
+                    else
+                #endif
+                    {
+                        ret = PemToDer(fileBuf, sz, CA_TYPE, &converted,
+                                       0, info, &ecc);
+                    #ifdef WOLFSSL_SMALL_STACK
+                        XFREE(info, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                    #endif
+                    }
+                }
 
-            FreeDer(&converted);
+                if (ret == 0) {
+                    if (converted.length < (word32)derSz) {
+                        XMEMCPY(derBuf, converted.buffer, converted.length);
+                        ret = converted.length;
+                    }
+                    else
+                        ret = BUFFER_E;
+                }
+
+                FreeDer(&converted);
+            }
         }
 
         XFCLOSE(file);
@@ -4307,8 +4311,9 @@ int wolfSSL_PemPubKeyToDer(const char* fileName,
 
     WOLFSSL_ENTER("wolfSSL_PemPubKeyToDer");
 
-    if (file == XBADFILE)
+    if (file == XBADFILE) {
         ret = SSL_BAD_FILE;
+    }
     else {
         XFSEEK(file, 0, XSEEK_END);
         sz = XFTELL(file);
@@ -4324,25 +4329,26 @@ int wolfSSL_PemPubKeyToDer(const char* fileName,
             else
                 dynamic = 1;
         }
-
-        ret = InitDer(&converted);
         if (ret == 0) {
-            if ( (ret = (int)XFREAD(fileBuf, sz, 1, file)) < 0)
-                ret = SSL_BAD_FILE;
-            else
-                ret = PemToDer(fileBuf, sz, PUBLICKEY_TYPE, &converted,
-                               0, NULL, NULL);
-
+            ret = InitDer(&converted);
             if (ret == 0) {
-                if (converted.length < (word32)derSz) {
-                    XMEMCPY(derBuf, converted.buffer, converted.length);
-                    ret = converted.length;
-                }
+                if ( (ret = (int)XFREAD(fileBuf, sz, 1, file)) < 0)
+                    ret = SSL_BAD_FILE;
                 else
-                    ret = BUFFER_E;
-            }
+                    ret = PemToDer(fileBuf, sz, PUBLICKEY_TYPE, &converted,
+                                   0, NULL, NULL);
 
-            FreeDer(&converted);
+                if (ret == 0) {
+                    if (converted.length < (word32)derSz) {
+                        XMEMCPY(derBuf, converted.buffer, converted.length);
+                        ret = converted.length;
+                    }
+                    else
+                        ret = BUFFER_E;
+                }
+
+                FreeDer(&converted);
+            }
         }
 
         XFCLOSE(file);
