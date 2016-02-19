@@ -1211,6 +1211,17 @@ typedef struct buffer {
     word32 length;
 } buffer;
 
+#ifndef NO_CERTS
+    /* wolfSSL DER buffer */
+    typedef struct DerBuffer {
+        byte*  buffer;
+        void* heap;
+        word32 length;
+        int type; /* enum CertType */
+        int dynType; /* DYNAMIC_TYPE_* */
+    } DerBuffer;
+#endif /* !NO_CERTS */
+
 
 enum {
     FORCED_FREE = 1,
@@ -1807,10 +1818,10 @@ struct WOLFSSL_CTX {
     buffer      serverDH_G;
 #endif
 #ifndef NO_CERTS
-    buffer      certificate;
-    buffer      certChain;
+    DerBuffer   certificate;
+    DerBuffer   certChain;
                  /* chain after self, in DER, with leading size for each cert */
-    buffer      privateKey;
+    DerBuffer   privateKey;
     WOLFSSL_CERT_MANAGER* cm;      /* our cert manager, ctx owns SSL will use */
 #endif
     Suites*     suites;           /* make dynamic, user may not need/set */
@@ -1920,7 +1931,7 @@ int ProcessOldClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                           word32 inSz, word16 sz);
 #ifndef NO_CERTS
     WOLFSSL_LOCAL
-    int AddCA(WOLFSSL_CERT_MANAGER* ctx, buffer der, int type, int verify);
+    int AddCA(WOLFSSL_CERT_MANAGER* ctx, DerBuffer* der, int type, int verify);
     WOLFSSL_LOCAL
     int AlreadySigner(WOLFSSL_CERT_MANAGER* cm, byte* hash);
 #endif
@@ -2182,9 +2193,9 @@ typedef struct Buffers {
     buffer          serverDH_Priv;
 #endif
 #ifndef NO_CERTS
-    buffer          certificate;           /* WOLFSSL_CTX owns, unless we own */
-    buffer          key;                   /* WOLFSSL_CTX owns, unless we own */
-    buffer          certChain;             /* WOLFSSL_CTX owns, unless we own */
+    DerBuffer       certificate;           /* WOLFSSL_CTX owns, unless we own */
+    DerBuffer       key;                   /* WOLFSSL_CTX owns, unless we own */
+    DerBuffer       certChain;             /* WOLFSSL_CTX owns, unless we own */
                  /* chain after self, in DER, with leading size for each cert */
 #endif
 #ifdef WOLFSSL_DTLS
@@ -2358,7 +2369,7 @@ struct WOLFSSL_X509 {
     #ifdef HAVE_ECC
         word32       pkCurveOID;
     #endif /* HAVE_ECC */
-    buffer           derCert;                        /* may need  */
+    DerBuffer        derCert;                        /* may need  */
     DNS_entry*       altNames;                       /* alt names list */
     DNS_entry*       altNamesNext;                   /* hint for retrieval */
     byte             dynamicMemory;                  /* dynamic memory flag */
@@ -2680,8 +2691,13 @@ typedef struct EncryptedInfo {
 
 
 #ifndef NO_CERTS
+
+    WOLFSSL_LOCAL int InitDer(DerBuffer* der);
+    WOLFSSL_LOCAL int AllocDer(DerBuffer* der, word32 length, int type, void* heap);
+    WOLFSSL_LOCAL void FreeDer(DerBuffer* der);
+
     WOLFSSL_LOCAL int PemToDer(const unsigned char* buff, long sz, int type,
-                              buffer* der, void* heap, EncryptedInfo* info,
+                              DerBuffer* der, void* heap, EncryptedInfo* info,
                               int* eccKey);
 
     WOLFSSL_LOCAL int ProcessFile(WOLFSSL_CTX* ctx, const char* fname, int format,
@@ -2784,9 +2800,9 @@ WOLFSSL_LOCAL int ProcessReply(WOLFSSL*);
 WOLFSSL_LOCAL int SetCipherSpecs(WOLFSSL*);
 WOLFSSL_LOCAL int MakeMasterSecret(WOLFSSL*);
 
-WOLFSSL_LOCAL int  AddSession(WOLFSSL*);
-WOLFSSL_LOCAL int  DeriveKeys(WOLFSSL* ssl);
-WOLFSSL_LOCAL int  StoreKeys(WOLFSSL* ssl, const byte* keyData);
+WOLFSSL_LOCAL int AddSession(WOLFSSL*);
+WOLFSSL_LOCAL int DeriveKeys(WOLFSSL* ssl);
+WOLFSSL_LOCAL int StoreKeys(WOLFSSL* ssl, const byte* keyData);
 
 WOLFSSL_LOCAL int IsTLS(const WOLFSSL* ssl);
 WOLFSSL_LOCAL int IsAtLeastTLSv1_2(const WOLFSSL* ssl);
