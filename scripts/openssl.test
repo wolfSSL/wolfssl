@@ -3,7 +3,15 @@
 #openssl.test
 
 # need a unique port since may run the same time as testsuite
-openssl_port=11114
+generate_port() {
+    openssl_port=`tr -cd 0-9 </dev/urandom | head -c 7`
+    openssl_port=$((`tr -cd 1-9 </dev/urandom | head -c 1`$openssl_port))
+    openssl_port=$(($openssl_port % (65535-49512)))
+    openssl_port=$(($openssl_port + 49512))
+}
+
+
+generate_port
 no_pid=-1
 server_pid=$no_pid
 wolf_suites_tested=0
@@ -44,7 +52,7 @@ do_cleanup() {
 do_trap() {
     echo "got trap"
     do_cleanup
-    exit -1
+    exit 1
 }
 
 trap do_trap INT TERM
@@ -68,12 +76,35 @@ then
     cd ..
 fi
 
-echo -e "\nStarting openssl server...\n"
-
-openssl s_server -accept $openssl_port -cert ./certs/server-cert.pem -key ./certs/server-key.pem  -quiet -CAfile ./certs/client-cert.pem -www  -dhparam ./certs/dh2048.pem -dcert ./certs/server-ecc.pem -dkey ./certs/ecc-key.pem -Verify 10 -verify_return_error &
-server_pid=$!
 
 
+found_free_port=0
+while [ "$counter" -lt 20 ]; do
+    echo -e "\nTrying to start openssl server on port $openssl_port...\n"
+
+    openssl s_server -accept $openssl_port -cert ./certs/server-cert.pem -key ./certs/server-key.pem  -quiet -CAfile ./certs/client-cert.pem -www  -dhparam ./certs/dh2048.pem -dcert ./certs/server-ecc.pem -dkey ./certs/ecc-key.pem -Verify 10 -verify_return_error -cipher "ALL:eNULL" &
+    server_pid=$!
+    # wait to see if s_server successfully starts before continuing
+    sleep 0.1
+
+    if ps -p $server_pid > /dev/null
+    then
+        echo "s_server started successfully on port $openssl_port"
+        found_free_port=1
+        break
+    else
+        #port already started, try a different port
+        counter=$((counter+ 1))
+        generate_port
+    fi
+done
+
+if [ $found_free_port = 0 ]
+then
+    echo -e "Couldn't find free port for server"
+    do_cleanup
+    exit 1
+fi
 
 # get wolfssl ciphers
 wolf_ciphers=`./examples/client/client -e`
@@ -99,7 +130,7 @@ if [ $server_ready = 0 ]
 then
     echo -e "Couldn't verify openssl server is running, timeout error"
     do_cleanup
-    exit -1
+    exit 1
 fi
 
 OIFS=$IFS # store old seperator to reset

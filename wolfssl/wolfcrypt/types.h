@@ -302,7 +302,8 @@
         DYNAMIC_TYPE_X509_CTX     = 53,
         DYNAMIC_TYPE_URL          = 54,
         DYNAMIC_TYPE_DTLS_FRAG    = 55,
-        DYNAMIC_TYPE_DTLS_BUFFER  = 56
+        DYNAMIC_TYPE_DTLS_BUFFER  = 56,
+        DYNAMIC_TYPE_SESSION_TICK = 57
 	};
 
 	/* max error buffer string size */

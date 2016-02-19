@@ -3212,9 +3212,11 @@ int TLSX_UseSessionTicket(TLSX** extensions, SessionTicket* ticket)
 #define STK_GET_SIZE         TLSX_SessionTicket_GetSize
 #define STK_WRITE            TLSX_SessionTicket_Write
 #define STK_PARSE            TLSX_SessionTicket_Parse
+#define STK_FREE(stk)        TLSX_SessionTicket_Free((SessionTicket*)stk)
 
 #else
 
+#define STK_FREE(a)
 #define STK_VALIDATE_REQUEST(a)
 #define STK_GET_SIZE(a, b)      0
 #define STK_WRITE(a, b, c)      0
@@ -3865,6 +3867,7 @@ void TLSX_FreeAll(TLSX* list)
 
             case TLSX_SESSION_TICKET:
                 /* Nothing to do. */
+                STK_FREE(extension->data);
                 break;
 
             case TLSX_QUANTUM_SAFE_HYBRID:
