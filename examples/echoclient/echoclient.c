@@ -132,7 +132,7 @@ void echoclient_test(void* args)
     #endif
 #elif !defined(NO_CERTS)
     if (!doPSK)
-        load_buffer(ctx, caCert, CYASSL_CA);
+        load_buffer(ctx, caCert, WOLFSSL_CA);
 #endif
 
 #if defined(CYASSL_SNIFFER)
