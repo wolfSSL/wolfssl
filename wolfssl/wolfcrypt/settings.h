@@ -1088,8 +1088,19 @@ static char *fgets(char *buff, int sz, FILE *fp)
     #undef NO_DH
 #endif
 
-/* Place any other flags or defines here */
+/* Allow users to limit AES to a specific subset based on key length */
+#if defined(NO_AES128) && defined(NO_AES192) && defined(NO_AES256)
+    #undef NO_AES
+    #define NO_AES
+    #ifdef HAVE_AESGCM
+        #undef HAVE_AESGCM
+    #endif
+    #ifdef HAVE_AESCCM
+        #undef HAVE_AESCCM
+    #endif
+#endif
 
+/* Place any other flags or defines here */
 
 #ifdef __cplusplus
     }   /* extern "C" */
