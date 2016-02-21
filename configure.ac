@@ -1430,35 +1430,6 @@ fi
 AM_CONDITIONAL([BUILD_INLINE], [test "x$ENABLED_INLINE" = "xyes"])
 
 
-# OCSP
-AC_ARG_ENABLE([ocsp],
-    [  --enable-ocsp           Enable OCSP (default: disabled)],
-    [ ENABLED_OCSP=$enableval ],
-    [ ENABLED_OCSP=no ],
-    )
-
-if test "$ENABLED_OCSP" = "yes"
-then
-    AM_CFLAGS="$AM_CFLAGS -DHAVE_OCSP"
-fi
-
-AM_CONDITIONAL([BUILD_OCSP], [test "x$ENABLED_OCSP" = "xyes"])
-
-
-if test "$ENABLED_OCSP" = "yes"
-then
-    # check openssl command tool for testing ocsp
-    AC_CHECK_PROG([HAVE_OPENSSL_CMD],[openssl],[yes],[no])
-
-    if test "$HAVE_OPENSSL_CMD" = "yes"
-    then
-        AM_CFLAGS="$AM_CFLAGS -DHAVE_OPENSSL_CMD"
-    else
-        AC_MSG_WARN([openssl command line tool not available for testing ocsp])
-    fi
-fi
-
-
 # Certificate Status Request : a.k.a. OCSP Stapling
 AC_ARG_ENABLE([ocspstapling],
     [AS_HELP_STRING([--enable-ocspstapling],[Enable OCSP Stapling (default: disabled)])],
@@ -1469,17 +1440,10 @@ AC_ARG_ENABLE([ocspstapling],
 if test "x$ENABLED_CERTIFICATE_STATUS_REQUEST" = "xyes"
 then
     AM_CFLAGS="$AM_CFLAGS -DHAVE_TLS_EXTENSIONS -DHAVE_CERTIFICATE_STATUS_REQUEST"
-
-    # Requires OCSP make sure on
-    if test "x$ENABLED_OCSP" = "xno"
-    then
-        ENABLED_OCSP="yes"
-        AM_CFLAGS="$AM_CFLAGS -DHAVE_OCSP"
-        AM_CONDITIONAL([BUILD_OCSP], [test "x$ENABLED_OCSP" = "xyes"])
-    fi
 fi
 
 AM_CONDITIONAL([BUILD_OCSP_STAPLING], [test "x$ENABLED_CERTIFICATE_STATUS_REQUEST" = "xyes"])
+
 
 # Certificate Status Request v2 : a.k.a. OCSP stapling v2
 AC_ARG_ENABLE([ocspstapling2],
@@ -1491,17 +1455,43 @@ AC_ARG_ENABLE([ocspstapling2],
 if test "x$ENABLED_CERTIFICATE_STATUS_REQUEST_V2" = "xyes"
 then
     AM_CFLAGS="$AM_CFLAGS -DHAVE_TLS_EXTENSIONS -DHAVE_CERTIFICATE_STATUS_REQUEST_V2"
-
-    # Requires OCSP make sure on
-    if test "x$ENABLED_OCSP" = "xno"
-    then
-        ENABLED_OCSP="yes"
-        AM_CFLAGS="$AM_CFLAGS -DHAVE_OCSP"
-        AM_CONDITIONAL([BUILD_OCSP], [test "x$ENABLED_OCSP" = "xyes"])
-    fi
 fi
 
 AM_CONDITIONAL([BUILD_OCSP_STAPLING_V2], [test "x$ENABLED_CERTIFICATE_STATUS_REQUEST_V2" = "xyes"])
+
+
+# OCSP
+AC_ARG_ENABLE([ocsp],
+    [AS_HELP_STRING([--enable-ocsp],[Enable OCSP (default: disabled)])],
+    [ ENABLED_OCSP=$enableval ],
+    [ ENABLED_OCSP=no ],
+    )
+
+AS_IF([test "x$ENABLED_CERTIFICATE_STATUS_REQUEST" = "xyes"], [ENABLED_OCSP="yes"])
+AS_IF([test "x$ENABLED_CERTIFICATE_STATUS_REQUEST_V2" = "xyes"], [ENABLED_OCSP="yes"])
+
+if test "$ENABLED_OCSP" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_OCSP"
+
+    # check openssl command tool for testing ocsp
+    AC_CHECK_PROG([HAVE_OPENSSL_CMD],[openssl],[yes],[no])
+
+    if test "$HAVE_OPENSSL_CMD" = "yes"
+    then
+        AM_CFLAGS="$AM_CFLAGS -DHAVE_OPENSSL_CMD"
+    else
+        AC_MSG_WARN([openssl command line tool not available for testing ocsp])
+    fi
+
+    if test "x$ENABLED_ASN" = "xno"
+    then
+        AC_MSG_ERROR([please enable asn if enabling ocsp.])
+    fi
+fi
+
+AM_CONDITIONAL([BUILD_OCSP], [test "x$ENABLED_OCSP" = "xyes"])
+
 
 # CRL
 AC_ARG_ENABLE([crl],
