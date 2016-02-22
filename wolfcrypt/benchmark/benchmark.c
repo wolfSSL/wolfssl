@@ -199,7 +199,8 @@ static int OpenNitroxDevice(int dma_mode,int dev_id)
 #endif
 
 #if !defined(NO_RSA) || !defined(NO_DH) \
-                                || defined(WOLFSSL_KEYGEN) || defined(HAVE_ECC)
+                        || defined(WOLFSSL_KEYGEN) || defined(HAVE_ECC) \
+                        || defined(HAVE_CURVE25519) || defined(HAVE_ED25519)
     #define HAVE_LOCAL_RNG
     static WC_RNG rng;
 #endif
