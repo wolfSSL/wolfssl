@@ -191,8 +191,8 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
     } /* doPSK */
 #elif !defined(NO_CERTS)
     if (!doPSK) {
-        load_buffer(ctx, svrCert, CYASSL_CERT);
-        load_buffer(ctx, svrKey,  CYASSL_KEY);
+        load_buffer(ctx, svrCert, WOLFSSL_CERT);
+        load_buffer(ctx, svrKey,  WOLFSSL_KEY);
     }
 #endif
 
