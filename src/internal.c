@@ -7689,6 +7689,12 @@ int ProcessReply(WOLFSSL* ssl)
 
                 case application_data:
                     WOLFSSL_MSG("got app DATA");
+                    #ifdef WOLFSSL_DTLS
+                        if (ssl->options.dtls && ssl->options.dtlsHsRetain) {
+                            FreeHandshakeResources(ssl);
+                            ssl->options.dtlsHsRetain = 0;
+                        }
+                    #endif
                     if ((ret = DoApplicationData(ssl,
                                                 ssl->buffers.inputBuffer.buffer,
                                                &ssl->buffers.inputBuffer.idx))
@@ -7819,7 +7825,7 @@ int SendChangeCipher(WOLFSSL* ssl)
 
     if (ssl->options.groupMessages)
         return 0;
-    #ifdef WOLFSSL_DTLS
+    #if defined(WOLFSSL_DTLS) && !defined(WOLFSSL_DEBUG_DTLS)
     else if (ssl->options.dtls) {
         /* If using DTLS, force the ChangeCipherSpec message to be in the
          * same datagram as the finished message. */

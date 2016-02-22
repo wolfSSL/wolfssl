@@ -5985,7 +5985,16 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
                 }
             }
 #endif /* NO_HANDSHAKE_DONE_CB */
-            FreeHandshakeResources(ssl);
+
+            if (!ssl->options.dtls) {
+                FreeHandshakeResources(ssl);
+            }
+#ifdef WOLFSSL_DTLS
+            else {
+                ssl->options.dtlsHsRetain = 1;
+            }
+#endif /* WOLFSSL_DTLS */
+
             WOLFSSL_LEAVE("SSL_connect()", SSL_SUCCESS);
             return SSL_SUCCESS;
 
@@ -6259,7 +6268,16 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
                 }
             }
 #endif /* NO_HANDSHAKE_DONE_CB */
-            FreeHandshakeResources(ssl);
+
+            if (!ssl->options.dtls) {
+                FreeHandshakeResources(ssl);
+            }
+#ifdef WOLFSSL_DTLS
+            else {
+                ssl->options.dtlsHsRetain = 1;
+            }
+#endif /* WOLFSSL_DTLS */
+
             WOLFSSL_LEAVE("SSL_accept()", SSL_SUCCESS);
             return SSL_SUCCESS;
 

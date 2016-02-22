@@ -2255,6 +2255,9 @@ typedef struct Options {
     word16            createTicket:1;     /* Server to create new Ticket */
     word16            useTicket:1;        /* Use Ticket not session cache */
 #endif
+#ifdef WOLFSSL_DTLS
+    word16            dtlsHsRetain:1;     /* DTLS retaining HS data */
+#endif
 
     /* need full byte values for this section */
     byte            processReply;           /* nonblocking resume */
