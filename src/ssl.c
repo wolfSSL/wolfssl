@@ -1705,6 +1705,14 @@ WOLFSSL_CERT_MANAGER* wolfSSL_CertManagerNew(void)
             wolfSSL_CertManagerFree(cm);
             return NULL;
         }
+
+        #ifdef WOLFSSL_TRUST_PEER_CERT
+        if (InitMutex(&cm->tpLock) != 0) {
+            WOLFSSL_MSG("Bad mutex init");
+            wolfSSL_CertManagerFree(cm);
+            return NULL;
+        }
+        #endif
     }
 
     return cm;
@@ -1731,6 +1739,12 @@ void wolfSSL_CertManagerFree(WOLFSSL_CERT_MANAGER* cm)
         #endif
         FreeSignerTable(cm->caTable, CA_TABLE_SIZE, NULL);
         FreeMutex(&cm->caLock);
+
+        #ifdef WOLFSSL_TRUST_PEER_CERT
+        FreeTrustedPeerTable(cm->tpTable, TP_TABLE_SIZE, NULL);
+        FreeMutex(&cm->tpLock);
+        #endif
+
         XFREE(cm, NULL, DYNAMIC_TYPE_CERT_MANAGER);
     }
 
@@ -1755,6 +1769,27 @@ int wolfSSL_CertManagerUnloadCAs(WOLFSSL_CERT_MANAGER* cm)
 
     return SSL_SUCCESS;
 }
+
+
+#ifdef WOLFSSL_TRUST_PEER_CERT
+int wolfSSL_CertManagerUnload_trust_peers(WOLFSSL_CERT_MANAGER* cm)
+{
+    WOLFSSL_ENTER("wolfSSL_CertManagerUnload_trust_peers");
+
+    if (cm == NULL)
+        return BAD_FUNC_ARG;
+
+    if (LockMutex(&cm->tpLock) != 0)
+        return BAD_MUTEX_E;
+
+    FreeTrustedPeerTable(cm->tpTable, TP_TABLE_SIZE, NULL);
+
+    UnLockMutex(&cm->tpLock);
+
+
+    return SSL_SUCCESS;
+}
+#endif /* WOLFSSL_TRUST_PEER_CERT */
 
 
 /* Return bytes written to buff or < 0 for error */
@@ -2179,6 +2214,95 @@ int AlreadySigner(WOLFSSL_CERT_MANAGER* cm, byte* hash)
 }
 
 
+#ifdef WOLFSSL_TRUST_PEER_CERT
+/* does trusted peer already exist on signer list */
+int AlreadyTrustedPeer(WOLFSSL_CERT_MANAGER* cm, byte* hash)
+{
+    TrustedPeerCert* tp;
+    int     ret = 0;
+    word32  row = HashSigner(hash);
+
+    if (LockMutex(&cm->tpLock) != 0)
+        return  ret;
+    tp = cm->tpTable[row];
+    while (tp) {
+        byte* subjectHash;
+        #ifndef NO_SKID
+            subjectHash = tp->subjectKeyIdHash;
+        #else
+            subjectHash = tp->subjectNameHash;
+        #endif
+        if (XMEMCMP(hash, subjectHash, SIGNER_DIGEST_SIZE) == 0) {
+            ret = 1;
+            break;
+        }
+        tp = tp->next;
+    }
+    UnLockMutex(&cm->tpLock);
+
+    return ret;
+}
+
+
+/* return Trusted Peer if found, otherwise NULL */
+TrustedPeerCert* GetTrustedPeer(void* vp, byte* hash)
+{
+    WOLFSSL_CERT_MANAGER* cm = (WOLFSSL_CERT_MANAGER*)vp;
+    TrustedPeerCert* ret = NULL;
+    TrustedPeerCert* tp  = NULL;
+    word32  row;
+
+    if (cm == NULL || hash == NULL)
+        return NULL;
+
+    row = HashSigner(hash);
+
+    if (LockMutex(&cm->tpLock) != 0)
+        return ret;
+
+    tp = cm->tpTable[row];
+    while (tp) {
+        byte* subjectHash;
+        #ifndef NO_SKID
+            subjectHash = tp->subjectKeyIdHash;
+        #else
+            subjectHash = tp->subjectNameHash;
+        #endif
+        if (XMEMCMP(hash, subjectHash, SIGNER_DIGEST_SIZE) == 0) {
+            ret = tp;
+            break;
+        }
+        tp = tp->next;
+    }
+    UnLockMutex(&cm->tpLock);
+
+    return ret;
+}
+
+
+int MatchTrustedPeer(TrustedPeerCert* tp, DecodedCert* cert)
+{
+    if (tp == NULL || cert == NULL)
+        return BAD_FUNC_ARG;
+
+    /* subject key id or subject hash has been compared when searching
+       tpTable for the cert from function GetTrustedPeer */
+
+    /* compare signatures */
+    if (tp->sigLen == cert->sigLength) {
+        /* compare first four before comparing all */
+        if (XMEMCMP(tp->sig, cert->signature, cert->sigLength)) {
+            return SSL_FAILURE;
+        }
+    }
+    else {
+        return SSL_FAILURE;
+    }
+
+    return SSL_SUCCESS;
+}
+#endif /* WOLFSSL_TRUST_PEER_CERT */
+
 /* return CA if found, otherwise NULL */
 Signer* GetCA(void* vp, byte* hash)
 {
@@ -2243,6 +2367,123 @@ Signer* GetCAByName(void* vp, byte* hash)
     return ret;
 }
 #endif
+
+
+#ifdef WOLFSSL_TRUST_PEER_CERT
+/* add a trusted peer cert to linked list */
+int AddTrustedPeer(WOLFSSL_CERT_MANAGER* cm, DerBuffer* der, int verify)
+{
+    int ret, row;
+    TrustedPeerCert* peerCert;
+    DecodedCert* cert = NULL;
+    byte* subjectHash = NULL;
+
+    WOLFSSL_MSG("Adding a Trusted Peer Cert");
+
+    cert = (DecodedCert*)XMALLOC(sizeof(DecodedCert), NULL,
+                                 DYNAMIC_TYPE_TMP_BUFFER);
+    if (cert == NULL)
+        return MEMORY_E;
+
+    InitDecodedCert(cert, der->buffer, der->length, cm->heap);
+    if ((ret = ParseCert(cert, TRUSTED_PEER_TYPE, verify, cm)) != 0) {
+        XFREE(cert, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        return ret;
+    }
+    WOLFSSL_MSG("    Parsed new trusted peer cert");
+
+    peerCert = (TrustedPeerCert*)XMALLOC(sizeof(TrustedPeerCert), NULL,
+                                                             DYNAMIC_TYPE_CERT);
+    if (peerCert == NULL) {
+        FreeDecodedCert(cert);
+        XFREE(cert, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        return MEMORY_E;
+    }
+    XMEMSET(peerCert, 0, sizeof(TrustedPeerCert));
+
+#ifndef NO_SKID
+    subjectHash = cert->extSubjKeyId;
+#else
+    subjectHash = cert->subjectHash;
+#endif
+
+    #ifndef IGNORE_NAME_CONSTRAINTS
+        if (peerCert->permittedNames)
+            FreeNameSubtrees(peerCert->permittedNames, cm->heap);
+        if (peerCert->excludedNames)
+            FreeNameSubtrees(peerCert->excludedNames, cm->heap);
+    #endif
+
+    if (AlreadyTrustedPeer(cm, subjectHash)) {
+        WOLFSSL_MSG("    Already have this CA, not adding again");
+        (void)ret;
+    }
+    else {
+        /* add trusted peer signature */
+        peerCert->sigLen = cert->sigLength;
+        peerCert->sig = XMALLOC(cert->sigLength, cm->heap,
+                                                        DYNAMIC_TYPE_SIGNATURE);
+        if (peerCert->sig == NULL) {
+            FreeDecodedCert(cert);
+            XFREE(cert, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            FreeTrustedPeer(peerCert, cm->heap);
+            return MEMORY_E;
+        }
+        XMEMCPY(peerCert->sig, cert->signature, cert->sigLength);
+
+        /* add trusted peer name */
+        peerCert->nameLen = cert->subjectCNLen;
+        peerCert->name    = cert->subjectCN;
+        #ifndef IGNORE_NAME_CONSTRAINTS
+            peerCert->permittedNames = cert->permittedNames;
+            peerCert->excludedNames  = cert->excludedNames;
+        #endif
+
+        /* add SKID when available and hash of name */
+        #ifndef NO_SKID
+            XMEMCPY(peerCert->subjectKeyIdHash, cert->extSubjKeyId,
+                    SIGNER_DIGEST_SIZE);
+        #endif
+            XMEMCPY(peerCert->subjectNameHash, cert->subjectHash,
+                    SIGNER_DIGEST_SIZE);
+            peerCert->next    = NULL; /* If Key Usage not set, all uses valid. */
+            cert->subjectCN = 0;
+        #ifndef IGNORE_NAME_CONSTRAINTS
+            cert->permittedNames = NULL;
+            cert->excludedNames = NULL;
+        #endif
+
+        #ifndef NO_SKID
+            row = HashSigner(peerCert->subjectKeyIdHash);
+        #else
+            row = HashSigner(peerCert->subjectNameHash);
+        #endif
+
+            if (LockMutex(&cm->tpLock) == 0) {
+                peerCert->next = cm->tpTable[row];
+                cm->tpTable[row] = peerCert;   /* takes ownership */
+                UnLockMutex(&cm->tpLock);
+            }
+            else {
+                WOLFSSL_MSG("    Trusted Peer Cert Mutex Lock failed");
+                FreeDecodedCert(cert);
+                XFREE(cert, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                FreeTrustedPeer(peerCert, cm->heap);
+                return BAD_MUTEX_E;
+            }
+        }
+
+    WOLFSSL_MSG("    Freeing parsed trusted peer cert");
+    FreeDecodedCert(cert);
+    XFREE(cert, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    WOLFSSL_MSG("    Freeing der trusted peer cert");
+    FreeDer(der);
+    WOLFSSL_MSG("        OK Freeing der trusted peer cert");
+    WOLFSSL_LEAVE("AddTrustedPeer", ret);
+
+    return SSL_SUCCESS;
+}
+#endif /* WOLFSSL_TRUST_PEER_CERT */
 
 
 /* owns der, internal now uses too */
@@ -2647,6 +2888,7 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
 
     switch (type) {
         case CA_TYPE:       /* same as below */
+        case TRUSTED_PEER_TYPE:
         case CERT_TYPE:      header=BEGIN_CERT;     footer=END_CERT;     break;
         case CRL_TYPE:       header=BEGIN_X509_CRL; footer=END_X509_CRL; break;
         case DH_PARAM_TYPE:  header=BEGIN_DH_PARAM; footer=END_DH_PARAM; break;
@@ -3085,6 +3327,17 @@ static int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
         /* verify CA unless user set to no verify */
         return AddCA(ctx->cm, &der, WOLFSSL_USER_CA, !ctx->verifyNone);
     }
+#ifdef WOLFSSL_TRUST_PEER_CERT
+    else if (type == TRUSTED_PEER_TYPE) {
+        if (ctx == NULL) {
+            WOLFSSL_MSG("Need context for trusted peer cert load");
+            XFREE(der.buffer, heap, dynamicType);
+            return BAD_FUNC_ARG;
+        }
+        /* add trusted peer cert */
+        return AddTrustedPeer(ctx->cm, &der, !ctx->verifyNone);
+    }
+#endif /* WOLFSSL_TRUST_PEER_CERT */
     else if (type == CERT_TYPE) {
         if (ssl) {
              /* Make sure previous is free'd */
@@ -3817,7 +4070,8 @@ int ProcessFile(WOLFSSL_CTX* ctx, const char* fname, int format, int type,
     if ( (ret = (int)XFREAD(myBuffer, sz, 1, file)) < 0)
         ret = SSL_BAD_FILE;
     else {
-        if (type == CA_TYPE && format == SSL_FILETYPE_PEM)
+        if ((type == CA_TYPE || type == TRUSTED_PEER_TYPE)
+                                                  && format == SSL_FILETYPE_PEM)
             ret = ProcessChainBuffer(ctx, myBuffer, sz, format, type, ssl);
 #ifdef HAVE_CRL
         else if (type == CRL_TYPE)
@@ -3945,6 +4199,31 @@ int wolfSSL_CTX_load_verify_locations(WOLFSSL_CTX* ctx, const char* file,
 
     return ret;
 }
+
+
+#ifdef WOLFSSL_TRUST_PEER_CERT
+/* Used to specify a peer cert to match when connecting
+    ctx : the ctx structure to load in peer cert
+    file: the string name of cert file
+    type: type of format such as PEM/DER
+ */
+int wolfSSL_CTX_trust_peer_cert(WOLFSSL_CTX* ctx, const char* file, int type)
+{
+    int ret;
+
+    WOLFSSL_ENTER("wolfSSL_CTX_trust_peer_cert");
+
+    if (ctx == NULL || file == NULL) {
+        return SSL_FAILURE;
+    }
+
+    if ((ret = ProcessFile(ctx, file, type, TRUSTED_PEER_TYPE, NULL, 0, NULL))
+            == SSL_SUCCESS) {
+    }
+
+    return ret;
+}
+#endif /* WOLFSSL_TRUST_PEER_CERT */
 
 
 /* Verify the certificate, SSL_SUCCESS for ok, < 0 for error */
@@ -7364,6 +7643,22 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
     }
 
 
+#ifdef WOLFSSL_TRUST_PEER_CERT
+    int wolfSSL_CTX_trust_peer_buffer(WOLFSSL_CTX* ctx,
+                                       const unsigned char* in,
+                                       long sz, int format)
+    {
+        WOLFSSL_ENTER("wolfSSL_CTX_trust_peer_buffer");
+        if (format == SSL_FILETYPE_PEM)
+            return ProcessChainBuffer(ctx, in, sz, format,
+                                                       TRUSTED_PEER_TYPE, NULL);
+        else
+            return ProcessBuffer(ctx, in, sz, format, TRUSTED_PEER_TYPE,
+                                                                   NULL,NULL,0);
+    }
+#endif /* WOLFSSL_TRUST_PEER_CERT */
+
+
     int wolfSSL_CTX_use_certificate_buffer(WOLFSSL_CTX* ctx,
                                  const unsigned char* in, long sz, int format)
     {
@@ -7548,6 +7843,18 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         return wolfSSL_CertManagerUnloadCAs(ctx->cm);
     }
 
+
+#ifdef WOLFSSL_TRUST_PEER_CERT
+    int wolfSSL_CTX_Unload_trust_peers(WOLFSSL_CTX* ctx)
+    {
+        WOLFSSL_ENTER("wolfSSL_CTX_Unload_trust_peers");
+
+        if (ctx == NULL)
+            return BAD_FUNC_ARG;
+
+        return wolfSSL_CertManagerUnload_trust_peers(ctx->cm);
+    }
+#endif /* WOLFSSL_TRUST_PEER_CERT */
 /* old NO_FILESYSTEM end */
 #endif /* !NO_CERTS */
 

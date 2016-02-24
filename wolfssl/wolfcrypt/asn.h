@@ -365,6 +365,9 @@ struct DecodedName {
 typedef struct DecodedCert DecodedCert;
 typedef struct DecodedName DecodedName;
 typedef struct Signer      Signer;
+#ifdef WOLFSSL_TRUST_PEER_CERT
+typedef struct TrustedPeerCert TrustedPeerCert;
+#endif /* WOLFSSL_TRUST_PEER_CERT */
 
 
 struct DecodedCert {
@@ -554,6 +557,28 @@ struct Signer {
 };
 
 
+#ifdef WOLFSSL_TRUST_PEER_CERT
+/* used for having trusted peer certs rather then CA */
+struct TrustedPeerCert {
+    int     nameLen;
+    char*   name;                    /* common name */
+    #ifndef IGNORE_NAME_CONSTRAINTS
+        Base_entry* permittedNames;
+        Base_entry* excludedNames;
+    #endif /* IGNORE_NAME_CONSTRAINTS */
+    byte    subjectNameHash[SIGNER_DIGEST_SIZE];
+                                     /* sha hash of names in certificate */
+    #ifndef NO_SKID
+        byte    subjectKeyIdHash[SIGNER_DIGEST_SIZE];
+                                     /* sha hash of names in certificate */
+    #endif
+    word32 sigLen;
+    byte*  sig;
+    struct TrustedPeerCert* next;
+};
+#endif /* WOLFSSL_TRUST_PEER_CERT */
+
+
 /* not for public consumption but may use for testing sometimes */
 #ifdef WOLFSSL_TEST_CERT
     #define WOLFSSL_TEST_API WOLFSSL_API
@@ -575,7 +600,10 @@ WOLFSSL_LOCAL int DecodeToKey(DecodedCert*, int verify);
 WOLFSSL_LOCAL Signer* MakeSigner(void*);
 WOLFSSL_LOCAL void    FreeSigner(Signer*, void*);
 WOLFSSL_LOCAL void    FreeSignerTable(Signer**, int, void*);
-
+#ifdef WOLFSSL_TRUST_PEER_CERT
+WOLFSSL_LOCAL void    FreeTrustedPeer(TrustedPeerCert*, void*);
+WOLFSSL_LOCAL void    FreeTrustedPeerTable(TrustedPeerCert**, int, void*);
+#endif /* WOLFSSL_TRUST_PEER_CERT */
 
 WOLFSSL_LOCAL int ToTraditional(byte* buffer, word32 length);
 WOLFSSL_LOCAL int ToTraditionalEnc(byte* buffer, word32 length,const char*,int);

@@ -4905,6 +4905,10 @@ int ParseCert(DecodedCert* cert, int type, int verify, void* cm)
     extern "C" {
 #endif
     WOLFSSL_LOCAL Signer* GetCA(void* signers, byte* hash);
+#ifdef WOLFSSL_TRUST_PEER_CERT
+    WOLFSSL_LOCAL TrustedPeerCert* GetTrustedPeer(void* signers, byte* hash);
+    WOLFSSL_LOCAL int MatchTrustedPeer(TrustedPeerCert* tp, DecodedCert* cert);
+#endif /* WOLFSSL_TRUST_PEER_CERT */
     #ifndef NO_SKID
         WOLFSSL_LOCAL Signer* GetCAByName(void* signers, byte* hash);
     #endif
@@ -4999,7 +5003,7 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
         }
     #endif
 
-    if (verify && type != CA_TYPE) {
+ if (verify && type != CA_TYPE && type != TRUSTED_PEER_TYPE) {
         Signer* ca = NULL;
         #ifndef NO_SKID
             if (cert->extAuthKeyIdSet)
@@ -5010,6 +5014,36 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
             ca = GetCA(cm, cert->issuerHash);
         #endif /* NO SKID */
         WOLFSSL_MSG("About to verify certificate signature");
+
+#ifdef WOLFSSL_TRUST_PEER_CERT
+        /* check for trusted peer cert */
+        {
+            TrustedPeerCert* tp = NULL;
+            #ifndef NO_SKID
+                if (cert->extAuthKeyIdSet)
+                    tp = GetTrustedPeer(cm, cert->extAuthKeyId);
+            #else /* NO_SKID */
+                tp = GetTrustedPeer(cm, cert->issuerHash);
+            #endif /* NO SKID */
+            WOLFSSL_MSG("Checking for trusted peer cert");
+
+            if (tp == NULL) {
+                /* no trusted peer cert */
+                WOLFSSL_MSG("No matching trusted peer cert checking CAs");
+            } else if (MatchTrustedPeer(tp, cert)){
+                WOLFSSL_MSG("Found matching trusted peer cert");
+                if (badDate != 0)
+                    return badDate;
+
+                if (criticalExt != 0)
+                    return criticalExt;
+
+                return 0;
+            } else {
+                WOLFSSL_MSG("No matching trusted peer cert");
+            }
+        }
+#endif /* WOLFSSL_TRUST_PEER_CERT */
 
         if (ca) {
 #ifdef HAVE_OCSP
@@ -5115,6 +5149,48 @@ void FreeSignerTable(Signer** table, int rows, void* heap)
     }
 }
 
+#ifdef WOLFSSL_TRUST_PEER_CERT
+/* Free an individual trusted peer cert */
+void FreeTrustedPeer(TrustedPeerCert* tp, void* heap)
+{
+    if (tp == NULL) {
+        return;
+    }
+
+    if (tp->name) {
+        XFREE(tp->name, heap, DYNAMIC_TYPE_SUBJECT_CN);
+    }
+
+    if (tp->sig) {
+        XFREE(tp->sig, heap, DYNAMIC_TYPE_SIGNATURE);
+    }
+    #ifndef IGNORE_NAME_CONSTRAINTS
+        if (tp->permittedNames)
+            FreeNameSubtrees(tp->permittedNames, heap);
+        if (tp->excludedNames)
+            FreeNameSubtrees(tp->excludedNames, heap);
+    #endif
+    XFREE(tp, heap, DYNAMIC_TYPE_CERT);
+
+    (void)heap;
+}
+
+/* Free the whole Trusted Peer linked list */
+void FreeTrustedPeerTable(TrustedPeerCert** table, int rows, void* heap)
+{
+    int i;
+
+    for (i = 0; i < rows; i++) {
+        TrustedPeerCert* tp = table[i];
+        while (tp) {
+            TrustedPeerCert* next = tp->next;
+            FreeTrustedPeer(tp, heap);
+            tp = next;
+        }
+        table[i] = NULL;
+    }
+}
+#endif /* WOLFSSL_TRUST_PEER_CERT */
 
 WOLFSSL_LOCAL int SetMyVersion(word32 version, byte* output, int header)
 {

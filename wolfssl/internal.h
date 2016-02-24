@@ -1435,17 +1435,27 @@ struct WOLFSSL_CRL {
 
 #ifdef NO_ASN
     typedef struct Signer Signer;
+#ifdef WOLFSSL_TRUST_PEER_CERT
+    typedef struct TrustedPeerCert TrustedPeerCert;
+#endif
 #endif
 
 
 #ifndef CA_TABLE_SIZE
     #define CA_TABLE_SIZE 11
 #endif
+#ifdef WOLFSSL_TRUST_PEER_CERT
+    #define TP_TABLE_SIZE 11
+#endif
 
 /* wolfSSL Certificate Manager */
 struct WOLFSSL_CERT_MANAGER {
     Signer*         caTable[CA_TABLE_SIZE]; /* the CA signer table */
     void*           heap;                /* heap helper */
+#ifdef WOLFSSL_TRUST_PEER_CERT
+    TrustedPeerCert* tpTable[TP_TABLE_SIZE]; /* table of trusted peer certs */
+    wolfSSL_Mutex   tpLock;                  /* trusted peer list lock */
+#endif
     WOLFSSL_CRL*    crl;                 /* CRL checker */
     WOLFSSL_OCSP*   ocsp;                /* OCSP checker */
 #if !defined(NO_WOLFSSL_SEVER) && (defined(HAVE_CERTIFICATE_STATUS_REQUEST) \
@@ -1934,6 +1944,12 @@ int ProcessOldClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     int AddCA(WOLFSSL_CERT_MANAGER* ctx, DerBuffer* der, int type, int verify);
     WOLFSSL_LOCAL
     int AlreadySigner(WOLFSSL_CERT_MANAGER* cm, byte* hash);
+#ifdef WOLFSSL_TRUST_PEER_CERT
+    WOLFSSL_LOCAL
+    int AddTrustedPeer(WOLFSSL_CERT_MANAGER* cm, DerBuffer* der, int verify);
+    WOLFSSL_LOCAL
+    int AlreadyTrustedPeer(WOLFSSL_CERT_MANAGER* cm, byte* hash);
+#endif
 #endif
 
 /* All cipher suite related info */
@@ -2819,6 +2835,11 @@ WOLFSSL_LOCAL int VerifyClientSuite(WOLFSSL* ssl);
         WOLFSSL_LOCAL int VerifyRsaSign(const byte* sig, word32 sigSz,
                                         const byte* plain, word32 plainSz,
                                         RsaKey* key);
+    #endif
+    #ifdef WOLFSSL_TRUST_PEER_CERT
+        WOLFSSL_LOCAL TrustedPeerCert* GetTrustedPeer(void* vp, byte* hash);
+        WOLFSSL_LOCAL int MatchTrustedPeer(TrustedPeerCert* tp,
+                                                             DecodedCert* cert);
     #endif
     WOLFSSL_LOCAL Signer* GetCA(void* cm, byte* hash);
     #ifndef NO_SKID
