@@ -3590,7 +3590,8 @@ static int ConfirmSignature(const byte* buf, word32 bufSz,
             if (sigSz > MAX_ENCODED_SIG_SZ) {
                 WOLFSSL_MSG("Verify Signature is too big");
             }
-            else if (wc_InitRsaKey(pubKey, heap) != 0) {
+
+            if (wc_InitRsaKey(pubKey, heap) != 0) {
                 WOLFSSL_MSG("InitRsaKey failed");
             }
             else if (wc_RsaPublicKeyDecode(key, &idx, pubKey, keySz) < 0) {
