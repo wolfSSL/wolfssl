@@ -2513,6 +2513,11 @@ AS_IF([test "x$ENABLED_OCSP" = "xyes" && \
        test "x$ENABLED_ASN" = "xno"],
       [AC_MSG_ERROR([please enable asn if enabling ocsp.])])
 
+AS_IF([test "x$ENABLED_OCSP" = "xyes" && \
+       test "x$ENABLED_RSA" = "xno" && \
+       test "x$ENABLED_ECC" = "xno"],
+      [AC_MSG_ERROR([please enable rsa or ecc if enabling ocsp.])])
+
 ################################################################################
 # Update CFLAGS based on options                                               #
 ################################################################################
