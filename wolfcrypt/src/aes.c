@@ -1428,6 +1428,18 @@ static void wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
                   int dir)
     {
         word32 *rk = aes->key;
+        #ifdef NO_AES128
+        if (keylen == 16)
+            return BAD_FUNC_ARG;
+        #endif
+        #ifdef NO_AES192
+        if (keylen == 24)
+            return BAD_FUNC_ARG;
+        #endif
+        #ifdef NO_AES256
+        if (keylen == 32)
+            return BAD_FUNC_ARG;
+        #endif
 
         if (!((keylen == 16) || (keylen == 24) || (keylen == 32)))
             return BAD_FUNC_ARG;
@@ -1491,6 +1503,18 @@ static void wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
             InitMutex(&Mutex_AesSEC);
         }
 
+    #ifdef NO_AES128
+        if (keylen == 16)
+            return BAD_FUNC_ARG;
+    #endif
+    #ifdef NO_AES192
+        if (keylen == 24)
+            return BAD_FUNC_ARG;
+    #endif
+    #ifdef NO_AES256
+        if (keylen == 32)
+            return BAD_FUNC_ARG;
+    #endif
         if (!((keylen == 16) || (keylen == 24) || (keylen == 32)))
             return BAD_FUNC_ARG;
 
@@ -1513,6 +1537,19 @@ static void wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
         byte *rk = (byte*)aes->key;
 
         (void)dir;
+
+    #ifdef NO_AES128
+        if (keylen == 16)
+            return BAD_FUNC_ARG;
+    #endif
+    #ifdef NO_AES192
+        if (keylen == 24)
+            return BAD_FUNC_ARG;
+    #endif
+    #ifdef NO_AES256
+        if (keylen == 32)
+            return BAD_FUNC_ARG;
+    #endif
 
         if (!((keylen == 16) || (keylen == 24) || (keylen == 32)))
             return BAD_FUNC_ARG;
@@ -1574,6 +1611,7 @@ static void wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
 
         switch(keylen)
         {
+    #ifndef NO_AES128
         case 16:
             while (1)
             {
@@ -1592,7 +1630,8 @@ static void wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
                 rk += 4;
             }
             break;
-
+    #endif /* NO_AES128 */
+    #ifndef NO_AES192
         case 24:
             /* for (;;) here triggers a bug in VC60 SP4 w/ Pro Pack */
             while (1)
@@ -1614,7 +1653,8 @@ static void wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
                 rk += 6;
             }
             break;
-
+    #endif /* NO_AES192 */
+    #ifndef NO_AES256
         case 32:
             while (1)
             {
@@ -1643,7 +1683,7 @@ static void wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
                 rk += 8;
             }
             break;
-
+    #endif /* NO_AES256 */
         default:
             return BAD_FUNC_ARG;
         }
@@ -1693,7 +1733,18 @@ static void wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
     int wc_AesSetKey(Aes* aes, const byte* userKey, word32 keylen, const byte* iv,
                   int dir)
     {
-
+    #ifdef NO_AES128
+        if (keylen == 16)
+            return BAD_FUNC_ARG;
+    #endif
+    #ifdef NO_AES192
+        if (keylen == 24)
+            return BAD_FUNC_ARG;
+    #endif
+    #ifdef NO_AES256
+        if (keylen == 32)
+            return BAD_FUNC_ARG;
+    #endif
         if (!((keylen == 16) || (keylen == 24) || (keylen == 32)))
             return BAD_FUNC_ARG;
 
@@ -2030,6 +2081,9 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
         secDesc->length2 = AES_BLOCK_SIZE;
         secDesc->pointer2 = (byte *)secReg; /* Initial Vector */
 
+        /* No Preprocessor checks for NO_AES(128/192/256) will not reduce
+         * footprint significantly and has already been checked in AesSetKey
+         */
         switch(aes->rounds) {
             case 10: secDesc->length3 = 16 ; break ;
             case 12: secDesc->length3 = 24 ; break ;
@@ -2214,6 +2268,9 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
         sa_p->SA_CTRL.ENCTYPE = dir ; /* Encryption/Decryption */
         sa_p->SA_CTRL.CRYPTOALGO = cryptoalgo;
 
+        /* No Preprocessor checks for NO_AES(128/192/256) will not reduce
+         * footprint significantly and has already been checked in AesSetKey
+         */
         if(cryptoalgo == PIC32_CRYPTOALGO_AES_GCM){
             switch(aes->keylen) {
             case 32:
@@ -2739,6 +2796,19 @@ int wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len)
 {
     int  ret;
     byte iv[AES_BLOCK_SIZE];
+
+    #ifdef NO_AES128
+    if (len == 16)
+        return BAD_FUNC_ARG;
+    #endif
+    #ifdef NO_AES192
+    if (len == 24)
+        return BAD_FUNC_ARG;
+    #endif
+    #ifdef NO_AES256
+    if (len == 32)
+        return BAD_FUNC_ARG;
+    #endif
 
     if (!((len == 16) || (len == 24) || (len == 32)))
         return BAD_FUNC_ARG;
@@ -3880,6 +3950,18 @@ WOLFSSL_API int wc_GmacUpdate(Gmac* gmac, const byte* iv, word32 ivSz,
 void wc_AesCcmSetKey(Aes* aes, const byte* key, word32 keySz)
 {
     byte nonce[AES_BLOCK_SIZE];
+    #ifdef NO_AES128
+        if (keySz == 16)
+            return;
+    #endif
+    #ifdef NO_AES192
+        if (keySz == 24)
+            return;
+    #endif
+    #ifdef NO_AES256
+        if (keySz == 32)
+            return;
+    #endif
 
     if (!((keySz == 16) || (keySz == 24) || (keySz == 32)))
         return;
@@ -4165,11 +4247,23 @@ static int wc_AesCaviumSetKey(Aes* aes, const byte* key, word32 length,
 
     XMEMCPY(aes->key, key, length);   /* key still holds key, iv still in reg */
     if (length == 16)
+    #ifndef NO_AES128
         aes->type = AES_128;
+    #else
+        return BAD_FUNC_ARG;
+    #endif
     else if (length == 24)
+    #ifndef NO_AES192
         aes->type = AES_192;
+    #else
+        return BAD_FUNC_ARG;
+    #endif
     else if (length == 32)
+    #ifndef NO_AES256
         aes->type = AES_256;
+    #else
+        return BAD_FUNC_ARG;
+    #endif
 
     return wc_AesSetIV(aes, iv);
 }

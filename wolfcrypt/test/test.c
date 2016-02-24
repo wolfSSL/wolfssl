@@ -170,11 +170,21 @@ int  chacha_test(void);
 int  chacha20_poly1305_aead_test(void);
 int  des_test(void);
 int  des3_test(void);
+#ifndef NO_AES128
 int  aes_test(void);
+int  aesccm_test(void);
+#endif
+#ifndef NO_AES192
+int  aes192_test(void);
+int  aesccm192_test(void);
+#endif
+#ifndef NO_AES256
+int  aes256_test(void);
+int  aesccm256_test(void);
+#endif
+int  gmac_test(void);
 int  poly1305_test(void);
 int  aesgcm_test(void);
-int  gmac_test(void);
-int  aesccm_test(void);
 int  camellia_test(void);
 int  rsa_test(void);
 int  dh_test(void);
@@ -452,10 +462,27 @@ int wolfcrypt_test(void* args)
 #endif
 
 #ifndef NO_AES
+
+#ifndef NO_AES128
     if ( (ret = aes_test()) != 0)
         return err_sys("AES      test failed!\n", ret);
     else
         printf( "AES      test passed!\n");
+#endif
+
+#ifndef NO_AES192
+    if ( (ret = aes192_test()) != 0)
+        return err_sys("AES192   test failed!\n", ret);
+    else
+        printf( "AES192   test passed!\n");
+#endif
+
+#ifndef NO_AES256
+    if ( (ret = aes256_test()) != 0)
+        return err_sys("AES256   test failed!\n", ret);
+    else
+        printf( "AES256   test passed!\n");
+#endif
 
 #ifdef HAVE_AESGCM
     if ( (ret = aesgcm_test()) != 0)
@@ -465,12 +492,26 @@ int wolfcrypt_test(void* args)
 #endif
 
 #ifdef HAVE_AESCCM
+  #ifndef NO_AES128
     if ( (ret = aesccm_test()) != 0)
         return err_sys("AES-CCM  test failed!\n", ret);
     else
         printf( "AES-CCM  test passed!\n");
+  #endif
+  #ifndef NO_AES192
+    if ( (ret = aesccm192_test()) != 0)
+        return err_sys("AES-CCM192  test failed!\n", ret);
+    else
+        printf( "AES-CCM192  test passed!\n");
+  #endif
+  #ifndef NO_AES256
+    if ( (ret = aesccm256_test()) != 0)
+        return err_sys("AES-CCM256  test failed!\n", ret);
+    else
+        printf( "AES-CCM256  test passed!\n");
+  #endif
 #endif
-#endif
+#endif /* NO_AES */
 
 #ifdef HAVE_CAMELLIA
     if ( (ret = camellia_test()) != 0)
@@ -2602,6 +2643,7 @@ int des3_test(void)
 
 
 #ifndef NO_AES
+#ifndef NO_AES128
 int aes_test(void)
 {
     Aes enc;
@@ -2782,17 +2824,155 @@ int aes_test(void)
 
     return 0;
 }
+#endif /* NO_AES128 */
+
+#ifndef NO_AES192
+int aes192_test(void)
+{
+    Aes enc;
+    Aes dec;
+
+    /*
+     * http://www.inconteam.com/software-development/41-encryption/
+     *                                         55-aes-test-vectors#aes-cbc-192
+     */
+    const byte msg[] = {
+        0x6b,0xc1,0xbe,0xe2,0x2e,0x40,0x9f,0x96,
+        0xe9,0x3d,0x7e,0x11,0x73,0x93,0x17,0x2a
+    };
+
+    const byte verify[] =
+    {
+        0x4f,0x02,0x1d,0xb2,0x43,0xbc,0x63,0x3d,
+        0x71,0x78,0x18,0x3a,0x9f,0xa0,0x71,0xe8
+    };
+
+    byte key[] = {
+        0x8e,0x73,0xb0,0xf7,0xda,0x0e,0x64,0x52,
+        0xc8,0x10,0xf3,0x2b,0x80,0x90,0x79,0xe5,
+        0x62,0xf8,0xea,0xd2,0x52,0x2c,0x6b,0x7b
+    };
+    byte iv[]  = {
+        0x00,0x01,0x02,0x03,0x04,0x05,0x06,0x07,
+        0x08,0x09,0x0A,0x0B,0x0C,0x0D,0x0E,0x0F
+    };
+
+    /* May need to increase cipher and plain to AES_BLOCK_SIZE*4 in the future
+     * if testing AES_COUNTER like we did in the aes_test
+     */
+    byte cipher[AES_BLOCK_SIZE];
+    byte plain [AES_BLOCK_SIZE];
+    int  ret;
+
+#ifdef HAVE_CAVIUM
+        if (wc_AesInitCavium(&enc, CAVIUM_DEV_ID) != 0)
+            return -20003;
+        if (wc_AesInitCavium(&dec, CAVIUM_DEV_ID) != 0)
+            return -20004;
+#endif
+    ret = wc_AesSetKey(&enc, key, (int) sizeof(key), iv, AES_ENCRYPTION);
+    if (ret != 0)
+        return -1001;
+    ret = wc_AesSetKey(&dec, key, (int) sizeof(key), iv, AES_DECRYPTION);
+    if (ret != 0)
+        return -1002;
+
+    ret = wc_AesCbcEncrypt(&enc, cipher, msg, (int) sizeof(msg));
+    if (ret != 0)
+        return -1005;
+    ret = wc_AesCbcDecrypt(&dec, plain, cipher, (int) sizeof(cipher));
+    if (ret != 0)
+        return -1006;
+    if (memcmp(plain, msg, (int) sizeof(plain))) {
+        return -60;
+    }
+
+    if (memcmp(cipher, verify, (int) sizeof(cipher)))
+        return -61;
+
+    return 0;
+}
+#endif /* NO_AES192 */
+
+#ifndef NO_AES256
+int aes256_test(void)
+{
+    Aes enc;
+    Aes dec;
+
+    /*
+     * http://www.inconteam.com/software-development/41-encryption/
+     *                                      55-aes-test-vectors#aes-cbc-256
+     */
+    const byte msg[] = { /* "Now is the time for all " w/o trailing 0 */
+        0x6b,0xc1,0xbe,0xe2,0x2e,0x40,0x9f,0x96,
+        0xe9,0x3d,0x7e,0x11,0x73,0x93,0x17,0x2a
+    };
+
+    const byte verify[] =
+    {
+        0xf5,0x8c,0x4c,0x04,0xd6,0xe5,0xf1,0xba,
+        0x77,0x9e,0xab,0xfb,0x5f,0x7b,0xfb,0xd6
+    };
+
+    byte key[] = {
+        0x60,0x3d,0xeb,0x10,0x15,0xca,0x71,0xbe,
+        0x2b,0x73,0xae,0xf0,0x85,0x7d,0x77,0x81,
+        0x1f,0x35,0x2c,0x07,0x3b,0x61,0x08,0xd7,
+        0x2d,0x98,0x10,0xa3,0x09,0x14,0xdf,0xf4
+    };
+    byte iv[]  = {
+        0x00,0x01,0x02,0x03,0x04,0x05,0x06,0x07,
+        0x08,0x09,0x0A,0x0B,0x0C,0x0D,0x0E,0x0F
+    };
+
+    /* May need to increase cipher and plain to AES_BLOCK_SIZE*4 in the future
+     * if testing AES_COUNTER like we did in the aes_test
+     */
+    byte cipher[AES_BLOCK_SIZE];
+    byte plain [AES_BLOCK_SIZE];
+    int  ret;
+
+#ifdef HAVE_CAVIUM
+        if (wc_AesInitCavium(&enc, CAVIUM_DEV_ID) != 0)
+            return -20003;
+        if (wc_AesInitCavium(&dec, CAVIUM_DEV_ID) != 0)
+            return -20004;
+#endif
+    ret = wc_AesSetKey(&enc, key, (int) sizeof(key), iv, AES_ENCRYPTION);
+    if (ret != 0)
+        return -1001;
+    ret = wc_AesSetKey(&dec, key, (int) sizeof(key), iv, AES_DECRYPTION);
+    if (ret != 0)
+        return -1002;
+
+    ret = wc_AesCbcEncrypt(&enc, cipher, msg, (int) sizeof(msg));
+    if (ret != 0)
+        return -1005;
+    ret = wc_AesCbcDecrypt(&dec, plain, cipher, (int) sizeof(cipher));
+    if (ret != 0)
+        return -1006;
+    if (memcmp(plain, msg, (int) sizeof(plain))) {
+        return -60;
+    }
+
+    if (memcmp(cipher, verify, (int) sizeof(cipher)))
+        return -61;
+
+    return 0;
+}
+#endif /* NO_AES256 */
 
 #ifdef HAVE_AESGCM
 int aesgcm_test(void)
 {
-    Aes enc;
-
     /*
      * This is Test Case 16 from the document Galois/
      * Counter Mode of Operation (GCM) by McGrew and
      * Viega.
      */
+#if !defined(NO_AES256) && !defined(NO_AES192)
+    Aes enc;
     const byte p[] =
     {
         0xd9, 0x31, 0x32, 0x25, 0xf8, 0x84, 0x06, 0xe5,
@@ -2844,7 +3024,7 @@ int aesgcm_test(void)
         0xcd, 0xdf, 0x88, 0x53, 0xbb, 0x2d, 0x55, 0x1b
     };
 
-#ifndef HAVE_FIPS
+#if !defined(HAVE_FIPS) && !defined(NO_AES192)
     /* Test Case 12, uses same plaintext and AAD data. */
     const byte k2[] =
     {
@@ -2882,7 +3062,7 @@ int aesgcm_test(void)
         0xdc, 0xf5, 0x66, 0xff, 0x29, 0x1c, 0x25, 0xbb,
         0xb8, 0x56, 0x8f, 0xc3, 0xd3, 0x76, 0xa6, 0xd9
     };
-#endif /* HAVE_FIPS */
+#endif /* HAVE_FIPS && NO_AES192 */
 
     byte resultT[sizeof(t1)];
     byte resultP[sizeof(p)];
@@ -2909,7 +3089,7 @@ int aesgcm_test(void)
     if (memcmp(p, resultP, sizeof(resultP)))
         return -71;
 
-#ifndef HAVE_FIPS
+#if !defined(HAVE_FIPS) && !defined(NO_AES192)
     memset(resultT, 0, sizeof(resultT));
     memset(resultC, 0, sizeof(resultC));
     memset(resultP, 0, sizeof(resultP));
@@ -2929,7 +3109,80 @@ int aesgcm_test(void)
         return -232;
     if (memcmp(p, resultP, sizeof(resultP)))
         return -233;
-#endif /* HAVE_FIPS */
+#endif /* HAVE_FIPS && NO_AES192 */
+
+#else /* NO_AES256 && NO_AES192 */
+    #ifndef NO_AES128
+    Aes enc;
+    /*
+     * [Keylen = 128]
+     * [IVlen = 96]
+     * [PTlen = 128]
+     * [AADlen = 128]
+     * [Taglen = 128]
+     * See "Count = 1"
+     * from gcmEncryptExtIV128.rsp found at the following site:
+     * http://csrc.nist.gov/groups/STM/cavp/block-cipher-modes.html#gcmvs
+     * http://csrc.nist.gov/groups/STM/cavp/documents/mac/gcmtestvectors.zip
+     */
+    const byte key[] =
+    {
+        0x59,0x9e,0xb6,0x5e,0x6b,0x2a,0x2a,0x7f,
+        0xcc,0x40,0xe5,0x1c,0x4f,0x6e,0x32,0x57
+    };
+    const byte iv[] =
+    {
+        0xd4,0x07,0x30,0x1c,0xfa,0x29,0xaf,0x85,
+        0x25,0x98,0x1c,0x17
+    };
+    const byte pt[] =
+    {
+        0xa6,0xc9,0xe0,0xf2,0x48,0xf0,0x7a,0x30,
+        0x46,0xec,0xe1,0x21,0x25,0x66,0x69,0x21
+    };
+    const byte aad[] =
+    {
+        0x10,0xe7,0x2e,0xfe,0x04,0x86,0x48,0xd4,
+        0x01,0x39,0x47,0x7a,0x20,0x16,0xf8,0xce
+    };
+    const byte ct[] =
+    {
+        0x1b,0xe9,0x35,0x9a,0x54,0x3f,0xd7,0xec,
+        0x3c,0x4b,0xc6,0xf3,0xc9,0x39,0x5e,0x89
+    };
+    const byte tag[] =
+    {
+        0xe2,0xe9,0xc0,0x7d,0x4c,0x3c,0x10,0xa6,
+        0x13,0x7c,0xa4,0x33,0xda,0x42,0xf9,0xa8
+    };
+
+    byte resultT[sizeof(ct)];
+    byte resultP[sizeof(pt)];
+    byte resultC[sizeof(pt)];
+    int  result;
+
+    memset(resultT, 0, sizeof(resultT));
+    memset(resultC, 0, sizeof(resultC));
+    memset(resultP, 0, sizeof(resultP));
+
+    wc_AesGcmSetKey(&enc, key, sizeof(key));
+    /* AES-GCM encrypt and decrypt both use AES encrypt internally */
+    wc_AesGcmEncrypt(&enc, resultC, pt, sizeof(pt), iv, sizeof(iv),
+                                   resultT, sizeof(resultT), aad, sizeof(aad));
+    if (memcmp(ct, resultC, sizeof(resultC)))
+        return -68;
+    if (memcmp(tag, resultT, sizeof(resultT)))
+        return -69;
+
+    result = wc_AesGcmDecrypt(&enc, resultP, resultC, sizeof(resultC),
+                   iv, sizeof(iv), resultT, sizeof(resultT), aad, sizeof(aad));
+    if (result != 0)
+        return -70;
+    if (memcmp(pt, resultP, sizeof(resultP)))
+        return -71;
+
+    #endif /* NO_AES128 */
+#endif /* NO_AES256 && NO_AES192*/
 
     return 0;
 }
@@ -2937,94 +3190,154 @@ int aesgcm_test(void)
 int gmac_test(void)
 {
     Gmac gmac;
-
+    int ret;
+    #ifndef NO_AES128
+    /*
+     * [Keylen = 128]
+     * [IVlen = 96]
+     * [PTlen = 0]
+     * [AADlen = 160]
+     * [Taglen = 112]
+     * See "Count = 8"
+     * from gcmEncryptExtIV128.rsp found at the following site:
+     * http://csrc.nist.gov/groups/STM/cavp/block-cipher-modes.html#gcmvs
+     * http://csrc.nist.gov/groups/STM/cavp/documents/mac/gcmtestvectors.zip
+     */
     const byte k1[] =
     {
-        0x89, 0xc9, 0x49, 0xe9, 0xc8, 0x04, 0xaf, 0x01,
-        0x4d, 0x56, 0x04, 0xb3, 0x94, 0x59, 0xf2, 0xc8
+        0x8a,0x87,0x32,0x79,0x19,0xf1,0x31,0xc3,
+        0xa5,0x97,0x21,0x9c,0x9d,0x61,0xdb,0x60
     };
     const byte iv1[] =
     {
-        0xd1, 0xb1, 0x04, 0xc8, 0x15, 0xbf, 0x1e, 0x94,
-        0xe2, 0x8c, 0x8f, 0x16
+        0x38,0xc8,0xe4,0x1e,0x35,0x6f,0x9b,0x85,
+        0xdb,0x75,0x54,0xd1
     };
     const byte a1[] =
     {
-       0x82, 0xad, 0xcd, 0x63, 0x8d, 0x3f, 0xa9, 0xd9,
-       0xf3, 0xe8, 0x41, 0x00, 0xd6, 0x1e, 0x07, 0x77
+        0x38,0xe6,0xee,0x0a,0x73,0x73,0x28,0x0b,
+        0x56,0x94,0x46,0x07,0x4b,0x0d,0x41,0xea,
+        0xf8,0xb6,0xa9,0xea
     };
     const byte t1[] =
     {
-        0x88, 0xdb, 0x9d, 0x62, 0x17, 0x2e, 0xd0, 0x43,
-        0xaa, 0x10, 0xf1, 0x6d, 0x22, 0x7d, 0xc4, 0x1b
+        0x83,0x43,0x8d,0x59,0x4f,0xa7,0x57,0x35,
+        0xc3,0x10,0xda,0xd5,0x54,0x19
     };
-
+#endif
+#ifndef NO_AES192
+     /*
+      * [Keylen = 192]
+      * [IVlen = 96]
+      * [PTlen = 0]
+      * [AADlen = 128]
+      * [Taglen = 128]
+      * See Count = 8
+      * from gcmEncryptExtIV192.rsp found at the following site:
+      * http://csrc.nist.gov/groups/STM/cavp/block-cipher-modes.html#gcmvs
+      * http://csrc.nist.gov/groups/STM/cavp/documents/mac/gcmtestvectors.zip
+      */
     const byte k2[] =
     {
-        0x40, 0xf7, 0xec, 0xb2, 0x52, 0x6d, 0xaa, 0xd4,
-        0x74, 0x25, 0x1d, 0xf4, 0x88, 0x9e, 0xf6, 0x5b
+        0xab,0x3c,0x5c,0x4a,0x37,0x2e,0xc0,0x5f,
+        0xeb,0x74,0x23,0xa5,0x55,0xed,0x6c,0xc6,
+        0x6c,0x5d,0x3b,0xd8,0x55,0x7e,0xff,0xa7
     };
     const byte iv2[] =
     {
-        0xee, 0x9c, 0x6e, 0x06, 0x15, 0x45, 0x45, 0x03,
-        0x1a, 0x60, 0x24, 0xa7
+        0xfb,0x79,0x7a,0x5f,0xa6,0x3a,0x38,0x88,
+        0x0e,0xd3,0x80,0xc6
     };
     const byte a2[] =
     {
-        0x94, 0x81, 0x2c, 0x87, 0x07, 0x4e, 0x15, 0x18,
-        0x34, 0xb8, 0x35, 0xaf, 0x1c, 0xa5, 0x7e, 0x56
+        0x67,0x63,0xc5,0x0c,0x5d,0xe0,0xdb,0x7f,
+        0x67,0x5f,0xe1,0x6d,0x0a,0x5d,0x5a,0x79
     };
     const byte t2[] =
     {
-        0xc6, 0x81, 0x79, 0x8e, 0x3d, 0xda, 0xb0, 0x9f,
-        0x8d, 0x83, 0xb0, 0xbb, 0x14, 0xb6, 0x91
+        0x6a,0xe6,0xc7,0x8d,0xe5,0xdf,0xea,0x5c,
+        0xb3,0xe9,0x6e,0xe9,0x59,0x71,0x37,0x41
     };
-
+#endif
+#ifndef NO_AES256
+     /*
+      * [Keylen = 256]
+      * [IVlen = 96]
+      * [PTlen = 0]
+      * [AADlen = 128]
+      * [Taglen = 128]
+      * See Count = 8
+      * from gcmEncryptExtIV192.rsp found at the following site:
+      * http://csrc.nist.gov/groups/STM/cavp/block-cipher-modes.html#gcmvs
+      * http://csrc.nist.gov/groups/STM/cavp/documents/mac/gcmtestvectors.zip
+      */
     const byte k3[] =
     {
-        0xb8, 0xe4, 0x9a, 0x5e, 0x37, 0xf9, 0x98, 0x2b,
-        0xb9, 0x6d, 0xd0, 0xc9, 0xb6, 0xab, 0x26, 0xac
+        0x9f,0x9f,0xe7,0xd2,0xa2,0x6d,0xcf,0x59,
+        0xd6,0x84,0xf1,0xc0,0x94,0x5b,0x5f,0xfa,
+        0xfe,0x0a,0x47,0x46,0x84,0x5e,0xd3,0x17,
+        0xd3,0x5f,0x3e,0xd7,0x6c,0x93,0x04,0x4d
     };
     const byte iv3[] =
     {
-        0xe4, 0x4a, 0x42, 0x18, 0x8c, 0xae, 0x94, 0x92,
-        0x6a, 0x9c, 0x26, 0xb0
+        0x13,0xb5,0x99,0x71,0xcd,0x4d,0xd3,0x6b,
+        0x19,0xac,0x71,0x04
     };
     const byte a3[] =
     {
-        0x9d, 0xb9, 0x61, 0x68, 0xa6, 0x76, 0x7a, 0x31,
-        0xf8, 0x29, 0xe4, 0x72, 0x61, 0x68, 0x3f, 0x8a
+        0x19,0x0a,0x69,0x34,0xf4,0x5f,0x89,0xc9,
+        0x00,0x67,0xc2,0xf6,0x2e,0x04,0xc5,0x3b
     };
     const byte t3[] =
     {
-        0x23, 0xe2, 0x9f, 0x66, 0xe4, 0xc6, 0x52, 0x48
+        0x4f,0x63,0x6a,0x29,0x4b,0xfb,0xf5,0x1f,
+        0xc0,0xe1,0x31,0xd6,0x94,0xd5,0xc2,0x22
     };
+#endif
 
     byte tag[16];
 
     memset(tag, 0, sizeof(tag));
-    wc_GmacSetKey(&gmac, k1, sizeof(k1));
-    wc_GmacUpdate(&gmac, iv1, sizeof(iv1), a1, sizeof(a1), tag, sizeof(t1));
+#ifndef NO_AES128
+    if ((ret = wc_GmacSetKey(&gmac, k1, sizeof(k1))) != 0)
+        return ret;
+    if ((ret = wc_GmacUpdate(&gmac, iv1, sizeof(iv1), a1, sizeof(a1), tag,
+                                                             sizeof(t1))) != 0)
+        return ret;
     if (memcmp(t1, tag, sizeof(t1)) != 0)
         return -126;
 
     memset(tag, 0, sizeof(tag));
-    wc_GmacSetKey(&gmac, k2, sizeof(k2));
-    wc_GmacUpdate(&gmac, iv2, sizeof(iv2), a2, sizeof(a2), tag, sizeof(t2));
+#endif
+#ifndef NO_AES192
+    if ((ret = wc_GmacSetKey(&gmac, k2, sizeof(k2))) != 0)
+        return ret;
+    if ((ret = wc_GmacUpdate(&gmac, iv2, sizeof(iv2), a2, sizeof(a2), tag,
+                                                             sizeof(t2))) != 0)
+        return ret;
     if (memcmp(t2, tag, sizeof(t2)) != 0)
         return -127;
 
     memset(tag, 0, sizeof(tag));
-    wc_GmacSetKey(&gmac, k3, sizeof(k3));
-    wc_GmacUpdate(&gmac, iv3, sizeof(iv3), a3, sizeof(a3), tag, sizeof(t3));
+#endif
+#ifndef NO_AES256
+    if ((ret = wc_GmacSetKey(&gmac, k3, sizeof(k3))) != 0)
+        return ret;
+    if ((ret = wc_GmacUpdate(&gmac, iv3, sizeof(iv3), a3, sizeof(a3), tag,
+                                                             sizeof(t3))) != 0)
+        return ret;
     if (memcmp(t3, tag, sizeof(t3)) != 0)
         return -128;
+
+    memset(tag, 0, sizeof(tag));
+#endif
 
     return 0;
 }
 #endif /* HAVE_AESGCM */
 
 #ifdef HAVE_AESCCM
+#ifndef NO_AES128
 int aesccm_test(void)
 {
     Aes enc;
@@ -3111,6 +3424,228 @@ int aesccm_test(void)
 
     return 0;
 }
+#endif /* NO_AES128 */
+#ifndef NO_AES192
+int aesccm192_test(void)
+{
+    Aes enc;
+     /*
+      * [Alen = 32]
+      * [Plen = 24]
+      * [Nlen = 13]
+      * [Taglen = 4]
+      * See Count = 0
+      * from CCM-VTT192.rsp found at the following site:
+      * http://csrc.nist.gov/groups/STM/cavp/block-cipher-modes.html#gcmvs
+      * http://csrc.nist.gov/groups/STM/cavp/documents/mac/ccmtestvectors.zip
+      */
+
+    /* key */
+    const byte k[] =
+    {
+        0x11,0xfd,0x45,0x74,0x3d,0x94,0x6e,0x6d,
+        0x37,0x34,0x1f,0xec,0x49,0x94,0x7e,0x8c,
+        0x70,0x48,0x24,0x94,0xa8,0xf0,0x7f,0xcc
+    };
+
+    /* nonce */
+    const byte iv[] =
+    {
+        0xc6,0xae,0xeb,0xcb,0x14,0x6c,0xfa,0xfa,
+        0xae,0x66,0xf7,0x8a,0xab
+    };
+
+    /* plaintext */
+    const byte p[] =
+    {
+        0xee,0x7e,0x60,0x75,0xba,0x52,0x84,0x6d,
+        0xe5,0xd6,0x25,0x49,0x59,0xa1,0x8a,0xff,
+        0xc4,0xfa,0xf5,0x9c,0x8e,0xf6,0x34,0x89
+    };
+
+    /* corresponds to Adata in NIST vectors */
+    const byte a[] =
+    {
+        0x7d,0xc8,0xc5,0x21,0x44,0xa7,0xcb,0x65,
+        0xb3,0xe5,0xa8,0x46,0xe8,0xfd,0x7e,0xae,
+        0x37,0xbf,0x69,0x96,0xc2,0x99,0xb5,0x6e,
+        0x49,0x14,0x4e,0xbf,0x43,0xa1,0x77,0x0f
+    };
+
+    /* corresponds to CT (cihper text) vaiable in NIST vectors
+     * NOTE!!!!
+     * CT in the NIST vectors contains both the cipher text and the
+     * authTag. If the NIST vector has [Tlen = 8] then the last 8 bytes
+     * of CT are your authTag those go in the variable "t" below */
+    const byte c[] =
+    {
+        0x13,0x7d,0x9d,0xa5,0x9b,0xaf,0x5c,0xbf,
+        0xd4,0x66,0x20,0xc5,0xf2,0x98,0xfc,0x76,
+        0x6d,0xe1,0x0a,0xc6,0x8e,0x77,0x4e,0xdf
+    };
+
+    /* corresponds to the last Tlen bytes of variable CT in NIST vectors */
+    const byte t[] =
+    {
+        0x1f,0x2c,0x5b,0xad
+    };
+
+    byte t2[sizeof(t)];
+    byte p2[sizeof(p)];
+    byte c2[sizeof(c)];
+
+    int result;
+
+    memset(t2, 0, sizeof(t2));
+    memset(c2, 0, sizeof(c2));
+    memset(p2, 0, sizeof(p2));
+
+    wc_AesCcmSetKey(&enc, k, sizeof(k));
+    /* AES-CCM encrypt and decrypt both use AES encrypt internally */
+    result = wc_AesCcmEncrypt(&enc, c2, p, sizeof(c2), iv, sizeof(iv),
+                                                 t2, sizeof(t2), a, sizeof(a));
+    if (result != 0)
+        return -106;
+    if (memcmp(c, c2, sizeof(c2)))
+        return -107;
+    if (memcmp(t, t2, sizeof(t2)))
+        return -108;
+
+    result = wc_AesCcmDecrypt(&enc, p2, c2, sizeof(p2), iv, sizeof(iv),
+                                                 t2, sizeof(t2), a, sizeof(a));
+    if (result != 0)
+        return -109;
+    if (memcmp(p, p2, sizeof(p2)))
+        return -110;
+
+    /* Test the authentication failure */
+    t2[0]++; /* Corrupt the authentication tag. */
+    result = wc_AesCcmDecrypt(&enc, p2, c, sizeof(p2), iv, sizeof(iv),
+                                                 t2, sizeof(t2), a, sizeof(a));
+    if (result == 0)
+        return -111;
+
+    /* Clear c2 to compare against p2. p2 should be set to zero in case of
+     * authentication fail. */
+    memset(c2, 0, sizeof(c2));
+    if (memcmp(p2, c2, sizeof(p2)))
+        return -112;
+
+    return 0;
+}
+#endif /* NO_AES192 */
+#ifndef NO_AES256
+int aesccm256_test(void)
+{
+    Aes enc;
+
+     /*
+      * [Alen = 32]
+      * [Plen = 24]
+      * [Nlen = 13]
+      * [Taglen = 14]
+      * See Count = 50
+      * from CCM-VTT256.rsp found at the following site:
+      * http://csrc.nist.gov/groups/STM/cavp/block-cipher-modes.html#gcmvs
+      * http://csrc.nist.gov/groups/STM/cavp/documents/mac/ccmtestvectors.zip
+      */
+
+    /* key */
+    const byte k[] =
+    {
+        0x5c,0x8b,0x59,0xd3,0xe7,0x98,0x6c,0x27,
+        0x7d,0x5a,0xd5,0x1e,0x4a,0x22,0x33,0x25,
+        0x10,0x76,0x80,0x9e,0xbf,0x59,0x46,0x3f,
+        0x47,0xcd,0x10,0xb4,0xaa,0x95,0x1f,0x8c
+    };
+
+    /* nonce */
+    const byte iv[] =
+    {
+        0x21,0xff,0x89,0x2b,0x74,0x3d,0x66,0x11,
+        0x89,0xe2,0x05,0xc7,0xf3
+    };
+
+    /* plaintext */
+    const byte p[] =
+    {
+        0x13,0x8e,0xe5,0x3b,0x19,0x14,0xd3,0x32,
+        0x2c,0x2d,0xd0,0xa4,0xe0,0x2f,0xaa,0xb2,
+        0x23,0x65,0x55,0x13,0x1d,0x5e,0xea,0x08
+    };
+
+    /* corresponds to Adata in NIST vectors */
+    const byte a[] =
+    {
+        0xf1,0xe0,0xaf,0x18,0x51,0x80,0xd2,0xeb,
+        0x63,0xe5,0x0e,0x37,0xba,0x69,0x26,0x47,
+        0xca,0xc2,0xc6,0xa1,0x49,0xd7,0x0c,0x81,
+        0xdb,0xd3,0x46,0x85,0xed,0x78,0xfe,0xaa
+    };
+
+    /* corresponds to CT (cihper text) vaiable in NIST vectors
+     * NOTE!!!!
+     * CT in the NIST vectors contains both the cipher text and the
+     * authTag. If the NIST vector has [Tlen = 8] then the last 8 bytes
+     * of CT are your authTag those go in the variable "t" below */
+    const byte c[] =
+    {
+        0x5b,0x2f,0x30,0x26,0xf3,0x0f,0xdd,0x50,
+        0xac,0xcc,0x40,0xdd,0xd0,0x93,0xb7,0x99,
+        0x7f,0x23,0xd7,0xc6,0xd3,0xc8,0xbc,0x42
+    };
+
+    /* corresponds to the last Tlen bytes of variable CT in NIST vectors */
+    const byte t[] =
+    {
+        0x5f,0x82,0xc8,0x28,0x41,0x36,0x43,0xb8,
+        0x79,0x44,0x94,0xcb,0x52,0x36
+    };
+
+    byte t2[sizeof(t)];
+    byte p2[sizeof(p)];
+    byte c2[sizeof(c)];
+
+    int result;
+
+    memset(t2, 0, sizeof(t2));
+    memset(c2, 0, sizeof(c2));
+    memset(p2, 0, sizeof(p2));
+
+    wc_AesCcmSetKey(&enc, k, sizeof(k));
+    /* AES-CCM encrypt and decrypt both use AES encrypt internally */
+    result = wc_AesCcmEncrypt(&enc, c2, p, sizeof(c2), iv, sizeof(iv),
+                                                 t2, sizeof(t2), a, sizeof(a));
+    if (result != 0)
+        return -106;
+    if (memcmp(c, c2, sizeof(c2)))
+        return -107;
+    if (memcmp(t, t2, sizeof(t2)))
+        return -108;
+
+    result = wc_AesCcmDecrypt(&enc, p2, c2, sizeof(p2), iv, sizeof(iv),
+                                                 t2, sizeof(t2), a, sizeof(a));
+    if (result != 0)
+        return -109;
+    if (memcmp(p, p2, sizeof(p2)))
+        return -110;
+
+    /* Test the authentication failure */
+    t2[0]++; /* Corrupt the authentication tag. */
+    result = wc_AesCcmDecrypt(&enc, p2, c, sizeof(p2), iv, sizeof(iv),
+                                                 t2, sizeof(t2), a, sizeof(a));
+    if (result == 0)
+        return -111;
+
+    /* Clear c2 to compare against p2. p2 should be set to zero in case of
+     * authentication fail. */
+    memset(c2, 0, sizeof(c2));
+    if (memcmp(p2, c2, sizeof(p2)))
+        return -112;
+
+    return 0;
+}
+#endif /* NO_AES256 */
 #endif /* HAVE_AESCCM */
 
 
