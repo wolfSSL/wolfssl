@@ -521,8 +521,8 @@ static INLINE void build_addr(SOCKADDR_IN_T* addr, const char* peer,
     (void)useLookup;
     (void)udp;
 
-    if (addr == NULL || peer == NULL)
-        err_sys("invalid arguments to build_addr, addr or peer is NULL");
+    if (addr == NULL)
+        err_sys("invalid argument to build_addr, addr is NULL");
 
     memset(addr, 0, sizeof(SOCKADDR_IN_T));
 
