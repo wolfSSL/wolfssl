@@ -2509,7 +2509,8 @@ AS_IF([test "x$ENABLED_MAXSTRENGTH" = "xyes" && \
        test "x$ENABLED_LEANPSK" = "xyes"],
       [AC_MSG_ERROR([Cannot use Max Strength and Lean PSK at the same time.])])
 
-AS_IF([test "x$ENABLED_ASN" = "xno"],
+AS_IF([test "x$ENABLED_OCSP" = "xyes" && \
+       test "x$ENABLED_ASN" = "xno"],
       [AC_MSG_ERROR([please enable asn if enabling ocsp.])])
 
 ################################################################################
