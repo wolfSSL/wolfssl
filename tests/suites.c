@@ -473,7 +473,7 @@ int SuiteTest(void)
     cipherSuiteCtx = wolfSSL_CTX_new(wolfTLSv1_2_client_method());
     if (cipherSuiteCtx == NULL) {
         printf("can't get cipher suite ctx\n");
-        exit(EXIT_FAILURE);  
+        exit(EXIT_FAILURE);
     }
 
     /* default case */
@@ -482,7 +482,7 @@ int SuiteTest(void)
     test_harness(&args);
     if (args.return_code != 0) {
         printf("error from script %d\n", args.return_code);
-        exit(EXIT_FAILURE);  
+        exit(EXIT_FAILURE);
     }
 
     /* any extra cases will need another argument */
@@ -499,6 +499,7 @@ int SuiteTest(void)
     }
 #endif
 #ifndef WC_STRICT_SIG
+#if !defined(NO_RSA) && defined(HAVE_ECC) /* testing mixed ECC/RSA cert */
     /* add extra signature test suites */
     strcpy(argv0[1], "tests/test-sig.conf");
     printf("starting sig extra cipher suite tests\n");
@@ -507,7 +508,8 @@ int SuiteTest(void)
         printf("error from script %d\n", args.return_code);
         exit(EXIT_FAILURE);
     }
-#endif
+#endif /* HAVE_RSA and HAVE_ECC */
+#endif /* !WC_STRICT_SIG */
 #ifdef HAVE_QSH
     /* add QSH extra suites */
     strcpy(argv0[1], "tests/test-qsh.conf");
