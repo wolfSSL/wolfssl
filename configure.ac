@@ -2501,13 +2501,27 @@ AM_CONDITIONAL([BUILD_MCAPI], [test "x$ENABLED_MCAPI" = "xyes"])
 # check if PSK was enabled for conditionally running psk.test script
 AM_CONDITIONAL([BUILD_PSK], [test "x$ENABLED_PSK" = "xyes"])
 
-# Check for build-type conflicts
+################################################################################
+# Check for build-type conflicts                                               #
+################################################################################
+
 AS_IF([test "x$ENABLED_MAXSTRENGTH" = "xyes" && \
        test "x$ENABLED_LEANPSK" = "xyes"],
       [AC_MSG_ERROR([Cannot use Max Strength and Lean PSK at the same time.])])
 
+AS_IF([test "x$ENABLED_OCSP" = "xyes" && \
+       test "x$ENABLED_ASN" = "xno"],
+      [AC_MSG_ERROR([please enable asn if enabling ocsp.])])
 
-# Update CFLAGS based on options
+AS_IF([test "x$ENABLED_OCSP" = "xyes" && \
+       test "x$ENABLED_RSA" = "xno" && \
+       test "x$ENABLED_ECC" = "xno"],
+      [AC_MSG_ERROR([please enable rsa or ecc if enabling ocsp.])])
+
+################################################################################
+# Update CFLAGS based on options                                               #
+################################################################################
+
 AS_IF([test "x$ENABLED_MAXSTRENGTH" = "xyes"],
       [AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_MAX_STRENGTH"])
 
@@ -2520,6 +2534,7 @@ AS_IF([test "x$ENABLED_MAXSTRENGTH" = "xyes" && \
        test "x$ENABLED_SSLV3" = "xyes"],
       [AC_MSG_ERROR([Cannot use Max Strength and SSLv3 at the same time.])])
 
+################################################################################
 
 # OPTIMIZE FLAGS
 if test "$GCC" = "yes"
