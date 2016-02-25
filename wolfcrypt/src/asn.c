@@ -3586,12 +3586,11 @@ static int ConfirmSignature(const byte* buf, word32 bufSz,
                 break; /* not confirmed */
             }
 #endif
-
-            if (sigSz > MAX_ENCODED_SIG_SZ) {
-                WOLFSSL_MSG("Verify Signature is too big");
-            }
-            else if (wc_InitRsaKey(pubKey, heap) != 0) {
+            if (wc_InitRsaKey(pubKey, heap) != 0) {
                 WOLFSSL_MSG("InitRsaKey failed");
+            }
+            else if (sigSz > MAX_ENCODED_SIG_SZ) {
+                WOLFSSL_MSG("Verify Signature is too big");
             }
             else if (wc_RsaPublicKeyDecode(key, &idx, pubKey, keySz) < 0) {
                 WOLFSSL_MSG("ASN Key decode error RSA");
