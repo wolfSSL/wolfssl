@@ -2369,7 +2369,9 @@ struct WOLFSSL_X509 {
     #ifdef HAVE_ECC
         word32       pkCurveOID;
     #endif /* HAVE_ECC */
-    DerBuffer        derCert;                        /* may need  */
+    #ifndef NO_CERTS
+        DerBuffer        derCert;                        /* may need  */
+    #endif
     DNS_entry*       altNames;                       /* alt names list */
     DNS_entry*       altNamesNext;                   /* hint for retrieval */
     byte             dynamicMemory;                  /* dynamic memory flag */
