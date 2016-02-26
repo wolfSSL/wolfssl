@@ -2242,7 +2242,9 @@ AC_ARG_ENABLE([examples],
 AS_IF([test "x$ENABLED_FILESYSTEM" = "xno"], [ENABLED_EXAMPLES="no"])
 AS_IF([test "x$ENABLED_INLINE" = "xno"], [ENABLED_EXAMPLES="no"])
 AS_IF([test "x$ENABLED_CRYPTONLY" = "xyes"], [ENABLED_EXAMPLES="no"])
-AM_CONDITIONAL([BUILD_EXAMPLES], [test "x$ENABLED_EXAMPLES" = "xyes"])
+AM_CONDITIONAL([BUILD_EXAMPLE_SERVERS], [test "x$ENABLED_EXAMPLES" = "xyes" && test "x$ENABLED_LEANTLS" = "xno"])
+AM_CONDITIONAL([BUILD_EXAMPLE_CLIENTS], [test "x$ENABLED_EXAMPLES" = "xyes"])
+AM_CONDITIONAL([BUILD_TESTS], [test "x$ENABLED_EXAMPLES" = "xyes" && test "x$ENABLED_LEANTLS" = "xno"])
 
 # Enable wolfCrypt test and benchmark
 AC_ARG_ENABLE([crypttests],
