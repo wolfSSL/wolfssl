@@ -2290,7 +2290,6 @@ int MatchTrustedPeer(TrustedPeerCert* tp, DecodedCert* cert)
 
     /* compare signatures */
     if (tp->sigLen == cert->sigLength) {
-        /* compare first four before comparing all */
         if (XMEMCMP(tp->sig, cert->signature, cert->sigLength)) {
             return SSL_FAILURE;
         }
@@ -2302,6 +2301,7 @@ int MatchTrustedPeer(TrustedPeerCert* tp, DecodedCert* cert)
     return SSL_SUCCESS;
 }
 #endif /* WOLFSSL_TRUST_PEER_CERT */
+
 
 /* return CA if found, otherwise NULL */
 Signer* GetCA(void* vp, byte* hash)
@@ -4209,19 +4209,13 @@ int wolfSSL_CTX_load_verify_locations(WOLFSSL_CTX* ctx, const char* file,
  */
 int wolfSSL_CTX_trust_peer_cert(WOLFSSL_CTX* ctx, const char* file, int type)
 {
-    int ret;
-
     WOLFSSL_ENTER("wolfSSL_CTX_trust_peer_cert");
 
     if (ctx == NULL || file == NULL) {
         return SSL_FAILURE;
     }
 
-    if ((ret = ProcessFile(ctx, file, type, TRUSTED_PEER_TYPE, NULL, 0, NULL))
-            == SSL_SUCCESS) {
-    }
-
-    return ret;
+    return ProcessFile(ctx, file, type, TRUSTED_PEER_TYPE, NULL, 0, NULL);
 }
 #endif /* WOLFSSL_TRUST_PEER_CERT */
 

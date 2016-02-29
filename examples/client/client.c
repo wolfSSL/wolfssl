@@ -977,6 +977,12 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
         if (wolfSSL_CTX_load_verify_locations(ctx, eccCert, 0) != SSL_SUCCESS)
             err_sys("can't load ecc ca file, Please run from wolfSSL home dir");
 #endif /* HAVE_ECC */
+#ifdef WOLFSSL_TRUST_PEER_CERT
+        if ((ret = wolfSSL_CTX_trust_peer_cert(ctx, svrCert, SSL_FILETYPE_PEM))
+                                                               != SSL_SUCCESS) {
+            err_sys("can't load trusted peer cert file");
+        }
+#endif /* WOLFSSL_TRUST_PEER_CERT */
     }
 #endif /* !NO_FILESYSTEM && !NO_CERTS */
 #if !defined(NO_CERTS)

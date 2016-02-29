@@ -211,6 +211,57 @@ static void test_wolfSSL_CTX_use_PrivateKey_file(void)
 }
 
 
+/* test both file and buffer versions along with unloading trusted peer certs */
+static void test_wolfSSL_CTX_trust_peer_cert(void)
+{
+#if !defined(NO_CERTS) && defined(WOLFSSL_TRUST_PEER_CERT)
+    WOLFSSL_CTX *ctx;
+
+    AssertNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+
+#if !defined(NO_FILESYSTEM)
+    /* invalid file */
+    assert(wolfSSL_CTX_trust_peer_cert(ctx, NULL,
+                                              SSL_FILETYPE_PEM) != SSL_SUCCESS);
+    assert(wolfSSL_CTX_trust_peer_cert(ctx, bogusFile,
+                                              SSL_FILETYPE_PEM) != SSL_SUCCESS);
+    assert(wolfSSL_CTX_trust_peer_cert(ctx, cliCert,
+                                             SSL_FILETYPE_ASN1) != SSL_SUCCESS);
+
+    /* success */
+    assert(wolfSSL_CTX_trust_peer_cert(ctx, cliCert, SSL_FILETYPE_PEM)
+                                                                == SSL_SUCCESS);
+
+    /* unload cert */
+    assert(wolfSSL_CTX_Unload_trust_peers(NULL) != SSL_SUCCESS);
+    assert(wolfSSL_CTX_Unload_trust_peers(ctx) == SSL_SUCCESS);
+#endif
+
+    /* Test of loading certs from buffers */
+
+    /* invalid ca buffer */
+    assert(wolfSSL_CTX_trust_peer_buffer(ctx, NULL, -1,
+                                             SSL_FILETYPE_ASN1) != SSL_SUCCESS);
+
+    /* success */
+#ifdef USE_CERT_BUFFERS_1024
+    assert(wolfSSL_CTX_trust_peer_buffer(ctx, client_cert_der_1024,
+                sizeof_client_cert_der_1024, SSL_FILETYPE_ASN1) == SSL_SUCCESS);
+#endif
+#ifdef USE_CERT_BUFFERS_2048
+    assert(wolfSSL_CTX_trust_peer_buffer(ctx, client_cert_der_2048,
+                sizeof_client_cert_der_2048, SSL_FILETYPE_ASN1) == SSL_SUCCESS);
+#endif
+
+    /* unload cert */
+    assert(wolfSSL_CTX_Unload_trust_peers(NULL) != SSL_SUCCESS);
+    assert(wolfSSL_CTX_Unload_trust_peers(ctx) == SSL_SUCCESS);
+
+    wolfSSL_CTX_free(ctx);
+#endif
+}
+
+
 static void test_wolfSSL_CTX_load_verify_locations(void)
 {
 #if !defined(NO_FILESYSTEM) && !defined(NO_CERTS)
@@ -1599,6 +1650,7 @@ void ApiTest(void)
     test_wolfSSL_CTX_use_certificate_file();
     test_wolfSSL_CTX_use_PrivateKey_file();
     test_wolfSSL_CTX_load_verify_locations();
+    test_wolfSSL_CTX_trust_peer_cert();
     test_wolfSSL_CTX_SetTmpDH_file();
     test_wolfSSL_CTX_SetTmpDH_buffer();
     test_server_wolfSSL_new();

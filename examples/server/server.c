@@ -686,8 +686,8 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
         if (SSL_CTX_load_verify_locations(ctx, verifyCert, 0) != SSL_SUCCESS)
             err_sys("can't load ca file, Please run from wolfSSL home dir");
         #ifdef WOLFSSL_TRUST_PEER_CERT
-        if ((ret = wolfSSL_CTX_trust_peer_cert(ctx,
-                        "./certs/client-cert.pem", SSL_FILETYPE_PEM)) != SSL_SUCCESS) {
+        if ((ret = wolfSSL_CTX_trust_peer_cert(ctx, cliCert, SSL_FILETYPE_PEM))
+                                                               != SSL_SUCCESS) {
             err_sys("can't load trusted peer cert file");
         }
         #endif /* WOLFSSL_TRUST_PEER_CERT */

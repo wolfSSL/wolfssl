@@ -5015,36 +5015,6 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
         #endif /* NO SKID */
         WOLFSSL_MSG("About to verify certificate signature");
 
-#ifdef WOLFSSL_TRUST_PEER_CERT
-        /* check for trusted peer cert */
-        {
-            TrustedPeerCert* tp = NULL;
-            #ifndef NO_SKID
-                if (cert->extAuthKeyIdSet)
-                    tp = GetTrustedPeer(cm, cert->extAuthKeyId);
-            #else /* NO_SKID */
-                tp = GetTrustedPeer(cm, cert->issuerHash);
-            #endif /* NO SKID */
-            WOLFSSL_MSG("Checking for trusted peer cert");
-
-            if (tp == NULL) {
-                /* no trusted peer cert */
-                WOLFSSL_MSG("No matching trusted peer cert checking CAs");
-            } else if (MatchTrustedPeer(tp, cert)){
-                WOLFSSL_MSG("Found matching trusted peer cert");
-                if (badDate != 0)
-                    return badDate;
-
-                if (criticalExt != 0)
-                    return criticalExt;
-
-                return 0;
-            } else {
-                WOLFSSL_MSG("No matching trusted peer cert");
-            }
-        }
-#endif /* WOLFSSL_TRUST_PEER_CERT */
-
         if (ca) {
 #ifdef HAVE_OCSP
             /* Need the ca's public key hash for OCSP */
