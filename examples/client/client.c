@@ -380,6 +380,9 @@ static void Usage(void)
 #ifdef HAVE_CRL
     printf("-C          Disable CRL\n");
 #endif
+#ifdef WOLFSSL_TRUST_PEER_CERT
+    printf("-T <file>   Path to load trusted peer cert\n");
+#endif
 }
 
 THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
@@ -438,6 +441,10 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     const char* ourCert    = cliCert;
     const char* ourKey     = cliKey;
 
+#ifdef WOLFSSL_TRUST_PEER_CERT
+    const char* trustCert  = NULL;
+#endif
+
 #ifdef HAVE_SNI
     char*  sniHostName = NULL;
 #endif
@@ -490,7 +497,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 
 #ifndef WOLFSSL_VXWORKS
     while ((ch = mygetopt(argc, argv,
-            "?gdeDusmNrwRitfxXUPCVh:p:v:l:A:c:k:Z:b:zS:F:L:ToO:aB:W:")) != -1) {
+          "?gdeDusmNrwRitfxXUPCVh:p:v:l:A:c:k:Z:b:zS:F:L:ToO:aB:W:E:")) != -1) {
         switch (ch) {
             case '?' :
                 Usage();
@@ -531,6 +538,12 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
                 trackMemory = 1;
             #endif
                 break;
+
+            #ifdef WOLFSSL_TRUST_PEER_CERT
+            case 'E' :
+                trustCert = myoptarg;
+                break;
+            #endif
 
             case 'm' :
                 matchName = 1;
@@ -978,9 +991,11 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
             err_sys("can't load ecc ca file, Please run from wolfSSL home dir");
 #endif /* HAVE_ECC */
 #ifdef WOLFSSL_TRUST_PEER_CERT
-        if ((ret = wolfSSL_CTX_trust_peer_cert(ctx, svrCert, SSL_FILETYPE_PEM))
-                                                               != SSL_SUCCESS) {
-            err_sys("can't load trusted peer cert file");
+        if (trustCert) {
+            if ((ret = wolfSSL_CTX_trust_peer_cert(ctx, trustCert,
+                                            SSL_FILETYPE_PEM)) != SSL_SUCCESS) {
+                err_sys("can't load trusted peer cert file");
+            }
         }
 #endif /* WOLFSSL_TRUST_PEER_CERT */
     }

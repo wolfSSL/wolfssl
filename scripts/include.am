@@ -51,6 +51,10 @@ if BUILD_PSK
 dist_noinst_SCRIPTS+= scripts/psk.test
 endif
 
+if BUILD_TRUST_PEER_CERT
+dist_noinst_SCRIPTS+= scripts/trusted_peer.test
+endif
+
 EXTRA_DIST +=  scripts/testsuite.pcap
 # leave openssl.test as extra until non bash works
 EXTRA_DIST +=  scripts/openssl.test

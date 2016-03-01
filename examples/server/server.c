@@ -238,6 +238,9 @@ static void Usage(void)
     printf("-n          Use NTRU key (needed for NTRU suites)\n");
 #endif
     printf("-B <num>    Benchmark throughput using <num> bytes and print stats\n");
+#ifdef WOLFSSL_TRUST_PEER_CERT
+    printf("-E <file>   Path to load trusted peer cert\n");
+#endif
 }
 
 THREAD_RETURN CYASSL_THREAD server_test(void* args)
@@ -288,6 +291,10 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     int    argc = ((func_args*)args)->argc;
     char** argv = ((func_args*)args)->argv;
 
+#ifdef WOLFSSL_TRUST_PEER_CERT
+    const char* trustCert  = NULL;
+#endif
+
 #ifndef NO_PSK
     int sendPskIdentityHint = 1;
 #endif
@@ -330,7 +337,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
 #ifdef WOLFSSL_VXWORKS
     useAnyAddr = 1;
 #else
-    while ((ch = mygetopt(argc, argv, "?dbstnNufrawPIR:p:v:l:A:c:k:Z:S:oO:D:L:ieB:j"))
+    while ((ch = mygetopt(argc, argv, "?dbstnNufrawPIR:p:v:l:A:c:k:Z:S:oO:D:L:ieB:j:E:"))
                          != -1) {
         switch (ch) {
             case '?' :
@@ -506,6 +513,12 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
                     exit(MY_EX_USAGE);
                 }
                 break;
+
+            #ifdef WOLFSSL_TRUST_PEER_CERT
+            case 'E' :
+                 trustCert = myoptarg;
+                break;
+            #endif
 
             default:
                 Usage();
@@ -686,9 +699,11 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
         if (SSL_CTX_load_verify_locations(ctx, verifyCert, 0) != SSL_SUCCESS)
             err_sys("can't load ca file, Please run from wolfSSL home dir");
         #ifdef WOLFSSL_TRUST_PEER_CERT
-        if ((ret = wolfSSL_CTX_trust_peer_cert(ctx, cliCert, SSL_FILETYPE_PEM))
-                                                               != SSL_SUCCESS) {
-            err_sys("can't load trusted peer cert file");
+        if (trustCert) {
+            if ((ret = wolfSSL_CTX_trust_peer_cert(ctx, trustCert,
+                                            SSL_FILETYPE_PEM)) != SSL_SUCCESS) {
+                err_sys("can't load trusted peer cert file");
+            }
         }
         #endif /* WOLFSSL_TRUST_PEER_CERT */
    }
