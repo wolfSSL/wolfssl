@@ -834,6 +834,7 @@ static INLINE void tcp_accept(SOCKET_T* sockfd, SOCKET_T* clientfd,
 {
     SOCKADDR_IN_T client;
     socklen_t client_len = sizeof(client);
+    tcp_ready* ready = NULL;
 
     if (udp) {
         udp_accept(sockfd, clientfd, useAnyAddr, port, args);
@@ -846,7 +847,8 @@ static INLINE void tcp_accept(SOCKET_T* sockfd, SOCKET_T* clientfd,
     #if defined(_POSIX_THREADS) && defined(NO_MAIN_DRIVER) && !defined(__MINGW32__)
         /* signal ready to tcp_accept */
         {
-        tcp_ready* ready = args->signal;
+        if (args)
+            ready = args->signal;
         if (ready) {
             pthread_mutex_lock(&ready->mutex);
             ready->ready = 1;
@@ -857,15 +859,18 @@ static INLINE void tcp_accept(SOCKET_T* sockfd, SOCKET_T* clientfd,
         }
     #elif defined (WOLFSSL_TIRTOS)
         /* Need mutex? */
-        tcp_ready* ready = args->signal;
-        ready->ready = 1;
-        ready->port = port;
+        if (args)
+            ready = args->signal;
+        if (ready) {
+            ready->ready = 1;
+            ready->port = port;
+        }
     #endif
 
         if (ready_file) {
         #ifndef NO_FILESYSTEM
             FILE* srf = NULL;
-            tcp_ready* ready = args ? args->signal : NULL;
+            ready = args ? args->signal : NULL;
 
             if (ready) {
                 srf = fopen(ready->srfName, "w");
