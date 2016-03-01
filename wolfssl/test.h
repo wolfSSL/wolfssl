@@ -870,7 +870,8 @@ static INLINE void tcp_accept(SOCKET_T* sockfd, SOCKET_T* clientfd,
         if (ready_file) {
         #ifndef NO_FILESYSTEM
             FILE* srf = NULL;
-            ready = args ? args->signal : NULL;
+            if (args)
+                ready = args->signal;
 
             if (ready) {
                 srf = fopen(ready->srfName, "w");
