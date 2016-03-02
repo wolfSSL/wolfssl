@@ -1763,13 +1763,14 @@ int SetSSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
 {
     byte havePSK = 0;
     byte haveAnon = 0;
+    byte newSSL;
     byte haveRSA = 0;
     (void) haveAnon; /* Squash unused var warnings */
 
     if(!ssl || !ctx || ssl->suites == NULL)
         return BAD_FUNC_ARG;
 
-    byte newSSL = ssl->ctx == NULL; /* Assign after null check */
+    newSSL = ssl->ctx == NULL; /* Assign after null check */
 
 #ifndef NO_PSK
     if (ctx->server_hint[0] && ssl->arrays == NULL) {
