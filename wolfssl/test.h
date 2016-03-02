@@ -846,7 +846,6 @@ static INLINE void tcp_accept(SOCKET_T* sockfd, SOCKET_T* clientfd,
 
     #if defined(_POSIX_THREADS) && defined(NO_MAIN_DRIVER) && !defined(__MINGW32__)
         /* signal ready to tcp_accept */
-        {
         if (args)
             ready = args->signal;
         if (ready) {
@@ -855,7 +854,6 @@ static INLINE void tcp_accept(SOCKET_T* sockfd, SOCKET_T* clientfd,
             ready->port = port;
             pthread_cond_signal(&ready->cond);
             pthread_mutex_unlock(&ready->mutex);
-        }
         }
     #elif defined (WOLFSSL_TIRTOS)
         /* Need mutex? */
