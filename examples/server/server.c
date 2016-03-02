@@ -337,7 +337,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
 #ifdef WOLFSSL_VXWORKS
     useAnyAddr = 1;
 #else
-    while ((ch = mygetopt(argc, argv, "?dbstnNufrawPIR:p:v:l:A:c:k:Z:S:oO:D:L:ieB:j:E:"))
+    while ((ch = mygetopt(argc, argv, "?jdbstnNufrawPIR:p:v:l:A:c:k:Z:S:oO:D:L:ieB:E:"))
                          != -1) {
         switch (ch) {
             case '?' :
