@@ -239,7 +239,7 @@ static void test_wolfSSL_CTX_trust_peer_cert(void)
 
     /* Test of loading certs from buffers */
 
-    /* invalid ca buffer */
+    /* invalid buffer */
     assert(wolfSSL_CTX_trust_peer_buffer(ctx, NULL, -1,
                                              SSL_FILETYPE_ASN1) != SSL_SUCCESS);
 

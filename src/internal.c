@@ -4631,27 +4631,29 @@ static int DoCertificate(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 #ifdef WOLFSSL_TRUST_PEER_CERT
     /* if using trusted peer certs check before verify chain and CA test */
     if (count > 0) {
-            TrustedPeerCert* tp = NULL;
+        TrustedPeerCert* tp = NULL;
 
-            InitDecodedCert(dCert, certs[0].buffer, certs[0].length, ssl->heap);
-            ret = ParseCertRelative(dCert, CERT_TYPE, 0, ssl->ctx->cm);
-            #ifndef NO_SKID
-                if (dCert->extAuthKeyIdSet)
-                    tp = GetTrustedPeer(ssl->ctx->cm, dCert->extSubjKeyId);
-            #else /* NO_SKID */
-                tp = GetTrustedPeer(ssl->ctx->cm, dCert->issuerHash);
-            #endif /* NO SKID */
-            WOLFSSL_MSG("Checking for trusted peer cert");
+        InitDecodedCert(dCert, certs[0].buffer, certs[0].length, ssl->heap);
+        ret = ParseCertRelative(dCert, CERT_TYPE, 0, ssl->ctx->cm);
+        #ifndef NO_SKID
+            if (dCert->extAuthKeyIdSet)
+                tp = GetTrustedPeer(ssl->ctx->cm, dCert->extSubjKeyId);
+        #else /* NO_SKID */
+            tp = GetTrustedPeer(ssl->ctx->cm, dCert->subjectHash);
+        #endif /* NO SKID */
+        WOLFSSL_MSG("Checking for trusted peer cert");
 
-            if (tp == NULL) {
-                /* no trusted peer cert */
-                WOLFSSL_MSG("No matching trusted peer cert. Checking CAs");
-            } else if (MatchTrustedPeer(tp, dCert)){
-                WOLFSSL_MSG("Found matching trusted peer cert");
-                haveTrustPeer = 1;
-            } else {
-                WOLFSSL_MSG("Trusted peer cert did not match!");
-            }
+        if (tp == NULL) {
+            /* no trusted peer cert */
+            WOLFSSL_MSG("No matching trusted peer cert. Checking CAs");
+            FreeDecodedCert(dCert);
+        } else if (MatchTrustedPeer(tp, dCert)){
+            WOLFSSL_MSG("Found matching trusted peer cert");
+            haveTrustPeer = 1;
+        } else {
+            WOLFSSL_MSG("Trusted peer cert did not match!");
+            FreeDecodedCert(dCert);
+        }
     }
     if (!haveTrustPeer) { /* do not verify chain if trusted peer cert found */
 #endif /* WOLFSSL_TRUST_PEER_CERT */

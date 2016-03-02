@@ -2215,12 +2215,18 @@ int AlreadySigner(WOLFSSL_CERT_MANAGER* cm, byte* hash)
 
 
 #ifdef WOLFSSL_TRUST_PEER_CERT
+/* hash is the SHA digest of name, just use first 32 bits as hash */
+static INLINE word32 TrustedPeerHashSigner(const byte* hash)
+{
+    return MakeWordFromHash(hash) % TP_TABLE_SIZE;
+}
+
 /* does trusted peer already exist on signer list */
 int AlreadyTrustedPeer(WOLFSSL_CERT_MANAGER* cm, byte* hash)
 {
     TrustedPeerCert* tp;
     int     ret = 0;
-    word32  row = HashSigner(hash);
+    word32  row = TrustedPeerHashSigner(hash);
 
     if (LockMutex(&cm->tpLock) != 0)
         return  ret;
@@ -2255,7 +2261,7 @@ TrustedPeerCert* GetTrustedPeer(void* vp, byte* hash)
     if (cm == NULL || hash == NULL)
         return NULL;
 
-    row = HashSigner(hash);
+    row = TrustedPeerHashSigner(hash);
 
     if (LockMutex(&cm->tpLock) != 0)
         return ret;
@@ -2454,9 +2460,9 @@ int AddTrustedPeer(WOLFSSL_CERT_MANAGER* cm, DerBuffer* der, int verify)
         #endif
 
         #ifndef NO_SKID
-            row = HashSigner(peerCert->subjectKeyIdHash);
+            row = TrustedPeerHashSigner(peerCert->subjectKeyIdHash);
         #else
-            row = HashSigner(peerCert->subjectNameHash);
+            row = TrustedPeerHashSigner(peerCert->subjectNameHash);
         #endif
 
             if (LockMutex(&cm->tpLock) == 0) {
@@ -7643,6 +7649,12 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
                                        long sz, int format)
     {
         WOLFSSL_ENTER("wolfSSL_CTX_trust_peer_buffer");
+
+        /* sanity check on arguments */
+        if (sz < 0 || in == NULL || ctx == NULL) {
+            return BAD_FUNC_ARG;
+        }
+
         if (format == SSL_FILETYPE_PEM)
             return ProcessChainBuffer(ctx, in, sz, format,
                                                        TRUSTED_PEER_TYPE, NULL);
