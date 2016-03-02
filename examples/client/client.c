@@ -381,7 +381,7 @@ static void Usage(void)
     printf("-C          Disable CRL\n");
 #endif
 #ifdef WOLFSSL_TRUST_PEER_CERT
-    printf("-T <file>   Path to load trusted peer cert\n");
+    printf("-E <file>   Path to load trusted peer cert\n");
 #endif
 }
 
