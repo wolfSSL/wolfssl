@@ -836,6 +836,8 @@ static INLINE void tcp_accept(SOCKET_T* sockfd, SOCKET_T* clientfd,
     socklen_t client_len = sizeof(client);
     tcp_ready* ready = NULL;
 
+    (void) ready; /* Account for case when "ready" is not used */
+
     if (udp) {
         udp_accept(sockfd, clientfd, useAnyAddr, port, args);
         return;
