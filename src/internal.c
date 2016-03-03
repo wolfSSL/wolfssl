@@ -13970,11 +13970,13 @@ int DoSessionTicket(WOLFSSL* ssl,
     int SendServerKeyExchange(WOLFSSL* ssl)
     {
         int ret = 0;
+    #ifdef HAVE_QSH
+        word32 qshSz = 0;
+    #endif
         (void)ssl;
         #define ERROR_OUT(err, eLabel) do { ret = err; goto eLabel; } while(0)
 
     #ifdef HAVE_QSH
-        word32 qshSz = 0;
         if (ssl->peerQSHKeyPresent && ssl->options.haveQSH) {
             qshSz = QSH_KeyGetSize(ssl);
         }
