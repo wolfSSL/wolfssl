@@ -6092,7 +6092,7 @@ static int DoDtlsHandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
         *inOutIdx += fragSz;
         if(type == finished )
             *inOutIdx += ssl->keys.padSz;
-        ret = 0;
+        ret = DtlsPoolSend(ssl);
     }
     else if (fragSz < size) {
         /* Since this branch is in order, but fragmented, dtls_msg_list will be
@@ -7603,6 +7603,7 @@ int ProcessReply(WOLFSSL* ssl)
                         }
                     #endif
 
+#ifdef WOLFSSL_DTLS
                     /* Check for duplicate CCS message in DTLS mode.
                      * DTLS allows for duplicate messages, and it should be
                      * skipped. */
@@ -7610,6 +7611,10 @@ int ProcessReply(WOLFSSL* ssl)
                         ssl->msgsReceived.got_change_cipher) {
 
                         WOLFSSL_MSG("Duplicate ChangeCipher msg");
+                        ret = DtlsPoolSend(ssl);
+                        if (ret != 0)
+                            return ret;
+
                         if (ssl->curSize != 1) {
                             WOLFSSL_MSG("Malicious or corrupted"
                                         " duplicate ChangeCipher msg");
@@ -7618,6 +7623,7 @@ int ProcessReply(WOLFSSL* ssl)
                         ssl->buffers.inputBuffer.idx++;
                         break;
                     }
+#endif
 
                     ret = SanityCheckMsgReceived(ssl, change_cipher_hs);
                     if (ret != 0)
@@ -7680,6 +7686,12 @@ int ProcessReply(WOLFSSL* ssl)
 
                 case application_data:
                     WOLFSSL_MSG("got app DATA");
+                    #ifdef WOLFSSL_DTLS
+                        if (ssl->options.dtls && ssl->options.dtlsHsRetain) {
+                            FreeHandshakeResources(ssl);
+                            ssl->options.dtlsHsRetain = 0;
+                        }
+                    #endif
                     if ((ret = DoApplicationData(ssl,
                                                 ssl->buffers.inputBuffer.buffer,
                                                &ssl->buffers.inputBuffer.idx))
@@ -7810,7 +7822,7 @@ int SendChangeCipher(WOLFSSL* ssl)
 
     if (ssl->options.groupMessages)
         return 0;
-    #ifdef WOLFSSL_DTLS
+    #if defined(WOLFSSL_DTLS) && !defined(WOLFSSL_DEBUG_DTLS)
     else if (ssl->options.dtls) {
         /* If using DTLS, force the ChangeCipherSpec message to be in the
          * same datagram as the finished message. */
