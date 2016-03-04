@@ -2505,6 +2505,27 @@ fi
 AM_CONDITIONAL([BUILD_MCAPI], [test "x$ENABLED_MCAPI" = "xyes"])
 
 
+# Asynchronous Crypto
+AC_ARG_ENABLE([asynccrypt],
+    [  --enable-asynccrypt    Enable Asynchronous Crypto (default: disabled)],
+    [ ENABLED_ASYNCCRYPT=$enableval ],
+    [ ENABLED_ASYNCCRYPT=no ]
+    )
+
+if test "$ENABLED_ASYNCCRYPT" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ASYNC_CRYPT"
+    
+    # if Cavium not enabled the use async simulator for testing
+    if test "x$ENABLED_CAVIUM" = "xno"
+    then
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ASYNC_CRYPT_TEST"
+    fi
+fi
+
+AM_CONDITIONAL([BUILD_ASYNCCRYPT], [test "x$ENABLED_ASYNCCRYPT" = "xyes"])
+
+
 # check if PSK was enabled for conditionally running psk.test script
 AM_CONDITIONAL([BUILD_PSK], [test "x$ENABLED_PSK" = "xyes"])
 
@@ -2836,5 +2857,6 @@ echo "   * LIBZ:                       $ENABLED_LIBZ"
 echo "   * Examples:                   $ENABLED_EXAMPLES"
 echo "   * User Crypto:                $ENABLED_USER_CRYPTO"
 echo "   * Fast RSA:                   $ENABLED_FAST_RSA"
+echo "   * Async Crypto:               $ENABLED_ASYNCCRYPT"
 echo ""
 echo "---"

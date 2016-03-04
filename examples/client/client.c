@@ -68,7 +68,7 @@
 #endif
 
 
-static void NonBlockingSSL_Connect(WOLFSSL* ssl)
+static void NonBlockingSSL_Connect(WOLFSSL_CTX* ctx, WOLFSSL* ssl)
 {
 #ifndef WOLFSSL_CALLBACKS
     int ret = wolfSSL_connect(ssl);
@@ -79,14 +79,23 @@ static void NonBlockingSSL_Connect(WOLFSSL* ssl)
     SOCKET_T sockfd = (SOCKET_T)wolfSSL_get_fd(ssl);
     int select_ret;
 
+    (void)ctx;
+
     while (ret != SSL_SUCCESS && (error == SSL_ERROR_WANT_READ ||
-                                  error == SSL_ERROR_WANT_WRITE)) {
+                                  error == SSL_ERROR_WANT_WRITE ||
+                                  error == WC_PENDING_E)) {
         int currTimeout = 1;
 
         if (error == SSL_ERROR_WANT_READ)
             printf("... client would read block\n");
-        else
+        else if (error == SSL_ERROR_WANT_WRITE)
             printf("... client would write block\n");
+#ifdef WOLFSSL_ASYNC_CRYPT
+        else if (error == WC_PENDING_E) {
+            ret = AsyncCryptPoll(ctx, ssl);
+            if (ret < 0) { break; } else if (ret == 0) { continue; }
+        }
+#endif
 
 #ifdef WOLFSSL_DTLS
         currTimeout = wolfSSL_dtls_get_current_timeout(ssl);
@@ -95,11 +104,11 @@ static void NonBlockingSSL_Connect(WOLFSSL* ssl)
 
         if ((select_ret == TEST_RECV_READY) ||
                                         (select_ret == TEST_ERROR_READY)) {
-            #ifndef WOLFSSL_CALLBACKS
-                    ret = wolfSSL_connect(ssl);
-            #else
-                ret = wolfSSL_connect_ex(ssl,handShakeCB,timeoutCB,timeout);
-            #endif
+        #ifndef WOLFSSL_CALLBACKS
+            ret = wolfSSL_connect(ssl);
+        #else
+            ret = wolfSSL_connect_ex(ssl,handShakeCB,timeoutCB,timeout);
+        #endif
             error = wolfSSL_get_error(ssl, 0);
         }
         else if (select_ret == TEST_TIMEOUT && !wolfSSL_dtls(ssl)) {
@@ -107,7 +116,7 @@ static void NonBlockingSSL_Connect(WOLFSSL* ssl)
         }
 #ifdef WOLFSSL_DTLS
         else if (select_ret == TEST_TIMEOUT && wolfSSL_dtls(ssl) &&
-                                            wolfSSL_dtls_got_timeout(ssl) >= 0) {
+                                        wolfSSL_dtls_got_timeout(ssl) >= 0) {
             error = SSL_ERROR_WANT_READ;
         }
 #endif
@@ -436,6 +445,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     int    disableCRL    = 0;
     int    externalTest  = 0;
     int    ret;
+    int    err           = 0;
     int    scr           = 0;    /* allow secure renegotiation */
     int    forceScr      = 0;    /* force client initiaed scr */
     int    trackMemory   = 0;
@@ -1170,27 +1180,40 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     if (nonBlocking) {
         wolfSSL_set_using_nonblock(ssl, 1);
         tcp_set_nonblocking(&sockfd);
-        NonBlockingSSL_Connect(ssl);
+        NonBlockingSSL_Connect(ctx, ssl);
     }
-    else if (wolfSSL_connect(ssl) != SSL_SUCCESS) {
-        /* see note at top of README */
-        int  err = wolfSSL_get_error(ssl, 0);
-        char buffer[WOLFSSL_MAX_ERROR_SZ];
-        printf("err = %d, %s\n", err,
-                                wolfSSL_ERR_error_string(err, buffer));
-        err_sys("SSL_connect failed");
-        /* if you're getting an error here  */
+    else {
+        do {
+#ifdef WOLFSSL_ASYNC_CRYPT
+            if (err == WC_PENDING_E) {
+                ret = AsyncCryptPoll(ctx, ssl);
+                if (ret < 0) { break; } else if (ret == 0) { continue; }
+            }
+#endif
+            err = 0; /* Reset error */
+            ret = wolfSSL_connect(ssl);
+            if (ret != SSL_SUCCESS) {
+                err = wolfSSL_get_error(ssl, 0);
+            }
+        } while (ret != SSL_SUCCESS && err == WC_PENDING_E);
+
+        if (ret != SSL_SUCCESS) {
+            char buffer[WOLFSSL_MAX_ERROR_SZ];
+            printf("err = %d, %s\n", err, wolfSSL_ERR_error_string(err, buffer));
+            err_sys("wolfSSL_connect failed");
+            /* see note at top of README */
+            /* if you're getting an error here  */
+        }
     }
 #else
     timeout.tv_sec  = 2;
     timeout.tv_usec = 0;
-    NonBlockingSSL_Connect(ssl);  /* will keep retrying on timeout */
+    NonBlockingSSL_Connect(ctx, ssl);  /* will keep retrying on timeout */
 #endif
     showPeer(ssl);
 
 #ifdef HAVE_ALPN
     if (alpnList != NULL) {
-        int err;
         char *protocol_name = NULL;
         word16 protocol_nameSz = 0;
 
@@ -1315,14 +1338,14 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
         if (nonBlocking) {
             wolfSSL_set_using_nonblock(sslResume, 1);
             tcp_set_nonblocking(&sockfd);
-            NonBlockingSSL_Connect(sslResume);
+            NonBlockingSSL_Connect(ctx, sslResume);
         }
         else if (wolfSSL_connect(sslResume) != SSL_SUCCESS)
             err_sys("SSL resume failed");
 #else
         timeout.tv_sec  = 2;
         timeout.tv_usec = 0;
-        NonBlockingSSL_Connect(ssl);  /* will keep retrying on timeout */
+        NonBlockingSSL_Connect(ctx, ssl);  /* will keep retrying on timeout */
 #endif
         showPeer(sslResume);
 
@@ -1333,7 +1356,6 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 
 #ifdef HAVE_ALPN
         if (alpnList != NULL) {
-            int err;
             char *protocol_name = NULL;
             word16 protocol_nameSz = 0;
 

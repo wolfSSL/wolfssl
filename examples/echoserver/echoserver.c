@@ -77,6 +77,7 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
     CYASSL_METHOD* method = 0;
     CYASSL_CTX*    ctx    = 0;
 
+    int    ret = 0;
     int    doDTLS = 0;
     int    doPSK = 0;
     int    outCreated = 0;
@@ -228,6 +229,7 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
         int     clientfd;
         int     firstRead = 1;
         int     gotFirstG = 0;
+        int     err = 0;
         SOCKADDR_IN_T client;
         socklen_t     client_len = sizeof(client);
 #ifndef CYASSL_DTLS
@@ -260,7 +262,25 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
         #elif !defined(NO_DH)
             SetDH(ssl);  /* will repick suites with DHE, higher than PSK */
         #endif
-        if (CyaSSL_accept(ssl) != SSL_SUCCESS) {
+
+        do {
+#ifdef WOLFSSL_ASYNC_CRYPT
+            if (err == WC_PENDING_E) {
+                ret = AsyncCryptPoll(ctx, ssl);
+                if (ret < 0) { break; } else if (ret == 0) { continue; }
+            }
+#endif
+            err = 0; /* Reset error */
+            ret = CyaSSL_accept(ssl);
+            if (ret != SSL_SUCCESS) {
+                err = CyaSSL_get_error(ssl, 0);
+            }
+        } while (ret != SSL_SUCCESS && err == WC_PENDING_E);
+
+        if (ret != SSL_SUCCESS) {
+            err = CyaSSL_get_error(ssl, 0);
+            char buffer[CYASSL_MAX_ERROR_SZ];
+            printf("error = %d, %s\n", err, CyaSSL_ERR_error_string(err, buffer));
             printf("SSL_accept failed\n");
             CyaSSL_free(ssl);
             CloseSocket(clientfd);

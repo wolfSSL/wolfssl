@@ -38,6 +38,7 @@ enum wc_HashType {
     WC_HASH_TYPE_SHA256 = 5,
     WC_HASH_TYPE_SHA384 = 6,
     WC_HASH_TYPE_SHA512 = 7,
+    WC_HASH_TYPE_MD5_SHA = 8,
 };
 
 /* Find largest possible digest size

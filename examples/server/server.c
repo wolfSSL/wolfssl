@@ -71,7 +71,7 @@
 
 
 
-static void NonBlockingSSL_Accept(SSL* ssl)
+static int NonBlockingSSL_Accept(SSL* ssl)
 {
 #ifndef CYASSL_CALLBACKS
     int ret = SSL_accept(ssl);
@@ -120,8 +120,8 @@ static void NonBlockingSSL_Accept(SSL* ssl)
             error = SSL_FATAL_ERROR;
         }
     }
-    if (ret != SSL_SUCCESS)
-        err_sys("SSL_accept failed");
+
+    return ret;
 }
 
 /* Echo number of bytes specified by -e arg */
@@ -279,6 +279,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     int    doListen = 1;
     int    crlFlags = 0;
     int    ret;
+    int    err = 0;
     char*  serverReadyFile = NULL;
     char*  alpnList = NULL;
     unsigned char alpn_opt = 0;
@@ -836,21 +837,44 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
         if (nonBlocking) {
             CyaSSL_set_using_nonblock(ssl, 1);
             tcp_set_nonblocking(&clientfd);
-            NonBlockingSSL_Accept(ssl);
-        } else if (SSL_accept(ssl) != SSL_SUCCESS) {
-            int err = SSL_get_error(ssl, 0);
+        }
+#endif
+
+        do {
+#ifdef WOLFSSL_ASYNC_CRYPT
+            if (err == WC_PENDING_E) {
+                ret = AsyncCryptPoll(ctx, ssl);
+                if (ret < 0) { break; } else if (ret == 0) { continue; }
+            }
+#endif
+
+            err = 0; /* Reset error */
+#ifndef CYASSL_CALLBACKS
+            if (nonBlocking) {
+                ret = NonBlockingSSL_Accept(ssl);
+            }
+            else {
+                ret = SSL_accept(ssl);
+            }
+#else
+            ret = NonBlockingSSL_Accept(ssl);
+#endif
+            if (ret != SSL_SUCCESS) {
+                err = SSL_get_error(ssl, 0);
+            }
+        } while (ret != SSL_SUCCESS && err == WC_PENDING_E);
+
+        if (ret != SSL_SUCCESS) {
+            err = SSL_get_error(ssl, 0);
             char buffer[CYASSL_MAX_ERROR_SZ];
             printf("error = %d, %s\n", err, ERR_error_string(err, buffer));
             err_sys("SSL_accept failed");
         }
-#else
-        NonBlockingSSL_Accept(ssl);
-#endif
+
         showPeer(ssl);
 
 #ifdef HAVE_ALPN
         if (alpnList != NULL) {
-            int err;
             char *protocol_name = NULL, *list = NULL;
             word16 protocol_nameSz = 0, listSz = 0;
 

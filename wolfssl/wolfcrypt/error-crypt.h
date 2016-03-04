@@ -166,6 +166,7 @@ enum {
     BAD_COND_E          = -230,  /* Bad condition variable operation */
     SIG_TYPE_E          = -231,  /* Signature Type not enabled/available */
     HASH_TYPE_E         = -232,  /* Hash Type not enabled/available */
+    WC_PENDING_E        = -233,  /* wolfCrypt operation pending (would block) */
 
     MIN_CODE_E          = -300   /* errors -101 - -299 */
 

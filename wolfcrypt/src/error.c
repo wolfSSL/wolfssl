@@ -373,6 +373,9 @@ const char* wc_GetErrorString(int error)
     case HASH_TYPE_E:
         return "Hash type not enabled/available";
 
+    case WC_PENDING_E:
+        return "wolfCrypt Operation Pending (would block / eagain) error";
+
     default:
         return "unknown error number";
 

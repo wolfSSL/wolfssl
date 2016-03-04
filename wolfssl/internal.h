@@ -153,6 +153,10 @@
     #include "zlib.h"
 #endif
 
+#ifdef WOLFSSL_ASYNC_CRYPT
+    #include <wolfssl/async.h>
+#endif
+
 #ifdef _MSC_VER
     /* 4996 warning to use MS extensions e.g., strcpy_s instead of strncpy */
     #pragma warning(disable: 4996)
@@ -1818,6 +1822,22 @@ WOLFSSL_LOCAL int TLSX_ValidateQSHScheme(TLSX** extensions, word16 name);
 
 #endif /* HAVE_QSH */
 
+
+#ifdef HAVE_WOLF_EVENT
+typedef struct {
+    WOLF_EVENT*         head;     /* head of queue */
+    WOLF_EVENT*         tail;     /* tail of queue */
+#ifndef SINGLE_THREADED
+    wolfSSL_Mutex       lock;     /* queue lock */
+#endif
+} WOLF_EVENT_QUEUE;
+
+WOLFSSL_LOCAL int wolfSSL_EventInit(WOLFSSL* ssl, WOLF_EVENT_TYPE type);
+
+WOLFSSL_LOCAL int wolfSSL_CTX_EventPush(WOLFSSL_CTX* ctx, WOLF_EVENT* event);
+#endif /* HAVE_WOLF_EVENT */
+
+
 /* wolfSSL context type */
 struct WOLFSSL_CTX {
     WOLFSSL_METHOD* method;
@@ -1924,6 +1944,9 @@ struct WOLFSSL_CTX {
         CallbackRsaDec    RsaDecCb;     /* User Rsa Private Decrypt handler */
     #endif /* NO_RSA */
 #endif /* HAVE_PK_CALLBACKS */
+#ifdef HAVE_WOLF_EVENT
+        WOLF_EVENT_QUEUE event_queue;
+#endif /* HAVE_WOLF_EVENT */
 };
 
 
@@ -2188,12 +2211,22 @@ enum AcceptState {
     ACCEPT_THIRD_REPLY_DONE
 };
 
+/* sub-states for send/do key share (key exchange) */
+enum KeyShareState {
+    KEYSHARE_BEGIN = 0,
+    KEYSHARE_BUILD,
+    KEYSHARE_VERIFY,
+    KEYSHARE_FINALIZE,
+    KEYSHARE_END
+};
 
+/* buffers for struct WOLFSSL */
 typedef struct Buffers {
     bufferStatic    inputBuffer;
     bufferStatic    outputBuffer;
     buffer          domainName;             /* for client check */
     buffer          clearOutputBuffer;
+    buffer          sig;                   /* signature data */
     int             prevSent;              /* previous plain text bytes sent
                                               when got WANT_WRITE            */
     int             plainSz;               /* plain text bytes in buffer to send
@@ -2301,6 +2334,8 @@ typedef struct Options {
     byte            minDowngrade;       /* minimum downgrade version */
     byte            connectState;       /* nonblocking resume */
     byte            acceptState;        /* nonblocking resume */
+    byte            keyShareState;      /* sub-state for key share (key exchange).
+                                           See enum KeyShareState. */
 #ifndef NO_DH
     word16          minDhKeySz;         /* minimum DH key size */
     word16          dhKeySz;            /* actual DH key size */
@@ -2535,6 +2570,12 @@ struct WOLFSSL {
     HandShakeDoneCb hsDoneCb;          /*  notify user handshake done */
     void*           hsDoneCtx;         /*  user handshake cb context  */
 #endif
+#ifdef WOLFSSL_ASYNC_CRYPT
+    AsyncCrypt      async;
+#endif
+    void*           sigKey;             /* RsaKey or ecc_key allocated from heap */
+    word32          sigType;            /* Type of sigKey */
+    word32          sigLen;             /* Actual signature length */
     WOLFSSL_CIPHER  cipher;
     hmacfp          hmac;
     Ciphers         encrypt;
@@ -2683,6 +2724,12 @@ struct WOLFSSL {
 #ifdef WOLFSSL_JNI
         void* jObjectRef;     /* reference to WolfSSLSession in JNI wrapper */
 #endif /* WOLFSSL_JNI */
+#ifdef HAVE_WOLF_EVENT
+    WOLF_EVENT event;
+#endif /* HAVE_WOLF_EVENT */
+#ifdef WOLFSSL_ASYNC_CRYPT_TEST
+    AsyncCryptTests asyncCryptTest;
+#endif /* WOLFSSL_ASYNC_CRYPT_TEST */
 };
 
 
@@ -2834,10 +2881,29 @@ WOLFSSL_LOCAL void ShrinkOutputBuffer(WOLFSSL* ssl);
 WOLFSSL_LOCAL int VerifyClientSuite(WOLFSSL* ssl);
 #ifndef NO_CERTS
     #ifndef NO_RSA
-        WOLFSSL_LOCAL int VerifyRsaSign(const byte* sig, word32 sigSz,
+        WOLFSSL_LOCAL int VerifyRsaSign(WOLFSSL* ssl,
+                                        const byte* sig, word32 sigSz,
                                         const byte* plain, word32 plainSz,
                                         RsaKey* key);
-    #endif
+        WOLFSSL_LOCAL int RsaSign(WOLFSSL* ssl, const byte* in, word32 inSz, byte* out,
+            word32* outSz, RsaKey* key, const byte* keyBuf, word32 keySz, void* ctx);
+        WOLFSSL_LOCAL int RsaVerify(WOLFSSL* ssl, byte* in, word32 inSz,
+            byte** out, RsaKey* key, const byte* keyBuf, word32 keySz, void* ctx);
+        WOLFSSL_LOCAL int RsaDec(WOLFSSL* ssl, byte* in, word32 inSz, byte** out,
+            word32* outSz, RsaKey* key, const byte* keyBuf, word32 keySz, void* ctx);
+    #endif /* !NO_RSA */
+
+    #ifdef HAVE_ECC
+        WOLFSSL_LOCAL int EccSign(WOLFSSL* ssl, const byte* in, word32 inSz,
+            byte* out, word32* outSz, ecc_key* key, byte* keyBuf, word32 keySz,
+            void* ctx);
+        WOLFSSL_LOCAL int EccVerify(WOLFSSL* ssl, const byte* in, word32 inSz,
+            byte* out, word32 outSz, ecc_key* key, byte* keyBuf, word32 keySz,
+            void* ctx);
+        WOLFSSL_LOCAL int EccSharedSecret(WOLFSSL* ssl, ecc_key* priv_key,
+            ecc_key* pub_key, byte* out, word32* outSz);
+    #endif /* HAVE_ECC */
+
     #ifdef WOLFSSL_TRUST_PEER_CERT
 
         /* options for searching hash table for a matching trusted peer cert */
@@ -2849,11 +2915,12 @@ WOLFSSL_LOCAL int VerifyClientSuite(WOLFSSL* ssl);
         WOLFSSL_LOCAL int MatchTrustedPeer(TrustedPeerCert* tp,
                                                              DecodedCert* cert);
     #endif
+
     WOLFSSL_LOCAL Signer* GetCA(void* cm, byte* hash);
     #ifndef NO_SKID
         WOLFSSL_LOCAL Signer* GetCAByName(void* cm, byte* hash);
     #endif
-#endif
+#endif /* !NO_CERTS */
 WOLFSSL_LOCAL int  BuildTlsFinished(WOLFSSL* ssl, Hashes* hashes,
                                    const byte* sender);
 WOLFSSL_LOCAL void FreeArrays(WOLFSSL* ssl, int keep);
@@ -2927,6 +2994,25 @@ enum encrypt_side {
 
 WOLFSSL_LOCAL int SetKeysSide(WOLFSSL*, enum encrypt_side);
 
+
+#ifndef NO_DH
+    WOLFSSL_LOCAL int DhGenKeyPair(WOLFSSL* ssl,
+        byte* p, word32 pSz,
+        byte* g, word32 gSz,
+        byte* priv, word32* privSz,
+        byte* pub, word32* pubSz);
+    WOLFSSL_LOCAL int DhAgree(WOLFSSL* ssl,
+        byte* p, word32 pSz,
+        byte* g, word32 gSz,
+        byte* priv, word32* privSz,
+        byte* pub, word32* pubSz,
+        const byte* otherPub, word32 otherPubSz,
+        byte* agree, word32* agreeSz);
+#endif
+
+#ifdef HAVE_ECC
+    WOLFSSL_LOCAL int EccMakeTempKey(WOLFSSL* ssl);
+#endif
 
 #ifdef __cplusplus
     }  /* extern "C" */

@@ -17826,4 +17826,119 @@ void* wolfSSL_get_jobject(WOLFSSL* ssl)
 
 #endif /* WOLFSSL_JNI */
 
+#ifdef HAVE_WOLF_EVENT
+int wolfssl_CTX_poll_peek(WOLFSSL_CTX* ctx, int* eventCount)
+{
+    WOLF_EVENT* event;
+    int count = 0;
+
+    if (ctx == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+#ifndef SINGLE_THREADED
+    if (LockMutex(&ctx->event_queue.lock) != 0) {
+        return BAD_MUTEX_E;
+    }
+#endif
+
+    /* Itterate event queue */
+    for (event = ctx->event_queue.head; event != NULL; event = event->next) {
+        count++;
+    }
+
+#ifndef SINGLE_THREADED
+    UnLockMutex(&ctx->event_queue.lock);
+#endif
+
+    if (eventCount) {
+        *eventCount = count;
+    }
+
+    return 0;
+}
+
+int wolfSSL_CTX_poll(WOLFSSL_CTX* ctx, WOLF_EVENT* events, int maxEvents,
+    unsigned char flags, int* eventCount)
+{
+    WOLF_EVENT* event, *event_prev = NULL;
+    int count = 0, ret = SSL_ERROR_NONE;
+
+    if (ctx == NULL || events == NULL || maxEvents <= 0) {
+        return BAD_FUNC_ARG;
+    }
+
+#ifndef SINGLE_THREADED
+    if (LockMutex(&ctx->event_queue.lock) != 0) {
+        return BAD_MUTEX_E;
+    }
+#endif
+
+    /* Itterate event queue */
+    for (event = ctx->event_queue.head; event != NULL; event = event->next)
+    {
+        byte removeEvent = 0;
+
+    #ifdef WOLFSSL_ASYNC_CRYPT
+        if (event->type >= WOLF_EVENT_TYPE_ASYNC_FIRST &&
+            event->type <= WOLF_EVENT_TYPE_ASYNC_LAST)
+        {
+            ret = wolfSSL_async_poll(event, flags);
+        }
+    #endif /* WOLFSSL_ASYNC_CRYPT */
+
+        /* If event is done add to returned event data */
+        if (event->done) {
+            /* Check to make sure we have room for event */
+            if (count >= maxEvents) {
+                break; /* Exit for */
+            }
+
+            /* Copy event data to provided buffer */
+            XMEMCPY(&events[count], event, sizeof(WOLF_EVENT));
+            count++;
+            removeEvent = 1;
+        }
+
+        if (removeEvent) {
+            /* Remove from queue list */
+            if (event_prev == NULL) {
+                ctx->event_queue.head = event->next;
+                if (ctx->event_queue.head == NULL) {
+                    ctx->event_queue.tail = NULL;
+                }
+            }
+            else {
+                event_prev->next = event->next;
+            }
+        }
+        else {
+            /* Leave in queue, save prev pointer */
+            event_prev = event;
+        }
+
+        /* Check for error */
+        if (ret < 0) {
+            break; /* Exit for */
+        }
+    }
+
+#ifndef SINGLE_THREADED
+    UnLockMutex(&ctx->event_queue.lock);
+#endif
+    
+    /* Return number of poperly populated events */
+    if (eventCount) {
+        *eventCount = count;
+    }
+
+    /* Make sure success returns 0 */
+    if (ret > 0) {
+        ret = 0;
+    }
+
+    return ret;
+}
+#endif /* HAVE_WOLF_EVENT */
+
 #endif /* WOLFCRYPT_ONLY */
