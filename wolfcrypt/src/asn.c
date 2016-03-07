@@ -4665,7 +4665,11 @@ static int DecodePolicyOID(char *out, word32 outSz, byte *in, word32 inSz)
     #endif
             }
             idx += policy_length;
-        } while((int)idx < total_length && cert->extCertPoliciesNb < MAX_CERTPOL_NB);
+        } while((int)idx < total_length
+    #if defined(WOLFSSL_CERT_EXT)
+            && cert->extCertPoliciesNb < MAX_CERTPOL_NB
+    #endif
+        );
 
         WOLFSSL_LEAVE("DecodeCertPolicy", 0);
         return 0;
