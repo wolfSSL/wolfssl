@@ -4608,7 +4608,7 @@ static int DecodePolicyOID(char *out, word32 outSz, byte *in, word32 inSz)
             WOLFSSL_MSG("\tGet CertPolicy total seq failed");
             return ASN_PARSE_E;
         }
-        
+
         /* Validate total length (2 is the CERT_POLICY_OID+SEQ) */
         if ((total_length + 2) != sz) {
             WOLFSSL_MSG("\tCertPolicy length mismatch");
