@@ -4596,87 +4596,64 @@ static int DecodePolicyOID(char *out, word32 outSz, byte *in, word32 inSz)
 #endif /* WOLFSSL_CERT_EXT && !WOLFSSL_SEP */
 
 #if defined(WOLFSSL_SEP) || defined(WOLFSSL_CERT_EXT)
+    /* Reference: https://tools.ietf.org/html/rfc5280#section-4.2.1.4 */
     static int DecodeCertPolicy(byte* input, int sz, DecodedCert* cert)
     {
         word32 idx = 0;
-        int total_length = 0, length = 0;
+        int total_length = 0, policy_length = 0, length = 0;
 
         WOLFSSL_ENTER("DecodeCertPolicy");
 
-        /* Unwrap certificatePolicies */
         if (GetSequence(input, &idx, &total_length, sz) < 0) {
-            WOLFSSL_MSG("\tdeviceType isn't OID");
+            WOLFSSL_MSG("\tGet CertPolicy total seq failed");
             return ASN_PARSE_E;
         }
 
-        if (GetSequence(input, &idx, &length, sz) < 0) {
-            WOLFSSL_MSG("\tdeviceType isn't OID");
-            return ASN_PARSE_E;
-        }
-        total_length -= (length+1);
-
-        if (input[idx++] != ASN_OBJECT_ID) {
-            WOLFSSL_MSG("\tdeviceType isn't OID");
-            return ASN_PARSE_E;
-        }
-        total_length--;
-
-        if (GetLength(input, &idx, &length, sz) < 0) {
-            WOLFSSL_MSG("\tCouldn't read length of deviceType");
-            return ASN_PARSE_E;
-        }
-
-        if (length > 0) {
-#if defined(WOLFSSL_SEP)
-            cert->deviceType = (byte*)XMALLOC(length, cert->heap,
-                                              DYNAMIC_TYPE_X509_EXT);
-            if (cert->deviceType == NULL) {
-                WOLFSSL_MSG("\tCouldn't alloc memory for deviceType");
-                return MEMORY_E;
-            }
-            cert->deviceTypeSz = length;
-            XMEMCPY(cert->deviceType, input + idx, length);
-#elif defined(WOLFSSL_CERT_EXT)
-            /* decode cert policy */
-            if (DecodePolicyOID(cert->extCertPolicies[0], MAX_CERTPOL_SZ,
-                                input+idx, length) != 0) {
-                WOLFSSL_MSG("\tCouldn't read Policy OID 1");
+        /* Unwrap certificatePolicies */
+        do {
+            if (GetSequence(input, &idx, &policy_length, sz) < 0) {
+                WOLFSSL_MSG("\tGet CertPolicy seq failed");
                 return ASN_PARSE_E;
             }
-            cert->extCertPoliciesNb++;
 
-            /* check if we have a second value */
-            if (total_length) {
-                idx += length;
+            if (input[idx++] != ASN_OBJECT_ID) {
+                WOLFSSL_MSG("\tCertPolicy isn't OID");
+                return ASN_PARSE_E;
+            }
+            policy_length--;
 
-                if (GetSequence(input, &idx, &length, sz) < 0) {
-                    WOLFSSL_MSG("\tdeviceType isn't OID");
-                    return ASN_PARSE_E;
+            if (GetLength(input, &idx, &length, sz) < 0) {
+                WOLFSSL_MSG("\tGet CertPolicy length failed");
+                return ASN_PARSE_E;
+            }
+            policy_length--;
+
+            if (length > 0) {
+    #if defined(WOLFSSL_SEP)
+                cert->deviceType = (byte*)XMALLOC(length, cert->heap,
+                                                  DYNAMIC_TYPE_X509_EXT);
+                if (cert->deviceType == NULL) {
+                    WOLFSSL_MSG("\tCouldn't alloc memory for deviceType");
+                    return MEMORY_E;
                 }
-
-                if (input[idx++] != ASN_OBJECT_ID) {
-                    WOLFSSL_MSG("\tdeviceType isn't OID");
-                    return ASN_PARSE_E;
-                }
-
-                if (GetLength(input, &idx, &length, sz) < 0) {
-                    WOLFSSL_MSG("\tCouldn't read length of deviceType");
-                    return ASN_PARSE_E;
-                }
-
+                cert->deviceTypeSz = length;
+                XMEMCPY(cert->deviceType, input + idx, length);
+                break;
+    #elif defined(WOLFSSL_CERT_EXT)
                 /* decode cert policy */
-                if (DecodePolicyOID(cert->extCertPolicies[1], MAX_CERTPOL_SZ,
-                                    input+idx, length) != 0) {
-                    WOLFSSL_MSG("\tCouldn't read Policy OID 2");
+                if (DecodePolicyOID(cert->extCertPolicies[cert->extCertPoliciesNb], MAX_CERTPOL_SZ,
+                                    input + idx, length) != 0) {
+                    WOLFSSL_MSG("\tCouldn't decode CertPolicy");
                     return ASN_PARSE_E;
                 }
                 cert->extCertPoliciesNb++;
+    #else
+                WOLFSSL_LEAVE("DecodeCertPolicy : unsupported mode", 0);
+                return 0;
+    #endif
             }
-#else
-            WOLFSSL_LEAVE("DecodeCertPolicy : unsupported mode", 0);
-            return 0;
-#endif
-        }
+            idx += policy_length;
+        } while((int)idx < total_length && cert->extCertPoliciesNb < MAX_CERTPOL_NB);
 
         WOLFSSL_LEAVE("DecodeCertPolicy", 0);
         return 0;
@@ -4802,7 +4779,6 @@ static int DecodeCertExtensions(DecodedCert* cert)
                 break;
 
             case CERT_POLICY_OID:
-                WOLFSSL_MSG("Certificate Policy extension not supported yet.");
                 #ifdef WOLFSSL_SEP
                     #ifdef OPENSSL_EXTRA
                         cert->extCertPolicySet = 1;
@@ -4810,8 +4786,11 @@ static int DecodeCertExtensions(DecodedCert* cert)
                     #endif
                 #endif
                 #if defined(WOLFSSL_SEP) || defined(WOLFSSL_CERT_EXT)
-                if (DecodeCertPolicy(&input[idx], length, cert) < 0)
-                    return ASN_PARSE_E;
+                    if (DecodeCertPolicy(&input[idx], length, cert) < 0) {
+                        return ASN_PARSE_E;
+                    }
+                #else
+                    WOLFSSL_MSG("Certificate Policy extension not supported yet.");
                 #endif
                 break;
 
