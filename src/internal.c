@@ -1923,7 +1923,7 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
     ssl->buffers.outputBuffer.buffer = ssl->buffers.outputBuffer.staticBuffer;
     ssl->buffers.outputBuffer.bufferSize  = STATIC_BUFFER_LEN;
 
-#ifdef KEEP_PEER_CERT
+#if defined(KEEP_PEER_CERT) || defined(GOAHEAD_WS)
     InitX509(&ssl->peerCert, 0);
 #endif
 
@@ -2204,7 +2204,7 @@ void SSL_ResourceFree(WOLFSSL* ssl)
         nx_packet_release(ssl->nxCtx.nxPacket);
 #endif
 #if defined(KEEP_PEER_CERT) || defined(GOAHEAD_WS)
-    FreeX509(&(ssl->peerCert));   /* clang thinks this frees ssl itslef */
+    FreeX509(&ssl->peerCert);
 #endif
 }
 
