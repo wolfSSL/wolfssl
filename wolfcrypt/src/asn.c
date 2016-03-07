@@ -4608,6 +4608,12 @@ static int DecodePolicyOID(char *out, word32 outSz, byte *in, word32 inSz)
             WOLFSSL_MSG("\tGet CertPolicy total seq failed");
             return ASN_PARSE_E;
         }
+        
+        /* Validate total length (2 is the CERT_POLICY_OID+SEQ) */
+        if ((total_length + 2) != sz) {
+            WOLFSSL_MSG("\tCertPolicy length mismatch");
+            return ASN_PARSE_E;
+        }
 
         /* Unwrap certificatePolicies */
         do {
@@ -4629,6 +4635,12 @@ static int DecodePolicyOID(char *out, word32 outSz, byte *in, word32 inSz)
             policy_length--;
 
             if (length > 0) {
+                /* Verify length won't overrun buffer */
+                if (length > (sz - (int)idx)) {
+                    WOLFSSL_MSG("\tCertPolicy length exceeds input buffer");
+                    return ASN_PARSE_E;
+                }
+
     #if defined(WOLFSSL_SEP)
                 cert->deviceType = (byte*)XMALLOC(length, cert->heap,
                                                   DYNAMIC_TYPE_X509_EXT);
