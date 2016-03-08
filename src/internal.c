@@ -13556,8 +13556,8 @@ static word32 QSH_KeyExchangeWrite(WOLFSSL* ssl, byte isServer)
                     #ifdef HAVE_ECC
                         ret = ssl->ctx->EccSignCb(ssl, digest, digestSz,
                                         encodedSig, &localSz,
-                                        ssl->buffers.key.buffer,
-                                        ssl->buffers.key.length,
+                                        ssl->buffers.key->buffer,
+                                        ssl->buffers.key->length,
                                         ssl->EccSignCtx);
                     #endif /* HAVE_ECC */
                 #endif /*HAVE_PK_CALLBACKS */
@@ -13651,8 +13651,8 @@ static word32 QSH_KeyExchangeWrite(WOLFSSL* ssl, byte isServer)
                         ret = ssl->ctx->RsaSignCb(ssl, signBuffer, signSz,
                                             verify + extraSz + VERIFY_HEADER,
                                             &ioLen,
-                                            ssl->buffers.key.buffer,
-                                            ssl->buffers.key.length,
+                                            ssl->buffers.key->buffer,
+                                            ssl->buffers.key->length,
                                             ssl->RsaSignCtx);
                     #endif /* NO_RSA */
                 #endif /*HAVE_PK_CALLBACKS */
@@ -14923,8 +14923,8 @@ int DoSessionTicket(WOLFSSL* ssl,
                         word32 ioLen = sigSz;
                         ret = ssl->ctx->RsaSignCb(ssl, signBuffer, signSz,
                                             output + idx, &ioLen,
-                                            ssl->buffers.key.buffer,
-                                            ssl->buffers.key.length,
+                                            ssl->buffers.key->buffer,
+                                            ssl->buffers.key->length,
                                             ssl->RsaSignCtx);
                     #endif /*HAVE_PK_CALLBACKS */
                     }
@@ -15000,8 +15000,8 @@ int DoSessionTicket(WOLFSSL* ssl,
                         ret = ssl->ctx->EccSignCb(ssl, digest, digestSz,
                                                   output + LENGTH_SZ + idx,
                                                   &sz,
-                                                  ssl->buffers.key.buffer,
-                                                  ssl->buffers.key.length,
+                                                  ssl->buffers.key->buffer,
+                                                  ssl->buffers.key->length,
                                                   ssl->EccSignCtx);
                     #endif
                     }
@@ -15581,8 +15581,8 @@ int DoSessionTicket(WOLFSSL* ssl,
                         word32 ioLen = sigSz;
                         ret = ssl->ctx->RsaSignCb(ssl, signBuffer, signSz,
                                                   output + idx, &ioLen,
-                                                  ssl->buffers.key.buffer,
-                                                  ssl->buffers.key.length,
+                                                  ssl->buffers.key->buffer,
+                                                  ssl->buffers.key->length,
                                                   ssl->RsaSignCtx);
                     #endif
                     } else if (ret == 0) {
@@ -17021,8 +17021,8 @@ int DoSessionTicket(WOLFSSL* ssl,
                         #ifdef HAVE_PK_CALLBACKS
                             ret = ssl->ctx->RsaDecCb(ssl,
                                         input + *inOutIdx, length, &out,
-                                        ssl->buffers.key.buffer,
-                                        ssl->buffers.key.length,
+                                        ssl->buffers.key->buffer,
+                                        ssl->buffers.key->length,
                                         ssl->RsaDecCtx);
                         #endif
                     }
@@ -17168,7 +17168,7 @@ int DoSessionTicket(WOLFSSL* ssl,
                 word16 cipherLen;
                 word16 plainLen = sizeof(ssl->arrays->preMasterSecret);
 
-                if (!ssl->buffers.key.buffer) {
+                if (!ssl->buffers.key || !ssl->buffers.key->buffer) {
                     return NO_PRIVATE_KEY;
                 }
 
@@ -17188,8 +17188,8 @@ int DoSessionTicket(WOLFSSL* ssl,
                 }
 
                 if (NTRU_OK != ntru_crypto_ntru_decrypt(
-                            (word16) ssl->buffers.key.length,
-                            ssl->buffers.key.buffer, cipherLen,
+                            (word16) ssl->buffers.key->length,
+                            ssl->buffers.key->buffer, cipherLen,
                             input + *inOutIdx, &plainLen,
                             ssl->arrays->preMasterSecret)) {
                     return NTRU_DECRYPT_ERROR;

@@ -11476,10 +11476,10 @@ int wolfSSL_cmp_peer_cert_to_file(WOLFSSL* ssl, const char *fname)
                 (XFREAD(myBuffer, sz, 1, file) > 0) &&
                 (PemToDer(myBuffer, sz, CERT_TYPE,
                           &fileDer, ctx->heap, info, &eccKey) == 0) &&
-                (fileDer.length != 0) &&
-                (fileDer.length == peer_cert->derCert.length) &&
-                (XMEMCMP(peer_cert->derCert.buffer, fileDer.buffer,
-                                                    fileDer.length) == 0))
+                (fileDer->length != 0) &&
+                (fileDer->length == peer_cert->derCert->length) &&
+                (XMEMCMP(peer_cert->derCert->buffer, fileDer->buffer,
+                                                    fileDer->length) == 0))
             {
                 ret = 0;
             }
