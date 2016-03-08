@@ -10063,7 +10063,7 @@ WOLFSSL_X509* wolfSSL_X509_load_certificate_file(const char* fname, int format)
 
     /* At this point we want `der` to have the certificate in DER format */
     /* ready to be decoded. */
-    if (der->buffer != NULL) {
+    if (der != NULL && der->buffer != NULL) {
     #ifdef WOLFSSL_SMALL_STACK
         DecodedCert* cert = NULL;
     #else
