@@ -1088,6 +1088,11 @@ static char *fgets(char *buff, int sz, FILE *fp)
     #undef NO_DH
 #endif
 
+/* Either SEP or CERT_EXT but not both */
+#if defined(WOLFSSL_CERT_EXT) && defined(WOLFSSL_SEP)
+    #error Can not use both WOLFSSL_CERT_EXT and WOLFSSL_SEP
+#endif
+
 /* Place any other flags or defines here */
 
 
