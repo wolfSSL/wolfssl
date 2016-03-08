@@ -1635,21 +1635,12 @@ int wolfSSL_GetHmacSize(WOLFSSL* ssl)
 
 #ifndef NO_CERTS
 
-int InitDer(DerBuffer* der)
+int AllocDer(DerBuffer** pDer, word32 length, int type, void* heap)
 {
     int ret = BAD_FUNC_ARG;
-    if (der) {
-        XMEMSET(der, 0, sizeof(DerBuffer));
-        ret = 0;
-    }
-    return ret;
-}
-
-int AllocDer(DerBuffer* der, word32 length, int type, void* heap)
-{
-    int ret = BAD_FUNC_ARG;
-    if (der) {
+    if (pDer) {
         int dynType = 0;
+        DerBuffer* der;
 
         /* Determine dynamic type */
         switch (type) {
@@ -1663,29 +1654,37 @@ int AllocDer(DerBuffer* der, word32 length, int type, void* heap)
         }
 
         /* Setup new buffer */
-        der->type = type;
-        der->dynType = dynType;
-        der->heap = heap;
-        der->buffer = (byte*)XMALLOC(length, heap, dynType);
-        if (!der->buffer) {
+        *pDer = (DerBuffer*)XMALLOC(sizeof(DerBuffer) + length, heap, dynType);
+        if (*pDer == NULL) {
             return MEMORY_ERROR;
         }
+
+        der = *pDer;
+        der->type = type;
+        der->dynType = dynType; /* Cache this for FreeDer */
+        der->heap = heap;
+        der->buffer = (byte*)der + sizeof(DerBuffer);
         der->length = length;
         ret = 0; /* Success */
     }
     return ret;
 }
 
-void FreeDer(DerBuffer* der)
+void FreeDer(DerBuffer** pDer)
 {
-    if (der && der->buffer) {
+    if (pDer && *pDer)
+    {
+        DerBuffer* der = (DerBuffer*)*pDer;
+
         /* ForceZero private keys */
         if (der->type == PRIVATEKEY_TYPE) {
             ForceZero(der->buffer, der->length);
         }
-        XFREE(der->buffer, der->heap, der->dynType);
         der->buffer = NULL;
         der->length = 0;
+        XFREE(der, der->heap, der->dynType);
+
+        *pDer = NULL;
     }
 }
 
@@ -1763,7 +1762,7 @@ int wolfSSL_CertPemToDer(const unsigned char* pem, int pemSz,
 {
     int            eccKey = 0;
     int            ret;
-    DerBuffer      der;
+    DerBuffer*     der = NULL;
 #ifdef WOLFSSL_SMALL_STACK
     EncryptedInfo* info = NULL;
 #else
@@ -1780,11 +1779,6 @@ int wolfSSL_CertPemToDer(const unsigned char* pem, int pemSz,
     if (type != CERT_TYPE && type != CA_TYPE && type != CERTREQ_TYPE) {
         WOLFSSL_MSG("Bad cert type");
         return BAD_FUNC_ARG;
-    }
-
-    ret = InitDer(&der);
-    if (ret < 0) {
-        return ret;
     }
 
 #ifdef WOLFSSL_SMALL_STACK
@@ -1808,9 +1802,9 @@ int wolfSSL_CertPemToDer(const unsigned char* pem, int pemSz,
         WOLFSSL_MSG("Bad Pem To Der");
     }
     else {
-        if (der.length <= (word32)buffSz) {
-            XMEMCPY(buff, der.buffer, der.length);
-            ret = der.length;
+        if (der->length <= (word32)buffSz) {
+            XMEMCPY(buff, der->buffer, der->length);
+            ret = der->length;
         }
         else {
             WOLFSSL_MSG("Bad der length");
@@ -1867,7 +1861,7 @@ int wolfSSL_KeyPemToDer(const unsigned char* pem, int pemSz,
 {
     int            eccKey = 0;
     int            ret;
-    DerBuffer      der;
+    DerBuffer*     der = NULL;
 #ifdef WOLFSSL_SMALL_STACK
     EncryptedInfo* info = NULL;
 #else
@@ -1879,11 +1873,6 @@ int wolfSSL_KeyPemToDer(const unsigned char* pem, int pemSz,
     if (pem == NULL || buff == NULL || buffSz <= 0) {
         WOLFSSL_MSG("Bad pem der args");
         return BAD_FUNC_ARG;
-    }
-
-    ret = InitDer(&der);
-    if (ret < 0) {
-        return ret;
     }
 
 #ifdef WOLFSSL_SMALL_STACK
@@ -1927,9 +1916,9 @@ int wolfSSL_KeyPemToDer(const unsigned char* pem, int pemSz,
         WOLFSSL_MSG("Bad Pem To Der");
     }
     else {
-        if (der.length <= (word32)buffSz) {
-            XMEMCPY(buff, der.buffer, der.length);
-            ret = der.length;
+        if (der->length <= (word32)buffSz) {
+            XMEMCPY(buff, der->buffer, der->length);
+            ret = der->length;
         }
         else {
             WOLFSSL_MSG("Bad der length");
@@ -2248,7 +2237,7 @@ Signer* GetCAByName(void* vp, byte* hash)
 /* owns der, internal now uses too */
 /* type flag ids from user or from chain received during verify
    don't allow chain ones to be added w/o isCA extension */
-int AddCA(WOLFSSL_CERT_MANAGER* cm, DerBuffer* der, int type, int verify)
+int AddCA(WOLFSSL_CERT_MANAGER* cm, DerBuffer** pDer, int type, int verify)
 {
     int         ret;
     Signer*     signer = 0;
@@ -2259,6 +2248,7 @@ int AddCA(WOLFSSL_CERT_MANAGER* cm, DerBuffer* der, int type, int verify)
 #else
     DecodedCert  cert[1];
 #endif
+    DerBuffer*   der = *pDer;
 
     WOLFSSL_MSG("Adding a CA");
 
@@ -2354,7 +2344,7 @@ int AddCA(WOLFSSL_CERT_MANAGER* cm, DerBuffer* der, int type, int verify)
     XFREE(cert, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
     WOLFSSL_MSG("    Freeing der CA");
-    FreeDer(der);
+    FreeDer(pDer);
     WOLFSSL_MSG("        OK Freeing der CA");
 
     WOLFSSL_LEAVE("AddCA", ret);
@@ -2630,7 +2620,7 @@ static int wolfssl_encrypt_buffer_key(byte* der, word32 derSz, byte* password,
 /* Remove PEM header/footer, convert to ASN1, store any encrypted data
    info->consumed tracks of PEM bytes consumed in case multiple parts */
 int PemToDer(const unsigned char* buff, long longSz, int type,
-                  DerBuffer* der, void* heap, EncryptedInfo* info, int* eccKey)
+              DerBuffer** pDer, void* heap, EncryptedInfo* info, int* eccKey)
 {
     const char* header      = NULL;
     const char* footer      = NULL;
@@ -2642,6 +2632,7 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
     int         ret         = 0;
     int         sz          = (int)longSz;
     int         encrypted_key = 0;
+    DerBuffer*  der;
 
     WOLFSSL_ENTER("PemToDer");
 
@@ -2778,10 +2769,11 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
     if (neededSz > sz || neededSz < 0)
         return SSL_BAD_FILE;
 
-    ret = AllocDer(der, (word32)neededSz, type, heap);
+    ret = AllocDer(pDer, (word32)neededSz, type, heap);
     if (ret < 0) {
         return ret;
     }
+    der = *pDer;
 
     if (Base64_Decode((byte*)headerEnd, (word32)neededSz,
                       der->buffer, &der->length) < 0)
@@ -2823,7 +2815,6 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
             XFREE(password, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     #endif
             if (ret < 0) {
-                FreeDer(der);
                 return ret;
             }
 
@@ -2837,7 +2828,6 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
             XFREE(password, heap, DYNAMIC_TYPE_TMP_BUFFER);
     #endif
             if (ret != SSL_SUCCESS) {
-                FreeDer(der);
                 return ret;
             }
         }
@@ -2855,7 +2845,7 @@ static int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
                          long sz, int format, int type, WOLFSSL* ssl,
                          long* used, int userChain)
 {
-    DerBuffer     der;        /* holds DER or RAW (for NTRU) */
+    DerBuffer*    der = NULL;        /* holds DER or RAW (for NTRU) */
     int           ret;
     int           eccKey = 0;
     int           rsaKey = 0;
@@ -2877,11 +2867,6 @@ static int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
 
     if (ctx == NULL && ssl == NULL)
         return BAD_FUNC_ARG;
-
-    ret = InitDer(&der);
-    if (ret < 0) {
-        return ret;
-    }
 
 #ifdef WOLFSSL_SMALL_STACK
     info = (EncryptedInfo*)XMALLOC(sizeof(EncryptedInfo), heap,
@@ -2939,30 +2924,28 @@ static int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
 
             WOLFSSL_MSG("Processing Cert Chain");
             while (consumed < sz) {
-                DerBuffer part;
+                DerBuffer* part = NULL;
                 info->consumed = 0;
-                ret = InitDer(&part);
+
+                ret = PemToDer(buff + consumed, sz - consumed, type, &part,
+                               heap, info, &eccKey);
                 if (ret == 0) {
-                    ret = PemToDer(buff + consumed, sz - consumed, type, &part,
-                                   heap, info, &eccKey);
-                    if (ret == 0) {
-                        gotOne = 1;
-                        if ( (idx + part.length) > bufferSz) {
-                            WOLFSSL_MSG("   Cert Chain bigger than buffer");
-                            ret = BUFFER_E;
-                        }
-                        else {
-                            c32to24(part.length, &chainBuffer[idx]);
-                            idx += CERT_HEADER_SZ;
-                            XMEMCPY(&chainBuffer[idx], part.buffer,part.length);
-                            idx += part.length;
-                            consumed  += info->consumed;
-                            if (used)
-                                *used += info->consumed;
-                        }
+                    gotOne = 1;
+                    if ( (idx + part->length) > bufferSz) {
+                        WOLFSSL_MSG("   Cert Chain bigger than buffer");
+                        ret = BUFFER_E;
                     }
-                    FreeDer(&part);
+                    else {
+                        c32to24(part->length, &chainBuffer[idx]);
+                        idx += CERT_HEADER_SZ;
+                        XMEMCPY(&chainBuffer[idx], part->buffer, part->length);
+                        idx += part->length;
+                        consumed  += info->consumed;
+                        if (used)
+                            *used += info->consumed;
+                    }
                 }
+                FreeDer(&part);
 
                 if (ret == SSL_NO_PEM_HEADER && gotOne) {
                     WOLFSSL_MSG("We got one good PEM so stuff at end ok");
@@ -2992,14 +2975,14 @@ static int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
                     }
                     ret = AllocDer(&ssl->buffers.certChain, idx, type, heap);
                     if (ret == 0) {
-                        XMEMCPY(ssl->buffers.certChain.buffer, chainBuffer, idx);
+                        XMEMCPY(ssl->buffers.certChain->buffer, chainBuffer, idx);
                         ssl->buffers.weOwnCertChain = 1;
                     }
                 } else if (ctx) {
                     FreeDer(&ctx->certChain);
                     ret = AllocDer(&ctx->certChain, idx, type, heap);
                     if (ret == 0) {
-                        XMEMCPY(ctx->certChain.buffer, chainBuffer, idx);
+                        XMEMCPY(ctx->certChain->buffer, chainBuffer, idx);
                     }
                 }
             }
@@ -3025,7 +3008,7 @@ static int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
             return ret;
         }
 
-        XMEMCPY(der.buffer, buff, sz);
+        XMEMCPY(der->buffer, buff, sz);
     }
 
 #if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
@@ -3053,7 +3036,7 @@ static int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
                                         0, ctx->userdata);
 
             /* decrypt the key */
-            ret = wolfssl_decrypt_buffer_key(&der, (byte*)password,
+            ret = wolfssl_decrypt_buffer_key(der, (byte*)password,
                                              passwordSz, info);
         }
 
@@ -3138,7 +3121,7 @@ static int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
 
             ret = wc_InitRsaKey(key, 0);
             if (ret == 0) {
-                if (wc_RsaPrivateKeyDecode(der.buffer, &idx, key, der.length)
+                if (wc_RsaPrivateKeyDecode(der->buffer, &idx, key, der->length)
                     != 0) {
                 #ifdef HAVE_ECC
                     /* could have DER ECC (or pkcs8 ecc), no easy way to tell */
@@ -3169,7 +3152,8 @@ static int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
             ecc_key key;
 
             wc_ecc_init(&key);
-            if (wc_EccPrivateKeyDecode(der.buffer,&idx,&key,der.length) != 0) {
+            if (wc_EccPrivateKeyDecode(der->buffer, &idx, &key, 
+                                                        der->length) != 0) {
                 wc_ecc_free(&key);
                 return SSL_BAD_FILE;
             }
@@ -3197,7 +3181,7 @@ static int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
     #endif
 
         WOLFSSL_MSG("Checking cert signature type");
-        InitDecodedCert(cert, der.buffer, der.length, heap);
+        InitDecodedCert(cert, der->buffer, der->length, heap);
 
         if (DecodeToKey(cert, 0) < 0) {
             WOLFSSL_MSG("Decode to key failed");
@@ -3422,7 +3406,7 @@ int wolfSSL_CertManagerVerifyBuffer(WOLFSSL_CERT_MANAGER* cm, const byte* buff,
                                     long sz, int format)
 {
     int ret = 0;
-    DerBuffer der;
+    DerBuffer* der = NULL;
 #ifdef WOLFSSL_SMALL_STACK
     DecodedCert* cert = NULL;
 #else
@@ -3430,11 +3414,6 @@ int wolfSSL_CertManagerVerifyBuffer(WOLFSSL_CERT_MANAGER* cm, const byte* buff,
 #endif
 
     WOLFSSL_ENTER("wolfSSL_CertManagerVerifyBuffer");
-
-    ret = InitDer(&der);
-    if (ret < 0) {
-        return ret;
-    }
 
 #ifdef WOLFSSL_SMALL_STACK
     cert = (DecodedCert*)XMALLOC(sizeof(DecodedCert), cm->heap,
@@ -3465,7 +3444,7 @@ int wolfSSL_CertManagerVerifyBuffer(WOLFSSL_CERT_MANAGER* cm, const byte* buff,
         info->consumed = 0;
 
         ret = PemToDer(buff, sz, CERT_TYPE, &der, cm->heap, info, &eccKey);
-        InitDecodedCert(cert, der.buffer, der.length, cm->heap);
+        InitDecodedCert(cert, der->buffer, der->length, cm->heap);
 
     #ifdef WOLFSSL_SMALL_STACK
         XFREE(info, cm->heap, DYNAMIC_TYPE_TMP_BUFFER);
@@ -4240,7 +4219,7 @@ int wolfSSL_PemCertToDer(const char* fileName, unsigned char* derBuf, int derSz)
     int    ecc     = 0;
     long   sz      = 0;
     XFILE  file    = XFOPEN(fileName, "rb");
-    DerBuffer converted;
+    DerBuffer* converted = NULL;
 
     WOLFSSL_ENTER("wolfSSL_PemCertToDer");
 
@@ -4264,39 +4243,36 @@ int wolfSSL_PemCertToDer(const char* fileName, unsigned char* derBuf, int derSz)
         }
         
         if (ret == 0) {
-            ret = InitDer(&converted);
-            if (ret == 0) {
-                if ( (ret = (int)XFREAD(fileBuf, sz, 1, file)) < 0) {
-                    ret = SSL_BAD_FILE;
-                }
-                else {
-                #ifdef WOLFSSL_SMALL_STACK
-                    info = (EncryptedInfo*)XMALLOC(sizeof(EncryptedInfo), NULL,
-                                                   DYNAMIC_TYPE_TMP_BUFFER);
-                    if (info == NULL)
-                        ret = MEMORY_E;
-                    else
-                #endif
-                    {
-                        ret = PemToDer(fileBuf, sz, CA_TYPE, &converted,
-                                       0, info, &ecc);
-                    #ifdef WOLFSSL_SMALL_STACK
-                        XFREE(info, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-                    #endif
-                    }
-                }
-
-                if (ret == 0) {
-                    if (converted.length < (word32)derSz) {
-                        XMEMCPY(derBuf, converted.buffer, converted.length);
-                        ret = converted.length;
-                    }
-                    else
-                        ret = BUFFER_E;
-                }
-
-                FreeDer(&converted);
+            if ( (ret = (int)XFREAD(fileBuf, sz, 1, file)) < 0) {
+                ret = SSL_BAD_FILE;
             }
+            else {
+            #ifdef WOLFSSL_SMALL_STACK
+                info = (EncryptedInfo*)XMALLOC(sizeof(EncryptedInfo), NULL,
+                                               DYNAMIC_TYPE_TMP_BUFFER);
+                if (info == NULL)
+                    ret = MEMORY_E;
+                else
+            #endif
+                {
+                    ret = PemToDer(fileBuf, sz, CA_TYPE, &converted,
+                                   0, info, &ecc);
+                #ifdef WOLFSSL_SMALL_STACK
+                    XFREE(info, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                #endif
+                }
+            }
+
+            if (ret == 0) {
+                if (converted->length < (word32)derSz) {
+                    XMEMCPY(derBuf, converted->buffer, converted->length);
+                    ret = converted->length;
+                }
+                else
+                    ret = BUFFER_E;
+            }
+
+            FreeDer(&converted);
         }
 
         XFCLOSE(file);
@@ -4325,7 +4301,7 @@ int wolfSSL_PemPubKeyToDer(const char* fileName,
     int    ret     = 0;
     long   sz      = 0;
     XFILE  file    = XFOPEN(fileName, "rb");
-    DerBuffer converted;
+    DerBuffer* converted = NULL;
 
     WOLFSSL_ENTER("wolfSSL_PemPubKeyToDer");
 
@@ -4348,25 +4324,22 @@ int wolfSSL_PemPubKeyToDer(const char* fileName,
                 dynamic = 1;
         }
         if (ret == 0) {
-            ret = InitDer(&converted);
+            if ( (ret = (int)XFREAD(fileBuf, sz, 1, file)) < 0)
+                ret = SSL_BAD_FILE;
+            else
+                ret = PemToDer(fileBuf, sz, PUBLICKEY_TYPE, &converted,
+                               0, NULL, NULL);
+
             if (ret == 0) {
-                if ( (ret = (int)XFREAD(fileBuf, sz, 1, file)) < 0)
-                    ret = SSL_BAD_FILE;
-                else
-                    ret = PemToDer(fileBuf, sz, PUBLICKEY_TYPE, &converted,
-                                   0, NULL, NULL);
-
-                if (ret == 0) {
-                    if (converted.length < (word32)derSz) {
-                        XMEMCPY(derBuf, converted.buffer, converted.length);
-                        ret = converted.length;
-                    }
-                    else
-                        ret = BUFFER_E;
+                if (converted->length < (word32)derSz) {
+                    XMEMCPY(derBuf, converted->buffer, converted->length);
+                    ret = converted->length;
                 }
-
-                FreeDer(&converted);
+                else
+                    ret = BUFFER_E;
             }
+
+            FreeDer(&converted);
         }
 
         XFCLOSE(file);
@@ -4382,8 +4355,8 @@ int wolfSSL_PemPubKeyToDer(const char* fileName,
 int wolfSSL_PubKeyPemToDer(const unsigned char* pem, int pemSz,
                            unsigned char* buff, int buffSz)
 {
-    int     ret;
-    DerBuffer der;
+    int ret;
+    DerBuffer* der = NULL;
 
     WOLFSSL_ENTER("wolfSSL_PubKeyPemToDer");
 
@@ -4392,19 +4365,14 @@ int wolfSSL_PubKeyPemToDer(const unsigned char* pem, int pemSz,
         return BAD_FUNC_ARG;
     }
 
-    ret = InitDer(&der);
-    if (ret < 0) {
-        return ret;
-    }
-
     ret = PemToDer(pem, pemSz, PUBLICKEY_TYPE, &der, NULL, NULL, NULL);
     if (ret < 0) {
         WOLFSSL_MSG("Bad Pem To Der");
     }
     else {
-        if (der.length <= (word32)buffSz) {
-            XMEMCPY(buff, der.buffer, der.length);
-            ret = der.length;
+        if (der->length <= (word32)buffSz) {
+            XMEMCPY(buff, der->buffer, der->length);
+            ret = der->length;
         }
         else {
             WOLFSSL_MSG("Bad der length");
@@ -6160,9 +6128,11 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
 
         #ifndef NO_CERTS
             /* in case used set_accept_state after init */
-            if (!havePSK && !haveAnon &&
-                            (ssl->buffers.certificate.buffer == NULL ||
-                             ssl->buffers.key.buffer == NULL)) {
+            if (!havePSK && !haveAnon && 
+                (!ssl->buffers.certificate || 
+                 !ssl->buffers.certificate->buffer ||
+                 !ssl->buffers.key || 
+                 !ssl->buffers.key->buffer)) {
                 WOLFSSL_MSG("accept error: don't have server cert and key");
                 ssl->error = NO_PRIVATE_KEY;
                 WOLFSSL_ERROR(ssl->error);
@@ -7414,9 +7384,8 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
                                                const unsigned char* buf,
                                                long sz, int format)
     {
-        DerBuffer der;
+        DerBuffer* der = NULL;
         int    ret      = 0;
-        int    weOwnDer = 0;
         word32 pSz = MAX_DH_SIZE;
         word32 gSz = MAX_DH_SIZE;
     #ifdef WOLFSSL_SMALL_STACK
@@ -7430,8 +7399,12 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         if (ctx == NULL || buf == NULL)
             return BAD_FUNC_ARG;
 
-        der.buffer = (byte*)buf;
-        der.length = (word32)sz;
+        ret = AllocDer(&der, 0, DH_PARAM_TYPE, ctx->heap);
+        if (ret != 0) {
+            return ret;
+        }
+        der->buffer = (byte*)buf;
+        der->length = (word32)sz;
 
     #ifdef WOLFSSL_SMALL_STACK
         p = (byte*)XMALLOC(pSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -7448,16 +7421,13 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
             ret = SSL_BAD_FILETYPE;
         else {
             if (format == SSL_FILETYPE_PEM) {
-                ret = InitDer(&der);
-                if (ret == 0) {
-                    ret = PemToDer(buf, sz, DH_PARAM_TYPE, &der, ctx->heap,
-                                   NULL, NULL);
-                    weOwnDer = 1;
-                }
+                FreeDer(&der);
+                ret = PemToDer(buf, sz, DH_PARAM_TYPE, &der, ctx->heap,
+                               NULL, NULL);
             }
 
             if (ret == 0) {
-                if (wc_DhParamsLoad(der.buffer, der.length, p, &pSz, g, &gSz) < 0)
+                if (wc_DhParamsLoad(der->buffer, der->length, p, &pSz, g, &gSz) < 0)
                     ret = SSL_BAD_FILETYPE;
                 else if (ssl)
                     ret = wolfSSL_SetTmpDH(ssl, p, pSz, g, gSz);
@@ -7466,8 +7436,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
             }
         }
 
-        if (weOwnDer)
-            FreeDer(&der);
+        FreeDer(&der);
 
     #ifdef WOLFSSL_SMALL_STACK
         XFREE(p, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -9796,8 +9765,8 @@ static void ExternalFreeX509(WOLFSSL_X509* x509)
         if (x509 == NULL || outSz == NULL)
             return NULL;
 
-        *outSz = (int)x509->derCert.length;
-        return x509->derCert.buffer;
+        *outSz = (int)x509->derCert->length;
+        return x509->derCert->buffer;
     }
 
 
@@ -10011,7 +9980,7 @@ WOLFSSL_X509* wolfSSL_X509_load_certificate_file(const char* fname, int format)
     XFILE file;
 
     WOLFSSL_X509* x509 = NULL;
-    DerBuffer der;
+    DerBuffer* der = NULL;
 
     WOLFSSL_ENTER("wolfSSL_X509_load_certificate");
 
@@ -10019,11 +9988,6 @@ WOLFSSL_X509* wolfSSL_X509_load_certificate_file(const char* fname, int format)
     if ((fname == NULL) ||
         (format != SSL_FILETYPE_ASN1 && format != SSL_FILETYPE_PEM))
         return NULL;
-
-    ret = InitDer(&der);
-    if (ret < 0) {
-        return NULL;
-    }
 
     file = XFOPEN(fname, "rb");
     if (file == XBADFILE)
@@ -10090,7 +10054,7 @@ WOLFSSL_X509* wolfSSL_X509_load_certificate_file(const char* fname, int format)
     else {
         ret = AllocDer(&der, (word32)sz, CERT_TYPE, NULL);
         if (ret == 0) {
-            XMEMCPY(der.buffer, fileBuffer, sz);
+            XMEMCPY(der->buffer, fileBuffer, sz);
         }
     }
 
@@ -10099,7 +10063,7 @@ WOLFSSL_X509* wolfSSL_X509_load_certificate_file(const char* fname, int format)
 
     /* At this point we want `der` to have the certificate in DER format */
     /* ready to be decoded. */
-    if (der.buffer != NULL) {
+    if (der->buffer != NULL) {
     #ifdef WOLFSSL_SMALL_STACK
         DecodedCert* cert = NULL;
     #else
@@ -10112,7 +10076,7 @@ WOLFSSL_X509* wolfSSL_X509_load_certificate_file(const char* fname, int format)
         if (cert != NULL)
     #endif
         {
-            InitDecodedCert(cert, der.buffer, der.length, NULL);
+            InitDecodedCert(cert, der->buffer, der->length, NULL);
             if (ParseCertRelative(cert, CERT_TYPE, 0, NULL) == 0) {
                 x509 = (WOLFSSL_X509*)XMALLOC(sizeof(WOLFSSL_X509), NULL,
                                                              DYNAMIC_TYPE_X509);
@@ -10899,19 +10863,17 @@ int wolfSSL_X509_STORE_add_cert(WOLFSSL_X509_STORE* store, WOLFSSL_X509* x509)
     int result = SSL_FATAL_ERROR;
 
     WOLFSSL_ENTER("wolfSSL_X509_STORE_add_cert");
-    if (store != NULL && store->cm != NULL && x509 != NULL) {
-        DerBuffer derCert;
+    if (store != NULL && store->cm != NULL && x509 != NULL 
+                                                && x509->derCert != NULL) {
+        DerBuffer* derCert = NULL;
         
-        result = InitDer(&derCert);
+        result = AllocDer(&derCert, x509->derCert->length,
+            x509->derCert->type, NULL);
         if (result == 0) {
-            result = AllocDer(&derCert, x509->derCert.length,
-                x509->derCert.type, NULL);
-            if (result == 0) {
-                /* AddCA() frees the buffer. */
-                XMEMCPY(derCert.buffer,
-                                x509->derCert.buffer, x509->derCert.length);
-                result = AddCA(store->cm, &derCert, WOLFSSL_USER_CA, 1);
-            }
+            /* AddCA() frees the buffer. */
+            XMEMCPY(derCert->buffer,
+                            x509->derCert->buffer, x509->derCert->length);
+            result = AddCA(store->cm, &derCert, WOLFSSL_USER_CA, 1);
         }
     }
 
@@ -11024,10 +10986,10 @@ void wolfSSL_X509_STORE_CTX_cleanup(WOLFSSL_X509_STORE_CTX* ctx)
 int wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx)
 {
     if (ctx != NULL && ctx->store != NULL && ctx->store->cm != NULL
-                                             && ctx->current_cert != NULL) {
+         && ctx->current_cert != NULL && ctx->current_cert->derCert != NULL) {
         return wolfSSL_CertManagerVerifyBuffer(ctx->store->cm,
-                    ctx->current_cert->derCert.buffer,
-                    ctx->current_cert->derCert.length,
+                    ctx->current_cert->derCert->buffer,
+                    ctx->current_cert->derCert->length,
                     SSL_FILETYPE_ASN1);
     }
     return SSL_FATAL_ERROR;
@@ -11481,12 +11443,7 @@ int wolfSSL_cmp_peer_cert_to_file(WOLFSSL* ssl, const char *fname)
         int            eccKey    = 0;
         WOLFSSL_CTX*   ctx       = ssl->ctx;
         WOLFSSL_X509*  peer_cert = &ssl->peerCert;
-        DerBuffer      fileDer;
-
-        ret = InitDer(&fileDer);
-        if (ret < 0) {
-            return ret;
-        }
+        DerBuffer*     fileDer = NULL;
 
         file = XFOPEN(fname, "rb");
         if (file == XBADFILE)
