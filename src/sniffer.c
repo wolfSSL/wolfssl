@@ -1341,16 +1341,17 @@ static int ProcessClientKeyExchange(const byte* input, int* sslBytes,
     RsaKey key;
     int    ret;
 
-    if (session->sslServer->buffers.key.buffer == NULL ||
-        session->sslServer->buffers.key.length == 0) {
+    if (session->sslServer->buffers.key == NULL ||
+        session->sslServer->buffers.key->buffer == NULL ||
+        session->sslServer->buffers.key->length == 0) {
 
         SetError(RSA_KEY_MISSING_STR, error, session, FATAL_ERROR_STATE);
         return -1;
     }
     ret = wc_InitRsaKey(&key, 0);
     if (ret == 0)
-        ret = wc_RsaPrivateKeyDecode(session->sslServer->buffers.key.buffer,
-                          &idx, &key, session->sslServer->buffers.key.length);
+        ret = wc_RsaPrivateKeyDecode(session->sslServer->buffers.key->buffer,
+                          &idx, &key, session->sslServer->buffers.key->length);
     if (ret == 0) {
         int length = wc_RsaEncryptSize(&key);
 

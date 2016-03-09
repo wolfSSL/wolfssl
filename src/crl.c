@@ -263,7 +263,7 @@ int BufferLoadCRL(WOLFSSL_CRL* crl, const byte* buff, long sz, int type)
 {
     int          ret = SSL_SUCCESS;
     const byte*  myBuffer = buff;    /* if DER ok, otherwise switch */
-    DerBuffer    der;
+    DerBuffer*   der = NULL;
 #ifdef WOLFSSL_SMALL_STACK
     DecodedCRL*  dcrl;
 #else
@@ -275,11 +275,6 @@ int BufferLoadCRL(WOLFSSL_CRL* crl, const byte* buff, long sz, int type)
     if (crl == NULL || buff == NULL || sz == 0)
         return BAD_FUNC_ARG;
 
-    ret = InitDer(&der);
-    if (ret < 0) {
-        return ret;
-    }
-
     if (type == SSL_FILETYPE_PEM) {
         int eccKey = 0;   /* not used */
         EncryptedInfo info;
@@ -287,8 +282,8 @@ int BufferLoadCRL(WOLFSSL_CRL* crl, const byte* buff, long sz, int type)
 
         ret = PemToDer(buff, sz, CRL_TYPE, &der, NULL, &info, &eccKey);
         if (ret == 0) {
-            myBuffer = der.buffer;
-            sz = der.length;
+            myBuffer = der->buffer;
+            sz = der->length;
         }
         else {
             WOLFSSL_MSG("Pem to Der failed");
