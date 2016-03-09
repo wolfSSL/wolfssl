@@ -9424,6 +9424,7 @@ static void ExternalFreeX509(WOLFSSL_X509* x509)
     if (x509) {
         if (x509->dynamicMemory) {
             FreeX509(x509);
+            XFREE(x509, NULL, DYNAMIC_TYPE_X509);
         } else {
             WOLFSSL_MSG("free called on non dynamic object, not freeing");
         }

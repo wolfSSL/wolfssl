@@ -1695,8 +1695,6 @@ void FreeX509(WOLFSSL_X509* x509)
     #endif /* OPENSSL_EXTRA */
     if (x509->altNames)
         FreeAltNames(x509->altNames, NULL);
-    if (x509->dynamicMemory)
-        XFREE(x509, NULL, DYNAMIC_TYPE_X509);
 }
 
 
