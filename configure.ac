@@ -687,6 +687,10 @@ AC_ARG_ENABLE([sep],
     )
 if test "$ENABLED_SEP" = "yes"
 then
+    if test "$ENABLED_CERTEXT" = "yes"
+    then
+        AC_MSG_ERROR([cannot enable certext and enable sep.])
+    fi
   AM_CFLAGS="-DWOLFSSL_SEP -DKEEP_PEER_CERT $AM_CFLAGS"
 fi
 
@@ -1805,6 +1809,10 @@ then
     fi
     if test "x$ENABLED_CERTEXT" = "xno"
     then
+        if test "$ENABLED_SEP" = "yes"
+        then
+            AC_MSG_ERROR([cannot enable certext and enable sep.])
+        fi
         ENABLED_CERTEXT="yes"
         AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_CERT_EXT"
     fi
