@@ -256,6 +256,21 @@ fi
 AM_CONDITIONAL([BUILD_LEANPSK], [test "x$ENABLED_LEANPSK" = "xyes"])
 
 
+# lean TLS build (TLS 1.2 client only (no client auth), ECC256, AES128 and SHA256 w/o Shamir)
+AC_ARG_ENABLE([leantls],
+    [  --enable-leantls        Enable Lean TLS build (default: disabled)],
+    [ ENABLED_LEANTLS=$enableval ],
+    [ ENABLED_LEANTLS=no ]
+    )
+
+if test "$ENABLED_LEANTLS" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_LEANTLS -DNO_WRITEV -DHAVE_ECC -DTFM_ECC256 -DECC_USER_CURVES -DNO_WOLFSSL_SERVER -DNO_RABBIT -DNO_RSA -DNO_DSA -DNO_DH -DNO_PWDBASED -DNO_DES3 -DNO_MD5 -DNO_ERROR_STRINGS -DNO_OLD_TLS -DNO_RC4 -DNO_SESSION_CACHE -DNO_SHA -DUSE_SLOW_SHA -DUSE_SLOW_SHA2 -DNO_PSK -DNO_WOLFSSL_MEMORY"
+fi
+
+AM_CONDITIONAL([BUILD_LEANTLS], [test "x$ENABLED_LEANTLS" = "xyes"])
+
+
 # big cache
 AC_ARG_ENABLE([bigcache],
     [  --enable-bigcache       Enable big session cache (default: disabled)],
@@ -354,7 +369,7 @@ AC_ARG_ENABLE([sniffer],
    [ ENABLED_SNIFFER=no ]
    )
 
-# sniffer does't work in maxstrength mode
+# sniffer doesn't work in maxstrength mode
 if test "$ENABLED_SNIFFER" = "yes" && test "$ENABLED_MAXSTRENGTH" = "yes"
 then
     AC_MSG_ERROR([cannot enable maxstrength in sniffer mode.])
@@ -380,8 +395,8 @@ AC_ARG_ENABLE([aesgcm],
     [ ENABLED_AESGCM=yes ]
     )
 
-# lean psk does't need gcm
-if test "$ENABLED_LEANPSK" = "yes"
+# leanpsk and leantls don't need gcm
+if test "$ENABLED_LEANPSK" = "yes" || test "$ENABLED_LEANTLS" = "yes"
 then
     ENABLED_AESGCM=no
 fi
@@ -566,8 +581,8 @@ AC_ARG_ENABLE([sha512],
     [ ENABLED_SHA512=$SHA512_DEFAULT ]
     )
 
-# lean psk does't need sha512
-if test "$ENABLED_LEANPSK" = "yes"
+# leanpsk and leantls don't need sha512
+if test "$ENABLED_LEANPSK" = "yes" || test "$ENABLED_LEANTLS" = "yes"
 then
     ENABLED_SHA512=no
 fi
@@ -723,7 +738,7 @@ AC_ARG_ENABLE([ecc],
     [ ENABLED_ECC=$ECC_DEFAULT ]
     )
 
-# lean psk does't need ecc
+# lean psk doesn't need ecc
 if test "$ENABLED_LEANPSK" = "yes"
 then
     ENABLED_ECC=no
@@ -740,12 +755,6 @@ then
 fi
 
 AM_CONDITIONAL([BUILD_ECC], [test "x$ENABLED_ECC" = "xyes"])
-
-
-if test "$ENABLED_ECC" = "yes" && test "$ENABLED_SMALL" = "yes"
-then
-    AC_MSG_ERROR([cannot enable ecc and small, ecc requires TLS which small turns off.])
-fi
 
 
 # for using memory optimization setting on both curve25519 and ed25519
@@ -874,8 +883,8 @@ if test "$ENABLED_ERROR_STRINGS" = "no"
 then
     AM_CFLAGS="$AM_CFLAGS -DNO_ERROR_STRINGS"
 else
-    # turn off error strings if leanpsk on
-    if test "$ENABLED_LEANPSK" = "yes"
+    # turn off error strings if leanpsk or leantls on
+    if test "$ENABLED_LEANPSK" = "yes" || test "$ENABLED_LEANTLS" = "yes"
     then
         AM_CFLAGS="$AM_CFLAGS -DNO_ERROR_STRINGS"
         ENABLED_ERROR_STRINGS=no
@@ -894,8 +903,8 @@ if test "$ENABLED_OLD_TLS" = "no"
 then
     AM_CFLAGS="$AM_CFLAGS -DNO_OLD_TLS"
 else
-    # turn off old if leanpsk on
-    if test "$ENABLED_LEANPSK" = "yes"
+    # turn off old if leanpsk or leantls on
+    if test "$ENABLED_LEANPSK" = "yes" || test "$ENABLED_LEANTLS" = "yes"
     then
         AM_CFLAGS="$AM_CFLAGS -DNO_OLD_TLS"
         ENABLED_OLD_TLS=no
@@ -942,8 +951,8 @@ if test "$ENABLED_MEMORY" = "no"
 then
     AM_CFLAGS="$AM_CFLAGS -DNO_WOLFSSL_MEMORY"
 else
-    # turn off memory cb if leanpsk on
-    if test "$ENABLED_LEANPSK" = "yes"
+    # turn off memory cb if leanpsk or leantls on
+    if test "$ENABLED_LEANPSK" = "yes" || test "$ENABLED_LEANTLS" = "yes"
     then
         # but don't turn on NO_WOLFSSL_MEMORY because using own
         ENABLED_MEMORY=no
@@ -964,8 +973,8 @@ if test "$ENABLED_RSA" = "no"
 then
     AM_CFLAGS="$AM_CFLAGS -DNO_RSA"
 else
-    # turn off RSA if leanpsk on
-    if test "$ENABLED_LEANPSK" = "yes"
+    # turn off RSA if leanpsk or leantls on
+    if test "$ENABLED_LEANPSK" = "yes" || test "$ENABLED_LEANTLS" = "yes"
     then
         AM_CFLAGS="$AM_CFLAGS -DNO_RSA"
         ENABLED_RSA=no
@@ -991,8 +1000,8 @@ if test "$ENABLED_DH" = "no"
 then
     AM_CFLAGS="$AM_CFLAGS -DNO_DH"
 else
-    # turn off DH if leanpsk on
-    if test "$ENABLED_LEANPSK" = "yes"
+    # turn off DH if leanpsk or leantls on
+    if test "$ENABLED_LEANPSK" = "yes" || test "$ENABLED_LEANTLS" = "yes"
     then
         AM_CFLAGS="$AM_CFLAGS -DNO_DH"
         ENABLED_DH=no
@@ -1137,8 +1146,8 @@ if test "$ENABLED_DES3" = "no"
 then
     AM_CFLAGS="$AM_CFLAGS -DNO_DES3"
 else
-    # turn off DES3 if leanpsk on
-    if test "$ENABLED_LEANPSK" = "yes"
+    # turn off DES3 if leanpsk or leantls on
+    if test "$ENABLED_LEANPSK" = "yes" || test "$ENABLED_LEANTLS" = "yes"
     then
         AM_CFLAGS="$AM_CFLAGS -DNO_DES3"
         ENABLED_DES3=no
@@ -1180,8 +1189,8 @@ if test "$ENABLED_ARC4" = "no"
 then
     AM_CFLAGS="$AM_CFLAGS -DNO_RC4"
 else
-    # turn off ARC4 if leanpsk on
-    if test "$ENABLED_LEANPSK" = "yes"
+    # turn off ARC4 if leanpsk or leantls on
+    if test "$ENABLED_LEANPSK" = "yes" || test "$ENABLED_LEANTLS" = "yes"
     then
         AM_CFLAGS="$AM_CFLAGS -DNO_RC4"
         ENABLED_ARC4=no
@@ -1202,8 +1211,8 @@ if test "$ENABLED_MD5" = "no"
 then
     AM_CFLAGS="$AM_CFLAGS -DNO_MD5 -DNO_OLD_TLS"
 else
-    # turn off MD5 if leanpsk on
-    if test "$ENABLED_LEANPSK" = "yes"
+    # turn off MD5 if leanpsk or leantls on
+    if test "$ENABLED_LEANPSK" = "yes" || test "$ENABLED_LEANTLS" = "yes"
     then
         AM_CFLAGS="$AM_CFLAGS -DNO_MD5 -DNO_OLD_TLS"
         ENABLED_MD5=no
@@ -1224,8 +1233,8 @@ if test "$ENABLED_SHA" = "no"
 then
     AM_CFLAGS="$AM_CFLAGS -DNO_SHA -DNO_OLD_TLS"
 else
-    # turn off SHA if leanpsk on
-    if test "$ENABLED_LEANPSK" = "yes"
+    # turn off SHA if leanpsk or leantls on
+    if test "$ENABLED_LEANPSK" = "yes" || test "$ENABLED_LEANTLS" = "yes"
     then
         AM_CFLAGS="$AM_CFLAGS -DNO_SHA -DNO_OLD_TLS"
         ENABLED_SHA=no
@@ -1332,8 +1341,8 @@ AC_ARG_ENABLE([poly1305],
     [ ENABLED_POLY1305=$POLY1305_DEFAULT]
     )
 
-# lean psk does't need poly1305
-if test "$ENABLED_LEANPSK" = "yes"
+# leanpsk and leantls don't need poly1305
+if test "$ENABLED_LEANPSK" = "yes" || test "$ENABLED_LEANTLS" = "yes"
 then
     ENABLED_POLY1305=no
 fi
@@ -1361,8 +1370,8 @@ AC_ARG_ENABLE([chacha],
     [ ENABLED_CHACHA=$CHACHA_DEFAULT]
     )
 
-# lean psk does't need chacha
-if test "$ENABLED_LEANPSK" = "yes"
+# leanpsk and leantls don't need chacha
+if test "$ENABLED_LEANPSK" = "yes" || test "$ENABLED_LEANTLS" = "yes"
 then
     ENABLED_CHACHA=no
 fi
@@ -1636,10 +1645,6 @@ AC_ARG_WITH([ntru],
 
 AM_CONDITIONAL([BUILD_NTRU], [test "x$ENABLED_NTRU" = "xyes"])
 
-if test "$ENABLED_NTRU" = "yes" && test "$ENABLED_SMALL" = "yes"
-then
-    AC_MSG_ERROR([cannot enable ntru and small, ntru requires TLS which small turns off.])
-fi
 
 # SNI
 AC_ARG_ENABLE([sni],
@@ -2237,7 +2242,9 @@ AC_ARG_ENABLE([examples],
 AS_IF([test "x$ENABLED_FILESYSTEM" = "xno"], [ENABLED_EXAMPLES="no"])
 AS_IF([test "x$ENABLED_INLINE" = "xno"], [ENABLED_EXAMPLES="no"])
 AS_IF([test "x$ENABLED_CRYPTONLY" = "xyes"], [ENABLED_EXAMPLES="no"])
-AM_CONDITIONAL([BUILD_EXAMPLES], [test "x$ENABLED_EXAMPLES" = "xyes"])
+AM_CONDITIONAL([BUILD_EXAMPLE_SERVERS], [test "x$ENABLED_EXAMPLES" = "xyes" && test "x$ENABLED_LEANTLS" = "xno"])
+AM_CONDITIONAL([BUILD_EXAMPLE_CLIENTS], [test "x$ENABLED_EXAMPLES" = "xyes"])
+AM_CONDITIONAL([BUILD_TESTS], [test "x$ENABLED_EXAMPLES" = "xyes" && test "x$ENABLED_LEANTLS" = "xno"])
 
 # Enable wolfCrypt test and benchmark
 AC_ARG_ENABLE([crypttests],
@@ -2759,6 +2766,7 @@ echo "   * MD4:                        $ENABLED_MD4"
 echo "   * PSK:                        $ENABLED_PSK"
 echo "   * Poly1305:                   $ENABLED_POLY1305"
 echo "   * LEANPSK:                    $ENABLED_LEANPSK"
+echo "   * LEANTLS:                    $ENABLED_LEANTLS"
 echo "   * RSA:                        $ENABLED_RSA"
 echo "   * DSA:                        $ENABLED_DSA"
 echo "   * DH:                         $ENABLED_DH"
