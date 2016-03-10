@@ -1149,7 +1149,8 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 #elif defined(FREESCALE_MQX) || defined(FREESCALE_KSDK_MQX) || \
       defined(FREESCALE_KSDK_BM) || defined(FREESCALE_FREE_RTOS)
 
-    #if defined(FREESCALE_K70_RNGA) || defined(FREESCALE_RNGA)
+    #if defined(FREESCALE_K70_RNGA) || defined(FREESCALE_RNGA) || \
+        defined(FREESCALE_K64_RNGA)
         /*
          * wc_Generates a RNG seed using the Random Number Generator Accelerator
          * on the Kinetis K70. Documentation located in Chapter 37 of
@@ -1160,7 +1161,11 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
             int i;
 
             /* turn on RNGA module */
-            SIM_SCGC3 |= SIM_SCGC3_RNGA_MASK;
+            #ifdef FREESCALE_K64_RNGA
+                SIM_SCGC6 |= SIM_SCGC6_RNGA_MASK;
+            #else
+                SIM_SCGC3 |= SIM_SCGC3_RNGA_MASK;
+            #endif
 
             /* set SLP bit to 0 - "RNGA is not in sleep mode" */
             RNG_CR &= ~RNG_CR_SLP_MASK;
