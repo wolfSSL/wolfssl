@@ -3832,12 +3832,14 @@ int certext_test(void)
     if (cert.isCA)
         return -206;
 
+#ifndef WOLFSSL_SEP /* test only if not using SEP policies */
     /* check the Certificate Policies Id */
     if (cert.extCertPoliciesNb != 1)
         return -227;
 
     if (strncmp(cert.extCertPolicies[0], "2.16.840.1.101.3.4.1.42", 23))
         return -228;
+#endif
 
     FreeDecodedCert(&cert);
 
@@ -3881,6 +3883,7 @@ int certext_test(void)
     if (cert.isCA)
         return -216;
 
+#ifndef WOLFSSL_SEP /* test only if not using SEP policies */
     /* check the Certificate Policies Id */
     if (cert.extCertPoliciesNb != 2)
         return -217;
@@ -3890,6 +3893,7 @@ int certext_test(void)
 
     if (strncmp(cert.extCertPolicies[1], "1.2.13025.489.1.113549", 22))
         return -219;
+#endif
 
     FreeDecodedCert(&cert);
 #endif /* HAVE_ECC */
@@ -3933,6 +3937,7 @@ int certext_test(void)
     if (!cert.isCA)
         return -226;
 
+#ifndef WOLFSSL_SEP /* test only if not using SEP policies */
     /* check the Certificate Policies Id */
     if (cert.extCertPoliciesNb != 2)
         return -227;
@@ -3942,6 +3947,7 @@ int certext_test(void)
 
     if (strncmp(cert.extCertPolicies[1], "1.2.840.113549.1.9.16.6.5", 25))
         return -229;
+#endif
 
     FreeDecodedCert(&cert);
     free(tmp);
