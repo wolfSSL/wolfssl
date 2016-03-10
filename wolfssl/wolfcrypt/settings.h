@@ -687,6 +687,7 @@ static char *fgets(char *buff, int sz, FILE *fp)
     #elif !defined(FREESCALE_KSDK_BM) && !defined(FREESCALE_FREE_RTOS)
         /* defaulting to K70 RNGA, user should change if different */
         /* #define FREESCALE_K53_RNGB */
+        /* #define FREESCALE_K64_RNGA */
         #define FREESCALE_K70_RNGA
     #endif
 
