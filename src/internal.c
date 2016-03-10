@@ -142,8 +142,6 @@ static int SSL_hmac(WOLFSSL* ssl, byte* digest, const byte* in, word32 sz,
 
 #ifndef NO_CERTS
 static int BuildCertHashes(WOLFSSL* ssl, Hashes* hashes);
-static void PickHashSigAlgo(WOLFSSL* ssl,
-                                const byte* hashSigAlgo, word32 hashSigAlgoSz);
 #endif
 
 #ifdef HAVE_QSH
@@ -8702,7 +8700,9 @@ int SendCertificateStatus(WOLFSSL* ssl)
         /* case WOLFSSL_CSR_OCSP: */
         case WOLFSSL_CSR2_OCSP: {
             OcspRequest* request = ssl->ctx->certOcspRequest;
-            buffer response = {NULL, 0};
+            buffer response;
+            
+            XMEMSET(&response, 0, sizeof(response));
 
             /* unable to fetch status. skip. */
             if (ssl->ctx->cm == NULL || ssl->ctx->cm->ocspStaplingEnabled == 0)
@@ -8799,7 +8799,7 @@ int SendCertificateStatus(WOLFSSL* ssl)
             buffer responses[1 + MAX_CHAIN_DEPTH];
             int i = 0;
 
-            ForceZero(responses, sizeof(responses));
+            XMEMSET(responses, 0, sizeof(responses));
 
             /* unable to fetch status. skip. */
             if (ssl->ctx->cm == NULL || ssl->ctx->cm->ocspStaplingEnabled == 0)
@@ -10584,7 +10584,7 @@ int SetCipherList(Suites* suites, const char* list)
     return ret;
 }
 
-#ifndef NO_CERTS
+#if !defined(NO_WOLFSSL_SERVER) || !defined(NO_CERTS)
 static void PickHashSigAlgo(WOLFSSL* ssl,
                              const byte* hashSigAlgo, word32 hashSigAlgoSz)
 {
@@ -10620,7 +10620,7 @@ static void PickHashSigAlgo(WOLFSSL* ssl,
         }
     }
 }
-#endif
+#endif /* !defined(NO_WOLFSSL_SERVER) || !defined(NO_CERTS) */
 
 #ifdef WOLFSSL_CALLBACKS
 
@@ -15795,6 +15795,7 @@ int DoSessionTicket(WOLFSSL* ssl,
         return 1;
     }
 
+#ifndef NO_WOLFSSL_SERVER
     static int MatchSuite(WOLFSSL* ssl, Suites* peerSuites)
     {
         word16 i, j;
@@ -15831,7 +15832,7 @@ int DoSessionTicket(WOLFSSL* ssl,
 
         return MATCH_SUITE_ERROR;
     }
-
+#endif
 
 #ifdef OLD_HELLO_ALLOWED
 
