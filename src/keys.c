@@ -3058,6 +3058,7 @@ int MakeMasterSecret(WOLFSSL* ssl)
 
         /* show secret SerSi and CliSi */
         #ifdef SHOW_SECRETS
+        {
             word32 j;
             printf("QSH generated secret material\n");
             printf("SerSi        : ");
@@ -3070,6 +3071,7 @@ int MakeMasterSecret(WOLFSSL* ssl)
                 printf("%02x", ssl->QSH_secret->CliSi->buffer[j]);
             }
             printf("\n");
+        }
         #endif
     }
 #endif
