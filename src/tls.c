@@ -3866,7 +3866,6 @@ void TLSX_FreeAll(TLSX* list)
                 break;
 
             case TLSX_SESSION_TICKET:
-                /* Nothing to do. */
                 STK_FREE(extension->data);
                 break;
 

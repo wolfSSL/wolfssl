@@ -4,8 +4,8 @@
 
 # need a unique port since may run the same time as testsuite
 generate_port() {
-    openssl_port=`tr -cd 0-9 </dev/urandom | head -c 7`
-    openssl_port=$((`tr -cd 1-9 </dev/urandom | head -c 1`$openssl_port))
+    openssl_port=`LC_CTYPE=C tr -cd 0-9 </dev/urandom | head -c 7`
+    openssl_port=$((`LC_CTYPE=C tr -cd 1-9 </dev/urandom | head -c 1`$openssl_port))
     openssl_port=$(($openssl_port % (65535-49512)))
     openssl_port=$(($openssl_port + 49512))
 }

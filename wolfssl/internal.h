@@ -2181,9 +2181,10 @@ struct WOLFSSL_SESSION {
 #endif
 #ifdef HAVE_SESSION_TICKET
     word16       ticketLen;
-    byte         *dynTicket;
+    byte*        dynTicket;
     byte         isDynamic;
-    byte         ticket[SESSION_TICKET_LEN];
+    byte         staticTicket[SESSION_TICKET_LEN];
+    byte*        ticket;
 #endif
 #ifdef HAVE_STUNNEL
     void*        ex_data[MAX_EX_DATA];

@@ -2479,6 +2479,13 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
     ssl->sessionSecretCb  = NULL;
     ssl->sessionSecretCtx = NULL;
 #endif
+
+#ifdef HAVE_SESSION_TICKET
+    ssl->session.ticket = ssl->session.staticTicket;
+    ssl->session.isDynamic = 0;
+    ssl->session.dynTicket = NULL;
+    ssl->session.ticketLen = 0;
+#endif
     return 0;
 }
 
@@ -2649,8 +2656,12 @@ void SSL_ResourceFree(WOLFSSL* ssl)
     FreeX509(&ssl->peerCert);
 #endif
 #ifdef HAVE_SESSION_TICKET
-    if (ssl->session.dynTicket)
+    if (ssl->session.dynTicket) {
         XFREE(ssl->session.dynTicket, ssl->heap, DYNAMIC_TYPE_SESSION_TICK);
+        ssl->session.dynTicket = NULL;
+        ssl->session.isDynamic = 0;
+        ssl->session.ticket = ssl->session.staticTicket;
+    }
 #endif
 }
 
@@ -11353,14 +11364,9 @@ static void PickHashSigAlgo(WOLFSSL* ssl,
 #ifdef HAVE_SESSION_TICKET
         if (ssl->options.resuming && ssl->session.ticketLen > 0) {
             SessionTicket* ticket;
-            byte* ticketData;
-
-            ticketData = ssl->session.isDynamic ?
-                         ssl->session.dynTicket :
-                         ssl->session.ticket;
 
             ticket = TLSX_SessionTicket_Create(0,
-                                   ticketData, ssl->session.ticketLen);
+                                   ssl->session.ticket, ssl->session.ticketLen);
             if (ticket == NULL) return MEMORY_E;
 
             ret = TLSX_UseSessionTicket(&ssl->extensions, ticket);
@@ -14294,15 +14300,30 @@ int DoSessionTicket(WOLFSSL* ssl,
     ato16(input + *inOutIdx, &length);
     *inOutIdx += OPAQUE16_LEN;
 
-    if (length > sizeof(ssl->session.ticket)) {
-        ssl->session.isDynamic = 1;
-
-        ssl->session.dynTicket = (byte*)XMALLOC(
-                length, ssl->heap,
-                DYNAMIC_TYPE_SESSION_TICK);
-        if (ssl->session.dynTicket == NULL) {
-            return MEMORY_E;
+    if (length > sizeof(ssl->session.staticTicket)) {
+        /* Free old dynamic ticket if we already had one */
+        if (ssl->session.dynTicket) {
+            XFREE(ssl->session.dynTicket, ssl->heap,
+                            DYNAMIC_TYPE_SESSION_TICK);
         }
+
+        ssl->session.dynTicket =
+             (byte*)XMALLOC(length, ssl->heap,
+                                DYNAMIC_TYPE_SESSION_TICK);
+
+        if (ssl->session.dynTicket == NULL)
+            return MEMORY_E;
+
+        ssl->session.isDynamic = 1;
+        ssl->session.ticket = ssl->session.dynTicket;
+    } else {
+        if(ssl->session.dynTicket) {
+            XFREE(ssl->session.dynTicket, ssl->heap,
+                            DYNAMIC_TYPE_SESSION_TICK);
+            ssl->session.dynTicket = NULL;
+        }
+        ssl->session.isDynamic = 0;
+        ssl->session.ticket = ssl->session.staticTicket;
     }
 
     if ((*inOutIdx - begin) + length > size)
@@ -14311,11 +14332,7 @@ int DoSessionTicket(WOLFSSL* ssl,
     /* If the received ticket including its length is greater than
      * a length value, the save it. Otherwise, don't save it. */
     if (length > 0) {
-        if (ssl->session.isDynamic)
-            XMEMCPY(ssl->session.dynTicket, input + *inOutIdx, length);
-        else
-            XMEMCPY(ssl->session.ticket, input + *inOutIdx, length);
-
+        XMEMCPY(ssl->session.ticket, input + *inOutIdx, length);
         *inOutIdx += length;
         ssl->session.ticketLen = length;
         ssl->timeout = lifetime;
@@ -14326,12 +14343,7 @@ int DoSessionTicket(WOLFSSL* ssl,
         }
         /* Create a fake sessionID based on the ticket, this will
          * supercede the existing session cache info. */
-    ssl->options.haveSessionId = 1;
-
-    if (ssl->session.isDynamic)
-        XMEMCPY(ssl->arrays->sessionID,
-                                 ssl->session.dynTicket + length - ID_LEN, ID_LEN);
-    else
+        ssl->options.haveSessionId = 1;
         XMEMCPY(ssl->arrays->sessionID,
                                  ssl->session.ticket + length - ID_LEN, ID_LEN);
 #ifndef NO_SESSION_CACHE
@@ -16644,9 +16656,7 @@ int DoSessionTicket(WOLFSSL* ssl,
     static int CreateTicket(WOLFSSL* ssl)
     {
         InternalTicket  it;
-        ExternalTicket* et = ssl->session.isDynamic ?
-            (ExternalTicket*)ssl->session.dynTicket :
-            (ExternalTicket*)ssl->session.ticket;
+        ExternalTicket* et = (ExternalTicket*)ssl->session.ticket;
         int encLen;
         int ret;
         byte zeros[WOLFSSL_TICKET_MAC_SZ];   /* biggest cmp size */
