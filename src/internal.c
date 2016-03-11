@@ -8879,7 +8879,7 @@ int SendCertificateStatus(WOLFSSL* ssl)
 
             if (ret == 0 && (!ssl->ctx->chainOcspRequest[0]
                                               || ssl->buffers.weOwnCertChain)) {
-                DerBuffer* der = NULL;
+                buffer der;
                 word32 idx = 0;
                 #ifdef WOLFSSL_SMALL_STACK
                     DecodedCert* cert = NULL;
@@ -8887,24 +8887,26 @@ int SendCertificateStatus(WOLFSSL* ssl)
                     DecodedCert  cert[1];
                 #endif
 
-                #ifdef WOLFSSL_SMALL_STACK
-                    cert = (DecodedCert*)XMALLOC(sizeof(DecodedCert), NULL,
-                                                   DYNAMIC_TYPE_TMP_BUFFER);
-                    if (cert == NULL)
-                        return MEMORY_E;
-                #endif
+                XMEMSET(&der, 0, sizeof(buffer));
+
+            #ifdef WOLFSSL_SMALL_STACK
+                cert = (DecodedCert*)XMALLOC(sizeof(DecodedCert), NULL,
+                                               DYNAMIC_TYPE_TMP_BUFFER);
+                if (cert == NULL)
+                    return MEMORY_E;
+            #endif
 
                 while (idx + OPAQUE24_LEN < ssl->buffers.certChain->length) {
-                    c24to32(ssl->buffers.certChain->buffer + idx, &der->length);
+                    c24to32(ssl->buffers.certChain->buffer + idx, &der.length);
                     idx += OPAQUE24_LEN;
 
-                    der->buffer = ssl->buffers.certChain->buffer + idx;
-                    idx += der->length;
+                    der.buffer = ssl->buffers.certChain->buffer + idx;
+                    idx += der.length;
 
                     if (idx > ssl->buffers.certChain->length)
                         break;
 
-                    InitDecodedCert(cert, der->buffer, der->length, NULL);
+                    InitDecodedCert(cert, der.buffer, der.length, NULL);
 
                     if ((ret = ParseCertRelative(cert, CERT_TYPE, VERIFY,
                                                       ssl->ctx->cm)) != 0) {
