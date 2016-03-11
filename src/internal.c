@@ -4806,7 +4806,7 @@ static int DoCertificate(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 #endif /* HAVE_OCSP || HAVE_CRL */
 
 #ifdef KEEP_PEER_CERT
-        if (fatal == 0) {
+        {
             /* set X509 format for peer cert even if fatal */
             int copyRet = CopyDecodedToX509(&ssl->peerCert, dCert);
             if (copyRet == MEMORY_E)
@@ -8701,7 +8701,7 @@ int SendCertificateStatus(WOLFSSL* ssl)
         case WOLFSSL_CSR2_OCSP: {
             OcspRequest* request = ssl->ctx->certOcspRequest;
             buffer response;
-            
+
             XMEMSET(&response, 0, sizeof(response));
 
             /* unable to fetch status. skip. */
@@ -11341,7 +11341,7 @@ static void PickHashSigAlgo(WOLFSSL* ssl,
 
         /* don't send client cert or cert verify if user hasn't provided
            cert and private key */
-        if (ssl->buffers.certificate && ssl->buffers.certificate->buffer && 
+        if (ssl->buffers.certificate && ssl->buffers.certificate->buffer &&
             ssl->buffers.key && ssl->buffers.key->buffer)
             ssl->options.sendVerify = SEND_CERT;
         else if (IsTLS(ssl))
@@ -13433,7 +13433,7 @@ static word32 QSH_KeyExchangeWrite(WOLFSSL* ssl, byte isServer)
         {
     #ifdef HAVE_ECC
             WOLFSSL_MSG("Trying ECC client cert, RSA didn't work");
-            
+
             if (ssl->buffers.key == NULL) {
                 WOLFSSL_MSG("ECC Key missing");
                 return NO_PRIVATE_KEY;
