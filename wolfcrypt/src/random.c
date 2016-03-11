@@ -1160,7 +1160,13 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
             int i;
 
             /* turn on RNGA module */
-            SIM_SCGC3 |= SIM_SCGC3_RNGA_MASK;
+            #if defined(SIM_SCGC3_RNGA_MASK)
+                SIM_SCGC3 |= SIM_SCGC3_RNGA_MASK;
+            #endif
+            #if defined(SIM_SCGC6_RNGA_MASK)
+                /* additionally needed for at least K64F */
+                SIM_SCGC6 |= SIM_SCGC6_RNGA_MASK;
+            #endif
 
             /* set SLP bit to 0 - "RNGA is not in sleep mode" */
             RNG_CR &= ~RNG_CR_SLP_MASK;
