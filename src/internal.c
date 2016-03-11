@@ -8879,19 +8879,27 @@ int SendCertificateStatus(WOLFSSL* ssl)
 
             if (ret == 0 && (!ssl->ctx->chainOcspRequest[0]
                                               || ssl->buffers.weOwnCertChain)) {
-                DerBuffer* der = NULL;
                 word32 idx = 0;
                 #ifdef WOLFSSL_SMALL_STACK
+                    DerBuffer* der = NULL;
                     DecodedCert* cert = NULL;
                 #else
+                    DerBuffer    der[1];
                     DecodedCert  cert[1];
                 #endif
 
                 #ifdef WOLFSSL_SMALL_STACK
+                    der = (DerBuffer*)XMALLOC(sizeof(DerBuffer), NULL,
+                                                   DYNAMIC_TYPE_TMP_BUFFER);
+                    if (der == NULL)
+                        return MEMORY_E;
+
                     cert = (DecodedCert*)XMALLOC(sizeof(DecodedCert), NULL,
                                                    DYNAMIC_TYPE_TMP_BUFFER);
-                    if (cert == NULL)
+                    if (cert == NULL) {
+                        XFREE(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
                         return MEMORY_E;
+                    }
                 #endif
 
                 while (idx + OPAQUE24_LEN < ssl->buffers.certChain->length) {
@@ -8953,6 +8961,7 @@ int SendCertificateStatus(WOLFSSL* ssl)
                 }
 
                 #ifdef WOLFSSL_SMALL_STACK
+                    XFREE(der,  NULL, DYNAMIC_TYPE_TMP_BUFFER);
                     XFREE(cert, NULL, DYNAMIC_TYPE_TMP_BUFFER);
                 #endif
             }
