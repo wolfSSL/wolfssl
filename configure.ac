@@ -2510,6 +2510,7 @@ AM_CONDITIONAL([BUILD_PSK], [test "x$ENABLED_PSK" = "xyes"])
 
 
 # check if should run the trusted peer certs test
+# (for now checking both C_FLAGS and C_EXTRA_FLAGS)
 case $C_EXTRA_FLAGS in
     *WOLFSSL_TRUST_PEER_CERT*)
         have_tp=yes
@@ -2517,6 +2518,15 @@ case $C_EXTRA_FLAGS in
     *)
         have_tp=no ;;
 esac
+if test "$have_tp" = "no"; then
+    case $C_FLAGS in
+    *WOLFSSL_TRUST_PEER_CERT*)
+        have_tp=yes
+        break;;
+    *)
+        have_tp=no ;;
+    esac
+fi
 AM_CONDITIONAL([BUILD_TRUST_PEER_CERT], [test "x$have_tp" = "xyes"])
 
 

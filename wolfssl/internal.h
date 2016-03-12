@@ -1946,7 +1946,7 @@ int ProcessOldClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     int AlreadySigner(WOLFSSL_CERT_MANAGER* cm, byte* hash);
 #ifdef WOLFSSL_TRUST_PEER_CERT
     WOLFSSL_LOCAL
-    int AddTrustedPeer(WOLFSSL_CERT_MANAGER* cm, DerBuffer* der, int verify);
+    int AddTrustedPeer(WOLFSSL_CERT_MANAGER* cm, DerBuffer** pDer, int verify);
     WOLFSSL_LOCAL
     int AlreadyTrustedPeer(WOLFSSL_CERT_MANAGER* cm, byte* hash);
 #endif
@@ -2839,7 +2839,13 @@ WOLFSSL_LOCAL int VerifyClientSuite(WOLFSSL* ssl);
                                         RsaKey* key);
     #endif
     #ifdef WOLFSSL_TRUST_PEER_CERT
-        WOLFSSL_LOCAL TrustedPeerCert* GetTrustedPeer(void* vp, byte* hash);
+
+        /* options for searching hash table for a matching trusted peer cert */
+        #define WC_MATCH_SKID 0
+        #define WC_MATCH_NAME 1
+
+        WOLFSSL_LOCAL TrustedPeerCert* GetTrustedPeer(void* vp, byte* hash,
+                                                                      int type);
         WOLFSSL_LOCAL int MatchTrustedPeer(TrustedPeerCert* tp,
                                                              DecodedCert* cert);
     #endif

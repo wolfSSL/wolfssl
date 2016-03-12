@@ -39,7 +39,15 @@ endif
 
 endif
 
+if BUILD_PSK
+dist_noinst_SCRIPTS+= scripts/psk.test
 endif
+
+if BUILD_TRUST_PEER_CERT
+dist_noinst_SCRIPTS+= scripts/trusted_peer.test
+endif
+
+endif # end of BUILD_EXAMPLE_SERVERS
 
 if BUILD_EXAMPLE_CLIENTS
 if !BUILD_IPV6
@@ -47,14 +55,6 @@ dist_noinst_SCRIPTS+= scripts/external.test
 dist_noinst_SCRIPTS+= scripts/google.test
 #dist_noinst_SCRIPTS+= scripts/openssl.test
 endif
-endif
-
-if BUILD_PSK
-dist_noinst_SCRIPTS+= scripts/psk.test
-endif
-
-if BUILD_TRUST_PEER_CERT
-dist_noinst_SCRIPTS+= scripts/trusted_peer.test
 endif
 
 EXTRA_DIST +=  scripts/testsuite.pcap

@@ -4900,10 +4900,6 @@ int ParseCert(DecodedCert* cert, int type, int verify, void* cm)
     extern "C" {
 #endif
     WOLFSSL_LOCAL Signer* GetCA(void* signers, byte* hash);
-#ifdef WOLFSSL_TRUST_PEER_CERT
-    WOLFSSL_LOCAL TrustedPeerCert* GetTrustedPeer(void* signers, byte* hash);
-    WOLFSSL_LOCAL int MatchTrustedPeer(TrustedPeerCert* tp, DecodedCert* cert);
-#endif /* WOLFSSL_TRUST_PEER_CERT */
     #ifndef NO_SKID
         WOLFSSL_LOCAL Signer* GetCAByName(void* signers, byte* hash);
     #endif

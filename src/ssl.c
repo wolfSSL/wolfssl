@@ -2239,8 +2239,10 @@ int AlreadyTrustedPeer(WOLFSSL_CERT_MANAGER* cm, byte* hash)
 }
 
 
-/* return Trusted Peer if found, otherwise NULL */
-TrustedPeerCert* GetTrustedPeer(void* vp, byte* hash)
+/* return Trusted Peer if found, otherwise NULL
+    type is what to match on
+ */
+TrustedPeerCert* GetTrustedPeer(void* vp, byte* hash, int type)
 {
     WOLFSSL_CERT_MANAGER* cm = (WOLFSSL_CERT_MANAGER*)vp;
     TrustedPeerCert* ret = NULL;
@@ -2258,11 +2260,20 @@ TrustedPeerCert* GetTrustedPeer(void* vp, byte* hash)
     tp = cm->tpTable[row];
     while (tp) {
         byte* subjectHash;
-        #ifndef NO_SKID
-            subjectHash = tp->subjectKeyIdHash;
-        #else
-            subjectHash = tp->subjectNameHash;
-        #endif
+        switch (type) {
+            #ifndef NO_SKID
+            case WC_MATCH_SKID:
+                subjectHash = tp->subjectKeyIdHash;
+                break;
+            #endif
+            case WC_MATCH_NAME:
+                subjectHash = tp->subjectNameHash;
+                break;
+            default:
+                WOLFSSL_MSG("Unknown search type");
+                UnLockMutex(&cm->tpLock);
+                return NULL;
+        }
         if (XMEMCMP(hash, subjectHash, SIGNER_DIGEST_SIZE) == 0) {
             ret = tp;
             break;
@@ -2366,11 +2377,12 @@ Signer* GetCAByName(void* vp, byte* hash)
 
 #ifdef WOLFSSL_TRUST_PEER_CERT
 /* add a trusted peer cert to linked list */
-int AddTrustedPeer(WOLFSSL_CERT_MANAGER* cm, DerBuffer* der, int verify)
+int AddTrustedPeer(WOLFSSL_CERT_MANAGER* cm, DerBuffer** pDer, int verify)
 {
     int ret, row;
     TrustedPeerCert* peerCert;
     DecodedCert* cert = NULL;
+    DerBuffer*   der = *pDer;
     byte* subjectHash = NULL;
 
     WOLFSSL_MSG("Adding a Trusted Peer Cert");
@@ -2397,7 +2409,12 @@ int AddTrustedPeer(WOLFSSL_CERT_MANAGER* cm, DerBuffer* der, int verify)
     XMEMSET(peerCert, 0, sizeof(TrustedPeerCert));
 
 #ifndef NO_SKID
-    subjectHash = cert->extSubjKeyId;
+    if (cert->extAuthKeyIdSet) {
+        subjectHash = cert->extSubjKeyId;
+    }
+    else {
+        subjectHash = cert->subjectHash;
+    }
 #else
     subjectHash = cert->subjectHash;
 #endif
@@ -2449,7 +2466,12 @@ int AddTrustedPeer(WOLFSSL_CERT_MANAGER* cm, DerBuffer* der, int verify)
         #endif
 
         #ifndef NO_SKID
-            row = TrustedPeerHashSigner(peerCert->subjectKeyIdHash);
+            if (cert->extAuthKeyIdSet) {
+                row = TrustedPeerHashSigner(peerCert->subjectKeyIdHash);
+            }
+            else {
+                row = TrustedPeerHashSigner(peerCert->subjectNameHash);
+            }
         #else
             row = TrustedPeerHashSigner(peerCert->subjectNameHash);
         #endif
@@ -2472,7 +2494,7 @@ int AddTrustedPeer(WOLFSSL_CERT_MANAGER* cm, DerBuffer* der, int verify)
     FreeDecodedCert(cert);
     XFREE(cert, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     WOLFSSL_MSG("    Freeing der trusted peer cert");
-    FreeDer(der);
+    FreeDer(&der);
     WOLFSSL_MSG("        OK Freeing der trusted peer cert");
     WOLFSSL_LEAVE("AddTrustedPeer", ret);
 
@@ -3320,7 +3342,7 @@ static int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
     else if (type == TRUSTED_PEER_TYPE) {
         if (ctx == NULL) {
             WOLFSSL_MSG("Need context for trusted peer cert load");
-            XFREE(der.buffer, heap, dynamicType);
+            FreeDer(&der);
             return BAD_FUNC_ARG;
         }
         /* add trusted peer cert */

@@ -4630,10 +4630,17 @@ static int DoCertificate(WOLFSSL* ssl, byte* input, word32* inOutIdx,
         InitDecodedCert(dCert, certs[0].buffer, certs[0].length, ssl->heap);
         ret = ParseCertRelative(dCert, CERT_TYPE, 0, ssl->ctx->cm);
         #ifndef NO_SKID
-            if (dCert->extAuthKeyIdSet)
-                tp = GetTrustedPeer(ssl->ctx->cm, dCert->extSubjKeyId);
+            if (dCert->extAuthKeyIdSet) {
+                tp = GetTrustedPeer(ssl->ctx->cm, dCert->extSubjKeyId,
+                                                                 WC_MATCH_SKID);
+            }
+            else { /* if the cert has no SKID try to match by name */
+                tp = GetTrustedPeer(ssl->ctx->cm, dCert->subjectHash,
+                                                                 WC_MATCH_NAME);
+            }
         #else /* NO_SKID */
-            tp = GetTrustedPeer(ssl->ctx->cm, dCert->subjectHash);
+            tp = GetTrustedPeer(ssl->ctx->cm, dCert->subjectHash,
+                                                                 WC_MATCH_NAME);
         #endif /* NO SKID */
         WOLFSSL_MSG("Checking for trusted peer cert");
 
