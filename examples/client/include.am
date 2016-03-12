@@ -1,7 +1,7 @@
 # vim:ft=automake
 # All paths should be given relative to the root
 
-if BUILD_EXAMPLES
+if BUILD_EXAMPLE_CLIENTS
 noinst_PROGRAMS += examples/client/client
 noinst_HEADERS += examples/client/client.h
 examples_client_client_SOURCES      = examples/client/client.c

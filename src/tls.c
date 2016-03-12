@@ -3400,13 +3400,13 @@ static void TLSX_QSHAgreement(TLSX** extensions)
 {
     TLSX* extension = TLSX_Find(*extensions, TLSX_QUANTUM_SAFE_HYBRID);
     QSHScheme* format = NULL;
-    QSHScheme* delete = NULL;
+    QSHScheme* del    = NULL;
     QSHScheme* prev   = NULL;
 
     if (extension == NULL)
         return;
 
-    format = extension->data;
+    format = (QSHScheme*)extension->data;
     while (format) {
         if (format->PKLen == 0) {
             /* case of head */
@@ -3415,10 +3415,10 @@ static void TLSX_QSHAgreement(TLSX** extensions)
             }
             if (prev)
                 prev->next = format->next;
-            delete = format;
+            del = format;
             format = format->next;
-            XFREE(delete, 0, DYNAMIC_TYPE_TMP_ARRAY);
-            delete = NULL;
+            XFREE(del, 0, DYNAMIC_TYPE_TMP_ARRAY);
+            del = NULL;
         } else {
             prev   = format;
             format = format->next;
@@ -3866,7 +3866,7 @@ void TLSX_FreeAll(TLSX* list)
                 break;
 
             case TLSX_QUANTUM_SAFE_HYBRID:
-                QSH_FREE_ALL(extension->data);
+                QSH_FREE_ALL((QSHScheme*)extension->data);
                 break;
 
             case TLSX_APPLICATION_LAYER_PROTOCOL:
@@ -3941,7 +3941,7 @@ static word16 TLSX_GetSize(TLSX* list, byte* semaphore, byte isRequest)
                 break;
 
             case TLSX_QUANTUM_SAFE_HYBRID:
-                length += QSH_GET_SIZE(extension->data, isRequest);
+                length += QSH_GET_SIZE((QSHScheme*)extension->data, isRequest);
                 break;
 
             case TLSX_APPLICATION_LAYER_PROTOCOL:
@@ -4023,9 +4023,9 @@ static word16 TLSX_Write(TLSX* list, byte* output, byte* semaphore,
 
             case TLSX_QUANTUM_SAFE_HYBRID:
                 if (isRequest) {
-                    offset += QSH_WRITE(extension->data, output + offset);
+                    offset += QSH_WRITE((QSHScheme*)extension->data, output + offset);
                 }
-                offset += QSHPK_WRITE(extension->data, output + offset);
+                offset += QSHPK_WRITE((QSHScheme*)extension->data, output + offset);
                 offset += QSH_SERREQ(output + offset, isRequest);
                 break;
 
@@ -4102,6 +4102,8 @@ static int TLSX_CreateQSHKey(WOLFSSL* ssl, int type)
 
 static int TLSX_AddQSHKey(QSHKey** list, QSHKey* key)
 {
+    QSHKey* current;
+
     if (key == NULL)
         return BAD_FUNC_ARG;
 
@@ -4110,7 +4112,7 @@ static int TLSX_AddQSHKey(QSHKey** list, QSHKey* key)
         return 0;
 
     /* first element to be added to the list */
-    QSHKey* current = *list;
+    current = *list;
     if (current == NULL) {
         *list = key;
         return 0;

@@ -8,7 +8,7 @@ if BUILD_SNIFFTEST
 dist_noinst_SCRIPTS+= scripts/sniffer-testsuite.test
 endif
 
-if BUILD_EXAMPLES
+if BUILD_EXAMPLE_SERVERS
 
 dist_noinst_SCRIPTS+= scripts/resume.test
 EXTRA_DIST+= scripts/benchmark.test
@@ -17,12 +17,6 @@ if BUILD_CRL
 # make revoked test rely on completion of resume test
 dist_noinst_SCRIPTS+= scripts/crl-revoked.test
 scripts/crl-revoked.log: scripts/resume.log
-endif
-
-if !BUILD_IPV6
-dist_noinst_SCRIPTS+= scripts/external.test
-dist_noinst_SCRIPTS+= scripts/google.test
-#dist_noinst_SCRIPTS+= scripts/openssl.test
 endif
 
 if BUILD_OCSP
@@ -45,6 +39,14 @@ endif
 
 endif
 
+endif
+
+if BUILD_EXAMPLE_CLIENTS
+if !BUILD_IPV6
+dist_noinst_SCRIPTS+= scripts/external.test
+dist_noinst_SCRIPTS+= scripts/google.test
+#dist_noinst_SCRIPTS+= scripts/openssl.test
+endif
 endif
 
 if BUILD_PSK

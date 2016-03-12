@@ -1828,10 +1828,10 @@ struct WOLFSSL_CTX {
     buffer      serverDH_G;
 #endif
 #ifndef NO_CERTS
-    DerBuffer   certificate;
-    DerBuffer   certChain;
+    DerBuffer*  certificate;
+    DerBuffer*  certChain;
                  /* chain after self, in DER, with leading size for each cert */
-    DerBuffer   privateKey;
+    DerBuffer*  privateKey;
     WOLFSSL_CERT_MANAGER* cm;      /* our cert manager, ctx owns SSL will use */
 #endif
     Suites*     suites;           /* make dynamic, user may not need/set */
@@ -1941,7 +1941,7 @@ int ProcessOldClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                           word32 inSz, word16 sz);
 #ifndef NO_CERTS
     WOLFSSL_LOCAL
-    int AddCA(WOLFSSL_CERT_MANAGER* ctx, DerBuffer* der, int type, int verify);
+    int AddCA(WOLFSSL_CERT_MANAGER* cm, DerBuffer** pDer, int type, int verify);
     WOLFSSL_LOCAL
     int AlreadySigner(WOLFSSL_CERT_MANAGER* cm, byte* hash);
 #ifdef WOLFSSL_TRUST_PEER_CERT
@@ -2209,9 +2209,9 @@ typedef struct Buffers {
     buffer          serverDH_Priv;
 #endif
 #ifndef NO_CERTS
-    DerBuffer       certificate;           /* WOLFSSL_CTX owns, unless we own */
-    DerBuffer       key;                   /* WOLFSSL_CTX owns, unless we own */
-    DerBuffer       certChain;             /* WOLFSSL_CTX owns, unless we own */
+    DerBuffer*      certificate;           /* WOLFSSL_CTX owns, unless we own */
+    DerBuffer*      key;                   /* WOLFSSL_CTX owns, unless we own */
+    DerBuffer*      certChain;             /* WOLFSSL_CTX owns, unless we own */
                  /* chain after self, in DER, with leading size for each cert */
 #endif
 #ifdef WOLFSSL_DTLS
@@ -2285,6 +2285,9 @@ typedef struct Options {
 #ifdef HAVE_SESSION_TICKET
     word16            createTicket:1;     /* Server to create new Ticket */
     word16            useTicket:1;        /* Use Ticket not session cache */
+#endif
+#ifdef WOLFSSL_DTLS
+    word16            dtlsHsRetain:1;     /* DTLS retaining HS data */
 #endif
 
     /* need full byte values for this section */
@@ -2386,7 +2389,7 @@ struct WOLFSSL_X509 {
         word32       pkCurveOID;
     #endif /* HAVE_ECC */
     #ifndef NO_CERTS
-        DerBuffer        derCert;                        /* may need  */
+        DerBuffer*   derCert;                        /* may need  */
     #endif
     DNS_entry*       altNames;                       /* alt names list */
     DNS_entry*       altNamesNext;                   /* hint for retrieval */
@@ -2710,12 +2713,11 @@ typedef struct EncryptedInfo {
 
 #ifndef NO_CERTS
 
-    WOLFSSL_LOCAL int InitDer(DerBuffer* der);
-    WOLFSSL_LOCAL int AllocDer(DerBuffer* der, word32 length, int type, void* heap);
-    WOLFSSL_LOCAL void FreeDer(DerBuffer* der);
+    WOLFSSL_LOCAL int AllocDer(DerBuffer** der, word32 length, int type, void* heap);
+    WOLFSSL_LOCAL void FreeDer(DerBuffer** der);
 
     WOLFSSL_LOCAL int PemToDer(const unsigned char* buff, long sz, int type,
-                              DerBuffer* der, void* heap, EncryptedInfo* info,
+                              DerBuffer** pDer, void* heap, EncryptedInfo* info,
                               int* eccKey);
 
     WOLFSSL_LOCAL int ProcessFile(WOLFSSL_CTX* ctx, const char* fname, int format,

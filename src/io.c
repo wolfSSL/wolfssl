@@ -404,7 +404,10 @@ int EmbedReceiveFrom(WOLFSSL *ssl, char *buf, int sz, void *ctx)
 
     WOLFSSL_ENTER("EmbedReceiveFrom()");
 
-    if (!wolfSSL_get_using_nonblock(ssl) && dtls_timeout != 0) {
+    if (ssl->options.handShakeDone)
+        dtls_timeout = 0;
+
+    if (!wolfSSL_get_using_nonblock(ssl)) {
         #ifdef USE_WINDOWS_API
             DWORD timeout = dtls_timeout * 1000;
         #else

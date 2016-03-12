@@ -148,11 +148,16 @@ int ClientBenchmarkConnections(WOLFSSL_CTX* ctx, char* host, word16 port,
     /* time passed in number of connects give average */
     int times = benchmark;
     int loops = resumeSession ? 2 : 1;
-    int i = 0;
+    int i = 0;    
+#ifndef NO_SESSION_CACHE
     WOLFSSL_SESSION* benchSession = NULL;
+#endif
+    (void)resumeSession;
 
     while (loops--) {
+    #ifndef NO_SESSION_CACHE
         int benchResume = resumeSession && loops == 0;
+    #endif
         double start = current_time(), avg;
 
         for (i = 0; i < times; i++) {
@@ -163,25 +168,31 @@ int ClientBenchmarkConnections(WOLFSSL_CTX* ctx, char* host, word16 port,
 
             tcp_connect(&sockfd, host, port, doDTLS, ssl);
 
+    #ifndef NO_SESSION_CACHE
             if (benchResume)
                 wolfSSL_set_session(ssl, benchSession);
+    #endif
             wolfSSL_set_fd(ssl, sockfd);
             if (wolfSSL_connect(ssl) != SSL_SUCCESS)
                 err_sys("SSL_connect failed");
 
             wolfSSL_shutdown(ssl);
+    #ifndef NO_SESSION_CACHE
             if (i == (times-1) && resumeSession) {
                 benchSession = wolfSSL_get_session(ssl);
             }
+    #endif
             wolfSSL_free(ssl);
             CloseSocket(sockfd);
         }
         avg = current_time() - start;
         avg /= times;
         avg *= 1000;   /* milliseconds */
+    #ifndef NO_SESSION_CACHE
         if (benchResume)
             printf("wolfSSL_resume  avg took: %8.3f milliseconds\n", avg);
         else
+    #endif
             printf("wolfSSL_connect avg took: %8.3f milliseconds\n", avg);
     }
 

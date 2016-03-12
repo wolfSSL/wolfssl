@@ -118,7 +118,7 @@ static int xstat2err(int stat)
 }
 
 
-int CheckCertOCSP(WOLFSSL_OCSP* ocsp, DecodedCert* cert, void* encodedResponse)
+int CheckCertOCSP(WOLFSSL_OCSP* ocsp, DecodedCert* cert, buffer* responseBuffer)
 {
     int ret = OCSP_LOOKUP_FAIL;
 
@@ -141,7 +141,7 @@ int CheckCertOCSP(WOLFSSL_OCSP* ocsp, DecodedCert* cert, void* encodedResponse)
 #endif
 
     if (InitOcspRequest(ocspRequest, cert, ocsp->cm->ocspSendNonce) == 0) {
-        ret = CheckOcspRequest(ocsp, ocspRequest, encodedResponse);
+        ret = CheckOcspRequest(ocsp, ocspRequest, responseBuffer);
 
         FreeOcspRequest(ocspRequest);
     }
@@ -239,14 +239,13 @@ static int GetOcspStatus(WOLFSSL_OCSP* ocsp, OcspRequest* request,
 }
 
 int CheckOcspRequest(WOLFSSL_OCSP* ocsp, OcspRequest* ocspRequest,
-                                                          void* encodedResponse)
+                                                      buffer* responseBuffer)
 {
     OcspEntry*  entry          = NULL;
     CertStatus* status         = NULL;
     byte*       request        = NULL;
     int         requestSz      = 2048;
     byte*       response       = NULL;
-    buffer*     responseBuffer = (buffer*) encodedResponse;
     const char* url            = NULL;
     int         urlSz          = 0;
     int         ret            = -1;
