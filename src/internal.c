@@ -4552,6 +4552,10 @@ static int DoCertificate(WOLFSSL* ssl, byte* input, word32* inOutIdx,
     WOLFSSL_X509_STORE_CTX  store[1];
 #endif
 
+#ifdef WOLFSSL_TRUST_PEER_CERT
+    byte haveTrustPeer = 0; /* was cert verified by loaded trusted peer cert */
+#endif
+
     #ifdef WOLFSSL_CALLBACKS
         if (ssl->hsInfoOn) AddPacketName("Certificate", &ssl->handShakeInfo);
         if (ssl->toInfoOn) AddLateName("Certificate", &ssl->timeoutInfo);
@@ -4617,6 +4621,43 @@ static int DoCertificate(WOLFSSL* ssl, byte* input, word32* inOutIdx,
     if (dCert == NULL)
         return MEMORY_E;
 #endif
+
+#ifdef WOLFSSL_TRUST_PEER_CERT
+    /* if using trusted peer certs check before verify chain and CA test */
+    if (count > 0) {
+        TrustedPeerCert* tp = NULL;
+
+        InitDecodedCert(dCert, certs[0].buffer, certs[0].length, ssl->heap);
+        ret = ParseCertRelative(dCert, CERT_TYPE, 0, ssl->ctx->cm);
+        #ifndef NO_SKID
+            if (dCert->extAuthKeyIdSet) {
+                tp = GetTrustedPeer(ssl->ctx->cm, dCert->extSubjKeyId,
+                                                                 WC_MATCH_SKID);
+            }
+            else { /* if the cert has no SKID try to match by name */
+                tp = GetTrustedPeer(ssl->ctx->cm, dCert->subjectHash,
+                                                                 WC_MATCH_NAME);
+            }
+        #else /* NO_SKID */
+            tp = GetTrustedPeer(ssl->ctx->cm, dCert->subjectHash,
+                                                                 WC_MATCH_NAME);
+        #endif /* NO SKID */
+        WOLFSSL_MSG("Checking for trusted peer cert");
+
+        if (tp == NULL) {
+            /* no trusted peer cert */
+            WOLFSSL_MSG("No matching trusted peer cert. Checking CAs");
+            FreeDecodedCert(dCert);
+        } else if (MatchTrustedPeer(tp, dCert)){
+            WOLFSSL_MSG("Found matching trusted peer cert");
+            haveTrustPeer = 1;
+        } else {
+            WOLFSSL_MSG("Trusted peer cert did not match!");
+            FreeDecodedCert(dCert);
+        }
+    }
+    if (!haveTrustPeer) { /* do not verify chain if trusted peer cert found */
+#endif /* WOLFSSL_TRUST_PEER_CERT */
 
     /* verify up to peer's first */
     while (count > 1) {
@@ -4707,6 +4748,10 @@ static int DoCertificate(WOLFSSL* ssl, byte* input, word32* inOutIdx,
         count--;
     }
 
+#ifdef WOLFSSL_TRUST_PEER_CERT
+    } /* end of if (haveTrustPeer) -- a check for if already verified */
+#endif
+
     /* peer's, may not have one if blank client cert sent by TLSv1.2 */
     if (count) {
         buffer myCert = certs[0];
@@ -4714,9 +4759,16 @@ static int DoCertificate(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 
         WOLFSSL_MSG("Verifying Peer's cert");
 
+#ifdef WOLFSSL_TRUST_PEER_CERT
+        if (!haveTrustPeer) { /* do not parse again if previously verified */
+#endif
         InitDecodedCert(dCert, myCert.buffer, myCert.length, ssl->heap);
         ret = ParseCertRelative(dCert, CERT_TYPE, !ssl->options.verifyNone,
                                 ssl->ctx->cm);
+#ifdef WOLFSSL_TRUST_PEER_CERT
+        }
+#endif
+
         if (ret == 0) {
             WOLFSSL_MSG("Verified Peer's cert");
             fatal = 0;

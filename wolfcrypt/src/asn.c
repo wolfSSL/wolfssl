@@ -4994,7 +4994,7 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
         }
     #endif
 
-    if (verify && type != CA_TYPE) {
+ if (verify && type != CA_TYPE && type != TRUSTED_PEER_TYPE) {
         Signer* ca = NULL;
         #ifndef NO_SKID
             if (cert->extAuthKeyIdSet)
@@ -5110,6 +5110,48 @@ void FreeSignerTable(Signer** table, int rows, void* heap)
     }
 }
 
+#ifdef WOLFSSL_TRUST_PEER_CERT
+/* Free an individual trusted peer cert */
+void FreeTrustedPeer(TrustedPeerCert* tp, void* heap)
+{
+    if (tp == NULL) {
+        return;
+    }
+
+    if (tp->name) {
+        XFREE(tp->name, heap, DYNAMIC_TYPE_SUBJECT_CN);
+    }
+
+    if (tp->sig) {
+        XFREE(tp->sig, heap, DYNAMIC_TYPE_SIGNATURE);
+    }
+    #ifndef IGNORE_NAME_CONSTRAINTS
+        if (tp->permittedNames)
+            FreeNameSubtrees(tp->permittedNames, heap);
+        if (tp->excludedNames)
+            FreeNameSubtrees(tp->excludedNames, heap);
+    #endif
+    XFREE(tp, heap, DYNAMIC_TYPE_CERT);
+
+    (void)heap;
+}
+
+/* Free the whole Trusted Peer linked list */
+void FreeTrustedPeerTable(TrustedPeerCert** table, int rows, void* heap)
+{
+    int i;
+
+    for (i = 0; i < rows; i++) {
+        TrustedPeerCert* tp = table[i];
+        while (tp) {
+            TrustedPeerCert* next = tp->next;
+            FreeTrustedPeer(tp, heap);
+            tp = next;
+        }
+        table[i] = NULL;
+    }
+}
+#endif /* WOLFSSL_TRUST_PEER_CERT */
 
 WOLFSSL_LOCAL int SetMyVersion(word32 version, byte* output, int header)
 {

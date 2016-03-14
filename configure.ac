@@ -2508,6 +2508,28 @@ AM_CONDITIONAL([BUILD_MCAPI], [test "x$ENABLED_MCAPI" = "xyes"])
 # check if PSK was enabled for conditionally running psk.test script
 AM_CONDITIONAL([BUILD_PSK], [test "x$ENABLED_PSK" = "xyes"])
 
+
+# check if should run the trusted peer certs test
+# (for now checking both C_FLAGS and C_EXTRA_FLAGS)
+case $C_EXTRA_FLAGS in
+    *WOLFSSL_TRUST_PEER_CERT*)
+        have_tp=yes
+        break;;
+    *)
+        have_tp=no ;;
+esac
+if test "$have_tp" = "no"; then
+    case $C_FLAGS in
+    *WOLFSSL_TRUST_PEER_CERT*)
+        have_tp=yes
+        break;;
+    *)
+        have_tp=no ;;
+    esac
+fi
+AM_CONDITIONAL([BUILD_TRUST_PEER_CERT], [test "x$have_tp" = "xyes"])
+
+
 ################################################################################
 # Check for build-type conflicts                                               #
 ################################################################################
