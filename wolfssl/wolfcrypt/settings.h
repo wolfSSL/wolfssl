@@ -1029,6 +1029,61 @@ static char *fgets(char *buff, int sz, FILE *fp)
     #endif
 #endif /* HAVE_ECC */
 
+/* Curve255519 Configs */
+#ifdef HAVE_CURVE25519
+    /* By default enable shared secret, key export and import */
+    #ifndef NO_CURVE25519_SHARED_SECRET
+        #undef HAVE_CURVE25519_SHARED_SECRET
+        #define HAVE_CURVE25519_SHARED_SECRET
+    #endif
+    #ifndef NO_CURVE25519_KEY_EXPORT
+        #undef HAVE_CURVE25519_KEY_EXPORT
+        #define HAVE_CURVE25519_KEY_EXPORT
+    #endif
+    #ifndef NO_CURVE25519_KEY_IMPORT
+        #undef HAVE_CURVE25519_KEY_IMPORT
+        #define HAVE_CURVE25519_KEY_IMPORT
+    #endif
+#endif /* HAVE_CURVE25519 */
+
+/* Ed255519 Configs */
+#ifdef HAVE_ED25519
+    /* By default enable sign, verify, key export and import */
+    #ifndef NO_ED25519_SIGN
+        #undef HAVE_ED25519_SIGN
+        #define HAVE_ED25519_SIGN
+    #endif
+    #ifndef NO_ED25519_VERIFY
+        #undef HAVE_ED25519_VERIFY
+        #define HAVE_ED25519_VERIFY
+    #endif
+    #ifndef NO_ED25519_KEY_EXPORT
+        #undef HAVE_ED25519_KEY_EXPORT
+        #define HAVE_ED25519_KEY_EXPORT
+    #endif
+    #ifndef NO_ED25519_KEY_IMPORT
+        #undef HAVE_ED25519_KEY_IMPORT
+        #define HAVE_ED25519_KEY_IMPORT
+    #endif
+#endif /* HAVE_ED25519 */
+
+/* AES Config */
+#ifndef NO_AES
+    /* By default enable all AES key sizes, decryption and CBC */
+    #ifndef AES_MAX_KEY_SIZE
+        #undef  AES_MAX_KEY_SIZE
+        #define AES_MAX_KEY_SIZE    256
+    #endif
+    #ifndef NO_AES_DECRYPT
+        #undef HAVE_AES_DECRYPT
+        #define HAVE_AES_DECRYPT
+    #endif
+    #ifndef NO_AES_CBC
+        #undef  HAVE_AES_CBC
+        #define HAVE_AES_CBC
+    #endif
+#endif
+
 /* if desktop type system and fastmath increase default max bits */
 #ifdef WOLFSSL_X86_64_BUILD
     #ifdef USE_FAST_MATH

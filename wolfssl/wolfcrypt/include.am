@@ -59,4 +59,5 @@ nobase_include_HEADERS+= \
 noinst_HEADERS+= \
                          wolfssl/wolfcrypt/port/pic32/pic32mz-crypt.h \
                          wolfssl/wolfcrypt/port/ti/ti-hash.h \
-                         wolfssl/wolfcrypt/port/ti/ti-ccm.h
+                         wolfssl/wolfcrypt/port/ti/ti-ccm.h \
+                         wolfssl/wolfcrypt/port/nrf51.h

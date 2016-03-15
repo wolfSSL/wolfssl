@@ -141,6 +141,10 @@
 
 #include "wolfcrypt/test/test.h"
 
+#ifdef USE_WOLFSSL_MEMORY
+    #include "wolfssl/mem_track.h"
+#endif
+
 
 typedef struct testVector {
     const char*  input;
@@ -257,6 +261,10 @@ int wolfcrypt_test(void* args)
     int ret = 0;
 
     ((func_args*)args)->return_code = -1; /* error state */
+
+#ifdef USE_WOLFSSL_MEMORY
+    InitMemoryTracker();
+#endif
 
 #ifdef HAVE_FIPS
     wolfCrypt_SetCb_fips(myFipsCb);
@@ -584,6 +592,10 @@ int wolfcrypt_test(void* args)
         return err_sys("PKCS7signed    test failed!\n", ret);
     else
         printf( "PKCS7signed    test passed!\n");
+#endif
+
+#ifdef USE_WOLFSSL_MEMORY
+    ShowMemoryTracker();
 #endif
 
     ((func_args*)args)->return_code = ret;
@@ -2607,6 +2619,11 @@ int aes_test(void)
     Aes enc;
     Aes dec;
 
+    byte cipher[AES_BLOCK_SIZE * 4];
+    byte plain [AES_BLOCK_SIZE * 4];
+    int  ret = 0;
+
+#ifdef HAVE_AES_CBC
     const byte msg[] = { /* "Now is the time for all " w/o trailing 0 */
         0x6e,0x6f,0x77,0x20,0x69,0x73,0x20,0x74,
         0x68,0x65,0x20,0x74,0x69,0x6d,0x65,0x20,
@@ -2621,10 +2638,6 @@ int aes_test(void)
 
     byte key[] = "0123456789abcdef   ";  /* align */
     byte iv[]  = "1234567890abcdef   ";  /* align */
-
-    byte cipher[AES_BLOCK_SIZE * 4];
-    byte plain [AES_BLOCK_SIZE * 4];
-    int  ret;
 
 #ifdef HAVE_CAVIUM
         if (wc_AesInitCavium(&enc, CAVIUM_DEV_ID) != 0)
@@ -2642,13 +2655,14 @@ int aes_test(void)
     ret = wc_AesCbcEncrypt(&enc, cipher, msg,   AES_BLOCK_SIZE);
     if (ret != 0)
         return -1005;
+#ifdef HAVE_AES_DECRYPT
     ret = wc_AesCbcDecrypt(&dec, plain, cipher, AES_BLOCK_SIZE);
     if (ret != 0)
         return -1006;
 
     if (memcmp(plain, msg, AES_BLOCK_SIZE))
         return -60;
-
+#endif /* HAVE_AES_DECRYPT */
     if (memcmp(cipher, verify, AES_BLOCK_SIZE))
         return -61;
 
@@ -2656,6 +2670,8 @@ int aes_test(void)
         wc_AesFreeCavium(&enc);
         wc_AesFreeCavium(&dec);
 #endif
+#endif /* HAVE_AES_CBC */
+
 #ifdef WOLFSSL_AES_COUNTER
     {
         const byte ctrKey[] =
@@ -2780,7 +2796,7 @@ int aes_test(void)
     }
 #endif /* WOLFSSL_AESNI && WOLFSSL_AES_DIRECT */
 
-    return 0;
+    return ret;
 }
 
 #ifdef HAVE_AESGCM
@@ -3553,11 +3569,51 @@ int idea_test(void)
 
         wc_FreeRng(&rng);
     }
-    
+
     return 0;
 }
 #endif /* HAVE_IDEA */
 
+
+static int random_rng_test(void)
+{
+    WC_RNG rng;
+    byte block[32];
+    int ret, i;
+
+#ifdef HAVE_CAVIUM
+    ret = wc_InitRngCavium(&rng, CAVIUM_DEV_ID);
+    if (ret != 0) return -2007;
+#endif
+    ret = wc_InitRng(&rng);
+    if (ret != 0) return -39;
+
+    XMEMSET(block, 0, sizeof(block));
+
+    ret = wc_RNG_GenerateBlock(&rng, block, sizeof(block));
+    if (ret != 0) {
+        ret = -40;
+        goto exit;
+    }
+
+    /* Check for 0's */
+    for (i=0; i<(int)sizeof(block); i++) {
+        if (block[i] == 0) {
+            ret++;
+        }
+    }
+    /* All zeros count check */
+    if (ret >= (int)sizeof(block)) {
+        ret = -38;
+        goto exit;
+    }
+
+exit:
+    /* Make sure and free RNG */
+    wc_FreeRng(&rng);
+
+    return ret;
+}
 
 #if (defined(HAVE_HASHDRBG) || defined(NO_RC4)) && !defined(CUSTOM_RAND_GENERATE_BLOCK)
 
@@ -3632,6 +3688,9 @@ int random_test(void)
     if (XMEMCMP(test2Output, output, sizeof(output)) != 0)
         return -42;
 
+    /* Basic RNG generate block test */
+    random_rng_test();
+
     return 0;
 }
 
@@ -3639,21 +3698,8 @@ int random_test(void)
 
 int random_test(void)
 {
-    WC_RNG rng;
-    byte block[32];
-    int ret;
-
-#ifdef HAVE_CAVIUM
-    ret = wc_InitRngCavium(&rng, CAVIUM_DEV_ID);
-    if (ret != 0) return -2007;
-#endif
-    ret = wc_InitRng(&rng);
-    if (ret != 0) return -39;
-
-    ret = wc_RNG_GenerateBlock(&rng, block, sizeof(block));
-    if (ret != 0) return -40;
-
-    wc_FreeRng(&rng);
+    /* Basic RNG generate block test */
+    random_rng_test();
 
     return 0;
 }
@@ -5612,9 +5658,9 @@ static int generate_random_salt(byte *buf, word32 size)
         return -1;
 
     if (buf && size && wc_InitRng(&rng) == 0) {
-        ret = wc_RNG_GenerateBlock(&rng, (byte *)buf, size); 
+        ret = wc_RNG_GenerateBlock(&rng, (byte *)buf, size);
 
-        wc_FreeRng(&rng);        
+        wc_FreeRng(&rng);
     }
 
     return ret;
@@ -5660,7 +5706,7 @@ int srp_test(void)
     word32 v_size = sizeof(verifier);
 
     /* generating random salt */
-    
+
     r = generate_random_salt(salt, sizeof(salt));
 
     /* client knows username and password.   */
@@ -6162,32 +6208,93 @@ int hkdf_test(void)
 
 #ifdef HAVE_ECC
 
+#ifndef HAVE_ECC_VECTOR_TEST
+#if defined(HAVE_ECC192) || defined(HAVE_ECC224) || !defined(NO_ECC256) || \
+    defined(HAVE_ECC384) || defined(HAVE_ECC521) || defined(HAVE_ALL_CURVES)
+    #define HAVE_ECC_VECTOR_TEST
+#endif
+#endif
+
+#ifdef HAVE_ECC_VECTOR_TEST
 typedef struct rawEccVector {
-    const char* msg;
+    const char* msg; /* SHA-1 Encoded Message */
     const char* Qx;
     const char* Qy;
-    const char* d;
+    const char* d; /* Private Key */
     const char* R;
     const char* S;
     const char* curveName;
     size_t msgLen;
 } rawEccVector;
 
+static int ecc_test_raw_vector(const rawEccVector* vector, ecc_key* userA,
+    byte* sig, word32 sigSz)
+{
+    int ret, verify;
+    word32  x;
+
+    wc_ecc_free(userA);
+    wc_ecc_init(userA);
+
+    memset(sig, 0, sigSz);
+    x = sigSz;
+
+    ret = wc_ecc_import_raw(userA, vector->Qx, vector->Qy,
+                                             vector->d, vector->curveName);
+    if (ret != 0)
+        return -1018;
+
+    ret = wc_ecc_rs_to_sig(vector->R, vector->S, sig, &x);
+    if (ret != 0)
+        return -1019;
+
+    ret = wc_ecc_verify_hash(sig, x, (byte*)vector->msg, (word32)vector->msgLen, &verify, userA);
+    if (ret != 0)
+        return -1021;
+
+    if (verify != 1)
+        return -1023;
+
+    return 0;
+}
+#endif /* HAVE_ECC_VECTOR_TEST */
+
 int ecc_test(void)
 {
     WC_RNG  rng;
+#ifdef BENCH_EMBEDDED
+    byte    sharedA[32];
+    byte    sharedB[32];
+#else
     byte    sharedA[1024];
     byte    sharedB[1024];
-#if !defined(NO_ASN) || \
-        ( !defined(NO_SHA) && ((defined(HAVE_ECC192) && defined(HAVE_ECC224)) \
-            || defined(HAVE_ALL_CURVES)))
-    byte    sig[1024];
-    int     verify;
 #endif
-    byte    digest[20];
+#ifdef HAVE_ECC_KEY_EXPORT
     byte    exportBuf[1024];
+#elif !defined(NO_ECC256)
+    /* Export is used to test import, so if export is not enabled,
+       use this pre-defined value (P-256 Only) */
+    const byte exportBuf[] = {
+        0x04, 0xb6, 0x1f, 0xf9, 0x71, 0xe3, 0x5b, 0x8d, 0xa7, 0xad, 0x9c, 0xd8,
+        0x8f, 0x25, 0x09, 0xe7, 0x3f, 0x91, 0x10, 0xe5, 0x4e, 0x84, 0x5d, 0xee,
+        0xe8, 0xc6, 0x9c, 0xd9, 0x84, 0x8e, 0xd9, 0x85, 0x0d, 0x73, 0x7f, 0x6e,
+        0x63, 0x9a, 0x74, 0xe0, 0x1b, 0x6c, 0x55, 0x2f, 0xdd, 0xc6, 0x16, 0x72,
+        0x52, 0x75, 0x6c, 0x12, 0x77, 0x38, 0x56, 0xf2, 0x20, 0xef, 0xe5, 0x76,
+        0x59, 0x0d, 0x97, 0xd9, 0x94,
+    };
+#endif
     word32  x, y;
-    int     i, ret;
+#if defined(HAVE_ECC_VECTOR_TEST) || defined(HAVE_ECC_SIGN)
+    byte    sig[1024];
+#endif /* HAVE_ECC_VECTOR_TEST || HAVE_ECC_SIGN */
+#if defined(HAVE_ECC_SIGN)
+    byte    digest[20];
+    int     i;
+#ifdef HAVE_ECC_VERIFY
+    int     verify;
+#endif /* HAVE_ECC_VERIFY */
+#endif /* HAVE_ECC_SIGN */
+    int     ret;
     ecc_key userA, userB, pubKey;
 
     ret = wc_InitRng(&rng);
@@ -6199,7 +6306,6 @@ int ecc_test(void)
     wc_ecc_init(&pubKey);
 
     ret = wc_ecc_make_key(&rng, 32, &userA);
-
     if (ret != 0)
         return -1014;
 
@@ -6208,19 +6314,17 @@ int ecc_test(void)
         return -1024;
 
     ret = wc_ecc_make_key(&rng, 32, &userB);
-
     if (ret != 0)
         return -1002;
 
+#ifdef HAVE_ECC_DHE
     x = sizeof(sharedA);
     ret = wc_ecc_shared_secret(&userA, &userB, sharedA, &x);
-
     if (ret != 0)
         return -1015;
 
     y = sizeof(sharedB);
     ret = wc_ecc_shared_secret(&userB, &userA, sharedB, &y);
-
     if (ret != 0)
         return -1003;
 
@@ -6229,162 +6333,238 @@ int ecc_test(void)
 
     if (memcmp(sharedA, sharedB, x))
         return -1005;
+#endif /* HAVE_ECC_DHE */
 
+#if defined(HAVE_ECC_KEY_EXPORT) || (defined(HAVE_ECC_KEY_IMPORT) && !defined(NO_ECC256))
     x = sizeof(exportBuf);
+#ifdef HAVE_ECC_KEY_EXPORT
     ret = wc_ecc_export_x963(&userA, exportBuf, &x);
     if (ret != 0)
         return -1006;
+#endif /* HAVE_ECC_KEY_EXPORT */
 
+#if defined(HAVE_ECC_KEY_IMPORT) && (defined(HAVE_ECC_KEY_EXPORT) || !defined(NO_ECC256))
     ret = wc_ecc_import_x963(exportBuf, x, &pubKey);
-
     if (ret != 0)
         return -1007;
+#endif
 
+#if defined(HAVE_ECC_DHE) && defined(HAVE_ECC_KEY_IMPORT) && defined(HAVE_ECC_KEY_EXPORT)
     y = sizeof(sharedB);
     ret = wc_ecc_shared_secret(&userB, &pubKey, sharedB, &y);
-
     if (ret != 0)
         return -1008;
 
     if (memcmp(sharedA, sharedB, y))
         return -1009;
+#endif /* HAVE_ECC_DHE */
+#endif
 
 #ifdef HAVE_COMP_KEY
     /* try compressed export / import too */
     x = sizeof(exportBuf);
+#ifdef HAVE_ECC_KEY_EXPORT
     ret = wc_ecc_export_x963_ex(&userA, exportBuf, &x, 1);
     if (ret != 0)
         return -1010;
-
     wc_ecc_free(&pubKey);
     wc_ecc_init(&pubKey);
+#if HAVE_ECC_KEY_IMPORT
     ret = wc_ecc_import_x963(exportBuf, x, &pubKey);
-
     if (ret != 0)
         return -1011;
-#endif
+#endif /* HAVE_ECC_KEY_IMPORT */
+#endif /* HAVE_ECC_KEY_EXPORT */
 
+#if defined(HAVE_ECC_DHE) && defined(HAVE_ECC_KEY_IMPORT) && defined(HAVE_ECC_KEY_EXPORT)
     y = sizeof(sharedB);
     ret = wc_ecc_shared_secret(&userB, &pubKey, sharedB, &y);
-
     if (ret != 0)
         return -1012;
 
     if (memcmp(sharedA, sharedB, y))
         return -1013;
+#endif /* HAVE_ECC_DHE */
+#endif /* HAVE_COMP_KEY */
 
+#ifdef HAVE_ECC_SIGN
     /* test DSA sign hash */
     for (i = 0; i < (int)sizeof(digest); i++)
         digest[i] = (byte)i;
 
-#ifndef NO_ASN
     x = sizeof(sig);
     ret = wc_ecc_sign_hash(digest, sizeof(digest), sig, &x, &rng, &userA);
 
     if (ret != 0)
         return -1014;
 
+#ifdef HAVE_ECC_VERIFY
     verify = 0;
     ret = wc_ecc_verify_hash(sig, x, digest, sizeof(digest), &verify, &userA);
-
     if (ret != 0)
         return -1015;
-
     if (verify != 1)
         return -1016;
-#endif
+#endif /* HAVE_ECC_VERIFY */
+#endif /* HAVE_ECC_SIGN */
 
+#ifdef HAVE_ECC_KEY_EXPORT
     x = sizeof(exportBuf);
     ret = wc_ecc_export_private_only(&userA, exportBuf, &x);
     if (ret != 0)
         return -1017;
+#endif /* HAVE_ECC_KEY_EXPORT */
 
-#if !defined(NO_SHA) && \
-    ((defined(HAVE_ECC192) && defined(HAVE_ECC224)) || defined(HAVE_ALL_CURVES))
+#ifdef HAVE_ECC_VECTOR_TEST
+#if defined(HAVE_ECC192) || defined(HAVE_ALL_CURVES)
     {
-        /* test raw ECC key import */
-        Sha sha;
-        byte hash[SHA_DIGEST_SIZE];
-        rawEccVector a, b;
-        rawEccVector test_ecc[2];
-        int times = sizeof(test_ecc) / sizeof(rawEccVector);
-
+        rawEccVector ecc192;
         /* first [P-192,SHA-1] vector from FIPS 186-3 NIST vectors */
-        a.msg = "\xeb\xf7\x48\xd7\x48\xeb\xbc\xa7\xd2\x9f\xb4\x73\x69\x8a"
-                "\x6e\x6b\x4f\xb1\x0c\x86\x5d\x4a\xf0\x24\xcc\x39\xae\x3d"
-                "\xf3\x46\x4b\xa4\xf1\xd6\xd4\x0f\x32\xbf\x96\x18\xa9\x1b"
-                "\xb5\x98\x6f\xa1\xa2\xaf\x04\x8a\x0e\x14\xdc\x51\xe5\x26"
-                "\x7e\xb0\x5e\x12\x7d\x68\x9d\x0a\xc6\xf1\xa7\xf1\x56\xce"
-                "\x06\x63\x16\xb9\x71\xcc\x7a\x11\xd0\xfd\x7a\x20\x93\xe2"
-                "\x7c\xf2\xd0\x87\x27\xa4\xe6\x74\x8c\xc3\x2f\xd5\x9c\x78"
-                "\x10\xc5\xb9\x01\x9d\xf2\x1c\xdc\xc0\xbc\xa4\x32\xc0\xa3"
-                "\xee\xd0\x78\x53\x87\x50\x88\x77\x11\x43\x59\xce\xe4\xa0"
-                "\x71\xcf";
-        a.msgLen = 128;
-        a.Qx = "07008ea40b08dbe76432096e80a2494c94982d2d5bcf98e6";
-        a.Qy = "76fab681d00b414ea636ba215de26d98c41bd7f2e4d65477";
-        a.d  = "e14f37b3d1374ff8b03f41b9b3fdd2f0ebccf275d660d7f3";
-        a.R  = "6994d962bdd0d793ffddf855ec5bf2f91a9698b46258a63e";
-        a.S  = "02ba6465a234903744ab02bc8521405b73cf5fc00e1a9f41";
-        a.curveName = "ECC-192";
-
-        /* first [P-224,SHA-1] vector from FIPS 186-3 NIST vectors */
-        b.msg = "\x36\xc8\xb2\x29\x86\x48\x7f\x67\x7c\x18\xd0\x97\x2a\x9e"
-                "\x20\x47\xb3\xaf\xa5\x9e\xc1\x62\x76\x4e\xc3\x0b\x5b\x69"
-                "\xe0\x63\x0f\x99\x0d\x4e\x05\xc2\x73\xb0\xe5\xa9\xd4\x28"
-                "\x27\xb6\x95\xfc\x2d\x64\xd9\x13\x8b\x1c\xf4\xc1\x21\x55"
-                "\x89\x4c\x42\x13\x21\xa7\xbb\x97\x0b\xdc\xe0\xfb\xf0\xd2"
-                "\xae\x85\x61\xaa\xd8\x71\x7f\x2e\x46\xdf\xe3\xff\x8d\xea"
-                "\xb4\xd7\x93\x23\x56\x03\x2c\x15\x13\x0d\x59\x9e\x26\xc1"
-                "\x0f\x2f\xec\x96\x30\x31\xac\x69\x38\xa1\x8d\x66\x45\x38"
-                "\xb9\x4d\xac\x55\x34\xef\x7b\x59\x94\x24\xd6\x9b\xe1\xf7"
-                "\x1c\x20";
-        b.msgLen = 128;
-        b.Qx = "8a4dca35136c4b70e588e23554637ae251077d1365a6ba5db9585de7";
-        b.Qy = "ad3dee06de0be8279d4af435d7245f14f3b4f82eb578e519ee0057b1";
-        b.d  = "97c4b796e1639dd1035b708fc00dc7ba1682cec44a1002a1a820619f";
-        b.R  = "147b33758321e722a0360a4719738af848449e2c1d08defebc1671a7";
-        b.S  = "24fc7ed7f1352ca3872aa0916191289e2e04d454935d50fe6af3ad5b";
-        b.curveName = "ECC-224";
-
-        test_ecc[0] = a;
-        test_ecc[1] = b;
-
-        for (i = 0; i < times; i++) {
-
-            wc_ecc_free(&userA);
-            wc_ecc_init(&userA);
-
-            memset(sig, 0, sizeof(sig));
-            x = sizeof(sig);
-
-            /* calculate SHA-1 hash of message */
-            ret = wc_InitSha(&sha);
-            if (ret != 0)
-                return -1015 - i;
-
-            wc_ShaUpdate(&sha, (byte*)test_ecc[i].msg, (word32)test_ecc[i].msgLen);
-            wc_ShaFinal(&sha, hash);
-
-            ret = wc_ecc_import_raw(&userA, test_ecc[i].Qx, test_ecc[i].Qy,
-                                 test_ecc[i].d, test_ecc[i].curveName);
-            if (ret != 0)
-                return -1017 - i;
-
-            ret = wc_ecc_rs_to_sig(test_ecc[i].R, test_ecc[i].S, sig, &x);
-            if (ret != 0)
-                return -1019 - i;
-
-            ret = wc_ecc_verify_hash(sig, x, hash, sizeof(hash), &verify, &userA);
-            if (ret != 0)
-                return -1021 - i;
-
-            if (verify != 1)
-                return -1023 - i;
-        }
+#if 1
+        ecc192.msg = "\x60\x80\x79\x42\x3f\x12\x42\x1d\xe6\x16\xb7\x49\x3e\xbe\x55\x1c\xf4\xd6\x5b\x92";
+        ecc192.msgLen = 20;
+#else
+        /* This is the raw message prior to SHA-1 */
+        ecc192.msg =
+            "\xeb\xf7\x48\xd7\x48\xeb\xbc\xa7\xd2\x9f\xb4\x73\x69\x8a\x6e\x6b"
+            "\x4f\xb1\x0c\x86\x5d\x4a\xf0\x24\xcc\x39\xae\x3d\xf3\x46\x4b\xa4"
+            "\xf1\xd6\xd4\x0f\x32\xbf\x96\x18\xa9\x1b\xb5\x98\x6f\xa1\xa2\xaf"
+            "\x04\x8a\x0e\x14\xdc\x51\xe5\x26\x7e\xb0\x5e\x12\x7d\x68\x9d\x0a"
+            "\xc6\xf1\xa7\xf1\x56\xce\x06\x63\x16\xb9\x71\xcc\x7a\x11\xd0\xfd"
+            "\x7a\x20\x93\xe2\x7c\xf2\xd0\x87\x27\xa4\xe6\x74\x8c\xc3\x2f\xd5"
+            "\x9c\x78\x10\xc5\xb9\x01\x9d\xf2\x1c\xdc\xc0\xbc\xa4\x32\xc0\xa3"
+            "\xee\xd0\x78\x53\x87\x50\x88\x77\x11\x43\x59\xce\xe4\xa0\x71\xcf";
+        ecc192.msgLen = 128;
+#endif
+        ecc192.Qx = "07008ea40b08dbe76432096e80a2494c94982d2d5bcf98e6";
+        ecc192.Qy = "76fab681d00b414ea636ba215de26d98c41bd7f2e4d65477";
+        ecc192.d  = "e14f37b3d1374ff8b03f41b9b3fdd2f0ebccf275d660d7f3";
+        ecc192.R  = "6994d962bdd0d793ffddf855ec5bf2f91a9698b46258a63e";
+        ecc192.S  = "02ba6465a234903744ab02bc8521405b73cf5fc00e1a9f41";
+        ecc192.curveName = "ECC-192";
+        ret = ecc_test_raw_vector(&ecc192, &userA, sig, sizeof(sig));
     }
-#endif /* defined(HAVE_ECC192) && defined(HAVE_ECC256) */
-
+#endif /* HAVE_ECC192 */
+#if defined(HAVE_ECC224) || defined(HAVE_ALL_CURVES)
+    {
+        rawEccVector ecc224;
+        /* first [P-224,SHA-1] vector from FIPS 186-3 NIST vectors */
+#if 1
+        ecc224.msg = "\xb9\xa3\xb8\x6d\xb0\xba\x99\xfd\xc6\xd2\x94\x6b\xfe\xbe\x9c\xe8\x3f\x10\x74\xfc";
+        ecc224.msgLen = 20;
+#else
+        /* This is the raw message prior to SHA-1 */
+        ecc224.msg =
+            "\x36\xc8\xb2\x29\x86\x48\x7f\x67\x7c\x18\xd0\x97\x2a\x9e\x20\x47"
+            "\xb3\xaf\xa5\x9e\xc1\x62\x76\x4e\xc3\x0b\x5b\x69\xe0\x63\x0f\x99"
+            "\x0d\x4e\x05\xc2\x73\xb0\xe5\xa9\xd4\x28\x27\xb6\x95\xfc\x2d\x64"
+            "\xd9\x13\x8b\x1c\xf4\xc1\x21\x55\x89\x4c\x42\x13\x21\xa7\xbb\x97"
+            "\x0b\xdc\xe0\xfb\xf0\xd2\xae\x85\x61\xaa\xd8\x71\x7f\x2e\x46\xdf"
+            "\xe3\xff\x8d\xea\xb4\xd7\x93\x23\x56\x03\x2c\x15\x13\x0d\x59\x9e"
+            "\x26\xc1\x0f\x2f\xec\x96\x30\x31\xac\x69\x38\xa1\x8d\x66\x45\x38"
+            "\xb9\x4d\xac\x55\x34\xef\x7b\x59\x94\x24\xd6\x9b\xe1\xf7\x1c\x20";
+        ecc224.msgLen = 128;
+#endif
+        ecc224.Qx = "8a4dca35136c4b70e588e23554637ae251077d1365a6ba5db9585de7";
+        ecc224.Qy = "ad3dee06de0be8279d4af435d7245f14f3b4f82eb578e519ee0057b1";
+        ecc224.d  = "97c4b796e1639dd1035b708fc00dc7ba1682cec44a1002a1a820619f";
+        ecc224.R  = "147b33758321e722a0360a4719738af848449e2c1d08defebc1671a7";
+        ecc224.S  = "24fc7ed7f1352ca3872aa0916191289e2e04d454935d50fe6af3ad5b";
+        ecc224.curveName = "ECC-224";
+        ret = ecc_test_raw_vector(&ecc224, &userA, sig, sizeof(sig));
+    }
+#endif /* HAVE_ECC192 */
+#if !defined(NO_ECC256) || defined(HAVE_ALL_CURVES)
+    {
+        rawEccVector ecc256;
+        /* first [P-256,SHA-1] vector from FIPS 186-3 NIST vectors */
+#if 1
+        ecc256.msg = "\xa3\xf9\x1a\xe2\x1b\xa6\xb3\x03\x98\x64\x47\x2f\x18\x41\x44\xc6\xaf\x62\xcd\x0e";
+        ecc256.msgLen = 20;
+#else
+        /* This is the raw message prior to SHA-1 */
+        ecc256.msg =
+            "\xa2\x4b\x21\x76\x2e\x6e\xdb\x15\x3c\xc1\x14\x38\xdb\x0e\x92\xcd"
+            "\xf5\x2b\x86\xb0\x6c\xa9\x70\x16\x06\x27\x59\xc7\x0d\x36\xd1\x56"
+            "\x2c\xc9\x63\x0d\x7f\xc7\xc7\x74\xb2\x8b\x54\xe3\x1e\xf5\x58\x72"
+            "\xb2\xa6\x5d\xf1\xd7\xec\x26\xde\xbb\x33\xe7\xd9\x27\xef\xcc\xf4"
+            "\x6b\x63\xde\x52\xa4\xf4\x31\xea\xca\x59\xb0\x5d\x2e\xde\xc4\x84"
+            "\x5f\xff\xc0\xee\x15\x03\x94\xd6\x1f\x3d\xfe\xcb\xcd\xbf\x6f\x5a"
+            "\x73\x38\xd0\xbe\x3f\x2a\x77\x34\x51\x98\x3e\xba\xeb\x48\xf6\x73"
+            "\x8f\xc8\x95\xdf\x35\x7e\x1a\x48\xa6\x53\xbb\x35\x5a\x31\xa1\xb4"
+        ecc256.msgLen = 128;
+#endif
+        ecc256.Qx = "fa2737fb93488d19caef11ae7faf6b7f4bcd67b286e3fc54e8a65c2b74aeccb0";
+        ecc256.Qy = "d4ccd6dae698208aa8c3a6f39e45510d03be09b2f124bfc067856c324f9b4d09";
+        ecc256.d  = "be34baa8d040a3b991f9075b56ba292f755b90e4b6dc10dad36715c33cfdac25";
+        ecc256.R  = "2b826f5d44e2d0b6de531ad96b51e8f0c56fdfead3c236892e4d84eacfc3b75c";
+        ecc256.S  = "a2248b62c03db35a7cd63e8a120a3521a89d3d2f61ff99035a2148ae32e3a248";
+        ecc256.curveName = "nistp256";
+        ret = ecc_test_raw_vector(&ecc256, &userA, sig, sizeof(sig));
+    }
+#endif /* !NO_ECC256 */
+#if defined(HAVE_ECC384) || defined(HAVE_ALL_CURVES)
+    {
+        rawEccVector ecc384;
+        /* first [P-384,SHA-1] vector from FIPS 186-3 NIST vectors */
+#if 1
+        ecc384.msg = "\x9b\x9f\x8c\x95\x35\xa5\xca\x26\x60\x5d\xb7\xf2\xfa\x57\x3b\xdf\xc3\x2e\xab\x8b";
+        ecc384.msgLen = 20;
+#else
+        /* This is the raw message prior to SHA-1 */
+        ecc384.msg =
+            "\xab\xe1\x0a\xce\x13\xe7\xe1\xd9\x18\x6c\x48\xf7\x88\x9d\x51\x47"
+            "\x3d\x3a\x09\x61\x98\x4b\xc8\x72\xdf\x70\x8e\xcc\x3e\xd3\xb8\x16"
+            "\x9d\x01\xe3\xd9\x6f\xc4\xf1\xd5\xea\x00\xa0\x36\x92\xbc\xc5\xcf"
+            "\xfd\x53\x78\x7c\x88\xb9\x34\xaf\x40\x4c\x03\x9d\x32\x89\xb5\xba"
+            "\xc5\xae\x7d\xb1\x49\x68\x75\xb5\xdc\x73\xc3\x09\xf9\x25\xc1\x3d"
+            "\x1c\x01\xab\xda\xaf\xeb\xcd\xac\x2c\xee\x43\x39\x39\xce\x8d\x4a"
+            "\x0a\x5d\x57\xbb\x70\x5f\x3b\xf6\xec\x08\x47\x95\x11\xd4\xb4\xa3"
+            "\x21\x1f\x61\x64\x9a\xd6\x27\x43\x14\xbf\x0d\x43\x8a\x81\xe0\x60"
+        ecc384.msgLen = 128;
+#endif
+        ecc384.Qx = "e55fee6c49d8d523f5ce7bf9c0425ce4ff650708b7de5cfb095901523979a7f042602db30854735369813b5c3f5ef868";
+        ecc384.Qy = "28f59cc5dc509892a988d38a8e2519de3d0c4fd0fbdb0993e38f18506c17606c5e24249246f1ce94983a5361c5be983e";
+        ecc384.d  = "a492ce8fa90084c227e1a32f7974d39e9ff67a7e8705ec3419b35fb607582bebd461e0b1520ac76ec2dd4e9b63ebae71";
+        ecc384.R  = "6820b8585204648aed63bdff47f6d9acebdea62944774a7d14f0e14aa0b9a5b99545b2daee6b3c74ebf606667a3f39b7";
+        ecc384.S  = "491af1d0cccd56ddd520b233775d0bc6b40a6255cc55207d8e9356741f23c96c14714221078dbd5c17f4fdd89b32a907";
+        ecc384.curveName = "nistp384";
+        ret = ecc_test_raw_vector(&ecc384, &userA, sig, sizeof(sig));
+    }
+#endif /* HAVE_ECC384 */
+#if defined(HAVE_ECC521) || defined(HAVE_ALL_CURVES)
+    {
+        rawEccVector ecc521;
+        /* first [P-521,SHA-1] vector from FIPS 186-3 NIST vectors */
+#if 1
+        ecc521.msg = "\x1b\xf7\x03\x9c\xca\x23\x94\x27\x3f\x11\xa1\xd4\x8d\xcc\xb4\x46\x6f\x31\x61\xdf";
+        ecc521.msgLen = 20;
+#else
+        /* This is the raw message prior to SHA-1 */
+        ecc521.msg =
+        "\x50\x3f\x79\x39\x34\x0a\xc7\x23\xcd\x4a\x2f\x4e\x6c\xcc\x27\x33"
+        "\x38\x3a\xca\x2f\xba\x90\x02\x19\x9d\x9e\x1f\x94\x8b\xe0\x41\x21"
+        "\x07\xa3\xfd\xd5\x14\xd9\x0c\xd4\xf3\x7c\xc3\xac\x62\xef\x00\x3a"
+        "\x2d\xb1\xd9\x65\x7a\xb7\x7f\xe7\x55\xbf\x71\xfa\x59\xe4\xd9\x6e"
+        "\xa7\x2a\xe7\xbf\x9d\xe8\x7d\x79\x34\x3b\xc1\xa4\xbb\x14\x4d\x16"
+        "\x28\xd1\xe9\xe9\xc8\xed\x80\x8b\x96\x2c\x54\xe5\xf9\x6d\x53\xda"
+        "\x14\x7a\x96\x38\xf9\x4a\x91\x75\xd8\xed\x61\x05\x5f\x0b\xa5\x73"
+        "\xa8\x2b\xb7\xe0\x18\xee\xda\xc4\xea\x7b\x36\x2e\xc8\x9c\x38\x2b"
+        ecc521.msgLen = 128;
+#endif
+        ecc521.Qx = "12fbcaeffa6a51f3ee4d3d2b51c5dec6d7c726ca353fc014ea2bf7cfbb9b910d32cbfa6a00fe39b6cdb8946f22775398b2e233c0cf144d78c8a7742b5c7a3bb5d23";
+        ecc521.Qy = "09cdef823dd7bf9a79e8cceacd2e4527c231d0ae5967af0958e931d7ddccf2805a3e618dc3039fec9febbd33052fe4c0fee98f033106064982d88f4e03549d4a64d";
+        ecc521.d  = "1bd56bd106118eda246155bd43b42b8e13f0a6e25dd3bb376026fab4dc92b6157bc6dfec2d15dd3d0cf2a39aa68494042af48ba9601118da82c6f2108a3a203ad74";
+        ecc521.R  = "0bd117b4807710898f9dd7778056485777668f0e78e6ddf5b000356121eb7a220e9493c7f9a57c077947f89ac45d5acb6661bbcd17abb3faea149ba0aa3bb1521be";
+        ecc521.S  = "019cd2c5c3f9870ecdeb9b323abdf3a98cd5e231d85c6ddc5b71ab190739f7f226e6b134ba1d5889ddeb2751dabd97911dff90c34684cdbe7bb669b6c3d22f2480c";
+        ecc521.curveName = "nistp521";
+        ret = ecc_test_raw_vector(&ecc521, &userA, sig, sizeof(sig));
+    }
+#endif /* HAVE_ECC521 */
+    if (ret != 0) {
+        return ret;
+    }
+#endif /* HAVE_ECC_VECTOR_TEST */
 
 #ifdef WOLFSSL_KEY_GEN
     {
@@ -6574,12 +6754,18 @@ int ecc_encrypt_test(void)
 int curve25519_test(void)
 {
     WC_RNG  rng;
+#ifdef HAVE_CURVE25519_SHARED_SECRET
     byte    sharedA[32];
     byte    sharedB[32];
+    word32  y;
+#endif
+#ifdef HAVE_CURVE25519_KEY_EXPORT
     byte    exportBuf[32];
-    word32  x, y;
+#endif
+    word32  x;
     curve25519_key userA, userB, pubKey;
 
+#if defined(HAVE_CURVE25519_SHARED_SECRET) && defined(HAVE_CURVE25519_KEY_IMPORT)
     /* test vectors from
        https://tools.ietf.org/html/draft-josefsson-tls-curve25519-03
      */
@@ -6623,6 +6809,7 @@ int curve25519_test(void)
         0x73,0x8B,0x99,0xF0,0x94,0x68,0xB8,0xD6,
         0xB8,0x51,0x11,0x84,0xD5,0x34,0x94,0xAB
     };
+#endif /* HAVE_CURVE25519_SHARED_SECRET */
 
     if (wc_InitRng(&rng) != 0)
         return -1001;
@@ -6638,6 +6825,7 @@ int curve25519_test(void)
     if (wc_curve25519_make_key(&rng, 32, &userB) != 0)
         return -1003;
 
+#ifdef HAVE_CURVE25519_SHARED_SECRET
     /* find shared secret key */
     x = sizeof(sharedA);
     if (wc_curve25519_shared_secret(&userA, &userB, sharedA, &x) != 0)
@@ -6653,15 +6841,21 @@ int curve25519_test(void)
 
     if (XMEMCMP(sharedA, sharedB, x))
         return -1007;
+#endif
 
+#ifdef HAVE_CURVE25519_KEY_EXPORT
     /* export a public key and import it for another user */
     x = sizeof(exportBuf);
     if (wc_curve25519_export_public(&userA, exportBuf, &x) != 0)
         return -1008;
 
+#ifdef HAVE_CURVE25519_KEY_IMPORT
     if (wc_curve25519_import_public(exportBuf, x, &pubKey) != 0)
         return -1009;
+#endif
+#endif
 
+#if defined(HAVE_CURVE25519_SHARED_SECRET) && defined(HAVE_CURVE25519_KEY_IMPORT)
     /* test shared key after importing a public key */
     XMEMSET(sharedB, 0, sizeof(sharedB));
     y = sizeof(sharedB);
@@ -6720,6 +6914,7 @@ int curve25519_test(void)
 
     if (XMEMCMP(sharedA, sharedB, x))
         return -1023;
+#endif /* HAVE_CURVE25519_SHARED_SECRET */
 
     /* clean up keys when done */
     wc_curve25519_free(&pubKey);
@@ -6737,17 +6932,25 @@ int curve25519_test(void)
 int ed25519_test(void)
 {
     WC_RNG rng;
+#if defined(HAVE_ED25519_SIGN) && defined(HAVE_ED25519_KEY_EXPORT) &&\
+    defined(HAVE_ED25519_KEY_IMPORT)
     byte   out[ED25519_SIG_SIZE];
     byte   exportPKey[ED25519_KEY_SIZE];
     byte   exportSKey[ED25519_KEY_SIZE];
-    word32 outlen;
     word32 exportPSz;
     word32 exportSSz;
+    int    i;
+    word32 outlen;
+#ifdef HAVE_ED25519_VERIFY
+    int    verify;
+#endif /* HAVE_ED25519_VERIFY */
+#endif /* HAVE_ED25519_SIGN && HAVE_ED25519_KEY_EXPORT && HAVE_ED25519_KEY_IMPORT */
     word32 keySz, sigSz;
-    int    i, verify;
     ed25519_key key;
     ed25519_key key2;
 
+#if defined(HAVE_ED25519_SIGN) && defined(HAVE_ED25519_KEY_EXPORT) && \
+    defined(HAVE_ED25519_KEY_IMPORT)
     /* test vectors from
        https://tools.ietf.org/html/draft-josefsson-eddsa-ed25519-02
      */
@@ -7060,6 +7263,7 @@ int ed25519_test(void)
     static const byte* msgs[] = { msg1, msg2, msg3, msg1, msg1, msg4};
     static const word16 msgSz[] = {0 /*sizeof(msg1)*/, sizeof(msg2), sizeof(msg3),
                             0 /*sizeof(msg1)*/, 0 /*sizeof(msg1)*/, sizeof(msg4)};
+#endif /* HAVE_ED25519_SIGN && HAVE_ED25519_KEY_EXPORT && HAVE_ED25519_KEY_IMPORT */
 
     /* create ed25519 keys */
     wc_InitRng(&rng);
@@ -7072,6 +7276,8 @@ int ed25519_test(void)
     keySz = wc_ed25519_size(&key);
     sigSz = wc_ed25519_sig_size(&key);
 
+#if defined(HAVE_ED25519_SIGN) && defined(HAVE_ED25519_KEY_EXPORT) &&\
+        defined(HAVE_ED25519_KEY_IMPORT)
     for (i = 0; i < 6; i++) {
         outlen = sizeof(out);
         XMEMSET(out, 0, sizeof(out));
@@ -7087,6 +7293,7 @@ int ed25519_test(void)
         if (XMEMCMP(out, sigs[i], 64))
             return -1033 - i;
 
+#if defined(HAVE_ED25519_VERIFY)
         /* test verify on good msg */
         if (wc_ed25519_verify_msg(out, outlen, msgs[i], msgSz[i], &verify,
                     &key) != 0 || verify != 1)
@@ -7097,6 +7304,7 @@ int ed25519_test(void)
         if (wc_ed25519_verify_msg(out, outlen, msgs[i], msgSz[i], &verify,
                     &key) == 0 || verify == 1)
             return -1045 - i;
+#endif /* HAVE_ED25519_VERIFY */
 
         /* test api for import/exporting keys */
         exportPSz = sizeof(exportPKey);
@@ -7120,13 +7328,16 @@ int ed25519_test(void)
         if (wc_ed25519_sign_msg(msgs[i], msgSz[i], out, &outlen, &key2) != 0)
             return -1075 - i;
 
+#if defined(HAVE_ED25519_VERIFY)
         if (wc_ed25519_verify_msg(out, outlen, msgs[i], msgSz[i], &verify,
                                   &key2) != 0 || verify != 1)
             return -1081 - i;
 
         if (XMEMCMP(out, sigs[i], 64))
             return -1087 - i;
+#endif /* HAVE_ED25519_VERIFY */
     }
+#endif /* HAVE_ED25519_SIGN && HAVE_ED25519_KEY_EXPORT && HAVE_ED25519_KEY_IMPORT */
 
     /* clean up keys when done */
     wc_ed25519_free(&key);

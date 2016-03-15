@@ -39,10 +39,10 @@
 #endif
 
 const curve25519_set_type curve25519_sets[] = {
-{
+    {
         32,
         "CURVE25519",
-}
+    }
 };
 
 
@@ -78,6 +78,8 @@ int wc_curve25519_make_key(WC_RNG* rng, int keysize, curve25519_key* key)
 
     return ret;
 }
+
+#ifdef HAVE_CURVE25519_SHARED_SECRET
 
 int wc_curve25519_shared_secret(curve25519_key* private_key,
                                 curve25519_key* public_key,
@@ -125,6 +127,10 @@ int wc_curve25519_shared_secret_ex(curve25519_key* private_key,
     return ret;
 }
 
+#endif /* HAVE_CURVE25519_SHARED_SECRET */
+
+#ifdef HAVE_CURVE25519_KEY_EXPORT
+
 /* export curve25519 public key (Big endian)
  * return 0 on success */
 int wc_curve25519_export_public(curve25519_key* key, byte* out, word32* outLen)
@@ -165,6 +171,10 @@ int wc_curve25519_export_public_ex(curve25519_key* key, byte* out,
     return 0;
 }
 
+#endif /* HAVE_CURVE25519_KEY_EXPORT */
+
+#ifdef HAVE_CURVE25519_KEY_IMPORT
+
 /* import curve25519 public key (Big endian)
  *  return 0 on success */
 int wc_curve25519_import_public(const byte* in, word32 inLen,
@@ -204,6 +214,10 @@ int wc_curve25519_import_public_ex(const byte* in, word32 inLen,
     return 0;
 }
 
+#endif /* HAVE_CURVE25519_KEY_IMPORT */
+
+
+#ifdef HAVE_CURVE25519_KEY_EXPORT
 
 /* export curve25519 private key only raw (Big endian)
  * outLen is in/out size
@@ -276,6 +290,9 @@ int wc_curve25519_export_key_raw_ex(curve25519_key* key,
     return wc_curve25519_export_public_ex(key, pub, pubSz, endian);
 }
 
+#endif /* HAVE_CURVE25519_KEY_EXPORT */
+
+#ifdef HAVE_CURVE25519_KEY_IMPORT
 
 /* curve25519 private key import (Big endian)
  * Public key to match private key needs to be imported too
@@ -347,6 +364,9 @@ int wc_curve25519_import_private_ex(const byte* priv, word32 privSz,
 
     return 0;
 }
+
+#endif /* HAVE_CURVE25519_KEY_IMPORT */
+
 
 int wc_curve25519_init(curve25519_key* key)
 {
