@@ -2785,7 +2785,7 @@ static int wolfssl_decrypt_buffer_key(DerBuffer* der, byte* password,
         ret = wc_Des3_CbcDecryptWithKey(der->buffer, der->buffer, der->length,
                                         key, info->iv);
 #endif /* NO_DES3 */
-#ifndef NO_AES
+#if !defined(NO_AES) && defined(HAVE_AES_CBC)
     if (XSTRNCMP(info->name, EVP_AES_128_CBC, EVP_AES_SIZE) == 0)
         ret = wc_AesCbcDecryptWithKey(der->buffer, der->buffer, der->length,
                                       key, AES_128_KEY_SIZE, info->iv);
@@ -2795,7 +2795,7 @@ static int wolfssl_decrypt_buffer_key(DerBuffer* der, byte* password,
     else if (XSTRNCMP(info->name, EVP_AES_256_CBC, EVP_AES_SIZE) == 0)
         ret = wc_AesCbcDecryptWithKey(der->buffer, der->buffer, der->length,
                                       key, AES_256_KEY_SIZE, info->iv);
-#endif /* NO_AES */
+#endif /* !NO_AES && HAVE_AES_CBC */
 
 #ifdef WOLFSSL_SMALL_STACK
     XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -9123,6 +9123,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         switch (ctx->cipherType) {
 
 #ifndef NO_AES
+#ifdef HAVE_AES_CBC
             case AES_128_CBC_TYPE :
             case AES_192_CBC_TYPE :
             case AES_256_CBC_TYPE :
@@ -9132,7 +9133,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
                 else
                     ret = wc_AesCbcDecrypt(&ctx->cipher.aes, dst, src, len);
                 break;
-
+#endif /* HAVE_AES_CBC */
 #ifdef WOLFSSL_AES_COUNTER
             case AES_128_CTR_TYPE :
             case AES_192_CTR_TYPE :
@@ -9140,7 +9141,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
                     WOLFSSL_MSG("AES CTR");
                     wc_AesCtrEncrypt(&ctx->cipher.aes, dst, src, len);
                 break;
-#endif
+#endif /* WOLFSSL_AES_COUNTER */
 #endif /* NO_AES */
 
 #ifndef NO_DES3

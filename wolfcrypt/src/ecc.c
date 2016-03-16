@@ -5281,6 +5281,7 @@ int wc_ecc_decrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
 
     if (ret == 0) {
        switch (ctx->encAlgo) {
+    #ifdef HAVE_AES_CBC
            case ecAES_128_CBC:
                {
                    Aes aes;
@@ -5291,7 +5292,7 @@ int wc_ecc_decrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
                    ret = wc_AesCbcDecrypt(&aes, out, msg, msgSz-digestSz);
                }
                break;
-
+    #endif
            default:
                ret = BAD_FUNC_ARG;
                break;

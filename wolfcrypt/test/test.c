@@ -262,7 +262,7 @@ int wolfcrypt_test(void* args)
 
     ((func_args*)args)->return_code = -1; /* error state */
 
-#ifdef USE_WOLFSSL_MEMORY
+#if defined(USE_WOLFSSL_MEMORY) && defined(WOLFSSL_TRACK_MEMORY)
     InitMemoryTracker();
 #endif
 
@@ -594,7 +594,7 @@ int wolfcrypt_test(void* args)
         printf( "PKCS7signed    test passed!\n");
 #endif
 
-#ifdef USE_WOLFSSL_MEMORY
+#if defined(USE_WOLFSSL_MEMORY) && defined(WOLFSSL_TRACK_MEMORY)
     ShowMemoryTracker();
 #endif
 
@@ -2616,11 +2616,13 @@ int des3_test(void)
 #ifndef NO_AES
 int aes_test(void)
 {
+#if defined(HAVE_AES_CBC) || defined(WOLFSSL_AES_COUNTER)
     Aes enc;
     Aes dec;
 
     byte cipher[AES_BLOCK_SIZE * 4];
     byte plain [AES_BLOCK_SIZE * 4];
+#endif
     int  ret = 0;
 
 #ifdef HAVE_AES_CBC

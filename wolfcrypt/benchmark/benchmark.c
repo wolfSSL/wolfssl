@@ -256,7 +256,7 @@ int benchmark_test(void *args)
     (void)args;
 #endif
 
-#ifdef USE_WOLFSSL_MEMORY
+#if defined(USE_WOLFSSL_MEMORY) && defined(WOLFSSL_TRACK_MEMORY)
     InitMemoryTracker();
 #endif
 
@@ -290,20 +290,21 @@ int benchmark_test(void *args)
 #endif
 
 #ifndef NO_AES
+#ifdef HAVE_AES_CBC
     bench_aes(0);
     bench_aes(1);
 #endif
 #ifdef HAVE_AESGCM
     bench_aesgcm();
 #endif
-
 #ifdef WOLFSSL_AES_COUNTER
     bench_aesctr();
 #endif
-
 #ifdef HAVE_AESCCM
     bench_aesccm();
 #endif
+#endif /* !NO_AES */
+
 #ifdef HAVE_CAMELLIA
     bench_camellia();
 #endif
@@ -399,7 +400,7 @@ int benchmark_test(void *args)
     wc_FreeRng(&rng);
 #endif
 
-#ifdef USE_WOLFSSL_MEMORY
+#if defined(USE_WOLFSSL_MEMORY) && defined(WOLFSSL_TRACK_MEMORY)
     ShowMemoryTracker();
 #endif
 
@@ -428,6 +429,7 @@ static const char blockType[] = "megs"; /* used in printf output */
 
 #ifndef NO_AES
 
+#ifdef HAVE_AES_CBC
 void bench_aes(int show)
 {
     Aes    enc;
@@ -472,8 +474,7 @@ void bench_aes(int show)
     wc_AesFreeCavium(&enc);
 #endif
 }
-#endif
-
+#endif /* HAVE_AES_CBC */
 
 #if defined(HAVE_AESGCM) || defined(HAVE_AESCCM)
     static byte additional[13];
@@ -533,7 +534,8 @@ void bench_aesgcm(void)
     printf("\n");
 #endif
 }
-#endif
+#endif /* HAVE_AESGCM */
+
 
 #ifdef WOLFSSL_AES_COUNTER
 void bench_aesctr(void)
@@ -563,8 +565,7 @@ void bench_aesctr(void)
     SHOW_INTEL_CYCLES
     printf("\n");
 }
-#endif
-
+#endif /* WOLFSSL_AES_COUNTER */
 
 
 #ifdef HAVE_AESCCM
@@ -596,7 +597,8 @@ void bench_aesccm(void)
     SHOW_INTEL_CYCLES
     printf("\n");
 }
-#endif
+#endif /* HAVE_AESCCM */
+#endif /* !NO_AES */
 
 
 #ifdef HAVE_POLY1305

@@ -43,6 +43,7 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
 }
 
 
+#ifdef HAVE_AES_CBC
 int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
 {
     return AesCbcEncrypt_fips(aes, out, in, sz);
@@ -54,6 +55,7 @@ int wc_AesCbcDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
     return AesCbcDecrypt_fips(aes, out, in, sz);
 }
 #endif /* HAVE_AES_DECRYPT */
+#endif /* HAVE_AES_CBC */
 
 /* AES-CTR */
 #ifdef WOLFSSL_AES_COUNTER
@@ -252,12 +254,14 @@ void wc_AesFreeCavium(Aes* aes)
 
     static int  wc_AesCaviumSetKey(Aes* aes, const byte* key, word32 length,
                                 const byte* iv);
+    #ifdef HAVE_AES_CBC
     static int  wc_AesCaviumCbcEncrypt(Aes* aes, byte* out, const byte* in,
                                     word32 length);
     #ifdef HAVE_AES_DECRYPT
     static int  wc_AesCaviumCbcDecrypt(Aes* aes, byte* out, const byte* in,
                                     word32 length);
     #endif /* HAVE_AES_DECRYPT */
+    #endif /* HAVE_AES_CBC */
 #elif defined(WOLFSSL_NRF51_AES)
     /* Use built-in AES hardware - AES 128 ECB Encrypt Only */
     #include "wolfssl/wolfcrypt/port/nrf51.h"
@@ -271,6 +275,7 @@ void wc_AesFreeCavium(Aes* aes)
     #endif /* HAVE_AES_DECRYPT */
 
 #else
+
     /* using wolfCrypt software AES implementation */
     #define NEED_AES_TABLES
 #endif
@@ -996,6 +1001,7 @@ static int haveAESNI  = 0;
 
 /* tell C compiler these are asm functions in case any mix up of ABI underscore
    prefix between clang/gcc/llvm etc */
+#ifdef HAVE_AES_CBC
 void AES_CBC_encrypt(const unsigned char* in, unsigned char* out,
                      unsigned char* ivec, unsigned long length,
                      const unsigned char* KS, int nr)
@@ -1006,8 +1012,9 @@ void AES_CBC_decrypt(const unsigned char* in, unsigned char* out,
                      unsigned char* ivec, unsigned long length,
                      const unsigned char* KS, int nr)
                      XASM_LINK("AES_CBC_decrypt");
-#endif
-
+#endif /* HAVE_AES_DECRYPT */
+#endif /* HAVE_AES_CBC */
+                     
 void AES_ECB_encrypt(const unsigned char* in, unsigned char* out,
                      unsigned long length, const unsigned char* KS, int nr)
                      XASM_LINK("AES_ECB_encrypt");
@@ -1098,6 +1105,8 @@ static int AES_set_decrypt_key(const unsigned char* userKey, const int bits,
 #endif /* HAVE_AES_DECRYPT */
 #endif /* WOLFSSL_AESNI */
 
+#if defined(HAVE_AES_CBC) || defined(WOLFSSL_AES_DIRECT) ||\
+    defined(HAVE_AESGCM)
 
 static void wc_AesEncrypt(Aes* aes, const byte* inBlock, byte* outBlock)
 {
@@ -1277,8 +1286,10 @@ static void wc_AesEncrypt(Aes* aes, const byte* inBlock, byte* outBlock)
     XMEMCPY(outBlock + 2 * sizeof(s0), &s2, sizeof(s2));
     XMEMCPY(outBlock + 3 * sizeof(s0), &s3, sizeof(s3));
 }
+#endif /* HAVE_AES_CBC || WOLFSSL_AES_DIRECT || HAVE_AESGCM */
 
 #ifdef HAVE_AES_DECRYPT
+#if defined(HAVE_AES_CBC) || defined(WOLFSSL_AES_DIRECT)
 static void wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
 {
     word32 s0, s1, s2, s3;
@@ -1438,6 +1449,8 @@ static void wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
     XMEMCPY(outBlock + 3 * sizeof(s0), &s3, sizeof(s3));
 }
 #endif /* HAVE_AES_DECRYPT */
+#endif /* HAVE_AES_CBC || WOLFSSL_AES_DIRECT */
+
 #endif /* NEED_AES_TABLES */
 
 
@@ -1842,6 +1855,7 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
 
 
 /* AES-CBC */
+#ifdef HAVE_AES_CBC
 #ifdef STM32F2_CRYPTO
     int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
     {
@@ -2470,6 +2484,7 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
     #endif
 
 #endif /* STM32F2_CRYPTO, AES-CBC block */
+#endif /* HAVE_AES_CBC */
 
 /* AES-CTR */
 #ifdef WOLFSSL_AES_COUNTER
@@ -4246,7 +4261,7 @@ static int wc_AesCaviumSetKey(Aes* aes, const byte* key, word32 length,
     return wc_AesSetIV(aes, iv);
 }
 
-
+#ifdef HAVE_AES_CBC
 static int wc_AesCaviumCbcEncrypt(Aes* aes, byte* out, const byte* in,
                                word32 length)
 {
@@ -4316,6 +4331,7 @@ static int wc_AesCaviumCbcDecrypt(Aes* aes, byte* out, const byte* in,
     return 0;
 }
 #endif /* HAVE_AES_DECRYPT */
+#endif /* HAVE_AES_CBC */
 
 #endif /* HAVE_CAVIUM */
 

@@ -1075,12 +1075,16 @@ static char *fgets(char *buff, int sz, FILE *fp)
         #define AES_MAX_KEY_SIZE    256
     #endif
     #ifndef NO_AES_DECRYPT
-        #undef HAVE_AES_DECRYPT
+        #undef  HAVE_AES_DECRYPT
         #define HAVE_AES_DECRYPT
     #endif
     #ifndef NO_AES_CBC
         #undef  HAVE_AES_CBC
         #define HAVE_AES_CBC
+    #else
+        #ifndef WOLFCRYPT_ONLY
+            #error "AES CBC is required for TLS and can only be disabled for WOLFCRYPT_ONLY builds"
+        #endif
     #endif
 #endif
 

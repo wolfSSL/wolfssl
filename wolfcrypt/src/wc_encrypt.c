@@ -30,7 +30,7 @@
 #include <wolfssl/wolfcrypt/error-crypt.h>
 
 
-#ifndef NO_AES
+#if !defined(NO_AES) && defined(HAVE_AES_CBC)
 int wc_AesCbcDecryptWithKey(byte* out, const byte* in, word32 inSz,
                                   const byte* key, word32 keySz, const byte* iv)
 {
@@ -84,7 +84,7 @@ int wc_AesCbcEncryptWithKey(byte* out, const byte* in, word32 inSz,
 
     return ret;
 }
-#endif /* !NO_AES */
+#endif /* !NO_AES && HAVE_AES_CBC */
 
 
 #ifndef NO_DES3
