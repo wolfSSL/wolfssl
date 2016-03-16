@@ -123,7 +123,7 @@
         int ret = 0;
         ret = wolfSSL_SetAllocators(TrackMalloc, TrackFree, TrackRealloc);
         if (ret != 0) {
-            WOLFSSL_MSG("wolfSSL SetAllocators failed for track memory");
+            printf("wolfSSL SetAllocators failed for track memory\n");
             return ret;
         }
 

@@ -1379,7 +1379,7 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 
         /* Make sure RNG is running */
         err_code = nrf_drv_rng_init(NULL);
-        if (NRF_SUCCESS != NRF_SUCCESS && err_code != NRF_ERROR_INVALID_STATE) {
+        if (err_code != NRF_SUCCESS && err_code != NRF_ERROR_INVALID_STATE) {
             return -1;
         }
 

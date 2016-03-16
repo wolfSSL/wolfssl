@@ -68,7 +68,7 @@ int nrf51_random_generate(byte* output, word32 size)
 
     /* Make sure RNG is running */
     err_code = nrf_drv_rng_init(NULL);
-    if (NRF_SUCCESS != NRF_SUCCESS && err_code != NRF_ERROR_INVALID_STATE) {
+    if (err_code != NRF_SUCCESS && err_code != NRF_ERROR_INVALID_STATE) {
         return -1;
     }
 
@@ -113,13 +113,17 @@ int nrf51_aes_set_key(const byte* key)
 
 int nrf51_aes_encrypt(const byte* in, const byte* key, word32 rounds, byte* out)
 {
+    int ret;
     uint32_t err_code = 0;
 #ifdef SOFTDEVICE_PRESENT
     nrf_ecb_hal_data_t ecb_hal_data;
 #endif
 
     /* Set key */
-    nrf51_aes_set_key(key);
+    ret = nrf51_aes_set_key(key);
+    if (ret != 0) {
+        return ret;
+    }
 
 #ifdef SOFTDEVICE_PRESENT
     /* Define ECB record */

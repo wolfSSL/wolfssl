@@ -1124,7 +1124,7 @@ static void wc_AesEncrypt(Aes* aes, const byte* inBlock, byte* outBlock)
             printf("sz = %d\n", AES_BLOCK_SIZE);
         #endif
 
-        /* check alignment, encrypt doesn't need alignment */
+        /* check alignment, decrypt doesn't need alignment */
         if ((wolfssl_word)inBlock % 16) {
         #ifndef NO_WOLFSSL_ALLOC_ALIGN
             byte* tmp = (byte*)XMALLOC(AES_BLOCK_SIZE, NULL,
@@ -1746,24 +1746,26 @@ static void wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
     int wc_AesSetKey(Aes* aes, const byte* userKey, word32 keylen, const byte* iv,
                   int dir)
     {
+    #if defined(AES_MAX_KEY_SIZE)
+        const word32 max_key_len = (AES_MAX_KEY_SIZE / 8);
+    #endif
 
         if (!((keylen == 16) || (keylen == 24) || (keylen == 32)))
             return BAD_FUNC_ARG;
 
+    #if defined(AES_MAX_KEY_SIZE)
         /* Check key length */
-        #if defined(AES_MAX_KEY_SIZE)
-            const word32 max_key_len = (AES_MAX_KEY_SIZE / 8);
-            if (keylen > max_key_len) {
-                return BAD_FUNC_ARG;
-            }
-        #endif
+        if (keylen > max_key_len) {
+            return BAD_FUNC_ARG;
+        }
+    #endif
 
-        #ifdef HAVE_CAVIUM
+    #ifdef HAVE_CAVIUM
         if (aes->magic == WOLFSSL_AES_CAVIUM_MAGIC)
             return wc_AesCaviumSetKey(aes, userKey, keylen, iv);
-        #endif
+    #endif
 
-        #ifdef WOLFSSL_AESNI
+    #ifdef WOLFSSL_AESNI
         if (checkAESNI == 0) {
             haveAESNI  = Check_CPU_support_AES();
             checkAESNI = 1;
@@ -1779,7 +1781,7 @@ static void wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
                 return AES_set_decrypt_key(userKey, keylen * 8, aes);
         #endif
         }
-        #endif /* WOLFSSL_AESNI */
+    #endif /* WOLFSSL_AESNI */
 
         return wc_AesSetKeyLocal(aes, userKey, keylen, iv, dir);
     }
@@ -2359,41 +2361,6 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
         return 0 ;
     }
     #endif /* HAVE_AES_DECRYPT */
-#elif defined(WOLFSSL_NRF51_AES)
-    int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
-    {
-        int i, ret;
-        int offset = 0;
-        int len = sz;
-
-        byte *iv;
-        byte temp_block[AES_BLOCK_SIZE];
-
-        iv      = (byte*)aes->reg;
-
-        while (len > 0)
-        {
-            XMEMCPY(temp_block, in + offset, AES_BLOCK_SIZE);
-
-            /* XOR block with IV for CBC */
-            for (i = 0; i < AES_BLOCK_SIZE; i++) {
-                temp_block[i] ^= iv[i];
-            }
-
-            ret = wc_AesEncrypt(aes, temp_block, out + offset);
-            if (ret != 0) {
-                return ret;
-            }
-
-            len    -= AES_BLOCK_SIZE;
-            offset += AES_BLOCK_SIZE;
-
-            /* store IV for next block */
-            XMEMCPY(iv, out + offset - AES_BLOCK_SIZE, AES_BLOCK_SIZE);
-        }
-
-        return 0;
-    }
 
 #else
     int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
