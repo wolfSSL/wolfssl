@@ -421,8 +421,25 @@ static int wc_RsaPad_OAEP(const byte* input, word32 inputLen, byte* pkcsBlock,
         return ret;
     }
 
-    /* handles check of location for idx as well as psLen */
+    /* handles check of location for idx as well as psLen, cast to int to check
+       for pkcsBlockLen(k) - 2 * hLen - 2 being negative
+       This check is similar to decryption where k > 2 * hLen + 2 as msg
+       size aproaches 0. In decryption if k is less than or equal -- then there
+       is no possible room for msg.
+       k = RSA key size
+       hLen = hash digest size -- will always be >= 0 at this point
+     */
+    if ((word32)(2 * hLen + 2) > pkcsBlockLen) {
+        WOLFSSL_MSG("OAEP pad error hash to big for RSA key size");
+        #ifdef WOLFSSL_SMALL_STACK
+            XFREE(lHash, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(seed,  NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        #endif
+        return BAD_FUNC_ARG;
+    }
+
     if (inputLen > (pkcsBlockLen - 2 * hLen - 2)) {
+        WOLFSSL_MSG("OAEP pad error message too long");
         #ifdef WOLFSSL_SMALL_STACK
             XFREE(lHash, NULL, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(seed,  NULL, DYNAMIC_TYPE_TMP_BUFFER);

@@ -4195,24 +4195,30 @@ int rsa_test(void)
     #endif /* NO_SHA256 */
 
     #ifdef WOLFSSL_SHA512
-    XMEMSET(plain, 0, sizeof(plain));
-    ret = wc_RsaPublicEncrypt_ex(in, inLen, out, sizeof(out), &key, &rng,
+    /* Check valid RSA key size is used while using hash length of SHA512
+       If key size is less than (hash length * 2) + 2 then is invalid use
+       and test, since OAEP padding requires this.
+       BAD_FUNC_ARG is returned when this case is not met */
+    if (wc_RsaEncryptSize(&key) > ((int)SHA512_DIGEST_SIZE * 2) + 2) {
+        XMEMSET(plain, 0, sizeof(plain));
+        ret = wc_RsaPublicEncrypt_ex(in, inLen, out, sizeof(out), &key, &rng,
                   WC_RSA_OAEP_PAD, WC_HASH_TYPE_SHA512, WC_MGF1SHA512, NULL, 0);
-    if (ret < 0) {
-        free(tmp);
-        return -343;
-    }
-    ret = wc_RsaPrivateDecrypt_ex(out, ret, plain, sizeof(plain), &key,
+        if (ret < 0) {
+            free(tmp);
+            return -343;
+        }
+        ret = wc_RsaPrivateDecrypt_ex(out, ret, plain, sizeof(plain), &key,
                   WC_RSA_OAEP_PAD, WC_HASH_TYPE_SHA512, WC_MGF1SHA512, NULL, 0);
-    if (ret < 0) {
-        free(tmp);
-        return -344;
+        if (ret < 0) {
+            free(tmp);
+            return -344;
+        }
+        if (XMEMCMP(plain, in, inLen)) {
+            free(tmp);
+            return -345;
+        }
     }
-    if (XMEMCMP(plain, in, inLen)) {
-        free(tmp);
-        return -345;
-    }
-    #endif /* NO_SHA */
+    #endif /* WOLFSSL_SHA512 */
 
     /* check using pkcsv15 padding with _ex API */
     XMEMSET(plain, 0, sizeof(plain));
