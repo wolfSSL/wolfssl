@@ -267,10 +267,7 @@ void wc_AesFreeCavium(Aes* aes)
         return nrf51_aes_encrypt(inBlock, (byte*)aes->key, aes->rounds, outBlock);
     }
     #ifdef HAVE_AES_DECRYPT
-    static int wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
-    {
-        return nrf51_aes_decrypt(inBlock, (byte*)aes->key, aes->rounds, outBlock);
-    }
+        #error nRF51 AES Hardware does not support decrypt
     #endif /* HAVE_AES_DECRYPT */
 
 #else

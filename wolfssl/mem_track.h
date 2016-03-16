@@ -120,9 +120,8 @@
 
     static INLINE int InitMemoryTracker(void)
     {
-        int ret = 0;
-        ret = wolfSSL_SetAllocators(TrackMalloc, TrackFree, TrackRealloc);
-        if (ret != 0) {
+        int ret = wolfSSL_SetAllocators(TrackMalloc, TrackFree, TrackRealloc);
+        if (ret < 0) {
             printf("wolfSSL SetAllocators failed for track memory\n");
             return ret;
         }

@@ -3607,6 +3607,7 @@ static int random_rng_test(void)
         ret = -38;
         goto exit;
     }
+    ret = 0;
 
 exit:
     /* Make sure and free RNG */
@@ -6443,7 +6444,7 @@ int ecc_test(void)
         ecc192.S  = "02ba6465a234903744ab02bc8521405b73cf5fc00e1a9f41";
         ecc192.curveName = "ECC-192";
         ret = ecc_test_raw_vector(&ecc192, &userA, sig, sizeof(sig));
-        if (ret != 0) {
+        if (ret < 0) {
             return ret;
         }
     }
@@ -6475,7 +6476,7 @@ int ecc_test(void)
         ecc224.S  = "24fc7ed7f1352ca3872aa0916191289e2e04d454935d50fe6af3ad5b";
         ecc224.curveName = "ECC-224";
         ret = ecc_test_raw_vector(&ecc224, &userA, sig, sizeof(sig));
-        if (ret != 0) {
+        if (ret < 0) {
             return ret;
         }
     }
@@ -6507,7 +6508,7 @@ int ecc_test(void)
         ecc256.S  = "a2248b62c03db35a7cd63e8a120a3521a89d3d2f61ff99035a2148ae32e3a248";
         ecc256.curveName = "nistp256";
         ret = ecc_test_raw_vector(&ecc256, &userA, sig, sizeof(sig));
-        if (ret != 0) {
+        if (ret < 0) {
             return ret;
         }
     }
@@ -6539,7 +6540,7 @@ int ecc_test(void)
         ecc384.S  = "491af1d0cccd56ddd520b233775d0bc6b40a6255cc55207d8e9356741f23c96c14714221078dbd5c17f4fdd89b32a907";
         ecc384.curveName = "nistp384";
         ret = ecc_test_raw_vector(&ecc384, &userA, sig, sizeof(sig));
-        if (ret != 0) {
+        if (ret < 0) {
             return ret;
         }
     }
@@ -6571,7 +6572,7 @@ int ecc_test(void)
         ecc521.S  = "019cd2c5c3f9870ecdeb9b323abdf3a98cd5e231d85c6ddc5b71ab190739f7f226e6b134ba1d5889ddeb2751dabd97911dff90c34684cdbe7bb669b6c3d22f2480c";
         ecc521.curveName = "nistp521";
         ret = ecc_test_raw_vector(&ecc521, &userA, sig, sizeof(sig));
-        if (ret != 0) {
+        if (ret < 0) {
             return ret;
         }
     }
