@@ -30,12 +30,20 @@
     extern "C" {
 #endif
 
+/* Size of the IV */
+#define CHACHA_IV_WORDS    3
+#define CHACHA_IV_BYTES    (CHACHA_IV_WORDS * sizeof(word32))
+
+/* Size of ChaCha chunks */
+#define CHACHA_CHUNK_WORDS 16
+#define CHACHA_CHUNK_BYTES (CHACHA_CHUNK_WORDS * sizeof(word32))
+
 enum {
 	CHACHA_ENC_TYPE = 7     /* cipher unique type */
 };
 
 typedef struct ChaCha {
-    word32 X[16];           /* state of cipher */
+    word32 X[CHACHA_CHUNK_WORDS];           /* state of cipher */
 } ChaCha;
 
 /**
