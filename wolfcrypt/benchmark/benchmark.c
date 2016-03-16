@@ -118,7 +118,7 @@
 #ifdef HAVE_BLAKE2
     #include <wolfssl/wolfcrypt/blake2.h>
     void bench_blake2(void);
-#endif 
+#endif
 
 #ifdef _MSC_VER
     /* 4996 warning to use MS extensions e.g., strcpy_s instead of strncpy */
@@ -126,6 +126,10 @@
 #endif
 
 #include "wolfcrypt/benchmark/benchmark.h"
+
+#ifdef USE_WOLFSSL_MEMORY
+    #include "wolfssl/mem_track.h"
+#endif
 
 void bench_des(void);
 void bench_idea(void);
@@ -156,9 +160,11 @@ void bench_eccKeyGen(void);
 void bench_eccKeyAgree(void);
 #endif
 #ifdef HAVE_CURVE25519
-void bench_curve25519KeyGen(void);
-void bench_curve25519KeyAgree(void);
-#endif
+    void bench_curve25519KeyGen(void);
+    #ifdef HAVE_CURVE25519_SHARED_SECRET
+        void bench_curve25519KeyAgree(void);
+    #endif /* HAVE_CURVE25519_SHARED_SECRET */
+#endif /* HAVE_CURVE25519 */
 #ifdef HAVE_ED25519
 void bench_ed25519KeyGen(void);
 void bench_ed25519KeySign(void);
@@ -245,9 +251,13 @@ int main(int argc, char** argv)
     (void)argc;
     (void)argv;
 #else
-int benchmark_test(void *args) 
+int benchmark_test(void *args)
 {
     (void)args;
+#endif
+
+#if defined(USE_WOLFSSL_MEMORY) && defined(WOLFSSL_TRACK_MEMORY)
+    InitMemoryTracker();
 #endif
 
     wolfCrypt_Init();
@@ -280,20 +290,21 @@ int benchmark_test(void *args)
 #endif
 
 #ifndef NO_AES
+#ifdef HAVE_AES_CBC
     bench_aes(0);
     bench_aes(1);
 #endif
 #ifdef HAVE_AESGCM
     bench_aesgcm();
 #endif
-
 #ifdef WOLFSSL_AES_COUNTER
     bench_aesctr();
 #endif
-
 #ifdef HAVE_AESCCM
     bench_aesccm();
 #endif
+#endif /* !NO_AES */
+
 #ifdef HAVE_CAMELLIA
     bench_camellia();
 #endif
@@ -318,7 +329,7 @@ int benchmark_test(void *args)
 #ifdef HAVE_IDEA
     bench_idea();
 #endif
-    
+
     printf("\n");
 
 #ifndef NO_MD5
@@ -375,7 +386,9 @@ int benchmark_test(void *args)
 
 #ifdef HAVE_CURVE25519
     bench_curve25519KeyGen();
-    bench_curve25519KeyAgree();
+    #ifdef HAVE_CURVE25519_SHARED_SECRET
+        bench_curve25519KeyAgree();
+    #endif
 #endif
 
 #ifdef HAVE_ED25519
@@ -385,6 +398,10 @@ int benchmark_test(void *args)
 
 #if defined(HAVE_LOCAL_RNG)
     wc_FreeRng(&rng);
+#endif
+
+#if defined(USE_WOLFSSL_MEMORY) && defined(WOLFSSL_TRACK_MEMORY)
+    ShowMemoryTracker();
 #endif
 
     return 0;
@@ -412,6 +429,7 @@ static const char blockType[] = "megs"; /* used in printf output */
 
 #ifndef NO_AES
 
+#ifdef HAVE_AES_CBC
 void bench_aes(int show)
 {
     Aes    enc;
@@ -456,8 +474,7 @@ void bench_aes(int show)
     wc_AesFreeCavium(&enc);
 #endif
 }
-#endif
-
+#endif /* HAVE_AES_CBC */
 
 #if defined(HAVE_AESGCM) || defined(HAVE_AESCCM)
     static byte additional[13];
@@ -517,7 +534,8 @@ void bench_aesgcm(void)
     printf("\n");
 #endif
 }
-#endif
+#endif /* HAVE_AESGCM */
+
 
 #ifdef WOLFSSL_AES_COUNTER
 void bench_aesctr(void)
@@ -547,8 +565,7 @@ void bench_aesctr(void)
     SHOW_INTEL_CYCLES
     printf("\n");
 }
-#endif
-
+#endif /* WOLFSSL_AES_COUNTER */
 
 
 #ifdef HAVE_AESCCM
@@ -580,7 +597,8 @@ void bench_aesccm(void)
     SHOW_INTEL_CYCLES
     printf("\n");
 }
-#endif
+#endif /* HAVE_AESCCM */
+#endif /* !NO_AES */
 
 
 #ifdef HAVE_POLY1305
@@ -740,7 +758,7 @@ void bench_arc4(void)
     Arc4   enc;
     double start, total, persec;
     int    i;
-    
+
 #ifdef HAVE_CAVIUM
     if (wc_Arc4InitCavium(&enc, CAVIUM_DEV_ID) != 0)
         printf("arc4 init cavium failed\n");
@@ -778,7 +796,7 @@ void bench_hc128(void)
     HC128  enc;
     double start, total, persec;
     int    i;
-    
+
     wc_Hc128_SetKey(&enc, key, iv);
     start = current_time(1);
     BEGIN_INTEL_CYCLES
@@ -808,7 +826,7 @@ void bench_rabbit(void)
     Rabbit  enc;
     double start, total, persec;
     int    i;
-    
+
     wc_RabbitSetKey(&enc, key, iv);
     start = current_time(1);
     BEGIN_INTEL_CYCLES
@@ -912,7 +930,7 @@ void bench_md5(void)
 
     for(i = 0; i < numBlocks; i++)
         wc_Md5Update(&hash, plain, sizeof(plain));
-   
+
     wc_Md5Final(&hash, digest);
 
     END_INTEL_CYCLES
@@ -938,7 +956,7 @@ void bench_sha(void)
     byte   digest[SHA_DIGEST_SIZE];
     double start, total, persec;
     int    i, ret;
-        
+
     ret = wc_InitSha(&hash);
     if (ret != 0) {
         printf("InitSha failed, ret = %d\n", ret);
@@ -946,10 +964,10 @@ void bench_sha(void)
     }
     start = current_time(1);
     BEGIN_INTEL_CYCLES
-    
+
     for(i = 0; i < numBlocks; i++)
         wc_ShaUpdate(&hash, plain, sizeof(plain));
-   
+
     wc_ShaFinal(&hash, digest);
 
     END_INTEL_CYCLES
@@ -1065,7 +1083,7 @@ void bench_sha512(void)
     byte   digest[SHA512_DIGEST_SIZE];
     double start, total, persec;
     int    i, ret;
-        
+
     ret = wc_InitSha512(&hash);
     if (ret != 0) {
         printf("InitSha512 failed, ret = %d\n", ret);
@@ -1073,7 +1091,7 @@ void bench_sha512(void)
     }
     start = current_time(1);
     BEGIN_INTEL_CYCLES
-    
+
     for(i = 0; i < numBlocks; i++) {
         ret = wc_Sha512Update(&hash, plain, sizeof(plain));
         if (ret != 0) {
@@ -1110,14 +1128,14 @@ void bench_ripemd(void)
     byte   digest[RIPEMD_DIGEST_SIZE];
     double start, total, persec;
     int    i;
-        
+
     wc_InitRipeMd(&hash);
     start = current_time(1);
     BEGIN_INTEL_CYCLES
-    
+
     for(i = 0; i < numBlocks; i++)
         wc_RipeMdUpdate(&hash, plain, sizeof(plain));
-   
+
     wc_RipeMdFinal(&hash, digest);
 
     END_INTEL_CYCLES
@@ -1143,7 +1161,7 @@ void bench_blake2(void)
     byte    digest[64];
     double  start, total, persec;
     int     i, ret;
-       
+
     ret = wc_InitBlake2b(&b2b, 64);
     if (ret != 0) {
         printf("InitBlake2b failed, ret = %d\n", ret);
@@ -1151,7 +1169,7 @@ void bench_blake2(void)
     }
     start = current_time(1);
     BEGIN_INTEL_CYCLES
-    
+
     for(i = 0; i < numBlocks; i++) {
         ret = wc_Blake2bUpdate(&b2b, plain, sizeof(plain));
         if (ret != 0) {
@@ -1159,7 +1177,7 @@ void bench_blake2(void)
             return;
         }
     }
-   
+
     ret = wc_Blake2bFinal(&b2b, digest, 64);
     if (ret != 0) {
         printf("Blake2bFinal failed, ret = %d\n", ret);
@@ -1327,7 +1345,7 @@ void bench_dh(void)
     #error "need to define a cert buffer size"
 #endif /* USE_CERT_BUFFERS */
 
-		
+
     wc_InitDhKey(&dhKey);
 #ifdef NO_ASN
     bytes = wc_DhSetKey(&dhKey, dh_p, sizeof(dh_p), dh_g, sizeof(dh_g));
@@ -1374,12 +1392,12 @@ void bench_rsaKeyGen(void)
     RsaKey genKey;
     double start, total, each, milliEach;
     int    i;
-  
-    /* 1024 bit */ 
+
+    /* 1024 bit */
     start = current_time(1);
 
     for(i = 0; i < genTimes; i++) {
-        wc_InitRsaKey(&genKey, 0); 
+        wc_InitRsaKey(&genKey, 0);
         wc_MakeRsaKey(&genKey, 1024, 65537, &rng);
         wc_FreeRsaKey(&genKey);
     }
@@ -1395,7 +1413,7 @@ void bench_rsaKeyGen(void)
     start = current_time(1);
 
     for(i = 0; i < genTimes; i++) {
-        wc_InitRsaKey(&genKey, 0); 
+        wc_InitRsaKey(&genKey, 0);
         wc_MakeRsaKey(&genKey, 2048, 65537, &rng);
         wc_FreeRsaKey(&genKey);
     }
@@ -1647,8 +1665,8 @@ void bench_eccKeyGen(void)
     ecc_key genKey;
     double start, total, each, milliEach;
     int    i;
-  
-    /* 256 bit */ 
+
+    /* 256 bit */
     start = current_time(1);
 
     for(i = 0; i < genTimes; i++) {
@@ -1672,7 +1690,7 @@ void bench_eccKeyAgree(void)
     double start, total, each, milliEach;
     int    i, ret;
     byte   shared[32];
-#ifndef NO_ASN
+#if !defined(NO_ASN) && !defined(NO_ECC_SIGN)
     byte   sig[64+16];  /* der encoding too */
 #endif
     byte   digest[32];
@@ -1715,7 +1733,7 @@ void bench_eccKeyAgree(void)
         digest[i] = (byte)i;
 
 
-#ifndef NO_ASN
+#if !defined(NO_ASN) && !defined(NO_ECC_SIGN)
     start = current_time(1);
 
     for(i = 0; i < agreeTimes; i++) {
@@ -1723,7 +1741,7 @@ void bench_eccKeyAgree(void)
         ret = wc_ecc_sign_hash(digest, sizeof(digest), sig, &x, &rng, &genKey);
         if (ret != 0) {
             printf("ecc_sign_hash failed\n");
-            return; 
+            return;
         }
     }
 
@@ -1740,7 +1758,7 @@ void bench_eccKeyAgree(void)
         ret = wc_ecc_verify_hash(sig, x, digest, sizeof(digest), &verify, &genKey);
         if (ret != 0) {
             printf("ecc_verify_hash failed\n");
-            return; 
+            return;
         }
     }
 #endif
@@ -1779,7 +1797,7 @@ void bench_curve25519KeyGen(void)
            " iterations\n", milliEach, genTimes);
 }
 
-
+#ifdef HAVE_CURVE25519_SHARED_SECRET
 void bench_curve25519KeyAgree(void)
 {
     curve25519_key genKey, genKey2;
@@ -1823,6 +1841,7 @@ void bench_curve25519KeyAgree(void)
     wc_curve25519_free(&genKey2);
     wc_curve25519_free(&genKey);
 }
+#endif /* HAVE_CURVE25519_SHARED_SECRET */
 #endif /* HAVE_CURVE25519 */
 
 #ifdef HAVE_ED25519
@@ -1852,12 +1871,15 @@ void bench_ed25519KeyGen(void)
 
 void bench_ed25519KeySign(void)
 {
+    int    ret;
     ed25519_key genKey;
+#ifdef HAVE_ED25519_SIGN
     double start, total, each, milliEach;
-    int    i, ret;
+    int    i;
     byte   sig[ED25519_SIG_SIZE];
     byte   msg[512];
     word32 x = 0;
+#endif
 
     wc_ed25519_init(&genKey);
 
@@ -1866,10 +1888,11 @@ void bench_ed25519KeySign(void)
         printf("ed25519_make_key failed\n");
         return;
     }
+
+#ifdef HAVE_ED25519_SIGN
     /* make dummy msg */
     for (i = 0; i < (int)sizeof(msg); i++)
         msg[i] = (byte)i;
-
 
     start = current_time(1);
 
@@ -1888,6 +1911,7 @@ void bench_ed25519KeySign(void)
     printf("ED25519  sign   time     %6.3f milliseconds, avg over %d"
            " iterations\n", milliEach, agreeTimes);
 
+#ifdef HAVE_ED25519_VERIFY
     start = current_time(1);
 
     for(i = 0; i < agreeTimes; i++) {
@@ -1905,6 +1929,8 @@ void bench_ed25519KeySign(void)
     milliEach = each * 1000;     /* milliseconds */
     printf("ED25519  verify time     %6.3f milliseconds, avg over %d"
            " iterations\n", milliEach, agreeTimes);
+#endif /* HAVE_ED25519_VERIFY */
+#endif /* HAVE_ED25519_SIGN */
 
     wc_ed25519_free(&genKey);
 }
@@ -1920,7 +1946,7 @@ void bench_ed25519KeySign(void)
     {
         static int init = 0;
         static LARGE_INTEGER freq;
-    
+
         LARGE_INTEGER count;
 
         (void)reset;
@@ -1960,7 +1986,7 @@ void bench_ed25519KeySign(void)
 
 #elif defined(WOLFSSL_IAR_ARM_TIME) || defined (WOLFSSL_MDK_ARM) || defined(WOLFSSL_USER_CURRTIME)
     extern   double current_time(int reset);
-    
+
 #elif defined FREERTOS
 
     double current_time(int reset)

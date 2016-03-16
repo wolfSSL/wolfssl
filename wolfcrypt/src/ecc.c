@@ -65,6 +65,7 @@ ECC Curves:
 #include <wolfssl/openssl/ec.h>
 #include <wolfssl/wolfcrypt/asn.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
+#include <wolfssl/wolfcrypt/logging.h>
 
 #ifdef HAVE_ECC_ENCRYPT
     #include <wolfssl/wolfcrypt/hmac.h>
@@ -3017,7 +3018,8 @@ int wc_ecc_import_x963(const byte* in, word32 inLen, ecc_key* key)
          }
       }
       if (ecc_sets[x].size == 0) {
-         err = ASN_PARSE_E;
+          WOLFSSL_MSG("ecc_set size not found");
+          err = ASN_PARSE_E;
       } else {
           /* set the idx */
           key->idx  = x;
@@ -3257,6 +3259,7 @@ int wc_ecc_import_raw(ecc_key* key, const char* qx, const char* qy,
             }
         }
         if (ecc_sets[x].size == 0) {
+            WOLFSSL_MSG("ecc_set curve name not found");
             err = ASN_PARSE_E;
         } else {
             /* set the curve */
@@ -5278,6 +5281,7 @@ int wc_ecc_decrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
 
     if (ret == 0) {
        switch (ctx->encAlgo) {
+    #ifdef HAVE_AES_CBC
            case ecAES_128_CBC:
                {
                    Aes aes;
@@ -5288,7 +5292,7 @@ int wc_ecc_decrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
                    ret = wc_AesCbcDecrypt(&aes, out, msg, msgSz-digestSz);
                }
                break;
-
+    #endif
            default:
                ret = BAD_FUNC_ARG;
                break;

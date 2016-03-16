@@ -162,8 +162,8 @@ Release 3.6.0 of wolfSSL has bug fixes and new features including:
 - ECC make key crash fix on RNG failure, ECC users must update.
 - Improvements to usage of time code.
 - Improvements to VS solution files.
-- GNU Binutils 2.24 ld has problems with some debug builds, to fix an ld error
-  add -fdebug-types-section to C_EXTRA_FLAGS
+- GNU Binutils 2.24 (and late 2.23) ld has problems with some debug builds,
+  to fix an ld error add C_EXTRA_FLAGS="-fdebug-types-section -g1".
 
 - No high level security fixes that requires an update though we always
   recommend updating to the latest (except note 14, ecc RNG failure)

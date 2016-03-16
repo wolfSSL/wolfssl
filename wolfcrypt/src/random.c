@@ -1366,6 +1366,42 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
         return 0;
     }
 
+#elif defined(WOLFSSL_NRF51)
+    #include "app_error.h"
+    #include "nrf_drv_rng.h"
+    int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
+    {
+        int remaining = sz, length, pos = 0;
+        uint8_t available;
+        uint32_t err_code;
+
+        (void)os;
+
+        /* Make sure RNG is running */
+        err_code = nrf_drv_rng_init(NULL);
+        if (err_code != NRF_SUCCESS && err_code != NRF_ERROR_INVALID_STATE) {
+            return -1;
+        }
+
+        while (remaining > 0) {
+            err_code = nrf_drv_rng_bytes_available(&available);
+            if (err_code == NRF_SUCCESS) {
+                length = (remaining < available) ? remaining : available;
+                if (length > 0) {
+                    err_code = nrf_drv_rng_rand(&output[pos], length);
+                    remaining -= length;
+                    pos += length;
+                }
+            }
+
+            if (err_code != NRF_SUCCESS) {
+                break;
+            }
+        }
+
+        return (err_code == NRF_SUCCESS) ? 0 : -1;
+    }
+
 #elif defined(CUSTOM_RAND_GENERATE)
 
    /* Implement your own random generation function
