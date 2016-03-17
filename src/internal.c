@@ -2106,7 +2106,7 @@ int DhAgree(WOLFSSL* ssl,
 {
     int ret;
     DhKey dhKey;
-    
+
 #if defined(WOLFSSL_ASYNC_CRYPT_TEST)
     if (ssl->options.side == WOLFSSL_SERVER_END &&
         ssl->asyncCryptTest.type == ASYNC_TEST_NONE)
@@ -13408,7 +13408,7 @@ static word32 QSH_KeyExchangeWrite(WOLFSSL* ssl, byte isServer)
                     XMEMCPY(es, ssl->arrays->client_identity, esSz);
                     es += esSz;
                     encSz = esSz + OPAQUE16_LEN;
-                    
+
                     ret = DhAgree(ssl,
                         serverP.buffer, serverP.length,
                         serverG.buffer, serverG.length,
@@ -15065,7 +15065,6 @@ int DoSessionTicket(WOLFSSL* ssl,
                 #if !defined(NO_DH) && !defined(NO_RSA)
                     case diffie_hellman_kea:
                     {
-                        int typeH = 0;
                         enum wc_HashType hashType = WC_HASH_TYPE_NONE;
 
                         idx = RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ;
@@ -15173,28 +15172,24 @@ int DoSessionTicket(WOLFSSL* ssl,
                                 case sha512_mac:
                                     #ifdef WOLFSSL_SHA512
                                         hashType = WC_HASH_TYPE_SHA512;
-                                        typeH    = SHA512h;
                                     #endif
                                     break;
 
                                 case sha384_mac:
                                     #ifdef WOLFSSL_SHA384
                                         hashType = WC_HASH_TYPE_SHA384;
-                                        typeH    = SHA384h;
                                     #endif
                                     break;
 
                                 case sha256_mac:
                                     #ifndef NO_SHA256
                                         hashType = WC_HASH_TYPE_SHA256;
-                                        typeH    = SHA256h;
                                     #endif
                                     break;
 
                                 case sha_mac:
                                     #ifndef NO_OLD_TLS
                                         hashType = WC_HASH_TYPE_SHA;
-                                        typeH    = SHAh;
                                     #endif
                                     break;
 
@@ -15256,10 +15251,36 @@ int DoSessionTicket(WOLFSSL* ssl,
                             {
                                 /* For TLS 1.2 re-encode signature */
                                 if (IsAtLeastTLSv1_2(ssl)) {
+                                    int typeH = 0;
                                     byte* encodedSig = (byte*)XMALLOC(MAX_ENCODED_SIG_SZ, NULL,
                                                                       DYNAMIC_TYPE_TMP_BUFFER);
                                     if (encodedSig == NULL) {
                                         ERROR_OUT(MEMORY_E, exit_sske);
+                                    }
+                                    
+                                    switch (ssl->suites->hashAlgo) {
+                                        case sha512_mac:
+                                            #ifdef WOLFSSL_SHA512
+                                                typeH    = SHA512h;
+                                            #endif
+                                            break;
+                                        case sha384_mac:
+                                            #ifdef WOLFSSL_SHA384
+                                                typeH    = SHA384h;
+                                            #endif
+                                            break;
+                                        case sha256_mac:
+                                            #ifndef NO_SHA256
+                                                typeH    = SHA256h;
+                                            #endif
+                                            break;
+                                        case sha_mac:
+                                            #ifndef NO_OLD_TLS
+                                                typeH    = SHAh;
+                                            #endif
+                                            break;
+                                        default:
+                                            break;
                                     }
 
                                     ssl->buffers.sig.length = wc_EncodeSignature(encodedSig,
@@ -17120,7 +17141,7 @@ int DoSessionTicket(WOLFSSL* ssl,
                         if ((idx - begin) + clientPubSz > size) {
                             ERROR_OUT(BUFFER_ERROR, exit_dcke);
                         }
-                        
+
                         ret = DhAgree(ssl,
                             ssl->buffers.serverDH_P.buffer,
                             ssl->buffers.serverDH_P.length,
