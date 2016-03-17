@@ -6268,6 +6268,14 @@ static int ecc_test_raw_vector(const rawEccVector* vector, ecc_key* userA,
 }
 #endif /* HAVE_ECC_VECTOR_TEST */
 
+#undef  ECC_TEST_KEY_SIZE
+#define ECC_TEST_KEY_SIZE       32
+#define ECC_TEST_VERIFY_COUNT   1
+#ifdef FP_ECC
+    #undef  ECC_TEST_VERIFY_COUNT
+    #define ECC_TEST_VERIFY_COUNT   2
+    #define ECC_TEST_VERIFY_ZERO
+#endif
 int ecc_test(void)
 {
     WC_RNG  rng;
@@ -6314,7 +6322,7 @@ int ecc_test(void)
     wc_ecc_init(&userB);
     wc_ecc_init(&pubKey);
 
-    ret = wc_ecc_make_key(&rng, 32, &userA);
+    ret = wc_ecc_make_key(&rng, ECC_TEST_KEY_SIZE, &userA);
     if (ret != 0)
         return -1014;
 
@@ -6322,7 +6330,7 @@ int ecc_test(void)
     if (ret != 0)
         return -1024;
 
-    ret = wc_ecc_make_key(&rng, 32, &userB);
+    ret = wc_ecc_make_key(&rng, ECC_TEST_KEY_SIZE, &userB);
     if (ret != 0)
         return -1002;
 
@@ -6398,8 +6406,13 @@ int ecc_test(void)
 
 #ifdef HAVE_ECC_SIGN
     /* test DSA sign hash */
-    for (i = 0; i < (int)sizeof(digest); i++)
+    for (i = 0; i < (int)sizeof(digest); i++) {
+    #ifdef ECC_TEST_VERIFY_ZERO
+        digest[i] = 0;
+    #else
         digest[i] = (byte)i;
+    #endif
+    }
 
     x = sizeof(sig);
     ret = wc_ecc_sign_hash(digest, sizeof(digest), sig, &x, &rng, &userA);
@@ -6408,12 +6421,14 @@ int ecc_test(void)
         return -1014;
 
 #ifdef HAVE_ECC_VERIFY
-    verify = 0;
-    ret = wc_ecc_verify_hash(sig, x, digest, sizeof(digest), &verify, &userA);
-    if (ret != 0)
-        return -1015;
-    if (verify != 1)
-        return -1016;
+    for (i=0; i<ECC_TEST_VERIFY_COUNT; i++) {
+        verify = 0;
+        ret = wc_ecc_verify_hash(sig, x, digest, sizeof(digest), &verify, &userA);
+        if (ret != 0)
+            return -1015;
+        if (verify != 1)
+            return -1016;
+    }
 #endif /* HAVE_ECC_VERIFY */
 #endif /* HAVE_ECC_SIGN */
 
