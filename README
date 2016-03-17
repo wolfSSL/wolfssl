@@ -35,6 +35,41 @@ before calling wolfSSL_new();  Though it's not recommended.
 *** end Notes ***
 
 
+ ********* wolfSSL (Formerly CyaSSL) Release 3.9.0 (3/18/2016)
+
+Release 3.9.0 of wolfSSL has bug fixes and new features including:
+
+- Add new leantls configuration
+- Add RSA OAEP padding at wolfCrypt level
+- Add Arduino port and example client
+- Add fixed point DH operation
+- Add CUSTOM_RAND_GENRATE_SEED_OS and CUSTOM_RAND_GENERATE_BLOCK
+- Add ECDHE-PSK cipher suites
+- Add PSK ChaCha20-Poly1305 cipher suites
+- Add option for fail on no peer cert except PSK suites
+- Add port for Nordic nRF51
+- Add additional ECC NIST test vectors for 256, 384 and 521
+- Add more granular ECC, Ed25519/Curve25519 and AES configs
+- Update to ChaCha20-Poly1305
+- Update support for Freescale KSDK 1.3.0
+- Update DER buffer handling code, refactoring and reducing memory
+- Fix to AESNI 192 bit key expansion
+- Fix to C# wrapper character encoding
+- Fix sequence number issue with DTLS epoch 0 messages
+- Fix RNGA with K64 build
+- Fix ASN.1 X509 V3 certificate policy extension parsing
+- Fix potential free of uninitialized RSA key in asn.c
+- Fix potential underflow when using ECC build with FP_ECC
+- Fixes for warnings in Visual Studio 2015 build
+
+- No high level security fixes that requires an update though we always
+recommend updating to the latest
+- FP_ECC is off by default, users with it enabled should update for the zero
+sized hash fix
+
+See INSTALL file for build instructions.
+More info can be found on-line at //http://wolfssl.com/yaSSL/Docs.html
+
  ********* wolfSSL (Formerly CyaSSL) Release 3.8.0 (12/30/2015)
 
 Release 3.8.0 of wolfSSL has bug fixes and new features including:
