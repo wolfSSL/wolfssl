@@ -4199,7 +4199,10 @@ static int accel_fp_mul(int idx, mp_int* k, ecc_point *R, mp_int* modulus,
    else {
       /* let's reverse kb so it's little endian */
       x = 0;
-      y = mp_unsigned_bin_size(&tk) - 1;
+      y = mp_unsigned_bin_size(&tk);
+      if (y > 0) {
+          y -= 1;
+      }
       mp_clear(&tk);
 
       while ((unsigned)x < y) {
@@ -4401,7 +4404,10 @@ static int accel_fp_mul2add(int idx1, int idx2,
 
    /* let's reverse kb so it's little endian */
    x = 0;
-   y = mp_unsigned_bin_size(&tka) - 1;
+   y = mp_unsigned_bin_size(&tka);
+   if (y > 0) {
+       y -= 1;
+   }
    mp_clear(&tka);
    while ((unsigned)x < y) {
       z = kb[0][x]; kb[0][x] = kb[0][y]; kb[0][y] = z;
@@ -4423,7 +4429,10 @@ static int accel_fp_mul2add(int idx1, int idx2,
    }
    else {
       x = 0;
-      y = mp_unsigned_bin_size(&tkb) - 1;
+      y = mp_unsigned_bin_size(&tkb);
+      if (y > 0) {
+          y -= 1;
+      }
       mp_clear(&tkb);
       while ((unsigned)x < y) {
          z = kb[1][x]; kb[1][x] = kb[1][y]; kb[1][y] = z;
