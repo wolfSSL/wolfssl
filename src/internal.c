@@ -14796,7 +14796,6 @@ int DoSessionTicket(WOLFSSL* ssl,
                 #ifdef HAVE_ECC
                     case ecc_diffie_hellman_kea:
                     {
-                        int typeH = 0;
                         enum wc_HashType hashType = WC_HASH_TYPE_NONE;
 
                         /* curve type, named curve, length(1) */
@@ -14916,31 +14915,23 @@ int DoSessionTicket(WOLFSSL* ssl,
                                 case sha512_mac:
                                     #ifdef WOLFSSL_SHA512
                                         hashType = WC_HASH_TYPE_SHA512;
-                                        typeH    = SHA512h;
                                     #endif
                                     break;
-
                                 case sha384_mac:
                                     #ifdef WOLFSSL_SHA384
                                         hashType = WC_HASH_TYPE_SHA384;
-                                        typeH    = SHA384h;
                                     #endif
                                     break;
-
                                 case sha256_mac:
                                     #ifndef NO_SHA256
                                         hashType = WC_HASH_TYPE_SHA256;
-                                        typeH    = SHA256h;
                                     #endif
                                     break;
-
                                 case sha_mac:
                                     #ifndef NO_OLD_TLS
                                         hashType = WC_HASH_TYPE_SHA;
-                                        typeH    = SHAh;
                                     #endif
                                     break;
-
                                 default:
                                     WOLFSSL_MSG("Bad hash sig algo");
                                     break;
@@ -14998,17 +14989,43 @@ int DoSessionTicket(WOLFSSL* ssl,
                         ssl->sigLen = sigSz;
 
                         /* Sign hash to create signature */
-                        switch(ssl->specs.sig_algo)
+                        switch (ssl->specs.sig_algo)
                         {
                         #ifndef NO_RSA
                             case rsa_sa_algo:
                             {
                                 /* For TLS 1.2 re-encode signature */
                                 if (IsAtLeastTLSv1_2(ssl)) {
+                                    int typeH = 0;
                                     byte* encodedSig = (byte*)XMALLOC(MAX_ENCODED_SIG_SZ, NULL,
                                                                       DYNAMIC_TYPE_TMP_BUFFER);
                                     if (encodedSig == NULL) {
                                         ERROR_OUT(MEMORY_E, exit_sske);
+                                    }
+                                    
+                                    switch (ssl->suites->hashAlgo) {
+                                        case sha512_mac:
+                                            #ifdef WOLFSSL_SHA512
+                                                typeH    = SHA512h;
+                                            #endif
+                                            break;
+                                        case sha384_mac:
+                                            #ifdef WOLFSSL_SHA384
+                                                typeH    = SHA384h;
+                                            #endif
+                                            break;
+                                        case sha256_mac:
+                                            #ifndef NO_SHA256
+                                                typeH    = SHA256h;
+                                            #endif
+                                            break;
+                                        case sha_mac:
+                                            #ifndef NO_OLD_TLS
+                                                typeH    = SHAh;
+                                            #endif
+                                            break;
+                                        default:
+                                            break;
                                     }
 
                                     ssl->buffers.sig.length = wc_EncodeSignature(encodedSig,
@@ -15174,25 +15191,21 @@ int DoSessionTicket(WOLFSSL* ssl,
                                         hashType = WC_HASH_TYPE_SHA512;
                                     #endif
                                     break;
-
                                 case sha384_mac:
                                     #ifdef WOLFSSL_SHA384
                                         hashType = WC_HASH_TYPE_SHA384;
                                     #endif
                                     break;
-
                                 case sha256_mac:
                                     #ifndef NO_SHA256
                                         hashType = WC_HASH_TYPE_SHA256;
                                     #endif
                                     break;
-
                                 case sha_mac:
                                     #ifndef NO_OLD_TLS
                                         hashType = WC_HASH_TYPE_SHA;
                                     #endif
                                     break;
-
                                 default:
                                     WOLFSSL_MSG("Bad hash sig algo");
                                     break;
