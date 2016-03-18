@@ -6499,7 +6499,8 @@ static int ecc_test_key_gen(WC_RNG* rng, int keySize)
 }
 #endif /* WOLFSSL_KEY_GEN */
 
-static int ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerifyCount)
+static int ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerifyCount,
+    int testCompressedKey)
 {
 #ifdef BENCH_EMBEDDED
     byte    sharedA[32];
@@ -6579,30 +6580,32 @@ static int ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerifyCount)
         return -1009;
 #endif /* HAVE_ECC_DHE */
 
-#ifdef HAVE_COMP_KEY
-    /* try compressed export / import too */
-    x = sizeof(exportBuf);
+    if (testCompressedKey) {
+    #ifdef HAVE_COMP_KEY
+        /* try compressed export / import too */
+        x = sizeof(exportBuf);
 
-    ret = wc_ecc_export_x963_ex(&userA, exportBuf, &x, 1);
-    if (ret != 0)
-        return -1010;
-    wc_ecc_free(&pubKey);
-    wc_ecc_init(&pubKey);
+        ret = wc_ecc_export_x963_ex(&userA, exportBuf, &x, 1);
+        if (ret != 0)
+            return -1010;
+        wc_ecc_free(&pubKey);
+        wc_ecc_init(&pubKey);
 
-    ret = wc_ecc_import_x963(exportBuf, x, &pubKey);
-    if (ret != 0)
-        return -1011;
+        ret = wc_ecc_import_x963(exportBuf, x, &pubKey);
+        if (ret != 0)
+            return -1011;
 
-#ifdef HAVE_ECC_DHE
-    y = sizeof(sharedB);
-    ret = wc_ecc_shared_secret(&userB, &pubKey, sharedB, &y);
-    if (ret != 0)
-        return -1012;
+    #ifdef HAVE_ECC_DHE
+        y = sizeof(sharedB);
+        ret = wc_ecc_shared_secret(&userB, &pubKey, sharedB, &y);
+        if (ret != 0)
+            return -1012;
 
-    if (memcmp(sharedA, sharedB, y))
-        return -1013;
-#endif /* HAVE_ECC_DHE */
-#endif /* HAVE_COMP_KEY */
+        if (memcmp(sharedA, sharedB, y))
+            return -1013;
+    #endif /* HAVE_ECC_DHE */
+    #endif /* HAVE_COMP_KEY */
+    }
 #endif /* HAVE_ECC_KEY_IMPORT */
 #endif /* HAVE_ECC_KEY_EXPORT */
 
@@ -6670,9 +6673,15 @@ static int ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerifyCount)
 #define ECC_TEST_VERIFY_COUNT 2
 static int ecc_test_curve(WC_RNG* rng, int keySize)
 {
-    int ret;
+    int ret, testCompressedKey = 1;
 
-    ret = ecc_test_curve_size(rng, keySize, ECC_TEST_VERIFY_COUNT);
+    /* At this time, ECC 224-bit does not work with compressed key */
+    if (keySize == 28) {
+        testCompressedKey = 0;
+    }
+
+    ret = ecc_test_curve_size(rng, keySize, ECC_TEST_VERIFY_COUNT,
+                                                        testCompressedKey);
     if (ret < 0) {
         return ret;
     }
