@@ -38,6 +38,8 @@
 #define CUSTOM_RAND_TYPE    byte
 #endif
 
+#define RNG_HEALTH_TEST_CHECK_SIZE (SHA256_DIGEST_SIZE * 4)
+
 
 #ifdef HAVE_FIPS
 int wc_GenerateSeed(OS_Seed* os, byte* seed, word32 sz)
@@ -608,42 +610,66 @@ int wc_RNG_HealthTest(int reseed, const byte* entropyA, word32 entropyASz,
                                   const byte* entropyB, word32 entropyBSz,
                                   byte* output, word32 outputSz)
 {
-    DRBG drbg;
+    int ret = -1;
+    DRBG* drbg;
+#ifndef WOLFSSL_SMALL_STACK
+    DRBG  drbg_var;
+#endif
 
-    if (entropyA == NULL || output == NULL)
+    if (entropyA == NULL || output == NULL) {
         return BAD_FUNC_ARG;
+    }
 
-    if (reseed != 0 && entropyB == NULL)
+    if (reseed != 0 && entropyB == NULL) {
         return BAD_FUNC_ARG;
+    }
 
-    if (outputSz != (SHA256_DIGEST_SIZE * 4))
-        return -1;
+    if (outputSz != RNG_HEALTH_TEST_CHECK_SIZE) {
+        return ret;
+    }
 
-    if (Hash_DRBG_Instantiate(&drbg, entropyA, entropyASz, NULL, 0) != 0)
-        return -1;
+#ifdef WOLFSSL_SMALL_STACK
+    drbg = (struct DRBG*)XMALLOC(sizeof(DRBG), NULL, DYNAMIC_TYPE_RNG);
+    if (drbg == NULL) {
+        return MEMORY_E;
+    }
+#else
+    drbg = &drbg_var;
+#endif
+
+    if (Hash_DRBG_Instantiate(drbg, entropyA, entropyASz, NULL, 0) != 0) {
+        goto exit_rng_ht;
+    }
 
     if (reseed) {
-        if (Hash_DRBG_Reseed(&drbg, entropyB, entropyBSz) != 0) {
-            Hash_DRBG_Uninstantiate(&drbg);
-            return -1;
+        if (Hash_DRBG_Reseed(drbg, entropyB, entropyBSz) != 0) {
+            goto exit_rng_ht;
         }
     }
 
-    if (Hash_DRBG_Generate(&drbg, output, outputSz) != 0) {
-        Hash_DRBG_Uninstantiate(&drbg);
-        return -1;
+    if (Hash_DRBG_Generate(drbg, output, outputSz) != 0) {
+        goto exit_rng_ht;
     }
 
-    if (Hash_DRBG_Generate(&drbg, output, outputSz) != 0) {
-        Hash_DRBG_Uninstantiate(&drbg);
-        return -1;
+    if (Hash_DRBG_Generate(drbg, output, outputSz) != 0) {
+        goto exit_rng_ht;
+    }
+    
+    /* Mark success */
+    ret = 0;
+
+exit_rng_ht:
+
+    /* This is safe to call even if Hash_DRBG_Instantiate fails */
+    if (Hash_DRBG_Uninstantiate(drbg) != 0) {
+        ret = -1;
     }
 
-    if (Hash_DRBG_Uninstantiate(&drbg) != 0) {
-        return -1;
-    }
+#ifdef WOLFSSL_SMALL_STACK
+    XFREE(drbg, NULL, DYNAMIC_TYPE_RNG);
+#endif
 
-    return 0;
+    return ret;
 }
 
 
@@ -699,26 +725,44 @@ const byte outputB[] = {
 static int wc_RNG_HealthTestLocal(int reseed)
 {
     int ret = 0;
-    byte check[SHA256_DIGEST_SIZE * 4];
+#ifdef WOLFSSL_SMALL_STACK
+    byte* check;
+#else
+    byte  check[RNG_HEALTH_TEST_CHECK_SIZE];
+#endif
+
+#ifdef WOLFSSL_SMALL_STACK
+    check = (byte*)XMALLOC(RNG_HEALTH_TEST_CHECK_SIZE, NULL,
+                           DYNAMIC_TYPE_TMP_BUFFER);
+    if (check == NULL) {
+        return MEMORY_E;
+    }
+#endif
 
     if (reseed) {
         ret = wc_RNG_HealthTest(1, entropyA, sizeof(entropyA),
                                 reseedEntropyA, sizeof(reseedEntropyA),
-                                check, sizeof(check));
+                                check, RNG_HEALTH_TEST_CHECK_SIZE);
         if (ret == 0) {
-            if (ConstantCompare(check, outputA, sizeof(check)) != 0)
+            if (ConstantCompare(check, outputA,
+                                RNG_HEALTH_TEST_CHECK_SIZE) != 0)
                 ret = -1;
         }
     }
     else {
         ret = wc_RNG_HealthTest(0, entropyB, sizeof(entropyB),
                                 NULL, 0,
-                                check, sizeof(check));
+                                check, RNG_HEALTH_TEST_CHECK_SIZE);
         if (ret == 0) {
-            if (ConstantCompare(check, outputB, sizeof(check)) != 0)
+            if (ConstantCompare(check, outputB, 
+                                RNG_HEALTH_TEST_CHECK_SIZE) != 0)
                 ret = -1;
         }
     }
+
+#ifdef WOLFSSL_SMALL_STACK
+    XFREE(check, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
 
     return ret;
 }
