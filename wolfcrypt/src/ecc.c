@@ -2887,7 +2887,7 @@ static int ecc_check_privkey_gen_helper(ecc_key* key)
 
     err = mp_read_radix(&prime, (char*)key->dp->prime, 16);
 
-    if (err == MP_OKAY);
+    if (err == MP_OKAY)
         err = ecc_check_privkey_gen(key, &prime);
 
     mp_clear(&prime);
@@ -4125,7 +4125,7 @@ static int accel_fp_mul(int idx, mp_int* k, ecc_point *R, mp_int* modulus,
 #ifdef WOLFSSL_SMALL_STACK
    unsigned char* kb;
 #else
-   unsigned char kb[128];
+   unsigned char kb[KB_SIZE];
 #endif
    int      x;
    unsigned y, z, err, bitlen, bitpos, lut_gap, first;
@@ -4281,7 +4281,7 @@ static int accel_fp_mul2add(int idx1, int idx2,
 #ifdef WOLFSSL_SMALL_STACK
    unsigned char* kb[2];
 #else
-   unsigned char kb[2][128];
+   unsigned char kb[2][KB_SIZE];
 #endif
    int      x;
    unsigned y, z, err, bitlen, bitpos, lut_gap, first, zA, zB;
