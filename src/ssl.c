@@ -185,12 +185,6 @@ WOLFSSL_CTX* wolfSSL_CTX_new(WOLFSSL_METHOD* method)
     if (ctx) {
         if (InitSSL_Ctx(ctx, method) < 0) {
             WOLFSSL_MSG("Init CTX failed");
-
-            /* check for case when wolfSSL_CTX_free does not free method */
-            if (ctx == NULL) {
-                XFREE(method, NULL, DYNAMIC_TYPE_METHOD);
-            }
-
             wolfSSL_CTX_free(ctx);
             ctx = NULL;
         }
