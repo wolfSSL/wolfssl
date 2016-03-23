@@ -154,6 +154,11 @@ static volatile int initRefCount = 0;
 static wolfSSL_Mutex count_mutex;   /* init ref count mutex */
 
 
+/* Create a new WOLFSSL_CTX struct and return the pointer to created struct.
+   WOLFSSL_METHOD pointer passed in is given to ctx to manage.
+   This function frees the passed in WOLFSSL_METHOD struct on failure and on
+   success is freed when ctx is freed.
+ */
 WOLFSSL_CTX* wolfSSL_CTX_new(WOLFSSL_METHOD* method)
 {
     WOLFSSL_CTX* ctx = NULL;
@@ -166,6 +171,9 @@ WOLFSSL_CTX* wolfSSL_CTX_new(WOLFSSL_METHOD* method)
         if (ret != SSL_SUCCESS) {
             WOLFSSL_MSG("wolfSSL_Init failed");
             WOLFSSL_LEAVE("WOLFSSL_CTX_new", 0);
+            if (method != NULL) {
+                XFREE(method, NULL, DYNAMIC_TYPE_METHOD);
+            }
             return NULL;
         }
     }
