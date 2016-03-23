@@ -58,6 +58,20 @@ WOLFSSL_API int wolfSSL_SetAllocators(wolfSSL_Malloc_cb  malloc_function,
                                     wolfSSL_Free_cb    free_function,
                                     wolfSSL_Realloc_cb realloc_function);
 
+#ifdef WOLFSSL_STATIC_MEMORY
+    #define WOLFSSL_STATIC_TIMEOUT 1
+    #define WC_STATIC_ALIGN 64
+
+    WOLFSSL_API int wolfSSL_load_static_memory(byte* buffer, word32 sz);
+    WOLFSSL_API int wolfSSL_unload_static_memory(byte* buffer, word32 sz,
+                                                                   word32* amt);
+    WOLFSSL_API int wolfSSL_use_static_memory(byte flag);
+    WOLFSSL_API word32 wolfSSL_static_memory_inUse(void);
+    WOLFSSL_LOCAL void* wolfSSL_Malloc_Static(size_t size);
+    WOLFSSL_LOCAL void  wolfSSL_Free_Static(void *ptr);
+    WOLFSSL_LOCAL void* wolfSSL_Realloc_Static(void *ptr, size_t size);
+#endif /* WOLFSSL_STATIC_MEMORY */
+
 #ifdef __cplusplus
     }  /* extern "C" */
 #endif

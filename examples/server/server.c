@@ -1048,10 +1048,10 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
         args.signal = &ready;
         InitTcpReady(&ready);
 
-        CyaSSL_Init();
 #if defined(DEBUG_CYASSL) && !defined(WOLFSSL_MDK_SHELL)
         CyaSSL_Debugging_ON();
 #endif
+        CyaSSL_Init();
         ChangeToWolfRoot();
 
 #ifdef HAVE_STACK_SIZE

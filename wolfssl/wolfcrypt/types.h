@@ -176,12 +176,18 @@
 	    extern void *XMALLOC(size_t n, void* heap, int type);
 	    extern void *XREALLOC(void *p, size_t n, void* heap, int type);
 	    extern void XFREE(void *p, void* heap, int type);
+        #ifdef WOLFSSL_STATIC_MEMORY /* don't use wolfSSL static memory either*/
+            #undef WOLFSSL_STATIC_MEMORY
+        #endif
 	#elif defined(NO_WOLFSSL_MEMORY)
 	    /* just use plain C stdlib stuff if desired */
 	    #include <stdlib.h>
 	    #define XMALLOC(s, h, t)     ((void)h, (void)t, malloc((s)))
 	    #define XFREE(p, h, t)       {void* xp = (p); if((xp)) free((xp));}
 	    #define XREALLOC(p, n, h, t) realloc((p), (n))
+        #ifdef WOLFSSL_STATIC_MEMORY /* don't use wolfSSL static memory either*/
+            #undef WOLFSSL_STATIC_MEMORY
+        #endif
 	#elif !defined(MICRIUM_MALLOC) && !defined(EBSNET) \
 	        && !defined(WOLFSSL_SAFERTOS) && !defined(FREESCALE_MQX) \
 	        && !defined(FREESCALE_KSDK_MQX) && !defined(FREESCALE_FREE_RTOS) \
@@ -199,6 +205,13 @@
            #define XREALLOC(p, n, h, t) wolfSSL_Realloc((p), (n))
        #endif
 	#endif
+
+
+    /* sleep function for static memory */
+    #ifdef WOLFSSL_STATIC_MEMORY
+        #include <unistd.h>
+        #define XSLEEP(t) sleep((t))
+    #endif /* WOLFSSL_STATIC_MEMORY */
 
 	#ifndef STRING_USER
 	    #include <string.h>

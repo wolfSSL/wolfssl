@@ -40,6 +40,30 @@
     #pragma warning(disable: 4996)
 #endif
 
+#ifdef WOLFSSL_STATIC_MEMORY
+#if defined(WOLFSSL_STATIC_MEMORY_SMALL)
+static byte wc_staticMemory[54833];
+/* peak of one connection (10 concurent connections) plus 41 chunks of 64 byte
+   for structs */
+#elif defined(WOLFSSL_STATIC_MEMORY_MEDIUM)
+static byte wc_staticMemory[941888];
+/* peak of one connection (520 concurent connections) plus 41 chunks of 64 byte
+   for structs */
+#elif defined(WOLFSSL_STATIC_MEMORY_LARGE)
+static byte wc_staticMemory[1860992];
+/* peak of one connection (1040 concurent connections) plus 41 chunks of 64 byte
+   for structs */
+#elif defined(WOLFSSL_STATIC_MEMORY_HUGE)
+static byte wc_staticMemory[3699200];
+/* peak of one connection (1040 concurent connections) plus 41 chunks of 64 byte
+   for structs */
+#else
+static byte wc_staticMemory[0];
+#endif
+#endif /* WOLFSSL_STATIC_MEMORY */
+
+/* prevent multiple mutex initializations */
+static volatile int initRefCount = 0;
 
 /* Used to initialize state for wolfcrypt
    return 0 on success
@@ -47,6 +71,8 @@
 int wolfCrypt_Init()
 {
     int ret = 0;
+
+    if (initRefCount == 0) {
     #if WOLFSSL_CRYPT_HW_MUTEX
         /* If crypto hardware mutex protection is enabled, then initialize it */
         wolfSSL_CryptHwMutexInit();
@@ -64,6 +90,19 @@ int wolfCrypt_Init()
             ret = 0;
         }
     #endif
+
+    #ifdef WOLFSSL_STATIC_MEMORY
+        /* set static memory functions and load initial memory */
+        wolfSSL_SetAllocators(wolfSSL_Malloc_Static, wolfSSL_Free_Static,
+                                                        wolfSSL_Realloc_Static);
+        if (wolfSSL_load_static_memory(wc_staticMemory,
+                                                sizeof(wc_staticMemory)) != 1) {
+            WOLFSSL_MSG("Error setting up static memory");
+            ret = WC_INIT_E;
+        }
+    #endif
+        initRefCount = 1;
+    }
 
     return ret;
 }

@@ -1653,10 +1653,10 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
         args.argc = argc;
         args.argv = argv;
 
-        wolfSSL_Init();
 #if defined(DEBUG_WOLFSSL) && !defined(WOLFSSL_MDK_SHELL) && !defined(STACK_TRAP)
         wolfSSL_Debugging_ON();
 #endif
+        wolfSSL_Init();
         ChangeToWolfRoot();
 
 #ifdef HAVE_STACK_SIZE

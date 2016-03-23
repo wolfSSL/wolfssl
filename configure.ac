@@ -2545,6 +2545,44 @@ AC_SUBST([IPPLINK])
 AM_CONDITIONAL([BUILD_FAST_RSA], [test "x$ENABLED_FAST_RSA" = "xyes"])
 
 
+# static memory use
+AC_ARG_ENABLE([staticmemory],
+    [AS_HELP_STRING([--enable-staticmemory],[Enable static memory use (default: disabled)])],
+    [ ENABLED_STATICMEMORY=$enableval ],
+    [ ENABLED_STATICMEMORY=no ]
+    )
+
+if test "x$ENABLED_STATICMEMORY" = "xyes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_STATIC_MEMORY -DWOLFSSL_STATIC_MEMORY_MEDIUM"
+fi
+
+if test "x$ENABLED_STATICMEMORY" = "xnone"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_STATIC_MEMORY"
+fi
+
+if test "x$ENABLED_STATICMEMORY" = "xsmall"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_STATIC_MEMORY -DWOLFSSL_STATIC_MEMORY_SMALL"
+fi
+
+if test "x$ENABLED_STATICMEMORY" = "xmedium"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_STATIC_MEMORY -DWOLFSSL_STATIC_MEMORY_MEDIUM"
+fi
+
+if test "x$ENABLED_STATICMEMORY" = "xlarge"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_STATIC_MEMORY -DWOLFSSL_STATIC_MEMORY_LARGE"
+fi
+
+if test "x$ENABLED_STATICMEMORY" = "xhuge"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_STATIC_MEMORY -DWOLFSSL_STATIC_MEMORY_HUGE"
+fi
+
+
 # microchip api
 AC_ARG_ENABLE([mcapi],
     [  --enable-mcapi          Enable Microchip API (default: disabled)],
