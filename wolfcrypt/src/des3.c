@@ -154,6 +154,8 @@ void wc_Des3_FreeCavium(Des3* des3)
     int wc_Des_SetKey(Des* des, const byte* key, const byte* iv, int dir)
     {
         word32 *dkey = des->key;
+        
+        (void)dir;
 
         XMEMCPY(dkey, key, 8);
         ByteReverseWords(dkey, dkey, 8);
@@ -168,6 +170,8 @@ void wc_Des3_FreeCavium(Des3* des3)
         word32 *dkey1 = des->key[0];
         word32 *dkey2 = des->key[1];
         word32 *dkey3 = des->key[2];
+        
+        (void)dir;
 
         XMEMCPY(dkey1, key, 8);         /* set key 1 */
         XMEMCPY(dkey2, key + 8, 8);     /* set key 2 */
@@ -180,7 +184,7 @@ void wc_Des3_FreeCavium(Des3* des3)
         return wc_Des3_SetIV(des, iv);
     }
 
-    void DesCrypt(Des* des, byte* out, const byte* in, word32 sz,
+    static void DesCrypt(Des* des, byte* out, const byte* in, word32 sz,
                   int dir, int mode)
     {
         word32 *dkey, *iv;
@@ -276,7 +280,7 @@ void wc_Des3_FreeCavium(Des3* des3)
         return 0;
     }
 
-    void Des3Crypt(Des3* des, byte* out, const byte* in, word32 sz,
+    static void Des3Crypt(Des3* des, byte* out, const byte* in, word32 sz,
                    int dir)
     {
         word32 *dkey1, *dkey2, *dkey3, *iv;
