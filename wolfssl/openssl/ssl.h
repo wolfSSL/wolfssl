@@ -41,6 +41,11 @@
     #undef X509_NAME
 #endif
 
+#ifdef WOLFSSL_UTASKER
+    /* tcpip.h clashes */
+    #undef ASN1_INTEGER
+#endif
+
 
 typedef WOLFSSL          SSL;
 typedef WOLFSSL_SESSION  SSL_SESSION;

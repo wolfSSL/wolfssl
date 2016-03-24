@@ -3351,6 +3351,13 @@ ProtocolVersion MakeDTLSv1_2(void)
         return (word32) Seconds_get();
     }
 
+#elif defined(WOLFSSL_UTASKER)
+
+    word32 LowResTimer(void)
+    {
+		return (word32)(uTaskerSystemTick / TICK_RESOLUTION);
+    }
+
 #elif defined(USER_TICKS)
 #if 0
     word32 LowResTimer(void)
