@@ -3209,8 +3209,8 @@ int wc_ecc_rs_to_sig(const char* r, const char* s, byte* out, word32* outlen)
 /**
    Import raw ECC key
    key       The destination ecc_key structure
-   qx        x component of base point, as ASCII hex string
-   qy        y component of base point, as ASCII hex string
+   qx        x component of the public key, as ASCII hex string
+   qy        y component of the public key, as ASCII hex string
    d         private key, as ASCII hex string
    curveName ECC curve name, from ecc_sets[]
    return    MP_OKAY on success
