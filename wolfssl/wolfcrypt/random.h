@@ -68,6 +68,8 @@ typedef struct OS_Seed {
     #endif
 } OS_Seed;
 
+/* Maximum generate block length */
+#define RNG_MAX_BLOCK_LEN (0x10000)
 
 #if (defined(HAVE_HASHDRBG) || defined(NO_RC4)) && !defined(CUSTOM_RAND_GENERATE_BLOCK)
 

@@ -434,6 +434,7 @@ void bench_rng(void)
 {
     int    ret, i;
     double start, total, persec;
+    int pos, len, remain;
 #ifndef HAVE_LOCAL_RNG
     WC_RNG rng;
 #endif
@@ -450,10 +451,20 @@ void bench_rng(void)
     BEGIN_INTEL_CYCLES
 
     for(i = 0; i < numBlocks; i++) {
-        ret = wc_RNG_GenerateBlock(&rng, plain, sizeof(plain));
-        if (ret < 0) {
-            printf("wc_RNG_GenerateBlock failed %d\n", ret);
-            break;
+        /* Split request to handle large RNG request */
+        pos = 0;
+        remain = (int)sizeof(plain);
+        while (remain > 0) {
+            len = remain;
+            if (len > RNG_MAX_BLOCK_LEN)
+                len = RNG_MAX_BLOCK_LEN;
+            ret = wc_RNG_GenerateBlock(&rng, &plain[pos], len);
+            if (ret < 0) {
+                printf("wc_RNG_GenerateBlock failed %d\n", ret);
+                break;
+            }
+            remain -= len;
+            pos += len;
         }
     }
 

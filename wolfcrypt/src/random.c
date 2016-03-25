@@ -194,6 +194,11 @@ int wc_FreeRng(WC_RNG* rng)
 #define DRBG_FAILED       2
 #define DRBG_CONT_FAILED  3
 
+/* Verify max gen block len */
+#if RNG_MAX_BLOCK_LEN > MAX_REQUEST_LEN
+    #error RNG_MAX_BLOCK_LEN is larger than NIST DBRG max request length
+#endif
+    
 
 enum {
     drbgInitC     = 0,
@@ -533,7 +538,7 @@ int wc_RNG_GenerateBlock(WC_RNG* rng, byte* output, word32 sz)
 {
     int ret;
 
-    if (rng == NULL || output == NULL || sz > MAX_REQUEST_LEN)
+    if (rng == NULL || output == NULL || sz > RNG_MAX_BLOCK_LEN)
         return BAD_FUNC_ARG;
 
     if (rng->status != DRBG_OK)
