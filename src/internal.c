@@ -2345,7 +2345,9 @@ void FreeHandshakeResources(WOLFSSL* ssl)
 
 void FreeSSL(WOLFSSL* ssl)
 {
-    FreeSSL_Ctx(ssl->ctx);  /* will decrement and free underyling CTX if 0 */
+    if (ssl->ctx) {
+        FreeSSL_Ctx(ssl->ctx); /* will decrement and free underyling CTX if 0 */
+    }
     SSL_ResourceFree(ssl);
     XFREE(ssl, ssl->heap, DYNAMIC_TYPE_SSL);
 }
