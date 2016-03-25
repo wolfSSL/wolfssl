@@ -173,7 +173,9 @@ int ClientBenchmarkConnections(WOLFSSL_CTX* ctx, char* host, word16 port,
             if (benchResume)
                 wolfSSL_set_session(ssl, benchSession);
     #endif
-            wolfSSL_set_fd(ssl, sockfd);
+            if (wolfSSL_set_fd(ssl, sockfd) != SSL_SUCCESS) {
+                err_sys("error in setting fd");
+            }
             if (wolfSSL_connect(ssl) != SSL_SUCCESS)
                 err_sys("SSL_connect failed");
 
@@ -213,7 +215,9 @@ int ClientBenchmarkThroughput(WOLFSSL_CTX* ctx, char* host, word16 port,
     if (ssl == NULL)
         err_sys("unable to get SSL object");
     tcp_connect(&sockfd, host, port, doDTLS, ssl);
-    wolfSSL_set_fd(ssl, sockfd);
+    if (wolfSSL_set_fd(ssl, sockfd) != SSL_SUCCESS) {
+        err_sys("error in setting fd");
+    }
     if (wolfSSL_connect(ssl) == SSL_SUCCESS) {
         /* Perform throughput test */
         char *tx_buffer, *rx_buffer;
@@ -1140,7 +1144,9 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 #endif
 
     tcp_connect(&sockfd, host, port, doDTLS, ssl);
-    wolfSSL_set_fd(ssl, sockfd);
+    if (wolfSSL_set_fd(ssl, sockfd) != SSL_SUCCESS) {
+        err_sys("error in setting fd");
+    }
 #ifdef HAVE_CRL
     if (disableCRL == 0) {
         if (wolfSSL_EnableCRL(ssl, WOLFSSL_CRL_CHECKALL) != SSL_SUCCESS)
@@ -1292,7 +1298,9 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 #endif
         }
         tcp_connect(&sockfd, host, port, doDTLS, sslResume);
-        wolfSSL_set_fd(sslResume, sockfd);
+        if (wolfSSL_set_fd(sslResume, sockfd) != SSL_SUCCESS) {
+            err_sys("error in setting fd");
+        }
 #ifdef HAVE_ALPN
         if (alpnList != NULL) {
             printf("ALPN accepted protocols list : %s\n", alpnList);

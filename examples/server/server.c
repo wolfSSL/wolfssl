@@ -797,7 +797,9 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
                        doDTLS, serverReadyFile ? 1 : 0, doListen);
         doListen = 0; /* Don't listen next time */
 
-        SSL_set_fd(ssl, clientfd);
+        if (SSL_set_fd(ssl, clientfd) != SSL_SUCCESS) {
+            err_sys("error in setting fd");
+        }
 
 #ifdef HAVE_ALPN
         if (alpnList != NULL) {
