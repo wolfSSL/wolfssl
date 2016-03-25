@@ -3355,7 +3355,7 @@ ProtocolVersion MakeDTLSv1_2(void)
 
     word32 LowResTimer(void)
     {
-		return (word32)(uTaskerSystemTick / TICK_RESOLUTION);
+        return (word32)(uTaskerSystemTick / TICK_RESOLUTION);
     }
 
 #elif defined(USER_TICKS)

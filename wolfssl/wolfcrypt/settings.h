@@ -382,6 +382,13 @@
     #define CUSTOM_RAND_GENERATE    fnRandom
     #define CUSTOM_RAND_TYPE        unsigned short
 
+    /* user needs to define XTIME to function that provides
+     * seconds since Unix epoch */
+    #ifndef XTIME
+        #error XTIME must be defined in wolfSSL settings.h
+        /* #define XTIME fnSecondsSinceEpoch */
+    #endif
+
     /* use uTasker std library replacements where available */
     #define STRING_USER
     #define XMEMCPY(d,s,l)         uMemcpy((d),(s),(l))
