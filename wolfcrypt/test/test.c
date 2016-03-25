@@ -6259,6 +6259,7 @@ static int ecc_test_vector_item(const eccVector* vector, WC_RNG* rng)
     memset(sig, 0, sizeof(sig));
     x = sizeof(sig);
 
+    wc_ecc_free(&userA);  /* free key before importing a new one over the top */
     ret = wc_ecc_import_raw(&userA, vector->Qx, vector->Qy,
                                              vector->d, vector->curveName);
     if (ret != 0)
