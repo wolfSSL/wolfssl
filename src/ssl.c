@@ -255,6 +255,11 @@ int wolfSSL_use_old_poly(WOLFSSL* ssl, int value)
 int wolfSSL_set_fd(WOLFSSL* ssl, int fd)
 {
     WOLFSSL_ENTER("SSL_set_fd");
+
+    if (ssl == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
     ssl->rfd = fd;      /* not used directly to allow IO callbacks */
     ssl->wfd = fd;
 
