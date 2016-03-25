@@ -84,6 +84,7 @@
 #ifdef HAVE_NTRU
     #include "libntruencrypt/ntru_crypto.h"
 #endif
+#include <wolfssl/wolfcrypt/random.h>
 
 #if defined(WOLFSSL_MDK_ARM)
     extern FILE * wolfSSL_fopen(const char *fname, const char *mode) ;
@@ -174,6 +175,7 @@ void bench_ed25519KeySign(void);
 void bench_ntru(void);
 void bench_ntruKeyGen(void);
 #endif
+void bench_rng(void);
 
 double current_time(int);
 
@@ -290,6 +292,7 @@ int benchmark_test(void *args)
     }
 #endif
 
+    bench_rng();
 #ifndef NO_AES
 #ifdef HAVE_AES_CBC
     bench_aes(0);
@@ -426,6 +429,62 @@ enum BenchmarkBounds {
 };
 static const char blockType[] = "megs"; /* used in printf output */
 #endif
+
+void bench_rng(void)
+{
+    int    ret, i;
+    double start, total, persec;
+    int pos, len, remain;
+#ifndef HAVE_LOCAL_RNG
+    WC_RNG rng;
+#endif
+
+#ifndef HAVE_LOCAL_RNG
+    ret = wc_InitRng(&rng);
+    if (ret < 0) {
+        printf("InitRNG failed\n");
+        return;
+    }
+#endif
+
+    start = current_time(1);
+    BEGIN_INTEL_CYCLES
+
+    for(i = 0; i < numBlocks; i++) {
+        /* Split request to handle large RNG request */
+        pos = 0;
+        remain = (int)sizeof(plain);
+        while (remain > 0) {
+            len = remain;
+            if (len > RNG_MAX_BLOCK_LEN)
+                len = RNG_MAX_BLOCK_LEN;
+            ret = wc_RNG_GenerateBlock(&rng, &plain[pos], len);
+            if (ret < 0) {
+                printf("wc_RNG_GenerateBlock failed %d\n", ret);
+                break;
+            }
+            remain -= len;
+            pos += len;
+        }
+    }
+
+    END_INTEL_CYCLES
+    total = current_time(0) - start;
+
+    persec = 1 / total * numBlocks;
+#ifdef BENCH_EMBEDDED
+    /* since using kB, convert to MB/s */
+    persec = persec / 1024;
+#endif
+    printf("RNG      %d %s took %5.3f seconds, %8.3f MB/s", numBlocks,
+                                                  blockType, total, persec);
+    SHOW_INTEL_CYCLES
+    printf("\n");
+
+#ifndef HAVE_LOCAL_RNG
+    wc_FreeRng(&rng);
+#endif
+}
 
 
 #ifndef NO_AES
