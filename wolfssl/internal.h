@@ -2180,11 +2180,10 @@ struct WOLFSSL_SESSION {
     byte         serverID[SERVER_ID_LEN];       /* for easier client lookup */
 #endif
 #ifdef HAVE_SESSION_TICKET
-    word16       ticketLen;
-    byte*        dynTicket;
-    byte         isDynamic;
-    byte         staticTicket[SESSION_TICKET_LEN];
     byte*        ticket;
+    word16       ticketLen;
+    byte         staticTicket[SESSION_TICKET_LEN];
+    byte         isDynamic;
 #endif
 #ifdef HAVE_STUNNEL
     void*        ex_data[MAX_EX_DATA];

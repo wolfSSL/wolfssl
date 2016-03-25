@@ -2482,9 +2482,6 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
 
 #ifdef HAVE_SESSION_TICKET
     ssl->session.ticket = ssl->session.staticTicket;
-    ssl->session.isDynamic = 0;
-    ssl->session.dynTicket = NULL;
-    ssl->session.ticketLen = 0;
 #endif
     return 0;
 }
@@ -2656,11 +2653,11 @@ void SSL_ResourceFree(WOLFSSL* ssl)
     FreeX509(&ssl->peerCert);
 #endif
 #ifdef HAVE_SESSION_TICKET
-    if (ssl->session.dynTicket) {
-        XFREE(ssl->session.dynTicket, ssl->heap, DYNAMIC_TYPE_SESSION_TICK);
-        ssl->session.dynTicket = NULL;
-        ssl->session.isDynamic = 0;
+    if (ssl->session.isDynamic) {
+        XFREE(ssl->session.ticket, ssl->heap, DYNAMIC_TYPE_SESSION_TICK);
         ssl->session.ticket = ssl->session.staticTicket;
+        ssl->session.isDynamic = 0;
+        ssl->session.ticketLen = 0;
     }
 #endif
 }
@@ -2800,6 +2797,15 @@ void FreeHandshakeResources(WOLFSSL* ssl)
 #ifdef HAVE_QSH
     QSH_FreeAll(ssl);
 #endif
+#ifdef HAVE_SESSION_TICKET
+    if (ssl->session.isDynamic) {
+        XFREE(ssl->session.ticket, ssl->heap, DYNAMIC_TYPE_SESSION_TICK);
+        ssl->session.ticket = ssl->session.staticTicket;
+        ssl->session.isDynamic = 0;
+        ssl->session.ticketLen = 0;
+    }
+#endif
+
 }
 
 
@@ -14300,34 +14306,25 @@ int DoSessionTicket(WOLFSSL* ssl,
     ato16(input + *inOutIdx, &length);
     *inOutIdx += OPAQUE16_LEN;
 
+    if ((*inOutIdx - begin) + length > size)
+        return BUFFER_ERROR;
+
     if (length > sizeof(ssl->session.staticTicket)) {
         /* Free old dynamic ticket if we already had one */
-        if (ssl->session.dynTicket) {
-            XFREE(ssl->session.dynTicket, ssl->heap,
-                            DYNAMIC_TYPE_SESSION_TICK);
-        }
-
-        ssl->session.dynTicket =
-             (byte*)XMALLOC(length, ssl->heap,
-                                DYNAMIC_TYPE_SESSION_TICK);
-
-        if (ssl->session.dynTicket == NULL)
+        if (ssl->session.isDynamic)
+            XFREE(ssl->session.ticket, ssl->heap, DYNAMIC_TYPE_SESSION_TICK);
+        ssl->session.ticket =
+             (byte*)XMALLOC(length, ssl->heap, DYNAMIC_TYPE_SESSION_TICK);
+        if (ssl->session.ticket == NULL)
             return MEMORY_E;
-
         ssl->session.isDynamic = 1;
-        ssl->session.ticket = ssl->session.dynTicket;
     } else {
-        if(ssl->session.dynTicket) {
-            XFREE(ssl->session.dynTicket, ssl->heap,
-                            DYNAMIC_TYPE_SESSION_TICK);
-            ssl->session.dynTicket = NULL;
+        if(ssl->session.isDynamic) {
+            XFREE(ssl->session.ticket, ssl->heap, DYNAMIC_TYPE_SESSION_TICK);
         }
         ssl->session.isDynamic = 0;
         ssl->session.ticket = ssl->session.staticTicket;
     }
-
-    if ((*inOutIdx - begin) + length > size)
-        return BUFFER_ERROR;
 
     /* If the received ticket including its length is greater than
      * a length value, the save it. Otherwise, don't save it. */

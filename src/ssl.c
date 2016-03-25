@@ -1262,22 +1262,32 @@ WOLFSSL_API int wolfSSL_get_SessionTicket(WOLFSSL* ssl,
 
 WOLFSSL_API int wolfSSL_set_SessionTicket(WOLFSSL* ssl, byte* buf, word32 bufSz)
 {
-    if (ssl == NULL || (buf == NULL && bufSz > 0) || bufSz > SESSION_TICKET_LEN)
+    if (ssl == NULL || (buf == NULL && bufSz > 0))
         return BAD_FUNC_ARG;
 
-    ssl->session.ticket = ssl->session.staticTicket;
-    ssl->session.ticketLen = (word16)bufSz;
-    if (bufSz > 0) {
+    /* Ticket will fit into static ticket */
+    if(bufSz <= SESSION_TICKET_LEN) {
+        if (ssl->session.isDynamic) {
+            XFREE(ssl->session.ticket, ssl->heap, DYNAMIC_TYPE_SESSION_TICK);
+            ssl->session.isDynamic = 0;
+        }
+
+        ssl->session.ticket = ssl->session.staticTicket;
+        ssl->session.ticketLen = (word16)bufSz;
         XMEMCPY(ssl->session.ticket, buf, bufSz);
+    } else { /* Ticket requires dynamic ticket storage */
+        /*Not big enough space, need to alloc */
+        if (!(ssl->session.ticketLen >= bufSz)) {
+            if(ssl->session.isDynamic)
+                XFREE(ssl->session.ticket);
+            ssl->session.ticket = XMALLOC(bufSz, ssl->heap, DYNAMIC_TYPE_TICK);
+            if(!ssl->session.ticket)
+                return MEMORY_ERROR;
+            ssl->session.isDynamic = 1;
+        }
+        XMEMCPY(ssl->session.ticket, buf, bufSz);
+        ssl->session.ticketLen = bufSz;
     }
-
-    /* session ticket should only be size of static buffer. Delete dynamic buffer*/
-    if (ssl->session.dynTicket) {
-        XFREE(ssl->session.dynTicket, ssl->heap, DYNAMIC_TYPE_SESSION_TICK);
-        ssl->session.dynTicket = NULL;
-    }
-    ssl->session.isDynamic = 0;
-
     return SSL_SUCCESS;
 }
 
@@ -7073,7 +7083,7 @@ int AddSession(WOLFSSL* ssl)
 
     if (LockMutex(&session_mutex) != 0) {
 #ifdef HAVE_SESSION_TICKET
-    XFREE(tmpBuff, ssl->heap, DYNAMIC_TYPE_SESSION_TICK);
+        XFREE(tmpBuff, ssl->heap, DYNAMIC_TYPE_SESSION_TICK);
 #endif
         return BAD_MUTEX_E;
     }
@@ -7094,22 +7104,20 @@ int AddSession(WOLFSSL* ssl)
 
 #ifdef HAVE_SESSION_TICKET
     /* Cleanup cache row's old Dynamic buff if exists */
-    if(SessionCache[row].Sessions[idx].dynTicket) {
-        XFREE(SessionCache[row].Sessions[idx].dynTicket,
+    if(SessionCache[row].Sessions[idx].isDynamic) {
+        XFREE(SessionCache[row].Sessions[idx].ticket,
                ssl->heap, DYNAMIC_TYPE_SESS_TICK);
+        SessionCache[row].Sessions[idx].ticket = NULL;
     }
 
     /* If too large to store in static buffer, use dyn buffer */
     if (ssl->session.ticketLen > SESSION_TICKET_LEN) {
-        SessionCache[row].Sessions[idx].dynTicket = tmpBuff;
+        SessionCache[row].Sessions[idx].ticket = tmpBuff;
         SessionCache[row].Sessions[idx].isDynamic = 1;
-        SessionCache[row].Sessions[idx].ticket =
-                SessionCache[row].Sessions[idx].dynTicket;
     } else {
-        SessionCache[row].Sessions[idx].dynTicket = NULL;
-        SessionCache[row].Sessions[idx].isDynamic = 0;
         SessionCache[row].Sessions[idx].ticket =
                 SessionCache[row].Sessions[idx].staticTicket;
+        SessionCache[row].Sessions[idx].isDynamic = 0;
     }
 
     SessionCache[row].Sessions[idx].ticketLen     = ssl->session.ticketLen;
