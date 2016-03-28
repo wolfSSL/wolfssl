@@ -52,7 +52,19 @@
         static memoryStats ourMemStats;
     #endif
 
-    static INLINE void* TrackMalloc(size_t sz)
+    /* if defined to not using inline then declare function prototypes */
+    #ifdef NO_INLINE
+        #define STATIC
+        WOLFSSL_LOCAL void* TrackMalloc(size_t sz);
+        WOLFSSL_LOCAL void TrackFree(void* ptr);
+        WOLFSSL_LOCAL void* TrackRealloc(void* ptr, size_t sz);
+        WOLFSSL_LOCAL int InitMemoryTracker(void);
+        WOLFSSL_LOCAL void ShowMemoryTracker(void);
+    #else
+        #define STATIC static
+    #endif
+
+    STATIC INLINE void* TrackMalloc(size_t sz)
     {
         memoryTrack* mt;
 
@@ -78,7 +90,7 @@
     }
 
 
-    static INLINE void TrackFree(void* ptr)
+    STATIC INLINE void TrackFree(void* ptr)
     {
         memoryTrack* mt;
 
@@ -97,7 +109,7 @@
     }
 
 
-    static INLINE void* TrackRealloc(void* ptr, size_t sz)
+    STATIC INLINE void* TrackRealloc(void* ptr, size_t sz)
     {
         void* ret = TrackMalloc(sz);
 
@@ -119,7 +131,7 @@
         return ret;
     }
 
-    static INLINE int InitMemoryTracker(void)
+    STATIC INLINE int InitMemoryTracker(void)
     {
         int ret = wolfSSL_SetAllocators(TrackMalloc, TrackFree, TrackRealloc);
         if (ret < 0) {
@@ -133,11 +145,11 @@
         ourMemStats.peakBytes    = 0;
         ourMemStats.currentBytes = 0;
     #endif
-        
+
         return ret;
     }
 
-    static INLINE void ShowMemoryTracker(void)
+    STATIC INLINE void ShowMemoryTracker(void)
     {
     #ifdef DO_MEM_STATS
         printf("total   Allocs = %9lu\n",
@@ -154,4 +166,4 @@
 #endif /* USE_WOLFSSL_MEMORY */
 
 #endif /* WOLFSSL_MEM_TRACK_H */
-    
+
