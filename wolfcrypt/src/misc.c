@@ -46,7 +46,9 @@
     #define STATIC static
 #endif
 
-#ifndef WOLFSSL_MISC_COMPILED
+/* Check for if compiling misc.c when not needed. FIPS build has source code
+   without preprocessor flag so the warning is not used in a FIPS build. */
+#if !defined(WOLFSSL_MISC_COMPILED) && !defined(HAVE_FIPS)
     #error misc.c does not need to be compiled when not defined NO_INLINE
 #endif
 
