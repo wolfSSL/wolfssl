@@ -6239,7 +6239,7 @@ typedef struct eccVector {
     word32 keySize;
 } eccVector;
 
-static int ecc_test_vector_item(const eccVector* vector, WC_RNG* rng)
+static int ecc_test_vector_item(const eccVector* vector)
 {
     int ret, verify;
     word32  x;
@@ -6247,14 +6247,6 @@ static int ecc_test_vector_item(const eccVector* vector, WC_RNG* rng)
     byte    sig[1024];
 
     wc_ecc_init(&userA);
-
-    ret = wc_ecc_make_key(rng, vector->keySize, &userA);
-    if (ret != 0)
-        return -1014;
-
-    ret = wc_ecc_check_key(&userA);
-    if (ret != 0)
-        return -1024;
 
     memset(sig, 0, sizeof(sig));
     x = sizeof(sig);
@@ -6280,7 +6272,7 @@ static int ecc_test_vector_item(const eccVector* vector, WC_RNG* rng)
     return 0;
 }
 
-static int ecc_test_vector(WC_RNG* rng, int keySize)
+static int ecc_test_vector(int keySize)
 {
     int     ret;
     eccVector vec;
@@ -6432,7 +6424,7 @@ static int ecc_test_vector(WC_RNG* rng, int keySize)
         return NOT_COMPILED_IN; /* Invalid key size / Not supported */
     }; /* Switch */
 
-    ret = ecc_test_vector_item(&vec, rng);
+    ret = ecc_test_vector_item(&vec);
     if (ret < 0) {
         return ret;
     }
@@ -6688,7 +6680,7 @@ static int ecc_test_curve(WC_RNG* rng, int keySize)
     }
 
     #ifdef HAVE_ECC_VECTOR_TEST
-        ret = ecc_test_vector(rng, keySize);
+        ret = ecc_test_vector(keySize);
         if (ret < 0) {
             return ret;
         }
