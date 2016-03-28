@@ -39,11 +39,16 @@
  */
 
 #ifdef NO_INLINE
+    #undef  WOLFSSL_MISC_COMPILED
+    #define WOLFSSL_MISC_COMPILED
     #define STATIC
 #else
     #define STATIC static
 #endif
 
+#ifndef WOLFSSL_MISC_COMPILED
+    #error misc.c does not need to be compiled when not defined NO_INLINE
+#endif
 
 #ifdef INTEL_INTRINSICS
 

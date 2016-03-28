@@ -38,6 +38,7 @@
 #ifdef NO_INLINE
     #include <wolfssl/wolfcrypt/misc.h>
 #else
+    #define WOLFSSL_MISC_COMPILED
     #include <wolfcrypt/src/misc.c>
 #endif
 
