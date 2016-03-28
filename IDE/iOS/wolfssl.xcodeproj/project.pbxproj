@@ -36,7 +36,6 @@
 		30B0606E1C6DDB2B00D46008 /* md4.c in Sources */ = {isa = PBXBuildFile; fileRef = 521646221A8992CC0062516A /* md4.c */; };
 		30B0606F1C6DDB2B00D46008 /* md5.c in Sources */ = {isa = PBXBuildFile; fileRef = 521646231A8992CC0062516A /* md5.c */; };
 		30B060701C6DDB2B00D46008 /* memory.c in Sources */ = {isa = PBXBuildFile; fileRef = 521646241A8992CC0062516A /* memory.c */; };
-		30B060711C6DDB2B00D46008 /* misc.c in Sources */ = {isa = PBXBuildFile; fileRef = 521646251A8992CC0062516A /* misc.c */; };
 		30B060721C6DDB2B00D46008 /* pkcs7.c in Sources */ = {isa = PBXBuildFile; fileRef = 521646261A8992CC0062516A /* pkcs7.c */; };
 		30B060731C6DDB2B00D46008 /* poly1305.c in Sources */ = {isa = PBXBuildFile; fileRef = 521646271A8992CC0062516A /* poly1305.c */; };
 		30B060741C6DDB2B00D46008 /* pwdbased.c in Sources */ = {isa = PBXBuildFile; fileRef = 521646281A8992CC0062516A /* pwdbased.c */; };
@@ -185,7 +184,6 @@
 		521646431A8992CC0062516A /* md4.c in Sources */ = {isa = PBXBuildFile; fileRef = 521646221A8992CC0062516A /* md4.c */; };
 		521646441A8992CC0062516A /* md5.c in Sources */ = {isa = PBXBuildFile; fileRef = 521646231A8992CC0062516A /* md5.c */; };
 		521646451A8992CC0062516A /* memory.c in Sources */ = {isa = PBXBuildFile; fileRef = 521646241A8992CC0062516A /* memory.c */; };
-		521646461A8992CC0062516A /* misc.c in Sources */ = {isa = PBXBuildFile; fileRef = 521646251A8992CC0062516A /* misc.c */; };
 		521646471A8992CC0062516A /* pkcs7.c in Sources */ = {isa = PBXBuildFile; fileRef = 521646261A8992CC0062516A /* pkcs7.c */; };
 		521646481A8992CC0062516A /* poly1305.c in Sources */ = {isa = PBXBuildFile; fileRef = 521646271A8992CC0062516A /* poly1305.c */; };
 		521646491A8992CC0062516A /* pwdbased.c in Sources */ = {isa = PBXBuildFile; fileRef = 521646281A8992CC0062516A /* pwdbased.c */; };
@@ -315,7 +313,6 @@
 		A4F318551BC58B1700FDF2BB /* camellia.c in Sources */ = {isa = PBXBuildFile; fileRef = 521646151A8992CC0062516A /* camellia.c */; };
 		A4F318561BC58B1700FDF2BB /* wc_port.c in Sources */ = {isa = PBXBuildFile; fileRef = 521646311A8992CC0062516A /* wc_port.c */; };
 		A4F318571BC58B1700FDF2BB /* pwdbased.c in Sources */ = {isa = PBXBuildFile; fileRef = 521646281A8992CC0062516A /* pwdbased.c */; };
-		A4F318581BC58B1700FDF2BB /* misc.c in Sources */ = {isa = PBXBuildFile; fileRef = 521646251A8992CC0062516A /* misc.c */; };
 		A4F318591BC58B1700FDF2BB /* hc128.c in Sources */ = {isa = PBXBuildFile; fileRef = 5216461D1A8992CC0062516A /* hc128.c */; };
 		A4F3185A1BC58B1700FDF2BB /* asn.c in Sources */ = {isa = PBXBuildFile; fileRef = 521646131A8992CC0062516A /* asn.c */; };
 		A4F3185B1BC58B1700FDF2BB /* sha512.c in Sources */ = {isa = PBXBuildFile; fileRef = 5216462F1A8992CC0062516A /* sha512.c */; };
@@ -1435,7 +1432,6 @@
 				30B0606E1C6DDB2B00D46008 /* md4.c in Sources */,
 				30B0606F1C6DDB2B00D46008 /* md5.c in Sources */,
 				30B060701C6DDB2B00D46008 /* memory.c in Sources */,
-				30B060711C6DDB2B00D46008 /* misc.c in Sources */,
 				30B060721C6DDB2B00D46008 /* pkcs7.c in Sources */,
 				30B060731C6DDB2B00D46008 /* poly1305.c in Sources */,
 				30B060741C6DDB2B00D46008 /* pwdbased.c in Sources */,
@@ -1464,7 +1460,6 @@
 				521646361A8992CC0062516A /* camellia.c in Sources */,
 				521646521A8992CC0062516A /* wc_port.c in Sources */,
 				521646491A8992CC0062516A /* pwdbased.c in Sources */,
-				521646461A8992CC0062516A /* misc.c in Sources */,
 				5216463E1A8992CC0062516A /* hc128.c in Sources */,
 				521646341A8992CC0062516A /* asn.c in Sources */,
 				521646501A8992CC0062516A /* sha512.c in Sources */,
@@ -1514,7 +1509,6 @@
 				A4F318551BC58B1700FDF2BB /* camellia.c in Sources */,
 				A4F318561BC58B1700FDF2BB /* wc_port.c in Sources */,
 				A4F318571BC58B1700FDF2BB /* pwdbased.c in Sources */,
-				A4F318581BC58B1700FDF2BB /* misc.c in Sources */,
 				A4F318591BC58B1700FDF2BB /* hc128.c in Sources */,
 				A4F3185A1BC58B1700FDF2BB /* asn.c in Sources */,
 				A4F3185B1BC58B1700FDF2BB /* sha512.c in Sources */,
@@ -1790,6 +1784,7 @@
 				30B060521C6DDAEA00D46008 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
 		};
 		52B1344816F3C9E800C07B32 /* Build configuration list for PBXProject "wolfssl" */ = {
 			isa = XCConfigurationList;
