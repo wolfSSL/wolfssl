@@ -254,7 +254,9 @@ void client_test(void)
     if ( (ssl = wolfSSL_new(ctx)) == NULL)
         err_sys("wolfSSL_new failed");
 
-    wolfSSL_set_fd(ssl, sockfd);
+    ret = wolfSSL_set_fd(ssl, sockfd);
+    if (ret != SSL_SUCCESS)
+        err_sys("wolfSSL_set_fd failed");
 
     ret = wolfSSL_connect(ssl);
     if (ret != SSL_SUCCESS)

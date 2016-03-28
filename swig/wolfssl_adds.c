@@ -169,7 +169,8 @@ int wolfSSL_swig_connect(WOLFSSL* ssl, const char* server, int port)
     int ret = tcp_connect(&sockfd, server, port);
     if (ret != 0) return ret;
 
-    wolfSSL_set_fd(ssl, sockfd);
+    ret = wolfSSL_set_fd(ssl, sockfd);
+    if (ret != SSL_SUCCESS) return ret;
 
     return wolfSSL_connect(ssl);
 }

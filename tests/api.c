@@ -540,7 +540,10 @@ static THREAD_RETURN WOLFSSL_THREAD test_server_nofail(void* args)
     tcp_accept(&sockfd, &clientfd, (func_args*)args, port, 0, 0, 0, 1);
     CloseSocket(sockfd);
 
-    wolfSSL_set_fd(ssl, clientfd);
+    if (wolfSSL_set_fd(ssl, clientfd) != SSL_SUCCESS) {
+        /*err_sys("SSL_set_fd failed");*/
+        goto done;
+    }
 
 #ifdef NO_PSK
     #if !defined(NO_FILESYSTEM) && !defined(NO_DH)
@@ -649,7 +652,11 @@ static void test_client_nofail(void* args)
 
     ssl = wolfSSL_new(ctx);
     tcp_connect(&sockfd, wolfSSLIP, ((func_args*)args)->signal->port, 0, ssl);
-    wolfSSL_set_fd(ssl, sockfd);
+    if (wolfSSL_set_fd(ssl, sockfd) != SSL_SUCCESS) {
+        /*err_sys("SSL_set_fd failed");*/
+        goto done2;
+    }
+
     if (wolfSSL_connect(ssl) != SSL_SUCCESS)
     {
         int  err = wolfSSL_get_error(ssl, 0);
@@ -739,7 +746,7 @@ static THREAD_RETURN WOLFSSL_THREAD run_wolfssl_server(void* args)
     tcp_accept(&sfd, &cfd, (func_args*)args, port, 0, 0, 0, 1);
     CloseSocket(sfd);
 
-    wolfSSL_set_fd(ssl, cfd);
+    AssertIntEQ(SSL_SUCCESS, wolfSSL_set_fd(ssl, cfd));
 
 #ifdef NO_PSK
     #if !defined(NO_FILESYSTEM) && !defined(NO_DH)
@@ -831,7 +838,7 @@ static void run_wolfssl_client(void* args)
 
     ssl = wolfSSL_new(ctx);
     tcp_connect(&sfd, wolfSSLIP, ((func_args*)args)->signal->port, 0, ssl);
-    wolfSSL_set_fd(ssl, sfd);
+    AssertIntEQ(SSL_SUCCESS, wolfSSL_set_fd(ssl, sfd));
 
     if (callbacks->ssl_ready)
         callbacks->ssl_ready(ssl);
