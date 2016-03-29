@@ -131,7 +131,7 @@ int wc_FreeRng(WC_RNG* rng)
     #ifdef NO_INLINE
         #include <wolfssl/wolfcrypt/misc.h>
     #else
-        #define WOLFSSL_MISC_COMPILED
+        #define WOLFSSL_MISC_INCLUDED
         #include <wolfcrypt/src/misc.c>
     #endif
 #endif /* HAVE_HASHDRBG || NO_RC4 */
