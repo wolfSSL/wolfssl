@@ -127,6 +127,7 @@ void wc_Des3_FreeCavium(Des3* des3)
 #ifdef NO_INLINE
     #include <wolfssl/wolfcrypt/misc.h>
 #else
+    #define WOLFSSL_MISC_INCLUDED
     #include <wolfcrypt/src/misc.c>
 #endif
 

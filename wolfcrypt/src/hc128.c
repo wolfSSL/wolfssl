@@ -35,6 +35,7 @@
     #include <wolfssl/wolfcrypt/hc128.h>
 		#include <wolfssl/wolfcrypt/misc.h>
 #else
+    #define WOLFSSL_MISC_INCLUDED
     #include <wolfcrypt/src/misc.c>
 #endif
 

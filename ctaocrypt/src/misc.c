@@ -24,5 +24,6 @@
     #include <wolfssl/wolfcrypt/misc.h>
 #else
     /* for inline includes */
+    #define WOLFSSL_MISC_INCLUDED
     #include <wolfcrypt/src/misc.c>
 #endif

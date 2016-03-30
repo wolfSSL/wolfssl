@@ -44,6 +44,10 @@
     #define STATIC static
 #endif
 
+/* Check for if compiling misc.c when not needed. */
+#if !defined(WOLFSSL_MISC_INCLUDED) && !defined(NO_INLINE)
+    #error misc.c does not need to be compiled when not defined NO_INLINE
+#endif
 
 #ifdef INTEL_INTRINSICS
 
