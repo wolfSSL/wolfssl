@@ -204,10 +204,94 @@ void wc_AesFreeCavium(Aes* aes)
 #if defined(STM32F2_CRYPTO)
      /* STM32F2 hardware AES support for CBC, CTR modes through the STM32F2
       * Standard Peripheral Library. Documentation located in STM32F2xx
-      * Standard Peripheral Library document (See note in README).
-      * NOTE: no support for AES-GCM/CCM/Direct */
+      * Standard Peripheral Library document (See note in README). */
     #include "stm32f2xx.h"
     #include "stm32f2xx_cryp.h"
+
+    static int wc_AesEncrypt(Aes* aes, const byte* inBlock, byte* outBlock)
+    {
+    	word32 *enc_key;
+    	CRYP_InitTypeDef AES_CRYP_InitStructure;
+    	CRYP_KeyInitTypeDef AES_CRYP_KeyInitStructure;
+
+    	enc_key = aes->key;
+
+    	/* crypto structure initialization */
+    	CRYP_KeyStructInit(&AES_CRYP_KeyInitStructure);
+    	CRYP_StructInit(&AES_CRYP_InitStructure);
+
+    	/* reset registers to their default values */
+    	CRYP_DeInit();
+
+    	/* load key into correct registers */
+    	switch(aes->rounds)
+    	{
+    		case 10: /* 128-bit key */
+    			AES_CRYP_InitStructure.CRYP_KeySize = CRYP_KeySize_128b;
+    			AES_CRYP_KeyInitStructure.CRYP_Key2Left  = enc_key[0];
+    			AES_CRYP_KeyInitStructure.CRYP_Key2Right = enc_key[1];
+    			AES_CRYP_KeyInitStructure.CRYP_Key3Left  = enc_key[2];
+    			AES_CRYP_KeyInitStructure.CRYP_Key3Right = enc_key[3];
+    			break;
+
+    		case 12: /* 192-bit key */
+    			AES_CRYP_InitStructure.CRYP_KeySize = CRYP_KeySize_192b;
+    			AES_CRYP_KeyInitStructure.CRYP_Key1Left  = enc_key[0];
+    			AES_CRYP_KeyInitStructure.CRYP_Key1Right = enc_key[1];
+    			AES_CRYP_KeyInitStructure.CRYP_Key2Left  = enc_key[2];
+    			AES_CRYP_KeyInitStructure.CRYP_Key2Right = enc_key[3];
+    			AES_CRYP_KeyInitStructure.CRYP_Key3Left  = enc_key[4];
+    			AES_CRYP_KeyInitStructure.CRYP_Key3Right = enc_key[5];
+    			break;
+
+    		case 14: /* 256-bit key */
+    			AES_CRYP_InitStructure.CRYP_KeySize = CRYP_KeySize_256b;
+    			AES_CRYP_KeyInitStructure.CRYP_Key0Left  = enc_key[0];
+    			AES_CRYP_KeyInitStructure.CRYP_Key0Right = enc_key[1];
+    			AES_CRYP_KeyInitStructure.CRYP_Key1Left  = enc_key[2];
+    			AES_CRYP_KeyInitStructure.CRYP_Key1Right = enc_key[3];
+    			AES_CRYP_KeyInitStructure.CRYP_Key2Left  = enc_key[4];
+    			AES_CRYP_KeyInitStructure.CRYP_Key2Right = enc_key[5];
+    			AES_CRYP_KeyInitStructure.CRYP_Key3Left  = enc_key[6];
+    			AES_CRYP_KeyInitStructure.CRYP_Key3Right = enc_key[7];
+    			break;
+
+    		default:
+    			break;
+    	}
+    	CRYP_KeyInit(&AES_CRYP_KeyInitStructure);
+
+    	/* set direction, mode, and datatype */
+    	AES_CRYP_InitStructure.CRYP_AlgoDir  = CRYP_AlgoDir_Encrypt;
+    	AES_CRYP_InitStructure.CRYP_AlgoMode = CRYP_AlgoMode_AES_ECB;
+    	AES_CRYP_InitStructure.CRYP_DataType = CRYP_DataType_8b;
+    	CRYP_Init(&AES_CRYP_InitStructure);
+
+    	/* enable crypto processor */
+    	CRYP_Cmd(ENABLE);
+
+    	/* flush IN/OUT FIFOs */
+    	CRYP_FIFOFlush();
+
+    	CRYP_DataIn(*(uint32_t*)&inBlock[0]);
+    	CRYP_DataIn(*(uint32_t*)&inBlock[4]);
+    	CRYP_DataIn(*(uint32_t*)&inBlock[8]);
+    	CRYP_DataIn(*(uint32_t*)&inBlock[12]);
+
+    	/* wait until the complete message has been processed */
+    	while(CRYP_GetFlagStatus(CRYP_FLAG_BUSY) != RESET) {}
+
+    	*(uint32_t*)&outBlock[0]  = CRYP_DataOut();
+    	*(uint32_t*)&outBlock[4]  = CRYP_DataOut();
+    	*(uint32_t*)&outBlock[8]  = CRYP_DataOut();
+    	*(uint32_t*)&outBlock[12] = CRYP_DataOut();
+
+    	/* disable crypto processor */
+    	CRYP_Cmd(DISABLE);
+
+        return 0;
+    }
+
 #elif defined(HAVE_COLDFIRE_SEC)
     /* Freescale Coldfire SEC support for CBC mode.
      * NOTE: no support for AES-CTR/GCM/CCM/Direct */
@@ -1016,7 +1100,7 @@ void AES_CBC_decrypt(const unsigned char* in, unsigned char* out,
                      XASM_LINK("AES_CBC_decrypt");
 #endif /* HAVE_AES_DECRYPT */
 #endif /* HAVE_AES_CBC */
-                     
+
 void AES_ECB_encrypt(const unsigned char* in, unsigned char* out,
                      unsigned long length, const unsigned char* KS, int nr)
                      XASM_LINK("AES_ECB_encrypt");
@@ -1463,6 +1547,8 @@ static void wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
     {
         word32 *rk = aes->key;
 
+        (void)dir;
+
         if (!((keylen == 16) || (keylen == 24) || (keylen == 32)))
             return BAD_FUNC_ARG;
 
@@ -1472,13 +1558,13 @@ static void wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
 
         return wc_AesSetIV(aes, iv);
     }
-
-    int wc_AesSetKeyDirect(Aes* aes, const byte* userKey, word32 keylen,
-                        const byte* iv, int dir)
-    {
-        return wc_AesSetKey(aes, userKey, keylen, iv, dir);
-    }
-
+    #if defined(WOLFSSL_AES_DIRECT)
+        int wc_AesSetKeyDirect(Aes* aes, const byte* userKey, word32 keylen,
+                            const byte* iv, int dir)
+        {
+            return wc_AesSetKey(aes, userKey, keylen, iv, dir);
+        }
+    #endif
 #elif defined(HAVE_COLDFIRE_SEC)
     #if defined (HAVE_THREADX)
         #include "memory_pools.h"
@@ -1830,8 +1916,8 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
 
 /* AES-DIRECT */
 #if defined(WOLFSSL_AES_DIRECT)
-    #if defined(STM32F2_CRYPTO)
-        #error "STM32F2 crypto doesn't yet support AES direct"
+    #if defined(STM32F2_CRYPTO) && defined(HAVE_AES_DECRYPT)
+        #error "STM32F2 crypto doesn't yet support AES direct decrypt"
 
     #elif defined(HAVE_COLDFIRE_SEC)
         #error "Coldfire SEC doesn't yet support AES direct"
@@ -2728,10 +2814,7 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
  *      number counter.
  */
 
-#ifdef STM32F2_CRYPTO
-    #error "STM32F2 crypto doesn't currently support AES-GCM mode"
-
-#elif defined(HAVE_COLDFIRE_SEC)
+#if defined(HAVE_COLDFIRE_SEC)
     #error "Coldfire SEC doesn't currently support AES-GCM mode"
 
 #elif defined(WOLFSSL_NRF51_AES)
@@ -3955,10 +4038,7 @@ WOLFSSL_API int wc_GmacUpdate(Gmac* gmac, const byte* iv, word32 ivSz,
 
 #ifdef HAVE_AESCCM
 
-#ifdef STM32F2_CRYPTO
-    #error "STM32F2 crypto doesn't currently support AES-CCM mode"
-
-#elif defined(HAVE_COLDFIRE_SEC)
+#if defined(HAVE_COLDFIRE_SEC)
     #error "Coldfire SEC doesn't currently support AES-CCM mode"
 
 #elif defined(WOLFSSL_PIC32MZ_CRYPT)
