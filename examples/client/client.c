@@ -68,7 +68,7 @@
 #endif
 
 
-static void NonBlockingSSL_Connect(WOLFSSL_CTX* ctx, WOLFSSL* ssl)
+static void NonBlockingSSL_Connect(WOLFSSL* ssl)
 {
 #ifndef WOLFSSL_CALLBACKS
     int ret = wolfSSL_connect(ssl);
@@ -78,8 +78,6 @@ static void NonBlockingSSL_Connect(WOLFSSL_CTX* ctx, WOLFSSL* ssl)
     int error = wolfSSL_get_error(ssl, 0);
     SOCKET_T sockfd = (SOCKET_T)wolfSSL_get_fd(ssl);
     int select_ret;
-
-    (void)ctx;
 
     while (ret != SSL_SUCCESS && (error == SSL_ERROR_WANT_READ ||
                                   error == SSL_ERROR_WANT_WRITE ||
@@ -92,7 +90,7 @@ static void NonBlockingSSL_Connect(WOLFSSL_CTX* ctx, WOLFSSL* ssl)
             printf("... client would write block\n");
 #ifdef WOLFSSL_ASYNC_CRYPT
         else if (error == WC_PENDING_E) {
-            ret = AsyncCryptPoll(ctx, ssl);
+            ret = AsyncCryptPoll(ssl);
             if (ret < 0) { break; } else if (ret == 0) { continue; }
         }
 #endif
@@ -1180,13 +1178,13 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     if (nonBlocking) {
         wolfSSL_set_using_nonblock(ssl, 1);
         tcp_set_nonblocking(&sockfd);
-        NonBlockingSSL_Connect(ctx, ssl);
+        NonBlockingSSL_Connect(ssl);
     }
     else {
         do {
 #ifdef WOLFSSL_ASYNC_CRYPT
             if (err == WC_PENDING_E) {
-                ret = AsyncCryptPoll(ctx, ssl);
+                ret = AsyncCryptPoll(ssl);
                 if (ret < 0) { break; } else if (ret == 0) { continue; }
             }
 #endif
@@ -1338,7 +1336,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
         if (nonBlocking) {
             wolfSSL_set_using_nonblock(sslResume, 1);
             tcp_set_nonblocking(&sockfd);
-            NonBlockingSSL_Connect(ctx, sslResume);
+            NonBlockingSSL_Connect(sslResume);
         }
         else if (wolfSSL_connect(sslResume) != SSL_SUCCESS)
             err_sys("SSL resume failed");

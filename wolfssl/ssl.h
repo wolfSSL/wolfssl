@@ -1806,11 +1806,14 @@ struct WOLF_EVENT {
 
 enum WOLF_POLL_FLAGS {
     WOLF_POLL_FLAG_CHECK_HW = 0x01,
+    WOLF_POLL_FLAG_PEEK = 0x02,
 };
 
-WOLFSSL_API int wolfssl_CTX_poll_peek(WOLFSSL_CTX* ctx, int* eventCount);
-WOLFSSL_API int wolfSSL_CTX_poll(WOLFSSL_CTX* ctx, WOLF_EVENT* events, int maxEvents,
-                                 unsigned char flags, int* eventCount);
+WOLFSSL_API int wolfSSL_CTX_poll(WOLFSSL_CTX* ctx, WOLF_EVENT* events,
+    int maxEvents, unsigned char flags, int* eventCount);
+WOLFSSL_API int wolfSSL_poll(WOLFSSL* ssl, WOLF_EVENT* events,
+    int maxEvents, unsigned char flags, int* eventCount);
+
 #endif /* HAVE_WOLF_EVENT */
 
 #ifdef __cplusplus

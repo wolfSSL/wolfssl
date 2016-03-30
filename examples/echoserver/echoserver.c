@@ -266,7 +266,7 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
         do {
 #ifdef WOLFSSL_ASYNC_CRYPT
             if (err == WC_PENDING_E) {
-                ret = AsyncCryptPoll(ctx, ssl);
+                ret = AsyncCryptPoll(ssl);
                 if (ret < 0) { break; } else if (ret == 0) { continue; }
             }
 #endif
