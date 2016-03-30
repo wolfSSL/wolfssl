@@ -1082,6 +1082,7 @@ static int LoadKeyFile(byte** keyBuf, word32* keyBufSz,
                 ret = 0;
         }
 
+        ForceZero(loadBuf, (word32)fileSz);
         free(loadBuf);
 
         *keyBuf = saveBuf;
@@ -3093,6 +3094,7 @@ doPart:
                          * wants to null terminate plaintext */
                         tmpData = (byte*)realloc(*data, decoded + ret + 1);
                         if (tmpData == NULL) {
+                            ForceZero(*data, decoded);
                             free(*data);
                             *data = NULL;
                             SetError(MEMORY_STR, error, session,
