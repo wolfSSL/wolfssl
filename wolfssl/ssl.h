@@ -1781,6 +1781,42 @@ WOLFSSL_API int wolfSSL_set_jobject(WOLFSSL* ssl, void* objPtr);
 WOLFSSL_API void* wolfSSL_get_jobject(WOLFSSL* ssl);
 #endif /* WOLFSSL_JNI */
 
+#ifdef HAVE_WOLF_EVENT
+typedef enum WOLF_EVENT_TYPE {
+    WOLF_EVENT_TYPE_NONE,
+    #ifdef WOLFSSL_ASYNC_CRYPT
+        WOLF_EVENT_TYPE_ASYNC_ACCEPT,
+        WOLF_EVENT_TYPE_ASYNC_CONNECT,
+        WOLF_EVENT_TYPE_ASYNC_READ,
+        WOLF_EVENT_TYPE_ASYNC_WRITE,
+        WOLF_EVENT_TYPE_ASYNC_FIRST = WOLF_EVENT_TYPE_ASYNC_ACCEPT,
+        WOLF_EVENT_TYPE_ASYNC_LAST = WOLF_EVENT_TYPE_ASYNC_WRITE,
+    #endif
+} WOLF_EVENT_TYPE;
+
+typedef struct WOLF_EVENT WOLF_EVENT;
+struct WOLF_EVENT {
+    WOLF_EVENT*         next;   /* To support event linked list */
+	WOLFSSL*            ssl;    /* Reference back to SSL object */
+    int                 ret;    /* Async return code */
+    WOLF_EVENT_TYPE     type;
+    unsigned short      pending:1;
+    unsigned short      done:1;
+    /* Future event flags can go here */
+};
+
+enum WOLF_POLL_FLAGS {
+    WOLF_POLL_FLAG_CHECK_HW = 0x01,
+    WOLF_POLL_FLAG_PEEK = 0x02,
+};
+
+WOLFSSL_API int wolfSSL_CTX_poll(WOLFSSL_CTX* ctx, WOLF_EVENT* events,
+    int maxEvents, unsigned char flags, int* eventCount);
+WOLFSSL_API int wolfSSL_poll(WOLFSSL* ssl, WOLF_EVENT* events,
+    int maxEvents, unsigned char flags, int* eventCount);
+
+#endif /* HAVE_WOLF_EVENT */
+
 #ifdef __cplusplus
     }  /* extern "C" */
 #endif

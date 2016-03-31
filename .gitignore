@@ -39,6 +39,8 @@ cyassl.sublime*
 fips.c
 fips_test.c
 fips
+src/async.c
+wolfssl/async.h
 ctaocrypt/benchmark/benchmark
 ctaocrypt/test/testctaocrypt
 wolfcrypt/benchmark/benchmark

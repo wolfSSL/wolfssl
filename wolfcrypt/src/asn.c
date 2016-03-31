@@ -790,7 +790,7 @@ static const byte* OidFromId(word32 id, word32 type, word32* oidSz)
 
     switch (type) {
 
-        case hashType:
+        case oidHashType:
             switch (id) {
                 case MD2h:
                     oid = hashMd2hOid;
@@ -819,7 +819,7 @@ static const byte* OidFromId(word32 id, word32 type, word32* oidSz)
             }
             break;
 
-        case sigType:
+        case oidSigType:
             switch (id) {
                 #ifndef NO_DSA
                 case CTC_SHAwDSA:
@@ -876,7 +876,7 @@ static const byte* OidFromId(word32 id, word32 type, word32* oidSz)
             }
             break;
 
-        case keyType:
+        case oidKeyType:
             switch (id) {
                 #ifndef NO_DSA
                 case DSAk:
@@ -908,7 +908,7 @@ static const byte* OidFromId(word32 id, word32 type, word32* oidSz)
             break;
 
         #ifdef HAVE_ECC
-        case curveType:
+        case oidCurveType:
             switch (id) {
                 #if defined(HAVE_ALL_CURVES) || !defined(NO_ECC256)
                 case ECC_256R1:
@@ -952,7 +952,7 @@ static const byte* OidFromId(word32 id, word32 type, word32* oidSz)
             break;
         #endif /* HAVE_ECC */
 
-        case blkType:
+        case oidBlkType:
             switch (id) {
                 case DESb:
                     oid = blkDesCbcOid;
@@ -966,7 +966,7 @@ static const byte* OidFromId(word32 id, word32 type, word32* oidSz)
             break;
 
         #ifdef HAVE_OCSP
-        case ocspType:
+        case oidOcspType:
             switch (id) {
                 case OCSP_BASIC_OID:
                     oid = ocspBasicOid;
@@ -980,7 +980,7 @@ static const byte* OidFromId(word32 id, word32 type, word32* oidSz)
             break;
         #endif /* HAVE_OCSP */
 
-        case certExtType:
+        case oidCertExtType:
             switch (id) {
                 case BASIC_CA_OID:
                     oid = extBasicCaOid;
@@ -1029,7 +1029,7 @@ static const byte* OidFromId(word32 id, word32 type, word32* oidSz)
             }
             break;
 
-        case certAuthInfoType:
+        case oidCertAuthInfoType:
             switch (id) {
                 case AIA_OCSP_OID:
                     oid = extAuthInfoOcspOid;
@@ -1042,7 +1042,7 @@ static const byte* OidFromId(word32 id, word32 type, word32* oidSz)
             }
             break;
 
-        case certPolicyType:
+        case oidCertPolicyType:
             switch (id) {
                 case CP_ANY_OID:
                     oid = extCertPolicyAnyOid;
@@ -1051,7 +1051,7 @@ static const byte* OidFromId(word32 id, word32 type, word32* oidSz)
             }
             break;
 
-        case certAltNameType:
+        case oidCertAltNameType:
             switch (id) {
                 case HW_NAME_OID:
                     oid = extAltNamesHwNameOid;
@@ -1060,7 +1060,7 @@ static const byte* OidFromId(word32 id, word32 type, word32* oidSz)
             }
             break;
 
-        case certKeyUseType:
+        case oidCertKeyUseType:
             switch (id) {
                 case EKU_ANY_OID:
                     oid = extExtKeyUsageAnyOid;
@@ -1080,7 +1080,7 @@ static const byte* OidFromId(word32 id, word32 type, word32* oidSz)
                     break;
             }
 
-        case kdfType:
+        case oidKdfType:
             switch (id) {
                 case PBKDF2_OID:
                     oid = pbkdf2Oid;
@@ -1089,7 +1089,7 @@ static const byte* OidFromId(word32 id, word32 type, word32* oidSz)
             }
             break;
 
-        case ignoreType:
+        case oidIgnoreType:
         default:
             break;
     }
@@ -1140,7 +1140,7 @@ WOLFSSL_LOCAL int GetObjectId(const byte* input, word32* inOutIdx, word32* oid,
         const byte* checkOid = NULL;
         word32 checkOidSz;
 
-        if (oidType != ignoreType) {
+        if (oidType != oidIgnoreType) {
             checkOid = OidFromId(*oid, oidType, &checkOidSz);
 
             if (checkOid != NULL &&
@@ -1319,7 +1319,7 @@ int ToTraditional(byte* input, word32 sz)
     if (GetMyVersion(input, &inOutIdx, &version) < 0)
         return ASN_PARSE_E;
 
-    if (GetAlgoId(input, &inOutIdx, &oid, sigType, sz) < 0)
+    if (GetAlgoId(input, &inOutIdx, &oid, oidSigType, sz) < 0)
         return ASN_PARSE_E;
 
     if (input[inOutIdx] == ASN_OBJECT_ID) {
@@ -1596,7 +1596,7 @@ int ToTraditionalEnc(byte* input, word32 sz,const char* password,int passwordSz)
     if (GetSequence(input, &inOutIdx, &length, sz) < 0)
         return ASN_PARSE_E;
 
-    if (GetAlgoId(input, &inOutIdx, &oid, sigType, sz) < 0)
+    if (GetAlgoId(input, &inOutIdx, &oid, oidSigType, sz) < 0)
         return ASN_PARSE_E;
 
     first  = input[inOutIdx - 2];   /* PKCS version always 2nd to last byte */
@@ -1610,7 +1610,7 @@ int ToTraditionalEnc(byte* input, word32 sz,const char* password,int passwordSz)
         if (GetSequence(input, &inOutIdx, &length, sz) < 0)
             return ASN_PARSE_E;
 
-        if (GetAlgoId(input, &inOutIdx, &oid, kdfType, sz) < 0)
+        if (GetAlgoId(input, &inOutIdx, &oid, oidKdfType, sz) < 0)
             return ASN_PARSE_E;
 
         if (oid != PBKDF2_OID)
@@ -1656,7 +1656,7 @@ int ToTraditionalEnc(byte* input, word32 sz,const char* password,int passwordSz)
     if (version == PKCS5v2) {
         /* get encryption algo */
         /* JOHN: New type. Need a little more research. */
-        if (GetAlgoId(input, &inOutIdx, &oid, blkType, sz) < 0) {
+        if (GetAlgoId(input, &inOutIdx, &oid, oidBlkType, sz) < 0) {
 #ifdef WOLFSSL_SMALL_STACK
             XFREE(salt,  NULL, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(cbcIv, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -2354,7 +2354,7 @@ static int GetKey(DecodedCert* cert)
         return ASN_PARSE_E;
 
     if (GetAlgoId(cert->source, &cert->srcIdx,
-                  &cert->keyOID, keyType, cert->maxIdx) < 0)
+                  &cert->keyOID, oidKeyType, cert->maxIdx) < 0)
         return ASN_PARSE_E;
 
     switch (cert->keyOID) {
@@ -2445,7 +2445,7 @@ static int GetKey(DecodedCert* cert)
             byte b;
 
             if (GetObjectId(cert->source, &cert->srcIdx,
-                            &cert->pkCurveOID, curveType, cert->maxIdx) < 0)
+                            &cert->pkCurveOID, oidCurveType, cert->maxIdx) < 0)
                 return ASN_PARSE_E;
 
             if (CheckCurve(cert->pkCurveOID) < 0)
@@ -3148,7 +3148,7 @@ int DecodeToKey(DecodedCert* cert, int verify)
     WOLFSSL_MSG("Got Cert Header");
 
     if ( (ret = GetAlgoId(cert->source, &cert->srcIdx, &cert->signatureOID,
-                          sigType, cert->maxIdx)) < 0)
+                          oidSigType, cert->maxIdx)) < 0)
         return ret;
 
     WOLFSSL_MSG("Got Algo ID");
@@ -3379,8 +3379,8 @@ WOLFSSL_LOCAL word32 SetAlgoID(int algoOID, byte* output, int type, int curveSz)
     byte   ID_Length[MAX_LENGTH_SZ];
     byte   seqArray[MAX_SEQ_SZ + 1];  /* add object_id to end */
 
-    tagSz = (type == hashType || type == sigType ||
-             (type == keyType && algoOID == RSAk)) ? 2 : 0;
+    tagSz = (type == oidHashType || type == oidSigType ||
+             (type == oidKeyType && algoOID == RSAk)) ? 2 : 0;
 
     algoName = OidFromId(algoOID, type, &algoSz);
 
@@ -3416,7 +3416,7 @@ word32 wc_EncodeSignature(byte* out, const byte* digest, word32 digSz,
     word32 encDigSz, algoSz, seqSz;
 
     encDigSz = SetDigest(digest, digSz, digArray);
-    algoSz   = SetAlgoID(hashOID, algoArray, hashType, 0);
+    algoSz   = SetAlgoID(hashOID, algoArray, oidHashType, 0);
     seqSz    = SetSequence(encDigSz + algoSz, seqArray);
 
     XMEMCPY(out, seqArray, seqSz);
@@ -3988,7 +3988,7 @@ static int DecodeAltNames(byte* input, int sz, DecodedCert* cert)
             /* Consume the rest of this sequence. */
             length -= (strLen + idx - lenStartIdx);
 
-            if (GetObjectId(input, &idx, &oid, certAltNameType, sz) < 0) {
+            if (GetObjectId(input, &idx, &oid, oidCertAltNameType, sz) < 0) {
                 WOLFSSL_MSG("\tbad OID");
                 return ASN_PARSE_E;
             }
@@ -4239,7 +4239,7 @@ static int DecodeAuthInfo(byte* input, int sz, DecodedCert* cert)
             return ASN_PARSE_E;
 
         oid = 0;
-        if (GetObjectId(input, &idx, &oid, certAuthInfoType, sz) < 0)
+        if (GetObjectId(input, &idx, &oid, oidCertAuthInfoType, sz) < 0)
             return ASN_PARSE_E;
 
         /* Only supporting URIs right now. */
@@ -4385,7 +4385,7 @@ static int DecodeExtKeyUsage(byte* input, int sz, DecodedCert* cert)
     #endif
 
     while (idx < (word32)sz) {
-        if (GetObjectId(input, &idx, &oid, certKeyUseType, sz) < 0)
+        if (GetObjectId(input, &idx, &oid, oidCertKeyUseType, sz) < 0)
             return ASN_PARSE_E;
 
         switch (oid) {
@@ -4720,7 +4720,7 @@ static int DecodeCertExtensions(DecodedCert* cert)
         }
 
         oid = 0;
-        if (GetObjectId(input, &idx, &oid, certExtType, sz) < 0) {
+        if (GetObjectId(input, &idx, &oid, oidCertExtType, sz) < 0) {
             WOLFSSL_MSG("\tfail: OBJECT ID");
             return ASN_PARSE_E;
         }
@@ -4972,7 +4972,7 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
     }
 
     if ((ret = GetAlgoId(cert->source, &cert->srcIdx, &confirmOID,
-                         sigType, cert->maxIdx)) < 0)
+                         oidSigType, cert->maxIdx)) < 0)
         return ret;
 
     if ((ret = GetSignature(cert)) < 0)
@@ -5524,7 +5524,7 @@ static int SetRsaPublicKey(byte* output, RsaKey* key,
 #else
         byte algo[MAX_ALGO_SZ];
 #endif
-        algoSz = SetAlgoID(RSAk, algo, keyType, 0);
+        algoSz = SetAlgoID(RSAk, algo, oidKeyType, 0);
         lenSz  = SetLength(seqSz + nSz + eSz + 1, len);
         len[lenSz++] = 0;   /* trailing 0 */
 
@@ -5940,7 +5940,7 @@ static int SetEccPublicKey(byte* output, ecc_key* key, int with_header)
             return MEMORY_E;
         }
 #endif
-        algoSz  = SetAlgoID(ECDSAk, algo, keyType, curveSz);
+        algoSz  = SetAlgoID(ECDSAk, algo, oidKeyType, curveSz);
 
         lenSz   = SetLength(pubSz + 1, len);
         len[lenSz++] = 0;   /* trailing 0 */
@@ -6789,7 +6789,7 @@ static int EncodeCert(Cert* cert, DerCert* der, RsaKey* rsaKey, ecc_key* eccKey,
     der->serialSz  = SetSerial(cert->serial, der->serial);
 
     /* signature algo */
-    der->sigAlgoSz = SetAlgoID(cert->sigType, der->sigAlgo, sigType, 0);
+    der->sigAlgoSz = SetAlgoID(cert->sigType, der->sigAlgo, oidSigType, 0);
     if (der->sigAlgoSz == 0)
         return ALGO_ID_E;
 
@@ -7181,7 +7181,7 @@ static int AddSignature(byte* buffer, int bodySz, const byte* sig, int sigSz,
     int  idx = bodySz, seqSz;
 
     /* algo */
-    idx += SetAlgoID(sigAlgoType, buffer + idx, sigType, 0);
+    idx += SetAlgoID(sigAlgoType, buffer + idx, oidSigType, 0);
     /* bit string */
     buffer[idx++] = ASN_BIT_STRING;
     /* length */
@@ -7988,7 +7988,7 @@ static int SetAltNamesFromCert(Cert* cert, const byte* der, int derSz)
                 decoded->srcIdx = startIdx;
 
                 if (GetAlgoId(decoded->source, &decoded->srcIdx, &oid,
-                              certExtType, decoded->maxIdx) < 0) {
+                              oidCertExtType, decoded->maxIdx) < 0) {
                     ret = ASN_PARSE_E;
                     break;
                 }
@@ -8747,7 +8747,7 @@ static int DecodeSingleResponse(byte* source,
     if (GetSequence(source, &idx, &length, size) < 0)
         return ASN_PARSE_E;
     /* Skip the hash algorithm */
-    if (GetAlgoId(source, &idx, &oid, ignoreType, size) < 0)
+    if (GetAlgoId(source, &idx, &oid, oidIgnoreType, size) < 0)
         return ASN_PARSE_E;
     /* Save reference to the hash of CN */
     if (source[idx++] != ASN_OCTET_STRING)
@@ -8869,7 +8869,7 @@ static int DecodeOcspRespExtensions(byte* source,
         }
 
         oid = 0;
-        if (GetObjectId(source, &idx, &oid, ocspType, sz) < 0) {
+        if (GetObjectId(source, &idx, &oid, oidOcspType, sz) < 0) {
             WOLFSSL_MSG("\tfail: OBJECT ID");
             return ASN_PARSE_E;
         }
@@ -9022,7 +9022,7 @@ static int DecodeBasicOcspResponse(byte* source, word32* ioIndex,
         return ASN_PARSE_E;
 
     /* Get the signature algorithm */
-    if (GetAlgoId(source, &idx, &resp->sigOID, sigType, size) < 0)
+    if (GetAlgoId(source, &idx, &resp->sigOID, oidSigType, size) < 0)
         return ASN_PARSE_E;
 
     /* Obtain pointer to the start of the signature, and save the size */
@@ -9128,7 +9128,7 @@ int OcspResponseDecode(OcspResponse* resp, void* cm)
         return ASN_PARSE_E;
 
     /* Check ObjectID for the resposeBytes */
-    if (GetObjectId(source, &idx, &oid, ocspType, size) < 0)
+    if (GetObjectId(source, &idx, &oid, oidOcspType, size) < 0)
         return ASN_PARSE_E;
     if (oid != OCSP_BASIC_OID)
         return ASN_PARSE_E;
@@ -9214,9 +9214,9 @@ int EncodeOcspRequest(OcspRequest* req, byte* output, word32 size)
     WOLFSSL_ENTER("EncodeOcspRequest");
 
 #ifdef NO_SHA
-    algoSz = SetAlgoID(SHA256h, algoArray, hashType, 0);
+    algoSz = SetAlgoID(SHA256h, algoArray, oidHashType, 0);
 #else
-    algoSz = SetAlgoID(SHAh, algoArray, hashType, 0);
+    algoSz = SetAlgoID(SHAh, algoArray, oidHashType, 0);
 #endif
 
     issuerSz    = SetDigest(req->issuerHash,    KEYID_SIZE,    issuerArray);
@@ -9606,7 +9606,7 @@ int ParseCRL(DecodedCRL* dcrl, const byte* buff, word32 sz, void* cm)
             return ASN_PARSE_E;
     }
 
-    if (GetAlgoId(buff, &idx, &oid, ignoreType, sz) < 0)
+    if (GetAlgoId(buff, &idx, &oid, oidIgnoreType, sz) < 0)
         return ASN_PARSE_E;
 
     if (GetNameHash(buff, &idx, dcrl->issuerHash, sz) < 0)
@@ -9650,7 +9650,7 @@ int ParseCRL(DecodedCRL* dcrl, const byte* buff, word32 sz, void* cm)
     if (idx != dcrl->sigIndex)
         idx = dcrl->sigIndex;   /* skip extensions */
 
-    if (GetAlgoId(buff, &idx, &dcrl->signatureOID, sigType, sz) < 0)
+    if (GetAlgoId(buff, &idx, &dcrl->signatureOID, oidSigType, sz) < 0)
         return ASN_PARSE_E;
 
     if (GetCRL_Signature(buff, &idx, dcrl, sz) < 0)

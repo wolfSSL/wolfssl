@@ -200,19 +200,19 @@ enum Misc_ASN {
 
 
 enum Oid_Types {
-    hashType         = 0,
-    sigType          = 1,
-    keyType          = 2,
-    curveType        = 3,
-    blkType          = 4,
-    ocspType         = 5,
-    certExtType      = 6,
-    certAuthInfoType = 7,
-    certPolicyType   = 8,
-    certAltNameType  = 9,
-    certKeyUseType   = 10,
-    kdfType          = 11,
-    ignoreType
+    oidHashType         = 0,
+    oidSigType          = 1,
+    oidKeyType          = 2,
+    oidCurveType        = 3,
+    oidBlkType          = 4,
+    oidOcspType         = 5,
+    oidCertExtType      = 6,
+    oidCertAuthInfoType = 7,
+    oidCertPolicyType   = 8,
+    oidCertAltNameType  = 9,
+    oidCertKeyUseType   = 10,
+    oidKdfType          = 11,
+    oidIgnoreType
 };
 
 

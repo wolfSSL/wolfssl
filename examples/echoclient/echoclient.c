@@ -69,6 +69,7 @@ void echoclient_test(void* args)
     SSL_CTX*    ctx    = 0;
     SSL*        ssl    = 0;
 
+    int ret = 0, err = 0;
     int doDTLS = 0;
     int doPSK = 0;
     int sendSz;
@@ -174,7 +175,25 @@ void echoclient_test(void* args)
     Sleep(100);
 #endif
 
-    if (SSL_connect(ssl) != SSL_SUCCESS) err_sys("SSL_connect failed");
+    do {
+#ifdef WOLFSSL_ASYNC_CRYPT
+        if (err == WC_PENDING_E) {
+            ret = AsyncCryptPoll(ssl);
+            if (ret < 0) { break; } else if (ret == 0) { continue; }
+        }
+#endif
+        err = 0; /* Reset error */
+        ret = SSL_connect(ssl);
+        if (ret != SSL_SUCCESS) {
+            err = SSL_get_error(ssl, 0);
+        }
+    } while (ret != SSL_SUCCESS && err == WC_PENDING_E);
+
+    if (ret != SSL_SUCCESS) {
+        char buffer[CYASSL_MAX_ERROR_SZ];
+        printf("err = %d, %s\n", err, ERR_error_string(err, buffer));
+        err_sys("SSL_connect failed");
+    }
 
     while (fgets(msg, sizeof(msg), fin) != 0) {
      

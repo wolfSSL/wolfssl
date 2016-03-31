@@ -1907,4 +1907,22 @@ static INLINE const char* mymktemp(char *tempfn, int len, int num)
 
 #endif  /* HAVE_SESSION_TICKET && CHACHA20 && POLY1305 */
 
+#ifdef WOLFSSL_ASYNC_CRYPT
+    static INLINE int AsyncCryptPoll(WOLFSSL* ssl)
+    {
+        int ret, eventCount = 0;
+        WOLF_EVENT events[1];
+
+        printf("Connect/Accept got WC_PENDING_E\n");
+
+        ret = wolfSSL_poll(ssl, events, sizeof(events)/sizeof(WOLF_EVENT),
+            WOLF_POLL_FLAG_CHECK_HW, &eventCount);
+        if (ret == 0 && eventCount > 0) {
+            ret = 1; /* Success */
+        }
+
+        return ret;
+    }
+#endif
+
 #endif /* wolfSSL_TEST_H */

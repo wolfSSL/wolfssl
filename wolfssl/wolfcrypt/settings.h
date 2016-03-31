@@ -136,6 +136,9 @@
 /* Uncomment next line if building for ARDUINO */
 /* #define WOLFSSL_ARDUINO */
 
+/* Uncomment next line to enable asynchronous crypto WC_PENDING_E */
+/* #define WOLFSSL_ASYNC_CRYPT */
+
 #include <wolfssl/wolfcrypt/visibility.h>
 
 #ifdef WOLFSSL_USER_SETTINGS
@@ -1147,6 +1150,18 @@ static char *fgets(char *buff, int sz, FILE *fp)
     #undef NO_SHA256
     #undef NO_DH
 #endif
+
+/* Asynchronous Crypto */
+#ifdef WOLFSSL_ASYNC_CRYPT
+    /* Make sure wolf events are enabled */
+    #undef HAVE_WOLF_EVENT
+    #define HAVE_WOLF_EVENT
+#else
+    #ifdef WOLFSSL_ASYNC_CRYPT_TEST
+        #error Must have WOLFSSL_ASYNC_CRYPT enabled with WOLFSSL_ASYNC_CRYPT_TEST
+    #endif
+#endif /* WOLFSSL_ASYNC_CRYPT */
+
 
 /* Place any other flags or defines here */
 
