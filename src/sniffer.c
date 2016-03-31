@@ -3246,9 +3246,22 @@ int ssl_DecodePacket(const byte* packet, int length, byte** data, char* error)
 /* returns 0 on success, -1 on error */
 int ssl_FreeDecodeBuffer(byte** data, char* error)
 {
+    return ssl_FreeZeroDecodeBuffer(data, 0, error);
+}
+
+
+/* Deallocator for the decoded data buffer, zeros out buffer. */
+/* returns 0 on success, -1 on error */
+int ssl_FreeZeroDecodeBuffer(byte** data, int sz, char* error)
+{
     (void)error;
 
+    if (sz < 0) {
+        return -1;
+    }
+
     if (data != NULL) {
+        ForceZero(*data, (word32)sz);
         free(*data);
         *data = NULL;
     }

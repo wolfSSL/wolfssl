@@ -63,6 +63,10 @@ WOLFSSL_API
 SSL_SNIFFER_API int ssl_FreeDecodeBuffer(unsigned char** data, char* error);
 
 WOLFSSL_API
+SSL_SNIFFER_API int ssl_FreeZeroDecodeBuffer(unsigned char** data, int sz,
+                                             char* error);
+
+WOLFSSL_API
 SSL_SNIFFER_API int ssl_Trace(const char* traceFile, char* error);
 
 WOLFSSL_API
