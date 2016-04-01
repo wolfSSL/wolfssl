@@ -15468,8 +15468,15 @@ int DoSessionTicket(WOLFSSL* ssl,
             #endif
 
             #if defined(HAVE_ECC)
-                if (ssl->specs.kea == ecdhe_psk_kea || ssl->specs.kea == ecc_diffie_hellman_kea) {
-                    AddHeaders(output, length, server_key_exchange, ssl);
+                if (ssl->specs.kea == ecdhe_psk_kea ||
+                    ssl->specs.kea == ecc_diffie_hellman_kea) {
+                    /* Check output to make sure it was set */
+                    if (output) {
+                        AddHeaders(output, length, server_key_exchange, ssl);
+                    }
+                    else {
+                        ERROR_OUT(BUFFER_ERROR, exit_sske);
+                    }
                 }
             #endif /* HAVE_ECC */
 
