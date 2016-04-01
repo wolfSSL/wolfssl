@@ -1391,16 +1391,16 @@ void bench_dh(void)
     (void)tmp;
 
 
-#ifdef USE_CERT_BUFFERS_1024
+#if defined(NO_ASN)
+    dhKeySz = 1024;
+    /* do nothing, but don't use default FILE */
+#elif defined(USE_CERT_BUFFERS_1024)
     tmp = dh_key_der_1024;
     bytes = sizeof_dh_key_der_1024;
     dhKeySz = 1024;
 #elif defined(USE_CERT_BUFFERS_2048)
     tmp = dh_key_der_2048;
     bytes = sizeof_dh_key_der_2048;
-#elif defined(NO_ASN)
-    dhKeySz = 1024;
-    /* do nothing, but don't use default FILE */
 #else
     #error "need to define a cert buffer size"
 #endif /* USE_CERT_BUFFERS */
