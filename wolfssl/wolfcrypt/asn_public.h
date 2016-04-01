@@ -259,6 +259,10 @@ WOLFSSL_API int wc_SetCertificatePolicies(Cert *cert, const char **input);
     /* public key helper */
     WOLFSSL_API int wc_EccPublicKeyDecode(const byte*, word32*,
                                               ecc_key*, word32);
+    #if (defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_KEY_GEN))
+        WOLFSSL_API int wc_EccPublicKeyToDer(ecc_key*, byte* output,
+                                               word32 inLen, int with_AlgCurve);
+    #endif
 #endif
 
 /* DER encode signature */

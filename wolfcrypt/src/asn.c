@@ -5877,9 +5877,8 @@ static int SetSerial(const byte* serial, byte* output)
     return length + CTC_SERIAL_SIZE;
 }
 
-
-#ifdef HAVE_ECC
-
+#endif /* defined(WOLFSSL_CERT_GEN) && !defined(NO_RSA) */
+#if defined(HAVE_ECC) && (defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_KEY_GEN))
 
 /* Write a public ECC key to output */
 static int SetEccPublicKey(byte* output, ecc_key* key, int with_header)
@@ -5978,8 +5977,38 @@ static int SetEccPublicKey(byte* output, ecc_key* key, int with_header)
 }
 
 
-#endif /* HAVE_ECC */
+/* returns the size of buffer used, the public ECC key in DER format is stored
+   in output buffer
+   with_AlgCurve is a flag for when to include a header that has the Algorithm
+   and Curve infromation */
+int wc_EccPublicKeyToDer(ecc_key* key, byte* output, word32 inLen,
+                                                              int with_AlgCurve)
+{
+    word32 infoSz = 0;
 
+    if (output == NULL || key == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    if (with_AlgCurve) {
+        int maxSetLength = 4; /* max buffer space needed for SetLength        */
+        int asnBit = 1;       /* buffer space needed for asn bit string macro */
+
+        infoSz += asnBit;
+        infoSz += maxSetLength + asnBit; /* SetSequence buffer needed        */
+        infoSz += 2 * MAX_ALGO_SZ;       /* buffer space for algorithm/curve */
+        infoSz += asnBit;
+        infoSz += maxSetLength;
+    }
+
+    if (inLen < wc_ecc_size(key) + infoSz) {
+        return BAD_FUNC_ARG;
+    }
+
+    return SetEccPublicKey(output, key, with_AlgCurve);
+}
+#endif /* HAVE_ECC && (WOLFSSL_CERT_GEN || WOLFSSL_KEY_GEN) */
+#if defined(WOLFSSL_CERT_GEN) && !defined(NO_RSA)
 
 static INLINE byte itob(int number)
 {
