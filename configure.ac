@@ -2621,11 +2621,21 @@ fi
 LIB_SOCKET_NSL
 AX_HARDEN_CC_COMPILER_FLAGS
 
-# link to ws2_32 if on mingw
+# if mingw then link to ws2_32 for sockets
 case $host_os in
-    *mingw32)
+    mingw*)
         LDFLAGS="$LDFLAGS -lws2_32" ;;
 esac
+
+# add wolfSSL defines for shared/static
+if test "$enable_shared" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SHARED"
+fi
+if test "$enable_static" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_STATIC"
+fi
 
 # add user C_EXTRA_FLAGS back
 CFLAGS="$CFLAGS $USER_C_EXTRA_FLAGS"
@@ -2700,7 +2710,7 @@ for option in $OPTION_FLAGS; do
         noequalsign=`echo $defonly | sed 's/=/ /'`
         if test "$noequalsign" = "NDEBUG" || test "$noequalsign" = "DEBUG"
         then
-            echo "not outputing (N)DEBUG to $OPTION_FILE"
+            echo "not outputting (N)DEBUG to $OPTION_FILE"
             continue
         fi
 
@@ -2750,7 +2760,15 @@ done < $OPTION_FILE
 
 # switch ifdef protection in cyassl/option.h to CYASSL_OPTONS_H, remove bak
 sed -i.bak 's/WOLFSSL_OPTIONS_H/CYASSL_OPTIONS_H/g' cyassl/options.h
+
+# workaround for mingw sed that may get "Permission denied" trying to preserver permissions
+case $host_os in
+    mingw*)
+        chmod u+w cyassl/options.h ;;
+esac
+
 rm cyassl/options.h.bak
+
 
 # output config summary
 echo "---"

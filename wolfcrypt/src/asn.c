@@ -7093,7 +7093,7 @@ static int WriteCertBody(DerCert* der, byte* buffer)
     if (der->extensionsSz) {
         /* extensions */
         XMEMCPY(buffer + idx, der->extensions, min(der->extensionsSz,
-                                                   sizeof(der->extensions)));
+                                                   (int)sizeof(der->extensions)));
         idx += der->extensionsSz;
     }
 

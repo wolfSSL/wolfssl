@@ -84,7 +84,7 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
     int    outCreated = 0;
     int    shutDown = 0;
     int    useAnyAddr = 0;
-    word16 port = wolfSSLPort;
+    word16 port;
     int    argc = ((func_args*)args)->argc;
     char** argv = ((func_args*)args)->argv;
 
@@ -114,14 +114,21 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
     doPSK = 1;
 #endif
 
-    #if defined(NO_MAIN_DRIVER) && !defined(USE_WINDOWS_API) && \
-        !defined(CYASSL_SNIFFER) && !defined(WOLFSSL_MDK_SHELL) && \
-        !defined(CYASSL_TIRTOS)
-        port = 0;
-    #endif
-    #if defined(USE_ANY_ADDR)
-        useAnyAddr = 1;
-    #endif
+#if defined(USE_WINDOWS_API)
+    /* Generate random port for testing */
+    port = GetRandomPort();
+#elif defined(NO_MAIN_DRIVER) && !defined(CYASSL_SNIFFER) && \
+     !defined(WOLFSSL_MDK_SHELL) && !defined(CYASSL_TIRTOS)
+    /* Let tcp_listen assign port */
+    port = 0;
+#else
+    /* Use default port */
+    port = wolfSSLPort;
+#endif
+
+#if defined(USE_ANY_ADDR)
+    useAnyAddr = 1;
+#endif
 
 #ifdef CYASSL_TIRTOS
     fdOpenSession(Task_self());

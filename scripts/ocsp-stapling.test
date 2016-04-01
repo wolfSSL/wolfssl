@@ -10,9 +10,7 @@ ca=certs/external/ca-verisign-g5.pem
 [ ! -x ./examples/client/client ] && echo -e "\n\nClient doesn't exist" && exit 1
 
 # is our desired server there? - login.live.com doesn't answers PING
-# ping -c 2 $server
-# RESULT=$?
-# [ $RESULT -ne 0 ] && echo -e "\n\nCouldn't find $server, skipping" && exit 0
+#./scripts/ping.test $server 2
 
 # client test against the server
 ./examples/client/client -X -C -h $server -p 443 -A $ca -g -W 1

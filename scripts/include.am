@@ -57,6 +57,8 @@ dist_noinst_SCRIPTS+= scripts/google.test
 endif
 endif
 
-EXTRA_DIST +=  scripts/testsuite.pcap
+EXTRA_DIST +=  scripts/testsuite.pcap \
+               scripts/ping.test
+
 # leave openssl.test as extra until non bash works
 EXTRA_DIST +=  scripts/openssl.test

@@ -398,10 +398,6 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
 
             case 'p' :
                 port = (word16)atoi(myoptarg);
-                #if defined(USE_WINDOWS_API)
-                    if (port == 0)
-                        err_sys("port number cannot be 0");
-                #endif
                 break;
 
             case 'w' :
@@ -725,6 +721,13 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
                                            XSTRLEN(sniHostName)) != SSL_SUCCESS)
             err_sys("UseSNI failed");
 #endif
+
+#ifdef USE_WINDOWS_API
+    if (port == 0) {
+        /* Generate random port for testing */
+        port = GetRandomPort();
+    }
+#endif /* USE_WINDOWS_API */
 
     while (1) {
         /* allow resume option */

@@ -223,6 +223,13 @@
                 #define XSTRTOK strtok_r
             #else
                 #define XSTRTOK strtok_s
+
+                #ifdef __MINGW32__
+                    #pragma GCC diagnostic push
+                    #pragma GCC diagnostic warning "-Wcpp"
+                    #warning "MinGW may be missing strtok_s. You can find a public domain implementation here: https://github.com/fletcher/MultiMarkdown-4/blob/master/strtok.c"
+                    #pragma GCC diagnostic pop
+                #endif
             #endif
         #endif
 	#endif

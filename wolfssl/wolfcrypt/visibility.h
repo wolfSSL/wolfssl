@@ -47,7 +47,8 @@
         #define WOLFSSL_API   __global
         #define WOLFSSL_LOCAL __hidden
     #elif defined(_MSC_VER)
-        #ifdef WOLFSSL_DLL
+        #if defined(WOLFSSL_DLL) || \
+            (defined(__MINGW32__) && defined(WOLFSSL_SHARED))
             #define WOLFSSL_API __declspec(dllexport)
         #else
             #define WOLFSSL_API
@@ -59,7 +60,8 @@
     #endif /* HAVE_VISIBILITY */
 #else /* BUILDING_WOLFSSL */
     #if defined(_MSC_VER)
-        #ifdef WOLFSSL_DLL
+        #if defined(WOLFSSL_DLL) || \
+            (defined(__MINGW32__) && defined(WOLFSSL_SHARED))
             #define WOLFSSL_API __declspec(dllimport)
         #else
             #define WOLFSSL_API
