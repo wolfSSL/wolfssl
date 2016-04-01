@@ -2061,6 +2061,9 @@ int EccMakeTempKey(WOLFSSL* ssl)
 
 #endif /* HAVE_ECC */
 
+#endif /* !NO_CERTS */
+
+#if !defined(NO_CERTS) || !defined(NO_PSK)
 #if !defined(NO_DH)
 
 int DhGenKeyPair(WOLFSSL* ssl,
@@ -2145,8 +2148,8 @@ int DhAgree(WOLFSSL* ssl,
 }
 
 #endif /* !NO_DH */
+#endif /* !NO_CERTS || !NO_PSK */
 
-#endif /* NO_CERTS */
 
 
 /* This function inherits a WOLFSSL_CTX's fields into an SSL object.
@@ -3529,6 +3532,9 @@ static void AddRecordHeader(byte* output, word32 length, byte type, WOLFSSL* ssl
 
     /* record layer header */
     rl = (RecordLayerHeader*)output;
+    if (rl == NULL) {
+        return;
+    }
     rl->type    = type;
     rl->pvMajor = ssl->version.major;       /* type and version same in each */
     rl->pvMinor = ssl->version.minor;
@@ -3536,13 +3542,15 @@ static void AddRecordHeader(byte* output, word32 length, byte type, WOLFSSL* ssl
 #ifdef WOLFSSL_ALTERNATIVE_DOWNGRADE
     if (ssl->options.side == WOLFSSL_CLIENT_END
     &&  ssl->options.connectState == CONNECT_BEGIN
-    && !ssl->options.resuming)
+    && !ssl->options.resuming) {
         rl->pvMinor = ssl->options.downgrade ? ssl->options.minDowngrade
                                              : ssl->version.minor;
+    }
 #endif
 
-    if (!ssl->options.dtls)
+    if (!ssl->options.dtls) {
         c16toa((word16)length, rl->length);
+    }
     else {
 #ifdef WOLFSSL_DTLS
         DtlsRecordLayerHeader* dtls;
@@ -14445,6 +14453,13 @@ int DoSessionTicket(WOLFSSL* ssl,
         word32 exportSz = 0;
     #endif
 
+    #ifdef HAVE_QSH
+        word32 qshSz = 0;
+        if (ssl->peerQSHKeyPresent) {
+            qshSz = QSH_KeyGetSize(ssl);
+        }
+    #endif
+
         (void)ssl;
         (void)sigSz;
 
@@ -14602,14 +14617,9 @@ int DoSessionTicket(WOLFSSL* ssl,
 
             case KEYSHARE_BUILD:
             {
+            #if (!defined(NO_DH) && !defined(NO_RSA)) || defined(HAVE_ECC)
                 word32 preSigSz, preSigIdx;
-
-                #ifdef HAVE_QSH
-                    word32 qshSz = 0;
-                    if (ssl->peerQSHKeyPresent && ssl->options.haveQSH) {
-                        qshSz = QSH_KeyGetSize(ssl);
-                    }
-                #endif
+            #endif
 
                 switch(ssl->specs.kea)
                 {
@@ -14731,7 +14741,8 @@ int DoSessionTicket(WOLFSSL* ssl,
                         idx += LENGTH_SZ;
                         XMEMCPY(output + idx, ssl->buffers.serverDH_Pub.buffer,
                                               ssl->buffers.serverDH_Pub.length);
-                        idx += ssl->buffers.serverDH_Pub.length;
+                        /* No need to update idx, since sizes are already set */
+                        /* idx += ssl->buffers.serverDH_Pub.length; */
                         break;
                     }
                 #endif /* !defined(NO_DH) && !defined(NO_PSK) */
@@ -15457,8 +15468,15 @@ int DoSessionTicket(WOLFSSL* ssl,
             #endif
 
             #if defined(HAVE_ECC)
-                if (ssl->specs.kea == ecdhe_psk_kea || ssl->specs.kea == ecc_diffie_hellman_kea) {
-                    AddHeaders(output, length, server_key_exchange, ssl);
+                if (ssl->specs.kea == ecdhe_psk_kea ||
+                    ssl->specs.kea == ecc_diffie_hellman_kea) {
+                    /* Check output to make sure it was set */
+                    if (output) {
+                        AddHeaders(output, length, server_key_exchange, ssl);
+                    }
+                    else {
+                        ERROR_OUT(BUFFER_ERROR, exit_sske);
+                    }
                 }
             #endif /* HAVE_ECC */
 
@@ -17441,7 +17459,6 @@ int DoSessionTicket(WOLFSSL* ssl,
             {
             #ifdef HAVE_QSH
                 word16 name;
-                int    qshSz;
 
                 if (ssl->options.haveQSH) {
                     /* extension name */
@@ -17449,6 +17466,7 @@ int DoSessionTicket(WOLFSSL* ssl,
                     idx += OPAQUE16_LEN;
 
                     if (name == TLSX_QUANTUM_SAFE_HYBRID) {
+                        int    qshSz;
                         /* if qshSz is larger than 0 it is the
                            length of buffer used */
                         if ((qshSz = TLSX_QSHCipher_Parse(ssl,
