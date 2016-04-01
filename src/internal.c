@@ -3532,6 +3532,9 @@ static void AddRecordHeader(byte* output, word32 length, byte type, WOLFSSL* ssl
 
     /* record layer header */
     rl = (RecordLayerHeader*)output;
+    if (rl == NULL) {
+        return;
+    }
     rl->type    = type;
     rl->pvMajor = ssl->version.major;       /* type and version same in each */
     rl->pvMinor = ssl->version.minor;
@@ -3539,13 +3542,15 @@ static void AddRecordHeader(byte* output, word32 length, byte type, WOLFSSL* ssl
 #ifdef WOLFSSL_ALTERNATIVE_DOWNGRADE
     if (ssl->options.side == WOLFSSL_CLIENT_END
     &&  ssl->options.connectState == CONNECT_BEGIN
-    && !ssl->options.resuming)
+    && !ssl->options.resuming) {
         rl->pvMinor = ssl->options.downgrade ? ssl->options.minDowngrade
                                              : ssl->version.minor;
+    }
 #endif
 
-    if (!ssl->options.dtls)
+    if (!ssl->options.dtls) {
         c16toa((word16)length, rl->length);
+    }
     else {
 #ifdef WOLFSSL_DTLS
         DtlsRecordLayerHeader* dtls;
