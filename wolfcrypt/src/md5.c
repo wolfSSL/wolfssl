@@ -64,6 +64,7 @@
      * document (See note in README).
      */
     #include "stm32f2xx.h"
+    #include "stm32f2xx_hash.h"
 
     void wc_InitMd5(Md5* md5)
     {
