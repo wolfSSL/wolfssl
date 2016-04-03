@@ -613,13 +613,15 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
         if (SSL_CTX_set_cipher_list(ctx, cipherList) != SSL_SUCCESS)
             err_sys("server can't set cipher list 1");
 
-#ifdef CYASSL_LEANPSK
-    usePsk = 1;
-#endif
+    if (usePsk != 1) {
+    #ifdef CYASSL_LEANPSK
+        usePsk = 1;
+    #endif
 
-#if defined(NO_RSA) && !defined(HAVE_ECC)
-    usePsk = 1;
-#endif
+    #if defined(NO_RSA) && !defined(HAVE_ECC)
+        usePsk = 1;
+    #endif
+    }
 
     if (fewerPackets)
         CyaSSL_CTX_set_group_messages(ctx);
