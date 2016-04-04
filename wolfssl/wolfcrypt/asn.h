@@ -195,7 +195,8 @@ enum Misc_ASN {
     EIGHTK_BUF          = 8192,    /* Tmp buffer size           */
     MAX_PUBLIC_KEY_SZ   = MAX_NTRU_ENC_SZ + MAX_ALGO_SZ + MAX_SEQ_SZ * 2,
                                    /* use bigger NTRU size */
-    HEADER_ENCRYPTED_KEY_SIZE = 88 /* Extra header size for encrypted key */
+    HEADER_ENCRYPTED_KEY_SIZE = 88,/* Extra header size for encrypted key */
+    TRAILING_ZERO       = 1        /* Used for size of zero pad */
 };
 
 
