@@ -4103,7 +4103,8 @@ int rsa_test(void)
 
     #ifndef WC_NO_RSA_OAEP
     /* OAEP padding testing */
-    #if !defined(HAVE_FAST_RSA) && !defined(HAVE_FIPS)
+    #if !defined(HAVE_FAST_RSA) && !defined(HAVE_USER_RSA) && \
+        !defined(HAVE_FIPS)
     #ifndef NO_SHA
     XMEMSET(plain, 0, sizeof(plain));
     ret = wc_RsaPublicEncrypt_ex(in, inLen, out, sizeof(out), &key, &rng,

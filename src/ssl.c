@@ -1879,11 +1879,13 @@ static const char *EVP_AES_256_CBC = "AES-256-CBC";
 #endif
 static const int  EVP_AES_SIZE = 11;
 
+#ifndef NO_DES3
 static const char *EVP_DES_CBC = "DES-CBC";
 static const int  EVP_DES_SIZE = 7;
 
 static const char *EVP_DES_EDE3_CBC = "DES-EDE3-CBC";
 static const int  EVP_DES_EDE3_SIZE = 12;
+#endif
 
 #ifdef HAVE_IDEA
 static const char *EVP_IDEA_CBC = "IDEA-CBC";
@@ -8437,6 +8439,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         if (XSTRNCMP(md, "MD5", 3) != 0) return 0;
 
         /* only support CBC DES and AES for now */
+        #ifndef NO_DES3
         if (XSTRNCMP(type, EVP_DES_CBC, EVP_DES_SIZE) == 0) {
             keyLen = DES_KEY_SIZE;
             ivLen  = DES_IV_SIZE;
@@ -8445,7 +8448,9 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
             keyLen = DES3_KEY_SIZE;
             ivLen  = DES_IV_SIZE;
         }
-        else if (XSTRNCMP(type, EVP_AES_128_CBC, EVP_AES_SIZE) == 0) {
+        else
+        #endif /* NO_DES3 */
+        if (XSTRNCMP(type, EVP_AES_128_CBC, EVP_AES_SIZE) == 0) {
             keyLen = AES_128_KEY_SIZE;
             ivLen  = AES_IV_SIZE;
         }
@@ -8797,6 +8802,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
     }
 
 
+#ifndef NO_DES3
     const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_des_cbc(void)
     {
         WOLFSSL_ENTER("wolfSSL_EVP_des_cbc");
@@ -8809,7 +8815,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         WOLFSSL_ENTER("wolfSSL_EVP_des_ede3_cbc");
         return EVP_DES_EDE3_CBC;
     }
-
+#endif /* NO_DES3 */
 
     const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_rc4(void)
     {
@@ -10962,12 +10968,15 @@ char* wolfSSL_CIPHER_description(WOLFSSL_CIPHER* cipher, char* in, int len)
 }
 
 
+#ifndef NO_SESSION_CACHE
+
 WOLFSSL_SESSION* wolfSSL_get1_session(WOLFSSL* ssl)
 {
     /* sessions are stored statically, no need for reference count */
     return wolfSSL_get_session(ssl);
 }
 
+#endif /* NO_SESSION_CACHE */
 
 void wolfSSL_X509_free(WOLFSSL_X509* x509)
 {
@@ -17367,6 +17376,7 @@ int wolfSSL_set_tlsext_host_name(WOLFSSL* ssl, const char* host_name)
 }
 
 
+#ifndef NO_WOLFSSL_SERVER
 const char * wolfSSL_get_servername(WOLFSSL* ssl, byte type)
 {
     void * serverName = NULL;
@@ -17375,6 +17385,7 @@ const char * wolfSSL_get_servername(WOLFSSL* ssl, byte type)
     TLSX_SNI_GetRequest(ssl->extensions, type, &serverName);
     return (const char *)serverName;
 }
+#endif /* NO_WOLFSSL_SERVER */
 #endif /* HAVE_SNI */
 
 

@@ -9080,7 +9080,7 @@ int SendCertificateRequest(WOLFSSL* ssl)
         return SendBuffered(ssl);
 }
 
-
+#ifndef NO_WOLFSSL_SERVER
 #if defined(HAVE_CERTIFICATE_STATUS_REQUEST) \
  || defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
 static int BuildCertificateStatus(WOLFSSL* ssl, byte type, buffer* status,
@@ -9178,6 +9178,7 @@ static int BuildCertificateStatus(WOLFSSL* ssl, byte type, buffer* status,
     return ret;
 }
 #endif
+#endif /* NO_WOLFSSL_SERVER */
 
 
 int SendCertificateStatus(WOLFSSL* ssl)
@@ -9199,6 +9200,7 @@ int SendCertificateStatus(WOLFSSL* ssl)
 
     switch (status_type) {
 
+    #ifndef NO_WOLFSSL_SERVER
     #if defined(HAVE_CERTIFICATE_STATUS_REQUEST) \
      || defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
         /* case WOLFSSL_CSR_OCSP: */
@@ -9490,6 +9492,7 @@ int SendCertificateStatus(WOLFSSL* ssl)
         break;
 
     #endif /* HAVE_CERTIFICATE_STATUS_REQUEST_V2 */
+    #endif /* NO_WOLFSSL_SERVER */
 
         default:
         break;

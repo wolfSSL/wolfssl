@@ -96,6 +96,9 @@ enum Ctc_Misc {
 #ifndef HAVE_ECC
     typedef struct ecc_key ecc_key;
 #endif
+#ifdef NO_RSA
+    typedef struct RsaKey RsaKey;
+#endif
 
 typedef struct CertName {
     char country[CTC_NAME_SIZE];
