@@ -279,8 +279,8 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
         } while (ret != SSL_SUCCESS && err == WC_PENDING_E);
 
         if (ret != SSL_SUCCESS) {
-            err = CyaSSL_get_error(ssl, 0);
             char buffer[CYASSL_MAX_ERROR_SZ];
+            err = CyaSSL_get_error(ssl, 0);
             printf("error = %d, %s\n", err, CyaSSL_ERR_error_string(err, buffer));
             printf("SSL_accept failed\n");
             CyaSSL_free(ssl);
