@@ -34,7 +34,6 @@
 #define CYASSL_MAX_16BIT    WOLFSSL_MAX_16BIT
 #define CYASSL_MAX_ERROR_SZ WOLFSSL_MAX_ERROR_SZ
 #define cyassl_word         wolfssl_word
-#define CYASSL_MAX_ERROR_SZ WOLFSSL_MAX_ERROR_SZ
 
 #endif /* CTAO_CRYPT_TYPES_H */
 
