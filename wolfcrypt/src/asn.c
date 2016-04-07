@@ -5877,14 +5877,13 @@ static int SetSerial(const byte* serial, byte* output)
     return length + CTC_SERIAL_SIZE;
 }
 
-
-#ifdef HAVE_ECC
-
+#endif /* defined(WOLFSSL_CERT_GEN) && !defined(NO_RSA) */
+#if defined(HAVE_ECC) && (defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_KEY_GEN))
 
 /* Write a public ECC key to output */
 static int SetEccPublicKey(byte* output, ecc_key* key, int with_header)
 {
-    byte len[MAX_LENGTH_SZ + 1];  /* trailing 0 */
+    byte len[MAX_LENGTH_SZ + TRAILING_ZERO];
     int  algoSz;
     int  curveSz;
     int  lenSz;
@@ -5942,7 +5941,7 @@ static int SetEccPublicKey(byte* output, ecc_key* key, int with_header)
 #endif
         algoSz  = SetAlgoID(ECDSAk, algo, oidKeyType, curveSz);
 
-        lenSz   = SetLength(pubSz + 1, len);
+        lenSz   = SetLength(pubSz + TRAILING_ZERO, len);
         len[lenSz++] = 0;   /* trailing 0 */
 
         /* write, 1 is for ASN_BIT_STRING */
@@ -5978,8 +5977,44 @@ static int SetEccPublicKey(byte* output, ecc_key* key, int with_header)
 }
 
 
-#endif /* HAVE_ECC */
+/* returns the size of buffer used, the public ECC key in DER format is stored
+   in output buffer
+   with_AlgCurve is a flag for when to include a header that has the Algorithm
+   and Curve infromation */
+int wc_EccPublicKeyToDer(ecc_key* key, byte* output, word32 inLen,
+                                                              int with_AlgCurve)
+{
+    word32 infoSz = 0;
+    word32 keySz  = 0;
+    int ret;
 
+    if (output == NULL || key == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    if (with_AlgCurve) {
+        /* buffer space for algorithm/curve */
+        infoSz += MAX_SEQ_SZ;
+        infoSz += 2 * MAX_ALGO_SZ;
+
+        /* buffer space for public key sequence */
+        infoSz += MAX_SEQ_SZ;
+        infoSz += TRAILING_ZERO;
+    }
+
+    if ((ret = wc_ecc_export_x963(key, NULL, &keySz)) != LENGTH_ONLY_E) {
+        WOLFSSL_MSG("Error in getting ECC public key size");
+        return ret;
+    }
+
+    if (inLen < keySz + infoSz) {
+        return BUFFER_E;
+    }
+
+    return SetEccPublicKey(output, key, with_AlgCurve);
+}
+#endif /* HAVE_ECC && (WOLFSSL_CERT_GEN || WOLFSSL_KEY_GEN) */
+#if defined(WOLFSSL_CERT_GEN) && !defined(NO_RSA)
 
 static INLINE byte itob(int number)
 {

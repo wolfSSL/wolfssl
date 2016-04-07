@@ -5001,6 +5001,7 @@ int rsa_test(void)
             free(tmp);
             return -5415;
         }
+
         fclose(pemFile);
         free(pem);
         free(derCert);
@@ -6484,6 +6485,25 @@ static int ecc_test_key_gen(WC_RNG* rng, int keySize)
     fclose(pemFile);
     if (ret != pemSz) {
         return -1029;
+    }
+
+    /* test export of public key */
+    derSz = wc_EccPublicKeyToDer(&userA, der, FOURK_BUF, 1);
+    if (derSz <= 0) {
+       return -5516;
+    }
+#ifdef FREESCALE_MQX
+        keyFile = fopen("a:\\certs\\ecc-public-key.der", "wb");
+#else
+        keyFile = fopen("./ecc-public-key.der", "wb");
+#endif
+    if (!keyFile) {
+       return -5417;
+    }
+    ret = (int)fwrite(der, 1, derSz, keyFile);
+    fclose(keyFile);
+    if (ret != derSz) {
+       return -5418;
     }
 
     wc_ecc_free(&userA);
