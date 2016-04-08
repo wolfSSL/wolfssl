@@ -139,6 +139,9 @@
 /* Uncomment next line to enable asynchronous crypto WC_PENDING_E */
 /* #define WOLFSSL_ASYNC_CRYPT */
 
+/* Uncomment next line if building for uTasker */
+/* #define WOLFSSL_UTASKER */
+
 #include <wolfssl/wolfcrypt/visibility.h>
 
 #ifdef WOLFSSL_USER_SETTINGS
@@ -349,9 +352,67 @@
 #endif
 
 
+#ifdef WOLFSSL_UTASKER
+    /* uTasker configuration - used for fnRandom() */
+    #include "config.h"
+
+    #define SINGLE_THREADED
+    #define NO_WOLFSSL_DIR
+    #define WOLFSSL_HAVE_MIN
+    #define NO_WRITEV
+
+    #define HAVE_ECC
+    #define ALT_ECC_SIZE
+    #define USE_FAST_MATH
+    #define TFM_TIMING_RESISTANT
+    #define ECC_TIMING_RESISTANT
+
+    /* used in wolfCrypt test */
+    #define NO_MAIN_DRIVER
+    #define USE_CERT_BUFFERS_2048
+
+    /* uTasker port uses RAW sockets, use I/O callbacks
+	 * See wolfSSL uTasker example for sample callbacks */
+    #define WOLFSSL_USER_IO
+
+    /* uTasker filesystem not ported  */
+    #define NO_FILESYSTEM
+
+    /* uTasker RNG is abstracted, calls HW RNG when available */
+    #define CUSTOM_RAND_GENERATE    fnRandom
+    #define CUSTOM_RAND_TYPE        unsigned short
+
+    /* user needs to define XTIME to function that provides
+     * seconds since Unix epoch */
+    #ifndef XTIME
+        #error XTIME must be defined in wolfSSL settings.h
+        /* #define XTIME fnSecondsSinceEpoch */
+    #endif
+
+    /* use uTasker std library replacements where available */
+    #define STRING_USER
+    #define XMEMCPY(d,s,l)         uMemcpy((d),(s),(l))
+    #define XMEMSET(b,c,l)         uMemset((b),(c),(l))
+    #define XMEMCMP(s1,s2,n)       uMemcmp((s1),(s2),(n))
+    #define XMEMMOVE(d,s,l)        memmove((d),(s),(l))
+
+    #define XSTRLEN(s1)            uStrlen((s1))
+    #define XSTRNCPY(s1,s2,n)      strncpy((s1),(s2),(n))
+    #define XSTRSTR(s1,s2)         strstr((s1),(s2))
+    #define XSTRNSTR(s1,s2,n)      mystrnstr((s1),(s2),(n))
+    #define XSTRNCMP(s1,s2,n)      strncmp((s1),(s2),(n))
+    #define XSTRNCAT(s1,s2,n)      strncat((s1),(s2),(n))
+    #define XSTRNCASECMP(s1,s2,n)  _strnicmp((s1),(s2),(n))
+    #if defined(WOLFSSL_CERT_EXT) || defined(HAVE_ALPN)
+        #define XSTRTOK            strtok_r
+    #endif
+#endif
+
+
 /* Micrium will use Visual Studio for compilation but not the Win32 API */
-#if defined(_WIN32) && !defined(MICRIUM) && !defined(FREERTOS) && !defined(FREERTOS_TCP)\
-        && !defined(EBSNET) && !defined(WOLFSSL_EROAD)
+#if defined(_WIN32) && !defined(MICRIUM) && !defined(FREERTOS) && \
+	!defined(FREERTOS_TCP) && !defined(EBSNET) && !defined(WOLFSSL_EROAD) && \
+	!defined(WOLFSSL_UTASKER)
     #define USE_WINDOWS_API
 #endif
 
