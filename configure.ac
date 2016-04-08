@@ -1040,11 +1040,17 @@ AC_ARG_ENABLE([asn],
 
 if test "$ENABLED_ASN" = "no"
 then
-    AM_CFLAGS="$AM_CFLAGS -DNO_ASN -DNO_CERTS"
-    if test "$ENABLED_DH" = "no" && test "$ENABLED_ECC" == "no"
+    # turn on ASN if OpenSSL extra
+    if test "$ENABLED_OPENSSLEXTRA" = "yes"
     then
-        # DH and ECC need bigint
-        AM_CFLAGS="$AM_CFLAGS -DNO_BIG_INT"
+        ENABLED_ASN=yes
+    else
+        AM_CFLAGS="$AM_CFLAGS -DNO_ASN -DNO_CERTS"
+        if test "$ENABLED_DH" = "no" && test "$ENABLED_ECC" == "no"
+        then
+            # DH and ECC need bigint
+            AM_CFLAGS="$AM_CFLAGS -DNO_BIG_INT"
+        fi
     fi
 else
     # turn off ASN if leanpsk on

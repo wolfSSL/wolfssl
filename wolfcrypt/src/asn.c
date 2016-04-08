@@ -3543,7 +3543,7 @@ static int ConfirmSignature(const byte* buf, word32 bufSz,
             WOLFSSL_MSG("Verify Signature has unsupported type");
     }
 
-    if (typeH == 0) {
+    if (typeH == 0 || digestSz == 0) {
 #ifdef WOLFSSL_SMALL_STACK
         XFREE(digest, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif

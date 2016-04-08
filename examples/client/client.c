@@ -916,13 +916,15 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
             err_sys("client can't set cipher list 1");
     }
 
-#ifdef WOLFSSL_LEANPSK
-    usePsk = 1;
-#endif
+    if (usePsk != 1) {
+    #ifdef WOLFSSL_LEANPSK
+        usePsk = 1;
+    #endif
 
-#if defined(NO_RSA) && !defined(HAVE_ECC)
-    usePsk = 1;
-#endif
+    #if defined(NO_RSA) && !defined(HAVE_ECC)
+        usePsk = 1;
+    #endif
+    }
 
     if (fewerPackets)
         wolfSSL_CTX_set_group_messages(ctx);
