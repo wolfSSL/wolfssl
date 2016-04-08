@@ -1162,6 +1162,12 @@ static char *fgets(char *buff, int sz, FILE *fp)
     #endif
 #endif /* WOLFSSL_ASYNC_CRYPT */
 
+/* leantls checks */
+#ifdef WOLFSSL_LEANTLS
+    #ifndef HAVE_ECC
+        #error leantls build needs ECC
+    #endif
+#endif /* WOLFSSL_LEANTLS*/
 
 /* Place any other flags or defines here */
 

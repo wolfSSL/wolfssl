@@ -2568,6 +2568,23 @@ AS_IF([test "x$ENABLED_OCSP" = "xyes" && \
        test "x$ENABLED_ECC" = "xno"],
       [AC_MSG_ERROR([please enable rsa or ecc if enabling ocsp.])])
 
+# checks for pkcs7 needed enables
+AS_IF([test "x$ENABLED_PKCS7" = "xyes" && \
+       test "x$ENABLED_RSA" = "xno"],
+      [AC_MSG_ERROR([please enable rsa if enabling pkcs7.])])
+
+AS_IF([test "x$ENABLED_PKCS7" = "xyes" && \
+       test "x$ENABLED_SHA" = "xno"],
+      [AC_MSG_ERROR([please enable sha if enabling pkcs7.])])
+
+AS_IF([test "x$ENABLED_LEANTLS" = "xyes" && \
+       test "x$ENABLED_ECC" = "xno"],
+      [AC_MSG_ERROR([please enable ecc if enabling leantls.])])
+
+AS_IF([test "x$ENABLED_SNIFFER" = "xyes" && \
+       test "x$ENABLED_RSA" = "xno"],
+      [AC_MSG_ERROR([please enable rsa if enabling sniffer.])])
+
 ################################################################################
 # Update CFLAGS based on options                                               #
 ################################################################################
