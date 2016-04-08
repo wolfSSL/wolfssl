@@ -2652,6 +2652,7 @@ void SSL_ResourceFree(WOLFSSL* ssl)
 #if defined(KEEP_PEER_CERT) || defined(GOAHEAD_WS)
     FreeX509(&ssl->peerCert);
 #endif
+
 #ifdef HAVE_SESSION_TICKET
     if (ssl->session.isDynamic) {
         XFREE(ssl->session.ticket, ssl->heap, DYNAMIC_TYPE_SESSION_TICK);
@@ -2797,6 +2798,7 @@ void FreeHandshakeResources(WOLFSSL* ssl)
 #ifdef HAVE_QSH
     QSH_FreeAll(ssl);
 #endif
+
 #ifdef HAVE_SESSION_TICKET
     if (ssl->session.isDynamic) {
         XFREE(ssl->session.ticket, ssl->heap, DYNAMIC_TYPE_SESSION_TICK);
@@ -15966,7 +15968,7 @@ int DoSessionTicket(WOLFSSL* ssl,
         if (ssl->options.resuming) {  /* let's try */
             int ret = -1;
             WOLFSSL_SESSION* session = GetSession(ssl,
-                                                  ssl->arrays->masterSecret);
+                                                  ssl->arrays->masterSecret, 1);
             #ifdef HAVE_SESSION_TICKET
                 if (ssl->options.useTicket == 1) {
                     session = &ssl->session;
@@ -15981,9 +15983,6 @@ int DoSessionTicket(WOLFSSL* ssl,
                     WOLFSSL_MSG("Unsupported cipher suite, OldClientHello");
                     return UNSUPPORTED_SUITE;
                 }
-                #ifdef SESSION_CERTS
-                    ssl->session = *session; /* restore session certs. */
-                #endif
 
                 ret = wc_RNG_GenerateBlock(ssl->rng, ssl->arrays->serverRandom,
                                                                        RAN_LEN);
@@ -16361,7 +16360,7 @@ int DoSessionTicket(WOLFSSL* ssl,
         if (ssl->options.resuming) {
             int ret = -1;
             WOLFSSL_SESSION* session = GetSession(ssl,
-                                                  ssl->arrays->masterSecret);
+                                                  ssl->arrays->masterSecret, 1);
             #ifdef HAVE_SESSION_TICKET
                 if (ssl->options.useTicket == 1) {
                     session = &ssl->session;
@@ -16377,9 +16376,6 @@ int DoSessionTicket(WOLFSSL* ssl,
                     WOLFSSL_MSG("Unsupported cipher suite, ClientHello");
                     return UNSUPPORTED_SUITE;
                 }
-                #ifdef SESSION_CERTS
-                    ssl->session = *session; /* restore session certs. */
-                #endif
 
                 ret = wc_RNG_GenerateBlock(ssl->rng, ssl->arrays->serverRandom,
                                                                        RAN_LEN);
