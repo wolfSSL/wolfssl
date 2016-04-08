@@ -136,7 +136,7 @@ int wc_ShaUpdate(Sha* sha, const byte* data, word32 len)
             /* append partial to existing stored block */
             XMEMCPY((byte*)sha->buffer + sha->buffLen, data, len);
             sha->buffLen += len;
-            return;
+            return 0;
         }
     }
 
