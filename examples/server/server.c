@@ -614,11 +614,15 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
             err_sys("server can't set cipher list 1");
 
 #ifdef CYASSL_LEANPSK
-    usePsk = 1;
+    if (!usePsk) {
+        usePsk = 1;
+    }
 #endif
 
 #if defined(NO_RSA) && !defined(HAVE_ECC)
-    usePsk = 1;
+    if (!usePsk) {
+        usePsk = 1;
+    }
 #endif
 
     if (fewerPackets)
@@ -635,6 +639,8 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
             err_sys("can't load server cert file, check file and run from"
                     " wolfSSL home dir");
     }
+#else
+    (void) ourCert;
 #endif
 
 #ifndef NO_DH
@@ -656,6 +662,9 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
             err_sys("can't load server private key file, check file and run "
                 "from wolfSSL home dir");
     }
+#else
+    (void) ourKey;
+    (void) useNtruKey;
 #endif
 
     if (usePsk || usePskPlus) {
@@ -709,6 +718,9 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
         }
         #endif /* WOLFSSL_TRUST_PEER_CERT */
    }
+#else
+    (void) verifyCert;
+    (void) doCliCertCheck;
 #endif
 
 #if defined(CYASSL_SNIFFER)
@@ -832,7 +844,10 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
             #if !defined(NO_FILESYSTEM) && !defined(NO_DH) && !defined(NO_ASN)
                 CyaSSL_SetTmpDH_file(ssl, ourDhParam, SSL_FILETYPE_PEM);
             #elif !defined(NO_DH)
+                (void) ourDhParam;
                 SetDH(ssl);  /* repick suites with DHE, higher priority than PSK */
+            #else
+                (void) ourDhParam;
             #endif
         }
 

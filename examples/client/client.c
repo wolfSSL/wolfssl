@@ -917,11 +917,15 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     }
 
 #ifdef WOLFSSL_LEANPSK
-    usePsk = 1;
+    if (!usePsk) {
+        usePsk = 1;
+    }
 #endif
 
 #if defined(NO_RSA) && !defined(HAVE_ECC)
-    usePsk = 1;
+    if (!usePsk) {
+        usePsk = 1;
+    }
 #endif
 
     if (fewerPackets)
@@ -948,7 +952,9 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
                 err_sys("client can't set cipher list 2");
         }
 #endif
-        useClientCert = 0;
+        if (useClientCert) {
+            useClientCert = 0;
+        }
     }
 
     if (useAnon) {
@@ -959,7 +965,9 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
                 err_sys("client can't set cipher list 4");
         }
 #endif
-        useClientCert = 0;
+        if (useClientCert) {
+            useClientCert = 0;
+        }
     }
 
 #if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
@@ -1023,12 +1031,19 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
         }
 #endif /* WOLFSSL_TRUST_PEER_CERT */
     }
+#else /* !NO_FILESYSTEM && !NO_CERTS */
+    (void) useClientCert;
+    (void) verifyCert;
+    (void) ourCert;
+    (void) ourKey;
 #endif /* !NO_FILESYSTEM && !NO_CERTS */
 #if !defined(NO_CERTS)
     if (!usePsk && !useAnon && doPeerCheck == 0)
         wolfSSL_CTX_set_verify(ctx, SSL_VERIFY_NONE, 0);
     if (!usePsk && !useAnon && overrideDateErrors == 1)
         wolfSSL_CTX_set_verify(ctx, SSL_VERIFY_PEER, myDateCb);
+#else
+    (void) overrideDateErrors;
 #endif
 
 #ifdef HAVE_CAVIUM
