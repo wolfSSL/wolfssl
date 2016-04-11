@@ -614,11 +614,15 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
             err_sys("server can't set cipher list 1");
 
 #ifdef CYASSL_LEANPSK
-    usePsk = 1;
+    if (!usePsk) {
+        usePsk = 1;
+    }
 #endif
 
 #if defined(NO_RSA) && !defined(HAVE_ECC)
-    usePsk = 1;
+    if (!usePsk) {
+        usePsk = 1;
+    }
 #endif
 
     if (fewerPackets)
@@ -971,6 +975,15 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     TicketCleanup();
 #endif
 
+    /* There are use cases  when these assignments are not read. To avoid
+     * potential confusion those warnings have been handled here.
+     */
+    (void) ourKey;
+    (void) verifyCert;
+    (void) doCliCertCheck;
+    (void) useNtruKey;
+    (void) ourDhParam;
+    (void) ourCert;
 #ifndef CYASSL_TIRTOS
     return 0;
 #endif

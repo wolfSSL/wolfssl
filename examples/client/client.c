@@ -917,11 +917,15 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     }
 
 #ifdef WOLFSSL_LEANPSK
-    usePsk = 1;
+    if (!usePsk) {
+        usePsk = 1;
+    }
 #endif
 
 #if defined(NO_RSA) && !defined(HAVE_ECC)
-    usePsk = 1;
+    if (!usePsk) {
+        usePsk = 1;
+    }
 #endif
 
     if (fewerPackets)
@@ -948,7 +952,9 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
                 err_sys("client can't set cipher list 2");
         }
 #endif
-        useClientCert = 0;
+        if (useClientCert) {
+            useClientCert = 0;
+        }
     }
 
     if (useAnon) {
@@ -959,7 +965,9 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
                 err_sys("client can't set cipher list 4");
         }
 #endif
-        useClientCert = 0;
+        if (useClientCert) {
+            useClientCert = 0;
+        }
     }
 
 #if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
@@ -1435,6 +1443,15 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     if (trackMemory)
         ShowMemoryTracker();
 #endif /* USE_WOLFSSL_MEMORY */
+
+    /* There are use cases  when these assignments are not read. To avoid
+     * potential confusion those warnings have been handled here.
+     */
+    (void) overrideDateErrors;
+    (void) useClientCert;
+    (void) verifyCert;
+    (void) ourCert;
+    (void) ourKey;
 
 #if !defined(WOLFSSL_TIRTOS)
     return 0;

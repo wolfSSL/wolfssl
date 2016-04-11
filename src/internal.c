@@ -8549,6 +8549,10 @@ static int BuildMessage(WOLFSSL* ssl, byte* output, int outSz,
     int ret        = 0;
     int atomicUser = 0;
 
+    if (ssl == NULL || output == NULL || input == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
 #ifdef WOLFSSL_DTLS
     if (ssl->options.dtls) {
         sz       += DTLS_RECORD_EXTRA;
