@@ -89,6 +89,10 @@
     #endif
 #endif
 
+#ifdef NO_ASN
+    #include <wolfssl/wolfcrypt/dh.h>
+#endif
+
 #ifndef NO_FILESYSTEM
     #if !defined(USE_WINDOWS_API) && !defined(NO_WOLFSSL_DIR) \
             && !defined(EBSNET)
@@ -1866,6 +1870,7 @@ int wolfSSL_CertPemToDer(const unsigned char* pem, int pemSz,
     return ret;
 }
 
+#endif /* NO_CERTS */
 
 #if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
 
@@ -1906,6 +1911,7 @@ static INLINE int OurPasswordCb(char* passwd, int sz, int rw, void* userdata)
 
 #endif /* OPENSSL_EXTRA || HAVE_WEBSERVER */
 
+#ifndef NO_CERTS
 
 /* Return bytes written to buff or < 0 for error */
 int wolfSSL_KeyPemToDer(const unsigned char* pem, int pemSz,
@@ -2745,7 +2751,7 @@ int wolfSSL_Init(void)
 }
 
 
-#if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
+#if (defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)) && !defined(NO_CERTS)
 
 /* SSL_SUCCESS if ok, <= 0 else */
 static int wolfssl_decrypt_buffer_key(DerBuffer* der, byte* password,
@@ -9740,7 +9746,8 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
 #endif /* KEEP_PEER_CERT */
 
 
-#if defined(KEEP_PEER_CERT) || defined(SESSION_CERTS) || defined(OPENSSSL_EXTRA)
+#ifndef NO_CERTS
+#if defined(KEEP_PEER_CERT) || defined(SESSION_CERTS) || defined(OPENSSL_EXTRA)
 
 /* user externally called free X509, if dynamic go ahead with free, otherwise
  * don't */
@@ -9766,7 +9773,6 @@ static void ExternalFreeX509(WOLFSSL_X509* x509)
         WOLFSSL_ENTER("wolfSSL_FreeX509");
         ExternalFreeX509(x509);
     }
-
 
     /* return the next, if any, altname from the peer cert */
     char* wolfSSL_X509_get_next_altname(WOLFSSL_X509* cert)
@@ -10462,6 +10468,7 @@ WOLFSSL_X509* wolfSSL_X509_load_certificate_file(const char* fname, int format)
 #endif /* NO_FILESYSTEM */
 
 #endif /* KEEP_PEER_CERT || SESSION_CERTS */
+#endif /* NO_CERTS */
 
 
 #ifdef OPENSSL_EXTRA
@@ -10978,11 +10985,13 @@ WOLFSSL_SESSION* wolfSSL_get1_session(WOLFSSL* ssl)
 
 #endif /* NO_SESSION_CACHE */
 
+#ifndef NO_CERTS
 void wolfSSL_X509_free(WOLFSSL_X509* x509)
 {
     WOLFSSL_ENTER("wolfSSL_X509_free");
     ExternalFreeX509(x509);
 }
+#endif /* NO_CERTS */
 
 
 /* was do nothing */
@@ -11219,6 +11228,7 @@ WOLFSSL_X509_LOOKUP* wolfSSL_X509_STORE_add_lookup(WOLFSSL_X509_STORE* store,
 }
 
 
+#ifndef NO_CERTS
 int wolfSSL_X509_STORE_add_cert(WOLFSSL_X509_STORE* store, WOLFSSL_X509* x509)
 {
     int result = SSL_FATAL_ERROR;
@@ -11355,6 +11365,7 @@ int wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx)
     }
     return SSL_FATAL_ERROR;
 }
+#endif /* NO_CERTS */
 
 
 WOLFSSL_ASN1_TIME* wolfSSL_X509_CRL_get_lastUpdate(WOLFSSL_X509_CRL* crl)
@@ -16831,11 +16842,13 @@ void* wolfSSL_GetRsaDecCtx(WOLFSSL* ssl)
         return NULL;
     }
 
+#ifndef NO_CERTS
     void wolfSSL_X509_NAME_free(WOLFSSL_X509_NAME *name){
         FreeX509Name(name);
         WOLFSSL_ENTER("wolfSSL_X509_NAME_free");
         WOLFSSL_STUB("wolfSSL_X509_NAME_free");
     }
+#endif /* NO_CERTS */
 
     void wolfSSL_sk_X509_NAME_pop_free(STACK_OF(WOLFSSL_X509_NAME)* sk, void f (WOLFSSL_X509_NAME*)){
         (void) sk;
