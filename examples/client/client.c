@@ -1031,19 +1031,12 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
         }
 #endif /* WOLFSSL_TRUST_PEER_CERT */
     }
-#else /* !NO_FILESYSTEM && !NO_CERTS */
-    (void) useClientCert;
-    (void) verifyCert;
-    (void) ourCert;
-    (void) ourKey;
 #endif /* !NO_FILESYSTEM && !NO_CERTS */
 #if !defined(NO_CERTS)
     if (!usePsk && !useAnon && doPeerCheck == 0)
         wolfSSL_CTX_set_verify(ctx, SSL_VERIFY_NONE, 0);
     if (!usePsk && !useAnon && overrideDateErrors == 1)
         wolfSSL_CTX_set_verify(ctx, SSL_VERIFY_PEER, myDateCb);
-#else
-    (void) overrideDateErrors;
 #endif
 
 #ifdef HAVE_CAVIUM
@@ -1450,6 +1443,15 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     if (trackMemory)
         ShowMemoryTracker();
 #endif /* USE_WOLFSSL_MEMORY */
+
+    /* There are use cases  when these assignments are not read. To avoid
+     * potential confusion those warnings have been handled here.
+     */
+    (void) overrideDateErrors;
+    (void) useClientCert;
+    (void) verifyCert;
+    (void) ourCert;
+    (void) ourKey;
 
 #if !defined(WOLFSSL_TIRTOS)
     return 0;

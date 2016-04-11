@@ -639,8 +639,6 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
             err_sys("can't load server cert file, check file and run from"
                     " wolfSSL home dir");
     }
-#else
-    (void) ourCert;
 #endif
 
 #ifndef NO_DH
@@ -662,9 +660,6 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
             err_sys("can't load server private key file, check file and run "
                 "from wolfSSL home dir");
     }
-#else
-    (void) ourKey;
-    (void) useNtruKey;
 #endif
 
     if (usePsk || usePskPlus) {
@@ -718,9 +713,6 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
         }
         #endif /* WOLFSSL_TRUST_PEER_CERT */
    }
-#else
-    (void) verifyCert;
-    (void) doCliCertCheck;
 #endif
 
 #if defined(CYASSL_SNIFFER)
@@ -844,10 +836,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
             #if !defined(NO_FILESYSTEM) && !defined(NO_DH) && !defined(NO_ASN)
                 CyaSSL_SetTmpDH_file(ssl, ourDhParam, SSL_FILETYPE_PEM);
             #elif !defined(NO_DH)
-                (void) ourDhParam;
                 SetDH(ssl);  /* repick suites with DHE, higher priority than PSK */
-            #else
-                (void) ourDhParam;
             #endif
         }
 
@@ -986,6 +975,15 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     TicketCleanup();
 #endif
 
+    /* There are use cases  when these assignments are not read. To avoid
+     * potential confusion those warnings have been handled here.
+     */
+    (void) ourKey;
+    (void) verifyCert;
+    (void) doCliCertCheck;
+    (void) useNtruKey;
+    (void) ourDhParam;
+    (void) ourCert;
 #ifndef CYASSL_TIRTOS
     return 0;
 #endif
