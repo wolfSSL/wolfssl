@@ -267,15 +267,237 @@ ret
 
 
 /*
-AES_CBC_decrypt_ex (const unsigned char *in,
+AES_CBC_decrypt_by6 (const unsigned char *in,
   unsigned char *out,
   unsigned char ivec[16],
   unsigned long length,
   const unsigned char *KS,
   int nr)
 */
-.globl AES_CBC_decrypt_ex
-AES_CBC_decrypt_ex:
+.globl AES_CBC_decrypt_by6
+AES_CBC_decrypt_by6:
+# parameter 1: %rdi - in
+# parameter 2: %rsi - out
+# parameter 3: %rdx - ivec
+# parameter 4: %rcx - length
+# parameter 5: %r8  - KS
+# parameter 6: %r9d - nr
+
+        movq        %rcx, %r10
+        shrq        $4, %rcx
+        shlq        $60, %r10
+        je          ENO_PARTS_6
+        addq        $1, %rcx
+ENO_PARTS_6:
+        movq        %rax, %r12
+        movq        %rdx, %r13
+        movq        %rbx, %r14
+        movq        $0, %rdx
+        movq        %rcx, %rax
+        movq        $6, %rbx
+        div         %rbx
+        movq        %rax, %rcx
+        movq        %rdx, %r10
+        movq        %r12, %rax
+        movq        %r13, %rdx
+        movq        %r14, %rbx
+        cmpq        $0, %rcx
+        movdqu      (%rdx), %xmm7
+        je          EREMAINDER_6
+        subq        $96, %rsi
+ELOOP_6:
+        movdqu      (%rdi), %xmm1
+        movdqu      16(%rdi), %xmm2
+        movdqu      32(%rdi), %xmm3
+        movdqu      48(%rdi), %xmm4
+        movdqu      64(%rdi), %xmm5
+        movdqu      80(%rdi), %xmm6
+        movdqa      (%r8), %xmm8
+        movdqa      16(%r8), %xmm9
+        movdqa      32(%r8), %xmm10
+        movdqa      48(%r8), %xmm11
+        pxor        %xmm8, %xmm1
+        pxor        %xmm8, %xmm2
+        pxor        %xmm8, %xmm3
+        pxor        %xmm8, %xmm4
+        pxor        %xmm8, %xmm5
+        pxor        %xmm8, %xmm6
+        aesdec      %xmm9, %xmm1
+        aesdec      %xmm9, %xmm2
+        aesdec      %xmm9, %xmm3
+        aesdec      %xmm9, %xmm4
+        aesdec      %xmm9, %xmm5
+        aesdec      %xmm9, %xmm6
+        aesdec      %xmm10, %xmm1
+        aesdec      %xmm10, %xmm2
+        aesdec      %xmm10, %xmm3
+        aesdec      %xmm10, %xmm4
+        aesdec      %xmm10, %xmm5
+        aesdec      %xmm10, %xmm6
+        aesdec      %xmm11, %xmm1
+        aesdec      %xmm11, %xmm2
+        aesdec      %xmm11, %xmm3
+        aesdec      %xmm11, %xmm4
+        aesdec      %xmm11, %xmm5
+        aesdec      %xmm11, %xmm6
+        movdqa      64(%r8), %xmm8
+        movdqa      80(%r8), %xmm9
+        movdqa      96(%r8), %xmm10
+        movdqa      112(%r8), %xmm11
+        aesdec      %xmm8, %xmm1
+        aesdec      %xmm8, %xmm2
+        aesdec      %xmm8, %xmm3
+        aesdec      %xmm8, %xmm4
+        aesdec      %xmm8, %xmm5
+        aesdec      %xmm8, %xmm6
+        aesdec      %xmm9, %xmm1
+        aesdec      %xmm9, %xmm2
+        aesdec      %xmm9, %xmm3
+        aesdec      %xmm9, %xmm4
+        aesdec      %xmm9, %xmm5
+        aesdec      %xmm9, %xmm6
+        aesdec      %xmm10, %xmm1
+        aesdec      %xmm10, %xmm2
+        aesdec      %xmm10, %xmm3
+        aesdec      %xmm10, %xmm4
+        aesdec      %xmm10, %xmm5
+        aesdec      %xmm10, %xmm6
+        aesdec      %xmm11, %xmm1
+        aesdec      %xmm11, %xmm2
+        aesdec      %xmm11, %xmm3
+        aesdec      %xmm11, %xmm4
+        aesdec      %xmm11, %xmm5
+        aesdec      %xmm11, %xmm6
+        movdqa      128(%r8), %xmm8
+        movdqa      144(%r8), %xmm9
+        movdqa      160(%r8), %xmm10
+        cmpl        $12, %r9d
+        aesdec      %xmm8, %xmm1
+        aesdec      %xmm8, %xmm2
+        aesdec      %xmm8, %xmm3
+        aesdec      %xmm8, %xmm4
+        aesdec      %xmm8, %xmm5
+        aesdec      %xmm8, %xmm6
+        aesdec      %xmm9, %xmm1
+        aesdec      %xmm9, %xmm2
+        aesdec      %xmm9, %xmm3
+        aesdec      %xmm9, %xmm4
+        aesdec      %xmm9, %xmm5
+        aesdec      %xmm9, %xmm6
+        jb          ELAST_6
+        movdqa      160(%r8), %xmm8
+        movdqa      176(%r8), %xmm9
+        movdqa      192(%r8), %xmm10
+        cmpl        $14, %r9d
+        aesdec      %xmm8, %xmm1
+        aesdec      %xmm8, %xmm2
+        aesdec      %xmm8, %xmm3
+        aesdec      %xmm8, %xmm4
+        aesdec      %xmm8, %xmm5
+        aesdec      %xmm8, %xmm6
+        aesdec      %xmm9, %xmm1
+        aesdec      %xmm9, %xmm2
+        aesdec      %xmm9, %xmm3
+        aesdec      %xmm9, %xmm4
+        aesdec      %xmm9, %xmm5
+        aesdec      %xmm9, %xmm6
+        jb          ELAST_6
+        movdqa      192(%r8), %xmm8
+        movdqa      208(%r8), %xmm9
+        movdqa      224(%r8), %xmm10
+        aesdec      %xmm8, %xmm1
+        aesdec      %xmm8, %xmm2
+        aesdec      %xmm8, %xmm3
+        aesdec      %xmm8, %xmm4
+        aesdec      %xmm8, %xmm5
+        aesdec      %xmm8, %xmm6
+        aesdec      %xmm9, %xmm1
+        aesdec      %xmm9, %xmm2
+        aesdec      %xmm9, %xmm3
+        aesdec      %xmm9, %xmm4
+        aesdec      %xmm9, %xmm5
+        aesdec      %xmm9, %xmm6
+ELAST_6:
+        addq        $96, %rsi
+        aesdeclast  %xmm10, %xmm1
+        aesdeclast  %xmm10, %xmm2
+        aesdeclast  %xmm10, %xmm3
+        aesdeclast  %xmm10, %xmm4
+        aesdeclast  %xmm10, %xmm5
+        aesdeclast  %xmm10, %xmm6
+        movdqu      (%rdi), %xmm8
+        movdqu      16(%rdi), %xmm9
+        movdqu      32(%rdi), %xmm10
+        movdqu      48(%rdi), %xmm11
+        movdqu      64(%rdi), %xmm12
+        movdqu      80(%rdi), %xmm13
+        pxor        %xmm7, %xmm1
+        pxor        %xmm8, %xmm2
+        pxor        %xmm9, %xmm3
+        pxor        %xmm10, %xmm4
+        pxor        %xmm11, %xmm5
+        pxor        %xmm12, %xmm6
+        movdqu      %xmm13, %xmm7
+        movdqu      %xmm1, (%rsi)
+        movdqu      %xmm2, 16(%rsi)
+        movdqu      %xmm3, 32(%rsi)
+        movdqu      %xmm4, 48(%rsi)
+        movdqu      %xmm5, 64(%rsi)
+        movdqu      %xmm6, 80(%rsi)
+        addq        $96, %rdi
+        decq        %rcx
+        jne         ELOOP_6
+        addq        $96, %rsi
+EREMAINDER_6:
+        cmpq        $0, %r10
+        je          EEND_6
+ELOOP_6_2:
+        movdqu      (%rdi), %xmm1
+        movdqa      %xmm1 ,%xmm10
+        addq        $16, %rdi
+        pxor        (%r8), %xmm1
+        movdqu      160(%r8), %xmm2
+        cmpl        $12, %r9d
+        aesdec      16(%r8), %xmm1
+        aesdec      32(%r8), %xmm1
+        aesdec      48(%r8), %xmm1
+        aesdec      64(%r8), %xmm1
+        aesdec      80(%r8), %xmm1
+        aesdec      96(%r8), %xmm1
+        aesdec      112(%r8), %xmm1
+        aesdec      128(%r8), %xmm1
+        aesdec      144(%r8), %xmm1
+        jb          ELAST_6_2
+        movdqu      192(%r8), %xmm2
+        cmpl        $14, %r9d
+        aesdec      160(%r8), %xmm1
+        aesdec      176(%r8), %xmm1
+        jb          ELAST_6_2
+        movdqu      224(%r8), %xmm2
+        aesdec      192(%r8), %xmm1
+        aesdec      208(%r8), %xmm1
+ELAST_6_2:
+        aesdeclast  %xmm2, %xmm1
+        pxor        %xmm7, %xmm1
+        movdqa      %xmm10, %xmm7
+        movdqu      %xmm1, (%rsi)
+        addq        $16, %rsi
+        decq        %r10
+        jne         ELOOP_6_2
+EEND_6:
+        ret
+
+
+/*
+AES_CBC_decrypt_by8 (const unsigned char *in,
+  unsigned char *out,
+  unsigned char ivec[16],
+  unsigned long length,
+  const unsigned char *KS,
+  int nr)
+*/
+.globl AES_CBC_decrypt_by8
+AES_CBC_decrypt_by8:
 # parameter 1: %rdi - in
 # parameter 2: %rsi - out
 # parameter 3: %rdx - ivec

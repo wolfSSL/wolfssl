@@ -1094,17 +1094,22 @@ void AES_CBC_encrypt(const unsigned char* in, unsigned char* out,
                      XASM_LINK("AES_CBC_encrypt");
 
 #ifdef HAVE_AES_DECRYPT
-#ifndef HAVE_AES_DECRYPT_EX
+#if defined(HAVE_AES_DECRYPT_BY8)
+void AES_CBC_decrypt(const unsigned char* in, unsigned char* out,
+                     unsigned char* ivec, unsigned long length,
+                     const unsigned char* KS, int nr)
+                     XASM_LINK("AES_CBC_decrypt_by8");
+#elif defined(HAVE_AES_DECRYPT_BY6)
+void AES_CBC_decrypt(const unsigned char* in, unsigned char* out,
+                     unsigned char* ivec, unsigned long length,
+                     const unsigned char* KS, int nr)
+                     XASM_LINK("AES_CBC_decrypt_by6");
+#else
 void AES_CBC_decrypt(const unsigned char* in, unsigned char* out,
                      unsigned char* ivec, unsigned long length,
                      const unsigned char* KS, int nr)
                      XASM_LINK("AES_CBC_decrypt");
-#else /* HAVE_AES_DECRYPT_EX */
-void AES_CBC_decrypt_ex(const unsigned char* in, unsigned char* out,
-                        unsigned char* ivec, unsigned long length,
-                        const unsigned char* KS, int nr)
-                        XASM_LINK("AES_CBC_decrypt_ex");
-#endif /* HAVE_AES_DECRYPT_EX */
+#endif /* HAVE_AES_DECRYPT_BYX */
 #endif /* HAVE_AES_DECRYPT */
 #endif /* HAVE_AES_CBC */
 
@@ -2556,13 +2561,8 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
 
             /* if input and output same will overwrite input iv */
             XMEMCPY(aes->tmp, in + sz - AES_BLOCK_SIZE, AES_BLOCK_SIZE);
-#ifndef HAVE_AES_DECRYPT_EX
             AES_CBC_decrypt(in, out, (byte*)aes->reg, sz, (byte*)aes->key,
                             aes->rounds);
-#else /* HAVE_AES_DECRYPT_EX */
-            AES_CBC_decrypt_ex(in, out, (byte*)aes->reg, sz, (byte*)aes->key,
-                               aes->rounds);
-#endif /* HAVE_AES_DECRYPT_EX */
             /* store iv for next call */
             XMEMCPY(aes->reg, aes->tmp, AES_BLOCK_SIZE);
             return 0;

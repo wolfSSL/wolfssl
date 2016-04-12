@@ -2669,8 +2669,7 @@ int aes_test(void)
     if (memcmp(cipher, verify, AES_BLOCK_SIZE))
         return -61;
 
-#if defined(WOLFSSL_AESNI) && \
-    defined(HAVE_AES_DECRYPT) && defined(HAVE_AES_DECRYPT_EX)
+#if defined(WOLFSSL_AESNI) && defined(HAVE_AES_DECRYPT)
     {
         const byte bigMsg[] = {
             /* "All work and no play makes Jack a dull boy. " */
@@ -2725,32 +2724,30 @@ int aes_test(void)
         };
         byte bigCipher[sizeof(bigMsg)];
         byte bigPlain[sizeof(bigMsg)];
+        word32 i;
 
-        ret = wc_AesSetKey(&enc, key, AES_BLOCK_SIZE, iv, AES_ENCRYPTION);
-        if (ret != 0)
-            return -1030;
-        ret = wc_AesSetKey(&dec, key, AES_BLOCK_SIZE, iv, AES_DECRYPTION);
-        if (ret != 0)
-            return -1031;
+        for (i = AES_BLOCK_SIZE; i <= sizeof(bigMsg); i += AES_BLOCK_SIZE) {
+            memset(bigCipher, 0, sizeof(bigCipher));
+            memset(bigPlain, 0, sizeof(bigPlain));
+            ret = wc_AesSetKey(&enc, key, AES_BLOCK_SIZE, iv, AES_ENCRYPTION);
+            if (ret != 0)
+                return -1030;
+            ret = wc_AesSetKey(&dec, key, AES_BLOCK_SIZE, iv, AES_DECRYPTION);
+            if (ret != 0)
+                return -1031;
 
-        #define AESNI_DECRYPT_SIZE (AES_BLOCK_SIZE*24)
+            ret = wc_AesCbcEncrypt(&enc, bigCipher, bigMsg, i);
+            if (ret != 0)
+                return -1032;
+            ret = wc_AesCbcDecrypt(&dec, bigPlain, bigCipher, i);
+            if (ret != 0)
+                return -1033;
 
-        if ((sizeof(bigMsg) < AESNI_DECRYPT_SIZE) ||
-            (AESNI_DECRYPT_SIZE == 0) ||
-            (AESNI_DECRYPT_SIZE % AES_BLOCK_SIZE != 0))
-            return -1032;
-
-        ret = wc_AesCbcEncrypt(&enc, bigCipher, bigMsg, AESNI_DECRYPT_SIZE);
-        if (ret != 0)
-            return -1033;
-        ret = wc_AesCbcDecrypt(&dec, bigPlain, bigCipher, AESNI_DECRYPT_SIZE);
-        if (ret != 0)
-            return -1034;
-
-        if (memcmp(bigPlain, bigMsg, AESNI_DECRYPT_SIZE))
-            return -1035;
+            if (memcmp(bigPlain, bigMsg, i))
+                return -1034;
+        }
     }
-#endif /* WOLFSSL_AESNI HAVE_AES_DECRYPT HAVE_AES_DECRYPT_EX */
+#endif /* WOLFSSL_AESNI HAVE_AES_DECRYPT */
 
 #ifdef HAVE_CAVIUM
         wc_AesFreeCavium(&enc);
