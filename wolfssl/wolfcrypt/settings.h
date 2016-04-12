@@ -529,7 +529,7 @@ static char *fgets(char *buff, int sz, FILE *fp)
 #define NO_WRITEV
 #define WOLFSSL_HAVE_MIN
 #define USE_FAST_MATH
-#define TFM_TIMING_REGISTANT
+#define TFM_TIMING_RESISTANT
 #define NO_MAIN_DRIVER
 
 #endif
