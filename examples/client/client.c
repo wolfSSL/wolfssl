@@ -150,6 +150,8 @@ static void ShowVersions(void)
     printf("3\n");
 }
 
+extern double current_time(void);
+
 int ClientBenchmarkConnections(WOLFSSL_CTX* ctx, char* host, word16 port,
     int doDTLS, int benchmark, int resumeSession)
 {

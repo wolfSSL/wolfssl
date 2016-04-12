@@ -15257,16 +15257,12 @@ int wolfSSL_EC_GROUP_get_degree(const WOLFSSL_EC_GROUP *group)
     switch(group->curve_nid) {
         case NID_X9_62_prime256v1:
             return 256;
-            break;
         case NID_secp384r1:
             return 384;
-            break;
         case NID_secp521r1:
             return 521;
-            break;
         default :
             return SSL_FAILURE;
-            break;
     }
 }
 
