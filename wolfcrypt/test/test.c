@@ -2722,29 +2722,37 @@ int aes_test(void)
             0x70,0x6c,0x61,0x79,0x20,0x6d,0x61,0x6b,
             0x65,0x73,0x20,0x4a,0x61,0x63,0x6b,0x20
         };
+        const byte bigKey[] = "0123456789abcdeffedcba9876543210";
         byte bigCipher[sizeof(bigMsg)];
         byte bigPlain[sizeof(bigMsg)];
-        word32 i;
+        word32 keySz, msgSz;
 
-        for (i = AES_BLOCK_SIZE; i <= sizeof(bigMsg); i += AES_BLOCK_SIZE) {
-            memset(bigCipher, 0, sizeof(bigCipher));
-            memset(bigPlain, 0, sizeof(bigPlain));
-            ret = wc_AesSetKey(&enc, key, AES_BLOCK_SIZE, iv, AES_ENCRYPTION);
-            if (ret != 0)
-                return -1030;
-            ret = wc_AesSetKey(&dec, key, AES_BLOCK_SIZE, iv, AES_DECRYPTION);
-            if (ret != 0)
-                return -1031;
+        /* Iterate from one AES_BLOCK_SIZE of bigMsg through the whole
+         * message by AES_BLOCK_SIZE for each size of AES key. */
+        for (keySz = 16; keySz <= 32; keySz += 8) {
+            for (msgSz = AES_BLOCK_SIZE;
+                 msgSz <= sizeof(bigMsg);
+                 msgSz += AES_BLOCK_SIZE) {
 
-            ret = wc_AesCbcEncrypt(&enc, bigCipher, bigMsg, i);
-            if (ret != 0)
-                return -1032;
-            ret = wc_AesCbcDecrypt(&dec, bigPlain, bigCipher, i);
-            if (ret != 0)
-                return -1033;
+                memset(bigCipher, 0, sizeof(bigCipher));
+                memset(bigPlain, 0, sizeof(bigPlain));
+                ret = wc_AesSetKey(&enc, bigKey, keySz, iv, AES_ENCRYPTION);
+                if (ret != 0)
+                    return -1030;
+                ret = wc_AesSetKey(&dec, bigKey, keySz, iv, AES_DECRYPTION);
+                if (ret != 0)
+                    return -1031;
 
-            if (memcmp(bigPlain, bigMsg, i))
-                return -1034;
+                ret = wc_AesCbcEncrypt(&enc, bigCipher, bigMsg, msgSz);
+                if (ret != 0)
+                    return -1032;
+                ret = wc_AesCbcDecrypt(&dec, bigPlain, bigCipher, msgSz);
+                if (ret != 0)
+                    return -1033;
+
+                if (memcmp(bigPlain, bigMsg, msgSz))
+                    return -1034;
+            }
         }
     }
 #endif /* WOLFSSL_AESNI HAVE_AES_DECRYPT */
