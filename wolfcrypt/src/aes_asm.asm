@@ -101,13 +101,13 @@ LAST:
 AES_CBC_encrypt ENDP
 
 
-; void AES_CBC_decrypt(const unsigned char* in,
-;                      unsigned char* out,
-;                      unsigned char ivec[16],
-;                      unsigned long length,
-;                      const unsigned char* KS,
-;                      int nr)
-AES_CBC_decrypt PROC
+; void AES_CBC_decrypt_by4(const unsigned char* in,
+;                          unsigned char* out,
+;                          unsigned char ivec[16],
+;                          unsigned long length,
+;                          const unsigned char* KS,
+;                          int nr)
+AES_CBC_decrypt_by4 PROC
 ; parameter 1: rdi
 ; parameter 2: rsi
 ; parameter 3: rdx
@@ -136,6 +136,7 @@ AES_CBC_decrypt PROC
         movdqa      [rsp+80], xmm11
         movdqa      [rsp+96], xmm12
         movdqa      [rsp+112], xmm15
+        ; back to our original code, more or less
         mov         r10, rcx
         shr         rcx, 4
         shl         r10, 60
@@ -305,7 +306,547 @@ DEND_4:
         movdqa      xmm15, [rsp+112]
         add         rsp, 8+8*16 ; 8 = align stack , 8 xmm6-12,15 16 bytes each
         ret
-AES_CBC_decrypt ENDP
+AES_CBC_decrypt_by4 ENDP
+
+
+; void AES_CBC_decrypt_by6(const unsigned char *in,
+;                          unsigned char *out,
+;                          unsigned char ivec[16],
+;                          unsigned long length,
+;                          const unsigned char *KS,
+;                          int nr)
+AES_CBC_decrypt_by6 PROC
+; parameter 1: rdi - in
+; parameter 2: rsi - out
+; parameter 3: rdx - ivec
+; parameter 4: rcx - length
+; parameter 5: r8  - KS
+; parameter 6: r9d - nr
+
+        ; save rdi and rsi to rax and r11, restore before ret
+        mov         rax, rdi
+        mov         r11, rsi
+        ; convert to what we had for att&t convention
+        mov         rdi, rcx
+        mov         rsi, rdx
+        mov         rdx, r8
+        mov         rcx, r9
+        mov         r8, [rsp+40]
+        mov         r9d, [rsp+48]
+        ; on microsoft xmm6-xmm15 are non volatile,
+        ; let's save on stack and restore at end
+        sub         rsp, 8+9*16  ; 8 = align stack , 9 xmm6-14 16 bytes each
+        movdqa      [rsp+0], xmm6
+        movdqa      [rsp+16], xmm7
+        movdqa      [rsp+32], xmm8
+        movdqa      [rsp+48], xmm9
+        movdqa      [rsp+64], xmm10
+        movdqa      [rsp+80], xmm11
+        movdqa      [rsp+96], xmm12
+        movdqa      [rsp+112], xmm13
+        movdqa      [rsp+128], xmm14
+        ; back to our original code, more or less
+        mov         r10, rcx
+        shr         rcx, 4
+        shl         r10, 60
+        je          DNO_PARTS_6
+        add         rcx, 1
+DNO_PARTS_6:
+        movq        r12, rax
+        movq        r13, rdx
+        movq        r14, rbx
+        movq        rdx, 0
+        movq        rax, %rcx
+        movq        rbx, 6
+        div         rbx
+        movq        rcx, rax
+        movq        r10, rdx
+        movq        rax, r12
+        movq        rdx, r13
+        movq        rbx, r14
+        cmpq        rcx, 0
+        movdqu      xmm7, [rdx]
+        je          DREMAINDER_6
+        subq        rsi, 96
+DLOOP_6:
+        movdqu      xmm1, [rdi]
+        movdqu      xmm2, 16[rdi]
+        movdqu      xmm3, 32[rdi]
+        movdqu      xmm4, 48[rdi]
+        movdqu      xmm5, 64[rdi]
+        movdqu      xmm6, 80[rdi]
+        movdqa      xmm8, [r8]
+        movdqa      xmm9, 16[r8]
+        movdqa      xmm10, 32[r8]
+        movdqa      xmm11, 48[r8]
+        pxor        xmm1, xmm8
+        pxor        xmm2, xmm8
+        pxor        xmm3, xmm8
+        pxor        xmm4, xmm8
+        pxor        xmm5, xmm8
+        pxor        xmm6, xmm8
+        aesdec      xmm1, xmm9
+        aesdec      xmm2, xmm9
+        aesdec      xmm3, xmm9
+        aesdec      xmm4, xmm9
+        aesdec      xmm5, xmm9
+        aesdec      xmm6, xmm9
+        aesdec      xmm1, xmm10
+        aesdec      xmm2, xmm10
+        aesdec      xmm3, xmm10
+        aesdec      xmm4, xmm10
+        aesdec      xmm5, xmm10
+        aesdec      xmm6, xmm10
+        aesdec      xmm1, xmm11
+        aesdec      xmm2, xmm11
+        aesdec      xmm3, xmm11
+        aesdec      xmm4, xmm11
+        aesdec      xmm5, xmm11
+        aesdec      xmm6, xmm11
+        movdqa      xmm8, 64[r8]
+        movdqa      xmm9, 80[r8]
+        movdqa      xmm10, 96[r8]
+        movdqa      xmm11, 112[r8]
+        aesdec      xmm1, xmm8
+        aesdec      xmm2, xmm8
+        aesdec      xmm3, xmm8
+        aesdec      xmm4, xmm8
+        aesdec      xmm5, xmm8
+        aesdec      xmm6, xmm8
+        aesdec      xmm1, xmm9
+        aesdec      xmm2, xmm9
+        aesdec      xmm3, xmm9
+        aesdec      xmm4, xmm9
+        aesdec      xmm5, xmm9
+        aesdec      xmm6, xmm9
+        aesdec      xmm1, xmm10
+        aesdec      xmm2, xmm10
+        aesdec      xmm3, xmm10
+        aesdec      xmm4, xmm10
+        aesdec      xmm5, xmm10
+        aesdec      xmm6, xmm10
+        aesdec      xmm1, xmm11
+        aesdec      xmm2, xmm11
+        aesdec      xmm3, xmm11
+        aesdec      xmm4, xmm11
+        aesdec      xmm5, xmm11
+        aesdec      xmm6, xmm11
+        movdqa      xmm8, 128[r8]
+        movdqa      xmm9, 144[r8]
+        movdqa      xmm10, 160[r8]
+        cmp         r9d, 12
+        aesdec      xmm1, xmm8
+        aesdec      xmm2, xmm8
+        aesdec      xmm3, xmm8
+        aesdec      xmm4, xmm8
+        aesdec      xmm5, xmm8
+        aesdec      xmm6, xmm8
+        aesdec      xmm1, xmm9
+        aesdec      xmm2, xmm9
+        aesdec      xmm3, xmm9
+        aesdec      xmm4, xmm9
+        aesdec      xmm5, xmm9
+        aesdec      xmm6, xmm9
+        jb          DLAST_6
+        movdqa      xmm8, 160[r8]
+        movdqa      xmm9, 176[r8]
+        movdqa      xmm10, 192[r8]
+        cmp         r9d, 14
+        aesdec      xmm1, xmm8
+        aesdec      xmm2, xmm8
+        aesdec      xmm3, xmm8
+        aesdec      xmm4, xmm8
+        aesdec      xmm5, xmm8
+        aesdec      xmm6, xmm8
+        aesdec      xmm1, xmm9
+        aesdec      xmm2, xmm9
+        aesdec      xmm3, xmm9
+        aesdec      xmm4, xmm9
+        aesdec      xmm5, xmm9
+        aesdec      xmm6, xmm9
+        jb          DLAST_6
+        movdqa      xmm8, 192[r8]
+        movdqa      xmm9, 208[r8]
+        movdqa      xmm10, 224[r8]
+        aesdec      xmm1, xmm8
+        aesdec      xmm2, xmm8
+        aesdec      xmm3, xmm8
+        aesdec      xmm4, xmm8
+        aesdec      xmm5, xmm8
+        aesdec      xmm6, xmm8
+        aesdec      xmm1, xmm9
+        aesdec      xmm2, xmm9
+        aesdec      xmm3, xmm9
+        aesdec      xmm4, xmm9
+        aesdec      xmm5, xmm9
+        aesdec      xmm6, xmm9
+DLAST_6:
+        add         rsi, 96
+        aesdeclast  xmm1, xmm10
+        aesdeclast  xmm2, xmm10
+        aesdeclast  xmm3, xmm10
+        aesdeclast  xmm4, xmm10
+        aesdeclast  xmm5, xmm10
+        aesdeclast  xmm6, xmm10
+        movdqu      [rdi], xmm8
+        movdqu      16[rdi], xmm9
+        movdqu      32[rdi], xmm10
+        movdqu      48[rdi], xmm11
+        movdqu      64[rdi], xmm12
+        movdqu      80[rdi], xmm13
+        pxor        xmm1, xmm7
+        pxor        xmm2, xmm8
+        pxor        xmm3, xmm9
+        pxor        xmm4, xmm10
+        pxor        xmm5, xmm11
+        pxor        xmm6, xmm12
+        movdqu      xmm7, xmm13
+        movdqu      [rsi], xmm1
+        movdqu      16[rsi], xmm2
+        movdqu      32[rsi], xmm3
+        movdqu      48[rsi], xmm4
+        movdqu      64[rsi], xmm5
+        movdqu      80[rsi], xmm6
+        add         rdi, 96
+        dec         rcx
+        jne         DLOOP_6
+        add         rsi, 96
+DREMAINDER_6:
+        cmp         r10, 0
+        je          DEND_6
+DLOOP_6_2:
+        movdqu      xmm1, [rdi]
+        movdqa      xmm10, xmm1
+        add         rdi, 16
+        pxor        xmm1, [r8]
+        movdqu      xmm2, 160[r8]
+        cmp         r9d, 12
+        aesdec      xmm1, 16[r8]
+        aesdec      xmm1, 32[r8]
+        aesdec      xmm1, 48[r8]
+        aesdec      xmm1, 64[r8]
+        aesdec      xmm1, 80[r8]
+        aesdec      xmm1, 96[r8]
+        aesdec      xmm1, 112[r8]
+        aesdec      xmm1, 128[r8]
+        aesdec      xmm1, 144[r8]
+        jb          DLAST_6_2
+        movdqu      xmm2, 192[r8]
+        cmp         r9d, 14, r9d
+        aesdec      xmm1, 160[r8]
+        aesdec      xmm1, 176[r8]
+        jb          DLAST_6_2
+        movdqu      xmm2, 224[r8]
+        aesdec      xmm1, 192[r8]
+        aesdec      xmm1, 208[r8]
+DLAST_6_2:
+        aesdeclast  xmm1, xmm2
+        pxor        xmm1, xmm7
+        movdqa      xmm7, xmm10
+        movdqu      [rsi], xmm1
+        add         rsi, 16
+        dec         r10
+        jne         DLOOP_6_2
+DEND_6:
+        ; restore non volatile rdi,rsi
+        mov         rdi, rax
+        mov         rsi, r11
+        ; restore non volatile xmms from stack
+        movdqa      xmm6, [rsp+0]
+        movdqa      xmm7, [rsp+16]
+        movdqa      xmm8, [rsp+32]
+        movdqa      xmm9, [rsp+48]
+        movdqa      xmm10, [rsp+64]
+        movdqa      xmm11, [rsp+80]
+        movdqa      xmm12, [rsp+96]
+        movdqa      xmm13, [rsp+112]
+        movdqa      xmm14, [rsp+128]
+        add         rsp, 8+9*16 ; 8 = align stack , 9 xmm6-14 16 bytes each
+        ret
+AES_CBC_decrypt_by6 ENDP
+
+
+; void AES_CBC_decrypt_by8(const unsigned char *in,
+;                          unsigned char *out,
+;                          unsigned char ivec[16],
+;                          unsigned long length,
+;                          const unsigned char *KS,
+;                          int nr)
+AES_CBC_decrypt_by8 PROC
+; parameter 1: rdi - in
+; parameter 2: rsi - out
+; parameter 3: rdx - ivec
+; parameter 4: rcx - length
+; parameter 5: r8  - KS
+; parameter 6: r9d - nr
+
+        ; save rdi and rsi to rax and r11, restore before ret
+        mov         rax, rdi
+        mov         r11, rsi
+        ; convert to what we had for att&t convention
+        mov         rdi, rcx
+        mov         rsi, rdx
+        mov         rdx, r8
+        mov         rcx,r9
+        mov         r8, [rsp+40]
+        mov         r9d, [rsp+48]
+        ; on microsoft xmm6-xmm15 are non volatile,
+        ; let's save on stack and restore at end
+        sub         rsp, 8+8*16  ; 8 = align stack , 8 xmm6-13 16 bytes each
+        movdqa      [rsp+0], xmm6
+        movdqa      [rsp+16], xmm7
+        movdqa      [rsp+32], xmm8
+        movdqa      [rsp+48], xmm9
+        movdqa      [rsp+64], xmm10
+        movdqa      [rsp+80], xmm11
+        movdqa      [rsp+96], xmm12
+        movdqa      [rsp+112], xmm13
+        ; back to our original code, more or less
+        mov         r10, rcx
+        shr         rcx, 4
+        shl         r10, 60
+        je          DNO_PARTS_8
+        add         rcx, 1
+DNO_PARTS_8:
+        mov         r10, rcx
+        shl         r10, 61
+        shr         r10, 61
+        shr         rcx, 3
+        movdqu      xmm9, [rdx]
+        je          DREMAINDER_8
+        sub         rsi, 128
+DLOOP_8:
+        movdqu      xmm1, [rdi]
+        movdqu      xmm2, 16[rdi]
+        movdqu      xmm3, 32[rdi]
+        movdqu      xmm4, 48[rdi]
+        movdqu      xmm5, 64[rdi]
+        movdqu      xmm6, 80[rdi]
+        movdqu      xmm7, 96[rdi]
+        movdqu      xmm8, 112[rdi]
+        movdqa      xmm10, [r8]
+        movdqa      xmm11, 16[r8]
+        movdqa      xmm12, 32[r8]
+        movdqa      xmm13, 48[r8]
+        pxor        xmm1, xmm10
+        pxor        xmm2, xmm10
+        pxor        xmm3, xmm10
+        pxor        xmm4, xmm10
+        pxor        xmm5, xmm10
+        pxor        xmm6, xmm10
+        pxor        xmm7, xmm10
+        pxor        xmm8, xmm10
+        aesdec      xmm1, xmm11
+        aesdec      xmm2, xmm11
+        aesdec      xmm3, xmm11
+        aesdec      xmm4, xmm11
+        aesdec      xmm5, xmm11
+        aesdec      xmm6, xmm11
+        aesdec      xmm7, xmm11
+        aesdec      xmm8, xmm11
+        aesdec      xmm1, xmm12
+        aesdec      xmm2, xmm12
+        aesdec      xmm3, xmm12
+        aesdec      xmm4, xmm12
+        aesdec      xmm5, xmm12
+        aesdec      xmm6, xmm12
+        aesdec      xmm7, xmm12
+        aesdec      xmm8, xmm12
+        aesdec      xmm1, xmm13
+        aesdec      xmm2, xmm13
+        aesdec      xmm3, xmm13
+        aesdec      xmm4, xmm13
+        aesdec      xmm5, xmm13
+        aesdec      xmm6, xmm13
+        aesdec      xmm7, xmm13
+        aesdec      xmm8, xmm13
+        movdqa      xmm10, 64[r8]
+        movdqa      xmm11, 80[r8]
+        movdqa      xmm12, 96[r8]
+        movdqa      xmm13, 112[r8]
+        aesdec      xmm1, xmm10
+        aesdec      xmm2, xmm10
+        aesdec      xmm3, xmm10
+        aesdec      xmm4, xmm10
+        aesdec      xmm5, xmm10
+        aesdec      xmm6, xmm10
+        aesdec      xmm7, xmm10
+        aesdec      xmm8, xmm10
+        aesdec      xmm1, xmm11
+        aesdec      xmm2, xmm11
+        aesdec      xmm3, xmm11
+        aesdec      xmm4, xmm11
+        aesdec      xmm5, xmm11
+        aesdec      xmm6, xmm11
+        aesdec      xmm7, xmm11
+        aesdec      xmm8, xmm11
+        aesdec      xmm1, xmm12
+        aesdec      xmm2, xmm12
+        aesdec      xmm3, xmm12
+        aesdec      xmm4, xmm12
+        aesdec      xmm5, xmm12
+        aesdec      xmm6, xmm12
+        aesdec      xmm7, xmm12
+        aesdec      xmm8, xmm12
+        aesdec      xmm1, xmm13
+        aesdec      xmm2, xmm13
+        aesdec      xmm3, xmm13
+        aesdec      xmm4, xmm13
+        aesdec      xmm5, xmm13
+        aesdec      xmm6, xmm13
+        aesdec      xmm7, xmm13
+        aesdec      xmm8, xmm13
+        movdqa      xmm10, 128[r8]
+        movdqa      xmm11, 144[r8]
+        movdqa      xmm12, 160[r8]
+        cmp         r9d, 12
+        aesdec      xmm1, xmm10
+        aesdec      xmm2, xmm10
+        aesdec      xmm3, xmm10
+        aesdec      xmm4, xmm10
+        aesdec      xmm5, xmm10
+        aesdec      xmm6, xmm10
+        aesdec      xmm7, xmm10
+        aesdec      xmm8, xmm10
+        aesdec      xmm1, xmm11
+        aesdec      xmm2, xmm11
+        aesdec      xmm3, xmm11
+        aesdec      xmm4, xmm11
+        aesdec      xmm5, xmm11
+        aesdec      xmm6, xmm11
+        aesdec      xmm7, xmm11
+        aesdec      xmm8, xmm11
+        jb          DLAST_8
+        movdqa      xmm10, 160[r8]
+        movdqa      xmm11, 176[r8]
+        movdqa      xmm12, 192[r8]
+        cmp         r9d, 14
+        aesdec      xmm1, xmm10
+        aesdec      xmm2, xmm10
+        aesdec      xmm3, xmm10
+        aesdec      xmm4, xmm10
+        aesdec      xmm5, xmm10
+        aesdec      xmm6, xmm10
+        aesdec      xmm7, xmm10
+        aesdec      xmm8, xmm10
+        aesdec      xmm1, xmm11
+        aesdec      xmm2, xmm11
+        aesdec      xmm3, xmm11
+        aesdec      xmm4, xmm11
+        aesdec      xmm5, xmm11
+        aesdec      xmm6, xmm11
+        aesdec      xmm7, xmm11
+        aesdec      xmm8, xmm11
+        jb          DLAST_8
+        movdqa      xmm10, 192[r8]
+        movdqa      xmm11, 208[r8]
+        movdqa      xmm12, 224[r8]
+        aesdec      xmm1, xmm10
+        aesdec      xmm2, xmm10
+        aesdec      xmm3, xmm10
+        aesdec      xmm4, xmm10
+        aesdec      xmm5, xmm10
+        aesdec      xmm6, xmm10
+        aesdec      xmm7, xmm10
+        aesdec      xmm8, xmm10
+        aesdec      xmm1, xmm11
+        aesdec      xmm2, xmm11
+        aesdec      xmm3, xmm11
+        aesdec      xmm4, xmm11
+        aesdec      xmm5, xmm11
+        aesdec      xmm6, xmm11
+        aesdec      xmm7, xmm11
+        aesdec      xmm8, xmm11
+DLAST_8:
+        add         128, rsi
+        aesdeclast  xmm1, xmm12
+        aesdeclast  xmm2, xmm12
+        aesdeclast  xmm3, xmm12
+        aesdeclast  xmm4, xmm12
+        aesdeclast  xmm5, xmm12
+        aesdeclast  xmm6, xmm12
+        aesdeclast  xmm7, xmm12
+        aesdeclast  xmm8, xmm12
+        movdqu      xmm10, [rdi]
+        movdqu      xmm11, 16[rdi]
+        movdqu      xmm12, 32[rdi]
+        movdqu      xmm13, 48[rdi]
+        pxor        xmm1, xmm9
+        pxor        xmm2, xmm10
+        pxor        xmm3, xmm11
+        pxor        xmm4, xmm12
+        pxor        xmm5, xmm13
+        movdqu      xmm10, 64[rdi]
+        movdqu      xmm11, 80[rdi]
+        movdqu      xmm12, 96[rdi]
+        movdqu      xmm9, 112[rdi]
+        pxor        xmm6, xmm10
+        pxor        xmm7, xmm11
+        pxor        xmm8, xmm12
+        movdqu      [rsi], xmm1
+        movdqu      16[rsi], xmm2
+        movdqu      32[rsi], xmm3
+        movdqu      48[rsi], xmm4
+        movdqu      64[rsi], xmm5
+        movdqu      80[rsi], xmm6
+        movdqu      96[rsi], xmm7
+        movdqu      112[rsi], xmm8
+        add         rdi, 128
+        dec         rcx
+        jne         DLOOP_8
+        add         rsi, 128
+DREMAINDER_8:
+        cmp         r10, 0 
+        je          DEND_8
+DLOOP_8_2:
+        movdqu      xmm1, [rdi]
+        movdqa      xmm10, xmm1
+        add         rdi, 16
+        pxor        xmm1, [r8]
+        movdqu      xmm2, 160[r8]
+        cmp         r9d, 12
+        aesdec      xmm1, 16[r8]
+        aesdec      xmm1, 32[r8]
+        aesdec      xmm1, 48[r8]
+        aesdec      xmm1, 64[r8]
+        aesdec      xmm1, 80[r8]
+        aesdec      xmm1, 96[r8]
+        aesdec      xmm1, 112[r8]
+        aesdec      xmm1, 128[r8]
+        aesdec      xmm1, 144[r8]
+        jb          DLAST_8_2
+        movdqu      xmm2, 192[r8]
+        cmp         r9d, 14
+        aesdec      xmm1, 160[r8]
+        aesdec      xmm1, 176[r8]
+        jb          DLAST_8_2
+        movdqu      xmm2, 224[r8]
+        aesdec      xmm1, 192[r8]
+        aesdec      xmm1, 208[r8]
+DLAST_8_2:
+        aesdeclast  xmm1, xmm2
+        pxor        xmm1, xmm9
+        movdqa      xmm9, xmm10
+        movdqu      [rsi], xmm1
+        add         rsi, 16
+        dec         r10
+        jne         DLOOP_8_2
+DEND_8:
+        ; restore non volatile rdi,rsi
+        mov         rdi, rax
+        mov         rsi, r11
+        ; restore non volatile xmms from stack
+        movdqa      xmm6, [rsp+0]
+        movdqa      xmm7, [rsp+16]
+        movdqa      xmm8, [rsp+32]
+        movdqa      xmm9, [rsp+48]
+        movdqa      xmm10, [rsp+64]
+        movdqa      xmm11, [rsp+80]
+        movdqa      xmm12, [rsp+96]
+        movdqa      xmm13, [rsp+112]
+        add         rsp, 8+8*16 ; 8 = align stack , 8 xmm6-13 16 bytes each
+        ret
+AES_CBC_decrypt_by6 ENDP
 
 
 ;	/*
