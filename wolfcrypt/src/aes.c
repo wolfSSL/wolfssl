@@ -1094,22 +1094,22 @@ void AES_CBC_encrypt(const unsigned char* in, unsigned char* out,
                      XASM_LINK("AES_CBC_encrypt");
 
 #ifdef HAVE_AES_DECRYPT
-#if defined(WOLFSSL_AESNI_BY4)
-void AES_CBC_decrypt(const unsigned char* in, unsigned char* out,
-                     unsigned char* ivec, unsigned long length,
-                     const unsigned char* KS, int nr)
-                     XASM_LINK("AES_CBC_decrypt_by4");
-#elif defined(WOLFSSL_AESNI_BY6)
-void AES_CBC_decrypt(const unsigned char* in, unsigned char* out,
-                     unsigned char* ivec, unsigned long length,
-                     const unsigned char* KS, int nr)
-                     XASM_LINK("AES_CBC_decrypt_by6");
-#else
-void AES_CBC_decrypt(const unsigned char* in, unsigned char* out,
-                     unsigned char* ivec, unsigned long length,
-                     const unsigned char* KS, int nr)
-                     XASM_LINK("AES_CBC_decrypt_by8");
-#endif /* WOLFSSL_AESNI_BYx */
+    #if defined(WOLFSSL_AESNI_BY4)
+    void AES_CBC_decrypt_by4(const unsigned char* in, unsigned char* out,
+                             unsigned char* ivec, unsigned long length,
+                             const unsigned char* KS, int nr)
+                             XASM_LINK("AES_CBC_decrypt_by4");
+    #elif defined(WOLFSSL_AESNI_BY6)
+    void AES_CBC_decrypt_by6(const unsigned char* in, unsigned char* out,
+                             unsigned char* ivec, unsigned long length,
+                             const unsigned char* KS, int nr)
+                             XASM_LINK("AES_CBC_decrypt_by6");
+    #else /* WOLFSSL_AESNI_BYx */
+    void AES_CBC_decrypt_by8(const unsigned char* in, unsigned char* out,
+                             unsigned char* ivec, unsigned long length,
+                             const unsigned char* KS, int nr)
+                             XASM_LINK("AES_CBC_decrypt_by8");
+    #endif /* WOLFSSL_AESNI_BYx */
 #endif /* HAVE_AES_DECRYPT */
 #endif /* HAVE_AES_CBC */
 
@@ -2561,8 +2561,16 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
 
             /* if input and output same will overwrite input iv */
             XMEMCPY(aes->tmp, in + sz - AES_BLOCK_SIZE, AES_BLOCK_SIZE);
-            AES_CBC_decrypt(in, out, (byte*)aes->reg, sz, (byte*)aes->key,
+            #if defined(WOLFSSL_AESNI_BY4)
+            AES_CBC_decrypt_by4(in, out, (byte*)aes->reg, sz, (byte*)aes->key,
                             aes->rounds);
+            #elif defined(WOLFSSL_AESNI_BY6)
+            AES_CBC_decrypt_by6(in, out, (byte*)aes->reg, sz, (byte*)aes->key,
+                            aes->rounds);
+            #else /* WOLFSSL_AESNI_BYx */
+            AES_CBC_decrypt_by8(in, out, (byte*)aes->reg, sz, (byte*)aes->key,
+                            aes->rounds);
+            #endif /* WOLFSSL_AESNI_BYx */
             /* store iv for next call */
             XMEMCPY(aes->reg, aes->tmp, AES_BLOCK_SIZE);
             return 0;

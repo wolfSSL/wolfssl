@@ -352,22 +352,22 @@ AES_CBC_decrypt_by6 PROC
         je          DNO_PARTS_6
         add         rcx, 1
 DNO_PARTS_6:
-        movq        r12, rax
-        movq        r13, rdx
-        movq        r14, rbx
-        movq        rdx, 0
-        movq        rax, %rcx
-        movq        rbx, 6
+        mov         r12, rax
+        mov         r13, rdx
+        mov         r14, rbx
+        mov         rdx, 0
+        mov         rax, rcx
+        mov         rbx, 6
         div         rbx
-        movq        rcx, rax
-        movq        r10, rdx
-        movq        rax, r12
-        movq        rdx, r13
-        movq        rbx, r14
-        cmpq        rcx, 0
+        mov         rcx, rax
+        mov         r10, rdx
+        mov         rax, r12
+        mov         rdx, r13
+        mov         rbx, r14
+        cmp         rcx, 0
         movdqu      xmm7, [rdx]
         je          DREMAINDER_6
-        subq        rsi, 96
+        sub         rsi, 96
 DLOOP_6:
         movdqu      xmm1, [rdi]
         movdqu      xmm2, 16[rdi]
@@ -532,7 +532,7 @@ DLOOP_6_2:
         aesdec      xmm1, 144[r8]
         jb          DLAST_6_2
         movdqu      xmm2, 192[r8]
-        cmp         r9d, 14, r9d
+        cmp         r9d, 14
         aesdec      xmm1, 160[r8]
         aesdec      xmm1, 176[r8]
         jb          DLAST_6_2
@@ -758,7 +758,7 @@ DLOOP_8:
         aesdec      xmm7, xmm11
         aesdec      xmm8, xmm11
 DLAST_8:
-        add         128, rsi
+        add         rsi, 128
         aesdeclast  xmm1, xmm12
         aesdeclast  xmm2, xmm12
         aesdeclast  xmm3, xmm12
@@ -846,7 +846,7 @@ DEND_8:
         movdqa      xmm13, [rsp+112]
         add         rsp, 8+8*16 ; 8 = align stack , 8 xmm6-13 16 bytes each
         ret
-AES_CBC_decrypt_by6 ENDP
+AES_CBC_decrypt_by8 ENDP
 
 
 ;	/*
