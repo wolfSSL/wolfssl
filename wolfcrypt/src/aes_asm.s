@@ -284,9 +284,9 @@ AES_CBC_decrypt_by6:
         movq        %rcx, %r10
         shrq        $4, %rcx
         shlq        $60, %r10
-        je          ENO_PARTS_6
+        je          DNO_PARTS_6
         addq        $1, %rcx
-ENO_PARTS_6:
+DNO_PARTS_6:
         movq        %rax, %r12
         movq        %rdx, %r13
         movq        %rbx, %r14
@@ -301,9 +301,9 @@ ENO_PARTS_6:
         movq        %r14, %rbx
         cmpq        $0, %rcx
         movdqu      (%rdx), %xmm7
-        je          EREMAINDER_6
+        je          DREMAINDER_6
         subq        $96, %rsi
-ELOOP_6:
+DLOOP_6:
         movdqu      (%rdi), %xmm1
         movdqu      16(%rdi), %xmm2
         movdqu      32(%rdi), %xmm3
@@ -382,7 +382,7 @@ ELOOP_6:
         aesdec      %xmm9, %xmm4
         aesdec      %xmm9, %xmm5
         aesdec      %xmm9, %xmm6
-        jb          ELAST_6
+        jb          DLAST_6
         movdqa      160(%r8), %xmm8
         movdqa      176(%r8), %xmm9
         movdqa      192(%r8), %xmm10
@@ -399,7 +399,7 @@ ELOOP_6:
         aesdec      %xmm9, %xmm4
         aesdec      %xmm9, %xmm5
         aesdec      %xmm9, %xmm6
-        jb          ELAST_6
+        jb          DLAST_6
         movdqa      192(%r8), %xmm8
         movdqa      208(%r8), %xmm9
         movdqa      224(%r8), %xmm10
@@ -415,7 +415,7 @@ ELOOP_6:
         aesdec      %xmm9, %xmm4
         aesdec      %xmm9, %xmm5
         aesdec      %xmm9, %xmm6
-ELAST_6:
+DLAST_6:
         addq        $96, %rsi
         aesdeclast  %xmm10, %xmm1
         aesdeclast  %xmm10, %xmm2
@@ -444,12 +444,12 @@ ELAST_6:
         movdqu      %xmm6, 80(%rsi)
         addq        $96, %rdi
         decq        %rcx
-        jne         ELOOP_6
+        jne         DLOOP_6
         addq        $96, %rsi
-EREMAINDER_6:
+DREMAINDER_6:
         cmpq        $0, %r10
-        je          EEND_6
-ELOOP_6_2:
+        je          DEND_6
+DLOOP_6_2:
         movdqu      (%rdi), %xmm1
         movdqa      %xmm1, %xmm10
         addq        $16, %rdi
@@ -465,24 +465,24 @@ ELOOP_6_2:
         aesdec      112(%r8), %xmm1
         aesdec      128(%r8), %xmm1
         aesdec      144(%r8), %xmm1
-        jb          ELAST_6_2
+        jb          DLAST_6_2
         movdqu      192(%r8), %xmm2
         cmpl        $14, %r9d
         aesdec      160(%r8), %xmm1
         aesdec      176(%r8), %xmm1
-        jb          ELAST_6_2
+        jb          DLAST_6_2
         movdqu      224(%r8), %xmm2
         aesdec      192(%r8), %xmm1
         aesdec      208(%r8), %xmm1
-ELAST_6_2:
+DLAST_6_2:
         aesdeclast  %xmm2, %xmm1
         pxor        %xmm7, %xmm1
         movdqa      %xmm10, %xmm7
         movdqu      %xmm1, (%rsi)
         addq        $16, %rsi
         decq        %r10
-        jne         ELOOP_6_2
-EEND_6:
+        jne         DLOOP_6_2
+DEND_6:
         ret
 
 #else /* WOLFSSL_AESNI_BYx */
@@ -507,17 +507,17 @@ AES_CBC_decrypt_by8:
         movq        %rcx, %r10
         shrq        $4, %rcx
         shlq        $60, %r10
-        je          ENO_PARTS_8
+        je          DNO_PARTS_8
         addq        $1, %rcx
-ENO_PARTS_8:
+DNO_PARTS_8:
         movq        %rcx, %r10
         shlq        $61, %r10
         shrq        $61, %r10
         shrq        $3, %rcx
         movdqu      (%rdx), %xmm9
-        je          EREMAINDER_8
+        je          DREMAINDER_8
         subq        $128, %rsi
-ELOOP_8:
+DLOOP_8:
         movdqu      (%rdi), %xmm1
         movdqu      16(%rdi), %xmm2
         movdqu      32(%rdi), %xmm3
@@ -618,7 +618,7 @@ ELOOP_8:
         aesdec      %xmm11, %xmm6
         aesdec      %xmm11, %xmm7
         aesdec      %xmm11, %xmm8
-        jb          ELAST_8
+        jb          DLAST_8
         movdqa      160(%r8), %xmm10
         movdqa      176(%r8), %xmm11
         movdqa      192(%r8), %xmm12
@@ -639,7 +639,7 @@ ELOOP_8:
         aesdec      %xmm11, %xmm6
         aesdec      %xmm11, %xmm7
         aesdec      %xmm11, %xmm8
-        jb          ELAST_8
+        jb          DLAST_8
         movdqa      192(%r8), %xmm10
         movdqa      208(%r8), %xmm11
         movdqa      224(%r8), %xmm12
@@ -659,7 +659,7 @@ ELOOP_8:
         aesdec      %xmm11, %xmm6
         aesdec      %xmm11, %xmm7
         aesdec      %xmm11, %xmm8
-ELAST_8:
+DLAST_8:
         addq        $128, %rsi
         aesdeclast  %xmm12, %xmm1
         aesdeclast  %xmm12, %xmm2
@@ -695,12 +695,12 @@ ELAST_8:
         movdqu      %xmm8, 112(%rsi)
         addq        $128, %rdi
         decq        %rcx
-        jne         ELOOP_8
+        jne         DLOOP_8
         addq        $128, %rsi
-EREMAINDER_8:
+DREMAINDER_8:
         cmpq        $0, %r10
-        je          EEND_8
-ELOOP_8_2:
+        je          DEND_8
+DLOOP_8_2:
         movdqu      (%rdi), %xmm1
         movdqa      %xmm1, %xmm10
         addq        $16, %rdi
@@ -716,24 +716,24 @@ ELOOP_8_2:
         aesdec      112(%r8), %xmm1
         aesdec      128(%r8), %xmm1
         aesdec      144(%r8), %xmm1
-        jb          ELAST_8_2
+        jb          DLAST_8_2
         movdqu      192(%r8), %xmm2
         cmpl        $14, %r9d
         aesdec      160(%r8), %xmm1
         aesdec      176(%r8), %xmm1
-        jb          ELAST_8_2
+        jb          DLAST_8_2
         movdqu      224(%r8), %xmm2
         aesdec      192(%r8), %xmm1
         aesdec      208(%r8), %xmm1
-ELAST_8_2:
+DLAST_8_2:
         aesdeclast  %xmm2, %xmm1
         pxor        %xmm9, %xmm1
         movdqa      %xmm10, %xmm9
         movdqu      %xmm1, (%rsi)
         addq        $16, %rsi
         decq        %r10
-        jne         ELOOP_8_2
-EEND_8:
+        jne         DLOOP_8_2
+DEND_8:
         ret
 
 #endif /* WOLFSSL_AESNI_BYx */
