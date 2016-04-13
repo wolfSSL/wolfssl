@@ -86,18 +86,18 @@ jne	LOOP
 ret
 
 
-
+#if defined(WOLFSSL_AESNI_BY4)
 
 /*
-AES_CBC_decrypt (const unsigned char *in,
+AES_CBC_decrypt_by4 (const unsigned char *in,
   unsigned char *out,
   unsigned char ivec[16],
   unsigned long length,
   const unsigned char *KS,
   int nr)
 */
-.globl AES_CBC_decrypt
-AES_CBC_decrypt:
+.globl AES_CBC_decrypt_by4
+AES_CBC_decrypt_by4:
 # parameter 1: %rdi
 # parameter 2: %rsi
 # parameter 3: %rdx
@@ -262,6 +262,7 @@ DLAST_4_2:
 DEND_4:
         ret
 
+#elif defined(WOLFSSL_AESNI_BY6)
 
 /*
 AES_CBC_decrypt_by6 (const unsigned char *in,
@@ -484,6 +485,7 @@ ELAST_6_2:
 EEND_6:
         ret
 
+#else /* WOLFSSL_AESNI_BYx */
 
 /*
 AES_CBC_decrypt_by8 (const unsigned char *in,
@@ -733,6 +735,8 @@ ELAST_8_2:
         jne         ELOOP_8_2
 EEND_8:
         ret
+
+#endif /* WOLFSSL_AESNI_BYx */
 
 
 /*

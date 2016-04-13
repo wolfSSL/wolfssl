@@ -1094,12 +1094,12 @@ void AES_CBC_encrypt(const unsigned char* in, unsigned char* out,
                      XASM_LINK("AES_CBC_encrypt");
 
 #ifdef HAVE_AES_DECRYPT
-#if defined(HAVE_AES_DECRYPT_BY8)
+#if defined(WOLFSSL_AESNI_BY4)
 void AES_CBC_decrypt(const unsigned char* in, unsigned char* out,
                      unsigned char* ivec, unsigned long length,
                      const unsigned char* KS, int nr)
-                     XASM_LINK("AES_CBC_decrypt_by8");
-#elif defined(HAVE_AES_DECRYPT_BY6)
+                     XASM_LINK("AES_CBC_decrypt_by4");
+#elif defined(WOLFSSL_AESNI_BY6)
 void AES_CBC_decrypt(const unsigned char* in, unsigned char* out,
                      unsigned char* ivec, unsigned long length,
                      const unsigned char* KS, int nr)
@@ -1108,8 +1108,8 @@ void AES_CBC_decrypt(const unsigned char* in, unsigned char* out,
 void AES_CBC_decrypt(const unsigned char* in, unsigned char* out,
                      unsigned char* ivec, unsigned long length,
                      const unsigned char* KS, int nr)
-                     XASM_LINK("AES_CBC_decrypt");
-#endif /* HAVE_AES_DECRYPT_BYX */
+                     XASM_LINK("AES_CBC_decrypt_by8");
+#endif /* WOLFSSL_AESNI_BYx */
 #endif /* HAVE_AES_DECRYPT */
 #endif /* HAVE_AES_CBC */
 
