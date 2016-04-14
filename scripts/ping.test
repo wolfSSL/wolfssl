@@ -24,6 +24,6 @@ esac
 # is our desired server there?
 ping $PINGSW $tries $server
 RESULT=$?
-[ $RESULT -ne 0 ] && echo -e "\n\nCouldn't find $server, skipping" && exit 0
+[ $RESULT -ne 0 ] && echo -e "\n\nCouldn't find $server, skipping" && exit 1
 
 exit 0

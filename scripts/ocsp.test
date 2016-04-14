@@ -9,6 +9,8 @@ ca=certs/external/ca-globalsign-root-r2.pem
 
 # is our desired server there?
 ./scripts/ping.test $server 2
+RESULT=$?
+[ $RESULT -ne 0 ] && exit 0
 
 # client test against the server
 ./examples/client/client -X -C -h $server -p 443 -A $ca -g -o
