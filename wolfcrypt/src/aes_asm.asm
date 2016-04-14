@@ -488,12 +488,12 @@ DLAST_6:
         aesdeclast  xmm4, xmm10
         aesdeclast  xmm5, xmm10
         aesdeclast  xmm6, xmm10
-        movdqu      [rdi], xmm8
-        movdqu      16[rdi], xmm9
-        movdqu      32[rdi], xmm10
-        movdqu      48[rdi], xmm11
-        movdqu      64[rdi], xmm12
-        movdqu      80[rdi], xmm13
+        movdqu      xmm8, [rdi]
+        movdqu      xmm9, 16[rdi]
+        movdqu      xmm10, 32[rdi]
+        movdqu      xmm11, 48[rdi]
+        movdqu      xmm12, 64[rdi]
+        movdqu      xmm13, 80[rdi]
         pxor        xmm1, xmm7
         pxor        xmm2, xmm8
         pxor        xmm3, xmm9
