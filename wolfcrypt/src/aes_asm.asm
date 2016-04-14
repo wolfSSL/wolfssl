@@ -100,7 +100,6 @@ LAST:
 	ret
 AES_CBC_encrypt ENDP
 
-IFDEF WOLFSSL_AESNI_BY4
 
 ; void AES_CBC_decrypt_by4(const unsigned char* in,
 ;                          unsigned char* out,
@@ -309,8 +308,6 @@ DEND_4:
         ret
 AES_CBC_decrypt_by4 ENDP
 
-ELSE
-IFDEF WOLFSSL_AESNI_BY6
 
 ; void AES_CBC_decrypt_by6(const unsigned char *in,
 ;                          unsigned char *out,
@@ -568,7 +565,6 @@ DEND_6:
         ret
 AES_CBC_decrypt_by6 ENDP
 
-ELSE
 
 ; void AES_CBC_decrypt_by8(const unsigned char *in,
 ;                          unsigned char *out,
@@ -852,8 +848,6 @@ DEND_8:
         ret
 AES_CBC_decrypt_by8 ENDP
 
-ENDIF
-ENDIF
 
 ;	/*
 ;	AES_ECB_encrypt[const	,unsigned	char*in
