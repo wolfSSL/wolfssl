@@ -413,8 +413,7 @@ static int wc_RsaPad_OAEP(const byte* input, word32 inputLen, byte* pkcsBlock,
         }
     #endif
 
-    if ((ret = wc_Hash(hType, optLabel, labelLen,
-                                                  lHash, hLen)) != 0) {
+    if ((ret = wc_Hash(hType, optLabel, labelLen, lHash, hLen)) != 0) {
         WOLFSSL_MSG("OAEP hash type possibly not supported or lHash to small");
         #ifdef WOLFSSL_SMALL_STACK
             XFREE(lHash, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -542,21 +541,33 @@ static int wc_RsaPad_OAEP(const byte* input, word32 inputLen, byte* pkcsBlock,
 static int wc_RsaPad(const byte* input, word32 inputLen, byte* pkcsBlock,
                    word32 pkcsBlockLen, byte padValue, WC_RNG* rng)
 {
-    if (inputLen == 0)
-        return 0;
+    if (inputLen == 0 || pkcsBlockLen == 0) {
+        return BAD_FUNC_ARG;
+    }
 
     pkcsBlock[0] = 0x0;       /* set first byte to zero and advance */
     pkcsBlock++; pkcsBlockLen--;
     pkcsBlock[0] = padValue;  /* insert padValue */
 
-    if (padValue == RSA_BLOCK_TYPE_1)
+    if (padValue == RSA_BLOCK_TYPE_1) {
+        if (pkcsBlockLen < inputLen + 2) {
+            return RSA_PAD_E;
+        }
+
         /* pad with 0xff bytes */
         XMEMSET(&pkcsBlock[1], 0xFF, pkcsBlockLen - inputLen - 2);
+    }
     else {
         /* pad with non-zero random bytes */
-        word32 padLen = pkcsBlockLen - inputLen - 1, i;
-        int    ret    = wc_RNG_GenerateBlock(rng, &pkcsBlock[1], padLen);
+        word32 padLen, i;
+        int    ret;
 
+        if (pkcsBlockLen < inputLen + 1) {
+            return RSA_PAD_E;
+        }
+
+        padLen = pkcsBlockLen - inputLen - 1;
+        ret    = wc_RNG_GenerateBlock(rng, &pkcsBlock[1], padLen);
         if (ret != 0)
             return ret;
 
@@ -700,6 +711,10 @@ static int RsaUnPad(const byte *pkcsBlock, unsigned int pkcsBlockLen,
            invalid = 0,
            i = 1,
            outputLen;
+
+    if (pkcsBlockLen == 0) {
+        return BAD_FUNC_ARG;
+    }
 
     if (pkcsBlock[0] != 0x0) /* skip past zero */
         invalid = 1;
@@ -882,6 +897,10 @@ int wc_RsaPublicEncrypt(const byte* in, word32 inLen, byte* out, word32 outLen,
     if (sz > (int)outLen)
         return RSA_BUFFER_E;
 
+    if (sz < RSA_MIN_PAD_SZ) {
+        return WC_KEY_SIZE_E;
+    }
+
     if (inLen > (word32)(sz - RSA_MIN_PAD_SZ))
         return RSA_BUFFER_E;
 
@@ -924,6 +943,10 @@ int wc_RsaPublicEncrypt_ex(const byte* in, word32 inLen, byte* out,
     sz = mp_unsigned_bin_size(&key->n);
     if (sz > (int)outLen)
         return RSA_BUFFER_E;
+
+    if (sz < RSA_MIN_PAD_SZ) {
+        return WC_KEY_SIZE_E;
+    }
 
     if (inLen > (word32)(sz - RSA_MIN_PAD_SZ))
         return RSA_BUFFER_E;
@@ -1179,6 +1202,10 @@ int wc_RsaSSL_Sign(const byte* in, word32 inLen, byte* out, word32 outLen,
     sz = mp_unsigned_bin_size(&key->n);
     if (sz > (int)outLen)
         return RSA_BUFFER_E;
+
+    if (sz < RSA_MIN_PAD_SZ) {
+        return WC_KEY_SIZE_E;
+    }
 
     if (inLen > (word32)(sz - RSA_MIN_PAD_SZ))
         return RSA_BUFFER_E;

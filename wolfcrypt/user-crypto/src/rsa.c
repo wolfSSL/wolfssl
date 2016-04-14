@@ -528,20 +528,33 @@ int SetRsaInternal(WOLFSSL_RSA* rsa)
 static int wc_RsaPad(const byte* input, word32 inputLen, byte* pkcsBlock,
                    word32 pkcsBlockLen, byte padValue, WC_RNG* rng)
 {
-    if (inputLen == 0)
-        return 0;
+    if (inputLen == 0 || pkcsBlockLen == 0) {
+        return USER_CRYPTO_ERROR;
+    }
 
     pkcsBlock[0] = 0x0;       /* set first byte to zero and advance */
     pkcsBlock++; pkcsBlockLen--;
     pkcsBlock[0] = padValue;  /* insert padValue */
 
-    if (padValue == RSA_BLOCK_TYPE_1)
+    if (padValue == RSA_BLOCK_TYPE_1) {
+        if (pkcsBlockLen < inputLen + 2) {
+            return USER_CRYPTO_ERROR;
+        }
+
         /* pad with 0xff bytes */
         XMEMSET(&pkcsBlock[1], 0xFF, pkcsBlockLen - inputLen - 2);
+    }
     else {
         /* pad with non-zero random bytes */
-        word32 padLen = pkcsBlockLen - inputLen - 1, i;
-        int    ret    = wc_RNG_GenerateBlock(rng, &pkcsBlock[1], padLen);
+        word32 padLen, i;
+        int    ret;
+
+        if (pkcsBlockLen < inputLen + 1) {
+            return USER_CRYPTO_ERROR;
+        }
+
+        padLen = pkcsBlockLen - inputLen - 1;
+        ret = wc_RNG_GenerateBlock(rng, &pkcsBlock[1], padLen);
 
         if (ret != 0)
             return ret;
@@ -567,6 +580,10 @@ static int RsaUnPad(const byte *pkcsBlock, unsigned int pkcsBlockLen,
            invalid = 0,
            i = 1,
            outputLen;
+
+    if (pkcsBlockLen == 0) {
+        return USER_CRYPTO_ERROR;
+    }
 
     if (pkcsBlock[0] != 0x0) /* skip past zero */
         invalid = 1;
@@ -1609,6 +1626,11 @@ int wc_RsaSSL_Sign(const byte* in, word32 inLen, byte* out, word32 outLen,
 
     if (sz > (int)outLen) {
         USER_DEBUG(("Bad argument outLen to wc_RsaSSL_Sign\n"));
+        return USER_CRYPTO_ERROR;
+    }
+
+    if (sz < RSA_MIN_PAD_SZ) {
+        USER_DEBUG(("Key size is too small\n"));
         return USER_CRYPTO_ERROR;
     }
 
