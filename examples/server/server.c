@@ -125,8 +125,6 @@ static int NonBlockingSSL_Accept(SSL* ssl)
     return ret;
 }
 
-extern double current_time(int);
-
 /* Echo number of bytes specified by -e arg */
 int ServerEchoData(SSL* ssl, int clientfd, int echoData, int throughput)
 {

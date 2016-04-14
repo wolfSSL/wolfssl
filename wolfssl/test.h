@@ -1005,7 +1005,8 @@ static INLINE unsigned int my_psk_server_cb(WOLFSSL* ssl, const char* identity,
         
         return (double)tv.tv_sec + (double)tv.tv_usec / 1000000;
     }
-
+#else
+    extern double current_time(int reset);
 #endif
 #endif /* USE_WINDOWS_API */
 
