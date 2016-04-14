@@ -549,7 +549,10 @@ int InitSSL_Ctx(WOLFSSL_CTX* ctx, WOLFSSL_METHOD* method)
     }
 
 #ifndef NO_DH
-    ctx->minDhKeySz = MIN_DHKEY_SZ;
+    ctx->minDhKeySz  = MIN_DHKEY_SZ;
+#endif
+#ifndef NO_RSA
+    ctx->minRsaKeySz = MIN_RSAKEY_SZ;
 #endif
 
 #ifdef HAVE_ECC
@@ -2233,6 +2236,9 @@ int SetSSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
 #endif
 #ifndef NO_DH
     ssl->options.minDhKeySz = ctx->minDhKeySz;
+#endif
+#ifndef NO_RSA
+    ssl->options.minRsaKeySz = ctx->minRsaKeySz;
 #endif
 
     ssl->options.sessionCacheOff      = ctx->sessionCacheOff;
@@ -5130,6 +5136,23 @@ static int DoCertificate(WOLFSSL* ssl, byte* input, word32* inOutIdx,
             subjectHash = dCert->subjectHash;
         #endif
 
+        /* Check key sizes for certs. Is redundent check since ProcessBuffer
+           also performs this check. */
+        switch (dCert->keyOID) {
+            #ifndef NO_RSA
+            case RSAk:
+                if (dCert->pubKeySize < ssl->options.minRsaKeySz) {
+                    WOLFSSL_MSG("RSA key in cert chain was too small");
+                    ret = RSA_KEY_SIZE_E;
+                }
+                break;
+            #endif /* !NO_RSA */
+
+            default:
+                WOLFSSL_MSG("Key size not checked");
+                break; /* key is not being checked for size if not in switch */
+        }
+
         if (ret == 0 && dCert->isCA == 0) {
             WOLFSSL_MSG("Chain cert is not a CA, not adding as one");
         }
@@ -5441,6 +5464,15 @@ static int DoCertificate(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                             #endif /* NO_RSA */
                         #endif /*HAVE_PK_CALLBACKS */
                     }
+
+                    /* check size of peer RSA key */
+                    if (ret == 0 && ssl->peerRsaKeyPresent &&
+                                              wc_RsaEncryptSize(ssl->peerRsaKey)
+                                              < ssl->options.minRsaKeySz) {
+                        ret = RSA_KEY_SIZE_E;
+                        WOLFSSL_MSG("Peer RSA key is too small");
+                    }
+
                 }
                 break;
         #endif /* NO_RSA */
@@ -10130,6 +10162,9 @@ const char* wolfSSL_ERR_reason_error_string(unsigned long e)
     case ASYNC_NOT_PENDING:
         return "Async operation not pending";
 
+    case RSA_KEY_SIZE_E:
+        return "RSA key too small";
+
     default :
         return "unknown error number";
     }
@@ -13919,8 +13954,13 @@ static word32 QSH_KeyExchangeWrite(WOLFSSL* ssl, byte isServer)
         if (ret == 0)
             ret = wc_RsaPrivateKeyDecode(ssl->buffers.key->buffer, &idx, &key,
                                       ssl->buffers.key->length);
-        if (ret == 0)
+        if (ret == 0) {
             sigOutSz = wc_RsaEncryptSize(&key);
+            if (sigOutSz < ssl->options.minRsaKeySz) {
+                WOLFSSL_MSG("RSA key size too small");
+                return RSA_KEY_SIZE_E;
+            }
+        }
         else
 #endif
         {
@@ -14868,6 +14908,11 @@ int DoSessionTicket(WOLFSSL* ssl,
                                     goto exit_sske;
                                 }
                                 sigSz = wc_RsaEncryptSize((RsaKey*)ssl->sigKey);
+
+                                if (sigSz < ssl->options.minRsaKeySz) {
+                                    WOLFSSL_MSG("RSA signature key size too small");
+                                    goto exit_sske;
+                                }
                                 break;
                             }
                         #endif /* !NO_RSA */
@@ -15150,6 +15195,11 @@ int DoSessionTicket(WOLFSSL* ssl,
                             }
                             sigSz = wc_RsaEncryptSize((RsaKey*)ssl->sigKey);
                             length += sigSz;
+
+                            if (sigSz < ssl->options.minRsaKeySz) {
+                                WOLFSSL_MSG("RSA key size too small");
+                                goto exit_sske;
+                            }
 
                             if (IsAtLeastTLSv1_2(ssl)) {
                                 length += HASH_SIG_SIZE;
@@ -16971,6 +17021,10 @@ int DoSessionTicket(WOLFSSL* ssl,
                             goto exit_dcke;
                         }
                         length = wc_RsaEncryptSize((RsaKey*)ssl->sigKey);
+                        if (length < ssl->options.minRsaKeySz) {
+                            WOLFSSL_MSG("Peer RSA key is too small");
+                            goto exit_dcke;
+                        }
                         ssl->arrays->preMasterSz = SECRET_LEN;
 
                         if (ssl->options.tls) {

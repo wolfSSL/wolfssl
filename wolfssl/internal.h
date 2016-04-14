@@ -1063,7 +1063,22 @@ enum Misc {
     /* 150 suites for now! */
 #endif
 
+/* set minimum RSA key size allowed */
+#ifndef WOLFSSL_MIN_RSA_BITS
+    #ifdef WOLFSSL_MAX_STRENGTH
+        #define WOLFSSL_MIN_RSA_BITS 2048
+    #else
+        #define WOLFSSL_MIN_RSA_BITS 1024
+    #endif
+#endif /* WOLFSSL_MIN_RSA_BITS */
+#if (WOLFSSL_MIN_RSA_BITS % 8)
+    /* This is to account for the example case of a min size of 2050 bits but
+       still allows 2049 bit key. So we need the measurment to be in bytes. */
+    #error RSA minimum bit size must be a multiple of 8
+#endif
+#define MIN_RSAKEY_SZ (WOLFSSL_MIN_RSA_BITS / 8)
 
+/* set minimum DH key size allowed */
 #ifndef WOLFSSL_MIN_DHKEY_BITS
     #ifdef WOLFSSL_MAX_STRENGTH
         #define WOLFSSL_MIN_DHKEY_BITS 2048
@@ -1481,6 +1496,10 @@ struct WOLFSSL_CERT_MANAGER {
     byte            ocspSendNonce;       /* send the OCSP nonce ? */
     byte            ocspUseOverrideURL;  /* ignore cert's responder, override */
     byte            ocspStaplingEnabled; /* is OCSP Stapling on ? */
+
+#ifndef NO_RSA
+    word16          minRsaKeySz;         /* minimum allowed RSA key size */
+#endif
 };
 
 WOLFSSL_LOCAL int CM_SaveCertCache(WOLFSSL_CERT_MANAGER*, const char*);
@@ -1876,6 +1895,9 @@ struct WOLFSSL_CTX {
     byte        minDowngrade;     /* minimum downgrade version */
 #ifndef NO_DH
     word16      minDhKeySz;       /* minimum DH key size */
+#endif
+#ifndef NO_RSA
+    word16      minRsaKeySz;      /* minimum RSA key size */
 #endif
     CallbackIORecv CBIORecv;
     CallbackIOSend CBIOSend;
@@ -2340,6 +2362,9 @@ typedef struct Options {
 #ifndef NO_DH
     word16          minDhKeySz;         /* minimum DH key size */
     word16          dhKeySz;            /* actual DH key size */
+#endif
+#ifndef NO_RSA
+    word16          minRsaKeySz;      /* minimum RSA key size */
 #endif
 
 } Options;
