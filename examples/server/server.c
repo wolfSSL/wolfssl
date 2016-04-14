@@ -125,7 +125,7 @@ static int NonBlockingSSL_Accept(SSL* ssl)
     return ret;
 }
 
-extern double current_time(void);
+extern double current_time(int);
 
 /* Echo number of bytes specified by -e arg */
 int ServerEchoData(SSL* ssl, int clientfd, int echoData, int throughput)
@@ -141,7 +141,7 @@ int ServerEchoData(SSL* ssl, int clientfd, int echoData, int throughput)
                 int len = min(TEST_BUFFER_SIZE, throughput - xfer_bytes);
                 int rx_pos = 0;
                 if(throughput) {
-                    start = current_time();
+                    start = current_time(1);
                 }
                 while(rx_pos < len) {
                     ret = SSL_read(ssl, &buffer[rx_pos], len - rx_pos);
@@ -157,14 +157,14 @@ int ServerEchoData(SSL* ssl, int clientfd, int echoData, int throughput)
                     }
                 }
                 if(throughput) {
-                    rx_time += current_time() - start;
-                    start = current_time();
+                    rx_time += current_time(0) - start;
+                    start = current_time(1);
                 }
                 if (SSL_write(ssl, buffer, len) != len) {
                     err_sys("SSL_write failed");
                 }
                 if(throughput) {
-                    tx_time += current_time() - start;
+                    tx_time += current_time(0) - start;
                 }
 
                 xfer_bytes += len;
