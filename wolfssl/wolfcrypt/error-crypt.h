@@ -169,6 +169,8 @@ enum {
     HASH_TYPE_E         = -232,  /* Hash Type not enabled/available */
     WC_PENDING_E        = -233,  /* wolfCrypt operation pending (would block) */
 
+    WC_KEY_SIZE_E       = -234,  /* Key size error, either too small or large */
+
     MIN_CODE_E          = -300   /* errors -101 - -299 */
 
     /* add new companion error id strings for any new error codes
