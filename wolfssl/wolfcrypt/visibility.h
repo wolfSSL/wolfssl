@@ -46,9 +46,8 @@
     #elif defined(__SUNPRO_C) && (__SUNPRO_C >= 0x550)
         #define WOLFSSL_API   __global
         #define WOLFSSL_LOCAL __hidden
-    #elif defined(_MSC_VER)
-        #if defined(WOLFSSL_DLL) || \
-            (defined(__MINGW32__) && defined(WOLFSSL_SHARED))
+    #elif defined(_MSC_VER) || defined(__MINGW32__)
+        #if defined(WOLFSSL_DLL)
             #define WOLFSSL_API __declspec(dllexport)
         #else
             #define WOLFSSL_API
@@ -59,9 +58,8 @@
         #define WOLFSSL_LOCAL
     #endif /* HAVE_VISIBILITY */
 #else /* BUILDING_WOLFSSL */
-    #if defined(_MSC_VER)
-        #if defined(WOLFSSL_DLL) || \
-            (defined(__MINGW32__) && defined(WOLFSSL_SHARED))
+    #if defined(_MSC_VER) || defined(__MINGW32__)
+        #if defined(WOLFSSL_DLL)
             #define WOLFSSL_API __declspec(dllimport)
         #else
             #define WOLFSSL_API
