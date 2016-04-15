@@ -2381,7 +2381,7 @@ struct WOLFSSL_X509_NAME {
     char  staticName[ASN_NAME_MAX];
     int   dynamicName;
     int   sz;
-#ifdef OPENSSL_EXTRA
+#if defined(OPENSSL_EXTRA) && !defined(NO_ASN)
     DecodedName fullName;
 #endif /* OPENSSL_EXTRA */
 };
@@ -2972,11 +2972,11 @@ WOLFSSL_LOCAL  int GrowInputBuffer(WOLFSSL* ssl, int size, int usedLength);
 
 WOLFSSL_LOCAL word32  LowResTimer(void);
 
-WOLFSSL_LOCAL void InitX509Name(WOLFSSL_X509_NAME*, int);
-WOLFSSL_LOCAL void FreeX509Name(WOLFSSL_X509_NAME* name);
-WOLFSSL_LOCAL void InitX509(WOLFSSL_X509*, int);
-WOLFSSL_LOCAL void FreeX509(WOLFSSL_X509*);
 #ifndef NO_CERTS
+    WOLFSSL_LOCAL void InitX509Name(WOLFSSL_X509_NAME*, int);
+    WOLFSSL_LOCAL void FreeX509Name(WOLFSSL_X509_NAME* name);
+    WOLFSSL_LOCAL void InitX509(WOLFSSL_X509*, int);
+    WOLFSSL_LOCAL void FreeX509(WOLFSSL_X509*);
     WOLFSSL_LOCAL int  CopyDecodedToX509(WOLFSSL_X509*, DecodedCert*);
 #endif
 
