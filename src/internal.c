@@ -14911,6 +14911,7 @@ int DoSessionTicket(WOLFSSL* ssl,
 
                                 if (sigSz < ssl->options.minRsaKeySz) {
                                     WOLFSSL_MSG("RSA signature key size too small");
+                                    ret = RSA_KEY_SIZE_E;
                                     goto exit_sske;
                                 }
                                 break;
@@ -15198,6 +15199,7 @@ int DoSessionTicket(WOLFSSL* ssl,
 
                             if (sigSz < ssl->options.minRsaKeySz) {
                                 WOLFSSL_MSG("RSA key size too small");
+                                ret = RSA_KEY_SIZE_E;
                                 goto exit_sske;
                             }
 
@@ -17023,6 +17025,7 @@ int DoSessionTicket(WOLFSSL* ssl,
                         length = wc_RsaEncryptSize((RsaKey*)ssl->sigKey);
                         if (length < ssl->options.minRsaKeySz) {
                             WOLFSSL_MSG("Peer RSA key is too small");
+                            ret = RSA_KEY_SIZE_E;
                             goto exit_dcke;
                         }
                         ssl->arrays->preMasterSz = SECRET_LEN;
