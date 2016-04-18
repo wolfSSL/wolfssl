@@ -58,7 +58,13 @@ static const char* passed = "passed";
 static const char* failed = "failed";
 
 #if !defined(NO_FILESYSTEM) && !defined(NO_CERTS)
-static const char* bogusFile  = "/dev/null";
+    static const char* bogusFile  = 
+    #ifdef _WIN32
+        "NUL"
+    #else
+        "/dev/null"
+    #endif
+    ;
 #endif
 
 /*----------------------------------------------------------------------------*
@@ -485,7 +491,7 @@ static THREAD_RETURN WOLFSSL_THREAD test_server_nofail(void* args)
 {
     SOCKET_T sockfd = 0;
     SOCKET_T clientfd = 0;
-    word16 port = wolfSSLPort;
+    word16 port;
 
     WOLFSSL_METHOD* method = 0;
     WOLFSSL_CTX* ctx = 0;
@@ -503,10 +509,16 @@ static THREAD_RETURN WOLFSSL_THREAD test_server_nofail(void* args)
     method = wolfSSLv23_server_method();
     ctx = wolfSSL_CTX_new(method);
 
-#if defined(NO_MAIN_DRIVER) && !defined(USE_WINDOWS_API) && \
-   !defined(WOLFSSL_SNIFFER) && !defined(WOLFSSL_MDK_SHELL) && \
-   !defined(WOLFSSL_TIRTOS)
+#if defined(USE_WINDOWS_API)
+    /* Generate random port for testing */
+    port = GetRandomPort();
+#elif defined(NO_MAIN_DRIVER) && !defined(WOLFSSL_SNIFFER) && \
+     !defined(WOLFSSL_MDK_SHELL) && !defined(WOLFSSL_TIRTOS)
+    /* Let tcp_listen assign port */
     port = 0;
+#else
+    /* Use default port */
+    port = wolfSSLPort;
 #endif
 
     wolfSSL_CTX_set_verify(ctx,
@@ -704,7 +716,7 @@ static THREAD_RETURN WOLFSSL_THREAD run_wolfssl_server(void* args)
     WOLFSSL*     ssl = NULL;
     SOCKET_T    sfd = 0;
     SOCKET_T    cfd = 0;
-    word16      port = wolfSSLPort;
+    word16      port;
 
     char msg[] = "I hear you fa shizzle!";
     int  len   = (int) XSTRLEN(msg);
@@ -716,10 +728,16 @@ static THREAD_RETURN WOLFSSL_THREAD run_wolfssl_server(void* args)
 #endif
     ((func_args*)args)->return_code = TEST_FAIL;
 
-#if defined(NO_MAIN_DRIVER) && !defined(USE_WINDOWS_API) && \
-   !defined(WOLFSSL_SNIFFER) && !defined(WOLFSSL_MDK_SHELL) && \
-   !defined(WOLFSSL_TIRTOS)
+#if defined(USE_WINDOWS_API)
+    /* Generate random port for testing */
+    port = GetRandomPort();
+#elif defined(NO_MAIN_DRIVER) && !defined(WOLFSSL_SNIFFER) && \
+     !defined(WOLFSSL_MDK_SHELL) && !defined(WOLFSSL_TIRTOS)
+    /* Let tcp_listen assign port */
     port = 0;
+#else
+    /* Use default port */
+    port = wolfSSLPort;
 #endif
 
     wolfSSL_CTX_set_verify(ctx,

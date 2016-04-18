@@ -16,9 +16,9 @@ else
 fi
 
 # is our desired server there?
-ping -c 2 $server
+./scripts/ping.test $server 2
 RESULT=$?
-[ $RESULT -ne 0 ] && echo -e "\n\nCouldn't find $server, skipping" && exit 0
+[ $RESULT -ne 0 ] && exit 0
 
 # client test against the server
 ./examples/client/client -X -C -h $server -p 443 -g -A $ca

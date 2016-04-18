@@ -2638,10 +2638,18 @@ fi
 LIB_SOCKET_NSL
 AX_HARDEN_CC_COMPILER_FLAGS
 
-# link to ws2_32 if on mingw
+# if mingw then link to ws2_32 for sockets
 case $host_os in
-    *mingw32)
-        LDFLAGS="$LDFLAGS -lws2_32" ;;
+    mingw*)
+        LDFLAGS="$LDFLAGS -lws2_32"
+        if test "$enable_shared" = "yes"
+        then
+            AC_DEFINE([WOLFSSL_DLL], [1], [Use __declspec(dllexport) when building library])
+            if test "$enable_static" = "yes"
+            then
+                MINGW_LIB_WARNING="yes"
+            fi
+        fi ;;
 esac
 
 # add user C_EXTRA_FLAGS back
@@ -2717,7 +2725,7 @@ for option in $OPTION_FLAGS; do
         noequalsign=`echo $defonly | sed 's/=/ /'`
         if test "$noequalsign" = "NDEBUG" || test "$noequalsign" = "DEBUG"
         then
-            echo "not outputing (N)DEBUG to $OPTION_FILE"
+            echo "not outputting (N)DEBUG to $OPTION_FILE"
             continue
         fi
 
@@ -2767,7 +2775,15 @@ done < $OPTION_FILE
 
 # switch ifdef protection in cyassl/option.h to CYASSL_OPTONS_H, remove bak
 sed -i.bak 's/WOLFSSL_OPTIONS_H/CYASSL_OPTIONS_H/g' cyassl/options.h
+
+# workaround for mingw sed that may get "Permission denied" trying to preserver permissions
+case $host_os in
+    mingw*)
+        chmod u+w cyassl/options.h ;;
+esac
+
 rm cyassl/options.h.bak
+
 
 # output config summary
 echo "---"
@@ -2878,8 +2894,30 @@ echo "   * Async Crypto:               $ENABLED_ASYNCCRYPT"
 echo ""
 echo "---"
 
+################################################################################
 # Show warnings at bottom so they are noticed
+################################################################################
+
 if test "$ENABLED_ASYNCCRYPT" = "yes"
 then
     AC_MSG_WARN([Make sure real async files are loaded. Contact wolfSSL for details on using the asynccrypt option.])
 fi
+
+# MinGW static vs shared library
+# Reference URL from libtool for MinGW is located at
+# http://www.gnu.org/software/libtool/manual/libtool.html#Cygwin-to-MinGW-Cross
+# this allows for not even having dllimport/dllexport on functions
+# with recent libtools, only requiring it with global variables.
+#
+# The following warning is displayed here because if not using "contemporary GNU
+# tools" there is the possibility of export/import issues.
+# wolfSSL uses __declspec(dllexport) and "contemporary GNU tools" handle the
+# case where both static and shared libraries are built.
+#
+# More can be found about the MinGW linker at
+# https://sourceware.org/binutils/docs/ld/WIN32.html
+if test "$MINGW_LIB_WARNING" = "yes"
+then
+    AC_MSG_WARN([Building with shared and static library at the same time on this system may cause export/import problems when using non contemporary GNU tools.])
+fi
+

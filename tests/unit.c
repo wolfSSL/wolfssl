@@ -152,6 +152,7 @@ void join_thread(THREAD_TYPE thread)
     assert(res == WAIT_OBJECT_0);
     res = CloseHandle((HANDLE)thread);
     assert(res);
+    (void)res; /* Suppress un-used variable warning */
 #endif
 }
 

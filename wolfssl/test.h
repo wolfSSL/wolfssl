@@ -1925,4 +1925,18 @@ static INLINE const char* mymktemp(char *tempfn, int len, int num)
     }
 #endif
 
+static INLINE word16 GetRandomPort(void)
+{
+    word16 port = 0;
+
+    /* Generate random port for testing */
+    WC_RNG rng;
+    if (wc_InitRng(&rng) == 0) {
+        wc_RNG_GenerateBlock(&rng, (byte*)&port, sizeof(port));
+        port |= 0xC000; /* Make sure its in the 49152 - 65535 range */
+        wc_FreeRng(&rng);
+    }
+    return port;
+}
+
 #endif /* wolfSSL_TEST_H */
