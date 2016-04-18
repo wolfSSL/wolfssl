@@ -2887,16 +2887,15 @@ then
 fi
 
 # MinGW static vs shared library
-# The URL I was looking at for this was
+# Reference URL from libtool for MinGW is located at
 # http://www.gnu.org/software/libtool/manual/libtool.html#Cygwin-to-MinGW-Cross
 # this allows for not even having dllimport/dllexport on functions
 # with recent libtools, only requiring it with global variables.
-# The warning is displayed here because if not using "contemporary GNU
+#
+# The following warning is displayed here because if not using "contemporary GNU
 # tools" there is the possibility of export/import issues.
-# We use __declspec(dllexport) and "contemporary GNU tools" are taking care
-# of the case where both static and shared libraries are built. It is also
-# placing both __imp__function and function in the lib.dll.a created. Allowing
-# users to choose if they use __declspec(dllimport) with defining WOLFSSL_DLL.
+# wolfSSL uses __declspec(dllexport) and "contemporary GNU tools" handle the
+# case where both static and shared libraries are built.
 #
 # More can be found about the MinGW linker at
 # https://sourceware.org/binutils/docs/ld/WIN32.html
