@@ -5138,19 +5138,21 @@ static int DoCertificate(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 
         /* Check key sizes for certs. Is redundent check since ProcessBuffer
            also performs this check. */
-        switch (dCert->keyOID) {
-            #ifndef NO_RSA
-            case RSAk:
-                if (dCert->pubKeySize < ssl->options.minRsaKeySz) {
-                    WOLFSSL_MSG("RSA key in cert chain was too small");
-                    ret = RSA_KEY_SIZE_E;
-                }
-                break;
-            #endif /* !NO_RSA */
+        if (!ssl->options.verifyNone) {
+            switch (dCert->keyOID) {
+                #ifndef NO_RSA
+                case RSAk:
+                    if (dCert->pubKeySize < ssl->options.minRsaKeySz) {
+                        WOLFSSL_MSG("RSA key in cert chain was too small");
+                        ret = RSA_KEY_SIZE_E;
+                    }
+                    break;
+                #endif /* !NO_RSA */
 
-            default:
-                WOLFSSL_MSG("Key size not checked");
-                break; /* key is not being checked for size if not in switch */
+                default:
+                    WOLFSSL_MSG("Key size not checked");
+                    break; /* key not being checked for size if not in switch */
+            }
         }
 
         if (ret == 0 && dCert->isCA == 0) {
@@ -5467,6 +5469,7 @@ static int DoCertificate(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 
                     /* check size of peer RSA key */
                     if (ret == 0 && ssl->peerRsaKeyPresent &&
+                                              !ssl->options.verifyNone &&
                                               wc_RsaEncryptSize(ssl->peerRsaKey)
                                               < ssl->options.minRsaKeySz) {
                         ret = RSA_KEY_SIZE_E;

@@ -2587,19 +2587,21 @@ int AddCA(WOLFSSL_CERT_MANAGER* cm, DerBuffer** pDer, int type, int verify)
 #endif
 
     /* check CA key size */
-    switch (cert->keyOID) {
-        #ifndef NO_RSA
-        case RSAk:
-            if (cert->pubKeySize < cm->minRsaKeySz) {
-                ret = RSA_KEY_SIZE_E;
-                WOLFSSL_MSG("    CA RSA key is too small");
-            }
-            break;
-        #endif /* !NO_RSA */
+    if (verify) {
+        switch (cert->keyOID) {
+            #ifndef NO_RSA
+            case RSAk:
+                if (cert->pubKeySize < cm->minRsaKeySz) {
+                    ret = RSA_KEY_SIZE_E;
+                    WOLFSSL_MSG("    CA RSA key is too small");
+                }
+                break;
+            #endif /* !NO_RSA */
 
-        default:
-            WOLFSSL_MSG("    No key size check done on CA");
-            break; /* no size check if key type is not in switch */
+            default:
+                WOLFSSL_MSG("    No key size check done on CA");
+                break; /* no size check if key type is not in switch */
+        }
     }
 
     if (ret == 0 && cert->isCA == 0 && type != WOLFSSL_USER_CA) {
@@ -3588,17 +3590,17 @@ static int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
         }
     #endif
 
-        /* check key size of cert */
+        /* check key size of cert unless specified not to */
         switch (cert->keyOID) {
         #ifndef NO_RSA
             case RSAk:
-                if (ssl) {
+                if (ssl && !ssl->options.verifyNone) {
                     if (cert->pubKeySize < ssl->options.minRsaKeySz) {
                         ret = RSA_KEY_SIZE_E;
                         WOLFSSL_MSG("Certificate RSA key size too small");
                     }
                 }
-                else if (ctx) {
+                else if (ctx && !ctx->verifyNone) {
                     if (cert->pubKeySize < ctx->minRsaKeySz) {
                         ret = RSA_KEY_SIZE_E;
                         WOLFSSL_MSG("Certificate RSA key size too small");
