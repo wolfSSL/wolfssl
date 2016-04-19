@@ -122,7 +122,7 @@ const ecc_set_type ecc_sets[] = {
 #ifdef ECC112
 {
         14,
-        NID_secp111r1,
+        NID_secp112r1,
         "SECP112R1",
         "DB7C2ABF62E35E668076BEAD208B",
         "DB7C2ABF62E35E668076BEAD2088",
