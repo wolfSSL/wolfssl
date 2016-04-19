@@ -145,6 +145,7 @@ enum wolfSSL_ErrorCodes {
     ASYNC_NOT_PENDING            = -408,   /* Async operation not pending */
 
     RSA_KEY_SIZE_E               = -409,   /* RSA key too small */
+    ECC_KEY_SIZE_E               = -410,   /* ECC key too small */
     /* add strings to wolfSSL_ERR_reason_error_string in internal.c !!!!! */
 
     /* begin negotiation parameter errors */

@@ -1063,6 +1063,24 @@ enum Misc {
     /* 150 suites for now! */
 #endif
 
+/* set minimum ECC key size allowed */
+#ifndef WOLFSSL_MIN_ECC_BITS
+    #ifdef WOLFSSL_MAX_STRENGTH
+        #define WOLFSSL_MIN_ECC_BITS  256
+    #else
+        #define WOLFSSL_MIN_ECC_BITS 160
+    #endif
+#endif /* WOLFSSL_MIN_ECC_BITS */
+#if (WOLFSSL_MIN_ECC_BITS % 8)
+    /* Some ECC keys are not divisable by 8 such as prime239v1 or sect131r1.
+       In these cases round down to the nearest value divisable by 8. The
+       restriction of being divisable by 8 is in place to match wc_ecc_size
+       function from wolfSSL.
+     */
+    #error ECC minimum bit size must be a multiple of 8
+#endif
+#define MIN_ECCKEY_SZ (WOLFSSL_MIN_ECC_BITS / 8)
+
 /* set minimum RSA key size allowed */
 #ifndef WOLFSSL_MIN_RSA_BITS
     #ifdef WOLFSSL_MAX_STRENGTH
@@ -1500,6 +1518,9 @@ struct WOLFSSL_CERT_MANAGER {
 #ifndef NO_RSA
     word16          minRsaKeySz;         /* minimum allowed RSA key size */
 #endif
+#ifdef HAVE_ECC
+    word16          minEccKeySz;         /* minimum allowed ECC key size */
+#endif
 };
 
 WOLFSSL_LOCAL int CM_SaveCertCache(WOLFSSL_CERT_MANAGER*, const char*);
@@ -1898,6 +1919,9 @@ struct WOLFSSL_CTX {
 #endif
 #ifndef NO_RSA
     word16      minRsaKeySz;      /* minimum RSA key size */
+#endif
+#ifdef HAVE_ECC
+    word16      minEccKeySz;      /* minimum ECC key size */
 #endif
     CallbackIORecv CBIORecv;
     CallbackIOSend CBIOSend;
@@ -2365,6 +2389,9 @@ typedef struct Options {
 #endif
 #ifndef NO_RSA
     word16          minRsaKeySz;      /* minimum RSA key size */
+#endif
+#ifdef HAVE_ECC
+    word16          minEccKeySz;      /* minimum ECC key size */
 #endif
 
 } Options;
