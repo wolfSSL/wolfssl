@@ -231,6 +231,11 @@
 #else
     #define DEFAULT_MIN_DHKEY_BITS 1024
 #endif
+#if !defined(NO_FILESYSTEM) && defined(WOLFSSL_MAX_STRENGTH)
+    #define DEFAULT_MIN_RSAKEY_BITS 2048
+#else
+    #define DEFAULT_MIN_RSAKEY_BITS 1024
+#endif
 
 /* all certs relative to wolfSSL home directory now */
 #if defined(WOLFSSL_NO_CURRDIR) || defined(WOLFSSL_MDK_SHELL)

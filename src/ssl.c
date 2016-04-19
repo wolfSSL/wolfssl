@@ -484,6 +484,32 @@ int wolfSSL_GetObjectSize(void)
 #endif
 
 
+#ifndef NO_RSA
+int wolfSSL_CTX_SetMinRsaKey_Sz(WOLFSSL_CTX* ctx, word16 keySz)
+{
+    if (ctx == NULL || keySz % 8 != 0) {
+        WOLFSSL_MSG("Key size must be divisable by 8 or ctx was null");
+        return BAD_FUNC_ARG;
+    }
+
+    ctx->minRsaKeySz     = keySz / 8;
+    ctx->cm->minRsaKeySz = keySz / 8;
+    return SSL_SUCCESS;
+}
+
+
+int wolfSSL_SetMinRsaKey_Sz(WOLFSSL* ssl, word16 keySz)
+{
+    if (ssl == NULL || keySz % 8 != 0) {
+        WOLFSSL_MSG("Key size must be divisable by 8 or ssl was null");
+        return BAD_FUNC_ARG;
+    }
+
+    ssl->options.minRsaKeySz = keySz / 8;
+    return SSL_SUCCESS;
+}
+#endif /* !NO_RSA */
+
 #ifndef NO_DH
 /* server Diffie-Hellman parameters, SSL_SUCCESS on ok */
 int wolfSSL_SetTmpDH(WOLFSSL* ssl, const unsigned char* p, int pSz,
@@ -1731,6 +1757,11 @@ WOLFSSL_CERT_MANAGER* wolfSSL_CertManagerNew(void)
             return NULL;
         }
         #endif
+
+        /* set default minimum key size allowed */
+        #ifndef NO_RSA
+            cm->minRsaKeySz = MIN_RSAKEY_SZ;
+        #endif
     }
 
     return cm;
@@ -2560,6 +2591,24 @@ int AddCA(WOLFSSL_CERT_MANAGER* cm, DerBuffer** pDer, int type, int verify)
 #else
     subjectHash = cert->subjectHash;
 #endif
+
+    /* check CA key size */
+    if (verify) {
+        switch (cert->keyOID) {
+            #ifndef NO_RSA
+            case RSAk:
+                if (cert->pubKeySize < cm->minRsaKeySz) {
+                    ret = RSA_KEY_SIZE_E;
+                    WOLFSSL_MSG("    CA RSA key is too small");
+                }
+                break;
+            #endif /* !NO_RSA */
+
+            default:
+                WOLFSSL_MSG("    No key size check done on CA");
+                break; /* no size check if key type is not in switch */
+        }
+    }
 
     if (ret == 0 && cert->isCA == 0 && type != WOLFSSL_USER_CA) {
         WOLFSSL_MSG("    Can't add as CA if not actually one");
@@ -3434,6 +3483,20 @@ static int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
                     if (!eccKey)
                         ret = SSL_BAD_FILE;
                 } else {
+                    /* check that the size of the RSA key is enough */
+                    int RsaSz = wc_RsaEncryptSize((RsaKey*)key);
+                    if (ssl) {
+                        if (RsaSz < ssl->options.minRsaKeySz) {
+                            ret = RSA_KEY_SIZE_E;
+                            WOLFSSL_MSG("Private Key size too small");
+                        }
+                    }
+                    else if(ctx) {
+                        if (RsaSz < ctx->minRsaKeySz) {
+                            ret = RSA_KEY_SIZE_E;
+                            WOLFSSL_MSG("Private Key size too small");
+                        }
+                    }
                     rsaKey = 1;
                     (void)rsaKey;  /* for no ecc builds */
                 }
@@ -3533,10 +3596,38 @@ static int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
         }
     #endif
 
+        /* check key size of cert unless specified not to */
+        switch (cert->keyOID) {
+        #ifndef NO_RSA
+            case RSAk:
+                if (ssl && !ssl->options.verifyNone) {
+                    if (cert->pubKeySize < ssl->options.minRsaKeySz) {
+                        ret = RSA_KEY_SIZE_E;
+                        WOLFSSL_MSG("Certificate RSA key size too small");
+                    }
+                }
+                else if (ctx && !ctx->verifyNone) {
+                    if (cert->pubKeySize < ctx->minRsaKeySz) {
+                        ret = RSA_KEY_SIZE_E;
+                        WOLFSSL_MSG("Certificate RSA key size too small");
+                    }
+                }
+                break;
+            #endif /* !NO_RSA */
+
+            default:
+                WOLFSSL_MSG("No key size check done on certificate");
+                break; /* do no check if not a case for the key */
+        }
+
         FreeDecodedCert(cert);
     #ifdef WOLFSSL_SMALL_STACK
         XFREE(cert, heap, DYNAMIC_TYPE_TMP_BUFFER);
     #endif
+
+        if (ret != 0) {
+            return ret;
+        }
     }
 
     return SSL_SUCCESS;
