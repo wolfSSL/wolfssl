@@ -525,7 +525,41 @@ void bench_aes(int show)
 #endif
 
     if (show) {
-        printf("AES      %d %s took %5.3f seconds, %8.3f MB/s", numBlocks,
+        printf("AES enc  %d %s took %5.3f seconds, %8.3f MB/s", numBlocks,
+                                                  blockType, total, persec);
+        SHOW_INTEL_CYCLES
+        printf("\n");
+    }
+#ifdef HAVE_CAVIUM
+    wc_AesFreeCavium(&enc);
+    if (wc_AesInitCavium(&enc, CAVIUM_DEV_ID) != 0) {
+        printf("aes init cavium failed\n");
+        return;
+    }
+#endif
+
+    ret = wc_AesSetKey(&enc, key, 16, iv, AES_DECRYPTION);
+    if (ret != 0) {
+        printf("AesSetKey failed, ret = %d\n", ret);
+        return;
+    }
+    start = current_time(1);
+    BEGIN_INTEL_CYCLES
+
+    for(i = 0; i < numBlocks; i++)
+        wc_AesCbcDecrypt(&enc, plain, cipher, sizeof(plain));
+
+    END_INTEL_CYCLES
+    total = current_time(0) - start;
+
+    persec = 1 / total * numBlocks;
+#ifdef BENCH_EMBEDDED
+    /* since using kB, convert to MB/s */
+    persec = persec / 1024;
+#endif
+
+    if (show) {
+        printf("AES dec  %d %s took %5.3f seconds, %8.3f MB/s", numBlocks,
                                                   blockType, total, persec);
         SHOW_INTEL_CYCLES
         printf("\n");
