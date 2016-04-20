@@ -727,7 +727,7 @@ static const byte hashSha512hOid[] = {96, 134, 72, 1, 101, 3, 4, 2, 3};
         static const byte curve256v1Oid[] = {42, 134, 72, 206, 61, 3, 1, 7};
     #endif /* HAVE_ALL_CURVES || HAVE_ECC256 */
     #if defined(HAVE_ALL_CURVES) || defined(HAVE_ECC160)
-        static const byte curve160r1Oid[] = {43, 129, 4, 0, 2};
+        static const byte curve160r1Oid[] = {43, 129, 4, 0, 8};
     #endif /* HAVE_ALL_CURVES || HAVE_ECC160 */
     #if defined(HAVE_ALL_CURVES) || defined(HAVE_ECC224)
         static const byte curve224r1Oid[] = {43, 129, 4, 0, 33};
