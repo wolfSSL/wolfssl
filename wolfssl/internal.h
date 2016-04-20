@@ -1068,7 +1068,7 @@ enum Misc {
     #ifdef WOLFSSL_MAX_STRENGTH
         #define WOLFSSL_MIN_ECC_BITS  256
     #else
-        #define WOLFSSL_MIN_ECC_BITS 160
+        #define WOLFSSL_MIN_ECC_BITS 224
     #endif
 #endif /* WOLFSSL_MIN_ECC_BITS */
 #if (WOLFSSL_MIN_ECC_BITS % 8)
@@ -1519,7 +1519,7 @@ struct WOLFSSL_CERT_MANAGER {
     word16          minRsaKeySz;         /* minimum allowed RSA key size */
 #endif
 #ifdef HAVE_ECC
-    word16          minEccKeySz;         /* minimum allowed ECC key size */
+    short           minEccKeySz;         /* minimum allowed ECC key size */
 #endif
 };
 
@@ -1921,7 +1921,7 @@ struct WOLFSSL_CTX {
     word16      minRsaKeySz;      /* minimum RSA key size */
 #endif
 #ifdef HAVE_ECC
-    word16      minEccKeySz;      /* minimum ECC key size */
+    short       minEccKeySz;      /* minimum ECC key size */
 #endif
     CallbackIORecv CBIORecv;
     CallbackIOSend CBIOSend;
@@ -2391,7 +2391,7 @@ typedef struct Options {
     word16          minRsaKeySz;      /* minimum RSA key size */
 #endif
 #ifdef HAVE_ECC
-    word16          minEccKeySz;      /* minimum ECC key size */
+    short           minEccKeySz;      /* minimum ECC key size */
 #endif
 
 } Options;

@@ -484,9 +484,9 @@ int wolfSSL_GetObjectSize(void)
 #endif
 
 #ifdef HAVE_ECC
-int wolfSSL_CTX_SetMinEccKey_Sz(WOLFSSL_CTX* ctx, word16 keySz)
+int wolfSSL_CTX_SetMinEccKey_Sz(WOLFSSL_CTX* ctx, short keySz)
 {
-    if (ctx == NULL || keySz % 8 != 0) {
+    if (ctx == NULL || keySz < 0 || keySz % 8 != 0) {
         WOLFSSL_MSG("Key size must be divisable by 8 or ctx was null");
         return BAD_FUNC_ARG;
     }
@@ -497,9 +497,9 @@ int wolfSSL_CTX_SetMinEccKey_Sz(WOLFSSL_CTX* ctx, word16 keySz)
 }
 
 
-int wolfSSL_SetMinEccKey_Sz(WOLFSSL* ssl, word16 keySz)
+int wolfSSL_SetMinEccKey_Sz(WOLFSSL* ssl, short keySz)
 {
-    if (ssl == NULL || keySz % 8 != 0) {
+    if (ssl == NULL || keySz < 0 || keySz % 8 != 0) {
         WOLFSSL_MSG("Key size must be divisable by 8 or ssl was null");
         return BAD_FUNC_ARG;
     }
@@ -2633,9 +2633,10 @@ int AddCA(WOLFSSL_CERT_MANAGER* cm, DerBuffer** pDer, int type, int verify)
             #endif /* !NO_RSA */
             #ifdef HAVE_ECC
             case ECDSAk:
-                if (cert->pubKeySize < cm->minEccKeySz) {
+                if (cm->minEccKeySz < 0 ||
+                                   cert->pubKeySize < (word16)cm->minEccKeySz) {
                     ret = ECC_KEY_SIZE_E;
-                    WOLFSSL_MSG("    CA ECC key is too small");
+                    WOLFSSL_MSG("    CA ECC key size error");
                 }
                 break;
             #endif /* HAVE_ECC */
@@ -3670,15 +3671,17 @@ static int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
         #ifdef HAVE_ECC
             case ECDSAk:
                 if (ssl && !ssl->options.verifyNone) {
-                    if (cert->pubKeySize < ssl->options.minEccKeySz) {
+                    if (ssl->options.minEccKeySz < 0 ||
+                          cert->pubKeySize < (word16)ssl->options.minEccKeySz) {
                         ret = ECC_KEY_SIZE_E;
-                        WOLFSSL_MSG("Certificate ECC key size too small");
+                        WOLFSSL_MSG("Certificate ECC key size error");
                     }
                 }
                 else if (ctx && !ctx->verifyNone) {
-                    if (cert->pubKeySize < ctx->minEccKeySz) {
+                    if (ctx->minEccKeySz < 0 ||
+                                  cert->pubKeySize < (word16)ctx->minEccKeySz) {
                         ret = ECC_KEY_SIZE_E;
-                        WOLFSSL_MSG("Certificate ECC key size too small");
+                        WOLFSSL_MSG("Certificate ECC key size error");
                     }
                 }
                 break;

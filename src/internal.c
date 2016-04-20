@@ -5153,8 +5153,9 @@ static int DoCertificate(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                 #endif /* !NO_RSA */
                 #ifdef HAVE_ECC
                 case ECDSAk:
-                    if (dCert->pubKeySize < ssl->options.minEccKeySz) {
-                        WOLFSSL_MSG("ECC key in cert chain was too small");
+                    if (ssl->options.minEccKeySz < 0 ||
+                        dCert->pubKeySize < (word16)ssl->options.minEccKeySz) {
+                        WOLFSSL_MSG("ECC key size in cert chain error");
                         ret = ECC_KEY_SIZE_E;
                     }
                     break;

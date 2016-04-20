@@ -944,8 +944,8 @@ WOLFSSL_API int wolfSSL_SetMinRsaKey_Sz(WOLFSSL*, unsigned short);
 #endif /* NO_RSA */
 
 #ifdef HAVE_ECC
-WOLFSSL_API int wolfSSL_CTX_SetMinEccKey_Sz(WOLFSSL_CTX*, unsigned short);
-WOLFSSL_API int wolfSSL_SetMinEccKey_Sz(WOLFSSL*, unsigned short);
+WOLFSSL_API int wolfSSL_CTX_SetMinEccKey_Sz(WOLFSSL_CTX*, short);
+WOLFSSL_API int wolfSSL_SetMinEccKey_Sz(WOLFSSL*, short);
 #endif /* NO_RSA */
 
 WOLFSSL_API int  wolfSSL_SetTmpEC_DHE_Sz(WOLFSSL*, unsigned short);

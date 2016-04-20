@@ -239,7 +239,7 @@
 #if !defined(NO_FILESYSTEM) && defined(WOLFSSL_MAX_STRENGTH)
     #define DEFAULT_MIN_ECCKEY_BITS 256
 #else
-    #define DEFAULT_MIN_ECCKEY_BITS 112 /* secp112r1 smallest in wolfSSL */
+    #define DEFAULT_MIN_ECCKEY_BITS 224
 #endif
 
 /* all certs relative to wolfSSL home directory now */
