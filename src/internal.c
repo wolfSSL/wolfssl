@@ -554,8 +554,8 @@ int InitSSL_Ctx(WOLFSSL_CTX* ctx, WOLFSSL_METHOD* method)
 #ifndef NO_RSA
     ctx->minRsaKeySz = MIN_RSAKEY_SZ;
 #endif
-
 #ifdef HAVE_ECC
+    ctx->minEccKeySz  = MIN_ECCKEY_SZ;
     ctx->eccTempKeySz = ECDHE_SIZE;
 #endif
 
@@ -2239,6 +2239,9 @@ int SetSSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
 #endif
 #ifndef NO_RSA
     ssl->options.minRsaKeySz = ctx->minRsaKeySz;
+#endif
+#ifdef HAVE_ECC
+    ssl->options.minEccKeySz = ctx->minEccKeySz;
 #endif
 
     ssl->options.sessionCacheOff      = ctx->sessionCacheOff;
@@ -5148,6 +5151,15 @@ static int DoCertificate(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                     }
                     break;
                 #endif /* !NO_RSA */
+                #ifdef HAVE_ECC
+                case ECDSAk:
+                    if (ssl->options.minEccKeySz < 0 ||
+                        dCert->pubKeySize < (word16)ssl->options.minEccKeySz) {
+                        WOLFSSL_MSG("ECC key size in cert chain error");
+                        ret = ECC_KEY_SIZE_E;
+                    }
+                    break;
+                #endif /* HAVE_ECC */
 
                 default:
                     WOLFSSL_MSG("Key size not checked");
@@ -5534,6 +5546,16 @@ static int DoCertificate(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                             #endif /* HAVE_ECC */
                         #endif /*HAVE_PK_CALLBACKS */
                     }
+
+                    /* check size of peer ECC key */
+                    if (ret == 0 && ssl->peerEccDsaKeyPresent &&
+                                              !ssl->options.verifyNone &&
+                                              wc_ecc_size(ssl->peerEccDsaKey)
+                                              < ssl->options.minEccKeySz) {
+                        ret = ECC_KEY_SIZE_E;
+                        WOLFSSL_MSG("Peer ECC key is too small");
+                    }
+
                 }
                 break;
         #endif /* HAVE_ECC */
@@ -10168,6 +10190,9 @@ const char* wolfSSL_ERR_reason_error_string(unsigned long e)
     case RSA_KEY_SIZE_E:
         return "RSA key too small";
 
+    case ECC_KEY_SIZE_E:
+        return "ECC key too small";
+
     default :
         return "unknown error number";
     }
@@ -13982,6 +14007,12 @@ static word32 QSH_KeyExchangeWrite(WOLFSSL* ssl, byte isServer)
                 WOLFSSL_MSG("Using ECC client cert");
                 usingEcc = 1;
                 sigOutSz = MAX_ENCODED_SIG_SZ;
+
+                /* check minimum size of ECC key */
+                if (wc_ecc_size(&eccKey) < ssl->options.minEccKeySz) {
+                    WOLFSSL_MSG("ECC key size too small");
+                    return ECC_KEY_SIZE_E;
+                }
             }
             else {
                 WOLFSSL_MSG("Bad client cert type");
@@ -14937,6 +14968,14 @@ int DoSessionTicket(WOLFSSL* ssl,
                                     goto exit_sske;
                                 }
                                 sigSz = wc_ecc_sig_size((ecc_key*)ssl->sigKey);  /* worst case estimate */
+
+                                /* check the minimum ECC key size */
+                                if (wc_ecc_size((ecc_key*)ssl->sigKey) <
+                                        ssl->options.minEccKeySz) {
+                                    WOLFSSL_MSG("ECC key size too small");
+                                    ret = ECC_KEY_SIZE_E;
+                                    goto exit_sske;
+                                }
                                 break;
                             }
                             default:
@@ -17219,6 +17258,11 @@ int DoSessionTicket(WOLFSSL* ssl,
                                 ssl->buffers.key->length);
                             if (ret == 0) {
                                 private_key = (ecc_key*)ssl->sigKey;
+                                if (wc_ecc_size(private_key) <
+                                        ssl->options.minEccKeySz) {
+                                    WOLFSSL_MSG("ECC key too small");
+                                    ERROR_OUT(ECC_KEY_SIZE_E, exit_dcke);
+                                }
                             }
                         }
                         else if (ssl->eccTempKeyPresent == 0) {

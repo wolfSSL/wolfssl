@@ -278,6 +278,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     int    throughput = 0;
     int    minDhKeyBits  = DEFAULT_MIN_DHKEY_BITS;
     int    minRsaKeyBits = DEFAULT_MIN_RSAKEY_BITS;
+    short  minEccKeyBits = DEFAULT_MIN_ECCKEY_BITS;
     int    doListen = 1;
     int    crlFlags = 0;
     int    ret;
@@ -329,6 +330,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     (void)doCliCertCheck;
     (void)minDhKeyBits;
     (void)minRsaKeyBits;
+    (void)minEccKeyBits;
     (void)alpnList;
     (void)alpn_opt;
     (void)crlFlags;
@@ -647,6 +649,11 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
 #ifndef NO_RSA
     if (wolfSSL_CTX_SetMinRsaKey_Sz(ctx, (word16)minRsaKeyBits) != SSL_SUCCESS){
         err_sys("Error setting minimum RSA key size");
+    }
+#endif
+#ifdef HAVE_ECC
+    if (wolfSSL_CTX_SetMinEccKey_Sz(ctx, minEccKeyBits) != SSL_SUCCESS){
+        err_sys("Error setting minimum ECC key size");
     }
 #endif
 
