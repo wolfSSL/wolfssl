@@ -510,9 +510,9 @@ int wolfSSL_SetMinEccKey_Sz(WOLFSSL* ssl, short keySz)
 #endif /* !NO_RSA */
 
 #ifndef NO_RSA
-int wolfSSL_CTX_SetMinRsaKey_Sz(WOLFSSL_CTX* ctx, word16 keySz)
+int wolfSSL_CTX_SetMinRsaKey_Sz(WOLFSSL_CTX* ctx, short keySz)
 {
-    if (ctx == NULL || keySz % 8 != 0) {
+    if (ctx == NULL || keySz < 0 || keySz % 8 != 0) {
         WOLFSSL_MSG("Key size must be divisable by 8 or ctx was null");
         return BAD_FUNC_ARG;
     }
@@ -523,9 +523,9 @@ int wolfSSL_CTX_SetMinRsaKey_Sz(WOLFSSL_CTX* ctx, word16 keySz)
 }
 
 
-int wolfSSL_SetMinRsaKey_Sz(WOLFSSL* ssl, word16 keySz)
+int wolfSSL_SetMinRsaKey_Sz(WOLFSSL* ssl, short keySz)
 {
-    if (ssl == NULL || keySz % 8 != 0) {
+    if (ssl == NULL || keySz < 0 || keySz % 8 != 0) {
         WOLFSSL_MSG("Key size must be divisable by 8 or ssl was null");
         return BAD_FUNC_ARG;
     }
@@ -2625,9 +2625,10 @@ int AddCA(WOLFSSL_CERT_MANAGER* cm, DerBuffer** pDer, int type, int verify)
         switch (cert->keyOID) {
             #ifndef NO_RSA
             case RSAk:
-                if (cert->pubKeySize < cm->minRsaKeySz) {
+                if (cm->minRsaKeySz < 0 ||
+                                   cert->pubKeySize < (word16)cm->minRsaKeySz) {
                     ret = RSA_KEY_SIZE_E;
-                    WOLFSSL_MSG("    CA RSA key is too small");
+                    WOLFSSL_MSG("    CA RSA key size error");
                 }
                 break;
             #endif /* !NO_RSA */
@@ -3655,13 +3656,15 @@ static int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
         #ifndef NO_RSA
             case RSAk:
                 if (ssl && !ssl->options.verifyNone) {
-                    if (cert->pubKeySize < ssl->options.minRsaKeySz) {
+                    if (ssl->options.minRsaKeySz < 0 ||
+                          cert->pubKeySize < (word16)ssl->options.minRsaKeySz) {
                         ret = RSA_KEY_SIZE_E;
                         WOLFSSL_MSG("Certificate RSA key size too small");
                     }
                 }
                 else if (ctx && !ctx->verifyNone) {
-                    if (cert->pubKeySize < ctx->minRsaKeySz) {
+                    if (ctx->minRsaKeySz < 0 ||
+                                  cert->pubKeySize < (word16)ctx->minRsaKeySz) {
                         ret = RSA_KEY_SIZE_E;
                         WOLFSSL_MSG("Certificate RSA key size too small");
                     }

@@ -939,8 +939,8 @@ WOLFSSL_API int wolfSSL_GetDhKey_Sz(WOLFSSL*);
 #endif /* NO_DH */
 
 #ifndef NO_RSA
-WOLFSSL_API int wolfSSL_CTX_SetMinRsaKey_Sz(WOLFSSL_CTX*, unsigned short);
-WOLFSSL_API int wolfSSL_SetMinRsaKey_Sz(WOLFSSL*, unsigned short);
+WOLFSSL_API int wolfSSL_CTX_SetMinRsaKey_Sz(WOLFSSL_CTX*, short);
+WOLFSSL_API int wolfSSL_SetMinRsaKey_Sz(WOLFSSL*, short);
 #endif /* NO_RSA */
 
 #ifdef HAVE_ECC
