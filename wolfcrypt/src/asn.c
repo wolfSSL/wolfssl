@@ -3372,6 +3372,17 @@ static int SetCurve(ecc_key* key, byte* output)
 #endif /* HAVE_ECC && WOLFSSL_CERT_GEN */
 
 
+static INLINE int IsSigAlgoECDSA(int algoOID)
+{
+    /* ECDSA sigAlgo must not have ASN1 NULL parameters */
+    if (algoOID == CTC_SHAwECDSA || algoOID == CTC_SHA256wECDSA ||
+        algoOID == CTC_SHA384wECDSA || algoOID == CTC_SHA512wECDSA) {
+        return 1;
+    }
+
+    return 0;
+}
+
 WOLFSSL_LOCAL word32 SetAlgoID(int algoOID, byte* output, int type, int curveSz)
 {
     word32 tagSz, idSz, seqSz, algoSz = 0;
@@ -3379,7 +3390,8 @@ WOLFSSL_LOCAL word32 SetAlgoID(int algoOID, byte* output, int type, int curveSz)
     byte   ID_Length[MAX_LENGTH_SZ];
     byte   seqArray[MAX_SEQ_SZ + 1];  /* add object_id to end */
 
-    tagSz = (type == oidHashType || type == oidSigType ||
+    tagSz = (type == oidHashType ||
+             (type == oidSigType && !IsSigAlgoECDSA(algoOID)) ||
              (type == oidKeyType && algoOID == RSAk)) ? 2 : 0;
 
     algoName = OidFromId(algoOID, type, &algoSz);
