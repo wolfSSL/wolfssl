@@ -364,6 +364,7 @@ static void Usage(void)
     printf("-N          Use Non-blocking sockets\n");
     printf("-r          Resume session\n");
     printf("-w          Wait for bidirectional shutdown\n");
+    printf("-M <prot>   Use STARTTLS, using <prot> protocol (smtp)\n");
 #ifdef HAVE_SECURE_RENEGOTIATION
     printf("-R          Allow Secure Renegotiation\n");
     printf("-i          Force client Initiated Secure Renegotiation\n");
@@ -465,6 +466,9 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     const char* ourCert    = cliCert;
     const char* ourKey     = cliKey;
 
+    int   doSTARTTLS    = 0;
+    char* starttlsProt = NULL;
+
 #ifdef WOLFSSL_TRUST_PEER_CERT
     const char* trustCert  = NULL;
 #endif
@@ -488,6 +492,17 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     int    useOcsp  = 0;
     char*  ocspUrl  = NULL;
 #endif
+
+    /* STARTTLS */
+    char recvBuffer[256];
+    const char* starttlsCmd[6] = {
+        "220",
+        "EHLO mail.example.com\r\n",
+        "250",
+        "STARTTLS\r\n",
+        "220",
+        "QUIT\r\n",
+    };
 
     int     argc = ((func_args*)args)->argc;
     char**  argv = ((func_args*)args)->argv;
@@ -521,7 +536,8 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 
 #ifndef WOLFSSL_VXWORKS
     while ((ch = mygetopt(argc, argv,
-          "?gdeDusmNrwRitfxXUPCVh:p:v:l:A:c:k:Z:b:zS:F:L:ToO:aB:W:E:")) != -1) {
+          "?gdeDusmNrwRitfxXUPCVh:p:v:l:A:c:k:Z:b:zS:F:L:ToO:aB:W:E:M:"))
+            != -1) {
         switch (ch) {
             case '?' :
                 Usage();
@@ -760,6 +776,17 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
                     alpnList += 2;
 
                 #endif
+                break;
+
+            case 'M' :
+                doSTARTTLS = 1;
+                starttlsProt = myoptarg;
+
+                if (XSTRNCMP(starttlsProt, "smtp", 4) != 0) {
+                    Usage();
+                    exit(MY_EX_USAGE);
+                }
+
                 break;
 
             default:
@@ -1163,6 +1190,55 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     if (wolfSSL_set_fd(ssl, sockfd) != SSL_SUCCESS) {
         err_sys("error in setting fd");
     }
+
+    /* STARTTLS */
+    if (doSTARTTLS) {
+
+        /* S: 220 <host> SMTP service ready */
+        if (read(sockfd, recvBuffer, sizeof(recvBuffer)) < 0)
+            err_sys("failed to read STARTTLS command\n");
+
+        if (!XSTRNCMP(recvBuffer, starttlsCmd[0], 3)) {
+            printf("%s\n", recvBuffer);
+            XMEMSET(recvBuffer, 0, sizeof(recvBuffer));
+        } else {
+            err_sys("incorrect STARTTLS command received");
+        }
+
+        /* C: EHLO mail.example.com */
+        if (write(sockfd, starttlsCmd[1], XSTRLEN(starttlsCmd[1])) !=
+                  (int)XSTRLEN(starttlsCmd[1]))
+            err_sys("failed to send STARTTLS EHLO command\n");
+
+        /* S: 250 <host> offers a warm hug of welcome */
+        if (read(sockfd, recvBuffer, sizeof(recvBuffer)) < 0)
+            err_sys("failed to read STARTTLS command\n");
+
+        if (!XSTRNCMP(recvBuffer, starttlsCmd[2], 3)) {
+            printf("%s\n", recvBuffer);
+            XMEMSET(recvBuffer, 0, sizeof(recvBuffer));
+        } else {
+            err_sys("incorrect STARTTLS command received");
+        }
+
+        /* C: STARTTLS */
+        if (write(sockfd, starttlsCmd[3], XSTRLEN(starttlsCmd[3])) !=
+                  (int)XSTRLEN(starttlsCmd[3])) {
+            err_sys("failed to send STARTTLS command\n");
+        }
+
+        /* S: 220 Go ahead */
+        if (read(sockfd, recvBuffer, sizeof(recvBuffer)) < 0)
+            err_sys("failed to read STARTTLS command\n");
+
+        if (!XSTRNCMP(recvBuffer, starttlsCmd[4], 3)) {
+            printf("%s\n", recvBuffer);
+            XMEMSET(recvBuffer, 0, sizeof(recvBuffer));
+        } else {
+            err_sys("incorrect STARTTLS command received, expected 220");
+        }
+    }
+
 #ifdef HAVE_CRL
     if (disableCRL == 0) {
         if (wolfSSL_EnableCRL(ssl, WOLFSSL_CRL_CHECKALL) != SSL_SUCCESS)
@@ -1224,6 +1300,34 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     NonBlockingSSL_Connect(ctx, ssl);  /* will keep retrying on timeout */
 #endif
     showPeer(ssl);
+
+    if (doSTARTTLS) {
+        printf("\nwolfSSL client shutting down SMTP connection\n");
+
+        /* C: QUIT */
+        if (wolfSSL_write(ssl, starttlsCmd[5], (int)XSTRLEN(starttlsCmd[5])) !=
+                          (int)XSTRLEN(starttlsCmd[5]))
+            err_sys("failed to send STARTTLS EHLO command\n");
+
+        /* S: 221 2.0.0 Service closing transmission channel */
+        if (wolfSSL_read(ssl, recvBuffer, sizeof(recvBuffer)) < 0)
+            err_sys("failed to read STARTTLS command\n");
+
+        printf("%s\n", recvBuffer);
+        XMEMSET(recvBuffer, 0, sizeof(recvBuffer));
+
+        ret = wolfSSL_shutdown(ssl);
+        if (wc_shutdown && ret == SSL_SHUTDOWN_NOT_DONE)
+            wolfSSL_shutdown(ssl);    /* bidirectional shutdown */
+
+        wolfSSL_free(ssl);
+        CloseSocket(sockfd);
+
+        wolfSSL_CTX_free(ctx);
+
+        ((func_args*)args)->return_code = 0;
+        return 0;
+    }
 
 #ifdef HAVE_ALPN
     if (alpnList != NULL) {
