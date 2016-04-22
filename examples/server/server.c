@@ -277,7 +277,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     int    echoData = 0;
     int    throughput = 0;
     int    minDhKeyBits  = DEFAULT_MIN_DHKEY_BITS;
-    int    minRsaKeyBits = DEFAULT_MIN_RSAKEY_BITS;
+    short  minRsaKeyBits = DEFAULT_MIN_RSAKEY_BITS;
     short  minEccKeyBits = DEFAULT_MIN_ECCKEY_BITS;
     int    doListen = 1;
     int    crlFlags = 0;
@@ -647,7 +647,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     }
 #endif
 #ifndef NO_RSA
-    if (wolfSSL_CTX_SetMinRsaKey_Sz(ctx, (word16)minRsaKeyBits) != SSL_SUCCESS){
+    if (wolfSSL_CTX_SetMinRsaKey_Sz(ctx, minRsaKeyBits) != SSL_SUCCESS){
         err_sys("Error setting minimum RSA key size");
     }
 #endif

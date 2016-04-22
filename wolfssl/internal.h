@@ -1516,7 +1516,7 @@ struct WOLFSSL_CERT_MANAGER {
     byte            ocspStaplingEnabled; /* is OCSP Stapling on ? */
 
 #ifndef NO_RSA
-    word16          minRsaKeySz;         /* minimum allowed RSA key size */
+    short           minRsaKeySz;         /* minimum allowed RSA key size */
 #endif
 #ifdef HAVE_ECC
     short           minEccKeySz;         /* minimum allowed ECC key size */
@@ -1918,7 +1918,7 @@ struct WOLFSSL_CTX {
     word16      minDhKeySz;       /* minimum DH key size */
 #endif
 #ifndef NO_RSA
-    word16      minRsaKeySz;      /* minimum RSA key size */
+    short       minRsaKeySz;      /* minimum RSA key size */
 #endif
 #ifdef HAVE_ECC
     short       minEccKeySz;      /* minimum ECC key size */
@@ -2388,7 +2388,7 @@ typedef struct Options {
     word16          dhKeySz;            /* actual DH key size */
 #endif
 #ifndef NO_RSA
-    word16          minRsaKeySz;      /* minimum RSA key size */
+    short           minRsaKeySz;      /* minimum RSA key size */
 #endif
 #ifdef HAVE_ECC
     short           minEccKeySz;      /* minimum ECC key size */
