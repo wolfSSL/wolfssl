@@ -7044,7 +7044,7 @@ int GetDeepCopySession(WOLFSSL* ssl, WOLFSSL_SESSION* copyFrom)
     WOLFSSL_SESSION* copyInto = &ssl->session;
     void* tmpBuff             = NULL;
     int ticketLen;
-    int doDynamicCopy;
+    int doDynamicCopy         = 0;
     int ret                   = SSL_SUCCESS;
 
     (void)ticketLen;
@@ -7065,9 +7065,7 @@ int GetDeepCopySession(WOLFSSL* ssl, WOLFSSL_SESSION* copyFrom)
         copyInto->isDynamic = 0;
     }
     /* Size of ticket to alloc if needed; Use later for alloc outside lock */
-    if (copyFrom->isDynamic) {
-        doDynamicCopy = 1;
-    }
+    doDynamicCopy = copyFrom->isDynamic;
     ticketLen = copyFrom->ticketLen;
 #endif
 
