@@ -14317,8 +14317,11 @@ int DoSessionTicket(WOLFSSL* ssl,
             XFREE(ssl->session.ticket, ssl->heap, DYNAMIC_TYPE_SESSION_TICK);
         ssl->session.ticket =
              (byte*)XMALLOC(length, ssl->heap, DYNAMIC_TYPE_SESSION_TICK);
-        if (ssl->session.ticket == NULL)
+        if (ssl->session.ticket == NULL) {
+            /* Set to static ticket to avoid null pointer error */
+            ssl->session.ticket = ssl->session.staticTicket;
             return MEMORY_E;
+        }
         ssl->session.isDynamic = 1;
     } else {
         if(ssl->session.isDynamic) {

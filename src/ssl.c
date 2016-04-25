@@ -1282,8 +1282,10 @@ WOLFSSL_API int wolfSSL_set_SessionTicket(WOLFSSL* ssl, byte* buf, word32 bufSz)
                             DYNAMIC_TYPE_SESSION_TICK);
                 ssl->session.ticket = XMALLOC(bufSz, ssl->heap,
                         DYNAMIC_TYPE_SESSION_TICK);
-                if(!ssl->session.ticket)
+                if(!ssl->session.ticket) {
+                    ssl->session.ticket = ssl->session.staticTicket;
                     return MEMORY_ERROR;
+                }
                 ssl->session.isDynamic = 1;
             }
             XMEMCPY(ssl->session.ticket, buf, bufSz);
@@ -7039,10 +7041,10 @@ WOLFSSL_SESSION* GetSession(WOLFSSL* ssl, byte* masterSecret,
 
 int GetDeepCopySession(WOLFSSL* ssl, WOLFSSL_SESSION* copyFrom)
 {
-    int ticketLen;
-    int doDynamicCopy;
     WOLFSSL_SESSION* copyInto = &ssl->session;
     void* tmpBuff             = NULL;
+    int ticketLen;
+    int doDynamicCopy;
     int ret                   = SSL_SUCCESS;
 
     (void)ticketLen;
@@ -7089,7 +7091,7 @@ int GetDeepCopySession(WOLFSSL* ssl, WOLFSSL_SESSION* copyFrom)
 
         if (ticketLen != copyFrom->ticketLen) {
             /* Another thread modified the ssl-> session ticket during alloc.
-             * Treat as error,si ticket different than when copy requested */
+             * Treat as error, since ticket different than when copy requested */
             ret = VAR_STATE_CHANGE_E;
         }
 
@@ -7097,6 +7099,10 @@ int GetDeepCopySession(WOLFSSL* ssl, WOLFSSL_SESSION* copyFrom)
             copyInto->ticket = tmpBuff;
             XMEMCPY(copyInto->ticket, copyFrom->ticket, ticketLen);
         }
+    } else {
+        /* Need to ensure ticket pointer gets updated to own buffer
+         * and is not pointing to buff of session copied from */
+        copyInto->ticket = copyInto->staticTicket;
     }
 
     if (UnLockMutex(&session_mutex) != 0) {
@@ -7130,6 +7136,7 @@ int SetSession(WOLFSSL* ssl, WOLFSSL_SESSION* session)
         ssl->options.cipherSuite0 = session->cipherSuite0;
         ssl->options.cipherSuite  = session->cipherSuite;
 #endif
+
         return SSL_SUCCESS;
     }
     return SSL_FAILURE;  /* session timed out */
@@ -7200,37 +7207,41 @@ int AddSession(WOLFSSL* ssl)
     SessionCache[row].Sessions[idx].bornOn  = LowResTimer();
 
 #ifdef HAVE_SESSION_TICKET
-    /* Cleanup cache row's old Dynamic buff if exists */
-    if(SessionCache[row].Sessions[idx].isDynamic) {
-        XFREE(SessionCache[row].Sessions[idx].ticket,
-               ssl->heap, DYNAMIC_TYPE_SESS_TICK);
-        SessionCache[row].Sessions[idx].ticket = NULL;
-    }
-
-    /* If too large to store in static buffer, use dyn buffer */
-    if (ssl->session.ticketLen > SESSION_TICKET_LEN) {
-        /* A different thread modified ssl's ticket since alloc */
-        if (ticLen != ssl->session.ticketLen) {
-            error = VAR_STATE_CHANGE_E;
-        } else {
-            SessionCache[row].Sessions[idx].ticket = tmpBuff;
-            SessionCache[row].Sessions[idx].isDynamic = 1;
-        }
-    } else {
-        SessionCache[row].Sessions[idx].ticket =
-                SessionCache[row].Sessions[idx].staticTicket;
-        SessionCache[row].Sessions[idx].isDynamic = 0;
+    /* Check if another thread modified ticket since alloc */
+    if (ticLen != ssl->session.ticketLen) {
+        error = VAR_STATE_CHANGE_E;
     }
 
     if (error == 0) {
-        SessionCache[row].Sessions[idx].ticketLen     = ssl->session.ticketLen;
+        /* Cleanup cache row's old Dynamic buff if exists */
+        if(SessionCache[row].Sessions[idx].isDynamic) {
+            XFREE(SessionCache[row].Sessions[idx].ticket,
+                   ssl->heap, DYNAMIC_TYPE_SESS_TICK);
+            SessionCache[row].Sessions[idx].ticket = NULL;
+        }
+
+        /* If too large to store in static buffer, use dyn buffer */
+        if (ticLen > SESSION_TICKET_LEN) {
+            SessionCache[row].Sessions[idx].ticket = tmpBuff;
+            SessionCache[row].Sessions[idx].isDynamic = 1;
+        } else {
+            SessionCache[row].Sessions[idx].ticket =
+                    SessionCache[row].Sessions[idx].staticTicket;
+            SessionCache[row].Sessions[idx].isDynamic = 0;
+        }
+    }
+
+    if (error == 0) {
+        SessionCache[row].Sessions[idx].ticketLen     = ticLen;
         XMEMCPY(SessionCache[row].Sessions[idx].ticket,
-                                   ssl->session.ticket, ssl->session.ticketLen);
-    } else {
+                                   ssl->session.ticket, ticLen);
+    } else { /* cleanup, reset state */
         SessionCache[row].Sessions[idx].ticket    =
             SessionCache[row].Sessions[idx].staticTicket;
         SessionCache[row].Sessions[idx].isDynamic = 0;
         SessionCache[row].Sessions[idx].ticketLen = 0;
+        if (tmpBuff)
+            XFREE(tmpBuff, ssl->heap, DYNAMIC_TYPE_SESSION_TICK);
     }
 #endif
 
