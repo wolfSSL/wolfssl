@@ -1007,14 +1007,16 @@ static INLINE unsigned int my_psk_server_cb(WOLFSSL* ssl, const char* identity,
 #if !defined(WOLFSSL_MDK_ARM) && !defined(WOLFSSL_KEIL_TCP_NET)
     #include <sys/time.h>
 
-    static INLINE double current_time(void)
+    static INLINE double current_time(int reset)
     {
         struct timeval tv;
         gettimeofday(&tv, 0);
-
+        (void)reset;
+        
         return (double)tv.tv_sec + (double)tv.tv_usec / 1000000;
     }
-
+#else
+    extern double current_time(int reset);
 #endif
 #endif /* USE_WINDOWS_API */
 

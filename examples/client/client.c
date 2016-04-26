@@ -166,7 +166,7 @@ int ClientBenchmarkConnections(WOLFSSL_CTX* ctx, char* host, word16 port,
     #ifndef NO_SESSION_CACHE
         int benchResume = resumeSession && loops == 0;
     #endif
-        double start = current_time(), avg;
+        double start = current_time(1), avg;
 
         for (i = 0; i < times; i++) {
             SOCKET_T sockfd;
@@ -195,7 +195,7 @@ int ClientBenchmarkConnections(WOLFSSL_CTX* ctx, char* host, word16 port,
             wolfSSL_free(ssl);
             CloseSocket(sockfd);
         }
-        avg = current_time() - start;
+        avg = current_time(0) - start;
         avg /= times;
         avg *= 1000;   /* milliseconds */
     #ifndef NO_SESSION_CACHE
@@ -217,7 +217,7 @@ int ClientBenchmarkThroughput(WOLFSSL_CTX* ctx, char* host, word16 port,
     WOLFSSL* ssl;
     int ret;
 
-    start = current_time();
+    start = current_time(1);
     ssl = wolfSSL_new(ctx);
     if (ssl == NULL)
         err_sys("unable to get SSL object");
@@ -230,7 +230,7 @@ int ClientBenchmarkThroughput(WOLFSSL_CTX* ctx, char* host, word16 port,
         char *tx_buffer, *rx_buffer;
 
         /* Record connection time */
-        conn_time = current_time() - start;
+        conn_time = current_time(0) - start;
 
         /* Allocate TX/RX buffers */
         tx_buffer = (char*)malloc(TEST_BUFFER_SIZE);
@@ -259,18 +259,18 @@ int ClientBenchmarkThroughput(WOLFSSL_CTX* ctx, char* host, word16 port,
                     len = min(TEST_BUFFER_SIZE, throughput - xfer_bytes);
 
                     /* Perform TX */
-                    start = current_time();
+                    start = current_time(1);
                     if (wolfSSL_write(ssl, tx_buffer, len) != len) {
                         int writeErr = wolfSSL_get_error(ssl, 0);
                         printf("wolfSSL_write error %d!\n", writeErr);
                         err_sys("wolfSSL_write failed");
                     }
-                    tx_time += current_time() - start;
+                    tx_time += current_time(0) - start;
 
                     /* Perform RX */
                     select_ret = tcp_select(sockfd, 1); /* Timeout=1 second */
                     if (select_ret == TEST_RECV_READY) {
-                        start = current_time();
+                        start = current_time(1);
                         rx_pos = 0;
                         while(rx_pos < len) {
                             ret = wolfSSL_read(ssl, &rx_buffer[rx_pos], len - rx_pos);
@@ -285,7 +285,7 @@ int ClientBenchmarkThroughput(WOLFSSL_CTX* ctx, char* host, word16 port,
                                 rx_pos += ret;
                             }
                         }
-                        rx_time += current_time() - start;
+                        rx_time += current_time(0) - start;
                     }
 
                     /* Compare TX and RX buffers */
