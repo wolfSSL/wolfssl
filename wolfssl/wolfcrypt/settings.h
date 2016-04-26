@@ -325,6 +325,7 @@
     #ifdef VXWORKS_SIM
         #define TFM_NO_ASM
     #endif
+    #define WOLFSSL_PTHREADS
     #define WOLFSSL_HAVE_MIN
     #define USE_FAST_MATH
     #define TFM_TIMING_RESISTANT
