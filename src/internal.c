@@ -3982,11 +3982,9 @@ static int GetRecordHeader(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                                  ssl->options.downgrade &&
                                  ssl->options.connectState < FIRST_REPLY_DONE)
             WOLFSSL_MSG("Server attempting to accept with different version");
-        else if (ssl->options.dtls
-                    && (ssl->options.acceptState == ACCEPT_BEGIN
-                    || ssl->options.acceptState == CLIENT_HELLO_SENT))
-            /* Do not check version until Server Hello or Hello Again (2) */
-            WOLFSSL_MSG("Use version for formatting only in DTLS till ");
+        else if (ssl->options.dtls && rh->type == handshake)
+            /* Check the DTLS handshake message RH version later. */
+            WOLFSSL_MSG("DTLS handshake, skip RH version number check");
         else {
             WOLFSSL_MSG("SSL version error");
             return VERSION_ERROR;              /* only use requested version */
@@ -4064,6 +4062,15 @@ static int GetDtlsHandShakeHeader(WOLFSSL* ssl, const byte* input,
     idx += DTLS_HANDSHAKE_FRAG_SZ;
     c24to32(input + idx, fragSz);
 
+    if (ssl->curRL.pvMajor != ssl->version.major ||
+        ssl->curRL.pvMinor != ssl->version.minor) {
+
+        if (*type != client_hello && *type != hello_verify_request)
+            return VERSION_ERROR;
+        else
+            WOLFSSL_MSG("DTLS Handshake ignoring hello or "
+                        "hello verify version");
+    }
     return 0;
 }
 #endif
