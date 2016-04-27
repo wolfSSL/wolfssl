@@ -70,6 +70,7 @@ typedef struct WOLFSSL_CTX      WOLFSSL_CTX;
 
 typedef struct WOLFSSL_X509       WOLFSSL_X509;
 typedef struct WOLFSSL_X509_NAME  WOLFSSL_X509_NAME;
+typedef struct WOLFSSL_X509_NAME_ENTRY  WOLFSSL_X509_NAME_ENTRY;
 typedef struct WOLFSSL_X509_CHAIN WOLFSSL_X509_CHAIN;
 
 typedef struct WOLFSSL_CERT_MANAGER WOLFSSL_CERT_MANAGER;
@@ -474,6 +475,11 @@ WOLFSSL_API unsigned char* wolfSSL_X509_get_subjectKeyID(
 WOLFSSL_API int wolfSSL_X509_NAME_entry_count(WOLFSSL_X509_NAME*);
 WOLFSSL_API int wolfSSL_X509_NAME_get_text_by_NID(
                                             WOLFSSL_X509_NAME*, int, char*, int);
+WOLFSSL_API int wolfSSL_X509_NAME_get_index_by_NID(
+                                           WOLFSSL_X509_NAME*, int, int);
+WOLFSSL_API WOLFSSL_ASN1_STRING* wolfSSL_X509_NAME_ENTRY_get_data(WOLFSSL_X509_NAME_ENTRY*);
+WOLFSSL_API char* wolfSSL_ASN1_STRING_data(WOLFSSL_ASN1_STRING*);
+WOLFSSL_API int wolfSSL_ASN1_STRING_length(WOLFSSL_ASN1_STRING*);
 WOLFSSL_API int         wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX*);
 WOLFSSL_API const char* wolfSSL_X509_verify_cert_error_string(long);
 WOLFSSL_API int wolfSSL_X509_get_signature_type(WOLFSSL_X509*);
@@ -1004,6 +1010,10 @@ WOLFSSL_API int wolfSSL_make_eap_keys(WOLFSSL*, void* key, unsigned int len,
     WOLFSSL_API int wolfSSL_use_certificate_chain_buffer(WOLFSSL*,
                                                const unsigned char*, long);
     WOLFSSL_API int wolfSSL_UnloadCertsKeys(WOLFSSL*);
+
+    #ifdef OPENSSL_EXTRA
+        WOLFSSL_API WOLFSSL_X509* wolfSSL_get_certificate(WOLFSSL* ssl);
+    #endif
 #endif
 
 WOLFSSL_API int wolfSSL_CTX_set_group_messages(WOLFSSL_CTX*);
@@ -1635,7 +1645,6 @@ WOLFSSL_API int wolfSSL_accept_ex(WOLFSSL*, HandShakeCallBack, TimeoutCallBack,
 
 
 #ifdef OPENSSL_EXTRA /*lighttp compatibility */
-#ifdef HAVE_LIGHTY
 
 typedef struct WOLFSSL_X509_NAME_ENTRY {
     WOLFSSL_ASN1_OBJECT* object;
@@ -1644,10 +1653,7 @@ typedef struct WOLFSSL_X509_NAME_ENTRY {
     int size;
 } WOLFSSL_X509_NAME_ENTRY;
 
-
-#include <wolfssl/openssl/dh.h>
-#include <wolfssl/openssl/asn1.h>
-
+#if defined(HAVE_LIGHTY) || defined(WOLFSSL_MYSQL_COMPATIBLE)
 WOLFSSL_API void wolfSSL_X509_NAME_free(WOLFSSL_X509_NAME *name);
 WOLFSSL_API char wolfSSL_CTX_use_certificate(WOLFSSL_CTX *ctx, WOLFSSL_X509 *x);
 WOLFSSL_API int wolfSSL_CTX_use_PrivateKey(WOLFSSL_CTX *ctx, WOLFSSL_EVP_PKEY *pkey);
@@ -1672,7 +1678,8 @@ WOLFSSL_API STACK_OF(WOLFSSL_X509_NAME) *wolfSSL_dup_CA_list( STACK_OF(WOLFSSL_X
 #endif
 #endif
 
-#if defined(HAVE_STUNNEL) || defined(HAVE_LIGHTY)
+#if defined(HAVE_STUNNEL) || defined(HAVE_LIGHTY) \
+                          || defined(WOLFSSL_MYSQL_COMPATIBLE)
 
 WOLFSSL_API char * wolf_OBJ_nid2ln(int n);
 WOLFSSL_API int wolf_OBJ_txt2nid(const char *sn);

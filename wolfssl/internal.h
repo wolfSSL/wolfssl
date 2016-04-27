@@ -873,7 +873,11 @@ enum Misc {
     ZLIB_COMPRESSION = 221,     /* wolfSSL zlib compression */
     HELLO_EXT_SIG_ALGO = 13,    /* ID for the sig_algo hello extension */
     SECRET_LEN      = 48,       /* pre RSA and all master */
+#if defined(WOLFSSL_MYSQL_COMPATIBLE)
+    ENCRYPT_LEN     = 1024,     /* allow larger static buffer with mysql */
+#else
     ENCRYPT_LEN     = 512,      /* allow 4096 bit static buffer */
+#endif
     SIZEOF_SENDER   =  4,       /* clnt or srvr           */
     FINISHED_SZ     = 36,       /* MD5_DIGEST_SIZE + SHA_DIGEST_SIZE */
     MAX_RECORD_SIZE = 16384,    /* 2^14, max size by standard */
