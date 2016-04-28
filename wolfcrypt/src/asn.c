@@ -3000,6 +3000,35 @@ static INLINE int DateLessThan(const struct tm* a, const struct tm* b)
     return DateGreaterThan(b,a);
 }
 
+
+int ExtractDate(const unsigned char* date, unsigned char format,
+                                                  struct tm* certTime, int* idx)
+{
+    XMEMSET(certTime, 0, sizeof(struct tm));
+
+    if (format == ASN_UTC_TIME) {
+        if (btoi(date[0]) >= 5)
+            certTime->tm_year = 1900;
+        else
+            certTime->tm_year = 2000;
+    }
+    else  { /* format == GENERALIZED_TIME */
+        certTime->tm_year += btoi(date[*idx++]) * 1000;
+        certTime->tm_year += btoi(date[*idx++]) * 100;
+    }
+
+    /* adjust tm_year, tm_mon */
+    GetTime((int*)&certTime->tm_year, date, idx); certTime->tm_year -= 1900;
+    GetTime((int*)&certTime->tm_mon,  date, idx); certTime->tm_mon  -= 1;
+    GetTime((int*)&certTime->tm_mday, date, idx);
+    GetTime((int*)&certTime->tm_hour, date, idx);
+    GetTime((int*)&certTime->tm_min,  date, idx);
+    GetTime((int*)&certTime->tm_sec,  date, idx);
+
+    return 1;
+}
+
+
 /* like atoi but only use first byte */
 /* Make sure before and after dates are valid */
 int ValidateDate(const byte* date, byte format, int dateType)
@@ -3021,26 +3050,10 @@ int ValidateDate(const byte* date, byte format, int dateType)
 #endif
 
     ltime = XTIME(0);
-    XMEMSET(&certTime, 0, sizeof(certTime));
-
-    if (format == ASN_UTC_TIME) {
-        if (btoi(date[0]) >= 5)
-            certTime.tm_year = 1900;
-        else
-            certTime.tm_year = 2000;
+    if (!ExtractDate(date, format, &certTime, &i)) {
+        WOLFSSL_MSG("Error extracting the date");
+        return 0;
     }
-    else  { /* format == GENERALIZED_TIME */
-        certTime.tm_year += btoi(date[i++]) * 1000;
-        certTime.tm_year += btoi(date[i++]) * 100;
-    }
-
-    /* adjust tm_year, tm_mon */
-    GetTime((int*)&certTime.tm_year, date, &i); certTime.tm_year -= 1900;
-    GetTime((int*)&certTime.tm_mon,  date, &i); certTime.tm_mon  -= 1;
-    GetTime((int*)&certTime.tm_mday, date, &i);
-    GetTime((int*)&certTime.tm_hour, date, &i);
-    GetTime((int*)&certTime.tm_min,  date, &i);
-    GetTime((int*)&certTime.tm_sec,  date, &i);
 
     if ((date[i] == '+') || (date[i] == '-')) {
         WOLFSSL_MSG("Using time differential, not Zulu") ;

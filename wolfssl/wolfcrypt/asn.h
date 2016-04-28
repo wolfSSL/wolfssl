@@ -610,6 +610,8 @@ WOLFSSL_LOCAL void    FreeTrustedPeerTable(TrustedPeerCert**, int, void*);
 WOLFSSL_LOCAL int ToTraditional(byte* buffer, word32 length);
 WOLFSSL_LOCAL int ToTraditionalEnc(byte* buffer, word32 length,const char*,int);
 
+WOLFSSL_LOCAL int ExtractDate(const unsigned char* date, unsigned char format,
+                                                 struct tm* certTime, int* idx);
 WOLFSSL_LOCAL int ValidateDate(const byte* date, byte format, int dateType);
 
 /* ASN.1 helper functions */
