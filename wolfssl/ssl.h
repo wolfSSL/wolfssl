@@ -969,7 +969,8 @@ WOLFSSL_API int wolfSSL_make_eap_keys(WOLFSSL*, void* key, unsigned int len,
             #include <sys/types.h>
             #include <sys/socket.h>
         #elif !defined(WOLFSSL_MDK_ARM) && !defined(WOLFSSL_IAR_ARM) && \
-              !defined(WOLFSSL_PICOTCP) && !defined(WOLFSSL_ROWLEY_ARM)
+              !defined(WOLFSSL_PICOTCP) && !defined(WOLFSSL_ROWLEY_ARM) && \
+              !defined(WOLFSSL_EMBOS)
             #include <sys/uio.h>
         #endif
         /* allow writev style writing */
