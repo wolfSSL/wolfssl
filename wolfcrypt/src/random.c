@@ -361,15 +361,17 @@ static int Hash_gen(DRBG* drbg, byte* out, word32 outSz, const byte* V)
             drbg->lastBlock = checkBlock;
         }
 
-        if (outSz >= OUTPUT_BLOCK_LEN) {
-            XMEMCPY(out, digest, OUTPUT_BLOCK_LEN);
-            outSz -= OUTPUT_BLOCK_LEN;
-            out += OUTPUT_BLOCK_LEN;
-            array_add_one(data, DRBG_SEED_LEN);
-        }
-        else if (out != NULL && outSz != 0) {
-            XMEMCPY(out, digest, outSz);
-            outSz = 0;
+        if (out != NULL) {
+            if (outSz >= OUTPUT_BLOCK_LEN) {
+                XMEMCPY(out, digest, OUTPUT_BLOCK_LEN);
+                outSz -= OUTPUT_BLOCK_LEN;
+                out += OUTPUT_BLOCK_LEN;
+                array_add_one(data, DRBG_SEED_LEN);
+            }
+            else if (out != NULL && outSz != 0) {
+                XMEMCPY(out, digest, outSz);
+                outSz = 0;
+            }
         }
     }
     ForceZero(data, sizeof(data));

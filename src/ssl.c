@@ -2120,6 +2120,10 @@ int wolfSSL_set_group_messages(WOLFSSL* ssl)
 /* make minVersion the internal equivalent SSL version */
 static int SetMinVersionHelper(byte* minVersion, int version)
 {
+#ifdef NO_TLS
+    (void)minVersion;
+#endif
+
     switch (version) {
 #if defined(WOLFSSL_ALLOW_SSLV3) && !defined(NO_OLD_TLS)
         case WOLFSSL_SSLV3:

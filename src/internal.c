@@ -16044,7 +16044,7 @@ int DoSessionTicket(WOLFSSL* ssl,
         byte            peerCookie[MAX_COOKIE_LEN];
         byte            peerCookieSz = 0;
         byte            cookieType;
-        byte            cookieSz;
+        byte            cookieSz = 0;
 #endif /* WOLFSSL_DTLS */
 
 #ifdef WOLFSSL_CALLBACKS
