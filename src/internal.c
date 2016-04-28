@@ -643,6 +643,11 @@ void SSL_CtxResourceFree(WOLFSSL_CTX* ctx)
 #ifndef NO_CERTS
     FreeDer(&ctx->privateKey);
     FreeDer(&ctx->certificate);
+    #ifdef OPENSSL_EXTRA
+        if (ctx->ourCert) {
+            XFREE(ctx->ourCert, ctx->heap, DYNAMIC_TYPE_X509);
+        }
+    #endif
     FreeDer(&ctx->certChain);
     wolfSSL_CertManagerFree(ctx->cm);
 #endif
@@ -1692,6 +1697,8 @@ void InitX509Name(WOLFSSL_X509_NAME* name, int dynamicFlag)
         name->dynamicName = 0;
 #ifdef OPENSSL_EXTRA
         XMEMSET(&name->fullName, 0, sizeof(DecodedName));
+        XMEMSET(&name->cnEntry,  0, sizeof(WOLFSSL_X509_NAME_ENTRY));
+        name->x509 = NULL;
 #endif /* OPENSSL_EXTRA */
     }
 }
@@ -4846,6 +4853,7 @@ int CopyDecodedToX509(WOLFSSL_X509* x509, DecodedCert* dCert)
             XMEMCPY(x509->issuer.fullName.fullName,
                      dCert->issuerName.fullName, dCert->issuerName.fullNameLen);
     }
+    x509->issuer.x509 = x509;
 #endif /* OPENSSL_EXTRA */
 
     XSTRNCPY(x509->subject.name, dCert->subject, ASN_NAME_MAX);
@@ -4861,6 +4869,7 @@ int CopyDecodedToX509(WOLFSSL_X509* x509, DecodedCert* dCert)
             XMEMCPY(x509->subject.fullName.fullName,
                    dCert->subjectName.fullName, dCert->subjectName.fullNameLen);
     }
+    x509->subject.x509 = x509;
 #endif /* OPENSSL_EXTRA */
 
     XMEMCPY(x509->serial, dCert->serial, EXTERNAL_SERIAL_SIZE);

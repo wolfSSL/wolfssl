@@ -45,6 +45,9 @@
 #endif
 #ifndef NO_ASN
     #include <wolfssl/wolfcrypt/asn.h>
+    #ifdef OPENSSL_EXTRA
+    #include <wolfssl/openssl/asn1.h> /* for asn1 string and bit struct */
+    #endif
 #endif
 #ifndef NO_MD5
     #include <wolfssl/wolfcrypt/md5.h>
@@ -1899,6 +1902,9 @@ struct WOLFSSL_CTX {
     DerBuffer*  privateKey;
     WOLFSSL_CERT_MANAGER* cm;      /* our cert manager, ctx owns SSL will use */
 #endif
+#ifdef OPENSSL_EXTRA
+    WOLFSSL_X509*    ourCert;     /* keep alive a X509 struct of cert */
+#endif
     Suites*     suites;           /* make dynamic, user may not need/set */
     void*       heap;             /* for user memory overrides */
     byte        verifyPeer;
@@ -2432,6 +2438,16 @@ typedef struct Arrays {
 #define MAX_DATE_SZ 32
 #endif
 
+#ifdef OPENSSL_EXTRA
+struct WOLFSSL_X509_NAME_ENTRY {
+    WOLFSSL_ASN1_OBJECT* object; /* not defined yet */
+    WOLFSSL_ASN1_STRING value;
+    int set;
+    int size;
+};
+#endif /* OPENSSL_EXTRA */
+
+
 struct WOLFSSL_X509_NAME {
     char  *name;
     char  staticName[ASN_NAME_MAX];
@@ -2439,6 +2455,8 @@ struct WOLFSSL_X509_NAME {
     int   sz;
 #if defined(OPENSSL_EXTRA) && !defined(NO_ASN)
     DecodedName fullName;
+    WOLFSSL_X509_NAME_ENTRY cnEntry;
+    WOLFSSL_X509*           x509;   /* x509 that struct belongs to */
 #endif /* OPENSSL_EXTRA */
 };
 
@@ -2716,6 +2734,11 @@ struct WOLFSSL {
 #endif
 #ifdef KEEP_PEER_CERT
     WOLFSSL_X509     peerCert;           /* X509 peer cert */
+#endif
+#ifdef OPENSSL_EXTRA
+    WOLFSSL_X509*    ourCert;            /* keep alive a X509 struct of cert.
+                                            points to ctx if not owned (owned
+                                            flag found in buffers.weOwnCert) */
 #endif
 #if defined(FORTRESS) || defined(HAVE_STUNNEL)
     void*           ex_data[MAX_EX_DATA]; /* external data, for Fortress */

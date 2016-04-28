@@ -1649,14 +1649,6 @@ WOLFSSL_API char* wolfSSL_ASN1_TIME_to_string(WOLFSSL_ASN1_TIME* time,
 #endif /* WOLFSSL_MYSQL_COMPATIBLE */
 
 #ifdef OPENSSL_EXTRA /*lighttp compatibility */
-
-typedef struct WOLFSSL_X509_NAME_ENTRY {
-    WOLFSSL_ASN1_OBJECT* object;
-    WOLFSSL_ASN1_STRING* value;
-    int set;
-    int size;
-} WOLFSSL_X509_NAME_ENTRY;
-
 #if defined(HAVE_LIGHTY) || defined(WOLFSSL_MYSQL_COMPATIBLE)
 WOLFSSL_API void wolfSSL_X509_NAME_free(WOLFSSL_X509_NAME *name);
 WOLFSSL_API char wolfSSL_CTX_use_certificate(WOLFSSL_CTX *ctx, WOLFSSL_X509 *x);

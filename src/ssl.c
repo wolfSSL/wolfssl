@@ -3469,13 +3469,33 @@ static int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
              /* Make sure previous is free'd */
             if (ssl->buffers.weOwnCert) {
                 FreeDer(&ssl->buffers.certificate);
+                #ifdef OPENSSL_EXTRA
+                    if (ssl->ourCert) {
+                        XFREE(ssl->ourCert, ssl->heap, DYNAMIC_TYPE_X509);
+                    }
+                #endif
             }
             XMEMCPY(&ssl->buffers.certificate, &der, sizeof(der));
+            #ifdef OPENSSL_EXTRA
+                ssl->ourCert = wolfSSL_X509_d2i(NULL,
+                                              ssl->buffers.certificate->buffer,
+                                              ssl->buffers.certificate->length);
+            #endif
             ssl->buffers.weOwnCert = 1;
         }
         else if (ctx) {
             FreeDer(&ctx->certificate); /* Make sure previous is free'd */
+            #ifdef OPENSSL_EXTRA
+                if (ctx->ourCert) {
+                    XFREE(ctx->ourCert, ctx->heap, DYNAMIC_TYPE_X509);
+                }
+            #endif
             XMEMCPY(&ctx->certificate, &der, sizeof(der));
+            #ifdef OPENSSL_EXTRA
+                ctx->ourCert = wolfSSL_X509_d2i(NULL,
+                                               ctx->certificate->buffer,
+                                               ctx->certificate->length);
+            #endif
         }
     }
     else if (type == PRIVATEKEY_TYPE) {
@@ -8021,6 +8041,11 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         if (ssl->buffers.weOwnCert) {
             WOLFSSL_MSG("Unloading cert");
             FreeDer(&ssl->buffers.certificate);
+            #ifdef OPENSSL_EXTRA
+                if (ssl->ourCert) {
+                    XFREE(ssl->ourCert, ssl->heap, DYNAMIC_TYPE_X509);
+                }
+            #endif
             ssl->buffers.weOwnCert = 0;
         }
 
@@ -10280,10 +10305,11 @@ static void ExternalFreeX509(WOLFSSL_X509* x509)
     }
 
 
-    WOLFSSL_ASN1_STRING*  wolfSSL_X509_NAME_ENTRY_get_data(WOLFSSL_X509_NAME_ENTRY* in)
+    WOLFSSL_ASN1_STRING*  wolfSSL_X509_NAME_ENTRY_get_data(
+                                                    WOLFSSL_X509_NAME_ENTRY* in)
     {
         WOLFSSL_ENTER("wolfSSL_X509_NAME_ENTRY_get_data");
-        return in->value;
+        return &in->value;
     }
 
 
@@ -10735,14 +10761,21 @@ WOLFSSL_X509* wolfSSL_X509_load_certificate_file(const char* fname, int format)
 #ifdef OPENSSL_EXTRA /* needed for wolfSSL_X509_d21 function */
 WOLFSSL_X509* wolfSSL_get_certificate(WOLFSSL* ssl)
 {
-    DerBuffer* cert;
-
     if (ssl == NULL) {
         return NULL;
     }
 
-    cert = ssl->buffers.certificate;
-    return wolfSSL_X509_d2i(NULL, cert->buffer, cert->length);
+    if (ssl->buffers.weOwnCert) {
+        return ssl->ourCert;
+    }
+    else { /* if cert not owned get parent ctx cert or return null */
+        if (ssl->ctx) {
+            return ssl->ctx->ourCert;
+        }
+        else {
+            return NULL;
+        }
+    }
 }
 #endif /* OPENSSL_EXTRA */
 #endif /* NO_CERTS */
@@ -17169,15 +17202,10 @@ void* wolfSSL_GetRsaDecCtx(WOLFSSL* ssl)
         return NULL;
     }
 
-    WOLFSSL_X509_NAME_ENTRY *wolfSSL_X509_NAME_get_entry(WOLFSSL_X509_NAME *name, int loc) {
+    WOLFSSL_X509_NAME_ENTRY *wolfSSL_X509_NAME_get_entry(
+                                             WOLFSSL_X509_NAME *name, int loc) {
 
         int maxLoc = name->fullName.fullNameLen;
-        char* data = NULL;
-        int   length;
-        int   type;
-
-        WOLFSSL_ASN1_STRING* asnStr;
-        WOLFSSL_X509_NAME_ENTRY* ret;
 
         WOLFSSL_ENTER("wolfSSL_X509_NAME_get_entry");
 
@@ -17186,74 +17214,23 @@ void* wolfSSL_GetRsaDecCtx(WOLFSSL* ssl)
             return NULL;
         }
 
-        ret = XMALLOC(sizeof(WOLFSSL_X509_NAME_ENTRY), NULL, DYNAMIC_TYPE_X509);
-        if (ret == NULL) {
-            return ret;
-        }
-        asnStr = XMALLOC(sizeof(WOLFSSL_ASN1_STRING), NULL,
-                                                     DYNAMIC_TYPE_X509);
-        if (asnStr == NULL) {
-            XFREE(ret, NULL, DYNAMIC_TYPE_X509);
-            ret = NULL;
-        }
-
-        /* initialize both structures */
-        XMEMSET(ret, 0, sizeof(WOLFSSL_X509_NAME_ENTRY));
-        XMEMSET(asnStr, 0, sizeof(WOLFSSL_ASN1_STRING));
-
         /* common name index case */
         if (loc == name->fullName.cnIdx) {
-            length = name->fullName.cnLen;
-            data   = name->fullName.fullName + loc;
-            type   = ASN_COMMON_NAME;
+            /* get CN shortcut from x509 since it has null terminator */
+            name->cnEntry.value.data   = name->x509->subjectCN;
+            name->cnEntry.value.length = name->fullName.cnLen;
+            name->cnEntry.value.type   = ASN_COMMON_NAME;
+            name->cnEntry.set  = 1;
+            return &(name->cnEntry);
         }
 
         /* additionall cases to check for go here */
 
-
-        if (data == NULL) {
-            WOLFSSL_MSG("Index not found");
-            XFREE(asnStr, NULL, DYNAMIC_TYPE_X509);
-            XFREE(ret, NULL, DYNAMIC_TYPE_X509);
-            ret = NULL;
-        }
-        else {
-            asnStr->data = XMALLOC(length + 1, NULL, DYNAMIC_TYPE_X509);
-            if (asnStr->data == NULL) {
-                XFREE(asnStr, NULL, DYNAMIC_TYPE_X509);
-                XFREE(ret, NULL, DYNAMIC_TYPE_X509);
-                ret = NULL;
-            }
-
-            /* check bounds before copying from fullName */
-            if (loc + length > maxLoc) {
-                XFREE(asnStr, NULL, DYNAMIC_TYPE_X509);
-                XFREE(ret, NULL, DYNAMIC_TYPE_X509);
-                ret = NULL;
-            }
-
-            if (ret != NULL) {
-                XMEMCPY(asnStr->data, data, length);
-                asnStr->data[length] = 0;
-                asnStr->length = length;
-                asnStr->type   = type;
-                asnStr->flags  = 0;
-
-                ret->object = NULL;
-                ret->value  = asnStr;
-                ret->set    = 1;
-                ret->size   = asnStr->length + sizeof(WOLFSSL_ASN1_STRING) +
-                              sizeof(WOLFSSL_X509_NAME_ENTRY);
-            }
-        }
-
+        WOLFSSL_MSG("Entry not found or implemented");
         (void)name;
         (void)loc;
-        (void)data;
-        (void)type;
-        (void)length;
 
-        return ret;
+        return NULL;
     }
 
 #ifndef NO_CERTS
