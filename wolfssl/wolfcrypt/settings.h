@@ -143,7 +143,7 @@
 /* #define WOLFSSL_UTASKER */
 
 /* Uncomment next line if building for embOS */
- #define WOLFSSL_EMBOS
+/* #define WOLFSSL_EMBOS */
 
 #include <wolfssl/wolfcrypt/visibility.h>
 

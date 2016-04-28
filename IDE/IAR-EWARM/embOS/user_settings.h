@@ -2,8 +2,8 @@
 #define _EMBOS_USER_SETTINGS_H_
 
     #define WOLFCRYPT_ONLY
-	#define ECC_SHAMIR
-	#define USE_WOLFSSL_MEMORY
-	#define WOLFSSL_TRACK_MEMORY
+    #define ECC_SHAMIR
+    #define USE_WOLFSSL_MEMORY
+    #define WOLFSSL_TRACK_MEMORY
 
 #endif /* _EMBOS_USER_SETTINGS_H_ */
