@@ -328,6 +328,99 @@ int ClientBenchmarkThroughput(WOLFSSL_CTX* ctx, char* host, word16 port,
     return EXIT_SUCCESS;
 }
 
+const char* starttlsCmd[6] = {
+    "220",
+    "EHLO mail.example.com\r\n",
+    "250",
+    "STARTTLS\r\n",
+    "220",
+    "QUIT\r\n",
+};
+
+int StartTLS_Init(SOCKET_T* sockfd)
+{
+    char tmpBuf[256];
+
+    if (sockfd == NULL)
+        return BAD_FUNC_ARG;
+
+    /* S: 220 <host> SMTP service ready */
+    if (read(*sockfd, tmpBuf, sizeof(tmpBuf)) < 0)
+        err_sys("failed to read STARTTLS command\n");
+
+    if (!XSTRNCMP(tmpBuf, starttlsCmd[0], XSTRLEN(starttlsCmd[0]))) {
+        printf("%s\n", tmpBuf);
+        XMEMSET(tmpBuf, 0, sizeof(tmpBuf));
+    } else {
+        err_sys("incorrect STARTTLS command received");
+    }
+
+    /* C: EHLO mail.example.com */
+    if (write(*sockfd, starttlsCmd[1], XSTRLEN(starttlsCmd[1])) !=
+              (int)XSTRLEN(starttlsCmd[1]))
+        err_sys("failed to send STARTTLS EHLO command\n");
+
+    /* S: 250 <host> offers a warm hug of welcome */
+    if (read(*sockfd, tmpBuf, sizeof(tmpBuf)) < 0)
+        err_sys("failed to read STARTTLS command\n");
+
+    if (!XSTRNCMP(tmpBuf, starttlsCmd[2], XSTRLEN(starttlsCmd[2]))) {
+        printf("%s\n", tmpBuf);
+        XMEMSET(tmpBuf, 0, sizeof(tmpBuf));
+    } else {
+        err_sys("incorrect STARTTLS command received");
+    }
+
+    /* C: STARTTLS */
+    if (write(*sockfd, starttlsCmd[3], XSTRLEN(starttlsCmd[3])) !=
+              (int)XSTRLEN(starttlsCmd[3])) {
+        err_sys("failed to send STARTTLS command\n");
+    }
+
+    /* S: 220 Go ahead */
+    if (read(*sockfd, tmpBuf, sizeof(tmpBuf)) < 0)
+        err_sys("failed to read STARTTLS command\n");
+
+    if (!XSTRNCMP(tmpBuf, starttlsCmd[4], XSTRLEN(starttlsCmd[4]))) {
+        printf("%s\n", tmpBuf);
+        XMEMSET(tmpBuf, 0, sizeof(tmpBuf));
+    } else {
+        err_sys("incorrect STARTTLS command received, expected 220");
+    }
+
+    return SSL_SUCCESS;
+}
+
+int SMTP_Shutdown(WOLFSSL* ssl, int wc_shutdown)
+{
+    int ret;
+    char tmpBuf[256];
+
+    if (ssl == NULL)
+        return BAD_FUNC_ARG;
+
+    printf("\nwolfSSL client shutting down SMTP connection\n");
+
+    XMEMSET(tmpBuf, 0, sizeof(tmpBuf));
+
+    /* C: QUIT */
+    if (wolfSSL_write(ssl, starttlsCmd[5], (int)XSTRLEN(starttlsCmd[5])) !=
+                      (int)XSTRLEN(starttlsCmd[5]))
+        err_sys("failed to send SMTP QUIT command\n");
+
+    /* S: 221 2.0.0 Service closing transmission channel */
+    if (wolfSSL_read(ssl, tmpBuf, sizeof(tmpBuf)) < 0)
+        err_sys("failed to read SMTP closing down response\n");
+
+    printf("%s\n", tmpBuf);
+
+    ret = wolfSSL_shutdown(ssl);
+    if (wc_shutdown && ret == SSL_SHUTDOWN_NOT_DONE)
+        wolfSSL_shutdown(ssl);    /* bidirectional shutdown */
+
+    return SSL_SUCCESS;
+}
+
 
 static void Usage(void)
 {
@@ -492,17 +585,6 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     int    useOcsp  = 0;
     char*  ocspUrl  = NULL;
 #endif
-
-    /* STARTTLS */
-    char recvBuffer[256];
-    const char* starttlsCmd[6] = {
-        "220",
-        "EHLO mail.example.com\r\n",
-        "250",
-        "STARTTLS\r\n",
-        "220",
-        "QUIT\r\n",
-    };
 
     int     argc = ((func_args*)args)->argc;
     char**  argv = ((func_args*)args)->argv;
@@ -1193,49 +1275,8 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 
     /* STARTTLS */
     if (doSTARTTLS) {
-
-        /* S: 220 <host> SMTP service ready */
-        if (read(sockfd, recvBuffer, sizeof(recvBuffer)) < 0)
-            err_sys("failed to read STARTTLS command\n");
-
-        if (!XSTRNCMP(recvBuffer, starttlsCmd[0], 3)) {
-            printf("%s\n", recvBuffer);
-            XMEMSET(recvBuffer, 0, sizeof(recvBuffer));
-        } else {
-            err_sys("incorrect STARTTLS command received");
-        }
-
-        /* C: EHLO mail.example.com */
-        if (write(sockfd, starttlsCmd[1], XSTRLEN(starttlsCmd[1])) !=
-                  (int)XSTRLEN(starttlsCmd[1]))
-            err_sys("failed to send STARTTLS EHLO command\n");
-
-        /* S: 250 <host> offers a warm hug of welcome */
-        if (read(sockfd, recvBuffer, sizeof(recvBuffer)) < 0)
-            err_sys("failed to read STARTTLS command\n");
-
-        if (!XSTRNCMP(recvBuffer, starttlsCmd[2], 3)) {
-            printf("%s\n", recvBuffer);
-            XMEMSET(recvBuffer, 0, sizeof(recvBuffer));
-        } else {
-            err_sys("incorrect STARTTLS command received");
-        }
-
-        /* C: STARTTLS */
-        if (write(sockfd, starttlsCmd[3], XSTRLEN(starttlsCmd[3])) !=
-                  (int)XSTRLEN(starttlsCmd[3])) {
-            err_sys("failed to send STARTTLS command\n");
-        }
-
-        /* S: 220 Go ahead */
-        if (read(sockfd, recvBuffer, sizeof(recvBuffer)) < 0)
-            err_sys("failed to read STARTTLS command\n");
-
-        if (!XSTRNCMP(recvBuffer, starttlsCmd[4], 3)) {
-            printf("%s\n", recvBuffer);
-            XMEMSET(recvBuffer, 0, sizeof(recvBuffer));
-        } else {
-            err_sys("incorrect STARTTLS command received, expected 220");
+        if (StartTLS_Init(&sockfd) != SSL_SUCCESS) {
+            err_sys("error during STARTTLS protocol");
         }
     }
 
@@ -1302,23 +1343,11 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     showPeer(ssl);
 
     if (doSTARTTLS) {
-        printf("\nwolfSSL client shutting down SMTP connection\n");
-
-        /* C: QUIT */
-        if (wolfSSL_write(ssl, starttlsCmd[5], (int)XSTRLEN(starttlsCmd[5])) !=
-                          (int)XSTRLEN(starttlsCmd[5]))
-            err_sys("failed to send STARTTLS EHLO command\n");
-
-        /* S: 221 2.0.0 Service closing transmission channel */
-        if (wolfSSL_read(ssl, recvBuffer, sizeof(recvBuffer)) < 0)
-            err_sys("failed to read STARTTLS command\n");
-
-        printf("%s\n", recvBuffer);
-        XMEMSET(recvBuffer, 0, sizeof(recvBuffer));
-
-        ret = wolfSSL_shutdown(ssl);
-        if (wc_shutdown && ret == SSL_SHUTDOWN_NOT_DONE)
-            wolfSSL_shutdown(ssl);    /* bidirectional shutdown */
+        if (XSTRNCMP(starttlsProt, "smtp", 4) == 0) {
+            if (SMTP_Shutdown(ssl, wc_shutdown) != SSL_SUCCESS) {
+                err_sys("error closing STARTTLS connection");
+            }
+        }
 
         wolfSSL_free(ssl);
         CloseSocket(sockfd);
