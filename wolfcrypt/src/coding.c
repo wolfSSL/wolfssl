@@ -365,6 +365,9 @@ int Base16_Decode(const byte* in, word32 inLen, byte* out, word32* outLen)
     word32 inIdx  = 0;
     word32 outIdx = 0;
 
+    if (in == NULL || out == NULL || outLen == NULL)
+        return BAD_FUNC_ARG;
+
     if (inLen == 1 && *outLen && in) {
         byte b = in[inIdx++] - 0x30;  /* 0 starts at 0x30 */
 
@@ -376,7 +379,7 @@ int Base16_Decode(const byte* in, word32 inLen, byte* out, word32* outLen)
 
         if (b == BAD)
             return ASN_INPUT_E;
-        
+
         out[outIdx++] = b;
 
         *outLen = outIdx;
@@ -404,7 +407,7 @@ int Base16_Decode(const byte* in, word32 inLen, byte* out, word32* outLen)
 
         if (b == BAD || b2 == BAD)
             return ASN_INPUT_E;
-        
+
         out[outIdx++] = (byte)((b << 4) | b2);
         inLen -= 2;
     }
@@ -418,6 +421,9 @@ int Base16_Encode(const byte* in, word32 inLen, byte* out, word32* outLen)
     word32 outIdx = 0;
     word32 i;
     byte   hb, lb;
+
+    if (in == NULL || out == NULL || outLen == NULL)
+        return BAD_FUNC_ARG;
 
     if (*outLen < (2 * inLen + 1))
         return BAD_FUNC_ARG;
