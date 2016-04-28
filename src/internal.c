@@ -4067,9 +4067,9 @@ static int GetDtlsHandShakeHeader(WOLFSSL* ssl, const byte* input,
 
         if (*type != client_hello && *type != hello_verify_request)
             return VERSION_ERROR;
-        else
-            WOLFSSL_MSG("DTLS Handshake ignoring hello or "
-                        "hello verify version");
+        else {
+            WOLFSSL_MSG("DTLS Handshake ignoring hello or verify version");
+        }
     }
     return 0;
 }
