@@ -2,21 +2,24 @@ wolfcrypt: the wolfSSL Crypto Engine
 ====================================
 
 
-A Python wrapper which encapsulates the wolfCrypt API inside wolfSSL library
+A Python wrapper which encapsulates the wolfCrypt API from wolfSSL library
 
 
-**REQUIRES** [wolfSSL](https://github.com/wolfSSL/wolfssl)
+1. Clone the repository and install wolfssl::
 
 
-1. Clone the repository::
-
-
-    $ git clone git@github.com:wolfssl/wolfcrypt-py.git
+    $ git clone git@github.com:wolfssl/wolfssl.git
+    $ cd wolfssl
+    $ ./autogen.sh
+    $ ./configure
+    $ make
+    $ sudo make install
 
 
 2. Make sure that ``cffi``, ``py.test``, and ``tox`` are installed::
 
 
+    $ cd wrappers/python
     $ pip install -r requirements-testing.txt
 
 
