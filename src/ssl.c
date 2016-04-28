@@ -6163,8 +6163,6 @@ int wolfSSL_dtls_got_timeout(WOLFSSL* ssl)
 {
     int result = SSL_SUCCESS;
 
-    DtlsMsgListDelete(ssl->dtls_msg_list, ssl->heap);
-    ssl->dtls_msg_list = NULL;
     if (DtlsPoolTimeout(ssl) < 0 || DtlsPoolSend(ssl) < 0) {
         result = SSL_FATAL_ERROR;
     }
