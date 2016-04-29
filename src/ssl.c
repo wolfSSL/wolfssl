@@ -11272,6 +11272,12 @@ const char* wolfSSL_get_cipher(WOLFSSL* ssl)
     return wolfSSL_CIPHER_get_name(wolfSSL_get_current_cipher(ssl));
 }
 
+/* gets cipher name in the format DHE-RSA-... rather then TLS_DHE... */
+const char* wolfSSL_get_cipher_name(WOLFSSL* ssl)
+{
+    /* get access to cipher_name_idx in internal.c */
+    return wolfSSL_get_cipher_name_internal(ssl);
+}
 #ifdef OPENSSL_EXTRA
 
 

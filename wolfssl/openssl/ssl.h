@@ -185,12 +185,14 @@ typedef WOLFSSL_X509_STORE_CTX X509_STORE_CTX;
 #define SSL_SESSION_free wolfSSL_SESSION_free
 #define SSL_is_init_finished wolfSSL_is_init_finished
 
-#define SSL_get_version wolfSSL_get_version
+#define SSL_get_version        wolfSSL_get_version
 #define SSL_get_current_cipher wolfSSL_get_current_cipher
-#define SSL_get_cipher wolfSSL_get_cipher
+
+/* use wolfSSL_get_cipher_name for its return format */
+#define SSL_get_cipher         wolfSSL_get_cipher_name
 #define SSL_CIPHER_description wolfSSL_CIPHER_description
-#define SSL_CIPHER_get_name wolfSSL_CIPHER_get_name
-#define SSL_get1_session wolfSSL_get1_session
+#define SSL_CIPHER_get_name    wolfSSL_CIPHER_get_name
+#define SSL_get1_session       wolfSSL_get1_session
 
 #define SSL_get_keyblock_size wolfSSL_get_keyblock_size
 #define SSL_get_keys          wolfSSL_get_keys

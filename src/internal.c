@@ -11121,6 +11121,46 @@ int GetCipherNamesSize(void)
     return (int)(sizeof(cipher_names) / sizeof(char*));
 }
 
+/* gets cipher name in the format DHE-RSA-... rather then TLS_DHE... */
+const char* wolfSSL_get_cipher_name_internal(WOLFSSL* ssl)
+{
+    const char*     fullName;
+    const char*     first;
+    WOLFSSL_CIPHER* cipher;
+    word32 i;
+
+    if (ssl == NULL) {
+        WOLFSSL_MSG("Bad argument");
+        return NULL;
+    }
+
+    cipher   = wolfSSL_get_current_cipher(ssl);
+    fullName = wolfSSL_CIPHER_get_name(cipher);
+    if (fullName) {
+        first = (XSTRSTR(fullName, "CHACHA")) ? "CHACHA"
+                                      : (XSTRSTR(fullName, "EC"))     ? "EC"
+                                      : (XSTRSTR(fullName, "CCM"))    ? "CCM"
+                                      : NULL; /* normal */
+
+        for (i = 0; i < sizeof(cipher_name_idx); i++) {
+            if (cipher_name_idx[i] == ssl->options.cipherSuite) {
+                const char* nameFound = cipher_names[i];
+
+                /* if first is null then not any */
+                if (first == NULL && !XSTRSTR(nameFound, "CHACHA") &&
+                     !XSTRSTR(nameFound, "EC") && !XSTRSTR(nameFound, "CCM")) {
+                    return cipher_names[i];
+                }
+                else if (XSTRSTR(nameFound, first)) {
+                    return cipher_names[i];
+                }
+            }
+        }
+    }
+
+    return NULL; /* error or not found */
+}
+
 
 /**
 Set the enabled cipher suites.
