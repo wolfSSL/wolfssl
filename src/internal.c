@@ -3982,11 +3982,9 @@ static int GetRecordHeader(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                                  ssl->options.downgrade &&
                                  ssl->options.connectState < FIRST_REPLY_DONE)
             WOLFSSL_MSG("Server attempting to accept with different version");
-        else if (ssl->options.dtls
-                    && (ssl->options.acceptState == ACCEPT_BEGIN
-                    || ssl->options.acceptState == CLIENT_HELLO_SENT))
-            /* Do not check version until Server Hello or Hello Again (2) */
-            WOLFSSL_MSG("Use version for formatting only in DTLS till ");
+        else if (ssl->options.dtls && rh->type == handshake)
+            /* Check the DTLS handshake message RH version later. */
+            WOLFSSL_MSG("DTLS handshake, skip RH version number check");
         else {
             WOLFSSL_MSG("SSL version error");
             return VERSION_ERROR;              /* only use requested version */
@@ -4064,6 +4062,15 @@ static int GetDtlsHandShakeHeader(WOLFSSL* ssl, const byte* input,
     idx += DTLS_HANDSHAKE_FRAG_SZ;
     c24to32(input + idx, fragSz);
 
+    if (ssl->curRL.pvMajor != ssl->version.major ||
+        ssl->curRL.pvMinor != ssl->version.minor) {
+
+        if (*type != client_hello && *type != hello_verify_request)
+            return VERSION_ERROR;
+        else {
+            WOLFSSL_MSG("DTLS Handshake ignoring hello or verify version");
+        }
+    }
     return 0;
 }
 #endif
@@ -6211,7 +6218,10 @@ static int SanityCheckMsgReceived(WOLFSSL* ssl, byte type)
                 WOLFSSL_MSG("Duplicate ChangeCipher received");
                 return DUPLICATE_MSG_E;
             }
-            ssl->msgsReceived.got_change_cipher = 1;
+            /* DTLS is going to ignore the CCS message if the client key
+             * exchange message wasn't received yet. */
+            if (!ssl->options.dtls)
+                ssl->msgsReceived.got_change_cipher = 1;
 
 #ifndef NO_WOLFSSL_CLIENT
             if (ssl->options.side == WOLFSSL_CLIENT_END) {
@@ -6231,7 +6241,8 @@ static int SanityCheckMsgReceived(WOLFSSL* ssl, byte type)
                 }
             }
 #endif
-
+            if (ssl->options.dtls)
+                ssl->msgsReceived.got_change_cipher = 1;
             break;
 
         default:
@@ -8028,8 +8039,12 @@ int ProcessReply(WOLFSSL* ssl)
             if (ssl->options.dtls && ret == SEQUENCE_ERROR) {
                 WOLFSSL_MSG("Silently dropping out of order DTLS message");
                 ssl->options.processReply = doProcessInit;
-                ssl->buffers.inputBuffer.length = 0;
-                ssl->buffers.inputBuffer.idx = 0;
+                ssl->buffers.inputBuffer.idx += ssl->curSize;
+
+                ret = DtlsPoolSend(ssl);
+                if (ret != 0)
+                    return ret;
+
                 continue;
             }
 #endif
@@ -8161,31 +8176,33 @@ int ProcessReply(WOLFSSL* ssl)
                         }
                     #endif
 
-#ifdef WOLFSSL_DTLS
-                    /* Check for duplicate CCS message in DTLS mode.
-                     * DTLS allows for duplicate messages, and it should be
-                     * skipped. */
-                    if (ssl->options.dtls &&
-                        ssl->msgsReceived.got_change_cipher) {
-
-                        WOLFSSL_MSG("Duplicate ChangeCipher msg");
-                        ret = DtlsPoolSend(ssl);
-                        if (ret != 0)
-                            return ret;
-
-                        if (ssl->curSize != 1) {
-                            WOLFSSL_MSG("Malicious or corrupted"
-                                        " duplicate ChangeCipher msg");
-                            return LENGTH_ERROR;
-                        }
-                        ssl->buffers.inputBuffer.idx++;
-                        break;
-                    }
-#endif
-
                     ret = SanityCheckMsgReceived(ssl, change_cipher_hs);
-                    if (ret != 0)
-                        return ret;
+                    if (ret != 0) {
+                        if (!ssl->options.dtls) {
+                            return ret;
+                        }
+#ifdef WOLFSSL_DTLS
+                        else {
+                        /* Check for duplicate CCS message in DTLS mode.
+                         * DTLS allows for duplicate messages, and it should be
+                         * skipped. Also skip if out of order. */
+                            if (ret != DUPLICATE_MSG_E && ret != OUT_OF_ORDER_E)
+                                return ret;
+
+                            ret = DtlsPoolSend(ssl);
+                            if (ret != 0)
+                                return ret;
+
+                            if (ssl->curSize != 1) {
+                                WOLFSSL_MSG("Malicious or corrupted"
+                                            " duplicate ChangeCipher msg");
+                                return LENGTH_ERROR;
+                            }
+                            ssl->buffers.inputBuffer.idx++;
+                            break;
+                        }
+#endif /* WOLFSSL_DTLS */
+                    }
 
 #ifdef HAVE_SESSION_TICKET
                     if (ssl->options.side == WOLFSSL_CLIENT_END &&
