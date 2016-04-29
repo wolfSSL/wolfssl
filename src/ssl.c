@@ -3470,6 +3470,7 @@ static int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
             if (ssl->buffers.weOwnCert) {
                 FreeDer(&ssl->buffers.certificate);
                 #ifdef OPENSSL_EXTRA
+                    FreeX509(ssl->ourCert);
                     if (ssl->ourCert) {
                         XFREE(ssl->ourCert, ssl->heap, DYNAMIC_TYPE_X509);
                     }
@@ -3486,6 +3487,7 @@ static int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
         else if (ctx) {
             FreeDer(&ctx->certificate); /* Make sure previous is free'd */
             #ifdef OPENSSL_EXTRA
+                FreeX509(ctx->ourCert);
                 if (ctx->ourCert) {
                     XFREE(ctx->ourCert, ctx->heap, DYNAMIC_TYPE_X509);
                 }
@@ -8042,6 +8044,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
             WOLFSSL_MSG("Unloading cert");
             FreeDer(&ssl->buffers.certificate);
             #ifdef OPENSSL_EXTRA
+                FreeX509(ssl->ourCert);
                 if (ssl->ourCert) {
                     XFREE(ssl->ourCert, ssl->heap, DYNAMIC_TYPE_X509);
                 }

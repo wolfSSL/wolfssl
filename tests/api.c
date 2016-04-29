@@ -1703,6 +1703,7 @@ static void test_wolfSSL_X509_NAME_get_entry(void)
         subCN = (char*)ASN1_STRING_data(asn);
         AssertNotNull(subCN);
 
+        wolfSSL_FreeX509(x509);
     #endif
 
     }

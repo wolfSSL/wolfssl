@@ -3013,8 +3013,8 @@ int ExtractDate(const unsigned char* date, unsigned char format,
             certTime->tm_year = 2000;
     }
     else  { /* format == GENERALIZED_TIME */
-        certTime->tm_year += btoi(date[*idx++]) * 1000;
-        certTime->tm_year += btoi(date[*idx++]) * 100;
+        certTime->tm_year += btoi(date[*idx]) * 1000; *idx = *idx + 1;
+        certTime->tm_year += btoi(date[*idx]) * 100;  *idx = *idx + 1;
     }
 
     /* adjust tm_year, tm_mon */

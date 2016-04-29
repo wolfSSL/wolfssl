@@ -644,6 +644,7 @@ void SSL_CtxResourceFree(WOLFSSL_CTX* ctx)
     FreeDer(&ctx->privateKey);
     FreeDer(&ctx->certificate);
     #ifdef OPENSSL_EXTRA
+        FreeX509(ctx->ourCert);
         if (ctx->ourCert) {
             XFREE(ctx->ourCert, ctx->heap, DYNAMIC_TYPE_X509);
         }
@@ -11170,10 +11171,17 @@ const char* wolfSSL_get_cipher_name_internal(WOLFSSL* ssl)
             if (cipher_name_idx[i] == ssl->options.cipherSuite) {
                 const char* nameFound = cipher_names[i];
 
+                /* extra sanity check on returned cipher name */
+                if (nameFound == NULL) {
+                    continue;
+                }
+
                 /* if first is null then not any */
-                if (first == NULL && !XSTRSTR(nameFound, "CHACHA") &&
+                if (first == NULL) {
+                    if (!XSTRSTR(nameFound, "CHACHA") &&
                      !XSTRSTR(nameFound, "EC") && !XSTRSTR(nameFound, "CCM")) {
-                    return cipher_names[i];
+                        return cipher_names[i];
+                    }
                 }
                 else if (XSTRSTR(nameFound, first)) {
                     return cipher_names[i];
