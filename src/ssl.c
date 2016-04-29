@@ -7238,8 +7238,10 @@ int AddSession(WOLFSSL* ssl)
             SessionCache[row].Sessions[idx].staticTicket;
         SessionCache[row].Sessions[idx].isDynamic = 0;
         SessionCache[row].Sessions[idx].ticketLen = 0;
-        if (tmpBuff)
+        if (tmpBuff) {
             XFREE(tmpBuff, ssl->heap, DYNAMIC_TYPE_SESSION_TICK);
+            tmpBuff = NULL;
+        }
     }
 #endif
 
