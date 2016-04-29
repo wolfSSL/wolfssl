@@ -1706,6 +1706,7 @@ void InitX509Name(WOLFSSL_X509_NAME* name, int dynamicFlag)
 #ifdef OPENSSL_EXTRA
         XMEMSET(&name->fullName, 0, sizeof(DecodedName));
         XMEMSET(&name->cnEntry,  0, sizeof(WOLFSSL_X509_NAME_ENTRY));
+        name->cnEntry.value = &(name->cnEntry.data); /* point to internal data*/
         name->x509 = NULL;
 #endif /* OPENSSL_EXTRA */
     }

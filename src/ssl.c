@@ -10312,7 +10312,7 @@ static void ExternalFreeX509(WOLFSSL_X509* x509)
                                                     WOLFSSL_X509_NAME_ENTRY* in)
     {
         WOLFSSL_ENTER("wolfSSL_X509_NAME_ENTRY_get_data");
-        return &in->value;
+        return in->value;
     }
 
 
@@ -17226,9 +17226,9 @@ void* wolfSSL_GetRsaDecCtx(WOLFSSL* ssl)
         /* common name index case */
         if (loc == name->fullName.cnIdx) {
             /* get CN shortcut from x509 since it has null terminator */
-            name->cnEntry.value.data   = name->x509->subjectCN;
-            name->cnEntry.value.length = name->fullName.cnLen;
-            name->cnEntry.value.type   = ASN_COMMON_NAME;
+            name->cnEntry.data.data   = name->x509->subjectCN;
+            name->cnEntry.data.length = name->fullName.cnLen;
+            name->cnEntry.data.type   = ASN_COMMON_NAME;
             name->cnEntry.set  = 1;
             return &(name->cnEntry);
         }

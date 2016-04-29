@@ -45,9 +45,6 @@
 #endif
 #ifndef NO_ASN
     #include <wolfssl/wolfcrypt/asn.h>
-    #ifdef OPENSSL_EXTRA
-    #include <wolfssl/openssl/asn1.h> /* for asn1 string and bit struct */
-    #endif
 #endif
 #ifndef NO_MD5
     #include <wolfssl/wolfcrypt/md5.h>
@@ -2441,16 +2438,6 @@ typedef struct Arrays {
 #ifndef MAX_DATE_SZ
 #define MAX_DATE_SZ 32
 #endif
-
-#ifdef OPENSSL_EXTRA
-struct WOLFSSL_X509_NAME_ENTRY {
-    WOLFSSL_ASN1_OBJECT* object; /* not defined yet */
-    WOLFSSL_ASN1_STRING value;
-    int set;
-    int size;
-};
-#endif /* OPENSSL_EXTRA */
-
 
 struct WOLFSSL_X509_NAME {
     char  *name;
