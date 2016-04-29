@@ -10,7 +10,7 @@ os.chdir(os.path.dirname(sys.argv[0]) or ".")
 
 setup(
     name="wolfcrypt",
-    version="0.1",
+    version="0.0.1",
     description="A python wrapper for the wolfCrypt API",
     long_description=open("README.rst", "rt").read(),
     url="https://github.com/wolfssl/wolfcrypt-py",
