@@ -26,6 +26,11 @@
 
 #include <wolfssl/wolfcrypt/types.h>
 #include <wolfssl/ssl.h>
+
+#ifdef OPENSSL_EXTRA
+#include <wolfssl/openssl/bio.h>
+#endif
+
 #ifdef HAVE_CRL
     #include <wolfssl/crl.h>
 #endif
@@ -1159,35 +1164,6 @@ WOLFSSL_LOCAL ProtocolVersion MakeTLSv1_2(void);
     WOLFSSL_LOCAL ProtocolVersion MakeDTLSv1_2(void);
 #endif
 
-
-enum BIO_TYPE {
-    BIO_BUFFER = 1,
-    BIO_SOCKET = 2,
-    BIO_SSL    = 3,
-    BIO_MEMORY = 4
-};
-
-
-/* wolfSSL BIO_METHOD type */
-struct WOLFSSL_BIO_METHOD {
-    byte type;               /* method type */
-};
-
-
-/* wolfSSL BIO type */
-struct WOLFSSL_BIO {
-    byte        type;          /* method type */
-    byte        close;         /* close flag */
-    byte        eof;           /* eof flag */
-    WOLFSSL*     ssl;           /* possible associated ssl */
-    byte*       mem;           /* memory buffer */
-    int         memLen;        /* memory buffer length */
-    int         fd;            /* possible file descriptor */
-    WOLFSSL_BIO* prev;          /* previous in chain */
-    WOLFSSL_BIO* next;          /* next in chain */
-};
-
-
 /* wolfSSL method type */
 struct WOLFSSL_METHOD {
     ProtocolVersion version;
@@ -2120,6 +2096,7 @@ WOLFSSL_LOCAL
 WOLFSSL_SESSION* GetSession(WOLFSSL*, byte*);
 WOLFSSL_LOCAL
 int          SetSession(WOLFSSL*, WOLFSSL_SESSION*);
+WOLFSSL_LOCAL int DupSession(WOLFSSL* ssl, WOLFSSL* ossl);
 
 typedef int (*hmacfp) (WOLFSSL*, byte*, const byte*, word32, int, int);
 
@@ -2662,6 +2639,8 @@ WOLFSSL_LOCAL
 void FreeSSL(WOLFSSL*);
 WOLFSSL_API void SSL_ResourceFree(WOLFSSL*);   /* Micrium uses */
 
+
+WOLFSSL_LOCAL int DupSSL(WOLFSSL* ssl, WOLFSSL* ossl);
 
 enum {
     IV_SZ   = 32,          /* max iv sz */

@@ -94,6 +94,8 @@
     #include <wolfssl/openssl/rand.h>
     #include <wolfssl/openssl/hmac.h>
     #include <wolfssl/openssl/des.h>
+    #include <wolfssl/openssl/bio.h>
+    #include <wolfssl/internal.h>
 #endif
 
 
@@ -214,6 +216,18 @@ int  certext_test(void);
 #endif
 #ifdef HAVE_IDEA
 int idea_test(void);
+#endif
+#ifdef OPENSSL_EXTRA
+int evp_test(void);
+int bio_b64_test(void);
+int bio_md_test(void);
+int bio_test(void);
+int bio_connect_test(void);
+int bio_connect_ssl_test(void);
+/* Required human interactions, must be move to API
+ int bio_accept_ssl_test(void);
+ int bio_accept_test(void);
+ */
 #endif
 
 /* General big buffer size for many tests. */
@@ -584,6 +598,50 @@ int wolfcrypt_test(void* args)
         return err_sys("PKCS7signed    test failed!\n", ret);
     else
         printf( "PKCS7signed    test passed!\n");
+#endif
+
+#ifdef OPENSSL_EXTRA
+    if ( (ret = bio_md_test()) != 0)
+        return err_sys("BIO digest test failed !\n", ret);
+    else
+        printf( "BIO Digest test passed!\n");
+
+    if ( (ret = bio_b64_test()) != 0)
+        return err_sys("B64 test failed !\n", ret);
+    else
+        printf( "BIO B64  test passed!\n");
+
+    if ( (ret = bio_connect_test()) != 0)
+        return err_sys("BIO Connect test failed !\n", ret);
+    else
+        printf( "BIO Connect test passed!\n");
+
+    if ( (ret = bio_connect_ssl_test()) != 0)
+        return err_sys("BIO Connect SSL test failed !\n", ret);
+    else
+        printf( "BIO Connect SSL test passed!\n");
+
+    /* Required human interactions, must be move to API
+    if ( (ret = bio_accept_test()) != 0)
+        return err_sys("BIO Accept test failed !\n", ret);
+    else
+        printf( "BIO Accept test passed!\n");
+
+    if ( (ret = bio_accept_ssl_test()) != 0)
+        return err_sys("BIO Accept SSL test failed !\n", ret);
+    else
+        printf( "BIO Accept SSL test passed!\n");
+     */
+
+    if ( (ret = evp_test()) != 0)
+        return err_sys("EVP test failed !\n", ret);
+    else
+        printf( "EVP      test passed!\n");
+
+    if ( (ret = bio_test()) != 0)
+        return err_sys("BIO test failed !\n", ret);
+    else
+        printf( "BIO      test passed!\n");
 #endif
 
     ((func_args*)args)->return_code = ret;
@@ -5944,6 +6002,1128 @@ int openssl_test(void)
     }  /* end evp_cipher test */
 
 #endif /* NO_AES */
+
+    return 0;
+}
+
+static int evp_enc_test(const WOLFSSL_EVP_CIPHER* type)
+{
+    WOLFSSL_EVP_CIPHER_CTX ctx;
+    int i, ret, len = 0, loop, outLen, rand_size, witLen;
+
+    byte random[4500], wit[5000], out[5000];
+
+    byte key[] = {0x9d, 0xbf, 0xe2, 0x11, 0xf9, 0xea, 0x19, 0xf3,
+                  0x44, 0x2e, 0xae, 0x19, 0x54, 0x80, 0x87, 0x4c,
+                  0x9d, 0xbf, 0xe2, 0x11, 0xf9, 0xea, 0x19, 0xf3,
+                  0x44, 0x2e, 0xae, 0x19, 0x54, 0x80, 0x87, 0x4c};
+    byte iv[] = {0xde, 0xf9, 0x6b, 0x91, 0xda, 0x51, 0x71, 0x80,
+                 0x47, 0xc9, 0x68, 0xe5, 0xd7, 0x07, 0x85, 0x15};
+
+    WC_RNG rng;
+
+    i = wc_InitRng(&rng);
+    if (i != 0)
+        return -1198;
+
+    i = wc_RNG_GenerateBlock(&rng, random, sizeof(random));
+    if (i != 0)
+        return -1199;
+
+    wc_FreeRng(&rng);
+
+
+    /* Encrypt/Decrypt with round bytes block Update */
+    for (rand_size = sizeof(random), loop = 1; loop < 1000; loop++) {
+        rand_size = sizeof(random) - loop;
+
+        /* Encrypt */
+        wolfSSL_EVP_CIPHER_CTX_init(&ctx);
+
+        XMEMSET(out, 0, sizeof(out));
+        len = 0;
+
+        ret = wolfSSL_EVP_CipherInit(&ctx, type, key, iv, 1);
+        if (ret != SSL_SUCCESS)
+            return -1200;
+
+        ret = wolfSSL_EVP_CipherUpdate(&ctx, out+len, &outLen,
+                                       random, rand_size);
+        if (ret != SSL_SUCCESS)
+            return -1201;
+
+        len += outLen;
+
+        outLen = 0;
+        ret = wolfSSL_EVP_CipherFinal(&ctx, out+len, &outLen);
+        if (ret != SSL_SUCCESS)
+            return -1202;
+
+        /* update final length */
+        outLen += len;
+
+        /* Decrypt */
+        wolfSSL_EVP_CIPHER_CTX_init(&ctx);
+
+        XMEMSET(wit, 0, sizeof(wit));
+        len = 0;
+
+        ret = wolfSSL_EVP_CipherInit(&ctx, type, key, iv, 0);
+        if (ret != SSL_SUCCESS)
+            return -1203;
+
+        for (i = 0; i < outLen; i++)
+        {
+            witLen = 0;
+            ret = wolfSSL_EVP_CipherUpdate(&ctx, wit+len, &witLen, out+i, 1);
+            if (ret != SSL_SUCCESS)
+                return -1204;
+
+            len += witLen;
+        }
+
+        witLen = 0;
+
+        ret = wolfSSL_EVP_CipherFinal(&ctx, wit+len, &witLen);
+        if (ret != SSL_SUCCESS)
+            return -1205;
+
+        witLen += len;
+
+        if (witLen != rand_size)
+            return -1206;
+
+        if (XMEMCMP(random, wit, witLen))
+            return -1207;
+    }
+
+    return 0;
+}
+
+int evp_test(void)
+{
+    int ret;
+
+        //wolfSSL_Debugging_ON();
+
+#ifndef NO_AES
+    ret = evp_enc_test(wolfSSL_EVP_aes_128_cbc());
+    if (ret != 0)
+        return ret;
+
+    ret = evp_enc_test(wolfSSL_EVP_aes_192_cbc());
+    if (ret != 0)
+        return ret;
+
+    ret = evp_enc_test(wolfSSL_EVP_aes_256_cbc());
+    if (ret != 0)
+        return ret;
+
+#ifdef WOLFSSL_AES_COUNTER
+    ret = evp_enc_test(wolfSSL_EVP_aes_128_ctr());
+    if (ret != 0)
+        return ret;
+
+    ret = evp_enc_test(wolfSSL_EVP_aes_192_ctr());
+    if (ret != 0)
+        return ret;
+
+    ret = evp_enc_test(wolfSSL_EVP_aes_256_ctr());
+    if (ret != 0)
+        return ret;
+#endif /* WOLFSSL_AES_COUNTER */
+#endif /* NO_AES */
+
+#ifndef NO_RC4
+    ret = evp_enc_test(wolfSSL_EVP_rc4());
+    if (ret != 0)
+        return ret;
+#endif /* NO_RC4 */
+
+#ifndef NO_DES3
+    ret = evp_enc_test(wolfSSL_EVP_des_cbc());
+    if (ret != 0)
+        return ret;
+
+    ret = evp_enc_test(wolfSSL_EVP_des_ede3_cbc());
+    if (ret != 0)
+        return ret;
+#endif /* NO_DES3 */
+
+#ifdef HAVE_IDEA
+    ret = evp_enc_test(wolfSSL_EVP_idea_cbc());
+    if (ret != 0)
+        return ret;
+#endif /* HAVE_IDEA */
+
+    return 0;
+}
+
+int bio_md_test(void)
+{
+    WOLFCRYPT_BIO *bmd, *bnull;
+    int i, size, total, w;
+    char digest[SHA512_DIGEST_SIZE];
+
+    struct bio_digest {
+        const WOLFSSL_EVP_MD *type;
+        const char *data;
+        const char *digest;
+    } hash_list[] = {
+#ifndef NO_MD5
+        {
+            wolfSSL_EVP_md5(),
+            "1234567890123456789012345678901234567890123456789012345678"
+            "9012345678901234567890",
+            "\x57\xed\xf4\xa2\x2b\xe3\xc9\x55\xac\x49\xda\x2e\x21\x07\xb6"
+            "\x7a"
+        },
+#endif
+#ifndef NO_SHA
+        {
+            wolfSSL_EVP_sha1(),
+            "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            "aaaaaaaaaa",
+            "\xAD\x5B\x3F\xDB\xCB\x52\x67\x78\xC2\x83\x9D\x2F\x15\x1E\xA7"
+            "\x53\x99\x5E\x26\xA0"
+        },
+#endif
+#ifdef WOLFSSL_SHA256
+        {
+            wolfSSL_EVP_sha256(),
+            "abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq",
+            "\x24\x8D\x6A\x61\xD2\x06\x38\xB8\xE5\xC0\x26\x93\x0C\x3E\x60"
+            "\x39\xA3\x3C\xE4\x59\x64\xFF\x21\x67\xF6\xEC\xED\xD4\x19\xDB"
+            "\x06\xC1"
+        },
+#endif
+#ifdef WOLFSSL_SHA384
+        {
+            wolfSSL_EVP_sha384(),
+            "abcdefghbcdefghicdefghijdefghijkefghijklfghijklmghijklmnhi"
+            "jklmnoijklmnopjklmnopqklmnopqrlmnopqrsmnopqrstnopqrstu",
+            "\x09\x33\x0c\x33\xf7\x11\x47\xe8\x3d\x19\x2f\xc7\x82\xcd\x1b"
+            "\x47\x53\x11\x1b\x17\x3b\x3b\x05\xd2\x2f\xa0\x80\x86\xe3\xb0"
+            "\xf7\x12\xfc\xc7\xc7\x1a\x55\x7e\x2d\xb9\x66\xc3\xe9\xfa\x91"
+            "\x74\x60\x39"
+        },
+#endif
+#ifdef WOLFSSL_SHA512
+        {
+            wolfSSL_EVP_sha512(),
+            "abcdefghbcdefghicdefghijdefghijkefghijklfghijklmghijklmnhi"
+            "jklmnoijklmnopjklmnopqklmnopqrlmnopqrsmnopqrstnopqrstu",
+            "\x8e\x95\x9b\x75\xda\xe3\x13\xda\x8c\xf4\xf7\x28\x14\xfc\x14"
+            "\x3f\x8f\x77\x79\xc6\xeb\x9f\x7f\xa1\x72\x99\xae\xad\xb6\x88"
+            "\x90\x18\x50\x1d\x28\x9e\x49\x00\xf7\xe4\x33\x1b\x99\xde\xc4"
+            "\xb5\x43\x3a\xc7\xd3\x29\xee\xb6\xdd\x26\x54\x5e\x96\xe5\x5b"
+            "\x87\x4b\xe9\x09"
+        },
+#endif
+        { NULL, NULL, NULL }
+    };
+
+    i = 0;
+    while (hash_list[i].type != NULL)
+    {
+        /* Create a digest filter BIO */
+        bmd = WOLFCRYPT_BIO_new(WOLFCRYPT_BIO_f_md());
+        if (bmd == NULL)
+            return -1065;
+
+        /* set digest algorithm */
+        WOLFCRYPT_BIO_set_md(bmd, hash_list[i].type);
+
+        /* create a null bio to chain with digest */
+        bnull = WOLFCRYPT_BIO_new(WOLFCRYPT_BIO_s_null());
+        if (bmd == NULL)
+            return -1066;
+
+        if (WOLFCRYPT_BIO_push(bmd, bnull) == NULL)
+            return -1067;
+
+        size = (int)strlen(hash_list[i].data);
+
+        /* This loop writes the data to the digest.
+         * It checks for errors as if the underlying file were non-blocking */
+        for (total = 0;  total < size; total += w)
+        {
+            w = WOLFCRYPT_BIO_write(bmd, hash_list[i].data + total,
+                                    size - (int)total);
+            if (w <= 0) {
+                if (WOLFCRYPT_BIO_should_retry(bmd)) {
+                    w = 0;
+                    continue;
+                }
+                break;
+            }
+        }
+
+        if (total != size)
+            return -1068;
+
+        /* Ensure all of our data is pushed all the way to the BIO */
+        WOLFCRYPT_BIO_flush(bmd);
+
+        /* get the digest */
+        XMEMSET(digest, 0, sizeof(digest));
+        size = WOLFCRYPT_BIO_gets(bmd, digest, sizeof(digest));
+        if (size <= 0)
+            return -1069;
+
+        if (size != wolfSSL_EVP_MD_size(hash_list[i].type))
+            return -1070;
+
+        if (XMEMCMP(digest, hash_list[i].digest, size))
+            return -1071;
+
+        /* free BIO */
+        WOLFCRYPT_BIO_free_all(bmd);
+
+        i++;
+    }
+
+    return 0;
+}
+
+int bio_b64_test(void)
+{
+    WOLFCRYPT_BIO *b64, *file;
+    int i, loop, rand_size;
+    int total, w;
+    byte random[9000], wit[9000];
+    WC_RNG rng;
+
+    i = wc_InitRng(&rng);
+    if (i != 0)
+        return -1198;
+
+    i = wc_RNG_GenerateBlock(&rng, random, sizeof(random));
+    if (i != 0)
+        return -1199;
+
+    wc_FreeRng(&rng);
+
+    /* Encode/Decode random data */
+    for (rand_size = sizeof(random), loop = 1; loop < 1000; loop++) {
+        rand_size = sizeof(random) - loop;
+
+        /* Create a buffered file BIO for writing */
+        if (loop & 1)
+            file = WOLFCRYPT_BIO_new_file("test_b64", "w");
+        else
+            file = WOLFCRYPT_BIO_new_file("test_b64_nonl", "w");
+        if (file == NULL)
+            return -1062;
+
+        /* Create a base64 encoding filter BIO */
+        b64 = WOLFCRYPT_BIO_new(WOLFCRYPT_BIO_f_base64());
+        if (b64 == NULL)
+            return -1065;
+
+        if (WOLFCRYPT_BIO_push(b64, file) == NULL)
+            return -1069;
+
+        /* This loop writes the data to the file.
+         * It checks for errors as if the underlying file were non-blocking */
+        for (total = 0;  total < rand_size; total += w)
+        {
+            w = WOLFCRYPT_BIO_write(b64, random + total,
+                                    rand_size - (int)total);
+            if (w <= 0) {
+                if (WOLFCRYPT_BIO_should_retry(b64)) {
+                    w = 0;
+                    continue;
+                }
+                break;
+            }
+        }
+
+        /* Ensure all of our data is pushed all the way to the file */
+        WOLFCRYPT_BIO_flush(b64);
+
+        /* free BIO chain cipher-file */
+        WOLFCRYPT_BIO_free_all(b64);
+
+        /* Start read / decode phase */
+
+        /* Create a buffered file BIO for writing */
+        if (loop & 1)
+            file = WOLFCRYPT_BIO_new_file("test_b64", "r");
+        else
+            file = WOLFCRYPT_BIO_new_file("test_b64_nonl", "r");
+        if (file == NULL)
+            return -1070;
+
+        /* Create a base64 encoding filter BIO */
+        b64 = WOLFCRYPT_BIO_new(WOLFCRYPT_BIO_f_base64());
+        if (b64 == NULL)
+            return -1073;
+
+        if (WOLFCRYPT_BIO_push(b64, file) == NULL)
+            return -1074;
+
+        XMEMSET(wit, 0, sizeof(wit));
+        for (total = 0; ; total += w)
+        {
+            w = WOLFCRYPT_BIO_read(b64, wit+total,
+                                   (int)sizeof(wit) - (int)total);
+            if (w <= 0) {
+                if (WOLFCRYPT_BIO_should_retry(b64)) {
+                    w = 0;
+                    continue;
+                }
+                break;
+            }
+        }
+
+        /* free BIO chain b64-file */
+        WOLFCRYPT_BIO_free_all(b64);
+
+        /*  check decoded data */
+        if (total != rand_size)
+            return -1079;
+
+        if (XMEMCMP(random, wit, total))
+            return -1080;
+    }
+
+    remove("test_b64");
+    remove("test_b64_nonl");
+    return 0;
+}
+
+static int bio_filter_test(const WOLFSSL_EVP_CIPHER* cipher_type)
+{
+    int total, i, w, rand_size;
+    WOLFCRYPT_BIO *cipher, *buffer, *file, *b64;
+    byte key[] = { 0x63, 0x21, 0x5f, 0x9b, 0xdc, 0x74, 0xcc, 0x90,
+        0x96, 0x43, 0xd1, 0xcc, 0x7a, 0xb2, 0x27, 0xc5 };
+    byte iv[] = { 0x1a, 0x4a, 0xf8, 0xd5, 0xd0, 0x09, 0xff, 0x09,
+        0xd6, 0xb3, 0x72, 0x3d, 0xc4, 0xed, 0x9c, 0x8e };
+
+    byte random[4200], wit[4200];
+
+    WC_RNG rng;
+
+    w = wc_InitRng(&rng);
+    if (w != 0)
+        return 1060;
+
+    w = wc_RNG_GenerateBlock(&rng, random, sizeof(random));
+    if (w != 0)
+        return 1061;
+
+    wc_FreeRng(&rng);
+
+    for (rand_size = sizeof(random), i = 1; i < 300; i++) {
+
+        rand_size = sizeof(random) - i;
+
+        /* Create a buffered file BIO for writing */
+        if (i & 1)
+            file = WOLFCRYPT_BIO_new_file("test_assembling_nonl", "w");
+        else
+            file = WOLFCRYPT_BIO_new_file("test_assembling", "w");
+        if (file == NULL)
+            return -1062;
+
+        /* Create a buffering filter BIO to buffer writes to the file */
+        buffer = WOLFCRYPT_BIO_new(WOLFCRYPT_BIO_f_buffer());
+        if (buffer == NULL)
+            return -1063;
+
+        /* Create a cipher filter BIO */
+        cipher = WOLFCRYPT_BIO_new(WOLFCRYPT_BIO_f_cipher());
+        if (cipher == NULL)
+            return -1064;
+
+        /* Create a base64 encoding filter BIO */
+        b64 = WOLFCRYPT_BIO_new(WOLFCRYPT_BIO_f_base64());
+        if (b64 == NULL)
+            return -1065;
+
+        if (i & 1)
+            WOLFCRYPT_BIO_set_flags(b64, BIO_FLAGS_BASE64_NO_NL);
+
+        /* Start encrypt / write phase */
+
+        /* Set cipher key and encryption mode */
+        WOLFCRYPT_BIO_set_cipher(cipher, cipher_type, key, iv, 1);
+
+        /* Assemble the BIO chain to be in the order cipher-base64-buffer-file */
+
+        if (WOLFCRYPT_BIO_push(cipher, b64) == NULL)
+            return -1066;
+
+        if (WOLFCRYPT_BIO_push(b64, buffer) == NULL)
+            return -1067;
+
+        if (WOLFCRYPT_BIO_push(buffer, file) == NULL)
+            return -1068;
+
+
+        /* This loop writes the data to the file.
+         * It checks for errors as if the underlying file were non-blocking */
+        for (total = 0;  total < rand_size; total += w)
+        {
+            w = WOLFCRYPT_BIO_write(cipher, random + total,
+                                    rand_size - (int)total);
+            if (w <= 0) {
+                if (WOLFCRYPT_BIO_should_retry(cipher)) {
+                    w = 0;
+                    continue;
+                }
+                break;
+            }
+        }
+
+        /* Ensure all of our data is pushed all the way to the file */
+        WOLFCRYPT_BIO_flush(cipher);
+
+        /* get b64 BIO to free it only at first (test purpose) */
+        WOLFCRYPT_BIO_pop(b64);
+
+        /* free b64 BIO */
+        WOLFCRYPT_BIO_free(b64);
+
+        /* free BIO chain cipher-base64-buffer-file */
+        WOLFCRYPT_BIO_free_all(cipher);
+
+        /* Start read / decrypt phase */
+
+        /* Create a buffered file BIO for writing */
+        if (i & 1)
+            file = WOLFCRYPT_BIO_new_file("test_assembling_nonl", "r");
+        else
+            file = WOLFCRYPT_BIO_new_file("test_assembling", "r");
+        if (file == NULL)
+            return -1070;
+
+        /* Create a buffering filter BIO to buffer writes to the file */
+        buffer = WOLFCRYPT_BIO_new(WOLFCRYPT_BIO_f_buffer());
+        if (buffer == NULL)
+            return -1071;
+
+        /* Create a cipher filter BIO */
+        cipher = WOLFCRYPT_BIO_new(WOLFCRYPT_BIO_f_cipher());
+        if (cipher == NULL)
+            return -1072;
+
+        /* Create a base64 encoding filter BIO */
+        b64 = WOLFCRYPT_BIO_new(WOLFCRYPT_BIO_f_base64());
+        if (b64 == NULL)
+            return -1073;
+
+        if (i & 1)
+            WOLFCRYPT_BIO_set_flags(b64, BIO_FLAGS_BASE64_NO_NL);
+
+        /* Set cipher key and decryption mode */
+        WOLFCRYPT_BIO_set_cipher(cipher, cipher_type, key, iv, 0);
+
+        if (WOLFCRYPT_BIO_push(cipher, b64) == NULL)
+            return -1074;
+
+        if (WOLFCRYPT_BIO_push(b64, buffer) == NULL)
+            return -1075;
+
+        if (WOLFCRYPT_BIO_push(buffer, file) == NULL)
+            return -1077;
+
+        /* This loop read the data from the file.
+         * It checks for errors as if the underlying file were non-blocking */
+        XMEMSET(wit, 0, sizeof(wit));
+
+        for (total = 0; ; total += w)
+        {
+            w = WOLFCRYPT_BIO_read(cipher, wit+total,
+                                   (int)sizeof(wit) - (int)total);
+            if (w <= 0) {
+                if (WOLFCRYPT_BIO_should_retry(cipher)) {
+                    w = 0;
+                    continue;
+                }
+                break;
+            }
+        }
+
+        if (!WOLFCRYPT_BIO_get_cipher_status(cipher))
+            return -1078;
+
+        /* get b64 BIO to free it only at first (test purpose) */
+        WOLFCRYPT_BIO_pop(b64);
+
+        /* free b64 BIO */
+        WOLFCRYPT_BIO_free(b64);
+
+        /* free BIO chain cipher-buffer-file */
+        WOLFCRYPT_BIO_free_all(cipher);
+
+        /*  check decrypted data */
+        if (total != rand_size)
+            return -1079;
+
+        if (XMEMCMP(random, wit, total))
+            return -1080;
+    }
+
+    remove("test_assembling_nonl");
+    remove("test_assembling");
+    
+    return 0;
+}
+
+int bio_connect_test(void)
+{
+    WOLFCRYPT_BIO *cbio;
+    int len;
+    char buf[1024];
+
+    cbio = WOLFCRYPT_BIO_new_connect("www.wolfssl.com:http");
+    if (cbio == NULL)
+        return -3000;
+
+    if (WOLFCRYPT_BIO_do_connect(cbio) <= 0) {
+        fprintf(stderr, "Error connecting to server\n");
+        return -3002;
+    }
+
+    WOLFCRYPT_BIO_puts(cbio, "GET / HTTP/1.0\r\n\r\n");
+    for(;;) {
+        len = WOLFCRYPT_BIO_read(cbio, buf, sizeof(buf));
+        if (len == 0)
+            break;
+        else if (len < 0)
+            return -3003;
+    }
+
+    WOLFCRYPT_BIO_free(cbio);
+
+    return 0;
+}
+/* Required human interactions, must be move to API */
+#if 0
+int bio_accept_test(void)
+{
+
+    WOLFCRYPT_BIO *abio, *cbio, *cbio2;
+    char buf[256];
+    int r;
+
+    abio = WOLFCRYPT_BIO_new_accept("4444");
+
+    /* force SO_REUSEADDR */
+    WOLFCRYPT_BIO_set_bind_mode(abio, 2);
+
+    /* force NO_SIGPIPE and TCP_NODELAY */
+    WOLFCRYPT_BIO_set_socket_options(abio, 3);
+
+    /* First call to WOLFCRYPT_BIO_accept() sets up accept BIO */
+    if (WOLFCRYPT_BIO_do_accept(abio) <= 0) {
+        fprintf(stderr, "Error setting up accept\n");
+        return -4000;
+    }
+    printf("WOLFCRYPT_BIO_do_accept 1\n");
+
+    /* Wait for incoming connection */
+    if (WOLFCRYPT_BIO_do_accept(abio) <= 0) {
+        fprintf(stderr, "Error accepting connection\n");
+        return -4001;
+    }
+    fprintf(stderr, "Connection 1 established\n");
+
+    /* Retrieve BIO for connection */
+    cbio = WOLFCRYPT_BIO_pop(abio);
+    WOLFCRYPT_BIO_puts(cbio, "Wait for second client\n");
+
+    /* Wait for another connection */
+    if (WOLFCRYPT_BIO_do_accept(abio) <= 0) {
+        fprintf(stderr, "Error accepting connection\n");
+        return -4002;
+    }
+    fprintf(stderr, "Connection 2 established\n");
+
+    /* Close accept BIO to refuse further connections */
+    cbio2 = WOLFCRYPT_BIO_pop(abio);
+    WOLFCRYPT_BIO_free(abio);
+
+    WOLFCRYPT_BIO_puts(cbio, "Second client arrived, you can send msg\n");
+    WOLFCRYPT_BIO_puts(cbio2, "Wait for message of First client\n");
+
+    /* Read msg CBIO -> CBIO2, CBIO2 and CBIO2 -> CBIO */
+    do {
+        XMEMSET(buf, 0, sizeof(buf));
+        r = WOLFCRYPT_BIO_read(cbio, buf, sizeof(buf));
+        if (r < 0)
+            break;
+        if (r >= 3 && !XSTRNCMP("end", buf, 3)) {
+            WOLFCRYPT_BIO_puts(cbio, "Peer close discussion\n");
+            break;
+        }
+        WOLFCRYPT_BIO_puts(cbio2, buf);
+
+        XMEMSET(buf, 0, sizeof(buf));
+        r = WOLFCRYPT_BIO_read(cbio2, buf, sizeof(buf));
+        if (r < 0)
+            break;
+
+        if (r >= 3 && !XSTRNCMP("end", buf, 3)) {
+            WOLFCRYPT_BIO_puts(cbio, "Peer close discussion\n");
+            break;
+        }
+        WOLFCRYPT_BIO_puts(cbio, buf);
+
+    } while (1);
+
+    /* Close the two established connections */
+    WOLFCRYPT_BIO_free(cbio);
+    WOLFCRYPT_BIO_free(cbio2);
+
+    return 0;
+}
+#endif
+
+int bio_connect_ssl_test(void)
+{
+    WOLFCRYPT_BIO   *out = NULL, *ssl_bio = NULL;
+    WOLFSSL_CTX     *ssl_ctx = NULL;
+
+    char request[] = "GET / HTTP/1.0\r\n\r\n";
+    char buf[1024 * 10];
+    int i, len = (int)strlen(request), idx, ret;
+
+    /* Setup all the global SSL stuff */
+    ssl_ctx = wolfSSL_CTX_new(wolfTLSv1_client_method());
+    if (ssl_ctx == NULL)
+        return -3000;
+
+    wolfSSL_CTX_set_verify(ssl_ctx, SSL_VERIFY_NONE, 0);
+
+    /* Lets make a SSL structure */
+    ssl_bio = WOLFCRYPT_BIO_new_ssl(ssl_ctx, BIO_CLOSE);
+    if (ssl_bio == NULL) {
+        ret = -3001;
+        goto end;
+    }
+
+    /* Use a connect BIO under the SSL BIO */
+    out = WOLFCRYPT_BIO_new_connect("www.google.com:443");
+    if (out == NULL) {
+        ret = -3002;
+        goto end;
+    }
+
+    /* start connection */
+    if (WOLFCRYPT_BIO_do_connect(out) <= 0) {
+        fprintf(stderr, "Error connecting to server\n");
+        ret = -3003;
+        goto end;
+    }
+
+    /* non blocking mode */
+    WOLFCRYPT_BIO_set_nbio(out, 1);
+
+    /* Associate connect and ssl BIO */
+    out = WOLFCRYPT_BIO_push(ssl_bio, out);
+    if (out == NULL) {
+        ret = -3004;
+        goto end;
+    }
+
+    for (idx = 0;;) {
+        i = WOLFCRYPT_BIO_write(out, request+idx, len);
+        if (i <= 0) {
+            if (WOLFCRYPT_BIO_should_retry(out)) {
+                sleep(1);
+                continue;
+            } else {
+                ret = -3005;
+                goto end;
+            }
+        }
+        idx += i;
+        len -= i;
+        if (len <= 0)
+            break;
+    }
+
+    for (;;) {
+        i = WOLFCRYPT_BIO_read(out, buf, sizeof(buf));
+        if (i == 0)
+            break;
+        if (i < 0) {
+            if (WOLFCRYPT_BIO_should_retry(out)) {
+                sleep(1);
+                continue;
+            }
+            ret = -3006;
+            goto end;
+        }
+        fwrite(buf, 1, i, stdout);
+    }
+
+    ret = 0;
+
+end:
+    WOLFCRYPT_BIO_free_all(out);
+
+    if (ssl_ctx != NULL)
+        wolfSSL_CTX_free(ssl_ctx);
+
+    return ret;
+}
+
+/* Required human interactions, must be move to API */
+#if 0
+int bio_accept_ssl_test(void)
+{
+    WOLFCRYPT_BIO *ssl_bio = NULL, *in = NULL, *buf_bio = NULL, *b_rw = NULL;
+    WOLFSSL_CTX *ssl_ctx = NULL;
+    char buf[512];
+    int ret = 1, len, i = 0;
+
+#ifndef NO_DH
+    /* dh1024 p */
+    static unsigned char p[] = {
+        0xE6, 0x96, 0x9D, 0x3D, 0x49, 0x5B, 0xE3, 0x2C, 0x7C, 0xF1, 0x80, 0xC3,
+        0xBD, 0xD4, 0x79, 0x8E, 0x91, 0xB7, 0x81, 0x82, 0x51, 0xBB, 0x05, 0x5E,
+        0x2A, 0x20, 0x64, 0x90, 0x4A, 0x79, 0xA7, 0x70, 0xFA, 0x15, 0xA2, 0x59,
+        0xCB, 0xD5, 0x23, 0xA6, 0xA6, 0xEF, 0x09, 0xC4, 0x30, 0x48, 0xD5, 0xA2,
+        0x2F, 0x97, 0x1F, 0x3C, 0x20, 0x12, 0x9B, 0x48, 0x00, 0x0E, 0x6E, 0xDD,
+        0x06, 0x1C, 0xBC, 0x05, 0x3E, 0x37, 0x1D, 0x79, 0x4E, 0x53, 0x27, 0xDF,
+        0x61, 0x1E, 0xBB, 0xBE, 0x1B, 0xAC, 0x9B, 0x5C, 0x60, 0x44, 0xCF, 0x02,
+        0x3D, 0x76, 0xE0, 0x5E, 0xEA, 0x9B, 0xAD, 0x99, 0x1B, 0x13, 0xA6, 0x3C,
+        0x97, 0x4E, 0x9E, 0xF1, 0x83, 0x9E, 0xB5, 0xDB, 0x12, 0x51, 0x36, 0xF7,
+        0x26, 0x2E, 0x56, 0xA8, 0x87, 0x15, 0x38, 0xDF, 0xD8, 0x23, 0xC6, 0x50,
+        0x50, 0x85, 0xE2, 0x1F, 0x0D, 0xD5, 0xC8, 0x6B,
+    };
+
+    /* dh1024 g */
+    static unsigned char g[] = { 0x02 };
+#endif
+
+#if 1
+    #define CERT_F  "./certs/server-cert.pem"
+    #define KEY_F   "./certs/server-key.pem"
+#endif
+#if 0
+    #define CERT_F  "./certs/server-ecc.pem"
+    #define KEY_F   "./certs/ecc-key.pem"
+#endif
+#if 0
+    #define CERT_F  "./certs/server-ecc-rsa.pem"
+    #define KEY_F   "./certs/ecc-key.pem"
+#endif
+
+    ssl_ctx = wolfSSL_CTX_new(wolfTLSv1_2_server_method());
+    if (ssl_ctx == NULL)
+        return -3000;
+
+    if (!wolfSSL_CTX_use_certificate_file(ssl_ctx, CERT_F, SSL_FILETYPE_PEM)) {
+        ret = -3001;
+        goto end;
+    }
+
+    if (!wolfSSL_CTX_use_PrivateKey_file(ssl_ctx, KEY_F, SSL_FILETYPE_PEM)) {
+        ret = -3002;
+        goto end;
+    }
+
+    if (!wolfSSL_CTX_check_private_key(ssl_ctx)) {
+        ret = -3003;
+        goto end;
+    }
+
+#ifndef NO_DH
+    if (!wolfSSL_CTX_SetTmpDH(ssl_ctx, p, sizeof(p), g, sizeof(g))) {
+        ret = -3004;
+        goto end;
+    }
+#endif /* NO_DH */
+
+    /* Setup server side SSL bio */
+    ssl_bio = WOLFCRYPT_BIO_new_ssl(ssl_ctx, 0);
+    if (ssl_bio == NULL) {
+        ret = -3005;
+        goto end;
+    }
+
+    /* Create the buffering BIO */
+    buf_bio = WOLFCRYPT_BIO_new(WOLFCRYPT_BIO_f_buffer());
+    if (buf_bio == NULL) {
+        ret = -3006;
+        goto end;
+    }
+
+    /* Add to chain */
+    ssl_bio = WOLFCRYPT_BIO_push(buf_bio, ssl_bio);
+    if (ssl_bio == NULL) {
+        ret = -3007;
+        goto end;
+    }
+
+    in = WOLFCRYPT_BIO_new_accept("4433");
+    if (in == NULL) {
+        ret = -3008;
+        goto end;
+    }
+
+    /* force SO_REUSEADDR */
+    WOLFCRYPT_BIO_set_bind_mode(in, 2);
+
+    /* force NO_SIGPIPE and TCP_NODELAY */
+    WOLFCRYPT_BIO_set_socket_options(in, 3);
+
+    /* By doing this when a new connection is established
+     * we automatically have ssl_bio inserted into it. The
+     * BIO chain is now 'swallowed' by the accept BIO and
+     * will be freed when the accept BIO is freed.
+     */
+    if (WOLFCRYPT_BIO_set_accept_bios(in, ssl_bio) <= 0) {
+        ret = -3006;
+        goto end;
+    }
+
+    while (i++ < 5) {
+        /* Setup accept BIO */
+        if (WOLFCRYPT_BIO_do_accept(in) <= 0) {
+            fprintf(stderr, "Error setting up accept BIO\n");
+            ret = -3010;
+            goto end;
+        }
+
+        /* Now wait for incoming connection */
+        if (WOLFCRYPT_BIO_do_handshake(in) <= 0) {
+            fprintf(stderr, "Error in connection\n");
+            ret = -3011;
+            goto end;
+        }
+
+        b_rw = WOLFCRYPT_BIO_pop(in);
+        if (b_rw == NULL) {
+            printf("BIO error -> close\n");
+            break;
+        }
+
+        for(;;) {
+            len = WOLFCRYPT_BIO_gets(b_rw, buf, sizeof(buf));
+            if (len == 0) {
+                /*
+                 * If we have finished, remove the underlying BIO stack so the
+                 * next time we call any function for this BIO, it will attempt
+                 * to do an accept
+                 */
+                printf("Done -> close\n");
+                break;
+            }
+            else if (len < 0) {
+                if (WOLFCRYPT_BIO_should_retry(b_rw))
+                    continue;
+                printf("Read error -> close\n");
+                break;
+            }
+
+            if (buf[0] == '\r' || buf[0] == '\n') {
+                WOLFCRYPT_BIO_puts(b_rw, "CLOSE\n");
+                WOLFCRYPT_BIO_flush(b_rw);
+                printf("Done -> close\n");
+                break;
+            }
+            fprintf(stdout, "Received : '%s'\n", buf);
+            /* Send response */
+            WOLFCRYPT_BIO_puts(b_rw, "ACK: ");
+            WOLFCRYPT_BIO_puts(b_rw, buf);
+            WOLFCRYPT_BIO_flush(b_rw);
+        }
+
+        /* close connection */
+        WOLFCRYPT_BIO_free_all(b_rw);
+    }
+
+    ret = 0;
+
+end:
+    if (in != NULL)
+        WOLFCRYPT_BIO_free_all(in);
+
+    if (ssl_ctx != NULL)
+        wolfSSL_CTX_free(ssl_ctx);
+
+    return ret;
+}
+#endif
+
+int bio_test(void)
+{
+    WOLFCRYPT_BIO *bio;
+    int ret;
+
+    const char buf[] = "This is a test of the implementation of OpenSSL BIO";
+    char buf_w[200];
+
+    /* BIO FILE TEST */
+
+    /* create file */
+    bio = WOLFCRYPT_BIO_new_file("test_bio.txt", "w");
+    if (bio == NULL)
+        return -1000;
+
+    /* write */
+    ret = WOLFCRYPT_BIO_write(bio, buf, (int)strlen(buf));
+    if (ret != (int)strlen(buf))
+        return -1001;
+
+    ret = WOLFCRYPT_BIO_puts(bio, "\n");
+    if (ret != 1)
+        return -1002;
+
+    /* close */
+    WOLFCRYPT_BIO_free(bio);
+
+    /* open */
+    bio = WOLFCRYPT_BIO_new_file("test_bio.txt", "r");
+    if (bio == NULL)
+        return -1003;
+
+    /* read */
+    ret = WOLFCRYPT_BIO_read(bio, buf_w, sizeof(buf_w));
+    if (ret != (int)strlen(buf)+1)
+        return -1004;
+
+    if (XMEMCMP(buf, buf_w, ret-1))
+        return -1005;
+
+    /* close */
+    WOLFCRYPT_BIO_free(bio);
+
+    /* append */
+    bio = WOLFCRYPT_BIO_new_file("test_bio.txt", "a+");
+    if (bio == NULL)
+        return -1006;
+
+    ret = WOLFCRYPT_BIO_tell(bio);
+    if (ret != (int)strlen(buf)+1)
+        return -1007;
+
+    /* write */
+    ret = WOLFCRYPT_BIO_printf(bio, "%s\n", buf);
+    if (ret != (int)strlen(buf)+1)
+        return -1008;
+
+    ret = WOLFCRYPT_BIO_tell(bio);
+    if (ret != 2*((int)strlen(buf)+1))
+        return -1009;
+
+    /* reset, before reading */
+    ret = WOLFCRYPT_BIO_reset(bio);
+    if (ret != 0)
+        return -1010;
+
+    /* read */
+    ret = WOLFCRYPT_BIO_read(bio, buf_w, sizeof(buf_w));
+    if (ret != 2*((int)strlen(buf)+1))
+        return -1011;
+
+    /* close */
+    WOLFCRYPT_BIO_free(bio);
+
+    if (XMEMCMP(buf, buf_w, (int)strlen(buf)))
+        return -1012;
+
+    if (XMEMCMP(buf, buf_w+1+strlen(buf), (int)strlen(buf)))
+        return -1013;
+
+    /* BIO MEMORY TEST */
+    bio = WOLFCRYPT_BIO_new(WOLFCRYPT_BIO_s_mem());
+    if (bio == NULL)
+        return -1050;
+
+    ret = WOLFCRYPT_BIO_puts(bio, buf);
+    if (ret != (int)strlen(buf))
+        return -1051;
+
+    ret = WOLFCRYPT_BIO_gets(bio, buf_w, sizeof(buf_w));
+    if (ret != (int)strlen(buf))
+        return -1052;
+
+    ret = WOLFCRYPT_BIO_gets(bio, buf_w, sizeof(buf_w));
+    if (ret != 0)
+        return -1053;
+
+    WOLFCRYPT_BIO_reset(bio);
+
+    ret = WOLFCRYPT_BIO_write(bio, buf, (int)strlen(buf));
+    if (ret != (int)strlen(buf))
+        return -1054;
+
+    ret = WOLFCRYPT_BIO_write(bio, buf, (int)strlen(buf));
+    if (ret != (int)strlen(buf))
+        return -1055;
+
+    XMEMSET(buf_w, 0, sizeof(buf_w));
+
+    ret = WOLFCRYPT_BIO_read(bio, buf_w, 5);
+    ret += WOLFCRYPT_BIO_read(bio, buf_w+5, 9);
+    ret += WOLFCRYPT_BIO_read(bio, buf_w+14, 17);
+    ret += WOLFCRYPT_BIO_read(bio, buf_w+31, 7);
+
+    if (ret != 2*(int)strlen(buf)-WOLFCRYPT_BIO_pending(bio))
+        return -1059;
+
+    if (XMEMCMP(buf, buf_w, 2*(int)strlen(buf)-WOLFCRYPT_BIO_pending(bio)))
+        return -1060;
+
+    /* assembling BIO test for all cipher */
+#ifndef NO_AES
+    ret = bio_filter_test(wolfSSL_EVP_aes_128_cbc());
+    if (ret != 0)
+        return ret;
+
+    ret = bio_filter_test(wolfSSL_EVP_aes_192_cbc());
+    if (ret != 0)
+        return ret;
+
+    ret = bio_filter_test(wolfSSL_EVP_aes_256_cbc());
+    if (ret != 0)
+        return ret;
+
+#ifdef WOLFSSL_AES_COUNTER
+    ret = bio_filter_test(wolfSSL_EVP_aes_128_ctr());
+    if (ret != 0)
+        return ret;
+
+    ret = bio_filter_test(wolfSSL_EVP_aes_192_ctr());
+    if (ret != 0)
+        return ret;
+
+    ret = bio_filter_test(wolfSSL_EVP_aes_256_ctr());
+    if (ret != 0)
+        return ret;
+#endif /* WOLFSSL_AES_COUNTER */
+#endif /* NO_AES */
+
+#ifndef NO_RC4
+    ret = bio_filter_test(wolfSSL_EVP_rc4());
+    if (ret != 0)
+        return ret;
+#endif /* NO_RC4 */
+
+#ifndef NO_DES3
+    ret = bio_filter_test(wolfSSL_EVP_des_cbc());
+    if (ret != 0)
+        return ret;
+
+    ret = bio_filter_test(wolfSSL_EVP_des_ede3_cbc());
+    if (ret != 0)
+        return ret;
+#endif /* NO_DES3 */
+
+#ifdef HAVE_IDEA
+    ret = bio_filter_test(wolfSSL_EVP_idea_cbc());
+    if (ret != 0)
+        return ret;
+#endif /* HAVE_IDEA */
 
     return 0;
 }

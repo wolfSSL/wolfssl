@@ -373,6 +373,99 @@ const char* wc_GetErrorString(int error)
     case HASH_TYPE_E:
         return "Hash type not enabled/available";
 
+    case BIO_CALLBACK_E:
+        return "BIO callback function failed";
+
+    case BIO_CREATE_METHOD_E:
+        return "BIO method create function failed";
+
+    case BIO_FIND_TYPE_E:
+        return "BIO find type failed";
+
+    case BIO_CTRL_E:
+        return "BIO Control function failed";
+
+    case BIO_UNINITIALIZED_E:
+        return "BIO is not initialized";
+
+    case BIO_PUTS_E:
+        return "BIO puts failed";
+
+    case BIO_FILE_READ_E:
+        return "BIO file read failed";
+
+    case BIO_FILE_WRITE_E:
+        return "BIO file write failed";
+
+    case BIO_FILE_MODE_E:
+        return "BIO file bad open mode";
+
+    case BIO_FILE_OPEN_E:
+        return "BIO file open failed";
+
+    case BIO_FILE_GETS_E:
+        return "BIO file gets failed";
+
+    case BIO_MEM_WRITE_E:
+        return "BIO memory write failed";
+
+    case BIO_B64_ENCODE_E:
+        return "BIO filter base64 encode failed";
+
+    case BIO_B64_DECODE_E:
+        return "BIO filter base64 decode failed";
+
+    case BIO_DGST_INIT_E:
+        return "BIO filter digest init failed";
+
+    case BIO_DGST_UPDATE_E:
+        return "BIO filter digest update failed";
+
+    case BIO_DGST_FINAL_E:
+        return "BIO filter digest final failed";
+
+    case BIO_NO_HOSTNAME_E:
+        return "BIO connect, no hostname provided";
+
+    case BIO_NO_PORT_E:
+        return "BIO connect, no port provided";
+
+    case BIO_CREATE_SOCKET_E:
+        return "BIO connect, create socket failed";
+
+    case BIO_NBIO_E:
+        return "BIO connect, NBIO error";
+
+    case BIO_CONNECT_E:
+        return "BIO connect, connect failed";
+
+    case BIO_ADDR_AF_INET_E:
+        return "BIO connect, address not AF_INET type";
+
+    case BIO_SRV_PROTO_E:
+        return "BIO connect, bad server protocol";
+
+    case BIO_WSASTARTUP_E:
+        return "BIO connect, WSA Startup failed";
+
+    case BIO_BIND_SOCKET_E:
+        return "BIO connect, Bind socket failed";
+
+    case BIO_LISTEN_SOCKET_E:
+        return "BIO connect, Listen socket failed";
+
+    case BIO_ACCEPT_E:
+        return "BIO connect, Accept failed";
+
+    case BIO_KEEPALIVE_E:
+        return "BIO connect, Keep ALive failed";
+
+    case BIO_OPTIONS_E:
+        return "BIO connect, Options error";
+
+    case BIO_BAD_REF:
+        return "BIO, Bad reference number";
+
     default:
         return "unknown error number";
 

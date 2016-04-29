@@ -92,8 +92,8 @@ typedef struct WOLFSSL_CIPHER         WOLFSSL_CIPHER;
 typedef struct WOLFSSL_X509_LOOKUP    WOLFSSL_X509_LOOKUP;
 typedef struct WOLFSSL_X509_LOOKUP_METHOD WOLFSSL_X509_LOOKUP_METHOD;
 typedef struct WOLFSSL_X509_CRL       WOLFSSL_X509_CRL;
-typedef struct WOLFSSL_BIO            WOLFSSL_BIO;
-typedef struct WOLFSSL_BIO_METHOD     WOLFSSL_BIO_METHOD;
+typedef struct WOLFCRYPT_BIO          WOLFSSL_BIO;
+typedef struct WOLFCRYPT_BIO_METHOD   WOLFSSL_BIO_METHOD;
 typedef struct WOLFSSL_X509_EXTENSION WOLFSSL_X509_EXTENSION;
 typedef struct WOLFSSL_ASN1_TIME      WOLFSSL_ASN1_TIME;
 typedef struct WOLFSSL_ASN1_INTEGER   WOLFSSL_ASN1_INTEGER;
@@ -259,6 +259,7 @@ WOLFSSL_API int wolfSSL_use_RSAPrivateKey_file(WOLFSSL*, const char*, int);
 
 WOLFSSL_API WOLFSSL_CTX* wolfSSL_CTX_new(WOLFSSL_METHOD*);
 WOLFSSL_API WOLFSSL* wolfSSL_new(WOLFSSL_CTX*);
+WOLFSSL_API WOLFSSL* wolfSSL_dup(WOLFSSL*);
 WOLFSSL_API int  wolfSSL_set_fd (WOLFSSL*, int);
 WOLFSSL_API char* wolfSSL_get_cipher_list(int priority);
 WOLFSSL_API int  wolfSSL_get_ciphers(char*, int);
@@ -394,7 +395,7 @@ WOLFSSL_API void wolfSSL_MD4_Init(WOLFSSL_MD4_CTX*);
 WOLFSSL_API void wolfSSL_MD4_Update(WOLFSSL_MD4_CTX*, const void*, unsigned long);
 WOLFSSL_API void wolfSSL_MD4_Final(unsigned char*, WOLFSSL_MD4_CTX*);
 
-
+/*
 WOLFSSL_API WOLFSSL_BIO* wolfSSL_BIO_new(WOLFSSL_BIO_METHOD*);
 WOLFSSL_API int  wolfSSL_BIO_free(WOLFSSL_BIO*);
 WOLFSSL_API int  wolfSSL_BIO_free_all(WOLFSSL_BIO*);
@@ -420,7 +421,7 @@ WOLFSSL_API WOLFSSL_BIO* wolfSSL_BIO_new_mem_buf(void* buf, int len);
 
 
 WOLFSSL_API long        wolfSSL_BIO_set_ssl(WOLFSSL_BIO*, WOLFSSL*, int flag);
-WOLFSSL_API void        wolfSSL_set_bio(WOLFSSL*, WOLFSSL_BIO* rd, WOLFSSL_BIO* wr);
+*/
 
 WOLFSSL_API int  wolfSSL_add_all_algorithms(void);
 
@@ -633,10 +634,6 @@ enum {
 
     SSL_MODE_ENABLE_PARTIAL_WRITE = 2,
 
-    BIO_FLAGS_BASE64_NO_NL = 1,
-    BIO_CLOSE   = 1,
-    BIO_NOCLOSE = 0,
-
     NID_undef = 0,
 
     X509_FILETYPE_PEM = 8,
@@ -802,7 +799,6 @@ WOLFSSL_API WOLFSSL_X509* wolfSSL_get_peer_certificate(WOLFSSL* ssl);
 WOLFSSL_API int wolfSSL_want_read(WOLFSSL*);
 WOLFSSL_API int wolfSSL_want_write(WOLFSSL*);
 
-WOLFSSL_API int wolfSSL_BIO_printf(WOLFSSL_BIO*, const char*, ...);
 WOLFSSL_API int wolfSSL_ASN1_UTCTIME_print(WOLFSSL_BIO*,
                                          const WOLFSSL_ASN1_UTCTIME*);
 WOLFSSL_API int   wolfSSL_sk_num(WOLFSSL_X509_REVOKED*);
@@ -1629,8 +1625,6 @@ typedef struct WOLFSSL_X509_NAME_ENTRY {
 WOLFSSL_API void wolfSSL_X509_NAME_free(WOLFSSL_X509_NAME *name);
 WOLFSSL_API char wolfSSL_CTX_use_certificate(WOLFSSL_CTX *ctx, WOLFSSL_X509 *x);
 WOLFSSL_API int wolfSSL_CTX_use_PrivateKey(WOLFSSL_CTX *ctx, WOLFSSL_EVP_PKEY *pkey);
-WOLFSSL_API int wolfSSL_BIO_read_filename(WOLFSSL_BIO *b, const char *name);
-WOLFSSL_API WOLFSSL_BIO_METHOD* wolfSSL_BIO_s_file(void);
 /* These are to be merged shortly */
 WOLFSSL_API const char *  wolf_OBJ_nid2sn(int n);
 WOLFSSL_API int wolf_OBJ_obj2nid(const WOLFSSL_ASN1_OBJECT *o);
@@ -1654,7 +1648,6 @@ WOLFSSL_API STACK_OF(WOLFSSL_X509_NAME) *wolfSSL_dup_CA_list( STACK_OF(WOLFSSL_X
 
 WOLFSSL_API char * wolf_OBJ_nid2ln(int n);
 WOLFSSL_API int wolf_OBJ_txt2nid(const char *sn);
-WOLFSSL_API WOLFSSL_BIO* wolfSSL_BIO_new_file(const char *filename, const char *mode);
 WOLFSSL_API long wolfSSL_CTX_set_tmp_dh(WOLFSSL_CTX*, WOLFSSL_DH*);
 WOLFSSL_API WOLFSSL_DH *wolfSSL_PEM_read_bio_DHparams(WOLFSSL_BIO *bp,
     WOLFSSL_DH **x, pem_password_cb *cb, void *u);

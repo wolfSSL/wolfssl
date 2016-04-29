@@ -167,7 +167,39 @@ enum {
     SIG_TYPE_E          = -231,  /* Signature Type not enabled/available */
     HASH_TYPE_E         = -232,  /* Hash Type not enabled/available */
 
-    MIN_CODE_E          = -300   /* errors -101 - -299 */
+    BIO_CALLBACK_E       = -250,  /* BIO callback function failed */
+    BIO_CREATE_METHOD_E  = -251,  /* BIO method create function failed */
+    BIO_FIND_TYPE_E      = -252,  /* BIO find type failed */
+    BIO_CTRL_E           = -253,  /* BIO Control function failed */
+    BIO_UNINITIALIZED_E  = -254,  /* BIO is not initialized */
+    BIO_PUTS_E           = -255,  /* BIO puts function failed */
+    BIO_FILE_READ_E      = -256,  /* BIO file read failed */
+    BIO_FILE_WRITE_E     = -257,  /* BIO file write failed */
+    BIO_FILE_MODE_E      = -258,  /* BIO file bad open mode */
+    BIO_FILE_OPEN_E      = -259,  /* BIO file open failed */
+    BIO_FILE_GETS_E      = -260,  /* BIO file gets failed */
+    BIO_MEM_WRITE_E      = -261,  /* BIO memory write failed */
+    BIO_B64_ENCODE_E     = -262,  /* BIO filter base64 encode failed */
+    BIO_B64_DECODE_E     = -263,  /* BIO filter base64 decode failed */
+    BIO_DGST_INIT_E      = -264,  /* BIO filter digest init failed */
+    BIO_DGST_UPDATE_E    = -265,  /* BIO filter digest update failed */
+    BIO_DGST_FINAL_E     = -266,  /* BIO filter digest final failed */
+    BIO_NO_HOSTNAME_E    = -267,  /* BIO connect, no hostname provided */
+    BIO_NO_PORT_E        = -268,  /* BIO connect, no port provided */
+    BIO_CREATE_SOCKET_E  = -269,  /* BIO connect, create socket failed */
+    BIO_NBIO_E           = -270,  /* BIO connect, NBIO error */
+    BIO_CONNECT_E        = -271,  /* BIO connect, connect failed */
+    BIO_ADDR_AF_INET_E   = -272,  /* BIO connect, address not AF_INET type */
+    BIO_SRV_PROTO_E      = -273,  /* BIO connect, bad server protocol */
+    BIO_WSASTARTUP_E     = -274,  /* BIO connect, WSA Startup failed */
+    BIO_BIND_SOCKET_E    = -275,  /* BIO connect, Bind socket failed */
+    BIO_LISTEN_SOCKET_E  = -276,  /* BIO connect, Listen socket failed */
+    BIO_ACCEPT_E         = -277,  /* BIO connect, Accept failed */
+    BIO_KEEPALIVE_E      = -278,  /* BIO connect, Keep ALive failed */
+    BIO_OPTIONS_E        = -279,  /* BIO connect, Options error */
+    BIO_BAD_REF          = -280,  /* BIO, Bad reference number */
+
+    MIN_CODE_E           = -300   /* errors -101 - -299 */
 
     /* add new companion error id strings for any new error codes
        wolfcrypt/src/error.c !!! */

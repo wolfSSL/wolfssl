@@ -63,7 +63,22 @@ src_libwolfssl_la_SOURCES += \
                wolfcrypt/src/hmac.c \
                wolfcrypt/src/random.c \
                wolfcrypt/src/sha256.c \
-               wolfcrypt/src/hash.c
+               wolfcrypt/src/hash.c \
+               wolfcrypt/src/bio.c \
+               wolfcrypt/src/bio_m_mem.c \
+               wolfcrypt/src/bio_m_file.c \
+               wolfcrypt/src/bio_m_fd.c \
+               wolfcrypt/src/bio_m_sock.c \
+               wolfcrypt/src/bio_m_conn.c \
+               wolfcrypt/src/bio_m_accept.c \
+               wolfcrypt/src/bio_m_dgram.c \
+               wolfcrypt/src/bio_m_null.c \
+               wolfcrypt/src/bio_f_sock.c \
+               wolfcrypt/src/bio_f_buff.c \
+               wolfcrypt/src/bio_f_cipher.c \
+               wolfcrypt/src/bio_f_b64.c \
+               wolfcrypt/src/bio_f_dgst.c \
+               wolfcrypt/src/bio_f_ssl.c
 
 if !BUILD_USER_RSA
 if BUILD_RSA
