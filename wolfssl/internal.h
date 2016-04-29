@@ -398,6 +398,9 @@ typedef byte word24[3];
         #if !defined(NO_SHA)
             #define BUILD_TLS_DHE_RSA_WITH_AES_128_CBC_SHA
             #define BUILD_TLS_DHE_RSA_WITH_AES_256_CBC_SHA
+            #if !defined(NO_DES3)
+                #define BUILD_TLS_DHE_RSA_WITH_3DES_EDE_CBC_SHA
+            #endif
         #endif
         #if !defined(NO_SHA256)
             #define BUILD_TLS_DHE_RSA_WITH_AES_128_CBC_SHA256
@@ -703,6 +706,7 @@ typedef byte word24[3];
 
 /* actual cipher values, 2nd byte */
 enum {
+    TLS_DHE_RSA_WITH_3DES_EDE_CBC_SHA = 0x16,
     TLS_DHE_RSA_WITH_AES_256_CBC_SHA  = 0x39,
     TLS_DHE_RSA_WITH_AES_128_CBC_SHA  = 0x33,
     TLS_DH_anon_WITH_AES_128_CBC_SHA  = 0x34,
