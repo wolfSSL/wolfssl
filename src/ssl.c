@@ -81,7 +81,6 @@
     #include <wolfssl/wolfcrypt/idea.h>
     #include <wolfssl/wolfcrypt/curve25519.h>
     #include <wolfssl/wolfcrypt/ed25519.h>
-    #include <wolfssl/openssl/asn1.h>
     #ifdef HAVE_STUNNEL
         #include <wolfssl/openssl/ocsp.h>
     #endif /* WITH_STUNNEL */
@@ -3473,14 +3472,13 @@ static int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
                     FreeX509(ssl->ourCert);
                     if (ssl->ourCert) {
                         XFREE(ssl->ourCert, ssl->heap, DYNAMIC_TYPE_X509);
+                        ssl->ourCert = NULL;
                     }
                 #endif
             }
             XMEMCPY(&ssl->buffers.certificate, &der, sizeof(der));
             #ifdef OPENSSL_EXTRA
-                ssl->ourCert = wolfSSL_X509_d2i(NULL,
-                                              ssl->buffers.certificate->buffer,
-                                              ssl->buffers.certificate->length);
+                ssl->keepCert = 1; /* hold cert for ssl lifetime */
             #endif
             ssl->buffers.weOwnCert = 1;
         }
@@ -3490,14 +3488,10 @@ static int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
                 FreeX509(ctx->ourCert);
                 if (ctx->ourCert) {
                     XFREE(ctx->ourCert, ctx->heap, DYNAMIC_TYPE_X509);
+                    ctx->ourCert = NULL;
                 }
             #endif
             XMEMCPY(&ctx->certificate, &der, sizeof(der));
-            #ifdef OPENSSL_EXTRA
-                ctx->ourCert = wolfSSL_X509_d2i(NULL,
-                                               ctx->certificate->buffer,
-                                               ctx->certificate->length);
-            #endif
         }
     }
     else if (type == PRIVATEKEY_TYPE) {
@@ -8040,13 +8034,14 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
             return BAD_FUNC_ARG;
         }
 
-        if (ssl->buffers.weOwnCert) {
+        if (ssl->buffers.weOwnCert && !ssl->keepCert) {
             WOLFSSL_MSG("Unloading cert");
             FreeDer(&ssl->buffers.certificate);
             #ifdef OPENSSL_EXTRA
                 FreeX509(ssl->ourCert);
                 if (ssl->ourCert) {
                     XFREE(ssl->ourCert, ssl->heap, DYNAMIC_TYPE_X509);
+                    ssl->ourCert = NULL;
                 }
             #endif
             ssl->buffers.weOwnCert = 0;
@@ -10769,10 +10764,20 @@ WOLFSSL_X509* wolfSSL_get_certificate(WOLFSSL* ssl)
     }
 
     if (ssl->buffers.weOwnCert) {
+        if (ssl->ourCert == NULL) {
+            ssl->ourCert = wolfSSL_X509_d2i(NULL,
+                                              ssl->buffers.certificate->buffer,
+                                              ssl->buffers.certificate->length);
+        }
         return ssl->ourCert;
     }
     else { /* if cert not owned get parent ctx cert or return null */
         if (ssl->ctx) {
+            if (ssl->ctx->ourCert == NULL) {
+                ssl->ctx->ourCert = wolfSSL_X509_d2i(NULL,
+                                               ssl->ctx->certificate->buffer,
+                                               ssl->ctx->certificate->length);
+            }
             return ssl->ctx->ourCert;
         }
         else {

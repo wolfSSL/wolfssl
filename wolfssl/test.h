@@ -441,13 +441,21 @@ static INLINE int PasswordCallBack(char* passwd, int sz, int rw, void* userdata)
 static INLINE void ShowX509(WOLFSSL_X509* x509, const char* hdr)
 {
     char* altName;
-    char* issuer  = wolfSSL_X509_NAME_oneline(
-                                       wolfSSL_X509_get_issuer_name(x509), 0, 0);
-    char* subject = wolfSSL_X509_NAME_oneline(
-                                      wolfSSL_X509_get_subject_name(x509), 0, 0);
+    char* issuer;
+    char* subject;
     byte  serial[32];
     int   ret;
     int   sz = sizeof(serial);
+
+    if (x509 == NULL) {
+        printf("%s No Cert\n", hdr);
+        return;
+    }
+
+    issuer  = wolfSSL_X509_NAME_oneline(
+                                      wolfSSL_X509_get_issuer_name(x509), 0, 0);
+    subject = wolfSSL_X509_NAME_oneline(
+                                     wolfSSL_X509_get_subject_name(x509), 0, 0);
 
     printf("%s\n issuer : %s\n subject: %s\n", hdr, issuer, subject);
 
@@ -487,6 +495,9 @@ static INLINE void showPeer(WOLFSSL* ssl)
         printf("peer has no cert!\n");
     wolfSSL_FreeX509(peer);
 #endif
+#if defined(SHOW_CERTS) && defined(OPENSSL_EXTRA)
+    ShowX509(wolfSSL_get_certificate(ssl), "our cert info:");
+#endif /* SHOW_CERTS */
     printf("SSL version is %s\n", wolfSSL_get_version(ssl));
 
     cipher = wolfSSL_get_current_cipher(ssl);

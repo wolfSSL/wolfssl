@@ -2731,6 +2731,7 @@ struct WOLFSSL {
                                             points to ctx if not owned (owned
                                             flag found in buffers.weOwnCert) */
 #endif
+    byte             keepCert;           /* keep certificate after handshake */
 #if defined(FORTRESS) || defined(HAVE_STUNNEL)
     void*           ex_data[MAX_EX_DATA]; /* external data, for Fortress */
 #endif

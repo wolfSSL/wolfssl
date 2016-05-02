@@ -2592,6 +2592,7 @@ void SSL_ResourceFree(WOLFSSL* ssl)
     }
 #endif
 #ifndef NO_CERTS
+    ssl->keepCert = 0; /* make sure certificate is free'd */
     wolfSSL_UnloadCertsKeys(ssl);
 #endif
 #ifndef NO_RSA
