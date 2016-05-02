@@ -8039,7 +8039,8 @@ int ProcessReply(WOLFSSL* ssl)
             if (ssl->options.dtls && ret == SEQUENCE_ERROR) {
                 WOLFSSL_MSG("Silently dropping out of order DTLS message");
                 ssl->options.processReply = doProcessInit;
-                ssl->buffers.inputBuffer.idx += ssl->curSize;
+                ssl->buffers.inputBuffer.length = 0;
+                ssl->buffers.inputBuffer.idx = 0;
 
                 ret = DtlsPoolSend(ssl);
                 if (ret != 0)
