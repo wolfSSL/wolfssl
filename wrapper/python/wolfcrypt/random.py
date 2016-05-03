@@ -17,15 +17,24 @@
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
-from wolfcrypt._ffi import ffi as _ffi
-from wolfcrypt._ffi import lib as _lib
+from wolfcrypt._ffi  import ffi as _ffi
+from wolfcrypt._ffi  import lib as _lib
+from wolfcrypt.utils import t2b
+
+from wolfcrypt.exceptions import *
 
 
 class Random(object):
+    """
+    A Cryptographically Secure Pseudo Random Number Generator - CSPRNG
+    """
     def __init__(self):
         self.native_object = _ffi.new("WC_RNG *")
-        if _lib.wc_InitRng(self.native_object) != 0:
+
+        ret = _lib.wc_InitRng(self.native_object)
+        if ret < 0:
             self.native_object = None
+            raise WolfCryptError("RNG init error (%d)" % ret)
 
 
     def __del__(self):
@@ -34,16 +43,26 @@ class Random(object):
 
 
     def byte(self):
-        ret = "\0"
+        """
+        Generate and return a random byte.
+        """
+        result = t2b("\0")
 
-        _lib.wc_RNG_GenerateByte(self.native_object, ret)
+        ret = _lib.wc_RNG_GenerateByte(self.native_object, result)
+        if ret < 0:
+            raise WolfCryptError("RNG generate byte error (%d)" % ret)
 
-        return ret
+        return result
 
 
     def bytes(self, length):
-        ret = "\0" * length
+        """
+        Generate and return a random sequence of length bytes.
+        """
+        result = t2b("\0" * length)
 
-        _lib.wc_RNG_GenerateBlock(self.native_object, ret, length)
+        ret = _lib.wc_RNG_GenerateBlock(self.native_object, result, length)
+        if ret < 0:
+            raise WolfCryptError("RNG generate block error (%d)" % ret)
 
-        return ret
+        return result

@@ -10,12 +10,12 @@ os.chdir(os.path.dirname(sys.argv[0]) or ".")
 
 setup(
     name="wolfcrypt",
-    version="0.0.1",
-    description="A python wrapper for the wolfCrypt API",
+    version="0.1.0",
+    description="A Python wrapper that encapsulates wolfSSL's wolfCrypt API",
     long_description=open("README.rst", "rt").read(),
-    url="https://github.com/wolfssl/wolfcrypt-py",
-    author="Moisés Guimarães",
-    author_email="moises@wolfssl.com",
+    url="https://wolfssl.github.io/wolfcrypt-py",
+    author="wolfSSL",
+    author_email="info@wolfssl.com",
     classifiers=[
         "Development Status :: 0 - Alpha",
         "Programming Language :: Python :: 2",
@@ -24,7 +24,7 @@ setup(
         "License :: GPLv2 License :: Commercial License",
     ],
     packages=find_packages(),
-    setup_requires=["cffi>=1.5.2"],
-    install_requires=["cffi>=1.5.2"],
+    setup_requires=["cffi>=1.6.0"],
+    install_requires=["cffi>=1.6.0"],
     cffi_modules=["./wolfcrypt/build_ffi.py:ffi"]
 )

@@ -19,12 +19,13 @@
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
 import unittest
 from wolfcrypt.ciphers import *
+from wolfcrypt.utils   import t2b, h2b
 
 class TestDes3(unittest.TestCase):
-    key    = "0123456789abcdeffedeba987654321089abcdef01234567".decode("hex")
-    IV     = "1234567890abcdef".decode("hex")
-    plain  = "Now is the time for all "
-    cipher = "43a0297ed184f80e8964843212d508981894157487127db0".decode("hex")
+    key    = h2b("0123456789abcdeffedeba987654321089abcdef01234567")
+    IV     = h2b("1234567890abcdef")
+    plain  = t2b("Now is the time for all ")
+    cipher = h2b("43a0297ed184f80e8964843212d508981894157487127db0")
 
 
     def setUp(self):
@@ -32,9 +33,6 @@ class TestDes3(unittest.TestCase):
 
 
     def test_raises(self):
-        # invalid construction
-        self.assertRaises(ValueError, Des3)
-
         # invalid key length
         self.assertRaises(ValueError, Des3.new, "key", MODE_CBC, self.IV)
 
@@ -54,7 +52,7 @@ class TestDes3(unittest.TestCase):
 
 
     def test_multi_encryption(self):
-        result = ""
+        result = t2b("")
         segments = tuple(self.plain[i:i + Des3.block_size] \
             for i in range(0, len(self.plain), Des3.block_size))
 
@@ -69,7 +67,7 @@ class TestDes3(unittest.TestCase):
 
 
     def test_multi_decryption(self):
-        result = ""
+        result = t2b("")
         segments = tuple(self.cipher[i:i + Des3.block_size] \
             for i in range(0, len(self.cipher), Des3.block_size))
 
@@ -82,8 +80,8 @@ class TestDes3(unittest.TestCase):
 class TestAes(unittest.TestCase):
     key    = "0123456789abcdef"
     IV     = "1234567890abcdef"
-    plain  = "now is the time "
-    cipher = "959492575f4281532ccc9d4677a233cb".decode("hex")
+    plain  = t2b("now is the time ")
+    cipher = h2b("959492575f4281532ccc9d4677a233cb")
 
 
     def setUp(self):
@@ -91,9 +89,6 @@ class TestAes(unittest.TestCase):
 
 
     def test_raises(self):
-        # invalid construction
-        self.assertRaises(ValueError, Aes)
-
         # invalid key length
         self.assertRaises(ValueError, Aes.new, "key", MODE_CBC, self.IV)
 
@@ -113,7 +108,7 @@ class TestAes(unittest.TestCase):
 
 
     def test_multi_encryption(self):
-        result = ""
+        result = t2b("")
         segments = tuple(self.plain[i:i + self.aes.block_size] \
             for i in range(0, len(self.plain), self.aes.block_size))
 
@@ -128,7 +123,7 @@ class TestAes(unittest.TestCase):
 
 
     def test_multi_decryption(self):
-        result = ""
+        result = t2b("")
         segments = tuple(self.cipher[i:i + self.aes.block_size] \
             for i in range(0, len(self.cipher), self.aes.block_size))
 
@@ -159,16 +154,16 @@ class TestRsaPrivate(unittest.TestCase):
         + "3989E59C195530BAB7488C48140EF49F7E779743E1B419353123759C3B44AD69" \
         + "1256EE0061641666D37C742B15B4A2FEBF086B1A5D3F9012B105863129DBD9E2"
 
-    plain = "Everyone gets Friday off."
+    plain = t2b("Everyone gets Friday off.")
 
 
     def setUp(self):
-        self.rsa = RsaPrivate(self.key.decode("hex"))
+        self.rsa = RsaPrivate(h2b(self.key))
 
 
     def test_raises(self):
         # invalid key
-        self.assertRaises(KeyError, RsaPrivate, 'key')
+        self.assertRaises(WolfCryptError, RsaPrivate, 'key')
 
 
     def test_output_size(self):
@@ -218,17 +213,17 @@ class TestRsaPublic(unittest.TestCase):
         + "38CC39A20466B4F7F7F3AADA4D020EBB5E8D6948DC77C9280E22E96BA426BA4C" \
         + "E8C1FD4A6F2B1FEF8AAEF69062E5641EEB2B3C67C8DC2700F6916865A90203010001"
 
-    plain = "Everyone gets Friday off."
+    plain = t2b("Everyone gets Friday off.")
 
 
     def setUp(self):
-        self.private = RsaPrivate(self.prv.decode("hex"))
-        self.public  = RsaPublic(self.pub.decode("hex"))
+        self.private = RsaPrivate(h2b(self.prv))
+        self.public  = RsaPublic(h2b(self.pub))
 
 
     def test_raises(self):
         # invalid key
-        self.assertRaises(KeyError, RsaPublic, 'key')
+        self.assertRaises(WolfCryptError, RsaPublic, 'key')
 
 
     def test_output_size(self):

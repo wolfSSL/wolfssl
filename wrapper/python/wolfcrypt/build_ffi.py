@@ -1,4 +1,4 @@
-# build_random.py
+# build_ffi.py
 #
 # Copyright (C) 2006-2016 wolfSSL Inc.
 #

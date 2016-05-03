@@ -5,7 +5,11 @@ __pycache__/
 
 # Distribution
 build/
+dist/
+.eggs/
 *.egg-info/
 
 # Unit test
 .tox/
+# Sphinx documentation
+docs/_build/
