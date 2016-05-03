@@ -344,6 +344,8 @@ int StartTLS_Init(SOCKET_T* sockfd)
     if (sockfd == NULL)
         return BAD_FUNC_ARG;
 
+    XMEMSET(tmpBuf, 0, sizeof(tmpBuf));
+
     /* S: 220 <host> SMTP service ready */
     if (recv(*sockfd, tmpBuf, sizeof(tmpBuf), 0) < 0)
         err_sys("failed to read STARTTLS command\n");
@@ -357,7 +359,7 @@ int StartTLS_Init(SOCKET_T* sockfd)
 
     /* C: EHLO mail.example.com */
     if (send(*sockfd, starttlsCmd[1], (int)XSTRLEN(starttlsCmd[1]), 0) !=
-              (word32)XSTRLEN(starttlsCmd[1]))
+              (int)XSTRLEN(starttlsCmd[1]))
         err_sys("failed to send STARTTLS EHLO command\n");
 
     /* S: 250 <host> offers a warm hug of welcome */
@@ -373,7 +375,7 @@ int StartTLS_Init(SOCKET_T* sockfd)
 
     /* C: STARTTLS */
     if (send(*sockfd, starttlsCmd[3], (int)XSTRLEN(starttlsCmd[3]), 0) !=
-              (word32)XSTRLEN(starttlsCmd[3])) {
+              (int)XSTRLEN(starttlsCmd[3])) {
         err_sys("failed to send STARTTLS command\n");
     }
 
