@@ -1,0 +1,23 @@
+#-----------------------------------------------------------------------------#
+wolfSSL + embOS + IAR Workbench
+#-----------------------------------------------------------------------------#
+
+#-----------------------------------------------------------------------------#
+For building the existing examples on a SAMV71_Explained_Ultra with Cortex M7
+#-----------------------------------------------------------------------------#
+see README_SAMV71
+
+#-----------------------------------------------------------------------------#
+For building wolfssl on a new CPU that is supported by embOS in IAR Workbench
+#-----------------------------------------------------------------------------#
+see README_custom_port
+
+
+
+Thank you for choosing wolfSSL if you ever have any questions please contact us!
+
+support@wolfssl.com
+info@wolfssl.com
+
+Copyright © 2016 wolfSSL Inc.  All rights reserved.
+

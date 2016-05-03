@@ -1,0 +1,13 @@
+"--endian=little" 
+
+"--cpu=Cortex-M7" 
+
+"--fpu=VFPv5_D16" 
+
+"--semihosting" 
+
+"--multicore_nr_of_cores=1" 
+
+
+
+

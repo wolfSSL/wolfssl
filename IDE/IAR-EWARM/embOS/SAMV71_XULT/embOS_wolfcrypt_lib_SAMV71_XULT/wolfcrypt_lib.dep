@@ -1,0 +1,906 @@
+<?xml version="1.0" encoding="iso-8859-1"?>
+
+<project>
+  <fileVersion>2</fileVersion>
+  <fileChecksum>2537152460</fileChecksum>
+  <configuration>
+    <name>Debug</name>
+    <outputs>
+      <file>$PROJ_DIR$\..\..\..\..\..\wolfcrypt\src\aes.c</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\wolfcrypt\src\asn.c</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\wolfcrypt\src\chacha20_poly1305.c</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\wolfcrypt\src\dsa.c</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\wolfcrypt\src\chacha.c</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\wolfcrypt\src\des3.c</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\wolfcrypt\src\coding.c</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\wolfcrypt\src\dh.c</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\wolfcrypt\src\random.c</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\wolfcrypt\src\hmac.c</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\wolfcrypt\src\md5.c</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\wolfcrypt\src\hash.c</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\wolfcrypt\src\poly1305.c</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\wolfcrypt\src\rsa.c</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\wolfcrypt\src\sha256.c</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\wolfcrypt\src\pwdbased.c</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\wolfcrypt\src\rabbit.c</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\wolfcrypt\src\misc.c</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\wolfcrypt\src\memory.c</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\wolfcrypt\src\sha.c</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\wolfcrypt\src\ecc.c</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\wolfcrypt\src\md4.c</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\wolfssl\wolfcrypt\hmac.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\wolfssl\wolfcrypt\sha.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\wolfssl\wolfcrypt\md2.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\wolfssl\wolfcrypt\wc_port.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\wolfssl\wolfcrypt\md4.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\wolfssl\wolfcrypt\asn_public.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\wolfssl\wolfcrypt\aes.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\wolfcrypt\src\wc_encrypt.c</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\wolfssl\wolfcrypt\sha256.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\wolfssl\wolfcrypt\dh.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\wolfssl\wolfcrypt\random.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\wolfssl\wolfcrypt\logging.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\wolfssl\wolfcrypt\md5.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\wolfcrypt\src\tfm.c</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\wolfcrypt\src\wc_port.c</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\wolfssl\wolfcrypt\integer.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\wolfssl\wolfcrypt\misc.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\wolfssl\wolfcrypt\pwdbased.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\wolfssl\wolfcrypt\coding.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\wolfssl\wolfcrypt\asn.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\wolfssl\wolfcrypt\des3.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\wolfssl\wolfcrypt\rsa.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\wolfcrypt\src\sha512.c</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\wolfssl\wolfcrypt\types.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\wolfssl\wolfcrypt\error-crypt.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\wolfssl\wolfcrypt\memory.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\wolfssl\wolfcrypt\visibility.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\wolfssl\wolfcrypt\settings.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\wolfssl\openssl\bn.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\wolfssl\wolfcrypt\dsa.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\wolfssl\wolfcrypt\chacha20_poly1305.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\wolfssl\wolfcrypt\poly1305.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\wolfssl\ssl.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\wolfssl\wolfcrypt\hash.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\wolfssl\openssl\ssl.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\wolfssl\openssl\ec.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\wolfssl\wolfcrypt\ecc.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\wolfssl\wolfcrypt\chacha.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\wolfssl\version.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\wolfssl\wolfcrypt\tfm.h</file>
+      <file>$PROJ_DIR$\Debug\Obj\dsa.__cstat.et</file>
+      <file>$TOOLKIT_DIR$\inc\c\ycheck.h</file>
+      <file>$PROJ_DIR$\Debug\Obj\sha512.__cstat.et</file>
+      <file>$PROJ_DIR$\Debug\Obj\asn.__cstat.et</file>
+      <file>$TOOLKIT_DIR$\inc\c\DLib_Defaults.h</file>
+      <file>$PROJ_DIR$\Debug\Obj\sha.__cstat.et</file>
+      <file>$TOOLKIT_DIR$\inc\c\ysizet.h</file>
+      <file>$PROJ_DIR$\Debug\Obj\misc.__cstat.et</file>
+      <file>$PROJ_DIR$\Debug\Obj\memory.__cstat.et</file>
+      <file>$PROJ_DIR$\Debug\Obj\coding.__cstat.et</file>
+      <file>$TOOLKIT_DIR$\inc\c\xencoding_limits.h</file>
+      <file>$PROJ_DIR$\Debug\Obj\pwdbased.pbi</file>
+      <file>$PROJ_DIR$\Debug\Obj\hash.__cstat.et</file>
+      <file>$PROJ_DIR$\..\embOS_SAMV71_XULT_user_settings\user_settings.h</file>
+      <file>$TOOLKIT_DIR$\inc\c\DLib_Config_Normal.h</file>
+      <file>$PROJ_DIR$\Debug\Obj\hash.pbi</file>
+      <file>$TOOLKIT_DIR$\inc\c\yvals.h</file>
+      <file>$PROJ_DIR$\Debug\Obj\dsa.o</file>
+      <file>$TOOLKIT_DIR$\inc\c\time.h</file>
+      <file>$PROJ_DIR$\Debug\Obj\sha512.pbi</file>
+      <file>$PROJ_DIR$\Debug\Obj\des3.__cstat.et</file>
+      <file>$PROJ_DIR$\Debug\Obj\sha256.__cstat.et</file>
+      <file>$PROJ_DIR$\Debug\Obj\wc_encrypt.__cstat.et</file>
+      <file>$PROJ_DIR$\Debug\Obj\wc_encrypt.pbi</file>
+      <file>$PROJ_DIR$\Debug\Obj\rsa.__cstat.et</file>
+      <file>$PROJ_DIR$\Debug\Obj\md5.__cstat.et</file>
+      <file>$TOOLKIT_DIR$\inc\c\math.h</file>
+      <file>$TOOLKIT_DIR$\inc\c\DLib_Product.h</file>
+      <file>$PROJ_DIR$\Debug\Obj\hmac.__cstat.et</file>
+      <file>$PROJ_DIR$\Debug\Obj\dh.__cstat.et</file>
+      <file>$PROJ_DIR$\Debug\Obj\sha.pbi</file>
+      <file>$PROJ_DIR$\Debug\Obj\chacha20_poly1305.__cstat.et</file>
+      <file>$PROJ_DIR$\Debug\Obj\wc_port.__cstat.et</file>
+      <file>$PROJ_DIR$\Debug\Obj\rabbit.__cstat.et</file>
+      <file>$PROJ_DIR$\Debug\Obj\memory.pbi</file>
+      <file>$PROJ_DIR$\Debug\Obj\wc_port.pbi</file>
+      <file>$PROJ_DIR$\Debug\Obj\hmac.pbi</file>
+      <file>$PROJ_DIR$\Debug\Obj\md4.o</file>
+      <file>$PROJ_DIR$\Debug\Obj\md4.__cstat.et</file>
+      <file>$TOOLKIT_DIR$\inc\c\limits.h</file>
+      <file>$TOOLKIT_DIR$\inc\c\xtgmath.h</file>
+      <file>$PROJ_DIR$\Debug\Obj\sha.o</file>
+      <file>$PROJ_DIR$\Debug\Obj\aes.__cstat.et</file>
+      <file>$PROJ_DIR$\Debug\Obj\dsa.pbi</file>
+      <file>$PROJ_DIR$\Debug\Obj\chacha.__cstat.et</file>
+      <file>$PROJ_DIR$\Debug\Obj\tfm.__cstat.et</file>
+      <file>$TOOLKIT_DIR$\inc\c\DLib_Product_string.h</file>
+      <file>$PROJ_DIR$\Debug\Obj\md5.pbi</file>
+      <file>$PROJ_DIR$\Debug\Obj\md4.pbi</file>
+      <file>$PROJ_DIR$\Debug\Obj\random.__cstat.et</file>
+      <file>$PROJ_DIR$\Debug\Obj\des3.o</file>
+      <file>$TOOLKIT_DIR$\inc\c\xlocale.h</file>
+      <file>$PROJ_DIR$\Debug\Obj\poly1305.o</file>
+      <file>$PROJ_DIR$\Debug\Obj\hmac.o</file>
+      <file>$PROJ_DIR$\Debug\Obj\dh.pbi</file>
+      <file>$PROJ_DIR$\Debug\Obj\pwdbased.__cstat.et</file>
+      <file>$PROJ_DIR$\Debug\Obj\wolfcrypt_lib.pbd</file>
+      <file>$PROJ_DIR$\Debug\Obj\ecc.pbi</file>
+      <file>$PROJ_DIR$\Debug\Obj\chacha20_poly1305.pbi</file>
+      <file>$PROJ_DIR$\Debug\Obj\memory.o</file>
+      <file>$PROJ_DIR$\Debug\Obj\hash.o</file>
+      <file>$PROJ_DIR$\Debug\Obj\rabbit.pbi</file>
+      <file>$PROJ_DIR$\Debug\Obj\asn.o</file>
+      <file>$PROJ_DIR$\Debug\Obj\aes.pbi</file>
+      <file>$PROJ_DIR$\Debug\Obj\coding.o</file>
+      <file>$TOOLKIT_DIR$\inc\c\xlocale_c.h</file>
+      <file>$PROJ_DIR$\Debug\Obj\coding.pbi</file>
+      <file>$TOOLKIT_DIR$\inc\c\ctype.h</file>
+      <file>$TOOLKIT_DIR$\inc\c\stdlib.h</file>
+      <file>$PROJ_DIR$\Debug\Obj\chacha.o</file>
+      <file>$PROJ_DIR$\Debug\Obj\tfm.pbi</file>
+      <file>$TOOLKIT_DIR$\inc\c\string.h</file>
+      <file>$PROJ_DIR$\Debug\Obj\md5.o</file>
+      <file>$PROJ_DIR$\Debug\Obj\random.o</file>
+      <file>$PROJ_DIR$\Debug\Obj\misc.pbi</file>
+      <file>$PROJ_DIR$\Debug\Obj\poly1305.pbi</file>
+      <file>$PROJ_DIR$\Debug\Obj\chacha.pbi</file>
+      <file>$PROJ_DIR$\Debug\Obj\sha256.pbi</file>
+      <file>$PROJ_DIR$\Debug\Obj\poly1305.__cstat.et</file>
+      <file>$PROJ_DIR$\Debug\Obj\sha512.o</file>
+      <file>$PROJ_DIR$\Debug\Bin\wolfcrypt_lib.a</file>
+      <file>$PROJ_DIR$\Debug\Obj\ecc.__cstat.et</file>
+      <file>$PROJ_DIR$\Debug\Obj\chacha20_poly1305.o</file>
+      <file>$PROJ_DIR$\Debug\Obj\pwdbased.o</file>
+      <file>$PROJ_DIR$\Debug\Obj\rsa.pbi</file>
+      <file>$PROJ_DIR$\Debug\Obj\wc_encrypt.o</file>
+      <file>$PROJ_DIR$\Debug\Obj\aes.o</file>
+      <file>$TOOLKIT_DIR$\inc\c\ymath.h</file>
+      <file>$PROJ_DIR$\Debug\Obj\misc.o</file>
+      <file>$PROJ_DIR$\Debug\Obj\dh.o</file>
+      <file>$PROJ_DIR$\Debug\Obj\ecc.o</file>
+      <file>$PROJ_DIR$\Debug\Obj\random.pbi</file>
+      <file>$TOOLKIT_DIR$\inc\c\xlocaleuse.h</file>
+      <file>$PROJ_DIR$\Debug\Obj\rsa.o</file>
+      <file>$PROJ_DIR$\Debug\Obj\asn.pbi</file>
+      <file>$TOOLKIT_DIR$\inc\c\DLib_Threads.h</file>
+      <file>$TOOLKIT_DIR$\inc\c\xmtx.h</file>
+      <file>$PROJ_DIR$\Debug\Obj\rabbit.o</file>
+      <file>$PROJ_DIR$\Debug\Obj\des3.pbi</file>
+      <file>$TOOLKIT_DIR$\inc\c\wchar.h</file>
+      <file>$TOOLKIT_DIR$\inc\c\xtls.h</file>
+      <file>$PROJ_DIR$\Debug\Obj\wc_port.o</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\wolfssl\wolfcrypt\rabbit.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\wolfssl\wolfcrypt\wc_encrypt.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\wolfcrypt\src\asm.c</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\wolfssl\wolfcrypt\sha512.h</file>
+      <file>$PROJ_DIR$\Debug\Obj\tfm.o</file>
+      <file>$PROJ_DIR$\Debug\Obj\sha256.o</file>
+      <file>$PROJ_DIR$\..\embOS_wolfcrypt_test_SAMV71_XULT\Application\runWolfcryptTests.c</file>
+    </outputs>
+    <file>
+      <name>[ROOT_NODE]</name>
+      <outputs>
+        <tool>
+          <name>IARCHIVE</name>
+          <file> 142</file>
+        </tool>
+      </outputs>
+    </file>
+    <file>
+      <name>$PROJ_DIR$\..\..\..\..\..\wolfcrypt\src\aes.c</name>
+      <outputs>
+        <tool>
+          <name>BICOMP</name>
+          <file> 125</file>
+        </tool>
+        <tool>
+          <name>ICCARM</name>
+          <file> 148</file>
+        </tool>
+        <tool>
+          <name>__cstat</name>
+          <file> 104</file>
+        </tool>
+      </outputs>
+      <inputs>
+        <tool>
+          <name>BICOMP</name>
+          <file> 63 48 129 133 127 130 47 45 78 108 113 46 75 49 68 157 28 33 38 25 72 66 76 89 162 154 158 161</file>
+        </tool>
+        <tool>
+          <name>ICCARM</name>
+          <file> 49 48 75 28 45 25 47 130 63 78 66 76 89 72 157 68 133 108 129 113 162 158 154 127 161 46 33 38</file>
+        </tool>
+      </inputs>
+    </file>
+    <file>
+      <name>$PROJ_DIR$\..\..\..\..\..\wolfcrypt\src\asn.c</name>
+      <outputs>
+        <tool>
+          <name>BICOMP</name>
+          <file> 156</file>
+        </tool>
+        <tool>
+          <name>ICCARM</name>
+          <file> 124</file>
+        </tool>
+        <tool>
+          <name>__cstat</name>
+          <file> 65</file>
+        </tool>
+      </outputs>
+      <inputs>
+        <tool>
+          <name>BICOMP</name>
+          <file> 37 49 167 61 45 58 33 48 68 22 38 63 40 39 55 80 23 157 78 32 41 24 46 42 30 75 31 47 133 129 108 113 127 130 34 43 51 27 25 72 66 76 89 162 154 158 161 101</file>
+        </tool>
+        <tool>
+          <name>ICCARM</name>
+          <file> 49 48 75 41 45 25 47 130 63 78 66 76 89 72 157 68 133 108 129 113 162 158 154 127 161 37 61 101 32 30 43 55 34 23 167 31 51 27 58 40 24 22 46 39 42 33 38 80</file>
+        </tool>
+      </inputs>
+    </file>
+    <file>
+      <name>$PROJ_DIR$\..\..\..\..\..\wolfcrypt\src\chacha20_poly1305.c</name>
+      <outputs>
+        <tool>
+          <name>BICOMP</name>
+          <file> 120</file>
+        </tool>
+        <tool>
+          <name>ICCARM</name>
+          <file> 144</file>
+        </tool>
+        <tool>
+          <name>__cstat</name>
+          <file> 93</file>
+        </tool>
+      </outputs>
+      <inputs>
+        <tool>
+          <name>BICOMP</name>
+          <file> 78 66 63 46 75 89 59 48 25 130 72 76 162 158 52 33 53 38 45 49 47 133 129 68 157 154 161 108 113 127</file>
+        </tool>
+        <tool>
+          <name>ICCARM</name>
+          <file> 49 48 75 52 45 25 47 130 63 78 66 76 89 72 157 68 133 108 129 113 162 158 154 127 161 46 33 59 53 38</file>
+        </tool>
+      </inputs>
+    </file>
+    <file>
+      <name>$PROJ_DIR$\..\..\..\..\..\wolfcrypt\src\dsa.c</name>
+      <outputs>
+        <tool>
+          <name>BICOMP</name>
+          <file> 105</file>
+        </tool>
+        <tool>
+          <name>ICCARM</name>
+          <file> 79</file>
+        </tool>
+        <tool>
+          <name>__cstat</name>
+          <file> 62</file>
+        </tool>
+      </outputs>
+      <inputs>
+        <tool>
+          <name>BICOMP</name>
+          <file> 108 25 72 78 37 33 130 63 113 45 51 127 32 46 23 48 75 30 49 47 133 129 68 157 101 66 76 89 162 154 158 161 61</file>
+        </tool>
+        <tool>
+          <name>ICCARM</name>
+          <file> 49 48 75 32 45 25 47 130 63 78 66 76 89 72 157 68 133 108 129 113 162 158 154 127 161 30 37 61 101 46 33 23 51</file>
+        </tool>
+      </inputs>
+    </file>
+    <file>
+      <name>$PROJ_DIR$\..\..\..\..\..\wolfcrypt\src\chacha.c</name>
+      <outputs>
+        <tool>
+          <name>BICOMP</name>
+          <file> 138</file>
+        </tool>
+        <tool>
+          <name>ICCARM</name>
+          <file> 131</file>
+        </tool>
+        <tool>
+          <name>__cstat</name>
+          <file> 106</file>
+        </tool>
+      </outputs>
+      <inputs>
+        <tool>
+          <name>BICOMP</name>
+          <file> 113 75 133 129 45 33 47 63 78 108 59 38 48 49 68 157 127 130 46 25 72 66 76 89 162 154 158 161</file>
+        </tool>
+        <tool>
+          <name>ICCARM</name>
+          <file> 49 48 75 59 45 25 47 130 63 78 66 76 89 72 157 68 133 108 129 113 162 158 154 127 161 46 33 38</file>
+        </tool>
+      </inputs>
+    </file>
+    <file>
+      <name>$PROJ_DIR$\..\..\..\..\..\wolfcrypt\src\des3.c</name>
+      <outputs>
+        <tool>
+          <name>BICOMP</name>
+          <file> 160</file>
+        </tool>
+        <tool>
+          <name>ICCARM</name>
+          <file> 112</file>
+        </tool>
+        <tool>
+          <name>__cstat</name>
+          <file> 82</file>
+        </tool>
+      </outputs>
+      <inputs>
+        <tool>
+          <name>BICOMP</name>
+          <file> 75 133 129 63 47 127 130 45 46 48 49 78 108 113 42 33 38 25 68 157 72 66 76 89 162 154 158 161</file>
+        </tool>
+        <tool>
+          <name>ICCARM</name>
+          <file> 49 48 75 42 45 25 47 130 63 78 66 76 89 72 157 68 133 108 129 113 162 158 154 127 161 46 33 38</file>
+        </tool>
+      </inputs>
+    </file>
+    <file>
+      <name>$PROJ_DIR$\..\..\..\..\..\wolfcrypt\src\coding.c</name>
+      <outputs>
+        <tool>
+          <name>BICOMP</name>
+          <file> 128</file>
+        </tool>
+        <tool>
+          <name>ICCARM</name>
+          <file> 126</file>
+        </tool>
+        <tool>
+          <name>__cstat</name>
+          <file> 71</file>
+        </tool>
+      </outputs>
+      <inputs>
+        <tool>
+          <name>BICOMP</name>
+          <file> 113 48 63 49 68 45 78 108 46 75 47 133 129 127 130 40 33 25 72 157 66 76 89 162 154 158 161</file>
+        </tool>
+        <tool>
+          <name>ICCARM</name>
+          <file> 49 48 75 40 45 25 47 130 63 78 66 76 89 72 157 68 133 108 129 113 162 158 154 127 161 46 33</file>
+        </tool>
+      </inputs>
+    </file>
+    <file>
+      <name>$PROJ_DIR$\..\..\..\..\..\wolfcrypt\src\dh.c</name>
+      <outputs>
+        <tool>
+          <name>BICOMP</name>
+          <file> 116</file>
+        </tool>
+        <tool>
+          <name>ICCARM</name>
+          <file> 151</file>
+        </tool>
+        <tool>
+          <name>__cstat</name>
+          <file> 91</file>
+        </tool>
+      </outputs>
+      <inputs>
+        <tool>
+          <name>BICOMP</name>
+          <file> 102 133 45 129 63 127 130 78 32 47 108 113 46 49 48 68 157 61 31 88 75 37 25 72 66 76 89 162 154 158 161 101 30 149</file>
+        </tool>
+        <tool>
+          <name>ICCARM</name>
+          <file> 49 48 75 31 45 25 47 130 63 78 66 76 89 72 157 68 133 108 129 113 162 158 154 127 161 37 61 101 32 30 46 88 149 102</file>
+        </tool>
+      </inputs>
+    </file>
+    <file>
+      <name>$PROJ_DIR$\..\..\..\..\..\wolfcrypt\src\random.c</name>
+      <outputs>
+        <tool>
+          <name>BICOMP</name>
+          <file> 153</file>
+        </tool>
+        <tool>
+          <name>ICCARM</name>
+          <file> 135</file>
+        </tool>
+        <tool>
+          <name>__cstat</name>
+          <file> 111</file>
+        </tool>
+      </outputs>
+      <inputs>
+        <tool>
+          <name>BICOMP</name>
+          <file> 30 108 38 78 48 49 45 63 113 75 47 133 129 127 130 32 46 25 68 157 72 66 76 89 162 154 158 161</file>
+        </tool>
+        <tool>
+          <name>ICCARM</name>
+          <file> 49 48 75 32 45 25 47 130 63 78 66 76 89 72 157 68 133 108 129 113 162 158 154 127 161 30 46 38</file>
+        </tool>
+      </inputs>
+    </file>
+    <file>
+      <name>$PROJ_DIR$\..\..\..\..\..\wolfcrypt\src\hmac.c</name>
+      <outputs>
+        <tool>
+          <name>BICOMP</name>
+          <file> 98</file>
+        </tool>
+        <tool>
+          <name>ICCARM</name>
+          <file> 115</file>
+        </tool>
+        <tool>
+          <name>__cstat</name>
+          <file> 90</file>
+        </tool>
+      </outputs>
+      <inputs>
+        <tool>
+          <name>BICOMP</name>
+          <file> 45 113 63 47 78 108 46 23 133 129 127 130 22 48 75 49 68 157 34 30 167 25 72 66 76 89 162 154 158 161</file>
+        </tool>
+        <tool>
+          <name>ICCARM</name>
+          <file> 49 48 75 22 45 25 47 130 63 78 66 76 89 72 157 68 133 108 129 113 162 158 154 127 161 34 23 30 167 46</file>
+        </tool>
+      </inputs>
+    </file>
+    <file>
+      <name>$PROJ_DIR$\..\..\..\..\..\wolfcrypt\src\md5.c</name>
+      <outputs>
+        <tool>
+          <name>BICOMP</name>
+          <file> 109</file>
+        </tool>
+        <tool>
+          <name>ICCARM</name>
+          <file> 134</file>
+        </tool>
+        <tool>
+          <name>__cstat</name>
+          <file> 87</file>
+        </tool>
+      </outputs>
+      <inputs>
+        <tool>
+          <name>BICOMP</name>
+          <file> 63 162 49 48 68 78 38 157 158 46 45 47 133 129 34 75 25 130 72 66 76 89 154 161 108 113 127</file>
+        </tool>
+        <tool>
+          <name>ICCARM</name>
+          <file> 49 48 75 34 45 25 47 130 63 78 66 76 89 72 157 68 133 108 129 113 162 158 154 127 161 46 38</file>
+        </tool>
+      </inputs>
+    </file>
+    <file>
+      <name>$PROJ_DIR$\..\..\..\..\..\wolfcrypt\src\hash.c</name>
+      <outputs>
+        <tool>
+          <name>BICOMP</name>
+          <file> 77</file>
+        </tool>
+        <tool>
+          <name>ICCARM</name>
+          <file> 122</file>
+        </tool>
+        <tool>
+          <name>__cstat</name>
+          <file> 74</file>
+        </tool>
+      </outputs>
+      <inputs>
+        <tool>
+          <name>BICOMP</name>
+          <file> 45 127 130 133 129 63 27 55 47 78 108 113 51 23 32 46 49 48 68 157 43 34 58 101 30 33 41 75 25 72 66 76 89 162 154 158 161 37 31 61 167</file>
+        </tool>
+        <tool>
+          <name>ICCARM</name>
+          <file> 49 48 75 33 45 25 47 130 63 78 66 76 89 72 157 68 133 108 129 113 162 158 154 127 161 46 41 37 61 101 32 30 43 55 34 23 167 31 51 27 58</file>
+        </tool>
+      </inputs>
+    </file>
+    <file>
+      <name>$PROJ_DIR$\..\..\..\..\..\wolfcrypt\src\poly1305.c</name>
+      <outputs>
+        <tool>
+          <name>BICOMP</name>
+          <file> 137</file>
+        </tool>
+        <tool>
+          <name>ICCARM</name>
+          <file> 114</file>
+        </tool>
+        <tool>
+          <name>__cstat</name>
+          <file> 140</file>
+        </tool>
+      </outputs>
+      <inputs>
+        <tool>
+          <name>BICOMP</name>
+          <file> 133 129 63 33 127 130 45 53 38 47 78 108 113 46 49 48 68 157 75 25 72 66 76 89 162 154 158 161</file>
+        </tool>
+        <tool>
+          <name>ICCARM</name>
+          <file> 49 48 75 53 45 25 47 130 63 78 66 76 89 72 157 68 133 108 129 113 162 158 154 127 161 46 33 38</file>
+        </tool>
+      </inputs>
+    </file>
+    <file>
+      <name>$PROJ_DIR$\..\..\..\..\..\wolfcrypt\src\rsa.c</name>
+      <outputs>
+        <tool>
+          <name>BICOMP</name>
+          <file> 146</file>
+        </tool>
+        <tool>
+          <name>ICCARM</name>
+          <file> 155</file>
+        </tool>
+        <tool>
+          <name>__cstat</name>
+          <file> 86</file>
+        </tool>
+      </outputs>
+      <inputs>
+        <tool>
+          <name>BICOMP</name>
+          <file> 63 45 47 34 33 133 129 61 32 38 49 48 68 157 78 30 43 46 75 37 55 25 130 72 108 113 127 23 66 76 89 162 154 158 161 101 167</file>
+        </tool>
+        <tool>
+          <name>ICCARM</name>
+          <file> 49 48 75 43 45 25 47 130 63 78 66 76 89 72 157 68 133 108 129 113 162 158 154 127 161 37 61 101 32 30 55 34 23 167 46 33 38</file>
+        </tool>
+      </inputs>
+    </file>
+    <file>
+      <name>$PROJ_DIR$\..\..\..\..\..\wolfcrypt\src\sha256.c</name>
+      <outputs>
+        <tool>
+          <name>BICOMP</name>
+          <file> 139</file>
+        </tool>
+        <tool>
+          <name>ICCARM</name>
+          <file> 169</file>
+        </tool>
+        <tool>
+          <name>__cstat</name>
+          <file> 83</file>
+        </tool>
+      </outputs>
+      <inputs>
+        <tool>
+          <name>BICOMP</name>
+          <file> 38 75 25 72 127 130 76 63 46 48 78 66 89 108 113 45 30 33 49 47 133 129 68 157 162 154 158 161</file>
+        </tool>
+        <tool>
+          <name>ICCARM</name>
+          <file> 49 48 75 30 45 25 47 130 63 78 66 76 89 72 157 68 133 108 129 113 162 158 154 127 161 33 46 38</file>
+        </tool>
+      </inputs>
+    </file>
+    <file>
+      <name>$PROJ_DIR$\..\..\..\..\..\wolfcrypt\src\pwdbased.c</name>
+      <outputs>
+        <tool>
+          <name>BICOMP</name>
+          <file> 73</file>
+        </tool>
+        <tool>
+          <name>ICCARM</name>
+          <file> 145</file>
+        </tool>
+        <tool>
+          <name>__cstat</name>
+          <file> 117</file>
+        </tool>
+      </outputs>
+      <inputs>
+        <tool>
+          <name>BICOMP</name>
+          <file> 63 162 72 76 78 45 130 158 167 46 25 34 22 23 66 89 154 161 30 101 39 37 38 48 75 49 47 133 129 68 157 108 113 127 61 32</file>
+        </tool>
+        <tool>
+          <name>ICCARM</name>
+          <file> 49 48 75 39 45 25 47 130 63 78 66 76 89 72 157 68 133 108 129 113 162 158 154 127 161 34 23 22 30 167 37 61 101 32 46 38</file>
+        </tool>
+      </inputs>
+    </file>
+    <file>
+      <name>$PROJ_DIR$\..\..\..\..\..\wolfcrypt\src\rabbit.c</name>
+      <outputs>
+        <tool>
+          <name>BICOMP</name>
+          <file> 123</file>
+        </tool>
+        <tool>
+          <name>ICCARM</name>
+          <file> 159</file>
+        </tool>
+        <tool>
+          <name>__cstat</name>
+          <file> 95</file>
+        </tool>
+      </outputs>
+      <inputs>
+        <tool>
+          <name>BICOMP</name>
+          <file> 48 63 49 68 127 130 45 46 75 47 133 129 78 108 113 164 33 38 25 72 157 66 76 89 162 154 158 161</file>
+        </tool>
+        <tool>
+          <name>ICCARM</name>
+          <file> 49 48 75 164 45 25 47 130 63 78 66 76 89 72 157 68 133 108 129 113 162 158 154 127 161 46 33 38</file>
+        </tool>
+      </inputs>
+    </file>
+    <file>
+      <name>$PROJ_DIR$\..\..\..\..\..\wolfcrypt\src\misc.c</name>
+      <outputs>
+        <tool>
+          <name>BICOMP</name>
+          <file> 136</file>
+        </tool>
+        <tool>
+          <name>ICCARM</name>
+          <file> 150</file>
+        </tool>
+        <tool>
+          <name>__cstat</name>
+          <file> 69</file>
+        </tool>
+      </outputs>
+      <inputs>
+        <tool>
+          <name>BICOMP</name>
+          <file> 130 45 72 76 63 158 162 78 38 25 66 89 48 75 49 47 133 129 68 157 108 154 161 113 127</file>
+        </tool>
+        <tool>
+          <name>ICCARM</name>
+          <file> 49 48 75 38 45 25 47 130 63 78 66 76 89 72 157 68 133 108 129 113 162 158 154 127 161</file>
+        </tool>
+      </inputs>
+    </file>
+    <file>
+      <name>$PROJ_DIR$\..\..\..\..\..\wolfcrypt\src\memory.c</name>
+      <outputs>
+        <tool>
+          <name>BICOMP</name>
+          <file> 96</file>
+        </tool>
+        <tool>
+          <name>ICCARM</name>
+          <file> 121</file>
+        </tool>
+        <tool>
+          <name>__cstat</name>
+          <file> 70</file>
+        </tool>
+      </outputs>
+      <inputs>
+        <tool>
+          <name>BICOMP</name>
+          <file> 72 68 78 46 48 130 76 63 75 66 89 25 108 162 158 47 45 157 49 133 129 154 161 113 127</file>
+        </tool>
+        <tool>
+          <name>ICCARM</name>
+          <file> 49 48 75 47 130 63 78 66 76 89 72 157 68 45 25 133 108 129 113 162 158 154 127 161 46</file>
+        </tool>
+      </inputs>
+    </file>
+    <file>
+      <name>$PROJ_DIR$\..\..\..\..\..\wolfcrypt\src\sha.c</name>
+      <outputs>
+        <tool>
+          <name>BICOMP</name>
+          <file> 92</file>
+        </tool>
+        <tool>
+          <name>ICCARM</name>
+          <file> 103</file>
+        </tool>
+        <tool>
+          <name>__cstat</name>
+          <file> 67</file>
+        </tool>
+      </outputs>
+      <inputs>
+        <tool>
+          <name>BICOMP</name>
+          <file> 157 127 130 49 48 68 63 33 45 47 133 129 78 108 113 23 46 38 75 25 72 66 76 89 162 154 158 161</file>
+        </tool>
+        <tool>
+          <name>ICCARM</name>
+          <file> 49 48 75 23 45 25 47 130 63 78 66 76 89 72 157 68 133 108 129 113 162 158 154 127 161 33 46 38</file>
+        </tool>
+      </inputs>
+    </file>
+    <file>
+      <name>$PROJ_DIR$\..\..\..\..\..\wolfcrypt\src\ecc.c</name>
+      <outputs>
+        <tool>
+          <name>BICOMP</name>
+          <file> 119</file>
+        </tool>
+        <tool>
+          <name>ICCARM</name>
+          <file> 152</file>
+        </tool>
+        <tool>
+          <name>__cstat</name>
+          <file> 143</file>
+        </tool>
+      </outputs>
+      <inputs>
+        <tool>
+          <name>BICOMP</name>
+          <file> 78 23 33 157 68 63 32 167 58 48 49 61 50 45 41 38 75 47 133 129 108 113 127 130 54 37 57 46 25 72 66 76 89 162 154 158 161 101 30 56 60 31 55 43 51 34 27</file>
+        </tool>
+        <tool>
+          <name>ICCARM</name>
+          <file> 49 48 75 58 45 25 47 130 63 78 66 76 89 72 157 68 133 108 129 113 162 158 154 127 161 37 61 101 32 30 57 56 54 60 50 41 43 55 34 23 167 31 51 27 46 33 38</file>
+        </tool>
+      </inputs>
+    </file>
+    <file>
+      <name>$PROJ_DIR$\..\..\..\..\..\wolfcrypt\src\md4.c</name>
+      <outputs>
+        <tool>
+          <name>BICOMP</name>
+          <file> 110</file>
+        </tool>
+        <tool>
+          <name>ICCARM</name>
+          <file> 99</file>
+        </tool>
+        <tool>
+          <name>__cstat</name>
+          <file> 100</file>
+        </tool>
+      </outputs>
+      <inputs>
+        <tool>
+          <name>BICOMP</name>
+          <file> 72 76 158 63 130 48 162 78 75 25 66 89 26 38 45 49 47 133 129 68 157 108 154 161 113 127</file>
+        </tool>
+        <tool>
+          <name>ICCARM</name>
+          <file> 49 48 75 26 45 25 47 130 63 78 66 76 89 72 157 68 133 108 129 113 162 158 154 127 161 38</file>
+        </tool>
+      </inputs>
+    </file>
+    <file>
+      <name>$PROJ_DIR$\..\..\..\..\..\wolfcrypt\src\wc_encrypt.c</name>
+      <outputs>
+        <tool>
+          <name>BICOMP</name>
+          <file> 85</file>
+        </tool>
+        <tool>
+          <name>ICCARM</name>
+          <file> 147</file>
+        </tool>
+        <tool>
+          <name>__cstat</name>
+          <file> 84</file>
+        </tool>
+      </outputs>
+      <inputs>
+        <tool>
+          <name>BICOMP</name>
+          <file> 66 63 46 78 42 45 25 130 72 89 154 161 28 165 48 75 49 47 133 129 68 76 162 158 157 108 113 127</file>
+        </tool>
+        <tool>
+          <name>ICCARM</name>
+          <file> 49 48 75 28 45 25 47 130 63 78 66 76 89 72 157 68 133 108 129 113 162 158 154 127 161 42 165 46</file>
+        </tool>
+      </inputs>
+    </file>
+    <file>
+      <name>$PROJ_DIR$\..\..\..\..\..\wolfcrypt\src\tfm.c</name>
+      <outputs>
+        <tool>
+          <name>BICOMP</name>
+          <file> 132</file>
+        </tool>
+        <tool>
+          <name>ICCARM</name>
+          <file> 168</file>
+        </tool>
+        <tool>
+          <name>__cstat</name>
+          <file> 107</file>
+        </tool>
+      </outputs>
+      <inputs>
+        <tool>
+          <name>BICOMP</name>
+          <file> 47 45 63 113 32 75 78 108 38 166 133 129 127 130 49 61 48 68 157 101 25 72 66 76 89 162 154 158 161 30</file>
+        </tool>
+        <tool>
+          <name>ICCARM</name>
+          <file> 49 48 75 38 45 25 47 130 63 78 66 76 89 72 157 68 133 108 129 113 162 158 154 127 161 32 30 61 101 166</file>
+        </tool>
+      </inputs>
+    </file>
+    <file>
+      <name>$PROJ_DIR$\..\..\..\..\..\wolfcrypt\src\wc_port.c</name>
+      <outputs>
+        <tool>
+          <name>BICOMP</name>
+          <file> 97</file>
+        </tool>
+        <tool>
+          <name>ICCARM</name>
+          <file> 163</file>
+        </tool>
+        <tool>
+          <name>__cstat</name>
+          <file> 94</file>
+        </tool>
+      </outputs>
+      <inputs>
+        <tool>
+          <name>BICOMP</name>
+          <file> 49 48 68 45 113 157 78 46 75 47 133 129 63 108 127 130 33 25 72 66 76 89 162 154 158 161</file>
+        </tool>
+        <tool>
+          <name>ICCARM</name>
+          <file> 49 48 75 45 25 47 130 63 78 66 76 89 72 157 68 133 108 129 113 162 158 154 127 161 46 33</file>
+        </tool>
+      </inputs>
+    </file>
+    <file>
+      <name>$PROJ_DIR$\..\..\..\..\..\wolfcrypt\src\sha512.c</name>
+      <outputs>
+        <tool>
+          <name>BICOMP</name>
+          <file> 81</file>
+        </tool>
+        <tool>
+          <name>ICCARM</name>
+          <file> 141</file>
+        </tool>
+        <tool>
+          <name>__cstat</name>
+          <file> 64</file>
+        </tool>
+      </outputs>
+      <inputs>
+        <tool>
+          <name>BICOMP</name>
+          <file> 25 72 127 130 46 45 63 38 78 108 113 167 33 48 75 49 47 133 129 68 157 66 76 89 162 154 158 161</file>
+        </tool>
+        <tool>
+          <name>ICCARM</name>
+          <file> 49 48 75 167 45 25 47 130 63 78 66 76 89 72 157 68 133 108 129 113 162 158 154 127 161 33 46 38</file>
+        </tool>
+      </inputs>
+    </file>
+    <forcedrebuild>
+      <name>[REBUILD_ALL]</name>
+    </forcedrebuild>
+  </configuration>
+  <configuration>
+    <name>Release</name>
+    <outputs/>
+    <forcedrebuild>
+      <name>[MULTI_TOOL]</name>
+      <tool>ILINK</tool>
+    </forcedrebuild>
+  </configuration>
+</project>
+
+

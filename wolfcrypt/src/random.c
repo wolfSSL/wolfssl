@@ -145,7 +145,8 @@ int wc_FreeRng(WC_RNG* rng)
 #else
     #if !defined(NO_DEV_RANDOM) && !defined(CUSTOM_RAND_GENERATE) && \
         !defined(WOLFSSL_GENSEED_FORTEST) && !defined(WOLFSSL_MDK_ARM) && \
-        !defined(WOLFSSL_IAR_ARM) && !defined(WOLFSSL_ROWLEY_ARM)
+        !defined(WOLFSSL_IAR_ARM) && !defined(WOLFSSL_ROWLEY_ARM) && \
+        !defined(WOLFSSL_EMBOS)
             #include <fcntl.h>
         #ifndef EBSNET
             #include <unistd.h>
@@ -1359,7 +1360,8 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 
         return 0;
     }
-#elif defined(WOLFSSL_LPC43xx) || defined(WOLFSSL_STM32F2xx) || defined(MBED)
+#elif defined(WOLFSSL_LPC43xx) || defined(WOLFSSL_STM32F2xx) || defined(MBED) \
+      || defined(WOLFSSL_EMBOS)
 
     #warning "write a real random seed!!!!, just for testing now"
 
