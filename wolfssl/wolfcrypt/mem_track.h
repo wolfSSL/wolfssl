@@ -20,6 +20,40 @@
  */
 
 
+/* The memory tracker overrides the wolfSSL memory callback system and uses a
+ * static to track the total, peak and currently allocated bytes.
+ *
+ * If you are already using the memory callbacks then enabling this will
+ * override the memory callbacks and prevent your memory callbacks from
+ * working. This assumes malloc() and free() are available. Feel free to
+ * customize this for your needs.
+
+ * The enable this feature define the following:
+ * #define USE_WOLFSSL_MEMORY
+ * #define WOLFSSL_TRACK_MEMORY
+ *
+ * On startup call:
+ * InitMemoryTracker();
+ * 
+ * When ready to dump the memory report call:
+ * ShowMemoryTracker();
+ *
+ * Report example:
+ * total   Allocs =       228
+ * total   Bytes  =     93442
+ * peak    Bytes  =      8840
+ * current Bytes  =         0
+ *
+ *
+ * You can also:
+ * #define WOLFSSL_DEBUG_MEMORY
+ *
+ * To print every alloc/free along with the function and line number.
+ * Example output:
+ * Alloc: 0x7fa14a500010 -> 120 at wc_InitRng:496
+ * Free: 0x7fa14a500010 -> 120 at wc_FreeRng:606
+ */
+
 
 #ifndef WOLFSSL_MEM_TRACK_H
 #define WOLFSSL_MEM_TRACK_H
@@ -64,7 +98,11 @@
         #define STATIC static
     #endif
 
+#ifdef WOLFSSL_DEBUG_MEMORY
+    STATIC INLINE void* TrackMalloc(size_t sz, const char* func, unsigned int line)
+#else
     STATIC INLINE void* TrackMalloc(size_t sz)
+#endif
     {
         memoryTrack* mt;
 
@@ -78,6 +116,10 @@
         mt->u.hint.thisSize   = sz;
         mt->u.hint.thisMemory = (byte*)mt + sizeof(memoryTrack);
 
+#ifdef WOLFSSL_DEBUG_MEMORY
+        printf("Alloc: %p -> %u at %s:%d\n", mt->u.hint.thisMemory, (word32)sz, func, line);
+#endif
+
 #ifdef DO_MEM_STATS
         ourMemStats.totalAllocs++;
         ourMemStats.totalBytes   += sz;
@@ -90,7 +132,11 @@
     }
 
 
+#ifdef WOLFSSL_DEBUG_MEMORY
+    STATIC INLINE void TrackFree(void* ptr, const char* func, unsigned int line)
+#else
     STATIC INLINE void TrackFree(void* ptr)
+#endif
     {
         memoryTrack* mt;
 
@@ -105,13 +151,25 @@
         ourMemStats.currentBytes -= mt->u.hint.thisSize;
 #endif
 
+#ifdef WOLFSSL_DEBUG_MEMORY
+        printf("Free: %p -> %u at %s:%d\n", ptr, (word32)mt->u.hint.thisSize, func, line);
+#endif
+
         free(mt);
     }
 
 
+#ifdef WOLFSSL_DEBUG_MEMORY
+    STATIC INLINE void* TrackRealloc(void* ptr, size_t sz, const char* func, unsigned int line)
+#else
     STATIC INLINE void* TrackRealloc(void* ptr, size_t sz)
+#endif
     {
+    #ifdef WOLFSSL_DEBUG_MEMORY
+        void* ret = TrackMalloc(sz, func, line);
+    #else
         void* ret = TrackMalloc(sz);
+    #endif
 
         if (ptr) {
             /* if realloc is bigger, don't overread old ptr */
@@ -125,8 +183,13 @@
         if (ret && ptr)
             memcpy(ret, ptr, sz);
 
-        if (ret)
+        if (ret) {
+        #ifdef WOLFSSL_DEBUG_MEMORY
+            TrackFree(ptr, func, line);
+        #else
             TrackFree(ptr);
+        #endif
+        }
 
         return ret;
     }

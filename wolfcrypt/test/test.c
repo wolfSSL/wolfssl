@@ -143,7 +143,7 @@
 #include "wolfcrypt/test/test.h"
 
 #ifdef USE_WOLFSSL_MEMORY
-    #include "wolfssl/mem_track.h"
+    #include "wolfssl/wolfcrypt/mem_track.h"
 #endif
 
 
