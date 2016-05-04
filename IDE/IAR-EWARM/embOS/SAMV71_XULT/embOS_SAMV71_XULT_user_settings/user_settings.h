@@ -60,8 +60,5 @@
 
     #undef USE_WOLFSSL_MEMORY
     #define USE_WOLFSSL_MEMORY
-/* Uncomment to track memory CAUTION: Can cause excess overhead */
-/*    #undef WOLFSSL_TRACK_MEMORY */
-/*    #define WOLFSSL_TRACK_MEMORY */
 
 #endif /* _EMBOS_USER_SETTINGS_H_ */
