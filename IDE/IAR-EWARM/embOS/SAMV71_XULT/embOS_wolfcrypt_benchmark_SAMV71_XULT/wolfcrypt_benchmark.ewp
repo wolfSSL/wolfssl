@@ -312,9 +312,9 @@
         </option>
         <option>
           <name>CCIncludePath2</name>
-          <state>C:\embos-trial\Start\Inc</state>
-          <state>C:\embos-trial\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\Setup</state>
-          <state>C:\embos-trial\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\DeviceSupport</state>
+          <state>$PROJ_DIR$\..\..\extract_trial_here\Start\Inc</state>
+          <state>$PROJ_DIR$\..\..\extract_trial_here\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\Setup</state>
+          <state>$PROJ_DIR$\..\..\extract_trial_here\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\DeviceSupport</state>
           <state>$PROJ_DIR$\..\..\..\..\..\</state>
           <state>$PROJ_DIR$\..\embOS_SAMV71_XULT_user_settings</state>
         </option>
@@ -780,7 +780,7 @@
         <option>
           <name>IlinkAdditionalLibs</name>
           <state>$PROJ_DIR$\..\embOS_wolfcrypt_lib_SAMV71_XULT\Debug\Bin\wolfcrypt_lib.a</state>
-          <state>C:\embos-trial\Start\Lib\os7m_tlv_dp.a</state>
+          <state>$PROJ_DIR$\..\..\extract_trial_here\Start\Lib\os7m_tlv_dp.a</state>
         </option>
         <option>
           <name>IlinkOverrideProgramEntryLabel</name>
@@ -1942,52 +1942,52 @@
   <group>
     <name>Device_Support</name>
     <file>
-      <name>$PROJ_DIR$\..\..\..\..\..\..\..\..\..\embos-trial\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\DeviceSupport\startup_sam.c</name>
+      <name>$PROJ_DIR$\..\..\extract_trial_here\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\DeviceSupport\startup_sam.c</name>
     </file>
     <file>
-      <name>$PROJ_DIR$\..\..\..\..\..\..\..\..\..\embos-trial\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\DeviceSupport\system_sam.c</name>
+      <name>$PROJ_DIR$\..\..\extract_trial_here\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\DeviceSupport\system_sam.c</name>
     </file>
   </group>
   <group>
     <name>Setup</name>
     <file>
-      <name>$PROJ_DIR$\..\..\..\..\..\..\..\..\..\embos-trial\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\Setup\BSP.c</name>
+      <name>$PROJ_DIR$\..\..\extract_trial_here\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\Setup\BSP.c</name>
     </file>
     <file>
-      <name>$PROJ_DIR$\..\..\..\..\..\..\..\..\..\embos-trial\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\Setup\HardFaultHandler.S</name>
+      <name>$PROJ_DIR$\..\..\extract_trial_here\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\Setup\HardFaultHandler.S</name>
     </file>
     <file>
-      <name>$PROJ_DIR$\..\..\..\..\..\..\..\..\..\embos-trial\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\Setup\JLINKMEM_Process.c</name>
+      <name>$PROJ_DIR$\..\..\extract_trial_here\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\Setup\JLINKMEM_Process.c</name>
     </file>
     <file>
-      <name>$PROJ_DIR$\..\..\..\..\..\..\..\..\..\embos-trial\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\Setup\OS_Error.c</name>
+      <name>$PROJ_DIR$\..\..\extract_trial_here\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\Setup\OS_Error.c</name>
     </file>
     <file>
-      <name>$PROJ_DIR$\..\..\..\..\..\..\..\..\..\embos-trial\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\Setup\RTOSInit_SAMV71_CMSIS.c</name>
+      <name>$PROJ_DIR$\..\..\extract_trial_here\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\Setup\RTOSInit_SAMV71_CMSIS.c</name>
     </file>
     <file>
-      <name>$PROJ_DIR$\..\..\..\..\..\..\..\..\..\embos-trial\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\Setup\SEGGER_HardFaultHandler.c</name>
+      <name>$PROJ_DIR$\..\..\extract_trial_here\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\Setup\SEGGER_HardFaultHandler.c</name>
     </file>
     <file>
-      <name>$PROJ_DIR$\..\..\..\..\..\..\..\..\..\embos-trial\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\Setup\SEGGER_RTT.c</name>
+      <name>$PROJ_DIR$\..\..\extract_trial_here\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\Setup\SEGGER_RTT.c</name>
     </file>
     <file>
-      <name>$PROJ_DIR$\..\..\..\..\..\..\..\..\..\embos-trial\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\Setup\SEGGER_RTT_printf.c</name>
+      <name>$PROJ_DIR$\..\..\extract_trial_here\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\Setup\SEGGER_RTT_printf.c</name>
     </file>
     <file>
-      <name>$PROJ_DIR$\..\..\..\..\..\..\..\..\..\embos-trial\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\Setup\SEGGER_SYSVIEW.c</name>
+      <name>$PROJ_DIR$\..\..\extract_trial_here\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\Setup\SEGGER_SYSVIEW.c</name>
     </file>
     <file>
-      <name>$PROJ_DIR$\..\..\..\..\..\..\..\..\..\embos-trial\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\Setup\SEGGER_SYSVIEW_Config_embOS.c</name>
+      <name>$PROJ_DIR$\..\..\extract_trial_here\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\Setup\SEGGER_SYSVIEW_Config_embOS.c</name>
     </file>
     <file>
-      <name>$PROJ_DIR$\..\..\..\..\..\..\..\..\..\embos-trial\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\Setup\SEGGER_SYSVIEW_embOS.c</name>
+      <name>$PROJ_DIR$\..\..\extract_trial_here\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\Setup\SEGGER_SYSVIEW_embOS.c</name>
     </file>
     <file>
-      <name>$PROJ_DIR$\..\..\..\..\..\..\..\..\..\embos-trial\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\Setup\xmtx.c</name>
+      <name>$PROJ_DIR$\..\..\extract_trial_here\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\Setup\xmtx.c</name>
     </file>
     <file>
-      <name>$PROJ_DIR$\..\..\..\..\..\..\..\..\..\embos-trial\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\Setup\xmtx2.c</name>
+      <name>$PROJ_DIR$\..\..\extract_trial_here\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\Setup\xmtx2.c</name>
     </file>
   </group>
 </project>

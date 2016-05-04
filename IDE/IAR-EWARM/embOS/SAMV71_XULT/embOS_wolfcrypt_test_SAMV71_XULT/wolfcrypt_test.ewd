@@ -37,7 +37,7 @@
         </option>
         <option>
           <name>MacFile</name>
-          <state>C:\embos-trial\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\Setup\samv7-ek-flash.mac</state>
+          <state>$PROJ_DIR$\..\..\extract_trial_here\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\Setup\samv7-ek-flash.mac</state>
         </option>
         <option>
           <name>MemOverride</name>
@@ -45,7 +45,7 @@
         </option>
         <option>
           <name>MemFile</name>
-          <state>C:\embos-trial\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\Setup\ATSAMV71Q21.svd</state>
+          <state>$PROJ_DIR$\..\..\extract_trial_here\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\Setup\ATSAMV71Q21.svd</state>
         </option>
         <option>
           <name>RunToEnable</name>

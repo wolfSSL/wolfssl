@@ -1409,7 +1409,7 @@ void bench_dh(void)
     int    i ;
     size_t bytes;
     word32 idx = 0, pubSz, privSz = 0, pubSz2, privSz2, agreeSz;
-    const byte* tmp;
+    const byte* tmp = NULL;
 
     byte   pub[256];    /* for 2048 bit */
     byte   pub2[256];   /* for 2048 bit */

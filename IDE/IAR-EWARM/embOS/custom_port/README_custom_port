@@ -11,17 +11,9 @@ wolfssl (latest version)
 #----------------------------------------------------------------------------#
 
 1. Browse to wolfssl/IDE/IAR-EWARM/embOS/
-    a. create a new directory called <Your CPU or Company or something unique>
-       (For this guide we'll call that directory "CUSTOM_DIR" and we will use
-        the term "CUSTOM_DIR" in other directories to signify if a directory
-        should be placed inside the new CUSTOM_DIR)
-
-2. create new directory in CUSTOM_DIR "wolfcrypt_lib_CUSTOM_DIR"
-3. create new directory in CUSTOM_DIR "wolfcrypt_tests_CUSTOM_DIR"
-4. create new directory in CUSTOM_DIR "CUSTOM_DIR_user_settings"
-5. Copy C:<path to>\wolfssl\IDE\IAR-EWARM/embOS\SAMV71_XULT\
-                                embOS_SAMV71_XULT_user_settings\user_settings.h
-   paste that into the new CUSTOM_DIR\CUSTOM_DIR_user_settings\
+    a. copy/paste the directory custom_port and re-name it to the CPU
+       you intend to target. For now we will just use the term CUSTOM_DIR
+       to signify a copy of the custom_port directory
 
 #----------------------------------------------------------------------------#
 # SECTION 2:
@@ -29,7 +21,7 @@ wolfssl (latest version)
 #----------------------------------------------------------------------------#
 
 1. Open IAR Workbench -> Project -> Create New Project -> Empty Project
-    c. Browse to CUSTOM_DIR/wolfcrypt_lib_CUSTOM_DIR/ (from section 1)
+    c. Browse to CUSTOM_DIR/wolfcrypt_lib_custom_port/ (from section 1)
     d. Called it "wolfcrypt_lib" and hit "Save"
 
 2. Go to Project -> Add Group...
@@ -59,17 +51,17 @@ wolfssl (latest version)
                     Project -> Properties C/C++ Compiler -> Preprocessor (Tab)
     a. In the field "Defined symbols:" add WOLFSSL_USER_SETTINGS
     b. In the field "Additional include directories:"
-        Click the box with "..."
-        Click <Click to add>
-        Browse to "wolfssl" directory on your PC and click "Select" then "Ok"
-        You should now see "C:\<path to>\wolfssl" in that field
-        Click <Click to add> again
-        Browse to "wolfssl\IDE\IAR-EWARM\CUSTOM_DIR\CUSTOM_DIR_user_settings\"
-        Hit "Ok", verify the path is correct and hit "Ok" again.
-
-    (Remember we copy and pasted this over in section 1. If you ever need to
-     change or customize your build settings this is the file that should be
-     modified: CUSTOM_DIR\CUSTOM_DIR_user_settings\user_settings.h)
+        put in this line: $PROJ_DIR$\..\..\..\..\..\
+		   and this line: $PROJ_DIR$\..\custom_port_user_settings
+		#---------------------------------------------
+        #(Or alternately you can use the browse option to navigate to
+        #C:\<path-to>\wolfssl and
+        #C:\<path-to>\wolfssl\IDE\IAR-EWARM\CUSTOM_DIR\
+        #                                        custom_port_user_settings\)
+		#(If you ever need to change or customize your build settings this
+	    #is the file that should be modified:
+	    #CUSTOM_DIR\custom_port_user_settings\user_settings.h)
+        #---------------------------------------------
 
 7. In Project -> Options -> General Options -> Output (Tab)
     Check the option for "Library" instead of "Executable"
@@ -78,69 +70,77 @@ wolfssl (latest version)
 8. Go to Project -> Rebuild all (The library should build)
 
 9. Confirm the library is now located here:
-    C:\<path to>\wolfssl\IDE\IAR-EWARM\wolfcrypt_build_lib\Debug\Exe\
-                                                                wolfcrypt_lib.a
+    C:\<path to>\wolfssl\IDE\IAR-EWARM\CUSTOM_DIR\wolfcrypt_lib_custom_port\
+                                                    Debug\Exe\wolfcrypt_lib.a
 
 We are now set to link to this library in the evaluation project
 
 #----------------------------------------------------------------------------#
-# Evaluate in embOS project:
+# SECTION 3:
+# Evaluate wolfcrypt tests in embOS project:
 #----------------------------------------------------------------------------#
 
 
 1. go to embOS website and download a trial for your platform
    https://www.segger.com/downloads/embos ->
-                                      embOS trial for Cortex-M and IAR compiler
+                                     embOS trial for Cortex-M and IAR compiler
 
-2. After download and unzipping open IAR Workbench
-    a. choose Project -> Add Existing Project
-    b. Navigate to the downloaded trial then:
-       Start\BoardSupport\<VENDOR>\<CPU>\Start_<CPU>.ewp
-      (For example) Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\Start_SAMv71.ewp
+2. After downloading, extract the zip to:
+                  C:\<path-to>\wolfssl\IDE\IAR-EWARM\embOS\extract_trial_here\
 
-3. Go to Project -> Options -> C/C++ Compiler -> Preprocessor (Tab)
-    a. Add this to the "Defined symbols: (one per line)" Box:
+3. Open IAR Workbench -> Project -> Create New Project -> Empty Project
+    c. Browse to CUSTOM_DIR\wolfcrypt_test_custom_port\ (from section 1)
+    d. Called it "wolfcrypt_test" and hit "Save"
+
+4. Go to Project -> Options -> C/C++ Compiler -> Preprocessor (Tab)
+    a. Add these to the field "Defined symbols:"
+        DEBUG=1
+        __CPU-YOU-ARE-TARGETING__ (For example: __SAMV71Q21__)
         WOLFSSL_USER_SETTINGS
-    b. Now in the above box "Additional include directories:"
-        Click on the box with "..."
-        Click <Click to add>
-        Browse to "wolfssl" directory on your computer and click "Select"
-    c.  This project will use the same user_settings.h as in the above project
-        where we built the library so both have the exact same settings
 
-4. Go to Project -> Options -> Linker -> Library (Tab)
-    Next to the field "Additonal libraries: (one per line)"
-    Click the box with "..."
-    Click <Click to add>
-    Browse to C:\<path to>\CUSTOM_DIR\wolfcrypt_lib_CUSTOM_DIR\Debug\Exe\wolfcrypt_lib.a
-    Click "Open" and "OK" (twice)
+    b. Now in the field "Additional include directories:"
+        $PROJ_DIR$\..\..\..\..\..\
+		$PROJ_DIR$\..\custom_port_user_settings
+		#---------------------------------------------
+        #(Or alternately you can use the browse option to navigate to
+        #C:\<path-to>\wolfssl and
+        #C:\<path-to>\wolfssl\IDE\IAR-EWARM\CUSTOM_DIR\
+        #                                        custom_port_user_settings\)
+        #---------------------------------------------
 
-5. In the main project file "OS_StartLEDBlick.c"
+5. Go to Project -> Options -> Linker -> Library (Tab)
+    Add to the field "Additonal libraries:"
+    $PROJ_DIR$\..\embOS_wolfcrypt_lib_SAMV71_XULT\Debug\Exe\wolfcrypt_lib.a
+    $PROJ_DIR$\..\..\extract_trial_here\Start\Lib\os7m_tlv_dp.a
 
-    #--- Headers ---#
-        #include <stdio.h>
-        #include <wolfcrypt/test/test.h>
+6. The main project file is located here:
+      CUSTOM_DIR\wolfcrypt_test_custom_port\Application\runWolfcryptTests.c
 
-    #--- Task for wolfCrypt ---#
-        static OS_STACKPTR int StackWOLF[20000];
-        static OS_TASK TCWOLF;
-        static void wolfTestRun(void) {
-            printf("Begin wolfcrypt tests\n");
-            wolfcrypt_test(NULL);
-            printf("Wolfcrypt tests complete\n");
-        }
+7. Right Click the project name: Add -> Add Group
+                                           add a group called "Application"
+8. Right Click that group and Add -> Add files
+                            browse to the main project file in step 5 above
 
-    #--- Create the task in main() BEFORE calling OS_Start() ---#
-        OS_CREATETASK(&TCWOLF, "wolfcrypt test Task", wolfTestRun, 100, StackWOLF);
+9. Create Groups and add files for your CPU's support. These will be .c
+   files found in the extracted directory in two places:
 
-6. To get Logging working for seeing test results:
-    a. Go to Project -> Options -> General Options -> Library Configuration (Tab)
+   extract_trial_here\Start\BoardSupport\<vendor>\<CPU>\DeviceSupport
+   extract_trial_here\Start\BoardSupport\<vendor>\<CPU>\Setup
+   #---------------------------------------------
+   # For example:
+   # extract_trial_here\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\
+   #                                                          DeviceSupport
+   # extract_trial_here\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\Setup
+   #---------------------------------------------
+   
+10. To get Logging working for seeing test results:
+    a. Go to Project -> Options -> General Options -> Library Configuration
     b. In the field "Library low-level interface implementation"
         Check the radio button for Semihosted
         Then in the inner field marked "stdout/stderr"
             Check the radio button for "Via semihosting" and click "OK"
 
-7. Now we're ready to build and debug the project.
+11. Now we're ready to build and debug the project.
     a. Project -> Options -> Debugger
         In the field marked "Driver" Select drop-down and choose J-Link/J-Trace
         Click "OK"
@@ -149,10 +149,10 @@ We are now set to link to this library in the evaluation project
     d. Connect the micro-USB to the debug port of the Cortex-M and PC for power
     e. Project -> Download and Debug
 
-8. Once the Debug environment spawns go to View -> Terminal I/O
+12. Once the Debug environment spawns go to View -> Terminal I/O
     This is where the "printf" to stdout will be directed
 
-9. In the Debug Menu bar look for the little square with three arrows pointing
+13. In the Debug Menu bar look for the little square with three arrows pointing
     to the right. When you mouse over it should say "GO"
     Click this option and in the Terminal I/O Window you should see something
     like this (depends on which functionality you set in user_settings.h)
@@ -187,11 +187,18 @@ DH       test passed!
 DSA      test passed!
 PWDBASED test passed!
 ECC      test passed!
+wolfcrypt tests complete.
 
-total   Allocs =       988
-total   Bytes  =   1471829
-peak    Bytes  =     29576
-current Bytes  =         0
+#----------------------------------------------------------------------------#
+# SECTION 4:
+# Evaluate benchmark tests in embOS project:
+#----------------------------------------------------------------------------#
+
+Follow the steps from section 3 only using
+CUSTOM_DIR\wolfcrypt_benchmark_custom_port\
+
+#----------------------------------------------------------------------------#
+#----------------------------------------------------------------------------#
 
 Thank you for using this guide and we hope this was helpful to you. If you have
 any suggestions / feedback for us please contact us:

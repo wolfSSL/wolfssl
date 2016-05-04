@@ -10,7 +10,7 @@
 
 "-p" 
 
-"C:\embos-trial\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\Setup\ATSAMV71Q21.svd" 
+"C:\Users\boz_windows\Desktop\wolfssl\IDE\IAR-EWARM\embOS\SAMV71_XULT\embOS_wolfcrypt_test_SAMV71_XULT\..\..\extract_trial_here\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\Setup\ATSAMV71Q21.svd" 
 
 "--semihosting" 
 

@@ -2,11 +2,11 @@
 
 "C:\Program Files (x86)\IAR Systems\Embedded Workbench 7.4\arm\bin\armjlink2.dll" 
 
-"C:\Users\boz_windows\Desktop\embos-wolfssl\IDE\IAR-EWARM\embOS\SAMV71_XULT\embOS_wolfcrypt_test_SAMV71_XULT\Debug\Exe\wolfcrypt_test.out" 
+"C:\Users\boz_windows\Desktop\wolfssl\IDE\IAR-EWARM\embOS\SAMV71_XULT\embOS_wolfcrypt_test_SAMV71_XULT\Debug\Exe\wolfcrypt_test.out" 
 
 --plugin "C:\Program Files (x86)\IAR Systems\Embedded Workbench 7.4\arm\bin\armbat.dll" 
 
---macro "C:\embos-trial\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\Setup\samv7-ek-flash.mac" 
+--macro "C:\Users\boz_windows\Desktop\wolfssl\IDE\IAR-EWARM\embOS\SAMV71_XULT\embOS_wolfcrypt_test_SAMV71_XULT\..\..\extract_trial_here\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\Setup\samv7-ek-flash.mac" 
 
 
 
