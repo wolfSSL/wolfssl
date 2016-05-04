@@ -1903,7 +1903,7 @@ struct WOLFSSL_CTX {
     DerBuffer*  privateKey;
     WOLFSSL_CERT_MANAGER* cm;      /* our cert manager, ctx owns SSL will use */
 #endif
-#ifdef OPENSSL_EXTRA
+#ifdef KEEP_OUR_CERT
     WOLFSSL_X509*    ourCert;     /* keep alive a X509 struct of cert */
 #endif
     Suites*     suites;           /* make dynamic, user may not need/set */
@@ -2726,7 +2726,7 @@ struct WOLFSSL {
 #ifdef KEEP_PEER_CERT
     WOLFSSL_X509     peerCert;           /* X509 peer cert */
 #endif
-#ifdef OPENSSL_EXTRA
+#ifdef KEEP_OUR_CERT
     WOLFSSL_X509*    ourCert;            /* keep alive a X509 struct of cert.
                                             points to ctx if not owned (owned
                                             flag found in buffers.weOwnCert) */

@@ -3468,7 +3468,7 @@ static int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
              /* Make sure previous is free'd */
             if (ssl->buffers.weOwnCert) {
                 FreeDer(&ssl->buffers.certificate);
-                #ifdef OPENSSL_EXTRA
+                #ifdef KEEP_OUR_CERT
                     FreeX509(ssl->ourCert);
                     if (ssl->ourCert) {
                         XFREE(ssl->ourCert, ssl->heap, DYNAMIC_TYPE_X509);
@@ -3477,14 +3477,14 @@ static int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
                 #endif
             }
             XMEMCPY(&ssl->buffers.certificate, &der, sizeof(der));
-            #ifdef OPENSSL_EXTRA
+            #ifdef KEEP_OUR_CERT
                 ssl->keepCert = 1; /* hold cert for ssl lifetime */
             #endif
             ssl->buffers.weOwnCert = 1;
         }
         else if (ctx) {
             FreeDer(&ctx->certificate); /* Make sure previous is free'd */
-            #ifdef OPENSSL_EXTRA
+            #ifdef KEEP_OUR_CERT
                 FreeX509(ctx->ourCert);
                 if (ctx->ourCert) {
                     XFREE(ctx->ourCert, ctx->heap, DYNAMIC_TYPE_X509);
@@ -8037,7 +8037,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         if (ssl->buffers.weOwnCert && !ssl->keepCert) {
             WOLFSSL_MSG("Unloading cert");
             FreeDer(&ssl->buffers.certificate);
-            #ifdef OPENSSL_EXTRA
+            #ifdef KEEP_OUR_CERT
                 FreeX509(ssl->ourCert);
                 if (ssl->ourCert) {
                     XFREE(ssl->ourCert, ssl->heap, DYNAMIC_TYPE_X509);
@@ -10756,7 +10756,9 @@ WOLFSSL_X509* wolfSSL_X509_load_certificate_file(const char* fname, int format)
 
 #endif /* KEEP_PEER_CERT || SESSION_CERTS */
 
-#ifdef OPENSSL_EXTRA /* needed for wolfSSL_X509_d21 function */
+/* OPENSSL_EXTRA is needed for wolfSSL_X509_d21 function
+   KEEP_OUR_CERT is to insure ability for returning ssl certificate */
+#if defined(OPENSSL_EXTRA) && defined(KEEP_OUR_CERT)
 WOLFSSL_X509* wolfSSL_get_certificate(WOLFSSL* ssl)
 {
     if (ssl == NULL) {
@@ -10785,7 +10787,7 @@ WOLFSSL_X509* wolfSSL_get_certificate(WOLFSSL* ssl)
         }
     }
 }
-#endif /* OPENSSL_EXTRA */
+#endif /* OPENSSL_EXTRA && KEEP_OUR_CERT */
 #endif /* NO_CERTS */
 
 
@@ -11192,6 +11194,10 @@ const char* wolfSSL_CIPHER_get_name(const WOLFSSL_CIPHER* cipher)
                 return "TLS_DHE_RSA_WITH_AES_128_CBC_SHA";
             case TLS_DHE_RSA_WITH_AES_256_CBC_SHA :
                 return "TLS_DHE_RSA_WITH_AES_256_CBC_SHA";
+        #ifndef NO_DES3
+            case TLS_DHE_RSA_WITH_3DES_EDE_CBC_SHA:
+                return "TLS_DHE_RSA_WITH_3DES_EDE_CBC_SHA";
+         #endif
 #endif
 #ifndef NO_HC128
     #ifndef NO_MD5

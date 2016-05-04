@@ -643,7 +643,7 @@ void SSL_CtxResourceFree(WOLFSSL_CTX* ctx)
 #ifndef NO_CERTS
     FreeDer(&ctx->privateKey);
     FreeDer(&ctx->certificate);
-    #ifdef OPENSSL_EXTRA
+    #ifdef KEEP_OUR_CERT
         FreeX509(ctx->ourCert);
         if (ctx->ourCert) {
             XFREE(ctx->ourCert, ctx->heap, DYNAMIC_TYPE_X509);
