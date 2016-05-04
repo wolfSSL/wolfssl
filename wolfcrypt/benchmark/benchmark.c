@@ -2108,6 +2108,22 @@ void bench_ed25519KeySign(void)
         return (double)tv.SECONDS + (double)tv.MILLISECONDS / 1000;
     }
 
+#elif defined(WOLFSSL_EMBOS)
+    
+    #include "RTOS.h"
+
+    double current_time(int reset)
+    {
+        double time_now;
+        double current_s = OS_GetTime() / 1000.0;
+        double current_us = OS_GetTime_us() / 1000000.0;
+        time_now = (double)( current_s + current_us);
+
+        (void) reset;
+
+        return time_now;
+    }
+
 #else
 
     #include <sys/time.h>

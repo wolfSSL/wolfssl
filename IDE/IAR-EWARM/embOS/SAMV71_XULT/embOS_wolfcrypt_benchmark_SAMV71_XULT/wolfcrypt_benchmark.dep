@@ -1,0 +1,719 @@
+<?xml version="1.0" encoding="iso-8859-1"?>
+
+<project>
+  <fileVersion>2</fileVersion>
+  <fileChecksum>3271176394</fileChecksum>
+  <configuration>
+    <name>Debug</name>
+    <outputs>
+      <file>$PROJ_DIR$\..\..\..\..\..\..\..\..\..\embos-trial\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\DeviceSupport\system_sam.c</file>
+      <file>$PROJ_DIR$\Application\runBenchmarks.c</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\wolfcrypt\benchmark\benchmark.c</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\..\..\..\..\embos-trial\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\DeviceSupport\startup_sam.c</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\..\..\..\..\embos-trial\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\Setup\BSP.c</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\..\..\..\..\embos-trial\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\Setup\SEGGER_SYSVIEW_Config_embOS.c</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\..\..\..\..\embos-trial\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\Setup\SEGGER_RTT_printf.c</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\..\..\..\..\embos-trial\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\Setup\SEGGER_SYSVIEW.c</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\..\..\..\..\embos-trial\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\Setup\HardFaultHandler.S</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\..\..\..\..\embos-trial\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\Setup\OS_Error.c</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\..\..\..\..\embos-trial\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\Setup\RTOSInit_SAMV71_CMSIS.c</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\..\..\..\..\embos-trial\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\Setup\xmtx2.c</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\..\..\..\..\embos-trial\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\Setup\SEGGER_HardFaultHandler.c</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\..\..\..\..\embos-trial\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\Setup\SEGGER_RTT.c</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\..\..\..\..\embos-trial\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\Setup\JLINKMEM_Process.c</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\..\..\..\..\embos-trial\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\Setup\xmtx.c</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\..\..\..\..\embos-trial\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\Setup\SEGGER_SYSVIEW_embOS.c</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\..\..\..\..\embos-trial\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\DeviceSupport\component\smc.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\..\..\..\..\embos-trial\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\DeviceSupport\instance\piod.h</file>
+      <file>$TOOLKIT_DIR$\CMSIS\Include\core_cmFunc.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\..\..\..\..\embos-trial\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\DeviceSupport\instance\rtt.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\..\..\..\..\embos-trial\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\DeviceSupport\instance\efc.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\..\..\..\..\embos-trial\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\DeviceSupport\instance\twihs1.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\..\..\..\..\embos-trial\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\DeviceSupport\component\pmc.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\..\..\..\..\embos-trial\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\DeviceSupport\component\dacc.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\..\..\..\..\embos-trial\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\DeviceSupport\component\mlb.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\..\..\..\..\embos-trial\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\DeviceSupport\component\twihs.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\..\..\..\..\embos-trial\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\DeviceSupport\instance\aes.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\..\..\..\..\embos-trial\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\DeviceSupport\instance\pmc.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\..\..\..\..\embos-trial\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\DeviceSupport\instance\isi.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\..\..\..\..\embos-trial\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\DeviceSupport\component\tc.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\..\..\..\..\embos-trial\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\DeviceSupport\instance\rswdt.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\..\..\..\..\embos-trial\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\DeviceSupport\instance\rtc.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\..\..\..\..\embos-trial\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\DeviceSupport\instance\chipid.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\..\..\..\..\embos-trial\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\DeviceSupport\component\spi.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\..\..\..\..\embos-trial\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\DeviceSupport\component\qspi.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\..\..\..\..\embos-trial\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\DeviceSupport\component\isi.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\..\..\..\..\embos-trial\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\DeviceSupport\instance\afec0.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\..\..\..\..\embos-trial\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\DeviceSupport\component\gpbr.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\..\..\..\..\embos-trial\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\DeviceSupport\component\icm.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\..\..\..\..\embos-trial\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\DeviceSupport\instance\smc.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\..\..\..\..\embos-trial\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\DeviceSupport\instance\tc0.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\..\..\..\..\embos-trial\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\DeviceSupport\component\supc.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\..\..\..\..\embos-trial\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\DeviceSupport\component\uart.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\..\..\..\..\embos-trial\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\DeviceSupport\component\efc.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\..\..\..\..\embos-trial\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\DeviceSupport\component\mcan.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\..\..\..\..\embos-trial\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\DeviceSupport\instance\tc3.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\..\..\..\..\embos-trial\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\DeviceSupport\component\ssc.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\..\..\..\..\embos-trial\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\DeviceSupport\component\usart.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\..\..\..\..\embos-trial\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\DeviceSupport\component\xdmac.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\..\..\..\..\embos-trial\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\DeviceSupport\component\rswdt.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\..\..\..\..\embos-trial\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\DeviceSupport\component\rtt.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\..\..\..\..\embos-trial\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\DeviceSupport\component\matrix.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\..\..\..\..\embos-trial\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\DeviceSupport\instance\usart2.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\..\..\..\..\embos-trial\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\DeviceSupport\instance\pwm1.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\..\..\..\..\embos-trial\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\DeviceSupport\instance\acc.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\..\..\..\..\embos-trial\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\DeviceSupport\component\rtc.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\..\..\..\..\embos-trial\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\DeviceSupport\component\pio.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\..\..\..\..\embos-trial\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\DeviceSupport\instance\usart0.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\..\..\..\..\embos-trial\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\DeviceSupport\instance\utmi.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\..\..\..\..\embos-trial\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\DeviceSupport\instance\uart3.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\..\..\..\..\embos-trial\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\DeviceSupport\component\rstc.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\..\..\..\..\embos-trial\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\DeviceSupport\pio\samv71q21.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\..\..\..\..\embos-trial\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\DeviceSupport\instance\uart4.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\..\..\..\..\embos-trial\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\DeviceSupport\component\gmac.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\..\..\..\..\embos-trial\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\DeviceSupport\component\hsmci.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\..\..\..\..\embos-trial\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\DeviceSupport\component\sdramc.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\..\..\..\..\embos-trial\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\DeviceSupport\instance\twihs2.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\..\..\..\..\embos-trial\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\DeviceSupport\instance\pwm0.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\..\..\..\..\embos-trial\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\DeviceSupport\instance\icm.h</file>
+      <file>$TOOLKIT_DIR$\CMSIS\Include\core_cm7.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\..\..\..\..\embos-trial\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\DeviceSupport\component\utmi.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\..\..\..\..\embos-trial\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\DeviceSupport\instance\xdmac.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\..\..\..\..\embos-trial\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\DeviceSupport\component\usbhs.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\..\..\..\..\embos-trial\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\DeviceSupport\instance\tc2.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\..\..\..\..\embos-trial\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\DeviceSupport\instance\gpbr.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\..\..\..\..\embos-trial\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\DeviceSupport\instance\matrix.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\..\..\..\..\embos-trial\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\DeviceSupport\component\trng.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\..\..\..\..\embos-trial\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\DeviceSupport\instance\afec1.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\..\..\..\..\embos-trial\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\DeviceSupport\instance\ssc.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\..\..\..\..\embos-trial\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\DeviceSupport\instance\rstc.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\..\..\..\..\embos-trial\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\DeviceSupport\component\pwm.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\..\..\..\..\embos-trial\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\DeviceSupport\instance\uart2.h</file>
+      <file>$TOOLKIT_DIR$\CMSIS\Include\core_cmInstr.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\..\..\..\..\embos-trial\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\DeviceSupport\instance\twihs0.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\..\..\..\..\embos-trial\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\DeviceSupport\component\wdt.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\..\..\..\..\embos-trial\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\DeviceSupport\instance\mcan1.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\..\..\..\..\embos-trial\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\DeviceSupport\instance\piob.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\..\..\..\..\embos-trial\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\DeviceSupport\instance\spi0.h</file>
+      <file>$PROJ_DIR$\Debug\Obj\SEGGER_HardFaultHandler.__cstat.et</file>
+      <file>$PROJ_DIR$\Debug\Obj\JLINKMEM_Process.__cstat.et</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\..\..\..\..\embos-trial\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\DeviceSupport\instance\supc.h</file>
+      <file>$PROJ_DIR$\Debug\Obj\RTOSInit_SAMV71_CMSIS.__cstat.et</file>
+      <file>$PROJ_DIR$\Debug\Obj\runBenchmarks.__cstat.et</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\..\..\..\..\embos-trial\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\DeviceSupport\instance\pioe.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\..\..\..\..\embos-trial\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\DeviceSupport\instance\hsmci.h</file>
+      <file>$PROJ_DIR$\Debug\Obj\SEGGER_SYSVIEW_Config_embOS.__cstat.et</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\..\..\..\..\embos-trial\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\DeviceSupport\instance\pioa.h</file>
+      <file>$PROJ_DIR$\Debug\Obj\xmtx.__cstat.et</file>
+      <file>$PROJ_DIR$\Debug\Obj\SEGGER_RTT_printf.__cstat.et</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\..\..\..\..\embos-trial\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\DeviceSupport\instance\usart1.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\..\..\..\..\embos-trial\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\DeviceSupport\instance\trng.h</file>
+      <file>$PROJ_DIR$\Debug\Obj\startup_sam.__cstat.et</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\..\..\..\..\embos-trial\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\DeviceSupport\instance\uart0.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\..\..\..\..\embos-trial\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\DeviceSupport\instance\dacc.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\..\..\..\..\embos-trial\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\DeviceSupport\instance\usbhs.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\..\..\..\..\embos-trial\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\DeviceSupport\instance\sdramc.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\..\..\..\..\embos-trial\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\DeviceSupport\instance\pioc.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\..\..\..\..\embos-trial\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\DeviceSupport\instance\mlb.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\..\..\..\..\embos-trial\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\DeviceSupport\instance\spi1.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\..\..\..\..\embos-trial\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\DeviceSupport\instance\qspi.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\..\..\..\..\embos-trial\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\DeviceSupport\instance\wdt.h</file>
+      <file>$PROJ_DIR$\Debug\Obj\xmtx2.__cstat.et</file>
+      <file>$PROJ_DIR$\Debug\Obj\SEGGER_SYSVIEW.__cstat.et</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\..\..\..\..\embos-trial\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\DeviceSupport\instance\mcan0.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\..\..\..\..\embos-trial\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\DeviceSupport\instance\gmac.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\..\..\..\..\embos-trial\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\DeviceSupport\instance\uart1.h</file>
+      <file>$PROJ_DIR$\Debug\Obj\BSP.__cstat.et</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\..\..\..\..\embos-trial\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\DeviceSupport\instance\tc1.h</file>
+      <file>$PROJ_DIR$\Debug\Obj\SEGGER_SYSVIEW_Config_embOS.o</file>
+      <file>$PROJ_DIR$\Debug\Obj\SEGGER_SYSVIEW_embOS.pbi</file>
+      <file>$PROJ_DIR$\Debug\Obj\SEGGER_RTT_printf.pbi</file>
+      <file>$PROJ_DIR$\Debug\Obj\RTOSInit_SAMV71_CMSIS.pbi</file>
+      <file>$PROJ_DIR$\Debug\Obj\SEGGER_RTT.__cstat.et</file>
+      <file>$PROJ_DIR$\Debug\Obj\SEGGER_RTT.pbi</file>
+      <file>$PROJ_DIR$\Debug\Obj\OS_Error.__cstat.et</file>
+      <file>$PROJ_DIR$\Debug\Obj\xmtx.o</file>
+      <file>$PROJ_DIR$\Debug\Obj\HardFaultHandler.o</file>
+      <file>$PROJ_DIR$\Debug\Obj\xmtx.pbi</file>
+      <file>$PROJ_DIR$\Debug\Obj\SEGGER_SYSVIEW_Config_embOS.pbi</file>
+      <file>$PROJ_DIR$\Debug\Obj\JLINKMEM_Process.o</file>
+      <file>$PROJ_DIR$\Debug\Obj\xmtx2.o</file>
+      <file>$PROJ_DIR$\Debug\Obj\system_sam.__cstat.et</file>
+      <file>$PROJ_DIR$\Debug\Obj\JLINKMEM_Process.pbi</file>
+      <file>$PROJ_DIR$\Debug\Obj\SEGGER_SYSVIEW.pbi</file>
+      <file>$PROJ_DIR$\Debug\Obj\SEGGER_HardFaultHandler.pbi</file>
+      <file>$PROJ_DIR$\Debug\Obj\OS_Error.o</file>
+      <file>$PROJ_DIR$\Debug\Obj\SEGGER_HardFaultHandler.o</file>
+      <file>$PROJ_DIR$\Debug\Obj\BSP.pbi</file>
+      <file>$PROJ_DIR$\Debug\Obj\BSP.o</file>
+      <file>$PROJ_DIR$\Debug\Obj\RTOSInit_SAMV71_CMSIS.o</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\..\..\..\..\embos-trial\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\DeviceSupport\component\acc.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\..\..\..\..\embos-trial\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\DeviceSupport\component\afec.h</file>
+      <file>$PROJ_DIR$\Debug\Obj\SEGGER_SYSVIEW_embOS.__cstat.et</file>
+      <file>$PROJ_DIR$\Debug\Obj\xmtx2.pbi</file>
+      <file>$PROJ_DIR$\Debug\Obj\SEGGER_SYSVIEW_embOS.o</file>
+      <file>$PROJ_DIR$\Debug\Obj\SEGGER_SYSVIEW.o</file>
+      <file>$PROJ_DIR$\Debug\Obj\SEGGER_RTT_printf.o</file>
+      <file>$PROJ_DIR$\Debug\Obj\OS_Error.pbi</file>
+      <file>$PROJ_DIR$\Debug\Obj\benchmark.__cstat.et</file>
+      <file>$PROJ_DIR$\Debug\Obj\SEGGER_RTT.o</file>
+      <file>$TOOLKIT_DIR$\CMSIS\Include\core_cmSimd.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\..\..\..\..\embos-trial\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\Setup\SEGGER_RTT.h</file>
+      <file>$TOOLKIT_DIR$\inc\c\DLib_Product_string.h</file>
+      <file>$TOOLKIT_DIR$\inc\c\string.h</file>
+      <file>$TOOLKIT_DIR$\inc\c\ycheck.h</file>
+      <file>$TOOLKIT_DIR$\inc\c\intrinsics.h</file>
+      <file>$TOOLKIT_DIR$\inc\c\DLib_Config_Normal.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\..\..\..\..\embos-trial\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\Setup\SEGGER_RTT_Conf.h</file>
+      <file>$TOOLKIT_DIR$\inc\c\yvals.h</file>
+      <file>$TOOLKIT_DIR$\inc\c\stdint.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\..\..\..\..\embos-trial\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\DeviceSupport\samv71q21.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\..\..\..\..\embos-trial\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\DeviceSupport\component\aes.h</file>
+      <file>$TOOLKIT_DIR$\inc\c\DLib_Threads.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\..\..\..\..\embos-trial\Start\Lib\os7m_tlv_dp.a</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\..\..\..\..\embos-trial\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\DeviceSupport\component\chipid.h</file>
+      <file>$TOOLKIT_DIR$\inc\c\ysizet.h</file>
+      <file>$TOOLKIT_DIR$\lib\rt7M_tl.a</file>
+      <file>$TOOLKIT_DIR$\lib\dl7M_tln.a</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\..\..\..\..\embos-trial\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\Setup\SEGGER_SYSVIEW.h</file>
+      <file>$PROJ_DIR$\Debug\List\wolfcrypt_benchmark.map</file>
+      <file>$TOOLKIT_DIR$\inc\c\DLib_Defaults.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\..\..\..\..\embos-trial\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\Setup\Global.h</file>
+      <file>$TOOLKIT_DIR$\lib\shb_l.a</file>
+      <file>$TOOLKIT_DIR$\lib\m7M_tlv.a</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\..\..\..\..\embos-trial\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\Setup\SEGGER.h</file>
+      <file>$TOOLKIT_DIR$\inc\c\xencoding_limits.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\..\..\..\..\embos-trial\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\DeviceSupport\system_samv71.h</file>
+      <file>$PROJ_DIR$\..\embOS_SAMV71_XULT_Linker_Script\samv71q21_wolfssl.icf</file>
+      <file>$TOOLKIT_DIR$\inc\c\DLib_Product.h</file>
+      <file>$TOOLKIT_DIR$\inc\c\cmsis_iar.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\wolfssl\wolfcrypt\asn.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\wolfssl\wolfcrypt\arc4.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\wolfssl\wolfcrypt\chacha.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\wolfssl\wolfcrypt\poly1305.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\wolfssl\wolfcrypt\ecc.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\wolfssl\wolfcrypt\hc128.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\wolfssl\wolfcrypt\rabbit.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\wolfcrypt\benchmark\benchmark.h</file>
+      <file>$PROJ_DIR$\..\embOS_wolfcrypt_lib_SAMV71_XULT\Debug\Bin\wolfcrypt_lib.a</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\wolfssl\wolfcrypt\asn_public.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\..\..\..\..\embos-trial\Start\Inc\BSP.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\wolfssl\wolfcrypt\logging.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\..\..\..\..\embos-trial\Start\Inc\OS_Config.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\wolfssl\wolfcrypt\md5.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\wolfssl\wolfcrypt\types.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\wolfssl\wolfcrypt\des3.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\..\..\..\..\embos-trial\Start\Inc\RTOS.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\wolfssl\wolfcrypt\integer.h</file>
+      <file>$TOOLKIT_DIR$\inc\c\xlocale_c.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\wolfssl\wolfcrypt\sha256.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\wolfssl\wolfcrypt\sha512.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\wolfssl\wolfcrypt\random.h</file>
+      <file>$TOOLKIT_DIR$\inc\c\limits.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\wolfssl\wolfcrypt\dsa.h</file>
+      <file>$TOOLKIT_DIR$\inc\c\xlocale.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\wolfssl\wolfcrypt\wc_port.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\wolfssl\mem_track.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\wolfssl\wolfcrypt\camellia.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\wolfssl\wolfcrypt\rsa.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\wolfssl\wolfcrypt\aes.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\wolfssl\wolfcrypt\visibility.h</file>
+      <file>$TOOLKIT_DIR$\inc\c\xmtx.h</file>
+      <file>$TOOLKIT_DIR$\inc\c\xtls.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\..\..\..\..\embos-trial\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\Setup\SEGGER_SYSVIEW_embOS.h</file>
+      <file>$PROJ_DIR$\Debug\Exe\wolfcrypt_benchmark.out</file>
+      <file>$PROJ_DIR$\Debug\Obj\wolfcrypt_benchmark.pbd</file>
+      <file>$PROJ_DIR$\Debug\Obj\benchmark.pbi</file>
+      <file>$TOOLKIT_DIR$\inc\c\ctype.h</file>
+      <file>$TOOLKIT_DIR$\inc\c\stdio.h</file>
+      <file>$PROJ_DIR$\..\embOS_SAMV71_XULT_user_settings\user_settings.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\wolfssl\wolfcrypt\sha.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\wolfssl\wolfcrypt\memory.h</file>
+      <file>$TOOLKIT_DIR$\inc\c\stdarg.h</file>
+      <file>$PROJ_DIR$\Debug\Obj\runBenchmarks.pbi</file>
+      <file>$PROJ_DIR$\Debug\Obj\runBenchmarks.o</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\..\..\..\..\embos-trial\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\Setup\SEGGER_SYSVIEW_ConfDefaults.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\wolfssl\wolfcrypt\chacha20_poly1305.h</file>
+      <file>$TOOLKIT_DIR$\inc\c\xlocaleuse.h</file>
+      <file>$TOOLKIT_DIR$\inc\c\wchar.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\wolfssl\wolfcrypt\hash.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\wolfssl\wolfcrypt\ripemd.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\wolfssl\wolfcrypt\settings.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\..\..\..\..\embos-trial\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\Setup\SEGGER_SYSVIEW_Int.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\wolfssl\certs_test.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\wolfssl\wolfcrypt\dh.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\wolfssl\wolfcrypt\tfm.h</file>
+      <file>$TOOLKIT_DIR$\inc\c\stdlib.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\..\..\..\..\embos-trial\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\Setup\SEGGER_SYSVIEW_Conf.h</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\..\..\..\..\embos-trial\Start\Inc\JLINKMEM.h</file>
+      <file>$TOOLKIT_DIR$\inc\c\ystdio.h</file>
+      <file>$PROJ_DIR$\Debug\Obj\startup_sam.pbi</file>
+      <file>$PROJ_DIR$\Debug\Obj\system_sam.o</file>
+      <file>$PROJ_DIR$\Debug\Obj\startup_sam.o</file>
+      <file>$PROJ_DIR$\Debug\Obj\benchmark.o</file>
+      <file>$PROJ_DIR$\Debug\Obj\system_sam.pbi</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\..\..\..\..\embos-trial\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\DeviceSupport\samv71.h</file>
+    </outputs>
+    <file>
+      <name>[ROOT_NODE]</name>
+      <outputs>
+        <tool>
+          <name>ILINK</name>
+          <file> 215 170</file>
+        </tool>
+      </outputs>
+    </file>
+    <file>
+      <name>$PROJ_DIR$\..\..\..\..\..\..\..\..\..\embos-trial\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\DeviceSupport\system_sam.c</name>
+      <outputs>
+        <tool>
+          <name>BICOMP</name>
+          <file> 245</file>
+        </tool>
+        <tool>
+          <name>ICCARM</name>
+          <file> 242</file>
+        </tool>
+        <tool>
+          <name>__cstat</name>
+          <file> 132</file>
+        </tool>
+      </outputs>
+      <inputs>
+        <tool>
+          <name>BICOMP</name>
+          <file> 155 160 88 64 59 66 69 75 159 70 57 43 100 108 107 62 142 36 61 42 85 84 105 109 110 116 91 63 83 161 141 24 65 45 81 56 34 77 73 95 118 68 114 104 115 67 101 106 103 97 94 111 82 163 151 177 162 165 44 38 39 52 25 23 35 50 51 17 47 30 26 48 71 49 79 41 74 22 58 53 86 37 55 29 46 54 78 27 72 40 76 28 33 21 87 18 80 20 32 31 60 171 176 157 179 19 156 180 246</file>
+        </tool>
+        <tool>
+          <name>ICCARM</name>
+          <file> 246 161 160 155 159 171 157 179 176 163 70 83 180 156 19 151 177 141 162 142 165 24 44 64 38 65 39 36 52 45 25 57 23 81 35 61 50 56 51 66 17 34 47 42 30 77 26 43 48 73 71 85 49 95 79 88 41 118 74 84 22 68 58 100 53 114 86 105 37 104 55 69 29 115 46 109 54 67 78 108 27 101 72 110 40 106 76 59 28 103 33 116 21 97 87 107 18 94 80 91 20 111 32 75 31 82 60 63 62</file>
+        </tool>
+      </inputs>
+    </file>
+    <file>
+      <name>$PROJ_DIR$\Application\runBenchmarks.c</name>
+      <outputs>
+        <tool>
+          <name>BICOMP</name>
+          <file> 224</file>
+        </tool>
+        <tool>
+          <name>ICCARM</name>
+          <file> 225</file>
+        </tool>
+        <tool>
+          <name>__cstat</name>
+          <file> 93</file>
+        </tool>
+      </outputs>
+      <inputs>
+        <tool>
+          <name>BICOMP</name>
+          <file> 155 171 188 154 153 179 191 156 166 176 157 159 197 193 163</file>
+        </tool>
+        <tool>
+          <name>ICCARM</name>
+          <file> 197 154 155 159 171 157 179 176 163 166 153 156 193 191 188</file>
+        </tool>
+      </inputs>
+    </file>
+    <file>
+      <name>$PROJ_DIR$\..\..\..\..\..\wolfcrypt\benchmark\benchmark.c</name>
+      <outputs>
+        <tool>
+          <name>BICOMP</name>
+          <file> 217</file>
+        </tool>
+        <tool>
+          <name>ICCARM</name>
+          <file> 244</file>
+        </tool>
+        <tool>
+          <name>__cstat</name>
+          <file> 149</file>
+        </tool>
+      </outputs>
+      <inputs>
+        <tool>
+          <name>BICOMP</name>
+          <file> 154 207 201 159 218 212 230 198 195 183 163 213 236 156 196 208 197 166 222 155 202 221 193 219 186 210 181 235 188 200 232 211 228 229 185 182 187 227 184 194 209 231 234 220 153 171 176 157 179 240 206 237 205 199 203 204 190 192</file>
+        </tool>
+        <tool>
+          <name>ICCARM</name>
+          <file> 232 211 220 154 155 159 171 157 179 176 163 166 153 219 240 202 195 206 222 237 218 205 213 212 228 199 229 200 196 182 186 187 183 227 210 184 208 194 221 201 209 198 236 203 230 181 235 204 190 185 231 234 188 207 192 197 156 193</file>
+        </tool>
+      </inputs>
+    </file>
+    <file>
+      <name>$PROJ_DIR$\..\..\..\..\..\..\..\..\..\embos-trial\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\DeviceSupport\startup_sam.c</name>
+      <outputs>
+        <tool>
+          <name>BICOMP</name>
+          <file> 241</file>
+        </tool>
+        <tool>
+          <name>ICCARM</name>
+          <file> 243</file>
+        </tool>
+        <tool>
+          <name>__cstat</name>
+          <file> 102</file>
+        </tool>
+      </outputs>
+      <inputs>
+        <tool>
+          <name>BICOMP</name>
+          <file> 50 20 37 165 49 40 52 30 22 54 21 171 155 19 160 177 38 23 17 48 41 53 29 27 28 18 31 179 162 44 39 25 35 51 47 26 71 79 74 58 86 55 46 78 72 76 33 87 80 32 60 176 157 161 70 141 142 24 64 65 36 45 57 81 61 56 66 34 42 77 43 73 85 95 88 118 84 68 100 114 105 104 69 115 109 67 108 101 110 106 59 103 116 97 107 94 91 111 75 82 63 62 159 163 83 151 156 180 246</file>
+        </tool>
+        <tool>
+          <name>ICCARM</name>
+          <file> 246 161 160 155 159 171 157 179 176 163 70 83 180 156 19 151 177 141 162 142 165 24 44 64 38 65 39 36 52 45 25 57 23 81 35 61 50 56 51 66 17 34 47 42 30 77 26 43 48 73 71 85 49 95 79 88 41 118 74 84 22 68 58 100 53 114 86 105 37 104 55 69 29 115 46 109 54 67 78 108 27 101 72 110 40 106 76 59 28 103 33 116 21 97 87 107 18 94 80 91 20 111 32 75 31 82 60 63 62</file>
+        </tool>
+      </inputs>
+    </file>
+    <file>
+      <name>$PROJ_DIR$\..\..\..\..\..\..\..\..\..\embos-trial\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\Setup\BSP.c</name>
+      <outputs>
+        <tool>
+          <name>BICOMP</name>
+          <file> 138</file>
+        </tool>
+        <tool>
+          <name>ICCARM</name>
+          <file> 139</file>
+        </tool>
+        <tool>
+          <name>__cstat</name>
+          <file> 117</file>
+        </tool>
+      </outputs>
+      <inputs>
+        <tool>
+          <name>ICCARM</name>
+          <file> 191 246 161 160 155 159 171 157 179 176 163 70 83 180 156 19 151 177 141 162 142 165 24 44 64 38 65 39 36 52 45 25 57 23 81 35 61 50 56 51 66 17 34 47 42 30 77 26 43 48 73 71 85 49 95 79 88 41 118 74 84 22 68 58 100 53 114 86 105 37 104 55 69 29 115 46 109 54 67 78 108 27 101 72 110 40 106 76 59 28 103 33 116 21 97 87 107 18 94 80 91 20 111 32 75 31 82 60 63 62</file>
+        </tool>
+      </inputs>
+    </file>
+    <file>
+      <name>$PROJ_DIR$\..\..\..\..\..\..\..\..\..\embos-trial\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\Setup\SEGGER_SYSVIEW_Config_embOS.c</name>
+      <outputs>
+        <tool>
+          <name>BICOMP</name>
+          <file> 129</file>
+        </tool>
+        <tool>
+          <name>ICCARM</name>
+          <file> 119</file>
+        </tool>
+        <tool>
+          <name>__cstat</name>
+          <file> 96</file>
+        </tool>
+      </outputs>
+      <inputs>
+        <tool>
+          <name>BICOMP</name>
+          <file> 214 154 159 163 155 169 156 193 172 197 166 153 171 176 157 179 175</file>
+        </tool>
+        <tool>
+          <name>ICCARM</name>
+          <file> 197 154 155 159 171 157 179 176 163 166 153 156 193 169 175 172 214</file>
+        </tool>
+      </inputs>
+    </file>
+    <file>
+      <name>$PROJ_DIR$\..\..\..\..\..\..\..\..\..\embos-trial\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\Setup\SEGGER_RTT_printf.c</name>
+      <outputs>
+        <tool>
+          <name>BICOMP</name>
+          <file> 121</file>
+        </tool>
+        <tool>
+          <name>ICCARM</name>
+          <file> 147</file>
+        </tool>
+        <tool>
+          <name>__cstat</name>
+          <file> 99</file>
+        </tool>
+      </outputs>
+      <inputs>
+        <tool>
+          <name>BICOMP</name>
+          <file> 155 176 223 158 156 159 163 237 166 171 152 157 179</file>
+        </tool>
+        <tool>
+          <name>ICCARM</name>
+          <file> 152 158 156 155 237 159 171 157 179 176 163 166</file>
+        </tool>
+      </inputs>
+    </file>
+    <file>
+      <name>$PROJ_DIR$\..\..\..\..\..\..\..\..\..\embos-trial\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\Setup\SEGGER_SYSVIEW.c</name>
+      <outputs>
+        <tool>
+          <name>BICOMP</name>
+          <file> 134</file>
+        </tool>
+        <tool>
+          <name>ICCARM</name>
+          <file> 146</file>
+        </tool>
+        <tool>
+          <name>__cstat</name>
+          <file> 113</file>
+        </tool>
+      </outputs>
+      <inputs>
+        <tool>
+          <name>BICOMP</name>
+          <file> 238 155 223 166 159 154 175 179 152 237 169 226 172 158 156 153 157 233 171 176 163</file>
+        </tool>
+        <tool>
+          <name>ICCARM</name>
+          <file> 233 169 175 172 238 226 158 156 155 152 154 159 171 157 179 176 163 166 153 237</file>
+        </tool>
+      </inputs>
+    </file>
+    <file>
+      <name>$PROJ_DIR$\..\..\..\..\..\..\..\..\..\embos-trial\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\Setup\HardFaultHandler.S</name>
+      <outputs>
+        <tool>
+          <name>AARM</name>
+          <file> 127</file>
+        </tool>
+      </outputs>
+    </file>
+    <file>
+      <name>$PROJ_DIR$\..\..\..\..\..\..\..\..\..\embos-trial\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\Setup\OS_Error.c</name>
+      <outputs>
+        <tool>
+          <name>BICOMP</name>
+          <file> 148</file>
+        </tool>
+        <tool>
+          <name>ICCARM</name>
+          <file> 136</file>
+        </tool>
+        <tool>
+          <name>__cstat</name>
+          <file> 125</file>
+        </tool>
+      </outputs>
+      <inputs>
+        <tool>
+          <name>BICOMP</name>
+          <file> 157 159 154 155 156 179 197 193 166 153 171 176 163</file>
+        </tool>
+        <tool>
+          <name>ICCARM</name>
+          <file> 197 154 155 159 171 157 179 176 163 166 153 156 193</file>
+        </tool>
+      </inputs>
+    </file>
+    <file>
+      <name>$PROJ_DIR$\..\..\..\..\..\..\..\..\..\embos-trial\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\Setup\RTOSInit_SAMV71_CMSIS.c</name>
+      <outputs>
+        <tool>
+          <name>BICOMP</name>
+          <file> 122</file>
+        </tool>
+        <tool>
+          <name>ICCARM</name>
+          <file> 140</file>
+        </tool>
+        <tool>
+          <name>__cstat</name>
+          <file> 92</file>
+        </tool>
+      </outputs>
+      <inputs>
+        <tool>
+          <name>BICOMP</name>
+          <file> 65 103 163 159 155 118 34 115 82 151 156 141 81 73 114 101 94 24 45 56 77 95 68 104 67 106 97 111 246 193 172 70 142 64 36 57 61 66 42 43 85 88 84 100 105 69 109 108 110 59 116 107 91 75 63 62 83 180 169 239 154 166 153 171 176 157 179 175 161 160 177 162 165 44 38 39 52 25 23 35 50 51 17 47 30 26 48 71 49 79 41 74 22 58 53 86 37 55 29 46 54 78 27 72 40 76 28 33 21 87 18 80 20 32 31 60 19 197</file>
+        </tool>
+        <tool>
+          <name>ICCARM</name>
+          <file> 197 154 155 159 171 157 179 176 163 166 153 156 193 169 175 172 246 161 160 70 83 180 19 151 177 141 162 142 165 24 44 64 38 65 39 36 52 45 25 57 23 81 35 61 50 56 51 66 17 34 47 42 30 77 26 43 48 73 71 85 49 95 79 88 41 118 74 84 22 68 58 100 53 114 86 105 37 104 55 69 29 115 46 109 54 67 78 108 27 101 72 110 40 106 76 59 28 103 33 116 21 97 87 107 18 94 80 91 20 111 32 75 31 82 60 63 62 239</file>
+        </tool>
+      </inputs>
+    </file>
+    <file>
+      <name>$PROJ_DIR$\..\..\..\..\..\..\..\..\..\embos-trial\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\Setup\xmtx2.c</name>
+      <outputs>
+        <tool>
+          <name>BICOMP</name>
+          <file> 144</file>
+        </tool>
+        <tool>
+          <name>ICCARM</name>
+          <file> 131</file>
+        </tool>
+        <tool>
+          <name>__cstat</name>
+          <file> 112</file>
+        </tool>
+      </outputs>
+      <inputs>
+        <tool>
+          <name>BICOMP</name>
+          <file> 157 159 155 176 163 154 197 171 179 156 193 166 153</file>
+        </tool>
+        <tool>
+          <name>ICCARM</name>
+          <file> 159 155 171 157 179 176 163 197 154 166 153 156 193</file>
+        </tool>
+      </inputs>
+    </file>
+    <file>
+      <name>$PROJ_DIR$\..\..\..\..\..\..\..\..\..\embos-trial\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\Setup\SEGGER_HardFaultHandler.c</name>
+      <outputs>
+        <tool>
+          <name>BICOMP</name>
+          <file> 135</file>
+        </tool>
+        <tool>
+          <name>ICCARM</name>
+          <file> 137</file>
+        </tool>
+        <tool>
+          <name>__cstat</name>
+          <file> 89</file>
+        </tool>
+      </outputs>
+    </file>
+    <file>
+      <name>$PROJ_DIR$\..\..\..\..\..\..\..\..\..\embos-trial\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\Setup\SEGGER_RTT.c</name>
+      <outputs>
+        <tool>
+          <name>BICOMP</name>
+          <file> 124</file>
+        </tool>
+        <tool>
+          <name>ICCARM</name>
+          <file> 150</file>
+        </tool>
+        <tool>
+          <name>__cstat</name>
+          <file> 123</file>
+        </tool>
+      </outputs>
+      <inputs>
+        <tool>
+          <name>BICOMP</name>
+          <file> 163 159 155 158 156 154 166 153 152 171 176 157 179</file>
+        </tool>
+        <tool>
+          <name>ICCARM</name>
+          <file> 152 158 156 155 154 159 171 157 179 176 163 166 153</file>
+        </tool>
+      </inputs>
+    </file>
+    <file>
+      <name>$PROJ_DIR$\..\..\..\..\..\..\..\..\..\embos-trial\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\Setup\JLINKMEM_Process.c</name>
+      <outputs>
+        <tool>
+          <name>BICOMP</name>
+          <file> 133</file>
+        </tool>
+        <tool>
+          <name>ICCARM</name>
+          <file> 130</file>
+        </tool>
+        <tool>
+          <name>__cstat</name>
+          <file> 90</file>
+        </tool>
+      </outputs>
+      <inputs>
+        <tool>
+          <name>BICOMP</name>
+          <file> 159 155 171 153 156 193 166 176 163 239 154 157 179 197</file>
+        </tool>
+        <tool>
+          <name>ICCARM</name>
+          <file> 197 154 155 159 171 157 179 176 163 166 153 156 193 239</file>
+        </tool>
+      </inputs>
+    </file>
+    <file>
+      <name>$PROJ_DIR$\..\..\..\..\..\..\..\..\..\embos-trial\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\Setup\xmtx.c</name>
+      <outputs>
+        <tool>
+          <name>BICOMP</name>
+          <file> 128</file>
+        </tool>
+        <tool>
+          <name>ICCARM</name>
+          <file> 126</file>
+        </tool>
+        <tool>
+          <name>__cstat</name>
+          <file> 98</file>
+        </tool>
+      </outputs>
+      <inputs>
+        <tool>
+          <name>BICOMP</name>
+          <file> 157 159 155 176 163 154 197 171 179 156 193 166 153</file>
+        </tool>
+        <tool>
+          <name>ICCARM</name>
+          <file> 159 155 171 157 179 176 163 197 154 166 153 156 193</file>
+        </tool>
+      </inputs>
+    </file>
+    <file>
+      <name>$PROJ_DIR$\..\..\..\..\..\..\..\..\..\embos-trial\Start\BoardSupport\Atmel\SAMV71_XPlainedUltra\Setup\SEGGER_SYSVIEW_embOS.c</name>
+      <outputs>
+        <tool>
+          <name>BICOMP</name>
+          <file> 120</file>
+        </tool>
+        <tool>
+          <name>ICCARM</name>
+          <file> 145</file>
+        </tool>
+        <tool>
+          <name>__cstat</name>
+          <file> 143</file>
+        </tool>
+      </outputs>
+      <inputs>
+        <tool>
+          <name>BICOMP</name>
+          <file> 156 159 163 155 152 193 158 169 154 166 153 171 176 157 179 172 197 175</file>
+        </tool>
+        <tool>
+          <name>ICCARM</name>
+          <file> 197 154 155 159 171 157 179 176 163 166 153 156 193 169 175 172 152 158</file>
+        </tool>
+      </inputs>
+    </file>
+    <file>
+      <name>$PROJ_DIR$\Debug\Exe\wolfcrypt_benchmark.out</name>
+      <outputs>
+        <tool>
+          <name>ILINK</name>
+          <file> 170</file>
+        </tool>
+      </outputs>
+      <inputs>
+        <tool>
+          <name>ILINK</name>
+          <file> 178 244 139 127 130 136 140 225 137 150 147 146 119 145 243 242 126 131 189 164 173 167 174 168</file>
+        </tool>
+      </inputs>
+    </file>
+  </configuration>
+  <configuration>
+    <name>Release</name>
+    <outputs/>
+    <forcedrebuild>
+      <name>[MULTI_TOOL]</name>
+      <tool>ILINK</tool>
+    </forcedrebuild>
+  </configuration>
+</project>
+
+
