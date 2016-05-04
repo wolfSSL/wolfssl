@@ -130,7 +130,7 @@
 #include "wolfcrypt/benchmark/benchmark.h"
 
 #ifdef USE_WOLFSSL_MEMORY
-    #include "wolfssl/mem_track.h"
+    #include "wolfssl/wolfcrypt/mem_track.h"
 #endif
 
 void bench_des(void);
