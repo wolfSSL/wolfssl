@@ -1,1 +1,6 @@
 *.bat
+*.xcl
+*.crun
+*.dbgdt
+*.dni
+

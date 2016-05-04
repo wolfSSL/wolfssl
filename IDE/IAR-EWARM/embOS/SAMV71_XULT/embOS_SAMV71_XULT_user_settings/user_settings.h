@@ -16,6 +16,9 @@
     #undef SIZEOF_LONG_LONG
     #define SIZEOF_LONG_LONG 8
 
+    #undef USE_FAST_MATH
+    #define USE_FAST_MATH
+
     #undef HAVE_CHACHA
     #define HAVE_CHACHA
 

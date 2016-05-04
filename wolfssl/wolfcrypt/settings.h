@@ -413,7 +413,6 @@
 #endif
 
 #ifdef WOLFSSL_EMBOS
-    #define USE_FAST_MATH
     #define NO_FILESYSTEM           /* Not ported at this time */
     #define USE_CERT_BUFFERS_2048   /* use when NO_FILESYSTEM */
     #define NO_MAIN_DRIVER

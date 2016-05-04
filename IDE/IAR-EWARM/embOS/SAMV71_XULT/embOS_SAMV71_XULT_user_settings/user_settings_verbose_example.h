@@ -40,16 +40,7 @@
 
     #undef  TFM_ASM
     //#define TFM_ASM
-
-    /* Enable extra math checks */
-    #undef  TFM_CHECK
-    //#define TFM_CHECK
 #endif
-
-/* Math debugging */
-#undef  WOLFSSL_DEBUG_MATH
-//#define WOLFSSL_DEBUG_MATH
-
 
 /* ------------------------------------------------------------------------- */
 /* Crypto */
@@ -130,7 +121,7 @@
     #undef  HAVE_AESGCM
     #define HAVE_AESGCM
 
-    /* GCM Method: GCM_SMALL, GCM_WORD32 or GCM_SMALL */
+    /* GCM Method: GCM_SMALL, GCM_WORD32 or GCM_TABLE */
     #undef  GCM_SMALL
     #define GCM_SMALL
 #else
@@ -186,14 +177,6 @@
 #if 1
     #define NO_MD5
 #endif
-
-
-/* ------------------------------------------------------------------------- */
-/* HW Crypto Acceleration */
-/* ------------------------------------------------------------------------- */
-// See README.md for instructions
-//#define FREESCALE_MMCAU   1
-
 
 /* ------------------------------------------------------------------------- */
 /* Benchmark / Test */
