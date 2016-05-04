@@ -3468,12 +3468,29 @@ static int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
              /* Make sure previous is free'd */
             if (ssl->buffers.weOwnCert) {
                 FreeDer(&ssl->buffers.certificate);
+                #ifdef KEEP_OUR_CERT
+                    FreeX509(ssl->ourCert);
+                    if (ssl->ourCert) {
+                        XFREE(ssl->ourCert, ssl->heap, DYNAMIC_TYPE_X509);
+                        ssl->ourCert = NULL;
+                    }
+                #endif
             }
             XMEMCPY(&ssl->buffers.certificate, &der, sizeof(der));
+            #ifdef KEEP_OUR_CERT
+                ssl->keepCert = 1; /* hold cert for ssl lifetime */
+            #endif
             ssl->buffers.weOwnCert = 1;
         }
         else if (ctx) {
             FreeDer(&ctx->certificate); /* Make sure previous is free'd */
+            #ifdef KEEP_OUR_CERT
+                FreeX509(ctx->ourCert);
+                if (ctx->ourCert) {
+                    XFREE(ctx->ourCert, ctx->heap, DYNAMIC_TYPE_X509);
+                    ctx->ourCert = NULL;
+                }
+            #endif
             XMEMCPY(&ctx->certificate, &der, sizeof(der));
         }
     }
@@ -8017,9 +8034,16 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
             return BAD_FUNC_ARG;
         }
 
-        if (ssl->buffers.weOwnCert) {
+        if (ssl->buffers.weOwnCert && !ssl->keepCert) {
             WOLFSSL_MSG("Unloading cert");
             FreeDer(&ssl->buffers.certificate);
+            #ifdef KEEP_OUR_CERT
+                FreeX509(ssl->ourCert);
+                if (ssl->ourCert) {
+                    XFREE(ssl->ourCert, ssl->heap, DYNAMIC_TYPE_X509);
+                    ssl->ourCert = NULL;
+                }
+            #endif
             ssl->buffers.weOwnCert = 0;
         }
 
@@ -9760,6 +9784,35 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
     }
 
 
+    /* WOLFSSL_DES_key_schedule is a unsigned char array of size 8 */
+    void wolfSSL_DES_ede3_cbc_encrypt(const unsigned char* input,
+                                      unsigned char* output, long sz,
+                                      WOLFSSL_DES_key_schedule* ks1,
+                                      WOLFSSL_DES_key_schedule* ks2,
+                                      WOLFSSL_DES_key_schedule* ks3,
+                                      WOLFSSL_DES_cblock* ivec, int enc)
+    {
+        Des3 des;
+        byte key[24];/* EDE uses 24 size key */
+
+        WOLFSSL_ENTER("wolfSSL_DES_ede3_cbc_encrypt");
+
+        XMEMSET(key, 0, sizeof(key));
+        XMEMCPY(key, *ks1, DES_BLOCK_SIZE);
+        XMEMCPY(&key[DES_BLOCK_SIZE], *ks2, DES_BLOCK_SIZE);
+        XMEMCPY(&key[DES_BLOCK_SIZE * 2], *ks3, DES_BLOCK_SIZE);
+
+        if (enc) {
+            wc_Des3_SetKey(&des, key, (const byte*)ivec, DES_ENCRYPTION);
+            wc_Des3_CbcEncrypt(&des, output, input, (word32)sz);
+        }
+        else {
+            wc_Des3_SetKey(&des, key, (const byte*)ivec, DES_DECRYPTION);
+            wc_Des3_CbcDecrypt(&des, output, input, (word32)sz);
+        }
+    }
+
+
     /* correctly sets ivec for next call */
     void wolfSSL_DES_ncbc_encrypt(const unsigned char* input,
                      unsigned char* output, long length,
@@ -10216,6 +10269,72 @@ static void ExternalFreeX509(WOLFSSL_X509* x509)
         WOLFSSL_LEAVE("wolfSSL_X509_NAME_get_text_by_NID", textSz);
         return textSz;
     }
+
+    int wolfSSL_X509_NAME_get_index_by_NID(WOLFSSL_X509_NAME* name,
+                                          int nid, int pos)
+    {
+        int ret    = -1;
+
+        WOLFSSL_ENTER("wolfSSL_X509_NAME_get_index_by_NID");
+
+        if (name == NULL) {
+            return BAD_FUNC_ARG;
+        }
+
+        /* these index values are already stored in DecodedName
+           use those when available */
+        if (name->fullName.fullName && name->fullName.fullNameLen > 0) {
+            switch (nid) {
+                case ASN_COMMON_NAME:
+                    ret = name->fullName.cnIdx;
+                    break;
+                default:
+                    WOLFSSL_MSG("NID not yet implemented");
+                    break;
+            }
+        }
+
+        WOLFSSL_LEAVE("wolfSSL_X509_NAME_get_index_by_NID", ret);
+
+        (void)pos;
+        (void)nid;
+
+        return ret;
+    }
+
+
+    WOLFSSL_ASN1_STRING*  wolfSSL_X509_NAME_ENTRY_get_data(
+                                                    WOLFSSL_X509_NAME_ENTRY* in)
+    {
+        WOLFSSL_ENTER("wolfSSL_X509_NAME_ENTRY_get_data");
+        return in->value;
+    }
+
+
+    char* wolfSSL_ASN1_STRING_data(WOLFSSL_ASN1_STRING* asn)
+    {
+        WOLFSSL_ENTER("wolfSSL_ASN1_STRING_data");
+
+        if (asn) {
+            return asn->data;
+        }
+        else {
+            return NULL;
+        }
+    }
+
+
+    int wolfSSL_ASN1_STRING_length(WOLFSSL_ASN1_STRING* asn)
+    {
+        WOLFSSL_ENTER("wolfSSL_ASN1_STRING_length");
+
+        if (asn) {
+            return asn->length;
+        }
+        else {
+            return 0;
+        }
+    }
 #endif
 
 
@@ -10636,6 +10755,39 @@ WOLFSSL_X509* wolfSSL_X509_load_certificate_file(const char* fname, int format)
 #endif /* NO_FILESYSTEM */
 
 #endif /* KEEP_PEER_CERT || SESSION_CERTS */
+
+/* OPENSSL_EXTRA is needed for wolfSSL_X509_d21 function
+   KEEP_OUR_CERT is to insure ability for returning ssl certificate */
+#if defined(OPENSSL_EXTRA) && defined(KEEP_OUR_CERT)
+WOLFSSL_X509* wolfSSL_get_certificate(WOLFSSL* ssl)
+{
+    if (ssl == NULL) {
+        return NULL;
+    }
+
+    if (ssl->buffers.weOwnCert) {
+        if (ssl->ourCert == NULL) {
+            ssl->ourCert = wolfSSL_X509_d2i(NULL,
+                                              ssl->buffers.certificate->buffer,
+                                              ssl->buffers.certificate->length);
+        }
+        return ssl->ourCert;
+    }
+    else { /* if cert not owned get parent ctx cert or return null */
+        if (ssl->ctx) {
+            if (ssl->ctx->ourCert == NULL) {
+                ssl->ctx->ourCert = wolfSSL_X509_d2i(NULL,
+                                               ssl->ctx->certificate->buffer,
+                                               ssl->ctx->certificate->length);
+            }
+            return ssl->ctx->ourCert;
+        }
+        else {
+            return NULL;
+        }
+    }
+}
+#endif /* OPENSSL_EXTRA && KEEP_OUR_CERT */
 #endif /* NO_CERTS */
 
 
@@ -11042,6 +11194,10 @@ const char* wolfSSL_CIPHER_get_name(const WOLFSSL_CIPHER* cipher)
                 return "TLS_DHE_RSA_WITH_AES_128_CBC_SHA";
             case TLS_DHE_RSA_WITH_AES_256_CBC_SHA :
                 return "TLS_DHE_RSA_WITH_AES_256_CBC_SHA";
+        #ifndef NO_DES3
+            case TLS_DHE_RSA_WITH_3DES_EDE_CBC_SHA:
+                return "TLS_DHE_RSA_WITH_3DES_EDE_CBC_SHA";
+         #endif
 #endif
 #ifndef NO_HC128
     #ifndef NO_MD5
@@ -11130,6 +11286,12 @@ const char* wolfSSL_get_cipher(WOLFSSL* ssl)
     return wolfSSL_CIPHER_get_name(wolfSSL_get_current_cipher(ssl));
 }
 
+/* gets cipher name in the format DHE-RSA-... rather then TLS_DHE... */
+const char* wolfSSL_get_cipher_name(WOLFSSL* ssl)
+{
+    /* get access to cipher_name_idx in internal.c */
+    return wolfSSL_get_cipher_name_internal(ssl);
+}
 #ifdef OPENSSL_EXTRA
 
 
@@ -11656,6 +11818,66 @@ int wolfSSL_ASN1_TIME_print(WOLFSSL_BIO* bio, const WOLFSSL_ASN1_TIME* asnTime)
 }
 
 
+#if defined(WOLFSSL_MYSQL_COMPATIBLE)
+char* wolfSSL_ASN1_TIME_to_string(WOLFSSL_ASN1_TIME* time, char* buf, int len)
+{
+    struct tm t;
+    int idx = 0;
+    int format;
+    int dateLen;
+    byte* date = (byte*)time;
+
+    WOLFSSL_ENTER("wolfSSL_ASN1_TIME_to_string");
+
+    if (time == NULL || buf == NULL || len < 5) {
+        WOLFSSL_MSG("Bad argument");
+        return NULL;
+    }
+
+    format  = *date; date++;
+    dateLen = *date; date++;
+    if (dateLen > len) {
+        return "error";
+    }
+
+    if (!ExtractDate(date, format, &t, &idx)) {
+        return "error";
+    }
+
+    if (date[idx] != 'Z') {
+        WOLFSSL_MSG("UTCtime, not Zulu") ;
+        return "Not Zulu";
+    }
+
+    /* place month in buffer */
+    buf[0] = '\0';
+    switch(t.tm_mon) {
+        case 0:  XSTRNCAT(buf, "Jan ", 4); break;
+        case 1:  XSTRNCAT(buf, "Feb ", 4); break;
+        case 2:  XSTRNCAT(buf, "Mar ", 4); break;
+        case 3:  XSTRNCAT(buf, "Apr ", 4); break;
+        case 4:  XSTRNCAT(buf, "May ", 4); break;
+        case 5:  XSTRNCAT(buf, "Jun ", 4); break;
+        case 6:  XSTRNCAT(buf, "Jul ", 4); break;
+        case 7:  XSTRNCAT(buf, "Aug ", 4); break;
+        case 8:  XSTRNCAT(buf, "Sep ", 4); break;
+        case 9:  XSTRNCAT(buf, "Oct ", 4); break;
+        case 10: XSTRNCAT(buf, "Nov ", 4); break;
+        case 11: XSTRNCAT(buf, "Dec ", 4); break;
+        default:
+            return "error";
+
+    }
+    idx = 4; /* use idx now for char buffer */
+    buf[idx] = ' ';
+
+    XSNPRINTF(buf + idx, len - idx, "%2d %02d:%02d:%02d %d GMT",
+              t.tm_mday, t.tm_hour, t.tm_min, t.tm_sec, t.tm_year + 1900);
+
+    return buf;
+}
+#endif /* WOLFSSL_MYSQL_COMPATIBLE */
+
 
 int wolfSSL_ASN1_INTEGER_cmp(const WOLFSSL_ASN1_INTEGER* a,
                             const WOLFSSL_ASN1_INTEGER* b)
@@ -11835,14 +12057,16 @@ long wolfSSL_CTX_sess_number(WOLFSSL_CTX* ctx)
 void wolfSSL_DES_set_key_unchecked(WOLFSSL_const_DES_cblock* myDes,
                                                WOLFSSL_DES_key_schedule* key)
 {
-    (void)myDes;
-    (void)key;
+    if (myDes != NULL && key != NULL) {
+        XMEMCPY(key, myDes, sizeof(WOLFSSL_const_DES_cblock));
+    }
 }
 
 
 void wolfSSL_DES_set_odd_parity(WOLFSSL_DES_cblock* myDes)
 {
     (void)myDes;
+    WOLFSSL_STUB("wolfSSL_DES_set_odd_parity");
 }
 
 
@@ -11853,6 +12077,7 @@ void wolfSSL_DES_ecb_encrypt(WOLFSSL_DES_cblock* desa,
     (void)desb;
     (void)key;
     (void)len;
+    WOLFSSL_STUB("wolfSSL_DES_ecb_encrypt");
 }
 
 #endif /* NO_DES3 */
@@ -16882,7 +17107,7 @@ void* wolfSSL_GetRsaDecCtx(WOLFSSL* ssl)
 
 
 #ifdef OPENSSL_EXTRA /*Lighttp compatibility*/
-#ifdef HAVE_LIGHTY
+#if defined(HAVE_LIGHTY) || defined(WOLFSSL_MYSQL_COMPATIBLE)
 
     unsigned char *wolfSSL_SHA1(const unsigned char *d, size_t n, unsigned char *md)
     {
@@ -16997,11 +17222,33 @@ void* wolfSSL_GetRsaDecCtx(WOLFSSL* ssl)
         return NULL;
     }
 
-    WOLFSSL_X509_NAME_ENTRY *wolfSSL_X509_NAME_get_entry(WOLFSSL_X509_NAME *name, int loc) {
+    WOLFSSL_X509_NAME_ENTRY *wolfSSL_X509_NAME_get_entry(
+                                             WOLFSSL_X509_NAME *name, int loc) {
+
+        int maxLoc = name->fullName.fullNameLen;
+
+        WOLFSSL_ENTER("wolfSSL_X509_NAME_get_entry");
+
+        if (loc < 0 || loc > maxLoc) {
+            WOLFSSL_MSG("Bad argument");
+            return NULL;
+        }
+
+        /* common name index case */
+        if (loc == name->fullName.cnIdx) {
+            /* get CN shortcut from x509 since it has null terminator */
+            name->cnEntry.data.data   = name->x509->subjectCN;
+            name->cnEntry.data.length = name->fullName.cnLen;
+            name->cnEntry.data.type   = ASN_COMMON_NAME;
+            name->cnEntry.set  = 1;
+            return &(name->cnEntry);
+        }
+
+        /* additionall cases to check for go here */
+
+        WOLFSSL_MSG("Entry not found or implemented");
         (void)name;
         (void)loc;
-        WOLFSSL_ENTER("wolfSSL_X509_NAME_get_entry");
-        WOLFSSL_STUB("wolfSSL_X509_NAME_get_entry");
 
         return NULL;
     }
@@ -17038,7 +17285,7 @@ void* wolfSSL_GetRsaDecCtx(WOLFSSL* ssl)
         return NULL;
     }
 
-#endif
+#endif /* HAVE_LIGHTY || WOLFSSL_MYSQL_COMPATIBLE */
 #endif
 
 
@@ -17135,7 +17382,8 @@ void* wolfSSL_get_ex_data(const WOLFSSL* ssl, int idx)
 #endif /* OPENSSL_EXTRA */
 
 
-#if defined(HAVE_LIGHTY) || defined(HAVE_STUNNEL)
+#if defined(HAVE_LIGHTY) || defined(HAVE_STUNNEL) \
+    || defined(WOLFSSL_MYSQL_COMPATIBLE)
 char * wolf_OBJ_nid2ln(int n) {
     (void)n;
     WOLFSSL_ENTER("wolf_OBJ_nid2ln");
@@ -17228,7 +17476,7 @@ long wolfSSL_CTX_set_tmp_dh(WOLFSSL_CTX* ctx, WOLFSSL_DH* dh)
     return pSz > 0 && gSz > 0 ? ret : SSL_FATAL_ERROR;
 }
 #endif /* NO_DH */
-#endif /* HAVE_LIGHTY || HAVE_STUNNEL */
+#endif /* HAVE_LIGHTY || HAVE_STUNNEL || WOLFSSL_MYSQL_COMPATIBLE */
 
 
 /* stunnel compatibility functions*/

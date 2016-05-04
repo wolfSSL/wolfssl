@@ -395,6 +395,9 @@ typedef byte word24[3];
         #if !defined(NO_SHA)
             #define BUILD_TLS_DHE_RSA_WITH_AES_128_CBC_SHA
             #define BUILD_TLS_DHE_RSA_WITH_AES_256_CBC_SHA
+            #if !defined(NO_DES3)
+                #define BUILD_TLS_DHE_RSA_WITH_3DES_EDE_CBC_SHA
+            #endif
         #endif
         #if !defined(NO_SHA256)
             #define BUILD_TLS_DHE_RSA_WITH_AES_128_CBC_SHA256
@@ -700,6 +703,7 @@ typedef byte word24[3];
 
 /* actual cipher values, 2nd byte */
 enum {
+    TLS_DHE_RSA_WITH_3DES_EDE_CBC_SHA = 0x16,
     TLS_DHE_RSA_WITH_AES_256_CBC_SHA  = 0x39,
     TLS_DHE_RSA_WITH_AES_128_CBC_SHA  = 0x33,
     TLS_DH_anon_WITH_AES_128_CBC_SHA  = 0x34,
@@ -873,7 +877,11 @@ enum Misc {
     ZLIB_COMPRESSION = 221,     /* wolfSSL zlib compression */
     HELLO_EXT_SIG_ALGO = 13,    /* ID for the sig_algo hello extension */
     SECRET_LEN      = 48,       /* pre RSA and all master */
+#if defined(WOLFSSL_MYSQL_COMPATIBLE)
+    ENCRYPT_LEN     = 1024,     /* allow larger static buffer with mysql */
+#else
     ENCRYPT_LEN     = 512,      /* allow 4096 bit static buffer */
+#endif
     SIZEOF_SENDER   =  4,       /* clnt or srvr           */
     FINISHED_SZ     = 36,       /* MD5_DIGEST_SIZE + SHA_DIGEST_SIZE */
     MAX_RECORD_SIZE = 16384,    /* 2^14, max size by standard */
@@ -1895,6 +1903,9 @@ struct WOLFSSL_CTX {
     DerBuffer*  privateKey;
     WOLFSSL_CERT_MANAGER* cm;      /* our cert manager, ctx owns SSL will use */
 #endif
+#ifdef KEEP_OUR_CERT
+    WOLFSSL_X509*    ourCert;     /* keep alive a X509 struct of cert */
+#endif
     Suites*     suites;           /* make dynamic, user may not need/set */
     void*       heap;             /* for user memory overrides */
     byte        verifyPeer;
@@ -2435,6 +2446,8 @@ struct WOLFSSL_X509_NAME {
     int   sz;
 #if defined(OPENSSL_EXTRA) && !defined(NO_ASN)
     DecodedName fullName;
+    WOLFSSL_X509_NAME_ENTRY cnEntry;
+    WOLFSSL_X509*           x509;   /* x509 that struct belongs to */
 #endif /* OPENSSL_EXTRA */
 };
 
@@ -2713,6 +2726,12 @@ struct WOLFSSL {
 #ifdef KEEP_PEER_CERT
     WOLFSSL_X509     peerCert;           /* X509 peer cert */
 #endif
+#ifdef KEEP_OUR_CERT
+    WOLFSSL_X509*    ourCert;            /* keep alive a X509 struct of cert.
+                                            points to ctx if not owned (owned
+                                            flag found in buffers.weOwnCert) */
+#endif
+    byte             keepCert;           /* keep certificate after handshake */
 #if defined(FORTRESS) || defined(HAVE_STUNNEL)
     void*           ex_data[MAX_EX_DATA]; /* external data, for Fortress */
 #endif
@@ -3037,6 +3056,7 @@ WOLFSSL_LOCAL void c32to24(word32 in, word24 out);
 
 WOLFSSL_LOCAL const char* const* GetCipherNames(void);
 WOLFSSL_LOCAL int GetCipherNamesSize(void);
+WOLFSSL_LOCAL const char* wolfSSL_get_cipher_name_internal(WOLFSSL* ssl);
 
 
 enum encrypt_side {

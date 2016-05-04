@@ -39,6 +39,10 @@
 #include <wolfssl/test.h>
 #include <tests/unit.h>
 
+#ifdef OPENSSL_EXTRA
+    #include <wolfssl/openssl/ssl.h>
+#endif
+
 /* enable testing buffer load functions */
 #ifndef USE_CERT_BUFFERS_2048
     #define USE_CERT_BUFFERS_2048
@@ -1663,6 +1667,54 @@ static void test_wolfSSL_UseALPN(void)
 }
 
 /*----------------------------------------------------------------------------*
+ | X509 Tests
+ *----------------------------------------------------------------------------*/
+static void test_wolfSSL_X509_NAME_get_entry(void)
+{
+#ifndef NO_CERTS
+#if defined(OPENSSL_EXTRA) && (defined(KEEP_PEER_CERT) || defined(SESSION_CERTS)) \
+    && (defined(HAVE_LIGHTY) || defined(WOLFSSL_MYSQL_COMPATIBLE))
+    printf(testingFmt, "wolfSSL_X509_NAME_get_entry()");
+
+    {
+        /* use openssl like name to test mapping */
+        X509_NAME_ENTRY* ne = NULL;
+        X509_NAME* name = NULL;
+        char* subCN = NULL;
+        X509* x509;
+        ASN1_STRING* asn;
+        int idx;
+
+    #ifndef NO_FILESYSTEM
+        x509 = wolfSSL_X509_load_certificate_file(cliCert, SSL_FILETYPE_PEM);
+        AssertNotNull(x509);
+
+        name = X509_get_subject_name(x509);
+
+        idx = X509_NAME_get_index_by_NID(name, NID_commonName, -1);
+        AssertIntGE(idx, 0);
+
+        ne = X509_NAME_get_entry(name, idx);
+        AssertNotNull(ne);
+
+        asn = X509_NAME_ENTRY_get_data(ne);
+        AssertNotNull(asn);
+
+        subCN = (char*)ASN1_STRING_data(asn);
+        AssertNotNull(subCN);
+
+        wolfSSL_FreeX509(x509);
+    #endif
+
+    }
+
+    printf(resultFmt, passed);
+#endif /* OPENSSL_EXTRA */
+#endif /* !NO_CERTS */
+}
+
+
+/*----------------------------------------------------------------------------*
  | Main
  *----------------------------------------------------------------------------*/
 
@@ -1691,6 +1743,9 @@ void ApiTest(void)
     test_wolfSSL_UseTruncatedHMAC();
     test_wolfSSL_UseSupportedCurve();
     test_wolfSSL_UseALPN();
+
+    /* X509 tests */
+    test_wolfSSL_X509_NAME_get_entry();
 
     test_wolfSSL_Cleanup();
     printf(" End API Tests\n");

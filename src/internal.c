@@ -643,6 +643,12 @@ void SSL_CtxResourceFree(WOLFSSL_CTX* ctx)
 #ifndef NO_CERTS
     FreeDer(&ctx->privateKey);
     FreeDer(&ctx->certificate);
+    #ifdef KEEP_OUR_CERT
+        FreeX509(ctx->ourCert);
+        if (ctx->ourCert) {
+            XFREE(ctx->ourCert, ctx->heap, DYNAMIC_TYPE_X509);
+        }
+    #endif
     FreeDer(&ctx->certChain);
     wolfSSL_CertManagerFree(ctx->cm);
 #endif
@@ -1295,6 +1301,13 @@ void InitSuites(Suites* suites, ProtocolVersion pv, word16 haveRSA,
     }
 #endif
 
+#ifdef BUILD_TLS_DHE_RSA_WITH_3DES_EDE_CBC_SHA
+    if (tls && haveDH && haveRSA) {
+        suites->suites[idx++] = 0;
+        suites->suites[idx++] = TLS_DHE_RSA_WITH_3DES_EDE_CBC_SHA;
+    }
+#endif
+
 #ifdef BUILD_TLS_DHE_RSA_WITH_AES_256_CBC_SHA256
     if (tls1_2 && haveDH && haveRSA) {
         suites->suites[idx++] = 0;
@@ -1692,6 +1705,9 @@ void InitX509Name(WOLFSSL_X509_NAME* name, int dynamicFlag)
         name->dynamicName = 0;
 #ifdef OPENSSL_EXTRA
         XMEMSET(&name->fullName, 0, sizeof(DecodedName));
+        XMEMSET(&name->cnEntry,  0, sizeof(WOLFSSL_X509_NAME_ENTRY));
+        name->cnEntry.value = &(name->cnEntry.data); /* point to internal data*/
+        name->x509 = NULL;
 #endif /* OPENSSL_EXTRA */
     }
 }
@@ -2576,6 +2592,7 @@ void SSL_ResourceFree(WOLFSSL* ssl)
     }
 #endif
 #ifndef NO_CERTS
+    ssl->keepCert = 0; /* make sure certificate is free'd */
     wolfSSL_UnloadCertsKeys(ssl);
 #endif
 #ifndef NO_RSA
@@ -4724,6 +4741,15 @@ static int BuildFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
             if (requirement == REQUIRES_DHE)
                 return 1;
             break;
+
+        case TLS_DHE_RSA_WITH_3DES_EDE_CBC_SHA:
+            if (requirement == REQUIRES_RSA)
+                return 1;
+            if (requirement == REQUIRES_RSA_SIG)
+                return 1;
+            if (requirement == REQUIRES_DHE)
+                return 1;
+            break;
 #endif
 #ifdef HAVE_ANON
         case TLS_DH_anon_WITH_AES_128_CBC_SHA :
@@ -4846,6 +4872,7 @@ int CopyDecodedToX509(WOLFSSL_X509* x509, DecodedCert* dCert)
             XMEMCPY(x509->issuer.fullName.fullName,
                      dCert->issuerName.fullName, dCert->issuerName.fullNameLen);
     }
+    x509->issuer.x509 = x509;
 #endif /* OPENSSL_EXTRA */
 
     XSTRNCPY(x509->subject.name, dCert->subject, ASN_NAME_MAX);
@@ -4861,6 +4888,7 @@ int CopyDecodedToX509(WOLFSSL_X509* x509, DecodedCert* dCert)
             XMEMCPY(x509->subject.fullName.fullName,
                    dCert->subjectName.fullName, dCert->subjectName.fullNameLen);
     }
+    x509->subject.x509 = x509;
 #endif /* OPENSSL_EXTRA */
 
     XMEMCPY(x509->serial, dCert->serial, EXTERNAL_SERIAL_SIZE);
@@ -10658,6 +10686,10 @@ static const char* const cipher_names[] =
 #ifdef BUILD_TLS_DHE_PSK_WITH_CHACHA20_POLY1305_SHA256
     "DHE-PSK-CHACHA20-POLY1305",
 #endif
+
+#ifdef BUILD_TLS_DHE_RSA_WITH_3DES_EDE_CBC_SHA
+    "EDH-RSA-DES-CBC3-SHA",
+#endif
 };
 
 
@@ -11096,6 +11128,10 @@ static int cipher_name_idx[] =
 #ifdef BUILD_TLS_DHE_PSK_WITH_CHACHA20_POLY1305_SHA256
     TLS_DHE_PSK_WITH_CHACHA20_POLY1305_SHA256,
 #endif
+
+#ifdef BUILD_TLS_DHE_RSA_WITH_3DES_EDE_CBC_SHA
+    TLS_DHE_RSA_WITH_3DES_EDE_CBC_SHA,
+#endif
 };
 
 
@@ -11110,6 +11146,53 @@ const char* const* GetCipherNames(void)
 int GetCipherNamesSize(void)
 {
     return (int)(sizeof(cipher_names) / sizeof(char*));
+}
+
+/* gets cipher name in the format DHE-RSA-... rather then TLS_DHE... */
+const char* wolfSSL_get_cipher_name_internal(WOLFSSL* ssl)
+{
+    const char*     fullName;
+    const char*     first;
+    WOLFSSL_CIPHER* cipher;
+    word32 i;
+
+    if (ssl == NULL) {
+        WOLFSSL_MSG("Bad argument");
+        return NULL;
+    }
+
+    cipher   = wolfSSL_get_current_cipher(ssl);
+    fullName = wolfSSL_CIPHER_get_name(cipher);
+    if (fullName) {
+        first = (XSTRSTR(fullName, "CHACHA")) ? "CHACHA"
+                                      : (XSTRSTR(fullName, "EC"))     ? "EC"
+                                      : (XSTRSTR(fullName, "CCM"))    ? "CCM"
+                                      : NULL; /* normal */
+
+        for (i = 0; i < sizeof(cipher_name_idx); i++) {
+            if (cipher_name_idx[i] == ssl->options.cipherSuite) {
+                const char* nameFound = cipher_names[i];
+
+                /* extra sanity check on returned cipher name */
+                if (nameFound == NULL) {
+                    continue;
+                }
+
+                /* if first is null then not any */
+                if (first == NULL) {
+                    if (!XSTRSTR(nameFound, "CHACHA") &&
+                     !XSTRSTR(nameFound, "EC") && !XSTRSTR(nameFound, "CCM")) {
+                        return cipher_names[i];
+                    }
+                }
+                else if (XSTRSTR(nameFound, first)) {
+                    return cipher_names[i];
+                }
+            }
+        }
+    }
+
+    return NULL; /* error or not found */
 }
 
 
