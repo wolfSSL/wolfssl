@@ -45,13 +45,15 @@
 #define FLASH_CLK_DIV   4                           /* Flash clock divisor */
 
 // UART TX Port, Pin, Mux and Baud
-#define UART_PORT       UART5                       /* UART Port */
+#define UART_PORT       UART4                       /* UART Port */
 #define UART_TX_PORT    PORTE                       /* UART TX Port */
-#define UART_TX_PIN     8                           /* UART TX Pin */
+#define UART_TX_PIN     24                          /* UART TX Pin */
 #define UART_TX_MUX     0x3                         /* Kinetis UART pin mux */
 #define UART_BAUD       115200                      /* UART Baud Rate */
 /* Note: You will also need to update the UART clock gate in hw_uart_init (SIM_SCGC1_UART5_MASK) */
 /* Note: TWR-K60 is UART3, PTC17 */
+/* Note: FRDM-K64 is UART4, PTE24 */
+/* Note: TWR-K64 is UART5, PTE8 */
 
 /***********************************************/
 
@@ -89,7 +91,7 @@ static void hw_uart_init(void)
     uint8_t temp;
 
     /* Enable UART core clock */
-    SIM->SCGC1 |= SIM_SCGC1_UART5_MASK;
+    SIM->SCGC1 |= SIM_SCGC1_UART4_MASK;
     
     /* Configure UART TX pin */
     UART_TX_PORT->PCR[UART_TX_PIN] = PORT_PCR_MUX(UART_TX_MUX);
@@ -119,7 +121,34 @@ static void hw_rtc_init(void)
 {
     /* Enable RTC clock and oscillator */
     SIM->SCGC6 |= SIM_SCGC6_RTC_MASK;
-    RTC->CR |= RTC_CR_OSCE_MASK;
+
+    if (RTC->SR & RTC_SR_TIF_MASK) {
+        /* Resets the RTC registers except for the SWR bit */
+        RTC->CR |= RTC_CR_SWR_MASK;
+        RTC->CR &= ~RTC_CR_SWR_MASK;
+
+        /* Set TSR register to 0x1 to avoid the TIF bit being set in the SR register */
+        RTC->TSR = 1;
+    }
+
+    /* Disable RTC Interrupts */
+    RTC_IER = 0;
+
+    /* Enable OSC */
+    if ((RTC->CR & RTC_CR_OSCE_MASK) == 0) {
+        int i;
+
+        /* Turn on */
+        RTC->CR |= RTC_CR_OSCE_MASK;
+
+        /* Wait RTC startup delay */
+        for (i=0; i<10000; i++) {
+            asm("nop");
+        }
+    }
+
+    /* Enable counter */
+    RTC->SR |= RTC_SR_TCE_MASK;
 }
 
 static void hw_rand_init(void)
