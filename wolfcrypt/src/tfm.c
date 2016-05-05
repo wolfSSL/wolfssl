@@ -1059,9 +1059,14 @@ static int _fp_exptmod(fp_int * G, fp_int * X, fp_int * P, fp_int * Y)
  */
 static int _fp_exptmod(fp_int * G, fp_int * X, fp_int * P, fp_int * Y)
 {
-  fp_int   M[64], res;
+  fp_int   res;
   fp_digit buf, mp;
   int      err, bitbuf, bitcpy, bitcnt, mode, digidx, x, y, winsize;
+#ifdef WOLFSSL_SMALL_STACK
+  fp_int  *M;
+#else
+  fp_int   M[64];
+#endif
 
   /* find window size */
   x = fp_count_bits (X);
@@ -1077,14 +1082,22 @@ static int _fp_exptmod(fp_int * G, fp_int * X, fp_int * P, fp_int * Y)
     winsize = 6;
   }
 
-  /* init M array */
-  for(x = 0; x < (int)(sizeof(M)/sizeof(fp_int)); x++)
-    fp_init(&M[x]);
-
   /* now setup montgomery  */
   if ((err = fp_montgomery_setup (P, &mp)) != FP_OKAY) {
      return err;
   }
+
+#ifdef WOLFSSL_SMALL_STACK
+  /* only allocate space for what's needed */
+  M = (fp_int*)XMALLOC(sizeof(fp_int)*(1 << winsize), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+  if (M == NULL) {
+     return FP_MEM;
+  }
+#endif
+
+  /* init M array */
+  for(x = 0; x < (1 << winsize); x++)
+    fp_init(&M[x]);
 
   /* setup result */
   fp_init(&res);
@@ -1093,7 +1106,7 @@ static int _fp_exptmod(fp_int * G, fp_int * X, fp_int * P, fp_int * Y)
    *
    * The M table contains powers of the input base, e.g. M[x] = G^x mod P
    *
-   * The first half of the table is not computed though accept for M[0] and M[1]
+   * The first half of the table is not computed though except for M[0] and M[1]
    */
 
    /* now we need R mod m */
@@ -1212,10 +1225,15 @@ static int _fp_exptmod(fp_int * G, fp_int * X, fp_int * P, fp_int * Y)
 
   /* swap res with Y */
   fp_copy (&res, Y);
+
+#ifdef WOLFSSL_SMALL_STACK
+  XFREE(M, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+
   return FP_OKAY;
 }
 
-#endif
+#endif /* TFM_TIMING_RESISTANT */
 
 int fp_exptmod(fp_int * G, fp_int * X, fp_int * P, fp_int * Y)
 {
