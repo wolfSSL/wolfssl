@@ -732,7 +732,7 @@ ECC_DEFAULT=yes
 fi
 
 # ECC Shamir
-AC_ARG_ENABLE([ecc],
+AC_ARG_ENABLE([eccshamir],
     [AS_HELP_STRING([--enable-eccshamir],[Enable ECC Shamir (default: enabled on x86_64)])],
     [ ENABLED_ECC_SHAMIR=$enableval ],
     [ ENABLED_ECC_SHAMIR=$ECC_DEFAULT ]
