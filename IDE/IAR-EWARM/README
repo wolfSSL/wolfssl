@@ -4,6 +4,11 @@ This directory contains project files for IAR EWARM IDE. These
 projects have been set up to generic ARM Cortex-M MPUs. 
 In order to generate project for specific target MPU, take following steps. 
 
+** Note ** regarding Segger Embedded Operating System (embOS)
+    The directory embOS contains projects specifically for embOS on IAR-EWARM.
+    Only use this directory if you are building an IAR Workbench project that
+    uses embOS
+
 
 Included Project Files 
 ----------------------- 
