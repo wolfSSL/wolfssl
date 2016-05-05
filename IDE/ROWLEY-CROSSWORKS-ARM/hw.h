@@ -15,6 +15,9 @@ void hw_uart_printchar(int c);
 void hw_watchdog_disable(void);
 uint32_t hw_rand(void);
 
+// Delay functions
+void delay_us(uint32_t microseconds);
+
 
 #endif /* WOLFSSL_ROWLEY_HW_H */
 

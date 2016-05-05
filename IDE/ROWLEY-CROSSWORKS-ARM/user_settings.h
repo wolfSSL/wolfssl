@@ -156,6 +156,8 @@ extern "C" {
 /* Sha */
 #undef NO_SHA
 #if 1
+    /* 1k smaller, but 25% slower */
+    //#define USE_SLOW_SHA
 #else
     #define NO_SHA
 #endif
@@ -163,8 +165,6 @@ extern "C" {
 /* Sha256 */
 #undef NO_SHA256
 #if 1
-    /* over twice as small, but 50% slower */
-    //#define USE_SLOW_SHA2
 #else
     #define NO_SHA256
 #endif
@@ -179,6 +179,9 @@ extern "C" {
     #if 1
         #define WOLFSSL_SHA384
     #endif
+
+    /* over twice as small, but 50% slower */
+    //#define USE_SLOW_SHA2
 #endif
 
 /* MD5 */
@@ -305,6 +308,12 @@ extern "C" {
 
 #undef  NO_CRYPT_BENCHMARK
 //#define NO_CRYPT_BENCHMARK
+
+/* In-lining of misc.c functions */
+/* If defined, must include wolfcrypt/src/misc.c in build */
+/* Slower, but about 1k smaller */
+#undef  NO_INLINE
+//#define NO_INLINE
 
 #undef  NO_FILESYSTEM
 #define NO_FILESYSTEM

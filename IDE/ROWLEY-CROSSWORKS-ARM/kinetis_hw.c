@@ -58,6 +58,16 @@
 /***********************************************/
 
 // Private functions
+static uint32_t mDelayCyclesPerUs = 0;
+#define NOP_FOR_LOOP_INSTRUCTION_COUNT  6
+static void delay_nop(uint32_t count)
+{
+   int i;
+   for(i=0; i<count; i++) {
+      __asm volatile("nop");
+   }
+}
+
 static void hw_mcg_init(void)
 {
     /* Adjust clock dividers (core/system=div/1, bus=div/2, flex bus=div/2, flash=div/4) */
@@ -119,6 +129,9 @@ static void hw_uart_init(void)
 
 static void hw_rtc_init(void)
 {
+    /* Init nop delay */
+    mDelayCyclesPerUs = (SYS_CLK_KHZ / 1000 / NOP_FOR_LOOP_INSTRUCTION_COUNT);
+
     /* Enable RTC clock and oscillator */
     SIM->SCGC6 |= SIM_SCGC6_RTC_MASK;
 
@@ -141,10 +154,8 @@ static void hw_rtc_init(void)
         /* Turn on */
         RTC->CR |= RTC_CR_OSCE_MASK;
 
-        /* Wait RTC startup delay */
-        for (i=0; i<10000; i++) {
-            asm("nop");
-        }
+        /* Wait RTC startup delay 1000 us */
+        delay_us(1000);
     }
 
     /* Enable counter */
@@ -202,6 +213,12 @@ uint32_t hw_rand(void)
     while((RNG->SR & RNG_SR_OREG_LVL(0xF)) == 0) {}; /* Wait until FIFO has a value available */
     return RNG->OR; /* Return next value in FIFO output register */
 }
+
+void delay_us(uint32_t microseconds)
+{
+   delay_nop(mDelayCyclesPerUs * microseconds);
+}
+
 
 // Watchdog
 void hw_watchdog_disable(void)
