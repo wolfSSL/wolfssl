@@ -731,6 +731,14 @@ then
 ECC_DEFAULT=yes
 fi
 
+# ECC Shamir
+AC_ARG_ENABLE([ecc],
+    [AS_HELP_STRING([--enable-eccshamir],[Enable ECC Shamir (default: enabled on x86_64)])],
+    [ ENABLED_ECC_SHAMIR=$enableval ],
+    [ ENABLED_ECC_SHAMIR=$ECC_DEFAULT ]
+    )
+
+
 # ECC
 AC_ARG_ENABLE([ecc],
     [AS_HELP_STRING([--enable-ecc],[Enable ECC (default: enabled on x86_64)])],
@@ -751,7 +759,11 @@ fi
 
 if test "$ENABLED_ECC" = "yes"
 then
-    AM_CFLAGS="$AM_CFLAGS -DHAVE_ECC -DTFM_ECC256 -DECC_SHAMIR"
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_ECC -DTFM_ECC256"
+    if test "$ENABLED_ECC_SHAMIR" = "yes"
+    then
+        AM_CFLAGS="$AM_CFLAGS -DECC_SHAMIR"
+    fi
 fi
 
 AM_CONDITIONAL([BUILD_ECC], [test "x$ENABLED_ECC" = "xyes"])
@@ -1961,8 +1973,13 @@ then
     if test "x$ENABLED_ECC" = "xno"
     then
         ENABLED_ECC="yes"
-        AM_CFLAGS="$AM_CFLAGS -DHAVE_ECC -DTFM_ECC256 -DECC_SHAMIR"
+        AM_CFLAGS="$AM_CFLAGS -DHAVE_ECC -DTFM_ECC256"
         AM_CONDITIONAL([BUILD_ECC], [test "x$ENABLED_ECC" = "xyes"])
+        
+        if test "$ENABLED_ECC_SHAMIR" = "yes"
+        then
+            AM_CFLAGS="$AM_CFLAGS -DECC_SHAMIR"
+        fi
     fi
     if test "x$ENABLED_OPENSSLEXTRA" = "xno"
     then
@@ -2029,8 +2046,13 @@ then
     if test "x$ENABLED_ECC" = "xno"
     then
         ENABLED_ECC="yes"
-        AM_CFLAGS="$AM_CFLAGS -DHAVE_ECC -DTFM_ECC256 -DECC_SHAMIR"
+        AM_CFLAGS="$AM_CFLAGS -DHAVE_ECC -DTFM_ECC256"
         AM_CONDITIONAL([BUILD_ECC], [test "x$ENABLED_ECC" = "xyes"])
+        
+        if test "$ENABLED_ECC_SHAMIR" = "yes"
+        then
+            AM_CFLAGS="$AM_CFLAGS -DECC_SHAMIR"
+        fi
     fi
     if test "x$ENABLED_PKCALLBACKS" = "xno"
     then
@@ -2122,8 +2144,13 @@ then
     then
         ENABLED_OPENSSLEXTRA="yes"
         ENABLED_ECC="yes"
-        AM_CFLAGS="$AM_CFLAGS -DHAVE_ECC -DTFM_ECC256 -DECC_SHAMIR"
+        AM_CFLAGS="$AM_CFLAGS -DHAVE_ECC -DTFM_ECC256"
         AM_CONDITIONAL([BUILD_ECC], [test "x$ENABLED_ECC" = "xyes"])
+        
+        if test "$ENABLED_ECC_SHAMIR" = "yes"
+        then
+            AM_CFLAGS="$AM_CFLAGS -DECC_SHAMIR"
+        fi
     fi
 
     AM_CFLAGS="$AM_CFLAGS -DHAVE_STUNNEL -DWOLFSSL_ALWAYS_VERIFY_CB"
