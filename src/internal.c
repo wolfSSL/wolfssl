@@ -32,6 +32,8 @@
 #include <wolfssl/error-ssl.h>
 #include <wolfssl/wolfcrypt/asn.h>
 #include <wolfssl/wolfcrypt/dh.h>
+#include <wolfssl/wolfcrypt/compat-wolfssl.h>
+#include <wolfssl/wolfcrypt/bio.h>
 #ifdef NO_INLINE
     #include <wolfssl/wolfcrypt/misc.h>
 #else
@@ -2695,8 +2697,8 @@ void SSL_ResourceFree(WOLFSSL* ssl)
 #endif /* WOLFSSL_DTLS */
 #if defined(OPENSSL_EXTRA) || defined(GOAHEAD_WS)
     if (ssl->biord != ssl->biowr)        /* only free write if different */
-        WOLFCRYPT_BIO_free(ssl->biowr);
-    WOLFCRYPT_BIO_free(ssl->biord);        /* always free read bio */
+        wc_BioFree(ssl->biowr);
+    wc_BioFree(ssl->biord);        /* always free read bio */
 #endif
 #ifdef HAVE_LIBZ
     FreeStreams(ssl);

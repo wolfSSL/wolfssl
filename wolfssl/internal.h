@@ -26,10 +26,7 @@
 
 #include <wolfssl/wolfcrypt/types.h>
 #include <wolfssl/ssl.h>
-
-#ifdef OPENSSL_EXTRA
-#include <wolfssl/openssl/bio.h>
-#endif
+#include <wolfssl/wolfcrypt/compat-wolfssl.h>
 
 #ifdef HAVE_CRL
     #include <wolfssl/crl.h>
@@ -952,15 +949,6 @@ enum Misc {
     MAX_REQUEST_SZ      = 256, /* Maximum cert req len (no auth yet */
     SESSION_FLUSH_COUNT = 256, /* Flush session cache unless user turns off */
 
-    RC4_KEY_SIZE        = 16,  /* always 128bit           */
-    DES_KEY_SIZE        =  8,  /* des                     */
-    DES3_KEY_SIZE       = 24,  /* 3 des ede               */
-    DES_IV_SIZE         = DES_BLOCK_SIZE,
-    AES_256_KEY_SIZE    = 32,  /* for 256 bit             */
-    AES_192_KEY_SIZE    = 24,  /* for 192 bit             */
-    AES_IV_SIZE         = 16,  /* always block size       */
-    AES_128_KEY_SIZE    = 16,  /* for 128 bit             */
-
     AEAD_SEQ_OFFSET     = 4,   /* Auth Data: Sequence number */
     AEAD_TYPE_OFFSET    = 8,   /* Auth Data: Type            */
     AEAD_VMAJ_OFFSET    = 9,   /* Auth Data: Major Version   */
@@ -998,7 +986,6 @@ enum Misc {
     RABBIT_KEY_SIZE     = 16,  /* 128 bits                */
     RABBIT_IV_SIZE      =  8,  /* 64 bits for iv          */
 
-    EVP_SALT_SIZE       =  8,  /* evp salt size 64 bits   */
 
     ECDHE_SIZE          = 32,  /* ECHDE server size defaults to 256 bit */
     MAX_EXPORT_ECC_SZ   = 256, /* Export ANS X9.62 max future size */
@@ -2503,8 +2490,8 @@ struct WOLFSSL {
     Keys            keys;
     Options         options;
 #ifdef OPENSSL_EXTRA
-    WOLFSSL_BIO*     biord;              /* socket bio read  to free/close */
-    WOLFSSL_BIO*     biowr;              /* socket bio write to free/close */
+    WOLFCRYPT_BIO*     biord;              /* socket bio read  to free/close */
+    WOLFCRYPT_BIO*     biowr;              /* socket bio write to free/close */
 #endif
 #ifndef NO_RSA
     RsaKey*         peerRsaKey;

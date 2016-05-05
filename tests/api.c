@@ -35,6 +35,7 @@
 
 #include <stdlib.h>
 #include <wolfssl/ssl.h>  /* compatibility layer */
+#include <wolfssl/wolfcrypt/bio.h>
 #include <wolfssl/test.h>
 #include <tests/unit.h>
 
@@ -619,6 +620,8 @@ static void test_client_nofail(void* args)
         reply[input] = 0;
         printf("Server response: %s\n", reply);
     }
+    else
+        printf("wolfSSL_read failed");
 
 done2:
     wolfSSL_free(ssl);
@@ -633,6 +636,359 @@ done2:
 
     return;
 }
+
+/* BIO test */
+#if defined(OPENSSL_EXTRA)
+static THREAD_RETURN WOLFSSL_THREAD test_server_bio(void* args)
+{
+    SOCKET_T sockfd = 0;
+    SOCKET_T clientfd = 0;
+    word16 port = wolfSSLPort;
+
+    WOLFCRYPT_BIO *bio = 0;
+    char msg[] = "Server BIO, I hear you fa shizzle!";
+    char input[1024];
+    int idx;
+
+#ifdef WOLFSSL_TIRTOS
+    fdOpenSession(Task_self());
+#endif
+
+    ((func_args*)args)->return_code = TEST_FAIL;
+    tcp_accept(&sockfd, &clientfd, (func_args*)args, port, 0, 0, 0, 1);
+    CloseSocket(sockfd);
+
+    bio = wc_BioNew(wc_Bio_s_socket());
+    if (bio == NULL) {
+        printf("wc_BioNew failed\n");
+        goto done;
+    }
+
+    wc_BioSetFd(bio, clientfd, BIO_NOCLOSE);
+
+    idx = wc_BioRead(bio, input, sizeof(input)-1);
+    if (idx <= 0) {
+        printf("wc_BioWrite failed\n");
+        goto done;
+    }
+
+    input[idx] = 0;
+    printf("Client message: %s\n", input);
+
+    if (wc_BioWrite(bio, msg, sizeof(msg)) != sizeof(msg)) {
+        printf("wc_BioWrite failed\n");
+#ifdef WOLFSSL_TIRTOS
+        return;
+#else
+        return 0;
+#endif
+    }
+
+#ifdef WOLFSSL_TIRTOS
+    Task_yield();
+#endif
+
+done:
+    if (bio != 0)
+        wc_BioFreeAll(bio);
+
+    CloseSocket(clientfd);
+    ((func_args*)args)->return_code = TEST_SUCCESS;
+
+#ifdef WOLFSSL_TIRTOS
+    fdCloseSession(Task_self());
+#endif
+
+#ifndef WOLFSSL_TIRTOS
+    return 0;
+#endif
+}
+
+
+static void test_client_bio(void* args)
+{
+    WOLFCRYPT_BIO*  bio = 0;
+
+    char msg[64] = "Client BIO, hello wolfssl!";
+    char reply[1024], ip[] = {127, 0, 0, 1};
+    int  input, port;
+    int  msgSz = (int)strlen(msg);
+
+#ifdef WOLFSSL_TIRTOS
+    fdOpenSession(Task_self());
+#endif
+
+    ((func_args*)args)->return_code = TEST_FAIL;
+
+    bio = wc_BioNew(wc_Bio_s_connect());
+    if (bio == NULL) {
+        printf("wc_BioNew failed\n");
+        goto done2;
+    }
+
+    port = ((func_args*)args)->signal->port;
+
+    wc_BioSetConnIp(bio, ip);
+    wc_BioSetConnIntPort(bio, &port);
+
+    /* start connection */
+    input = (int)wc_BioDoConnect(bio);
+    if (input <= 0) {
+        printf("wc_BioDoConnect failed %d\n", input);
+        goto done2;
+    }
+
+    if (wc_BioWrite(bio, msg, msgSz) != msgSz) {
+        printf("wc_BioWrite failed");
+        goto done2;
+    }
+
+    input = wc_BioRead(bio, reply, sizeof(reply)-1);
+    if (input <= 0) {
+        printf("wc_BioRead failed");
+        goto done2;
+    }
+
+    reply[input] = 0;
+    printf("Server response: %s\n", reply);
+
+done2:
+    if (bio != 0)
+        wc_BioFreeAll(bio);
+
+    ((func_args*)args)->return_code = TEST_SUCCESS;
+
+#ifdef WOLFSSL_TIRTOS
+    fdCloseSession(Task_self());
+#endif
+
+    return;
+}
+
+/* BIO SSL test */
+static THREAD_RETURN WOLFSSL_THREAD test_server_bio_ssl(void* args)
+{
+    SOCKET_T sockfd = 0;
+    SOCKET_T clientfd = 0;
+    word16 port = wolfSSLPort;
+
+    WOLFCRYPT_BIO *ssl_bio = 0;
+    WOLFSSL_METHOD* method = 0;
+    WOLFSSL_CTX* ctx = 0;
+    WOLFSSL* ssl = 0;
+
+    char msg[] = "Server BIO_SSL, I hear you fa shizzle!";
+    char input[1024];
+    int idx;
+
+#ifdef WOLFSSL_TIRTOS
+    fdOpenSession(Task_self());
+#endif
+
+    ((func_args*)args)->return_code = TEST_FAIL;
+    method = wolfSSLv23_server_method();
+    ctx = wolfSSL_CTX_new(method);
+
+    wolfSSL_CTX_set_verify(ctx,
+                           SSL_VERIFY_PEER | SSL_VERIFY_FAIL_IF_NO_PEER_CERT, 0);
+
+#ifdef OPENSSL_EXTRA
+    wolfSSL_CTX_set_default_passwd_cb(ctx, PasswordCallBack);
+#endif
+
+    if (wolfSSL_CTX_load_verify_locations(ctx, cliCert, 0) != SSL_SUCCESS)
+    {
+        /*err_sys("can't load ca file, Please run from wolfSSL home dir");*/
+        goto done;
+    }
+    if (wolfSSL_CTX_use_certificate_file(ctx, svrCert, SSL_FILETYPE_PEM)
+        != SSL_SUCCESS)
+    {
+        /*err_sys("can't load server cert chain file, "
+         "Please run from wolfSSL home dir");*/
+        goto done;
+    }
+    if (wolfSSL_CTX_use_PrivateKey_file(ctx, svrKey, SSL_FILETYPE_PEM)
+        != SSL_SUCCESS)
+    {
+        /*err_sys("can't load server key file, "
+         "Please run from wolfSSL home dir");*/
+        goto done;
+    }
+
+    ssl = wolfSSL_new(ctx);
+    tcp_accept(&sockfd, &clientfd, (func_args*)args, port, 0, 0, 0, 1);
+    CloseSocket(sockfd);
+
+    wolfSSL_set_fd(ssl, clientfd);
+
+#ifdef NO_PSK
+#if !defined(NO_FILESYSTEM) && !defined(NO_DH)
+    wolfSSL_SetTmpDH_file(ssl, dhParam, SSL_FILETYPE_PEM);
+#elif !defined(NO_DH)
+    SetDH(ssl);  /* will repick suites with DHE, higher priority than PSK */
+#endif
+#endif
+
+    ssl_bio = wc_BioNew(wc_Bio_f_ssl());
+    if (ssl_bio == NULL) {
+        printf("wc_BioNew failed\n");
+        goto done;
+    }
+
+    wc_BioSetSSL(ssl_bio, ssl, BIO_NOCLOSE);
+
+    /* Setup accept BIO */
+    if (wc_BioDoAccept(ssl_bio) <= 0) {
+        printf("wc_BioDoAccept failed\n");
+        goto done;
+    }
+
+    /* Now wait for incoming connection */
+    if (wc_BioDoHandshake(ssl_bio) <= 0) {
+        printf("wc_BioDoHandshake failed\n");
+        goto done;
+    }
+
+    idx = wc_BioRead(ssl_bio, input, sizeof(input)-1);
+    if (idx <= 0) {
+        printf("wc_BioWrite failed\n");
+        goto done;
+    }
+
+    input[idx] = 0;
+    printf("Client message: %s\n", input);
+
+    if (wc_BioWrite(ssl_bio, msg, sizeof(msg)) != sizeof(msg)) {
+        printf("wc_BioWrite failed\n");
+#ifdef WOLFSSL_TIRTOS
+        return;
+#else
+        return 0;
+#endif
+    }
+
+#ifdef WOLFSSL_TIRTOS
+    Task_yield();
+#endif
+
+done:
+    if (ssl_bio != 0)
+        wc_BioFreeAll(ssl_bio);
+    wolfSSL_CTX_free(ctx);
+
+    CloseSocket(clientfd);
+    ((func_args*)args)->return_code = TEST_SUCCESS;
+
+#ifdef WOLFSSL_TIRTOS
+    fdCloseSession(Task_self());
+#endif
+
+#if defined(NO_MAIN_DRIVER) && defined(HAVE_ECC) && defined(FP_ECC) \
+&& defined(HAVE_THREAD_LS)
+    wc_ecc_fp_free();  /* free per thread cache */
+#endif
+
+#ifndef WOLFSSL_TIRTOS
+    return 0;
+#endif
+}
+
+
+static void test_client_bio_ssl(void* args)
+{
+    SOCKET_T sockfd = 0;
+
+    WOLFCRYPT_BIO*   ssl_bio = 0;
+    WOLFSSL_METHOD*  method  = 0;
+    WOLFSSL_CTX*     ctx     = 0;
+    WOLFSSL*         ssl     = 0;
+
+    char msg[64] = "Client BIO_SSL, hello wolfssl!";
+    char reply[1024];
+    int  input;
+    int  msgSz = (int)strlen(msg);
+
+#ifdef WOLFSSL_TIRTOS
+    fdOpenSession(Task_self());
+#endif
+
+    ((func_args*)args)->return_code = TEST_FAIL;
+    method = wolfSSLv23_client_method();
+    ctx = wolfSSL_CTX_new(method);
+
+#ifdef OPENSSL_EXTRA
+    wolfSSL_CTX_set_default_passwd_cb(ctx, PasswordCallBack);
+#endif
+
+    if (wolfSSL_CTX_load_verify_locations(ctx, caCert, 0) != SSL_SUCCESS)
+    {
+        /* err_sys("can't load ca file, Please run from wolfSSL home dir");*/
+        goto done2;
+    }
+    if (wolfSSL_CTX_use_certificate_file(ctx, cliCert, SSL_FILETYPE_PEM)
+        != SSL_SUCCESS)
+    {
+        /*err_sys("can't load client cert file, "
+         "Please run from wolfSSL home dir");*/
+        goto done2;
+    }
+    if (wolfSSL_CTX_use_PrivateKey_file(ctx, cliKey, SSL_FILETYPE_PEM)
+        != SSL_SUCCESS)
+    {
+        /*err_sys("can't load client key file, "
+         "Please run from wolfSSL home dir");*/
+        goto done2;
+    }
+
+    ssl = wolfSSL_new(ctx);
+    tcp_connect(&sockfd, wolfSSLIP, ((func_args*)args)->signal->port, 0, ssl);
+    wolfSSL_set_fd(ssl, sockfd);
+
+    ssl_bio = wc_BioNew(wc_Bio_f_ssl());
+    if (ssl_bio == NULL) {
+        printf("wc_BioNew failed\n");
+        goto done2;
+    }
+
+    wc_BioSetSSL(ssl_bio, ssl, BIO_NOCLOSE);
+
+    /* start connection */
+    if (wc_BioDoConnect(ssl_bio) <= 0) {
+        printf("wc_BioDoConnect failed\n");
+        goto done2;
+    }
+
+    if (wc_BioWrite(ssl_bio, msg, msgSz) != msgSz) {
+        printf("wc_BioWrite failed");
+        goto done2;
+    }
+
+    input = wc_BioRead(ssl_bio, reply, sizeof(reply)-1);
+    if (input <= 0) {
+        printf("wc_BioRead failed");
+        goto done2;
+    }
+
+    reply[input] = 0;
+    printf("Server response: %s\n", reply);
+
+done2:
+    if (ssl_bio != 0)
+        wc_BioFreeAll(ssl_bio);
+    wolfSSL_CTX_free(ctx);
+
+    CloseSocket(sockfd);
+    ((func_args*)args)->return_code = TEST_SUCCESS;
+
+#ifdef WOLFSSL_TIRTOS
+    fdCloseSession(Task_self());
+#endif
+
+    return;
+}
+
+#endif /* OPENSSL_EXTRA */
 
 /* SNI / ALPN helper functions */
 #if defined(HAVE_SNI) || defined(HAVE_ALPN)
@@ -868,6 +1224,118 @@ static void test_wolfSSL_read_write(void)
 
 #endif
 }
+
+#if defined(OPENSSL_EXTRA)
+
+static void test_wolfSSL_read_write_bio(void)
+{
+#ifdef HAVE_IO_TESTS_DEPENDENCIES
+    /* The unit testing for read and write shall happen simutaneously, since
+     * one can't do anything with one without the other. (Except for a failure
+     * test case.) This function will call all the others that will set up,
+     * execute, and report their test findings.
+     *
+     * Set up the success case first. This function will become the template
+     * for the other tests. This should eventually be renamed
+     *
+     * The success case isn't interesting, how can this fail?
+     * - Do not give the client context a CA certificate. The connect should
+     *   fail. Do not need server for this?
+     * - Using NULL for the ssl object on server. Do not need client for this.
+     * - Using NULL for the ssl object on client. Do not need server for this.
+     * - Good ssl objects for client and server. Client write() without server
+     *   read().
+     * - Good ssl objects for client and server. Server write() without client
+     *   read().
+     * - Forgetting the password callback?
+     */
+    tcp_ready ready;
+    func_args client_args;
+    func_args server_args;
+    THREAD_TYPE serverThread;
+
+#ifdef WOLFSSL_TIRTOS
+    fdOpenSession(Task_self());
+#endif
+
+    StartTCP();
+    InitTcpReady(&ready);
+
+    server_args.signal = &ready;
+    client_args.signal = &ready;
+
+    start_thread(test_server_bio, &server_args, &serverThread);
+    wait_tcp_ready(&server_args);
+    test_client_bio(&client_args);
+    join_thread(serverThread);
+
+    AssertTrue(client_args.return_code);
+    AssertTrue(server_args.return_code);
+
+    FreeTcpReady(&ready);
+
+#ifdef WOLFSSL_TIRTOS
+    fdOpenSession(Task_self());
+#endif
+
+#endif
+}
+
+static void test_wolfSSL_read_write_bio_ssl(void)
+{
+#ifdef HAVE_IO_TESTS_DEPENDENCIES
+    /* The unit testing for read and write shall happen simutaneously, since
+     * one can't do anything with one without the other. (Except for a failure
+     * test case.) This function will call all the others that will set up,
+     * execute, and report their test findings.
+     *
+     * Set up the success case first. This function will become the template
+     * for the other tests. This should eventually be renamed
+     *
+     * The success case isn't interesting, how can this fail?
+     * - Do not give the client context a CA certificate. The connect should
+     *   fail. Do not need server for this?
+     * - Using NULL for the ssl object on server. Do not need client for this.
+     * - Using NULL for the ssl object on client. Do not need server for this.
+     * - Good ssl objects for client and server. Client write() without server
+     *   read().
+     * - Good ssl objects for client and server. Server write() without client
+     *   read().
+     * - Forgetting the password callback?
+     */
+    tcp_ready ready;
+    func_args client_args;
+    func_args server_args;
+    THREAD_TYPE serverThread;
+
+#ifdef WOLFSSL_TIRTOS
+    fdOpenSession(Task_self());
+#endif
+
+    StartTCP();
+    InitTcpReady(&ready);
+
+    server_args.signal = &ready;
+    client_args.signal = &ready;
+
+    start_thread(test_server_bio_ssl, &server_args, &serverThread);
+    wait_tcp_ready(&server_args);
+    test_client_bio_ssl(&client_args);
+    join_thread(serverThread);
+
+    AssertTrue(client_args.return_code);
+    AssertTrue(server_args.return_code);
+
+    FreeTcpReady(&ready);
+
+#ifdef WOLFSSL_TIRTOS
+    fdOpenSession(Task_self());
+#endif
+
+#endif
+}
+
+#endif /* OPENSSL_EXTRA */
 
 /*----------------------------------------------------------------------------*
  | TLS extensions tests
@@ -1606,6 +2074,11 @@ void ApiTest(void)
     test_wolfSSL_SetTmpDH_file();
     test_wolfSSL_SetTmpDH_buffer();
     test_wolfSSL_read_write();
+
+#if defined(OPENSSL_EXTRA)
+    test_wolfSSL_read_write_bio();
+    test_wolfSSL_read_write_bio_ssl();
+#endif
 
     /* TLS extensions tests */
     test_wolfSSL_UseSNI();
