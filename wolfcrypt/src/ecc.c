@@ -298,7 +298,14 @@ int ecc_projective_add_point(ecc_point *P, ecc_point *Q, ecc_point *R,
    fp_sub(modulus, Q->y, &t1);
    if ( (fp_cmp(P->x, Q->x) == FP_EQ) &&
         (get_digit_count(Q->z) && fp_cmp(P->z, Q->z) == FP_EQ) &&
-        (fp_cmp(P->y, Q->y) == FP_EQ || fp_cmp(P->y, &t1) == FP_EQ)) {
+        (fp_cmp(P->y, Q->y) == FP_EQ || fp_cmp(P->y, &t1) == FP_EQ))
+   {
+        fp_clear(&x);
+        fp_clear(&y);
+        fp_clear(&z);
+        fp_clear(&t1);
+        fp_clear(&t2);
+
         return ecc_projective_dbl_point(P, R, modulus, mp);
    }
 
@@ -423,9 +430,17 @@ int ecc_projective_add_point(ecc_point *P, ecc_point *Q, ecc_point *R,
    }
    fp_div_2(&y, &y);
 
+   /* return result */
    fp_copy(&x, R->x);
    fp_copy(&y, R->y);
    fp_copy(&z, R->z);
+
+   /* clear stack variables */
+   fp_clear(&x);
+   fp_clear(&y);
+   fp_clear(&z);
+   fp_clear(&t1);
+   fp_clear(&t2);
 
    return MP_OKAY;
 }
@@ -442,41 +457,40 @@ int ecc_projective_add_point(ecc_point *P, ecc_point *Q, ecc_point *R,
 int ecc_projective_dbl_point(ecc_point *P, ecc_point *R, mp_int* modulus,
                              mp_digit* mp)
 {
-   fp_int   t1, t2;
+   fp_int   x, y, z, t1, t2;
    int      err;
 
    if (P == NULL || R == NULL || modulus == NULL || mp == NULL)
        return ECC_BAD_ARG_E;
 
-   if (P != R) {
-      fp_copy(P->x, R->x);
-      fp_copy(P->y, R->y);
-      fp_copy(P->z, R->z);
-   }
-
-   if ((err = mp_init_multi(&t1, &t2, NULL, NULL, NULL, NULL)) != MP_OKAY) {
+   if ((err = mp_init_multi(&x, &y, &z, &t1, &t2, NULL)) != MP_OKAY) {
       return err;
    }
 
-   /* t1 = Z * Z */
-   fp_sqr(R->z, &t1);
+   /* Use local due to possible insufficient size of alt_ecc_size in ecc_point x,y,z */
+   fp_copy(P->x, &x);
+   fp_copy(P->y, &y);
+   fp_copy(P->z, &z);
+
+   /* T1 = Z * Z */
+   fp_sqr(&z, &t1);
    fp_montgomery_reduce(&t1, modulus, *mp);
    /* Z = Y * Z */
-   fp_mul(R->z, R->y, R->z);
-   fp_montgomery_reduce(R->z, modulus, *mp);
+   fp_mul(&z, &y, &z);
+   fp_montgomery_reduce(&z, modulus, *mp);
    /* Z = 2Z */
-   fp_add(R->z, R->z, R->z);
-   if (fp_cmp(R->z, modulus) != FP_LT) {
-      fp_sub(R->z, modulus, R->z);
+   fp_add(&z, &z, &z);
+   if (fp_cmp(&z, modulus) != FP_LT) {
+      fp_sub(&z, modulus, &z);
    }
 
-   /* &t2 = X - T1 */
-   fp_sub(R->x, &t1, &t2);
+   /* T2 = X - T1 */
+   fp_sub(&x, &t1, &t2);
    if (fp_cmp_d(&t2, 0) == FP_LT) {
       fp_add(&t2, modulus, &t2);
    }
    /* T1 = X + T1 */
-   fp_add(&t1, R->x, &t1);
+   fp_add(&t1, &x, &t1);
    if (fp_cmp(&t1, modulus) != FP_LT) {
       fp_sub(&t1, modulus, &t1);
    }
@@ -495,15 +509,15 @@ int ecc_projective_dbl_point(ecc_point *P, ecc_point *R, mp_int* modulus,
    }
 
    /* Y = 2Y */
-   fp_add(R->y, R->y, R->y);
-   if (fp_cmp(R->y, modulus) != FP_LT) {
-      fp_sub(R->y, modulus, R->y);
+   fp_add(&y, &y, &y);
+   if (fp_cmp(&y, modulus) != FP_LT) {
+      fp_sub(&y, modulus, &y);
    }
    /* Y = Y * Y */
-   fp_sqr(R->y, R->y);
-   fp_montgomery_reduce(R->y, modulus, *mp);
+   fp_sqr(&y, &y);
+   fp_montgomery_reduce(&y, modulus, *mp);
    /* T2 = Y * Y */
-   fp_sqr(R->y, &t2);
+   fp_sqr(&y, &t2);
    fp_montgomery_reduce(&t2, modulus, *mp);
    /* T2 = T2/2 */
    if (fp_isodd(&t2)) {
@@ -511,36 +525,48 @@ int ecc_projective_dbl_point(ecc_point *P, ecc_point *R, mp_int* modulus,
    }
    fp_div_2(&t2, &t2);
    /* Y = Y * X */
-   fp_mul(R->y, R->x, R->y);
-   fp_montgomery_reduce(R->y, modulus, *mp);
+   fp_mul(&y, &x, &y);
+   fp_montgomery_reduce(&y, modulus, *mp);
 
    /* X  = T1 * T1 */
-   fp_sqr(&t1, R->x);
-   fp_montgomery_reduce(R->x, modulus, *mp);
+   fp_sqr(&t1, &x);
+   fp_montgomery_reduce(&x, modulus, *mp);
    /* X = X - Y */
-   fp_sub(R->x, R->y, R->x);
-   if (fp_cmp_d(R->x, 0) == FP_LT) {
-      fp_add(R->x, modulus, R->x);
+   fp_sub(&x, &y, &x);
+   if (fp_cmp_d(&x, 0) == FP_LT) {
+      fp_add(&x, modulus, &x);
    }
    /* X = X - Y */
-   fp_sub(R->x, R->y, R->x);
-   if (fp_cmp_d(R->x, 0) == FP_LT) {
-      fp_add(R->x, modulus, R->x);
+   fp_sub(&x, &y, &x);
+   if (fp_cmp_d(&x, 0) == FP_LT) {
+      fp_add(&x, modulus, &x);
    }
 
    /* Y = Y - X */
-   fp_sub(R->y, R->x, R->y);
-   if (fp_cmp_d(R->y, 0) == FP_LT) {
-      fp_add(R->y, modulus, R->y);
+   fp_sub(&y, &x, &y);
+   if (fp_cmp_d(&y, 0) == FP_LT) {
+      fp_add(&y, modulus, &y);
    }
    /* Y = Y * T1 */
-   fp_mul(R->y, &t1, R->y);
-   fp_montgomery_reduce(R->y, modulus, *mp);
+   fp_mul(&y, &t1, &y);
+   fp_montgomery_reduce(&y, modulus, *mp);
    /* Y = Y - T2 */
-   fp_sub(R->y, &t2, R->y);
-   if (fp_cmp_d(R->y, 0) == FP_LT) {
-      fp_add(R->y, modulus, R->y);
+   fp_sub(&y, &t2, &y);
+   if (fp_cmp_d(&y, 0) == FP_LT) {
+      fp_add(&y, modulus, &y);
    }
+
+   /* Return x, y, and z */
+   fp_copy(&x, R->x);
+   fp_copy(&y, R->y);
+   fp_copy(&z, R->z);
+
+   /* Clear used locals */
+   fp_clear(&x);
+   fp_clear(&y);
+   fp_clear(&z);
+   fp_clear(&t1);
+   fp_clear(&t2);
 
    return MP_OKAY;
 }
