@@ -1554,7 +1554,7 @@ int fp_cmp_mag(fp_int *a, fp_int *b)
    return FP_EQ;
 }
 
-/* setups the montgomery reduction */
+/* sets up the montgomery reduction */
 int fp_montgomery_setup(fp_int *a, fp_digit *rho)
 {
   fp_digit x, b;
@@ -1653,7 +1653,7 @@ static void fp_montgomery_reduce_mulx(fp_int *a, fp_int *m, fp_digit mp)
 
 
    /* now zero the buff */
-   XMEMSET(c, 0, sizeof c);
+   XMEMSET(c, 0, sizeof(c));
    pa = m->used;
 
    /* copy the input */
@@ -1733,7 +1733,7 @@ void fp_montgomery_reduce(fp_int *a, fp_int *m, fp_digit mp)
 
 
    /* now zero the buff */
-   XMEMSET(c, 0, sizeof c);
+   XMEMSET(c, 0, sizeof(c));
    pa = m->used;
 
    /* copy the input */
@@ -1872,7 +1872,7 @@ void fp_set(fp_int *a, fp_digit b)
    a->used  = a->dp[0] ? 1 : 0;
 }
 
-/* chek if a bit is set */
+/* check if a bit is set */
 int fp_is_bit_set (fp_int *a, fp_digit b)
 {
     fp_digit i;
@@ -2246,49 +2246,39 @@ void fp_init_copy(fp_int *a, fp_int* b)
 }
 #endif
 
-/* fast math conversion */
+/* fast math wrappers */
 int mp_copy(fp_int* a, fp_int* b)
 {
     fp_copy(a, b);
     return MP_OKAY;
 }
 
-
-/* fast math conversion */
 int mp_isodd(mp_int* a)
 {
     return fp_isodd(a);
 }
 
-
-/* fast math conversion */
 int mp_iszero(mp_int* a)
 {
     return fp_iszero(a);
 }
 
 
-/* fast math conversion */
 int mp_count_bits (mp_int* a)
 {
     return fp_count_bits(a);
 }
-
 
 int mp_leading_bit (mp_int* a)
 {
     return fp_leading_bit(a);
 }
 
-
-/* fast math conversion */
 void mp_rshb (mp_int* a, int x)
 {
     fp_rshb(a, x);
 }
 
-
-/* fast math wrappers */
 int mp_set_int(mp_int *a, mp_digit b)
 {
     fp_set(a, b);

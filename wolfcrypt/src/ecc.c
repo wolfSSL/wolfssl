@@ -2788,7 +2788,7 @@ int wc_ecc_export_x963_ex(ecc_key* key, byte* out, word32* outLen,
 }
 #endif /* HAVE_ECC_KEY_EXPORT */
 
-/* is ec point on curve described by dp ? */
+/* is ecc point on curve described by dp ? */
 static int ecc_is_point(const ecc_set_type* dp, ecc_point* ecp, mp_int* prime)
 {
    mp_int b, t1, t2;
