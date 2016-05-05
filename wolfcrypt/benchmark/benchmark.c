@@ -86,6 +86,10 @@
 #endif
 #include <wolfssl/wolfcrypt/random.h>
 
+#ifdef HAVE_WNR
+    const char* wnrConfigFile = "wnr-example.conf";
+#endif
+
 #if defined(WOLFSSL_MDK_ARM)
     extern FILE * wolfSSL_fopen(const char *fname, const char *mode) ;
     #define fopen wolfSSL_fopen
@@ -282,6 +286,13 @@ int benchmark_test(void *args)
     }
     #endif /* HAVE_CAVIUM */
 
+    #ifdef HAVE_WNR
+    if (wc_InitNetRandom(wnrConfigFile, NULL, 5000) != 0) {
+        printf("Whitewood netRandom config init failed\n");
+        exit(-1);
+    }
+    #endif /* HAVE_WNR */
+
 #if defined(HAVE_LOCAL_RNG)
     {
         int rngRet = wc_InitRng(&rng);
@@ -402,6 +413,13 @@ int benchmark_test(void *args)
 
 #if defined(HAVE_LOCAL_RNG)
     wc_FreeRng(&rng);
+#endif
+
+#ifdef HAVE_WNR
+    if (wc_FreeNetRandom() < 0) {
+        printf("Failed to free netRandom context\n");
+        exit(-1);
+    }
 #endif
 
 #if defined(USE_WOLFSSL_MEMORY) && defined(WOLFSSL_TRACK_MEMORY)

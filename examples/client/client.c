@@ -502,6 +502,9 @@ static void Usage(void)
 #ifdef WOLFSSL_TRUST_PEER_CERT
     printf("-E <file>   Path to load trusted peer cert\n");
 #endif
+#ifdef HAVE_WNR
+    printf("-q <file>   Whitewood config file,      default %s\n", wnrConfig);
+#endif
 }
 
 THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
@@ -588,6 +591,10 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     char*  ocspUrl  = NULL;
 #endif
 
+#ifdef HAVE_WNR
+    const char* wnrConfigFile = wnrConfig;
+#endif
+
     int     argc = ((func_args*)args)->argc;
     char**  argv = ((func_args*)args)->argv;
 
@@ -620,7 +627,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 
 #ifndef WOLFSSL_VXWORKS
     while ((ch = mygetopt(argc, argv,
-          "?gdeDusmNrwRitfxXUPCVh:p:v:l:A:c:k:Z:b:zS:F:L:ToO:aB:W:E:M:"))
+          "?gdeDusmNrwRitfxXUPCVh:p:v:l:A:c:k:Z:b:zS:F:L:ToO:aB:W:E:M:q:"))
             != -1) {
         switch (ch) {
             case '?' :
@@ -873,6 +880,12 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 
                 break;
 
+            case 'q' :
+                #ifdef HAVE_WNR
+                    wnrConfigFile = myoptarg;
+                #endif
+                break;
+
             default:
                 Usage();
                 exit(MY_EX_USAGE);
@@ -970,6 +983,11 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 #ifdef USE_WOLFSSL_MEMORY
     if (trackMemory)
         InitMemoryTracker();
+#endif
+
+#ifdef HAVE_WNR
+    if (wc_InitNetRandom(wnrConfigFile, NULL, 5000) != 0)
+        err_sys("can't load whitewood net random config file");
 #endif
 
     switch (version) {
@@ -1628,6 +1646,12 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 #ifdef HAVE_CAVIUM
         CspShutdown(CAVIUM_DEV_ID);
 #endif
+
+#ifdef HAVE_WNR
+    if (wc_FreeNetRandom() < 0)
+        err_sys("Failed to free netRandom context");
+#endif /* HAVE_WNR */
+
         return args.return_code;
     }
 

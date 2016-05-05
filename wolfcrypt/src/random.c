@@ -143,10 +143,17 @@ int wc_FreeRng(WC_RNG* rng)
     #include <windows.h>
     #include <wincrypt.h>
 #else
-    #if !defined(NO_DEV_RANDOM) && !defined(CUSTOM_RAND_GENERATE) && \
-        !defined(WOLFSSL_GENSEED_FORTEST) && !defined(WOLFSSL_MDK_ARM) && \
-        !defined(WOLFSSL_IAR_ARM) && !defined(WOLFSSL_ROWLEY_ARM) && \
-        !defined(WOLFSSL_EMBOS)
+    #ifdef HAVE_WNR
+        #include <wnr.h>
+        #include <wolfssl/wolfcrypt/logging.h>
+        wolfSSL_Mutex wnr_mutex;    /* global netRandom mutex */
+        int wnr_timeout     = 0;    /* entropy timeout, mililseconds */
+        int wnr_mutex_init  = 0;    /* flag for mutex init */
+        wnr_context*  wnr_ctx;      /* global netRandom context */
+    #elif !defined(NO_DEV_RANDOM) && !defined(CUSTOM_RAND_GENERATE) && \
+          !defined(WOLFSSL_GENSEED_FORTEST) && !defined(WOLFSSL_MDK_ARM) && \
+          !defined(WOLFSSL_IAR_ARM) && !defined(WOLFSSL_ROWLEY_ARM) && \
+          !defined(WOLFSSL_EMBOS)
             #include <fcntl.h>
         #ifndef EBSNET
             #include <unistd.h>
@@ -909,6 +916,104 @@ static void CaviumRNG_GenerateBlock(WC_RNG* rng, byte* output, word32 sz)
 #endif /* HAVE_HASHDRBG || NO_RC4 */
 
 
+#ifdef HAVE_WNR
+
+/*
+ * Init global Whitewood netRandom context
+ * Returns 0 on success, negative on error
+ */
+int wc_InitNetRandom(const char* configFile, wnr_hmac_key hmac_cb, int timeout)
+{
+    if (configFile == NULL || timeout < 0)
+        return BAD_FUNC_ARG;
+
+    if (wnr_mutex_init > 0) {
+        WOLFSSL_MSG("netRandom context already created, skipping");
+        return 0;
+    }
+
+    if (InitMutex(&wnr_mutex) != 0) {
+        WOLFSSL_MSG("Bad Init Mutex wnr_mutex");
+        return BAD_MUTEX_E;
+    }
+    wnr_mutex_init = 1;
+
+    if (LockMutex(&wnr_mutex) != 0) {
+        WOLFSSL_MSG("Bad Lock Mutex wnr_mutex");
+        return BAD_MUTEX_E;
+    }
+
+    /* store entropy timeout */
+    wnr_timeout = timeout;
+
+    /* create global wnr_context struct */
+    if (wnr_create(&wnr_ctx) != WNR_ERROR_NONE) {
+        WOLFSSL_MSG("Error creating global netRandom context");
+        return RNG_FAILURE_E;
+    }
+
+    /* load config file */
+    if (wnr_config_loadf(wnr_ctx, (char*)configFile) != WNR_ERROR_NONE) {
+        WOLFSSL_MSG("Error loading config file into netRandom context");
+        wnr_destroy(wnr_ctx);
+        wnr_ctx = NULL;
+        return RNG_FAILURE_E;
+    }
+
+    /* create/init polling mechanism */
+    if (wnr_poll_create() != WNR_ERROR_NONE) {
+        printf("ERROR: wnr_poll_create() failed\n");
+        WOLFSSL_MSG("Error initializing netRandom polling mechanism");
+        wnr_destroy(wnr_ctx);
+        wnr_ctx = NULL;
+        return RNG_FAILURE_E;
+    }
+
+    /* validate config, set HMAC callback (optional) */
+    if (wnr_setup(wnr_ctx, hmac_cb) != WNR_ERROR_NONE) {
+        WOLFSSL_MSG("Error setting up netRandom context");
+        wnr_destroy(wnr_ctx);
+        wnr_ctx = NULL;
+        wnr_poll_destroy();
+        return RNG_FAILURE_E;
+    }
+
+    UnLockMutex(&wnr_mutex);
+
+    return 0;
+}
+
+/*
+ * Free global Whitewood netRandom context
+ * Returns 0 on success, negative on error
+ */
+int wc_FreeNetRandom(void)
+{
+    if (wnr_mutex_init > 0) {
+
+        if (LockMutex(&wnr_mutex) != 0) {
+            WOLFSSL_MSG("Bad Lock Mutex wnr_mutex");
+            return BAD_MUTEX_E;
+        }
+
+        if (wnr_ctx != NULL) {
+            wnr_destroy(wnr_ctx);
+            wnr_ctx = NULL;
+        }
+        wnr_poll_destroy();
+
+        UnLockMutex(&wnr_mutex);
+
+        FreeMutex(&wnr_mutex);
+        wnr_mutex_init = 0;
+    }
+
+    return 0;
+}
+
+#endif /* HAVE_WNR */
+
+
 #if defined(HAVE_INTEL_RDGEN)
 
 #ifndef _MSC_VER
@@ -1455,6 +1560,34 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
         }
 
         return (err_code == NRF_SUCCESS) ? 0 : -1;
+    }
+
+#elif defined(HAVE_WNR)
+
+    int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
+    {
+        if (os == NULL || output == NULL || wnr_ctx == NULL ||
+                wnr_timeout < 0) {
+            return BAD_FUNC_ARG;
+        }
+
+        if (wnr_mutex_init == 0) {
+            WOLFSSL_MSG("netRandom context must be created before use");
+            return RNG_FAILURE_E;
+        }
+
+        if (LockMutex(&wnr_mutex) != 0) {
+            WOLFSSL_MSG("Bad Lock Mutex wnr_mutex\n");
+            return BAD_MUTEX_E;
+        }
+
+        if (wnr_get_entropy(wnr_ctx, wnr_timeout, output, sz, sz) !=
+                WNR_ERROR_NONE)
+            return RNG_FAILURE_E;
+
+        UnLockMutex(&wnr_mutex);
+
+        return 0;
     }
 
 #elif defined(CUSTOM_RAND_GENERATE)
