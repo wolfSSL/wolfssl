@@ -1409,7 +1409,7 @@ void bench_dh(void)
     int    i ;
     size_t bytes;
     word32 idx = 0, pubSz, privSz = 0, pubSz2, privSz2, agreeSz;
-    const byte* tmp;
+    const byte* tmp = NULL;
 
     byte   pub[256];    /* for 2048 bit */
     byte   pub2[256];   /* for 2048 bit */
@@ -2106,6 +2106,22 @@ void bench_ed25519KeySign(void)
         _time_get(&tv);
 
         return (double)tv.SECONDS + (double)tv.MILLISECONDS / 1000;
+    }
+
+#elif defined(WOLFSSL_EMBOS)
+    
+    #include "RTOS.h"
+
+    double current_time(int reset)
+    {
+        double time_now;
+        double current_s = OS_GetTime() / 1000.0;
+        double current_us = OS_GetTime_us() / 1000000.0;
+        time_now = (double)( current_s + current_us);
+
+        (void) reset;
+
+        return time_now;
     }
 
 #else

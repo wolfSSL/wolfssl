@@ -142,6 +142,9 @@
 /* Uncomment next line if building for uTasker */
 /* #define WOLFSSL_UTASKER */
 
+/* Uncomment next line if building for embOS */
+/* #define WOLFSSL_EMBOS */
+
 #include <wolfssl/wolfcrypt/visibility.h>
 
 #ifdef WOLFSSL_USER_SETTINGS
@@ -409,6 +412,13 @@
     #endif
 #endif
 
+#ifdef WOLFSSL_EMBOS
+    #define NO_FILESYSTEM           /* Not ported at this time */
+    #define USE_CERT_BUFFERS_2048   /* use when NO_FILESYSTEM */
+    #define NO_MAIN_DRIVER
+    #define NO_RC4
+    #define SINGLE_THREADED         /* Not ported at this time */
+#endif
 
 /* Micrium will use Visual Studio for compilation but not the Win32 API */
 #if defined(_WIN32) && !defined(MICRIUM) && !defined(FREERTOS) && \
