@@ -50,6 +50,10 @@
 #include <wolfssl/wolfcrypt/tfm.h>
 #include <wolfcrypt/src/asm.c>  /* will define asm MACROS or C ones */
 
+#ifdef WOLFSSL_DEBUG_MATH
+    #include <stdio.h>
+#endif
+
 
 /* math settings check */
 word32 CheckRunTimeSettings(void)
@@ -2328,7 +2332,8 @@ int mp_montgomery_calc_normalization(mp_int *a, mp_int *b)
 #endif /* WOLFSSL_KEYGEN || HAVE_ECC */
 
 
-#if defined(WOLFSSL_KEY_GEN) || defined(HAVE_COMP_KEY)
+#if defined(WOLFSSL_KEY_GEN) || defined(HAVE_COMP_KEY) || \
+    defined(WOLFSSL_DEBUG_MATH)
 
 static const int lnz[16] = {
    4, 0, 1, 0, 2, 0, 1, 0, 3, 0, 1, 0, 2, 0, 1, 0
@@ -2475,7 +2480,7 @@ int mp_mod_d(fp_int *a, fp_digit b, fp_digit *c)
    return fp_mod_d(a, b, c);
 }
 
-#endif /* defined(WOLFSSL_KEY_GEN) || defined(HAVE_COMP_KEY) */
+#endif /* defined(WOLFSSL_KEY_GEN) || defined(HAVE_COMP_KEY) || defined(WOLFSSL_DEBUG_MATH) */
 
 #ifdef WOLFSSL_KEY_GEN
 
@@ -2918,7 +2923,8 @@ int mp_cnt_lsb(fp_int* a)
 
 #endif /* HAVE_ECC */
 
-#if defined(WOLFSSL_KEY_GEN) || defined(HAVE_COMP_KEY)
+#if defined(WOLFSSL_KEY_GEN) || defined(HAVE_COMP_KEY) || \
+    defined(WOLFSSL_DEBUG_MATH)
 
 /* returns size of ASCII representation */
 int mp_radix_size (mp_int *a, int radix, int *size)
@@ -3026,7 +3032,32 @@ int mp_toradix (mp_int *a, char *str, int radix)
     return FP_OKAY;
 }
 
-#endif /* defined(WOLFSSL_KEY_GEN) || defined(HAVE_COMP_KEY) */
+#ifdef WOLFSSL_DEBUG_MATH
+void mp_dump(const char* desc, mp_int* a, byte verbose)
+{
+  char buffer[FP_SIZE * sizeof(fp_digit) * 2];
+  int size = FP_SIZE;
+
+#ifdef ALT_ECC_SIZE
+  size = a->size;
+#endif
+
+  printf("%s: ptr=%p, used=%d, sign=%d, size=%d, fpd=%d\n",
+    desc, a, a->used, a->sign, size, (int)sizeof(fp_digit));
+
+  mp_toradix(a, buffer, 16);
+  printf("  %s\n  ", buffer);
+
+  if (verbose) {
+    int i;
+    for(i=0; i<size * (int)sizeof(fp_digit); i++) {
+      printf("%x ", *(((byte*)a->dp) + i));
+    }
+    printf("\n");
+  }
+}
+#endif /* WOLFSSL_DEBUG_MATH */
+
+#endif /* defined(WOLFSSL_KEY_GEN) || defined(HAVE_COMP_KEY) || defined(WOLFSSL_DEBUG_MATH) */
 
 #endif /* USE_FAST_MATH */
-

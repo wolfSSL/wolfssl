@@ -645,6 +645,12 @@ void mp_rshb(mp_int *a, int x);
 int mp_toradix (mp_int *a, char *str, int radix);
 int mp_radix_size (mp_int * a, int radix, int *size);
 
+#ifdef WOLFSSL_DEBUG_MATH
+    void mp_dump(const char* desc, mp_int* a, byte verbose);
+#else
+    #define mp_dump(desc, a, verbose)
+#endif
+
 #ifdef HAVE_ECC
     int mp_read_radix(mp_int* a, const char* str, int radix);
     void mp_set(fp_int *a, fp_digit b);

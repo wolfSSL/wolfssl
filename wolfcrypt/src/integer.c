@@ -40,6 +40,10 @@
 
 #include <wolfssl/wolfcrypt/integer.h>
 
+#ifdef WOLFSSL_DEBUG_MATH
+    #include <stdio.h>
+#endif
+
 #ifndef NO_WOLFSSL_SMALL_STACK
     #ifndef WOLFSSL_SMALL_STACK
         #define WOLFSSL_SMALL_STACK
@@ -4628,7 +4632,8 @@ int mp_read_radix (mp_int * a, const char *str, int radix)
 }
 #endif /* HAVE_ECC */
 
-#if defined(WOLFSSL_KEY_GEN) || defined(HAVE_COMP_KEY)
+#if defined(WOLFSSL_KEY_GEN) || defined(HAVE_COMP_KEY) || \
+    defined(WOLFSSL_DEBUG_MATH)
 
 /* returns size of ASCII representation */
 int mp_radix_size (mp_int *a, int radix, int *size)
@@ -4739,7 +4744,36 @@ int mp_toradix (mp_int *a, char *str, int radix)
     return MP_OKAY;
 }
 
-#endif /* defined(WOLFSSL_KEY_GEN) || defined(HAVE_COMP_KEY) */
+#ifdef WOLFSSL_DEBUG_MATH
+void mp_dump(const char* desc, mp_int* a, byte verbose)
+{
+  char *buffer;
+  int size = a->alloc;
+
+  buffer = (char*)XMALLOC(size * 2, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+  if (buffer == NULL) {
+    return;
+  }
+
+  printf("%s: ptr=%p, used=%d, sign=%d, size=%d, mpd=%d\n",
+    desc, a, a->used, a->sign, size, (int)sizeof(mp_digit));
+
+  mp_toradix(a, buffer, 16);
+  printf("  %s\n  ", buffer);
+
+  if (verbose) {
+    int i;
+    for(i=0; i<a->alloc * (int)sizeof(mp_digit); i++) {
+      printf("%02x ", *(((byte*)a->dp) + i));
+    }
+    printf("\n");
+  }
+
+  XFREE(buffer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+}
+#endif /* WOLFSSL_DEBUG_MATH */
+
+#endif /* defined(WOLFSSL_KEY_GEN) || defined(HAVE_COMP_KEY) || defined(WOLFSSL_DEBUG_MATH) */
 
 #endif /* USE_FAST_MATH */
 
