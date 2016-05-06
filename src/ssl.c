@@ -7070,6 +7070,13 @@ int GetDeepCopySession(WOLFSSL* ssl, WOLFSSL_SESSION* copyFrom)
 #endif
 
     *copyInto = *copyFrom;
+
+    /* Default ticket to non dynamic. This will avoid crash if we fail below */
+#ifdef HAVE_SESSION_TICKET
+    copyInto->ticket = copyInto->staticTicket;
+    copyInto->isDynamic = 0;
+#endif
+
     if (UnLockMutex(&session_mutex) != 0) {
         return BAD_MUTEX_E;
     }
@@ -7095,6 +7102,7 @@ int GetDeepCopySession(WOLFSSL* ssl, WOLFSSL_SESSION* copyFrom)
 
         if (ret == SSL_SUCCESS) {
             copyInto->ticket = tmpBuff;
+            copyInto->isDynamic = 1;
             XMEMCPY(copyInto->ticket, copyFrom->ticket, ticketLen);
         }
     } else {
