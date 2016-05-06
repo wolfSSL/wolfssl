@@ -146,6 +146,10 @@
     #include "wolfssl/wolfcrypt/mem_track.h"
 #endif
 
+#ifdef HAVE_WNR
+    const char* wnrConfigFile = "wnr-example.conf";
+#endif
+
 
 typedef struct testVector {
     const char*  input;
@@ -646,6 +650,13 @@ static int OpenNitroxDevice(int dma_mode,int dev_id)
         }
 #endif /* HAVE_CAVIUM */
 
+#ifdef HAVE_WNR
+        if (wc_InitNetRandom(wnrConfigFile, NULL, 5000) != 0) {
+            err_sys("Whitewood netRandom global config failed", -1237);
+            return -1237;
+        }
+#endif
+
         args.argc = argc;
         args.argv = argv;
 
@@ -654,6 +665,11 @@ static int OpenNitroxDevice(int dma_mode,int dev_id)
 #ifdef HAVE_CAVIUM
         CspShutdown(CAVIUM_DEV_ID);
 #endif
+
+#ifdef HAVE_WNR
+        if (wc_FreeNetRandom() < 0)
+            err_sys("Failed to free netRandom context", -1238);
+#endif /* HAVE_WNR */
 
         return args.return_code;
     }

@@ -242,6 +242,9 @@ static void Usage(void)
 #ifdef WOLFSSL_TRUST_PEER_CERT
     printf("-E <file>   Path to load trusted peer cert\n");
 #endif
+#ifdef HAVE_WNR
+    printf("-q <file>   Whitewood config file,      default %s\n", wnrConfig);
+#endif
 }
 
 THREAD_RETURN CYASSL_THREAD server_test(void* args)
@@ -312,6 +315,10 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     char*  ocspUrl  = NULL;
 #endif
 
+#ifdef HAVE_WNR
+    const char* wnrConfigFile = wnrConfig;
+#endif
+
     ((func_args*)args)->return_code = -1; /* error state */
 
 #ifdef NO_RSA
@@ -343,8 +350,8 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
 #ifdef WOLFSSL_VXWORKS
     useAnyAddr = 1;
 #else
-    while ((ch = mygetopt(argc, argv, "?jdbstnNufrawPIR:p:v:l:A:c:k:Z:S:oO:D:L:ieB:E:"))
-                         != -1) {
+    while ((ch = mygetopt(argc, argv,
+                  "?jdbstnNufrawPIR:p:v:l:A:c:k:Z:S:oO:D:L:ieB:E:q:")) != -1) {
         switch (ch) {
             case '?' :
                 Usage();
@@ -522,6 +529,12 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
                 break;
             #endif
 
+            case 'q' :
+                #ifdef HAVE_WNR
+                    wnrConfigFile = myoptarg;
+                #endif
+                break;
+
             default:
                 Usage();
                 exit(MY_EX_USAGE);
@@ -550,6 +563,11 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
 #ifdef USE_CYASSL_MEMORY
     if (trackMemory)
         InitMemoryTracker();
+#endif
+
+#ifdef HAVE_WNR
+    if (wc_InitNetRandom(wnrConfigFile, NULL, 5000) != 0)
+        err_sys("can't load whitewood net random config file");
 #endif
 
     switch (version) {
@@ -1047,6 +1065,12 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
 #ifdef HAVE_CAVIUM
         CspShutdown(CAVIUM_DEV_ID);
 #endif
+
+#ifdef HAVE_WNR
+    if (wc_FreeNetRandom() < 0)
+        err_sys("Failed to free netRandom context");
+#endif /* HAVE_WNR */
+
         return args.return_code;
     }
 

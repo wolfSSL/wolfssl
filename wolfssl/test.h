@@ -257,6 +257,10 @@
 #define cliEccKey  "certs/ecc-client-key.pem"
 #define cliEccCert "certs/client-ecc-cert.pem"
 #define crlPemDir  "certs/crl"
+#ifdef HAVE_WNR
+    /* Whitewood netRandom default config file */
+    #define wnrConfig  "wnr-example.conf"
+#endif
 #else
 #define caCert     "./certs/ca-cert.pem"
 #define eccCert    "./certs/server-ecc.pem"
@@ -271,6 +275,10 @@
 #define cliEccKey  "./certs/ecc-client-key.pem"
 #define cliEccCert "./certs/client-ecc-cert.pem"
 #define crlPemDir  "./certs/crl"
+#ifdef HAVE_WNR
+    /* Whitewood netRandom default config file */
+    #define wnrConfig  "./wnr-example.conf"
+#endif
 #endif
 
 typedef struct tcp_ready {

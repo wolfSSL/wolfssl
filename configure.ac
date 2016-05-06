@@ -1646,6 +1646,49 @@ AC_ARG_WITH([ntru],
 AM_CONDITIONAL([BUILD_NTRU], [test "x$ENABLED_NTRU" = "xyes"])
 
 
+# Whitewood netRandom client library
+ENABLED_WNR="no"
+trywnrdir=""
+AC_ARG_WITH([wnr],
+    [AS_HELP_STRING([--with-wnr=PATH],[Path to Whitewood netRandom install (default /usr/local)])],
+    [
+        AC_MSG_CHECKING([for Whitewood netRandom])
+        CPPFLAGS="$CPPFLAGS -DHAVE_WNR"
+        LIBS="$LIBS -lwnr"
+
+        AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <wnr.h>]], [[ wnr_setup(0, 0); ]])], [ wnr_linked=yes ],[ wnr_linked=no ])
+
+        if test "x$wnr_linked" == "xno" ; then
+            if test "x$withval" != "xno" ; then
+                trywnrdir=$withval
+            fi
+            if test "x$withval" == "xyes" ; then
+                trywnrdir="/usr/local"
+            fi
+
+            LDFLAGS="$AM_LDFLAGS $LDFLAGS -L$trywnrdir/lib"
+            CPPFLAGS="$CPPFLAGS -I$trywnrdir/include"
+
+            AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <wnr.h>]], [[ wnr_setup(0, 0); ]])], [ wnr_linked=yes ],[ wnr_linked=no ])
+
+            if test "x$wnr_linked" == "xno" ; then
+                AC_MSG_ERROR([Whitewood netRandom isn't found.
+                If it's already installed, specify its path using --with-wnr=/dir/])
+            fi
+            AC_MSG_RESULT([yes])
+            AM_LDFLAGS="$AM_LDFLAGS -L$trywnrdir/lib"
+        else
+            AC_MSG_RESULT([yes])
+        fi
+
+        AM_CFLAGS="$AM_CFLAGS -DHAVE_WNR"
+        ENABLED_WNR="yes"
+    ]
+)
+
+AM_CONDITIONAL([BUILD_WNR], [test "x$ENABLED_WNR" = "xyes"])
+
+
 # SNI
 AC_ARG_ENABLE([sni],
     [  --enable-sni            Enable SNI (default: disabled)],
@@ -2872,6 +2915,7 @@ echo "   * Persistent cert    cache:   $ENABLED_SAVECERT"
 echo "   * Atomic User Record Layer:   $ENABLED_ATOMICUSER"
 echo "   * Public Key Callbacks:       $ENABLED_PKCALLBACKS"
 echo "   * NTRU:                       $ENABLED_NTRU"
+echo "   * Whitewood netRandom:        $ENABLED_WNR"
 echo "   * Server Name Indication:     $ENABLED_SNI"
 echo "   * ALPN:                       $ENABLED_ALPN"
 echo "   * Maximum Fragment Length:    $ENABLED_MAX_FRAGMENT"

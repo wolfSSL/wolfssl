@@ -52,6 +52,10 @@
     #include <wolfssl/wolfcrypt/arc4.h>
 #endif /* HAVE_HASHDRBG || NO_RC4 */
 
+#ifdef HAVE_WNR
+    #include <wnr.h>
+#endif
+
 #if defined(USE_WINDOWS_API)
     #if defined(_WIN64)
         typedef unsigned __int64 ProviderHandle;
@@ -128,6 +132,12 @@ int wc_GenerateSeed(OS_Seed* os, byte* seed, word32 sz);
 #endif
 
 #endif /* HAVE_HASH_DRBG || NO_RC4 */
+
+#ifdef HAVE_WNR
+    /* Whitewood netRandom client library */
+    WOLFSSL_API int  wc_InitNetRandom(const char*, wnr_hmac_key, int);
+    WOLFSSL_API int  wc_FreeNetRandom(void);
+#endif /* HAVE_WNR */
 
 
 WOLFSSL_API int  wc_InitRng(WC_RNG*);
