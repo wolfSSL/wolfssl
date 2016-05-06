@@ -61,6 +61,27 @@ typedef struct {
 } ecc_set_type;
 
 
+/* Determine max ECC bits based on enabled curves */
+#if defined(HAVE_ECC521) || defined(HAVE_ALL_CURVES)
+    #define MAX_ECC_BITS    528
+#elif defined(HAVE_ECC384)
+    #define MAX_ECC_BITS    384
+#elif defined(HAVE_ECC224)
+    #define MAX_ECC_BITS    224
+#elif !defined(NO_ECC256)
+    #define MAX_ECC_BITS    256
+#elif defined(HAVE_ECC192)
+    #define MAX_ECC_BITS    192
+#elif defined(HAVE_ECC160)
+    #define MAX_ECC_BITS    160
+#elif defined(HAVE_ECC128)
+    #define MAX_ECC_BITS    128
+#elif defined(HAVE_ECC112)
+    #define MAX_ECC_BITS    112
+#endif
+
+
+
 #ifdef ALT_ECC_SIZE
 
 /* Note on ALT_ECC_SIZE:
@@ -91,12 +112,16 @@ typedef struct {
 #endif
 
 #ifndef FP_MAX_BITS_ECC
-    #define FP_MAX_BITS_ECC           528
+    /* This value should be double the max ecc bit size */
+    #define FP_MAX_BITS_ECC       (MAX_ECC_BITS*2)
 #endif
+
 #define FP_MAX_SIZE_ECC           (FP_MAX_BITS_ECC+(8*DIGIT_BIT))
+
 #if FP_MAX_BITS_ECC % CHAR_BIT
    #error FP_MAX_BITS_ECC must be a multiple of CHAR_BIT
 #endif
+
 #define FP_SIZE_ECC    (FP_MAX_SIZE_ECC/DIGIT_BIT)
 
 /* This needs to match the size of the fp_int struct, except the
