@@ -12,7 +12,7 @@
 
 #ifdef WOLFSSL_RIPEMD
 
-typedef WOLCRYPT_RIPEMD_CTX RIPEMD_CTX;
+typedef WOLFCRYPT_RIPEMD_CTX RIPEMD_CTX;
 
 #define RIPEMD_Init   wc_RIPEMD_Init
 #define RIPEMD_Update wc_RIPEMD_Update

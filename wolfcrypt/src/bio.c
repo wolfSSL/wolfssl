@@ -30,16 +30,18 @@
 #include <stdarg.h>
 #include <stdio.h>
 
-#include <netinet/in.h>
 #include <sys/types.h>
-#include <sys/socket.h>
 #include <errno.h>
 
 #ifdef USE_WINDOWS_API
 #include <winsock2.h>
 #include <process.h>
 #include <io.h>
+#include <fcntl.h>
+#define SHUT_RDWR SD_BOTH
 #else
+#include <sys/socket.h>
+#include <netinet/in.h>
 #include <sys/time.h>
 #include <fcntl.h>
 #include <netdb.h>
@@ -753,7 +755,9 @@ unsigned long wc_BioNumberWritten(WOLFCRYPT_BIO *bio)
 }
 
 
+#ifndef USE_WINDOWS_API
 __attribute__((format(printf, 2, 3)))
+#endif
 int wc_BioPrintf(WOLFCRYPT_BIO *bio, const char *format, ...)
 {
     int     size, ret;
@@ -1954,7 +1958,6 @@ static int wc_BioBuffer_gets(WOLFCRYPT_BIO *bio, char *buf, int size)
 
     for (;;) {
         if (ctx->inLen > 0) {
-                //            p = &(ctx->in[ctx->inIdx]);
             flag = 0;
 
             for (i = 0; (i < ctx->inLen) && (i < size); i++) {
@@ -3071,6 +3074,9 @@ int wc_BioSetTcpNsigpipe(int s, int on)
 
     signal(SIGPIPE, SIG_IGN);
 #endif /* S_NOSIGPIPE */
+#else /* USE_WINDOWS_API */
+    (void) s;
+    (void) on;
 #endif /* USE_WINDOWS_API */
 
     return (ret == 0);
@@ -5462,7 +5468,7 @@ static int wolfCrypt_BufMem_grow(WOLFCRYPT_BUF_MEM *buf, size_t len)
 static int wolfCrypt_BufMem_grow_clean(WOLFCRYPT_BUF_MEM *buf, size_t len)
 {
     int ret, idx = -1;
-    size_t size;
+    size_t size = 0;
 
     if (buf == NULL) {
         WOLFSSL_ERROR(BAD_FUNC_ARG);

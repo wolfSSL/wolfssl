@@ -6736,7 +6736,11 @@ int bio_connect_ssl_test(void)
         i = wc_BioWrite(out, request+idx, len);
         if (i <= 0) {
             if (wc_BioShouldRetry(out)) {
+#ifdef USE_WINDOWS_API
+                Sleep(1000);
+#else
                 sleep(1);
+#endif
                 continue;
             } else {
                 ret = -3005;
@@ -6755,7 +6759,11 @@ int bio_connect_ssl_test(void)
             break;
         if (i < 0) {
             if (wc_BioShouldRetry(out)) {
+#ifdef USE_WINDOWS_API
+                Sleep(1000);
+#else
                 sleep(1);
+#endif
                 continue;
             }
             ret = -3006;
@@ -6817,7 +6825,7 @@ int bio_accept_ssl_test(void)
     #define KEY_F   "./certs/ecc-key.pem"
 #endif
 
-    ssl_ctx = wolfSSL_CTX_new(wolfTLSv1_2_server_method());
+    ssl_ctx = wolfSSL_CTX_new(wolfTLSv1_server_method());
     if (ssl_ctx == NULL)
         return -3000;
 
@@ -6844,7 +6852,7 @@ int bio_accept_ssl_test(void)
 #endif /* NO_DH */
 
     /* Setup server side SSL bio */
-    ssl_bio = wolfSSL_BioNewSSL(ssl_ctx, 0);
+    ssl_bio = wolfSSL_BioNewSSL(ssl_ctx, BIO_NOCLOSE);
     if (ssl_bio == NULL) {
         ret = -3005;
         goto end;
@@ -6882,7 +6890,7 @@ int bio_accept_ssl_test(void)
      * will be freed when the accept BIO is freed.
      */
     if (wc_BioSetAcceptBios(in, ssl_bio) <= 0) {
-        ret = -3006;
+        ret = -3009;
         goto end;
     }
 
@@ -6904,7 +6912,8 @@ int bio_accept_ssl_test(void)
         b_rw = wc_BioPop(in);
         if (b_rw == NULL) {
             printf("BIO error -> close\n");
-            break;
+            ret = -3012;
+            goto end;
         }
 
         for(;;) {
@@ -6922,6 +6931,8 @@ int bio_accept_ssl_test(void)
                 if (wc_BioShouldRetry(b_rw))
                     continue;
                 printf("Read error -> close\n");
+                ret = -3014;
+                goto end;
                 break;
             }
 
@@ -7004,8 +7015,13 @@ int bio_test(void)
         return -1006;
 
     ret = wc_BioTell(bio);
+#ifdef USE_WINDOWS_API
+    if (ret != 0)
+        return -1007;
+#else
     if (ret != (int)strlen(buf)+1)
         return -1007;
+#endif
 
     /* write */
     ret = wc_BioPrintf(bio, "%s\n", buf);

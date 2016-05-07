@@ -50,10 +50,8 @@ enum WS_BIO_TYPE {
  * BIO_FILENAME_READ|BIO_CLOSE to open or close on free.
  * BIO_set_fp(in,stdin,BIO_NOCLOSE);
  */
-#if !defined(BIO_CLOSE) || !defined(BIO_NOCLOSE)
 #define BIO_CLOSE 1
 #define BIO_NOCLOSE 0
-#endif
 
 /*
  * These are used in the following macros and are passed to BIO_ctrl()

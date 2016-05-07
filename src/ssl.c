@@ -263,11 +263,12 @@ WOLFSSL* wolfSSL_dup(WOLFSSL* s)
             CHACHA20_IMP_IV_SZ);
     XMEMCPY(ret->keys.client_write_IV, s->keys.client_write_IV,
             CHACHA20_IMP_IV_SZ);
-
+#ifdef HAVE_AEAD
     XMEMCPY(ret->keys.aead_enc_imp_IV, ret->keys.server_write_IV,
             CHACHA20_IMP_IV_SZ);
     XMEMCPY(ret->keys.aead_dec_imp_IV, ret->keys.client_write_IV,
             CHACHA20_IMP_IV_SZ);
+#endif
 
     /* setup biord, and biowr */
     if (s->biord != NULL) {
@@ -16673,7 +16674,7 @@ WOLFCRYPT_BIO *wolfSSL_BioNewSSLConnect(WOLFSSL_CTX *ctx)
     if (con == NULL)
         return NULL;
 
-    ssl = wolfSSL_BioNewSSL(ctx, 1);
+    ssl = wolfSSL_BioNewSSL(ctx, BIO_CLOSE);
     if (ssl == NULL)
         goto err;
 
