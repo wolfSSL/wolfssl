@@ -281,7 +281,7 @@ int ecc_projective_add_point(ecc_point* P, ecc_point* Q, ecc_point* R,
                              mp_int* modulus, mp_digit* mp)
 {
    mp_int t1, t2;
-#ifdef ALT_ECC_SIZE
+#if (defined(USE_FAST_MATH) && defined(ALT_ECC_SIZE)) || !defined(USE_FAST_MATH)
    mp_int rx, ry, rz;
 #endif
    mp_int *x, *y, *z;
@@ -313,7 +313,7 @@ int ecc_projective_add_point(ecc_point* P, ecc_point* Q, ecc_point* R,
       return err;
    }
 
-#ifdef ALT_ECC_SIZE
+#if (defined(USE_FAST_MATH) && defined(ALT_ECC_SIZE)) || !defined(USE_FAST_MATH)
    /* Use local stack variable */
    x = &rx;
    y = &ry;
@@ -520,7 +520,7 @@ int ecc_projective_add_point(ecc_point* P, ecc_point* Q, ecc_point* R,
    if (err == MP_OKAY)
        err = mp_div_2(y, y);
 
-#ifdef ALT_ECC_SIZE
+#if (defined(USE_FAST_MATH) && defined(ALT_ECC_SIZE)) || !defined(USE_FAST_MATH)
    if (err == MP_OKAY)
        err = mp_copy(x, R->x);
    if (err == MP_OKAY)
