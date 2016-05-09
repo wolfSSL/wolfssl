@@ -79,12 +79,13 @@ extern "C" {
     #define ECC_TIMING_RESISTANT
 
     #ifdef USE_FAST_MATH
-        /* Max ECC bits (curve size * 8). ECC256 is (32*8) = 256 */
-        /* Note: ECC521 requires (curve size * 16): (66*16) = 1056 */
+        /* use reduced size math buffers for ecc points */
         #undef  ALT_ECC_SIZE
         #define ALT_ECC_SIZE
+
+        /* optionally override the default max ecc bits */
         #undef  FP_MAX_BITS_ECC
-        #define FP_MAX_BITS_ECC     1056
+        //#define FP_MAX_BITS_ECC     512
 
         /* Enable TFM optimizations for ECC */
         #define TFM_ECC192

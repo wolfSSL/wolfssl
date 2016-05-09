@@ -114,12 +114,12 @@ typedef struct {
 /* determine max bits required for ECC math */
 #ifndef FP_MAX_BITS_ECC
     /* check alignment */
-    #if ((MAX_ECC_BITS & CHAR_BIT) == 0)
+    #if (MAX_ECC_BITS % CHAR_BIT) == 0
         /* max bits is double */
         #define FP_MAX_BITS_ECC     (MAX_ECC_BITS * 2)
     #else
-        /* max bits is rounded up to 8-bit alignment, doubled, plus one digit of fudge */
-        #define FP_MAX_BITS_ECC     ((((MAX_ECC_BITS + CHAR_BIT) & ~CHAR_BIT) * 2) + DIGIT_BIT)
+        /* max bits is doubled, plus one digit of fudge then 8-bit aligned */
+        #define FP_MAX_BITS_ECC     (((MAX_ECC_BITS * 2) + DIGIT_BIT) & ~(CHAR_BIT-1))
     #endif
 #endif
 
