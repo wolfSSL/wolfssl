@@ -63,7 +63,7 @@ typedef struct {
 
 /* Determine max ECC bits based on enabled curves */
 #if defined(HAVE_ECC521) || defined(HAVE_ALL_CURVES)
-    #define MAX_ECC_BITS    528
+    #define MAX_ECC_BITS    521
 #elif defined(HAVE_ECC384)
     #define MAX_ECC_BITS    384
 #elif defined(HAVE_ECC224)
@@ -111,18 +111,26 @@ typedef struct {
     #error USE_FAST_MATH must be defined to use ALT_ECC_SIZE
 #endif
 
+/* determine max bits required for ECC math */
 #ifndef FP_MAX_BITS_ECC
-    /* This value should be double the max ecc bit size */
-    #define FP_MAX_BITS_ECC       (MAX_ECC_BITS*2)
+    /* check alignment */
+    #if ((MAX_ECC_BITS & CHAR_BIT) == 0)
+        /* max bits is double */
+        #define FP_MAX_BITS_ECC     (MAX_ECC_BITS * 2)
+    #else
+        /* max bits is rounded up to 8-bit alignment, doubled, plus one digit of fudge */
+        #define FP_MAX_BITS_ECC     ((((MAX_ECC_BITS + CHAR_BIT) & ~CHAR_BIT) * 2) + DIGIT_BIT)
+    #endif
 #endif
 
-#define FP_MAX_SIZE_ECC           (FP_MAX_BITS_ECC+(8*DIGIT_BIT))
-
+/* verify alignment */
 #if FP_MAX_BITS_ECC % CHAR_BIT
    #error FP_MAX_BITS_ECC must be a multiple of CHAR_BIT
 #endif
 
-#define FP_SIZE_ECC    (FP_MAX_SIZE_ECC/DIGIT_BIT)
+/* determine buffer size */
+#define FP_SIZE_ECC    (FP_MAX_BITS_ECC/DIGIT_BIT)
+
 
 /* This needs to match the size of the fp_int struct, except the
  * fp_digit array will be shorter. */
