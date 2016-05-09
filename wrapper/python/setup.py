@@ -23,14 +23,8 @@
 from __future__ import absolute_import
 import os
 import sys
-import wolfcrypt
+from wolfcrypt.__about__ import metadata
 from setuptools import setup, find_packages
-
-try:
-    import about
-except ImportError:
-    error = "about is not installed, refer to <{url}> for instructions."
-    raise ImportError(error.format(url="https://pypi.io/project/about/"))
 
 os.chdir(os.path.dirname(sys.argv[0]) or ".")
 
@@ -40,7 +34,7 @@ long_description = open("README.rst", "rt").read().replace(
 )
 
 info = dict(
-    metadata     = about.get_metadata(wolfcrypt),
+    metadata     = {k[2:-2]: metadata[k] for k in metadata},
     contents     = {
                      "long_description": long_description,
                      "package_data":     {"":  ["*.txt"]},
@@ -48,8 +42,8 @@ info = dict(
                      "cffi_modules":     ["./wolfcrypt/build_ffi.py:ffi"],
     },
     requirements = {
-                    "setup_requires":    ["cffi>=1.6.0", "about>=5.2"],
-                    "install_requires":  ["cffi>=1.6.0", "about>=5.2"],
+                    "setup_requires":    ["cffi>=1.6.0"],
+                    "install_requires":  ["cffi>=1.6.0"],
     },
     scripts      = {},
     plugins      = {},
