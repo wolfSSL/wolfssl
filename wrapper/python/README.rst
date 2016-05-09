@@ -3,12 +3,25 @@
 wolfcrypt: the wolfSSL Crypto Engine
 ====================================
 
+**wolfCrypt Python**, a.k.a. ``wolfcrypt`` is a Python library that encapsulates
+**wolfSSL's wolfCrypt API**.
 
-A Python library that encapsulates wolfSSL's wolfCrypt API
+**wolfCrypt** is a lightweight, portable, C-language-based crypto library
+targeted at IoT, embedded, and RTOS environments primarily because of its size,
+speed, and feature set. It works seamlessly in desktop, enterprise, and cloud
+environments as well.
 
 
-1. Clone the repository and install wolfssl::
+Installation
+------------
 
+You can install ``wolfcrypt`` via ``pip`` or ``source code``, but before
+installing it, make sure you have ``wolfssl`` C library installed in your
+machine.
+
+To install wolfssl do:
+
+.. code-block:: console
 
     $ git clone git@github.com:wolfssl/wolfssl.git
     $ cd wolfssl
@@ -18,34 +31,68 @@ A Python library that encapsulates wolfSSL's wolfCrypt API
     $ sudo make install
 
 
-2. Make sure that ``cffi``, ``py.test``, and ``tox`` are installed::
+wolfcrypt pip installation
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+To install ``wolfcrypt`` with ``pip``:
+
+.. code-block:: console
+
+    $ pip install wolfcrypt
+
+or if you need admin privileges to use ``pip``:
+
+.. code-block:: console
+
+    $ sudo -H pip install wolfcrypt
 
 
-    $ cd wrappers/python
-    $ pip install -r requirements-testing.txt
+wolfcrypt source installation
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+To install ``wolfcrypt`` from sources:
 
-3. Run ``python setup.py install`` to build and install wolfcrypt::
+1. Get the sources:
 
+.. code-block:: console
+
+    $ git clone git@github.com:wolfssl/wolfssl.git
+    $ cd wolfssl/wrappers/python
+
+2. Build and install ``wolfcrypt``
+
+.. code-block:: console
 
     $ python setup.py install
     ...
-    Finished processing dependencies for wolfcrypt==0.1.0
+    Finished processing dependencies for wolfcrypt...
+
+or if you need admin privileges to use the install command:
+
+.. code-block:: console
+
+    $ sudo python setup.py install
 
 
-4. Test locally with ``tox``::
+Testing
+-------
 
+Test ``wolfcrypt`` locally with ``tox``:
+
+1. Make sure that the testing requirements are installed:
+
+.. code-block:: console
+
+    $ pip install -r requirements-testing.txt
+
+
+2. Call ``tox``:
+
+.. code-block:: console
 
     $ tox
     ...
     _________________________________ summary _________________________________
-    py26: commands succeeded
     py27: commands succeeded
     py35: commands succeeded
     congratulations :)
-
-
-.. include:: LICENSING.rst
-
-
-Copyright 2016 wolfSSL Inc.  All rights reserved.
