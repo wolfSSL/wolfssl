@@ -6013,7 +6013,7 @@ static int evp_enc_test(const WOLFCRYPT_EVP_CIPHER* type)
     WOLFCRYPT_EVP_CIPHER_CTX ctx;
     int i, ret, len = 0, loop, outLen, rand_size, witLen;
 
-    byte random[4500], wit[5000], out[5000];
+    byte brandom[4500], wit[5000], out[5000];
 
     byte key[] = {0x9d, 0xbf, 0xe2, 0x11, 0xf9, 0xea, 0x19, 0xf3,
                   0x44, 0x2e, 0xae, 0x19, 0x54, 0x80, 0x87, 0x4c,
@@ -6028,7 +6028,7 @@ static int evp_enc_test(const WOLFCRYPT_EVP_CIPHER* type)
     if (i != 0)
         return -1198;
 
-    i = wc_RNG_GenerateBlock(&rng, random, sizeof(random));
+    i = wc_RNG_GenerateBlock(&rng, brandom, sizeof(brandom));
     if (i != 0)
         return -1199;
 
@@ -6036,8 +6036,8 @@ static int evp_enc_test(const WOLFCRYPT_EVP_CIPHER* type)
 
 
     /* Encrypt/Decrypt with round bytes block Update */
-    for (rand_size = sizeof(random), loop = 1; loop < 1000; loop++) {
-        rand_size = sizeof(random) - loop;
+    for (rand_size = sizeof(brandom), loop = 1; loop < 1000; loop++) {
+        rand_size = sizeof(brandom) - loop;
 
         /* Encrypt */
         wc_EVP_CIPHER_CTX_init(&ctx);
@@ -6050,7 +6050,7 @@ static int evp_enc_test(const WOLFCRYPT_EVP_CIPHER* type)
             return -1200;
 
         ret = wc_EVP_CipherUpdate(&ctx, out+len, &outLen,
-                                       random, rand_size);
+                                       brandom, rand_size);
         if (ret != SSL_SUCCESS)
             return -1201;
 
@@ -6095,7 +6095,7 @@ static int evp_enc_test(const WOLFCRYPT_EVP_CIPHER* type)
         if (witLen != rand_size)
             return -1206;
 
-        if (XMEMCMP(random, wit, witLen))
+        if (XMEMCMP(brandom, wit, witLen))
             return -1207;
     }
 
@@ -6264,19 +6264,20 @@ int bio_md_test(void)
             return -1068;
 
         /* Ensure all of our data is pushed all the way to the BIO */
-        wc_BioFlush(bmd);
+        if (wc_BioFlush(bmd) < 0)
+            return -1069;
 
         /* get the digest */
         XMEMSET(digest, 0, sizeof(digest));
         size = wc_BioGets(bmd, digest, sizeof(digest));
         if (size <= 0)
-            return -1069;
-
-        if (size != wc_EVP_MD_size(hash_list[i].type))
             return -1070;
 
-        if (XMEMCMP(digest, hash_list[i].digest, size))
+        if (size != wc_EVP_MD_size(hash_list[i].type))
             return -1071;
+
+        if (XMEMCMP(digest, hash_list[i].digest, size))
+            return -1072;
 
         /* free BIO */
         wc_BioFreeAll(bmd);
@@ -6292,22 +6293,22 @@ int bio_b64_test(void)
     WOLFCRYPT_BIO *b64, *file;
     int i, loop, rand_size;
     int total, w;
-    byte random[9000], wit[9000];
+    byte brandom[9000], wit[9000];
     WC_RNG rng;
 
     i = wc_InitRng(&rng);
     if (i != 0)
         return -1198;
 
-    i = wc_RNG_GenerateBlock(&rng, random, sizeof(random));
+    i = wc_RNG_GenerateBlock(&rng, brandom, sizeof(brandom));
     if (i != 0)
         return -1199;
 
     wc_FreeRng(&rng);
 
-    /* Encode/Decode random data */
-    for (rand_size = sizeof(random), loop = 1; loop < 1000; loop++) {
-        rand_size = sizeof(random) - loop;
+    /* Encode/Decode brandom data */
+    for (rand_size = sizeof(brandom), loop = 1; loop < 1000; loop++) {
+        rand_size = sizeof(brandom) - loop;
 
         /* Create a buffered file BIO for writing */
         if (loop & 1)
@@ -6329,7 +6330,7 @@ int bio_b64_test(void)
          * It checks for errors as if the underlying file were non-blocking */
         for (total = 0;  total < rand_size; total += w)
         {
-            w = wc_BioWrite(b64, random + total,
+            w = wc_BioWrite(b64, brandom + total,
                                     rand_size - (int)total);
             if (w <= 0) {
                 if (wc_BioShouldRetry(b64)) {
@@ -6341,7 +6342,8 @@ int bio_b64_test(void)
         }
 
         /* Ensure all of our data is pushed all the way to the file */
-        wc_BioFlush(b64);
+        if (wc_BioFlush(b64) < 0)
+            return -1070;
 
         /* free BIO chain cipher-file */
         wc_BioFreeAll(b64);
@@ -6354,7 +6356,7 @@ int bio_b64_test(void)
         else
             file = wc_BioNewFile("test_b64_nonl", "r");
         if (file == NULL)
-            return -1070;
+            return -1071;
 
         /* Create a base64 encoding filter BIO */
         b64 = wc_BioNew(wc_Bio_f_base64());
@@ -6385,7 +6387,7 @@ int bio_b64_test(void)
         if (total != rand_size)
             return -1079;
 
-        if (XMEMCMP(random, wit, total))
+        if (XMEMCMP(brandom, wit, total))
             return -1080;
     }
 
@@ -6397,13 +6399,13 @@ int bio_b64_test(void)
 static int bio_filter_test(const WOLFCRYPT_EVP_CIPHER* cipher_type)
 {
     int total, i, w, rand_size;
-    WOLFCRYPT_BIO *cipher, *buffer, *file, *b64;
+    WOLFCRYPT_BIO *cipher, *buff, *file, *b64;
     byte key[] = { 0x63, 0x21, 0x5f, 0x9b, 0xdc, 0x74, 0xcc, 0x90,
         0x96, 0x43, 0xd1, 0xcc, 0x7a, 0xb2, 0x27, 0xc5 };
     byte iv[] = { 0x1a, 0x4a, 0xf8, 0xd5, 0xd0, 0x09, 0xff, 0x09,
         0xd6, 0xb3, 0x72, 0x3d, 0xc4, 0xed, 0x9c, 0x8e };
 
-    byte random[4200], wit[4200];
+    byte brandom[4200], wit[4200];
 
     WC_RNG rng;
 
@@ -6411,15 +6413,15 @@ static int bio_filter_test(const WOLFCRYPT_EVP_CIPHER* cipher_type)
     if (w != 0)
         return 1060;
 
-    w = wc_RNG_GenerateBlock(&rng, random, sizeof(random));
+    w = wc_RNG_GenerateBlock(&rng, brandom, sizeof(brandom));
     if (w != 0)
         return 1061;
 
     wc_FreeRng(&rng);
 
-    for (rand_size = sizeof(random), i = 1; i < 300; i++) {
+    for (rand_size = sizeof(brandom), i = 1; i < 300; i++) {
 
-        rand_size = sizeof(random) - i;
+        rand_size = sizeof(brandom) - i;
 
         /* Create a buffered file BIO for writing */
         if (i & 1)
@@ -6430,8 +6432,8 @@ static int bio_filter_test(const WOLFCRYPT_EVP_CIPHER* cipher_type)
             return -1062;
 
         /* Create a buffering filter BIO to buffer writes to the file */
-        buffer = wc_BioNew(wc_Bio_f_buffer());
-        if (buffer == NULL)
+        buff = wc_BioNew(wc_Bio_f_buffer());
+        if (buff == NULL)
             return -1063;
 
         /* Create a cipher filter BIO */
@@ -6457,10 +6459,10 @@ static int bio_filter_test(const WOLFCRYPT_EVP_CIPHER* cipher_type)
         if (wc_BioPush(cipher, b64) == NULL)
             return -1066;
 
-        if (wc_BioPush(b64, buffer) == NULL)
+        if (wc_BioPush(b64, buff) == NULL)
             return -1067;
 
-        if (wc_BioPush(buffer, file) == NULL)
+        if (wc_BioPush(buff, file) == NULL)
             return -1068;
 
 
@@ -6468,7 +6470,7 @@ static int bio_filter_test(const WOLFCRYPT_EVP_CIPHER* cipher_type)
          * It checks for errors as if the underlying file were non-blocking */
         for (total = 0;  total < rand_size; total += w)
         {
-            w = wc_BioWrite(cipher, random + total,
+            w = wc_BioWrite(cipher, brandom + total,
                                     rand_size - (int)total);
             if (w <= 0) {
                 if (wc_BioShouldRetry(cipher)) {
@@ -6480,7 +6482,8 @@ static int bio_filter_test(const WOLFCRYPT_EVP_CIPHER* cipher_type)
         }
 
         /* Ensure all of our data is pushed all the way to the file */
-        wc_BioFlush(cipher);
+        if (wc_BioFlush(cipher) < 0)
+            return - 1069;
 
         /* get b64 BIO to free it only at first (test purpose) */
         wc_BioPop(b64);
@@ -6502,8 +6505,8 @@ static int bio_filter_test(const WOLFCRYPT_EVP_CIPHER* cipher_type)
             return -1070;
 
         /* Create a buffering filter BIO to buffer writes to the file */
-        buffer = wc_BioNew(wc_Bio_f_buffer());
-        if (buffer == NULL)
+        buff = wc_BioNew(wc_Bio_f_buffer());
+        if (buff == NULL)
             return -1071;
 
         /* Create a cipher filter BIO */
@@ -6525,10 +6528,10 @@ static int bio_filter_test(const WOLFCRYPT_EVP_CIPHER* cipher_type)
         if (wc_BioPush(cipher, b64) == NULL)
             return -1074;
 
-        if (wc_BioPush(b64, buffer) == NULL)
+        if (wc_BioPush(b64, buff) == NULL)
             return -1075;
 
-        if (wc_BioPush(buffer, file) == NULL)
+        if (wc_BioPush(buff, file) == NULL)
             return -1077;
 
         /* This loop read the data from the file.
@@ -6564,7 +6567,7 @@ static int bio_filter_test(const WOLFCRYPT_EVP_CIPHER* cipher_type)
         if (total != rand_size)
             return -1079;
 
-        if (XMEMCMP(random, wit, total))
+        if (XMEMCMP(brandom, wit, total))
             return -1080;
     }
 
@@ -6938,7 +6941,8 @@ int bio_accept_ssl_test(void)
 
             if (buf[0] == '\r' || buf[0] == '\n') {
                 wc_BioPuts(b_rw, "CLOSE\n");
-                wc_BioFlush(b_rw);
+                if (wc_BioFlush(b_rw) < 0)
+                    return -3015;
                 printf("Done -> close\n");
                 break;
             }
@@ -6946,7 +6950,8 @@ int bio_accept_ssl_test(void)
             /* Send response */
             wc_BioPuts(b_rw, "ACK: ");
             wc_BioPuts(b_rw, buf);
-            wc_BioFlush(b_rw);
+            if (wc_BioFlush(b_rw) < 0)
+                return -3016;
         }
 
         /* close connection */
@@ -7015,13 +7020,8 @@ int bio_test(void)
         return -1006;
 
     ret = wc_BioTell(bio);
-#ifdef USE_WINDOWS_API
-    if (ret != 0)
-        return -1007;
-#else
     if (ret != (int)strlen(buf)+1)
         return -1007;
-#endif
 
     /* write */
     ret = wc_BioPrintf(bio, "%s\n", buf);
@@ -7034,7 +7034,7 @@ int bio_test(void)
 
     /* reset, before reading */
     ret = wc_BioReset(bio);
-    if (ret != 0)
+    if (ret < 0)
         return -1010;
 
     /* read */
@@ -7068,15 +7068,17 @@ int bio_test(void)
     if (ret != 0)
         return -1053;
 
-    wc_BioReset(bio);
-
-    ret = wc_BioWrite(bio, buf, (int)strlen(buf));
-    if (ret != (int)strlen(buf))
+    ret = wc_BioReset(bio);
+    if (ret < 0)
         return -1054;
 
     ret = wc_BioWrite(bio, buf, (int)strlen(buf));
     if (ret != (int)strlen(buf))
         return -1055;
+
+    ret = wc_BioWrite(bio, buf, (int)strlen(buf));
+    if (ret != (int)strlen(buf))
+        return -1056;
 
     XMEMSET(buf_w, 0, sizeof(buf_w));
 

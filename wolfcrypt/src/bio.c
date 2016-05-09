@@ -45,7 +45,7 @@
 #include <sys/time.h>
 #include <fcntl.h>
 #include <netdb.h>
-#ifdef SO_NOSIGPIPE
+#ifndef SO_NOSIGPIPE
 #include <signal.h>
 #endif
 #endif /* USE_WINDOWS_API */
@@ -271,8 +271,9 @@ int wc_BioRead(WOLFCRYPT_BIO *bio, void *data, int size)
     if (bio->callback != NULL) {
         ret = bio->callback(bio, BIO_CB_READ | BIO_CB_RETURN,
                             data, size, 0, ret);
-        if (ret <= 0)
+        if (ret <= 0) {
             WOLFSSL_ERROR(BIO_CALLBACK_E);
+        }
     }
     
     WOLFSSL_LEAVE("wc_BioRead", (int)ret);
@@ -323,8 +324,9 @@ int wc_BioWrite(WOLFCRYPT_BIO *bio, const void *data, int size)
     if (bio->callback != NULL) {
         ret = bio->callback(bio, BIO_CB_WRITE | BIO_CB_RETURN,
                             data, size, 0, ret);
-        if (ret <= 0)
+        if (ret <= 0) {
             WOLFSSL_ERROR(BIO_CALLBACK_E);
+        }
     }
 
     WOLFSSL_LEAVE("wc_BioWrite", (int)ret);
@@ -369,8 +371,9 @@ int wc_BioPuts(WOLFCRYPT_BIO *bio, const char *data)
     if (bio->callback != NULL) {
         ret = bio->callback(bio, BIO_CB_PUTS | BIO_CB_RETURN,
                             data, 0, 0, ret);
-        if (ret <= 0)
+        if (ret <= 0) {
             WOLFSSL_ERROR(BIO_CALLBACK_E);
+        }
     }
 
     WOLFSSL_LEAVE("wc_BioPuts", (int)ret);
@@ -414,8 +417,9 @@ int wc_BioGets(WOLFCRYPT_BIO *bio, char *data, int size)
     if (bio->callback != NULL) {
         ret = bio->callback(bio, BIO_CB_GETS | BIO_CB_RETURN,
                             data, size, 0, ret);
-        if (ret <= 0)
+        if (ret <= 0) {
             WOLFSSL_ERROR(BIO_CALLBACK_E);
+        }
     }
 
     WOLFSSL_LEAVE("wc_BioGets", (int)ret);
@@ -457,8 +461,9 @@ long wc_BioCtrl(WOLFCRYPT_BIO *bio, int cmd, long larg, void *parg)
     if (bio->callback != NULL) {
         ret = bio->callback(bio, BIO_CB_CTRL | BIO_CB_RETURN,
                             parg, cmd, larg, ret);
-        if (ret <= 0)
+        if (ret <= 0) {
             WOLFSSL_ERROR(BIO_CALLBACK_E);
+        }
     }
 
     WOLFSSL_LEAVE("wc_BioCtrl", (int)ret);
@@ -501,8 +506,9 @@ long wc_BioCallbackCtrl(WOLFCRYPT_BIO *bio, int cmd,
     if (bio->callback != NULL) {
         ret = bio->callback(bio, BIO_CB_CTRL | BIO_CB_RETURN,
                              (void *)&fp, cmd, 0, ret);
-        if (ret <= 0)
+        if (ret <= 0) {
             WOLFSSL_ERROR(BIO_CALLBACK_E);
+        }
     }
 
     WOLFSSL_LEAVE("wc_BioCallbackCtrl", (int)ret);
@@ -2096,8 +2102,9 @@ void wc_BioSetCipher(WOLFCRYPT_BIO *bio, const WOLFCRYPT_EVP_CIPHER *cipher,
 
     if ((bio->callback != NULL) &&
         bio->callback(bio, BIO_CB_CTRL, (const char *)cipher,
-                      BIO_CTRL_SET, enc, 1) <= 0)
+                      BIO_CTRL_SET, enc, 1) <= 0) {
         WOLFSSL_ERROR(BIO_CALLBACK_E);
+        }
 }
 
 static int wc_BioCipher_new(WOLFCRYPT_BIO *bio)
@@ -2631,8 +2638,9 @@ static long wc_BioDigest_ctrl(WOLFCRYPT_BIO *bio, int cmd, long num, void *ptr)
             ret = wc_EVP_DigestInit(ctx, (WOLFCRYPT_EVP_MD *)ptr);
             if (ret > 0)
                 bio->init = 1;
-            else
+            else {
                 WOLFSSL_ERROR(BIO_DGST_INIT_E);
+            }
             break;
 
         case BIO_CTRL_DUP:
@@ -3209,22 +3217,22 @@ static int wc_BioAccept_new(WOLFCRYPT_BIO *bio)
 
 static void wc_BioAccept_close_socket(WOLFCRYPT_BIO *bio)
 {
-    WOLFCRYPT_BIO_ACCEPT *accept;
+    WOLFCRYPT_BIO_ACCEPT *baccept;
 
     if (bio == NULL) {
         WOLFSSL_ERROR(BAD_FUNC_ARG);
         return;
     }
 
-    accept = (WOLFCRYPT_BIO_ACCEPT *)bio->ptr;
-    if (accept->accept_sock != WOLFSSL_SOCKET_INVALID) {
-        shutdown(accept->accept_sock, SHUT_RDWR);
+    baccept = (WOLFCRYPT_BIO_ACCEPT *)bio->ptr;
+    if (baccept->accept_sock != WOLFSSL_SOCKET_INVALID) {
+        shutdown(baccept->accept_sock, SHUT_RDWR);
 #ifdef USE_WINDOWS_API
-        closesocket(accept->accept_sock);
+        closesocket(baccept->accept_sock);
 #else
-        close(accept->accept_sock);
+        close(baccept->accept_sock);
 #endif
-        accept->accept_sock = WOLFSSL_SOCKET_INVALID;
+        baccept->accept_sock = WOLFSSL_SOCKET_INVALID;
         bio->num = WOLFSSL_SOCKET_INVALID;
     }
 }
@@ -3244,14 +3252,14 @@ static int wc_BioAccept_free(WOLFCRYPT_BIO *bio)
     wc_BioAccept_close_socket(bio);
 
     if (bio->ptr != NULL) {
-        WOLFCRYPT_BIO_ACCEPT *accept = (WOLFCRYPT_BIO_ACCEPT *)bio->ptr;
+        WOLFCRYPT_BIO_ACCEPT *baccept = (WOLFCRYPT_BIO_ACCEPT *)bio->ptr;
 
-        if (accept->param_addr != NULL)
-            XFREE(accept->param_addr, 0, DYNAMIC_TYPE_OPENSSL);
-        if (accept->ip_port != NULL)
-            XFREE(accept->ip_port, 0, DYNAMIC_TYPE_OPENSSL);
-        if (accept->bio_chain != NULL)
-            wc_BioFree(accept->bio_chain);
+        if (baccept->param_addr != NULL)
+            XFREE(baccept->param_addr, 0, DYNAMIC_TYPE_OPENSSL);
+        if (baccept->ip_port != NULL)
+            XFREE(baccept->ip_port, 0, DYNAMIC_TYPE_OPENSSL);
+        if (baccept->bio_chain != NULL)
+            wc_BioFree(baccept->bio_chain);
 
         XFREE(bio->ptr, 0, DYNAMIC_TYPE_OPENSSL);
         bio->ptr = NULL;
@@ -3263,30 +3271,30 @@ static int wc_BioAccept_free(WOLFCRYPT_BIO *bio)
     return 1;
 }
 
-static int wc_BioAccept_state(WOLFCRYPT_BIO *bio, WOLFCRYPT_BIO_ACCEPT *accept)
+static int wc_BioAccept_state(WOLFCRYPT_BIO *bio, WOLFCRYPT_BIO_ACCEPT *baccept)
 {
     WOLFCRYPT_BIO *nbio = NULL;
     int s = -1;
     int dsock;
 
-    if (bio == NULL || accept == NULL) {
+    if (bio == NULL || baccept == NULL) {
         WOLFSSL_ERROR(BAD_FUNC_ARG);
         return 0;
     }
 
 again:
-    switch (accept->state) {
+    switch (baccept->state) {
         case ACPT_S_BEFORE:
-            if (accept->param_addr == NULL) {
+            if (baccept->param_addr == NULL) {
                 WOLFSSL_ERROR(BIO_NO_PORT_E);
                 return -1;
             }
 
-            s = wc_BioGetAcceptSocket(accept->param_addr, accept->bind_mode);
+            s = wc_BioGetAcceptSocket(baccept->param_addr, baccept->bind_mode);
             if (s == WOLFSSL_SOCKET_INVALID)
                 return -1;
 
-            if (accept->accept_nbio) {
+            if (baccept->accept_nbio) {
                 if (!wc_BioSocketNbio(s, 1)) {
 #ifdef USE_WINDOWS_API
                     closesocket(s);
@@ -3299,7 +3307,7 @@ again:
             }
 
             /* TCP NO DELAY */
-            if (accept->options & 1) {
+            if (baccept->options & 1) {
                 if (!wc_BioSetTcpNdelay(s, 1)) {
 #ifdef USE_WINDOWS_API
                     closesocket(s);
@@ -3312,7 +3320,7 @@ again:
             }
 
             /* IGNORE SIGPIPE */
-            if (accept->options & 2) {
+            if (baccept->options & 2) {
                 if (!wc_BioSetTcpNsigpipe(s, 1)) {
 #ifdef USE_WINDOWS_API
                     closesocket(s);
@@ -3324,21 +3332,21 @@ again:
                 }
             }
 
-            accept->accept_sock = s;
+            baccept->accept_sock = s;
             bio->num = s;
-            accept->state = ACPT_S_GET_ACCEPT_SOCKET;
+            baccept->state = ACPT_S_GET_ACCEPT_SOCKET;
             return 1;
             break;
 
         case ACPT_S_GET_ACCEPT_SOCKET:
             if (bio->next_bio != NULL) {
-                accept->state = ACPT_S_OK;
+                baccept->state = ACPT_S_OK;
                 goto again;
             }
 
             wc_BioClearRetryFlags(bio);
             bio->retry_reason = 0;
-            dsock = wc_BioAccept(accept->accept_sock, &accept->ip_port);
+            dsock = wc_BioAccept(baccept->accept_sock, &baccept->ip_port);
 
             /* retry case */
             if (dsock == -2) {
@@ -3357,7 +3365,7 @@ again:
             wc_BioSetCallback(nbio, wc_BioGetCallback(bio));
             wc_BioSetCallbackArg(nbio, wc_BioGetCallbackArg(bio));
 
-            if (accept->nbio) {
+            if (baccept->nbio) {
                 if (!wc_BioSocketNbio(dsock, 1)) {
                     WOLFSSL_ERROR(BIO_NBIO_E);
                     goto err;
@@ -3368,8 +3376,8 @@ again:
              * If the accept BIO has an bio_chain, we dup it and put the new
              * socket at the end.
              */
-            if (accept->bio_chain != NULL) {
-                WOLFCRYPT_BIO *dbio = wc_BioDupChain(accept->bio_chain);
+            if (baccept->bio_chain != NULL) {
+                WOLFCRYPT_BIO *dbio = wc_BioDupChain(baccept->bio_chain);
                 if (dbio == NULL)
                     goto err;
                 if (!wc_BioPush(dbio, nbio))
@@ -3380,7 +3388,7 @@ again:
             if (wc_BioPush(bio, nbio) == NULL)
                 goto err;
 
-            accept->state = ACPT_S_OK;
+            baccept->state = ACPT_S_OK;
             return 1;
         err:
             if (nbio != NULL)
@@ -3395,7 +3403,7 @@ again:
 
         case ACPT_S_OK:
             if (bio->next_bio == NULL) {
-                accept->state = ACPT_S_GET_ACCEPT_SOCKET;
+                baccept->state = ACPT_S_GET_ACCEPT_SOCKET;
                 goto again;
             }
             return 1;
@@ -3411,7 +3419,7 @@ again:
 static int wc_BioAccept_read(WOLFCRYPT_BIO *bio, char *data, int size)
 {
     int ret = 0;
-    WOLFCRYPT_BIO_ACCEPT *accept;
+    WOLFCRYPT_BIO_ACCEPT *baccept;
 
     if (bio == NULL || data == NULL) {
         WOLFSSL_ERROR(BAD_FUNC_ARG);
@@ -3419,10 +3427,10 @@ static int wc_BioAccept_read(WOLFCRYPT_BIO *bio, char *data, int size)
     }
 
     wc_BioClearRetryFlags(bio);
-    accept = (WOLFCRYPT_BIO_ACCEPT *)bio->ptr;
+    baccept = (WOLFCRYPT_BIO_ACCEPT *)bio->ptr;
 
     while (bio->next_bio == NULL) {
-        ret = wc_BioAccept_state(bio, accept);
+        ret = wc_BioAccept_state(bio, baccept);
         if (ret <= 0)
             return ret;
     }
@@ -3436,7 +3444,7 @@ static int wc_BioAccept_read(WOLFCRYPT_BIO *bio, char *data, int size)
 static int wc_BioAccept_write(WOLFCRYPT_BIO *bio, const char *data, int size)
 {
     int ret = 0;
-    WOLFCRYPT_BIO_ACCEPT *accept;
+    WOLFCRYPT_BIO_ACCEPT *baccept;
 
     if (bio == NULL || data == NULL) {
         WOLFSSL_ERROR(BAD_FUNC_ARG);
@@ -3444,10 +3452,10 @@ static int wc_BioAccept_write(WOLFCRYPT_BIO *bio, const char *data, int size)
     }
 
     wc_BioClearRetryFlags(bio);
-    accept = (WOLFCRYPT_BIO_ACCEPT *)bio->ptr;
+    baccept = (WOLFCRYPT_BIO_ACCEPT *)bio->ptr;
 
     while (bio->next_bio == NULL) {
-        ret = wc_BioAccept_state(bio, accept);
+        ret = wc_BioAccept_state(bio, baccept);
         if (ret <= 0)
             return ret;
     }
@@ -3462,7 +3470,7 @@ static long wc_BioAccept_ctrl(WOLFCRYPT_BIO *bio, int cmd, long num, void *ptr)
 {
     int *ip;
     long ret = 1;
-    WOLFCRYPT_BIO_ACCEPT *accept;
+    WOLFCRYPT_BIO_ACCEPT *baccept;
     char **pp;
 
     if (bio == NULL) {
@@ -3470,49 +3478,49 @@ static long wc_BioAccept_ctrl(WOLFCRYPT_BIO *bio, int cmd, long num, void *ptr)
         return 0;
     }
 
-    accept = (WOLFCRYPT_BIO_ACCEPT *)bio->ptr;
+    baccept = (WOLFCRYPT_BIO_ACCEPT *)bio->ptr;
 
     switch (cmd) {
         case BIO_CTRL_RESET:
             ret = 0;
-            accept->state = ACPT_S_BEFORE;
+            baccept->state = ACPT_S_BEFORE;
             wc_BioAccept_close_socket(bio);
             bio->flags = 0;
             break;
 
         case BIO_C_DO_STATE_MACHINE:
             /* use this one to start the connection */
-            ret = (long)wc_BioAccept_state(bio, accept);
+            ret = (long)wc_BioAccept_state(bio, baccept);
             break;
 
         case BIO_C_SET_ACCEPT:
             if (ptr != NULL) {
                 if (num == 0) {
                     bio->init = 1;
-                    if (accept->param_addr != NULL)
-                        XFREE(accept->param_addr, 0, DYNAMIC_TYPE_OPENSSL);
-                    accept->param_addr = strdup(ptr);
+                    if (baccept->param_addr != NULL)
+                        XFREE(baccept->param_addr, 0, DYNAMIC_TYPE_OPENSSL);
+                    baccept->param_addr = strdup(ptr);
                 }
                 else if (num == 1) {
-                    accept->accept_nbio = (ptr != NULL);
+                    baccept->accept_nbio = (ptr != NULL);
                 }
                 else if (num == 2) {
-                    if (accept->bio_chain != NULL)
-                        wc_BioFree(accept->bio_chain);
-                    accept->bio_chain = (WOLFCRYPT_BIO *)ptr;
+                    if (baccept->bio_chain != NULL)
+                        wc_BioFree(baccept->bio_chain);
+                    baccept->bio_chain = (WOLFCRYPT_BIO *)ptr;
                 }
             }
             break;
 
         case BIO_C_SET_NBIO:
-            accept->nbio = (int)num;
+            baccept->nbio = (int)num;
             break;
 
         case BIO_C_SET_FD:
             bio->init = 1;
             bio->num = *((int *)ptr);
-            accept->accept_sock = bio->num;
-            accept->state = ACPT_S_GET_ACCEPT_SOCKET;
+            baccept->accept_sock = bio->num;
+            baccept->state = ACPT_S_GET_ACCEPT_SOCKET;
             bio->shutdown = (int)num;
             bio->init = 1;
             break;
@@ -3521,8 +3529,8 @@ static long wc_BioAccept_ctrl(WOLFCRYPT_BIO *bio, int cmd, long num, void *ptr)
             if (bio->init) {
                 ip = (int *)ptr;
                 if (ip != NULL)
-                    *ip = accept->accept_sock;
-                ret = accept->accept_sock;
+                    *ip = baccept->accept_sock;
+                ret = baccept->accept_sock;
             }
             else
                 ret = -1;
@@ -3532,7 +3540,7 @@ static long wc_BioAccept_ctrl(WOLFCRYPT_BIO *bio, int cmd, long num, void *ptr)
             if (bio->init) {
                 if (ptr != NULL) {
                     pp = (char **)ptr;
-                    *pp = accept->param_addr;
+                    *pp = baccept->param_addr;
                 }
                 else
                     ret = -1;
@@ -3559,15 +3567,15 @@ static long wc_BioAccept_ctrl(WOLFCRYPT_BIO *bio, int cmd, long num, void *ptr)
             break;
 
         case BIO_C_SET_BIND_MODE:
-            accept->bind_mode = (int)num;
+            baccept->bind_mode = (int)num;
             break;
 
         case BIO_C_GET_BIND_MODE:
-            ret = (long)accept->bind_mode;
+            ret = (long)baccept->bind_mode;
             break;
 
         case BIO_C_SET_EX_ARG:
-            accept->options = (int)num;
+            baccept->options = (int)num;
             break;
 
         default:
@@ -3783,8 +3791,9 @@ static int wc_BioConn_state(WOLFCRYPT_BIO *bio, WOLFCRYPT_BIO_CONNECT *conn)
                         conn->state = BIO_CONN_S_BLOCKED_CONNECT;
                         bio->retry_reason = BIO_RR_CONNECT;
                     }
-                    else
+                    else {
                         WOLFSSL_ERROR(BIO_CONNECT_E);
+                    }
                     goto exit_loop;
                 }
                 else
@@ -4150,7 +4159,7 @@ static long wc_BioConn_ctrl(WOLFCRYPT_BIO *bio, int cmd, long num, void *ptr)
 
             wc_BioSetNbio(dbio, conn->nbio);
 
-            wc_BioSetInfoCallback(dbio,
+            (void)wc_BioSetInfoCallback(dbio,
                                   (WOLFCRYPT_BIO_info_cb *)conn->info_callback);
         }
             break;
@@ -5263,7 +5272,9 @@ static long wc_BioFile_ctrl(WOLFCRYPT_BIO *bio, int cmd, long num, void *ptr)
 
         case BIO_C_FILE_TELL:
         case BIO_CTRL_INFO:
-            ret = (long)XFTELL((FILE *)bio->ptr);
+            XFSEEK((FILE *)bio->ptr, 0, XSEEK_END);
+            ret = XFTELL((FILE *)bio->ptr);
+            XREWIND((FILE *)bio->ptr);
             break;
 
         case BIO_C_SET_FILE_PTR:
