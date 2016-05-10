@@ -296,6 +296,8 @@ int  mp_mul_2(mp_int * a, mp_int * b);
 int  mp_mul (mp_int * a, mp_int * b, mp_int * c);
 int  mp_sqr (mp_int * a, mp_int * b);
 int  mp_mulmod (mp_int * a, mp_int * b, mp_int * c, mp_int * d);
+int  mp_submod (mp_int* a, mp_int* b, mp_int* c, mp_int* d);
+int  mp_addmod (mp_int* a, mp_int* b, mp_int* c, mp_int* d);
 int  mp_mul_d (mp_int * a, mp_digit b, mp_int * c);
 int  mp_2expt (mp_int * a, int b);
 int  mp_set_bit (mp_int * a, int b);

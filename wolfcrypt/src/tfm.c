@@ -984,10 +984,46 @@ top:
 /* d = a * b (mod c) */
 int fp_mulmod(fp_int *a, fp_int *b, fp_int *c, fp_int *d)
 {
-  fp_int tmp;
-  fp_init(&tmp);
-  fp_mul(a, b, &tmp);
-  return fp_mod(&tmp, c, d);
+  int err;
+  fp_int t;
+
+  fp_init(&t);
+  fp_mul(a, b, &t);
+  err = fp_mod(&t, c, &t);
+  fp_copy(&t, d);
+  fp_clear(&t);
+
+  return err;
+}
+
+/* d = a - b (mod c) */
+int fp_submod(fp_int *a, fp_int *b, fp_int *c, fp_int *d)
+{
+  int err;
+  fp_int t;
+
+  fp_init(&t);
+  fp_sub(a, b, &t);
+  err = fp_mod(&t, c, &t);
+  fp_copy(&t, d);
+  fp_clear(&t);
+
+  return err;
+}
+
+/* d = a + b (mod c) */
+int fp_addmod(fp_int *a, fp_int *b, fp_int *c, fp_int *d)
+{
+  int err;
+  fp_int t;
+
+  fp_init(&t);
+  fp_add(a, b, &t);
+  err = fp_mod(&t, c, &t);
+  fp_copy(&t, d);
+  fp_clear(&t);
+
+  return err;
 }
 
 #ifdef TFM_TIMING_RESISTANT
@@ -2146,6 +2182,18 @@ int mp_mul (mp_int * a, mp_int * b, mp_int * c)
 int mp_mulmod (mp_int * a, mp_int * b, mp_int * c, mp_int * d)
 {
   return fp_mulmod(a, b, c, d);
+}
+
+/* d = a - b (mod c) */
+int mp_submod(mp_int *a, mp_int *b, mp_int *c, mp_int *d)
+{
+  return fp_submod(a, b, c, d);
+}
+
+/* d = a + b (mod c) */
+int mp_addmod(mp_int *a, mp_int *b, mp_int *c, mp_int *d)
+{
+  return fp_addmod(a, b, c, d);
 }
 
 /* c = a mod b, 0 <= c < b */

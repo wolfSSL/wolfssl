@@ -2643,15 +2643,55 @@ int mp_mulmod (mp_int * a, mp_int * b, mp_int * c, mp_int * d)
     return res;
   }
 
-  if ((res = mp_mul (a, b, &t)) != MP_OKAY) {
-    mp_clear (&t);
-    return res;
+  res = mp_mul (a, b, &t);
+  if (res == MP_OKAY) {
+      res = mp_mod (&t, c, d);
   }
-  res = mp_mod (&t, c, d);
+
   mp_clear (&t);
   return res;
 }
 
+
+/* d = a - b (mod c) */
+int mp_submod(mp_int* a, mp_int* b, mp_int* c, mp_int* d)
+{
+  int     res;
+  mp_int  t;
+
+  if ((res = mp_init (&t)) != MP_OKAY) {
+    return res;
+  }
+
+  res = mp_sub (a, b, &t);
+  if (res == MP_OKAY) {
+      res = mp_mod (&t, c, d);
+  }
+
+  mp_clear (&t);
+
+  return res;
+}
+
+/* d = a + b (mod c) */
+int mp_addmod(mp_int* a, mp_int* b, mp_int* c, mp_int* d)
+{
+   int     res;
+   mp_int  t;
+
+   if ((res = mp_init (&t)) != MP_OKAY) {
+     return res;
+   }
+
+   res = mp_add (a, b, &t);
+   if (res == MP_OKAY) {
+       res = mp_mod (&t, c, d);
+   }
+
+   mp_clear (&t);
+
+   return res;
+}
 
 /* computes b = a*a */
 int mp_sqr (mp_int * a, mp_int * b)

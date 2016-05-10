@@ -16527,7 +16527,7 @@ int wolfSSL_EC_POINT_mul(const WOLFSSL_EC_GROUP *group, WOLFSSL_EC_POINT *r,
                          const WOLFSSL_BIGNUM *n, const WOLFSSL_EC_POINT *q,
                          const WOLFSSL_BIGNUM *m, WOLFSSL_BN_CTX *ctx)
 {
-    mp_int prime;
+    mp_int a, prime;
 
     (void)ctx;
     (void)n;
@@ -16549,25 +16549,29 @@ int wolfSSL_EC_POINT_mul(const WOLFSSL_EC_GROUP *group, WOLFSSL_EC_POINT *r,
         }
     }
 
-    /* compute the prime value of the curve */
-    if (mp_init(&prime) != MP_OKAY) {
-        WOLFSSL_MSG("wolfSSL_EC_POINT_mul init BN failed");
+    /* read the curve prime and a */
+    if (mp_init_multi(&prime, &a, NULL, NULL, NULL, NULL) != MP_OKAY) {
+        WOLFSSL_MSG("wolfSSL_EC_POINT_mul init 'prime/A' failed");
         return SSL_FAILURE;
     }
-
     if (mp_read_radix(&prime, ecc_sets[group->curve_idx].prime, 16) != MP_OKAY){
-        WOLFSSL_MSG("wolfSSL_EC_POINT_mul read prime curve value failed");
+        WOLFSSL_MSG("wolfSSL_EC_POINT_mul read 'prime' curve value failed");
+        return SSL_FAILURE;
+    }
+    if (mp_read_radix(&a, ecc_sets[group->curve_idx].Af, 16) != MP_OKAY){
+        WOLFSSL_MSG("wolfSSL_EC_POINT_mul read 'A' curve value failed");
         return SSL_FAILURE;
     }
 
     /* r = q * m % prime */
     if (wc_ecc_mulmod((mp_int*)m->internal, (ecc_point*)q->internal,
-                      (ecc_point*)r->internal, &prime, 1) != MP_OKAY) {
+                      (ecc_point*)r->internal, &a, &prime, 1) != MP_OKAY) {
         WOLFSSL_MSG("ecc_mulmod failure");
         mp_clear(&prime);
         return SSL_FAILURE;
     }
 
+    mp_clear(&a);
     mp_clear(&prime);
 
     /* set the external value for the computed point */

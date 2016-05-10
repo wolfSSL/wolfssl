@@ -481,6 +481,12 @@ void fp_mul_d(fp_int *a, fp_digit b, fp_int *c);
 /* d = a * b (mod c) */
 int fp_mulmod(fp_int *a, fp_int *b, fp_int *c, fp_int *d);
 
+/* d = a - b (mod c) */
+int fp_submod(fp_int *a, fp_int *b, fp_int *c, fp_int *d);
+
+/* d = a + b (mod c) */
+int fp_addmod(fp_int *a, fp_int *b, fp_int *c, fp_int *d);
+
 /* c = a * a (mod b) */
 int fp_sqrmod(fp_int *a, fp_int *b, fp_int *c);
 
@@ -621,6 +627,8 @@ int  mp_add_d (mp_int * a, mp_digit b, mp_int * c);
 
 int  mp_mul (mp_int * a, mp_int * b, mp_int * c);
 int  mp_mulmod (mp_int * a, mp_int * b, mp_int * c, mp_int * d);
+int  mp_submod (mp_int* a, mp_int* b, mp_int* c, mp_int* d);
+int  mp_addmod (mp_int* a, mp_int* b, mp_int* c, mp_int* d);
 int  mp_mod(mp_int *a, mp_int *b, mp_int *c);
 int  mp_invmod(mp_int *a, mp_int *b, mp_int *c);
 int  mp_exptmod (mp_int * g, mp_int * x, mp_int * p, mp_int * y);
