@@ -48,7 +48,8 @@
     #include "libntruencrypt/ntru_crypto.h"
 #endif
 
-#if defined(DEBUG_WOLFSSL) || defined(SHOW_SECRETS) || defined(CHACHA_AEAD_TEST)
+#if defined(DEBUG_WOLFSSL) || defined(SHOW_SECRETS) || \
+    defined(CHACHA_AEAD_TEST) || defined(WOLFSSL_SESSION_EXPORT_DEBUG)
     #if defined(FREESCALE_MQX) || defined(FREESCALE_KSDK_MQX)
         #if MQX_USE_IO_OLD
             #include <fio.h>
@@ -467,6 +468,427 @@ static INLINE void ato32(const byte* c, word32* u32)
     }
 
 #endif /* HAVE_LIBZ */
+
+
+#ifdef WOLFSSL_SESSION_EXPORT
+#ifdef WOLFSSL_DTLS
+/* copy over necessary information from Options struct to buffer
+ * On success returns 0 on failure returns a negative value */
+static int dtls_export_new(byte* exp, word32 len, byte ver, WOLFSSL* ssl)
+{
+    int idx = 0;
+    word16 zero = 0;
+    Options* options = &ssl->options;
+
+    WOLFSSL_ENTER("dtls_export_new");
+
+    if (exp == NULL || options == NULL || len < DTLS_EXPORT_OPT_SZ) {
+        return BAD_FUNC_ARG;
+    }
+
+    /* these options are kept and sent to indicate verify status and strength
+     * of handshake */
+    exp[idx++] = options->sendVerify;
+    exp[idx++] = options->verifyPeer;
+    exp[idx++] = options->verifyNone;
+    exp[idx++] = options->downgrade;
+#ifndef NO_DH
+    c16toa(options->minDhKeySz, exp + idx); idx += 2;
+    c16toa(options->dhKeySz, exp + idx);    idx += 2;
+#else
+    c16toa(zero, exp + idx); idx += 2;
+    c16toa(zero, exp + idx); idx += 2;
+#endif
+#ifndef NO_RSA
+    c16toa((word16)(options->minRsaKeySz), exp + idx); idx += 2;
+#else
+    c16toa(zero, exp + idx); idx += 2;
+#endif
+#ifdef HAVE_ECC
+    c16toa((word16)(options->minEccKeySz), exp + idx); idx += 2;
+#else
+    c16toa(zero, exp + idx); idx += 2;
+#endif
+
+    /* these options are kept to indicate state and behavior */
+#ifndef NO_PSK
+    exp[idx++] = options->havePSK;
+#else
+    exp[idx++] = 0;
+#endif
+    exp[idx++] = options->sessionCacheOff;
+    exp[idx++] = options->sessionCacheFlushOff;
+    exp[idx++] = options->side;
+    exp[idx++] = options->resuming;
+    exp[idx++] = options->haveSessionId;
+    exp[idx++] = options->tls;
+    exp[idx++] = options->tls1_1;
+    exp[idx++] = options->dtls;
+    exp[idx++] = options->connReset;
+    exp[idx++] = options->isClosed;
+    exp[idx++] = options->closeNotify;
+    exp[idx++] = options->sentNotify;
+    exp[idx++] = options->usingCompression;
+    exp[idx++] = options->haveRSA;
+    exp[idx++] = options->haveECC;
+    exp[idx++] = options->haveDH;
+    exp[idx++] = options->haveNTRU;
+    exp[idx++] = options->haveQSH;
+    exp[idx++] = options->haveECDSAsig;
+    exp[idx++] = options->haveStaticECC;
+    exp[idx++] = options->havePeerVerify;
+    exp[idx++] = options->usingPSK_cipher;
+    exp[idx++] = options->usingAnon_cipher;
+    exp[idx++] = options->sendAlertState;
+    exp[idx++] = options->partialWrite;
+    exp[idx++] = options->quietShutdown;
+    exp[idx++] = options->groupMessages;
+#ifdef HAVE_POLY1305
+    exp[idx++] = options->oldPoly;
+#else
+    exp[idx++] = 0;
+#endif
+#ifdef HAVE_ANON
+    exp[idx++] = options->haveAnon;
+#else
+    exp[idx++] = 0;
+#endif
+#ifdef HAVE_SESSION_TICKET
+    exp[idx++] = options->createTicket;
+    exp[idx++] = options->useTicket;
+#else
+    exp[idx++] = 0;
+    exp[idx++] = 0;
+#endif
+    exp[idx++] = options->processReply;
+    exp[idx++] = options->cipherSuite0;
+    exp[idx++] = options->cipherSuite;
+    exp[idx++] = options->serverState;
+    exp[idx++] = options->clientState;
+    exp[idx++] = options->handShakeState;
+    exp[idx++] = options->handShakeDone;
+    exp[idx++] = options->minDowngrade;
+    exp[idx++] = options->connectState;
+    exp[idx++] = options->acceptState;
+    exp[idx++] = options->keyShareState;
+
+
+    /* version of connection */
+    exp[idx++] = ssl->version.major;
+    exp[idx++] = ssl->version.minor;
+
+    (void)zero;
+    (void)ver;
+
+    /* check if changes were made and notify of need to update export version */
+    if (idx != DTLS_EXPORT_OPT_SZ) {
+        WOLFSSL_MSG("Update DTLS_EXPORT_OPT_SZ and version of wolfSSL export");
+        return BUFFER_E;
+    }
+
+    WOLFSSL_LEAVE("dtls_export_new", 0);
+
+    return 0;
+}
+
+
+/* copy items from Export struct to Options struct
+ * On success returns 0 on failure returns a negative value */
+static int dtls_export_load(byte* exp, word32 len, byte ver, WOLFSSL* ssl)
+{
+    int idx = 0;
+    Options* options = &ssl->options;
+
+    if (ver != 1) {
+        WOLFSSL_MSG("Export version not supported");
+        return BAD_FUNC_ARG;
+    }
+
+    if (exp == NULL || options == NULL || len < DTLS_EXPORT_OPT_SZ) {
+        return BAD_FUNC_ARG;
+    }
+
+    /* these options are kept and sent to indicate verify status and strength
+     * of handshake */
+    options->sendVerify = exp[idx++];
+    options->verifyPeer = exp[idx++];
+    options->verifyNone = exp[idx++];
+    options->downgrade  = exp[idx++];
+#ifndef NO_DH
+    ato16(exp + idx, &(options->minDhKeySz)); idx += 2;
+    ato16(exp + idx, &(options->dhKeySz)); idx += 2;
+#else
+    idx += 2;
+    idx += 2;
+#endif
+#ifndef NO_RSA
+    ato16(exp + idx, (word16*)&(options->minRsaKeySz)); idx += 2;
+#else
+    idx += 2;
+#endif
+#ifdef HAVE_ECC
+    ato16(exp + idx, (word16*)&(options->minEccKeySz)); idx += 2;
+#else
+    idx += 2;
+#endif
+
+    /* these options are kept to indicate state and behavior */
+#ifndef NO_PSK
+    options->havePSK = exp[idx++];
+#else
+    idx++;
+#endif
+    options->sessionCacheOff      = exp[idx++];
+    options->sessionCacheFlushOff = exp[idx++];
+    options->side                 = exp[idx++];
+    options->resuming             = exp[idx++];
+    options->haveSessionId    = exp[idx++];
+    options->tls              = exp[idx++];
+    options->tls1_1           = exp[idx++];
+    options->dtls             = exp[idx++];
+    options->connReset        = exp[idx++];
+    options->isClosed         = exp[idx++];
+    options->closeNotify      = exp[idx++];
+    options->sentNotify       = exp[idx++];
+    options->usingCompression = exp[idx++];
+    options->haveRSA          = exp[idx++];
+    options->haveECC          = exp[idx++];
+    options->haveDH           = exp[idx++];
+    options->haveNTRU         = exp[idx++];
+    options->haveQSH          = exp[idx++];
+    options->haveECDSAsig     = exp[idx++];
+    options->haveStaticECC    = exp[idx++];
+    options->havePeerVerify   = exp[idx++];
+    options->usingPSK_cipher  = exp[idx++];
+    options->usingAnon_cipher = exp[idx++];
+    options->sendAlertState   = exp[idx++];
+    options->partialWrite     = exp[idx++];
+    options->quietShutdown    = exp[idx++];
+    options->groupMessages    = exp[idx++];
+#ifdef HAVE_POLY1305
+    options->oldPoly = exp[idx++];      /* set when to use old rfc way of poly*/
+#else
+    idx++;
+#endif
+#ifdef HAVE_ANON
+    options->haveAnon = exp[idx++];     /* User wants to allow Anon suites */
+#else
+    idx++;
+#endif
+#ifdef HAVE_SESSION_TICKET
+    options->createTicket = exp[idx++]; /* Server to create new Ticket */
+    options->useTicket    = exp[idx++]; /* Use Ticket not session cache */
+#else
+    idx++;
+    idx++;
+#endif
+    options->processReply   = exp[idx++];
+    options->cipherSuite0   = exp[idx++];
+    options->cipherSuite    = exp[idx++];
+    options->serverState    = exp[idx++];
+    options->clientState    = exp[idx++];
+    options->handShakeState = exp[idx++];
+    options->handShakeDone  = exp[idx++];
+    options->minDowngrade   = exp[idx++];
+    options->connectState   = exp[idx++];
+    options->acceptState    = exp[idx++];
+    options->keyShareState  = exp[idx++];
+
+    /* version of connection */
+    if (ssl->version.major != exp[idx++] || ssl->version.minor != exp[idx++]) {
+        WOLFSSL_MSG("Version mismatch ie DTLS v1 vs v1.2");
+        return VERSION_ERROR;
+    }
+
+    return 0;
+}
+
+
+/* WOLFSSL_LOCAL function that serializes the current WOLFSSL session
+ * buf is used to hold the serialized WOLFSSL struct and sz is the size of buf
+ * passed in.
+ * On success returns the size of serialized session.*/
+int wolfSSL_dtls_export(byte* buf, word32 sz, WOLFSSL* ssl)
+{
+    int ret;
+    word32 idx      = 0;
+    word32 totalLen = 0;
+
+    WOLFSSL_ENTER("wolfSSL_dtls_export");
+
+    if (buf == NULL || ssl == NULL) {
+        WOLFSSL_LEAVE("wolfSSL_dtls_export", BAD_FUNC_ARG);
+        return BAD_FUNC_ARG;
+    }
+
+    totalLen += DTLS_EXPORT_LEN * 2; /* 2 protocol bytes and 2 length bytes */
+    /* each of the following have a 2 byte length before data */
+    totalLen += DTLS_EXPORT_LEN + DTLS_EXPORT_OPT_SZ;
+    totalLen += DTLS_EXPORT_LEN + sizeof(Keys);
+    totalLen += DTLS_EXPORT_LEN + sizeof(CipherSpecs);
+    totalLen += DTLS_EXPORT_LEN + ssl->buffers.dtlsCtx.peer.sz;
+
+    if (totalLen > sz) {
+        WOLFSSL_LEAVE("wolfSSL_dtls_export", BUFFER_E);
+        return BUFFER_E;
+    }
+
+    buf[idx++] =  (byte)DTLS_EXPORT_PRO;
+    buf[idx++] = ((byte)DTLS_EXPORT_PRO & 0xF0) |
+                 ((byte)DTLS_EXPORT_VERSION & 0X0F);
+
+    c16toa((word16)(totalLen - DTLS_EXPORT_LEN), buf + idx);
+    idx += DTLS_EXPORT_LEN;
+
+    /* if compiled with debug options then print the version, protocol, size */
+#ifdef WOLFSSL_SESSION_EXPORT_DEBUG
+    {
+        char debug[256];
+        snprintf(debug, sizeof(debug), "Exporting DTLS session\n"
+                   "\tVersion  : %d\n\tProtocol : %02X%01X\n\tLength of: %d\n\n"
+               , (int)DTLS_EXPORT_VERSION, buf[0], (buf[1] >> 4), totalLen - 2);
+        WOLFSSL_MSG(debug);
+    }
+#endif /* WOLFSSL_SESSION_EXPORT_DEBUG */
+
+    c16toa((word16)DTLS_EXPORT_OPT_SZ, buf + idx); idx += DTLS_EXPORT_LEN;
+    if ((ret = dtls_export_new(buf + idx, sz - idx, DTLS_EXPORT_VERSION,
+                                                                   ssl)) != 0) {
+        WOLFSSL_LEAVE("wolfSSL_dtls_export", ret);
+        return ret;
+    }
+    idx += DTLS_EXPORT_OPT_SZ;
+
+    /* export keys struct and dtls state */
+    c16toa((word16)sizeof(Keys), buf + idx);
+    idx += DTLS_EXPORT_LEN;
+    XMEMCPY(buf + idx, (byte*)&ssl->keys, sizeof(Keys));
+    idx += sizeof(Keys);
+
+    c16toa((word16)sizeof(CipherSpecs), buf + idx);
+    idx += DTLS_EXPORT_LEN;
+    XMEMCPY(buf + idx, (byte*)&ssl->specs, sizeof(CipherSpecs));
+    idx += sizeof(CipherSpecs);
+
+    c16toa((word16)ssl->buffers.dtlsCtx.peer.sz, buf + idx);
+    idx += DTLS_EXPORT_LEN;
+    XMEMCPY(buf + idx, ssl->buffers.dtlsCtx.peer.sa,
+                                                  ssl->buffers.dtlsCtx.peer.sz);
+    idx += ssl->buffers.dtlsCtx.peer.sz;
+
+    WOLFSSL_LEAVE("wolfSSL_dtls_export", idx);
+    return idx;
+}
+
+
+/* On success return amount of buffer consumed */
+int wolfSSL_dtls_import_internal(byte* buf, word32 sz, WOLFSSL* ssl)
+{
+    word32 idx    = 0;
+    word16 length = 0;
+    int version;
+    int ret;
+
+    WOLFSSL_ENTER("wolfSSL_dtls_import_internal");
+    /* check at least enough room for protocol and length */
+    if (sz < DTLS_EXPORT_LEN * 2 || ssl == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    /* sanity check on protocol ID and size of buffer */
+    if (buf[idx++]       !=  (byte)DTLS_EXPORT_PRO ||
+       (buf[idx] & 0xF0) != ((byte)DTLS_EXPORT_PRO & 0xF0)) {
+        /* don't increment on second idx to next get version */
+        WOLFSSL_MSG("Incorrect protocol");
+        return BAD_FUNC_ARG;
+    }
+    version = buf[idx++] & 0x0F;
+
+    ato16(buf + idx, &length); idx += DTLS_EXPORT_LEN;
+    if (length > sz - DTLS_EXPORT_LEN) { /* subtract 2 for protocol */
+        return BUFFER_E;
+    }
+
+    /* if compiled with debug options then print the version, protocol, size */
+#ifdef WOLFSSL_SESSION_EXPORT_DEBUG
+    {
+        char debug[256];
+        snprintf(debug, sizeof(debug), "Importing DTLS session\n"
+                   "\tVersion  : %d\n\tProtocol : %02X%01X\n\tLength of: %d\n\n"
+               , (int)version, buf[0], (buf[1] >> 4), length);
+        WOLFSSL_MSG(debug);
+    }
+#endif /* WOLFSSL_SESSION_EXPORT_DEBUG */
+
+    /* perform sanity checks and extract Options information used */
+    if (DTLS_EXPORT_LEN + DTLS_EXPORT_OPT_SZ + idx > sz) {
+        return BUFFER_E;
+    }
+    ato16(buf + idx, &length); idx += DTLS_EXPORT_LEN;
+    if (length != DTLS_EXPORT_OPT_SZ) {
+        return BUFFER_E;
+    }
+    if ((ret = dtls_export_load(buf + idx, length, version, ssl)) != 0) {
+            return ret;
+    }
+    idx += length;
+
+    /* perform sanity checks and extract Keys struct */
+    if (DTLS_EXPORT_LEN + sizeof(Keys) + idx > sz) {
+        return BUFFER_E;
+    }
+    ato16(buf + idx, &length); idx += DTLS_EXPORT_LEN;
+    if (length < sizeof(Keys) || length + idx > sz) {
+        return BUFFER_E;
+    }
+    XMEMCPY(&ssl->keys, buf + idx, sizeof(Keys));
+    idx += sizeof(Keys);
+
+    /* perform sanity checks and extract CipherSpecs struct */
+    if (DTLS_EXPORT_LEN + sizeof(CipherSpecs) + idx > sz) {
+        return BUFFER_E;
+    }
+    ato16(buf + idx, &length); idx += DTLS_EXPORT_LEN;
+    if ( length != sizeof(CipherSpecs)) {
+        return BUFFER_E;
+    }
+    XMEMCPY(&ssl->specs, buf + idx, length);
+    idx += length;
+
+    /* perform sanity checks and extract DTLS peer info */
+    if (DTLS_EXPORT_LEN + idx > sz) {
+        return BUFFER_E;
+    }
+    ato16(buf + idx, &length); idx += DTLS_EXPORT_LEN;
+    ssl->buffers.dtlsCtx.peer.sz = length;
+
+    if (idx + ssl->buffers.dtlsCtx.peer.sz > sz) {
+        return BUFFER_E;
+    }
+
+    /* peer sa is free'd in SSL_ResourceFree */
+    ssl->buffers.dtlsCtx.peer.sa = XMALLOC(ssl->buffers.dtlsCtx.peer.sz,
+            ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    if (ssl->buffers.dtlsCtx.peer.sa == NULL) {
+        return MEMORY_E;
+    }
+
+    XMEMCPY(ssl->buffers.dtlsCtx.peer.sa, buf + idx,
+            ssl->buffers.dtlsCtx.peer.sz);
+    idx += ssl->buffers.dtlsCtx.peer.sz;
+
+    SetKeysSide(ssl, ENCRYPT_AND_DECRYPT_SIDE);
+
+    /* set hmac function to use when verifying */
+    if (ssl->options.tls == 1 || ssl->options.tls1_1 == 1 ||
+            ssl->options.dtls == 1) {
+        ssl->hmac = TLS_hmac;
+    }
+
+    return idx;
+}
+#endif /* WOLFSSL_DTLS */
+#endif /* WOLFSSL_SESSION_EXPORT */
 
 
 #ifdef HAVE_WOLF_EVENT
@@ -2316,7 +2738,7 @@ int SetSSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
                    ssl->options.haveECC, ssl->options.haveStaticECC,
                    ssl->options.side);
 
-#ifndef NO_CERTS
+#if !defined(NO_CERTS) && !defined(WOLFSSL_SESSION_EXPORT)
     /* make sure server has cert and key unless using PSK or Anon
      * This should be true even if just switching ssl ctx */
     if (ssl->options.side == WOLFSSL_SERVER_END && !havePSK && !haveAnon)
@@ -2325,6 +2747,12 @@ int SetSSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
             WOLFSSL_MSG("Server missing certificate and/or private key");
             return NO_PRIVATE_KEY;
         }
+#endif
+
+#ifdef WOLFSSL_SESSION_EXPORT
+    #ifdef WOLFSSL_DTLS
+    ssl->dtls_export = ctx->dtls_export; /* export function for session */
+    #endif
 #endif
 
     return SSL_SUCCESS;

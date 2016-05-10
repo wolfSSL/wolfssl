@@ -153,6 +153,103 @@ char* mystrnstr(const char* s1, const char* s2, unsigned int n)
 }
 #endif
 
+#ifdef WOLFSSL_SESSION_EXPORT
+#ifdef WOLFSSL_DTLS
+int wolfSSL_dtls_import(WOLFSSL* ssl, unsigned char* buf, unsigned int sz)
+{
+    WOLFSSL_ENTER("wolfSSL_session_import");
+
+    if (ssl == NULL || buf == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    /* sanity checks on buffer and protocol are done in internal function */
+    return wolfSSL_dtls_import_internal(buf, sz, ssl);
+}
+
+
+int wolfSSL_CTX_dtls_set_export(WOLFSSL_CTX* ctx, wc_dtls_export func)
+{
+
+    WOLFSSL_ENTER("wolfSSL_CTX_dtls_set_export");
+
+    /* purposefully allow func to be NULL */
+    if (ctx == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    ctx->dtls_export = func;
+
+    return SSL_SUCCESS;
+}
+
+
+int wolfSSL_dtls_set_export(WOLFSSL* ssl, wc_dtls_export func)
+{
+
+    WOLFSSL_ENTER("wolfSSL_dtls_set_export");
+
+    /* purposefully allow func to be NULL */
+    if (ssl == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    ssl->dtls_export = func;
+
+    return SSL_SUCCESS;
+}
+
+
+int wolfSSL_send_session(WOLFSSL* ssl)
+{
+    int ret;
+    byte* buf;
+    word16 bufSz = MAX_EXPORT_BUFFER;
+
+    WOLFSSL_ENTER("wolfSSL_send_session");
+
+    if (ssl == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    buf = (byte*)XMALLOC(bufSz, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    if (buf == NULL) {
+        return MEMORY_E;
+    }
+
+    /* if not DTLS do nothing */
+    if (!ssl->options.dtls) {
+        XFREE(buf, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        WOLFSSL_MSG("Currently only DTLS export is supported");
+        return SSL_SUCCESS;
+    }
+
+    if (ssl->dtls_export) {
+        /* copy over keys, options, and dtls state struct */
+        ret = wolfSSL_dtls_export(buf, bufSz, ssl);
+        if (ret < 0) {
+            XFREE(buf, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
+            return ret;
+        }
+
+        /* if no error ret has size of buffer */
+        ret = ssl->dtls_export(ssl, buf, ret, NULL);
+        if (ret != SSL_SUCCESS) {
+            XFREE(buf, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
+            return ret;
+        }
+
+        XFREE(buf, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        return SSL_SUCCESS;
+    }
+    else {
+        XFREE(buf, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        return SSL_FAILURE;
+    }
+}
+#endif /* WOLFSSL_DTLS */
+#endif /* WOLFSSL_SESSION_EXPORT */
+
 
 /* prevent multiple mutex initializations */
 static volatile int initRefCount = 0;
@@ -6544,6 +6641,7 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
 #ifdef WOLFSSL_DTLS
             else {
                 ssl->options.dtlsHsRetain = 1;
+
             }
 #endif /* WOLFSSL_DTLS */
 
@@ -6831,6 +6929,11 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
                 ssl->options.dtlsHsRetain = 1;
             }
 #endif /* WOLFSSL_DTLS */
+
+#ifdef WOLFSSL_SESSION_EXPORT
+            WOLFSSL_MSG("sending session");
+            wolfSSL_send_session(ssl);
+#endif
 
             WOLFSSL_LEAVE("SSL_accept()", SSL_SUCCESS);
             return SSL_SUCCESS;

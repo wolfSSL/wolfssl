@@ -369,7 +369,9 @@ static void test_server_wolfSSL_new(void)
 
     /* invalid context */
     AssertNull(ssl = wolfSSL_new(NULL));
+#ifndef WOLFSSL_SESSION_EXPORT
     AssertNull(ssl = wolfSSL_new(ctx_nocert));
+#endif
 
     /* success */
     AssertNotNull(ssl = wolfSSL_new(ctx));

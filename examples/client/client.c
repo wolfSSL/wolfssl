@@ -1403,6 +1403,17 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
         strncpy(resumeMsg, "GET /index.html HTTP/1.0\r\n\r\n", resumeSz);
         resumeMsg[resumeSz] = '\0';
     }
+
+/* allow some time for exporting the session */
+#ifdef WOLFSSL_SESSION_EXPORT_DEBUG
+    #ifdef USE_WINDOWS_API
+            Sleep(500);
+    #elif defined(WOLFSSL_TIRTOS)
+            Task_sleep(1);
+    #else
+            sleep(1);
+    #endif
+#endif /* WOLFSSL_SESSION_EXPORT_DEBUG */
     if (wolfSSL_write(ssl, msg, msgSz) != msgSz)
         err_sys("SSL_write failed");
 
@@ -1521,6 +1532,18 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
                 printf("Getting ALPN protocol name failed\n");
         }
 #endif
+
+    /* allow some time for exporting the session */
+    #ifdef WOLFSSL_SESSION_EXPORT_DEBUG
+        #ifdef USE_WINDOWS_API
+            Sleep(500);
+        #elif defined(WOLFSSL_TIRTOS)
+            Task_sleep(1);
+        #else
+            sleep(1);
+        #endif
+    #endif /* WOLFSSL_SESSION_EXPORT_DEBUG */
+
         if (wolfSSL_write(sslResume, resumeMsg, resumeSz) != resumeSz)
             err_sys("SSL_write failed");
 
