@@ -6466,7 +6466,7 @@ static int ecc_test_vector(int keySize)
         vec.d  = "e14f37b3d1374ff8b03f41b9b3fdd2f0ebccf275d660d7f3";
         vec.R  = "6994d962bdd0d793ffddf855ec5bf2f91a9698b46258a63e";
         vec.S  = "02ba6465a234903744ab02bc8521405b73cf5fc00e1a9f41";
-        vec.curveName = "ECC-192";
+        vec.curveName = "SECP192R1";
         break;
 #endif /* HAVE_ECC192 */
 
@@ -6494,7 +6494,7 @@ static int ecc_test_vector(int keySize)
         vec.d  = "97c4b796e1639dd1035b708fc00dc7ba1682cec44a1002a1a820619f";
         vec.R  = "147b33758321e722a0360a4719738af848449e2c1d08defebc1671a7";
         vec.S  = "24fc7ed7f1352ca3872aa0916191289e2e04d454935d50fe6af3ad5b";
-        vec.curveName = "ECC-224";
+        vec.curveName = "SECP224R1";
         break;
 #endif /* HAVE_ECC224 */
 
@@ -6522,7 +6522,7 @@ static int ecc_test_vector(int keySize)
         vec.d  = "be34baa8d040a3b991f9075b56ba292f755b90e4b6dc10dad36715c33cfdac25";
         vec.R  = "2b826f5d44e2d0b6de531ad96b51e8f0c56fdfead3c236892e4d84eacfc3b75c";
         vec.S  = "a2248b62c03db35a7cd63e8a120a3521a89d3d2f61ff99035a2148ae32e3a248";
-        vec.curveName = "nistp256";
+        vec.curveName = "SECP256R1";
         break;
 #endif /* !NO_ECC256 */
 
@@ -6550,7 +6550,7 @@ static int ecc_test_vector(int keySize)
         vec.d  = "a492ce8fa90084c227e1a32f7974d39e9ff67a7e8705ec3419b35fb607582bebd461e0b1520ac76ec2dd4e9b63ebae71";
         vec.R  = "6820b8585204648aed63bdff47f6d9acebdea62944774a7d14f0e14aa0b9a5b99545b2daee6b3c74ebf606667a3f39b7";
         vec.S  = "491af1d0cccd56ddd520b233775d0bc6b40a6255cc55207d8e9356741f23c96c14714221078dbd5c17f4fdd89b32a907";
-        vec.curveName = "nistp384";
+        vec.curveName = "SECP384R1";
         break;
 #endif /* HAVE_ECC384 */
 
@@ -6578,7 +6578,7 @@ static int ecc_test_vector(int keySize)
         vec.d  = "1bd56bd106118eda246155bd43b42b8e13f0a6e25dd3bb376026fab4dc92b6157bc6dfec2d15dd3d0cf2a39aa68494042af48ba9601118da82c6f2108a3a203ad74";
         vec.R  = "0bd117b4807710898f9dd7778056485777668f0e78e6ddf5b000356121eb7a220e9493c7f9a57c077947f89ac45d5acb6661bbcd17abb3faea149ba0aa3bb1521be";
         vec.S  = "019cd2c5c3f9870ecdeb9b323abdf3a98cd5e231d85c6ddc5b71ab190739f7f226e6b134ba1d5889ddeb2751dabd97911dff90c34684cdbe7bb669b6c3d22f2480c";
-        vec.curveName = "nistp521";
+        vec.curveName = "SECP521R1";
         break;
 #endif /* HAVE_ECC521 */
     default:
