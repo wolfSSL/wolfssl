@@ -383,6 +383,7 @@ typedef struct {
 #define fp_iszero(a) (((a)->used == 0) ? FP_YES : FP_NO)
 #define fp_iseven(a) (((a)->used > 0 && (((a)->dp[0] & 1) == 0)) ? FP_YES : FP_NO)
 #define fp_isodd(a)  (((a)->used > 0  && (((a)->dp[0] & 1) == 1)) ? FP_YES : FP_NO)
+#define fp_isneg(a)  (((a)->sign != 0) ? FP_YES : FP_NO)
 
 /* set to a small digit */
 void fp_set(fp_int *a, fp_digit b);
@@ -527,16 +528,16 @@ int fp_exptmod(fp_int *a, fp_int *b, fp_int *c, fp_int *d);
 
 /*int fp_prime_random_ex(fp_int *a, int t, int size, int flags, tfm_prime_callback cb, void *dat);*/
 
-/* radix conersions */
+/* radix conversions */
 int fp_count_bits(fp_int *a);
 int fp_leading_bit(fp_int *a);
 
 int fp_unsigned_bin_size(fp_int *a);
-void fp_read_unsigned_bin(fp_int *a, unsigned char *b, int c);
+void fp_read_unsigned_bin(fp_int *a, const unsigned char *b, int c);
 void fp_to_unsigned_bin(fp_int *a, unsigned char *b);
 
 /*int fp_signed_bin_size(fp_int *a);*/
-/*void fp_read_signed_bin(fp_int *a, unsigned char *b, int c);*/
+/*void fp_read_signed_bin(fp_int *a, const unsigned char *b, int c);*/
 /*void fp_to_signed_bin(fp_int *a, unsigned char *b);*/
 
 /*int fp_read_radix(fp_int *a, char *str, int radix);*/
@@ -591,20 +592,20 @@ void fp_sqr_comba64(fp_int *a, fp_int *b);
  */
 
 /* Types */
-    typedef fp_digit mp_digit;
-    typedef fp_word  mp_word;
-    typedef fp_int mp_int;
+typedef fp_digit mp_digit;
+typedef fp_word  mp_word;
+typedef fp_int mp_int;
 
 /* Constants */
-    #define MP_LT   FP_LT   /* less than    */
-    #define MP_EQ   FP_EQ   /* equal to     */
-    #define MP_GT   FP_GT   /* greater than */
-    #define MP_VAL  FP_VAL  /* invalid */
-    #define MP_MEM  FP_MEM  /* memory error */
-	#define MP_NOT_INF FP_NOT_INF /* point not at infinity */
-    #define MP_OKAY FP_OKAY /* ok result    */
-    #define MP_NO   FP_NO   /* yes/no result */
-    #define MP_YES  FP_YES  /* yes/no result */
+#define MP_LT   FP_LT   /* less than    */
+#define MP_EQ   FP_EQ   /* equal to     */
+#define MP_GT   FP_GT   /* greater than */
+#define MP_VAL  FP_VAL  /* invalid */
+#define MP_MEM  FP_MEM  /* memory error */
+#define MP_NOT_INF FP_NOT_INF /* point not at infinity */
+#define MP_OKAY FP_OKAY /* ok result    */
+#define MP_NO   FP_NO   /* yes/no result */
+#define MP_YES  FP_YES  /* yes/no result */
 
 /* Prototypes */
 #define mp_zero(a)  fp_zero(a)
@@ -637,6 +638,7 @@ int  mp_sub_d(fp_int *a, fp_digit b, fp_int *c);
 int  mp_copy(fp_int* a, fp_int* b);
 int  mp_isodd(mp_int* a);
 int  mp_iszero(mp_int* a);
+int  mp_isneg(mp_int* a);
 int  mp_count_bits(mp_int *a);
 int  mp_leading_bit(mp_int *a);
 int  mp_set_int(mp_int *a, mp_digit b);
