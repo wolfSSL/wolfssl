@@ -845,7 +845,9 @@ static int wc_RsaFunction(const byte* in, word32 inLen, byte* out,
             mp_clear(&tmpa);
             mp_clear(&tmpb);
 
-            if (ret != 0) return ret;
+            if (ret != 0) {
+                goto done;
+            }
 
         #endif   /* RSA_LOW_MEM */
     }

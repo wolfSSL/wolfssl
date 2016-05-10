@@ -50,6 +50,10 @@
 #include <wolfssl/wolfcrypt/tfm.h>
 #include <wolfcrypt/src/asm.c>  /* will define asm MACROS or C ones */
 
+#ifdef WOLFSSL_DEBUG_MATH
+    #include <stdio.h>
+#endif
+
 
 /* math settings check */
 word32 CheckRunTimeSettings(void)
@@ -118,6 +122,8 @@ void s_fp_add(fp_int *a, fp_int *b, fp_int *c)
   }
 
   c->used = x;
+
+  /* zero any excess digits on the destination that we didn't write to */
   for (; x < oldused; x++) {
      c->dp[x] = 0;
   }
@@ -179,6 +185,8 @@ void s_fp_sub(fp_int *a, fp_int *b, fp_int *c)
      c->dp[x]  = (fp_digit)t;
      t         = (t >> DIGIT_BIT)&1;
    }
+
+  /* zero any excess digits on the destination that we didn't write to */
   for (; x < oldused; x++) {
      c->dp[x] = 0;
   }
@@ -188,7 +196,9 @@ void s_fp_sub(fp_int *a, fp_int *b, fp_int *c)
 /* c = a * b */
 void fp_mul(fp_int *A, fp_int *B, fp_int *C)
 {
-    int   y, yy;
+    int   y, yy, oldused;
+
+    oldused = C->used;
 
     y  = MAX(A->used, B->used);
     yy = MIN(A->used, B->used);
@@ -196,7 +206,7 @@ void fp_mul(fp_int *A, fp_int *B, fp_int *C)
     /* call generic if we're out of range */
     if (y + yy > FP_SIZE) {
        fp_mul_comba(A, B, C);
-       return ;
+       goto clean;
     }
 
     /* pick a comba (unrolled 4/8/16/32 x or rolled) based on the size
@@ -205,98 +215,104 @@ void fp_mul(fp_int *A, fp_int *B, fp_int *C)
        if say y=17 then we would do (32-17)^2 = 225 unneeded multiplications
     */
 
-#ifdef TFM_MUL3
+#if defined(TFM_MUL3) && FP_SIZE >= 6
         if (y <= 3) {
            fp_mul_comba3(A,B,C);
-           return;
+           goto clean;
         }
 #endif
-#ifdef TFM_MUL4
+#if defined(TFM_MUL4) && FP_SIZE >= 8
         if (y == 4) {
            fp_mul_comba4(A,B,C);
-           return;
+           goto clean;
         }
 #endif
-#ifdef TFM_MUL6
+#if defined(TFM_MUL6) && FP_SIZE >= 12
         if (y <= 6) {
            fp_mul_comba6(A,B,C);
-           return;
+           goto clean;
         }
 #endif
-#ifdef TFM_MUL7
+#if defined(TFM_MUL7) && FP_SIZE >= 14
         if (y == 7) {
            fp_mul_comba7(A,B,C);
-           return;
+           goto clean;
         }
 #endif
-#ifdef TFM_MUL8
+#if defined(TFM_MUL8) && FP_SIZE >= 16
         if (y == 8) {
            fp_mul_comba8(A,B,C);
-           return;
+           goto clean;
         }
 #endif
-#ifdef TFM_MUL9
+#if defined(TFM_MUL9) && FP_SIZE >= 18
         if (y == 9) {
            fp_mul_comba9(A,B,C);
-           return;
+           goto clean;
         }
 #endif
-#ifdef TFM_MUL12
+#if defined(TFM_MUL12) && FP_SIZE >= 24
         if (y <= 12) {
            fp_mul_comba12(A,B,C);
-           return;
+           goto clean;
         }
 #endif
-#ifdef TFM_MUL17
+#if defined(TFM_MUL17) && FP_SIZE >= 34
         if (y <= 17) {
            fp_mul_comba17(A,B,C);
-           return;
+           goto clean;
         }
 #endif
 
-#ifdef TFM_SMALL_SET
+#if defined(TFM_SMALL_SET) && FP_SIZE >= 32
         if (y <= 16) {
            fp_mul_comba_small(A,B,C);
-           return;
+           goto clean;
         }
 #endif
-#if defined(TFM_MUL20)
+#if defined(TFM_MUL20) && FP_SIZE >= 40
         if (y <= 20) {
            fp_mul_comba20(A,B,C);
-           return;
+           goto clean;
         }
 #endif
-#if defined(TFM_MUL24)
+#if defined(TFM_MUL24) && FP_SIZE >= 48
         if (yy >= 16 && y <= 24) {
            fp_mul_comba24(A,B,C);
-           return;
+           goto clean;
         }
 #endif
-#if defined(TFM_MUL28)
+#if defined(TFM_MUL28) && FP_SIZE >= 56
         if (yy >= 20 && y <= 28) {
            fp_mul_comba28(A,B,C);
-           return;
+           goto clean;
         }
 #endif
-#if defined(TFM_MUL32)
+#if defined(TFM_MUL32) && FP_SIZE >= 64
         if (yy >= 24 && y <= 32) {
            fp_mul_comba32(A,B,C);
-           return;
+           goto clean;
         }
 #endif
-#if defined(TFM_MUL48)
+#if defined(TFM_MUL48) && FP_SIZE >= 96
         if (yy >= 40 && y <= 48) {
-           fp_mul_comba48(A,B,C);
-           return;
+          fp_mul_comba48(A,B,C);
+          goto clean;
         }
 #endif
-#if defined(TFM_MUL64)
+#if defined(TFM_MUL64) && FP_SIZE >= 128
         if (yy >= 56 && y <= 64) {
            fp_mul_comba64(A,B,C);
-           return;
+           goto clean;
         }
 #endif
         fp_mul_comba(A,B,C);
+
+clean:
+    /* zero any excess digits on the destination that we didn't write to */
+    for (y = C->used; y < oldused; y++) {
+        C->dp[y] = 0;
+    }
 }
 
 void fp_mul_2(fp_int * a, fp_int * b)
@@ -340,9 +356,7 @@ void fp_mul_2(fp_int * a, fp_int * b)
       ++(b->used);
     }
 
-    /* now zero any excess digits on the destination
-     * that we didn't write to
-     */
+    /* zero any excess digits on the destination that we didn't write to */
     tmpb = b->dp + b->used;
     for (x = b->used; x < oldused; x++) {
       *tmpb++ = 0;
@@ -370,6 +384,8 @@ void fp_mul_d(fp_int *a, fp_digit b, fp_int *c)
       c->dp[c->used++] = (fp_digit) w;
       ++x;
    }
+
+   /* zero any excess digits on the destination that we didn't write to */
    for (; x < oldused; x++) {
       c->dp[x] = 0;
    }
@@ -627,9 +643,7 @@ int fp_div(fp_int *a, fp_int *b, fp_int *c, fp_int *d)
   if (d != NULL) {
     fp_div_2d (&x, norm, &x, NULL);
 
-/* the following is a kludge, essentially we were seeing the right remainder but
-   with excess digits that should have been zero
- */
+    /* zero any excess digits on the destination that we didn't write to */
     for (i = b->used; i < x.used; i++) {
         x.dp[i] = 0;
     }
@@ -669,7 +683,7 @@ void fp_div_2(fp_int * a, fp_int * b)
       r = rr;
     }
 
-    /* zero excess digits */
+    /* zero any excess digits on the destination that we didn't write to */
     tmpb = b->dp + b->used;
     for (x = b->used; x < oldused; x++) {
       *tmpb++ = 0;
@@ -1049,9 +1063,14 @@ static int _fp_exptmod(fp_int * G, fp_int * X, fp_int * P, fp_int * Y)
  */
 static int _fp_exptmod(fp_int * G, fp_int * X, fp_int * P, fp_int * Y)
 {
-  fp_int   M[64], res;
+  fp_int   res;
   fp_digit buf, mp;
   int      err, bitbuf, bitcpy, bitcnt, mode, digidx, x, y, winsize;
+#ifdef WOLFSSL_SMALL_STACK
+  fp_int  *M;
+#else
+  fp_int   M[64];
+#endif
 
   /* find window size */
   x = fp_count_bits (X);
@@ -1067,14 +1086,22 @@ static int _fp_exptmod(fp_int * G, fp_int * X, fp_int * P, fp_int * Y)
     winsize = 6;
   }
 
-  /* init M array */
-  for(x = 0; x < (int)(sizeof(M)/sizeof(fp_int)); x++)
-    fp_init(&M[x]);
-
   /* now setup montgomery  */
   if ((err = fp_montgomery_setup (P, &mp)) != FP_OKAY) {
      return err;
   }
+
+#ifdef WOLFSSL_SMALL_STACK
+  /* only allocate space for what's needed */
+  M = (fp_int*)XMALLOC(sizeof(fp_int)*(1 << winsize), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+  if (M == NULL) {
+     return FP_MEM;
+  }
+#endif
+
+  /* init M array */
+  for(x = 0; x < (1 << winsize); x++)
+    fp_init(&M[x]);
 
   /* setup result */
   fp_init(&res);
@@ -1083,7 +1110,7 @@ static int _fp_exptmod(fp_int * G, fp_int * X, fp_int * P, fp_int * Y)
    *
    * The M table contains powers of the input base, e.g. M[x] = G^x mod P
    *
-   * The first half of the table is not computed though accept for M[0] and M[1]
+   * The first half of the table is not computed though except for M[0] and M[1]
    */
 
    /* now we need R mod m */
@@ -1202,10 +1229,15 @@ static int _fp_exptmod(fp_int * G, fp_int * X, fp_int * P, fp_int * Y)
 
   /* swap res with Y */
   fp_copy (&res, Y);
+
+#ifdef WOLFSSL_SMALL_STACK
+  XFREE(M, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+
   return FP_OKAY;
 }
 
-#endif
+#endif /* TFM_TIMING_RESISTANT */
 
 int fp_exptmod(fp_int * G, fp_int * X, fp_int * P, fp_int * Y)
 {
@@ -1267,105 +1299,114 @@ void fp_2expt(fp_int *a, int b)
 /* b = a*a  */
 void fp_sqr(fp_int *A, fp_int *B)
 {
-    int y = A->used;
+    int y, oldused;
+
+    oldused = B->used;
+    y = A->used;
 
     /* call generic if we're out of range */
     if (y + y > FP_SIZE) {
        fp_sqr_comba(A, B);
-       return ;
+       goto clean;
     }
 
-#if defined(TFM_SQR3)
+#if defined(TFM_SQR3) && FP_SIZE >= 6
         if (y <= 3) {
            fp_sqr_comba3(A,B);
-           return;
+           goto clean;
         }
 #endif
-#if defined(TFM_SQR4)
+#if defined(TFM_SQR4) && FP_SIZE >= 8
         if (y == 4) {
            fp_sqr_comba4(A,B);
-           return;
+           goto clean;
         }
 #endif
-#if defined(TFM_SQR6)
+#if defined(TFM_SQR6) && FP_SIZE >= 12
         if (y <= 6) {
            fp_sqr_comba6(A,B);
-           return;
+           goto clean;
         }
 #endif
-#if defined(TFM_SQR7)
+#if defined(TFM_SQR7) && FP_SIZE >= 14
         if (y == 7) {
            fp_sqr_comba7(A,B);
-           return;
+           goto clean;
         }
 #endif
-#if defined(TFM_SQR8)
+#if defined(TFM_SQR8) && FP_SIZE >= 16
         if (y == 8) {
            fp_sqr_comba8(A,B);
-           return;
+           goto clean;
         }
 #endif
-#if defined(TFM_SQR9)
+#if defined(TFM_SQR9) && FP_SIZE >= 18
         if (y == 9) {
            fp_sqr_comba9(A,B);
-           return;
+           goto clean;
         }
 #endif
-#if defined(TFM_SQR12)
+#if defined(TFM_SQR12) && FP_SIZE >= 24
         if (y <= 12) {
            fp_sqr_comba12(A,B);
-           return;
+           goto clean;
         }
 #endif
-#if defined(TFM_SQR17)
+#if defined(TFM_SQR17) && FP_SIZE >= 34
         if (y <= 17) {
            fp_sqr_comba17(A,B);
-           return;
+           goto clean;
         }
 #endif
 #if defined(TFM_SMALL_SET)
         if (y <= 16) {
            fp_sqr_comba_small(A,B);
-           return;
+           goto clean;
         }
 #endif
-#if defined(TFM_SQR20)
+#if defined(TFM_SQR20) && FP_SIZE >= 40
         if (y <= 20) {
            fp_sqr_comba20(A,B);
-           return;
+           goto clean;
         }
 #endif
-#if defined(TFM_SQR24)
+#if defined(TFM_SQR24) && FP_SIZE >= 48
         if (y <= 24) {
            fp_sqr_comba24(A,B);
-           return;
+           goto clean;
         }
 #endif
-#if defined(TFM_SQR28)
+#if defined(TFM_SQR28) && FP_SIZE >= 56
         if (y <= 28) {
            fp_sqr_comba28(A,B);
-           return;
+           goto clean;
         }
 #endif
-#if defined(TFM_SQR32)
+#if defined(TFM_SQR32) && FP_SIZE >= 64
         if (y <= 32) {
            fp_sqr_comba32(A,B);
-           return;
+           goto clean;
         }
 #endif
-#if defined(TFM_SQR48)
+#if defined(TFM_SQR48) && FP_SIZE >= 96
         if (y <= 48) {
            fp_sqr_comba48(A,B);
-           return;
+           goto clean;
         }
 #endif
-#if defined(TFM_SQR64)
+#if defined(TFM_SQR64) && FP_SIZE >= 128
         if (y <= 64) {
            fp_sqr_comba64(A,B);
-           return;
+           goto clean;
         }
 #endif
        fp_sqr_comba(A, B);
+
+clean:
+  /* zero any excess digits on the destination that we didn't write to */
+  for (y = B->used; y < oldused; y++) {
+    B->dp[y] = 0;
+  }
 }
 
 /* generic comba squarer */
@@ -1513,7 +1554,7 @@ int fp_cmp_mag(fp_int *a, fp_int *b)
    return FP_EQ;
 }
 
-/* setups the montgomery reduction */
+/* sets up the montgomery reduction */
 int fp_montgomery_setup(fp_int *a, fp_digit *rho)
 {
   fp_digit x, b;
@@ -1612,7 +1653,7 @@ static void fp_montgomery_reduce_mulx(fp_int *a, fp_int *m, fp_digit mp)
 
 
    /* now zero the buff */
-   XMEMSET(c, 0, sizeof c);
+   XMEMSET(c, 0, sizeof(c));
    pa = m->used;
 
    /* copy the input */
@@ -1652,7 +1693,8 @@ static void fp_montgomery_reduce_mulx(fp_int *a, fp_int *m, fp_digit mp)
      *tmpm++ = *_c++;
   }
 
-  for (; x < oldused; x++)   {
+  /* zero any excess digits on the destination that we didn't write to */
+  for (; x < oldused; x++) {
      *tmpm++ = 0;
   }
 
@@ -1691,7 +1733,7 @@ void fp_montgomery_reduce(fp_int *a, fp_int *m, fp_digit mp)
 
 
    /* now zero the buff */
-   XMEMSET(c, 0, sizeof c);
+   XMEMSET(c, 0, sizeof(c));
    pa = m->used;
 
    /* copy the input */
@@ -1733,7 +1775,8 @@ void fp_montgomery_reduce(fp_int *a, fp_int *m, fp_digit mp)
      *tmpm++ = *_c++;
   }
 
-  for (; x < oldused; x++)   {
+  /* zero any excess digits on the destination that we didn't write to */
+  for (; x < oldused; x++) {
      *tmpm++ = 0;
   }
 
@@ -1829,7 +1872,7 @@ void fp_set(fp_int *a, fp_digit b)
    a->used  = a->dp[0] ? 1 : 0;
 }
 
-/* chek if a bit is set */
+/* check if a bit is set */
 int fp_is_bit_set (fp_int *a, fp_digit b)
 {
     fp_digit i;
@@ -2177,13 +2220,20 @@ int mp_div_2d(fp_int* a, int b, fp_int* c, fp_int* d)
 }
 
 #ifdef ALT_ECC_SIZE
-void fp_copy(fp_int *a, fp_int* b)
+void fp_copy(fp_int *a, fp_int *b)
 {
     if (a != b && b->size >= a->used) {
+        int x, oldused;
+        oldused = b->used;
         b->used = a->used;
         b->sign = a->sign;
 
         XMEMCPY(b->dp, a->dp, a->used * sizeof(fp_digit));
+
+        /* zero any excess digits on the destination that we didn't write to */
+        for (x = b->used; x < oldused; x++) {
+            b->dp[x] = 0;
+        }
     }
 }
 
@@ -2196,49 +2246,39 @@ void fp_init_copy(fp_int *a, fp_int* b)
 }
 #endif
 
-/* fast math conversion */
+/* fast math wrappers */
 int mp_copy(fp_int* a, fp_int* b)
 {
     fp_copy(a, b);
     return MP_OKAY;
 }
 
-
-/* fast math conversion */
 int mp_isodd(mp_int* a)
 {
     return fp_isodd(a);
 }
 
-
-/* fast math conversion */
 int mp_iszero(mp_int* a)
 {
     return fp_iszero(a);
 }
 
 
-/* fast math conversion */
 int mp_count_bits (mp_int* a)
 {
     return fp_count_bits(a);
 }
-
 
 int mp_leading_bit (mp_int* a)
 {
     return fp_leading_bit(a);
 }
 
-
-/* fast math conversion */
 void mp_rshb (mp_int* a, int x)
 {
     fp_rshb(a, x);
 }
 
-
-/* fast math wrappers */
 int mp_set_int(mp_int *a, mp_digit b)
 {
     fp_set(a, b);
@@ -2282,7 +2322,8 @@ int mp_montgomery_calc_normalization(mp_int *a, mp_int *b)
 #endif /* WOLFSSL_KEYGEN || HAVE_ECC */
 
 
-#if defined(WOLFSSL_KEY_GEN) || defined(HAVE_COMP_KEY)
+#if defined(WOLFSSL_KEY_GEN) || defined(HAVE_COMP_KEY) || \
+    defined(WOLFSSL_DEBUG_MATH)
 
 static const int lnz[16] = {
    4, 0, 1, 0, 2, 0, 1, 0, 3, 0, 1, 0, 2, 0, 1, 0
@@ -2429,7 +2470,7 @@ int mp_mod_d(fp_int *a, fp_digit b, fp_digit *c)
    return fp_mod_d(a, b, c);
 }
 
-#endif /* defined(WOLFSSL_KEY_GEN) || defined(HAVE_COMP_KEY) */
+#endif /* defined(WOLFSSL_KEY_GEN) || defined(HAVE_COMP_KEY) || defined(WOLFSSL_DEBUG_MATH) */
 
 #ifdef WOLFSSL_KEY_GEN
 
@@ -2872,7 +2913,8 @@ int mp_cnt_lsb(fp_int* a)
 
 #endif /* HAVE_ECC */
 
-#if defined(WOLFSSL_KEY_GEN) || defined(HAVE_COMP_KEY)
+#if defined(WOLFSSL_KEY_GEN) || defined(HAVE_COMP_KEY) || \
+    defined(WOLFSSL_DEBUG_MATH)
 
 /* returns size of ASCII representation */
 int mp_radix_size (mp_int *a, int radix, int *size)
@@ -2980,7 +3022,32 @@ int mp_toradix (mp_int *a, char *str, int radix)
     return FP_OKAY;
 }
 
-#endif /* defined(WOLFSSL_KEY_GEN) || defined(HAVE_COMP_KEY) */
+#ifdef WOLFSSL_DEBUG_MATH
+void mp_dump(const char* desc, mp_int* a, byte verbose)
+{
+  char buffer[FP_SIZE * sizeof(fp_digit) * 2];
+  int size = FP_SIZE;
+
+#ifdef ALT_ECC_SIZE
+  size = a->size;
+#endif
+
+  printf("%s: ptr=%p, used=%d, sign=%d, size=%d, fpd=%d\n",
+    desc, a, a->used, a->sign, size, (int)sizeof(fp_digit));
+
+  mp_toradix(a, buffer, 16);
+  printf("  %s\n  ", buffer);
+
+  if (verbose) {
+    int i;
+    for(i=0; i<size * (int)sizeof(fp_digit); i++) {
+      printf("%x ", *(((byte*)a->dp) + i));
+    }
+    printf("\n");
+  }
+}
+#endif /* WOLFSSL_DEBUG_MATH */
+
+#endif /* defined(WOLFSSL_KEY_GEN) || defined(HAVE_COMP_KEY) || defined(WOLFSSL_DEBUG_MATH) */
 
 #endif /* USE_FAST_MATH */
-

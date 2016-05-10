@@ -310,6 +310,12 @@ int mp_init_multi(mp_int* a, mp_int* b, mp_int* c, mp_int* d, mp_int* e,
 int mp_toradix (mp_int *a, char *str, int radix);
 int mp_radix_size (mp_int * a, int radix, int *size);
 
+#ifdef WOLFSSL_DEBUG_MATH
+    void mp_dump(const char* desc, mp_int* a, byte verbose);
+#else
+    #define mp_dump(desc, a, verbose)
+#endif
+
 #if defined(HAVE_ECC) || defined(WOLFSSL_KEY_GEN)
     int mp_sqrmod(mp_int* a, mp_int* b, mp_int* c);
 #endif

@@ -6560,7 +6560,7 @@ static int ecc_test_key_gen(WC_RNG* rng, int keySize)
 
     ret = wc_ecc_check_key(&userA);
     if (ret != 0)
-        return -1024;
+        return -1023;
 
     derSz = wc_EccKeyToDer(&userA, der, FOURK_BUF);
     if (derSz < 0) {
@@ -6621,8 +6621,8 @@ static int ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerifyCount,
     int testCompressedKey)
 {
 #ifdef BENCH_EMBEDDED
-    byte    sharedA[32];
-    byte    sharedB[32];
+    byte    sharedA[128]; /* Needs to be at least keySize */
+    byte    sharedB[128]; /* Needs to be at least keySize */
 #else
     byte    sharedA[1024];
     byte    sharedB[1024];
@@ -6652,7 +6652,7 @@ static int ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerifyCount,
 
     ret = wc_ecc_check_key(&userA);
     if (ret != 0)
-        return -1024;
+        return -1023;
 
     ret = wc_ecc_make_key(rng, keySize, &userB);
     if (ret != 0)
@@ -6732,6 +6732,7 @@ static int ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerifyCount,
     for (i = 0; i < (int)sizeof(digest); i++) {
         digest[i] = 0;
     }
+    digest[i-1] = 1; /* Set last digit to non-zero value */
 
     x = sizeof(sig);
     ret = wc_ecc_sign_hash(digest, sizeof(digest), sig, &x, rng, &userA);
@@ -6801,12 +6802,14 @@ static int ecc_test_curve(WC_RNG* rng, int keySize)
     ret = ecc_test_curve_size(rng, keySize, ECC_TEST_VERIFY_COUNT,
                                                         testCompressedKey);
     if (ret < 0) {
+        printf("ecc_test_curve_size %d failed!: %d\n", keySize, ret);
         return ret;
     }
 
     #ifdef HAVE_ECC_VECTOR_TEST
         ret = ecc_test_vector(keySize);
         if (ret < 0) {
+            printf("ecc_test_vector %d failed!: %d\n", keySize, ret);
             return ret;
         }
     #endif
@@ -6814,6 +6817,7 @@ static int ecc_test_curve(WC_RNG* rng, int keySize)
     #ifdef WOLFSSL_KEY_GEN
         ret = ecc_test_key_gen(rng, keySize);
         if (ret < 0) {
+            printf("ecc_test_key_gen %d failed!: %d\n", keySize, ret);
             return ret;
         }
     #endif
