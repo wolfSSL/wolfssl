@@ -989,9 +989,12 @@ int fp_mulmod(fp_int *a, fp_int *b, fp_int *c, fp_int *d)
 
   fp_init(&t);
   fp_mul(a, b, &t);
+#ifdef ALT_ECC_SIZE
   err = fp_mod(&t, c, &t);
   fp_copy(&t, d);
-  fp_clear(&t);
+#else
+  err = fp_mod(&t, c, d);
+#endif
 
   return err;
 }
@@ -1004,9 +1007,12 @@ int fp_submod(fp_int *a, fp_int *b, fp_int *c, fp_int *d)
 
   fp_init(&t);
   fp_sub(a, b, &t);
+#ifdef ALT_ECC_SIZE
   err = fp_mod(&t, c, &t);
   fp_copy(&t, d);
-  fp_clear(&t);
+#else
+  err = fp_mod(&t, c, d);
+#endif
 
   return err;
 }
@@ -1019,9 +1025,12 @@ int fp_addmod(fp_int *a, fp_int *b, fp_int *c, fp_int *d)
 
   fp_init(&t);
   fp_add(a, b, &t);
+#ifdef ALT_ECC_SIZE
   err = fp_mod(&t, c, &t);
   fp_copy(&t, d);
-  fp_clear(&t);
+#else
+  err = fp_mod(&t, c, d);
+#endif
 
   return err;
 }
@@ -2833,7 +2842,6 @@ void fp_add_d(fp_int *a, fp_digit b, fp_int *c)
    fp_init(&tmp);
    fp_set(&tmp, b);
    fp_add(a, &tmp, c);
-   fp_clear(&tmp);
 }
 
 /* external compatibility */
