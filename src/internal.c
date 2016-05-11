@@ -787,7 +787,7 @@ int wolfSSL_dtls_import_internal(byte* buf, word32 sz, WOLFSSL* ssl)
     word32 idx    = 0;
     word16 length = 0;
     int version;
-    int ret;
+    int ret, i;
 
     WOLFSSL_ENTER("wolfSSL_dtls_import_internal");
     /* check at least enough room for protocol and length */
@@ -883,6 +883,19 @@ int wolfSSL_dtls_import_internal(byte* buf, word32 sz, WOLFSSL* ssl)
     if (ssl->options.tls == 1 || ssl->options.tls1_1 == 1 ||
             ssl->options.dtls == 1) {
         ssl->hmac = TLS_hmac;
+    }
+
+    /* make sure is a valid suite used */
+    ret = SUITES_ERROR;
+    for (i = 0; i < ssl->suites->suiteSz; i += 2) {
+        if (ssl->suites->suites[i]   == ssl->options.cipherSuite0 &&
+                    ssl->suites->suites[i+1] == ssl->options.cipherSuite) {
+            ret = 0;
+            break;
+        }
+    }
+    if (ret != 0) {
+        return ret;
     }
 
     return idx;
