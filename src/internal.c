@@ -364,7 +364,7 @@ static INLINE void cw64toa(word64 u64, byte* c)
 
     XMEMSET(c, 0, OPAQUE64_LEN);
 
-    for (i = 0; i < sizeof(word64); i++) {
+    for (i = 0; i < sizeof(word64) && idx >= 0; i++) {
         c[idx--] = (u64 >> (i * WOLFSSL_BIT_SIZE)) & 0xff;
     }
 }
@@ -496,6 +496,45 @@ static INLINE void atow64(const byte* c, word64* u64)
 
 #ifdef WOLFSSL_SESSION_EXPORT
 #ifdef WOLFSSL_DTLS
+/* serializes the cipher specs struct for exporting */
+static int ExportCipherSpecState(byte* exp, word32 len, byte ver, WOLFSSL* ssl)
+{
+    word32 idx = 0;
+    CipherSpecs* specs;
+
+    if (exp == NULL || ssl == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    specs= &(ssl->specs);
+
+    if (DTLS_EXPORT_SPC_SZ > len) {
+        return BUFFER_E;
+    }
+
+    c16toa(specs->key_size, exp + idx);      idx += OPAQUE16_LEN;
+    c16toa(specs->iv_size, exp + idx);       idx += OPAQUE16_LEN;
+    c16toa(specs->block_size, exp + idx);    idx += OPAQUE16_LEN;
+    c16toa(specs->aead_mac_size, exp + idx); idx += OPAQUE16_LEN;
+    exp[idx++] = specs->bulk_cipher_algorithm;
+    exp[idx++] = specs->cipher_type;
+    exp[idx++] = specs->mac_algorithm;
+    exp[idx++] = specs->kea;
+    exp[idx++] = specs->sig_algo;
+    exp[idx++] = specs->hash_size;
+    exp[idx++] = specs->pad_size;
+    exp[idx++] = specs->static_ecdh;
+
+    if (idx != DTLS_EXPORT_SPC_SZ) {
+        WOLFSSL_MSG("DTLS_EXPORT_SPC_SZ needs updated and export version");
+        return BUFFER_E;
+    }
+
+    (void)ver;
+    return 0;
+}
+
+
 /* serializes the key struct for exporting */
 static int ExportKeyState(byte* exp, word32 len, byte ver, WOLFSSL* ssl)
 {
@@ -563,6 +602,43 @@ static int ExportKeyState(byte* exp, word32 len, byte ver, WOLFSSL* ssl)
     c32toa(keys->dtls_state.prevWindow, exp + idx); idx += OPAQUE32_LEN;
     c32toa(0, exp + idx);                           idx += OPAQUE32_LEN;
     #endif
+
+    if (idx != DTLS_EXPORT_KEY_SZ) {
+        WOLFSSL_MSG("DTLS_EXPORT_KEY_SZ needs updated and export version");
+        return BUFFER_E;
+    }
+
+    (void)ver;
+    return 0;
+}
+
+static int ImportCipherSpecState(byte* exp, word32 len, byte ver, WOLFSSL* ssl)
+{
+    word32 idx = 0;
+    CipherSpecs* specs;
+
+    if (exp == NULL || ssl == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    specs= &(ssl->specs);
+
+    if (DTLS_EXPORT_SPC_SZ > len) {
+        return BUFFER_E;
+    }
+
+    ato16(exp + idx, &specs->key_size);      idx += OPAQUE16_LEN;
+    ato16(exp + idx, &specs->iv_size);       idx += OPAQUE16_LEN;
+    ato16(exp + idx, &specs->block_size);    idx += OPAQUE16_LEN;
+    ato16(exp + idx, &specs->aead_mac_size); idx += OPAQUE16_LEN;
+    specs->bulk_cipher_algorithm = exp[idx++];
+    specs->cipher_type           = exp[idx++];
+    specs->mac_algorithm         = exp[idx++];
+    specs->kea                   = exp[idx++];
+    specs->sig_algo              = exp[idx++];
+    specs->hash_size             = exp[idx++];
+    specs->pad_size              = exp[idx++];
+    specs->static_ecdh           = exp[idx++];
 
     (void)ver;
     return 0;
@@ -894,7 +970,7 @@ int wolfSSL_dtls_export(byte* buf, word32 sz, WOLFSSL* ssl)
     /* each of the following have a 2 byte length before data */
     totalLen += DTLS_EXPORT_LEN + DTLS_EXPORT_OPT_SZ;
     totalLen += DTLS_EXPORT_LEN + DTLS_EXPORT_KEY_SZ;
-    totalLen += DTLS_EXPORT_LEN + sizeof(CipherSpecs);
+    totalLen += DTLS_EXPORT_LEN + DTLS_EXPORT_SPC_SZ;
     totalLen += DTLS_EXPORT_LEN + ssl->buffers.dtlsCtx.peer.sz;
 
     if (totalLen > sz) {
@@ -929,8 +1005,7 @@ int wolfSSL_dtls_export(byte* buf, word32 sz, WOLFSSL* ssl)
     idx += DTLS_EXPORT_OPT_SZ;
 
     /* export keys struct and dtls state */
-    c16toa((word16)DTLS_EXPORT_KEY_SZ, buf + idx);
-    idx = DTLS_EXPORT_LEN;
+    c16toa((word16)DTLS_EXPORT_KEY_SZ, buf + idx); idx += DTLS_EXPORT_LEN;
     if ((ret = ExportKeyState(buf + idx, sz - idx,
                                               DTLS_EXPORT_VERSION, ssl)) != 0) {
         WOLFSSL_LEAVE("wolfSSL_dtls_export", ret);
@@ -938,10 +1013,13 @@ int wolfSSL_dtls_export(byte* buf, word32 sz, WOLFSSL* ssl)
     }
     idx += DTLS_EXPORT_KEY_SZ;
 
-    c16toa((word16)sizeof(CipherSpecs), buf + idx);
-    idx += DTLS_EXPORT_LEN;
-    XMEMCPY(buf + idx, (byte*)&ssl->specs, sizeof(CipherSpecs));
-    idx += sizeof(CipherSpecs);
+    c16toa((word16)DTLS_EXPORT_SPC_SZ, buf + idx); idx += DTLS_EXPORT_LEN;
+    if ((ret = ExportCipherSpecState(buf + idx, sz - idx,
+                                              DTLS_EXPORT_VERSION, ssl)) != 0) {
+        WOLFSSL_LEAVE("wolfSSL_dtls_export", ret);
+        return ret;
+    }
+    idx += DTLS_EXPORT_SPC_SZ;
 
     c16toa((word16)ssl->buffers.dtlsCtx.peer.sz, buf + idx);
     idx += DTLS_EXPORT_LEN;
@@ -1020,14 +1098,16 @@ int wolfSSL_dtls_import_internal(byte* buf, word32 sz, WOLFSSL* ssl)
     idx += DTLS_EXPORT_KEY_SZ;
 
     /* perform sanity checks and extract CipherSpecs struct */
-    if (DTLS_EXPORT_LEN + sizeof(CipherSpecs) + idx > sz) {
+    if (DTLS_EXPORT_LEN + DTLS_EXPORT_SPC_SZ + idx > sz) {
         return BUFFER_E;
     }
     ato16(buf + idx, &length); idx += DTLS_EXPORT_LEN;
-    if ( length != sizeof(CipherSpecs)) {
+    if ( length != DTLS_EXPORT_SPC_SZ) {
         return BUFFER_E;
     }
-    XMEMCPY(&ssl->specs, buf + idx, length);
+    if ((ret = ImportCipherSpecState(buf + idx, length, version, ssl)) != 0) {
+        return ret;
+    }
     idx += length;
 
     /* perform sanity checks and extract DTLS peer info */

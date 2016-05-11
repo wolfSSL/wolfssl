@@ -954,6 +954,7 @@ enum Misc {
     DTLS_EXPORT_VERSION      = 1,  /* wolfSSL version for serialized session */
     DTLS_EXPORT_OPT_SZ       = 57,  /* amount of bytes used from Options */
     DTLS_EXPORT_KEY_SZ       = 326, /* amount of bytes used from Keys */
+    DTLS_EXPORT_SPC_SZ       = 16, /* amount of bytes used from CipherSpecs */
     DTLS_EXPORT_LEN          = 2,  /* 2 bytes for length and protocol */
     MAX_EXPORT_BUFFER        = 500, /* max size of buffer for exporting */
     FINISHED_LABEL_SZ   = 15,  /* TLS finished label size */
