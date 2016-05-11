@@ -347,7 +347,7 @@ static INLINE void c16toa(word16 u16, byte* c)
 
 
 #if !defined(NO_OLD_TLS) || defined(HAVE_CHACHA) || defined(HAVE_AESCCM) \
-    || defined(HAVE_AESGCM)
+    || defined(HAVE_AESGCM) || defined(WOLFSSL_SESSION_EXPORT)
 /* convert 32 bit integer to opaque */
 static INLINE void c32toa(word32 u32, byte* c)
 {
@@ -355,6 +355,18 @@ static INLINE void c32toa(word32 u32, byte* c)
     c[1] = (u32 >> 16) & 0xff;
     c[2] = (u32 >>  8) & 0xff;
     c[3] =  u32 & 0xff;
+}
+
+static INLINE void cw64toa(word64 u64, byte* c)
+{
+    unsigned int i;
+    int idx = OPAQUE64_LEN - 1;
+
+    XMEMSET(c, 0, OPAQUE64_LEN);
+
+    for (i = 0; i < sizeof(word64); i++) {
+        c[idx--] = (u64 >> (i * WOLFSSL_BIT_SIZE)) & 0xff;
+    }
 }
 #endif
 
@@ -373,12 +385,24 @@ static INLINE void ato16(const byte* c, word16* u16)
 }
 
 
-#if defined(WOLFSSL_DTLS) || defined(HAVE_SESSION_TICKET)
+#if defined(WOLFSSL_DTLS) || defined(HAVE_SESSION_TICKET) || \
+    defined(WOLFSSL_SESSION_EXPORT)
 
 /* convert opaque to 32 bit integer */
 static INLINE void ato32(const byte* c, word32* u32)
 {
     *u32 = (c[0] << 24) | (c[1] << 16) | (c[2] << 8) | c[3];
+}
+
+/* convert opaque to word64 type */
+static INLINE void atow64(const byte* c, word64* u64)
+{
+    unsigned int i;
+    int idx = sizeof(word64);
+
+    for (i = 0; i < sizeof(word64) && idx >= 0; i++) {
+        *u64 |= ((word64)c[idx--] << (i * WOLFSSL_BIT_SIZE));
+    }
 }
 
 #endif /* WOLFSSL_DTLS */
@@ -472,6 +496,151 @@ static INLINE void ato32(const byte* c, word32* u32)
 
 #ifdef WOLFSSL_SESSION_EXPORT
 #ifdef WOLFSSL_DTLS
+/* serializes the key struct for exporting */
+static int ExportKeyState(byte* exp, word32 len, byte ver, WOLFSSL* ssl)
+{
+    word32 idx = 0;
+    Keys* keys;
+
+    if (exp == NULL || ssl == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    keys = &(ssl->keys);
+
+    if (DTLS_EXPORT_KEY_SZ > len) {
+        return BUFFER_E;
+    }
+
+    XMEMCPY(exp + idx, keys->client_write_MAC_secret, MAX_DIGEST_SIZE);
+    idx += MAX_DIGEST_SIZE; /* largest digest size */
+    XMEMCPY(exp + idx, keys->server_write_MAC_secret, MAX_DIGEST_SIZE);
+    idx += MAX_DIGEST_SIZE; /* largest digest size */
+    XMEMCPY(exp + idx, keys->client_write_key, AES_256_KEY_SIZE);
+    idx += AES_256_KEY_SIZE;
+    XMEMCPY(exp + idx, keys->server_write_key, AES_256_KEY_SIZE);
+    idx += AES_256_KEY_SIZE;
+    XMEMCPY(exp + idx, keys->client_write_IV, MAX_WRITE_IV_SZ);
+    idx += MAX_WRITE_IV_SZ;
+    XMEMCPY(exp + idx, keys->server_write_IV, MAX_WRITE_IV_SZ);
+    idx += MAX_WRITE_IV_SZ;
+    XMEMCPY(exp + idx, keys->aead_exp_IV, AEAD_MAX_EXP_SZ);
+    idx += AEAD_MAX_EXP_SZ;
+    XMEMCPY(exp + idx, keys->aead_enc_imp_IV, AEAD_MAX_IMP_SZ);
+    idx += AEAD_MAX_IMP_SZ;
+    XMEMCPY(exp + idx, keys->aead_dec_imp_IV, AEAD_MAX_IMP_SZ);
+    idx += AEAD_MAX_IMP_SZ;
+
+    c32toa(keys->peer_sequence_number, exp + idx); idx += OPAQUE32_LEN;
+    c32toa(keys->peer_sequence_number, exp + idx); idx += OPAQUE32_LEN;
+    c32toa(keys->sequence_number, exp + idx);      idx += OPAQUE32_LEN;
+
+    c16toa(keys->dtls_state.nextEpoch, exp + idx); idx += OPAQUE16_LEN;
+    c32toa(keys->dtls_state.nextSeq, exp + idx);   idx += OPAQUE32_LEN;
+    c16toa(keys->dtls_state.curEpoch, exp + idx);  idx += OPAQUE16_LEN;
+    c32toa(keys->dtls_state.curSeq, exp + idx);    idx += OPAQUE32_LEN;
+    c32toa(keys->dtls_state.prevSeq, exp + idx);   idx += OPAQUE32_LEN;
+
+    c16toa(keys->dtls_peer_handshake_number, exp + idx); idx += OPAQUE16_LEN;
+    c16toa(keys->dtls_expected_peer_handshake_number, exp + idx);
+    idx += OPAQUE16_LEN;
+
+    c32toa(keys->dtls_sequence_number, exp + idx);      idx += OPAQUE32_LEN;
+    c32toa(keys->dtls_prev_sequence_number, exp + idx); idx += OPAQUE32_LEN;
+    c16toa(keys->dtls_epoch, exp + idx);                idx += OPAQUE16_LEN;
+    c16toa(keys->dtls_handshake_number, exp + idx);     idx += OPAQUE16_LEN;
+    c32toa(keys->encryptSz, exp + idx);                 idx += OPAQUE32_LEN;
+    c32toa(keys->padSz, exp + idx);                     idx += OPAQUE32_LEN;
+    exp[idx++] = keys->encryptionOn;
+    exp[idx++] = keys->decryptedCur;
+
+    #ifdef WORD64_AVAILABLE
+    cw64toa(keys->dtls_state.window, exp + idx);     idx += OPAQUE64_LEN;
+    cw64toa(keys->dtls_state.prevWindow, exp + idx); idx += OPAQUE64_LEN;
+    #else
+    c32toa(keys->dtls_state.window, exp + idx);     idx += OPAQUE32_LEN;
+    c32toa(0, exp + idx);                           idx += OPAQUE32_LEN;
+    c32toa(keys->dtls_state.prevWindow, exp + idx); idx += OPAQUE32_LEN;
+    c32toa(0, exp + idx);                           idx += OPAQUE32_LEN;
+    #endif
+
+    (void)ver;
+    return 0;
+}
+
+
+static int ImportKeyState(byte* exp, word32 len, byte ver, WOLFSSL* ssl)
+{
+    word32 idx = 0;
+    Keys* keys;
+
+    if (exp == NULL || ssl == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    keys = &(ssl->keys);
+
+    if (DTLS_EXPORT_KEY_SZ > len) {
+        return BUFFER_E;
+    }
+
+    XMEMCPY(keys->client_write_MAC_secret, exp + idx, MAX_DIGEST_SIZE);
+    idx += MAX_DIGEST_SIZE;
+    XMEMCPY(keys->server_write_MAC_secret, exp + idx, MAX_DIGEST_SIZE);
+    idx += MAX_DIGEST_SIZE;
+    XMEMCPY(keys->client_write_key, exp + idx, AES_256_KEY_SIZE);
+    idx += AES_256_KEY_SIZE;
+    XMEMCPY(keys->server_write_key, exp + idx, AES_256_KEY_SIZE);
+    idx += AES_256_KEY_SIZE;
+    XMEMCPY(keys->client_write_IV, exp + idx, MAX_WRITE_IV_SZ);
+    idx += MAX_WRITE_IV_SZ;
+    XMEMCPY(keys->server_write_IV, exp + idx, MAX_WRITE_IV_SZ);
+    idx += MAX_WRITE_IV_SZ;
+    XMEMCPY(keys->aead_exp_IV, exp + idx, AEAD_MAX_EXP_SZ);
+    idx += AEAD_MAX_EXP_SZ;
+    XMEMCPY(keys->aead_enc_imp_IV, exp + idx, AEAD_MAX_IMP_SZ);
+    idx += AEAD_MAX_IMP_SZ;
+    XMEMCPY(keys->aead_dec_imp_IV, exp + idx, AEAD_MAX_IMP_SZ);
+    idx += AEAD_MAX_IMP_SZ;
+
+    ato32(exp + idx, &keys->peer_sequence_number); idx += OPAQUE32_LEN;
+    ato32(exp + idx, &keys->peer_sequence_number); idx += OPAQUE32_LEN;
+    ato32(exp + idx, &keys->sequence_number);      idx += OPAQUE32_LEN;
+
+    ato16(exp + idx, &keys->dtls_state.nextEpoch); idx += OPAQUE16_LEN;
+    ato32(exp + idx, &keys->dtls_state.nextSeq);   idx += OPAQUE32_LEN;
+    ato16(exp + idx, &keys->dtls_state.curEpoch);  idx += OPAQUE16_LEN;
+    ato32(exp + idx, &keys->dtls_state.curSeq);    idx += OPAQUE32_LEN;
+    ato32(exp + idx, &keys->dtls_state.prevSeq);   idx += OPAQUE32_LEN;
+
+    ato16(exp + idx, &keys->dtls_peer_handshake_number); idx += OPAQUE16_LEN;
+    ato16(exp + idx, &keys->dtls_expected_peer_handshake_number);
+    idx += OPAQUE16_LEN;
+
+    ato32(exp + idx, &keys->dtls_sequence_number);      idx += OPAQUE32_LEN;
+    ato32(exp + idx, &keys->dtls_prev_sequence_number); idx += OPAQUE32_LEN;
+    ato16(exp + idx, &keys->dtls_epoch);                idx += OPAQUE16_LEN;
+    ato16(exp + idx, &keys->dtls_handshake_number);     idx += OPAQUE16_LEN;
+    ato32(exp + idx, &keys->encryptSz);                 idx += OPAQUE32_LEN;
+    ato32(exp + idx, &keys->padSz);                     idx += OPAQUE32_LEN;
+    keys->encryptionOn = exp[idx++];
+    keys->decryptedCur = exp[idx++];
+
+    #ifdef WORD64_AVAILABLE
+    atow64(exp + idx, &keys->dtls_state.window);     idx += OPAQUE64_LEN;
+    atow64(exp + idx, &keys->dtls_state.prevWindow); idx += OPAQUE64_LEN;
+    #else
+    ato32(exp + idx, &keys->dtls_state.window);     idx += OPAQUE32_LEN;
+    ato32(exp + idx, 0);                            idx += OPAQUE32_LEN;
+    ato32(exp + idx, &keys->dtls_state.prevWindow); idx += OPAQUE32_LEN;
+    ato32(exp + idx, 0);                            idx += OPAQUE32_LEN;
+    #endif
+
+    (void)ver;
+    return 0;
+}
+
+
 /* copy over necessary information from Options struct to buffer
  * On success returns 0 on failure returns a negative value */
 static int dtls_export_new(byte* exp, word32 len, byte ver, WOLFSSL* ssl)
@@ -493,21 +662,21 @@ static int dtls_export_new(byte* exp, word32 len, byte ver, WOLFSSL* ssl)
     exp[idx++] = options->verifyNone;
     exp[idx++] = options->downgrade;
 #ifndef NO_DH
-    c16toa(options->minDhKeySz, exp + idx); idx += 2;
-    c16toa(options->dhKeySz, exp + idx);    idx += 2;
+    c16toa(options->minDhKeySz, exp + idx); idx += OPAQUE16_LEN;
+    c16toa(options->dhKeySz, exp + idx);    idx += OPAQUE16_LEN;
 #else
-    c16toa(zero, exp + idx); idx += 2;
-    c16toa(zero, exp + idx); idx += 2;
+    c16toa(zero, exp + idx); idx += OPAQUE16_LEN;
+    c16toa(zero, exp + idx); idx += OPAQUE16_LEN;
 #endif
 #ifndef NO_RSA
-    c16toa((word16)(options->minRsaKeySz), exp + idx); idx += 2;
+    c16toa((word16)(options->minRsaKeySz), exp + idx); idx += OPAQUE16_LEN;
 #else
-    c16toa(zero, exp + idx); idx += 2;
+    c16toa(zero, exp + idx); idx += OPAQUE16_LEN;
 #endif
 #ifdef HAVE_ECC
-    c16toa((word16)(options->minEccKeySz), exp + idx); idx += 2;
+    c16toa((word16)(options->minEccKeySz), exp + idx); idx += OPAQUE16_LEN;
 #else
-    c16toa(zero, exp + idx); idx += 2;
+    c16toa(zero, exp + idx); idx += OPAQUE16_LEN;
 #endif
 
     /* these options are kept to indicate state and behavior */
@@ -615,21 +784,21 @@ static int dtls_export_load(byte* exp, word32 len, byte ver, WOLFSSL* ssl)
     options->verifyNone = exp[idx++];
     options->downgrade  = exp[idx++];
 #ifndef NO_DH
-    ato16(exp + idx, &(options->minDhKeySz)); idx += 2;
-    ato16(exp + idx, &(options->dhKeySz)); idx += 2;
+    ato16(exp + idx, &(options->minDhKeySz)); idx += OPAQUE16_LEN;
+    ato16(exp + idx, &(options->dhKeySz));    idx += OPAQUE16_LEN;
 #else
-    idx += 2;
-    idx += 2;
+    idx += OPAQUE16_LEN;
+    idx += OPAQUE16_LEN;
 #endif
 #ifndef NO_RSA
-    ato16(exp + idx, (word16*)&(options->minRsaKeySz)); idx += 2;
+    ato16(exp + idx, (word16*)&(options->minRsaKeySz)); idx += OPAQUE16_LEN;
 #else
-    idx += 2;
+    idx += OPAQUE16_LEN;
 #endif
 #ifdef HAVE_ECC
-    ato16(exp + idx, (word16*)&(options->minEccKeySz)); idx += 2;
+    ato16(exp + idx, (word16*)&(options->minEccKeySz)); idx += OPAQUE16_LEN;
 #else
-    idx += 2;
+    idx += OPAQUE16_LEN;
 #endif
 
     /* these options are kept to indicate state and behavior */
@@ -724,7 +893,7 @@ int wolfSSL_dtls_export(byte* buf, word32 sz, WOLFSSL* ssl)
     totalLen += DTLS_EXPORT_LEN * 2; /* 2 protocol bytes and 2 length bytes */
     /* each of the following have a 2 byte length before data */
     totalLen += DTLS_EXPORT_LEN + DTLS_EXPORT_OPT_SZ;
-    totalLen += DTLS_EXPORT_LEN + sizeof(Keys);
+    totalLen += DTLS_EXPORT_LEN + DTLS_EXPORT_KEY_SZ;
     totalLen += DTLS_EXPORT_LEN + sizeof(CipherSpecs);
     totalLen += DTLS_EXPORT_LEN + ssl->buffers.dtlsCtx.peer.sz;
 
@@ -760,10 +929,14 @@ int wolfSSL_dtls_export(byte* buf, word32 sz, WOLFSSL* ssl)
     idx += DTLS_EXPORT_OPT_SZ;
 
     /* export keys struct and dtls state */
-    c16toa((word16)sizeof(Keys), buf + idx);
-    idx += DTLS_EXPORT_LEN;
-    XMEMCPY(buf + idx, (byte*)&ssl->keys, sizeof(Keys));
-    idx += sizeof(Keys);
+    c16toa((word16)DTLS_EXPORT_KEY_SZ, buf + idx);
+    idx = DTLS_EXPORT_LEN;
+    if ((ret = ExportKeyState(buf + idx, sz - idx,
+                                              DTLS_EXPORT_VERSION, ssl)) != 0) {
+        WOLFSSL_LEAVE("wolfSSL_dtls_export", ret);
+        return ret;
+    }
+    idx += DTLS_EXPORT_KEY_SZ;
 
     c16toa((word16)sizeof(CipherSpecs), buf + idx);
     idx += DTLS_EXPORT_LEN;
@@ -834,15 +1007,17 @@ int wolfSSL_dtls_import_internal(byte* buf, word32 sz, WOLFSSL* ssl)
     idx += length;
 
     /* perform sanity checks and extract Keys struct */
-    if (DTLS_EXPORT_LEN + sizeof(Keys) + idx > sz) {
+    if (DTLS_EXPORT_LEN + DTLS_EXPORT_KEY_SZ + idx > sz) {
         return BUFFER_E;
     }
     ato16(buf + idx, &length); idx += DTLS_EXPORT_LEN;
-    if (length < sizeof(Keys) || length + idx > sz) {
+    if (length != DTLS_EXPORT_KEY_SZ || length + idx > sz) {
         return BUFFER_E;
     }
-    XMEMCPY(&ssl->keys, buf + idx, sizeof(Keys));
-    idx += sizeof(Keys);
+    if ((ret = ImportKeyState(buf + idx, length, version, ssl)) != 0) {
+        return ret;
+    }
+    idx += DTLS_EXPORT_KEY_SZ;
 
     /* perform sanity checks and extract CipherSpecs struct */
     if (DTLS_EXPORT_LEN + sizeof(CipherSpecs) + idx > sz) {

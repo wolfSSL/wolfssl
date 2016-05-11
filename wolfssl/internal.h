@@ -926,6 +926,7 @@ enum Misc {
     OPAQUE16_LEN =  2,         /* 2 bytes                 */
     OPAQUE24_LEN =  3,         /* 3 bytes                 */
     OPAQUE32_LEN =  4,         /* 4 bytes                 */
+    OPAQUE64_LEN =  8,         /* 8 bytes                 */
     COMP_LEN     =  1,         /* compression length      */
     CURVE_LEN    =  2,         /* ecc named curve length  */
     SERVER_ID_LEN = 20,        /* server session id length  */
@@ -951,7 +952,8 @@ enum Misc {
     DTLS_POOL_SZ             = 5,  /* buffers to hold in the retry pool */
     DTLS_EXPORT_PRO          = 165,/* wolfSSL protocol for serialized session */
     DTLS_EXPORT_VERSION      = 1,  /* wolfSSL version for serialized session */
-    DTLS_EXPORT_OPT_SZ       = 57, /* amount of bytes used from Options */
+    DTLS_EXPORT_OPT_SZ       = 57,  /* amount of bytes used from Options */
+    DTLS_EXPORT_KEY_SZ       = 326, /* amount of bytes used from Keys */
     DTLS_EXPORT_LEN          = 2,  /* 2 bytes for length and protocol */
     MAX_EXPORT_BUFFER        = 500, /* max size of buffer for exporting */
     FINISHED_LABEL_SZ   = 15,  /* TLS finished label size */
