@@ -38,8 +38,6 @@
         #else
             #include <nio.h>
         #endif
-    #else
-        #include <stdio.h>   /* ERR_printf */
     #endif
 #endif
 
@@ -681,6 +679,7 @@ enum {
 #if !defined(NO_FILESYSTEM) && !defined(NO_STDIO_FILESYSTEM)
 /* wolfSSL extension, provide last error from SSL_get_error
    since not using thread storage error queue */
+#include <stdio.h>
 WOLFSSL_API void  wolfSSL_ERR_print_errors_fp(FILE*, int err);
 #endif
 

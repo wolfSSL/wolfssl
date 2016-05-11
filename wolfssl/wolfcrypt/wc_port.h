@@ -224,9 +224,9 @@ WOLFSSL_API int wolfCrypt_Init(void);
     #define XBADFILE   NULL
 #else
     /* stdio, default case */
+    #include <stdio.h>
     #define XFILE      FILE*
     #if defined(WOLFSSL_MDK_ARM)
-        #include <stdio.h>
         extern FILE * wolfSSL_fopen(const char *name, const char *mode) ;
         #define XFOPEN     wolfSSL_fopen
     #else
