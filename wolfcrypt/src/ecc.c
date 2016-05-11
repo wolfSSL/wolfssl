@@ -2019,7 +2019,6 @@ static int ecc_mul2add(ecc_point* A, mp_int* kA,
   unsigned char* tB;
   int            err = MP_OKAY, first, x, y;
   mp_digit mp;
-  mp_int   mu;
 
   /* argchks */
   if (A == NULL || kA == NULL || B == NULL || kB == NULL || C == NULL ||
@@ -2042,18 +2041,15 @@ static int ecc_mul2add(ecc_point* A, mp_int* kA,
   XMEMSET(tA, 0, ECC_BUFSIZE);
   XMEMSET(tB, 0, ECC_BUFSIZE);
   XMEMSET(precomp, 0, sizeof(precomp));
-  err = mp_init(&mu);
 
-  if (err == MP_OKAY) {
-     /* get sizes */
-     lenA = mp_unsigned_bin_size(kA);
-     lenB = mp_unsigned_bin_size(kB);
-     len  = MAX(lenA, lenB);
+  /* get sizes */
+  lenA = mp_unsigned_bin_size(kA);
+  lenB = mp_unsigned_bin_size(kB);
+  len  = MAX(lenA, lenB);
 
-     /* sanity check */
-     if ((lenA > ECC_BUFSIZE) || (lenB > ECC_BUFSIZE)) {
-        err = BAD_FUNC_ARG;
-     }
+  /* sanity check */
+  if ((lenA > ECC_BUFSIZE) || (lenB > ECC_BUFSIZE)) {
+    err = BAD_FUNC_ARG;
   }
 
   if (err == MP_OKAY) {
@@ -2083,27 +2079,32 @@ static int ecc_mul2add(ecc_point* A, mp_int* kA,
     /* init montgomery reduction */
     err = mp_montgomery_setup(modulus, &mp);
 
-  if (err == MP_OKAY)
-    err = mp_montgomery_calc_normalization(&mu, modulus);
+  if (err == MP_OKAY) {
+    mp_int mu;
+    err = mp_init(&mu);
+    if (err == MP_OKAY) {
+      err = mp_montgomery_calc_normalization(&mu, modulus);
 
-  if (err == MP_OKAY)
-    /* copy ones ... */
-    err = mp_mulmod(A->x, &mu, modulus, precomp[1]->x);
+      if (err == MP_OKAY)
+        /* copy ones ... */
+        err = mp_mulmod(A->x, &mu, modulus, precomp[1]->x);
 
-  if (err == MP_OKAY)
-    err = mp_mulmod(A->y, &mu, modulus, precomp[1]->y);
-  if (err == MP_OKAY)
-    err = mp_mulmod(A->z, &mu, modulus, precomp[1]->z);
+      if (err == MP_OKAY)
+        err = mp_mulmod(A->y, &mu, modulus, precomp[1]->y);
+      if (err == MP_OKAY)
+        err = mp_mulmod(A->z, &mu, modulus, precomp[1]->z);
 
-  if (err == MP_OKAY)
-    err = mp_mulmod(B->x, &mu, modulus, precomp[1<<2]->x);
-  if (err == MP_OKAY)
-    err = mp_mulmod(B->y, &mu, modulus, precomp[1<<2]->y);
-  if (err == MP_OKAY)
-    err = mp_mulmod(B->z, &mu, modulus, precomp[1<<2]->z);
+      if (err == MP_OKAY)
+        err = mp_mulmod(B->x, &mu, modulus, precomp[1<<2]->x);
+      if (err == MP_OKAY)
+        err = mp_mulmod(B->y, &mu, modulus, precomp[1<<2]->y);
+      if (err == MP_OKAY)
+        err = mp_mulmod(B->z, &mu, modulus, precomp[1<<2]->z);
 
-  /* done with mu */
-  mp_clear(&mu);
+      /* done with mu */
+      mp_clear(&mu);
+    }
+  }
 
   if (err == MP_OKAY)
     /* precomp [i,0](A + B) table */
