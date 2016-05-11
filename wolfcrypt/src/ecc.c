@@ -527,6 +527,10 @@ int ecc_projective_add_point(ecc_point* P, ecc_point* Q, ecc_point* R,
        err = mp_copy(y, R->y);
    if (err == MP_OKAY)
        err = mp_copy(z, R->z);
+   
+   mp_clear(x);
+   mp_clear(y);
+   mp_clear(z);
 #endif
 
 #ifndef USE_FAST_MATH

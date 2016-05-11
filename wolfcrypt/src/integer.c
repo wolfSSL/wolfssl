@@ -279,8 +279,7 @@ int mp_init_copy (mp_int * a, mp_int * b)
 
 
 /* copy, b = a */
-int
-mp_copy (mp_int * a, mp_int * b)
+int mp_copy (mp_int * a, mp_int * b)
 {
   int     res, n;
 
@@ -1806,7 +1805,7 @@ int mp_exptmod_fast (mp_int * G, mp_int * X, mp_int * P, mp_int * Y,
   /* init first cell */
   if ((err = mp_init(&M[1])) != MP_OKAY) {
 #ifdef WOLFSSL_SMALL_STACK
-  XFREE(M, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+     XFREE(M, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
 
      return err;
