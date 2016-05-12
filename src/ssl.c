@@ -1290,8 +1290,32 @@ WOLFSSL_API int wolfSSL_set_SessionTicket(WOLFSSL* ssl, byte* buf, word32 bufSz)
     if (ssl == NULL || (buf == NULL && bufSz > 0))
         return BAD_FUNC_ARG;
 
-    if (bufSz > 0)
-        XMEMCPY(ssl->session.ticket, buf, bufSz);
+    if (bufSz > 0) {
+        /* Ticket will fit into static ticket */
+        if(bufSz <= SESSION_TICKET_LEN) {
+            if (ssl->session.isDynamic) {
+                XFREE(ssl->session.ticket, ssl->heap, DYNAMIC_TYPE_SESSION_TICK);
+                ssl->session.isDynamic = 0;
+                ssl->session.ticket = ssl->session.staticTicket;
+            }
+
+            XMEMCPY(ssl->session.ticket, buf, bufSz);
+        } else { /* Ticket requires dynamic ticket storage */
+            if (ssl->session.ticketLen < bufSz) {
+                if(ssl->session.isDynamic)
+                    XFREE(ssl->session.ticket, ssl->heap,
+                            DYNAMIC_TYPE_SESSION_TICK);
+                ssl->session.ticket = XMALLOC(bufSz, ssl->heap,
+                        DYNAMIC_TYPE_SESSION_TICK);
+                if(!ssl->session.ticket) {
+                    ssl->session.ticket = ssl->session.staticTicket;
+                    return MEMORY_ERROR;
+                }
+                ssl->session.isDynamic = 1;
+            }
+            XMEMCPY(ssl->session.ticket, buf, bufSz);
+        }
+    }
     ssl->session.ticketLen = (word16)bufSz;
 
     return SSL_SUCCESS;
@@ -5278,7 +5302,7 @@ WOLFSSL_SESSION* wolfSSL_get_session(WOLFSSL* ssl)
 {
     WOLFSSL_ENTER("SSL_get_session");
     if (ssl)
-        return GetSession(ssl, 0);
+        return GetSession(ssl, 0, 0);
 
     return NULL;
 }
@@ -7024,7 +7048,8 @@ WOLFSSL_SESSION* GetSessionClient(WOLFSSL* ssl, const byte* id, int len)
 #endif /* NO_CLIENT_CACHE */
 
 
-WOLFSSL_SESSION* GetSession(WOLFSSL* ssl, byte* masterSecret)
+WOLFSSL_SESSION* GetSession(WOLFSSL* ssl, byte* masterSecret,
+        byte restoreSessionCerts)
 {
     WOLFSSL_SESSION* ret = 0;
     const byte*  id = NULL;
@@ -7032,6 +7057,8 @@ WOLFSSL_SESSION* GetSession(WOLFSSL* ssl, byte* masterSecret)
     int          idx;
     int          count;
     int          error = 0;
+
+    (void)       restoreSessionCerts;
 
     if (ssl->options.sessionCacheOff)
         return NULL;
@@ -7080,6 +7107,17 @@ WOLFSSL_SESSION* GetSession(WOLFSSL* ssl, byte* masterSecret)
                 ret = current;
                 if (masterSecret)
                     XMEMCPY(masterSecret, current->masterSecret, SECRET_LEN);
+#ifdef SESSION_CERTS
+                /* If set, we should copy the session certs into the ssl object
+                 * from the session we are returning so we can resume */
+                if (restoreSessionCerts) {
+                    ssl->session.chain        = ret->chain;
+                    ssl->session.version      = ret->version;
+                    ssl->session.cipherSuite0 = ret->cipherSuite0;
+                    ssl->session.cipherSuite  = ret->cipherSuite;
+                }
+#endif /* SESSION_CERTS */
+
             } else {
                 WOLFSSL_MSG("Session timed out");
             }
@@ -7095,13 +7133,102 @@ WOLFSSL_SESSION* GetSession(WOLFSSL* ssl, byte* masterSecret)
 }
 
 
+int GetDeepCopySession(WOLFSSL* ssl, WOLFSSL_SESSION* copyFrom)
+{
+    WOLFSSL_SESSION* copyInto = &ssl->session;
+    void* tmpBuff             = NULL;
+    int ticketLen;
+    int doDynamicCopy         = 0;
+    int ret                   = SSL_SUCCESS;
+
+    (void)ticketLen;
+    (void)doDynamicCopy;
+    (void)tmpBuff;
+
+    if (!ssl || !copyFrom)
+        return BAD_FUNC_ARG;
+
+    if (LockMutex(&session_mutex) != 0)
+        return BAD_MUTEX_E;
+
+#ifdef HAVE_SESSION_TICKET
+    /* Free old dynamic ticket if we had one to avoid leak */
+    if (copyInto->isDynamic) {
+        XFREE(copyInto->ticket, ssl->heap, DYNAMIC_TYPE_SESS_TICK);
+        copyInto->ticket = copyInto->staticTicket;
+        copyInto->isDynamic = 0;
+    }
+    /* Size of ticket to alloc if needed; Use later for alloc outside lock */
+    doDynamicCopy = copyFrom->isDynamic;
+    ticketLen = copyFrom->ticketLen;
+#endif
+
+    *copyInto = *copyFrom;
+
+    /* Default ticket to non dynamic. This will avoid crash if we fail below */
+#ifdef HAVE_SESSION_TICKET
+    copyInto->ticket = copyInto->staticTicket;
+    copyInto->isDynamic = 0;
+#endif
+
+    if (UnLockMutex(&session_mutex) != 0) {
+        return BAD_MUTEX_E;
+    }
+
+#ifdef HAVE_SESSION_TICKET
+    /* If doing dynamic copy, need to alloc outside lock, then inside a lock
+     * confirm the size still matches and memcpy */
+    if (doDynamicCopy) {
+        tmpBuff = XMALLOC(ticketLen, ssl->heap, DYNAMIC_TYPE_SESSION_TICK);
+        if (!tmpBuff)
+            return MEMORY_ERROR;
+
+        if (LockMutex(&session_mutex) != 0) {
+            XFREE(tmpBuff, ssl->heap, DYNAMIC_TYPE_SESS_TICK);
+            return BAD_MUTEX_E;
+        }
+
+        if (ticketLen != copyFrom->ticketLen) {
+            /* Another thread modified the ssl-> session ticket during alloc.
+             * Treat as error, since ticket different than when copy requested */
+            ret = VAR_STATE_CHANGE_E;
+        }
+
+        if (ret == SSL_SUCCESS) {
+            copyInto->ticket = tmpBuff;
+            copyInto->isDynamic = 1;
+            XMEMCPY(copyInto->ticket, copyFrom->ticket, ticketLen);
+        }
+    } else {
+        /* Need to ensure ticket pointer gets updated to own buffer
+         * and is not pointing to buff of session copied from */
+        copyInto->ticket = copyInto->staticTicket;
+    }
+
+    if (UnLockMutex(&session_mutex) != 0) {
+        if (ret == SSL_SUCCESS)
+            ret = BAD_MUTEX_E;
+    }
+
+    if (ret != SSL_SUCCESS) {
+        /* cleanup */
+        if (tmpBuff)
+            XFREE(tmpBuff, ssl->heap, DYNAMIC_TYPE_SESS_TICK);
+        copyInto->ticket = copyInto->staticTicket;
+        copyInto->isDynamic = 0;
+    }
+#endif /* HAVE_SESSION_TICKET */
+    return ret;
+}
+
+
 int SetSession(WOLFSSL* ssl, WOLFSSL_SESSION* session)
 {
     if (ssl->options.sessionCacheOff)
         return SSL_FAILURE;
 
     if (LowResTimer() < (session->bornOn + session->timeout)) {
-        ssl->session  = *session;
+        GetDeepCopySession(ssl, session);
         ssl->options.resuming = 1;
 
 #ifdef SESSION_CERTS
@@ -7125,6 +7252,10 @@ int AddSession(WOLFSSL* ssl)
 {
     word32 row, idx;
     int    error = 0;
+#ifdef HAVE_SESSION_TICKET
+    byte*  tmpBuff = NULL;
+    int    ticLen  = 0;
+#endif
 
     if (ssl->options.sessionCacheOff)
         return 0;
@@ -7143,8 +7274,23 @@ int AddSession(WOLFSSL* ssl)
         return error;
     }
 
-    if (LockMutex(&session_mutex) != 0)
+#ifdef HAVE_SESSION_TICKET
+    ticLen = ssl->session.ticketLen;
+    /* Alloc Memory here so if Malloc fails can exit outside of lock */
+    if(ticLen > SESSION_TICKET_LEN) {
+        tmpBuff = XMALLOC(ticLen, ssl->heap,
+                DYNAMIC_TYPE_SESSION_TICK);
+        if(!tmpBuff)
+            return MEMORY_E;
+    }
+#endif
+
+    if (LockMutex(&session_mutex) != 0) {
+#ifdef HAVE_SESSION_TICKET
+        XFREE(tmpBuff, ssl->heap, DYNAMIC_TYPE_SESSION_TICK);
+#endif
         return BAD_MUTEX_E;
+    }
 
     idx = SessionCache[row].nextIdx++;
 #ifdef SESSION_INDEX
@@ -7161,52 +7307,93 @@ int AddSession(WOLFSSL* ssl)
     SessionCache[row].Sessions[idx].bornOn  = LowResTimer();
 
 #ifdef HAVE_SESSION_TICKET
-    SessionCache[row].Sessions[idx].ticketLen     = ssl->session.ticketLen;
-    XMEMCPY(SessionCache[row].Sessions[idx].ticket,
-                                   ssl->session.ticket, ssl->session.ticketLen);
+    /* Check if another thread modified ticket since alloc */
+    if (ticLen != ssl->session.ticketLen) {
+        error = VAR_STATE_CHANGE_E;
+    }
+
+    if (error == 0) {
+        /* Cleanup cache row's old Dynamic buff if exists */
+        if(SessionCache[row].Sessions[idx].isDynamic) {
+            XFREE(SessionCache[row].Sessions[idx].ticket,
+                   ssl->heap, DYNAMIC_TYPE_SESS_TICK);
+            SessionCache[row].Sessions[idx].ticket = NULL;
+        }
+
+        /* If too large to store in static buffer, use dyn buffer */
+        if (ticLen > SESSION_TICKET_LEN) {
+            SessionCache[row].Sessions[idx].ticket = tmpBuff;
+            SessionCache[row].Sessions[idx].isDynamic = 1;
+        } else {
+            SessionCache[row].Sessions[idx].ticket =
+                    SessionCache[row].Sessions[idx].staticTicket;
+            SessionCache[row].Sessions[idx].isDynamic = 0;
+        }
+    }
+
+    if (error == 0) {
+        SessionCache[row].Sessions[idx].ticketLen     = ticLen;
+        XMEMCPY(SessionCache[row].Sessions[idx].ticket,
+                                   ssl->session.ticket, ticLen);
+    } else { /* cleanup, reset state */
+        SessionCache[row].Sessions[idx].ticket    =
+            SessionCache[row].Sessions[idx].staticTicket;
+        SessionCache[row].Sessions[idx].isDynamic = 0;
+        SessionCache[row].Sessions[idx].ticketLen = 0;
+        if (tmpBuff) {
+            XFREE(tmpBuff, ssl->heap, DYNAMIC_TYPE_SESSION_TICK);
+            tmpBuff = NULL;
+        }
+    }
 #endif
 
 #ifdef SESSION_CERTS
-    SessionCache[row].Sessions[idx].chain.count = ssl->session.chain.count;
-    XMEMCPY(SessionCache[row].Sessions[idx].chain.certs,
-           ssl->session.chain.certs, sizeof(x509_buffer) * MAX_CHAIN_DEPTH);
+    if (error == 0) {
+        SessionCache[row].Sessions[idx].chain.count = ssl->session.chain.count;
+        XMEMCPY(SessionCache[row].Sessions[idx].chain.certs,
+               ssl->session.chain.certs, sizeof(x509_buffer) * MAX_CHAIN_DEPTH);
 
-    SessionCache[row].Sessions[idx].version      = ssl->version;
-    SessionCache[row].Sessions[idx].cipherSuite0 = ssl->options.cipherSuite0;
-    SessionCache[row].Sessions[idx].cipherSuite  = ssl->options.cipherSuite;
-#endif /* SESSION_CERTS */
-
-    SessionCache[row].totalCount++;
-    if (SessionCache[row].nextIdx == SESSIONS_PER_ROW)
-        SessionCache[row].nextIdx = 0;
-
-#ifndef NO_CLIENT_CACHE
-    if (ssl->options.side == WOLFSSL_CLIENT_END && ssl->session.idLen) {
-        word32 clientRow, clientIdx;
-
-        WOLFSSL_MSG("Adding client cache entry");
-
-        SessionCache[row].Sessions[idx].idLen = ssl->session.idLen;
-        XMEMCPY(SessionCache[row].Sessions[idx].serverID, ssl->session.serverID,
-                ssl->session.idLen);
-
-        clientRow = HashSession(ssl->session.serverID, ssl->session.idLen,
-                                &error) % SESSION_ROWS;
-        if (error != 0) {
-            WOLFSSL_MSG("Hash session failed");
-        } else {
-            clientIdx = ClientCache[clientRow].nextIdx++;
-
-            ClientCache[clientRow].Clients[clientIdx].serverRow = (word16)row;
-            ClientCache[clientRow].Clients[clientIdx].serverIdx = (word16)idx;
-
-            ClientCache[clientRow].totalCount++;
-            if (ClientCache[clientRow].nextIdx == SESSIONS_PER_ROW)
-                ClientCache[clientRow].nextIdx = 0;
-        }
+        SessionCache[row].Sessions[idx].version      = ssl->version;
+        SessionCache[row].Sessions[idx].cipherSuite0 = ssl->options.cipherSuite0;
+        SessionCache[row].Sessions[idx].cipherSuite  = ssl->options.cipherSuite;
     }
-    else
-        SessionCache[row].Sessions[idx].idLen = 0;
+#endif /* SESSION_CERTS */
+    if (error == 0) {
+        SessionCache[row].totalCount++;
+        if (SessionCache[row].nextIdx == SESSIONS_PER_ROW)
+            SessionCache[row].nextIdx = 0;
+    }
+#ifndef NO_CLIENT_CACHE
+    if (error == 0) {
+        if (ssl->options.side == WOLFSSL_CLIENT_END && ssl->session.idLen) {
+            word32 clientRow, clientIdx;
+
+            WOLFSSL_MSG("Adding client cache entry");
+
+            SessionCache[row].Sessions[idx].idLen = ssl->session.idLen;
+            XMEMCPY(SessionCache[row].Sessions[idx].serverID,
+                    ssl->session.serverID, ssl->session.idLen);
+
+            clientRow = HashSession(ssl->session.serverID, ssl->session.idLen,
+                                    &error) % SESSION_ROWS;
+            if (error != 0) {
+                WOLFSSL_MSG("Hash session failed");
+            } else {
+                clientIdx = ClientCache[clientRow].nextIdx++;
+
+                ClientCache[clientRow].Clients[clientIdx].serverRow =
+                                                                   (word16)row;
+                ClientCache[clientRow].Clients[clientIdx].serverIdx =
+                                                                   (word16)idx;
+
+                ClientCache[clientRow].totalCount++;
+                if (ClientCache[clientRow].nextIdx == SESSIONS_PER_ROW)
+                    ClientCache[clientRow].nextIdx = 0;
+            }
+        }
+        else
+            SessionCache[row].Sessions[idx].idLen = 0;
+    }
 #endif /* NO_CLIENT_CACHE */
 
 #if defined(WOLFSSL_SESSION_STATS) && defined(WOLFSSL_PEAK_SESSIONS)
@@ -7438,10 +7625,12 @@ int wolfSSL_get_session_stats(word32* active, word32* total, word32* peak,
 #else  /* NO_SESSION_CACHE */
 
 /* No session cache version */
-WOLFSSL_SESSION* GetSession(WOLFSSL* ssl, byte* masterSecret)
+WOLFSSL_SESSION* GetSession(WOLFSSL* ssl, byte* masterSecret,
+        byte restoreSessionCerts)
 {
     (void)ssl;
     (void)masterSecret;
+    (void)restoreSessionCerts;
 
     return NULL;
 }
