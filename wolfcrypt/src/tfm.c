@@ -2096,7 +2096,7 @@ void fp_clear(fp_int *a)
 /* clear one (frees)  */
 void mp_clear (mp_int * a)
 {
-    fp_clear(a);
+    fp_zero(a);
 }
 
 /* handle up to 6 inits */

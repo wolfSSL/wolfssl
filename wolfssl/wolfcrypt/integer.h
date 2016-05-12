@@ -230,6 +230,7 @@ extern const char *mp_s_rmap;
 /* 6 functions needed by Rsa */
 int  mp_init (mp_int * a);
 void mp_clear (mp_int * a);
+void mp_forcezero(mp_int * a);
 int  mp_unsigned_bin_size(mp_int * a);
 int  mp_read_unsigned_bin (mp_int * a, const unsigned char *b, int c);
 int  mp_to_unsigned_bin (mp_int * a, unsigned char *b);
