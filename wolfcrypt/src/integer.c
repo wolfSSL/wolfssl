@@ -34,6 +34,13 @@
 /* in case user set USE_FAST_MATH there */
 #include <wolfssl/wolfcrypt/settings.h>
 
+#ifdef NO_INLINE
+    #include <wolfssl/wolfcrypt/misc.h>
+#else
+    #define WOLFSSL_MISC_INCLUDED
+    #include <wolfcrypt/src/misc.c>
+#endif
+
 #ifndef NO_BIG_INT
 
 #ifndef USE_FAST_MATH
@@ -157,8 +164,7 @@ int mp_init (mp_int * a)
 
 
 /* clear one (frees)  */
-void
-mp_clear (mp_int * a)
+void mp_clear (mp_int * a)
 {
   int i;
 
@@ -182,6 +188,29 @@ mp_clear (mp_int * a)
   }
 }
 
+void mp_forcezero(mp_int * a)
+{
+    if (a == NULL)
+        return;
+
+    /* only do anything if a hasn't been freed previously */
+    if (a->dp != NULL) {
+      /* force zero the used digits */
+      ForceZero(a->dp, a->used * sizeof(mp_digit));
+
+      /* free ram */
+      XFREE(a->dp, 0, DYNAMIC_TYPE_BIGINT);
+
+      /* reset members to make debugging easier */
+      a->dp    = NULL;
+      a->alloc = a->used = 0;
+      a->sign  = MP_ZPOS;
+    }
+
+    a->sign = MP_ZPOS;
+    a->used = 0;
+}
+
 
 /* get the size for an unsigned equivalent */
 int mp_unsigned_bin_size (mp_int * a)
@@ -192,8 +221,7 @@ int mp_unsigned_bin_size (mp_int * a)
 
 
 /* returns the number of bits in an int */
-int
-mp_count_bits (mp_int * a)
+int mp_count_bits (mp_int * a)
 {
   int     r;
   mp_digit q;
@@ -279,8 +307,7 @@ int mp_init_copy (mp_int * a, mp_int * b)
 
 
 /* copy, b = a */
-int
-mp_copy (mp_int * a, mp_int * b)
+int mp_copy (mp_int * a, mp_int * b)
 {
   int     res, n;
 
@@ -427,6 +454,9 @@ void mp_zero (mp_int * a)
 {
   int       n;
   mp_digit *tmp;
+  
+  if (a == NULL)
+      return;
 
   a->sign = MP_ZPOS;
   a->used = 0;
@@ -445,8 +475,7 @@ void mp_zero (mp_int * a)
  * Typically very fast.  Also fixes the sign if there
  * are no more leading digits
  */
-void
-mp_clamp (mp_int * a)
+void mp_clamp (mp_int * a)
 {
   /* decrease used while the most significant digit is
    * zero.
@@ -465,8 +494,7 @@ mp_clamp (mp_int * a)
 /* swap the elements of two integers, for cases where you can't simply swap the
  * mp_int pointers around
  */
-void
-mp_exch (mp_int * a, mp_int * b)
+void mp_exch (mp_int * a, mp_int * b)
 {
   mp_int  t;
 
@@ -561,8 +589,7 @@ void mp_rshd (mp_int * a, int b)
 
 
 /* calc a value mod 2**b */
-int
-mp_mod_2d (mp_int * a, int b, mp_int * c)
+int mp_mod_2d (mp_int * a, int b, mp_int * c)
 {
   int     x, res;
 
@@ -839,8 +866,7 @@ int mp_exptmod (mp_int * G, mp_int * X, mp_int * P, mp_int * Y)
  *
  * Simple function copies the input and fixes the sign to positive
  */
-int
-mp_abs (mp_int * a, mp_int * b)
+int mp_abs (mp_int * a, mp_int * b)
 {
   int     res;
 
@@ -1225,8 +1251,7 @@ int mp_cmp_mag (mp_int * a, mp_int * b)
 
 
 /* compare two ints (signed)*/
-int
-mp_cmp (mp_int * a, mp_int * b)
+int mp_cmp (mp_int * a, mp_int * b)
 {
   /* compare based on sign */
   if (a->sign != b->sign) {
@@ -1289,8 +1314,7 @@ int mp_is_bit_set (mp_int *a, mp_digit b)
 }
 
 /* c = a mod b, 0 <= c < b */
-int
-mp_mod (mp_int * a, mp_int * b, mp_int * c)
+int mp_mod (mp_int * a, mp_int * b, mp_int * c)
 {
   mp_int  t;
   int     res;
@@ -1469,8 +1493,7 @@ int mp_add (mp_int * a, mp_int * b, mp_int * c)
 
 
 /* low level addition, based on HAC pp.594, Algorithm 14.7 */
-int
-s_mp_add (mp_int * a, mp_int * b, mp_int * c)
+int s_mp_add (mp_int * a, mp_int * b, mp_int * c)
 {
   mp_int *x;
   int     olduse, res, min, max;
@@ -1558,8 +1581,7 @@ s_mp_add (mp_int * a, mp_int * b, mp_int * c)
 
 
 /* low level subtraction (assumes |a| > |b|), HAC pp.595 Algorithm 14.9 */
-int
-s_mp_sub (mp_int * a, mp_int * b, mp_int * c)
+int s_mp_sub (mp_int * a, mp_int * b, mp_int * c)
 {
   int     olduse, res, min, max;
 
@@ -1626,8 +1648,7 @@ s_mp_sub (mp_int * a, mp_int * b, mp_int * c)
 
 
 /* high level subtraction (handles signs) */
-int
-mp_sub (mp_int * a, mp_int * b, mp_int * c)
+int mp_sub (mp_int * a, mp_int * b, mp_int * c)
 {
   int     sa, sb, res;
 
@@ -1806,7 +1827,7 @@ int mp_exptmod_fast (mp_int * G, mp_int * X, mp_int * P, mp_int * Y,
   /* init first cell */
   if ((err = mp_init(&M[1])) != MP_OKAY) {
 #ifdef WOLFSSL_SMALL_STACK
-  XFREE(M, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+     XFREE(M, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
 
      return err;
@@ -2069,8 +2090,7 @@ LBL_M:
 
 
 /* setups the montgomery reduction stuff */
-int
-mp_montgomery_setup (mp_int * n, mp_digit * rho)
+int mp_montgomery_setup (mp_int * n, mp_digit * rho)
 {
   mp_digit x, b;
 
@@ -2275,8 +2295,7 @@ int fast_mp_montgomery_reduce (mp_int * x, mp_int * n, mp_digit rho)
 
 
 /* computes xR**-1 == x (mod N) via Montgomery Reduction */
-int
-mp_montgomery_reduce (mp_int * x, mp_int * n, mp_digit rho)
+int mp_montgomery_reduce (mp_int * x, mp_int * n, mp_digit rho)
 {
   int     ix, res, digs;
   mp_digit mu;
@@ -2397,8 +2416,7 @@ void mp_dr_setup(mp_int *a, mp_digit *d)
  *
  * Input x must be in the range 0 <= x <= (n-1)**2
  */
-int
-mp_dr_reduce (mp_int * x, mp_int * n, mp_digit k)
+int mp_dr_reduce (mp_int * x, mp_int * n, mp_digit k)
 {
   int      err, i, m;
   mp_word  r;
@@ -2525,8 +2543,7 @@ int mp_reduce_2k_setup(mp_int *a, mp_digit *d)
 
 
 /* set the b bit of a */
-int
-mp_set_bit (mp_int * a, int b)
+int mp_set_bit (mp_int * a, int b)
 {
     int i = b / DIGIT_BIT, res;
 
@@ -2550,8 +2567,7 @@ mp_set_bit (mp_int * a, int b)
  *
  * Simple algorithm which zeros the int, set the required bit
  */
-int
-mp_2expt (mp_int * a, int b)
+int mp_2expt (mp_int * a, int b)
 {
     /* zero a as per default */
     mp_zero (a);
@@ -2560,8 +2576,7 @@ mp_2expt (mp_int * a, int b)
 }
 
 /* multiply by a digit */
-int
-mp_mul_d (mp_int * a, mp_digit b, mp_int * c)
+int mp_mul_d (mp_int * a, mp_digit b, mp_int * c)
 {
   mp_digit u, *tmpa, *tmpc;
   mp_word  r;
@@ -2639,8 +2654,7 @@ int mp_mulmod (mp_int * a, mp_int * b, mp_int * c, mp_int * d)
 
 
 /* computes b = a*a */
-int
-mp_sqr (mp_int * a, mp_int * b)
+int mp_sqr (mp_int * a, mp_int * b)
 {
   int     res;
 
@@ -2761,8 +2775,7 @@ int mp_mul_2(mp_int * a, mp_int * b)
 
 
 /* divide by three (based on routine from MPI and the GMP manual) */
-int
-mp_div_3 (mp_int * a, mp_int *c, mp_digit * d)
+int mp_div_3 (mp_int * a, mp_int *c, mp_digit * d)
 {
   mp_int   q;
   mp_word  w, t;
@@ -3633,8 +3646,7 @@ ERR:
 /* multiplies |a| * |b| and does not compute the lower digs digits
  * [meant to get the higher part of the product]
  */
-int
-s_mp_mul_high_digs (mp_int * a, mp_int * b, mp_int * c, int digs)
+int s_mp_mul_high_digs (mp_int * a, mp_int * b, mp_int * c, int digs)
 {
   mp_int  t;
   int     res, pa, pb, ix, iy;

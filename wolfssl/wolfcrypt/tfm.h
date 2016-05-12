@@ -611,6 +611,7 @@ void fp_sqr_comba64(fp_int *a, fp_int *b);
 #define mp_iseven(a)  fp_iseven(a)
 int  mp_init (mp_int * a);
 void mp_clear (mp_int * a);
+#define mp_forcezero(a) fp_clear(a)
 int mp_init_multi(mp_int* a, mp_int* b, mp_int* c, mp_int* d, mp_int* e, mp_int* f);
 
 int  mp_add (mp_int * a, mp_int * b, mp_int * c);

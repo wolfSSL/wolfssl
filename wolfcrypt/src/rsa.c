@@ -206,30 +206,16 @@ int wc_FreeRsaKey(RsaKey* key)
         return FreeCaviumRsaKey(key);
 #endif
 
-/* TomsFastMath doesn't use memory allocation */
-#ifndef USE_FAST_MATH
     if (key->type == RSA_PRIVATE) {
-        mp_clear(&key->u);
-        mp_clear(&key->dQ);
-        mp_clear(&key->dP);
-        mp_clear(&key->q);
-        mp_clear(&key->p);
-        mp_clear(&key->d);
+        mp_forcezero(&key->u);
+        mp_forcezero(&key->dQ);
+        mp_forcezero(&key->dP);
+        mp_forcezero(&key->q);
+        mp_forcezero(&key->p);
+        mp_forcezero(&key->d);
     }
     mp_clear(&key->e);
     mp_clear(&key->n);
-#else
-    /* still clear private key memory information when free'd */
-    if (key->type == RSA_PRIVATE) {
-        mp_clear(&key->u);
-        mp_clear(&key->dQ);
-        mp_clear(&key->u);
-        mp_clear(&key->dP);
-        mp_clear(&key->q);
-        mp_clear(&key->p);
-        mp_clear(&key->d);
-    }
-#endif
 
     return 0;
 }

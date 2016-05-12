@@ -527,6 +527,10 @@ int ecc_projective_add_point(ecc_point* P, ecc_point* Q, ecc_point* R,
        err = mp_copy(y, R->y);
    if (err == MP_OKAY)
        err = mp_copy(z, R->z);
+   
+   mp_clear(x);
+   mp_clear(y);
+   mp_clear(z);
 #endif
 
 #ifndef USE_FAST_MATH
@@ -1568,7 +1572,7 @@ static int wc_ecc_make_key_ex(WC_RNG* rng, ecc_key* key, const ecc_set_type* dp)
        mp_clear(key->pubkey.x);
        mp_clear(key->pubkey.y);
        mp_clear(key->pubkey.z);
-       mp_clear(&key->k);
+       mp_forcezero(&key->k);
    }
    wc_ecc_del_point(base);
    if (po_init) {
@@ -1799,7 +1803,7 @@ void wc_ecc_free(ecc_key* key)
    mp_clear(key->pubkey.x);
    mp_clear(key->pubkey.y);
    mp_clear(key->pubkey.z);
-   mp_clear(&key->k);
+   mp_forcezero(&key->k);
 }
 
 
