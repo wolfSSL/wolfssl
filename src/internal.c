@@ -14457,6 +14457,7 @@ int DoSessionTicket(WOLFSSL* ssl,
         if (ssl->session.ticket == NULL) {
             /* Set to static ticket to avoid null pointer error */
             ssl->session.ticket = ssl->session.staticTicket;
+            ssl->session.isDynamic = 0;
             return MEMORY_E;
         }
         ssl->session.isDynamic = 1;

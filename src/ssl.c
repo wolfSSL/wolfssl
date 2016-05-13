@@ -1298,10 +1298,8 @@ WOLFSSL_API int wolfSSL_set_SessionTicket(WOLFSSL* ssl, byte* buf, word32 bufSz)
                 ssl->session.isDynamic = 0;
                 ssl->session.ticket = ssl->session.staticTicket;
             }
-
-            XMEMCPY(ssl->session.ticket, buf, bufSz);
         } else { /* Ticket requires dynamic ticket storage */
-            if (ssl->session.ticketLen < bufSz) {
+            if (ssl->session.ticketLen < bufSz) { /* is dyn buffer big enough */
                 if(ssl->session.isDynamic)
                     XFREE(ssl->session.ticket, ssl->heap,
                             DYNAMIC_TYPE_SESSION_TICK);
@@ -1309,12 +1307,13 @@ WOLFSSL_API int wolfSSL_set_SessionTicket(WOLFSSL* ssl, byte* buf, word32 bufSz)
                         DYNAMIC_TYPE_SESSION_TICK);
                 if(!ssl->session.ticket) {
                     ssl->session.ticket = ssl->session.staticTicket;
+                    ssl->session.isDynamic = 0;
                     return MEMORY_ERROR;
                 }
                 ssl->session.isDynamic = 1;
             }
-            XMEMCPY(ssl->session.ticket, buf, bufSz);
         }
+        XMEMCPY(ssl->session.ticket, buf, bufSz);
     }
     ssl->session.ticketLen = (word16)bufSz;
 
@@ -7148,9 +7147,6 @@ int GetDeepCopySession(WOLFSSL* ssl, WOLFSSL_SESSION* copyFrom)
     if (!ssl || !copyFrom)
         return BAD_FUNC_ARG;
 
-    if (LockMutex(&session_mutex) != 0)
-        return BAD_MUTEX_E;
-
 #ifdef HAVE_SESSION_TICKET
     /* Free old dynamic ticket if we had one to avoid leak */
     if (copyInto->isDynamic) {
@@ -7158,6 +7154,12 @@ int GetDeepCopySession(WOLFSSL* ssl, WOLFSSL_SESSION* copyFrom)
         copyInto->ticket = copyInto->staticTicket;
         copyInto->isDynamic = 0;
     }
+#endif
+
+    if (LockMutex(&session_mutex) != 0)
+        return BAD_MUTEX_E;
+
+#ifdef HAVE_SESSION_TICKET
     /* Size of ticket to alloc if needed; Use later for alloc outside lock */
     doDynamicCopy = copyFrom->isDynamic;
     ticketLen = copyFrom->ticketLen;
