@@ -2498,6 +2498,10 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
     ssl->sessionSecretCb  = NULL;
     ssl->sessionSecretCtx = NULL;
 #endif
+
+#ifdef HAVE_SESSION_TICKET
+    ssl->session.ticket = ssl->session.staticTicket;
+#endif
     return 0;
 }
 
@@ -2668,6 +2672,15 @@ void SSL_ResourceFree(WOLFSSL* ssl)
 #if defined(KEEP_PEER_CERT) || defined(GOAHEAD_WS)
     FreeX509(&ssl->peerCert);
 #endif
+
+#ifdef HAVE_SESSION_TICKET
+    if (ssl->session.isDynamic) {
+        XFREE(ssl->session.ticket, ssl->heap, DYNAMIC_TYPE_SESSION_TICK);
+        ssl->session.ticket = ssl->session.staticTicket;
+        ssl->session.isDynamic = 0;
+        ssl->session.ticketLen = 0;
+    }
+#endif
 }
 
 #ifdef WOLFSSL_TI_HASH
@@ -2805,6 +2818,16 @@ void FreeHandshakeResources(WOLFSSL* ssl)
 #ifdef HAVE_QSH
     QSH_FreeAll(ssl);
 #endif
+
+#ifdef HAVE_SESSION_TICKET
+    if (ssl->session.isDynamic) {
+        XFREE(ssl->session.ticket, ssl->heap, DYNAMIC_TYPE_SESSION_TICK);
+        ssl->session.ticket = ssl->session.staticTicket;
+        ssl->session.isDynamic = 0;
+        ssl->session.ticketLen = 0;
+    }
+#endif
+
 }
 
 
@@ -14422,11 +14445,28 @@ int DoSessionTicket(WOLFSSL* ssl,
     ato16(input + *inOutIdx, &length);
     *inOutIdx += OPAQUE16_LEN;
 
-    if (length > sizeof(ssl->session.ticket))
-        return SESSION_TICKET_LEN_E;
-
     if ((*inOutIdx - begin) + length > size)
         return BUFFER_ERROR;
+
+    if (length > sizeof(ssl->session.staticTicket)) {
+        /* Free old dynamic ticket if we already had one */
+        if (ssl->session.isDynamic)
+            XFREE(ssl->session.ticket, ssl->heap, DYNAMIC_TYPE_SESSION_TICK);
+        ssl->session.ticket =
+             (byte*)XMALLOC(length, ssl->heap, DYNAMIC_TYPE_SESSION_TICK);
+        if (ssl->session.ticket == NULL) {
+            /* Set to static ticket to avoid null pointer error */
+            ssl->session.ticket = ssl->session.staticTicket;
+            return MEMORY_E;
+        }
+        ssl->session.isDynamic = 1;
+    } else {
+        if(ssl->session.isDynamic) {
+            XFREE(ssl->session.ticket, ssl->heap, DYNAMIC_TYPE_SESSION_TICK);
+        }
+        ssl->session.isDynamic = 0;
+        ssl->session.ticket = ssl->session.staticTicket;
+    }
 
     /* If the received ticket including its length is greater than
      * a length value, the save it. Otherwise, don't save it. */
@@ -16085,7 +16125,7 @@ int DoSessionTicket(WOLFSSL* ssl,
         if (ssl->options.resuming) {  /* let's try */
             int ret = -1;
             WOLFSSL_SESSION* session = GetSession(ssl,
-                                                  ssl->arrays->masterSecret);
+                                                  ssl->arrays->masterSecret, 1);
             #ifdef HAVE_SESSION_TICKET
                 if (ssl->options.useTicket == 1) {
                     session = &ssl->session;
@@ -16100,9 +16140,6 @@ int DoSessionTicket(WOLFSSL* ssl,
                     WOLFSSL_MSG("Unsupported cipher suite, OldClientHello");
                     return UNSUPPORTED_SUITE;
                 }
-                #ifdef SESSION_CERTS
-                    ssl->session = *session; /* restore session certs. */
-                #endif
 
                 ret = wc_RNG_GenerateBlock(ssl->rng, ssl->arrays->serverRandom,
                                                                        RAN_LEN);
@@ -16480,7 +16517,7 @@ int DoSessionTicket(WOLFSSL* ssl,
         if (ssl->options.resuming) {
             int ret = -1;
             WOLFSSL_SESSION* session = GetSession(ssl,
-                                                  ssl->arrays->masterSecret);
+                                                  ssl->arrays->masterSecret, 1);
             #ifdef HAVE_SESSION_TICKET
                 if (ssl->options.useTicket == 1) {
                     session = &ssl->session;
@@ -16496,9 +16533,6 @@ int DoSessionTicket(WOLFSSL* ssl,
                     WOLFSSL_MSG("Unsupported cipher suite, ClientHello");
                     return UNSUPPORTED_SUITE;
                 }
-                #ifdef SESSION_CERTS
-                    ssl->session = *session; /* restore session certs. */
-                #endif
 
                 ret = wc_RNG_GenerateBlock(ssl->rng, ssl->arrays->serverRandom,
                                                                        RAN_LEN);

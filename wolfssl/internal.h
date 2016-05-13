@@ -2199,11 +2199,11 @@ struct WOLFSSL_X509_CHAIN {
 
 /* wolfSSL session type */
 struct WOLFSSL_SESSION {
-    word32       bornOn;                        /* create time in seconds   */
-    word32       timeout;                       /* timeout in seconds       */
-    byte         sessionID[ID_LEN];             /* id for protocol */
-    byte         sessionIDSz;
-    byte         masterSecret[SECRET_LEN];      /* stored secret */
+    word32          bornOn;                        /* create time in seconds   */
+    word32          timeout;                       /* timeout in seconds       */
+    byte            sessionID[ID_LEN];             /* id for protocol */
+    byte            sessionIDSz;
+    byte            masterSecret[SECRET_LEN];      /* stored secret */
 #ifdef SESSION_CERTS
     WOLFSSL_X509_CHAIN chain;                    /* peer cert chain, static  */
     ProtocolVersion version;                    /* which version was used */
@@ -2211,21 +2211,23 @@ struct WOLFSSL_SESSION {
     byte            cipherSuite;                /* 2nd byte, actual suite */
 #endif
 #ifndef NO_CLIENT_CACHE
-    word16       idLen;                         /* serverID length */
-    byte         serverID[SERVER_ID_LEN];       /* for easier client lookup */
+    word16          idLen;                         /* serverID length */
+    byte            serverID[SERVER_ID_LEN];       /* for easier client lookup */
 #endif
 #ifdef HAVE_SESSION_TICKET
-    word16       ticketLen;
-    byte         ticket[SESSION_TICKET_LEN];
+    byte*           ticket;
+    word16          ticketLen;
+    byte            staticTicket[SESSION_TICKET_LEN];
+    byte            isDynamic;
 #endif
 #ifdef HAVE_STUNNEL
-    void*        ex_data[MAX_EX_DATA];
+    void*           ex_data[MAX_EX_DATA];
 #endif
 };
 
 
 WOLFSSL_LOCAL
-WOLFSSL_SESSION* GetSession(WOLFSSL*, byte*);
+WOLFSSL_SESSION* GetSession(WOLFSSL*, byte*, byte);
 WOLFSSL_LOCAL
 int          SetSession(WOLFSSL*, WOLFSSL_SESSION*);
 
