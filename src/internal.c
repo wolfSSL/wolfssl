@@ -1001,16 +1001,16 @@ static int dtls_export_load(byte* exp, word32 len, byte ver, WOLFSSL* ssl)
  * buf is used to hold the serialized WOLFSSL struct and sz is the size of buf
  * passed in.
  * On success returns the size of serialized session.*/
-int wolfSSL_dtls_export(byte* buf, word32 sz, WOLFSSL* ssl)
+int wolfSSL_dtls_export_internal(byte* buf, word32 sz, WOLFSSL* ssl)
 {
     int ret;
     word32 idx      = 0;
     word32 totalLen = 0;
 
-    WOLFSSL_ENTER("wolfSSL_dtls_export");
+    WOLFSSL_ENTER("wolfSSL_dtls_export_internal");
 
     if (buf == NULL || ssl == NULL) {
-        WOLFSSL_LEAVE("wolfSSL_dtls_export", BAD_FUNC_ARG);
+        WOLFSSL_LEAVE("wolfSSL_dtls_export_internal", BAD_FUNC_ARG);
         return BAD_FUNC_ARG;
     }
 
@@ -1022,7 +1022,7 @@ int wolfSSL_dtls_export(byte* buf, word32 sz, WOLFSSL* ssl)
     totalLen += DTLS_EXPORT_LEN + ssl->buffers.dtlsCtx.peer.sz;
 
     if (totalLen > sz) {
-        WOLFSSL_LEAVE("wolfSSL_dtls_export", BUFFER_E);
+        WOLFSSL_LEAVE("wolfSSL_dtls_export_internal", BUFFER_E);
         return BUFFER_E;
     }
 
@@ -1035,16 +1035,16 @@ int wolfSSL_dtls_export(byte* buf, word32 sz, WOLFSSL* ssl)
     c16toa((word16)DTLS_EXPORT_OPT_SZ, buf + idx); idx += DTLS_EXPORT_LEN;
     if ((ret = dtls_export_new(buf + idx, sz - idx, DTLS_EXPORT_VERSION,
                                                                    ssl)) < 0) {
-        WOLFSSL_LEAVE("wolfSSL_dtls_export", ret);
+        WOLFSSL_LEAVE("wolfSSL_dtls_export_internal", ret);
         return ret;
     }
-    idx += DTLS_EXPORT_OPT_SZ;
+    idx += ret;
 
     /* export keys struct and dtls state -- variable length stored in ret */
     idx += DTLS_EXPORT_LEN; /* leave room for length */
     if ((ret = ExportKeyState(buf + idx, sz - idx,
                                               DTLS_EXPORT_VERSION, ssl)) < 0) {
-        WOLFSSL_LEAVE("wolfSSL_dtls_export", ret);
+        WOLFSSL_LEAVE("wolfSSL_dtls_export_internal", ret);
         return ret;
     }
     c16toa((word16)ret, buf + idx - DTLS_EXPORT_LEN); idx += ret;
@@ -1053,10 +1053,10 @@ int wolfSSL_dtls_export(byte* buf, word32 sz, WOLFSSL* ssl)
     c16toa((word16)DTLS_EXPORT_SPC_SZ, buf + idx); idx += DTLS_EXPORT_LEN;
     if ((ret = ExportCipherSpecState(buf + idx, sz - idx,
                                               DTLS_EXPORT_VERSION, ssl)) < 0) {
-        WOLFSSL_LEAVE("wolfSSL_dtls_export", ret);
+        WOLFSSL_LEAVE("wolfSSL_dtls_export_internal", ret);
         return ret;
     }
-    idx += DTLS_EXPORT_SPC_SZ;
+    idx += ret;
 
     /* export of dtls peer information */
     c16toa((word16)ssl->buffers.dtlsCtx.peer.sz, buf + idx);
@@ -1079,7 +1079,7 @@ int wolfSSL_dtls_export(byte* buf, word32 sz, WOLFSSL* ssl)
     }
 #endif /* WOLFSSL_SESSION_EXPORT_DEBUG */
 
-    WOLFSSL_LEAVE("wolfSSL_dtls_export", idx);
+    WOLFSSL_LEAVE("wolfSSL_dtls_export_internal", idx);
     return idx;
 }
 
@@ -1090,7 +1090,7 @@ int wolfSSL_dtls_import_internal(byte* buf, word32 sz, WOLFSSL* ssl)
     word32 idx    = 0;
     word16 length = 0;
     int version;
-    int ret, i;
+    int ret;
 
     WOLFSSL_ENTER("wolfSSL_dtls_import_internal");
     /* check at least enough room for protocol and length */
@@ -1185,15 +1185,11 @@ int wolfSSL_dtls_import_internal(byte* buf, word32 sz, WOLFSSL* ssl)
     }
 
     /* peer sa is free'd in SSL_ResourceFree */
-    ssl->buffers.dtlsCtx.peer.sa = XMALLOC(ssl->buffers.dtlsCtx.peer.sz,
-            ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
-    if (ssl->buffers.dtlsCtx.peer.sa == NULL) {
+    if ((ret = wolfSSL_dtls_set_peer(ssl, buf + idx,
+                                ssl->buffers.dtlsCtx.peer.sz)) != SSL_SUCCESS) {
         WOLFSSL_MSG("Import DTLS peer info error");
-        return MEMORY_E;
+        return ret;
     }
-
-    XMEMCPY(ssl->buffers.dtlsCtx.peer.sa, buf + idx,
-            ssl->buffers.dtlsCtx.peer.sz);
     idx += ssl->buffers.dtlsCtx.peer.sz;
 
     SetKeysSide(ssl, ENCRYPT_AND_DECRYPT_SIDE);
@@ -1205,17 +1201,9 @@ int wolfSSL_dtls_import_internal(byte* buf, word32 sz, WOLFSSL* ssl)
     }
 
     /* make sure is a valid suite used */
-    ret = MATCH_SUITE_ERROR;
-    for (i = 0; i < ssl->suites->suiteSz; i += 2) {
-        if (ssl->suites->suites[i]   == ssl->options.cipherSuite0 &&
-                    ssl->suites->suites[i+1] == ssl->options.cipherSuite) {
-            ret = 0;
-            break;
-        }
-    }
-    if (ret != 0) {
+    if (wolfSSL_get_cipher(ssl) == NULL) {
         WOLFSSL_MSG("Can not match cipher suite imported");
-        return ret;
+        return MATCH_SUITE_ERROR;
     }
 
     /* do not allow stream ciphers with DTLS */

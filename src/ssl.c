@@ -200,6 +200,38 @@ int wolfSSL_dtls_set_export(WOLFSSL* ssl, wc_dtls_export func)
 }
 
 
+int wolfSSL_dtls_export(unsigned char* buf, unsigned int* sz, WOLFSSL* ssl)
+{
+    int ret;
+
+    WOLFSSL_ENTER("wolfSSL_dtls_export");
+
+    if (ssl == NULL || sz == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    if (buf == NULL) {
+        *sz = MAX_EXPORT_BUFFER;
+        return 0;
+    }
+
+    /* if not DTLS do nothing */
+    if (!ssl->options.dtls) {
+        WOLFSSL_MSG("Currently only DTLS export is supported");
+        return 0;
+    }
+
+    /* copy over keys, options, and dtls state struct */
+    ret = wolfSSL_dtls_export_internal(buf, *sz, ssl);
+    if (ret < 0) {
+        return ret;
+    }
+
+    return ret;
+}
+
+
+/* returns 0 on success */
 int wolfSSL_send_session(WOLFSSL* ssl)
 {
     int ret;
@@ -221,31 +253,25 @@ int wolfSSL_send_session(WOLFSSL* ssl)
     if (!ssl->options.dtls) {
         XFREE(buf, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
         WOLFSSL_MSG("Currently only DTLS export is supported");
-        return SSL_SUCCESS;
+        return 0;
     }
 
-    if (ssl->dtls_export) {
-        /* copy over keys, options, and dtls state struct */
-        ret = wolfSSL_dtls_export(buf, bufSz, ssl);
-        if (ret < 0) {
-            XFREE(buf, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
-            return ret;
-        }
-
-        /* if no error ret has size of buffer */
-        ret = ssl->dtls_export(ssl, buf, ret, NULL);
-        if (ret != SSL_SUCCESS) {
-            XFREE(buf, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
-            return ret;
-        }
-
+    /* copy over keys, options, and dtls state struct */
+    ret = wolfSSL_dtls_export_internal(buf, bufSz, ssl);
+    if (ret < 0) {
         XFREE(buf, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
-        return SSL_SUCCESS;
+        return ret;
     }
-    else {
+
+    /* if no error ret has size of buffer */
+    ret = ssl->dtls_export(ssl, buf, ret, NULL);
+    if (ret != SSL_SUCCESS) {
         XFREE(buf, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
-        return SSL_FAILURE;
+        return ret;
     }
+
+    XFREE(buf, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    return 0;
 }
 #endif /* WOLFSSL_DTLS */
 #endif /* WOLFSSL_SESSION_EXPORT */
@@ -6641,7 +6667,6 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
 #ifdef WOLFSSL_DTLS
             else {
                 ssl->options.dtlsHsRetain = 1;
-
             }
 #endif /* WOLFSSL_DTLS */
 
@@ -6931,8 +6956,13 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
 #endif /* WOLFSSL_DTLS */
 
 #ifdef WOLFSSL_SESSION_EXPORT
-            WOLFSSL_MSG("sending session");
-            wolfSSL_send_session(ssl);
+            if (ssl->dtls_export) {
+                if ((ssl->error = wolfSSL_send_session(ssl)) != 0) {
+                    WOLFSSL_MSG("Export DTLS session error");
+                    WOLFSSL_ERROR(ssl->error);
+                    return SSL_FATAL_ERROR;
+                }
+            }
 #endif
 
             WOLFSSL_LEAVE("SSL_accept()", SSL_SUCCESS);

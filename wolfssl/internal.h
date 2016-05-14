@@ -1203,8 +1203,6 @@ typedef struct ProtocolVersion {
 } WOLFSSL_PACK ProtocolVersion;
 
 
-WOLFSSL_LOCAL int wolfSSL_dtls_import_internal(byte* buf, word32 sz, WOLFSSL* ssl);
-WOLFSSL_LOCAL int wolfSSL_dtls_export(byte* buf, word32 sz, WOLFSSL* ssl);
 WOLFSSL_LOCAL ProtocolVersion MakeSSLv3(void);
 WOLFSSL_LOCAL ProtocolVersion MakeTLSv1(void);
 WOLFSSL_LOCAL ProtocolVersion MakeTLSv1_1(void);
@@ -1213,6 +1211,14 @@ WOLFSSL_LOCAL ProtocolVersion MakeTLSv1_2(void);
 #ifdef WOLFSSL_DTLS
     WOLFSSL_LOCAL ProtocolVersion MakeDTLSv1(void);
     WOLFSSL_LOCAL ProtocolVersion MakeDTLSv1_2(void);
+
+    #ifdef WOLFSSL_SESSION_EXPORT
+    WOLFSSL_LOCAL int wolfSSL_dtls_import_internal(byte* buf, word32 sz,
+                                                                  WOLFSSL* ssl);
+    WOLFSSL_LOCAL int wolfSSL_dtls_export_internal(byte* buf, word32 sz,
+                                                                  WOLFSSL* ssl);
+    WOLFSSL_LOCAL int wolfSSL_send_session(WOLFSSL* ssl);
+    #endif
 #endif
 
 
