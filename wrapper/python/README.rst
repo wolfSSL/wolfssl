@@ -19,6 +19,15 @@ You can install ``wolfcrypt`` via ``pip`` or ``source code``, but before
 installing it, make sure you have ``wolfssl`` C library installed in your
 machine.
 
+**Linux ONLY:** Make sure you have ``python-dev``, ``python3-dev``,
+``python-pip`` and ``libffi-dev`` installed:
+
+.. code-block:: console
+
+    $ sudo apt-get update
+    $ sudo apt-get install python-dev python3-dev python-pip libffi-dev
+
+
 To install wolfssl do:
 
 .. code-block:: console
@@ -29,6 +38,12 @@ To install wolfssl do:
     $ ./configure
     $ make
     $ sudo make install
+
+**Linux ONLY:** Update your dynamic linker bindings with:
+
+.. code-block:: console
+
+    $ sudo ldconfig
 
 
 wolfcrypt pip installation
@@ -94,5 +109,8 @@ Test ``wolfcrypt`` locally with ``tox``:
     ...
     _________________________________ summary _________________________________
     py27: commands succeeded
+    SKIPPED: py34: InterpreterNotFound: python3.4
     py35: commands succeeded
     congratulations :)
+
+Note that some tests might be skipped if you don't have the proper interpreter.
