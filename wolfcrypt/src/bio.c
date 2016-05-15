@@ -28,7 +28,9 @@
 #ifdef OPENSSL_EXTRA
 
 #include <stdarg.h>
+#ifndef NO_STDIO_FILESYSTEM
 #include <stdio.h>
+#endif
 
 #include <sys/types.h>
 #include <errno.h>
@@ -761,6 +763,8 @@ unsigned long wc_BioNumberWritten(WOLFCRYPT_BIO *bio)
 }
 
 
+#ifndef NO_STDIO_FILESYSTEM
+
 #ifndef USE_WINDOWS_API
 __attribute__((format(printf, 2, 3)))
 #endif
@@ -805,6 +809,7 @@ int wc_BioPrintf(WOLFCRYPT_BIO *bio, const char *format, ...)
     XFREE(buffer, 0, DYNAMIC_TYPE_OPENSSL);
     return ret;
 }
+#endif /* NO_STDIO_FILESYSTEM */
 
 void wc_BioCopyNextRetry(WOLFCRYPT_BIO *bio)
 {
@@ -1468,7 +1473,7 @@ static int wc_BioB64_puts(WOLFCRYPT_BIO *bio, const char *str)
         return 0;
     }
     
-    return wc_BioB64_write(bio, str, (int)strlen(str));
+    return wc_BioB64_write(bio, str, (int)XSTRLEN(str));
 }
 
 /* end BIO Filter base64 */
@@ -2007,7 +2012,7 @@ static int wc_BioBuffer_puts(WOLFCRYPT_BIO *bio, const char *str)
         return 0;
     }
     
-    return wc_BioBuffer_write(bio, str, (int)strlen(str));
+    return wc_BioBuffer_write(bio, str, (int)XSTRLEN(str));
 }
 
 /* end BIO Filter buffer */
@@ -2750,7 +2755,7 @@ int wc_BioGetHostIp(const char *str, unsigned char *ip)
 int wc_BioGetPort(const char *str, unsigned short *port_ptr)
 {
     int i;
-    struct servent *s;
+    struct servent *s = NULL;
 
     if (str == NULL) {
         WOLFSSL_ERROR(BIO_NO_PORT_E);
@@ -2823,7 +2828,7 @@ int wc_BioSockInit(void)
         int err;
 
         wsa_init_done = 1;
-        memset(&wsa_state, 0, sizeof(wsa_state));
+        XMEMSET(&wsa_state, 0, sizeof(wsa_state));
         /*
          * Not making wsa_state available to the rest of the code is formally
          * wrong. But the structures we use are [beleived to be] invariable
@@ -2857,9 +2862,7 @@ int wc_BioGetAcceptSocket(char *host, int bind_mode)
     union {
         struct sockaddr sa;
         struct sockaddr_in sa_in;
-#ifdef TEST_IPV6
         struct sockaddr_in6 sa_in6;
-#endif
     } server, client;
     int s = WOLFSSL_SOCKET_INVALID, cs, addrlen;
     unsigned char ip[4];
@@ -2895,7 +2898,7 @@ int wc_BioGetAcceptSocket(char *host, int bind_mode)
     if (!wc_BioGetPort(p, &port))
         goto err;
 
-    memset((char *)&server, 0, sizeof(server));
+    XMEMSET((char *)&server, 0, sizeof(server));
     server.sa_in.sin_family = AF_INET;
     server.sa_in.sin_port = htons(port);
     addrlen = sizeof(server.sa_in);
@@ -2941,20 +2944,16 @@ again:
 #endif /* USE_WINDOWS_API */
         {
             client = server;
-            if (h == NULL || strcmp(h, "*") == 0) {
-#ifdef TEST_IPV6
+            if (h == NULL || !strcmp(h, "*")) {
                 if (client.sa.sa_family == AF_INET6) {
                     XMEMSET(&client.sa_in6.sin6_addr, 0,
                             sizeof(client.sa_in6.sin6_addr));
                     client.sa_in6.sin6_addr.s6_addr[15] = 1;
                 }
+                else if (client.sa.sa_family == AF_INET)
+                    client.sa_in.sin_addr.s_addr = htonl(0x7F000001);
                 else
-#endif
-                    if (client.sa.sa_family == AF_INET) {
-                        client.sa_in.sin_addr.s_addr = htonl(0x7F000001);
-                    }
-                    else
-                        goto err;
+                    goto err;
             }
 
             cs = socket(client.sa.sa_family, SOCK_STREAM, IPPROTO_TCP);
@@ -3020,15 +3019,13 @@ int wc_BioAccept(int sock, char **addr)
         union {
             struct sockaddr sa;
             struct sockaddr_in sa_in;
-#ifdef TEST_IPV6
             struct sockaddr_in sa_in6;
-#endif
         } from;
     } sa;
 
     sa.len.s = 0;
     sa.len.i = sizeof(sa.from);
-    memset(&sa.from, 0, sizeof(sa.from));
+    XMEMSET(&sa.from, 0, sizeof(sa.from));
 
     dsock = accept(sock, &sa.from.sa, (void *)&sa.len);
     if (sizeof(sa.len.i) != sizeof(sa.len.s) && !sa.len.i) {
@@ -3593,7 +3590,7 @@ static int wc_BioAccept_puts(WOLFCRYPT_BIO *bio, const char *str)
         return 0;
     }
     
-    return wc_BioAccept_write(bio, str, (int)strlen(str));
+    return wc_BioAccept_write(bio, str, (int)XSTRLEN(str));
 }
 
 WOLFCRYPT_BIO *wc_BioNewAccept(const char *str)
@@ -3704,14 +3701,14 @@ static int wc_BioConn_state(WOLFCRYPT_BIO *bio, WOLFCRYPT_BIO_CONNECT *conn)
                         if (conn->pPort != NULL)
                             XFREE(conn->pPort, 0, DYNAMIC_TYPE_OPENSSL);
 
-                        conn->pPort = XMALLOC(strlen(p)+1,
+                        conn->pPort = XMALLOC(XSTRLEN(p)+1,
                                               0, DYNAMIC_TYPE_OPENSSL);
                         if (conn->pPort == NULL) {
                             WOLFSSL_ERROR(MEMORY_E);
                             goto exit_loop;
                             break;
                         }
-                        XSTRNCPY(conn->pPort, p, strlen(p)+1);
+                        XSTRNCPY(conn->pPort, p, XSTRLEN(p)+1);
                     }
                 }
 
@@ -4056,27 +4053,27 @@ static long wc_BioConn_ctrl(WOLFCRYPT_BIO *bio, int cmd, long num, void *ptr)
             if (num == 0) {
                 if (conn->pHostname != NULL)
                     XFREE(conn->pHostname, 0, DYNAMIC_TYPE_OPENSSL);
-                conn->pHostname = XMALLOC(strlen((char *)ptr)+1,
+                conn->pHostname = XMALLOC(XSTRLEN((char *)ptr)+1,
                                           0, DYNAMIC_TYPE_OPENSSL);
                 if (conn->pHostname == NULL) {
                     WOLFSSL_ERROR(MEMORY_E);
                     ret = -1;
                     break;
                 }
-                XSTRNCPY(conn->pHostname, (char *)ptr, strlen((char *)ptr)+1);
+                XSTRNCPY(conn->pHostname, (char *)ptr, XSTRLEN((char *)ptr)+1);
             }
             else if (num == 1) {
                 if (conn->pPort != NULL)
                     XFREE(conn->pPort, 0, DYNAMIC_TYPE_OPENSSL);
 
-                conn->pPort = XMALLOC(strlen((char *)ptr)+1,
+                conn->pPort = XMALLOC(XSTRLEN((char *)ptr)+1,
                                       0, DYNAMIC_TYPE_OPENSSL);
                 if (conn->pPort == NULL) {
                     WOLFSSL_ERROR(MEMORY_E);
                     ret = -1;
                     break;
                 }
-                XSTRNCPY(conn->pPort, (char *)ptr, strlen((char *)ptr)+1);
+                XSTRNCPY(conn->pPort, (char *)ptr, XSTRLEN((char *)ptr)+1);
             }
             else if (num == 2) {
                 char buf[16];
@@ -4088,14 +4085,14 @@ static long wc_BioConn_ctrl(WOLFCRYPT_BIO *bio, int cmd, long num, void *ptr)
                 if (conn->pHostname != NULL)
                     XFREE(conn->pHostname, 0, DYNAMIC_TYPE_OPENSSL);
 
-                conn->pHostname = XMALLOC(strlen(buf)+1,
+                conn->pHostname = XMALLOC(XSTRLEN(buf)+1,
                                           0, DYNAMIC_TYPE_OPENSSL);
                 if (conn->pHostname == NULL) {
                     WOLFSSL_ERROR(MEMORY_E);
                     ret = -1;
                     break;
                 }
-                XSTRNCPY(conn->pHostname, buf, strlen(buf)+1);
+                XSTRNCPY(conn->pHostname, buf, XSTRLEN(buf)+1);
                 XMEMCPY(conn->ip, ptr, 4);
             }
             else if (num == 3) {
@@ -4105,14 +4102,14 @@ static long wc_BioConn_ctrl(WOLFCRYPT_BIO *bio, int cmd, long num, void *ptr)
                 if (conn->pPort != NULL)
                     XFREE(conn->pPort, 0, DYNAMIC_TYPE_OPENSSL);
 
-                conn->pPort = XMALLOC(strlen(buf)+1,
+                conn->pPort = XMALLOC(XSTRLEN(buf)+1,
                                       0, DYNAMIC_TYPE_OPENSSL);
                 if (conn->pPort == NULL) {
                     WOLFSSL_ERROR(MEMORY_E);
                     ret = -1;
                     break;
                 }
-                XSTRNCPY(conn->pPort, buf, strlen(buf)+1);
+                XSTRNCPY(conn->pPort, buf, XSTRLEN(buf)+1);
                 conn->port = *(int *)ptr;
             }
             break;
@@ -4223,7 +4220,7 @@ static int wc_BioConn_puts(WOLFCRYPT_BIO *bio, const char *str)
         return -1;
     }
     
-    return wc_BioConn_write(bio, str, (int)strlen(str));
+    return wc_BioConn_write(bio, str, (int)XSTRLEN(str));
 }
 
 WOLFCRYPT_BIO *wc_BioNewConnect(const char *str)
@@ -4257,7 +4254,7 @@ WOLFCRYPT_BIO *wc_BioNewConnect(const char *str)
 #define IP_MTU 14
 #endif
 
-#if defined(TEST_IPV6) && !defined(IPPROTO_IPV6)
+#if !defined(IPPROTO_IPV6)
 #define IPPROTO_IPV6 41
 #endif
 
@@ -4290,9 +4287,7 @@ typedef struct {
     union {
         struct sockaddr sa;
         struct sockaddr_in sa_in;
-#ifdef TEST_IPV6
         struct sockaddr_in6 sa_in6;
-# endif
     } peer;
     unsigned int connected;
     unsigned int _errno;
@@ -4532,9 +4527,7 @@ static int wc_BioDgram_read(WOLFCRYPT_BIO *bio, char *data, int size)
         union {
             struct sockaddr sa;
             struct sockaddr_in sa_in;
-#ifdef TEST_IPV6
             struct sockaddr_in6 sa_in6;
-#endif
         } peer;
     } sa;
 
@@ -4609,18 +4602,18 @@ static int wc_BioDgram_write(WOLFCRYPT_BIO *bio,
 #ifdef USE_WINDOWS_API
         ret = (int)send(bio->num, data, size, 0);
 #else
-    ret = (int)write(bio->num, data, size);
+        ret = (int)write(bio->num, data, size);
 #endif
     else {
         int peerlen = sizeof(dgram->peer);
 
         if (dgram->peer.sa.sa_family == AF_INET)
             peerlen = sizeof(dgram->peer.sa_in);
-#ifdef TEST_IPV6
         else if (dgram->peer.sa.sa_family == AF_INET6)
             peerlen = sizeof(dgram->peer.sa_in6);
-#endif
-        ret = (int)sendto(bio->num, data, size, 0, &dgram->peer.sa, peerlen);
+
+        ret = (int)sendto(bio->num, data, size,
+                          0, &dgram->peer.sa, peerlen);
     }
 
     wc_BioClearRetryFlags(bio);
@@ -4650,11 +4643,9 @@ static long wc_BioDgram_get_mtu_overhead(WOLFCRYPT_BIO_DATAGRAM *dgram)
         case AF_INET:
             ret = 28;
             break;
-#ifdef TEST_IPV6
         case AF_INET6:
             ret = 48;
             break;
-#endif
         default:
             ret = 28;
             break;
@@ -4724,11 +4715,11 @@ static long wc_BioDgram_ctrl(WOLFCRYPT_BIO *bio, int cmd, long num, void *ptr)
                 case AF_INET:
                     XMEMCPY(&dgram->peer, to, sizeof(dgram->peer.sa_in));
                     break;
-#ifdef TEST_IPV6
+
                 case AF_INET6:
                     XMEMCPY(&dgram->peer, to, sizeof(dgram->peer.sa_in6));
                     break;
-#endif
+
                 default:
                     XMEMCPY(&dgram->peer, to, sizeof(dgram->peer.sa));
                     break;
@@ -4749,11 +4740,11 @@ static long wc_BioDgram_ctrl(WOLFCRYPT_BIO *bio, int cmd, long num, void *ptr)
                 case AF_INET:
                     ret += 576;
                     break;
-#ifdef TEST_IPV6
+
                 case AF_INET6:
                     ret += 1280;
                     break;
-#endif
+
                 default:
                     ret += 576;
                     break;
@@ -4775,13 +4766,15 @@ static long wc_BioDgram_ctrl(WOLFCRYPT_BIO *bio, int cmd, long num, void *ptr)
                 dgram->connected = 1;
                 switch (to->sa_family) {
                     case AF_INET:
-                        XMEMCPY(&dgram->peer, to, sizeof(dgram->peer.sa_in));
+                        XMEMCPY(&dgram->peer, to,
+                                sizeof(dgram->peer.sa_in));
                         break;
-#ifdef TEST_IPV6
+
                     case AF_INET6:
-                        XMEMCPY(&dgram->peer, to, sizeof(dgram->peer.sa_in6));
+                        XMEMCPY(&dgram->peer, to,
+                                sizeof(dgram->peer.sa_in6));
                         break;
-#endif
+
                     default:
                         XMEMCPY(&dgram->peer, to, sizeof(dgram->peer.sa));
                         break;
@@ -4798,11 +4791,11 @@ static long wc_BioDgram_ctrl(WOLFCRYPT_BIO *bio, int cmd, long num, void *ptr)
                 case AF_INET:
                     ret = sizeof(dgram->peer.sa_in);
                     break;
-#ifdef TEST_IPV6
+
                 case AF_INET6:
                     ret = sizeof(dgram->peer.sa_in6);
                     break;
-#endif
+
                 default:
                     ret = sizeof(dgram->peer.sa);
                     break;
@@ -4819,11 +4812,11 @@ static long wc_BioDgram_ctrl(WOLFCRYPT_BIO *bio, int cmd, long num, void *ptr)
                 case AF_INET:
                     XMEMCPY(&dgram->peer, to, sizeof(dgram->peer.sa_in));
                     break;
-#ifdef TEST_IPV6
+
                 case AF_INET6:
                     XMEMCPY(&dgram->peer, to, sizeof(dgram->peer.sa_in6));
                     break;
-#endif
+
                 default:
                     XMEMCPY(&dgram->peer, to, sizeof(dgram->peer.sa));
                     break;
@@ -4980,7 +4973,7 @@ static int wc_BioDgram_puts(WOLFCRYPT_BIO *bio, const char *str)
         return -1;
     }
     
-    return wc_BioDgram_write(bio, str, (int)strlen(str));
+    return wc_BioDgram_write(bio, str, (int)XSTRLEN(str));
 }
 
 /* end BIO Method datagramm */
@@ -5387,7 +5380,7 @@ static int wc_BioFile_gets(WOLFCRYPT_BIO *bio, char *buf, int size)
         return -1;
     }
 
-    return (int)strlen(buf);
+    return (int)XSTRLEN(buf);
 }
 
 static int wc_BioFile_puts(WOLFCRYPT_BIO *bio, const char *str)
@@ -5397,7 +5390,7 @@ static int wc_BioFile_puts(WOLFCRYPT_BIO *bio, const char *str)
         return -1;
     }
     
-    return wc_BioFile_write(bio, str, (int)strlen(str));
+    return wc_BioFile_write(bio, str, (int)XSTRLEN(str));
 }
 
 #endif /* NO_FILESYSTEM */
@@ -5531,7 +5524,7 @@ WOLFCRYPT_BIO *wc_BioNewMemBuf(void *data, int len)
         return NULL;
     }
 
-    size = (len < 0) ? strlen((char *)data) : (size_t)len;
+    size = (len < 0) ? XSTRLEN((char *)data) : (size_t)len;
 
     bio = wc_BioNew(wc_Bio_s_mem());
     if (bio == NULL)
@@ -5781,7 +5774,7 @@ static int wc_BioMem_puts(WOLFCRYPT_BIO *bio, const char *str)
         return -1;
     }
     
-    return wc_BioMem_write(bio, str, (int)strlen(str));
+    return wc_BioMem_write(bio, str, (int)XSTRLEN(str));
 }
 
 /* end BIO Method memory */
@@ -5894,7 +5887,7 @@ static int wc_BioNull_puts(WOLFCRYPT_BIO *bio, const char *str)
     if (str == NULL)
         return 0;
     
-    return (int)strlen(str);
+    return (int)XSTRLEN(str);
 }
 
 /* end BIO Method null */
@@ -6087,7 +6080,7 @@ static int wc_BioSock_puts(WOLFCRYPT_BIO *bio, const char *str)
         return -1;
     }
 
-    return wc_BioSock_write(bio, str, (int)strlen(str));
+    return wc_BioSock_write(bio, str, (int)XSTRLEN(str));
 }
 
 int wc_BioSockNonFatalError(int err)

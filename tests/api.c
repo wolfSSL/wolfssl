@@ -673,7 +673,7 @@ static THREAD_RETURN WOLFSSL_THREAD test_server_bio(void* args)
     }
 
     input[idx] = 0;
-    printf("Client message: %s\n", input);
+    printf("BioSrv, Client message: %s\n", input);
 
     if (wc_BioWrite(bio, msg, sizeof(msg)) != sizeof(msg)) {
         printf("wc_BioWrite failed\n");
@@ -708,9 +708,13 @@ done:
 static void test_client_bio(void* args)
 {
     WOLFCRYPT_BIO*  bio = 0;
-
     char msg[64] = "Client BIO, hello wolfssl!";
-    char reply[1024], ip[] = {127, 0, 0, 1};
+    char reply[1024];
+#ifdef TEST_IPV6
+    SOCKET_T sockfd = 0;
+#else
+    char ip[] = {127, 0, 0, 1};
+#endif
     int  input, port;
     int  msgSz = (int)strlen(msg);
 
@@ -720,7 +724,11 @@ static void test_client_bio(void* args)
 
     ((func_args*)args)->return_code = TEST_FAIL;
 
+#ifdef TEST_IPV6
+    bio = wc_BioNew(wc_Bio_s_socket());
+#else
     bio = wc_BioNew(wc_Bio_s_connect());
+#endif
     if (bio == NULL) {
         printf("wc_BioNew failed\n");
         goto done2;
@@ -728,15 +736,20 @@ static void test_client_bio(void* args)
 
     port = ((func_args*)args)->signal->port;
 
+#ifdef TEST_IPV6
+    tcp_connect(&sockfd, wolfSSLIP, port, 0, NULL);
+    wc_BioSetFd(bio, sockfd, BIO_NOCLOSE);
+#else
     wc_BioSetConnIp(bio, ip);
     wc_BioSetConnIntPort(bio, &port);
 
     /* start connection */
     input = (int)wc_BioDoConnect(bio);
     if (input <= 0) {
-        printf("wc_BioDoConnect failed %d\n", input);
+        printf("wc_BioDoConnect failed : %d\n", input);
         goto done2;
     }
+#endif
 
     if (wc_BioWrite(bio, msg, msgSz) != msgSz) {
         printf("wc_BioWrite failed");
@@ -750,7 +763,7 @@ static void test_client_bio(void* args)
     }
 
     reply[input] = 0;
-    printf("Server response: %s\n", reply);
+    printf("BioCli, Server response: %s\n", reply);
 
 done2:
     if (bio != 0)
@@ -857,7 +870,7 @@ static THREAD_RETURN WOLFSSL_THREAD test_server_bio_ssl(void* args)
     }
 
     input[idx] = 0;
-    printf("Client message: %s\n", input);
+    printf("BioSrvSSL, Client message: %s\n", input);
 
     if (wc_BioWrite(ssl_bio, msg, sizeof(msg)) != sizeof(msg)) {
         printf("wc_BioWrite failed\n");
@@ -971,7 +984,7 @@ static void test_client_bio_ssl(void* args)
     }
 
     reply[input] = 0;
-    printf("Server response: %s\n", reply);
+    printf("BioCliSSL, Server response: %s\n", reply);
 
 done2:
     if (ssl_bio != 0)

@@ -71,7 +71,6 @@ typedef WOLFCRYPT_EVP_MD            EVP_MD;
 typedef WOLFCRYPT_EVP_CIPHER        EVP_CIPHER;
 typedef WOLFCRYPT_EVP_MD_CTX        EVP_MD_CTX;
 typedef WOLFCRYPT_EVP_CIPHER_CTX    EVP_CIPHER_CTX;
-typedef WOLFCRYPT_Cipher            Cipher;
 
 #define EVP_md5             wc_EVP_md5
 #define EVP_sha1            wc_EVP_sha1

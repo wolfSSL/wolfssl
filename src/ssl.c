@@ -6631,10 +6631,12 @@ int DupSession(WOLFSSL* ssl, WOLFSSL* ossl)
             sizeof(ossl->session.masterSecret));
 
 #ifdef SESSION_CERTS
-    XMEMCPY(ssl->session.chain, ossl->session.chain,
-            sizeof(WOLFSSL_X509_CHAIN));
-    XMEMCPY(ssl->session.version, ossl->session.version,
-            sizeof(ProtocolVersion));
+    ssl->session.chain.count = ossl->session.chain.count;
+    XMEMCPY(ssl->session.chain.certs, ossl->session.chain.certs,
+            sizeof(x509_buffer));
+
+    ssl->session.version.major = ossl->session.version.major;
+    ssl->session.version.minor = ossl->session.version.minor;
 
     ssl->session.cipherSuite0 = ossl->session.cipherSuite0;
     ssl->session.cipherSuite = ossl->session.cipherSuite;
@@ -6651,13 +6653,16 @@ int DupSession(WOLFSSL* ssl, WOLFSSL* ossl)
             sizeof(ossl->session.ticket));
 #endif
 #ifdef HAVE_STUNNEL
-    void *data;
+    {
+        void *data;
+        int idx;
 
-    for (idx = 0; ; idx++) {
-        data = wolfSSL_SESSION_get_ex_data(ossl->session, idx);
-        if (data == NULL)
-            break;
-        wolfSSL_SESSION_set_ex_data(ssl->session, idx, data);
+        for (idx = 0; ; idx++) {
+            data = wolfSSL_SESSION_get_ex_data(&ossl->session, idx);
+            if (data == NULL)
+                break;
+            wolfSSL_SESSION_set_ex_data(&ssl->session, idx, data);
+        }
     }
 #endif
 

@@ -383,8 +383,6 @@ typedef WOLFSSL_X509_NAME_ENTRY X509_NAME_ENTRY;
 #define X509_NAME_free wolfSSL_X509_NAME_free
 #define SSL_CTX_use_certificate wolfSSL_CTX_use_certificate
 #define SSL_CTX_use_PrivateKey wolfSSL_CTX_use_PrivateKey
-#define BIO_read_filename wolfSSL_BIO_read_filename
-#define BIO_s_file wolfSSL_BIO_s_file
 #define OBJ_nid2sn wolf_OBJ_nid2sn
 #define OBJ_obj2nid wolf_OBJ_obj2nid
 #define OBJ_sn2nid wolf_OBJ_sn2nid
@@ -409,7 +407,6 @@ typedef WOLFSSL_X509_NAME_ENTRY X509_NAME_ENTRY;
 #define PEM_read_bio_DHparams wolfSSL_PEM_read_bio_DHparams
 #define PEM_write_bio_X509 PEM_write_bio_WOLFSSL_X509
 #define SSL_CTX_set_tmp_dh wolfSSL_CTX_set_tmp_dh
-#define BIO_new_file wolfSSL_BIO_new_file
 
 
 #endif /* HAVE_STUNNEL || HAVE_LIGHTY */

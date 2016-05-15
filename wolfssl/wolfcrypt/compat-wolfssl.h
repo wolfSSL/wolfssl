@@ -78,7 +78,7 @@ WOLFSSL_API const WOLFCRYPT_EVP_CIPHER* wc_EVP_idea_cbc(void);
 WOLFSSL_API const WOLFCRYPT_EVP_CIPHER* wc_EVP_rc4(void);
 WOLFSSL_API const WOLFCRYPT_EVP_CIPHER* wc_EVP_enc_null(void);
 
-enum Digest {
+enum WC_Digest {
     MD5_DIGEST_LENGTH = 16,
     SHA_DIGEST_LENGTH = 20,
     SHA256_DIGEST_LENGTH = 32,
@@ -90,7 +90,7 @@ enum Digest {
 #define EVP_MAX_MD_SIZE   64     /* sha512 */
 #endif
 
-enum Cipher {
+enum WC_Cipher {
     RC4_KEY_SIZE        = 16,  /* always 128bit           */
     DES_KEY_SIZE        =  8,  /* des                     */
     DES3_KEY_SIZE       = 24,  /* 3 des ede               */

@@ -1,7 +1,6 @@
 #ifndef WOLF_CRYPT_BIO_H
 #define WOLF_CRYPT_BIO_H
 
-#include <stdio.h>
 #include <wolfssl/wolfcrypt/types.h>
 #include <wolfssl/wolfcrypt/wc_port.h>
 #include <wolfssl/wolfcrypt/compat-wolfssl.h>
@@ -375,7 +374,9 @@ WOLFSSL_API unsigned long wc_BioNumberWritten(WOLFCRYPT_BIO *bio);
 
 WOLFSSL_API void wc_BioCopyNextRetry(WOLFCRYPT_BIO *b);
 
+#ifndef NO_STDIO_FILESYSTEM
 WOLFSSL_API int wc_BioPrintf(WOLFCRYPT_BIO *bio, const char *format, ...);
+#endif
 
 /* BIO file */
 WOLFSSL_API WOLFCRYPT_BIO_METHOD *wc_Bio_s_file(void);
