@@ -30,6 +30,7 @@ EXTRA_DIST+= wrapper/CSharp/wolfSSL_CSharp/wolfSSL.cs
 EXTRA_DIST+= wrapper/CSharp/wolfSSL_CSharp/wolfSSL_CSharp.csproj
 
 # wolfcrypt python wrapper files
+EXTRA_DIST+= wrapper/python/.gitignore
 EXTRA_DIST+= wrapper/python/docs
 EXTRA_DIST+= wrapper/python/docs/_static
 EXTRA_DIST+= wrapper/python/docs/_templates
