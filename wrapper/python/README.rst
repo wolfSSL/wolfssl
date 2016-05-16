@@ -45,6 +45,10 @@ To install wolfssl do:
 
     $ sudo ldconfig
 
+    # or
+
+    $ export LD_LIBRARY_PATH=/usr/local/lib
+
 
 wolfcrypt pip installation
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -72,7 +76,7 @@ To install ``wolfcrypt`` from sources:
 .. code-block:: console
 
     $ git clone git@github.com:wolfssl/wolfssl.git
-    $ cd wolfssl/wrappers/python
+    $ cd wolfssl/wrapper/python
 
 2. Build and install ``wolfcrypt``
 
@@ -99,6 +103,12 @@ Test ``wolfcrypt`` locally with ``tox``:
 .. code-block:: console
 
     $ pip install -r requirements-testing.txt
+
+or if you need admin privileges to use the install command:
+
+.. code-block:: console
+
+    $ sudo -H pip install -r requirements-testing.txt
 
 
 2. Call ``tox``:
