@@ -31,7 +31,6 @@ EXTRA_DIST+= wrapper/CSharp/wolfSSL_CSharp/wolfSSL_CSharp.csproj
 
 # wolfcrypt python wrapper files
 EXTRA_DIST+= wrapper/python/.gitignore
-EXTRA_DIST+= wrapper/python/docs
 EXTRA_DIST+= wrapper/python/docs/_static
 EXTRA_DIST+= wrapper/python/docs/_templates
 EXTRA_DIST+= wrapper/python/docs/asymmetric.rst
@@ -47,12 +46,10 @@ EXTRA_DIST+= wrapper/python/MANIFEST.in
 EXTRA_DIST+= wrapper/python/README.rst
 EXTRA_DIST+= wrapper/python/requirements-testing.txt
 EXTRA_DIST+= wrapper/python/setup.py
-EXTRA_DIST+= wrapper/python/test
 EXTRA_DIST+= wrapper/python/test/test_ciphers.py
 EXTRA_DIST+= wrapper/python/test/test_hashes.py
 EXTRA_DIST+= wrapper/python/test/test_random.py
 EXTRA_DIST+= wrapper/python/tox.ini
-EXTRA_DIST+= wrapper/python/wolfcrypt
 EXTRA_DIST+= wrapper/python/wolfcrypt/__about__.py
 EXTRA_DIST+= wrapper/python/wolfcrypt/__init__.py
 EXTRA_DIST+= wrapper/python/wolfcrypt/build_ffi.py
