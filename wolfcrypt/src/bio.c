@@ -66,6 +66,35 @@
 #include <wolfssl/wolfcrypt/coding.h>
 #include <wolfssl/wolfcrypt/bio.h>
 
+static int wc_BioIntToStr(int i, char *str, int strSz){
+    char const digit[] = "0123456789";
+    int shift, count = 0;
+
+    if (i < 0)
+        return -1;
+
+    shift = i;
+
+    do {
+        ++str;
+        shift = shift/10;
+        count++;
+    } while(shift);
+
+    /* check size */
+    if (strSz <= count)
+        return -1;
+
+    *str = '\0';
+
+    do {
+        *--str = digit[i%10];
+        i = i/10;
+    } while(i);
+
+    return count;
+}
+
 WOLFCRYPT_BIO *wc_BioNew(WOLFCRYPT_BIO_METHOD *method)
 {
     WOLFCRYPT_BIO *bio;
@@ -3008,7 +3037,7 @@ err:
 
 int wc_BioAccept(int sock, char **addr)
 {
-    int dsock = WOLFSSL_SOCKET_INVALID;
+    int dsock = WOLFSSL_SOCKET_INVALID, idx, ret;
     unsigned long l;
 
     struct {
@@ -3031,6 +3060,7 @@ int wc_BioAccept(int sock, char **addr)
     if (sizeof(sa.len.i) != sizeof(sa.len.s) && !sa.len.i) {
         if (sa.len.s > sizeof(sa.from)) {
             WOLFSSL_ERROR(MEMORY_E);
+            dsock = WOLFSSL_SOCKET_INVALID;
             goto end;
         }
 
@@ -3057,11 +3087,45 @@ int wc_BioAccept(int sock, char **addr)
 
     l = ntohl(sa.from.sa_in.sin_addr.s_addr);
 
-    XSNPRINTF(*addr, 24, "%d.%d.%d.%d:%d",
-              (unsigned char)(l >> 24L) & 0xff,
-              (unsigned char)(l >> 16L) & 0xff,
-              (unsigned char)(l >> 8L) & 0xff,
-              (unsigned char)(l) & 0xff, ntohs(sa.from.sa_in.sin_port));
+    ret = wc_BioIntToStr((unsigned char)(l >> 24L) & 0xff, *addr, 24);
+    if (ret <= 0) {
+        WOLFSSL_ERROR(BAD_FUNC_ARG);
+        dsock = WOLFSSL_SOCKET_INVALID;
+        goto end;
+    }
+    idx = ret;
+    *(*addr+(idx++)) = '.';
+    ret = wc_BioIntToStr((unsigned char)(l >> 16L) & 0xff, *addr+idx, 24-idx);
+    if (ret <= 0) {
+        WOLFSSL_ERROR(BAD_FUNC_ARG);
+        dsock = WOLFSSL_SOCKET_INVALID;
+        goto end;
+    }
+    idx += ret;
+    *(*addr+(idx++)) = '.';
+    ret = wc_BioIntToStr((unsigned char)(l >> 8L) & 0xff, *addr+idx, 24-idx);
+    if (ret <= 0) {
+        WOLFSSL_ERROR(BAD_FUNC_ARG);
+        dsock = WOLFSSL_SOCKET_INVALID;
+        goto end;
+    }
+    idx += ret;
+    *(*addr+(idx++)) = '.';
+    ret = wc_BioIntToStr((unsigned char)(l) & 0xff, *addr+idx, 24-idx);
+    if (ret <= 0) {
+        WOLFSSL_ERROR(BAD_FUNC_ARG);
+        dsock = WOLFSSL_SOCKET_INVALID;
+        goto end;
+    }
+    idx += ret;
+    *(*addr+(idx++)) = ':';
+    ret = wc_BioIntToStr(ntohs(sa.from.sa_in.sin_port), *addr+idx, 24-idx);
+    if (ret <= 0) {
+        WOLFSSL_ERROR(BAD_FUNC_ARG);
+        dsock = WOLFSSL_SOCKET_INVALID;
+        goto end;
+    }
+
 end:
     return dsock;
 }
@@ -3304,7 +3368,7 @@ again:
             }
 
             /* TCP NO DELAY */
-            if (baccept->options & 1) {
+            if (baccept->options & BIO_OPT_TCP_NO_DELAY) {
                 if (!wc_BioSetTcpNdelay(s, 1)) {
 #ifdef USE_WINDOWS_API
                     closesocket(s);
@@ -3317,7 +3381,7 @@ again:
             }
 
             /* IGNORE SIGPIPE */
-            if (baccept->options & 2) {
+            if (baccept->options & BIO_OPT_IGN_SIGPIPE) {
                 if (!wc_BioSetTcpNsigpipe(s, 1)) {
 #ifdef USE_WINDOWS_API
                     closesocket(s);
@@ -4078,9 +4142,38 @@ static long wc_BioConn_ctrl(WOLFCRYPT_BIO *bio, int cmd, long num, void *ptr)
             else if (num == 2) {
                 char buf[16];
                 unsigned char *p = ptr;
+                int idx, res;
 
-                XSNPRINTF(buf, sizeof(buf), "%d.%d.%d.%d",
-                          p[0], p[1], p[2], p[3]);
+                res = wc_BioIntToStr(p[0], buf, sizeof(buf));
+                if (res <= 0) {
+                    WOLFSSL_ERROR(BAD_FUNC_ARG);
+                    ret = -1;
+                    break;
+                }
+                idx = res;
+                buf[idx++] = '.';
+                res = wc_BioIntToStr(p[1], buf+idx, sizeof(buf)-idx);
+                if (res <= 0) {
+                    WOLFSSL_ERROR(BAD_FUNC_ARG);
+                    ret = -1;
+                    break;
+                }
+                idx += res;
+                buf[idx++] = '.';
+                res = wc_BioIntToStr(p[2], buf+idx, sizeof(buf)-idx);
+                if (res <= 0) {
+                    WOLFSSL_ERROR(BAD_FUNC_ARG);
+                    ret = -1;
+                    break;
+                }
+                idx += res;
+                buf[idx++] = '.';
+                res = wc_BioIntToStr(p[3], buf+idx, sizeof(buf)-idx);
+                if (res <= 0) {
+                    WOLFSSL_ERROR(BAD_FUNC_ARG);
+                    ret = -1;
+                    break;
+                }
 
                 if (conn->pHostname != NULL)
                     XFREE(conn->pHostname, 0, DYNAMIC_TYPE_OPENSSL);
@@ -4097,8 +4190,15 @@ static long wc_BioConn_ctrl(WOLFCRYPT_BIO *bio, int cmd, long num, void *ptr)
             }
             else if (num == 3) {
                 char buf[6];
+                int res;
 
-                XSNPRINTF(buf, sizeof(buf), "%d", *(int *)ptr);
+                res = wc_BioIntToStr(*(int *)ptr, buf, sizeof(buf));
+                if (res <= 0) {
+                    WOLFSSL_ERROR(BAD_FUNC_ARG);
+                    ret = -1;
+                    break;
+                }
+
                 if (conn->pPort != NULL)
                     XFREE(conn->pPort, 0, DYNAMIC_TYPE_OPENSSL);
 

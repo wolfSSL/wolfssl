@@ -277,6 +277,12 @@ enum WS_BIO_BIND {
     BIO_BIND_REUSEADDR =            2,
 };
 
+enum WC_BIO_OPT {
+    BIO_OPT_NONE            = 0,
+    BIO_OPT_TCP_NO_DELAY    = 1,
+    BIO_OPT_IGN_SIGPIPE     = 2,
+};
+
 WOLFSSL_API WOLFCRYPT_BIO *wc_BioNew(WOLFCRYPT_BIO_METHOD *method);
 WOLFSSL_API int wc_BioFree(WOLFCRYPT_BIO *bio);
 WOLFSSL_API void wc_BioFreeAll(WOLFCRYPT_BIO *bio);
