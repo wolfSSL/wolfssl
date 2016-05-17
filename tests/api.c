@@ -839,15 +839,15 @@ static THREAD_RETURN WOLFSSL_THREAD run_wolfssl_server(void* args)
         }
 
         AssertIntEQ(len, wolfSSL_write(ssl, msg, len));
-#ifdef WOLFSSL_SESSION_EXPORT
+#if defined(WOLFSSL_SESSION_EXPORT) && !defined(HAVE_IO_POOL)
         if (wolfSSL_dtls(ssl)) {
             byte*  import;
             word32 sz;
 
-            wolfSSL_dtls_export(NULL, &sz, ssl);
+            wolfSSL_dtls_export(ssl, NULL, &sz);
             import = (byte*)XMALLOC(sz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
             AssertNotNull(import);
-            idx = wolfSSL_dtls_export(import, &sz, ssl);
+            idx = wolfSSL_dtls_export(ssl, import, &sz);
             AssertIntGE(idx, 0);
             AssertIntGE(wolfSSL_dtls_import(ssl, import, idx), 0);
             XFREE(import, NULL, DYNAMIC_TYPE_TMP_BUFFER);

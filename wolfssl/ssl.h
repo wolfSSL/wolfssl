@@ -234,8 +234,8 @@ WOLFSSL_API int wolfSSL_dtls_import(WOLFSSL* ssl, unsigned char* buf,
 WOLFSSL_API int wolfSSL_CTX_dtls_set_export(WOLFSSL_CTX* ctx,
                                                            wc_dtls_export func);
 WOLFSSL_API int wolfSSL_dtls_set_export(WOLFSSL* ssl, wc_dtls_export func);
-WOLFSSL_API int wolfSSL_dtls_export(unsigned char* buf, unsigned int* sz,
-                                                                  WOLFSSL* ssl);
+WOLFSSL_API int wolfSSL_dtls_export(WOLFSSL* ssl, unsigned char* buf,
+                                                              unsigned int* sz);
 #endif /* WOLFSSL_DTLS */
 #endif /* WOLFSSL_SESSION_EXPORT */
 

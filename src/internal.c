@@ -357,6 +357,7 @@ static INLINE void c32toa(word32 u32, byte* c)
     c[3] =  u32 & 0xff;
 }
 
+#if defined(WOLFSSL_SESSION_EXPORT)
 /* convert 64 bit integer to opaque */
 static INLINE void c64toa(word64 u64, byte* c)
 {
@@ -369,6 +370,7 @@ static INLINE void c64toa(word64 u64, byte* c)
     c[6] = (u64 >>  8) & 0xff;
     c[7] =  u64 & 0xff;
 }
+#endif /* WOLFSSL_SESSION_EXPORT */
 #endif
 
 
@@ -395,6 +397,7 @@ static INLINE void ato32(const byte* c, word32* u32)
     *u32 = (c[0] << 24) | (c[1] << 16) | (c[2] << 8) | c[3];
 }
 
+#if defined(WOLFSSL_SESSION_EXPORT)
 /* convert opaque to word64 type */
 static INLINE void ato64(const byte* c, word64* u64)
 {
@@ -408,7 +411,7 @@ static INLINE void ato64(const byte* c, word64* u64)
            (((word64)c[6] <<  8) & 0x000000000000ff00) |
             ((word64)c[7]        & 0x00000000000000ff);
 }
-
+#endif /* WOLFSSL_SESSION_EXPORT */
 #endif /* WOLFSSL_DTLS */
 
 
@@ -501,7 +504,7 @@ static INLINE void ato64(const byte* c, word64* u64)
 #ifdef WOLFSSL_SESSION_EXPORT
 #ifdef WOLFSSL_DTLS
 /* serializes the cipher specs struct for exporting */
-static int ExportCipherSpecState(byte* exp, word32 len, byte ver, WOLFSSL* ssl)
+static int ExportCipherSpecState(WOLFSSL* ssl, byte* exp, word32 len, byte ver)
 {
     word32 idx = 0;
     CipherSpecs* specs;
@@ -545,7 +548,7 @@ static int ExportCipherSpecState(byte* exp, word32 len, byte ver, WOLFSSL* ssl)
 
 
 /* serializes the key struct for exporting */
-static int ExportKeyState(byte* exp, word32 len, byte ver, WOLFSSL* ssl)
+static int ExportKeyState(WOLFSSL* ssl, byte* exp, word32 len, byte ver)
 {
     word32 idx = 0;
     byte   sz;
@@ -636,7 +639,7 @@ static int ExportKeyState(byte* exp, word32 len, byte ver, WOLFSSL* ssl)
     return idx;
 }
 
-static int ImportCipherSpecState(byte* exp, word32 len, byte ver, WOLFSSL* ssl)
+static int ImportCipherSpecState(WOLFSSL* ssl, byte* exp, word32 len, byte ver)
 {
     word32 idx = 0;
     CipherSpecs* specs;
@@ -672,7 +675,7 @@ static int ImportCipherSpecState(byte* exp, word32 len, byte ver, WOLFSSL* ssl)
 }
 
 
-static int ImportKeyState(byte* exp, word32 len, byte ver, WOLFSSL* ssl)
+static int ImportKeyState(WOLFSSL* ssl, byte* exp, word32 len, byte ver)
 {
     word32 idx = 0;
     byte  sz;
@@ -765,8 +768,8 @@ static int ImportKeyState(byte* exp, word32 len, byte ver, WOLFSSL* ssl)
 
 
 /* copy over necessary information from Options struct to buffer
- * On success returns 0 on failure returns a negative value */
-static int dtls_export_new(byte* exp, word32 len, byte ver, WOLFSSL* ssl)
+ * On success returns size of buffer used on failure returns a negative value */
+static int dtls_export_new(WOLFSSL* ssl, byte* exp, word32 len, byte ver)
 {
     int idx = 0;
     word16 zero = 0;
@@ -886,8 +889,8 @@ static int dtls_export_new(byte* exp, word32 len, byte ver, WOLFSSL* ssl)
 
 
 /* copy items from Export struct to Options struct
- * On success returns 0 on failure returns a negative value */
-static int dtls_export_load(byte* exp, word32 len, byte ver, WOLFSSL* ssl)
+ * On success returns size of buffer used on failure returns a negative value */
+static int dtls_export_load(WOLFSSL* ssl, byte* exp, word32 len, byte ver)
 {
     int idx = 0;
     Options* options = &ssl->options;
@@ -1001,7 +1004,7 @@ static int dtls_export_load(byte* exp, word32 len, byte ver, WOLFSSL* ssl)
  * buf is used to hold the serialized WOLFSSL struct and sz is the size of buf
  * passed in.
  * On success returns the size of serialized session.*/
-int wolfSSL_dtls_export_internal(byte* buf, word32 sz, WOLFSSL* ssl)
+int wolfSSL_dtls_export_internal(WOLFSSL* ssl, byte* buf, word32 sz)
 {
     int ret;
     word32 idx      = 0;
@@ -1033,8 +1036,8 @@ int wolfSSL_dtls_export_internal(byte* buf, word32 sz, WOLFSSL* ssl)
     idx += DTLS_EXPORT_LEN; /* leave spot for length */
 
     c16toa((word16)DTLS_EXPORT_OPT_SZ, buf + idx); idx += DTLS_EXPORT_LEN;
-    if ((ret = dtls_export_new(buf + idx, sz - idx, DTLS_EXPORT_VERSION,
-                                                                   ssl)) < 0) {
+    if ((ret = dtls_export_new(ssl, buf + idx, sz - idx,
+                                                    DTLS_EXPORT_VERSION)) < 0) {
         WOLFSSL_LEAVE("wolfSSL_dtls_export_internal", ret);
         return ret;
     }
@@ -1042,8 +1045,8 @@ int wolfSSL_dtls_export_internal(byte* buf, word32 sz, WOLFSSL* ssl)
 
     /* export keys struct and dtls state -- variable length stored in ret */
     idx += DTLS_EXPORT_LEN; /* leave room for length */
-    if ((ret = ExportKeyState(buf + idx, sz - idx,
-                                              DTLS_EXPORT_VERSION, ssl)) < 0) {
+    if ((ret = ExportKeyState(ssl, buf + idx, sz - idx,
+                                                    DTLS_EXPORT_VERSION)) < 0) {
         WOLFSSL_LEAVE("wolfSSL_dtls_export_internal", ret);
         return ret;
     }
@@ -1051,8 +1054,8 @@ int wolfSSL_dtls_export_internal(byte* buf, word32 sz, WOLFSSL* ssl)
 
     /* export of cipher specs struct */
     c16toa((word16)DTLS_EXPORT_SPC_SZ, buf + idx); idx += DTLS_EXPORT_LEN;
-    if ((ret = ExportCipherSpecState(buf + idx, sz - idx,
-                                              DTLS_EXPORT_VERSION, ssl)) < 0) {
+    if ((ret = ExportCipherSpecState(ssl, buf + idx, sz - idx,
+                                                    DTLS_EXPORT_VERSION)) < 0) {
         WOLFSSL_LEAVE("wolfSSL_dtls_export_internal", ret);
         return ret;
     }
@@ -1085,7 +1088,7 @@ int wolfSSL_dtls_export_internal(byte* buf, word32 sz, WOLFSSL* ssl)
 
 
 /* On success return amount of buffer consumed */
-int wolfSSL_dtls_import_internal(byte* buf, word32 sz, WOLFSSL* ssl)
+int wolfSSL_dtls_import_internal(WOLFSSL* ssl, byte* buf, word32 sz)
 {
     word32 idx    = 0;
     word16 length = 0;
@@ -1133,7 +1136,7 @@ int wolfSSL_dtls_import_internal(byte* buf, word32 sz, WOLFSSL* ssl)
         WOLFSSL_MSG("Import Options struct error");
         return BUFFER_E;
     }
-    if ((ret = dtls_export_load(buf + idx, length, version, ssl)) < 0) {
+    if ((ret = dtls_export_load(ssl, buf + idx, length, version)) < 0) {
         WOLFSSL_MSG("Import Options struct error");
         return ret;
     }
@@ -1149,7 +1152,7 @@ int wolfSSL_dtls_import_internal(byte* buf, word32 sz, WOLFSSL* ssl)
         WOLFSSL_MSG("Import Key struct error");
         return BUFFER_E;
     }
-    if ((ret = ImportKeyState(buf + idx, length, version, ssl)) < 0) {
+    if ((ret = ImportKeyState(ssl, buf + idx, length, version)) < 0) {
         WOLFSSL_MSG("Import Key struct error");
         return ret;
     }
@@ -1165,7 +1168,7 @@ int wolfSSL_dtls_import_internal(byte* buf, word32 sz, WOLFSSL* ssl)
         WOLFSSL_MSG("Import CipherSpecs struct error");
         return BUFFER_E;
     }
-    if ((ret = ImportCipherSpecState(buf + idx, length, version, ssl)) < 0) {
+    if ((ret = ImportCipherSpecState(ssl, buf + idx, length, version)) < 0) {
         WOLFSSL_MSG("Import CipherSpecs struct error");
         return ret;
     }

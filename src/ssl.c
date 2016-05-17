@@ -164,10 +164,12 @@ int wolfSSL_dtls_import(WOLFSSL* ssl, unsigned char* buf, unsigned int sz)
     }
 
     /* sanity checks on buffer and protocol are done in internal function */
-    return wolfSSL_dtls_import_internal(buf, sz, ssl);
+    return wolfSSL_dtls_import_internal(ssl, buf, sz);
 }
 
 
+/* Sets the function to call for serializing the session. This function is
+ * called right after the handshake is completed. */
 int wolfSSL_CTX_dtls_set_export(WOLFSSL_CTX* ctx, wc_dtls_export func)
 {
 
@@ -184,6 +186,8 @@ int wolfSSL_CTX_dtls_set_export(WOLFSSL_CTX* ctx, wc_dtls_export func)
 }
 
 
+/* Sets the function in WOLFSSL struct to call for serializing the session. This
+ * function is called right after the handshake is completed. */
 int wolfSSL_dtls_set_export(WOLFSSL* ssl, wc_dtls_export func)
 {
 
@@ -200,10 +204,18 @@ int wolfSSL_dtls_set_export(WOLFSSL* ssl, wc_dtls_export func)
 }
 
 
-int wolfSSL_dtls_export(unsigned char* buf, unsigned int* sz, WOLFSSL* ssl)
+/* This function allows for directly serializing a session rather than using
+ * callbacks. It has less overhead by removing a temporary buffer and gives
+ * control over when the session gets serialized. When using callbacks the
+ * session is always serialized immediatly after the handshake is finished.
+ *
+ * buf is the argument to contain the serialized session
+ * sz  is the size of the buffer passed in
+ * ssl is the WOLFSSL struct to serialize
+ * returns the size of serialized session on success, 0 on no action, and
+ *         negative value on error */
+int wolfSSL_dtls_export(WOLFSSL* ssl, unsigned char* buf, unsigned int* sz)
 {
-    int ret;
-
     WOLFSSL_ENTER("wolfSSL_dtls_export");
 
     if (ssl == NULL || sz == NULL) {
@@ -222,12 +234,7 @@ int wolfSSL_dtls_export(unsigned char* buf, unsigned int* sz, WOLFSSL* ssl)
     }
 
     /* copy over keys, options, and dtls state struct */
-    ret = wolfSSL_dtls_export_internal(buf, *sz, ssl);
-    if (ret < 0) {
-        return ret;
-    }
-
-    return ret;
+    return wolfSSL_dtls_export_internal(ssl, buf, *sz);
 }
 
 
@@ -257,7 +264,7 @@ int wolfSSL_send_session(WOLFSSL* ssl)
     }
 
     /* copy over keys, options, and dtls state struct */
-    ret = wolfSSL_dtls_export_internal(buf, bufSz, ssl);
+    ret = wolfSSL_dtls_export_internal(ssl, buf, bufSz);
     if (ret < 0) {
         XFREE(buf, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
         return ret;
