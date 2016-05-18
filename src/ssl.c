@@ -153,6 +153,136 @@ char* mystrnstr(const char* s1, const char* s2, unsigned int n)
 }
 #endif
 
+#ifdef WOLFSSL_SESSION_EXPORT
+#ifdef WOLFSSL_DTLS
+int wolfSSL_dtls_import(WOLFSSL* ssl, unsigned char* buf, unsigned int sz)
+{
+    WOLFSSL_ENTER("wolfSSL_session_import");
+
+    if (ssl == NULL || buf == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    /* sanity checks on buffer and protocol are done in internal function */
+    return wolfSSL_dtls_import_internal(ssl, buf, sz);
+}
+
+
+/* Sets the function to call for serializing the session. This function is
+ * called right after the handshake is completed. */
+int wolfSSL_CTX_dtls_set_export(WOLFSSL_CTX* ctx, wc_dtls_export func)
+{
+
+    WOLFSSL_ENTER("wolfSSL_CTX_dtls_set_export");
+
+    /* purposefully allow func to be NULL */
+    if (ctx == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    ctx->dtls_export = func;
+
+    return SSL_SUCCESS;
+}
+
+
+/* Sets the function in WOLFSSL struct to call for serializing the session. This
+ * function is called right after the handshake is completed. */
+int wolfSSL_dtls_set_export(WOLFSSL* ssl, wc_dtls_export func)
+{
+
+    WOLFSSL_ENTER("wolfSSL_dtls_set_export");
+
+    /* purposefully allow func to be NULL */
+    if (ssl == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    ssl->dtls_export = func;
+
+    return SSL_SUCCESS;
+}
+
+
+/* This function allows for directly serializing a session rather than using
+ * callbacks. It has less overhead by removing a temporary buffer and gives
+ * control over when the session gets serialized. When using callbacks the
+ * session is always serialized immediatly after the handshake is finished.
+ *
+ * buf is the argument to contain the serialized session
+ * sz  is the size of the buffer passed in
+ * ssl is the WOLFSSL struct to serialize
+ * returns the size of serialized session on success, 0 on no action, and
+ *         negative value on error */
+int wolfSSL_dtls_export(WOLFSSL* ssl, unsigned char* buf, unsigned int* sz)
+{
+    WOLFSSL_ENTER("wolfSSL_dtls_export");
+
+    if (ssl == NULL || sz == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    if (buf == NULL) {
+        *sz = MAX_EXPORT_BUFFER;
+        return 0;
+    }
+
+    /* if not DTLS do nothing */
+    if (!ssl->options.dtls) {
+        WOLFSSL_MSG("Currently only DTLS export is supported");
+        return 0;
+    }
+
+    /* copy over keys, options, and dtls state struct */
+    return wolfSSL_dtls_export_internal(ssl, buf, *sz);
+}
+
+
+/* returns 0 on success */
+int wolfSSL_send_session(WOLFSSL* ssl)
+{
+    int ret;
+    byte* buf;
+    word16 bufSz = MAX_EXPORT_BUFFER;
+
+    WOLFSSL_ENTER("wolfSSL_send_session");
+
+    if (ssl == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    buf = (byte*)XMALLOC(bufSz, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    if (buf == NULL) {
+        return MEMORY_E;
+    }
+
+    /* if not DTLS do nothing */
+    if (!ssl->options.dtls) {
+        XFREE(buf, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        WOLFSSL_MSG("Currently only DTLS export is supported");
+        return 0;
+    }
+
+    /* copy over keys, options, and dtls state struct */
+    ret = wolfSSL_dtls_export_internal(ssl, buf, bufSz);
+    if (ret < 0) {
+        XFREE(buf, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        return ret;
+    }
+
+    /* if no error ret has size of buffer */
+    ret = ssl->dtls_export(ssl, buf, ret, NULL);
+    if (ret != SSL_SUCCESS) {
+        XFREE(buf, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        return ret;
+    }
+
+    XFREE(buf, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    return 0;
+}
+#endif /* WOLFSSL_DTLS */
+#endif /* WOLFSSL_SESSION_EXPORT */
+
 
 /* prevent multiple mutex initializations */
 static volatile int initRefCount = 0;
@@ -6831,6 +6961,16 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
                 ssl->options.dtlsHsRetain = 1;
             }
 #endif /* WOLFSSL_DTLS */
+
+#ifdef WOLFSSL_SESSION_EXPORT
+            if (ssl->dtls_export) {
+                if ((ssl->error = wolfSSL_send_session(ssl)) != 0) {
+                    WOLFSSL_MSG("Export DTLS session error");
+                    WOLFSSL_ERROR(ssl->error);
+                    return SSL_FATAL_ERROR;
+                }
+            }
+#endif
 
             WOLFSSL_LEAVE("SSL_accept()", SSL_SUCCESS);
             return SSL_SUCCESS;

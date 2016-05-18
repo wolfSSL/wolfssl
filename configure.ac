@@ -2596,6 +2596,23 @@ fi
 AM_CONDITIONAL([BUILD_ASYNCCRYPT], [test "x$ENABLED_ASYNCCRYPT" = "xyes"])
 
 
+# Session Export
+AC_ARG_ENABLE([sessionexport],
+    [AS_HELP_STRING([--enable-sessionexport],[Enable export and import of sessions (default: disabled)])],
+    [ ENABLED_SESSIONEXPORT=$enableval ],
+    [ ENABLED_SESSIONEXPORT=no ]
+    )
+
+if test "$ENABLED_SESSIONEXPORT" = "yes"
+then
+    if test "$ENABLED_DTLS" = "no"
+    then
+        AC_MSG_ERROR([Only DTLS supported with session export])
+    fi
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SESSION_EXPORT"
+fi
+
+
 # check if PSK was enabled for conditionally running psk.test script
 AM_CONDITIONAL([BUILD_PSK], [test "x$ENABLED_PSK" = "xyes"])
 

@@ -926,6 +926,7 @@ enum Misc {
     OPAQUE16_LEN =  2,         /* 2 bytes                 */
     OPAQUE24_LEN =  3,         /* 3 bytes                 */
     OPAQUE32_LEN =  4,         /* 4 bytes                 */
+    OPAQUE64_LEN =  8,         /* 8 bytes                 */
     COMP_LEN     =  1,         /* compression length      */
     CURVE_LEN    =  2,         /* ecc named curve length  */
     SERVER_ID_LEN = 20,        /* server session id length  */
@@ -949,7 +950,14 @@ enum Misc {
     DTLS_HANDSHAKE_SEQ_SZ    = 2,  /* handshake header sequence number */
     DTLS_HANDSHAKE_FRAG_SZ   = 3,  /* fragment offset and length are 24 bit */
     DTLS_POOL_SZ             = 5,  /* buffers to hold in the retry pool */
-
+    DTLS_EXPORT_PRO          = 165,/* wolfSSL protocol for serialized session */
+    DTLS_EXPORT_VERSION      = 1,  /* wolfSSL version for serialized session */
+    DTLS_EXPORT_OPT_SZ       = 57, /* amount of bytes used from Options */
+    DTLS_EXPORT_KEY_SZ       = 331,/* max amount of bytes used from Keys */
+    DTLS_EXPORT_MIN_KEY_SZ   = 75, /* min amount of bytes used from Keys */
+    DTLS_EXPORT_SPC_SZ       = 16, /* amount of bytes used from CipherSpecs */
+    DTLS_EXPORT_LEN          = 2,  /* 2 bytes for length and protocol */
+    MAX_EXPORT_BUFFER        = 500, /* max size of buffer for exporting */
     FINISHED_LABEL_SZ   = 15,  /* TLS finished label size */
     TLS_FINISHED_SZ     = 12,  /* TLS has a shorter size  */
     MASTER_LABEL_SZ     = 13,  /* TLS master secret label sz */
@@ -1203,6 +1211,14 @@ WOLFSSL_LOCAL ProtocolVersion MakeTLSv1_2(void);
 #ifdef WOLFSSL_DTLS
     WOLFSSL_LOCAL ProtocolVersion MakeDTLSv1(void);
     WOLFSSL_LOCAL ProtocolVersion MakeDTLSv1_2(void);
+
+    #ifdef WOLFSSL_SESSION_EXPORT
+    WOLFSSL_LOCAL int wolfSSL_dtls_import_internal(WOLFSSL* ssl, byte* buf,
+                                                                     word32 sz);
+    WOLFSSL_LOCAL int wolfSSL_dtls_export_internal(WOLFSSL* ssl, byte* buf,
+                                                                     word32 sz);
+    WOLFSSL_LOCAL int wolfSSL_send_session(WOLFSSL* ssl);
+    #endif
 #endif
 
 
@@ -1369,7 +1385,10 @@ int  SetCipherList(Suites*, const char* list);
     typedef unsigned int (*wc_psk_server_callback)(WOLFSSL*, const char*,
                           unsigned char*, unsigned int);
 #endif /* PSK_TYPES_DEFINED */
-
+#ifdef WOLFSSL_DTLS
+    typedef int (*wc_dtls_export)(WOLFSSL* ssl,
+                   unsigned char* exportBuffer, unsigned int sz, void* userCtx);
+#endif
 
 #ifdef HAVE_NETX
     WOLFSSL_LOCAL int NetX_Receive(WOLFSSL *ssl, char *buf, int sz, void *ctx);
@@ -1575,7 +1594,8 @@ typedef struct WOLFSSL_DTLS_CTX {
 
 #define MAX_WRITE_IV_SZ 16 /* max size of client/server write_IV */
 
-/* keys and secrets */
+/* keys and secrets
+ * keep as a constant size (no additional ifdefs) for session export */
 typedef struct Keys {
     byte client_write_MAC_secret[MAX_DIGEST_SIZE];   /* max sizes */
     byte server_write_MAC_secret[MAX_DIGEST_SIZE];
@@ -1583,7 +1603,7 @@ typedef struct Keys {
     byte server_write_key[AES_256_KEY_SIZE];
     byte client_write_IV[MAX_WRITE_IV_SZ];               /* max sizes */
     byte server_write_IV[MAX_WRITE_IV_SZ];
-#ifdef HAVE_AEAD
+#if defined(HAVE_AEAD) || defined(WOLFSSL_SESSION_EXPORT)
     byte aead_exp_IV[AEAD_MAX_EXP_SZ];
     byte aead_enc_imp_IV[AEAD_MAX_IMP_SZ];
     byte aead_dec_imp_IV[AEAD_MAX_IMP_SZ];
@@ -1938,6 +1958,7 @@ struct WOLFSSL_CTX {
     CallbackIOSend CBIOSend;
 #ifdef WOLFSSL_DTLS
     CallbackGenCookie CBIOCookie;       /* gen cookie callback */
+    wc_dtls_export    dtls_export;      /* export function for DTLS session */
 #endif
     VerifyCallback  verifyCallback;     /* cert verification callback */
     word32          timeout;            /* session timeout */
@@ -2033,7 +2054,8 @@ int ProcessOldClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 #endif
 #endif
 
-/* All cipher suite related info */
+/* All cipher suite related info
+ * Keep as a constant size (no ifdefs) for session export */
 typedef struct CipherSpecs {
     word16 key_size;
     word16 iv_size;
@@ -2712,6 +2734,7 @@ struct WOLFSSL {
     DtlsMsg*        dtls_msg_list;
     void*           IOCB_CookieCtx;     /* gen cookie ctx */
     word32          dtls_expected_rx;
+    wc_dtls_export  dtls_export;        /* export function for session */
 #endif
 #ifdef WOLFSSL_CALLBACKS
     HandShakeInfo   handShakeInfo;      /* info saved during handshake */
