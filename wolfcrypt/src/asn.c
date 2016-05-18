@@ -6712,6 +6712,14 @@ static int SetName(byte* output, word32 outputSz, CertName* name)
             int thisLen = strLen;
             int firstSz, secondSz, seqSz, setSz;
 
+            /* Restrict country code size */
+            if (i == 0) {
+                if (strLen >= CTC_COUNTRY_SIZE)
+                    strLen = CTC_COUNTRY_SIZE;
+                else
+                    strLen = 0;
+            }
+
             if (strLen == 0) { /* no user data for this item */
                 names[i].used = 0;
                 continue;
