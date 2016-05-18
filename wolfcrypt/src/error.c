@@ -380,6 +380,9 @@ const char* wc_GetErrorString(int error)
     case WC_KEY_SIZE_E:
         return "Key size error, either too small or large";
 
+    case ASN_COUNTRY_SIZE_E:
+        return "Country code size error, either too small or large";
+
     default:
         return "unknown error number";
 
