@@ -7413,7 +7413,7 @@ static int EncodeCertReq(Cert* cert, DerCert* der,
 
     /* subject name */
     der->subjectSz = SetName(der->subject, sizeof(der->subject), &cert->subject);
-    if (der->subjectSz == 0)
+    if (der->subjectSz <= 0)
         return SUBJECT_E;
 
     /* public key */
@@ -7442,7 +7442,7 @@ static int EncodeCertReq(Cert* cert, DerCert* der,
     /* CA */
     if (cert->isCA) {
         der->caSz = SetCa(der->ca, sizeof(der->ca));
-        if (der->caSz == 0)
+        if (der->caSz <= 0)
             return CA_TRUE_E;
 
         der->extensionsSz += der->caSz;
@@ -7459,7 +7459,7 @@ static int EncodeCertReq(Cert* cert, DerCert* der,
 
         der->skidSz = SetSKID(der->skid, sizeof(der->skid),
                               cert->skid, cert->skidSz);
-        if (der->skidSz == 0)
+        if (der->skidSz <= 0)
             return SKID_E;
 
         der->extensionsSz += der->skidSz;
@@ -7471,7 +7471,7 @@ static int EncodeCertReq(Cert* cert, DerCert* der,
     if (cert->keyUsage != 0){
         der->keyUsageSz = SetKeyUsage(der->keyUsage, sizeof(der->keyUsage),
                                       cert->keyUsage);
-        if (der->keyUsageSz == 0)
+        if (der->keyUsageSz <= 0)
             return KEYUSAGE_E;
 
         der->extensionsSz += der->keyUsageSz;
@@ -7486,7 +7486,7 @@ static int EncodeCertReq(Cert* cert, DerCert* der,
 
         /* put the start of sequence (ID, Size) */
         der->extensionsSz = SetSequence(der->extensionsSz, der->extensions);
-        if (der->extensionsSz == 0)
+        if (der->extensionsSz <= 0)
             return EXTENSIONS_E;
 
         /* put CA */
@@ -7494,7 +7494,7 @@ static int EncodeCertReq(Cert* cert, DerCert* der,
             ret = SetExtensions(der->extensions, sizeof(der->extensions),
                                 &der->extensionsSz,
                                 der->ca, der->caSz);
-            if (ret == 0)
+            if (ret <= 0)
                 return EXTENSIONS_E;
         }
 
@@ -7504,7 +7504,7 @@ static int EncodeCertReq(Cert* cert, DerCert* der,
             ret = SetExtensions(der->extensions, sizeof(der->extensions),
                                 &der->extensionsSz,
                                 der->skid, der->skidSz);
-            if (ret == 0)
+            if (ret <= 0)
                 return EXTENSIONS_E;
         }
 
@@ -7513,7 +7513,7 @@ static int EncodeCertReq(Cert* cert, DerCert* der,
             ret = SetExtensions(der->extensions, sizeof(der->extensions),
                                 &der->extensionsSz,
                                 der->akid, der->akidSz);
-            if (ret == 0)
+            if (ret <= 0)
                 return EXTENSIONS_E;
         }
 
@@ -7522,7 +7522,7 @@ static int EncodeCertReq(Cert* cert, DerCert* der,
             ret = SetExtensions(der->extensions, sizeof(der->extensions),
                                 &der->extensionsSz,
                                 der->keyUsage, der->keyUsageSz);
-            if (ret == 0)
+            if (ret <= 0)
                 return EXTENSIONS_E;
         }
 
@@ -7531,7 +7531,7 @@ static int EncodeCertReq(Cert* cert, DerCert* der,
 
     der->attribSz = SetReqAttrib(der->attrib,
                                  cert->challengePw, der->extensionsSz);
-    if (der->attribSz == 0)
+    if (der->attribSz <= 0)
         return REQ_ATTRIBUTE_E;
 
     der->total = der->versionSz + der->subjectSz + der->publicKeySz +
