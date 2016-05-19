@@ -6717,6 +6717,14 @@ static int SetName(byte* output, word32 outputSz, CertName* name)
                 continue;
             }
 
+            /* Restrict country code size */
+            if (i == 0 && strLen != CTC_COUNTRY_SIZE) {
+#ifdef WOLFSSL_SMALL_STACK
+                XFREE(names, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+                return ASN_COUNTRY_SIZE_E;
+            }
+
             secondSz = SetLength(strLen, secondLen);
             thisLen += secondSz;
             if (email) {
@@ -6850,7 +6858,7 @@ static int EncodeCert(Cert* cert, DerCert* der, RsaKey* rsaKey, ecc_key* eccKey,
 
     /* signature algo */
     der->sigAlgoSz = SetAlgoID(cert->sigType, der->sigAlgo, oidSigType, 0);
-    if (der->sigAlgoSz == 0)
+    if (der->sigAlgoSz <= 0)
         return ALGO_ID_E;
 
     /* public key */
@@ -6899,7 +6907,7 @@ static int EncodeCert(Cert* cert, DerCert* der, RsaKey* rsaKey, ecc_key* eccKey,
     /* date validity copy ? */
     if (cert->beforeDateSz && cert->afterDateSz) {
         der->validitySz = CopyValidity(der->validity, cert);
-        if (der->validitySz == 0)
+        if (der->validitySz <= 0)
             return DATE_E;
     }
 #endif
@@ -6907,19 +6915,19 @@ static int EncodeCert(Cert* cert, DerCert* der, RsaKey* rsaKey, ecc_key* eccKey,
     /* date validity */
     if (der->validitySz == 0) {
         der->validitySz = SetValidity(der->validity, cert->daysValid);
-        if (der->validitySz == 0)
+        if (der->validitySz <= 0)
             return DATE_E;
     }
 
     /* subject name */
     der->subjectSz = SetName(der->subject, sizeof(der->subject), &cert->subject);
-    if (der->subjectSz == 0)
+    if (der->subjectSz <= 0)
         return SUBJECT_E;
 
     /* issuer name */
     der->issuerSz = SetName(der->issuer, sizeof(der->issuer), cert->selfSigned ?
              &cert->subject : &cert->issuer);
-    if (der->issuerSz == 0)
+    if (der->issuerSz <= 0)
         return ISSUER_E;
 
     /* set the extensions */
@@ -6928,7 +6936,7 @@ static int EncodeCert(Cert* cert, DerCert* der, RsaKey* rsaKey, ecc_key* eccKey,
     /* CA */
     if (cert->isCA) {
         der->caSz = SetCa(der->ca, sizeof(der->ca));
-        if (der->caSz == 0)
+        if (der->caSz <= 0)
             return CA_TRUE_E;
 
         der->extensionsSz += der->caSz;
@@ -6941,7 +6949,7 @@ static int EncodeCert(Cert* cert, DerCert* der, RsaKey* rsaKey, ecc_key* eccKey,
     if (cert->altNamesSz) {
         der->altNamesSz = SetAltNames(der->altNames, sizeof(der->altNames),
                                       cert->altNames, cert->altNamesSz);
-        if (der->altNamesSz == 0)
+        if (der->altNamesSz <= 0)
             return ALT_NAME_E;
 
         der->extensionsSz += der->altNamesSz;
@@ -6959,7 +6967,7 @@ static int EncodeCert(Cert* cert, DerCert* der, RsaKey* rsaKey, ecc_key* eccKey,
 
         der->skidSz = SetSKID(der->skid, sizeof(der->skid),
                               cert->skid, cert->skidSz);
-        if (der->skidSz == 0)
+        if (der->skidSz <= 0)
             return SKID_E;
 
         der->extensionsSz += der->skidSz;
@@ -6975,7 +6983,7 @@ static int EncodeCert(Cert* cert, DerCert* der, RsaKey* rsaKey, ecc_key* eccKey,
 
         der->akidSz = SetAKID(der->akid, sizeof(der->akid),
                               cert->akid, cert->akidSz);
-        if (der->akidSz == 0)
+        if (der->akidSz <= 0)
             return AKID_E;
 
         der->extensionsSz += der->akidSz;
@@ -6987,7 +6995,7 @@ static int EncodeCert(Cert* cert, DerCert* der, RsaKey* rsaKey, ecc_key* eccKey,
     if (cert->keyUsage != 0){
         der->keyUsageSz = SetKeyUsage(der->keyUsage, sizeof(der->keyUsage),
                                       cert->keyUsage);
-        if (der->keyUsageSz == 0)
+        if (der->keyUsageSz <= 0)
             return KEYUSAGE_E;
 
         der->extensionsSz += der->keyUsageSz;
@@ -7001,7 +7009,7 @@ static int EncodeCert(Cert* cert, DerCert* der, RsaKey* rsaKey, ecc_key* eccKey,
                                                      sizeof(der->certPolicies),
                                                      cert->certPolicies,
                                                      cert->certPoliciesNb);
-        if (der->certPoliciesSz == 0)
+        if (der->certPoliciesSz <= 0)
             return CERTPOLICIES_E;
 
         der->extensionsSz += der->certPoliciesSz;
@@ -7017,7 +7025,7 @@ static int EncodeCert(Cert* cert, DerCert* der, RsaKey* rsaKey, ecc_key* eccKey,
         der->extensionsSz = SetExtensionsHeader(der->extensions,
                                                 sizeof(der->extensions),
                                                 der->extensionsSz);
-        if (der->extensionsSz == 0)
+        if (der->extensionsSz <= 0)
             return EXTENSIONS_E;
 
         /* put CA */
@@ -7035,7 +7043,7 @@ static int EncodeCert(Cert* cert, DerCert* der, RsaKey* rsaKey, ecc_key* eccKey,
             ret = SetExtensions(der->extensions, sizeof(der->extensions),
                                 &der->extensionsSz,
                                 der->altNames, der->altNamesSz);
-            if (ret == 0)
+            if (ret <= 0)
                 return EXTENSIONS_E;
         }
 #endif
@@ -7046,7 +7054,7 @@ static int EncodeCert(Cert* cert, DerCert* der, RsaKey* rsaKey, ecc_key* eccKey,
             ret = SetExtensions(der->extensions, sizeof(der->extensions),
                                 &der->extensionsSz,
                                 der->skid, der->skidSz);
-            if (ret == 0)
+            if (ret <= 0)
                 return EXTENSIONS_E;
         }
 
@@ -7055,7 +7063,7 @@ static int EncodeCert(Cert* cert, DerCert* der, RsaKey* rsaKey, ecc_key* eccKey,
             ret = SetExtensions(der->extensions, sizeof(der->extensions),
                                 &der->extensionsSz,
                                 der->akid, der->akidSz);
-            if (ret == 0)
+            if (ret <= 0)
                 return EXTENSIONS_E;
         }
 
@@ -7064,7 +7072,7 @@ static int EncodeCert(Cert* cert, DerCert* der, RsaKey* rsaKey, ecc_key* eccKey,
             ret = SetExtensions(der->extensions, sizeof(der->extensions),
                                 &der->extensionsSz,
                                 der->keyUsage, der->keyUsageSz);
-            if (ret == 0)
+            if (ret <= 0)
                 return EXTENSIONS_E;
         }
 
@@ -7073,7 +7081,7 @@ static int EncodeCert(Cert* cert, DerCert* der, RsaKey* rsaKey, ecc_key* eccKey,
             ret = SetExtensions(der->extensions, sizeof(der->extensions),
                                 &der->extensionsSz,
                                 der->certPolicies, der->certPoliciesSz);
-            if (ret == 0)
+            if (ret <= 0)
                 return EXTENSIONS_E;
         }
 #endif /* WOLFSSL_CERT_EXT */
@@ -7405,7 +7413,7 @@ static int EncodeCertReq(Cert* cert, DerCert* der,
 
     /* subject name */
     der->subjectSz = SetName(der->subject, sizeof(der->subject), &cert->subject);
-    if (der->subjectSz == 0)
+    if (der->subjectSz <= 0)
         return SUBJECT_E;
 
     /* public key */
@@ -7434,7 +7442,7 @@ static int EncodeCertReq(Cert* cert, DerCert* der,
     /* CA */
     if (cert->isCA) {
         der->caSz = SetCa(der->ca, sizeof(der->ca));
-        if (der->caSz == 0)
+        if (der->caSz <= 0)
             return CA_TRUE_E;
 
         der->extensionsSz += der->caSz;
@@ -7451,7 +7459,7 @@ static int EncodeCertReq(Cert* cert, DerCert* der,
 
         der->skidSz = SetSKID(der->skid, sizeof(der->skid),
                               cert->skid, cert->skidSz);
-        if (der->skidSz == 0)
+        if (der->skidSz <= 0)
             return SKID_E;
 
         der->extensionsSz += der->skidSz;
@@ -7463,7 +7471,7 @@ static int EncodeCertReq(Cert* cert, DerCert* der,
     if (cert->keyUsage != 0){
         der->keyUsageSz = SetKeyUsage(der->keyUsage, sizeof(der->keyUsage),
                                       cert->keyUsage);
-        if (der->keyUsageSz == 0)
+        if (der->keyUsageSz <= 0)
             return KEYUSAGE_E;
 
         der->extensionsSz += der->keyUsageSz;
@@ -7478,7 +7486,7 @@ static int EncodeCertReq(Cert* cert, DerCert* der,
 
         /* put the start of sequence (ID, Size) */
         der->extensionsSz = SetSequence(der->extensionsSz, der->extensions);
-        if (der->extensionsSz == 0)
+        if (der->extensionsSz <= 0)
             return EXTENSIONS_E;
 
         /* put CA */
@@ -7486,7 +7494,7 @@ static int EncodeCertReq(Cert* cert, DerCert* der,
             ret = SetExtensions(der->extensions, sizeof(der->extensions),
                                 &der->extensionsSz,
                                 der->ca, der->caSz);
-            if (ret == 0)
+            if (ret <= 0)
                 return EXTENSIONS_E;
         }
 
@@ -7496,7 +7504,7 @@ static int EncodeCertReq(Cert* cert, DerCert* der,
             ret = SetExtensions(der->extensions, sizeof(der->extensions),
                                 &der->extensionsSz,
                                 der->skid, der->skidSz);
-            if (ret == 0)
+            if (ret <= 0)
                 return EXTENSIONS_E;
         }
 
@@ -7505,7 +7513,7 @@ static int EncodeCertReq(Cert* cert, DerCert* der,
             ret = SetExtensions(der->extensions, sizeof(der->extensions),
                                 &der->extensionsSz,
                                 der->akid, der->akidSz);
-            if (ret == 0)
+            if (ret <= 0)
                 return EXTENSIONS_E;
         }
 
@@ -7514,7 +7522,7 @@ static int EncodeCertReq(Cert* cert, DerCert* der,
             ret = SetExtensions(der->extensions, sizeof(der->extensions),
                                 &der->extensionsSz,
                                 der->keyUsage, der->keyUsageSz);
-            if (ret == 0)
+            if (ret <= 0)
                 return EXTENSIONS_E;
         }
 
@@ -7523,7 +7531,7 @@ static int EncodeCertReq(Cert* cert, DerCert* der,
 
     der->attribSz = SetReqAttrib(der->attrib,
                                  cert->challengePw, der->extensionsSz);
-    if (der->attribSz == 0)
+    if (der->attribSz <= 0)
         return REQ_ATTRIBUTE_E;
 
     der->total = der->versionSz + der->subjectSz + der->publicKeySz +

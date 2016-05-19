@@ -170,6 +170,7 @@ enum {
     WC_PENDING_E        = -233,  /* wolfCrypt operation pending (would block) */
 
     WC_KEY_SIZE_E       = -234,  /* Key size error, either too small or large */
+    ASN_COUNTRY_SIZE_E  = -235,  /* ASN Cert Gen, invalid country code size */
 
     MIN_CODE_E          = -300   /* errors -101 - -299 */
 

@@ -77,6 +77,7 @@ enum Ctc_Encoding {
 };
 
 enum Ctc_Misc {
+    CTC_COUNTRY_SIZE  =     2,
     CTC_NAME_SIZE     =    64,
     CTC_DATE_SIZE     =    32,
     CTC_MAX_ALT_SIZE  = 16384,   /* may be huge */
