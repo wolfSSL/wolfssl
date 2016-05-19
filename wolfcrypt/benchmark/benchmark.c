@@ -164,6 +164,9 @@ void bench_dh(void);
 #ifdef HAVE_ECC
 void bench_eccKeyGen(void);
 void bench_eccKeyAgree(void);
+    #ifdef HAVE_ECC_ENCRYPT
+    void bench_eccEncrypt(void);
+    #endif
 #endif
 #ifdef HAVE_CURVE25519
     void bench_curve25519KeyGen(void);
@@ -394,6 +397,9 @@ int benchmark_test(void *args)
 #ifdef HAVE_ECC
     bench_eccKeyGen();
     bench_eccKeyAgree();
+    #ifdef HAVE_ECC_ENCRYPT
+        bench_eccEncrypt();
+    #endif
     #if defined(FP_ECC)
         wc_ecc_fp_free();
     #endif
@@ -1884,6 +1890,65 @@ void bench_eccKeyAgree(void)
     wc_ecc_free(&genKey2);
     wc_ecc_free(&genKey);
 }
+#ifdef HAVE_ECC_ENCRYPT
+void bench_eccEncrypt(void)
+{
+    ecc_key userA, userB;
+    byte    msg[48];
+    byte    out[80];
+    word32  outSz   = sizeof(out);
+    word32  plainSz = sizeof(plain);
+    int     ret, i;
+    double start, total, each, milliEach;
+
+    wc_ecc_init(&userA);
+    wc_ecc_init(&userB);
+
+    wc_ecc_make_key(&rng, 32, &userA);
+    wc_ecc_make_key(&rng, 32, &userB);
+
+    for (i = 0; i < (int)sizeof(msg); i++)
+        msg[i] = i;
+
+    start = current_time(1);
+
+    for(i = 0; i < ntimes; i++) {
+        /* encrypt msg to B */
+        ret = wc_ecc_encrypt(&userA, &userB, msg, sizeof(msg), out, &outSz, NULL);
+        if (ret != 0) {
+            printf("wc_ecc_encrypt failed! %d\n", ret);
+            return;
+        }
+    }
+
+    total = current_time(0) - start;
+    each  = total / ntimes;  /* per second  */
+    milliEach = each * 1000;   /* milliseconds */
+    printf("ECC      encrypt         %6.3f milliseconds, avg over %d"
+           " iterations\n", milliEach, ntimes);
+
+    start = current_time(1);
+
+    for(i = 0; i < ntimes; i++) {
+        /* decrypt msg from A */
+        ret = wc_ecc_decrypt(&userB, &userA, out, outSz, plain, &plainSz, NULL);
+        if (ret != 0) {
+            printf("wc_ecc_decrypt failed! %d\n", ret);
+            return;
+        }
+    }
+
+    total = current_time(0) - start;
+    each  = total / ntimes;  /* per second  */
+    milliEach = each * 1000;   /* milliseconds */
+    printf("ECC      decrypt         %6.3f milliseconds, avg over %d"
+           " iterations\n", milliEach, ntimes);
+
+    /* cleanup */
+    wc_ecc_free(&userB);
+    wc_ecc_free(&userA);
+}
+#endif
 #endif /* HAVE_ECC */
 
 #ifdef HAVE_CURVE25519
