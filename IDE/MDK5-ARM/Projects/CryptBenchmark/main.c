@@ -18,23 +18,32 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
-
  
 #ifdef HAVE_CONFIG_H
     #include <config.h>
 #endif
 
-#include <cyassl/ctaocrypt/visibility.h>
-#include <cyassl/ctaocrypt/logging.h>
+#include <wolfssl/wolfcrypt/settings.h>
 
-#include "cmsis_os.h"
-#include "rl_fs.h" 
- 
+#include "wolfcrypt/test/test.h"
+
 #include <stdio.h>
+#include "stm32f2xx_hal.h"
+#include "cmsis_os.h"
+
+/*-----------------------------------------------------------------------------
+ *        System Clock Configuration
+ *----------------------------------------------------------------------------*/
+void SystemClock_Config(void) {
+    #warning "write MPU specific System Clock Set up\n"
+}
 
 /*-----------------------------------------------------------------------------
  *        Initialize a Flash Memory Card
  *----------------------------------------------------------------------------*/
+#if !defined(NO_FILESYSTEM)
+#include "rl_fs.h"                      /* FileSystem definitions             */
+
 static void init_filesystem (void) {
   int32_t retv;
 
@@ -52,21 +61,27 @@ static void init_filesystem (void) {
     printf ("Drive M0 initialization failed!\n");
   }
 }
-extern void benchmark_test(void * arg) ;
-extern void init_time(void) ;
+#endif
 
 /*-----------------------------------------------------------------------------
  *       mian entry 
  *----------------------------------------------------------------------------*/
-
+ void    benchmark_test(void *arg) ;
 int main() 
 {
-    void * arg = NULL ;
+     void * arg = NULL ;
 
-    init_filesystem ();
+	    HAL_Init();                               /* Initialize the HAL Library     */
+	    SystemClock_Config();              /* Configure the System Clock     */
 
-    printf("=== Start: Crypt Benchmark ===\n") ;
-        benchmark_test(arg) ;
-    printf("=== End: Crypt Benchmark  ===\n") ;   
+	#if !defined(NO_FILESYSTEM)
+       init_filesystem ();
+	#endif
+       osDelay(300) ;  
+
+       printf("=== Start: Crypt Benchmark ===\n") ;
+       benchmark_test(arg) ;
+       printf("=== End: Crypt Benchmark  ===\n") ;   
+
     
 }
