@@ -37,7 +37,7 @@ wolfSSL_CTX_set_verify(ctx, SSL_VERIFY_NONE, 0);
 
 before calling wolfSSL_new();  Though it's not recommended.
 ```
-# wolfSSL (Formerly CyaSSL) Release 3.9.0 (03/18/2015)
+# wolfSSL (Formerly CyaSSL) Release 3.9.0 (03/18/2016)
 
 ##Release 3.9.0 of wolfSSL has bug fixes and new features including:
 
