@@ -1,8 +1,8 @@
 /* sniffer.c
  *
- * Copyright (C) 2006-2015 wolfSSL Inc.
+ * Copyright (C) 2006-2016 wolfSSL Inc.
  *
- * This file is part of wolfSSL. (formerly known as CyaSSL)
+ * This file is part of wolfSSL.
  *
  * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,8 +16,9 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
+
 
 #ifdef HAVE_CONFIG_H
     #include <config.h>
@@ -49,6 +50,7 @@
 #ifdef NO_INLINE
     #include <wolfssl/wolfcrypt/misc.h>
 #else
+    #define WOLFSSL_MISC_INCLUDED
     #include <wolfcrypt/src/misc.c>
 #endif
 
@@ -1080,6 +1082,7 @@ static int LoadKeyFile(byte** keyBuf, word32* keyBufSz,
                 ret = 0;
         }
 
+        ForceZero(loadBuf, (word32)fileSz);
         free(loadBuf);
 
         *keyBuf = saveBuf;
@@ -1341,16 +1344,17 @@ static int ProcessClientKeyExchange(const byte* input, int* sslBytes,
     RsaKey key;
     int    ret;
 
-    if (session->sslServer->buffers.key.buffer == NULL ||
-        session->sslServer->buffers.key.length == 0) {
+    if (session->sslServer->buffers.key == NULL ||
+        session->sslServer->buffers.key->buffer == NULL ||
+        session->sslServer->buffers.key->length == 0) {
 
         SetError(RSA_KEY_MISSING_STR, error, session, FATAL_ERROR_STATE);
         return -1;
     }
     ret = wc_InitRsaKey(&key, 0);
     if (ret == 0)
-        ret = wc_RsaPrivateKeyDecode(session->sslServer->buffers.key.buffer,
-                          &idx, &key, session->sslServer->buffers.key.length);
+        ret = wc_RsaPrivateKeyDecode(session->sslServer->buffers.key->buffer,
+                          &idx, &key, session->sslServer->buffers.key->length);
     if (ret == 0) {
         int length = wc_RsaEncryptSize(&key);
 
@@ -3090,6 +3094,7 @@ doPart:
                          * wants to null terminate plaintext */
                         tmpData = (byte*)realloc(*data, decoded + ret + 1);
                         if (tmpData == NULL) {
+                            ForceZero(*data, decoded);
                             free(*data);
                             *data = NULL;
                             SetError(MEMORY_STR, error, session,
@@ -3241,9 +3246,22 @@ int ssl_DecodePacket(const byte* packet, int length, byte** data, char* error)
 /* returns 0 on success, -1 on error */
 int ssl_FreeDecodeBuffer(byte** data, char* error)
 {
+    return ssl_FreeZeroDecodeBuffer(data, 0, error);
+}
+
+
+/* Deallocator for the decoded data buffer, zeros out buffer. */
+/* returns 0 on success, -1 on error */
+int ssl_FreeZeroDecodeBuffer(byte** data, int sz, char* error)
+{
     (void)error;
 
+    if (sz < 0) {
+        return -1;
+    }
+
     if (data != NULL) {
+        ForceZero(*data, (word32)sz);
         free(*data);
         *data = NULL;
     }

@@ -1,8 +1,8 @@
 /* ecc.h
  *
- * Copyright (C) 2006-2015 wolfSSL Inc.
+ * Copyright (C) 2006-2016 wolfSSL Inc.
  *
- * This file is part of wolfSSL. (formerly known as CyaSSL)
+ * This file is part of wolfSSL.
  *
  * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,8 +16,9 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
+
 
 #ifndef WOLF_CRYPT_ECC_H
 #define WOLF_CRYPT_ECC_H
@@ -60,6 +61,27 @@ typedef struct {
 } ecc_set_type;
 
 
+/* Determine max ECC bits based on enabled curves */
+#if defined(HAVE_ECC521) || defined(HAVE_ALL_CURVES)
+    #define MAX_ECC_BITS    521
+#elif defined(HAVE_ECC384)
+    #define MAX_ECC_BITS    384
+#elif defined(HAVE_ECC224)
+    #define MAX_ECC_BITS    224
+#elif !defined(NO_ECC256)
+    #define MAX_ECC_BITS    256
+#elif defined(HAVE_ECC192)
+    #define MAX_ECC_BITS    192
+#elif defined(HAVE_ECC160)
+    #define MAX_ECC_BITS    160
+#elif defined(HAVE_ECC128)
+    #define MAX_ECC_BITS    128
+#elif defined(HAVE_ECC112)
+    #define MAX_ECC_BITS    112
+#endif
+
+
+
 #ifdef ALT_ECC_SIZE
 
 /* Note on ALT_ECC_SIZE:
@@ -89,14 +111,26 @@ typedef struct {
     #error USE_FAST_MATH must be defined to use ALT_ECC_SIZE
 #endif
 
+/* determine max bits required for ECC math */
 #ifndef FP_MAX_BITS_ECC
-    #define FP_MAX_BITS_ECC           528
+    /* check alignment */
+    #if ((MAX_ECC_BITS * 2) % DIGIT_BIT) == 0
+        /* max bits is double */
+        #define FP_MAX_BITS_ECC     (MAX_ECC_BITS * 2)
+    #else
+        /* max bits is doubled, plus one digit of fudge */
+        #define FP_MAX_BITS_ECC     ((MAX_ECC_BITS * 2) + DIGIT_BIT)
+    #endif
+#else
+    /* verify alignment */
+    #if FP_MAX_BITS_ECC % CHAR_BIT
+       #error FP_MAX_BITS_ECC must be a multiple of CHAR_BIT
+    #endif
 #endif
-#define FP_MAX_SIZE_ECC           (FP_MAX_BITS_ECC+(8*DIGIT_BIT))
-#if FP_MAX_BITS_ECC % CHAR_BIT
-   #error FP_MAX_BITS_ECC must be a multiple of CHAR_BIT
-#endif
-#define FP_SIZE_ECC    (FP_MAX_SIZE_ECC/DIGIT_BIT)
+
+/* determine buffer size */
+#define FP_SIZE_ECC    (FP_MAX_BITS_ECC/DIGIT_BIT)
+
 
 /* This needs to match the size of the fp_int struct, except the
  * fp_digit array will be shorter. */

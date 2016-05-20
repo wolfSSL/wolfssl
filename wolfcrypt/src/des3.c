@@ -1,8 +1,8 @@
 /* des3.c
  *
- * Copyright (C) 2006-2015 wolfSSL Inc.
+ * Copyright (C) 2006-2016 wolfSSL Inc.
  *
- * This file is part of wolfSSL. (formerly known as CyaSSL)
+ * This file is part of wolfSSL.
  *
  * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,8 +16,9 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
+
 
 #ifdef HAVE_CONFIG_H
     #include <config.h>
@@ -126,6 +127,7 @@ void wc_Des3_FreeCavium(Des3* des3)
 #ifdef NO_INLINE
     #include <wolfssl/wolfcrypt/misc.h>
 #else
+    #define WOLFSSL_MISC_INCLUDED
     #include <wolfcrypt/src/misc.c>
 #endif
 
@@ -153,6 +155,8 @@ void wc_Des3_FreeCavium(Des3* des3)
     int wc_Des_SetKey(Des* des, const byte* key, const byte* iv, int dir)
     {
         word32 *dkey = des->key;
+        
+        (void)dir;
 
         XMEMCPY(dkey, key, 8);
         ByteReverseWords(dkey, dkey, 8);
@@ -167,6 +171,8 @@ void wc_Des3_FreeCavium(Des3* des3)
         word32 *dkey1 = des->key[0];
         word32 *dkey2 = des->key[1];
         word32 *dkey3 = des->key[2];
+        
+        (void)dir;
 
         XMEMCPY(dkey1, key, 8);         /* set key 1 */
         XMEMCPY(dkey2, key + 8, 8);     /* set key 2 */
@@ -179,7 +185,7 @@ void wc_Des3_FreeCavium(Des3* des3)
         return wc_Des3_SetIV(des, iv);
     }
 
-    void DesCrypt(Des* des, byte* out, const byte* in, word32 sz,
+    static void DesCrypt(Des* des, byte* out, const byte* in, word32 sz,
                   int dir, int mode)
     {
         word32 *dkey, *iv;
@@ -275,7 +281,7 @@ void wc_Des3_FreeCavium(Des3* des3)
         return 0;
     }
 
-    void Des3Crypt(Des3* des, byte* out, const byte* in, word32 sz,
+    static void Des3Crypt(Des3* des, byte* out, const byte* in, word32 sz,
                    int dir)
     {
         word32 *dkey1, *dkey2, *dkey3, *iv;

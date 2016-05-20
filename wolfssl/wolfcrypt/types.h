@@ -1,8 +1,8 @@
 /* types.h
  *
- * Copyright (C) 2006-2015 wolfSSL Inc.
+ * Copyright (C) 2006-2016 wolfSSL Inc.
  *
- * This file is part of wolfSSL. (formerly known as CyaSSL)
+ * This file is part of wolfSSL.
  *
  * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,8 +16,9 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
+
 
 
 #ifndef WOLF_CRYPT_TYPES_H
@@ -159,8 +160,8 @@
 
 
 	/* Micrium will use Visual Studio for compilation but not the Win32 API */
-	#if defined(_WIN32) && !defined(MICRIUM) && !defined(FREERTOS) && !defined(FREERTOS_TCP) \
-	        && !defined(EBSNET)
+	#if defined(_WIN32) && !defined(MICRIUM) && !defined(FREERTOS) && \
+		!defined(FREERTOS_TCP) && !defined(EBSNET) && !defined(WOLFSSL_UTASKER)
 	    #define USE_WINDOWS_API
 	#endif
 
@@ -188,9 +189,15 @@
             && !defined(WOLFSSL_uITRON4) && !defined(WOLFSSL_uTKERNEL2)
 	    /* default C runtime, can install different routines at runtime via cbs */
 	    #include <wolfssl/wolfcrypt/memory.h>
-	    #define XMALLOC(s, h, t)     ((void)h, (void)t, wolfSSL_Malloc((s)))
-	    #define XFREE(p, h, t)       {void* xp = (p); if((xp)) wolfSSL_Free((xp));}
-	    #define XREALLOC(p, n, h, t) wolfSSL_Realloc((p), (n))
+       #ifdef WOLFSSL_DEBUG_MEMORY
+           #define XMALLOC(s, h, t)     ((void)h, (void)t, wolfSSL_Malloc((s), __func__, __LINE__))
+           #define XFREE(p, h, t)       {void* xp = (p); if((xp)) wolfSSL_Free((xp), __func__, __LINE__);}
+           #define XREALLOC(p, n, h, t) wolfSSL_Realloc((p), (n), __func__, __LINE__)
+       #else
+           #define XMALLOC(s, h, t)     ((void)h, (void)t, wolfSSL_Malloc((s)))
+           #define XFREE(p, h, t)       {void* xp = (p); if((xp)) wolfSSL_Free((xp));}
+           #define XREALLOC(p, n, h, t) wolfSSL_Realloc((p), (n))
+       #endif
 	#endif
 
 	#ifndef STRING_USER
@@ -216,12 +223,27 @@
 	        #define XSTRNCASECMP(s1,s2,n) _strnicmp((s1),(s2),(n))
 	    #endif
 
+        #if defined(WOLFSSL_MYSQL_COMPATIBLE)
+	        #ifndef USE_WINDOWS_API
+	            #define XSNPRINTF snprintf
+	        #else
+	            #define XSNPRINTF _snprintf
+	        #endif
+        #endif /* WOLFSSL_MYSQL_COMPATIBLE */
+
         #if defined(WOLFSSL_CERT_EXT) || defined(HAVE_ALPN)
             /* use only Thread Safe version of strtok */
             #ifndef USE_WINDOWS_API
                 #define XSTRTOK strtok_r
             #else
                 #define XSTRTOK strtok_s
+
+                #ifdef __MINGW32__
+                    #pragma GCC diagnostic push
+                    #pragma GCC diagnostic warning "-Wcpp"
+                    #warning "MinGW may be missing strtok_s. You can find a public domain implementation here: https://github.com/fletcher/MultiMarkdown-4/blob/master/strtok.c"
+                    #pragma GCC diagnostic pop
+                #endif
             #endif
         #endif
 	#endif

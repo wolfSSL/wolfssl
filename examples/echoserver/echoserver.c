@@ -1,8 +1,8 @@
 /* echoserver.c
  *
- * Copyright (C) 2006-2015 wolfSSL Inc.
+ * Copyright (C) 2006-2016 wolfSSL Inc.
  *
- * This file is part of wolfSSL. (formerly known as CyaSSL)
+ * This file is part of wolfSSL.
  *
  * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,8 +16,9 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
+
 
 #ifdef HAVE_CONFIG_H
     #include <config.h>
@@ -77,12 +78,13 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
     CYASSL_METHOD* method = 0;
     CYASSL_CTX*    ctx    = 0;
 
+    int    ret = 0;
     int    doDTLS = 0;
     int    doPSK = 0;
     int    outCreated = 0;
     int    shutDown = 0;
     int    useAnyAddr = 0;
-    word16 port = wolfSSLPort;
+    word16 port;
     int    argc = ((func_args*)args)->argc;
     char** argv = ((func_args*)args)->argv;
 
@@ -112,14 +114,21 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
     doPSK = 1;
 #endif
 
-    #if defined(NO_MAIN_DRIVER) && !defined(USE_WINDOWS_API) && \
-        !defined(CYASSL_SNIFFER) && !defined(WOLFSSL_MDK_SHELL) && \
-        !defined(CYASSL_TIRTOS)
-        port = 0;
-    #endif
-    #if defined(USE_ANY_ADDR)
-        useAnyAddr = 1;
-    #endif
+#if defined(USE_WINDOWS_API)
+    /* Generate random port for testing */
+    port = GetRandomPort();
+#elif defined(NO_MAIN_DRIVER) && !defined(CYASSL_SNIFFER) && \
+     !defined(WOLFSSL_MDK_SHELL) && !defined(CYASSL_TIRTOS)
+    /* Let tcp_listen assign port */
+    port = 0;
+#else
+    /* Use default port */
+    port = wolfSSLPort;
+#endif
+
+#if defined(USE_ANY_ADDR)
+    useAnyAddr = 1;
+#endif
 
 #ifdef CYASSL_TIRTOS
     fdOpenSession(Task_self());
@@ -191,8 +200,8 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
     } /* doPSK */
 #elif !defined(NO_CERTS)
     if (!doPSK) {
-        load_buffer(ctx, svrCert, CYASSL_CERT);
-        load_buffer(ctx, svrKey,  CYASSL_KEY);
+        load_buffer(ctx, svrCert, WOLFSSL_CERT);
+        load_buffer(ctx, svrKey,  WOLFSSL_KEY);
     }
 #endif
 
@@ -228,6 +237,7 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
         int     clientfd;
         int     firstRead = 1;
         int     gotFirstG = 0;
+        int     err = 0;
         SOCKADDR_IN_T client;
         socklen_t     client_len = sizeof(client);
 #ifndef CYASSL_DTLS
@@ -260,7 +270,25 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
         #elif !defined(NO_DH)
             SetDH(ssl);  /* will repick suites with DHE, higher than PSK */
         #endif
-        if (CyaSSL_accept(ssl) != SSL_SUCCESS) {
+
+        do {
+#ifdef WOLFSSL_ASYNC_CRYPT
+            if (err == WC_PENDING_E) {
+                ret = AsyncCryptPoll(ssl);
+                if (ret < 0) { break; } else if (ret == 0) { continue; }
+            }
+#endif
+            err = 0; /* Reset error */
+            ret = CyaSSL_accept(ssl);
+            if (ret != SSL_SUCCESS) {
+                err = CyaSSL_get_error(ssl, 0);
+            }
+        } while (ret != SSL_SUCCESS && err == WC_PENDING_E);
+
+        if (ret != SSL_SUCCESS) {
+            char buffer[CYASSL_MAX_ERROR_SZ];
+            err = CyaSSL_get_error(ssl, 0);
+            printf("error = %d, %s\n", err, CyaSSL_ERR_error_string(err, buffer));
             printf("SSL_accept failed\n");
             CyaSSL_free(ssl);
             CloseSocket(clientfd);
@@ -383,6 +411,11 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
             err_sys("Cavium OpenNitroxDevice failed");
 #endif /* HAVE_CAVIUM */
 
+#ifdef HAVE_WNR
+        if (wc_InitNetRandom(wnrConfig, NULL, 5000) != 0)
+            err_sys("Whitewood netRandom global config failed");
+#endif
+
         StartTCP();
 
         args.argc = argc;
@@ -399,6 +432,12 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
 #ifdef HAVE_CAVIUM
         CspShutdown(CAVIUM_DEV_ID);
 #endif
+
+#ifdef HAVE_WNR
+        if (wc_FreeNetRandom() < 0)
+            err_sys("Failed to free netRandom context");
+#endif /* HAVE_WNR */
+
         return args.return_code;
     }
 

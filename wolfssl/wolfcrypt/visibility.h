@@ -1,8 +1,8 @@
 /* visibility.h
  *
- * Copyright (C) 2006-2015 wolfSSL Inc.
+ * Copyright (C) 2006-2016 wolfSSL Inc.
  *
- * This file is part of wolfSSL. (formerly known as CyaSSL)
+ * This file is part of wolfSSL.
  *
  * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,8 +16,9 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
+
 
 /* Visibility control macros */
 
@@ -45,8 +46,8 @@
     #elif defined(__SUNPRO_C) && (__SUNPRO_C >= 0x550)
         #define WOLFSSL_API   __global
         #define WOLFSSL_LOCAL __hidden
-    #elif defined(_MSC_VER)
-        #ifdef WOLFSSL_DLL
+    #elif defined(_MSC_VER) || defined(__MINGW32__)
+        #if defined(WOLFSSL_DLL)
             #define WOLFSSL_API __declspec(dllexport)
         #else
             #define WOLFSSL_API
@@ -57,8 +58,8 @@
         #define WOLFSSL_LOCAL
     #endif /* HAVE_VISIBILITY */
 #else /* BUILDING_WOLFSSL */
-    #if defined(_MSC_VER)
-        #ifdef WOLFSSL_DLL
+    #if defined(_MSC_VER) || defined(__MINGW32__)
+        #if defined(WOLFSSL_DLL)
             #define WOLFSSL_API __declspec(dllimport)
         #else
             #define WOLFSSL_API

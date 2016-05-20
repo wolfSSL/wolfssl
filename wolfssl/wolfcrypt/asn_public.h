@@ -1,8 +1,8 @@
 /* asn_public.h
  *
- * Copyright (C) 2006-2015 wolfSSL Inc.
+ * Copyright (C) 2006-2016 wolfSSL Inc.
  *
- * This file is part of wolfSSL. (formerly known as CyaSSL)
+ * This file is part of wolfSSL.
  *
  * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,8 +16,9 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
+
 
 
 #ifndef WOLF_CRYPT_ASN_PUBLIC_H
@@ -50,7 +51,8 @@ enum CertType {
     RSA_TYPE,
     PUBLICKEY_TYPE,
     RSA_PUBLICKEY_TYPE,
-    ECC_PUBLICKEY_TYPE
+    ECC_PUBLICKEY_TYPE,
+    TRUSTED_PEER_TYPE
 };
 
 
@@ -75,6 +77,7 @@ enum Ctc_Encoding {
 };
 
 enum Ctc_Misc {
+    CTC_COUNTRY_SIZE  =     2,
     CTC_NAME_SIZE     =    64,
     CTC_DATE_SIZE     =    32,
     CTC_MAX_ALT_SIZE  = 16384,   /* may be huge */
@@ -93,6 +96,9 @@ enum Ctc_Misc {
 
 #ifndef HAVE_ECC
     typedef struct ecc_key ecc_key;
+#endif
+#ifdef NO_RSA
+    typedef struct RsaKey RsaKey;
 #endif
 
 typedef struct CertName {
@@ -257,6 +263,10 @@ WOLFSSL_API int wc_SetCertificatePolicies(Cert *cert, const char **input);
     /* public key helper */
     WOLFSSL_API int wc_EccPublicKeyDecode(const byte*, word32*,
                                               ecc_key*, word32);
+    #if (defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_KEY_GEN))
+        WOLFSSL_API int wc_EccPublicKeyToDer(ecc_key*, byte* output,
+                                               word32 inLen, int with_AlgCurve);
+    #endif
 #endif
 
 /* DER encode signature */

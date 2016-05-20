@@ -1,8 +1,8 @@
 /* coding.c
  *
- * Copyright (C) 2006-2015 wolfSSL Inc.
+ * Copyright (C) 2006-2016 wolfSSL Inc.
  *
- * This file is part of wolfSSL. (formerly known as CyaSSL)
+ * This file is part of wolfSSL.
  *
  * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,8 +16,9 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
+
 
 #ifdef HAVE_CONFIG_H
     #include <config.h>
@@ -364,6 +365,9 @@ int Base16_Decode(const byte* in, word32 inLen, byte* out, word32* outLen)
     word32 inIdx  = 0;
     word32 outIdx = 0;
 
+    if (in == NULL || out == NULL || outLen == NULL)
+        return BAD_FUNC_ARG;
+
     if (inLen == 1 && *outLen && in) {
         byte b = in[inIdx++] - 0x30;  /* 0 starts at 0x30 */
 
@@ -375,7 +379,7 @@ int Base16_Decode(const byte* in, word32 inLen, byte* out, word32* outLen)
 
         if (b == BAD)
             return ASN_INPUT_E;
-        
+
         out[outIdx++] = b;
 
         *outLen = outIdx;
@@ -403,7 +407,7 @@ int Base16_Decode(const byte* in, word32 inLen, byte* out, word32* outLen)
 
         if (b == BAD || b2 == BAD)
             return ASN_INPUT_E;
-        
+
         out[outIdx++] = (byte)((b << 4) | b2);
         inLen -= 2;
     }
@@ -417,6 +421,9 @@ int Base16_Encode(const byte* in, word32 inLen, byte* out, word32* outLen)
     word32 outIdx = 0;
     word32 i;
     byte   hb, lb;
+
+    if (in == NULL || out == NULL || outLen == NULL)
+        return BAD_FUNC_ARG;
 
     if (*outLen < (2 * inLen + 1))
         return BAD_FUNC_ARG;

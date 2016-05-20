@@ -1,8 +1,8 @@
 /* keys.c
  *
- * Copyright (C) 2006-2015 wolfSSL Inc.
+ * Copyright (C) 2006-2016 wolfSSL Inc.
  *
- * This file is part of wolfSSL. (formerly known as CyaSSL)
+ * This file is part of wolfSSL.
  *
  * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,8 +16,9 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
+
 
 /* Name change compatibility layer no longer needs to be included here */
 
@@ -1550,6 +1551,23 @@ int SetCipherSpecs(WOLFSSL* ssl)
         break;
 #endif
 
+#ifdef BUILD_TLS_DHE_RSA_WITH_3DES_EDE_CBC_SHA
+    case TLS_DHE_RSA_WITH_3DES_EDE_CBC_SHA :
+        ssl->specs.bulk_cipher_algorithm = wolfssl_triple_des;
+        ssl->specs.cipher_type           = block;
+        ssl->specs.mac_algorithm         = sha_mac;
+        ssl->specs.kea                   = diffie_hellman_kea;
+        ssl->specs.sig_algo              = rsa_sa_algo;
+        ssl->specs.hash_size             = SHA_DIGEST_SIZE;
+        ssl->specs.pad_size              = PAD_SHA;
+        ssl->specs.static_ecdh           = 0;
+        ssl->specs.key_size              = DES3_KEY_SIZE;
+        ssl->specs.block_size            = DES_BLOCK_SIZE;
+        ssl->specs.iv_size               = DES_IV_SIZE;
+
+        break;
+#endif
+
 #ifdef BUILD_TLS_DHE_RSA_WITH_AES_256_CBC_SHA256
     case TLS_DHE_RSA_WITH_AES_256_CBC_SHA256 :
         ssl->specs.bulk_cipher_algorithm = wolfssl_aes;
@@ -3058,6 +3076,7 @@ int MakeMasterSecret(WOLFSSL* ssl)
 
         /* show secret SerSi and CliSi */
         #ifdef SHOW_SECRETS
+        {
             word32 j;
             printf("QSH generated secret material\n");
             printf("SerSi        : ");
@@ -3070,6 +3089,7 @@ int MakeMasterSecret(WOLFSSL* ssl)
                 printf("%02x", ssl->QSH_secret->CliSi->buffer[j]);
             }
             printf("\n");
+        }
         #endif
     }
 #endif

@@ -57,10 +57,12 @@
 #include <wolfssl/wolfcrypt/logging.h>
 
 #ifdef NO_INLINE
-    #include <wolfssl/wolfcrypt/misc.h>
+#include <wolfssl/wolfcrypt/misc.h>
 #else
-    #include <wolfcrypt/src/misc.c>
+#define WOLFSSL_MISC_INCLUDED
+#include <wolfcrypt/src/misc.c>
 #endif
+
 
 #include <wolfssl/wolfcrypt/types.h>
 #include <wolfssl/wolfcrypt/coding.h>

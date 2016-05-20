@@ -1,8 +1,8 @@
 /* ssl.h
  *
- * Copyright (C) 2006-2015 wolfSSL Inc.
+ * Copyright (C) 2006-2016 wolfSSL Inc.
  *
- * This file is part of wolfSSL. (formerly known as CyaSSL)
+ * This file is part of wolfSSL.
  *
  * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -15,9 +15,10 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * a with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
+
 
 
 /*  ssl.h defines wolfssl_openssl compatibility layer 
@@ -38,6 +39,11 @@
 #ifdef _WIN32
     /* wincrypt.h clashes */
     #undef X509_NAME
+#endif
+
+#ifdef WOLFSSL_UTASKER
+    /* tcpip.h clashes */
+    #undef ASN1_INTEGER
 #endif
 
 
@@ -97,7 +103,7 @@ typedef WOLFSSL_X509_STORE_CTX X509_STORE_CTX;
 #define SSL_get_verify_depth          wolfSSL_get_verify_depth
 #define SSL_CTX_get_verify_mode       wolfSSL_CTX_get_verify_mode
 #define SSL_CTX_get_verify_depth      wolfSSL_CTX_get_verify_depth
-#define SSL_get_certificate(ctx)      0 /* used to pass to get_privatekey */
+#define SSL_get_certificate           wolfSSL_get_certificate
 
 #define SSLv3_server_method wolfSSLv3_server_method
 #define SSLv3_client_method wolfSSLv3_client_method
@@ -178,12 +184,14 @@ typedef WOLFSSL_X509_STORE_CTX X509_STORE_CTX;
 #define SSL_SESSION_free wolfSSL_SESSION_free
 #define SSL_is_init_finished wolfSSL_is_init_finished
 
-#define SSL_get_version wolfSSL_get_version
+#define SSL_get_version        wolfSSL_get_version
 #define SSL_get_current_cipher wolfSSL_get_current_cipher
-#define SSL_get_cipher wolfSSL_get_cipher
+
+/* use wolfSSL_get_cipher_name for its return format */
+#define SSL_get_cipher         wolfSSL_get_cipher_name
 #define SSL_CIPHER_description wolfSSL_CIPHER_description
-#define SSL_CIPHER_get_name wolfSSL_CIPHER_get_name
-#define SSL_get1_session wolfSSL_get1_session
+#define SSL_CIPHER_get_name    wolfSSL_CIPHER_get_name
+#define SSL_get1_session       wolfSSL_get1_session
 
 #define SSL_get_keyblock_size wolfSSL_get_keyblock_size
 #define SSL_get_keys          wolfSSL_get_keys
@@ -376,7 +384,7 @@ typedef WOLFSSL_X509_STORE_CTX X509_STORE_CTX;
 
 /* Lighthttp compatibility */
 
-#ifdef HAVE_LIGHTY                       
+#if defined(HAVE_LIGHTY) || defined(WOLFSSL_MYSQL_COMPATIBLE)
 typedef WOLFSSL_X509_NAME_ENTRY X509_NAME_ENTRY;
 
 #define SSL_CB_HANDSHAKE_START          0x10
@@ -393,14 +401,20 @@ typedef WOLFSSL_X509_NAME_ENTRY X509_NAME_ENTRY;
 #define X509_NAME_entry_count wolfSSL_X509_NAME_entry_count
 #define X509_NAME_ENTRY_get_object wolfSSL_X509_NAME_ENTRY_get_object
 #define X509_NAME_get_entry wolfSSL_X509_NAME_get_entry
+#define ASN1_STRING_data wolfSSL_ASN1_STRING_data
+#define ASN1_STRING_length wolfSSL_ASN1_STRING_length
+#define X509_NAME_get_index_by_NID wolfSSL_X509_NAME_get_index_by_NID
+#define X509_NAME_ENTRY_get_data wolfSSL_X509_NAME_ENTRY_get_data
 #define sk_X509_NAME_pop_free  wolfSSL_sk_X509_NAME_pop_free
 #define SHA1 wolfSSL_SHA1
 #define X509_check_private_key wolfSSL_X509_check_private_key
 #define SSL_dup_CA_list wolfSSL_dup_CA_list
 
+#define NID_commonName 0x03 /* matchs ASN_COMMON_NAME in asn.h */
 #endif
 
-#if defined(HAVE_STUNNEL) || defined(HAVE_LIGHTY)
+#if defined(HAVE_STUNNEL) || defined(HAVE_LIGHTY) \
+    || defined(WOLFSSL_MYSQL_COMPATIBLE)
 
 #define OBJ_nid2ln wolf_OBJ_nid2ln
 #define OBJ_txt2nid wolf_OBJ_txt2nid
@@ -409,7 +423,7 @@ typedef WOLFSSL_X509_NAME_ENTRY X509_NAME_ENTRY;
 #define SSL_CTX_set_tmp_dh wolfSSL_CTX_set_tmp_dh
 
 
-#endif /* HAVE_STUNNEL || HAVE_LIGHTY */
+#endif /* HAVE_STUNNEL || HAVE_LIGHTY || WOLFSSL_MYSQL_COMPATIBLE */
 
 #ifdef HAVE_STUNNEL
 #include <wolfssl/openssl/asn1.h>

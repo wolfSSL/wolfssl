@@ -1,8 +1,8 @@
 /* client.h
  *
- * Copyright (C) 2006-2015 wolfSSL Inc.
+ * Copyright (C) 2006-2016 wolfSSL Inc.
  *
- * This file is part of wolfSSL. (formerly known as CyaSSL)
+ * This file is part of wolfSSL.
  *
  * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,8 +16,9 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
+
 
 #ifndef WOLFSSL_CLIENT_H
 #define WOLFSSL_CLIENT_H
@@ -33,6 +34,12 @@ int ClientBenchmarkConnections(WOLFSSL_CTX* ctx, char* host, word16 port,
 /* Measures throughput in kbps. Throughput = number of bytes */
 int ClientBenchmarkThroughput(WOLFSSL_CTX* ctx, char* host, word16 port,
 	int doDTLS, int throughput);
+
+/* Initiates the STARTTLS command sequence over TCP */
+int StartTLS_Init(SOCKET_T* sockfd);
+
+/* Closes down the SMTP connection */
+int SMTP_Shutdown(WOLFSSL* ssl, int wc_shutdown);
 
 
 #endif /* WOLFSSL_CLIENT_H */

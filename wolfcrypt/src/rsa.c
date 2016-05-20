@@ -1,8 +1,8 @@
 /* rsa.c
  *
- * Copyright (C) 2006-2015 wolfSSL Inc.
+ * Copyright (C) 2006-2016 wolfSSL Inc.
  *
- * This file is part of wolfSSL. (formerly known as CyaSSL)
+ * This file is part of wolfSSL.
  *
  * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,8 +16,9 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
+
 
 #ifdef HAVE_CONFIG_H
     #include <config.h>
@@ -128,6 +129,7 @@ int wc_RsaFlattenPublicKey(RsaKey* key, byte* a, word32* aSz, byte* b,
 #ifdef NO_INLINE
     #include <wolfssl/wolfcrypt/misc.h>
 #else
+    #define WOLFSSL_MISC_INCLUDED
     #include <wolfcrypt/src/misc.c>
 #endif
 
@@ -204,30 +206,16 @@ int wc_FreeRsaKey(RsaKey* key)
         return FreeCaviumRsaKey(key);
 #endif
 
-/* TomsFastMath doesn't use memory allocation */
-#ifndef USE_FAST_MATH
     if (key->type == RSA_PRIVATE) {
-        mp_clear(&key->u);
-        mp_clear(&key->dQ);
-        mp_clear(&key->dP);
-        mp_clear(&key->q);
-        mp_clear(&key->p);
-        mp_clear(&key->d);
+        mp_forcezero(&key->u);
+        mp_forcezero(&key->dQ);
+        mp_forcezero(&key->dP);
+        mp_forcezero(&key->q);
+        mp_forcezero(&key->p);
+        mp_forcezero(&key->d);
     }
     mp_clear(&key->e);
     mp_clear(&key->n);
-#else
-    /* still clear private key memory information when free'd */
-    if (key->type == RSA_PRIVATE) {
-        mp_clear(&key->u);
-        mp_clear(&key->dQ);
-        mp_clear(&key->u);
-        mp_clear(&key->dP);
-        mp_clear(&key->q);
-        mp_clear(&key->p);
-        mp_clear(&key->d);
-    }
-#endif
 
     return 0;
 }
@@ -411,8 +399,7 @@ static int wc_RsaPad_OAEP(const byte* input, word32 inputLen, byte* pkcsBlock,
         }
     #endif
 
-    if ((ret = wc_Hash(hType, optLabel, labelLen,
-                                                  lHash, hLen)) != 0) {
+    if ((ret = wc_Hash(hType, optLabel, labelLen, lHash, hLen)) != 0) {
         WOLFSSL_MSG("OAEP hash type possibly not supported or lHash to small");
         #ifdef WOLFSSL_SMALL_STACK
             XFREE(lHash, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -421,8 +408,25 @@ static int wc_RsaPad_OAEP(const byte* input, word32 inputLen, byte* pkcsBlock,
         return ret;
     }
 
-    /* handles check of location for idx as well as psLen */
+    /* handles check of location for idx as well as psLen, cast to int to check
+       for pkcsBlockLen(k) - 2 * hLen - 2 being negative
+       This check is similar to decryption where k > 2 * hLen + 2 as msg
+       size aproaches 0. In decryption if k is less than or equal -- then there
+       is no possible room for msg.
+       k = RSA key size
+       hLen = hash digest size -- will always be >= 0 at this point
+     */
+    if ((word32)(2 * hLen + 2) > pkcsBlockLen) {
+        WOLFSSL_MSG("OAEP pad error hash to big for RSA key size");
+        #ifdef WOLFSSL_SMALL_STACK
+            XFREE(lHash, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(seed,  NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        #endif
+        return BAD_FUNC_ARG;
+    }
+
     if (inputLen > (pkcsBlockLen - 2 * hLen - 2)) {
+        WOLFSSL_MSG("OAEP pad error message too long");
         #ifdef WOLFSSL_SMALL_STACK
             XFREE(lHash, NULL, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(seed,  NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -523,21 +527,33 @@ static int wc_RsaPad_OAEP(const byte* input, word32 inputLen, byte* pkcsBlock,
 static int wc_RsaPad(const byte* input, word32 inputLen, byte* pkcsBlock,
                    word32 pkcsBlockLen, byte padValue, WC_RNG* rng)
 {
-    if (inputLen == 0)
-        return 0;
+    if (inputLen == 0 || pkcsBlockLen == 0) {
+        return BAD_FUNC_ARG;
+    }
 
     pkcsBlock[0] = 0x0;       /* set first byte to zero and advance */
     pkcsBlock++; pkcsBlockLen--;
     pkcsBlock[0] = padValue;  /* insert padValue */
 
-    if (padValue == RSA_BLOCK_TYPE_1)
+    if (padValue == RSA_BLOCK_TYPE_1) {
+        if (pkcsBlockLen < inputLen + 2) {
+            return RSA_PAD_E;
+        }
+
         /* pad with 0xff bytes */
         XMEMSET(&pkcsBlock[1], 0xFF, pkcsBlockLen - inputLen - 2);
+    }
     else {
         /* pad with non-zero random bytes */
-        word32 padLen = pkcsBlockLen - inputLen - 1, i;
-        int    ret    = wc_RNG_GenerateBlock(rng, &pkcsBlock[1], padLen);
+        word32 padLen, i;
+        int    ret;
 
+        if (pkcsBlockLen < inputLen + 1) {
+            return RSA_PAD_E;
+        }
+
+        padLen = pkcsBlockLen - inputLen - 1;
+        ret    = wc_RNG_GenerateBlock(rng, &pkcsBlock[1], padLen);
         if (ret != 0)
             return ret;
 
@@ -682,6 +698,10 @@ static int RsaUnPad(const byte *pkcsBlock, unsigned int pkcsBlockLen,
            i = 1,
            outputLen;
 
+    if (pkcsBlockLen == 0) {
+        return BAD_FUNC_ARG;
+    }
+
     if (pkcsBlock[0] != 0x0) /* skip past zero */
         invalid = 1;
     pkcsBlock++; pkcsBlockLen--;
@@ -811,7 +831,9 @@ static int wc_RsaFunction(const byte* in, word32 inLen, byte* out,
             mp_clear(&tmpa);
             mp_clear(&tmpb);
 
-            if (ret != 0) return ret;
+            if (ret != 0) {
+                goto done;
+            }
 
         #endif   /* RSA_LOW_MEM */
     }
@@ -863,6 +885,10 @@ int wc_RsaPublicEncrypt(const byte* in, word32 inLen, byte* out, word32 outLen,
     if (sz > (int)outLen)
         return RSA_BUFFER_E;
 
+    if (sz < RSA_MIN_PAD_SZ) {
+        return WC_KEY_SIZE_E;
+    }
+
     if (inLen > (word32)(sz - RSA_MIN_PAD_SZ))
         return RSA_BUFFER_E;
 
@@ -905,6 +931,10 @@ int wc_RsaPublicEncrypt_ex(const byte* in, word32 inLen, byte* out,
     sz = mp_unsigned_bin_size(&key->n);
     if (sz > (int)outLen)
         return RSA_BUFFER_E;
+
+    if (sz < RSA_MIN_PAD_SZ) {
+        return WC_KEY_SIZE_E;
+    }
 
     if (inLen > (word32)(sz - RSA_MIN_PAD_SZ))
         return RSA_BUFFER_E;
@@ -1160,6 +1190,10 @@ int wc_RsaSSL_Sign(const byte* in, word32 inLen, byte* out, word32 outLen,
     sz = mp_unsigned_bin_size(&key->n);
     if (sz > (int)outLen)
         return RSA_BUFFER_E;
+
+    if (sz < RSA_MIN_PAD_SZ) {
+        return WC_KEY_SIZE_E;
+    }
 
     if (inLen > (word32)(sz - RSA_MIN_PAD_SZ))
         return RSA_BUFFER_E;

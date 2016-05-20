@@ -1,8 +1,8 @@
 /* kinetis_hw.c
  *
- * Copyright (C) 2006-2015 wolfSSL Inc.
+ * Copyright (C) 2006-2016 wolfSSL Inc.
  *
- * This file is part of wolfSSL. (formerly known as CyaSSL)
+ * This file is part of wolfSSL.
  *
  * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,8 +16,9 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
+
 
 #include "hw.h"
 
@@ -44,17 +45,29 @@
 #define FLASH_CLK_DIV   4                           /* Flash clock divisor */
 
 // UART TX Port, Pin, Mux and Baud
-#define UART_PORT       UART5                       /* UART Port */
+#define UART_PORT       UART4                       /* UART Port */
 #define UART_TX_PORT    PORTE                       /* UART TX Port */
-#define UART_TX_PIN     8                           /* UART TX Pin */
+#define UART_TX_PIN     24                          /* UART TX Pin */
 #define UART_TX_MUX     0x3                         /* Kinetis UART pin mux */
 #define UART_BAUD       115200                      /* UART Baud Rate */
 /* Note: You will also need to update the UART clock gate in hw_uart_init (SIM_SCGC1_UART5_MASK) */
 /* Note: TWR-K60 is UART3, PTC17 */
+/* Note: FRDM-K64 is UART4, PTE24 */
+/* Note: TWR-K64 is UART5, PTE8 */
 
 /***********************************************/
 
 // Private functions
+static uint32_t mDelayCyclesPerUs = 0;
+#define NOP_FOR_LOOP_INSTRUCTION_COUNT  6
+static void delay_nop(uint32_t count)
+{
+   int i;
+   for(i=0; i<count; i++) {
+      __asm volatile("nop");
+   }
+}
+
 static void hw_mcg_init(void)
 {
     /* Adjust clock dividers (core/system=div/1, bus=div/2, flex bus=div/2, flash=div/4) */
@@ -88,7 +101,7 @@ static void hw_uart_init(void)
     uint8_t temp;
 
     /* Enable UART core clock */
-    SIM->SCGC1 |= SIM_SCGC1_UART5_MASK;
+    SIM->SCGC1 |= SIM_SCGC1_UART4_MASK;
     
     /* Configure UART TX pin */
     UART_TX_PORT->PCR[UART_TX_PIN] = PORT_PCR_MUX(UART_TX_MUX);
@@ -116,9 +129,37 @@ static void hw_uart_init(void)
 
 static void hw_rtc_init(void)
 {
+    /* Init nop delay */
+    mDelayCyclesPerUs = (SYS_CLK_KHZ / 1000 / NOP_FOR_LOOP_INSTRUCTION_COUNT);
+
     /* Enable RTC clock and oscillator */
     SIM->SCGC6 |= SIM_SCGC6_RTC_MASK;
-    RTC->CR |= RTC_CR_OSCE_MASK;
+
+    if (RTC->SR & RTC_SR_TIF_MASK) {
+        /* Resets the RTC registers except for the SWR bit */
+        RTC->CR |= RTC_CR_SWR_MASK;
+        RTC->CR &= ~RTC_CR_SWR_MASK;
+
+        /* Set TSR register to 0x1 to avoid the TIF bit being set in the SR register */
+        RTC->TSR = 1;
+    }
+
+    /* Disable RTC Interrupts */
+    RTC_IER = 0;
+
+    /* Enable OSC */
+    if ((RTC->CR & RTC_CR_OSCE_MASK) == 0) {
+        int i;
+
+        /* Turn on */
+        RTC->CR |= RTC_CR_OSCE_MASK;
+
+        /* Wait RTC startup delay 1000 us */
+        delay_us(1000);
+    }
+
+    /* Enable counter */
+    RTC->SR |= RTC_SR_TCE_MASK;
 }
 
 static void hw_rand_init(void)
@@ -172,6 +213,12 @@ uint32_t hw_rand(void)
     while((RNG->SR & RNG_SR_OREG_LVL(0xF)) == 0) {}; /* Wait until FIFO has a value available */
     return RNG->OR; /* Return next value in FIFO output register */
 }
+
+void delay_us(uint32_t microseconds)
+{
+   delay_nop(mDelayCyclesPerUs * microseconds);
+}
+
 
 // Watchdog
 void hw_watchdog_disable(void)

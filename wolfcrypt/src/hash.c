@@ -1,8 +1,8 @@
 /* hash.c
  *
- * Copyright (C) 2006-2015 wolfSSL Inc.
+ * Copyright (C) 2006-2016 wolfSSL Inc.
  *
- * This file is part of wolfSSL. (formerly known as CyaSSL)
+ * This file is part of wolfSSL.
  *
  * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,8 +16,9 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
+
 
 #ifdef HAVE_CONFIG_H
     #include <config.h>
@@ -44,6 +45,7 @@ int wc_HashGetOID(enum wc_HashType hash_type)
             oid = MD2h;
 #endif
             break;
+        case WC_HASH_TYPE_MD5_SHA:
         case WC_HASH_TYPE_MD5:
 #ifndef NO_MD5
             oid = MD5h;
@@ -112,6 +114,11 @@ int wc_HashGetDigestSize(enum wc_HashType hash_type)
             dig_size = SHA512_DIGEST_SIZE;
 #endif
             break;
+        case WC_HASH_TYPE_MD5_SHA:
+#if !defined(NO_MD5) && !defined(NO_SHA)
+            dig_size = MD5_DIGEST_SIZE + SHA_DIGEST_SIZE;
+#endif
+            break;
 
         /* Not Supported */
         case WC_HASH_TYPE_MD2:
@@ -168,6 +175,14 @@ int wc_Hash(enum wc_HashType hash_type, const byte* data,
         case WC_HASH_TYPE_SHA512:
 #ifdef WOLFSSL_SHA512
             ret = wc_Sha512Hash(data, data_len, hash);
+#endif
+            break;
+        case WC_HASH_TYPE_MD5_SHA:
+#if !defined(NO_MD5) && !defined(NO_SHA)
+            ret = wc_Md5Hash(data, data_len, hash);
+            if (ret == 0) {
+                ret = wc_ShaHash(data, data_len, &hash[MD5_DIGEST_SIZE]);
+            }
 #endif
             break;
 

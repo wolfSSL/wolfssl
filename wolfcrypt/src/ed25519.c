@@ -1,8 +1,8 @@
 /* ed25519.c
  *
- * Copyright (C) 2006-2015 wolfSSL Inc.
+ * Copyright (C) 2006-2016 wolfSSL Inc.
  *
- * This file is part of wolfSSL. (formerly known as CyaSSL)
+ * This file is part of wolfSSL.
  *
  * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,8 +16,9 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
+
 
  /* Based On Daniel J Bernstein's ed25519 Public Domain ref10 work. */
 
@@ -36,6 +37,7 @@
 #ifdef NO_INLINE
     #include <wolfssl/wolfcrypt/misc.h>
 #else
+    #define WOLFSSL_MISC_INCLUDED
     #include <wolfcrypt/src/misc.c>
 #endif
 
@@ -79,6 +81,7 @@ int wc_ed25519_make_key(WC_RNG* rng, int keySz, ed25519_key* key)
 }
 
 
+#ifdef HAVE_ED25519_SIGN
 /*
     in     contains the message to sign
     inlen  is the length of the message to sign
@@ -164,6 +167,9 @@ int wc_ed25519_sign_msg(const byte* in, word32 inlen, byte* out,
     return ret;
 }
 
+#endif /* HAVE_ED25519_SIGN */
+
+#ifdef HAVE_ED25519_VERIFY
 
 /*
    sig     is array of bytes containing the signature
@@ -238,6 +244,8 @@ int wc_ed25519_verify_msg(byte* sig, word32 siglen, const byte* msg,
     return ret;
 }
 
+#endif /* HAVE_ED25519_VERIFY */
+
 
 /* initialize information and memory for key */
 int wc_ed25519_init(ed25519_key* key)
@@ -261,6 +269,8 @@ void wc_ed25519_free(ed25519_key* key)
 }
 
 
+#ifdef HAVE_ED25519_KEY_EXPORT
+
 /*
     outLen should contain the size of out buffer when input. outLen is than set
     to the final output length.
@@ -283,7 +293,10 @@ int wc_ed25519_export_public(ed25519_key* key, byte* out, word32* outLen)
     return 0;
 }
 
+#endif /* HAVE_ED25519_KEY_EXPORT */
 
+
+#ifdef HAVE_ED25519_KEY_IMPORT
 /*
     Imports a compressed/uncompressed public key.
     in    the byte array containing the public key
@@ -357,6 +370,10 @@ int wc_ed25519_import_private_key(const byte* priv, word32 privSz,
     return ret;
 }
 
+#endif /* HAVE_ED25519_KEY_IMPORT */
+
+
+#ifdef HAVE_ED25519_KEY_EXPORT
 
 /*
  export private key only (secret part so 32 bytes)
@@ -423,6 +440,9 @@ int wc_ed25519_export_key(ed25519_key* key,
 
     return ret;
 }
+
+#endif /* HAVE_ED25519_KEY_EXPORT */
+
 
 /* returns the private key size (secret only) in bytes */
 int wc_ed25519_size(ed25519_key* key)

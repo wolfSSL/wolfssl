@@ -1,8 +1,8 @@
 /* error.c
  *
- * Copyright (C) 2006-2015 wolfSSL Inc.
+ * Copyright (C) 2006-2016 wolfSSL Inc.
  *
- * This file is part of wolfSSL. (formerly known as CyaSSL)
+ * This file is part of wolfSSL.
  *
  * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,8 +16,9 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
+
 
 #ifdef HAVE_CONFIG_H
     #include <config.h>
@@ -372,6 +373,15 @@ const char* wc_GetErrorString(int error)
 
     case HASH_TYPE_E:
         return "Hash type not enabled/available";
+
+    case WC_PENDING_E:
+        return "wolfCrypt Operation Pending (would block / eagain) error";
+
+    case WC_KEY_SIZE_E:
+        return "Key size error, either too small or large";
+
+    case ASN_COUNTRY_SIZE_E:
+        return "Country code size error, either too small or large";
 
     case BIO_CALLBACK_E:
         return "BIO callback function failed";

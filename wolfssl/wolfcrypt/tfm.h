@@ -1,8 +1,8 @@
 /* tfm.h
  *
- * Copyright (C) 2006-2015 wolfSSL Inc.
+ * Copyright (C) 2006-2016 wolfSSL Inc.
  *
- * This file is part of wolfSSL. (formerly known as CyaSSL)
+ * This file is part of wolfSSL.
  *
  * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,8 +16,9 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
+
 
 
 /*
@@ -210,6 +211,7 @@
 #if defined(FP_64BIT)
    /* for GCC only on supported platforms */
    typedef unsigned long long fp_digit;   /* 64bit, 128 uses mode(TI) below */
+   #define SIZEOF_FP_DIGIT 8
    typedef unsigned long      fp_word __attribute__ ((mode(TI)));
 #else
    #if defined(_MSC_VER) || defined(__BORLANDC__)
@@ -220,12 +222,14 @@
 
    #ifndef NO_64BIT
       typedef unsigned int       fp_digit;
+      #define SIZEOF_FP_DIGIT 4
       typedef ulong64            fp_word;
       #define FP_32BIT
    #else
       /* some procs like coldfire prefer not to place multiply into 64bit type
          even though it exists */
       typedef unsigned short     fp_digit;
+      #define SIZEOF_FP_DIGIT 2
       typedef unsigned int       fp_word;
    #endif
 #endif
@@ -233,7 +237,7 @@
 #endif /* WOLFSSL_BIGINT_TYPES */
 
 /* # of digits this is */
-#define DIGIT_BIT  (int)((CHAR_BIT) * sizeof(fp_digit))
+#define DIGIT_BIT   ((CHAR_BIT) * SIZEOF_FP_DIGIT)
 
 /* Max size of any number in bits.  Basically the largest size you will be
  * multiplying should be half [or smaller] of FP_MAX_SIZE-four_digit
@@ -547,103 +551,38 @@ void fp_reverse(unsigned char *s, int len);
 
 void fp_mul_comba(fp_int *a, fp_int *b, fp_int *c);
 
-#ifdef TFM_SMALL_SET
 void fp_mul_comba_small(fp_int *a, fp_int *b, fp_int *c);
-#endif
-
-#ifdef TFM_MUL3
 void fp_mul_comba3(fp_int *a, fp_int *b, fp_int *c);
-#endif
-#ifdef TFM_MUL4
 void fp_mul_comba4(fp_int *a, fp_int *b, fp_int *c);
-#endif
-#ifdef TFM_MUL6
 void fp_mul_comba6(fp_int *a, fp_int *b, fp_int *c);
-#endif
-#ifdef TFM_MUL7
 void fp_mul_comba7(fp_int *a, fp_int *b, fp_int *c);
-#endif
-#ifdef TFM_MUL8
 void fp_mul_comba8(fp_int *a, fp_int *b, fp_int *c);
-#endif
-#ifdef TFM_MUL9
 void fp_mul_comba9(fp_int *a, fp_int *b, fp_int *c);
-#endif
-#ifdef TFM_MUL12
 void fp_mul_comba12(fp_int *a, fp_int *b, fp_int *c);
-#endif
-#ifdef TFM_MUL17
 void fp_mul_comba17(fp_int *a, fp_int *b, fp_int *c);
-#endif
-
-#ifdef TFM_MUL20
 void fp_mul_comba20(fp_int *a, fp_int *b, fp_int *c);
-#endif
-#ifdef TFM_MUL24
 void fp_mul_comba24(fp_int *a, fp_int *b, fp_int *c);
-#endif
-#ifdef TFM_MUL28
 void fp_mul_comba28(fp_int *a, fp_int *b, fp_int *c);
-#endif
-#ifdef TFM_MUL32
 void fp_mul_comba32(fp_int *a, fp_int *b, fp_int *c);
-#endif
-#ifdef TFM_MUL48
 void fp_mul_comba48(fp_int *a, fp_int *b, fp_int *c);
-#endif
-#ifdef TFM_MUL64
 void fp_mul_comba64(fp_int *a, fp_int *b, fp_int *c);
-#endif
-
 void fp_sqr_comba(fp_int *a, fp_int *b);
-
-#ifdef TFM_SMALL_SET
 void fp_sqr_comba_small(fp_int *a, fp_int *b);
-#endif
-
-#ifdef TFM_SQR3
 void fp_sqr_comba3(fp_int *a, fp_int *b);
-#endif
-#ifdef TFM_SQR4
 void fp_sqr_comba4(fp_int *a, fp_int *b);
-#endif
-#ifdef TFM_SQR6
 void fp_sqr_comba6(fp_int *a, fp_int *b);
-#endif
-#ifdef TFM_SQR7
 void fp_sqr_comba7(fp_int *a, fp_int *b);
-#endif
-#ifdef TFM_SQR8
 void fp_sqr_comba8(fp_int *a, fp_int *b);
-#endif
-#ifdef TFM_SQR9
 void fp_sqr_comba9(fp_int *a, fp_int *b);
-#endif
-#ifdef TFM_SQR12
 void fp_sqr_comba12(fp_int *a, fp_int *b);
-#endif
-#ifdef TFM_SQR17
 void fp_sqr_comba17(fp_int *a, fp_int *b);
-#endif
-
-#ifdef TFM_SQR20
 void fp_sqr_comba20(fp_int *a, fp_int *b);
-#endif
-#ifdef TFM_SQR24
 void fp_sqr_comba24(fp_int *a, fp_int *b);
-#endif
-#ifdef TFM_SQR28
 void fp_sqr_comba28(fp_int *a, fp_int *b);
-#endif
-#ifdef TFM_SQR32
 void fp_sqr_comba32(fp_int *a, fp_int *b);
-#endif
-#ifdef TFM_SQR48
 void fp_sqr_comba48(fp_int *a, fp_int *b);
-#endif
-#ifdef TFM_SQR64
 void fp_sqr_comba64(fp_int *a, fp_int *b);
-#endif
+
 /*extern const char *fp_s_rmap;*/
 
 
@@ -672,6 +611,7 @@ void fp_sqr_comba64(fp_int *a, fp_int *b);
 #define mp_iseven(a)  fp_iseven(a)
 int  mp_init (mp_int * a);
 void mp_clear (mp_int * a);
+#define mp_forcezero(a) fp_clear(a)
 int mp_init_multi(mp_int* a, mp_int* b, mp_int* c, mp_int* d, mp_int* e, mp_int* f);
 
 int  mp_add (mp_int * a, mp_int * b, mp_int * c);
@@ -705,6 +645,12 @@ int  mp_set_bit (mp_int * a, mp_digit b);
 void mp_rshb(mp_int *a, int x);
 int mp_toradix (mp_int *a, char *str, int radix);
 int mp_radix_size (mp_int * a, int radix, int *size);
+
+#ifdef WOLFSSL_DEBUG_MATH
+    void mp_dump(const char* desc, mp_int* a, byte verbose);
+#else
+    #define mp_dump(desc, a, verbose)
+#endif
 
 #ifdef HAVE_ECC
     int mp_read_radix(mp_int* a, const char* str, int radix);

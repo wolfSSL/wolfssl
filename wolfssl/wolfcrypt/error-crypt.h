@@ -1,8 +1,8 @@
 /* error-crypt.h
  *
- * Copyright (C) 2006-2015 wolfSSL Inc.
+ * Copyright (C) 2006-2016 wolfSSL Inc.
  *
- * This file is part of wolfSSL. (formerly known as CyaSSL)
+ * This file is part of wolfSSL.
  *
  * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,8 +16,9 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
+
 
 
 #ifndef WOLF_CRYPT_ERROR_H
@@ -166,6 +167,10 @@ enum {
     BAD_COND_E          = -230,  /* Bad condition variable operation */
     SIG_TYPE_E          = -231,  /* Signature Type not enabled/available */
     HASH_TYPE_E         = -232,  /* Hash Type not enabled/available */
+    WC_PENDING_E        = -233,  /* wolfCrypt operation pending (would block) */
+
+    WC_KEY_SIZE_E       = -234,  /* Key size error, either too small or large */
+    ASN_COUNTRY_SIZE_E  = -235,  /* ASN Cert Gen, invalid country code size */
 
     BIO_CALLBACK_E       = -250,  /* BIO callback function failed */
     BIO_CREATE_METHOD_E  = -251,  /* BIO method create function failed */

@@ -1,8 +1,8 @@
 /* asn.h
  *
- * Copyright (C) 2006-2015 wolfSSL Inc.
+ * Copyright (C) 2006-2016 wolfSSL Inc.
  *
- * This file is part of wolfSSL. (formerly known as CyaSSL)
+ * This file is part of wolfSSL.
  *
  * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,8 +16,9 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
+
 
 #ifndef WOLF_CRYPT_ASN_H
 #define WOLF_CRYPT_ASN_H
@@ -57,7 +58,6 @@
 #ifdef __cplusplus
     extern "C" {
 #endif
-
 
 enum {
     ISSUER  = 0,
@@ -194,24 +194,25 @@ enum Misc_ASN {
     EIGHTK_BUF          = 8192,    /* Tmp buffer size           */
     MAX_PUBLIC_KEY_SZ   = MAX_NTRU_ENC_SZ + MAX_ALGO_SZ + MAX_SEQ_SZ * 2,
                                    /* use bigger NTRU size */
-    HEADER_ENCRYPTED_KEY_SIZE = 88 /* Extra header size for encrypted key */
+    HEADER_ENCRYPTED_KEY_SIZE = 88,/* Extra header size for encrypted key */
+    TRAILING_ZERO       = 1        /* Used for size of zero pad */
 };
 
 
 enum Oid_Types {
-    hashType         = 0,
-    sigType          = 1,
-    keyType          = 2,
-    curveType        = 3,
-    blkType          = 4,
-    ocspType         = 5,
-    certExtType      = 6,
-    certAuthInfoType = 7,
-    certPolicyType   = 8,
-    certAltNameType  = 9,
-    certKeyUseType   = 10,
-    kdfType          = 11,
-    ignoreType
+    oidHashType         = 0,
+    oidSigType          = 1,
+    oidKeyType          = 2,
+    oidCurveType        = 3,
+    oidBlkType          = 4,
+    oidOcspType         = 5,
+    oidCertExtType      = 6,
+    oidCertAuthInfoType = 7,
+    oidCertPolicyType   = 8,
+    oidCertAltNameType  = 9,
+    oidCertKeyUseType   = 10,
+    oidKdfType          = 11,
+    oidIgnoreType
 };
 
 
@@ -365,6 +366,9 @@ struct DecodedName {
 typedef struct DecodedCert DecodedCert;
 typedef struct DecodedName DecodedName;
 typedef struct Signer      Signer;
+#ifdef WOLFSSL_TRUST_PEER_CERT
+typedef struct TrustedPeerCert TrustedPeerCert;
+#endif /* WOLFSSL_TRUST_PEER_CERT */
 
 
 struct DecodedCert {
@@ -554,6 +558,28 @@ struct Signer {
 };
 
 
+#ifdef WOLFSSL_TRUST_PEER_CERT
+/* used for having trusted peer certs rather then CA */
+struct TrustedPeerCert {
+    int     nameLen;
+    char*   name;                    /* common name */
+    #ifndef IGNORE_NAME_CONSTRAINTS
+        Base_entry* permittedNames;
+        Base_entry* excludedNames;
+    #endif /* IGNORE_NAME_CONSTRAINTS */
+    byte    subjectNameHash[SIGNER_DIGEST_SIZE];
+                                     /* sha hash of names in certificate */
+    #ifndef NO_SKID
+        byte    subjectKeyIdHash[SIGNER_DIGEST_SIZE];
+                                     /* sha hash of names in certificate */
+    #endif
+    word32 sigLen;
+    byte*  sig;
+    struct TrustedPeerCert* next;
+};
+#endif /* WOLFSSL_TRUST_PEER_CERT */
+
+
 /* not for public consumption but may use for testing sometimes */
 #ifdef WOLFSSL_TEST_CERT
     #define WOLFSSL_TEST_API WOLFSSL_API
@@ -575,11 +601,18 @@ WOLFSSL_LOCAL int DecodeToKey(DecodedCert*, int verify);
 WOLFSSL_LOCAL Signer* MakeSigner(void*);
 WOLFSSL_LOCAL void    FreeSigner(Signer*, void*);
 WOLFSSL_LOCAL void    FreeSignerTable(Signer**, int, void*);
-
+#ifdef WOLFSSL_TRUST_PEER_CERT
+WOLFSSL_LOCAL void    FreeTrustedPeer(TrustedPeerCert*, void*);
+WOLFSSL_LOCAL void    FreeTrustedPeerTable(TrustedPeerCert**, int, void*);
+#endif /* WOLFSSL_TRUST_PEER_CERT */
 
 WOLFSSL_LOCAL int ToTraditional(byte* buffer, word32 length);
 WOLFSSL_LOCAL int ToTraditionalEnc(byte* buffer, word32 length,const char*,int);
 
+typedef struct tm wolfssl_tm;
+
+WOLFSSL_LOCAL int ExtractDate(const unsigned char* date, unsigned char format,
+                                                 wolfssl_tm* certTime, int* idx);
 WOLFSSL_LOCAL int ValidateDate(const byte* date, byte format, int dateType);
 
 /* ASN.1 helper functions */

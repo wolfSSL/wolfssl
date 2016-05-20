@@ -1,8 +1,8 @@
 /* unit.c API unit tests driver
  *
- * Copyright (C) 2006-2015 wolfSSL Inc.
+ * Copyright (C) 2006-2016 wolfSSL Inc.
  *
- * This file is part of wolfSSL. (formerly known as CyaSSL)
+ * This file is part of wolfSSL.
  *
  * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,8 +16,9 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
+
 
 /* Name change compatibility layer no longer need to be included here */
 
@@ -59,6 +60,11 @@ int unit_test(int argc, char** argv)
         err_sys("Cavium OpenNitroxDevice failed");
 #endif /* HAVE_CAVIUM */
 
+#ifdef HAVE_WNR
+    if (wc_InitNetRandom(wnrConfig, NULL, 5000) != 0)
+        err_sys("Whitewood netRandom global config failed");
+#endif /* HAVE_WNR */
+
 #ifndef WOLFSSL_TIRTOS
     ChangeToWolfRoot();
 #endif
@@ -82,6 +88,11 @@ int unit_test(int argc, char** argv)
 #ifdef HAVE_CAVIUM
         CspShutdown(CAVIUM_DEV_ID);
 #endif
+
+#ifdef HAVE_WNR
+    if (wc_FreeNetRandom() < 0)
+        err_sys("Failed to free netRandom context");
+#endif /* HAVE_WNR */
 
     return 0;
 }
@@ -151,6 +162,7 @@ void join_thread(THREAD_TYPE thread)
     assert(res == WAIT_OBJECT_0);
     res = CloseHandle((HANDLE)thread);
     assert(res);
+    (void)res; /* Suppress un-used variable warning */
 #endif
 }
 

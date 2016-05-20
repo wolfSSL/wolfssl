@@ -1,8 +1,8 @@
 /* ocsp.c
  *
- * Copyright (C) 2006-2015 wolfSSL Inc.
+ * Copyright (C) 2006-2016 wolfSSL Inc.
  *
- * This file is part of wolfSSL. (formerly known as CyaSSL)
+ * This file is part of wolfSSL.
  *
  * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,8 +16,9 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
+
 
   /* Name change compatibility layer no longer needs to be included here */
 
@@ -37,6 +38,7 @@
 #ifdef NO_INLINE
     #include <wolfssl/wolfcrypt/misc.h>
 #else
+    #define WOLFSSL_MISC_INCLUDED
     #include <wolfcrypt/src/misc.c>
 #endif
 
@@ -118,7 +120,7 @@ static int xstat2err(int stat)
 }
 
 
-int CheckCertOCSP(WOLFSSL_OCSP* ocsp, DecodedCert* cert, void* encodedResponse)
+int CheckCertOCSP(WOLFSSL_OCSP* ocsp, DecodedCert* cert, buffer* responseBuffer)
 {
     int ret = OCSP_LOOKUP_FAIL;
 
@@ -141,7 +143,7 @@ int CheckCertOCSP(WOLFSSL_OCSP* ocsp, DecodedCert* cert, void* encodedResponse)
 #endif
 
     if (InitOcspRequest(ocspRequest, cert, ocsp->cm->ocspSendNonce) == 0) {
-        ret = CheckOcspRequest(ocsp, ocspRequest, encodedResponse);
+        ret = CheckOcspRequest(ocsp, ocspRequest, responseBuffer);
 
         FreeOcspRequest(ocspRequest);
     }
@@ -239,14 +241,13 @@ static int GetOcspStatus(WOLFSSL_OCSP* ocsp, OcspRequest* request,
 }
 
 int CheckOcspRequest(WOLFSSL_OCSP* ocsp, OcspRequest* ocspRequest,
-                                                          void* encodedResponse)
+                                                      buffer* responseBuffer)
 {
     OcspEntry*  entry          = NULL;
     CertStatus* status         = NULL;
     byte*       request        = NULL;
     int         requestSz      = 2048;
     byte*       response       = NULL;
-    buffer*     responseBuffer = (buffer*) encodedResponse;
     const char* url            = NULL;
     int         urlSz          = 0;
     int         ret            = -1;

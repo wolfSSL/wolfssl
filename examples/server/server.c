@@ -1,8 +1,8 @@
 /* server.c
  *
- * Copyright (C) 2006-2015 wolfSSL Inc.
+ * Copyright (C) 2006-2016 wolfSSL Inc.
  *
- * This file is part of wolfSSL. (formerly known as CyaSSL)
+ * This file is part of wolfSSL.
  *
  * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,8 +16,9 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
+
 
 #ifdef HAVE_CONFIG_H
     #include <config.h>
@@ -71,7 +72,7 @@
 
 
 
-static void NonBlockingSSL_Accept(SSL* ssl)
+static int NonBlockingSSL_Accept(SSL* ssl)
 {
 #ifndef CYASSL_CALLBACKS
     int ret = SSL_accept(ssl);
@@ -120,8 +121,8 @@ static void NonBlockingSSL_Accept(SSL* ssl)
             error = SSL_FATAL_ERROR;
         }
     }
-    if (ret != SSL_SUCCESS)
-        err_sys("SSL_accept failed");
+
+    return ret;
 }
 
 /* Echo number of bytes specified by -e arg */
@@ -138,7 +139,7 @@ int ServerEchoData(SSL* ssl, int clientfd, int echoData, int throughput)
                 int len = min(TEST_BUFFER_SIZE, throughput - xfer_bytes);
                 int rx_pos = 0;
                 if(throughput) {
-                    start = current_time();
+                    start = current_time(1);
                 }
                 while(rx_pos < len) {
                     ret = SSL_read(ssl, &buffer[rx_pos], len - rx_pos);
@@ -154,14 +155,14 @@ int ServerEchoData(SSL* ssl, int clientfd, int echoData, int throughput)
                     }
                 }
                 if(throughput) {
-                    rx_time += current_time() - start;
-                    start = current_time();
+                    rx_time += current_time(0) - start;
+                    start = current_time(1);
                 }
                 if (SSL_write(ssl, buffer, len) != len) {
                     err_sys("SSL_write failed");
                 }
                 if(throughput) {
-                    tx_time += current_time() - start;
+                    tx_time += current_time(0) - start;
                 }
 
                 xfer_bytes += len;
@@ -238,6 +239,12 @@ static void Usage(void)
     printf("-n          Use NTRU key (needed for NTRU suites)\n");
 #endif
     printf("-B <num>    Benchmark throughput using <num> bytes and print stats\n");
+#ifdef WOLFSSL_TRUST_PEER_CERT
+    printf("-E <file>   Path to load trusted peer cert\n");
+#endif
+#ifdef HAVE_WNR
+    printf("-q <file>   Whitewood config file,      default %s\n", wnrConfig);
+#endif
 }
 
 THREAD_RETURN CYASSL_THREAD server_test(void* args)
@@ -272,10 +279,13 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     int    loopIndefinitely = 0;
     int    echoData = 0;
     int    throughput = 0;
-    int    minDhKeyBits = DEFAULT_MIN_DHKEY_BITS;
+    int    minDhKeyBits  = DEFAULT_MIN_DHKEY_BITS;
+    short  minRsaKeyBits = DEFAULT_MIN_RSAKEY_BITS;
+    short  minEccKeyBits = DEFAULT_MIN_ECCKEY_BITS;
     int    doListen = 1;
     int    crlFlags = 0;
     int    ret;
+    int    err = 0;
     char*  serverReadyFile = NULL;
     char*  alpnList = NULL;
     unsigned char alpn_opt = 0;
@@ -288,6 +298,10 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     int    argc = ((func_args*)args)->argc;
     char** argv = ((func_args*)args)->argv;
 
+#ifdef WOLFSSL_TRUST_PEER_CERT
+    const char* trustCert  = NULL;
+#endif
+
 #ifndef NO_PSK
     int sendPskIdentityHint = 1;
 #endif
@@ -299,6 +313,10 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
 #ifdef HAVE_OCSP
     int    useOcsp  = 0;
     char*  ocspUrl  = NULL;
+#endif
+
+#ifdef HAVE_WNR
+    const char* wnrConfigFile = wnrConfig;
 #endif
 
     ((func_args*)args)->return_code = -1; /* error state */
@@ -318,6 +336,8 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     (void)useNtruKey;
     (void)doCliCertCheck;
     (void)minDhKeyBits;
+    (void)minRsaKeyBits;
+    (void)minEccKeyBits;
     (void)alpnList;
     (void)alpn_opt;
     (void)crlFlags;
@@ -330,8 +350,8 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
 #ifdef WOLFSSL_VXWORKS
     useAnyAddr = 1;
 #else
-    while ((ch = mygetopt(argc, argv, "?dbstnNufrawPIR:p:v:l:A:c:k:Z:S:oO:D:L:ieB:j"))
-                         != -1) {
+    while ((ch = mygetopt(argc, argv,
+                  "?jdbstnNufrawPIR:p:v:l:A:c:k:Z:S:oO:D:L:ieB:E:q:")) != -1) {
         switch (ch) {
             case '?' :
                 Usage();
@@ -389,10 +409,6 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
 
             case 'p' :
                 port = (word16)atoi(myoptarg);
-                #if defined(USE_WINDOWS_API)
-                    if (port == 0)
-                        err_sys("port number cannot be 0");
-                #endif
                 break;
 
             case 'w' :
@@ -507,6 +523,18 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
                 }
                 break;
 
+            #ifdef WOLFSSL_TRUST_PEER_CERT
+            case 'E' :
+                 trustCert = myoptarg;
+                break;
+            #endif
+
+            case 'q' :
+                #ifdef HAVE_WNR
+                    wnrConfigFile = myoptarg;
+                #endif
+                break;
+
             default:
                 Usage();
                 exit(MY_EX_USAGE);
@@ -535,6 +563,11 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
 #ifdef USE_CYASSL_MEMORY
     if (trackMemory)
         InitMemoryTracker();
+#endif
+
+#ifdef HAVE_WNR
+    if (wc_InitNetRandom(wnrConfigFile, NULL, 5000) != 0)
+        err_sys("can't load whitewood net random config file");
 #endif
 
     switch (version) {
@@ -599,11 +632,15 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
             err_sys("server can't set cipher list 1");
 
 #ifdef CYASSL_LEANPSK
-    usePsk = 1;
+    if (!usePsk) {
+        usePsk = 1;
+    }
 #endif
 
 #if defined(NO_RSA) && !defined(HAVE_ECC)
-    usePsk = 1;
+    if (!usePsk) {
+        usePsk = 1;
+    }
 #endif
 
     if (fewerPackets)
@@ -623,7 +660,19 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
 #endif
 
 #ifndef NO_DH
-    wolfSSL_CTX_SetMinDhKey_Sz(ctx, (word16)minDhKeyBits);
+    if (wolfSSL_CTX_SetMinDhKey_Sz(ctx, (word16)minDhKeyBits) != SSL_SUCCESS) {
+        err_sys("Error setting minimum DH key size");
+    }
+#endif
+#ifndef NO_RSA
+    if (wolfSSL_CTX_SetMinRsaKey_Sz(ctx, minRsaKeyBits) != SSL_SUCCESS){
+        err_sys("Error setting minimum RSA key size");
+    }
+#endif
+#ifdef HAVE_ECC
+    if (wolfSSL_CTX_SetMinEccKey_Sz(ctx, minEccKeyBits) != SSL_SUCCESS){
+        err_sys("Error setting minimum ECC key size");
+    }
 #endif
 
 #ifdef HAVE_NTRU
@@ -685,6 +734,14 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
                                 SSL_VERIFY_FAIL_IF_NO_PEER_CERT),0);
         if (SSL_CTX_load_verify_locations(ctx, verifyCert, 0) != SSL_SUCCESS)
             err_sys("can't load ca file, Please run from wolfSSL home dir");
+        #ifdef WOLFSSL_TRUST_PEER_CERT
+        if (trustCert) {
+            if ((ret = wolfSSL_CTX_trust_peer_cert(ctx, trustCert,
+                                            SSL_FILETYPE_PEM)) != SSL_SUCCESS) {
+                err_sys("can't load trusted peer cert file");
+            }
+        }
+        #endif /* WOLFSSL_TRUST_PEER_CERT */
    }
 #endif
 
@@ -702,6 +759,13 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
                                            XSTRLEN(sniHostName)) != SSL_SUCCESS)
             err_sys("UseSNI failed");
 #endif
+
+#ifdef USE_WINDOWS_API
+    if (port == 0) {
+        /* Generate random port for testing */
+        port = GetRandomPort();
+    }
+#endif /* USE_WINDOWS_API */
 
     while (1) {
         /* allow resume option */
@@ -775,7 +839,9 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
                        doDTLS, serverReadyFile ? 1 : 0, doListen);
         doListen = 0; /* Don't listen next time */
 
-        SSL_set_fd(ssl, clientfd);
+        if (SSL_set_fd(ssl, clientfd) != SSL_SUCCESS) {
+            err_sys("error in setting fd");
+        }
 
 #ifdef HAVE_ALPN
         if (alpnList != NULL) {
@@ -815,21 +881,44 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
         if (nonBlocking) {
             CyaSSL_set_using_nonblock(ssl, 1);
             tcp_set_nonblocking(&clientfd);
-            NonBlockingSSL_Accept(ssl);
-        } else if (SSL_accept(ssl) != SSL_SUCCESS) {
-            int err = SSL_get_error(ssl, 0);
+        }
+#endif
+
+        do {
+#ifdef WOLFSSL_ASYNC_CRYPT
+            if (err == WC_PENDING_E) {
+                ret = AsyncCryptPoll(ssl);
+                if (ret < 0) { break; } else if (ret == 0) { continue; }
+            }
+#endif
+
+            err = 0; /* Reset error */
+#ifndef CYASSL_CALLBACKS
+            if (nonBlocking) {
+                ret = NonBlockingSSL_Accept(ssl);
+            }
+            else {
+                ret = SSL_accept(ssl);
+            }
+#else
+            ret = NonBlockingSSL_Accept(ssl);
+#endif
+            if (ret != SSL_SUCCESS) {
+                err = SSL_get_error(ssl, 0);
+            }
+        } while (ret != SSL_SUCCESS && err == WC_PENDING_E);
+
+        if (ret != SSL_SUCCESS) {
             char buffer[CYASSL_MAX_ERROR_SZ];
+            err = SSL_get_error(ssl, 0);
             printf("error = %d, %s\n", err, ERR_error_string(err, buffer));
             err_sys("SSL_accept failed");
         }
-#else
-        NonBlockingSSL_Accept(ssl);
-#endif
+
         showPeer(ssl);
 
 #ifdef HAVE_ALPN
         if (alpnList != NULL) {
-            int err;
             char *protocol_name = NULL, *list = NULL;
             word16 protocol_nameSz = 0, listSz = 0;
 
@@ -923,6 +1012,15 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     TicketCleanup();
 #endif
 
+    /* There are use cases  when these assignments are not read. To avoid
+     * potential confusion those warnings have been handled here.
+     */
+    (void) ourKey;
+    (void) verifyCert;
+    (void) doCliCertCheck;
+    (void) useNtruKey;
+    (void) ourDhParam;
+    (void) ourCert;
 #ifndef CYASSL_TIRTOS
     return 0;
 #endif
@@ -967,6 +1065,12 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
 #ifdef HAVE_CAVIUM
         CspShutdown(CAVIUM_DEV_ID);
 #endif
+
+#ifdef HAVE_WNR
+    if (wc_FreeNetRandom() < 0)
+        err_sys("Failed to free netRandom context");
+#endif /* HAVE_WNR */
+
         return args.return_code;
     }
 

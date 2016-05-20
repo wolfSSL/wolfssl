@@ -18,6 +18,10 @@ if test -d .git; then
   # touch fips files for non fips distribution
   touch ./ctaocrypt/src/fips.c
   touch ./ctaocrypt/src/fips_test.c
+
+  # touch async crypt files
+  touch ./src/async.c
+  touch ./wolfssl/async.h
 else
   WARNINGS="all"
 fi

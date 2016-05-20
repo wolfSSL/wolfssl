@@ -277,6 +277,7 @@
 			<File
 				RelativePath=".\wolfcrypt\src\poly1305.c"
 				>
+			</File>
 			<File
 				RelativePath=".\wolfcrypt\src\wc_port.c"
 				>
@@ -323,6 +324,10 @@
 			</File>
 			<File
 				RelativePath=".\src\tls.c"
+				>
+			</File>
+			<File
+				RelativePath=".\wolfcrypt\src\wc_encrypt.c"
 				>
 			</File>
 		</Filter>

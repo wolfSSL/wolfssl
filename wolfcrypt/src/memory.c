@@ -1,8 +1,8 @@
 /* memory.c
  *
- * Copyright (C) 2006-2015 wolfSSL Inc.
+ * Copyright (C) 2006-2016 wolfSSL Inc.
  *
- * This file is part of wolfSSL. (formerly known as CyaSSL)
+ * This file is part of wolfSSL.
  *
  * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,8 +16,9 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
+
 
 #ifdef HAVE_CONFIG_H
     #include <config.h>
@@ -41,6 +42,7 @@
 #ifdef WOLFSSL_MALLOC_CHECK
     #include <stdio.h>
 #endif
+
 
 /* Set these to default values initially. */
 static wolfSSL_Malloc_cb  malloc_function = 0;
@@ -71,15 +73,24 @@ int wolfSSL_SetAllocators(wolfSSL_Malloc_cb  mf,
     return res;
 }
 
-
+#ifdef WOLFSSL_DEBUG_MEMORY
+void* wolfSSL_Malloc(size_t size, const char* func, unsigned int line)
+#else
 void* wolfSSL_Malloc(size_t size)
+#endif
 {
     void* res = 0;
 
-    if (malloc_function)
+    if (malloc_function) {
+    #ifdef WOLFSSL_DEBUG_MEMORY
+        res = malloc_function(size, func, line);
+    #else
         res = malloc_function(size);
-    else
+    #endif
+    }
+    else {
         res = malloc(size);
+    }
 
     #ifdef WOLFSSL_MALLOC_CHECK
         if (res == NULL)
@@ -89,22 +100,42 @@ void* wolfSSL_Malloc(size_t size)
     return res;
 }
 
+#ifdef WOLFSSL_DEBUG_MEMORY
+void wolfSSL_Free(void *ptr, const char* func, unsigned int line)
+#else
 void wolfSSL_Free(void *ptr)
+#endif
 {
-    if (free_function)
+    if (free_function) {
+    #ifdef WOLFSSL_DEBUG_MEMORY
+        free_function(ptr, func, line);
+    #else
         free_function(ptr);
-    else
+    #endif
+    }
+    else {
         free(ptr);
+    }
 }
 
+#ifdef WOLFSSL_DEBUG_MEMORY
+void* wolfSSL_Realloc(void *ptr, size_t size, const char* func, unsigned int line)
+#else
 void* wolfSSL_Realloc(void *ptr, size_t size)
+#endif
 {
     void* res = 0;
 
-    if (realloc_function)
+    if (realloc_function) {
+    #ifdef WOLFSSL_DEBUG_MEMORY
+        res = realloc_function(ptr, size, func, line);
+    #else
         res = realloc_function(ptr, size);
-    else
+    #endif
+    }
+    else {
         res = realloc(ptr, size);
+    }
 
     return res;
 }

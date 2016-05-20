@@ -1,8 +1,8 @@
 /* chacha.c
  *
- * Copyright (C) 2006-2015 wolfSSL Inc.
+ * Copyright (C) 2006-2016 wolfSSL Inc.
  *
- * This file is part of wolfSSL. (formerly known as CyaSSL)
+ * This file is part of wolfSSL.
  *
  * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,13 +16,14 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  *
  *  based from
  *  chacha-ref.c version 20080118
  *  D. J. Bernstein
  *  Public domain.
  */
+
 
 
 #ifdef HAVE_CONFIG_H
@@ -39,6 +40,7 @@
 #ifdef NO_INLINE
     #include <wolfssl/wolfcrypt/misc.h>
 #else
+    #define WOLFSSL_MISC_INCLUDED
     #include <wolfcrypt/src/misc.c>
 #endif
 
@@ -77,12 +79,12 @@
   */
 int wc_Chacha_SetIV(ChaCha* ctx, const byte* inIv, word32 counter)
 {
-    word32 temp[3];       /* used for alignment of memory */
+    word32 temp[CHACHA_IV_WORDS];/* used for alignment of memory */
 
 #ifdef CHACHA_AEAD_TEST
     word32 i;
     printf("NONCE : ");
-    for (i = 0; i < 12; i++) {
+    for (i = 0; i < CHACHA_IV_BYTES; i++) {
         printf("%02x", inIv[i]);
     }
     printf("\n\n");
@@ -91,12 +93,12 @@ int wc_Chacha_SetIV(ChaCha* ctx, const byte* inIv, word32 counter)
     if (ctx == NULL)
         return BAD_FUNC_ARG;
 
-    XMEMCPY(temp, inIv, 12);
+    XMEMCPY(temp, inIv, CHACHA_IV_BYTES);
 
-    ctx->X[12] = counter;           /* block counter */
-    ctx->X[13] = LITTLE32(temp[0]); /* fixed variable from nonce */
-    ctx->X[14] = LITTLE32(temp[1]); /* counter from nonce */
-    ctx->X[15] = LITTLE32(temp[2]); /* counter from nonce */
+    ctx->X[CHACHA_IV_BYTES+0] = counter;           /* block counter */
+    ctx->X[CHACHA_IV_BYTES+1] = LITTLE32(temp[0]); /* fixed variable from nonce */
+    ctx->X[CHACHA_IV_BYTES+2] = LITTLE32(temp[1]); /* counter from nonce */
+    ctx->X[CHACHA_IV_BYTES+3] = LITTLE32(temp[2]); /* counter from nonce */
 
     return 0;
 }
@@ -174,12 +176,13 @@ int wc_Chacha_SetKey(ChaCha* ctx, const byte* key, word32 keySz)
 /**
   * Converts word into bytes with rotations having been done.
   */
-static INLINE void wc_Chacha_wordtobyte(word32 output[16], const word32 input[16])
+static INLINE void wc_Chacha_wordtobyte(word32 output[CHACHA_CHUNK_WORDS],
+    const word32 input[CHACHA_CHUNK_WORDS])
 {
-    word32 x[16];
+    word32 x[CHACHA_CHUNK_WORDS];
     word32 i;
 
-    for (i = 0; i < 16; i++) {
+    for (i = 0; i < CHACHA_CHUNK_WORDS; i++) {
         x[i] = input[i];
     }
 
@@ -194,11 +197,11 @@ static INLINE void wc_Chacha_wordtobyte(word32 output[16], const word32 input[16
         QUARTERROUND(3, 4,  9, 14)
     }
 
-    for (i = 0; i < 16; i++) {
+    for (i = 0; i < CHACHA_CHUNK_WORDS; i++) {
         x[i] = PLUS(x[i], input[i]);
     }
 
-    for (i = 0; i < 16; i++) {
+    for (i = 0; i < CHACHA_CHUNK_WORDS; i++) {
         output[i] = LITTLE32(x[i]);
     }
 }
@@ -210,7 +213,7 @@ static void wc_Chacha_encrypt_bytes(ChaCha* ctx, const byte* m, byte* c,
                                  word32 bytes)
 {
     byte*  output;
-    word32 temp[16]; /* used to make sure aligned */
+    word32 temp[CHACHA_CHUNK_WORDS]; /* used to make sure aligned */
     word32 i;
 
     output = (byte*)temp;
@@ -218,19 +221,19 @@ static void wc_Chacha_encrypt_bytes(ChaCha* ctx, const byte* m, byte* c,
     if (!bytes) return;
     for (;;) {
         wc_Chacha_wordtobyte(temp, ctx->X);
-        ctx->X[12] = PLUSONE(ctx->X[12]);
-        if (bytes <= 64) {
+        ctx->X[CHACHA_IV_BYTES] = PLUSONE(ctx->X[CHACHA_IV_BYTES]);
+        if (bytes <= CHACHA_CHUNK_BYTES) {
             for (i = 0; i < bytes; ++i) {
                 c[i] = m[i] ^ output[i];
             }
             return;
         }
-        for (i = 0; i < 64; ++i) {
+        for (i = 0; i < CHACHA_CHUNK_BYTES; ++i) {
             c[i] = m[i] ^ output[i];
         }
-        bytes -= 64;
-        c += 64;
-        m += 64;
+        bytes -= CHACHA_CHUNK_BYTES;
+        c += CHACHA_CHUNK_BYTES;
+        m += CHACHA_CHUNK_BYTES;
     }
 }
 

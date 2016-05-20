@@ -1,8 +1,8 @@
 /* retarget.c
  *
- * Copyright (C) 2006-2015 wolfSSL Inc.
+ * Copyright (C) 2006-2016 wolfSSL Inc.
  *
- * This file is part of wolfSSL. (formerly known as CyaSSL)
+ * This file is part of wolfSSL.
  *
  * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,22 +16,48 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
+
 #include "hw.h"
+#include "user_settings.h"
 
 double current_time(int reset)
 {
     double time;
+    (void)reset;
     time = hw_get_time_sec();
     time += (double)hw_get_time_msec() / 1000;
     return time;
 }
 
-uint32_t custom_rand_generate(void)
+unsigned int custom_rand_generate(void)
 {
     return hw_rand();
+}
+
+int custom_rand_generate_block(unsigned char* output, unsigned int sz)
+{
+    uint32_t i = 0;
+
+    while (i < sz)
+    {
+        /* If not aligned or there is odd/remainder */
+        if( (i + sizeof(CUSTOM_RAND_TYPE)) > sz ||
+            ((uint32_t)&output[i] % sizeof(CUSTOM_RAND_TYPE)) != 0
+        ) {
+            /* Single byte at a time */
+            output[i++] = (unsigned char)custom_rand_generate();
+        }
+        else {
+            /* Use native 8, 16, 32 or 64 copy instruction */
+            *((CUSTOM_RAND_TYPE*)&output[i]) = custom_rand_generate();
+            i += sizeof(CUSTOM_RAND_TYPE);
+        }
+    }
+
+    return 0;
 }
 
 // Debug print handler

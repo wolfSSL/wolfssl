@@ -13,7 +13,7 @@ extern "C" {
 /* Map OpenSSL NID value */
 enum {
     POINT_CONVERSION_UNCOMPRESSED = 4,
-    NID_secp111r1 = 0,
+    NID_secp112r1 = 0,
     NID_secp128r1 = 1,
     NID_secp160r1 = 2,
     NID_cert192 = 3,

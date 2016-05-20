@@ -1,8 +1,8 @@
 /* pkcs7.c
  *
- * Copyright (C) 2006-2015 wolfSSL Inc.
+ * Copyright (C) 2006-2016 wolfSSL Inc.
  *
- * This file is part of wolfSSL. (formerly known as CyaSSL)
+ * This file is part of wolfSSL.
  *
  * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,8 +16,9 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
+
 
 #ifdef HAVE_CONFIG_H
     #include <config.h>
@@ -33,6 +34,7 @@
 #ifdef NO_INLINE
     #include <wolfssl/wolfcrypt/misc.h>
 #else
+    #define WOLFSSL_MISC_INCLUDED
     #include <wolfcrypt/src/misc.c>
 #endif
 
@@ -130,7 +132,7 @@ int wc_GetContentType(const byte* input, word32* inOutIdx, word32* oid,
                    word32 maxIdx)
 {
     WOLFSSL_ENTER("wc_GetContentType");
-    if (GetObjectId(input, inOutIdx, oid, ignoreType, maxIdx) < 0)
+    if (GetObjectId(input, inOutIdx, oid, oidIgnoreType, maxIdx) < 0)
         return ASN_PARSE_E;
 
     return 0;
@@ -396,10 +398,10 @@ int wc_PKCS7_EncodeSignedData(PKCS7* pkcs7, byte* output, word32 outputSz)
     esd->signerVersionSz = SetMyVersion(1, esd->signerVersion, 0);
     signerInfoSz += esd->signerVersionSz;
     esd->signerDigAlgoIdSz = SetAlgoID(pkcs7->hashOID, esd->signerDigAlgoId,
-                                      hashType, 0);
+                                      oidHashType, 0);
     signerInfoSz += esd->signerDigAlgoIdSz;
     esd->digEncAlgoIdSz = SetAlgoID(pkcs7->encryptOID, esd->digEncAlgoId,
-                                   keyType, 0);
+                                   oidKeyType, 0);
     signerInfoSz += esd->digEncAlgoIdSz;
 
     if (pkcs7->signedAttribsSz != 0) {
@@ -576,7 +578,7 @@ int wc_PKCS7_EncodeSignedData(PKCS7* pkcs7, byte* output, word32 outputSz)
                                                                  esd->certsSet);
 
     esd->singleDigAlgoIdSz = SetAlgoID(pkcs7->hashOID, esd->singleDigAlgoId,
-                                      hashType, 0);
+                                      oidHashType, 0);
     esd->digAlgoIdSetSz = SetSet(esd->singleDigAlgoIdSz, esd->digAlgoIdSet);
 
 
@@ -1033,7 +1035,7 @@ WOLFSSL_LOCAL int wc_CreateRecipientInfo(const byte* cert, word32 certSz,
         return ALGO_ID_E;
     }
 
-    keyEncAlgSz = SetAlgoID(keyEncAlgo, keyAlgArray, keyType, 0);
+    keyEncAlgSz = SetAlgoID(keyEncAlgo, keyAlgArray, oidKeyType, 0);
     if (keyEncAlgSz == 0) {
         FreeDecodedCert(decoded);
 #ifdef WOLFSSL_SMALL_STACK
@@ -1319,7 +1321,7 @@ int wc_PKCS7_EncodeEnvelopedData(PKCS7* pkcs7, byte* output, word32 outputSz)
     /* build up our ContentEncryptionAlgorithmIdentifier sequence,
      * adding (ivOctetStringSz + DES_BLOCK_SIZE) for IV OCTET STRING */
     contentEncAlgoSz = SetAlgoID(pkcs7->encryptOID, contentEncAlgo,
-                                 blkType, ivOctetStringSz + DES_BLOCK_SIZE);
+                                 oidBlkType, ivOctetStringSz + DES_BLOCK_SIZE);
 
     if (contentEncAlgoSz == 0) {
         XFREE(encryptedContent, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -1592,7 +1594,7 @@ WOLFSSL_API int wc_PKCS7_DecodeEnvelopedData(PKCS7* pkcs7, byte* pkiMsg,
         XFREE(serialNum, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
         
-        if (GetAlgoId(pkiMsg, &idx, &encOID, keyType, pkiMsgSz) < 0) {
+        if (GetAlgoId(pkiMsg, &idx, &encOID, oidKeyType, pkiMsgSz) < 0) {
 #ifdef WOLFSSL_SMALL_STACK
             XFREE(encryptedKey, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
@@ -1653,7 +1655,7 @@ WOLFSSL_API int wc_PKCS7_DecodeEnvelopedData(PKCS7* pkcs7, byte* pkiMsg,
         return ASN_PARSE_E;
     }
 
-    if (GetAlgoId(pkiMsg, &idx, &encOID, blkType, pkiMsgSz) < 0) {
+    if (GetAlgoId(pkiMsg, &idx, &encOID, oidBlkType, pkiMsgSz) < 0) {
 #ifdef WOLFSSL_SMALL_STACK
         XFREE(encryptedKey, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif

@@ -1,8 +1,8 @@
 /* random.c
  *
- * Copyright (C) 2006-2015 wolfSSL Inc.
+ * Copyright (C) 2006-2016 wolfSSL Inc.
  *
- * This file is part of wolfSSL. (formerly known as CyaSSL)
+ * This file is part of wolfSSL.
  *
  * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,8 +16,9 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
+
 
 #ifdef HAVE_CONFIG_H
     #include <config.h>
@@ -36,6 +37,8 @@
 /* To maintain compatibility the default return value from CUSTOM_RAND_GENERATE is byte */
 #define CUSTOM_RAND_TYPE    byte
 #endif
+
+#define RNG_HEALTH_TEST_CHECK_SIZE (SHA256_DIGEST_SIZE * 4)
 
 
 #ifdef HAVE_FIPS
@@ -128,6 +131,7 @@ int wc_FreeRng(WC_RNG* rng)
     #ifdef NO_INLINE
         #include <wolfssl/wolfcrypt/misc.h>
     #else
+        #define WOLFSSL_MISC_INCLUDED
         #include <wolfcrypt/src/misc.c>
     #endif
 #endif /* HAVE_HASHDRBG || NO_RC4 */
@@ -139,9 +143,17 @@ int wc_FreeRng(WC_RNG* rng)
     #include <windows.h>
     #include <wincrypt.h>
 #else
-    #if !defined(NO_DEV_RANDOM) && !defined(CUSTOM_RAND_GENERATE) && \
-        !defined(WOLFSSL_GENSEED_FORTEST) && !defined(WOLFSSL_MDK_ARM) && \
-        !defined(WOLFSSL_IAR_ARM) && !defined(WOLFSSL_ROWLEY_ARM)
+    #ifdef HAVE_WNR
+        #include <wnr.h>
+        #include <wolfssl/wolfcrypt/logging.h>
+        wolfSSL_Mutex wnr_mutex;    /* global netRandom mutex */
+        int wnr_timeout     = 0;    /* entropy timeout, mililseconds */
+        int wnr_mutex_init  = 0;    /* flag for mutex init */
+        wnr_context*  wnr_ctx;      /* global netRandom context */
+    #elif !defined(NO_DEV_RANDOM) && !defined(CUSTOM_RAND_GENERATE) && \
+          !defined(WOLFSSL_GENSEED_FORTEST) && !defined(WOLFSSL_MDK_ARM) && \
+          !defined(WOLFSSL_IAR_ARM) && !defined(WOLFSSL_ROWLEY_ARM) && \
+          !defined(WOLFSSL_EMBOS)
             #include <fcntl.h>
         #ifndef EBSNET
             #include <unistd.h>
@@ -191,6 +203,11 @@ int wc_FreeRng(WC_RNG* rng)
 #define DRBG_FAILED       2
 #define DRBG_CONT_FAILED  3
 
+/* Verify max gen block len */
+#if RNG_MAX_BLOCK_LEN > MAX_REQUEST_LEN
+    #error RNG_MAX_BLOCK_LEN is larger than NIST DBRG max request length
+#endif
+    
 
 enum {
     drbgInitC     = 0,
@@ -352,15 +369,17 @@ static int Hash_gen(DRBG* drbg, byte* out, word32 outSz, const byte* V)
             drbg->lastBlock = checkBlock;
         }
 
-        if (outSz >= OUTPUT_BLOCK_LEN) {
-            XMEMCPY(out, digest, OUTPUT_BLOCK_LEN);
-            outSz -= OUTPUT_BLOCK_LEN;
-            out += OUTPUT_BLOCK_LEN;
-            array_add_one(data, DRBG_SEED_LEN);
-        }
-        else if (out != NULL && outSz != 0) {
-            XMEMCPY(out, digest, outSz);
-            outSz = 0;
+        if (out != NULL) {
+            if (outSz >= OUTPUT_BLOCK_LEN) {
+                XMEMCPY(out, digest, OUTPUT_BLOCK_LEN);
+                outSz -= OUTPUT_BLOCK_LEN;
+                out += OUTPUT_BLOCK_LEN;
+                array_add_one(data, DRBG_SEED_LEN);
+            }
+            else if (out != NULL && outSz != 0) {
+                XMEMCPY(out, digest, outSz);
+                outSz = 0;
+            }
         }
     }
     ForceZero(data, sizeof(data));
@@ -530,7 +549,7 @@ int wc_RNG_GenerateBlock(WC_RNG* rng, byte* output, word32 sz)
 {
     int ret;
 
-    if (rng == NULL || output == NULL || sz > MAX_REQUEST_LEN)
+    if (rng == NULL || output == NULL || sz > RNG_MAX_BLOCK_LEN)
         return BAD_FUNC_ARG;
 
     if (rng->status != DRBG_OK)
@@ -607,42 +626,66 @@ int wc_RNG_HealthTest(int reseed, const byte* entropyA, word32 entropyASz,
                                   const byte* entropyB, word32 entropyBSz,
                                   byte* output, word32 outputSz)
 {
-    DRBG drbg;
+    int ret = -1;
+    DRBG* drbg;
+#ifndef WOLFSSL_SMALL_STACK
+    DRBG  drbg_var;
+#endif
 
-    if (entropyA == NULL || output == NULL)
+    if (entropyA == NULL || output == NULL) {
         return BAD_FUNC_ARG;
+    }
 
-    if (reseed != 0 && entropyB == NULL)
+    if (reseed != 0 && entropyB == NULL) {
         return BAD_FUNC_ARG;
+    }
 
-    if (outputSz != (SHA256_DIGEST_SIZE * 4))
-        return -1;
+    if (outputSz != RNG_HEALTH_TEST_CHECK_SIZE) {
+        return ret;
+    }
 
-    if (Hash_DRBG_Instantiate(&drbg, entropyA, entropyASz, NULL, 0) != 0)
-        return -1;
+#ifdef WOLFSSL_SMALL_STACK
+    drbg = (struct DRBG*)XMALLOC(sizeof(DRBG), NULL, DYNAMIC_TYPE_RNG);
+    if (drbg == NULL) {
+        return MEMORY_E;
+    }
+#else
+    drbg = &drbg_var;
+#endif
+
+    if (Hash_DRBG_Instantiate(drbg, entropyA, entropyASz, NULL, 0) != 0) {
+        goto exit_rng_ht;
+    }
 
     if (reseed) {
-        if (Hash_DRBG_Reseed(&drbg, entropyB, entropyBSz) != 0) {
-            Hash_DRBG_Uninstantiate(&drbg);
-            return -1;
+        if (Hash_DRBG_Reseed(drbg, entropyB, entropyBSz) != 0) {
+            goto exit_rng_ht;
         }
     }
 
-    if (Hash_DRBG_Generate(&drbg, output, outputSz) != 0) {
-        Hash_DRBG_Uninstantiate(&drbg);
-        return -1;
+    if (Hash_DRBG_Generate(drbg, output, outputSz) != 0) {
+        goto exit_rng_ht;
     }
 
-    if (Hash_DRBG_Generate(&drbg, output, outputSz) != 0) {
-        Hash_DRBG_Uninstantiate(&drbg);
-        return -1;
+    if (Hash_DRBG_Generate(drbg, output, outputSz) != 0) {
+        goto exit_rng_ht;
+    }
+    
+    /* Mark success */
+    ret = 0;
+
+exit_rng_ht:
+
+    /* This is safe to call even if Hash_DRBG_Instantiate fails */
+    if (Hash_DRBG_Uninstantiate(drbg) != 0) {
+        ret = -1;
     }
 
-    if (Hash_DRBG_Uninstantiate(&drbg) != 0) {
-        return -1;
-    }
+#ifdef WOLFSSL_SMALL_STACK
+    XFREE(drbg, NULL, DYNAMIC_TYPE_RNG);
+#endif
 
-    return 0;
+    return ret;
 }
 
 
@@ -698,26 +741,44 @@ const byte outputB[] = {
 static int wc_RNG_HealthTestLocal(int reseed)
 {
     int ret = 0;
-    byte check[SHA256_DIGEST_SIZE * 4];
+#ifdef WOLFSSL_SMALL_STACK
+    byte* check;
+#else
+    byte  check[RNG_HEALTH_TEST_CHECK_SIZE];
+#endif
+
+#ifdef WOLFSSL_SMALL_STACK
+    check = (byte*)XMALLOC(RNG_HEALTH_TEST_CHECK_SIZE, NULL,
+                           DYNAMIC_TYPE_TMP_BUFFER);
+    if (check == NULL) {
+        return MEMORY_E;
+    }
+#endif
 
     if (reseed) {
         ret = wc_RNG_HealthTest(1, entropyA, sizeof(entropyA),
                                 reseedEntropyA, sizeof(reseedEntropyA),
-                                check, sizeof(check));
+                                check, RNG_HEALTH_TEST_CHECK_SIZE);
         if (ret == 0) {
-            if (ConstantCompare(check, outputA, sizeof(check)) != 0)
+            if (ConstantCompare(check, outputA,
+                                RNG_HEALTH_TEST_CHECK_SIZE) != 0)
                 ret = -1;
         }
     }
     else {
         ret = wc_RNG_HealthTest(0, entropyB, sizeof(entropyB),
                                 NULL, 0,
-                                check, sizeof(check));
+                                check, RNG_HEALTH_TEST_CHECK_SIZE);
         if (ret == 0) {
-            if (ConstantCompare(check, outputB, sizeof(check)) != 0)
+            if (ConstantCompare(check, outputB, 
+                                RNG_HEALTH_TEST_CHECK_SIZE) != 0)
                 ret = -1;
         }
     }
+
+#ifdef WOLFSSL_SMALL_STACK
+    XFREE(check, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
 
     return ret;
 }
@@ -853,6 +914,104 @@ static void CaviumRNG_GenerateBlock(WC_RNG* rng, byte* output, word32 sz)
 #endif /* HAVE_CAVIUM */
 
 #endif /* HAVE_HASHDRBG || NO_RC4 */
+
+
+#ifdef HAVE_WNR
+
+/*
+ * Init global Whitewood netRandom context
+ * Returns 0 on success, negative on error
+ */
+int wc_InitNetRandom(const char* configFile, wnr_hmac_key hmac_cb, int timeout)
+{
+    if (configFile == NULL || timeout < 0)
+        return BAD_FUNC_ARG;
+
+    if (wnr_mutex_init > 0) {
+        WOLFSSL_MSG("netRandom context already created, skipping");
+        return 0;
+    }
+
+    if (InitMutex(&wnr_mutex) != 0) {
+        WOLFSSL_MSG("Bad Init Mutex wnr_mutex");
+        return BAD_MUTEX_E;
+    }
+    wnr_mutex_init = 1;
+
+    if (LockMutex(&wnr_mutex) != 0) {
+        WOLFSSL_MSG("Bad Lock Mutex wnr_mutex");
+        return BAD_MUTEX_E;
+    }
+
+    /* store entropy timeout */
+    wnr_timeout = timeout;
+
+    /* create global wnr_context struct */
+    if (wnr_create(&wnr_ctx) != WNR_ERROR_NONE) {
+        WOLFSSL_MSG("Error creating global netRandom context");
+        return RNG_FAILURE_E;
+    }
+
+    /* load config file */
+    if (wnr_config_loadf(wnr_ctx, (char*)configFile) != WNR_ERROR_NONE) {
+        WOLFSSL_MSG("Error loading config file into netRandom context");
+        wnr_destroy(wnr_ctx);
+        wnr_ctx = NULL;
+        return RNG_FAILURE_E;
+    }
+
+    /* create/init polling mechanism */
+    if (wnr_poll_create() != WNR_ERROR_NONE) {
+        printf("ERROR: wnr_poll_create() failed\n");
+        WOLFSSL_MSG("Error initializing netRandom polling mechanism");
+        wnr_destroy(wnr_ctx);
+        wnr_ctx = NULL;
+        return RNG_FAILURE_E;
+    }
+
+    /* validate config, set HMAC callback (optional) */
+    if (wnr_setup(wnr_ctx, hmac_cb) != WNR_ERROR_NONE) {
+        WOLFSSL_MSG("Error setting up netRandom context");
+        wnr_destroy(wnr_ctx);
+        wnr_ctx = NULL;
+        wnr_poll_destroy();
+        return RNG_FAILURE_E;
+    }
+
+    UnLockMutex(&wnr_mutex);
+
+    return 0;
+}
+
+/*
+ * Free global Whitewood netRandom context
+ * Returns 0 on success, negative on error
+ */
+int wc_FreeNetRandom(void)
+{
+    if (wnr_mutex_init > 0) {
+
+        if (LockMutex(&wnr_mutex) != 0) {
+            WOLFSSL_MSG("Bad Lock Mutex wnr_mutex");
+            return BAD_MUTEX_E;
+        }
+
+        if (wnr_ctx != NULL) {
+            wnr_destroy(wnr_ctx);
+            wnr_ctx = NULL;
+        }
+        wnr_poll_destroy();
+
+        UnLockMutex(&wnr_mutex);
+
+        FreeMutex(&wnr_mutex);
+        wnr_mutex_init = 0;
+    }
+
+    return 0;
+}
+
+#endif /* HAVE_WNR */
 
 
 #if defined(HAVE_INTEL_RDGEN)
@@ -1160,7 +1319,13 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
             int i;
 
             /* turn on RNGA module */
-            SIM_SCGC3 |= SIM_SCGC3_RNGA_MASK;
+            #if defined(SIM_SCGC3_RNGA_MASK)
+                SIM_SCGC3 |= SIM_SCGC3_RNGA_MASK;
+            #endif
+            #if defined(SIM_SCGC6_RNGA_MASK)
+                /* additionally needed for at least K64F */
+                SIM_SCGC6 |= SIM_SCGC6_RNGA_MASK;
+            #endif
 
             /* set SLP bit to 0 - "RNGA is not in sleep mode" */
             RNG_CR &= ~RNG_CR_SLP_MASK;
@@ -1302,7 +1467,8 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 
         return 0;
     }
-#elif defined(WOLFSSL_LPC43xx) || defined(WOLFSSL_STM32F2xx) || defined(MBED)
+#elif defined(WOLFSSL_LPC43xx) || defined(WOLFSSL_STM32F2xx) || defined(MBED) \
+      || defined(WOLFSSL_EMBOS)
 
     #warning "write a real random seed!!!!, just for testing now"
 
@@ -1356,6 +1522,70 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
         if (status == ERROR) {
             return RNG_FAILURE_E;
         }
+
+        return 0;
+    }
+
+#elif defined(WOLFSSL_NRF51)
+    #include "app_error.h"
+    #include "nrf_drv_rng.h"
+    int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
+    {
+        int remaining = sz, length, pos = 0;
+        uint8_t available;
+        uint32_t err_code;
+
+        (void)os;
+
+        /* Make sure RNG is running */
+        err_code = nrf_drv_rng_init(NULL);
+        if (err_code != NRF_SUCCESS && err_code != NRF_ERROR_INVALID_STATE) {
+            return -1;
+        }
+
+        while (remaining > 0) {
+            err_code = nrf_drv_rng_bytes_available(&available);
+            if (err_code == NRF_SUCCESS) {
+                length = (remaining < available) ? remaining : available;
+                if (length > 0) {
+                    err_code = nrf_drv_rng_rand(&output[pos], length);
+                    remaining -= length;
+                    pos += length;
+                }
+            }
+
+            if (err_code != NRF_SUCCESS) {
+                break;
+            }
+        }
+
+        return (err_code == NRF_SUCCESS) ? 0 : -1;
+    }
+
+#elif defined(HAVE_WNR)
+
+    int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
+    {
+        if (os == NULL || output == NULL || wnr_ctx == NULL ||
+                wnr_timeout < 0) {
+            return BAD_FUNC_ARG;
+        }
+
+        if (wnr_mutex_init == 0) {
+            WOLFSSL_MSG("netRandom context must be created before use");
+            return RNG_FAILURE_E;
+        }
+
+        if (LockMutex(&wnr_mutex) != 0) {
+            WOLFSSL_MSG("Bad Lock Mutex wnr_mutex\n");
+            return BAD_MUTEX_E;
+        }
+
+        if (wnr_get_entropy(wnr_ctx, wnr_timeout, output, sz, sz) !=
+                WNR_ERROR_NONE)
+            return RNG_FAILURE_E;
+
+        UnLockMutex(&wnr_mutex);
 
         return 0;
     }

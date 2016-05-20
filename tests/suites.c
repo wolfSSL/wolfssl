@@ -1,8 +1,8 @@
 /* suites.c
  *
- * Copyright (C) 2006-2015 wolfSSL Inc.
+ * Copyright (C) 2006-2016 wolfSSL Inc.
  *
- * This file is part of wolfSSL. (formerly known as CyaSSL)
+ * This file is part of wolfSSL.
  *
  * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,8 +16,9 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
+
 
 #ifdef HAVE_CONFIG_H
     #include <config.h>
@@ -473,7 +474,7 @@ int SuiteTest(void)
     cipherSuiteCtx = wolfSSL_CTX_new(wolfTLSv1_2_client_method());
     if (cipherSuiteCtx == NULL) {
         printf("can't get cipher suite ctx\n");
-        exit(EXIT_FAILURE);  
+        exit(EXIT_FAILURE);
     }
 
     /* default case */
@@ -482,7 +483,7 @@ int SuiteTest(void)
     test_harness(&args);
     if (args.return_code != 0) {
         printf("error from script %d\n", args.return_code);
-        exit(EXIT_FAILURE);  
+        exit(EXIT_FAILURE);
     }
 
     /* any extra cases will need another argument */
@@ -499,6 +500,7 @@ int SuiteTest(void)
     }
 #endif
 #ifndef WC_STRICT_SIG
+#if !defined(NO_RSA) && defined(HAVE_ECC) /* testing mixed ECC/RSA cert */
     /* add extra signature test suites */
     strcpy(argv0[1], "tests/test-sig.conf");
     printf("starting sig extra cipher suite tests\n");
@@ -507,7 +509,8 @@ int SuiteTest(void)
         printf("error from script %d\n", args.return_code);
         exit(EXIT_FAILURE);
     }
-#endif
+#endif /* HAVE_RSA and HAVE_ECC */
+#endif /* !WC_STRICT_SIG */
 #ifdef HAVE_QSH
     /* add QSH extra suites */
     strcpy(argv0[1], "tests/test-qsh.conf");

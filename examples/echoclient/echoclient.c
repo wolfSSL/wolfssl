@@ -1,8 +1,8 @@
 /* echoclient.c
  *
- * Copyright (C) 2006-2015 wolfSSL Inc.
+ * Copyright (C) 2006-2016 wolfSSL Inc.
  *
- * This file is part of wolfSSL. (formerly known as CyaSSL)
+ * This file is part of wolfSSL.
  *
  * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,8 +16,9 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
+
 
 #ifdef HAVE_CONFIG_H
     #include <config.h>
@@ -68,6 +69,7 @@ void echoclient_test(void* args)
     SSL_CTX*    ctx    = 0;
     SSL*        ssl    = 0;
 
+    int ret = 0, err = 0;
     int doDTLS = 0;
     int doPSK = 0;
     int sendSz;
@@ -132,7 +134,7 @@ void echoclient_test(void* args)
     #endif
 #elif !defined(NO_CERTS)
     if (!doPSK)
-        load_buffer(ctx, caCert, CYASSL_CA);
+        load_buffer(ctx, caCert, WOLFSSL_CA);
 #endif
 
 #if defined(CYASSL_SNIFFER)
@@ -173,7 +175,25 @@ void echoclient_test(void* args)
     Sleep(100);
 #endif
 
-    if (SSL_connect(ssl) != SSL_SUCCESS) err_sys("SSL_connect failed");
+    do {
+#ifdef WOLFSSL_ASYNC_CRYPT
+        if (err == WC_PENDING_E) {
+            ret = AsyncCryptPoll(ssl);
+            if (ret < 0) { break; } else if (ret == 0) { continue; }
+        }
+#endif
+        err = 0; /* Reset error */
+        ret = SSL_connect(ssl);
+        if (ret != SSL_SUCCESS) {
+            err = SSL_get_error(ssl, 0);
+        }
+    } while (ret != SSL_SUCCESS && err == WC_PENDING_E);
+
+    if (ret != SSL_SUCCESS) {
+        char buffer[CYASSL_MAX_ERROR_SZ];
+        printf("err = %d, %s\n", err, ERR_error_string(err, buffer));
+        err_sys("SSL_connect failed");
+    }
 
     while (fgets(msg, sizeof(msg), fin) != 0) {
      
@@ -252,6 +272,11 @@ void echoclient_test(void* args)
             err_sys("Cavium OpenNitroxDevice failed");
 #endif /* HAVE_CAVIUM */
 
+#ifdef HAVE_WNR
+        if (wc_InitNetRandom(wnrConfig, NULL, 5000) != 0)
+            err_sys("Whitewood netRandom global config failed");
+#endif
+
         StartTCP();
 
         args.argc = argc;
@@ -271,6 +296,12 @@ void echoclient_test(void* args)
 #ifdef HAVE_CAVIUM
         CspShutdown(CAVIUM_DEV_ID);
 #endif
+
+#ifdef HAVE_WNR
+        if (wc_FreeNetRandom() < 0)
+            err_sys("Failed to free netRandom context");
+#endif /* HAVE_WNR */
+
         return args.return_code;
     }
         

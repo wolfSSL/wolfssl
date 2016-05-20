@@ -1,8 +1,8 @@
 /* random.h
  *
- * Copyright (C) 2006-2015 wolfSSL Inc.
+ * Copyright (C) 2006-2016 wolfSSL Inc.
  *
- * This file is part of wolfSSL. (formerly known as CyaSSL)
+ * This file is part of wolfSSL.
  *
  * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,8 +16,9 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
+
 
 
 #ifndef WOLF_CRYPT_RANDOM_H
@@ -34,6 +35,9 @@
     extern "C" {
 #endif
 
+/* Maximum generate block length */
+#define RNG_MAX_BLOCK_LEN (0x10000)
+
 #ifndef HAVE_FIPS /* avoid redefining structs and macros */
 #if defined(WOLFSSL_FORCE_RC4_DRBG) && defined(NO_RC4)
     #error Cannot have WOLFSSL_FORCE_RC4_DRBG and NO_RC4 defined.
@@ -47,6 +51,10 @@
 #else /* HAVE_HASHDRBG || NO_RC4 */
     #include <wolfssl/wolfcrypt/arc4.h>
 #endif /* HAVE_HASHDRBG || NO_RC4 */
+
+#ifdef HAVE_WNR
+    #include <wnr.h>
+#endif
 
 #if defined(USE_WINDOWS_API)
     #if defined(_WIN64)
@@ -124,6 +132,12 @@ int wc_GenerateSeed(OS_Seed* os, byte* seed, word32 sz);
 #endif
 
 #endif /* HAVE_HASH_DRBG || NO_RC4 */
+
+#ifdef HAVE_WNR
+    /* Whitewood netRandom client library */
+    WOLFSSL_API int  wc_InitNetRandom(const char*, wnr_hmac_key, int);
+    WOLFSSL_API int  wc_FreeNetRandom(void);
+#endif /* HAVE_WNR */
 
 
 WOLFSSL_API int  wc_InitRng(WC_RNG*);

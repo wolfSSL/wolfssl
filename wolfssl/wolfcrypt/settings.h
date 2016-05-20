@@ -1,8 +1,8 @@
 /* settings.h
  *
- * Copyright (C) 2006-2015 wolfSSL Inc.
+ * Copyright (C) 2006-2016 wolfSSL Inc.
  *
- * This file is part of wolfSSL. (formerly known as CyaSSL)
+ * This file is part of wolfSSL.
  *
  * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,8 +16,9 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
+
 
 /* Place OS specific preprocessor flags, defines, includes here, will be
    included into every file because types.h includes it */
@@ -134,6 +135,15 @@
 
 /* Uncomment next line if building for ARDUINO */
 /* #define WOLFSSL_ARDUINO */
+
+/* Uncomment next line to enable asynchronous crypto WC_PENDING_E */
+/* #define WOLFSSL_ASYNC_CRYPT */
+
+/* Uncomment next line if building for uTasker */
+/* #define WOLFSSL_UTASKER */
+
+/* Uncomment next line if building for embOS */
+/* #define WOLFSSL_EMBOS */
 
 #include <wolfssl/wolfcrypt/visibility.h>
 
@@ -318,6 +328,7 @@
     #ifdef VXWORKS_SIM
         #define TFM_NO_ASM
     #endif
+    #define WOLFSSL_PTHREADS
     #define WOLFSSL_HAVE_MIN
     #define USE_FAST_MATH
     #define TFM_TIMING_RESISTANT
@@ -345,9 +356,74 @@
 #endif
 
 
+#ifdef WOLFSSL_UTASKER
+    /* uTasker configuration - used for fnRandom() */
+    #include "config.h"
+
+    #define SINGLE_THREADED
+    #define NO_WOLFSSL_DIR
+    #define WOLFSSL_HAVE_MIN
+    #define NO_WRITEV
+
+    #define HAVE_ECC
+    #define ALT_ECC_SIZE
+    #define USE_FAST_MATH
+    #define TFM_TIMING_RESISTANT
+    #define ECC_TIMING_RESISTANT
+
+    /* used in wolfCrypt test */
+    #define NO_MAIN_DRIVER
+    #define USE_CERT_BUFFERS_2048
+
+    /* uTasker port uses RAW sockets, use I/O callbacks
+	 * See wolfSSL uTasker example for sample callbacks */
+    #define WOLFSSL_USER_IO
+
+    /* uTasker filesystem not ported  */
+    #define NO_FILESYSTEM
+
+    /* uTasker RNG is abstracted, calls HW RNG when available */
+    #define CUSTOM_RAND_GENERATE    fnRandom
+    #define CUSTOM_RAND_TYPE        unsigned short
+
+    /* user needs to define XTIME to function that provides
+     * seconds since Unix epoch */
+    #ifndef XTIME
+        #error XTIME must be defined in wolfSSL settings.h
+        /* #define XTIME fnSecondsSinceEpoch */
+    #endif
+
+    /* use uTasker std library replacements where available */
+    #define STRING_USER
+    #define XMEMCPY(d,s,l)         uMemcpy((d),(s),(l))
+    #define XMEMSET(b,c,l)         uMemset((b),(c),(l))
+    #define XMEMCMP(s1,s2,n)       uMemcmp((s1),(s2),(n))
+    #define XMEMMOVE(d,s,l)        memmove((d),(s),(l))
+
+    #define XSTRLEN(s1)            uStrlen((s1))
+    #define XSTRNCPY(s1,s2,n)      strncpy((s1),(s2),(n))
+    #define XSTRSTR(s1,s2)         strstr((s1),(s2))
+    #define XSTRNSTR(s1,s2,n)      mystrnstr((s1),(s2),(n))
+    #define XSTRNCMP(s1,s2,n)      strncmp((s1),(s2),(n))
+    #define XSTRNCAT(s1,s2,n)      strncat((s1),(s2),(n))
+    #define XSTRNCASECMP(s1,s2,n)  _strnicmp((s1),(s2),(n))
+    #if defined(WOLFSSL_CERT_EXT) || defined(HAVE_ALPN)
+        #define XSTRTOK            strtok_r
+    #endif
+#endif
+
+#ifdef WOLFSSL_EMBOS
+    #define NO_FILESYSTEM           /* Not ported at this time */
+    #define USE_CERT_BUFFERS_2048   /* use when NO_FILESYSTEM */
+    #define NO_MAIN_DRIVER
+    #define NO_RC4
+    #define SINGLE_THREADED         /* Not ported at this time */
+#endif
+
 /* Micrium will use Visual Studio for compilation but not the Win32 API */
-#if defined(_WIN32) && !defined(MICRIUM) && !defined(FREERTOS) && !defined(FREERTOS_TCP)\
-        && !defined(EBSNET) && !defined(WOLFSSL_EROAD)
+#if defined(_WIN32) && !defined(MICRIUM) && !defined(FREERTOS) && \
+	!defined(FREERTOS_TCP) && !defined(EBSNET) && !defined(WOLFSSL_EROAD) && \
+	!defined(WOLFSSL_UTASKER)
     #define USE_WINDOWS_API
 #endif
 
@@ -464,7 +540,7 @@ static char *fgets(char *buff, int sz, FILE *fp)
 #define NO_WRITEV
 #define WOLFSSL_HAVE_MIN
 #define USE_FAST_MATH
-#define TFM_TIMING_REGISTANT
+#define TFM_TIMING_RESISTANT
 #define NO_MAIN_DRIVER
 
 #endif
@@ -481,6 +557,9 @@ static char *fgets(char *buff, int sz, FILE *fp)
     #define NO_ERROR_STRINGS
     #define USER_TIME
     #define HAVE_ECC
+    #define HAVE_ALPN
+    #define HAVE_TLS_EXTENSIONS
+    #define HAVE_AESGCM
 
     #ifdef __IAR_SYSTEMS_ICC__
         #pragma diag_suppress=Pa089
@@ -1029,6 +1108,65 @@ static char *fgets(char *buff, int sz, FILE *fp)
     #endif
 #endif /* HAVE_ECC */
 
+/* Curve255519 Configs */
+#ifdef HAVE_CURVE25519
+    /* By default enable shared secret, key export and import */
+    #ifndef NO_CURVE25519_SHARED_SECRET
+        #undef HAVE_CURVE25519_SHARED_SECRET
+        #define HAVE_CURVE25519_SHARED_SECRET
+    #endif
+    #ifndef NO_CURVE25519_KEY_EXPORT
+        #undef HAVE_CURVE25519_KEY_EXPORT
+        #define HAVE_CURVE25519_KEY_EXPORT
+    #endif
+    #ifndef NO_CURVE25519_KEY_IMPORT
+        #undef HAVE_CURVE25519_KEY_IMPORT
+        #define HAVE_CURVE25519_KEY_IMPORT
+    #endif
+#endif /* HAVE_CURVE25519 */
+
+/* Ed255519 Configs */
+#ifdef HAVE_ED25519
+    /* By default enable sign, verify, key export and import */
+    #ifndef NO_ED25519_SIGN
+        #undef HAVE_ED25519_SIGN
+        #define HAVE_ED25519_SIGN
+    #endif
+    #ifndef NO_ED25519_VERIFY
+        #undef HAVE_ED25519_VERIFY
+        #define HAVE_ED25519_VERIFY
+    #endif
+    #ifndef NO_ED25519_KEY_EXPORT
+        #undef HAVE_ED25519_KEY_EXPORT
+        #define HAVE_ED25519_KEY_EXPORT
+    #endif
+    #ifndef NO_ED25519_KEY_IMPORT
+        #undef HAVE_ED25519_KEY_IMPORT
+        #define HAVE_ED25519_KEY_IMPORT
+    #endif
+#endif /* HAVE_ED25519 */
+
+/* AES Config */
+#ifndef NO_AES
+    /* By default enable all AES key sizes, decryption and CBC */
+    #ifndef AES_MAX_KEY_SIZE
+        #undef  AES_MAX_KEY_SIZE
+        #define AES_MAX_KEY_SIZE    256
+    #endif
+    #ifndef NO_AES_DECRYPT
+        #undef  HAVE_AES_DECRYPT
+        #define HAVE_AES_DECRYPT
+    #endif
+    #ifndef NO_AES_CBC
+        #undef  HAVE_AES_CBC
+        #define HAVE_AES_CBC
+    #else
+        #ifndef WOLFCRYPT_ONLY
+            #error "AES CBC is required for TLS and can only be disabled for WOLFCRYPT_ONLY builds"
+        #endif
+    #endif
+#endif
+
 /* if desktop type system and fastmath increase default max bits */
 #ifdef WOLFSSL_X86_64_BUILD
     #ifdef USE_FAST_MATH
@@ -1087,6 +1225,24 @@ static char *fgets(char *buff, int sz, FILE *fp)
     #undef NO_SHA256
     #undef NO_DH
 #endif
+
+/* Asynchronous Crypto */
+#ifdef WOLFSSL_ASYNC_CRYPT
+    /* Make sure wolf events are enabled */
+    #undef HAVE_WOLF_EVENT
+    #define HAVE_WOLF_EVENT
+#else
+    #ifdef WOLFSSL_ASYNC_CRYPT_TEST
+        #error Must have WOLFSSL_ASYNC_CRYPT enabled with WOLFSSL_ASYNC_CRYPT_TEST
+    #endif
+#endif /* WOLFSSL_ASYNC_CRYPT */
+
+/* leantls checks */
+#ifdef WOLFSSL_LEANTLS
+    #ifndef HAVE_ECC
+        #error leantls build needs ECC
+    #endif
+#endif /* WOLFSSL_LEANTLS*/
 
 /* Place any other flags or defines here */
 

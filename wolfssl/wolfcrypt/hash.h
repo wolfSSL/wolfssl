@@ -1,8 +1,8 @@
 /* hash.h
  *
- * Copyright (C) 2006-2015 wolfSSL Inc.
+ * Copyright (C) 2006-2016 wolfSSL Inc.
  *
- * This file is part of wolfSSL. (formerly known as CyaSSL)
+ * This file is part of wolfSSL.
  *
  * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,8 +16,9 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
+
 
 #ifndef WOLF_CRYPT_HASH_H
 #define WOLF_CRYPT_HASH_H
@@ -38,6 +39,7 @@ enum wc_HashType {
     WC_HASH_TYPE_SHA256 = 5,
     WC_HASH_TYPE_SHA384 = 6,
     WC_HASH_TYPE_SHA512 = 7,
+    WC_HASH_TYPE_MD5_SHA = 8,
 };
 
 /* Find largest possible digest size

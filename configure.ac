@@ -6,7 +6,7 @@
 #
 #
 
-AC_INIT([wolfssl],[3.8.1],[https://github.com/wolfssl/wolfssl/issues],[wolfssl],[http://www.wolfssl.com])
+AC_INIT([wolfssl],[3.9.1],[https://github.com/wolfssl/wolfssl/issues],[wolfssl],[http://www.wolfssl.com])
 
 AC_CONFIG_AUX_DIR([build-aux])
 
@@ -35,7 +35,7 @@ AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_HEADERS([config.h:config.in])dnl Keep filename to 8.3 for MS-DOS.
 
 #shared library versioning
-WOLFSSL_LIBRARY_VERSION=4:0:1
+WOLFSSL_LIBRARY_VERSION=5:0:2
 #                       | | |
 #                +------+ | +---+
 #                |        |     |
@@ -256,6 +256,21 @@ fi
 AM_CONDITIONAL([BUILD_LEANPSK], [test "x$ENABLED_LEANPSK" = "xyes"])
 
 
+# lean TLS build (TLS 1.2 client only (no client auth), ECC256, AES128 and SHA256 w/o Shamir)
+AC_ARG_ENABLE([leantls],
+    [  --enable-leantls        Enable Lean TLS build (default: disabled)],
+    [ ENABLED_LEANTLS=$enableval ],
+    [ ENABLED_LEANTLS=no ]
+    )
+
+if test "$ENABLED_LEANTLS" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_LEANTLS -DNO_WRITEV -DHAVE_ECC -DTFM_ECC256 -DECC_USER_CURVES -DNO_WOLFSSL_SERVER -DNO_RABBIT -DNO_RSA -DNO_DSA -DNO_DH -DNO_PWDBASED -DNO_DES3 -DNO_MD5 -DNO_ERROR_STRINGS -DNO_OLD_TLS -DNO_RC4 -DNO_SESSION_CACHE -DNO_SHA -DUSE_SLOW_SHA -DUSE_SLOW_SHA2 -DNO_PSK -DNO_WOLFSSL_MEMORY"
+fi
+
+AM_CONDITIONAL([BUILD_LEANTLS], [test "x$ENABLED_LEANTLS" = "xyes"])
+
+
 # big cache
 AC_ARG_ENABLE([bigcache],
     [  --enable-bigcache       Enable big session cache (default: disabled)],
@@ -354,7 +369,7 @@ AC_ARG_ENABLE([sniffer],
    [ ENABLED_SNIFFER=no ]
    )
 
-# sniffer does't work in maxstrength mode
+# sniffer doesn't work in maxstrength mode
 if test "$ENABLED_SNIFFER" = "yes" && test "$ENABLED_MAXSTRENGTH" = "yes"
 then
     AC_MSG_ERROR([cannot enable maxstrength in sniffer mode.])
@@ -380,8 +395,8 @@ AC_ARG_ENABLE([aesgcm],
     [ ENABLED_AESGCM=yes ]
     )
 
-# lean psk does't need gcm
-if test "$ENABLED_LEANPSK" = "yes"
+# leanpsk and leantls don't need gcm
+if test "$ENABLED_LEANPSK" = "yes" || test "$ENABLED_LEANTLS" = "yes"
 then
     ENABLED_AESGCM=no
 fi
@@ -566,8 +581,8 @@ AC_ARG_ENABLE([sha512],
     [ ENABLED_SHA512=$SHA512_DEFAULT ]
     )
 
-# lean psk does't need sha512
-if test "$ENABLED_LEANPSK" = "yes"
+# leanpsk and leantls don't need sha512
+if test "$ENABLED_LEANPSK" = "yes" || test "$ENABLED_LEANTLS" = "yes"
 then
     ENABLED_SHA512=no
 fi
@@ -716,6 +731,14 @@ then
 ECC_DEFAULT=yes
 fi
 
+# ECC Shamir
+AC_ARG_ENABLE([eccshamir],
+    [AS_HELP_STRING([--enable-eccshamir],[Enable ECC Shamir (default: enabled on x86_64)])],
+    [ ENABLED_ECC_SHAMIR=$enableval ],
+    [ ENABLED_ECC_SHAMIR=$ECC_DEFAULT ]
+    )
+
+
 # ECC
 AC_ARG_ENABLE([ecc],
     [AS_HELP_STRING([--enable-ecc],[Enable ECC (default: enabled on x86_64)])],
@@ -723,7 +746,7 @@ AC_ARG_ENABLE([ecc],
     [ ENABLED_ECC=$ECC_DEFAULT ]
     )
 
-# lean psk does't need ecc
+# lean psk doesn't need ecc
 if test "$ENABLED_LEANPSK" = "yes"
 then
     ENABLED_ECC=no
@@ -736,16 +759,14 @@ fi
 
 if test "$ENABLED_ECC" = "yes"
 then
-    AM_CFLAGS="$AM_CFLAGS -DHAVE_ECC -DTFM_ECC256 -DECC_SHAMIR"
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_ECC -DTFM_ECC256"
+    if test "$ENABLED_ECC_SHAMIR" = "yes"
+    then
+        AM_CFLAGS="$AM_CFLAGS -DECC_SHAMIR"
+    fi
 fi
 
 AM_CONDITIONAL([BUILD_ECC], [test "x$ENABLED_ECC" = "xyes"])
-
-
-if test "$ENABLED_ECC" = "yes" && test "$ENABLED_SMALL" = "yes"
-then
-    AC_MSG_ERROR([cannot enable ecc and small, ecc requires TLS which small turns off.])
-fi
 
 
 # for using memory optimization setting on both curve25519 and ed25519
@@ -874,8 +895,8 @@ if test "$ENABLED_ERROR_STRINGS" = "no"
 then
     AM_CFLAGS="$AM_CFLAGS -DNO_ERROR_STRINGS"
 else
-    # turn off error strings if leanpsk on
-    if test "$ENABLED_LEANPSK" = "yes"
+    # turn off error strings if leanpsk or leantls on
+    if test "$ENABLED_LEANPSK" = "yes" || test "$ENABLED_LEANTLS" = "yes"
     then
         AM_CFLAGS="$AM_CFLAGS -DNO_ERROR_STRINGS"
         ENABLED_ERROR_STRINGS=no
@@ -894,8 +915,8 @@ if test "$ENABLED_OLD_TLS" = "no"
 then
     AM_CFLAGS="$AM_CFLAGS -DNO_OLD_TLS"
 else
-    # turn off old if leanpsk on
-    if test "$ENABLED_LEANPSK" = "yes"
+    # turn off old if leanpsk or leantls on
+    if test "$ENABLED_LEANPSK" = "yes" || test "$ENABLED_LEANTLS" = "yes"
     then
         AM_CFLAGS="$AM_CFLAGS -DNO_OLD_TLS"
         ENABLED_OLD_TLS=no
@@ -942,8 +963,8 @@ if test "$ENABLED_MEMORY" = "no"
 then
     AM_CFLAGS="$AM_CFLAGS -DNO_WOLFSSL_MEMORY"
 else
-    # turn off memory cb if leanpsk on
-    if test "$ENABLED_LEANPSK" = "yes"
+    # turn off memory cb if leanpsk or leantls on
+    if test "$ENABLED_LEANPSK" = "yes" || test "$ENABLED_LEANTLS" = "yes"
     then
         # but don't turn on NO_WOLFSSL_MEMORY because using own
         ENABLED_MEMORY=no
@@ -964,8 +985,8 @@ if test "$ENABLED_RSA" = "no"
 then
     AM_CFLAGS="$AM_CFLAGS -DNO_RSA"
 else
-    # turn off RSA if leanpsk on
-    if test "$ENABLED_LEANPSK" = "yes"
+    # turn off RSA if leanpsk or leantls on
+    if test "$ENABLED_LEANPSK" = "yes" || test "$ENABLED_LEANTLS" = "yes"
     then
         AM_CFLAGS="$AM_CFLAGS -DNO_RSA"
         ENABLED_RSA=no
@@ -991,8 +1012,8 @@ if test "$ENABLED_DH" = "no"
 then
     AM_CFLAGS="$AM_CFLAGS -DNO_DH"
 else
-    # turn off DH if leanpsk on
-    if test "$ENABLED_LEANPSK" = "yes"
+    # turn off DH if leanpsk or leantls on
+    if test "$ENABLED_LEANPSK" = "yes" || test "$ENABLED_LEANTLS" = "yes"
     then
         AM_CFLAGS="$AM_CFLAGS -DNO_DH"
         ENABLED_DH=no
@@ -1137,8 +1158,8 @@ if test "$ENABLED_DES3" = "no"
 then
     AM_CFLAGS="$AM_CFLAGS -DNO_DES3"
 else
-    # turn off DES3 if leanpsk on
-    if test "$ENABLED_LEANPSK" = "yes"
+    # turn off DES3 if leanpsk or leantls on
+    if test "$ENABLED_LEANPSK" = "yes" || test "$ENABLED_LEANTLS" = "yes"
     then
         AM_CFLAGS="$AM_CFLAGS -DNO_DES3"
         ENABLED_DES3=no
@@ -1180,8 +1201,8 @@ if test "$ENABLED_ARC4" = "no"
 then
     AM_CFLAGS="$AM_CFLAGS -DNO_RC4"
 else
-    # turn off ARC4 if leanpsk on
-    if test "$ENABLED_LEANPSK" = "yes"
+    # turn off ARC4 if leanpsk or leantls on
+    if test "$ENABLED_LEANPSK" = "yes" || test "$ENABLED_LEANTLS" = "yes"
     then
         AM_CFLAGS="$AM_CFLAGS -DNO_RC4"
         ENABLED_ARC4=no
@@ -1202,8 +1223,8 @@ if test "$ENABLED_MD5" = "no"
 then
     AM_CFLAGS="$AM_CFLAGS -DNO_MD5 -DNO_OLD_TLS"
 else
-    # turn off MD5 if leanpsk on
-    if test "$ENABLED_LEANPSK" = "yes"
+    # turn off MD5 if leanpsk or leantls on
+    if test "$ENABLED_LEANPSK" = "yes" || test "$ENABLED_LEANTLS" = "yes"
     then
         AM_CFLAGS="$AM_CFLAGS -DNO_MD5 -DNO_OLD_TLS"
         ENABLED_MD5=no
@@ -1224,8 +1245,8 @@ if test "$ENABLED_SHA" = "no"
 then
     AM_CFLAGS="$AM_CFLAGS -DNO_SHA -DNO_OLD_TLS"
 else
-    # turn off SHA if leanpsk on
-    if test "$ENABLED_LEANPSK" = "yes"
+    # turn off SHA if leanpsk or leantls on
+    if test "$ENABLED_LEANPSK" = "yes" || test "$ENABLED_LEANTLS" = "yes"
     then
         AM_CFLAGS="$AM_CFLAGS -DNO_SHA -DNO_OLD_TLS"
         ENABLED_SHA=no
@@ -1332,8 +1353,8 @@ AC_ARG_ENABLE([poly1305],
     [ ENABLED_POLY1305=$POLY1305_DEFAULT]
     )
 
-# lean psk does't need poly1305
-if test "$ENABLED_LEANPSK" = "yes"
+# leanpsk and leantls don't need poly1305
+if test "$ENABLED_LEANPSK" = "yes" || test "$ENABLED_LEANTLS" = "yes"
 then
     ENABLED_POLY1305=no
 fi
@@ -1361,8 +1382,8 @@ AC_ARG_ENABLE([chacha],
     [ ENABLED_CHACHA=$CHACHA_DEFAULT]
     )
 
-# lean psk does't need chacha
-if test "$ENABLED_LEANPSK" = "yes"
+# leanpsk and leantls don't need chacha
+if test "$ENABLED_LEANPSK" = "yes" || test "$ENABLED_LEANTLS" = "yes"
 then
     ENABLED_CHACHA=no
 fi
@@ -1636,10 +1657,49 @@ AC_ARG_WITH([ntru],
 
 AM_CONDITIONAL([BUILD_NTRU], [test "x$ENABLED_NTRU" = "xyes"])
 
-if test "$ENABLED_NTRU" = "yes" && test "$ENABLED_SMALL" = "yes"
-then
-    AC_MSG_ERROR([cannot enable ntru and small, ntru requires TLS which small turns off.])
-fi
+
+# Whitewood netRandom client library
+ENABLED_WNR="no"
+trywnrdir=""
+AC_ARG_WITH([wnr],
+    [AS_HELP_STRING([--with-wnr=PATH],[Path to Whitewood netRandom install (default /usr/local)])],
+    [
+        AC_MSG_CHECKING([for Whitewood netRandom])
+        CPPFLAGS="$CPPFLAGS -DHAVE_WNR"
+        LIBS="$LIBS -lwnr"
+
+        AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <wnr.h>]], [[ wnr_setup(0, 0); ]])], [ wnr_linked=yes ],[ wnr_linked=no ])
+
+        if test "x$wnr_linked" == "xno" ; then
+            if test "x$withval" != "xno" ; then
+                trywnrdir=$withval
+            fi
+            if test "x$withval" == "xyes" ; then
+                trywnrdir="/usr/local"
+            fi
+
+            LDFLAGS="$AM_LDFLAGS $LDFLAGS -L$trywnrdir/lib"
+            CPPFLAGS="$CPPFLAGS -I$trywnrdir/include"
+
+            AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <wnr.h>]], [[ wnr_setup(0, 0); ]])], [ wnr_linked=yes ],[ wnr_linked=no ])
+
+            if test "x$wnr_linked" == "xno" ; then
+                AC_MSG_ERROR([Whitewood netRandom isn't found.
+                If it's already installed, specify its path using --with-wnr=/dir/])
+            fi
+            AC_MSG_RESULT([yes])
+            AM_LDFLAGS="$AM_LDFLAGS -L$trywnrdir/lib"
+        else
+            AC_MSG_RESULT([yes])
+        fi
+
+        AM_CFLAGS="$AM_CFLAGS -DHAVE_WNR"
+        ENABLED_WNR="yes"
+    ]
+)
+
+AM_CONDITIONAL([BUILD_WNR], [test "x$ENABLED_WNR" = "xyes"])
+
 
 # SNI
 AC_ARG_ENABLE([sni],
@@ -1913,8 +1973,13 @@ then
     if test "x$ENABLED_ECC" = "xno"
     then
         ENABLED_ECC="yes"
-        AM_CFLAGS="$AM_CFLAGS -DHAVE_ECC -DTFM_ECC256 -DECC_SHAMIR"
+        AM_CFLAGS="$AM_CFLAGS -DHAVE_ECC -DTFM_ECC256"
         AM_CONDITIONAL([BUILD_ECC], [test "x$ENABLED_ECC" = "xyes"])
+        
+        if test "$ENABLED_ECC_SHAMIR" = "yes"
+        then
+            AM_CFLAGS="$AM_CFLAGS -DECC_SHAMIR"
+        fi
     fi
     if test "x$ENABLED_OPENSSLEXTRA" = "xno"
     then
@@ -1981,8 +2046,13 @@ then
     if test "x$ENABLED_ECC" = "xno"
     then
         ENABLED_ECC="yes"
-        AM_CFLAGS="$AM_CFLAGS -DHAVE_ECC -DTFM_ECC256 -DECC_SHAMIR"
+        AM_CFLAGS="$AM_CFLAGS -DHAVE_ECC -DTFM_ECC256"
         AM_CONDITIONAL([BUILD_ECC], [test "x$ENABLED_ECC" = "xyes"])
+        
+        if test "$ENABLED_ECC_SHAMIR" = "yes"
+        then
+            AM_CFLAGS="$AM_CFLAGS -DECC_SHAMIR"
+        fi
     fi
     if test "x$ENABLED_PKCALLBACKS" = "xno"
     then
@@ -2074,8 +2144,13 @@ then
     then
         ENABLED_OPENSSLEXTRA="yes"
         ENABLED_ECC="yes"
-        AM_CFLAGS="$AM_CFLAGS -DHAVE_ECC -DTFM_ECC256 -DECC_SHAMIR"
+        AM_CFLAGS="$AM_CFLAGS -DHAVE_ECC -DTFM_ECC256"
         AM_CONDITIONAL([BUILD_ECC], [test "x$ENABLED_ECC" = "xyes"])
+        
+        if test "$ENABLED_ECC_SHAMIR" = "yes"
+        then
+            AM_CFLAGS="$AM_CFLAGS -DECC_SHAMIR"
+        fi
     fi
 
     AM_CFLAGS="$AM_CFLAGS -DHAVE_STUNNEL -DWOLFSSL_ALWAYS_VERIFY_CB"
@@ -2237,7 +2312,9 @@ AC_ARG_ENABLE([examples],
 AS_IF([test "x$ENABLED_FILESYSTEM" = "xno"], [ENABLED_EXAMPLES="no"])
 AS_IF([test "x$ENABLED_INLINE" = "xno"], [ENABLED_EXAMPLES="no"])
 AS_IF([test "x$ENABLED_CRYPTONLY" = "xyes"], [ENABLED_EXAMPLES="no"])
-AM_CONDITIONAL([BUILD_EXAMPLES], [test "x$ENABLED_EXAMPLES" = "xyes"])
+AM_CONDITIONAL([BUILD_EXAMPLE_SERVERS], [test "x$ENABLED_EXAMPLES" = "xyes" && test "x$ENABLED_LEANTLS" = "xno"])
+AM_CONDITIONAL([BUILD_EXAMPLE_CLIENTS], [test "x$ENABLED_EXAMPLES" = "xyes"])
+AM_CONDITIONAL([BUILD_TESTS], [test "x$ENABLED_EXAMPLES" = "xyes" && test "x$ENABLED_LEANTLS" = "xno"])
 
 # Enable wolfCrypt test and benchmark
 AC_ARG_ENABLE([crypttests],
@@ -2498,16 +2575,107 @@ fi
 AM_CONDITIONAL([BUILD_MCAPI], [test "x$ENABLED_MCAPI" = "xyes"])
 
 
+# Asynchronous Crypto
+AC_ARG_ENABLE([asynccrypt],
+    [  --enable-asynccrypt    Enable Asynchronous Crypto (default: disabled)],
+    [ ENABLED_ASYNCCRYPT=$enableval ],
+    [ ENABLED_ASYNCCRYPT=no ]
+    )
+
+if test "$ENABLED_ASYNCCRYPT" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ASYNC_CRYPT"
+    
+    # if Cavium not enabled the use async simulator for testing
+    if test "x$ENABLED_CAVIUM" = "xno"
+    then
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ASYNC_CRYPT_TEST"
+    fi
+fi
+
+AM_CONDITIONAL([BUILD_ASYNCCRYPT], [test "x$ENABLED_ASYNCCRYPT" = "xyes"])
+
+
+# Session Export
+AC_ARG_ENABLE([sessionexport],
+    [AS_HELP_STRING([--enable-sessionexport],[Enable export and import of sessions (default: disabled)])],
+    [ ENABLED_SESSIONEXPORT=$enableval ],
+    [ ENABLED_SESSIONEXPORT=no ]
+    )
+
+if test "$ENABLED_SESSIONEXPORT" = "yes"
+then
+    if test "$ENABLED_DTLS" = "no"
+    then
+        AC_MSG_ERROR([Only DTLS supported with session export])
+    fi
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SESSION_EXPORT"
+fi
+
+
 # check if PSK was enabled for conditionally running psk.test script
 AM_CONDITIONAL([BUILD_PSK], [test "x$ENABLED_PSK" = "xyes"])
 
-# Check for build-type conflicts
+
+# check if should run the trusted peer certs test
+# (for now checking both C_FLAGS and C_EXTRA_FLAGS)
+case $C_EXTRA_FLAGS in
+    *WOLFSSL_TRUST_PEER_CERT*)
+        have_tp=yes
+        break;;
+    *)
+        have_tp=no ;;
+esac
+if test "$have_tp" = "no"; then
+    case $C_FLAGS in
+    *WOLFSSL_TRUST_PEER_CERT*)
+        have_tp=yes
+        break;;
+    *)
+        have_tp=no ;;
+    esac
+fi
+AM_CONDITIONAL([BUILD_TRUST_PEER_CERT], [test "x$have_tp" = "xyes"])
+
+
+################################################################################
+# Check for build-type conflicts                                               #
+################################################################################
+
 AS_IF([test "x$ENABLED_MAXSTRENGTH" = "xyes" && \
        test "x$ENABLED_LEANPSK" = "xyes"],
       [AC_MSG_ERROR([Cannot use Max Strength and Lean PSK at the same time.])])
 
+AS_IF([test "x$ENABLED_OCSP" = "xyes" && \
+       test "x$ENABLED_ASN" = "xno"],
+      [AC_MSG_ERROR([please enable asn if enabling ocsp.])])
 
-# Update CFLAGS based on options
+AS_IF([test "x$ENABLED_OCSP" = "xyes" && \
+       test "x$ENABLED_RSA" = "xno" && \
+       test "x$ENABLED_ECC" = "xno"],
+      [AC_MSG_ERROR([please enable rsa or ecc if enabling ocsp.])])
+
+# checks for pkcs7 needed enables
+AS_IF([test "x$ENABLED_PKCS7" = "xyes" && \
+       test "x$ENABLED_RSA" = "xno"],
+      [AC_MSG_ERROR([please enable rsa if enabling pkcs7.])])
+
+AS_IF([test "x$ENABLED_PKCS7" = "xyes" && \
+       test "x$ENABLED_SHA" = "xno"],
+      [AC_MSG_ERROR([please enable sha if enabling pkcs7.])])
+
+AS_IF([test "x$ENABLED_LEANTLS" = "xyes" && \
+       test "x$ENABLED_ECC" = "xno"],
+      [AC_MSG_ERROR([please enable ecc if enabling leantls.])])
+
+AS_IF([test "x$ENABLED_SNIFFER" = "xyes" && \
+       test "x$ENABLED_RSA" = "xno"],
+      [AC_MSG_ERROR([please enable rsa if enabling sniffer.])])
+
+################################################################################
+# Update CFLAGS based on options                                               #
+################################################################################
+
 AS_IF([test "x$ENABLED_MAXSTRENGTH" = "xyes"],
       [AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_MAX_STRENGTH"])
 
@@ -2520,6 +2688,7 @@ AS_IF([test "x$ENABLED_MAXSTRENGTH" = "xyes" && \
        test "x$ENABLED_SSLV3" = "xyes"],
       [AC_MSG_ERROR([Cannot use Max Strength and SSLv3 at the same time.])])
 
+################################################################################
 
 # OPTIMIZE FLAGS
 if test "$GCC" = "yes"
@@ -2556,10 +2725,18 @@ fi
 LIB_SOCKET_NSL
 AX_HARDEN_CC_COMPILER_FLAGS
 
-# link to ws2_32 if on mingw
+# if mingw then link to ws2_32 for sockets
 case $host_os in
-    *mingw32)
-        LDFLAGS="$LDFLAGS -lws2_32" ;;
+    mingw*)
+        LDFLAGS="$LDFLAGS -lws2_32"
+        if test "$enable_shared" = "yes"
+        then
+            AC_DEFINE([WOLFSSL_DLL], [1], [Use __declspec(dllexport) when building library])
+            if test "$enable_static" = "yes"
+            then
+                MINGW_LIB_WARNING="yes"
+            fi
+        fi ;;
 esac
 
 # add user C_EXTRA_FLAGS back
@@ -2635,7 +2812,7 @@ for option in $OPTION_FLAGS; do
         noequalsign=`echo $defonly | sed 's/=/ /'`
         if test "$noequalsign" = "NDEBUG" || test "$noequalsign" = "DEBUG"
         then
-            echo "not outputing (N)DEBUG to $OPTION_FILE"
+            echo "not outputting (N)DEBUG to $OPTION_FILE"
             continue
         fi
 
@@ -2685,7 +2862,15 @@ done < $OPTION_FILE
 
 # switch ifdef protection in cyassl/option.h to CYASSL_OPTONS_H, remove bak
 sed -i.bak 's/WOLFSSL_OPTIONS_H/CYASSL_OPTIONS_H/g' cyassl/options.h
+
+# workaround for mingw sed that may get "Permission denied" trying to preserver permissions
+case $host_os in
+    mingw*)
+        chmod u+w cyassl/options.h ;;
+esac
+
 rm cyassl/options.h.bak
+
 
 # output config summary
 echo "---"
@@ -2744,6 +2929,7 @@ echo "   * MD4:                        $ENABLED_MD4"
 echo "   * PSK:                        $ENABLED_PSK"
 echo "   * Poly1305:                   $ENABLED_POLY1305"
 echo "   * LEANPSK:                    $ENABLED_LEANPSK"
+echo "   * LEANTLS:                    $ENABLED_LEANTLS"
 echo "   * RSA:                        $ENABLED_RSA"
 echo "   * DSA:                        $ENABLED_DSA"
 echo "   * DH:                         $ENABLED_DH"
@@ -2773,6 +2959,7 @@ echo "   * Persistent cert    cache:   $ENABLED_SAVECERT"
 echo "   * Atomic User Record Layer:   $ENABLED_ATOMICUSER"
 echo "   * Public Key Callbacks:       $ENABLED_PKCALLBACKS"
 echo "   * NTRU:                       $ENABLED_NTRU"
+echo "   * Whitewood netRandom:        $ENABLED_WNR"
 echo "   * Server Name Indication:     $ENABLED_SNI"
 echo "   * ALPN:                       $ENABLED_ALPN"
 echo "   * Maximum Fragment Length:    $ENABLED_MAX_FRAGMENT"
@@ -2791,5 +2978,34 @@ echo "   * LIBZ:                       $ENABLED_LIBZ"
 echo "   * Examples:                   $ENABLED_EXAMPLES"
 echo "   * User Crypto:                $ENABLED_USER_CRYPTO"
 echo "   * Fast RSA:                   $ENABLED_FAST_RSA"
+echo "   * Async Crypto:               $ENABLED_ASYNCCRYPT"
 echo ""
 echo "---"
+
+################################################################################
+# Show warnings at bottom so they are noticed
+################################################################################
+
+if test "$ENABLED_ASYNCCRYPT" = "yes"
+then
+    AC_MSG_WARN([Make sure real async files are loaded. Contact wolfSSL for details on using the asynccrypt option.])
+fi
+
+# MinGW static vs shared library
+# Reference URL from libtool for MinGW is located at
+# http://www.gnu.org/software/libtool/manual/libtool.html#Cygwin-to-MinGW-Cross
+# this allows for not even having dllimport/dllexport on functions
+# with recent libtools, only requiring it with global variables.
+#
+# The following warning is displayed here because if not using "contemporary GNU
+# tools" there is the possibility of export/import issues.
+# wolfSSL uses __declspec(dllexport) and "contemporary GNU tools" handle the
+# case where both static and shared libraries are built.
+#
+# More can be found about the MinGW linker at
+# https://sourceware.org/binutils/docs/ld/WIN32.html
+if test "$MINGW_LIB_WARNING" = "yes"
+then
+    AC_MSG_WARN([Building with shared and static library at the same time on this system may cause export/import problems when using non contemporary GNU tools.])
+fi
+

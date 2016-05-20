@@ -10,6 +10,7 @@
 #include <wolfssl/wolfcrypt/types.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
 #include <wolfssl/wolfcrypt/random.h>
+#include <wolfssl/wolfcrypt/mem_track.h>
 
 #ifdef ATOMIC_USER
     #include <wolfssl/wolfcrypt/aes.h>
@@ -230,6 +231,16 @@
 #else
     #define DEFAULT_MIN_DHKEY_BITS 1024
 #endif
+#if !defined(NO_FILESYSTEM) && defined(WOLFSSL_MAX_STRENGTH)
+    #define DEFAULT_MIN_RSAKEY_BITS 2048
+#else
+    #define DEFAULT_MIN_RSAKEY_BITS 1024
+#endif
+#if !defined(NO_FILESYSTEM) && defined(WOLFSSL_MAX_STRENGTH)
+    #define DEFAULT_MIN_ECCKEY_BITS 256
+#else
+    #define DEFAULT_MIN_ECCKEY_BITS 224
+#endif
 
 /* all certs relative to wolfSSL home directory now */
 #if defined(WOLFSSL_NO_CURRDIR) || defined(WOLFSSL_MDK_SHELL)
@@ -246,6 +257,10 @@
 #define cliEccKey  "certs/ecc-client-key.pem"
 #define cliEccCert "certs/client-ecc-cert.pem"
 #define crlPemDir  "certs/crl"
+#ifdef HAVE_WNR
+    /* Whitewood netRandom default config file */
+    #define wnrConfig  "wnr-example.conf"
+#endif
 #else
 #define caCert     "./certs/ca-cert.pem"
 #define eccCert    "./certs/server-ecc.pem"
@@ -260,6 +275,10 @@
 #define cliEccKey  "./certs/ecc-client-key.pem"
 #define cliEccCert "./certs/client-ecc-cert.pem"
 #define crlPemDir  "./certs/crl"
+#ifdef HAVE_WNR
+    /* Whitewood netRandom default config file */
+    #define wnrConfig  "./wnr-example.conf"
+#endif
 #endif
 
 typedef struct tcp_ready {
@@ -430,13 +449,21 @@ static INLINE int PasswordCallBack(char* passwd, int sz, int rw, void* userdata)
 static INLINE void ShowX509(WOLFSSL_X509* x509, const char* hdr)
 {
     char* altName;
-    char* issuer  = wolfSSL_X509_NAME_oneline(
-                                       wolfSSL_X509_get_issuer_name(x509), 0, 0);
-    char* subject = wolfSSL_X509_NAME_oneline(
-                                      wolfSSL_X509_get_subject_name(x509), 0, 0);
+    char* issuer;
+    char* subject;
     byte  serial[32];
     int   ret;
     int   sz = sizeof(serial);
+
+    if (x509 == NULL) {
+        printf("%s No Cert\n", hdr);
+        return;
+    }
+
+    issuer  = wolfSSL_X509_NAME_oneline(
+                                      wolfSSL_X509_get_issuer_name(x509), 0, 0);
+    subject = wolfSSL_X509_NAME_oneline(
+                                     wolfSSL_X509_get_subject_name(x509), 0, 0);
 
     printf("%s\n issuer : %s\n subject: %s\n", hdr, issuer, subject);
 
@@ -476,6 +503,9 @@ static INLINE void showPeer(WOLFSSL* ssl)
         printf("peer has no cert!\n");
     wolfSSL_FreeX509(peer);
 #endif
+#if defined(SHOW_CERTS) && defined(OPENSSL_EXTRA) && defined(KEEP_OUR_CERT)
+    ShowX509(wolfSSL_get_certificate(ssl), "our cert info:");
+#endif /* SHOW_CERTS */
     printf("SSL version is %s\n", wolfSSL_get_version(ssl));
 
     cipher = wolfSSL_get_current_cipher(ssl);
@@ -521,8 +551,8 @@ static INLINE void build_addr(SOCKADDR_IN_T* addr, const char* peer,
     (void)useLookup;
     (void)udp;
 
-    if (addr == NULL || peer == NULL)
-        err_sys("invalid arguments to build_addr, addr or peer is NULL");
+    if (addr == NULL)
+        err_sys("invalid argument to build_addr, addr is NULL");
 
     memset(addr, 0, sizeof(SOCKADDR_IN_T));
 
@@ -830,29 +860,36 @@ static INLINE void udp_accept(SOCKET_T* sockfd, SOCKET_T* clientfd,
 
 static INLINE void tcp_set_ready(func_args* args, word16 port, int ready_file)
 {
+    tcp_ready* ready = NULL;
+
+    (void) ready; /* Account for case when "ready" is not used */
+
 #if defined(_POSIX_THREADS) && defined(NO_MAIN_DRIVER) && !defined(__MINGW32__)
     /* signal ready to tcp_accept */
-    {
-        tcp_ready* ready = args->signal;
-        if (ready) {
-            pthread_mutex_lock(&ready->mutex);
-            ready->ready = 1;
-            ready->port = port;
-            pthread_cond_signal(&ready->cond);
-            pthread_mutex_unlock(&ready->mutex);
-        }
+    if (args)
+        ready = args->signal;
+    if (ready) {
+        pthread_mutex_lock(&ready->mutex);
+        ready->ready = 1;
+        ready->port = port;
+        pthread_cond_signal(&ready->cond);
+        pthread_mutex_unlock(&ready->mutex);
     }
 #elif defined (WOLFSSL_TIRTOS)
     /* Need mutex? */
-    tcp_ready* ready = args->signal;
-    ready->ready = 1;
-    ready->port = port;
+    if (args)
+        ready = args->signal;
+    if (ready) {
+        ready->ready = 1;
+        ready->port = port;
+    }
 #endif
 
     if (ready_file) {
 #ifndef NO_FILESYSTEM
         FILE* srf = NULL;
-        tcp_ready* ready = args ? args->signal : NULL;
+        if (args)
+            ready = args->signal;
 
         if (ready) {
             srf = fopen(ready->srfName, "w");
@@ -882,6 +919,9 @@ static INLINE void tcp_accept(SOCKET_T* sockfd, SOCKET_T* clientfd,
 {
     SOCKADDR_IN_T client;
     socklen_t client_len = sizeof(client);
+    tcp_ready* ready = NULL;
+
+    (void) ready; /* Account for case when "ready" is not used */
 
     if (udp) {
         udp_accept(sockfd, clientfd, useAnyAddr, port, args);
@@ -890,7 +930,6 @@ static INLINE void tcp_accept(SOCKET_T* sockfd, SOCKET_T* clientfd,
 
     if(do_listen) {
         tcp_listen(sockfd, &port, useAnyAddr, udp);
-
         tcp_set_ready(args, port, ready_file);
     }
 
@@ -999,14 +1038,16 @@ static INLINE unsigned int my_psk_server_cb(WOLFSSL* ssl, const char* identity,
 #if !defined(WOLFSSL_MDK_ARM) && !defined(WOLFSSL_KEIL_TCP_NET)
     #include <sys/time.h>
 
-    static INLINE double current_time(void)
+    static INLINE double current_time(int reset)
     {
         struct timeval tv;
         gettimeofday(&tv, 0);
-
+        (void)reset;
+        
         return (double)tv.tv_sec + (double)tv.tv_usec / 1000000;
     }
-
+#else
+    extern double current_time(int reset);
 #endif
 #endif /* USE_WINDOWS_API */
 
@@ -1248,129 +1289,6 @@ static INLINE int OpenNitroxDevice(int dma_mode,int dev_id)
         #endif
     }
 #endif /* !defined(WOLFSSL_MDK_ARM) && !defined(WOLFSSL_KEIL_FS) && !defined(WOLFSSL_TIRTOS) */
-
-
-#ifdef USE_WOLFSSL_MEMORY
-
-    typedef struct memoryStats {
-        size_t totalAllocs;     /* number of allocations */
-        size_t totalBytes;      /* total number of bytes allocated */
-        size_t peakBytes;       /* concurrent max bytes */
-        size_t currentBytes;    /* total current bytes in use */
-    } memoryStats;
-
-    typedef struct memHint {
-        size_t thisSize;      /* size of this memory */
-        void*  thisMemory;    /* actual memory for user */
-    } memHint;
-
-    typedef struct memoryTrack {
-        union {
-            memHint hint;
-            byte    alignit[16];   /* make sure we have strong alignment */
-        } u;
-    } memoryTrack;
-
-    #if defined(WOLFSSL_TRACK_MEMORY)
-        #define DO_MEM_STATS
-        static memoryStats ourMemStats;
-    #endif
-
-    static INLINE void* TrackMalloc(size_t sz)
-    {
-        memoryTrack* mt;
-
-        if (sz == 0)
-            return NULL;
-
-        mt = (memoryTrack*)malloc(sizeof(memoryTrack) + sz);
-        if (mt == NULL)
-            return NULL;
-
-        mt->u.hint.thisSize   = sz;
-        mt->u.hint.thisMemory = (byte*)mt + sizeof(memoryTrack);
-
-#ifdef DO_MEM_STATS
-        ourMemStats.totalAllocs++;
-        ourMemStats.totalBytes   += sz;
-        ourMemStats.currentBytes += sz;
-        if (ourMemStats.currentBytes > ourMemStats.peakBytes)
-            ourMemStats.peakBytes = ourMemStats.currentBytes;
-#endif
-
-        return mt->u.hint.thisMemory;
-    }
-
-
-    static INLINE void TrackFree(void* ptr)
-    {
-        memoryTrack* mt;
-
-        if (ptr == NULL)
-            return;
-
-        mt = (memoryTrack*)ptr;
-        --mt;   /* same as minus sizeof(memoryTrack), removes header */
-
-#ifdef DO_MEM_STATS
-        ourMemStats.currentBytes -= mt->u.hint.thisSize;
-#endif
-
-        free(mt);
-    }
-
-
-    static INLINE void* TrackRealloc(void* ptr, size_t sz)
-    {
-        void* ret = TrackMalloc(sz);
-
-        if (ptr) {
-            /* if realloc is bigger, don't overread old ptr */
-            memoryTrack* mt = (memoryTrack*)ptr;
-            --mt;  /* same as minus sizeof(memoryTrack), removes header */
-
-            if (mt->u.hint.thisSize < sz)
-                sz = mt->u.hint.thisSize;
-        }
-
-        if (ret && ptr)
-            memcpy(ret, ptr, sz);
-
-        if (ret)
-            TrackFree(ptr);
-
-        return ret;
-    }
-
-    static INLINE void InitMemoryTracker(void)
-    {
-        if (wolfSSL_SetAllocators(TrackMalloc, TrackFree, TrackRealloc) != 0)
-            err_sys("wolfSSL SetAllocators failed for track memory");
-
-    #ifdef DO_MEM_STATS
-        ourMemStats.totalAllocs  = 0;
-        ourMemStats.totalBytes   = 0;
-        ourMemStats.peakBytes    = 0;
-        ourMemStats.currentBytes = 0;
-    #endif
-    }
-
-    static INLINE void ShowMemoryTracker(void)
-    {
-    #ifdef DO_MEM_STATS
-        printf("total   Allocs = %9lu\n",
-                                       (unsigned long)ourMemStats.totalAllocs);
-        printf("total   Bytes  = %9lu\n",
-                                       (unsigned long)ourMemStats.totalBytes);
-        printf("peak    Bytes  = %9lu\n",
-                                       (unsigned long)ourMemStats.peakBytes);
-        printf("current Bytes  = %9lu\n",
-                                       (unsigned long)ourMemStats.currentBytes);
-    #endif
-    }
-
-#endif /* USE_WOLFSSL_MEMORY */
-
 
 #ifdef HAVE_STACK_SIZE
 
@@ -2031,5 +1949,37 @@ static INLINE const char* mymktemp(char *tempfn, int len, int num)
     }
 
 #endif  /* HAVE_SESSION_TICKET && CHACHA20 && POLY1305 */
+
+#ifdef WOLFSSL_ASYNC_CRYPT
+    static INLINE int AsyncCryptPoll(WOLFSSL* ssl)
+    {
+        int ret, eventCount = 0;
+        WOLF_EVENT events[1];
+
+        printf("Connect/Accept got WC_PENDING_E\n");
+
+        ret = wolfSSL_poll(ssl, events, sizeof(events)/sizeof(WOLF_EVENT),
+            WOLF_POLL_FLAG_CHECK_HW, &eventCount);
+        if (ret == 0 && eventCount > 0) {
+            ret = 1; /* Success */
+        }
+
+        return ret;
+    }
+#endif
+
+static INLINE word16 GetRandomPort(void)
+{
+    word16 port = 0;
+
+    /* Generate random port for testing */
+    WC_RNG rng;
+    if (wc_InitRng(&rng) == 0) {
+        wc_RNG_GenerateBlock(&rng, (byte*)&port, sizeof(port));
+        port |= 0xC000; /* Make sure its in the 49152 - 65535 range */
+        wc_FreeRng(&rng);
+    }
+    return port;
+}
 
 #endif /* wolfSSL_TEST_H */

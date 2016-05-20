@@ -1,8 +1,8 @@
 /* memory.h
  *
- * Copyright (C) 2006-2015 wolfSSL Inc.
+ * Copyright (C) 2006-2016 wolfSSL Inc.
  *
- * This file is part of wolfSSL. (formerly known as CyaSSL)
+ * This file is part of wolfSSL.
  *
  * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,8 +16,9 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
+
 
 /* submitted by eof */
 
@@ -32,21 +33,30 @@
     extern "C" {
 #endif
 
-typedef void *(*wolfSSL_Malloc_cb)(size_t size);
-typedef void (*wolfSSL_Free_cb)(void *ptr);
-typedef void *(*wolfSSL_Realloc_cb)(void *ptr, size_t size);
+#ifdef WOLFSSL_DEBUG_MEMORY
+    typedef void *(*wolfSSL_Malloc_cb)(size_t size, const char* func, unsigned int line);
+    typedef void (*wolfSSL_Free_cb)(void *ptr, const char* func, unsigned int line);
+    typedef void *(*wolfSSL_Realloc_cb)(void *ptr, size_t size, const char* func, unsigned int line);
 
+    /* Public in case user app wants to use XMALLOC/XFREE */
+    WOLFSSL_API void* wolfSSL_Malloc(size_t size, const char* func, unsigned int line);
+    WOLFSSL_API void  wolfSSL_Free(void *ptr, const char* func, unsigned int line);
+    WOLFSSL_API void* wolfSSL_Realloc(void *ptr, size_t size, const char* func, unsigned int line);
+#else
+    typedef void *(*wolfSSL_Malloc_cb)(size_t size);
+    typedef void (*wolfSSL_Free_cb)(void *ptr);
+    typedef void *(*wolfSSL_Realloc_cb)(void *ptr, size_t size);
+
+    /* Public in case user app wants to use XMALLOC/XFREE */
+    WOLFSSL_API void* wolfSSL_Malloc(size_t size);
+    WOLFSSL_API void  wolfSSL_Free(void *ptr);
+    WOLFSSL_API void* wolfSSL_Realloc(void *ptr, size_t size);
+#endif
 
 /* Public set function */
 WOLFSSL_API int wolfSSL_SetAllocators(wolfSSL_Malloc_cb  malloc_function,
                                     wolfSSL_Free_cb    free_function,
                                     wolfSSL_Realloc_cb realloc_function);
-
-/* Public in case user app wants to use XMALLOC/XFREE */
-WOLFSSL_API void* wolfSSL_Malloc(size_t size);
-WOLFSSL_API void  wolfSSL_Free(void *ptr);
-WOLFSSL_API void* wolfSSL_Realloc(void *ptr, size_t size);
-
 
 #ifdef __cplusplus
     }  /* extern "C" */
