@@ -9,101 +9,104 @@ wolfcrypt: the wolfSSL Crypto Engine
 **wolfCrypt** is a lightweight, portable, C-language-based crypto library
 targeted at IoT, embedded, and RTOS environments primarily because of its size,
 speed, and feature set. It works seamlessly in desktop, enterprise, and cloud
-environments as well.
+environments as well. It is the crypto engine behind wolfSSl's embedded ssl
+library.
 
 
 Installation
 ------------
 
-Dependencies
-~~~~~~~~~~~~
+In order to use ``wolfcrypt``, first you'll need to install ``wolfssl`` C
+embedded ssl library.
 
-Before installing ``wolfcrypt``, make sure you have ``wolfssl`` C library
-installed in your machine:
+Installing ``wolfssl`` :
+~~~~~~~~~~~~~~~~~~~~~~~~
 
-.. code-block:: console
-
-    $ git clone git@github.com:wolfssl/wolfssl.git
-    $ cd wolfssl
-    $ ./autogen.sh
-    $ ./configure
-    $ make
-    $ sudo make install
-
-**Linux ONLY:** Update your dynamic linker:
+**Mac OSX**
 
 .. code-block:: console
 
-    $ sudo ldconfig
-    # or
-    $ export LD_LIBRARY_PATH=/usr/local/lib
+    brew install wolfssl
 
-
-**Linux ONLY:** Make sure you have ``python-dev``, ``python3-dev``,
-``python-pip`` and ``libffi-dev`` installed:
+or
 
 .. code-block:: console
 
-    $ sudo apt-get update
-    $ sudo apt-get install python-dev python3-dev python-pip libffi-dev
+    git clone https://github.com/wolfssl/wolfssl.git
+    cd wolfssl/
+    ./autogen.sh
+    ./configure
+    make
+    sudo make install
 
 
-Now, you can install ``wolfcrypt`` via ``pip`` or ``source code``:
+**Ubuntu**
 
-wolfcrypt pip installation
+.. code-block:: console
+
+    sudo apt-get update
+    sudo apt-get install -y git autoconf libtool
+
+    git clone https://github.com/wolfssl/wolfssl.git
+    cd wolfssl/
+    ./autogen.sh
+    ./configure
+    make
+    sudo make install
+
+    sudo ldconfig
+
+**CentOS**
+
+.. code-block:: console
+
+    sudo rpm -ivh http://dl.fedoraproject.org/pub/epel/7/x86_64/e/epel-release-7-6.noarch.rpm
+    sudo yum update
+    sudo yum install -y git autoconf libtool
+
+    git clone git@github.com:wolfssl/wolfssl.git
+    cd wolfssl
+    ./autogen.sh
+    ./configure
+    make
+    sudo make install
+
+    echo /usr/local/lib > wolfssl.conf
+    sudo mv wolfssl.conf /etc/ld.so.conf
+    sudo ldconfig
+
+
+Installing ``wolfcrypt`` :
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-To install ``wolfcrypt`` with ``pip``:
+**Mac OSX**
 
 .. code-block:: console
 
-    $ sudo -H pip install wolfcrypt
+    sudo -H pip install wolfcrypt
 
 
-wolfcrypt source installation
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-1. Get the sources:
+**Ubuntu**
 
 .. code-block:: console
 
-    $ git clone git@github.com:wolfssl/wolfssl.git
-    $ cd wolfssl/wrapper/python
+    sudo apt-get install -y python-dev python-pip libffi-dev
+    sudo -H pip install wolfcrypt
 
 
-**Before** proceeding with installation, you can test ``wolfcrypt`` locally with
-``tox``. If you don't want to run the tests, jump to step 4 instead.
-
-
-2. Make sure that the testing requirements are installed:
+**CentOS**
 
 .. code-block:: console
 
-    $ sudo -H pip install -r requirements-testing.txt
+    sudo yum install -y python-devel python-pip libffi-devel
+    sudo -H pip install wolfcrypt
 
 
-3. Run ``tox``:
-
-.. code-block:: console
-
-    $ tox
-    ...
-    _________________________________ summary _________________________________
-    py27: commands succeeded
-    SKIPPED: py34: InterpreterNotFound: python3.4
-    py35: commands succeeded
-    congratulations :)
-
-Note that some tests might be skipped if you don't have the proper interpreter.
-
-
-**Now**, to install ``wolfcrypt`` from sources:
-
-
-4. Build and install ``wolfcrypt``
+Testing ``wolfcrypt`` :
+~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: console
 
-    $ sudo python setup.py install
-    ...
-    Finished processing dependencies for wolfcrypt...
+    python -c "from wolfcrypt.hashes import Sha; print Sha().hexdigest()"
+
+expected output: **da39a3ee5e6b4b0d3255bfef95601890afd80709**

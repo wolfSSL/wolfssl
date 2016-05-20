@@ -20,14 +20,14 @@
 
 metadata = dict(
   __name__         = "wolfcrypt",
-  __version__      = "0.1.6",
+  __version__      = "0.1.7",
   __license__      = "GPLv2 or Commercial License",
   __author__       = "wolfSSL Inc.",
   __author_email__ = "info@wolfssl.com",
   __url__          = "https://wolfssl.github.io/wolfcrypt-py",
   __description__  = \
     u"A Python library that encapsulates wolfSSL's wolfCrypt API.",
-  __keywords__     = "security, cryptography",
+  __keywords__     = "security, cryptography, ssl, embedded, embedded ssl",
   __classifiers__  = [
     u"License :: OSI Approved :: GNU General Public License v2 (GPLv2)",
     u"License :: Other/Proprietary License",
