@@ -6542,6 +6542,9 @@ static INLINE int DtlsCheckWindow(DtlsState* state)
     else if ((cur < next) && (window & ((DtlsSeq)1 << (next - cur - 1)))) {
         return 0;
     }
+    else if (cur > next + DTLS_SEQ_BITS) {
+        return 0;
+    }
 
     return 1;
 }
