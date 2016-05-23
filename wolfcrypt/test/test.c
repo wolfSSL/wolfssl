@@ -271,6 +271,8 @@ int wolfcrypt_test(void* args)
     InitMemoryTracker();
 #endif
 
+    wolfCrypt_Init();
+
 #ifdef HAVE_FIPS
     wolfCrypt_SetCb_fips(myFipsCb);
 #endif
