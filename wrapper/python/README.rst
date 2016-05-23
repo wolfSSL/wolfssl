@@ -35,7 +35,7 @@ or
     git clone https://github.com/wolfssl/wolfssl.git
     cd wolfssl/
     ./autogen.sh
-    ./configure
+    ./configure --enable-sha512
     make
     sudo make install
 
@@ -50,7 +50,7 @@ or
     git clone https://github.com/wolfssl/wolfssl.git
     cd wolfssl/
     ./autogen.sh
-    ./configure
+    ./configure --enable-sha512
     make
     sudo make install
 
@@ -67,7 +67,7 @@ or
     git clone git@github.com:wolfssl/wolfssl.git
     cd wolfssl
     ./autogen.sh
-    ./configure
+    ./configure --enable-sha512
     make
     sudo make install
 
