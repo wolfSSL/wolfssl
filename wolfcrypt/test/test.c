@@ -6179,7 +6179,7 @@ static int evp_enc_test(const WOLFCRYPT_EVP_CIPHER* type)
 
 
     /* Encrypt/Decrypt with round bytes block Update */
-    for (rand_size = sizeof(brandom), loop = 1; loop < 1000; loop++) {
+    for (loop = 1; loop < 1000; loop++) {
         rand_size = sizeof(brandom) - loop;
 
         /* Encrypt */
@@ -6450,7 +6450,7 @@ int bio_b64_test(void)
     wc_FreeRng(&rng);
 
     /* Encode/Decode brandom data */
-    for (rand_size = sizeof(brandom), loop = 1; loop < 1000; loop++) {
+    for (loop = 1; loop < 1000; loop++) {
         rand_size = sizeof(brandom) - loop;
 
         /* Create a buffered file BIO for writing */
@@ -6562,8 +6562,7 @@ static int bio_filter_test(const WOLFCRYPT_EVP_CIPHER* cipher_type)
 
     wc_FreeRng(&rng);
 
-    for (rand_size = sizeof(brandom), i = 1; i < 300; i++) {
-
+    for (i = 1; i < 300; i++) {
         rand_size = sizeof(brandom) - i;
 
         /* Create a buffered file BIO for writing */
@@ -6870,6 +6869,8 @@ int bio_test(void)
 
     if (XMEMCMP(buf, buf_w, 2*(int)strlen(buf)-wc_BioPending(bio)))
         return -1060;
+
+    wc_BioFree(bio);
 
     /* assembling BIO test for all cipher */
 #ifndef NO_AES

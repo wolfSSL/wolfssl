@@ -674,7 +674,7 @@ WOLFCRYPT_BIO *wc_BioGetRetryBio(WOLFCRYPT_BIO *bio, int *reason)
         b = b->next_bio;
     }
 
-    if (reason != NULL)
+    if (reason != NULL && last != NULL)
         *reason = last->retry_reason;
 
     WOLFSSL_LEAVE("wc_BioGetRetryBio", 1);
@@ -1959,7 +1959,6 @@ static long wc_BioBuffer_ctrl(WOLFCRYPT_BIO *bio, int cmd, long num, void *ptr)
                 } else {
                     ctx->outLen = 0;
                     ctx->outIdx = 0;
-                    ret = 1;
                     break;
                 }
             }
@@ -2795,39 +2794,70 @@ int wc_BioGetHostIp(const char *str, unsigned char *ip)
 int wc_BioGetPort(const char *str, unsigned short *port_ptr)
 {
     int i;
-    struct servent *s = NULL;
 
     if (str == NULL) {
         WOLFSSL_ERROR(BIO_NO_PORT_E);
         return 0;
     }
 
+    /* str is directly the port number */
     i = atoi(str);
     if (i != 0) {
         *port_ptr = (unsigned short)i;
         return 1;
     }
 
-    s = getservbyname(str, "tcp");
-    if (s != NULL) {
-        *port_ptr = ntohs((unsigned short)s->s_port);
-        return 1;
-    }
+#if 0 /* getservbyname remove due to memory leaks !? */
+    {
+        struct servent *s;
 
-    if (strcmp(str, "http") == 0)
+        s = getservbyname(str, "tcp");
+        if (s != NULL) {
+            *port_ptr = ntohs((unsigned short)s->s_port);
+            return 1;
+        }
+    }
+#endif
+
+    /* search port number from protocol */
+    if (!strcmp(str, "http"))
         *port_ptr = 80;
-    else if (strcmp(str, "telnet") == 0)
+    else if (!strcmp(str, "https") || !strcmp(str, "ssl") || !strcmp(str, "tls"))
+        *port_ptr = 443;
+    else if (!strcmp(str, "telnet"))
         *port_ptr = 23;
-    else if (strcmp(str, "socks") == 0)
-        *port_ptr = 1080;
-    else if (strcmp(str, "https") == 0)
-        *port_ptr = 443;
-    else if (strcmp(str, "ssl") == 0)
-        *port_ptr = 443;
-    else if (strcmp(str, "ftp") == 0)
+    else if (!strcmp(str, "ftp"))
         *port_ptr = 21;
-    else if (strcmp(str, "gopher") == 0)
+    else if (!strcmp(str, "ftps"))
+        *port_ptr = 990;
+    else if (!strcmp(str, "tftp"))
+        *port_ptr = 69;
+    else if (!strcmp(str, "tftps"))
+        *port_ptr = 3713;
+    else if (!strcmp(str, "imap"))
+        *port_ptr = 143;
+    else if (!strcmp(str, "imaps"))
+        *port_ptr = 993;
+    else if (!strcmp(str, "pop3"))
+        *port_ptr = 110;
+    else if (!strcmp(str, "pop3s"))
+        *port_ptr = 995;
+    else if (!strcmp(str, "smtp"))
+        *port_ptr = 25;
+    else if (!strcmp(str, "ldap"))
+        *port_ptr = 389;
+    else if (!strcmp(str, "ldaps"))
+        *port_ptr = 636;
+    else if (!strcmp(str, "snmp"))
+        *port_ptr = 161;
+    else if (!strcmp(str, "ntp"))
+        *port_ptr = 123;
+    else if (!strcmp(str, "nntp"))
+        *port_ptr = 119;
+    else if (!strcmp(str, "gopher"))
         *port_ptr = 70;
+    else if (!strcmp(str, "socks"))
+        *port_ptr = 1080;
     else {
         WOLFSSL_ERROR(BIO_SRV_PROTO_E);
         return 0;
@@ -4807,8 +4837,6 @@ static long wc_BioDgram_ctrl(WOLFCRYPT_BIO *bio, int cmd, long num, void *ptr)
 
     switch (cmd) {
         case BIO_CTRL_RESET:
-            num = 0;
-
         case BIO_CTRL_PENDING:
         case BIO_CTRL_WPENDING:
         case BIO_C_FILE_SEEK:
@@ -5451,9 +5479,9 @@ static long wc_BioFile_ctrl(WOLFCRYPT_BIO *bio, int cmd, long num, void *ptr)
             }
 
             if (num & BIO_FP_TEXT)
-                XSTRNCAT(buf, "t", sizeof(buf) - 1);
+                XSTRNCAT(buf, "t", sizeof(buf) - strlen(buf) - 1);
             else
-                XSTRNCAT(buf, "b", sizeof(buf) - 1);
+                XSTRNCAT(buf, "b", sizeof(buf) - strlen(buf) - 1);
 
             bio->ptr = XFOPEN(ptr, buf);
             if (bio->ptr == NULL) {
@@ -5623,7 +5651,7 @@ static int wolfCrypt_BufMem_grow_clean(WOLFCRYPT_BUF_MEM *buf, size_t len)
     }
 
     ret = wolfCrypt_BufMem_grow(buf, len);
-    if (ret && idx != -1)
+    if (ret && idx != -1 && buf->data != NULL)
         XMEMSET(&buf->data[idx], 0, size);
 
     return ret;
@@ -5778,7 +5806,10 @@ static int wc_BioMem_write(WOLFCRYPT_BIO *bio, const char *data, int size)
         (int)(init_len + size))
         return -1;
 
-    XMEMCPY(&(wbmptr->data[init_len]), data, size);
+    if (wbmptr->data == NULL)
+        return -1;
+
+    XMEMCPY(&wbmptr->data[init_len], data, size);
 
     return size;
 }
@@ -5981,11 +6012,11 @@ static int wc_BioNull_write(WOLFCRYPT_BIO *bio, const char *buf, int size)
 
 static long wc_BioNull_ctrl(WOLFCRYPT_BIO *bio, int cmd, long num, void *ptr)
 {
+    long ret = 1;
+
     (void)bio;
     (void)ptr;
     (void)num;
-
-    long ret = 1;
 
     switch (cmd) {
         case BIO_CTRL_RESET:
