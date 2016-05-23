@@ -281,14 +281,22 @@ int ecc_projective_add_point(ecc_point* P, ecc_point* Q, ecc_point* R,
                              mp_int* modulus, mp_digit* mp)
 {
    mp_int t1, t2;
-#if (defined(USE_FAST_MATH) && defined(ALT_ECC_SIZE)) || !defined(USE_FAST_MATH)
+#ifdef ALT_ECC_SIZE
    mp_int rx, ry, rz;
 #endif
    mp_int *x, *y, *z;
    int    err;
 
-   if (P == NULL || Q == NULL || R == NULL || modulus == NULL || mp == NULL)
+   if (P == NULL || Q == NULL || R == NULL || modulus == NULL || mp == NULL) {
        return ECC_BAD_ARG_E;
+   }
+
+   /* if Q == R then swap P and Q, so we don't require a local x,y,z */
+   if (Q == R) {
+      ecc_point* tPt  = P;
+      P = Q;
+      Q = tPt;
+   }
 
    if ((err = mp_init_multi(&t1, &t2, NULL, NULL, NULL, NULL)) != MP_OKAY) {
       return err;
@@ -313,7 +321,9 @@ int ecc_projective_add_point(ecc_point* P, ecc_point* Q, ecc_point* R,
       return err;
    }
 
-#if (defined(USE_FAST_MATH) && defined(ALT_ECC_SIZE)) || !defined(USE_FAST_MATH)
+/* If use ALT_ECC_SIZE we need to use local stack variable since 
+   ecc_point x,y,z is reduced size */
+#ifdef ALT_ECC_SIZE
    /* Use local stack variable */
    x = &rx;
    y = &ry;
@@ -520,17 +530,13 @@ int ecc_projective_add_point(ecc_point* P, ecc_point* Q, ecc_point* R,
    if (err == MP_OKAY)
        err = mp_div_2(y, y);
 
-#if (defined(USE_FAST_MATH) && defined(ALT_ECC_SIZE)) || !defined(USE_FAST_MATH)
+#ifdef ALT_ECC_SIZE
    if (err == MP_OKAY)
        err = mp_copy(x, R->x);
    if (err == MP_OKAY)
        err = mp_copy(y, R->y);
    if (err == MP_OKAY)
        err = mp_copy(z, R->z);
-   
-   mp_clear(x);
-   mp_clear(y);
-   mp_clear(z);
 #endif
 
 #ifndef USE_FAST_MATH
@@ -568,6 +574,8 @@ int ecc_projective_dbl_point(ecc_point *P, ecc_point *R, mp_int* modulus,
       return err;
    }
 
+/* If use ALT_ECC_SIZE we need to use local stack variable since 
+   ecc_point x,y,z is reduced size */
 #ifdef ALT_ECC_SIZE
    /* Use local stack variable */
    x = &rx;
