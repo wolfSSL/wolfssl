@@ -45,8 +45,9 @@ typedef char WOLFCRYPT_EVP_MD;
 #ifndef NO_MD5
 WOLFSSL_API const WOLFCRYPT_EVP_MD* wc_EVP_md5(void);
 #endif
+#ifndef NO_SHA
 WOLFSSL_API const WOLFCRYPT_EVP_MD* wc_EVP_sha1(void);
-
+#endif
 WOLFSSL_API const WOLFCRYPT_EVP_MD* wc_EVP_sha256(void);
 #ifdef WOLFSSL_SHA384
 WOLFSSL_API const WOLFCRYPT_EVP_MD* wc_EVP_sha384(void);
@@ -64,10 +65,12 @@ typedef char WOLFCRYPT_EVP_CIPHER;
 WOLFSSL_API const WOLFCRYPT_EVP_CIPHER* wc_EVP_aes_128_cbc(void);
 WOLFSSL_API const WOLFCRYPT_EVP_CIPHER* wc_EVP_aes_192_cbc(void);
 WOLFSSL_API const WOLFCRYPT_EVP_CIPHER* wc_EVP_aes_256_cbc(void);
+#ifdef WOLFSSL_AES_COUNTER
 WOLFSSL_API const WOLFCRYPT_EVP_CIPHER* wc_EVP_aes_128_ctr(void);
 WOLFSSL_API const WOLFCRYPT_EVP_CIPHER* wc_EVP_aes_192_ctr(void);
 WOLFSSL_API const WOLFCRYPT_EVP_CIPHER* wc_EVP_aes_256_ctr(void);
-#endif
+#endif /* WOLFSSL_AES_COUNTER */
+#endif /* NO_AES */
 #ifndef NO_DES3
 WOLFSSL_API const WOLFCRYPT_EVP_CIPHER* wc_EVP_des_cbc(void);
 WOLFSSL_API const WOLFCRYPT_EVP_CIPHER* wc_EVP_des_ede3_cbc(void);
@@ -94,7 +97,7 @@ enum WC_Cipher {
     RC4_KEY_SIZE        = 16,  /* always 128bit           */
     DES_KEY_SIZE        =  8,  /* des                     */
     DES3_KEY_SIZE       = 24,  /* 3 des ede               */
-    DES_IV_SIZE         = DES_BLOCK_SIZE,
+    DES_IV_SIZE         =  8,  /* des                     */
     AES_256_KEY_SIZE    = 32,  /* for 256 bit             */
     AES_192_KEY_SIZE    = 24,  /* for 192 bit             */
     AES_IV_SIZE         = 16,  /* always block size       */

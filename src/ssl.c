@@ -88,6 +88,7 @@
         #include <wolfssl/wolfcrypt/sha512.h>
     #endif
 	#include <wolfssl/wolfcrypt/bio.h>
+    #include <time.h>
 #endif
 
 #ifdef NO_ASN
@@ -15878,13 +15879,6 @@ void* wolfSSL_GetRsaDecCtx(WOLFSSL* ssl)
         WOLFSSL_STUB("wolfSSL_CTX_use_PrivateKey");
 
         return 0;
-    }
-
-    WOLFSSL_BIO_METHOD* wolfSSL_BIO_s_file(void) {
-        WOLFSSL_ENTER("wolfSSL_BIO_s_file");
-        WOLFSSL_STUB("wolfSSL_BIO_s_file");
-
-        return NULL;
     }
 
     const char * wolf_OBJ_nid2sn(int n) {

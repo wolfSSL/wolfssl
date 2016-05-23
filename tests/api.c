@@ -1012,7 +1012,7 @@ static void test_client_full_bio(void* args)
 #endif
     if (bio == NULL) {
         printf("wc_BioNew failed\n");
-        goto done2;
+        goto done;
     }
 
     port = ((func_args*)args)->signal->port;
@@ -1029,7 +1029,7 @@ static void test_client_full_bio(void* args)
     input = (int)wc_BioDoConnect(bio);
     if (input <= 0) {
         printf("wc_BioDoConnect failed : %d\n", input);
-        goto done2;
+        goto done;
     }
     printf("done\n");
 #endif
@@ -1042,14 +1042,14 @@ read_again:
             goto read_again;
         }
         printf("wc_BioRead failed");
-        goto done2;
+        goto done;
     }
     reply[input] = 0;
     printf("BioFullCli, Server sent: %s\n", reply);
 
     if (wc_BioWrite(bio, msg, msgSz) != msgSz) {
         printf("wc_BioWrite failed");
-        goto done2;
+        goto done;
     }
 
 read_again2:
@@ -1060,7 +1060,7 @@ read_again2:
             goto read_again2;
         }
         printf("wc_BioRead failed");
-        goto done2;
+        goto done;
     }
 
     reply[input] = 0;
@@ -1069,10 +1069,10 @@ read_again2:
     /* close */
     if (wc_BioWrite(bio, "end", 3) != 3) {
         printf("wc_BioWrite failed");
-        goto done2;
+        goto done;
     }
 
-done2:
+done:
     if (bio != 0)
         wc_BioFreeAll(bio);
 
@@ -1178,7 +1178,7 @@ read_again:
             printf("Retry read\n");
             goto read_again;
         }
-        printf("wc_BioWrite failed\n");
+        printf("wc_BioRead failed\n");
         goto done;
     }
 
@@ -1187,11 +1187,7 @@ read_again:
 
     if (wc_BioWrite(ssl_bio, msg, sizeof(msg)) != sizeof(msg)) {
         printf("wc_BioWrite failed\n");
-#ifdef WOLFSSL_TIRTOS
-        return;
-#else
-        return 0;
-#endif
+        goto done;
     }
 
 #ifdef WOLFSSL_TIRTOS

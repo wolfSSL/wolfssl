@@ -3668,6 +3668,7 @@ int DupSSL(WOLFSSL* ssl, WOLFSSL* ossl)
     if (ret != 0)
         return ret;
 
+#ifndef NO_DH
     /* Don't copy if (p,g) owned by ctx */
     if (ssl->buffers.weOwnDH || ssl->options.side == WOLFSSL_CLIENT_END) {
         ret = DupBuffer(&ssl->buffers.serverDH_P,
@@ -3680,6 +3681,7 @@ int DupSSL(WOLFSSL* ssl, WOLFSSL* ossl)
         if (ret != 0)
             return ret;
     }
+#endif
 
 #ifdef KEEP_PEER_CERT
     ret = DupX509(&ssl->peerCert, &ossl->peerCert);

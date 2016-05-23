@@ -6306,7 +6306,7 @@ int bio_md_test(void)
 {
     WOLFCRYPT_BIO *bmd, *bnull;
     int i, size, total, w;
-    char digest[SHA512_DIGEST_SIZE];
+    char digest[64]; /* SHA512_DIGEST_SIZE */
 
     struct bio_digest {
         const WOLFCRYPT_EVP_MD *type;

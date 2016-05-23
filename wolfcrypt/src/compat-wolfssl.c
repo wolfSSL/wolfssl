@@ -39,7 +39,9 @@
 #include <wolfssl/wolfcrypt/compat-wolfssl.h>
 
 
-#ifdef OPENSSL_EXTRA
+#if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
+
+#ifndef NO_MD5
 
 #ifndef WOLFSSL_HAVE_MIN
 #define WOLFSSL_HAVE_MIN
@@ -48,10 +50,8 @@ static INLINE word32 min(word32 a, word32 b)
 {
     return a > b ? b : a;
 }
-
 #endif /* WOLFSSSL_HAVE_MIN */
 
-#ifndef NO_MD5
 void wc_MD5_Init(WOLFCRYPT_MD5_CTX* md5)
 {
     typedef char md5_test[sizeof(WOLFCRYPT_MD5_CTX) >= sizeof(Md5) ? 1 : -1];
@@ -260,14 +260,16 @@ void wc_HMAC_Final(WOLFCRYPT_HMAC_CTX* ctx, unsigned char* hash,
         if (len) {
             WOLFSSL_MSG("setting output len");
             switch (ctx->type) {
+#ifndef NO_MD5
                 case MD5:
                     *len = MD5_DIGEST_SIZE;
                     break;
-
+#endif
+#ifndef NO_SHA
                 case SHA:
                     *len = SHA_DIGEST_SIZE;
                     break;
-
+#endif
                 case SHA256:
                     *len = SHA256_DIGEST_SIZE;
                     break;
@@ -291,7 +293,7 @@ unsigned char* wc_HMAC(const WOLFCRYPT_EVP_MD* evp_md, const void* key,
                        int key_len, const unsigned char* d, int n,
                        unsigned char* md, unsigned int* md_len)
 {
-    int type;
+    int type = -1;
     unsigned char* ret = NULL;
 #ifdef WOLFSSL_SMALL_STACK
     Hmac* hmac = NULL;
@@ -303,11 +305,16 @@ unsigned char* wc_HMAC(const WOLFCRYPT_EVP_MD* evp_md, const void* key,
     if (!md)
         return NULL;  /* no static buffer support */
 
+#ifndef NO_MD5
     if (XSTRNCMP(evp_md, "MD5", 3) == 0)
         type = MD5;
+#endif
+#ifndef NO_SHA
     else if (XSTRNCMP(evp_md, "SHA", 3) == 0)
         type = SHA;
-    else
+#endif
+
+    if (type == -1)
         return NULL;
 
 #ifdef WOLFSSL_SMALL_STACK
@@ -319,9 +326,16 @@ unsigned char* wc_HMAC(const WOLFCRYPT_EVP_MD* evp_md, const void* key,
     if (wc_HmacSetKey(hmac, type, (const byte*)key, key_len) == 0)
         if (wc_HmacUpdate(hmac, d, n) == 0)
             if (wc_HmacFinal(hmac, md) == 0) {
-                if (md_len)
-                    *md_len = (type == MD5) ? (int)MD5_DIGEST_SIZE
-                    : (int)SHA_DIGEST_SIZE;
+                if (md_len) {
+#ifndef NO_MD5
+                    if (type == MD5)
+                        *md_len = (int)MD5_DIGEST_SIZE;
+#endif
+#ifndef NO_SHA
+                    if (type == SHA)
+                        *md_len = (int)SHA_DIGEST_SIZE;
+#endif
+                }
                 ret = md;
             }
 
@@ -331,10 +345,6 @@ unsigned char* wc_HMAC(const WOLFCRYPT_EVP_MD* evp_md, const void* key,
 
     return ret;
 }
-
-#endif /* OPENSSL_EXTRA */
-
-#if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
 
 const char *EVP_AES_128_CBC = "AES-128-CBC";
 const char *EVP_AES_192_CBC = "AES-192-CBC";
@@ -359,6 +369,7 @@ const char *EVP_IDEA_CBC = "IDEA-CBC";
 const int  EVP_IDEA_SIZE = 8;
 #endif /* HAVE_IDEA */
 
+#ifndef NO_AES
 const WOLFCRYPT_EVP_CIPHER* wc_EVP_aes_128_cbc(void)
 {
     WOLFSSL_ENTER("wc_EVP_aes_128_cbc");
@@ -377,7 +388,7 @@ const WOLFCRYPT_EVP_CIPHER* wc_EVP_aes_256_cbc(void)
     return EVP_AES_256_CBC;
 }
 
-#if defined(OPENSSL_EXTRA)
+#ifdef WOLFSSL_AES_COUNTER
 const WOLFCRYPT_EVP_CIPHER* wc_EVP_aes_128_ctr(void)
 {
     WOLFSSL_ENTER("wc_EVP_aes_128_ctr");
@@ -395,8 +406,10 @@ const WOLFCRYPT_EVP_CIPHER* wc_EVP_aes_256_ctr(void)
     WOLFSSL_ENTER("wc_EVP_aes_256_ctr");
     return EVP_AES_256_CTR;
 }
-#endif /* OPENSSL_EXTRA */
+#endif /* WOLFSSL_AES_COUNTER */
+#endif /* NO_AES */
 
+#ifndef NO_DES3
 const WOLFCRYPT_EVP_CIPHER* wc_EVP_des_cbc(void)
 {
     WOLFSSL_ENTER("wc_EVP_des_cbc");
@@ -408,6 +421,7 @@ const WOLFCRYPT_EVP_CIPHER* wc_EVP_des_ede3_cbc(void)
     WOLFSSL_ENTER("wc_EVP_des_ede3_cbc");
     return EVP_DES_EDE3_CBC;
 }
+#endif /* NO_DES3 */
 
 const WOLFCRYPT_EVP_CIPHER* wc_EVP_rc4(void)
 {
@@ -1529,7 +1543,7 @@ int wc_EVP_CIPHER_CTX_iv_length(const WOLFCRYPT_EVP_CIPHER_CTX* ctx)
     WOLFSSL_MSG("wc_EVP_CIPHER_CTX_iv_length");
 
     switch (ctx->cipherType) {
-
+#ifndef NO_AES
         case AES_128_CBC_TYPE :
         case AES_192_CBC_TYPE :
         case AES_256_CBC_TYPE :
@@ -1543,7 +1557,9 @@ int wc_EVP_CIPHER_CTX_iv_length(const WOLFCRYPT_EVP_CIPHER_CTX* ctx)
             WOLFSSL_MSG("AES CTR");
             return AES_BLOCK_SIZE;
 #endif
+#endif /* NO_AES */
 
+#ifndef NO_DES3
         case DES_CBC_TYPE :
             WOLFSSL_MSG("DES CBC");
             return DES_BLOCK_SIZE;
@@ -1551,6 +1567,8 @@ int wc_EVP_CIPHER_CTX_iv_length(const WOLFCRYPT_EVP_CIPHER_CTX* ctx)
         case DES_EDE3_CBC_TYPE :
             WOLFSSL_MSG("DES EDE3 CBC");
             return DES_BLOCK_SIZE;
+#endif
+
 #ifdef HAVE_IDEA
         case IDEA_CBC_TYPE :
             WOLFSSL_MSG("IDEA CBC");

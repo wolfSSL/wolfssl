@@ -26,17 +26,21 @@
 #include <wolfssl/wolfcrypt/settings.h>
 
 #ifdef OPENSSL_EXTRA
-
+#include <stdlib.h>
 #include <stdarg.h>
+
 #ifndef NO_STDIO_FILESYSTEM
 #include <stdio.h>
 #endif
 
 #include <sys/types.h>
+#ifdef HAVE_ERRNO_H
 #include <errno.h>
+#endif
 
 #ifdef USE_WINDOWS_API
 #include <winsock2.h>
+#include <ws2tcpip.h>
 #include <process.h>
 #include <io.h>
 #include <fcntl.h>
@@ -827,7 +831,12 @@ int wc_BioPrintf(WOLFCRYPT_BIO *bio, const char *format, ...)
 
     XMEMSET(buffer, 0, size+1);
 
+#if defined(USE_WINDOWS_API)
+    ret = vsnprintf_s(buffer, size+1, size+1, format, args2);
+#else
     ret = vsnprintf(buffer, size+1, format, args2);
+#endif
+
     va_end(args2);
 
     if (ret != size) {
@@ -2906,9 +2915,11 @@ int wc_BioGetAcceptSocket(char *host, int bind_mode)
     if (wc_BioSockInit() != 1)
         return WOLFSSL_SOCKET_INVALID;
 
-    str = strdup(host);
+    str = XMALLOC(strlen(host)+1, 0, DYNAMIC_TYPE_TMP_BUFFER);
     if (str == NULL)
         return WOLFSSL_SOCKET_INVALID;
+
+    XSTRNCPY(str, host, strlen(host)+1);
 
     h = p = NULL;
     h = str;
@@ -2969,9 +2980,14 @@ again:
         if ((bind_mode == BIO_BIND_REUSEADDR_IF_UNUSED) &&
             (err_num == WSAEADDRINUSE))
 #else
+#ifdef HAVE_ERRNO_H
             err_num = errno;
-        if ((bind_mode == BIO_BIND_REUSEADDR_IF_UNUSED) &&
-            (err_num == EADDRINUSE))
+#endif
+        if ((bind_mode == BIO_BIND_REUSEADDR_IF_UNUSED)
+#ifdef HAVE_ERRNO_H
+            && (err_num == EADDRINUSE)
+#endif
+            )
 #endif /* USE_WINDOWS_API */
         {
             client = server;
@@ -3023,7 +3039,7 @@ again:
 err:
 
     if (str != NULL)
-        free(str);
+        XFREE(str, 0, DYNAMIC_TYPE_TMP_BUFFER);
 
     if (!ret && (s != WOLFSSL_SOCKET_INVALID)) {
 #ifdef USE_WINDOWS_API
@@ -4013,7 +4029,9 @@ static int wc_BioConn_read(WOLFCRYPT_BIO *bio, char *data, int size)
     WSASetLastError(0);
     ret = (int)recv(bio->num, data, size, 0);
 #else
+#ifdef HAVE_ERRNO_H
     errno = 0;
+#endif
     ret = (int)read(bio->num, data, size);
 #endif
 
@@ -4049,7 +4067,9 @@ static int wc_BioConn_write(WOLFCRYPT_BIO *bio, const char *data, int size)
     WSASetLastError(0);
     ret = (int)send(bio->num, data, size, 0);
 #else
+#ifdef HAVE_ERRNO_H
     errno = 0;
+#endif
     ret = (int)write(bio->num, data, size);
 #endif
 
@@ -4405,7 +4425,11 @@ static int wc_BioDgram_should_retry(int i)
 #ifdef USE_WINDOWS_API
         ret = WSAGetLastError();
 #else
+#ifdef HAVE_ERRNO_H
         ret = errno;
+#else
+        ret = -1;
+#endif
 #endif
         return wc_BioSockNonFatalError(ret);
     }
@@ -4646,7 +4670,9 @@ static int wc_BioDgram_read(WOLFCRYPT_BIO *bio, char *data, int size)
 #ifdef USE_WINDOWS_API
     WSASetLastError(0);
 #else
+#ifdef HAVE_ERRNO_H
     errno = 0;
+#endif
 #endif
 
     XMEMSET(&sa.peer, 0, sizeof(sa.peer));
@@ -4671,7 +4697,11 @@ static int wc_BioDgram_read(WOLFCRYPT_BIO *bio, char *data, int size)
 #ifdef USE_WINDOWS_API
             dgram->_errno = WSAGetLastError();
 #else
+#ifdef HAVE_ERRNO_H
             dgram->_errno = errno;
+#else
+            dgram->_errno = -1;
+#endif
 #endif
         }
     }
@@ -4697,7 +4727,9 @@ static int wc_BioDgram_write(WOLFCRYPT_BIO *bio,
 #ifdef USE_WINDOWS_API
     WSASetLastError(0);
 #else
+#ifdef HAVE_ERRNO_H
     errno = 0;
+#endif
 #endif
 
     if (dgram->connected)
@@ -4725,7 +4757,11 @@ static int wc_BioDgram_write(WOLFCRYPT_BIO *bio,
 #ifdef USE_WINDOWS_API
         dgram->_errno = WSAGetLastError();
 #else
+#ifdef HAVE_ERRNO_H
         dgram->_errno = errno;
+#else
+        dgram->_errno = -1;
+#endif
 #endif
     }
 
@@ -6088,7 +6124,9 @@ static int wc_BioSock_read(WOLFCRYPT_BIO *bio, char *data, int size)
     WSASetLastError(0);
     ret = (int)recv(bio->num, data, size, 0);
 #else
+#ifdef HAVE_ERRNO_H
     errno = 0;
+#endif
     ret = (int)read(bio->num, data, size);
 #endif
 
@@ -6114,7 +6152,9 @@ static int wc_BioSock_write(WOLFCRYPT_BIO *bio, const char *data, int size)
     WSASetLastError(0);
     ret = (int)send(bio->num, data, size, 0);
 #else
+#ifdef HAVE_ERRNO_H
     errno = 0;
+#endif
     ret = (int)write(bio->num, data, size);
 #endif
 
@@ -6244,7 +6284,11 @@ int wc_BioSockShouldRetry(int i)
 #ifdef USE_WINDOWS_API
         ret = WSAGetLastError();
 #else
+#ifdef HAVE_ERRNO_H
         ret = errno;
+#else
+        ret = -1;
+#endif
 #endif
         return wc_BioSockNonFatalError(ret);
     }
