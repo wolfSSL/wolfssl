@@ -71,7 +71,6 @@ static void ShiftAndXorRb(byte* out, byte* in)
 }
 
 
-#define AES 0
 int wc_InitCmac(Cmac* cmac, const byte* key, word32 keySz,
                 int type, void* unused)
 {
@@ -79,7 +78,7 @@ int wc_InitCmac(Cmac* cmac, const byte* key, word32 keySz,
 
     (void)unused;
 
-    if (cmac == NULL || key == NULL || keySz == 0 || type != AES)
+    if (cmac == NULL || key == NULL || keySz == 0 || type != WC_CMAC_AES)
         return BAD_FUNC_ARG;
 
     XMEMSET(cmac, 0, sizeof(Cmac));

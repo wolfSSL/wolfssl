@@ -43,6 +43,11 @@ typedef struct Cmac {
 } Cmac;
 
 
+typedef enum CmacType {
+    WC_CMAC_AES = 1
+} CmacType;
+
+
 WOLFSSL_API
 int wc_InitCmac(Cmac* cmac,
                 const byte* key, word32 keySz,
