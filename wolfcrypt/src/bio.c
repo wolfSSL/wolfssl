@@ -45,7 +45,13 @@
 #include <io.h>
 #include <fcntl.h>
 #define SHUT_RDWR SD_BOTH
-#else
+#ifdef _MSC_VER
+/* 4996 warning to use MS extensions e.g., strcpy_s instead of strncpy */
+#pragma warning(disable: 4996)
+/* 4127 warning to use check on size of component of an union */
+#pragma warning(disable: 4127)
+#endif
+#else /* USE_WINDOWS_API */
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <sys/time.h>
@@ -799,6 +805,10 @@ unsigned long wc_BioNumberWritten(WOLFCRYPT_BIO *bio)
 
 
 #ifndef NO_STDIO_FILESYSTEM
+
+#ifndef va_copy
+#define va_copy(dest, src) ((dest) = (src))
+#endif
 
 #ifndef USE_WINDOWS_API
 __attribute__((format(printf, 2, 3)))
@@ -1731,7 +1741,9 @@ static int wc_BioBuffer_read(WOLFCRYPT_BIO *bio, char *data, int size)
         ctx->inLen = i;
     }
 
+#ifndef USE_WINDOWS_API
     return 1;
+#endif
 }
 
 static int wc_BioBuffer_write(WOLFCRYPT_BIO *bio,
@@ -1809,7 +1821,9 @@ static int wc_BioBuffer_write(WOLFCRYPT_BIO *bio,
         }
     }
 
+#ifndef USE_WINDOWS_API
     return 1;
+#endif
 }
 
 static long wc_BioBuffer_ctrl(WOLFCRYPT_BIO *bio, int cmd, long num, void *ptr)
@@ -3506,7 +3520,7 @@ again:
 #ifdef USE_WINDOWS_API
                 closesocket(s);
 #else
-            close(s);
+                close(s);
 #endif
             break;
 

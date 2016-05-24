@@ -980,7 +980,7 @@ int wc_EVP_CipherInit(WOLFCRYPT_EVP_CIPHER_CTX* ctx,
         if (enc == 0 || enc == 1)
             ctx->enc = enc ? 1 : 0;
         if (key) {
-            ret = wc_AesSetKey(&ctx->cipher.aes, key, ctx->keyLen, iv,
+            ret = wc_AesSetKeyDirect(&ctx->cipher.aes, key, ctx->keyLen, iv,
                                AES_ENCRYPTION);
             if (ret != 0)
                 return ret;
@@ -1004,7 +1004,7 @@ int wc_EVP_CipherInit(WOLFCRYPT_EVP_CIPHER_CTX* ctx,
         if (enc == 0 || enc == 1)
             ctx->enc = enc ? 1 : 0;
         if (key) {
-            ret = wc_AesSetKey(&ctx->cipher.aes, key, ctx->keyLen, iv,
+            ret = wc_AesSetKeyDirect(&ctx->cipher.aes, key, ctx->keyLen, iv,
                                AES_ENCRYPTION);
             if (ret != 0)
                 return ret;
@@ -1028,7 +1028,7 @@ int wc_EVP_CipherInit(WOLFCRYPT_EVP_CIPHER_CTX* ctx,
         if (enc == 0 || enc == 1)
             ctx->enc = enc ? 1 : 0;
         if (key) {
-            ret = wc_AesSetKey(&ctx->cipher.aes, key, ctx->keyLen, iv,
+            ret = wc_AesSetKeyDirect(&ctx->cipher.aes, key, ctx->keyLen, iv,
                                AES_ENCRYPTION);
             if (ret != 0)
                 return ret;
