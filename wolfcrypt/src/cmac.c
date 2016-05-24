@@ -35,6 +35,7 @@
     #include <wolfcrypt/src/misc.c>
 #endif
 
+#include <wolfssl/wolfcrypt/error-crypt.h>
 #include <wolfssl/wolfcrypt/aes.h>
 #include <wolfssl/wolfcrypt/cmac.h>
 
@@ -70,6 +71,7 @@ static void ShiftAndXorRb(byte* out, byte* in)
 }
 
 
+#define AES 0
 int wc_InitCmac(Cmac* cmac, const byte* key, word32 keySz,
                 int type, void* unused)
 {
@@ -77,7 +79,8 @@ int wc_InitCmac(Cmac* cmac, const byte* key, word32 keySz,
 
     (void)unused;
 
-    if (type != 0) return -1;
+    if (cmac == NULL || key == NULL || keySz == 0 || type != AES)
+        return BAD_FUNC_ARG;
 
     XMEMSET(cmac, 0, sizeof(Cmac));
     ret = wc_AesSetKey(&cmac->aes, key, keySz, NULL, AES_ENCRYPTION);
@@ -96,6 +99,9 @@ int wc_InitCmac(Cmac* cmac, const byte* key, word32 keySz,
 
 int wc_CmacUpdate(Cmac* cmac, const byte* in, word32 inSz)
 {
+    if ((cmac == NULL) || (in == NULL && inSz != 0))
+        return BAD_FUNC_ARG;
+
     while (inSz != 0) {
         word32 add = min(inSz, AES_BLOCK_SIZE - cmac->bufferSz);
         XMEMCPY(&cmac->buffer[cmac->bufferSz], in, add);
@@ -123,7 +129,12 @@ int wc_CmacFinal(Cmac* cmac, byte* out, word32* outSz)
 {
     const byte* subKey;
 
-    (void)outSz;
+    if (cmac == NULL || out == NULL)
+        return BAD_FUNC_ARG;
+
+    if (outSz != NULL && *outSz < AES_BLOCK_SIZE)
+        return BUFFER_E;
+
     if (cmac->bufferSz == AES_BLOCK_SIZE) {
         subKey = cmac->k1;
     }
@@ -133,13 +144,17 @@ int wc_CmacFinal(Cmac* cmac, byte* out, word32* outSz)
         if (remainder == 0)
             remainder = AES_BLOCK_SIZE;
 
-        XMEMSET(cmac->buffer + AES_BLOCK_SIZE - remainder, 0, remainder);
+        if (remainder > 1)
+            XMEMSET(cmac->buffer + AES_BLOCK_SIZE - remainder, 0, remainder);
         cmac->buffer[AES_BLOCK_SIZE - remainder] = 0x80;
         subKey = cmac->k2;
     }
     xorbuf(cmac->buffer, cmac->digest, AES_BLOCK_SIZE);
     xorbuf(cmac->buffer, subKey, AES_BLOCK_SIZE);
     wc_AesEncryptDirect(&cmac->aes, out, cmac->buffer);
+
+    if (outSz != NULL)
+        *outSz = AES_BLOCK_SIZE;
     ForceZero(cmac, sizeof(Cmac));
 
     return 0; 
