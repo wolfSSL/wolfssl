@@ -7791,6 +7791,17 @@ int cmac_test(void)
             return -4036;
         if (XMEMCMP(tag, tc->t, AES_BLOCK_SIZE) != 0)
             return -4037;
+
+        XMEMSET(tag, 0, sizeof(tag));
+        tagSz = sizeof(tag);
+        if (wc_AesCmacGenerate(tag, &tagSz, tc->m, tc->mSz,
+                               tc->k, tc->kSz) != 0)
+            return -4038;
+        if (XMEMCMP(tag, tc->t, AES_BLOCK_SIZE) != 0)
+            return -4039;
+        if (wc_AesCmacVerify(tc->t, tc->tSz, tc->m, tc->mSz,
+                             tc->k, tc->kSz) != 0)
+            return -4040;
     }
 
     return 0;

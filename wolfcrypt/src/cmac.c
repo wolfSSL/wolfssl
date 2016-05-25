@@ -160,4 +160,38 @@ int wc_CmacFinal(Cmac* cmac, byte* out, word32* outSz)
 }
 
 
+int wc_AesCmacGenerate(byte* out, word32* outSz,
+                       const byte* in, word32 inSz,
+                       const byte* key, word32 keySz)
+{
+    Cmac cmac;
+
+    wc_InitCmac(&cmac, key, keySz, WC_CMAC_AES, NULL);
+    wc_CmacUpdate(&cmac, in, inSz);
+    wc_CmacFinal(&cmac, out, outSz);
+
+    return 0;
+}
+
+
+int wc_AesCmacVerify(const byte* check, word32 checkSz,
+                     const byte* in, word32 inSz,
+                     const byte* key, word32 keySz)
+{
+    byte a[AES_BLOCK_SIZE];
+    word32 aSz = sizeof(a);
+    int result;
+    int compareRet;
+
+    XMEMSET(a, 0, aSz);
+    result = wc_AesCmacGenerate(a, &aSz, in, inSz, key, keySz);
+    compareRet = ConstantCompare(check, a, min(checkSz, aSz));
+
+    if (result == 0)
+        result = compareRet ? 1 : 0;
+
+    return result;
+}
+
+
 #endif /* WOLFSSL_CMAC && NO_AES && WOLFSSL_AES_DIRECT */
