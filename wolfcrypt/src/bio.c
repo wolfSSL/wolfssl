@@ -2054,8 +2054,10 @@ static int wc_BioBuffer_gets(WOLFCRYPT_BIO *bio, char *buf, int size)
             ctx->inIdx = 0;
         }
     }
-    
+
+#ifndef USE_WINDOWS_API
     return i;
+#endif
 }
 
 static int wc_BioBuffer_puts(WOLFCRYPT_BIO *bio, const char *str)
@@ -3003,7 +3005,7 @@ int wc_BioGetAcceptSocket(char *host, int bind_mode)
     }
 
 again:
-    s = socket(server.sa.sa_family, SOCK_STREAM, IPPROTO_TCP);
+    s = (int)socket(server.sa.sa_family, SOCK_STREAM, IPPROTO_TCP);
     if (s == WOLFSSL_SOCKET_INVALID) {
         WOLFSSL_ERROR(BIO_CREATE_SOCKET_E);
         goto err;
@@ -3047,7 +3049,7 @@ again:
                     goto err;
             }
 
-            cs = socket(client.sa.sa_family, SOCK_STREAM, IPPROTO_TCP);
+            cs = (int)socket(client.sa.sa_family, SOCK_STREAM, IPPROTO_TCP);
             if (cs != WOLFSSL_SOCKET_INVALID) {
                 int ii;
                 ii = connect(cs, &client.sa, addrlen);
@@ -3118,7 +3120,7 @@ int wc_BioAccept(int sock, char **addr)
     sa.len.i = sizeof(sa.from);
     XMEMSET(&sa.from, 0, sizeof(sa.from));
 
-    dsock = accept(sock, &sa.from.sa, (void *)&sa.len);
+    dsock = (int)accept(sock, &sa.from.sa, (void *)&sa.len);
     if (sizeof(sa.len.i) != sizeof(sa.len.s) && !sa.len.i) {
         if (sa.len.s > sizeof(sa.from)) {
             WOLFSSL_ERROR(MEMORY_E);
@@ -3871,7 +3873,7 @@ static int wc_BioConn_state(WOLFCRYPT_BIO *bio, WOLFCRYPT_BIO_CONNECT *conn)
                 conn->them.sin_addr.s_addr = htonl(l);
                 conn->state = BIO_CONN_S_CREATE_SOCKET;
 
-                ret = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+                ret = (int)socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
                 if (ret <= 0) {
                     WOLFSSL_ERROR(BIO_CREATE_SOCKET_E);
                     goto exit_loop;
@@ -4276,7 +4278,7 @@ static long wc_BioConn_ctrl(WOLFCRYPT_BIO *bio, int cmd, long num, void *ptr)
                     break;
                 }
                 XSTRNCPY(conn->pPort, buf, XSTRLEN(buf)+1);
-                conn->port = *(int *)ptr;
+                conn->port = *(unsigned short *)ptr;
             }
             break;
 
