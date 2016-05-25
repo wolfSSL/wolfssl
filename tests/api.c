@@ -1197,6 +1197,8 @@ read_again:
 done:
     if (ssl_bio != 0)
         wc_BioFreeAll(ssl_bio);
+
+    wolfSSL_free(ssl);
     wolfSSL_CTX_free(ctx);
 
     CloseSocket(clientfd);
@@ -1303,6 +1305,8 @@ read_again:
 done2:
     if (ssl_bio != 0)
         wc_BioFreeAll(ssl_bio);
+    
+    wolfSSL_free(ssl);
     wolfSSL_CTX_free(ctx);
 
     CloseSocket(sockfd);
