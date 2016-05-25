@@ -517,8 +517,13 @@ int wolfSSL_dtls_set_peer(WOLFSSL* ssl, void* peer, unsigned int peerSz)
 int wolfSSL_dtls_get_peer(WOLFSSL* ssl, void* peer, unsigned int* peerSz)
 {
 #ifdef WOLFSSL_DTLS
+    if (ssl == NULL) {
+        return SSL_FAILURE;
+    }
+
     if (peer != NULL && peerSz != NULL
-            && *peerSz >= ssl->buffers.dtlsCtx.peer.sz) {
+            && *peerSz >= ssl->buffers.dtlsCtx.peer.sz
+            && ssl->buffers.dtlsCtx.peer.sa != NULL) {
         *peerSz = ssl->buffers.dtlsCtx.peer.sz;
         XMEMCPY(peer, ssl->buffers.dtlsCtx.peer.sa, *peerSz);
         return SSL_SUCCESS;
