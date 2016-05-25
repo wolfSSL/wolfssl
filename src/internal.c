@@ -3699,12 +3699,18 @@ retry:
                 return -1;
 
             case WOLFSSL_CBIO_ERR_TIMEOUT:
+                if (ssl->options.dtls) {
 #ifdef WOLFSSL_DTLS
-                if (DtlsPoolTimeout(ssl) == 0 && DtlsPoolSend(ssl) == 0)
-                    goto retry;
-                else
+                    if ((!ssl->options.handShakeDone ||
+                               ssl->options.dtlsHsRetain) &&
+                        DtlsPoolTimeout(ssl) == 0 &&
+                        DtlsPoolSend(ssl) == 0) {
+
+                        goto retry;
+                    }
 #endif
-                    return -1;
+                }
+                return -1;
 
             default:
                 return recvd;
@@ -3946,6 +3952,11 @@ static int GetRecordHeader(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     }
     else {
 #ifdef WOLFSSL_DTLS
+#ifdef HAVE_FUZZER
+        if (ssl->fuzzerCb)
+            ssl->fuzzerCb(ssl, input + *inOutIdx, DTLS_RECORD_HEADER_SZ,
+                           FUZZ_HEAD, ssl->fuzzerCtx);
+#endif
         /* type and version in same sport */
         XMEMCPY(rh, input + *inOutIdx, ENUM_LEN + VERSION_SZ);
         *inOutIdx += ENUM_LEN + VERSION_SZ;
@@ -3955,12 +3966,6 @@ static int GetRecordHeader(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         *inOutIdx += 4;  /* advance past rest of seq */
         ato16(input + *inOutIdx, size);
         *inOutIdx += LENGTH_SZ;
-#ifdef HAVE_FUZZER
-        if (ssl->fuzzerCb)
-            ssl->fuzzerCb(ssl, input + *inOutIdx - LENGTH_SZ - 8 - ENUM_LEN -
-                           VERSION_SZ, ENUM_LEN + VERSION_SZ + 8 + LENGTH_SZ,
-                           FUZZ_HEAD, ssl->fuzzerCtx);
-#endif
 #endif
     }
 
@@ -6526,7 +6531,7 @@ static INLINE int DtlsCheckWindow(DtlsState* state)
         next = state->nextSeq;
         window = state->window;
     }
-    else if (state->curEpoch < state->nextEpoch) {
+    else if (state->curEpoch == state->nextEpoch - 1) {
         next = state->prevSeq;
         window = state->prevWindow;
     }
@@ -8045,9 +8050,11 @@ int ProcessReply(WOLFSSL* ssl)
                 ssl->buffers.inputBuffer.length = 0;
                 ssl->buffers.inputBuffer.idx = 0;
 
-                ret = DtlsPoolSend(ssl);
-                if (ret != 0)
-                    return ret;
+                if (ssl->options.dtlsHsRetain) {
+                    ret = DtlsPoolSend(ssl);
+                    if (ret != 0)
+                        return ret;
+                }
 
                 continue;
             }
@@ -8185,8 +8192,8 @@ int ProcessReply(WOLFSSL* ssl)
                         if (!ssl->options.dtls) {
                             return ret;
                         }
-#ifdef WOLFSSL_DTLS
                         else {
+#ifdef WOLFSSL_DTLS
                         /* Check for duplicate CCS message in DTLS mode.
                          * DTLS allows for duplicate messages, and it should be
                          * skipped. Also skip if out of order. */
@@ -8204,8 +8211,8 @@ int ProcessReply(WOLFSSL* ssl)
                             }
                             ssl->buffers.inputBuffer.idx++;
                             break;
-                        }
 #endif /* WOLFSSL_DTLS */
+                        }
                     }
 
 #ifdef HAVE_SESSION_TICKET
