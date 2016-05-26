@@ -31,6 +31,37 @@
 #include <wolfssl/wolfcrypt/settings.h>
 #include <wolfssl/version.h>
 
+#ifdef WOLFSSL_SESSION_EXPORT
+    #include <arpa/inet.h>
+    #include <netinet/in.h>
+
+    #ifndef XINET_NTOP
+        #define XINET_NTOP(a,b,c,d) inet_ntop((a),(b),(c),(d))
+    #endif
+    #ifndef XINET_PTON
+        #define XINET_PTON(a,b,c)   inet_pton((a),(b),(c))
+    #endif
+    #ifndef XHTONS
+        #define XHTONS(a) htons((a))
+    #endif
+    #ifndef XNTOHS
+        #define XNTOHS(a) ntohs((a))
+    #endif
+
+    #ifndef WOLFSSL_IP4
+        #define WOLFSSL_IP4 AF_INET
+    #endif
+    #ifndef WOLFSSL_IP6
+        #define WOLFSSL_IP6 AF_INET6
+    #endif
+
+    typedef struct sockaddr_storage SOCKADDR_S;
+    typedef struct sockaddr_in      SOCKADDR_IN;
+    typedef struct sockaddr_in6     SOCKADDR_IN6;
+
+#endif
+
+
 #ifndef NO_FILESYSTEM
     #if defined(FREESCALE_MQX) || defined(FREESCALE_KSDK_MQX)
         #if MQX_USE_IO_OLD
