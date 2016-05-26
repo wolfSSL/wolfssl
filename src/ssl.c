@@ -7290,7 +7290,7 @@ int GetDeepCopySession(WOLFSSL* ssl, WOLFSSL_SESSION* copyFrom)
 #ifdef HAVE_SESSION_TICKET
     /* Free old dynamic ticket if we had one to avoid leak */
     if (copyInto->isDynamic) {
-        XFREE(copyInto->ticket, ssl->heap, DYNAMIC_TYPE_SESS_TICK);
+        XFREE(copyInto->ticket, ssl->heap, DYNAMIC_TYPE_SESSION_TICK);
         copyInto->ticket = copyInto->staticTicket;
         copyInto->isDynamic = 0;
     }
@@ -7326,7 +7326,7 @@ int GetDeepCopySession(WOLFSSL* ssl, WOLFSSL_SESSION* copyFrom)
             return MEMORY_ERROR;
 
         if (LockMutex(&session_mutex) != 0) {
-            XFREE(tmpBuff, ssl->heap, DYNAMIC_TYPE_SESS_TICK);
+            XFREE(tmpBuff, ssl->heap, DYNAMIC_TYPE_SESSION_TICK);
             return BAD_MUTEX_E;
         }
 
@@ -7355,7 +7355,7 @@ int GetDeepCopySession(WOLFSSL* ssl, WOLFSSL_SESSION* copyFrom)
     if (ret != SSL_SUCCESS) {
         /* cleanup */
         if (tmpBuff)
-            XFREE(tmpBuff, ssl->heap, DYNAMIC_TYPE_SESS_TICK);
+            XFREE(tmpBuff, ssl->heap, DYNAMIC_TYPE_SESSION_TICK);
         copyInto->ticket = copyInto->staticTicket;
         copyInto->isDynamic = 0;
     }
@@ -7458,7 +7458,7 @@ int AddSession(WOLFSSL* ssl)
         /* Cleanup cache row's old Dynamic buff if exists */
         if(SessionCache[row].Sessions[idx].isDynamic) {
             XFREE(SessionCache[row].Sessions[idx].ticket,
-                   ssl->heap, DYNAMIC_TYPE_SESS_TICK);
+                   ssl->heap, DYNAMIC_TYPE_SESSION_TICK);
             SessionCache[row].Sessions[idx].ticket = NULL;
         }
 
