@@ -165,10 +165,22 @@ int wc_AesCmacGenerate(byte* out, word32* outSz,
                        const byte* key, word32 keySz)
 {
     Cmac cmac;
+    int ret;
 
-    wc_InitCmac(&cmac, key, keySz, WC_CMAC_AES, NULL);
-    wc_CmacUpdate(&cmac, in, inSz);
-    wc_CmacFinal(&cmac, out, outSz);
+    if (out == NULL || (in == NULL && inSz > 0) || key == NULL || keySz == 0)
+        return BAD_FUNC_ARG;
+
+    ret = wc_InitCmac(&cmac, key, keySz, WC_CMAC_AES, NULL);
+    if (ret != 0)
+        return ret;
+
+    ret = wc_CmacUpdate(&cmac, in, inSz);
+    if (ret != 0)
+        return ret;
+
+    ret = wc_CmacFinal(&cmac, out, outSz);
+    if (ret != 0)
+        return ret;
 
     return 0;
 }
@@ -182,6 +194,11 @@ int wc_AesCmacVerify(const byte* check, word32 checkSz,
     word32 aSz = sizeof(a);
     int result;
     int compareRet;
+
+    if (check == NULL || checkSz == 0 || (in == NULL && inSz != 0) ||
+        key == NULL || keySz == 0)
+
+        return BAD_FUNC_ARG;
 
     XMEMSET(a, 0, aSz);
     result = wc_AesCmacGenerate(a, &aSz, in, inSz, key, keySz);
