@@ -2906,7 +2906,7 @@ int aes_test(void)
     }
 #endif /* WOLFSSL_AES_COUNTER */
 
-#if defined(WOLFSSL_AESNI) && defined(WOLFSSL_AES_DIRECT)
+#ifdef WOLFSSL_AES_DIRECT
     {
         const byte niPlain[] =
         {
@@ -2944,7 +2944,7 @@ int aes_test(void)
         if (XMEMCMP(plain, niPlain, AES_BLOCK_SIZE) != 0)
             return -20007;
     }
-#endif /* WOLFSSL_AESNI && WOLFSSL_AES_DIRECT */
+#endif /* WOLFSSL_AES_DIRECT */
 
     return ret;
 }
