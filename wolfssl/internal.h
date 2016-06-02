@@ -1960,7 +1960,11 @@ struct WOLFSSL_CTX {
 #ifdef WOLFSSL_DTLS
     CallbackGenCookie CBIOCookie;       /* gen cookie callback */
     wc_dtls_export    dtls_export;      /* export function for DTLS session */
+#ifdef WOLFSSL_SESSION_EXPORT
+    CallbackGetPeer CBGetPeer;
+    CallbackSetPeer CBSetPeer;
 #endif
+#endif /* WOLFSSL_DTLS */
     VerifyCallback  verifyCallback;     /* cert verification callback */
     word32          timeout;            /* session timeout */
 #ifdef HAVE_ECC

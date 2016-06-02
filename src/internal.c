@@ -1001,8 +1001,10 @@ static int dtls_export_load(WOLFSSL* ssl, byte* exp, word32 len, byte ver)
 
 static int ExportPeerInfo(WOLFSSL* ssl, byte* exp, word32 len, byte ver)
 {
-    int    idx = 0;
-    word16 fam = 0;
+    int    idx  = 0;
+    int    ipSz = DTLS_EXPORT_IP; /* start as max size */
+    int    fam  = 0;
+    word16 port = 0;
     char   ip[DTLS_EXPORT_IP];
 
     if (ver != 1) {
@@ -1010,57 +1012,29 @@ static int ExportPeerInfo(WOLFSSL* ssl, byte* exp, word32 len, byte ver)
         return BAD_FUNC_ARG;
     }
 
-    if (exp == NULL || len < sizeof(ip) + 3 * DTLS_EXPORT_LEN) {
+    if (ssl == NULL || exp == NULL || len < sizeof(ip) + 3 * DTLS_EXPORT_LEN) {
         return BAD_FUNC_ARG;
     }
-    fam = ((SOCKADDR_S*)ssl->buffers.dtlsCtx.peer.sa)->ss_family;
 
-    c16toa(fam, exp + idx); idx += DTLS_EXPORT_LEN;
-
-    switch (fam) {
-        case WOLFSSL_IP4:
-            if (XINET_NTOP(fam,
-                      &(((SOCKADDR_IN*)ssl->buffers.dtlsCtx.peer.sa)->sin_addr),
-                      ip, sizeof(ip)) == NULL) {
-                WOLFSSL_MSG("XINET_NTOP error");
-                return SOCKET_ERROR_E;
-            }
-            break;
-
-        case WOLFSSL_IP6:
-            if (XINET_NTOP(fam,
-                    &(((SOCKADDR_IN6*)ssl->buffers.dtlsCtx.peer.sa)->sin6_addr),
-                    ip, sizeof(ip)) == NULL) {
-                WOLFSSL_MSG("XINET_NTOP error");
-                return SOCKET_ERROR_E;
-            }
-            break;
-
-        default:
-            WOLFSSL_MSG("Unknown family type");
-            return SOCKET_ERROR_E;
+    if (ssl->ctx->CBGetPeer == NULL) {
+        WOLFSSL_MSG("No get peer call back set");
+        return BAD_FUNC_ARG;
     }
-    ip[sizeof(ip)-1] = '\0'; /* make sure has terminator */
-    c16toa((word16)XSTRLEN(ip), exp + idx);
-    idx += DTLS_EXPORT_LEN;
-    XMEMCPY(exp + idx, ip, XSTRLEN(ip));
-    idx += (word16)XSTRLEN(ip);
-
-    switch (fam) {
-        case WOLFSSL_IP4:
-          c16toa(XNTOHS(((SOCKADDR_IN*)ssl->buffers.dtlsCtx.peer.sa)->sin_port),
-                                                                     exp + idx);
-          break;
-        case WOLFSSL_IP6:
-        c16toa(XNTOHS(((SOCKADDR_IN6*)ssl->buffers.dtlsCtx.peer.sa)->sin6_port),
-                                                                     exp + idx);
-          break;
-
-        default:
-          WOLFSSL_MSG("Unknown address family");
-          return SOCKET_ERROR_E;
+    if (ssl->ctx->CBGetPeer(ssl, ip, &ipSz, &port, &fam) != SSL_SUCCESS) {
+        WOLFSSL_MSG("Get peer callback error");
+        return SOCKET_ERROR_E;
     }
-    idx += DTLS_EXPORT_LEN;
+
+    /* check that ipSz/fam is not negative or too large since user can set cb */
+    if (ipSz < 0 || ipSz > DTLS_EXPORT_IP || fam < 0) {
+        WOLFSSL_MSG("Bad ipSz or fam returned from get peer callback");
+        return SOCKET_ERROR_E;
+    }
+
+    c16toa((word16)fam, exp + idx);          idx += DTLS_EXPORT_LEN;
+    c16toa((word16)ipSz, exp + idx); idx += DTLS_EXPORT_LEN;
+    XMEMCPY(exp + idx, ip, ipSz);    idx += ipSz;
+    c16toa(port, exp + idx);         idx += DTLS_EXPORT_LEN;
 
     return idx;
 }
@@ -1068,74 +1042,47 @@ static int ExportPeerInfo(WOLFSSL* ssl, byte* exp, word32 len, byte ver)
 
 static int ImportPeerInfo(WOLFSSL* ssl, byte* buf, word32 len, byte ver)
 {
-    int    ret;
     word16 idx = 0;
-    word16 value;
+    word16 ipSz;
+    word16 fam;
+    word16 port;
     char   ip[DTLS_EXPORT_IP];
-    SOCKADDR_S addr;
 
     if (ver != 1) {
         WOLFSSL_MSG("Export version not supported");
         return BAD_FUNC_ARG;
     }
 
-    if (buf == NULL || len < 3 * DTLS_EXPORT_LEN) {
+    if (ssl == NULL || buf == NULL || len < 3 * DTLS_EXPORT_LEN) {
         return BAD_FUNC_ARG;
     }
 
     /* import sin family */
-    ato16(buf + idx, &value); idx += DTLS_EXPORT_LEN;
-    addr.ss_family = value;
+    ato16(buf + idx, &fam); idx += DTLS_EXPORT_LEN;
 
-    /* import ip address idx, and value or unsigned but cast for enum */
-    ato16(buf + idx, &value); idx += DTLS_EXPORT_LEN;
-    if (value > sizeof(ip) || (word16)(idx + value + DTLS_EXPORT_LEN) > len) {
+    /* import ip address idx, and ipSz are unsigned but cast for enum */
+    ato16(buf + idx, &ipSz); idx += DTLS_EXPORT_LEN;
+    if (ipSz > sizeof(ip) || (word16)(idx + ipSz + DTLS_EXPORT_LEN) > len) {
         return BUFFER_E;
     }
     XMEMSET(ip, 0, sizeof(ip));
-    XMEMCPY(ip, buf + idx, value); idx += value;
-    ip[value] = '\0';
-    ato16(buf + idx, &value); idx += DTLS_EXPORT_LEN;
-    switch (addr.ss_family) {
-        case WOLFSSL_IP4:
-            if (XINET_PTON(addr.ss_family, ip,
-                                     &(((SOCKADDR_IN*)&addr)->sin_addr)) <= 0) {
-                WOLFSSL_MSG("XINET_PTON error");
-                return SOCKET_ERROR_E;
-            }
-            ((SOCKADDR_IN*)&addr)->sin_port = XHTONS(value);
+    XMEMCPY(ip, buf + idx, ipSz); idx += ipSz;
+    ip[ipSz] = '\0';
+    ato16(buf + idx, &port); idx += DTLS_EXPORT_LEN;
 
-            /* peer sa is free'd in SSL_ResourceFree */
-            if ((ret = wolfSSL_dtls_set_peer(ssl, (SOCKADDR_IN*)&addr,
-                                          sizeof(SOCKADDR_IN)))!= SSL_SUCCESS) {
-                WOLFSSL_MSG("Import DTLS peer info error");
-                return ret;
-            }
-            break;
-
-        case WOLFSSL_IP6:
-            if (XINET_PTON(addr.ss_family, ip,
-                                   &(((SOCKADDR_IN6*)&addr)->sin6_addr)) <= 0) {
-                WOLFSSL_MSG("XINET_PTON error");
-                return SOCKET_ERROR_E;
-            }
-            ((SOCKADDR_IN6*)&addr)->sin6_port = XHTONS(value);
-
-            /* peer sa is free'd in SSL_ResourceFree */
-            if ((ret = wolfSSL_dtls_set_peer(ssl, (SOCKADDR_IN6*)&addr,
-                                         sizeof(SOCKADDR_IN6)))!= SSL_SUCCESS) {
-                WOLFSSL_MSG("Import DTLS peer info error");
-                return ret;
-            }
-            break;
-
-        default:
-            WOLFSSL_MSG("Unknown address family");
-            return BUFFER_E;
+    /* sanity check for a function to call, then use it to import peer info */
+    if (ssl->ctx->CBSetPeer == NULL) {
+        WOLFSSL_MSG("No set peer function");
+        return BAD_FUNC_ARG;
+    }
+    if (ssl->ctx->CBSetPeer(ssl, ip, ipSz, port, fam) != SSL_SUCCESS) {
+        WOLFSSL_MSG("Error setting peer info");
+        return SOCKET_ERROR_E;
     }
 
     return idx;
 }
+
 
 /* WOLFSSL_LOCAL function that serializes the current WOLFSSL session
  * buf is used to hold the serialized WOLFSSL struct and sz is the size of buf
@@ -1454,6 +1401,10 @@ int InitSSL_Ctx(WOLFSSL_CTX* ctx, WOLFSSL_METHOD* method)
             ctx->CBIORecv   = EmbedReceiveFrom;
             ctx->CBIOSend   = EmbedSendTo;
         }
+        #ifdef WOLFSSL_SESSION_EXPORT
+        ctx->CBGetPeer = EmbedGetPeer;
+        ctx->CBSetPeer = EmbedSetPeer;
+        #endif
     #endif
 #endif /* WOLFSSL_USER_IO */
 
