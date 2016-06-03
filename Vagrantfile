@@ -8,13 +8,13 @@ apt-get update
 apt-get install -y git autoconf libtool make valgrind libpq-dev
 
 
-URL=https://sourceforge.net/projects/levent/files/libevent
-LIB=libevent-2.0
-VER=22-stable
+URL=https://github.com/libevent/libevent/releases/download/release
+LIB=libevent
+VER=2.0.22-stable
 
-wget -q $URL/$LIB/$LIB.$VER.tar.gz && tar -zxf $LIB.$VER.tar.gz
-cd $LIB.$VER/ && ./autogen.sh && ./configure -q && make -s
-sudo make install && cd .. && rm -rf $LIB.$VER*
+wget -q $URL-$VER/$LIB-$VER.tar.gz && tar -zxf $LIB-$VER.tar.gz
+cd $LIB-$VER/ && ./autogen.sh && ./configure -q && make -s
+sudo make install && cd .. && rm -rf $LIB-$VER*
 
 
 DST=wolfssl
