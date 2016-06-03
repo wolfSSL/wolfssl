@@ -91,7 +91,7 @@ Installing ``wolfcrypt`` :
 
 .. code-block:: console
 
-    sudo apt-get install -y python-dev python-pip libffi-dev
+    sudo apt-get install -y python-dev python3-dev python-pip libffi-dev
     sudo -H pip install wolfcrypt
 
 
@@ -99,7 +99,7 @@ Installing ``wolfcrypt`` :
 
 .. code-block:: console
 
-    sudo yum install -y python-devel python-pip libffi-devel
+    sudo yum install -y python-devel python3-devel python-pip libffi-devel
     sudo -H pip install wolfcrypt
 
 
@@ -139,4 +139,6 @@ WOLFSSL_DIR is the path of ``wolfssl``'s source code.
     py35: commands succeeded
     congratulations :)
 
-Note that some tests might be skipped if you don't have the proper interpreter.
+Note: the test is performed using multiple versions of python. If you are
+missing a version the test will be skipped with an **InterpreterNotFound
+error**.
