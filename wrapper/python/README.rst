@@ -6,11 +6,12 @@ wolfcrypt: the wolfSSL Crypto Engine
 **wolfCrypt Python**, a.k.a. ``wolfcrypt`` is a Python library that encapsulates
 **wolfSSL's wolfCrypt API**.
 
-**wolfCrypt** is a lightweight, portable, C-language-based crypto library
+`wolfCrypt <https://wolfssl.com/wolfSSL/Products-wolfcrypt.html>`_ is a
+lightweight, portable, C-language-based crypto library
 targeted at IoT, embedded, and RTOS environments primarily because of its size,
 speed, and feature set. It works seamlessly in desktop, enterprise, and cloud
-environments as well. It is the crypto engine behind wolfSSl's embedded ssl
-library.
+environments as well. It is the crypto engine behind `wolfSSl's embedded ssl
+library <https://wolfssl.com/wolfSSL/Products-wolfssl.html>`_.
 
 
 Installation
