@@ -110,3 +110,32 @@ Testing ``wolfcrypt`` :
     python -c "from wolfcrypt.hashes import Sha; print Sha().hexdigest()"
 
 expected output: **da39a3ee5e6b4b0d3255bfef95601890afd80709**
+
+
+Testing ``wolfcrypt``'s source code with ``tox`` :
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+To run the unit tests in the source code, you'll need ``tox`` and a few other
+requirements. The source code relies at 'WOLFSSL_DIR/wrapper/python' where
+WOLFSSL_DIR is the path of ``wolfssl``'s source code.
+
+1. Make sure that the testing requirements are installed:
+
+.. code-block:: console
+
+    $ sudo -H pip install -r requirements-testing.txt
+
+
+2. Run ``tox``:
+
+.. code-block:: console
+
+    $ tox
+    ...
+    _________________________________ summary _________________________________
+    py27: commands succeeded
+    SKIPPED: py34: InterpreterNotFound: python3.4
+    py35: commands succeeded
+    congratulations :)
+
+Note that some tests might be skipped if you don't have the proper interpreter.
