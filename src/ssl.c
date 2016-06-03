@@ -4002,6 +4002,31 @@ int wolfSSL_CertManagerLoadCRLBuffer(WOLFSSL_CERT_MANAGER* cm,
     return BufferLoadCRL(cm->crl, buff, sz, type);
 }
 
+
+int wolfSSL_CTX_LoadCRLBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
+                              long sz, int type)
+{
+    WOLFSSL_ENTER("wolfSSL_CTX_LoadCRLBuffer");
+
+    if (ctx == NULL)
+        return BAD_FUNC_ARG;
+
+    return wolfSSL_CertManagerLoadCRLBuffer(ctx->cm, buff, sz, type);
+}
+
+
+int wolfSSL_LoadCRLBuffer(WOLFSSL* ssl, const unsigned char* buff,
+                          long sz, int type)
+{
+    WOLFSSL_ENTER("wolfSSL_LoadCRLBuffer");
+
+    if (ssl == NULL || ssl->ctx == NULL)
+        return BAD_FUNC_ARG;
+
+    return wolfSSL_CertManagerLoadCRLBuffer(ssl->ctx->cm, buff, sz, type);
+}
+
+
 #endif /* HAVE_CRL */
 
 /* turn on CRL if off and compiled in, set options */
