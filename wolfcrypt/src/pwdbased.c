@@ -403,8 +403,19 @@ int DoPKCS12Hash(int hashType, byte* buffer, word32 totalLen,
     return ret;
 }
 
+
 int wc_PKCS12_PBKDF(byte* output, const byte* passwd, int passLen,const byte* salt,
                  int saltLen, int iterations, int kLen, int hashType, int id)
+{
+    return wc_PKCS12_PBKDF_ex(output, passwd, passLen, salt, saltLen,
+                              iterations, kLen, hashType, id, NULL);
+}
+
+
+/* extended API that allows a heap hint to be used */
+int wc_PKCS12_PBKDF_ex(byte* output, const byte* passwd, int passLen,
+                       const byte* salt, int saltLen, int iterations, int kLen,
+                       int hashType, int id, void* heap)
 {
     /* all in bytes instead of bits */
     word32 u, v, dLen, pLen, iLen, sLen, totalLen;
@@ -460,7 +471,7 @@ int wc_PKCS12_PBKDF(byte* output, const byte* passwd, int passLen,const byte* sa
     totalLen = dLen + sLen + pLen;
 
     if (totalLen > sizeof(staticBuffer)) {
-        buffer = (byte*)XMALLOC(totalLen, 0, DYNAMIC_TYPE_KEY);
+        buffer = (byte*)XMALLOC(totalLen, heap, DYNAMIC_TYPE_KEY);
         if (buffer == NULL) {
 #ifdef WOLFSSL_SMALL_STACK
             XFREE(Ai, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -548,7 +559,7 @@ int wc_PKCS12_PBKDF(byte* output, const byte* passwd, int passLen,const byte* sa
         mp_clear(&B1);
     }
 
-    if (dynamic) XFREE(buffer, 0, DYNAMIC_TYPE_KEY);
+    if (dynamic) XFREE(buffer, heap, DYNAMIC_TYPE_KEY);
 
 #ifdef WOLFSSL_SMALL_STACK
     XFREE(Ai, NULL, DYNAMIC_TYPE_TMP_BUFFER);

@@ -166,6 +166,7 @@ typedef struct {
                                    curves (idx >= 0) or user supplied */
     ecc_point pubkey;   /* public key */
     mp_int    k;        /* private key */
+    void*     heap;     /* heap hint */
 } ecc_key;
 
 
@@ -208,6 +209,8 @@ int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
 WOLFSSL_API
 int wc_ecc_init(ecc_key* key);
 WOLFSSL_API
+int wc_ecc_init_h(ecc_key* key, void* heap);
+WOLFSSL_API
 void wc_ecc_free(ecc_key* key);
 WOLFSSL_API
 void wc_ecc_fp_free(void);
@@ -215,7 +218,11 @@ void wc_ecc_fp_free(void);
 WOLFSSL_API
 ecc_point* wc_ecc_new_point(void);
 WOLFSSL_API
+ecc_point* wc_ecc_new_point_h(void* h);
+WOLFSSL_API
 void wc_ecc_del_point(ecc_point* p);
+WOLFSSL_API
+void wc_ecc_del_point_h(ecc_point* p, void* h);
 WOLFSSL_API
 int wc_ecc_copy_point(ecc_point* p, ecc_point *r);
 WOLFSSL_API
@@ -228,6 +235,9 @@ WOLFSSL_API
 int wc_ecc_mulmod(mp_int* k, ecc_point *G, ecc_point *R,
                   mp_int* modulus, int map);
 
+WOLFSSL_API
+int wc_ecc_mulmod_h(mp_int* k, ecc_point *G, ecc_point *R,
+                  mp_int* modulus, int map, void* heap);
 #ifdef HAVE_ECC_KEY_EXPORT
 /* ASN key helpers */
 WOLFSSL_API

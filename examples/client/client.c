@@ -980,7 +980,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
         }
     }
 
-#ifdef USE_WOLFSSL_MEMORY
+#if defined(USE_WOLFSSL_MEMORY) && !defined(WOLFSSL_STATIC_MEMORY)
     if (trackMemory)
         InitMemoryTracker();
 #endif
@@ -1615,7 +1615,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 
     ((func_args*)args)->return_code = 0;
 
-#ifdef USE_WOLFSSL_MEMORY
+#if defined(USE_WOLFSSL_MEMORY) && !defined(WOLFSSL_STATIC_MEMORY)
     if (trackMemory)
         ShowMemoryTracker();
 #endif /* USE_WOLFSSL_MEMORY */

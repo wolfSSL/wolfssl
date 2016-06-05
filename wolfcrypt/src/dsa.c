@@ -56,6 +56,7 @@ enum {
 void wc_InitDsaKey(DsaKey* key)
 {
     key->type = -1;  /* haven't decided yet */
+    key->heap = NULL;
 
 /* TomsFastMath doesn't use memory allocation */
 #ifndef USE_FAST_MATH
@@ -66,6 +67,15 @@ void wc_InitDsaKey(DsaKey* key)
 
     key->x.dp = 0;   /* private alloc parts */
 #endif
+}
+
+
+int wc_InitDsaKey_h(DsaKey* key, void* h)
+{
+    wc_InitDsaKey(key);
+    key->heap = h;
+
+    return 0;
 }
 
 
@@ -98,13 +108,13 @@ int wc_MakeDsaKey(WC_RNG *rng, DsaKey *dsa)
         return BAD_FUNC_ARG;
 
     /* allocate ram */
-    buf = (unsigned char *)XMALLOC(qsize, NULL,
+    buf = (unsigned char *)XMALLOC(qsize, dsa->heap,
                                    DYNAMIC_TYPE_TMP_BUFFER);
     if (buf == NULL)
         return MEMORY_E;
 
     if (mp_init(&dsa->x) != MP_OKAY) {
-        XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(buf, dsa->heap, DYNAMIC_TYPE_TMP_BUFFER);
         return MP_INIT_E;
     }
 
@@ -113,19 +123,19 @@ int wc_MakeDsaKey(WC_RNG *rng, DsaKey *dsa)
         err = wc_RNG_GenerateBlock(rng, buf, qsize);
         if (err != MP_OKAY) {
             mp_clear(&dsa->x);
-            XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(buf, dsa->heap, DYNAMIC_TYPE_TMP_BUFFER);
             return err;
         }
 
         err = mp_read_unsigned_bin(&dsa->x, buf, qsize);
         if (err != MP_OKAY) {
             mp_clear(&dsa->x);
-            XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(buf, dsa->heap, DYNAMIC_TYPE_TMP_BUFFER);
             return err;
         }
     } while (mp_cmp_d(&dsa->x, 1) != MP_GT);
 
-    XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(buf, dsa->heap, DYNAMIC_TYPE_TMP_BUFFER);
 
     if (mp_init(&dsa->y) != MP_OKAY) {
         mp_clear(&dsa->x);
@@ -178,7 +188,7 @@ int wc_MakeDsaParameters(WC_RNG *rng, int modulus_size, DsaKey *dsa)
 
     /* allocate ram */
     buf = (unsigned char *)XMALLOC(msize - qsize,
-                                   NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                                   dsa->heap, DYNAMIC_TYPE_TMP_BUFFER);
     if (buf == NULL) {
         return MEMORY_E;
     }
@@ -186,7 +196,7 @@ int wc_MakeDsaParameters(WC_RNG *rng, int modulus_size, DsaKey *dsa)
     /* make a random string that will be multplied against q */
     err = wc_RNG_GenerateBlock(rng, buf, msize - qsize);
     if (err != MP_OKAY) {
-        XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(buf, dsa->heap, DYNAMIC_TYPE_TMP_BUFFER);
         return err;
     }
 
@@ -198,7 +208,7 @@ int wc_MakeDsaParameters(WC_RNG *rng, int modulus_size, DsaKey *dsa)
 
     if (mp_init_multi(&tmp2, &dsa->p, &dsa->q, 0, 0, 0) != MP_OKAY) {
         mp_clear(&dsa->q);
-        XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(buf, dsa->heap, DYNAMIC_TYPE_TMP_BUFFER);
         return MP_INIT_E;
     }
 
@@ -207,10 +217,10 @@ int wc_MakeDsaParameters(WC_RNG *rng, int modulus_size, DsaKey *dsa)
         mp_clear(&dsa->q);
         mp_clear(&dsa->p);
         mp_clear(&tmp2);
-        XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(buf, dsa->heap, DYNAMIC_TYPE_TMP_BUFFER);
         return err;
     }
-    XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(buf, dsa->heap, DYNAMIC_TYPE_TMP_BUFFER);
 
     /* make our prime q */
     err = mp_rand_prime(&dsa->q, qsize, rng, NULL);

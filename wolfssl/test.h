@@ -1587,6 +1587,30 @@ static INLINE void FreeAtomicUser(WOLFSSL* ssl)
 
 #endif /* ATOMIC_USER */
 
+#ifdef WOLFSSL_STATIC_MEMORY
+static INLINE int wolfSSL_PrintStats(WOLFSSL_MEM_STATS* stats)
+{
+    word16 i;
+
+    if (stats == NULL) {
+        return 0;
+    }
+
+    fprintf(stderr, "Total mallocs   = %d\n", stats->totalAlloc);
+    fprintf(stderr, "Total frees     = %d\n", stats->totalFr);
+    fprintf(stderr, "Current mallocs = %d\n", stats->curAlloc);
+    fprintf(stderr, "Available IO    = %d\n", stats->avaIO);
+    fprintf(stderr, "Max con. handshakes  = %d\n", stats->maxHa);
+    fprintf(stderr, "Max con. IO          = %d\n", stats->maxIO);
+    fprintf(stderr, "State of memory blocks: size   : available \n");
+    for (i = 0; i < WOLFMEM_MAX_BUCKETS; i++) {
+       fprintf(stderr, "                      : %d\t : %d\n", stats->blockSz[i],
+                                                            stats->avaBlock[i]);
+    }
+
+    return 1;
+}
+#endif /* WOLFSSL_STATIC_MEMORY */
 
 #ifdef HAVE_PK_CALLBACKS
 

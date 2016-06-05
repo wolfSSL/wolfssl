@@ -4611,6 +4611,29 @@ int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte isRequest,
         return method;
     }
 
+#ifdef WOLFSSL_STATIC_MEMORY
+    WOLFSSL_METHOD* wolfTLSv1_client_static(void* heap)
+    {
+        WOLFSSL_METHOD* method =
+                             (WOLFSSL_METHOD*) XMALLOC(sizeof(WOLFSSL_METHOD),
+                                                     heap, DYNAMIC_TYPE_METHOD);
+        if (method)
+            InitSSL_Method(method, MakeTLSv1());
+        return method;
+    }
+
+
+    WOLFSSL_METHOD* wolfTLSv1_1_client_static(void* heap)
+    {
+        WOLFSSL_METHOD* method =
+                              (WOLFSSL_METHOD*) XMALLOC(sizeof(WOLFSSL_METHOD),
+                                                     heap, DYNAMIC_TYPE_METHOD);
+        if (method)
+            InitSSL_Method(method, MakeTLSv1_1());
+        return method;
+    }
+#endif /* WOLFSSL_STATIC_MEMORY */
+
 #endif /* !NO_OLD_TLS */
 
 #ifndef NO_SHA256   /* can't use without SHA256 */
@@ -4625,6 +4648,17 @@ int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte isRequest,
         return method;
     }
 
+#ifdef WOLFSSL_STATIC_MEMORY
+    WOLFSSL_METHOD* wolfTLSv1_2_client_static(void* heap)
+    {
+        WOLFSSL_METHOD* method =
+                              (WOLFSSL_METHOD*) XMALLOC(sizeof(WOLFSSL_METHOD),
+                                                     heap, DYNAMIC_TYPE_METHOD);
+        if (method)
+            InitSSL_Method(method, MakeTLSv1_2());
+        return method;
+    }
+#endif /* WOLFSSL_STATIC_MEMORY */
 #endif
 
 
@@ -4646,6 +4680,26 @@ int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte isRequest,
         return method;
     }
 
+
+#ifdef WOLFSSL_STATIC_MEMORY
+    WOLFSSL_METHOD* wolfSSLv23_client_static(void* heap)
+    {
+        WOLFSSL_METHOD* method =
+                              (WOLFSSL_METHOD*) XMALLOC(sizeof(WOLFSSL_METHOD),
+                                                     heap, DYNAMIC_TYPE_METHOD);
+        if (method) {
+#ifndef NO_SHA256         /* 1.2 requires SHA256 */
+            InitSSL_Method(method, MakeTLSv1_2());
+#else
+            InitSSL_Method(method, MakeTLSv1_1());
+#endif
+#ifndef NO_OLD_TLS
+            method->downgrade = 1;
+#endif
+        }
+        return method;
+    }
+#endif /* WOLFSSL_STATIC_MEMORY */
 
 #endif /* NO_WOLFSSL_CLIENT */
 
@@ -4680,6 +4734,32 @@ int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte isRequest,
         return method;
     }
 
+#ifdef WOLFSSL_STATIC_MEMORY
+    WOLFSSL_METHOD* wolfTLSv1_server_static(void* heap)
+    {
+        WOLFSSL_METHOD* method =
+                              (WOLFSSL_METHOD*) XMALLOC(sizeof(WOLFSSL_METHOD),
+                                                     heap, DYNAMIC_TYPE_METHOD);
+        if (method) {
+            InitSSL_Method(method, MakeTLSv1());
+            method->side = WOLFSSL_SERVER_END;
+        }
+        return method;
+    }
+
+
+    WOLFSSL_METHOD* wolfTLSv1_1_server_static(void* heap)
+    {
+        WOLFSSL_METHOD* method =
+                              (WOLFSSL_METHOD*) XMALLOC(sizeof(WOLFSSL_METHOD),
+                                                     heap, DYNAMIC_TYPE_METHOD);
+        if (method) {
+            InitSSL_Method(method, MakeTLSv1_1());
+            method->side = WOLFSSL_SERVER_END;
+        }
+        return method;
+    }
+#endif /* WOLFSSL_STATIC_MEMORY */
 #endif /* !NO_OLD_TLS */
 
 #ifndef NO_SHA256   /* can't use without SHA256 */
@@ -4695,6 +4775,20 @@ int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte isRequest,
         }
         return method;
     }
+
+#ifdef WOLFSSL_STATIC_MEMORY
+    WOLFSSL_METHOD* wolfTLSv1_2_server_static(void* heap)
+    {
+        WOLFSSL_METHOD* method =
+                              (WOLFSSL_METHOD*) XMALLOC(sizeof(WOLFSSL_METHOD), 
+                                                     heap, DYNAMIC_TYPE_METHOD);
+        if (method) {
+            InitSSL_Method(method, MakeTLSv1_2());
+            method->side = WOLFSSL_SERVER_END;
+        }
+        return method;
+    }
+#endif /* WOLFSSL_STATIC_MEMORY */
 
 #endif
 
@@ -4718,6 +4812,26 @@ int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte isRequest,
         return method;
     }
 
+#ifdef WOLFSSL_STATIC_MEMORY
+    WOLFSSL_METHOD* wolfSSLv23_server_static(void* heap)
+    {
+        WOLFSSL_METHOD* method =
+                              (WOLFSSL_METHOD*) XMALLOC(sizeof(WOLFSSL_METHOD),
+                                                     heap, DYNAMIC_TYPE_METHOD);
+        if (method) {
+#ifndef NO_SHA256         /* 1.2 requires SHA256 */
+            InitSSL_Method(method, MakeTLSv1_2());
+#else
+            InitSSL_Method(method, MakeTLSv1_1());
+#endif
+            method->side      = WOLFSSL_SERVER_END;
+#ifndef NO_OLD_TLS
+            method->downgrade = 1;
+#endif /* !NO_OLD_TLS */
+        }
+        return method;
+    }
+#endif /* WOLFSSL_STATIC_MEMORY */
 
 
 #endif /* NO_WOLFSSL_SERVER */

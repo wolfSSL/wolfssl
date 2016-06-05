@@ -29,6 +29,9 @@
 #endif
 
 #include <wolfssl/wolfcrypt/settings.h>
+#if defined(WOLFSSL_STATIC_MEMORY)
+    #include <wolfssl/wolfcrypt/memory.h>
+#endif /* WOLFSSL_STATIC_MEMORY */
 #ifdef HAVE_ECC
     #include <wolfssl/wolfcrypt/ecc.h>   /* wc_ecc_fp_free */
 #endif

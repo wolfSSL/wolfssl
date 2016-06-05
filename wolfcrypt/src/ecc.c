@@ -238,7 +238,7 @@ int  ecc_projective_dbl_point(ecc_point* P, ecc_point* R, mp_int* modulus,
 static int ecc_check_pubkey_order(ecc_key* key, mp_int* prime, mp_int* order);
 #ifdef ECC_SHAMIR
 static int ecc_mul2add(ecc_point* A, mp_int* kA, ecc_point* B, mp_int* kB,
-                       ecc_point* C, mp_int* modulus);
+                       ecc_point* C, mp_int* modulus, void* heap);
 #endif
 
 int mp_jacobi(mp_int* a, mp_int* p, int* c);
@@ -833,8 +833,8 @@ int ecc_map(ecc_point* P, mp_int* modulus, mp_digit* mp)
 static int normal_ecc_mulmod(mp_int* k, ecc_point *G, ecc_point *R,
                       mp_int* modulus, int map)
 #else
-int wc_ecc_mulmod(mp_int* k, ecc_point *G, ecc_point *R, mp_int* modulus,
-               int map)
+static int wc_ecc_mulmod_ex(mp_int* k, ecc_point *G, ecc_point *R,
+                                           mp_int* modulus, int map, void* heap)
 #endif
 {
    ecc_point *tG, *M[8];
@@ -862,10 +862,10 @@ int wc_ecc_mulmod(mp_int* k, ecc_point *G, ecc_point *R, mp_int* modulus,
 
   /* alloc ram for window temps */
   for (i = 0; i < 8; i++) {
-      M[i] = wc_ecc_new_point();
+      M[i] = wc_ecc_new_point_h(heap);
       if (M[i] == NULL) {
          for (j = 0; j < i; j++) {
-             wc_ecc_del_point(M[j]);
+             wc_ecc_del_point_h(M[j], heap);
          }
          mp_clear(&mu);
          return MEMORY_E;
@@ -873,7 +873,7 @@ int wc_ecc_mulmod(mp_int* k, ecc_point *G, ecc_point *R, mp_int* modulus,
   }
 
    /* make a copy of G in case R==G */
-   tG = wc_ecc_new_point();
+   tG = wc_ecc_new_point_h(heap);
    if (tG == NULL)
        err = MEMORY_E;
 
@@ -1023,13 +1023,20 @@ int wc_ecc_mulmod(mp_int* k, ecc_point *G, ecc_point *R, mp_int* modulus,
        err = ecc_map(R, modulus, &mp);
 
    mp_clear(&mu);
-   wc_ecc_del_point(tG);
+   wc_ecc_del_point_h(tG, heap);
    for (i = 0; i < 8; i++) {
-       wc_ecc_del_point(M[i]);
+       wc_ecc_del_point_h(M[i], heap);
    }
    return err;
 }
 
+#ifndef FP_ECC
+int wc_ecc_mulmod(mp_int* k, ecc_point *G, ecc_point *R,
+                                                       mp_int* modulus, int map)
+{
+    return wc_ecc_mulmod_ex(k, G, R, modulus, map, NULL);
+}
+#endif /* ! FP_ECC */
 #undef WINSIZE
 
 #else /* ECC_TIMING_RESISTANT */
@@ -1046,10 +1053,10 @@ int wc_ecc_mulmod(mp_int* k, ecc_point *G, ecc_point *R, mp_int* modulus,
 */
 #ifdef FP_ECC
 static int normal_ecc_mulmod(mp_int* k, ecc_point *G, ecc_point *R,
-                      mp_int* modulus, int map)
+                      mp_int* modulus, int map, void* heap)
 #else
-int wc_ecc_mulmod(mp_int* k, ecc_point *G, ecc_point *R, mp_int* modulus,
-              int map)
+static int wc_ecc_mulmod_ex(mp_int* k, ecc_point *G, ecc_point *R,
+                                           mp_int* modulus, int map, void* heap)
 #endif
 {
    ecc_point    *tG, *M[3];
@@ -1076,7 +1083,7 @@ int wc_ecc_mulmod(mp_int* k, ecc_point *G, ecc_point *R, mp_int* modulus,
 
   /* alloc ram for window temps */
   for (i = 0; i < 3; i++) {
-      M[i] = wc_ecc_new_point();
+      M[i] = wc_ecc_new_point_h(heap);
       if (M[i] == NULL) {
          for (j = 0; j < i; j++) {
              wc_ecc_del_point(M[j]);
@@ -1087,7 +1094,7 @@ int wc_ecc_mulmod(mp_int* k, ecc_point *G, ecc_point *R, mp_int* modulus,
   }
 
    /* make a copy of G in case R==G */
-   tG = wc_ecc_new_point();
+   tG = wc_ecc_new_point_h(heap);
    if (tG == NULL)
        err = MEMORY_E;
 
@@ -1183,13 +1190,21 @@ int wc_ecc_mulmod(mp_int* k, ecc_point *G, ecc_point *R, mp_int* modulus,
 
    /* done */
    mp_clear(&mu);
-   wc_ecc_del_point(tG);
+   wc_ecc_del_point_h(tG, heap);
    for (i = 0; i < 3; i++) {
-       wc_ecc_del_point(M[i]);
+       wc_ecc_del_point_h(M[i], heap);
    }
    return err;
 }
 
+
+#ifndef FP_ECC
+int wc_ecc_mulmod(mp_int* k, ecc_point *G, ecc_point *R,
+                                                       mp_int* modulus, int map)
+{
+    return wc_ecc_mulmod_ex(k, G, R, modulus, map, NULL);
+}
+#endif /* ! FP_ECC */
 #endif /* ECC_TIMING_RESISTANT */
 
 
@@ -1205,14 +1220,14 @@ static void alt_fp_init(fp_int* a)
 
 
 /**
-   Allocate a new ECC point
-   return A newly allocated point or NULL on error
-*/
-ecc_point* wc_ecc_new_point(void)
+ * use a heap hint when creating new ecc_point
+ * return an allocated point on success or NULL on failure
+ */
+ecc_point* wc_ecc_new_point_h(void* heap)
 {
    ecc_point* p;
 
-   p = (ecc_point*)XMALLOC(sizeof(ecc_point), 0, DYNAMIC_TYPE_ECC);
+   p = (ecc_point*)XMALLOC(sizeof(ecc_point), heap, DYNAMIC_TYPE_ECC);
    if (p == NULL) {
       return NULL;
    }
@@ -1241,19 +1256,38 @@ ecc_point* wc_ecc_new_point(void)
    return p;
 }
 
-/** Free an ECC point from memory
-  p   The point to free
+
+/**
+   Allocate a new ECC point
+   return A newly allocated point or NULL on error
 */
-void wc_ecc_del_point(ecc_point* p)
+ecc_point* wc_ecc_new_point(void)
+{
+  return wc_ecc_new_point_h(NULL);
+}
+
+
+void wc_ecc_del_point_h(ecc_point* p, void* heap)
 {
    /* prevents free'ing null arguments */
    if (p != NULL) {
       mp_clear(p->x);
       mp_clear(p->y);
       mp_clear(p->z);
-      XFREE(p, 0, DYNAMIC_TYPE_ECC);
+      XFREE(p, heap, DYNAMIC_TYPE_ECC);
    }
+   (void)heap;
 }
+
+
+/** Free an ECC point from memory
+  p   The point to free
+*/
+void wc_ecc_del_point(ecc_point* p)
+{
+    wc_ecc_del_point_h(p, NULL);
+}
+
 
 /** Copy the value of a point to an other one
   p    The point to copy
@@ -1328,7 +1362,7 @@ int wc_ecc_is_valid_idx(int n)
 #ifdef HAVE_ECC_DHE
 /**
   Create an ECC shared secret between two keys
-  private_key      The private ECC key
+  private_key      The private ECC key (heap hint based off of private key)
   public_key       The public key
   out              [out] Destination of the shared secret
                          Conforms to EC-DH from ANSI X9.63
@@ -1362,7 +1396,7 @@ int wc_ecc_shared_secret(ecc_key* private_key, ecc_key* public_key, byte* out,
       return ECC_BAD_ARG_E;
 
    /* make new point */
-   result = wc_ecc_new_point();
+   result = wc_ecc_new_point_h(private_key->heap);
    if (result == NULL) {
       return MEMORY_E;
    }
@@ -1375,7 +1409,8 @@ int wc_ecc_shared_secret(ecc_key* private_key, ecc_key* public_key, byte* out,
    err = mp_read_radix(&prime, (char *)private_key->dp->prime, 16);
 
    if (err == MP_OKAY)
-       err = wc_ecc_mulmod(&private_key->k, &public_key->pubkey, result, &prime,1);
+       err = wc_ecc_mulmod_ex(&private_key->k, &public_key->pubkey, result,
+                                                  &prime, 1, private_key->heap);
 
    if (err == MP_OKAY) {
        x = mp_unsigned_bin_size(&prime);
@@ -1391,14 +1426,14 @@ int wc_ecc_shared_secret(ecc_key* private_key, ecc_key* public_key, byte* out,
    }
 
    mp_clear(&prime);
-   wc_ecc_del_point(result);
+   wc_ecc_del_point_h(result, private_key->heap);
 
    return err;
 }
 
 /**
  Create an ECC shared secret between private key and public point
- private_key      The private ECC key
+ private_key      The private ECC key (heap hint based on private key)
  point            The point to use (public key)
  out              [out] Destination of the shared secret
                         Conforms to EC-DH from ANSI X9.63
@@ -1426,13 +1461,13 @@ int wc_ecc_shared_secret_ssh(ecc_key* private_key, ecc_point* point,
         return ECC_BAD_ARG_E;
 
     /* make new point */
-    result = wc_ecc_new_point();
+    result = wc_ecc_new_point_h(private_key->heap);
     if (result == NULL) {
         return MEMORY_E;
     }
 
     if ((err = mp_init(&prime)) != MP_OKAY) {
-        wc_ecc_del_point(result);
+        wc_ecc_del_point_h(result, private_key->heap);
         return err;
     }
 
@@ -1455,7 +1490,7 @@ int wc_ecc_shared_secret_ssh(ecc_key* private_key, ecc_point* point,
     }
 
     mp_clear(&prime);
-    wc_ecc_del_point(result);
+    wc_ecc_del_point_h(result, private_key->heap);
 
     return err;
 }
@@ -1531,7 +1566,7 @@ static int wc_ecc_make_key_ex(WC_RNG* rng, ecc_key* key, const ecc_set_type* dp)
    }
 
    if (err == MP_OKAY) {
-       base = wc_ecc_new_point();
+       base = wc_ecc_new_point_h(key->heap);
        if (base == NULL)
            err = MEMORY_E;
    }
@@ -1564,7 +1599,8 @@ static int wc_ecc_make_key_ex(WC_RNG* rng, ecc_key* key, const ecc_set_type* dp)
    }
    /* make the public key */
    if (err == MP_OKAY)
-       err = wc_ecc_mulmod(&key->k, base, &key->pubkey, &prime, 1);
+       err = wc_ecc_mulmod_ex(&key->k, base, &key->pubkey, &prime, 1,
+                                                                     key->heap);
 
 #ifdef WOLFSSL_VALIDATE_ECC_KEYGEN
    /* validate the public key, order * pubkey = point at infinity */
@@ -1582,7 +1618,7 @@ static int wc_ecc_make_key_ex(WC_RNG* rng, ecc_key* key, const ecc_set_type* dp)
        mp_clear(key->pubkey.z);
        mp_forcezero(&key->k);
    }
-   wc_ecc_del_point(base);
+   wc_ecc_del_point_h(base, key->heap);
    if (po_init) {
        mp_clear(&prime);
        mp_clear(&order);
@@ -1650,9 +1686,32 @@ int wc_ecc_init(ecc_key* key)
     alt_fp_init(key->pubkey.z);
 #endif
 
+#ifdef WOLFSSL_HEAP_TEST
+    key->heap = (void*)WOLFSSL_HEAP_TEST;
+#else
+    key->heap = NULL;
+#endif
+
     return MP_OKAY;
 }
 
+
+int wc_ecc_init_h(ecc_key* key, void* heap)
+{
+    int ret;
+
+    if (key == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    if ((ret = wc_ecc_init(key)) != MP_OKAY) {
+        return ret;
+    }
+
+    key->heap = heap;
+
+    return MP_OKAY;
+}
 
 #ifdef HAVE_ECC_SIGN
 
@@ -1835,11 +1894,11 @@ void wc_ecc_free(ecc_key* key)
 #ifdef FP_ECC
 static int normal_ecc_mul2add(ecc_point* A, mp_int* kA,
                              ecc_point* B, mp_int* kB,
-                             ecc_point* C, mp_int* modulus)
+                             ecc_point* C, mp_int* modulus, void* heap)
 #else
 static int ecc_mul2add(ecc_point* A, mp_int* kA,
                     ecc_point* B, mp_int* kB,
-                    ecc_point* C, mp_int* modulus)
+                    ecc_point* C, mp_int* modulus, void* heap)
 #endif
 {
   ecc_point*     precomp[16];
@@ -1859,11 +1918,11 @@ static int ecc_mul2add(ecc_point* A, mp_int* kA,
 
 
   /* allocate memory */
-  tA = (unsigned char*)XMALLOC(ECC_BUFSIZE, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+  tA = (unsigned char*)XMALLOC(ECC_BUFSIZE, heap, DYNAMIC_TYPE_TMP_BUFFER);
   if (tA == NULL) {
      return GEN_MEM_ERR;
   }
-  tB = (unsigned char*)XMALLOC(ECC_BUFSIZE, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+  tB = (unsigned char*)XMALLOC(ECC_BUFSIZE, heap, DYNAMIC_TYPE_TMP_BUFFER);
   if (tB == NULL) {
      XFREE(tA, NULL, DYNAMIC_TYPE_TMP_BUFFER);
      return GEN_MEM_ERR;
@@ -1892,10 +1951,10 @@ static int ecc_mul2add(ecc_point* A, mp_int* kA,
     /* allocate the table */
     if (err == MP_OKAY) {
         for (x = 0; x < 16; x++) {
-            precomp[x] = wc_ecc_new_point();
+            precomp[x] = wc_ecc_new_point_h(heap);
             if (precomp[x] == NULL) {
                 for (y = 0; y < x; ++y) {
-                    wc_ecc_del_point(precomp[y]);
+                    wc_ecc_del_point_h(precomp[y], heap);
                 }
                 err = GEN_MEM_ERR;
                 break;
@@ -2036,13 +2095,13 @@ static int ecc_mul2add(ecc_point* A, mp_int* kA,
 
   if (tableInit) {
     for (x = 0; x < 16; x++) {
-       wc_ecc_del_point(precomp[x]);
+       wc_ecc_del_point_h(precomp[x], heap);
     }
   }
    ForceZero(tA, ECC_BUFSIZE);
    ForceZero(tB, ECC_BUFSIZE);
-   XFREE(tA, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-   XFREE(tB, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+   XFREE(tA, heap, DYNAMIC_TYPE_TMP_BUFFER);
+   XFREE(tB, heap, DYNAMIC_TYPE_TMP_BUFFER);
 
    return err;
 }
@@ -2155,8 +2214,8 @@ int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
    }
 
    /* allocate points */
-   mG = wc_ecc_new_point();
-   mQ = wc_ecc_new_point();
+   mG = wc_ecc_new_point_h(key->heap);
+   mQ = wc_ecc_new_point_h(key->heap);
    if (mQ  == NULL || mG == NULL)
       err = MEMORY_E;
 
@@ -2223,9 +2282,9 @@ int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
 
        /* compute u1*mG + u2*mQ = mG */
        if (err == MP_OKAY)
-           err = wc_ecc_mulmod(&u1, mG, mG, &m, 0);
+           err = wc_ecc_mulmod_ex(&u1, mG, mG, &m, 0, key->heap);
        if (err == MP_OKAY)
-           err = wc_ecc_mulmod(&u2, mQ, mQ, &m, 0);
+           err = wc_ecc_mulmod_ex(&u2, mQ, mQ, &m, 0, key->heap);
 
        /* find the montgomery mp */
        if (err == MP_OKAY)
@@ -2242,7 +2301,7 @@ int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
 #else
        /* use Shamir's trick to compute u1*mG + u2*mQ using half the doubles */
        if (err == MP_OKAY)
-           err = ecc_mul2add(mG, &u1, mQ, &u2, mG, &m);
+           err = ecc_mul2add(mG, &u1, mQ, &u2, mG, &m, key->heap);
 #endif /* ECC_SHAMIR */
 
    /* v = X_x1 mod n */
@@ -2255,8 +2314,8 @@ int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
            *stat = 1;
    }
 
-   wc_ecc_del_point(mG);
-   wc_ecc_del_point(mQ);
+   wc_ecc_del_point_h(mG, key->heap);
+   wc_ecc_del_point_h(mQ, key->heap);
 
    mp_clear(&v);
    mp_clear(&w);
@@ -2619,7 +2678,7 @@ static int ecc_check_privkey_gen(ecc_key* key, mp_int* prime)
     if (key == NULL)
         return BAD_FUNC_ARG;
 
-    base = wc_ecc_new_point();
+    base = wc_ecc_new_point_h(key->heap);
     if (base == NULL)
         return MEMORY_E;
 
@@ -2631,11 +2690,11 @@ static int ecc_check_privkey_gen(ecc_key* key, mp_int* prime)
         mp_set(base->z, 1);
 
     if (err == MP_OKAY) {
-        res = wc_ecc_new_point();
+        res = wc_ecc_new_point_h(key->heap);
         if (res == NULL)
             err = MEMORY_E;
         else {
-            err = wc_ecc_mulmod(&key->k, base, res, prime, 1);
+            err = wc_ecc_mulmod_ex(&key->k, base, res, prime, 1, key->heap);
             if (err == MP_OKAY) {
                 /* compare result to public key */
                 if (mp_cmp(res->x, key->pubkey.x) != MP_EQ ||
@@ -2648,8 +2707,8 @@ static int ecc_check_privkey_gen(ecc_key* key, mp_int* prime)
         }
     }
 
-    wc_ecc_del_point(res);
-    wc_ecc_del_point(base);
+    wc_ecc_del_point_h(res, key->heap);
+    wc_ecc_del_point_h(base, key->heap);
 
     return err;
 }
@@ -2692,16 +2751,16 @@ static int ecc_check_pubkey_order(ecc_key* key, mp_int* prime, mp_int* order)
     if (key == NULL)
         return BAD_FUNC_ARG;
 
-    inf = wc_ecc_new_point();
+    inf = wc_ecc_new_point_h(key->heap);
     if (inf == NULL)
         err = MEMORY_E;
     else {
-        err = wc_ecc_mulmod(order, &key->pubkey, inf, prime, 1);
+        err = wc_ecc_mulmod_ex(order, &key->pubkey, inf, prime, 1, key->heap);
         if (err == MP_OKAY && !wc_ecc_point_is_at_infinity(inf))
             err = ECC_INF_E;
     }
 
-    wc_ecc_del_point(inf);
+    wc_ecc_del_point_h(inf, key->heap);
 
     return err;
 }
@@ -4306,7 +4365,8 @@ static int accel_fp_mul2add(int idx1, int idx2,
    return ecc_map(R, modulus, mp);
 }
 
-/** ECC Fixed Point mulmod global
+
+/** ECC Fixed Point mulmod global with heap hint used
   Computes kA*A + kB*B = C using Shamir's Trick
   A        First point to multiply
   kA       What to multiple A by
@@ -4318,7 +4378,7 @@ static int accel_fp_mul2add(int idx1, int idx2,
 */
 int ecc_mul2add(ecc_point* A, mp_int* kA,
                 ecc_point* B, mp_int* kB,
-                ecc_point* C, mp_int* modulus)
+                ecc_point* C, mp_int* modulus, void* heap)
 {
    int  idx1 = -1, idx2 = -1, err = MP_OKAY, mpInit = 0;
    mp_digit mp;
@@ -4416,7 +4476,7 @@ int ecc_mul2add(ecc_point* A, mp_int* kA,
            if (err == MP_OKAY)
              err = accel_fp_mul2add(idx1, idx2, kA, kB, C, modulus, &mp);
         } else {
-           err = normal_ecc_mul2add(A, kA, B, kB, C, modulus);
+           err = normal_ecc_mul2add(A, kA, B, kB, C, modulus, heap);
         }
     }
 
@@ -4440,6 +4500,22 @@ int ecc_mul2add(ecc_point* A, mp_int* kA,
 */
 int wc_ecc_mulmod(mp_int* k, ecc_point *G, ecc_point *R, mp_int* modulus,
                int map)
+{
+    return wc_ecc_mulmod_h(k, G, R, modulus, map, NULL);
+}
+
+
+/** ECC Fixed Point mulmod global
+    k        The multiplicand
+    G        Base point to multiply
+    R        [out] Destination of product
+    modulus  The modulus for the curve
+    map      [boolean] If non-zero maps the point back to affine co-ordinates,
+             otherwise it's left in jacobian-montgomery form
+    return MP_OKAY if successful
+*/
+int wc_ecc_mulmod_h(mp_int* k, ecc_point *G, ecc_point *R, mp_int* modulus,
+               int map, void* heap)
 {
    int   idx, err = MP_OKAY;
    mp_digit mp;
@@ -4503,7 +4579,7 @@ int wc_ecc_mulmod(mp_int* k, ecc_point *G, ecc_point *R, mp_int* modulus,
            if (err == MP_OKAY)
              err = accel_fp_mul(idx, k, R, modulus, &mp, map);
         } else {
-           err = normal_ecc_mulmod(k, G, R, modulus, map);
+           err = normal_ecc_mulmod(k, G, R, modulus, map, heap);
         }
      }
 
@@ -4589,6 +4665,7 @@ struct ecEncCtx {
     word32    kdfSaltSz;   /* size of kdfSalt */
     word32    kdfInfoSz;   /* size of kdfInfo */
     word32    macSaltSz;   /* size of macSalt */
+    void*     heap;        /* heap hint for memory used */
     byte      clientSalt[EXCHANGE_SALT_SZ];  /* for msg exchange */
     byte      serverSalt[EXCHANGE_SALT_SZ];  /* for msg exchange */
     byte      encAlgo;     /* which encryption type */
@@ -4736,14 +4813,16 @@ int wc_ecc_ctx_reset(ecEncCtx* ctx, WC_RNG* rng)
 }
 
 
-/* alloc/init and set defaults, return new Context  */
-ecEncCtx* wc_ecc_ctx_new(int flags, WC_RNG* rng)
+ecEncCtx* wc_ecc_ctx_new_h(int flags, WC_RNG* rng, void* heap)
 {
     int       ret = 0;
-    ecEncCtx* ctx = (ecEncCtx*)XMALLOC(sizeof(ecEncCtx), 0, DYNAMIC_TYPE_ECC);
+    ecEncCtx* ctx = (ecEncCtx*)XMALLOC(sizeof(ecEncCtx), heap,
+                                                              DYNAMIC_TYPE_ECC);
 
-    if (ctx)
+    if (ctx) {
         ctx->protocol = (byte)flags;
+        ctx->heap     = heap;
+    }
 
     ret = wc_ecc_ctx_reset(ctx, rng);
     if (ret != 0) {
@@ -4752,6 +4831,13 @@ ecEncCtx* wc_ecc_ctx_new(int flags, WC_RNG* rng)
     }
 
     return ctx;
+}
+
+
+/* alloc/init and set defaults, return new Context  */
+ecEncCtx* wc_ecc_ctx_new(int flags, WC_RNG* rng)
+{
+    return wc_ecc_ctx_new_h(flags, rng, NULL);
 }
 
 

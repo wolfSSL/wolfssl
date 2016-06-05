@@ -49,12 +49,16 @@ typedef struct RabbitCtx {
 typedef struct Rabbit {
     RabbitCtx masterCtx;
     RabbitCtx workCtx;
+#ifdef XSTREAM_ALIGN
+    void*  heap;  /* heap hint, currently XMALLOC only used with aligning */
+#endif
 } Rabbit;
 
 
 WOLFSSL_API int wc_RabbitProcess(Rabbit*, byte*, const byte*, word32);
 WOLFSSL_API int wc_RabbitSetKey(Rabbit*, const byte* key, const byte* iv);
 
+WOLFSSL_LOCAL int wc_Rabbit_SetHeap(Rabbit* ctx, void* heap);
 
 #ifdef __cplusplus
     } /* extern "C" */

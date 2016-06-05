@@ -153,6 +153,7 @@ typedef struct Cert {
 #ifdef WOLFSSL_CERT_REQ
     char     challengePw[CTC_NAME_SIZE];
 #endif
+    void*   heap; /* heap hint */
 } Cert;
 #endif /* WOLFSSL_CERT_GEN */
 

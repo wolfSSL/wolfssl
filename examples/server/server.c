@@ -252,7 +252,11 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     SOCKET_T sockfd   = WOLFSSL_SOCKET_INVALID;
     SOCKET_T clientfd = WOLFSSL_SOCKET_INVALID;
 
+#ifdef WOLFSSL_STATIC_MEMORY
+    wolfSSLStaticMethod method = NULL;
+#else
     SSL_METHOD* method = 0;
+#endif
     SSL_CTX*    ctx    = 0;
     SSL*        ssl    = 0;
 
@@ -317,6 +321,16 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
 
 #ifdef HAVE_WNR
     const char* wnrConfigFile = wnrConfig;
+#endif
+
+#ifdef WOLFSSL_STATIC_MEMORY
+    #if defined(HAVE_ECC) && !defined(ALT_ECC_SIZE)
+        byte memory[200000];
+    #else
+        byte memory[80000];
+    #endif
+    byte memoryIO[34500]; /* max of 17k for IO buffer (TLS packet can be 16k) */
+    WOLFSSL_MEM_CONN_STATS ssl_stats;
 #endif
 
     ((func_args*)args)->return_code = -1; /* error state */
@@ -560,7 +574,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
         }
     }
 
-#ifdef USE_CYASSL_MEMORY
+#if defined(USE_CYASSL_MEMORY) && !defined(WOLFSSL_STATIC_MEMORY)
     if (trackMemory)
         InitMemoryTracker();
 #endif
@@ -574,18 +588,30 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
 #ifndef NO_OLD_TLS
     #ifdef WOLFSSL_ALLOW_SSLV3
         case 0:
+#ifdef WOLFSSL_STATIC_MEMORY
+            method = wolfSSLv3_server_static;
+#else
             method = SSLv3_server_method();
+#endif
             break;
     #endif
 
     #ifndef NO_TLS
         case 1:
+#ifdef WOLFSSL_STATIC_MEMORY
+            method = wolfTLSv1_server_static;
+#else
             method = TLSv1_server_method();
+#endif
             break;
 
 
         case 2:
+#ifdef WOLFSSL_STATIC_MEMORY
+            method = wolfTLSv1_1_server_static;
+#else
             method = TLSv1_1_server_method();
+#endif
             break;
 
         #endif
@@ -593,19 +619,31 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
 
 #ifndef NO_TLS
         case 3:
+#ifdef WOLFSSL_STATIC_MEMORY
+            method = wolfTLSv1_2_server_static;
+#else
             method = TLSv1_2_server_method();
+#endif
             break;
 #endif
 
 #ifdef CYASSL_DTLS
     #ifndef NO_OLD_TLS
         case -1:
+#ifdef WOLFSSL_STATIC_MEMORY
+            method = wolfDTLSv1_server_static;
+#else
             method = DTLSv1_server_method();
+#endif
             break;
     #endif
 
         case -2:
+#ifdef WOLFSSL_STATIC_MEMORY
+            method = wolfDTLSv1_2_server_static;
+#else
             method = DTLSv1_2_server_method();
+#endif
             break;
 #endif
 
@@ -616,7 +654,19 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     if (method == NULL)
         err_sys("unable to get method");
 
+#ifdef WOLFSSL_STATIC_MEMORY
+    if (wolfSSL_CTX_load_static_memory(&ctx, method, memory, sizeof(memory),0,1)
+            != SSL_SUCCESS)
+        err_sys("unable to load static memory and create ctx");
+
+    /* load in a buffer for IO */
+    if (wolfSSL_CTX_load_static_memory(&ctx, NULL, memoryIO, sizeof(memoryIO),
+                                 WOLFMEM_IO_POOL_FIXED | WOLFMEM_TRACK_STATS, 1)
+            != SSL_SUCCESS)
+        err_sys("unable to load static memory and create ctx");
+#else
     ctx = SSL_CTX_new(method);
+#endif
     if (ctx == NULL)
         err_sys("unable to get ctx");
 
@@ -783,10 +833,31 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
                 err_sys("tcp accept failed");
             }
         }
+#if defined(WOLFSSL_STATIC_MEMORY) && defined(DEBUG_WOLFSSL)
+    {
+        WOLFSSL_MEM_STATS mem_stats;
+        fprintf(stderr, "Before creating SSL\n");
+        if (wolfSSL_CTX_is_static_memory(ctx, &mem_stats) != 1)
+            err_sys("ctx not using static memory");
+        if (wolfSSL_PrintStats(&mem_stats) != 1) /* function in test.h */
+            err_sys("error printing out memory stats");
+    }
+#endif
 
         ssl = SSL_new(ctx);
         if (ssl == NULL)
             err_sys("unable to get SSL");
+
+#if defined(WOLFSSL_STATIC_MEMORY) && defined(DEBUG_WOLFSSL)
+    {
+        WOLFSSL_MEM_STATS mem_stats;
+        fprintf(stderr, "After creating SSL\n");
+        if (wolfSSL_CTX_is_static_memory(ctx, &mem_stats) != 1)
+            err_sys("ctx not using static memory");
+        if (wolfSSL_PrintStats(&mem_stats) != 1) /* function in test.h */
+            err_sys("error printing out memory stats");
+    }
+#endif
 
 #ifndef NO_HANDSHAKE_DONE_CB
         wolfSSL_SetHsDoneCb(ssl, myHsDoneCb, NULL);
@@ -972,6 +1043,20 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
             if (wc_shutdown && ret == SSL_SHUTDOWN_NOT_DONE)
                 SSL_shutdown(ssl);    /* bidirectional shutdown */
         }
+        /* display collected statistics */
+#ifdef WOLFSSL_STATIC_MEMORY
+        if (wolfSSL_is_static_memory(ssl, &ssl_stats) != 1)
+            err_sys("static memory was not used with ssl");
+
+        fprintf(stderr, "\nprint off SSL memory stats\n");
+        fprintf(stderr, "peak connection memory = %d\n", ssl_stats.peakMem);
+        fprintf(stderr, "current memory in use  = %d\n", ssl_stats.curMem);
+        fprintf(stderr, "peak connection allocs = %d\n", ssl_stats.peakAlloc);
+        fprintf(stderr, "current connection allocs = %d\n",ssl_stats.curAlloc);
+        fprintf(stderr, "total connection allocs   = %d\n",ssl_stats.totalAlloc);
+        fprintf(stderr, "total connection frees    = %d\n\n", ssl_stats.totalFr);
+
+#endif
         SSL_free(ssl);
 
         CloseSocket(clientfd);
@@ -987,6 +1072,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
         }
     } /* while(1) */
 
+
     CloseSocket(sockfd);
     SSL_CTX_free(ctx);
 
@@ -998,7 +1084,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     ecc_fp_free();  /* free per thread cache */
 #endif
 
-#ifdef USE_WOLFSSL_MEMORY
+#if defined(USE_WOLFSSL_MEMORY) && !defined(WOLFSSL_STATIC_MEMORY)
     if (trackMemory)
         ShowMemoryTracker();
 #endif

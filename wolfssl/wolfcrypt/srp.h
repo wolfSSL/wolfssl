@@ -114,6 +114,7 @@ typedef struct Srp {
         /**< The default function used by this implementation is a modified   */
         /**< version of t_mgf1 that uses the proper hash function according   */
         /**< to srp->type.                                                    */
+    void*   heap;                   /**< heap hint pointer                    */
 } Srp;
 
 /**

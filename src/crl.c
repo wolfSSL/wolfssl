@@ -51,6 +51,12 @@ int InitCRL(WOLFSSL_CRL* crl, WOLFSSL_CERT_MANAGER* cm)
 {
     WOLFSSL_ENTER("InitCRL");
 
+    /* default heap hint to null or test value */
+#ifdef WOLFSSL_HEAP_TEST
+    crl->heap = (void*)WOLFSSL_HEAP_TEST;
+#else
+    crl->heap = NULL;
+#endif
     crl->cm = cm;
     crl->crlList = NULL;
     crl->monitors[0].path = NULL;
@@ -233,7 +239,7 @@ static int AddCRL(WOLFSSL_CRL* crl, DecodedCRL* dcrl)
 
     WOLFSSL_ENTER("AddCRL");
 
-    crle = (CRL_Entry*)XMALLOC(sizeof(CRL_Entry), NULL, DYNAMIC_TYPE_CRL_ENTRY);
+    crle = (CRL_Entry*)XMALLOC(sizeof(CRL_Entry), crl->heap, DYNAMIC_TYPE_CRL_ENTRY);
     if (crle == NULL) {
         WOLFSSL_MSG("alloc CRL Entry failed");
         return -1;
@@ -241,14 +247,14 @@ static int AddCRL(WOLFSSL_CRL* crl, DecodedCRL* dcrl)
 
     if (InitCRL_Entry(crle, dcrl) < 0) {
         WOLFSSL_MSG("Init CRL Entry failed");
-        XFREE(crle, NULL, DYNAMIC_TYPE_CRL_ENTRY);
+        XFREE(crle, crl->heap, DYNAMIC_TYPE_CRL_ENTRY);
         return -1;
     }
 
     if (LockMutex(&crl->crlLock) != 0) {
         WOLFSSL_MSG("LockMutex failed");
         FreeCRL_Entry(crle);
-        XFREE(crle, NULL, DYNAMIC_TYPE_CRL_ENTRY);
+        XFREE(crle, crl->heap, DYNAMIC_TYPE_CRL_ENTRY);
         return BAD_MUTEX_E;
     }
     crle->next = crl->crlList;
@@ -865,7 +871,7 @@ int LoadCRL(WOLFSSL_CRL* crl, const char* path, int type, int monitor)
         WOLFSSL_MSG("monitor path requested");
 
         pathLen = (word32)XSTRLEN(path);
-        pathBuf = (char*)XMALLOC(pathLen+1, NULL, DYNAMIC_TYPE_CRL_MONITOR);
+        pathBuf = (char*)XMALLOC(pathLen+1, crl->heap,DYNAMIC_TYPE_CRL_MONITOR);
         if (pathBuf) {
             XSTRNCPY(pathBuf, path, pathLen);
             pathBuf[pathLen] = '\0'; /* Null Terminate */

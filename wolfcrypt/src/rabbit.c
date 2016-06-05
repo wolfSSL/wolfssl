@@ -200,10 +200,32 @@ static INLINE int DoKey(Rabbit* ctx, const byte* key, const byte* iv)
 }
 
 
+int wc_Rabbit_SetHeap(Rabbit* ctx, void* heap)
+{
+    if (ctx == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+#ifdef XSTREAM_ALIGN
+    ctx->heap = heap;
+#endif
+
+    (void)heap;
+    return 0;
+}
+
+
 /* Key setup */
 int wc_RabbitSetKey(Rabbit* ctx, const byte* key, const byte* iv)
 {
 #ifdef XSTREAM_ALIGN
+    /* default heap to NULL or heap test value */
+    #ifdef WOLFSSL_HEAP_TEST
+        ctx->heap = (void*)WOLFSSL_HEAP_TEST;
+    #else
+        ctx->heap = NULL;
+    #endif /* WOLFSSL_HEAP_TEST */
+
     if ((wolfssl_word)key % 4) {
         int alignKey[4];
 
@@ -289,14 +311,14 @@ int wc_RabbitProcess(Rabbit* ctx, byte* output, const byte* input, word32 msglen
             byte* tmp;
             WOLFSSL_MSG("wc_RabbitProcess unaligned");
 
-            tmp = (byte*)XMALLOC(msglen, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            tmp = (byte*)XMALLOC(msglen, ctx->heap, DYNAMIC_TYPE_TMP_BUFFER);
             if (tmp == NULL) return MEMORY_E;
 
             XMEMCPY(tmp, input, msglen);
             DoProcess(ctx, tmp, tmp, msglen);
             XMEMCPY(output, tmp, msglen);
 
-            XFREE(tmp, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(tmp, ctx->heap, DYNAMIC_TYPE_TMP_BUFFER);
 
             return 0;
         #else

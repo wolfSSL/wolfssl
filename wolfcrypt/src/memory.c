@@ -74,6 +74,7 @@ int wolfSSL_SetAllocators(wolfSSL_Malloc_cb  mf,
     return res;
 }
 
+#ifndef WOLFSSL_STATIC_MEMORY
 #ifdef WOLFSSL_DEBUG_MEMORY
 void* wolfSSL_Malloc(size_t size, const char* func, unsigned int line)
 #else
@@ -140,28 +141,18 @@ void* wolfSSL_Realloc(void *ptr, size_t size)
 
     return res;
 }
+#endif /* WOLFSSL_STATIC_MEMORY */
 
 #ifdef WOLFSSL_STATIC_MEMORY
 
 typedef struct wc_Memory {
     word32 sz;
     byte*  buffer;
-    byte   kill;
     struct wc_Memory* next;
 } wc_Memory;
-#if WC_STATIC_ALIGN < 10
+#if WOLFSSL_STATIC_ALIGN < 10
     #error Alignment is less than wc_Memory struct
 #endif
-
-/* size of chunks of memory to seperate into */
-#define WC_MAX_BUCKETS 9
-static word32 bucket[] = { 64, 128, 256, 512, 1024, 2400, 3408, 4544, 16000 };
-static word32 bucketDist[] = { 8, 4, 4, 12, 4, 5, 2, 1, 1 };
-static wc_Memory* available[WC_MAX_BUCKETS];
-static word32 inUse = 0; /* amount of static memory in use by wolfSSL */
-static byte   useStaticMemory = 1;
-static volatile byte   createMutex = 1;
-static wolfSSL_Mutex memory_mutex;
 
 
 /* returns amount of memory used on success. On error returns negative value
@@ -174,21 +165,16 @@ static int create_memory_buckets(byte* buffer, word32 bufSz,
     int    ret = 0;
 
     /* if not enough space available for bucket size then do not try */
-    if (buckSz + WC_STATIC_ALIGN > bufSz) {
+    if (buckSz + WOLFSSL_STATIC_ALIGN > bufSz) {
         return ret;
     }
 
-    if (LockMutex(&memory_mutex) != 0) {
-        return BAD_MUTEX_E;
-    }
-
     for (i = 0; i < buckNum; i++) {
-        if ((buckSz + WC_STATIC_ALIGN) <= (bufSz - ret)) {
+        if ((buckSz + WOLFSSL_STATIC_ALIGN) <= (bufSz - ret)) {
             /* create a new struct and set its values */
             wc_Memory* mem = (struct wc_Memory*)pt;
             mem->sz = buckSz;
-            mem->buffer = (byte*)pt + WC_STATIC_ALIGN;
-            mem->kill = 0;
+            mem->buffer = (byte*)pt + WOLFSSL_STATIC_ALIGN;
             mem->next = NULL;
 
             /* add the newly created struct to front of list */
@@ -200,109 +186,27 @@ static int create_memory_buckets(byte* buffer, word32 bufSz,
             }
 
             /* advance pointer and keep track of memory used */
-            ret += buckSz + WC_STATIC_ALIGN;
-            pt  += WC_STATIC_ALIGN + buckSz;
+            ret += buckSz + WOLFSSL_STATIC_ALIGN;
+            pt  += WOLFSSL_STATIC_ALIGN + buckSz;
         }
         else {
             break; /* not enough space left for more buckets of this size */
         }
     }
 
-    UnLockMutex(&memory_mutex);
-
     return ret;
 }
 
 
-
-/* Starts at left most address and free until either used memory is encounterd
-   or end of buffer is.
-   Returns amount of buffer freed on success and a negative value on fail.
- */
-int wolfSSL_unload_static_memory(byte* buffer, word32 sz, word32* amt)
-{
-    wc_Memory* cur = NULL;
-    wc_Memory* fre = NULL;
-    wc_Memory* prv = NULL;
-    int i;
-    word32 idx = 0;
-
-    WOLFSSL_ENTER("wolfSSL_unload_static_memory");
-
-    if (buffer == NULL || sz == 0 || amt == NULL) {
-        return BAD_FUNC_ARG;
-    }
-
-    if (LockMutex(&memory_mutex) != 0) {
-        return BAD_MUTEX_E;
-    }
-
-    /* too small of memory to be placed as a bucket */
-    if (sz < bucket[0] + WC_STATIC_ALIGN) {
-        *amt = sz;
-        return 1;
-    }
-
-    /* advance past alignment padding */
-    while ((word64)(buffer + idx) % WC_STATIC_ALIGN && idx < sz) { idx++; }
-
-    /* buffer should be already divided up into wc_Memory structs */
-    while (idx < (sz - bucket[0] - WC_STATIC_ALIGN)) {
-        cur = (struct wc_Memory*)(buffer + idx);
-        prv = NULL;
-
-        for (i = 0; i < WC_MAX_BUCKETS; i++) {
-            if (bucket[i] >= cur->sz) break;
-        }
-        fre = available[i];
-
-        /* find the matching address of the memory in available stack */
-        while (fre != NULL && (cur != fre)) {
-            prv = fre;
-            fre = fre->next;
-        }
-
-        if (fre == NULL) {
-            WOLFSSL_MSG("Could not find static memory address to free");
-            break;
-        }
-
-        /* fix linked list to jump over the link to free */
-        if (prv) {
-            prv->next = fre->next;
-        }
-
-        /* case if memory is head of stack */
-        if (available[i] == fre) {
-            available[i] = fre->next;
-        }
-
-        idx += WC_STATIC_ALIGN + fre->sz;
-        fre = NULL;
-    }
-
-    UnLockMutex(&memory_mutex);
-
-    /* account for some left over memory that could not be used for a bucket */
-    if (idx > (sz - (bucket[0] + WC_STATIC_ALIGN))) {
-        *amt = sz; /* all posssible was freed */
-        return 1;
-    }
-    else {
-        *amt = idx;
-        return 0;
-    }
-}
-
-
-int wolfSSL_load_static_memory(byte* buffer, word32 sz)
+int wolfSSL_load_static_memory(byte* buffer, word32 sz, int flag,
+                                                             WOLFSSL_HEAP* heap)
 {
     word32 ava = sz;
     byte*  pt  = buffer;
     int    ret = 0;
 
     #ifdef WOLFSSL_TRACK_MEMORY_FULL
-        word32 created_buckets[WC_MAX_BUCKETS];
+        word32 created_buckets[WOLFMEM_MAX_BUCKETS];
         int    j;
         XMEMSET(created_buckets, 0, sizeof(created_buckets));
     #endif
@@ -313,185 +217,239 @@ int wolfSSL_load_static_memory(byte* buffer, word32 sz)
         return BAD_FUNC_ARG;
     }
 
-    #ifdef WOLFSSL_TRACK_MEMORY_FULL
-        printf("\t%u bytes passed in\n", sz);
-        printf("\tAddress %p - %p\n", buffer, buffer + sz);
-    #endif
-
     /* align pt */
-    while ((word64)pt % WC_STATIC_ALIGN && pt < (buffer + sz)) {
+    while ((word64)pt % WOLFSSL_STATIC_ALIGN && pt < (buffer + sz)) {
         *pt = 0x00;
         pt++;
     }
 
-    if (createMutex) {
-        if (InitMutex(&memory_mutex) != 0) {
-            WOLFSSL_MSG("Bad mutex init");
-            return BAD_MUTEX_E;
-        }
-        createMutex = 0;
+    if (InitMutex(&(heap->memory_mutex)) != 0) {
+        WOLFSSL_MSG("Bad mutex init");
+        return BAD_MUTEX_E;
     }
 
     /* devide into chunks of memory and add them to available list */
-    while (ava >= (bucket[0] + WC_STATIC_ALIGN)) {
+    while (ava >= (heap->sizeList[0] + WOLFSSL_STATIC_ALIGN)) {
         int i;
-        /* start at largest and move to smaller buckets */
-        for (i = (WC_MAX_BUCKETS - 1); i >= 0; i--) {
-            if ((bucket[i] + WC_STATIC_ALIGN) <= ava) {
-                if ((ret = create_memory_buckets(pt, ava,
-                               bucket[i], bucketDist[i], &available[i])) < 0) {
-                    WOLFSSL_LEAVE("wolfSSL_load_static_memory", ret);
-                    return ret;
-                }
-                #ifdef WOLFSSL_TRACK_MEMORY_FULL
-                /* if defined keep track of buckets created for printing stats*/
-                    for (j = 0; (j + bucket[i] + WC_STATIC_ALIGN) <=(word32)ret;
-                                             j += bucket[i] + WC_STATIC_ALIGN) {
-                        created_buckets[i]++;
-                    }
-                #endif
+        /* creating only IO buffers from memory passed in, max TLS is 16k */
+        if (flag & WOLFMEM_IO_POOL || flag & WOLFMEM_IO_POOL_FIXED) {
+            if ((ret = create_memory_buckets(pt, ava,
+                                          WOLFMEM_IO_SZ, 1, &(heap->io))) < 0) {
+                WOLFSSL_LEAVE("wolfSSL_load_static_memory", ret);
+                return ret;
+            }
 
-                /* advance pointer in buffer for next buckets and keep track
-                   of how much memory is left available */
-                pt  += ret;
-                ava -= ret;
+            /* check if no more room left for creating IO buffers */
+            if (ret == 0) {
+                break;
+            }
+
+            /* advance pointer in buffer for next buckets and keep track
+               of how much memory is left available */
+            pt  += ret;
+            ava -= ret;
+        }
+        else {
+            /* start at largest and move to smaller buckets */
+            for (i = (WOLFMEM_MAX_BUCKETS - 1); i >= 0; i--) {
+                if ((heap->sizeList[i] + WOLFSSL_STATIC_ALIGN) <= ava) {
+                    if ((ret = create_memory_buckets(pt, ava, heap->sizeList[i],
+                                     heap->distList[i], &(heap->ava[i]))) < 0) {
+                        WOLFSSL_LEAVE("wolfSSL_load_static_memory", ret);
+                        return ret;
+                    }
+                    #ifdef WOLFSSL_TRACK_MEMORY_FULL
+                    /* if defined keep track of buckets created for stats*/
+                        for (j = 0; (j + heap->sizeList[i] +
+                           WOLFSSL_STATIC_ALIGN) <= (word32)ret; j +=
+                           heap->sizeList[i] + WOLFSSL_STATIC_ALIGN) {
+                            created_buckets[i]++;
+                        }
+                    #endif
+
+                    /* advance pointer in buffer for next buckets and keep track
+                       of how much memory is left available */
+                    pt  += ret;
+                    ava -= ret;
+                }
             }
         }
     }
-
-    #ifdef WOLFSSL_TRACK_MEMORY_FULL
-    /* if defined print out stats of number of buckets created */
-        printf("Created Memory Buckets :\n");
-        for (j = 0; j < WC_MAX_BUCKETS; j++) {
-            printf("Created %d\tof bucket size %d\n", created_buckets[j],
-                                                                    bucket[j]);
-        }
-    #endif
 
     return 1;
 }
 
 
-int wolfSSL_use_static_memory(byte flag)
+int FreeFixedIO(WOLFSSL_HEAP* heap, wc_Memory** io)
 {
+    WOLFSSL_MSG("Freeing fixed IO buffer");
 
-    WOLFSSL_ENTER("wolfSSL_use_static_memory");
+    /* check if fixed buffer was set */
+    if (*io == NULL) {
+        return 1;
+    }
 
-    useStaticMemory = flag;
+    if (heap == NULL) {
+        WOLFSSL_MSG("No heap to return fixed IO too");
+    }
 
-    return 0;
+    /* put IO buffer back into IO pool */
+    (*io)->next = heap->io;
+    heap->io    = *io;
+    *io         = NULL;
+
+    return 1;
 }
 
 
-word32 wolfSSL_static_memory_inUse()
+int SetFixedIO(WOLFSSL_HEAP* heap, wc_Memory** io)
 {
+    WOLFSSL_MSG("Setting fixed IO for SSL");
+    if (heap == NULL) {
+        return MEMORY_E;
+    }
 
-    WOLFSSL_ENTER("wolfSSL_static_memory_inUse");
+    *io = heap->io;
 
-    return inUse;
+    if (*io != NULL) {
+        heap->io = (*io)->next;
+        (*io)->next = NULL;
+    }
+    else { /* failed to grab an IO buffer */
+        return 0;
+    }
+
+    return 1;
 }
 
 
-void* wolfSSL_Malloc_Static(size_t size)
+int wolfSSL_GetMemStats(WOLFSSL_HEAP* heap, WOLFSSL_MEM_STATS* stats)
+{
+        word32     i;
+        wc_Memory* pt;
+
+        XMEMSET(stats, 0, sizeof(WOLFSSL_MEM_STATS));
+
+        stats->totalAlloc = heap->alloc;
+        stats->totalFr    = heap->frAlc;
+        stats->curAlloc   = stats->totalAlloc - stats->totalFr;
+        stats->maxHa      = heap->maxHa;
+        stats->maxIO      = heap->maxIO;
+        for (i = 0; i < WOLFMEM_MAX_BUCKETS; i++) {
+            stats->blockSz[i] = heap->sizeList[i];
+            for (pt = heap->ava[i]; pt != NULL; pt = pt->next) {
+                stats->avaBlock[i] += 1;
+            }
+        }
+
+        for (pt = heap->io; pt != NULL; pt = pt->next) {
+            stats->avaIO++;
+        }
+
+        stats->flag       = heap->flag; /* flag used */
+
+    return 1;
+}
+
+
+void* wolfSSL_Malloc(size_t size, void* heap, int type)
 {
     void* res = 0;
     wc_Memory* pt = NULL;
     int   i;
 
-    if (useStaticMemory == 0) {
-        pt = malloc(size + WC_STATIC_ALIGN);
-        pt->buffer = (byte*)pt + WC_STATIC_ALIGN;
-        pt->sz     = (word32)size;
-        pt->kill   = 1;
-        pt->next   = NULL;
-        res = pt->buffer;
+    /* check for testing heap hint was set */
+#ifdef WOLFSSL_HEAP_TEST
+    if (heap == (void*)WOLFSSL_HEAP_TEST) {
+        return malloc(size);
+    }
+#endif
+
+    /* if no heap hint then use dynamic memory*/
+    if (heap == NULL) {
+        #ifdef WOLFSSL_HEAP_TEST
+            /* allow using malloc for creating ctx and method */
+            if (type == DYNAMIC_TYPE_CTX || type == DYNAMIC_TYPE_METHOD ||
+                                            type == DYNAMIC_TYPE_CERT_MANAGER) {
+                WOLFSSL_MSG("ERROR allowing null heap hint for ctx/method\n");
+                res = malloc(size);
+            }
+            else {
+                WOLFSSL_MSG("ERROR null heap hint passed into XMALLOC\n");
+                res = NULL;
+            }
+        #else
+            res = malloc(size);
+        #endif
     }
     else {
+        WOLFSSL_HEAP_HINT* hint = (WOLFSSL_HEAP_HINT*)heap;
+        WOLFSSL_HEAP*      mem  = hint->memory;
 
-        if (LockMutex(&memory_mutex) != 0) {
+        if (LockMutex(&(mem->memory_mutex)) != 0) {
             WOLFSSL_MSG("Bad memory_mutex lock");
             return NULL;
         }
 
-        for (i = 0; i < WC_MAX_BUCKETS; i++) {
-            if ((word32)size < bucket[i]) {
-                if (available[i] != NULL) {
-                    pt = available[i];
-                    available[i] = pt->next;
-                    res = pt->buffer;
-                    inUse += pt->sz + WC_STATIC_ALIGN;
-                #ifdef WOLFSSL_TRACK_MEMORY_FULL
-                    printf("used bucket at address %p size of %d for size"
-                           " req %d\n", res, bucket[i], (word32)size);
-                #endif
-                    break;
-                }
+        /* case of using fixed IO buffers */
+        if (mem->flag & WOLFMEM_IO_POOL_FIXED) {
+            if (type == DYNAMIC_TYPE_OUT_BUFFER) {
+                pt = hint->outBuf;
+            }
+            if (type == DYNAMIC_TYPE_IN_BUFFER) {
+                pt = hint->inBuf;
             }
         }
 
-        UnLockMutex(&memory_mutex);
+        /* check if using IO pool flag */
+        if (mem->flag & WOLFMEM_IO_POOL && pt == NULL &&
+                                             (type == DYNAMIC_TYPE_OUT_BUFFER ||
+                                              type == DYNAMIC_TYPE_IN_BUFFER)) {
+            if (mem->io != NULL) {
+                pt      = mem->io;
+                mem->io = pt->next;
+            }
+        }
 
-        /* case when no memory size is available */
+        /* general static memory */
         if (pt == NULL) {
-
-            #ifdef WOLFSSL_TRACK_MEMORY_FULL
-                {
-                    int k, j;
-                    printf("\tRequested size %lu\n\tAvailable memory "
-                            "buckets\n", size);
-                    for (k = 0; k < WC_MAX_BUCKETS; k++) {
-                        pt = available[k];
-                        j = 0;
-                        while (pt) {
-                            j++;
-                            pt = pt->next;
-                        }
-                        printf("\t%d of bucket %d\n", j, bucket[k]);
+            for (i = 0; i < WOLFMEM_MAX_BUCKETS; i++) {
+                if ((word32)size < mem->sizeList[i]) {
+                    if (mem->ava[i] != NULL) {
+                        pt = mem->ava[i];
+                        mem->ava[i] = pt->next;
+                        break;
                     }
                 }
-            #endif
-
-            /* check if too large and never going to get memory needed */
-            if ((word32)size > bucket[WC_MAX_BUCKETS-1]) {
-                WOLFSSL_MSG("Size of malloc is too large");
-                return NULL;
-            }
-
-            /* wait then try again if set to */
-            if (WOLFSSL_STATIC_TIMEOUT > 0) {
-                WOLFSSL_MSG("Waiting for available memory bucket");
-                XSLEEP(WOLFSSL_STATIC_TIMEOUT);
-
-
-                if (LockMutex(&memory_mutex) != 0) {
-                    WOLFSSL_MSG("Bad memory_mutex lock");
-                    return NULL;
-                }
-
-                for (i = 0; i < WC_MAX_BUCKETS; i++) {
-                    if ((word32)size < bucket[i]) {
-                        if (available[i] != NULL) {
-                            pt = available[i];
-                            available[i] = pt->next;
-                            res = pt->buffer;
-                            inUse += pt->sz + WC_STATIC_ALIGN;
-                        #ifdef WOLFSSL_TRACK_MEMORY_FULL
-                            printf("used bucket at address %p size of %d"
-                                   " for size req %d\n", res, bucket[i],
-                                   (word32)size);
-                        #endif
-                            break;
-                        }
-                    }
-                }
-
-                UnLockMutex(&memory_mutex);
-            }
-
-            if (pt == NULL) {
-                WOLFSSL_MSG("No available memory bucket");
             }
         }
+
+        if (pt != NULL) {
+            mem->inUse += pt->sz + WOLFSSL_STATIC_ALIGN;
+            mem->alloc += 1;
+            res = pt->buffer;
+
+            /* keep track of connection statistics if flag is set */
+            if (mem->flag & WOLFMEM_TRACK_STATS) {
+                WOLFSSL_MEM_CONN_STATS* stats = hint->stats;
+                if (stats != NULL) {
+                    stats->curMem += pt->sz + WOLFSSL_STATIC_ALIGN;
+                    if (stats->peakMem < stats->curMem) {
+                        stats->peakMem = stats->curMem;
+                    }
+                    stats->curAlloc++;
+                    if (stats->peakAlloc < stats->curAlloc) {
+                        stats->peakAlloc = stats->curAlloc;
+                    }
+                    stats->totalAlloc++;
+                }
+            }
+        }
+        else {
+            WOLFSSL_MSG("ERROR ran out of static memory");
+        }
+
+        UnLockMutex(&(mem->memory_mutex));
     }
 
     #ifdef WOLFSSL_MALLOC_CHECK
@@ -501,179 +459,179 @@ void* wolfSSL_Malloc_Static(size_t size)
 
     (void)i;
     (void)pt;
+    (void)type;
 
     return res;
 }
 
-void wolfSSL_Free_Static(void *ptr)
+
+void wolfSSL_Free(void *ptr, void* heap, int type)
 {
     int i;
     wc_Memory* pt;
 
     if (ptr) {
-        /* get memory struct and add it to available list */
-        pt = (wc_Memory*)((byte*)ptr - WC_STATIC_ALIGN);
+        /* check for testing heap hint was set */
+    #ifdef WOLFSSL_HEAP_TEST
+        if (heap == (void*)WOLFSSL_HEAP_TEST) {
+            return free(ptr);
+        }
+    #endif
 
-        if (pt->kill) {
-            free(pt);
+        if (heap == NULL) {
+        #ifdef WOLFSSL_HEAP_TEST
+            /* allow using malloc for creating ctx and method */
+            if (type == DYNAMIC_TYPE_CTX || type == DYNAMIC_TYPE_METHOD ||
+                                            type == DYNAMIC_TYPE_CERT_MANAGER) {
+                WOLFSSL_MSG("ERROR allowing null heap hint for ctx/method\n");
+            }
+            else {
+                WOLFSSL_MSG("ERROR null heap hint passed into XFREE\n");
+            }
+        #endif
+            free(ptr);
         }
         else {
-            LockMutex(&memory_mutex);
+            WOLFSSL_HEAP_HINT* hint = (WOLFSSL_HEAP_HINT*)heap;
+            WOLFSSL_HEAP*      mem  = hint->memory;
 
-            for (i = 0; i < WC_MAX_BUCKETS; i++) {
-                if (pt->sz == bucket[i]) {
-                    inUse -= WC_STATIC_ALIGN + pt->sz;
-                    pt->next = available[i];
-                    available[i] = pt;
-                    #ifdef WOLFSSL_TRACK_MEMORY_FULL
-                        printf("\tfreed %p bucket size of %d\n"
-                                                            ,pt, bucket[i]);
-                    #endif
-                    break;
+            /* get memory struct and add it to available list */
+            pt = (wc_Memory*)((byte*)ptr - WOLFSSL_STATIC_ALIGN);
+            LockMutex(&(mem->memory_mutex));
+
+
+            /* case of using fixed IO buffers */
+            if (mem->flag & WOLFMEM_IO_POOL_FIXED &&
+                                             (type == DYNAMIC_TYPE_OUT_BUFFER ||
+                                              type == DYNAMIC_TYPE_IN_BUFFER)) {
+                /* fixed IO pools are free'd at the end of SSL lifetime
+                   using FreeFixedIO(WOLFSSL_HEAP* heap, wc_Memory** io) */
+            }
+            else if (mem->flag & WOLFMEM_IO_POOL &&
+                                             (type == DYNAMIC_TYPE_OUT_BUFFER ||
+                                              type == DYNAMIC_TYPE_IN_BUFFER)) {
+                pt->next = mem->io;
+                mem->io  = pt;
+            }
+            else { /* general memory free */
+                for (i = 0; i < WOLFMEM_MAX_BUCKETS; i++) {
+                    if (pt->sz == mem->sizeList[i]) {
+                        pt->next = mem->ava[i];
+                        mem->ava[i] = pt;
+                        break;
+                    }
                 }
             }
-            UnLockMutex(&memory_mutex);
+            mem->inUse -= WOLFSSL_STATIC_ALIGN + pt->sz;
+            mem->frAlc += 1;
+
+            /* keep track of connection statistics if flag is set */
+            if (mem->flag & WOLFMEM_TRACK_STATS) {
+                WOLFSSL_MEM_CONN_STATS* stats = hint->stats;
+                if (stats != NULL) {
+                    /* avoid under flow */
+                    if (stats->curMem > pt->sz + WOLFSSL_STATIC_ALIGN) {
+                        stats->curMem -= pt->sz + WOLFSSL_STATIC_ALIGN;
+                    }
+                    else {
+                        stats->curMem = 0;
+                    }
+
+                    if (stats->curAlloc > 0) {
+                        stats->curAlloc--;
+                    }
+                    stats->totalFr++;
+                }
+            }
+            UnLockMutex(&(mem->memory_mutex));
         }
     }
 
     (void)i;
     (void)pt;
+    (void)type;
 }
 
 
-void* wolfSSL_Realloc_Static(void *ptr, size_t size)
+void* wolfSSL_Realloc(void *ptr, size_t size, void* heap, int type)
 {
     void* res = 0;
     wc_Memory* pt = NULL;
-    int   i;
+    word32 prvSz;
+    int    i;
 
-    if (useStaticMemory == 0) {
-        pt = realloc(ptr, size + WC_STATIC_ALIGN);
-        pt->buffer = (byte*)pt + WC_STATIC_ALIGN;
-        pt->sz     = (word32)size;
-        pt->kill   = 1;
-        pt->next   = NULL;
-        res = pt->buffer;
+    /* check for testing heap hint was set */
+#ifdef WOLFSSL_HEAP_TEST
+    if (heap == (void*)WOLFSSL_HEAP_TEST) {
+        return realloc(ptr, size);
+    }
+#endif
+
+    if (heap == NULL) {
+        #ifdef WOLFSSL_HEAP_TEST
+            WOLFSSL_MSG("ERROR null heap hint passed in to XREALLOC\n");
+        #endif
+        res = realloc(ptr, size);
     }
     else {
+        WOLFSSL_HEAP_HINT* hint = (WOLFSSL_HEAP_HINT*)heap;
+        WOLFSSL_HEAP*      mem  = hint->memory;
 
-        if (LockMutex(&memory_mutex) != 0) {
+        if (LockMutex(&(mem->memory_mutex)) != 0) {
             WOLFSSL_MSG("Bad memory_mutex lock");
             return NULL;
         }
 
-        for (i = 0; i < WC_MAX_BUCKETS; i++) {
-            if ((word32)size < bucket[i]) {
-                if (available[i] != NULL) {
-                    word32 prvSz;
-
-                    pt = available[i];
-                    available[i] = pt->next;
-                    res = pt->buffer;
-
-                    /* copy over original information and free ptr */
-                    prvSz = ((wc_Memory*)((byte*)ptr -WC_STATIC_ALIGN))->sz;
-                    prvSz = (prvSz > bucket[i])? bucket[i]: prvSz;
-                    XMEMCPY(pt->buffer, ptr, prvSz);
-
-                    /* free memory that was previously being used */
-                    UnLockMutex(&memory_mutex);
-                    wolfSSL_Free_Static(ptr);
-                    if (LockMutex(&memory_mutex) != 0) {
-                        WOLFSSL_MSG("Bad memory_mutex lock");
-                        return NULL;
-                    }
-
-                    inUse += pt->sz + WC_STATIC_ALIGN;
-                #ifdef WOLFSSL_TRACK_MEMORY_FULL
-                    printf("realloc used a bucket of %d for size req %d\n",
-                                                   bucket[i], (word32)size);
-                #endif
-                    break;
-                }
+        /* case of using fixed IO buffers or IO pool */
+        if (((mem->flag & WOLFMEM_IO_POOL)||(mem->flag & WOLFMEM_IO_POOL_FIXED))
+                                          && (type == DYNAMIC_TYPE_OUT_BUFFER ||
+                                              type == DYNAMIC_TYPE_IN_BUFFER)) {
+            /* no realloc, is fixed size */
+            pt = (wc_Memory*)ptr;
+            if (pt->sz < size) {
+                WOLFSSL_MSG("Error IO memory was not large enough");
+                res = NULL; /* return NULL in error case */
             }
+            res = pt->buffer;
         }
-
-        UnLockMutex(&memory_mutex);
-
-        /* case when no memory size is available */
-        if (pt == NULL) {
-
-            #ifdef WOLFSSL_TRACK_MEMORY_FULL
-                {
-                    int k, j;
-                    printf("\tRequested size %lu\n\tAvailable memory "
-                            "buckets\n", size);
-                    for (k = 0; k < WC_MAX_BUCKETS; k++) {
-                        pt = available[k];
-                        j = 0;
-                        while (pt) {
-                            j++;
-                            pt = pt->next;
-                        }
-                        printf("\t%d of bucket %d\n", j, bucket[k]);
+        else {
+        /* general memory */
+            for (i = 0; i < WOLFMEM_MAX_BUCKETS; i++) {
+                if ((word32)size < mem->sizeList[i]) {
+                    if (mem->ava[i] != NULL) {
+                        pt = mem->ava[i];
+                        mem->ava[i] = pt->next;
+                        break;
                     }
                 }
-            #endif
-
-            /* check if too large and never going to get memory needed */
-            if ((word32)size > bucket[WC_MAX_BUCKETS-1]) {
-                WOLFSSL_MSG("Size of malloc is too large");
-                return NULL;
             }
 
-            if (WOLFSSL_STATIC_TIMEOUT > 0) {
-                WOLFSSL_MSG("Waiting for available memory bucket");
-                XSLEEP(WOLFSSL_STATIC_TIMEOUT);
+            if (pt != NULL && res == NULL) {
+                res = pt->buffer;
 
-                if (LockMutex(&memory_mutex) != 0) {
+                /* copy over original information and free ptr */
+                prvSz = ((wc_Memory*)((byte*)ptr -
+                                               WOLFSSL_STATIC_ALIGN))->sz;
+                prvSz = (prvSz > pt->sz)? pt->sz: prvSz;
+                XMEMCPY(pt->buffer, ptr, prvSz);
+                mem->inUse += pt->sz + WOLFSSL_STATIC_ALIGN;
+                mem->alloc += 1;
+
+                /* free memory that was previously being used */
+                UnLockMutex(&(mem->memory_mutex));
+                wolfSSL_Free(ptr, heap, type);
+                if (LockMutex(&(mem->memory_mutex)) != 0) {
                     WOLFSSL_MSG("Bad memory_mutex lock");
                     return NULL;
                 }
-
-                for (i = 0; i < WC_MAX_BUCKETS; i++) {
-                    if ((word32)size < bucket[i]) {
-                        if (available[i] != NULL) {
-                            word32 prvSz;
-
-                            pt = available[i];
-                            available[i] = pt->next;
-                            res = pt->buffer;
-
-                            /* copy over original information and free ptr*/
-                            prvSz = ((wc_Memory*)((byte*)ptr -
-                                                      WC_STATIC_ALIGN))->sz;
-                            prvSz = (prvSz > bucket[i])? bucket[i]: prvSz;
-                            XMEMCPY(pt->buffer, ptr, prvSz);
-
-                            /* free memory that was previously being used */
-                            UnLockMutex(&memory_mutex);
-                            wolfSSL_Free_Static(ptr);
-                            if (LockMutex(&memory_mutex) != 0) {
-                                WOLFSSL_MSG("Bad memory_mutex lock");
-                                return NULL;
-                            }
-
-                            inUse += pt->sz + WC_STATIC_ALIGN;
-                        #ifdef WOLFSSL_TRACK_MEMORY_FULL
-                            printf("realloc used a bucket of %d for size"
-                                   " req %d\n", bucket[i], (word32)size);
-                        #endif
-                            break;
-                        }
-                    }
-                }
-                UnLockMutex(&memory_mutex);
-            }
-
-            if (pt == NULL) {
-                WOLFSSL_MSG("No available memory bucket");
             }
         }
+        UnLockMutex(&(mem->memory_mutex));
     }
 
     (void)i;
     (void)pt;
+    (void)type;
 
     return res;
 }

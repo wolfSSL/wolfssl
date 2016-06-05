@@ -763,6 +763,7 @@ struct OcspRequest {
 
     byte   nonce[MAX_OCSP_NONCE_SZ];
     int    nonceSz;
+    void*  heap;
 };
 
 
@@ -808,6 +809,7 @@ struct DecodedCRL {
     byte    nextDateFormat;          /* format of next date */
     RevokedCert* certs;              /* revoked cert list  */
     int          totalCerts;         /* number on list     */
+    void*   heap;
 };
 
 WOLFSSL_LOCAL void InitDecodedCRL(DecodedCRL*);
