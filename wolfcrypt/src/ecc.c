@@ -4813,7 +4813,7 @@ int wc_ecc_ctx_reset(ecEncCtx* ctx, WC_RNG* rng)
 }
 
 
-ecEncCtx* wc_ecc_ctx_new_h(int flags, WC_RNG* rng, void* heap)
+ecEncCtx* wc_ecc_ctx_new_ex(int flags, WC_RNG* rng, void* heap)
 {
     int       ret = 0;
     ecEncCtx* ctx = (ecEncCtx*)XMALLOC(sizeof(ecEncCtx), heap,
@@ -4837,7 +4837,7 @@ ecEncCtx* wc_ecc_ctx_new_h(int flags, WC_RNG* rng, void* heap)
 /* alloc/init and set defaults, return new Context  */
 ecEncCtx* wc_ecc_ctx_new(int flags, WC_RNG* rng)
 {
-    return wc_ecc_ctx_new_h(flags, rng, NULL);
+    return wc_ecc_ctx_new_ex(flags, rng, NULL);
 }
 
 
@@ -4846,7 +4846,7 @@ void wc_ecc_ctx_free(ecEncCtx* ctx)
 {
     if (ctx) {
         ForceZero(ctx, sizeof(ecEncCtx));
-        XFREE(ctx, 0, DYNAMIC_TYPE_ECC);
+        XFREE(ctx, ctx->heap, DYNAMIC_TYPE_ECC);
     }
 }
 

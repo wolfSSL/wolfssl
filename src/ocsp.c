@@ -88,7 +88,7 @@ static void FreeOcspEntry(OcspEntry* entry)
 }
 
 
-void FreeOCSP(WOLFSSL_OCSP* ocsp, int dynamic)
+void FreeOCSP(WOLFSSL_OCSP* ocsp, int dynamic, void* heap)
 {
     OcspEntry *entry, *next;
 
@@ -97,13 +97,15 @@ void FreeOCSP(WOLFSSL_OCSP* ocsp, int dynamic)
     for (entry = ocsp->ocspList; entry; entry = next) {
         next = entry->next;
         FreeOcspEntry(entry);
-        XFREE(entry, NULL, DYNAMIC_TYPE_OCSP_ENTRY);
+        XFREE(entry, heap, DYNAMIC_TYPE_OCSP_ENTRY);
     }
 
     FreeMutex(&ocsp->ocspLock);
 
     if (dynamic)
-        XFREE(ocsp, NULL, DYNAMIC_TYPE_OCSP);
+        XFREE(ocsp, heap, DYNAMIC_TYPE_OCSP);
+
+    (void)heap;
 }
 
 

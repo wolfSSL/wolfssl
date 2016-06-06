@@ -246,9 +246,6 @@ int  certext_test(void);
 #ifdef HAVE_IDEA
 int idea_test(void);
 #endif
-#ifdef WOLFSSL_STATIC_MEMORY
-    int memory_test(void);
-#endif
 
 /* General big buffer size for many tests. */
 #define FOURK_BUF 4096
@@ -313,13 +310,6 @@ int wolfcrypt_test(void* args)
                        -1235);
 #endif /* USE_FAST_MATH */
 #endif /* !NO_BIG_INT */
-
-#ifdef WOLFSSL_STATIC_MEMORY
-    if ( (ret = memory_test()) != 0)
-        return err_sys("MEMORY   test failed!\n", ret);
-    else
-        printf( "MEMORY   test passed!\n");
-#endif
 
 #ifndef NO_MD5
     if ( (ret = md5_test()) != 0)
@@ -710,14 +700,6 @@ static int OpenNitroxDevice(int dma_mode,int dev_id)
     }
 
 #endif /* NO_MAIN_DRIVER */
-
-
-#ifdef WOLFSSL_STATIC_MEMORY
-int memory_test()
-{
-    return 0;
-}
-#endif /* WOLFSSL_STATIC_MEMORY */
 
 
 #ifdef WOLFSSL_MD2

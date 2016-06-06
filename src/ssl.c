@@ -2133,11 +2133,11 @@ void wolfSSL_CertManagerFree(WOLFSSL_CERT_MANAGER* cm)
         #endif
         #ifdef HAVE_OCSP
             if (cm->ocsp)
-                FreeOCSP(cm->ocsp, 1);
+                FreeOCSP(cm->ocsp, 1, cm->heap);
         #if defined(HAVE_CERTIFICATE_STATUS_REQUEST) \
          || defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
             if (cm->ocsp_stapling)
-                FreeOCSP(cm->ocsp_stapling, 1);
+                FreeOCSP(cm->ocsp_stapling, 1, cm->heap);
         #endif
         #endif
         FreeSignerTable(cm->caTable, CA_TABLE_SIZE, cm->heap);
@@ -4308,7 +4308,7 @@ int wolfSSL_CertManagerEnableOCSP(WOLFSSL_CERT_MANAGER* cm, int options)
 
             if (InitOCSP(cm->ocsp, cm) != 0) {
                 WOLFSSL_MSG("Init OCSP failed");
-                FreeOCSP(cm->ocsp, 1);
+                FreeOCSP(cm->ocsp, 1, cm->heap);
                 cm->ocsp = NULL;
                 return SSL_FAILURE;
             }
@@ -4364,7 +4364,7 @@ int wolfSSL_CertManagerEnableOCSPStapling(WOLFSSL_CERT_MANAGER* cm)
 
             if (InitOCSP(cm->ocsp_stapling, cm) != 0) {
                 WOLFSSL_MSG("Init OCSP failed");
-                FreeOCSP(cm->ocsp_stapling, 1);
+                FreeOCSP(cm->ocsp_stapling, 1, cm->heap);
                 cm->ocsp_stapling = NULL;
                 return SSL_FAILURE;
             }

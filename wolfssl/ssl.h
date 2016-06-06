@@ -262,7 +262,7 @@ WOLFSSL_API int wolfSSL_dtls_export(WOLFSSL* ssl, unsigned char* buf,
 typedef struct WOLFSSL_MEM_STATS      WOLFSSL_MEM_STATS;
 typedef struct WOLFSSL_MEM_CONN_STATS WOLFSSL_MEM_CONN_STATS;
 WOLFSSL_API int wolfSSL_CTX_load_static_memory(WOLFSSL_CTX** ctx,
-                                            wolfSSLStaticMethod method, 
+                                            wolfSSLStaticMethod method,
                                             unsigned char* buf, unsigned int sz,
                                             int flag, int max);
 WOLFSSL_API int wolfSSL_CTX_is_static_memory(WOLFSSL_CTX* ctx,

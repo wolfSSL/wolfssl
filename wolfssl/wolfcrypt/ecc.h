@@ -320,6 +320,8 @@ typedef struct ecEncCtx ecEncCtx;
 WOLFSSL_API
 ecEncCtx* wc_ecc_ctx_new(int flags, WC_RNG* rng);
 WOLFSSL_API
+ecEncCtx* wc_ecc_ctx_new_ex(int flags, WC_RNG* rng, void* heap);
+WOLFSSL_API
 void wc_ecc_ctx_free(ecEncCtx*);
 WOLFSSL_API
 int wc_ecc_ctx_reset(ecEncCtx*, WC_RNG*);  /* reset for use again w/o alloc/free */
