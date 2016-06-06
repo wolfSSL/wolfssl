@@ -657,8 +657,8 @@ static int wc_RsaUnPad_OAEP(byte *pkcsBlock, unsigned int pkcsBlockLen,
     /* done with use of tmp buffer */
     XFREE(tmp, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
-    /* advance idx to index of PS and msg separator */
-    idx = hLen + 2 + hLen;
+    /* advance idx to index of PS and msg separator, account for PS size of 0*/
+    idx = hLen + 1 + hLen;
     while (idx < pkcsBlockLen && pkcsBlock[idx] == 0) {idx++;}
 
     /* create hash of label for comparision with hash sent */
