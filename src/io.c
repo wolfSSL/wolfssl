@@ -550,6 +550,142 @@ int EmbedGenerateCookie(WOLFSSL* ssl, byte *buf, int sz, void *ctx)
     return sz;
 }
 
+#ifdef WOLFSSL_SESSION_EXPORT
+    #ifndef XINET_NTOP
+        #define XINET_NTOP(a,b,c,d) inet_ntop((a),(b),(c),(d))
+    #endif
+    #ifndef XINET_PTON
+        #define XINET_PTON(a,b,c)   inet_pton((a),(b),(c))
+    #endif
+    #ifndef XHTONS
+        #define XHTONS(a) htons((a))
+    #endif
+    #ifndef XNTOHS
+        #define XNTOHS(a) ntohs((a))
+    #endif
+
+    #ifndef WOLFSSL_IP4
+        #define WOLFSSL_IP4 AF_INET
+    #endif
+    #ifndef WOLFSSL_IP6
+        #define WOLFSSL_IP6 AF_INET6
+    #endif
+
+    typedef struct sockaddr_storage SOCKADDR_S;
+    typedef struct sockaddr_in      SOCKADDR_IN;
+    typedef struct sockaddr_in6     SOCKADDR_IN6;
+
+    /* get the peer information in human readable form (ip, port, family)
+     * default function assumes BSD sockets
+     * can be overriden with wolfSSL_CTX_SetIOGetPeer
+     */
+    int EmbedGetPeer(WOLFSSL* ssl, char* ip, int* ipSz,
+                                                 unsigned short* port, int* fam)
+    {
+        SOCKADDR_S peer;
+        word32     peerSz;
+        int        ret;
+
+        if (ssl == NULL || ip == NULL || ipSz == NULL ||
+                                                  port == NULL || fam == NULL) {
+            return BAD_FUNC_ARG;
+        }
+
+        /* get peer information stored in ssl struct */
+        peerSz = sizeof(SOCKADDR_S);
+        if ((ret = wolfSSL_dtls_get_peer(ssl, (void*)&peer, &peerSz))
+                                                               != SSL_SUCCESS) {
+            return ret;
+        }
+
+        /* extract family, ip, and port */
+        *fam = ((SOCKADDR_S*)&peer)->ss_family;
+        switch (*fam) {
+            case WOLFSSL_IP4:
+                if (XINET_NTOP(*fam, &(((SOCKADDR_IN*)&peer)->sin_addr),
+                                                           ip, *ipSz) == NULL) {
+                    WOLFSSL_MSG("XINET_NTOP error");
+                    return SOCKET_ERROR_E;
+                }
+                *port = XNTOHS(((SOCKADDR_IN*)&peer)->sin_port);
+                break;
+
+            case WOLFSSL_IP6:
+                if (XINET_NTOP(*fam, &(((SOCKADDR_IN6*)&peer)->sin6_addr),
+                                                           ip, *ipSz) == NULL) {
+                    WOLFSSL_MSG("XINET_NTOP error");
+                    return SOCKET_ERROR_E;
+                }
+                *port = XNTOHS(((SOCKADDR_IN6*)&peer)->sin6_port);
+                break;
+
+            default:
+                WOLFSSL_MSG("Unknown family type");
+                return SOCKET_ERROR_E;
+        }
+        ip[*ipSz - 1] = '\0'; /* make sure has terminator */
+        *ipSz = (word16)XSTRLEN(ip);
+
+        return SSL_SUCCESS;
+    }
+
+    /* set the peer information in human readable form (ip, port, family)
+     * default function assumes BSD sockets
+     * can be overriden with wolfSSL_CTX_SetIOSetPeer
+     */
+    int EmbedSetPeer(WOLFSSL* ssl, char* ip, int ipSz,
+                                                   unsigned short port, int fam)
+    {
+        int    ret;
+        SOCKADDR_S addr;
+
+        /* sanity checks on arguments */
+        if (ssl == NULL || ip == NULL || ipSz < 0 || ipSz > DTLS_EXPORT_IP) {
+            return BAD_FUNC_ARG;
+        }
+
+        addr.ss_family = fam;
+        switch (addr.ss_family) {
+            case WOLFSSL_IP4:
+                if (XINET_PTON(addr.ss_family, ip,
+                                     &(((SOCKADDR_IN*)&addr)->sin_addr)) <= 0) {
+                    WOLFSSL_MSG("XINET_PTON error");
+                    return SOCKET_ERROR_E;
+                }
+                ((SOCKADDR_IN*)&addr)->sin_port = XHTONS(port);
+
+                /* peer sa is free'd in SSL_ResourceFree */
+                if ((ret = wolfSSL_dtls_set_peer(ssl, (SOCKADDR_IN*)&addr,
+                                          sizeof(SOCKADDR_IN)))!= SSL_SUCCESS) {
+                    WOLFSSL_MSG("Import DTLS peer info error");
+                    return ret;
+                }
+                break;
+
+            case WOLFSSL_IP6:
+                if (XINET_PTON(addr.ss_family, ip,
+                                   &(((SOCKADDR_IN6*)&addr)->sin6_addr)) <= 0) {
+                    WOLFSSL_MSG("XINET_PTON error");
+                    return SOCKET_ERROR_E;
+                }
+                ((SOCKADDR_IN6*)&addr)->sin6_port = XHTONS(port);
+
+                /* peer sa is free'd in SSL_ResourceFree */
+                if ((ret = wolfSSL_dtls_set_peer(ssl, (SOCKADDR_IN6*)&addr,
+                                         sizeof(SOCKADDR_IN6)))!= SSL_SUCCESS) {
+                    WOLFSSL_MSG("Import DTLS peer info error");
+                    return ret;
+                }
+                break;
+
+            default:
+                WOLFSSL_MSG("Unknown address family");
+                return BUFFER_E;
+        }
+
+        return SSL_SUCCESS;
+    }
+#endif /* WOLFSSL_SESSION_EXPORT */
 #endif /* WOLFSSL_DTLS */
 
 #ifdef HAVE_OCSP
@@ -1066,6 +1202,20 @@ WOLFSSL_API void* wolfSSL_GetCookieCtx(WOLFSSL* ssl)
     return NULL;
 }
 
+#ifdef WOLFSSL_SESSION_EXPORT
+
+WOLFSSL_API void wolfSSL_CTX_SetIOGetPeer(WOLFSSL_CTX* ctx, CallbackGetPeer cb)
+{
+    ctx->CBGetPeer = cb;
+}
+
+
+WOLFSSL_API void wolfSSL_CTX_SetIOSetPeer(WOLFSSL_CTX* ctx, CallbackSetPeer cb)
+{
+    ctx->CBSetPeer = cb;
+}
+
+#endif /* WOLFSSL_SESSION_EXPORT */
 #endif /* WOLFSSL_DTLS */
 
 

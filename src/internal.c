@@ -999,6 +999,90 @@ static int dtls_export_load(WOLFSSL* ssl, byte* exp, word32 len, byte ver)
     return idx;
 }
 
+static int ExportPeerInfo(WOLFSSL* ssl, byte* exp, word32 len, byte ver)
+{
+    int    idx  = 0;
+    int    ipSz = DTLS_EXPORT_IP; /* start as max size */
+    int    fam  = 0;
+    word16 port = 0;
+    char   ip[DTLS_EXPORT_IP];
+
+    if (ver != 1) {
+        WOLFSSL_MSG("Export version not supported");
+        return BAD_FUNC_ARG;
+    }
+
+    if (ssl == NULL || exp == NULL || len < sizeof(ip) + 3 * DTLS_EXPORT_LEN) {
+        return BAD_FUNC_ARG;
+    }
+
+    if (ssl->ctx->CBGetPeer == NULL) {
+        WOLFSSL_MSG("No get peer call back set");
+        return BAD_FUNC_ARG;
+    }
+    if (ssl->ctx->CBGetPeer(ssl, ip, &ipSz, &port, &fam) != SSL_SUCCESS) {
+        WOLFSSL_MSG("Get peer callback error");
+        return SOCKET_ERROR_E;
+    }
+
+    /* check that ipSz/fam is not negative or too large since user can set cb */
+    if (ipSz < 0 || ipSz > DTLS_EXPORT_IP || fam < 0) {
+        WOLFSSL_MSG("Bad ipSz or fam returned from get peer callback");
+        return SOCKET_ERROR_E;
+    }
+
+    c16toa((word16)fam, exp + idx);          idx += DTLS_EXPORT_LEN;
+    c16toa((word16)ipSz, exp + idx); idx += DTLS_EXPORT_LEN;
+    XMEMCPY(exp + idx, ip, ipSz);    idx += ipSz;
+    c16toa(port, exp + idx);         idx += DTLS_EXPORT_LEN;
+
+    return idx;
+}
+
+
+static int ImportPeerInfo(WOLFSSL* ssl, byte* buf, word32 len, byte ver)
+{
+    word16 idx = 0;
+    word16 ipSz;
+    word16 fam;
+    word16 port;
+    char   ip[DTLS_EXPORT_IP];
+
+    if (ver != 1) {
+        WOLFSSL_MSG("Export version not supported");
+        return BAD_FUNC_ARG;
+    }
+
+    if (ssl == NULL || buf == NULL || len < 3 * DTLS_EXPORT_LEN) {
+        return BAD_FUNC_ARG;
+    }
+
+    /* import sin family */
+    ato16(buf + idx, &fam); idx += DTLS_EXPORT_LEN;
+
+    /* import ip address idx, and ipSz are unsigned but cast for enum */
+    ato16(buf + idx, &ipSz); idx += DTLS_EXPORT_LEN;
+    if (ipSz > sizeof(ip) || (word16)(idx + ipSz + DTLS_EXPORT_LEN) > len) {
+        return BUFFER_E;
+    }
+    XMEMSET(ip, 0, sizeof(ip));
+    XMEMCPY(ip, buf + idx, ipSz); idx += ipSz;
+    ip[ipSz] = '\0';
+    ato16(buf + idx, &port); idx += DTLS_EXPORT_LEN;
+
+    /* sanity check for a function to call, then use it to import peer info */
+    if (ssl->ctx->CBSetPeer == NULL) {
+        WOLFSSL_MSG("No set peer function");
+        return BAD_FUNC_ARG;
+    }
+    if (ssl->ctx->CBSetPeer(ssl, ip, ipSz, port, fam) != SSL_SUCCESS) {
+        WOLFSSL_MSG("Error setting peer info");
+        return SOCKET_ERROR_E;
+    }
+
+    return idx;
+}
+
 
 /* WOLFSSL_LOCAL function that serializes the current WOLFSSL session
  * buf is used to hold the serialized WOLFSSL struct and sz is the size of buf
@@ -1062,11 +1146,14 @@ int wolfSSL_dtls_export_internal(WOLFSSL* ssl, byte* buf, word32 sz)
     idx += ret;
 
     /* export of dtls peer information */
-    c16toa((word16)ssl->buffers.dtlsCtx.peer.sz, buf + idx);
     idx += DTLS_EXPORT_LEN;
-    XMEMCPY(buf + idx, ssl->buffers.dtlsCtx.peer.sa,
-                                                  ssl->buffers.dtlsCtx.peer.sz);
-    idx += ssl->buffers.dtlsCtx.peer.sz;
+    if ((ret = ExportPeerInfo(ssl, buf + idx, sz - idx,
+                                                    DTLS_EXPORT_VERSION)) < 0) {
+        WOLFSSL_LEAVE("wolfSSL_dtls_export_internal", ret);
+        return ret;
+    }
+    c16toa(ret, buf + idx - DTLS_EXPORT_LEN);
+    idx += ret;
 
     /* place total length of exported buffer minus 2 bytes protocol/version */
     c16toa((word16)(idx - DTLS_EXPORT_LEN), buf + DTLS_EXPORT_LEN);
@@ -1172,7 +1259,7 @@ int wolfSSL_dtls_import_internal(WOLFSSL* ssl, byte* buf, word32 sz)
         WOLFSSL_MSG("Import CipherSpecs struct error");
         return ret;
     }
-    idx += length;
+    idx += ret;
 
     /* perform sanity checks and extract DTLS peer info */
     if (DTLS_EXPORT_LEN + idx > sz) {
@@ -1180,20 +1267,15 @@ int wolfSSL_dtls_import_internal(WOLFSSL* ssl, byte* buf, word32 sz)
         return BUFFER_E;
     }
     ato16(buf + idx, &length); idx += DTLS_EXPORT_LEN;
-    ssl->buffers.dtlsCtx.peer.sz = length;
-
-    if (idx + ssl->buffers.dtlsCtx.peer.sz > sz) {
+    if (idx + length > sz) {
         WOLFSSL_MSG("Import DTLS peer info error");
         return BUFFER_E;
     }
-
-    /* peer sa is free'd in SSL_ResourceFree */
-    if ((ret = wolfSSL_dtls_set_peer(ssl, buf + idx,
-                                ssl->buffers.dtlsCtx.peer.sz)) != SSL_SUCCESS) {
-        WOLFSSL_MSG("Import DTLS peer info error");
+    if ((ret = ImportPeerInfo(ssl, buf + idx, length, version)) < 0) {
+        WOLFSSL_MSG("Import Peer Addr error");
         return ret;
     }
-    idx += ssl->buffers.dtlsCtx.peer.sz;
+    idx += ret;
 
     SetKeysSide(ssl, ENCRYPT_AND_DECRYPT_SIDE);
 
@@ -1319,6 +1401,10 @@ int InitSSL_Ctx(WOLFSSL_CTX* ctx, WOLFSSL_METHOD* method)
             ctx->CBIORecv   = EmbedReceiveFrom;
             ctx->CBIOSend   = EmbedSendTo;
         }
+        #ifdef WOLFSSL_SESSION_EXPORT
+        ctx->CBGetPeer = EmbedGetPeer;
+        ctx->CBSetPeer = EmbedSetPeer;
+        #endif
     #endif
 #endif /* WOLFSSL_USER_IO */
 

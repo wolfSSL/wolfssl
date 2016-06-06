@@ -1066,7 +1066,6 @@ WOLFSSL_API void* wolfSSL_GetIOWriteCtx(WOLFSSL* ssl);
 WOLFSSL_API void wolfSSL_SetIOReadFlags( WOLFSSL* ssl, int flags);
 WOLFSSL_API void wolfSSL_SetIOWriteFlags(WOLFSSL* ssl, int flags);
 
-
 #ifndef WOLFSSL_USER_IO
     /* default IO callbacks */
     WOLFSSL_API int EmbedReceive(WOLFSSL* ssl, char* buf, int sz, void* ctx);
@@ -1083,6 +1082,22 @@ WOLFSSL_API void wolfSSL_SetIOWriteFlags(WOLFSSL* ssl, int flags);
         WOLFSSL_API int EmbedSendTo(WOLFSSL* ssl, char* buf, int sz, void* ctx);
         WOLFSSL_API int EmbedGenerateCookie(WOLFSSL* ssl, unsigned char* buf,
                                            int sz, void*);
+        #ifdef WOLFSSL_SESSION_EXPORT
+            WOLFSSL_API int EmbedGetPeer(WOLFSSL* ssl, char* ip, int* ipSz,
+                                                unsigned short* port, int* fam);
+            WOLFSSL_API int EmbedSetPeer(WOLFSSL* ssl, char* ip, int ipSz,
+                                                  unsigned short port, int fam);
+
+            typedef int (*CallbackGetPeer)(WOLFSSL* ssl, char* ip, int* ipSz,
+                                                unsigned short* port, int* fam);
+            typedef int (*CallbackSetPeer)(WOLFSSL* ssl, char* ip, int ipSz,
+                                                  unsigned short port, int fam);
+
+            WOLFSSL_API void wolfSSL_CTX_SetIOGetPeer(WOLFSSL_CTX*,
+                                                               CallbackGetPeer);
+            WOLFSSL_API void wolfSSL_CTX_SetIOSetPeer(WOLFSSL_CTX*,
+                                                               CallbackSetPeer);
+        #endif /* WOLFSSL_SESSION_EXPORT */
     #endif /* WOLFSSL_DTLS */
 #endif /* WOLFSSL_USER_IO */
 
