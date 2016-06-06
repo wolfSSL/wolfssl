@@ -55,7 +55,7 @@ int InitCRL(WOLFSSL_CRL* crl, WOLFSSL_CERT_MANAGER* cm)
 #ifdef WOLFSSL_HEAP_TEST
     crl->heap = (void*)WOLFSSL_HEAP_TEST;
 #else
-    crl->heap = NULL;
+    crl->heap = cm->heap;
 #endif
     crl->cm = cm;
     crl->crlList = NULL;
@@ -101,7 +101,7 @@ static int InitCRL_Entry(CRL_Entry* crle, DecodedCRL* dcrl)
 
 
 /* Free all CRL Entry resources */
-static void FreeCRL_Entry(CRL_Entry* crle)
+static void FreeCRL_Entry(CRL_Entry* crle, void* heap)
 {
     RevokedCert* tmp = crle->certs;
 
@@ -109,9 +109,11 @@ static void FreeCRL_Entry(CRL_Entry* crle)
 
     while(tmp) {
         RevokedCert* next = tmp->next;
-        XFREE(tmp, NULL, DYNAMIC_TYPE_REVOKED);
+        XFREE(tmp, heap, DYNAMIC_TYPE_REVOKED);
         tmp = next;
     }
+
+    (void)heap;
 }
 
 
@@ -124,15 +126,15 @@ void FreeCRL(WOLFSSL_CRL* crl, int dynamic)
     WOLFSSL_ENTER("FreeCRL");
 
     if (crl->monitors[0].path)
-        XFREE(crl->monitors[0].path, NULL, DYNAMIC_TYPE_CRL_MONITOR);
+        XFREE(crl->monitors[0].path, crl->heap, DYNAMIC_TYPE_CRL_MONITOR);
 
     if (crl->monitors[1].path)
-        XFREE(crl->monitors[1].path, NULL, DYNAMIC_TYPE_CRL_MONITOR);
+        XFREE(crl->monitors[1].path, crl->heap, DYNAMIC_TYPE_CRL_MONITOR);
 
     while(tmp) {
         CRL_Entry* next = tmp->next;
-        FreeCRL_Entry(tmp);
-        XFREE(tmp, NULL, DYNAMIC_TYPE_CRL_ENTRY);
+        FreeCRL_Entry(tmp, crl->heap);
+        XFREE(tmp, crl->heap, DYNAMIC_TYPE_CRL_ENTRY);
         tmp = next;
     }
 
@@ -149,7 +151,7 @@ void FreeCRL(WOLFSSL_CRL* crl, int dynamic)
 #endif
     FreeMutex(&crl->crlLock);
     if (dynamic)   /* free self */
-        XFREE(crl, NULL, DYNAMIC_TYPE_CRL);
+        XFREE(crl, crl->heap, DYNAMIC_TYPE_CRL);
 }
 
 
@@ -253,7 +255,7 @@ static int AddCRL(WOLFSSL_CRL* crl, DecodedCRL* dcrl)
 
     if (LockMutex(&crl->crlLock) != 0) {
         WOLFSSL_MSG("LockMutex failed");
-        FreeCRL_Entry(crle);
+        FreeCRL_Entry(crle, crl->heap);
         XFREE(crle, crl->heap, DYNAMIC_TYPE_CRL_ENTRY);
         return BAD_MUTEX_E;
     }
@@ -307,7 +309,7 @@ int BufferLoadCRL(WOLFSSL_CRL* crl, const byte* buff, long sz, int type)
     }
 #endif
 
-    InitDecodedCRL(dcrl);
+    InitDecodedCRL(dcrl, crl->heap);
     ret = ParseCRL(dcrl, myBuffer, (word32)sz, crl->cm);
     if (ret != 0) {
         WOLFSSL_MSG("ParseCRL error");

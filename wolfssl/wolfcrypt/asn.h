@@ -812,7 +812,7 @@ struct DecodedCRL {
     void*   heap;
 };
 
-WOLFSSL_LOCAL void InitDecodedCRL(DecodedCRL*);
+WOLFSSL_LOCAL void InitDecodedCRL(DecodedCRL*, void* heap);
 WOLFSSL_LOCAL int  ParseCRL(DecodedCRL*, const byte* buff, word32 sz, void* cm);
 WOLFSSL_LOCAL void FreeDecodedCRL(DecodedCRL*);
 

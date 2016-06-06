@@ -32,7 +32,7 @@
 
 #ifndef NO_CRYPT_TEST
 
-#if defined(WOLFSSL_STATIC_MEMORY)
+#if defined(WOLFSSL_STATIC_MEMORY) && !defined(HAVE_IO_POOL)
     #ifndef HAVE_PKCS7
         #define USE_CERT_BUFFERS_1024 /* avoid dynamic memory from fopen */
     #endif

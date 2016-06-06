@@ -9522,7 +9522,7 @@ WOLFSSL_LOCAL int GetNameHash(const byte* source, word32* idx, byte* hash,
 #ifdef HAVE_CRL
 
 /* initialize decoded CRL */
-void InitDecodedCRL(DecodedCRL* dcrl)
+void InitDecodedCRL(DecodedCRL* dcrl, void* heap)
 {
     WOLFSSL_MSG("InitDecodedCRL");
 
@@ -9532,6 +9532,10 @@ void InitDecodedCRL(DecodedCRL* dcrl)
     dcrl->signatureOID = 0;
     dcrl->certs        = NULL;
     dcrl->totalCerts   = 0;
+    dcrl->heap         = heap;
+    #ifdef WOLFSSL_HEAP_TEST
+        dcrl->heap = (void)WOLFSSL_HEAP_TEST;
+    #endif
 }
 
 
@@ -9544,7 +9548,7 @@ void FreeDecodedCRL(DecodedCRL* dcrl)
 
     while(tmp) {
         RevokedCert* next = tmp->next;
-        XFREE(tmp, NULL, DYNAMIC_TYPE_REVOKED);
+        XFREE(tmp, dcrl->heap, DYNAMIC_TYPE_REVOKED);
         tmp = next;
     }
 }
