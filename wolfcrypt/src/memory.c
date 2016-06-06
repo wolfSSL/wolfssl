@@ -218,7 +218,7 @@ int wolfSSL_load_static_memory(byte* buffer, word32 sz, int flag,
     }
 
     /* align pt */
-    while ((word64)pt % WOLFSSL_STATIC_ALIGN && pt < (buffer + sz)) {
+    while ((long)pt % WOLFSSL_STATIC_ALIGN && pt < (buffer + sz)) {
         *pt = 0x00;
         pt++;
     }
@@ -379,8 +379,12 @@ void* wolfSSL_Malloc(size_t size, void* heap, int type)
                 res = NULL;
             }
         #else
+        #ifndef WOLFSSL_NO_MALLOC
             res = malloc(size);
-        #endif
+        #else
+            WOLFSSL_MSG("No heap hint found to use and no malloc");
+        #endif /* WOLFSSL_NO_MALLOC */
+        #endif /* WOLFSSL_HEAP_TEST */
     }
     else {
         WOLFSSL_HEAP_HINT* hint = (WOLFSSL_HEAP_HINT*)heap;
@@ -489,7 +493,11 @@ void wolfSSL_Free(void *ptr, void* heap, int type)
                 WOLFSSL_MSG("ERROR null heap hint passed into XFREE\n");
             }
         #endif
+        #ifndef WOLFSSL_NO_MALLOC
             free(ptr);
+        #else
+            WOLFSSL_MSG("Error trying to call free when turned off");
+        #endif /* WOLFSSL_NO_MALLOC */
         }
         else {
             WOLFSSL_HEAP_HINT* hint = (WOLFSSL_HEAP_HINT*)heap;
@@ -571,7 +579,11 @@ void* wolfSSL_Realloc(void *ptr, size_t size, void* heap, int type)
         #ifdef WOLFSSL_HEAP_TEST
             WOLFSSL_MSG("ERROR null heap hint passed in to XREALLOC\n");
         #endif
-        res = realloc(ptr, size);
+        #ifndef WOLFSSL_NO_MALLOC
+            res = realloc(ptr, size);
+        #else
+            WOLFSSL_MSG("NO heap found to use for realloc");
+        #endif /* WOLFSSL_NO_MALLOC */
     }
     else {
         WOLFSSL_HEAP_HINT* hint = (WOLFSSL_HEAP_HINT*)heap;

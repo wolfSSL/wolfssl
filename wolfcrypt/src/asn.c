@@ -1955,6 +1955,8 @@ static INLINE void FreeTmpDsas(byte** tmps, void* heap)
 
     for (i = 0; i < DSA_INTS; i++)
         XFREE(tmps[i], heap, DYNAMIC_TYPE_DSA);
+
+    (void)heap;
 }
 
 /* Convert DsaKey key to DER format, write to output (inLen), return bytes

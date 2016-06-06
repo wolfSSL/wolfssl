@@ -640,10 +640,10 @@ int wolfSSL_init_memory_heap(WOLFSSL_HEAP* heap)
     XMEMSET(heap, 0, sizeof(WOLFSSL_HEAP));
 
     /* default pool sizes and distribution, else leave a 0's for now */
-    if (WOLFMEM_DEF_BUCKETS == WOLFMEM_MAX_BUCKETS) {
+    #if WOLFMEM_DEF_BUCKETS == WOLFMEM_MAX_BUCKETS
         XMEMCPY(heap->sizeList, wc_defaultMemSz, sizeof(wc_defaultMemSz));
         XMEMCPY(heap->distList, wc_defaultDist, sizeof(wc_defaultMemSz));
-    }
+    #endif
 
     if (InitMutex(&(heap->memory_mutex)) != 0) {
         WOLFSSL_MSG("Error creating heap memory mutex");
@@ -17437,7 +17437,7 @@ WOLFSSL_X509* wolfSSL_get_chain_X509(WOLFSSL_X509_CHAIN* chain, int idx)
                     WOLFSSL_MSG("Failed alloc X509");
                 }
                 else {
-                    InitX509(x509, 1);
+                    InitX509(x509, 1, NULL);
 
                     if ((ret = CopyDecodedToX509(x509, cert)) != 0) {
                         WOLFSSL_MSG("Failed to copy decoded");
@@ -17848,7 +17848,7 @@ void* wolfSSL_GetRsaDecCtx(WOLFSSL* ssl)
 
 #ifndef NO_CERTS
     void wolfSSL_X509_NAME_free(WOLFSSL_X509_NAME *name){
-        FreeX509Name(name);
+        FreeX509Name(name, NULL);
         WOLFSSL_ENTER("wolfSSL_X509_NAME_free");
         WOLFSSL_STUB("wolfSSL_X509_NAME_free");
     }

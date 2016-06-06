@@ -3340,10 +3340,18 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
         return MEMORY_E;
     }
 
+    /* FIPS RNG API does not accept a heap hint */
+#ifndef HAVE_FIPS
     if ( (ret = wc_InitRng_ex(ssl->rng, ssl->heap)) != 0) {
         WOLFSSL_MSG("RNG Init error");
         return ret;
     }
+#else
+    if ( (ret = wc_InitRng(ssl->rng)) != 0) {
+        WOLFSSL_MSG("RNG Init error");
+        return ret;
+    }
+#endif
 
 #if defined(WOLFSSL_DTLS) && !defined(NO_WOLFSSL_SERVER)
     if (ssl->options.dtls && ssl->options.side == WOLFSSL_SERVER_END) {

@@ -235,8 +235,8 @@ WOLFSSL_API
 int wc_ecc_mulmod(mp_int* k, ecc_point *G, ecc_point *R,
                   mp_int* modulus, int map);
 
-WOLFSSL_API
-int wc_ecc_mulmod_h(mp_int* k, ecc_point *G, ecc_point *R,
+WOLFSSL_LOCAL
+int wc_ecc_mulmod_ex(mp_int* k, ecc_point *G, ecc_point *R,
                   mp_int* modulus, int map, void* heap);
 #ifdef HAVE_ECC_KEY_EXPORT
 /* ASN key helpers */

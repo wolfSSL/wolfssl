@@ -211,12 +211,6 @@
 	#endif
 
 
-    /* sleep function for static memory */
-    #ifdef WOLFSSL_STATIC_MEMORY
-        #include <unistd.h>
-        #define XSLEEP(t) sleep((t))
-    #endif /* WOLFSSL_STATIC_MEMORY */
-
 	#ifndef STRING_USER
 	    #include <string.h>
 	    char* mystrnstr(const char* s1, const char* s2, unsigned int n);

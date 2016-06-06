@@ -831,9 +831,9 @@ int ecc_map(ecc_point* P, mp_int* modulus, mp_digit* mp)
 */
 #ifdef FP_ECC
 static int normal_ecc_mulmod(mp_int* k, ecc_point *G, ecc_point *R,
-                      mp_int* modulus, int map)
+                      mp_int* modulus, int map, void* heap)
 #else
-static int wc_ecc_mulmod_ex(mp_int* k, ecc_point *G, ecc_point *R,
+int wc_ecc_mulmod_ex(mp_int* k, ecc_point *G, ecc_point *R,
                                            mp_int* modulus, int map, void* heap)
 #endif
 {
@@ -1055,7 +1055,7 @@ int wc_ecc_mulmod(mp_int* k, ecc_point *G, ecc_point *R,
 static int normal_ecc_mulmod(mp_int* k, ecc_point *G, ecc_point *R,
                       mp_int* modulus, int map, void* heap)
 #else
-static int wc_ecc_mulmod_ex(mp_int* k, ecc_point *G, ecc_point *R,
+int wc_ecc_mulmod_ex(mp_int* k, ecc_point *G, ecc_point *R,
                                            mp_int* modulus, int map, void* heap)
 #endif
 {
@@ -4501,7 +4501,7 @@ int ecc_mul2add(ecc_point* A, mp_int* kA,
 int wc_ecc_mulmod(mp_int* k, ecc_point *G, ecc_point *R, mp_int* modulus,
                int map)
 {
-    return wc_ecc_mulmod_h(k, G, R, modulus, map, NULL);
+    return wc_ecc_mulmod_ex(k, G, R, modulus, map, NULL);
 }
 
 
@@ -4514,7 +4514,7 @@ int wc_ecc_mulmod(mp_int* k, ecc_point *G, ecc_point *R, mp_int* modulus,
              otherwise it's left in jacobian-montgomery form
     return MP_OKAY if successful
 */
-int wc_ecc_mulmod_h(mp_int* k, ecc_point *G, ecc_point *R, mp_int* modulus,
+int wc_ecc_mulmod_ex(mp_int* k, ecc_point *G, ecc_point *R, mp_int* modulus,
                int map, void* heap)
 {
    int   idx, err = MP_OKAY;
