@@ -62,6 +62,7 @@
 #include <wolfssl/wolfcrypt/rsa.h>
 #include <wolfssl/wolfcrypt/asn.h>
 #include <wolfssl/wolfcrypt/ripemd.h>
+#include <wolfssl/wolfcrypt/cmac.h>
 #ifdef HAVE_ECC
     #include <wolfssl/wolfcrypt/ecc.h>
 #endif
@@ -157,6 +158,7 @@ void bench_sha256(void);
 void bench_sha384(void);
 void bench_sha512(void);
 void bench_ripemd(void);
+void bench_cmac(void);
 
 void bench_rsa(void);
 void bench_rsaKeyGen(void);
@@ -373,6 +375,9 @@ int benchmark_test(void *args)
 #endif
 #ifdef HAVE_BLAKE2
     bench_blake2();
+#endif
+#ifdef WOLFSSL_CMAC
+    bench_cmac();
 #endif
 
     printf("\n");
@@ -1316,6 +1321,55 @@ void bench_blake2(void)
     printf("\n");
 }
 #endif
+
+
+#ifdef WOLFSSL_CMAC
+
+void bench_cmac(void)
+{
+    Cmac    cmac;
+    byte    digest[AES_BLOCK_SIZE];
+    word32  digestSz = sizeof(digest);
+    double  start, total, persec;
+    int     i, ret;
+
+    ret = wc_InitCmac(&cmac, key, 16, WC_CMAC_AES, NULL);
+    if (ret != 0) {
+        printf("InitCmac failed, ret = %d\n", ret);
+        return;
+    }
+    start = current_time(1);
+    BEGIN_INTEL_CYCLES
+
+    for(i = 0; i < numBlocks; i++) {
+        ret = wc_CmacUpdate(&cmac, plain, sizeof(plain));
+        if (ret != 0) {
+            printf("CmacUpdate failed, ret = %d\n", ret);
+            return;
+        }
+    }
+
+    ret = wc_CmacFinal(&cmac, digest, &digestSz);
+    if (ret != 0) {
+        printf("CmacFinal failed, ret = %d\n", ret);
+        return;
+    }
+
+    END_INTEL_CYCLES
+    total = current_time(0) - start;
+    persec = 1 / total * numBlocks;
+#ifdef BENCH_EMBEDDED
+    /* since using kB, convert to MB/s */
+    persec = persec / 1024;
+#endif
+
+    printf("AES-CMAC %d %s took %5.3f seconds, %8.3f MB/s", numBlocks,
+                                              blockType, total, persec);
+    SHOW_INTEL_CYCLES
+    printf("\n");
+}
+
+#endif /* WOLFSSL_CMAC */
 
 
 #ifndef NO_RSA

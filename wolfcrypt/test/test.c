@@ -49,6 +49,7 @@
 #include <wolfssl/wolfcrypt/rsa.h>
 #include <wolfssl/wolfcrypt/des3.h>
 #include <wolfssl/wolfcrypt/aes.h>
+#include <wolfssl/wolfcrypt/cmac.h>
 #include <wolfssl/wolfcrypt/poly1305.h>
 #include <wolfssl/wolfcrypt/camellia.h>
 #include <wolfssl/wolfcrypt/hmac.h>
@@ -180,6 +181,7 @@ int  chacha20_poly1305_aead_test(void);
 int  des_test(void);
 int  des3_test(void);
 int  aes_test(void);
+int  cmac_test(void);
 int  poly1305_test(void);
 int  aesgcm_test(void);
 int  gmac_test(void);
@@ -580,6 +582,13 @@ int wolfcrypt_test(void* args)
         return err_sys("ED25519  test failed!\n", ret);
     else
         printf( "ED25519  test passed!\n");
+#endif
+
+#if defined(WOLFSSL_CMAC) && !defined(NO_AES)
+    if ( (ret = cmac_test()) != 0)
+        return err_sys("CMAC     test failed!\n", ret);
+    else
+        printf( "CMAC     test passed!\n");
 #endif
 
 #ifdef HAVE_LIBZ
@@ -2907,6 +2916,7 @@ int aes_test(void)
 
     return ret;
 }
+
 
 #ifdef HAVE_AESGCM
 int aesgcm_test(void)
@@ -7613,6 +7623,193 @@ int ed25519_test(void)
 }
 #endif /* HAVE_ED25519 */
 
+
+#if defined(WOLFSSL_CMAC) && !defined(NO_AES)
+ 
+typedef struct CMAC_Test_Case {
+    int type;
+    int partial;
+    const byte* m;
+    word32 mSz;
+    const byte* k;
+    word32 kSz;
+    const byte* t;
+    word32 tSz;
+} CMAC_Test_Case;
+
+int cmac_test(void)
+{
+    const byte k128[] =
+    {
+        0x2b, 0x7e, 0x15, 0x16, 0x28, 0xae, 0xd2, 0xa6,
+        0xab, 0xf7, 0x15, 0x88, 0x09, 0xcf, 0x4f, 0x3c
+    };
+    const byte k192[] =
+    {
+        0x8e, 0x73, 0xb0, 0xf7, 0xda, 0x0e, 0x64, 0x52,
+        0xc8, 0x10, 0xf3, 0x2b, 0x80, 0x90, 0x79, 0xe5,
+        0x62, 0xf8, 0xea, 0xd2, 0x52, 0x2c, 0x6b, 0x7b
+    };
+    const byte k256[] =
+    {
+        0x60, 0x3d, 0xeb, 0x10, 0x15, 0xca, 0x71, 0xbe,
+        0x2b, 0x73, 0xae, 0xf0, 0x85, 0x7d, 0x77, 0x81,
+        0x1f, 0x35, 0x2c, 0x07, 0x3b, 0x61, 0x08, 0xd7,
+        0x2d, 0x98, 0x10, 0xa3, 0x09, 0x14, 0xdf, 0xf4
+    };
+    #define KLEN_128 (sizeof(k128))
+    #define KLEN_192 (sizeof(k192))
+    #define KLEN_256 (sizeof(k256))
+
+    const byte m[] =
+    {
+        0x6b, 0xc1, 0xbe, 0xe2, 0x2e, 0x40, 0x9f, 0x96,
+        0xe9, 0x3d, 0x7e, 0x11, 0x73, 0x93, 0x17, 0x2a,
+        0xae, 0x2d, 0x8a, 0x57, 0x1e, 0x03, 0xac, 0x9c,
+        0x9e, 0xb7, 0x6f, 0xac, 0x45, 0xaf, 0x8e, 0x51,
+        0x30, 0xc8, 0x1c, 0x46, 0xa3, 0x5c, 0xe4, 0x11,
+        0xe5, 0xfb, 0xc1, 0x19, 0x1a, 0x0a, 0x52, 0xef,
+        0xf6, 0x9f, 0x24, 0x45, 0xdf, 0x4f, 0x9b, 0x17,
+        0xad, 0x2b, 0x41, 0x7b, 0xe6, 0x6c, 0x37, 0x10
+    };
+    #define MLEN_0 (0)
+    #define MLEN_128 (128/8)
+    #define MLEN_320 (320/8)
+    #define MLEN_319 (MLEN_320 - 1)
+    #define MLEN_512 (512/8)
+
+    const byte t128_0[] =
+    {
+        0xbb, 0x1d, 0x69, 0x29, 0xe9, 0x59, 0x37, 0x28,
+        0x7f, 0xa3, 0x7d, 0x12, 0x9b, 0x75, 0x67, 0x46
+    };
+    const byte t128_128[] =
+    {
+        0x07, 0x0a, 0x16, 0xb4, 0x6b, 0x4d, 0x41, 0x44,
+        0xf7, 0x9b, 0xdd, 0x9d, 0xd0, 0x4a, 0x28, 0x7c
+    };
+    const byte t128_319[] =
+    {
+        0x2c, 0x17, 0x84, 0x4c, 0x93, 0x1c, 0x07, 0x95,
+        0x15, 0x92, 0x73, 0x0a, 0x34, 0xd0, 0xd9, 0xd2
+    };
+    const byte t128_320[] =
+    {
+        0xdf, 0xa6, 0x67, 0x47, 0xde, 0x9a, 0xe6, 0x30,
+        0x30, 0xca, 0x32, 0x61, 0x14, 0x97, 0xc8, 0x27
+    };
+    const byte t128_512[] =
+    {
+        0x51, 0xf0, 0xbe, 0xbf, 0x7e, 0x3b, 0x9d, 0x92,
+        0xfc, 0x49, 0x74, 0x17, 0x79, 0x36, 0x3c, 0xfe
+    };
+
+    const byte t192_0[] =
+    {
+        0xd1, 0x7d, 0xdf, 0x46, 0xad, 0xaa, 0xcd, 0xe5,
+        0x31, 0xca, 0xc4, 0x83, 0xde, 0x7a, 0x93, 0x67
+    };
+    const byte t192_128[] =
+    {
+        0x9e, 0x99, 0xa7, 0xbf, 0x31, 0xe7, 0x10, 0x90,
+        0x06, 0x62, 0xf6, 0x5e, 0x61, 0x7c, 0x51, 0x84
+    };
+    const byte t192_320[] =
+    {
+        0x8a, 0x1d, 0xe5, 0xbe, 0x2e, 0xb3, 0x1a, 0xad,
+        0x08, 0x9a, 0x82, 0xe6, 0xee, 0x90, 0x8b, 0x0e
+    };
+    const byte t192_512[] =
+    {
+        0xa1, 0xd5, 0xdf, 0x0e, 0xed, 0x79, 0x0f, 0x79,
+        0x4d, 0x77, 0x58, 0x96, 0x59, 0xf3, 0x9a, 0x11
+    };
+
+    const byte t256_0[] =
+    {
+        0x02, 0x89, 0x62, 0xf6, 0x1b, 0x7b, 0xf8, 0x9e,
+        0xfc, 0x6b, 0x55, 0x1f, 0x46, 0x67, 0xd9, 0x83
+    };
+    const byte t256_128[] =
+    {
+        0x28, 0xa7, 0x02, 0x3f, 0x45, 0x2e, 0x8f, 0x82,
+        0xbd, 0x4b, 0xf2, 0x8d, 0x8c, 0x37, 0xc3, 0x5c
+    };
+    const byte t256_320[] =
+    {
+        0xaa, 0xf3, 0xd8, 0xf1, 0xde, 0x56, 0x40, 0xc2,
+        0x32, 0xf5, 0xb1, 0x69, 0xb9, 0xc9, 0x11, 0xe6
+    };
+    const byte t256_512[] =
+    {
+        0xe1, 0x99, 0x21, 0x90, 0x54, 0x9f, 0x6e, 0xd5,
+        0x69, 0x6a, 0x2c, 0x05, 0x6c, 0x31, 0x54, 0x10
+    };
+
+    const CMAC_Test_Case testCases[] =
+    {
+        {WC_CMAC_AES, 0, m, MLEN_0, k128, KLEN_128, t128_0, AES_BLOCK_SIZE},
+        {WC_CMAC_AES, 0, m, MLEN_128, k128, KLEN_128, t128_128, AES_BLOCK_SIZE},
+        {WC_CMAC_AES, 0, m, MLEN_320, k128, KLEN_128, t128_320, AES_BLOCK_SIZE},
+        {WC_CMAC_AES, 0, m, MLEN_512, k128, KLEN_128, t128_512, AES_BLOCK_SIZE},
+        {WC_CMAC_AES, 5, m, MLEN_512, k128, KLEN_128, t128_512, AES_BLOCK_SIZE},
+        {WC_CMAC_AES, 0, m, MLEN_0, k192, KLEN_192, t192_0, AES_BLOCK_SIZE},
+        {WC_CMAC_AES, 0, m, MLEN_128, k192, KLEN_192, t192_128, AES_BLOCK_SIZE},
+        {WC_CMAC_AES, 0, m, MLEN_320, k192, KLEN_192, t192_320, AES_BLOCK_SIZE},
+        {WC_CMAC_AES, 0, m, MLEN_512, k192, KLEN_192, t192_512, AES_BLOCK_SIZE},
+        {WC_CMAC_AES, 0, m, MLEN_0, k256, KLEN_256, t256_0, AES_BLOCK_SIZE},
+        {WC_CMAC_AES, 0, m, MLEN_128, k256, KLEN_256, t256_128, AES_BLOCK_SIZE},
+        {WC_CMAC_AES, 0, m, MLEN_320, k256, KLEN_256, t256_320, AES_BLOCK_SIZE},
+        {WC_CMAC_AES, 0, m, MLEN_512, k256, KLEN_256, t256_512, AES_BLOCK_SIZE},
+        {WC_CMAC_AES, 0, m, MLEN_319, k128, KLEN_128, t128_319, AES_BLOCK_SIZE}
+    };
+
+    Cmac cmac;
+    byte tag[AES_BLOCK_SIZE];
+    const CMAC_Test_Case* tc;
+    word32 i, tagSz;
+
+    for (i = 0, tc = testCases;
+         i < sizeof(testCases)/sizeof(CMAC_Test_Case);
+         i++, tc++) {
+
+        XMEMSET(tag, 0, sizeof(tag));
+        tagSz = AES_BLOCK_SIZE;
+        if (wc_InitCmac(&cmac, tc->k, tc->kSz, tc->type, NULL) != 0)
+            return -4033;
+        if (tc->partial) {
+            if (wc_CmacUpdate(&cmac, tc->m,
+                                 tc->mSz/2 - tc->partial) != 0)
+                return -4034;
+            if (wc_CmacUpdate(&cmac, tc->m + tc->mSz/2 - tc->partial,
+                                 tc->mSz/2 + tc->partial) != 0)
+                return -4035;
+        }
+        else {
+            if (wc_CmacUpdate(&cmac, tc->m, tc->mSz) != 0)
+                return -4034;
+        }
+        if (wc_CmacFinal(&cmac, tag, &tagSz) != 0)
+            return -4036;
+        if (XMEMCMP(tag, tc->t, AES_BLOCK_SIZE) != 0)
+            return -4037;
+
+        XMEMSET(tag, 0, sizeof(tag));
+        tagSz = sizeof(tag);
+        if (wc_AesCmacGenerate(tag, &tagSz, tc->m, tc->mSz,
+                               tc->k, tc->kSz) != 0)
+            return -4038;
+        if (XMEMCMP(tag, tc->t, AES_BLOCK_SIZE) != 0)
+            return -4039;
+        if (wc_AesCmacVerify(tc->t, tc->tSz, tc->m, tc->mSz,
+                             tc->k, tc->kSz) != 0)
+            return -4040;
+    }
+
+    return 0;
+}
+
+#endif /* NO_AES && WOLFSSL_CMAC */
 
 #ifdef HAVE_LIBZ
 

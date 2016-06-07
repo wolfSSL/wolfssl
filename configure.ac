@@ -1256,6 +1256,19 @@ fi
 AM_CONDITIONAL([BUILD_SHA], [test "x$ENABLED_SHA" = "xyes"])
 
 
+# CMAC
+AC_ARG_ENABLE([cmac],
+    [AS_HELP_STRING([--enable-cmac],[Enable CMAC (default: disabled)])],
+    [ ENABLED_CMAC=$enableval ],
+    [ ENABLED_CMAC=no ]
+    )
+
+AS_IF([test "x$ENABLED_CMAC" = "xyes"],
+      [AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_CMAC -DWOLFSSL_AES_DIRECT"])
+
+AM_CONDITIONAL([BUILD_CMAC], [test "x$ENABLED_CMAC" = "xyes"])
+
+
 # Web Server Build
 AC_ARG_ENABLE([webserver],
     [  --enable-webserver      Enable Web Server (default: disabled)],
@@ -2672,6 +2685,11 @@ AS_IF([test "x$ENABLED_SNIFFER" = "xyes" && \
        test "x$ENABLED_RSA" = "xno"],
       [AC_MSG_ERROR([please enable rsa if enabling sniffer.])])
 
+# CMAC currently requires AES.
+AS_IF([test "x$ENABLED_CMAC" = "xyes" && \
+       test "x$ENABLED_AES" = "xno"],
+      [AC_MSG_ERROR([cannot use CMAC without AES.])])
+
 ################################################################################
 # Update CFLAGS based on options                                               #
 ################################################################################
@@ -2914,6 +2932,7 @@ echo "   * RIPEMD:                     $ENABLED_RIPEMD"
 echo "   * SHA:                        $ENABLED_SHA"
 echo "   * SHA-512:                    $ENABLED_SHA512"
 echo "   * BLAKE2:                     $ENABLED_BLAKE2"
+echo "   * CMAC:                       $ENABLED_CMAC"
 echo "   * keygen:                     $ENABLED_KEYGEN"
 echo "   * certgen:                    $ENABLED_CERTGEN"
 echo "   * certreq:                    $ENABLED_CERTREQ"
