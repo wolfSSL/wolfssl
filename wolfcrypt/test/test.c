@@ -3974,7 +3974,7 @@ int certext_test(void)
     byte kid_ca[] = "\x33\xD8\x45\x66\xD7\x68\x87\x18\x7E\x54"
                     "\x0D\x70\x27\x91\xC7\x26\xD7\x85\x65\xC0";
 
-    tmp = (byte*)TEST_XMALLOC(FOURK_BUF, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    tmp = (byte*)TEST_XMALLOC(FOURK_BUF, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     if (tmp == NULL)
         return -200;
 
@@ -4325,7 +4325,7 @@ int rsa_test(void)
         ret = wc_RsaPrivateDecrypt_ex(out, ret, plain, sizeof(plain), &key,
            WC_RSA_OAEP_PAD, WC_HASH_TYPE_SHA256, WC_MGF1SHA256, in, sizeof(in));
         if (ret > 0) { /* should fail */
-            TEST_XFREE(tmp, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             return -252;
         }
         #endif /* NO_SHA*/
@@ -4461,7 +4461,7 @@ int rsa_test(void)
         FILE*  keyFile;
         FILE*  pemFile;
 
-        ret = wc_InitRsaKey(&genKey, 0);
+        ret = wc_InitRsaKey(&genKey, HEAP_HINT);
         if (ret != 0) {
             TEST_XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             return -300;
@@ -4472,13 +4472,13 @@ int rsa_test(void)
             return -301;
         }
 
-        der = (byte*)TEST_XMALLOC(FOURK_BUF, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        der = (byte*)TEST_XMALLOC(FOURK_BUF, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
         if (der == NULL) {
             TEST_XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             wc_FreeRsaKey(&genKey);
             return -307;
         }
-        pem = (byte*)TEST_XMALLOC(FOURK_BUF, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        pem = (byte*)TEST_XMALLOC(FOURK_BUF, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
         if (pem == NULL) {
             TEST_XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             TEST_XFREE(der, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
@@ -4547,7 +4547,7 @@ int rsa_test(void)
             return -314;
         }
 
-        ret = wc_InitRsaKey(&derIn, 0);
+        ret = wc_InitRsaKey(&derIn, HEAP_HINT);
         if (ret != 0) {
             TEST_XFREE(der, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             TEST_XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
@@ -4587,12 +4587,13 @@ int rsa_test(void)
         DecodedCert decode;
 #endif
 
-        derCert = (byte*)TEST_XMALLOC(FOURK_BUF, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        derCert = (byte*)TEST_XMALLOC(FOURK_BUF, HEAP_HINT,
+                                                       DYNAMIC_TYPE_TMP_BUFFER);
         if (derCert == NULL) {
             TEST_XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             return -309;
         }
-        pem = (byte*)TEST_XMALLOC(FOURK_BUF, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        pem = (byte*)TEST_XMALLOC(FOURK_BUF, HEAP_HINT,DYNAMIC_TYPE_TMP_BUFFER);
         if (pem == NULL) {
             TEST_XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             TEST_XFREE(derCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
@@ -4653,7 +4654,7 @@ int rsa_test(void)
         }
 
 #ifdef WOLFSSL_TEST_CERT
-        InitDecodedCert(&decode, derCert, certSz, 0);
+        InitDecodedCert(&decode, derCert, certSz, HEAP_HINT);
         ret = ParseCert(&decode, CERT_TYPE, NO_VERIFY, 0);
         if (ret != 0) {
             TEST_XFREE(derCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
@@ -4731,12 +4732,13 @@ int rsa_test(void)
         DecodedCert decode;
 #endif
 
-        derCert = (byte*)TEST_XMALLOC(FOURK_BUF, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        derCert = (byte*)TEST_XMALLOC(FOURK_BUF, HEAP_HINT,
+                                                       DYNAMIC_TYPE_TMP_BUFFER);
         if (derCert == NULL) {
             TEST_XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             return -311;
         }
-        pem = (byte*)TEST_XMALLOC(FOURK_BUF, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        pem = (byte*)TEST_XMALLOC(FOURK_BUF, HEAP_HINT,DYNAMIC_TYPE_TMP_BUFFER);
         if (pem == NULL) {
             TEST_XFREE(derCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             TEST_XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
@@ -4755,7 +4757,7 @@ int rsa_test(void)
         bytes3 = fread(tmp, 1, FOURK_BUF, file3);
         fclose(file3);
 
-        ret = wc_InitRsaKey(&caKey, 0);
+        ret = wc_InitRsaKey(&caKey, HEAP_HINT);
         if (ret != 0) {
             TEST_XFREE(derCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             TEST_XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
@@ -4845,7 +4847,7 @@ int rsa_test(void)
         }
 
 #ifdef WOLFSSL_TEST_CERT
-        InitDecodedCert(&decode, derCert, certSz, 0);
+        InitDecodedCert(&decode, derCert, certSz, HEAP_HINT);
         ret = ParseCert(&decode, CERT_TYPE, NO_VERIFY, 0);
         if (ret != 0) {
             TEST_XFREE(derCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
@@ -4935,12 +4937,13 @@ int rsa_test(void)
         DecodedCert decode;
 #endif
 
-        derCert = (byte*)TEST_XMALLOC(FOURK_BUF, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        derCert = (byte*)TEST_XMALLOC(FOURK_BUF, HEAP_HINT,
+                                                       DYNAMIC_TYPE_TMP_BUFFER);
         if (derCert == NULL) {
             TEST_XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             return -5311;
         }
-        pem = (byte*)TEST_XMALLOC(FOURK_BUF, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        pem = (byte*)TEST_XMALLOC(FOURK_BUF, HEAP_HINT,DYNAMIC_TYPE_TMP_BUFFER);
         if (pem == NULL) {
             TEST_XFREE(derCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             TEST_XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
@@ -5126,7 +5129,7 @@ int rsa_test(void)
             TEST_XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             TEST_XFREE(derCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             wc_ecc_free(&caKey);
-            XFREE(tmp, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             return -5412;
         }
         ret = (int)fwrite(pem, 1, pemSz, pemFile);
@@ -5139,8 +5142,8 @@ int rsa_test(void)
         }
 
         fclose(pemFile);
-        XFREE(pem, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        XFREE(derCert, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(derCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
         wc_ecc_free(&caKey);
     }
 #endif /* HAVE_ECC */
@@ -5160,12 +5163,13 @@ int rsa_test(void)
 #ifdef WOLFSSL_TEST_CERT
         DecodedCert decode;
 #endif
-        derCert = (byte*)TEST_XMALLOC(FOURK_BUF, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        derCert = (byte*)TEST_XMALLOC(FOURK_BUF, HEAP_HINT,
+                                                       DYNAMIC_TYPE_TMP_BUFFER);
         if (derCert == NULL) {
             TEST_XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             return -311;
         }
-        pem = (byte*)TEST_XMALLOC(FOURK_BUF, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        pem = (byte*)TEST_XMALLOC(FOURK_BUF, HEAP_HINT,DYNAMIC_TYPE_TMP_BUFFER);
         if (pem == NULL) {
             TEST_XFREE(derCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             TEST_XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
@@ -5315,7 +5319,7 @@ int rsa_test(void)
 
 
 #ifdef WOLFSSL_TEST_CERT
-        InitDecodedCert(&decode, derCert, certSz, 0);
+        InitDecodedCert(&decode, derCert, certSz, HEAP_HINT);
         ret = ParseCert(&decode, CERT_TYPE, NO_VERIFY, 0);
         if (ret != 0) {
             TEST_XFREE(derCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
@@ -5393,12 +5397,12 @@ int rsa_test(void)
         int         pemSz;
         FILE*       reqFile;
 
-        der = (byte*)TEST_XMALLOC(FOURK_BUF, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        der = (byte*)TEST_XMALLOC(FOURK_BUF, HEAP_HINT,DYNAMIC_TYPE_TMP_BUFFER);
         if (der == NULL) {
             TEST_XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             return -463;
         }
-        pem = (byte*)TEST_XMALLOC(FOURK_BUF, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        pem = (byte*)TEST_XMALLOC(FOURK_BUF, HEAP_HINT,DYNAMIC_TYPE_TMP_BUFFER);
         if (pem == NULL) {
             TEST_XFREE(der, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             TEST_XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
@@ -5703,12 +5707,12 @@ int dsa_test(void)
     ret = wc_MakeDsaKey(&rng, &genKey);
     if (ret != 0) return -363;
 
-    der = (byte*)TEST_XMALLOC(FOURK_BUF, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    der = (byte*)TEST_XMALLOC(FOURK_BUF, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     if (der == NULL) {
         wc_FreeDsaKey(&genKey);
         return -364;
     }
-    pem = (byte*)TEST_XMALLOC(FOURK_BUF, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    pem = (byte*)TEST_XMALLOC(FOURK_BUF, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     if (pem == NULL) {
         TEST_XFREE(der, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
         wc_FreeDsaKey(&genKey);
@@ -7740,8 +7744,8 @@ int compress_test(void)
     byte *c = NULL;
     byte *d = NULL;
 
-    c = TEST_XMALLOC(cSz * sizeof(byte), NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    d = TEST_XMALLOC(dSz * sizeof(byte), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    c = TEST_XMALLOC(cSz * sizeof(byte), HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    d = TEST_XMALLOC(dSz * sizeof(byte), HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
 
     /* follow calloc and initialize to 0 */
     XMEMSET(c, 0, cSz);

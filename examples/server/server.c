@@ -324,8 +324,10 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
 #endif
 
 #ifdef WOLFSSL_STATIC_MEMORY
-    #if defined(HAVE_ECC) && !defined(ALT_ECC_SIZE)
-        byte memory[200000];
+    #if (defined(HAVE_ECC) && !defined(ALT_ECC_SIZE)) \
+        || defined(SESSION_CERTS)
+        /* big enough to handle most cases including session certs */
+        byte memory[204000];
     #else
         byte memory[80000];
     #endif
@@ -340,7 +342,6 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     ourCert    = (char*)eccCert;
     ourKey     = (char*)eccKey;
 #endif
-    (void)trackMemory;
     (void)pkCallbacks;
     (void)needDH;
     (void)ourKey;
@@ -1107,6 +1108,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     (void) useNtruKey;
     (void) ourDhParam;
     (void) ourCert;
+    (void) trackMemory;
 #ifndef CYASSL_TIRTOS
     return 0;
 #endif

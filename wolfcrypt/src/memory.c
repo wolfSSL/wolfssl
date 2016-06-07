@@ -292,11 +292,12 @@ int FreeFixedIO(WOLFSSL_HEAP* heap, wc_Memory** io)
     if (heap == NULL) {
         WOLFSSL_MSG("No heap to return fixed IO too");
     }
-
-    /* put IO buffer back into IO pool */
-    (*io)->next = heap->io;
-    heap->io    = *io;
-    *io         = NULL;
+    else {
+        /* put IO buffer back into IO pool */
+        (*io)->next = heap->io;
+        heap->io    = *io;
+        *io         = NULL;
+    }
 
     return 1;
 }

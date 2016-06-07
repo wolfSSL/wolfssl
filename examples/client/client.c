@@ -608,7 +608,6 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     (void)resumeSz;
     (void)session;
     (void)sslResume;
-    (void)trackMemory;
     (void)atomicUser;
     (void)pkCallbacks;
     (void)scr;
@@ -1628,6 +1627,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     (void) verifyCert;
     (void) ourCert;
     (void) ourKey;
+    (void) trackMemory;
 
 #if !defined(WOLFSSL_TIRTOS)
     return 0;

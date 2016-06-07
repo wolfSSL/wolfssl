@@ -5829,6 +5829,11 @@ void wc_InitCert(Cert* cert)
 #ifdef WOLFSSL_CERT_REQ
     cert->challengePw[0] ='\0';
 #endif
+#ifdef WOLFSSL_HEAP_TEST
+    cert->heap = (void*)WOLFSSL_HEAP_TEST;
+#else
+    cert->heap = NULL;
+#endif
 }
 
 
@@ -9080,7 +9085,7 @@ static int DecodeCerts(byte* source,
 }
 
 static int DecodeBasicOcspResponse(byte* source, word32* ioIndex,
-                                      OcspResponse* resp, word32 size, void* cm)
+                          OcspResponse* resp, word32 size, void* cm, void* heap)
 {
     int length;
     word32 idx = *ioIndex;
@@ -9125,7 +9130,7 @@ static int DecodeBasicOcspResponse(byte* source, word32* ioIndex,
         if (DecodeCerts(source, &idx, resp, size) < 0)
             return ASN_PARSE_E;
 
-        InitDecodedCert(&cert, resp->cert, resp->certSz, 0);
+        InitDecodedCert(&cert, resp->cert, resp->certSz, heap);
         ret = ParseCertRelative(&cert, CERT_TYPE, VERIFY, cm);
         if (ret < 0)
             return ret;
@@ -9172,7 +9177,7 @@ void InitOcspResponse(OcspResponse* resp, CertStatus* status,
 }
 
 
-int OcspResponseDecode(OcspResponse* resp, void* cm)
+int OcspResponseDecode(OcspResponse* resp, void* cm, void* heap)
 {
     int length = 0;
     word32 idx = 0;
@@ -9216,7 +9221,7 @@ int OcspResponseDecode(OcspResponse* resp, void* cm)
     if (GetLength(source, &idx, &length, size) < 0)
         return ASN_PARSE_E;
 
-    if (DecodeBasicOcspResponse(source, &idx, resp, size, cm) < 0)
+    if (DecodeBasicOcspResponse(source, &idx, resp, size, cm, heap) < 0)
         return ASN_PARSE_E;
 
     return 0;
@@ -9342,7 +9347,8 @@ int EncodeOcspRequest(OcspRequest* req, byte* output, word32 size)
 }
 
 
-int InitOcspRequest(OcspRequest* req, DecodedCert* cert, byte useNonce)
+int InitOcspRequest(OcspRequest* req, DecodedCert* cert, byte useNonce,
+                                                                     void* heap)
 {
     WOLFSSL_ENTER("InitOcspRequest");
 
@@ -9350,11 +9356,11 @@ int InitOcspRequest(OcspRequest* req, DecodedCert* cert, byte useNonce)
         return BAD_FUNC_ARG;
 
     ForceZero(req, sizeof(OcspRequest));
+    req->heap = heap;
 
     if (cert) {
         XMEMCPY(req->issuerHash,    cert->issuerHash,    KEYID_SIZE);
         XMEMCPY(req->issuerKeyHash, cert->issuerKeyHash, KEYID_SIZE);
-        req->heap = cert->heap;
 
         req->serial = (byte*)XMALLOC(cert->serialSz, req->heap,
                                                      DYNAMIC_TYPE_OCSP_REQUEST);
@@ -9381,7 +9387,11 @@ int InitOcspRequest(OcspRequest* req, DecodedCert* cert, byte useNonce)
     if (useNonce) {
         WC_RNG rng;
 
+#ifdef WOLFSSL_STATIC_MEMORY
+        if (wc_InitRng_ex(&rng, req->heap) != 0) {
+#else
         if (wc_InitRng(&rng) != 0) {
+#endif
             WOLFSSL_MSG("\tCannot initialize RNG. Skipping the OSCP Nonce.");
         } else {
             if (wc_RNG_GenerateBlock(&rng, req->nonce, MAX_OCSP_NONCE_SZ) != 0)
@@ -9534,7 +9544,7 @@ void InitDecodedCRL(DecodedCRL* dcrl, void* heap)
     dcrl->totalCerts   = 0;
     dcrl->heap         = heap;
     #ifdef WOLFSSL_HEAP_TEST
-        dcrl->heap = (void)WOLFSSL_HEAP_TEST;
+        dcrl->heap = (void*)WOLFSSL_HEAP_TEST;
     #endif
 }
 

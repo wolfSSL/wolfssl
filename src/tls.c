@@ -784,9 +784,9 @@ static INLINE word16 TLSX_ToSemaphore(word16 type)
     ((semaphore)[(light) / 8] |= (byte) (0x01 << ((light) % 8)))
 
 /** Creates a new extension. */
-static TLSX* TLSX_New(TLSX_Type type, void* data)
+static TLSX* TLSX_New(TLSX_Type type, void* data, void* heap)
 {
-    TLSX* extension = (TLSX*)XMALLOC(sizeof(TLSX), NULL, DYNAMIC_TYPE_TLSX);
+    TLSX* extension = (TLSX*)XMALLOC(sizeof(TLSX), heap, DYNAMIC_TYPE_TLSX);
 
     if (extension) {
         extension->type = type;
@@ -802,9 +802,9 @@ static TLSX* TLSX_New(TLSX_Type type, void* data)
  * Creates a new extension and pushes it to the provided list.
  * Checks for duplicate extensions, keeps the newest.
  */
-static int TLSX_Push(TLSX** list, TLSX_Type type, void* data)
+static int TLSX_Push(TLSX** list, TLSX_Type type, void* data, void* heap)
 {
-    TLSX* extension = TLSX_New(type, data);
+    TLSX* extension = TLSX_New(type, data, heap);
 
     if (extension == NULL)
         return MEMORY_E;
@@ -821,7 +821,7 @@ static int TLSX_Push(TLSX** list, TLSX_Type type, void* data)
             extension->next = next->next;
             next->next = NULL;
 
-            TLSX_FreeAll(next);
+            TLSX_FreeAll(next, heap);
 
             /* there is no way to occur more than */
             /* two extensions of the same type.   */
@@ -853,7 +853,8 @@ void TLSX_SetResponse(WOLFSSL* ssl, TLSX_Type type)
 
 #ifdef HAVE_ALPN
 /** Creates a new ALPN object, providing protocol name to use. */
-static ALPN* TLSX_ALPN_New(char *protocol_name, word16 protocol_nameSz)
+static ALPN* TLSX_ALPN_New(char *protocol_name, word16 protocol_nameSz,
+                                                                     void* heap)
 {
     ALPN *alpn;
 
@@ -865,7 +866,7 @@ static ALPN* TLSX_ALPN_New(char *protocol_name, word16 protocol_nameSz)
         return NULL;
     }
 
-    alpn = (ALPN*)XMALLOC(sizeof(ALPN), 0, DYNAMIC_TYPE_TLSX);
+    alpn = (ALPN*)XMALLOC(sizeof(ALPN), heap, DYNAMIC_TYPE_TLSX);
     if (alpn == NULL) {
         WOLFSSL_MSG("Memory failure");
         return NULL;
@@ -875,10 +876,10 @@ static ALPN* TLSX_ALPN_New(char *protocol_name, word16 protocol_nameSz)
     alpn->negotiated = 0;
     alpn->options = 0;
 
-    alpn->protocol_name = XMALLOC(protocol_nameSz + 1, 0, DYNAMIC_TYPE_TLSX);
+    alpn->protocol_name = XMALLOC(protocol_nameSz + 1, heap, DYNAMIC_TYPE_TLSX);
     if (alpn->protocol_name == NULL) {
         WOLFSSL_MSG("Memory failure");
-        XFREE(alpn, 0, DYNAMIC_TYPE_TLSX);
+        XFREE(alpn, heap, DYNAMIC_TYPE_TLSX);
         return NULL;
     }
 
@@ -889,23 +890,25 @@ static ALPN* TLSX_ALPN_New(char *protocol_name, word16 protocol_nameSz)
 }
 
 /** Releases an ALPN object. */
-static void TLSX_ALPN_Free(ALPN *alpn)
+static void TLSX_ALPN_Free(ALPN *alpn, void* heap)
 {
+    (void)heap;
+
     if (alpn == NULL)
         return;
 
-    XFREE(alpn->protocol_name, 0, DYNAMIC_TYPE_TLSX);
-    XFREE(alpn, 0, DYNAMIC_TYPE_TLSX);
+    XFREE(alpn->protocol_name, heap, DYNAMIC_TYPE_TLSX);
+    XFREE(alpn, heap, DYNAMIC_TYPE_TLSX);
 }
 
 /** Releases all ALPN objects in the provided list. */
-static void TLSX_ALPN_FreeAll(ALPN *list)
+static void TLSX_ALPN_FreeAll(ALPN *list, void* heap)
 {
     ALPN* alpn;
 
     while ((alpn = list)) {
         list = alpn->next;
-        TLSX_ALPN_Free(alpn);
+        TLSX_ALPN_Free(alpn, heap);
     }
 }
 
@@ -970,7 +973,8 @@ static ALPN* TLSX_ALPN_Find(ALPN *list, char *protocol_name, word16 size)
 }
 
 /** Set the ALPN matching client and server requirements */
-static int TLSX_SetALPN(TLSX** extensions, const void* data, word16 size)
+static int TLSX_SetALPN(TLSX** extensions, const void* data, word16 size,
+                                                                     void* heap)
 {
     ALPN *alpn;
     int  ret;
@@ -978,7 +982,7 @@ static int TLSX_SetALPN(TLSX** extensions, const void* data, word16 size)
     if (extensions == NULL || data == NULL)
         return BAD_FUNC_ARG;
 
-    alpn = TLSX_ALPN_New((char *)data, size);
+    alpn = TLSX_ALPN_New((char *)data, size, heap);
     if (alpn == NULL) {
         WOLFSSL_MSG("Memory failure");
         return MEMORY_E;
@@ -986,9 +990,10 @@ static int TLSX_SetALPN(TLSX** extensions, const void* data, word16 size)
 
     alpn->negotiated = 1;
 
-    ret = TLSX_Push(extensions, TLSX_APPLICATION_LAYER_PROTOCOL, (void*)alpn);
+    ret = TLSX_Push(extensions, TLSX_APPLICATION_LAYER_PROTOCOL, (void*)alpn,
+                                                                          heap);
     if (ret != 0) {
-        TLSX_ALPN_Free(alpn);
+        TLSX_ALPN_Free(alpn, heap);
         return ret;
     }
 
@@ -1032,9 +1037,9 @@ static int TLSX_ALPN_ParseAndSet(WOLFSSL *ssl, byte *input, word16 length,
     /* keep the list sent by client */
     if (isRequest) {
         if (ssl->alpn_client_list != NULL)
-            XFREE(ssl->alpn_client_list, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(ssl->alpn_client_list, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
 
-        ssl->alpn_client_list = (char *)XMALLOC(size, NULL,
+        ssl->alpn_client_list = (char *)XMALLOC(size, ssl->heap,
                                                 DYNAMIC_TYPE_TMP_BUFFER);
         if (ssl->alpn_client_list == NULL)
             return MEMORY_ERROR;
@@ -1085,7 +1090,8 @@ static int TLSX_ALPN_ParseAndSet(WOLFSSL *ssl, byte *input, word16 length,
     /* set the matching negotiated protocol */
     r = TLSX_SetALPN(&ssl->extensions,
                      alpn->protocol_name,
-                     (word16)XSTRLEN(alpn->protocol_name));
+                     (word16)XSTRLEN(alpn->protocol_name),
+                     ssl->heap);
     if (r != SSL_SUCCESS) {
         WOLFSSL_MSG("TLSX_UseALPN failed");
         return BUFFER_ERROR;
@@ -1102,7 +1108,8 @@ static int TLSX_ALPN_ParseAndSet(WOLFSSL *ssl, byte *input, word16 length,
 }
 
 /** Add a protocol name to the list of accepted usable ones */
-int TLSX_UseALPN(TLSX** extensions, const void* data, word16 size, byte options)
+int TLSX_UseALPN(TLSX** extensions, const void* data, word16 size, byte options,
+                                                                     void* heap)
 {
     ALPN *alpn;
     TLSX *extension;
@@ -1111,7 +1118,7 @@ int TLSX_UseALPN(TLSX** extensions, const void* data, word16 size, byte options)
     if (extensions == NULL || data == NULL)
         return BAD_FUNC_ARG;
 
-    alpn = TLSX_ALPN_New((char *)data, size);
+    alpn = TLSX_ALPN_New((char *)data, size, heap);
     if (alpn == NULL) {
         WOLFSSL_MSG("Memory failure");
         return MEMORY_E;
@@ -1123,9 +1130,9 @@ int TLSX_UseALPN(TLSX** extensions, const void* data, word16 size, byte options)
     extension = TLSX_Find(*extensions, TLSX_APPLICATION_LAYER_PROTOCOL);
     if (extension == NULL) {
         ret = TLSX_Push(extensions, TLSX_APPLICATION_LAYER_PROTOCOL,
-                                                                   (void*)alpn);
+                                                             (void*)alpn, heap);
         if (ret != 0) {
-            TLSX_ALPN_Free(alpn);
+            TLSX_ALPN_Free(alpn, heap);
             return ret;
         }
     }
@@ -1192,7 +1199,7 @@ int TLSX_ALPN_GetRequest(TLSX* extensions, void** data, word16 *dataSz)
 
 #else /* HAVE_ALPN */
 
-#define ALPN_FREE_ALL(list)
+#define ALPN_FREE_ALL(list, heap)
 #define ALPN_GET_SIZE(list)     0
 #define ALPN_WRITE(a, b)        0
 #define ALPN_PARSE(a, b, c, d)  0
@@ -1206,9 +1213,9 @@ int TLSX_ALPN_GetRequest(TLSX* extensions, void** data, word16 *dataSz)
 #ifdef HAVE_SNI
 
 /** Creates a new SNI object. */
-static SNI* TLSX_SNI_New(byte type, const void* data, word16 size)
+static SNI* TLSX_SNI_New(byte type, const void* data, word16 size, void* heap)
 {
-    SNI* sni = (SNI*)XMALLOC(sizeof(SNI), NULL, DYNAMIC_TYPE_TLSX);
+    SNI* sni = (SNI*)XMALLOC(sizeof(SNI), heap, DYNAMIC_TYPE_TLSX);
 
     if (sni) {
         sni->type = type;
@@ -1221,19 +1228,19 @@ static SNI* TLSX_SNI_New(byte type, const void* data, word16 size)
 
         switch (sni->type) {
             case WOLFSSL_SNI_HOST_NAME:
-                sni->data.host_name = XMALLOC(size+1, NULL, DYNAMIC_TYPE_TLSX);
+                sni->data.host_name = XMALLOC(size+1, heap, DYNAMIC_TYPE_TLSX);
 
                 if (sni->data.host_name) {
                     XSTRNCPY(sni->data.host_name, (const char*)data, size);
                     sni->data.host_name[size] = 0;
                 } else {
-                    XFREE(sni, 0, DYNAMIC_TYPE_TLSX);
+                    XFREE(sni, heap, DYNAMIC_TYPE_TLSX);
                     sni = NULL;
                 }
             break;
 
             default: /* invalid type */
-                XFREE(sni, 0, DYNAMIC_TYPE_TLSX);
+                XFREE(sni, heap, DYNAMIC_TYPE_TLSX);
                 sni = NULL;
         }
     }
@@ -1242,27 +1249,28 @@ static SNI* TLSX_SNI_New(byte type, const void* data, word16 size)
 }
 
 /** Releases a SNI object. */
-static void TLSX_SNI_Free(SNI* sni)
+static void TLSX_SNI_Free(SNI* sni, void* heap)
 {
     if (sni) {
         switch (sni->type) {
             case WOLFSSL_SNI_HOST_NAME:
-                XFREE(sni->data.host_name, 0, DYNAMIC_TYPE_TLSX);
+                XFREE(sni->data.host_name, heap, DYNAMIC_TYPE_TLSX);
             break;
         }
 
-        XFREE(sni, 0, DYNAMIC_TYPE_TLSX);
+        XFREE(sni, heap, DYNAMIC_TYPE_TLSX);
     }
+    (void)heap;
 }
 
 /** Releases all SNI objects in the provided list. */
-static void TLSX_SNI_FreeAll(SNI* list)
+static void TLSX_SNI_FreeAll(SNI* list, void* heap)
 {
     SNI* sni;
 
     while ((sni = list)) {
         list = sni->next;
-        TLSX_SNI_Free(sni);
+        TLSX_SNI_Free(sni, heap);
     }
 }
 
@@ -1429,7 +1437,7 @@ static int TLSX_SNI_Parse(WOLFSSL* ssl, byte* input, word16 length,
 
                 if (matched || sni->options & WOLFSSL_SNI_ANSWER_ON_MISMATCH) {
                     int r = TLSX_UseSNI(&ssl->extensions,
-                                                    type, input + offset, size);
+                                         type, input + offset, size, ssl->heap);
 
                     if (r != SSL_SUCCESS)
                         return r; /* throws error. */
@@ -1510,7 +1518,8 @@ static int TLSX_SNI_VerifyParse(WOLFSSL* ssl,  byte isRequest)
     return 0;
 }
 
-int TLSX_UseSNI(TLSX** extensions, byte type, const void* data, word16 size)
+int TLSX_UseSNI(TLSX** extensions, byte type, const void* data, word16 size,
+                                                                     void* heap)
 {
     TLSX* extension = TLSX_Find(*extensions, TLSX_SERVER_NAME);
     SNI*  sni       = NULL;
@@ -1518,13 +1527,13 @@ int TLSX_UseSNI(TLSX** extensions, byte type, const void* data, word16 size)
     if (extensions == NULL || data == NULL)
         return BAD_FUNC_ARG;
 
-    if ((sni = TLSX_SNI_New(type, data, size)) == NULL)
+    if ((sni = TLSX_SNI_New(type, data, size, heap)) == NULL)
         return MEMORY_E;
 
     if (!extension) {
-        int ret = TLSX_Push(extensions, TLSX_SERVER_NAME, (void*)sni);
+        int ret = TLSX_Push(extensions, TLSX_SERVER_NAME, (void*)sni, heap);
         if (ret != 0) {
-            TLSX_SNI_Free(sni);
+            TLSX_SNI_Free(sni, heap);
             return ret;
         }
     }
@@ -1539,7 +1548,7 @@ int TLSX_UseSNI(TLSX** extensions, byte type, const void* data, word16 size)
                 SNI *next = sni->next;
 
                 sni->next = next->next;
-                TLSX_SNI_Free(next);
+                TLSX_SNI_Free(next, heap);
 
                 /* there is no way to occur more than */
                 /* two SNIs of the same type.         */
@@ -1741,7 +1750,7 @@ int TLSX_SNI_GetFromBuffer(const byte* clientHello, word32 helloSz,
 
 #else
 
-#define SNI_FREE_ALL(list)
+#define SNI_FREE_ALL(list, heap)
 #define SNI_GET_SIZE(list)     0
 #define SNI_WRITE(a, b)        0
 #define SNI_PARSE(a, b, c, d)  0
@@ -1785,7 +1794,7 @@ static int TLSX_MFL_Parse(WOLFSSL* ssl, byte* input, word16 length,
 
 #ifndef NO_WOLFSSL_SERVER
     if (isRequest) {
-        int r = TLSX_UseMaxFragment(&ssl->extensions, *input);
+        int r = TLSX_UseMaxFragment(&ssl->extensions, *input, ssl->heap);
 
         if (r != SSL_SUCCESS) return r; /* throw error */
 
@@ -1796,7 +1805,7 @@ static int TLSX_MFL_Parse(WOLFSSL* ssl, byte* input, word16 length,
     return 0;
 }
 
-int TLSX_UseMaxFragment(TLSX** extensions, byte mfl)
+int TLSX_UseMaxFragment(TLSX** extensions, byte mfl, void* heap)
 {
     byte* data = NULL;
     int   ret  = 0;
@@ -1807,14 +1816,15 @@ int TLSX_UseMaxFragment(TLSX** extensions, byte mfl)
     if (mfl < WOLFSSL_MFL_2_9 || WOLFSSL_MFL_2_13 < mfl)
         return BAD_FUNC_ARG;
 
-    if ((data = XMALLOC(ENUM_LEN, NULL, DYNAMIC_TYPE_TLSX)) == NULL)
+    if ((data = XMALLOC(ENUM_LEN, heap, DYNAMIC_TYPE_TLSX)) == NULL)
         return MEMORY_E;
 
     data[0] = mfl;
 
     /* push new MFL extension. */
-    if ((ret = TLSX_Push(extensions, TLSX_MAX_FRAGMENT_LENGTH, data)) != 0) {
-        XFREE(data, 0, DYNAMIC_TYPE_TLSX);
+    if ((ret = TLSX_Push(extensions, TLSX_MAX_FRAGMENT_LENGTH, data, heap))
+                                                                         != 0) {
+        XFREE(data, heap, DYNAMIC_TYPE_TLSX);
         return ret;
     }
 
@@ -1822,14 +1832,14 @@ int TLSX_UseMaxFragment(TLSX** extensions, byte mfl)
 }
 
 
-#define MFL_FREE_ALL(data) XFREE(data, 0, DYNAMIC_TYPE_TLSX)
+#define MFL_FREE_ALL(data, heap) XFREE(data, (heap), DYNAMIC_TYPE_TLSX)
 #define MFL_GET_SIZE(data) ENUM_LEN
 #define MFL_WRITE          TLSX_MFL_Write
 #define MFL_PARSE          TLSX_MFL_Parse
 
 #else
 
-#define MFL_FREE_ALL(a)
+#define MFL_FREE_ALL(a, b)
 #define MFL_GET_SIZE(a)       0
 #define MFL_WRITE(a, b)       0
 #define MFL_PARSE(a, b, c, d) 0
@@ -1852,7 +1862,7 @@ static int TLSX_THM_Parse(WOLFSSL* ssl, byte* input, word16 length,
 
 #ifndef NO_WOLFSSL_SERVER
     if (isRequest) {
-        int r = TLSX_UseTruncatedHMAC(&ssl->extensions);
+        int r = TLSX_UseTruncatedHMAC(&ssl->extensions, ssl->heap);
 
         if (r != SSL_SUCCESS)
             return r; /* throw error */
@@ -1866,14 +1876,14 @@ static int TLSX_THM_Parse(WOLFSSL* ssl, byte* input, word16 length,
     return 0;
 }
 
-int TLSX_UseTruncatedHMAC(TLSX** extensions)
+int TLSX_UseTruncatedHMAC(TLSX** extensions, void* heap)
 {
     int ret = 0;
 
     if (extensions == NULL)
         return BAD_FUNC_ARG;
 
-    if ((ret = TLSX_Push(extensions, TLSX_TRUNCATED_HMAC, NULL)) != 0)
+    if ((ret = TLSX_Push(extensions, TLSX_TRUNCATED_HMAC, NULL, heap)) != 0)
         return ret;
 
     return SSL_SUCCESS;
@@ -1893,7 +1903,7 @@ int TLSX_UseTruncatedHMAC(TLSX** extensions)
 
 #ifdef HAVE_CERTIFICATE_STATUS_REQUEST
 
-static void TLSX_CSR_Free(CertificateStatusRequest* csr)
+static void TLSX_CSR_Free(CertificateStatusRequest* csr, void* heap)
 {
     switch (csr->status_type) {
         case WOLFSSL_CSR_OCSP:
@@ -1901,7 +1911,8 @@ static void TLSX_CSR_Free(CertificateStatusRequest* csr)
         break;
     }
 
-    XFREE(csr, NULL, DYNAMIC_TYPE_TLSX);
+    XFREE(csr, heap, DYNAMIC_TYPE_TLSX);
+    (void)heap;
 }
 
 static word16 TLSX_CSR_GetSize(CertificateStatusRequest* csr, byte isRequest)
@@ -1991,7 +2002,7 @@ static int TLSX_CSR_Parse(WOLFSSL* ssl, byte* input, word16 length,
 
             /* enable extension at ssl level */
             ret = TLSX_UseCertificateStatusRequest(&ssl->extensions,
-                                                csr->status_type, csr->options);
+                                     csr->status_type, csr->options, ssl->heap);
             if (ret != SSL_SUCCESS)
                 return ret;
 
@@ -2063,7 +2074,7 @@ static int TLSX_CSR_Parse(WOLFSSL* ssl, byte* input, word16 length,
 
         /* accept the first good status_type and return */
         ret = TLSX_UseCertificateStatusRequest(&ssl->extensions, status_type,
-                                                                             0);
+                                                                  0, ssl->heap);
         if (ret != SSL_SUCCESS)
             return ret; /* throw error */
 
@@ -2076,7 +2087,7 @@ static int TLSX_CSR_Parse(WOLFSSL* ssl, byte* input, word16 length,
     return 0;
 }
 
-int TLSX_CSR_InitRequest(TLSX* extensions, DecodedCert* cert)
+int TLSX_CSR_InitRequest(TLSX* extensions, DecodedCert* cert, void* heap)
 {
     TLSX* extension = TLSX_Find(extensions, TLSX_STATUS_REQUEST);
     CertificateStatusRequest* csr = extension ? extension->data : NULL;
@@ -2091,7 +2102,8 @@ int TLSX_CSR_InitRequest(TLSX* extensions, DecodedCert* cert)
                 /* preserve nonce */
                 XMEMCPY(nonce, csr->request.ocsp.nonce, nonceSz);
 
-                if ((ret = InitOcspRequest(&csr->request.ocsp, cert, 0)) != 0)
+                if ((ret = InitOcspRequest(&csr->request.ocsp, cert, 0, heap))
+                                                                           != 0)
                     return ret;
 
                 /* restore nonce */
@@ -2141,7 +2153,7 @@ int TLSX_CSR_ForceRequest(WOLFSSL* ssl)
 }
 
 int TLSX_UseCertificateStatusRequest(TLSX** extensions, byte status_type,
-                                                                   byte options)
+                                                       byte options, void* heap)
 {
     CertificateStatusRequest* csr = NULL;
     int ret = 0;
@@ -2150,7 +2162,7 @@ int TLSX_UseCertificateStatusRequest(TLSX** extensions, byte status_type,
         return BAD_FUNC_ARG;
 
     csr = (CertificateStatusRequest*)
-             XMALLOC(sizeof(CertificateStatusRequest), NULL, DYNAMIC_TYPE_TLSX);
+             XMALLOC(sizeof(CertificateStatusRequest), heap, DYNAMIC_TYPE_TLSX);
     if (!csr)
         return MEMORY_E;
 
@@ -2164,7 +2176,11 @@ int TLSX_UseCertificateStatusRequest(TLSX** extensions, byte status_type,
             if (options & WOLFSSL_CSR_OCSP_USE_NONCE) {
                 WC_RNG rng;
 
+#ifdef WOLFSSL_STATIC_MEMORY
+                if (wc_InitRng_ex(&rng, heap) == 0) {
+#else
                 if (wc_InitRng(&rng) == 0) {
+#endif
                     if (wc_RNG_GenerateBlock(&rng, csr->request.ocsp.nonce,
                                                         MAX_OCSP_NONCE_SZ) == 0)
                         csr->request.ocsp.nonceSz = MAX_OCSP_NONCE_SZ;
@@ -2175,8 +2191,8 @@ int TLSX_UseCertificateStatusRequest(TLSX** extensions, byte status_type,
         break;
     }
 
-    if ((ret = TLSX_Push(extensions, TLSX_STATUS_REQUEST, csr)) != 0) {
-        XFREE(csr, NULL, DYNAMIC_TYPE_TLSX);
+    if ((ret = TLSX_Push(extensions, TLSX_STATUS_REQUEST, csr, heap)) != 0) {
+        XFREE(csr, heap, DYNAMIC_TYPE_TLSX);
         return ret;
     }
 
@@ -2190,7 +2206,7 @@ int TLSX_UseCertificateStatusRequest(TLSX** extensions, byte status_type,
 
 #else
 
-#define CSR_FREE_ALL(data)
+#define CSR_FREE_ALL(data, heap)
 #define CSR_GET_SIZE(a, b)    0
 #define CSR_WRITE(a, b, c)    0
 #define CSR_PARSE(a, b, c, d) 0
@@ -2203,7 +2219,7 @@ int TLSX_UseCertificateStatusRequest(TLSX** extensions, byte status_type,
 
 #ifdef HAVE_CERTIFICATE_STATUS_REQUEST_V2
 
-static void TLSX_CSR2_FreeAll(CertificateStatusRequestItemV2* csr2)
+static void TLSX_CSR2_FreeAll(CertificateStatusRequestItemV2* csr2, void* heap)
 {
     CertificateStatusRequestItemV2* next;
 
@@ -2218,8 +2234,9 @@ static void TLSX_CSR2_FreeAll(CertificateStatusRequestItemV2* csr2)
             break;
         }
 
-        XFREE(csr2, NULL, DYNAMIC_TYPE_TLSX);
+        XFREE(csr2, heap, DYNAMIC_TYPE_TLSX);
     }
+    (void)heap;
 }
 
 static word16 TLSX_CSR2_GetSize(CertificateStatusRequestItemV2* csr2,
@@ -2336,7 +2353,7 @@ static int TLSX_CSR2_Parse(WOLFSSL* ssl, byte* input, word16 length,
             /* enable extension at ssl level */
             for (; csr2; csr2 = csr2->next) {
                 ret = TLSX_UseCertificateStatusRequestV2(&ssl->extensions,
-                                              csr2->status_type, csr2->options);
+                                   csr2->status_type, csr2->options, ssl->heap);
                 if (ret != SSL_SUCCESS)
                     return ret;
 
@@ -2436,7 +2453,7 @@ static int TLSX_CSR2_Parse(WOLFSSL* ssl, byte* input, word16 length,
 
             /* accept the first good status_type and return */
             ret = TLSX_UseCertificateStatusRequestV2(&ssl->extensions,
-                                                                status_type, 0);
+                                                     status_type, 0, ssl->heap);
             if (ret != SSL_SUCCESS)
                 return ret; /* throw error */
 
@@ -2451,7 +2468,8 @@ static int TLSX_CSR2_Parse(WOLFSSL* ssl, byte* input, word16 length,
     return 0;
 }
 
-int TLSX_CSR2_InitRequests(TLSX* extensions, DecodedCert* cert, byte isPeer)
+int TLSX_CSR2_InitRequests(TLSX* extensions, DecodedCert* cert, byte isPeer,
+                                                                     void* heap)
 {
     TLSX* extension = TLSX_Find(extensions, TLSX_STATUS_REQUEST_V2);
     CertificateStatusRequestItemV2* csr2 = extension ? extension->data : NULL;
@@ -2474,7 +2492,8 @@ int TLSX_CSR2_InitRequests(TLSX* extensions, DecodedCert* cert, byte isPeer)
                     XMEMCPY(nonce, csr2->request.ocsp[0].nonce, nonceSz);
 
                     if ((ret = InitOcspRequest(
-                            &csr2->request.ocsp[csr2->requests], cert, 0)) != 0)
+                                      &csr2->request.ocsp[csr2->requests], cert,
+                                                                 0, heap)) != 0)
                         return ret;
 
                     /* restore nonce */
@@ -2539,7 +2558,7 @@ int TLSX_CSR2_ForceRequest(WOLFSSL* ssl)
 }
 
 int TLSX_UseCertificateStatusRequestV2(TLSX** extensions, byte status_type,
-                                                                   byte options)
+                                                       byte options, void* heap)
 {
     TLSX* extension = NULL;
     CertificateStatusRequestItemV2* csr2 = NULL;
@@ -2553,7 +2572,7 @@ int TLSX_UseCertificateStatusRequestV2(TLSX** extensions, byte status_type,
         return BAD_FUNC_ARG;
 
     csr2 = (CertificateStatusRequestItemV2*)
-       XMALLOC(sizeof(CertificateStatusRequestItemV2), NULL, DYNAMIC_TYPE_TLSX);
+       XMALLOC(sizeof(CertificateStatusRequestItemV2), heap, DYNAMIC_TYPE_TLSX);
     if (!csr2)
         return MEMORY_E;
 
@@ -2569,7 +2588,11 @@ int TLSX_UseCertificateStatusRequestV2(TLSX** extensions, byte status_type,
             if (options & WOLFSSL_CSR2_OCSP_USE_NONCE) {
                 WC_RNG rng;
 
+#ifdef WOLFSSL_STATIC_MEMORY
+                if (wc_InitRng_ex(&rng, heap) == 0) {
+#else
                 if (wc_InitRng(&rng) == 0) {
+#endif
                     if (wc_RNG_GenerateBlock(&rng, csr2->request.ocsp[0].nonce,
                                                         MAX_OCSP_NONCE_SZ) == 0)
                         csr2->request.ocsp[0].nonceSz = MAX_OCSP_NONCE_SZ;
@@ -2589,8 +2612,8 @@ int TLSX_UseCertificateStatusRequestV2(TLSX** extensions, byte status_type,
 
         last->next = csr2;
     }
-    else if ((ret = TLSX_Push(extensions, TLSX_STATUS_REQUEST_V2, csr2))) {
-        XFREE(csr2, NULL, DYNAMIC_TYPE_TLSX);
+    else if ((ret = TLSX_Push(extensions, TLSX_STATUS_REQUEST_V2, csr2,heap))) {
+        XFREE(csr2, heap, DYNAMIC_TYPE_TLSX);
         return ret;
     }
 
@@ -2604,7 +2627,7 @@ int TLSX_UseCertificateStatusRequestV2(TLSX** extensions, byte status_type,
 
 #else
 
-#define CSR2_FREE_ALL(data)
+#define CSR2_FREE_ALL(data, heap)
 #define CSR2_GET_SIZE(a, b)    0
 #define CSR2_WRITE(a, b, c)    0
 #define CSR2_PARSE(a, b, c, d) 0
@@ -2622,24 +2645,26 @@ int TLSX_UseCertificateStatusRequestV2(TLSX** extensions, byte status_type,
        Use --enable-ecc in the configure script or define HAVE_ECC.
 #endif
 
-static void TLSX_EllipticCurve_FreeAll(EllipticCurve* list)
+static void TLSX_EllipticCurve_FreeAll(EllipticCurve* list, void* heap)
 {
     EllipticCurve* curve;
 
     while ((curve = list)) {
         list = curve->next;
-        XFREE(curve, 0, DYNAMIC_TYPE_TLSX);
+        XFREE(curve, heap, DYNAMIC_TYPE_TLSX);
     }
+    (void)heap;
 }
 
-static int TLSX_EllipticCurve_Append(EllipticCurve** list, word16 name)
+static int TLSX_EllipticCurve_Append(EllipticCurve** list, word16 name,
+                                                                     void* heap)
 {
     EllipticCurve* curve = NULL;
 
     if (list == NULL)
         return BAD_FUNC_ARG;
 
-    curve = (EllipticCurve*)XMALLOC(sizeof(EllipticCurve), NULL,
+    curve = (EllipticCurve*)XMALLOC(sizeof(EllipticCurve), heap,
                                                              DYNAMIC_TYPE_TLSX);
     if (curve == NULL)
         return MEMORY_E;
@@ -2728,7 +2753,7 @@ static int TLSX_EllipticCurve_Parse(WOLFSSL* ssl, byte* input, word16 length,
         ato16(input + offset, &name);
         offset -= OPAQUE16_LEN;
 
-        r = TLSX_UseSupportedCurve(&ssl->extensions, name);
+        r = TLSX_UseSupportedCurve(&ssl->extensions, name, ssl->heap);
 
         if (r != SSL_SUCCESS) return r; /* throw error */
     }
@@ -2873,7 +2898,7 @@ int TLSX_ValidateEllipticCurves(WOLFSSL* ssl, byte first, byte second) {
 
 #endif /* NO_WOLFSSL_SERVER */
 
-int TLSX_UseSupportedCurve(TLSX** extensions, word16 name)
+int TLSX_UseSupportedCurve(TLSX** extensions, word16 name, void* heap)
 {
     TLSX*          extension = TLSX_Find(*extensions, TLSX_SUPPORTED_GROUPS);
     EllipticCurve* curve     = NULL;
@@ -2882,12 +2907,13 @@ int TLSX_UseSupportedCurve(TLSX** extensions, word16 name)
     if (extensions == NULL)
         return BAD_FUNC_ARG;
 
-    if ((ret = TLSX_EllipticCurve_Append(&curve, name)) != 0)
+    if ((ret = TLSX_EllipticCurve_Append(&curve, name, heap)) != 0)
         return ret;
 
     if (!extension) {
-        if ((ret = TLSX_Push(extensions, TLSX_SUPPORTED_GROUPS, curve)) != 0) {
-            XFREE(curve, 0, DYNAMIC_TYPE_TLSX);
+        if ((ret = TLSX_Push(extensions, TLSX_SUPPORTED_GROUPS, curve, heap))
+                                                                         != 0) {
+            XFREE(curve, heap, DYNAMIC_TYPE_TLSX);
             return ret;
         }
     }
@@ -2902,7 +2928,7 @@ int TLSX_UseSupportedCurve(TLSX** extensions, word16 name)
                 EllipticCurve *next = curve->next;
 
                 curve->next = next->next;
-                XFREE(next, 0, DYNAMIC_TYPE_TLSX);
+                XFREE(next, heap, DYNAMIC_TYPE_TLSX);
 
                 break;
             }
@@ -2931,7 +2957,7 @@ int TLSX_UseSupportedCurve(TLSX** extensions, word16 name)
 
 #else
 
-#define EC_FREE_ALL(list)
+#define EC_FREE_ALL(list, heap)
 #define EC_GET_SIZE(list)         0
 #define EC_WRITE(a, b)            0
 #define EC_PARSE(a, b, c, d)      0
@@ -3029,21 +3055,21 @@ static int TLSX_SecureRenegotiation_Parse(WOLFSSL* ssl, byte* input,
     return ret;
 }
 
-int TLSX_UseSecureRenegotiation(TLSX** extensions)
+int TLSX_UseSecureRenegotiation(TLSX** extensions, void* heap)
 {
     int ret = 0;
     SecureRenegotiation* data = NULL;
 
-    data = (SecureRenegotiation*)XMALLOC(sizeof(SecureRenegotiation), NULL,
+    data = (SecureRenegotiation*)XMALLOC(sizeof(SecureRenegotiation), heap,
                                                              DYNAMIC_TYPE_TLSX);
     if (data == NULL)
         return MEMORY_E;
 
     XMEMSET(data, 0, sizeof(SecureRenegotiation));
 
-    ret = TLSX_Push(extensions, TLSX_RENEGOTIATION_INFO, data);
+    ret = TLSX_Push(extensions, TLSX_RENEGOTIATION_INFO, data, heap);
     if (ret != 0) {
-        XFREE(data, 0, DYNAMIC_TYPE_TLSX);
+        XFREE(data, heap, DYNAMIC_TYPE_TLSX);
         return ret;
     }
 
@@ -3058,7 +3084,7 @@ int TLSX_UseSecureRenegotiation(TLSX** extensions)
 
 #else
 
-#define SCR_FREE_ALL(a)
+#define SCR_FREE_ALL(a, heap)
 #define SCR_GET_SIZE(a, b)    0
 #define SCR_WRITE(a, b, c)    0
 #define SCR_PARSE(a, b, c, d) 0
@@ -3080,7 +3106,7 @@ static void TLSX_SessionTicket_ValidateRequest(WOLFSSL* ssl)
         /* TODO validate ticket timeout here! */
         if (ticket->lifetime == 0xfffffff) {
             /* send empty ticket on timeout */
-            TLSX_UseSessionTicket(&ssl->extensions, NULL);
+            TLSX_UseSessionTicket(&ssl->extensions, NULL, ssl->heap);
         }
     }
 }
@@ -3128,7 +3154,7 @@ static int TLSX_SessionTicket_Parse(WOLFSSL* ssl, byte* input, word16 length,
 
         if (length == 0) {
             /* blank ticket */
-            ret = TLSX_UseSessionTicket(&ssl->extensions, NULL);
+            ret = TLSX_UseSessionTicket(&ssl->extensions, NULL, ssl->heap);
             if (ret == SSL_SUCCESS) {
                 ret = 0;
                 TLSX_SetResponse(ssl, TLSX_SESSION_TICKET);  /* send blank ticket */
@@ -3144,7 +3170,7 @@ static int TLSX_SessionTicket_Parse(WOLFSSL* ssl, byte* input, word16 length,
                 ssl->options.resuming  = 1;
             } else if (ret == WOLFSSL_TICKET_RET_CREATE) {
                 WOLFSSL_MSG("Using existing client ticket, creating new one");
-                ret = TLSX_UseSessionTicket(&ssl->extensions, NULL);
+                ret = TLSX_UseSessionTicket(&ssl->extensions, NULL, ssl->heap);
                 if (ret == SSL_SUCCESS) {
                     ret = 0;
                     TLSX_SetResponse(ssl, TLSX_SESSION_TICKET);
@@ -3193,7 +3219,7 @@ WOLFSSL_LOCAL void TLSX_SessionTicket_Free(SessionTicket* ticket)
     }
 }
 
-int TLSX_UseSessionTicket(TLSX** extensions, SessionTicket* ticket)
+int TLSX_UseSessionTicket(TLSX** extensions, SessionTicket* ticket, void* heap)
 {
     int ret = 0;
 
@@ -3202,7 +3228,8 @@ int TLSX_UseSessionTicket(TLSX** extensions, SessionTicket* ticket)
 
     /* If the ticket is NULL, the client will request a new ticket from the
        server. Otherwise, the client will use it in the next client hello. */
-    if ((ret = TLSX_Push(extensions, TLSX_SESSION_TICKET, (void*)ticket)) != 0)
+    if ((ret = TLSX_Push(extensions, TLSX_SESSION_TICKET, (void*)ticket, heap))
+                                                                           != 0)
         return ret;
 
     return SSL_SUCCESS;
@@ -3212,11 +3239,11 @@ int TLSX_UseSessionTicket(TLSX** extensions, SessionTicket* ticket)
 #define STK_GET_SIZE         TLSX_SessionTicket_GetSize
 #define STK_WRITE            TLSX_SessionTicket_Write
 #define STK_PARSE            TLSX_SessionTicket_Parse
-#define STK_FREE(stk)        TLSX_SessionTicket_Free((SessionTicket*)stk)
+#define STK_FREE(stk, heap)  TLSX_SessionTicket_Free((SessionTicket*)stk,(heap))
 
 #else
 
-#define STK_FREE(a)
+#define STK_FREE(a, b)
 #define STK_VALIDATE_REQUEST(a)
 #define STK_GET_SIZE(a, b)      0
 #define STK_WRITE(a, b, c)      0
@@ -3232,14 +3259,16 @@ int TLSX_UseSessionTicket(TLSX** extensions, SessionTicket* ticket)
 static WC_RNG* rng;
 static wolfSSL_Mutex* rngMutex;
 
-static void TLSX_QSH_FreeAll(QSHScheme* list)
+static void TLSX_QSH_FreeAll(QSHScheme* list, void* heap)
 {
     QSHScheme* current;
 
     while ((current = list)) {
         list = current->next;
-        XFREE(current, 0, DYNAMIC_TYPE_TLSX);
+        XFREE(current, heap, DYNAMIC_TYPE_TLSX);
     }
+
+    (void)heap;
 }
 
 static int TLSX_QSH_Append(QSHScheme** list, word16 name, byte* pub,
@@ -3400,7 +3429,7 @@ word16 TLSX_QSHPK_Write(QSHScheme* list, byte* output)
 #endif /* NO_WOLFSSL_CLIENT */
 #ifndef NO_WOLFSSL_SERVER
 
-static void TLSX_QSHAgreement(TLSX** extensions)
+static void TLSX_QSHAgreement(TLSX** extensions, void* heap)
 {
     TLSX* extension = TLSX_Find(*extensions, TLSX_QUANTUM_SAFE_HYBRID);
     QSHScheme* format = NULL;
@@ -3421,13 +3450,15 @@ static void TLSX_QSHAgreement(TLSX** extensions)
                 prev->next = format->next;
             del = format;
             format = format->next;
-            XFREE(del, 0, DYNAMIC_TYPE_TMP_ARRAY);
+            XFREE(del, heap, DYNAMIC_TYPE_TMP_BUFFER);
             del = NULL;
         } else {
             prev   = format;
             format = format->next;
         }
     }
+
+    (void)heap;
 }
 
 
@@ -3511,7 +3542,7 @@ static int TLSX_QSH_Parse(WOLFSSL* ssl, byte* input, word16 length,
             }
 
             /* peer sent an agreed upon scheme */
-            r = TLSX_UseQSHScheme(&ssl->extensions, name, NULL, 0);
+            r = TLSX_UseQSHScheme(&ssl->extensions, name, NULL, 0, ssl->heap);
 
             if (r != SSL_SUCCESS) return r; /* throw error */
 
@@ -3527,7 +3558,7 @@ static int TLSX_QSH_Parse(WOLFSSL* ssl, byte* input, word16 length,
     while ((offset_len < offset_pk) && numKeys) {
         QSHKey * temp;
 
-        if ((temp = (QSHKey*)XMALLOC(sizeof(QSHKey), NULL,
+        if ((temp = (QSHKey*)XMALLOC(sizeof(QSHKey), ssl->heap,
                                                     DYNAMIC_TYPE_TLSX)) == NULL)
             return MEMORY_E;
 
@@ -3553,7 +3584,7 @@ static int TLSX_QSH_Parse(WOLFSSL* ssl, byte* input, word16 length,
             if (ssl->user_set_QSHSchemes &&
                     (!TLSX_ValidateQSHScheme(&ssl->extensions, temp->name))) {
                 offset_len += PKLen;
-                XFREE(temp, 0, DYNAMIC_TYPE_TLSX);
+                XFREE(temp, ssl->heap, DYNAMIC_TYPE_TLSX);
                 continue;
             }
         }
@@ -3561,7 +3592,7 @@ static int TLSX_QSH_Parse(WOLFSSL* ssl, byte* input, word16 length,
         /* read in public key */
         if (PKLen > 0) {
             temp->pub.buffer = (byte*)XMALLOC(temp->pub.length,
-                                                 NULL, DYNAMIC_TYPE_PUBLIC_KEY);
+                                            ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
             XMEMCPY(temp->pub.buffer, input + offset_len, temp->pub.length);
             offset_len += PKLen;
         }
@@ -3572,7 +3603,8 @@ static int TLSX_QSH_Parse(WOLFSSL* ssl, byte* input, word16 length,
         /* use own key when adding to extensions list for sending reply */
         PKLen = 0;
         PK = TLSX_QSHKeyFind_Pub(ssl->QSH_Key, &PKLen, temp->name);
-        r  = TLSX_UseQSHScheme(&ssl->extensions, temp->name, PK, PKLen);
+        r  = TLSX_UseQSHScheme(&ssl->extensions, temp->name, PK, PKLen,
+                                                                     ssl->heap);
 
         /* store peers key */
         ssl->peerQSHKeyPresent = 1;
@@ -3580,7 +3612,7 @@ static int TLSX_QSH_Parse(WOLFSSL* ssl, byte* input, word16 length,
             return MEMORY_E;
 
         if (temp->pub.length == 0) {
-            XFREE(temp, 0, DYNAMIC_TYPE_TLSX);
+            XFREE(temp, ssl->heap, DYNAMIC_TYPE_TLSX);
         }
 
         if (r != SSL_SUCCESS) {return r;} /* throw error */
@@ -3592,7 +3624,7 @@ static int TLSX_QSH_Parse(WOLFSSL* ssl, byte* input, word16 length,
     if (isRequest) {
         TLSX_SetResponse(ssl, TLSX_QUANTUM_SAFE_HYBRID);
         /* only use schemes we have key generated for -- free the rest */
-        TLSX_QSHAgreement(&ssl->extensions);
+        TLSX_QSHAgreement(&ssl->extensions, ssl->heap);
     }
 
     return 0;
@@ -3738,7 +3770,8 @@ static int TLSX_HaveQSHScheme(word16 name)
 
 
 /* Add a QSHScheme struct to list of usable ones */
-int TLSX_UseQSHScheme(TLSX** extensions, word16 name, byte* pKey, word16 pkeySz)
+int TLSX_UseQSHScheme(TLSX** extensions, word16 name, byte* pKey, word16 pkeySz,
+                                                                     void* heap)
 {
     TLSX*      extension = TLSX_Find(*extensions, TLSX_QUANTUM_SAFE_HYBRID);
     QSHScheme* format    = NULL;
@@ -3754,8 +3787,8 @@ int TLSX_UseQSHScheme(TLSX** extensions, word16 name, byte* pKey, word16 pkeySz)
 	        return ret;
 
 	    if (!extension) {
-	        if ((ret = TLSX_Push(extensions, TLSX_QUANTUM_SAFE_HYBRID, format))
-                                                                         != 0) {
+	        if ((ret = TLSX_Push(extensions, TLSX_QUANTUM_SAFE_HYBRID, format,
+                                                                  heap)) != 0) {
 	            XFREE(format, 0, DYNAMIC_TYPE_TLSX);
 	            return ret;
 	        }
@@ -3802,7 +3835,7 @@ int TLSX_UseQSHScheme(TLSX** extensions, word16 name, byte* pKey, word16 pkeySz)
 #define QSH_SERREQ TLSX_QSH_SerPKReq
 #else
 
-#define QSH_FREE_ALL(list)
+#define QSH_FREE_ALL(list, heap)
 #define QSH_GET_SIZE(list, a)      0
 #define QSH_WRITE(a, b)            0
 #define QSH_PARSE(a, b, c, d)      0
@@ -3828,7 +3861,7 @@ TLSX* TLSX_Find(TLSX* list, TLSX_Type type)
 }
 
 /** Releases all extensions in the provided list. */
-void TLSX_FreeAll(TLSX* list)
+void TLSX_FreeAll(TLSX* list, void* heap)
 {
     TLSX* extension;
 
@@ -3838,11 +3871,11 @@ void TLSX_FreeAll(TLSX* list)
         switch (extension->type) {
 
             case TLSX_SERVER_NAME:
-                SNI_FREE_ALL((SNI*)extension->data);
+                SNI_FREE_ALL((SNI*)extension->data, heap);
                 break;
 
             case TLSX_MAX_FRAGMENT_LENGTH:
-                MFL_FREE_ALL(extension->data);
+                MFL_FREE_ALL(extension->data, heap);
                 break;
 
             case TLSX_TRUNCATED_HMAC:
@@ -3850,35 +3883,35 @@ void TLSX_FreeAll(TLSX* list)
                 break;
 
             case TLSX_SUPPORTED_GROUPS:
-                EC_FREE_ALL(extension->data);
+                EC_FREE_ALL(extension->data, heap);
                 break;
 
             case TLSX_STATUS_REQUEST:
-                CSR_FREE_ALL(extension->data);
+                CSR_FREE_ALL(extension->data, heap);
                 break;
 
             case TLSX_STATUS_REQUEST_V2:
-                CSR2_FREE_ALL(extension->data);
+                CSR2_FREE_ALL(extension->data, heap);
                 break;
 
             case TLSX_RENEGOTIATION_INFO:
-                SCR_FREE_ALL(extension->data);
+                SCR_FREE_ALL(extension->data, heap);
                 break;
 
             case TLSX_SESSION_TICKET:
-                STK_FREE(extension->data);
+                STK_FREE(extension->data, heap);
                 break;
 
             case TLSX_QUANTUM_SAFE_HYBRID:
-                QSH_FREE_ALL((QSHScheme*)extension->data);
+                QSH_FREE_ALL((QSHScheme*)extension->data, heap);
                 break;
 
             case TLSX_APPLICATION_LAYER_PROTOCOL:
-                ALPN_FREE_ALL((ALPN*)extension->data);
+                ALPN_FREE_ALL((ALPN*)extension->data, heap);
                 break;
         }
 
-        XFREE(extension, 0, DYNAMIC_TYPE_TLSX);
+        XFREE(extension, heap, DYNAMIC_TYPE_TLSX);
     }
 }
 
@@ -4186,16 +4219,16 @@ int TLSX_CreateNtruKey(WOLFSSL* ssl, int type)
         return ret;
     }
 
-    if ((temp = (QSHKey*)XMALLOC(sizeof(QSHKey), NULL,
+    if ((temp = (QSHKey*)XMALLOC(sizeof(QSHKey), ssl->heap,
                                                     DYNAMIC_TYPE_TLSX)) == NULL)
         return MEMORY_E;
     temp->name = type;
     temp->pub.length = public_key_len;
-    temp->pub.buffer = (byte*)XMALLOC(public_key_len, public_key,
+    temp->pub.buffer = (byte*)XMALLOC(public_key_len, ssl->heap,
                                 DYNAMIC_TYPE_PUBLIC_KEY);
     XMEMCPY(temp->pub.buffer, public_key, public_key_len);
     temp->pri.length = private_key_len;
-    temp->pri.buffer = (byte*)XMALLOC(private_key_len, private_key,
+    temp->pri.buffer = (byte*)XMALLOC(private_key_len, ssl->heap,
                                 DYNAMIC_TYPE_ARRAYS);
     XMEMCPY(temp->pri.buffer, private_key, private_key_len);
     temp->next = NULL;
@@ -4275,7 +4308,8 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
                         &public_key_len, WOLFSSL_NTRU_EESS743);
                 }
                 if (TLSX_UseQSHScheme(&ssl->extensions, WOLFSSL_NTRU_EESS743,
-                        public_key, public_key_len) != SSL_SUCCESS)
+                                      public_key, public_key_len, ssl->heap)
+                                      != SSL_SUCCESS)
                     ret = -1;
 
                 /* add NTRU 196 */
@@ -4284,7 +4318,8 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
                         &public_key_len, WOLFSSL_NTRU_EESS593);
                 }
                 if (TLSX_UseQSHScheme(&ssl->extensions, WOLFSSL_NTRU_EESS593,
-                        public_key, public_key_len) != SSL_SUCCESS)
+                                      public_key, public_key_len, ssl->heap)
+                                      != SSL_SUCCESS)
                     ret = -1;
 
                 /* add NTRU 128 */
@@ -4293,7 +4328,8 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
                         &public_key_len, WOLFSSL_NTRU_EESS439);
                 }
                 if (TLSX_UseQSHScheme(&ssl->extensions, WOLFSSL_NTRU_EESS439,
-                        public_key, public_key_len) != SSL_SUCCESS)
+                                      public_key, public_key_len, ssl->heap)
+                                      != SSL_SUCCESS)
                     ret = -1;
             }
             else if (ssl->sendQSHKeys && ssl->QSH_Key == NULL) {
@@ -4313,7 +4349,8 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
                         public_key = TLSX_QSHKeyFind_Pub(ssl->QSH_Key,
                                  &public_key_len, qsh->name);
                         if (TLSX_UseQSHScheme(&ssl->extensions, qsh->name,
-                                    public_key, public_key_len) != SSL_SUCCESS)
+                                              public_key, public_key_len,
+                                              ssl->heap) != SSL_SUCCESS)
                             ret = -1;
                         qsh = next;
                     }

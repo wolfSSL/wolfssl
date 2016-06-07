@@ -213,14 +213,14 @@ static int QSH_FreeAll(WOLFSSL* ssl)
         preKey = key;
         if (key->pri.buffer) {
             ForceZero(key->pri.buffer, key->pri.length);
-            XFREE(key->pri.buffer, ssl->heap, DYNAMIC_TYPE_TMP_ARRAY);
+            XFREE(key->pri.buffer, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
         }
         if (key->pub.buffer)
-            XFREE(key->pub.buffer, ssl->heap, DYNAMIC_TYPE_TMP_ARRAY);
+            XFREE(key->pub.buffer, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
         key = (QSHKey*)key->next;
 
         /* free struct */
-        XFREE(preKey, ssl->heap, DYNAMIC_TYPE_TMP_ARRAY);
+        XFREE(preKey, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
     }
     key = NULL;
 
@@ -231,14 +231,14 @@ static int QSH_FreeAll(WOLFSSL* ssl)
         preKey = key;
         if (key->pri.buffer) {
             ForceZero(key->pri.buffer, key->pri.length);
-            XFREE(key->pri.buffer, ssl->heap, DYNAMIC_TYPE_TMP_ARRAY);
+            XFREE(key->pri.buffer, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
         }
         if (key->pub.buffer)
-            XFREE(key->pub.buffer, ssl->heap, DYNAMIC_TYPE_TMP_ARRAY);
+            XFREE(key->pub.buffer, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
         key = (QSHKey*)key->next;
 
         /* free struct */
-        XFREE(preKey, ssl->heap, DYNAMIC_TYPE_TMP_ARRAY);
+        XFREE(preKey, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
     }
     key = NULL;
 
@@ -250,9 +250,9 @@ static int QSH_FreeAll(WOLFSSL* ssl)
         while (list) {
             preList = list;
             if (list->PK)
-                XFREE(list->PK, ssl->heap, DYNAMIC_TYPE_TMP_ARRAY);
+                XFREE(list->PK, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
             list = (QSHScheme*)list->next;
-            XFREE(preList, ssl->heap, DYNAMIC_TYPE_TMP_ARRAY);
+            XFREE(preList, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
         }
 
         /* free secret buffers */
@@ -260,20 +260,20 @@ static int QSH_FreeAll(WOLFSSL* ssl)
             if (secret->SerSi->buffer) {
                 /* clear extra secret material that supplemented Master Secret*/
                 ForceZero(secret->SerSi->buffer, secret->SerSi->length);
-                XFREE(secret->SerSi->buffer, ssl->heap, DYNAMIC_TYPE_TMP_ARRAY);
+                XFREE(secret->SerSi->buffer, ssl->heap,DYNAMIC_TYPE_TMP_BUFFER);
             }
-            XFREE(secret->SerSi, ssl->heap, DYNAMIC_TYPE_TMP_ARRAY);
+            XFREE(secret->SerSi, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
         }
         if (secret->CliSi) {
             if (secret->CliSi->buffer) {
                 /* clear extra secret material that supplemented Master Secret*/
                 ForceZero(secret->CliSi->buffer, secret->CliSi->length);
-                XFREE(secret->CliSi->buffer, ssl->heap, DYNAMIC_TYPE_TMP_ARRAY);
+                XFREE(secret->CliSi->buffer, ssl->heap,DYNAMIC_TYPE_TMP_BUFFER);
             }
-            XFREE(secret->CliSi, ssl->heap, DYNAMIC_TYPE_TMP_ARRAY);
+            XFREE(secret->CliSi, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
         }
     }
-    XFREE(secret, ssl->heap, DYNAMIC_TYPE_TMP_ARRAY);
+    XFREE(secret, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
     secret = NULL;
 
     return 0;
@@ -1417,7 +1417,7 @@ void SSL_CtxResourceFree(WOLFSSL_CTX* ctx)
 #endif
 
 #ifdef HAVE_TLS_EXTENSIONS
-    TLSX_FreeAll(ctx->extensions);
+    TLSX_FreeAll(ctx->extensions, ctx->heap);
 
 #ifndef NO_WOLFSSL_SERVER
 
@@ -3525,7 +3525,7 @@ void SSL_ResourceFree(WOLFSSL* ssl)
     #endif /* NO_RSA */
 #endif /* HAVE_PK_CALLBACKS */
 #ifdef HAVE_TLS_EXTENSIONS
-    TLSX_FreeAll(ssl->extensions);
+    TLSX_FreeAll(ssl->extensions, ssl->heap);
 
 #ifdef HAVE_ALPN
     if (ssl->alpn_client_list != NULL) {
@@ -6190,7 +6190,8 @@ static int DoCertificate(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 #ifdef HAVE_OCSP
         #ifdef HAVE_CERTIFICATE_STATUS_REQUEST_V2
             if (ssl->status_request_v2)
-                ret = TLSX_CSR2_InitRequests(ssl->extensions, dCert, 0);
+                ret = TLSX_CSR2_InitRequests(ssl->extensions, dCert, 0,
+                                                                     ssl->heap);
             else /* skips OCSP and force CRL check */
         #endif
             if (ssl->ctx->cm->ocspEnabled && ssl->ctx->cm->ocspCheckAll) {
@@ -6298,13 +6299,15 @@ static int DoCertificate(WOLFSSL* ssl, byte* input, word32* inOutIdx,
             if (ssl->options.side == WOLFSSL_CLIENT_END) {
 #ifdef HAVE_CERTIFICATE_STATUS_REQUEST
                 if (ssl->status_request) {
-                    fatal = TLSX_CSR_InitRequest(ssl->extensions, dCert);
+                    fatal = TLSX_CSR_InitRequest(ssl->extensions, dCert,
+                                                                     ssl->heap);
                     doLookup = 0;
                 }
 #endif
 #ifdef HAVE_CERTIFICATE_STATUS_REQUEST_V2
                 if (ssl->status_request_v2) {
-                    fatal = TLSX_CSR2_InitRequests(ssl->extensions, dCert, 1);
+                    fatal = TLSX_CSR2_InitRequests(ssl->extensions, dCert, 1,
+                                                                     ssl->heap);
                     doLookup = 0;
                 }
 #endif
@@ -6737,7 +6740,7 @@ static int DoCertificateStatus(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 
             InitOcspResponse(response, status, input +*inOutIdx, status_length);
 
-            if ((OcspResponseDecode(response, ssl->ctx->cm) != 0)
+            if ((OcspResponseDecode(response, ssl->ctx->cm, ssl->heap) != 0)
             ||  (response->responseStatus != OCSP_SUCCESSFUL)
             ||  (response->status->status != CERT_GOOD)
             ||  (CompareOcspReqResp(request, response) != 0))
@@ -6814,7 +6817,8 @@ static int DoCertificateStatus(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                     InitOcspResponse(response, status, input +*inOutIdx,
                                                                  status_length);
 
-                    if ((OcspResponseDecode(response, ssl->ctx->cm) != 0)
+                    if ((OcspResponseDecode(response, ssl->ctx->cm, ssl->heap)
+                                                                           != 0)
                     ||  (response->responseStatus != OCSP_SUCCESSFUL)
                     ||  (response->status->status != CERT_GOOD))
                         ret = BAD_CERTIFICATE_STATUS_ERROR;
@@ -10321,7 +10325,7 @@ int SendCertificateStatus(WOLFSSL* ssl)
                         return MEMORY_E;
                     }
 
-                    ret = InitOcspRequest(request, cert, 0);
+                    ret = InitOcspRequest(request, cert, 0, ssl->heap);
                     if (ret != 0) {
                         XFREE(request, ssl->heap, DYNAMIC_TYPE_OCSP_REQUEST);
                     }
@@ -10418,7 +10422,7 @@ int SendCertificateStatus(WOLFSSL* ssl)
                         return MEMORY_E;
                     }
 
-                    ret = InitOcspRequest(request, cert, 0);
+                    ret = InitOcspRequest(request, cert, 0, ssl->heap);
                     if (ret != 0) {
                         XFREE(request, ssl->heap, DYNAMIC_TYPE_OCSP_REQUEST);
                     }
@@ -10496,7 +10500,7 @@ int SendCertificateStatus(WOLFSSL* ssl)
                             break;
                         }
 
-                        ret = InitOcspRequest(request, cert, 0);
+                        ret = InitOcspRequest(request, cert, 0, ssl->heap);
                         if (ret != 0) {
                             XFREE(request, ssl->heap,DYNAMIC_TYPE_OCSP_REQUEST);
                             break;
@@ -14057,16 +14061,16 @@ int QSH_Init(WOLFSSL* ssl)
         return 0;
 
     /* malloc memory for holding generated secret information */
-    if ((ssl->QSH_secret = (QSHSecret*)XMALLOC(sizeof(QSHSecret), NULL,
+    if ((ssl->QSH_secret = (QSHSecret*)XMALLOC(sizeof(QSHSecret), ssl->heap,
                     DYNAMIC_TYPE_TMP_BUFFER)) == NULL)
         return MEMORY_E;
 
-    ssl->QSH_secret->CliSi = (buffer*)XMALLOC(sizeof(buffer), NULL,
+    ssl->QSH_secret->CliSi = (buffer*)XMALLOC(sizeof(buffer), ssl->heap,
             DYNAMIC_TYPE_TMP_BUFFER);
     if (ssl->QSH_secret->CliSi == NULL)
         return MEMORY_E;
 
-    ssl->QSH_secret->SerSi = (buffer*)XMALLOC(sizeof(buffer), NULL,
+    ssl->QSH_secret->SerSi = (buffer*)XMALLOC(sizeof(buffer), ssl->heap,
             DYNAMIC_TYPE_TMP_BUFFER);
     if (ssl->QSH_secret->SerSi == NULL)
         return MEMORY_E;
@@ -14220,7 +14224,7 @@ static int QSH_GenerateSerCliSecret(WOLFSSL* ssl, byte isServer)
         buf = ssl->QSH_secret->CliSi;
     }
     buf->length = sz;
-    buf->buffer = (byte*)XMALLOC(sz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    buf->buffer = (byte*)XMALLOC(sz, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
     if (buf->buffer == NULL) {
         WOLFSSL_ERROR(MEMORY_E);
     }
@@ -14229,7 +14233,7 @@ static int QSH_GenerateSerCliSecret(WOLFSSL* ssl, byte isServer)
     sz = 0;
     current = ssl->peerQSHKey;
     while (current) {
-        schm = (QSHScheme*)XMALLOC(sizeof(QSHScheme), NULL,
+        schm = (QSHScheme*)XMALLOC(sizeof(QSHScheme), ssl->heap,
                                                        DYNAMIC_TYPE_TMP_BUFFER);
         if (schm == NULL)
             return MEMORY_E;
@@ -14249,7 +14253,7 @@ static int QSH_GenerateSerCliSecret(WOLFSSL* ssl, byte isServer)
 
         tmpSz = QSH_MaxSecret(current);
 
-        if ((schm->PK = (byte*)XMALLOC(tmpSz, 0,
+        if ((schm->PK = (byte*)XMALLOC(tmpSz, ssl->heap,
                                               DYNAMIC_TYPE_TMP_BUFFER)) == NULL)
             return -1;
 

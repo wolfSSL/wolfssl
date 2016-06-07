@@ -768,9 +768,9 @@ struct OcspRequest {
 
 
 WOLFSSL_LOCAL void InitOcspResponse(OcspResponse*, CertStatus*, byte*, word32);
-WOLFSSL_LOCAL int  OcspResponseDecode(OcspResponse*, void*);
+WOLFSSL_LOCAL int  OcspResponseDecode(OcspResponse*, void*, void* heap);
 
-WOLFSSL_LOCAL int    InitOcspRequest(OcspRequest*, DecodedCert*, byte);
+WOLFSSL_LOCAL int    InitOcspRequest(OcspRequest*, DecodedCert*, byte, void*);
 WOLFSSL_LOCAL void   FreeOcspRequest(OcspRequest*);
 WOLFSSL_LOCAL int    EncodeOcspRequest(OcspRequest*, byte*, word32);
 WOLFSSL_LOCAL word32 EncodeOcspRequestExtensions(OcspRequest*, byte*, word32);

@@ -628,9 +628,15 @@ int wolfSSL_GetObjectSize(void)
 
 int wolfSSL_init_memory_heap(WOLFSSL_HEAP* heap)
 {
-    /* default size of chunks of memory to seperate into */
+    /* default size of chunks of memory to seperate into
+     * having session certs enabled makes a 21k SSL struct */
+#ifndef SESSION_CERTS
     word32 wc_defaultMemSz[WOLFMEM_DEF_BUCKETS] =
-                           { 64, 128, 256, 512, 1024, 2400, 3408, 4544, 16000 };
+                           { 64, 128, 256, 512, 1024, 2400, 3408, 4544, 16128 };
+#else
+    word32 wc_defaultMemSz[WOLFMEM_DEF_BUCKETS] =
+                           { 64, 128, 256, 512, 1024, 2400, 3408, 4544, 21000 };
+#endif
     word32 wc_defaultDist[WOLFMEM_DEF_BUCKETS] = { 8, 4, 4, 12, 4, 5, 2, 1, 1 };
 
     if (heap == NULL) {
@@ -1056,7 +1062,7 @@ int wolfSSL_UseSNI(WOLFSSL* ssl, byte type, const void* data, word16 size)
     if (ssl == NULL)
         return BAD_FUNC_ARG;
 
-    return TLSX_UseSNI(&ssl->extensions, type, data, size);
+    return TLSX_UseSNI(&ssl->extensions, type, data, size, ssl->heap);
 }
 
 
@@ -1066,7 +1072,7 @@ int wolfSSL_CTX_UseSNI(WOLFSSL_CTX* ctx, byte type, const void* data,
     if (ctx == NULL)
         return BAD_FUNC_ARG;
 
-    return TLSX_UseSNI(&ctx->extensions, type, data, size);
+    return TLSX_UseSNI(&ctx->extensions, type, data, size, ctx->heap);
 }
 
 #ifndef NO_WOLFSSL_SERVER
@@ -1125,7 +1131,7 @@ int wolfSSL_UseMaxFragment(WOLFSSL* ssl, byte mfl)
     if (ssl == NULL)
         return BAD_FUNC_ARG;
 
-    return TLSX_UseMaxFragment(&ssl->extensions, mfl);
+    return TLSX_UseMaxFragment(&ssl->extensions, mfl, ssl->heap);
 }
 
 
@@ -1134,7 +1140,7 @@ int wolfSSL_CTX_UseMaxFragment(WOLFSSL_CTX* ctx, byte mfl)
     if (ctx == NULL)
         return BAD_FUNC_ARG;
 
-    return TLSX_UseMaxFragment(&ctx->extensions, mfl);
+    return TLSX_UseMaxFragment(&ctx->extensions, mfl, ctx->heap);
 }
 
 #endif /* NO_WOLFSSL_CLIENT */
@@ -1148,7 +1154,7 @@ int wolfSSL_UseTruncatedHMAC(WOLFSSL* ssl)
     if (ssl == NULL)
         return BAD_FUNC_ARG;
 
-    return TLSX_UseTruncatedHMAC(&ssl->extensions);
+    return TLSX_UseTruncatedHMAC(&ssl->extensions, ssl->heap);
 }
 
 
@@ -1157,7 +1163,7 @@ int wolfSSL_CTX_UseTruncatedHMAC(WOLFSSL_CTX* ctx)
     if (ctx == NULL)
         return BAD_FUNC_ARG;
 
-    return TLSX_UseTruncatedHMAC(&ctx->extensions);
+    return TLSX_UseTruncatedHMAC(&ctx->extensions, ctx->heap);
 }
 
 #endif /* NO_WOLFSSL_CLIENT */
@@ -1171,7 +1177,7 @@ int wolfSSL_UseOCSPStapling(WOLFSSL* ssl, byte status_type, byte options)
         return BAD_FUNC_ARG;
 
     return TLSX_UseCertificateStatusRequest(&ssl->extensions, status_type,
-                                                                       options);
+                                                            options, ssl->heap);
 }
 
 
@@ -1182,7 +1188,7 @@ int wolfSSL_CTX_UseOCSPStapling(WOLFSSL_CTX* ctx, byte status_type,
         return BAD_FUNC_ARG;
 
     return TLSX_UseCertificateStatusRequest(&ctx->extensions, status_type,
-                                                                       options);
+                                                            options, ctx->heap);
 }
 
 #endif /* HAVE_CERTIFICATE_STATUS_REQUEST */
@@ -1195,7 +1201,7 @@ int wolfSSL_UseOCSPStaplingV2(WOLFSSL* ssl, byte status_type, byte options)
         return BAD_FUNC_ARG;
 
     return TLSX_UseCertificateStatusRequestV2(&ssl->extensions, status_type,
-                                                                       options);
+                                                            options, ssl->heap);
 }
 
 
@@ -1206,7 +1212,7 @@ int wolfSSL_CTX_UseOCSPStaplingV2(WOLFSSL_CTX* ctx,
         return BAD_FUNC_ARG;
 
     return TLSX_UseCertificateStatusRequestV2(&ctx->extensions, status_type,
-                                                                       options);
+                                                            options, ctx->heap);
 }
 
 #endif /* HAVE_CERTIFICATE_STATUS_REQUEST_V2 */
@@ -1233,7 +1239,7 @@ int wolfSSL_UseSupportedCurve(WOLFSSL* ssl, word16 name)
             return BAD_FUNC_ARG;
     }
 
-    return TLSX_UseSupportedCurve(&ssl->extensions, name);
+    return TLSX_UseSupportedCurve(&ssl->extensions, name, ssl->heap);
 }
 
 
@@ -1255,7 +1261,7 @@ int wolfSSL_CTX_UseSupportedCurve(WOLFSSL_CTX* ctx, word16 name)
             return BAD_FUNC_ARG;
     }
 
-    return TLSX_UseSupportedCurve(&ctx->extensions, name);
+    return TLSX_UseSupportedCurve(&ctx->extensions, name, ctx->heap);
 }
 
 #endif /* NO_WOLFSSL_CLIENT */
@@ -1292,7 +1298,7 @@ int wolfSSL_UseSupportedQSH(WOLFSSL* ssl, word16 name)
 
     ssl->user_set_QSHSchemes = 1;
 
-    return TLSX_UseQSHScheme(&ssl->extensions, name, NULL, 0);
+    return TLSX_UseQSHScheme(&ssl->extensions, name, NULL, 0, ssl->heap);
 }
 
 #ifndef NO_WOLFSSL_CLIENT
@@ -1363,14 +1369,15 @@ int wolfSSL_UseALPN(WOLFSSL* ssl, char *protocol_name_list,
     while ((idx--) > 0) {
         len = (word16)XSTRLEN(token[idx]);
 
-        ret = TLSX_UseALPN(&ssl->extensions, token[idx], len, options);
+        ret = TLSX_UseALPN(&ssl->extensions, token[idx], len, options,
+                                                                     ssl->heap);
         if (ret != SSL_SUCCESS) {
             WOLFSSL_MSG("TLSX_UseALPN failure");
             break;
         }
     }
 
-    XFREE(list, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(list, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
 
     return ret;
 }
@@ -1393,7 +1400,8 @@ int wolfSSL_ALPN_GetPeerProtocol(WOLFSSL* ssl, char **list, word16 *listSz)
     if (*listSz == 0)
         return BUFFER_ERROR;
 
-    *list = (char *)XMALLOC((*listSz)+1, ssl->heap, DYNAMIC_TYPE_TLSX);
+    /* leaving as null heap hint since user calls free on returned string */
+    *list = (char *)XMALLOC((*listSz)+1, NULL, DYNAMIC_TYPE_TLSX);
     if (*list == NULL)
         return MEMORY_ERROR;
 
@@ -1414,7 +1422,7 @@ int wolfSSL_UseSecureRenegotiation(WOLFSSL* ssl)
     int ret = BAD_FUNC_ARG;
 
     if (ssl)
-        ret = TLSX_UseSecureRenegotiation(&ssl->extensions);
+        ret = TLSX_UseSecureRenegotiation(&ssl->extensions, ssl->heap);
 
     if (ret == SSL_SUCCESS) {
         TLSX* extension = TLSX_Find(ssl->extensions, TLSX_RENEGOTIATION_INFO);
@@ -2133,11 +2141,11 @@ void wolfSSL_CertManagerFree(WOLFSSL_CERT_MANAGER* cm)
         #endif
         #ifdef HAVE_OCSP
             if (cm->ocsp)
-                FreeOCSP(cm->ocsp, 1, cm->heap);
+                FreeOCSP(cm->ocsp, 1);
         #if defined(HAVE_CERTIFICATE_STATUS_REQUEST) \
          || defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
             if (cm->ocsp_stapling)
-                FreeOCSP(cm->ocsp_stapling, 1, cm->heap);
+                FreeOCSP(cm->ocsp_stapling, 1);
         #endif
         #endif
         FreeSignerTable(cm->caTable, CA_TABLE_SIZE, cm->heap);
@@ -4308,7 +4316,7 @@ int wolfSSL_CertManagerEnableOCSP(WOLFSSL_CERT_MANAGER* cm, int options)
 
             if (InitOCSP(cm->ocsp, cm) != 0) {
                 WOLFSSL_MSG("Init OCSP failed");
-                FreeOCSP(cm->ocsp, 1, cm->heap);
+                FreeOCSP(cm->ocsp, 1);
                 cm->ocsp = NULL;
                 return SSL_FAILURE;
             }
@@ -4364,7 +4372,7 @@ int wolfSSL_CertManagerEnableOCSPStapling(WOLFSSL_CERT_MANAGER* cm)
 
             if (InitOCSP(cm->ocsp_stapling, cm) != 0) {
                 WOLFSSL_MSG("Init OCSP failed");
-                FreeOCSP(cm->ocsp_stapling, 1, cm->heap);
+                FreeOCSP(cm->ocsp_stapling, 1);
                 cm->ocsp_stapling = NULL;
                 return SSL_FAILURE;
             }

@@ -39,7 +39,7 @@ struct buffer;
 typedef struct WOLFSSL_OCSP WOLFSSL_OCSP;
 
 WOLFSSL_LOCAL int  InitOCSP(WOLFSSL_OCSP*, WOLFSSL_CERT_MANAGER*);
-WOLFSSL_LOCAL void FreeOCSP(WOLFSSL_OCSP*, int dynamic, void* heap);
+WOLFSSL_LOCAL void FreeOCSP(WOLFSSL_OCSP*, int dynamic);
 
 WOLFSSL_LOCAL int  CheckCertOCSP(WOLFSSL_OCSP*, DecodedCert*,
                                             struct buffer* responseBuffer);

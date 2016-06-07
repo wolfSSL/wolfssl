@@ -69,10 +69,6 @@ int wolfCrypt_Init()
         }
     #endif
 
-    #ifdef WOLFSSL_STATIC_MEMORY
-        /* set static memory functions and load initial memory */
-        wolfSSL_SetAllocators(wolfSSL_Malloc, wolfSSL_Free, wolfSSL_Realloc);
-    #endif
         initRefCount = 1;
     }
 
