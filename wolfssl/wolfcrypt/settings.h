@@ -560,6 +560,8 @@ static char *fgets(char *buff, int sz, FILE *fp)
     #define HAVE_ALPN
     #define HAVE_TLS_EXTENSIONS
     #define HAVE_AESGCM
+    #define HAVE_SUPPORTED_CURVES
+    #define ALT_ECC_SIZE
 
     #ifdef __IAR_SYSTEMS_ICC__
         #pragma diag_suppress=Pa089
