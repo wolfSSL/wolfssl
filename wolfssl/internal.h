@@ -3117,6 +3117,10 @@ WOLFSSL_LOCAL int SetKeysSide(WOLFSSL*, enum encrypt_side);
     WOLFSSL_LOCAL int EccMakeTempKey(WOLFSSL* ssl);
 #endif
 
+WOLFSSL_LOCAL int BuildMessage(WOLFSSL* ssl, byte* output, int outSz,
+                        const byte* input, int inSz, int type, int hashOutput,
+                        int sizeOnly);
+
 #ifdef __cplusplus
     }  /* extern "C" */
 #endif

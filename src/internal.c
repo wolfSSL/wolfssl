@@ -88,9 +88,6 @@ WOLFSSL_CALLBACKS needs LARGE_STATIC_BUFFERS, please add LARGE_STATIC_BUFFERS
     #error Cannot use both secure-renegotiation and renegotiation-indication
 #endif
 
-static int BuildMessage(WOLFSSL* ssl, byte* output, int outSz,
-                        const byte* input, int inSz, int type, int hashOutput);
-
 #ifndef NO_WOLFSSL_CLIENT
     static int DoHelloVerifyRequest(WOLFSSL* ssl, const byte* input, word32*,
                                                                         word32);
@@ -3815,7 +3812,7 @@ int DtlsPoolSend(WOLFSSL* ssl)
                 output = ssl->buffers.outputBuffer.buffer +
                          ssl->buffers.outputBuffer.length;
                 sendSz = BuildMessage(ssl, output, sendSz, input, inputSz,
-                                      handshake, 0);
+                                      handshake, 0, 0);
                 if (sendSz < 0)
                     return BUILD_MSG_ERROR;
 
@@ -9282,7 +9279,7 @@ int SendChangeCipher(WOLFSSL* ssl)
 
         input[0] = 1;  /* turn it on */
         sendSz = BuildMessage(ssl, output, sendSz, input, inputSz,
-                              change_cipher_spec, 0);
+                              change_cipher_spec, 0, 0);
         if (sendSz < 0)
             return sendSz;
     }
@@ -9511,8 +9508,8 @@ static int BuildCertHashes(WOLFSSL* ssl, Hashes* hashes)
 #endif /* WOLFSSL_LEANPSK */
 
 /* Build SSL Message, encrypted */
-static int BuildMessage(WOLFSSL* ssl, byte* output, int outSz,
-                        const byte* input, int inSz, int type, int hashOutput)
+int BuildMessage(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
+                 int inSz, int type, int hashOutput, int sizeOnly)
 {
 #ifdef HAVE_TRUNCATED_HMAC
     word32 digestSz = min(ssl->specs.hash_size,
@@ -9530,9 +9527,20 @@ static int BuildMessage(WOLFSSL* ssl, byte* output, int outSz,
     int ret        = 0;
     int atomicUser = 0;
 
-    if (ssl == NULL || output == NULL || input == NULL) {
+    if (ssl == NULL) {
         return BAD_FUNC_ARG;
     }
+
+    if (!sizeOnly && (output == NULL || input == NULL) ) {
+        return BAD_FUNC_ARG;
+    }
+
+    /* catch mistaken sizeOnly parameter */
+    if (sizeOnly && (output || input) ) {
+        WOLFSSL_MSG("BuildMessage with sizeOnly doesn't need input or output");
+        return BAD_FUNC_ARG;
+    }
+
 
 #ifdef WOLFSSL_DTLS
     if (ssl->options.dtls) {
@@ -9556,9 +9564,11 @@ static int BuildMessage(WOLFSSL* ssl, byte* output, int outSz,
             if (ivSz > (word32)sizeof(iv))
                 return BUFFER_E;
 
-            ret = wc_RNG_GenerateBlock(ssl->rng, iv, ivSz);
-            if (ret != 0)
-                return ret;
+            if (!sizeOnly) {
+                ret = wc_RNG_GenerateBlock(ssl->rng, iv, ivSz);
+                if (ret != 0)
+                    return ret;
+            }
 
         }
         sz += 1;       /* pad byte */
@@ -9573,9 +9583,15 @@ static int BuildMessage(WOLFSSL* ssl, byte* output, int outSz,
             ivSz = AESGCM_EXP_IV_SZ;
 
         sz += (ivSz + ssl->specs.aead_mac_size - digestSz);
-        XMEMCPY(iv, ssl->keys.aead_exp_IV, AESGCM_EXP_IV_SZ);
+        if (!sizeOnly) {
+            XMEMCPY(iv, ssl->keys.aead_exp_IV, AESGCM_EXP_IV_SZ);
+        }
     }
 #endif
+    /* done with size calculations */
+    if (sizeOnly) {
+        return sz;
+    }
     if (sz > (word32)outSz) {
         WOLFSSL_MSG("Oops, want to write past output buffer size");
         return BUFFER_E;
@@ -9715,7 +9731,7 @@ int SendFinished(WOLFSSL* ssl)
     #endif
 
     sendSz = BuildMessage(ssl, output, outputSz, input, headerSz + finishedSz,
-                          handshake, 1);
+                          handshake, 1, 0);
     if (sendSz < 0)
         return BUILD_MSG_ERROR;
 
@@ -9945,7 +9961,8 @@ int SendCertificate(WOLFSSL* ssl)
                 XMEMCPY(input, output + RECORD_HEADER_SZ, inputSz);
             }
 
-            sendSz = BuildMessage(ssl, output,sendSz,input,inputSz,handshake,1);
+            sendSz = BuildMessage(ssl, output, sendSz, input, inputSz,
+                                  handshake, 1, 0);
             XFREE(input, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
 
             if (sendSz < 0)
@@ -10137,7 +10154,7 @@ static int BuildCertificateStatus(WOLFSSL* ssl, byte type, buffer* status,
 
             XMEMCPY(input, output + RECORD_HEADER_SZ, inputSz);
             sendSz = BuildMessage(ssl, output, sendSz, input, inputSz,
-                                                                  handshake, 1);
+                                                               handshake, 1, 0);
             XFREE(input, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
 
             if (sendSz < 0)
@@ -10582,7 +10599,7 @@ int SendData(WOLFSSL* ssl, const void* data, int sz)
         }
 #endif
         sendSz = BuildMessage(ssl, out, outputSz, sendBuffer, buffSz,
-                              application_data, 0);
+                              application_data, 0, 0);
         if (sendSz < 0)
             return BUILD_MSG_ERROR;
 
@@ -10733,7 +10750,8 @@ int SendAlert(WOLFSSL* ssl, int severity, int type)
     /* only send encrypted alert if handshake actually complete, otherwise
        other side may not be able to handle it */
     if (IsEncryptionOn(ssl, 1) && ssl->options.handShakeDone)
-        sendSz = BuildMessage(ssl, output, outputSz, input, ALERT_SIZE,alert,0);
+        sendSz = BuildMessage(ssl, output, outputSz, input, ALERT_SIZE,
+                              alert, 0, 0);
     else {
 
         AddRecordHeader(output, ALERT_SIZE, alert, ssl);
@@ -12506,7 +12524,8 @@ static void PickHashSigAlgo(WOLFSSL* ssl,
                 return MEMORY_E;
 
             XMEMCPY(input, output + RECORD_HEADER_SZ, inputSz);
-            sendSz = BuildMessage(ssl, output,sendSz,input,inputSz,handshake,1);
+            sendSz = BuildMessage(ssl, output, sendSz, input, inputSz,
+                                  handshake, 1, 0);
             XFREE(input, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
 
             if (sendSz < 0)
@@ -14855,7 +14874,7 @@ static word32 QSH_KeyExchangeWrite(WOLFSSL* ssl, byte isServer)
 
                 XMEMCPY(input, output + RECORD_HEADER_SZ, inputSz);
                 sendSz = BuildMessage(ssl, output, sendSz, input, inputSz,
-                                      handshake, 1);
+                                      handshake, 1, 0);
                 XFREE(input, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
                 if (sendSz < 0) {
                 #ifdef WOLFSSL_SMALL_STACK
@@ -15233,7 +15252,7 @@ static word32 QSH_KeyExchangeWrite(WOLFSSL* ssl, byte isServer)
                 XMEMCPY(input, output + RECORD_HEADER_SZ, inputSz);
                 sendSz = BuildMessage(ssl, output,
                                       MAX_CERT_VERIFY_SZ +MAX_MSG_EXTRA,
-                                      input, inputSz, handshake, 1);
+                                      input, inputSz, handshake, 1, 0);
                 XFREE(input, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
 
                 if (sendSz < 0)
