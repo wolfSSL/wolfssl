@@ -1848,8 +1848,8 @@ typedef struct SessionTicket {
 WOLFSSL_LOCAL int  TLSX_UseSessionTicket(TLSX** extensions,
                                              SessionTicket* ticket, void* heap);
 WOLFSSL_LOCAL SessionTicket* TLSX_SessionTicket_Create(word32 lifetime,
-                                                       byte* data, word16 size);
-WOLFSSL_LOCAL void TLSX_SessionTicket_Free(SessionTicket* ticket);
+                                           byte* data, word16 size, void* heap);
+WOLFSSL_LOCAL void TLSX_SessionTicket_Free(SessionTicket* ticket, void* heap);
 
 #endif /* HAVE_SESSION_TICKET */
 

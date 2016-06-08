@@ -12438,11 +12438,11 @@ static void PickHashSigAlgo(WOLFSSL* ssl,
         if (ssl->options.resuming && ssl->session.ticketLen > 0) {
             SessionTicket* ticket;
 
-            ticket = TLSX_SessionTicket_Create(0,
-                                   ssl->session.ticket, ssl->session.ticketLen);
+            ticket = TLSX_SessionTicket_Create(0, ssl->session.ticket,
+                                             ssl->session.ticketLen, ssl->heap);
             if (ticket == NULL) return MEMORY_E;
 
-            ret = TLSX_UseSessionTicket(&ssl->extensions, ticket);
+            ret = TLSX_UseSessionTicket(&ssl->extensions, ticket, ssl->heap);
             if (ret != SSL_SUCCESS) return ret;
 
             idSz = 0;

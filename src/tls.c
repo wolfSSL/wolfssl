@@ -3193,14 +3193,14 @@ static int TLSX_SessionTicket_Parse(WOLFSSL* ssl, byte* input, word16 length,
 }
 
 WOLFSSL_LOCAL SessionTicket* TLSX_SessionTicket_Create(word32 lifetime,
-                                                       byte* data, word16 size)
+                                            byte* data, word16 size, void* heap)
 {
     SessionTicket* ticket = (SessionTicket*)XMALLOC(sizeof(SessionTicket),
-                                                       NULL, DYNAMIC_TYPE_TLSX);
+                                                       heap, DYNAMIC_TYPE_TLSX);
     if (ticket) {
-        ticket->data = (byte*)XMALLOC(size, NULL, DYNAMIC_TYPE_TLSX);
+        ticket->data = (byte*)XMALLOC(size, heap, DYNAMIC_TYPE_TLSX);
         if (ticket->data == NULL) {
-            XFREE(ticket, NULL, DYNAMIC_TYPE_TLSX);
+            XFREE(ticket, heap, DYNAMIC_TYPE_TLSX);
             return NULL;
         }
 
@@ -3211,12 +3211,14 @@ WOLFSSL_LOCAL SessionTicket* TLSX_SessionTicket_Create(word32 lifetime,
 
     return ticket;
 }
-WOLFSSL_LOCAL void TLSX_SessionTicket_Free(SessionTicket* ticket)
+WOLFSSL_LOCAL void TLSX_SessionTicket_Free(SessionTicket* ticket, void* heap)
 {
     if (ticket) {
-        XFREE(ticket->data, NULL, DYNAMIC_TYPE_TLSX);
-        XFREE(ticket,       NULL, DYNAMIC_TYPE_TLSX);
+        XFREE(ticket->data, heap, DYNAMIC_TYPE_TLSX);
+        XFREE(ticket,       heap, DYNAMIC_TYPE_TLSX);
     }
+
+    (void)heap;
 }
 
 int TLSX_UseSessionTicket(TLSX** extensions, SessionTicket* ticket, void* heap)
@@ -3913,6 +3915,8 @@ void TLSX_FreeAll(TLSX* list, void* heap)
 
         XFREE(extension, heap, DYNAMIC_TYPE_TLSX);
     }
+
+    (void)heap;
 }
 
 /** Checks if the tls extensions are supported based on the protocol version. */

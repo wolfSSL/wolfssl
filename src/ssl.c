@@ -1555,7 +1555,7 @@ int wolfSSL_UseSessionTicket(WOLFSSL* ssl)
     if (ssl == NULL)
         return BAD_FUNC_ARG;
 
-    return TLSX_UseSessionTicket(&ssl->extensions, NULL);
+    return TLSX_UseSessionTicket(&ssl->extensions, NULL, ssl->heap);
 }
 
 int wolfSSL_CTX_UseSessionTicket(WOLFSSL_CTX* ctx)
@@ -1563,7 +1563,7 @@ int wolfSSL_CTX_UseSessionTicket(WOLFSSL_CTX* ctx)
     if (ctx == NULL)
         return BAD_FUNC_ARG;
 
-    return TLSX_UseSessionTicket(&ctx->extensions, NULL);
+    return TLSX_UseSessionTicket(&ctx->extensions, NULL, ctx->heap);
 }
 
 WOLFSSL_API int wolfSSL_get_SessionTicket(WOLFSSL* ssl,
