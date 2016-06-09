@@ -4471,6 +4471,7 @@ int wolfSSL_CertManagerEnableOCSPStapling(WOLFSSL_CERT_MANAGER* cm)
         #ifndef WOLFSSL_USER_IO
             cm->ocspIOCb = EmbedOcspLookup;
             cm->ocspRespFreeCb = EmbedOcspRespFree;
+            cm->ocspIOCtx = cm->heap;
         #endif /* WOLFSSL_USER_IO */
     #else
         ret = NOT_COMPILED_IN;

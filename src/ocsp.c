@@ -71,7 +71,7 @@ static int InitOcspEntry(OcspEntry* entry, OcspRequest* request)
 }
 
 
-static void FreeOcspEntry(OcspEntry* entry)
+static void FreeOcspEntry(OcspEntry* entry, void* heap)
 {
     CertStatus *status, *next;
 
@@ -81,10 +81,12 @@ static void FreeOcspEntry(OcspEntry* entry)
         next = status->next;
 
         if (status->rawOcspResponse)
-            XFREE(status->rawOcspResponse, NULL, DYNAMIC_TYPE_OCSP_STATUS);
+            XFREE(status->rawOcspResponse, heap, DYNAMIC_TYPE_OCSP_STATUS);
 
-        XFREE(status, NULL, DYNAMIC_TYPE_OCSP_STATUS);
+        XFREE(status, heap, DYNAMIC_TYPE_OCSP_STATUS);
     }
+
+    (void)heap;
 }
 
 
@@ -96,7 +98,7 @@ void FreeOCSP(WOLFSSL_OCSP* ocsp, int dynamic)
 
     for (entry = ocsp->ocspList; entry; entry = next) {
         next = entry->next;
-        FreeOcspEntry(entry);
+        FreeOcspEntry(entry, ocsp->cm->heap);
         XFREE(entry, ocsp->cm->heap, DYNAMIC_TYPE_OCSP_ENTRY);
     }
 
