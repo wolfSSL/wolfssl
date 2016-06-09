@@ -274,6 +274,15 @@ WOLFSSL_API word32 wc_EncodeSignature(byte* out, const byte* digest,
                                       word32 digSz, int hashOID);
 WOLFSSL_API int wc_GetCTC_HashOID(int type);
 
+/* Time */
+/* Returns seconds (Epoch/UTC)
+ * timePtr: is "time_t", which is typically "long"
+ * Example:
+    long lTime;
+    rc = wc_GetTime(&lTime, (word32)sizeof(lTime));
+*/
+WOLFSSL_API int wc_GetTime(void* timePtr, word32 timeSize);
+
 #ifdef __cplusplus
     } /* extern "C" */
 #endif

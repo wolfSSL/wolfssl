@@ -1147,6 +1147,23 @@ fi
 AM_CONDITIONAL([BUILD_CODING], [test "x$ENABLED_CODING" = "xyes"])
 
 
+# Base64 Encode
+BASE64ENCODE_DEFAULT=no
+if test "$host_cpu" = "x86_64"
+then
+BASE64ENCODE_DEFAULT=yes
+fi
+AC_ARG_ENABLE([base64encode],
+    [  --enable-base64encode   Enable Base64 encoding (default: enabled on x86_64)],
+    [ ENABLED_BASE64ENCODE=$enableval ],
+    [ ENABLED_BASE64ENCODE=$BASE64ENCODE_DEFAULT ]
+    )
+if test "$ENABLED_BASE64ENCODE" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_BASE64_ENCODE"
+fi
+
+
 # DES3
 AC_ARG_ENABLE([des3],
     [  --enable-des3           Enable DES3 (default: enabled)],

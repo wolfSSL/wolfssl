@@ -3086,6 +3086,22 @@ int ValidateDate(const byte* date, byte format, int dateType)
 }
 #endif /* !NO_TIME_H && USE_WOLF_VALIDDATE */
 
+int wc_GetTime(void* timePtr, word32 timeSize)
+{
+    time_t* ltime = (time_t*)timePtr;
+
+    if (timePtr == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    if ((word32)sizeof(time_t) > timeSize) {
+        return BUFFER_E;
+    }
+
+    *ltime = XTIME(0);
+
+    return 0;
+}
 
 static int GetDate(DecodedCert* cert, int dateType)
 {
