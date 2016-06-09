@@ -18,24 +18,30 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
-
  
 #ifdef HAVE_CONFIG_H
     #include <config.h>
 #endif
 
-#include <cyassl/ctaocrypt/visibility.h>
-#include <cyassl/ctaocrypt/logging.h>
+#include <wolfssl/wolfcrypt/settings.h>
 
+#include "wolfcrypt/test/test.h"
 #include "cmsis_os.h"
-
 #include <stdio.h>
+#include "stm32f2xx_hal.h"
+
+/*-----------------------------------------------------------------------------
+ *        System Clock Configuration
+ *----------------------------------------------------------------------------*/
+void SystemClock_Config(void) {
+    #warning "write MPU specific System Clock Set up\n"
+}
 
 /*-----------------------------------------------------------------------------
  *        Initialize a Flash Memory Card
  *----------------------------------------------------------------------------*/
 #if !defined(NO_FILESYSTEM)
-#include "rl_fs.h" 
+#include "rl_fs.h"                      /* FileSystem definitions             */
 
 static void init_filesystem (void) {
   int32_t retv;
@@ -56,8 +62,6 @@ static void init_filesystem (void) {
 }
 #endif
 
-extern void ctaocrypt_test(void * arg) ;
-
 /*-----------------------------------------------------------------------------
  *       mian entry 
  *----------------------------------------------------------------------------*/
@@ -66,12 +70,16 @@ int main()
 {
     void * arg = NULL ;
 
+	HAL_Init();                               /* Initialize the HAL Library     */
+	SystemClock_Config();              /* Configure the System Clock     */
+
 	#if !defined(NO_FILESYSTEM)
     init_filesystem ();
 	#endif
-	
+  osDelay(1000) ;  
+
     printf("=== Start: Crypt test ===\n") ;
-        ctaocrypt_test(arg) ;
+        wolfcrypt_test(arg) ;
     printf("=== End: Crypt test  ===\n") ;    
     
 }

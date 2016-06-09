@@ -487,7 +487,7 @@
           <targetInfo name="CryptTest"/>
         </targetInfos>
       </package>
-      <package license="wolfssl\IDE\MDK5-ARM\Docs\wolfSSL-License.txt" name="CyaSSL" schemaVersion="1.0" url="http://www.wolfSSL.com/files/ide" vendor="wolfSSL" version="3.6.3">
+      <package license="wolfssl\IDE\MDK5-ARM\Docs\wolfSSL-License.txt" name="wolfSSL" schemaVersion="1.2" url="http://www.wolfSSL.com/files/ide" vendor="wolfSSL" version="3.9.0">
         <targetInfos>
           <targetInfo name="CryptTest"/>
         </targetInfos>
@@ -616,20 +616,20 @@
           <targetInfo name="CryptTest"/>
         </targetInfos>
       </component>
-      <component Cbundle="wolfSSL" Cclass="wolfSSL" Cgroup="wolfCrypt" Csub="CORE" Cvendor="wolfSSL" Cversion="3.6.3" condition="wolfCrypt-Core">
-        <package license="wolfssl\IDE\MDK5-ARM\Docs\wolfSSL-License.txt" name="CyaSSL" schemaVersion="1.0" url="http://www.wolfSSL.com/files/ide" vendor="wolfSSL" version="3.6.3"/>
+      <component Cbundle="wolfSSL" Cclass="wolfSSL" Cgroup="wolfCrypt" Csub="CORE" Cvendor="wolfSSL" Cversion="" condition="wolfCrypt-Core">
+        <package license="wolfssl\IDE\MDK5-ARM\Docs\wolfSSL-License.txt" name="wolfSSL" schemaVersion="1.2" url="http://www.wolfSSL.com/files/ide" vendor="wolfSSL" version="3.9.0"/>
         <targetInfos>
           <targetInfo name="CryptTest"/>
         </targetInfos>
       </component>
-      <component Cbundle="wolfSSL" Cclass="wolfSSL" Cgroup="wolfCrypt" Csub="Dummy" Cvendor="wolfSSL" Cversion="3.6.3" condition="wolfCrypt-Core">
-        <package license="wolfssl\IDE\MDK5-ARM\Docs\wolfSSL-License.txt" name="CyaSSL" schemaVersion="1.0" url="http://www.wolfSSL.com/files/ide" vendor="wolfSSL" version="3.6.3"/>
+      <component Cbundle="wolfSSL" Cclass="wolfSSL" Cgroup="wolfCrypt" Csub="Dummy" Cvendor="wolfSSL" Cversion="" condition="wolfCrypt-Core">
+        <package license="wolfssl\IDE\MDK5-ARM\Docs\wolfSSL-License.txt" name="wolfSSL" schemaVersion="1.2" url="http://www.wolfSSL.com/files/ide" vendor="wolfSSL" version="3.9.0"/>
         <targetInfos>
           <targetInfo name="CryptTest"/>
         </targetInfos>
       </component>
-      <component Cbundle="wolfSSL" Cclass="wolfSSL" Cgroup="wolfCrypt" Csub="Test" Cvendor="wolfSSL" Cversion="3.6.3" condition="wolfCrypt-Core">
-        <package license="wolfssl\IDE\MDK5-ARM\Docs\wolfSSL-License.txt" name="CyaSSL" schemaVersion="1.0" url="http://www.wolfSSL.com/files/ide" vendor="wolfSSL" version="3.6.3"/>
+      <component Cbundle="wolfSSL" Cclass="wolfSSL" Cgroup="wolfCrypt" Csub="Test" Cvendor="wolfSSL" Cversion="" condition="wolfCrypt-Core">
+        <package license="wolfssl\IDE\MDK5-ARM\Docs\wolfSSL-License.txt" name="wolfSSL" schemaVersion="1.2" url="http://www.wolfSSL.com/files/ide" vendor="wolfSSL" version="3.9.0"/>
         <targetInfos>
           <targetInfo name="CryptTest"/>
         </targetInfos>
@@ -776,54 +776,54 @@
         <package name="MDK-Middleware" url="http://www.keil.com/pack/" vendor="Keil" version="5.1.0"/>
         <targetInfos/>
       </file>
-      <file attr="config" category="header" name="cyassl\IDE\MDK5-ARM\MDK-ARM\CyaSSL\config-Crypt.h">
+      <file attr="config" category="header" name="wolfssl\IDE\MDK5-ARM\MDK-ARM\wolfSSL\config-Crypt.h">
         <instance index="0" removed="1">RTE\Other\config-Crypt.h</instance>
-        <component Cclass="Other" Cgroup="wolfCrypt" Csub="CORE" Cvendor="wolfSSL" Cversion="3.0.0" condition="wolfCrypt-Core"/>
-        <package name="CyaSSL" url="http://www.wolfSSL.com/keil/pack/" vendor="wolfSSL" version="3.0.0"/>
+        <component Cclass="Other" Cgroup="wolfCrypt" Csub="CORE" Cvendor="wolfSSL" Cversion="3.9.0" condition="wolfCrypt-Core"/>
+        <package name="wolfSSL" url="http://www.wolfSSL.com/keil/pack/" vendor="wolfSSL" version="3.9.0"/>
         <targetInfos/>
       </file>
-      <file attr="config" category="header" name="cyassl\IDE\MDK5-ARM\MDK-ARM\CyaSSL\config-FS.h">
+      <file attr="config" category="header" name="wolfssl\IDE\MDK5-ARM\MDK-ARM\wolfSSL\config-FS.h">
         <instance index="0" removed="1">RTE\Other\config-FS.h</instance>
-        <component Cclass="Other" Cgroup="wolfCrypt" Csub="CORE" Cvendor="wolfSSL" Cversion="3.0.0" condition="wolfCrypt-Core"/>
-        <package name="CyaSSL" url="http://www.wolfSSL.com/keil/pack/" vendor="wolfSSL" version="3.0.0"/>
+        <component Cclass="Other" Cgroup="wolfCrypt" Csub="CORE" Cvendor="wolfSSL" Cversion="3.9.0" condition="wolfCrypt-Core"/>
+        <package name="wolfSSL" url="http://www.wolfSSL.com/keil/pack/" vendor="wolfSSL" version="3.9.0"/>
         <targetInfos/>
       </file>
-      <file attr="config" category="header" name="cyassl\IDE\MDK5-ARM\MDK-ARM\CyaSSL\config-RTX-TCP-FS.h">
+      <file attr="config" category="header" name="wolfssl\IDE\MDK5-ARM\MDK-ARM\wolfSSL\config-RTX-TCP-FS.h">
         <instance index="0" removed="1">RTE\Other\config-RTX-TCP-FS.h</instance>
-        <component Cclass="Other" Cgroup="CyaSSL" Csub="RTX,TCP,FS" Cvendor="wolfSSL" Cversion="3.0.0" condition="CyaSSL-RTX,TCP,FS"/>
-        <package name="CyaSSL" url="http://www.wolfSSL.com/keil/pack/" vendor="wolfSSL" version="3.0.0"/>
+        <component Cclass="Other" Cgroup="wolfSSL" Csub="RTX,TCP,FS" Cvendor="wolfSSL" Cversion="3.9.0" condition="CyaSSL-RTX,TCP,FS"/>
+        <package name="wolfSSL" url="http://www.wolfSSL.com/keil/pack/" vendor="wolfSSL" version="3.9.0"/>
         <targetInfos/>
       </file>
-      <file attr="config" category="header" name="cyassl\IDE\MDK5-ARM\MDK-ARM\CyaSSL\config.h">
+      <file attr="config" category="header" name="wolfssl\IDE\MDK5-ARM\MDK-ARM\wolfSSL\config.h">
         <instance index="0" removed="1">RTE\Other\config.h</instance>
-        <component Cclass="Other" Cgroup="wolfCrypt" Csub="CORE" Cvendor="wolfSSL" Cversion="3.0.0" condition="wolfCrypt-Core"/>
-        <package name="CyaSSL" url="http://www.wolfSSL.com/keil/pack/" vendor="wolfSSL" version="3.0.0"/>
+        <component Cclass="Other" Cgroup="wolfCrypt" Csub="CORE" Cvendor="wolfSSL" Cversion="3.9.0" condition="wolfCrypt-Core"/>
+        <package name="wolfSSL" url="http://www.wolfSSL.com/keil/pack/" vendor="wolfSSL" version="3.9.0"/>
         <targetInfos/>
       </file>
       <file attr="config" category="header" name="wolfssl\IDE\MDK5-ARM\Conf\config-Crypt.h">
         <instance index="0">RTE\wolfSSL\config-Crypt.h</instance>
-        <component Cbundle="wolfSSL" Cclass="wolfSSL" Cgroup="wolfCrypt" Csub="CORE" Cvendor="wolfSSL" Cversion="3.6.3" condition="wolfCrypt-Core"/>
-        <package license="wolfssl\IDE\MDK5-ARM\Docs\wolfSSL-License.txt" name="CyaSSL" schemaVersion="1.0" url="http://www.wolfSSL.com/files/ide" vendor="wolfSSL" version="3.6.3"/>
+        <component Cbundle="wolfSSL" Cclass="wolfSSL" Cgroup="wolfCrypt" Csub="CORE" Cvendor="wolfSSL" Cversion="3.9.0" condition="wolfCrypt-Core"/>
+        <package license="wolfssl\IDE\MDK5-ARM\Docs\wolfSSL-License.txt" name="wolfSSL" schemaVersion="1.0" url="http://www.wolfSSL.com/files/ide" vendor="wolfSSL" version="3.9.0"/>
         <targetInfos>
           <targetInfo name="CryptTest"/>
         </targetInfos>
       </file>
-      <file attr="config" category="header" name="cyassl\IDE\MDK5-ARM\MDK-ARM\CyaSSL\config.h">
+      <file attr="config" category="header" name="wolfssl\IDE\MDK5-ARM\MDK-ARM\wolfSSL\config.h">
         <instance index="0" removed="1">RTE\wolfSSL\config.h</instance>
-        <component Cbundle="wolfSSL" Cclass="wolfSSL" Cgroup="wolfCrypt" Csub="CORE" Cvendor="wolfSSL" Cversion="3.0.0" condition="wolfCrypt-Core"/>
-        <package name="CyaSSL" url="http://www.wolfSSL.com/files/ide" vendor="wolfSSL" version="3.0.0"/>
+        <component Cbundle="wolfSSL" Cclass="wolfSSL" Cgroup="wolfCrypt" Csub="CORE" Cvendor="wolfSSL" Cversion="3.9.0" condition="wolfCrypt-Core"/>
+        <package name="wolfSSL" url="http://www.wolfSSL.com/files/ide" vendor="wolfSSL" version="3.9.0"/>
         <targetInfos/>
       </file>
-      <file attr="config" category="header" name="cyassl\cyassl\ctaocrypt\settings.h">
+      <file attr="config" category="header" name="wolfssl\wolfssl\ctaocrypt\settings.h">
         <instance index="0" removed="1">RTE\wolfSSL\settings.h</instance>
-        <component Cbundle="wolfSSL" Cclass="wolfSSL" Cgroup="wolfCrypt" Csub="CORE" Cvendor="wolfSSL" Cversion="3.0.0" condition="wolfCrypt-Core"/>
-        <package license="cyassl\IDE\MDK5-ARM\Docs\CyaSSL-License.txt" name="CyaSSL" schemaVersion="1.0" url="http://www.wolfSSL.com/files/ide" vendor="wolfSSL" version="3.0.0"/>
+        <component Cbundle="wolfSSL" Cclass="wolfSSL" Cgroup="wolfCrypt" Csub="CORE" Cvendor="wolfSSL" Cversion="3.9.0" condition="wolfCrypt-Core"/>
+        <package license="wolfssl\IDE\MDK5-ARM\Docs\CyaSSL-License.txt" name="wolfSSL" schemaVersion="1.0" url="http://www.wolfSSL.com/files/ide" vendor="wolfSSL" version="3.9.0"/>
         <targetInfos/>
       </file>
       <file attr="config" category="header" name="wolfssl\IDE\MDK5-ARM\Conf\user_settings.h">
         <instance index="0">RTE\wolfSSL\user_settings.h</instance>
-        <component Cbundle="wolfSSL" Cclass="wolfSSL" Cgroup="wolfCrypt" Csub="CORE" Cvendor="wolfSSL" Cversion="3.6.3" condition="wolfCrypt-Core"/>
-        <package license="wolfssl\IDE\MDK5-ARM\Docs\wolfSSL-License.txt" name="CyaSSL" schemaVersion="1.0" url="http://www.wolfSSL.com/files/ide" vendor="wolfSSL" version="3.6.3"/>
+        <component Cbundle="wolfSSL" Cclass="wolfSSL" Cgroup="wolfCrypt" Csub="CORE" Cvendor="wolfSSL" Cversion="3.9.0" condition="wolfCrypt-Core"/>
+        <package license="wolfssl\IDE\MDK5-ARM\Docs\wolfSSL-License.txt" name="wolfSSL" schemaVersion="1.0" url="http://www.wolfSSL.com/files/ide" vendor="wolfSSL" version="3.9.0"/>
         <targetInfos>
           <targetInfo name="CryptTest"/>
         </targetInfos>

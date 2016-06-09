@@ -27,3 +27,5 @@
 
 #define NO_WRITEV
 #define NO_MAIN_DRIVER
+#define WOLFSSL_MDK_SHELL
+

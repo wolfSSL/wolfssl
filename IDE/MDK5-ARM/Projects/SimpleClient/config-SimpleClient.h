@@ -19,52 +19,33 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
-
-
-/**** CyaSSL for KEIL-RL Configuration ****/
-
-#define __CORTEX_M3__
-#define CYASSL_MDK_ARM
-#define NO_WRITEV
-#define NO_CYASSL_DIR
-#define NO_MAIN_DRIVER
-
-
-#define CYASSL_DER_LOAD
-#define HAVE_NULL_CIPHER
-
-#define HAVE_KEIL_RTX
-#define CYASSL_CMSIS_RTOS
-#define CYASSL_KEIL_TCP_NET
-
-
 // <<< Use Configuration Wizard in Context Menu >>>
 // <h> Build Target: Simple Client
 //   <s.15>Callee IP Address
 //   <i> Default: "192.168.1.100"
-#define CYASSL_CALLEE_IP           "192.168.11.3"
+#define WOLFSSL_CALLEE_IP           "192.168.10.8"
 //   <s.15>Callee Port Number
 //   <i> Default: "443"
-#define CYASSL_CALLEE_PORT           "443"
+#define WOLFSSL_CALLEE_PORT           "11111"
 //        <o>HTTP GET Option <0=> HTTP Get <1=> SSL/TLS Message
 #define MDK_CONF_HTTP_GET 0
 #if MDK_CONF_HTTP_GET == 0
-    #define CYASSL_HTTP_GET "-g"
-		#define CYASSL_HTTP_GET_COUNT  1
+    #define WOLFSSL_HTTP_GET "-g"
+		#define WOLFSSL_HTTP_GET_COUNT  1
 #elif MDK_CONF_HTTP_GET == 1
-    #define CYASSL_HTTP_GET ""
-		#define CYASSL_HTTP_GET_COUNT  0
+    #define WOLFSSL_HTTP_GET ""
+		#define WOLFSSL_HTTP_GET_COUNT  0
 #endif
 //        <o>SSL/TLS Version <0=> SSL3 <1=> TLS 1.0 <2=> TLS 1.1 <3=> TLS 1.2
 #define MDK_CONF_SSL_VERSION 3
 #if MDK_CONF_SSL_VERSION  == 0
-    #define CYASSL_SSL_VER  "0"
+    #define WOLFSSL_SSL_VER  "0"
 #elif MDK_CONF_SSL_VERSION  == 1
-    #define CYASSL_SSL_VER  "1"
+    #define WOLFSSL_SSL_VER  "1"
 #elif MDK_CONF_SSL_VERSION  == 2
-    #define CYASSL_SSL_VER  "2"
+    #define WOLFSSL_SSL_VER  "2"
 #elif MDK_CONF_SSL_VERSION  == 3
-    #define CYASSL_SSL_VER  "3"
+    #define WOLFSSL_SSL_VER  "3"
 #endif
 
 //     </h>
