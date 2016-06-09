@@ -11138,6 +11138,9 @@ const char* wolfSSL_ERR_reason_error_string(unsigned long e)
     case DTLS_EXPORT_VER_E:
         return "Version needs updated after code change or version mismatch";
 
+    case INPUT_SIZE_E:
+        return "Input size too large Error";
+
     default :
         return "unknown error number";
     }
