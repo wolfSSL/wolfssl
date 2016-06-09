@@ -1366,16 +1366,7 @@ int InitSSL_Ctx(WOLFSSL_CTX* ctx, WOLFSSL_METHOD* method, void* heap)
     #endif
 #endif /* HAVE_WOLF_EVENT */
 
-#ifdef WOLFSSL_STATIC_MEMORY
-#ifdef WOLFSSL_HEAP_TEST
-    if (heap == NULL) {
-        ctx->heap = (void*)WOLFSSL_HEAP_TEST;
-    }
-    else
-#endif
     ctx->heap = heap; /* wolfSSL_CTX_load_static_memory sets */
-#endif /* WOLFSSL_STATIC_MEMORY */
-    (void)heap;
 
     return 0;
 }
@@ -1444,6 +1435,7 @@ void SSL_CtxResourceFree(WOLFSSL_CTX* ctx)
 #ifdef WOLFSSL_STATIC_MEMORY
     if (ctx->heap != NULL) {
 #ifdef WOLFSSL_HEAP_TEST
+        /* avoid derefrencing a test value */
         if (ctx->heap != (void*)WOLFSSL_HEAP_TEST) {
 #endif
         WOLFSSL_HEAP_HINT* hint = (WOLFSSL_HEAP_HINT*)(ctx->heap);
@@ -3555,6 +3547,7 @@ void SSL_ResourceFree(WOLFSSL* ssl)
     /* check if using fixed io buffers and free them */
     if (ssl->heap != NULL) {
     #ifdef WOLFSSL_HEAP_TEST
+    /* avoid dereferencing a test value */
     if (ssl->heap != (void*)WOLFSSL_HEAP_TEST) {
     #endif
         WOLFSSL_HEAP_HINT* ssl_hint = (WOLFSSL_HEAP_HINT*)ssl->heap;
@@ -3730,6 +3723,7 @@ void FreeHandshakeResources(WOLFSSL* ssl)
     /* when done with handshake decrement current handshake count */
     if (ssl->heap != NULL) {
     #ifdef WOLFSSL_HEAP_TEST
+    /* avoid dereferencing a test value */
     if (ssl->heap != (void*)WOLFSSL_HEAP_TEST) {
     #endif
         WOLFSSL_HEAP_HINT* ssl_hint = (WOLFSSL_HEAP_HINT*)ssl->heap;

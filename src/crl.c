@@ -51,12 +51,7 @@ int InitCRL(WOLFSSL_CRL* crl, WOLFSSL_CERT_MANAGER* cm)
 {
     WOLFSSL_ENTER("InitCRL");
 
-    /* default heap hint to null or test value */
-#ifdef WOLFSSL_HEAP_TEST
-    crl->heap = (void*)WOLFSSL_HEAP_TEST;
-#else
     crl->heap = cm->heap;
-#endif
     crl->cm = cm;
     crl->crlList = NULL;
     crl->monitors[0].path = NULL;

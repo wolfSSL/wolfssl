@@ -252,11 +252,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     SOCKET_T sockfd   = WOLFSSL_SOCKET_INVALID;
     SOCKET_T clientfd = WOLFSSL_SOCKET_INVALID;
 
-#ifdef WOLFSSL_STATIC_MEMORY
-    wolfSSLStaticMethod method = NULL;
-#else
-    SSL_METHOD* method = 0;
-#endif
+    wolfSSL_method_func method = NULL;
     SSL_CTX*    ctx    = 0;
     SSL*        ssl    = 0;
 
@@ -589,30 +585,18 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
 #ifndef NO_OLD_TLS
     #ifdef WOLFSSL_ALLOW_SSLV3
         case 0:
-#ifdef WOLFSSL_STATIC_MEMORY
-            method = wolfSSLv3_server_static;
-#else
-            method = SSLv3_server_method();
-#endif
+            method = SSLv3_server_method;
             break;
     #endif
 
     #ifndef NO_TLS
         case 1:
-#ifdef WOLFSSL_STATIC_MEMORY
-            method = wolfTLSv1_server_static;
-#else
-            method = TLSv1_server_method();
-#endif
+            method = TLSv1_server_method;
             break;
 
 
         case 2:
-#ifdef WOLFSSL_STATIC_MEMORY
-            method = wolfTLSv1_1_server_static;
-#else
-            method = TLSv1_1_server_method();
-#endif
+            method = TLSv1_1_server_method;
             break;
 
         #endif
@@ -620,31 +604,19 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
 
 #ifndef NO_TLS
         case 3:
-#ifdef WOLFSSL_STATIC_MEMORY
-            method = wolfTLSv1_2_server_static;
-#else
-            method = TLSv1_2_server_method();
-#endif
+            method = TLSv1_2_server_method;
             break;
 #endif
 
 #ifdef CYASSL_DTLS
     #ifndef NO_OLD_TLS
         case -1:
-#ifdef WOLFSSL_STATIC_MEMORY
-            method = wolfDTLSv1_server_static;
-#else
-            method = DTLSv1_server_method();
-#endif
+            method = DTLSv1_server_method;
             break;
     #endif
 
         case -2:
-#ifdef WOLFSSL_STATIC_MEMORY
-            method = wolfDTLSv1_2_server_static;
-#else
-            method = DTLSv1_2_server_method();
-#endif
+            method = DTLSv1_2_server_method;
             break;
 #endif
 
@@ -666,7 +638,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
             != SSL_SUCCESS)
         err_sys("unable to load static memory and create ctx");
 #else
-    ctx = SSL_CTX_new(method);
+    ctx = SSL_CTX_new(method());
 #endif
     if (ctx == NULL)
         err_sys("unable to get ctx");

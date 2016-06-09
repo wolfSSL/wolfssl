@@ -1208,6 +1208,25 @@ WOLFSSL_LOCAL ProtocolVersion MakeTLSv1(void);
 WOLFSSL_LOCAL ProtocolVersion MakeTLSv1_1(void);
 WOLFSSL_LOCAL ProtocolVersion MakeTLSv1_2(void);
 
+WOLFSSL_LOCAL WOLFSSL_METHOD *wolfSSLv3_server_method_ex(void* heap);
+WOLFSSL_LOCAL WOLFSSL_METHOD *wolfSSLv3_client_method_ex(void* heap);
+WOLFSSL_LOCAL WOLFSSL_METHOD *wolfTLSv1_server_method_ex(void* heap);
+WOLFSSL_LOCAL WOLFSSL_METHOD *wolfTLSv1_client_method_ex(void* heap);
+WOLFSSL_LOCAL WOLFSSL_METHOD *wolfTLSv1_1_server_method_ex(void* heap);
+WOLFSSL_LOCAL WOLFSSL_METHOD *wolfTLSv1_1_client_method_ex(void* heap);
+WOLFSSL_LOCAL WOLFSSL_METHOD *wolfTLSv1_2_server_method_ex(void* heap);
+WOLFSSL_LOCAL WOLFSSL_METHOD *wolfTLSv1_2_client_method_ex(void* heap);
+WOLFSSL_LOCAL WOLFSSL_METHOD *wolfSSLv23_server_method_ex(void* heap);
+WOLFSSL_LOCAL WOLFSSL_METHOD *wolfSSLv23_client_method_ex(void* heap);
+
+#ifdef WOLFSSL_DTLS
+    WOLFSSL_LOCAL WOLFSSL_METHOD *wolfDTLSv1_client_method_ex(void* heap);
+    WOLFSSL_LOCAL WOLFSSL_METHOD *wolfDTLSv1_server_method_ex(void* heap);
+    WOLFSSL_LOCAL WOLFSSL_METHOD *wolfDTLSv1_2_client_method_ex(void* heap);
+    WOLFSSL_LOCAL WOLFSSL_METHOD *wolfDTLSv1_2_server_method_ex(void* heap);
+#endif
+
+
 #ifdef WOLFSSL_DTLS
     WOLFSSL_LOCAL ProtocolVersion MakeDTLSv1(void);
     WOLFSSL_LOCAL ProtocolVersion MakeDTLSv1_2(void);

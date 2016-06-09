@@ -779,7 +779,7 @@ static int decode_url(const char* url, int urlSz,
 /* return: >0 OCSP Response Size
  *         -1 error */
 static int process_http_response(int sfd, byte** respBuf,
-                                                  byte* httpBuf, int httpBufSz)
+                                       byte* httpBuf, int httpBufSz, void* heap)
 {
     int result;
     int len = 0;
@@ -868,7 +868,7 @@ static int process_http_response(int sfd, byte** respBuf,
         }
     } while (state != phr_http_end);
 
-    recvBuf = (byte*)XMALLOC(recvBufSz, NULL, DYNAMIC_TYPE_OCSP);
+    recvBuf = (byte*)XMALLOC(recvBufSz, heap, DYNAMIC_TYPE_OCSP);
     if (recvBuf == NULL) {
         WOLFSSL_MSG("process_http_response couldn't create response buffer");
         return -1;
@@ -896,6 +896,7 @@ static int process_http_response(int sfd, byte** respBuf,
 
 #define SCRATCH_BUFFER_SIZE 512
 
+/* in default wolfSSL callback ctx is the heap pointer */
 int EmbedOcspLookup(void* ctx, const char* url, int urlSz,
                         byte* ocspReqBuf, int ocspReqSz, byte** ocspRespBuf)
 {
@@ -922,8 +923,6 @@ int EmbedOcspLookup(void* ctx, const char* url, int urlSz,
     }
 #endif
 
-    (void)ctx;
-
     if (ocspReqBuf == NULL || ocspReqSz == 0) {
         WOLFSSL_MSG("OCSP request is required for lookup");
     }
@@ -937,7 +936,7 @@ int EmbedOcspLookup(void* ctx, const char* url, int urlSz,
         /* Note, the library uses the EmbedOcspRespFree() callback to
          * free this buffer. */
         int   httpBufSz = SCRATCH_BUFFER_SIZE;
-        byte* httpBuf   = (byte*)XMALLOC(httpBufSz, NULL,
+        byte* httpBuf   = (byte*)XMALLOC(httpBufSz, ctx,
                                                         DYNAMIC_TYPE_OCSP);
 
         if (httpBuf == NULL) {
@@ -960,11 +959,11 @@ int EmbedOcspLookup(void* ctx, const char* url, int urlSz,
             }
             else {
                 ret = process_http_response(sfd, ocspRespBuf, httpBuf,
-                                                           SCRATCH_BUFFER_SIZE);
+                                                      SCRATCH_BUFFER_SIZE, ctx);
             }
 
             close(sfd);
-            XFREE(httpBuf, NULL, DYNAMIC_TYPE_OCSP);
+            XFREE(httpBuf, ctx, DYNAMIC_TYPE_OCSP);
         }
     }
 

@@ -2554,7 +2554,11 @@ AC_ARG_ENABLE([staticmemory],
 
 if test "x$ENABLED_STATICMEMORY" = "xyes"
 then
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_STATIC_MEMORY -DTFM_TIMING_RESISTANT"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_STATIC_MEMORY"
+    if test "x$ENABLED_FASTMATH" = "xno"
+    then
+        AC_MSG_ERROR([please use --enable-fastmath if enabling staticmemory.])
+    fi
 fi
 
 

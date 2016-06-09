@@ -203,6 +203,7 @@ enum AlertLevel {
 };
 
 
+typedef WOLFSSL_METHOD* (*wolfSSL_method_func)(void);
 WOLFSSL_API WOLFSSL_METHOD *wolfSSLv3_server_method(void);
 WOLFSSL_API WOLFSSL_METHOD *wolfSSLv3_client_method(void);
 WOLFSSL_API WOLFSSL_METHOD *wolfTLSv1_server_method(void);
@@ -218,27 +219,6 @@ WOLFSSL_API WOLFSSL_METHOD *wolfTLSv1_2_client_method(void);
     WOLFSSL_API WOLFSSL_METHOD *wolfDTLSv1_2_client_method(void);
     WOLFSSL_API WOLFSSL_METHOD *wolfDTLSv1_2_server_method(void);
 #endif
-
-#ifdef WOLFSSL_STATIC_MEMORY
-typedef WOLFSSL_METHOD* (*wolfSSLStaticMethod)(void*);
-WOLFSSL_API WOLFSSL_METHOD *wolfSSLv3_server_static(void* heap);
-WOLFSSL_API WOLFSSL_METHOD *wolfSSLv3_client_static(void* heap);
-WOLFSSL_API WOLFSSL_METHOD *wolfTLSv1_server_static(void* heap);
-WOLFSSL_API WOLFSSL_METHOD *wolfTLSv1_client_static(void* heap);
-WOLFSSL_API WOLFSSL_METHOD *wolfTLSv1_1_server_static(void* heap);
-WOLFSSL_API WOLFSSL_METHOD *wolfTLSv1_1_client_static(void* heap);
-WOLFSSL_API WOLFSSL_METHOD *wolfTLSv1_2_server_static(void* heap);
-WOLFSSL_API WOLFSSL_METHOD *wolfTLSv1_2_client_static(void* heap);
-WOLFSSL_API WOLFSSL_METHOD *wolfSSLv23_server_static(void* heap);
-WOLFSSL_API WOLFSSL_METHOD *wolfSSLv23_client_static(void* heap);
-
-#ifdef WOLFSSL_DTLS
-    WOLFSSL_API WOLFSSL_METHOD *wolfDTLSv1_client_static(void* heap);
-    WOLFSSL_API WOLFSSL_METHOD *wolfDTLSv1_server_static(void* heap);
-    WOLFSSL_API WOLFSSL_METHOD *wolfDTLSv1_2_client_static(void* heap);
-    WOLFSSL_API WOLFSSL_METHOD *wolfDTLSv1_2_server_static(void* heap);
-#endif
-#endif /* WOLFSSL_STATIC_MEMORY */
 
 #ifdef HAVE_POLY1305
     WOLFSSL_API int wolfSSL_use_old_poly(WOLFSSL*, int);
@@ -259,16 +239,17 @@ WOLFSSL_API int wolfSSL_dtls_export(WOLFSSL* ssl, unsigned char* buf,
 #endif /* WOLFSSL_SESSION_EXPORT */
 
 #ifdef WOLFSSL_STATIC_MEMORY
-typedef struct WOLFSSL_MEM_STATS      WOLFSSL_MEM_STATS;
-typedef struct WOLFSSL_MEM_CONN_STATS WOLFSSL_MEM_CONN_STATS;
+/* use underscore to avoid possible redefinition of typdef from memory.h */
+typedef struct WOLFSSL_MEM_STATS      _WOLFSSL_MEM_STATS;
+typedef struct WOLFSSL_MEM_CONN_STATS _WOLFSSL_MEM_CONN_STATS;
 WOLFSSL_API int wolfSSL_CTX_load_static_memory(WOLFSSL_CTX** ctx,
-                                            wolfSSLStaticMethod method,
+                                            wolfSSL_method_func method,
                                             unsigned char* buf, unsigned int sz,
                                             int flag, int max);
 WOLFSSL_API int wolfSSL_CTX_is_static_memory(WOLFSSL_CTX* ctx,
-                                                  WOLFSSL_MEM_STATS* mem_stats);
+                                                 _WOLFSSL_MEM_STATS* mem_stats);
 WOLFSSL_API int wolfSSL_is_static_memory(WOLFSSL* ssl,
-                                             WOLFSSL_MEM_CONN_STATS* mem_stats);
+                                            _WOLFSSL_MEM_CONN_STATS* mem_stats);
 #endif
 
 #if !defined(NO_FILESYSTEM) && !defined(NO_CERTS)
@@ -1470,6 +1451,7 @@ WOLFSSL_API int wolfSSL_ALPN_GetProtocol(WOLFSSL* ssl, char **protocol_name,
 
 WOLFSSL_API int wolfSSL_ALPN_GetPeerProtocol(WOLFSSL* ssl, char **list,
                                              unsigned short *listSz);
+WOLFSSL_API int wolfSSL_ALPN_FreePeerProtocol(WOLFSSL* ssl, char **list);
 #endif /* HAVE_ALPN */
 
 /* Maximum Fragment Length */

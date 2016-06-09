@@ -218,7 +218,7 @@ int wolfSSL_load_static_memory(byte* buffer, word32 sz, int flag,
     }
 
     /* align pt */
-    while ((long)pt % WOLFSSL_STATIC_ALIGN && pt < (buffer + sz)) {
+    while ((wolfssl_word)pt % WOLFSSL_STATIC_ALIGN && pt < (buffer + sz)) {
         *pt = 0x00;
         pt++;
     }
@@ -458,8 +458,10 @@ void* wolfSSL_Malloc(size_t size, void* heap, int type)
     }
 
     #ifdef WOLFSSL_MALLOC_CHECK
-        if (res == NULL)
-            puts("wolfSSL_malloc failed");
+        if ((wolfssl_word)res % WOLFSSL_STATIC_ALIGN) {
+            res = NULL;
+            WOLFSSL_MSG("ERROR memory is not alligned");
+        }
     #endif
 
     (void)i;
@@ -641,6 +643,13 @@ void* wolfSSL_Realloc(void *ptr, size_t size, void* heap, int type)
         }
         UnLockMutex(&(mem->memory_mutex));
     }
+
+    #ifdef WOLFSSL_MALLOC_CHECK
+        if ((wolfssl_word)res % WOLFSSL_STATIC_ALIGN) {
+            res = NULL;
+            WOLFSSL_MSG("ERROR memory is not alligned");
+        }
+    #endif
 
     (void)i;
     (void)pt;
