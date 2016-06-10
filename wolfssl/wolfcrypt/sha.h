@@ -32,6 +32,10 @@
 #include <cyassl/ctaocrypt/sha.h>
 #endif
 
+#ifdef FREESCALE_LTC_SHA
+    #include "fsl_ltc.h"
+#endif 
+
 #ifdef __cplusplus
     extern "C" {
 #endif
@@ -56,16 +60,20 @@ enum {
       
 /* Sha digest */
 typedef struct Sha {
-    word32  buffLen;   /* in bytes          */
-    word32  loLen;     /* length in bytes   */
-    word32  hiLen;     /* length in bytes   */
-    word32  buffer[SHA_BLOCK_SIZE  / sizeof(word32)];
-    #ifndef WOLFSSL_PIC32MZ_HASH
-        word32  digest[SHA_DIGEST_SIZE / sizeof(word32)];
+    #ifdef FREESCALE_LTC_SHA
+        ltc_hash_ctx_t ctx;
     #else
-        word32  digest[PIC32_HASH_SIZE / sizeof(word32)];
-        pic32mz_desc desc; /* Crypt Engine descriptor */
-    #endif
+        word32  buffLen;   /* in bytes          */
+        word32  loLen;     /* length in bytes   */
+        word32  hiLen;     /* length in bytes   */
+        word32  buffer[SHA_BLOCK_SIZE  / sizeof(word32)];
+        #ifndef WOLFSSL_PIC32MZ_HASH
+            word32  digest[SHA_DIGEST_SIZE / sizeof(word32)];
+        #else
+            word32  digest[PIC32_HASH_SIZE / sizeof(word32)];
+            pic32mz_desc desc; /* Crypt Engine descriptor */
+        #endif
+    #endif /* FREESCALE_LTC_SHA */
 } Sha;
 
 #else /* WOLFSSL_TI_HASH */

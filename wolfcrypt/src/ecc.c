@@ -103,6 +103,10 @@ ECC Curve Sizes:
     #include <wolfcrypt/src/misc.c>
 #endif
 
+#if defined(FREESCALE_LTC_ECC)
+    #include "nxp/ksdk_port.h"
+#endif
+
 #ifdef USE_FAST_MATH
     #define GEN_MEM_ERR FP_MEM
 #else
@@ -979,6 +983,7 @@ static int get_digit_count(mp_int* a)
 }
 
 /* helper for either lib */
+#ifndef FREESCALE_LTC_ECC
 static mp_digit get_digit(mp_int* a, int n)
 {
     if (a == NULL)
@@ -986,6 +991,7 @@ static mp_digit get_digit(mp_int* a, int n)
 
     return (n >= a->used || n < 0) ? 0 : a->dp[n];
 }
+#endif /* FREESCALE_LTC_ECC */
 
 /**
    Add two ECC points
@@ -1920,6 +1926,7 @@ int wc_ecc_mulmod(mp_int* k, ecc_point *G, ecc_point *R, mp_int* a,
             (1==map, 0 == leave in projective)
    return MP_OKAY on success
 */
+#if !defined(FREESCALE_LTC_ECC)
 #ifdef FP_ECC
 static int normal_ecc_mulmod(mp_int* k, ecc_point *G, ecc_point *R,
                       mp_int* a, mp_int* modulus, int map, void* heap)
@@ -2111,6 +2118,7 @@ int wc_ecc_mulmod_ex(mp_int* k, ecc_point *G, ecc_point *R,
    }
    return err;
 }
+#endif /* FREESCALE_LTC_ECC */
 
 
 #ifndef FP_ECC
@@ -3363,6 +3371,15 @@ int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
    if (err == MP_OKAY)
        err = mp_copy(key->pubkey.z, mQ->z);
 
+#ifdef FREESCALE_LTC_ECC
+   /* use PKHA to compute u1*mG + u2*mQ */
+   if (err == MP_OKAY)
+           err = wc_ecc_mulmod(&u1, mG, mG, &m, 0);
+   if (err == MP_OKAY)
+           err = wc_ecc_mulmod(&u2, mQ, mQ, &m, 0);
+   if (err == MP_OKAY)
+           err = wc_ecc_point_add(mG, mQ, mG, &m);
+#else /* FREESCALE_LTC_ECC */
 #ifndef ECC_SHAMIR
     {
        mp_digit      mp;
@@ -3390,7 +3407,7 @@ int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
        if (err == MP_OKAY)
            err = ecc_mul2add(mG, &u1, mQ, &u2, mG, &a, &modulus, key->heap);
 #endif /* ECC_SHAMIR */
-
+#endif /* FREESCALE_LTC_ECC */
    /* v = X_x1 mod n */
    if (err == MP_OKAY)
        err = mp_mod(mG->x, &order, &v);

@@ -107,7 +107,7 @@ void fe_0(fe h)
   h[9] = 0;
 }
 
-
+#ifndef FREESCALE_LTC_ECC
 int curve25519(byte* q, byte* n, byte* p)
 {
 #if 0
@@ -183,7 +183,7 @@ int curve25519(byte* q, byte* n, byte* p)
 
   return 0;
 }
-
+#endif /* !FREESCALE_LTC_ECC */
 
 /*
 h = f * f

@@ -76,6 +76,7 @@ enum {
     RSA_MIN_PAD_SZ   = 11      /* separator + 0 + pad value + 8 pads */
 };
 
+
 /* RSA */
 typedef struct RsaKey {
     mp_int n, e, d, p, q, dP, dQ, u;

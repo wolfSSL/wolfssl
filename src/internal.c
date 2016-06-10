@@ -4587,14 +4587,21 @@ ProtocolVersion MakeDTLSv1_2(void)
 
         return (word32) mqxTime.SECONDS;
     }
+#elif defined(FREESCALE_FREE_RTOS) || defined(FREESCALE_KSDK_FREERTOS)
 
-#elif defined(FREESCALE_KSDK_BM) || defined(FREESCALE_FREE_RTOS)
+    #include "include/task.h"
 
-    #include "fsl_pit_driver.h"
+    unsigned int LowResTimer(void)
+    {
+        return (unsigned int)(((float)xTaskGetTickCount())/configTICK_RATE_HZ);
+    }
 
+#elif defined(FREESCALE_KSDK_BM)
+
+    #include "lwip/sys.h" /* lwIP */
     word32 LowResTimer(void)
     {
-        return PIT_DRV_GetUs();
+        return sys_now()/1000;
     }
 
 #elif defined(WOLFSSL_TIRTOS)

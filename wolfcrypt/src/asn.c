@@ -127,9 +127,11 @@ ASN Options:
     #define XTIME(t1)       mqx_time((t1))
     #define HAVE_GMTIME_R
 
-#elif defined(FREESCALE_KSDK_BM) || defined(FREESCALE_FREE_RTOS)
+#elif defined(FREESCALE_KSDK_BM) || defined(FREESCALE_FREE_RTOS) || defined(FREESCALE_KSDK_FREERTOS)
     #include <time.h>
-    #define XTIME(t1)       ksdk_time((t1))
+    #ifndef XTIME
+    #define XTIME(t1)  0 
+    #endif
     #define XGMTIME(c, t)   gmtime((c))
 
 #elif defined(USER_TIME)
@@ -376,18 +378,8 @@ time_t mqx_time(time_t* timer)
 
 #if defined(FREESCALE_KSDK_BM) || defined(FREESCALE_FREE_RTOS)
 
-#include "fsl_pit_driver.h"
-
-time_t ksdk_time(time_t* timer)
-{
-    time_t localTime;
-
-    if (timer == NULL)
-        timer = &localTime;
-
-    *timer = (PIT_DRV_ReadTimerUs(PIT_INSTANCE, PIT_CHANNEL)) / 1000000;
-    return *timer;
-}
+/*  */
+//extern time_t ksdk_time(time_t* timer);
 
 #endif /* FREESCALE_KSDK_BM */
 

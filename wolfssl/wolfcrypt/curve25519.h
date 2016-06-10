@@ -47,6 +47,9 @@ typedef struct {
  * the mathematical functions used the endianess */
 typedef struct {
     byte point[CURVE25519_KEYSIZE];
+    #ifdef FREESCALE_LTC_ECC
+        byte pointY[CURVE25519_KEYSIZE];
+    #endif
 }ECPoint;
 
 /* A CURVE25519 Key */

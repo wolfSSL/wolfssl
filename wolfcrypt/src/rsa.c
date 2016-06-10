@@ -153,6 +153,10 @@ int wc_RsaFlattenPublicKey(RsaKey* key, byte* a, word32* aSz, byte* b,
     static int FreeAsyncRsaKey(RsaKey* key);
 #endif /* WOLFSSL_ASYNC_CRYPT */
 
+#ifdef FREESCALE_LTC_TFM
+    #include <nxp/ksdk_port.h>
+#endif
+
 enum {
     RSA_STATE_NONE = 0,
 
@@ -1125,6 +1129,7 @@ static int wc_RsaFunctionAsync(const byte* in, word32 inLen, byte* out,
 }
 #endif /* WOLFSSL_ASYNC_CRYPT */
 
+#ifndef FREESCALE_LTC_TFM
 int wc_RsaFunction(const byte* in, word32 inLen, byte* out,
                           word32* outLen, int type, RsaKey* key, WC_RNG* rng)
 {
@@ -1151,6 +1156,7 @@ int wc_RsaFunction(const byte* in, word32 inLen, byte* out,
     }
     return ret;
 }
+#endif /* !FREESCALE_LTC_TFM */
 
 
 /* Internal Wrappers */
@@ -1161,7 +1167,7 @@ int wc_RsaFunction(const byte* in, word32 inLen, byte* out,
    outLen: length of encrypted output buffer
    key   : wolfSSL initialized RSA key struct
    rng   : wolfSSL initialized random number struct
-   rsa_type  : type of RSA: RSA_PUBLIC_ENCRYPT, RSA_PUBLIC_DECRYPT, 
+   rsa_type  : type of RSA: RSA_PUBLIC_ENCRYPT, RSA_PUBLIC_DECRYPT,
         RSA_PRIVATE_ENCRYPT or RSA_PRIVATE_DECRYPT
    pad_value: RSA_BLOCK_TYPE_1 or RSA_BLOCK_TYPE_2
    pad_type  : type of padding: WC_RSA_PKCSV15_PAD or  WC_RSA_OAEP_PAD
@@ -1256,7 +1262,7 @@ static int RsaPublicEncryptEx(const byte* in, word32 inLen, byte* out,
    outLen: length of decrypted message in bytes
    outPtr: optional inline output pointer (if provided doing inline)
    key   : wolfSSL initialized RSA key struct
-   rsa_type  : type of RSA: RSA_PUBLIC_ENCRYPT, RSA_PUBLIC_DECRYPT, 
+   rsa_type  : type of RSA: RSA_PUBLIC_ENCRYPT, RSA_PUBLIC_DECRYPT,
         RSA_PRIVATE_ENCRYPT or RSA_PRIVATE_DECRYPT
    pad_value: RSA_BLOCK_TYPE_1 or RSA_BLOCK_TYPE_2
    pad_type  : type of padding: WC_RSA_PKCSV15_PAD or  WC_RSA_OAEP_PAD
@@ -1403,7 +1409,7 @@ int wc_RsaPrivateDecryptInline(byte* in, word32 inLen, byte** out, RsaKey* key)
 #ifdef WC_RSA_BLINDING
     rng = key->rng;
 #endif
-    return RsaPrivateDecryptEx(in, inLen, in, inLen, out, key, 
+    return RsaPrivateDecryptEx(in, inLen, in, inLen, out, key,
         RSA_PRIVATE_DECRYPT, RSA_BLOCK_TYPE_2, WC_RSA_PKCSV15_PAD,
         WC_HASH_TYPE_NONE, WC_MGF1NONE, NULL, 0, rng);
 }
@@ -1418,7 +1424,7 @@ int wc_RsaPrivateDecryptInline_ex(byte* in, word32 inLen, byte** out,
 #ifdef WC_RSA_BLINDING
     rng = key->rng;
 #endif
-    return RsaPrivateDecryptEx(in, inLen, in, inLen, out, key, 
+    return RsaPrivateDecryptEx(in, inLen, in, inLen, out, key,
         RSA_PRIVATE_DECRYPT, RSA_BLOCK_TYPE_2, type, hash,
         mgf, label, labelSz, rng);
 }
@@ -1461,7 +1467,7 @@ int wc_RsaSSL_VerifyInline(byte* in, word32 inLen, byte** out, RsaKey* key)
 #ifdef WC_RSA_BLINDING
     rng = key->rng;
 #endif
-    return RsaPrivateDecryptEx(in, inLen, in, inLen, out, key, 
+    return RsaPrivateDecryptEx(in, inLen, in, inLen, out, key,
         RSA_PUBLIC_DECRYPT, RSA_BLOCK_TYPE_1, WC_RSA_PKCSV15_PAD,
         WC_HASH_TYPE_NONE, WC_MGF1NONE, NULL, 0, rng);
 }
@@ -1473,7 +1479,7 @@ int wc_RsaSSL_Verify(const byte* in, word32 inLen, byte* out, word32 outLen,
 #ifdef WC_RSA_BLINDING
     rng = key->rng;
 #endif
-    return RsaPrivateDecryptEx((byte*)in, inLen, out, outLen, NULL, key, 
+    return RsaPrivateDecryptEx((byte*)in, inLen, out, outLen, NULL, key,
         RSA_PUBLIC_DECRYPT, RSA_BLOCK_TYPE_1, WC_RSA_PKCSV15_PAD,
         WC_HASH_TYPE_NONE, WC_MGF1NONE, NULL, 0, rng);
 }
@@ -1619,16 +1625,16 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
         err = mp_copy(&q, &key->q);
 
     if (err == MP_OKAY)
-        key->type = RSA_PRIVATE; 
+        key->type = RSA_PRIVATE;
 
-    mp_clear(&tmp3); 
-    mp_clear(&tmp2); 
-    mp_clear(&tmp1); 
-    mp_clear(&q); 
+    mp_clear(&tmp3);
+    mp_clear(&tmp2);
+    mp_clear(&tmp1);
+    mp_clear(&q);
     mp_clear(&p);
 
     if (err != MP_OKAY) {
-        wc_FreeRsaKey(key);        
+        wc_FreeRsaKey(key);
         return err;
     }
 

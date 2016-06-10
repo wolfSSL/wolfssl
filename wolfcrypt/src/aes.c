@@ -299,19 +299,36 @@ void wc_AesAsyncFree(Aes* aes)
     #include "sec.h"
     #include "mcf5475_sec.h"
     #include "mcf5475_siu.h"
+#elif defined(FREESCALE_LTC)
+    #include "fsl_ltc.h"
+    #if defined(FREESCALE_LTC_AES_GCM)
+        #undef NEED_AES_TABLES
+        #undef GCM_TABLE
+    #else
+        /* if LTC doesn't have GCM, use software with LTC AES ECB mode */
+        static int wc_AesEncrypt(Aes* aes, const byte* inBlock, byte* outBlock)
+        {    
+            wc_AesEncryptDirect(aes, outBlock, inBlock);
+            return 0;
+        }
+        static int wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
+        {    
+            wc_AesDecryptDirect(aes, outBlock, inBlock);
+            return 0;
+        }
+    #endif
 #elif defined(FREESCALE_MMCAU)
     /* Freescale mmCAU hardware AES support for Direct, CBC, CCM, GCM modes
      * through the CAU/mmCAU library. Documentation located in
      * ColdFire/ColdFire+ CAU and Kinetis mmCAU Software Library User
-     * Guide (See note in README).
-     * NOTE: no support for AES-CTR */
-    #include "cau_api.h"
+     * Guide (See note in README). */
+    #include "fsl_mmcau.h"
 
     static int wc_AesEncrypt(Aes* aes, const byte* inBlock, byte* outBlock)
     {
         int ret = wolfSSL_CryptHwMutexLock();
         if(ret == 0) {
-            cau_aes_encrypt(inBlock, (byte*)aes->key, aes->rounds, outBlock);
+            MMCAU_AES_EncryptEcb(inBlock, (byte*)aes->key, aes->rounds, outBlock);
             wolfSSL_CryptHwMutexUnLock();
         }
         return ret;
@@ -321,7 +338,7 @@ void wc_AesAsyncFree(Aes* aes)
     {
         int ret = wolfSSL_CryptHwMutexLock();
         if(ret == 0) {
-            cau_aes_decrypt(inBlock, (byte*)aes->key, aes->rounds, outBlock);
+            MMCAU_AES_DecryptEcb(inBlock, (byte*)aes->key, aes->rounds, outBlock);
             wolfSSL_CryptHwMutexUnLock();
         }
         return ret;
@@ -1592,6 +1609,28 @@ static void wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
 
         return 0;
     }
+#elif defined(FREESCALE_LTC)
+    int wc_AesSetKey(Aes* aes, const byte* userKey, word32 keylen, const byte* iv,
+                  int dir)
+    {
+        if (!((keylen == 16) || (keylen == 24) || (keylen == 32)))
+            return BAD_FUNC_ARG;
+
+        aes->rounds = keylen/4 + 6;
+        XMEMCPY(aes->key, userKey, keylen);
+        
+        #ifdef WOLFSSL_AES_COUNTER
+            aes->left = 0;
+        #endif /* WOLFSSL_AES_COUNTER */
+
+        return wc_AesSetIV(aes, iv);
+    }
+
+    int wc_AesSetKeyDirect(Aes* aes, const byte* userKey, word32 keylen,
+                        const byte* iv, int dir)
+    {
+        return wc_AesSetKey(aes, userKey, keylen, iv, dir);
+    }
 #elif defined(FREESCALE_MMCAU)
     int wc_AesSetKey(Aes* aes, const byte* userKey, word32 keylen, const byte* iv,
                   int dir)
@@ -1607,11 +1646,15 @@ static void wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
         if (rk == NULL)
             return BAD_FUNC_ARG;
 
+        #ifdef WOLFSSL_AES_COUNTER
+            aes->left = 0;
+        #endif /* WOLFSSL_AES_COUNTER */
+        
         aes->rounds = keylen/4 + 6;
 
         ret = wolfSSL_CryptHwMutexLock();
         if(ret == 0) {
-            cau_aes_set_key(userKey, keylen*8, rk);
+            MMCAU_AES_SetKey(userKey, keylen, rk);
             wolfSSL_CryptHwMutexUnLock();
 
             ret = wc_AesSetIV(aes, iv);
@@ -1904,6 +1947,64 @@ int wc_InitAes_h(Aes* aes, void* h)
 
     #elif defined(WOLFSSL_PIC32MZ_CRYPT)
         #error "PIC32MZ doesn't yet support AES direct"
+
+    #elif defined(FREESCALE_LTC)
+        /* Allow direct access to one block encrypt */
+        void wc_AesEncryptDirect(Aes* aes, byte* out, const byte* in)
+        {
+            byte *key;
+            uint32_t keySize = 0;
+
+            key = (byte*)aes->key;
+
+            switch (aes->rounds) {
+            case 10:
+                keySize = 16;
+                break;
+            case 12:
+                keySize = 24;
+                break;
+            case 14:
+                keySize = 32;
+                break;
+            }
+
+            LTC_AES_EncryptEcb( LTC_BASE,
+                                in,
+                                out,
+                                16,
+                                key,
+                                keySize);
+        }
+
+        /* Allow direct access to one block decrypt */
+        void wc_AesDecryptDirect(Aes* aes, byte* out, const byte* in)
+        {
+            byte *key;
+            uint32_t keySize = 0;
+
+            key = (byte*)aes->key;
+
+            switch (aes->rounds) {
+            case 10:
+                keySize = 16;
+                break;
+            case 12:
+                keySize = 24;
+                break;
+            case 14:
+                keySize = 32;
+                break;
+            }
+
+            LTC_AES_DecryptEcb( LTC_BASE,
+                                in,
+                                out,
+                                16,
+                                key,
+                                keySize,
+                                kLTC_EncryptKey);
+        }
 
     #else
         /* Allow direct access to one block encrypt */
@@ -2257,6 +2358,73 @@ int wc_InitAes_h(Aes* aes, void* h)
         return (wc_AesCbcCrypt(aes, po, pi, sz, SEC_DESC_AES_CBC_DECRYPT));
     }
     #endif /* HAVE_AES_DECRYPT */
+    
+#elif defined(FREESCALE_LTC)    
+    int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
+    {
+        uint32_t keySize = 0;
+        status_t status;
+        byte *iv, *enc_key;
+
+        iv      = (byte*)aes->reg;
+        enc_key = (byte*)aes->key;
+
+        switch (aes->rounds) {
+        case 10:
+            keySize = 16;
+            break;
+        case 12:
+            keySize = 24;
+            break;
+        case 14:
+            keySize = 32;
+            break;
+        }
+
+        status = LTC_AES_EncryptCbc(LTC_BASE,
+                                    in,
+                                    out, 
+                                    sz,
+                                    iv,
+                                    enc_key,
+                                    keySize);
+        return (status == kStatus_Success) ? 0 : -1;
+    }
+
+    #ifdef HAVE_AES_DECRYPT
+    int wc_AesCbcDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
+    {
+        uint32_t keySize = 0;
+        status_t status;
+        byte* iv, *dec_key;
+
+        iv      = (byte*)aes->reg;
+        dec_key = (byte*)aes->key;
+
+        switch (aes->rounds) {
+        case 10:
+            keySize = 16;
+            break;
+        case 12:
+            keySize = 24;
+            break;
+        case 14:
+            keySize = 32;
+            break;
+        }
+
+        status = LTC_AES_DecryptCbc(LTC_BASE,
+                                    in,
+                                    out,
+                                    sz,
+                                    iv,
+                                    dec_key,
+                                    keySize,
+                                    kLTC_EncryptKey);
+        return (status == kStatus_Success) ? 0 : -1;
+    }
+    #endif /* HAVE_AES_DECRYPT */
+
 #elif defined(FREESCALE_MMCAU)
     int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
     {
@@ -2269,10 +2437,6 @@ int wc_InitAes_h(Aes* aes, void* h)
 
         iv      = (byte*)aes->reg;
 
-        if ((wolfssl_word)out % WOLFSSL_MMCAU_ALIGNMENT) {
-            WOLFSSL_MSG("Bad cau_aes_encrypt alignment");
-            return BAD_ALIGN_E;
-        }
 
         while (len > 0)
         {
@@ -2305,10 +2469,6 @@ int wc_InitAes_h(Aes* aes, void* h)
 
         iv      = (byte*)aes->reg;
 
-        if ((wolfssl_word)out % WOLFSSL_MMCAU_ALIGNMENT) {
-            WOLFSSL_MSG("Bad cau_aes_decrypt alignment");
-            return BAD_ALIGN_E;
-        }
 
         while (len > 0)
         {
@@ -2731,8 +2891,47 @@ int wc_InitAes_h(Aes* aes, void* h)
     #elif defined(HAVE_COLDFIRE_SEC)
         #error "Coldfire SEC doesn't currently support AES-CTR mode"
 
-    #elif defined(FREESCALE_MMCAU)
-        #error "Freescale mmCAU doesn't currently support AES-CTR mode"
+    #elif defined(FREESCALE_LTC)
+        void wc_AesCtrEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
+        {
+            uint32_t keySize = 0;
+            byte *iv, *enc_key;
+            byte* tmp = (byte*)aes->tmp + AES_BLOCK_SIZE - aes->left;
+            
+            /* consume any unused bytes left in aes->tmp */
+            while (aes->left && sz) {
+                *(out++) = *(in++) ^ *(tmp++);
+                aes->left--;
+                sz--;
+            }
+
+            if (sz) {
+                iv      = (byte*)aes->reg;
+                enc_key = (byte*)aes->key;
+
+                switch (aes->rounds) {
+                case 10:
+                    keySize = 16;
+                    break;
+                case 12:
+                    keySize = 24;
+                    break;
+                case 14:
+                    keySize = 32;
+                    break;
+                }
+
+                LTC_AES_CryptCtr(   LTC_BASE,
+                                    in,
+                                    out,
+                                    sz,
+                                    iv,
+                                    enc_key,
+                                    keySize,
+                                    (byte*)aes->tmp,
+                                    (uint32_t*)&(aes->left));
+            }
+        }
 
     #else
         /* Increment AES counter */
@@ -2816,7 +3015,7 @@ enum {
     CTR_SZ   = 4
 };
 
-
+#if !defined(FREESCALE_LTC_AES_GCM)
 static INLINE void IncrementGcmCounter(byte* inOutCtr)
 {
     int i;
@@ -2827,7 +3026,7 @@ static INLINE void IncrementGcmCounter(byte* inOutCtr)
             return;
     }
 }
-
+#endif /* !FREESCALE_LTC_AES_GCM */
 
 #if defined(GCM_SMALL) || defined(GCM_TABLE)
 
@@ -2911,12 +3110,14 @@ int wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len)
             return ret;
     #endif /* WOLFSSL_AESNI */
 
+#if !defined(FREESCALE_LTC_AES_GCM)
     if (ret == 0) {
         wc_AesEncrypt(aes, iv, aes->H);
     #ifdef GCM_TABLE
         GenerateM0(aes);
     #endif /* GCM_TABLE */
     }
+#endif /* FREESCALE_LTC_AES_GCM */
 
     return ret;
 }
@@ -3588,6 +3789,7 @@ static void GHASH(Aes* aes, const byte* a, word32 aSz,
 /* end GCM_TABLE */
 #elif defined(WORD64_AVAILABLE) && !defined(GCM_WORD32)
 
+#if !defined(FREESCALE_LTC_AES_GCM)
 static void GMULT(word64* X, word64* Y)
 {
     word64 Z[2] = {0,0};
@@ -3622,7 +3824,6 @@ static void GMULT(word64* X, word64* Y)
     X[0] = Z[0];
     X[1] = Z[1];
 }
-
 
 static void GHASH(Aes* aes, const byte* a, word32 aSz,
                                 const byte* c, word32 cSz, byte* s, word32 sSz)
@@ -3708,6 +3909,7 @@ static void GHASH(Aes* aes, const byte* a, word32 aSz,
     #endif
     XMEMCPY(s, x, sSz);
 }
+#endif /* !FREESCALE_LTC_AES_GCM */
 
 /* end defined(WORD64_AVAILABLE) && !defined(GCM_WORD32) */
 #else /* GCM_WORD32 */
@@ -3864,6 +4066,42 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
                    byte* authTag, word32 authTagSz,
                    const byte* authIn, word32 authInSz)
 {
+#if defined(FREESCALE_LTC_AES_GCM)
+    byte *key;
+    uint32_t keySize = 0;
+    status_t status;
+
+    key = (byte*)aes->key;
+
+    switch (aes->rounds) {
+    case 10:
+        keySize = 16;
+        break;
+    case 12:
+        keySize = 24;
+        break;
+    case 14:
+        keySize = 32;
+        break;
+    }
+
+    status = LTC_AES_EncryptTagGcm( LTC_BASE,
+                                     in,
+                                     out,
+                                     sz,
+                                     iv,
+                                     ivSz,
+                                     authIn,
+                                     authInSz,
+                                     key,
+                                     keySize,
+                                     authTag,
+                                     authTagSz);
+
+    return (status == kStatus_Success) ? 0 : AES_GCM_AUTH_E;
+
+#else /* FREESCALE_LTC_AES_GCM */
+
     word32 blocks = sz / AES_BLOCK_SIZE;
     word32 partial = sz % AES_BLOCK_SIZE;
     const byte* p = in;
@@ -3930,6 +4168,7 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     xorbuf(authTag, scratch, authTagSz);
 
     return 0;
+#endif /* FREESCALE_LTC_AES_GCM */
 }
 
 
@@ -3939,6 +4178,42 @@ int  wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
                    const byte* authTag, word32 authTagSz,
                    const byte* authIn, word32 authInSz)
 {
+#if defined(FREESCALE_LTC_AES_GCM)
+    byte *key;
+    uint32_t keySize = 0;
+    status_t status;
+
+    key = (byte*)aes->key;
+
+    switch (aes->rounds) {
+    case 10:
+        keySize = 16;
+        break;
+    case 12:
+        keySize = 24;
+        break;
+    case 14:
+        keySize = 32;
+        break;
+    }
+
+    status = LTC_AES_DecryptTagGcm( LTC_BASE,
+                                     in,
+                                     out,
+                                     sz,
+                                     iv,
+                                     ivSz,
+                                     authIn,
+                                     authInSz,
+                                     key,
+                                     keySize,
+                                     authTag,
+                                     authTagSz);
+
+    return (status == kStatus_Success) ? 0 : AES_GCM_AUTH_E;
+
+#else /* FREESCALE_LTC_AES_GCM */
+
     word32 blocks = sz / AES_BLOCK_SIZE;
     word32 partial = sz % AES_BLOCK_SIZE;
     const byte* c = in;
@@ -4015,6 +4290,7 @@ int  wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
         XMEMCPY(p, scratch, partial);
     }
     return 0;
+#endif  /* FREESCALE_LTC_AES_GCM */
 }
 
 #endif /* HAVE_AES_DECRYPT */
@@ -4058,6 +4334,7 @@ int wc_AesCcmSetKey(Aes* aes, const byte* key, word32 keySz)
 }
 
 
+#ifndef FREESCALE_LTC
 static void roll_x(Aes* aes, const byte* in, word32 inSz, byte* out)
 {
     /* process the bulk of the data */
@@ -4130,7 +4407,7 @@ static INLINE void AesCcmCtrInc(byte* B, word32 lenSz)
         if (++B[AES_BLOCK_SIZE - 1 - i] != 0) return;
     }
 }
-
+#endif /* !FREESCALE_LTC */
 
 /* return 0 on success */
 int wc_AesCcmEncrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
@@ -4138,6 +4415,43 @@ int wc_AesCcmEncrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
                    byte* authTag, word32 authTagSz,
                    const byte* authIn, word32 authInSz)
 {
+#ifdef FREESCALE_LTC
+    byte *key;
+    uint32_t keySize = 0;
+    status_t status;
+
+    key = (byte*)aes->key;
+
+    switch (aes->rounds)
+    {
+    case 10:
+        keySize = 16;
+        break;
+    case 12:
+        keySize = 24;
+        break;
+    case 14:
+        keySize = 32;
+        break;
+    }
+
+    status = LTC_AES_EncryptTagCcm(LTC_BASE,
+                                   in,
+                                   out,
+                                   inSz,
+                                   nonce,
+                                   nonceSz,
+                                   authIn,
+                                   authInSz,
+                                   key,
+                                   keySize,
+                                   authTag,
+                                   authTagSz);
+    if (kStatus_Success == status)
+        return 0;
+    else
+        return BAD_FUNC_ARG;
+#else
     byte A[AES_BLOCK_SIZE];
     byte B[AES_BLOCK_SIZE];
     byte lenSz;
@@ -4196,6 +4510,7 @@ int wc_AesCcmEncrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
     ForceZero(B, AES_BLOCK_SIZE);
 
     return 0;
+#endif /* FREESCALE_LTC */
 }
 
 #ifdef HAVE_AES_DECRYPT
@@ -4204,6 +4519,47 @@ int  wc_AesCcmDecrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
                    const byte* authTag, word32 authTagSz,
                    const byte* authIn, word32 authInSz)
 {
+#ifdef FREESCALE_LTC
+    byte *key;
+    uint32_t keySize = 0;
+    status_t status;
+
+    key = (byte*)aes->key;
+
+    switch (aes->rounds) {
+    case 10:
+        keySize = 16;
+        break;
+    case 12:
+        keySize = 24;
+        break;
+    case 14:
+        keySize = 32;
+        break;
+    }
+
+    status = LTC_AES_DecryptTagCcm( LTC_BASE,
+                                    in,
+                                    out,
+                                    inSz,
+                                    nonce,
+                                    nonceSz,
+                                    authIn,
+                                    authInSz,
+                                    key,
+                                    keySize,
+                                    authTag,
+                                    authTagSz);
+
+    if (status == kStatus_Success) {
+        return 0;
+    }
+    else {
+        XMEMSET(out, 0, inSz);
+        return AES_CCM_AUTH_E;
+    }
+#else /* FREESCALE_LTC */
+
     byte A[AES_BLOCK_SIZE];
     byte B[AES_BLOCK_SIZE];
     byte* o;
@@ -4286,6 +4642,7 @@ int  wc_AesCcmDecrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
     o = NULL;
 
     return result;
+#endif /* FREESCALE_LTC */
 }
 #endif /* HAVE_AES_DECRYPT */
 #endif /* HAVE_AESCCM */

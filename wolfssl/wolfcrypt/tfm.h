@@ -547,6 +547,7 @@ int fp_leading_bit(fp_int *a);
 int fp_unsigned_bin_size(fp_int *a);
 void fp_read_unsigned_bin(fp_int *a, const unsigned char *b, int c);
 void fp_to_unsigned_bin(fp_int *a, unsigned char *b);
+int fp_to_unsigned_bin_at_pos(int x, fp_int *t, unsigned char *b);
 
 /*int fp_signed_bin_size(fp_int *a);*/
 /*void fp_read_signed_bin(fp_int *a, const unsigned char *b, int c);*/

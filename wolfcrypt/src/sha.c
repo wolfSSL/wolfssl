@@ -72,8 +72,8 @@
 #endif
 
 
-#ifdef FREESCALE_MMCAU
-    #include "cau_api.h"
+#ifdef FREESCALE_MMCAU_SHA
+    #include "fsl_mmcau.h"
     #define XTRANSFORM(S,B)  Transform((S), (B))
 #else
     #define XTRANSFORM(S,B)  Transform((S))
@@ -209,16 +209,22 @@ int wc_ShaFinal(Sha* sha, byte* hash)
 
 #endif /* WOLFSSL_HAVE_MIN */
 
-
+#ifdef FREESCALE_LTC_SHA
+int wc_InitSha(Sha* sha)
+{
+    LTC_HASH_Init(LTC_BASE, &sha->ctx, kLTC_Sha1, NULL, 0);
+    return 0;
+}
+#else /* FREESCALE_LTC_SHA */
 int wc_InitSha(Sha* sha)
 {
     int ret = 0;
-#ifdef FREESCALE_MMCAU
+#ifdef FREESCALE_MMCAU_SHA
     ret = wolfSSL_CryptHwMutexLock();
     if(ret != 0) {
         return ret;
     }
-    cau_sha1_initialize_output(sha->digest);
+    MMCAU_SHA1_InitializeOutput((uint32_t*)sha->digest);
     wolfSSL_CryptHwMutexUnLock();
 #else
     sha->digest[0] = 0x67452301L;
@@ -234,20 +240,21 @@ int wc_InitSha(Sha* sha)
 
     return ret;
 }
+#endif /* FREESCALE_LTC_SHA */
 
-#ifdef FREESCALE_MMCAU
+#ifdef FREESCALE_MMCAU_SHA
 static int Transform(Sha* sha, byte* data)
 {
     int ret = wolfSSL_CryptHwMutexLock();
     if(ret == 0) {
-        cau_sha1_hash_n(data, 1, sha->digest);
+        MMCAU_SHA1_HashN(data, 1, (uint32_t*)sha->digest);
         wolfSSL_CryptHwMutexUnLock();
     }
     return ret;
 }
-#endif /* FREESCALE_MMCAU */
+#endif /* FREESCALE_MMCAU_SHA */
         
-#ifndef FREESCALE_MMCAU
+#if !(defined(FREESCALE_MMCAU_SHA) || defined(FREESCALE_LTC_SHA))
 
 #define blk0(i) (W[i] = sha->buffer[i])
 #define blk1(i) (W[(i)&15] = \
@@ -345,9 +352,15 @@ static void Transform(Sha* sha)
     sha->digest[4] += e;
 }
 
-#endif /* FREESCALE_MMCAU */
+#endif /* FREESCALE_MMCAU_SHA */
 
-
+#ifdef FREESCALE_LTC_SHA
+int wc_ShaUpdate(Sha* sha, const byte* data, word32 len)
+{
+    LTC_HASH_Update(&sha->ctx, data, len);
+    return 0;
+}
+#else /* FREESCALE_LTC_SHA */
 static INLINE void AddLength(Sha* sha, word32 len)
 {
     word32 tmp = sha->loLen;
@@ -370,7 +383,7 @@ int wc_ShaUpdate(Sha* sha, const byte* data, word32 len)
         len          -= add;
 
         if (sha->buffLen == SHA_BLOCK_SIZE) {
-#if defined(LITTLE_ENDIAN_ORDER) && !defined(FREESCALE_MMCAU)
+#if defined(LITTLE_ENDIAN_ORDER) && !defined(FREESCALE_MMCAU_SHA)
             ByteReverseWords(sha->buffer, sha->buffer, SHA_BLOCK_SIZE);
 #endif
             XTRANSFORM(sha, local);
@@ -381,8 +394,16 @@ int wc_ShaUpdate(Sha* sha, const byte* data, word32 len)
 
     return 0;
 }
+#endif /* FREESCALE_LTC_SHA */
 
-
+#ifdef FREESCALE_LTC_SHA
+int wc_ShaFinal(Sha* sha, byte* hash)
+{
+    uint32_t hashlen = SHA_DIGEST_SIZE;
+    LTC_HASH_Finish(&sha->ctx, hash, &hashlen);
+    return wc_InitSha(sha);  /* reset state */
+}
+#else /* FREESCALE_LTC_SHA */
 int wc_ShaFinal(Sha* sha, byte* hash)
 {
     byte* local = (byte*)sha->buffer;
@@ -396,7 +417,7 @@ int wc_ShaFinal(Sha* sha, byte* hash)
         XMEMSET(&local[sha->buffLen], 0, SHA_BLOCK_SIZE - sha->buffLen);
         sha->buffLen += SHA_BLOCK_SIZE - sha->buffLen;
 
-#if defined(LITTLE_ENDIAN_ORDER) && !defined(FREESCALE_MMCAU)
+#if defined(LITTLE_ENDIAN_ORDER) && !defined(FREESCALE_MMCAU_SHA)
         ByteReverseWords(sha->buffer, sha->buffer, SHA_BLOCK_SIZE);
 #endif
         XTRANSFORM(sha, local);
@@ -410,14 +431,14 @@ int wc_ShaFinal(Sha* sha, byte* hash)
     sha->loLen = sha->loLen << 3;
 
     /* store lengths */
-#if defined(LITTLE_ENDIAN_ORDER) && !defined(FREESCALE_MMCAU)
+#if defined(LITTLE_ENDIAN_ORDER) && !defined(FREESCALE_MMCAU_SHA)
     ByteReverseWords(sha->buffer, sha->buffer, SHA_BLOCK_SIZE);
 #endif
     /* ! length ordering dependent on digest endian type ! */
     XMEMCPY(&local[SHA_PAD_SIZE], &sha->hiLen, sizeof(word32));
     XMEMCPY(&local[SHA_PAD_SIZE + sizeof(word32)], &sha->loLen, sizeof(word32));
 
-#ifdef FREESCALE_MMCAU
+#ifdef FREESCALE_MMCAU_SHA
     /* Kinetis requires only these bytes reversed */
     ByteReverseWords(&sha->buffer[SHA_PAD_SIZE/sizeof(word32)],
                      &sha->buffer[SHA_PAD_SIZE/sizeof(word32)],
@@ -432,6 +453,7 @@ int wc_ShaFinal(Sha* sha, byte* hash)
 
     return wc_InitSha(sha);  /* reset state */
 }
+#endif /* FREESCALE_LTC_SHA */
 
 #endif /* STM32F2_HASH */
 
