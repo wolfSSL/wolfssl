@@ -664,81 +664,6 @@ int wolfSSL_init_memory_heap(WOLFSSL_HEAP* heap)
 }
 
 
-static WOLFSSL_METHOD* GetMethod(wolfSSL_method_func method, void* heap)
-{
-#ifndef NO_WOLFSSL_SERVER
-#ifndef NO_OLD_TLS
-#ifdef WOLFSSL_ALLOW_SSLV3
-    if (method == wolfSSLv3_server_method) {
-        return wolfSSLv3_server_method_ex(heap);
-    }
-#endif
-    if (method == wolfTLSv1_server_method) {
-        return wolfTLSv1_server_method_ex(heap);
-    }
-
-    if (method == wolfTLSv1_1_server_method) {
-        return wolfTLSv1_1_server_method_ex(heap);
-    }
-#endif /* ! NO_OLD_TLS */
-#ifndef NO_SHA256   /* can't use without SHA256 */
-    if (method == wolfTLSv1_2_server_method) {
-        return wolfTLSv1_2_server_method_ex(heap);
-    }
-#endif
-    if (method == wolfSSLv23_server_method) {
-        return wolfSSLv23_server_method_ex(heap);
-    }
-#endif /* NO_WOLFSSL_SERVER */
-
-#ifndef NO_WOLFSSL_CLIENT
-#ifndef NO_OLD_TLS
-#ifdef WOLFSSL_ALLOW_SSLV3
-    if (method == wolfSSLv3_client_method) {
-        return wolfSSLv3_client_method_ex(heap);
-    }
-#endif
-    if (method == wolfTLSv1_client_method) {
-        return wolfTLSv1_client_method_ex(heap);
-    }
-
-    if (method == wolfTLSv1_1_client_method) {
-        return wolfTLSv1_1_client_method_ex(heap);
-    }
-#endif /* ! NO_OLD_TLS */
-#ifndef NO_SHA256   /* can't use without SHA256 */
-    if (method == wolfTLSv1_2_client_method) {
-        return wolfTLSv1_2_client_method_ex(heap);
-    }
-#endif
-    if (method == wolfSSLv23_client_method) {
-        return wolfSSLv23_client_method_ex(heap);
-    }
-#endif /* NO_WOLFSSL_CLIENT */
-
-#ifdef WOLFSSL_DTLS
-    if (method == wolfDTLSv1_client_method) {
-        return wolfDTLSv1_client_method_ex(heap);
-    }
-
-    if (method == wolfDTLSv1_server_method) {
-        return wolfDTLSv1_server_method_ex(heap);
-    }
-
-    if (method == wolfDTLSv1_2_client_method) {
-        return wolfDTLSv1_2_client_method_ex(heap);
-    }
-
-    if (method == wolfDTLSv1_2_server_method) {
-        return wolfDTLSv1_2_server_method_ex(heap);
-    }
-#endif
-
-    WOLFSSL_MSG("Method function not found");
-    return NULL;
-}
-
-
 int wolfSSL_CTX_load_static_memory(WOLFSSL_CTX** ctx, wolfSSL_method_func method,
                                    unsigned char* buf, unsigned int sz,
                                    int flag, int max)
@@ -795,7 +720,7 @@ int wolfSSL_CTX_load_static_memory(WOLFSSL_CTX** ctx, wolfSSL_method_func method
 
     /* create ctx if needed */
     if (*ctx == NULL) {
-        *ctx = wolfSSL_CTX_new_ex(GetMethod(method, hint), hint);
+        *ctx = wolfSSL_CTX_new_ex(method(hint), hint);
         if (*ctx == NULL) {
             WOLFSSL_MSG("Error creating ctx");
             return SSL_FAILURE;

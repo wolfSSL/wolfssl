@@ -585,18 +585,18 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
 #ifndef NO_OLD_TLS
     #ifdef WOLFSSL_ALLOW_SSLV3
         case 0:
-            method = SSLv3_server_method;
+            method = wolfSSLv3_server_method_ex;
             break;
     #endif
 
     #ifndef NO_TLS
         case 1:
-            method = TLSv1_server_method;
+            method = wolfTLSv1_server_method_ex;
             break;
 
 
         case 2:
-            method = TLSv1_1_server_method;
+            method = wolfTLSv1_1_server_method_ex;
             break;
 
         #endif
@@ -604,19 +604,19 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
 
 #ifndef NO_TLS
         case 3:
-            method = TLSv1_2_server_method;
+            method = wolfTLSv1_2_server_method_ex;
             break;
 #endif
 
 #ifdef CYASSL_DTLS
     #ifndef NO_OLD_TLS
         case -1:
-            method = DTLSv1_server_method;
+            method = wolfDTLSv1_server_method_ex;
             break;
     #endif
 
         case -2:
-            method = DTLSv1_2_server_method;
+            method = wolfDTLSv1_2_server_method_ex;
             break;
 #endif
 
@@ -638,7 +638,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
             != SSL_SUCCESS)
         err_sys("unable to load static memory and create ctx");
 #else
-    ctx = SSL_CTX_new(method());
+    ctx = SSL_CTX_new(method(NULL));
 #endif
     if (ctx == NULL)
         err_sys("unable to get ctx");
