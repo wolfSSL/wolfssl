@@ -156,7 +156,7 @@ int ClientBenchmarkConnections(WOLFSSL_CTX* ctx, char* host, word16 port,
     /* time passed in number of connects give average */
     int times = benchmark;
     int loops = resumeSession ? 2 : 1;
-    int i = 0;    
+    int i = 0;
 #ifndef NO_SESSION_CACHE
     WOLFSSL_SESSION* benchSession = NULL;
 #endif
@@ -1401,7 +1401,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
                    " nonblocking yet");
         } else {
             if (wolfSSL_Rehandshake(ssl) != SSL_SUCCESS) {
-                int  err = wolfSSL_get_error(ssl, 0);
+                err = wolfSSL_get_error(ssl, 0);
                 char buffer[WOLFSSL_MAX_ERROR_SZ];
                 printf("err = %d, %s\n", err,
                                 wolfSSL_ERR_error_string(err, buffer));
