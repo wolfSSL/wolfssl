@@ -82,17 +82,22 @@ WOLFSSL_API int wolfSSL_SetAllocators(wolfSSL_Malloc_cb  malloc_function,
     #define WOLFMEM_IO_POOL_FIXED 0x04
     #define WOLFMEM_TRACK_STATS   0x08
 
+    #ifndef WOLFSSL_MEM_GUARD
+    #define WOLFSSL_MEM_GUARD
+        typedef struct WOLFSSL_MEM_STATS      WOLFSSL_MEM_STATS;
+        typedef struct WOLFSSL_MEM_CONN_STATS WOLFSSL_MEM_CONN_STATS;
+    #endif
 
-    typedef struct WOLFSSL_MEM_CONN_STATS {
+    struct WOLFSSL_MEM_CONN_STATS {
         word32 peakMem;   /* peak memory usage    */
         word32 curMem;    /* current memory usage */
         word32 peakAlloc; /* peak memory allocations */
         word32 curAlloc;  /* current memory allocations */
         word32 totalAlloc;/* total memory allocations for lifetime */
         word32 totalFr;   /* total frees for lifetime */
-    } WOLFSSL_MEM_CONN_STATS;
+    };
 
-    typedef struct WOLFSSL_MEM_STATS {
+    struct WOLFSSL_MEM_STATS {
         word32 curAlloc;  /* current memory allocations */
         word32 totalAlloc;/* total memory allocations for lifetime */
         word32 totalFr;   /* total frees for lifetime */
@@ -104,12 +109,12 @@ WOLFSSL_API int wolfSSL_SetAllocators(wolfSSL_Malloc_cb  malloc_function,
         word32 avaBlock[WOLFMEM_MAX_BUCKETS];/* ava block sizes */
         word32 usedBlock[WOLFMEM_MAX_BUCKETS];
         int    flag; /* flag used */
-    } WOLFSSL_MEM_STATS;
+    };
 
-    typedef struct wc_Memory _wc_Memory; /* internal structure for mem bucket */
+    typedef struct wc_Memory wc_Memory; /* internal structure for mem bucket */
     typedef struct WOLFSSL_HEAP {
-        _wc_Memory* ava[WOLFMEM_MAX_BUCKETS];
-        _wc_Memory* io;                  /* list of buffers to use for IO */
+        wc_Memory* ava[WOLFMEM_MAX_BUCKETS];
+        wc_Memory* io;                  /* list of buffers to use for IO */
         word32     maxHa;               /* max concurent handshakes */
         word32     curHa;
         word32     maxIO;               /* max concurrent IO connections */
@@ -130,8 +135,8 @@ WOLFSSL_API int wolfSSL_SetAllocators(wolfSSL_Malloc_cb  malloc_function,
     typedef struct WOLFSSL_HEAP_HINT {
         WOLFSSL_HEAP*           memory;
         WOLFSSL_MEM_CONN_STATS* stats;  /* hold individual connection stats */
-        _wc_Memory*  outBuf; /* set if using fixed io buffers */
-        _wc_Memory*  inBuf;
+        wc_Memory*  outBuf; /* set if using fixed io buffers */
+        wc_Memory*  inBuf;
     } WOLFSSL_HEAP_HINT;
 
 
@@ -139,8 +144,8 @@ WOLFSSL_API int wolfSSL_SetAllocators(wolfSSL_Malloc_cb  malloc_function,
                                                   int flag, WOLFSSL_HEAP* heap);
     WOLFSSL_LOCAL int wolfSSL_GetMemStats(WOLFSSL_HEAP* heap,
                                                       WOLFSSL_MEM_STATS* stats);
-    WOLFSSL_LOCAL int SetFixedIO(WOLFSSL_HEAP* heap, _wc_Memory** io);
-    WOLFSSL_LOCAL int FreeFixedIO(WOLFSSL_HEAP* heap, _wc_Memory** io);
+    WOLFSSL_LOCAL int SetFixedIO(WOLFSSL_HEAP* heap, wc_Memory** io);
+    WOLFSSL_LOCAL int FreeFixedIO(WOLFSSL_HEAP* heap, wc_Memory** io);
 #endif /* WOLFSSL_STATIC_MEMORY */
 
 #ifdef __cplusplus

@@ -3132,13 +3132,15 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
             WOLFSSL_MSG("Bad memory_mutex lock");
             return BAD_MUTEX_E;
         }
-        if (ctx_hint->memory->maxHa <= ctx_hint->memory->curHa) {
+        if (ctx_hint->memory->maxHa > 0 &&
+                           ctx_hint->memory->maxHa <= ctx_hint->memory->curHa) {
             WOLFSSL_MSG("At max number of handshakes for static memory");
             return MEMORY_E;
         }
         ctx_hint->memory->curHa++;
 
-        if (ctx_hint->memory->maxIO <= ctx_hint->memory->curIO) {
+        if (ctx_hint->memory->maxIO > 0 &&
+                           ctx_hint->memory->maxIO <= ctx_hint->memory->curIO) {
             WOLFSSL_MSG("At max number of IO allowed for static memory");
             return MEMORY_E;
         }
@@ -3566,7 +3568,7 @@ void SSL_ResourceFree(WOLFSSL* ssl)
         if (ctx_heap->flag & WOLFMEM_TRACK_STATS) {
             XFREE(ssl_hint->stats, ssl->ctx->heap, DYNAMIC_TYPE_SSL);
         }
-        XFREE(ssl->heap, ssl_hint, DYNAMIC_TYPE_SSL);
+        XFREE(ssl->heap, ssl->ctx->heap, DYNAMIC_TYPE_SSL);
     #ifdef WOLFSSL_HEAP_TEST
     }
     #endif
@@ -6429,7 +6431,7 @@ static int DoCertificate(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                             keyRet = MEMORY_E;
                         } else {
                             keyRet = wc_InitRsaKey(ssl->peerRsaKey,
-                                                   ssl->ctx->heap);
+                                                   ssl->heap);
                         }
                     } else if (ssl->peerRsaKeyPresent) {
                         /* don't leak on reuse */
@@ -6494,17 +6496,17 @@ static int DoCertificate(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                     if (ssl->peerEccDsaKey == NULL) {
                         /* alloc/init on demand */
                         ssl->peerEccDsaKey = (ecc_key*)XMALLOC(sizeof(ecc_key),
-                                              ssl->ctx->heap, DYNAMIC_TYPE_ECC);
+                                              ssl->heap, DYNAMIC_TYPE_ECC);
                         if (ssl->peerEccDsaKey == NULL) {
                             WOLFSSL_MSG("PeerEccDsaKey Memory error");
                             return MEMORY_E;
                         }
-                        wc_ecc_init_h(ssl->peerEccDsaKey, ssl->ctx->heap);
+                        wc_ecc_init_h(ssl->peerEccDsaKey, ssl->heap);
                     } else if (ssl->peerEccDsaKeyPresent) {
                         /* don't leak on reuse */
                         wc_ecc_free(ssl->peerEccDsaKey);
                         ssl->peerEccDsaKeyPresent = 0;
-                        wc_ecc_init_h(ssl->peerEccDsaKey, ssl->ctx->heap);
+                        wc_ecc_init_h(ssl->peerEccDsaKey, ssl->heap);
                     }
                     if (wc_ecc_import_x963(dCert->publicKey, dCert->pubKeySize,
                                         ssl->peerEccDsaKey) != 0) {
@@ -13231,16 +13233,16 @@ static void PickHashSigAlgo(WOLFSSL* ssl,
             if (ssl->peerEccKey == NULL) {
                 /* alloc/init on demand */
                 ssl->peerEccKey = (ecc_key*)XMALLOC(sizeof(ecc_key),
-                                             ssl->ctx->heap, DYNAMIC_TYPE_ECC);
+                                             ssl->heap, DYNAMIC_TYPE_ECC);
                 if (ssl->peerEccKey == NULL) {
                     WOLFSSL_MSG("PeerEccKey Memory error");
                     return MEMORY_E;
                 }
-                wc_ecc_init_h(ssl->peerEccKey, ssl->ctx->heap);
+                wc_ecc_init_h(ssl->peerEccKey, ssl->heap);
             } else if (ssl->peerEccKeyPresent) {  /* don't leak on reuse */
                 wc_ecc_free(ssl->peerEccKey);
                 ssl->peerEccKeyPresent = 0;
-                wc_ecc_init_h(ssl->peerEccKey, ssl->ctx->heap);
+                wc_ecc_init_h(ssl->peerEccKey, ssl->heap);
             }
 
             if (wc_ecc_import_x963(input + *inOutIdx, length,
@@ -13412,16 +13414,16 @@ static void PickHashSigAlgo(WOLFSSL* ssl,
         if (ssl->peerEccKey == NULL) {
             /* alloc/init on demand */
             ssl->peerEccKey = (ecc_key*)XMALLOC(sizeof(ecc_key),
-                                         ssl->ctx->heap, DYNAMIC_TYPE_ECC);
+                                         ssl->heap, DYNAMIC_TYPE_ECC);
             if (ssl->peerEccKey == NULL) {
                 WOLFSSL_MSG("PeerEccKey Memory error");
                 return MEMORY_E;
             }
-            wc_ecc_init_h(ssl->peerEccKey, ssl->ctx->heap);
+            wc_ecc_init_h(ssl->peerEccKey, ssl->heap);
         } else if (ssl->peerEccKeyPresent) {  /* don't leak on reuse */
             wc_ecc_free(ssl->peerEccKey);
             ssl->peerEccKeyPresent = 0;
-            wc_ecc_init_h(ssl->peerEccKey, ssl->ctx->heap);
+            wc_ecc_init_h(ssl->peerEccKey, ssl->heap);
         }
 
         if (wc_ecc_import_x963(input + *inOutIdx, length,
@@ -15718,7 +15720,7 @@ int DoSessionTicket(WOLFSSL* ssl,
                         if (ssl->buffers.serverDH_Pub.buffer == NULL) {
                             /* Free'd in SSL_ResourceFree and FreeHandshakeResources */
                             ssl->buffers.serverDH_Pub.buffer = (byte*)XMALLOC(
-                                    ssl->buffers.serverDH_P.length + 2, ssl->ctx->heap,
+                                    ssl->buffers.serverDH_P.length + 2, ssl->heap,
                                     DYNAMIC_TYPE_DH);
                             if (ssl->buffers.serverDH_Pub.buffer == NULL) {
                                 ERROR_OUT(MEMORY_E, exit_sske);
@@ -15728,7 +15730,7 @@ int DoSessionTicket(WOLFSSL* ssl,
                         if (ssl->buffers.serverDH_Priv.buffer == NULL) {
                             /* Free'd in SSL_ResourceFree and FreeHandshakeResources */
                             ssl->buffers.serverDH_Priv.buffer = (byte*)XMALLOC(
-                                    ssl->buffers.serverDH_P.length + 2, ssl->ctx->heap,
+                                    ssl->buffers.serverDH_P.length + 2, ssl->heap,
                                     DYNAMIC_TYPE_DH);
                             if (ssl->buffers.serverDH_Priv.buffer == NULL) {
                                 ERROR_OUT(MEMORY_E, exit_sske);
@@ -15758,7 +15760,7 @@ int DoSessionTicket(WOLFSSL* ssl,
                         if (ssl->eccTempKey == NULL) {
                             /* alloc/init on demand */
                             ssl->eccTempKey = (ecc_key*)XMALLOC(sizeof(ecc_key),
-                                                         ssl->ctx->heap, DYNAMIC_TYPE_ECC);
+                                                         ssl->heap, DYNAMIC_TYPE_ECC);
                             if (ssl->eccTempKey == NULL) {
                                 WOLFSSL_MSG("EccTempKey Memory error");
                                 ERROR_OUT(MEMORY_E, exit_sske);
@@ -18323,7 +18325,7 @@ int DoSessionTicket(WOLFSSL* ssl,
                         if (ssl->peerEccKey == NULL) {
                             /* alloc/init on demand */
                             ssl->peerEccKey = (ecc_key*)XMALLOC(sizeof(ecc_key),
-                                                      ssl->ctx->heap, DYNAMIC_TYPE_ECC);
+                                                      ssl->heap, DYNAMIC_TYPE_ECC);
                             if (ssl->peerEccKey == NULL) {
                                 WOLFSSL_MSG("PeerEccKey Memory error");
                                 ERROR_OUT(MEMORY_E, exit_dcke);
@@ -18533,7 +18535,7 @@ int DoSessionTicket(WOLFSSL* ssl,
                         if (ssl->peerEccKey == NULL) {
                             /* alloc/init on demand */
                             ssl->peerEccKey = (ecc_key*)XMALLOC(sizeof(ecc_key),
-                                              ssl->ctx->heap, DYNAMIC_TYPE_ECC);
+                                              ssl->heap, DYNAMIC_TYPE_ECC);
                             if (ssl->peerEccKey == NULL) {
                                 WOLFSSL_MSG("PeerEccKey Memory error");
                                 ERROR_OUT(MEMORY_E, exit_dcke);

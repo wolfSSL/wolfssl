@@ -145,11 +145,11 @@ void* wolfSSL_Realloc(void *ptr, size_t size)
 
 #ifdef WOLFSSL_STATIC_MEMORY
 
-typedef struct wc_Memory {
-    word32 sz;
+struct wc_Memory {
     byte*  buffer;
     struct wc_Memory* next;
-} wc_Memory;
+    word32 sz;
+};
 
 
 /* returns amount of memory used on success. On error returns negative value
@@ -160,7 +160,7 @@ static int create_memory_buckets(byte* buffer, word32 bufSz,
     word32 i;
     byte*  pt  = buffer;
     int    ret = 0;
-    word32 memSz = sizeof(wc_Memory);
+    word32 memSz = (word32)sizeof(wc_Memory);
     word32 padSz = -(int)memSz & (WOLFSSL_STATIC_ALIGN - 1);
 
     /* if not enough space available for bucket size then do not try */
@@ -203,7 +203,7 @@ int wolfSSL_load_static_memory(byte* buffer, word32 sz, int flag,
     word32 ava = sz;
     byte*  pt  = buffer;
     int    ret = 0;
-    word32 memSz = sizeof(wc_Memory);
+    word32 memSz = (word32)sizeof(wc_Memory);
     word32 padSz = -(int)memSz & (WOLFSSL_STATIC_ALIGN - 1);
 
     WOLFSSL_ENTER("wolfSSL_load_static_memory");
@@ -216,11 +216,7 @@ int wolfSSL_load_static_memory(byte* buffer, word32 sz, int flag,
     while ((wolfssl_word)pt % WOLFSSL_STATIC_ALIGN && pt < (buffer + sz)) {
         *pt = 0x00;
         pt++;
-    }
-
-    if (InitMutex(&(heap->memory_mutex)) != 0) {
-        WOLFSSL_MSG("Bad mutex init");
-        return BAD_MUTEX_E;
+        ava--;
     }
 
     /* devide into chunks of memory and add them to available list */

@@ -1022,6 +1022,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
             err_sys("static memory was not used with ssl");
 
         fprintf(stderr, "\nprint off SSL memory stats\n");
+        fprintf(stderr, "*** This is memory state before wolfSSL_free is called\n");
         fprintf(stderr, "peak connection memory = %d\n", ssl_stats.peakMem);
         fprintf(stderr, "current memory in use  = %d\n", ssl_stats.curMem);
         fprintf(stderr, "peak connection allocs = %d\n", ssl_stats.peakAlloc);

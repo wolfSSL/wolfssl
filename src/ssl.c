@@ -658,6 +658,7 @@ int wolfSSL_init_memory_heap(WOLFSSL_HEAP* heap)
 
     if (InitMutex(&(heap->memory_mutex)) != 0) {
         WOLFSSL_MSG("Error creating heap memory mutex");
+        return BAD_MUTEX_E;
     }
 
     return SSL_SUCCESS;
@@ -854,9 +855,9 @@ int wolfSSL_SetTmpDH(WOLFSSL* ssl, const unsigned char* p, int pSz,
         return SIDE_ERROR;
 
     if (ssl->buffers.serverDH_P.buffer && ssl->buffers.weOwnDH)
-        XFREE(ssl->buffers.serverDH_P.buffer, ssl->ctx->heap, DYNAMIC_TYPE_DH);
+        XFREE(ssl->buffers.serverDH_P.buffer, ssl->heap, DYNAMIC_TYPE_DH);
     if (ssl->buffers.serverDH_G.buffer && ssl->buffers.weOwnDH)
-        XFREE(ssl->buffers.serverDH_G.buffer, ssl->ctx->heap, DYNAMIC_TYPE_DH);
+        XFREE(ssl->buffers.serverDH_G.buffer, ssl->heap, DYNAMIC_TYPE_DH);
 
     ssl->buffers.weOwnDH = 1;  /* SSL owns now */
     ssl->buffers.serverDH_P.buffer = (byte*)XMALLOC(pSz, ssl->heap,

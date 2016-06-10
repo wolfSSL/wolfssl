@@ -256,17 +256,19 @@ WOLFSSL_API int wolfSSL_dtls_export(WOLFSSL* ssl, unsigned char* buf,
 #endif /* WOLFSSL_SESSION_EXPORT */
 
 #ifdef WOLFSSL_STATIC_MEMORY
-/* use underscore to avoid possible redefinition of typdef from memory.h */
-typedef struct WOLFSSL_MEM_STATS      _WOLFSSL_MEM_STATS;
-typedef struct WOLFSSL_MEM_CONN_STATS _WOLFSSL_MEM_CONN_STATS;
+#ifndef WOLFSSL_MEM_GUARD
+#define WOLFSSL_MEM_GUARD
+    typedef struct WOLFSSL_MEM_STATS      WOLFSSL_MEM_STATS;
+    typedef struct WOLFSSL_MEM_CONN_STATS WOLFSSL_MEM_CONN_STATS;
+#endif
 WOLFSSL_API int wolfSSL_CTX_load_static_memory(WOLFSSL_CTX** ctx,
                                             wolfSSL_method_func method,
                                             unsigned char* buf, unsigned int sz,
                                             int flag, int max);
 WOLFSSL_API int wolfSSL_CTX_is_static_memory(WOLFSSL_CTX* ctx,
-                                                 _WOLFSSL_MEM_STATS* mem_stats);
+                                                 WOLFSSL_MEM_STATS* mem_stats);
 WOLFSSL_API int wolfSSL_is_static_memory(WOLFSSL* ssl,
-                                            _WOLFSSL_MEM_CONN_STATS* mem_stats);
+                                            WOLFSSL_MEM_CONN_STATS* mem_stats);
 #endif
 
 #if !defined(NO_FILESYSTEM) && !defined(NO_CERTS)
