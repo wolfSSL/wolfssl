@@ -618,6 +618,56 @@ int wolfSSL_GetObjectSize(void)
 }
 #endif
 
+
+/* return max record layer size plaintext input size */
+int wolfSSL_GetMaxOutputSize(WOLFSSL* ssl)
+{
+    int maxSize = OUTPUT_RECORD_SIZE;
+
+    WOLFSSL_ENTER("wolfSSL_GetMaxOutputSize");
+
+    if (ssl == NULL)
+        return BAD_FUNC_ARG;
+
+    if (ssl->options.handShakeState != HANDSHAKE_DONE) {
+        WOLFSSL_MSG("Handshake not complete yet");
+        return BAD_FUNC_ARG;
+    }
+
+#ifdef HAVE_MAX_FRAGMENT
+    maxSize = min(maxSize, ssl->max_fragment);
+#endif
+
+#ifdef WOLFSSL_DTLS
+    if (ssl->options.dtls) {
+        maxSize = min(maxSize, MAX_UDP_SIZE);
+    }
+#endif
+
+    return maxSize;
+}
+
+
+/* return record layer size of plaintext input size */
+int wolfSSL_GetOutputSize(WOLFSSL* ssl, int inSz)
+{
+    int maxSize;
+
+    WOLFSSL_ENTER("wolfSSL_GetOutputSize");
+
+    if (inSz < 0)
+        return BAD_FUNC_ARG;
+
+    maxSize = wolfSSL_GetMaxOutputSize(ssl);
+    if (maxSize < 0)
+        return maxSize;   /* error */
+    if (inSz > maxSize)
+        return INPUT_SIZE_E;
+
+    return BuildMessage(ssl, NULL, 0, NULL, inSz, application_data, 0, 1);
+}
+
+
 #ifdef HAVE_ECC
 int wolfSSL_CTX_SetMinEccKey_Sz(WOLFSSL_CTX* ctx, short keySz)
 {
