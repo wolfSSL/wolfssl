@@ -3135,16 +3135,16 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
         if (ctx_hint->memory->maxHa > 0 &&
                            ctx_hint->memory->maxHa <= ctx_hint->memory->curHa) {
             WOLFSSL_MSG("At max number of handshakes for static memory");
+            UnLockMutex(&(ctx_hint->memory->memory_mutex));
             return MEMORY_E;
         }
-        ctx_hint->memory->curHa++;
 
         if (ctx_hint->memory->maxIO > 0 &&
                            ctx_hint->memory->maxIO <= ctx_hint->memory->curIO) {
             WOLFSSL_MSG("At max number of IO allowed for static memory");
+            UnLockMutex(&(ctx_hint->memory->memory_mutex));
             return MEMORY_E;
         }
-        ctx_hint->memory->curIO++;
         UnLockMutex(&(ctx_hint->memory->memory_mutex));
 
         ssl->heap = (WOLFSSL_HEAP_HINT*)XMALLOC(sizeof(WOLFSSL_HEAP_HINT),
@@ -3173,17 +3173,29 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
                 return BAD_MUTEX_E;
             }
             if (SetFixedIO(ctx_hint->memory, &(ssl_hint->inBuf)) != 1) {
+                UnLockMutex(&(ctx_hint->memory->memory_mutex));
                 return MEMORY_E;
             }
             if (SetFixedIO(ctx_hint->memory, &(ssl_hint->outBuf)) != 1) {
+                UnLockMutex(&(ctx_hint->memory->memory_mutex));
                 return MEMORY_E;
             }
             if (ssl_hint->outBuf == NULL || ssl_hint->inBuf == NULL) {
                 WOLFSSL_MSG("Not enough memory to create fixed IO buffers");
+                UnLockMutex(&(ctx_hint->memory->memory_mutex));
                 return MEMORY_E;
             }
             UnLockMutex(&(ctx_hint->memory->memory_mutex));
         }
+
+        /* increment counters at end of setting up memory */
+        if (LockMutex(&(ctx_hint->memory->memory_mutex)) != 0) {
+            WOLFSSL_MSG("Bad memory_mutex lock");
+            return BAD_MUTEX_E;
+        }
+        ctx_hint->memory->curHa++;
+        ctx_hint->memory->curIO++;
+        UnLockMutex(&(ctx_hint->memory->memory_mutex));
     #ifdef WOLFSSL_HEAP_TEST
         }
     #endif

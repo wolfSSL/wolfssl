@@ -493,8 +493,10 @@ void wolfSSL_Free(void *ptr, void* heap, int type)
 
             /* get memory struct and add it to available list */
             pt = (wc_Memory*)((byte*)ptr - sizeof(wc_Memory) - padSz);
-            LockMutex(&(mem->memory_mutex));
-
+            if (LockMutex(&(mem->memory_mutex)) != 0) {
+                WOLFSSL_MSG("Bad memory_mutex lock");
+                return;
+            }
 
             /* case of using fixed IO buffers */
             if (mem->flag & WOLFMEM_IO_POOL_FIXED &&
