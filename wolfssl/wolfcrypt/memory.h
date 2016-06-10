@@ -71,10 +71,10 @@ WOLFSSL_API int wolfSSL_SetAllocators(wolfSSL_Malloc_cb  malloc_function,
 
 #ifdef WOLFSSL_STATIC_MEMORY
     #define WOLFSSL_STATIC_TIMEOUT 1
-    #define WOLFSSL_STATIC_ALIGN 64
+    #define WOLFSSL_STATIC_ALIGN 16
     #define WOLFMEM_MAX_BUCKETS  9
-    #define WOLFMEM_DEF_BUCKETS  9  /* number of default memory blocks */
-    #define WOLFMEM_IO_SZ        17000
+    #define WOLFMEM_DEF_BUCKETS  9     /* number of default memory blocks */
+    #define WOLFMEM_IO_SZ        16992 /* 16 byte aligned */
 
     /* flags for loading static memory (one hot bit) */
     #define WOLFMEM_GENERAL       0x01

@@ -150,9 +150,6 @@ typedef struct wc_Memory {
     byte*  buffer;
     struct wc_Memory* next;
 } wc_Memory;
-#if WOLFSSL_STATIC_ALIGN < 10
-    #error Alignment is less than wc_Memory struct
-#endif
 
 
 /* returns amount of memory used on success. On error returns negative value
@@ -163,18 +160,20 @@ static int create_memory_buckets(byte* buffer, word32 bufSz,
     word32 i;
     byte*  pt  = buffer;
     int    ret = 0;
+    word32 memSz = sizeof(wc_Memory);
+    word32 padSz = -(int)memSz & (WOLFSSL_STATIC_ALIGN - 1);
 
     /* if not enough space available for bucket size then do not try */
-    if (buckSz + WOLFSSL_STATIC_ALIGN > bufSz) {
+    if (buckSz + memSz + padSz > bufSz) {
         return ret;
     }
 
     for (i = 0; i < buckNum; i++) {
-        if ((buckSz + WOLFSSL_STATIC_ALIGN) <= (bufSz - ret)) {
+        if ((buckSz + memSz + padSz) <= (bufSz - ret)) {
             /* create a new struct and set its values */
-            wc_Memory* mem = (struct wc_Memory*)pt;
+            wc_Memory* mem = (struct wc_Memory*)(pt);
             mem->sz = buckSz;
-            mem->buffer = (byte*)pt + WOLFSSL_STATIC_ALIGN;
+            mem->buffer = (byte*)pt + padSz + memSz;
             mem->next = NULL;
 
             /* add the newly created struct to front of list */
@@ -186,8 +185,8 @@ static int create_memory_buckets(byte* buffer, word32 bufSz,
             }
 
             /* advance pointer and keep track of memory used */
-            ret += buckSz + WOLFSSL_STATIC_ALIGN;
-            pt  += WOLFSSL_STATIC_ALIGN + buckSz;
+            ret += buckSz + padSz + memSz;
+            pt  += buckSz + padSz + memSz;
         }
         else {
             break; /* not enough space left for more buckets of this size */
@@ -204,12 +203,8 @@ int wolfSSL_load_static_memory(byte* buffer, word32 sz, int flag,
     word32 ava = sz;
     byte*  pt  = buffer;
     int    ret = 0;
-
-    #ifdef WOLFSSL_TRACK_MEMORY_FULL
-        word32 created_buckets[WOLFMEM_MAX_BUCKETS];
-        int    j;
-        XMEMSET(created_buckets, 0, sizeof(created_buckets));
-    #endif
+    word32 memSz = sizeof(wc_Memory);
+    word32 padSz = -(int)memSz & (WOLFSSL_STATIC_ALIGN - 1);
 
     WOLFSSL_ENTER("wolfSSL_load_static_memory");
 
@@ -229,7 +224,7 @@ int wolfSSL_load_static_memory(byte* buffer, word32 sz, int flag,
     }
 
     /* devide into chunks of memory and add them to available list */
-    while (ava >= (heap->sizeList[0] + WOLFSSL_STATIC_ALIGN)) {
+    while (ava >= (heap->sizeList[0] + padSz + memSz)) {
         int i;
         /* creating only IO buffers from memory passed in, max TLS is 16k */
         if (flag & WOLFMEM_IO_POOL || flag & WOLFMEM_IO_POOL_FIXED) {
@@ -252,20 +247,12 @@ int wolfSSL_load_static_memory(byte* buffer, word32 sz, int flag,
         else {
             /* start at largest and move to smaller buckets */
             for (i = (WOLFMEM_MAX_BUCKETS - 1); i >= 0; i--) {
-                if ((heap->sizeList[i] + WOLFSSL_STATIC_ALIGN) <= ava) {
+                if ((heap->sizeList[i] + padSz + memSz) <= ava) {
                     if ((ret = create_memory_buckets(pt, ava, heap->sizeList[i],
                                      heap->distList[i], &(heap->ava[i]))) < 0) {
                         WOLFSSL_LEAVE("wolfSSL_load_static_memory", ret);
                         return ret;
                     }
-                    #ifdef WOLFSSL_TRACK_MEMORY_FULL
-                    /* if defined keep track of buckets created for stats*/
-                        for (j = 0; (j + heap->sizeList[i] +
-                           WOLFSSL_STATIC_ALIGN) <= (word32)ret; j +=
-                           heap->sizeList[i] + WOLFSSL_STATIC_ALIGN) {
-                            created_buckets[i]++;
-                        }
-                    #endif
 
                     /* advance pointer in buffer for next buckets and keep track
                        of how much memory is left available */
@@ -430,7 +417,7 @@ void* wolfSSL_Malloc(size_t size, void* heap, int type)
         }
 
         if (pt != NULL) {
-            mem->inUse += pt->sz + WOLFSSL_STATIC_ALIGN;
+            mem->inUse += pt->sz;
             mem->alloc += 1;
             res = pt->buffer;
 
@@ -438,7 +425,7 @@ void* wolfSSL_Malloc(size_t size, void* heap, int type)
             if (mem->flag & WOLFMEM_TRACK_STATS) {
                 WOLFSSL_MEM_CONN_STATS* stats = hint->stats;
                 if (stats != NULL) {
-                    stats->curMem += pt->sz + WOLFSSL_STATIC_ALIGN;
+                    stats->curMem += pt->sz;
                     if (stats->peakMem < stats->curMem) {
                         stats->peakMem = stats->curMem;
                     }
@@ -459,10 +446,11 @@ void* wolfSSL_Malloc(size_t size, void* heap, int type)
 
     #ifdef WOLFSSL_MALLOC_CHECK
         if ((wolfssl_word)res % WOLFSSL_STATIC_ALIGN) {
-            res = NULL;
             WOLFSSL_MSG("ERROR memory is not alligned");
+            res = NULL;
         }
     #endif
+
 
     (void)i;
     (void)pt;
@@ -505,9 +493,10 @@ void wolfSSL_Free(void *ptr, void* heap, int type)
         else {
             WOLFSSL_HEAP_HINT* hint = (WOLFSSL_HEAP_HINT*)heap;
             WOLFSSL_HEAP*      mem  = hint->memory;
+            word32 padSz = -(int)sizeof(wc_Memory) & (WOLFSSL_STATIC_ALIGN - 1);
 
             /* get memory struct and add it to available list */
-            pt = (wc_Memory*)((byte*)ptr - WOLFSSL_STATIC_ALIGN);
+            pt = (wc_Memory*)((byte*)ptr - sizeof(wc_Memory) - padSz);
             LockMutex(&(mem->memory_mutex));
 
 
@@ -533,7 +522,7 @@ void wolfSSL_Free(void *ptr, void* heap, int type)
                     }
                 }
             }
-            mem->inUse -= WOLFSSL_STATIC_ALIGN + pt->sz;
+            mem->inUse -= pt->sz;
             mem->frAlc += 1;
 
             /* keep track of connection statistics if flag is set */
@@ -541,8 +530,8 @@ void wolfSSL_Free(void *ptr, void* heap, int type)
                 WOLFSSL_MEM_CONN_STATS* stats = hint->stats;
                 if (stats != NULL) {
                     /* avoid under flow */
-                    if (stats->curMem > pt->sz + WOLFSSL_STATIC_ALIGN) {
-                        stats->curMem -= pt->sz + WOLFSSL_STATIC_ALIGN;
+                    if (stats->curMem > pt->sz) {
+                        stats->curMem -= pt->sz;
                     }
                     else {
                         stats->curMem = 0;
@@ -591,6 +580,7 @@ void* wolfSSL_Realloc(void *ptr, size_t size, void* heap, int type)
     else {
         WOLFSSL_HEAP_HINT* hint = (WOLFSSL_HEAP_HINT*)heap;
         WOLFSSL_HEAP*      mem  = hint->memory;
+        word32 padSz = -(int)sizeof(wc_Memory) & (WOLFSSL_STATIC_ALIGN - 1);
 
         if (LockMutex(&(mem->memory_mutex)) != 0) {
             WOLFSSL_MSG("Bad memory_mutex lock");
@@ -602,7 +592,7 @@ void* wolfSSL_Realloc(void *ptr, size_t size, void* heap, int type)
                                           && (type == DYNAMIC_TYPE_OUT_BUFFER ||
                                               type == DYNAMIC_TYPE_IN_BUFFER)) {
             /* no realloc, is fixed size */
-            pt = (wc_Memory*)ptr;
+            pt = (wc_Memory*)((byte*)ptr - padSz - sizeof(wc_Memory));
             if (pt->sz < size) {
                 WOLFSSL_MSG("Error IO memory was not large enough");
                 res = NULL; /* return NULL in error case */
@@ -625,11 +615,11 @@ void* wolfSSL_Realloc(void *ptr, size_t size, void* heap, int type)
                 res = pt->buffer;
 
                 /* copy over original information and free ptr */
-                prvSz = ((wc_Memory*)((byte*)ptr -
-                                               WOLFSSL_STATIC_ALIGN))->sz;
+                prvSz = ((wc_Memory*)((byte*)ptr - padSz -
+                                               sizeof(wc_Memory)))->sz;
                 prvSz = (prvSz > pt->sz)? pt->sz: prvSz;
                 XMEMCPY(pt->buffer, ptr, prvSz);
-                mem->inUse += pt->sz + WOLFSSL_STATIC_ALIGN;
+                mem->inUse += pt->sz;
                 mem->alloc += 1;
 
                 /* free memory that was previously being used */
@@ -646,8 +636,8 @@ void* wolfSSL_Realloc(void *ptr, size_t size, void* heap, int type)
 
     #ifdef WOLFSSL_MALLOC_CHECK
         if ((wolfssl_word)res % WOLFSSL_STATIC_ALIGN) {
-            res = NULL;
             WOLFSSL_MSG("ERROR memory is not alligned");
+            res = NULL;
         }
     #endif
 
