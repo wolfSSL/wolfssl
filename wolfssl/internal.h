@@ -1496,6 +1496,7 @@ struct WOLFSSL_CRL {
     int                   mfd;           /* monitor fd, -1 if no init yet */
     int                   setup;         /* thread is setup predicate */
 #endif
+    void*                 heap;          /* heap hint for dynamic memory */
 };
 
 
@@ -1656,7 +1657,7 @@ typedef struct TLSX {
 } TLSX;
 
 WOLFSSL_LOCAL TLSX*  TLSX_Find(TLSX* list, TLSX_Type type);
-WOLFSSL_LOCAL void   TLSX_FreeAll(TLSX* list);
+WOLFSSL_LOCAL void   TLSX_FreeAll(TLSX* list, void* heap);
 WOLFSSL_LOCAL int    TLSX_SupportExtensions(WOLFSSL* ssl);
 WOLFSSL_LOCAL int    TLSX_PopulateExtensions(WOLFSSL* ssl, byte isRequest);
 
@@ -1702,7 +1703,7 @@ typedef struct SNI {
 } SNI;
 
 WOLFSSL_LOCAL int TLSX_UseSNI(TLSX** extensions, byte type, const void* data,
-                                                                   word16 size);
+                                                       word16 size, void* heap);
 
 #ifndef NO_WOLFSSL_SERVER
 WOLFSSL_LOCAL void   TLSX_SNI_SetOptions(TLSX* extensions, byte type,
@@ -1729,7 +1730,7 @@ WOLFSSL_LOCAL int TLSX_ALPN_GetRequest(TLSX* extensions,
                                        void** data, word16 *dataSz);
 
 WOLFSSL_LOCAL int TLSX_UseALPN(TLSX** extensions, const void* data,
-                               word16 size, byte options);
+                               word16 size, byte options, void* heap);
 
 WOLFSSL_LOCAL int TLSX_ALPN_SetOptions(TLSX** extensions, const byte option);
 
@@ -1738,14 +1739,14 @@ WOLFSSL_LOCAL int TLSX_ALPN_SetOptions(TLSX** extensions, const byte option);
 /** Maximum Fragment Length Negotiation - RFC 6066 (session 4) */
 #ifdef HAVE_MAX_FRAGMENT
 
-WOLFSSL_LOCAL int TLSX_UseMaxFragment(TLSX** extensions, byte mfl);
+WOLFSSL_LOCAL int TLSX_UseMaxFragment(TLSX** extensions, byte mfl, void* heap);
 
 #endif /* HAVE_MAX_FRAGMENT */
 
 /** Truncated HMAC - RFC 6066 (session 7) */
 #ifdef HAVE_TRUNCATED_HMAC
 
-WOLFSSL_LOCAL int TLSX_UseTruncatedHMAC(TLSX** extensions);
+WOLFSSL_LOCAL int TLSX_UseTruncatedHMAC(TLSX** extensions, void* heap);
 
 #endif /* HAVE_TRUNCATED_HMAC */
 
@@ -1761,8 +1762,9 @@ typedef struct {
 } CertificateStatusRequest;
 
 WOLFSSL_LOCAL int   TLSX_UseCertificateStatusRequest(TLSX** extensions,
-                                                byte status_type, byte options);
-WOLFSSL_LOCAL int   TLSX_CSR_InitRequest(TLSX* extensions, DecodedCert* cert);
+                                    byte status_type, byte options, void* heap);
+WOLFSSL_LOCAL int   TLSX_CSR_InitRequest(TLSX* extensions, DecodedCert* cert,
+                                                                    void* heap);
 WOLFSSL_LOCAL void* TLSX_CSR_GetRequest(TLSX* extensions);
 WOLFSSL_LOCAL int   TLSX_CSR_ForceRequest(WOLFSSL* ssl);
 
@@ -1782,8 +1784,9 @@ typedef struct CSRIv2 {
 } CertificateStatusRequestItemV2;
 
 WOLFSSL_LOCAL int   TLSX_UseCertificateStatusRequestV2(TLSX** extensions,
-                                                byte status_type, byte options);
-WOLFSSL_LOCAL int   TLSX_CSR2_InitRequests(TLSX* extensions, DecodedCert* cert, byte isPeer);
+                                    byte status_type, byte options, void* heap);
+WOLFSSL_LOCAL int   TLSX_CSR2_InitRequests(TLSX* extensions, DecodedCert* cert,
+                                                       byte isPeer, void* heap);
 WOLFSSL_LOCAL void* TLSX_CSR2_GetRequest(TLSX* extensions, byte status_type,
                                                                     byte index);
 WOLFSSL_LOCAL int   TLSX_CSR2_ForceRequest(WOLFSSL* ssl);
@@ -1798,7 +1801,8 @@ typedef struct EllipticCurve {
     struct EllipticCurve* next; /* List Behavior */
 } EllipticCurve;
 
-WOLFSSL_LOCAL int TLSX_UseSupportedCurve(TLSX** extensions, word16 name);
+WOLFSSL_LOCAL int TLSX_UseSupportedCurve(TLSX** extensions, word16 name,
+                                                                    void* heap);
 
 #ifndef NO_WOLFSSL_SERVER
 WOLFSSL_LOCAL int TLSX_ValidateEllipticCurves(WOLFSSL* ssl, byte first,
@@ -1829,7 +1833,7 @@ typedef struct SecureRenegotiation {
    Keys                 tmp_keys;  /* can't overwrite real keys yet */
 } SecureRenegotiation;
 
-WOLFSSL_LOCAL int TLSX_UseSecureRenegotiation(TLSX** extensions);
+WOLFSSL_LOCAL int TLSX_UseSecureRenegotiation(TLSX** extensions, void* heap);
 
 #endif /* HAVE_SECURE_RENEGOTIATION */
 
@@ -1843,10 +1847,10 @@ typedef struct SessionTicket {
 } SessionTicket;
 
 WOLFSSL_LOCAL int  TLSX_UseSessionTicket(TLSX** extensions,
-                                                         SessionTicket* ticket);
+                                             SessionTicket* ticket, void* heap);
 WOLFSSL_LOCAL SessionTicket* TLSX_SessionTicket_Create(word32 lifetime,
-                                                       byte* data, word16 size);
-WOLFSSL_LOCAL void TLSX_SessionTicket_Free(SessionTicket* ticket);
+                                           byte* data, word16 size, void* heap);
+WOLFSSL_LOCAL void TLSX_SessionTicket_Free(SessionTicket* ticket, void* heap);
 
 #endif /* HAVE_SESSION_TICKET */
 
@@ -1881,7 +1885,7 @@ WOLFSSL_LOCAL word16 TLSX_QSH_GetSize(QSHScheme* list, byte isRequest);
 
 /* used by api for setting a specific QSH scheme */
 WOLFSSL_LOCAL int TLSX_UseQSHScheme(TLSX** extensions, word16 name,
-                                                     byte* pKey, word16 pKeySz);
+                                         byte* pKey, word16 pKeySz, void* heap);
 
 /* used when parsing in QSHCipher structs */
 WOLFSSL_LOCAL int QSH_Decrypt(QSHKey* key, byte* in, word32 szIn,
@@ -1907,6 +1911,9 @@ WOLFSSL_LOCAL int wolfSSL_EventInit(WOLFSSL* ssl, WOLF_EVENT_TYPE type);
 WOLFSSL_LOCAL int wolfSSL_CTX_EventPush(WOLFSSL_CTX* ctx, WOLF_EVENT* event);
 #endif /* HAVE_WOLF_EVENT */
 
+#ifdef WOLFSSL_STATIC_MEMORY
+WOLFSSL_LOCAL int wolfSSL_init_memory_heap(WOLFSSL_HEAP* heap);
+#endif
 
 /* wolfSSL context type */
 struct WOLFSSL_CTX {
@@ -2035,7 +2042,9 @@ struct WOLFSSL_CTX {
 
 
 WOLFSSL_LOCAL
-int InitSSL_Ctx(WOLFSSL_CTX*, WOLFSSL_METHOD*);
+WOLFSSL_CTX* wolfSSL_CTX_new_ex(WOLFSSL_METHOD* method, void* heap);
+WOLFSSL_LOCAL
+int InitSSL_Ctx(WOLFSSL_CTX*, WOLFSSL_METHOD*, void* heap);
 WOLFSSL_LOCAL
 void FreeSSL_Ctx(WOLFSSL_CTX*);
 WOLFSSL_LOCAL
@@ -2523,6 +2532,7 @@ struct WOLFSSL_X509 {
     #endif
     DNS_entry*       altNames;                       /* alt names list */
     DNS_entry*       altNamesNext;                   /* hint for retrieval */
+    void*            heap;                           /* heap hint */
     byte             dynamicMemory;                  /* dynamic memory flag */
     byte             isCa;
 #ifdef OPENSSL_EXTRA
@@ -2661,6 +2671,9 @@ struct WOLFSSL {
     void*           verifyCbCtx;        /* cert verify callback user ctx*/
     VerifyCallback  verifyCallback;     /* cert verification callback */
     void*           heap;               /* for user overrides */
+#ifdef WOLFSSL_STATIC_MEMORY
+    WOLFSSL_HEAP_HINT heap_hint;
+#endif
 #ifndef NO_HANDSHAKE_DONE_CB
     HandShakeDoneCb hsDoneCb;          /*  notify user handshake done */
     void*           hsDoneCtx;         /*  user handshake cb context  */
@@ -2840,7 +2853,7 @@ int  SetSSL_CTX(WOLFSSL*, WOLFSSL_CTX*);
 WOLFSSL_LOCAL
 int  InitSSL(WOLFSSL*, WOLFSSL_CTX*);
 WOLFSSL_LOCAL
-void FreeSSL(WOLFSSL*);
+void FreeSSL(WOLFSSL*, void* heap);
 WOLFSSL_API void SSL_ResourceFree(WOLFSSL*);   /* Micrium uses */
 
 
@@ -3075,8 +3088,8 @@ WOLFSSL_LOCAL word32  LowResTimer(void);
 
 #ifndef NO_CERTS
     WOLFSSL_LOCAL void InitX509Name(WOLFSSL_X509_NAME*, int);
-    WOLFSSL_LOCAL void FreeX509Name(WOLFSSL_X509_NAME* name);
-    WOLFSSL_LOCAL void InitX509(WOLFSSL_X509*, int);
+    WOLFSSL_LOCAL void FreeX509Name(WOLFSSL_X509_NAME* name, void* heap);
+    WOLFSSL_LOCAL void InitX509(WOLFSSL_X509*, int, void* heap);
     WOLFSSL_LOCAL void FreeX509(WOLFSSL_X509*);
     WOLFSSL_LOCAL int  CopyDecodedToX509(WOLFSSL_X509*, DecodedCert*);
 #endif

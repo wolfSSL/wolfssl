@@ -230,7 +230,7 @@ int wc_FreeRsaKey(RsaKey* key)
    outSz: size of output buffer
  */
 static int wc_MGF1(enum wc_HashType hType, byte* seed, word32 seedSz,
-                                                        byte* out, word32 outSz)
+                                            byte* out, word32 outSz, void* heap)
 {
     byte* tmp;
     /* needs to be large enough for seed size plus counter(4) */
@@ -255,7 +255,7 @@ static int wc_MGF1(enum wc_HashType hType, byte* seed, word32 seedSz,
         /* find largest amount of memory needed which will be the max of
          * hLen and (seedSz + 4) since tmp is used to store the hash digest */
         tmpSz = ((seedSz + 4) > (word32)hLen)? seedSz + 4: (word32)hLen;
-        tmp = (byte*)XMALLOC(tmpSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        tmp = (byte*)XMALLOC(tmpSz, heap, DYNAMIC_TYPE_TMP_BUFFER);
         if (tmp == NULL) {
             return MEMORY_E;
         }
@@ -282,7 +282,7 @@ static int wc_MGF1(enum wc_HashType hType, byte* seed, word32 seedSz,
         if ((ret = wc_Hash(hType, tmp, (seedSz + 4), tmp, tmpSz)) != 0) {
             /* check for if dynamic memory was needed, then free */
             if (tmpF) {
-                XFREE(tmp, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                XFREE(tmp, heap, DYNAMIC_TYPE_TMP_BUFFER);
             }
             return ret;
         }
@@ -296,7 +296,7 @@ static int wc_MGF1(enum wc_HashType hType, byte* seed, word32 seedSz,
 
     /* check for if dynamic memory was needed, then free */
     if (tmpF) {
-        XFREE(tmp, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(tmp, heap, DYNAMIC_TYPE_TMP_BUFFER);
     }
 
     return 0;
@@ -307,29 +307,32 @@ static int wc_MGF1(enum wc_HashType hType, byte* seed, word32 seedSz,
    switeched on type input
  */
 static int wc_MGF(int type, byte* seed, word32 seedSz,
-                                                        byte* out, word32 outSz)
+                                            byte* out, word32 outSz, void* heap)
 {
     int ret;
 
     switch(type) {
         #ifndef NO_SHA
         case WC_MGF1SHA1:
-                ret = wc_MGF1(WC_HASH_TYPE_SHA, seed, seedSz, out, outSz);
+                ret = wc_MGF1(WC_HASH_TYPE_SHA, seed, seedSz, out, outSz, heap);
                 break;
         #endif
         #ifndef NO_SHA256
         case WC_MGF1SHA256:
-                ret = wc_MGF1(WC_HASH_TYPE_SHA256, seed, seedSz, out, outSz);
+                ret = wc_MGF1(WC_HASH_TYPE_SHA256, seed, seedSz,
+                                                              out, outSz, heap);
                 break;
         #endif
         #ifdef WOLFSSL_SHA512
         #ifdef WOLFSSL_SHA384
         case WC_MGF1SHA384:
-                ret = wc_MGF1(WC_HASH_TYPE_SHA384, seed, seedSz, out, outSz);
+                ret = wc_MGF1(WC_HASH_TYPE_SHA384, seed, seedSz,
+                                                              out, outSz, heap);
                 break;
         #endif
         case WC_MGF1SHA512:
-                ret = wc_MGF1(WC_HASH_TYPE_SHA512, seed, seedSz, out, outSz);
+                ret = wc_MGF1(WC_HASH_TYPE_SHA512, seed, seedSz,
+                                                              out, outSz, heap);
                 break;
         #endif
         default:
@@ -342,14 +345,16 @@ static int wc_MGF(int type, byte* seed, word32 seedSz,
     (void)seedSz;
     (void)out;
     (void)outSz;
+    (void)heap;
 
     return ret;
 }
 
 
 static int wc_RsaPad_OAEP(const byte* input, word32 inputLen, byte* pkcsBlock,
-        word32 pkcsBlockLen, byte padValue, WC_RNG* rng,
-        enum wc_HashType hType, int mgf, byte* optLabel, word32 labelLen)
+                          word32 pkcsBlockLen, byte padValue, WC_RNG* rng,
+                          enum wc_HashType hType, int mgf, byte* optLabel,
+                          word32 labelLen, void* heap)
 {
     int ret;
     int hLen;
@@ -464,7 +469,7 @@ static int wc_RsaPad_OAEP(const byte* input, word32 inputLen, byte* pkcsBlock,
     }
 
     /* create maskedDB from dbMask */
-    dbMask = (byte*)XMALLOC(pkcsBlockLen - hLen - 1, NULL, DYNAMIC_TYPE_RSA);
+    dbMask = (byte*)XMALLOC(pkcsBlockLen - hLen - 1, heap, DYNAMIC_TYPE_RSA);
     if (dbMask == NULL) {
         #ifdef WOLFSSL_SMALL_STACK
             XFREE(lHash, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -474,9 +479,9 @@ static int wc_RsaPad_OAEP(const byte* input, word32 inputLen, byte* pkcsBlock,
     }
     XMEMSET(dbMask, 0, pkcsBlockLen - hLen - 1); /* help static analyzer */
 
-    ret = wc_MGF(mgf, seed, hLen, dbMask, pkcsBlockLen - hLen - 1);
+    ret = wc_MGF(mgf, seed, hLen, dbMask, pkcsBlockLen - hLen - 1, heap);
     if (ret != 0) {
-        XFREE(dbMask, NULL, DYNAMIC_TYPE_RSA);
+        XFREE(dbMask, heap, DYNAMIC_TYPE_RSA);
         #ifdef WOLFSSL_SMALL_STACK
             XFREE(lHash, NULL, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(seed,  NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -490,7 +495,7 @@ static int wc_RsaPad_OAEP(const byte* input, word32 inputLen, byte* pkcsBlock,
         pkcsBlock[idx] = dbMask[i++] ^ pkcsBlock[idx];
         idx++;
     }
-    XFREE(dbMask, NULL, DYNAMIC_TYPE_RSA);
+    XFREE(dbMask, heap, DYNAMIC_TYPE_RSA);
 
 
     /* create maskedSeed from seedMask */
@@ -498,7 +503,7 @@ static int wc_RsaPad_OAEP(const byte* input, word32 inputLen, byte* pkcsBlock,
     pkcsBlock[idx++] = 0x00;
     /* create seedMask inline */
     if ((ret = wc_MGF(mgf, pkcsBlock + hLen + 1, pkcsBlockLen - hLen - 1,
-                                                   pkcsBlock + 1, hLen)) != 0) {
+                                             pkcsBlock + 1, hLen, heap)) != 0) {
         #ifdef WOLFSSL_SMALL_STACK
             XFREE(lHash, NULL, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(seed,  NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -572,8 +577,9 @@ static int wc_RsaPad(const byte* input, word32 inputLen, byte* pkcsBlock,
 #ifndef WC_NO_RSA_OAEP
 /* helper function to direct which padding is used */
 static int wc_RsaPad_ex(const byte* input, word32 inputLen, byte* pkcsBlock,
-               word32 pkcsBlockLen, byte padValue, WC_RNG* rng, int padType,
-               enum wc_HashType hType, int mgf, byte* optLabel, word32 labelLen)
+                        word32 pkcsBlockLen, byte padValue, WC_RNG* rng,
+                        int padType, enum wc_HashType hType, int mgf,
+                        byte* optLabel, word32 labelLen, void* heap)
 {
     int ret;
 
@@ -588,7 +594,7 @@ static int wc_RsaPad_ex(const byte* input, word32 inputLen, byte* pkcsBlock,
         case WC_RSA_OAEP_PAD:
             WOLFSSL_MSG("wolfSSL Using RSA OAEP padding");
             ret = wc_RsaPad_OAEP(input, inputLen, pkcsBlock, pkcsBlockLen,
-                             padValue, rng, hType, mgf, optLabel, labelLen);
+                           padValue, rng, hType, mgf, optLabel, labelLen, heap);
             break;
 
         default:
@@ -602,6 +608,7 @@ static int wc_RsaPad_ex(const byte* input, word32 inputLen, byte* pkcsBlock,
     (void)mgf;
     (void)optLabel;
     (void)labelLen;
+    (void)heap;
 
     return ret;
 }
@@ -611,7 +618,7 @@ static int wc_RsaPad_ex(const byte* input, word32 inputLen, byte* pkcsBlock,
  * < 0 on error */
 static int wc_RsaUnPad_OAEP(byte *pkcsBlock, unsigned int pkcsBlockLen,
                             byte **output, enum wc_HashType hType, int mgf,
-                            byte* optLabel, word32 labelLen)
+                            byte* optLabel, word32 labelLen, void* heap)
 {
     int hLen;
     int ret;
@@ -624,7 +631,7 @@ static int wc_RsaUnPad_OAEP(byte *pkcsBlock, unsigned int pkcsBlockLen,
         return BAD_FUNC_ARG;
     }
 
-    tmp = (byte*)XMALLOC(pkcsBlockLen, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    tmp = (byte*)XMALLOC(pkcsBlockLen, heap, DYNAMIC_TYPE_TMP_BUFFER);
     if (tmp == NULL) {
         return MEMORY_E;
     }
@@ -632,8 +639,8 @@ static int wc_RsaUnPad_OAEP(byte *pkcsBlock, unsigned int pkcsBlockLen,
 
     /* find seedMask value */
     if ((ret = wc_MGF(mgf, (byte*)(pkcsBlock + (hLen + 1)),
-                                    pkcsBlockLen - hLen - 1, tmp, hLen)) != 0) {
-        XFREE(tmp, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                              pkcsBlockLen - hLen - 1, tmp, hLen, heap)) != 0) {
+        XFREE(tmp, heap, DYNAMIC_TYPE_TMP_BUFFER);
         return ret;
     }
 
@@ -644,8 +651,8 @@ static int wc_RsaUnPad_OAEP(byte *pkcsBlock, unsigned int pkcsBlockLen,
 
     /* get dbMask value */
     if ((ret = wc_MGF(mgf, tmp, hLen, tmp + hLen,
-                                               pkcsBlockLen - hLen - 1)) != 0) {
-        XFREE(tmp, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                                         pkcsBlockLen - hLen - 1, heap)) != 0) {
+        XFREE(tmp, heap, DYNAMIC_TYPE_TMP_BUFFER);
         return ret;
     }
 
@@ -655,7 +662,7 @@ static int wc_RsaUnPad_OAEP(byte *pkcsBlock, unsigned int pkcsBlockLen,
     }
 
     /* done with use of tmp buffer */
-    XFREE(tmp, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(tmp, heap, DYNAMIC_TYPE_TMP_BUFFER);
 
     /* advance idx to index of PS and msg separator, account for PS size of 0*/
     idx = hLen + 1 + hLen;
@@ -739,7 +746,7 @@ static int RsaUnPad(const byte *pkcsBlock, unsigned int pkcsBlockLen,
 /* helper function to direct unpadding */
 static int wc_RsaUnPad_ex(byte* pkcsBlock, word32 pkcsBlockLen, byte** out,
                           byte padValue, int padType, enum wc_HashType hType,
-                          int mgf, byte* optLabel, word32 labelLen)
+                          int mgf, byte* optLabel, word32 labelLen, void* heap)
 {
     int ret;
 
@@ -753,7 +760,7 @@ static int wc_RsaUnPad_ex(byte* pkcsBlock, word32 pkcsBlockLen, byte** out,
         case WC_RSA_OAEP_PAD:
             WOLFSSL_MSG("wolfSSL Using RSA OAEP padding");
             ret = wc_RsaUnPad_OAEP((byte*)pkcsBlock, pkcsBlockLen, out,
-                                                hType, mgf, optLabel, labelLen);
+                                          hType, mgf, optLabel, labelLen, heap);
             break;
 
         default:
@@ -767,6 +774,7 @@ static int wc_RsaUnPad_ex(byte* pkcsBlock, word32 pkcsBlockLen, byte** out,
     (void)mgf;
     (void)optLabel;
     (void)labelLen;
+    (void)heap;
 
     return ret;
 }
@@ -940,7 +948,7 @@ int wc_RsaPublicEncrypt_ex(const byte* in, word32 inLen, byte* out,
         return RSA_BUFFER_E;
 
     ret = wc_RsaPad_ex(in, inLen, out, sz, RSA_BLOCK_TYPE_2, rng,
-                                               type, hash, mgf, label, labelSz);
+                                    type, hash, mgf, label, labelSz, key->heap);
     if (ret != 0)
         return ret;
 
@@ -1017,7 +1025,7 @@ int wc_RsaPrivateDecryptInline_ex(byte* in, word32 inLen, byte** out,
     }
 
     return wc_RsaUnPad_ex(in, inLen, out, RSA_BLOCK_TYPE_2, type, hash, mgf,
-                                                                label, labelSz);
+                                                     label, labelSz, key->heap);
 }
 #endif /* WC_NO_RSA_OAEP */
 

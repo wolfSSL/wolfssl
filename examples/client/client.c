@@ -608,7 +608,6 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     (void)resumeSz;
     (void)session;
     (void)sslResume;
-    (void)trackMemory;
     (void)atomicUser;
     (void)pkCallbacks;
     (void)scr;
@@ -980,7 +979,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
         }
     }
 
-#ifdef USE_WOLFSSL_MEMORY
+#if defined(USE_WOLFSSL_MEMORY) && !defined(WOLFSSL_STATIC_MEMORY)
     if (trackMemory)
         InitMemoryTracker();
 #endif
@@ -1615,7 +1614,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 
     ((func_args*)args)->return_code = 0;
 
-#ifdef USE_WOLFSSL_MEMORY
+#if defined(USE_WOLFSSL_MEMORY) && !defined(WOLFSSL_STATIC_MEMORY)
     if (trackMemory)
         ShowMemoryTracker();
 #endif /* USE_WOLFSSL_MEMORY */
@@ -1628,6 +1627,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     (void) verifyCert;
     (void) ourCert;
     (void) ourKey;
+    (void) trackMemory;
 
 #if !defined(WOLFSSL_TIRTOS)
     return 0;
@@ -1653,10 +1653,10 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
         args.argc = argc;
         args.argv = argv;
 
-        wolfSSL_Init();
 #if defined(DEBUG_WOLFSSL) && !defined(WOLFSSL_MDK_SHELL) && !defined(STACK_TRAP)
         wolfSSL_Debugging_ON();
 #endif
+        wolfSSL_Init();
         ChangeToWolfRoot();
 
 #ifdef HAVE_STACK_SIZE

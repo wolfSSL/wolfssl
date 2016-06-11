@@ -29,6 +29,9 @@
 #endif
 
 #include <wolfssl/wolfcrypt/settings.h>
+#if defined(WOLFSSL_STATIC_MEMORY)
+    #include <wolfssl/wolfcrypt/memory.h>
+#endif /* WOLFSSL_STATIC_MEMORY */
 #ifdef HAVE_ECC
     #include <wolfssl/wolfcrypt/ecc.h>   /* wc_ecc_fp_free */
 #endif
@@ -1648,7 +1651,7 @@ static void verify_ALPN_client_list(WOLFSSL* ssl)
     AssertIntEQ(1, sizeof(alpn_list) == clistSz);
     AssertIntEQ(0, XMEMCMP(alpn_list, clist, clistSz));
 
-    XFREE(clist, 0, DYNAMIC_TYPE_TLSX);
+    AssertIntEQ(SSL_SUCCESS, wolfSSL_ALPN_FreePeerProtocol(ssl, &clist));
 }
 
 static void test_wolfSSL_UseALPN_connection(void)

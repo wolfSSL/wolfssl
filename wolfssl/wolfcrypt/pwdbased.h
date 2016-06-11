@@ -50,6 +50,9 @@ WOLFSSL_API int wc_PBKDF2(byte* output, const byte* passwd, int pLen,
 WOLFSSL_API int wc_PKCS12_PBKDF(byte* output, const byte* passwd, int pLen,
                             const byte* salt, int sLen, int iterations,
                             int kLen, int typeH, int purpose);
+WOLFSSL_API int wc_PKCS12_PBKDF_ex(byte* output, const byte* passwd,int passLen,
+                       const byte* salt, int saltLen, int iterations, int kLen,
+                       int hashType, int id, void* heap);
 
 /* helper functions */
 WOLFSSL_LOCAL int GetDigestSize(int typeH);

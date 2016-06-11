@@ -2575,6 +2575,23 @@ AC_SUBST([IPPLINK])
 AM_CONDITIONAL([BUILD_FAST_RSA], [test "x$ENABLED_FAST_RSA" = "xyes"])
 
 
+# static memory use
+AC_ARG_ENABLE([staticmemory],
+    [AS_HELP_STRING([--enable-staticmemory],[Enable static memory use (default: disabled)])],
+    [ ENABLED_STATICMEMORY=$enableval ],
+    [ ENABLED_STATICMEMORY=no ]
+    )
+
+if test "x$ENABLED_STATICMEMORY" = "xyes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_STATIC_MEMORY"
+    if test "x$ENABLED_FASTMATH" = "xno"
+    then
+        AC_MSG_ERROR([please use --enable-fastmath if enabling staticmemory.])
+    fi
+fi
+
+
 # microchip api
 AC_ARG_ENABLE([mcapi],
     [  --enable-mcapi          Enable Microchip API (default: disabled)],

@@ -79,6 +79,7 @@ typedef struct PKCS7 {
     int hashOID;
     int encryptOID;               /* key encryption algorithm OID         */
 
+    void*  heap;                  /* heap hint for dynamic memory         */
     byte*  singleCert;            /* recipient cert, DER, not owner       */
     word32 singleCertSz;          /* size of recipient cert buffer, bytes */
     byte issuerHash[KEYID_SIZE];  /* hash of all alt Names                */
@@ -96,14 +97,15 @@ typedef struct PKCS7 {
 } PKCS7;
 
 
+WOLFSSL_LOCAL int wc_PKCS7_SetHeap(PKCS7* pkcs7, void* heap);
 WOLFSSL_LOCAL int wc_SetContentType(int pkcs7TypeOID, byte* output);
 WOLFSSL_LOCAL int wc_GetContentType(const byte* input, word32* inOutIdx,
                                 word32* oid, word32 maxIdx);
 WOLFSSL_LOCAL int wc_CreateRecipientInfo(const byte* cert, word32 certSz,
                                      int keyEncAlgo, int blockKeySz,
                                      WC_RNG* rng, byte* contentKeyPlain,
-                                     byte* contentKeyEnc,
-                                     int* keyEncSz, byte* out, word32 outSz);
+                                     byte* contentKeyEnc, int* keyEncSz,
+                                     byte* out, word32 outSz, void* heap);
 
 WOLFSSL_API int  wc_PKCS7_InitWithCert(PKCS7* pkcs7, byte* cert, word32 certSz);
 WOLFSSL_API void wc_PKCS7_Free(PKCS7* pkcs7);

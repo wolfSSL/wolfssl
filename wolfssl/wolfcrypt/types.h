@@ -176,12 +176,18 @@
 	    extern void *XMALLOC(size_t n, void* heap, int type);
 	    extern void *XREALLOC(void *p, size_t n, void* heap, int type);
 	    extern void XFREE(void *p, void* heap, int type);
+        #ifdef WOLFSSL_STATIC_MEMORY /* don't use wolfSSL static memory either*/
+            #undef WOLFSSL_STATIC_MEMORY
+        #endif
 	#elif defined(NO_WOLFSSL_MEMORY)
 	    /* just use plain C stdlib stuff if desired */
 	    #include <stdlib.h>
 	    #define XMALLOC(s, h, t)     ((void)h, (void)t, malloc((s)))
 	    #define XFREE(p, h, t)       {void* xp = (p); if((xp)) free((xp));}
 	    #define XREALLOC(p, n, h, t) realloc((p), (n))
+        #ifdef WOLFSSL_STATIC_MEMORY /* don't use wolfSSL static memory either*/
+            #undef WOLFSSL_STATIC_MEMORY
+        #endif
 	#elif !defined(MICRIUM_MALLOC) && !defined(EBSNET) \
 	        && !defined(WOLFSSL_SAFERTOS) && !defined(FREESCALE_MQX) \
 	        && !defined(FREESCALE_KSDK_MQX) && !defined(FREESCALE_FREE_RTOS) \
@@ -189,16 +195,21 @@
             && !defined(WOLFSSL_uITRON4) && !defined(WOLFSSL_uTKERNEL2)
 	    /* default C runtime, can install different routines at runtime via cbs */
 	    #include <wolfssl/wolfcrypt/memory.h>
-       #ifdef WOLFSSL_DEBUG_MEMORY
+       #if defined(WOLFSSL_DEBUG_MEMORY) && !defined(WOLFSSL_STATIC_MEMORY)
            #define XMALLOC(s, h, t)     ((void)h, (void)t, wolfSSL_Malloc((s), __func__, __LINE__))
            #define XFREE(p, h, t)       {void* xp = (p); if((xp)) wolfSSL_Free((xp), __func__, __LINE__);}
            #define XREALLOC(p, n, h, t) wolfSSL_Realloc((p), (n), __func__, __LINE__)
+       #elif defined(WOLFSSL_STATIC_MEMORY)
+           #define XMALLOC(s, h, t)     wolfSSL_Malloc((s), (h), (t))
+           #define XFREE(p, h, t)       {void* xp = (p); if((xp)) wolfSSL_Free((xp), (h), (t));}
+           #define XREALLOC(p, n, h, t) wolfSSL_Realloc((p), (n), (h), (t))
        #else
            #define XMALLOC(s, h, t)     ((void)h, (void)t, wolfSSL_Malloc((s)))
            #define XFREE(p, h, t)       {void* xp = (p); if((xp)) wolfSSL_Free((xp));}
            #define XREALLOC(p, n, h, t) wolfSSL_Realloc((p), (n))
        #endif
 	#endif
+
 
 	#ifndef STRING_USER
 	    #include <string.h>
@@ -317,7 +328,8 @@
         DYNAMIC_TYPE_URL          = 54,
         DYNAMIC_TYPE_DTLS_FRAG    = 55,
         DYNAMIC_TYPE_DTLS_BUFFER  = 56,
-        DYNAMIC_TYPE_SESSION_TICK = 57
+        DYNAMIC_TYPE_SESSION_TICK = 57,
+        DYNAMIC_TYPE_PKCS         = 58
 	};
 
 	/* max error buffer string size */

@@ -763,13 +763,14 @@ struct OcspRequest {
 
     byte   nonce[MAX_OCSP_NONCE_SZ];
     int    nonceSz;
+    void*  heap;
 };
 
 
 WOLFSSL_LOCAL void InitOcspResponse(OcspResponse*, CertStatus*, byte*, word32);
-WOLFSSL_LOCAL int  OcspResponseDecode(OcspResponse*, void*);
+WOLFSSL_LOCAL int  OcspResponseDecode(OcspResponse*, void*, void* heap);
 
-WOLFSSL_LOCAL int    InitOcspRequest(OcspRequest*, DecodedCert*, byte);
+WOLFSSL_LOCAL int    InitOcspRequest(OcspRequest*, DecodedCert*, byte, void*);
 WOLFSSL_LOCAL void   FreeOcspRequest(OcspRequest*);
 WOLFSSL_LOCAL int    EncodeOcspRequest(OcspRequest*, byte*, word32);
 WOLFSSL_LOCAL word32 EncodeOcspRequestExtensions(OcspRequest*, byte*, word32);
@@ -808,9 +809,10 @@ struct DecodedCRL {
     byte    nextDateFormat;          /* format of next date */
     RevokedCert* certs;              /* revoked cert list  */
     int          totalCerts;         /* number on list     */
+    void*   heap;
 };
 
-WOLFSSL_LOCAL void InitDecodedCRL(DecodedCRL*);
+WOLFSSL_LOCAL void InitDecodedCRL(DecodedCRL*, void* heap);
 WOLFSSL_LOCAL int  ParseCRL(DecodedCRL*, const byte* buff, word32 sz, void* cm);
 WOLFSSL_LOCAL void FreeDecodedCRL(DecodedCRL*);
 

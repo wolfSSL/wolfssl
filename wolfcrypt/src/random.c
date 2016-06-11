@@ -492,16 +492,23 @@ static int Hash_DRBG_Uninstantiate(DRBG* drbg)
 
 
 /* Get seed and key cipher */
-int wc_InitRng(WC_RNG* rng)
+int wc_InitRng_ex(WC_RNG* rng, void* heap)
 {
     int ret = BAD_FUNC_ARG;
 
     if (rng != NULL) {
+#ifdef WOLFSSL_HEAP_TEST
+        rng->heap = (void*)WOLFSSL_HEAP_TEST;
+        (void)heap;
+#else
+        rng->heap = heap;
+#endif
         if (wc_RNG_HealthTestLocal(0) == 0) {
             byte entropy[ENTROPY_NONCE_SZ];
 
             rng->drbg =
-                    (struct DRBG*)XMALLOC(sizeof(DRBG), NULL, DYNAMIC_TYPE_RNG);
+                    (struct DRBG*)XMALLOC(sizeof(DRBG), rng->heap,
+                                                              DYNAMIC_TYPE_RNG);
             if (rng->drbg == NULL) {
                 ret = MEMORY_E;
             }
@@ -541,6 +548,11 @@ int wc_InitRng(WC_RNG* rng)
     }
 
     return ret;
+}
+
+int wc_InitRng(WC_RNG* rng)
+{
+    return wc_InitRng_ex(rng, NULL);
 }
 
 
@@ -611,7 +623,7 @@ int wc_FreeRng(WC_RNG* rng)
             else
                 ret = RNG_FAILURE_E;
 
-            XFREE(rng->drbg, NULL, DYNAMIC_TYPE_RNG);
+            XFREE(rng->drbg, rng->heap, DYNAMIC_TYPE_RNG);
             rng->drbg = NULL;
         }
 

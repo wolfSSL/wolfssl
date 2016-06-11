@@ -40,6 +40,8 @@
     #pragma warning(disable: 4996)
 #endif
 
+/* prevent multiple mutex initializations */
+static volatile int initRefCount = 0;
 
 /* Used to initialize state for wolfcrypt
    return 0 on success
@@ -47,6 +49,8 @@
 int wolfCrypt_Init()
 {
     int ret = 0;
+
+    if (initRefCount == 0) {
     #if WOLFSSL_CRYPT_HW_MUTEX
         /* If crypto hardware mutex protection is enabled, then initialize it */
         wolfSSL_CryptHwMutexInit();
@@ -64,6 +68,9 @@ int wolfCrypt_Init()
             ret = 0;
         }
     #endif
+
+        initRefCount = 1;
+    }
 
     return ret;
 }
