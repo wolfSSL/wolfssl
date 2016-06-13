@@ -608,6 +608,7 @@ typedef byte word24[3];
         #endif
     #endif
     #if defined(HAVE_AESCCM) && !defined(NO_SHA256)
+        #define BUILD_TLS_ECDHE_ECDSA_WITH_AES_128_CCM
         #define BUILD_TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8
         #define BUILD_TLS_ECDHE_ECDSA_WITH_AES_256_CCM_8
     #endif
@@ -812,6 +813,7 @@ enum {
      * with non-ECC AES-GCM */
     TLS_RSA_WITH_AES_128_CCM_8         = 0xa0,
     TLS_RSA_WITH_AES_256_CCM_8         = 0xa1,
+    TLS_ECDHE_ECDSA_WITH_AES_128_CCM   = 0xac,
     TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8 = 0xae,
     TLS_ECDHE_ECDSA_WITH_AES_256_CCM_8 = 0xaf,
     TLS_PSK_WITH_AES_128_CCM           = 0xa4,

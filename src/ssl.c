@@ -11760,6 +11760,8 @@ const char* wolfSSL_CIPHER_get_name(const WOLFSSL_CIPHER* cipher)
                 return "TLS_DHE_PSK_WITH_AES_256_CCM";
 #endif
 #ifdef HAVE_ECC
+            case TLS_ECDHE_ECDSA_WITH_AES_128_CCM:
+                return "TLS_ECDHE_ECDSA_WITH_AES_128_CCM";
             case TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8:
                 return "TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8";
             case TLS_ECDHE_ECDSA_WITH_AES_256_CCM_8 :

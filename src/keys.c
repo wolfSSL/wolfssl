@@ -790,6 +790,24 @@ int SetCipherSpecs(WOLFSSL* ssl)
         break;
 #endif
 
+#ifdef BUILD_TLS_ECDHE_ECDSA_WITH_AES_128_CCM
+    case TLS_ECDHE_ECDSA_WITH_AES_128_CCM :
+        ssl->specs.bulk_cipher_algorithm = wolfssl_aes_ccm;
+        ssl->specs.cipher_type           = aead;
+        ssl->specs.mac_algorithm         = sha256_mac;
+        ssl->specs.kea                   = ecc_diffie_hellman_kea;
+        ssl->specs.sig_algo              = ecc_dsa_sa_algo;
+        ssl->specs.hash_size             = SHA256_DIGEST_SIZE;
+        ssl->specs.pad_size              = PAD_SHA;
+        ssl->specs.static_ecdh           = 0;
+        ssl->specs.key_size              = AES_128_KEY_SIZE;
+        ssl->specs.block_size            = AES_BLOCK_SIZE;
+        ssl->specs.iv_size               = AESGCM_IMP_IV_SZ;
+        ssl->specs.aead_mac_size         = AES_CCM_16_AUTH_SZ;
+
+        break;
+#endif
+
 #ifdef BUILD_TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8
     case TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8 :
         ssl->specs.bulk_cipher_algorithm = wolfssl_aes_ccm;
