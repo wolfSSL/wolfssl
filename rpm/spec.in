@@ -69,7 +69,7 @@ mkdir -p $RPM_BUILD_ROOT/
 %{_libdir}/libwolfssl.la
 %{_libdir}/libwolfssl.so
 %{_libdir}/libwolfssl.so.3
-%{_libdir}/libwolfssl.so.3.2.0
+%{_libdir}/libwolfssl.so.3.3.0
 
 %files devel
 %defattr(-,root,root,-)
@@ -169,6 +169,7 @@ mkdir -p $RPM_BUILD_ROOT/
 %{_includedir}/wolfssl/certs_test.h
 %{_includedir}/wolfssl/crl.h
 %{_includedir}/wolfssl/wolfcrypt/aes.h
+%{_includedir}/wolfssl/wolfcrypt/cmac.h
 %{_includedir}/wolfssl/wolfcrypt/arc4.h
 %{_includedir}/wolfssl/wolfcrypt/asn.h
 %{_includedir}/wolfssl/wolfcrypt/asn_public.h
@@ -221,9 +222,9 @@ mkdir -p $RPM_BUILD_ROOT/
 %{_includedir}/wolfssl/wolfcrypt/types.h
 %{_includedir}/wolfssl/wolfcrypt/visibility.h
 %{_includedir}/wolfssl/wolfcrypt/wc_encrypt.h
+%{_includedir}/wolfssl/wolfcrypt/mem_track.h
 %{_includedir}/wolfssl/error-ssl.h
 %{_includedir}/wolfssl/ocsp.h
-%{_includedir}/wolfssl/mem_track.h
 %{_includedir}/wolfssl/openssl/asn1.h
 %{_includedir}/wolfssl/openssl/bio.h
 %{_includedir}/wolfssl/openssl/bn.h
@@ -268,6 +269,9 @@ mkdir -p $RPM_BUILD_ROOT/
 %{_libdir}/pkgconfig/wolfssl.pc
 
 %changelog
+* Mon Jun 14 2016 Jacob Barthelmeh <jacob@wolfssl.com>
+- Change location for mem_track.h header
+- Added header for cmac.h
 * Thu Mar 17 2016 Jacob Barthelmeh <jacob@wolfssl.com>
 - Added header for mem_track.h
 * Wed Dec 30 2015 Jacob Barthelmeh <jacob@wolfssl.com>

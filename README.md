@@ -37,6 +37,47 @@ wolfSSL_CTX_set_verify(ctx, SSL_VERIFY_NONE, 0);
 
 before calling wolfSSL_new();  Though it's not recommended.
 ```
+# wolfSSL (Formerly CyaSSL) Release 3.9.6 (6/14/2016)
+
+##Release 3.9.6 of wolfSSL has bug fixes and new features including:
+
+- Add staticmemory feature
+- Add public wc_GetTime API with base64encode feature
+- Add AES CMAC algorithm
+- Add DTLS sessionexport feature
+- Add python wolfCrypt wrapper
+- Add ECC encrypt/decrypt benchmarks
+- Add dynamic session tickets
+- Add eccshamir option
+- Add Whitewood netRandom support --with-wnr
+- Add embOS port
+- Add minimum key size checks for RSA and ECC
+- Add STARTTLS support to examples
+- Add uTasker port
+- Add asynchronous crypto and wolf event support
+- Add compile check for misc.c with inline
+- Add RNG benchmark
+- Add reduction to stack usage with hash-based RNG
+- Update STM32F2_CRYPTO port with additional algorithms supported
+- Update MDK5 projects
+- Update AES-NI
+- Fix for STM32 with STM32F2_HASH defined
+- Fix for building with MinGw
+- Fix ECC math bugs with ALT_ECC_SIZE and key sizes over 256 bit (1)
+- Fix certificate buffers github issue #422
+- Fix decrypt max size with RSA OAEP
+- Fix DTLS sanity check with DTLS timeout notification
+- Fix free of WOLFSSL_METHOD on failure to create CTX
+- Fix memory leak in failure case with wc_RsaFunction (2)
+
+- No high level security fixes that requires an update though we always
+recommend updating to the latest
+- (1) Code changes for ECC fix can be found at pull requests #411, #416, and #428
+- (2) Builds using RSA with using normal math and not RSA_LOW_MEM should update
+
+See INSTALL file for build instructions.
+More info can be found on-line at //http://wolfssl.com/wolfSSL/Docs.html
+
 # wolfSSL (Formerly CyaSSL) Release 3.9.0 (03/18/2016)
 
 ##Release 3.9.0 of wolfSSL has bug fixes and new features including:
