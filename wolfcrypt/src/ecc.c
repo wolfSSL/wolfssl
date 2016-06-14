@@ -1241,7 +1241,7 @@ ecc_point* wc_ecc_new_point_h(void* heap)
 
 #ifndef ALT_ECC_SIZE
    if (mp_init_multi(p->x, p->y, p->z, NULL, NULL, NULL) != MP_OKAY) {
-      XFREE(p, 0, DYNAMIC_TYPE_ECC);
+      XFREE(p, heap, DYNAMIC_TYPE_ECC);
       return NULL;
    }
 #else
@@ -1924,7 +1924,7 @@ static int ecc_mul2add(ecc_point* A, mp_int* kA,
   }
   tB = (unsigned char*)XMALLOC(ECC_BUFSIZE, heap, DYNAMIC_TYPE_TMP_BUFFER);
   if (tB == NULL) {
-     XFREE(tA, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+     XFREE(tA, heap, DYNAMIC_TYPE_TMP_BUFFER);
      return GEN_MEM_ERR;
   }
   XMEMSET(tA, 0, ECC_BUFSIZE);
