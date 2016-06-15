@@ -1953,57 +1953,26 @@ int wc_InitAes_h(Aes* aes, void* h)
         void wc_AesEncryptDirect(Aes* aes, byte* out, const byte* in)
         {
             byte *key;
-            uint32_t keySize = 0;
+            uint32_t keySize;
 
             key = (byte*)aes->key;
+            wc_AesGetKeySize(aes, &keySize);
 
-            switch (aes->rounds) {
-            case 10:
-                keySize = 16;
-                break;
-            case 12:
-                keySize = 24;
-                break;
-            case 14:
-                keySize = 32;
-                break;
-            }
-
-            LTC_AES_EncryptEcb( LTC_BASE,
-                                in,
-                                out,
-                                16,
-                                key,
-                                keySize);
+            LTC_AES_EncryptEcb(LTC_BASE, in, out, AES_BLOCK_SIZE,
+                key, keySize);
         }
 
         /* Allow direct access to one block decrypt */
         void wc_AesDecryptDirect(Aes* aes, byte* out, const byte* in)
         {
             byte *key;
-            uint32_t keySize = 0;
+            uint32_t keySize;
 
             key = (byte*)aes->key;
+            wc_AesGetKeySize(aes, &keySize);
 
-            switch (aes->rounds) {
-            case 10:
-                keySize = 16;
-                break;
-            case 12:
-                keySize = 24;
-                break;
-            case 14:
-                keySize = 32;
-                break;
-            }
-
-            LTC_AES_DecryptEcb( LTC_BASE,
-                                in,
-                                out,
-                                16,
-                                key,
-                                keySize,
-                                kLTC_EncryptKey);
+            LTC_AES_DecryptEcb(LTC_BASE, in, out, AES_BLOCK_SIZE,
+                key, keySize, kLTC_EncryptKey);
         }
 
     #else
@@ -2120,9 +2089,9 @@ int wc_InitAes_h(Aes* aes, void* h)
             /* store iv for next call */
             XMEMCPY(aes->reg, out + sz - AES_BLOCK_SIZE, AES_BLOCK_SIZE);
 
-            sz  -= 16;
-            in  += 16;
-            out += 16;
+            sz  -= AES_BLOCK_SIZE;
+            in  += AES_BLOCK_SIZE;
+            out += AES_BLOCK_SIZE;
         }
 
         /* disable crypto processor */
@@ -2242,9 +2211,9 @@ int wc_InitAes_h(Aes* aes, void* h)
             /* store iv for next call */
             XMEMCPY(aes->reg, aes->tmp, AES_BLOCK_SIZE);
 
-            sz -= 16;
-            in += 16;
-            out += 16;
+            sz -= AES_BLOCK_SIZE;
+            in += AES_BLOCK_SIZE;
+            out += AES_BLOCK_SIZE;
         }
 
         /* disable crypto processor */
@@ -2362,65 +2331,40 @@ int wc_InitAes_h(Aes* aes, void* h)
 #elif defined(FREESCALE_LTC)    
     int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
     {
-        uint32_t keySize = 0;
+        uint32_t keySize;
         status_t status;
         byte *iv, *enc_key;
 
         iv      = (byte*)aes->reg;
         enc_key = (byte*)aes->key;
 
-        switch (aes->rounds) {
-        case 10:
-            keySize = 16;
-            break;
-        case 12:
-            keySize = 24;
-            break;
-        case 14:
-            keySize = 32;
-            break;
+        status = wc_AesGetKeySize(aes, &keySize);
+        if (status != 0) {
+            return status;
         }
 
-        status = LTC_AES_EncryptCbc(LTC_BASE,
-                                    in,
-                                    out, 
-                                    sz,
-                                    iv,
-                                    enc_key,
-                                    keySize);
+        status = LTC_AES_EncryptCbc(LTC_BASE, in, out, sz,
+            iv, enc_key, keySize);
         return (status == kStatus_Success) ? 0 : -1;
     }
 
     #ifdef HAVE_AES_DECRYPT
     int wc_AesCbcDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
     {
-        uint32_t keySize = 0;
+        uint32_t keySize;
         status_t status;
         byte* iv, *dec_key;
 
         iv      = (byte*)aes->reg;
         dec_key = (byte*)aes->key;
 
-        switch (aes->rounds) {
-        case 10:
-            keySize = 16;
-            break;
-        case 12:
-            keySize = 24;
-            break;
-        case 14:
-            keySize = 32;
-            break;
+        status = wc_AesGetKeySize(aes, &keySize);
+        if (status != 0) {
+            return status;
         }
 
-        status = LTC_AES_DecryptCbc(LTC_BASE,
-                                    in,
-                                    out,
-                                    sz,
-                                    iv,
-                                    dec_key,
-                                    keySize,
-                                    kLTC_EncryptKey);
+        status = LTC_AES_DecryptCbc(LTC_BASE, in, out, sz,
+            iv, dec_key, keySize, kLTC_EncryptKey);
         return (status == kStatus_Success) ? 0 : -1;
     }
     #endif /* HAVE_AES_DECRYPT */
@@ -2436,7 +2380,6 @@ int wc_InitAes_h(Aes* aes, void* h)
         byte temp_block[AES_BLOCK_SIZE];
 
         iv      = (byte*)aes->reg;
-
 
         while (len > 0)
         {
@@ -2821,9 +2764,9 @@ int wc_InitAes_h(Aes* aes, void* h)
                 /* store iv for next call */
                 XMEMCPY(aes->reg, out + sz - AES_BLOCK_SIZE, AES_BLOCK_SIZE);
 
-                sz  -= 16;
-                in  += 16;
-                out += 16;
+                sz  -= AES_BLOCK_SIZE;
+                in  += AES_BLOCK_SIZE;
+                out += AES_BLOCK_SIZE;
             }
 
             /* disable crypto processor */
@@ -2894,7 +2837,7 @@ int wc_InitAes_h(Aes* aes, void* h)
     #elif defined(FREESCALE_LTC)
         void wc_AesCtrEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
         {
-            uint32_t keySize = 0;
+            uint32_t keySize;
             byte *iv, *enc_key;
             byte* tmp = (byte*)aes->tmp + AES_BLOCK_SIZE - aes->left;
             
@@ -2909,27 +2852,11 @@ int wc_InitAes_h(Aes* aes, void* h)
                 iv      = (byte*)aes->reg;
                 enc_key = (byte*)aes->key;
 
-                switch (aes->rounds) {
-                case 10:
-                    keySize = 16;
-                    break;
-                case 12:
-                    keySize = 24;
-                    break;
-                case 14:
-                    keySize = 32;
-                    break;
-                }
+                wc_AesGetKeySize(aes, &keySize);
 
-                LTC_AES_CryptCtr(   LTC_BASE,
-                                    in,
-                                    out,
-                                    sz,
-                                    iv,
-                                    enc_key,
-                                    keySize,
-                                    (byte*)aes->tmp,
-                                    (uint32_t*)&(aes->left));
+                LTC_AES_CryptCtr(LTC_BASE, in, out, sz,
+                    iv, enc_key, keySize, (byte*)aes->tmp,
+                    (uint32_t*)&(aes->left));
             }
         }
 
@@ -4068,35 +3995,18 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
 {
 #if defined(FREESCALE_LTC_AES_GCM)
     byte *key;
-    uint32_t keySize = 0;
+    uint32_t keySize;
     status_t status;
 
     key = (byte*)aes->key;
 
-    switch (aes->rounds) {
-    case 10:
-        keySize = 16;
-        break;
-    case 12:
-        keySize = 24;
-        break;
-    case 14:
-        keySize = 32;
-        break;
+    status = wc_AesGetKeySize(aes, &keySize);
+    if (status != 0) {
+        return status;
     }
 
-    status = LTC_AES_EncryptTagGcm( LTC_BASE,
-                                     in,
-                                     out,
-                                     sz,
-                                     iv,
-                                     ivSz,
-                                     authIn,
-                                     authInSz,
-                                     key,
-                                     keySize,
-                                     authTag,
-                                     authTagSz);
+    status = LTC_AES_EncryptTagGcm(LTC_BASE, in, out, sz,
+        iv, ivSz, authIn, authInSz, key, keySize, authTag, authTagSz);
 
     return (status == kStatus_Success) ? 0 : AES_GCM_AUTH_E;
 
@@ -4180,35 +4090,18 @@ int  wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
 {
 #if defined(FREESCALE_LTC_AES_GCM)
     byte *key;
-    uint32_t keySize = 0;
+    uint32_t keySize;
     status_t status;
 
     key = (byte*)aes->key;
 
-    switch (aes->rounds) {
-    case 10:
-        keySize = 16;
-        break;
-    case 12:
-        keySize = 24;
-        break;
-    case 14:
-        keySize = 32;
-        break;
+    status = wc_AesGetKeySize(aes, &keySize);
+    if (status != 0) {
+        return status;
     }
 
-    status = LTC_AES_DecryptTagGcm( LTC_BASE,
-                                     in,
-                                     out,
-                                     sz,
-                                     iv,
-                                     ivSz,
-                                     authIn,
-                                     authInSz,
-                                     key,
-                                     keySize,
-                                     authTag,
-                                     authTagSz);
+    status = LTC_AES_DecryptTagGcm(LTC_BASE, in, out, sz,
+        iv, ivSz, authIn, authInSz, key, keySize, authTag, authTagSz);
 
     return (status == kStatus_Success) ? 0 : AES_GCM_AUTH_E;
 
@@ -4417,40 +4310,20 @@ int wc_AesCcmEncrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
 {
 #ifdef FREESCALE_LTC
     byte *key;
-    uint32_t keySize = 0;
+    uint32_t keySize;
     status_t status;
 
     key = (byte*)aes->key;
 
-    switch (aes->rounds)
-    {
-    case 10:
-        keySize = 16;
-        break;
-    case 12:
-        keySize = 24;
-        break;
-    case 14:
-        keySize = 32;
-        break;
+    status = wc_AesGetKeySize(aes, &keySize);
+    if (status != 0) {
+        return status;
     }
 
-    status = LTC_AES_EncryptTagCcm(LTC_BASE,
-                                   in,
-                                   out,
-                                   inSz,
-                                   nonce,
-                                   nonceSz,
-                                   authIn,
-                                   authInSz,
-                                   key,
-                                   keySize,
-                                   authTag,
-                                   authTagSz);
-    if (kStatus_Success == status)
-        return 0;
-    else
-        return BAD_FUNC_ARG;
+    status = LTC_AES_EncryptTagCcm(LTC_BASE, in, out, inSz,
+        nonce, nonceSz, authIn, authInSz, key, keySize, authTag, authTagSz);
+
+    return (kStatus_Success == status) ? 0 : BAD_FUNC_ARG;
 #else
     byte A[AES_BLOCK_SIZE];
     byte B[AES_BLOCK_SIZE];
@@ -4521,35 +4394,18 @@ int  wc_AesCcmDecrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
 {
 #ifdef FREESCALE_LTC
     byte *key;
-    uint32_t keySize = 0;
+    uint32_t keySize;
     status_t status;
 
     key = (byte*)aes->key;
 
-    switch (aes->rounds) {
-    case 10:
-        keySize = 16;
-        break;
-    case 12:
-        keySize = 24;
-        break;
-    case 14:
-        keySize = 32;
-        break;
+    status = wc_AesGetKeySize(aes, &keySize);
+    if (status != 0) {
+        return status;
     }
 
-    status = LTC_AES_DecryptTagCcm( LTC_BASE,
-                                    in,
-                                    out,
-                                    inSz,
-                                    nonce,
-                                    nonceSz,
-                                    authIn,
-                                    authInSz,
-                                    key,
-                                    keySize,
-                                    authTag,
-                                    authTagSz);
+    status = LTC_AES_DecryptTagCcm(LTC_BASE, in, out, inSz,
+        nonce, nonceSz, authIn, authInSz, key, keySize, authTag, authTagSz);
 
     if (status == kStatus_Success) {
         return 0;
@@ -4671,7 +4527,34 @@ void wc_AesAsyncFree(Aes* aes)
 
 #endif /* WOLFSSL_ASYNC_CRYPT */
 
-#endif /* WOLFSSL_TI_CRYPT */
+
+int wc_AesGetKeySize(Aes* aes, word32* keySize)
+{
+    int ret = 0;
+
+    if (aes == NULL || keySize == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    switch (aes->rounds) {
+    case 10:
+        *keySize = 16;
+        break;
+    case 12:
+        *keySize = 24;
+        break;
+    case 14:
+        *keySize = 32;
+        break;
+    default:
+        *keySize = 0;
+        ret = BAD_FUNC_ARG;
+    }
+
+    return ret;
+}
+
+#endif /* !WOLFSSL_TI_CRYPT */
 
 #endif /* HAVE_FIPS */
 

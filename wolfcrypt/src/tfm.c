@@ -51,7 +51,7 @@
 #include <wolfcrypt/src/asm.c>  /* will define asm MACROS or C ones */
 
 #if defined(FREESCALE_LTC_TFM)
-    #include "nxp/ksdk_port.h"
+    #include <wolfssl/wolfcrypt/port/nxp/ksdk_port.h>
 #endif
 #ifdef WOLFSSL_DEBUG_MATH
     #include <stdio.h>

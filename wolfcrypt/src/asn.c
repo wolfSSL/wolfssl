@@ -104,7 +104,26 @@ ASN Options:
 #endif
 
 #ifndef NO_ASN_TIME
-#if defined(HAVE_RTP_SYS)
+#if defined(USER_TIME)
+    /* user time, and gmtime compatible functions, there is a gmtime
+       implementation here that WINCE uses, so really just need some ticks
+       since the EPOCH
+    */
+    #define WOLFSSL_GMTIME
+    #define USE_WOLF_TM
+    #define USE_WOLF_TIME_T
+
+#elif defined(TIME_OVERRIDES)
+    /* user would like to override time() and gmtime() functionality */
+    #ifndef HAVE_TIME_T_TYPE
+        #define USE_WOLF_TIME_T
+    #endif
+    #ifndef HAVE_TM_TYPE
+        #define USE_WOLF_TM
+    #endif
+    #define NEED_TMP_TIME
+
+#elif defined(HAVE_RTP_SYS)
     /* uses parital <time.h> structures */
     #define XTIME(tl)       (0)
     #define XGMTIME(c, t)   rtpsys_gmtime((c))
@@ -133,25 +152,6 @@ ASN Options:
     #define XTIME(t1)  0 
     #endif
     #define XGMTIME(c, t)   gmtime((c))
-
-#elif defined(USER_TIME)
-    /* user time, and gmtime compatible functions, there is a gmtime
-       implementation here that WINCE uses, so really just need some ticks
-       since the EPOCH
-    */
-    #define WOLFSSL_GMTIME
-    #define USE_WOLF_TM
-    #define USE_WOLF_TIME_T
-
-#elif defined(TIME_OVERRIDES)
-    /* user would like to override time() and gmtime() functionality */
-    #ifndef HAVE_TIME_T_TYPE
-        #define USE_WOLF_TIME_T
-    #endif
-    #ifndef HAVE_TM_TYPE
-        #define USE_WOLF_TM
-    #endif
-    #define NEED_TMP_TIME
 
 #elif defined(IDIRECT_DEV_TIME)
     /*Gets the timestamp from cloak software owned by VT iDirect

@@ -4628,7 +4628,9 @@ LBL_U:mp_clear (&v);
 /* chars used in radix conversions */
 const char *mp_s_rmap = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ\
                          abcdefghijklmnopqrstuvwxyz+/";
+#endif
 
+#ifdef HAVE_ECC
 /* read a string [ASCII] in a given radix */
 int mp_read_radix (mp_int * a, const char *str, int radix)
 {
@@ -4692,6 +4694,7 @@ int mp_read_radix (mp_int * a, const char *str, int radix)
   }
   return MP_OKAY;
 }
+#endif /* HAVE_ECC */
 
 #if defined(WOLFSSL_KEY_GEN) || defined(HAVE_COMP_KEY) || \
     defined(WOLFSSL_DEBUG_MATH)

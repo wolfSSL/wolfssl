@@ -185,7 +185,9 @@
 #if defined(WOLFSSL_IAR_ARM) || defined(WOLFSSL_ROWLEY_ARM)
     #define NO_MAIN_DRIVER
     #define SINGLE_THREADED
-    #define USE_CERT_BUFFERS_1024
+    #if !defined(USE_CERT_BUFFERS_2048) && !defined(USE_CERT_BUFFERS_4096)
+        #define USE_CERT_BUFFERS_1024
+    #endif
     #define BENCH_EMBEDDED
     #define NO_FILESYSTEM
     #define NO_WRITEV
@@ -237,7 +239,9 @@
     #define WOLFSSL_USER_IO
     #define NO_FILESYSTEM
     #define NO_CERT
-    #define USE_CERT_BUFFERS_1024
+    #if !defined(USE_CERT_BUFFERS_2048) && !defined(USE_CERT_BUFFERS_4096)
+        #define USE_CERT_BUFFERS_1024
+    #endif
     #define NO_WRITEV
     #define NO_DEV_RANDOM
     #define NO_SHA512
@@ -769,18 +773,19 @@ static char *fgets(char *buff, int sz, FILE *fp)
 
     #define TFM_TIMING_RESISTANT
     #define ECC_TIMING_RESISTANT
-    //#define ALT_ECC_SIZE
 
     #undef  HAVE_ECC
     #define HAVE_ECC
-    #undef  HAVE_AESCCM
-    #define HAVE_AESCCM
-    #undef  HAVE_AESGCM
-    #define HAVE_AESGCM
-    #undef  WOLFSSL_AES_COUNTER
-    #define WOLFSSL_AES_COUNTER
-    #undef  WOLFSSL_AES_DIRECT
-    #define WOLFSSL_AES_DIRECT
+    #ifndef NO_AES
+        #undef  HAVE_AESCCM
+        #define HAVE_AESCCM
+        #undef  HAVE_AESGCM
+        #define HAVE_AESGCM
+        #undef  WOLFSSL_AES_COUNTER
+        #define WOLFSSL_AES_COUNTER
+        #undef  WOLFSSL_AES_DIRECT
+        #define WOLFSSL_AES_DIRECT
+    #endif
 
     #include "fsl_common.h"
 
@@ -849,7 +854,9 @@ static char *fgets(char *buff, int sz, FILE *fp)
 
             /* the LTC PKHA hardware limit is 2048 bits (256 bytes) for integer arithmetic.
                the LTC_MAX_INT_BYTES defines the size of local variables that hold big integers. */
-            #define LTC_MAX_INT_BYTES (256)
+            #ifndef LTC_MAX_INT_BYTES
+                #define LTC_MAX_INT_BYTES (256)
+            #endif
 
             /* This FREESCALE_LTC_TFM_RSA_4096_ENABLE macro can be defined. 
              * In such a case both software and hardware algorithm
@@ -857,7 +864,7 @@ static char *fgets(char *buff, int sz, FILE *fp)
              * from size of inputs. If inputs and result can fit into LTC (see LTC_MAX_INT_BYTES)
              * then we call hardware algorithm, otherwise we call software algorithm.
              * 
-             * Chinese reminder theorem is used to break RSA 4096 exponentiations (both public and prive key)
+             * Chinese reminder theorem is used to break RSA 4096 exponentiations (both public and private key)
              * into several computations with 2048-bit modulus and exponents.
              */
             /* #define FREESCALE_LTC_TFM_RSA_4096_ENABLE */
@@ -870,14 +877,18 @@ static char *fgets(char *buff, int sz, FILE *fp)
                 /* the LTC PKHA hardware limit is 512 bits (64 bytes) for ECC.
                    the LTC_MAX_ECC_BITS defines the size of local variables that hold ECC parameters 
                    and point coordinates */
-                #define LTC_MAX_ECC_BITS (384)
+                #ifndef LTC_MAX_ECC_BITS
+                    #define LTC_MAX_ECC_BITS (384)
+                #endif
 
                 /* Enable curves up to 384 bits */
-                #define ECC_USER_CURVES
-                #define HAVE_ECC192
-                #define HAVE_ECC224
-                #undef  NO_ECC256
-                #define HAVE_ECC384
+                #if !defined(ECC_USER_CURVES) && !defined(HAVE_ALL_CURVES)
+                    #define ECC_USER_CURVES
+                    #define HAVE_ECC192
+                    #define HAVE_ECC224
+                    #undef  NO_ECC256
+                    #define HAVE_ECC384
+                #endif
 
                 /* enable features */
                 #undef  HAVE_CURVE25519

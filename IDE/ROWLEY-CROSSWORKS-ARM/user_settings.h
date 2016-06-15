@@ -140,7 +140,7 @@ extern "C" {
 /* Ed25519 / Curve25519 */
 #undef HAVE_CURVE25519
 #undef HAVE_ED25519
-#if 0
+#if 1
     #define HAVE_CURVE25519
     #define HAVE_ED25519
 
@@ -196,7 +196,18 @@ extern "C" {
 /* HW Crypto Acceleration */
 /* ------------------------------------------------------------------------- */
 // See README.md for instructions
-//#define FREESCALE_MMCAU   1
+#if 0
+    #define FREESCALE_MMCAU     1
+#endif
+
+/* NXP LTC Support (See README.md for instructions) */
+#if 0
+    #define FSL_HW_CRYPTO_MANUAL_SELECTION
+    #define FREESCALE_USE_MMCAU
+    #define FREESCALE_USE_LTC
+    #define LTC_MAX_ECC_BITS    (512)
+    #define LTC_MAX_INT_BYTES   (256)
+#endif
 
 
 /* ------------------------------------------------------------------------- */
@@ -243,6 +254,7 @@ extern "C" {
 /* Override Current Time */
 /* Allows custom "custom_time()" function to be used for benchmark */
 #define WOLFSSL_USER_CURRTIME
+#define USER_TICKS
 
 
 /* ------------------------------------------------------------------------- */

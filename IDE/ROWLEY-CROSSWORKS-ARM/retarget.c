@@ -22,6 +22,17 @@
 
 #include "hw.h"
 #include "user_settings.h"
+#include <stdio.h>
+
+void __assert(const char *__expression, const char *__filename, int __line)
+{
+    printf("Assert: %s, File %s (%d)\n", __expression, __filename, __line);
+}
+
+unsigned int LowResTimer(void)
+{
+    return hw_get_time_sec();
+}
 
 double current_time(int reset)
 {

@@ -154,7 +154,7 @@ int wc_RsaFlattenPublicKey(RsaKey* key, byte* a, word32* aSz, byte* b,
 #endif /* WOLFSSL_ASYNC_CRYPT */
 
 #ifdef FREESCALE_LTC_TFM
-    #include <nxp/ksdk_port.h>
+    #include <wolfssl/wolfcrypt/port/nxp/ksdk_port.h>
 #endif
 
 enum {

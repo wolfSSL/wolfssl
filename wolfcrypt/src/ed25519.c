@@ -42,7 +42,7 @@
 #endif
 
 #ifdef FREESCALE_LTC_ECC
-    #include "nxp/ksdk_port.h"
+    #include <wolfssl/wolfcrypt/port/nxp/ksdk_port.h>
 #endif
 
 /* generate an ed25519 key pair.

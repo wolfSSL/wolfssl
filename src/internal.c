@@ -4507,7 +4507,32 @@ ProtocolVersion MakeDTLSv1_2(void)
 
 
 
-#ifdef USE_WINDOWS_API
+#if defined(USER_TICKS)
+#if 0
+    word32 LowResTimer(void)
+    {
+        /*
+        write your own clock tick function if don't want time(0)
+        needs second accuracy but doesn't have to correlated to EPOCH
+        */
+    }
+#endif
+
+#elif defined(TIME_OVERRIDES)
+
+    /* use same asn time overrides unless user wants tick override above */
+
+    #ifndef HAVE_TIME_T_TYPE
+        typedef long time_t;
+    #endif
+    extern time_t XTIME(time_t * timer);
+
+    word32 LowResTimer(void)
+    {
+        return (word32) XTIME(0);
+    }
+
+#elif defined(USE_WINDOWS_API)
 
     word32 LowResTimer(void)
     {
@@ -4618,33 +4643,8 @@ ProtocolVersion MakeDTLSv1_2(void)
         return (word32)(uTaskerSystemTick / TICK_RESOLUTION);
     }
 
-#elif defined(USER_TICKS)
-#if 0
-    word32 LowResTimer(void)
-    {
-        /*
-        write your own clock tick function if don't want time(0)
-        needs second accuracy but doesn't have to correlated to EPOCH
-        */
-    }
-#endif
-
-#elif defined(TIME_OVERRIDES)
-
-    /* use same asn time overrides unless user wants tick override above */
-
-    #ifndef HAVE_TIME_T_TYPE
-        typedef long time_t;
-    #endif
-    extern time_t XTIME(time_t * timer);
-
-    word32 LowResTimer(void)
-    {
-        return (word32) XTIME(0);
-    }
-
-#else /* !USE_WINDOWS_API && !HAVE_RTP_SYS && !MICRIUM && !USER_TICKS */
-
+#else
+    /* Posix style time */
     #include <time.h>
 
     word32 LowResTimer(void)
@@ -4653,7 +4653,7 @@ ProtocolVersion MakeDTLSv1_2(void)
     }
 
 
-#endif /* USE_WINDOWS_API */
+#endif
 
 
 #ifndef NO_CERTS

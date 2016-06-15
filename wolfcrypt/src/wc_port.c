@@ -35,6 +35,10 @@
 #include <ippcp.h>
 #endif
 
+#if defined(FREESCALE_LTC_TFM)
+    #include <wolfssl/wolfcrypt/port/nxp/ksdk_port.h>
+#endif
+
 #ifdef _MSC_VER
     /* 4996 warning to use MS extensions e.g., strcpy_s instead of strncpy */
     #pragma warning(disable: 4996)
@@ -67,6 +71,10 @@ int wolfCrypt_Init()
             WOLFSSL_MSG("Using default fast IPP library");
             ret = 0;
         }
+    #endif
+
+    #if defined(FREESCALE_LTC_TFM) || defined(FREESCALE_LTC_ECC)
+        ksdk_port_init();
     #endif
 
     #ifdef WOLFSSL_ARMASM

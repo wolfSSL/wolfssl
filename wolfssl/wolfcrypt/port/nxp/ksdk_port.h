@@ -1,12 +1,22 @@
 /* ksdk_port.h
  *
- * Copyright (C) 2006-2016 wolfSSL Inc. All rights reserved.
+ * Copyright (C) 2006-2016 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
- * Contact licensing@wolfssl.com with any questions or comments.
+ * wolfSSL is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
  *
- * http://www.wolfssl.com
+ * wolfSSL is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
 #ifndef _KSDK_PORT_H_
@@ -17,6 +27,10 @@
 #include <wolfssl/wolfcrypt/ecc.h>
 #include <wolfssl/wolfcrypt/curve25519.h>
 #include <wolfssl/wolfcrypt/ed25519.h>
+
+
+/* API to init required hardware */
+int ksdk_port_init(void);
 
 /* software algorithm, by wolfcrypt */
 #if defined(FREESCALE_LTC_TFM)
@@ -34,7 +48,6 @@
 #endif /* FREESCALE_LTC_TFM */
 
 #if defined(FREESCALE_LTC_ECC)
-
 	#include "fsl_ltc.h"
 
 	typedef enum _fsl_ltc_ecc_coordinate_system
@@ -47,8 +60,8 @@
 	int wc_ecc_point_add(ecc_point *mG, ecc_point *mQ, ecc_point *mR, mp_int *m);
 
 	#ifdef HAVE_CURVE25519
-		int wc_curve25519(ECPoint *q, byte *n, ECPoint *p, fsl_ltc_ecc_coordinate_system_t type);
-		ECPoint *wc_curve25519_GetBasePoint(void);
+		int wc_curve25519(ECPoint *q, byte *n, const ECPoint *p, fsl_ltc_ecc_coordinate_system_t type);
+		const ECPoint *wc_curve25519_GetBasePoint(void);
 		status_t LTC_PKHA_Curve25519ToWeierstrass(const ltc_pkha_ecc_point_t *ltcPointIn, ltc_pkha_ecc_point_t *ltcPointOut);
 		status_t LTC_PKHA_WeierstrassToCurve25519(const ltc_pkha_ecc_point_t *ltcPointIn, ltc_pkha_ecc_point_t *ltcPointOut);
 		status_t LTC_PKHA_Curve25519ComputeY(ltc_pkha_ecc_point_t *ltcPoint);

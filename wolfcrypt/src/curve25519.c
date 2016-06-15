@@ -41,7 +41,7 @@
 #endif
 
 #if defined(FREESCALE_LTC_ECC)
-    #include "nxp/ksdk_port.h"
+    #include <wolfssl/wolfcrypt/port/nxp/ksdk_port.h>
 #endif
 
 const curve25519_set_type curve25519_sets[] = {
@@ -53,11 +53,11 @@ const curve25519_set_type curve25519_sets[] = {
 
 int wc_curve25519_make_key(WC_RNG* rng, int keysize, curve25519_key* key)
 {
-    #ifdef FREESCALE_LTC_ECC        
-        ECPoint * basepoint = wc_curve25519_GetBasePoint();
-    #else
-        unsigned char basepoint[CURVE25519_KEYSIZE] = {9};
-    #endif
+#ifdef FREESCALE_LTC_ECC        
+    const ECPoint* basepoint = wc_curve25519_GetBasePoint();
+#else
+    unsigned char basepoint[CURVE25519_KEYSIZE] = {9};
+#endif
     int  ret;
 
     if (key == NULL || rng == NULL)
@@ -79,7 +79,7 @@ int wc_curve25519_make_key(WC_RNG* rng, int keysize, curve25519_key* key)
 
     /* compute public key */
     #ifdef FREESCALE_LTC_ECC
-        ret = wc_curve25519(&key->p, key->k.point, basepoint, kLTC_Weierstrass /* input basepoint on Weierstrass curve */);
+        ret = wc_curve25519(&key->p, key->k.point, basepoint, kLTC_Weierstrass); /* input basepoint on Weierstrass curve */
     #else
         ret = curve25519(key->p.point, key->k.point, basepoint);
     #endif
