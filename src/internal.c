@@ -4752,8 +4752,7 @@ retry:
             case WOLFSSL_CBIO_ERR_TIMEOUT:
                 if (ssl->options.dtls) {
 #ifdef WOLFSSL_DTLS
-                    if ((!ssl->options.handShakeDone ||
-                               ssl->options.dtlsHsRetain) &&
+                    if (!ssl->options.handShakeDone &&
                         DtlsPoolTimeout(ssl) == 0 &&
                         DtlsPoolSend(ssl) == 0) {
 
