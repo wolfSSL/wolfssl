@@ -179,7 +179,8 @@ extern const ecc_set_type ecc_sets[];
 WOLFSSL_API
 int wc_ecc_make_key(WC_RNG* rng, int keysize, ecc_key* key);
 WOLFSSL_API
-int wc_ecc_make_key_ex(WC_RNG* rng, ecc_key* key, const ecc_set_type* dp);
+int wc_ecc_make_key_ex(WC_RNG* rng, int keysize, ecc_key* key,
+    const ecc_set_type* dp);
 WOLFSSL_API
 int wc_ecc_check_key(ecc_key* key);
 

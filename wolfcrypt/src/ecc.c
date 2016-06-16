@@ -1624,127 +1624,145 @@ int wc_ecc_point_is_at_infinity(ecc_point* p)
 }
 
 
-int wc_ecc_make_key_ex(WC_RNG* rng, ecc_key* key, const ecc_set_type* dp)
+int wc_ecc_make_key_ex(WC_RNG* rng, int keysize, ecc_key* key,
+                       const ecc_set_type* dp)
 {
-   int            err;
-   ecc_point*     base = NULL;
-   mp_int         prime;
-   mp_int         a;
-   mp_int         order;
+    int            err, x;
+    ecc_point*     base = NULL;
+    mp_int         prime;
+    mp_int         a;
+    mp_int         order;
 #ifdef WOLFSSL_SMALL_STACK
-   byte*          buf;
+    byte*          buf;
 #else
-   byte           buf[ECC_MAXSIZE_GEN];
+    byte           buf[ECC_MAXSIZE_GEN];
 #endif
-   int            keysize;
 
-   if (key == NULL || rng == NULL || dp == NULL)
-       return ECC_BAD_ARG_E;
+    if (key == NULL || rng == NULL || (keysize <= 0 && dp == NULL)) {
+        return BAD_FUNC_ARG;
+    }
+
+    /* determine curve type/index */
+    if (dp == NULL) {
+        /* find key size */
+        for (x = 0; (keysize > ecc_sets[x].size) && 
+            (ecc_sets[x].size != 0); x++);
+        keysize = ecc_sets[x].size;
+
+        if (keysize > ECC_MAXSIZE || ecc_sets[x].size == 0) {
+            return BAD_FUNC_ARG;
+        }
+        dp = &ecc_sets[x];
+    }
+    else {
+        x = ECC_CUSTOM_IDX;
+    }
+
+    key->idx = x;
+    key->dp  = dp;
 
 #ifdef WOLFSSL_SMALL_STACK
-   buf = (byte*)XMALLOC(ECC_MAXSIZE_GEN, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-   if (buf == NULL)
-       return MEMORY_E;
+    buf = (byte*)XMALLOC(ECC_MAXSIZE_GEN, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (buf == NULL)
+        return MEMORY_E;
 #endif
 
-   key->idx = ECC_CUSTOM_IDX;
-   key->dp  = dp;
+    /*generate 8 extra bytes to mitigate bias from the modulo operation below*/
+    /*see section A.1.2 in 'Suite B Implementor's Guide to FIPS 186-3 (ECDSA)'*/
+    keysize  = dp->size + 8;
 
-   /*generate 8 extra bytes to mitigate bias from the modulo operation below*/
-   /*see section A.1.2 in 'Suite B Implementor's Guide to FIPS 186-3 (ECDSA)'*/
-   keysize  = dp->size + 8;
+    /* make up random string */
+    err = wc_RNG_GenerateBlock(rng, buf, keysize);
 
-   /* make up random string */
-   err = wc_RNG_GenerateBlock(rng, buf, keysize);
+    /* setup the key variables */
+    if (err == 0) {
+        err = mp_init_multi(&key->k, &prime, &order, &a, NULL, NULL);
+        if (err == MP_OKAY) {
+        #ifndef ALT_ECC_SIZE
+            err = mp_init_multi(key->pubkey.x, key->pubkey.y, key->pubkey.z,
+                                                            NULL, NULL, NULL);
+        #else
+            key->pubkey.x = (mp_int*)&key->pubkey.xyz[0];
+            key->pubkey.y = (mp_int*)&key->pubkey.xyz[1];
+            key->pubkey.z = (mp_int*)&key->pubkey.xyz[2];
+            alt_fp_init(key->pubkey.x);
+            alt_fp_init(key->pubkey.y);
+            alt_fp_init(key->pubkey.z);
+        #endif
+        }
+    }
 
-   /* setup the key variables */
-   if (err == 0) {
-       err = mp_init_multi(&key->k, &prime, &order, &a, NULL, NULL);
-       if (err == MP_OKAY) {
-#ifndef ALT_ECC_SIZE
-           err = mp_init_multi(key->pubkey.x, key->pubkey.y, key->pubkey.z,
-               NULL, NULL, NULL);
-#else
-           key->pubkey.x = (mp_int*)&key->pubkey.xyz[0];
-           key->pubkey.y = (mp_int*)&key->pubkey.xyz[1];
-           key->pubkey.z = (mp_int*)&key->pubkey.xyz[2];
-           alt_fp_init(key->pubkey.x);
-           alt_fp_init(key->pubkey.y);
-           alt_fp_init(key->pubkey.z);
-#endif
-       }
-   }
+    if (err == MP_OKAY) {
+        base = wc_ecc_new_point_h(key->heap);
+        if (base == NULL)
+            err = MEMORY_E;
+    }
 
-   if (err == MP_OKAY) {
-       base = wc_ecc_new_point_h(key->heap);
-       if (base == NULL)
-           err = MEMORY_E;
-   }
+    /* read in the specs for this curve */
+    if (err == MP_OKAY)
+        err = mp_read_radix(&prime,  key->dp->prime, 16);
+    if (err == MP_OKAY)
+        err = mp_read_radix(&order,  key->dp->order, 16);
+    if (err == MP_OKAY)
+        err = mp_read_radix(&a, key->dp->Af, 16);
 
-   /* read in the specs for this curve */
-   if (err == MP_OKAY)
-       err = mp_read_radix(&prime,  key->dp->prime, 16);
-   if (err == MP_OKAY)
-       err = mp_read_radix(&order,  key->dp->order, 16);
-   if (err == MP_OKAY)
-       err = mp_read_radix(&a, key->dp->Af, 16);
+    /* read in the x/y for this key */
+    if (err == MP_OKAY)
+        err = mp_read_radix(base->x, key->dp->Gx, 16);
+    if (err == MP_OKAY)
+        err = mp_read_radix(base->y, key->dp->Gy, 16);
+    if (err == MP_OKAY)
+        mp_set(base->z, 1);
 
-   /* read in the x/y for this key */
-   if (err == MP_OKAY)
-       err = mp_read_radix(base->x, key->dp->Gx, 16);
-   if (err == MP_OKAY)
-       err = mp_read_radix(base->y, key->dp->Gy, 16);
-   if (err == MP_OKAY)
-       mp_set(base->z, 1);
+    /* load random buffer data into k */
+    if (err == MP_OKAY)
+        err = mp_read_unsigned_bin(&key->k, (byte*)buf, keysize);
 
-   /* load random buffer data into k */
-   if (err == MP_OKAY)
-       err = mp_read_unsigned_bin(&key->k, (byte*)buf, keysize);
+    /* quick sanity check to make sure we're not dealing with a 0 key */
+    if (err == MP_OKAY) {
+        if (mp_iszero(&key->k) == MP_YES)
+          err = MP_ZERO_E;
+    }
 
-   /* quick sanity check to make sure we're not dealing with a 0 key */
-   if (err == MP_OKAY) {
-       if (mp_iszero(&key->k) == MP_YES)
-           err = MP_ZERO_E;
-   }
+    /* the key should be smaller than the order of base point */
+    if (err == MP_OKAY) {
+        if (mp_cmp(&key->k, &order) != MP_LT)
+            err = mp_mod(&key->k, &order, &key->k);
+    }
 
-   /* the key should be smaller than the order of base point */
-   if (err == MP_OKAY) {
-       if (mp_cmp(&key->k, &order) != MP_LT)
-           err = mp_mod(&key->k, &order, &key->k);
-   }
-   /* make the public key */
-   if (err == MP_OKAY)
-       err = wc_ecc_mulmod_ex(&key->k, base, &key->pubkey, &a, &prime, 1,
-                                                                   key->heap);
+    /* make the public key */
+    if (err == MP_OKAY)
+        err = wc_ecc_mulmod_ex(&key->k, base, &key->pubkey, &a, &prime, 1,
+                                                               key->heap);
 
 #ifdef WOLFSSL_VALIDATE_ECC_KEYGEN
-   /* validate the public key, order * pubkey = point at infinity */
-   if (err == MP_OKAY)
-       err = ecc_check_pubkey_order(key, &a, &prime, &order);
+    /* validate the public key, order * pubkey = point at infinity */
+    if (err == MP_OKAY)
+        err = ecc_check_pubkey_order(key, &a, &prime, &order);
 #endif /* WOLFSSL_VALIDATE_KEYGEN */
 
-   if (err == MP_OKAY)
-       key->type = ECC_PRIVATEKEY;
+    if (err == MP_OKAY)
+        key->type = ECC_PRIVATEKEY;
 
-   if (err != MP_OKAY) {
-       /* clean up */
-       mp_clear(key->pubkey.x);
-       mp_clear(key->pubkey.y);
-       mp_clear(key->pubkey.z);
-       mp_forcezero(&key->k);
-   }
+    if (err != MP_OKAY) {
+        /* clean up */
+        mp_clear(key->pubkey.x);
+        mp_clear(key->pubkey.y);
+        mp_clear(key->pubkey.z);
+        mp_forcezero(&key->k);
+    }
 
-   wc_ecc_del_point_h(base, key->heap);
-   mp_clear(&a);
-   mp_clear(&prime);
-   mp_clear(&order);
+    wc_ecc_del_point_h(base, key->heap);
+    mp_clear(&a);
+    mp_clear(&prime);
+    mp_clear(&order);
 
-   ForceZero(buf, ECC_MAXSIZE);
+    ForceZero(buf, ECC_MAXSIZE);
 #ifdef WOLFSSL_SMALL_STACK
-   XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
 
-   return err;
+    return err;
 }
 
 /**
@@ -1757,23 +1775,7 @@ int wc_ecc_make_key_ex(WC_RNG* rng, ecc_key* key, const ecc_set_type* dp)
  */
 int wc_ecc_make_key(WC_RNG* rng, int keysize, ecc_key* key)
 {
-    int x, err;
-
-    if (key == NULL || rng == NULL)
-        return ECC_BAD_ARG_E;
-
-    /* find key size */
-    for (x = 0; (keysize > ecc_sets[x].size) && (ecc_sets[x].size != 0); x++)
-        ;
-    keysize = ecc_sets[x].size;
-
-    if (keysize > ECC_MAXSIZE || ecc_sets[x].size == 0) {
-        return BAD_FUNC_ARG;
-    }
-    err = wc_ecc_make_key_ex(rng, key, &ecc_sets[x]);
-    key->idx = x;
-
-    return err;
+    return wc_ecc_make_key_ex(rng, keysize, key, NULL);
 }
 
 /* Setup dynamic pointers is using normal math for proper freeing */
@@ -1928,7 +1930,7 @@ int wc_ecc_sign_hash_ex(const byte* in, word32 inlen, WC_RNG* rng,
                     err = RNG_FAILURE_E;
                     break;
                }
-               err = wc_ecc_make_key_ex(rng, &pubkey, key->dp);
+               err = wc_ecc_make_key_ex(rng, 0, &pubkey, key->dp);
                if (err != MP_OKAY) break;
 
                /* find r = x1 mod n */

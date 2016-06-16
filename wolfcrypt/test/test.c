@@ -6703,12 +6703,7 @@ static int ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerifyCount,
     wc_ecc_init(&userB);
     wc_ecc_init(&pubKey);
 
-    if (dp) {
-        ret = wc_ecc_make_key_ex(rng, &userA, dp);
-    }
-    else {
-        ret = wc_ecc_make_key(rng, keySize, &userA);
-    }
+    ret = wc_ecc_make_key_ex(rng, keySize, &userA, dp);
     if (ret != 0)
         ERROR_OUT(-1014, done);
 
@@ -6716,12 +6711,7 @@ static int ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerifyCount,
     if (ret != 0)
         ERROR_OUT(-1023, done);
 
-    if (dp) {
-        ret = wc_ecc_make_key_ex(rng, &userB, dp);
-    }
-    else {
-        ret = wc_ecc_make_key(rng, keySize, &userB);
-    }
+    ret = wc_ecc_make_key_ex(rng, keySize, &userB, dp);
     if (ret != 0)
         ERROR_OUT(-1002, done);
 
