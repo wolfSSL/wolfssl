@@ -4607,7 +4607,7 @@ int ecc_mul2add(ecc_point* A, mp_int* kA,
            if (err == MP_OKAY)
              err = accel_fp_mul2add(idx1, idx2, kA, kB, C, a, modulus, mp);
         } else {
-           err = normal_ecc_mul2add(A, kA, B, kB, C, a, modulus);
+           err = normal_ecc_mul2add(A, kA, B, kB, C, a, modulus, heap);
         }
     }
 
@@ -4633,7 +4633,7 @@ int ecc_mul2add(ecc_point* A, mp_int* kA,
 int wc_ecc_mulmod(mp_int* k, ecc_point *G, ecc_point *R, mp_int* a,
                   mp_int* modulus, int map)
 {
-    return wc_ecc_mulmod_ex(k, G, R, modulus, map, NULL);
+    return wc_ecc_mulmod_ex(k, G, R, a, modulus, map, NULL);
 }
 
 
@@ -4646,8 +4646,8 @@ int wc_ecc_mulmod(mp_int* k, ecc_point *G, ecc_point *R, mp_int* a,
              otherwise it's left in jacobian-montgomery form
     return MP_OKAY if successful
 */
-int wc_ecc_mulmod_ex(mp_int* k, ecc_point *G, ecc_point *R, mp_int* modulus,
-               int map, void* heap)
+int wc_ecc_mulmod_ex(mp_int* k, ecc_point *G, ecc_point *R, mp_int* a,
+    mp_int* modulus, int map, void* heap)
 {
    int   idx, err = MP_OKAY;
    mp_digit mp;
@@ -4711,7 +4711,7 @@ int wc_ecc_mulmod_ex(mp_int* k, ecc_point *G, ecc_point *R, mp_int* modulus,
            if (err == MP_OKAY)
              err = accel_fp_mul(idx, k, R, a, modulus, mp, map);
         } else {
-           err = normal_ecc_mulmod(k, G, R, a, modulus, map);
+           err = normal_ecc_mulmod(k, G, R, a, modulus, map, heap);
         }
      }
 
