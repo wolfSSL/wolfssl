@@ -253,6 +253,9 @@ int idea_test(void);
 #define FOURK_BUF 4096
 
 
+#define ERROR_OUT(err, eLabel) { ret = (err); goto eLabel; }
+
+
 static int err_sys(const char* msg, int es)
 
 {
@@ -6672,7 +6675,7 @@ static int ecc_test_key_gen(WC_RNG* rng, int keySize)
 }
 #endif /* WOLFSSL_KEY_GEN */
 static int ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerifyCount,
-    int testCompressedKey)
+    int testCompressedKey, const ecc_set_type* dp)
 {
 #ifdef BENCH_EMBEDDED
     byte    sharedA[128]; /* Needs to be at least keySize */
@@ -6700,34 +6703,44 @@ static int ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerifyCount,
     wc_ecc_init(&userB);
     wc_ecc_init(&pubKey);
 
-    ret = wc_ecc_make_key(rng, keySize, &userA);
+    if (dp) {
+        ret = wc_ecc_make_key_ex(rng, &userA, dp);
+    }
+    else {
+        ret = wc_ecc_make_key(rng, keySize, &userA);
+    }
     if (ret != 0)
-        return -1014;
+        ERROR_OUT(-1014, done);
 
     ret = wc_ecc_check_key(&userA);
     if (ret != 0)
-        return -1023;
+        ERROR_OUT(-1023, done);
 
-    ret = wc_ecc_make_key(rng, keySize, &userB);
+    if (dp) {
+        ret = wc_ecc_make_key_ex(rng, &userB, dp);
+    }
+    else {
+        ret = wc_ecc_make_key(rng, keySize, &userB);
+    }
     if (ret != 0)
-        return -1002;
+        ERROR_OUT(-1002, done);
 
 #ifdef HAVE_ECC_DHE
     x = sizeof(sharedA);
     ret = wc_ecc_shared_secret(&userA, &userB, sharedA, &x);
     if (ret != 0)
-        return -1015;
+        ERROR_OUT(-1015, done);
 
     y = sizeof(sharedB);
     ret = wc_ecc_shared_secret(&userB, &userA, sharedB, &y);
     if (ret != 0)
-        return -1003;
+        ERROR_OUT(-1003, done);
 
     if (y != x)
-        return -1004;
+        ERROR_OUT(-1004, done);
 
     if (memcmp(sharedA, sharedB, x))
-        return -1005;
+        ERROR_OUT(-1005, done);
 #endif /* HAVE_ECC_DHE */
 
 #ifdef HAVE_ECC_KEY_EXPORT
@@ -6735,21 +6748,21 @@ static int ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerifyCount,
 
     ret = wc_ecc_export_x963(&userA, exportBuf, &x);
     if (ret != 0)
-        return -1006;
+        ERROR_OUT(-1006, done);
 
 #ifdef HAVE_ECC_KEY_IMPORT
-    ret = wc_ecc_import_x963(exportBuf, x, &pubKey);
+    ret = wc_ecc_import_x963_ex(exportBuf, x, &pubKey, dp);
     if (ret != 0)
-        return -1007;
+        ERROR_OUT(-1007, done);
 
 #ifdef HAVE_ECC_DHE
     y = sizeof(sharedB);
     ret = wc_ecc_shared_secret(&userB, &pubKey, sharedB, &y);
     if (ret != 0)
-        return -1008;
+        ERROR_OUT(-1008, done);
 
     if (memcmp(sharedA, sharedB, y))
-        return -1009;
+        ERROR_OUT(-1009, done);
 #endif /* HAVE_ECC_DHE */
 
     if (testCompressedKey) {
@@ -6759,22 +6772,22 @@ static int ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerifyCount,
 
         ret = wc_ecc_export_x963_ex(&userA, exportBuf, &x, 1);
         if (ret != 0)
-            return -1010;
+            ERROR_OUT(-1010, done);
         wc_ecc_free(&pubKey);
         wc_ecc_init(&pubKey);
 
         ret = wc_ecc_import_x963(exportBuf, x, &pubKey);
         if (ret != 0)
-            return -1011;
+            ERROR_OUT(-1011, done);
 
     #ifdef HAVE_ECC_DHE
         y = sizeof(sharedB);
         ret = wc_ecc_shared_secret(&userB, &pubKey, sharedB, &y);
         if (ret != 0)
-            return -1012;
+            ERROR_OUT(-1012, done);
 
         if (memcmp(sharedA, sharedB, y))
-            return -1013;
+            ERROR_OUT(-1013, done);
     #endif /* HAVE_ECC_DHE */
     #endif /* HAVE_COMP_KEY */
     }
@@ -6792,16 +6805,16 @@ static int ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerifyCount,
     ret = wc_ecc_sign_hash(digest, sizeof(digest), sig, &x, rng, &userA);
 
     if (ret != 0)
-        return -1014;
+        ERROR_OUT(-1014, done);
 
 #ifdef HAVE_ECC_VERIFY
     for (i=0; i<testVerifyCount; i++) {
         verify = 0;
         ret = wc_ecc_verify_hash(sig, x, digest, sizeof(digest), &verify, &userA);
         if (ret != 0)
-            return -1015;
+            ERROR_OUT(-1015, done);
         if (verify != 1)
-            return -1016;
+            ERROR_OUT(-1016, done);
     }
 #endif /* HAVE_ECC_VERIFY */
 
@@ -6814,16 +6827,16 @@ static int ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerifyCount,
     ret = wc_ecc_sign_hash(digest, sizeof(digest), sig, &x, rng, &userA);
 
     if (ret != 0)
-        return -1014;
+        ERROR_OUT(-1014, done);
 
 #ifdef HAVE_ECC_VERIFY
     for (i=0; i<testVerifyCount; i++) {
         verify = 0;
         ret = wc_ecc_verify_hash(sig, x, digest, sizeof(digest), &verify, &userA);
         if (ret != 0)
-            return -1015;
+            ERROR_OUT(-1015, done);
         if (verify != 1)
-            return -1016;
+            ERROR_OUT(-1016, done);
     }
 #endif /* HAVE_ECC_VERIFY */
 #endif /* HAVE_ECC_SIGN */
@@ -6832,14 +6845,15 @@ static int ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerifyCount,
     x = sizeof(exportBuf);
     ret = wc_ecc_export_private_only(&userA, exportBuf, &x);
     if (ret != 0)
-        return -1017;
+        ERROR_OUT(-1017, done);
 #endif /* HAVE_ECC_KEY_EXPORT */
 
+done:
     wc_ecc_free(&pubKey);
     wc_ecc_free(&userB);
     wc_ecc_free(&userA);
 
-    return 0;
+    return ret;
 }
 
 #undef  ECC_TEST_VERIFY_COUNT
@@ -6854,7 +6868,7 @@ static int ecc_test_curve(WC_RNG* rng, int keySize)
     }
 
     ret = ecc_test_curve_size(rng, keySize, ECC_TEST_VERIFY_COUNT,
-                                                        testCompressedKey);
+                                                    testCompressedKey, NULL);
     if (ret < 0) {
         printf("ecc_test_curve_size %d failed!: %d\n", keySize, ret);
         return ret;
@@ -6891,37 +6905,58 @@ int ecc_test(void)
 #if defined(HAVE_ECC192) || defined(HAVE_ALL_CURVES)
     ret = ecc_test_curve(&rng, 24);
     if (ret < 0) {
-        return ret;
+        goto done;
     }
 #endif /* HAVE_ECC192 */
 #if defined(HAVE_ECC224) || defined(HAVE_ALL_CURVES)
     ret = ecc_test_curve(&rng, 28);
     if (ret < 0) {
-        return ret;
+        goto done;
     }
 #endif /* HAVE_ECC224 */
 #if !defined(NO_ECC256) || defined(HAVE_ALL_CURVES)
     ret = ecc_test_curve(&rng, 32);
     if (ret < 0) {
-        return ret;
+        goto done;
     }
 #endif /* !NO_ECC256 */
 #if defined(HAVE_ECC384) || defined(HAVE_ALL_CURVES)
     ret = ecc_test_curve(&rng, 48);
     if (ret < 0) {
-        return ret;
+        goto done;
     }
 #endif /* HAVE_ECC384 */
 #if defined(HAVE_ECC521) || defined(HAVE_ALL_CURVES)
     ret = ecc_test_curve(&rng, 66);
     if (ret < 0) {
-        return ret;
+        goto done;
     }
 #endif /* HAVE_ECC521 */
 
+#if defined(WOLFSSL_CUSTOM_CURVES)
+    /* Test and demonstrate use of Brainpool256 curve */
+    const ecc_set_type ecc_cust_dp = {
+        32,                                                                 /* size/bytes */
+        0,                                                                  /* NID - not required */ 
+        "BRAINPOOLP256R1",                                                  /* curve name */
+        "A9FB57DBA1EEA9BC3E660A909D838D726E3BF623D52620282013481D1F6E5377", /* prime      */
+        "7D5A0975FC2C3057EEF67530417AFFE7FB8055C126DC5C6CE94A4B44F330B5D9", /* A          */
+        "26DC5C6CE94A4B44F330B5D9BBD77CBF958416295CF7E1CE6BCCDC18FF8C07B6", /* B          */
+        "A9FB57DBA1EEA9BC3E660A909D838D718C397AA3B561A6F7901E0E82974856A7", /* order      */
+        "8BD2AEB9CB7E57CB2C4B482FFC81B7AFB9DE27E1E3BD23C23A4453BD9ACE3262", /* Gx         */
+        "547EF835C3DAC4FD97F8461A14611DC9C27745132DED8E545C1D54C72F046997", /* Gy         */
+    };
+    ret = ecc_test_curve_size(&rng, -1, ECC_TEST_VERIFY_COUNT, 0, &ecc_cust_dp);
+    if (ret < 0) {
+        printf("ecc_test_curve_size custom failed!: %d\n", ret);
+        goto done;
+    }
+#endif
+
+done:
     wc_FreeRng(&rng);
 
-    return 0;
+    return ret;
 }
 
 #ifdef HAVE_ECC_ENCRYPT
@@ -8293,6 +8328,9 @@ int pkcs7signed_test(void)
 }
 
 #endif /* HAVE_PKCS7 */
+
+#undef ERROR_OUT
+
 #else
     #ifndef NO_MAIN_DRIVER
         int main() { return 0; }

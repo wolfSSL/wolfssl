@@ -1458,7 +1458,7 @@ int wc_ecc_is_valid_idx(int n)
        ;
    /* -1 is a valid index --- indicating that the domain params
       were supplied by the user */
-   if ((n >= -1) && (n < x)) {
+   if ((n >= ECC_CUSTOM_IDX) && (n < x)) {
       return 1;
    }
    return 0;
@@ -1624,7 +1624,7 @@ int wc_ecc_point_is_at_infinity(ecc_point* p)
 }
 
 
-static int wc_ecc_make_key_ex(WC_RNG* rng, ecc_key* key, const ecc_set_type* dp)
+int wc_ecc_make_key_ex(WC_RNG* rng, ecc_key* key, const ecc_set_type* dp)
 {
    int            err;
    ecc_point*     base = NULL;
@@ -1647,7 +1647,7 @@ static int wc_ecc_make_key_ex(WC_RNG* rng, ecc_key* key, const ecc_set_type* dp)
        return MEMORY_E;
 #endif
 
-   key->idx = -1;
+   key->idx = ECC_CUSTOM_IDX;
    key->dp  = dp;
 
    /*generate 8 extra bytes to mitigate bias from the modulo operation below*/
@@ -2941,76 +2941,83 @@ int wc_ecc_check_key(ecc_key* key)
 
 #ifdef HAVE_ECC_KEY_IMPORT
 /* import public ECC key in ANSI X9.63 format */
-int wc_ecc_import_x963(const byte* in, word32 inLen, ecc_key* key)
+int wc_ecc_import_x963_ex(const byte* in, word32 inLen, ecc_key* key,
+                          const ecc_set_type* dp)
 {
-   int x, err;
-   int compressed = 0;
+    int x, err;
+    int compressed = 0;
 
-   if (in == NULL || key == NULL)
-       return ECC_BAD_ARG_E;
+    if (in == NULL || key == NULL)
+        return ECC_BAD_ARG_E;
 
-   /* must be odd */
-   if ((inLen & 1) == 0) {
-      return ECC_BAD_ARG_E;
-   }
+    /* must be odd */
+    if ((inLen & 1) == 0) {
+        return ECC_BAD_ARG_E;
+    }
 
-   /* init key */
-#ifdef ALT_ECC_SIZE
-   key->pubkey.x = (mp_int*)&key->pubkey.xyz[0];
-   key->pubkey.y = (mp_int*)&key->pubkey.xyz[1];
-   key->pubkey.z = (mp_int*)&key->pubkey.xyz[2];
-   alt_fp_init(key->pubkey.x);
-   alt_fp_init(key->pubkey.y);
-   alt_fp_init(key->pubkey.z);
-   err = mp_init(&key->k);
-#else
-   err = mp_init_multi(key->pubkey.x, key->pubkey.y, key->pubkey.z, &key->k,
-                     NULL, NULL);
-#endif
-   if (err != MP_OKAY)
-      return MEMORY_E;
+    /* init key */
+    #ifdef ALT_ECC_SIZE
+        key->pubkey.x = (mp_int*)&key->pubkey.xyz[0];
+        key->pubkey.y = (mp_int*)&key->pubkey.xyz[1];
+        key->pubkey.z = (mp_int*)&key->pubkey.xyz[2];
+        alt_fp_init(key->pubkey.x);
+        alt_fp_init(key->pubkey.y);
+        alt_fp_init(key->pubkey.z);
+        err = mp_init(&key->k);
+    #else
+        err = mp_init_multi(key->pubkey.x, key->pubkey.y, key->pubkey.z, &key->k,
+            NULL, NULL);
+    #endif
+    if (err != MP_OKAY)
+        return MEMORY_E;
 
-   /* check for 4, 2, or 3 */
-   if (in[0] != 0x04 && in[0] != 0x02 && in[0] != 0x03) {
-      err = ASN_PARSE_E;
-   }
+    /* check for 4, 2, or 3 */
+    if (in[0] != 0x04 && in[0] != 0x02 && in[0] != 0x03) {
+        err = ASN_PARSE_E;
+    }
 
-   if (in[0] == 0x02 || in[0] == 0x03) {
+    if (in[0] == 0x02 || in[0] == 0x03) {
+    #ifdef HAVE_COMP_KEY
+        compressed = 1;
+    #else
+        err = NOT_COMPILED_IN;
+    #endif
+    }
+
+    if (err == MP_OKAY) {
+        /* determine the idx */
+        if (dp) {
+            /* set the idx */
+            key->idx = ECC_CUSTOM_IDX;
+            key->dp = dp;
+            key->type = ECC_PUBLICKEY;
+        }
+        else {
+            if (compressed)
+                inLen = (inLen-1)*2 + 1;  /* used uncompressed len */
+
+            for (x = 0; ecc_sets[x].size != 0; x++) {
+                if ((unsigned)ecc_sets[x].size >= ((inLen-1)>>1)) {
+                    break;
+                }
+            }
+            if (ecc_sets[x].size == 0) {
+                WOLFSSL_MSG("ecc_set size not found");
+                err = ASN_PARSE_E;
+            } else {
+                key->idx = x;
+                key->dp = &ecc_sets[x];
+                key->type = ECC_PUBLICKEY;
+            }
+        }
+    }
+
+    /* read data */
+    if (err == MP_OKAY)
+        err = mp_read_unsigned_bin(key->pubkey.x, (byte*)in+1, (inLen-1)>>1);
+
 #ifdef HAVE_COMP_KEY
-       compressed = 1;
-#else
-       err = NOT_COMPILED_IN;
-#endif
-   }
-
-   if (err == MP_OKAY) {
-      /* determine the idx */
-
-      if (compressed)
-          inLen = (inLen-1)*2 + 1;  /* used uncompressed len */
-
-      for (x = 0; ecc_sets[x].size != 0; x++) {
-         if ((unsigned)ecc_sets[x].size >= ((inLen-1)>>1)) {
-            break;
-         }
-      }
-      if (ecc_sets[x].size == 0) {
-          WOLFSSL_MSG("ecc_set size not found");
-          err = ASN_PARSE_E;
-      } else {
-          /* set the idx */
-          key->idx  = x;
-          key->dp = &ecc_sets[x];
-          key->type = ECC_PUBLICKEY;
-      }
-   }
-
-   /* read data */
-   if (err == MP_OKAY)
-       err = mp_read_unsigned_bin(key->pubkey.x, (byte*)in+1, (inLen-1)>>1);
-
-#ifdef HAVE_COMP_KEY
-   if (err == MP_OKAY && compressed == 1) {   /* build y */
+    if (err == MP_OKAY && compressed == 1) {   /* build y */
         mp_int t1, t2, prime, a, b;
 
         if (mp_init_multi(&t1, &t2, &prime, &a, &b, NULL) != MP_OKAY)
@@ -3047,7 +3054,7 @@ int wc_ecc_import_x963(const byte* in, word32 inLen, ecc_key* key)
         /* adjust y */
         if (err == MP_OKAY) {
             if ((mp_isodd(&t2) == MP_YES && in[0] == 0x03) ||
-               (mp_isodd(&t2) == MP_NO && in[0] == 0x02)) {
+                (mp_isodd(&t2) == MP_NO && in[0] == 0x02)) {
                 err = mp_mod(&t2, &prime, &t2);
             }
             else {
@@ -3061,28 +3068,33 @@ int wc_ecc_import_x963(const byte* in, word32 inLen, ecc_key* key)
         mp_clear(&prime);
         mp_clear(&t2);
         mp_clear(&t1);
-   }
-#endif
+    }
+#endif /* HAVE_COMP_KEY */
 
-   if (err == MP_OKAY && compressed == 0)
-       err = mp_read_unsigned_bin(key->pubkey.y, (byte*)in+1+((inLen-1)>>1),
-                                  (inLen-1)>>1);
-   if (err == MP_OKAY)
-       mp_set(key->pubkey.z, 1);
+    if (err == MP_OKAY && compressed == 0)
+        err = mp_read_unsigned_bin(key->pubkey.y, (byte*)in+1+((inLen-1)>>1),
+                                                                (inLen-1)>>1);
+    if (err == MP_OKAY)
+        mp_set(key->pubkey.z, 1);
 
 #ifdef WOLFSSL_VALIDATE_ECC_IMPORT
-   if (err == MP_OKAY)
-       err = wc_ecc_check_key(key);
+    if (err == MP_OKAY)
+        err = wc_ecc_check_key(key);
 #endif
 
-   if (err != MP_OKAY) {
-       mp_clear(key->pubkey.x);
-       mp_clear(key->pubkey.y);
-       mp_clear(key->pubkey.z);
-       mp_clear(&key->k);
-   }
+    if (err != MP_OKAY) {
+        mp_clear(key->pubkey.x);
+        mp_clear(key->pubkey.y);
+        mp_clear(key->pubkey.z);
+        mp_clear(&key->k);
+    }
 
-   return err;
+    return err;
+}
+
+int wc_ecc_import_x963(const byte* in, word32 inLen, ecc_key* key)
+{
+    return wc_ecc_import_x963_ex(in, inLen, key, NULL);
 }
 #endif /* HAVE_ECC_KEY_IMPORT */
 
@@ -3091,24 +3103,26 @@ int wc_ecc_import_x963(const byte* in, word32 inLen, ecc_key* key)
    return MP_OKAY on success */
 int wc_ecc_export_private_only(ecc_key* key, byte* out, word32* outLen)
 {
-   word32 numlen;
+    word32 numlen;
 
-   if (key == NULL || out == NULL || outLen == NULL)
-       return ECC_BAD_ARG_E;
+    if (key == NULL || out == NULL || outLen == NULL) {
+        return BAD_FUNC_ARG;
+    }
 
-   if (wc_ecc_is_valid_idx(key->idx) == 0) {
-      return ECC_BAD_ARG_E;
-   }
-   numlen = key->dp->size;
+    if (wc_ecc_is_valid_idx(key->idx) == 0) {
+        return ECC_BAD_ARG_E;
+    }
+    numlen = key->dp->size;
 
-   if (*outLen < numlen) {
-      *outLen = numlen;
-      return BUFFER_E;
-   }
-   *outLen = numlen;
-   XMEMSET(out, 0, *outLen);
-   return mp_to_unsigned_bin(&key->k, out + (numlen -
-                                             mp_unsigned_bin_size(&key->k)));
+    if (*outLen < numlen) {
+        *outLen = numlen;
+        return BUFFER_E;
+    }
+    *outLen = numlen;
+    XMEMSET(out, 0, *outLen);
+
+    return mp_to_unsigned_bin(&key->k, out + (numlen -
+                                           mp_unsigned_bin_size(&key->k)));
 }
 #endif /* HAVE_ECC_KEY_EXPORT */
 
@@ -3177,23 +3191,14 @@ int wc_ecc_rs_to_sig(const char* r, const char* s, byte* out, word32* outlen)
 #endif /* !NO_ASN */
 
 #ifdef HAVE_ECC_KEY_IMPORT
-/**
-   Import raw ECC key
-   key       The destination ecc_key structure
-   qx        x component of the public key, as ASCII hex string
-   qy        y component of the public key, as ASCII hex string
-   d         private key, as ASCII hex string
-   curveName ECC curve name, from ecc_sets[]
-   return    MP_OKAY on success
-*/
-int wc_ecc_import_raw(ecc_key* key, const char* qx, const char* qy,
-                   const char* d, const char* curveName)
+static int wc_ecc_import_raw_private(ecc_key* key, const char* qx,
+          const char* qy, const char* d, int x, const ecc_set_type* dp)
 {
-    int err, x;
+    int err;
 
-    if (key == NULL || qx == NULL || qy == NULL || d == NULL ||
-        curveName == NULL)
-        return ECC_BAD_ARG_E;
+    if (key == NULL || qx == NULL || qy == NULL || d == NULL || dp == NULL) {
+        return BAD_FUNC_ARG;
+    }
 
     /* init key */
 #ifdef ALT_ECC_SIZE
@@ -3224,21 +3229,10 @@ int wc_ecc_import_raw(ecc_key* key, const char* qx, const char* qy,
 
     /* read and set the curve */
     if (err == MP_OKAY) {
-        for (x = 0; ecc_sets[x].size != 0; x++) {
-            if (XSTRNCMP(ecc_sets[x].name, curveName,
-                         XSTRLEN(curveName)) == 0) {
-                break;
-            }
-        }
-        if (ecc_sets[x].size == 0) {
-            WOLFSSL_MSG("ecc_set curve name not found");
-            err = ASN_PARSE_E;
-        } else {
-            /* set the curve */
-            key->idx = x;
-            key->dp = &ecc_sets[x];
-            key->type = ECC_PUBLICKEY;
-        }
+        /* set curve type and index */
+        key->idx = x;
+        key->dp = dp;
+        key->type = ECC_PUBLICKEY;
     }
 
     /* import private key */
@@ -3257,6 +3251,59 @@ int wc_ecc_import_raw(ecc_key* key, const char* qx, const char* qy,
         mp_clear(key->pubkey.y);
         mp_clear(key->pubkey.z);
         mp_clear(&key->k);
+    }
+
+    return err;
+}
+
+/**
+   Import raw ECC key
+   key       The destination ecc_key structure
+   qx        x component of the public key, as ASCII hex string
+   qy        y component of the public key, as ASCII hex string
+   d         private key, as ASCII hex string
+   dp        Custom ecc_set_type
+   return    MP_OKAY on success
+*/
+int wc_ecc_import_raw_ex(ecc_key* key, const char* qx, const char* qy,
+                   const char* d, const ecc_set_type* dp)
+{
+    return wc_ecc_import_raw_private(key, qx, qy, d, ECC_CUSTOM_IDX, dp);
+
+}
+
+/**
+   Import raw ECC key
+   key       The destination ecc_key structure
+   qx        x component of the public key, as ASCII hex string
+   qy        y component of the public key, as ASCII hex string
+   d         private key, as ASCII hex string
+   curveName ECC curve name, from ecc_sets[]
+   return    MP_OKAY on success
+*/
+int wc_ecc_import_raw(ecc_key* key, const char* qx, const char* qy,
+                   const char* d, const char* curveName)
+{
+    int err, x;
+
+    if (key == NULL || qx == NULL || qy == NULL || d == NULL ||
+        curveName == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    /* set curve type and index */
+    for (x = 0; ecc_sets[x].size != 0; x++) {
+        if (XSTRNCMP(ecc_sets[x].name, curveName,
+                     XSTRLEN(curveName)) == 0) {
+            break;
+        }
+    }
+
+    if (ecc_sets[x].size == 0) {
+        WOLFSSL_MSG("ecc_set curve name not found");
+        err = ASN_PARSE_E;
+    } else {
+        return wc_ecc_import_raw_private(key, qx, qy, d, x, &ecc_sets[x]);
     }
 
     return err;
