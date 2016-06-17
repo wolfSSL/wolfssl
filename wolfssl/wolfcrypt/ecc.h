@@ -60,6 +60,8 @@ typedef struct {
     const char* Gy;       /* y coordinate of the base point on curve (hex) */
 } ecc_set_type;
 
+#define ECC_CUSTOM_IDX    (-1)
+
 
 /* Determine max ECC bits based on enabled curves */
 #if defined(HAVE_ECC521) || defined(HAVE_ALL_CURVES)
@@ -166,6 +168,7 @@ typedef struct {
                                    curves (idx >= 0) or user supplied */
     ecc_point pubkey;   /* public key */
     mp_int    k;        /* private key */
+    void*     heap;     /* heap hint */
 } ecc_key;
 
 
@@ -175,6 +178,9 @@ extern const ecc_set_type ecc_sets[];
 
 WOLFSSL_API
 int wc_ecc_make_key(WC_RNG* rng, int keysize, ecc_key* key);
+WOLFSSL_API
+int wc_ecc_make_key_ex(WC_RNG* rng, int keysize, ecc_key* key,
+    const ecc_set_type* dp);
 WOLFSSL_API
 int wc_ecc_check_key(ecc_key* key);
 
@@ -208,6 +214,8 @@ int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
 WOLFSSL_API
 int wc_ecc_init(ecc_key* key);
 WOLFSSL_API
+int wc_ecc_init_h(ecc_key* key, void* heap);
+WOLFSSL_API
 void wc_ecc_free(ecc_key* key);
 WOLFSSL_API
 void wc_ecc_fp_free(void);
@@ -215,7 +223,11 @@ void wc_ecc_fp_free(void);
 WOLFSSL_API
 ecc_point* wc_ecc_new_point(void);
 WOLFSSL_API
+ecc_point* wc_ecc_new_point_h(void* h);
+WOLFSSL_API
 void wc_ecc_del_point(ecc_point* p);
+WOLFSSL_API
+void wc_ecc_del_point_h(ecc_point* p, void* h);
 WOLFSSL_API
 int wc_ecc_copy_point(ecc_point* p, ecc_point *r);
 WOLFSSL_API
@@ -226,8 +238,11 @@ WOLFSSL_API
 int wc_ecc_is_valid_idx(int n);
 WOLFSSL_API
 int wc_ecc_mulmod(mp_int* k, ecc_point *G, ecc_point *R,
-                  mp_int* modulus, int map);
+                  mp_int* a, mp_int* modulus, int map);
 
+WOLFSSL_LOCAL
+int wc_ecc_mulmod_ex(mp_int* k, ecc_point *G, ecc_point *R,
+                  mp_int* a, mp_int* modulus, int map, void* heap);
 #ifdef HAVE_ECC_KEY_EXPORT
 /* ASN key helpers */
 WOLFSSL_API
@@ -241,6 +256,9 @@ int wc_ecc_export_x963_ex(ecc_key*, byte* out, word32* outLen, int compressed);
 WOLFSSL_API
 int wc_ecc_import_x963(const byte* in, word32 inLen, ecc_key* key);
 WOLFSSL_API
+int wc_ecc_import_x963_ex(const byte* in, word32 inLen, ecc_key* key,
+                          const ecc_set_type* dp);
+WOLFSSL_API
 int wc_ecc_import_private_key(const byte* priv, word32 privSz, const byte* pub,
                            word32 pubSz, ecc_key* key);
 WOLFSSL_API
@@ -248,6 +266,9 @@ int wc_ecc_rs_to_sig(const char* r, const char* s, byte* out, word32* outlen);
 WOLFSSL_API
 int wc_ecc_import_raw(ecc_key* key, const char* qx, const char* qy,
                    const char* d, const char* curveName);
+WOLFSSL_API
+int wc_ecc_import_raw_ex(ecc_key* key, const char* qx, const char* qy,
+                   const char* d, const ecc_set_type* dp);
 #endif /* HAVE_ECC_KEY_IMPORT */
 
 #ifdef HAVE_ECC_KEY_EXPORT
@@ -309,6 +330,8 @@ typedef struct ecEncCtx ecEncCtx;
 
 WOLFSSL_API
 ecEncCtx* wc_ecc_ctx_new(int flags, WC_RNG* rng);
+WOLFSSL_API
+ecEncCtx* wc_ecc_ctx_new_ex(int flags, WC_RNG* rng, void* heap);
 WOLFSSL_API
 void wc_ecc_ctx_free(ecEncCtx*);
 WOLFSSL_API

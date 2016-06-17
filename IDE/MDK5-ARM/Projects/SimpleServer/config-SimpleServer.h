@@ -1,4 +1,4 @@
-/* config-RTX-TCP-FS.h
+/* SimpleServer.h
  *
  * Copyright (C) 2006-2016 wolfSSL Inc.
  *
@@ -20,13 +20,11 @@
  */
 
 
-
-
 // <<< Use Configuration Wizard in Context Menu >>>
 // <h> Build Target: Simple Server
 //   <s.15>Listen Port Number
 //   <i> Default: "11111"
-#define CYASSL_LISTEN_PORT     "443"
+#define WOLFSSL_LISTEN_PORT     "11111"
 
 //     </h>
 // <<< end of configuration section >>>

@@ -53,7 +53,7 @@ if BUILD_EXAMPLE_CLIENTS
 if !BUILD_IPV6
 dist_noinst_SCRIPTS+= scripts/external.test
 dist_noinst_SCRIPTS+= scripts/google.test
-#dist_noinst_SCRIPTS+= scripts/openssl.test
+dist_noinst_SCRIPTS+= scripts/openssl.test
 endif
 endif
 

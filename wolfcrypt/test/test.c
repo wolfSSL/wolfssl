@@ -32,6 +32,28 @@
 
 #ifndef NO_CRYPT_TEST
 
+#if defined(WOLFSSL_STATIC_MEMORY) && !defined(HAVE_IO_POOL)
+    #ifndef HAVE_PKCS7
+        #define USE_CERT_BUFFERS_1024 /* avoid dynamic memory from fopen */
+    #endif
+    #include <wolfssl/wolfcrypt/memory.h>
+    #ifndef XMALLOC_USER
+        #define TEST_XMALLOC(s, h, t) XMALLOC((s),(h),(t))
+        #define TEST_XFREE(p, h, t)   XFREE((p),(h),(t))
+    #endif
+    #ifdef WOLFSSL_HEAP_TEST
+        #define HEAP_HINT (void*)WOLFSSL_HEAP_TEST
+    #else
+        #define HEAP_HINT NULL
+    #endif
+#else
+    /* only use XMALLOC and XFREE when testing static memory feature */
+   #define TEST_XMALLOC(s, h, t) ((void)h, (void)t, malloc((s)))
+   #define TEST_XFREE(p, h, t)   {void* xp = (p); if((xp)) free((xp));}
+   #define HEAP_HINT NULL
+#endif /* WOLFSSL_STATIC_MEMORY */
+
+
 #ifdef WOLFSSL_TEST_CERT
     #include <wolfssl/wolfcrypt/asn.h>
 #else
@@ -49,6 +71,7 @@
 #include <wolfssl/wolfcrypt/rsa.h>
 #include <wolfssl/wolfcrypt/des3.h>
 #include <wolfssl/wolfcrypt/aes.h>
+#include <wolfssl/wolfcrypt/cmac.h>
 #include <wolfssl/wolfcrypt/poly1305.h>
 #include <wolfssl/wolfcrypt/camellia.h>
 #include <wolfssl/wolfcrypt/hmac.h>
@@ -181,6 +204,7 @@ int  chacha20_poly1305_aead_test(void);
 int  des_test(void);
 int  des3_test(void);
 int  aes_test(void);
+int  cmac_test(void);
 int  poly1305_test(void);
 int  aesgcm_test(void);
 int  gmac_test(void);
@@ -237,6 +261,9 @@ int bio_connect_test(void);
 #define FOURK_BUF 4096
 
 
+#define ERROR_OUT(err, eLabel) { ret = (err); goto eLabel; }
+
+
 static int err_sys(const char* msg, int es)
 
 {
@@ -268,16 +295,19 @@ static void myFipsCb(int ok, int err, const char* hash)
 
 #endif /* HAVE_FIPS */
 
-
 int wolfcrypt_test(void* args)
 {
     int ret = 0;
+
+    wolfCrypt_Init();
 
     ((func_args*)args)->return_code = -1; /* error state */
 
 #if defined(USE_WOLFSSL_MEMORY) && defined(WOLFSSL_TRACK_MEMORY)
     InitMemoryTracker();
 #endif
+
+    wolfCrypt_Init();
 
 #ifdef HAVE_FIPS
     wolfCrypt_SetCb_fips(myFipsCb);
@@ -586,6 +616,13 @@ int wolfcrypt_test(void* args)
         return err_sys("ED25519  test failed!\n", ret);
     else
         printf( "ED25519  test passed!\n");
+#endif
+
+#if defined(WOLFSSL_CMAC) && !defined(NO_AES)
+    if ( (ret = cmac_test()) != 0)
+        return err_sys("CMAC     test failed!\n", ret);
+    else
+        printf( "CMAC     test passed!\n");
 #endif
 
 #ifdef HAVE_LIBZ
@@ -1898,8 +1935,14 @@ int hc128_test(void)
 
         /* align input */
         memcpy(plain, test_hc128[i].input, test_hc128[i].outLen);
-        wc_Hc128_Process(&enc, cipher, plain,  (word32)test_hc128[i].outLen);
-        wc_Hc128_Process(&dec, plain,  cipher, (word32)test_hc128[i].outLen);
+        if (wc_Hc128_Process(&enc, cipher, plain,
+                                           (word32)test_hc128[i].outLen) != 0) {
+            return -110;
+        }
+        if (wc_Hc128_Process(&dec, plain, cipher, 
+                                           (word32)test_hc128[i].outLen) != 0) {
+            return -115;
+        }
 
         if (memcmp(plain, test_hc128[i].input, test_hc128[i].outLen))
             return -120 - i;
@@ -2941,6 +2984,7 @@ int aes_test(void)
     return ret;
 }
 
+
 #ifdef HAVE_AESGCM
 int aesgcm_test(void)
 {
@@ -3978,7 +4022,7 @@ int certext_test(void)
     byte kid_ca[] = "\x33\xD8\x45\x66\xD7\x68\x87\x18\x7E\x54"
                     "\x0D\x70\x27\x91\xC7\x26\xD7\x85\x65\xC0";
 
-    tmp = (byte*)malloc(FOURK_BUF);
+    tmp = (byte*)TEST_XMALLOC(FOURK_BUF, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     if (tmp == NULL)
         return -200;
 
@@ -3989,7 +4033,7 @@ int certext_test(void)
     file = fopen("./othercert.der", "rb");
 #endif
     if (!file) {
-        free(tmp);
+        TEST_XFREE(tmp, HEAP_HINT ,DYNAMIC_TYPE_TMP_BUFFER);
         return -200;
     }
 
@@ -4040,7 +4084,7 @@ int certext_test(void)
     file = fopen("./certecc.der", "rb");
 #endif
     if (!file) {
-        free(tmp);
+        TEST_XFREE(tmp, HEAP_HINT ,DYNAMIC_TYPE_TMP_BUFFER);
         return -210;
     }
 
@@ -4094,7 +4138,7 @@ int certext_test(void)
     file = fopen("./cert.der", "rb");
 #endif
     if (!file) {
-        free(tmp);
+        TEST_XFREE(tmp, HEAP_HINT ,DYNAMIC_TYPE_TMP_BUFFER);
         return -220;
     }
 
@@ -4139,7 +4183,7 @@ int certext_test(void)
 #endif
 
     FreeDecodedCert(&cert);
-    free(tmp);
+    TEST_XFREE(tmp, HEAP_HINT ,DYNAMIC_TYPE_TMP_BUFFER);
 
     return 0;
 }
@@ -4167,7 +4211,7 @@ int rsa_test(void)
     DecodedCert cert;
 #endif
 
-    tmp = (byte*)malloc(FOURK_BUF);
+    tmp = (byte*)TEST_XMALLOC(FOURK_BUF, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     if (tmp == NULL)
         return -40;
 
@@ -4183,7 +4227,7 @@ int rsa_test(void)
     if (!file) {
         err_sys("can't open ./certs/client-key.der, "
                 "Please run from wolfSSL home dir", -40);
-        free(tmp);
+        TEST_XFREE(tmp, HEAP_HINT ,DYNAMIC_TYPE_TMP_BUFFER);
         return -40;
     }
 
@@ -4195,48 +4239,48 @@ int rsa_test(void)
     wc_RsaInitCavium(&key, CAVIUM_DEV_ID);
 #endif
 
-    ret = wc_InitRsaKey(&key, 0);
+    ret = wc_InitRsaKey(&key, HEAP_HINT);
     if (ret != 0) {
-        free(tmp);
+        TEST_XFREE(tmp, HEAP_HINT ,DYNAMIC_TYPE_TMP_BUFFER);
         return -39;
     }
     ret = wc_RsaPrivateKeyDecode(tmp, &idx, &key, (word32)bytes);
     if (ret != 0) {
-        free(tmp);
+        TEST_XFREE(tmp, HEAP_HINT ,DYNAMIC_TYPE_TMP_BUFFER);
         return -41;
     }
     ret = wc_InitRng(&rng);
     if (ret != 0) {
-        free(tmp);
+        TEST_XFREE(tmp, HEAP_HINT ,DYNAMIC_TYPE_TMP_BUFFER);
         return -42;
     }
     ret = wc_RsaPublicEncrypt(in, inLen, out, sizeof(out), &key, &rng);
     if (ret < 0) {
-        free(tmp);
+        TEST_XFREE(tmp, HEAP_HINT ,DYNAMIC_TYPE_TMP_BUFFER);
         return -43;
     }
     ret = wc_RsaPrivateDecrypt(out, ret, plain, sizeof(plain), &key);
     if (ret < 0) {
-        free(tmp);
+        TEST_XFREE(tmp, HEAP_HINT ,DYNAMIC_TYPE_TMP_BUFFER);
         return -44;
     }
     if (memcmp(plain, in, inLen)) {
-        free(tmp);
+        TEST_XFREE(tmp, HEAP_HINT ,DYNAMIC_TYPE_TMP_BUFFER);
         return -45;
     }
     ret = wc_RsaSSL_Sign(in, inLen, out, sizeof(out), &key, &rng);
     if (ret < 0) {
-        free(tmp);
+        TEST_XFREE(tmp, HEAP_HINT ,DYNAMIC_TYPE_TMP_BUFFER);
         return -46;
     }
     memset(plain, 0, sizeof(plain));
     ret = wc_RsaSSL_Verify(out, ret, plain, sizeof(plain), &key);
     if (ret < 0) {
-        free(tmp);
+        TEST_XFREE(tmp, HEAP_HINT ,DYNAMIC_TYPE_TMP_BUFFER);
         return -47;
     }
     if (memcmp(plain, in, ret)) {
-        free(tmp);
+        TEST_XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
         return -48;
     }
 
@@ -4249,17 +4293,17 @@ int rsa_test(void)
     ret = wc_RsaPublicEncrypt_ex(in, inLen, out, sizeof(out), &key, &rng,
                        WC_RSA_OAEP_PAD, WC_HASH_TYPE_SHA, WC_MGF1SHA1, NULL, 0);
     if (ret < 0) {
-        free(tmp);
+        TEST_XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
         return -143;
     }
     ret = wc_RsaPrivateDecrypt_ex(out, ret, plain, sizeof(plain), &key,
                        WC_RSA_OAEP_PAD, WC_HASH_TYPE_SHA, WC_MGF1SHA1, NULL, 0);
     if (ret < 0) {
-        free(tmp);
+        TEST_XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
         return -144;
     }
     if (XMEMCMP(plain, in, inLen)) {
-        free(tmp);
+        TEST_XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
         return -145;
     }
     #endif /* NO_SHA */
@@ -4269,17 +4313,17 @@ int rsa_test(void)
     ret = wc_RsaPublicEncrypt_ex(in, inLen, out, sizeof(out), &key, &rng,
                   WC_RSA_OAEP_PAD, WC_HASH_TYPE_SHA256, WC_MGF1SHA256, NULL, 0);
     if (ret < 0) {
-        free(tmp);
+        TEST_XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
         return -243;
     }
     ret = wc_RsaPrivateDecrypt_ex(out, ret, plain, sizeof(plain), &key,
                   WC_RSA_OAEP_PAD, WC_HASH_TYPE_SHA256, WC_MGF1SHA256, NULL, 0);
     if (ret < 0) {
-        free(tmp);
+        TEST_XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
         return -244;
     }
     if (XMEMCMP(plain, in, inLen)) {
-        free(tmp);
+        TEST_XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
         return -245;
     }
 
@@ -4288,13 +4332,13 @@ int rsa_test(void)
     ret = wc_RsaPublicEncrypt_ex(in, inLen, out, sizeof(out), &key, &rng,
                   WC_RSA_OAEP_PAD, WC_HASH_TYPE_SHA256, WC_MGF1SHA256, NULL, 0);
     if (ret < 0) {
-        free(tmp);
+        TEST_XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
         return -246;
     }
     ret = wc_RsaPrivateDecrypt_ex(out, ret, plain, sizeof(plain), &key,
            WC_RSA_OAEP_PAD, WC_HASH_TYPE_SHA256, WC_MGF1SHA256, in, sizeof(in));
     if (ret > 0) { /* in this case decrypt should fail */
-        free(tmp);
+        TEST_XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
         return -247;
     }
 
@@ -4303,17 +4347,17 @@ int rsa_test(void)
     ret = wc_RsaPublicEncrypt_ex(in, inLen, out, sizeof(out), &key, &rng,
            WC_RSA_OAEP_PAD, WC_HASH_TYPE_SHA256, WC_MGF1SHA256, in, sizeof(in));
     if (ret < 0) {
-        free(tmp);
+        TEST_XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
         return -248;
     }
     ret = wc_RsaPrivateDecrypt_ex(out, ret, plain, sizeof(plain), &key,
            WC_RSA_OAEP_PAD, WC_HASH_TYPE_SHA256, WC_MGF1SHA256, in, sizeof(in));
     if (ret < 0) {
-        free(tmp);
+        TEST_XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
         return -249;
     }
     if (XMEMCMP(plain, in, inLen)) {
-        free(tmp);
+        TEST_XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
         return -250;
     }
 
@@ -4323,13 +4367,13 @@ int rsa_test(void)
         ret = wc_RsaPublicEncrypt_ex(in, inLen, out, sizeof(out), &key, &rng,
                 WC_RSA_OAEP_PAD, WC_HASH_TYPE_SHA, WC_MGF1SHA1, in, sizeof(in));
         if (ret < 0) {
-            free(tmp);
+            TEST_XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             return -251;
         }
         ret = wc_RsaPrivateDecrypt_ex(out, ret, plain, sizeof(plain), &key,
            WC_RSA_OAEP_PAD, WC_HASH_TYPE_SHA256, WC_MGF1SHA256, in, sizeof(in));
         if (ret > 0) { /* should fail */
-            free(tmp);
+            TEST_XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             return -252;
         }
         #endif /* NO_SHA*/
@@ -4345,17 +4389,17 @@ int rsa_test(void)
         ret = wc_RsaPublicEncrypt_ex(in, inLen, out, sizeof(out), &key, &rng,
                   WC_RSA_OAEP_PAD, WC_HASH_TYPE_SHA512, WC_MGF1SHA512, NULL, 0);
         if (ret < 0) {
-            free(tmp);
+            TEST_XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             return -343;
         }
         ret = wc_RsaPrivateDecrypt_ex(out, ret, plain, sizeof(plain), &key,
                   WC_RSA_OAEP_PAD, WC_HASH_TYPE_SHA512, WC_MGF1SHA512, NULL, 0);
         if (ret < 0) {
-            free(tmp);
+            TEST_XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             return -344;
         }
         if (XMEMCMP(plain, in, inLen)) {
-            free(tmp);
+            TEST_XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             return -345;
         }
     }
@@ -4366,17 +4410,17 @@ int rsa_test(void)
     ret = wc_RsaPublicEncrypt_ex(in, inLen, out, sizeof(out), &key, &rng,
                   WC_RSA_PKCSV15_PAD, WC_HASH_TYPE_NONE, 0, NULL, 0);
     if (ret < 0) {
-        free(tmp);
+        TEST_XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
         return -443;
     }
     ret = wc_RsaPrivateDecrypt_ex(out, ret, plain, sizeof(plain), &key,
                   WC_RSA_PKCSV15_PAD, WC_HASH_TYPE_NONE, 0, NULL, 0);
     if (ret < 0) {
-        free(tmp);
+        TEST_XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
         return -444;
     }
     if (XMEMCMP(plain, in, inLen)) {
-        free(tmp);
+        TEST_XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
         return -445;
     }
     #endif /* !HAVE_FAST_RSA && !HAVE_FIPS */
@@ -4395,7 +4439,7 @@ int rsa_test(void)
 #else
     file2 = fopen(clientCert, "rb");
     if (!file2) {
-        free(tmp);
+        TEST_XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
         return -49;
     }
 
@@ -4431,7 +4475,7 @@ int rsa_test(void)
     if (!file) {
         err_sys("can't open ./certs/client-keyPub.der, "
                 "Please run from wolfSSL home dir", -40);
-        free(tmp);
+        TEST_XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
         return -50;
     }
 
@@ -4441,14 +4485,14 @@ int rsa_test(void)
 
     ret = wc_InitRsaKey(&keypub, 0);
     if (ret != 0) {
-        free(tmp);
+        TEST_XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
         return -51;
     }
     idx = 0;
 
     ret = wc_RsaPublicKeyDecode(tmp, &idx, &keypub, (word32)bytes);
     if (ret != 0) {
-        free(tmp);
+        TEST_XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
         wc_FreeRsaKey(&keypub);
         return -52;
     }
@@ -4465,36 +4509,36 @@ int rsa_test(void)
         FILE*  keyFile;
         FILE*  pemFile;
 
-        ret = wc_InitRsaKey(&genKey, 0);
+        ret = wc_InitRsaKey(&genKey, HEAP_HINT);
         if (ret != 0) {
-            free(tmp);
+            TEST_XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             return -300;
         }
         ret = wc_MakeRsaKey(&genKey, 1024, 65537, &rng);
         if (ret != 0) {
-            free(tmp);
+            TEST_XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             return -301;
         }
 
-        der = (byte*)malloc(FOURK_BUF);
+        der = (byte*)TEST_XMALLOC(FOURK_BUF, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
         if (der == NULL) {
-            free(tmp);
+            TEST_XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             wc_FreeRsaKey(&genKey);
             return -307;
         }
-        pem = (byte*)malloc(FOURK_BUF);
+        pem = (byte*)TEST_XMALLOC(FOURK_BUF, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
         if (pem == NULL) {
-            free(tmp);
-            free(der);
+            TEST_XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(der, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             wc_FreeRsaKey(&genKey);
             return -308;
         }
 
         derSz = wc_RsaKeyToDer(&genKey, der, FOURK_BUF);
         if (derSz < 0) {
-            free(der);
-            free(pem);
-            free(tmp);
+            TEST_XFREE(der, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             return -302;
         }
 
@@ -4504,27 +4548,27 @@ int rsa_test(void)
         keyFile = fopen("./key.der", "wb");
 #endif
         if (!keyFile) {
-            free(der);
-            free(pem);
-            free(tmp);
+            TEST_XFREE(der, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             wc_FreeRsaKey(&genKey);
             return -303;
         }
         ret = (int)fwrite(der, 1, derSz, keyFile);
         fclose(keyFile);
         if (ret != derSz) {
-            free(der);
-            free(pem);
-            free(tmp);
+            TEST_XFREE(der, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             wc_FreeRsaKey(&genKey);
             return -313;
         }
 
         pemSz = wc_DerToPem(der, derSz, pem, FOURK_BUF, PRIVATEKEY_TYPE);
         if (pemSz < 0) {
-            free(der);
-            free(pem);
-            free(tmp);
+            TEST_XFREE(der, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             wc_FreeRsaKey(&genKey);
             return -304;
         }
@@ -4535,36 +4579,36 @@ int rsa_test(void)
         pemFile = fopen("./key.pem", "wb");
 #endif
         if (!pemFile) {
-            free(der);
-            free(pem);
-            free(tmp);
+            TEST_XFREE(der, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             wc_FreeRsaKey(&genKey);
             return -305;
         }
         ret = (int)fwrite(pem, 1, pemSz, pemFile);
         fclose(pemFile);
         if (ret != pemSz) {
-            free(der);
-            free(pem);
-            free(tmp);
+            TEST_XFREE(der, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             wc_FreeRsaKey(&genKey);
             return -314;
         }
 
-        ret = wc_InitRsaKey(&derIn, 0);
+        ret = wc_InitRsaKey(&derIn, HEAP_HINT);
         if (ret != 0) {
-            free(der);
-            free(pem);
-            free(tmp);
+            TEST_XFREE(der, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             wc_FreeRsaKey(&genKey);
             return -3060;
         }
         idx = 0;
         ret = wc_RsaPrivateKeyDecode(der, &idx, &derIn, derSz);
         if (ret != 0) {
-            free(der);
-            free(pem);
-            free(tmp);
+            TEST_XFREE(der, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             wc_FreeRsaKey(&derIn);
             wc_FreeRsaKey(&genKey);
             return -306;
@@ -4572,8 +4616,8 @@ int rsa_test(void)
 
         wc_FreeRsaKey(&derIn);
         wc_FreeRsaKey(&genKey);
-        free(pem);
-        free(der);
+        TEST_XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        TEST_XFREE(der, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     }
 #endif /* WOLFSSL_KEY_GEN */
 
@@ -4591,15 +4635,16 @@ int rsa_test(void)
         DecodedCert decode;
 #endif
 
-        derCert = (byte*)malloc(FOURK_BUF);
+        derCert = (byte*)TEST_XMALLOC(FOURK_BUF, HEAP_HINT,
+                                                       DYNAMIC_TYPE_TMP_BUFFER);
         if (derCert == NULL) {
-            free(tmp);
+            TEST_XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             return -309;
         }
-        pem = (byte*)malloc(FOURK_BUF);
+        pem = (byte*)TEST_XMALLOC(FOURK_BUF, HEAP_HINT,DYNAMIC_TYPE_TMP_BUFFER);
         if (pem == NULL) {
-            free(tmp);
-            free(derCert);
+            TEST_XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(derCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             return -310;
         }
 
@@ -4625,44 +4670,44 @@ int rsa_test(void)
 
         /* add SKID from the Public Key */
         if (wc_SetSubjectKeyIdFromPublicKey(&myCert, &keypub, NULL) != 0) {
-            free(pem);
-            free(derCert);
-            free(tmp);
+            TEST_XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(derCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             return -398;
         }
 
          /* add AKID from the Public Key */
          if (wc_SetAuthKeyIdFromPublicKey(&myCert, &keypub, NULL) != 0) {
-            free(pem);
-            free(derCert);
-            free(tmp);
+            TEST_XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(derCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
              return -399;
         }
 
         /* add Key Usage */
         if (wc_SetKeyUsage(&myCert,"cRLSign,keyCertSign") != 0) {
-            free(pem);
-            free(derCert);
-            free(tmp);
+            TEST_XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(derCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             return -400;
         }
 #endif /* WOLFSSL_CERT_EXT */
 
         certSz = wc_MakeSelfCert(&myCert, derCert, FOURK_BUF, &key, &rng);
         if (certSz < 0) {
-            free(derCert);
-            free(pem);
-            free(tmp);
+            TEST_XFREE(derCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             return -401;
         }
 
 #ifdef WOLFSSL_TEST_CERT
-        InitDecodedCert(&decode, derCert, certSz, 0);
+        InitDecodedCert(&decode, derCert, certSz, HEAP_HINT);
         ret = ParseCert(&decode, CERT_TYPE, NO_VERIFY, 0);
         if (ret != 0) {
-            free(derCert);
-            free(pem);
-            free(tmp);
+            TEST_XFREE(derCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             return -402;
         }
         FreeDecodedCert(&decode);
@@ -4674,25 +4719,25 @@ int rsa_test(void)
         derFile = fopen("./cert.der", "wb");
 #endif
         if (!derFile) {
-            free(derCert);
-            free(pem);
-            free(tmp);
+            TEST_XFREE(derCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             return -403;
         }
         ret = (int)fwrite(derCert, 1, certSz, derFile);
         fclose(derFile);
         if (ret != certSz) {
-            free(derCert);
-            free(pem);
-            free(tmp);
+            TEST_XFREE(derCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             return -414;
         }
 
         pemSz = wc_DerToPem(derCert, certSz, pem, FOURK_BUF, CERT_TYPE);
         if (pemSz < 0) {
-            free(derCert);
-            free(pem);
-            free(tmp);
+            TEST_XFREE(derCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             return -404;
         }
 
@@ -4702,21 +4747,21 @@ int rsa_test(void)
         pemFile = fopen("./cert.pem", "wb");
 #endif
         if (!pemFile) {
-            free(derCert);
-            free(pem);
-            free(tmp);
+            TEST_XFREE(derCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             return -405;
         }
         ret = (int)fwrite(pem, 1, pemSz, pemFile);
         fclose(pemFile);
         if (ret != pemSz) {
-            free(derCert);
-            free(pem);
-            free(tmp);
+            TEST_XFREE(derCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             return -406;
         }
-        free(pem);
-        free(derCert);
+        TEST_XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        TEST_XFREE(derCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     }
     /* CA style */
     {
@@ -4735,42 +4780,43 @@ int rsa_test(void)
         DecodedCert decode;
 #endif
 
-        derCert = (byte*)malloc(FOURK_BUF);
+        derCert = (byte*)TEST_XMALLOC(FOURK_BUF, HEAP_HINT,
+                                                       DYNAMIC_TYPE_TMP_BUFFER);
         if (derCert == NULL) {
-            free(tmp);
+            TEST_XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             return -311;
         }
-        pem = (byte*)malloc(FOURK_BUF);
+        pem = (byte*)TEST_XMALLOC(FOURK_BUF, HEAP_HINT,DYNAMIC_TYPE_TMP_BUFFER);
         if (pem == NULL) {
-            free(derCert);
-            free(tmp);
+            TEST_XFREE(derCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             return -312;
         }
 
         file3 = fopen(caKeyFile, "rb");
 
         if (!file3) {
-            free(derCert);
-            free(pem);
-            free(tmp);
+            TEST_XFREE(derCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             return -412;
         }
 
         bytes3 = fread(tmp, 1, FOURK_BUF, file3);
         fclose(file3);
 
-        ret = wc_InitRsaKey(&caKey, 0);
+        ret = wc_InitRsaKey(&caKey, HEAP_HINT);
         if (ret != 0) {
-            free(derCert);
-            free(pem);
-            free(tmp);
+            TEST_XFREE(derCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             return -411;
         }
         ret = wc_RsaPrivateKeyDecode(tmp, &idx3, &caKey, (word32)bytes3);
         if (ret != 0) {
-            free(derCert);
-            free(pem);
-            free(tmp);
+            TEST_XFREE(derCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             wc_FreeRsaKey(&caKey);
             return -413;
         }
@@ -4797,43 +4843,43 @@ int rsa_test(void)
 
         /* add SKID from the Public Key */
         if (wc_SetSubjectKeyIdFromPublicKey(&myCert, &key, NULL) != 0) {
-            free(pem);
-            free(derCert);
-            free(tmp);
+            TEST_XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(derCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             return -398;
         }
 
         /* add AKID from the CA certificate */
         if (wc_SetAuthKeyId(&myCert, caCertFile) != 0) {
-            free(pem);
-            free(derCert);
-            free(tmp);
+            TEST_XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(derCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             return -399;
         }
 
         /* add Key Usage */
         if (wc_SetKeyUsage(&myCert,"keyEncipherment,keyAgreement") != 0) {
-            free(pem);
-            free(derCert);
-            free(tmp);
+            TEST_XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(derCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             return -400;
         }
 #endif /* WOLFSSL_CERT_EXT */
 
         ret = wc_SetIssuer(&myCert, caCertFile);
         if (ret < 0) {
-            free(derCert);
-            free(pem);
-            free(tmp);
+            TEST_XFREE(derCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             wc_FreeRsaKey(&caKey);
             return -405;
         }
 
         certSz = wc_MakeCert(&myCert, derCert, FOURK_BUF, &key, NULL, &rng);
         if (certSz < 0) {
-            free(derCert);
-            free(pem);
-            free(tmp);
+            TEST_XFREE(derCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             wc_FreeRsaKey(&caKey);
             return -407;
         }
@@ -4841,20 +4887,20 @@ int rsa_test(void)
         certSz = wc_SignCert(myCert.bodySz, myCert.sigType, derCert, FOURK_BUF,
                           &caKey, NULL, &rng);
         if (certSz < 0) {
-            free(derCert);
-            free(pem);
-            free(tmp);
+            TEST_XFREE(derCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             wc_FreeRsaKey(&caKey);
             return -408;
         }
 
 #ifdef WOLFSSL_TEST_CERT
-        InitDecodedCert(&decode, derCert, certSz, 0);
+        InitDecodedCert(&decode, derCert, certSz, HEAP_HINT);
         ret = ParseCert(&decode, CERT_TYPE, NO_VERIFY, 0);
         if (ret != 0) {
-            free(derCert);
-            free(pem);
-            free(tmp);
+            TEST_XFREE(derCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             wc_FreeRsaKey(&caKey);
             return -409;
         }
@@ -4867,27 +4913,27 @@ int rsa_test(void)
         derFile = fopen("./othercert.der", "wb");
 #endif
         if (!derFile) {
-            free(derCert);
-            free(pem);
-            free(tmp);
+            TEST_XFREE(derCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             wc_FreeRsaKey(&caKey);
             return -410;
         }
         ret = (int)fwrite(derCert, 1, certSz, derFile);
         fclose(derFile);
         if (ret != certSz) {
-            free(derCert);
-            free(pem);
-            free(tmp);
+            TEST_XFREE(derCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             wc_FreeRsaKey(&caKey);
             return -416;
         }
 
         pemSz = wc_DerToPem(derCert, certSz, pem, FOURK_BUF, CERT_TYPE);
         if (pemSz < 0) {
-            free(derCert);
-            free(pem);
-            free(tmp);
+            TEST_XFREE(derCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             wc_FreeRsaKey(&caKey);
             return -411;
         }
@@ -4898,24 +4944,24 @@ int rsa_test(void)
         pemFile = fopen("./othercert.pem", "wb");
 #endif
         if (!pemFile) {
-            free(derCert);
-            free(pem);
-            free(tmp);
+            TEST_XFREE(derCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             wc_FreeRsaKey(&caKey);
             return -412;
         }
         ret = (int)fwrite(pem, 1, pemSz, pemFile);
         if (ret != pemSz) {
-            free(derCert);
-            free(pem);
-            free(tmp);
+            TEST_XFREE(derCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             fclose(pemFile);
             wc_FreeRsaKey(&caKey);
             return -415;
         }
         fclose(pemFile);
-        free(pem);
-        free(derCert);
+        TEST_XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        TEST_XFREE(derCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
         wc_FreeRsaKey(&caKey);
     }
 #ifdef HAVE_ECC
@@ -4939,24 +4985,25 @@ int rsa_test(void)
         DecodedCert decode;
 #endif
 
-        derCert = (byte*)malloc(FOURK_BUF);
+        derCert = (byte*)TEST_XMALLOC(FOURK_BUF, HEAP_HINT,
+                                                       DYNAMIC_TYPE_TMP_BUFFER);
         if (derCert == NULL) {
-            free(tmp);
+            TEST_XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             return -5311;
         }
-        pem = (byte*)malloc(FOURK_BUF);
+        pem = (byte*)TEST_XMALLOC(FOURK_BUF, HEAP_HINT,DYNAMIC_TYPE_TMP_BUFFER);
         if (pem == NULL) {
-            free(derCert);
-            free(tmp);
+            TEST_XFREE(derCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             return -5312;
         }
 
         file3 = fopen(eccCaKeyFile, "rb");
 
         if (!file3) {
-            free(derCert);
-            free(pem);
-            free(tmp);
+            TEST_XFREE(derCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             return -5412;
         }
 
@@ -4966,9 +5013,9 @@ int rsa_test(void)
         wc_ecc_init(&caKey);
         ret = wc_EccPrivateKeyDecode(tmp, &idx3, &caKey, (word32)bytes3);
         if (ret != 0) {
-            free(derCert);
-            free(pem);
-            free(tmp);
+            TEST_XFREE(derCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             return -5413;
         }
 
@@ -4994,9 +5041,9 @@ int rsa_test(void)
 
         file3 = fopen(eccCaKeyPubFile, "rb");
         if (!file3) {
-            free(derCert);
-            free(pem);
-            free(tmp);
+            TEST_XFREE(derCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             return -5500;
         }
 
@@ -5005,36 +5052,36 @@ int rsa_test(void)
 
         wc_ecc_init(&caKeyPub);
         if (ret != 0) {
-            free(derCert);
-            free(pem);
-            free(tmp);
+            TEST_XFREE(derCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             return -5501;
         }
 
         idx3 = 0;
         ret = wc_EccPublicKeyDecode(tmp, &idx3, &caKeyPub, (word32)bytes3);
         if (ret != 0) {
-            free(derCert);
-            free(pem);
-            free(tmp);
+            TEST_XFREE(derCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             wc_ecc_free(&caKeyPub);
             return -5502;
         }
 
         /* add SKID from the Public Key */
         if (wc_SetSubjectKeyIdFromPublicKey(&myCert, &key, NULL) != 0) {
-            free(pem);
-            free(derCert);
-            free(tmp);
+            TEST_XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(derCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             wc_ecc_free(&caKeyPub);
             return -5503;
         }
 
         /* add AKID from the Public Key */
         if (wc_SetAuthKeyIdFromPublicKey(&myCert, NULL, &caKeyPub) != 0) {
-            free(pem);
-            free(derCert);
-            free(tmp);
+            TEST_XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(derCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             wc_ecc_free(&caKeyPub);
             return -5504;
         }
@@ -5042,38 +5089,38 @@ int rsa_test(void)
 
         /* add Key Usage */
         if (wc_SetKeyUsage(&myCert,"digitalSignature,nonRepudiation") != 0) {
-            free(pem);
-            free(derCert);
-            free(tmp);
+            TEST_XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(derCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             return -5505;
         }
 #endif /* WOLFSSL_CERT_EXT */
 
         ret = wc_SetIssuer(&myCert, eccCaCertFile);
         if (ret < 0) {
-            free(pem);
-            free(derCert);
+            TEST_XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(derCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             wc_ecc_free(&caKey);
-            free(tmp);
+            TEST_XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             return -5405;
         }
 
         certSz = wc_MakeCert(&myCert, derCert, FOURK_BUF, &key, NULL, &rng);
         if (certSz < 0) {
-            free(pem);
-            free(derCert);
+            TEST_XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(derCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             wc_ecc_free(&caKey);
-            free(tmp);
+            TEST_XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             return -5407;
         }
 
         certSz = wc_SignCert(myCert.bodySz, myCert.sigType, derCert, FOURK_BUF,
                           NULL, &caKey, &rng);
         if (certSz < 0) {
-            free(pem);
-            free(derCert);
+            TEST_XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(derCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             wc_ecc_free(&caKey);
-            free(tmp);
+            TEST_XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             return -5408;
         }
 
@@ -5081,9 +5128,9 @@ int rsa_test(void)
         InitDecodedCert(&decode, derCert, certSz, 0);
         ret = ParseCert(&decode, CERT_TYPE, NO_VERIFY, 0);
         if (ret != 0) {
-            free(tmp);
-            free(pem);
-            free(derCert);
+            TEST_XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(derCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             wc_ecc_free(&caKey);
             return -5409;
         }
@@ -5096,28 +5143,28 @@ int rsa_test(void)
         derFile = fopen("./certecc.der", "wb");
 #endif
         if (!derFile) {
-            free(pem);
-            free(derCert);
+            TEST_XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(derCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             wc_ecc_free(&caKey);
-            free(tmp);
+            TEST_XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             return -5410;
         }
         ret = (int)fwrite(derCert, 1, certSz, derFile);
         fclose(derFile);
         if (ret != certSz) {
-            free(pem);
-            free(derCert);
+            TEST_XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(derCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             wc_ecc_free(&caKey);
-            free(tmp);
+            TEST_XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             return -5414;
         }
 
         pemSz = wc_DerToPem(derCert, certSz, pem, FOURK_BUF, CERT_TYPE);
         if (pemSz < 0) {
-            free(pem);
-            free(derCert);
+            TEST_XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(derCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             wc_ecc_free(&caKey);
-            free(tmp);
+            TEST_XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             return -5411;
         }
 
@@ -5127,24 +5174,24 @@ int rsa_test(void)
         pemFile = fopen("./certecc.pem", "wb");
 #endif
         if (!pemFile) {
-            free(pem);
-            free(derCert);
+            TEST_XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(derCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             wc_ecc_free(&caKey);
-            free(tmp);
+            XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             return -5412;
         }
         ret = (int)fwrite(pem, 1, pemSz, pemFile);
         if (ret != pemSz) {
-            free(pem);
-            free(derCert);
+            TEST_XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(derCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             wc_ecc_free(&caKey);
-            free(tmp);
+            TEST_XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             return -5415;
         }
 
         fclose(pemFile);
-        free(pem);
-        free(derCert);
+        XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(derCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
         wc_ecc_free(&caKey);
     }
 #endif /* HAVE_ECC */
@@ -5164,15 +5211,16 @@ int rsa_test(void)
 #ifdef WOLFSSL_TEST_CERT
         DecodedCert decode;
 #endif
-        derCert = (byte*)malloc(FOURK_BUF);
+        derCert = (byte*)TEST_XMALLOC(FOURK_BUF, HEAP_HINT,
+                                                       DYNAMIC_TYPE_TMP_BUFFER);
         if (derCert == NULL) {
-            free(tmp);
+            TEST_XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             return -311;
         }
-        pem = (byte*)malloc(FOURK_BUF);
+        pem = (byte*)TEST_XMALLOC(FOURK_BUF, HEAP_HINT,DYNAMIC_TYPE_TMP_BUFFER);
         if (pem == NULL) {
-            free(derCert);
-            free(tmp);
+            TEST_XFREE(derCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             return -312;
         }
 
@@ -5187,9 +5235,9 @@ int rsa_test(void)
         word32 rc = ntru_crypto_drbg_instantiate(112, pers_str,
                           sizeof(pers_str), GetEntropy, &drbg);
         if (rc != DRBG_OK) {
-            free(derCert);
-            free(pem);
-            free(tmp);
+            TEST_XFREE(derCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             return -448;
         }
 
@@ -5197,9 +5245,9 @@ int rsa_test(void)
                                              &public_key_len, NULL,
                                              &private_key_len, NULL);
         if (rc != NTRU_OK) {
-            free(derCert);
-            free(pem);
-            free(tmp);
+            TEST_XFREE(derCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             return -449;
         }
 
@@ -5207,27 +5255,27 @@ int rsa_test(void)
                                              &public_key_len, public_key,
                                              &private_key_len, private_key);
         if (rc != NTRU_OK) {
-            free(derCert);
-            free(pem);
-            free(tmp);
+            TEST_XFREE(derCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             return -450;
         }
 
         rc = ntru_crypto_drbg_uninstantiate(drbg);
 
         if (rc != NTRU_OK) {
-            free(derCert);
-            free(pem);
-            free(tmp);
+            TEST_XFREE(derCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             return -451;
         }
 
         caFile = fopen(caKeyFile, "rb");
 
         if (!caFile) {
-            free(derCert);
-            free(pem);
-            free(tmp);
+            TEST_XFREE(derCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             return -452;
         }
 
@@ -5236,16 +5284,16 @@ int rsa_test(void)
 
         ret = wc_InitRsaKey(&caKey, 0);
         if (ret != 0) {
-            free(derCert);
-            free(pem);
-            free(tmp);
+            TEST_XFREE(derCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             return -453;
         }
         ret = wc_RsaPrivateKeyDecode(tmp, &idx3, &caKey, (word32)bytes);
         if (ret != 0) {
-            free(derCert);
-            free(pem);
-            free(tmp);
+            TEST_XFREE(derCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             return -454;
         }
 
@@ -5264,46 +5312,46 @@ int rsa_test(void)
         /* add SKID from the Public Key */
         if (wc_SetSubjectKeyIdFromNtruPublicKey(&myCert, public_key,
                                                 public_key_len) != 0) {
-            free(pem);
-            free(derCert);
-            free(tmp);
+            TEST_XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(derCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             return -496;
         }
 
         /* add AKID from the CA certificate */
         if (wc_SetAuthKeyId(&myCert, caCertFile) != 0) {
-            free(pem);
-            free(derCert);
-            free(tmp);
+            TEST_XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(derCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             return -495;
         }
 
         /* add Key Usage */
         if (wc_SetKeyUsage(&myCert,"digitalSignature,nonRepudiation,"
                                    "keyEncipherment,keyAgreement") != 0) {
-            free(pem);
-            free(derCert);
-            free(tmp);
+            TEST_XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(derCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             return -494;
         }
 #endif /* WOLFSSL_CERT_EXT */
 
         ret = wc_SetIssuer(&myCert, caCertFile);
         if (ret < 0) {
-            free(derCert);
-            free(pem);
+            TEST_XFREE(derCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             wc_FreeRsaKey(&caKey);
-            free(tmp);
+            TEST_XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             return -455;
         }
 
         certSz = wc_MakeNtruCert(&myCert, derCert, FOURK_BUF, public_key,
                               public_key_len, &rng);
         if (certSz < 0) {
-            free(derCert);
-            free(pem);
+            TEST_XFREE(derCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             wc_FreeRsaKey(&caKey);
-            free(tmp);
+            TEST_XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             return -456;
         }
 
@@ -5311,81 +5359,81 @@ int rsa_test(void)
                           &caKey, NULL, &rng);
         wc_FreeRsaKey(&caKey);
         if (certSz < 0) {
-            free(derCert);
-            free(pem);
-            free(tmp);
+            TEST_XFREE(derCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             return -457;
         }
 
 
 #ifdef WOLFSSL_TEST_CERT
-        InitDecodedCert(&decode, derCert, certSz, 0);
+        InitDecodedCert(&decode, derCert, certSz, HEAP_HINT);
         ret = ParseCert(&decode, CERT_TYPE, NO_VERIFY, 0);
         if (ret != 0) {
-            free(derCert);
-            free(pem);
-            free(tmp);
+            TEST_XFREE(derCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             return -458;
         }
         FreeDecodedCert(&decode);
 #endif
         derFile = fopen("./ntru-cert.der", "wb");
         if (!derFile) {
-            free(derCert);
-            free(pem);
-            free(tmp);
+            TEST_XFREE(derCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             return -459;
         }
         ret = (int)fwrite(derCert, 1, certSz, derFile);
         fclose(derFile);
         if (ret != certSz) {
-            free(derCert);
-            free(pem);
-            free(tmp);
+            TEST_XFREE(derCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             return -473;
         }
 
         pemSz = wc_DerToPem(derCert, certSz, pem, FOURK_BUF, CERT_TYPE);
         if (pemSz < 0) {
-            free(derCert);
-            free(pem);
-            free(tmp);
+            TEST_XFREE(derCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             return -460;
         }
 
         pemFile = fopen("./ntru-cert.pem", "wb");
         if (!pemFile) {
-            free(derCert);
-            free(pem);
-            free(tmp);
+            TEST_XFREE(derCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             return -461;
         }
         ret = (int)fwrite(pem, 1, pemSz, pemFile);
         fclose(pemFile);
         if (ret != pemSz) {
-            free(derCert);
-            free(pem);
-            free(tmp);
+            TEST_XFREE(derCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             return -474;
         }
 
         ntruPrivFile = fopen("./ntru-key.raw", "wb");
         if (!ntruPrivFile) {
-            free(derCert);
-            free(pem);
-            free(tmp);
+            TEST_XFREE(derCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             return -462;
         }
         ret = (int)fwrite(private_key, 1, private_key_len, ntruPrivFile);
         fclose(ntruPrivFile);
         if (ret != private_key_len) {
-            free(pem);
-            free(derCert);
-            free(tmp);
+            TEST_XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(derCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             return -475;
         }
-        free(pem);
-        free(derCert);
+        TEST_XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        TEST_XFREE(derCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     }
 #endif /* HAVE_NTRU */
 #ifdef WOLFSSL_CERT_REQ
@@ -5397,15 +5445,15 @@ int rsa_test(void)
         int         pemSz;
         FILE*       reqFile;
 
-        der = (byte*)malloc(FOURK_BUF);
+        der = (byte*)TEST_XMALLOC(FOURK_BUF, HEAP_HINT,DYNAMIC_TYPE_TMP_BUFFER);
         if (der == NULL) {
-            free(tmp);
+            TEST_XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             return -463;
         }
-        pem = (byte*)malloc(FOURK_BUF);
+        pem = (byte*)TEST_XMALLOC(FOURK_BUF, HEAP_HINT,DYNAMIC_TYPE_TMP_BUFFER);
         if (pem == NULL) {
-            free(der);
-            free(tmp);
+            TEST_XFREE(der, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             return -464;
         }
 
@@ -5426,44 +5474,44 @@ int rsa_test(void)
 #ifdef WOLFSSL_CERT_EXT
         /* add SKID from the Public Key */
         if (wc_SetSubjectKeyIdFromPublicKey(&req, &keypub, NULL) != 0) {
-            free(pem);
-            free(der);
-            free(tmp);
+            TEST_XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(der, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             return -496;
         }
 
         /* add Key Usage */
         if (wc_SetKeyUsage(&req,"digitalSignature,nonRepudiation,"
                                 "keyEncipherment,keyAgreement") != 0) {
-            free(pem);
-            free(der);
-            free(tmp);
+            TEST_XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(der, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             return -494;
         }
 #endif /* WOLFSSL_CERT_EXT */
 
         derSz = wc_MakeCertReq(&req, der, FOURK_BUF, &key, NULL);
         if (derSz < 0) {
-            free(pem);
-            free(der);
-            free(tmp);
+            TEST_XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(der, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             return -465;
         }
 
         derSz = wc_SignCert(req.bodySz, req.sigType, der, FOURK_BUF,
                           &key, NULL, &rng);
         if (derSz < 0) {
-            free(pem);
-            free(der);
-            free(tmp);
+            TEST_XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(der, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             return -466;
         }
 
         pemSz = wc_DerToPem(der, derSz, pem, FOURK_BUF, CERTREQ_TYPE);
         if (pemSz < 0) {
-            free(pem);
-            free(der);
-            free(tmp);
+            TEST_XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(der, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             return -467;
         }
 
@@ -5473,18 +5521,18 @@ int rsa_test(void)
         reqFile = fopen("./certreq.der", "wb");
 #endif
         if (!reqFile) {
-            free(pem);
-            free(der);
-            free(tmp);
+            TEST_XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(der, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             return -468;
         }
 
         ret = (int)fwrite(der, 1, derSz, reqFile);
         fclose(reqFile);
         if (ret != derSz) {
-            free(pem);
-            free(der);
-            free(tmp);
+            TEST_XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(der, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             return -471;
         }
 
@@ -5494,22 +5542,22 @@ int rsa_test(void)
         reqFile = fopen("./certreq.pem", "wb");
 #endif
         if (!reqFile) {
-            free(pem);
-            free(der);
-            free(tmp);
+            TEST_XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(der, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             return -469;
         }
         ret = (int)fwrite(pem, 1, pemSz, reqFile);
         fclose(reqFile);
         if (ret != pemSz) {
-            free(pem);
-            free(der);
-            free(tmp);
+            TEST_XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(der, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             return -470;
         }
 
-        free(pem);
-        free(der);
+        TEST_XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        TEST_XFREE(der, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     }
 #endif /* WOLFSSL_CERT_REQ */
 #endif /* WOLFSSL_CERT_GEN */
@@ -5521,7 +5569,7 @@ int rsa_test(void)
 #ifdef HAVE_CAVIUM
     wc_RsaFreeCavium(&key);
 #endif
-    free(tmp);
+    TEST_XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     wc_FreeRng(&rng);
 
     return 0;
@@ -5707,22 +5755,22 @@ int dsa_test(void)
     ret = wc_MakeDsaKey(&rng, &genKey);
     if (ret != 0) return -363;
 
-    der = (byte*)malloc(FOURK_BUF);
+    der = (byte*)TEST_XMALLOC(FOURK_BUF, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     if (der == NULL) {
         wc_FreeDsaKey(&genKey);
         return -364;
     }
-    pem = (byte*)malloc(FOURK_BUF);
+    pem = (byte*)TEST_XMALLOC(FOURK_BUF, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     if (pem == NULL) {
-        free(der);
+        TEST_XFREE(der, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
         wc_FreeDsaKey(&genKey);
         return -365;
     }
 
     derSz = wc_DsaKeyToDer(&genKey, der, FOURK_BUF);
     if (derSz < 0) {
-        free(der);
-        free(pem);
+        TEST_XFREE(der, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        TEST_XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
         return -366;
     }
 
@@ -5732,24 +5780,24 @@ int dsa_test(void)
     keyFile = fopen("./key.der", "wb");
 #endif
     if (!keyFile) {
-        free(der);
-        free(pem);
+        TEST_XFREE(der, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        TEST_XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
         wc_FreeDsaKey(&genKey);
         return -367;
     }
     ret = (int)fwrite(der, 1, derSz, keyFile);
     fclose(keyFile);
     if (ret != derSz) {
-        free(der);
-        free(pem);
+        TEST_XFREE(der, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        TEST_XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
         wc_FreeDsaKey(&genKey);
         return -368;
     }
 
     pemSz = wc_DerToPem(der, derSz, pem, FOURK_BUF, DSA_PRIVATEKEY_TYPE);
     if (pemSz < 0) {
-        free(der);
-        free(pem);
+        TEST_XFREE(der, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        TEST_XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
         wc_FreeDsaKey(&genKey);
         return -369;
     }
@@ -5760,16 +5808,16 @@ int dsa_test(void)
     pemFile = fopen("./key.pem", "wb");
 #endif
     if (!pemFile) {
-        free(der);
-        free(pem);
+        TEST_XFREE(der, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        TEST_XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
         wc_FreeDsaKey(&genKey);
         return -370;
     }
     ret = (int)fwrite(pem, 1, pemSz, pemFile);
     fclose(pemFile);
     if (ret != pemSz) {
-        free(der);
-        free(pem);
+        TEST_XFREE(der, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        TEST_XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
         wc_FreeDsaKey(&genKey);
         return -371;
     }
@@ -5778,8 +5826,8 @@ int dsa_test(void)
     idx = 0;
     ret = wc_DsaPrivateKeyDecode(der, &idx, &derIn, derSz);
     if (ret != 0) {
-        free(der);
-        free(pem);
+        TEST_XFREE(der, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        TEST_XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
         wc_FreeDsaKey(&derIn);
         wc_FreeDsaKey(&genKey);
         return -373;
@@ -5787,8 +5835,8 @@ int dsa_test(void)
 
     wc_FreeDsaKey(&derIn);
     wc_FreeDsaKey(&genKey);
-    free(pem);
-    free(der);
+    TEST_XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    TEST_XFREE(der, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     }
 #endif /* WOLFSSL_KEY_GEN */
 
@@ -5855,6 +5903,11 @@ int srp_test(void)
 
     byte verifier[80];
     word32 v_size = sizeof(verifier);
+
+    /* set as 0's so if second init on srv not called SrpTerm is not on
+     * garbage values */
+    XMEMSET(&srv, 0, sizeof(Srp));
+    XMEMSET(&cli, 0, sizeof(Srp));
 
     /* generating random salt */
 
@@ -6972,8 +7025,13 @@ int pkcs12_test(void)
     if (ret < 0)
         return -105;
 
-    if ( (ret = memcmp(derived, verify2, 24)) != 0)
+    ret = wc_PKCS12_PBKDF_ex(derived, passwd2, sizeof(passwd2), salt2, 8,
+                                       iterations, kLen, SHA256, id, HEAP_HINT);
+    if (ret < 0)
         return -106;
+
+    if ( (ret = memcmp(derived, verify2, 24)) != 0)
+        return -107;
 
     return 0;
 }
@@ -7221,7 +7279,7 @@ static int ecc_test_vector(int keySize)
         vec.d  = "e14f37b3d1374ff8b03f41b9b3fdd2f0ebccf275d660d7f3";
         vec.R  = "6994d962bdd0d793ffddf855ec5bf2f91a9698b46258a63e";
         vec.S  = "02ba6465a234903744ab02bc8521405b73cf5fc00e1a9f41";
-        vec.curveName = "ECC-192";
+        vec.curveName = "SECP192R1";
         break;
 #endif /* HAVE_ECC192 */
 
@@ -7249,7 +7307,7 @@ static int ecc_test_vector(int keySize)
         vec.d  = "97c4b796e1639dd1035b708fc00dc7ba1682cec44a1002a1a820619f";
         vec.R  = "147b33758321e722a0360a4719738af848449e2c1d08defebc1671a7";
         vec.S  = "24fc7ed7f1352ca3872aa0916191289e2e04d454935d50fe6af3ad5b";
-        vec.curveName = "ECC-224";
+        vec.curveName = "SECP224R1";
         break;
 #endif /* HAVE_ECC224 */
 
@@ -7277,7 +7335,7 @@ static int ecc_test_vector(int keySize)
         vec.d  = "be34baa8d040a3b991f9075b56ba292f755b90e4b6dc10dad36715c33cfdac25";
         vec.R  = "2b826f5d44e2d0b6de531ad96b51e8f0c56fdfead3c236892e4d84eacfc3b75c";
         vec.S  = "a2248b62c03db35a7cd63e8a120a3521a89d3d2f61ff99035a2148ae32e3a248";
-        vec.curveName = "nistp256";
+        vec.curveName = "SECP256R1";
         break;
 #endif /* !NO_ECC256 */
 
@@ -7305,7 +7363,7 @@ static int ecc_test_vector(int keySize)
         vec.d  = "a492ce8fa90084c227e1a32f7974d39e9ff67a7e8705ec3419b35fb607582bebd461e0b1520ac76ec2dd4e9b63ebae71";
         vec.R  = "6820b8585204648aed63bdff47f6d9acebdea62944774a7d14f0e14aa0b9a5b99545b2daee6b3c74ebf606667a3f39b7";
         vec.S  = "491af1d0cccd56ddd520b233775d0bc6b40a6255cc55207d8e9356741f23c96c14714221078dbd5c17f4fdd89b32a907";
-        vec.curveName = "nistp384";
+        vec.curveName = "SECP384R1";
         break;
 #endif /* HAVE_ECC384 */
 
@@ -7333,7 +7391,7 @@ static int ecc_test_vector(int keySize)
         vec.d  = "1bd56bd106118eda246155bd43b42b8e13f0a6e25dd3bb376026fab4dc92b6157bc6dfec2d15dd3d0cf2a39aa68494042af48ba9601118da82c6f2108a3a203ad74";
         vec.R  = "0bd117b4807710898f9dd7778056485777668f0e78e6ddf5b000356121eb7a220e9493c7f9a57c077947f89ac45d5acb6661bbcd17abb3faea149ba0aa3bb1521be";
         vec.S  = "019cd2c5c3f9870ecdeb9b323abdf3a98cd5e231d85c6ddc5b71ab190739f7f226e6b134ba1d5889ddeb2751dabd97911dff90c34684cdbe7bb669b6c3d22f2480c";
-        vec.curveName = "nistp521";
+        vec.curveName = "SECP521R1";
         break;
 #endif /* HAVE_ECC521 */
     default:
@@ -7426,9 +7484,8 @@ static int ecc_test_key_gen(WC_RNG* rng, int keySize)
     return 0;
 }
 #endif /* WOLFSSL_KEY_GEN */
-
 static int ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerifyCount,
-    int testCompressedKey)
+    int testCompressedKey, const ecc_set_type* dp)
 {
 #ifdef BENCH_EMBEDDED
     byte    sharedA[128]; /* Needs to be at least keySize */
@@ -7456,34 +7513,34 @@ static int ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerifyCount,
     wc_ecc_init(&userB);
     wc_ecc_init(&pubKey);
 
-    ret = wc_ecc_make_key(rng, keySize, &userA);
+    ret = wc_ecc_make_key_ex(rng, keySize, &userA, dp);
     if (ret != 0)
-        return -1014;
+        ERROR_OUT(-1014, done);
 
     ret = wc_ecc_check_key(&userA);
     if (ret != 0)
-        return -1023;
+        ERROR_OUT(-1023, done);
 
-    ret = wc_ecc_make_key(rng, keySize, &userB);
+    ret = wc_ecc_make_key_ex(rng, keySize, &userB, dp);
     if (ret != 0)
-        return -1002;
+        ERROR_OUT(-1002, done);
 
 #ifdef HAVE_ECC_DHE
     x = sizeof(sharedA);
     ret = wc_ecc_shared_secret(&userA, &userB, sharedA, &x);
     if (ret != 0)
-        return -1015;
+        ERROR_OUT(-1015, done);
 
     y = sizeof(sharedB);
     ret = wc_ecc_shared_secret(&userB, &userA, sharedB, &y);
     if (ret != 0)
-        return -1003;
+        ERROR_OUT(-1003, done);
 
     if (y != x)
-        return -1004;
+        ERROR_OUT(-1004, done);
 
     if (memcmp(sharedA, sharedB, x))
-        return -1005;
+        ERROR_OUT(-1005, done);
 #endif /* HAVE_ECC_DHE */
 
 #ifdef HAVE_ECC_KEY_EXPORT
@@ -7491,21 +7548,21 @@ static int ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerifyCount,
 
     ret = wc_ecc_export_x963(&userA, exportBuf, &x);
     if (ret != 0)
-        return -1006;
+        ERROR_OUT(-1006, done);
 
 #ifdef HAVE_ECC_KEY_IMPORT
-    ret = wc_ecc_import_x963(exportBuf, x, &pubKey);
+    ret = wc_ecc_import_x963_ex(exportBuf, x, &pubKey, dp);
     if (ret != 0)
-        return -1007;
+        ERROR_OUT(-1007, done);
 
 #ifdef HAVE_ECC_DHE
     y = sizeof(sharedB);
     ret = wc_ecc_shared_secret(&userB, &pubKey, sharedB, &y);
     if (ret != 0)
-        return -1008;
+        ERROR_OUT(-1008, done);
 
     if (memcmp(sharedA, sharedB, y))
-        return -1009;
+        ERROR_OUT(-1009, done);
 #endif /* HAVE_ECC_DHE */
 
     if (testCompressedKey) {
@@ -7515,22 +7572,22 @@ static int ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerifyCount,
 
         ret = wc_ecc_export_x963_ex(&userA, exportBuf, &x, 1);
         if (ret != 0)
-            return -1010;
+            ERROR_OUT(-1010, done);
         wc_ecc_free(&pubKey);
         wc_ecc_init(&pubKey);
 
         ret = wc_ecc_import_x963(exportBuf, x, &pubKey);
         if (ret != 0)
-            return -1011;
+            ERROR_OUT(-1011, done);
 
     #ifdef HAVE_ECC_DHE
         y = sizeof(sharedB);
         ret = wc_ecc_shared_secret(&userB, &pubKey, sharedB, &y);
         if (ret != 0)
-            return -1012;
+            ERROR_OUT(-1012, done);
 
         if (memcmp(sharedA, sharedB, y))
-            return -1013;
+            ERROR_OUT(-1013, done);
     #endif /* HAVE_ECC_DHE */
     #endif /* HAVE_COMP_KEY */
     }
@@ -7548,16 +7605,16 @@ static int ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerifyCount,
     ret = wc_ecc_sign_hash(digest, sizeof(digest), sig, &x, rng, &userA);
 
     if (ret != 0)
-        return -1014;
+        ERROR_OUT(-1014, done);
 
 #ifdef HAVE_ECC_VERIFY
     for (i=0; i<testVerifyCount; i++) {
         verify = 0;
         ret = wc_ecc_verify_hash(sig, x, digest, sizeof(digest), &verify, &userA);
         if (ret != 0)
-            return -1015;
+            ERROR_OUT(-1015, done);
         if (verify != 1)
-            return -1016;
+            ERROR_OUT(-1016, done);
     }
 #endif /* HAVE_ECC_VERIFY */
 
@@ -7570,16 +7627,16 @@ static int ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerifyCount,
     ret = wc_ecc_sign_hash(digest, sizeof(digest), sig, &x, rng, &userA);
 
     if (ret != 0)
-        return -1014;
+        ERROR_OUT(-1014, done);
 
 #ifdef HAVE_ECC_VERIFY
     for (i=0; i<testVerifyCount; i++) {
         verify = 0;
         ret = wc_ecc_verify_hash(sig, x, digest, sizeof(digest), &verify, &userA);
         if (ret != 0)
-            return -1015;
+            ERROR_OUT(-1015, done);
         if (verify != 1)
-            return -1016;
+            ERROR_OUT(-1016, done);
     }
 #endif /* HAVE_ECC_VERIFY */
 #endif /* HAVE_ECC_SIGN */
@@ -7588,14 +7645,15 @@ static int ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerifyCount,
     x = sizeof(exportBuf);
     ret = wc_ecc_export_private_only(&userA, exportBuf, &x);
     if (ret != 0)
-        return -1017;
+        ERROR_OUT(-1017, done);
 #endif /* HAVE_ECC_KEY_EXPORT */
 
+done:
     wc_ecc_free(&pubKey);
     wc_ecc_free(&userB);
     wc_ecc_free(&userA);
 
-    return 0;
+    return ret;
 }
 
 #undef  ECC_TEST_VERIFY_COUNT
@@ -7610,7 +7668,7 @@ static int ecc_test_curve(WC_RNG* rng, int keySize)
     }
 
     ret = ecc_test_curve_size(rng, keySize, ECC_TEST_VERIFY_COUNT,
-                                                        testCompressedKey);
+                                                    testCompressedKey, NULL);
     if (ret < 0) {
         printf("ecc_test_curve_size %d failed!: %d\n", keySize, ret);
         return ret;
@@ -7647,37 +7705,58 @@ int ecc_test(void)
 #if defined(HAVE_ECC192) || defined(HAVE_ALL_CURVES)
     ret = ecc_test_curve(&rng, 24);
     if (ret < 0) {
-        return ret;
+        goto done;
     }
 #endif /* HAVE_ECC192 */
 #if defined(HAVE_ECC224) || defined(HAVE_ALL_CURVES)
     ret = ecc_test_curve(&rng, 28);
     if (ret < 0) {
-        return ret;
+        goto done;
     }
 #endif /* HAVE_ECC224 */
 #if !defined(NO_ECC256) || defined(HAVE_ALL_CURVES)
     ret = ecc_test_curve(&rng, 32);
     if (ret < 0) {
-        return ret;
+        goto done;
     }
 #endif /* !NO_ECC256 */
 #if defined(HAVE_ECC384) || defined(HAVE_ALL_CURVES)
     ret = ecc_test_curve(&rng, 48);
     if (ret < 0) {
-        return ret;
+        goto done;
     }
 #endif /* HAVE_ECC384 */
 #if defined(HAVE_ECC521) || defined(HAVE_ALL_CURVES)
     ret = ecc_test_curve(&rng, 66);
     if (ret < 0) {
-        return ret;
+        goto done;
     }
 #endif /* HAVE_ECC521 */
 
+#if defined(WOLFSSL_CUSTOM_CURVES)
+    /* Test and demonstrate use of Brainpool256 curve */
+    const ecc_set_type ecc_cust_dp = {
+        32,                                                                 /* size/bytes */
+        0,                                                                  /* NID - not required */ 
+        "BRAINPOOLP256R1",                                                  /* curve name */
+        "A9FB57DBA1EEA9BC3E660A909D838D726E3BF623D52620282013481D1F6E5377", /* prime      */
+        "7D5A0975FC2C3057EEF67530417AFFE7FB8055C126DC5C6CE94A4B44F330B5D9", /* A          */
+        "26DC5C6CE94A4B44F330B5D9BBD77CBF958416295CF7E1CE6BCCDC18FF8C07B6", /* B          */
+        "A9FB57DBA1EEA9BC3E660A909D838D718C397AA3B561A6F7901E0E82974856A7", /* order      */
+        "8BD2AEB9CB7E57CB2C4B482FFC81B7AFB9DE27E1E3BD23C23A4453BD9ACE3262", /* Gx         */
+        "547EF835C3DAC4FD97F8461A14611DC9C27745132DED8E545C1D54C72F046997", /* Gy         */
+    };
+    ret = ecc_test_curve_size(&rng, -1, ECC_TEST_VERIFY_COUNT, 0, &ecc_cust_dp);
+    if (ret < 0) {
+        printf("ecc_test_curve_size custom failed!: %d\n", ret);
+        goto done;
+    }
+#endif
+
+done:
     wc_FreeRng(&rng);
 
-    return 0;
+    return ret;
 }
 
 #ifdef HAVE_ECC_ENCRYPT
@@ -8422,6 +8501,193 @@ int ed25519_test(void)
 #endif /* HAVE_ED25519 */
 
 
+#if defined(WOLFSSL_CMAC) && !defined(NO_AES)
+ 
+typedef struct CMAC_Test_Case {
+    int type;
+    int partial;
+    const byte* m;
+    word32 mSz;
+    const byte* k;
+    word32 kSz;
+    const byte* t;
+    word32 tSz;
+} CMAC_Test_Case;
+
+int cmac_test(void)
+{
+    const byte k128[] =
+    {
+        0x2b, 0x7e, 0x15, 0x16, 0x28, 0xae, 0xd2, 0xa6,
+        0xab, 0xf7, 0x15, 0x88, 0x09, 0xcf, 0x4f, 0x3c
+    };
+    const byte k192[] =
+    {
+        0x8e, 0x73, 0xb0, 0xf7, 0xda, 0x0e, 0x64, 0x52,
+        0xc8, 0x10, 0xf3, 0x2b, 0x80, 0x90, 0x79, 0xe5,
+        0x62, 0xf8, 0xea, 0xd2, 0x52, 0x2c, 0x6b, 0x7b
+    };
+    const byte k256[] =
+    {
+        0x60, 0x3d, 0xeb, 0x10, 0x15, 0xca, 0x71, 0xbe,
+        0x2b, 0x73, 0xae, 0xf0, 0x85, 0x7d, 0x77, 0x81,
+        0x1f, 0x35, 0x2c, 0x07, 0x3b, 0x61, 0x08, 0xd7,
+        0x2d, 0x98, 0x10, 0xa3, 0x09, 0x14, 0xdf, 0xf4
+    };
+    #define KLEN_128 (sizeof(k128))
+    #define KLEN_192 (sizeof(k192))
+    #define KLEN_256 (sizeof(k256))
+
+    const byte m[] =
+    {
+        0x6b, 0xc1, 0xbe, 0xe2, 0x2e, 0x40, 0x9f, 0x96,
+        0xe9, 0x3d, 0x7e, 0x11, 0x73, 0x93, 0x17, 0x2a,
+        0xae, 0x2d, 0x8a, 0x57, 0x1e, 0x03, 0xac, 0x9c,
+        0x9e, 0xb7, 0x6f, 0xac, 0x45, 0xaf, 0x8e, 0x51,
+        0x30, 0xc8, 0x1c, 0x46, 0xa3, 0x5c, 0xe4, 0x11,
+        0xe5, 0xfb, 0xc1, 0x19, 0x1a, 0x0a, 0x52, 0xef,
+        0xf6, 0x9f, 0x24, 0x45, 0xdf, 0x4f, 0x9b, 0x17,
+        0xad, 0x2b, 0x41, 0x7b, 0xe6, 0x6c, 0x37, 0x10
+    };
+    #define MLEN_0 (0)
+    #define MLEN_128 (128/8)
+    #define MLEN_320 (320/8)
+    #define MLEN_319 (MLEN_320 - 1)
+    #define MLEN_512 (512/8)
+
+    const byte t128_0[] =
+    {
+        0xbb, 0x1d, 0x69, 0x29, 0xe9, 0x59, 0x37, 0x28,
+        0x7f, 0xa3, 0x7d, 0x12, 0x9b, 0x75, 0x67, 0x46
+    };
+    const byte t128_128[] =
+    {
+        0x07, 0x0a, 0x16, 0xb4, 0x6b, 0x4d, 0x41, 0x44,
+        0xf7, 0x9b, 0xdd, 0x9d, 0xd0, 0x4a, 0x28, 0x7c
+    };
+    const byte t128_319[] =
+    {
+        0x2c, 0x17, 0x84, 0x4c, 0x93, 0x1c, 0x07, 0x95,
+        0x15, 0x92, 0x73, 0x0a, 0x34, 0xd0, 0xd9, 0xd2
+    };
+    const byte t128_320[] =
+    {
+        0xdf, 0xa6, 0x67, 0x47, 0xde, 0x9a, 0xe6, 0x30,
+        0x30, 0xca, 0x32, 0x61, 0x14, 0x97, 0xc8, 0x27
+    };
+    const byte t128_512[] =
+    {
+        0x51, 0xf0, 0xbe, 0xbf, 0x7e, 0x3b, 0x9d, 0x92,
+        0xfc, 0x49, 0x74, 0x17, 0x79, 0x36, 0x3c, 0xfe
+    };
+
+    const byte t192_0[] =
+    {
+        0xd1, 0x7d, 0xdf, 0x46, 0xad, 0xaa, 0xcd, 0xe5,
+        0x31, 0xca, 0xc4, 0x83, 0xde, 0x7a, 0x93, 0x67
+    };
+    const byte t192_128[] =
+    {
+        0x9e, 0x99, 0xa7, 0xbf, 0x31, 0xe7, 0x10, 0x90,
+        0x06, 0x62, 0xf6, 0x5e, 0x61, 0x7c, 0x51, 0x84
+    };
+    const byte t192_320[] =
+    {
+        0x8a, 0x1d, 0xe5, 0xbe, 0x2e, 0xb3, 0x1a, 0xad,
+        0x08, 0x9a, 0x82, 0xe6, 0xee, 0x90, 0x8b, 0x0e
+    };
+    const byte t192_512[] =
+    {
+        0xa1, 0xd5, 0xdf, 0x0e, 0xed, 0x79, 0x0f, 0x79,
+        0x4d, 0x77, 0x58, 0x96, 0x59, 0xf3, 0x9a, 0x11
+    };
+
+    const byte t256_0[] =
+    {
+        0x02, 0x89, 0x62, 0xf6, 0x1b, 0x7b, 0xf8, 0x9e,
+        0xfc, 0x6b, 0x55, 0x1f, 0x46, 0x67, 0xd9, 0x83
+    };
+    const byte t256_128[] =
+    {
+        0x28, 0xa7, 0x02, 0x3f, 0x45, 0x2e, 0x8f, 0x82,
+        0xbd, 0x4b, 0xf2, 0x8d, 0x8c, 0x37, 0xc3, 0x5c
+    };
+    const byte t256_320[] =
+    {
+        0xaa, 0xf3, 0xd8, 0xf1, 0xde, 0x56, 0x40, 0xc2,
+        0x32, 0xf5, 0xb1, 0x69, 0xb9, 0xc9, 0x11, 0xe6
+    };
+    const byte t256_512[] =
+    {
+        0xe1, 0x99, 0x21, 0x90, 0x54, 0x9f, 0x6e, 0xd5,
+        0x69, 0x6a, 0x2c, 0x05, 0x6c, 0x31, 0x54, 0x10
+    };
+
+    const CMAC_Test_Case testCases[] =
+    {
+        {WC_CMAC_AES, 0, m, MLEN_0, k128, KLEN_128, t128_0, AES_BLOCK_SIZE},
+        {WC_CMAC_AES, 0, m, MLEN_128, k128, KLEN_128, t128_128, AES_BLOCK_SIZE},
+        {WC_CMAC_AES, 0, m, MLEN_320, k128, KLEN_128, t128_320, AES_BLOCK_SIZE},
+        {WC_CMAC_AES, 0, m, MLEN_512, k128, KLEN_128, t128_512, AES_BLOCK_SIZE},
+        {WC_CMAC_AES, 5, m, MLEN_512, k128, KLEN_128, t128_512, AES_BLOCK_SIZE},
+        {WC_CMAC_AES, 0, m, MLEN_0, k192, KLEN_192, t192_0, AES_BLOCK_SIZE},
+        {WC_CMAC_AES, 0, m, MLEN_128, k192, KLEN_192, t192_128, AES_BLOCK_SIZE},
+        {WC_CMAC_AES, 0, m, MLEN_320, k192, KLEN_192, t192_320, AES_BLOCK_SIZE},
+        {WC_CMAC_AES, 0, m, MLEN_512, k192, KLEN_192, t192_512, AES_BLOCK_SIZE},
+        {WC_CMAC_AES, 0, m, MLEN_0, k256, KLEN_256, t256_0, AES_BLOCK_SIZE},
+        {WC_CMAC_AES, 0, m, MLEN_128, k256, KLEN_256, t256_128, AES_BLOCK_SIZE},
+        {WC_CMAC_AES, 0, m, MLEN_320, k256, KLEN_256, t256_320, AES_BLOCK_SIZE},
+        {WC_CMAC_AES, 0, m, MLEN_512, k256, KLEN_256, t256_512, AES_BLOCK_SIZE},
+        {WC_CMAC_AES, 0, m, MLEN_319, k128, KLEN_128, t128_319, AES_BLOCK_SIZE}
+    };
+
+    Cmac cmac;
+    byte tag[AES_BLOCK_SIZE];
+    const CMAC_Test_Case* tc;
+    word32 i, tagSz;
+
+    for (i = 0, tc = testCases;
+         i < sizeof(testCases)/sizeof(CMAC_Test_Case);
+         i++, tc++) {
+
+        XMEMSET(tag, 0, sizeof(tag));
+        tagSz = AES_BLOCK_SIZE;
+        if (wc_InitCmac(&cmac, tc->k, tc->kSz, tc->type, NULL) != 0)
+            return -4033;
+        if (tc->partial) {
+            if (wc_CmacUpdate(&cmac, tc->m,
+                                 tc->mSz/2 - tc->partial) != 0)
+                return -4034;
+            if (wc_CmacUpdate(&cmac, tc->m + tc->mSz/2 - tc->partial,
+                                 tc->mSz/2 + tc->partial) != 0)
+                return -4035;
+        }
+        else {
+            if (wc_CmacUpdate(&cmac, tc->m, tc->mSz) != 0)
+                return -4034;
+        }
+        if (wc_CmacFinal(&cmac, tag, &tagSz) != 0)
+            return -4036;
+        if (XMEMCMP(tag, tc->t, AES_BLOCK_SIZE) != 0)
+            return -4037;
+
+        XMEMSET(tag, 0, sizeof(tag));
+        tagSz = sizeof(tag);
+        if (wc_AesCmacGenerate(tag, &tagSz, tc->m, tc->mSz,
+                               tc->k, tc->kSz) != 0)
+            return -4038;
+        if (XMEMCMP(tag, tc->t, AES_BLOCK_SIZE) != 0)
+            return -4039;
+        if (wc_AesCmacVerify(tc->t, tc->tSz, tc->m, tc->mSz,
+                             tc->k, tc->kSz) != 0)
+            return -4040;
+    }
+
+    return 0;
+}
+
+#endif /* NO_AES && WOLFSSL_CMAC */
+
 #ifdef HAVE_LIBZ
 
 const byte sample_text[] =
@@ -8510,8 +8776,12 @@ int compress_test(void)
     byte *c = NULL;
     byte *d = NULL;
 
-    c = calloc(cSz, sizeof(byte));
-    d = calloc(dSz, sizeof(byte));
+    c = TEST_XMALLOC(cSz * sizeof(byte), HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    d = TEST_XMALLOC(dSz * sizeof(byte), HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+
+    /* follow calloc and initialize to 0 */
+    XMEMSET(c, 0, cSz);
+    XMEMSET(d, 0, dSz);
 
     if (c == NULL || d == NULL)
         ret = -300;
@@ -8530,8 +8800,8 @@ int compress_test(void)
     if (ret == 0 && memcmp(d, sample_text, dSz))
         ret = -303;
 
-    if (c) free(c);
-    if (d) free(d);
+    if (c) TEST_XFREE(c, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    if (d) TEST_XFREE(d, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
 
     return ret;
 }
@@ -8565,20 +8835,20 @@ int pkcs7enveloped_test(void)
     };
 
     /* read client cert and key in DER format */
-    cert = (byte*)malloc(FOURK_BUF);
+    cert = (byte*)TEST_XMALLOC(FOURK_BUF, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     if (cert == NULL)
         return -201;
 
-    privKey = (byte*)malloc(FOURK_BUF);
+    privKey =(byte*)TEST_XMALLOC(FOURK_BUF, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     if (privKey == NULL) {
-        free(cert);
+        TEST_XFREE(cert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
         return -202;
     }
 
     certFile = fopen(clientCert, "rb");
     if (!certFile) {
-        free(cert);
-        free(privKey);
+        TEST_XFREE(cert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        TEST_XFREE(privKey, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
         err_sys("can't open ./certs/client-cert.der, "
                 "Please run from wolfSSL home dir", -42);
         return -42;
@@ -8589,8 +8859,8 @@ int pkcs7enveloped_test(void)
 
     keyFile = fopen(clientKey, "rb");
     if (!keyFile) {
-        free(cert);
-        free(privKey);
+        TEST_XFREE(cert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        TEST_XFREE(privKey, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
         err_sys("can't open ./certs/client-key.der, "
                 "Please run from wolfSSL home dir", -43);
         return -43;
@@ -8611,8 +8881,8 @@ int pkcs7enveloped_test(void)
     envelopedSz = wc_PKCS7_EncodeEnvelopedData(&pkcs7, enveloped,
                                             sizeof(enveloped));
     if (envelopedSz <= 0) {
-        free(cert);
-        free(privKey);
+        TEST_XFREE(cert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        TEST_XFREE(privKey, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
         return -203;
     }
 
@@ -8620,31 +8890,31 @@ int pkcs7enveloped_test(void)
     decodedSz = wc_PKCS7_DecodeEnvelopedData(&pkcs7, enveloped, envelopedSz,
                                           decoded, sizeof(decoded));
     if (decodedSz <= 0) {
-        free(cert);
-        free(privKey);
+        TEST_XFREE(cert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        TEST_XFREE(privKey, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
         return -204;
     }
 
     /* test decode result */
     if (memcmp(decoded, data, sizeof(data)) != 0) {
-        free(cert);
-        free(privKey);
+        TEST_XFREE(cert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        TEST_XFREE(privKey, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
         return -205;
     }
 
     /* output pkcs7 envelopedData for external testing */
     pkcs7File = fopen(pkcs7OutFile, "wb");
     if (!pkcs7File) {
-        free(cert);
-        free(privKey);
+        TEST_XFREE(cert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        TEST_XFREE(privKey, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
         return -206;
     }
 
     ret = (int)fwrite(enveloped, envelopedSz, 1, pkcs7File);
     fclose(pkcs7File);
 
-    free(cert);
-    free(privKey);
+    TEST_XFREE(cert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    TEST_XFREE(privKey, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     wc_PKCS7_Free(&pkcs7);
 
     if (ret > 0)
@@ -8692,27 +8962,27 @@ int pkcs7signed_test(void)
     dataSz = (word32) strlen(data);
     outSz = FOURK_BUF;
 
-    certDer = (byte*)malloc(FOURK_BUF);
+    certDer =(byte*)TEST_XMALLOC(FOURK_BUF, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     if (certDer == NULL)
         return -207;
-    keyDer = (byte*)malloc(FOURK_BUF);
+    keyDer = (byte*)TEST_XMALLOC(FOURK_BUF, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     if (keyDer == NULL) {
-        free(certDer);
+        TEST_XFREE(certDer, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
         return -208;
     }
-    out = (byte*)malloc(FOURK_BUF);
+    out = (byte*)TEST_XMALLOC(FOURK_BUF, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     if (out == NULL) {
-        free(certDer);
-        free(keyDer);
+        TEST_XFREE(certDer, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        TEST_XFREE(keyDer, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
         return -209;
     }
 
     /* read in DER cert of recipient, into cert of size certSz */
     file = fopen(clientCert, "rb");
     if (!file) {
-        free(certDer);
-        free(keyDer);
-        free(out);
+        TEST_XFREE(certDer, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        TEST_XFREE(keyDer, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        TEST_XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
         err_sys("can't open ./certs/client-cert.der, "
                 "Please run from wolfSSL home dir", -44);
         return -44;
@@ -8722,9 +8992,9 @@ int pkcs7signed_test(void)
 
     file = fopen(clientKey, "rb");
     if (!file) {
-        free(certDer);
-        free(keyDer);
-        free(out);
+        TEST_XFREE(certDer, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        TEST_XFREE(keyDer, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        TEST_XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
         err_sys("can't open ./certs/client-key.der, "
                 "Please run from wolfSSL home dir", -45);
         return -45;
@@ -8734,9 +9004,9 @@ int pkcs7signed_test(void)
 
     ret = wc_InitRng(&rng);
     if (ret != 0) {
-        free(certDer);
-        free(keyDer);
-        free(out);
+        TEST_XFREE(certDer, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        TEST_XFREE(keyDer, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        TEST_XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
         return -210;
     }
 
@@ -8745,9 +9015,9 @@ int pkcs7signed_test(void)
 
     ret = wc_RNG_GenerateBlock(&rng, &senderNonce[2], PKCS7_NONCE_SZ);
     if (ret != 0) {
-        free(certDer);
-        free(keyDer);
-        free(out);
+        TEST_XFREE(certDer, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        TEST_XFREE(keyDer, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        TEST_XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
         return -211;
     }
 
@@ -8771,9 +9041,9 @@ int pkcs7signed_test(void)
 
         ret = wc_InitSha(&sha);
         if (ret != 0) {
-            free(certDer);
-            free(keyDer);
-            free(out);
+            TEST_XFREE(certDer, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(keyDer, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            TEST_XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             return -4003;
         }
         wc_ShaUpdate(&sha, msg.publicKey, msg.publicKeySz);
@@ -8785,9 +9055,9 @@ int pkcs7signed_test(void)
     }
     ret = wc_PKCS7_EncodeSignedData(&msg, out, outSz);
     if (ret < 0) {
-        free(certDer);
-        free(keyDer);
-        free(out);
+        TEST_XFREE(certDer, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        TEST_XFREE(keyDer, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        TEST_XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
         wc_PKCS7_Free(&msg);
         return -212;
     }
@@ -8797,18 +9067,18 @@ int pkcs7signed_test(void)
     /* write PKCS#7 to output file for more testing */
     file = fopen("./pkcs7signedData.der", "wb");
     if (!file) {
-        free(certDer);
-        free(keyDer);
-        free(out);
+        TEST_XFREE(certDer, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        TEST_XFREE(keyDer, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        TEST_XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
         wc_PKCS7_Free(&msg);
         return -213;
     }
     ret = (int)fwrite(out, 1, outSz, file);
     fclose(file);
     if (ret != (int)outSz) {
-        free(certDer);
-        free(keyDer);
-        free(out);
+        TEST_XFREE(certDer, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        TEST_XFREE(keyDer, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        TEST_XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
         wc_PKCS7_Free(&msg);
         return -218;
     }
@@ -8818,35 +9088,35 @@ int pkcs7signed_test(void)
 
     ret = wc_PKCS7_VerifySignedData(&msg, out, outSz);
     if (ret < 0) {
-        free(certDer);
-        free(keyDer);
-        free(out);
+        TEST_XFREE(certDer, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        TEST_XFREE(keyDer, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        TEST_XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
         wc_PKCS7_Free(&msg);
         return -214;
     }
 
     if (msg.singleCert == NULL || msg.singleCertSz == 0) {
-        free(certDer);
-        free(keyDer);
-        free(out);
+        TEST_XFREE(certDer, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        TEST_XFREE(keyDer, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        TEST_XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
         wc_PKCS7_Free(&msg);
         return -215;
     }
 
     file = fopen("./pkcs7cert.der", "wb");
     if (!file) {
-        free(certDer);
-        free(keyDer);
-        free(out);
+        TEST_XFREE(certDer, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        TEST_XFREE(keyDer, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        TEST_XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
         wc_PKCS7_Free(&msg);
         return -216;
     }
     ret = (int)fwrite(msg.singleCert, 1, msg.singleCertSz, file);
     fclose(file);
 
-    free(certDer);
-    free(keyDer);
-    free(out);
+    TEST_XFREE(certDer, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    TEST_XFREE(keyDer, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    TEST_XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     wc_PKCS7_Free(&msg);
 
     wc_FreeRng(&rng);
@@ -8858,6 +9128,9 @@ int pkcs7signed_test(void)
 }
 
 #endif /* HAVE_PKCS7 */
+
+#undef ERROR_OUT
+
 #else
     #ifndef NO_MAIN_DRIVER
         int main() { return 0; }

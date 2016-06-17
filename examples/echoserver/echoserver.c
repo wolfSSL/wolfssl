@@ -114,11 +114,9 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
     doPSK = 1;
 #endif
 
-#if defined(USE_WINDOWS_API)
-    /* Generate random port for testing */
-    port = GetRandomPort();
-#elif defined(NO_MAIN_DRIVER) && !defined(CYASSL_SNIFFER) && \
-     !defined(WOLFSSL_MDK_SHELL) && !defined(CYASSL_TIRTOS)
+#if defined(NO_MAIN_DRIVER) && !defined(CYASSL_SNIFFER) && \
+     !defined(WOLFSSL_MDK_SHELL) && !defined(CYASSL_TIRTOS) && \
+     !defined(USE_WINDOWS_API)
     /* Let tcp_listen assign port */
     port = 0;
 #else

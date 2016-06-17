@@ -626,6 +626,13 @@ int wc_HmacInitCavium(Hmac* hmac, int devId)
 
     hmac->innerHashKeyed = 0;
 
+    /* default to NULL heap hint or test value */
+#ifdef WOLFSSL_HEAP_TEST
+    hmac->heap = (void)WOLFSSL_HEAP_TEST;
+#else
+    hmac->heap = NULL;
+#endif
+
     return 0;
 }
 
@@ -681,7 +688,7 @@ static int HmacCaviumUpdate(Hmac* hmac, const byte* msg, word32 length)
         return -1;
     }
 
-    tmp = XMALLOC(hmac->dataLen + add, NULL,DYNAMIC_TYPE_CAVIUM_TMP);
+    tmp = XMALLOC(hmac->dataLen + add, hmac->heap ,DYNAMIC_TYPE_CAVIUM_TMP);
     if (tmp == NULL) {
         WOLFSSL_MSG("Out of memory for cavium update");
         return -1;
@@ -691,7 +698,7 @@ static int HmacCaviumUpdate(Hmac* hmac, const byte* msg, word32 length)
     XMEMCPY(tmp + hmac->dataLen, msg, add);
 
     hmac->dataLen += add;
-    XFREE(hmac->data, NULL, DYNAMIC_TYPE_CAVIUM_TMP);
+    XFREE(hmac->data, hmac->heap, DYNAMIC_TYPE_CAVIUM_TMP);
     hmac->data = tmp;
 
     return 0;

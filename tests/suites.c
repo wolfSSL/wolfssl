@@ -469,6 +469,10 @@ int SuiteTest(void)
     args.argv = myArgv;
     strcpy(argv0[0], "SuiteTest");
 
+#ifdef WOLFSSL_STATIC_MEMORY
+    byte memory[200000];
+#endif
+
     (void)test_harness;
 
     cipherSuiteCtx = wolfSSL_CTX_new(wolfTLSv1_2_client_method());
@@ -476,6 +480,16 @@ int SuiteTest(void)
         printf("can't get cipher suite ctx\n");
         exit(EXIT_FAILURE);
     }
+
+    /* load in static memory buffer if enabled */
+#ifdef WOLFSSL_STATIC_MEMORY
+    if (wolfSSL_CTX_load_static_memory(&cipherSuiteCtx, NULL,
+                                                   memory, sizeof(memory), 0, 1)
+            != SSL_SUCCESS) {
+        printf("unable to load static memory and create ctx");
+        exit(EXIT_FAILURE);
+    }
+#endif
 
     /* default case */
     args.argc = 1;

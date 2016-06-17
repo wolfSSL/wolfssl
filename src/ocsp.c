@@ -71,7 +71,7 @@ static int InitOcspEntry(OcspEntry* entry, OcspRequest* request)
 }
 
 
-static void FreeOcspEntry(OcspEntry* entry)
+static void FreeOcspEntry(OcspEntry* entry, void* heap)
 {
     CertStatus *status, *next;
 
@@ -81,10 +81,12 @@ static void FreeOcspEntry(OcspEntry* entry)
         next = status->next;
 
         if (status->rawOcspResponse)
-            XFREE(status->rawOcspResponse, NULL, DYNAMIC_TYPE_OCSP_STATUS);
+            XFREE(status->rawOcspResponse, heap, DYNAMIC_TYPE_OCSP_STATUS);
 
-        XFREE(status, NULL, DYNAMIC_TYPE_OCSP_STATUS);
+        XFREE(status, heap, DYNAMIC_TYPE_OCSP_STATUS);
     }
+
+    (void)heap;
 }
 
 
@@ -96,14 +98,15 @@ void FreeOCSP(WOLFSSL_OCSP* ocsp, int dynamic)
 
     for (entry = ocsp->ocspList; entry; entry = next) {
         next = entry->next;
-        FreeOcspEntry(entry);
-        XFREE(entry, NULL, DYNAMIC_TYPE_OCSP_ENTRY);
+        FreeOcspEntry(entry, ocsp->cm->heap);
+        XFREE(entry, ocsp->cm->heap, DYNAMIC_TYPE_OCSP_ENTRY);
     }
 
     FreeMutex(&ocsp->ocspLock);
 
     if (dynamic)
-        XFREE(ocsp, NULL, DYNAMIC_TYPE_OCSP);
+        XFREE(ocsp, ocsp->cm->heap, DYNAMIC_TYPE_OCSP);
+
 }
 
 
@@ -142,7 +145,8 @@ int CheckCertOCSP(WOLFSSL_OCSP* ocsp, DecodedCert* cert, buffer* responseBuffer)
     }
 #endif
 
-    if (InitOcspRequest(ocspRequest, cert, ocsp->cm->ocspSendNonce) == 0) {
+    if (InitOcspRequest(ocspRequest, cert, ocsp->cm->ocspSendNonce,
+                                                         ocsp->cm->heap) == 0) {
         ret = CheckOcspRequest(ocsp, ocspRequest, responseBuffer);
 
         FreeOcspRequest(ocspRequest);
@@ -177,7 +181,7 @@ static int GetOcspEntry(WOLFSSL_OCSP* ocsp, OcspRequest* request,
 
     if (*entry == NULL) {
         *entry = (OcspEntry*)XMALLOC(sizeof(OcspEntry),
-                                                 NULL, DYNAMIC_TYPE_OCSP_ENTRY);
+                                       ocsp->cm->heap, DYNAMIC_TYPE_OCSP_ENTRY);
         if (*entry) {
             InitOcspEntry(*entry, request);
             (*entry)->next = ocsp->ocspList;
@@ -291,7 +295,7 @@ int CheckOcspRequest(WOLFSSL_OCSP* ocsp, OcspRequest* ocspRequest,
         return 0;
     }
 
-    request = (byte*)XMALLOC(requestSz, NULL, DYNAMIC_TYPE_OCSP);
+    request = (byte*)XMALLOC(requestSz, ocsp->cm->heap, DYNAMIC_TYPE_OCSP);
     if (request == NULL) {
         WOLFSSL_LEAVE("CheckCertOCSP", MEMORY_ERROR);
         return MEMORY_ERROR;
@@ -324,14 +328,14 @@ int CheckOcspRequest(WOLFSSL_OCSP* ocsp, OcspRequest* ocspRequest,
         XMEMSET(newStatus, 0, sizeof(CertStatus));
 
         InitOcspResponse(ocspResponse, newStatus, response, ret);
-        OcspResponseDecode(ocspResponse, ocsp->cm);
+        OcspResponseDecode(ocspResponse, ocsp->cm, ocsp->cm->heap);
 
         if (ocspResponse->responseStatus != OCSP_SUCCESSFUL)
             ret = OCSP_LOOKUP_FAIL;
         else {
             if (CompareOcspReqResp(ocspRequest, ocspResponse) == 0) {
                 if (responseBuffer) {
-                    responseBuffer->buffer = (byte*)XMALLOC(ret, NULL,
+                    responseBuffer->buffer = (byte*)XMALLOC(ret, ocsp->cm->heap,
                                                        DYNAMIC_TYPE_TMP_BUFFER);
 
                     if (responseBuffer->buffer) {
@@ -347,7 +351,7 @@ int CheckOcspRequest(WOLFSSL_OCSP* ocsp, OcspRequest* ocspRequest,
                 else {
                     if (status != NULL) {
                         if (status->rawOcspResponse)
-                            XFREE(status->rawOcspResponse, NULL,
+                            XFREE(status->rawOcspResponse, ocsp->cm->heap,
                                                       DYNAMIC_TYPE_OCSP_STATUS);
 
                         /* Replace existing certificate entry with updated */
@@ -356,7 +360,7 @@ int CheckOcspRequest(WOLFSSL_OCSP* ocsp, OcspRequest* ocspRequest,
                     else {
                         /* Save new certificate entry */
                         status = (CertStatus*)XMALLOC(sizeof(CertStatus),
-                                          NULL, DYNAMIC_TYPE_OCSP_STATUS);
+                                      ocsp->cm->heap, DYNAMIC_TYPE_OCSP_STATUS);
                         if (status != NULL) {
                             XMEMCPY(status, newStatus, sizeof(CertStatus));
                             status->next  = entry->status;
@@ -367,7 +371,8 @@ int CheckOcspRequest(WOLFSSL_OCSP* ocsp, OcspRequest* ocspRequest,
 
                     if (status && responseBuffer && responseBuffer->buffer) {
                         status->rawOcspResponse = (byte*)XMALLOC(
-                                                   responseBuffer->length, NULL,
+                                                   responseBuffer->length,
+                                                   ocsp->cm->heap,
                                                    DYNAMIC_TYPE_OCSP_STATUS);
 
                         if (status->rawOcspResponse) {

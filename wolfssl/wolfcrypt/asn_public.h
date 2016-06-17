@@ -153,6 +153,7 @@ typedef struct Cert {
 #ifdef WOLFSSL_CERT_REQ
     char     challengePw[CTC_NAME_SIZE];
 #endif
+    void*   heap; /* heap hint */
 } Cert;
 #endif /* WOLFSSL_CERT_GEN */
 
@@ -216,12 +217,6 @@ WOLFSSL_API int wc_SetSubjectKeyIdFromNtruPublicKey(Cert *cert, byte *ntruKey,
  */
 WOLFSSL_API int wc_SetKeyUsage(Cert *cert, const char *value);
 
-/* encode Certificate Policies, return total bytes written
- * each input value must be ITU-T X.690 formatted : a.b.c...
- * input must be an array of values with a NULL terminated for the latest
- * RFC5280 : non-critical */
-WOLFSSL_API int wc_SetCertificatePolicies(Cert *cert, const char **input);
-
 #endif /* WOLFSSL_CERT_EXT */
 
     #ifdef HAVE_NTRU
@@ -273,6 +268,15 @@ WOLFSSL_API int wc_SetCertificatePolicies(Cert *cert, const char **input);
 WOLFSSL_API word32 wc_EncodeSignature(byte* out, const byte* digest,
                                       word32 digSz, int hashOID);
 WOLFSSL_API int wc_GetCTC_HashOID(int type);
+
+/* Time */
+/* Returns seconds (Epoch/UTC)
+ * timePtr: is "time_t", which is typically "long"
+ * Example:
+    long lTime;
+    rc = wc_GetTime(&lTime, (word32)sizeof(lTime));
+*/
+WOLFSSL_API int wc_GetTime(void* timePtr, word32 timeSize);
 
 #ifdef __cplusplus
     } /* extern "C" */

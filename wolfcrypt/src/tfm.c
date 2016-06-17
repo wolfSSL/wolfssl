@@ -104,7 +104,7 @@ void fp_add(fp_int *a, fp_int *b, fp_int *c)
 void s_fp_add(fp_int *a, fp_int *b, fp_int *c)
 {
   int      x, y, oldused;
-  register fp_word  t;
+  fp_word  t;
 
   y       = MAX(a->used, b->used);
   oldused = MIN(c->used, FP_SIZE);   /* help static analysis w/ largest size */
@@ -323,7 +323,7 @@ void fp_mul_2(fp_int * a, fp_int * b)
   b->used = a->used;
 
   {
-    register fp_digit r, rr, *tmpa, *tmpb;
+    fp_digit r, rr, *tmpa, *tmpb;
 
     /* alias for source */
     tmpa = a->dp;
@@ -498,8 +498,9 @@ void fp_mul_comba(fp_int *A, fp_int *B, fp_int *C)
       /* execute loop */
       COMBA_FORWARD;
       for (iz = 0; iz < iy; ++iz) {
-          /* TAO change COMBA_ADD back to MULADD */
-          MULADD(*tmpx++, *tmpy--);
+          fp_digit _tmpx = *tmpx++;
+          fp_digit _tmpy = *tmpy--;
+          MULADD(_tmpx, _tmpy);
       }
 
       /* store term */
@@ -662,7 +663,7 @@ void fp_div_2(fp_int * a, fp_int * b)
   oldused = b->used;
   b->used = a->used;
   {
-    register fp_digit r, rr, *tmpa, *tmpb;
+    fp_digit r, rr, *tmpa, *tmpb;
 
     /* source alias */
     tmpa = a->dp + b->used - 1;
@@ -983,10 +984,55 @@ top:
 /* d = a * b (mod c) */
 int fp_mulmod(fp_int *a, fp_int *b, fp_int *c, fp_int *d)
 {
-  fp_int tmp;
-  fp_init(&tmp);
-  fp_mul(a, b, &tmp);
-  return fp_mod(&tmp, c, d);
+  int err;
+  fp_int t;
+
+  fp_init(&t);
+  fp_mul(a, b, &t);
+#ifdef ALT_ECC_SIZE
+  err = fp_mod(&t, c, &t);
+  fp_copy(&t, d);
+#else
+  err = fp_mod(&t, c, d);
+#endif
+
+  return err;
+}
+
+/* d = a - b (mod c) */
+int fp_submod(fp_int *a, fp_int *b, fp_int *c, fp_int *d)
+{
+  int err;
+  fp_int t;
+
+  fp_init(&t);
+  fp_sub(a, b, &t);
+#ifdef ALT_ECC_SIZE
+  err = fp_mod(&t, c, &t);
+  fp_copy(&t, d);
+#else
+  err = fp_mod(&t, c, d);
+#endif
+
+  return err;
+}
+
+/* d = a + b (mod c) */
+int fp_addmod(fp_int *a, fp_int *b, fp_int *c, fp_int *d)
+{
+  int err;
+  fp_int t;
+
+  fp_init(&t);
+  fp_add(a, b, &t);
+#ifdef ALT_ECC_SIZE
+  err = fp_mod(&t, c, &t);
+  fp_copy(&t, d);
+#else
+  err = fp_mod(&t, c, d);
+#endif
+
+  return err;
 }
 
 #ifdef TFM_TIMING_RESISTANT
@@ -1056,7 +1102,7 @@ static int _fp_exptmod(fp_int * G, fp_int * X, fp_int * P, fp_int * Y)
    return FP_OKAY;
 }
 
-#else
+#else /* TFM_TIMING_RESISTANT */
 
 /* y = g**x (mod b)
  * Some restrictions... x must be positive and < b
@@ -1750,13 +1796,13 @@ void fp_montgomery_reduce(fp_int *a, fp_int *m, fp_digit mp)
        _c   = c + x;
        tmpm = m->dp;
        y = 0;
-       #if (defined(TFM_SSE2) || defined(TFM_X86_64))
+#if defined(INNERMUL8)
         for (; y < (pa & ~7); y += 8) {
               INNERMUL8 ;
               _c   += 8;
               tmpm += 8;
            }
-       #endif
+#endif
        for (; y < pa; y++) {
           INNERMUL;
           ++_c;
@@ -1791,7 +1837,7 @@ void fp_montgomery_reduce(fp_int *a, fp_int *m, fp_digit mp)
   }
 }
 
-void fp_read_unsigned_bin(fp_int *a, unsigned char *b, int c)
+void fp_read_unsigned_bin(fp_int *a, const unsigned char *b, int c)
 {
   /* zero the int */
   fp_zero (a);
@@ -1978,7 +2024,7 @@ void fp_lshd(fp_int *a, int x)
 /* right shift by bit count */
 void fp_rshb(fp_int *c, int x)
 {
-    register fp_digit *tmpc, mask, shift;
+    fp_digit *tmpc, mask, shift;
     fp_digit r, rr;
     fp_digit D = x;
 
@@ -2057,6 +2103,7 @@ void fp_sub_d(fp_int *a, fp_digit b, fp_int *c)
    fp_init(&tmp);
    fp_set(&tmp, b);
    fp_sub(a, &tmp, c);
+   fp_clear(&tmp);
 }
 
 
@@ -2146,6 +2193,18 @@ int mp_mulmod (mp_int * a, mp_int * b, mp_int * c, mp_int * d)
   return fp_mulmod(a, b, c, d);
 }
 
+/* d = a - b (mod c) */
+int mp_submod(mp_int *a, mp_int *b, mp_int *c, mp_int *d)
+{
+  return fp_submod(a, b, c, d);
+}
+
+/* d = a + b (mod c) */
+int mp_addmod(mp_int *a, mp_int *b, mp_int *c, mp_int *d)
+{
+  return fp_addmod(a, b, c, d);
+}
+
 /* c = a mod b, 0 <= c < b */
 int mp_mod (mp_int * a, mp_int * b, mp_int * c)
 {
@@ -2196,7 +2255,7 @@ int mp_to_unsigned_bin (mp_int * a, unsigned char *b)
 /* reads a unsigned char array, assumes the msb is stored first [big endian] */
 int mp_read_unsigned_bin (mp_int * a, const unsigned char *b, int c)
 {
-  fp_read_unsigned_bin(a, (unsigned char *)b, c);
+  fp_read_unsigned_bin(a, b, c);
   return MP_OKAY;
 }
 
@@ -2263,6 +2322,10 @@ int mp_iszero(mp_int* a)
     return fp_iszero(a);
 }
 
+int mp_isneg(mp_int* a)
+{
+    return fp_isneg(a);
+}
 
 int mp_count_bits (mp_int* a)
 {
@@ -2778,7 +2841,7 @@ void fp_add_d(fp_int *a, fp_digit b, fp_int *c)
    fp_int tmp;
    fp_init(&tmp);
    fp_set(&tmp, b);
-   fp_add(a,&tmp,c);
+   fp_add(a, &tmp, c);
 }
 
 /* external compatibility */
@@ -2804,6 +2867,9 @@ static int fp_read_radix(fp_int *a, const char *str, int radix)
   int     y, neg;
   char    ch;
 
+  /* set the integer to the default of zero */
+  fp_zero (a);
+
   /* make sure the radix is ok */
   if (radix < 2 || radix > 64) {
     return FP_VAL;
@@ -2819,16 +2885,13 @@ static int fp_read_radix(fp_int *a, const char *str, int radix)
     neg = FP_ZPOS;
   }
 
-  /* set the integer to the default of zero */
-  fp_zero (a);
-
   /* process each digit of the string */
   while (*str) {
-    /* if the radix < 36 the conversion is case insensitive
+    /* if the radix <= 36 the conversion is case insensitive
      * this allows numbers like 1AB and 1ab to represent the same  value
      * [e.g. in hex]
      */
-    ch = (char) ((radix < 36) ? XTOUPPER((unsigned char)*str) : *str);
+    ch = (char)((radix <= 36) ? XTOUPPER((unsigned char)*str) : *str);
     for (y = 0; y < 64; y++) {
       if (ch == fp_s_rmap[y]) {
          break;

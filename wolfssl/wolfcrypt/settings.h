@@ -560,6 +560,8 @@ static char *fgets(char *buff, int sz, FILE *fp)
     #define HAVE_ALPN
     #define HAVE_TLS_EXTENSIONS
     #define HAVE_AESGCM
+    #define HAVE_SUPPORTED_CURVES
+    #define ALT_ECC_SIZE
 
     #ifdef __IAR_SYSTEMS_ICC__
         #pragma diag_suppress=Pa089
@@ -1244,6 +1246,15 @@ static char *fgets(char *buff, int sz, FILE *fp)
     #endif
 #endif /* WOLFSSL_LEANTLS*/
 
+/* restriction with static memory */
+#ifdef WOLFSSL_STATIC_MEMORY
+    #ifndef USE_FAST_MATH
+        #error static memory requires fast math please define USE_FAST_MATH
+    #endif
+    #ifdef WOLFSSL_SMALL_STACK
+        #error static memory does not support small stack please undefine
+    #endif
+#endif /* WOLFSSL_STATIC_MEMORY */
 /* Place any other flags or defines here */
 
 

@@ -288,10 +288,31 @@ static INLINE int DoKey(HC128* ctx, const byte* key, const byte* iv)
 }
 
 
+int wc_Hc128_SetHeap(HC128* ctx, void* heap)
+{
+    if (ctx == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+#ifdef XSTREAM_ALIGN
+    ctx->heap = heap;
+#endif
+
+    (void)heap;
+    return 0;
+}
+
 /* Key setup */
 int wc_Hc128_SetKey(HC128* ctx, const byte* key, const byte* iv)
 {
 #ifdef XSTREAM_ALIGN
+    /* default heap to NULL or heap test value */
+    #ifdef WOLFSSL_HEAP_TEST
+        ctx->heap = (void*)WOLFSSL_HEAP_TEST;
+    #else
+        ctx->heap = NULL;
+    #endif /* WOLFSSL_HEAP_TEST */
+
     if ((wolfssl_word)key % 4) {
         int alignKey[4];
 
@@ -369,14 +390,14 @@ int wc_Hc128_Process(HC128* ctx, byte* output, const byte* input, word32 msglen)
             byte* tmp;
             WOLFSSL_MSG("Hc128Process unaligned");
 
-            tmp = (byte*)XMALLOC(msglen, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            tmp = (byte*)XMALLOC(msglen, ctx->heap, DYNAMIC_TYPE_TMP_BUFFER);
             if (tmp == NULL) return MEMORY_E;
 
             XMEMCPY(tmp, input, msglen);
             DoProcess(ctx, tmp, tmp, msglen);
             XMEMCPY(output, tmp, msglen);
 
-            XFREE(tmp, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(tmp, ctx->heap, DYNAMIC_TYPE_TMP_BUFFER);
 
             return 0;
         #else

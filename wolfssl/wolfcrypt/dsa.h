@@ -52,10 +52,12 @@ enum {
 /* DSA */
 typedef struct DsaKey {
     mp_int p, q, g, y, x;
-    int type;                               /* public or private */
+    int   type;                               /* public or private */
+    void* heap;                               /* memory hint */
 } DsaKey;
 
 WOLFSSL_API void wc_InitDsaKey(DsaKey* key);
+WOLFSSL_API int  wc_InitDsaKey_h(DsaKey* key, void* h);
 WOLFSSL_API void wc_FreeDsaKey(DsaKey* key);
 WOLFSSL_API int wc_DsaSign(const byte* digest, byte* out,
                            DsaKey* key, WC_RNG* rng);

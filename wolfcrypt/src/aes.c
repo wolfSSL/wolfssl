@@ -1231,7 +1231,7 @@ static void wc_AesEncrypt(Aes* aes, const byte* inBlock, byte* outBlock)
         /* check alignment, decrypt doesn't need alignment */
         if ((wolfssl_word)inBlock % 16) {
         #ifndef NO_WOLFSSL_ALLOC_ALIGN
-            byte* tmp = (byte*)XMALLOC(AES_BLOCK_SIZE, NULL,
+            byte* tmp = (byte*)XMALLOC(AES_BLOCK_SIZE, aes->heap,
                                                       DYNAMIC_TYPE_TMP_BUFFER);
             if (tmp == NULL) return;
 
@@ -1239,7 +1239,7 @@ static void wc_AesEncrypt(Aes* aes, const byte* inBlock, byte* outBlock)
             AES_ECB_encrypt(tmp, tmp, AES_BLOCK_SIZE, (byte*)aes->key,
                             aes->rounds);
             XMEMCPY(outBlock, tmp, AES_BLOCK_SIZE);
-            XFREE(tmp, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(tmp, aes->heap, DYNAMIC_TYPE_TMP_BUFFER);
             return;
         #else
             WOLFSSL_MSG("AES-ECB encrypt with bad alignment");
@@ -1924,6 +1924,18 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
 }
 
 
+/* set the heap hint for aes struct */
+int wc_InitAes_h(Aes* aes, void* h)
+{
+    if (aes == NULL)
+        return BAD_FUNC_ARG;
+
+    aes->heap = h;
+
+    return 0;
+}
+
+
 
 
 /* AES-DIRECT */
@@ -2498,7 +2510,7 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
             /* check alignment, decrypt doesn't need alignment */
             if ((wolfssl_word)in % 16) {
             #ifndef NO_WOLFSSL_ALLOC_ALIGN
-                byte* tmp = (byte*)XMALLOC(sz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                byte* tmp = (byte*)XMALLOC(sz, aes->heap, DYNAMIC_TYPE_TMP_BUFFER);
                 WOLFSSL_MSG("AES-CBC encrypt with bad alignment");
                 if (tmp == NULL) return MEMORY_E;
 
@@ -2509,7 +2521,7 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
                 XMEMCPY(aes->reg, tmp + sz - AES_BLOCK_SIZE, AES_BLOCK_SIZE);
 
                 XMEMCPY(out, tmp, sz);
-                XFREE(tmp, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                XFREE(tmp, aes->heap, DYNAMIC_TYPE_TMP_BUFFER);
                 return 0;
             #else
                 return BAD_ALIGN_E;

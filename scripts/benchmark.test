@@ -52,7 +52,7 @@ trap do_trap INT TERM
 echo "\nStarting example server for benchmark test"
 remove_ready_file
 # benchmark connections
-if [ $1 == 1 ]
+if [ $1 -eq 1 ]
 then
     # start server in loop mode with port
     ./examples/server/server -i -p $bench_port $4 &
@@ -60,7 +60,7 @@ then
 fi
 
 # benchmark throughput
-if [ $1 == 2 ]
+if [ $1 -eq 2 ]
 then
     # start server in loop mode, non-blocking, benchmark throughput with port
     ./examples/server/server -i -N -B $2 -p $bench_port $4 &
@@ -75,7 +75,7 @@ while [ ! -s /tmp/wolfssl_server_ready -a "$counter" -lt 20 ]; do
 done
 
 # benchmark connections
-if [ $1 == 1 ]
+if [ $1 -eq 1 ]
 then
     echo "Starting example client to benchmark connection average time"
     # start client to benchmark average time for each connection using port
@@ -84,7 +84,7 @@ then
 fi
 
 # benchmark throughput
-if [ $1 == 2 ]
+if [ $1 -eq 2 ]
 then
     echo "Starting example client to benchmark throughput"
     # start client in non-blocking mode, benchmark throughput using port

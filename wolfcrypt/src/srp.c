@@ -254,6 +254,13 @@ int wc_SrpInit(Srp* srp, SrpType type, SrpSide side)
 
     srp->keyGenFunc_cb = wc_SrpSetKey;
 
+    /* default heap hint to NULL or test value */
+#ifdef WOLFSSL_HEAP_TEST
+    srp->heap = (void*)WOLFSSL_HEAP_TEST;
+#else
+    srp->heap = NULL;
+#endif
+
     return 0;
 }
 
@@ -263,12 +270,18 @@ void wc_SrpTerm(Srp* srp)
         mp_clear(&srp->N);    mp_clear(&srp->g);
         mp_clear(&srp->auth); mp_clear(&srp->priv);
 
-        ForceZero(srp->salt, srp->saltSz);
-        XFREE(srp->salt, NULL, DYNAMIC_TYPE_SRP);
-        ForceZero(srp->user, srp->userSz);
-        XFREE(srp->user, NULL, DYNAMIC_TYPE_SRP);
-        ForceZero(srp->key, srp->keySz);
-        XFREE(srp->key, NULL, DYNAMIC_TYPE_SRP);
+        if (srp->salt) {
+            ForceZero(srp->salt, srp->saltSz);
+            XFREE(srp->salt, srp->heap, DYNAMIC_TYPE_SRP);
+        }
+        if (srp->user) {
+            ForceZero(srp->user, srp->userSz);
+            XFREE(srp->user, srp->heap, DYNAMIC_TYPE_SRP);
+        }
+        if (srp->key) {
+            ForceZero(srp->key, srp->keySz);
+            XFREE(srp->key, srp->heap, DYNAMIC_TYPE_SRP);
+        }
 
         ForceZero(srp, sizeof(Srp));
     }
@@ -279,7 +292,7 @@ int wc_SrpSetUsername(Srp* srp, const byte* username, word32 size)
     if (!srp || !username)
         return BAD_FUNC_ARG;
 
-    srp->user = (byte*)XMALLOC(size, NULL, DYNAMIC_TYPE_SRP);
+    srp->user = (byte*)XMALLOC(size, srp->heap, DYNAMIC_TYPE_SRP);
     if (srp->user == NULL)
         return MEMORY_E;
 
@@ -322,10 +335,10 @@ int wc_SrpSetParams(Srp* srp, const byte* N,    word32 nSz,
     /* Set salt */
     if (srp->salt) {
         ForceZero(srp->salt, srp->saltSz);
-        XFREE(srp->salt, NULL, DYNAMIC_TYPE_SRP);
+        XFREE(srp->salt, srp->heap, DYNAMIC_TYPE_SRP);
     }
 
-    srp->salt = (byte*)XMALLOC(saltSz, NULL, DYNAMIC_TYPE_SRP);
+    srp->salt = (byte*)XMALLOC(saltSz, srp->heap, DYNAMIC_TYPE_SRP);
     if (srp->salt == NULL)
         return MEMORY_E;
 
@@ -415,7 +428,7 @@ int wc_SrpGetVerifier(Srp* srp, byte* verifier, word32* size)
     if (!srp || !verifier || !size || srp->side != SRP_CLIENT_SIDE)
         return BAD_FUNC_ARG;
 
-    if (mp_iszero(&srp->auth))
+    if (mp_iszero(&srp->auth) == MP_YES)
         return SRP_CALL_ORDER_E;
 
     r = mp_init(&v);
@@ -449,7 +462,7 @@ int wc_SrpSetPrivate(Srp* srp, const byte* private, word32 size)
     if (!srp || !private || !size)
         return BAD_FUNC_ARG;
 
-    if (mp_iszero(&srp->auth))
+    if (mp_iszero(&srp->auth) == MP_YES)
         return SRP_CALL_ORDER_E;
 
     r = mp_init(&p);
@@ -457,7 +470,7 @@ int wc_SrpSetPrivate(Srp* srp, const byte* private, word32 size)
         return MP_INIT_E;
     if (!r) r = mp_read_unsigned_bin(&p, private, size);
     if (!r) r = mp_mod(&p, &srp->N, &srp->priv);
-    if (!r) r = mp_iszero(&srp->priv) ? SRP_BAD_KEY_E : 0;
+    if (!r) r = mp_iszero(&srp->priv) == MP_YES ? SRP_BAD_KEY_E : 0;
 
     mp_clear(&p);
 
@@ -486,7 +499,7 @@ int wc_SrpGetPublic(Srp* srp, byte* pub, word32* size)
     if (!srp || !pub || !size)
         return BAD_FUNC_ARG;
 
-    if (mp_iszero(&srp->auth))
+    if (mp_iszero(&srp->auth) == MP_YES)
         return SRP_CALL_ORDER_E;
 
     modulusSz = mp_unsigned_bin_size(&srp->N);
@@ -498,7 +511,7 @@ int wc_SrpGetPublic(Srp* srp, byte* pub, word32* size)
         return MP_INIT_E;
 
     /* priv = random() */
-    if (mp_iszero(&srp->priv))
+    if (mp_iszero(&srp->priv) == MP_YES)
         r = wc_SrpGenPrivate(srp, pub, modulusSz);
 
     /* client side: A = g ^ a % N */
@@ -511,7 +524,7 @@ int wc_SrpGetPublic(Srp* srp, byte* pub, word32* size)
 
         if (mp_init_multi(&i, &j, 0, 0, 0, 0) == MP_OKAY) {
             if (!r) r = mp_read_unsigned_bin(&i, srp->k,SrpHashSize(srp->type));
-            if (!r) r = mp_iszero(&i) ? SRP_BAD_KEY_E : 0;
+            if (!r) r = mp_iszero(&i) == MP_YES ? SRP_BAD_KEY_E : 0;
             if (!r) r = mp_exptmod(&srp->g, &srp->priv, &srp->N, &pubkey);
             if (!r) r = mp_mulmod(&i, &srp->auth, &srp->N, &j);
             if (!r) r = mp_add(&j, &pubkey, &i);
@@ -538,7 +551,7 @@ static int wc_SrpSetKey(Srp* srp, byte* secret, word32 size)
     byte counter[4];
     int r = BAD_FUNC_ARG;
 
-    srp->key = (byte*)XMALLOC(2 * digestSz, NULL, DYNAMIC_TYPE_SRP);
+    srp->key = (byte*)XMALLOC(2 * digestSz, srp->heap, DYNAMIC_TYPE_SRP);
     if (srp->key == NULL)
         return MEMORY_E;
 
@@ -588,7 +601,7 @@ int wc_SrpComputeKey(Srp* srp, byte* clientPubKey, word32 clientPubKeySz,
              || !serverPubKey || serverPubKeySz == 0)
         return BAD_FUNC_ARG;
 
-    if (mp_iszero(&srp->priv))
+    if (mp_iszero(&srp->priv) == MP_YES)
         return SRP_CALL_ORDER_E;
 
     /* initializing variables */
@@ -599,11 +612,11 @@ int wc_SrpComputeKey(Srp* srp, byte* clientPubKey, word32 clientPubKeySz,
     digestSz = SrpHashSize(srp->type);
     secretSz = mp_unsigned_bin_size(&srp->N);
 
-    if ((secret = (byte*)XMALLOC(secretSz, NULL, DYNAMIC_TYPE_SRP)) == NULL)
+    if ((secret = (byte*)XMALLOC(secretSz, srp->heap, DYNAMIC_TYPE_SRP)) ==NULL)
         return MEMORY_E;
 
     if ((r = mp_init_multi(&u, &s, &temp1, &temp2, 0, 0)) != MP_OKAY) {
-        XFREE(secret, NULL, DYNAMIC_TYPE_SRP);
+        XFREE(secret, srp->heap, DYNAMIC_TYPE_SRP);
         return r;
     }
 
@@ -629,11 +642,11 @@ int wc_SrpComputeKey(Srp* srp, byte* clientPubKey, word32 clientPubKeySz,
 
         /* temp1 = B - k * v; rejects k == 0, B == 0 and B >= N. */
         r = mp_read_unsigned_bin(&temp1, srp->k, digestSz);
-        if (!r) r = mp_iszero(&temp1) ? SRP_BAD_KEY_E : 0;
+        if (!r) r = mp_iszero(&temp1) == MP_YES ? SRP_BAD_KEY_E : 0;
         if (!r) r = mp_exptmod(&srp->g, &srp->auth, &srp->N, &temp2);
         if (!r) r = mp_mulmod(&temp1, &temp2, &srp->N, &s);
         if (!r) r = mp_read_unsigned_bin(&temp2, serverPubKey, serverPubKeySz);
-        if (!r) r = mp_iszero(&temp2) ? SRP_BAD_KEY_E : 0;
+        if (!r) r = mp_iszero(&temp2) == MP_YES ? SRP_BAD_KEY_E : 0;
         if (!r) r = mp_cmp(&temp2, &srp->N) != MP_LT ? SRP_BAD_KEY_E : 0;
         if (!r) r = mp_sub(&temp2, &s, &temp1);
 
@@ -650,7 +663,7 @@ int wc_SrpComputeKey(Srp* srp, byte* clientPubKey, word32 clientPubKeySz,
 
         /* temp2 = A * temp1 % N; rejects A == 0, A >= N */
         if (!r) r = mp_read_unsigned_bin(&s, clientPubKey, clientPubKeySz);
-        if (!r) r = mp_iszero(&s) ? SRP_BAD_KEY_E : 0;
+        if (!r) r = mp_iszero(&s) == MP_YES ? SRP_BAD_KEY_E : 0;
         if (!r) r = mp_cmp(&s, &srp->N) != MP_LT ? SRP_BAD_KEY_E : 0;
         if (!r) r = mp_mulmod(&s, &temp1, &srp->N, &temp2);
 
@@ -679,7 +692,7 @@ int wc_SrpComputeKey(Srp* srp, byte* clientPubKey, word32 clientPubKeySz,
 
     if (!r) r = SrpHashUpdate(&srp->server_proof, clientPubKey, clientPubKeySz);
 
-    XFREE(secret, NULL, DYNAMIC_TYPE_SRP);
+    XFREE(secret, srp->heap, DYNAMIC_TYPE_SRP);
     mp_clear(&u); mp_clear(&s); mp_clear(&temp1); mp_clear(&temp2);
 
     return r;

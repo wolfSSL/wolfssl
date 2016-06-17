@@ -58,7 +58,7 @@
 #ifndef WOLFSSL_MEM_TRACK_H
 #define WOLFSSL_MEM_TRACK_H
 
-#ifdef USE_WOLFSSL_MEMORY
+#if defined(USE_WOLFSSL_MEMORY) && !defined(WOLFSSL_STATIC_MEMORY)
 
     #include "wolfssl/wolfcrypt/logging.h"
 

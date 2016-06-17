@@ -18,53 +18,56 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
-
  
 #ifdef HAVE_CONFIG_H
     #include <config.h>
 #endif
 
-#include <cyassl/ctaocrypt/visibility.h>
-#include <cyassl/ctaocrypt/logging.h>
+#include <wolfssl/wolfcrypt/visibility.h>
+#include <wolfssl/wolfcrypt/logging.h>
 
+#include "stm32f2xx_hal.h"
 #include "cmsis_os.h"
-#include "rl_fs.h" 
 #include "rl_net.h" 
 #include <stdio.h>
-#include "cyassl_MDK_ARM.h"
-#include <cyassl/ssl.h>
+
+#include <wolfssl/ssl.h>
+
+/*-----------------------------------------------------------------------------
+ *        Initialize Clock Configuration
+ *----------------------------------------------------------------------------*/
+void SystemClock_Config(void) {
+    #warning "write MPU specific System Clock Set up\n"
+}
 
 /*-----------------------------------------------------------------------------
  *        Initialize a Flash Memory Card
  *----------------------------------------------------------------------------*/
+ #if !defined(NO_FILESYSTEM)
+#include "rl_fs.h"
 static void init_filesystem (void) {
-    int32_t retv;
+  int32_t retv;
 
-    retv = finit ("M0:");
+  retv = finit ("M0:");
+  if (retv == 0) {
+    retv = fmount ("M0:");
     if (retv == 0) {
-        retv = fmount ("M0:");
-        if (retv == 0) {
-            printf ("Drive M0 ready!\n");
-        }
-        else {
-          printf ("Drive M0 mount failed!\n");
-        }
-    } else {
-        printf ("Drive M0 initialization failed!\n");
+      printf ("Drive M0 ready!\n");
     }
+    else {
+      printf ("Drive M0 mount failed!\n");
+    }
+  }
+  else {
+    printf ("Drive M0 initialization failed!\n");
+  }
 }
+#endif
+
 
 /*-----------------------------------------------------------------------------
- *        TCP/IP tasks
+ *       mian entry 
  *----------------------------------------------------------------------------*/
-void tcp_poll (void const *arg)
-{
-    CYASSL_MSG("TCP polling started.\n") ;
-    while (1) {
-        net_main ();
-        osDelay(1) ;
-    }
-}
 
 typedef struct func_args {
     int    argc;
@@ -72,27 +75,22 @@ typedef struct func_args {
 } func_args;
 
 extern void echoserver_test(func_args * args) ;
-extern void init_time(void) ;
-
-    osThreadDef (tcp_poll, osPriorityHigh, 1, 0) ;
-/*-----------------------------------------------------------------------------
- *       mian entry 
- *----------------------------------------------------------------------------*/
-int myoptind = 0;
-char* myoptarg = NULL;
 
 int main() 
 {
-    func_args args = { 0 } ;
-    init_filesystem ();
-    net_initialize() ;
-    osThreadCreate (osThread (tcp_poll), NULL); 
-    osDelay(10000) ;  /* wait for DHCP */
-    #if defined(DEBUG_CYASSL)
-        printf("Turning ON Debug message\n") ;
-        CyaSSL_Debugging_ON() ;
-    #endif
+    func_args args ;
+		args.argc = 1 ;
 
+    SystemClock_Config ();
+    #if !defined(NO_FILESYSTEM)
+    init_filesystem ();
+    #endif
+    netInitialize() ;
+    osDelay(300) ;  
+    #if defined(DEBUG_WOLFSSL)
+         printf("Turning ON Debug message\n") ;
+         wolfSSL_Debugging_ON() ;
+    #endif
         printf("echoserver: Started\n") ;
     echoserver_test(&args) ;
     printf("echoserver: Terminated\n") ;

@@ -6,7 +6,7 @@
 #
 #
 
-AC_INIT([wolfssl],[3.9.1],[https://github.com/wolfssl/wolfssl/issues],[wolfssl],[http://www.wolfssl.com])
+AC_INIT([wolfssl],[3.9.6],[https://github.com/wolfssl/wolfssl/issues],[wolfssl],[http://www.wolfssl.com])
 
 AC_CONFIG_AUX_DIR([build-aux])
 
@@ -35,7 +35,7 @@ AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_HEADERS([config.h:config.in])dnl Keep filename to 8.3 for MS-DOS.
 
 #shared library versioning
-WOLFSSL_LIBRARY_VERSION=5:0:2
+WOLFSSL_LIBRARY_VERSION=6:0:3
 #                       | | |
 #                +------+ | +---+
 #                |        |     |
@@ -768,6 +768,18 @@ fi
 
 AM_CONDITIONAL([BUILD_ECC], [test "x$ENABLED_ECC" = "xyes"])
 
+# ECC Custom Curves
+AC_ARG_ENABLE([ecccustcurves],
+    [AS_HELP_STRING([--enable-ecccustcurves],[Enable ECC custom curves (default: disabled)])],
+    [ ENABLED_ECCCUSTCURVES=$enableval ],
+    [ ENABLED_ECCCUSTCURVES=no ]
+    )
+
+if test "$ENABLED_ECCCUSTCURVES" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_CUSTOM_CURVES"
+fi
+
 
 # for using memory optimization setting on both curve25519 and ed25519
 ENABLED_CURVED25519_SMALL=no
@@ -1147,6 +1159,23 @@ fi
 AM_CONDITIONAL([BUILD_CODING], [test "x$ENABLED_CODING" = "xyes"])
 
 
+# Base64 Encode
+BASE64ENCODE_DEFAULT=no
+if test "$host_cpu" = "x86_64"
+then
+BASE64ENCODE_DEFAULT=yes
+fi
+AC_ARG_ENABLE([base64encode],
+    [  --enable-base64encode   Enable Base64 encoding (default: enabled on x86_64)],
+    [ ENABLED_BASE64ENCODE=$enableval ],
+    [ ENABLED_BASE64ENCODE=$BASE64ENCODE_DEFAULT ]
+    )
+if test "$ENABLED_BASE64ENCODE" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_BASE64_ENCODE"
+fi
+
+
 # DES3
 AC_ARG_ENABLE([des3],
     [  --enable-des3           Enable DES3 (default: enabled)],
@@ -1254,6 +1283,19 @@ else
 fi
 
 AM_CONDITIONAL([BUILD_SHA], [test "x$ENABLED_SHA" = "xyes"])
+
+
+# CMAC
+AC_ARG_ENABLE([cmac],
+    [AS_HELP_STRING([--enable-cmac],[Enable CMAC (default: disabled)])],
+    [ ENABLED_CMAC=$enableval ],
+    [ ENABLED_CMAC=no ]
+    )
+
+AS_IF([test "x$ENABLED_CMAC" = "xyes"],
+      [AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_CMAC -DWOLFSSL_AES_DIRECT"])
+
+AM_CONDITIONAL([BUILD_CMAC], [test "x$ENABLED_CMAC" = "xyes"])
 
 
 # Web Server Build
@@ -2545,6 +2587,23 @@ AC_SUBST([IPPLINK])
 AM_CONDITIONAL([BUILD_FAST_RSA], [test "x$ENABLED_FAST_RSA" = "xyes"])
 
 
+# static memory use
+AC_ARG_ENABLE([staticmemory],
+    [AS_HELP_STRING([--enable-staticmemory],[Enable static memory use (default: disabled)])],
+    [ ENABLED_STATICMEMORY=$enableval ],
+    [ ENABLED_STATICMEMORY=no ]
+    )
+
+if test "x$ENABLED_STATICMEMORY" = "xyes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_STATIC_MEMORY"
+    if test "x$ENABLED_FASTMATH" = "xno"
+    then
+        AC_MSG_ERROR([please use --enable-fastmath if enabling staticmemory.])
+    fi
+fi
+
+
 # microchip api
 AC_ARG_ENABLE([mcapi],
     [  --enable-mcapi          Enable Microchip API (default: disabled)],
@@ -2671,6 +2730,11 @@ AS_IF([test "x$ENABLED_LEANTLS" = "xyes" && \
 AS_IF([test "x$ENABLED_SNIFFER" = "xyes" && \
        test "x$ENABLED_RSA" = "xno"],
       [AC_MSG_ERROR([please enable rsa if enabling sniffer.])])
+
+# CMAC currently requires AES.
+AS_IF([test "x$ENABLED_CMAC" = "xyes" && \
+       test "x$ENABLED_AES" = "xno"],
+      [AC_MSG_ERROR([cannot use CMAC without AES.])])
 
 ################################################################################
 # Update CFLAGS based on options                                               #
@@ -2914,6 +2978,7 @@ echo "   * RIPEMD:                     $ENABLED_RIPEMD"
 echo "   * SHA:                        $ENABLED_SHA"
 echo "   * SHA-512:                    $ENABLED_SHA512"
 echo "   * BLAKE2:                     $ENABLED_BLAKE2"
+echo "   * CMAC:                       $ENABLED_CMAC"
 echo "   * keygen:                     $ENABLED_KEYGEN"
 echo "   * certgen:                    $ENABLED_CERTGEN"
 echo "   * certreq:                    $ENABLED_CERTREQ"

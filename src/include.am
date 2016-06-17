@@ -81,6 +81,10 @@ if BUILD_AES
 src_libwolfssl_la_SOURCES += wolfcrypt/src/aes.c
 endif
 
+if BUILD_CMAC
+src_libwolfssl_la_SOURCES += wolfcrypt/src/cmac.c
+endif
+
 if BUILD_DES3
 src_libwolfssl_la_SOURCES += wolfcrypt/src/des3.c
 endif

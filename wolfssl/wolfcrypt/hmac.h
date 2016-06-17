@@ -144,17 +144,18 @@ typedef struct Hmac {
     word32  ipad[HMAC_BLOCK_SIZE  / sizeof(word32)];  /* same block size all*/
     word32  opad[HMAC_BLOCK_SIZE  / sizeof(word32)];
     word32  innerHash[MAX_DIGEST_SIZE / sizeof(word32)];
-    byte    macType;                                     /* md5 sha or sha256 */
-    byte    innerHashKeyed;                              /* keyed flag */
 #ifdef HAVE_CAVIUM
+    word64   contextHandle;   /* nitrox context memory handle */
+    HashType type;            /* hmac key type */
+    word32   magic;           /* using cavium magic */
+    int      devId;           /* nitrox device id */
+    void*    heap             /* heap hint , currently only used with cavium */
+    byte*    data;            /* buffered input data for one call */
     word16   keyLen;          /* hmac key length */
     word16   dataLen;
-    HashType type;            /* hmac key type */
-    int      devId;           /* nitrox device id */
-    word32   magic;           /* using cavium magic */
-    word64   contextHandle;   /* nitrox context memory handle */
-    byte*    data;            /* buffered input data for one call */
 #endif
+    byte    macType;        /* md5 sha or sha256 */
+    byte    innerHashKeyed; /* keyed flag */
 } Hmac;
 
 #endif /* HAVE_FIPS */

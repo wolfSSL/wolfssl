@@ -18,25 +18,33 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
-
  
 #ifdef HAVE_CONFIG_H
     #include <config.h>
 #endif
 
-#include <cyassl/ctaocrypt/visibility.h>
-#include <cyassl/ctaocrypt/logging.h>
+#include <wolfssl/wolfcrypt/visibility.h>
+#include <wolfssl/wolfcrypt/logging.h>
 
+#include "stm32f2xx_hal.h"
 #include "cmsis_os.h"
-#include "rl_fs.h" 
 #include "rl_net.h" 
 #include <stdio.h>
-#include "cyassl_MDK_ARM.h"
-#include <cyassl/ssl.h>
+
+#include <wolfssl/ssl.h>
+
+/*-----------------------------------------------------------------------------
+ *        Initialize Clock Configuration
+ *----------------------------------------------------------------------------*/
+void SystemClock_Config(void) {
+    #warning "write MPU specific System Clock Set up\n"
+}
 
 /*-----------------------------------------------------------------------------
  *        Initialize a Flash Memory Card
  *----------------------------------------------------------------------------*/
+#if !defined(NO_FILESYSTEM)
+#include "rl_fs.h"
 static void init_filesystem (void) {
   int32_t retv;
 
@@ -54,18 +62,7 @@ static void init_filesystem (void) {
     printf ("Drive M0 initialization failed!\n");
   }
 }
-
-/*-----------------------------------------------------------------------------
- *        TCP/IP tasks
- *----------------------------------------------------------------------------*/
-void tcp_poll (void const *arg)
-{
-    CYASSL_MSG("TCP polling started.\n") ;
-    while (1) {
-        net_main ();
-        osDelay(1) ;
-    }
-}
+#endif
 
 typedef struct func_args {
     int    argc;
@@ -73,30 +70,31 @@ typedef struct func_args {
 } func_args;
 
 extern void echoclient_test(func_args * args) ;
-extern void init_time(void) ;
 
-    osThreadDef (tcp_poll, osPriorityHigh , 1, 0) ;
 /*-----------------------------------------------------------------------------
  *       mian entry 
  *----------------------------------------------------------------------------*/
 int myoptind = 0;
 char* myoptarg = NULL;
 
-#include "config-EchoClient.h"
-
 int main() 
-{
-	  func_args args = { 0 } ;
-		
+{ 
+    func_args args ;
+		args.argc = 1 ;
+
+    SystemClock_Config ();
+    #if !defined(NO_FILESYSTEM)
     init_filesystem ();
-    net_initialize() ;
-    osThreadCreate (osThread (tcp_poll), NULL); 
-    osDelay(30000) ;  /* wait for DHCP */
-    #if defined(DEBUG_CYASSL)
+    #endif
+    netInitialize() ;
+    osDelay(300) ;  
+    #if defined(DEBUG_WOLFSSL)
          printf("Turning ON Debug message\n") ;
-         CyaSSL_Debugging_ON() ;
+         wolfSSL_Debugging_ON() ;
     #endif
 
+	  printf("Starting EchoClient, Enter messages to EchoServer (\"quit\" to quit the program)\n") ;
     echoclient_test(&args) ;
+	  printf("End of EchoClient\n") ;
 
 }

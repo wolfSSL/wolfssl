@@ -20,14 +20,13 @@
  */
 
 
-
 // <<< Use Configuration Wizard in Context Menu >>>
 
 // <h> wolfCrypt Configuration
 
 //  <h>Cert/Key Strage
 //        <o>Cert Storage <0=> SD Card <1=> Mem Buff (1024bytes) <2=> Mem Buff (2048bytes)
-#define MDK_CONF_CERT_BUFF 2
+#define MDK_CONF_CERT_BUFF 0
 #if MDK_CONF_CERT_BUFF== 1
 #define USE_CERT_BUFFERS_1024
 #elif MDK_CONF_CERT_BUFF == 2
@@ -147,8 +146,9 @@
 
 //      <e>POLY1305
 #define MDK_CONF_POLY1305 1
-#if MDK_CONF_POLY1305 == 0
+#if MDK_CONF_POLY1305 == 1
 #define HAVE_POLY1305
+#define HAVE_ONE_TIME_AUTH
 #endif
 //  </e>
 

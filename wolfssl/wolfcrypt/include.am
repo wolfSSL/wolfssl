@@ -8,6 +8,7 @@ nobase_include_HEADERS+= \
                          wolfssl/wolfcrypt/asn_public.h \
                          wolfssl/wolfcrypt/poly1305.h \
                          wolfssl/wolfcrypt/camellia.h \
+                         wolfssl/wolfcrypt/cmac.h \
                          wolfssl/wolfcrypt/coding.h \
                          wolfssl/wolfcrypt/compress.h \
                          wolfssl/wolfcrypt/des3.h \
