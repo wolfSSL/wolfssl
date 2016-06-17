@@ -217,12 +217,6 @@ WOLFSSL_API int wc_SetSubjectKeyIdFromNtruPublicKey(Cert *cert, byte *ntruKey,
  */
 WOLFSSL_API int wc_SetKeyUsage(Cert *cert, const char *value);
 
-/* encode Certificate Policies, return total bytes written
- * each input value must be ITU-T X.690 formatted : a.b.c...
- * input must be an array of values with a NULL terminated for the latest
- * RFC5280 : non-critical */
-WOLFSSL_API int wc_SetCertificatePolicies(Cert *cert, const char **input);
-
 #endif /* WOLFSSL_CERT_EXT */
 
     #ifdef HAVE_NTRU
