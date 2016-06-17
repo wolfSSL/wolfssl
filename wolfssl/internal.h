@@ -27,6 +27,8 @@
 
 #include <wolfssl/wolfcrypt/types.h>
 #include <wolfssl/ssl.h>
+#include <wolfssl/wolfcrypt/compat-wolfssl.h>
+
 #ifdef HAVE_CRL
     #include <wolfssl/crl.h>
 #endif
@@ -969,15 +971,6 @@ enum Misc {
     MAX_REQUEST_SZ      = 256, /* Maximum cert req len (no auth yet */
     SESSION_FLUSH_COUNT = 256, /* Flush session cache unless user turns off */
 
-    RC4_KEY_SIZE        = 16,  /* always 128bit           */
-    DES_KEY_SIZE        =  8,  /* des                     */
-    DES3_KEY_SIZE       = 24,  /* 3 des ede               */
-    DES_IV_SIZE         = DES_BLOCK_SIZE,
-    AES_256_KEY_SIZE    = 32,  /* for 256 bit             */
-    AES_192_KEY_SIZE    = 24,  /* for 192 bit             */
-    AES_IV_SIZE         = 16,  /* always block size       */
-    AES_128_KEY_SIZE    = 16,  /* for 128 bit             */
-
     AEAD_SEQ_OFFSET     = 4,   /* Auth Data: Sequence number */
     AEAD_TYPE_OFFSET    = 8,   /* Auth Data: Type            */
     AEAD_VMAJ_OFFSET    = 9,   /* Auth Data: Major Version   */
@@ -1015,7 +1008,6 @@ enum Misc {
     RABBIT_KEY_SIZE     = 16,  /* 128 bits                */
     RABBIT_IV_SIZE      =  8,  /* 64 bits for iv          */
 
-    EVP_SALT_SIZE       =  8,  /* evp salt size 64 bits   */
 
     ECDHE_SIZE          = 32,  /* ECHDE server size defaults to 256 bit */
     MAX_EXPORT_ECC_SZ   = 256, /* Export ANS X9.62 max future size */
@@ -1221,35 +1213,6 @@ WOLFSSL_LOCAL ProtocolVersion MakeTLSv1_2(void);
     WOLFSSL_LOCAL int wolfSSL_send_session(WOLFSSL* ssl);
     #endif
 #endif
-
-
-enum BIO_TYPE {
-    BIO_BUFFER = 1,
-    BIO_SOCKET = 2,
-    BIO_SSL    = 3,
-    BIO_MEMORY = 4
-};
-
-
-/* wolfSSL BIO_METHOD type */
-struct WOLFSSL_BIO_METHOD {
-    byte type;               /* method type */
-};
-
-
-/* wolfSSL BIO type */
-struct WOLFSSL_BIO {
-    byte        type;          /* method type */
-    byte        close;         /* close flag */
-    byte        eof;           /* eof flag */
-    WOLFSSL*     ssl;           /* possible associated ssl */
-    byte*       mem;           /* memory buffer */
-    int         memLen;        /* memory buffer length */
-    int         fd;            /* possible file descriptor */
-    WOLFSSL_BIO* prev;          /* previous in chain */
-    WOLFSSL_BIO* next;          /* next in chain */
-};
-
 
 /* wolfSSL method type */
 struct WOLFSSL_METHOD {
@@ -2266,6 +2229,7 @@ WOLFSSL_LOCAL
 WOLFSSL_SESSION* GetSession(WOLFSSL*, byte*, byte);
 WOLFSSL_LOCAL
 int          SetSession(WOLFSSL*, WOLFSSL_SESSION*);
+WOLFSSL_LOCAL int DupSession(WOLFSSL* ssl, WOLFSSL* ossl);
 
 typedef int (*hmacfp) (WOLFSSL*, byte*, const byte*, word32, int, int);
 
@@ -2707,8 +2671,8 @@ struct WOLFSSL {
     Keys            keys;
     Options         options;
 #ifdef OPENSSL_EXTRA
-    WOLFSSL_BIO*     biord;              /* socket bio read  to free/close */
-    WOLFSSL_BIO*     biowr;              /* socket bio write to free/close */
+    WOLFCRYPT_BIO*     biord;              /* socket bio read  to free/close */
+    WOLFCRYPT_BIO*     biowr;              /* socket bio write to free/close */
 #endif
 #ifndef NO_RSA
     RsaKey*         peerRsaKey;
@@ -2856,6 +2820,8 @@ WOLFSSL_LOCAL
 void FreeSSL(WOLFSSL*, void* heap);
 WOLFSSL_API void SSL_ResourceFree(WOLFSSL*);   /* Micrium uses */
 
+
+WOLFSSL_LOCAL int DupSSL(WOLFSSL* ssl, WOLFSSL* ossl);
 
 enum {
     IV_SZ   = 32,          /* max iv sz */
