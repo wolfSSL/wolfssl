@@ -72,6 +72,7 @@ Release 3.9.6 of wolfSSL has bug fixes and new features including:
 recommend updating to the latest
 - (1) Code changes for ECC fix can be found at pull requests #411, #416, and #428
 - (2) Builds using RSA with using normal math and not RSA_LOW_MEM should update
+- Tag 3.9.6w is for a Windows example echoserver fix
 
 See INSTALL file for build instructions.
 More info can be found on-line at //http://wolfssl.com/wolfSSL/Docs.html
