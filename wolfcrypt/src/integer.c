@@ -252,7 +252,7 @@ int mp_leading_bit (mp_int * a)
     if (mp_init_copy(&t, a) != MP_OKAY)
         return 0;
 
-    while (mp_iszero(&t) == 0) {
+    while (mp_iszero(&t) == MP_NO) {
 #ifndef MP_8BIT
         bit = (t.dp[0] & 0x80) != 0;
 #else
@@ -277,7 +277,7 @@ int mp_to_unsigned_bin (mp_int * a, unsigned char *b)
   }
 
   x = 0;
-  while (mp_iszero (&t) == 0) {
+  while (mp_iszero (&t) == MP_NO) {
 #ifndef MP_8BIT
       b[x++] = (unsigned char) (t.dp[0] & 255);
 #else
@@ -329,7 +329,7 @@ int mp_copy (mp_int * a, mp_int * b)
 
   /* zero b and copy the parameters over */
   {
-    register mp_digit *tmpa, *tmpb;
+    mp_digit *tmpa, *tmpb;
 
     /* pointer aliases */
 
@@ -507,7 +507,7 @@ void mp_exch (mp_int * a, mp_int * b)
 /* shift right a certain number of bits */
 void mp_rshb (mp_int *c, int x)
 {
-    register mp_digit *tmpc, mask, shift;
+    mp_digit *tmpc, mask, shift;
     mp_digit r, rr;
     mp_digit D = x;
 
@@ -553,7 +553,7 @@ void mp_rshd (mp_int * a, int b)
   }
 
   {
-    register mp_digit *bottom, *top;
+    mp_digit *bottom, *top;
 
     /* shift the digits down */
 
@@ -686,8 +686,8 @@ int mp_mul_2d (mp_int * a, int b, mp_int * c)
   /* shift any bit count < DIGIT_BIT */
   d = (mp_digit) (b % DIGIT_BIT);
   if (d != 0) {
-    register mp_digit *tmpc, shift, mask, r, rr;
-    register int x;
+    mp_digit *tmpc, shift, mask, r, rr;
+    int x;
 
     /* bitmask for carries */
     mask = (((mp_digit)1) << d) - 1;
@@ -740,7 +740,7 @@ int mp_lshd (mp_int * a, int b)
   }
 
   {
-    register mp_digit *top, *bottom;
+    mp_digit *top, *bottom;
 
     /* increment the used by the shift amount then copy upwards */
     a->used += b;
@@ -845,7 +845,7 @@ int mp_exptmod (mp_int * G, mp_int * X, mp_int * P, mp_int * Y)
 
   /* if the modulus is odd or dr != 0 use the montgomery method */
 #ifdef BN_MP_EXPTMOD_FAST_C
-  if (mp_isodd (P) == 1 || dr !=  0) {
+  if (mp_isodd (P) == MP_YES || dr !=  0) {
     return mp_exptmod_fast (G, X, P, Y, dr);
   } else {
 #endif
@@ -888,13 +888,13 @@ int mp_abs (mp_int * a, mp_int * b)
 int mp_invmod (mp_int * a, mp_int * b, mp_int * c)
 {
   /* b cannot be negative */
-  if (b->sign == MP_NEG || mp_iszero(b) == 1) {
+  if (b->sign == MP_NEG || mp_iszero(b) == MP_YES) {
     return MP_VAL;
   }
 
 #ifdef BN_FAST_MP_INVMOD_C
   /* if the modulus is odd we can use a faster routine instead */
-  if (mp_isodd (b) == 1) {
+  if (mp_isodd (b) == MP_YES) {
     return fast_mp_invmod (a, b, c);
   }
 #endif
@@ -917,7 +917,7 @@ int fast_mp_invmod (mp_int * a, mp_int * b, mp_int * c)
   int     res, neg, loop_check = 0;
 
   /* 2. [modified] b must be odd   */
-  if (mp_iseven (b) == 1) {
+  if (mp_iseven (b) == MP_YES) {
     return MP_VAL;
   }
 
@@ -947,13 +947,13 @@ int fast_mp_invmod (mp_int * a, mp_int * b, mp_int * c)
 
 top:
   /* 4.  while u is even do */
-  while (mp_iseven (&u) == 1) {
+  while (mp_iseven (&u) == MP_YES) {
     /* 4.1 u = u/2 */
     if ((res = mp_div_2 (&u, &u)) != MP_OKAY) {
       goto LBL_ERR;
     }
     /* 4.2 if B is odd then */
-    if (mp_isodd (&B) == 1) {
+    if (mp_isodd (&B) == MP_YES) {
       if ((res = mp_sub (&B, &x, &B)) != MP_OKAY) {
         goto LBL_ERR;
       }
@@ -965,13 +965,13 @@ top:
   }
 
   /* 5.  while v is even do */
-  while (mp_iseven (&v) == 1) {
+  while (mp_iseven (&v) == MP_YES) {
     /* 5.1 v = v/2 */
     if ((res = mp_div_2 (&v, &v)) != MP_OKAY) {
       goto LBL_ERR;
     }
     /* 5.2 if D is odd then */
-    if (mp_isodd (&D) == 1) {
+    if (mp_isodd (&D) == MP_YES) {
       /* D = (D-x)/2 */
       if ((res = mp_sub (&D, &x, &D)) != MP_OKAY) {
         goto LBL_ERR;
@@ -1005,7 +1005,7 @@ top:
   }
 
   /* if not zero goto step 4 */
-  if (mp_iszero (&u) == 0) {
+  if (mp_iszero (&u) == MP_NO) {
     if (++loop_check > 4096) {
         res = MP_VAL;
         goto LBL_ERR;
@@ -1055,7 +1055,7 @@ int mp_invmod_slow (mp_int * a, mp_int * b, mp_int * c)
   int     res;
 
   /* b cannot be negative */
-  if (b->sign == MP_NEG || mp_iszero(b) == 1) {
+  if (b->sign == MP_NEG || mp_iszero(b) == MP_YES) {
     return MP_VAL;
   }
 
@@ -1079,7 +1079,7 @@ int mp_invmod_slow (mp_int * a, mp_int * b, mp_int * c)
   }
 
   /* 2. [modified] if x,y are both even then return an error! */
-  if (mp_iseven (&x) == 1 && mp_iseven (&y) == 1) {
+  if (mp_iseven (&x) == MP_YES && mp_iseven (&y) == MP_YES) {
     res = MP_VAL;
     goto LBL_ERR;
   }
@@ -1096,13 +1096,13 @@ int mp_invmod_slow (mp_int * a, mp_int * b, mp_int * c)
 
 top:
   /* 4.  while u is even do */
-  while (mp_iseven (&u) == 1) {
+  while (mp_iseven (&u) == MP_YES) {
     /* 4.1 u = u/2 */
     if ((res = mp_div_2 (&u, &u)) != MP_OKAY) {
       goto LBL_ERR;
     }
     /* 4.2 if A or B is odd then */
-    if (mp_isodd (&A) == 1 || mp_isodd (&B) == 1) {
+    if (mp_isodd (&A) == MP_YES || mp_isodd (&B) == MP_YES) {
       /* A = (A+y)/2, B = (B-x)/2 */
       if ((res = mp_add (&A, &y, &A)) != MP_OKAY) {
          goto LBL_ERR;
@@ -1121,13 +1121,13 @@ top:
   }
 
   /* 5.  while v is even do */
-  while (mp_iseven (&v) == 1) {
+  while (mp_iseven (&v) == MP_YES) {
     /* 5.1 v = v/2 */
     if ((res = mp_div_2 (&v, &v)) != MP_OKAY) {
       goto LBL_ERR;
     }
     /* 5.2 if C or D is odd then */
-    if (mp_isodd (&C) == 1 || mp_isodd (&D) == 1) {
+    if (mp_isodd (&C) == MP_YES || mp_isodd (&D) == MP_YES) {
       /* C = (C+y)/2, D = (D-x)/2 */
       if ((res = mp_add (&C, &y, &C)) != MP_OKAY) {
          goto LBL_ERR;
@@ -1175,7 +1175,7 @@ top:
   }
 
   /* if not zero goto step 4 */
-  if (mp_iszero (&u) == 0)
+  if (mp_iszero (&u) == MP_NO)
     goto top;
 
   /* now a = C, b = D, gcd == g*v */
@@ -1347,7 +1347,7 @@ int mp_div(mp_int * a, mp_int * b, mp_int * c, mp_int * d)
    int    res, n, n2;
 
   /* is divisor zero ? */
-  if (mp_iszero (b) == 1) {
+  if (mp_iszero (b) == MP_YES) {
     return MP_VAL;
   }
 
@@ -1427,7 +1427,7 @@ int mp_div_2(mp_int * a, mp_int * b)
   oldused = b->used;
   b->used = a->used;
   {
-    register mp_digit r, rr, *tmpa, *tmpb;
+    mp_digit r, rr, *tmpa, *tmpb;
 
     /* source alias */
     tmpa = a->dp + b->used - 1;
@@ -1463,7 +1463,7 @@ int mp_div_2(mp_int * a, mp_int * b)
 /* high level addition (handles signs) */
 int mp_add (mp_int * a, mp_int * b, mp_int * c)
 {
-  int     sa, sb, res;
+  int sa, sb, res;
 
   /* get sign of both inputs */
   sa = a->sign;
@@ -1523,8 +1523,8 @@ int s_mp_add (mp_int * a, mp_int * b, mp_int * c)
   c->used = max + 1;
 
   {
-    register mp_digit u, *tmpa, *tmpb, *tmpc;
-    register int i;
+    mp_digit u, *tmpa, *tmpb, *tmpc;
+    int i;
 
     /* alias for digit pointers */
 
@@ -1599,8 +1599,8 @@ int s_mp_sub (mp_int * a, mp_int * b, mp_int * c)
   c->used = max;
 
   {
-    register mp_digit u, *tmpa, *tmpb, *tmpc;
-    register int i;
+    mp_digit u, *tmpa, *tmpb, *tmpc;
+    int i;
 
     /* alias for digit pointers */
     tmpa = a->dp;
@@ -2165,8 +2165,8 @@ int fast_mp_montgomery_reduce (mp_int * x, mp_int * n, mp_digit rho)
    * an array of double precision words W[...]
    */
   {
-    register mp_word *_W;
-    register mp_digit *tmpx;
+    mp_word *_W;
+    mp_digit *tmpx;
 
     /* alias for the W[] array */
     _W   = W;
@@ -2195,7 +2195,7 @@ int fast_mp_montgomery_reduce (mp_int * x, mp_int * n, mp_digit rho)
      * by casting the value down to a mp_digit.  Note this requires
      * that W[ix-1] have  the carry cleared (see after the inner loop)
      */
-    register mp_digit mu;
+    mp_digit mu;
     mu = (mp_digit) (((W[ix] & MP_MASK) * rho) & MP_MASK);
 
     /* a = a + mu * m * b**i
@@ -2213,9 +2213,9 @@ int fast_mp_montgomery_reduce (mp_int * x, mp_int * n, mp_digit rho)
      * first m->used words of W[] have the carries fixed
      */
     {
-      register int iy;
-      register mp_digit *tmpn;
-      register mp_word *_W;
+      int iy;
+      mp_digit *tmpn;
+      mp_word *_W;
 
       /* alias for the digits of the modulus */
       tmpn = n->dp;
@@ -2238,8 +2238,8 @@ int fast_mp_montgomery_reduce (mp_int * x, mp_int * n, mp_digit rho)
    * significant digits we zeroed].
    */
   {
-    register mp_digit *tmpx;
-    register mp_word *_W, *_W1;
+    mp_digit *tmpx;
+    mp_word *_W, *_W1;
 
     /* nox fix rest of carries */
 
@@ -2334,9 +2334,9 @@ int mp_montgomery_reduce (mp_int * x, mp_int * n, mp_digit rho)
 
     /* a = a + mu * m * b**i */
     {
-      register int iy;
-      register mp_digit *tmpn, *tmpx, u;
-      register mp_word r;
+      int iy;
+      mp_digit *tmpn, *tmpx, u;
+      mp_word r;
 
       /* alias for digits of the modulus */
       tmpn = n->dp;
@@ -2643,15 +2643,55 @@ int mp_mulmod (mp_int * a, mp_int * b, mp_int * c, mp_int * d)
     return res;
   }
 
-  if ((res = mp_mul (a, b, &t)) != MP_OKAY) {
-    mp_clear (&t);
-    return res;
+  res = mp_mul (a, b, &t);
+  if (res == MP_OKAY) {
+      res = mp_mod (&t, c, d);
   }
-  res = mp_mod (&t, c, d);
+
   mp_clear (&t);
   return res;
 }
 
+
+/* d = a - b (mod c) */
+int mp_submod(mp_int* a, mp_int* b, mp_int* c, mp_int* d)
+{
+  int     res;
+  mp_int  t;
+
+  if ((res = mp_init (&t)) != MP_OKAY) {
+    return res;
+  }
+
+  res = mp_sub (a, b, &t);
+  if (res == MP_OKAY) {
+      res = mp_mod (&t, c, d);
+  }
+
+  mp_clear (&t);
+
+  return res;
+}
+
+/* d = a + b (mod c) */
+int mp_addmod(mp_int* a, mp_int* b, mp_int* c, mp_int* d)
+{
+   int     res;
+   mp_int  t;
+
+   if ((res = mp_init (&t)) != MP_OKAY) {
+     return res;
+   }
+
+   res = mp_add (a, b, &t);
+   if (res == MP_OKAY) {
+       res = mp_mod (&t, c, d);
+   }
+
+   mp_clear (&t);
+
+   return res;
+}
 
 /* computes b = a*a */
 int mp_sqr (mp_int * a, mp_int * b)
@@ -2728,7 +2768,7 @@ int mp_mul_2(mp_int * a, mp_int * b)
   b->used = a->used;
 
   {
-    register mp_digit r, rr, *tmpa, *tmpb;
+    mp_digit r, rr, *tmpa, *tmpb;
 
     /* alias for source */
     tmpa = a->dp;
@@ -2997,7 +3037,7 @@ int fast_s_mp_mul_digs (mp_int * a, mp_int * b, mp_int * c, int digs)
 #else
   mp_digit W[MP_WARRAY];
 #endif
-  register mp_word  _W;
+  mp_word  _W;
 
   /* grow the destination as required */
   if (c->alloc < digs) {
@@ -3055,7 +3095,7 @@ int fast_s_mp_mul_digs (mp_int * a, mp_int * b, mp_int * c, int digs)
   c->used = pa;
 
   {
-    register mp_digit *tmpc;
+    mp_digit *tmpc;
     tmpc = c->dp;
     for (ix = 0; ix < pa+1; ix++) {
       /* now extract the previous digit [below the carry] */
@@ -3233,7 +3273,6 @@ int mp_montgomery_calc_normalization (mp_int * a, mp_int * b)
      mp_set(a, 1);
      bits = 1;
   }
-
 
   /* now compute C = A * B mod b */
   for (x = bits - 1; x < (int)DIGIT_BIT; x++) {
@@ -3777,7 +3816,7 @@ int fast_s_mp_mul_high_digs (mp_int * a, mp_int * b, mp_int * c, int digs)
   c->used = pa;
 
   {
-    register mp_digit *tmpc;
+    mp_digit *tmpc;
 
     tmpc = c->dp + digs;
     for (ix = digs; ix < pa; ix++) {   /* TAO, <= could potentially overwrite */
@@ -4034,12 +4073,12 @@ int mp_cnt_lsb(mp_int *a)
     mp_digit q, qq;
 
     /* easy out */
-    if (mp_iszero(a) == 1) {
+    if (mp_iszero(a) == MP_YES) {
         return 0;
     }
 
     /* scan lower digits until non-zero */
-    for (x = 0; x < a->used && a->dp[x] == 0; x++);
+    for (x = 0; x < a->used && a->dp[x] == 0; x++) {}
     q = a->dp[x];
     x *= DIGIT_BIT;
 
@@ -4089,7 +4128,7 @@ static int mp_div_d (mp_int * a, mp_digit b, mp_int * c, mp_digit * d)
   }
 
   /* quick outs */
-  if (b == 1 || mp_iszero(a) == 1) {
+  if (b == 1 || mp_iszero(a) == MP_YES) {
      if (d != NULL) {
         *d = 0;
      }
@@ -4539,7 +4578,7 @@ int mp_gcd (mp_int * a, mp_int * b, mp_int * c)
         }
     }
 
-    while (mp_iszero(&v) == 0) {
+    while (mp_iszero(&v) == MP_NO) {
         /* make sure v is the largest */
         if (mp_cmp_mag(&u, &v) == MP_GT) {
             /* swap u and v to make sure v is >= u */
@@ -4608,11 +4647,11 @@ int mp_read_radix (mp_int * a, const char *str, int radix)
 
   /* process each digit of the string */
   while (*str) {
-    /* if the radix < 36 the conversion is case insensitive
+    /* if the radix <= 36 the conversion is case insensitive
      * this allows numbers like 1AB and 1ab to represent the same  value
      * [e.g. in hex]
      */
-    ch = (char) ((radix < 36) ? XTOUPPER((unsigned char)*str) : *str);
+    ch = (radix <= 36) ? (char)XTOUPPER((unsigned char)*str) : *str;
     for (y = 0; y < 64; y++) {
       if (ch == mp_s_rmap[y]) {
          break;
@@ -4637,7 +4676,7 @@ int mp_read_radix (mp_int * a, const char *str, int radix)
   }
 
   /* set the sign only if a != 0 */
-  if (mp_iszero(a) != 1) {
+  if (mp_iszero(a) != MP_YES) {
      a->sign = neg;
   }
   return MP_OKAY;
@@ -4717,7 +4756,7 @@ int mp_toradix (mp_int *a, char *str, int radix)
     }
 
     /* quick out if its zero */
-    if (mp_iszero(a) == 1) {
+    if (mp_iszero(a) == MP_YES) {
         *str++ = '0';
         *str = '\0';
         return MP_OKAY;
@@ -4735,7 +4774,7 @@ int mp_toradix (mp_int *a, char *str, int radix)
     }
 
     digs = 0;
-    while (mp_iszero (&t) == 0) {
+    while (mp_iszero (&t) == MP_NO) {
         if ((res = mp_div_d (&t, (mp_digit) radix, &t, &d)) != MP_OKAY) {
             mp_clear (&t);
             return res;

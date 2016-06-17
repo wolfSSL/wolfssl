@@ -768,6 +768,18 @@ fi
 
 AM_CONDITIONAL([BUILD_ECC], [test "x$ENABLED_ECC" = "xyes"])
 
+# ECC Custom Curves
+AC_ARG_ENABLE([ecccustcurves],
+    [AS_HELP_STRING([--enable-ecccustcurves],[Enable ECC custom curves (default: disabled)])],
+    [ ENABLED_ECCCUSTCURVES=$enableval ],
+    [ ENABLED_ECCCUSTCURVES=no ]
+    )
+
+if test "$ENABLED_ECCCUSTCURVES" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_CUSTOM_CURVES"
+fi
+
 
 # for using memory optimization setting on both curve25519 and ed25519
 ENABLED_CURVED25519_SMALL=no

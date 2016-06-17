@@ -253,6 +253,9 @@ int idea_test(void);
 #define FOURK_BUF 4096
 
 
+#define ERROR_OUT(err, eLabel) { ret = (err); goto eLabel; }
+
+
 static int err_sys(const char* msg, int es)
 
 {
@@ -6466,7 +6469,7 @@ static int ecc_test_vector(int keySize)
         vec.d  = "e14f37b3d1374ff8b03f41b9b3fdd2f0ebccf275d660d7f3";
         vec.R  = "6994d962bdd0d793ffddf855ec5bf2f91a9698b46258a63e";
         vec.S  = "02ba6465a234903744ab02bc8521405b73cf5fc00e1a9f41";
-        vec.curveName = "ECC-192";
+        vec.curveName = "SECP192R1";
         break;
 #endif /* HAVE_ECC192 */
 
@@ -6494,7 +6497,7 @@ static int ecc_test_vector(int keySize)
         vec.d  = "97c4b796e1639dd1035b708fc00dc7ba1682cec44a1002a1a820619f";
         vec.R  = "147b33758321e722a0360a4719738af848449e2c1d08defebc1671a7";
         vec.S  = "24fc7ed7f1352ca3872aa0916191289e2e04d454935d50fe6af3ad5b";
-        vec.curveName = "ECC-224";
+        vec.curveName = "SECP224R1";
         break;
 #endif /* HAVE_ECC224 */
 
@@ -6522,7 +6525,7 @@ static int ecc_test_vector(int keySize)
         vec.d  = "be34baa8d040a3b991f9075b56ba292f755b90e4b6dc10dad36715c33cfdac25";
         vec.R  = "2b826f5d44e2d0b6de531ad96b51e8f0c56fdfead3c236892e4d84eacfc3b75c";
         vec.S  = "a2248b62c03db35a7cd63e8a120a3521a89d3d2f61ff99035a2148ae32e3a248";
-        vec.curveName = "nistp256";
+        vec.curveName = "SECP256R1";
         break;
 #endif /* !NO_ECC256 */
 
@@ -6550,7 +6553,7 @@ static int ecc_test_vector(int keySize)
         vec.d  = "a492ce8fa90084c227e1a32f7974d39e9ff67a7e8705ec3419b35fb607582bebd461e0b1520ac76ec2dd4e9b63ebae71";
         vec.R  = "6820b8585204648aed63bdff47f6d9acebdea62944774a7d14f0e14aa0b9a5b99545b2daee6b3c74ebf606667a3f39b7";
         vec.S  = "491af1d0cccd56ddd520b233775d0bc6b40a6255cc55207d8e9356741f23c96c14714221078dbd5c17f4fdd89b32a907";
-        vec.curveName = "nistp384";
+        vec.curveName = "SECP384R1";
         break;
 #endif /* HAVE_ECC384 */
 
@@ -6578,7 +6581,7 @@ static int ecc_test_vector(int keySize)
         vec.d  = "1bd56bd106118eda246155bd43b42b8e13f0a6e25dd3bb376026fab4dc92b6157bc6dfec2d15dd3d0cf2a39aa68494042af48ba9601118da82c6f2108a3a203ad74";
         vec.R  = "0bd117b4807710898f9dd7778056485777668f0e78e6ddf5b000356121eb7a220e9493c7f9a57c077947f89ac45d5acb6661bbcd17abb3faea149ba0aa3bb1521be";
         vec.S  = "019cd2c5c3f9870ecdeb9b323abdf3a98cd5e231d85c6ddc5b71ab190739f7f226e6b134ba1d5889ddeb2751dabd97911dff90c34684cdbe7bb669b6c3d22f2480c";
-        vec.curveName = "nistp521";
+        vec.curveName = "SECP521R1";
         break;
 #endif /* HAVE_ECC521 */
     default:
@@ -6672,7 +6675,7 @@ static int ecc_test_key_gen(WC_RNG* rng, int keySize)
 }
 #endif /* WOLFSSL_KEY_GEN */
 static int ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerifyCount,
-    int testCompressedKey)
+    int testCompressedKey, const ecc_set_type* dp)
 {
 #ifdef BENCH_EMBEDDED
     byte    sharedA[128]; /* Needs to be at least keySize */
@@ -6700,34 +6703,34 @@ static int ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerifyCount,
     wc_ecc_init(&userB);
     wc_ecc_init(&pubKey);
 
-    ret = wc_ecc_make_key(rng, keySize, &userA);
+    ret = wc_ecc_make_key_ex(rng, keySize, &userA, dp);
     if (ret != 0)
-        return -1014;
+        ERROR_OUT(-1014, done);
 
     ret = wc_ecc_check_key(&userA);
     if (ret != 0)
-        return -1023;
+        ERROR_OUT(-1023, done);
 
-    ret = wc_ecc_make_key(rng, keySize, &userB);
+    ret = wc_ecc_make_key_ex(rng, keySize, &userB, dp);
     if (ret != 0)
-        return -1002;
+        ERROR_OUT(-1002, done);
 
 #ifdef HAVE_ECC_DHE
     x = sizeof(sharedA);
     ret = wc_ecc_shared_secret(&userA, &userB, sharedA, &x);
     if (ret != 0)
-        return -1015;
+        ERROR_OUT(-1015, done);
 
     y = sizeof(sharedB);
     ret = wc_ecc_shared_secret(&userB, &userA, sharedB, &y);
     if (ret != 0)
-        return -1003;
+        ERROR_OUT(-1003, done);
 
     if (y != x)
-        return -1004;
+        ERROR_OUT(-1004, done);
 
     if (memcmp(sharedA, sharedB, x))
-        return -1005;
+        ERROR_OUT(-1005, done);
 #endif /* HAVE_ECC_DHE */
 
 #ifdef HAVE_ECC_KEY_EXPORT
@@ -6735,21 +6738,21 @@ static int ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerifyCount,
 
     ret = wc_ecc_export_x963(&userA, exportBuf, &x);
     if (ret != 0)
-        return -1006;
+        ERROR_OUT(-1006, done);
 
 #ifdef HAVE_ECC_KEY_IMPORT
-    ret = wc_ecc_import_x963(exportBuf, x, &pubKey);
+    ret = wc_ecc_import_x963_ex(exportBuf, x, &pubKey, dp);
     if (ret != 0)
-        return -1007;
+        ERROR_OUT(-1007, done);
 
 #ifdef HAVE_ECC_DHE
     y = sizeof(sharedB);
     ret = wc_ecc_shared_secret(&userB, &pubKey, sharedB, &y);
     if (ret != 0)
-        return -1008;
+        ERROR_OUT(-1008, done);
 
     if (memcmp(sharedA, sharedB, y))
-        return -1009;
+        ERROR_OUT(-1009, done);
 #endif /* HAVE_ECC_DHE */
 
     if (testCompressedKey) {
@@ -6759,22 +6762,22 @@ static int ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerifyCount,
 
         ret = wc_ecc_export_x963_ex(&userA, exportBuf, &x, 1);
         if (ret != 0)
-            return -1010;
+            ERROR_OUT(-1010, done);
         wc_ecc_free(&pubKey);
         wc_ecc_init(&pubKey);
 
         ret = wc_ecc_import_x963(exportBuf, x, &pubKey);
         if (ret != 0)
-            return -1011;
+            ERROR_OUT(-1011, done);
 
     #ifdef HAVE_ECC_DHE
         y = sizeof(sharedB);
         ret = wc_ecc_shared_secret(&userB, &pubKey, sharedB, &y);
         if (ret != 0)
-            return -1012;
+            ERROR_OUT(-1012, done);
 
         if (memcmp(sharedA, sharedB, y))
-            return -1013;
+            ERROR_OUT(-1013, done);
     #endif /* HAVE_ECC_DHE */
     #endif /* HAVE_COMP_KEY */
     }
@@ -6792,16 +6795,16 @@ static int ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerifyCount,
     ret = wc_ecc_sign_hash(digest, sizeof(digest), sig, &x, rng, &userA);
 
     if (ret != 0)
-        return -1014;
+        ERROR_OUT(-1014, done);
 
 #ifdef HAVE_ECC_VERIFY
     for (i=0; i<testVerifyCount; i++) {
         verify = 0;
         ret = wc_ecc_verify_hash(sig, x, digest, sizeof(digest), &verify, &userA);
         if (ret != 0)
-            return -1015;
+            ERROR_OUT(-1015, done);
         if (verify != 1)
-            return -1016;
+            ERROR_OUT(-1016, done);
     }
 #endif /* HAVE_ECC_VERIFY */
 
@@ -6814,16 +6817,16 @@ static int ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerifyCount,
     ret = wc_ecc_sign_hash(digest, sizeof(digest), sig, &x, rng, &userA);
 
     if (ret != 0)
-        return -1014;
+        ERROR_OUT(-1014, done);
 
 #ifdef HAVE_ECC_VERIFY
     for (i=0; i<testVerifyCount; i++) {
         verify = 0;
         ret = wc_ecc_verify_hash(sig, x, digest, sizeof(digest), &verify, &userA);
         if (ret != 0)
-            return -1015;
+            ERROR_OUT(-1015, done);
         if (verify != 1)
-            return -1016;
+            ERROR_OUT(-1016, done);
     }
 #endif /* HAVE_ECC_VERIFY */
 #endif /* HAVE_ECC_SIGN */
@@ -6832,14 +6835,15 @@ static int ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerifyCount,
     x = sizeof(exportBuf);
     ret = wc_ecc_export_private_only(&userA, exportBuf, &x);
     if (ret != 0)
-        return -1017;
+        ERROR_OUT(-1017, done);
 #endif /* HAVE_ECC_KEY_EXPORT */
 
+done:
     wc_ecc_free(&pubKey);
     wc_ecc_free(&userB);
     wc_ecc_free(&userA);
 
-    return 0;
+    return ret;
 }
 
 #undef  ECC_TEST_VERIFY_COUNT
@@ -6854,7 +6858,7 @@ static int ecc_test_curve(WC_RNG* rng, int keySize)
     }
 
     ret = ecc_test_curve_size(rng, keySize, ECC_TEST_VERIFY_COUNT,
-                                                        testCompressedKey);
+                                                    testCompressedKey, NULL);
     if (ret < 0) {
         printf("ecc_test_curve_size %d failed!: %d\n", keySize, ret);
         return ret;
@@ -6891,37 +6895,58 @@ int ecc_test(void)
 #if defined(HAVE_ECC192) || defined(HAVE_ALL_CURVES)
     ret = ecc_test_curve(&rng, 24);
     if (ret < 0) {
-        return ret;
+        goto done;
     }
 #endif /* HAVE_ECC192 */
 #if defined(HAVE_ECC224) || defined(HAVE_ALL_CURVES)
     ret = ecc_test_curve(&rng, 28);
     if (ret < 0) {
-        return ret;
+        goto done;
     }
 #endif /* HAVE_ECC224 */
 #if !defined(NO_ECC256) || defined(HAVE_ALL_CURVES)
     ret = ecc_test_curve(&rng, 32);
     if (ret < 0) {
-        return ret;
+        goto done;
     }
 #endif /* !NO_ECC256 */
 #if defined(HAVE_ECC384) || defined(HAVE_ALL_CURVES)
     ret = ecc_test_curve(&rng, 48);
     if (ret < 0) {
-        return ret;
+        goto done;
     }
 #endif /* HAVE_ECC384 */
 #if defined(HAVE_ECC521) || defined(HAVE_ALL_CURVES)
     ret = ecc_test_curve(&rng, 66);
     if (ret < 0) {
-        return ret;
+        goto done;
     }
 #endif /* HAVE_ECC521 */
 
+#if defined(WOLFSSL_CUSTOM_CURVES)
+    /* Test and demonstrate use of Brainpool256 curve */
+    const ecc_set_type ecc_cust_dp = {
+        32,                                                                 /* size/bytes */
+        0,                                                                  /* NID - not required */ 
+        "BRAINPOOLP256R1",                                                  /* curve name */
+        "A9FB57DBA1EEA9BC3E660A909D838D726E3BF623D52620282013481D1F6E5377", /* prime      */
+        "7D5A0975FC2C3057EEF67530417AFFE7FB8055C126DC5C6CE94A4B44F330B5D9", /* A          */
+        "26DC5C6CE94A4B44F330B5D9BBD77CBF958416295CF7E1CE6BCCDC18FF8C07B6", /* B          */
+        "A9FB57DBA1EEA9BC3E660A909D838D718C397AA3B561A6F7901E0E82974856A7", /* order      */
+        "8BD2AEB9CB7E57CB2C4B482FFC81B7AFB9DE27E1E3BD23C23A4453BD9ACE3262", /* Gx         */
+        "547EF835C3DAC4FD97F8461A14611DC9C27745132DED8E545C1D54C72F046997", /* Gy         */
+    };
+    ret = ecc_test_curve_size(&rng, -1, ECC_TEST_VERIFY_COUNT, 0, &ecc_cust_dp);
+    if (ret < 0) {
+        printf("ecc_test_curve_size custom failed!: %d\n", ret);
+        goto done;
+    }
+#endif
+
+done:
     wc_FreeRng(&rng);
 
-    return 0;
+    return ret;
 }
 
 #ifdef HAVE_ECC_ENCRYPT
@@ -8293,6 +8318,9 @@ int pkcs7signed_test(void)
 }
 
 #endif /* HAVE_PKCS7 */
+
+#undef ERROR_OUT
+
 #else
     #ifndef NO_MAIN_DRIVER
         int main() { return 0; }
