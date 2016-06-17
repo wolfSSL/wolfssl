@@ -28,10 +28,9 @@ void fp_montgomery_reduce_small(fp_int *a, fp_int *m, fp_digit mp)
    fp_digit c[FP_SIZE], *_c, *tmpm, mu, cy;
    int      oldused, x, y, pa;
 
-#if defined(USE_MEMSET)
    /* now zero the buff */
-   memset(c, 0, sizeof c);
-#endif
+   XMEMSET(c, 0, sizeof c);
+
    pa = m->used;
 
    /* copy the input */
@@ -39,11 +38,7 @@ void fp_montgomery_reduce_small(fp_int *a, fp_int *m, fp_digit mp)
    for (x = 0; x < oldused; x++) {
        c[x] = a->dp[x];
    }
-#if !defined(USE_MEMSET)
-   for (; x < 2*pa+3; x++) {
-       c[x] = 0;
-   }
-#endif
+
    MONT_START;
 
    switch (pa) {

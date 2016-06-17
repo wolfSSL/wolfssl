@@ -167,7 +167,7 @@ const ecc_set_type ecc_sets[] = {
 #ifdef ECC192
 {
         24,                                                 /* size/bytes */
-        NID_secp192k1,                                      /* NID        */
+        NID_X9_62_prime192v1,                               /* NID        */
         "SECP192R1",                                        /* curve name */
         "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFFFFFFFFFFFF", /* prime      */
         "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFFFFFFFFFFFC", /* A          */
@@ -193,7 +193,7 @@ const ecc_set_type ecc_sets[] = {
 #ifdef ECC256
 {
         32,                                                                 /* size/bytes */
-        NID_secp256k1,                                                      /* NID        */
+        NID_X9_62_prime256v1,                                               /* NID        */
         "SECP256R1",                                                        /* curve name */
         "FFFFFFFF00000001000000000000000000000000FFFFFFFFFFFFFFFFFFFFFFFF", /* prime      */
         "FFFFFFFF00000001000000000000000000000000FFFFFFFFFFFFFFFFFFFFFFFC", /* A          */

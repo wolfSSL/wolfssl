@@ -26,8 +26,8 @@ void fp_mul_comba17(fp_int *A, fp_int *B, fp_int *C)
 {
    fp_digit c0, c1, c2, at[34];
 
-   memcpy(at, A->dp, 17 * sizeof(fp_digit));
-   memcpy(at+17, B->dp, 17 * sizeof(fp_digit));
+   XMEMCPY(at, A->dp, 17 * sizeof(fp_digit));
+   XMEMCPY(at+17, B->dp, 17 * sizeof(fp_digit));
    COMBA_START;
 
    COMBA_CLEAR;

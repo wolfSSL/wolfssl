@@ -181,7 +181,7 @@
         }
 
         if (ret && ptr)
-            memcpy(ret, ptr, sz);
+            XMEMCPY(ret, ptr, sz);
 
         if (ret) {
         #ifdef WOLFSSL_DEBUG_MEMORY

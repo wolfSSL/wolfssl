@@ -28,8 +28,8 @@ void fp_mul_comba_small(fp_int *A, fp_int *B, fp_int *C)
    switch (MAX(A->used, B->used)) { 
 
    case 1:
-      memcpy(at, A->dp, 1 * sizeof(fp_digit));
-      memcpy(at+1, B->dp, 1 * sizeof(fp_digit));
+      XMEMCPY(at, A->dp, 1 * sizeof(fp_digit));
+      XMEMCPY(at+1, B->dp, 1 * sizeof(fp_digit));
       COMBA_START;
 
       COMBA_CLEAR;
@@ -44,8 +44,8 @@ void fp_mul_comba_small(fp_int *A, fp_int *B, fp_int *C)
       break;
 
    case 2:
-      memcpy(at, A->dp, 2 * sizeof(fp_digit));
-      memcpy(at+2, B->dp, 2 * sizeof(fp_digit));
+      XMEMCPY(at, A->dp, 2 * sizeof(fp_digit));
+      XMEMCPY(at+2, B->dp, 2 * sizeof(fp_digit));
       COMBA_START;
 
       COMBA_CLEAR;
@@ -68,8 +68,8 @@ void fp_mul_comba_small(fp_int *A, fp_int *B, fp_int *C)
       break;
 
    case 3:
-      memcpy(at, A->dp, 3 * sizeof(fp_digit));
-      memcpy(at+3, B->dp, 3 * sizeof(fp_digit));
+      XMEMCPY(at, A->dp, 3 * sizeof(fp_digit));
+      XMEMCPY(at+3, B->dp, 3 * sizeof(fp_digit));
       COMBA_START;
 
       COMBA_CLEAR;
@@ -100,8 +100,8 @@ void fp_mul_comba_small(fp_int *A, fp_int *B, fp_int *C)
       break;
 
    case 4:
-      memcpy(at, A->dp, 4 * sizeof(fp_digit));
-      memcpy(at+4, B->dp, 4 * sizeof(fp_digit));
+      XMEMCPY(at, A->dp, 4 * sizeof(fp_digit));
+      XMEMCPY(at+4, B->dp, 4 * sizeof(fp_digit));
       COMBA_START;
 
       COMBA_CLEAR;
@@ -140,8 +140,8 @@ void fp_mul_comba_small(fp_int *A, fp_int *B, fp_int *C)
       break;
 
    case 5:
-      memcpy(at, A->dp, 5 * sizeof(fp_digit));
-      memcpy(at+5, B->dp, 5 * sizeof(fp_digit));
+      XMEMCPY(at, A->dp, 5 * sizeof(fp_digit));
+      XMEMCPY(at+5, B->dp, 5 * sizeof(fp_digit));
       COMBA_START;
 
       COMBA_CLEAR;
@@ -188,8 +188,8 @@ void fp_mul_comba_small(fp_int *A, fp_int *B, fp_int *C)
       break;
 
    case 6:
-      memcpy(at, A->dp, 6 * sizeof(fp_digit));
-      memcpy(at+6, B->dp, 6 * sizeof(fp_digit));
+      XMEMCPY(at, A->dp, 6 * sizeof(fp_digit));
+      XMEMCPY(at+6, B->dp, 6 * sizeof(fp_digit));
       COMBA_START;
 
       COMBA_CLEAR;
@@ -244,8 +244,8 @@ void fp_mul_comba_small(fp_int *A, fp_int *B, fp_int *C)
       break;
 
    case 7:
-      memcpy(at, A->dp, 7 * sizeof(fp_digit));
-      memcpy(at+7, B->dp, 7 * sizeof(fp_digit));
+      XMEMCPY(at, A->dp, 7 * sizeof(fp_digit));
+      XMEMCPY(at+7, B->dp, 7 * sizeof(fp_digit));
       COMBA_START;
 
       COMBA_CLEAR;
@@ -308,8 +308,8 @@ void fp_mul_comba_small(fp_int *A, fp_int *B, fp_int *C)
       break;
 
    case 8:
-      memcpy(at, A->dp, 8 * sizeof(fp_digit));
-      memcpy(at+8, B->dp, 8 * sizeof(fp_digit));
+      XMEMCPY(at, A->dp, 8 * sizeof(fp_digit));
+      XMEMCPY(at+8, B->dp, 8 * sizeof(fp_digit));
       COMBA_START;
 
       COMBA_CLEAR;
@@ -380,8 +380,8 @@ void fp_mul_comba_small(fp_int *A, fp_int *B, fp_int *C)
       break;
 
    case 9:
-      memcpy(at, A->dp, 9 * sizeof(fp_digit));
-      memcpy(at+9, B->dp, 9 * sizeof(fp_digit));
+      XMEMCPY(at, A->dp, 9 * sizeof(fp_digit));
+      XMEMCPY(at+9, B->dp, 9 * sizeof(fp_digit));
       COMBA_START;
 
       COMBA_CLEAR;
@@ -460,8 +460,8 @@ void fp_mul_comba_small(fp_int *A, fp_int *B, fp_int *C)
       break;
 
    case 10:
-      memcpy(at, A->dp, 10 * sizeof(fp_digit));
-      memcpy(at+10, B->dp, 10 * sizeof(fp_digit));
+      XMEMCPY(at, A->dp, 10 * sizeof(fp_digit));
+      XMEMCPY(at+10, B->dp, 10 * sizeof(fp_digit));
       COMBA_START;
 
       COMBA_CLEAR;
@@ -548,8 +548,8 @@ void fp_mul_comba_small(fp_int *A, fp_int *B, fp_int *C)
       break;
 
    case 11:
-      memcpy(at, A->dp, 11 * sizeof(fp_digit));
-      memcpy(at+11, B->dp, 11 * sizeof(fp_digit));
+      XMEMCPY(at, A->dp, 11 * sizeof(fp_digit));
+      XMEMCPY(at+11, B->dp, 11 * sizeof(fp_digit));
       COMBA_START;
 
       COMBA_CLEAR;
@@ -644,8 +644,8 @@ void fp_mul_comba_small(fp_int *A, fp_int *B, fp_int *C)
       break;
 
    case 12:
-      memcpy(at, A->dp, 12 * sizeof(fp_digit));
-      memcpy(at+12, B->dp, 12 * sizeof(fp_digit));
+      XMEMCPY(at, A->dp, 12 * sizeof(fp_digit));
+      XMEMCPY(at+12, B->dp, 12 * sizeof(fp_digit));
       COMBA_START;
 
       COMBA_CLEAR;
@@ -748,8 +748,8 @@ void fp_mul_comba_small(fp_int *A, fp_int *B, fp_int *C)
       break;
 
    case 13:
-      memcpy(at, A->dp, 13 * sizeof(fp_digit));
-      memcpy(at+13, B->dp, 13 * sizeof(fp_digit));
+      XMEMCPY(at, A->dp, 13 * sizeof(fp_digit));
+      XMEMCPY(at+13, B->dp, 13 * sizeof(fp_digit));
       COMBA_START;
 
       COMBA_CLEAR;
@@ -860,8 +860,8 @@ void fp_mul_comba_small(fp_int *A, fp_int *B, fp_int *C)
       break;
 
    case 14:
-      memcpy(at, A->dp, 14 * sizeof(fp_digit));
-      memcpy(at+14, B->dp, 14 * sizeof(fp_digit));
+      XMEMCPY(at, A->dp, 14 * sizeof(fp_digit));
+      XMEMCPY(at+14, B->dp, 14 * sizeof(fp_digit));
       COMBA_START;
 
       COMBA_CLEAR;
@@ -980,8 +980,8 @@ void fp_mul_comba_small(fp_int *A, fp_int *B, fp_int *C)
       break;
 
    case 15:
-      memcpy(at, A->dp, 15 * sizeof(fp_digit));
-      memcpy(at+15, B->dp, 15 * sizeof(fp_digit));
+      XMEMCPY(at, A->dp, 15 * sizeof(fp_digit));
+      XMEMCPY(at+15, B->dp, 15 * sizeof(fp_digit));
       COMBA_START;
 
       COMBA_CLEAR;
@@ -1108,8 +1108,8 @@ void fp_mul_comba_small(fp_int *A, fp_int *B, fp_int *C)
       break;
 
    case 16:
-      memcpy(at, A->dp, 16 * sizeof(fp_digit));
-      memcpy(at+16, B->dp, 16 * sizeof(fp_digit));
+      XMEMCPY(at, A->dp, 16 * sizeof(fp_digit));
+      XMEMCPY(at+16, B->dp, 16 * sizeof(fp_digit));
       COMBA_START;
 
       COMBA_CLEAR;
