@@ -44,7 +44,7 @@ void fp_sqr_comba_small(fp_int *A, fp_int *B)
 
       B->used = 2;
       B->sign = FP_ZPOS;
-      memcpy(B->dp, b, 2 * sizeof(fp_digit));
+      XMEMCPY(B->dp, b, 2 * sizeof(fp_digit));
       fp_clamp(B);
       break;
 
@@ -73,7 +73,7 @@ void fp_sqr_comba_small(fp_int *A, fp_int *B)
 
       B->used = 4;
       B->sign = FP_ZPOS;
-      memcpy(B->dp, b, 4 * sizeof(fp_digit));
+      XMEMCPY(B->dp, b, 4 * sizeof(fp_digit));
       fp_clamp(B);
       break;
 
@@ -112,7 +112,7 @@ void fp_sqr_comba_small(fp_int *A, fp_int *B)
 
       B->used = 6;
       B->sign = FP_ZPOS;
-      memcpy(B->dp, b, 6 * sizeof(fp_digit));
+      XMEMCPY(B->dp, b, 6 * sizeof(fp_digit));
       fp_clamp(B);
       break;
 
@@ -161,7 +161,7 @@ void fp_sqr_comba_small(fp_int *A, fp_int *B)
 
       B->used = 8;
       B->sign = FP_ZPOS;
-      memcpy(B->dp, b, 8 * sizeof(fp_digit));
+      XMEMCPY(B->dp, b, 8 * sizeof(fp_digit));
       fp_clamp(B);
       break;
 
@@ -220,7 +220,7 @@ void fp_sqr_comba_small(fp_int *A, fp_int *B)
 
       B->used = 10;
       B->sign = FP_ZPOS;
-      memcpy(B->dp, b, 10 * sizeof(fp_digit));
+      XMEMCPY(B->dp, b, 10 * sizeof(fp_digit));
       fp_clamp(B);
       break;
 
@@ -289,7 +289,7 @@ void fp_sqr_comba_small(fp_int *A, fp_int *B)
 
       B->used = 12;
       B->sign = FP_ZPOS;
-      memcpy(B->dp, b, 12 * sizeof(fp_digit));
+      XMEMCPY(B->dp, b, 12 * sizeof(fp_digit));
       fp_clamp(B);
       break;
 
@@ -368,7 +368,7 @@ void fp_sqr_comba_small(fp_int *A, fp_int *B)
 
       B->used = 14;
       B->sign = FP_ZPOS;
-      memcpy(B->dp, b, 14 * sizeof(fp_digit));
+      XMEMCPY(B->dp, b, 14 * sizeof(fp_digit));
       fp_clamp(B);
       break;
 
@@ -457,7 +457,7 @@ void fp_sqr_comba_small(fp_int *A, fp_int *B)
 
       B->used = 16;
       B->sign = FP_ZPOS;
-      memcpy(B->dp, b, 16 * sizeof(fp_digit));
+      XMEMCPY(B->dp, b, 16 * sizeof(fp_digit));
       fp_clamp(B);
       break;
 
@@ -556,7 +556,7 @@ void fp_sqr_comba_small(fp_int *A, fp_int *B)
 
       B->used = 18;
       B->sign = FP_ZPOS;
-      memcpy(B->dp, b, 18 * sizeof(fp_digit));
+      XMEMCPY(B->dp, b, 18 * sizeof(fp_digit));
       fp_clamp(B);
       break;
 
@@ -665,7 +665,7 @@ void fp_sqr_comba_small(fp_int *A, fp_int *B)
 
       B->used = 20;
       B->sign = FP_ZPOS;
-      memcpy(B->dp, b, 20 * sizeof(fp_digit));
+      XMEMCPY(B->dp, b, 20 * sizeof(fp_digit));
       fp_clamp(B);
       break;
 
@@ -784,7 +784,7 @@ void fp_sqr_comba_small(fp_int *A, fp_int *B)
 
       B->used = 22;
       B->sign = FP_ZPOS;
-      memcpy(B->dp, b, 22 * sizeof(fp_digit));
+      XMEMCPY(B->dp, b, 22 * sizeof(fp_digit));
       fp_clamp(B);
       break;
 
@@ -913,7 +913,7 @@ void fp_sqr_comba_small(fp_int *A, fp_int *B)
 
       B->used = 24;
       B->sign = FP_ZPOS;
-      memcpy(B->dp, b, 24 * sizeof(fp_digit));
+      XMEMCPY(B->dp, b, 24 * sizeof(fp_digit));
       fp_clamp(B);
       break;
 
@@ -1052,7 +1052,7 @@ void fp_sqr_comba_small(fp_int *A, fp_int *B)
 
       B->used = 26;
       B->sign = FP_ZPOS;
-      memcpy(B->dp, b, 26 * sizeof(fp_digit));
+      XMEMCPY(B->dp, b, 26 * sizeof(fp_digit));
       fp_clamp(B);
       break;
 
@@ -1201,7 +1201,7 @@ void fp_sqr_comba_small(fp_int *A, fp_int *B)
 
       B->used = 28;
       B->sign = FP_ZPOS;
-      memcpy(B->dp, b, 28 * sizeof(fp_digit));
+      XMEMCPY(B->dp, b, 28 * sizeof(fp_digit));
       fp_clamp(B);
       break;
 
@@ -1360,7 +1360,7 @@ void fp_sqr_comba_small(fp_int *A, fp_int *B)
 
       B->used = 30;
       B->sign = FP_ZPOS;
-      memcpy(B->dp, b, 30 * sizeof(fp_digit));
+      XMEMCPY(B->dp, b, 30 * sizeof(fp_digit));
       fp_clamp(B);
       break;
 
@@ -1529,7 +1529,7 @@ void fp_sqr_comba_small(fp_int *A, fp_int *B)
 
       B->used = 32;
       B->sign = FP_ZPOS;
-      memcpy(B->dp, b, 32 * sizeof(fp_digit));
+      XMEMCPY(B->dp, b, 32 * sizeof(fp_digit));
       fp_clamp(B);
       break;
 

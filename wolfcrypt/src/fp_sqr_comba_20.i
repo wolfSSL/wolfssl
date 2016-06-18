@@ -233,7 +233,7 @@ void fp_sqr_comba20(fp_int *A, fp_int *B)
 
    B->used = 40;
    B->sign = FP_ZPOS;
-   memcpy(B->dp, b, 40 * sizeof(fp_digit));
+   XMEMCPY(B->dp, b, 40 * sizeof(fp_digit));
    fp_clamp(B);
 }
 #endif

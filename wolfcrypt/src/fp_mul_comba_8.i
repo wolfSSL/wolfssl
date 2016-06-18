@@ -26,8 +26,8 @@ void fp_mul_comba8(fp_int *A, fp_int *B, fp_int *C)
 {
    fp_digit c0, c1, c2, at[16];
 
-   memcpy(at, A->dp, 8 * sizeof(fp_digit));
-   memcpy(at+8, B->dp, 8 * sizeof(fp_digit));
+   XMEMCPY(at, A->dp, 8 * sizeof(fp_digit));
+   XMEMCPY(at+8, B->dp, 8 * sizeof(fp_digit));
    COMBA_START;
 
    COMBA_CLEAR;
