@@ -2067,9 +2067,6 @@ static int ecc_mul2add(ecc_point* A, mp_int* kA,
         for (x = 0; x < 16; x++) {
             precomp[x] = wc_ecc_new_point_h(heap);
             if (precomp[x] == NULL) {
-                for (y = 0; y < x; ++y) {
-                    wc_ecc_del_point_h(precomp[y], heap);
-                }
                 err = GEN_MEM_ERR;
                 break;
             }
