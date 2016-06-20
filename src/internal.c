@@ -8100,7 +8100,8 @@ static int ChachaAEADDecrypt(WOLFSSL* ssl, byte* plain, const byte* input,
     /* check tag sent along with packet */
     if (ConstantCompare(input + msgLen, tag, ssl->specs.aead_mac_size) != 0) {
         WOLFSSL_MSG("MAC did not match");
-        SendAlert(ssl, alert_fatal, bad_record_mac);
+        if (!ssl->options.dtls)
+            SendAlert(ssl, alert_fatal, bad_record_mac);
         return VERIFY_MAC_ERROR;
     }
 
@@ -8364,7 +8365,8 @@ static INLINE int Decrypt(WOLFSSL* ssl, byte* plain, const byte* input,
                             input + sz - ssl->specs.aead_mac_size,
                             ssl->specs.aead_mac_size,
                             additional, AEAD_AUTH_DATA_SZ) < 0) {
-                    SendAlert(ssl, alert_fatal, bad_record_mac);
+                    if (!ssl->options.dtls)
+                        SendAlert(ssl, alert_fatal, bad_record_mac);
                     ret = VERIFY_MAC_ERROR;
                 }
                 ForceZero(nonce, AESGCM_NONCE_SZ);
@@ -8405,7 +8407,8 @@ static INLINE int Decrypt(WOLFSSL* ssl, byte* plain, const byte* input,
                             input + sz - ssl->specs.aead_mac_size,
                             ssl->specs.aead_mac_size,
                             additional, AEAD_AUTH_DATA_SZ) < 0) {
-                    SendAlert(ssl, alert_fatal, bad_record_mac);
+                    if (!ssl->options.dtls)
+                        SendAlert(ssl, alert_fatal, bad_record_mac);
                     ret = VERIFY_MAC_ERROR;
                 }
                 ForceZero(nonce, AESGCM_NONCE_SZ);
@@ -9195,6 +9198,15 @@ int ProcessReply(WOLFSSL* ssl)
                     if (ret < 0) {
                         WOLFSSL_MSG("Decrypt failed");
                         WOLFSSL_ERROR(ret);
+                        #ifdef WOLFSSL_DTLS
+                            /* If in DTLS mode, if the decrypt fails for any
+                             * reason, pretend the datagram never happened. */
+                            if (ssl->options.dtls) {
+                                ssl->options.processReply = doProcessInit;
+                                ssl->buffers.inputBuffer.idx =
+                                                ssl->buffers.inputBuffer.length;
+                            }
+                        #endif /* WOLFSSL_DTLS */
                         return DECRYPT_ERROR;
                     }
                     if (ssl->options.tls1_1 && ssl->specs.cipher_type == block)
@@ -10820,6 +10832,15 @@ int ReceiveData(WOLFSSL* ssl, byte* output, int sz, int peek)
 
     if (ssl->error == WANT_READ || ssl->error == WC_PENDING_E)
         ssl->error = 0;
+
+#ifdef WOLFSSL_DTLS
+    if (ssl->options.dtls) {
+        /* In DTLS mode, we forgive some errors and allow the session
+         * to continue despite them. */
+        if (ssl->error == VERIFY_MAC_ERROR || ssl->error == DECRYPT_ERROR)
+            ssl->error = 0;
+    }
+#endif /* WOLFSSL_DTLS */
 
     if (ssl->error != 0 && ssl->error != WANT_WRITE) {
         WOLFSSL_MSG("User calling wolfSSL_read in error state, not allowed");
