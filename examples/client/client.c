@@ -517,13 +517,19 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 
     WOLFSSL*         sslResume = 0;
     WOLFSSL_SESSION* session = 0;
-    char         resumeMsg[32] = "resuming wolfssl!";
-    int          resumeSz    = (int)strlen(resumeMsg);
 
+#ifndef WOLFSSL_ALT_TEST_STRINGS
     char msg[32] = "hello wolfssl!";   /* GET may make bigger */
+    char resumeMsg[32] = "resuming wolfssl!";
+#else
+    char msg[32] = "hello wolfssl!\n";
+    char resumeMsg[32] = "resuming wolfssl!\n";
+#endif
+
     char reply[80];
     int  input;
     int  msgSz = (int)strlen(msg);
+    int  resumeSz = (int)strlen(resumeMsg);
 
     word16 port   = wolfSSLPort;
     char* host   = (char*)wolfSSLIP;

@@ -2123,6 +2123,13 @@ void InitSuites(Suites* suites, ProtocolVersion pv, word16 haveRSA,
     }
 #endif
 
+#ifdef BUILD_TLS_ECDHE_ECDSA_WITH_AES_128_CCM
+    if (tls1_2 && haveECC) {
+        suites->suites[idx++] = ECC_BYTE;
+        suites->suites[idx++] = TLS_ECDHE_ECDSA_WITH_AES_128_CCM;
+    }
+#endif
+
 #ifdef BUILD_TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8
     if (tls1_2 && haveECC) {
         suites->suites[idx++] = ECC_BYTE;
@@ -5540,6 +5547,7 @@ static int BuildFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
             break;
 #endif
 
+        case TLS_ECDHE_ECDSA_WITH_AES_128_CCM :
         case TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8 :
         case TLS_ECDHE_ECDSA_WITH_AES_256_CCM_8 :
             if (requirement == REQUIRES_ECC)
@@ -11500,6 +11508,10 @@ static const char* const cipher_names[] =
     "AES256-CCM-8",
 #endif
 
+#ifdef BUILD_TLS_ECDHE_ECDSA_WITH_AES_128_CCM
+    "ECDHE-ECDSA-AES128-CCM",
+#endif
+
 #ifdef BUILD_TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8
     "ECDHE-ECDSA-AES128-CCM-8",
 #endif
@@ -11940,6 +11952,10 @@ static int cipher_name_idx[] =
 
 #ifdef BUILD_TLS_RSA_WITH_AES_256_CCM_8
     TLS_RSA_WITH_AES_256_CCM_8,
+#endif
+
+#ifdef BUILD_TLS_ECDHE_ECDSA_WITH_AES_128_CCM
+    TLS_ECDHE_ECDSA_WITH_AES_128_CCM,
 #endif
 
 #ifdef BUILD_TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8

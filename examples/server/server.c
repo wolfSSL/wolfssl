@@ -256,7 +256,11 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     SSL_CTX*    ctx    = 0;
     SSL*        ssl    = 0;
 
+#ifndef WOLFSSL_ALT_TEST_STRINGS
     const char msg[] = "I hear you fa shizzle!";
+#else
+    const char msg[] = "I hear you fa shizzle!\n";
+#endif
     char   input[80];
     int    ch;
     int    version = SERVER_DEFAULT_VERSION;
