@@ -6763,7 +6763,7 @@ static int ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerifyCount,
         wc_ecc_free(&pubKey);
         wc_ecc_init(&pubKey);
 
-        ret = wc_ecc_import_x963(exportBuf, x, &pubKey);
+        ret = wc_ecc_import_x963_ex(exportBuf, x, &pubKey, dp);
         if (ret != 0)
             ERROR_OUT(-1011, done);
 
@@ -6927,7 +6927,7 @@ int ecc_test(void)
         "8BD2AEB9CB7E57CB2C4B482FFC81B7AFB9DE27E1E3BD23C23A4453BD9ACE3262", /* Gx         */
         "547EF835C3DAC4FD97F8461A14611DC9C27745132DED8E545C1D54C72F046997", /* Gy         */
     };
-    ret = ecc_test_curve_size(&rng, -1, ECC_TEST_VERIFY_COUNT, &ecc_cust_dp);
+    ret = ecc_test_curve_size(&rng, 0, ECC_TEST_VERIFY_COUNT, &ecc_cust_dp);
     if (ret < 0) {
         printf("ecc_test_curve_size custom failed!: %d\n", ret);
         goto done;

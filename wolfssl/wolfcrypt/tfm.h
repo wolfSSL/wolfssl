@@ -516,8 +516,11 @@ int fp_exptmod(fp_int *a, fp_int *b, fp_int *c, fp_int *d);
 /* perform a Miller-Rabin test of a to the base b and store result in "result" */
 /*void fp_prime_miller_rabin (fp_int * a, fp_int * b, int *result);*/
 
+#define FP_PRIME_SIZE      256
 /* 256 trial divisions + 8 Miller-Rabins, returns FP_YES if probable prime  */
-/*int fp_isprime(fp_int *a);*/
+int fp_isprime(fp_int *a);
+/* extended version of fp_isprime, do 't' Miller-Rabins instead of only 8 */
+int fp_isprime_ex(fp_int *a, int t);
 
 /* Primality generation flags */
 /*#define TFM_PRIME_BBS      0x0001 */ /* BBS style prime */
