@@ -347,9 +347,7 @@ typedef struct {
 #define TFM_SQR64
 #endif
 
-/* do we want some overflow checks
-   Not required if you make sure your numbers are within range (e.g. by default a modulus for fp_exptmod() can only be up to 2048 bits long)
- */
+/* Optional math checks (enable WOLFSSL_DEBUG_MATH to print info) */
 /* #define TFM_CHECK */
 
 /* Is the target a P4 Prescott

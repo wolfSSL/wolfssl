@@ -4801,7 +4801,7 @@ void mp_dump(const char* desc, mp_int* a, byte verbose)
   char *buffer;
   int size = a->alloc;
 
-  buffer = (char*)XMALLOC(size * 2, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+  buffer = (char*)XMALLOC(size * sizeof(mp_digit) * 2, NULL, DYNAMIC_TYPE_TMP_BUFFER);
   if (buffer == NULL) {
     return;
   }

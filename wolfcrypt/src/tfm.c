@@ -891,7 +891,7 @@ top:
 int fp_invmod(fp_int *a, fp_int *b, fp_int *c)
 {
   fp_int  x, y, u, v, B, D;
-  int     neg, loop_check = 0;
+  int     neg;
 
   /* 2. [modified] b must be odd   */
   if (fp_iseven (b) == FP_YES) {
@@ -955,8 +955,6 @@ top:
 
   /* if not zero goto step 4 */
   if (fp_iszero (&u) == FP_NO) {
-    if (++loop_check > 4096) /* bad input */
-      return FP_VAL;
     goto top;
   }
 
@@ -2968,8 +2966,7 @@ int mp_init_copy(fp_int * a, fp_int * b)
 
 int mp_cnt_lsb(fp_int* a)
 {
-    fp_cnt_lsb(a);
-    return MP_OKAY;
+    return fp_cnt_lsb(a);
 }
 
 #endif /* HAVE_COMP_KEY */

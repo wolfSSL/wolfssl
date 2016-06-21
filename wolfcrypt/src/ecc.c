@@ -2746,7 +2746,7 @@ static int ecc_is_point(const ecc_set_type* dp, ecc_point* ecp, mp_int* prime)
    /* Determine if curve "a" should be used in calc */
 #ifdef WOLFSSL_CUSTOM_CURVES
    /* compute y^2 - x^3 + a*x */
-   mp_clear(&t2);
+   mp_set(&t2, 0);
    if (err == MP_OKAY)
        err = mp_submod(prime, &a, prime, &t2);
    if (err == MP_OKAY)
@@ -2894,7 +2894,7 @@ static int ecc_check_pubkey_order(ecc_key* key, mp_int* a, mp_int* prime,
 }
 
 
-/* perform sanity checks on ec key validity, 0 on success */
+/* perform sanity checks on ecc key validity, 0 on success */
 int wc_ecc_check_key(ecc_key* key)
 {
     mp_int prime;  /* used by multiple calls so let's cache */
@@ -5462,7 +5462,7 @@ int mp_jacobi(mp_int* a, mp_int* n, int* c)
         res = mp_jacobi (&p1, &a1, &r);
 
       if (res == MP_OKAY)
-      *c = s * r;
+        *c = s * r;
     }
   }
 
@@ -5474,25 +5474,39 @@ int mp_jacobi(mp_int* a, mp_int* n, int* c)
 }
 
 
+/* Solves the modular equation x^2 = n (mod p)
+ * where prime number is greater than 2 (odd prime).
+ * The result is returned in the third argument x
+ * the function returns MP_OKAY on success, MP_VAL or another error on failure
+ */
 int mp_sqrtmod_prime(mp_int* n, mp_int* prime, mp_int* ret)
 {
   int res, legendre, done = 0;
   mp_int t1, C, Q, S, Z, M, T, R, two;
   mp_digit i;
 
-  /* first handle the simple cases */
+  /* first handle the simple cases n = 0 or n = 1 */
   if (mp_cmp_d(n, 0) == MP_EQ) {
     mp_zero(ret);
     return MP_OKAY;
   }
+  if (mp_cmp_d(n, 1) == MP_EQ) {
+    mp_set(ret, 1);
+    return MP_OKAY;
+  }
 
   /* prime must be odd */
-  if (mp_cmp_d(prime, 2) == MP_EQ)
+  if (mp_cmp_d(prime, 2) == MP_EQ) {
     return MP_VAL;
+  }
 
-  /* TAO removed
-  if ((res = mp_jacobi(n, prime, &legendre)) != MP_OKAY)      return res;
-  if (legendre == -1)  return MP_VAL; */ /* quadratic non-residue mod prime */
+  /* is quadratic non-residue mod prime */
+  if ((res = mp_jacobi(n, prime, &legendre)) != MP_OKAY) {
+    return res;
+  }
+  if (legendre == -1) {
+    return MP_VAL;
+  }
 
   if ((res = mp_init_multi(&t1, &C, &Q, &S, &Z, &M)) != MP_OKAY)
     return res;
@@ -5587,6 +5601,8 @@ int mp_sqrtmod_prime(mp_int* n, mp_int* prime, mp_int* ret)
 
     while (res == MP_OKAY && done == 0) {
       res = mp_copy(&T, &t1);
+
+      /* reduce to 1 and count */
       i = 0;
       while (res == MP_OKAY) {
         if (mp_cmp_d(&t1, 1) == MP_EQ)
