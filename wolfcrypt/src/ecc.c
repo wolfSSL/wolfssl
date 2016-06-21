@@ -3014,6 +3014,9 @@ int wc_ecc_import_x963_ex(const byte* in, word32 inLen, ecc_key* key,
     }
 
     if (err == MP_OKAY) {
+        if (compressed)
+          inLen = (inLen-1)*2 + 1;  /* used uncompressed len */
+        
         /* determine the idx */
         if (dp) {
             /* set the idx */
@@ -3022,9 +3025,6 @@ int wc_ecc_import_x963_ex(const byte* in, word32 inLen, ecc_key* key,
             key->type = ECC_PUBLICKEY;
         }
         else {
-            if (compressed)
-                inLen = (inLen-1)*2 + 1;  /* used uncompressed len */
-
             for (x = 0; ecc_sets[x].size != 0; x++) {
                 if ((unsigned)ecc_sets[x].size >= ((inLen-1)>>1)) {
                     break;
