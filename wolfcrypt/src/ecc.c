@@ -314,16 +314,16 @@ int ecc_projective_add_point(ecc_point* P, ecc_point* Q, ecc_point* R,
        if ( (mp_cmp(P->x, Q->x) == MP_EQ) &&
             (get_digit_count(Q->z) && mp_cmp(P->z, Q->z) == MP_EQ) &&
             (mp_cmp(P->y, Q->y) == MP_EQ || mp_cmp(P->y, &t1) == MP_EQ)) {
-                mp_clear(&t1);
-                mp_clear(&t2);
-                return ecc_projective_dbl_point(P, R, a, modulus, mp);
+       #ifndef USE_FAST_MATH
+           mp_clear(&t1);
+           mp_clear(&t2);
+       #endif
+          return ecc_projective_dbl_point(P, R, a, modulus, mp);
        }
    }
    
    if (err != MP_OKAY) {
-      mp_clear(&t1);
-      mp_clear(&t2);
-      return err;
+      goto done;
    }
 
 /* If use ALT_ECC_SIZE we need to use local stack variable since 
@@ -335,9 +335,7 @@ int ecc_projective_add_point(ecc_point* P, ecc_point* Q, ecc_point* R,
    z = &rz;
 
    if ((err = mp_init_multi(x, y, z, NULL, NULL, NULL)) != MP_OKAY) {
-      mp_clear(&t1);
-      mp_clear(&t2);
-      return err;
+      goto done;
    }
 #else
    /* Use destination directly */
@@ -544,6 +542,7 @@ int ecc_projective_add_point(ecc_point* P, ecc_point* Q, ecc_point* R,
        err = mp_copy(z, R->z);
 #endif
 
+done:
 #ifndef USE_FAST_MATH
    /* clean up */
    mp_clear(&t1);
@@ -606,8 +605,10 @@ int ecc_projective_dbl_point(ecc_point *P, ecc_point *R, mp_int* a,
    z = &rz;
 
    if ((err = mp_init_multi(x, y, z, NULL, NULL, NULL)) != MP_OKAY) {
+   #ifndef USE_FAST_MATH
        mp_clear(&t1);
        mp_clear(&t2);
+   #endif
        return err;
    }
 #else
@@ -852,9 +853,7 @@ int ecc_map(ecc_point* P, mp_int* modulus, mp_digit mp)
    z = &rz;
 
    if ((err = mp_init_multi(x, y, z, NULL, NULL, NULL)) != MP_OKAY) {
-       mp_clear(&t1);
-       mp_clear(&t2);
-       return err;
+       goto done;
    }
    
    if (err == MP_OKAY)
@@ -869,6 +868,10 @@ int ecc_map(ecc_point* P, mp_int* modulus, mp_digit mp)
    y = P->y;
    z = P->z;
 #endif
+
+   if (err != MP_OKAY) {
+      goto done;
+   }
 
    /* first map z back to normal */
    err = mp_montgomery_reduce(z, modulus, mp);
@@ -907,8 +910,9 @@ int ecc_map(ecc_point* P, mp_int* modulus, mp_digit mp)
    mp_copy(z, P->z);
 #endif
 
+done:
+  /* clean up */
 #ifndef USE_FAST_MATH
-   /* clean up */
    mp_clear(&t1);
    mp_clear(&t2);
 #endif
@@ -970,7 +974,9 @@ int wc_ecc_mulmod_ex(mp_int* k, ecc_point *G, ecc_point *R,
          for (j = 0; j < i; j++) {
              wc_ecc_del_point_h(M[j], heap);
          }
+      #ifndef USE_FAST_MATH
          mp_clear(&mu);
+      #endif
          return MEMORY_E;
       }
   }
@@ -997,8 +1003,10 @@ int wc_ecc_mulmod_ex(mp_int* k, ecc_point *G, ecc_point *R,
        }
    }
 
+#ifndef USE_FAST_MATH
    /* done with mu */
    mp_clear(&mu);
+#endif
 
    /* calc the M tab, which holds kG for k==8..15 */
    /* M[0] == 8G */
@@ -1210,8 +1218,10 @@ int wc_ecc_mulmod_ex(mp_int* k, ecc_point *G, ecc_point *R,
    if (err == MP_OKAY)
        err = mp_mulmod(G->z, &mu, modulus, tG->z);
 
+#ifndef USE_FAST_MATH
    /* done with mu */
    mp_clear(&mu);
+#endif
 
    /* calc the M tab */
    /* M[0] == G */
@@ -1534,8 +1544,10 @@ int wc_ecc_shared_secret(ecc_key* private_key, ecc_key* public_key, byte* out,
        *outlen = x;
    }
 
+#ifndef USE_FAST_MATH
    mp_clear(&a);
    mp_clear(&prime);
+#endif
    wc_ecc_del_point_h(result, private_key->heap);
 
    return err;
@@ -1603,8 +1615,10 @@ int wc_ecc_shared_secret_ssh(ecc_key* private_key, ecc_point* point,
         *outlen = x;
     }
 
+#ifndef USE_FAST_MATH
     mp_clear(&a);
     mp_clear(&prime);
+#endif
     wc_ecc_del_point_h(result, private_key->heap);
 
     return err;
@@ -1753,9 +1767,11 @@ int wc_ecc_make_key_ex(WC_RNG* rng, int keysize, ecc_key* key,
     }
 
     wc_ecc_del_point_h(base, key->heap);
+#ifndef USE_FAST_MATH
     mp_clear(&a);
     mp_clear(&prime);
     mp_clear(&order);
+#endif
 
     ForceZero(buf, ECC_MAXSIZE);
 #ifdef WOLFSSL_SMALL_STACK
@@ -1861,8 +1877,10 @@ int wc_ecc_sign_hash(const byte* in, word32 inlen, byte* out, word32 *outlen,
     if (err == MP_OKAY)
         err = StoreECC_DSA_Sig(out, outlen, &r, &s);
 
+#ifndef USE_FAST_MATH
     mp_clear(&r);
     mp_clear(&s);
+#endif
 
     return err;
 }
@@ -1968,8 +1986,10 @@ int wc_ecc_sign_hash_ex(const byte* in, word32 inlen, WC_RNG* rng,
        }
    }
 
+#ifndef USE_FAST_MATH
    mp_clear(&p);
    mp_clear(&e);
+#endif
 
    return err;
 }
@@ -2100,8 +2120,10 @@ static int ecc_mul2add(ecc_point* A, mp_int* kA,
       if (err == MP_OKAY)
         err = mp_mulmod(B->z, &mu, modulus, precomp[1<<2]->z);
 
+    #ifndef USE_FAST_MATH
       /* done with mu */
       mp_clear(&mu);
+    #endif
     }
   }
 
@@ -2138,13 +2160,14 @@ static int ecc_mul2add(ecc_point* A, mp_int* kA,
     bitbufB = tB[0];
 
     /* for every byte of the multiplicands */
-    for (x = -1;; ) {
+    for (x = 0;; ) {
         /* grab a nibble */
         if (++nibble == 4) {
-            ++x; if (x == (int)len) break;
+            if (x == (int)len) break;
             bitbufA = tA[x];
             bitbufB = tB[x];
             nibble  = 0;
+            x++;
         }
 
         /* extract two bits from both, shift/update */
@@ -2264,8 +2287,10 @@ int wc_ecc_verify_hash(const byte* sig, word32 siglen, const byte* hash,
     if (err == MP_OKAY)
         err = wc_ecc_verify_hash_ex(&r, &s, hash, hashlen, stat, key);
 
+#ifndef USE_FAST_MATH
     mp_clear(&r);
     mp_clear(&s);
+#endif
 
     return err;
 }
@@ -2312,13 +2337,7 @@ int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
    }
 
    if ((err = mp_init_multi(&modulus, &a, NULL, NULL, NULL, NULL)) != MP_OKAY) {
-      mp_clear(&v);
-      mp_clear(&w);
-      mp_clear(&u1);
-      mp_clear(&u2);
-      mp_clear(&order);
-      mp_clear(&e);
-      return MEMORY_E;
+      err = MEMORY_E; goto done;
    }
 
    /* allocate points */
@@ -2424,10 +2443,12 @@ int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
            *stat = 1;
    }
 
+done:
    /* cleanup */
    wc_ecc_del_point_h(mG, key->heap);
    wc_ecc_del_point_h(mQ, key->heap);
 
+#ifndef USE_FAST_MATH
    mp_clear(&v);
    mp_clear(&w);
    mp_clear(&u1);
@@ -2436,6 +2457,7 @@ int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
    mp_clear(&e);
    mp_clear(&modulus);
    mp_clear(&a);
+#endif
 
    return err;
 }
@@ -2535,11 +2557,13 @@ int wc_ecc_import_point_der(byte* in, word32 inLen, const int curve_idx,
             }
         }
 
+    #ifndef USE_FAST_MATH
         mp_clear(&a);
         mp_clear(&b);
         mp_clear(&prime);
         mp_clear(&t2);
         mp_clear(&t1);
+    #endif
     }
 #endif
 
@@ -2746,7 +2770,7 @@ static int ecc_is_point(const ecc_set_type* dp, ecc_point* ecp, mp_int* prime)
    /* Determine if curve "a" should be used in calc */
 #ifdef WOLFSSL_CUSTOM_CURVES
    /* compute y^2 - x^3 + a*x */
-   mp_clear(&t2);
+   mp_set(&t2, 0);
    if (err == MP_OKAY)
        err = mp_submod(prime, &a, prime, &t2);
    if (err == MP_OKAY)
@@ -2785,10 +2809,12 @@ static int ecc_is_point(const ecc_set_type* dp, ecc_point* ecp, mp_int* prime)
        }
    }
 
+#ifndef USE_FAST_MATH
    mp_clear(&a);
    mp_clear(&b);
    mp_clear(&t1);
    mp_clear(&t2);
+#endif
 
    return err;
 }
@@ -2860,7 +2886,9 @@ static int ecc_check_privkey_gen_helper(ecc_key* key)
     if (err == MP_OKAY)
         err = ecc_check_privkey_gen(key, &prime);
 
+#ifndef USE_FAST_MATH
     mp_clear(&prime);
+#endif
 
     return err;
 }
@@ -2894,7 +2922,7 @@ static int ecc_check_pubkey_order(ecc_key* key, mp_int* a, mp_int* prime,
 }
 
 
-/* perform sanity checks on ec key validity, 0 on success */
+/* perform sanity checks on ecc key validity, 0 on success */
 int wc_ecc_check_key(ecc_key* key)
 {
     mp_int prime;  /* used by multiple calls so let's cache */
@@ -2931,9 +2959,11 @@ int wc_ecc_check_key(ecc_key* key)
     if (err == MP_OKAY && key->type == ECC_PRIVATEKEY)
         err = ecc_check_privkey_gen(key, &a, &prime);
 
+#ifndef USE_FAST_MATH
     mp_clear(&order);
     mp_clear(&a);
     mp_clear(&prime);
+#endif
 
     return err;
 }
@@ -2984,6 +3014,9 @@ int wc_ecc_import_x963_ex(const byte* in, word32 inLen, ecc_key* key,
     }
 
     if (err == MP_OKAY) {
+        if (compressed)
+          inLen = (inLen-1)*2 + 1;  /* used uncompressed len */
+        
         /* determine the idx */
         if (dp) {
             /* set the idx */
@@ -2992,9 +3025,6 @@ int wc_ecc_import_x963_ex(const byte* in, word32 inLen, ecc_key* key,
             key->type = ECC_PUBLICKEY;
         }
         else {
-            if (compressed)
-                inLen = (inLen-1)*2 + 1;  /* used uncompressed len */
-
             for (x = 0; ecc_sets[x].size != 0; x++) {
                 if ((unsigned)ecc_sets[x].size >= ((inLen-1)>>1)) {
                     break;
@@ -3062,11 +3092,13 @@ int wc_ecc_import_x963_ex(const byte* in, word32 inLen, ecc_key* key,
             mp_copy(&t2, key->pubkey.y);
         }
 
+    #ifndef USE_FAST_MATH
         mp_clear(&a);
         mp_clear(&b);
         mp_clear(&prime);
         mp_clear(&t2);
         mp_clear(&t1);
+    #endif
     }
 #endif /* HAVE_COMP_KEY */
 
@@ -3182,8 +3214,10 @@ int wc_ecc_rs_to_sig(const char* r, const char* s, byte* out, word32* outlen)
             err = MP_ZERO_E;
     }
 
+#ifndef USE_FAST_MATH
     mp_clear(&rtmp);
     mp_clear(&stmp);
+#endif
 
     return err;
 }
@@ -4115,7 +4149,10 @@ static int build_lut(int idx, mp_int* a, mp_int* modulus, mp_digit mp,
          /* free z */
          mp_clear(fp_cache[idx].LUT[x]->z);
    }
+
+#ifndef USE_FAST_MATH
    mp_clear(&tmp);
+#endif
 
    if (err == MP_OKAY)
      return MP_OKAY;
@@ -4129,7 +4166,6 @@ static int build_lut(int idx, mp_int* a, mp_int* modulus, mp_digit mp,
    fp_cache[idx].g         = NULL;
    fp_cache[idx].lru_count = 0;
    mp_clear(&fp_cache[idx].mu);
-   mp_clear(&tmp);
 
    return err;
 }
@@ -4141,25 +4177,19 @@ static int accel_fp_mul(int idx, mp_int* k, ecc_point *R, mp_int* a,
 #define KB_SIZE 128
 
 #ifdef WOLFSSL_SMALL_STACK
-   unsigned char* kb;
+   unsigned char* kb = NULL;
 #else
    unsigned char kb[KB_SIZE];
 #endif
    int      x;
-   unsigned y, z, err, bitlen, bitpos, lut_gap, first;
-   mp_int   tk;
+   unsigned y, z = 0, err, bitlen, bitpos, lut_gap, first;
+   mp_int   tk, order;
 
-   if (mp_init(&tk) != MP_OKAY)
+   if (mp_init_multi(&tk, &order, NULL, NULL, NULL, NULL) != MP_OKAY)
        return MP_INIT_E;
 
    /* if it's smaller than modulus we fine */
    if (mp_unsigned_bin_size(k) > mp_unsigned_bin_size(modulus)) {
-      mp_int order;
-      if (mp_init(&order) != MP_OKAY) {
-        mp_clear(&tk);
-        return MP_INIT_E;
-      }
-
       /* find order */
       y = mp_unsigned_bin_size(modulus);
       for (x = 0; ecc_sets[x].size; x++) {
@@ -4170,22 +4200,17 @@ static int accel_fp_mul(int idx, mp_int* k, ecc_point *R, mp_int* a,
       if (y == 66) --x;
 
       if ((err = mp_read_radix(&order, ecc_sets[x].order, 16)) != MP_OKAY) {
-         mp_clear(&order);
-         mp_clear(&tk);
-         return err;
+         goto done;
       }
 
       /* k must be less than modulus */
       if (mp_cmp(k, &order) != MP_LT) {
          if ((err = mp_mod(k, &order, &tk)) != MP_OKAY) {
-            mp_clear(&tk);
-            mp_clear(&order);
-            return err;
+            goto done;
          }
       } else {
          mp_copy(k, &tk);
       }
-      mp_clear(&order);
    } else {
       mp_copy(k, &tk);
    }
@@ -4200,29 +4225,25 @@ static int accel_fp_mul(int idx, mp_int* k, ecc_point *R, mp_int* a,
 
    /* get the k value */
    if (mp_unsigned_bin_size(&tk) > (int)(KB_SIZE - 2)) {
-      mp_clear(&tk);
-      return BUFFER_E;
+      err = BUFFER_E; goto done;
    }
 
    /* store k */
 #ifdef WOLFSSL_SMALL_STACK
    kb = (unsigned char*)XMALLOC(KB_SIZE, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-   if (kb == NULL)
-      return MEMORY_E;
+   if (kb == NULL) {
+      err = MEMORY_E; goto done;
+   }
 #endif
 
    XMEMSET(kb, 0, KB_SIZE);
-   if ((err = mp_to_unsigned_bin(&tk, kb)) != MP_OKAY) {
-      mp_clear(&tk);
-   }
-   else {
+   if ((err = mp_to_unsigned_bin(&tk, kb)) == MP_OKAY) {
       /* let's reverse kb so it's little endian */
       x = 0;
       y = mp_unsigned_bin_size(&tk);
       if (y > 0) {
           y -= 1;
       }
-      mp_clear(&tk);
 
       while ((unsigned)x < y) {
          z = kb[x]; kb[x] = kb[y]; kb[y] = z;
@@ -4268,7 +4289,6 @@ static int accel_fp_mul(int idx, mp_int* k, ecc_point *R, mp_int* a,
    }
 
    if (err == MP_OKAY) {
-      z = 0;    /* mp_to_unsigned_bin != MP_OKAY z will be declared/not set */
       (void) z; /* Acknowledge the unused assignment */
       ForceZero(kb, KB_SIZE);
 
@@ -4279,6 +4299,13 @@ static int accel_fp_mul(int idx, mp_int* k, ecc_point *R, mp_int* a,
          err = MP_OKAY;
       }
    }
+
+done:
+   /* cleanup */
+#ifndef USE_FAST_MATH
+   mp_clear(&order);
+   mp_clear(&tk);
+#endif
 
 #ifdef WOLFSSL_SMALL_STACK
    XFREE(kb, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -4299,17 +4326,15 @@ static int accel_fp_mul2add(int idx1, int idx2,
 #define KB_SIZE 128
 
 #ifdef WOLFSSL_SMALL_STACK
-   unsigned char* kb[2];
+   unsigned char* kb[2] = {NULL, NULL};
 #else
    unsigned char kb[2][KB_SIZE];
 #endif
    int      x;
    unsigned y, z, err, bitlen, bitpos, lut_gap, first, zA, zB;
-   mp_int tka;
-   mp_int tkb;
-   mp_int order;
+   mp_int tka, tkb, order;
 
-   if (mp_init_multi(&tka, &tkb, 0, 0, 0, 0) != MP_OKAY)
+   if (mp_init_multi(&tka, &tkb, &order, NULL, NULL, NULL) != MP_OKAY)
        return MP_INIT_E;
 
    /* if it's smaller than modulus we fine */
@@ -4323,30 +4348,18 @@ static int accel_fp_mul2add(int idx1, int idx2,
       /* back off if we are on the 521 bit curve */
       if (y == 66) --x;
 
-      if ((err = mp_init(&order)) != MP_OKAY) {
-         mp_clear(&tkb);
-         mp_clear(&tka);
-         return err;
-      }
       if ((err = mp_read_radix(&order, ecc_sets[x].order, 16)) != MP_OKAY) {
-         mp_clear(&tkb);
-         mp_clear(&tka);
-         mp_clear(&order);
-         return err;
+         goto done;
       }
 
       /* kA must be less than modulus */
       if (mp_cmp(kA, &order) != MP_LT) {
          if ((err = mp_mod(kA, &order, &tka)) != MP_OKAY) {
-            mp_clear(&tkb);
-            mp_clear(&tka);
-            mp_clear(&order);
-            return err;
+            goto done;
          }
       } else {
          mp_copy(kA, &tka);
       }
-      mp_clear(&order);
    } else {
       mp_copy(kA, &tka);
    }
@@ -4362,30 +4375,18 @@ static int accel_fp_mul2add(int idx1, int idx2,
       /* back off if we are on the 521 bit curve */
       if (y == 66) --x;
 
-      if ((err = mp_init(&order)) != MP_OKAY) {
-         mp_clear(&tkb);
-         mp_clear(&tka);
-         return err;
-      }
       if ((err = mp_read_radix(&order, ecc_sets[x].order, 16)) != MP_OKAY) {
-         mp_clear(&tkb);
-         mp_clear(&tka);
-         mp_clear(&order);
-         return err;
+         goto done;
       }
 
       /* kB must be less than modulus */
       if (mp_cmp(kB, &order) != MP_LT) {
          if ((err = mp_mod(kB, &order, &tkb)) != MP_OKAY) {
-            mp_clear(&tkb);
-            mp_clear(&tka);
-            mp_clear(&order);
-            return err;
+            goto done;
          }
       } else {
          mp_copy(kB, &tkb);
       }
-      mp_clear(&order);
    } else {
       mp_copy(kB, &tkb);
    }
@@ -4401,26 +4402,20 @@ static int accel_fp_mul2add(int idx1, int idx2,
    /* get the k value */
    if ((mp_unsigned_bin_size(&tka) > (int)(KB_SIZE - 2)) ||
        (mp_unsigned_bin_size(&tkb) > (int)(KB_SIZE - 2))  ) {
-      mp_clear(&tka);
-      mp_clear(&tkb);
-      return BUFFER_E;
+      err = BUFFER_E; goto done;
    }
 
    /* store k */
 #ifdef WOLFSSL_SMALL_STACK
    kb[0] = (unsigned char*)XMALLOC(KB_SIZE, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-   if (kb[0] == NULL)
-      return MEMORY_E;
+   if (kb[0] == NULL) {
+      err = MEMORY_E; goto done;
+   }
 #endif
 
    XMEMSET(kb[0], 0, KB_SIZE);
    if ((err = mp_to_unsigned_bin(&tka, kb[0])) != MP_OKAY) {
-      mp_clear(&tka);
-      mp_clear(&tkb);
-#ifdef WOLFSSL_SMALL_STACK
-      XFREE(kb[0], NULL, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
-      return err;
+      goto done;
    }
 
    /* let's reverse kb so it's little endian */
@@ -4439,22 +4434,18 @@ static int accel_fp_mul2add(int idx1, int idx2,
 #ifdef WOLFSSL_SMALL_STACK
    kb[1] = (unsigned char*)XMALLOC(KB_SIZE, NULL, DYNAMIC_TYPE_TMP_BUFFER);
    if (kb[1] == NULL) {
-      XFREE(kb[0], NULL, DYNAMIC_TYPE_TMP_BUFFER);
-      return MEMORY_E;
+      err = MEMORY_E; goto done;
    }
 #endif
 
    XMEMSET(kb[1], 0, KB_SIZE);
-   if ((err = mp_to_unsigned_bin(&tkb, kb[1])) != MP_OKAY) {
-      mp_clear(&tkb);
-   }
-   else {
+   if ((err = mp_to_unsigned_bin(&tkb, kb[1])) == MP_OKAY) {
       x = 0;
       y = mp_unsigned_bin_size(&tkb);
       if (y > 0) {
           y -= 1;
       }
-      mp_clear(&tkb);
+
       while ((unsigned)x < y) {
          z = kb[1][x]; kb[1][x] = kb[1][y]; kb[1][y] = z;
          ++x; --y;
@@ -4525,8 +4516,18 @@ static int accel_fp_mul2add(int idx1, int idx2,
       }
    }
 
-   ForceZero(kb[0], KB_SIZE);
-   ForceZero(kb[1], KB_SIZE);
+done:
+   /* cleanup */
+#ifndef USE_FAST_MATH
+   mp_clear(&tkb);
+   mp_clear(&tka);
+   mp_clear(&order);
+#endif
+
+   if (kb[0])
+      ForceZero(kb[0], KB_SIZE);
+   if (kb[1])
+      ForceZero(kb[1], KB_SIZE);
 
 #ifdef WOLFSSL_SMALL_STACK
    XFREE(kb[0], NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -4660,7 +4661,9 @@ int ecc_mul2add(ecc_point* A, mp_int* kA,
 #ifndef HAVE_THREAD_LS
     UnLockMutex(&ecc_fp_lock);
 #endif /* HAVE_THREAD_LS */
+#ifndef USE_FAST_MATH
     mp_clear(&mu);
+#endif
 
     return err;
 }
@@ -4764,7 +4767,9 @@ int wc_ecc_mulmod_ex(mp_int* k, ecc_point *G, ecc_point *R, mp_int* a,
 #ifndef HAVE_THREAD_LS
     UnLockMutex(&ecc_fp_lock);
 #endif /* HAVE_THREAD_LS */
+#ifndef USE_FAST_MATH
     mp_clear(&mu);
+#endif
 
     return err;
 }
@@ -5417,13 +5422,12 @@ int mp_jacobi(mp_int* a, mp_int* n, int* c)
   s = 0;
 
   /* step 3.  write a = a1 * 2**k  */
-  if ((res = mp_init_copy (&a1, a)) != MP_OKAY) {
+  if ((res = mp_init_multi(&a1, &p1, NULL, NULL, NULL, NULL)) != MP_OKAY) {
     return res;
   }
 
-  if ((res = mp_init (&p1)) != MP_OKAY) {
-    mp_clear(&a1);
-    return res;
+  if ((res = mp_copy(a, &a1)) != MP_OKAY) {
+    goto done;
   }
 
   /* divide out larger power of two */
@@ -5462,37 +5466,54 @@ int mp_jacobi(mp_int* a, mp_int* n, int* c)
         res = mp_jacobi (&p1, &a1, &r);
 
       if (res == MP_OKAY)
-      *c = s * r;
+        *c = s * r;
     }
   }
 
-  /* done */
-  mp_clear (&p1);
-  mp_clear (&a1);
+done:
+  /* cleanup */
+#ifndef USE_FAST_MATH
+  mp_clear(&p1);
+  mp_clear(&a1);
+#endif
 
   return res;
 }
 
 
+/* Solves the modular equation x^2 = n (mod p)
+ * where prime number is greater than 2 (odd prime).
+ * The result is returned in the third argument x
+ * the function returns MP_OKAY on success, MP_VAL or another error on failure
+ */
 int mp_sqrtmod_prime(mp_int* n, mp_int* prime, mp_int* ret)
 {
   int res, legendre, done = 0;
   mp_int t1, C, Q, S, Z, M, T, R, two;
   mp_digit i;
 
-  /* first handle the simple cases */
+  /* first handle the simple cases n = 0 or n = 1 */
   if (mp_cmp_d(n, 0) == MP_EQ) {
     mp_zero(ret);
     return MP_OKAY;
   }
+  if (mp_cmp_d(n, 1) == MP_EQ) {
+    mp_set(ret, 1);
+    return MP_OKAY;
+  }
 
   /* prime must be odd */
-  if (mp_cmp_d(prime, 2) == MP_EQ)
+  if (mp_cmp_d(prime, 2) == MP_EQ) {
     return MP_VAL;
+  }
 
-  /* TAO removed
-  if ((res = mp_jacobi(n, prime, &legendre)) != MP_OKAY)      return res;
-  if (legendre == -1)  return MP_VAL; */ /* quadratic non-residue mod prime */
+  /* is quadratic non-residue mod prime */
+  if ((res = mp_jacobi(n, prime, &legendre)) != MP_OKAY) {
+    return res;
+  }
+  if (legendre == -1) {
+    return MP_VAL;
+  }
 
   if ((res = mp_init_multi(&t1, &C, &Q, &S, &Z, &M)) != MP_OKAY)
     return res;
@@ -5536,7 +5557,7 @@ int mp_sqrtmod_prime(mp_int* n, mp_int* prime, mp_int* ret)
     if (res == MP_OKAY)
       mp_zero(&S);
 
-    while (res == MP_OKAY && mp_iseven(&Q)) {
+    while (res == MP_OKAY && mp_iseven(&Q) == MP_YES) {
       /* Q = Q / 2 */
       res = mp_div_2(&Q, &Q);
 
@@ -5587,6 +5608,8 @@ int mp_sqrtmod_prime(mp_int* n, mp_int* prime, mp_int* ret)
 
     while (res == MP_OKAY && done == 0) {
       res = mp_copy(&T, &t1);
+
+      /* reduce to 1 and count */
       i = 0;
       while (res == MP_OKAY) {
         if (mp_cmp_d(&t1, 1) == MP_EQ)
@@ -5632,6 +5655,7 @@ int mp_sqrtmod_prime(mp_int* n, mp_int* prime, mp_int* ret)
     }
   }
 
+#ifndef USE_FAST_MATH
   /* done */
   mp_clear(&t1);
   mp_clear(&C);
@@ -5642,13 +5666,14 @@ int mp_sqrtmod_prime(mp_int* n, mp_int* prime, mp_int* ret)
   mp_clear(&T);
   mp_clear(&R);
   mp_clear(&two);
+#endif
 
   return res;
 }
 
 
 /* export public ECC key in ANSI X9.63 format compressed */
-int wc_ecc_export_x963_compressed(ecc_key* key, byte* out, word32* outLen)
+static int wc_ecc_export_x963_compressed(ecc_key* key, byte* out, word32* outLen)
 {
    word32 numlen;
    int    ret = MP_OKAY;
