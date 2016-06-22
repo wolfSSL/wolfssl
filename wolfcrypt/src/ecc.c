@@ -4326,7 +4326,7 @@ static int accel_fp_mul2add(int idx1, int idx2,
 #define KB_SIZE 128
 
 #ifdef WOLFSSL_SMALL_STACK
-   unsigned char* kb[2];
+   unsigned char* kb[2] = {NULL, NULL};
 #else
    unsigned char kb[2][KB_SIZE];
 #endif
@@ -4336,8 +4336,6 @@ static int accel_fp_mul2add(int idx1, int idx2,
 
    if (mp_init_multi(&tka, &tkb, &order, NULL, NULL, NULL) != MP_OKAY)
        return MP_INIT_E;
-
-   XMEMSET(kb, 0, sizeof(kb));
 
    /* if it's smaller than modulus we fine */
    if (mp_unsigned_bin_size(kA) > mp_unsigned_bin_size(modulus)) {
@@ -4526,8 +4524,10 @@ done:
    mp_clear(&order);
 #endif
 
-   ForceZero(kb[0], KB_SIZE);
-   ForceZero(kb[1], KB_SIZE);
+   if (kb[0])
+      ForceZero(kb[0], KB_SIZE);
+   if (kb[1])
+      ForceZero(kb[1], KB_SIZE);
 
 #ifdef WOLFSSL_SMALL_STACK
    XFREE(kb[0], NULL, DYNAMIC_TYPE_TMP_BUFFER);
