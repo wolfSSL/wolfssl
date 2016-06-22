@@ -2548,10 +2548,11 @@ int mp_mod_d(fp_int *a, fp_digit b, fp_digit *c)
 
 #ifdef WOLFSSL_KEY_GEN
 
-void fp_gcd(fp_int *a, fp_int *b, fp_int *c);
-void fp_lcm(fp_int *a, fp_int *b, fp_int *c);
-int  fp_isprime(fp_int *a);
-int  fp_randprime(fp_int* N, int len, WC_RNG* rng, void* heap);
+static void fp_gcd(fp_int *a, fp_int *b, fp_int *c);
+static void fp_lcm(fp_int *a, fp_int *b, fp_int *c);
+static int  fp_isprime_ex(fp_int *a, int t);
+static int  fp_isprime(fp_int *a);
+static int  fp_randprime(fp_int* N, int len, WC_RNG* rng, void* heap);
 
 int mp_gcd(fp_int *a, fp_int *b, fp_int *c)
 {
