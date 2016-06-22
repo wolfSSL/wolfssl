@@ -4177,7 +4177,7 @@ static int accel_fp_mul(int idx, mp_int* k, ecc_point *R, mp_int* a,
 #define KB_SIZE 128
 
 #ifdef WOLFSSL_SMALL_STACK
-   unsigned char* kb;
+   unsigned char* kb = NULL;
 #else
    unsigned char kb[KB_SIZE];
 #endif
