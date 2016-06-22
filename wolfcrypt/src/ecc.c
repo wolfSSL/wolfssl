@@ -167,7 +167,7 @@ const ecc_set_type ecc_sets[] = {
 #ifdef ECC192
 {
         24,                                                 /* size/bytes */
-        NID_secp192k1,                                      /* NID        */
+        NID_X9_62_prime192v1,                               /* NID        */
         "SECP192R1",                                        /* curve name */
         "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFFFFFFFFFFFF", /* prime      */
         "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFFFFFFFFFFFC", /* A          */
@@ -193,7 +193,7 @@ const ecc_set_type ecc_sets[] = {
 #ifdef ECC256
 {
         32,                                                                 /* size/bytes */
-        NID_secp256k1,                                                      /* NID        */
+        NID_X9_62_prime256v1,                                               /* NID        */
         "SECP256R1",                                                        /* curve name */
         "FFFFFFFF00000001000000000000000000000000FFFFFFFFFFFFFFFFFFFFFFFF", /* prime      */
         "FFFFFFFF00000001000000000000000000000000FFFFFFFFFFFFFFFFFFFFFFFC", /* A          */
@@ -2067,9 +2067,6 @@ static int ecc_mul2add(ecc_point* A, mp_int* kA,
         for (x = 0; x < 16; x++) {
             precomp[x] = wc_ecc_new_point_h(heap);
             if (precomp[x] == NULL) {
-                for (y = 0; y < x; ++y) {
-                    wc_ecc_del_point_h(precomp[y], heap);
-                }
                 err = GEN_MEM_ERR;
                 break;
             }

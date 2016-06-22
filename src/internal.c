@@ -2258,6 +2258,13 @@ void InitSuites(Suites* suites, ProtocolVersion pv, word16 haveRSA,
     }
 #endif
 
+#ifdef BUILD_TLS_ECDHE_ECDSA_WITH_AES_128_CCM
+    if (tls1_2 && haveECC) {
+        suites->suites[idx++] = ECC_BYTE;
+        suites->suites[idx++] = TLS_ECDHE_ECDSA_WITH_AES_128_CCM;
+    }
+#endif
+
 #ifdef BUILD_TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8
     if (tls1_2 && haveECC) {
         suites->suites[idx++] = ECC_BYTE;
@@ -5284,8 +5291,7 @@ retry:
             case WOLFSSL_CBIO_ERR_TIMEOUT:
                 if (ssl->options.dtls) {
 #ifdef WOLFSSL_DTLS
-                    if ((!ssl->options.handShakeDone ||
-                               ssl->options.dtlsHsRetain) &&
+                    if (!ssl->options.handShakeDone &&
                         DtlsPoolTimeout(ssl) == 0 &&
                         DtlsPoolSend(ssl) == 0) {
 
@@ -6072,6 +6078,7 @@ static int BuildFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
             break;
 #endif
 
+        case TLS_ECDHE_ECDSA_WITH_AES_128_CCM :
         case TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8 :
         case TLS_ECDHE_ECDSA_WITH_AES_256_CCM_8 :
             if (requirement == REQUIRES_ECC)
@@ -8624,7 +8631,8 @@ static int ChachaAEADDecrypt(WOLFSSL* ssl, byte* plain, const byte* input,
     /* check tag sent along with packet */
     if (ConstantCompare(input + msgLen, tag, ssl->specs.aead_mac_size) != 0) {
         WOLFSSL_MSG("MAC did not match");
-        SendAlert(ssl, alert_fatal, bad_record_mac);
+        if (!ssl->options.dtls)
+            SendAlert(ssl, alert_fatal, bad_record_mac);
         return VERIFY_MAC_ERROR;
     }
 
@@ -8888,7 +8896,8 @@ static INLINE int Decrypt(WOLFSSL* ssl, byte* plain, const byte* input,
                             input + sz - ssl->specs.aead_mac_size,
                             ssl->specs.aead_mac_size,
                             additional, AEAD_AUTH_DATA_SZ) < 0) {
-                    SendAlert(ssl, alert_fatal, bad_record_mac);
+                    if (!ssl->options.dtls)
+                        SendAlert(ssl, alert_fatal, bad_record_mac);
                     ret = VERIFY_MAC_ERROR;
                 }
                 ForceZero(nonce, AESGCM_NONCE_SZ);
@@ -8929,7 +8938,8 @@ static INLINE int Decrypt(WOLFSSL* ssl, byte* plain, const byte* input,
                             input + sz - ssl->specs.aead_mac_size,
                             ssl->specs.aead_mac_size,
                             additional, AEAD_AUTH_DATA_SZ) < 0) {
-                    SendAlert(ssl, alert_fatal, bad_record_mac);
+                    if (!ssl->options.dtls)
+                        SendAlert(ssl, alert_fatal, bad_record_mac);
                     ret = VERIFY_MAC_ERROR;
                 }
                 ForceZero(nonce, AESGCM_NONCE_SZ);
@@ -9719,6 +9729,15 @@ int ProcessReply(WOLFSSL* ssl)
                     if (ret < 0) {
                         WOLFSSL_MSG("Decrypt failed");
                         WOLFSSL_ERROR(ret);
+                        #ifdef WOLFSSL_DTLS
+                            /* If in DTLS mode, if the decrypt fails for any
+                             * reason, pretend the datagram never happened. */
+                            if (ssl->options.dtls) {
+                                ssl->options.processReply = doProcessInit;
+                                ssl->buffers.inputBuffer.idx =
+                                                ssl->buffers.inputBuffer.length;
+                            }
+                        #endif /* WOLFSSL_DTLS */
                         return DECRYPT_ERROR;
                     }
                     if (ssl->options.tls1_1 && ssl->specs.cipher_type == block)
@@ -11345,6 +11364,15 @@ int ReceiveData(WOLFSSL* ssl, byte* output, int sz, int peek)
     if (ssl->error == WANT_READ || ssl->error == WC_PENDING_E)
         ssl->error = 0;
 
+#ifdef WOLFSSL_DTLS
+    if (ssl->options.dtls) {
+        /* In DTLS mode, we forgive some errors and allow the session
+         * to continue despite them. */
+        if (ssl->error == VERIFY_MAC_ERROR || ssl->error == DECRYPT_ERROR)
+            ssl->error = 0;
+    }
+#endif /* WOLFSSL_DTLS */
+
     if (ssl->error != 0 && ssl->error != WANT_WRITE) {
         WOLFSSL_MSG("User calling wolfSSL_read in error state, not allowed");
         return ssl->error;
@@ -12032,6 +12060,10 @@ static const char* const cipher_names[] =
     "AES256-CCM-8",
 #endif
 
+#ifdef BUILD_TLS_ECDHE_ECDSA_WITH_AES_128_CCM
+    "ECDHE-ECDSA-AES128-CCM",
+#endif
+
 #ifdef BUILD_TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8
     "ECDHE-ECDSA-AES128-CCM-8",
 #endif
@@ -12472,6 +12504,10 @@ static int cipher_name_idx[] =
 
 #ifdef BUILD_TLS_RSA_WITH_AES_256_CCM_8
     TLS_RSA_WITH_AES_256_CCM_8,
+#endif
+
+#ifdef BUILD_TLS_ECDHE_ECDSA_WITH_AES_128_CCM
+    TLS_ECDHE_ECDSA_WITH_AES_128_CCM,
 #endif
 
 #ifdef BUILD_TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8
