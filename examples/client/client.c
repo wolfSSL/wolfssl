@@ -1406,8 +1406,8 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
                    " nonblocking yet");
         } else {
             if (wolfSSL_Rehandshake(ssl) != SSL_SUCCESS) {
-                int  err = wolfSSL_get_error(ssl, 0);
                 char buffer[WOLFSSL_MAX_ERROR_SZ];
+                err = wolfSSL_get_error(ssl, 0);
                 printf("err = %d, %s\n", err,
                                 wolfSSL_ERR_error_string(err, buffer));
                 err_sys("wolfSSL_Rehandshake failed");
