@@ -3534,7 +3534,7 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
         /* eat end of line */
         if (consumedEnd[0] == '\n')
             consumedEnd++;
-        else if (consumedEnd[1] == '\n')
+        else if ((consumedEnd + 1 < bufferEnd) && consumedEnd[1] == '\n')
             consumedEnd += 2;
         else {
             if (info)
