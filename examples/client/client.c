@@ -156,7 +156,7 @@ int ClientBenchmarkConnections(WOLFSSL_CTX* ctx, char* host, word16 port,
     /* time passed in number of connects give average */
     int times = benchmark;
     int loops = resumeSession ? 2 : 1;
-    int i = 0;    
+    int i = 0;
 #ifndef NO_SESSION_CACHE
     WOLFSSL_SESSION* benchSession = NULL;
 #endif

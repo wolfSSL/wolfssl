@@ -33,6 +33,8 @@
 #include <wolfssl/error-ssl.h>
 #include <wolfssl/wolfcrypt/asn.h>
 #include <wolfssl/wolfcrypt/dh.h>
+#include <wolfssl/wolfcrypt/compat-wolfcrypt.h>
+#include <wolfssl/wolfcrypt/bio.h>
 #ifdef NO_INLINE
     #include <wolfssl/wolfcrypt/misc.h>
 #else
@@ -1602,6 +1604,122 @@ void InitCiphers(WOLFSSL* ssl)
 #endif
 }
 
+#ifdef OPENSSL_EXTRA
+/* Set cipher pointers to null */
+static void DupCiphers(WOLFSSL* ssl, WOLFSSL* ossl)
+{
+#ifdef BUILD_ARC4
+    if (ossl->encrypt.arc4 != NULL) {
+        ssl->encrypt.arc4 = (Arc4*)XMALLOC(sizeof(Arc4),
+                                           ssl->heap, DYNAMIC_TYPE_CIPHER);
+        XMEMCPY(ssl->encrypt.arc4, ossl->encrypt.arc4, sizeof(Arc4));
+    }
+    if (ossl->decrypt.arc4 != NULL) {
+        ssl->decrypt.arc4 = (Arc4*)XMALLOC(sizeof(Arc4),
+                                           ssl->heap, DYNAMIC_TYPE_CIPHER);
+        XMEMCPY(ssl->decrypt.arc4, ossl->decrypt.arc4, sizeof(Arc4));
+    }
+#endif
+#ifdef BUILD_DES3
+    if (ossl->encrypt.des3 != NULL) {
+        ssl->encrypt.des3 = (Des3*)XMALLOC(sizeof(Des3),
+                                           ssl->heap, DYNAMIC_TYPE_CIPHER);
+        XMEMCPY(ssl->encrypt.des3, ossl->encrypt.des3, sizeof(Des3));
+    }
+    if (ossl->decrypt.des3 != NULL) {
+        ssl->decrypt.des3 = (Des3*)XMALLOC(sizeof(Des3),
+                                           ssl->heap, DYNAMIC_TYPE_CIPHER);
+        XMEMCPY(ssl->decrypt.des3, ossl->decrypt.des3, sizeof(Des3));
+    }
+#endif
+#ifdef BUILD_AES
+    if (ossl->encrypt.aes != NULL) {
+        ssl->encrypt.aes = (Aes*)XMALLOC(sizeof(Aes),
+                                         ssl->heap, DYNAMIC_TYPE_CIPHER);
+        XMEMCPY(ssl->encrypt.aes, ossl->encrypt.aes, sizeof(Aes));
+    }
+    if (ossl->decrypt.aes != NULL) {
+        ssl->decrypt.aes = (Aes*)XMALLOC(sizeof(Aes),
+                                         ssl->heap, DYNAMIC_TYPE_CIPHER);
+        XMEMCPY(ssl->decrypt.aes, ossl->decrypt.aes, sizeof(Aes));
+    }
+#endif
+#ifdef HAVE_CAMELLIA
+    if (ossl->encrypt.cam != NULL) {
+        ssl->encrypt.cam = (Camellia*)XMALLOC(sizeof(Camellia),
+                                              ssl->heap, DYNAMIC_TYPE_CIPHER);
+        XMEMCPY(ssl->encrypt.cam, ossl->encrypt.cam, sizeof(Camellia));
+    }
+    if (ossl->decrypt.cam != NULL) {
+        ssl->decrypt.cam = (Camellia*)XMALLOC(sizeof(Camellia),
+                                              ssl->heap, DYNAMIC_TYPE_CIPHER);
+        XMEMCPY(ssl->decrypt.cam, ossl->decrypt.cam, sizeof(Camellia));
+    }
+#endif
+#ifdef HAVE_HC128
+    if (ossl->encrypt.hc128 != NULL) {
+        ssl->encrypt.hc128 = (HC128*)XMALLOC(sizeof(HC128),
+                                             ssl->heap, DYNAMIC_TYPE_CIPHER);
+        XMEMCPY(ssl->encrypt.hc128, ossl->encrypt.hc128, sizeof(HC128));
+    }
+    if (ossl->decrypt.hc128 != NULL) {
+        ssl->decrypt.hc128 = (HC128*)XMALLOC(sizeof(HC128),
+                                             ssl->heap, DYNAMIC_TYPE_CIPHER);
+        XMEMCPY(ssl->decrypt.hc128, ossl->decrypt.hc128, sizeof(HC128));
+    }
+#endif
+#ifdef BUILD_RABBIT
+    if (ossl->encrypt.rabbit != NULL) {
+        ssl->encrypt.rabbit = (Rabbit*)XMALLOC(sizeof(Rabbit),
+                                               ssl->heap, DYNAMIC_TYPE_CIPHER);
+        XMEMCPY(ssl->encrypt.rabbit, ossl->encrypt.rabbit, sizeof(Rabbit));
+    }
+    if (ossl->decrypt.rabbit != NULL) {
+        ssl->decrypt.rabbit = (Rabbit*)XMALLOC(sizeof(Rabbit),
+                                               ssl->heap, DYNAMIC_TYPE_CIPHER);
+        XMEMCPY(ssl->decrypt.rabbit, ossl->decrypt.rabbit, sizeof(Rabbit));
+    }
+#endif
+#ifdef HAVE_CHACHA
+    if (ossl->encrypt.chacha != NULL) {
+        ssl->encrypt.chacha = (ChaCha*)XMALLOC(sizeof(ChaCha),
+                                               ssl->heap, DYNAMIC_TYPE_CIPHER);
+        XMEMCPY(ssl->encrypt.chacha, ossl->encrypt.chacha, sizeof(ChaCha));
+    }
+    if (ossl->decrypt.chacha != NULL) {
+        ssl->decrypt.chacha = (ChaCha*)XMALLOC(sizeof(ChaCha),
+                                               ssl->heap, DYNAMIC_TYPE_CIPHER);
+        XMEMCPY(ssl->decrypt.chacha, ossl->decrypt.chacha, sizeof(ChaCha));
+    }
+#endif
+#ifdef HAVE_IDEA
+    if (ossl->encrypt.idea != NULL) {
+        ssl->encrypt.idea = (Idea*)XMALLOC(sizeof(Idea),
+                                           ssl->heap, DYNAMIC_TYPE_CIPHER);
+        XMEMCPY(ssl->encrypt.idea, ossl->encrypt.idea, sizeof(Idea));
+    }
+    if (ossl->decrypt.idea != NULL) {
+        ssl->decrypt.idea = (Idea*)XMALLOC(sizeof(Idea),
+                                           ssl->heap, DYNAMIC_TYPE_CIPHER);
+        XMEMCPY(ssl->decrypt.idea, ossl->decrypt.idea, sizeof(Idea));
+    }
+#endif
+#ifdef HAVE_POLY1305
+    if (ossl->auth.poly1305 != NULL) {
+        ssl->auth.poly1305 = (Poly1305*)XMALLOC(sizeof(Poly1305),
+                                                ssl->heap, DYNAMIC_TYPE_CIPHER);
+        XMEMCPY(ssl->auth.poly1305, ossl->auth.poly1305, sizeof(Poly1305));
+    }
+#endif
+
+    ssl->encrypt.setup = ossl->encrypt.setup;
+    ssl->decrypt.setup = ossl->decrypt.setup;
+
+#ifdef HAVE_ONE_TIME_AUTH
+    ssl->auth.setup    = ossl->auth.setup;
+#endif
+}
+#endif /* OPENSSL_EXTRA */
 
 /* Free ciphers */
 void FreeCiphers(WOLFSSL* ssl)
@@ -1677,6 +1795,23 @@ void InitCipherSpecs(CipherSpecs* cs)
     cs->iv_size     = 0;
     cs->block_size  = 0;
 }
+
+#ifdef OPENSSL_EXTRA
+static void DupCipherSpecs(CipherSpecs* cs, CipherSpecs* ocs)
+{
+    cs->bulk_cipher_algorithm = ocs->bulk_cipher_algorithm;
+    cs->cipher_type           = ocs->cipher_type;
+    cs->mac_algorithm         = ocs->mac_algorithm;
+    cs->kea                   = ocs->kea;
+    cs->sig_algo              = ocs->sig_algo;
+
+    cs->hash_size   = ocs->hash_size;
+    cs->static_ecdh = ocs->static_ecdh;
+    cs->key_size    = ocs->key_size;
+    cs->iv_size     = ocs->iv_size;
+    cs->block_size  = ocs->block_size;
+}
+#endif /* OPENSSL_EXTRA */
 
 static void InitSuitesHashSigAlgo(Suites* suites, int haveECDSAsig,
                                                   int haveRSAsig, int haveAnon)
@@ -2569,6 +2704,20 @@ void InitX509Name(WOLFSSL_X509_NAME* name, int dynamicFlag)
     }
 }
 
+#ifdef OPENSSL_EXTRA
+static int DupX509Name(WOLFSSL_X509_NAME* name, WOLFSSL_X509_NAME* oname)
+{
+   if (name == NULL || oname == NULL)
+       return BAD_FUNC_ARG;
+
+    name->name        = name->staticName;
+    XMEMCPY(name->staticName, oname->staticName, sizeof(oname->staticName));
+    name->dynamicName = oname->dynamicName;
+    XMEMCPY(&name->fullName, &oname->fullName, sizeof(DecodedName));
+
+    return 0;
+}
+#endif /* OPENSSL_EXTRA */
 
 void FreeX509Name(WOLFSSL_X509_NAME* name, void* heap)
 {
@@ -2626,6 +2775,79 @@ void InitX509(WOLFSSL_X509* x509, int dynamicFlag, void* heap)
 #endif /* OPENSSL_EXTRA */
 }
 
+#ifdef OPENSSL_EXTRA
+static int DupX509(WOLFSSL_X509* x509, WOLFSSL_X509* ox509)
+{
+    if (x509 == NULL || ox509 == NULL) {
+        WOLFSSL_ERROR(BAD_FUNC_ARG);
+        return BAD_FUNC_ARG;
+    }
+
+    DupX509Name(&x509->issuer, &ox509->issuer);
+    DupX509Name(&x509->subject, &ox509->subject);
+    x509->version        = ox509->version;
+
+    if (ox509->pubKey.buffer != NULL)
+        XMEMCPY(x509->pubKey.buffer, ox509->pubKey.buffer, sizeof(Buffers));
+    if (ox509->sig.buffer != NULL)
+        XMEMCPY(x509->sig.buffer, ox509->sig.buffer, sizeof(Buffers));
+    if (ox509->derCert->buffer != NULL)
+        XMEMCPY(x509->derCert->buffer, ox509->derCert->buffer, sizeof(Buffers));
+    if (ox509->altNames != NULL)
+        XMEMCPY(x509->altNames, ox509->altNames, sizeof(DNS_entry));
+    if (ox509->altNamesNext != NULL)
+        XMEMCPY(x509->altNamesNext, ox509->altNamesNext, sizeof(DNS_entry));
+
+    x509->dynamicMemory  = ox509->dynamicMemory;
+    x509->isCa           = ox509->isCa;
+#ifdef HAVE_ECC
+    x509->pkCurveOID = ox509->pkCurveOID;
+#endif /* HAVE_ECC */
+
+    x509->pathLength     = ox509->pathLength;
+    x509->basicConstSet  = ox509->basicConstSet;
+    x509->basicConstCrit = ox509->basicConstCrit;
+    x509->basicConstPlSet = ox509->basicConstPlSet;
+    x509->subjAltNameSet = ox509->subjAltNameSet;
+    x509->subjAltNameCrit = ox509->subjAltNameCrit;
+    x509->authKeyIdSet   = ox509->authKeyIdSet;
+    x509->authKeyIdCrit  = ox509->authKeyIdCrit;
+
+    if (ox509->authKeyId != NULL && ox509->authKeyIdSz) {
+        x509->authKeyId = (byte*)XMALLOC(ox509->authKeyIdSz, NULL,
+                                     DYNAMIC_TYPE_X509_EXT);
+        if (x509->authKeyId == NULL)
+            return MEMORY_E;
+
+        XMEMCPY(x509->authKeyId, ox509->authKeyId, ox509->authKeyIdSz);
+        x509->authKeyIdSz    = ox509->authKeyIdSz;
+    }
+
+    x509->subjKeyIdSet   = ox509->subjKeyIdSet;
+    x509->subjKeyIdCrit  = ox509->subjKeyIdCrit;
+
+    if (ox509->subjKeyId != NULL && ox509->subjKeyIdSz) {
+        x509->subjKeyId = (byte*)XMALLOC(ox509->subjKeyIdSz, NULL,
+                                         DYNAMIC_TYPE_X509_EXT);
+        if (x509->subjKeyId == NULL)
+            return MEMORY_E;
+
+        XMEMCPY(x509->subjKeyId, ox509->subjKeyId, ox509->subjKeyIdSz);
+        x509->subjKeyIdSz    = ox509->subjKeyIdSz;
+    }
+
+    x509->keyUsageSet    = ox509->keyUsageSet;
+    x509->keyUsageCrit   = ox509->keyUsageCrit;
+    x509->keyUsage       = ox509->keyUsage;
+#ifdef WOLFSSL_SEP
+    x509->certPolicySet  = ox509->certPolicySet;
+    x509->certPolicyCrit = ox509->certPolicyCrit;
+#endif /* WOLFSSL_SEP */
+
+
+    return 0;
+}
+#endif /* OPENSSL_EXTRA */
 
 /* Free wolfSSL X509 type */
 void FreeX509(WOLFSSL_X509* x509)
@@ -3471,6 +3693,317 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
 }
 
 
+#ifdef OPENSSL_EXTRA
+static int DupArrays(Arrays *arrays, Arrays *oarrays, void *heap)
+{
+    if (arrays == NULL || oarrays == NULL) {
+        WOLFSSL_MSG("need valid arrays objects");
+        return BAD_FUNC_ARG;
+    }
+
+    if (oarrays->pendingMsg != NULL && oarrays->pendingMsgSz) {
+        arrays->pendingMsg = (byte *)XMALLOC(oarrays->pendingMsgSz, heap, DYNAMIC_TYPE_SSL);
+        if (arrays->pendingMsg == NULL)
+            return MEMORY_E;
+
+        XMEMCPY(arrays->pendingMsg, oarrays->pendingMsg, oarrays->pendingMsgSz);
+        arrays->pendingMsgSz = oarrays->pendingMsgSz;
+    }
+    arrays->pendingMsgOffset = oarrays->pendingMsgOffset;
+    arrays->preMasterSz = oarrays->preMasterSz;
+
+#ifndef NO_PSK
+    arrays->psk_keySz = oarrays->psk_keySz;
+    XMEMCPY(arrays->client_identity, oarrays->client_identity,
+            sizeof(oarrays->client_identity));
+    XMEMCPY(arrays->server_hint, oarrays->server_hint,
+            sizeof(oarrays->server_hint));
+    XMEMCPY(arrays->psk_key, oarrays->psk_key,
+            sizeof(oarrays->psk_key));
+#endif
+
+    XMEMCPY(arrays->clientRandom, oarrays->clientRandom,
+            sizeof(oarrays->clientRandom));
+    XMEMCPY(arrays->serverRandom, oarrays->serverRandom,
+            sizeof(oarrays->serverRandom));
+    XMEMCPY(arrays->sessionID, oarrays->sessionID,
+            sizeof(oarrays->sessionID));
+    XMEMCPY(arrays->preMasterSecret, oarrays->preMasterSecret,
+            sizeof(oarrays->preMasterSecret));
+    XMEMCPY(arrays->masterSecret, oarrays->masterSecret,
+            sizeof(oarrays->masterSecret));
+    arrays->sessionIDSz = oarrays->sessionIDSz;
+
+#ifdef WOLFSSL_DTLS
+    XMEMCPY(arrays->cookie, oarrays->cookie, sizeof(oarrays->cookie));
+    arrays->cookieSz = oarrays->cookieSz;
+#endif
+
+    arrays->pendingMsgType = oarrays->pendingMsgType;
+
+    return 0;
+}
+
+static int DupBufferStatic(bufferStatic *buf, bufferStatic *obuf,
+                           void *heap, int type)
+{
+    if (buf == NULL || obuf == NULL) {
+        WOLFSSL_MSG("need valid BufferStatic objects");
+        return BAD_FUNC_ARG;
+    }
+    buf->dynamicFlag = obuf->dynamicFlag;
+    buf->bufferSize = obuf->bufferSize;
+    buf->length = obuf->length;
+    buf->idx = obuf->idx;
+    buf->offset = obuf->offset;
+
+    XMEMCPY(buf->staticBuffer, obuf->staticBuffer, sizeof(obuf->staticBuffer));
+
+    if (buf->dynamicFlag) {
+        buf->buffer = (byte *)XMALLOC(buf->bufferSize, heap, type);
+        if (buf->buffer == NULL)
+            return MEMORY_E;
+
+        XMEMCPY(buf->buffer, obuf->buffer, obuf->bufferSize);
+    }
+    else
+        buf->buffer = buf->staticBuffer;
+
+    return 0;
+}
+
+static int DupBuffer(buffer *buf, buffer *obuf, void *heap)
+{
+    if (buf == NULL || obuf == NULL) {
+        WOLFSSL_MSG("need valid Buffer objects");
+        return BAD_FUNC_ARG;
+    }
+
+    buf->length = obuf->length;
+
+    if (obuf->buffer != NULL && obuf->length) {
+        buf->buffer = (byte *)XMALLOC(buf->length,
+                                      heap, DYNAMIC_TYPE_TMP_BUFFER);
+        if (buf->buffer == NULL)
+            return MEMORY_E;
+
+        XMEMCPY(buf->buffer, obuf->buffer, obuf->length);
+    }
+
+    return 0;
+}
+
+static int DupBuffers(Buffers *buf, Buffers *obuf, void *heap)
+{
+    int ret;
+
+    if (buf == NULL || obuf == NULL) {
+        WOLFSSL_MSG("need valid Buffers objects");
+        return BAD_FUNC_ARG;
+    }
+
+    ret = DupBufferStatic(&buf->inputBuffer, &obuf->inputBuffer,
+                          heap, DYNAMIC_TYPE_IN_BUFFER);
+    if (ret != 0)
+        return ret;
+
+    ret = DupBufferStatic(&buf->outputBuffer, &obuf->outputBuffer,
+                          heap, DYNAMIC_TYPE_OUT_BUFFER);
+    if (ret != 0)
+        return ret;
+
+    ret = DupBuffer(&buf->domainName, &obuf->domainName, heap);
+    if (ret != 0)
+        return ret;
+
+    buf->clearOutputBuffer = obuf->clearOutputBuffer;
+
+    buf->prevSent = obuf->prevSent;
+    buf->plainSz = obuf->plainSz;
+
+    buf->weOwnCert = obuf->weOwnCert;
+    buf->weOwnCertChain = obuf->weOwnCertChain;
+    buf->weOwnDH = obuf->weOwnDH;
+    buf->weOwnKey = obuf->weOwnKey;
+#ifndef NO_DH
+    ret = DupBuffer(&buf->serverDH_Pub, &obuf->serverDH_Pub, heap);
+    if (ret != 0)
+        return ret;
+    ret = DupBuffer(&buf->serverDH_Priv, &obuf->serverDH_Priv, heap);
+    if (ret != 0)
+        return ret;
+#endif
+#ifndef NO_CERTS
+    /* ctx still owns certificate, certChain, key, dh, and cm */
+    buf->certificate = obuf->certificate;
+    buf->certChain = obuf->certChain;
+    buf->key = obuf->key;
+#endif
+#ifdef WOLFSSL_DTLS
+    XMEMCPY(&buf->dtlsCtx, &obuf->dtlsCtx, sizeof(WOLFSSL_DTLS_CTX));
+#ifndef NO_WOLFSSL_SERVER
+    ret = DupBuffer(&buf->dtlsCookieSecret, &obuf->dtlsCookieSecret, heap);
+    if (ret != 0)
+        return ret;
+#endif /* NO_WOLFSSL_SERVER */
+#endif
+#ifdef HAVE_PK_CALLBACKS
+#ifdef HAVE_ECC
+    ret = DupBuffer(&buf->peerEccDsaKey, &obuf->peerEccDsaKey, heap);
+    if (ret != 0)
+        return ret;
+#endif /* HAVE_ECC */
+#ifndef NO_RSA
+    ret = DupBuffer(&buf->peerRsaKey, &obuf->peerRsaKey, heap);
+    if (ret != 0)
+        return ret;
+#endif /* NO_RSA */
+#endif /* HAVE_PK_CALLBACKS */
+
+    return 0;
+}
+
+
+/* init everything to 0, NULL, default values before calling anything that may
+ fail so that destructor has a "good" state to cleanup
+ 0 on success */
+int DupSSL(WOLFSSL* ssl, WOLFSSL* ossl)
+{
+    int ret;
+
+    if (ssl == NULL || ossl == NULL) {
+        WOLFSSL_MSG("need valid ssl objects");
+        return BAD_FUNC_ARG;
+    }
+
+    ret = DupBuffers(&ssl->buffers, &ossl->buffers, ssl->heap);
+    if (ret != 0)
+        return ret;
+
+#ifndef NO_DH
+    /* Don't copy if (p,g) owned by ctx */
+    if (ssl->buffers.weOwnDH || ssl->options.side == WOLFSSL_CLIENT_END) {
+        ret = DupBuffer(&ssl->buffers.serverDH_P,
+                        &ossl->buffers.serverDH_P, ssl->heap);
+        if (ret != 0)
+            return ret;
+
+        ret = DupBuffer(&ssl->buffers.serverDH_G,
+                        &ossl->buffers.serverDH_G, ssl->heap);
+        if (ret != 0)
+            return ret;
+    }
+#endif
+
+#ifdef KEEP_PEER_CERT
+    ret = DupX509(&ssl->peerCert, &ossl->peerCert);
+    if (ret != 0)
+        return ret;
+#endif
+
+    ssl->rfd = ossl->rfd;
+    ssl->wfd = ossl->wfd;
+
+    ssl->IOCB_ReadCtx  = &ssl->rfd;
+    ssl->IOCB_WriteCtx = &ssl->wfd;
+
+#ifdef HAVE_NETX
+    ssl->IOCB_ReadCtx  = &ssl->nxCtx;
+    ssl->IOCB_WriteCtx = &ssl->nxCtx;
+#endif
+
+#ifdef WOLFSSL_DTLS
+    ssl->dtls_expected_rx = ossl->dtls_expected_rx;
+#endif
+
+    /* options */
+    XMEMCPY(&ssl->options, &ossl->options, sizeof(Options));
+
+#ifdef WOLFSSL_DTLS
+    ssl->dtls_timeout_init = ossl->dtls_timeout_init;
+    ssl->dtls_timeout_max  = ossl->dtls_timeout_max;
+    ssl->dtls_timeout      = ossl->dtls_timeout;
+#endif
+
+    ssl->hmac = ossl->hmac;
+
+#ifdef WOLFSSL_DTLS
+    ssl->buffers.dtlsCtx.fd = ossl->buffers.dtlsCtx.fd;
+#endif
+
+    ssl->cipher.ssl = ssl;
+
+#ifdef HAVE_TLS_EXTENSIONS
+#ifdef HAVE_MAX_FRAGMENT
+    ssl->max_fragment = ossl->max_fragment;
+#endif
+#ifdef HAVE_ALPN
+    ssl->alpn_client_list = ossl->alpn_client_list;
+#endif
+#endif
+
+    /* default alert state (none) */
+    ssl->alert_history.last_rx.code  = ossl->alert_history.last_rx.code;
+    ssl->alert_history.last_rx.level = ossl->alert_history.last_rx.level;
+    ssl->alert_history.last_tx.code  = ossl->alert_history.last_tx.code;
+    ssl->alert_history.last_tx.level = ossl->alert_history.last_tx.level;
+
+    DupCiphers(ssl, ossl);
+    DupCipherSpecs(&ssl->specs, &ossl->specs);
+
+    /* arrays */
+    ret = DupArrays(ssl->arrays, ossl->arrays, ssl->heap);
+    if (ret != 0)
+        return ret;
+
+    /* suites */
+    XMEMCPY(ssl->suites, ossl->suites, sizeof(Suites));
+
+    /* versions */
+    XMEMCPY(&ssl->version, &ossl->version, sizeof(ProtocolVersion));
+    XMEMCPY(&ssl->chVersion, &ossl->chVersion, sizeof(ProtocolVersion));
+
+    /* hsHashes */
+    XMEMCPY(&ssl->hsHashes->verifyHashes, &ossl->hsHashes->verifyHashes,
+            sizeof(Hashes));
+    XMEMCPY(&ssl->hsHashes->certHashes, &ossl->hsHashes->certHashes,
+            sizeof(Hashes));
+#ifndef NO_OLD_TLS
+#ifndef NO_MD5
+    XMEMCPY(&ssl->hsHashes->hashMd5, &ossl->hsHashes->hashMd5, sizeof(Md5));
+#endif
+#ifndef NO_SHA
+    XMEMCPY(&ssl->hsHashes->hashSha, &ossl->hsHashes->hashSha, sizeof(Sha));
+#endif
+#endif
+#ifndef NO_SHA256
+    XMEMCPY(&ssl->hsHashes->hashSha256, &ossl->hsHashes->hashSha256, sizeof(Sha256));
+#endif
+#ifdef WOLFSSL_SHA384
+    XMEMCPY(&ssl->hsHashes->hashSha384, &ossl->hsHashes->hashSha384, sizeof(Sha384));
+#endif
+#ifdef WOLFSSL_SHA512
+    XMEMCPY(&ssl->hsHashes->hashSha512, &ossl->hsHashes->hashSha512, sizeof(Sha512));
+#endif
+
+#if defined(WOLFSSL_DTLS) && !defined(NO_WOLFSSL_SERVER)
+    if (ssl->options.dtls && ssl->options.side == WOLFSSL_SERVER_END) {
+        ssl->buffers.dtlsCookieSecret.length = ossl->buffers.dtlsCookieSecret.length;
+        XMEMCPY(ssl->buffers.dtlsCookieSecret.buffer,
+                ossl->buffers.dtlsCookieSecret.buffer,
+                ossl->buffers.dtlsCookieSecret.length);
+    }
+#endif /* WOLFSSL_DTLS && !NO_WOLFSSL_SERVER */
+
+#ifdef HAVE_SECRET_CALLBACK
+    ssl->sessionSecretCb  = ossl->sessionSecretCb;
+    ssl->sessionSecretCtx = ossl->sessionSecretCtx;
+#endif
+
+    return 0;
+}
+#endif /* OPENSSL_EXTRA */
+
 /* free use of temporary arrays */
 void FreeArrays(WOLFSSL* ssl, int keep)
 {
@@ -3589,8 +4122,8 @@ void SSL_ResourceFree(WOLFSSL* ssl)
 #endif /* WOLFSSL_DTLS */
 #if defined(OPENSSL_EXTRA) || defined(GOAHEAD_WS)
     if (ssl->biord != ssl->biowr)        /* only free write if different */
-        wolfSSL_BIO_free(ssl->biowr);
-    wolfSSL_BIO_free(ssl->biord);        /* always free read bio */
+        wc_BioFree(ssl->biowr);
+    wc_BioFree(ssl->biord);        /* always free read bio */
 #endif
 #ifdef HAVE_LIBZ
     FreeStreams(ssl);

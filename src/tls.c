@@ -3077,10 +3077,10 @@ int TLSX_UseSecureRenegotiation(TLSX** extensions, void* heap)
 }
 
 
-#define SCR_FREE_ALL(data, heap) XFREE(data, (heap), DYNAMIC_TYPE_TLSX)
-#define SCR_GET_SIZE       TLSX_SecureRenegotiation_GetSize
-#define SCR_WRITE          TLSX_SecureRenegotiation_Write
-#define SCR_PARSE          TLSX_SecureRenegotiation_Parse
+#define SCR_FREE_ALL(data, heap)    XFREE((data), (heap), DYNAMIC_TYPE_TLSX)
+#define SCR_GET_SIZE                TLSX_SecureRenegotiation_GetSize
+#define SCR_WRITE                   TLSX_SecureRenegotiation_Write
+#define SCR_PARSE                   TLSX_SecureRenegotiation_Parse
 
 #else
 

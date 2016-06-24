@@ -60,7 +60,6 @@ typedef WOLFSSL_X509_CHAIN X509_CHAIN;
 /* redeclare guard */
 #define WOLFSSL_TYPES_DEFINED
 
-
 typedef WOLFSSL_EVP_PKEY       EVP_PKEY;
 typedef WOLFSSL_RSA            RSA;
 typedef WOLFSSL_DSA            DSA;
@@ -68,8 +67,8 @@ typedef WOLFSSL_EC_KEY         EC_KEY;
 typedef WOLFSSL_EC_GROUP       EC_GROUP;
 typedef WOLFSSL_EC_POINT       EC_POINT;
 typedef WOLFSSL_ECDSA_SIG	   ECDSA_SIG;
-typedef WOLFSSL_BIO            BIO;
-typedef WOLFSSL_BIO_METHOD     BIO_METHOD;
+typedef WOLFCRYPT_BIO          BIO;
+typedef WOLFCRYPT_BIO_METHOD   BIO_METHOD;
 typedef WOLFSSL_CIPHER         SSL_CIPHER;
 typedef WOLFSSL_X509_LOOKUP    X509_LOOKUP;
 typedef WOLFSSL_X509_LOOKUP_METHOD X509_LOOKUP_METHOD;
@@ -208,31 +207,6 @@ typedef WOLFSSL_X509_STORE_CTX X509_STORE_CTX;
 #define MD4_Init wolfSSL_MD4_Init
 #define MD4_Update  wolfSSL_MD4_Update
 #define MD4_Final wolfSSL_MD4_Final
-
-#define BIO_new      wolfSSL_BIO_new
-#define BIO_free     wolfSSL_BIO_free
-#define BIO_free_all wolfSSL_BIO_free_all
-#define BIO_read     wolfSSL_BIO_read
-#define BIO_write    wolfSSL_BIO_write
-#define BIO_push     wolfSSL_BIO_push
-#define BIO_pop      wolfSSL_BIO_pop
-#define BIO_flush    wolfSSL_BIO_flush
-#define BIO_pending  wolfSSL_BIO_pending
-
-#define BIO_get_mem_data wolfSSL_BIO_get_mem_data
-#define BIO_new_mem_buf  wolfSSL_BIO_new_mem_buf
-
-#define BIO_f_buffer              wolfSSL_BIO_f_buffer
-#define BIO_set_write_buffer_size wolfSSL_BIO_set_write_buffer_size
-#define BIO_f_ssl                 wolfSSL_BIO_f_ssl
-#define BIO_new_socket            wolfSSL_BIO_new_socket
-#define SSL_set_bio               wolfSSL_set_bio
-#define BIO_eof                   wolfSSL_BIO_eof
-#define BIO_set_ss                wolfSSL_BIO_set_ss
-
-#define BIO_s_mem     wolfSSL_BIO_s_mem
-#define BIO_f_base64  wolfSSL_BIO_f_base64
-#define BIO_set_flags wolfSSL_BIO_set_flags
 
 #define OpenSSL_add_all_algorithms wolfSSL_add_all_algorithms
 #define SSLeay_add_ssl_algorithms  wolfSSL_add_all_algorithms
@@ -387,7 +361,6 @@ typedef WOLFSSL_X509_STORE_CTX X509_STORE_CTX;
 #define SSL_want_read wolfSSL_want_read
 #define SSL_want_write wolfSSL_want_write
 
-#define BIO_prf wolfSSL_BIO_prf
 #define ASN1_UTCTIME_pr wolfSSL_ASN1_UTCTIME_pr
 
 #define sk_num wolfSSL_sk_num
@@ -418,8 +391,6 @@ typedef WOLFSSL_X509_NAME_ENTRY X509_NAME_ENTRY;
 #define X509_NAME_free wolfSSL_X509_NAME_free
 #define SSL_CTX_use_certificate wolfSSL_CTX_use_certificate
 #define SSL_CTX_use_PrivateKey wolfSSL_CTX_use_PrivateKey
-#define BIO_read_filename wolfSSL_BIO_read_filename
-#define BIO_s_file wolfSSL_BIO_s_file
 #define OBJ_nid2sn wolf_OBJ_nid2sn
 #define OBJ_obj2nid wolf_OBJ_obj2nid
 #define OBJ_sn2nid wolf_OBJ_sn2nid
@@ -450,7 +421,6 @@ typedef WOLFSSL_X509_NAME_ENTRY X509_NAME_ENTRY;
 #define PEM_read_bio_DHparams wolfSSL_PEM_read_bio_DHparams
 #define PEM_write_bio_X509 PEM_write_bio_WOLFSSL_X509
 #define SSL_CTX_set_tmp_dh wolfSSL_CTX_set_tmp_dh
-#define BIO_new_file wolfSSL_BIO_new_file
 
 
 #endif /* HAVE_STUNNEL || HAVE_LIGHTY || WOLFSSL_MYSQL_COMPATIBLE */
@@ -515,6 +485,198 @@ typedef WOLFSSL_ASN1_BIT_STRING    ASN1_BIT_STRING;
 
 
 #endif /* HAVE_STUNNEL */
+
+#ifdef OPENSSL_EXTRA
+
+#define BIO_method_name     wc_BioMethodName
+#define BIO_method_type     wc_BioMethodType
+
+#define BIO_clear_flags     wc_BioClearFlags
+#define BIO_set_flags       wc_BioSetFlags
+#define BIO_test_flags      wc_BioTestFlags
+
+#define BIO_get_flags           wc_BioGetFlags
+#define BIO_set_retry_special   wc_BioSetRetrySpecial
+#define BIO_set_retry_read      wc_BioSetRetryRead
+#define BIO_set_retry_write     wc_BioSetRetryWrite
+
+#define BIO_clear_retry_flags   wc_BioClearRetryFlags
+#define BIO_get_retry_flags     wc_BioGetRetryFlags
+
+#define BIO_should_read         wc_BioShouldRead
+#define BIO_should_write        wc_BioShouldWrite
+#define BIO_should_io_special   wc_BioShouldIoSpecial
+#define BIO_retry_type          wc_BioRetryType
+#define BIO_should_retry_type   wc_BioShouldRetry
+
+#define BIO_get_callback        wc_BioGetCallback
+#define BIO_set_callback        wc_BioSetCallback
+#define BIO_get_callback_arg    wc_BioSetCallbackArg
+#define BIO_set_callback_arg    wc_BioGetCallbackArg
+
+#define BIO_new             wc_BioNew
+#define BIO_free            wc_BioFree
+#define BIO_vfree           wc_BioFree
+#define BIO_free_all        wc_BioFreeAll
+#define BIO_set             wc_BioSet
+#define BIO_read            wc_BioRead
+#define BIO_wrie            wc_BioWrite
+#define BIO_puts            wc_BioPuts
+#define BIO_gets            wc_BioGets
+#define BIO_indent          wc_BioIndent
+#define BIO_ctrl            wc_BioCtrl
+#define BIO_callback_ctrl   wc_BioCallbackCtrl
+#define BIO_push            wc_BioPush
+#define BIO_pop             wc_BioPop
+#define BIO_next            wc_BioNext
+#define BIO_find_type       wc_BioFindType
+#define BIO_dup_chain       wc_BioDupChain
+#define BIO_dup_state       wc_BioDupState
+
+#define BIO_get_retry_BIO       wc_BioGetRetryBio
+#define BIO_get_retry_reason    wc_BioGetRetryReason
+
+#define BIO_int_ctrl        wc_BioIntCtrl
+#define BIO_ptr_ctrl        wc_BioPtrCtrl
+#define BIO_ctrl_pending    wc_BioCtrlPending
+#define BIO_ctrl_wpending   wc_BioCtrlWpending
+
+#define BIO_number_read     wc_BioNumberRead
+#define BIO_number_written  wc_BioNumberWritten
+
+#define BIO_reset       wc_BioReset
+#define BIO_eof         wc_BioEof
+#define BIO_set_close   wc_BioSetClose
+#define BIO_get_close   wc_BioGetClose
+#define BIO_pending     wc_BioPending
+#define BIO_wpending    wc_BioWpending
+#define BIO_flush       wc_BioFlush
+
+#define BIO_set_info_callback   wc_BioSetInfoCallback
+#define BIO_get_info_callback   wc_BioGetInfoCallback
+
+#define BIO_copy_next_retry     wc_BioCopyNextRetry
+#define BIO_printf              wc_BioPrintf
+
+/* BIO file */
+#define BIO_s_file              wc_Bio_s_file
+#define BIO_new_fp              wc_BioNewFp
+#define BIO_new_file            wc_BioNewFile
+#define BIO_set_fp              wc_BioSetFp
+#define BIO_get_fp              wc_BioGetFp
+#define BIO_seek                wc_BioSeek
+#define BIO_tell                wc_BioTell
+#define BIO_read_filename       wc_BioReadFilename
+#define BIO_write_filename      wc_BioWriteFilename
+#define BIO_append_filename     wc_BioAppendFilename
+#define BIO_rw_filename         wc_BioRwFilename
+
+/* BIO memory */
+#define BIO_s_mem           wc_Bio_s_mem
+#define BIO_new_mem_buf     wc_BioNewMemBuf
+
+/* BIO fd */
+#define BIO_s_fd        wc_Bio_s_fd
+#define BIO_new_fd      wc_BioNewFd
+
+/* BIO null */
+#define BIO_s_null      wc_Bio_s_null
+
+/* BIO socket */
+#define BIO_s_socket                wc_Bio_s_socket
+#define BIO_new_socket              wc_BioNewSocket
+#define BIO_sock_should_retry       wc_BioSockShouldRetry
+#define BIO_sock_non_fatal_error    wc_BioSockNonFatalError
+#define BIO_set_fd                  wc_BioSetFd
+#define BIO_get_fd                  wc_BioGetFd
+
+/* BIO connect */
+#define BIO_s_connect           wc_Bio_s_connect
+#define BIO_new_connect         wc_BioNewConnect
+#define BIO_set_conn_hostname   wc_BioSetConnHostname
+#define BIO_set_conn_port       wc_BioSetConnPort
+#define BIO_set_conn_ip         wc_BioSetConnIp(bio, ip)
+#define BIO_set_conn_int_port   wc_BioSetConnIntPort
+#define BIO_get_conn_hostname   wc_BioGetConnHostname
+#define BIO_get_conn_port       wc_BioGetConnPort
+#define BIO_get_conn_ip         wc_BioGetConnIp
+#define BIO_get_conn_int_port   wc_BioGetConnIntPort
+#define BIO_set_nbio            wc_BioSetNbio
+#define BIO_do_handshake        wc_BioDoHandshake
+#define BIO_do_connect          wc_BioDoConnect
+#define BIO_do_accept           wc_BioDoAccept
+
+/* BIO accept */
+#define BIO_s_accept            wc_Bio_s_accept
+#define BIO_new_accept          wc_BioNewAccept
+#define BIO_set_accept_port     wc_BioSetAcceptPort
+#define BIO_get_accept_port     wc_BioGetAcceptPort
+#define BIO_set_nbio_accept     wc_BioSetNbioAccept
+#define BIO_set_accept_bios     wc_BioSetAcceptBios
+#define BIO_set_bind_mode       wc_BioSetBindMode
+#define BIO_get_bind_mode       wc_BioGetBindMode
+
+/* BIO datagram */
+#define BIO_s_datagram  wc_Bio_s_datagram
+#define BIO_new_dgram   wc_BioNewDgram
+
+/* BIO filter buffer */
+#define BIO_f_buffer                wc_Bio_f_buffer
+#define BIO_get_mem_data            wc_BioGetMemData
+#define BIO_set_mem_buf             wc_BioSetMemBuf
+#define BIO_get_mem_ptr             wc_BioGetMemPtr
+#define BIO_set_mem_eof_return      wc_BioSetMemEofReturn
+#define BIO_get_buffer_num_lines    wc_BioGetBufferNumLines
+#define BIO_set_buffer_size         wc_BioSetBufferSize
+#define BIO_set_read_buffer_size    wc_BioSetReadBufferSize
+#define BIO_set_write_buffer_size   wc_BioSetWriteBufferSize
+#define BIO_set_buffer_read_data    wc_BioSetBufferReadData
+
+/* BIO filter cipher */
+#define BIO_f_cipher                wc_Bio_f_cipher
+#define BIO_set_cipher              wc_BioSetCipher
+#define BIO_get_cipher_status       wc_BioGetCipherStatus
+#define BIO_get_cipher_ctx          wc_BioGetCipherCtx
+
+/* BIO filter base64 */
+#define BIO_f_base64    wc_Bio_f_base64
+
+/* BIO filter digest */
+#define BIO_f_md        wc_Bio_f_md
+#define BIO_set_md      wc_BioSetMd
+#define BIO_get_md      wc_BioGetMd
+#define BIO_get_md_ctx  wc_BioGetmdCtx
+#define BIO_set_md_ctx  wc_BioSetMdCtx
+
+/* BIO filter SSL */
+WOLFSSL_API WOLFCRYPT_BIO *wolfSSL_BioNewBufferSSLConnect(WOLFSSL_CTX *ctx);
+WOLFSSL_API WOLFCRYPT_BIO *wolfSSL_BioNewSSLConnect(WOLFSSL_CTX *ctx);
+WOLFSSL_API WOLFCRYPT_BIO *wolfSSL_BioNewSSL(WOLFSSL_CTX *ctx, int client);
+
+#define BIO_f_ssl                       wc_Bio_f_ssl
+#define BIO_new_buffer_ssl_connect      wolfSSL_BioNewBufferSSLConnect
+#define BIO_new_ssl_connect             wolfSSL_BioNewSSLConnect
+#define BIO_new_ssl                     wolfSSL_BioNewSSL
+#define BIO_ssl_shutdown                wc_BioSSLShutdown
+#define BIO_set_ssl                     wc_BioSetSSL
+#define BIO_get_ssl                     wc_BioGetSSL
+#define BIO_set_ssl_mode                wc_BIOSetSSLMode
+#define BIO_set_ssl_renegotiate_bytes   wc_BIOSetSSLRenegotiateBytes
+#define BIO_get_num_renegotiates        wc_BIOGetNumRenegotiates
+#define BIO_set_ssl_renegotiate_timeout wc_BIOSetSSLRenegotiateTimeout
+
+/* BIO socket internal functions */
+#define BIO_get_host_ip             wc_BioGetHostIp
+#define BIO_get_port                wc_BioGetPort
+#define BIO_sock_error              wc_BioSockError
+#define BIO_sock_init               wc_BioSockInit
+#define BIO_sock_cleanup            wc_BioSockCleanup
+#define BIO_get_accept_socket       wc_BioGetAcceptSocket
+#define BIO_accept                  wc_BioAccept
+#define BIO_set_tcp_ndelay          wc_BioSetTcpNdelay
+#define BIO_socket_nbio             wc_BioSocketNbio
+
+#endif /* OPENSSL_EXTRA */
 
 #ifdef __cplusplus
     } /* extern "C" */
