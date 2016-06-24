@@ -3,7 +3,7 @@
 
 #include <wolfssl/wolfcrypt/types.h>
 #include <wolfssl/wolfcrypt/wc_port.h>
-#include <wolfssl/wolfcrypt/compat-wolfssl.h>
+#include <wolfssl/wolfcrypt/compat-wolfcrypt.h>
 
 #ifdef OPENSSL_EXTRA
 

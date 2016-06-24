@@ -27,7 +27,7 @@
 
 #include <wolfssl/wolfcrypt/types.h>
 #include <wolfssl/ssl.h>
-#include <wolfssl/wolfcrypt/compat-wolfssl.h>
+#include <wolfssl/wolfcrypt/compat-wolfcrypt.h>
 
 #ifdef HAVE_CRL
     #include <wolfssl/crl.h>

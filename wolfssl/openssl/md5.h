@@ -12,7 +12,7 @@
 #include "prefix_md5.h"
 #endif
 
-#include <wolfssl/wolfcrypt/compat-wolfssl.h>
+#include <wolfssl/wolfcrypt/compat-wolfcrypt.h>
 
 #ifdef __cplusplus
     extern "C" {

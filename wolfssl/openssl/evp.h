@@ -48,7 +48,7 @@
 #include <wolfssl/openssl/dsa.h>
 #include <wolfssl/openssl/ec.h>
 
-#include <wolfssl/wolfcrypt/compat-wolfssl.h>
+#include <wolfssl/wolfcrypt/compat-wolfcrypt.h>
 #include <wolfssl/wolfcrypt/aes.h>
 #include <wolfssl/wolfcrypt/des3.h>
 #include <wolfssl/wolfcrypt/arc4.h>

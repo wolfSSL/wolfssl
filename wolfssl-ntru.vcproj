@@ -183,7 +183,7 @@
 				>
 			</File>
 			<File
-				RelativePath=".\wolfcrypt\src\compat-wolfssl.c"
+				RelativePath=".\wolfcrypt\src\compat-wolfcrypt.c"
 				>
 			</File>
 			<File

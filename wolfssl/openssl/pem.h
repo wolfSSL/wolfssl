@@ -4,7 +4,7 @@
 #ifndef WOLFSSL_PEM_H_
 #define WOLFSSL_PEM_H_
 
-#include <wolfssl/wolfcrypt/compat-wolfssl.h>
+#include <wolfssl/wolfcrypt/compat-wolfcrypt.h>
 #include <wolfssl/openssl/bio.h>
 #include <wolfssl/openssl/rsa.h>
 #include <wolfssl/openssl/dsa.h>
@@ -119,7 +119,7 @@ WOLFSSL_EVP_PKEY *wolfSSL_PEM_read_PUBKEY(FILE *fp, EVP_PKEY **x,
 #define EVP_PKEY_type           wolfSSL_EVP_PKEY_type
 
 #ifdef __cplusplus
-    }  /* extern "C" */ 
+    }  /* extern "C" */
 #endif
 
 #endif /* WOLFSSL_PEM_H_ */
