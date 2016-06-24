@@ -521,7 +521,7 @@ int fp_div(fp_int *a, fp_int *b, fp_int *c, fp_int *d)
   int     n, t, i, norm, neg;
 
   /* is divisor zero ? */
-  if (fp_iszero (b) == 1) {
+  if (fp_iszero (b) == FP_YES) {
     return FP_VAL;
   }
 
@@ -787,7 +787,7 @@ static int fp_invmod_slow (fp_int * a, fp_int * b, fp_int * c)
   int     res;
 
   /* b cannot be negative */
-  if (b->sign == FP_NEG || fp_iszero(b) == 1) {
+  if (b->sign == FP_NEG || fp_iszero(b) == FP_YES) {
     return FP_VAL;
   }
 
@@ -804,7 +804,7 @@ static int fp_invmod_slow (fp_int * a, fp_int * b, fp_int * c)
   fp_copy(b, &y);
 
   /* 2. [modified] if x,y are both even then return an error! */
-  if (fp_iseven (&x) == 1 && fp_iseven (&y) == 1) {
+  if (fp_iseven (&x) == FP_YES && fp_iseven (&y) == FP_YES) {
     return FP_VAL;
   }
 
@@ -816,12 +816,12 @@ static int fp_invmod_slow (fp_int * a, fp_int * b, fp_int * c)
 
 top:
   /* 4.  while u is even do */
-  while (fp_iseven (&u) == 1) {
+  while (fp_iseven (&u) == FP_YES) {
     /* 4.1 u = u/2 */
     fp_div_2 (&u, &u);
 
     /* 4.2 if A or B is odd then */
-    if (fp_isodd (&A) == 1 || fp_isodd (&B) == 1) {
+    if (fp_isodd (&A) == FP_YES || fp_isodd (&B) == FP_YES) {
       /* A = (A+y)/2, B = (B-x)/2 */
       fp_add (&A, &y, &A);
       fp_sub (&B, &x, &B);
@@ -832,12 +832,12 @@ top:
   }
 
   /* 5.  while v is even do */
-  while (fp_iseven (&v) == 1) {
+  while (fp_iseven (&v) == FP_YES) {
     /* 5.1 v = v/2 */
     fp_div_2 (&v, &v);
 
     /* 5.2 if C or D is odd then */
-    if (fp_isodd (&C) == 1 || fp_isodd (&D) == 1) {
+    if (fp_isodd (&C) == FP_YES || fp_isodd (&D) == FP_YES) {
       /* C = (C+y)/2, D = (D-x)/2 */
       fp_add (&C, &y, &C);
       fp_sub (&D, &x, &D);
@@ -861,7 +861,7 @@ top:
   }
 
   /* if not zero goto step 4 */
-  if (fp_iszero (&u) == 0)
+  if (fp_iszero (&u) == FP_NO)
     goto top;
 
   /* now a = C, b = D, gcd == g*v */
@@ -891,7 +891,7 @@ top:
 int fp_invmod(fp_int *a, fp_int *b, fp_int *c)
 {
   fp_int  x, y, u, v, B, D;
-  int     neg, loop_check = 0;
+  int     neg;
 
   /* 2. [modified] b must be odd   */
   if (fp_iseven (b) == FP_YES) {
@@ -955,8 +955,6 @@ top:
 
   /* if not zero goto step 4 */
   if (fp_iszero (&u) == FP_NO) {
-    if (++loop_check > 4096) /* bad input */
-      return FP_VAL;
     goto top;
   }
 
@@ -2102,8 +2100,12 @@ void fp_sub_d(fp_int *a, fp_digit b, fp_int *c)
    fp_int tmp;
    fp_init(&tmp);
    fp_set(&tmp, b);
+#ifdef ALT_ECC_SIZE
+   fp_sub(a, &tmp, &tmp);
+   fp_copy(&tmp, c);
+#else
    fp_sub(a, &tmp, c);
-   fp_clear(&tmp);
+ #endif
 }
 
 
@@ -2363,10 +2365,19 @@ int mp_set_bit(mp_int *a, mp_digit b)
 /* c = a * a (mod b) */
 int fp_sqrmod(fp_int *a, fp_int *b, fp_int *c)
 {
-  fp_int tmp;
-  fp_init(&tmp);
-  fp_sqr(a, &tmp);
-  return fp_mod(&tmp, b, c);
+  int err;
+  fp_int t;
+
+  fp_init(&t);
+  fp_sqr(a, &t);
+#ifdef ALT_ECC_SIZE
+  err = fp_mod(&t, b, &t);
+  fp_copy(&t, c);
+#else
+  err = fp_mod(&t, b, c);
+#endif
+
+  return err;
 }
 
 /* fast math conversion */
@@ -2388,10 +2399,6 @@ int mp_montgomery_calc_normalization(mp_int *a, mp_int *b)
 #if defined(WOLFSSL_KEY_GEN) || defined(HAVE_COMP_KEY) || \
     defined(WOLFSSL_DEBUG_MATH)
 
-static const int lnz[16] = {
-   4, 0, 1, 0, 2, 0, 1, 0, 3, 0, 1, 0, 2, 0, 1, 0
-};
-
 #ifdef WOLFSSL_KEY_GEN
 /* swap the elements of two integers, for cases where you can't simply swap the
  * mp_int pointers around
@@ -2406,6 +2413,10 @@ static void fp_exch (fp_int * a, fp_int * b)
 }
 #endif
 
+static const int lnz[16] = {
+   4, 0, 1, 0, 2, 0, 1, 0, 3, 0, 1, 0, 2, 0, 1, 0
+};
+
 /* Counts the number of lsbs which are zero before the first zero bit */
 int fp_cnt_lsb(fp_int *a)
 {
@@ -2413,12 +2424,12 @@ int fp_cnt_lsb(fp_int *a)
    fp_digit q, qq;
 
    /* easy out */
-   if (fp_iszero(a) == 1) {
+   if (fp_iszero(a) == FP_YES) {
       return 0;
    }
 
    /* scan lower digits until non-zero */
-   for (x = 0; x < a->used && a->dp[x] == 0; x++);
+   for (x = 0; x < a->used && a->dp[x] == 0; x++) {}
    q = a->dp[x];
    x *= DIGIT_BIT;
 
@@ -2440,16 +2451,16 @@ static int s_is_power_of_two(fp_digit b, int *p)
 
    /* fast return if no power of two */
    if ((b==0) || (b & (b-1))) {
-      return 0;
+      return FP_NO;
    }
 
    for (x = 0; x < DIGIT_BIT; x++) {
       if (b == (((fp_digit)1)<<x)) {
          *p = x;
-         return 1;
+         return FP_YES;
       }
    }
-   return 0;
+   return FP_NO;
 }
 
 /* a/b => cb + d == a */
@@ -2466,7 +2477,7 @@ static int fp_div_d(fp_int *a, fp_digit b, fp_int *c, fp_digit *d)
   }
 
   /* quick outs */
-  if (b == 1 || fp_iszero(a) == 1) {
+  if (b == 1 || fp_iszero(a) == FP_YES) {
      if (d != NULL) {
         *d = 0;
      }
@@ -2477,7 +2488,7 @@ static int fp_div_d(fp_int *a, fp_digit b, fp_int *c, fp_digit *d)
   }
 
   /* power of two ? */
-  if (s_is_power_of_two(b, &ix) == 1) {
+  if (s_is_power_of_two(b, &ix) == FP_YES) {
      if (d != NULL) {
         *d = a->dp[0] & ((((fp_digit)1)<<ix) - 1);
      }
@@ -2537,10 +2548,11 @@ int mp_mod_d(fp_int *a, fp_digit b, fp_digit *c)
 
 #ifdef WOLFSSL_KEY_GEN
 
-void fp_gcd(fp_int *a, fp_int *b, fp_int *c);
-void fp_lcm(fp_int *a, fp_int *b, fp_int *c);
-int  fp_isprime(fp_int *a);
-int  fp_randprime(fp_int* N, int len, WC_RNG* rng, void* heap);
+static void fp_gcd(fp_int *a, fp_int *b, fp_int *c);
+static void fp_lcm(fp_int *a, fp_int *b, fp_int *c);
+static int  fp_isprime_ex(fp_int *a, int t);
+static int  fp_isprime(fp_int *a);
+static int  fp_randprime(fp_int* N, int len, WC_RNG* rng, void* heap);
 
 int mp_gcd(fp_int *a, fp_int *b, fp_int *c)
 {
@@ -2653,7 +2665,7 @@ static void fp_prime_miller_rabin (fp_int * a, fp_int * b, int *result)
 
 
 /* a few primes */
-static const fp_digit primes[256] = {
+static const fp_digit primes[FP_PRIME_SIZE] = {
   0x0002, 0x0003, 0x0005, 0x0007, 0x000B, 0x000D, 0x0011, 0x0013,
   0x0017, 0x001D, 0x001F, 0x0025, 0x0029, 0x002B, 0x002F, 0x0035,
   0x003B, 0x003D, 0x0043, 0x0047, 0x0049, 0x004F, 0x0053, 0x0059,
@@ -2691,23 +2703,27 @@ static const fp_digit primes[256] = {
   0x062B, 0x062F, 0x063D, 0x0641, 0x0647, 0x0649, 0x064D, 0x0653
 };
 
-int fp_isprime(fp_int *a)
+int fp_isprime_ex(fp_int *a, int t)
 {
    fp_int   b;
-   fp_digit d = 0;
+   fp_digit d;
    int      r, res;
 
+   if (t <= 0 || t > FP_PRIME_SIZE) {
+     return FP_NO;
+   }
+
    /* do trial division */
-   for (r = 0; r < 256; r++) {
+   for (r = 0; r < FP_PRIME_SIZE; r++) {
        fp_mod_d(a, primes[r], &d);
        if (d == 0) {
           return FP_NO;
        }
    }
 
-   /* now do 8 miller rabins */
+   /* now do 't' miller rabins */
    fp_init(&b);
-   for (r = 0; r < 8; r++) {
+   for (r = 0; r < t; r++) {
        fp_set(&b, primes[r]);
        fp_prime_miller_rabin(a, &b, &res);
        if (res == FP_NO) {
@@ -2715,6 +2731,11 @@ int fp_isprime(fp_int *a)
        }
    }
    return FP_YES;
+}
+
+int fp_isprime(fp_int *a)
+{
+  return fp_isprime_ex(a, 8);
 }
 
 int fp_randprime(fp_int* N, int len, WC_RNG* rng, void* heap)
@@ -2796,11 +2817,11 @@ void fp_gcd(fp_int *a, fp_int *b, fp_int *c)
    fp_int u, v, r;
 
    /* either zero than gcd is the largest */
-   if (fp_iszero (a) == 1 && fp_iszero (b) == 0) {
+   if (fp_iszero (a) == FP_YES && fp_iszero (b) == FP_NO) {
      fp_abs (b, c);
      return;
    }
-   if (fp_iszero (a) == 0 && fp_iszero (b) == 1) {
+   if (fp_iszero (a) == FP_NO && fp_iszero (b) == FP_YES) {
      fp_abs (a, c);
      return;
    }
@@ -2808,7 +2829,7 @@ void fp_gcd(fp_int *a, fp_int *b, fp_int *c)
    /* optimized.  At this point if a == 0 then
     * b must equal zero too
     */
-   if (fp_iszero (a) == 1) {
+   if (fp_iszero (a) == FP_YES) {
      fp_zero(c);
      return;
    }
@@ -2968,8 +2989,7 @@ int mp_init_copy(fp_int * a, fp_int * b)
 
 int mp_cnt_lsb(fp_int* a)
 {
-    fp_cnt_lsb(a);
-    return MP_OKAY;
+    return fp_cnt_lsb(a);
 }
 
 #endif /* HAVE_COMP_KEY */
@@ -3047,7 +3067,7 @@ int mp_toradix (mp_int *a, char *str, int radix)
     }
 
     /* quick out if its zero */
-    if (fp_iszero(a) == 1) {
+    if (fp_iszero(a) == FP_YES) {
         *str++ = '0';
         *str = '\0';
         return FP_YES;
@@ -3064,7 +3084,7 @@ int mp_toradix (mp_int *a, char *str, int radix)
     }
 
     digs = 0;
-    while (fp_iszero (&t) == 0) {
+    while (fp_iszero (&t) == FP_NO) {
         if ((res = fp_div_d (&t, (fp_digit) radix, &t, &d)) != FP_OKAY) {
             fp_zero (&t);
             return res;

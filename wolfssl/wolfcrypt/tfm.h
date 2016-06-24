@@ -347,9 +347,7 @@ typedef struct {
 #define TFM_SQR64
 #endif
 
-/* do we want some overflow checks
-   Not required if you make sure your numbers are within range (e.g. by default a modulus for fp_exptmod() can only be up to 2048 bits long)
- */
+/* Optional math checks (enable WOLFSSL_DEBUG_MATH to print info) */
 /* #define TFM_CHECK */
 
 /* Is the target a P4 Prescott
@@ -518,8 +516,11 @@ int fp_exptmod(fp_int *a, fp_int *b, fp_int *c, fp_int *d);
 /* perform a Miller-Rabin test of a to the base b and store result in "result" */
 /*void fp_prime_miller_rabin (fp_int * a, fp_int * b, int *result);*/
 
+#define FP_PRIME_SIZE      256
 /* 256 trial divisions + 8 Miller-Rabins, returns FP_YES if probable prime  */
 /*int fp_isprime(fp_int *a);*/
+/* extended version of fp_isprime, do 't' Miller-Rabins instead of only 8 */
+/*int fp_isprime_ex(fp_int *a, int t);*/
 
 /* Primality generation flags */
 /*#define TFM_PRIME_BBS      0x0001 */ /* BBS style prime */

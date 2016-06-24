@@ -781,6 +781,19 @@ then
 fi
 
 
+# Compressed Key
+AC_ARG_ENABLE([compkey],
+    [AS_HELP_STRING([--enable-compkey],[Enable compressed keys support (default: disabled)])],
+    [ ENABLED_COMPKEY=$enableval ],
+    [ ENABLED_COMPKEY=no ]
+    )
+
+if test "$ENABLED_COMPKEY" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_COMP_KEY"
+fi
+
+
 # for using memory optimization setting on both curve25519 and ed25519
 ENABLED_CURVED25519_SMALL=no
 

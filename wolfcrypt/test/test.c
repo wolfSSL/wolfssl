@@ -2941,7 +2941,7 @@ int aes_test(void)
     }
 #endif /* WOLFSSL_AES_COUNTER */
 
-#if defined(WOLFSSL_AESNI) && defined(WOLFSSL_AES_DIRECT)
+#ifdef WOLFSSL_AES_DIRECT
     {
         const byte niPlain[] =
         {
@@ -2979,7 +2979,7 @@ int aes_test(void)
         if (XMEMCMP(plain, niPlain, AES_BLOCK_SIZE) != 0)
             return -20007;
     }
-#endif /* WOLFSSL_AESNI && WOLFSSL_AES_DIRECT */
+#endif /* WOLFSSL_AES_DIRECT */
 
     return ret;
 }
@@ -7494,7 +7494,7 @@ static int ecc_test_key_gen(WC_RNG* rng, int keySize)
 }
 #endif /* WOLFSSL_KEY_GEN */
 static int ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerifyCount,
-    int testCompressedKey, const ecc_set_type* dp)
+    const ecc_set_type* dp)
 {
 #ifdef BENCH_EMBEDDED
     byte    sharedA[128]; /* Needs to be at least keySize */
@@ -7554,7 +7554,6 @@ static int ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerifyCount,
 
 #ifdef HAVE_ECC_KEY_EXPORT
     x = sizeof(exportBuf);
-
     ret = wc_ecc_export_x963(&userA, exportBuf, &x);
     if (ret != 0)
         ERROR_OUT(-1006, done);
@@ -7574,18 +7573,16 @@ static int ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerifyCount,
         ERROR_OUT(-1009, done);
 #endif /* HAVE_ECC_DHE */
 
-    if (testCompressedKey) {
     #ifdef HAVE_COMP_KEY
         /* try compressed export / import too */
         x = sizeof(exportBuf);
-
         ret = wc_ecc_export_x963_ex(&userA, exportBuf, &x, 1);
         if (ret != 0)
             ERROR_OUT(-1010, done);
         wc_ecc_free(&pubKey);
         wc_ecc_init(&pubKey);
 
-        ret = wc_ecc_import_x963(exportBuf, x, &pubKey);
+        ret = wc_ecc_import_x963_ex(exportBuf, x, &pubKey, dp);
         if (ret != 0)
             ERROR_OUT(-1011, done);
 
@@ -7599,7 +7596,7 @@ static int ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerifyCount,
             ERROR_OUT(-1013, done);
     #endif /* HAVE_ECC_DHE */
     #endif /* HAVE_COMP_KEY */
-    }
+
 #endif /* HAVE_ECC_KEY_IMPORT */
 #endif /* HAVE_ECC_KEY_EXPORT */
 
@@ -7669,15 +7666,9 @@ done:
 #define ECC_TEST_VERIFY_COUNT 2
 static int ecc_test_curve(WC_RNG* rng, int keySize)
 {
-    int ret, testCompressedKey = 1;
+    int ret;
 
-    /* At this time, ECC 224-bit does not work with compressed key */
-    if (keySize == 28) {
-        testCompressedKey = 0;
-    }
-
-    ret = ecc_test_curve_size(rng, keySize, ECC_TEST_VERIFY_COUNT,
-                                                    testCompressedKey, NULL);
+    ret = ecc_test_curve_size(rng, keySize, ECC_TEST_VERIFY_COUNT, NULL);
     if (ret < 0) {
         printf("ecc_test_curve_size %d failed!: %d\n", keySize, ret);
         return ret;
@@ -7755,7 +7746,7 @@ int ecc_test(void)
         "8BD2AEB9CB7E57CB2C4B482FFC81B7AFB9DE27E1E3BD23C23A4453BD9ACE3262", /* Gx         */
         "547EF835C3DAC4FD97F8461A14611DC9C27745132DED8E545C1D54C72F046997", /* Gy         */
     };
-    ret = ecc_test_curve_size(&rng, -1, ECC_TEST_VERIFY_COUNT, 0, &ecc_cust_dp);
+    ret = ecc_test_curve_size(&rng, 0, ECC_TEST_VERIFY_COUNT, &ecc_cust_dp);
     if (ret < 0) {
         printf("ecc_test_curve_size custom failed!: %d\n", ret);
         goto done;
