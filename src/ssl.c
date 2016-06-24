@@ -4358,6 +4358,13 @@ int wolfSSL_CertManagerVerifyBuffer(WOLFSSL_CERT_MANAGER* cm, const byte* buff,
         info->consumed = 0;
 
         ret = PemToDer(buff, sz, CERT_TYPE, &der, cm->heap, info, &eccKey);
+        if (ret != 0) {
+            FreeDer(&der);
+            #ifdef WOLFSSL_SMALL_STACK
+                XFREE(info, cm->heap, DYNAMIC_TYPE_TMP_BUFFER);
+            #endif
+            return ret;
+        }
         InitDecodedCert(cert, der->buffer, der->length, cm->heap);
 
     #ifdef WOLFSSL_SMALL_STACK
