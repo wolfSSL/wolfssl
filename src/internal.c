@@ -18108,8 +18108,8 @@ int DoSessionTicket(WOLFSSL* ssl,
             rh->pvMinor = DTLS_MINOR;
         }
 
-        output[idx++] = DTLS_MAJOR;
-        output[idx++] = DTLS_MINOR;
+        output[idx++] = ssl->version.major;
+        output[idx++] = ssl->version.minor;
 
         output[idx++] = cookieSz;
         if (cookie == NULL || cookieSz == 0)
