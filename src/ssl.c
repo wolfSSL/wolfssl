@@ -7786,9 +7786,30 @@ int DupSession(WOLFSSL* ssl, WOLFSSL* ossl)
             sizeof(ossl->session.serverID));
 #endif
 #ifdef HAVE_SESSION_TICKET
+    ssl->session.isDynamic = ossl->session.isDynamic;
     ssl->session.ticketLen = ossl->session.ticketLen;
-    XMEMCPY(ssl->session.ticket, ossl->session.ticket,
-            sizeof(ossl->session.ticket));
+
+    if (ossl->session.isDynamic) {
+        if (ssl->session.ticket != NULL)
+            XFREE(ssl->session.ticket, ssl->heap, DYNAMIC_TYPE_SESSION_TICK);
+        ssl->session.ticket = (byte*)XMALLOC(ossl->session.ticketLen, ssl->heap,
+                                             DYNAMIC_TYPE_SESSION_TICK);
+        if (ssl->session.ticket == NULL)
+            return SSL_FAILURE;
+
+        XMEMCPY(ssl->session.ticket, ossl->session.ticket,
+                ossl->session.ticketLen);
+    }
+    else {
+        if (ossl->session.ticketLen > SESSION_TICKET_LEN) {
+            /* size of static ticket is not large enough, should be dynamic!!!
+             * do not try copy */
+            return SSL_FAILURE;
+        }
+        XMEMCPY(ssl->session.staticTicket, ossl->session.staticTicket,
+                sizeof(ossl->session.staticTicket));
+        ssl->session.ticket = ssl->session.staticTicket;
+    }
 #endif
 #ifdef HAVE_STUNNEL
     {

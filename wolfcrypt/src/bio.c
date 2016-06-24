@@ -79,7 +79,7 @@
 #include <wolfssl/wolfcrypt/bio.h>
 
 static int wc_BioIntToStr(int i, char *str, int strSz){
-    char const digit[] = "0123456789";
+    const char digit[] = "0123456789";
     int shift, count = 0;
 
     if (i < 0)
@@ -292,7 +292,7 @@ int wc_BioRead(WOLFCRYPT_BIO *bio, void *data, int size)
 
     /* callback if set */
     if (bio->callback != NULL) {
-        ret = bio->callback(bio, BIO_CB_READ, data, size, 0, 1);
+        ret = bio->callback(bio, BIO_CB_READ, (const char *)data, size, 0, 1);
         if (ret <= 0) {
             WOLFSSL_ERROR(BIO_CALLBACK_E);
             WOLFSSL_LEAVE("wc_BioRead", (int)ret);
@@ -306,19 +306,19 @@ int wc_BioRead(WOLFCRYPT_BIO *bio, void *data, int size)
         return -2;
     }
 
-    ret = bio->method->bread(bio, data, size);
+    ret = bio->method->bread(bio, (char *)data, size);
     if (ret > 0)
         bio->num_read += (unsigned long)ret;
 
     /* callback if set */
     if (bio->callback != NULL) {
         ret = bio->callback(bio, BIO_CB_READ | BIO_CB_RETURN,
-                            data, size, 0, ret);
+                            (const char *)data, size, 0, ret);
         if (ret <= 0) {
             WOLFSSL_ERROR(BIO_CALLBACK_E);
         }
     }
-    
+
     WOLFSSL_LEAVE("wc_BioRead", (int)ret);
 
     return (int)ret;
@@ -345,7 +345,7 @@ int wc_BioWrite(WOLFCRYPT_BIO *bio, const void *data, int size)
 
     /* callback if set */
     if (bio->callback != NULL) {
-        ret = bio->callback(bio, BIO_CB_WRITE, data, size, 0, 1);
+        ret = bio->callback(bio, BIO_CB_WRITE, (const char *)data, size, 0, 1);
         if (ret <= 0) {
             WOLFSSL_ERROR(BIO_CALLBACK_E);
             WOLFSSL_LEAVE("wc_BioWrite", (int)ret);
@@ -359,14 +359,14 @@ int wc_BioWrite(WOLFCRYPT_BIO *bio, const void *data, int size)
         return -2;
     }
 
-    ret = bio->method->bwrite(bio, data, size);
+    ret = bio->method->bwrite(bio, (const char *)data, size);
     if (ret > 0)
         bio->num_write += (unsigned long)ret;
 
     /* callback if set */
     if (bio->callback != NULL) {
         ret = bio->callback(bio, BIO_CB_WRITE | BIO_CB_RETURN,
-                            data, size, 0, ret);
+                            (const char *)data, size, 0, ret);
         if (ret <= 0) {
             WOLFSSL_ERROR(BIO_CALLBACK_E);
         }
@@ -490,7 +490,7 @@ long wc_BioCtrl(WOLFCRYPT_BIO *bio, int cmd, long larg, void *parg)
 
     /* callback if set */
     if (bio->callback != NULL) {
-        ret = bio->callback(bio, BIO_CB_CTRL, parg, cmd, larg, 1);
+        ret = bio->callback(bio, BIO_CB_CTRL, (const char *)parg, cmd, larg, 1);
         if (ret <= 0) {
             WOLFSSL_ERROR(BIO_CALLBACK_E);
             WOLFSSL_LEAVE("wc_BioCtrl callback", (int)ret);
@@ -503,7 +503,7 @@ long wc_BioCtrl(WOLFCRYPT_BIO *bio, int cmd, long larg, void *parg)
     /* callback if set */
     if (bio->callback != NULL) {
         ret = bio->callback(bio, BIO_CB_CTRL | BIO_CB_RETURN,
-                            parg, cmd, larg, ret);
+                            (const char *)parg, cmd, larg, ret);
         if (ret <= 0) {
             WOLFSSL_ERROR(BIO_CALLBACK_E);
         }
@@ -535,7 +535,7 @@ long wc_BioCallbackCtrl(WOLFCRYPT_BIO *bio, int cmd,
 
     /* callback if set */
     if (bio->callback != NULL) {
-        ret = bio->callback(bio, BIO_CB_CTRL, (void *)&fp, cmd, 0, 1);
+        ret = bio->callback(bio, BIO_CB_CTRL, (const char *)&fp, cmd, 0, 1);
         if (ret <= 0) {
             WOLFSSL_ERROR(BIO_CALLBACK_E);
             WOLFSSL_LEAVE("wc_BioCallbackCtrl", (int)ret);
@@ -548,7 +548,7 @@ long wc_BioCallbackCtrl(WOLFCRYPT_BIO *bio, int cmd,
     /* callback if set */
     if (bio->callback != NULL) {
         ret = bio->callback(bio, BIO_CB_CTRL | BIO_CB_RETURN,
-                             (void *)&fp, cmd, 0, ret);
+                             (const char *)&fp, cmd, 0, ret);
         if (ret <= 0) {
             WOLFSSL_ERROR(BIO_CALLBACK_E);
         }
@@ -1137,7 +1137,7 @@ static int wc_BioB64_read(WOLFCRYPT_BIO *bio, char *data, int size)
                 else
                     ctx->start = 0;
 
-                /* +1 => skeep \n */
+                /* +1 => skip \n */
                 idx = (ctx->workNl + 1);
 
                 ctx->dataLen += num;
@@ -1491,12 +1491,12 @@ static long wc_BioB64_ctrl(WOLFCRYPT_BIO *bio, int cmd, long num, void *ptr)
         case BIO_CTRL_SET:
             ret = wc_BioCtrl(bio->next_bio, cmd, num, ptr);
             break;
-            
+
         default:
             ret = wc_BioCtrl(bio->next_bio, cmd, num, ptr);
             break;
     }
-    
+
     WOLFSSL_LEAVE("wc_BioB64_ctrl", (int)ret);
     return ret;
 }
@@ -1508,21 +1508,21 @@ static long wc_BioB64_callback_ctrl(WOLFCRYPT_BIO *bio,
         WOLFSSL_ERROR(BAD_FUNC_ARG);
         return 0;
     }
-    
+
     WOLFSSL_ENTER("wc_BioB64_callback_ctrl");
-    
+
     return wc_BioCallbackCtrl(bio->next_bio, cmd, fp);
 }
 
 static int wc_BioB64_puts(WOLFCRYPT_BIO *bio, const char *str)
 {
     WOLFSSL_ENTER("wc_BioB64_puts");
-    
+
     if (bio == NULL || str == NULL) {
         WOLFSSL_ERROR(BAD_FUNC_ARG);
         return 0;
     }
-    
+
     return wc_BioB64_write(bio, str, (int)XSTRLEN(str));
 }
 
@@ -1885,7 +1885,8 @@ static long wc_BioBuffer_ctrl(WOLFCRYPT_BIO *bio, int cmd, long num, void *ptr)
 
         case BIO_C_SET_BUFF_READ_DATA:
             if (num > ctx->inSz) {
-                ctx->in = XREALLOC(ctx->in, num, 0, DYNAMIC_TYPE_OPENSSL);
+                ctx->in = (char *)XREALLOC(ctx->in, num,
+                                           0, DYNAMIC_TYPE_OPENSSL);
                 if (ctx->in == NULL) {
                     WOLFSSL_ERROR(MEMORY_E);
                     return 0;
@@ -1914,7 +1915,8 @@ static long wc_BioBuffer_ctrl(WOLFCRYPT_BIO *bio, int cmd, long num, void *ptr)
             }
 
             if ((ibs > WOLFSSL_F_BUFFER_SIZE_DEFAULT) && (ibs != ctx->inSz)) {
-                ctx->in = XREALLOC(ctx->in, num, 0, DYNAMIC_TYPE_OPENSSL);
+                ctx->in = (char *)XREALLOC(ctx->in, num,
+                                           0, DYNAMIC_TYPE_OPENSSL);
                 if (ctx->in == NULL) {
                     WOLFSSL_ERROR(MEMORY_E);
                     return 0;
@@ -1926,7 +1928,8 @@ static long wc_BioBuffer_ctrl(WOLFCRYPT_BIO *bio, int cmd, long num, void *ptr)
             }
 
             if ((obs > WOLFSSL_F_BUFFER_SIZE_DEFAULT) && (obs != ctx->outSz)) {
-                ctx->out = XREALLOC(ctx->out, num, 0, DYNAMIC_TYPE_OPENSSL);
+                ctx->out = (char *)XREALLOC(ctx->out, num,
+                                            0, DYNAMIC_TYPE_OPENSSL);
                 if (ctx->out == NULL) {
                     WOLFSSL_ERROR(MEMORY_E);
                     return 0;
@@ -2066,7 +2069,7 @@ static int wc_BioBuffer_puts(WOLFCRYPT_BIO *bio, const char *str)
         WOLFSSL_ERROR(BAD_FUNC_ARG);
         return 0;
     }
-    
+
     return wc_BioBuffer_write(bio, str, (int)XSTRLEN(str));
 }
 
@@ -2473,12 +2476,12 @@ static long wc_BioCipher_ctrl(WOLFCRYPT_BIO *bio, int cmd,
                 dbio->init = 1;
         }
             break;
-            
+
         default:
             ret = wc_BioCtrl(bio->next_bio, cmd, num, ptr);
             break;
     }
-    
+
     WOLFSSL_LEAVE("wc_BioCipher_ctrl", (int)ret);
     return ret;
 }
@@ -2744,12 +2747,12 @@ static int wc_BioDigest_gets(WOLFCRYPT_BIO *bio, char *buf, int size)
         WOLFSSL_ERROR(BAD_FUNC_ARG);
         return 0;
     }
-    
+
     if (wc_EVP_DigestFinal(ctx, (byte *)buf, &dgstLen) != 1) {
         WOLFSSL_ERROR(BIO_DGST_FINAL_E);
         return -1;
     }
-    
+
     return dgstLen;
 }
 
@@ -2898,7 +2901,7 @@ int wc_BioSockError(int sock)
      * choke the compiler: if you do have a cast then you can either go for
      * (char *) or (void *).
      */
-    i = getsockopt(sock, SOL_SOCKET, SO_ERROR, (void *)&j, (void *)&size);
+    i = getsockopt(sock, SOL_SOCKET, SO_ERROR, (void *)&j, (socklen_t *)&size);
     if (i < 0)
         return 1;
 
@@ -2961,7 +2964,7 @@ int wc_BioGetAcceptSocket(char *host, int bind_mode)
     if (wc_BioSockInit() != 1)
         return WOLFSSL_SOCKET_INVALID;
 
-    str = XMALLOC(strlen(host)+1, 0, DYNAMIC_TYPE_TMP_BUFFER);
+    str = (char *)XMALLOC(strlen(host)+1, 0, DYNAMIC_TYPE_TMP_BUFFER);
     if (str == NULL)
         return WOLFSSL_SOCKET_INVALID;
 
@@ -3120,7 +3123,7 @@ int wc_BioAccept(int sock, char **addr)
     sa.len.i = sizeof(sa.from);
     XMEMSET(&sa.from, 0, sizeof(sa.from));
 
-    dsock = (int)accept(sock, &sa.from.sa, (void *)&sa.len);
+    dsock = (int)accept(sock, &sa.from.sa, (socklen_t *)&sa.len);
     if (sizeof(sa.len.i) != sizeof(sa.len.s) && !sa.len.i) {
         if (sa.len.s > sizeof(sa.from)) {
             WOLFSSL_ERROR(MEMORY_E);
@@ -3142,7 +3145,7 @@ int wc_BioAccept(int sock, char **addr)
         goto end;
 
     if (*addr == NULL) {
-        *addr = XMALLOC(24, 0, DYNAMIC_TYPE_OPENSSL);
+        *addr = (char *)XMALLOC(24, 0, DYNAMIC_TYPE_OPENSSL);
         if (*addr == NULL) {
             WOLFSSL_ERROR(MEMORY_E);
             goto end;
@@ -3624,7 +3627,7 @@ static long wc_BioAccept_ctrl(WOLFCRYPT_BIO *bio, int cmd, long num, void *ptr)
                     bio->init = 1;
                     if (baccept->param_addr != NULL)
                         XFREE(baccept->param_addr, 0, DYNAMIC_TYPE_OPENSSL);
-                    baccept->param_addr = strdup(ptr);
+                    baccept->param_addr = strdup((const char *)ptr);
                 }
                 else if (num == 1) {
                     baccept->accept_nbio = (ptr != NULL);
@@ -3717,26 +3720,26 @@ static int wc_BioAccept_puts(WOLFCRYPT_BIO *bio, const char *str)
         WOLFSSL_ERROR(BAD_FUNC_ARG);
         return 0;
     }
-    
+
     return wc_BioAccept_write(bio, str, (int)XSTRLEN(str));
 }
 
 WOLFCRYPT_BIO *wc_BioNewAccept(const char *str)
 {
     WOLFCRYPT_BIO *bio;
-    
+
     if (str == NULL) {
         WOLFSSL_ERROR(BAD_FUNC_ARG);
         return 0;
     }
-    
+
     bio = wc_BioNew(wc_Bio_s_accept());
     if (bio == NULL)
         return NULL;
-    
+
     if (wc_BioSetAcceptPort(bio, str))
         return bio;
-    
+
     wc_BioFree(bio);
     return NULL;
 }
@@ -3829,8 +3832,8 @@ static int wc_BioConn_state(WOLFCRYPT_BIO *bio, WOLFCRYPT_BIO_CONNECT *conn)
                         if (conn->pPort != NULL)
                             XFREE(conn->pPort, 0, DYNAMIC_TYPE_OPENSSL);
 
-                        conn->pPort = XMALLOC(XSTRLEN(p)+1,
-                                              0, DYNAMIC_TYPE_OPENSSL);
+                        conn->pPort = (char *)XMALLOC(XSTRLEN(p)+1,
+                                                      0, DYNAMIC_TYPE_OPENSSL);
                         if (conn->pPort == NULL) {
                             WOLFSSL_ERROR(MEMORY_E);
                             goto exit_loop;
@@ -4185,8 +4188,8 @@ static long wc_BioConn_ctrl(WOLFCRYPT_BIO *bio, int cmd, long num, void *ptr)
             if (num == 0) {
                 if (conn->pHostname != NULL)
                     XFREE(conn->pHostname, 0, DYNAMIC_TYPE_OPENSSL);
-                conn->pHostname = XMALLOC(XSTRLEN((char *)ptr)+1,
-                                          0, DYNAMIC_TYPE_OPENSSL);
+                conn->pHostname = (char *)XMALLOC(XSTRLEN((char *)ptr)+1,
+                                                  0, DYNAMIC_TYPE_OPENSSL);
                 if (conn->pHostname == NULL) {
                     WOLFSSL_ERROR(MEMORY_E);
                     ret = -1;
@@ -4198,8 +4201,8 @@ static long wc_BioConn_ctrl(WOLFCRYPT_BIO *bio, int cmd, long num, void *ptr)
                 if (conn->pPort != NULL)
                     XFREE(conn->pPort, 0, DYNAMIC_TYPE_OPENSSL);
 
-                conn->pPort = XMALLOC(XSTRLEN((char *)ptr)+1,
-                                      0, DYNAMIC_TYPE_OPENSSL);
+                conn->pPort = (char *)XMALLOC(XSTRLEN((char *)ptr)+1,
+                                              0, DYNAMIC_TYPE_OPENSSL);
                 if (conn->pPort == NULL) {
                     WOLFSSL_ERROR(MEMORY_E);
                     ret = -1;
@@ -4209,7 +4212,7 @@ static long wc_BioConn_ctrl(WOLFCRYPT_BIO *bio, int cmd, long num, void *ptr)
             }
             else if (num == 2) {
                 char buf[16];
-                unsigned char *p = ptr;
+                unsigned char *p = (unsigned char *)ptr;
                 int idx, res;
 
                 res = wc_BioIntToStr(p[0], buf, sizeof(buf));
@@ -4246,8 +4249,8 @@ static long wc_BioConn_ctrl(WOLFCRYPT_BIO *bio, int cmd, long num, void *ptr)
                 if (conn->pHostname != NULL)
                     XFREE(conn->pHostname, 0, DYNAMIC_TYPE_OPENSSL);
 
-                conn->pHostname = XMALLOC(XSTRLEN(buf)+1,
-                                          0, DYNAMIC_TYPE_OPENSSL);
+                conn->pHostname = (char *)XMALLOC(XSTRLEN(buf)+1,
+                                                  0, DYNAMIC_TYPE_OPENSSL);
                 if (conn->pHostname == NULL) {
                     WOLFSSL_ERROR(MEMORY_E);
                     ret = -1;
@@ -4270,8 +4273,8 @@ static long wc_BioConn_ctrl(WOLFCRYPT_BIO *bio, int cmd, long num, void *ptr)
                 if (conn->pPort != NULL)
                     XFREE(conn->pPort, 0, DYNAMIC_TYPE_OPENSSL);
 
-                conn->pPort = XMALLOC(XSTRLEN(buf)+1,
-                                      0, DYNAMIC_TYPE_OPENSSL);
+                conn->pPort = (char *)XMALLOC(XSTRLEN(buf)+1,
+                                              0, DYNAMIC_TYPE_OPENSSL);
                 if (conn->pPort == NULL) {
                     WOLFSSL_ERROR(MEMORY_E);
                     ret = -1;
@@ -4370,45 +4373,45 @@ static long wc_BioConn_callback_ctrl(WOLFCRYPT_BIO *bio,
         case BIO_CTRL_SET_CALLBACK:
             conn->info_callback = (int (*)(const WOLFCRYPT_BIO *, int, int))fp;
             break;
-            
+
         default:
             ret = 0;
             break;
     }
-    
+
     return ret;
 }
 
 static int wc_BioConn_puts(WOLFCRYPT_BIO *bio, const char *str)
 {
     WOLFSSL_ENTER("wc_BioConn_puts");
-    
+
     if (bio == NULL || str == NULL) {
         WOLFSSL_ERROR(BAD_FUNC_ARG);
         return -1;
     }
-    
+
     return wc_BioConn_write(bio, str, (int)XSTRLEN(str));
 }
 
 WOLFCRYPT_BIO *wc_BioNewConnect(const char *str)
 {
     WOLFCRYPT_BIO *bio;
-    
+
     WOLFSSL_ENTER("wc_BioNewConnect");
-    
+
     if (str == NULL) {
         WOLFSSL_ERROR(BAD_FUNC_ARG);
         return NULL;
     }
-    
+
     bio = wc_BioNew(wc_Bio_s_connect());
     if (bio == NULL)
         return NULL;
-    
+
     if (wc_BioSetConnHostname(bio, str))
         return bio;
-    
+
     wc_BioFree(bio);
     return NULL;
 }
@@ -4612,7 +4615,7 @@ static void wc_BioDgram_adjust_rcv_timeout(WOLFCRYPT_BIO *bio)
 #else
         sz.i = sizeof(dgram->socket_timeout);
         if (getsockopt(bio->num, SOL_SOCKET, SO_RCVTIMEO,
-                       &(dgram->socket_timeout), (void *)&sz) >= 0) {
+                       &(dgram->socket_timeout), (socklen_t *)&sz) >= 0) {
             if (sizeof(sz.s) != sizeof(sz.i) && sz.i == 0)
                 if (sz.s > sizeof(dgram->socket_timeout))
                     return ;
@@ -4725,7 +4728,8 @@ static int wc_BioDgram_read(WOLFCRYPT_BIO *bio, char *data, int size)
 
     wc_BioDgram_adjust_rcv_timeout(bio);
 
-    ret = (int)recvfrom(bio->num, data, size, 0, &sa.peer.sa, (void *)&sa.len);
+    ret = (int)recvfrom(bio->num, data, size, 0,
+                        &sa.peer.sa, (socklen_t *)&sa.len);
     if (sizeof(sa.len.i) != sizeof(sa.len.s) && sa.len.i == 0) {
         if (sa.len.s > sizeof(sa.peer))
             return 0;
@@ -5038,7 +5042,7 @@ static long wc_BioDgram_ctrl(WOLFCRYPT_BIO *bio, int cmd, long num, void *ptr)
 
             sz.i = sizeof(timeout);
             if (getsockopt(bio->num, SOL_SOCKET, SO_RCVTIMEO,
-                           (void *)&timeout, &sz.i) < 0)
+                           (void *)&timeout, (socklen_t *)&sz.i) < 0)
                 ret = -1;
             else {
                 tv->tv_sec = timeout / 1000;
@@ -5048,7 +5052,7 @@ static long wc_BioDgram_ctrl(WOLFCRYPT_BIO *bio, int cmd, long num, void *ptr)
 #else
             sz.i = sizeof(struct timeval);
             if (getsockopt(bio->num, SOL_SOCKET, SO_RCVTIMEO,
-                           ptr, (void *)&sz) < 0)
+                           ptr, (socklen_t *)&sz) < 0)
                 ret = -1;
             else if (sizeof(sz.s) != sizeof(sz.i) && sz.i == 0) {
                 if (sz.s > sizeof(struct timeval))
@@ -5102,7 +5106,7 @@ static long wc_BioDgram_ctrl(WOLFCRYPT_BIO *bio, int cmd, long num, void *ptr)
 #else
             sz.i = sizeof(struct timeval);
             if (getsockopt(bio->num, SOL_SOCKET, SO_SNDTIMEO,
-                           ptr, (void *)&sz) < 0)
+                           ptr, (socklen_t *)&sz) < 0)
                 ret = -1;
             else if (sizeof(sz.s) != sizeof(sz.i) && sz.i == 0) {
                 if (sz.s > sizeof(struct timeval))
@@ -5144,7 +5148,7 @@ static long wc_BioDgram_ctrl(WOLFCRYPT_BIO *bio, int cmd, long num, void *ptr)
             ret = 0;
             break;
     }
-    
+
     return ret;
 }
 
@@ -5154,7 +5158,7 @@ static int wc_BioDgram_puts(WOLFCRYPT_BIO *bio, const char *str)
         WOLFSSL_ERROR(BAD_FUNC_ARG);
         return -1;
     }
-    
+
     return wc_BioDgram_write(bio, str, (int)XSTRLEN(str));
 }
 
@@ -5381,7 +5385,7 @@ static int wc_BioFile_free(WOLFCRYPT_BIO *bio)
         return 1;
 
     if (bio->ptr != NULL) {
-        XFCLOSE(bio->ptr);
+        XFCLOSE((FILE *)bio->ptr);
         bio->ptr = NULL;
     }
     bio->init = 0;
@@ -5499,7 +5503,7 @@ static long wc_BioFile_ctrl(WOLFCRYPT_BIO *bio, int cmd, long num, void *ptr)
             else
                 XSTRNCAT(buf, "b", sizeof(buf) - strlen(buf) - 1);
 
-            bio->ptr = XFOPEN(ptr, buf);
+            bio->ptr = XFOPEN((const char *)ptr, buf);
             if (bio->ptr == NULL) {
                 WOLFSSL_ERROR(BIO_FILE_OPEN_E);
                 ret = 0;
@@ -5571,7 +5575,7 @@ static int wc_BioFile_puts(WOLFCRYPT_BIO *bio, const char *str)
         WOLFSSL_ERROR(BAD_FUNC_ARG);
         return -1;
     }
-    
+
     return wc_BioFile_write(bio, str, (int)XSTRLEN(str));
 }
 
@@ -5636,10 +5640,10 @@ static int wolfCrypt_BufMem_grow(WOLFCRYPT_BUF_MEM *buf, size_t len)
     }
 
     if (buf->data == NULL)
-        buf->data = XMALLOC(len, 0, DYNAMIC_TYPE_OPENSSL);
+        buf->data = (byte *)XMALLOC(len, 0, DYNAMIC_TYPE_OPENSSL);
     else
-        buf->data = XREALLOC(buf->data, buf->length+len,
-                             0, DYNAMIC_TYPE_OPENSSL);
+        buf->data = (byte *)XREALLOC(buf->data, buf->length+len,
+                                     0, DYNAMIC_TYPE_OPENSSL);
     if (buf->data == NULL) {
         WOLFSSL_ERROR(MEMORY_E);
         return -1;
@@ -5756,7 +5760,7 @@ static int wc_BioMem_free(WOLFCRYPT_BIO *bio)
         if (bio->flags & BIO_FLAGS_MEM_RDONLY)
             ((WOLFCRYPT_BUF_MEM *)bio->ptr)->data = NULL;
 
-        wolfCrypt_BufMem_free(bio->ptr);
+        wolfCrypt_BufMem_free((WOLFCRYPT_BUF_MEM *)bio->ptr);
         bio->ptr = NULL;
     }
 
@@ -5944,11 +5948,11 @@ static int wc_BioMem_gets(WOLFCRYPT_BIO *bio, char *buf, int size)
             break;
         }
     }
-    
+
     i = wc_BioMem_read(bio, buf, i);
     if (i > 0)
         buf[i] = '\0';
-    
+
     return i;
 }
 
@@ -5958,7 +5962,7 @@ static int wc_BioMem_puts(WOLFCRYPT_BIO *bio, const char *str)
         WOLFSSL_ERROR(BAD_FUNC_ARG);
         return -1;
     }
-    
+
     return wc_BioMem_write(bio, str, (int)XSTRLEN(str));
 }
 
@@ -6071,7 +6075,7 @@ static int wc_BioNull_puts(WOLFCRYPT_BIO *bio, const char *str)
 
     if (str == NULL)
         return 0;
-    
+
     return (int)XSTRLEN(str);
 }
 
@@ -6339,7 +6343,7 @@ int wc_BioSockShouldRetry(int i)
 #endif
         return wc_BioSockNonFatalError(ret);
     }
-    
+
     return 0;
 }
 

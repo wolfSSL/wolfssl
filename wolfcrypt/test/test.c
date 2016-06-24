@@ -817,7 +817,7 @@ int md2_test()
         wc_Md2Update(&md2, (byte*)test_md2[i].input, (word32)test_md2[i].inLen);
         wc_Md2Final(&md2, hash);
 
-        if (memcmp(hash, test_md2[i].output, MD2_DIGEST_SIZE) != 0)
+        if (XMEMCMP(hash, test_md2[i].output, MD2_DIGEST_SIZE) != 0)
             return -155 - i;
     }
 
@@ -879,7 +879,7 @@ int md5_test(void)
         wc_Md5Update(&md5, (byte*)test_md5[i].input, (word32)test_md5[i].inLen);
         wc_Md5Final(&md5, hash);
 
-        if (memcmp(hash, test_md5[i].output, MD5_DIGEST_SIZE) != 0)
+        if (XMEMCMP(hash, test_md5[i].output, MD5_DIGEST_SIZE) != 0)
             return -5 - i;
     }
 
@@ -957,7 +957,7 @@ int md4_test(void)
         wc_Md4Update(&md4, (byte*)test_md4[i].input, (word32)test_md4[i].inLen);
         wc_Md4Final(&md4, hash);
 
-        if (memcmp(hash, test_md4[i].output, MD4_DIGEST_SIZE) != 0)
+        if (XMEMCMP(hash, test_md4[i].output, MD4_DIGEST_SIZE) != 0)
             return -205 - i;
     }
 
@@ -1018,7 +1018,7 @@ int sha_test(void)
         wc_ShaUpdate(&sha, (byte*)test_sha[i].input, (word32)test_sha[i].inLen);
         wc_ShaFinal(&sha, hash);
 
-        if (memcmp(hash, test_sha[i].output, SHA_DIGEST_SIZE) != 0)
+        if (XMEMCMP(hash, test_sha[i].output, SHA_DIGEST_SIZE) != 0)
             return -10 - i;
     }
 
@@ -1074,7 +1074,7 @@ int ripemd_test(void)
                      (word32)test_ripemd[i].inLen);
         wc_RipeMdFinal(&ripemd, hash);
 
-        if (memcmp(hash, test_ripemd[i].output, RIPEMD_DIGEST_SIZE) != 0)
+        if (XMEMCMP(hash, test_ripemd[i].output, RIPEMD_DIGEST_SIZE) != 0)
             return -10 - i;
     }
 
@@ -1147,7 +1147,7 @@ int blake2b_test(void)
         if (ret != 0)
             return -4004;
 
-        if (memcmp(digest, blake2b_vec[i], 64) != 0) {
+        if (XMEMCMP(digest, blake2b_vec[i], 64) != 0) {
             return -300 - i;
         }
     }
@@ -1197,7 +1197,7 @@ int sha256_test(void)
         if (ret != 0)
             return -4007;
 
-        if (memcmp(hash, test_sha[i].output, SHA256_DIGEST_SIZE) != 0)
+        if (XMEMCMP(hash, test_sha[i].output, SHA256_DIGEST_SIZE) != 0)
             return -10 - i;
     }
 
@@ -1252,7 +1252,7 @@ int sha512_test(void)
         if (ret != 0)
             return -4011;
 
-        if (memcmp(hash, test_sha[i].output, SHA512_DIGEST_SIZE) != 0)
+        if (XMEMCMP(hash, test_sha[i].output, SHA512_DIGEST_SIZE) != 0)
             return -10 - i;
     }
 
@@ -1305,7 +1305,7 @@ int sha384_test(void)
         if (ret != 0)
             return -4014;
 
-        if (memcmp(hash, test_sha[i].output, SHA384_DIGEST_SIZE) != 0)
+        if (XMEMCMP(hash, test_sha[i].output, SHA384_DIGEST_SIZE) != 0)
             return -10 - i;
     }
 
@@ -1378,7 +1378,7 @@ int hmac_md5_test(void)
         if (ret != 0)
             return -4017;
 
-        if (memcmp(hash, test_hmac[i].output, MD5_DIGEST_SIZE) != 0)
+        if (XMEMCMP(hash, test_hmac[i].output, MD5_DIGEST_SIZE) != 0)
             return -20 - i;
 #ifdef HAVE_CAVIUM
         wc_HmacFreeCavium(&hmac);
@@ -1455,7 +1455,7 @@ int hmac_sha_test(void)
         if (ret != 0)
             return -4020;
 
-        if (memcmp(hash, test_hmac[i].output, SHA_DIGEST_SIZE) != 0)
+        if (XMEMCMP(hash, test_hmac[i].output, SHA_DIGEST_SIZE) != 0)
             return -20 - i;
 #ifdef HAVE_CAVIUM
         wc_HmacFreeCavium(&hmac);
@@ -1536,7 +1536,7 @@ int hmac_sha256_test(void)
         if (ret != 0)
             return -4023;
 
-        if (memcmp(hash, test_hmac[i].output, SHA256_DIGEST_SIZE) != 0)
+        if (XMEMCMP(hash, test_hmac[i].output, SHA256_DIGEST_SIZE) != 0)
             return -20 - i;
 #ifdef HAVE_CAVIUM
         wc_HmacFreeCavium(&hmac);
@@ -1618,7 +1618,7 @@ int hmac_blake2b_test(void)
         if (ret != 0)
             return -4026;
 
-        if (memcmp(hash, test_hmac[i].output, BLAKE2B_256) != 0)
+        if (XMEMCMP(hash, test_hmac[i].output, BLAKE2B_256) != 0)
             return -20 - i;
 #ifdef HAVE_CAVIUM
         wc_HmacFreeCavium(&hmac);
@@ -1698,7 +1698,7 @@ int hmac_sha384_test(void)
         if (ret != 0)
             return -4029;
 
-        if (memcmp(hash, test_hmac[i].output, SHA384_DIGEST_SIZE) != 0)
+        if (XMEMCMP(hash, test_hmac[i].output, SHA384_DIGEST_SIZE) != 0)
             return -20 - i;
     }
 
@@ -1778,7 +1778,7 @@ int hmac_sha512_test(void)
         if (ret != 0)
             return -4032;
 
-        if (memcmp(hash, test_hmac[i].output, SHA512_DIGEST_SIZE) != 0)
+        if (XMEMCMP(hash, test_hmac[i].output, SHA512_DIGEST_SIZE) != 0)
             return -20 - i;
     }
 
@@ -1852,10 +1852,10 @@ int arc4_test(void)
                     (word32)test_arc4[i].outLen);
         wc_Arc4Process(&dec, plain,  cipher, (word32)test_arc4[i].outLen);
 
-        if (memcmp(plain, test_arc4[i].input, test_arc4[i].outLen))
+        if (XMEMCMP(plain, test_arc4[i].input, test_arc4[i].outLen))
             return -20 - i;
 
-        if (memcmp(cipher, test_arc4[i].output, test_arc4[i].outLen))
+        if (XMEMCMP(cipher, test_arc4[i].output, test_arc4[i].outLen))
             return -20 - 5 - i;
 
 #ifdef HAVE_CAVIUM
@@ -1927,14 +1927,14 @@ int hc128_test(void)
         HC128 dec;
 
         /* align keys/ivs in plain/cipher buffers */
-        memcpy(plain,  keys[i], 16);
-        memcpy(cipher, ivs[i],  16);
+        XMEMCPY(plain,  keys[i], 16);
+        XMEMCPY(cipher, ivs[i],  16);
 
         wc_Hc128_SetKey(&enc, plain, cipher);
         wc_Hc128_SetKey(&dec, plain, cipher);
 
         /* align input */
-        memcpy(plain, test_hc128[i].input, test_hc128[i].outLen);
+        XMEMCPY(plain, test_hc128[i].input, test_hc128[i].outLen);
         if (wc_Hc128_Process(&enc, cipher, plain,
                                            (word32)test_hc128[i].outLen) != 0) {
             return -110;
@@ -1944,10 +1944,10 @@ int hc128_test(void)
             return -115;
         }
 
-        if (memcmp(plain, test_hc128[i].input, test_hc128[i].outLen))
+        if (XMEMCMP(plain, test_hc128[i].input, test_hc128[i].outLen))
             return -120 - i;
 
-        if (memcmp(cipher, test_hc128[i].output, test_hc128[i].outLen))
+        if (XMEMCMP(cipher, test_hc128[i].output, test_hc128[i].outLen))
             return -120 - 5 - i;
     }
 
@@ -2006,9 +2006,9 @@ int rabbit_test(void)
         byte*  iv;
 
         /* align keys/ivs in plain/cipher buffers */
-        memcpy(plain,  keys[i], 16);
+        XMEMCPY(plain,  keys[i], 16);
         if (ivs[i]) {
-            memcpy(cipher, ivs[i],   8);
+            XMEMCPY(cipher, ivs[i],   8);
             iv = cipher;
         } else
             iv = NULL;
@@ -2016,14 +2016,14 @@ int rabbit_test(void)
         wc_RabbitSetKey(&dec, plain, iv);
 
         /* align input */
-        memcpy(plain, test_rabbit[i].input, test_rabbit[i].outLen);
+        XMEMCPY(plain, test_rabbit[i].input, test_rabbit[i].outLen);
         wc_RabbitProcess(&enc, cipher, plain,  (word32)test_rabbit[i].outLen);
         wc_RabbitProcess(&dec, plain,  cipher, (word32)test_rabbit[i].outLen);
 
-        if (memcmp(plain, test_rabbit[i].input, test_rabbit[i].outLen))
+        if (XMEMCMP(plain, test_rabbit[i].input, test_rabbit[i].outLen))
             return -130 - i;
 
-        if (memcmp(cipher, test_rabbit[i].output, test_rabbit[i].outLen))
+        if (XMEMCMP(cipher, test_rabbit[i].output, test_rabbit[i].outLen))
             return -130 - 5 - i;
     }
 
@@ -2286,7 +2286,7 @@ int poly1305_test(void)
         if (ret != 0)
             return -60;
 
-        if (memcmp(tag, tests[i], sizeof(tag)))
+        if (XMEMCMP(tag, tests[i], sizeof(tag)))
             return -61;
     }
 
@@ -2301,7 +2301,7 @@ int poly1305_test(void)
     if (ret != 0)
         return -63;
 
-    if (memcmp(tag, correct4, sizeof(tag)))
+    if (XMEMCMP(tag, correct4, sizeof(tag)))
         return -64;
 
     /* Check fail of TLS MAC function if altering additional data */
@@ -2312,7 +2312,7 @@ int poly1305_test(void)
     if (ret != 0)
         return -65;
 
-    if (memcmp(tag, correct4, sizeof(tag)) == 0)
+    if (XMEMCMP(tag, correct4, sizeof(tag)) == 0)
         return -66;
 
 
@@ -2624,10 +2624,10 @@ int des_test(void)
         return -32;
     wc_Des_CbcDecrypt(&dec, plain, cipher, sizeof(cipher));
 
-    if (memcmp(plain, vector, sizeof(plain)))
+    if (XMEMCMP(plain, vector, sizeof(plain)))
         return -33;
 
-    if (memcmp(cipher, verify, sizeof(cipher)))
+    if (XMEMCMP(cipher, verify, sizeof(cipher)))
         return -34;
 
     return 0;
@@ -2693,10 +2693,10 @@ int des3_test(void)
     if (ret != 0)
         return -34;
 
-    if (memcmp(plain, vector, sizeof(plain)))
+    if (XMEMCMP(plain, vector, sizeof(plain)))
         return -35;
 
-    if (memcmp(cipher, verify3, sizeof(cipher)))
+    if (XMEMCMP(cipher, verify3, sizeof(cipher)))
         return -36;
 
 #ifdef HAVE_CAVIUM
@@ -2757,10 +2757,10 @@ int aes_test(void)
     if (ret != 0)
         return -1006;
 
-    if (memcmp(plain, msg, AES_BLOCK_SIZE))
+    if (XMEMCMP(plain, msg, AES_BLOCK_SIZE))
         return -60;
 #endif /* HAVE_AES_DECRYPT */
-    if (memcmp(cipher, verify, AES_BLOCK_SIZE))
+    if (XMEMCMP(cipher, verify, AES_BLOCK_SIZE))
         return -61;
 
 #if defined(WOLFSSL_AESNI) && defined(HAVE_AES_DECRYPT)
@@ -2828,8 +2828,8 @@ int aes_test(void)
                  msgSz <= sizeof(bigMsg);
                  msgSz += AES_BLOCK_SIZE) {
 
-                memset(bigCipher, 0, sizeof(bigCipher));
-                memset(bigPlain, 0, sizeof(bigPlain));
+                XMEMSET(bigCipher, 0, sizeof(bigCipher));
+                XMEMSET(bigPlain, 0, sizeof(bigPlain));
                 ret = wc_AesSetKey(&enc, bigKey, keySz, iv, AES_ENCRYPTION);
                 if (ret != 0)
                     return -1030;
@@ -2844,7 +2844,7 @@ int aes_test(void)
                 if (ret != 0)
                     return -1033;
 
-                if (memcmp(bigPlain, bigMsg, msgSz))
+                if (XMEMCMP(bigPlain, bigMsg, msgSz))
                     return -1034;
             }
         }
@@ -2909,10 +2909,10 @@ int aes_test(void)
         wc_AesCtrEncrypt(&enc, cipher, ctrPlain, AES_BLOCK_SIZE*4);
         wc_AesCtrEncrypt(&dec, plain, cipher, AES_BLOCK_SIZE*4);
 
-        if (memcmp(plain, ctrPlain, AES_BLOCK_SIZE*4))
+        if (XMEMCMP(plain, ctrPlain, AES_BLOCK_SIZE*4))
             return -66;
 
-        if (memcmp(cipher, ctrCipher, AES_BLOCK_SIZE*4))
+        if (XMEMCMP(cipher, ctrCipher, AES_BLOCK_SIZE*4))
             return -67;
 
         /* let's try with just 9 bytes, non block size test */
@@ -2923,20 +2923,20 @@ int aes_test(void)
         wc_AesCtrEncrypt(&enc, cipher, ctrPlain, 9);
         wc_AesCtrEncrypt(&dec, plain, cipher, 9);
 
-        if (memcmp(plain, ctrPlain, 9))
+        if (XMEMCMP(plain, ctrPlain, 9))
             return -68;
 
-        if (memcmp(cipher, ctrCipher, 9))
+        if (XMEMCMP(cipher, ctrCipher, 9))
             return -69;
 
         /* and an additional 9 bytes to reuse tmp left buffer */
         wc_AesCtrEncrypt(&enc, cipher, ctrPlain, 9);
         wc_AesCtrEncrypt(&dec, plain, cipher, 9);
 
-        if (memcmp(plain, ctrPlain, 9))
+        if (XMEMCMP(plain, ctrPlain, 9))
             return -70;
 
-        if (memcmp(cipher, oddCipher, 9))
+        if (XMEMCMP(cipher, oddCipher, 9))
             return -71;
     }
 #endif /* WOLFSSL_AES_COUNTER */
@@ -3091,45 +3091,45 @@ int aesgcm_test(void)
     byte resultC[sizeof(p)];
     int  result;
 
-    memset(resultT, 0, sizeof(resultT));
-    memset(resultC, 0, sizeof(resultC));
-    memset(resultP, 0, sizeof(resultP));
+    XMEMSET(resultT, 0, sizeof(resultT));
+    XMEMSET(resultC, 0, sizeof(resultC));
+    XMEMSET(resultP, 0, sizeof(resultP));
 
     wc_AesGcmSetKey(&enc, k1, sizeof(k1));
     /* AES-GCM encrypt and decrypt both use AES encrypt internally */
     wc_AesGcmEncrypt(&enc, resultC, p, sizeof(p), iv1, sizeof(iv1),
                                         resultT, sizeof(resultT), a, sizeof(a));
-    if (memcmp(c1, resultC, sizeof(resultC)))
+    if (XMEMCMP(c1, resultC, sizeof(resultC)))
         return -68;
-    if (memcmp(t1, resultT, sizeof(resultT)))
+    if (XMEMCMP(t1, resultT, sizeof(resultT)))
         return -69;
 
     result = wc_AesGcmDecrypt(&enc, resultP, resultC, sizeof(resultC),
                       iv1, sizeof(iv1), resultT, sizeof(resultT), a, sizeof(a));
     if (result != 0)
         return -70;
-    if (memcmp(p, resultP, sizeof(resultP)))
+    if (XMEMCMP(p, resultP, sizeof(resultP)))
         return -71;
 
 #ifndef HAVE_FIPS
-    memset(resultT, 0, sizeof(resultT));
-    memset(resultC, 0, sizeof(resultC));
-    memset(resultP, 0, sizeof(resultP));
+    XMEMSET(resultT, 0, sizeof(resultT));
+    XMEMSET(resultC, 0, sizeof(resultC));
+    XMEMSET(resultP, 0, sizeof(resultP));
 
     wc_AesGcmSetKey(&enc, k2, sizeof(k2));
     /* AES-GCM encrypt and decrypt both use AES encrypt internally */
     wc_AesGcmEncrypt(&enc, resultC, p, sizeof(p), iv2, sizeof(iv2),
                                         resultT, sizeof(resultT), a, sizeof(a));
-    if (memcmp(c2, resultC, sizeof(resultC)))
+    if (XMEMCMP(c2, resultC, sizeof(resultC)))
         return -230;
-    if (memcmp(t2, resultT, sizeof(resultT)))
+    if (XMEMCMP(t2, resultT, sizeof(resultT)))
         return -231;
 
     result = wc_AesGcmDecrypt(&enc, resultP, resultC, sizeof(resultC),
                       iv2, sizeof(iv2), resultT, sizeof(resultT), a, sizeof(a));
     if (result != 0)
         return -232;
-    if (memcmp(p, resultP, sizeof(resultP)))
+    if (XMEMCMP(p, resultP, sizeof(resultP)))
         return -233;
 #endif /* HAVE_FIPS */
 
@@ -3204,22 +3204,22 @@ int gmac_test(void)
 
     byte tag[16];
 
-    memset(tag, 0, sizeof(tag));
+    XMEMSET(tag, 0, sizeof(tag));
     wc_GmacSetKey(&gmac, k1, sizeof(k1));
     wc_GmacUpdate(&gmac, iv1, sizeof(iv1), a1, sizeof(a1), tag, sizeof(t1));
-    if (memcmp(t1, tag, sizeof(t1)) != 0)
+    if (XMEMCMP(t1, tag, sizeof(t1)) != 0)
         return -126;
 
-    memset(tag, 0, sizeof(tag));
+    XMEMSET(tag, 0, sizeof(tag));
     wc_GmacSetKey(&gmac, k2, sizeof(k2));
     wc_GmacUpdate(&gmac, iv2, sizeof(iv2), a2, sizeof(a2), tag, sizeof(t2));
-    if (memcmp(t2, tag, sizeof(t2)) != 0)
+    if (XMEMCMP(t2, tag, sizeof(t2)) != 0)
         return -127;
 
-    memset(tag, 0, sizeof(tag));
+    XMEMSET(tag, 0, sizeof(tag));
     wc_GmacSetKey(&gmac, k3, sizeof(k3));
     wc_GmacUpdate(&gmac, iv3, sizeof(iv3), a3, sizeof(a3), tag, sizeof(t3));
-    if (memcmp(t3, tag, sizeof(t3)) != 0)
+    if (XMEMCMP(t3, tag, sizeof(t3)) != 0)
         return -128;
 
     return 0;
@@ -3276,9 +3276,9 @@ int aesccm_test(void)
 
     int result;
 
-    memset(t2, 0, sizeof(t2));
-    memset(c2, 0, sizeof(c2));
-    memset(p2, 0, sizeof(p2));
+    XMEMSET(t2, 0, sizeof(t2));
+    XMEMSET(c2, 0, sizeof(c2));
+    XMEMSET(p2, 0, sizeof(p2));
 
     wc_AesCcmSetKey(&enc, k, sizeof(k));
     /* AES-CCM encrypt and decrypt both use AES encrypt internally */
@@ -3286,16 +3286,16 @@ int aesccm_test(void)
                                                  t2, sizeof(t2), a, sizeof(a));
     if (result != 0)
         return -106;
-    if (memcmp(c, c2, sizeof(c2)))
+    if (XMEMCMP(c, c2, sizeof(c2)))
         return -107;
-    if (memcmp(t, t2, sizeof(t2)))
+    if (XMEMCMP(t, t2, sizeof(t2)))
         return -108;
 
     result = wc_AesCcmDecrypt(&enc, p2, c2, sizeof(p2), iv, sizeof(iv),
                                                  t2, sizeof(t2), a, sizeof(a));
     if (result != 0)
         return -109;
-    if (memcmp(p, p2, sizeof(p2)))
+    if (XMEMCMP(p, p2, sizeof(p2)))
         return -110;
 
     /* Test the authentication failure */
@@ -3307,8 +3307,8 @@ int aesccm_test(void)
 
     /* Clear c2 to compare against p2. p2 should be set to zero in case of
      * authentication fail. */
-    memset(c2, 0, sizeof(c2));
-    if (memcmp(p2, c2, sizeof(p2)))
+    XMEMSET(c2, 0, sizeof(c2));
+    if (XMEMCMP(p2, c2, sizeof(p2)))
         return -112;
 
     return 0;
@@ -3467,24 +3467,24 @@ int camellia_test(void)
         switch (testVectors[i].type) {
             case CAM_ECB_ENC:
                 wc_CamelliaEncryptDirect(&cam, out, testVectors[i].plaintext);
-                if (memcmp(out, testVectors[i].ciphertext, CAMELLIA_BLOCK_SIZE))
+                if (XMEMCMP(out, testVectors[i].ciphertext, CAMELLIA_BLOCK_SIZE))
                     return testVectors[i].errorCode;
                 break;
             case CAM_ECB_DEC:
                 wc_CamelliaDecryptDirect(&cam, out, testVectors[i].ciphertext);
-                if (memcmp(out, testVectors[i].plaintext, CAMELLIA_BLOCK_SIZE))
+                if (XMEMCMP(out, testVectors[i].plaintext, CAMELLIA_BLOCK_SIZE))
                     return testVectors[i].errorCode;
                 break;
             case CAM_CBC_ENC:
                 wc_CamelliaCbcEncrypt(&cam, out, testVectors[i].plaintext,
                                                            CAMELLIA_BLOCK_SIZE);
-                if (memcmp(out, testVectors[i].ciphertext, CAMELLIA_BLOCK_SIZE))
+                if (XMEMCMP(out, testVectors[i].ciphertext, CAMELLIA_BLOCK_SIZE))
                     return testVectors[i].errorCode;
                 break;
             case CAM_CBC_DEC:
                 wc_CamelliaCbcDecrypt(&cam, out, testVectors[i].ciphertext,
                                                            CAMELLIA_BLOCK_SIZE);
-                if (memcmp(out, testVectors[i].plaintext, CAMELLIA_BLOCK_SIZE))
+                if (XMEMCMP(out, testVectors[i].plaintext, CAMELLIA_BLOCK_SIZE))
                     return testVectors[i].errorCode;
                 break;
             default:
@@ -3584,7 +3584,7 @@ int idea_test(void)
 
     for (i = 0; i < IDEA_NB_TESTS; i++) {
         /* Set encryption key */
-        memset(&idea, 0, sizeof(Idea));
+        XMEMSET(&idea, 0, sizeof(Idea));
         ret = wc_IdeaSetKey(&idea, v_key[i], IDEA_KEY_SIZE,
                             NULL, IDEA_ENCRYPTION);
         if (ret != 0) {
@@ -3600,7 +3600,7 @@ int idea_test(void)
         }
 
         /* Set decryption key */
-        memset(&idea, 0, sizeof(Idea));
+        XMEMSET(&idea, 0, sizeof(Idea));
         ret = wc_IdeaSetKey(&idea, v_key[i], IDEA_KEY_SIZE,
                             NULL, IDEA_DECRYPTION);
         if (ret != 0) {
@@ -3616,7 +3616,7 @@ int idea_test(void)
         }
 
         /* Set encryption key */
-        memset(&idea, 0, sizeof(Idea));
+        XMEMSET(&idea, 0, sizeof(Idea));
         ret = wc_IdeaSetKey(&idea, v_key[i], IDEA_KEY_SIZE,
                             v_key[i], IDEA_ENCRYPTION);
         if (ret != 0) {
@@ -3624,7 +3624,7 @@ int idea_test(void)
             return -1;
         }
 
-        memset(msg_enc, 0, sizeof(msg_enc));
+        XMEMSET(msg_enc, 0, sizeof(msg_enc));
         ret = wc_IdeaCbcEncrypt(&idea, msg_enc, (byte *)message,
                                 (word32)strlen(message)+1);
         if (ret != 0) {
@@ -3633,7 +3633,7 @@ int idea_test(void)
         }
 
         /* Set decryption key */
-        memset(&idea, 0, sizeof(Idea));
+        XMEMSET(&idea, 0, sizeof(Idea));
         ret = wc_IdeaSetKey(&idea, v_key[i], IDEA_KEY_SIZE,
                             v_key[i], IDEA_DECRYPTION);
         if (ret != 0) {
@@ -3641,7 +3641,7 @@ int idea_test(void)
             return -1;
         }
 
-        memset(msg_dec, 0, sizeof(msg_dec));
+        XMEMSET(msg_dec, 0, sizeof(msg_dec));
         ret = wc_IdeaCbcDecrypt(&idea, msg_dec, msg_enc,
                                 (word32)strlen(message)+1);
         if (ret != 0) {
@@ -3657,7 +3657,7 @@ int idea_test(void)
 
     for (i = 0; i < IDEA_NB_TESTS_EXTRA; i++) {
         /* Set encryption key */
-        memset(&idea, 0, sizeof(Idea));
+        XMEMSET(&idea, 0, sizeof(Idea));
         ret = wc_IdeaSetKey(&idea, v_key[i], IDEA_KEY_SIZE,
                             NULL, IDEA_ENCRYPTION);
         if (ret != 0) {
@@ -3716,7 +3716,7 @@ int idea_test(void)
                 return -41;
 
             /* Set encryption key */
-            memset(&idea, 0, sizeof(Idea));
+            XMEMSET(&idea, 0, sizeof(Idea));
             ret = wc_IdeaSetKey(&idea, key, IDEA_KEY_SIZE, iv, IDEA_ENCRYPTION);
             if (ret != 0) {
                 printf("wc_IdeaSetKey (enc) failed\n");
@@ -3724,7 +3724,7 @@ int idea_test(void)
             }
 
             /* Data encryption */
-            memset(enc, 0, sizeof(enc));
+            XMEMSET(enc, 0, sizeof(enc));
             ret = wc_IdeaCbcEncrypt(&idea, enc, rnd, sizeof(rnd));
             if (ret != 0) {
                 printf("wc_IdeaCbcEncrypt failed\n");
@@ -3732,7 +3732,7 @@ int idea_test(void)
             }
 
             /* Set decryption key */
-            memset(&idea, 0, sizeof(Idea));
+            XMEMSET(&idea, 0, sizeof(Idea));
             ret = wc_IdeaSetKey(&idea, key, IDEA_KEY_SIZE, iv, IDEA_DECRYPTION);
             if (ret != 0) {
                 printf("wc_IdeaSetKey (enc) failed\n");
@@ -3740,7 +3740,7 @@ int idea_test(void)
             }
 
             /* Data decryption */
-            memset(dec, 0, sizeof(dec));
+            XMEMSET(dec, 0, sizeof(dec));
             ret = wc_IdeaCbcDecrypt(&idea, dec, enc, sizeof(enc));
             if (ret != 0) {
                 printf("wc_IdeaCbcDecrypt failed\n");
@@ -4264,7 +4264,7 @@ int rsa_test(void)
         TEST_XFREE(tmp, HEAP_HINT ,DYNAMIC_TYPE_TMP_BUFFER);
         return -44;
     }
-    if (memcmp(plain, in, inLen)) {
+    if (XMEMCMP(plain, in, inLen)) {
         TEST_XFREE(tmp, HEAP_HINT ,DYNAMIC_TYPE_TMP_BUFFER);
         return -45;
     }
@@ -4273,13 +4273,13 @@ int rsa_test(void)
         TEST_XFREE(tmp, HEAP_HINT ,DYNAMIC_TYPE_TMP_BUFFER);
         return -46;
     }
-    memset(plain, 0, sizeof(plain));
+    XMEMSET(plain, 0, sizeof(plain));
     ret = wc_RsaSSL_Verify(out, ret, plain, sizeof(plain), &key);
     if (ret < 0) {
         TEST_XFREE(tmp, HEAP_HINT ,DYNAMIC_TYPE_TMP_BUFFER);
         return -47;
     }
-    if (memcmp(plain, in, ret)) {
+    if (XMEMCMP(plain, in, ret)) {
         TEST_XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
         return -48;
     }
@@ -5663,7 +5663,7 @@ int dh_test(void)
     if (ret != 0)
         return -55;
 
-    if (memcmp(agree, agree2, agreeSz))
+    if (XMEMCMP(agree, agree2, agreeSz))
         return -56;
 
     wc_FreeDhKey(&key);
@@ -5992,7 +5992,7 @@ int openssl_test(void)
     EVP_DigestUpdate(&md_ctx, a.input, (unsigned long)a.inLen);
     EVP_DigestFinal(&md_ctx, hash, 0);
 
-    if (memcmp(hash, a.output, MD5_DIGEST_SIZE) != 0)
+    if (XMEMCMP(hash, a.output, MD5_DIGEST_SIZE) != 0)
         return -71;
 
 #endif /* NO_MD5 */
@@ -6013,7 +6013,7 @@ int openssl_test(void)
     EVP_DigestUpdate(&md_ctx, b.input, (unsigned long)b.inLen);
     EVP_DigestFinal(&md_ctx, hash, 0);
 
-    if (memcmp(hash, b.output, SHA_DIGEST_SIZE) != 0)
+    if (XMEMCMP(hash, b.output, SHA_DIGEST_SIZE) != 0)
         return -72;
 
 #endif /* NO_SHA */
@@ -6032,7 +6032,7 @@ int openssl_test(void)
     EVP_DigestUpdate(&md_ctx, d.input, (unsigned long)d.inLen);
     EVP_DigestFinal(&md_ctx, hash, 0);
 
-    if (memcmp(hash, d.output, SHA256_DIGEST_SIZE) != 0)
+    if (XMEMCMP(hash, d.output, SHA256_DIGEST_SIZE) != 0)
         return -78;
 
 #ifdef WOLFSSL_SHA384
@@ -6052,7 +6052,7 @@ int openssl_test(void)
     EVP_DigestUpdate(&md_ctx, e.input, (unsigned long)e.inLen);
     EVP_DigestFinal(&md_ctx, hash, 0);
 
-    if (memcmp(hash, e.output, SHA384_DIGEST_SIZE) != 0)
+    if (XMEMCMP(hash, e.output, SHA384_DIGEST_SIZE) != 0)
         return -79;
 
 #endif /* WOLFSSL_SHA384 */
@@ -6076,7 +6076,7 @@ int openssl_test(void)
     EVP_DigestUpdate(&md_ctx, f.input, (unsigned long)f.inLen);
     EVP_DigestFinal(&md_ctx, hash, 0);
 
-    if (memcmp(hash, f.output, SHA512_DIGEST_SIZE) != 0)
+    if (XMEMCMP(hash, f.output, SHA512_DIGEST_SIZE) != 0)
         return -80;
 
 #endif /* WOLFSSL_SHA512 */
@@ -6095,7 +6095,7 @@ int openssl_test(void)
     HMAC(EVP_md5(),
                  "JefeJefeJefeJefe", 16, (byte*)c.input, (int)c.inLen, hash, 0);
 
-    if (memcmp(hash, c.output, MD5_DIGEST_SIZE) != 0)
+    if (XMEMCMP(hash, c.output, MD5_DIGEST_SIZE) != 0)
         return -74;
 
 #endif /* NO_MD5 */
@@ -6135,17 +6135,17 @@ int openssl_test(void)
     DES_cbc_encrypt(vector, cipher, sizeof(vector), &sched, &iv, DES_ENCRYPT);
     DES_cbc_encrypt(cipher, plain, sizeof(vector), &sched, &iv, DES_DECRYPT);
 
-    if (memcmp(plain, vector, sizeof(vector)) != 0)
+    if (XMEMCMP(plain, vector, sizeof(vector)) != 0)
         return -75;
 
-    if (memcmp(cipher, verify, sizeof(verify)) != 0)
+    if (XMEMCMP(cipher, verify, sizeof(verify)) != 0)
         return -76;
 
         /* test changing iv */
     DES_ncbc_encrypt(vector, cipher, 8, &sched, &iv, DES_ENCRYPT);
     DES_ncbc_encrypt(vector + 8, cipher + 8, 16, &sched, &iv, DES_ENCRYPT);
 
-    if (memcmp(cipher, verify, sizeof(verify)) != 0)
+    if (XMEMCMP(cipher, verify, sizeof(verify)) != 0)
         return -77;
 
     }  /* end des test */
@@ -6183,7 +6183,7 @@ int openssl_test(void)
         if (EVP_Cipher(&ctx, cipher, (byte*)msg, 16) == 0)
             return -82;
 
-        if (memcmp(cipher, verify, AES_BLOCK_SIZE))
+        if (XMEMCMP(cipher, verify, AES_BLOCK_SIZE))
             return -83;
 
         EVP_CIPHER_CTX_init(&ctx);
@@ -6193,7 +6193,7 @@ int openssl_test(void)
         if (EVP_Cipher(&ctx, plain, cipher, 16) == 0)
             return -85;
 
-        if (memcmp(plain, msg, AES_BLOCK_SIZE))
+        if (XMEMCMP(plain, msg, AES_BLOCK_SIZE))
             return -86;
 
 
@@ -6207,9 +6207,13 @@ int openssl_test(void)
 static int evp_enc_test(const WOLFCRYPT_EVP_CIPHER* type)
 {
     WOLFCRYPT_EVP_CIPHER_CTX ctx;
-    int i, ret, len = 0, loop, outLen, rand_size, witLen;
+    int i, ret, len = 0, loop, loop_max, outLen, rand_size, witLen;
 
-    byte brandom[4500], wit[5000], out[5000];
+#ifdef BENCH_EMBEDDED
+    byte brandom[100], wit[112], out[112];
+#else
+    byte brandom[1025], wit[1040], out[1040];
+#endif
 
     byte key[] = {0x9d, 0xbf, 0xe2, 0x11, 0xf9, 0xea, 0x19, 0xf3,
                   0x44, 0x2e, 0xae, 0x19, 0x54, 0x80, 0x87, 0x4c,
@@ -6230,9 +6234,14 @@ static int evp_enc_test(const WOLFCRYPT_EVP_CIPHER* type)
 
     wc_FreeRng(&rng);
 
+#ifdef BENCH_EMBEDDED
+    loop_max = 25;
+#else
+    loop_max = 1000;
+#endif
 
     /* Encrypt/Decrypt with round bytes block Update */
-    for (loop = 1; loop < 1000; loop++) {
+    for (loop = 0; loop < loop_max; loop++) {
         rand_size = sizeof(brandom) - loop;
 
         /* Encrypt */
@@ -7016,7 +7025,7 @@ int pkcs12_test(void)
     if (ret < 0)
         return -103;
 
-    if ( (ret = memcmp(derived, verify, kLen)) != 0)
+    if ( (ret = XMEMCMP(derived, verify, kLen)) != 0)
         return -104;
 
     iterations = 1000;
@@ -7030,7 +7039,7 @@ int pkcs12_test(void)
     if (ret < 0)
         return -106;
 
-    if ( (ret = memcmp(derived, verify2, 24)) != 0)
+    if ( (ret = XMEMCMP(derived, verify2, 24)) != 0)
         return -107;
 
     return 0;
@@ -7055,7 +7064,7 @@ int pbkdf2_test(void)
     if (ret != 0)
         return ret;
 
-    if (memcmp(derived, verify, sizeof(verify)) != 0)
+    if (XMEMCMP(derived, verify, sizeof(verify)) != 0)
         return -102;
 
     return 0;
@@ -7079,7 +7088,7 @@ int pbkdf1_test(void)
     wc_PBKDF1(derived, (byte*)passwd, (int)strlen(passwd), salt, 8, iterations,
            kLen, SHA);
 
-    if (memcmp(derived, verify, sizeof(verify)) != 0)
+    if (XMEMCMP(derived, verify, sizeof(verify)) != 0)
         return -101;
 
     return 0;
@@ -7151,7 +7160,7 @@ int hkdf_test(void)
     if (ret != 0)
         return -2001;
 
-    if (memcmp(okm1, res1, L) != 0)
+    if (XMEMCMP(okm1, res1, L) != 0)
         return -2002;
 
 #ifndef HAVE_FIPS
@@ -7160,7 +7169,7 @@ int hkdf_test(void)
     if (ret != 0)
         return -2003;
 
-    if (memcmp(okm1, res2, L) != 0)
+    if (XMEMCMP(okm1, res2, L) != 0)
         return -2004;
 #endif /* HAVE_FIPS */
 #endif /* NO_SHA */
@@ -7170,7 +7179,7 @@ int hkdf_test(void)
     if (ret != 0)
         return -2005;
 
-    if (memcmp(okm1, res3, L) != 0)
+    if (XMEMCMP(okm1, res3, L) != 0)
         return -2006;
 
 #ifndef HAVE_FIPS
@@ -7179,7 +7188,7 @@ int hkdf_test(void)
     if (ret != 0)
         return -2007;
 
-    if (memcmp(okm1, res4, L) != 0)
+    if (XMEMCMP(okm1, res4, L) != 0)
         return -2007;
 #endif /* HAVE_FIPS */
 #endif /* NO_SHA256 */
@@ -7222,7 +7231,7 @@ static int ecc_test_vector_item(const eccVector* vector)
 
     wc_ecc_init(&userA);
 
-    memset(sig, 0, sizeof(sig));
+    XMEMSET(sig, 0, sizeof(sig));
     x = sizeof(sig);
 
     ret = wc_ecc_import_raw(&userA, vector->Qx, vector->Qy,
@@ -7539,7 +7548,7 @@ static int ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerifyCount,
     if (y != x)
         ERROR_OUT(-1004, done);
 
-    if (memcmp(sharedA, sharedB, x))
+    if (XMEMCMP(sharedA, sharedB, x))
         ERROR_OUT(-1005, done);
 #endif /* HAVE_ECC_DHE */
 
@@ -7561,7 +7570,7 @@ static int ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerifyCount,
     if (ret != 0)
         ERROR_OUT(-1008, done);
 
-    if (memcmp(sharedA, sharedB, y))
+    if (XMEMCMP(sharedA, sharedB, y))
         ERROR_OUT(-1009, done);
 #endif /* HAVE_ECC_DHE */
 
@@ -7586,7 +7595,7 @@ static int ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerifyCount,
         if (ret != 0)
             ERROR_OUT(-1012, done);
 
-        if (memcmp(sharedA, sharedB, y))
+        if (XMEMCMP(sharedA, sharedB, y))
             ERROR_OUT(-1013, done);
     #endif /* HAVE_ECC_DHE */
     #endif /* HAVE_COMP_KEY */
@@ -7799,7 +7808,7 @@ int ecc_encrypt_test(void)
     if (ret != 0)
         return -3004;
 
-    if (memcmp(plain, msg, sizeof(msg)) != 0)
+    if (XMEMCMP(plain, msg, sizeof(msg)) != 0)
         return -3005;
 
 
@@ -7818,12 +7827,12 @@ int ecc_encrypt_test(void)
         tmpSalt = wc_ecc_ctx_get_own_salt(cliCtx);
         if (tmpSalt == NULL)
             return -3007;
-        memcpy(cliSalt, tmpSalt, EXCHANGE_SALT_SZ);
+        XMEMCPY(cliSalt, tmpSalt, EXCHANGE_SALT_SZ);
 
         tmpSalt = wc_ecc_ctx_get_own_salt(srvCtx);
         if (tmpSalt == NULL)
             return -3007;
-        memcpy(srvSalt, tmpSalt, EXCHANGE_SALT_SZ);
+        XMEMCPY(srvSalt, tmpSalt, EXCHANGE_SALT_SZ);
 
         /* in actual use, we'd get the peer's salt over the transport */
         ret  = wc_ecc_ctx_set_peer_salt(cliCtx, srvSalt);
@@ -7847,7 +7856,7 @@ int ecc_encrypt_test(void)
         if (ret != 0)
             return -3010;
 
-        if (memcmp(plain, msg, sizeof(msg)) != 0)
+        if (XMEMCMP(plain, msg, sizeof(msg)) != 0)
             return -3011;
 
         {
@@ -7873,7 +7882,7 @@ int ecc_encrypt_test(void)
             if (ret != 0)
                 return -3013;
 
-            if (memcmp(plain2, msg2, sizeof(msg2)) != 0)
+            if (XMEMCMP(plain2, msg2, sizeof(msg2)) != 0)
                 return -3014;
         }
 
@@ -8797,7 +8806,7 @@ int compress_test(void)
     if (ret == 0 && wc_DeCompress(d, dSz, c, cSz) != (int)dSz)
         ret = -302;
 
-    if (ret == 0 && memcmp(d, sample_text, dSz))
+    if (ret == 0 && XMEMCMP(d, sample_text, dSz))
         ret = -303;
 
     if (c) TEST_XFREE(c, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
@@ -8896,7 +8905,7 @@ int pkcs7enveloped_test(void)
     }
 
     /* test decode result */
-    if (memcmp(decoded, data, sizeof(data)) != 0) {
+    if (XMEMCMP(decoded, data, sizeof(data)) != 0) {
         TEST_XFREE(cert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
         TEST_XFREE(privKey, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
         return -205;

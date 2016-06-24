@@ -240,7 +240,7 @@ enum {
     NULL_CIPHER_TYPE  = 10,
     EVP_PKEY_RSA      = 11,
     EVP_PKEY_DSA      = 12,
-	EVP_PKEY_EC		  = 13,
+    EVP_PKEY_EC		  = 13,
     IDEA_CBC_TYPE     = 14,
     NID_sha1          = 64,
     NID_md2           = 3,

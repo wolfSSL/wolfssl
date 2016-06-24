@@ -3760,7 +3760,7 @@ static int DupBufferStatic(bufferStatic *buf, bufferStatic *obuf,
     XMEMCPY(buf->staticBuffer, obuf->staticBuffer, sizeof(obuf->staticBuffer));
 
     if (buf->dynamicFlag) {
-        buf->buffer = XMALLOC(buf->bufferSize, heap, type);
+        buf->buffer = (byte *)XMALLOC(buf->bufferSize, heap, type);
         if (buf->buffer == NULL)
             return MEMORY_E;
 
@@ -3782,7 +3782,8 @@ static int DupBuffer(buffer *buf, buffer *obuf, void *heap)
     buf->length = obuf->length;
 
     if (obuf->buffer != NULL && obuf->length) {
-        buf->buffer = XMALLOC(buf->length, heap, DYNAMIC_TYPE_TMP_BUFFER);
+        buf->buffer = (byte *)XMALLOC(buf->length,
+                                      heap, DYNAMIC_TYPE_TMP_BUFFER);
         if (buf->buffer == NULL)
             return MEMORY_E;
 

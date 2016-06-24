@@ -21,7 +21,7 @@
 
 
 
-/*  hmac.h defines mini hamc openssl compatibility layer 
+/*  hmac.h defines mini hamc openssl compatibility layer
  *
  */
 
@@ -41,7 +41,7 @@
     extern "C" {
 #endif
 
-typedef struct WOLFCRYPT_HMAC_CTX HMAC_CTX;
+		//typedef struct WOLFCRYPT_HMAC_CTX HMAC_CTX;
 
 #define HMAC(a,b,c,d,e,f,g) wc_HMAC((a),(b),(c),(d),(e),(f),(g))
 

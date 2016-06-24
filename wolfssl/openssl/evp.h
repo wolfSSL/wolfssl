@@ -21,7 +21,7 @@
 
 
 
-/*  evp.h defines mini evp openssl compatibility layer 
+/*  evp.h defines mini evp openssl compatibility layer
  *
  */
 
@@ -30,6 +30,10 @@
 #define WOLFSSL_EVP_H_
 
 #include <wolfssl/wolfcrypt/settings.h>
+
+#ifdef __cplusplus
+	extern "C" {
+#endif
 
 #ifdef WOLFSSL_PREFIX
 #include "prefix_evp.h"

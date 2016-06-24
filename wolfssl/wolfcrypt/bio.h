@@ -164,6 +164,9 @@ typedef struct WOLFCRYPT_BIO_METHOD  WOLFCRYPT_BIO_METHOD;
 typedef void WOLFCRYPT_BIO_info_cb (WOLFCRYPT_BIO *, int, const char *,
                                   int, long, long);
 
+/* Compatibility with previous name */
+#define WOLFSSL_BIO WOLFCRYPT_BIO
+
 /* wolfSSL BIO_METHOD type */
 struct WOLFCRYPT_BIO_METHOD {
     int type;               /* method type */
