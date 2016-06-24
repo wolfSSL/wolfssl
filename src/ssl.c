@@ -3874,7 +3874,7 @@ static int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
                     }
                 #endif
             }
-            XMEMCPY(&ssl->buffers.certificate, &der, sizeof(der));
+            ssl->buffers.certificate = der;
             #ifdef KEEP_OUR_CERT
                 ssl->keepCert = 1; /* hold cert for ssl lifetime */
             #endif
@@ -3889,7 +3889,7 @@ static int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
                     ctx->ourCert = NULL;
                 }
             #endif
-            XMEMCPY(&ctx->certificate, &der, sizeof(der));
+            ctx->certificate = der;
         }
     }
     else if (type == PRIVATEKEY_TYPE) {
@@ -3898,12 +3898,12 @@ static int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
             if (ssl->buffers.weOwnKey) {
                 FreeDer(&ssl->buffers.key);
             }
-            XMEMCPY(&ssl->buffers.key, &der, sizeof(der));
+            ssl->buffers.key = der;
             ssl->buffers.weOwnKey = 1;
         }
         else if (ctx) {
             FreeDer(&ctx->privateKey);
-            XMEMCPY(&ctx->privateKey, &der, sizeof(der));
+            ctx->privateKey = der;
         }
     }
     else {
