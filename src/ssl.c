@@ -3456,6 +3456,9 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
 
     headerEnd += XSTRLEN(header);
 
+    if ((headerEnd + 1) >= bufferEnd)
+        return SSL_BAD_FILE;
+
     /* eat end of line */
     if (headerEnd[0] == '\n')
         headerEnd++;
