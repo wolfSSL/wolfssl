@@ -3551,7 +3551,7 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
 
     /* set up der buffer */
     neededSz = (long)(footerEnd - headerEnd);
-    if (neededSz > sz || neededSz < 0)
+    if (neededSz > sz || neededSz <= 0)
         return SSL_BAD_FILE;
 
     ret = AllocDer(pDer, (word32)neededSz, type, heap);
