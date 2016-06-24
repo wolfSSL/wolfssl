@@ -3084,7 +3084,7 @@ int TLSX_UseSecureRenegotiation(TLSX** extensions, void* heap)
 
 #else
 
-#define SCR_FREE_ALL(a, heap) 0
+#define SCR_FREE_ALL(a, heap)
 #define SCR_GET_SIZE(a, b)    0
 #define SCR_WRITE(a, b, c)    0
 #define SCR_PARSE(a, b, c, d) 0
