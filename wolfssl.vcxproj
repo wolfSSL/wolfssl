@@ -286,13 +286,11 @@
     <ClCompile Include="wolfcrypt\src\aes.c" />
     <ClCompile Include="wolfcrypt\src\arc4.c" />
     <ClCompile Include="wolfcrypt\src\asn.c" />
-    <ClCompile Include="wolfcrypt\src\bio.c" />
     <ClCompile Include="wolfcrypt\src\blake2b.c" />
     <ClCompile Include="wolfcrypt\src\camellia.c" />
     <ClCompile Include="wolfcrypt\src\chacha.c" />
     <ClCompile Include="wolfcrypt\src\chacha20_poly1305.c" />
     <ClCompile Include="wolfcrypt\src\coding.c" />
-    <ClCompile Include="wolfcrypt\src\compat-wolfcrypt.c" />
     <ClCompile Include="wolfcrypt\src\des3.c" />
     <ClCompile Include="wolfcrypt\src\dh.c" />
     <ClCompile Include="wolfcrypt\src\dsa.c" />

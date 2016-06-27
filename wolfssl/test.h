@@ -858,61 +858,6 @@ static INLINE void udp_accept(SOCKET_T* sockfd, SOCKET_T* clientfd,
     *clientfd = *sockfd;
 }
 
-static INLINE void tcp_set_ready(func_args* args, word16 port, int ready_file)
-{
-    tcp_ready* ready = NULL;
-
-    (void) ready; /* Account for case when "ready" is not used */
-
-#if defined(_POSIX_THREADS) && defined(NO_MAIN_DRIVER) && !defined(__MINGW32__)
-    /* signal ready to tcp_accept */
-    if (args)
-        ready = args->signal;
-    if (ready) {
-        pthread_mutex_lock(&ready->mutex);
-        ready->ready = 1;
-        ready->port = port;
-        pthread_cond_signal(&ready->cond);
-        pthread_mutex_unlock(&ready->mutex);
-    }
-#elif defined (WOLFSSL_TIRTOS)
-    /* Need mutex? */
-    if (args)
-        ready = args->signal;
-    if (ready) {
-        ready->ready = 1;
-        ready->port = port;
-    }
-#endif
-
-    if (ready_file) {
-#ifndef NO_FILESYSTEM
-        FILE* srf = NULL;
-        if (args)
-            ready = args->signal;
-
-        if (ready) {
-            srf = fopen(ready->srfName, "w");
-
-            if (srf) {
-                /* let's write port sever is listening on to ready file
-                 external monitor can then do ephemeral ports by passing
-                 -p 0 to server on supported platforms with -R ready_file
-                 client can then wait for existence of ready_file and see
-                 which port the server is listening on. */
-                fprintf(srf, "%d\n", (int)port);
-                fclose(srf);
-            }
-        }
-#endif
-    }
-
-    (void)port;
-    (void)ready_file;
-    (void)args;
-}
-
-
 static INLINE void tcp_accept(SOCKET_T* sockfd, SOCKET_T* clientfd,
                               func_args* args, word16 port, int useAnyAddr,
                               int udp, int ready_file, int do_listen)
@@ -930,7 +875,49 @@ static INLINE void tcp_accept(SOCKET_T* sockfd, SOCKET_T* clientfd,
 
     if(do_listen) {
         tcp_listen(sockfd, &port, useAnyAddr, udp);
-        tcp_set_ready(args, port, ready_file);
+
+    #if defined(_POSIX_THREADS) && defined(NO_MAIN_DRIVER) && !defined(__MINGW32__)
+        /* signal ready to tcp_accept */
+        if (args)
+            ready = args->signal;
+        if (ready) {
+            pthread_mutex_lock(&ready->mutex);
+            ready->ready = 1;
+            ready->port = port;
+            pthread_cond_signal(&ready->cond);
+            pthread_mutex_unlock(&ready->mutex);
+        }
+    #elif defined (WOLFSSL_TIRTOS)
+        /* Need mutex? */
+        if (args)
+            ready = args->signal;
+        if (ready) {
+            ready->ready = 1;
+            ready->port = port;
+        }
+    #endif
+
+        if (ready_file) {
+        #ifndef NO_FILESYSTEM
+            FILE* srf = NULL;
+            if (args)
+                ready = args->signal;
+
+            if (ready) {
+                srf = fopen(ready->srfName, "w");
+
+                if (srf) {
+                    /* let's write port sever is listening on to ready file
+                       external monitor can then do ephemeral ports by passing
+                       -p 0 to server on supported platforms with -R ready_file
+                       client can then wait for existence of ready_file and see
+                       which port the server is listening on. */
+                    fprintf(srf, "%d\n", (int)port);
+                    fclose(srf);
+                }
+            }
+        #endif
+        }
     }
 
     *clientfd = accept(*sockfd, (struct sockaddr*)&client,
@@ -939,6 +926,7 @@ static INLINE void tcp_accept(SOCKET_T* sockfd, SOCKET_T* clientfd,
         err_sys("tcp accept failed");
     }
 }
+
 
 static INLINE void tcp_set_nonblocking(SOCKET_T* sockfd)
 {

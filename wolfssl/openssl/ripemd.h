@@ -10,15 +10,23 @@
     extern "C" {
 #endif
 
-#ifdef WOLFSSL_RIPEMD
 
-typedef WOLFCRYPT_RIPEMD_CTX RIPEMD_CTX;
+typedef struct WOLFSSL_RIPEMD_CTX {
+    int holder[32];   /* big enough to hold wolfcrypt, but check on init */
+} WOLFSSL_RIPEMD_CTX;
 
-#define RIPEMD_Init   wc_RIPEMD_Init
-#define RIPEMD_Update wc_RIPEMD_Update
-#define RIPEMD_Final  wc_RIPEMD_Final
-        
-#endif /* WOLFSSL_RIPEMD */
+WOLFSSL_API void wolfSSL_RIPEMD_Init(WOLFSSL_RIPEMD_CTX*);
+WOLFSSL_API void wolfSSL_RIPEMD_Update(WOLFSSL_RIPEMD_CTX*, const void*,
+                                     unsigned long);
+WOLFSSL_API void wolfSSL_RIPEMD_Final(unsigned char*, WOLFSSL_RIPEMD_CTX*);
+
+
+typedef WOLFSSL_RIPEMD_CTX RIPEMD_CTX;
+
+#define RIPEMD_Init   wolfSSL_RIPEMD_Init
+#define RIPEMD_Update wolfSSL_RIPEMD_Update
+#define RIPEMD_Final  wolfSSL_RIPEMD_Final
+
 
 #ifdef __cplusplus
     }  /* extern "C" */ 

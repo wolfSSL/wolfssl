@@ -15,8 +15,6 @@ nobase_include_HEADERS+= \
                          wolfssl/wolfcrypt/dh.h \
                          wolfssl/wolfcrypt/dsa.h \
                          wolfssl/wolfcrypt/ecc.h \
-                         wolfssl/wolfcrypt/bio.h \
-                         wolfssl/wolfcrypt/compat-wolfcrypt.h \
                          wolfssl/wolfcrypt/curve25519.h \
                          wolfssl/wolfcrypt/ed25519.h \
                          wolfssl/wolfcrypt/fe_operations.h \
