@@ -82,7 +82,6 @@ pkcs7envelopedData.der
 diff
 sslSniffer/sslSnifferTest/tracefile.txt
 tracefile.txt
-test_bio.txt
 *.gz
 *.zip
 *.bak

@@ -167,10 +167,6 @@
 				>
 			</File>
 			<File
-				RelativePath=".\wolfcrypt\src\bio.c"
-				>
-			</File>
-			<File
 				RelativePath=".\wolfcrypt\src\blake2b.c"
 				>
 			</File>
@@ -180,10 +176,6 @@
 			</File>
 			<File
 				RelativePath=".\wolfcrypt\src\coding.c"
-				>
-			</File>
-			<File
-				RelativePath=".\wolfcrypt\src\compat-wolfcrypt.c"
 				>
 			</File>
 			<File
