@@ -610,7 +610,9 @@ WOLFSSL_LOCAL int ToTraditional(byte* buffer, word32 length);
 WOLFSSL_LOCAL int ToTraditionalEnc(byte* buffer, word32 length,const char*,int);
 
 typedef struct tm wolfssl_tm;
-
+#if defined(WOLFSSL_MYSQL_COMPATIBLE)
+WOLFSSL_LOCAL int GetTimeString(byte* date, int format, char* buf, int len);
+#endif
 WOLFSSL_LOCAL int ExtractDate(const unsigned char* date, unsigned char format,
                                                  wolfssl_tm* certTime, int* idx);
 WOLFSSL_LOCAL int ValidateDate(const byte* date, byte format, int dateType);

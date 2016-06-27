@@ -1257,6 +1257,11 @@ static char *fgets(char *buff, int sz, FILE *fp)
 #endif /* WOLFSSL_STATIC_MEMORY */
 /* Place any other flags or defines here */
 
+#if defined(WOLFSSL_MYSQL_COMPATIBLE) && defined(_WIN32) \
+                                      && defined(HAVE_GMTIME_R)
+    #undef HAVE_GMTIME_R /* don't trust macro with windows */
+#endif /* WOLFSSL_MYSQL_COMPATIBLE */
+
 
 #ifdef __cplusplus
     }   /* extern "C" */

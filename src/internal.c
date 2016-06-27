@@ -1955,6 +1955,16 @@ void InitSuites(Suites* suites, ProtocolVersion pv, word16 haveRSA,
     }
 #endif
 
+/* Place as higher priority for MYSQL */
+#if defined(WOLFSSL_MYSQL_COMPATIBLE)
+#ifdef BUILD_TLS_DHE_RSA_WITH_AES_256_CBC_SHA
+    if (tls && haveDH && haveRSA) {
+        suites->suites[idx++] = 0;
+        suites->suites[idx++] = TLS_DHE_RSA_WITH_AES_256_CBC_SHA;
+    }
+#endif
+#endif
+
 #ifdef BUILD_TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256
     if (tls1_2 && haveRSAsig) {
         suites->suites[idx++] = ECC_BYTE;
@@ -2179,11 +2189,14 @@ void InitSuites(Suites* suites, ProtocolVersion pv, word16 haveRSA,
     }
 #endif
 
+/* Place as higher priority for MYSQL testing */
+#if !defined(WOLFSSL_MYSQL_COMPATIBLE)
 #ifdef BUILD_TLS_DHE_RSA_WITH_AES_256_CBC_SHA
     if (tls && haveDH && haveRSA) {
         suites->suites[idx++] = 0;
         suites->suites[idx++] = TLS_DHE_RSA_WITH_AES_256_CBC_SHA;
     }
+#endif
 #endif
 
 #ifdef BUILD_TLS_DHE_RSA_WITH_AES_128_CBC_SHA
