@@ -3456,6 +3456,9 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
 
     headerEnd += XSTRLEN(header);
 
+    if ((headerEnd + 1) >= bufferEnd)
+        return SSL_BAD_FILE;
+
     /* eat end of line */
     if (headerEnd[0] == '\n')
         headerEnd++;
@@ -3534,7 +3537,7 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
         /* eat end of line */
         if (consumedEnd[0] == '\n')
             consumedEnd++;
-        else if (consumedEnd[1] == '\n')
+        else if ((consumedEnd + 1 < bufferEnd) && consumedEnd[1] == '\n')
             consumedEnd += 2;
         else {
             if (info)
@@ -3548,7 +3551,7 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
 
     /* set up der buffer */
     neededSz = (long)(footerEnd - headerEnd);
-    if (neededSz > sz || neededSz < 0)
+    if (neededSz > sz || neededSz <= 0)
         return SSL_BAD_FILE;
 
     ret = AllocDer(pDer, (word32)neededSz, type, heap);
@@ -4358,6 +4361,13 @@ int wolfSSL_CertManagerVerifyBuffer(WOLFSSL_CERT_MANAGER* cm, const byte* buff,
         info->consumed = 0;
 
         ret = PemToDer(buff, sz, CERT_TYPE, &der, cm->heap, info, &eccKey);
+        if (ret != 0) {
+            FreeDer(&der);
+            #ifdef WOLFSSL_SMALL_STACK
+                XFREE(info, cm->heap, DYNAMIC_TYPE_TMP_BUFFER);
+            #endif
+            return ret;
+        }
         InitDecodedCert(cert, der->buffer, der->length, cm->heap);
 
     #ifdef WOLFSSL_SMALL_STACK
