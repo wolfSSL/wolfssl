@@ -39,10 +39,6 @@
 #endif
 
 #ifndef HAVE_FIPS /* to avoid redefinition of macros */
-#ifdef HAVE_CAVIUM
-    #include <wolfssl/wolfcrypt/logging.h>
-    #include "cavium_common.h"
-#endif
 
 #ifdef WOLFSSL_AESNI
 
@@ -74,7 +70,10 @@
 #endif
 
 #ifndef HAVE_FIPS /* to avoid redefinition of structures */
-#define WOLFSSL_AES_CAVIUM_MAGIC 0xBEEF0002
+
+#ifdef WOLFSSL_ASYNC_CRYPT
+    #include <wolfssl/wolfcrypt/async.h>
+#endif
 
 enum {
     AES_ENC_TYPE   = 1,   /* cipher unique type */
@@ -102,12 +101,12 @@ typedef struct Aes {
 #ifdef WOLFSSL_AESNI
     byte use_aesni;
 #endif /* WOLFSSL_AESNI */
-#ifdef HAVE_CAVIUM
-    AesType type;            /* aes key type */
-    int     devId;           /* nitrox device id */
-    word32  magic;           /* using cavium magic */
-    word64  contextHandle;   /* nitrox context memory handle */
-#endif
+#ifdef WOLFSSL_ASYNC_CRYPT
+    AsyncCryptDev asyncDev;
+    #ifdef HAVE_CAVIUM
+        AesType type;                       /* aes key type */
+    #endif
+#endif /* WOLFSSL_ASYNC_CRYPT */
 #ifdef WOLFSSL_AES_COUNTER
     word32  left;            /* unused bytes left from last call */
 #endif
@@ -183,9 +182,9 @@ WOLFSSL_API int  wc_AesCbcDecrypt(Aes* aes, byte* out,
                                    const byte* authIn, word32 authInSz);
 #endif /* HAVE_AESCCM */
 
-#ifdef HAVE_CAVIUM
-     WOLFSSL_API int  wc_AesInitCavium(Aes*, int);
-     WOLFSSL_API void wc_AesFreeCavium(Aes*);
+#ifdef WOLFSSL_ASYNC_CRYPT
+     WOLFSSL_API int  wc_AesAsyncInit(Aes*, int);
+     WOLFSSL_API void wc_AesAsyncFree(Aes*);
 #endif
 
 #ifdef __cplusplus

@@ -41,6 +41,8 @@ fips_test.c
 fips
 src/async.c
 wolfssl/async.h
+wolfcrypt/src/async.c
+wolfssl/wolfcrypt/async.h
 ctaocrypt/benchmark/benchmark
 ctaocrypt/test/testctaocrypt
 wolfcrypt/benchmark/benchmark

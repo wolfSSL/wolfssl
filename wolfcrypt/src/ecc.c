@@ -1494,8 +1494,9 @@ int wc_ecc_shared_secret(ecc_key* private_key, ecc_key* public_key, byte* out,
    int            err;
 
    if (private_key == NULL || public_key == NULL || out == NULL ||
-                                                    outlen == NULL)
+                                                            outlen == NULL) {
        return BAD_FUNC_ARG;
+   }
 
    /* type valid? */
    if (private_key->type != ECC_PRIVATEKEY) {
@@ -1504,12 +1505,32 @@ int wc_ecc_shared_secret(ecc_key* private_key, ecc_key* public_key, byte* out,
 
    /* Verify domain params supplied */
    if (wc_ecc_is_valid_idx(private_key->idx) == 0 ||
-       wc_ecc_is_valid_idx(public_key->idx)  == 0)
+       wc_ecc_is_valid_idx(public_key->idx)  == 0) {
       return ECC_BAD_ARG_E;
+   }
 
    /* Verify curve name matches */
-   if (XSTRNCMP(private_key->dp->name, public_key->dp->name, ECC_MAXNAME) != 0)
+   if (XSTRNCMP(private_key->dp->name, public_key->dp->name, ECC_MAXNAME) != 0) {
       return ECC_BAD_ARG_E;
+   }
+
+#ifdef WOLFSSL_ASYNC_CRYPT
+    if (private_key->asyncDev.marker == WOLFSSL_ASYNC_MARKER_ECC) {
+    #ifdef HAVE_CAVIUM
+        /* TODO: Not implemented */
+    #else
+        AsyncCryptTestDev* testDev = &private_key->asyncDev.dev;
+        if (testDev->type == ASYNC_TEST_NONE) {
+            testDev->type = ASYNC_TEST_ECC_SHARED_SEC;
+            testDev->eccSharedSec.private_key = private_key;
+            testDev->eccSharedSec.public_key = public_key;
+            testDev->eccSharedSec.out = out;
+            testDev->eccSharedSec.outLen = outlen;
+            return WC_PENDING_E;
+        }
+    #endif
+    }
+#endif
 
    /* make new point */
    result = wc_ecc_new_point_h(private_key->heap);
@@ -1571,8 +1592,10 @@ int wc_ecc_shared_secret_ssh(ecc_key* private_key, ecc_point* point,
     mp_int         a;
     int            err;
 
-    if (private_key == NULL || point == NULL || out == NULL || outlen == NULL)
+    if (private_key == NULL || point == NULL || out == NULL ||
+                                                            outlen == NULL) {
         return BAD_FUNC_ARG;
+    }
 
     /* type valid? */
     if (private_key->type != ECC_PRIVATEKEY) {
@@ -1674,6 +1697,24 @@ int wc_ecc_make_key_ex(WC_RNG* rng, int keysize, ecc_key* key,
 
     key->idx = x;
     key->dp  = dp;
+
+#ifdef WOLFSSL_ASYNC_CRYPT
+    if (key->asyncDev.marker == WOLFSSL_ASYNC_MARKER_ECC) {
+    #ifdef HAVE_CAVIUM
+        /* TODO: Not implemented */
+    #else
+        AsyncCryptTestDev* testDev = &key->asyncDev.dev;
+        if (testDev->type == ASYNC_TEST_NONE) {
+            testDev->type = ASYNC_TEST_ECC_MAKE;
+            testDev->eccMake.rng = rng;
+            testDev->eccMake.key = key;
+            testDev->eccMake.size = keysize;
+            testDev->eccMake.dp = dp;
+            return WC_PENDING_E;
+        }
+    #endif
+    }
+#endif
 
 #ifdef WOLFSSL_SMALL_STACK
     buf = (byte*)XMALLOC(ECC_MAXSIZE_GEN, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -1866,16 +1907,40 @@ int wc_ecc_sign_hash(const byte* in, word32 inlen, byte* out, word32 *outlen,
     int        err;
 
     if (in == NULL || out == NULL || outlen == NULL ||
-        key == NULL || rng == NULL)
+        key == NULL || rng == NULL) {
         return ECC_BAD_ARG_E;
+    }
+
+
+#ifdef WOLFSSL_ASYNC_CRYPT
+    if (key->asyncDev.marker == WOLFSSL_ASYNC_MARKER_ECC) {
+    #ifdef HAVE_CAVIUM
+        /* TODO: Not implemented */
+    #else
+        AsyncCryptTestDev* testDev = &key->asyncDev.dev;
+        if (testDev->type == ASYNC_TEST_NONE) {
+            testDev->type = ASYNC_TEST_ECC_SIGN;
+            testDev->eccSign.in = in;
+            testDev->eccSign.inSz = inlen;
+            testDev->eccSign.out = out;
+            testDev->eccSign.outSz = outlen;
+            testDev->eccSign.rng = rng;
+            testDev->eccSign.key = key;
+            return WC_PENDING_E;
+        }
+    #endif
+    }
+#endif
 
     if ((err = mp_init_multi(&r, &s, NULL, NULL, NULL, NULL)) != MP_OKAY) {
         return err;
     }
 
     err = wc_ecc_sign_hash_ex(in, inlen, rng, key, &r, &s);
-    if (err == MP_OKAY)
+    if (err == MP_OKAY) {
+        /* encoded with DSA header */
         err = StoreECC_DSA_Sig(out, outlen, &r, &s);
+    }
 
 #ifndef USE_FAST_MATH
     mp_clear(&r);
@@ -2269,11 +2334,32 @@ int wc_ecc_verify_hash(const byte* sig, word32 siglen, const byte* hash,
     mp_int    s;
     int        err;
 
-    if (sig == NULL || hash == NULL || stat == NULL || key == NULL)
+    if (sig == NULL || hash == NULL || stat == NULL || key == NULL) {
         return ECC_BAD_ARG_E;
+    }
 
     /* default to invalid signature */
     *stat = 0;
+
+#ifdef WOLFSSL_ASYNC_CRYPT
+    if (key->asyncDev.marker == WOLFSSL_ASYNC_MARKER_ECC) {
+    #ifdef HAVE_CAVIUM
+        /* TODO: Not implemented */
+    #else
+        AsyncCryptTestDev* testDev = &key->asyncDev.dev;
+        if (testDev->type == ASYNC_TEST_NONE) {
+            testDev->type = ASYNC_TEST_ECC_VERIFY;
+            testDev->eccVerify.in = sig;
+            testDev->eccVerify.inSz = siglen;
+            testDev->eccVerify.out = hash;
+            testDev->eccVerify.outSz = hashlen;
+            testDev->eccVerify.stat = stat;
+            testDev->eccVerify.key = key;
+            return WC_PENDING_E;
+        }
+    #endif
+    }
+#endif
 
     /* Note, DecodeECC_DSA_Sig() calls mp_init() on r and s.
      * If either of those don't allocate correctly, none of
@@ -4919,7 +5005,7 @@ int wc_ecc_ctx_set_peer_salt(ecEncCtx* ctx, const byte* salt)
             ctx->cliSt =  ecCLI_SALT_SET;
         else {
             ctx->cliSt =  ecCLI_BAD_STATE;
-            return BAD_ENC_STATE_E;
+            return BAD_STATE_E;
         }
     }
     else {
@@ -4928,7 +5014,7 @@ int wc_ecc_ctx_set_peer_salt(ecEncCtx* ctx, const byte* salt)
             ctx->srvSt =  ecSRV_SALT_SET;
         else {
             ctx->srvSt =  ecSRV_BAD_STATE;
-            return BAD_ENC_STATE_E;
+            return BAD_STATE_E;
         }
     }
 
@@ -5110,13 +5196,13 @@ int wc_ecc_encrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
         keysLen *= 2;
 
         if (ctx->srvSt != ecSRV_RECV_REQ)
-            return BAD_ENC_STATE_E;
+            return BAD_STATE_E;
 
         ctx->srvSt = ecSRV_BAD_STATE; /* we're done no more ops allowed */
     }
     else if (ctx->protocol == REQ_RESP_CLIENT) {
         if (ctx->cliSt != ecCLI_SALT_SET)
-            return BAD_ENC_STATE_E;
+            return BAD_STATE_E;
 
         ctx->cliSt = ecCLI_SENT_REQ; /* only do this once */
     }
@@ -5262,13 +5348,13 @@ int wc_ecc_decrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
         keysLen *= 2;
 
         if (ctx->cliSt != ecCLI_SENT_REQ)
-            return BAD_ENC_STATE_E;
+            return BAD_STATE_E;
 
         ctx->cliSt = ecSRV_BAD_STATE; /* we're done no more ops allowed */
     }
     else if (ctx->protocol == REQ_RESP_SERVER) {
         if (ctx->srvSt != ecSRV_SALT_SET)
-            return BAD_ENC_STATE_E;
+            return BAD_STATE_E;
 
         ctx->srvSt = ecSRV_RECV_REQ; /* only do this once */
     }

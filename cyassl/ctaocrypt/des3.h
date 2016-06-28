@@ -39,9 +39,9 @@
 #define Des3_CbcEncrypt        wc_Des3_CbcEncrypt
 #define Des3_CbcDecrypt        wc_Des3_CbcDecrypt
 #define Des3_CbcDecryptWithKey wc_Des3_CbcDecryptWithKey
-#ifdef HAVE_CAVIUM
-    #define Des3_InitCavium wc_Des3_InitCavium
-    #define Des3_FreeCavium wc_Des3_FreeCavium
+#ifdef WOLFSSL_ASYNC_CRYPT
+    #define Des3AsyncInit wc_Des3AsyncInit
+    #define Des3AsyncFree wc_Des3AsyncFree
 #endif
 
 #endif /* NO_DES3 */

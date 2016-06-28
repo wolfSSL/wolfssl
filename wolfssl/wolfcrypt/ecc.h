@@ -30,6 +30,10 @@
 #include <wolfssl/wolfcrypt/integer.h>
 #include <wolfssl/wolfcrypt/random.h>
 
+#ifdef WOLFSSL_ASYNC_CRYPT
+    #include <wolfssl/wolfcrypt/async.h>
+#endif
+
 #ifdef __cplusplus
     extern "C" {
 #endif
@@ -48,7 +52,7 @@ enum {
 
 
 /* ECC set type defined a NIST GF(p) curve */
-typedef struct {
+typedef struct ecc_set_type {
     int size;             /* The size of the curve in octets */
     int nid;              /* id of this curve */
     const char* name;     /* name of this curve */
@@ -169,6 +173,10 @@ typedef struct {
     ecc_point pubkey;   /* public key */
     mp_int    k;        /* private key */
     void*     heap;     /* heap hint */
+
+#ifdef WOLFSSL_ASYNC_CRYPT
+    AsyncCryptDev asyncDev;
+#endif
 } ecc_key;
 
 

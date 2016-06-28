@@ -52,38 +52,49 @@
 
 /* avoid redefinition of structs */
 #if !defined(HAVE_FIPS)
-#define WOLFSSL_RSA_CAVIUM_MAGIC 0xBEEF0006
+
+#ifdef WOLFSSL_ASYNC_CRYPT
+    #include <wolfssl/wolfcrypt/async.h>
+#endif
 
 enum {
     RSA_PUBLIC   = 0,
     RSA_PRIVATE  = 1,
-};
 
+    RSA_TYPE_UNKNOWN    = -1,
+    RSA_PUBLIC_ENCRYPT  = 0,
+    RSA_PUBLIC_DECRYPT  = 1,
+    RSA_PRIVATE_ENCRYPT = 2,
+    RSA_PRIVATE_DECRYPT = 3,
+
+    RSA_BLOCK_TYPE_1 = 1,
+    RSA_BLOCK_TYPE_2 = 2,
+
+    RSA_MIN_SIZE = 512,
+    RSA_MAX_SIZE = 4096,
+
+    RSA_MIN_PAD_SZ   = 11      /* separator + 0 + pad value + 8 pads */
+};
 
 /* RSA */
 typedef struct RsaKey {
     mp_int n, e, d, p, q, dP, dQ, u;
-    int   type;                               /* public or private */
-    void* heap;                               /* for user memory overrides */
-#ifdef HAVE_CAVIUM
-    int    devId;           /* nitrox device id */
-    word32 magic;           /* using cavium magic */
-    word64 contextHandle;   /* nitrox context memory handle */
-    byte*  c_n;             /* cavium byte buffers for key parts */
-    byte*  c_e;
-    byte*  c_d;
-    byte*  c_p;
-    byte*  c_q;
-    byte*  c_dP;
-    byte*  c_dQ;
-    byte*  c_u;             /* sizes in bytes */
-    word16 c_nSz, c_eSz, c_dSz, c_pSz, c_qSz, c_dP_Sz, c_dQ_Sz, c_uSz;
-#endif
+    int    type;                               /* public or private */
+    int    state;
+    byte*  tmp;
+    word32 tmpLen;
+    void*  heap;                               /* for user memory overrides */
+#ifdef WOLFSSL_ASYNC_CRYPT
+    AsyncCryptDev asyncDev;
+#endif /* WOLFSSL_ASYNC_CRYPT */
 } RsaKey;
 #endif /*HAVE_FIPS */
 
 WOLFSSL_API int  wc_InitRsaKey(RsaKey* key, void*);
 WOLFSSL_API int  wc_FreeRsaKey(RsaKey* key);
+
+WOLFSSL_LOCAL int wc_RsaFunction(const byte* in, word32 inLen, byte* out,
+                                 word32* outLen, int type, RsaKey* key);
 
 WOLFSSL_API int  wc_RsaPublicEncrypt(const byte* in, word32 inLen, byte* out,
                                  word32 outLen, RsaKey* key, WC_RNG* rng);
@@ -115,6 +126,7 @@ WOLFSSL_API int  wc_RsaPublicKeyDecodeRaw(const byte* n, word32 nSz,
  */
 
 /* Mask Generation Function Identifiers */
+#define WC_MGF1NONE   0
 #define WC_MGF1SHA1   26
 #define WC_MGF1SHA256 1
 #define WC_MGF1SHA384 2
@@ -123,6 +135,15 @@ WOLFSSL_API int  wc_RsaPublicKeyDecodeRaw(const byte* n, word32 nSz,
 /* Padding types */
 #define WC_RSA_PKCSV15_PAD 0
 #define WC_RSA_OAEP_PAD    1
+
+WOLFSSL_API int wc_RsaPad_ex(const byte* input, word32 inputLen, byte* pkcsBlock,
+               word32 pkcsBlockLen, byte padValue, WC_RNG* rng, int padType,
+           enum wc_HashType hType, int mgf, byte* optLabel, word32 labelLen,
+           void* heap);
+WOLFSSL_API int wc_RsaUnPad_ex(byte* pkcsBlock, word32 pkcsBlockLen, byte** out,
+                          byte padValue, int padType, enum wc_HashType hType,
+                          int mgf, byte* optLabel, word32 labelLen, void* heap);
+
 
 WOLFSSL_API int  wc_RsaPublicEncrypt_ex(const byte* in, word32 inLen, byte* out,
                    word32 outLen, RsaKey* key, WC_RNG* rng, int type,
@@ -142,11 +163,14 @@ WOLFSSL_API int  wc_RsaFlattenPublicKey(RsaKey*, byte*, word32*, byte*,
     WOLFSSL_API int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng);
 #endif
 
-#ifdef HAVE_CAVIUM
-    WOLFSSL_API int  wc_RsaInitCavium(RsaKey*, int);
-    WOLFSSL_API void wc_RsaFreeCavium(RsaKey*);
+#ifdef WOLFSSL_ASYNC_CRYPT
+    WOLFSSL_API int  wc_RsaAsyncInit(RsaKey*, int);
+    WOLFSSL_API int  wc_RsaAsyncHandle(RsaKey* key, WOLF_EVENT_QUEUE* queue, WOLF_EVENT* event);
+    WOLFSSL_API int  wc_RsaAsyncWait(int ret, RsaKey* key);
+    WOLFSSL_API void wc_RsaAsyncFree(RsaKey*);
 #endif
 #endif /* HAVE_USER_RSA */
+
 #ifdef __cplusplus
     } /* extern "C" */
 #endif

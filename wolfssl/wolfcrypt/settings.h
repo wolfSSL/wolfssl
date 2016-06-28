@@ -1233,6 +1233,11 @@ static char *fgets(char *buff, int sz, FILE *fp)
     /* Make sure wolf events are enabled */
     #undef HAVE_WOLF_EVENT
     #define HAVE_WOLF_EVENT
+
+    #if !defined(HAVE_CAVIUM) && !defined(HAVE_INTEL_QA) && \
+        !defined(WOLFSSL_ASYNC_CRYPT_TEST)
+        #error No async hardware defined with WOLFSSL_ASYNC_CRYPT!
+    #endif
 #else
     #ifdef WOLFSSL_ASYNC_CRYPT_TEST
         #error Must have WOLFSSL_ASYNC_CRYPT enabled with WOLFSSL_ASYNC_CRYPT_TEST

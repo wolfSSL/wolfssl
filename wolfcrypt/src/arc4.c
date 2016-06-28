@@ -28,13 +28,8 @@
 
 #ifndef NO_RC4
 
+#include <wolfssl/wolfcrypt/error-crypt.h>
 #include <wolfssl/wolfcrypt/arc4.h>
-
-#ifdef HAVE_CAVIUM
-    static void wc_Arc4CaviumSetKey(Arc4* arc4, const byte* key, word32 length);
-    static void wc_Arc4CaviumProcess(Arc4* arc4, byte* out, const byte* in,
-                                  word32 length);
-#endif
 
 
 void wc_Arc4SetKey(Arc4* arc4, const byte* key, word32 length)
@@ -42,9 +37,10 @@ void wc_Arc4SetKey(Arc4* arc4, const byte* key, word32 length)
     word32 i;
     word32 keyIndex = 0, stateIndex = 0;
 
-#ifdef HAVE_CAVIUM
-    if (arc4->magic == WOLFSSL_ARC4_CAVIUM_MAGIC)
-        return wc_Arc4CaviumSetKey(arc4, key, length);
+#if defined(WOLFSSL_ASYNC_CRYPT) && defined(HAVE_CAVIUM) && !defined(HAVE_CAVIUM_V)
+    if (arc4->asyncDev.marker == WOLFSSL_ASYNC_MARKER_ARC4) {
+        return NitroxArc4SetKey(arc4, key, length);
+    }
 #endif
 
     arc4->x = 1;
@@ -85,9 +81,10 @@ void wc_Arc4Process(Arc4* arc4, byte* out, const byte* in, word32 length)
     word32 x;
     word32 y;
 
-#ifdef HAVE_CAVIUM
-    if (arc4->magic == WOLFSSL_ARC4_CAVIUM_MAGIC)
-        return wc_Arc4CaviumProcess(arc4, out, in, length);
+#if defined(WOLFSSL_ASYNC_CRYPT) && defined(HAVE_CAVIUM) && !defined(HAVE_CAVIUM_V)
+    if (arc4->asyncDev.marker == WOLFSSL_ASYNC_MARKER_ARC4) {
+        return NitroxArc4Process(arc4, out, in, length);
+    }
 #endif
 
     x = arc4->x;
@@ -101,79 +98,28 @@ void wc_Arc4Process(Arc4* arc4, byte* out, const byte* in, word32 length)
 }
 
 
-#ifdef HAVE_CAVIUM
-
-#include <wolfssl/wolfcrypt/logging.h>
-#include "cavium_common.h"
+#ifdef WOLFSSL_ASYNC_CRYPT
 
 /* Initialize Arc4 for use with Nitrox device */
-int wc_Arc4InitCavium(Arc4* arc4, int devId)
+int wc_Arc4AsyncInit(Arc4* arc4, int devId)
 {
     if (arc4 == NULL)
-        return -1;
+        return BAD_FUNC_ARG;
 
-    if (CspAllocContext(CONTEXT_SSL, &arc4->contextHandle, devId) != 0)
-        return -1;
-
-    arc4->devId = devId;
-    arc4->magic = WOLFSSL_ARC4_CAVIUM_MAGIC;
-
-    return 0;
+    return wolfAsync_DevCtxInit(&arc4->asyncDev, WOLFSSL_ASYNC_MARKER_ARC4, devId);
 }
 
 
 /* Free Arc4 from use with Nitrox device */
-void wc_Arc4FreeCavium(Arc4* arc4)
+void wc_Arc4AsyncFree(Arc4* arc4)
 {
     if (arc4 == NULL)
         return;
 
-    if (arc4->magic != WOLFSSL_ARC4_CAVIUM_MAGIC)
-        return;
-
-    CspFreeContext(CONTEXT_SSL, arc4->contextHandle, arc4->devId);
-    arc4->magic = 0;
+    wolfAsync_DevCtxFree(&arc4->asyncDev);
 }
 
-
-static void wc_Arc4CaviumSetKey(Arc4* arc4, const byte* key, word32 length)
-{
-    word32 requestId;
-
-    if (CspInitializeRc4(CAVIUM_BLOCKING, arc4->contextHandle, length,
-                         (byte*)key, &requestId, arc4->devId) != 0) {
-        WOLFSSL_MSG("Bad Cavium Arc4 Init");
-    }
-}
-
-
-static void wc_Arc4CaviumProcess(Arc4* arc4, byte* out, const byte* in,
-                              word32 length)
-{
-    wolfssl_word offset = 0;
-    word32 requestId;
-
-    while (length > WOLFSSL_MAX_16BIT) {
-        word16 slen = (word16)WOLFSSL_MAX_16BIT;
-        if (CspEncryptRc4(CAVIUM_BLOCKING, arc4->contextHandle,CAVIUM_UPDATE,
-                          slen, (byte*)in + offset, out + offset, &requestId,
-                          arc4->devId) != 0) {
-            WOLFSSL_MSG("Bad Cavium Arc4 Encrypt");
-        }
-        length -= WOLFSSL_MAX_16BIT;
-        offset += WOLFSSL_MAX_16BIT;
-    }
-    if (length) {
-        word16 slen = (word16)length;
-        if (CspEncryptRc4(CAVIUM_BLOCKING, arc4->contextHandle,CAVIUM_UPDATE,
-                          slen, (byte*)in + offset, out + offset, &requestId,
-                          arc4->devId) != 0) {
-            WOLFSSL_MSG("Bad Cavium Arc4 Encrypt");
-        }
-    }
-}
-
-#endif /* HAVE_CAVIUM */
+#endif /* WOLFSSL_ASYNC_CRYPT */
 
 #endif /* NO_RC4 */
 

@@ -164,16 +164,15 @@ int  wc_AesCcmDecrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
 #endif /* HAVE_AES_DECRYPT */
 #endif /* HAVE_AESCCM */
 
-#ifdef HAVE_CAVIUM
-int  wc_AesInitCavium(Aes* aes, int i)
+#ifdef WOLFSSL_ASYNC_CRYPT
+int  wc_AesAsyncInit(Aes* aes, int i)
 {
-    return AesInitCavium(aes, i);
+    return AesAsyncInit(aes, i);
 }
 
-
-void wc_AesFreeCavium(Aes* aes)
+void wc_AesAsyncFree(Aes* aes)
 {
-    AesFreeCavium(aes);
+    AesAsyncFree(aes);
 }
 #endif
 #else /* HAVE_FIPS */
@@ -332,22 +331,8 @@ void wc_AesFreeCavium(Aes* aes)
     #define DEBUG_WOLFSSL
     #include "wolfssl/wolfcrypt/port/pic32/pic32mz-crypt.h"
 #elif defined(HAVE_CAVIUM)
-    #include <wolfssl/wolfcrypt/logging.h>
-    #include "cavium_common.h"
-
     /* still leave SW crypto available */
     #define NEED_AES_TABLES
-
-    static int  wc_AesCaviumSetKey(Aes* aes, const byte* key, word32 length,
-                                const byte* iv);
-    #ifdef HAVE_AES_CBC
-    static int  wc_AesCaviumCbcEncrypt(Aes* aes, byte* out, const byte* in,
-                                    word32 length);
-    #ifdef HAVE_AES_DECRYPT
-    static int  wc_AesCaviumCbcDecrypt(Aes* aes, byte* out, const byte* in,
-                                    word32 length);
-    #endif /* HAVE_AES_DECRYPT */
-    #endif /* HAVE_AES_CBC */
 #elif defined(WOLFSSL_NRF51_AES)
     /* Use built-in AES hardware - AES 128 ECB Encrypt Only */
     #include "wolfssl/wolfcrypt/port/nrf51.h"
@@ -1870,9 +1855,10 @@ static void wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
         }
     #endif
 
-    #ifdef HAVE_CAVIUM
-        if (aes->magic == WOLFSSL_AES_CAVIUM_MAGIC)
-            return wc_AesCaviumSetKey(aes, userKey, keylen, iv);
+    #if defined(WOLFSSL_ASYNC_CRYPT) && defined(HAVE_CAVIUM)
+        if (aes->asyncDev.marker == WOLFSSL_ASYNC_MARKER_AES) {
+            return NitroxAesSetKey(aes, userKey, keylen, iv);
+        }
     #endif
 
     #ifdef WOLFSSL_AESNI
@@ -2490,9 +2476,9 @@ int wc_InitAes_h(Aes* aes, void* h)
     {
         word32 blocks = sz / AES_BLOCK_SIZE;
 
-    #ifdef HAVE_CAVIUM
-        if (aes->magic == WOLFSSL_AES_CAVIUM_MAGIC)
-            return wc_AesCaviumCbcEncrypt(aes, out, in, sz);
+    #if defined(WOLFSSL_ASYNC_CRYPT) && defined(HAVE_CAVIUM)
+        if (aes->asyncDev.marker == WOLFSSL_ASYNC_MARKER_AES)
+            return NitroxAesCbcEncrypt(aes, out, in, sz);
     #endif
 
     #ifdef WOLFSSL_AESNI
@@ -2554,9 +2540,10 @@ int wc_InitAes_h(Aes* aes, void* h)
     {
         word32 blocks = sz / AES_BLOCK_SIZE;
 
-    #ifdef HAVE_CAVIUM
-        if (aes->magic == WOLFSSL_AES_CAVIUM_MAGIC)
-            return wc_AesCaviumCbcDecrypt(aes, out, in, sz);
+    #if defined(WOLFSSL_ASYNC_CRYPT) && defined(HAVE_CAVIUM)
+        if (aes->asyncDev.marker == WOLFSSL_ASYNC_MARKER_AES) {
+            return NitroxAesCbcDecrypt(aes, out, in, sz);
+        }
     #endif
 
     #ifdef WOLFSSL_AESNI
@@ -3909,8 +3896,6 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     byte *ctr ;
     byte scratch[AES_BLOCK_SIZE];
 
-    WOLFSSL_ENTER("AesGcmEncrypt");
-
 #ifdef WOLFSSL_AESNI
     if (haveAESNI) {
         AES_GCM_encrypt((void*)in, out, (void*)authIn, (void*)iv, authTag,
@@ -3981,8 +3966,6 @@ int  wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     byte initialCounter[AES_BLOCK_SIZE];
     byte *ctr ;
     byte scratch[AES_BLOCK_SIZE];
-
-    WOLFSSL_ENTER("AesGcmDecrypt");
 
 #ifdef WOLFSSL_AESNI
     if (haveAESNI) {
@@ -4323,131 +4306,28 @@ int  wc_AesCcmDecrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
 #endif /* HAVE_AESCCM */
 
 
-#ifdef HAVE_CAVIUM
-
-#include <wolfssl/wolfcrypt/logging.h>
-#include "cavium_common.h"
-
+#ifdef WOLFSSL_ASYNC_CRYPT
+    
 /* Initialize Aes for use with Nitrox device */
-int wc_AesInitCavium(Aes* aes, int devId)
+int wc_AesAsyncInit(Aes* aes, int devId)
 {
     if (aes == NULL)
-        return -1;
+        return BAD_FUNC_ARG;
 
-    if (CspAllocContext(CONTEXT_SSL, &aes->contextHandle, devId) != 0)
-        return -1;
-
-    aes->devId = devId;
-    aes->magic = WOLFSSL_AES_CAVIUM_MAGIC;
-
-    return 0;
+    return wolfAsync_DevCtxInit(&aes->asyncDev, WOLFSSL_ASYNC_MARKER_AES, devId);
 }
 
 
 /* Free Aes from use with Nitrox device */
-void wc_AesFreeCavium(Aes* aes)
+void wc_AesAsyncFree(Aes* aes)
 {
     if (aes == NULL)
         return;
 
-    if (aes->magic != WOLFSSL_AES_CAVIUM_MAGIC)
-        return;
-
-    CspFreeContext(CONTEXT_SSL, aes->contextHandle, aes->devId);
-    aes->magic = 0;
+    wolfAsync_DevCtxFree(&aes->asyncDev);
 }
 
-
-static int wc_AesCaviumSetKey(Aes* aes, const byte* key, word32 length,
-                           const byte* iv)
-{
-    if (aes == NULL)
-        return -1;
-
-    XMEMCPY(aes->key, key, length);   /* key still holds key, iv still in reg */
-    if (length == 16)
-        aes->type = AES_128;
-    else if (length == 24)
-        aes->type = AES_192;
-    else if (length == 32)
-        aes->type = AES_256;
-
-    return wc_AesSetIV(aes, iv);
-}
-
-#ifdef HAVE_AES_CBC
-static int wc_AesCaviumCbcEncrypt(Aes* aes, byte* out, const byte* in,
-                               word32 length)
-{
-    wolfssl_word offset = 0;
-    word32 requestId;
-
-    while (length > WOLFSSL_MAX_16BIT) {
-        word16 slen = (word16)WOLFSSL_MAX_16BIT;
-        if (CspEncryptAes(CAVIUM_BLOCKING, aes->contextHandle, CAVIUM_NO_UPDATE,
-                          aes->type, slen, (byte*)in + offset, out + offset,
-                          (byte*)aes->reg, (byte*)aes->key, &requestId,
-                          aes->devId) != 0) {
-            WOLFSSL_MSG("Bad Cavium Aes Encrypt");
-            return -1;
-        }
-        length -= WOLFSSL_MAX_16BIT;
-        offset += WOLFSSL_MAX_16BIT;
-        XMEMCPY(aes->reg, out + offset - AES_BLOCK_SIZE, AES_BLOCK_SIZE);
-    }
-    if (length) {
-        word16 slen = (word16)length;
-        if (CspEncryptAes(CAVIUM_BLOCKING, aes->contextHandle, CAVIUM_NO_UPDATE,
-                          aes->type, slen, (byte*)in + offset, out + offset,
-                          (byte*)aes->reg, (byte*)aes->key, &requestId,
-                          aes->devId) != 0) {
-            WOLFSSL_MSG("Bad Cavium Aes Encrypt");
-            return -1;
-        }
-        XMEMCPY(aes->reg, out + offset+length - AES_BLOCK_SIZE, AES_BLOCK_SIZE);
-    }
-    return 0;
-}
-
-#ifdef HAVE_AES_DECRYPT
-static int wc_AesCaviumCbcDecrypt(Aes* aes, byte* out, const byte* in,
-                               word32 length)
-{
-    word32 requestId;
-    wolfssl_word offset = 0;
-
-    while (length > WOLFSSL_MAX_16BIT) {
-        word16 slen = (word16)WOLFSSL_MAX_16BIT;
-        XMEMCPY(aes->tmp, in + offset + slen - AES_BLOCK_SIZE, AES_BLOCK_SIZE);
-        if (CspDecryptAes(CAVIUM_BLOCKING, aes->contextHandle, CAVIUM_NO_UPDATE,
-                          aes->type, slen, (byte*)in + offset, out + offset,
-                          (byte*)aes->reg, (byte*)aes->key, &requestId,
-                          aes->devId) != 0) {
-            WOLFSSL_MSG("Bad Cavium Aes Decrypt");
-            return -1;
-        }
-        length -= WOLFSSL_MAX_16BIT;
-        offset += WOLFSSL_MAX_16BIT;
-        XMEMCPY(aes->reg, aes->tmp, AES_BLOCK_SIZE);
-    }
-    if (length) {
-        word16 slen = (word16)length;
-        XMEMCPY(aes->tmp, in + offset + slen - AES_BLOCK_SIZE, AES_BLOCK_SIZE);
-        if (CspDecryptAes(CAVIUM_BLOCKING, aes->contextHandle, CAVIUM_NO_UPDATE,
-                          aes->type, slen, (byte*)in + offset, out + offset,
-                          (byte*)aes->reg, (byte*)aes->key, &requestId,
-                          aes->devId) != 0) {
-            WOLFSSL_MSG("Bad Cavium Aes Decrypt");
-            return -1;
-        }
-        XMEMCPY(aes->reg, aes->tmp, AES_BLOCK_SIZE);
-    }
-    return 0;
-}
-#endif /* HAVE_AES_DECRYPT */
-#endif /* HAVE_AES_CBC */
-
-#endif /* HAVE_CAVIUM */
+#endif /* WOLFSSL_ASYNC_CRYPT */
 
 #endif /* WOLFSSL_TI_CRYPT */
 

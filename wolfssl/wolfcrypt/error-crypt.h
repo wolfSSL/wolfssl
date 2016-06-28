@@ -44,6 +44,9 @@ enum {
     CRYPTGEN_E         = -104,  /* windows crypt generation error */
     RAN_BLOCK_E        = -105,  /* reading random device would block */
     BAD_MUTEX_E        = -106,  /* Bad mutex operation */
+    WC_TIMEOUT_E       = -107,  /* timeout error */
+    WC_PENDING_E       = -108,  /* wolfCrypt operation pending (would block) */
+    WC_NOT_PENDING_E   = -109,  /* wolfCrypt operation not pending */
 
     MP_INIT_E          = -110,  /* mp_init error state */
     MP_READ_E          = -111,  /* mp_read error state */
@@ -60,7 +63,6 @@ enum {
 
     MEMORY_E           = -125,  /* out of memory error */
     VAR_STATE_CHANGE_E = -126,  /* var state modified by different thread */
-
 
     RSA_WRONG_TYPE_E   = -130,  /* RSA wrong block type for RSA function */
     RSA_BUFFER_E       = -131,  /* RSA buffer error, output too small or
@@ -108,7 +110,7 @@ enum {
     AES_GCM_AUTH_E     = -180,  /* AES-GCM Authentication check failure */
     AES_CCM_AUTH_E     = -181,  /* AES-CCM Authentication check failure */
 
-    CAVIUM_INIT_E      = -182,  /* Cavium Init type error */
+    ASYNC_INIT_E       = -182,  /* Async Init type error */
 
     COMPRESS_INIT_E    = -183,  /* Compress init error */
     COMPRESS_E         = -184,  /* Compress error */
@@ -121,7 +123,7 @@ enum {
     ASN_CRL_NO_SIGNER_E = -190,  /* ASN CRL no signer to confirm failure */
     ASN_OCSP_CONFIRM_E  = -191,  /* ASN OCSP signature confirm failure */
 
-    BAD_ENC_STATE_E     = -192,  /* Bad ecc enc state operation */
+    BAD_STATE_E         = -192,  /* Bad state operation */
     BAD_PADDING_E       = -193,  /* Bad padding, msg not correct length  */
 
     REQ_ATTRIBUTE_E     = -194,  /* setting cert request attributes error */
@@ -169,7 +171,6 @@ enum {
     BAD_COND_E          = -230,  /* Bad condition variable operation */
     SIG_TYPE_E          = -231,  /* Signature Type not enabled/available */
     HASH_TYPE_E         = -232,  /* Hash Type not enabled/available */
-    WC_PENDING_E        = -233,  /* wolfCrypt operation pending (would block) */
 
     WC_KEY_SIZE_E       = -234,  /* Key size error, either too small or large */
     ASN_COUNTRY_SIZE_E  = -235,  /* ASN Cert Gen, invalid country code size */
