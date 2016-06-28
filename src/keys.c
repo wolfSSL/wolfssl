@@ -2070,18 +2070,18 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
             dec->arc4 = (Arc4*)XMALLOC(sizeof(Arc4), heap, DYNAMIC_TYPE_CIPHER);
         if (dec && dec->arc4 == NULL)
             return MEMORY_E;
-#ifdef HAVE_CAVIUM
-        if (devId != NO_CAVIUM_DEVICE) {
+#ifdef WOLFSSL_ASYNC_CRYPT
+        if (devId != INVALID_DEVID) {
             if (enc) {
-                if (wc_Arc4InitCavium(enc->arc4, devId) != 0) {
-                    WOLFSSL_MSG("Arc4InitCavium failed in SetKeys");
-                    return CAVIUM_INIT_E;
+                if (wc_Arc4AsyncInit(enc->arc4, devId) != 0) {
+                    WOLFSSL_MSG("Arc4AsyncInit failed in SetKeys");
+                    return ASYNC_INIT_E;
                 }
             }
             if (dec) {
-                if (wc_Arc4InitCavium(dec->arc4, devId) != 0) {
-                    WOLFSSL_MSG("Arc4InitCavium failed in SetKeys");
-                    return CAVIUM_INIT_E;
+                if (wc_Arc4AsyncInit(dec->arc4, devId) != 0) {
+                    WOLFSSL_MSG("Arc4AsyncInit failed in SetKeys");
+                    return ASYNC_INIT_E;
                 }
             }
         }
@@ -2282,18 +2282,18 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
             dec->des3 = (Des3*)XMALLOC(sizeof(Des3), heap, DYNAMIC_TYPE_CIPHER);
         if (dec && dec->des3 == NULL)
             return MEMORY_E;
-#ifdef HAVE_CAVIUM
-        if (devId != NO_CAVIUM_DEVICE) {
+#ifdef WOLFSSL_ASYNC_CRYPT
+        if (devId != INVALID_DEVID) {
             if (enc) {
-                if (wc_Des3_InitCavium(enc->des3, devId) != 0) {
-                    WOLFSSL_MSG("Des3_InitCavium failed in SetKeys");
-                    return CAVIUM_INIT_E;
+                if (wc_Des3AsyncInit(enc->des3, devId) != 0) {
+                    WOLFSSL_MSG("Des3AsyncInit failed in SetKeys");
+                    return ASYNC_INIT_E;
                 }
             }
             if (dec) {
-                if (wc_Des3_InitCavium(dec->des3, devId) != 0) {
-                    WOLFSSL_MSG("Des3_InitCavium failed in SetKeys");
-                    return CAVIUM_INIT_E;
+                if (wc_Des3AsyncInit(dec->des3, devId) != 0) {
+                    WOLFSSL_MSG("Des3AsyncInit failed in SetKeys");
+                    return ASYNC_INIT_E;
                 }
             }
         }
@@ -2346,18 +2346,18 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
             dec->aes = (Aes*)XMALLOC(sizeof(Aes), heap, DYNAMIC_TYPE_CIPHER);
         if (dec && dec->aes == NULL)
             return MEMORY_E;
-#ifdef HAVE_CAVIUM
-        if (devId != NO_CAVIUM_DEVICE) {
+#ifdef WOLFSSL_ASYNC_CRYPT
+        if (devId != INVALID_DEVID) {
             if (enc) {
-                if (wc_AesInitCavium(enc->aes, devId) != 0) {
-                    WOLFSSL_MSG("AesInitCavium failed in SetKeys");
-                    return CAVIUM_INIT_E;
+                if (wc_AesAsyncInit(enc->aes, devId) != 0) {
+                    WOLFSSL_MSG("AesAsyncInit failed in SetKeys");
+                    return ASYNC_INIT_E;
                 }
             }
             if (dec) {
-                if (wc_AesInitCavium(dec->aes, devId) != 0) {
-                    WOLFSSL_MSG("AesInitCavium failed in SetKeys");
-                    return CAVIUM_INIT_E;
+                if (wc_AesAsyncInit(dec->aes, devId) != 0) {
+                    WOLFSSL_MSG("AesAsyncInit failed in SetKeys");
+                    return ASYNC_INIT_E;
                 }
             }
         }
@@ -2675,14 +2675,14 @@ static int SetAuthKeys(OneTimeAuth* authentication, Keys* keys,
  */
 int SetKeysSide(WOLFSSL* ssl, enum encrypt_side side)
 {
-    int devId = NO_CAVIUM_DEVICE, ret, copy = 0;
+    int devId = INVALID_DEVID, ret, copy = 0;
     Ciphers* wc_encrypt = NULL;
     Ciphers* wc_decrypt = NULL;
     Keys*    keys    = &ssl->keys;
 
     (void)copy;
 
-#ifdef HAVE_CAVIUM
+#ifdef WOLFSSL_ASYNC_CRYPT
     devId = ssl->devId;
 #endif
 

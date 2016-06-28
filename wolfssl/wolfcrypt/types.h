@@ -375,6 +375,9 @@
 	   return 1 if a match otherwise 0 */
 	#define CheckCtcSettings() (CTC_SETTINGS == CheckRunTimeSettings())
 
+	/* invalid device id */
+	#define INVALID_DEVID    -2
+
 
 	#ifdef __cplusplus
 	    }   /* extern "C" */

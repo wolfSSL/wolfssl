@@ -107,6 +107,9 @@
 #ifdef HAVE_FIPS
     #include <wolfssl/wolfcrypt/fips_test.h>
 #endif
+#ifdef WOLFSSL_ASYNC_CRYPT
+    #include <wolfssl/wolfcrypt/async.h>
+#endif
 
 #ifdef _MSC_VER
     /* 4996 warning to use MS extensions e.g., strcpy_s instead of strncpy */
@@ -137,11 +140,6 @@
 #ifdef HAVE_NTRU
     #include "libntruencrypt/ntru_crypto.h"
 #endif
-#ifdef HAVE_CAVIUM
-    #include "cavium_sysdep.h"
-    #include "cavium_common.h"
-    #include "cavium_ioctl.h"
-#endif
 
 #if defined(FREESCALE_MQX) || defined(FREESCALE_KSDK_MQX)
     #include <mqx.h>
@@ -167,6 +165,10 @@
 
 #ifdef USE_WOLFSSL_MEMORY
     #include "wolfssl/wolfcrypt/mem_track.h"
+#endif
+
+#ifdef WOLFSSL_ASYNC_CRYPT
+    static int devId = INVALID_DEVID;
 #endif
 
 #ifdef HAVE_WNR
@@ -249,6 +251,10 @@ int  certext_test(void);
 int idea_test(void);
 #endif
 
+#if defined(DEBUG_WOLFSSL) && !defined(HAVE_VALGRIND) && !defined(OPENSSL_EXTRA)
+    int  wolfSSL_Debugging_ON(void);
+#endif
+
 /* General big buffer size for many tests. */
 #define FOURK_BUF 4096
 
@@ -299,6 +305,10 @@ int wolfcrypt_test(void* args)
     InitMemoryTracker();
 #endif
 
+#if defined(DEBUG_WOLFSSL) && !defined(HAVE_VALGRIND)
+    wolfSSL_Debugging_ON();
+#endif
+
     wolfCrypt_Init();
 
 #ifdef HAVE_FIPS
@@ -315,6 +325,14 @@ int wolfcrypt_test(void* args)
                        -1235);
 #endif /* USE_FAST_MATH */
 #endif /* !NO_BIG_INT */
+
+#ifdef WOLFSSL_ASYNC_CRYPT
+    ret = wolfAsync_DevOpen(&devId);
+    if (ret != 0) {
+        err_sys("Async device open failed", -1236);
+        return -1236;
+    }
+#endif /* WOLFSSL_ASYNC_CRYPT */
 
 #ifndef NO_MD5
     if ( (ret = md5_test()) != 0)
@@ -648,44 +666,11 @@ int wolfcrypt_test(void* args)
 
 #ifndef NO_MAIN_DRIVER
 
-#ifdef HAVE_CAVIUM
-
-static int OpenNitroxDevice(int dma_mode,int dev_id)
-{
-   Csp1CoreAssignment core_assign;
-   Uint32             device;
-
-   if (CspInitialize(CAVIUM_DIRECT,CAVIUM_DEV_ID))
-      return -1;
-   if (Csp1GetDevType(&device))
-      return -1;
-   if (device != NPX_DEVICE) {
-      if (ioctl(gpkpdev_hdlr[CAVIUM_DEV_ID], IOCTL_CSP1_GET_CORE_ASSIGNMENT,
-                (Uint32 *)&core_assign)!= 0)
-         return -1;
-   }
-   CspShutdown(CAVIUM_DEV_ID);
-
-   return CspInitialize(dma_mode, dev_id);
-}
-
-#endif /* HAVE_CAVIUM */
-
     /* so overall tests can pull in test function */
 
     int main(int argc, char** argv)
     {
-
         func_args args;
-
-
-#ifdef HAVE_CAVIUM
-        int ret = OpenNitroxDevice(CAVIUM_DIRECT, CAVIUM_DEV_ID);
-        if (ret != 0) {
-            err_sys("Cavium OpenNitroxDevice failed", -1236);
-            return -1236;
-        }
-#endif /* HAVE_CAVIUM */
 
 #ifdef HAVE_WNR
         if (wc_InitNetRandom(wnrConfigFile, NULL, 5000) != 0) {
@@ -698,10 +683,6 @@ static int OpenNitroxDevice(int dma_mode,int dev_id)
         args.argv = argv;
 
         wolfcrypt_test(&args);
-
-#ifdef HAVE_CAVIUM
-        CspShutdown(CAVIUM_DEV_ID);
-#endif
 
 #ifdef HAVE_WNR
         if (wc_FreeNetRandom() < 0)
@@ -1324,14 +1305,18 @@ int hmac_md5_test(void)
     test_hmac[2] = c;
 
     for (i = 0; i < times; ++i) {
-#if defined(HAVE_FIPS) || defined(HAVE_CAVIUM)
-        if (i == 1)
+    #if defined(HAVE_FIPS) || defined(HAVE_CAVIUM)
+        if (i == 1) {
             continue; /* cavium can't handle short keys, fips not allowed */
-#endif
-#ifdef HAVE_CAVIUM
-        if (wc_HmacInitCavium(&hmac, CAVIUM_DEV_ID) != 0)
+        }
+    #endif
+
+    #ifdef WOLFSSL_ASYNC_CRYPT
+        if (wc_HmacAsyncInit(&hmac, devId) != 0) {
             return -20009;
-#endif
+        }
+    #endif
+
         ret = wc_HmacSetKey(&hmac, MD5, (byte*)keys[i], (word32)strlen(keys[i]));
         if (ret != 0)
             return -4015;
@@ -1345,9 +1330,10 @@ int hmac_md5_test(void)
 
         if (memcmp(hash, test_hmac[i].output, MD5_DIGEST_SIZE) != 0)
             return -20 - i;
-#ifdef HAVE_CAVIUM
-        wc_HmacFreeCavium(&hmac);
-#endif
+
+    #ifdef WOLFSSL_ASYNC_CRYPT
+        wc_HmacAsyncFree(&hmac);
+    #endif
     }
 
     return 0;
@@ -1405,8 +1391,8 @@ int hmac_sha_test(void)
         if (i == 1)
             continue; /* cavium can't handle short keys, fips not allowed */
 #endif
-#ifdef HAVE_CAVIUM
-        if (wc_HmacInitCavium(&hmac, CAVIUM_DEV_ID) != 0)
+#ifdef WOLFSSL_ASYNC_CRYPT
+        if (wc_HmacAsyncInit(&hmac, devId) != 0)
             return -20010;
 #endif
         ret = wc_HmacSetKey(&hmac, SHA, (byte*)keys[i], (word32)strlen(keys[i]));
@@ -1422,8 +1408,8 @@ int hmac_sha_test(void)
 
         if (memcmp(hash, test_hmac[i].output, SHA_DIGEST_SIZE) != 0)
             return -20 - i;
-#ifdef HAVE_CAVIUM
-        wc_HmacFreeCavium(&hmac);
+#ifdef WOLFSSL_ASYNC_CRYPT
+        wc_HmacAsyncFree(&hmac);
 #endif
     }
 
@@ -1486,8 +1472,8 @@ int hmac_sha256_test(void)
         if (i == 1)
             continue; /* cavium can't handle short keys, fips not allowed */
 #endif
-#ifdef HAVE_CAVIUM
-        if (wc_HmacInitCavium(&hmac, CAVIUM_DEV_ID) != 0)
+#ifdef WOLFSSL_ASYNC_CRYPT
+        if (wc_HmacAsyncInit(&hmac, devId) != 0)
             return -20011;
 #endif
         ret = wc_HmacSetKey(&hmac, SHA256, (byte*)keys[i],(word32)strlen(keys[i]));
@@ -1503,8 +1489,8 @@ int hmac_sha256_test(void)
 
         if (memcmp(hash, test_hmac[i].output, SHA256_DIGEST_SIZE) != 0)
             return -20 - i;
-#ifdef HAVE_CAVIUM
-        wc_HmacFreeCavium(&hmac);
+#ifdef WOLFSSL_ASYNC_CRYPT
+        wc_HmacAsyncFree(&hmac);
 #endif
     }
 
@@ -1567,8 +1553,12 @@ int hmac_blake2b_test(void)
         if (i == 1)
             continue; /* cavium can't handle short keys, fips not allowed */
 #endif
-#ifdef HAVE_CAVIUM
-        if (wc_HmacInitCavium(&hmac, CAVIUM_DEV_ID) != 0)
+#ifdef WOLFSSL_ASYNC_CRYPT
+    #ifdef HAVE_CAVIUM_V
+        /* Blake2 not supported on Cavium V, but SHA3 is */
+        return 0;
+    #endif
+        if (wc_HmacAsyncInit(&hmac, devId) != 0)
             return -20011;
 #endif
         ret = wc_HmacSetKey(&hmac, BLAKE2B_ID, (byte*)keys[i],
@@ -1585,8 +1575,8 @@ int hmac_blake2b_test(void)
 
         if (memcmp(hash, test_hmac[i].output, BLAKE2B_256) != 0)
             return -20 - i;
-#ifdef HAVE_CAVIUM
-        wc_HmacFreeCavium(&hmac);
+#ifdef WOLFSSL_ASYNC_CRYPT
+        wc_HmacAsyncFree(&hmac);
 #endif
     }
 
@@ -1803,12 +1793,12 @@ int arc4_test(void)
         if (i == 3)
             keylen = 4;
 
-#ifdef HAVE_CAVIUM
-        if (wc_Arc4InitCavium(&enc, CAVIUM_DEV_ID) != 0)
+    #ifdef WOLFSSL_ASYNC_CRYPT
+        if (wc_Arc4AsyncInit(&enc, devId) != 0)
             return -20001;
-        if (wc_Arc4InitCavium(&dec, CAVIUM_DEV_ID) != 0)
+        if (wc_Arc4AsyncInit(&dec, devId) != 0)
             return -20002;
-#endif
+    #endif
 
         wc_Arc4SetKey(&enc, (byte*)keys[i], keylen);
         wc_Arc4SetKey(&dec, (byte*)keys[i], keylen);
@@ -1823,10 +1813,10 @@ int arc4_test(void)
         if (memcmp(cipher, test_arc4[i].output, test_arc4[i].outLen))
             return -20 - 5 - i;
 
-#ifdef HAVE_CAVIUM
-        wc_Arc4FreeCavium(&enc);
-        wc_Arc4FreeCavium(&dec);
-#endif
+    #ifdef WOLFSSL_ASYNC_CRYPT
+        wc_Arc4AsyncFree(&enc);
+        wc_Arc4AsyncFree(&dec);
+    #endif
     }
 
     return 0;
@@ -2583,17 +2573,23 @@ int des_test(void)
     if (ret != 0)
         return -31;
 
-    wc_Des_CbcEncrypt(&enc, cipher, vector, sizeof(vector));
-    ret = wc_Des_SetKey(&dec, key, iv, DES_DECRYPTION);
+    ret = wc_Des_CbcEncrypt(&enc, cipher, vector, sizeof(vector));
     if (ret != 0)
         return -32;
-    wc_Des_CbcDecrypt(&dec, plain, cipher, sizeof(cipher));
 
-    if (memcmp(plain, vector, sizeof(plain)))
+    ret = wc_Des_SetKey(&dec, key, iv, DES_DECRYPTION);
+    if (ret != 0)
         return -33;
 
-    if (memcmp(cipher, verify, sizeof(cipher)))
+    ret = wc_Des_CbcDecrypt(&dec, plain, cipher, sizeof(cipher));
+    if (ret != 0)
         return -34;
+
+    if (XMEMCMP(plain, vector, sizeof(plain)))
+        return -35;
+
+    if (XMEMCMP(cipher, verify, sizeof(cipher)))
+        return -36;
 
     return 0;
 }
@@ -2639,10 +2635,10 @@ int des3_test(void)
     int ret;
 
 
-#ifdef HAVE_CAVIUM
-    if (wc_Des3_InitCavium(&enc, CAVIUM_DEV_ID) != 0)
+#ifdef WOLFSSL_ASYNC_CRYPT
+    if (wc_Des3AsyncInit(&enc, devId) != 0)
         return -20005;
-    if (wc_Des3_InitCavium(&dec, CAVIUM_DEV_ID) != 0)
+    if (wc_Des3AsyncInit(&dec, devId) != 0)
         return -20006;
 #endif
     ret = wc_Des3_SetKey(&enc, key3, iv3, DES_ENCRYPTION);
@@ -2664,9 +2660,9 @@ int des3_test(void)
     if (memcmp(cipher, verify3, sizeof(cipher)))
         return -36;
 
-#ifdef HAVE_CAVIUM
-    wc_Des3_FreeCavium(&enc);
-    wc_Des3_FreeCavium(&dec);
+#ifdef WOLFSSL_ASYNC_CRYPT
+    wc_Des3AsyncFree(&enc);
+    wc_Des3AsyncFree(&dec);
 #endif
     return 0;
 }
@@ -2701,11 +2697,11 @@ int aes_test(void)
     byte key[] = "0123456789abcdef   ";  /* align */
     byte iv[]  = "1234567890abcdef   ";  /* align */
 
-#ifdef HAVE_CAVIUM
-        if (wc_AesInitCavium(&enc, CAVIUM_DEV_ID) != 0)
-            return -20003;
-        if (wc_AesInitCavium(&dec, CAVIUM_DEV_ID) != 0)
-            return -20004;
+#ifdef WOLFSSL_ASYNC_CRYPT
+    if (wc_AesAsyncInit(&enc, devId) != 0)
+        return -20003;
+    if (wc_AesAsyncInit(&dec, devId) != 0)
+        return -20004;
 #endif
     ret = wc_AesSetKey(&enc, key, AES_BLOCK_SIZE, iv, AES_ENCRYPTION);
     if (ret != 0)
@@ -2816,10 +2812,11 @@ int aes_test(void)
     }
 #endif /* WOLFSSL_AESNI HAVE_AES_DECRYPT */
 
-#ifdef HAVE_CAVIUM
-        wc_AesFreeCavium(&enc);
-        wc_AesFreeCavium(&dec);
-#endif
+#ifdef WOLFSSL_ASYNC_CRYPT
+    wc_AesAsyncFree(&enc);
+    wc_AesAsyncFree(&dec);
+#endif /* WOLFSSL_ASYNC_CRYPT */
+
 #endif /* HAVE_AES_CBC */
 
 #ifdef WOLFSSL_AES_COUNTER
@@ -3732,10 +3729,6 @@ static int random_rng_test(void)
     byte block[32];
     int ret, i;
 
-#ifdef HAVE_CAVIUM
-    ret = wc_InitRngCavium(&rng, CAVIUM_DEV_ID);
-    if (ret != 0) return -2007;
-#endif
     ret = wc_InitRng(&rng);
     if (ret != 0) return -39;
 
@@ -4154,6 +4147,7 @@ int certext_test(void)
 }
 #endif /* WOLFSSL_CERT_EXT && WOLFSSL_TEST_CERT */
 
+
 int rsa_test(void)
 {
     byte*   tmp;
@@ -4200,8 +4194,11 @@ int rsa_test(void)
     fclose(file);
 #endif /* USE_CERT_BUFFERS */
 
-#ifdef HAVE_CAVIUM
-    wc_RsaInitCavium(&key, CAVIUM_DEV_ID);
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    ret = wc_RsaAsyncInit(&key, devId);
+    if (ret != 0) {
+        return -29;
+    }
 #endif
 
     ret = wc_InitRsaKey(&key, HEAP_HINT);
@@ -4219,32 +4216,68 @@ int rsa_test(void)
         TEST_XFREE(tmp, HEAP_HINT ,DYNAMIC_TYPE_TMP_BUFFER);
         return -42;
     }
-    ret = wc_RsaPublicEncrypt(in, inLen, out, sizeof(out), &key, &rng);
+
+    do {
+#if defined(WOLFSSL_ASYNC_CRYPT)
+        ret = wc_RsaAsyncWait(ret, &key);
+#endif
+        if (ret >= 0) {
+            ret = wc_RsaPublicEncrypt(in, inLen, out, sizeof(out), &key, &rng);
+        }
+    } while (ret == WC_PENDING_E);
     if (ret < 0) {
         TEST_XFREE(tmp, HEAP_HINT ,DYNAMIC_TYPE_TMP_BUFFER);
         return -43;
     }
-    ret = wc_RsaPrivateDecrypt(out, ret, plain, sizeof(plain), &key);
+
+    idx = ret; /* save off encrypted length */
+    do {
+#if defined(WOLFSSL_ASYNC_CRYPT)
+        ret = wc_RsaAsyncWait(ret, &key);
+#endif
+        if (ret >= 0) {
+            ret = wc_RsaPrivateDecrypt(out, idx, plain, sizeof(plain), &key);
+        }
+    } while (ret == WC_PENDING_E);
     if (ret < 0) {
         TEST_XFREE(tmp, HEAP_HINT ,DYNAMIC_TYPE_TMP_BUFFER);
         return -44;
     }
-    if (memcmp(plain, in, inLen)) {
+
+    if (XMEMCMP(plain, in, inLen)) {
         TEST_XFREE(tmp, HEAP_HINT ,DYNAMIC_TYPE_TMP_BUFFER);
         return -45;
     }
-    ret = wc_RsaSSL_Sign(in, inLen, out, sizeof(out), &key, &rng);
+
+    do {
+#if defined(WOLFSSL_ASYNC_CRYPT)
+        ret = wc_RsaAsyncWait(ret, &key);
+#endif
+        if (ret >= 0) {
+            ret = wc_RsaSSL_Sign(in, inLen, out, sizeof(out), &key, &rng);
+        }
+    } while (ret == WC_PENDING_E);
     if (ret < 0) {
         TEST_XFREE(tmp, HEAP_HINT ,DYNAMIC_TYPE_TMP_BUFFER);
         return -46;
     }
-    memset(plain, 0, sizeof(plain));
-    ret = wc_RsaSSL_Verify(out, ret, plain, sizeof(plain), &key);
+
+    idx = ret;
+    XMEMSET(plain, 0, sizeof(plain));
+    do {
+#if defined(WOLFSSL_ASYNC_CRYPT)
+        ret = wc_RsaAsyncWait(ret, &key);
+#endif
+        if (ret >= 0) {
+            ret = wc_RsaSSL_Verify(out, idx, plain, sizeof(plain), &key);
+        }
+    } while (ret == WC_PENDING_E);
     if (ret < 0) {
         TEST_XFREE(tmp, HEAP_HINT ,DYNAMIC_TYPE_TMP_BUFFER);
         return -47;
     }
-    if (memcmp(plain, in, ret)) {
+
+    if (XMEMCMP(plain, in, ret)) {
         TEST_XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
         return -48;
     }
@@ -4255,18 +4288,36 @@ int rsa_test(void)
         !defined(HAVE_FIPS)
     #ifndef NO_SHA
     XMEMSET(plain, 0, sizeof(plain));
-    ret = wc_RsaPublicEncrypt_ex(in, inLen, out, sizeof(out), &key, &rng,
+    
+    do {
+#if defined(WOLFSSL_ASYNC_CRYPT)
+        ret = wc_RsaAsyncWait(ret, &key);
+#endif
+        if (ret >= 0) {
+            ret = wc_RsaPublicEncrypt_ex(in, inLen, out, sizeof(out), &key, &rng,
                        WC_RSA_OAEP_PAD, WC_HASH_TYPE_SHA, WC_MGF1SHA1, NULL, 0);
+        }
+    } while (ret == WC_PENDING_E);
     if (ret < 0) {
         TEST_XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
         return -143;
     }
-    ret = wc_RsaPrivateDecrypt_ex(out, ret, plain, sizeof(plain), &key,
+
+    idx = ret;
+    do {
+#if defined(WOLFSSL_ASYNC_CRYPT)
+        ret = wc_RsaAsyncWait(ret, &key);
+#endif
+        if (ret >= 0) {
+            ret = wc_RsaPrivateDecrypt_ex(out, idx, plain, sizeof(plain), &key,
                        WC_RSA_OAEP_PAD, WC_HASH_TYPE_SHA, WC_MGF1SHA1, NULL, 0);
+        }
+    } while (ret == WC_PENDING_E);
     if (ret < 0) {
         TEST_XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
         return -144;
     }
+
     if (XMEMCMP(plain, in, inLen)) {
         TEST_XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
         return -145;
@@ -4275,18 +4326,35 @@ int rsa_test(void)
 
     #ifndef NO_SHA256
     XMEMSET(plain, 0, sizeof(plain));
-    ret = wc_RsaPublicEncrypt_ex(in, inLen, out, sizeof(out), &key, &rng,
+    do {
+#if defined(WOLFSSL_ASYNC_CRYPT)
+        ret = wc_RsaAsyncWait(ret, &key);
+#endif
+        if (ret >= 0) {
+            ret = wc_RsaPublicEncrypt_ex(in, inLen, out, sizeof(out), &key, &rng,
                   WC_RSA_OAEP_PAD, WC_HASH_TYPE_SHA256, WC_MGF1SHA256, NULL, 0);
+        }
+    } while (ret == WC_PENDING_E);
     if (ret < 0) {
         TEST_XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
         return -243;
     }
-    ret = wc_RsaPrivateDecrypt_ex(out, ret, plain, sizeof(plain), &key,
+
+    idx = ret;
+    do {
+#if defined(WOLFSSL_ASYNC_CRYPT)
+        ret = wc_RsaAsyncWait(ret, &key);
+#endif
+        if (ret >= 0) {
+            ret = wc_RsaPrivateDecrypt_ex(out, idx, plain, sizeof(plain), &key,
                   WC_RSA_OAEP_PAD, WC_HASH_TYPE_SHA256, WC_MGF1SHA256, NULL, 0);
+        }
+    } while (ret == WC_PENDING_E);
     if (ret < 0) {
         TEST_XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
         return -244;
     }
+
     if (XMEMCMP(plain, in, inLen)) {
         TEST_XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
         return -245;
@@ -4294,53 +4362,104 @@ int rsa_test(void)
 
     /* check fails if not using the same optional label */
     XMEMSET(plain, 0, sizeof(plain));
-    ret = wc_RsaPublicEncrypt_ex(in, inLen, out, sizeof(out), &key, &rng,
+    do {
+#if defined(WOLFSSL_ASYNC_CRYPT)
+        ret = wc_RsaAsyncWait(ret, &key);
+#endif
+        if (ret >= 0) {
+            ret = wc_RsaPublicEncrypt_ex(in, inLen, out, sizeof(out), &key, &rng,
                   WC_RSA_OAEP_PAD, WC_HASH_TYPE_SHA256, WC_MGF1SHA256, NULL, 0);
+        }
+    } while (ret == WC_PENDING_E);
     if (ret < 0) {
         TEST_XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
         return -246;
     }
-    ret = wc_RsaPrivateDecrypt_ex(out, ret, plain, sizeof(plain), &key,
-           WC_RSA_OAEP_PAD, WC_HASH_TYPE_SHA256, WC_MGF1SHA256, in, sizeof(in));
+
+    idx = ret;
+    do {
+#if defined(WOLFSSL_ASYNC_CRYPT)
+        ret = wc_RsaAsyncWait(ret, &key);
+#endif
+        if (ret >= 0) {
+            ret = wc_RsaPrivateDecrypt_ex(out, idx, plain, sizeof(plain), &key,
+               WC_RSA_OAEP_PAD, WC_HASH_TYPE_SHA256, WC_MGF1SHA256, in, sizeof(in));
+        }
+    } while (ret == WC_PENDING_E);
     if (ret > 0) { /* in this case decrypt should fail */
         TEST_XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
         return -247;
     }
+    ret = 0;
 
     /* check using optional label with encrypt/decrypt */
     XMEMSET(plain, 0, sizeof(plain));
-    ret = wc_RsaPublicEncrypt_ex(in, inLen, out, sizeof(out), &key, &rng,
-           WC_RSA_OAEP_PAD, WC_HASH_TYPE_SHA256, WC_MGF1SHA256, in, sizeof(in));
+    do {
+#if defined(WOLFSSL_ASYNC_CRYPT)
+        ret = wc_RsaAsyncWait(ret, &key);
+#endif
+        if (ret >= 0) {
+            ret = wc_RsaPublicEncrypt_ex(in, inLen, out, sizeof(out), &key, &rng,
+               WC_RSA_OAEP_PAD, WC_HASH_TYPE_SHA256, WC_MGF1SHA256, in, sizeof(in));
+        }
+    } while (ret == WC_PENDING_E);
     if (ret < 0) {
         TEST_XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
         return -248;
     }
-    ret = wc_RsaPrivateDecrypt_ex(out, ret, plain, sizeof(plain), &key,
-           WC_RSA_OAEP_PAD, WC_HASH_TYPE_SHA256, WC_MGF1SHA256, in, sizeof(in));
+
+    idx = ret;
+    do {
+#if defined(WOLFSSL_ASYNC_CRYPT)
+        ret = wc_RsaAsyncWait(ret, &key);
+#endif
+        if (ret >= 0) {
+            ret = wc_RsaPrivateDecrypt_ex(out, idx, plain, sizeof(plain), &key,
+               WC_RSA_OAEP_PAD, WC_HASH_TYPE_SHA256, WC_MGF1SHA256, in, sizeof(in));
+        }
+    } while (ret == WC_PENDING_E);
     if (ret < 0) {
         TEST_XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
         return -249;
     }
+
     if (XMEMCMP(plain, in, inLen)) {
         TEST_XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
         return -250;
     }
 
-        #ifndef NO_SHA
+    #ifndef NO_SHA
         /* check fail using mismatch hash algorithms */
         XMEMSET(plain, 0, sizeof(plain));
-        ret = wc_RsaPublicEncrypt_ex(in, inLen, out, sizeof(out), &key, &rng,
-                WC_RSA_OAEP_PAD, WC_HASH_TYPE_SHA, WC_MGF1SHA1, in, sizeof(in));
+        do {
+    #if defined(WOLFSSL_ASYNC_CRYPT)
+            ret = wc_RsaAsyncWait(ret, &key);
+    #endif
+            if (ret >= 0) {
+                ret = wc_RsaPublicEncrypt_ex(in, inLen, out, sizeof(out), &key, &rng,
+                    WC_RSA_OAEP_PAD, WC_HASH_TYPE_SHA, WC_MGF1SHA1, in, sizeof(in));
+            }
+        } while (ret == WC_PENDING_E);
         if (ret < 0) {
             TEST_XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             return -251;
         }
-        ret = wc_RsaPrivateDecrypt_ex(out, ret, plain, sizeof(plain), &key,
-           WC_RSA_OAEP_PAD, WC_HASH_TYPE_SHA256, WC_MGF1SHA256, in, sizeof(in));
+
+        idx = ret;
+        do {
+    #if defined(WOLFSSL_ASYNC_CRYPT)
+            ret = wc_RsaAsyncWait(ret, &key);
+    #endif
+            if (ret >= 0) {
+                ret = wc_RsaPrivateDecrypt_ex(out, idx, plain, sizeof(plain), &key,
+                   WC_RSA_OAEP_PAD, WC_HASH_TYPE_SHA256, WC_MGF1SHA256, in, sizeof(in));
+            }
+        } while (ret == WC_PENDING_E);
         if (ret > 0) { /* should fail */
             TEST_XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             return -252;
         }
+        ret = 0;
         #endif /* NO_SHA*/
     #endif /* NO_SHA256 */
 
@@ -4351,18 +4470,35 @@ int rsa_test(void)
        BAD_FUNC_ARG is returned when this case is not met */
     if (wc_RsaEncryptSize(&key) > ((int)SHA512_DIGEST_SIZE * 2) + 2) {
         XMEMSET(plain, 0, sizeof(plain));
-        ret = wc_RsaPublicEncrypt_ex(in, inLen, out, sizeof(out), &key, &rng,
+        do {
+    #if defined(WOLFSSL_ASYNC_CRYPT)
+            ret = wc_RsaAsyncWait(ret, &key);
+    #endif
+            if (ret >= 0) {
+                ret = wc_RsaPublicEncrypt_ex(in, inLen, out, sizeof(out), &key, &rng,
                   WC_RSA_OAEP_PAD, WC_HASH_TYPE_SHA512, WC_MGF1SHA512, NULL, 0);
+            }
+        } while (ret == WC_PENDING_E);
         if (ret < 0) {
             TEST_XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             return -343;
         }
-        ret = wc_RsaPrivateDecrypt_ex(out, ret, plain, sizeof(plain), &key,
+
+        idx = ret;
+        do {
+    #if defined(WOLFSSL_ASYNC_CRYPT)
+            ret = wc_RsaAsyncWait(ret, &key);
+    #endif
+            if (ret >= 0) {
+                ret = wc_RsaPrivateDecrypt_ex(out, idx, plain, sizeof(plain), &key,
                   WC_RSA_OAEP_PAD, WC_HASH_TYPE_SHA512, WC_MGF1SHA512, NULL, 0);
+            }
+        } while (ret == WC_PENDING_E);
         if (ret < 0) {
             TEST_XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             return -344;
         }
+
         if (XMEMCMP(plain, in, inLen)) {
             TEST_XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             return -345;
@@ -4372,18 +4508,35 @@ int rsa_test(void)
 
     /* check using pkcsv15 padding with _ex API */
     XMEMSET(plain, 0, sizeof(plain));
-    ret = wc_RsaPublicEncrypt_ex(in, inLen, out, sizeof(out), &key, &rng,
+    do {
+#if defined(WOLFSSL_ASYNC_CRYPT)
+        ret = wc_RsaAsyncWait(ret, &key);
+#endif
+        if (ret >= 0) {
+            ret = wc_RsaPublicEncrypt_ex(in, inLen, out, sizeof(out), &key, &rng,
                   WC_RSA_PKCSV15_PAD, WC_HASH_TYPE_NONE, 0, NULL, 0);
+        }
+    } while (ret == WC_PENDING_E);
     if (ret < 0) {
         TEST_XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
         return -443;
     }
-    ret = wc_RsaPrivateDecrypt_ex(out, ret, plain, sizeof(plain), &key,
+
+    idx = ret;
+    do {
+#if defined(WOLFSSL_ASYNC_CRYPT)
+        ret = wc_RsaAsyncWait(ret, &key);
+#endif
+        if (ret >= 0) {
+            ret = wc_RsaPrivateDecrypt_ex(out, idx, plain, sizeof(plain), &key,
                   WC_RSA_PKCSV15_PAD, WC_HASH_TYPE_NONE, 0, NULL, 0);
+        }
+    } while (ret == WC_PENDING_E);
     if (ret < 0) {
         TEST_XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
         return -444;
     }
+
     if (XMEMCMP(plain, in, inLen)) {
         TEST_XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
         return -445;
@@ -4420,7 +4573,10 @@ int rsa_test(void)
     InitDecodedCert(&cert, tmp, (word32)bytes, 0);
 
     ret = ParseCert(&cert, CERT_TYPE, NO_VERIFY, 0);
-    if (ret != 0) return -491;
+    if (ret != 0) {
+        free(tmp);
+        return -491;
+    }
 
     FreeDecodedCert(&cert);
 #else
@@ -5527,13 +5683,15 @@ int rsa_test(void)
 #endif /* WOLFSSL_CERT_REQ */
 #endif /* WOLFSSL_CERT_GEN */
 
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    wc_RsaAsyncFree(&key);
+#endif
+
     wc_FreeRsaKey(&key);
 #ifdef WOLFSSL_CERT_EXT
     wc_FreeRsaKey(&keypub);
 #endif
-#ifdef HAVE_CAVIUM
-    wc_RsaFreeCavium(&key);
-#endif
+
     TEST_XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     wc_FreeRng(&rng);
 

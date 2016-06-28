@@ -37,7 +37,10 @@
 #endif
 
 #ifndef HAVE_FIPS /* to avoid redefinition of macros */
-#define WOLFSSL_3DES_CAVIUM_MAGIC 0xBEEF0003
+
+#ifdef WOLFSSL_ASYNC_CRYPT
+    #include <wolfssl/wolfcrypt/async.h>
+#endif
 
 enum {
     DES_ENC_TYPE    = 2,     /* cipher unique type */
@@ -76,10 +79,8 @@ typedef struct Des3 {
     word32 key[3][DES_KS_SIZE];
     word32 reg[DES_BLOCK_SIZE / sizeof(word32)];      /* for CBC mode */
     word32 tmp[DES_BLOCK_SIZE / sizeof(word32)];      /* same         */
-#ifdef HAVE_CAVIUM
-    int     devId;           /* nitrox device id */
-    word32  magic;           /* using cavium magic */
-    word64  contextHandle;   /* nitrox context memory handle */
+#ifdef WOLFSSL_ASYNC_CRYPT
+    AsyncCryptDev asyncDev;
 #endif
 } Des3;
 #endif /* HAVE_FIPS */
@@ -102,9 +103,9 @@ WOLFSSL_API int  wc_Des3_CbcEncrypt(Des3* des, byte* out,
 WOLFSSL_API int  wc_Des3_CbcDecrypt(Des3* des, byte* out,
                                     const byte* in,word32 sz);
 
-#ifdef HAVE_CAVIUM
-    WOLFSSL_API int  wc_Des3_InitCavium(Des3*, int);
-    WOLFSSL_API void wc_Des3_FreeCavium(Des3*);
+#ifdef WOLFSSL_ASYNC_CRYPT
+    WOLFSSL_API int  wc_Des3AsyncInit(Des3*, int);
+    WOLFSSL_API void wc_Des3AsyncFree(Des3*);
 #endif
 
 #ifdef __cplusplus

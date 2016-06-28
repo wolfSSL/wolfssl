@@ -47,14 +47,6 @@ int wc_GenerateSeed(OS_Seed* os, byte* seed, word32 sz)
     return GenerateSeed(os, seed, sz);
 }
 
-#ifdef HAVE_CAVIUM
-    int  wc_InitRngCavium(WC_RNG* rng, int i)
-    {
-        return InitRngCavium(rng, i);
-    }
-#endif
-
-
 int  wc_InitRng(WC_RNG* rng)
 {
     return InitRng_fips(rng);
@@ -177,6 +169,7 @@ int wc_FreeRng(WC_RNG* rng)
     #define IS_INTEL_RDRAND     (cpuid_flags&CPUID_RDRAND)
     #define IS_INTEL_RDSEED     (cpuid_flags&CPUID_RDSEED)
 #endif
+
 
 #if defined(HAVE_HASHDRBG) || defined(NO_RC4)
 
@@ -811,12 +804,13 @@ int wc_InitRng(WC_RNG* rng)
 #endif
 
 #ifdef HAVE_INTEL_RDGEN
-    wc_InitRng_IntelRD() ;
-    if(IS_INTEL_RDRAND)return 0 ;
+    wc_InitRng_IntelRD();
+    if(IS_INTEL_RDRAND) return 0;
 #endif
-#ifdef HAVE_CAVIUM
-    if (rng->magic == WOLFSSL_RNG_CAVIUM_MAGIC)
-        return 0;
+
+#if defined(WOLFSSL_ASYNC_CRYPT) && defined(HAVE_CAVIUM)
+    ret = wolfAsync_DevCtxInit(&rng->asyncDev, WOLFSSL_ASYNC_MARKER_RNG, INVALID_DEVID);
+    if (ret != 0) return -2007;
 #endif
 
 #ifdef WOLFSSL_SMALL_STACK
@@ -847,10 +841,6 @@ int wc_InitRng(WC_RNG* rng)
     return ret;
 }
 
-#ifdef HAVE_CAVIUM
-    static void CaviumRNG_GenerateBlock(WC_RNG* rng, byte* output, word32 sz);
-#endif
-
 /* place a generated block in output */
 int wc_RNG_GenerateBlock(WC_RNG* rng, byte* output, word32 sz)
 {
@@ -858,9 +848,10 @@ int wc_RNG_GenerateBlock(WC_RNG* rng, byte* output, word32 sz)
     if(IS_INTEL_RDRAND)
         return wc_GenerateRand_IntelRD(NULL, output, sz) ;
 #endif
-#ifdef HAVE_CAVIUM
-    if (rng->magic == WOLFSSL_RNG_CAVIUM_MAGIC)
-        return CaviumRNG_GenerateBlock(rng, output, sz);
+#if defined(WOLFSSL_ASYNC_CRYPT) && defined(HAVE_CAVIUM)
+    if (aes->asyncDev.marker == WOLFSSL_ASYNC_MARKER_RNG) {
+        return NitroxRngGenerateBlock(rng, output, sz);
+    }
 #endif
     XMEMSET(output, 0, sz);
     wc_Arc4Process(&rng->cipher, output, output, sz);
@@ -878,52 +869,13 @@ int wc_RNG_GenerateByte(WC_RNG* rng, byte* b)
 int wc_FreeRng(WC_RNG* rng)
 {
     (void)rng;
-    return 0;
-}
 
-
-#ifdef HAVE_CAVIUM
-
-#include <wolfssl/ctaocrypt/logging.h>
-#include "cavium_common.h"
-
-/* Initialize RNG for use with Nitrox device */
-int wc_InitRngCavium(WC_RNG* rng, int devId)
-{
-    if (rng == NULL)
-        return -1;
-
-    rng->devId = devId;
-    rng->magic = WOLFSSL_RNG_CAVIUM_MAGIC;
+#if defined(WOLFSSL_ASYNC_CRYPT) && defined(HAVE_CAVIUM)
+    wolfAsync_DevCtxFree(&rng->asyncDev);
+#endif
 
     return 0;
 }
-
-
-static void CaviumRNG_GenerateBlock(WC_RNG* rng, byte* output, word32 sz)
-{
-    wolfssl_word offset = 0;
-    word32      requestId;
-
-    while (sz > WOLFSSL_MAX_16BIT) {
-        word16 slen = (word16)WOLFSSL_MAX_16BIT;
-        if (CspRandom(CAVIUM_BLOCKING, slen, output + offset, &requestId,
-                      rng->devId) != 0) {
-            WOLFSSL_MSG("Cavium RNG failed");
-        }
-        sz     -= WOLFSSL_MAX_16BIT;
-        offset += WOLFSSL_MAX_16BIT;
-    }
-    if (sz) {
-        word16 slen = (word16)sz;
-        if (CspRandom(CAVIUM_BLOCKING, slen, output + offset, &requestId,
-                      rng->devId) != 0) {
-            WOLFSSL_MSG("Cavium RNG failed");
-        }
-    }
-}
-
-#endif /* HAVE_CAVIUM */
 
 #endif /* HAVE_HASHDRBG || NO_RC4 */
 
@@ -1127,7 +1079,7 @@ static int wc_GenerateSeed_IntelRD(OS_Seed* os, byte* output, word32 sz)
     return 0;
 }
 
-#else
+#else /* HAVE_HASHDRBG || NO_RC4 */
 
 /* return 0 on success */
 static INLINE int IntelRDrand32(unsigned int *rnd)

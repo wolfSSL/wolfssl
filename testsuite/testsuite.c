@@ -84,12 +84,6 @@ int testsuite_test(int argc, char** argv)
     int num = 6;
 #endif
 
-#ifdef HAVE_CAVIUM
-        int ret = OpenNitroxDevice(CAVIUM_DIRECT, CAVIUM_DEV_ID);
-        if (ret != 0)
-            err_sys("Cavium OpenNitroxDevice failed");
-#endif /* HAVE_CAVIUM */
-
 #ifdef HAVE_WNR
         if (wc_InitNetRandom(wnrConfig, NULL, 5000) != 0) {
             err_sys("Whitewood netRandom global config failed");
@@ -202,10 +196,6 @@ int testsuite_test(int argc, char** argv)
 
 #ifdef WOLFSSL_TIRTOS
     fdCloseSession(Task_self());
-#endif
-
-#ifdef HAVE_CAVIUM
-        CspShutdown(CAVIUM_DEV_ID);
 #endif
 
 #ifdef HAVE_WNR

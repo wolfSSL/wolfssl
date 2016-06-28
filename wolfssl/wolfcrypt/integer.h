@@ -181,6 +181,9 @@ typedef int           mp_err;
 typedef struct  {
     int used, alloc, sign;
     mp_digit *dp;
+#ifdef WOLFSSL_ASYNC_CRYPT
+    byte* dpraw; /* Used for hardware crypto */
+#endif
 } mp_int;
 
 /* callback for mp_prime_random, should fill dst with random bytes and return

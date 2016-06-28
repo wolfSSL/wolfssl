@@ -1300,61 +1300,6 @@ int wolfSSL_dtls_import_internal(WOLFSSL* ssl, byte* buf, word32 sz)
 #endif /* WOLFSSL_SESSION_EXPORT */
 
 
-#ifdef HAVE_WOLF_EVENT
-int wolfSSL_EventInit(WOLFSSL* ssl, WOLF_EVENT_TYPE type)
-{
-    if (!ssl) {
-        return BAD_FUNC_ARG;
-    }
-
-    if (ssl->event.pending) {
-        WOLFSSL_MSG("ssl.event already pending!");
-        return BAD_COND_E;
-    }
-
-    XMEMSET(&ssl->event, 0, sizeof(WOLF_EVENT));
-    ssl->event.ssl = ssl;
-    ssl->event.type = type;
-
-    return 0;
-}
-
-int wolfSSL_CTX_EventPush(WOLFSSL_CTX* ctx, WOLF_EVENT* event)
-{
-    int ret;
-
-    if (ctx == NULL || event == NULL) {
-        return BAD_FUNC_ARG;
-    }
-
-#ifndef SINGLE_THREADED
-    if (LockMutex(&ctx->event_queue.lock) != 0) {
-        return BAD_MUTEX_E;
-    }
-#endif
-
-    /* Setup event */
-    event->next = NULL;
-    event->pending = 1;
-
-    if (ctx->event_queue.tail == NULL)  {
-        ctx->event_queue.head = event;
-    }
-    else {
-        ctx->event_queue.tail->next = event;
-    }
-    ctx->event_queue.tail = event;      /* add to the end either way */
-    ret = 0;
-
-#ifndef SINGLE_THREADED
-    UnLockMutex(&ctx->event_queue.lock);
-#endif
-
-    return ret;
-}
-#endif /* HAVE_WOLF_EVENT */
-
-
 void InitSSL_Method(WOLFSSL_METHOD* method, ProtocolVersion pv)
 {
     method->version    = pv;
@@ -1366,6 +1311,8 @@ void InitSSL_Method(WOLFSSL_METHOD* method, ProtocolVersion pv)
 /* Initialize SSL context, return 0 on success */
 int InitSSL_Ctx(WOLFSSL_CTX* ctx, WOLFSSL_METHOD* method, void* heap)
 {
+    int ret = 0;
+
     XMEMSET(ctx, 0, sizeof(WOLFSSL_CTX));
 
     ctx->method   = method;
@@ -1423,8 +1370,8 @@ int InitSSL_Ctx(WOLFSSL_CTX* ctx, WOLFSSL_METHOD* method, void* heap)
     }
 #endif
 
-#ifdef HAVE_CAVIUM
-    ctx->devId = NO_CAVIUM_DEVICE;
+#ifdef WOLFSSL_ASYNC_CRYPT
+    ctx->devId = INVALID_DEVID;
 #endif
 
 #ifndef NO_CERTS
@@ -1440,18 +1387,12 @@ int InitSSL_Ctx(WOLFSSL_CTX* ctx, WOLFSSL_METHOD* method, void* heap)
 #endif
 
 #ifdef HAVE_WOLF_EVENT
-    XMEMSET(&ctx->event_queue, 0, sizeof(WOLF_EVENT_QUEUE));
-    #ifndef SINGLE_THREADED
-        if (InitMutex(&ctx->event_queue.lock) < 0) {
-            WOLFSSL_MSG("Mutex error on CTX event queue init");
-            return BAD_MUTEX_E;
-        }
-    #endif
+    ret = wolfEventQueue_Init(&ctx->event_queue);
 #endif /* HAVE_WOLF_EVENT */
 
     ctx->heap = heap; /* wolfSSL_CTX_load_static_memory sets */
 
-    return 0;
+    return ret;
 }
 
 
@@ -1463,9 +1404,7 @@ void SSL_CtxResourceFree(WOLFSSL_CTX* ctx)
     (void)i;
 
 #ifdef HAVE_WOLF_EVENT
-    #ifndef SINGLE_THREADED
-        FreeMutex(&ctx->event_queue.lock);
-    #endif
+    wolfEventQueue_Free(&ctx->event_queue);
 #endif /* HAVE_WOLF_EVENT */
 
     XFREE(ctx->method, ctx->heap, DYNAMIC_TYPE_METHOD);
@@ -1608,30 +1547,30 @@ void FreeCiphers(WOLFSSL* ssl)
 {
     (void)ssl;
 #ifdef BUILD_ARC4
-    #ifdef HAVE_CAVIUM
-    if (ssl->devId != NO_CAVIUM_DEVICE) {
-        wc_Arc4FreeCavium(ssl->encrypt.arc4);
-        wc_Arc4FreeCavium(ssl->decrypt.arc4);
+    #ifdef WOLFSSL_ASYNC_CRYPT
+    if (ssl->devId != INVALID_DEVID) {
+        wc_Arc4AsyncFree(ssl->encrypt.arc4);
+        wc_Arc4AsyncFree(ssl->decrypt.arc4);
     }
     #endif
     XFREE(ssl->encrypt.arc4, ssl->heap, DYNAMIC_TYPE_CIPHER);
     XFREE(ssl->decrypt.arc4, ssl->heap, DYNAMIC_TYPE_CIPHER);
 #endif
 #ifdef BUILD_DES3
-    #ifdef HAVE_CAVIUM
-    if (ssl->devId != NO_CAVIUM_DEVICE) {
-        wc_Des3_FreeCavium(ssl->encrypt.des3);
-        wc_Des3_FreeCavium(ssl->decrypt.des3);
+    #ifdef WOLFSSL_ASYNC_CRYPT
+    if (ssl->devId != INVALID_DEVID) {
+        wc_Des3AsyncFree(ssl->encrypt.des3);
+        wc_Des3AsyncFree(ssl->decrypt.des3);
     }
     #endif
     XFREE(ssl->encrypt.des3, ssl->heap, DYNAMIC_TYPE_CIPHER);
     XFREE(ssl->decrypt.des3, ssl->heap, DYNAMIC_TYPE_CIPHER);
 #endif
 #ifdef BUILD_AES
-    #ifdef HAVE_CAVIUM
-    if (ssl->devId != NO_CAVIUM_DEVICE) {
-        wc_AesFreeCavium(ssl->encrypt.aes);
-        wc_AesFreeCavium(ssl->decrypt.aes);
+    #ifdef WOLFSSL_ASYNC_CRYPT
+    if (ssl->devId != INVALID_DEVID) {
+        wc_AesAsyncFree(ssl->encrypt.aes);
+        wc_AesAsyncFree(ssl->decrypt.aes);
     }
     #endif
     XFREE(ssl->encrypt.aes, ssl->heap, DYNAMIC_TYPE_CIPHER);
@@ -2660,25 +2599,6 @@ int RsaSign(WOLFSSL* ssl, const byte* in, word32 inSz, byte* out,
     (void)keySz;
     (void)ctx;
 
-#if defined(WOLFSSL_ASYNC_CRYPT_TEST)
-    if (ssl->options.side == WOLFSSL_SERVER_END &&
-        ssl->asyncCryptTest.type == ASYNC_TEST_NONE)
-    {
-        ssl->asyncCryptTest.type = ASYNC_TEST_RSA_SIGN;
-        ssl->asyncCryptTest.rsaSign.in = in;
-        ssl->asyncCryptTest.rsaSign.inSz = inSz;
-        ssl->asyncCryptTest.rsaSign.out = out;
-        ssl->asyncCryptTest.rsaSign.outSz = outSz;
-        ssl->asyncCryptTest.rsaSign.keyBuf = keyBuf;
-        ssl->asyncCryptTest.rsaSign.keySz = keySz;
-        ssl->asyncCryptTest.rsaSign.key = key;
-        #if defined(HAVE_PK_CALLBACKS)
-            ssl->asyncCryptTest.ctx = ctx;
-        #endif
-        return WC_PENDING_E;
-    }
-#endif /* WOLFSSL_ASYNC_CRYPT_TEST */
-
 #if defined(HAVE_PK_CALLBACKS)
     if (ssl->ctx->RsaSignCb) {
         ret = ssl->ctx->RsaSignCb(ssl, in, inSz, out, outSz, keyBuf, keySz,
@@ -2689,6 +2609,16 @@ int RsaSign(WOLFSSL* ssl, const byte* in, word32 inSz, byte* out,
     {
         ret = wc_RsaSSL_Sign(in, inSz, out, *outSz, key, ssl->rng);
     }
+
+    /* Handle async pending response */
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    if (ret == WC_PENDING_E) {
+        ret = wolfAsync_EventInit(&ssl->event, WOLF_EVENT_TYPE_ASYNC_WOLFSSL,
+                                                            &key->asyncDev);
+    }
+#endif /* WOLFSSL_ASYNC_CRYPT */
+
+    /* For positive response return in outSz */
     if (ret > 0) {
         *outSz = ret;
         ret = 0;
@@ -2716,6 +2646,15 @@ int RsaVerify(WOLFSSL* ssl, byte* in, word32 inSz,
     {
         ret = wc_RsaSSL_VerifyInline(in, inSz, out, key);
     }
+
+    /* Handle async pending response */
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    if (ret == WC_PENDING_E) {
+        ret = wolfAsync_EventInit(&ssl->event, WOLF_EVENT_TYPE_ASYNC_WOLFSSL,
+                                                            &key->asyncDev);
+    }
+#endif /* WOLFSSL_ASYNC_CRYPT */
+
     return ret;
 }
 
@@ -2723,11 +2662,11 @@ int RsaVerify(WOLFSSL* ssl, byte* in, word32 inSz,
 int VerifyRsaSign(WOLFSSL* ssl, const byte* sig, word32 sigSz,
     const byte* plain, word32 plainSz, RsaKey* key)
 {
-    #ifdef WOLFSSL_SMALL_STACK
-        byte* verifySig = NULL;
-    #else
-        byte verifySig[ENCRYPT_LEN];
-    #endif
+#ifdef WOLFSSL_SMALL_STACK
+    byte* verifySig = NULL;
+#else
+    byte verifySig[ENCRYPT_LEN];
+#endif
     byte* out = NULL;  /* inline result */
     int   ret;
 
@@ -2745,12 +2684,12 @@ int VerifyRsaSign(WOLFSSL* ssl, const byte* sig, word32 sigSz,
         return BUFFER_E;
     }
 
-    #ifdef WOLFSSL_SMALL_STACK
-        verifySig = (byte*)XMALLOC(ENCRYPT_LEN, NULL,
-                                   DYNAMIC_TYPE_SIGNATURE);
-        if (verifySig == NULL)
-            return MEMORY_ERROR;
-    #endif
+#ifdef WOLFSSL_SMALL_STACK
+    verifySig = (byte*)XMALLOC(ENCRYPT_LEN, NULL,
+                               DYNAMIC_TYPE_SIGNATURE);
+    if (verifySig == NULL)
+        return MEMORY_ERROR;
+#endif
 
     XMEMCPY(verifySig, sig, sigSz);
     ret = wc_RsaSSL_VerifyInline(verifySig, sigSz, &out, key);
@@ -2762,9 +2701,17 @@ int VerifyRsaSign(WOLFSSL* ssl, const byte* sig, word32 sigSz,
         ret = 0;  /* RSA reset */
     }
 
-    #ifdef WOLFSSL_SMALL_STACK
-        XFREE(verifySig, NULL, DYNAMIC_TYPE_SIGNATURE);
-    #endif
+#ifdef WOLFSSL_SMALL_STACK
+    XFREE(verifySig, NULL, DYNAMIC_TYPE_SIGNATURE);
+#endif
+
+    /* Handle async pending response */
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    if (ret == WC_PENDING_E) {
+        ret = wolfAsync_EventInit(&ssl->event, WOLF_EVENT_TYPE_ASYNC_WOLFSSL,
+                                                            &key->asyncDev);
+    }
+#endif /* WOLFSSL_ASYNC_CRYPT */
 
     return ret;
 }
@@ -2779,25 +2726,6 @@ int RsaDec(WOLFSSL* ssl, byte* in, word32 inSz, byte** out, word32* outSz,
     (void)keySz;
     (void)ctx;
 
-#if defined(WOLFSSL_ASYNC_CRYPT_TEST)
-    if (ssl->options.side == WOLFSSL_SERVER_END &&
-        ssl->asyncCryptTest.type == ASYNC_TEST_NONE)
-    {
-        ssl->asyncCryptTest.type = ASYNC_TEST_RSA_DEC;
-        ssl->asyncCryptTest.rsaDec.in = in;
-        ssl->asyncCryptTest.rsaDec.inSz = inSz;
-        ssl->asyncCryptTest.rsaDec.out = out;
-        ssl->asyncCryptTest.rsaDec.outSz = outSz;
-        ssl->asyncCryptTest.rsaDec.keyBuf = keyBuf;
-        ssl->asyncCryptTest.rsaDec.keySz = keySz;
-        ssl->asyncCryptTest.rsaDec.key = key;
-        #if defined(HAVE_PK_CALLBACKS)
-            ssl->asyncCryptTest.ctx = ctx;
-        #endif
-        return WC_PENDING_E;
-    }
-#endif /* WOLFSSL_ASYNC_CRYPT_TEST */
-
 #ifdef HAVE_PK_CALLBACKS
     if (ssl->ctx->RsaDecCb) {
             ret = ssl->ctx->RsaDecCb(ssl, in, inSz, out, keyBuf, keySz,
@@ -2809,10 +2737,58 @@ int RsaDec(WOLFSSL* ssl, byte* in, word32 inSz, byte** out, word32* outSz,
         ret = wc_RsaPrivateDecryptInline(in, inSz, out, key);
     }
 
+    /* Handle async pending response */
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    if (ret == WC_PENDING_E) {
+        ret = wolfAsync_EventInit(&ssl->event, WOLF_EVENT_TYPE_ASYNC_WOLFSSL,
+                                                            &key->asyncDev);
+    }
+#endif /* WOLFSSL_ASYNC_CRYPT */
+
+    /* For positive response return in outSz */
     if (ret > 0) {
         *outSz = ret;
         ret = 0;
     }
+
+    return ret;
+}
+
+int RsaEnc(WOLFSSL* ssl, const byte* in, word32 inSz, byte* out, word32* outSz,
+    RsaKey* key, const byte* keyBuf, word32 keySz, void* ctx)
+{
+    int ret;
+
+    (void)ssl;
+    (void)keyBuf;
+    (void)keySz;
+    (void)ctx;
+
+#ifdef HAVE_PK_CALLBACKS
+    if (ssl->ctx->RsaEncCb) {
+            ret = ssl->ctx->RsaEncCb(ssl, in, inSz, out, outSz, keyBuf, keySz,
+                                                                        ctx);
+    }
+    else
+#endif /* HAVE_PK_CALLBACKS */
+    {
+        ret = wc_RsaPublicEncrypt(in, inSz, out, *outSz, key, ssl->rng);
+    }
+
+    /* Handle async pending response */
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    if (ret == WC_PENDING_E) {
+        ret = wolfAsync_EventInit(&ssl->event, WOLF_EVENT_TYPE_ASYNC_WOLFSSL,
+                                                            &key->asyncDev);
+    }
+#endif /* WOLFSSL_ASYNC_CRYPT */
+
+    /* For positive response return in outSz */
+    if (ret > 0) {
+        *outSz = ret;
+        ret = 0;
+    }
+
     return ret;
 }
 
@@ -2830,25 +2806,6 @@ int EccSign(WOLFSSL* ssl, const byte* in, word32 inSz, byte* out,
     (void)keySz;
     (void)ctx;
 
-#if defined(WOLFSSL_ASYNC_CRYPT_TEST)
-    if (ssl->options.side == WOLFSSL_SERVER_END &&
-        ssl->asyncCryptTest.type == ASYNC_TEST_NONE)
-    {
-        ssl->asyncCryptTest.type = ASYNC_TEST_ECC_SIGN;
-        ssl->asyncCryptTest.eccSign.in = in;
-        ssl->asyncCryptTest.eccSign.inSz = inSz;
-        ssl->asyncCryptTest.eccSign.out = out;
-        ssl->asyncCryptTest.eccSign.outSz = outSz;
-        ssl->asyncCryptTest.eccSign.keyBuf = keyBuf;
-        ssl->asyncCryptTest.eccSign.keySz = keySz;
-        ssl->asyncCryptTest.eccSign.key = key;
-        #if defined(HAVE_PK_CALLBACKS)
-            ssl->asyncCryptTest.ctx = ctx;
-        #endif
-        return WC_PENDING_E;
-    }
-#endif /* WOLFSSL_ASYNC_CRYPT_TEST */
-
 #if defined(HAVE_PK_CALLBACKS)
     if (ssl->ctx->EccSignCb) {
         ret = ssl->ctx->EccSignCb(ssl, in, inSz, out, outSz, keyBuf,
@@ -2859,10 +2816,19 @@ int EccSign(WOLFSSL* ssl, const byte* in, word32 inSz, byte* out,
     {
         ret = wc_ecc_sign_hash(in, inSz, out, outSz, ssl->rng, key);
     }
+
+    /* Handle async pending response */
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    if (ret == WC_PENDING_E) {
+        ret = wolfAsync_EventInit(&ssl->event, WOLF_EVENT_TYPE_ASYNC_WOLFSSL,
+                                                            &key->asyncDev);
+    }
+#endif /* WOLFSSL_ASYNC_CRYPT */
+
     return ret;
 }
 
-int EccVerify(WOLFSSL* ssl, const byte* in, word32 inSz, byte* out,
+int EccVerify(WOLFSSL* ssl, const byte* in, word32 inSz, const byte* out,
     word32 outSz, ecc_key* key, byte* keyBuf, word32 keySz,
     void* ctx)
 {
@@ -2884,7 +2850,16 @@ int EccVerify(WOLFSSL* ssl, const byte* in, word32 inSz, byte* out,
         ret = wc_ecc_verify_hash(in, inSz, out, outSz, &verify, key);
     }
 
-    ret = (ret != 0 || verify == 0) ? VERIFY_SIGN_ERROR : 0;
+    /* Handle async pending response */
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    if (ret == WC_PENDING_E) {
+        ret = wolfAsync_EventInit(&ssl->event, WOLF_EVENT_TYPE_ASYNC_WOLFSSL,
+                                                            &key->asyncDev);
+    }
+#endif /* WOLFSSL_ASYNC_CRYPT */
+    {
+        ret = (ret != 0 || verify == 0) ? VERIFY_SIGN_ERROR : 0;
+    }
 
     return ret;
 }
@@ -2896,20 +2871,15 @@ int EccSharedSecret(WOLFSSL* ssl, ecc_key* priv_key, ecc_key* pub_key,
 
     (void)ssl;
 
-#if defined(WOLFSSL_ASYNC_CRYPT_TEST)
-    if (ssl->options.side == WOLFSSL_SERVER_END &&
-        ssl->asyncCryptTest.type == ASYNC_TEST_NONE)
-    {
-        ssl->asyncCryptTest.type = ASYNC_TEST_ECC_SHARED_SEC;
-        ssl->asyncCryptTest.eccSharedSec.private_key = priv_key;
-        ssl->asyncCryptTest.eccSharedSec.public_key = pub_key;
-        ssl->asyncCryptTest.eccSharedSec.out = out;
-        ssl->asyncCryptTest.eccSharedSec.outLen = outSz;
-        return WC_PENDING_E;
-    }
-#endif /* WOLFSSL_ASYNC_CRYPT_TEST */
-
     ret = wc_ecc_shared_secret(priv_key, pub_key, out, outSz);
+
+    /* Handle async pending response */
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    if (ret == WC_PENDING_E) {
+        ret = wolfAsync_EventInit(&ssl->event, WOLF_EVENT_TYPE_ASYNC_WOLFSSL,
+                                                        &priv_key->asyncDev);
+    }
+#endif /* WOLFSSL_ASYNC_CRYPT */
 
     return ret;
 }
@@ -2917,19 +2887,19 @@ int EccSharedSecret(WOLFSSL* ssl, ecc_key* priv_key, ecc_key* pub_key,
 int EccMakeTempKey(WOLFSSL* ssl)
 {
     int ret = 0;
-    if (ssl->eccTempKeyPresent == 0) {
-    #if defined(WOLFSSL_ASYNC_CRYPT_TEST)
-        if (ssl->options.side == WOLFSSL_SERVER_END &&
-            ssl->asyncCryptTest.type == ASYNC_TEST_NONE)
-        {
-            ssl->asyncCryptTest.type = ASYNC_TEST_ECC_TMPKEY_GEN;
-            return WC_PENDING_E;
-        }
-    #endif /* WOLFSSL_ASYNC_CRYPT_TEST */
 
+    if (ssl->eccTempKeyPresent == 0) {
         ret = wc_ecc_make_key(ssl->rng, ssl->eccTempKeySz,
             ssl->eccTempKey);
-        if (ret == MP_OKAY) {
+
+        /* Handle async pending response */
+    #if defined(WOLFSSL_ASYNC_CRYPT)
+        if (ret == WC_PENDING_E) {
+            ret = wolfAsync_EventInit(&ssl->event,
+                WOLF_EVENT_TYPE_ASYNC_WOLFSSL, &ssl->eccTempKey->asyncDev);
+        }
+    #endif /* WOLFSSL_ASYNC_CRYPT */
+        if (ret == 0) {
             ssl->eccTempKeyPresent = 1;
             ret = 0;
         }
@@ -2953,29 +2923,13 @@ int DhGenKeyPair(WOLFSSL* ssl,
     int ret;
     DhKey dhKey;
 
-#if defined(WOLFSSL_ASYNC_CRYPT_TEST)
-    if (ssl->options.side == WOLFSSL_SERVER_END &&
-        ssl->asyncCryptTest.type == ASYNC_TEST_NONE)
-    {
-        ssl->asyncCryptTest.type = ASYNC_TEST_DH_GEN;
-        ssl->asyncCryptTest.dhGen.p = p;
-        ssl->asyncCryptTest.dhGen.pSz = pSz;
-        ssl->asyncCryptTest.dhGen.g = g;
-        ssl->asyncCryptTest.dhGen.gSz = gSz;
-        ssl->asyncCryptTest.dhGen.priv = priv;
-        ssl->asyncCryptTest.dhGen.privSz = privSz;
-        ssl->asyncCryptTest.dhGen.pub = pub;
-        ssl->asyncCryptTest.dhGen.pubSz = pubSz;
-        return WC_PENDING_E;
-    }
-#endif /* WOLFSSL_ASYNC_CRYPT_TEST */
-
     wc_InitDhKey(&dhKey);
     ret = wc_DhSetKey(&dhKey, p, pSz, g, gSz);
     if (ret == 0) {
         ret = wc_DhGenerateKeyPair(&dhKey, ssl->rng, priv, privSz, pub, pubSz);
     }
     wc_FreeDhKey(&dhKey);
+
     return ret;
 }
 
@@ -2989,27 +2943,6 @@ int DhAgree(WOLFSSL* ssl,
 {
     int ret;
     DhKey dhKey;
-
-#if defined(WOLFSSL_ASYNC_CRYPT_TEST)
-    if (ssl->options.side == WOLFSSL_SERVER_END &&
-        ssl->asyncCryptTest.type == ASYNC_TEST_NONE)
-    {
-        ssl->asyncCryptTest.type = ASYNC_TEST_DH_AGREE;
-        ssl->asyncCryptTest.dhAgree.p = p;
-        ssl->asyncCryptTest.dhAgree.pSz = pSz;
-        ssl->asyncCryptTest.dhAgree.g = g;
-        ssl->asyncCryptTest.dhAgree.gSz = gSz;
-        ssl->asyncCryptTest.dhAgree.priv = priv;
-        ssl->asyncCryptTest.dhAgree.privSz = privSz;
-        ssl->asyncCryptTest.dhAgree.pub = pub;
-        ssl->asyncCryptTest.dhAgree.pubSz = pubSz;
-        ssl->asyncCryptTest.dhAgree.otherPub = otherPub;
-        ssl->asyncCryptTest.dhAgree.otherPubSz = otherPubSz;
-        ssl->asyncCryptTest.dhAgree.agree = agree;
-        ssl->asyncCryptTest.dhAgree.agreeSz = agreeSz;
-        return WC_PENDING_E;
-    }
-#endif /* WOLFSSL_ASYNC_CRYPT_TEST */
 
     wc_InitDhKey(&dhKey);
     ret = wc_DhSetKey(&dhKey, p, pSz, g, gSz);
@@ -3146,7 +3079,7 @@ int SetSSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
     ssl->buffers.key = ctx->privateKey;
 #endif
 
-#ifdef HAVE_CAVIUM
+#ifdef WOLFSSL_ASYNC_CRYPT
     ssl->devId = ctx->devId;
 #endif
 
@@ -11329,9 +11262,6 @@ const char* wolfSSL_ERR_reason_error_string(unsigned long e)
     case OCSP_INVALID_STATUS:
         return "Invalid OCSP Status Error";
 
-    case ASYNC_NOT_PENDING:
-        return "Async operation not pending";
-
     case RSA_KEY_SIZE_E:
         return "RSA key too small";
 
@@ -14489,7 +14419,6 @@ static word32 QSH_KeyExchangeWrite(WOLFSSL* ssl, byte isServer)
         word32 encSz = 0;
         word32 idx = 0;
         int    ret = 0;
-        byte   doUserRsa = 0;
 
     #ifdef HAVE_QSH
         word32 qshSz = 0;
@@ -14497,15 +14426,6 @@ static word32 QSH_KeyExchangeWrite(WOLFSSL* ssl, byte isServer)
             qshSz = QSH_KeyGetSize(ssl);
         }
     #endif
-
-        (void)doUserRsa;
-
-#ifdef HAVE_PK_CALLBACKS
-    #ifndef NO_RSA
-        if (ssl->ctx->RsaEncCb)
-            doUserRsa = 1;
-    #endif /* NO_RSA */
-#endif /*HAVE_PK_CALLBACKS */
 
     #ifdef WOLFSSL_SMALL_STACK
         encSecret = (byte*)XMALLOC(MAX_ENCRYPT_SZ, NULL,
@@ -14537,29 +14457,19 @@ static word32 QSH_KeyExchangeWrite(WOLFSSL* ssl, byte isServer)
                     return NO_PEER_KEY;
                 }
 
-                if (doUserRsa) {
-                #ifdef HAVE_PK_CALLBACKS
-                    #ifndef NO_RSA
-                        encSz = MAX_ENCRYPT_SZ;
-                        ret = ssl->ctx->RsaEncCb(ssl,
-                                            ssl->arrays->preMasterSecret,
-                                            SECRET_LEN,
-                                            encSecret, &encSz,
-                                            ssl->buffers.peerRsaKey.buffer,
-                                            ssl->buffers.peerRsaKey.length,
-                                            ssl->RsaEncCtx);
-                    #endif /* NO_RSA */
-                #endif /*HAVE_PK_CALLBACKS */
-                }
-                else {
-                    ret = wc_RsaPublicEncrypt(ssl->arrays->preMasterSecret,
-                                 SECRET_LEN, encSecret, MAX_ENCRYPT_SZ,
-                                 ssl->peerRsaKey, ssl->rng);
-                    if (ret > 0) {
-                        encSz = ret;
-                        ret = 0;   /* set success to 0 */
-                    }
-                }
+                encSz = MAX_ENCRYPT_SZ;
+                ret = RsaEnc(ssl,
+                    ssl->arrays->preMasterSecret, SECRET_LEN,
+                    encSecret, &encSz,
+                    ssl->peerRsaKey,
+                #if defined(HAVE_PK_CALLBACKS)
+                    ssl->buffers.peerRsaKey.buffer,
+                    ssl->buffers.peerRsaKey.length,
+                    ssl->RsaEncCtx
+                #else
+                    NULL, 0, NULL
+                #endif
+                );
                 break;
         #endif
         #ifndef NO_DH
@@ -15790,8 +15700,8 @@ int DoSessionTicket(WOLFSSL* ssl,
         (void)sigSz;
 
     #ifdef WOLFSSL_ASYNC_CRYPT
-        ret = wolfSSL_async_pop(ssl, WOLF_EVENT_TYPE_ASYNC_ACCEPT);
-        if (ret != ASYNC_NOT_PENDING) {
+        ret = wolfAsync_EventPop(&ssl->event, WOLF_EVENT_TYPE_ASYNC_WOLFSSL);
+        if (ret != WC_NOT_PENDING_E) {
             /* Check for error */
             if (ret < 0) {
                 goto exit_sske;
@@ -16923,7 +16833,8 @@ int DoSessionTicket(WOLFSSL* ssl,
             ssl->async.sigSz = sigSz;
 
             /* Push event to queue */
-            ret = wolfSSL_async_push(ssl, WOLF_EVENT_TYPE_ASYNC_ACCEPT);
+            ret = wolfAsync_EventQueuePush(&ssl->ctx->event_queue,
+                &ssl->event, WOLF_EVENT_TYPE_ASYNC_WOLFSSL, ssl);
             if (ret == 0) {
                 return WC_PENDING_E;
             }
@@ -18151,8 +18062,8 @@ int DoSessionTicket(WOLFSSL* ssl,
         /* Use async output pointer */
         output = &ssl->async.output;
 
-        ret = wolfSSL_async_pop(ssl, WOLF_EVENT_TYPE_ASYNC_ACCEPT);
-        if (ret != ASYNC_NOT_PENDING) {
+        ret = wolfAsync_EventPop(&ssl->event, WOLF_EVENT_TYPE_ASYNC_WOLFSSL);
+        if (ret != WC_NOT_PENDING_E) {
             /* Check for error */
             if (ret < 0) {
                 goto exit_dcke;
@@ -18906,7 +18817,8 @@ int DoSessionTicket(WOLFSSL* ssl,
             ssl->msgsReceived.got_client_key_exchange = 0;
 
             /* Push event to queue */
-            ret = wolfSSL_async_push(ssl, WOLF_EVENT_TYPE_ASYNC_ACCEPT);
+            ret = wolfAsync_EventQueuePush(&ssl->ctx->event_queue,
+                &ssl->event, WOLF_EVENT_TYPE_ASYNC_WOLFSSL, ssl);
             if (ret == 0) {
                 return WC_PENDING_E;
             }
