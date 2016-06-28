@@ -12517,8 +12517,6 @@ int wolfSSL_ASN1_TIME_print(WOLFSSL_BIO* bio, const WOLFSSL_ASN1_TIME* asnTime)
 #if defined(WOLFSSL_MYSQL_COMPATIBLE)
 char* wolfSSL_ASN1_TIME_to_string(WOLFSSL_ASN1_TIME* time, char* buf, int len)
 {
-    struct tm t;
-    int idx = 0;
     int format;
     int dateLen;
     byte* date = (byte*)time;
@@ -12533,42 +12531,13 @@ char* wolfSSL_ASN1_TIME_to_string(WOLFSSL_ASN1_TIME* time, char* buf, int len)
     format  = *date; date++;
     dateLen = *date; date++;
     if (dateLen > len) {
-        return "error";
+        WOLFSSL_MSG("Length of date is longer then buffer");
+        return NULL;
     }
 
-    if (!ExtractDate(date, format, &t, &idx)) {
-        return "error";
+    if (!GetTimeString(date, format, buf, len)) {
+        return NULL;
     }
-
-    if (date[idx] != 'Z') {
-        WOLFSSL_MSG("UTCtime, not Zulu") ;
-        return "Not Zulu";
-    }
-
-    /* place month in buffer */
-    buf[0] = '\0';
-    switch(t.tm_mon) {
-        case 0:  XSTRNCAT(buf, "Jan ", 4); break;
-        case 1:  XSTRNCAT(buf, "Feb ", 4); break;
-        case 2:  XSTRNCAT(buf, "Mar ", 4); break;
-        case 3:  XSTRNCAT(buf, "Apr ", 4); break;
-        case 4:  XSTRNCAT(buf, "May ", 4); break;
-        case 5:  XSTRNCAT(buf, "Jun ", 4); break;
-        case 6:  XSTRNCAT(buf, "Jul ", 4); break;
-        case 7:  XSTRNCAT(buf, "Aug ", 4); break;
-        case 8:  XSTRNCAT(buf, "Sep ", 4); break;
-        case 9:  XSTRNCAT(buf, "Oct ", 4); break;
-        case 10: XSTRNCAT(buf, "Nov ", 4); break;
-        case 11: XSTRNCAT(buf, "Dec ", 4); break;
-        default:
-            return "error";
-
-    }
-    idx = 4; /* use idx now for char buffer */
-    buf[idx] = ' ';
-
-    XSNPRINTF(buf + idx, len - idx, "%2d %02d:%02d:%02d %d GMT",
-              t.tm_mday, t.tm_hour, t.tm_min, t.tm_sec, t.tm_year + 1900);
 
     return buf;
 }

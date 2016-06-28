@@ -3005,6 +3005,50 @@ static INLINE int DateLessThan(const struct tm* a, const struct tm* b)
 }
 
 
+#if defined(WOLFSSL_MYSQL_COMPATIBLE)
+int GetTimeString(byte* date, int format, char* buf, int len)
+{
+    struct tm t;
+    int idx = 0;
+
+    if (!ExtractDate(date, format, &t, &idx)) {
+        return 0;
+    }
+
+    if (date[idx] != 'Z') {
+        WOLFSSL_MSG("UTCtime, not Zulu") ;
+        return 0;
+    }
+
+    /* place month in buffer */
+    buf[0] = '\0';
+    switch(t.tm_mon) {
+        case 0:  XSTRNCAT(buf, "Jan ", 4); break;
+        case 1:  XSTRNCAT(buf, "Feb ", 4); break;
+        case 2:  XSTRNCAT(buf, "Mar ", 4); break;
+        case 3:  XSTRNCAT(buf, "Apr ", 4); break;
+        case 4:  XSTRNCAT(buf, "May ", 4); break;
+        case 5:  XSTRNCAT(buf, "Jun ", 4); break;
+        case 6:  XSTRNCAT(buf, "Jul ", 4); break;
+        case 7:  XSTRNCAT(buf, "Aug ", 4); break;
+        case 8:  XSTRNCAT(buf, "Sep ", 4); break;
+        case 9:  XSTRNCAT(buf, "Oct ", 4); break;
+        case 10: XSTRNCAT(buf, "Nov ", 4); break;
+        case 11: XSTRNCAT(buf, "Dec ", 4); break;
+        default:
+            return 0;
+
+    }
+    idx = 4; /* use idx now for char buffer */
+    buf[idx] = ' ';
+
+    XSNPRINTF(buf + idx, len - idx, "%2d %02d:%02d:%02d %d GMT",
+              t.tm_mday, t.tm_hour, t.tm_min, t.tm_sec, t.tm_year + 1900);
+
+    return 1;
+}
+#endif /* MYSQL compatibility */
+
 int ExtractDate(const unsigned char* date, unsigned char format,
                                                   struct tm* certTime, int* idx)
 {
