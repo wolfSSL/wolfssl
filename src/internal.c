@@ -1376,6 +1376,7 @@ int InitSSL_Ctx(WOLFSSL_CTX* ctx, WOLFSSL_METHOD* method, void* heap)
 
     if (InitMutex(&ctx->countMutex) < 0) {
         WOLFSSL_MSG("Mutex error on CTX init");
+        ctx->err = (int)CTX_INIT_MUTEX_E;
         return BAD_MUTEX_E;
     }
 
@@ -1537,6 +1538,13 @@ void FreeSSL_Ctx(WOLFSSL_CTX* ctx)
 
     if (LockMutex(&ctx->countMutex) != 0) {
         WOLFSSL_MSG("Couldn't lock count mutex");
+
+        /* check error state, if mutex error code then mutex init failed but
+         * CTX was still malloc'd */
+        if (ctx->err == (int)CTX_INIT_MUTEX_E) {
+            SSL_CtxResourceFree(ctx);
+            XFREE(ctx, ctx->heap, DYNAMIC_TYPE_CTX);
+        }
         return;
     }
     ctx->refCount--;
@@ -11343,6 +11351,9 @@ const char* wolfSSL_ERR_reason_error_string(unsigned long e)
 
     case INPUT_SIZE_E:
         return "Input size too large Error";
+
+    case CTX_INIT_MUTEX_E:
+        return "Initialize ctx mutex error";
 
     default :
         return "unknown error number";
