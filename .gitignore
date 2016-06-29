@@ -175,3 +175,6 @@ wolfcrypt/user-crypto/lib/libusercrypto.*
 
 # wolfSSL CSharp wrapper
 wrapper/CSharp/x64/
+
+# Visual Studio
+*.vc.opendb
