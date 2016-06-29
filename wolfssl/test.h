@@ -571,7 +571,7 @@ static INLINE void build_addr(SOCKADDR_IN_T* addr, const char* peer,
         #endif
 
         if (entry) {
-            memcpy(&addr->sin_addr.s_addr, entry->h_addr_list[0],
+            XMEMCPY(&addr->sin_addr.s_addr, entry->h_addr_list[0],
                    entry->h_length);
             useLookup = 1;
         }
@@ -619,7 +619,7 @@ static INLINE void build_addr(SOCKADDR_IN_T* addr, const char* peer,
             if (ret < 0 || answer == NULL)
                 err_sys("getaddrinfo failed");
 
-            memcpy(addr, answer->ai_addr, answer->ai_addrlen);
+            XMEMCPY(addr, answer->ai_addr, answer->ai_addrlen);
             freeaddrinfo(answer);
         #else
             printf("no ipv6 getaddrinfo, loopback only tests/examples\n");
@@ -1541,7 +1541,7 @@ static INLINE int myDecryptVerifyCb(WOLFSSL* ssl,
     if (ret != 0)
         return ret;
 
-    if (memcmp(verify, decOut + decSz - digestSz - pad - padByte,
+    if (XMEMCMP(verify, decOut + decSz - digestSz - pad - padByte,
                digestSz) != 0) {
         printf("myDecryptVerify verify failed\n");
         return -1;

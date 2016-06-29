@@ -383,7 +383,7 @@ void file_test(const char* file, byte* check)
         return;
     }
 
-    memcpy(check, shasum, sizeof(shasum));
+    XMEMCPY(check, shasum, sizeof(shasum));
 
     for(j = 0; j < SHA256_DIGEST_SIZE; ++j )
         printf( "%02x", shasum[j] );

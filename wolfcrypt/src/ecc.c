@@ -5332,7 +5332,7 @@ int wc_ecc_decrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
                    ret = wc_HmacFinal(&hmac, verify);
                    if (ret != 0)
                        break;
-                   if (memcmp(verify, msg + msgSz - digestSz, digestSz) != 0)
+                   if (XMEMCMP(verify, msg + msgSz - digestSz, digestSz) != 0)
                        ret = -1;
                }
                break;

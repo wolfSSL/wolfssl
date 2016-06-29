@@ -665,7 +665,7 @@ static void test_client_nofail(void* args)
     char msg[64] = "hello wolfssl!";
     char reply[1024];
     int  input;
-    int  msgSz = (int)strlen(msg);
+    int  msgSz = (int)XSTRLEN(msg);
 
 #ifdef WOLFSSL_TIRTOS
     fdOpenSession(Task_self());
@@ -1732,37 +1732,37 @@ static void test_wolfSSL_UseALPN_params(void)
                                 WOLFSSL_ALPN_FAILED_ON_MISMATCH));
 
     /* http1, spdy1 */
-    memcpy(buff, http1, sizeof(http1));
+    XMEMCPY(buff, http1, sizeof(http1));
     idx = sizeof(http1);
     buff[idx++] = ',';
-    memcpy(buff+idx, spdy1, sizeof(spdy1));
+    XMEMCPY(buff+idx, spdy1, sizeof(spdy1));
     idx += sizeof(spdy1);
     AssertIntEQ(SSL_SUCCESS, wolfSSL_UseALPN(ssl, buff, idx,
                                              WOLFSSL_ALPN_FAILED_ON_MISMATCH));
 
     /* http1, spdy2, spdy1 */
-    memcpy(buff, http1, sizeof(http1));
+    XMEMCPY(buff, http1, sizeof(http1));
     idx = sizeof(http1);
     buff[idx++] = ',';
-    memcpy(buff+idx, spdy2, sizeof(spdy2));
+    XMEMCPY(buff+idx, spdy2, sizeof(spdy2));
     idx += sizeof(spdy2);
     buff[idx++] = ',';
-    memcpy(buff+idx, spdy1, sizeof(spdy1));
+    XMEMCPY(buff+idx, spdy1, sizeof(spdy1));
     idx += sizeof(spdy1);
     AssertIntEQ(SSL_SUCCESS, wolfSSL_UseALPN(ssl, buff, idx,
                                              WOLFSSL_ALPN_FAILED_ON_MISMATCH));
 
     /* spdy3, http1, spdy2, spdy1 */
-    memcpy(buff, spdy3, sizeof(spdy3));
+    XMEMCPY(buff, spdy3, sizeof(spdy3));
     idx = sizeof(spdy3);
     buff[idx++] = ',';
-    memcpy(buff+idx, http1, sizeof(http1));
+    XMEMCPY(buff+idx, http1, sizeof(http1));
     idx += sizeof(http1);
     buff[idx++] = ',';
-    memcpy(buff+idx, spdy2, sizeof(spdy2));
+    XMEMCPY(buff+idx, spdy2, sizeof(spdy2));
     idx += sizeof(spdy2);
     buff[idx++] = ',';
-    memcpy(buff+idx, spdy1, sizeof(spdy1));
+    XMEMCPY(buff+idx, spdy1, sizeof(spdy1));
     idx += sizeof(spdy1);
     AssertIntEQ(SSL_SUCCESS, wolfSSL_UseALPN(ssl, buff, idx,
                                              WOLFSSL_ALPN_CONTINUE_ON_MISMATCH));
