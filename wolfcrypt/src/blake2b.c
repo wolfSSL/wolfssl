@@ -389,7 +389,7 @@ int main( int argc, char **argv )
       return -1;
     }
 
-    if( 0 != memcmp( hash, blake2b_keyed_kat[i], BLAKE2B_OUTBYTES ) )
+    if( 0 != XMEMCMP( hash, blake2b_keyed_kat[i], BLAKE2B_OUTBYTES ) )
     {
       puts( "error" );
       return -1;

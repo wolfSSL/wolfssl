@@ -193,9 +193,9 @@ static word32 cpuid_flag(word32 leaf, word32 sub, word32 num, word32 bit) {
     
     reg[4] = '\0' ;
     cpuid(reg, 0, 0);  
-    if(memcmp((char *)&(reg[EBX]), "Genu", 4) == 0 &&  
-                memcmp((char *)&(reg[EDX]), "ineI", 4) == 0 &&  
-                memcmp((char *)&(reg[ECX]), "ntel", 4) == 0) {  
+    if(XMEMCMP((char *)&(reg[EBX]), "Genu", 4) == 0 &&  
+                XMEMCMP((char *)&(reg[EDX]), "ineI", 4) == 0 &&  
+                XMEMCMP((char *)&(reg[ECX]), "ntel", 4) == 0) {  
         got_intel_cpu = 1;  
     }    
     if (got_intel_cpu) {

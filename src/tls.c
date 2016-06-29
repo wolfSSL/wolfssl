@@ -542,7 +542,7 @@ int wolfSSL_make_eap_keys(WOLFSSL* ssl, void* msk, unsigned int len,
     XMEMCPY(seed + RAN_LEN, ssl->arrays->serverRandom, RAN_LEN);
 
     ret = PRF((byte*)msk, len, ssl->arrays->masterSecret, SECRET_LEN,
-              (const byte *)label, (word32)strlen(label), seed, SEED_LEN,
+              (const byte *)label, (word32)XSTRLEN(label), seed, SEED_LEN,
               IsAtLeastTLSv1_2(ssl), ssl->specs.mac_algorithm);
 
 #ifdef WOLFSSL_SMALL_STACK

@@ -528,8 +528,8 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 
     char reply[80];
     int  input;
-    int  msgSz = (int)strlen(msg);
-    int  resumeSz = (int)strlen(resumeMsg);
+    int  msgSz = (int)XSTRLEN(msg);
+    int  resumeSz = (int)XSTRLEN(resumeMsg);
 
     word16 port   = wolfSSLPort;
     char* host   = (char*)wolfSSLIP;

@@ -197,7 +197,7 @@ void echoclient_test(void* args)
 
     while (fgets(msg, sizeof(msg), fin) != 0) {
      
-        sendSz = (int)strlen(msg);
+        sendSz = (int)XSTRLEN(msg);
 
         if (SSL_write(ssl, msg, sendSz) != sendSz)
             err_sys("SSL_write failed");
