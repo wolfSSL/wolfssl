@@ -1376,7 +1376,7 @@ int InitSSL_Ctx(WOLFSSL_CTX* ctx, WOLFSSL_METHOD* method, void* heap)
 
     if (InitMutex(&ctx->countMutex) < 0) {
         WOLFSSL_MSG("Mutex error on CTX init");
-        ctx->err = (int)CTX_INIT_MUTEX_E;
+        ctx->err = CTX_INIT_MUTEX_E;
         return BAD_MUTEX_E;
     }
 
@@ -1541,7 +1541,7 @@ void FreeSSL_Ctx(WOLFSSL_CTX* ctx)
 
         /* check error state, if mutex error code then mutex init failed but
          * CTX was still malloc'd */
-        if (ctx->err == (int)CTX_INIT_MUTEX_E) {
+        if (ctx->err == CTX_INIT_MUTEX_E) {
             SSL_CtxResourceFree(ctx);
             XFREE(ctx, ctx->heap, DYNAMIC_TYPE_CTX);
         }
