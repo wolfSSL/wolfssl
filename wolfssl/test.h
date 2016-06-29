@@ -997,12 +997,15 @@ static INLINE unsigned int my_psk_server_cb(WOLFSSL* ssl, const char* identity,
 #endif /* NO_PSK */
 
 
-#ifdef USE_WINDOWS_API
+#if defined(WOLFSSL_USER_CURRTIME)
+    extern   double current_time(int reset);
+
+#elif defined(USE_WINDOWS_API)
 
     #define WIN32_LEAN_AND_MEAN
     #include <windows.h>
 
-    static INLINE double current_time()
+    static INLINE double current_time(int reset)
     {
         static int init = 0;
         static LARGE_INTEGER freq;
@@ -1016,6 +1019,7 @@ static INLINE unsigned int my_psk_server_cb(WOLFSSL* ssl, const char* identity,
 
         QueryPerformanceCounter(&count);
 
+        (void)reset;
         return (double)count.QuadPart / freq.QuadPart;
     }
 
@@ -1031,7 +1035,7 @@ static INLINE unsigned int my_psk_server_cb(WOLFSSL* ssl, const char* identity,
         struct timeval tv;
         gettimeofday(&tv, 0);
         (void)reset;
-        
+
         return (double)tv.tv_sec + (double)tv.tv_usec / 1000000;
     }
 #else
