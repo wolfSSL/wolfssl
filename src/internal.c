@@ -4814,7 +4814,7 @@ void ShrinkInputBuffer(WOLFSSL* ssl, int forcedFree)
 
     WOLFSSL_MSG("Shrinking input buffer\n");
 
-    if (!forcedFree && usedLength)
+    if (!forcedFree && usedLength > 0)
         XMEMCPY(ssl->buffers.inputBuffer.staticBuffer,
                ssl->buffers.inputBuffer.buffer + ssl->buffers.inputBuffer.idx,
                usedLength);
@@ -8902,13 +8902,15 @@ static int GetInputData(WOLFSSL *ssl, word32 size)
     }
 #endif
 
+    /* check that no lengths or size values are negative */
+    if (usedLength < 0 || maxLength < 0 || inSz <= 0) {
+        return BUFFER_ERROR;
+    }
+
     if (inSz > maxLength) {
         if (GrowInputBuffer(ssl, size + dtlsExtra, usedLength) < 0)
             return MEMORY_E;
     }
-
-    if (inSz <= 0)
-        return BUFFER_ERROR;
 
     /* Put buffer data at start if not there */
     if (usedLength > 0 && ssl->buffers.inputBuffer.idx != 0)
