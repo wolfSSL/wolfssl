@@ -291,8 +291,6 @@ int wolfcrypt_test(void* args)
 {
     int ret = 0;
 
-    wolfCrypt_Init();
-
     ((func_args*)args)->return_code = -1; /* error state */
 
 #if defined(USE_WOLFSSL_MEMORY) && defined(WOLFSSL_TRACK_MEMORY)
