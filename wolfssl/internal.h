@@ -1922,6 +1922,7 @@ struct WOLFSSL_CTX {
     WOLFSSL_METHOD* method;
     wolfSSL_Mutex   countMutex;    /* reference count mutex */
     int         refCount;         /* reference count */
+    int         err;              /* error code in case of mutex not created */
 #ifndef NO_DH
     buffer      serverDH_P;
     buffer      serverDH_G;
