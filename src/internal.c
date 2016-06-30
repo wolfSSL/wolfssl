@@ -4957,6 +4957,12 @@ int GrowInputBuffer(WOLFSSL* ssl, int size, int usedLength)
        while (align < hdrSz)
            align *= 2;
     }
+
+    if (usedLength < 0 || size < 0) {
+        WOLFSSL_MSG("GrowInputBuffer() called with negative number");
+        return BAD_FUNC_ARG;
+    }
+
     tmp = (byte*) XMALLOC(size + usedLength + align, ssl->heap,
                           DYNAMIC_TYPE_IN_BUFFER);
     WOLFSSL_MSG("growing input buffer\n");
@@ -7753,8 +7759,12 @@ static int DoDtlsHandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                                 ssl->keys.dtls_expected_peer_handshake_number) {
         /* Already saw this message and processed it. It can be ignored. */
         *inOutIdx += fragSz;
-        if(type == finished )
+        if(type == finished ) {
+            if (*inOutIdx + ssl->keys.padSz > totalSz) {
+                return BUFFER_E;
+            }
             *inOutIdx += ssl->keys.padSz;
+        }
         ret = DtlsPoolSend(ssl);
     }
     else if (fragSz < size) {
