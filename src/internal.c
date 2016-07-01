@@ -4822,7 +4822,7 @@ void ShrinkInputBuffer(WOLFSSL* ssl, int forcedFree)
 
     WOLFSSL_MSG("Shrinking input buffer\n");
 
-    if (!forcedFree && usedLength)
+    if (!forcedFree && usedLength > 0)
         XMEMCPY(ssl->buffers.inputBuffer.staticBuffer,
                ssl->buffers.inputBuffer.buffer + ssl->buffers.inputBuffer.idx,
                usedLength);
@@ -4965,6 +4965,12 @@ int GrowInputBuffer(WOLFSSL* ssl, int size, int usedLength)
        while (align < hdrSz)
            align *= 2;
     }
+
+    if (usedLength < 0 || size < 0) {
+        WOLFSSL_MSG("GrowInputBuffer() called with negative number");
+        return BAD_FUNC_ARG;
+    }
+
     tmp = (byte*) XMALLOC(size + usedLength + align, ssl->heap,
                           DYNAMIC_TYPE_IN_BUFFER);
     WOLFSSL_MSG("growing input buffer\n");
@@ -7761,8 +7767,12 @@ static int DoDtlsHandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                                 ssl->keys.dtls_expected_peer_handshake_number) {
         /* Already saw this message and processed it. It can be ignored. */
         *inOutIdx += fragSz;
-        if(type == finished )
+        if(type == finished ) {
+            if (*inOutIdx + ssl->keys.padSz > totalSz) {
+                return BUFFER_E;
+            }
             *inOutIdx += ssl->keys.padSz;
+        }
         ret = DtlsPoolSend(ssl);
     }
     else if (fragSz < size) {
@@ -8900,13 +8910,15 @@ static int GetInputData(WOLFSSL *ssl, word32 size)
     }
 #endif
 
+    /* check that no lengths or size values are negative */
+    if (usedLength < 0 || maxLength < 0 || inSz <= 0) {
+        return BUFFER_ERROR;
+    }
+
     if (inSz > maxLength) {
         if (GrowInputBuffer(ssl, size + dtlsExtra, usedLength) < 0)
             return MEMORY_E;
     }
-
-    if (inSz <= 0)
-        return BUFFER_ERROR;
 
     /* Put buffer data at start if not there */
     if (usedLength > 0 && ssl->buffers.inputBuffer.idx != 0)
