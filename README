@@ -35,6 +35,16 @@ before calling wolfSSL_new();  Though it's not recommended.
 *** end Notes ***
 
 
+ ********* wolfSSL (Formerly CyaSSL) Release X.X.X (TBD)
+
+Release X.X.X of wolfSSL has bug fixes and new features including:
+
+- X.509 bug fixes for reading in malformed certificates, reported by
+  researchers at Columbia University
+
+See INSTALL file for build instructions.
+More info can be found on-line at //http://wolfssl.com/wolfSSL/Docs.html
+
  ********* wolfSSL (Formerly CyaSSL) Release 3.9.6 (6/14/2016)
 
 Release 3.9.6 of wolfSSL has bug fixes and new features including:
