@@ -391,6 +391,11 @@ WOLFSSL_API int  wolfSSL_CTX_get_cert_cache_memsize(WOLFSSL_CTX*);
 WOLFSSL_API int  wolfSSL_CTX_set_cipher_list(WOLFSSL_CTX*, const char*);
 WOLFSSL_API int  wolfSSL_set_cipher_list(WOLFSSL*, const char*);
 
+WOLFSSL_API int  wolfSSL_CTX_get_cipher_iana_list(WOLFSSL_CTX*, unsigned char*, int, int*);
+WOLFSSL_API int  wolfSSL_get_cipher_iana_list(WOLFSSL*, unsigned char*, int, int*);
+WOLFSSL_API int  wolfSSL_get_compiled_cipher_iana_list(unsigned char*, int, int*);
+WOLFSSL_API const char* wolfSSL_get_cipher_string(int, int);
+
 /* Nonblocking DTLS helper functions */
 WOLFSSL_API int  wolfSSL_dtls_get_current_timeout(WOLFSSL* ssl);
 WOLFSSL_API int  wolfSSL_dtls_set_timeout_init(WOLFSSL* ssl, int);

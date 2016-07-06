@@ -858,6 +858,7 @@ enum {
 
 
 enum Misc {
+    NORMAL_BYTE = 0x00,            /* Normal first cipher suite byte */
     ECC_BYTE    = 0xC0,            /* ECC first cipher suite byte */
     QSH_BYTE    = 0xD0,            /* Quantum-safe Handshake cipher suite */
     CHACHA_BYTE = 0xCC,            /* ChaCha first cipher suite */
@@ -1381,6 +1382,10 @@ void InitSuites(Suites*, ProtocolVersion, word16, word16, word16, word16,
                 word16, word16, word16, int);
 WOLFSSL_LOCAL
 int  SetCipherList(Suites*, const char* list);
+WOLFSSL_LOCAL
+int  GetCipherIANAList(Suites*, unsigned char* buf, int len, int* num_ids);
+WOLFSSL_LOCAL
+const char* GetCipherString(int first, int second);
 
 #ifndef PSK_TYPES_DEFINED
     typedef unsigned int (*wc_psk_client_callback)(WOLFSSL*, const char*, char*,
@@ -3100,7 +3105,12 @@ WOLFSSL_LOCAL word32  LowResTimer(void);
 /* used by ssl.c and wolfssl_int.c */
 WOLFSSL_LOCAL void c32to24(word32 in, word24 out);
 
-WOLFSSL_LOCAL const char* const* GetCipherNames(void);
+typedef struct CipherSuiteInfo {
+    const char* name;                    /* cipher name */
+    int cipherPrefix;                    /* IANA value, first byte */
+    int cipherSuite;                     /* IANA value, second byte */
+} CipherSuiteInfo;
+WOLFSSL_LOCAL CipherSuiteInfo const* GetCipherNames(void);
 WOLFSSL_LOCAL int GetCipherNamesSize(void);
 WOLFSSL_LOCAL const char* wolfSSL_get_cipher_name_internal(WOLFSSL* ssl);
 
