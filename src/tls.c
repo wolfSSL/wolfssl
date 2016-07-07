@@ -2778,26 +2778,64 @@ int TLSX_ValidateEllipticCurves(WOLFSSL* ssl, byte first, byte second) {
         return 1; /* no suite restriction */
 
     for (curve = extension->data; curve && !(sig && key); curve = curve->next) {
-
+        /* find supported curve */
         switch (curve->name) {
-#if defined(HAVE_ALL_CURVES) || defined(HAVE_ECC160)
-            case WOLFSSL_ECC_SECP160R1: oid = ECC_160R1; octets = 20; break;
-#endif
-#if defined(HAVE_ALL_CURVES) || defined(HAVE_ECC192)
-            case WOLFSSL_ECC_SECP192R1: oid = ECC_192R1; octets = 24; break;
-#endif
-#if defined(HAVE_ALL_CURVES) || defined(HAVE_ECC224)
-            case WOLFSSL_ECC_SECP224R1: oid = ECC_224R1; octets = 28; break;
-#endif
-#if defined(HAVE_ALL_CURVES) || !defined(NO_ECC256)
-            case WOLFSSL_ECC_SECP256R1: oid = ECC_256R1; octets = 32; break;
-#endif
-#if defined(HAVE_ALL_CURVES) || defined(HAVE_ECC384)
-            case WOLFSSL_ECC_SECP384R1: oid = ECC_384R1; octets = 48; break;
-#endif
-#if defined(HAVE_ALL_CURVES) || defined(HAVE_ECC521)
-            case WOLFSSL_ECC_SECP521R1: oid = ECC_521R1; octets = 66; break;
-#endif
+    #if defined(HAVE_ECC160) || defined(HAVE_ALL_CURVES)
+        #ifndef NO_ECC_SECP
+            case WOLFSSL_ECC_SECP160R1: oid = ECC_SECP160R1_OID; octets = 20; break;
+        #endif /* !NO_ECC_SECP */
+        #ifdef HAVE_ECC_SECPR2
+            case WOLFSSL_ECC_SECP160R2: oid = ECC_SECP160R2_OID; octets = 20; break;
+        #endif /* HAVE_ECC_SECPR2 */
+        #ifdef HAVE_ECC_KOBLITZ
+            case WOLFSSL_ECC_SECP160K1: oid = ECC_SECP160K1_OID; octets = 20; break;
+        #endif /* HAVE_ECC_KOBLITZ */
+    #endif
+    #if defined(HAVE_ECC192) || defined(HAVE_ALL_CURVES)
+        #ifndef NO_ECC_SECP
+            case WOLFSSL_ECC_SECP192R1: oid = ECC_SECP192R1_OID; octets = 24; break;
+        #endif /* !NO_ECC_SECP */
+        #ifdef HAVE_ECC_KOBLITZ
+            case WOLFSSL_ECC_SECP192K1: oid = ECC_SECP192K1_OID; octets = 24; break;
+        #endif /* HAVE_ECC_KOBLITZ */
+    #endif
+    #if defined(HAVE_ECC224) || defined(HAVE_ALL_CURVES)
+        #ifndef NO_ECC_SECP
+            case WOLFSSL_ECC_SECP224R1: oid = ECC_SECP224R1_OID; octets = 28; break;
+        #endif /* !NO_ECC_SECP */
+        #ifdef HAVE_ECC_KOBLITZ
+            case WOLFSSL_ECC_SECP224K1: oid = ECC_SECP224K1_OID; octets = 28; break;
+        #endif /* HAVE_ECC_KOBLITZ */
+    #endif
+    #if !defined(NO_ECC256)  || defined(HAVE_ALL_CURVES)
+        #ifndef NO_ECC_SECP
+            case WOLFSSL_ECC_SECP256R1: oid = ECC_SECP256R1_OID; octets = 32; break;
+        #endif /* !NO_ECC_SECP */
+        #ifdef HAVE_ECC_KOBLITZ
+            case WOLFSSL_ECC_SECP256K1: oid = ECC_SECP256K1_OID; octets = 32; break;
+        #endif /* HAVE_ECC_KOBLITZ */
+        #ifdef HAVE_ECC_BRAINPOOL
+            case WOLFSSL_ECC_BRAINPOOLP256R1: oid = ECC_BRAINPOOLP256R1_OID; octets = 32; break;
+        #endif /* HAVE_ECC_BRAINPOOL */
+    #endif
+    #if defined(HAVE_ECC384) || defined(HAVE_ALL_CURVES)
+        #ifndef NO_ECC_SECP
+            case WOLFSSL_ECC_SECP384R1: oid = ECC_SECP384R1_OID; octets = 48; break;
+        #endif /* !NO_ECC_SECP */
+        #ifdef HAVE_ECC_BRAINPOOL
+            case WOLFSSL_ECC_BRAINPOOLP384R1: oid = ECC_BRAINPOOLP384R1_OID; octets = 48; break;
+        #endif /* HAVE_ECC_BRAINPOOL */
+    #endif
+    #if defined(HAVE_ECC512) || defined(HAVE_ALL_CURVES)
+        #ifdef HAVE_ECC_BRAINPOOL
+            case WOLFSSL_ECC_BRAINPOOLP512R1: oid = ECC_BRAINPOOLP512R1_OID; octets = 64; break;
+        #endif /* HAVE_ECC_BRAINPOOL */
+    #endif
+    #if defined(HAVE_ECC521) || defined(HAVE_ALL_CURVES)
+        #ifndef NO_ECC_SECP
+            case WOLFSSL_ECC_SECP521R1: oid = ECC_SECP521R1_OID; octets = 66; break;
+        #endif /* !NO_ECC_SECP */
+    #endif
             default: continue; /* unsupported curve */
         }
 

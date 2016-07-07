@@ -6443,6 +6443,20 @@ static int ecc_test_vector(int keySize)
     vec.keySize = keySize;
 
     switch(keySize) {
+
+#if defined(HAVE_ECC112) || defined(HAVE_ALL_CURVES)
+    case 14:
+        return 0;
+#endif /* HAVE_ECC112 */
+#if defined(HAVE_ECC128) || defined(HAVE_ALL_CURVES)
+    case 16:
+        return 0;
+#endif /* HAVE_ECC128 */
+#if defined(HAVE_ECC160) || defined(HAVE_ALL_CURVES)
+    case 20:
+        return 0;
+#endif /* HAVE_ECC160 */
+
 #if defined(HAVE_ECC192) || defined(HAVE_ALL_CURVES)
     case 24:
         /* first [P-192,SHA-1] vector from FIPS 186-3 NIST vectors */
@@ -6499,6 +6513,11 @@ static int ecc_test_vector(int keySize)
         break;
 #endif /* HAVE_ECC224 */
 
+#if defined(HAVE_ECC239) || defined(HAVE_ALL_CURVES)
+    case 30:
+        return 0;    
+#endif /* HAVE_ECC239 */
+
 #if !defined(NO_ECC256) || defined(HAVE_ALL_CURVES)
     case 32:
         /* first [P-256,SHA-1] vector from FIPS 186-3 NIST vectors */
@@ -6527,6 +6546,11 @@ static int ecc_test_vector(int keySize)
         break;
 #endif /* !NO_ECC256 */
 
+#if defined(HAVE_ECC320) || defined(HAVE_ALL_CURVES)
+    case 40:
+        return 0;
+#endif /* HAVE_ECC320 */
+
 #if defined(HAVE_ECC384) || defined(HAVE_ALL_CURVES)
     case 48:
         /* first [P-384,SHA-1] vector from FIPS 186-3 NIST vectors */
@@ -6554,6 +6578,11 @@ static int ecc_test_vector(int keySize)
         vec.curveName = "SECP384R1";
         break;
 #endif /* HAVE_ECC384 */
+
+#if defined(HAVE_ECC512) || defined(HAVE_ALL_CURVES)
+    case 64:
+        return 0;
+#endif /* HAVE_ECC512 */
 
 #if defined(HAVE_ECC521) || defined(HAVE_ALL_CURVES)
     case 66:
@@ -6673,7 +6702,7 @@ static int ecc_test_key_gen(WC_RNG* rng, int keySize)
 }
 #endif /* WOLFSSL_KEY_GEN */
 static int ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerifyCount,
-    const ecc_set_type* dp)
+    int curve_id)
 {
 #ifdef BENCH_EMBEDDED
     byte    sharedA[128]; /* Needs to be at least keySize */
@@ -6701,7 +6730,7 @@ static int ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerifyCount,
     wc_ecc_init(&userB);
     wc_ecc_init(&pubKey);
 
-    ret = wc_ecc_make_key_ex(rng, keySize, &userA, dp);
+    ret = wc_ecc_make_key_ex(rng, keySize, &userA, curve_id);
     if (ret != 0)
         ERROR_OUT(-1014, done);
 
@@ -6709,15 +6738,17 @@ static int ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerifyCount,
     if (ret != 0)
         ERROR_OUT(-1023, done);
 
-    ret = wc_ecc_make_key_ex(rng, keySize, &userB, dp);
+    ret = wc_ecc_make_key_ex(rng, keySize, &userB, curve_id);
     if (ret != 0)
         ERROR_OUT(-1002, done);
 
 #ifdef HAVE_ECC_DHE
     x = sizeof(sharedA);
     ret = wc_ecc_shared_secret(&userA, &userB, sharedA, &x);
-    if (ret != 0)
+    if (ret != 0) {
+        printf("wc_ecc_shared_secret %d\n", ret);
         ERROR_OUT(-1015, done);
+    }
 
     y = sizeof(sharedB);
     ret = wc_ecc_shared_secret(&userB, &userA, sharedB, &y);
@@ -6738,7 +6769,7 @@ static int ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerifyCount,
         ERROR_OUT(-1006, done);
 
 #ifdef HAVE_ECC_KEY_IMPORT
-    ret = wc_ecc_import_x963_ex(exportBuf, x, &pubKey, dp);
+    ret = wc_ecc_import_x963_ex(exportBuf, x, &pubKey, curve_id);
     if (ret != 0)
         ERROR_OUT(-1007, done);
 
@@ -6761,7 +6792,7 @@ static int ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerifyCount,
         wc_ecc_free(&pubKey);
         wc_ecc_init(&pubKey);
 
-        ret = wc_ecc_import_x963_ex(exportBuf, x, &pubKey, dp);
+        ret = wc_ecc_import_x963_ex(exportBuf, x, &pubKey, curve_id);
         if (ret != 0)
             ERROR_OUT(-1011, done);
 
@@ -6847,7 +6878,7 @@ static int ecc_test_curve(WC_RNG* rng, int keySize)
 {
     int ret;
 
-    ret = ecc_test_curve_size(rng, keySize, ECC_TEST_VERIFY_COUNT, NULL);
+    ret = ecc_test_curve_size(rng, keySize, ECC_TEST_VERIFY_COUNT, ECC_CURVE_DEF);
     if (ret < 0) {
         printf("ecc_test_curve_size %d failed!: %d\n", keySize, ret);
         return ret;
@@ -6881,6 +6912,24 @@ int ecc_test(void)
     if (ret != 0)
         return -1001;
 
+#if defined(HAVE_ECC112) || defined(HAVE_ALL_CURVES)
+    ret = ecc_test_curve(&rng, 14);
+    if (ret < 0) {
+        goto done;
+    }
+#endif /* HAVE_ECC112 */
+#if defined(HAVE_ECC128) || defined(HAVE_ALL_CURVES)
+    ret = ecc_test_curve(&rng, 16);
+    if (ret < 0) {
+        goto done;
+    }
+#endif /* HAVE_ECC128 */
+#if defined(HAVE_ECC160) || defined(HAVE_ALL_CURVES)
+    ret = ecc_test_curve(&rng, 20);
+    if (ret < 0) {
+        goto done;
+    }
+#endif /* HAVE_ECC160 */
 #if defined(HAVE_ECC192) || defined(HAVE_ALL_CURVES)
     ret = ecc_test_curve(&rng, 24);
     if (ret < 0) {
@@ -6893,18 +6942,36 @@ int ecc_test(void)
         goto done;
     }
 #endif /* HAVE_ECC224 */
+#if defined(HAVE_ECC239) || defined(HAVE_ALL_CURVES)
+    ret = ecc_test_curve(&rng, 30);
+    if (ret < 0) {
+        goto done;
+    }
+#endif /* HAVE_ECC239 */
 #if !defined(NO_ECC256) || defined(HAVE_ALL_CURVES)
     ret = ecc_test_curve(&rng, 32);
     if (ret < 0) {
         goto done;
     }
 #endif /* !NO_ECC256 */
+#if defined(HAVE_ECC320) || defined(HAVE_ALL_CURVES)
+    ret = ecc_test_curve(&rng, 40);
+    if (ret < 0) {
+        goto done;
+    }
+#endif /* HAVE_ECC320 */
 #if defined(HAVE_ECC384) || defined(HAVE_ALL_CURVES)
     ret = ecc_test_curve(&rng, 48);
     if (ret < 0) {
         goto done;
     }
 #endif /* HAVE_ECC384 */
+#if defined(HAVE_ECC512) || defined(HAVE_ALL_CURVES)
+    ret = ecc_test_curve(&rng, 64);
+    if (ret < 0) {
+        goto done;
+    }
+#endif /* HAVE_ECC512 */
 #if defined(HAVE_ECC521) || defined(HAVE_ALL_CURVES)
     ret = ecc_test_curve(&rng, 66);
     if (ret < 0) {
@@ -6913,23 +6980,22 @@ int ecc_test(void)
 #endif /* HAVE_ECC521 */
 
 #if defined(WOLFSSL_CUSTOM_CURVES)
-    /* Test and demonstrate use of Brainpool256 curve */
-    const ecc_set_type ecc_cust_dp = {
-        32,                                                                 /* size/bytes */
-        0,                                                                  /* NID - not required */ 
-        "BRAINPOOLP256R1",                                                  /* curve name */
-        "A9FB57DBA1EEA9BC3E660A909D838D726E3BF623D52620282013481D1F6E5377", /* prime      */
-        "7D5A0975FC2C3057EEF67530417AFFE7FB8055C126DC5C6CE94A4B44F330B5D9", /* A          */
-        "26DC5C6CE94A4B44F330B5D9BBD77CBF958416295CF7E1CE6BCCDC18FF8C07B6", /* B          */
-        "A9FB57DBA1EEA9BC3E660A909D838D718C397AA3B561A6F7901E0E82974856A7", /* order      */
-        "8BD2AEB9CB7E57CB2C4B482FFC81B7AFB9DE27E1E3BD23C23A4453BD9ACE3262", /* Gx         */
-        "547EF835C3DAC4FD97F8461A14611DC9C27745132DED8E545C1D54C72F046997", /* Gy         */
-    };
-    ret = ecc_test_curve_size(&rng, 0, ECC_TEST_VERIFY_COUNT, &ecc_cust_dp);
-    if (ret < 0) {
-        printf("ecc_test_curve_size custom failed!: %d\n", ret);
-        goto done;
+    #if defined(HAVE_ECC_BRAINPOOL) || defined(HAVE_ECC_KOBLITZ)
+    {
+        int curve_id;
+        #ifdef HAVE_ECC_BRAINPOOL
+            curve_id = ECC_BRAINPOOLP256R1;
+        #else
+            curve_id = ECC_SECP256K1;
+        #endif
+        /* Test and demonstrate use of non-SECP curve */
+        ret = ecc_test_curve_size(&rng, 0, ECC_TEST_VERIFY_COUNT, curve_id);
+        if (ret < 0) {
+            printf("ecc_test_curve_size: type %d: failed!: %d\n", curve_id, ret);
+            goto done;
+        }
     }
+    #endif
 #endif
 
 done:

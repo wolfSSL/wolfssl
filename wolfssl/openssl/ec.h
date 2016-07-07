@@ -5,6 +5,7 @@
 
 #include <wolfssl/openssl/ssl.h>
 #include <wolfssl/openssl/bn.h>
+#include <wolfssl/wolfcrypt/ecc.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -13,15 +14,33 @@ extern "C" {
 /* Map OpenSSL NID value */
 enum {
     POINT_CONVERSION_UNCOMPRESSED = 4,
-    NID_secp112r1 = 0,
-    NID_secp128r1 = 1,
-    NID_secp160r1 = 2,
-    NID_X9_62_prime192v1 = 3,
-    NID_secp224r1 = 4,
-    NID_X9_62_prime256v1 = 5,
-    NID_secp384r1 = 6,
-    NID_secp521r1 = 7,
-    NID_X9_62_prime_field = 100,
+
+#ifdef HAVE_ECC
+    /* Use ecc_curve_type enum values for NID */
+    NID_X9_62_prime192v1 = ECC_SECP192R1,
+    NID_X9_62_prime256v1 = ECC_SECP256R1,
+    NID_secp112r1 = ECC_SECP112R1,
+    NID_secp112r2 = ECC_SECP112R2,
+    NID_secp128r1 = ECC_SECP128R1,
+    NID_secp128r2 = ECC_SECP128R2,
+    NID_secp160r1 = ECC_SECP160R1,
+    NID_secp160r2 = ECC_SECP160R2,
+    NID_secp224r1 = ECC_SECP224R1,
+    NID_secp384r1 = ECC_SECP384R1,
+    NID_secp521r1 = ECC_SECP521R1,
+    NID_secp160k1 = ECC_SECP160K1,
+    NID_secp192k1 = ECC_SECP192K1,
+    NID_secp224k1 = ECC_SECP224K1,
+    NID_secp256k1 = ECC_SECP256K1,
+    NID_brainpoolP160r1 = ECC_BRAINPOOLP160R1,
+    NID_brainpoolP192r1 = ECC_BRAINPOOLP192R1,
+    NID_brainpoolP224r1 = ECC_BRAINPOOLP224R1,
+    NID_brainpoolP256r1 = ECC_BRAINPOOLP256R1,
+    NID_brainpoolP320r1 = ECC_BRAINPOOLP320R1,
+    NID_brainpoolP384r1 = ECC_BRAINPOOLP384R1,
+    NID_brainpoolP512r1 = ECC_BRAINPOOLP512R1,
+#endif
+
     OPENSSL_EC_NAMED_CURVE  = 0x001
 };
 
