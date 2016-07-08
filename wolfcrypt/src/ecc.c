@@ -1175,7 +1175,7 @@ int wc_ecc_mulmod_ex(mp_int* k, ecc_point *G, ecc_point *R,
 #endif
 {
    ecc_point    *tG, *M[3];
-   int           i, err;
+   int           i, j, err;
    mp_int        mu;
    mp_digit      mp;
    mp_digit      buf;
