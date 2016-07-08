@@ -1207,46 +1207,46 @@ __asm__(                              \
     #include "fp_sqr_comba_small_set.i"
 #endif
 
-#if defined(TFM_SQR3)
+#if defined(TFM_SQR3) && FP_SIZE >= 6
     #include "fp_sqr_comba_3.i"
 #endif
-#if defined(TFM_SQR4)
+#if defined(TFM_SQR4) && FP_SIZE >= 8
     #include "fp_sqr_comba_4.i"
 #endif
-#if defined(TFM_SQR6)
+#if defined(TFM_SQR6) && FP_SIZE >= 12
     #include "fp_sqr_comba_6.i"
 #endif
-#if defined(TFM_SQR7)
+#if defined(TFM_SQR7) && FP_SIZE >= 14
     #include "fp_sqr_comba_7.i"
 #endif
-#if defined(TFM_SQR8)
+#if defined(TFM_SQR8) && FP_SIZE >= 16
     #include "fp_sqr_comba_8.i"
 #endif
-#if defined(TFM_SQR9)
+#if defined(TFM_SQR9) && FP_SIZE >= 18
     #include "fp_sqr_comba_9.i"
 #endif
-#if defined(TFM_SQR12)
+#if defined(TFM_SQR12) && FP_SIZE >= 24
     #include "fp_sqr_comba_12.i"
 #endif
-#if defined(TFM_SQR17)
+#if defined(TFM_SQR17) && FP_SIZE >= 34
     #include "fp_sqr_comba_17.i"
 #endif
-#if defined(TFM_SQR20)
+#if defined(TFM_SQR20) && FP_SIZE >= 40
     #include "fp_sqr_comba_20.i"
 #endif
-#if defined(TFM_SQR24)
+#if defined(TFM_SQR24) && FP_SIZE >= 48
     #include "fp_sqr_comba_24.i"
 #endif
-#if defined(TFM_SQR28)
+#if defined(TFM_SQR28) && FP_SIZE >= 56
     #include "fp_sqr_comba_28.i"
 #endif
-#if defined(TFM_SQR32)
+#if defined(TFM_SQR32) && FP_SIZE >= 64
     #include "fp_sqr_comba_32.i"
 #endif
-#if defined(TFM_SQR48)
+#if defined(TFM_SQR48) && FP_SIZE >= 96
     #include "fp_sqr_comba_48.i"
 #endif
-#if defined(TFM_SQR64)
+#if defined(TFM_SQR64) && FP_SIZE >= 128
     #include "fp_sqr_comba_64.i"
 #endif
 /* end fp_sqr_comba.c asm */
@@ -1568,46 +1568,46 @@ ____asm__(                             \
     #include "fp_mul_comba_small_set.i"
 #endif
 
-#if defined(TFM_MUL3)
+#if defined(TFM_MUL3) && FP_SIZE >= 6
     #include "fp_mul_comba_3.i"
 #endif
-#if defined(TFM_MUL4)
+#if defined(TFM_MUL4) && FP_SIZE >= 8
     #include "fp_mul_comba_4.i"
 #endif
-#if defined(TFM_MUL6)
+#if defined(TFM_MUL6) && FP_SIZE >= 12
     #include "fp_mul_comba_6.i"
 #endif
-#if defined(TFM_MUL7)
+#if defined(TFM_MUL7) && FP_SIZE >= 14
     #include "fp_mul_comba_7.i"
 #endif
-#if defined(TFM_MUL8)
+#if defined(TFM_MUL8) && FP_SIZE >= 16
     #include "fp_mul_comba_8.i"
 #endif
-#if defined(TFM_MUL9)
+#if defined(TFM_MUL9) && FP_SIZE >= 18
     #include "fp_mul_comba_9.i"
 #endif
-#if defined(TFM_MUL12)
+#if defined(TFM_MUL12) && FP_SIZE >= 24
     #include "fp_mul_comba_12.i"
 #endif
-#if defined(TFM_MUL17)
+#if defined(TFM_MUL17) && FP_SIZE >= 34
     #include "fp_mul_comba_17.i"
 #endif
-#if defined(TFM_MUL20)
+#if defined(TFM_MUL20) && FP_SIZE >= 40
     #include "fp_mul_comba_20.i"
 #endif
-#if defined(TFM_MUL24)
+#if defined(TFM_MUL24) && FP_SIZE >= 48
     #include "fp_mul_comba_24.i"
 #endif
-#if defined(TFM_MUL28)
+#if defined(TFM_MUL28) && FP_SIZE >= 56
     #include "fp_mul_comba_28.i"
 #endif
-#if defined(TFM_MUL32)
+#if defined(TFM_MUL32) && FP_SIZE >= 64
     #include "fp_mul_comba_32.i"
 #endif
-#if defined(TFM_MUL48)
+#if defined(TFM_MUL48) && FP_SIZE >= 96
     #include "fp_mul_comba_48.i"
 #endif
-#if defined(TFM_MUL64)
+#if defined(TFM_MUL64) && FP_SIZE >= 128
     #include "fp_mul_comba_64.i"
 #endif
 
