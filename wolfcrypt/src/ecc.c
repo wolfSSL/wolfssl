@@ -3369,7 +3369,7 @@ int wc_ecc_sig_size(ecc_key* key)
 /* fixed point ECC cache */
 /* number of entries in the cache */
 #ifndef FP_ENTRIES
-    #define FP_ENTRIES 16
+    #define FP_ENTRIES 15
 #endif
 
 /* number of bits in LUT */
