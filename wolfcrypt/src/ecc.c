@@ -1175,7 +1175,7 @@ int wc_ecc_mulmod_ex(mp_int* k, ecc_point *G, ecc_point *R,
 #endif
 {
    ecc_point    *tG, *M[3];
-   int           i, err;
+   int           i, j, err;
    mp_int        mu;
    mp_digit      mp;
    mp_digit      buf;
@@ -3369,7 +3369,7 @@ int wc_ecc_sig_size(ecc_key* key)
 /* fixed point ECC cache */
 /* number of entries in the cache */
 #ifndef FP_ENTRIES
-    #define FP_ENTRIES 16
+    #define FP_ENTRIES 15
 #endif
 
 /* number of bits in LUT */
