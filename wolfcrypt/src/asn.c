@@ -1044,7 +1044,7 @@ static const byte* OidFromId(word32 id, word32 type, word32* oidSz)
 }
 
 #ifdef HAVE_OID_ENCODING
-int EncodeObjectId(const word32* in, word32 inSz, byte* out, word32* outSz)
+int EncodeObjectId(const word16* in, word32 inSz, byte* out, word32* outSz)
 {
     int i, x, len;
     word32 d, t;

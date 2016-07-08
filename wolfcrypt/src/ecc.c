@@ -151,6 +151,273 @@ ECC Curve Sizes:
 #endif
 
 
+/* The encoded OID's for ECC curves */
+#ifdef ECC112
+    #ifndef NO_ECC_SECP
+        static const ecc_oid_t ecc_oid_secp112r1[] = {
+        #ifdef HAVE_OID_ENCODING
+            1,3,132,0,6
+        #else
+            0x2B,0x81,0x04,0x00,0x06
+        #endif
+        };
+    #endif /* !NO_ECC_SECP */
+    #ifdef HAVE_ECC_SECPR2
+        static const ecc_oid_t ecc_oid_secp112r2[] = {
+        #ifdef HAVE_OID_ENCODING
+            1,3,132,0,7
+        #else
+            0x2B,0x81,0x04,0x00,0x07
+        #endif
+        };
+    #endif /* HAVE_ECC_SECPR2 */
+#endif /* ECC112 */
+#ifdef ECC128
+    #ifndef NO_ECC_SECP
+        static const ecc_oid_t ecc_oid_secp128r1[] = {
+        #ifdef HAVE_OID_ENCODING
+            1,3,132,0,28
+        #else
+            0x2B,0x81,0x04,0x00,0x1C
+        #endif
+        };
+    #endif /* !NO_ECC_SECP */
+    #ifdef HAVE_ECC_SECPR2
+        static const ecc_oid_t ecc_oid_secp128r2[] = {
+        #ifdef HAVE_OID_ENCODING
+            1,3,132,0,29
+        #else
+            0x2B,0x81,0x04,0x00,0x1D
+        #endif
+        };
+    #endif /* HAVE_ECC_SECPR2 */
+#endif /* ECC128 */
+#ifdef ECC160
+    #ifndef NO_ECC_SECP
+        static const ecc_oid_t ecc_oid_secp160r1[] = {
+        #ifdef HAVE_OID_ENCODING
+            1,3,132,0,8
+        #else
+            0x2B,0x81,0x04,0x00,0x08
+        #endif
+        };
+    #endif /* !NO_ECC_SECP */
+    #ifdef HAVE_ECC_SECPR2
+        static const ecc_oid_t ecc_oid_secp160r2[] = {
+        #ifdef HAVE_OID_ENCODING
+            1,3,132,0,30
+        #else
+            0x2B,0x81,0x04,0x00,0x1E
+        #endif
+        };
+    #endif /* HAVE_ECC_SECPR2 */
+    #ifdef HAVE_ECC_KOBLITZ
+        static const ecc_oid_t ecc_oid_secp160k1[] = {
+        #ifdef HAVE_OID_ENCODING
+            1,3,132,0,9
+        #else
+            0x2B,0x81,0x04,0x00,0x09
+        #endif
+        };
+    #endif /* HAVE_ECC_KOBLITZ */
+    #ifdef HAVE_ECC_BRAINPOOL
+        static const ecc_oid_t ecc_oid_brainpoolp160r1[] = {
+        #ifdef HAVE_OID_ENCODING
+            1,3,36,3,3,2,8,1,1,1
+        #else
+            0x2B,0x24,0x03,0x03,0x02,0x08,0x01,0x01,0x01
+        #endif
+        };
+    #endif /* HAVE_ECC_BRAINPOOL */
+#endif /* ECC160 */
+#ifdef ECC192
+    #ifndef NO_ECC_SECP
+        static const ecc_oid_t ecc_oid_secp192r1[] = {
+        #ifdef HAVE_OID_ENCODING
+            1,2,840,10045,3,1,1
+        #else
+            0x2A,0x86,0x48,0xCE,0x3D,0x03,0x01,0x01
+        #endif
+        };
+    #endif /* !NO_ECC_SECP */
+    #ifdef HAVE_ECC_SECPR2
+        static const ecc_oid_t ecc_oid_prime192v2[] = {
+        #ifdef HAVE_OID_ENCODING
+            1,2,840,10045,3,1,2
+        #else
+            0x2A,0x86,0x48,0xCE,0x3D,0x03,0x01,0x02
+        #endif
+        };
+    #endif /* HAVE_ECC_SECPR2 */
+    #ifdef HAVE_ECC_SECPR3
+        static const ecc_oid_t ecc_oid_prime192v3[] = {
+        #ifdef HAVE_OID_ENCODING
+            1,2,840,10045,3,1,3
+        #else
+            0x2A,0x86,0x48,0xCE,0x3D,0x03,0x01,0x03
+        #endif
+        };
+    #endif /* HAVE_ECC_SECPR3 */
+    #ifdef HAVE_ECC_KOBLITZ
+        static const ecc_oid_t ecc_oid_secp192k1[] = {
+        #ifdef HAVE_OID_ENCODING
+            1,3,132,0,31
+        #else
+            0x2B,0x81,0x04,0x00,0x1F
+        #endif
+        };
+    #endif /* HAVE_ECC_KOBLITZ */
+    #ifdef HAVE_ECC_BRAINPOOL
+        static const ecc_oid_t ecc_oid_brainpoolp192r1[] = {
+        #ifdef HAVE_OID_ENCODING
+            1,3,36,3,3,2,8,1,1,3
+        #else
+            0x2B,0x24,0x03,0x03,0x02,0x08,0x01,0x01,0x03
+        #endif
+        };
+    #endif /* HAVE_ECC_BRAINPOOL */
+#endif /* ECC192 */
+#ifdef ECC224
+    #ifndef NO_ECC_SECP
+        static const ecc_oid_t ecc_oid_secp224r1[] = {
+        #ifdef HAVE_OID_ENCODING
+            1,3,132,0,33
+        #else
+            0x2B,0x81,0x04,0x00,0x21
+        #endif
+        };
+    #endif /* !NO_ECC_SECP */
+    #ifdef HAVE_ECC_KOBLITZ
+        static const ecc_oid_t ecc_oid_secp224k1[] = {
+        #ifdef HAVE_OID_ENCODING
+            1,3,132,0,32
+        #else
+            0x2B,0x81,0x04,0x00,0x20
+        #endif
+        };
+    #endif /* HAVE_ECC_KOBLITZ */
+    #ifdef HAVE_ECC_BRAINPOOL
+        static const ecc_oid_t ecc_oid_brainpoolp224r1[] = {
+        #ifdef HAVE_OID_ENCODING
+            1,3,36,3,3,2,8,1,1,5
+        #else
+            0x2B,0x24,0x03,0x03,0x02,0x08,0x01,0x01,0x05
+        #endif
+        };
+    #endif /* HAVE_ECC_BRAINPOOL */
+#endif /* ECC224 */
+#ifdef ECC239
+    #ifndef NO_ECC_SECP
+        static const ecc_oid_t ecc_oid_prime239v1[] = {
+        #ifdef HAVE_OID_ENCODING
+            1,2,840,10045,3,1,4
+        #else
+            0x2A,0x86,0x48,0xCE,0x3D,0x03,0x01,0x04
+        #endif
+        };
+    #endif /* !NO_ECC_SECP */
+    #ifdef HAVE_ECC_SECPR2
+        static const ecc_oid_t ecc_oid_prime239v2[] = {
+        #ifdef HAVE_OID_ENCODING
+            1,2,840,10045,3,1,5
+        #else
+            0x2A,0x86,0x48,0xCE,0x3D,0x03,0x01,0x05
+        #endif
+        };
+    #endif /* HAVE_ECC_SECPR2 */
+    #ifdef HAVE_ECC_SECPR3
+        static const ecc_oid_t ecc_oid_prime239v3[] = {
+        #ifdef HAVE_OID_ENCODING
+            1,2,840,10045,3,1,6
+        #else
+            0x2A,0x86,0x48,0xCE,0x3D,0x03,0x01,0x06
+        #endif
+        };
+    #endif /* HAVE_ECC_SECPR3 */
+#endif /* ECC239 */
+#ifdef ECC256
+    #ifndef NO_ECC_SECP
+        static const ecc_oid_t ecc_oid_secp256r1[] = {
+        #ifdef HAVE_OID_ENCODING
+            1,2,840,10045,3,1,7
+        #else
+            0x2A,0x86,0x48,0xCE,0x3D,0x03,0x01,0x07
+        #endif
+        };
+    #endif /* !NO_ECC_SECP */
+    #ifdef HAVE_ECC_KOBLITZ
+        static const ecc_oid_t ecc_oid_secp256k1[] = {
+        #ifdef HAVE_OID_ENCODING
+            1,3,132,0,10
+        #else
+            0x2B,0x81,0x04,0x00,0x0A
+        #endif
+        };
+    #endif /* HAVE_ECC_KOBLITZ */
+    #ifdef HAVE_ECC_BRAINPOOL
+        static const ecc_oid_t ecc_oid_brainpoolp256r1[] = {
+        #ifdef HAVE_OID_ENCODING
+            1,3,36,3,3,2,8,1,1,7
+        #else
+            0x2B,0x24,0x03,0x03,0x02,0x08,0x01,0x01,0x07
+        #endif
+        };
+    #endif /* HAVE_ECC_BRAINPOOL */
+#endif /* ECC256 */
+#ifdef ECC320
+    #ifdef HAVE_ECC_BRAINPOOL
+        static const ecc_oid_t ecc_oid_brainpoolp320r1[] = {
+        #ifdef HAVE_OID_ENCODING
+            1,3,36,3,3,2,8,1,1,9
+        #else
+            0x2B,0x24,0x03,0x03,0x02,0x08,0x01,0x01,0x09
+        #endif
+        };
+    #endif /* HAVE_ECC_BRAINPOOL */
+#endif /* ECC320 */
+#ifdef ECC384
+    #ifndef NO_ECC_SECP
+        static const ecc_oid_t ecc_oid_secp384r1[] = {
+        #ifdef HAVE_OID_ENCODING
+            1,3,132,0,34
+        #else
+            0x2B,0x81,0x04,0x00,0x22
+        #endif
+        };
+    #endif /* !NO_ECC_SECP */
+    #ifdef HAVE_ECC_BRAINPOOL
+        static const ecc_oid_t ecc_oid_brainpoolp384r1[] = {
+        #ifdef HAVE_OID_ENCODING
+            1,3,36,3,3,2,8,1,1,11
+        #else
+            0x2B,0x24,0x03,0x03,0x02,0x08,0x01,0x01,0x0B
+        #endif
+        };
+    #endif /* HAVE_ECC_BRAINPOOL */
+#endif /* ECC384 */
+#ifdef ECC512
+    #ifdef HAVE_ECC_BRAINPOOL
+        static const ecc_oid_t ecc_oid_brainpoolp512r1[] = {
+        #ifdef HAVE_OID_ENCODING
+            1,3,36,3,3,2,8,1,1,13
+        #else
+            0x2B,0x24,0x03,0x03,0x02,0x08,0x01,0x01,0x0D
+        #endif
+        };
+    #endif /* HAVE_ECC_BRAINPOOL */
+#endif /* ECC512 */
+#ifdef ECC521
+    #ifndef NO_ECC_SECP
+        static const ecc_oid_t ecc_oid_secp521r1[] = {
+        #ifdef HAVE_OID_ENCODING
+            1,3,132,0,35
+        #else
+            0x2B,0x81,0x04,0x00,0x23
+        #endif
+        };
+    #endif /* !NO_ECC_SECP */
+#endif /* ECC521 */
+
 
 /* This holds the key settings.
    ***MUST*** be organized by size from smallest to largest. */
@@ -168,11 +435,8 @@ const ecc_set_type ecc_sets[] = {
         "DB7C2ABF62E35E7628DFAC6561C5", /* order      */
         "9487239995A5EE76B55F9C2F098",  /* Gx         */
         "A89CE5AF8724C0A23E0E0FF77500", /* Gy         */
-      #ifdef HAVE_OID_ENCODING
-        {1,3,132,0,6}, 5,               /* oid/oidSz  */
-      #else
-        {0x2B,0x81,0x04,0x00,0x06}, 5,  /* oid/oidSz  */
-      #endif
+        ecc_oid_secp112r1,              /* oid/oidSz  */
+        sizeof(ecc_oid_secp112r1) / sizeof(ecc_oid_t), 
         ECC_SECP112R1_OID,              /* oid sum    */
         1,                              /* cofactor   */
     },
@@ -186,13 +450,10 @@ const ecc_set_type ecc_sets[] = {
         "6127C24C05F38A0AAAF65C0EF02C", /* A          */
         "51DEF1815DB5ED74FCC34C85D709", /* B          */
         "36DF0AAFD8B8D7597CA10520D04B", /* order      */
-        "4BA30AB5E892B4E1649DD0928643",  /* Gx         */
+        "4BA30AB5E892B4E1649DD0928643", /* Gx         */
         "ADCD46F5882E3747DEF36E956E97", /* Gy         */
-      #ifdef HAVE_OID_ENCODING
-        {1,3,132,0,7}, 5,               /* oid/oidSz  */
-      #else
-        {0x2B,0x81,0x04,0x00,0x07}, 5,  /* oid/oidSz  */
-      #endif
+        ecc_oid_secp112r2,              /* oid/oidSz  */
+        sizeof(ecc_oid_secp112r2) / sizeof(ecc_oid_t),
         ECC_SECP112R2_OID,              /* oid sum    */
         4,                              /* cofactor   */
     },
@@ -210,11 +471,8 @@ const ecc_set_type ecc_sets[] = {
         "FFFFFFFE0000000075A30D1B9038A115", /* order      */
         "161FF7528B899B2D0C28607CA52C5B86", /* Gx         */
         "CF5AC8395BAFEB13C02DA292DDED7A83", /* Gy         */
-      #ifdef HAVE_OID_ENCODING
-        {1,3,132,0,28}, 5,                  /* oid/oidSz  */
-      #else
-        {0x2B,0x81,0x04,0x00,0x1C}, 5,      /* oid/oidSz  */
-      #endif
+        ecc_oid_secp128r1,                  /* oid/oidSz  */
+        sizeof(ecc_oid_secp128r1) / sizeof(ecc_oid_t),
         ECC_SECP128R1_OID,                  /* oid sum    */
         1,                                  /* cofactor   */
     },
@@ -230,11 +488,8 @@ const ecc_set_type ecc_sets[] = {
         "3FFFFFFF7FFFFFFFBE0024720613B5A3", /* order      */
         "7B6AA5D85E572983E6FB32A7CDEBC140", /* Gx         */
         "27B6916A894D3AEE7106FE805FC34B44", /* Gy         */
-      #ifdef HAVE_OID_ENCODING
-        {1,3,132,0,29}, 5,                  /* oid/oidSz  */
-      #else
-        {0x2B,0x81,0x04,0x00,0x1D}, 5,      /* oid/oidSz  */
-      #endif
+        ecc_oid_secp128r2,                  /* oid/oidSz  */
+        sizeof(ecc_oid_secp128r2) / sizeof(ecc_oid_t),
         ECC_SECP128R2_OID,                  /* oid sum    */
         4,                                  /* cofactor   */
     },
@@ -252,11 +507,8 @@ const ecc_set_type ecc_sets[] = {
         "100000000000000000001F4C8F927AED3CA752257",/* order      */
         "4A96B5688EF573284664698968C38BB913CBFC82", /* Gx         */
         "23A628553168947D59DCC912042351377AC5FB32", /* Gy         */
-      #ifdef HAVE_OID_ENCODING
-        {1,3,132,0,8}, 5,                           /* oid/oidSz  */
-      #else
-        {0x2B,0x81,0x04,0x00,0x08}, 5,              /* oid/oidSz  */
-      #endif
+        ecc_oid_secp160r1,                          /* oid/oidSz  */
+        sizeof(ecc_oid_secp160r1) / sizeof(ecc_oid_t),
         ECC_SECP160R1_OID,                          /* oid sum    */
         1,                                          /* cofactor   */
     },
@@ -272,11 +524,8 @@ const ecc_set_type ecc_sets[] = {
         "100000000000000000000351EE786A818F3A1A16B",/* order      */
         "52DCB034293A117E1F4FF11B30F7199D3144CE6D", /* Gx         */
         "FEAFFEF2E331F296E071FA0DF9982CFEA7D43F2E", /* Gy         */
-      #ifdef HAVE_OID_ENCODING
-        {1,3,132,0,30}, 5,                          /* oid/oidSz  */
-      #else
-        {0x2B,0x81,0x04,0x00,0x1E}, 5,              /* oid/oidSz  */
-      #endif
+        ecc_oid_secp160r2,                          /* oid/oidSz  */
+        sizeof(ecc_oid_secp160r2) / sizeof(ecc_oid_t),
         ECC_SECP160R2_OID,                          /* oid sum    */
         1,                                          /* cofactor   */
     },
@@ -292,11 +541,8 @@ const ecc_set_type ecc_sets[] = {
         "100000000000000000001B8FA16DFAB9ACA16B6B3",/* order      */
         "3B4C382CE37AA192A4019E763036F4F5DD4D7EBB", /* Gx         */
         "938CF935318FDCED6BC28286531733C3F03C4FEE", /* Gy         */
-      #ifdef HAVE_OID_ENCODING
-        {1,3,132,0,9}, 5,                           /* oid/oidSz  */
-      #else
-        {0x2B,0x81,0x04,0x00,0x09}, 5,              /* oid/oidSz  */
-      #endif
+        ecc_oid_secp160k1,                          /* oid/oidSz  */
+        sizeof(ecc_oid_secp160k1) / sizeof(ecc_oid_t),
         ECC_SECP160K1_OID,                          /* oid sum    */
         1,                                          /* cofactor   */
     },
@@ -312,11 +558,8 @@ const ecc_set_type ecc_sets[] = {
         "E95E4A5F737059DC60DF5991D45029409E60FC09", /* order      */
         "BED5AF16EA3F6A4F62938C4631EB5AF7BDBCDBC3", /* Gx         */
         "1667CB477A1A8EC338F94741669C976316DA6321", /* Gy         */
-      #ifdef HAVE_OID_ENCODING
-        {1,3,36,3,3,2,8,1,1,1}, 10,                 /* oid/oidSz  */
-      #else
-        {0x2B,0x24,0x03,0x03,0x02,0x08,0x01,0x01,0x01}, 9, /* oid/oidSz  */
-      #endif
+        ecc_oid_brainpoolp160r1,                    /* oid/oidSz  */
+        sizeof(ecc_oid_brainpoolp160r1) / sizeof(ecc_oid_t),
         ECC_BRAINPOOLP160R1_OID,                    /* oid sum    */
         1,                                          /* cofactor   */
     },
@@ -334,11 +577,8 @@ const ecc_set_type ecc_sets[] = {
         "FFFFFFFFFFFFFFFFFFFFFFFF99DEF836146BC9B1B4D22831", /* order      */
         "188DA80EB03090F67CBF20EB43A18800F4FF0AFD82FF1012", /* Gx         */
         "7192B95FFC8DA78631011ED6B24CDD573F977A11E794811",  /* Gy         */
-      #ifdef HAVE_OID_ENCODING
-        {1,2,840,10045,3,1,1}, 7,                           /* oid/oidSz  */
-      #else
-        {0x2A,0x86,0x48,0xCE,0x3D,0x03,0x01,0x01}, 8,       /* oid/oidSz  */
-      #endif
+        ecc_oid_secp192r1,                                  /* oid/oidSz  */
+        sizeof(ecc_oid_secp192r1) / sizeof(ecc_oid_t),
         ECC_SECP192R1_OID,                                  /* oid sum    */
         1,                                                  /* cofactor   */
     },
@@ -354,11 +594,8 @@ const ecc_set_type ecc_sets[] = {
         "FFFFFFFFFFFFFFFFFFFFFFFE5FB1A724DC80418648D8DD31", /* order      */
         "EEA2BAE7E1497842F2DE7769CFE9C989C072AD696F48034A", /* Gx         */
         "6574D11D69B6EC7A672BB82A083DF2F2B0847DE970B2DE15", /* Gy         */
-      #ifdef HAVE_OID_ENCODING
-        {1,2,840,10045,3,1,2}, 7,                           /* oid/oidSz  */
-      #else
-        {0x2A,0x86,0x48,0xCE,0x3D,0x03,0x01,0x02}, 8,       /* oid/oidSz  */
-      #endif
+        ecc_oid_prime192v2,                                 /* oid/oidSz  */
+        sizeof(ecc_oid_prime192v2) / sizeof(ecc_oid_t),
         ECC_PRIME192V2_OID,                                 /* oid sum    */
         1,                                                  /* cofactor   */
     },
@@ -374,11 +611,8 @@ const ecc_set_type ecc_sets[] = {
         "FFFFFFFFFFFFFFFFFFFFFFFF7A62D031C83F4294F640EC13", /* order      */
         "7D29778100C65A1DA1783716588DCE2B8B4AEE8E228F1896", /* Gx         */
         "38A90F22637337334B49DCB66A6DC8F9978ACA7648A943B0", /* Gy         */
-      #ifdef HAVE_OID_ENCODING
-        {1,2,840,10045,3,1,3}, 7,                           /* oid/oidSz  */
-      #else
-        {0x2A,0x86,0x48,0xCE,0x3D,0x03,0x01,0x03}, 8,       /* oid/oidSz  */
-      #endif
+        ecc_oid_prime192v3,                                 /* oid/oidSz  */
+        sizeof(ecc_oid_prime192v3) / sizeof(ecc_oid_t),
         ECC_PRIME192V3_OID,                                 /* oid sum    */
         1,                                                  /* cofactor   */
     },
@@ -394,11 +628,8 @@ const ecc_set_type ecc_sets[] = {
         "FFFFFFFFFFFFFFFFFFFFFFFE26F2FC170F69466A74DEFD8D", /* order      */
         "DB4FF10EC057E9AE26B07D0280B7F4341DA5D1B1EAE06C7D", /* Gx         */
         "9B2F2F6D9C5628A7844163D015BE86344082AA88D95E2F9D", /* Gy         */
-      #ifdef HAVE_OID_ENCODING
-        {1,3,132,0,31}, 5,                                  /* oid/oidSz  */
-      #else
-        {0x2B,0x81,0x04,0x00,0x1F}, 5,                      /* oid/oidSz  */
-      #endif
+        ecc_oid_secp192k1,                                  /* oid/oidSz  */
+        sizeof(ecc_oid_secp192k1) / sizeof(ecc_oid_t),
         ECC_SECP192K1_OID,                                  /* oid sum    */
         1,                                                  /* cofactor   */
     },
@@ -414,11 +645,8 @@ const ecc_set_type ecc_sets[] = {
         "C302F41D932A36CDA7A3462F9E9E916B5BE8F1029AC4ACC1", /* order      */
         "C0A0647EAAB6A48753B033C56CB0F0900A2F5C4853375FD6", /* Gx         */
         "14B690866ABD5BB88B5F4828C1490002E6773FA2FA299B8F", /* Gy         */
-      #ifdef HAVE_OID_ENCODING
-        {1,3,36,3,3,2,8,1,1,3}, 10,                         /* oid/oidSz  */
-      #else
-        {0x2B,0x24,0x03,0x03,0x02,0x08,0x01,0x01,0x03}, 9,  /* oid/oidSz  */
-      #endif
+        ecc_oid_brainpoolp192r1,                            /* oid/oidSz  */
+        sizeof(ecc_oid_brainpoolp192r1) / sizeof(ecc_oid_t),
         ECC_BRAINPOOLP192R1_OID,                            /* oid sum    */
         1,                                                  /* cofactor   */
     },
@@ -436,11 +664,8 @@ const ecc_set_type ecc_sets[] = {
         "FFFFFFFFFFFFFFFFFFFFFFFFFFFF16A2E0B8F03E13DD29455C5C2A3D", /* order      */
         "B70E0CBD6BB4BF7F321390B94A03C1D356C21122343280D6115C1D21", /* Gx         */
         "BD376388B5F723FB4C22DFE6CD4375A05A07476444D5819985007E34", /* Gy         */
-      #ifdef HAVE_OID_ENCODING
-        {1,3,132,0,33}, 5,                                          /* oid/oidSz  */
-      #else
-        {0x2B,0x81,0x04,0x00,0x21}, 5,                              /* oid/oidSz  */
-      #endif
+        ecc_oid_secp224r1,                                          /* oid/oidSz  */
+        sizeof(ecc_oid_secp224r1) / sizeof(ecc_oid_t),
         ECC_SECP224R1_OID,                                          /* oid sum    */
         1,                                                          /* cofactor   */
     },
@@ -456,11 +681,8 @@ const ecc_set_type ecc_sets[] = {
         "10000000000000000000000000001DCE8D2EC6184CAF0A971769FB1F7",/* order      */
         "A1455B334DF099DF30FC28A169A467E9E47075A90F7E650EB6B7A45C", /* Gx         */
         "7E089FED7FBA344282CAFBD6F7E319F7C0B0BD59E2CA4BDB556D61A5", /* Gy         */
-      #ifdef HAVE_OID_ENCODING
-        {1,3,132,0,32}, 5,                                          /* oid/oidSz  */
-      #else
-        {0x2B,0x81,0x04,0x00,0x20}, 5,                              /* oid/oidSz  */
-      #endif
+        ecc_oid_secp224k1,                                          /* oid/oidSz  */
+        sizeof(ecc_oid_secp224k1) / sizeof(ecc_oid_t),
         ECC_SECP224K1_OID,                                          /* oid sum    */
         1,                                                          /* cofactor   */
     },
@@ -476,11 +698,8 @@ const ecc_set_type ecc_sets[] = {
         "D7C134AA264366862A18302575D0FB98D116BC4B6DDEBCA3A5A7939F", /* order      */
         "0D9029AD2C7E5CF4340823B2A87DC68C9E4CE3174C1E6EFDEE12C07D", /* Gx         */
         "58AA56F772C0726F24C6B89E4ECDAC24354B9E99CAA3F6D3761402CD", /* Gy         */
-      #ifdef HAVE_OID_ENCODING
-        {1,3,36,3,3,2,8,1,1,5}, 10,                                 /* oid/oidSz  */
-      #else
-        {0x2B,0x24,0x03,0x03,0x02,0x08,0x01,0x01,0x05}, 9,          /* oid/oidSz  */
-      #endif
+        ecc_oid_brainpoolp224r1,                                    /* oid/oidSz  */
+        sizeof(ecc_oid_brainpoolp224r1) / sizeof(ecc_oid_t),
         ECC_BRAINPOOLP224R1_OID,                                    /* oid sum    */
         1,                                                          /* cofactor   */
     },
@@ -498,11 +717,8 @@ const ecc_set_type ecc_sets[] = {
         "7FFFFFFFFFFFFFFFFFFFFFFF7FFFFF9E5E9A9F5D9071FBD1522688909D0B", /* order      */
         "0FFA963CDCA8816CCC33B8642BEDF905C3D358573D3F27FBBD3B3CB9AAAF", /* Gx         */
         "7DEBE8E4E90A5DAE6E4054CA530BA04654B36818CE226B39FCCB7B02F1AE", /* Gy         */
-      #ifdef HAVE_OID_ENCODING
-        {1,2,840,10045,3,1,4}, 7,                                       /* oid/oidSz  */
-      #else
-        {0x2A,0x86,0x48,0xCE,0x3D,0x03,0x01,0x04}, 8,                   /* oid/oidSz  */
-      #endif
+        ecc_oid_prime239v1,                                             /* oid/oidSz  */
+        sizeof(ecc_oid_prime239v1) / sizeof(ecc_oid_t),
         ECC_PRIME239V1_OID,                                             /* oid sum    */
         1,                                                              /* cofactor   */
     },
@@ -518,11 +734,8 @@ const ecc_set_type ecc_sets[] = {
         "7FFFFFFFFFFFFFFFFFFFFFFF800000CFA7E8594377D414C03821BC582063", /* order      */
         "38AF09D98727705120C921BB5E9E26296A3CDCF2F35757A0EAFD87B830E7", /* Gx         */
         "5B0125E4DBEA0EC7206DA0FC01D9B081329FB555DE6EF460237DFF8BE4BA", /* Gy         */
-      #ifdef HAVE_OID_ENCODING
-        {1,2,840,10045,3,1,5}, 7,                                       /* oid/oidSz  */
-      #else
-        {0x2A,0x86,0x48,0xCE,0x3D,0x03,0x01,0x05}, 8,                   /* oid/oidSz  */
-      #endif
+        ecc_oid_prime239v2,                                             /* oid/oidSz  */
+        sizeof(ecc_oid_prime239v2) / sizeof(ecc_oid_t),
         ECC_PRIME239V2_OID,                                             /* oid sum    */
         1,                                                              /* cofactor   */
     },
@@ -538,11 +751,8 @@ const ecc_set_type ecc_sets[] = {
         "7FFFFFFFFFFFFFFFFFFFFFFF7FFFFF975DEB41B3A6057C3C432146526551", /* order      */
         "6768AE8E18BB92CFCF005C949AA2C6D94853D0E660BBF854B1C9505FE95A", /* Gx         */
         "1607E6898F390C06BC1D552BAD226F3B6FCFE48B6E818499AF18E3ED6CF3", /* Gy         */
-      #ifdef HAVE_OID_ENCODING
-        {1,2,840,10045,3,1,6}, 7,                                       /* oid/oidSz  */
-      #else
-        {0x2A,0x86,0x48,0xCE,0x3D,0x03,0x01,0x06}, 8,                   /* oid/oidSz  */
-      #endif
+        ecc_oid_prime239v3,                                             /* oid/oidSz  */
+        sizeof(ecc_oid_prime239v3) / sizeof(ecc_oid_t),
         ECC_PRIME239V3_OID,                                             /* oid sum    */
         1,                                                              /* cofactor   */
     },
@@ -560,11 +770,8 @@ const ecc_set_type ecc_sets[] = {
         "FFFFFFFF00000000FFFFFFFFFFFFFFFFBCE6FAADA7179E84F3B9CAC2FC632551", /* order      */
         "6B17D1F2E12C4247F8BCE6E563A440F277037D812DEB33A0F4A13945D898C296", /* Gx         */
         "4FE342E2FE1A7F9B8EE7EB4A7C0F9E162BCE33576B315ECECBB6406837BF51F5", /* Gy         */
-      #ifdef HAVE_OID_ENCODING
-        {1,2,840,10045,3,1,7}, 7,                                           /* oid/oidSz  */
-      #else
-        {0x2A,0x86,0x48,0xCE,0x3D,0x03,0x01,0x07}, 8,                       /* oid/oidSz  */
-      #endif
+        ecc_oid_secp256r1,                                                  /* oid/oidSz  */
+        sizeof(ecc_oid_secp256r1) / sizeof(ecc_oid_t),
         ECC_SECP256R1_OID,                                                  /* oid sum    */
         1,                                                                  /* cofactor   */
     },
@@ -580,11 +787,8 @@ const ecc_set_type ecc_sets[] = {
         "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141", /* order      */
         "79BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798", /* Gx         */
         "483ADA7726A3C4655DA4FBFC0E1108A8FD17B448A68554199C47D08FFB10D4B8", /* Gy         */
-      #ifdef HAVE_OID_ENCODING
-        {1,3,132,0,10}, 5,                                                  /* oid/oidSz  */
-      #else
-        {0x2B,0x81,0x04,0x00,0x0A}, 5,                                      /* oid/oidSz  */
-      #endif
+        ecc_oid_secp256k1,                                                  /* oid/oidSz  */
+        sizeof(ecc_oid_secp256k1) / sizeof(ecc_oid_t),
         ECC_SECP256K1_OID,                                                  /* oid sum    */
         1,                                                                  /* cofactor   */
     },
@@ -600,11 +804,8 @@ const ecc_set_type ecc_sets[] = {
         "A9FB57DBA1EEA9BC3E660A909D838D718C397AA3B561A6F7901E0E82974856A7", /* order      */
         "8BD2AEB9CB7E57CB2C4B482FFC81B7AFB9DE27E1E3BD23C23A4453BD9ACE3262", /* Gx         */
         "547EF835C3DAC4FD97F8461A14611DC9C27745132DED8E545C1D54C72F046997", /* Gy         */
-      #ifdef HAVE_OID_ENCODING
-        {1,3,36,3,3,2,8,1,1,7}, 10,                                         /* oid/oidSz  */
-      #else
-        {0x2B,0x24,0x03,0x03,0x02,0x08,0x01,0x01,0x07}, 9,                  /* oid/oidSz  */
-      #endif
+        ecc_oid_brainpoolp256r1,                                            /* oid/oidSz  */
+        sizeof(ecc_oid_brainpoolp256r1) / sizeof(ecc_oid_t), 
         ECC_BRAINPOOLP256R1_OID,                                            /* oid sum    */
         1,                                                                  /* cofactor   */
     },
@@ -622,11 +823,7 @@ const ecc_set_type ecc_sets[] = {
         "D35E472036BC4FB7E13C785ED201E065F98FCFA5B68F12A32D482EC7EE8658E98691555B44C59311", /* order      */
         "43BD7E9AFB53D8B85289BCC48EE5BFE6F20137D10A087EB6E7871E2A10A599C710AF8D0D39E20611", /* Gx         */
         "14FDD05545EC1CC8AB4093247F77275E0743FFED117182EAA9C77877AAAC6AC7D35245D1692E8EE1", /* Gy         */
-      #ifdef HAVE_OID_ENCODING
-        {1,3,36,3,3,2,8,1,1,9}, 10,                                                         /* oid/oidSz  */
-      #else
-        {0x2B,0x24,0x03,0x03,0x02,0x08,0x01,0x01,0x09}, 9,                                  /* oid/oidSz  */
-      #endif
+        ecc_oid_brainpoolp320r1, sizeof(ecc_oid_brainpoolp320r1) / sizeof(ecc_oid_t),       /* oid/oidSz  */
         ECC_BRAINPOOLP320R1_OID,                                                            /* oid sum    */
         1,                                                                                  /* cofactor   */
     },
@@ -644,11 +841,7 @@ const ecc_set_type ecc_sets[] = {
         "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFC7634D81F4372DDF581A0DB248B0A77AECEC196ACCC52973", /* order      */
         "AA87CA22BE8B05378EB1C71EF320AD746E1D3B628BA79B9859F741E082542A385502F25DBF55296C3A545E3872760AB7", /* Gx         */
         "3617DE4A96262C6F5D9E98BF9292DC29F8F41DBD289A147CE9DA3113B5F0B8C00A60B1CE1D7E819D7A431D7C90EA0E5F", /* Gy         */
-      #ifdef HAVE_OID_ENCODING
-        {1,3,132,0,34}, 5,                                                                                  /* oid/oidSz  */
-      #else
-        {0x2B,0x81,0x04,0x00,0x22}, 5,                                                                      /* oid/oidSz  */
-      #endif
+        ecc_oid_secp384r1, sizeof(ecc_oid_secp384r1) / sizeof(ecc_oid_t),                                   /* oid/oidSz  */
         ECC_SECP384R1_OID,                                                                                  /* oid sum    */
         1,                                                                                                  /* cofactor   */
     },
@@ -664,11 +857,7 @@ const ecc_set_type ecc_sets[] = {
         "8CB91E82A3386D280F5D6F7E50E641DF152F7109ED5456B31F166E6CAC0425A7CF3AB6AF6B7FC3103B883202E9046565", /* order      */
         "1D1C64F068CF45FFA2A63A81B7C13F6B8847A3E77EF14FE3DB7FCAFE0CBD10E8E826E03436D646AAEF87B2E247D4AF1E", /* Gx         */
         "8ABE1D7520F9C2A45CB1EB8E95CFD55262B70B29FEEC5864E19C054FF99129280E4646217791811142820341263C5315", /* Gy         */
-      #ifdef HAVE_OID_ENCODING
-        {1,3,36,3,3,2,8,1,1,11}, 10,                                                                        /* oid/oidSz  */
-      #else
-        {0x2B,0x24,0x03,0x03,0x02,0x08,0x01,0x01,0x0B}, 9,                                                  /* oid/oidSz  */
-      #endif
+        ecc_oid_brainpoolp384r1, sizeof(ecc_oid_brainpoolp384r1) / sizeof(ecc_oid_t),                       /* oid/oidSz  */
         ECC_BRAINPOOLP384R1_OID,                                                                            /* oid sum    */
         1,                                                                                                  /* cofactor   */
     },
@@ -686,11 +875,7 @@ const ecc_set_type ecc_sets[] = {
         "AADD9DB8DBE9C48B3FD4E6AE33C9FC07CB308DB3B3C9D20ED6639CCA70330870553E5C414CA92619418661197FAC10471DB1D381085DDADDB58796829CA90069", /* order      */
         "81AEE4BDD82ED9645A21322E9C4C6A9385ED9F70B5D916C1B43B62EEF4D0098EFF3B1F78E2D0D48D50D1687B93B97D5F7C6D5047406A5E688B352209BCB9F822", /* Gx         */
         "7DDE385D566332ECC0EABFA9CF7822FDF209F70024A57B1AA000C55B881F8111B2DCDE494A5F485E5BCA4BD88A2763AED1CA2B2FA8F0540678CD1E0F3AD80892", /* Gy         */
-      #ifdef HAVE_OID_ENCODING
-        {1,3,36,3,3,2,8,1,1,13}, 10,                                                                                                        /* oid/oidSz  */
-      #else
-        {0x2B,0x24,0x03,0x03,0x02,0x08,0x01,0x01,0x0D}, 9,                                                                                  /* oid/oidSz  */
-      #endif
+        ecc_oid_brainpoolp512r1, sizeof(ecc_oid_brainpoolp512r1) / sizeof(ecc_oid_t),                                                       /* oid/oidSz  */
         ECC_BRAINPOOLP512R1_OID,                                                                                                            /* oid sum    */
         1,                                                                                                                                  /* cofactor   */
     },
@@ -708,11 +893,7 @@ const ecc_set_type ecc_sets[] = {
         "1FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFA51868783BF2F966B7FCC0148F709A5D03BB5C9B8899C47AEBB6FB71E91386409", /* order      */
         "C6858E06B70404E9CD9E3ECB662395B4429C648139053FB521F828AF606B4D3DBAA14B5E77EFE75928FE1DC127A2FFA8DE3348B3C1856A429BF97E7E31C2E5BD66",  /* Gx         */
         "11839296A789A3BC0045C8A5FB42C7D1BD998F54449579B446817AFBD17273E662C97EE72995EF42640C550B9013FAD0761353C7086A272C24088BE94769FD16650", /* Gy         */
-      #ifdef HAVE_OID_ENCODING
-        {1,3,132,0,35}, 5,                                                                                                                     /* oid/oidSz  */
-      #else
-        {0x2B,0x81,0x04,0x00,0x23}, 5,                                                                                                         /* oid/oidSz  */
-      #endif
+        ecc_oid_secp521r1, sizeof(ecc_oid_secp521r1) / sizeof(ecc_oid_t),                                                                      /* oid/oidSz  */
         ECC_SECP521R1_OID,                                                                                                                     /* oid sum    */
         1,                                                                                                                                     /* cofactor   */
     },
@@ -721,7 +902,7 @@ const ecc_set_type ecc_sets[] = {
 {
    0, -1,
    NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-   {0}, 0, 0, 0
+   NULL, 0, 0, 0
 }
 };
 

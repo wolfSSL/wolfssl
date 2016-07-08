@@ -650,7 +650,7 @@ WOLFSSL_LOCAL int GetMyVersion(const byte* input, word32* inOutIdx,
 WOLFSSL_LOCAL int GetInt(mp_int* mpi, const byte* input, word32* inOutIdx,
                         word32 maxIdx);
 #ifdef HAVE_OID_ENCODING
-    WOLFSSL_LOCAL int EncodeObjectId(const word32* in, word32 inSz,
+    WOLFSSL_LOCAL int EncodeObjectId(const word16* in, word32 inSz,
         byte* out, word32* outSz);
 #endif
 WOLFSSL_LOCAL int GetObjectId(const byte* input, word32* inOutIdx, word32* oid,

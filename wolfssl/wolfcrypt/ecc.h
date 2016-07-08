@@ -87,6 +87,14 @@ typedef enum ecc_curve_id {
     ECC_BRAINPOOLP512R1,
 } ecc_curve_id;
 
+#ifdef HAVE_OID_ENCODING
+typedef word16 ecc_oid_t;
+#else
+typedef byte   ecc_oid_t;
+    /* OID encoded with ASN scheme:
+        first element = (oid[0] * 40) + oid[1]
+        if any element > 127 then MSB 0x80 indicates additional byte */
+#endif
 
 /* ECC set type defined a GF(p) curve */
 typedef struct {
@@ -99,14 +107,7 @@ typedef struct {
     const char* order;    /* order of the curve (hex) */
     const char* Gx;       /* x coordinate of the base point on curve (hex) */
     const char* Gy;       /* y coordinate of the base point on curve (hex) */
-    #ifdef HAVE_OID_ENCODING
-        const word32 oid[ECC_MAX_OID_LEN];
-    #else
-        const byte   oid[ECC_MAX_OID_LEN];
-        /* OID encoded with ASN scheme:
-            first element = (oid[0] * 40) + oid[1]
-            if any element > 127 then MSB 0x80 indicates additional byte */
-    #endif
+    const ecc_oid_t* oid;
     word32      oidSz;
     word32      oidSum;    /* sum of encoded OID bytes */
     int         cofactor;
