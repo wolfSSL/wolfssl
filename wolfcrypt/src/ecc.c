@@ -906,6 +906,14 @@ const ecc_set_type ecc_sets[] = {
 }
 };
 
+#ifdef HAVE_OID_ENCODING
+    /* encoded OID cache */
+    typedef struct {
+        word32 oidSz;
+        byte oid[ECC_MAX_OID_LEN];
+    } oid_cache_t;
+    static oid_cache_t ecc_oid_cache[sizeof(ecc_sets)/sizeof(ecc_set_type)];
+#endif
 
 int  ecc_map(ecc_point*, mp_int*, mp_digit);
 int  ecc_projective_add_point(ecc_point* P, ecc_point* Q, ecc_point* R,
@@ -6459,15 +6467,18 @@ int wc_ecc_get_oid(word32 oidSum, const byte** oid, word32* oidSz)
         if (ecc_sets[x].oidSum == oidSum) {
             int ret = 0;
         #ifdef HAVE_OID_ENCODING
-            static byte oidDec[ECC_MAX_OID_LEN];
-            word32 oidSzDec = ECC_MAX_OID_LEN;
-            ret = EncodeObjectId(ecc_sets[x].oid, ecc_sets[x].oidSz,
-                                                          oidDec, &oidSzDec);
+            /* check cache */
+            oid_cache_t* o = &ecc_oid_cache[x];
+            if (o->oidSz == 0) {
+                o->oidSz = sizeof(o->oid);
+                ret = EncodeObjectId(ecc_sets[x].oid, ecc_sets[x].oidSz,
+                                                            o->oid, &o->oidSz);
+            }
             if (oidSz) {
-                *oidSz = oidSzDec;
+                *oidSz = o->oidSz;
             }
             if (oid) {
-                *oid = oidDec;
+                *oid = o->oid;
             }
         #else
             if (oidSz) {
