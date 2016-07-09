@@ -12677,15 +12677,8 @@ static void PickHashSigAlgo(WOLFSSL* ssl,
                  ssl->buffers.outputBuffer.length;
 
         AddHeaders(output, length, client_hello, ssl);
-#ifdef WOLFSSL_DTLS
-        if (ssl->options.dtls) {
-            DtlsRecordLayerHeader* rh = (DtlsRecordLayerHeader*)output;
-            rh->pvMajor = DTLS_MAJOR;
-            rh->pvMinor = DTLS_MINOR;
-        }
-#endif /* WOLFSSL_DTLS */
 
-            /* client hello, first version */
+        /* client hello, first version */
         output[idx++] = ssl->version.major;
         output[idx++] = ssl->version.minor;
         ssl->chVersion = ssl->version;  /* store in case changed */
@@ -18138,14 +18131,14 @@ int DoSessionTicket(WOLFSSL* ssl,
          * Client Hello. */
         ssl->keys.dtls_sequence_number = ssl->keys.dtls_state.curSeq;
         AddHeaders(output, length, hello_verify_request, ssl);
-        {
-            DtlsRecordLayerHeader* rh = (DtlsRecordLayerHeader*)output;
-            rh->pvMajor = DTLS_MAJOR;
-            rh->pvMinor = DTLS_MINOR;
-        }
 
+#ifdef OPENSSL_EXTRA
+        output[idx++] = DTLS_MAJOR;
+        output[idx++] = DTLS_MINOR;
+#else
         output[idx++] = ssl->version.major;
         output[idx++] = ssl->version.minor;
+#endif
 
         output[idx++] = cookieSz;
         if (cookie == NULL || cookieSz == 0)
