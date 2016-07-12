@@ -60,6 +60,8 @@ EXTRA_DIST+= README.md
 EXTRA_DIST+= LICENSING
 EXTRA_DIST+= INSTALL
 EXTRA_DIST+= IPP
+EXTRA_DIST+= .cproject
+EXTRA_DIST+= .project
 
 include wrapper/include.am
 include cyassl/include.am

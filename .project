@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <projectDescription>
-	<name>lib_wolfssl</name>
+	<name>wolfssl</name>
 	<comment></comment>
 	<projects>
 		<project>lpc_board_nxp_lpcxpresso_1837</project>
