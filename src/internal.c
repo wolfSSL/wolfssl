@@ -17668,7 +17668,7 @@ int DoSessionTicket(WOLFSSL* ssl,
             #ifdef HAVE_SESSION_TICKET
                 if (ssl->options.useTicket == 1) {
                     session = &ssl->session;
-                } else if (bogusID) {
+                } else if (bogusID == 1 && ssl->options.rejectTicket == 0) {
                     WOLFSSL_MSG("Bogus session ID without session ticket");
                     return BUFFER_ERROR;
                 }

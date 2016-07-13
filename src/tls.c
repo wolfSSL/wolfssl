@@ -3181,6 +3181,7 @@ static int TLSX_SessionTicket_Parse(WOLFSSL* ssl, byte* input, word16 length,
                 }
             } else if (ret == WOLFSSL_TICKET_RET_REJECT) {
                 WOLFSSL_MSG("Process client ticket rejected, not using");
+                ssl->options.rejectTicket = 1;
                 ret = 0;  /* not fatal */
             } else if (ret == WOLFSSL_TICKET_RET_FATAL || ret < 0) {
                 WOLFSSL_MSG("Process client ticket fatal error, not using");
