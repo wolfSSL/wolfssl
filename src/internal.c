@@ -15646,10 +15646,14 @@ int DoSessionTicket(WOLFSSL* ssl,
 #ifdef HAVE_TLS_EXTENSIONS
         length += TLSX_GetResponseSize(ssl);
     #ifdef HAVE_SESSION_TICKET
-        if (ssl->options.useTicket && ssl->arrays->sessionIDSz == 0) {
-            /* no session id */
-            length  -= ID_LEN;
-            sessIdSz = 0;
+        if (ssl->options.useTicket) {
+            /* echo session id sz can be 0,32 or bogus len inbetween */
+            sessIdSz = ssl->arrays->sessionIDSz;
+            if (sessIdSz > ID_LEN) {
+                WOLFSSL_MSG("Bad bogus session id len");
+                return BUFFER_ERROR;
+            }
+            length -= (ID_LEN - sessIdSz);  /* adjust ID_LEN assumption */
         }
     #endif /* HAVE_SESSION_TICKET */
 #endif
@@ -17307,6 +17311,7 @@ int DoSessionTicket(WOLFSSL* ssl,
                              word32 helloSz)
     {
         byte            b;
+        byte            bogusID = 0;   /* flag for a bogus session id */
         ProtocolVersion pv;
         Suites          clSuites;
         word32          i = *inOutIdx;
@@ -17429,19 +17434,26 @@ int DoSessionTicket(WOLFSSL* ssl,
         /* session id */
         b = input[i++];
 
-        if (b == ID_LEN) {
-            if ((i - begin) + ID_LEN > helloSz)
+#ifdef HAVE_SESSION_TICKET
+        if (b > 0 && b < ID_LEN) {
+            bogusID = 1;
+            WOLFSSL_MSG("Client sent bogus session id, let's allow for echo");
+        }
+#endif
+
+        if (b == ID_LEN || bogusID) {
+            if ((i - begin) + b > helloSz)
                 return BUFFER_ERROR;
 
-            XMEMCPY(ssl->arrays->sessionID, input + i, ID_LEN);
+            XMEMCPY(ssl->arrays->sessionID, input + i, b);
 #ifdef WOLFSSL_DTLS
             if (ssl->options.dtls) {
-                int ret = wc_HmacUpdate(&cookieHmac, input + i - 1, ID_LEN + 1);
+                int ret = wc_HmacUpdate(&cookieHmac, input + i - 1, b + 1);
                 if (ret != 0) return ret;
             }
 #endif /* WOLFSSL_DTLS */
-            ssl->arrays->sessionIDSz = ID_LEN;
-            i += ID_LEN;
+            ssl->arrays->sessionIDSz = b;
+            i += b;
             ssl->options.resuming = 1; /* client wants to resume */
             WOLFSSL_MSG("Client wants to resume session");
         }
@@ -17656,6 +17668,9 @@ int DoSessionTicket(WOLFSSL* ssl,
             #ifdef HAVE_SESSION_TICKET
                 if (ssl->options.useTicket == 1) {
                     session = &ssl->session;
+                } else if (bogusID) {
+                    WOLFSSL_MSG("Bogus session ID without session ticket");
+                    return BUFFER_ERROR;
                 }
             #endif
 
