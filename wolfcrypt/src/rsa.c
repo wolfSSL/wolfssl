@@ -1237,7 +1237,7 @@ int wc_RsaFlattenPublicKey(RsaKey* key, byte* e, word32* eSz, byte* n,
        return BAD_FUNC_ARG;
 
     sz = mp_unsigned_bin_size(&key->e);
-    if ((word32)sz > *nSz)
+    if ((word32)sz > *eSz)
         return RSA_BUFFER_E;
     ret = mp_to_unsigned_bin(&key->e, e);
     if (ret != MP_OKAY)
