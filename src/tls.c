@@ -3160,6 +3160,8 @@ static int TLSX_SessionTicket_Parse(WOLFSSL* ssl, byte* input, word16 length,
                 TLSX_SetResponse(ssl, TLSX_SESSION_TICKET);  /* send blank ticket */
                 ssl->options.createTicket = 1;  /* will send ticket msg */
                 ssl->options.useTicket    = 1;
+                ssl->options.resuming     = 0;  /* no standard resumption */
+                ssl->arrays->sessionIDSz  = 0;  /* no echo on blank ticket */
             }
         } else {
             /* got actual ticket from client */
