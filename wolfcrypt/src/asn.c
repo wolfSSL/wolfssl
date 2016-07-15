@@ -9207,7 +9207,10 @@ static int DecodeBasicOcspResponse(byte* source, word32* ioIndex,
         }
     }
     else {
-        Signer* ca = GetCA(cm, resp->issuerHash);
+        Signer* ca = GetCA(cm, resp->issuerKeyHash);
+
+        if (!ca)
+            ca = GetCA(cm, resp->issuerHash);
 
         if (!ca || !ConfirmSignature(resp->response, resp->responseSz,
                                      ca->publicKey, ca->pubKeySize, ca->keyOID,
