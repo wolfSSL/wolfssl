@@ -16593,152 +16593,154 @@ int DoSessionTicket(WOLFSSL* ssl,
                         }
                     #endif
 
-                        /* Determine hash type */
-                        if (IsAtLeastTLSv1_2(ssl)) {
-                            output[idx++] = ssl->suites->hashAlgo;
-                            output[idx++] = ssl->suites->sigAlgo;
+                        if (!ssl->options.usingAnon_cipher) {
+                            /* Determine hash type */
+                            if (IsAtLeastTLSv1_2(ssl)) {
+                                output[idx++] = ssl->suites->hashAlgo;
+                                output[idx++] = ssl->suites->sigAlgo;
 
-                            switch (ssl->suites->hashAlgo) {
-                                case sha512_mac:
-                                    #ifdef WOLFSSL_SHA512
-                                        hashType = WC_HASH_TYPE_SHA512;
-                                    #endif
-                                    break;
-                                case sha384_mac:
-                                    #ifdef WOLFSSL_SHA384
-                                        hashType = WC_HASH_TYPE_SHA384;
-                                    #endif
-                                    break;
-                                case sha256_mac:
-                                    #ifndef NO_SHA256
-                                        hashType = WC_HASH_TYPE_SHA256;
-                                    #endif
-                                    break;
-                                case sha_mac:
-                                    #ifndef NO_OLD_TLS
-                                        hashType = WC_HASH_TYPE_SHA;
-                                    #endif
-                                    break;
-                                default:
-                                    WOLFSSL_MSG("Bad hash sig algo");
-                                    break;
-                            }
-
-                            if (hashType == WC_HASH_TYPE_NONE) {
-                                ERROR_OUT(ALGO_ID_E, exit_sske);
-                            }
-                        } else {
-                            /* only using sha and md5 for rsa */
-                        #ifndef NO_OLD_TLS
-                            hashType = WC_HASH_TYPE_SHA;
-                            if (ssl->suites->sigAlgo == rsa_sa_algo) {
-                                hashType = WC_HASH_TYPE_MD5_SHA;
-                            }
-                        #else
-                            ERROR_OUT(ALGO_ID_E, exit_sske);
-                        #endif
-                        }
-
-                        /* signature size */
-                        c16toa((word16)sigSz, output + idx);
-                        idx += LENGTH_SZ;
-
-                        /* Assemble buffer to hash for signature */
-                        sigDataSz = RAN_LEN + RAN_LEN + preSigSz;
-                        sigDataBuf = (byte*)XMALLOC(sigDataSz, ssl->heap,
-                                                       DYNAMIC_TYPE_TMP_BUFFER);
-                        if (sigDataBuf == NULL) {
-                            ERROR_OUT(MEMORY_E, exit_sske);
-                        }
-                        XMEMCPY(sigDataBuf, ssl->arrays->clientRandom, RAN_LEN);
-                        XMEMCPY(sigDataBuf+RAN_LEN, ssl->arrays->serverRandom, RAN_LEN);
-                        XMEMCPY(sigDataBuf+RAN_LEN+RAN_LEN, output + preSigIdx, preSigSz);
-
-                        ssl->buffers.sig.length = wc_HashGetDigestSize(hashType);
-                        ssl->buffers.sig.buffer = (byte*)XMALLOC(
-                                             ssl->buffers.sig.length, ssl->heap,
-                                                       DYNAMIC_TYPE_TMP_BUFFER);
-                        if (ssl->buffers.sig.buffer == NULL) {
-                            ERROR_OUT(MEMORY_E, exit_sske);
-                        }
-
-                        /* Perform hash */
-                        ret = wc_Hash(hashType, sigDataBuf, sigDataSz,
-                            ssl->buffers.sig.buffer, ssl->buffers.sig.length);
-                        if (ret != 0) {
-                            goto exit_sske;
-                        }
-
-                        ssl->sigLen = sigSz;
-
-                        /* Sign hash to create signature */
-                        switch (ssl->suites->sigAlgo)
-                        {
-                        #ifndef NO_RSA
-                            case rsa_sa_algo:
-                            {
-                                /* For TLS 1.2 re-encode signature */
-                                if (IsAtLeastTLSv1_2(ssl)) {
-                                    int typeH = 0;
-                                    byte* encodedSig = (byte*)XMALLOC(
-                                                  MAX_ENCODED_SIG_SZ, ssl->heap,
-                                                       DYNAMIC_TYPE_TMP_BUFFER);
-                                    if (encodedSig == NULL) {
-                                        ERROR_OUT(MEMORY_E, exit_sske);
-                                    }
-
-                                    switch (ssl->suites->hashAlgo) {
-                                        case sha512_mac:
-                                            #ifdef WOLFSSL_SHA512
-                                                typeH    = SHA512h;
-                                            #endif
-                                            break;
-                                        case sha384_mac:
-                                            #ifdef WOLFSSL_SHA384
-                                                typeH    = SHA384h;
-                                            #endif
-                                            break;
-                                        case sha256_mac:
-                                            #ifndef NO_SHA256
-                                                typeH    = SHA256h;
-                                            #endif
-                                            break;
-                                        case sha_mac:
-                                            #ifndef NO_OLD_TLS
-                                                typeH    = SHAh;
-                                            #endif
-                                            break;
-                                        default:
-                                            break;
-                                    }
-
-                                    ssl->buffers.sig.length = wc_EncodeSignature(encodedSig,
-                                        ssl->buffers.sig.buffer, ssl->buffers.sig.length, typeH);
-
-                                    /* Replace sig buffer with new one */
-                                    XFREE(ssl->buffers.sig.buffer, ssl->heap,
-                                                       DYNAMIC_TYPE_TMP_BUFFER);
-                                    ssl->buffers.sig.buffer = encodedSig;
+                                switch (ssl->suites->hashAlgo) {
+                                    case sha512_mac:
+                                        #ifdef WOLFSSL_SHA512
+                                            hashType = WC_HASH_TYPE_SHA512;
+                                        #endif
+                                        break;
+                                    case sha384_mac:
+                                        #ifdef WOLFSSL_SHA384
+                                            hashType = WC_HASH_TYPE_SHA384;
+                                        #endif
+                                        break;
+                                    case sha256_mac:
+                                        #ifndef NO_SHA256
+                                            hashType = WC_HASH_TYPE_SHA256;
+                                        #endif
+                                        break;
+                                    case sha_mac:
+                                        #ifndef NO_OLD_TLS
+                                            hashType = WC_HASH_TYPE_SHA;
+                                        #endif
+                                        break;
+                                    default:
+                                        WOLFSSL_MSG("Bad hash sig algo");
+                                        break;
                                 }
 
-                                ret = RsaSign(ssl,
-                                    ssl->buffers.sig.buffer,
-                                    ssl->buffers.sig.length,
-                                    output + idx,
-                                    &ssl->sigLen,
-                                    (RsaKey*)ssl->sigKey,
-                                    ssl->buffers.key->buffer,
-                                    ssl->buffers.key->length,
-                                #ifdef HAVE_PK_CALLBACKS
-                                    ssl->RsaSignCtx
-                                #else
-                                    NULL
-                                #endif
-                                );
-                                break;
+                                if (hashType == WC_HASH_TYPE_NONE) {
+                                    ERROR_OUT(ALGO_ID_E, exit_sske);
+                                }
+                            } else {
+                                /* only using sha and md5 for rsa */
+                            #ifndef NO_OLD_TLS
+                                hashType = WC_HASH_TYPE_SHA;
+                                if (ssl->suites->sigAlgo == rsa_sa_algo) {
+                                    hashType = WC_HASH_TYPE_MD5_SHA;
+                                }
+                            #else
+                                ERROR_OUT(ALGO_ID_E, exit_sske);
+                            #endif
                             }
-                        #endif /* NO_RSA */
-                        } /* switch (ssl->suites->sigAlgo) */
+
+                            /* signature size */
+                            c16toa((word16)sigSz, output + idx);
+                            idx += LENGTH_SZ;
+
+                            /* Assemble buffer to hash for signature */
+                            sigDataSz = RAN_LEN + RAN_LEN + preSigSz;
+                            sigDataBuf = (byte*)XMALLOC(sigDataSz, ssl->heap,
+                                                           DYNAMIC_TYPE_TMP_BUFFER);
+                            if (sigDataBuf == NULL) {
+                                ERROR_OUT(MEMORY_E, exit_sske);
+                            }
+                            XMEMCPY(sigDataBuf, ssl->arrays->clientRandom, RAN_LEN);
+                            XMEMCPY(sigDataBuf+RAN_LEN, ssl->arrays->serverRandom, RAN_LEN);
+                            XMEMCPY(sigDataBuf+RAN_LEN+RAN_LEN, output + preSigIdx, preSigSz);
+
+                            ssl->buffers.sig.length = wc_HashGetDigestSize(hashType);
+                            ssl->buffers.sig.buffer = (byte*)XMALLOC(
+                                                 ssl->buffers.sig.length, ssl->heap,
+                                                           DYNAMIC_TYPE_TMP_BUFFER);
+                            if (ssl->buffers.sig.buffer == NULL) {
+                                ERROR_OUT(MEMORY_E, exit_sske);
+                            }
+
+                            /* Perform hash */
+                            ret = wc_Hash(hashType, sigDataBuf, sigDataSz,
+                                ssl->buffers.sig.buffer, ssl->buffers.sig.length);
+                            if (ret != 0) {
+                                goto exit_sske;
+                            }
+
+                            ssl->sigLen = sigSz;
+
+                            /* Sign hash to create signature */
+                            switch (ssl->suites->sigAlgo)
+                            {
+                            #ifndef NO_RSA
+                                case rsa_sa_algo:
+                                {
+                                    /* For TLS 1.2 re-encode signature */
+                                    if (IsAtLeastTLSv1_2(ssl)) {
+                                        int typeH = 0;
+                                        byte* encodedSig = (byte*)XMALLOC(
+                                                      MAX_ENCODED_SIG_SZ, ssl->heap,
+                                                           DYNAMIC_TYPE_TMP_BUFFER);
+                                        if (encodedSig == NULL) {
+                                            ERROR_OUT(MEMORY_E, exit_sske);
+                                        }
+
+                                        switch (ssl->suites->hashAlgo) {
+                                            case sha512_mac:
+                                                #ifdef WOLFSSL_SHA512
+                                                    typeH    = SHA512h;
+                                                #endif
+                                                break;
+                                            case sha384_mac:
+                                                #ifdef WOLFSSL_SHA384
+                                                    typeH    = SHA384h;
+                                                #endif
+                                                break;
+                                            case sha256_mac:
+                                                #ifndef NO_SHA256
+                                                    typeH    = SHA256h;
+                                                #endif
+                                                break;
+                                            case sha_mac:
+                                                #ifndef NO_OLD_TLS
+                                                    typeH    = SHAh;
+                                                #endif
+                                                break;
+                                            default:
+                                                break;
+                                        }
+
+                                        ssl->buffers.sig.length = wc_EncodeSignature(encodedSig,
+                                            ssl->buffers.sig.buffer, ssl->buffers.sig.length, typeH);
+
+                                        /* Replace sig buffer with new one */
+                                        XFREE(ssl->buffers.sig.buffer, ssl->heap,
+                                                           DYNAMIC_TYPE_TMP_BUFFER);
+                                        ssl->buffers.sig.buffer = encodedSig;
+                                    }
+
+                                    ret = RsaSign(ssl,
+                                        ssl->buffers.sig.buffer,
+                                        ssl->buffers.sig.length,
+                                        output + idx,
+                                        &ssl->sigLen,
+                                        (RsaKey*)ssl->sigKey,
+                                        ssl->buffers.key->buffer,
+                                        ssl->buffers.key->length,
+                                    #ifdef HAVE_PK_CALLBACKS
+                                        ssl->RsaSignCtx
+                                    #else
+                                        NULL
+                                    #endif
+                                    );
+                                    break;
+                                }
+                            #endif /* NO_RSA */
+                            } /* switch (ssl->suites->sigAlgo) */
+                        } /* !ssl->options.usingAnon_cipher */
 
                         break;
                     }
@@ -16821,13 +16823,15 @@ int DoSessionTicket(WOLFSSL* ssl,
                         #ifndef NO_RSA
                             case rsa_sa_algo:
                             {
-                                /* check for signature faults */
-                                ret = VerifyRsaSign(ssl,
-                                                    output + idx,
-                                                    ssl->sigLen,
-                                                    ssl->buffers.sig.buffer,
-                                                    ssl->buffers.sig.length,
-                                                    (RsaKey*)ssl->sigKey);
+                                if (!ssl->options.usingAnon_cipher) {
+                                    /* check for signature faults */
+                                    ret = VerifyRsaSign(ssl,
+                                                        output + idx,
+                                                        ssl->sigLen,
+                                                        ssl->buffers.sig.buffer,
+                                                        ssl->buffers.sig.length,
+                                                        (RsaKey*)ssl->sigKey);
+                                }
                                 break;
                             }
                         #endif
