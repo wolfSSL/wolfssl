@@ -18994,3 +18994,4 @@ int DoSessionTicket(WOLFSSL* ssl,
 #undef ERROR_OUT
 
 #endif /* WOLFCRYPT_ONLY */
+
