@@ -5128,6 +5128,9 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
             }
 #endif /* IGNORE_NAME_CONSTRAINTS */
         }
+        else if(GetCA(cm, cert->subjectHash)) {
+            WOLFSSL_MSG("Certificate confirmed as already found in CM cache");
+        }
         else {
             /* no signer */
             WOLFSSL_MSG("No CA signer to verify with");
