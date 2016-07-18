@@ -2855,7 +2855,8 @@ void fp_gcd(fp_int *a, fp_int *b, fp_int *c)
 #endif /* WOLFSSL_KEY_GEN */
 
 
-#if defined(HAVE_ECC) || !defined(NO_PWDBASED) || defined(OPENSSL_EXTRA)
+#if defined(HAVE_ECC) || !defined(NO_PWDBASED) || defined(OPENSSL_EXTRA) || \
+    defined(WC_RSA_BLINDING)
 /* c = a + b */
 void fp_add_d(fp_int *a, fp_digit b, fp_int *c)
 {
