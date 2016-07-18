@@ -1366,6 +1366,13 @@ static int ProcessClientKeyExchange(const byte* input, int* sslBytes,
             wc_FreeRsaKey(&key);
             return -1;
         }
+        #ifdef WC_RSA_BLINDING
+            ret = wc_RsaSetRNG(&key, session->sslServer->rng);
+            if (ret != 0) {
+                SetError(RSA_DECRYPT_STR, error, session, FATAL_ERROR_STATE);
+                return -1;
+            }
+        #endif
         ret = wc_RsaPrivateDecrypt(input, length,
                   session->sslServer->arrays->preMasterSecret,SECRET_LEN, &key);
 

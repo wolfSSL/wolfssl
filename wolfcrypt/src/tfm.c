@@ -3133,4 +3133,11 @@ void mp_dump(const char* desc, mp_int* a, byte verbose)
 
 #endif /* defined(WOLFSSL_KEY_GEN) || defined(HAVE_COMP_KEY) || defined(WOLFSSL_DEBUG_MATH) */
 
+
+int mp_lshd (mp_int * a, int b)
+{
+    fp_lshd(a, b);
+    return FP_OKAY;
+}
+
 #endif /* USE_FAST_MATH */

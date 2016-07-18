@@ -2827,6 +2827,11 @@ int RsaDec(WOLFSSL* ssl, byte* in, word32 inSz, byte** out, word32* outSz,
     else
 #endif /* HAVE_PK_CALLBACKS */
     {
+        #ifdef WC_RSA_BLINDING
+            ret = wc_RsaSetRNG(key, ssl->rng);
+            if (ret != 0)
+                return ret;
+        #endif
         ret = wc_RsaPrivateDecryptInline(in, inSz, out, key);
     }
 

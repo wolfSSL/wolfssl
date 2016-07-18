@@ -1443,6 +1443,9 @@ void bench_rsa(void)
         return;
     }
 
+#ifdef WC_RSA_BLINDING
+    wc_RsaSetRNG(&rsaKey, &rng);
+#endif
     start = current_time(1);
 
     for (i = 0; i < ntimes; i++) {
