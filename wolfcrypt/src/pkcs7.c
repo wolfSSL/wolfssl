@@ -1495,6 +1495,9 @@ WOLFSSL_API int wc_PKCS7_DecodeEnvelopedData(PKCS7* pkcs7, byte* pkiMsg,
     int encryptedContentSz;
     byte padLen;
     byte* encryptedContent = NULL;
+#ifdef WC_RSA_BLINDING
+    WC_RNG rng;
+#endif
 
     if (pkcs7 == NULL || pkcs7->singleCert == NULL ||
         pkcs7->singleCertSz == 0 || pkcs7->privateKey == NULL ||
@@ -1770,11 +1773,17 @@ WOLFSSL_API int wc_PKCS7_DecodeEnvelopedData(PKCS7* pkcs7, byte* pkiMsg,
 
     /* decrypt encryptedKey */
     #ifdef WC_RSA_BLINDING
-        ret = wc_RsaSetRNG(key, ssl->rng);
+        ret = wc_InitRng(&rng);
+        if (ret == 0) {
+            ret = wc_RsaSetRNG(privKey, &rng);
+        }
     #endif
     if (ret == 0) {
         keySz = wc_RsaPrivateDecryptInline(encryptedKey, encryptedKeySz,
                                     &decryptedKey, privKey);
+        #ifdef WC_RSA_BLINDING
+            wc_FreeRng(&rng);
+        #endif
     } else {
         keySz = ret;
     }

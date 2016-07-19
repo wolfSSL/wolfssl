@@ -74,6 +74,7 @@ typedef struct WOLFSSL_X509_CHAIN WOLFSSL_X509_CHAIN;
 typedef struct WOLFSSL_CERT_MANAGER WOLFSSL_CERT_MANAGER;
 typedef struct WOLFSSL_SOCKADDR     WOLFSSL_SOCKADDR;
 
+typedef struct WC_RNG WC_RNG;
 /* redeclare guard */
 #define WOLFSSL_TYPES_DEFINED
 
@@ -991,6 +992,7 @@ WOLFSSL_API int  wolfSSL_CTX_SetTmpDH_buffer(WOLFSSL_CTX*, const unsigned char* 
 WOLFSSL_API int wolfSSL_CTX_SetMinDhKey_Sz(WOLFSSL_CTX*, unsigned short);
 WOLFSSL_API int wolfSSL_SetMinDhKey_Sz(WOLFSSL*, unsigned short);
 WOLFSSL_API int wolfSSL_GetDhKey_Sz(WOLFSSL*);
+WOLFSSL_API WC_RNG* wolfSSL_GetRNG(WOLFSSL*);
 #endif /* NO_DH */
 
 #ifndef NO_RSA

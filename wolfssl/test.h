@@ -1774,7 +1774,7 @@ static INLINE int myRsaDec(WOLFSSL* ssl, byte* in, word32 inSz,
     ret = wc_RsaPrivateKeyDecode(key, &idx, &myKey, keySz);
     if (ret == 0) {
         #ifdef WC_RSA_BLINDING
-            ret = wc_RsaSetRNG(&myKey, ssl->rng);
+            ret = wc_RsaSetRNG(&myKey, wolfSSL_GetRNG(ssl));
             if (ret != 0) {
                 wc_FreeRsaKey(&myKey);
                 return ret;
