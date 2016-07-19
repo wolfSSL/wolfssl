@@ -1773,6 +1773,13 @@ static INLINE int myRsaDec(WOLFSSL* ssl, byte* in, word32 inSz,
 
     ret = wc_RsaPrivateKeyDecode(key, &idx, &myKey, keySz);
     if (ret == 0) {
+        #ifdef WC_RSA_BLINDING
+            ret = wc_RsaSetRNG(&myKey, ssl->rng);
+            if (ret != 0) {
+                wc_FreeRsaKey(&myKey);
+                return ret;
+            }
+        #endif
         ret = wc_RsaPrivateDecryptInline(in, inSz, out, &myKey);
     }
     wc_FreeRsaKey(&myKey);

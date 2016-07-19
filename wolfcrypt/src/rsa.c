@@ -30,6 +30,14 @@
 
 #include <wolfssl/wolfcrypt/rsa.h>
 
+/*
+Possible RSA enable options:
+ * NO_RSA:              Overall control of RSA                      default: off
+ * WC_RSA_BLINDING:     Uses Blinding w/ Private Ops slower by ~20% default: off
+ * WOLFSSL_KEY_GEN:     Allows Private Key Generation               default: off
+ * RSA_LOW_MEM:         NON CRT Private Operations, less memory     default: off
+*/
+
 #ifdef HAVE_FIPS
 int  wc_InitRsaKey(RsaKey* key, void* ptr)
 {
@@ -781,28 +789,127 @@ static int wc_RsaUnPad_ex(byte* pkcsBlock, word32 pkcsBlockLen, byte** out,
 #endif /* WC_NO_RSA_OAEP */
 
 
+#ifdef WC_RSA_BLINDING
+
+/* helper for either lib */
+static int get_digit_count(mp_int* a)
+{
+    if (a == NULL)
+        return 0;
+
+    return a->used;
+}
+
+
+static int get_rand_digit(WC_RNG* rng, mp_digit* d)
+{
+    return wc_RNG_GenerateBlock(rng, (byte*)d, sizeof(mp_digit));
+}
+
+
+static int mp_rand(mp_int* a, int digits, WC_RNG* rng)
+{
+    int ret;
+    mp_digit d;
+
+    if (rng == NULL)
+        return MISSING_RNG_E;
+
+    if (a == NULL)
+        return BAD_FUNC_ARG;
+
+    mp_zero(a);
+    if (digits <= 0) {
+        return MP_OKAY;
+    }
+
+    /* first place a random non-zero digit */
+    do {
+        ret = get_rand_digit(rng, &d);
+        if (ret != 0) {
+            return ret;
+        }
+    } while (d == 0);
+
+    if ((ret = mp_add_d(a, d, a)) != MP_OKAY) {
+        return ret;
+    }
+
+    while (--digits > 0) {
+        if ((ret = mp_lshd(a, 1)) != MP_OKAY) {
+            return ret;
+        }
+        if ((ret = get_rand_digit(rng, &d)) != 0) {
+            return ret;
+        }
+        if ((ret = mp_add_d(a, d, a)) != MP_OKAY) {
+            return ret;
+        }
+    }
+
+    return ret;
+}
+
+
+#endif /* WC_RSA_BLINGING */
+
+
 static int wc_RsaFunction(const byte* in, word32 inLen, byte* out,
-                          word32* outLen, int type, RsaKey* key)
+                          word32* outLen, int type, RsaKey* key, WC_RNG* rng)
 {
     #define ERROR_OUT(x) { ret = (x); goto done;}
 
     mp_int tmp;
+#ifdef WC_RSA_BLINDING
+    mp_int rnd, rndi;
+#endif
     int    ret = 0;
     word32 keyLen, len;
 
+    (void)rng;
+
     if (mp_init(&tmp) != MP_OKAY)
         return MP_INIT_E;
+
+#ifdef WC_RSA_BLINDING
+    if (type == RSA_PRIVATE_DECRYPT || type == RSA_PRIVATE_ENCRYPT) {
+        if (mp_init_multi(&rnd, &rndi, NULL, NULL, NULL, NULL) != MP_OKAY) {
+            mp_clear(&tmp);
+            return MP_INIT_E;
+        }
+    }
+#endif
 
     if (mp_read_unsigned_bin(&tmp, (byte*)in, inLen) != MP_OKAY)
         ERROR_OUT(MP_READ_E);
 
     if (type == RSA_PRIVATE_DECRYPT || type == RSA_PRIVATE_ENCRYPT) {
+        #ifdef WC_RSA_BLINDING
+            /* blind */
+            ret = mp_rand(&rnd, get_digit_count(&key->n), rng);
+            if (ret != MP_OKAY)
+                ERROR_OUT(ret);
+
+            /* rndi = 1/rnd mod n */
+            if (mp_invmod(&rnd, &key->n, &rndi) != MP_OKAY)
+                ERROR_OUT(MP_INVMOD_E);
+
+            /* rnd = rnd^e */
+            if (mp_exptmod(&rnd, &key->e, &key->n, &rnd) != MP_OKAY)
+                ERROR_OUT(MP_EXPTMOD_E);
+
+            /* tmp = tmp*rnd mod n */
+            if (mp_mulmod(&tmp, &rnd, &key->n, &tmp) != MP_OKAY)
+                ERROR_OUT(MP_MULMOD_E);
+        #endif /* WC_RSA_BLINGING */
+
         #ifdef RSA_LOW_MEM      /* half as much memory but twice as slow */
             if (mp_exptmod(&tmp, &key->d, &key->n, &tmp) != MP_OKAY)
                 ERROR_OUT(MP_EXPTMOD_E);
         #else
             #define INNER_ERROR_OUT(x) { ret = (x); goto inner_done; }
 
+            { /* tmpa/b scope */
             mp_int tmpa, tmpb;
 
             if (mp_init(&tmpa) != MP_OKAY)
@@ -842,8 +949,15 @@ static int wc_RsaFunction(const byte* in, word32 inLen, byte* out,
             if (ret != 0) {
                 goto done;
             }
+            } /* tmpa/b scope */
 
         #endif   /* RSA_LOW_MEM */
+
+        #ifdef WC_RSA_BLINDING
+            /* unblind */
+            if (mp_mulmod(&tmp, &rndi, &key->n, &tmp) != MP_OKAY)
+                ERROR_OUT(MP_MULMOD_E);
+        #endif   /* WC_RSA_BLINDING */
     }
     else if (type == RSA_PUBLIC_ENCRYPT || type == RSA_PUBLIC_DECRYPT) {
         if (mp_exptmod(&tmp, &key->e, &key->n, &tmp) != MP_OKAY)
@@ -872,6 +986,12 @@ static int wc_RsaFunction(const byte* in, word32 inLen, byte* out,
 
 done:
     mp_clear(&tmp);
+#ifdef WC_RSA_BLINDING
+    if (type == RSA_PRIVATE_DECRYPT || type == RSA_PRIVATE_ENCRYPT) {
+        mp_clear(&rndi);
+        mp_clear(&rnd);
+    }
+#endif
     if (ret == MP_EXPTMOD_E) {
         WOLFSSL_MSG("RSA_FUNCTION MP_EXPTMOD_E: memory/config problem");
     }
@@ -905,7 +1025,7 @@ int wc_RsaPublicEncrypt(const byte* in, word32 inLen, byte* out, word32 outLen,
         return ret;
 
     if ((ret = wc_RsaFunction(out, sz, out, &outLen,
-                              RSA_PUBLIC_ENCRYPT, key)) < 0)
+                              RSA_PUBLIC_ENCRYPT, key, NULL)) < 0)
         sz = ret;
 
     return sz;
@@ -953,7 +1073,7 @@ int wc_RsaPublicEncrypt_ex(const byte* in, word32 inLen, byte* out,
         return ret;
 
     if ((ret = wc_RsaFunction(out, sz, out, &outLen,
-                              RSA_PUBLIC_ENCRYPT, key)) < 0)
+                              RSA_PUBLIC_ENCRYPT, key, NULL)) < 0)
         sz = ret;
 
     return sz;
@@ -964,6 +1084,7 @@ int wc_RsaPublicEncrypt_ex(const byte* in, word32 inLen, byte* out,
 int wc_RsaPrivateDecryptInline(byte* in, word32 inLen, byte** out, RsaKey* key)
 {
     int ret;
+    WC_RNG* rng = NULL;
 
 #ifdef HAVE_CAVIUM
     if (key->magic == WOLFSSL_RSA_CAVIUM_MAGIC) {
@@ -974,8 +1095,12 @@ int wc_RsaPrivateDecryptInline(byte* in, word32 inLen, byte** out, RsaKey* key)
     }
 #endif
 
-    if ((ret = wc_RsaFunction(in, inLen, in, &inLen, RSA_PRIVATE_DECRYPT, key))
-            < 0) {
+#ifdef WC_RSA_BLINDING
+    rng = key->rng;
+#endif
+
+    if ((ret = wc_RsaFunction(in, inLen, in, &inLen, RSA_PRIVATE_DECRYPT, key,
+                              rng)) < 0) {
         return ret;
     }
 
@@ -999,6 +1124,7 @@ int wc_RsaPrivateDecryptInline_ex(byte* in, word32 inLen, byte** out,
                           byte* label, word32 labelSz)
 {
     int ret;
+    WC_RNG* rng = NULL;
 
     /* sanity check on arguments */
     if (in == NULL || key == NULL) {
@@ -1019,7 +1145,12 @@ int wc_RsaPrivateDecryptInline_ex(byte* in, word32 inLen, byte** out,
     }
 #endif
 
-    if ((ret = wc_RsaFunction(in, inLen, in, &inLen, RSA_PRIVATE_DECRYPT, key))
+#ifdef WC_RSA_BLINDING
+    rng = key->rng;
+#endif
+
+    if ((ret = wc_RsaFunction(in, inLen, in, &inLen, RSA_PRIVATE_DECRYPT, key,
+                              rng))
             < 0) {
         return ret;
     }
@@ -1139,8 +1270,8 @@ int wc_RsaSSL_VerifyInline(byte* in, word32 inLen, byte** out, RsaKey* key)
     }
 #endif
 
-    if ((ret = wc_RsaFunction(in, inLen, in, &inLen, RSA_PUBLIC_DECRYPT, key))
-            < 0) {
+    if ((ret = wc_RsaFunction(in, inLen, in, &inLen, RSA_PUBLIC_DECRYPT, key,
+                              NULL)) < 0) {
         return ret;
     }
 
@@ -1211,7 +1342,7 @@ int wc_RsaSSL_Sign(const byte* in, word32 inLen, byte* out, word32 outLen,
         return ret;
 
     if ((ret = wc_RsaFunction(out, sz, out, &outLen,
-                              RSA_PRIVATE_ENCRYPT,key)) < 0)
+                              RSA_PRIVATE_ENCRYPT, key, rng)) < 0)
         sz = ret;
 
     return sz;
@@ -1365,6 +1496,20 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
 
 #endif /* WOLFSSL_KEY_GEN */
 
+
+#ifdef WC_RSA_BLINDING
+
+int wc_RsaSetRNG(RsaKey* key, WC_RNG* rng)
+{
+    if (key == NULL)
+        return BAD_FUNC_ARG;
+
+    key->rng = rng;
+
+    return 0;
+}
+
+#endif /* WC_RSA_BLINDING */
 
 #ifdef HAVE_CAVIUM
 

@@ -689,6 +689,7 @@ int  mp_exch(mp_int *a, mp_int *b);
 int  mp_cnt_lsb(fp_int *a);
 int  mp_div_2d(fp_int *a, int b, fp_int *c, fp_int *d);
 int  mp_mod_d(fp_int* a, fp_digit b, fp_digit* c);
+int  mp_lshd (mp_int * a, int b);
 
 WOLFSSL_API word32 CheckRunTimeFastMath(void);
 

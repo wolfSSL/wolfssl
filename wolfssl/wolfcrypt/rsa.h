@@ -65,6 +65,9 @@ typedef struct RsaKey {
     mp_int n, e, d, p, q, dP, dQ, u;
     int   type;                               /* public or private */
     void* heap;                               /* for user memory overrides */
+#ifdef WC_RSA_BLINDING
+    WC_RNG* rng;                              /* for PrivateDecrypt blinding */
+#endif
 #ifdef HAVE_CAVIUM
     int    devId;           /* nitrox device id */
     word32 magic;           /* using cavium magic */
@@ -109,6 +112,8 @@ WOLFSSL_API int  wc_RsaPublicKeyDecodeRaw(const byte* n, word32 nSz,
 #ifdef WOLFSSL_KEY_GEN
     WOLFSSL_API int wc_RsaKeyToDer(RsaKey*, byte* output, word32 inLen);
 #endif
+
+WOLFSSL_API int wc_RsaSetRNG(RsaKey* key, WC_RNG* rng);
 
 /*
    choice of padding added after fips, so not available when using fips RSA

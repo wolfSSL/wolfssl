@@ -4222,6 +4222,17 @@ int rsa_test(void)
         TEST_XFREE(tmp, HEAP_HINT ,DYNAMIC_TYPE_TMP_BUFFER);
         return -43;
     }
+#ifdef WC_RSA_BLINDING
+    {
+        int tmpret = ret;
+        ret = wc_RsaSetRNG(&key, &rng);
+        if (ret < 0) {
+            TEST_XFREE(tmp, HEAP_HINT ,DYNAMIC_TYPE_TMP_BUFFER);
+            return -843;
+        }
+        ret = tmpret;
+    }
+#endif
     ret = wc_RsaPrivateDecrypt(out, ret, plain, sizeof(plain), &key);
     if (ret < 0) {
         TEST_XFREE(tmp, HEAP_HINT ,DYNAMIC_TYPE_TMP_BUFFER);

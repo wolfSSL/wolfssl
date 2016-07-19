@@ -386,6 +386,9 @@ const char* wc_GetErrorString(int error)
     case ASN_COUNTRY_SIZE_E:
         return "Country code size error, either too small or large";
 
+    case MISSING_RNG_E:
+        return "RNG required but not provided";
+
     default:
         return "unknown error number";
 

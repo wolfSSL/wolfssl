@@ -2855,7 +2855,8 @@ void fp_gcd(fp_int *a, fp_int *b, fp_int *c)
 #endif /* WOLFSSL_KEY_GEN */
 
 
-#if defined(HAVE_ECC) || !defined(NO_PWDBASED) || defined(OPENSSL_EXTRA)
+#if defined(HAVE_ECC) || !defined(NO_PWDBASED) || defined(OPENSSL_EXTRA) || \
+    defined(WC_RSA_BLINDING)
 /* c = a + b */
 void fp_add_d(fp_int *a, fp_digit b, fp_int *c)
 {
@@ -3132,5 +3133,12 @@ void mp_dump(const char* desc, mp_int* a, byte verbose)
 #endif /* WOLFSSL_DEBUG_MATH */
 
 #endif /* defined(WOLFSSL_KEY_GEN) || defined(HAVE_COMP_KEY) || defined(WOLFSSL_DEBUG_MATH) */
+
+
+int mp_lshd (mp_int * a, int b)
+{
+    fp_lshd(a, b);
+    return FP_OKAY;
+}
 
 #endif /* USE_FAST_MATH */
