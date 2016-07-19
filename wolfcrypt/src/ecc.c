@@ -47,7 +47,7 @@ Possible ECC enable options:
 
 /*
 ECC Curve Types:
- * NO_ECC_SECP          Disables SECP curves                    default: on
+ * NO_ECC_SECP          Disables SECP curves                    default: off (not defined)
  * HAVE_ECC_SECPR2      Enables SECP R2 curves                  default: off
  * HAVE_ECC_SECPR3      Enables SECP R3 curves                  default: off
  * HAVE_ECC_BRAINPOOL   Enables Brainpool curves                default: off

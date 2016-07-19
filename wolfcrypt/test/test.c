@@ -6822,11 +6822,11 @@ static int ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerifyCount,
 #endif /* HAVE_ECC_KEY_EXPORT */
 
 #ifdef HAVE_ECC_SIGN
+#ifdef ECC_SHAMIR
     /* test DSA sign hash with zeros */
     for (i = 0; i < (int)sizeof(digest); i++) {
         digest[i] = 0;
     }
-    digest[i-1] = 1; /* Set last digit to non-zero value */
 
     x = sizeof(sig);
     ret = wc_ecc_sign_hash(digest, sizeof(digest), sig, &x, rng, &userA);
@@ -6844,6 +6844,7 @@ static int ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerifyCount,
             ERROR_OUT(-1016, done);
     }
 #endif /* HAVE_ECC_VERIFY */
+#endif /* ECC_SHAMIR */
 
     /* test DSA sign hash with sequence (0,1,2,3,4,...) */
     for (i = 0; i < (int)sizeof(digest); i++) {
