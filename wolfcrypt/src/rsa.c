@@ -30,6 +30,14 @@
 
 #include <wolfssl/wolfcrypt/rsa.h>
 
+/*
+Possible RSA enable options:
+ * NO_RSA:              Overall control of RSA                      default: off
+ * WC_RSA_BLINDING:     Uses Blinding w/ Private Ops slower by ~20% default: off
+ * WOLFSSL_KEY_GEN:     Allows Private Key Generation               default: off
+ * RSA_LOW_MEM:         NON CRT Private Operations, less memory     default: off
+*/
+
 #ifdef HAVE_FIPS
 int  wc_InitRsaKey(RsaKey* key, void* ptr)
 {
@@ -898,6 +906,7 @@ static int wc_RsaFunction(const byte* in, word32 inLen, byte* out,
         #else
             #define INNER_ERROR_OUT(x) { ret = (x); goto inner_done; }
 
+            { /* tmpa/b scope */
             mp_int tmpa, tmpb;
 
             if (mp_init(&tmpa) != MP_OKAY)
@@ -937,6 +946,7 @@ static int wc_RsaFunction(const byte* in, word32 inLen, byte* out,
             if (ret != 0) {
                 goto done;
             }
+            } /* tmpa/b scope */
 
         #endif   /* RSA_LOW_MEM */
 
