@@ -1284,12 +1284,20 @@ int wolfSSL_UseSupportedCurve(WOLFSSL* ssl, word16 name)
         return BAD_FUNC_ARG;
 
     switch (name) {
+        case WOLFSSL_ECC_SECP160K1:
         case WOLFSSL_ECC_SECP160R1:
+        case WOLFSSL_ECC_SECP160R2:
+        case WOLFSSL_ECC_SECP192K1:
         case WOLFSSL_ECC_SECP192R1:
+        case WOLFSSL_ECC_SECP224K1:
         case WOLFSSL_ECC_SECP224R1:
+        case WOLFSSL_ECC_SECP256K1:
         case WOLFSSL_ECC_SECP256R1:
         case WOLFSSL_ECC_SECP384R1:
         case WOLFSSL_ECC_SECP521R1:
+        case WOLFSSL_ECC_BRAINPOOLP256R1:
+        case WOLFSSL_ECC_BRAINPOOLP384R1:
+        case WOLFSSL_ECC_BRAINPOOLP512R1:
             break;
 
         default:
@@ -1306,12 +1314,20 @@ int wolfSSL_CTX_UseSupportedCurve(WOLFSSL_CTX* ctx, word16 name)
         return BAD_FUNC_ARG;
 
     switch (name) {
+        case WOLFSSL_ECC_SECP160K1:
         case WOLFSSL_ECC_SECP160R1:
+        case WOLFSSL_ECC_SECP160R2:
+        case WOLFSSL_ECC_SECP192K1:
         case WOLFSSL_ECC_SECP192R1:
+        case WOLFSSL_ECC_SECP224K1:
         case WOLFSSL_ECC_SECP224R1:
+        case WOLFSSL_ECC_SECP256K1:
         case WOLFSSL_ECC_SECP256R1:
         case WOLFSSL_ECC_SECP384R1:
         case WOLFSSL_ECC_SECP521R1:
+        case WOLFSSL_ECC_BRAINPOOLP256R1:
+        case WOLFSSL_ECC_BRAINPOOLP384R1:
+        case WOLFSSL_ECC_BRAINPOOLP512R1:
             break;
 
         default:
@@ -15784,7 +15800,7 @@ static int SetECKeyExternal(WOLFSSL_EC_KEY* eckey)
     key = (ecc_key*)eckey->internal;
 
     /* set group (nid and idx) */
-    eckey->group->curve_nid = ecc_sets[key->idx].nid;
+    eckey->group->curve_nid = ecc_sets[key->idx].id;
     eckey->group->curve_idx = key->idx;
 
     if (eckey->pub_key->internal != NULL) {
@@ -15955,7 +15971,7 @@ WOLFSSL_EC_KEY *wolfSSL_EC_KEY_new_by_curve_name(int nid)
 
     /* search and set the corresponding internal curve idx */
     for (x = 0; ecc_sets[x].size != 0; x++)
-        if (ecc_sets[x].nid == key->group->curve_nid) {
+        if (ecc_sets[x].id == key->group->curve_nid) {
             key->group->curve_idx = x;
             break;
         }
@@ -16111,8 +16127,8 @@ int wolfSSL_EC_KEY_generate_key(WOLFSSL_EC_KEY *key)
         return 0;
     }
 
-    if (wc_ecc_make_key(rng, ecc_sets[key->group->curve_idx].size,
-                        (ecc_key*)key->internal) != MP_OKAY) {
+    if (wc_ecc_make_key_ex(rng, 0, (ecc_key*)key->internal,
+                                        key->group->curve_nid) != MP_OKAY) {
         WOLFSSL_MSG("wolfSSL_EC_KEY_generate_key wc_ecc_make_key failed");
 #ifdef WOLFSSL_SMALL_STACK
         XFREE(tmpRNG, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -16288,7 +16304,7 @@ WOLFSSL_EC_GROUP *wolfSSL_EC_GROUP_new_by_curve_name(int nid)
 
     /* search and set the corresponding internal curve idx */
     for (x = 0; ecc_sets[x].size != 0; x++)
-        if (ecc_sets[x].nid == g->curve_nid) {
+        if (ecc_sets[x].id == g->curve_nid) {
             g->curve_idx = x;
             break;
         }
@@ -16325,22 +16341,37 @@ int wolfSSL_EC_GROUP_get_degree(const WOLFSSL_EC_GROUP *group)
 
     switch(group->curve_nid) {
         case NID_secp112r1:
+        case NID_secp112r2:
             return 112;
         case NID_secp128r1:
+        case NID_secp128r2:
             return 128;
+        case NID_secp160k1:
         case NID_secp160r1:
+        case NID_secp160r2:
+        case NID_brainpoolP160r1:
             return 160;
+        case NID_secp192k1:
+        case NID_brainpoolP192r1:
         case NID_X9_62_prime192v1:
             return 192;
+        case NID_secp224k1:
         case NID_secp224r1:
+        case NID_brainpoolP224r1:
             return 224;
+        case NID_secp256k1:
+        case NID_brainpoolP256r1:
         case NID_X9_62_prime256v1:
             return 256;
+        case NID_brainpoolP320r1:
+            return 320;
         case NID_secp384r1:
+        case NID_brainpoolP384r1:
             return 384;
         case NID_secp521r1:
+        case NID_brainpoolP512r1:
             return 521;
-        default :
+        default:
             return SSL_FAILURE;
     }
 }

@@ -720,24 +720,7 @@ static const byte hashSha512hOid[] = {96, 134, 72, 1, 101, 3, 4, 2, 3};
 
 /* curveType */
 #ifdef HAVE_ECC
-    #if defined(HAVE_ALL_CURVES) || defined(HAVE_ECC192)
-        static const byte curve192v1Oid[] = {42, 134, 72, 206, 61, 3, 1, 1};
-    #endif /* HAVE_ALL_CURVES || HAVE_ECC192 */
-    #if defined(HAVE_ALL_CURVES) || !defined(NO_ECC256)
-        static const byte curve256v1Oid[] = {42, 134, 72, 206, 61, 3, 1, 7};
-    #endif /* HAVE_ALL_CURVES || HAVE_ECC256 */
-    #if defined(HAVE_ALL_CURVES) || defined(HAVE_ECC160)
-        static const byte curve160r1Oid[] = {43, 129, 4, 0, 8};
-    #endif /* HAVE_ALL_CURVES || HAVE_ECC160 */
-    #if defined(HAVE_ALL_CURVES) || defined(HAVE_ECC224)
-        static const byte curve224r1Oid[] = {43, 129, 4, 0, 33};
-    #endif /* HAVE_ALL_CURVES || HAVE_ECC224 */
-    #if defined(HAVE_ALL_CURVES) || defined(HAVE_ECC384)
-        static const byte curve384r1Oid[] = {43, 129, 4, 0, 34};
-    #endif /* HAVE_ALL_CURVES || HAVE_ECC384 */
-    #if defined(HAVE_ALL_CURVES) || defined(HAVE_ECC521)
-        static const byte curve521r1Oid[] = {43, 129, 4, 0, 35};
-    #endif /* HAVE_ALL_CURVES || HAVE_ECC521 */
+    /* See "ecc_sets" table in ecc.c */
 #endif /* HAVE_ECC */
 
 /* blkType */
@@ -909,45 +892,8 @@ static const byte* OidFromId(word32 id, word32 type, word32* oidSz)
 
         #ifdef HAVE_ECC
         case oidCurveType:
-            switch (id) {
-                #if defined(HAVE_ALL_CURVES) || !defined(NO_ECC256)
-                case ECC_256R1:
-                    oid = curve256v1Oid;
-                    *oidSz = sizeof(curve256v1Oid);
-                    break;
-                #endif /* HAVE_ALL_CURVES || HAVE_ECC256 */
-                #if defined(HAVE_ALL_CURVES) || defined(HAVE_ECC384)
-                case ECC_384R1:
-                    oid = curve384r1Oid;
-                    *oidSz = sizeof(curve384r1Oid);
-                    break;
-                #endif /* HAVE_ALL_CURVES || HAVE_ECC384 */
-                #if defined(HAVE_ALL_CURVES) || defined(HAVE_ECC521)
-                case ECC_521R1:
-                    oid = curve521r1Oid;
-                    *oidSz = sizeof(curve521r1Oid);
-                    break;
-                #endif /* HAVE_ALL_CURVES || HAVE_ECC521 */
-                #if defined(HAVE_ALL_CURVES) || defined(HAVE_ECC160)
-                case ECC_160R1:
-                    oid = curve160r1Oid;
-                    *oidSz = sizeof(curve160r1Oid);
-                    break;
-                #endif /* HAVE_ALL_CURVES || HAVE_ECC160 */
-                #if defined(HAVE_ALL_CURVES) || defined(HAVE_ECC192)
-                case ECC_192R1:
-                    oid = curve192v1Oid;
-                    *oidSz = sizeof(curve192v1Oid);
-                    break;
-                #endif /* HAVE_ALL_CURVES || HAVE_ECC192 */
-                #if defined(HAVE_ALL_CURVES) || defined(HAVE_ECC224)
-                case ECC_224R1:
-                    oid = curve224r1Oid;
-                    *oidSz = sizeof(curve224r1Oid);
-                    break;
-                #endif /* HAVE_ALL_CURVES || HAVE_ECC224 */
-                default:
-                    break;
+            if (wc_ecc_get_oid(id, &oid, oidSz) < 0) {
+                WOLFSSL_MSG("ECC OID not found");
             }
             break;
         #endif /* HAVE_ECC */
@@ -1097,9 +1043,84 @@ static const byte* OidFromId(word32 id, word32 type, word32* oidSz)
     return oid;
 }
 
+#ifdef HAVE_OID_ENCODING
+int EncodeObjectId(const word16* in, word32 inSz, byte* out, word32* outSz)
+{
+    int i, x, len;
+    word32 d, t;
 
-WOLFSSL_LOCAL int GetObjectId(const byte* input, word32* inOutIdx, word32* oid,
-                              word32 oidType, word32 maxIdx)
+    /* check args */
+    if (in == NULL || outSz == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    /* compute length of encoded OID */
+    d = (in[0] * 40) + in[1];
+    len = 0;
+    for (i = 1; i < (int)inSz; i++) {
+        x = 0;
+        t = d;
+        while (t) {
+            x++;
+            t >>= 1;
+        }
+        len += (x / 7) + ((x % 7) ? 1 : 0) + (d == 0 ? 1 : 0);
+
+        if (i < (int)inSz - 1) {
+            d = in[i + 1];
+        }
+    }
+
+    if (out) {
+        /* verify length */
+        if ((int)*outSz < len) {
+            return BUFFER_E; /* buffer provided is not large enough */
+        }
+
+        /* calc first byte */
+        d = (in[0] * 40) + in[1];
+
+        /* encode bytes */
+        x = 0;
+        for (i = 1; i < (int)inSz; i++) {
+            if (d) {
+                int y = x, z;
+                byte mask = 0;
+                while (d) {
+                    out[x++] = (byte)((d & 0x7F) | mask);
+                    d     >>= 7;
+                    mask  |= 0x80;  /* upper bit is set on all but the last byte */
+                }
+                /* now swap bytes y...x-1 */
+                z = x - 1;
+                while (y < z) {
+                    mask = out[y];
+                    out[y] = out[z];
+                    out[z] = mask;
+                    ++y;
+                    --z;
+                }
+            }
+            else {
+              out[x++] = 0x00; /* zero value */
+            }
+
+            /* next word */
+            if (i < (int)inSz - 1) {
+                d = in[i + 1];
+            }
+        }
+    }
+
+    /* return length */
+    *outSz = len;
+
+    return 0;
+}
+#endif
+
+int GetObjectId(const byte* input, word32* inOutIdx, word32* oid,
+                                  word32 oidType, word32 maxIdx)
 {
     int    length;
     word32 i = *inOutIdx;
@@ -1143,10 +1164,10 @@ WOLFSSL_LOCAL int GetObjectId(const byte* input, word32* inOutIdx, word32* oid,
         if (oidType != oidIgnoreType) {
             checkOid = OidFromId(*oid, oidType, &checkOidSz);
 
-            if (checkOid != NULL &&
-                (checkOidSz != actualOidSz ||
-                 XMEMCMP(actualOid, checkOid, checkOidSz) != 0)) {
-
+            if (checkOid == NULL || 
+                (checkOid != NULL && (checkOidSz != actualOidSz ||
+                    XMEMCMP(actualOid, checkOid, checkOidSz) != 0)))
+            {
                 WOLFSSL_MSG("OID Check Failed");
                 return ASN_UNKNOWN_OID_E;
             }
@@ -2314,30 +2335,12 @@ static int StoreRsaKey(DecodedCert* cert)
     static int CheckCurve(word32 oid)
     {
         int ret = 0;
+        word32 oidSz = 0;
 
-        switch (oid) {
-#if defined(HAVE_ALL_CURVES) || defined(HAVE_ECC160)
-            case ECC_160R1:
-#endif
-#if defined(HAVE_ALL_CURVES) || defined(HAVE_ECC192)
-            case ECC_192R1:
-#endif
-#if defined(HAVE_ALL_CURVES) || defined(HAVE_ECC224)
-            case ECC_224R1:
-#endif
-#if defined(HAVE_ALL_CURVES) || !defined(NO_ECC256)
-            case ECC_256R1:
-#endif
-#if defined(HAVE_ALL_CURVES) || defined(HAVE_ECC384)
-            case ECC_384R1:
-#endif
-#if defined(HAVE_ALL_CURVES) || defined(HAVE_ECC521)
-            case ECC_521R1:
-#endif
-                break;
-
-            default:
-                ret = ALGO_ID_E;
+        ret = wc_ecc_get_oid(oid, NULL, &oidSz);
+        if (ret < 0 || oidSz <= 0) {
+            WOLFSSL_MSG("CheckCurve not found");
+            ret = ALGO_ID_E;
         }
 
         return ret;
@@ -3356,91 +3359,38 @@ WOLFSSL_LOCAL word32 SetExplicit(byte number, word32 len, byte* output)
 
 static int SetCurve(ecc_key* key, byte* output)
 {
+    int ret;
+    int idx = 0;
+    word32 oidSz = 0;
 
-    /* curve types */
-#if defined(HAVE_ALL_CURVES) || defined(HAVE_ECC192)
-    static const byte ECC_192v1_AlgoID[] = { 0x2a, 0x86, 0x48, 0xCE, 0x3d,
-                                             0x03, 0x01, 0x01};
-#endif
-#if defined(HAVE_ALL_CURVES) || !defined(NO_ECC256)
-    static const byte ECC_256v1_AlgoID[] = { 0x2a, 0x86, 0x48, 0xCE, 0x3d,
-                                            0x03, 0x01, 0x07};
-#endif
-#if defined(HAVE_ALL_CURVES) || defined(HAVE_ECC160)
-    static const byte ECC_160r1_AlgoID[] = { 0x2b, 0x81, 0x04, 0x00,
-                                             0x02};
-#endif
-#if defined(HAVE_ALL_CURVES) || defined(HAVE_ECC224)
-    static const byte ECC_224r1_AlgoID[] = { 0x2b, 0x81, 0x04, 0x00,
-                                             0x21};
-#endif
-#if defined(HAVE_ALL_CURVES) || defined(HAVE_ECC384)
-    static const byte ECC_384r1_AlgoID[] = { 0x2b, 0x81, 0x04, 0x00,
-                                             0x22};
-#endif
-#if defined(HAVE_ALL_CURVES) || defined(HAVE_ECC521)
-    static const byte ECC_521r1_AlgoID[] = { 0x2b, 0x81, 0x04, 0x00,
-                                             0x23};
-#endif
+    /* validate key */
+    if (key == NULL || key->dp == NULL) {
+        return BAD_FUNC_ARG;
+    }
 
-    int    oidSz = 0;
-    int    idx = 0;
-    int    lenSz = 0;
-    const  byte* oid = 0;
+#ifdef HAVE_OID_ENCODING
+    ret = EncodeObjectId(key->dp->oid, key->dp->oidSz, NULL, &oidSz);
+    if (ret != 0) {
+        return ret;
+    }
+#else
+    oidSz = key->dp->oidSz;
+#endif
 
     output[0] = ASN_OBJECT_ID;
     idx++;
 
-    switch (key->dp->size) {
-#if defined(HAVE_ALL_CURVES) || defined(HAVE_ECC160)
-        case 20:
-            oidSz = sizeof(ECC_160r1_AlgoID);
-            oid   =        ECC_160r1_AlgoID;
-            break;
-#endif
+    ret = SetLength(oidSz, output+idx);
+    idx += ret;
 
-#if defined(HAVE_ALL_CURVES) || defined(HAVE_ECC192)
-        case 24:
-            oidSz = sizeof(ECC_192v1_AlgoID);
-            oid   =        ECC_192v1_AlgoID;
-            break;
-#endif
-
-#if defined(HAVE_ALL_CURVES) || defined(HAVE_ECC224)
-        case 28:
-            oidSz = sizeof(ECC_224r1_AlgoID);
-            oid   =        ECC_224r1_AlgoID;
-            break;
-#endif
-
-#if defined(HAVE_ALL_CURVES) || !defined(NO_ECC256)
-        case 32:
-            oidSz = sizeof(ECC_256v1_AlgoID);
-            oid   =        ECC_256v1_AlgoID;
-            break;
-#endif
-
-#if defined(HAVE_ALL_CURVES) || defined(HAVE_ECC384)
-        case 48:
-            oidSz = sizeof(ECC_384r1_AlgoID);
-            oid   =        ECC_384r1_AlgoID;
-            break;
-#endif
-
-#if defined(HAVE_ALL_CURVES) || defined(HAVE_ECC521)
-        case 66:
-            oidSz = sizeof(ECC_521r1_AlgoID);
-            oid   =        ECC_521r1_AlgoID;
-            break;
-#endif
-
-        default:
-            return ASN_UNKNOWN_OID_E;
+#ifdef HAVE_OID_ENCODING
+    ret = EncodeObjectId(key->dp->oid, key->dp->oidSz, output+idx, &oidSz);
+    if (ret != 0) {
+        return ret;
     }
-    lenSz = SetLength(oidSz, output+idx);
-    idx += lenSz;
-
-    XMEMCPY(output+idx, oid, oidSz);
+#else
+    XMEMCPY(output+idx, key->dp->oid, oidSz);
+#endif
     idx += oidSz;
 
     return idx;
@@ -4774,6 +4724,7 @@ static int DecodeCertExtensions(DecodedCert* cert)
  *  index. It is works starting with the recorded extensions pointer.
  */
 {
+    int ret;
     word32 idx = 0;
     int sz = cert->extensionsSz;
     byte* input = cert->extensions;
@@ -4809,9 +4760,11 @@ static int DecodeCertExtensions(DecodedCert* cert)
         }
 
         oid = 0;
-        if (GetObjectId(input, &idx, &oid, oidCertExtType, sz) < 0) {
-            WOLFSSL_MSG("\tfail: OBJECT ID");
-            return ASN_PARSE_E;
+        if ((ret = GetObjectId(input, &idx, &oid, oidCertExtType, sz)) < 0) {
+            if (ret != ASN_UNKNOWN_OID_E) {
+                WOLFSSL_MSG("\tfail: OBJECT ID");
+                return ret;
+            }
         }
 
         /* check for critical flag */
