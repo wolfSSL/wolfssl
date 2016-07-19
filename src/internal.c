@@ -3242,27 +3242,6 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
         }
         else {
     #endif
-        ctx_hint = ((WOLFSSL_HEAP_HINT*)(ctx->heap));
-        /* lock and check IO count / handshake count */
-        if (LockMutex(&(ctx_hint->memory->memory_mutex)) != 0) {
-            WOLFSSL_MSG("Bad memory_mutex lock");
-            return BAD_MUTEX_E;
-        }
-        if (ctx_hint->memory->maxHa > 0 &&
-                           ctx_hint->memory->maxHa <= ctx_hint->memory->curHa) {
-            WOLFSSL_MSG("At max number of handshakes for static memory");
-            UnLockMutex(&(ctx_hint->memory->memory_mutex));
-            return MEMORY_E;
-        }
-
-        if (ctx_hint->memory->maxIO > 0 &&
-                           ctx_hint->memory->maxIO <= ctx_hint->memory->curIO) {
-            WOLFSSL_MSG("At max number of IO allowed for static memory");
-            UnLockMutex(&(ctx_hint->memory->memory_mutex));
-            return MEMORY_E;
-        }
-        UnLockMutex(&(ctx_hint->memory->memory_mutex));
-
         ssl->heap = (WOLFSSL_HEAP_HINT*)XMALLOC(sizeof(WOLFSSL_HEAP_HINT),
                                                ctx->heap, DYNAMIC_TYPE_SSL);
         if (ssl->heap == NULL) {
@@ -3270,7 +3249,37 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
         }
         XMEMSET(ssl->heap, 0, sizeof(WOLFSSL_HEAP_HINT));
         ssl_hint = ((WOLFSSL_HEAP_HINT*)(ssl->heap));
+        ctx_hint = ((WOLFSSL_HEAP_HINT*)(ctx->heap));
+
+        /* lock and check IO count / handshake count */
+        if (LockMutex(&(ctx_hint->memory->memory_mutex)) != 0) {
+            WOLFSSL_MSG("Bad memory_mutex lock");
+            XFREE(ssl->heap, ctx->heap, DYNAMIC_TYPE_SSL);
+            ssl->heap = NULL; /* free and set to NULL for IO counter */
+            return BAD_MUTEX_E;
+        }
+        if (ctx_hint->memory->maxHa > 0 &&
+                           ctx_hint->memory->maxHa <= ctx_hint->memory->curHa) {
+            WOLFSSL_MSG("At max number of handshakes for static memory");
+            UnLockMutex(&(ctx_hint->memory->memory_mutex));
+            XFREE(ssl->heap, ctx->heap, DYNAMIC_TYPE_SSL);
+            ssl->heap = NULL; /* free and set to NULL for IO counter */
+            return MEMORY_E;
+        }
+
+        if (ctx_hint->memory->maxIO > 0 &&
+                           ctx_hint->memory->maxIO <= ctx_hint->memory->curIO) {
+            WOLFSSL_MSG("At max number of IO allowed for static memory");
+            UnLockMutex(&(ctx_hint->memory->memory_mutex));
+            XFREE(ssl->heap, ctx->heap, DYNAMIC_TYPE_SSL);
+            ssl->heap = NULL; /* free and set to NULL for IO counter */
+            return MEMORY_E;
+        }
+        ctx_hint->memory->curIO++;
+        ctx_hint->memory->curHa++;
         ssl_hint->memory = ctx_hint->memory;
+        ssl_hint->haFlag = 1;
+        UnLockMutex(&(ctx_hint->memory->memory_mutex));
 
         /* check if tracking stats */
         if (ctx_hint->memory->flag & WOLFMEM_TRACK_STATS) {
@@ -3303,16 +3312,6 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
             }
             UnLockMutex(&(ctx_hint->memory->memory_mutex));
         }
-
-        /* increment counters at end of setting up memory */
-        if (LockMutex(&(ctx_hint->memory->memory_mutex)) != 0) {
-            WOLFSSL_MSG("Bad memory_mutex lock");
-            return BAD_MUTEX_E;
-        }
-        ctx_hint->memory->curHa++;
-        ctx_hint->memory->curIO++;
-        ssl_hint->haFlag = 1;
-        UnLockMutex(&(ctx_hint->memory->memory_mutex));
     #ifdef WOLFSSL_HEAP_TEST
         }
     #endif
