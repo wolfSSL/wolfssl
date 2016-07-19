@@ -812,7 +812,10 @@ static int mp_rand(mp_int* a, int digits, WC_RNG* rng)
     int ret;
     mp_digit d;
 
-    if (a == NULL || rng == NULL)
+    if (rng == NULL)
+        return MISSING_RNG_E;
+
+    if (a == NULL)
         return BAD_FUNC_ARG;
 
     mp_zero(a);
