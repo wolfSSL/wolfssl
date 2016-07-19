@@ -682,6 +682,9 @@ int wolfSSL_CTX_load_static_memory(WOLFSSL_CTX** ctx, wolfSSL_method_func method
     }
 
     if (*ctx == NULL) {
+        if (sizeof(WOLFSSL_HEAP) + sizeof(WOLFSSL_HEAP_HINT) > sz - idx) {
+            return BUFFER_E; /* not enough memory for structures */
+        }
         heap = (WOLFSSL_HEAP*)buf;
         idx += sizeof(WOLFSSL_HEAP);
         if (wolfSSL_init_memory_heap(heap) != SSL_SUCCESS) {
@@ -693,6 +696,9 @@ int wolfSSL_CTX_load_static_memory(WOLFSSL_CTX** ctx, wolfSSL_method_func method
         hint->memory = heap;
     }
     else if ((*ctx)->heap == NULL) {
+        if (sizeof(WOLFSSL_HEAP) + sizeof(WOLFSSL_HEAP_HINT) > sz - idx) {
+            return BUFFER_E; /* not enough memory for structures */
+        }
         heap = (WOLFSSL_HEAP*)buf;
         idx += sizeof(WOLFSSL_HEAP);
         if (wolfSSL_init_memory_heap(heap) != SSL_SUCCESS) {
