@@ -702,6 +702,7 @@ int wolfSSL_CTX_load_static_memory(WOLFSSL_CTX** ctx, wolfSSL_method_func method
         idx += sizeof(WOLFSSL_HEAP_HINT);
         XMEMSET(hint, 0, sizeof(WOLFSSL_HEAP_HINT));
         hint->memory = heap;
+        (*ctx)->heap = (void*)hint;
     }
     else {
 #ifdef WOLFSSL_HEAP_TEST
