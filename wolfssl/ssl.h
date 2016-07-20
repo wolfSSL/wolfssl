@@ -74,6 +74,7 @@ typedef struct WOLFSSL_X509_CHAIN WOLFSSL_X509_CHAIN;
 typedef struct WOLFSSL_CERT_MANAGER WOLFSSL_CERT_MANAGER;
 typedef struct WOLFSSL_SOCKADDR     WOLFSSL_SOCKADDR;
 
+typedef struct WC_RNG WC_RNG;
 /* redeclare guard */
 #define WOLFSSL_TYPES_DEFINED
 
@@ -1172,6 +1173,8 @@ enum {
     WOLFSSL_USER_CA  = 1,          /* user added as trusted */
     WOLFSSL_CHAIN_CA = 2           /* added to cache from trusted chain */
 };
+
+WOLFSSL_API WC_RNG* wolfSSL_GetRNG(WOLFSSL*);
 
 WOLFSSL_API int wolfSSL_CTX_SetMinVersion(WOLFSSL_CTX* ctx, int version);
 WOLFSSL_API int wolfSSL_SetMinVersion(WOLFSSL* ssl, int version);

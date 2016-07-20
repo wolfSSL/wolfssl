@@ -572,6 +572,16 @@ int wolfSSL_negotiate(WOLFSSL* ssl)
 }
 
 
+WC_RNG* wolfSSL_GetRNG(WOLFSSL* ssl)
+{
+    if (ssl) {
+        return ssl->rng;
+    }
+
+    return NULL;
+}
+
+
 #ifndef WOLFSSL_LEANPSK
 /* object size based on build */
 int wolfSSL_GetObjectSize(void)
