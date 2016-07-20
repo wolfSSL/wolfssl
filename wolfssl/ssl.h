@@ -992,7 +992,6 @@ WOLFSSL_API int  wolfSSL_CTX_SetTmpDH_buffer(WOLFSSL_CTX*, const unsigned char* 
 WOLFSSL_API int wolfSSL_CTX_SetMinDhKey_Sz(WOLFSSL_CTX*, unsigned short);
 WOLFSSL_API int wolfSSL_SetMinDhKey_Sz(WOLFSSL*, unsigned short);
 WOLFSSL_API int wolfSSL_GetDhKey_Sz(WOLFSSL*);
-WOLFSSL_API WC_RNG* wolfSSL_GetRNG(WOLFSSL*);
 #endif /* NO_DH */
 
 #ifndef NO_RSA
@@ -1174,6 +1173,8 @@ enum {
     WOLFSSL_USER_CA  = 1,          /* user added as trusted */
     WOLFSSL_CHAIN_CA = 2           /* added to cache from trusted chain */
 };
+
+WOLFSSL_API WC_RNG* wolfSSL_GetRNG(WOLFSSL*);
 
 WOLFSSL_API int wolfSSL_CTX_SetMinVersion(WOLFSSL_CTX* ctx, int version);
 WOLFSSL_API int wolfSSL_SetMinVersion(WOLFSSL* ssl, int version);
