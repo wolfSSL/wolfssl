@@ -6822,7 +6822,7 @@ static int ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerifyCount,
 #endif /* HAVE_ECC_KEY_EXPORT */
 
 #ifdef HAVE_ECC_SIGN
-#ifdef ECC_SHAMIR
+#ifdef ECC_SHAMIR /* ECC w/out Shamir has issue with all 0 digest */
     /* test DSA sign hash with zeros */
     for (i = 0; i < (int)sizeof(digest); i++) {
         digest[i] = 0;
