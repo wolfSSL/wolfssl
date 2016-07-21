@@ -76,6 +76,11 @@ typedef struct OS_Seed {
 } OS_Seed;
 
 
+#ifndef WC_RNG_TYPE_DEFINED /* guard on redeclaration */
+    typedef struct WC_RNG WC_RNG;
+    #define WC_RNG_TYPE_DEFINED
+#endif
+
 #if (defined(HAVE_HASHDRBG) || defined(NO_RC4)) && !defined(CUSTOM_RAND_GENERATE_BLOCK)
 
 #define DRBG_SEED_LEN (440/8)
@@ -85,12 +90,12 @@ struct DRBG; /* Private DRBG state */
 
 
 /* Hash-based Deterministic Random Bit Generator */
-typedef struct WC_RNG {
+struct WC_RNG {
     struct DRBG* drbg;
     OS_Seed seed;
     void* heap;
     byte status;
-} WC_RNG;
+};
 
 
 
@@ -101,7 +106,7 @@ typedef struct WC_RNG {
 /* secure Random Number Generator */
 
 
-typedef struct WC_RNG {
+struct WC_RNG {
     OS_Seed seed;
 #ifndef NO_RC4
     Arc4    cipher;
@@ -110,7 +115,7 @@ typedef struct WC_RNG {
     int    devId;           /* nitrox device id */
     word32 magic;           /* using cavium magic */
 #endif
-} WC_RNG;
+};
 
 
 
