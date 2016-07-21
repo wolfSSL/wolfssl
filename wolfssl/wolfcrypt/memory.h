@@ -137,6 +137,7 @@ WOLFSSL_API int wolfSSL_SetAllocators(wolfSSL_Malloc_cb  malloc_function,
         WOLFSSL_MEM_CONN_STATS* stats;  /* hold individual connection stats */
         wc_Memory*  outBuf; /* set if using fixed io buffers */
         wc_Memory*  inBuf;
+        byte        haFlag; /* flag used for checking handshake count */
     } WOLFSSL_HEAP_HINT;
 
 
