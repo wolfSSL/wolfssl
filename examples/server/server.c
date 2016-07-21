@@ -632,6 +632,18 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
         err_sys("unable to get method");
 
 #ifdef WOLFSSL_STATIC_MEMORY
+    #ifdef DEBUG_WOLFSSL
+    /* print off helper buffer sizes for use with static memory
+     * printing to stderr incase of debug mode turned on */
+    fprintf(stderr, "static memory management size = %d\n",
+            wolfSSL_MemoryPaddingSz());
+    fprintf(stderr, "calculated optimum general buffer size = %d\n",
+            wolfSSL_StaticBufferSz(memory, sizeof(memory), 0));
+    fprintf(stderr, "calculated optimum IO buffer size      = %d\n",
+            wolfSSL_StaticBufferSz(memoryIO, sizeof(memoryIO),
+                                                  WOLFMEM_IO_POOL_FIXED));
+    #endif /* DEBUG_WOLFSSL */
+
     if (wolfSSL_CTX_load_static_memory(&ctx, method, memory, sizeof(memory),0,1)
             != SSL_SUCCESS)
         err_sys("unable to load static memory and create ctx");

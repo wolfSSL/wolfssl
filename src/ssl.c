@@ -643,16 +643,8 @@ int wolfSSL_GetObjectSize(void)
 
 int wolfSSL_init_memory_heap(WOLFSSL_HEAP* heap)
 {
-    /* default size of chunks of memory to seperate into
-     * having session certs enabled makes a 21k SSL struct */
-#ifndef SESSION_CERTS
-    word32 wc_defaultMemSz[WOLFMEM_DEF_BUCKETS] =
-                           { 64, 128, 256, 512, 1024, 2432, 3456, 4544, 16128 };
-#else
-    word32 wc_defaultMemSz[WOLFMEM_DEF_BUCKETS] =
-                           { 64, 128, 256, 512, 1024, 2432, 3456, 4544, 21056 };
-#endif
-    word32 wc_defaultDist[WOLFMEM_DEF_BUCKETS] = { 8, 4, 4, 12, 4, 5, 2, 1, 1 };
+    word32 wc_MemSz[WOLFMEM_DEF_BUCKETS] = { WOLFMEM_BUCKETS };
+    word32 wc_Dist[WOLFMEM_DEF_BUCKETS]  = { WOLFMEM_DIST };
 
     if (heap == NULL) {
         return BAD_FUNC_ARG;
@@ -660,11 +652,8 @@ int wolfSSL_init_memory_heap(WOLFSSL_HEAP* heap)
 
     XMEMSET(heap, 0, sizeof(WOLFSSL_HEAP));
 
-    /* default pool sizes and distribution, else leave a 0's for now */
-    #if WOLFMEM_DEF_BUCKETS == WOLFMEM_MAX_BUCKETS
-        XMEMCPY(heap->sizeList, wc_defaultMemSz, sizeof(wc_defaultMemSz));
-        XMEMCPY(heap->distList, wc_defaultDist, sizeof(wc_defaultMemSz));
-    #endif
+    XMEMCPY(heap->sizeList, wc_MemSz, sizeof(wc_MemSz));
+    XMEMCPY(heap->distList, wc_Dist,  sizeof(wc_Dist));
 
     if (InitMutex(&(heap->memory_mutex)) != 0) {
         WOLFSSL_MSG("Error creating heap memory mutex");

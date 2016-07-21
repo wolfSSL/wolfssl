@@ -263,6 +263,62 @@ int wolfSSL_load_static_memory(byte* buffer, word32 sz, int flag,
 }
 
 
+/* returns the size of management memory needed for each bucket.
+ * This is memory that is used to keep track of and align memory buckets. */
+int wolfSSL_MemoryPaddingSz(void)
+{
+    word32 memSz = (word32)sizeof(wc_Memory);
+    word32 padSz = -(int)memSz & (WOLFSSL_STATIC_ALIGN - 1);
+    return memSz + padSz;
+}
+
+
+/* Used to calculate memory size for optimum use with buckets.
+   returns the suggested size rounded down to the nearest bucket. */
+int wolfSSL_StaticBufferSz(byte* buffer, word32 sz, int flag)
+{
+    word32 bucketSz[WOLFMEM_MAX_BUCKETS] = {WOLFMEM_BUCKETS};
+    word32 distList[WOLFMEM_MAX_BUCKETS] = {WOLFMEM_DIST};
+
+    word32 ava = sz;
+    byte*  pt  = buffer;
+    word32 memSz = (word32)sizeof(wc_Memory);
+    word32 padSz = -(int)memSz & (WOLFSSL_STATIC_ALIGN - 1);
+
+    WOLFSSL_ENTER("wolfSSL_static_size");
+
+    if (buffer == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    /* align pt */
+    while ((wolfssl_word)pt % WOLFSSL_STATIC_ALIGN && pt < (buffer + sz)) {
+        pt++;
+        ava--;
+    }
+
+    /* creating only IO buffers from memory passed in, max TLS is 16k */
+    if (flag & WOLFMEM_IO_POOL || flag & WOLFMEM_IO_POOL_FIXED) {
+        ava = sz % (memSz + padSz + WOLFMEM_IO_SZ);
+    }
+    else {
+        int i, k;
+        while ((ava >= (bucketSz[0] + padSz + memSz)) && (ava > 0)) {
+            /* start at largest and move to smaller buckets */
+            for (i = (WOLFMEM_MAX_BUCKETS - 1); i >= 0; i--) {
+                for (k = distList[i]; k > 0; k--) {
+                    if ((bucketSz[i] + padSz + memSz) <= ava) {
+                        ava -= bucketSz[i] + padSz + memSz;
+                    }
+                }
+            }
+        }
+    }
+
+    return sz - ava; /* round down */
+}
+
+
 int FreeFixedIO(WOLFSSL_HEAP* heap, wc_Memory** io)
 {
     WOLFSSL_MSG("Freeing fixed IO buffer");

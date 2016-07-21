@@ -248,6 +248,9 @@ int  certext_test(void);
 #ifdef HAVE_IDEA
 int idea_test(void);
 #endif
+#ifdef WOLFSSL_STATIC_MEMORY
+int memory_test(void);
+#endif
 
 /* General big buffer size for many tests. */
 #define FOURK_BUF 4096
@@ -531,6 +534,13 @@ int wolfcrypt_test(void* args)
         return err_sys("RANDOM   test failed!\n", ret);
     else
         printf( "RANDOM   test passed!\n");
+
+#ifdef WOLFSSL_STATIC_MEMORY
+    if ( (ret = memory_test()) != 0)
+        return err_sys("MEMORY   test failed!\n", ret);
+    else
+        printf( "MEMORY   test passed!\n");
+#endif
 
 #ifndef NO_RSA
     if ( (ret = rsa_test()) != 0)
@@ -3855,6 +3865,101 @@ int random_test(void)
 }
 
 #endif /* (HAVE_HASHDRBG || NO_RC4) && !CUSTOM_RAND_GENERATE_BLOCK */
+
+
+#ifdef WOLFSSL_STATIC_MEMORY
+int memory_test(void)
+{
+    int ret = 0;
+    unsigned int i;
+    word32 size[] = { WOLFMEM_BUCKETS };
+    word32 dist[] = { WOLFMEM_DIST };
+    byte buffer[30000]; /* make large enough to involve many bucket sizes */
+
+    /* check macro settings */
+    if (sizeof(size)/sizeof(word32) != WOLFMEM_MAX_BUCKETS) {
+        return -97;
+    }
+
+    if (sizeof(dist)/sizeof(word32) != WOLFMEM_MAX_BUCKETS) {
+        return -98;
+    }
+
+    for (i = 0; i < WOLFMEM_MAX_BUCKETS; i++) {
+        if ((size[i] % WOLFSSL_STATIC_ALIGN) != 0) {
+            /* each element in array should be divisable by alignment size */
+            return -99;
+        }
+    }
+
+    for (i = 1; i < WOLFMEM_MAX_BUCKETS; i++) {
+        if (size[i - 1] >= size[i]) {
+            return -100; /* sizes should be in increasing order  */
+        }
+    }
+
+    /* check that padding size returned is possible */
+    if (wolfSSL_MemoryPaddingSz() <= WOLFSSL_STATIC_ALIGN) {
+        return -101; /* no room for wc_Memory struct */
+    }
+
+    if (wolfSSL_MemoryPaddingSz() < 0) {
+        return -102;
+    }
+
+    if (wolfSSL_MemoryPaddingSz() % WOLFSSL_STATIC_ALIGN != 0) {
+        return -103; /* not aligned! */
+    }
+
+    /* check function to return optimum buffer size (rounded down) */
+    if ((ret = wolfSSL_StaticBufferSz(buffer, sizeof(buffer), WOLFMEM_GENERAL))
+            % WOLFSSL_STATIC_ALIGN != 0) {
+        return -104; /* not aligned! */
+    }
+
+    if (ret < 0) {
+        return -105;
+    }
+
+    if ((unsigned int)ret > sizeof(buffer)) {
+        return -106; /* did not round down as expected */
+    }
+
+    if (ret != wolfSSL_StaticBufferSz(buffer, ret, WOLFMEM_GENERAL)) {
+        return -107; /* retrun value changed when using suggested value */
+    }
+
+    ret = wolfSSL_MemoryPaddingSz();
+    if (wolfSSL_StaticBufferSz(buffer, size[0] + ret + 1, WOLFMEM_GENERAL) !=
+            (ret + (int)size[0])) {
+        return -108; /* did not round down to nearest bucket value */
+    }
+
+    ret = wolfSSL_StaticBufferSz(buffer, sizeof(buffer), WOLFMEM_IO_POOL);
+    if (ret < 0) {
+        return -109;
+    }
+
+    if ((ret % (WOLFMEM_IO_SZ + wolfSSL_MemoryPaddingSz())) != 0) {
+        return -110; /* not even chunks of memory for IO size */
+    }
+
+    if ((ret % WOLFSSL_STATIC_ALIGN) != 0) {
+        return -111; /* memory not aligned */
+    }
+
+    /* check for passing bad or unknown argments to functions */
+    if (wolfSSL_StaticBufferSz(NULL, 1, WOLFMEM_GENERAL) > 0) {
+        return -112;
+    }
+
+    if (wolfSSL_StaticBufferSz(buffer, 1, WOLFMEM_GENERAL) != 0) {
+        return -113; /* should round to 0 since struct + bucket will not fit */
+    }
+
+    return 0;
+}
+#endif /* WOLFSSL_STATIC_MEMORY */
 
 
 #ifdef HAVE_NTRU
