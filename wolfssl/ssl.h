@@ -74,7 +74,6 @@ typedef struct WOLFSSL_X509_CHAIN WOLFSSL_X509_CHAIN;
 typedef struct WOLFSSL_CERT_MANAGER WOLFSSL_CERT_MANAGER;
 typedef struct WOLFSSL_SOCKADDR     WOLFSSL_SOCKADDR;
 
-typedef struct WC_RNG WC_RNG;
 /* redeclare guard */
 #define WOLFSSL_TYPES_DEFINED
 
@@ -82,6 +81,11 @@ typedef struct WC_RNG WC_RNG;
 #ifndef WOLFSSL_RSA_TYPE_DEFINED /* guard on redeclaration */
 typedef struct WOLFSSL_RSA            WOLFSSL_RSA;
 #define WOLFSSL_RSA_TYPE_DEFINED
+#endif
+
+#ifndef WC_RNG_TYPE_DEFINED /* guard on redeclaration */
+    typedef struct WC_RNG WC_RNG;
+    #define WC_RNG_TYPE_DEFINED
 #endif
 
 typedef struct WOLFSSL_DSA            WOLFSSL_DSA;
