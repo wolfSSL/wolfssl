@@ -1889,6 +1889,52 @@ fi
 AM_CONDITIONAL([BUILD_PKCS7], [test "x$ENABLED_PKCS7" = "xyes"])
 
 
+# PKCS11
+ENABLED_PKCS11="no"
+trypkcs11dir=""
+AC_ARG_WITH([pkcs11],
+    [AS_HELP_STRING([--with-pkcs11=PATH],[Path to PKCS11 install (default /usr/)])],
+    [
+        AC_MSG_CHECKING([for PKCS11])
+        CPPFLAGS="$CPPFLAGS -DHAVE_PKCS11"
+        LIBS="$LIBS -lsofthsm"
+
+        AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <stdlib.h>
+        #include <opencryptoki/pkcs11.h>
+        #include <softhsm/cryptoki.h>]], [[C_Initialize(NULL); ]])], [ pkcs11_linked=yes ],[ pkcs11_linked=no ])
+
+        if test "x$pkcs11_linked" == "xno" ; then
+            if test "x$withval" != "xno" ; then
+                trypkcs11dir=$withval
+            fi
+            if test "x$withval" == "xyes" ; then
+                trypkcs11dir="/usr"
+            fi
+
+            LDFLAGS="$AM_LDFLAGS $LDFLAGS -L$trypkcs11dir/lib64/softhsm"
+            CPPFLAGS="$CPPFLAGS -I$trypkcs11dir/include -I$trypkcs11dir/include/opencryptoki"
+
+            AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <stdlib.h>
+            #include <opencryptoki/pkcs11.h>
+            #include <softhsm/cryptoki.h>]], [[C_Initialize(NULL); ]])], [ pkcs11_linked=yes ],[ pkcs11_linked=no ])
+
+            if test "x$pkcs11_linked" == "xno" ; then
+                AC_MSG_ERROR([PKCS11 isn't found.
+                If it's already installed, specify its path using --with-pkcs11=/dir/])
+            fi
+            AC_MSG_RESULT([yes])
+            AM_LDFLAGS="$AM_LDFLAGS -L$trypkcs11dir/lib64/softhsm"
+        else
+            AC_MSG_RESULT([yes])
+        fi
+
+        AM_CFLAGS="$AM_CFLAGS -DHAVE_PKCS11"
+        ENABLED_PKCS11="yes"
+    ]
+)
+
+AM_CONDITIONAL([BUILD_PKCS11], [test "x$ENABLED_PKCS11" = "xyes"])
+
 # Simple Certificate Enrollment Protocol (SCEP)
 AC_ARG_ENABLE([scep],
     [  --enable-scep           Enable wolfSCEP (default: disabled)],
@@ -2736,6 +2782,11 @@ AS_IF([test "x$ENABLED_PKCS7" = "xyes" && \
        test "x$ENABLED_SHA" = "xno"],
       [AC_MSG_ERROR([please enable sha if enabling pkcs7.])])
 
+# checks for pkcs11 needed enables
+AS_IF([test "x$ENABLED_PKCS11" = "xyes" && \
+test "x$ENABLED_RSA" = "xno"],
+[AC_MSG_ERROR([please enable rsa if enabling pkcs11.])])
+
 AS_IF([test "x$ENABLED_LEANTLS" = "xyes" && \
        test "x$ENABLED_ECC" = "xno"],
       [AC_MSG_ERROR([please enable ecc if enabling leantls.])])
@@ -3048,6 +3099,7 @@ echo "   * Renegotiation Indication:   $ENABLED_RENEGOTIATION_INDICATION"
 echo "   * Secure Renegotiation:       $ENABLED_SECURE_RENEGOTIATION"
 echo "   * All TLS Extensions:         $ENABLED_TLSX"
 echo "   * PKCS#7                      $ENABLED_PKCS7"
+echo "   * PKCS#11                     $ENABLED_PKCS11"
 echo "   * wolfSCEP                    $ENABLED_WOLFSCEP"
 echo "   * Secure Remote Password      $ENABLED_SRP"
 echo "   * Small Stack:                $ENABLED_SMALL_STACK"

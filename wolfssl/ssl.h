@@ -311,6 +311,38 @@ WOLFSSL_API int wolfSSL_use_RSAPrivateKey_file(WOLFSSL*, const char*, int);
     #define WOLFSSL_PEMCERT_TODER_DEFINED
 #endif
 
+#ifdef HAVE_PKCS11
+    WOLFSSL_API int wolfSSL_CTX_OpenSesionPKCS11(WOLFSSL_CTX *ctx,
+                                                 unsigned long slotId,
+                                                 const char *pin);
+    WOLFSSL_API int wolfSSL_CTX_use_PrivateKey_Pkcs11(WOLFSSL_CTX *ctx,
+                                                      const char* keyName);
+    WOLFSSL_API int wolfSSL_OpenSesionPKCS11(WOLFSSL *ssl,
+                                             unsigned long slotId,
+                                             const char *pin);
+    WOLFSSL_API int wolfSSL_use_PrivateKey_Pkcs11(WOLFSSL *ssl,
+                                                  const char* keyName);
+    WOLFSSL_API int wolfSSL_RsaDecPKCS11(WOLFSSL* ssl, unsigned char* in,
+                                         unsigned int inSz, unsigned char** out,
+                                         const unsigned char* key,
+                                         unsigned int keySz, void* ctx);
+    WOLFSSL_API int wolfSSL_RsaEncPKCS11(WOLFSSL* ssl, const unsigned char* in,
+                                         unsigned int inSz, unsigned char* out,
+                                         unsigned int* outSz,
+                                         const unsigned char* key,
+                                         unsigned int keySz, void* ctx);
+    WOLFSSL_API int wolfSSL_RsaVerifyPKCS11(WOLFSSL* ssl, unsigned char* sig,
+                                            unsigned int sigSz,
+                                            unsigned char** out,
+                                            const unsigned char* key,
+                                            unsigned int keySz, void* ctx);
+    WOLFSSL_API int wolfSSL_RsaSignPKCS11(WOLFSSL* ssl, const unsigned char* in,
+                                          unsigned int inSz, unsigned char* out,
+                                          unsigned int* outSz,
+                                          const unsigned char* key,
+                                          unsigned int keySz, void* ctx);
+#endif
+
 #endif /* !NO_FILESYSTEM && !NO_CERTS */
 
 WOLFSSL_API WOLFSSL_CTX* wolfSSL_CTX_new(WOLFSSL_METHOD*);

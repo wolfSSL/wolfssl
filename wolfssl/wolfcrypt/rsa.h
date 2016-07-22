@@ -52,6 +52,11 @@
 
 /* avoid redefinition of structs */
 #if !defined(HAVE_FIPS)
+
+#ifdef HAVE_PKCS11
+#include <wolfssl/wolfcrypt/pkcs11.h>
+#endif
+
 #define WOLFSSL_RSA_CAVIUM_MAGIC 0xBEEF0006
 
 enum {
@@ -81,6 +86,12 @@ typedef struct RsaKey {
     byte*  c_dQ;
     byte*  c_u;             /* sizes in bytes */
     word16 c_nSz, c_eSz, c_dSz, c_pSz, c_qSz, c_dP_Sz, c_dQ_Sz, c_uSz;
+#endif
+#ifdef HAVE_PKCS11
+    byte              hsm;        /* flag to set that key is in HSM */
+    CK_SESSION_HANDLE sessionId;  /* opened session id, required for RSA ops */
+    CK_OBJECT_HANDLE  keyPrvHdle;  /* handle on the HSM private key part */
+    CK_OBJECT_HANDLE  keyPubHdle;  /* handle on the HSM public key part */
 #endif
 } RsaKey;
 #endif /*HAVE_FIPS */
@@ -151,6 +162,17 @@ WOLFSSL_API int  wc_RsaFlattenPublicKey(RsaKey*, byte*, word32*, byte*,
     WOLFSSL_API int  wc_RsaInitCavium(RsaKey*, int);
     WOLFSSL_API void wc_RsaFreeCavium(RsaKey*);
 #endif
+
+#ifdef HAVE_PKCS11
+    WOLFSSL_API int wc_InitRsaKeyPKCS11(RsaKey* key, void* heap,
+                                        word32 sessionId);
+    WOLFSSL_API void wc_FreeRsaKeyPKCS11(RsaKey* key);
+    WOLFSSL_API int wc_RsaPrivateKeyDecodePKCS11(const byte* key, word32 keySz,
+                                                 RsaKey *rsa);
+    WOLFSSL_API int wc_RsaPublicKeyDecodePKCS11(const byte* key, word32 keySz,
+                                                RsaKey *rsa);
+#endif /* HAVE_PKCS11 */
+
 #endif /* HAVE_USER_RSA */
 #ifdef __cplusplus
     } /* extern "C" */

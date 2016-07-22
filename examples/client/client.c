@@ -69,6 +69,28 @@
 #endif
 
 
+#ifdef HAVE_PKCS11
+
+#define hsmSlotId 0
+#define hsmPIN    "1234"
+#define hsmKey    "cliKey"
+
+static void SetupHSMCallbacks(WOLFSSL_CTX* ctx, WOLFSSL* ssl)
+{
+    (void)ctx;
+    (void)ssl;
+
+#ifndef NO_RSA
+    wolfSSL_CTX_SetRsaSignCb(ctx, wolfSSL_RsaSignPKCS11);
+    wolfSSL_CTX_SetRsaDecCb(ctx, wolfSSL_RsaDecPKCS11);
+
+    /* only usable if the public key was set in HSM */
+    wolfSSL_CTX_SetRsaVerifyCb(ctx, wolfSSL_RsaVerifyPKCS11);
+    wolfSSL_CTX_SetRsaEncCb(ctx, wolfSSL_RsaEncPKCS11);
+#endif /* NO_RSA */
+}
+#endif
+
 static void NonBlockingSSL_Connect(WOLFSSL* ssl)
 {
 #ifndef WOLFSSL_CALLBACKS
@@ -505,6 +527,9 @@ static void Usage(void)
 #ifdef HAVE_WNR
     printf("-q <file>   Whitewood config file,      default %s\n", wnrConfig);
 #endif
+#ifdef HAVE_PKCS11
+    printf("-H          use Hardware Security Module\n");
+#endif
 }
 
 THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
@@ -561,6 +586,9 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     int    fewerPackets  = 0;
     int    atomicUser    = 0;
     int    pkCallbacks   = 0;
+#ifdef HAVE_PKCS11
+    int    useHSM        = 0;
+#endif
     int    overrideDateErrors = 0;
     int    minDhKeyBits  = DEFAULT_MIN_DHKEY_BITS;
     char*  alpnList = NULL;
@@ -632,7 +660,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 
 #ifndef WOLFSSL_VXWORKS
     while ((ch = mygetopt(argc, argv,
-          "?gdeDusmNrwRitfxXUPCVh:p:v:l:A:c:k:Z:b:zS:F:L:ToO:aB:W:E:M:q:"))
+          "?gdeDusmNrwRitfxXUPHCVh:p:v:l:A:c:k:Z:b:zS:F:L:ToO:aB:W:E:M:q:"))
             != -1) {
         switch (ch) {
             case '?' :
@@ -891,6 +919,12 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
                 #endif
                 break;
 
+            case 'H' :
+                #ifdef HAVE_PKCS11
+                    useHSM = 1;
+                #endif
+                break;
+
             default:
                 Usage();
                 exit(MY_EX_USAGE);
@@ -1142,6 +1176,19 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
             err_sys("can't load client cert file, check file and run from"
                     " wolfSSL home dir");
 
+#if defined(HAVE_PKCS11)
+        if (useHSM) {
+            /* Open a session and login on the HSM */
+            if (wolfSSL_CTX_OpenSesionPKCS11(ctx, hsmSlotId, hsmPIN)
+                != SSL_SUCCESS)
+                err_sys("can't open PKCS11 session");
+
+            /* set the private key to use */
+            if (wolfSSL_CTX_use_PrivateKey_Pkcs11(ctx, hsmKey) != SSL_SUCCESS)
+                err_sys("can't load PKCS11 cliKey");
+        }
+        else
+#endif
         if (wolfSSL_CTX_use_PrivateKey_file(ctx, ourKey, SSL_FILETYPE_PEM)
                                          != SSL_SUCCESS)
             err_sys("can't load client private key file, check file and run "
@@ -1326,8 +1373,14 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
         SetupAtomicUser(ctx, ssl);
 #endif
 #ifdef HAVE_PK_CALLBACKS
-    if (pkCallbacks)
-        SetupPkCallbacks(ctx, ssl);
+    if (pkCallbacks) {
+#ifdef HAVE_PKCS11
+        if (useHSM)
+            SetupHSMCallbacks(ctx, ssl);
+        else
+#endif /* HAVE_PKCS11 */
+            SetupPkCallbacks(ctx, ssl);
+    }
 #endif
     if (matchName && doPeerCheck)
         wolfSSL_check_domain_name(ssl, domain);

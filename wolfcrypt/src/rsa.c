@@ -177,6 +177,10 @@ int wc_InitRsaKey(RsaKey* key, void* heap)
         return InitCaviumRsaKey(key, heap);
 #endif
 
+#ifdef HAVE_PKCS11
+    key->hsm = 0;
+#endif
+
     key->type = -1;  /* haven't decided yet */
     key->heap = heap;
 
@@ -1009,6 +1013,21 @@ int wc_RsaPublicEncrypt(const byte* in, word32 inLen, byte* out, word32 outLen,
         return CaviumRsaPublicEncrypt(in, inLen, out, outLen, key);
 #endif
 
+#ifdef HAVE_PKCS11
+    if (key->hsm) {
+        CK_ULONG len;
+        len = (CK_ULONG)outLen;
+
+        ret = wc_PKCS11_RsaEncrypt(key->sessionId, key->keyPubHdle,
+                                   (CK_BYTE_PTR)in, (CK_ULONG)inLen,
+                                   (CK_BYTE_PTR)out, &len);
+        if (!ret)
+            return (int)len;
+
+        return ret;
+    }
+#endif
+
     sz = mp_unsigned_bin_size(&key->n);
     if (sz > (int)outLen)
         return RSA_BUFFER_E;
@@ -1056,6 +1075,22 @@ int wc_RsaPublicEncrypt_ex(const byte* in, word32 inLen, byte* out,
         return CaviumRsaPublicEncrypt(in, inLen, out, outLen, key);
 #endif
 
+#ifdef HAVE_PKCS11
+    if (key->hsm) {
+        CK_ULONG len;
+        len = (CK_ULONG)outLen;
+
+        ret = wc_PKCS11_RsaEncryptOAEP(key->sessionId, key->keyPubHdle,
+                                       (CK_BYTE_PTR)in, (CK_ULONG)inLen,
+                                       (CK_BYTE_PTR)out, &len,
+                                       label, labelSz, hash, mgf);
+        if (!ret)
+            return (int)len;
+
+        return ret;
+    }
+#endif
+
     sz = mp_unsigned_bin_size(&key->n);
     if (sz > (int)outLen)
         return RSA_BUFFER_E;
@@ -1091,6 +1126,23 @@ int wc_RsaPrivateDecryptInline(byte* in, word32 inLen, byte** out, RsaKey* key)
         ret = CaviumRsaPrivateDecrypt(in, inLen, in, inLen, key);
         if (ret > 0)
             *out = in;
+        return ret;
+    }
+#endif
+
+#ifdef HAVE_PKCS11
+    if (key->hsm) {
+        CK_ULONG len;
+        len = (CK_ULONG)inLen;
+
+        ret = wc_PKCS11_RsaDecrypt(key->sessionId, key->keyPrvHdle,
+                                   (CK_BYTE_PTR)in, inLen,
+                                   (CK_BYTE_PTR)in, &len);
+        if (!ret) {
+            *out = in;
+            ret = (int)len;
+        }
+
         return ret;
     }
 #endif
@@ -1173,6 +1225,22 @@ int wc_RsaPrivateDecrypt(const byte* in, word32 inLen, byte* out, word32 outLen,
         return CaviumRsaPrivateDecrypt(in, inLen, out, outLen, key);
 #endif
 
+#ifdef HAVE_PKCS11
+    if (key->hsm) {
+        int ret;
+        CK_ULONG len;
+        len = (CK_ULONG)outLen;
+
+        ret = wc_PKCS11_RsaDecrypt(key->sessionId, key->keyPrvHdle,
+                                   (CK_BYTE_PTR)in, (CK_ULONG)inLen,
+                                   (CK_BYTE_PTR)out, &len);
+        if (!ret)
+            return (int)len;
+
+        return ret;
+    }
+#endif
+
     tmp = (byte*)XMALLOC(inLen, key->heap, DYNAMIC_TYPE_RSA);
     if (tmp == NULL) {
         return MEMORY_E;
@@ -1231,6 +1299,23 @@ int wc_RsaPrivateDecrypt_ex(const byte* in, word32 inLen, byte* out, word32 outL
         return CaviumRsaPrivateDecrypt(in, inLen, out, outLen, key);
 #endif
 
+#ifdef HAVE_PKCS11
+    if (key->hsm) {
+        int ret;
+        CK_ULONG len;
+        len = (CK_ULONG)outLen;
+
+        ret = wc_PKCS11_RsaDecryptOAEP(key->sessionId, key->keyPrvHdle,
+                                       (CK_BYTE_PTR)in, (CK_ULONG)inLen,
+                                       (CK_BYTE_PTR)out, &len,
+                                       label, labelSz, hash, mgf);
+        if (!ret)
+            return (int)len;
+
+        return ret;
+    }
+#endif
+
     tmp = (byte*)XMALLOC(inLen, key->heap, DYNAMIC_TYPE_RSA);
     if (tmp == NULL) {
         return MEMORY_E;
@@ -1266,6 +1351,21 @@ int wc_RsaSSL_VerifyInline(byte* in, word32 inLen, byte** out, RsaKey* key)
         ret = CaviumRsaSSL_Verify(in, inLen, in, inLen, key);
         if (ret > 0)
             *out = in;
+        return ret;
+    }
+#endif
+
+#ifdef HAVE_PKCS11
+    if (key->hsm) {
+        CK_ULONG len;
+        len = (CK_ULONG)inLen;
+
+        ret = wc_PKCS11_RsaEncryptRaw(key->sessionId, key->keyPubHdle,
+                                      (CK_BYTE_PTR)in, (CK_ULONG)inLen,
+                                      (CK_BYTE_PTR)in, &len);
+        if (!ret)
+            ret = RsaUnPad(in, len, out, RSA_BLOCK_TYPE_1);
+
         return ret;
     }
 #endif
@@ -1340,6 +1440,21 @@ int wc_RsaSSL_Sign(const byte* in, word32 inLen, byte* out, word32 outLen,
     ret = wc_RsaPad(in, inLen, out, sz, RSA_BLOCK_TYPE_1, rng);
     if (ret != 0)
         return ret;
+
+#ifdef HAVE_PKCS11
+    if (key->hsm) {
+        CK_ULONG len;
+        len = (CK_ULONG)outLen;
+
+        ret = wc_PKCS11_RsaDecryptRaw(key->sessionId, key->keyPrvHdle,
+                                      (CK_BYTE_PTR)out, (CK_ULONG)sz,
+                                      (CK_BYTE_PTR)out, &len);
+        if (!ret)
+            return (int)len;
+
+        return ret;
+    }
+#endif
 
     if ((ret = wc_RsaFunction(out, sz, out, &outLen,
                               RSA_PRIVATE_ENCRYPT, key, rng)) < 0)
@@ -1687,6 +1802,151 @@ static int CaviumRsaSSL_Verify(const byte* in, word32 inLen, byte* out,
 
 
 #endif /* HAVE_CAVIUM */
+
+
+#ifdef HAVE_PKCS11
+#include <wolfssl/wolfcrypt/pkcs11.h>
+
+/* Init PKCS11 RSA key */
+int wc_InitRsaKeyPKCS11(RsaKey* key, void* heap, word32 sessionId)
+{
+    if (key == NULL || sessionId == CK_INVALID_HANDLE)
+        return BAD_FUNC_ARG;
+
+    key->type = -1;  /* haven't decided yet */
+    key->heap = heap;
+
+    key->sessionId = sessionId;
+    key->hsm = 1;
+    key->keyPubHdle = CK_INVALID_HANDLE;
+    key->keyPrvHdle = CK_INVALID_HANDLE;
+
+    /* TomsFastMath doesn't use memory allocation */
+#ifndef USE_FAST_MATH
+    key->n.dp = key->e.dp = 0;  /* public  alloc parts */
+#else
+    mp_init(&key->n);
+    mp_init(&key->e);
+#endif
+
+    return 0;
+}
+
+/* Free PKCS11 RSA key */
+void wc_FreeRsaKeyPKCS11(RsaKey* key)
+{
+    if (key == NULL || !key->hsm)
+        return;
+
+    key->keyPubHdle = CK_INVALID_HANDLE;
+    key->keyPrvHdle = CK_INVALID_HANDLE;
+    key->sessionId = CK_INVALID_HANDLE;
+    key->hsm = 0;
+
+    mp_clear(&key->e);
+    mp_clear(&key->n);
+}
+
+int wc_RsaPrivateKeyDecodePKCS11(const byte* key, word32 keySz, RsaKey *rsa)
+{
+    word16 i;
+
+    if (key == NULL || rsa == NULL || keySz != 2*sizeof(CK_OBJECT_HANDLE))
+        return BAD_FUNC_ARG;
+
+    /* decode private key handle */
+    rsa->keyPrvHdle = 0;
+    for (i = 0; i < keySz/2; i++)
+        rsa->keyPrvHdle |= (key[i] << (keySz/2-1-i)*8);
+    
+    /* decode public key part */
+    return wc_RsaPublicKeyDecodePKCS11(key, keySz, rsa);
+}
+
+int wc_RsaPublicKeyDecodePKCS11(const byte* key, word32 keySz, RsaKey *rsa)
+{
+    int ret;
+
+    if (key == NULL || rsa == NULL)
+        return BAD_FUNC_ARG;
+
+    /* assume that is a key handle */
+    if (keySz == 2*sizeof(CK_OBJECT_HANDLE)) {
+        byte *modulus = NULL, *exponent = NULL;
+        word32 modulusSz = 0, exponentSz = 0;
+        word16 i;
+
+        /* decode public key handle */
+        rsa->keyPubHdle = 0;
+        for (i = sizeof(CK_OBJECT_HANDLE); i < keySz; i++)
+            rsa->keyPubHdle |= (key[i] << (keySz-1-i)*8);
+
+        /* load public value */
+        ret = wc_PKCS11_ReadPublicKey(rsa->sessionId, rsa->keyPubHdle,
+                                      &modulus, &modulusSz,
+                                      &exponent, &exponentSz);
+        if (ret != 0)
+            return ret;
+
+        if (mp_init(&rsa->n) != MP_OKAY) {
+            XFREE(modulus, 0, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(exponent, 0, DYNAMIC_TYPE_TMP_BUFFER);
+            return MP_INIT_E;
+        }
+
+        if (mp_read_unsigned_bin(&rsa->n, modulus, modulusSz) != MP_OKAY) {
+            mp_clear(&rsa->n);
+            XFREE(modulus, 0, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(exponent, 0, DYNAMIC_TYPE_TMP_BUFFER);
+            return ASN_GETINT_E;
+        }
+        XFREE(modulus, 0, DYNAMIC_TYPE_TMP_BUFFER);
+
+        if (mp_init(&rsa->e) != MP_OKAY) {
+            XFREE(exponent, 0, DYNAMIC_TYPE_TMP_BUFFER);
+            return MP_INIT_E;
+        }
+
+        if (mp_read_unsigned_bin(&rsa->e, exponent, exponentSz) != MP_OKAY) {
+            mp_clear(&rsa->e);
+            XFREE(exponent, 0, DYNAMIC_TYPE_TMP_BUFFER);
+            return ASN_GETINT_E;
+        }
+        XFREE(exponent, 0, DYNAMIC_TYPE_TMP_BUFFER);
+        ret = 0;
+    }
+    /* assume that it is a public key value (soft) */
+    else {
+        word32 idx = 0, nSz;
+        byte* n = NULL;
+
+        ret = wc_RsaPublicKeyDecode(key, &idx, rsa, keySz);
+        if (ret != 0)
+            return ret;
+
+        nSz = mp_unsigned_bin_size(&rsa->n);
+        n = (byte*)XMALLOC(nSz, rsa->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        if (n == NULL)
+            return MEMORY_E;
+
+        /* get modulus */
+        ret = mp_to_unsigned_bin(&rsa->n, n);
+        if (ret != MP_OKAY) {
+            XFREE(n, rsa->heap, DYNAMIC_TYPE_TMP_BUFFER);
+            return ret;
+        }
+
+        /* search key in HSM to set the key handle */
+        ret = wc_PKCS11_GetPublicKey(rsa->sessionId, n, nSz, &rsa->keyPubHdle);
+
+        XFREE(n, rsa->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+
+    return ret;
+}
+
+#endif /* HAVE_PKCS11 */
+
 
 #endif /* HAVE_FIPS */
 #endif /* NO_RSA */

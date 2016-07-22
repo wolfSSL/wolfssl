@@ -281,6 +281,13 @@
 #endif
 #endif
 
+#ifdef HAVE_PKCS11
+#define wolfSSLp11SlotId     0
+#define wolfSSLp11Pin        "1234"
+#define wolfSSLp11SrvKeyName "svrKey"
+#define wolfSSLp11CliKeyName "cliKey"
+#endif
+
 typedef struct tcp_ready {
     word16 ready;              /* predicate */
     word16 port;
@@ -332,6 +339,9 @@ typedef struct func_args {
     int    argc;
     char** argv;
     int    return_code;
+#ifdef HAVE_PKCS11
+    byte   keyHSM;
+#endif
     tcp_ready* signal;
     callback_functions *callbacks;
 } func_args;

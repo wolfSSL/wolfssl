@@ -577,6 +577,25 @@ static THREAD_RETURN WOLFSSL_THREAD test_server_nofail(void* args)
                 "Please run from wolfSSL home dir");*/
         goto done;
     }
+#if defined(HAVE_PKCS11) && defined(HAVE_PK_CALLBACKS)
+    if (((func_args*)args)->keyHSM) {
+        /* Open a session and login on the HSM */
+        if (wolfSSL_CTX_OpenSesionPKCS11(ctx, wolfSSLp11SlotId, wolfSSLp11Pin)
+            != SSL_SUCCESS)
+            goto done;
+
+        /* set the private key to use */
+        if (wolfSSL_CTX_use_PrivateKey_Pkcs11(ctx, wolfSSLp11SrvKeyName)
+            != SSL_SUCCESS)
+            goto done;
+
+        /* set the SSL callback function (only Sign and Decrypt as HSM is
+         * used with local key only, not the peer one */
+        wolfSSL_CTX_SetRsaSignCb(ctx, wolfSSL_RsaSignPKCS11);
+        wolfSSL_CTX_SetRsaDecCb(ctx, wolfSSL_RsaDecPKCS11);
+    }
+    else
+#endif
     if (wolfSSL_CTX_use_PrivateKey_file(ctx, svrKey, SSL_FILETYPE_PEM)
             != SSL_SUCCESS)
     {
@@ -691,6 +710,25 @@ static void test_client_nofail(void* args)
                 "Please run from wolfSSL home dir");*/
         goto done2;
     }
+#if defined(HAVE_PKCS11) && defined(HAVE_PK_CALLBACKS)
+    if (((func_args*)args)->keyHSM) {
+        /* Open a session and login on the HSM */
+        if (wolfSSL_CTX_OpenSesionPKCS11(ctx, wolfSSLp11SlotId, wolfSSLp11Pin)
+            != SSL_SUCCESS)
+            goto done2;
+
+        /* set the private key to use */
+        if (wolfSSL_CTX_use_PrivateKey_Pkcs11(ctx, wolfSSLp11CliKeyName)
+            != SSL_SUCCESS)
+            goto done2;
+
+        /* set the SSL callback function (only Sign and Decrypt as HSM is
+         * used with local key only, not the peer one */
+        wolfSSL_CTX_SetRsaSignCb(ctx, wolfSSL_RsaSignPKCS11);
+        wolfSSL_CTX_SetRsaDecCb(ctx, wolfSSL_RsaDecPKCS11);
+    }
+    else
+#endif
     if (wolfSSL_CTX_use_PrivateKey_file(ctx, cliKey, SSL_FILETYPE_PEM)
             != SSL_SUCCESS)
     {
@@ -1016,6 +1054,91 @@ static void test_wolfSSL_read_write(void)
 #endif
 
 #endif
+}
+
+
+static void test_wolfSSL_Pkcs11_read_write(void)
+{
+#ifdef HAVE_PKCS11
+#ifdef HAVE_IO_TESTS_DEPENDENCIES
+    /* The unit testing for read and write shall happen simutaneously, since
+     * one can't do anything with one without the other. (Except for a failure
+     * test case.) This function will call all the others that will set up,
+     * execute, and report their test findings.
+     *
+     * Set up the success case first. This function will become the template
+     * for the other tests. This should eventually be renamed
+     *
+     * The success case isn't interesting, how can this fail?
+     * - Do not give the client context a CA certificate. The connect should
+     *   fail. Do not need server for this?
+     * - Using NULL for the ssl object on server. Do not need client for this.
+     * - Using NULL for the ssl object on client. Do not need server for this.
+     * - Good ssl objects for client and server. Client write() without server
+     *   read().
+     * - Good ssl objects for client and server. Server write() without client
+     *   read().
+     * - Forgetting the password callback?
+     */
+    tcp_ready ready;
+    func_args client_args;
+    func_args server_args;
+    THREAD_TYPE serverThread;
+
+#ifdef WOLFSSL_TIRTOS
+    fdOpenSession(Task_self());
+#endif
+
+    StartTCP();
+    InitTcpReady(&ready);
+
+    server_args.signal = &ready;
+    client_args.signal = &ready;
+
+    /* PKCS11 key used for Server and Client */
+    server_args.keyHSM = 1;
+    client_args.keyHSM = 1;
+
+    start_thread(test_server_nofail, &server_args, &serverThread);
+    wait_tcp_ready(&server_args);
+    test_client_nofail(&client_args);
+    join_thread(serverThread);
+
+    AssertTrue(client_args.return_code);
+    AssertTrue(server_args.return_code);
+
+    /* PKCS11 key used only for Server */
+    server_args.keyHSM = 1;
+    client_args.keyHSM = 0;
+
+    start_thread(test_server_nofail, &server_args, &serverThread);
+    wait_tcp_ready(&server_args);
+    test_client_nofail(&client_args);
+    join_thread(serverThread);
+
+    AssertTrue(client_args.return_code);
+    AssertTrue(server_args.return_code);
+
+    /* PKCS11 key used only for Client */
+    server_args.keyHSM = 0;
+    client_args.keyHSM = 1;
+
+    start_thread(test_server_nofail, &server_args, &serverThread);
+    wait_tcp_ready(&server_args);
+    test_client_nofail(&client_args);
+    join_thread(serverThread);
+
+    AssertTrue(client_args.return_code);
+    AssertTrue(server_args.return_code);
+
+    FreeTcpReady(&ready);
+
+#ifdef WOLFSSL_TIRTOS
+    fdOpenSession(Task_self());
+#endif
+    
+#endif
+#endif /* HAVE_PKCS11 */
 }
 
 
@@ -1851,6 +1974,9 @@ void ApiTest(void)
     test_wolfSSL_SetTmpDH_buffer();
     test_wolfSSL_read_write();
     test_wolfSSL_dtls_export();
+
+    /* PKCS11 tests */
+    test_wolfSSL_Pkcs11_read_write();
 
     /* TLS extensions tests */
     test_wolfSSL_UseSNI();

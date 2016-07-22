@@ -1927,6 +1927,9 @@ struct WOLFSSL_CTX {
     buffer      serverDH_P;
     buffer      serverDH_G;
 #endif
+#ifdef HAVE_PKCS11
+    word32 p11SessionId; /* use to be able to communicate with HSM */
+#endif /* HAVE_PKCS11 */
 #ifndef NO_CERTS
     DerBuffer*  certificate;
     DerBuffer*  certChain;
@@ -2684,6 +2687,9 @@ struct WOLFSSL {
 #endif
 #ifdef WOLFSSL_ASYNC_CRYPT
     AsyncCrypt      async;
+#endif
+#ifdef HAVE_PKCS11
+    word32 p11SessionId;            /* use to be able to communicate with HSM */
 #endif
     void*           sigKey;             /* RsaKey or ecc_key allocated from heap */
     word32          sigType;            /* Type of sigKey */
