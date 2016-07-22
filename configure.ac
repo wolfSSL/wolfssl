@@ -542,6 +542,24 @@ fi
 AM_CONDITIONAL([BUILD_AESCCM], [test "x$ENABLED_AESCCM" = "xyes"])
 
 
+# AES-ARM
+AC_ARG_ENABLE([armasm],
+    [AS_HELP_STRING([--enable-armasm],[Enable wolfSSL ARM ASM support (default: disabled)])],
+    [ ENABLED_ARMASM=$enableval ],
+    [ ENABLED_ARMASM=no ]
+    )
+if test "$ENABLED_ARMASM" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ARMASM"
+    if test "$GCC" = "yes"
+    then
+        # GCC needs this flag
+        AM_CFLAGS="$AM_CFLAGS -mcpu=generic+crypto"
+    fi
+fi
+
+AM_CONDITIONAL([BUILD_ARMASM], [test "x$ENABLED_ARMASM" = "xyes"])
+
 # AES-NI
 AC_ARG_ENABLE([aesni],
     [AS_HELP_STRING([--enable-aesni],[Enable wolfSSL AES-NI support (default: disabled)])],
@@ -3213,6 +3231,7 @@ echo "   * User Crypto:                $ENABLED_USER_CRYPTO"
 echo "   * Fast RSA:                   $ENABLED_FAST_RSA"
 echo "   * Async Crypto:               $ENABLED_ASYNCCRYPT"
 echo "   * Cavium:                     $ENABLED_CAVIUM"
+echo "   * ARM ASM:                    $ENABLED_ARMASM"
 echo ""
 echo "---"
 
