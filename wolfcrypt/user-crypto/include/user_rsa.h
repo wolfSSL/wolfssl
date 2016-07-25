@@ -105,6 +105,7 @@ WOLFSSL_API int  wc_RsaPublicKeyDecodeRaw(const byte* n, word32 nSz,
 #endif
 WOLFSSL_API int  wc_RsaFlattenPublicKey(RsaKey*, byte*, word32*, byte*,
                                                                        word32*);
+WOLFSSL_API int  wc_RsaSetRNG(RsaKey* key, WC_RNG* rng);
 
 
 #if defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_KEY_GEN)
