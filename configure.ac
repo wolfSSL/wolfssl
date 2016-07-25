@@ -192,6 +192,18 @@ AC_ARG_ENABLE([maxstrength],
     [ENABLED_MAXSTRENGTH=no])
 
 
+# Harden, enable Timing Resistance and Blinding by default
+AC_ARG_ENABLE([harden],
+    [AS_HELP_STRING([--enable-harden],[Enable Hardened build, Enables Timing Resistance and Blinding (default: enabled)])],
+    [ENABLED_HARDEN=$enableval],
+    [ENABLED_HARDEN=yes])
+
+if test "$ENABLED_HARDEN" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DTFM_TIMING_RESISTANT -DECC_TIMING_RESISTANT -DWC_RSA_BLINDING"
+fi
+
+
 # IPv6 Test Apps
 AC_ARG_ENABLE([ipv6],
     [  --enable-ipv6           Enable testing of IPV6 (default: disabled)],
