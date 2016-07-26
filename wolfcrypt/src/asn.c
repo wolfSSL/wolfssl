@@ -1117,7 +1117,45 @@ int EncodeObjectId(const word16* in, word32 inSz, byte* out, word32* outSz)
 
     return 0;
 }
-#endif
+#endif /* HAVE_OID_ENCODING */
+
+#ifdef HAVE_OID_DECODING
+int DecodeObjectId(const byte* in, word32 inSz, word16* out, word32* outSz)
+{
+    int x = 0, y = 0;
+    word32 t = 0;
+
+    /* check args */
+    if (in == NULL || outSz == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    /* decode bytes */
+    while (inSz--) {
+        t = (t << 7) | (in[x] & 0x7F);
+        if (!(in[x] & 0x80)) {
+            if (y >= (int)*outSz) {
+                return BUFFER_E;
+            }
+            if (y == 0) {
+                out[0] = (t / 40);
+                out[1] = (t % 40);
+                y = 2;
+            }
+            else {
+                out[y++] = t;
+            }
+            t = 0; /* reset tmp */
+        }
+        x++;
+    }
+
+    /* return length */
+    *outSz = y;
+
+    return 0;
+}
+#endif /* HAVE_OID_DECODING */
 
 int GetObjectId(const byte* input, word32* inOutIdx, word32* oid,
                                   word32 oidType, word32 maxIdx)
@@ -1163,6 +1201,33 @@ int GetObjectId(const byte* input, word32* inOutIdx, word32* oid,
 
         if (oidType != oidIgnoreType) {
             checkOid = OidFromId(*oid, oidType, &checkOidSz);
+
+        #if 0
+            /* support for dumping OID information */
+            printf("OID (Type %d, Sz %d, Sum %d): ", oidType, actualOidSz, *oid);
+            for (i=0; i<actualOidSz; i++) {
+                printf("%d, ", actualOid[i]);
+            }
+            printf("\n");
+            #ifdef HAVE_OID_DECODING
+            {
+                int ret;
+                word16 decOid[16];
+                word32 decOidSz = sizeof(decOid);
+                ret = DecodeObjectId(actualOid, actualOidSz, decOid, &decOidSz);
+                if (ret == 0) {
+                    printf("  Decoded (Sz %d): ", decOidSz);
+                    for (i=0; i<decOidSz; i++) {
+                        printf("%d.", decOid[i]);
+                    }
+                    printf("\n");
+                }
+                else {
+                    printf("DecodeObjectId failed: %d\n", ret);
+                }
+            }
+            #endif /* HAVE_OID_DECODING */
+        #endif
 
             if (checkOid == NULL || 
                 (checkOid != NULL && (checkOidSz != actualOidSz ||
@@ -1340,7 +1405,7 @@ int ToTraditional(byte* input, word32 sz)
     if (GetMyVersion(input, &inOutIdx, &version) < 0)
         return ASN_PARSE_E;
 
-    if (GetAlgoId(input, &inOutIdx, &oid, oidSigType, sz) < 0)
+    if (GetAlgoId(input, &inOutIdx, &oid, oidKeyType, sz) < 0)
         return ASN_PARSE_E;
 
     if (input[inOutIdx] == ASN_OBJECT_ID) {
