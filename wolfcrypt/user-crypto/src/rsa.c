@@ -2675,7 +2675,7 @@ int wc_RsaKeyToPublicDer(RsaKey* key, byte* output, word32 inLen)
 int wc_RsaSetRNG(RsaKey* key, WC_RNG* rng)
 {
     if (key == NULL)
-        return BAD_FUNC_ARG;
+        return USER_CRYPTO_ERROR;
 
     (void)rng;
 
