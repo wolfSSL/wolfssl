@@ -6489,6 +6489,7 @@ static int DoCertificate(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 #ifndef IGNORE_KEY_EXTENSIONS
         if (dCert->extKeyUsageSet) {
             if ((ssl->specs.kea == rsa_kea) &&
+                (ssl->options.side == WOLFSSL_CLIENT_END) &&
                 (dCert->extKeyUsage & KEYUSE_KEY_ENCIPHER) == 0) {
                 ret = KEYUSE_ENCIPHER_E;
             }
