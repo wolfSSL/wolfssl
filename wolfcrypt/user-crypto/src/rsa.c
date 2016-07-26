@@ -2670,5 +2670,19 @@ int wc_RsaKeyToPublicDer(RsaKey* key, byte* output, word32 inLen)
 
 #endif /* WOLFSSL_KEY_GEN */
 
+#ifdef WC_RSA_BLINDING
+
+int wc_RsaSetRNG(RsaKey* key, WC_RNG* rng)
+{
+    if (key == NULL)
+        return USER_CRYPTO_ERROR;
+
+    (void)rng;
+
+    return 0;
+}
+
+#endif /* WC_RSA_BLINDING */
+
 #endif /* NO_RSA */
 

@@ -155,6 +155,8 @@
 /* make sure old RNG name is used with CTaoCrypt FIPS */
 #ifdef HAVE_FIPS
     #define WC_RNG RNG
+    /* blinding adds API not available yet in FIPS mode */
+    #undef WC_RSA_BLINDING
 #endif
 
 
