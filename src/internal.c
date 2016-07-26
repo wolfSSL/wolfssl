@@ -1704,7 +1704,7 @@ static void InitSuitesHashSigAlgo(Suites* suites, int haveECDSAsig,
             suites->hashSigAlgo[idx++] = sha256_mac;
             suites->hashSigAlgo[idx++] = ecc_dsa_sa_algo;
         #endif
-        #ifndef NO_SHA
+        #if !defined(NO_SHA) && !defined(NO_OLD_TLS)
             suites->hashSigAlgo[idx++] = sha_mac;
             suites->hashSigAlgo[idx++] = ecc_dsa_sa_algo;
         #endif
@@ -1723,7 +1723,7 @@ static void InitSuitesHashSigAlgo(Suites* suites, int haveECDSAsig,
             suites->hashSigAlgo[idx++] = sha256_mac;
             suites->hashSigAlgo[idx++] = rsa_sa_algo;
         #endif
-        #ifndef NO_SHA
+        #if !defined(NO_SHA) && !defined(NO_OLD_TLS)
             suites->hashSigAlgo[idx++] = sha_mac;
             suites->hashSigAlgo[idx++] = rsa_sa_algo;
         #endif
