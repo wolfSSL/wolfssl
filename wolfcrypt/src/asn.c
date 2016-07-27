@@ -1229,10 +1229,9 @@ int GetObjectId(const byte* input, word32* inOutIdx, word32* oid,
             #endif /* HAVE_OID_DECODING */
         #endif
 
-            if (checkOid == NULL || 
-                (checkOid != NULL && (checkOidSz != actualOidSz ||
-                    XMEMCMP(actualOid, checkOid, checkOidSz) != 0)))
-            {
+            if (checkOid != NULL && 
+                (checkOidSz != actualOidSz ||
+                    XMEMCMP(actualOid, checkOid, checkOidSz) != 0)) {
                 WOLFSSL_MSG("OID Check Failed");
                 return ASN_UNKNOWN_OID_E;
             }
@@ -4826,10 +4825,8 @@ static int DecodeCertExtensions(DecodedCert* cert)
 
         oid = 0;
         if ((ret = GetObjectId(input, &idx, &oid, oidCertExtType, sz)) < 0) {
-            if (ret != ASN_UNKNOWN_OID_E) {
-                WOLFSSL_MSG("\tfail: OBJECT ID");
-                return ret;
-            }
+            WOLFSSL_MSG("\tfail: OBJECT ID");
+            return ret;
         }
 
         /* check for critical flag */
