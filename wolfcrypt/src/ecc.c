@@ -2249,7 +2249,7 @@ int wc_ecc_shared_secret(ecc_key* private_key, ecc_key* public_key, byte* out,
    }
 
    if ((err = mp_init_multi(&prime, &a, NULL, NULL, NULL, NULL)) != MP_OKAY) {
-      wc_ecc_del_point(result);
+      wc_ecc_del_point_h(result, private_key->heap);
       return err;
    }
 
