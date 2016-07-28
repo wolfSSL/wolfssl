@@ -37,6 +37,51 @@ wolfSSL_CTX_set_verify(ctx, SSL_VERIFY_NONE, 0);
 
 before calling wolfSSL_new();  Though it's not recommended.
 ```
+
+# wolfSSL (Formerly CyaSSL) Release 3.9.8 (7/29/2016)
+
+##Release 3.9.8 of wolfSSL has bug fixes and new features including:
+
+- Add support for custom ECC curves.
+- Add cipher suite ECDHE-ECDSA-AES128-CCM.
+- Add compkey enable option. This option is for compressed ECC keys.
+- Add in the option to use test.h without gettimeofday function using the macro
+  WOLFSSL_USER_CURRTIME.
+- Add RSA blinding for private key operations. Enable option of harden which is
+  on by default. This negates timing attacks.
+- Add ECC and TLS support for all SECP, Koblitz and Brainpool curves.
+- Add helper functions for static memory option to allow getting optimum buffer
+  sizes.
+- Update DTLS behavior on bad MAC. DTLS silently drops packets with bad MACs now.
+- Update fp_isprime function from libtom enchancement/cleanup repository.
+- Update sanity checks on inputs and return values for AES-CMAC.
+- Update wolfSSL for use with MYSQL v5.6.30.
+- Update LPCXpresso eclipse project to not include misc.c when not needed.
+- Fix retransmit of last DTLS flight with timeout notification. The last flight
+  is no longer retransmitted on timeout.
+- Fixes to some code in math sections for compressed ECC keys. This includes
+  edge cases for buffer size on allocation and adjustments for compressed curves
+  build. The code and full list can be found on github with pull request #456.
+- Fix function argument mismatch for build with secure renegotiation.
+- X.509 bug fixes for reading in malformed certificates, reported by researchers
+  at Columbia University
+- Fix GCC version 6 warning about hard tabs in poly1305.c. This was a warning
+  produced by GCC 6 trying to determine the intent of code.
+- Fixes for static memory option. Including avoid potential race conditions with
+  counters, decrement handshake counter correctly.
+- Fix anonymous cipher with Diffie Hellman on the server side. Was an issue of a
+  possible buffer corruption. For information and code see pull request #481.
+
+
+- One high level security fix that requires an update for use with static RSA
+  cipher suites was submitted. This fix was the addition of RSA blinding for
+  private RSA operations. We recommend servers who allow static RSA cipher
+  suites to also generate new private RSA keys. Static RSA cipher suites are
+  turned off by default.
+
+See INSTALL file for build instructions.
+More info can be found on-line at //http://wolfssl.com/wolfSSL/Docs.html
+
 # wolfSSL (Formerly CyaSSL) Release 3.9.6 (6/14/2016)
 
 ##Release 3.9.6 of wolfSSL has bug fixes and new features including:
