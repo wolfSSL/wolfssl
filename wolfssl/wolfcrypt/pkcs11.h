@@ -28,8 +28,7 @@
 #ifdef HAVE_PKCS11
 
 /* SoftHSM includes */
-#include <opencryptoki/pkcs11.h>
-#include <softhsm/cryptoki.h>
+#include "softhsm/cryptoki.h"
 
 
 #ifdef __cplusplus

@@ -1900,8 +1900,7 @@ AC_ARG_WITH([pkcs11],
         LIBS="$LIBS -lsofthsm"
 
         AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <stdlib.h>
-        #include <opencryptoki/pkcs11.h>
-        #include <softhsm/cryptoki.h>]], [[C_Initialize(NULL); ]])], [ pkcs11_linked=yes ],[ pkcs11_linked=no ])
+        #include "softhsm/cryptoki.h"]], [[C_Initialize(NULL);]])], [ pkcs11_linked=yes ],[ pkcs11_linked=no ])
 
         if test "x$pkcs11_linked" == "xno" ; then
             if test "x$withval" != "xno" ; then
@@ -1911,19 +1910,29 @@ AC_ARG_WITH([pkcs11],
                 trypkcs11dir="/usr"
             fi
 
-            LDFLAGS="$AM_LDFLAGS $LDFLAGS -L$trypkcs11dir/lib64/softhsm"
-            CPPFLAGS="$CPPFLAGS -I$trypkcs11dir/include -I$trypkcs11dir/include/opencryptoki"
+            P11LDFLAGS="$AM_LDFLAGS $LDFLAGS"
+            LDFLAGS="$P11LDFLAGS -L$trypkcs11dir/lib/softhsm"
+            CPPFLAGS="$CPPFLAGS -I$trypkcs11dir/include/softhsm"
 
             AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <stdlib.h>
-            #include <opencryptoki/pkcs11.h>
-            #include <softhsm/cryptoki.h>]], [[C_Initialize(NULL); ]])], [ pkcs11_linked=yes ],[ pkcs11_linked=no ])
+            #include "softhsm/cryptoki.h"]], [[C_Initialize(NULL);]])], [ pkcs11_linked=yes ],[ pkcs11_linked=no ])
 
             if test "x$pkcs11_linked" == "xno" ; then
-                AC_MSG_ERROR([PKCS11 isn't found.
-                If it's already installed, specify its path using --with-pkcs11=/dir/])
+                LDFLAGS="$P11CPPFLAGS -L$trypkcs11dir/lib64/softhsm"
+
+                AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <stdlib.h>
+                #include "softhsm/cryptoki.h"]], [[C_Initialize(NULL);]])], [ pkcs11_linked=yes ],[ pkcs11_linked=no ])
+
+                if test "x$pkcs11_linked" == "xno" ; then
+                    AC_MSG_ERROR([PKCS11 isn't found.
+                    If it's already installed, specify its path using --with-pkcs11=/dir/])
+                fi
+                AC_MSG_RESULT([yes])
+                AM_LDFLAGS="$AM_LDFLAGS -L$trypkcs11dir/lib64/softhsm"
+            else
+                AC_MSG_RESULT([yes])
+                AM_LDFLAGS="$AM_LDFLAGS -L$trypkcs11dir/lib/softhsm"
             fi
-            AC_MSG_RESULT([yes])
-            AM_LDFLAGS="$AM_LDFLAGS -L$trypkcs11dir/lib64/softhsm"
         else
             AC_MSG_RESULT([yes])
         fi
