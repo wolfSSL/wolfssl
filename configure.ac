@@ -221,6 +221,13 @@ then
 fi
 
 
+# DTLS-SCTP
+AC_ARG_ENABLE([sctp],
+    [AS_HELP_STRING([--enable-sctp],[Enable wolfSSL DTLS-SCTP support (default: disabled)])],
+    [ENABLED_SCTP=$enableval],
+    [ENABLED_SCTP=no])
+
+
 # OpenSSH compatibility Build
 AC_ARG_ENABLE([openssh],
     [AS_HELP_STRING([--enable-openssh],[Enable OpenSSH compatibility build (default: disabled)])],
@@ -2886,6 +2893,12 @@ AS_IF([test "x$ENABLED_MAXSTRENGTH" = "xyes" && \
        test "x$ENABLED_SSLV3" = "xyes"],
       [AC_MSG_ERROR([Cannot use Max Strength and SSLv3 at the same time.])])
 
+# SCTP requires DTLS
+AS_IF([test "x$ENABLED_DTLS" = "xno" && \
+       test "x$ENABLED_SCTP" = "xyes"],
+      [AM_CFLAGS="-DWOLFSSL_DTLS $AM_CFLAGS"
+       ENABLED_DTLS=yes])
+
 ################################################################################
 
 # OPTIMIZE FLAGS
@@ -3147,6 +3160,7 @@ echo "   * LIGHTY:                     $ENABLED_LIGHTY"
 echo "   * STUNNEL:                    $ENABLED_STUNNEL"
 echo "   * ERROR_STRINGS:              $ENABLED_ERROR_STRINGS"
 echo "   * DTLS:                       $ENABLED_DTLS"
+echo "   * SCTP:                       $ENABLED_SCTP"
 echo "   * Old TLS Versions:           $ENABLED_OLD_TLS"
 echo "   * SSL version 3.0:            $ENABLED_SSLV3"
 echo "   * OCSP:                       $ENABLED_OCSP"
