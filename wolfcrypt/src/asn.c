@@ -5414,6 +5414,16 @@ int wc_DerToPemEx(const byte* der, word32 derSz, byte* output, word32 outSz,
         XSTRNCAT(footer, "\n", 1);
     }
 #endif
+#ifdef HAVE_CRL
+    else if (type == CRL_TYPE)
+    {
+        XSTRNCPY(header, BEGIN_X509_CRL, headerLen);
+        XSTRNCAT(header, "\n", 1);
+
+        XSTRNCPY(footer, END_X509_CRL, footerLen);
+        XSTRNCAT(footer, "\n", 1);
+    }
+#endif
     else {
 #ifdef WOLFSSL_SMALL_STACK
         XFREE(header, NULL, DYNAMIC_TYPE_TMP_BUFFER);
