@@ -11,4 +11,3 @@
 
 #define USE_FAST_MATH
 #define TFM_TIMING_RESISTANT
-
