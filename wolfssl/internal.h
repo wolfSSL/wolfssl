@@ -2405,6 +2405,10 @@ typedef struct Options {
 #endif
 #ifdef WOLFSSL_DTLS
     word16            dtlsHsRetain:1;     /* DTLS retaining HS data */
+#ifdef WOLFSSL_SCTP
+    word16            dtlsRetxEnable:1;   /* DTLS HS retransmission enable */
+    word16            dtlsReplayEnable:1; /* DTLS Replay detection enable */
+#endif /* WOLFSSL_SCTP */
 #endif
 
     /* need full byte values for this section */
@@ -2744,6 +2748,9 @@ struct WOLFSSL {
     void*           IOCB_CookieCtx;     /* gen cookie ctx */
     word32          dtls_expected_rx;
     wc_dtls_export  dtls_export;        /* export function for session */
+#ifdef WOLFSSL_SCTP
+    word32          mtu_size;
+#endif /* WOLFSSL_SCTP */
 #endif
 #ifdef WOLFSSL_CALLBACKS
     HandShakeInfo   handShakeInfo;      /* info saved during handshake */

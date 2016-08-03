@@ -547,6 +547,91 @@ int wolfSSL_dtls_get_peer(WOLFSSL* ssl, void* peer, unsigned int* peerSz)
     return SSL_NOT_IMPLEMENTED;
 #endif
 }
+
+
+int wolfSSL_dtls_set_mtu(WOLFSSL* ssl, unsigned int newMtu)
+{
+#if defined(WOLFSSL_DTLS) && defined(WOLFSSL_SCTP)
+    if (ssl == NULL)
+        return SSL_FAILURE;
+
+    if (newMtu > MAX_RECORD_SIZE) {
+        ssl->error = BAD_FUNC_ARG;
+        return SSL_FAILURE;
+    }
+
+    return SSL_SUCCESS;
+#else /* WOLFSSL_DTLS && WOLFSSL_SCTP */
+    (void)ssl;
+    (void)newMtu;
+    return SSL_NOT_IMPLEMENTED;
+#endif /* WOLFSSL_DTLS && WOLFSSL_SCTP */
+}
+
+
+int wolfSSL_dtls_enable_retransmission(WOLFSSL* ssl, unsigned int options)
+{
+    (void)options;
+
+#if defined(WOLFSSL_DTLS) && defined(WOLFSSL_SCTP)
+    if (ssl == NULL)
+        return SSL_FAILURE;
+
+    ssl->options.dtlsRetxEnable = 1;
+    return SSL_SUCCESS;
+#else /* WOLFSSL_DTLS && WOLFSSL_SCTP */
+    (void)ssl;
+    return SSL_NOT_IMPLEMENTED;
+#endif /* WOLFSSL_DTLS && WOLFSSL_SCTP */
+}
+
+
+int wolfSSL_dtls_disable_retransmission(WOLFSSL* ssl)
+{
+#if defined(WOLFSSL_DTLS) && defined(WOLFSSL_SCTP)
+    if (ssl == NULL)
+        return SSL_FAILURE;
+
+    ssl->options.dtlsRetxEnable = 0;
+    return SSL_SUCCESS;
+#else /* WOLFSSL_DTLS && WOLFSSL_SCTP */
+    (void)ssl;
+    return SSL_NOT_IMPLEMENTED;
+#endif /* WOLFSSL_DTLS && WOLFSSL_SCTP */
+}
+
+
+int wolfSSL_dtls_enable_replay_detection(WOLFSSL* ssl, unsigned int options)
+{
+    (void)options;
+
+#if defined(WOLFSSL_DTLS) && defined(WOLFSSL_SCTP)
+    if (ssl == NULL)
+        return SSL_FAILURE;
+
+    ssl->options.dtlsReplayEnable = 1;
+    return SSL_SUCCESS;
+#else /* WOLFSSL_DTLS && WOLFSSL_SCTP */
+    (void)ssl;
+    return SSL_NOT_IMPLEMENTED;
+#endif /* WOLFSSL_DTLS && WOLFSSL_SCTP */
+}
+
+
+int wolfSSL_dtls_disable_replay_detection(WOLFSSL* ssl)
+{
+#if defined(WOLFSSL_DTLS) && defined(WOLFSSL_SCTP)
+    if (ssl == NULL)
+        return SSL_FAILURE;
+
+    ssl->options.dtlsReplayEnable = 0;
+    return SSL_SUCCESS;
+#else /* WOLFSSL_DTLS && WOLFSSL_SCTP */
+    (void)ssl;
+    return SSL_NOT_IMPLEMENTED;
+#endif /* WOLFSSL_DTLS && WOLFSSL_SCTP */
+}
+
 #endif /* WOLFSSL_LEANPSK */
 
 
