@@ -5291,6 +5291,10 @@ WOLFSSL_LOCAL int GetSerialNumber(const byte* input, word32* inOutIdx,
     }
 
     /* First byte is ASN type */
+    if ((*inOutIdx+1) > maxIdx) {
+        WOLFSSL_MSG("Bad idx first");
+        return BUFFER_E;
+    }
     b = input[*inOutIdx];
     *inOutIdx += 1;
 
@@ -5303,9 +5307,15 @@ WOLFSSL_LOCAL int GetSerialNumber(const byte* input, word32* inOutIdx,
         return ASN_PARSE_E;
     }
 
-    if (*serialSz > EXTERNAL_SERIAL_SIZE) {
-        WOLFSSL_MSG("Serial Size too big");
+    if (*serialSz < 0 || *serialSz > EXTERNAL_SERIAL_SIZE) {
+        WOLFSSL_MSG("Serial size bad");
         return ASN_PARSE_E;
+    }
+
+    /* serial size check */
+    if ((*inOutIdx + *serialSz) > maxIdx) {
+        WOLFSSL_MSG("Bad idx serial");
+        return BUFFER_E;
     }
 
     /* skip padding */
