@@ -5307,26 +5307,30 @@ WOLFSSL_LOCAL int GetSerialNumber(const byte* input, word32* inOutIdx,
         return ASN_PARSE_E;
     }
 
+    /* serial size check */
     if (*serialSz < 0 || *serialSz > EXTERNAL_SERIAL_SIZE) {
         WOLFSSL_MSG("Serial size bad");
         return ASN_PARSE_E;
     }
 
-    /* serial size check */
+    /* serial size check against max index */
     if ((*inOutIdx + *serialSz) > maxIdx) {
         WOLFSSL_MSG("Bad idx serial");
         return BUFFER_E;
     }
 
-    /* skip padding */
-    if (input[*inOutIdx] == 0x00) {
-        *serialSz -= 1;
-        *inOutIdx += 1;
-    }
+    /* only check padding and return serial if length is greater than 1 */
+    if (*serialSz > 0) {
+        /* skip padding */
+        if (input[*inOutIdx] == 0x00) {
+            *serialSz -= 1;
+            *inOutIdx += 1;
+        }
 
-    /* return serial */
-    XMEMCPY(serial, &input[*inOutIdx], *serialSz);
-    *inOutIdx += *serialSz;
+        /* return serial */
+        XMEMCPY(serial, &input[*inOutIdx], *serialSz);
+        *inOutIdx += *serialSz;
+    }
 
     return result;
 }
