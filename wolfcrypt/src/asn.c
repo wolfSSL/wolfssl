@@ -3573,11 +3573,11 @@ static int ConfirmSignature(const byte* buf, word32 bufSz,
 #ifdef WOLFSSL_SMALL_STACK
     byte* digest;
 #else
-    byte digest[MAX_DIGEST_SIZE];
+    byte digest[WC_MAX_DIGEST_SIZE];
 #endif
 
 #ifdef WOLFSSL_SMALL_STACK
-    digest = (byte*)XMALLOC(MAX_DIGEST_SIZE, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    digest = (byte*)XMALLOC(WC_MAX_DIGEST_SIZE, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (digest == NULL)
         return 0; /* not confirmed */
 #endif
@@ -7227,7 +7227,11 @@ static int MakeSignature(const byte* buffer, int sz, byte* sig, int sigSz,
                          int sigAlgoType)
 {
     int encSigSz, digestSz, typeH = 0, ret = 0;
-    byte digest[MAX_DIGEST_SIZE]; /* max size */
+#ifdef WOLFSSL_SMALL_STACK
+    byte* digest;
+#else
+    byte digest[WC_MAX_DIGEST_SIZE]; /* max size */
+#endif
 #ifdef WOLFSSL_SMALL_STACK
     byte* encSig;
 #else
@@ -7247,6 +7251,12 @@ static int MakeSignature(const byte* buffer, int sz, byte* sig, int sigSz,
     (void)rsaKey;
     (void)eccKey;
     (void)rng;
+
+#ifdef WOLFSSL_SMALL_STACK
+    digest = (byte*)XMALLOC(WC_MAX_DIGEST_SIZE, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (digest == NULL)
+        return 0; /* not confirmed */
+#endif
 
     switch (sigAlgoType) {
     #ifndef NO_MD5
@@ -7289,14 +7299,20 @@ static int MakeSignature(const byte* buffer, int sz, byte* sig, int sigSz,
             ret = ALGO_ID_E;
     }
 
-    if (ret != 0)
+    if (ret != 0) {
+    #ifdef WOLFSSL_SMALL_STACK
+        XFREE(digest, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    #endif
         return ret;
+    }
 
 #ifdef WOLFSSL_SMALL_STACK
     encSig = (byte*)XMALLOC(MAX_DER_DIGEST_SZ,
                                                  NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    if (encSig == NULL)
+    if (encSig == NULL) {
+        XFREE(digest, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         return MEMORY_E;
+    }
 #endif
 
     ret = ALGO_ID_E;
@@ -7320,6 +7336,7 @@ static int MakeSignature(const byte* buffer, int sz, byte* sig, int sigSz,
 #endif
 
 #ifdef WOLFSSL_SMALL_STACK
+    XFREE(digest, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(encSig, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
 
