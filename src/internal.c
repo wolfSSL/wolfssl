@@ -12320,7 +12320,7 @@ const char* wolfSSL_get_cipher_name_internal(WOLFSSL* ssl)
     const char*     fullName;
     const char*     first;
     WOLFSSL_CIPHER* cipher;
-    word32 i;
+    int i;
 
     if (ssl == NULL) {
         WOLFSSL_MSG("Bad argument");
@@ -12335,7 +12335,7 @@ const char* wolfSSL_get_cipher_name_internal(WOLFSSL* ssl)
                                       : (XSTRSTR(fullName, "CCM"))    ? "CCM"
                                       : NULL; /* normal */
 
-        for (i = 0; i < sizeof(cipher_name_idx); i++) {
+        for (i = 0; i < (int)sizeof(cipher_name_idx); i++) {
             if (cipher_name_idx[i] == ssl->options.cipherSuite) {
                 const char* nameFound = cipher_names[i];
 
@@ -15927,6 +15927,8 @@ int DoSessionTicket(WOLFSSL* ssl,
 
         (void)ssl;
         (void)sigSz;
+        (void)length;
+        (void)idx;
 
     #ifdef WOLFSSL_ASYNC_CRYPT
         ret = wolfSSL_async_pop(ssl, WOLF_EVENT_TYPE_ASYNC_ACCEPT);

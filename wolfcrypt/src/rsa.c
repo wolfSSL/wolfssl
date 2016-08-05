@@ -253,6 +253,8 @@ static int wc_MGF1(enum wc_HashType hType, byte* seed, word32 seedSz,
     counter = 0;
     idx     = 0;
 
+    (void)heap;
+
     /* check error return of wc_HashGetDigestSize */
     if (hLen < 0) {
         return hLen;
