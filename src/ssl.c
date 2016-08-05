@@ -8290,7 +8290,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
 
         if (hsCb) {
             ssl->hsInfoOn = 1;
-            InitHandShakeInfo(&ssl->handShakeInfo);
+            InitHandShakeInfo(&ssl->handShakeInfo, ssl);
         }
         if (toCb) {
             ssl->toInfoOn = 1;
@@ -8378,7 +8378,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
             ssl->toInfoOn = 0;
         }
         if (hsCb) {
-            FinishHandShakeInfo(&ssl->handShakeInfo, ssl);
+            FinishHandShakeInfo(&ssl->handShakeInfo);
             (hsCb)(&ssl->handShakeInfo);
             ssl->hsInfoOn = 0;
         }
@@ -11345,9 +11345,6 @@ WOLFSSL_X509* wolfSSL_X509_load_certificate_file(const char* fname, int format)
     XFILE file;
 
     WOLFSSL_X509* x509 = NULL;
-    DerBuffer* der = NULL;
-
-    WOLFSSL_ENTER("wolfSSL_X509_load_certificate");
 
     /* Check the inputs */
     if ((fname == NULL) ||
@@ -11385,6 +11382,26 @@ WOLFSSL_X509* wolfSSL_X509_load_certificate_file(const char* fname, int format)
 
     XFCLOSE(file);
 
+    x509 = wolfSSL_X509_load_certificate_buffer(fileBuffer, (int)sz, format);
+
+    if (dynamic)
+        XFREE(fileBuffer, NULL, DYNAMIC_TYPE_FILE);
+
+    return x509;
+}
+
+#endif /* NO_FILESYSTEM */
+
+
+WOLFSSL_X509* wolfSSL_X509_load_certificate_buffer(
+    const unsigned char* buf, int sz, int format)
+{
+    int ret;
+    WOLFSSL_X509* x509 = NULL;
+    DerBuffer* der = NULL;
+
+    WOLFSSL_ENTER("wolfSSL_X509_load_certificate_ex");
+
     if (format == SSL_FILETYPE_PEM) {
         int ecc = 0;
     #ifdef WOLFSSL_SMALL_STACK
@@ -11397,9 +11414,6 @@ WOLFSSL_X509* wolfSSL_X509_load_certificate_file(const char* fname, int format)
         info = (EncryptedInfo*)XMALLOC(sizeof(EncryptedInfo), NULL,
                                                       DYNAMIC_TYPE_TMP_BUFFER);
         if (info == NULL) {
-            if (dynamic)
-                XFREE(fileBuffer, NULL, DYNAMIC_TYPE_FILE);
-
             return NULL;
         }
     #endif
@@ -11408,7 +11422,7 @@ WOLFSSL_X509* wolfSSL_X509_load_certificate_file(const char* fname, int format)
         info->ctx = NULL;
         info->consumed = 0;
 
-        if (PemToDer(fileBuffer, sz, CERT_TYPE, &der, NULL, info, &ecc) != 0) {
+        if (PemToDer(buf, sz, CERT_TYPE, &der, NULL, info, &ecc) != 0) {
             FreeDer(&der);
         }
 
@@ -11419,12 +11433,9 @@ WOLFSSL_X509* wolfSSL_X509_load_certificate_file(const char* fname, int format)
     else {
         ret = AllocDer(&der, (word32)sz, CERT_TYPE, NULL);
         if (ret == 0) {
-            XMEMCPY(der->buffer, fileBuffer, sz);
+            XMEMCPY(der->buffer, buf, sz);
         }
     }
-
-    if (dynamic)
-        XFREE(fileBuffer, NULL, DYNAMIC_TYPE_FILE);
 
     /* At this point we want `der` to have the certificate in DER format */
     /* ready to be decoded. */
@@ -11465,8 +11476,6 @@ WOLFSSL_X509* wolfSSL_X509_load_certificate_file(const char* fname, int format)
 
     return x509;
 }
-
-#endif /* NO_FILESYSTEM */
 
 #endif /* KEEP_PEER_CERT || SESSION_CERTS */
 
@@ -17870,11 +17879,16 @@ void* wolfSSL_GetRsaDecCtx(WOLFSSL* ssl)
     }
 
     const char * wolf_OBJ_nid2sn(int n) {
-        (void)n;
+        int i;
         WOLFSSL_ENTER("wolf_OBJ_nid2sn");
-        WOLFSSL_STUB("wolf_OBJ_nid2sn");
-
-        return 0;
+        
+        /* find based on NID and return name */
+        for (i = 0; i < ecc_sets[i].size; i++) {
+            if (n == ecc_sets[i].id) {
+                return ecc_sets[i].name;
+            }
+        }
+        return NULL;
     }
 
     int wolf_OBJ_obj2nid(const WOLFSSL_ASN1_OBJECT *o) {
@@ -17886,11 +17900,16 @@ void* wolfSSL_GetRsaDecCtx(WOLFSSL* ssl)
     }
 
     int wolf_OBJ_sn2nid(const char *sn) {
-        (void)sn;
+        int i;
         WOLFSSL_ENTER("wolf_OBJ_osn2nid");
-        WOLFSSL_STUB("wolf_OBJ_osn2nid");
 
-        return 0;
+        /* find based on name and return NID */
+        for (i = 0; i < ecc_sets[i].size; i++) { 
+            if (XSTRNCMP(sn, ecc_sets[i].name, ECC_MAXNAME) == 0) { 
+                return ecc_sets[i].id; 
+            } 
+        } 
+        return -1; 
     }
 
 

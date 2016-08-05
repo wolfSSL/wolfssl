@@ -6762,7 +6762,7 @@ static int SetAltNames(byte *out, word32 outSz, byte *input, word32 length)
 
 
 /* encode CertName into output, return total bytes written */
-static int SetName(byte* output, word32 outputSz, CertName* name)
+int SetName(byte* output, word32 outputSz, CertName* name)
 {
     int          totalBytes = 0, i, idx;
 #ifdef WOLFSSL_SMALL_STACK
