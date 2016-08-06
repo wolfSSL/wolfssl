@@ -553,7 +553,9 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     int    disableCRL    = 0;
     int    externalTest  = 0;
     int    ret;
+#ifndef WOLFSSL_CALLBACKS
     int    err           = 0;
+#endif
     int    scr           = 0;    /* allow secure renegotiation */
     int    forceScr      = 0;    /* force client initiaed scr */
     int    trackMemory   = 0;
@@ -1363,7 +1365,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 #else
     timeout.tv_sec  = 2;
     timeout.tv_usec = 0;
-    NonBlockingSSL_Connect(ctx, ssl);  /* will keep retrying on timeout */
+    NonBlockingSSL_Connect(ssl);  /* will keep retrying on timeout */
 #endif
     showPeer(ssl);
 
@@ -1529,7 +1531,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 #else
         timeout.tv_sec  = 2;
         timeout.tv_usec = 0;
-        NonBlockingSSL_Connect(ctx, ssl);  /* will keep retrying on timeout */
+        NonBlockingSSL_Connect(ssl);  /* will keep retrying on timeout */
 #endif
         showPeer(sslResume);
 
