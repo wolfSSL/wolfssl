@@ -6842,6 +6842,8 @@ static int ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerifyCount,
     int     ret;
     ecc_key userA, userB, pubKey;
 
+    (void)testVerifyCount;
+
     wc_ecc_init(&userA);
     wc_ecc_init(&userB);
     wc_ecc_init(&pubKey);
