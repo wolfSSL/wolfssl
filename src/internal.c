@@ -12315,50 +12315,60 @@ int GetCipherNamesSize(void)
 }
 
 /* gets cipher name in the format DHE-RSA-... rather then TLS_DHE... */
-const char* wolfSSL_get_cipher_name_internal(WOLFSSL* ssl)
+const char* GetCipherNameInternal(const char* cipherName, int cipherSuite)
 {
-    const char*     fullName;
-    const char*     first;
-    WOLFSSL_CIPHER* cipher;
+    const char* result = NULL;
+    const char* first;
     int i;
 
+    if (cipherName == NULL) {
+        WOLFSSL_MSG("Bad argument");
+        return NULL;
+    }
+
+    first = (XSTRSTR(cipherName, "CHACHA")) ? "CHACHA"
+          : (XSTRSTR(cipherName, "EC"))     ? "EC"
+          : (XSTRSTR(cipherName, "CCM"))    ? "CCM"
+          : NULL; /* normal */
+
+    for (i = 0; i < (int)(sizeof(cipher_name_idx)/sizeof(int)); i++) {
+        if (cipher_name_idx[i] == cipherSuite) {
+            const char* nameFound = cipher_names[i];
+
+            /* extra sanity check on returned cipher name */
+            if (nameFound == NULL) {
+                continue;
+            }
+
+            /* if first is null then not any */
+            if (first == NULL) {
+                if (    !XSTRSTR(nameFound, "CHACHA") &&
+                        !XSTRSTR(nameFound, "EC") &&
+                        !XSTRSTR(nameFound, "CCM")) {
+                    result = nameFound;
+                    break;
+                }
+            }
+            else if (XSTRSTR(nameFound, first)) {
+                result = nameFound;
+                break;
+            }
+        }
+    }
+
+    return result;
+}
+
+const char* wolfSSL_get_cipher_name_internal(WOLFSSL* ssl)
+{
     if (ssl == NULL) {
         WOLFSSL_MSG("Bad argument");
         return NULL;
     }
 
-    cipher   = wolfSSL_get_current_cipher(ssl);
-    fullName = wolfSSL_CIPHER_get_name(cipher);
-    if (fullName) {
-        first = (XSTRSTR(fullName, "CHACHA")) ? "CHACHA"
-                                      : (XSTRSTR(fullName, "EC"))     ? "EC"
-                                      : (XSTRSTR(fullName, "CCM"))    ? "CCM"
-                                      : NULL; /* normal */
-
-        for (i = 0; i < (int)sizeof(cipher_name_idx); i++) {
-            if (cipher_name_idx[i] == ssl->options.cipherSuite) {
-                const char* nameFound = cipher_names[i];
-
-                /* extra sanity check on returned cipher name */
-                if (nameFound == NULL) {
-                    continue;
-                }
-
-                /* if first is null then not any */
-                if (first == NULL) {
-                    if (!XSTRSTR(nameFound, "CHACHA") &&
-                     !XSTRSTR(nameFound, "EC") && !XSTRSTR(nameFound, "CCM")) {
-                        return cipher_names[i];
-                    }
-                }
-                else if (XSTRSTR(nameFound, first)) {
-                    return cipher_names[i];
-                }
-            }
-        }
-    }
-
-    return NULL; /* error or not found */
+    return GetCipherNameInternal(
+        wolfSSL_CIPHER_get_name(&ssl->cipher),
+        ssl->options.cipherSuite);
 }
 
 
@@ -12478,10 +12488,11 @@ static void PickHashSigAlgo(WOLFSSL* ssl,
 #ifdef WOLFSSL_CALLBACKS
 
     /* Initialisze HandShakeInfo */
-    void InitHandShakeInfo(HandShakeInfo* info)
+    void InitHandShakeInfo(HandShakeInfo* info, WOLFSSL* ssl)
     {
         int i;
 
+        info->ssl = ssl;
         info->cipherName[0] = 0;
         for (i = 0; i < MAX_PACKETS_HANDSHAKE; i++)
             info->packetNames[i][0] = 0;
@@ -12490,22 +12501,22 @@ static void PickHashSigAlgo(WOLFSSL* ssl,
     }
 
     /* Set Final HandShakeInfo parameters */
-    void FinishHandShakeInfo(HandShakeInfo* info, const WOLFSSL* ssl)
+    void FinishHandShakeInfo(HandShakeInfo* info)
     {
         int i;
         int sz = sizeof(cipher_name_idx)/sizeof(int);
 
         for (i = 0; i < sz; i++)
-            if (ssl->options.cipherSuite == (byte)cipher_name_idx[i]) {
-                if (ssl->options.cipherSuite0 == ECC_BYTE)
+            if (info->ssl->options.cipherSuite == (byte)cipher_name_idx[i]) {
+                if (info->ssl->options.cipherSuite0 == ECC_BYTE)
                     continue;   /* ECC suites at end */
                 XSTRNCPY(info->cipherName, cipher_names[i], MAX_CIPHERNAME_SZ);
                 break;
             }
 
         /* error max and min are negative numbers */
-        if (ssl->error <= MIN_PARAM_ERR && ssl->error >= MAX_PARAM_ERR)
-            info->negotiationError = ssl->error;
+        if (info->ssl->error <= MIN_PARAM_ERR && info->ssl->error >= MAX_PARAM_ERR)
+            info->negotiationError = info->ssl->error;
     }
 
 

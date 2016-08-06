@@ -2894,9 +2894,9 @@ typedef struct EncryptedInfo {
 
 #ifdef WOLFSSL_CALLBACKS
     WOLFSSL_LOCAL
-    void InitHandShakeInfo(HandShakeInfo*);
+    void InitHandShakeInfo(HandShakeInfo*, WOLFSSL*);
     WOLFSSL_LOCAL
-    void FinishHandShakeInfo(HandShakeInfo*, const WOLFSSL*);
+    void FinishHandShakeInfo(HandShakeInfo*);
     WOLFSSL_LOCAL
     void AddPacketName(const char*, HandShakeInfo*);
 
@@ -3103,6 +3103,7 @@ WOLFSSL_LOCAL void c32to24(word32 in, word24 out);
 
 WOLFSSL_LOCAL const char* const* GetCipherNames(void);
 WOLFSSL_LOCAL int GetCipherNamesSize(void);
+WOLFSSL_LOCAL const char* GetCipherNameInternal(const char* cipherName, int cipherSuite);
 WOLFSSL_LOCAL const char* wolfSSL_get_cipher_name_internal(WOLFSSL* ssl);
 
 

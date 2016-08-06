@@ -639,6 +639,9 @@ WOLFSSL_LOCAL int ExtractDate(const unsigned char* date, unsigned char format,
 WOLFSSL_LOCAL int ValidateDate(const byte* date, byte format, int dateType);
 
 /* ASN.1 helper functions */
+#ifdef WOLFSSL_CERT_GEN
+WOLFSSL_TEST_API int SetName(byte* output, word32 outputSz, CertName* name);
+#endif
 WOLFSSL_LOCAL int GetLength(const byte* input, word32* inOutIdx, int* len,
                            word32 maxIdx);
 WOLFSSL_LOCAL int GetSequence(const byte* input, word32* inOutIdx, int* len,

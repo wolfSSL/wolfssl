@@ -40,8 +40,10 @@ enum { /* CALLBACK CONTSTANTS */
                                           fit here  */
 };
 
+struct WOLFSSL;
 
 typedef struct handShakeInfo_st {
+    struct WOLFSSL* ssl;
     char   cipherName[MAX_CIPHERNAME_SZ + 1];    /* negotiated cipher */
     char   packetNames[MAX_PACKETS_HANDSHAKE][MAX_PACKETNAME_SZ + 1];
                                                  /* SSL packet names  */ 
