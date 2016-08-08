@@ -17878,10 +17878,11 @@ void* wolfSSL_GetRsaDecCtx(WOLFSSL* ssl)
         return NULL;
     }
 
+#ifdef HAVE_ECC
     const char * wolf_OBJ_nid2sn(int n) {
         int i;
         WOLFSSL_ENTER("wolf_OBJ_nid2sn");
-        
+
         /* find based on NID and return name */
         for (i = 0; i < ecc_sets[i].size; i++) {
             if (n == ecc_sets[i].id) {
@@ -17904,13 +17905,14 @@ void* wolfSSL_GetRsaDecCtx(WOLFSSL* ssl)
         WOLFSSL_ENTER("wolf_OBJ_osn2nid");
 
         /* find based on name and return NID */
-        for (i = 0; i < ecc_sets[i].size; i++) { 
-            if (XSTRNCMP(sn, ecc_sets[i].name, ECC_MAXNAME) == 0) { 
-                return ecc_sets[i].id; 
-            } 
-        } 
+        for (i = 0; i < ecc_sets[i].size; i++) {
+            if (XSTRNCMP(sn, ecc_sets[i].name, ECC_MAXNAME) == 0) {
+                return ecc_sets[i].id;
+            }
+        }
         return -1; 
     }
+#endif /* HAVE_ECC */
 
 
     WOLFSSL_X509 *PEM_read_bio_WOLFSSL_X509(WOLFSSL_BIO *bp, WOLFSSL_X509 **x, pem_password_cb *cb, void *u) {
