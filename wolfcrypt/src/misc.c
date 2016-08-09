@@ -46,8 +46,9 @@
 
 /* Check for if compiling misc.c when not needed. */
 #if !defined(WOLFSSL_MISC_INCLUDED) && !defined(NO_INLINE)
-    #error misc.c does not need to be compiled when not defined NO_INLINE
-#endif
+    #warning misc.c does not need to be compiled when using inline (NO_INLINE not defined)
+
+#else
 
 #ifdef INTEL_INTRINSICS
 
@@ -202,5 +203,8 @@ STATIC INLINE int ConstantCompare(const byte* a, const byte* b, int length)
 }
 
 #undef STATIC
+
+
+#endif /* !WOLFSSL_MISC_INCLUDED && !NO_INLINE */
 
 #endif /* WOLF_CRYPT_MISC_C */
