@@ -3957,6 +3957,7 @@ int memory_test(void)
         return -113; /* should round to 0 since struct + bucket will not fit */
     }
 
+    (void)dist; /* avoid static analysis warning of variable not used */
     return 0;
 }
 #endif /* WOLFSSL_STATIC_MEMORY */
