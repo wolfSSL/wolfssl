@@ -1186,7 +1186,7 @@ int wc_RsaPrivateDecrypt(const byte* in, word32 inLen, byte* out, word32 outLen,
         XFREE(tmp, key->heap, DYNAMIC_TYPE_RSA);
         return plainLen;
     }
-    if (plainLen > (int)outLen)
+    if (plainLen > (int)outLen || pad == NULL)
         plainLen = BAD_FUNC_ARG;
     else
         XMEMCPY(out, pad, plainLen);
@@ -1305,7 +1305,7 @@ int wc_RsaSSL_Verify(const byte* in, word32 inLen, byte* out, word32 outLen,
         return plainLen;
     }
 
-    if (plainLen > (int)outLen)
+    if (plainLen > (int)outLen || pad == NULL)
         plainLen = BAD_FUNC_ARG;
     else
         XMEMCPY(out, pad, plainLen);
