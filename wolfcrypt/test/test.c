@@ -121,12 +121,7 @@
 #endif
 
 
-#if defined(USE_CERT_BUFFERS_1024) || defined(USE_CERT_BUFFERS_2048) \
-                                   || !defined(NO_DH) \
-                                   || defined(USE_CERT_BUFFERS_256)
-    /* include test cert and key buffers for use with NO_FILESYSTEM */
-        #include <wolfssl/certs_test.h>
-#endif
+#include <wolfssl/certs_test.h>
 
 #if defined(WOLFSSL_MDK_ARM)
         #include <stdio.h>
