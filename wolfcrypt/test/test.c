@@ -121,11 +121,7 @@
 #endif
 
 
-#if defined(USE_CERT_BUFFERS_1024) || defined(USE_CERT_BUFFERS_2048) \
-                                   || !defined(NO_DH)
-    /* include test cert and key buffers for use with NO_FILESYSTEM */
-        #include <wolfssl/certs_test.h>
-#endif
+#include <wolfssl/certs_test.h>
 
 #if defined(WOLFSSL_MDK_ARM)
         #include <stdio.h>
@@ -224,6 +220,9 @@ int pbkdf2_test(void);
     int  ecc_test(void);
     #ifdef HAVE_ECC_ENCRYPT
         int  ecc_encrypt_test(void);
+    #endif
+    #ifdef USE_CERT_BUFFERS_256
+        int ecc_test_buffers(void);
     #endif
 #endif
 #ifdef HAVE_CURVE25519
@@ -601,6 +600,12 @@ int wolfcrypt_test(void* args)
             return err_sys("ECC Enc  test failed!\n", ret);
         else
             printf( "ECC Enc  test passed!\n");
+    #endif
+    #ifdef USE_CERT_BUFFERS_256
+        if ( (ret = ecc_test_buffers()) != 0)
+            return err_sys("ECC buffer test failed!\n", ret);
+        else
+            printf( "ECC buffer test passed!\n");
     #endif
 #endif
 
@@ -5386,6 +5391,7 @@ int rsa_test(void)
         strncpy(myCert.subject.unit, "Development", CTC_NAME_SIZE);
         strncpy(myCert.subject.commonName, "www.yassl.com", CTC_NAME_SIZE);
         strncpy(myCert.subject.email, "info@yassl.com", CTC_NAME_SIZE);
+        myCert.daysValid = 1000;
 
 #ifdef WOLFSSL_CERT_EXT
 
@@ -7256,6 +7262,92 @@ int ecc_encrypt_test(void)
 }
 
 #endif /* HAVE_ECC_ENCRYPT */
+
+#ifdef USE_CERT_BUFFERS_256
+int ecc_test_buffers() {
+    size_t bytes;
+    ecc_key cliKey;
+    ecc_key servKey;
+#ifdef WOLFSSL_CERT_EXT
+    ecc_key keypub;
+#endif
+    WC_RNG rng;
+    word32 idx = 0;
+    int    ret;
+    /* pad our test message to 32 bytes so evenly divisible by AES_BLOCK_SZ */
+    byte   in[] = "Everyone gets Friday off. ecc p";
+    word32 inLen = (word32)XSTRLEN((char*)in);
+    byte   out[256];
+    byte   plain[256];
+    int verify = 0;
+    word32 x;
+
+    bytes = sizeof_ecc_clikey_der_256;
+    /* place client key into ecc_key struct cliKey */
+    ret = wc_EccPrivateKeyDecode(ecc_clikey_der_256, &idx, &cliKey,
+                                                                (word32)bytes);
+    if (ret != 0)
+        return -41;
+
+    idx = 0;
+    bytes = sizeof_ecc_key_der_256;
+
+    /* place server key into ecc_key struct servKey */
+    ret = wc_EccPrivateKeyDecode(ecc_key_der_256, &idx, &servKey,
+                                                                (word32)bytes);
+    if (ret != 0)
+        return -41;
+
+    ret = wc_InitRng(&rng);
+    if (ret != 0)
+        return -42;
+
+#if defined(HAVE_ECC_ENCRYPT) && defined(HAVE_HKDF)
+    {
+        word32 y;
+        /* test encrypt and decrypt if they're available */
+        x = sizeof(out);
+        ret = wc_ecc_encrypt(&cliKey, &servKey, in, sizeof(in), out, &x, NULL);
+        if (ret < 0)
+            return -43;
+
+        y = sizeof(plain);
+        ret = wc_ecc_decrypt(&cliKey, &servKey, out, x, plain, &y, NULL);
+        if (ret < 0)
+            return -44;
+
+        if (XMEMCMP(plain, in, inLen))
+            return -45;
+    }
+#endif
+
+
+    x = sizeof(out);
+    ret = wc_ecc_sign_hash(in, inLen, out, &x, &rng, &cliKey);
+    if (ret < 0)
+        return -46;
+
+    XMEMSET(plain, 0, sizeof(plain));
+
+    ret = wc_ecc_verify_hash(out, x, plain, sizeof(plain), &verify, &cliKey);
+    if (ret < 0)
+        return -47;
+
+    if (XMEMCMP(plain, in, ret))
+        return -48;
+
+    idx = 0;
+
+    bytes = sizeof_ecc_clikeypub_der_256;
+
+    ret = wc_EccPublicKeyDecode(ecc_clikeypub_der_256, &idx, &cliKey,
+                                                               (word32) bytes);
+    if (ret != 0)
+        return -52;
+
+    return 0;
+}
+#endif /* USE_CERT_BUFFERS_256 */
 #endif /* HAVE_ECC */
 
 
