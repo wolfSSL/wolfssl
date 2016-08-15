@@ -163,9 +163,17 @@ static int execute_test_case(int svr_argc, char** svr_argv,
     svrArgs.argc = svr_argc;
     svrArgs.argv = svr_argv;
 #else
-    func_args cliArgs = {cli_argc, cli_argv, 0, NULL, NULL};
-    func_args svrArgs = {svr_argc, svr_argv, 0, NULL, NULL};
+    func_args cliArgs = {cli_argc, cli_argv, 0,
+#ifdef HAVE_PKCS11
+                        0,
 #endif
+                        NULL, NULL};
+    func_args svrArgs = {svr_argc, svr_argv, 0,
+#ifdef HAVE_PKCS11
+                        0,
+#endif
+                        NULL, NULL};
+#endif /* WOLFSSL_TIRTOS */
 
     tcp_ready   ready;
     THREAD_TYPE serverThread;
@@ -540,6 +548,17 @@ int SuiteTest(void)
     /* add psk extra suites */
     strcpy(argv0[1], "tests/test-psk-no-id.conf");
     printf("starting psk no identity extra cipher suite tests\n");
+    test_harness(&args);
+    if (args.return_code != 0) {
+        printf("error from script %d\n", args.return_code);
+        exit(EXIT_FAILURE);
+    }
+#endif
+
+#if defined(HAVE_PKCS11) && defined (HAVE_PK_CALLBACKS)
+    /* add dtls extra suites */
+    strcpy(argv0[1], "tests/test-pkcs11.conf");
+    printf("starting PKCS11 cipher suite tests\n");
     test_harness(&args);
     if (args.return_code != 0) {
         printf("error from script %d\n", args.return_code);

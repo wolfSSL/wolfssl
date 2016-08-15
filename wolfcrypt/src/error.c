@@ -389,6 +389,78 @@ const char* wc_GetErrorString(int error)
     case MISSING_RNG_E:
         return "RNG required but not provided";
 
+    case PKCS11_GET_VALUE_E:
+        return "PKCS11 get value failed";
+
+    case PKCS11_FIND_KEY_E:
+        return "PKCS11 find key failed";
+
+    case PKCS11_KEYTYPE_E:
+        return "PKCS11 unknown key type";
+
+    case PKCS11_GENKEY_E:
+        return "PKCS11 generate key failed";
+
+    case PKCS11_INIT_E:
+        return "PKCS11 library initialization failed";
+
+    case PKCS11_OPENSESSION_E:
+        return "PKCS11 open session failed";
+
+    case PKCS11_LOGIN_E:
+        return "PKCS11 login failed";
+
+    case PKCS11_SIGNINIT_E:
+        return "PKCS11 initialize signature failed";
+
+    case PKCS11_SIGN_E:
+        return "PKCS11 signature failed";
+
+    case PKCS11_VERIFYINIT_E:
+        return "PKCS11 initialize verification failed";
+
+    case PKCS11_VERIFY_E:
+        return "PKCS11 verification failed";
+
+    case PKCS11_ENCRYPTINIT_E:
+        return "PKCS11 initialize encryption failed";
+
+    case PKCS11_ENCRYPT_E:
+        return "PKCS11 encryption failed";
+
+    case PKCS11_DECRYPTINIT_E:
+        return "PKCS11 initialize decryption failed";
+
+    case PKCS11_DECRYPT_E:
+        return "PKCS11 decryption failed";
+
+    case PKCS11_HASHTYPE_E:
+        return "PKCS11 unknown hash type";
+
+    case PKCS11_MGF_E:
+        return "PKCS11 unknown MGF";
+
+    case PKCS11_OAEPLABEL_E:
+        return "PKCS11 invalid OEAP label value";
+
+    case PKCS11_FIND_ATTR_E:
+        return "PKCS11 attributes not found";
+
+    case PKCS11_FINDOBJINIT_E:
+        return "PKCS11 initialize find object failed";
+
+    case PKCS11_FINDOBJ_E:
+        return "PKCS11 find object failed";
+
+    case PKCS11_FINDOBJFINAL_E:
+        return "PKCS11 find object final failed";
+
+    case PKCS11_FINDOBJ_NONE:
+        return "PKCS11 object not found";
+
+    case PKCS11_DELETEOBJ_E:
+        return "PKCS11 delete object failed";
+
     default:
         return "unknown error number";
 

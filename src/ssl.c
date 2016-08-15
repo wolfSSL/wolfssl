@@ -93,6 +93,10 @@
     #include <wolfssl/wolfcrypt/dh.h>
 #endif
 
+#ifdef HAVE_PKCS11
+    #include <wolfssl/wolfcrypt/pkcs11.h>
+#endif
+
 #ifndef NO_FILESYSTEM
     #if !defined(USE_WINDOWS_API) && !defined(NO_WOLFSSL_DIR) \
             && !defined(EBSNET)
@@ -2132,6 +2136,7 @@ int AllocDer(DerBuffer** pDer, word32 length, int type, void* heap)
             case DSA_TYPE:  dynType = DYNAMIC_TYPE_DSA;  break;
             case ECC_TYPE:  dynType = DYNAMIC_TYPE_ECC;  break;
             case RSA_TYPE:  dynType = DYNAMIC_TYPE_RSA;  break;
+            case RSA_HSM_TYPE: dynType = DYNAMIC_TYPE_RSA;  break;
             default:        dynType = DYNAMIC_TYPE_KEY;  break;
         }
 
@@ -3238,6 +3243,13 @@ int wolfSSL_Init(void)
             WOLFSSL_MSG("Bad wolfCrypt Init");
             return WC_INIT_E;
         }
+#ifdef HAVE_PKCS11
+        /* Initialize crypto to use with HSM */
+        if (wc_PKCS11_Init() != 0) {
+            WOLFSSL_MSG("Bad PKCS#11 Init");
+            return PKCS11_INIT_E;
+        }
+#endif
 #ifndef NO_SESSION_CACHE
         if (InitMutex(&session_mutex) != 0) {
             WOLFSSL_MSG("Bad Init Mutex session");
@@ -5384,6 +5396,239 @@ int wolfSSL_CTX_use_PrivateKey_file(WOLFSSL_CTX* ctx, const char* file,
     return SSL_FAILURE;
 }
 
+#ifdef HAVE_PKCS11
+int wolfSSL_CTX_OpenSesionPKCS11(WOLFSSL_CTX *ctx, unsigned long slotId,
+                                 const char *pin)
+{
+    WOLFSSL_ENTER("wolfSSL_CTX_OpenSessionPKCS11");
+
+    if (ctx == NULL || pin == NULL)
+        return BAD_FUNC_ARG;
+
+    if (wc_PKCS11_OpenSession((CK_SLOT_ID)slotId, (CK_CHAR_PTR)pin,
+                              (CK_SESSION_HANDLE_PTR)&ctx->p11SessionId) != 0)
+        return SSL_FAILURE;
+
+    return SSL_SUCCESS;
+}
+
+int wolfSSL_OpenSesionPKCS11(WOLFSSL *ssl, unsigned long slotId,
+                             const char *pin)
+{
+    WOLFSSL_ENTER("wolfSSL_OpenSessionPKCS11");
+
+    if (ssl == NULL || pin == NULL)
+        return BAD_FUNC_ARG;
+
+    if (wc_PKCS11_OpenSession((CK_SLOT_ID)slotId, (CK_CHAR_PTR)pin,
+                              (CK_SESSION_HANDLE_PTR)&ssl->p11SessionId) != 0)
+        return SSL_FAILURE;
+
+    return SSL_SUCCESS;
+}
+
+static int wolfssl_LoadKeyPKCS11(DerBuffer **key, void *heap,
+                                 unsigned long sessionId, const char *keyName)
+{
+    CK_OBJECT_HANDLE prvHandle, pubHandle;
+    int ret;
+
+    if (key == NULL || keyName == NULL)
+        return BAD_FUNC_ARG;
+
+    /* Buffer is used to keep the two handle value :
+     *   - private key : 4 first bytes
+     *   - public key : 4 last bytes
+     */
+    ret = AllocDer(key, 2*sizeof(CK_OBJECT_HANDLE), RSA_HSM_TYPE, heap);
+    if (ret != 0) {
+        return ret;
+    }
+
+    /* get and put private key handle */
+    /* load private key handle */
+    ret = wc_PKCS11_KeyLoad(sessionId, (CK_CHAR_PTR)keyName,
+                            RSA_PRIVATE, &prvHandle);
+    if (ret != 0) {
+        FreeDer(key);
+        return ret;
+    }
+
+    /* get and put public key handle */
+    ret = wc_PKCS11_KeyLoad(sessionId, (CK_CHAR_PTR)keyName,
+                            RSA_PUBLIC, &pubHandle);
+    if (ret != 0) {
+        FreeDer(key);
+        return ret;
+    }
+
+    ret = wc_PKCS11_PrivateKeyEncodeDer((*key)->buffer, &((*key)->length),
+                                        prvHandle, pubHandle);
+    if (ret != 0) {
+        FreeDer(key);
+        return SSL_FAILURE;
+    }
+
+    return SSL_SUCCESS;
+}
+
+int wolfSSL_CTX_use_PrivateKey_Pkcs11(WOLFSSL_CTX *ctx, const char* keyName)
+{
+    WOLFSSL_ENTER("wolfSSL_CTX_use_PrivateKey_Pkcs11");
+
+    if (ctx == NULL || keyName == NULL)
+        return BAD_FUNC_ARG;
+
+    /* Make sure previous is free'd */
+    if (ctx->privateKey != NULL)
+        FreeDer(&ctx->privateKey);
+
+    return wolfssl_LoadKeyPKCS11(&ctx->privateKey, ctx->heap,
+                                 ctx->p11SessionId, keyName);
+}
+
+int wolfSSL_use_PrivateKey_Pkcs11(WOLFSSL *ssl, const char* keyName)
+{
+    int ret;
+
+    WOLFSSL_ENTER("wolfSSL_use_PrivateKey_Pkcs11");
+
+    if (ssl == NULL || keyName == NULL)
+        return BAD_FUNC_ARG;
+
+    /* Make sure previous is free'd */
+    if (ssl->buffers.weOwnKey) {
+        FreeDer(&ssl->buffers.key);
+    }
+
+    ret = wolfssl_LoadKeyPKCS11(&ssl->buffers.key, ssl->heap,
+                                ssl->p11SessionId, keyName);
+    if (ret != SSL_SUCCESS)
+        return ret;
+
+    ssl->buffers.weOwnKey = 1;
+
+    return SSL_SUCCESS;
+}
+
+#ifdef HAVE_PK_CALLBACKS
+/* Rsa Sign function with PKCS#11 */
+int wolfSSL_RsaSignPKCS11(WOLFSSL* ssl, const unsigned char* in,
+                          unsigned int inSz, unsigned char* out,
+                          unsigned int* outSz, const unsigned char* key,
+                          unsigned int keySz, void* ctx)
+{
+    int     ret;
+    WC_RNG  rng;
+    RsaKey  p11Key;
+
+    (void)ctx;
+
+    WOLFSSL_ENTER("wolfSSL_RsaSignPKCS11");
+
+    ret = wc_InitRng(&rng);
+    if (ret != 0)
+        return ret;
+
+    ret = wc_InitRsaKeyPKCS11(&p11Key, ssl->heap, ssl->p11SessionId);
+    if (ret != 0) {
+        wc_FreeRng(&rng);
+        return ret;
+    }
+
+    /* decode handle from key buffer */
+    ret = wc_RsaPrivateKeyDecodePKCS11(key, keySz, &p11Key);
+    if (ret == 0)
+        ret = wc_RsaSSL_Sign(in, inSz, out, *outSz, &p11Key, &rng);
+    if (ret > 0) {  /* save and convert to 0 success */
+        *outSz = ret;
+        ret = 0;
+    }
+
+    wc_FreeRng(&rng);
+    wc_FreeRsaKeyPKCS11(&p11Key);
+
+    printf("ret = %d\n", ret);
+    return ret;
+}
+
+int wolfSSL_RsaVerifyPKCS11(WOLFSSL* ssl, unsigned char* sig,
+                            unsigned int sigSz, unsigned char** out,
+                            const unsigned char* key, unsigned int keySz,
+                            void* ctx)
+{
+    int     ret;
+    RsaKey  p11Key;
+
+    (void)ctx;
+
+    WOLFSSL_ENTER("wolfSSL_RsaVerifyPKCS11");
+
+    ret = wc_InitRsaKeyPKCS11(&p11Key, ssl->heap, ssl->p11SessionId);
+    if (ret != 0)
+        return ret;
+
+    ret = wc_RsaPublicKeyDecodePKCS11(key, keySz, &p11Key);
+    if (ret == 0)
+        ret = wc_RsaSSL_VerifyInline(sig, sigSz, out, &p11Key);
+
+    wc_FreeRsaKeyPKCS11(&p11Key);
+    return ret;
+}
+
+int wolfSSL_RsaEncPKCS11(WOLFSSL* ssl, const unsigned char* in,
+                         unsigned int inSz, unsigned char* out,
+                         unsigned int* outSz, const unsigned char* key,
+                         unsigned int keySz, void* ctx)
+{
+    int     ret;
+    RsaKey  p11Key;
+
+    (void)ctx;
+
+    WOLFSSL_ENTER("wolfSSL_RsaEncPKCS11");
+
+    ret = wc_InitRsaKeyPKCS11(&p11Key, ssl->heap, ssl->p11SessionId);
+    if (ret != 0)
+        return ret;
+
+    ret = wc_RsaPublicKeyDecodePKCS11(key, keySz, &p11Key);
+    if (ret == 0) {
+        ret = wc_RsaPublicEncrypt(in, inSz, out, *outSz, &p11Key, NULL);
+        if (ret > 0) {
+            *outSz = ret;
+            ret = 0;  /* reset to success */
+        }
+    }
+
+    wc_FreeRsaKeyPKCS11(&p11Key);
+    return ret;
+}
+
+
+int wolfSSL_RsaDecPKCS11(WOLFSSL* ssl, unsigned char* in, unsigned int inSz,
+                         unsigned char** out, const unsigned char* key,
+                         unsigned int keySz, void* ctx)
+{
+    int     ret;
+    RsaKey  p11Key;
+
+    (void)ctx;
+
+    WOLFSSL_ENTER("wolfSSL_RsaDecPKCS11");
+    ret = wc_InitRsaKeyPKCS11(&p11Key, ssl->heap, ssl->p11SessionId);
+    if (ret != 0)
+        return ret;
+
+    ret = wc_RsaPrivateKeyDecodePKCS11(key, keySz, &p11Key);
+    if (ret == 0)
+        ret = wc_RsaPrivateDecryptInline(in, inSz, out, &p11Key);
+
+    wc_FreeRsaKeyPKCS11(&p11Key);
+    return ret;
+}
+#endif /* HAVE_PK_CALLBACKS */
+#endif /* HAVE_PKCS11 */
 
 /* get cert chaining depth using ssl struct */
 long wolfSSL_get_verify_depth(WOLFSSL* ssl)
@@ -7422,6 +7667,11 @@ int wolfSSL_Cleanup(void)
 
 #if defined(HAVE_ECC) && defined(FP_ECC)
     wc_ecc_fp_free();
+#endif
+
+#ifdef HAVE_PKCS11
+    /* Cleanup crypto used with HSM */
+    wc_PKCS11_Cleanup();
 #endif
 
     return ret;

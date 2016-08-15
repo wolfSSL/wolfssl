@@ -175,6 +175,31 @@ enum {
     ASN_COUNTRY_SIZE_E  = -235,  /* ASN Cert Gen, invalid country code size */
     MISSING_RNG_E       = -236,  /* RNG required but not provided */
 
+    PKCS11_FIND_KEY_E     = -237, /* PKCS11 find key failed */
+    PKCS11_KEYTYPE_E      = -238, /* PKCS11 unknown key type */
+    PKCS11_GENKEY_E       = -239, /* PKCS11 generate key failed */
+    PKCS11_INIT_E         = -240, /* PKCS11 library initialization failed */
+    PKCS11_OPENSESSION_E  = -241, /* PKCS11 open session failed */
+    PKCS11_LOGIN_E        = -242, /* PKCS11 login failed */
+    PKCS11_SIGNINIT_E     = -243, /* PKCS11 initialize signature failed */
+    PKCS11_SIGN_E         = -244, /* PKCS11 signature failed */
+    PKCS11_VERIFYINIT_E   = -245, /* PKCS11 initialize verification failed */
+    PKCS11_VERIFY_E       = -246, /* PKCS11 verification failed */
+    PKCS11_ENCRYPTINIT_E  = -247, /* PKCS11 initialize encryption failed */
+    PKCS11_ENCRYPT_E      = -248, /* PKCS11 encryption failed */
+    PKCS11_DECRYPTINIT_E  = -249, /* PKCS11 initialize decryption failed */
+    PKCS11_DECRYPT_E      = -250, /* PKCS11 decryption failed */
+    PKCS11_HASHTYPE_E     = -251, /* PKCS11 unknown hash type */
+    PKCS11_MGF_E          = -252, /* PKCS11 unknown MGF */
+    PKCS11_OAEPLABEL_E    = -253, /* PKCS11 invalid OEAP label value */
+    PKCS11_FIND_ATTR_E    = -254, /* PKCS11 attributes not found */
+    PKCS11_FINDOBJINIT_E  = -255, /* PKCS11 initialize find object failed */
+    PKCS11_FINDOBJ_E      = -256, /* PKCS11 find object failed */
+    PKCS11_FINDOBJFINAL_E = -257, /* PKCS11 find object final failed */
+    PKCS11_FINDOBJ_NONE   = -258, /* PKCS11 object not found */
+    PKCS11_DELETEOBJ_E    = -259, /* PKCS11 delete object failed */
+    PKCS11_GET_VALUE_E    = -260, /* PKCS11 get value failed */
+
     MIN_CODE_E          = -300   /* errors -101 - -299 */
 
     /* add new companion error id strings for any new error codes

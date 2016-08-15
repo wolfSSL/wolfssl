@@ -104,6 +104,9 @@
 #ifdef HAVE_PKCS7
     #include <wolfssl/wolfcrypt/pkcs7.h>
 #endif
+#ifdef HAVE_PKCS11
+    #include <wolfssl/wolfcrypt/pkcs11.h>
+#endif
 #ifdef HAVE_FIPS
     #include <wolfssl/wolfcrypt/fips_test.h>
 #endif
@@ -240,6 +243,9 @@ int pbkdf2_test(void);
 #ifdef HAVE_PKCS7
     int pkcs7enveloped_test(void);
     int pkcs7signed_test(void);
+#endif
+#ifdef HAVE_PKCS11
+    int pkcs11_test(void);
 #endif
 #if defined(WOLFSSL_CERT_EXT) && defined(WOLFSSL_TEST_CERT)
 int  certext_test(void);
@@ -647,6 +653,13 @@ int wolfcrypt_test(void* args)
         return err_sys("PKCS7signed    test failed!\n", ret);
     else
         printf( "PKCS7signed    test passed!\n");
+#endif
+
+#ifdef HAVE_PKCS11
+    if ( (ret = pkcs11_test()) != 0)
+        return err_sys("PKCS11   test failed!\n", ret);
+    else
+        printf( "PKCS11   test passed!\n");
 #endif
 
 #if defined(USE_WOLFSSL_MEMORY) && defined(WOLFSSL_TRACK_MEMORY)
@@ -8585,6 +8598,387 @@ int pkcs7signed_test(void)
 }
 
 #endif /* HAVE_PKCS7 */
+
+
+#ifdef HAVE_PKCS11
+int pkcs11_test(void)
+{
+    int ret = 0;
+    unsigned char dgst[] = {0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
+        0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F, 0x10, 0x11, 0x12, 0x13, 0x14};
+    unsigned char test[] = {0x45, 0x76, 0x65, 0x72, 0x79, 0x6f, 0x6e, 0x65,
+        0x20, 0x67, 0x65, 0x74, 0x73, 0x20, 0x46, 0x72, 0x69, 0x64, 0x61, 0x79,
+        0x20, 0x6f, 0x66, 0x66, 0x2e};
+    unsigned char signtest[] = {0x07, 0x6f, 0xc9, 0x85, 0x73, 0x9e, 0x21, 0x79,
+        0x47, 0xf1, 0xa3, 0xd7, 0xf4, 0x27, 0x29, 0xbe, 0x99, 0x5d, 0xac, 0xb2,
+        0x10, 0x3f, 0x95, 0xda, 0x89, 0x23, 0xb8, 0x96, 0x13, 0x57, 0x72, 0x30,
+        0xa1, 0xfe, 0x5a, 0x68, 0x9c, 0x99, 0x9d, 0x1e, 0x05, 0xa4, 0x80, 0xb0,
+        0xbb, 0xd9, 0xd9, 0xa1, 0x69, 0x97, 0x74, 0xb3, 0x41, 0x21, 0x3b, 0x47,
+        0xf5, 0x51, 0xb1, 0xfb, 0xc7, 0xaa, 0xcc, 0xdc, 0xcd, 0x76, 0xa0, 0x28,
+        0x4d, 0x27, 0x14, 0xa4, 0xb9, 0x41, 0x68, 0x7c, 0xb3, 0x66, 0xe6, 0x6f,
+        0x40, 0x76, 0xe4, 0x12, 0xfd, 0xae, 0x29, 0xb5, 0x63, 0x60, 0x87, 0xce,
+        0x49, 0x6b, 0xf3, 0x05, 0x9a, 0x14, 0xb5, 0xcc, 0xcd, 0xf7, 0x30, 0x95,
+        0xd2, 0x72, 0x52, 0x1d, 0x5b, 0x7e, 0xef, 0x4a, 0x02, 0x96, 0x21, 0x6c,
+        0x55, 0xa5, 0x15, 0xb1, 0x57, 0x63, 0x2c, 0xa3, 0x8e, 0x9d, 0x3d, 0x45,
+        0xcc, 0xb8, 0xe6, 0xa1, 0xc8, 0x59, 0xcd, 0xf5, 0xdc, 0x0a, 0x51, 0xb6,
+        0x9d, 0xfb, 0xf4, 0x6b, 0xfd, 0x32, 0x71, 0x6e, 0xcf, 0xcb, 0xb3, 0xd9,
+        0xe0, 0x4a, 0x77, 0x34, 0xd6, 0x61, 0xf5, 0x7c, 0xf9, 0xa9, 0xa4, 0xb0,
+        0x8e, 0x3b, 0xd6, 0x04, 0xe0, 0xde, 0x2b, 0x5b, 0x5a, 0xbf, 0xd9, 0xef,
+        0x8d, 0xa3, 0xf5, 0xb1, 0x67, 0xf3, 0xb9, 0x72, 0x0a, 0x37, 0x12, 0x35,
+        0x6c, 0x8e, 0x10, 0x8b, 0x38, 0x06, 0x16, 0x4b, 0x20, 0x20, 0x13, 0x00,
+        0x2e, 0x6d, 0xc2, 0x59, 0x23, 0x67, 0x4a, 0x6d, 0xa1, 0x46, 0x8b, 0xee,
+        0xcf, 0x44, 0xb4, 0x3e, 0x56, 0x75, 0x00, 0x68, 0xb5, 0x7d, 0x0f, 0x20,
+        0x79, 0x5d, 0x7f, 0x12, 0x15, 0x32, 0x89, 0x61, 0x6b, 0x29, 0xb7, 0x52,
+        0xf5, 0x25, 0xd8, 0x98, 0xe8, 0x6f, 0xf9, 0x22, 0xb4, 0xbb, 0xe5, 0xff,
+        0xd0, 0x92, 0x86, 0x9a, 0x88, 0xa2, 0xaf, 0x6b};
+
+    unsigned char sign[512], data[64], encData[512], decData[512];
+    unsigned long i;
+    unsigned long signSz = 0, dataSz = 0, encDataSz = 0, decDataSz = 0;
+
+    CK_CHAR_PTR pin = (CK_CHAR_PTR)"1234",
+                keyName = (CK_CHAR_PTR)"WolfSSL_test_rsa_k1",
+                keyName2 = (CK_CHAR_PTR)"WolfSSL_test_rsa_k2",
+                serverKeyName = (CK_CHAR_PTR)"svrKey",
+                clientKeyName = (CK_CHAR_PTR)"cliKey";
+
+    CK_SESSION_HANDLE sessionId = 0;
+    CK_SLOT_ID        slotId = 0;
+    CK_OBJECT_HANDLE  rsaKey1Prv, rsaKey1Pub, rsaKey2Pub;
+    CK_OBJECT_HANDLE  rsaKeySrvPrv, rsaKeySrvPub, rsaKeyCliPrv, rsaKeyCliPub;
+    byte              rsaKeyDer[2*sizeof(CK_OBJECT_HANDLE)];
+    word32            rsaKeyDerSz;
+    RsaKey            rsaKeySrv, rsaKeyCli;
+
+    ret = wc_PKCS11_Init();
+    if (ret != 0)
+        return -199;
+
+    /* Open a session and login on the HSM */
+    ret = wc_PKCS11_OpenSession(slotId, pin, &sessionId);
+    if (ret != 0)
+        return -200;
+
+    /* Geereate a key pair on HSM */
+    ret = wc_PKCS11_GenerateRsa(sessionId, 2048, keyName);
+    if (ret != 0) {
+        return -201;
+        goto end;
+    }
+
+    /* Load the generated key pair */
+    ret = wc_PKCS11_KeyLoad(sessionId, keyName, RSA_PRIVATE, &rsaKey1Prv);
+    if (ret != 0) {
+        ret = -202;
+        goto end;
+    }
+
+    ret = wc_PKCS11_KeyLoad(sessionId, keyName, RSA_PUBLIC, &rsaKey1Pub);
+    if (ret != 0) {
+        ret = -203;
+        goto end;
+    }
+
+    /* Generate a second key pair on HSM */
+    ret = wc_PKCS11_GenerateRsa(sessionId, 2048, keyName2);
+    if (ret != 0) {
+        ret = -204;
+        goto end;
+    }
+    /* Load the public key part only of key pair generated */
+    ret = wc_PKCS11_KeyLoad(sessionId, keyName2, RSA_PUBLIC, &rsaKey2Pub);
+    if (ret != 0) {
+        ret = -205;
+        goto end;
+    }
+
+    signSz = sizeof(sign);
+    ret = wc_PKCS11_RsaSign(sessionId, rsaKey1Prv,
+                            dgst, sizeof(dgst), sign, &signSz);
+    if (ret != 0) {
+        ret = -206;
+        goto end;
+    }
+
+    /*  check signature ko */
+    sign[signSz/2] = ~sign[signSz/2];
+
+    ret = wc_PKCS11_RsaVerify(sessionId, rsaKey1Pub,
+                              dgst, sizeof(dgst), sign, signSz);
+    if (ret == 0) {
+        ret = -207;
+        goto end;
+    }
+
+    /* restore signature value */
+    sign[signSz/2] = ~sign[signSz/2];
+
+    /*  check digest ko */
+    dgst[sizeof(dgst)/2] = ~dgst[sizeof(dgst)/2];
+
+    ret = wc_PKCS11_RsaVerify(sessionId, rsaKey1Pub,
+                              dgst, sizeof(dgst), sign, signSz);
+    if (ret == 0) {
+        ret = -208;
+        goto end;
+    }
+
+    /* restore digest value */
+    dgst[sizeof(dgst)/2] = ~dgst[sizeof(dgst)/2];
+
+    /* check with other key than the one used to sign */
+    ret = wc_PKCS11_RsaVerify(sessionId, rsaKey2Pub,
+                              dgst, sizeof(dgst), sign, signSz);
+    if (ret == 0) {
+        ret = -209;
+        goto end;
+    }
+
+    /* check signature ok */
+    ret = wc_PKCS11_RsaVerify(sessionId, rsaKey1Pub,
+                              dgst, sizeof(dgst), sign, signSz);
+    if (ret != 0) {
+        ret = -210;
+        goto end;
+    }
+
+    /* PKCS encryption/decryption */
+    /* Load the server key pair */
+    ret = wc_PKCS11_KeyLoad(sessionId, serverKeyName, RSA_PRIVATE, &rsaKeySrvPrv);
+    if (ret != 0) {
+        ret = -211;
+        goto end;
+    }
+    ret = wc_PKCS11_KeyLoad(sessionId, serverKeyName, RSA_PUBLIC, &rsaKeySrvPub);
+    if (ret != 0) {
+        ret = -212;
+        goto end;
+    }
+
+    for (i = 1; i < sizeof(data); i++) {
+        dataSz = i;
+        encDataSz = sizeof(encData);
+        decDataSz = sizeof(decData);
+        XMEMSET(data, dataSz, dataSz);
+        XMEMSET(encData, 0, encDataSz);
+        XMEMSET(decData, 0, decDataSz);
+
+        /* check encryption */
+        ret = wc_PKCS11_RsaEncrypt(sessionId,
+                                   rsaKeySrvPub,
+                                   data, dataSz, encData, &encDataSz);
+        if (ret != 0) {
+            ret = -213;
+            goto end;
+        }
+
+        /* check decryption */
+        ret = wc_PKCS11_RsaDecrypt(sessionId,
+                                   rsaKeySrvPrv,
+                                   encData, encDataSz, decData, &decDataSz);
+        if (ret != 0) {
+            ret = -214;
+            goto end;
+        }
+
+        /* check values */
+        if (decDataSz != dataSz) {
+            ret = -215;
+            goto end;
+        }
+
+        if (XMEMCMP(data, decData, decDataSz)) {
+            ret = -216;
+            goto end;
+        }
+    }
+
+    /* OAEP encryption/decryption */
+    for (i = 1; i < sizeof(data); i++) {
+        dataSz = i;
+        encDataSz = sizeof(encData);
+        decDataSz = sizeof(decData);
+        XMEMSET(data, dataSz, dataSz);
+        XMEMSET(encData, 0, encDataSz);
+        XMEMSET(decData, 0, decDataSz);
+
+        /* check encryption */
+        ret = wc_PKCS11_RsaEncryptOAEP(sessionId,
+                                       rsaKeySrvPub,
+                                       data, dataSz, encData, &encDataSz,
+                                       NULL, 0, WC_HASH_TYPE_SHA, WC_MGF1SHA1);
+        if (ret != 0) {
+            ret = -217;
+            goto end;
+        }
+
+        /* check decryption */
+        ret = wc_PKCS11_RsaDecryptOAEP(sessionId,
+                                       rsaKeySrvPrv,
+                                       encData, encDataSz, decData, &decDataSz,
+                                       NULL, 0, WC_HASH_TYPE_SHA, WC_MGF1SHA1);
+        if (ret != 0) {
+            ret = -218;
+            goto end;
+        }
+
+        /* check values */
+        if (decDataSz != dataSz) {
+            ret = -219;
+            printf("Invalid decrypted data size\n");
+            goto end;
+        }
+
+        if (XMEMCMP(data, decData, decDataSz)) {
+            ret = -220;
+            printf("Invalid decrypted data\n");
+            goto end;
+        }
+    }
+
+    /* encode handle to compute server RsaKey */
+    rsaKeyDerSz = sizeof(rsaKeyDer);
+    XMEMSET(rsaKeyDer, 0, rsaKeyDerSz);
+    ret = wc_PKCS11_PrivateKeyEncodeDer(rsaKeyDer, &rsaKeyDerSz,
+                                        rsaKeySrvPrv, rsaKeySrvPub);
+    if (ret != 0) {
+        ret = -221;
+        goto end;
+    }
+
+    /* init server RsaKey */
+    ret = wc_InitRsaKeyPKCS11(&rsaKeySrv, NULL, sessionId);
+    if (ret != 0) {
+        ret = -222;
+        goto end;
+    }
+
+    /* decode server key */
+    ret = wc_RsaPrivateKeyDecodePKCS11(rsaKeyDer, rsaKeyDerSz,
+                                       &rsaKeySrv);
+    if (ret != 0) {
+        ret = -223;
+        goto end;
+    }
+
+    /* RSA functions test */
+    ret = wc_RsaPublicEncrypt(data, dataSz, encData, sizeof(encData),
+                              &rsaKeySrv, NULL);
+    if (ret < 0) {
+        ret = -224;
+        goto end;
+    }
+    ret = wc_RsaPrivateDecrypt(encData, ret, decData, sizeof(decData),
+                               &rsaKeySrv);
+    if (ret < 0) {
+        ret = -225;
+        goto end;
+    }
+    if (XMEMCMP(data, decData, dataSz)) {
+        ret = -226;
+        printf("Invalid decrypted data\n");
+        goto end;
+    }
+
+    /* Load the client key pair */
+    ret = wc_PKCS11_KeyLoad(sessionId, clientKeyName, RSA_PRIVATE, &rsaKeyCliPrv);
+    if (ret != 0) {
+        ret = -227;
+        goto end;
+    }
+    ret = wc_PKCS11_KeyLoad(sessionId, clientKeyName, RSA_PUBLIC, &rsaKeyCliPub);
+    if (ret != 0) {
+        ret = -228;
+        goto end;
+    }
+
+    /* encode handle to compute client RsaKey */
+    rsaKeyDerSz = sizeof(rsaKeyDer);
+    XMEMSET(rsaKeyDer, 0, rsaKeyDerSz);
+    ret = wc_PKCS11_PrivateKeyEncodeDer(rsaKeyDer, &rsaKeyDerSz,
+                                        rsaKeyCliPrv, rsaKeyCliPub);
+    if (ret != 0) {
+        ret = -229;
+        goto end;
+    }
+
+    /* init client RsaKey */
+    ret = wc_InitRsaKeyPKCS11(&rsaKeyCli, NULL, sessionId);
+    if (ret != 0) {
+        ret = -230;
+        goto end;
+    }
+
+    /* decode client key */
+    ret = wc_RsaPrivateKeyDecodePKCS11(rsaKeyDer, rsaKeyDerSz,
+                                       &rsaKeyCli);
+    if (ret != 0) {
+        ret = -231;
+        goto end;
+    }
+
+    /* SSL sign/verify known key/value */
+    XMEMSET(encData, 0, sizeof(encData));
+    ret = wc_RsaSSL_Sign(test, sizeof(test), encData, sizeof(encData),
+                         &rsaKeyCli, NULL);
+    if (ret < 0) {
+        ret = -232;
+        goto end;
+    }
+    if (ret != sizeof(signtest) || XMEMCMP(signtest, encData, ret)) {
+        ret = -233;
+        goto end;
+    }
+
+    XMEMSET(decData, 0, sizeof(decData));
+    ret = wc_RsaSSL_Verify(signtest, sizeof(signtest), decData, sizeof(decData),
+                           &rsaKeyCli);
+    if (ret < 0) {
+        ret = -234;
+        goto end;
+    }
+    if (ret != sizeof(test) || XMEMCMP(test, decData, ret)) {
+        ret = -235;
+        goto end;
+    }
+
+    /* SSL sign/verify */
+    XMEMSET(sign, 0, sizeof(sign));
+    ret = wc_RsaSSL_Sign(dgst, sizeof(dgst), sign, sizeof(sign),
+                         &rsaKeySrv, NULL);
+    if (ret < 0) {
+        ret = -236;
+        goto end;
+    }
+
+    XMEMSET(decData, 0, sizeof(decData));
+    ret = wc_RsaSSL_Verify(sign, ret, decData, sizeof(decData), &rsaKeySrv);
+    if (ret < 0) {
+        ret = -237;
+        goto end;
+    }
+    if (ret != sizeof(dgst) || XMEMCMP(decData, dgst, ret)) {
+        ret = -238;
+        goto end;
+    }
+
+    ret = 0;
+
+end:
+    wc_FreeRsaKeyPKCS11(&rsaKeySrv);
+    wc_FreeRsaKeyPKCS11(&rsaKeyCli);
+
+    wc_PKCS11_DeleteRsa(sessionId, keyName);
+    wc_PKCS11_DeleteRsa(sessionId, keyName2);
+    
+    wc_PKCS11_CloseSession(sessionId);
+    
+    wc_PKCS11_Cleanup();
+    
+    return ret;
+}
+#endif /* HAVE_PKCS11 */
+
 
 #undef ERROR_OUT
 

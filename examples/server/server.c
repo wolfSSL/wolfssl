@@ -71,6 +71,27 @@
 #endif
 
 
+#ifdef HAVE_PKCS11
+
+#define hsmSlotId 0
+#define hsmPIN    "1234"
+#define hsmKey    "svrKey"
+
+static void SetupHSMCallbacks(WOLFSSL_CTX* ctx, WOLFSSL* ssl)
+{
+    (void)ctx;
+    (void)ssl;
+
+#ifndef NO_RSA
+    wolfSSL_CTX_SetRsaSignCb(ctx, wolfSSL_RsaSignPKCS11);
+    wolfSSL_CTX_SetRsaDecCb(ctx, wolfSSL_RsaDecPKCS11);
+
+    /* only usable if the public key was set in HSM */
+    wolfSSL_CTX_SetRsaVerifyCb(ctx, wolfSSL_RsaVerifyPKCS11);
+    wolfSSL_CTX_SetRsaEncCb(ctx, wolfSSL_RsaEncPKCS11);
+#endif /* NO_RSA */
+}
+#endif
 
 static int NonBlockingSSL_Accept(SSL* ssl)
 {
@@ -245,6 +266,9 @@ static void Usage(void)
 #ifdef HAVE_WNR
     printf("-q <file>   Whitewood config file,      default %s\n", wnrConfig);
 #endif
+#ifdef HAVE_PKCS11
+    printf("-H          use Hardware Security Module\n");
+#endif
 }
 
 THREAD_RETURN CYASSL_THREAD server_test(void* args)
@@ -268,6 +292,9 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     int    useAnyAddr = 0;
     word16 port = wolfSSLPort;
     int    usePsk = 0;
+#ifdef HAVE_PKCS11
+    int    useHSM = 0;
+#endif
     int    usePskPlus = 0;
     int    useAnon = 0;
     int    doDTLS = 0;
@@ -366,7 +393,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     useAnyAddr = 1;
 #else
     while ((ch = mygetopt(argc, argv,
-                  "?jdbstnNufrawPIR:p:v:l:A:c:k:Z:S:oO:D:L:ieB:E:q:")) != -1) {
+                  "?jdbstnNufrawPHIR:p:v:l:A:c:k:Z:S:oO:D:L:ieB:E:q:")) != -1) {
         switch (ch) {
             case '?' :
                 Usage();
@@ -550,6 +577,12 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
                 #endif
                 break;
 
+            case 'H' :
+                #ifdef HAVE_PKCS11
+                    useHSM = 1;
+                #endif
+                break;
+
             default:
                 Usage();
                 exit(MY_EX_USAGE);
@@ -724,6 +757,19 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
 #endif
 #if !defined(NO_FILESYSTEM) && !defined(NO_CERTS)
     if (!useNtruKey && (!usePsk || usePskPlus) && !useAnon) {
+#if defined(HAVE_PKCS11)
+        if (useHSM) {
+            /* Open a session and login on the HSM */
+            if (wolfSSL_CTX_OpenSesionPKCS11(ctx, hsmSlotId, hsmPIN)
+                != SSL_SUCCESS)
+                err_sys("can't open PKCS11 session");
+
+            /* set the private key to use */
+            if (wolfSSL_CTX_use_PrivateKey_Pkcs11(ctx, hsmKey) != SSL_SUCCESS)
+                err_sys("can't load PKCS11 cliKey");
+        }
+        else
+#endif
         if (SSL_CTX_use_PrivateKey_file(ctx, ourKey, SSL_FILETYPE_PEM)
                                          != SSL_SUCCESS)
             err_sys("can't load server private key file, check file and run "
@@ -886,8 +932,14 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
             err_sys("can't load ca file, Please run from wolfSSL home dir");
 #endif
 #ifdef HAVE_PK_CALLBACKS
-        if (pkCallbacks)
-            SetupPkCallbacks(ctx, ssl);
+        if (pkCallbacks) {
+#ifdef HAVE_PKCS11
+            if (useHSM)
+                SetupHSMCallbacks(ctx, ssl);
+            else
+#endif /* HAVE_PKCS11 */
+                SetupPkCallbacks(ctx, ssl);
+        }
 #endif
 
         /* do accept */
