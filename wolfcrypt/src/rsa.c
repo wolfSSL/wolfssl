@@ -193,6 +193,13 @@ int wc_InitRsaKey_ex(RsaKey* key, void* heap, int devId)
     else
 #endif
     {
+    /* For normal math defer the memory allocations */
+    #ifndef USE_FAST_MATH
+        key->n.dp = key->e.dp = 0;  /* public  alloc parts */
+        key->d.dp = key->p.dp  = 0; /* private alloc parts */
+        key->q.dp = key->dP.dp = 0;
+        key->u.dp = key->dQ.dp = 0;
+    #else
         mp_init(&key->n);
         mp_init(&key->e);
         mp_init(&key->d);
@@ -201,6 +208,7 @@ int wc_InitRsaKey_ex(RsaKey* key, void* heap, int devId)
         mp_init(&key->dP);
         mp_init(&key->dQ);
         mp_init(&key->u);
+    #endif /* USE_FAST_MATH */
     }
 
     return ret;
