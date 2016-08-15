@@ -53,17 +53,15 @@
     #include <cyassl/ctaocrypt/hmac.h>
 #endif
 
-#ifdef HAVE_CAVIUM
-    #include <wolfssl/wolfcrypt/logging.h>
-    #include "cavium_common.h"
-#endif
-
 
 #ifdef __cplusplus
     extern "C" {
 #endif
 #ifndef HAVE_FIPS
-#define WOLFSSL_HMAC_CAVIUM_MAGIC 0xBEEF0005
+        
+#ifdef WOLFSSL_ASYNC_CRYPT
+    #include <wolfssl/wolfcrypt/async.h>
+#endif
 
 enum {
     HMAC_FIPS_MIN_KEY = 14,   /* 112 bit key length minimum */
@@ -144,18 +142,18 @@ typedef struct Hmac {
     word32  ipad[HMAC_BLOCK_SIZE  / sizeof(word32)];  /* same block size all*/
     word32  opad[HMAC_BLOCK_SIZE  / sizeof(word32)];
     word32  innerHash[MAX_DIGEST_SIZE / sizeof(word32)];
-#ifdef HAVE_CAVIUM
-    word64   contextHandle;   /* nitrox context memory handle */
-    HashType type;            /* hmac key type */
-    word32   magic;           /* using cavium magic */
-    int      devId;           /* nitrox device id */
-    void*    heap             /* heap hint , currently only used with cavium */
-    byte*    data;            /* buffered input data for one call */
-    word16   keyLen;          /* hmac key length */
-    word16   dataLen;
-#endif
-    byte    macType;        /* md5 sha or sha256 */
-    byte    innerHashKeyed; /* keyed flag */
+    void*   heap;                 /* heap hint */
+    byte    macType;              /* md5 sha or sha256 */
+    byte    innerHashKeyed;       /* keyed flag */
+#ifdef WOLFSSL_ASYNC_CRYPT
+    AsyncCryptDev asyncDev;
+    #ifdef HAVE_CAVIUM
+        word16   keyLen;          /* hmac key length */
+        word16   dataLen;
+        HashType type;            /* hmac key type */
+        byte*    data;            /* buffered input data for one call */
+    #endif /* HAVE_CAVIUM */
+#endif /* WOLFSSL_ASYNC_CRYPT */
 } Hmac;
 
 #endif /* HAVE_FIPS */
@@ -164,11 +162,13 @@ typedef struct Hmac {
 WOLFSSL_API int wc_HmacSetKey(Hmac*, int type, const byte* key, word32 keySz);
 WOLFSSL_API int wc_HmacUpdate(Hmac*, const byte*, word32);
 WOLFSSL_API int wc_HmacFinal(Hmac*, byte*);
-
-#ifdef HAVE_CAVIUM
-    WOLFSSL_API int  wc_HmacInitCavium(Hmac*, int);
-    WOLFSSL_API void wc_HmacFreeCavium(Hmac*);
+WOLFSSL_API int wc_HmacSizeByType(int type);
+#ifdef WOLFSSL_ASYNC_CRYPT
+    WOLFSSL_API int  wc_HmacAsyncInit(Hmac*, int);
+    WOLFSSL_API void wc_HmacAsyncFree(Hmac*);
 #endif
+
+
 
 WOLFSSL_API int wolfSSL_GetHmacMaxSize(void);
 

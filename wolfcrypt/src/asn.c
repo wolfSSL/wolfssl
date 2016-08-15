@@ -646,7 +646,7 @@ static int GetExplicitVersion(const byte* input, word32* inOutIdx, int* version)
 }
 #endif /* !NO_ASN_TIME */
 
-WOLFSSL_LOCAL int GetInt(mp_int* mpi, const byte* input, word32* inOutIdx,
+int GetInt(mp_int* mpi, const byte* input, word32* inOutIdx,
                   word32 maxIdx)
 {
     word32 i = *inOutIdx;
@@ -675,6 +675,62 @@ WOLFSSL_LOCAL int GetInt(mp_int* mpi, const byte* input, word32* inOutIdx,
     *inOutIdx = i + length;
     return 0;
 }
+
+#if !defined(NO_RSA) && !defined(HAVE_USER_RSA)
+static int GetIntRsa(RsaKey* key, mp_int* mpi, const byte* input,
+                        word32* inOutIdx, word32 maxIdx)
+{
+    word32 i = *inOutIdx;
+    byte   b = input[i++];
+    int    length;
+
+    (void)key;
+
+    if (b != ASN_INTEGER)
+        return ASN_PARSE_E;
+
+    if (GetLength(input, &i, &length, maxIdx) < 0)
+        return ASN_PARSE_E;
+
+    if ( (b = input[i++]) == 0x00)
+        length--;
+    else
+        i--;
+
+#if defined(WOLFSSL_ASYNC_CRYPT) && defined(HAVE_CAVIUM)
+    if (key->asyncDev.marker == WOLFSSL_ASYNC_MARKER_RSA) {
+        XMEMSET(mpi, 0, sizeof(mp_int));
+        mpi->used = length;
+    #ifdef USE_FAST_MATH
+        if (length > (FP_SIZE * (int)sizeof(fp_digit))) {
+            return MEMORY_E;
+        }
+        mpi->dpraw = (byte*)mpi->dp;
+    #else
+        mpi->dpraw = (byte*)XMALLOC(length, key->heap, DYNAMIC_TYPE_ASYNC_RSA);
+    #endif
+        if (mpi->dpraw == NULL) {
+            return MEMORY_E;
+        }
+
+        XMEMCPY(mpi->dpraw, input + i, length);
+    }
+    else
+#endif /* WOLFSSL_ASYNC_CRYPT && HAVE_CAVIUM */
+    {
+        if (mp_init(mpi) != MP_OKAY)
+            return MP_INIT_E;
+
+        if (mp_read_unsigned_bin(mpi, (byte*)input + i, length) != 0) {
+            mp_clear(mpi);
+            return ASN_GETINT_E;
+        }
+    }
+
+    *inOutIdx = i + length;
+    return 0;
+}
+#endif /* !NO_RSA && !HAVE_USER_RSA */
 
 
 /* hashType */
@@ -1297,78 +1353,11 @@ WOLFSSL_LOCAL int GetAlgoId(const byte* input, word32* inOutIdx, word32* oid,
 
 #ifndef NO_RSA
 
-
-#ifdef HAVE_CAVIUM
-
-static int GetCaviumInt(byte** buff, word16* buffSz, const byte* input,
-                        word32* inOutIdx, word32 maxIdx, void* heap)
-{
-    word32 i = *inOutIdx;
-    byte   b = input[i++];
-    int    length;
-
-    if (b != ASN_INTEGER)
-        return ASN_PARSE_E;
-
-    if (GetLength(input, &i, &length, maxIdx) < 0)
-        return ASN_PARSE_E;
-
-    if ( (b = input[i++]) == 0x00)
-        length--;
-    else
-        i--;
-
-    *buffSz = (word16)length;
-    *buff   = XMALLOC(*buffSz, heap, DYNAMIC_TYPE_CAVIUM_RSA);
-    if (*buff == NULL)
-        return MEMORY_E;
-
-    XMEMCPY(*buff, input + i, *buffSz);
-
-    *inOutIdx = i + length;
-    return 0;
-}
-
-static int CaviumRsaPrivateKeyDecode(const byte* input, word32* inOutIdx,
-                                     RsaKey* key, word32 inSz)
-{
-    int   version, length;
-    void* h = key->heap;
-
-    if (GetSequence(input, inOutIdx, &length, inSz) < 0)
-        return ASN_PARSE_E;
-
-    if (GetMyVersion(input, inOutIdx, &version) < 0)
-        return ASN_PARSE_E;
-
-    key->type = RSA_PRIVATE;
-
-    if (GetCaviumInt(&key->c_n,  &key->c_nSz,   input, inOutIdx, inSz, h) < 0 ||
-        GetCaviumInt(&key->c_e,  &key->c_eSz,   input, inOutIdx, inSz, h) < 0 ||
-        GetCaviumInt(&key->c_d,  &key->c_dSz,   input, inOutIdx, inSz, h) < 0 ||
-        GetCaviumInt(&key->c_p,  &key->c_pSz,   input, inOutIdx, inSz, h) < 0 ||
-        GetCaviumInt(&key->c_q,  &key->c_qSz,   input, inOutIdx, inSz, h) < 0 ||
-        GetCaviumInt(&key->c_dP, &key->c_dP_Sz, input, inOutIdx, inSz, h) < 0 ||
-        GetCaviumInt(&key->c_dQ, &key->c_dQ_Sz, input, inOutIdx, inSz, h) < 0 ||
-        GetCaviumInt(&key->c_u,  &key->c_uSz,   input, inOutIdx, inSz, h) < 0 )
-            return ASN_RSA_KEY_E;
-
-    return 0;
-}
-
-
-#endif /* HAVE_CAVIUM */
-
 #ifndef HAVE_USER_RSA
 int wc_RsaPrivateKeyDecode(const byte* input, word32* inOutIdx, RsaKey* key,
                         word32 inSz)
 {
-    int    version, length;
-
-#ifdef HAVE_CAVIUM
-    if (key->magic == WOLFSSL_RSA_CAVIUM_MAGIC)
-        return CaviumRsaPrivateKeyDecode(input, inOutIdx, key, inSz);
-#endif
+    int version, length;
 
     if (GetSequence(input, inOutIdx, &length, inSz) < 0)
         return ASN_PARSE_E;
@@ -1378,14 +1367,14 @@ int wc_RsaPrivateKeyDecode(const byte* input, word32* inOutIdx, RsaKey* key,
 
     key->type = RSA_PRIVATE;
 
-    if (GetInt(&key->n,  input, inOutIdx, inSz) < 0 ||
-        GetInt(&key->e,  input, inOutIdx, inSz) < 0 ||
-        GetInt(&key->d,  input, inOutIdx, inSz) < 0 ||
-        GetInt(&key->p,  input, inOutIdx, inSz) < 0 ||
-        GetInt(&key->q,  input, inOutIdx, inSz) < 0 ||
-        GetInt(&key->dP, input, inOutIdx, inSz) < 0 ||
-        GetInt(&key->dQ, input, inOutIdx, inSz) < 0 ||
-        GetInt(&key->u,  input, inOutIdx, inSz) < 0 )  return ASN_RSA_KEY_E;
+    if (GetIntRsa(key, &key->n,  input, inOutIdx, inSz) < 0 ||
+        GetIntRsa(key, &key->e,  input, inOutIdx, inSz) < 0 ||
+        GetIntRsa(key, &key->d,  input, inOutIdx, inSz) < 0 ||
+        GetIntRsa(key, &key->p,  input, inOutIdx, inSz) < 0 ||
+        GetIntRsa(key, &key->q,  input, inOutIdx, inSz) < 0 ||
+        GetIntRsa(key, &key->dP, input, inOutIdx, inSz) < 0 ||
+        GetIntRsa(key, &key->dQ, input, inOutIdx, inSz) < 0 ||
+        GetIntRsa(key, &key->u,  input, inOutIdx, inSz) < 0 )  return ASN_RSA_KEY_E;
 
     return 0;
 }
@@ -3674,11 +3663,22 @@ static int ConfirmSignature(const byte* buf, word32 bufSz,
             else {
                 XMEMCPY(plain, sig, sigSz);
 
-                if ((verifySz = wc_RsaSSL_VerifyInline(plain, sigSz, &out,
-                                                                 pubKey)) < 0) {
+                ret = 0;
+                do {
+                #if defined(WOLFSSL_ASYNC_CRYPT)
+                    ret = wc_RsaAsyncWait(ret, pubKey);
+                #endif
+                    if (ret >= 0) {
+                        ret = wc_RsaSSL_VerifyInline(plain, sigSz, &out,
+                                                                    pubKey);
+                    }
+                } while (ret == WC_PENDING_E);
+
+                if (ret < 0) {
                     WOLFSSL_MSG("Rsa SSL verify error");
                 }
                 else {
+                    verifySz = ret;
                     /* make sure we're right justified */
                     encodedSigSz =
                         wc_EncodeSignature(encodedSig, digest, digestSz, typeH);
@@ -7359,7 +7359,15 @@ static int MakeSignature(const byte* buffer, int sz, byte* sig, int sigSz,
     if (rsaKey) {
         /* signature */
         encSigSz = wc_EncodeSignature(encSig, digest, digestSz, typeH);
-        ret = wc_RsaSSL_Sign(encSig, encSigSz, sig, sigSz, rsaKey, rng);
+        ret = 0;
+        do {
+#if defined(WOLFSSL_ASYNC_CRYPT)
+            ret = wc_RsaAsyncWait(ret, rsaKey);
+#endif
+            if (ret >= 0) {
+                ret = wc_RsaSSL_Sign(encSig, encSigSz, sig, sigSz, rsaKey, rng);
+            }
+        } while (ret == WC_PENDING_E);
     }
 #endif
 

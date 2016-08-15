@@ -312,8 +312,8 @@
 	    DYNAMIC_TYPE_ECC          = 37,
 	    DYNAMIC_TYPE_TMP_BUFFER   = 38,
 	    DYNAMIC_TYPE_DTLS_MSG     = 39,
-	    DYNAMIC_TYPE_CAVIUM_TMP   = 40,
-	    DYNAMIC_TYPE_CAVIUM_RSA   = 41,
+	    DYNAMIC_TYPE_ASYNC_TMP    = 40,
+	    DYNAMIC_TYPE_ASYNC_RSA    = 41,
 	    DYNAMIC_TYPE_X509         = 42,
 	    DYNAMIC_TYPE_TLSX         = 43,
 	    DYNAMIC_TYPE_OCSP         = 44,
@@ -375,6 +375,9 @@
 	   types need to match at compile time and run time, CheckCtcSettings will
 	   return 1 if a match otherwise 0 */
 	#define CheckCtcSettings() (CTC_SETTINGS == CheckRunTimeSettings())
+
+	/* invalid device id */
+	#define INVALID_DEVID    -2
 
 
 	#ifdef __cplusplus

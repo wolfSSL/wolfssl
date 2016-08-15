@@ -31,6 +31,10 @@
 #include <wolfssl/wolfcrypt/settings.h>
 #include <wolfssl/version.h>
 
+#ifdef HAVE_WOLF_EVENT
+    #include <wolfssl/wolfcrypt/wolfevent.h>
+#endif
+
 #ifndef NO_FILESYSTEM
     #if defined(FREESCALE_MQX) || defined(FREESCALE_KSDK_MQX)
         #if MQX_USE_IO_OLD
@@ -1416,9 +1420,9 @@ WOLFSSL_API void wolfSSL_KeepArrays(WOLFSSL*);
 WOLFSSL_API void wolfSSL_FreeArrays(WOLFSSL*);
 
 
-/* cavium additions */
-WOLFSSL_API int wolfSSL_UseCavium(WOLFSSL*, int devId);
-WOLFSSL_API int wolfSSL_CTX_UseCavium(WOLFSSL_CTX*, int devId);
+/* async additions */
+WOLFSSL_API int wolfSSL_UseAsync(WOLFSSL*, int devId);
+WOLFSSL_API int wolfSSL_CTX_UseAsync(WOLFSSL_CTX*, int devId);
 
 /* TLS Extensions */
 
@@ -1909,41 +1913,13 @@ WOLFSSL_API int wolfSSL_set_jobject(WOLFSSL* ssl, void* objPtr);
 WOLFSSL_API void* wolfSSL_get_jobject(WOLFSSL* ssl);
 #endif /* WOLFSSL_JNI */
 
-#ifdef HAVE_WOLF_EVENT
-typedef enum WOLF_EVENT_TYPE {
-    WOLF_EVENT_TYPE_NONE,
-    #ifdef WOLFSSL_ASYNC_CRYPT
-        WOLF_EVENT_TYPE_ASYNC_ACCEPT,
-        WOLF_EVENT_TYPE_ASYNC_CONNECT,
-        WOLF_EVENT_TYPE_ASYNC_READ,
-        WOLF_EVENT_TYPE_ASYNC_WRITE,
-        WOLF_EVENT_TYPE_ASYNC_FIRST = WOLF_EVENT_TYPE_ASYNC_ACCEPT,
-        WOLF_EVENT_TYPE_ASYNC_LAST = WOLF_EVENT_TYPE_ASYNC_WRITE,
-    #endif
-} WOLF_EVENT_TYPE;
 
-typedef struct WOLF_EVENT WOLF_EVENT;
-struct WOLF_EVENT {
-    WOLF_EVENT*         next;   /* To support event linked list */
-	WOLFSSL*            ssl;    /* Reference back to SSL object */
-    int                 ret;    /* Async return code */
-    WOLF_EVENT_TYPE     type;
-    unsigned short      pending:1;
-    unsigned short      done:1;
-    /* Future event flags can go here */
-};
+#ifdef WOLFSSL_ASYNC_CRYPT
+WOLFSSL_API int wolfSSL_AsyncPoll(WOLFSSL* ssl, WOLF_EVENT_FLAG flags);
+WOLFSSL_API int wolfSSL_CTX_AsyncPoll(WOLFSSL_CTX* ctx, WOLF_EVENT** events, int maxEvents,
+    WOLF_EVENT_FLAG flags, int* eventCount);
+#endif /* WOLFSSL_ASYNC_CRYPT */
 
-enum WOLF_POLL_FLAGS {
-    WOLF_POLL_FLAG_CHECK_HW = 0x01,
-    WOLF_POLL_FLAG_PEEK = 0x02,
-};
-
-WOLFSSL_API int wolfSSL_CTX_poll(WOLFSSL_CTX* ctx, WOLF_EVENT* events,
-    int maxEvents, unsigned char flags, int* eventCount);
-WOLFSSL_API int wolfSSL_poll(WOLFSSL* ssl, WOLF_EVENT* events,
-    int maxEvents, unsigned char flags, int* eventCount);
-
-#endif /* HAVE_WOLF_EVENT */
 
 #ifdef __cplusplus
     }  /* extern "C" */

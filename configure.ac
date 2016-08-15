@@ -2439,27 +2439,68 @@ AC_ARG_WITH([cavium],
         AC_MSG_CHECKING([for cavium])
         CPPFLAGS="$CPPFLAGS -DHAVE_CAVIUM"
 
-            if test "x$withval" == "xyes" ; then
-                AC_MSG_ERROR([need a PATH for --with-cavium])
-            fi
-            if test "x$withval" != "xno" ; then
-                trycaviumdir=$withval
-            fi
+        if test "x$withval" == "xyes" ; then
+            AC_MSG_ERROR([need a PATH for --with-cavium])
+        fi
+        if test "x$withval" != "xno" ; then
+            trycaviumdir=$withval
+        fi
 
-            LDFLAGS="$AM_LDFLAGS $trycaviumdir/api/cavium_common.o"
-            CPPFLAGS="$CPPFLAGS -I$trycaviumdir/include"
+        LDFLAGS="$AM_LDFLAGS $trycaviumdir/api/cavium_common.o"
+        CPPFLAGS="$CPPFLAGS -I$trycaviumdir/include"
 
-            AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include "cavium_common.h"]], [[ CspShutdown(CAVIUM_DEV_ID); ]])],[ cavium_linked=yes ],[ cavium_linked=no ])
+        AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include "cavium_common.h"]], [[ CspShutdown(CAVIUM_DEV_ID); ]])],[ cavium_linked=yes ],[ cavium_linked=no ])
 
-            if test "x$cavium_linked" == "xno" ; then
-                AC_MSG_ERROR([cavium isn't found.
-                If it's already installed, specify its path using --with-cavium=/dir/])
-            fi
-            AC_MSG_RESULT([yes])
-            enable_shared=no
-            enable_static=yes
+        if test "x$cavium_linked" == "xno" ; then
+            AC_MSG_ERROR([cavium isn't found.
+            If it's already installed, specify its path using --with-cavium=/dir/])
+        fi
+        AC_MSG_RESULT([yes])
+        enable_shared=no
+        enable_static=yes
+        ENABLED_CAVIUM=yes
+    ],
+    [ ENABLED_CAVIUM=no ]
+)
+
+# cavium V
+trycaviumdir=""
+AC_ARG_WITH([cavium-v],
+    [  --with-cavium-v=PATH    PATH to Cavium V/software dir ],
+    [
+        AC_MSG_CHECKING([for cavium])
+        CPPFLAGS="$CPPFLAGS -DHAVE_CAVIUM -DHAVE_CAVIUM_V"
+
+        if test "x$withval" == "xyes" ; then
+            AC_MSG_ERROR([need a PATH for --with-cavium])
+        fi
+        if test "x$withval" != "xno" ; then
+            trycaviumdir=$withval
+        fi
+
+        LDFLAGS="$AM_LDFLAGS $trycaviumdir/utils/sample_tests/cavium_common.o $trycaviumdir/utils/sample_tests/cavium_sym_crypto.o $trycaviumdir/utils/sample_tests/cavium_asym_crypto.o"
+        CPPFLAGS="$CPPFLAGS -I$trycaviumdir/include"
+
+        #AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include "cavium_common.h"]], [[ CspShutdown(0); ]])],[ cavium_linked=yes ],[ cavium_linked=no ])
+
+        if test "x$cavium_linked" == "xno" ; then
+            AC_MSG_ERROR([cavium isn't found.
+            If it's already installed, specify its path using --with-cavium-v=/dir/])
+        fi
+        AC_MSG_RESULT([yes])
+
+        enable_shared=no
+        enable_static=yes
+        ENABLED_CAVIUM=yes
+        ENABLED_CAVIUM_V=yes
+    ],
+    [
+        ENABLED_CAVIUM_=no
+        ENABLED_CAVIUM_V=no
     ]
 )
+
+AM_CONDITIONAL([BUILD_CAVIUM], [test "x$ENABLED_CAVIUM" = "xyes"])
 
 
 # Fast RSA using Intel IPP
@@ -2668,7 +2709,7 @@ AC_ARG_ENABLE([asynccrypt],
 
 if test "$ENABLED_ASYNCCRYPT" = "yes"
 then
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ASYNC_CRYPT"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ASYNC_CRYPT -DHAVE_WOLF_EVENT"
     
     # if Cavium not enabled the use async simulator for testing
     if test "x$ENABLED_CAVIUM" = "xno"
@@ -2678,6 +2719,9 @@ then
 fi
 
 AM_CONDITIONAL([BUILD_ASYNCCRYPT], [test "x$ENABLED_ASYNCCRYPT" = "xyes"])
+
+AM_CONDITIONAL([BUILD_WOLFEVENT], [test "x$ENABLED_ASYNCCRYPT" = "xyes"])
+
 
 
 # Session Export
@@ -3069,6 +3113,7 @@ echo "   * Examples:                   $ENABLED_EXAMPLES"
 echo "   * User Crypto:                $ENABLED_USER_CRYPTO"
 echo "   * Fast RSA:                   $ENABLED_FAST_RSA"
 echo "   * Async Crypto:               $ENABLED_ASYNCCRYPT"
+echo "   * Cavium:                     $ENABLED_CAVIUM"
 echo ""
 echo "---"
 

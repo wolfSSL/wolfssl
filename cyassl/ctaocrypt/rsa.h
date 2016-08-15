@@ -47,9 +47,9 @@
     #define RsaKeyToDer wc_RsaKeyToDer
 #endif
 
-#ifdef HAVE_CAVIUM
-    #define RsaInitCavium wc_RsaInitCavium
-    #define RsaFreeCavium wc_RsaFreeCavium
+#ifdef WOLFSSL_ASYNC_CRYPT
+    #define RsaAsyncInit wc_RsaAsyncInit
+    #define RsaAsyncFree wc_RsaAsyncFree
 #endif
 
 #endif /* CTAO_CRYPT_RSA_H */

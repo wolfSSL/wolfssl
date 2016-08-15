@@ -76,6 +76,7 @@ typedef struct RsaKey {
 } RsaKey;
 
 WOLFSSL_API int  wc_InitRsaKey(RsaKey* key, void*);
+WOLFSSL_API int  wc_InitRsaKey_ex(RsaKey* key, void* heap, int devId);
 WOLFSSL_API int  wc_FreeRsaKey(RsaKey* key);
 
 WOLFSSL_API int  wc_RsaPublicEncrypt(const byte* in, word32 inLen, byte* out,

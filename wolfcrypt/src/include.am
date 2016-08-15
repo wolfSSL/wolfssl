@@ -46,4 +46,8 @@ EXTRA_DIST += wolfcrypt/src/port/ti/ti-aes.c \
               wolfcrypt/src/port/pic32/pic32mz-hash.c \
               wolfcrypt/src/port/nrf51.c
 
+if BUILD_CAVIUM
+src_libwolfssl_la_SOURCES += wolfcrypt/src/port/cavium/cavium_nitrox.c
 
+EXTRA_DIST += wolfcrypt/src/port/cavium/README.md
+endif
