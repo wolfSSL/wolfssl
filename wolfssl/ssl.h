@@ -340,7 +340,6 @@ WOLFSSL_API void wolfSSL_set_quiet_shutdown(WOLFSSL*, int);
 WOLFSSL_API int  wolfSSL_get_error(WOLFSSL*, int);
 WOLFSSL_API int  wolfSSL_get_alert_history(WOLFSSL*, WOLFSSL_ALERT_HISTORY *);
 
-WOLFSSL_API int        GetDeepCopySession(WOLFSSL*, WOLFSSL_SESSION*);
 WOLFSSL_API int        wolfSSL_set_session(WOLFSSL* ssl,WOLFSSL_SESSION* session);
 WOLFSSL_API long       wolfSSL_SSL_SESSION_set_timeout(WOLFSSL_SESSION* session, long t);
 WOLFSSL_API WOLFSSL_SESSION* wolfSSL_get_session(WOLFSSL* ssl);

@@ -7635,7 +7635,7 @@ WOLFSSL_SESSION* GetSession(WOLFSSL* ssl, byte* masterSecret,
 }
 
 
-int GetDeepCopySession(WOLFSSL* ssl, WOLFSSL_SESSION* copyFrom)
+static int GetDeepCopySession(WOLFSSL* ssl, WOLFSSL_SESSION* copyFrom)
 {
     WOLFSSL_SESSION* copyInto = &ssl->session;
     void* tmpBuff             = NULL;
@@ -7733,16 +7733,18 @@ int SetSession(WOLFSSL* ssl, WOLFSSL_SESSION* session)
         return SSL_FAILURE;
 
     if (LowResTimer() < (session->bornOn + session->timeout)) {
-        GetDeepCopySession(ssl, session);
-        ssl->options.resuming = 1;
+        int ret = GetDeepCopySession(ssl, session);
+        if (ret == SSL_SUCCESS) {
+            ssl->options.resuming = 1;
 
 #ifdef SESSION_CERTS
-        ssl->version              = session->version;
-        ssl->options.cipherSuite0 = session->cipherSuite0;
-        ssl->options.cipherSuite  = session->cipherSuite;
+            ssl->version              = session->version;
+            ssl->options.cipherSuite0 = session->cipherSuite0;
+            ssl->options.cipherSuite  = session->cipherSuite;
 #endif
+        }
 
-        return SSL_SUCCESS;
+        return ret;
     }
     return SSL_FAILURE;  /* session timed out */
 }
