@@ -1878,6 +1878,30 @@ static void test_wolfSSL_X509_NAME_get_entry(void)
 #endif /* !NO_CERTS */
 }
 
+static int test_wolfSSL_CTX_SetMinVersion(void)
+{
+    WOLFSSL_CTX*            ctx;
+    int                     version, ret;
+
+    AssertTrue(wolfSSL_Init());
+    ctx = wolfSSL_CTX_new(wolfTLSv1_2_client_method());
+    version = 3;
+
+    printf(testingFmt, "wolfSSL_CTX_SetMinVersion()");
+
+    ret = wolfSSL_CTX_SetMinVersion(ctx, version);
+
+    printf(resultFmt, ret == SSL_SUCCESS ? passed : failed);
+
+    wolfSSL_CTX_free(ctx);
+    AssertTrue(wolfSSL_Cleanup());
+
+    if(ret != SSL_SUCCESS)    {return SSL_FAILURE;}
+
+    return SSL_SUCCESS;
+
+} /* END test_wolfSSL_CTX_SetMinVersion */
+
 
 /*----------------------------------------------------------------------------*
  | OCSP Stapling
@@ -1991,6 +2015,7 @@ void ApiTest(void)
     test_wolfSSL_UseALPN();
     /* X509 tests */
     test_wolfSSL_X509_NAME_get_entry();
+    AssertTrue(test_wolfSSL_CTX_SetMinVersion());
 
     /* wolfcrypt initialization tests */
     AssertFalse(test_wolfCrypt_Init());
