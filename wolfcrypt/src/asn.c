@@ -1117,7 +1117,45 @@ int EncodeObjectId(const word16* in, word32 inSz, byte* out, word32* outSz)
 
     return 0;
 }
-#endif
+#endif /* HAVE_OID_ENCODING */
+
+#ifdef HAVE_OID_DECODING
+int DecodeObjectId(const byte* in, word32 inSz, word16* out, word32* outSz)
+{
+    int x = 0, y = 0;
+    word32 t = 0;
+
+    /* check args */
+    if (in == NULL || outSz == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    /* decode bytes */
+    while (inSz--) {
+        t = (t << 7) | (in[x] & 0x7F);
+        if (!(in[x] & 0x80)) {
+            if (y >= (int)*outSz) {
+                return BUFFER_E;
+            }
+            if (y == 0) {
+                out[0] = (t / 40);
+                out[1] = (t % 40);
+                y = 2;
+            }
+            else {
+                out[y++] = t;
+            }
+            t = 0; /* reset tmp */
+        }
+        x++;
+    }
+
+    /* return length */
+    *outSz = y;
+
+    return 0;
+}
+#endif /* HAVE_OID_DECODING */
 
 int GetObjectId(const byte* input, word32* inOutIdx, word32* oid,
                                   word32 oidType, word32 maxIdx)
@@ -1164,10 +1202,36 @@ int GetObjectId(const byte* input, word32* inOutIdx, word32* oid,
         if (oidType != oidIgnoreType) {
             checkOid = OidFromId(*oid, oidType, &checkOidSz);
 
-            if (checkOid == NULL || 
-                (checkOid != NULL && (checkOidSz != actualOidSz ||
-                    XMEMCMP(actualOid, checkOid, checkOidSz) != 0)))
+        #if 0
+            /* support for dumping OID information */
+            printf("OID (Type %d, Sz %d, Sum %d): ", oidType, actualOidSz, *oid);
+            for (i=0; i<actualOidSz; i++) {
+                printf("%d, ", actualOid[i]);
+            }
+            printf("\n");
+            #ifdef HAVE_OID_DECODING
             {
+                int ret;
+                word16 decOid[16];
+                word32 decOidSz = sizeof(decOid);
+                ret = DecodeObjectId(actualOid, actualOidSz, decOid, &decOidSz);
+                if (ret == 0) {
+                    printf("  Decoded (Sz %d): ", decOidSz);
+                    for (i=0; i<decOidSz; i++) {
+                        printf("%d.", decOid[i]);
+                    }
+                    printf("\n");
+                }
+                else {
+                    printf("DecodeObjectId failed: %d\n", ret);
+                }
+            }
+            #endif /* HAVE_OID_DECODING */
+        #endif
+
+            if (checkOid != NULL && 
+                (checkOidSz != actualOidSz ||
+                    XMEMCMP(actualOid, checkOid, checkOidSz) != 0)) {
                 WOLFSSL_MSG("OID Check Failed");
                 return ASN_UNKNOWN_OID_E;
             }
@@ -1340,7 +1404,7 @@ int ToTraditional(byte* input, word32 sz)
     if (GetMyVersion(input, &inOutIdx, &version) < 0)
         return ASN_PARSE_E;
 
-    if (GetAlgoId(input, &inOutIdx, &oid, oidSigType, sz) < 0)
+    if (GetAlgoId(input, &inOutIdx, &oid, oidKeyType, sz) < 0)
         return ASN_PARSE_E;
 
     if (input[inOutIdx] == ASN_OBJECT_ID) {
@@ -2254,13 +2318,6 @@ void FreeDecodedCert(DecodedCert* cert)
 static int GetCertHeader(DecodedCert* cert)
 {
     int ret = 0, len;
-    byte serialTmp[EXTERNAL_SERIAL_SIZE];
-#if defined(WOLFSSL_SMALL_STACK) && defined(USE_FAST_MATH)
-    mp_int* mpi = NULL;
-#else
-    mp_int stack_mpi;
-    mp_int* mpi = &stack_mpi;
-#endif
 
     if (GetSequence(cert->source, &cert->srcIdx, &len, cert->maxIdx) < 0)
         return ASN_PARSE_E;
@@ -2274,31 +2331,9 @@ static int GetCertHeader(DecodedCert* cert)
     if (GetExplicitVersion(cert->source, &cert->srcIdx, &cert->version) < 0)
         return ASN_PARSE_E;
 
-#if defined(WOLFSSL_SMALL_STACK) && defined(USE_FAST_MATH)
-    mpi = (mp_int*)XMALLOC(sizeof(mp_int), NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    if (mpi == NULL)
-        return MEMORY_E;
-#endif
-
-    if (GetInt(mpi, cert->source, &cert->srcIdx, cert->maxIdx) < 0) {
-#if defined(WOLFSSL_SMALL_STACK) && defined(USE_FAST_MATH)
-        XFREE(mpi, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+    if (GetSerialNumber(cert->source, &cert->srcIdx, cert->serial,
+                                        &cert->serialSz, cert->maxIdx) < 0)
         return ASN_PARSE_E;
-    }
-
-    len = mp_unsigned_bin_size(mpi);
-    if (len < (int)sizeof(serialTmp)) {
-        if ( (ret = mp_to_unsigned_bin(mpi, serialTmp)) == MP_OKAY) {
-            XMEMCPY(cert->serial, serialTmp, len);
-            cert->serialSz = len;
-        }
-    }
-    mp_clear(mpi);
-
-#if defined(WOLFSSL_SMALL_STACK) && defined(USE_FAST_MATH)
-    XFREE(mpi, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
 
     return ret;
 }
@@ -3509,11 +3544,11 @@ static int ConfirmSignature(const byte* buf, word32 bufSz,
 #ifdef WOLFSSL_SMALL_STACK
     byte* digest;
 #else
-    byte digest[MAX_DIGEST_SIZE];
+    byte digest[WC_MAX_DIGEST_SIZE];
 #endif
 
 #ifdef WOLFSSL_SMALL_STACK
-    digest = (byte*)XMALLOC(MAX_DIGEST_SIZE, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    digest = (byte*)XMALLOC(WC_MAX_DIGEST_SIZE, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (digest == NULL)
         return 0; /* not confirmed */
 #endif
@@ -4761,10 +4796,8 @@ static int DecodeCertExtensions(DecodedCert* cert)
 
         oid = 0;
         if ((ret = GetObjectId(input, &idx, &oid, oidCertExtType, sz)) < 0) {
-            if (ret != ASN_UNKNOWN_OID_E) {
-                WOLFSSL_MSG("\tfail: OBJECT ID");
-                return ret;
-            }
+            WOLFSSL_MSG("\tfail: OBJECT ID");
+            return ret;
         }
 
         /* check for critical flag */
@@ -5245,6 +5278,63 @@ WOLFSSL_LOCAL int SetSerialNumber(const byte* sn, word32 snSz, byte* output)
     return result;
 }
 
+WOLFSSL_LOCAL int GetSerialNumber(const byte* input, word32* inOutIdx,
+    byte* serial, int* serialSz, word32 maxIdx)
+{
+    int result = 0;
+    byte b;
+
+    WOLFSSL_ENTER("GetSerialNumber");
+
+    if (serial == NULL || input == NULL || serialSz == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    /* First byte is ASN type */
+    if ((*inOutIdx+1) > maxIdx) {
+        WOLFSSL_MSG("Bad idx first");
+        return BUFFER_E;
+    }
+    b = input[*inOutIdx];
+    *inOutIdx += 1;
+
+    if (b != ASN_INTEGER) {
+        WOLFSSL_MSG("Expecting Integer");
+        return ASN_PARSE_E;
+    }
+
+    if (GetLength(input, inOutIdx, serialSz, maxIdx) < 0) {
+        return ASN_PARSE_E;
+    }
+
+    /* serial size check */
+    if (*serialSz < 0 || *serialSz > EXTERNAL_SERIAL_SIZE) {
+        WOLFSSL_MSG("Serial size bad");
+        return ASN_PARSE_E;
+    }
+
+    /* serial size check against max index */
+    if ((*inOutIdx + *serialSz) > maxIdx) {
+        WOLFSSL_MSG("Bad idx serial");
+        return BUFFER_E;
+    }
+
+    /* only check padding and return serial if length is greater than 1 */
+    if (*serialSz > 0) {
+        /* skip padding */
+        if (input[*inOutIdx] == 0x00) {
+            *serialSz -= 1;
+            *inOutIdx += 1;
+        }
+
+        /* return serial */
+        XMEMCPY(serial, &input[*inOutIdx], *serialSz);
+        *inOutIdx += *serialSz;
+    }
+
+    return result;
+}
+
 
 
 const char* BEGIN_CERT         = "-----BEGIN CERTIFICATE-----";
@@ -5349,6 +5439,16 @@ int wc_DerToPemEx(const byte* der, word32 derSz, byte* output, word32 outSz,
         XSTRNCAT(header, "\n", 1);
 
         XSTRNCPY(footer, END_CERT_REQ, footerLen);
+        XSTRNCAT(footer, "\n", 1);
+    }
+#endif
+#ifdef HAVE_CRL
+    else if (type == CRL_TYPE)
+    {
+        XSTRNCPY(header, BEGIN_X509_CRL, headerLen);
+        XSTRNCAT(header, "\n", 1);
+
+        XSTRNCPY(footer, END_X509_CRL, footerLen);
         XSTRNCAT(footer, "\n", 1);
     }
 #endif
@@ -6700,7 +6800,7 @@ static int SetAltNames(byte *out, word32 outSz, byte *input, word32 length)
 
 
 /* encode CertName into output, return total bytes written */
-static int SetName(byte* output, word32 outputSz, CertName* name)
+int SetName(byte* output, word32 outputSz, CertName* name)
 {
     int          totalBytes = 0, i, idx;
 #ifdef WOLFSSL_SMALL_STACK
@@ -7165,7 +7265,11 @@ static int MakeSignature(const byte* buffer, int sz, byte* sig, int sigSz,
                          int sigAlgoType)
 {
     int encSigSz, digestSz, typeH = 0, ret = 0;
-    byte digest[MAX_DIGEST_SIZE]; /* max size */
+#ifdef WOLFSSL_SMALL_STACK
+    byte* digest;
+#else
+    byte digest[WC_MAX_DIGEST_SIZE]; /* max size */
+#endif
 #ifdef WOLFSSL_SMALL_STACK
     byte* encSig;
 #else
@@ -7185,6 +7289,12 @@ static int MakeSignature(const byte* buffer, int sz, byte* sig, int sigSz,
     (void)rsaKey;
     (void)eccKey;
     (void)rng;
+
+#ifdef WOLFSSL_SMALL_STACK
+    digest = (byte*)XMALLOC(WC_MAX_DIGEST_SIZE, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (digest == NULL)
+        return 0; /* not confirmed */
+#endif
 
     switch (sigAlgoType) {
     #ifndef NO_MD5
@@ -7227,14 +7337,20 @@ static int MakeSignature(const byte* buffer, int sz, byte* sig, int sigSz,
             ret = ALGO_ID_E;
     }
 
-    if (ret != 0)
+    if (ret != 0) {
+    #ifdef WOLFSSL_SMALL_STACK
+        XFREE(digest, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    #endif
         return ret;
+    }
 
 #ifdef WOLFSSL_SMALL_STACK
     encSig = (byte*)XMALLOC(MAX_DER_DIGEST_SZ,
                                                  NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    if (encSig == NULL)
+    if (encSig == NULL) {
+        XFREE(digest, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         return MEMORY_E;
+    }
 #endif
 
     ret = ALGO_ID_E;
@@ -7258,6 +7374,7 @@ static int MakeSignature(const byte* buffer, int sz, byte* sig, int sigSz,
 #endif
 
 #ifdef WOLFSSL_SMALL_STACK
+    XFREE(digest, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(encSig, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
 
@@ -8860,28 +8977,9 @@ static int DecodeSingleResponse(byte* source,
     resp->issuerKeyHash = source + idx;
     idx += length;
 
-    /* Read the serial number, it is handled as a string, not as a
-     * proper number. Just XMEMCPY the data over, rather than load it
-     * as an mp_int. */
-    if (source[idx++] != ASN_INTEGER)
+    /* Get serial number */
+    if (GetSerialNumber(source, &idx, cs->serial, &cs->serialSz, size) < 0)
         return ASN_PARSE_E;
-    if (GetLength(source, &idx, &length, size) < 0)
-        return ASN_PARSE_E;
-    if (length <= EXTERNAL_SERIAL_SIZE)
-    {
-        if (source[idx] == 0)
-        {
-            idx++;
-            length--;
-        }
-        XMEMCPY(cs->serial, source + idx, length);
-        cs->serialSz = length;
-    }
-    else
-    {
-        return ASN_GETINT_E;
-    }
-    idx += length;
 
     /* CertStatus */
     switch (source[idx++])
@@ -9160,7 +9258,7 @@ static int DecodeBasicOcspResponse(byte* source, word32* ioIndex,
         }
     }
     else {
-        Signer* ca = GetCA(cm, resp->issuerHash);
+        Signer* ca = GetCA(cm, resp->issuerKeyHash);
 
         if (!ca || !ConfirmSignature(resp->response, resp->responseSz,
                                      ca->publicKey, ca->pubKeySize, ca->keyOID,
@@ -9593,39 +9691,24 @@ static int GetRevoked(const byte* buff, word32* idx, DecodedCRL* dcrl,
 
     end = *idx + len;
 
-    /* get serial number */
-    b = buff[*idx];
-    *idx += 1;
-
-    if (b != ASN_INTEGER) {
-        WOLFSSL_MSG("Expecting Integer");
-        return ASN_PARSE_E;
-    }
-
-    if (GetLength(buff, idx, &len, maxIdx) < 0)
-        return ASN_PARSE_E;
-
-    if (len > EXTERNAL_SERIAL_SIZE) {
-        WOLFSSL_MSG("Serial Size too big");
-        return ASN_PARSE_E;
-    }
-
     rc = (RevokedCert*)XMALLOC(sizeof(RevokedCert), dcrl->heap,
-                                                              DYNAMIC_TYPE_CRL);
+                                                          DYNAMIC_TYPE_CRL);
     if (rc == NULL) {
         WOLFSSL_MSG("Alloc Revoked Cert failed");
         return MEMORY_E;
     }
 
-    XMEMCPY(rc->serialNumber, &buff[*idx], len);
-    rc->serialSz = len;
+    if (GetSerialNumber(buff, idx, rc->serialNumber, &rc->serialSz,
+                                                                maxIdx) < 0) {
+        XFREE(rc, dcrl->heap, DYNAMIC_TYPE_CRL);
+        return ASN_PARSE_E;
+    }
 
     /* add to list */
     rc->next = dcrl->certs;
     dcrl->certs = rc;
     dcrl->totalCerts++;
 
-    *idx += len;
 
     /* get date */
     b = buff[*idx];

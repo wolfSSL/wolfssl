@@ -214,13 +214,13 @@
    #define SIZEOF_FP_DIGIT 8
    typedef unsigned long      fp_word __attribute__ ((mode(TI)));
 #else
-   #if defined(_MSC_VER) || defined(__BORLANDC__)
-      typedef unsigned __int64   ulong64;
-   #else
-      typedef unsigned long long ulong64;
-   #endif
 
    #ifndef NO_64BIT
+      #if defined(_MSC_VER) || defined(__BORLANDC__)
+         typedef unsigned __int64   ulong64;
+      #else
+         typedef unsigned long long ulong64;
+      #endif
       typedef unsigned int       fp_digit;
       #define SIZEOF_FP_DIGIT 4
       typedef ulong64            fp_word;

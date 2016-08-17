@@ -6,7 +6,7 @@
 #
 #
 
-AC_INIT([wolfssl],[3.9.7],[https://github.com/wolfssl/wolfssl/issues],[wolfssl],[http://www.wolfssl.com])
+AC_INIT([wolfssl],[3.9.8],[https://github.com/wolfssl/wolfssl/issues],[wolfssl],[http://www.wolfssl.com])
 
 AC_CONFIG_AUX_DIR([build-aux])
 
@@ -35,7 +35,7 @@ AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_HEADERS([config.h:config.in])dnl Keep filename to 8.3 for MS-DOS.
 
 #shared library versioning
-WOLFSSL_LIBRARY_VERSION=6:0:3
+WOLFSSL_LIBRARY_VERSION=7:0:4
 #                       | | |
 #                +------+ | +---+
 #                |        |     |
@@ -190,6 +190,18 @@ AC_ARG_ENABLE([maxstrength],
     [AS_HELP_STRING([--enable-maxstrength],[Enable Max Strengh build, allows TLSv1.2-AEAD-PFS ciphers only (default: disabled)])],
     [ENABLED_MAXSTRENGTH=$enableval],
     [ENABLED_MAXSTRENGTH=no])
+
+
+# Harden, enable Timing Resistance and Blinding by default
+AC_ARG_ENABLE([harden],
+    [AS_HELP_STRING([--enable-harden],[Enable Hardened build, Enables Timing Resistance and Blinding (default: enabled)])],
+    [ENABLED_HARDEN=$enableval],
+    [ENABLED_HARDEN=yes])
+
+if test "$ENABLED_HARDEN" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DTFM_TIMING_RESISTANT -DECC_TIMING_RESISTANT -DWC_RSA_BLINDING"
+fi
 
 
 # IPv6 Test Apps

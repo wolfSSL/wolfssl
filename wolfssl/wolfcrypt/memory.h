@@ -71,10 +71,26 @@ WOLFSSL_API int wolfSSL_SetAllocators(wolfSSL_Malloc_cb  malloc_function,
 
 #ifdef WOLFSSL_STATIC_MEMORY
     #define WOLFSSL_STATIC_TIMEOUT 1
-    #define WOLFSSL_STATIC_ALIGN 16
-    #define WOLFMEM_MAX_BUCKETS  9
+    #ifndef WOLFSSL_STATIC_ALIGN
+        #define WOLFSSL_STATIC_ALIGN 16
+    #endif
+    #ifndef WOLFMEM_MAX_BUCKETS
+        #define WOLFMEM_MAX_BUCKETS  9
+    #endif
     #define WOLFMEM_DEF_BUCKETS  9     /* number of default memory blocks */
     #define WOLFMEM_IO_SZ        16992 /* 16 byte aligned */
+    #ifndef WOLFMEM_BUCKETS
+        /* default size of chunks of memory to seperate into
+         * having session certs enabled makes a 21k SSL struct */
+        #ifndef SESSION_CERTS
+            #define WOLFMEM_BUCKETS 64,128,256,512,1024,2432,3456,4544,16128
+        #else
+            #define WOLFMEM_BUCKETS 64,128,256,512,1024,2432,3456,4544,21056
+        #endif
+    #endif
+    #ifndef WOLFMEM_DIST
+        #define WOLFMEM_DIST    8,4,4,12,4,5,2,1,1
+    #endif
 
     /* flags for loading static memory (one hot bit) */
     #define WOLFMEM_GENERAL       0x01
@@ -147,6 +163,9 @@ WOLFSSL_API int wolfSSL_SetAllocators(wolfSSL_Malloc_cb  malloc_function,
                                                       WOLFSSL_MEM_STATS* stats);
     WOLFSSL_LOCAL int SetFixedIO(WOLFSSL_HEAP* heap, wc_Memory** io);
     WOLFSSL_LOCAL int FreeFixedIO(WOLFSSL_HEAP* heap, wc_Memory** io);
+
+    WOLFSSL_API int wolfSSL_StaticBufferSz(byte* buffer, word32 sz, int flag);
+    WOLFSSL_API int wolfSSL_MemoryPaddingSz(void);
 #endif /* WOLFSSL_STATIC_MEMORY */
 
 #ifdef __cplusplus

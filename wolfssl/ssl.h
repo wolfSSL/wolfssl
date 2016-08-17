@@ -340,7 +340,6 @@ WOLFSSL_API void wolfSSL_set_quiet_shutdown(WOLFSSL*, int);
 WOLFSSL_API int  wolfSSL_get_error(WOLFSSL*, int);
 WOLFSSL_API int  wolfSSL_get_alert_history(WOLFSSL*, WOLFSSL_ALERT_HISTORY *);
 
-WOLFSSL_API int        GetDeepCopySession(WOLFSSL*, WOLFSSL_SESSION*);
 WOLFSSL_API int        wolfSSL_set_session(WOLFSSL* ssl,WOLFSSL_SESSION* session);
 WOLFSSL_API long       wolfSSL_SSL_SESSION_set_timeout(WOLFSSL_SESSION* session, long t);
 WOLFSSL_API WOLFSSL_SESSION* wolfSSL_get_session(WOLFSSL* ssl);
@@ -936,7 +935,7 @@ WOLFSSL_API WOLFSSL_X509* wolfSSL_get_chain_X509(WOLFSSL_X509_CHAIN*, int idx);
 WOLFSSL_API void wolfSSL_FreeX509(WOLFSSL_X509*);
 /* get index cert in PEM */
 WOLFSSL_API int  wolfSSL_get_chain_cert_pem(WOLFSSL_X509_CHAIN*, int idx,
-                                unsigned char* buffer, int inLen, int* outLen);
+                                unsigned char* buf, int inLen, int* outLen);
 WOLFSSL_API const unsigned char* wolfSSL_get_sessionID(const WOLFSSL_SESSION* s);
 WOLFSSL_API int  wolfSSL_X509_get_serial_number(WOLFSSL_X509*,unsigned char*,int*);
 WOLFSSL_API char*  wolfSSL_X509_get_subjectCN(WOLFSSL_X509*);
@@ -959,6 +958,8 @@ WOLFSSL_API WOLFSSL_X509*
 WOLFSSL_API WOLFSSL_X509*
     wolfSSL_X509_load_certificate_file(const char* fname, int format);
 #endif
+WOLFSSL_API WOLFSSL_X509* wolfSSL_X509_load_certificate_buffer(
+    const unsigned char* buf, int sz, int format);
 
 #ifdef WOLFSSL_SEP
     WOLFSSL_API unsigned char*

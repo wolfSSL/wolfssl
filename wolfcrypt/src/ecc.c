@@ -1675,13 +1675,18 @@ int wc_ecc_mulmod_ex(mp_int* k, ecc_point *G, ecc_point *R,
    /* init variables */
    tG = NULL;
    XMEMSET(M, 0, sizeof(M));
-   err = mp_init(&mu);
 
    /* init montgomery reduction */
-   if (err == MP_OKAY)
-       err = mp_montgomery_setup(modulus, &mp);
-   if (err == MP_OKAY)
-       err = mp_montgomery_calc_normalization(&mu, modulus);
+   if ((err = mp_montgomery_setup(modulus, &mp)) != MP_OKAY) {
+       return err;
+   }
+   if ((err = mp_init(&mu)) != MP_OKAY) {
+       return err;
+   }
+   if ((err = mp_montgomery_calc_normalization(&mu, modulus)) != MP_OKAY) {
+       mp_clear(&mu);
+       return err;
+   }
 
   /* alloc ram for window temps */
   for (i = 0; i < 8; i++) {
@@ -1903,21 +1908,28 @@ int wc_ecc_mulmod_ex(mp_int* k, ecc_point *G, ecc_point *R,
    /* init variables */
    tG = NULL;
    XMEMSET(M, 0, sizeof(M));
-   err = mp_init(&mu);
 
    /* init montgomery reduction */
-   if (err == MP_OKAY)
-       err = mp_montgomery_setup(modulus, &mp);
-   if (err == MP_OKAY)
-       err = mp_montgomery_calc_normalization(&mu, modulus);
+   if ((err = mp_montgomery_setup(modulus, &mp)) != MP_OKAY) {
+       return err;
+   }
+   if ((err = mp_init(&mu)) != MP_OKAY) {
+       return err;
+   }
+   if ((err = mp_montgomery_calc_normalization(&mu, modulus)) != MP_OKAY) {
+       mp_clear(&mu);
+       return err;
+   }
 
   /* alloc ram for window temps */
   for (i = 0; i < 3; i++) {
       M[i] = wc_ecc_new_point_h(heap);
       if (M[i] == NULL) {
          for (j = 0; j < i; j++) {
-             wc_ecc_del_point(M[j]);
+             wc_ecc_del_point_h(M[j], heap);
          }
+         mp_clear(&mu);
+         return MEMORY_E;
       }
    }
 
@@ -2237,7 +2249,7 @@ int wc_ecc_shared_secret(ecc_key* private_key, ecc_key* public_key, byte* out,
    }
 
    if ((err = mp_init_multi(&prime, &a, NULL, NULL, NULL, NULL)) != MP_OKAY) {
-      wc_ecc_del_point(result);
+      wc_ecc_del_point_h(result, private_key->heap);
       return err;
    }
 

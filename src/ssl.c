@@ -643,16 +643,8 @@ int wolfSSL_GetObjectSize(void)
 
 int wolfSSL_init_memory_heap(WOLFSSL_HEAP* heap)
 {
-    /* default size of chunks of memory to seperate into
-     * having session certs enabled makes a 21k SSL struct */
-#ifndef SESSION_CERTS
-    word32 wc_defaultMemSz[WOLFMEM_DEF_BUCKETS] =
-                           { 64, 128, 256, 512, 1024, 2432, 3456, 4544, 16128 };
-#else
-    word32 wc_defaultMemSz[WOLFMEM_DEF_BUCKETS] =
-                           { 64, 128, 256, 512, 1024, 2432, 3456, 4544, 21056 };
-#endif
-    word32 wc_defaultDist[WOLFMEM_DEF_BUCKETS] = { 8, 4, 4, 12, 4, 5, 2, 1, 1 };
+    word32 wc_MemSz[WOLFMEM_DEF_BUCKETS] = { WOLFMEM_BUCKETS };
+    word32 wc_Dist[WOLFMEM_DEF_BUCKETS]  = { WOLFMEM_DIST };
 
     if (heap == NULL) {
         return BAD_FUNC_ARG;
@@ -660,11 +652,8 @@ int wolfSSL_init_memory_heap(WOLFSSL_HEAP* heap)
 
     XMEMSET(heap, 0, sizeof(WOLFSSL_HEAP));
 
-    /* default pool sizes and distribution, else leave a 0's for now */
-    #if WOLFMEM_DEF_BUCKETS == WOLFMEM_MAX_BUCKETS
-        XMEMCPY(heap->sizeList, wc_defaultMemSz, sizeof(wc_defaultMemSz));
-        XMEMCPY(heap->distList, wc_defaultDist, sizeof(wc_defaultMemSz));
-    #endif
+    XMEMCPY(heap->sizeList, wc_MemSz, sizeof(wc_MemSz));
+    XMEMCPY(heap->distList, wc_Dist,  sizeof(wc_Dist));
 
     if (InitMutex(&(heap->memory_mutex)) != 0) {
         WOLFSSL_MSG("Error creating heap memory mutex");
@@ -7646,7 +7635,7 @@ WOLFSSL_SESSION* GetSession(WOLFSSL* ssl, byte* masterSecret,
 }
 
 
-int GetDeepCopySession(WOLFSSL* ssl, WOLFSSL_SESSION* copyFrom)
+static int GetDeepCopySession(WOLFSSL* ssl, WOLFSSL_SESSION* copyFrom)
 {
     WOLFSSL_SESSION* copyInto = &ssl->session;
     void* tmpBuff             = NULL;
@@ -7744,16 +7733,18 @@ int SetSession(WOLFSSL* ssl, WOLFSSL_SESSION* session)
         return SSL_FAILURE;
 
     if (LowResTimer() < (session->bornOn + session->timeout)) {
-        GetDeepCopySession(ssl, session);
-        ssl->options.resuming = 1;
+        int ret = GetDeepCopySession(ssl, session);
+        if (ret == SSL_SUCCESS) {
+            ssl->options.resuming = 1;
 
 #ifdef SESSION_CERTS
-        ssl->version              = session->version;
-        ssl->options.cipherSuite0 = session->cipherSuite0;
-        ssl->options.cipherSuite  = session->cipherSuite;
+            ssl->version              = session->version;
+            ssl->options.cipherSuite0 = session->cipherSuite0;
+            ssl->options.cipherSuite  = session->cipherSuite;
 #endif
+        }
 
-        return SSL_SUCCESS;
+        return ret;
     }
     return SSL_FAILURE;  /* session timed out */
 }
@@ -8301,7 +8292,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
 
         if (hsCb) {
             ssl->hsInfoOn = 1;
-            InitHandShakeInfo(&ssl->handShakeInfo);
+            InitHandShakeInfo(&ssl->handShakeInfo, ssl);
         }
         if (toCb) {
             ssl->toInfoOn = 1;
@@ -8389,7 +8380,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
             ssl->toInfoOn = 0;
         }
         if (hsCb) {
-            FinishHandShakeInfo(&ssl->handShakeInfo, ssl);
+            FinishHandShakeInfo(&ssl->handShakeInfo);
             (hsCb)(&ssl->handShakeInfo);
             ssl->hsInfoOn = 0;
         }
@@ -11356,9 +11347,6 @@ WOLFSSL_X509* wolfSSL_X509_load_certificate_file(const char* fname, int format)
     XFILE file;
 
     WOLFSSL_X509* x509 = NULL;
-    DerBuffer* der = NULL;
-
-    WOLFSSL_ENTER("wolfSSL_X509_load_certificate");
 
     /* Check the inputs */
     if ((fname == NULL) ||
@@ -11396,6 +11384,26 @@ WOLFSSL_X509* wolfSSL_X509_load_certificate_file(const char* fname, int format)
 
     XFCLOSE(file);
 
+    x509 = wolfSSL_X509_load_certificate_buffer(fileBuffer, (int)sz, format);
+
+    if (dynamic)
+        XFREE(fileBuffer, NULL, DYNAMIC_TYPE_FILE);
+
+    return x509;
+}
+
+#endif /* NO_FILESYSTEM */
+
+
+WOLFSSL_X509* wolfSSL_X509_load_certificate_buffer(
+    const unsigned char* buf, int sz, int format)
+{
+    int ret;
+    WOLFSSL_X509* x509 = NULL;
+    DerBuffer* der = NULL;
+
+    WOLFSSL_ENTER("wolfSSL_X509_load_certificate_ex");
+
     if (format == SSL_FILETYPE_PEM) {
         int ecc = 0;
     #ifdef WOLFSSL_SMALL_STACK
@@ -11408,9 +11416,6 @@ WOLFSSL_X509* wolfSSL_X509_load_certificate_file(const char* fname, int format)
         info = (EncryptedInfo*)XMALLOC(sizeof(EncryptedInfo), NULL,
                                                       DYNAMIC_TYPE_TMP_BUFFER);
         if (info == NULL) {
-            if (dynamic)
-                XFREE(fileBuffer, NULL, DYNAMIC_TYPE_FILE);
-
             return NULL;
         }
     #endif
@@ -11419,7 +11424,7 @@ WOLFSSL_X509* wolfSSL_X509_load_certificate_file(const char* fname, int format)
         info->ctx = NULL;
         info->consumed = 0;
 
-        if (PemToDer(fileBuffer, sz, CERT_TYPE, &der, NULL, info, &ecc) != 0) {
+        if (PemToDer(buf, sz, CERT_TYPE, &der, NULL, info, &ecc) != 0) {
             FreeDer(&der);
         }
 
@@ -11430,12 +11435,9 @@ WOLFSSL_X509* wolfSSL_X509_load_certificate_file(const char* fname, int format)
     else {
         ret = AllocDer(&der, (word32)sz, CERT_TYPE, NULL);
         if (ret == 0) {
-            XMEMCPY(der->buffer, fileBuffer, sz);
+            XMEMCPY(der->buffer, buf, sz);
         }
     }
-
-    if (dynamic)
-        XFREE(fileBuffer, NULL, DYNAMIC_TYPE_FILE);
 
     /* At this point we want `der` to have the certificate in DER format */
     /* ready to be decoded. */
@@ -11476,8 +11478,6 @@ WOLFSSL_X509* wolfSSL_X509_load_certificate_file(const char* fname, int format)
 
     return x509;
 }
-
-#endif /* NO_FILESYSTEM */
 
 #endif /* KEEP_PEER_CERT || SESSION_CERTS */
 
@@ -17880,12 +17880,18 @@ void* wolfSSL_GetRsaDecCtx(WOLFSSL* ssl)
         return NULL;
     }
 
+#ifdef HAVE_ECC
     const char * wolf_OBJ_nid2sn(int n) {
-        (void)n;
+        int i;
         WOLFSSL_ENTER("wolf_OBJ_nid2sn");
-        WOLFSSL_STUB("wolf_OBJ_nid2sn");
 
-        return 0;
+        /* find based on NID and return name */
+        for (i = 0; i < ecc_sets[i].size; i++) {
+            if (n == ecc_sets[i].id) {
+                return ecc_sets[i].name;
+            }
+        }
+        return NULL;
     }
 
     int wolf_OBJ_obj2nid(const WOLFSSL_ASN1_OBJECT *o) {
@@ -17897,12 +17903,18 @@ void* wolfSSL_GetRsaDecCtx(WOLFSSL* ssl)
     }
 
     int wolf_OBJ_sn2nid(const char *sn) {
-        (void)sn;
+        int i;
         WOLFSSL_ENTER("wolf_OBJ_osn2nid");
-        WOLFSSL_STUB("wolf_OBJ_osn2nid");
 
-        return 0;
+        /* find based on name and return NID */
+        for (i = 0; i < ecc_sets[i].size; i++) {
+            if (XSTRNCMP(sn, ecc_sets[i].name, ECC_MAXNAME) == 0) {
+                return ecc_sets[i].id;
+            }
+        }
+        return -1; 
     }
+#endif /* HAVE_ECC */
 
 
     WOLFSSL_X509 *PEM_read_bio_WOLFSSL_X509(WOLFSSL_BIO *bp, WOLFSSL_X509 **x, pem_password_cb *cb, void *u) {

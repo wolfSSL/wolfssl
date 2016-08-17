@@ -14,8 +14,6 @@
 #                       server-ecc.pem
 #                       1024/client-cert.der
 #                       1024/client-cert.pem
-#
-# Needs to be added:
 #                       server-ecc-comp.pem
 # updates the following crls:
 #                       crl/cliCrl.pem
@@ -206,12 +204,16 @@ function run_renewcerts(){
     ########## make .der files from .pem files #################
     ############################################################
     openssl x509 -inform PEM -in \1024/client-cert.pem -outform DER -out \1024/client-cert.der
-    echo "Generating new ca-cert.der, client-cert.der, server-cert.der..."
+    echo "Creating der formatted certs..."
     echo ""
     openssl x509 -inform PEM -in ca-cert.pem -outform DER -out ca-cert.der
     openssl x509 -inform PEM -in client-cert.pem -outform DER -out client-cert.der
     openssl x509 -inform PEM -in server-cert.pem -outform DER -out server-cert.der
     openssl x509 -inform PEM -in client-ecc-cert.pem -outform DER -out client-ecc-cert.der
+    openssl x509 -inform PEM -in server-ecc-rsa.pem -outform DER -out server-ecc-rsa.der
+    openssl x509 -inform PEM -in server-ecc.pem -outform DER -out server-ecc.der
+    openssl x509 -inform PEM -in server-ecc-comp.pem -outform DER -out server-ecc-comp.der
+
     echo "Changing directory to wolfssl root..."
     echo ""
     cd ../
@@ -257,6 +259,7 @@ function restore_config(){
 function move_ntru(){
     cp ntru-cert.pem certs/ntru-cert.pem
     cp ntru-key.raw certs/ntru-key.raw
+    cp ntru-cert.der certs/ntru-cert.der
 }
 
 ###############################################################################

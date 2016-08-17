@@ -253,6 +253,8 @@ static int wc_MGF1(enum wc_HashType hType, byte* seed, word32 seedSz,
     counter = 0;
     idx     = 0;
 
+    (void)heap;
+
     /* check error return of wc_HashGetDigestSize */
     if (hLen < 0) {
         return hLen;
@@ -1184,7 +1186,7 @@ int wc_RsaPrivateDecrypt(const byte* in, word32 inLen, byte* out, word32 outLen,
         XFREE(tmp, key->heap, DYNAMIC_TYPE_RSA);
         return plainLen;
     }
-    if (plainLen > (int)outLen)
+    if (plainLen > (int)outLen || pad == NULL)
         plainLen = BAD_FUNC_ARG;
     else
         XMEMCPY(out, pad, plainLen);
@@ -1303,7 +1305,7 @@ int wc_RsaSSL_Verify(const byte* in, word32 inLen, byte* out, word32 outLen,
         return plainLen;
     }
 
-    if (plainLen > (int)outLen)
+    if (plainLen > (int)outLen || pad == NULL)
         plainLen = BAD_FUNC_ARG;
     else
         XMEMCPY(out, pad, plainLen);

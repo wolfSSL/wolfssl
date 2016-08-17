@@ -15,6 +15,20 @@ use warnings;
 # output C header file to write cert/key buffers to
 my $outputFile = "./wolfssl/certs_test.h";
 
+# ecc keys and certs to be converted
+# Used with HAVE_ECC && USE_CERT_BUFFERS_256
+
+my @fileList_ecc = (
+        [ "./certs/ecc-client-key.der",    "ecc_clikey_der_256" ],
+        [ "./certs/ecc-client-keyPub.der", "ecc_clikeypub_der_256" ],
+        [ "./certs/client-ecc-cert.der",   "cliecc_cert_der_256" ],
+        [ "./certs/ecc-key.der",           "ecc_key_der_256" ],
+        [ "./certs/ecc-keyPub.der",        "ecc_key_pub_der_256" ],
+        [ "./certs/server-ecc-comp.der",   "serv_ecc_comp_der_256" ],
+        [ "./certs/server-ecc-rsa.der",    "serv_ecc_rsa_der_256" ],
+        [ "./certs/server-ecc.der",        "serv_ecc_der_256" ]
+        );
+
 # 1024-bit certs/keys to be converted
 # Used with USE_CERT_BUFFERS_1024 define.
 
@@ -25,6 +39,7 @@ my @fileList_1024 = (
         [ "./certs/1024/dh1024.der", "dh_key_der_1024" ],
         [ "./certs/1024/dsa1024.der", "dsa_key_der_1024" ],
         [ "./certs/1024/rsa1024.der", "rsa_key_der_1024" ],
+        [ "./certs/1024/ca-key.der", "ca_key_der_1024"],
         [ "./certs/1024/ca-cert.der", "ca_cert_der_1024" ],
         [ "./certs/1024/server-key.der", "server_key_der_1024" ],
         [ "./certs/1024/server-cert.der", "server_cert_der_1024" ]
@@ -47,6 +62,7 @@ my @fileList_2048 = (
 
 # ----------------------------------------------------------------------------
 
+my $num_ecc = @fileList_ecc;
 my $num_1024 = @fileList_1024;
 my $num_2048 = @fileList_2048;
 
@@ -56,6 +72,7 @@ open OUT_FILE, "+>", $outputFile  or die $!;
 print OUT_FILE "/* certs_test.h */\n\n";
 print OUT_FILE "#ifndef WOLFSSL_CERTS_TEST_H\n";
 print OUT_FILE "#define WOLFSSL_CERTS_TEST_H\n\n";
+
 
 # convert and print 1024-bit cert/keys
 print OUT_FILE "#ifdef USE_CERT_BUFFERS_1024\n\n";
@@ -88,7 +105,26 @@ for (my $i = 0; $i < $num_2048; $i++) {
     print OUT_FILE "static const int sizeof_$sname = sizeof($sname);\n\n";
 }
 
+
 print OUT_FILE "#endif /* USE_CERT_BUFFERS_2048 */\n\n";
+
+# convert and print 256-bit cert/keys
+print OUT_FILE "#if defined(HAVE_ECC) && defined(USE_CERT_BUFFERS_256)\n\n";
+for (my $i = 0; $i < $num_ecc; $i++) {
+
+    my $fname = $fileList_ecc[$i][0];
+    my $sname = $fileList_ecc[$i][1];
+
+    print OUT_FILE "/* $fname, ECC */\n";
+    print OUT_FILE "static const unsigned char $sname\[] =\n";
+    print OUT_FILE "{\n";
+    file_to_hex($fname);
+    print OUT_FILE "};\n";
+    print OUT_FILE "static const int sizeof_$sname = sizeof($sname);\n\n";
+}
+print OUT_FILE "#endif /* HAVE_ECC && USE_CERT_BUFFERS_256 */\n\n";
+
+
 print OUT_FILE "/* dh1024 p */
 static const unsigned char dh_p[] =
 {

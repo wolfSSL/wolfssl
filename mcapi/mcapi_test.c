@@ -1296,6 +1296,12 @@ static int check_rsa(void)
         return -1;
     }
 
+    ret = CRYPT_RSA_SetRng(&mcRsa, &mcRng);
+    if (ret != 0) {
+        printf("mcapi rsa set rng failed\n");
+        return -1;
+    }
+
     ret = CRYPT_RSA_PublicEncrypt(&mcRsa, out1, sizeof(out1), ourData,
                                   RSA_TEST_SIZE, &mcRng);
     if (ret < 0) {

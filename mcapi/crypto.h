@@ -220,7 +220,8 @@ int CRYPT_RSA_PrivateDecrypt(CRYPT_RSA_CTX*, unsigned char*,
                              unsigned int, const unsigned char*, unsigned int);
 
 /* helpers */
-int CRYPT_RSA_EncryptSizeGet(CRYPT_RSA_CTX*);                             
+int CRYPT_RSA_EncryptSizeGet(CRYPT_RSA_CTX*);
+int CRYPT_RSA_SetRng(CRYPT_RSA_CTX*, CRYPT_RNG_CTX*);
 
 
 

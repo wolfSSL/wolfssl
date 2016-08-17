@@ -121,11 +121,7 @@
 #endif
 
 
-#if defined(USE_CERT_BUFFERS_1024) || defined(USE_CERT_BUFFERS_2048) \
-                                   || !defined(NO_DH)
-    /* include test cert and key buffers for use with NO_FILESYSTEM */
-        #include <wolfssl/certs_test.h>
-#endif
+#include <wolfssl/certs_test.h>
 
 #if defined(WOLFSSL_MDK_ARM)
         #include <stdio.h>
@@ -225,6 +221,9 @@ int pbkdf2_test(void);
     #ifdef HAVE_ECC_ENCRYPT
         int  ecc_encrypt_test(void);
     #endif
+    #ifdef USE_CERT_BUFFERS_256
+        int ecc_test_buffers(void);
+    #endif
 #endif
 #ifdef HAVE_CURVE25519
     int  curve25519_test(void);
@@ -247,6 +246,9 @@ int  certext_test(void);
 #endif
 #ifdef HAVE_IDEA
 int idea_test(void);
+#endif
+#ifdef WOLFSSL_STATIC_MEMORY
+int memory_test(void);
 #endif
 
 /* General big buffer size for many tests. */
@@ -532,6 +534,13 @@ int wolfcrypt_test(void* args)
     else
         printf( "RANDOM   test passed!\n");
 
+#ifdef WOLFSSL_STATIC_MEMORY
+    if ( (ret = memory_test()) != 0)
+        return err_sys("MEMORY   test failed!\n", ret);
+    else
+        printf( "MEMORY   test passed!\n");
+#endif
+
 #ifndef NO_RSA
     if ( (ret = rsa_test()) != 0)
         return err_sys("RSA      test failed!\n", ret);
@@ -591,6 +600,12 @@ int wolfcrypt_test(void* args)
             return err_sys("ECC Enc  test failed!\n", ret);
         else
             printf( "ECC Enc  test passed!\n");
+    #endif
+    #ifdef USE_CERT_BUFFERS_256
+        if ( (ret = ecc_test_buffers()) != 0)
+            return err_sys("ECC buffer test failed!\n", ret);
+        else
+            printf( "ECC buffer test passed!\n");
     #endif
 #endif
 
@@ -3857,6 +3872,102 @@ int random_test(void)
 #endif /* (HAVE_HASHDRBG || NO_RC4) && !CUSTOM_RAND_GENERATE_BLOCK */
 
 
+#ifdef WOLFSSL_STATIC_MEMORY
+int memory_test(void)
+{
+    int ret = 0;
+    unsigned int i;
+    word32 size[] = { WOLFMEM_BUCKETS };
+    word32 dist[] = { WOLFMEM_DIST };
+    byte buffer[30000]; /* make large enough to involve many bucket sizes */
+
+    /* check macro settings */
+    if (sizeof(size)/sizeof(word32) != WOLFMEM_MAX_BUCKETS) {
+        return -97;
+    }
+
+    if (sizeof(dist)/sizeof(word32) != WOLFMEM_MAX_BUCKETS) {
+        return -98;
+    }
+
+    for (i = 0; i < WOLFMEM_MAX_BUCKETS; i++) {
+        if ((size[i] % WOLFSSL_STATIC_ALIGN) != 0) {
+            /* each element in array should be divisable by alignment size */
+            return -99;
+        }
+    }
+
+    for (i = 1; i < WOLFMEM_MAX_BUCKETS; i++) {
+        if (size[i - 1] >= size[i]) {
+            return -100; /* sizes should be in increasing order  */
+        }
+    }
+
+    /* check that padding size returned is possible */
+    if (wolfSSL_MemoryPaddingSz() <= WOLFSSL_STATIC_ALIGN) {
+        return -101; /* no room for wc_Memory struct */
+    }
+
+    if (wolfSSL_MemoryPaddingSz() < 0) {
+        return -102;
+    }
+
+    if (wolfSSL_MemoryPaddingSz() % WOLFSSL_STATIC_ALIGN != 0) {
+        return -103; /* not aligned! */
+    }
+
+    /* check function to return optimum buffer size (rounded down) */
+    if ((ret = wolfSSL_StaticBufferSz(buffer, sizeof(buffer), WOLFMEM_GENERAL))
+            % WOLFSSL_STATIC_ALIGN != 0) {
+        return -104; /* not aligned! */
+    }
+
+    if (ret < 0) {
+        return -105;
+    }
+
+    if ((unsigned int)ret > sizeof(buffer)) {
+        return -106; /* did not round down as expected */
+    }
+
+    if (ret != wolfSSL_StaticBufferSz(buffer, ret, WOLFMEM_GENERAL)) {
+        return -107; /* retrun value changed when using suggested value */
+    }
+
+    ret = wolfSSL_MemoryPaddingSz();
+    if (wolfSSL_StaticBufferSz(buffer, size[0] + ret + 1, WOLFMEM_GENERAL) !=
+            (ret + (int)size[0])) {
+        return -108; /* did not round down to nearest bucket value */
+    }
+
+    ret = wolfSSL_StaticBufferSz(buffer, sizeof(buffer), WOLFMEM_IO_POOL);
+    if (ret < 0) {
+        return -109;
+    }
+
+    if ((ret % (WOLFMEM_IO_SZ + wolfSSL_MemoryPaddingSz())) != 0) {
+        return -110; /* not even chunks of memory for IO size */
+    }
+
+    if ((ret % WOLFSSL_STATIC_ALIGN) != 0) {
+        return -111; /* memory not aligned */
+    }
+
+    /* check for passing bad or unknown argments to functions */
+    if (wolfSSL_StaticBufferSz(NULL, 1, WOLFMEM_GENERAL) > 0) {
+        return -112;
+    }
+
+    if (wolfSSL_StaticBufferSz(buffer, 1, WOLFMEM_GENERAL) != 0) {
+        return -113; /* should round to 0 since struct + bucket will not fit */
+    }
+
+    (void)dist; /* avoid static analysis warning of variable not used */
+    return 0;
+}
+#endif /* WOLFSSL_STATIC_MEMORY */
+
+
 #ifdef HAVE_NTRU
 
 byte GetEntropy(ENTROPY_CMD cmd, byte* out);
@@ -5280,6 +5391,7 @@ int rsa_test(void)
         strncpy(myCert.subject.unit, "Development", CTC_NAME_SIZE);
         strncpy(myCert.subject.commonName, "www.yassl.com", CTC_NAME_SIZE);
         strncpy(myCert.subject.email, "info@yassl.com", CTC_NAME_SIZE);
+        myCert.daysValid = 1000;
 
 #ifdef WOLFSSL_CERT_EXT
 
@@ -6737,6 +6849,8 @@ static int ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerifyCount,
     int     ret;
     ecc_key userA, userB, pubKey;
 
+    (void)testVerifyCount;
+
     wc_ecc_init(&userA);
     wc_ecc_init(&userB);
     wc_ecc_init(&pubKey);
@@ -7148,6 +7262,92 @@ int ecc_encrypt_test(void)
 }
 
 #endif /* HAVE_ECC_ENCRYPT */
+
+#ifdef USE_CERT_BUFFERS_256
+int ecc_test_buffers() {
+    size_t bytes;
+    ecc_key cliKey;
+    ecc_key servKey;
+#ifdef WOLFSSL_CERT_EXT
+    ecc_key keypub;
+#endif
+    WC_RNG rng;
+    word32 idx = 0;
+    int    ret;
+    /* pad our test message to 32 bytes so evenly divisible by AES_BLOCK_SZ */
+    byte   in[] = "Everyone gets Friday off. ecc p";
+    word32 inLen = (word32)XSTRLEN((char*)in);
+    byte   out[256];
+    byte   plain[256];
+    int verify = 0;
+    word32 x;
+
+    bytes = sizeof_ecc_clikey_der_256;
+    /* place client key into ecc_key struct cliKey */
+    ret = wc_EccPrivateKeyDecode(ecc_clikey_der_256, &idx, &cliKey,
+                                                                (word32)bytes);
+    if (ret != 0)
+        return -41;
+
+    idx = 0;
+    bytes = sizeof_ecc_key_der_256;
+
+    /* place server key into ecc_key struct servKey */
+    ret = wc_EccPrivateKeyDecode(ecc_key_der_256, &idx, &servKey,
+                                                                (word32)bytes);
+    if (ret != 0)
+        return -41;
+
+    ret = wc_InitRng(&rng);
+    if (ret != 0)
+        return -42;
+
+#if defined(HAVE_ECC_ENCRYPT) && defined(HAVE_HKDF)
+    {
+        word32 y;
+        /* test encrypt and decrypt if they're available */
+        x = sizeof(out);
+        ret = wc_ecc_encrypt(&cliKey, &servKey, in, sizeof(in), out, &x, NULL);
+        if (ret < 0)
+            return -43;
+
+        y = sizeof(plain);
+        ret = wc_ecc_decrypt(&cliKey, &servKey, out, x, plain, &y, NULL);
+        if (ret < 0)
+            return -44;
+
+        if (XMEMCMP(plain, in, inLen))
+            return -45;
+    }
+#endif
+
+
+    x = sizeof(out);
+    ret = wc_ecc_sign_hash(in, inLen, out, &x, &rng, &cliKey);
+    if (ret < 0)
+        return -46;
+
+    XMEMSET(plain, 0, sizeof(plain));
+
+    ret = wc_ecc_verify_hash(out, x, plain, sizeof(plain), &verify, &cliKey);
+    if (ret < 0)
+        return -47;
+
+    if (XMEMCMP(plain, in, ret))
+        return -48;
+
+    idx = 0;
+
+    bytes = sizeof_ecc_clikeypub_der_256;
+
+    ret = wc_EccPublicKeyDecode(ecc_clikeypub_der_256, &idx, &cliKey,
+                                                               (word32) bytes);
+    if (ret != 0)
+        return -52;
+
+    return 0;
+}
+#endif /* USE_CERT_BUFFERS_256 */
 #endif /* HAVE_ECC */
 
 

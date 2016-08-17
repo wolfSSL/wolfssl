@@ -536,7 +536,22 @@ int CRYPT_RSA_EncryptSizeGet(CRYPT_RSA_CTX* rsa)
         return BAD_FUNC_ARG;
 
     return RsaEncryptSize((RsaKey*)rsa->holder);
-}    
+}
+
+
+int CRYPT_RSA_SetRng(CRYPT_RSA_CTX* rsa, CRYPT_RNG_CTX* rng)
+{
+    if (rsa == NULL)
+        return BAD_FUNC_ARG;
+
+#ifdef WC_RSA_BLINDING
+    return wc_RsaSetRNG((RsaKey*)rsa->holder, (WC_RNG*)rng);
+#else
+    (void)rng;
+
+    return 0;
+#endif
+}
 
 
 /* ECC init */
