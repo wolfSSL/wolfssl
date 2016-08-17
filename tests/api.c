@@ -101,6 +101,22 @@ static int test_wolfSSL_Cleanup(void)
     return result;
 }
 
+
+/*  Initialize the wolfcrypt state.
+ *  POST: 0 success.
+ */
+static int test_wolfCrypt_Init(void)
+{
+    int result;
+
+    printf(testingFmt, "wolfCrypt_Init()");
+    result = wolfCrypt_Init();
+    printf(resultFmt, result == 0 ? passed : failed);
+
+    return result;
+
+} /* END test_wolfCrypt_Init */
+
 /*----------------------------------------------------------------------------*
  | Method Allocators
  *----------------------------------------------------------------------------*/
@@ -1829,6 +1845,78 @@ static void test_wolfSSL_X509_NAME_get_entry(void)
 
 
 /*----------------------------------------------------------------------------*
+ | OCSP Stapling
+ *----------------------------------------------------------------------------*/
+
+
+/* Testing wolfSSL_UseOCSPStapling function.
+ * PRE: HAVE_OCSP and HAVE_CERTIFICATE_STATUS_REQUEST
+ * POST: 1 returned for success.
+ */
+#if defined(HAVE_OCSP)
+    
+#if defined(HAVE_CERTIFICATE_STATUS_REQUEST)
+static int test_wolfSSL_UseOCSPStapling(void)
+{
+    int             ret;
+    WOLFSSL_CTX*    ctx;
+    WOLFSSL*        ssl;
+   
+   
+    wolfSSL_Init();
+    ctx = wolfSSL_CTX_new(wolfTLSv1_2_client_method());
+    ssl = wolfSSL_new(ctx);
+    printf(testingFmt, "wolfSSL_UseOCSPStapling()");
+
+    ret = wolfSSL_UseOCSPStapling(ssl, WOLFSSL_CSR2_OCSP, 
+                WOLFSSL_CSR2_OCSP_USE_NONCE);
+     
+    printf(resultFmt, ret == SSL_SUCCESS ? passed : failed);
+
+   
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+    wolfSSL_Cleanup();
+    
+    if(ret) { return SSL_SUCCESS;}
+    else    { return SSL_FAILURE;}
+
+} /*END test_wolfSSL_UseOCSPStapling */
+
+#endif /* HAVE_CERTIFICATE_STATUS_REQUEST. */
+
+#ifdef HAVE_CERTIFICATE_STATUS_REQUEST_V2
+static int test_wolfSSL_UseOCSPStaplingV2(void)
+{
+    int                 ret;
+    WOLFSSL_CTX*        ctx;
+    WOLFSSL*            ssl;
+
+    wolfSSL_Init();
+    ctx = wolfSSL_CTX_new(wolfTLSv1_2_client_method());
+    ssl = wolfSSL_new(ctx);
+    printf(testingFmt, "wolfSSL_UseOCSPStaplingV2()");
+
+    ret = wolfSSL_UseOCSPStaplingV2(ssl, WOLFSSL_CSR2_OCSP, 
+                    WOLFSSL_CSR2_OCSP_USE_NONCE );
+
+    printf(resultFmt, ret == SSL_SUCCESS ? passed : failed);
+
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+    wolfSSL_Cleanup();
+
+    if(ret) {return SSL_SUCCESS;}
+    else    {return SSL_FAILURE;}
+} /*END test_wolfSSL_UseOCSPStaplingV2*/
+
+#endif /* HAVE_CERTIFICATE_STATUS_REQUEST. */
+#endif /* HAVE_OCSP*/
+
+
+
+
+/*----------------------------------------------------------------------------*
  | Main
  *----------------------------------------------------------------------------*/
 
@@ -1852,16 +1940,30 @@ void ApiTest(void)
     test_wolfSSL_read_write();
     test_wolfSSL_dtls_export();
 
+
     /* TLS extensions tests */
     test_wolfSSL_UseSNI();
     test_wolfSSL_UseMaxFragment();
     test_wolfSSL_UseTruncatedHMAC();
     test_wolfSSL_UseSupportedCurve();
     test_wolfSSL_UseALPN();
-
     /* X509 tests */
     test_wolfSSL_X509_NAME_get_entry();
 
+    /* wolfcrypt initialization tests */
+    AssertFalse(test_wolfCrypt_Init());
+
+    /*OCSP Stapling. */
+#if defined(HAVE_OCSP)
+#if defined(HAVE_CERTIFICATE_STATUS_REQUEST)
+    AssertTrue(test_wolfSSL_UseOCSPStapling());
+#endif
+#ifdef HAVE_CERTIFICATE_STATUS_REQUEST_V2
+    AssertTrue(test_wolfSSL_UseOCSPStaplingV2());
+#endif
+#endif /* HAVE_OCSP. */
+
     test_wolfSSL_Cleanup();
     printf(" End API Tests\n");
+
 }
