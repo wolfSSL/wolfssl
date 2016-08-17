@@ -29,6 +29,7 @@
 #endif
 
 #include <wolfssl/wolfcrypt/settings.h>
+
 #if defined(WOLFSSL_STATIC_MEMORY)
     #include <wolfssl/wolfcrypt/memory.h>
 #endif /* WOLFSSL_STATIC_MEMORY */
@@ -501,6 +502,40 @@ static void test_wolfSSL_SetTmpDH_buffer(void)
     printf("SUCCESS4\n");
 #endif
 }
+
+
+/* Test function for wolfSSL_SetMinVersion
+ * POST: return 1 on success.
+ */
+static int test_wolfSSL_SetMinVersion(void)
+{
+    WOLFSSL_CTX*        ctx;
+    WOLFSSL*            ssl;
+    int                 version, ret;
+
+    AssertTrue(wolfSSL_Init());
+    ctx = wolfSSL_CTX_new(wolfTLSv1_2_client_method());
+    ssl = wolfSSL_new(ctx);
+    
+    version = 3;
+
+    printf(testingFmt, "wolfSSL_SetMinVersion()");
+
+    ret = wolfSSL_SetMinVersion(ssl, version);
+
+    printf(resultFmt, ret == SSL_SUCCESS ? passed : failed);
+
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+    AssertTrue(wolfSSL_Cleanup());
+
+    if(ret != SSL_SUCCESS) { return SSL_FAILURE; }
+
+    return SSL_SUCCESS;
+
+} /* END test_wolfSSL_SetMinVersion */
+
+
 
 /*----------------------------------------------------------------------------*
  | IO
@@ -1945,6 +1980,7 @@ void ApiTest(void)
     test_wolfSSL_SetTmpDH_buffer();
     test_wolfSSL_read_write();
     test_wolfSSL_dtls_export();
+    AssertTrue(test_wolfSSL_SetMinVersion());
 
 
     /* TLS extensions tests */
