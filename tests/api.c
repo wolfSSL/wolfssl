@@ -103,7 +103,7 @@ static int test_wolfSSL_Cleanup(void)
 }
 
 
-/*  Initialize the wolfcrypt state.
+/*  Initialize the wolfCrypt state.
  *  POST: 0 success.
  */
 static int test_wolfCrypt_Init(void)
@@ -211,24 +211,30 @@ static void test_wolfSSL_CTX_use_certificate_file(void)
 #endif
 }
 
+/*  Test function for wolfSSL_CTX_use_certificate_buffer. Load cert into
+ *  context using buffer.
+ *  PRE: NO_CERTS not defined; USE_CERT_BUFFERS_2048 defined; compile with
+ *  --enable-testcert flag.
+ */
 static int test_wolfSSL_CTX_use_certificate_buffer(void)
 {
-#ifndef NO_CERTS
-    WOLFSSL_CTX*            ctx;
-    int                     ret;
-    
-    printf(testingFmt, "wolfSSL_CTX_use_certificate_buffer()");
-    AssertNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_server_method()));
-    #ifdef USE_CERT_BUFFERS_2048
-    ret = wolfSSL_CTX_use_certificate_buffer(ctx, server_cert_der_2048, 
+    #if !defined(NO_CERTS) && defined(USE_CERT_BUFFERS_2048)
+        WOLFSSL_CTX*            ctx;
+        int                     ret;
+
+        printf(testingFmt, "wolfSSL_CTX_use_certificate_buffer()");
+        AssertNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_server_method()));
+
+        ret = wolfSSL_CTX_use_certificate_buffer(ctx, server_cert_der_2048,
                     sizeof_server_cert_der_2048, SSL_FILETYPE_ASN1);
+
+        printf(resultFmt, ret == SSL_SUCCESS ? passed : failed);
+
+        return ret;
+    #else
+        return SSL_SUCCESS;
     #endif
-    printf(resultFmt, ret == SSL_SUCCESS ? passed : failed);
-    
-    return ret;
-#else
-    return;
-#endif
+
 } /*END test_wolfSSL_CTX_use_certificate_buffer*/
 
 static void test_wolfSSL_CTX_use_PrivateKey_file(void)
@@ -523,14 +529,20 @@ static void test_wolfSSL_SetTmpDH_buffer(void)
 }
 
 
-/* Test function for wolfSSL_SetMinVersion
+/* Test function for wolfSSL_SetMinVersion. Sets the minimum downgrade version
+ * allowed. 
  * POST: return 1 on success.
  */
 static int test_wolfSSL_SetMinVersion(void)
 {
     WOLFSSL_CTX*        ctx;
     WOLFSSL*            ssl;
-    int                 ret;
+    int                 failFlag, itr;
+    
+    const char* versionsVar[] = { "retV1", "retV1_1", "retV1_2" };
+    const int versions[]      = { WOLFSSL_TLSV1, WOLFSSL_TLSV1_1, 
+                                  WOLFSSL_TLSV1_2};
+    failFlag = SSL_SUCCESS;
 
     AssertTrue(wolfSSL_Init());
     ctx = wolfSSL_CTX_new(wolfTLSv1_2_client_method());
@@ -538,17 +550,19 @@ static int test_wolfSSL_SetMinVersion(void)
 
     printf(testingFmt, "wolfSSL_SetMinVersion()");
 
-    ret = wolfSSL_SetMinVersion(ssl, 3);
-
-    printf(resultFmt, ret == SSL_SUCCESS ? passed : failed);
+    for (itr = 0; itr < (int)(sizeof(versionsVar)/sizeof(char*)); itr++){
+       if(wolfSSL_SetMinVersion(ssl, *(versions + itr)) != SSL_SUCCESS){
+            failFlag = SSL_FAILURE;
+        }
+    }
+    
+    printf(resultFmt, failFlag == SSL_SUCCESS ? passed : failed);
 
     wolfSSL_free(ssl);
     wolfSSL_CTX_free(ctx);
     AssertTrue(wolfSSL_Cleanup());
-
-    if(ret != SSL_SUCCESS) { return SSL_FAILURE; }
-
-    return SSL_SUCCESS;
+ 
+    return failFlag;
 
 } /* END test_wolfSSL_SetMinVersion */
 
@@ -1894,29 +1908,38 @@ static void test_wolfSSL_X509_NAME_get_entry(void)
 #endif /* !NO_CERTS */
 }
 
-/* Testing function  wolfSSL_CTX_SetMinVersion
+/* Testing function  wolfSSL_CTX_SetMinVersion; sets the minimum downgrade
+ * version allowed.
  * POST: 1 on success.
  */
 static int test_wolfSSL_CTX_SetMinVersion(void)
 {
     WOLFSSL_CTX*            ctx;
-    int                     ret;
+    int                     failFlag, itr;
+    
+    const char* versionsVar[] = { "retV1", "retV1_1", "retV1_2" };
+    const int versions[]      = { WOLFSSL_TLSV1, WOLFSSL_TLSV1_1, 
+                                  WOLFSSL_TLSV1_2 };
+
+    failFlag = SSL_SUCCESS;
 
     AssertTrue(wolfSSL_Init());
     ctx = wolfSSL_CTX_new(wolfTLSv1_2_client_method());
 
     printf(testingFmt, "wolfSSL_CTX_SetMinVersion()");
 
-    ret = wolfSSL_CTX_SetMinVersion(ctx, 3);
+    for (itr = 0; itr < (int)(sizeof(versionsVar)/sizeof(char*)); itr++){
+        if(wolfSSL_CTX_SetMinVersion(ctx, *(versions + itr)) != SSL_SUCCESS){
+            failFlag = SSL_FAILURE;
+        }   
+    }
 
-    printf(resultFmt, ret == SSL_SUCCESS ? passed : failed);
+    printf(resultFmt, failFlag == SSL_SUCCESS ? passed : failed);
 
     wolfSSL_CTX_free(ctx);
     AssertTrue(wolfSSL_Cleanup());
 
-    if(ret != SSL_SUCCESS)    { return SSL_FAILURE; }
-
-    return SSL_SUCCESS;
+    return failFlag;
 
 } /* END test_wolfSSL_CTX_SetMinVersion */
 
@@ -1926,77 +1949,81 @@ static int test_wolfSSL_CTX_SetMinVersion(void)
  *----------------------------------------------------------------------------*/
 
 
-/* Testing wolfSSL_UseOCSPStapling function.
+/* Testing wolfSSL_UseOCSPStapling function. OCSP stapling eliminates the need
+ * need to contact the CA, lowering the cost of cert revocation checking.
  * PRE: HAVE_OCSP and HAVE_CERTIFICATE_STATUS_REQUEST
  * POST: 1 returned for success.
  */
-#if defined(HAVE_OCSP)
-    #if defined(HAVE_CERTIFICATE_STATUS_REQUEST)
 static int test_wolfSSL_UseOCSPStapling(void)
 {
-    int             ret;
-    WOLFSSL_CTX*    ctx;
-    WOLFSSL*        ssl;
+    #if defined(HAVE_CERTIFICATE_STATUS_REQUEST) && defined(HAVE_OCSP)
+        int             ret;
+        WOLFSSL_CTX*    ctx;
+        WOLFSSL*        ssl;
+
+        wolfSSL_Init();
+        ctx = wolfSSL_CTX_new(wolfTLSv1_2_client_method());
+        ssl = wolfSSL_new(ctx);
+        printf(testingFmt, "wolfSSL_UseOCSPStapling()");
+
+        ret = wolfSSL_UseOCSPStapling(ssl, WOLFSSL_CSR2_OCSP,
+                                    WOLFSSL_CSR2_OCSP_USE_NONCE);
+
+        printf(resultFmt, ret == SSL_SUCCESS ? passed : failed);
 
 
-    wolfSSL_Init();
-    ctx = wolfSSL_CTX_new(wolfTLSv1_2_client_method());
-    ssl = wolfSSL_new(ctx);
-    printf(testingFmt, "wolfSSL_UseOCSPStapling()");
+        wolfSSL_free(ssl);
+        wolfSSL_CTX_free(ctx);
 
-    ret = wolfSSL_UseOCSPStapling(ssl, WOLFSSL_CSR2_OCSP,
-                WOLFSSL_CSR2_OCSP_USE_NONCE);
+        if(ret != SSL_SUCCESS){
+            wolfSSL_Cleanup();
+            return SSL_FAILURE;
+        }
 
-    printf(resultFmt, ret == SSL_SUCCESS ? passed : failed);
-
-
-    wolfSSL_free(ssl);
-    wolfSSL_CTX_free(ctx);
-
-    if(ret != SSL_SUCCESS){
-        wolfSSL_Cleanup();
-        return SSL_FAILURE;
-    }
-
-    return wolfSSL_Cleanup();
+        return wolfSSL_Cleanup();
+    #else
+        return SSL_SUCCESS;
+    #endif
 
 } /*END test_wolfSSL_UseOCSPStapling */
 
-    #endif /* HAVE_CERTIFICATE_STATUS_REQUEST. */
 
-    #ifdef HAVE_CERTIFICATE_STATUS_REQUEST_V2
+/* Testing OCSP stapling version 2, wolfSSL_UseOCSPStaplingV2 funciton. OCSP
+ * stapling eliminates the need ot contact the CA and lowers cert revocation
+ * check.
+ * PRE: HAVE_CERTIFICATE_STATUS_REQUEST_V2 and HAVE_OCSP defined.
+ */
 static int test_wolfSSL_UseOCSPStaplingV2(void)
 {
-    int                 ret;
-    WOLFSSL_CTX*        ctx;
-    WOLFSSL*            ssl;
+    #if defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2) && defined(HAVE_OCSP)
+        int                 ret;
+        WOLFSSL_CTX*        ctx;
+        WOLFSSL*            ssl;
 
-    wolfSSL_Init();
-    ctx = wolfSSL_CTX_new(wolfTLSv1_2_client_method());
-    ssl = wolfSSL_new(ctx);
-    printf(testingFmt, "wolfSSL_UseOCSPStaplingV2()");
+        wolfSSL_Init();
+        ctx = wolfSSL_CTX_new(wolfTLSv1_2_client_method());
+        ssl = wolfSSL_new(ctx);
+        printf(testingFmt, "wolfSSL_UseOCSPStaplingV2()");
 
-    ret = wolfSSL_UseOCSPStaplingV2(ssl, WOLFSSL_CSR2_OCSP,
-                    WOLFSSL_CSR2_OCSP_USE_NONCE );
+        ret = wolfSSL_UseOCSPStaplingV2(ssl, WOLFSSL_CSR2_OCSP,
+                                        WOLFSSL_CSR2_OCSP_USE_NONCE );
 
-    printf(resultFmt, ret == SSL_SUCCESS ? passed : failed);
+        printf(resultFmt, ret == SSL_SUCCESS ? passed : failed);
 
-    wolfSSL_free(ssl);
-    wolfSSL_CTX_free(ctx);
+        wolfSSL_free(ssl);
+        wolfSSL_CTX_free(ctx);
 
-    if(ret != SSL_SUCCESS){
-        wolfSSL_Cleanup();
-        return SSL_FAILURE;
-    }
+        if(ret != SSL_SUCCESS){
+            wolfSSL_Cleanup();
+            return SSL_FAILURE;
+        }
 
-    return wolfSSL_Cleanup();
+        return wolfSSL_Cleanup();
+    #else
+        return SSL_SUCCESS;
+    #endif
 
 } /*END test_wolfSSL_UseOCSPStaplingV2*/
-
-    #endif /* HAVE_CERTIFICATE_STATUS_REQUEST. */
-#endif /* HAVE_OCSP*/
-
-
 
 
 /*----------------------------------------------------------------------------*
@@ -2007,7 +2034,8 @@ void ApiTest(void)
 {
     printf(" Begin API Tests\n");
     AssertIntEQ(test_wolfSSL_Init(), SSL_SUCCESS);
-
+    /* wolfcrypt initialization tests */
+    AssertFalse(test_wolfCrypt_Init());
     test_wolfSSL_Method_Allocators();
     test_wolfSSL_CTX_new(wolfSSLv23_server_method());
     test_wolfSSL_CTX_use_certificate_file();
@@ -2026,32 +2054,19 @@ void ApiTest(void)
     AssertIntEQ(test_wolfSSL_SetMinVersion(), SSL_SUCCESS);
     AssertIntEQ(test_wolfSSL_CTX_SetMinVersion(), SSL_SUCCESS);
 
-
     /* TLS extensions tests */
     test_wolfSSL_UseSNI();
     test_wolfSSL_UseMaxFragment();
     test_wolfSSL_UseTruncatedHMAC();
     test_wolfSSL_UseSupportedCurve();
     test_wolfSSL_UseALPN();
+
     /* X509 tests */
     test_wolfSSL_X509_NAME_get_entry();
 
-    /* wolfcrypt initialization tests */
-    AssertFalse(test_wolfCrypt_Init());
-
     /*OCSP Stapling. */
-#if defined(HAVE_OCSP)
-    #if defined(HAVE_CERTIFICATE_STATUS_REQUEST)
-
     AssertIntEQ(test_wolfSSL_UseOCSPStapling(), SSL_SUCCESS);
-
-    #endif
-    #ifdef HAVE_CERTIFICATE_STATUS_REQUEST_V2
-
     AssertIntEQ(test_wolfSSL_UseOCSPStaplingV2(), SSL_SUCCESS);
-
-    #endif
-#endif /* HAVE_OCSP. */
 
     AssertIntEQ(test_wolfSSL_Cleanup(), SSL_SUCCESS);
     printf(" End API Tests\n");
