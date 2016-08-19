@@ -51,7 +51,6 @@
 #include <signal.h>
 #endif /* HAVE_SIGNAL_H */
 
-#include <wolfssl/ssl.h>
 #include <wolfssl/wolfcrypt/random.h>
 #include <wolfssl/wolfcrypt/des3.h>
 #include <wolfssl/wolfcrypt/arc4.h>
@@ -276,6 +275,11 @@ static byte cipher[1024];
 static byte cipher[1024*1024];
 #endif
 
+/**
+ * Global variable for controlling loop.
+ * Used to terminate the benchmark loop gracefully.
+ */
+volatile int isDone = 0;
 
 static const XGEN_ALIGN byte key[] =
 {
@@ -425,12 +429,6 @@ void bench(bench_cb bench_alg, output_cb output)
 }
 
 /**
- * Global variable for controlling loop.
- * Used to terminate the benchmark loop gracefully.
- */
-volatile int isDone = 0;
-
-/**
  * Will perform a set of benchmarks continuously until an interupt or terminate
  * signal is passed.
  *
@@ -493,7 +491,6 @@ void signals(int signum)
         /* Interupt */
         fprintf(stderr, "Interuptting...\n");
         isDone = 1;
-        exit(1);
     }
 }
 #endif /* HAVE_SIGNAL_H */
