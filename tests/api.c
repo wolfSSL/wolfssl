@@ -218,7 +218,7 @@ static void test_wolfSSL_CTX_use_certificate_file(void)
  */
 static int test_wolfSSL_CTX_use_certificate_buffer(void)
 {
-    #if !defined(NO_CERTS) && defined(USE_CERT_BUFFERS_2048)
+    #if !defined(NO_CERTS) && defined(USE_CERT_BUFFERS_2048) && !defined(NO_RSA)
         WOLFSSL_CTX*            ctx;
         int                     ret;
 
@@ -229,6 +229,7 @@ static int test_wolfSSL_CTX_use_certificate_buffer(void)
                     sizeof_server_cert_der_2048, SSL_FILETYPE_ASN1);
 
         printf(resultFmt, ret == SSL_SUCCESS ? passed : failed);
+        wolfSSL_CTX_free(ctx);
 
         return ret;
     #else
@@ -538,10 +539,13 @@ static int test_wolfSSL_SetMinVersion(void)
     WOLFSSL_CTX*        ctx;
     WOLFSSL*            ssl;
     int                 failFlag, itr;
-    
-    const char* versionsVar[] = { "retV1", "retV1_1", "retV1_2" };
-    const int versions[]      = { WOLFSSL_TLSV1, WOLFSSL_TLSV1_1, 
+
+    #ifndef NO_OLD_TLS
+        const int versions[]  =  { WOLFSSL_TLSV1, WOLFSSL_TLSV1_1,
                                   WOLFSSL_TLSV1_2};
+    #else
+        const int versions[]  =  { WOLFSSL_TLSV1_2 };
+    #endif
     failFlag = SSL_SUCCESS;
 
     AssertTrue(wolfSSL_Init());
@@ -550,18 +554,18 @@ static int test_wolfSSL_SetMinVersion(void)
 
     printf(testingFmt, "wolfSSL_SetMinVersion()");
 
-    for (itr = 0; itr < (int)(sizeof(versionsVar)/sizeof(char*)); itr++){
+    for (itr = 0; itr < (int)(sizeof(versions)/sizeof(int)); itr++){
        if(wolfSSL_SetMinVersion(ssl, *(versions + itr)) != SSL_SUCCESS){
             failFlag = SSL_FAILURE;
         }
     }
-    
+
     printf(resultFmt, failFlag == SSL_SUCCESS ? passed : failed);
 
     wolfSSL_free(ssl);
     wolfSSL_CTX_free(ctx);
     AssertTrue(wolfSSL_Cleanup());
- 
+
     return failFlag;
 
 } /* END test_wolfSSL_SetMinVersion */
@@ -1916,10 +1920,13 @@ static int test_wolfSSL_CTX_SetMinVersion(void)
 {
     WOLFSSL_CTX*            ctx;
     int                     failFlag, itr;
-    
-    const char* versionsVar[] = { "retV1", "retV1_1", "retV1_2" };
-    const int versions[]      = { WOLFSSL_TLSV1, WOLFSSL_TLSV1_1, 
+
+    #ifndef NO_OLD_TLS
+        const int versions[]  = { WOLFSSL_TLSV1, WOLFSSL_TLSV1_1,
                                   WOLFSSL_TLSV1_2 };
+    #else
+        const int versions[]  = { WOLFSSL_TLSV1_2 };
+    #endif
 
     failFlag = SSL_SUCCESS;
 
@@ -1928,10 +1935,10 @@ static int test_wolfSSL_CTX_SetMinVersion(void)
 
     printf(testingFmt, "wolfSSL_CTX_SetMinVersion()");
 
-    for (itr = 0; itr < (int)(sizeof(versionsVar)/sizeof(char*)); itr++){
+    for (itr = 0; itr < (int)(sizeof(versions)/sizeof(int)); itr++){
         if(wolfSSL_CTX_SetMinVersion(ctx, *(versions + itr)) != SSL_SUCCESS){
             failFlag = SSL_FAILURE;
-        }   
+        }
     }
 
     printf(resultFmt, failFlag == SSL_SUCCESS ? passed : failed);
