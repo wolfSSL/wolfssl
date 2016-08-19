@@ -18200,13 +18200,6 @@ int DoSessionTicket(WOLFSSL* ssl,
         word32             length = SESSION_HINT_SZ + LENGTH_SZ;
         word32             idx    = RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ;
 
-    #ifdef WOLFSSL_DTLS
-        if (ssl->options.dtls) {
-            length += DTLS_RECORD_EXTRA;
-            idx    += DTLS_RECORD_EXTRA;
-        }
-    #endif
-
         if (ssl->options.createTicket) {
             ret = CreateTicket(ssl);
             if (ret != 0) return ret;
@@ -18215,6 +18208,12 @@ int DoSessionTicket(WOLFSSL* ssl,
         length += ssl->session.ticketLen;
         sendSz = length + HANDSHAKE_HEADER_SZ + RECORD_HEADER_SZ;
 
+        #ifdef WOLFSSL_DTLS
+        if (ssl->options.dtls) {
+            sendSz += DTLS_RECORD_EXTRA + DTLS_HANDSHAKE_EXTRA;
+            idx    += DTLS_RECORD_EXTRA + DTLS_HANDSHAKE_EXTRA;
+        }
+        #endif
         /* check for available size */
         if ((ret = CheckAvailableSize(ssl, sendSz)) != 0)
             return ret;
@@ -18236,6 +18235,13 @@ int DoSessionTicket(WOLFSSL* ssl,
         /* ticket */
         XMEMCPY(output + idx, ssl->session.ticket, ssl->session.ticketLen);
         /* idx += ssl->session.ticketLen; */
+
+        #ifdef WOLFSSL_DTLS
+        if (ssl->options.dtls) {
+            if ((ret = DtlsPoolSave(ssl, output, sendSz)) != 0)
+                return ret;
+        }
+        #endif
 
         ret = HashOutput(ssl, output, sendSz, 0);
         if (ret != 0) return ret;
