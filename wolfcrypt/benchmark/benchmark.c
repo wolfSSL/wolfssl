@@ -796,7 +796,7 @@ int run_benchmarks()
     bench(bench_eccEncrypt, print_result);
 #endif
 #if defined(FP_ECC)
-    bench(wc_ecc_fp_free, print_result);
+    wc_ecc_fp_free();
 #endif
 #endif
 
