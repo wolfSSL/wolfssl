@@ -227,6 +227,8 @@ AC_ARG_ENABLE([sctp],
     [ENABLED_SCTP=$enableval],
     [ENABLED_SCTP=no])
 
+AM_CONDITIONAL([BUILD_SCTP], [test "x$ENABLED_SCTP" = "xyes"])
+
 
 # OpenSSH compatibility Build
 AC_ARG_ENABLE([openssh],

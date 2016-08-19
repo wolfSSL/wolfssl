@@ -51,6 +51,10 @@ examples/client/client
 examples/echoclient/echoclient
 examples/echoserver/echoserver
 examples/server/server
+examples/sctp/sctp-server
+examples/sctp/sctp-server-dtls
+examples/sctp/sctp-client
+examples/sctp/sctp-client-dtls
 server_ready
 snifftest
 output
