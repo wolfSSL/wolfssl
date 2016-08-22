@@ -142,7 +142,6 @@ then
     enable_savecert=yes
     enable_atomicuser=yes
     enable_pkcallbacks=yes
-    enable_sniffer=yes
     enable_aesgcm=yes
     enable_aesccm=yes
     enable_camellia=yes
@@ -164,7 +163,6 @@ then
     enable_eccencrypt=yes
     enable_psk=yes
     enable_idea=yes
-    enable_arc4=yes
     enable_cmac=yes
     enable_webserver=yes
     enable_hc128=yes
