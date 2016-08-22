@@ -200,11 +200,15 @@ static INLINE int IsEncryptionOn(WOLFSSL* ssl, int isSend)
  * If SCTP is enabled returns dtls && sctp. */
 static INLINE int IsDtlsSctpMode(WOLFSSL* ssl)
 {
+    int result = ssl->options.dtls;
+
+    if (result) {
 #ifdef WOLFSSL_SCTP
-    return ssl->options.dtls && ssl->options.dtlsSctp;
-#else
-    return ssl->options.dtls;
+        result = ssl->options.dtlsSctp;
 #endif
+    }
+
+    return result;
 }
 #endif
 
@@ -4800,6 +4804,7 @@ retry:
                 if (ssl->options.dtls) {
 #ifdef WOLFSSL_DTLS
                     if (!ssl->options.handShakeDone &&
+                        IsDtlsSctpMode(ssl) &&
                         DtlsPoolTimeout(ssl) == 0 &&
                         DtlsPoolSend(ssl) == 0) {
 
@@ -7808,7 +7813,8 @@ static int DoDtlsHandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
             }
             *inOutIdx += ssl->keys.padSz;
         }
-        ret = DtlsPoolSend(ssl);
+        if (IsDtlsSctpMode(ssl))
+            ret = DtlsPoolSend(ssl);
     }
     else if (fragSz < size) {
         /* Since this branch is in order, but fragmented, dtls_msg_list will be
@@ -9198,7 +9204,7 @@ int ProcessReply(WOLFSSL* ssl)
                 ssl->buffers.inputBuffer.length = 0;
                 ssl->buffers.inputBuffer.idx = 0;
 
-                if (ssl->options.dtlsHsRetain) {
+                if (ssl->options.dtlsHsRetain && IsDtlsSctpMode(ssl)) {
                     ret = DtlsPoolSend(ssl);
                     if (ret != 0)
                         return ret;
@@ -9357,9 +9363,11 @@ int ProcessReply(WOLFSSL* ssl)
                             if (ret != DUPLICATE_MSG_E && ret != OUT_OF_ORDER_E)
                                 return ret;
 
-                            ret = DtlsPoolSend(ssl);
-                            if (ret != 0)
-                                return ret;
+                            if (IsDtlsSctpMode(ssl)) {
+                                ret = DtlsPoolSend(ssl);
+                                if (ret != 0)
+                                    return ret;
+                            }
 
                             if (ssl->curSize != 1) {
                                 WOLFSSL_MSG("Malicious or corrupted"
@@ -9550,7 +9558,7 @@ int SendChangeCipher(WOLFSSL* ssl)
     }
 
     #ifdef WOLFSSL_DTLS
-        if (ssl->options.dtls) {
+        if (IsDtlsSctpMode(ssl)) {
             if ((ret = DtlsPoolSave(ssl, output, sendSz)) != 0)
                 return ret;
         }
@@ -9989,7 +9997,7 @@ int SendFinished(WOLFSSL* ssl)
 #endif
 
     #ifdef WOLFSSL_DTLS
-        if (ssl->options.dtls) {
+        if (IsDtlsSctpMode(ssl)) {
             if ((ret = DtlsPoolSave(ssl, input, headerSz + finishedSz)) != 0)
                 return ret;
         }
@@ -10235,7 +10243,7 @@ int SendCertificate(WOLFSSL* ssl)
         }
 
         #ifdef WOLFSSL_DTLS
-            if (ssl->options.dtls) {
+            if (IsDtlsSctpMode(ssl)) {
                 if ((ret = DtlsPoolSave(ssl, output, sendSz)) != 0)
                     return ret;
             }
@@ -10330,7 +10338,7 @@ int SendCertificateRequest(WOLFSSL* ssl)
     i += REQ_HEADER_SZ; */
 
     #ifdef WOLFSSL_DTLS
-        if (ssl->options.dtls) {
+        if (IsDtlsSctpMode(ssl)) {
             if ((ret = DtlsPoolSave(ssl, output, sendSz)) != 0)
                 return ret;
         }
@@ -10429,7 +10437,7 @@ static int BuildCertificateStatus(WOLFSSL* ssl, byte type, buffer* status,
             ret = HashOutput(ssl, output, sendSz, 0);
 
     #ifdef WOLFSSL_DTLS
-        if (ret == 0 && ssl->options.dtls)
+        if (ret == 0 && IsDtlsSctpMode(ssl))
             ret = DtlsPoolSave(ssl, output, sendSz);
     #endif
 
@@ -12836,7 +12844,7 @@ static void PickHashSigAlgo(WOLFSSL* ssl,
         }
 
         #ifdef WOLFSSL_DTLS
-            if (ssl->options.dtls) {
+            if (IsDtlsSctpMode(ssl)) {
                 if ((ret = DtlsPoolSave(ssl, output, sendSz)) != 0)
                     return ret;
             }
@@ -15292,7 +15300,7 @@ int SendClientKeyExchange(WOLFSSL* ssl)
             }
 
         #ifdef WOLFSSL_DTLS
-            if (ssl->options.dtls) {
+            if (IsDtlsSctpMode(ssl)) {
                 if ((ret = DtlsPoolSave(ssl, output, sendSz)) != 0) {
                     goto exit_scke;
                 }
@@ -15769,7 +15777,7 @@ int SendCertificateVerify(WOLFSSL* ssl)
             }
 
         #ifdef WOLFSSL_DTLS
-            if (ssl->options.dtls) {
+            if (IsDtlsSctpMode(ssl)) {
                 ret = DtlsPoolSave(ssl, output, sendSz);
             }
         #endif
@@ -16046,7 +16054,7 @@ int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
         ssl->buffers.outputBuffer.length += sendSz;
         #ifdef WOLFSSL_DTLS
-            if (ssl->options.dtls) {
+            if (IsDtlsSctpMode(ssl)) {
                 if ((ret = DtlsPoolSave(ssl, output, sendSz)) != 0)
                     return ret;
             }
@@ -17370,7 +17378,7 @@ int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             #endif /* HAVE_ECC */
 
             #ifdef WOLFSSL_DTLS
-                if (ssl->options.dtls) {
+                if (IsDtlsSctpMode(ssl)) {
                     if ((ret = DtlsPoolSave(ssl, output, sendSz)) != 0) {
                         goto exit_sske;
                     }
@@ -18553,7 +18561,7 @@ int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         AddHeaders(output, 0, server_hello_done, ssl);
 
         #ifdef WOLFSSL_DTLS
-            if (ssl->options.dtls) {
+            if (IsDtlsSctpMode(ssl)) {
                 if ((ret = DtlsPoolSave(ssl, output, sendSz)) != 0)
                     return 0;
             }
