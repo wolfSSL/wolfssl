@@ -549,11 +549,42 @@ int wolfSSL_dtls_get_peer(WOLFSSL* ssl, void* peer, unsigned int* peerSz)
 }
 
 
-int wolfSSL_dtls_set_mtu(WOLFSSL* ssl, unsigned int newMtu)
-{
 #if defined(WOLFSSL_DTLS) && defined(WOLFSSL_SCTP)
+
+int wolfSSL_CTX_dtls_set_sctp(WOLFSSL_CTX* ctx)
+{
+    WOLFSSL_ENTER("wolfSSL_CTX_dtls_set_sctp()");
+
+    if (ctx == NULL)
+        return BAD_FUNC_ARG;
+
+    ctx->dtlsSctp = 1;
+    return SSL_SUCCESS;
+}
+
+
+int wolfSSL_dtls_set_sctp(WOLFSSL* ssl)
+{
+    WOLFSSL_ENTER("wolfSSL_dtls_set_sctp()");
+
     if (ssl == NULL)
-        return SSL_FAILURE;
+        return BAD_FUNC_ARG;
+
+    ssl->options.dtlsSctp = 1;
+    return SSL_SUCCESS;
+}
+
+
+/* wolfSSL_dtls_set_mtu
+ * Sets the DTLS MTU size. For the deafult MTU of 1500, set to 1500.
+ * The maximum allowed value is 16384, the maximum record size. The MTU
+ * needs to be larger than 200, need to be able to fit in the IP/UDP/DTLS
+ * headers.
+ */
+int wolfSSL_CTX_dtls_set_mtu(WOLFSSL_CTX* ctx, word32 newMtu)
+{
+    if (ctx == NULL)
+        return BAD_FUNC_ARG;
 
     if (newMtu > MAX_RECORD_SIZE) {
         ssl->error = BAD_FUNC_ARG;
@@ -561,76 +592,24 @@ int wolfSSL_dtls_set_mtu(WOLFSSL* ssl, unsigned int newMtu)
     }
 
     return SSL_SUCCESS;
-#else /* WOLFSSL_DTLS && WOLFSSL_SCTP */
-    (void)ssl;
-    (void)newMtu;
-    return SSL_NOT_IMPLEMENTED;
-#endif /* WOLFSSL_DTLS && WOLFSSL_SCTP */
 }
 
 
-int wolfSSL_dtls_enable_retransmission(WOLFSSL* ssl, unsigned int options)
+int wolfSSL_dtls_set_mtu(WOLFSSL* ssl, word32 newMtu)
 {
-    (void)options;
-
-#if defined(WOLFSSL_DTLS) && defined(WOLFSSL_SCTP)
     if (ssl == NULL)
-        return SSL_FAILURE;
+        return BAD_FUNC_ARG;
 
-    ssl->options.dtlsRetxEnable = 1;
+    if (newMtu > MAX_RECORD_SIZE) {
+        ssl->error = BAD_FUNC_ARG;
+        return SSL_FAILURE;
+    }
+
     return SSL_SUCCESS;
-#else /* WOLFSSL_DTLS && WOLFSSL_SCTP */
-    (void)ssl;
-    return SSL_NOT_IMPLEMENTED;
-#endif /* WOLFSSL_DTLS && WOLFSSL_SCTP */
 }
 
 
-int wolfSSL_dtls_disable_retransmission(WOLFSSL* ssl)
-{
-#if defined(WOLFSSL_DTLS) && defined(WOLFSSL_SCTP)
-    if (ssl == NULL)
-        return SSL_FAILURE;
-
-    ssl->options.dtlsRetxEnable = 0;
-    return SSL_SUCCESS;
-#else /* WOLFSSL_DTLS && WOLFSSL_SCTP */
-    (void)ssl;
-    return SSL_NOT_IMPLEMENTED;
 #endif /* WOLFSSL_DTLS && WOLFSSL_SCTP */
-}
-
-
-int wolfSSL_dtls_enable_replay_detection(WOLFSSL* ssl, unsigned int options)
-{
-    (void)options;
-
-#if defined(WOLFSSL_DTLS) && defined(WOLFSSL_SCTP)
-    if (ssl == NULL)
-        return SSL_FAILURE;
-
-    ssl->options.dtlsReplayEnable = 1;
-    return SSL_SUCCESS;
-#else /* WOLFSSL_DTLS && WOLFSSL_SCTP */
-    (void)ssl;
-    return SSL_NOT_IMPLEMENTED;
-#endif /* WOLFSSL_DTLS && WOLFSSL_SCTP */
-}
-
-
-int wolfSSL_dtls_disable_replay_detection(WOLFSSL* ssl)
-{
-#if defined(WOLFSSL_DTLS) && defined(WOLFSSL_SCTP)
-    if (ssl == NULL)
-        return SSL_FAILURE;
-
-    ssl->options.dtlsReplayEnable = 0;
-    return SSL_SUCCESS;
-#else /* WOLFSSL_DTLS && WOLFSSL_SCTP */
-    (void)ssl;
-    return SSL_NOT_IMPLEMENTED;
-#endif /* WOLFSSL_DTLS && WOLFSSL_SCTP */
-}
 
 #endif /* WOLFSSL_LEANPSK */
 

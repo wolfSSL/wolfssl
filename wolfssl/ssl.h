@@ -409,11 +409,10 @@ WOLFSSL_API int  wolfSSL_dtls(WOLFSSL* ssl);
 WOLFSSL_API int  wolfSSL_dtls_set_peer(WOLFSSL*, void*, unsigned int);
 WOLFSSL_API int  wolfSSL_dtls_get_peer(WOLFSSL*, void*, unsigned int*);
 
+WOLFSSL_API int  wolfSSL_CTX_dtls_set_sctp(WOLFSSL_CTX*);
+WOLFSSL_API int  wolfSSL_dtls_set_sctp(WOLFSSL*);
+WOLFSSL_API int  wolfSSL_CTX_dtls_set_mtu(WOLFSSL_CTX*, unsigned int);
 WOLFSSL_API int  wolfSSL_dtls_set_mtu(WOLFSSL*, unsigned int);
-WOLFSSL_API int  wolfSSL_dtls_enable_retransmission(WOLFSSL*, unsigned int);
-WOLFSSL_API int  wolfSSL_dtls_disable_retransmission(WOLFSSL*);
-WOLFSSL_API int  wolfSSL_dtls_enable_replay_detection(WOLFSSL*, unsigned int);
-WOLFSSL_API int  wolfSSL_dtls_disable_replay_detection(WOLFSSL*);
 
 WOLFSSL_API int   wolfSSL_ERR_GET_REASON(unsigned long err);
 WOLFSSL_API char* wolfSSL_ERR_error_string(unsigned long,char*);

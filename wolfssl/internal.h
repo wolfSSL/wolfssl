@@ -1940,6 +1940,10 @@ struct WOLFSSL_CTX {
     byte        quietShutdown;    /* don't send close notify */
     byte        groupMessages;    /* group handshake messages before sending */
     byte        minDowngrade;     /* minimum downgrade version */
+#if defined(WOLFSSL_SCTP) && defined(WOLFSSL_DTLS)
+    byte        dtlsSctp;         /* DTLS-over-SCTP mode */
+    word16      dtlsMtuSz;        /* DTLS MTU size */
+#endif
 #ifndef NO_DH
     word16      minDhKeySz;       /* minimum DH key size */
 #endif
@@ -2406,9 +2410,8 @@ typedef struct Options {
 #ifdef WOLFSSL_DTLS
     word16            dtlsHsRetain:1;     /* DTLS retaining HS data */
 #ifdef WOLFSSL_SCTP
-    word16            dtlsRetxEnable:1;   /* DTLS HS retransmission enable */
-    word16            dtlsReplayEnable:1; /* DTLS Replay detection enable */
-#endif /* WOLFSSL_SCTP */
+    word16            dtlsSctp:1;         /* DTLS-over-SCTP mode */
+#endif
 #endif
 
     /* need full byte values for this section */

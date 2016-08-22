@@ -195,6 +195,20 @@ static INLINE int IsEncryptionOn(WOLFSSL* ssl, int isSend)
 }
 
 
+#ifdef WOLFSSL_DTLS
+/* If SCTP is not enabled returns the state of the dtls option.
+ * If SCTP is enabled returns dtls && sctp. */
+static INLINE int IsDtlsSctpMode(WOLFSSL* ssl)
+{
+#ifdef WOLFSSL_SCTP
+    return ssl->options.dtls && ssl->options.dtlsSctp;
+#else
+    return ssl->options.dtls;
+#endif
+}
+#endif
+
+
 #ifdef HAVE_QSH
 /* free all structs that where used with QSH */
 static int QSH_FreeAll(WOLFSSL* ssl)
@@ -1372,6 +1386,10 @@ int InitSSL_Ctx(WOLFSSL_CTX* ctx, WOLFSSL_METHOD* method, void* heap)
 #endif
 
     ctx->devId = INVALID_DEVID;
+
+#if defined(WOLFSSL_DTLS) && defined(WOLFSSL_SCTP)
+    ctx->dtlsMtuSz = MAX_MTU;
+#endif
 
 #ifndef NO_CERTS
     ctx->cm = wolfSSL_CertManagerNew_ex(heap);
@@ -3336,9 +3354,13 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
     ssl->options.processReply = doProcessInit;
 
 #ifdef WOLFSSL_DTLS
+    #ifdef WOLFSSL_SCTP
+        ssl->options.dtlsSctp           = ctx->dtlsSctp;
+    #endif
     ssl->dtls_timeout_init              = DTLS_TIMEOUT_INIT;
     ssl->dtls_timeout_max               = DTLS_TIMEOUT_MAX;
     ssl->dtls_timeout                   = ssl->dtls_timeout_init;
+    ssl->buffers.dtlsCtx.fd             = -1;
 #endif
 
     #ifndef NO_OLD_TLS
@@ -3347,10 +3369,6 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
         ssl->hmac = TLS_hmac;
     #endif
 
-
-#ifdef WOLFSSL_DTLS
-    ssl->buffers.dtlsCtx.fd = -1;
-#endif
 
     ssl->cipher.ssl = ssl;
 
@@ -5055,7 +5073,7 @@ static int GetRecordHeader(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     }
 
 #ifdef WOLFSSL_DTLS
-    if (ssl->options.dtls &&
+    if (IsDtlsSctpMode(ssl) &&
         (!DtlsCheckWindow(&ssl->keys.dtls_state) ||
          (ssl->options.handShakeDone && ssl->keys.dtls_state.curEpoch == 0))) {
             return SEQUENCE_ERROR;
@@ -9282,11 +9300,11 @@ int ProcessReply(WOLFSSL* ssl)
                 ssl->keys.decryptedCur = 1;
             }
 
-            if (ssl->options.dtls) {
             #ifdef WOLFSSL_DTLS
+            if (IsDtlsSctpMode(ssl)) {
                 DtlsUpdateWindow(&ssl->keys.dtls_state);
-            #endif /* WOLFSSL_DTLS */
             }
+            #endif /* WOLFSSL_DTLS */
 
             WOLFSSL_MSG("received record layer msg");
 
