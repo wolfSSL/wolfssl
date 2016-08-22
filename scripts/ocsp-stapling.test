@@ -25,14 +25,14 @@ sleep 1
 # client test against our own server - GOOD CERT
 ./examples/server/server -c certs/ocsp/server1-cert.pem -k certs/ocsp/server1-key.pem &
 sleep 1
-./examples/client/client -X -C -A certs/ocsp/root-ca-cert.pem -W 1
+./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 1
 RESULT=$?
 [ $RESULT -ne 0 ] && echo -e "\n\nClient connection failed" && exit 1
 
 # client test against our own server - REVOKED CERT
 ./examples/server/server -c certs/ocsp/server2-cert.pem -k certs/ocsp/server2-key.pem &
 sleep 1
-./examples/client/client -X -C -A certs/ocsp/root-ca-cert.pem -W 1
+./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 1
 RESULT=$?
 [ $RESULT -ne 1 ] && echo -e "\n\nClient connection suceeded $RESULT" && exit 1
 

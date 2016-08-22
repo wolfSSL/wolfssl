@@ -16,39 +16,39 @@ sleep 1
 # client test against our own server - GOOD CERTS
 ./examples/server/server -c certs/ocsp/server3-cert.pem -k certs/ocsp/server3-key.pem &
 sleep 1
-./examples/client/client -X -C -A certs/ocsp/root-ca-cert.pem -W 1
+./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 1
 RESULT=$?
 [ $RESULT -ne 0 ] && echo -e "\n\nClient connection failed" && exit 1
 
 ./examples/server/server -c certs/ocsp/server3-cert.pem -k certs/ocsp/server3-key.pem &
 sleep 1
-./examples/client/client -X -C -A certs/ocsp/root-ca-cert.pem -W 2
+./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 2
 RESULT=$?
 [ $RESULT -ne 0 ] && echo -e "\n\nClient connection failed" && exit 1
 
 # client test against our own server - REVOKED SERVER CERT
 ./examples/server/server -c certs/ocsp/server4-cert.pem -k certs/ocsp/server4-key.pem &
 sleep 1
-./examples/client/client -X -C -A certs/ocsp/root-ca-cert.pem -W 1
+./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 1
 RESULT=$?
 [ $RESULT -ne 1 ] && echo -e "\n\nClient connection suceeded $RESULT" && exit 1
 
 ./examples/server/server -c certs/ocsp/server4-cert.pem -k certs/ocsp/server4-key.pem &
 sleep 1
-./examples/client/client -X -C -A certs/ocsp/root-ca-cert.pem -W 2
+./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 2
 RESULT=$?
 [ $RESULT -ne 1 ] && echo -e "\n\nClient connection suceeded $RESULT" && exit 1
 
 # client test against our own server - REVOKED INTERMEDIATE CERT
 ./examples/server/server -c certs/ocsp/server5-cert.pem -k certs/ocsp/server5-key.pem &
 sleep 1
-./examples/client/client -X -C -A certs/ocsp/root-ca-cert.pem -W 1
+./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 1
 RESULT=$?
 [ $RESULT -ne 0 ] && echo -e "\n\nClient connection failed $RESULT" && exit 1
 
 ./examples/server/server -c certs/ocsp/server5-cert.pem -k certs/ocsp/server5-key.pem &
 sleep 1
-./examples/client/client -X -C -A certs/ocsp/root-ca-cert.pem -W 2
+./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 2
 RESULT=$?
 [ $RESULT -ne 1 ] && echo -e "\n\nClient connection suceeded $RESULT" && exit 1
 
