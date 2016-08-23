@@ -82,8 +82,9 @@ typedef struct RsaKey {
     int   type;                               /* public or private */
     void* heap;                               /* for user memory overrides */
     int   state;
-    byte* tmp;
+    byte*  tmp;                               /* temp buffer for async RSA */
     word32 tmpLen;
+    byte   tmpIsAlloc;
 #ifdef WC_RSA_BLINDING
     WC_RNG* rng;                              /* for PrivateDecrypt blinding */
 #endif

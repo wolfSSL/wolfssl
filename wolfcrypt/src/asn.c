@@ -692,10 +692,13 @@ static int GetIntRsa(RsaKey* key, mp_int* mpi, const byte* input,
     if (GetLength(input, &i, &length, maxIdx) < 0)
         return ASN_PARSE_E;
 
-    if ( (b = input[i++]) == 0x00)
-        length--;
-    else
-        i--;
+    if (length > 0) {
+        /* remove leading zero */
+        if ( (b = input[i++]) == 0x00)
+            length--;
+        else
+            i--;
+    }
 
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(HAVE_CAVIUM)
     if (key->asyncDev.marker == WOLFSSL_ASYNC_MARKER_RSA) {

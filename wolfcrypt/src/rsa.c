@@ -38,7 +38,7 @@ Possible RSA enable options:
  * WOLFSSL_KEY_GEN:     Allows Private Key Generation               default: off
  * RSA_LOW_MEM:         NON CRT Private Operations, less memory     default: off
  * WC_NO_RSA_OAEP:      Disables RSA OAEP padding                   default: on (not defined)
- * RSA_CHECK_KEYTYPE:   RSA check key type                          default: off
+
 */
 
 /*
@@ -165,6 +165,23 @@ enum {
     RSA_STATE_DECRYPT_RES,
 };
 
+static void wc_RsaCleanup(RsaKey* key)
+{
+    if (key && key->tmp) {
+        /* make sure any allocated memory is free'd */
+        if (key->tmpIsAlloc) {
+            if (key->type == RSA_PRIVATE_DECRYPT ||
+                key->type == RSA_PRIVATE_ENCRYPT) {
+                ForceZero(key->tmp, key->tmpLen);
+            }
+            XFREE(key->tmp, key->heap, DYNAMIC_TYPE_RSA);
+            key->tmpIsAlloc = 0;
+        }
+        key->tmp = NULL;
+        key->tmpLen = 0;
+    }
+}
+
 int wc_InitRsaKey_ex(RsaKey* key, void* heap, int devId)
 {
     int ret = 0;
@@ -180,6 +197,7 @@ int wc_InitRsaKey_ex(RsaKey* key, void* heap, int devId)
     key->heap = heap;
     key->tmp = NULL;
     key->tmpLen = 0;
+    key->tmpIsAlloc = 0;
 
 #ifdef WOLFSSL_ASYNC_CRYPT
     if (devId != INVALID_DEVID) {
@@ -226,6 +244,8 @@ int wc_FreeRsaKey(RsaKey* key)
     if (key == NULL) {
         return BAD_FUNC_ARG;
     }
+
+    wc_RsaCleanup(key);
 
 #ifdef WOLFSSL_ASYNC_CRYPT
     if (key->asyncDev.marker == WOLFSSL_ASYNC_MARKER_RSA) {
@@ -791,13 +811,13 @@ static int wc_RsaUnPad_ex(byte* pkcsBlock, word32 pkcsBlockLen, byte** out,
     switch (padType)
     {
         case WC_RSA_PKCSV15_PAD:
-            //WOLFSSL_MSG("wolfSSL Using RSA PKCSV15 padding");
+            WOLFSSL_MSG("wolfSSL Using RSA PKCSV15 padding");
             ret = RsaUnPad(pkcsBlock, pkcsBlockLen, out, padValue);
             break;
 
     #ifndef WC_NO_RSA_OAEP
         case WC_RSA_OAEP_PAD:
-            //WOLFSSL_MSG("wolfSSL Using RSA OAEP padding");
+            WOLFSSL_MSG("wolfSSL Using RSA OAEP padding");
             ret = RsaUnPad_OAEP((byte*)pkcsBlock, pkcsBlockLen, out,
                                         hType, mgf, optLabel, labelLen, heap);
             break;
@@ -1159,16 +1179,6 @@ static int RsaPublicEncryptEx(const byte* in, word32 inLen, byte* out,
         return RSA_BUFFER_E;
     }
 
-    /* Optional key type check (disabled by default) */
-    /* Note: internal tests allow private to be used as public */
-#ifdef RSA_CHECK_KEYTYPE
-    if ((rsa_type == RSA_PUBLIC_ENCRYPT && key->type != RSA_PUBLIC) || 
-        (rsa_type == RSA_PRIVATE_ENCRYPT && key->type != RSA_PRIVATE)) {
-        WOLFSSL_MSG("Wrong RSA Encrypt key type");
-        return RSA_WRONG_TYPE_E;
-    }
-#endif
-
     switch (key->state) {
     case RSA_STATE_NONE:
     case RSA_STATE_ENCRYPT_PAD:
@@ -1251,16 +1261,6 @@ static int RsaPrivateDecryptEx(byte* in, word32 inLen, byte* out,
         return ret;
     }
 
-    /* Optional key type check (disabled by default) */
-    /* Note: internal tests allow private to be used as public */
-#ifdef RSA_CHECK_KEYTYPE
-    if ((rsa_type == RSA_PUBLIC_DECRYPT && key->type != RSA_PUBLIC) || 
-        (rsa_type == RSA_PRIVATE_DECRYPT && key->type != RSA_PRIVATE)) {
-        WOLFSSL_MSG("Wrong RSA Decrypt key type");
-        return RSA_WRONG_TYPE_E;
-    }
-#endif
-
     switch (key->state) {
     case RSA_STATE_NONE:
     case RSA_STATE_DECRYPT_EXPTMOD:
@@ -1296,6 +1296,7 @@ static int RsaPrivateDecryptEx(byte* in, word32 inLen, byte* out,
         key->tmpLen = inLen;
         if (outPtr == NULL) {
             key->tmp = (byte*)XMALLOC(inLen, key->heap, DYNAMIC_TYPE_RSA);
+            key->tmpIsAlloc = 1;
             if (key->tmp == NULL) {
                 ERROR_OUT(MEMORY_E);
             }
@@ -1353,15 +1354,7 @@ static int RsaPrivateDecryptEx(byte* in, word32 inLen, byte* out,
 done:
 
     key->state = RSA_STATE_NONE;
-    if (key->tmp) {
-        /* if not inline */
-        if (outPtr == NULL) {
-            ForceZero(key->tmp, key->tmpLen);
-            XFREE(key->tmp, key->heap, DYNAMIC_TYPE_RSA);
-        }
-        key->tmp = NULL;
-        key->tmpLen = 0;
-    }
+    wc_RsaCleanup(key);
 
     return ret;
 }

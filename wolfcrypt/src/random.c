@@ -810,7 +810,7 @@ int wc_InitRng(WC_RNG* rng)
 
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(HAVE_CAVIUM)
     ret = wolfAsync_DevCtxInit(&rng->asyncDev, WOLFSSL_ASYNC_MARKER_RNG, INVALID_DEVID);
-    if (ret != 0) return -2007;
+    if (ret != 0) return ret;
 #endif
 
 #ifdef WOLFSSL_SMALL_STACK
