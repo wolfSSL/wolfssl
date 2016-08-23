@@ -56,7 +56,7 @@ int main()
     const char* response = "hi there";
     char buffer[80];
 
-    int got = recv(client_sd, buffer, sizeof(buffer), 0);
+    int got = (int)recv(client_sd, buffer, sizeof(buffer), 0);
     if (got > 0) {
         buffer[got] = 0;
         printf("client said: %s\n", buffer);

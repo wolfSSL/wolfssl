@@ -103,7 +103,7 @@ int main()
         buffer[got] = 0;
         printf("client said: %s\n", buffer);
     }
-    wolfSSL_write(ssl, response, strlen(response));
+    wolfSSL_write(ssl, response, (int)strlen(response));
 
     wolfSSL_shutdown(ssl);
     wolfSSL_free(ssl);

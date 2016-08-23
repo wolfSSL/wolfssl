@@ -52,7 +52,7 @@ int main()
     char buffer[80];
 
     send(sd, msg, strlen(msg), 0);
-    int got = recv(sd, buffer, sizeof(buffer), 0);
+    int got = (int)recv(sd, buffer, sizeof(buffer), 0);
     if (got > 0) {
         buffer[got] = 0;
         printf("server said: %s\n", buffer);

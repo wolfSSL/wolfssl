@@ -88,7 +88,7 @@ int main()
     printf("Cipher Suite is %s\n",
            wolfSSL_CIPHER_get_name(wolfSSL_get_current_cipher(ssl))); 
 
-    wolfSSL_write(ssl, response, strlen(response));
+    wolfSSL_write(ssl, response, (int)strlen(response));
     int got = wolfSSL_read(ssl, buffer, sizeof(buffer));
     if (got > 0) {
         buffer[got] = 0;
