@@ -125,6 +125,71 @@ AS_IF([test "$ax_enable_debug" = "yes"],
       [AM_CFLAGS="$AM_CFLAGS -DNDEBUG"])
 
 
+# Distro build feature subset (Debian, Ubuntu, etc.)
+AC_ARG_ENABLE([distro],
+    [  --enable-distro         Enable wolfSSL distro build (default: disabled)],
+    [ ENABLED_DISTRO=$enableval ],
+    [ ENABLED_DISTRO=no ]
+    )
+if test "$ENABLED_DISTRO" = "yes"
+then
+    enable_shared=yes
+    enable_static=yes
+    enable_dtls=yes
+    enable_openssh=yes
+    enable_opensslextra=yes
+    enable_savesession=yes
+    enable_savecert=yes
+    enable_atomicuser=yes
+    enable_pkcallbacks=yes
+    enable_aesgcm=yes
+    enable_aesccm=yes
+    enable_camellia=yes
+    enable_ripemd=yes
+    enable_sha512=yes
+    enable_sessioncerts=yes
+    enable_keygen=yes
+    enable_certgen=yes
+    enable_certreq=yes
+    enable_certext=yes
+    enable_sep=yes
+    enable_hkdf=yes
+    enable_dsa=yes
+    enable_ecccustcurves=yes
+    enable_compkey=yes
+    enable_curve25519=yes
+    enable_ed25519=yes
+    enable_fpecc=yes
+    enable_eccencrypt=yes
+    enable_psk=yes
+    enable_idea=yes
+    enable_cmac=yes
+    enable_webserver=yes
+    enable_hc128=yes
+    enable_rabbit=yes
+    enable_ocsp=yes
+    enable_ocspstapling=yes
+    enable_ocspstapling2=yes
+    enable_crl=yes
+    enable_crl_monitor=yes
+    enable_sni=yes
+    enable_maxfragment=yes
+    enable_alpn=yes
+    enable_truncatedhmac=yes
+    enable_supportedcurves=yes
+    enable_session_ticket=yes
+    enable_tlsx=yes
+    enable_pkcs7=yes
+    enable_scep=yes
+    enable_srp=yes
+    enable_certservice=yes
+    enable_jni=yes
+    enable_lighty=yes
+    enable_stunnel=yes
+    enable_pwdbased=yes
+fi
+
+
 # SINGLE THREADED
 AC_ARG_ENABLE([singlethreaded],
     [  --enable-singlethreaded Enable wolfSSL single threaded (default: disabled)],
@@ -2986,6 +3051,7 @@ echo "   * Filesystem:                 $ENABLED_FILESYSTEM"
 echo "   * OpenSSH Build:              $ENABLED_OPENSSH"
 echo "   * OpenSSL Extra API:          $ENABLED_OPENSSLEXTRA"
 echo "   * Max Strength Build:         $ENABLED_MAXSTRENGTH"
+echo "   * Distro Build:               $ENABLED_DISTRO"
 echo "   * fastmath:                   $ENABLED_FASTMATH"
 echo "   * sniffer:                    $ENABLED_SNIFFER"
 echo "   * snifftest:                  $ENABLED_SNIFFTEST"
