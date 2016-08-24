@@ -195,7 +195,6 @@ static INLINE int IsEncryptionOn(WOLFSSL* ssl, int isSend)
 }
 
 
-#ifdef WOLFSSL_DTLS
 /* If SCTP is not enabled returns the state of the dtls option.
  * If SCTP is enabled returns dtls && !sctp. */
 static INLINE int IsDtlsNotSctpMode(WOLFSSL* ssl)
@@ -210,7 +209,6 @@ static INLINE int IsDtlsNotSctpMode(WOLFSSL* ssl)
 
     return result;
 }
-#endif
 
 
 #ifdef HAVE_QSH
@@ -1392,7 +1390,7 @@ int InitSSL_Ctx(WOLFSSL_CTX* ctx, WOLFSSL_METHOD* method, void* heap)
     ctx->devId = INVALID_DEVID;
 
 #if defined(WOLFSSL_DTLS) && defined(WOLFSSL_SCTP)
-    ctx->dtlsMtuSz = MAX_MTU;
+    ctx->dtlsMtuSz = MAX_RECORD_SIZE;
 #endif
 
 #ifndef NO_CERTS
@@ -3346,9 +3344,6 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
     ssl->IOCB_ReadCtx  = &ssl->nxCtx;  /* default NetX IO ctx, same for read */
     ssl->IOCB_WriteCtx = &ssl->nxCtx;  /* and write */
 #endif
-#ifdef WOLFSSL_DTLS
-    ssl->dtls_expected_rx = MAX_MTU;
-#endif
 
     ssl->options.serverState = NULL_STATE;
     ssl->options.clientState = NULL_STATE;
@@ -3360,6 +3355,10 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
 #ifdef WOLFSSL_DTLS
     #ifdef WOLFSSL_SCTP
         ssl->options.dtlsSctp           = ctx->dtlsSctp;
+        ssl->dtlsMtuSz                  = ctx->dtlsMtuSz;
+        ssl->dtls_expected_rx           = ssl->dtlsMtuSz;
+    #else
+        ssl->dtls_expected_rx = MAX_MTU;
     #endif
     ssl->dtls_timeout_init              = DTLS_TIMEOUT_INIT;
     ssl->dtls_timeout_max               = DTLS_TIMEOUT_MAX;
@@ -7448,7 +7447,8 @@ static int DoHandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
     /* hello_request not hashed */
     /* Also, skip hashing the client_hello message here for DTLS. It will be
      * hashed later if the DTLS cookie is correct. */
-    if (type != hello_request && !(ssl->options.dtls && type == client_hello) &&
+    if (type != hello_request &&
+            !(IsDtlsNotSctpMode(ssl) && type == client_hello) &&
             ssl->error != WC_PENDING_E) {
         ret = HashInput(ssl, input + *inOutIdx, size);
         if (ret != 0) return ret;
@@ -17843,7 +17843,7 @@ int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         XMEMCPY(&pv, input + i, OPAQUE16_LEN);
         ssl->chVersion = pv;   /* store */
 #ifdef WOLFSSL_DTLS
-        if (ssl->options.dtls) {
+        if (IsDtlsNotSctpMode(ssl)) {
             int ret;
             #if defined(NO_SHA) && defined(NO_SHA256)
                 #error "DTLS needs either SHA or SHA-256"
@@ -17920,7 +17920,7 @@ int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         /* random */
         XMEMCPY(ssl->arrays->clientRandom, input + i, RAN_LEN);
 #ifdef WOLFSSL_DTLS
-        if (ssl->options.dtls) {
+        if (IsDtlsNotSctpMode(ssl)) {
             int ret = wc_HmacUpdate(&cookieHmac, input + i, RAN_LEN);
             if (ret != 0) return ret;
         }
@@ -17953,7 +17953,7 @@ int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
             XMEMCPY(ssl->arrays->sessionID, input + i, b);
 #ifdef WOLFSSL_DTLS
-            if (ssl->options.dtls) {
+            if (IsDtlsNotSctpMode(ssl)) {
                 int ret = wc_HmacUpdate(&cookieHmac, input + i - 1, b + 1);
                 if (ret != 0) return ret;
             }
@@ -18007,7 +18007,7 @@ int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
         XMEMCPY(clSuites.suites, input + i, clSuites.suiteSz);
 #ifdef WOLFSSL_DTLS
-        if (ssl->options.dtls) {
+        if (IsDtlsNotSctpMode(ssl)) {
             int ret = wc_HmacUpdate(&cookieHmac,
                                     input + i - OPAQUE16_LEN,
                                     clSuites.suiteSz + OPAQUE16_LEN);
@@ -18024,7 +18024,7 @@ int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             return BUFFER_ERROR;
 
 #ifdef WOLFSSL_DTLS
-        if (ssl->options.dtls) {
+        if (IsDtlsNotSctpMode(ssl)) {
             byte newCookie[MAX_COOKIE_LEN];
             int ret;
 

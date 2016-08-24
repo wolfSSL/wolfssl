@@ -2895,6 +2895,9 @@ AS_IF([test "x$ENABLED_MAXSTRENGTH" = "xyes" && \
        test "x$ENABLED_SSLV3" = "xyes"],
       [AC_MSG_ERROR([Cannot use Max Strength and SSLv3 at the same time.])])
 
+AS_IF([test "x$ENABLED_SCTP" = "xyes"],
+      [AM_CFLAGS="-DWOLFSSL_SCTP $AM_CFLAGS"])
+
 # SCTP requires DTLS
 AS_IF([test "x$ENABLED_DTLS" = "xno" && \
        test "x$ENABLED_SCTP" = "xyes"],

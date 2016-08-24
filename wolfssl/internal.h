@@ -2752,7 +2752,7 @@ struct WOLFSSL {
     word32          dtls_expected_rx;
     wc_dtls_export  dtls_export;        /* export function for session */
 #ifdef WOLFSSL_SCTP
-    word32          mtu_size;
+    word16          dtlsMtuSz;
 #endif /* WOLFSSL_SCTP */
 #endif
 #ifdef WOLFSSL_CALLBACKS

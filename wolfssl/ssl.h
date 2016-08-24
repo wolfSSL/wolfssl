@@ -411,8 +411,8 @@ WOLFSSL_API int  wolfSSL_dtls_get_peer(WOLFSSL*, void*, unsigned int*);
 
 WOLFSSL_API int  wolfSSL_CTX_dtls_set_sctp(WOLFSSL_CTX*);
 WOLFSSL_API int  wolfSSL_dtls_set_sctp(WOLFSSL*);
-WOLFSSL_API int  wolfSSL_CTX_dtls_set_mtu(WOLFSSL_CTX*, unsigned int);
-WOLFSSL_API int  wolfSSL_dtls_set_mtu(WOLFSSL*, unsigned int);
+WOLFSSL_API int  wolfSSL_CTX_dtls_set_mtu(WOLFSSL_CTX*, unsigned short);
+WOLFSSL_API int  wolfSSL_dtls_set_mtu(WOLFSSL*, unsigned short);
 
 WOLFSSL_API int   wolfSSL_ERR_GET_REASON(unsigned long err);
 WOLFSSL_API char* wolfSSL_ERR_error_string(unsigned long,char*);
