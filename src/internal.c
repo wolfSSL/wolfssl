@@ -10834,14 +10834,10 @@ int SendData(WOLFSSL* ssl, const void* data, int sz)
 #endif
 
     for (;;) {
-#ifdef HAVE_MAX_FRAGMENT
-        int   len = min(sz - sent, min(ssl->max_fragment, OUTPUT_RECORD_SIZE));
-#else
-        int   len = min(sz - sent, OUTPUT_RECORD_SIZE);
-#endif
+        int   len;
         byte* out;
         byte* sendBuffer = (byte*)data + sent;  /* may switch on comp */
-        int   buffSz = len;                     /* may switch on comp */
+        int   buffSz;                           /* may switch on comp */
         int   outputSz;
 #ifdef HAVE_LIBZ
         byte  comp[MAX_RECORD_SIZE + MAX_COMP_EXTRA];
@@ -10849,12 +10845,17 @@ int SendData(WOLFSSL* ssl, const void* data, int sz)
 
         if (sent == sz) break;
 
+        len = min(sz - sent, OUTPUT_RECORD_SIZE);
+#ifdef HAVE_MAX_FRAGMENT
+        len = min(len, ssl->max_fragment);
+#endif
+
 #ifdef WOLFSSL_DTLS
-        if (ssl->options.dtls) {
-            len    = min(len, MAX_UDP_SIZE);
-            buffSz = len;
+        if (IsDtlsNotSctpMode(ssl)) {
+            len = min(len, MAX_UDP_SIZE);
         }
 #endif
+        buffSz = len;
 
         /* check for available size */
         outputSz = len + COMP_EXTRA + dtlsExtra + MAX_MSG_EXTRA;
