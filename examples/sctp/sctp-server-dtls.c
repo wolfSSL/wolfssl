@@ -76,6 +76,10 @@ int main()
     if (ctx == NULL)
         err_sys("ctx new dtls server failed");
 
+    ret = wolfSSL_CTX_dtls_set_sctp(ctx);
+    if (ret != SSL_SUCCESS)
+        err_sys("set sctp mode failed");
+
     ret = wolfSSL_CTX_use_PrivateKey_file(ctx, key, SSL_FILETYPE_PEM);
     if (ret != SSL_SUCCESS)
         err_sys("use private key error");
@@ -104,6 +108,11 @@ int main()
         printf("client said: %s\n", buffer);
     }
     wolfSSL_write(ssl, response, (int)strlen(response));
+
+    unsigned char bigBuf[4096];
+
+    got = wolfSSL_read(ssl, bigBuf, sizeof(bigBuf));
+    wolfSSL_write(ssl, bigBuf, sizeof(bigBuf));
 
     wolfSSL_shutdown(ssl);
     wolfSSL_free(ssl);

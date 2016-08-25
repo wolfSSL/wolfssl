@@ -70,6 +70,10 @@ int main()
     if (ctx == NULL)
         err_sys("ctx new dtls client failed");
 
+    ret = wolfSSL_CTX_dtls_set_sctp(ctx);
+    if (ret != SSL_SUCCESS)
+        err_sys("set sctp mode failed");
+
     ret = wolfSSL_CTX_load_verify_locations(ctx, cacert, NULL);
     if (ret != SSL_SUCCESS)
         err_sys("ca cert error");
@@ -93,6 +97,22 @@ int main()
     if (got > 0) {
         buffer[got] = 0;
         printf("server said: %s\n", buffer);
+    }
+
+    unsigned char bigBuf[4096];
+    unsigned int i;
+
+    for (i = 0; i < (int)sizeof(bigBuf); i++)
+        bigBuf[i] = (unsigned char)(i & 0xFF);
+    wolfSSL_write(ssl, bigBuf, sizeof(bigBuf));
+    memset(bigBuf, 0, sizeof(bigBuf));
+
+    wolfSSL_read(ssl, bigBuf, sizeof(bigBuf));
+    for (i = 0; i < sizeof(bigBuf); i++) {
+        if (bigBuf[i] != (unsigned char)(i & 0xFF)) {
+            printf("big message check fail\n");
+            break;
+        }
     }
 
     wolfSSL_shutdown(ssl);
