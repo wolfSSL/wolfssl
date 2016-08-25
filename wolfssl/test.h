@@ -107,10 +107,11 @@
     #define SNPRINTF snprintf
 #endif /* USE_WINDOWS_API */
 
+#ifdef WOLFSSL_ASYNC_CRYPT
+    #include <wolfssl/wolfcrypt/async.h>
+#endif
 #ifdef HAVE_CAVIUM
-    #include "cavium_sysdep.h"
-    #include "cavium_common.h"
-    #include "cavium_ioctl.h"
+    #include <wolfssl/wolfcrypt/port/cavium/cavium_nitrox.h>
 #endif
 
 #ifdef _MSC_VER
@@ -1218,29 +1219,6 @@ static INLINE void CaCb(unsigned char* der, int sz, int type)
 
 #endif /* !NO_CERTS */
 
-#ifdef HAVE_CAVIUM
-
-static INLINE int OpenNitroxDevice(int dma_mode,int dev_id)
-{
-   Csp1CoreAssignment core_assign;
-   Uint32             device;
-
-   if (CspInitialize(CAVIUM_DIRECT,CAVIUM_DEV_ID))
-      return -1;
-   if (Csp1GetDevType(&device))
-      return -1;
-   if (device != NPX_DEVICE) {
-      if (ioctl(gpkpdev_hdlr[CAVIUM_DEV_ID], IOCTL_CSP1_GET_CORE_ASSIGNMENT,
-                (Uint32 *)&core_assign)!= 0)
-         return -1;
-   }
-   CspShutdown(CAVIUM_DEV_ID);
-
-   return CspInitialize(dma_mode, dev_id);
-}
-
-#endif /* HAVE_CAVIUM */
-
 
 /* Wolf Root Directory Helper */
 /* KEIL-RL File System does not support relative directory */
@@ -1973,24 +1951,6 @@ static INLINE const char* mymktemp(char *tempfn, int len, int num)
     }
 
 #endif  /* HAVE_SESSION_TICKET && CHACHA20 && POLY1305 */
-
-#ifdef WOLFSSL_ASYNC_CRYPT
-    static INLINE int AsyncCryptPoll(WOLFSSL* ssl)
-    {
-        int ret, eventCount = 0;
-        WOLF_EVENT events[1];
-
-        printf("Connect/Accept got WC_PENDING_E\n");
-
-        ret = wolfSSL_poll(ssl, events, sizeof(events)/sizeof(WOLF_EVENT),
-            WOLF_POLL_FLAG_CHECK_HW, &eventCount);
-        if (ret == 0 && eventCount > 0) {
-            ret = 1; /* Success */
-        }
-
-        return ret;
-    }
-#endif
 
 static INLINE word16 GetRandomPort(void)
 {

@@ -54,11 +54,6 @@ int unit_test(int argc, char** argv)
 #if defined(DEBUG_WOLFSSL) && !defined(HAVE_VALGRIND)
     wolfSSL_Debugging_ON();
 #endif
-#ifdef HAVE_CAVIUM
-    ret = OpenNitroxDevice(CAVIUM_DIRECT, CAVIUM_DEV_ID);
-    if (ret != 0)
-        err_sys("Cavium OpenNitroxDevice failed");
-#endif /* HAVE_CAVIUM */
 
 #ifdef HAVE_WNR
     if (wc_InitNetRandom(wnrConfig, NULL, 5000) != 0)
@@ -84,10 +79,6 @@ int unit_test(int argc, char** argv)
 #endif
 
     SrpTest();
-
-#ifdef HAVE_CAVIUM
-        CspShutdown(CAVIUM_DEV_ID);
-#endif
 
 #ifdef HAVE_WNR
     if (wc_FreeNetRandom() < 0)

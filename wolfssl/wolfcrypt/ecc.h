@@ -30,6 +30,10 @@
 #include <wolfssl/wolfcrypt/integer.h>
 #include <wolfssl/wolfcrypt/random.h>
 
+#ifdef WOLFSSL_ASYNC_CRYPT
+    #include <wolfssl/wolfcrypt/async.h>
+#endif
+
 #ifdef __cplusplus
     extern "C" {
 #endif
@@ -230,6 +234,10 @@ typedef struct {
     ecc_point pubkey;   /* public key */
     mp_int    k;        /* private key */
     void*     heap;     /* heap hint */
+
+#ifdef WOLFSSL_ASYNC_CRYPT
+    AsyncCryptDev asyncDev;
+#endif
 } ecc_key;
 
 
@@ -275,7 +283,7 @@ int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
 WOLFSSL_API
 int wc_ecc_init(ecc_key* key);
 WOLFSSL_API
-int wc_ecc_init_h(ecc_key* key, void* heap);
+int wc_ecc_init_ex(ecc_key* key, void* heap, int devId);
 WOLFSSL_API
 void wc_ecc_free(ecc_key* key);
 WOLFSSL_API
@@ -420,6 +428,12 @@ int wc_ecc_decrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
                 word32 msgSz, byte* out, word32* outSz, ecEncCtx* ctx);
 
 #endif /* HAVE_ECC_ENCRYPT */
+
+#ifdef WOLFSSL_ASYNC_CRYPT
+    WOLFSSL_API int wc_ecc_async_handle(ecc_key* key,
+        WOLF_EVENT_QUEUE* queue, WOLF_EVENT* event);
+    WOLFSSL_API int wc_ecc_async_wait(int ret, ecc_key* key);
+#endif
 
 #ifdef __cplusplus
     }    /* extern "C" */

@@ -1090,10 +1090,10 @@ int wolfSSL_read(WOLFSSL* ssl, void* data, int sz)
 }
 
 
-#ifdef HAVE_CAVIUM
+#ifdef WOLFSSL_ASYNC_CRYPT
 
-/* let's use cavium, SSL_SUCCESS on ok */
-int wolfSSL_UseCavium(WOLFSSL* ssl, int devId)
+/* let's use async hardware, SSL_SUCCESS on ok */
+int wolfSSL_UseAsync(WOLFSSL* ssl, int devId)
 {
     if (ssl == NULL)
         return BAD_FUNC_ARG;
@@ -1104,8 +1104,8 @@ int wolfSSL_UseCavium(WOLFSSL* ssl, int devId)
 }
 
 
-/* let's use cavium, SSL_SUCCESS on ok */
-int wolfSSL_CTX_UseCavium(WOLFSSL_CTX* ctx, int devId)
+/* let's use async hardware, SSL_SUCCESS on ok */
+int wolfSSL_CTX_UseAsync(WOLFSSL_CTX* ctx, int devId)
 {
     if (ctx == NULL)
         return BAD_FUNC_ARG;
@@ -1115,8 +1115,7 @@ int wolfSSL_CTX_UseCavium(WOLFSSL_CTX* ctx, int devId)
     return SSL_SUCCESS;
 }
 
-
-#endif /* HAVE_CAVIUM */
+#endif /* WOLFSSL_ASYNC_CRYPT */
 
 #ifdef HAVE_SNI
 
@@ -19016,118 +19015,38 @@ void* wolfSSL_get_jobject(WOLFSSL* ssl)
 
 #endif /* WOLFSSL_JNI */
 
-#ifdef HAVE_WOLF_EVENT
-static int _wolfSSL_CTX_poll(WOLFSSL_CTX* ctx, WOLFSSL* ssl, WOLF_EVENT* events,
-    int maxEvents, unsigned char flags, int* eventCount)
+
+#ifdef WOLFSSL_ASYNC_CRYPT
+int wolfSSL_CTX_AsyncPoll(WOLFSSL_CTX* ctx, WOLF_EVENT** events, int maxEvents,
+    WOLF_EVENT_FLAG flags, int* eventCount)
 {
-    WOLF_EVENT* event, *event_prev = NULL;
-    int count = 0, ret = SSL_ERROR_NONE;
-
-    if (ctx == NULL || maxEvents <= 0) {
+    if (ctx == NULL) {
         return BAD_FUNC_ARG;
     }
 
-    /* Events arg can be NULL only if peek */
-    if (events == NULL && !(flags & WOLF_POLL_FLAG_PEEK)) {
+    return wolfAsync_EventQueuePoll(&ctx->event_queue, NULL,
+                                        events, maxEvents, flags, eventCount);
+}
+
+int wolfSSL_AsyncPoll(WOLFSSL* ssl, WOLF_EVENT_FLAG flags)
+{
+    int ret, eventCount = 0;
+    WOLF_EVENT* events[1];
+
+    if (ssl == NULL) {
         return BAD_FUNC_ARG;
     }
 
-#ifndef SINGLE_THREADED
-    /* In single threaded mode "event_queue.lock" doesn't exist */
-    if (LockMutex(&ctx->event_queue.lock) != 0) {
-        return BAD_MUTEX_E;
-    }
-#endif
-
-    /* Itterate event queue */
-    for (event = ctx->event_queue.head; event != NULL; event = event->next)
-    {
-        byte removeEvent = 0;
-
-        /* Optionally filter by ssl object pointer */
-        if (ssl == NULL || (ssl == event->ssl)) {
-            if (flags & WOLF_POLL_FLAG_PEEK) {
-                if (events) {
-                    /* Copy event data to provided buffer */
-                    XMEMCPY(&events[count], event, sizeof(WOLF_EVENT));
-                }
-                count++;
-            }
-            else {
-                /* Check hardware */
-                if (flags & WOLF_POLL_FLAG_CHECK_HW) {
-                #ifdef WOLFSSL_ASYNC_CRYPT
-                    if (event->type >= WOLF_EVENT_TYPE_ASYNC_FIRST &&
-                        event->type <= WOLF_EVENT_TYPE_ASYNC_LAST)
-                    {
-                        ret = wolfSSL_async_poll(event, flags);
-                    }
-                #endif /* WOLFSSL_ASYNC_CRYPT */
-                }
-
-                /* If event is done then return in 'events' argument */
-                if (event->done) {
-                    /* Copy event data to provided buffer */
-                    XMEMCPY(&events[count], event, sizeof(WOLF_EVENT));
-                    count++;
-                    removeEvent = 1;
-                }
-            }
-        }
-
-        if (removeEvent) {
-            /* Remove from queue list */
-            if (event_prev == NULL) {
-                ctx->event_queue.head = event->next;
-                if (ctx->event_queue.head == NULL) {
-                    ctx->event_queue.tail = NULL;
-                }
-            }
-            else {
-                event_prev->next = event->next;
-            }
-        }
-        else {
-            /* Leave in queue, save prev pointer */
-            event_prev = event;
-        }
-
-        /* Check to make sure our event list isn't full */
-        if (events && count >= maxEvents) {
-            break; /* Exit for */
-        }
-
-        /* Check for error */
-        if (ret < 0) {
-            break; /* Exit for */
-        }
-    }
-
-#ifndef SINGLE_THREADED
-    UnLockMutex(&ctx->event_queue.lock);
-#endif
-
-    /* Return number of properly populated events */
-    if (eventCount) {
-        *eventCount = count;
+    /* not filtering on "ssl", since its the asyncDev */
+    ret = wolfAsync_EventQueuePoll(&ssl->ctx->event_queue, NULL,
+        events, sizeof(events)/sizeof(events), flags, &eventCount);
+    if (ret == 0 && eventCount > 0) {
+        ret = 1; /* Success */
     }
 
     return ret;
 }
+#endif /* WOLFSSL_ASYNC_CRYPT */
 
-int wolfSSL_CTX_poll(WOLFSSL_CTX* ctx, WOLF_EVENT* events,
-    int maxEvents, unsigned char flags, int* eventCount)
-{
-    return _wolfSSL_CTX_poll(ctx, NULL, events, maxEvents, flags, eventCount);
-}
-
-int wolfSSL_poll(WOLFSSL* ssl, WOLF_EVENT* events,
-    int maxEvents, unsigned char flags, int* eventCount)
-{
-    return _wolfSSL_CTX_poll(ssl->ctx, ssl, events, maxEvents, flags,
-        eventCount);
-}
-
-#endif /* HAVE_WOLF_EVENT */
 
 #endif /* WOLFCRYPT_ONLY */

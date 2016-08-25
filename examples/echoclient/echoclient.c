@@ -52,6 +52,11 @@
 
 #include "examples/echoclient/echoclient.h"
 
+#ifdef WOLFSSL_ASYNC_CRYPT
+    static int devId = INVALID_DEVID;
+#endif
+
+
 void echoclient_test(void* args)
 {
     SOCKET_T sockfd = 0;
@@ -162,9 +167,17 @@ void echoclient_test(void* args)
     SSL_CTX_set_default_passwd_cb(ctx, PasswordCallBack);
 #endif
 
-    #if defined(WOLFSSL_MDK_ARM)
+#if defined(WOLFSSL_MDK_ARM)
     CyaSSL_CTX_set_verify(ctx, SSL_VERIFY_NONE, 0);
-    #endif
+#endif
+
+#ifdef WOLFSSL_ASYNC_CRYPT
+    ret = wolfAsync_DevOpen(&devId);
+    if (ret != 0) {
+        err_sys("Async device open failed");
+    }
+    wolfSSL_CTX_UseAsync(ctx, devId);
+#endif /* WOLFSSL_ASYNC_CRYPT */
 
     ssl = SSL_new(ctx);
     tcp_connect(&sockfd, yasslIP, port, doDTLS, ssl);
@@ -178,7 +191,7 @@ void echoclient_test(void* args)
     do {
 #ifdef WOLFSSL_ASYNC_CRYPT
         if (err == WC_PENDING_E) {
-            ret = AsyncCryptPoll(ssl);
+            ret = wolfSSL_AsyncPoll(ssl, WOLF_POLL_FLAG_CHECK_HW);
             if (ret < 0) { break; } else if (ret == 0) { continue; }
         }
 #endif
@@ -250,6 +263,10 @@ void echoclient_test(void* args)
     SSL_free(ssl);
     SSL_CTX_free(ctx);
 
+#ifdef WOLFSSL_ASYNC_CRYPT
+    wolfAsync_DevClose(&devId);
+#endif
+
     fflush(fout);
     if (inCreated)  fclose(fin);
     if (outCreated) fclose(fout);
@@ -265,12 +282,6 @@ void echoclient_test(void* args)
     int main(int argc, char** argv)
     {
         func_args args;
-
-#ifdef HAVE_CAVIUM
-        int ret = OpenNitroxDevice(CAVIUM_DIRECT, CAVIUM_DEV_ID);
-        if (ret != 0)
-            err_sys("Cavium OpenNitroxDevice failed");
-#endif /* HAVE_CAVIUM */
 
 #ifdef HAVE_WNR
         if (wc_InitNetRandom(wnrConfig, NULL, 5000) != 0)
@@ -292,10 +303,6 @@ void echoclient_test(void* args)
         echoclient_test(&args);
 
         CyaSSL_Cleanup();
-
-#ifdef HAVE_CAVIUM
-        CspShutdown(CAVIUM_DEV_ID);
-#endif
 
 #ifdef HAVE_WNR
         if (wc_FreeNetRandom() < 0)

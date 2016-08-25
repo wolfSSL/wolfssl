@@ -30,9 +30,9 @@
 #define HmacSetKey wc_HmacSetKey
 #define HmacUpdate wc_HmacUpdate
 #define HmacFinal  wc_HmacFinal
-#ifdef HAVE_CAVIUM
-    #define HmacInitCavium wc_HmacInitCavium
-    #define HmacFreeCavium wc_HmacFreeCavium
+#ifdef WOLFSSL_ASYNC_CRYPT
+    #define HmacAsyncInit wc_HmacAsyncInit
+    #define HmacAsyncFree wc_HmacAsyncFree
 #endif
 #define CyaSSL_GetHmacMaxSize wolfSSL_GetHmacMaxSize
 #ifdef HAVE_HKDF

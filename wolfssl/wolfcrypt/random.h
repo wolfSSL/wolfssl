@@ -101,7 +101,9 @@ struct WC_RNG {
 
 #else /* (HAVE_HASHDRBG || NO_RC4) && !CUSTOM_RAND_GENERATE_BLOCK */
 
-#define WOLFSSL_RNG_CAVIUM_MAGIC 0xBEEF0004
+#ifdef WOLFSSL_ASYNC_CRYPT
+    #include <wolfssl/wolfcrypt/async.h>
+#endif
 
 /* secure Random Number Generator */
 
@@ -111,9 +113,8 @@ struct WC_RNG {
 #ifndef NO_RC4
     Arc4    cipher;
 #endif
-#ifdef HAVE_CAVIUM
-    int    devId;           /* nitrox device id */
-    word32 magic;           /* using cavium magic */
+#ifdef WOLFSSL_ASYNC_CRYPT
+    AsyncCryptDev asyncDev;
 #endif
 };
 
@@ -131,13 +132,6 @@ struct WC_RNG {
 WOLFSSL_LOCAL
 int wc_GenerateSeed(OS_Seed* os, byte* seed, word32 sz);
 
-#if defined(HAVE_HASHDRBG) || defined(NO_RC4)
-
-#ifdef HAVE_CAVIUM
-    WOLFSSL_API int  wc_InitRngCavium(WC_RNG*, int);
-#endif
-
-#endif /* HAVE_HASH_DRBG || NO_RC4 */
 
 #ifdef HAVE_WNR
     /* Whitewood netRandom client library */

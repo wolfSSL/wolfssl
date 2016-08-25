@@ -55,6 +55,10 @@
 
 #include "examples/server/server.h"
 
+#ifdef WOLFSSL_ASYNC_CRYPT
+    static int devId = INVALID_DEVID;
+#endif
+
 /* Note on using port 0: if the server uses port 0 to bind an ephemeral port
  * number and is using the ready file for scripted testing, the code in
  * test.h will write the actual port number into the ready file for use
@@ -806,6 +810,14 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     }
 #endif /* USE_WINDOWS_API */
 
+#ifdef WOLFSSL_ASYNC_CRYPT
+    ret = wolfAsync_DevOpen(&devId);
+    if (ret != 0) {
+        err_sys("Async device open failed");
+    }
+    wolfSSL_CTX_UseAsync(ctx, devId);
+#endif /* WOLFSSL_ASYNC_CRYPT */
+
     while (1) {
         /* allow resume option */
         if(resumeCount > 1) {
@@ -947,7 +959,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
         do {
 #ifdef WOLFSSL_ASYNC_CRYPT
             if (err == WC_PENDING_E) {
-                ret = AsyncCryptPoll(ssl);
+                ret = wolfSSL_AsyncPoll(ssl, WOLF_POLL_FLAG_CHECK_HW);
                 if (ret < 0) { break; } else if (ret == 0) { continue; }
             }
 #endif
@@ -1088,6 +1100,10 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     TicketCleanup();
 #endif
 
+#ifdef WOLFSSL_ASYNC_CRYPT
+    wolfAsync_DevClose(&devId);
+#endif
+
     /* There are use cases  when these assignments are not read. To avoid
      * potential confusion those warnings have been handled here.
      */
@@ -1112,11 +1128,6 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
         func_args args;
         tcp_ready ready;
 
-#ifdef HAVE_CAVIUM
-        int ret = OpenNitroxDevice(CAVIUM_DIRECT, CAVIUM_DEV_ID);
-        if (ret != 0)
-            err_sys("Cavium OpenNitroxDevice failed");
-#endif /* HAVE_CAVIUM */
 
         StartTCP();
 
@@ -1138,10 +1149,6 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
 #endif
         CyaSSL_Cleanup();
         FreeTcpReady(&ready);
-
-#ifdef HAVE_CAVIUM
-        CspShutdown(CAVIUM_DEV_ID);
-#endif
 
 #ifdef HAVE_WNR
     if (wc_FreeNetRandom() < 0)

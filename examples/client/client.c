@@ -53,6 +53,10 @@
 
 #include "examples/client/client.h"
 
+#ifdef WOLFSSL_ASYNC_CRYPT
+    static int devId = INVALID_DEVID;
+#endif
+
 /* Note on using port 0: the client standalone example doesn't utilize the
  * port 0 port sharing; that is used by (1) the server in external control
  * test mode and (2) the testsuite which uses this code and sets up the correct
@@ -78,7 +82,7 @@ static void NonBlockingSSL_Connect(WOLFSSL* ssl)
 #endif
     int error = wolfSSL_get_error(ssl, 0);
     SOCKET_T sockfd = (SOCKET_T)wolfSSL_get_fd(ssl);
-    int select_ret;
+    int select_ret = 0;
 
     while (ret != SSL_SUCCESS && (error == SSL_ERROR_WANT_READ ||
                                   error == SSL_ERROR_WANT_WRITE ||
@@ -91,15 +95,17 @@ static void NonBlockingSSL_Connect(WOLFSSL* ssl)
             printf("... client would write block\n");
 #ifdef WOLFSSL_ASYNC_CRYPT
         else if (error == WC_PENDING_E) {
-            ret = AsyncCryptPoll(ssl);
+            ret = wolfSSL_AsyncPoll(ssl, WOLF_POLL_FLAG_CHECK_HW);
             if (ret < 0) { break; } else if (ret == 0) { continue; }
         }
 #endif
 
-#ifdef WOLFSSL_DTLS
-        currTimeout = wolfSSL_dtls_get_current_timeout(ssl);
-#endif
-        select_ret = tcp_select(sockfd, currTimeout);
+        if (error != WC_PENDING_E) {
+    #ifdef WOLFSSL_DTLS
+            currTimeout = wolfSSL_dtls_get_current_timeout(ssl);
+    #endif
+            select_ret = tcp_select(sockfd, currTimeout);
+        }
 
         if ((select_ret == TEST_RECV_READY) ||
                                         (select_ret == TEST_ERROR_READY)) {
@@ -1175,9 +1181,13 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
         wolfSSL_CTX_set_verify(ctx, SSL_VERIFY_PEER, myDateCb);
 #endif
 
-#ifdef HAVE_CAVIUM
-    wolfSSL_CTX_UseCavium(ctx, CAVIUM_DEV_ID);
-#endif
+#ifdef WOLFSSL_ASYNC_CRYPT
+    ret = wolfAsync_DevOpen(&devId);
+    if (ret != 0) {
+        err_sys("Async device open failed");
+    }
+    wolfSSL_CTX_UseAsync(ctx, devId);
+#endif /* WOLFSSL_ASYNC_CRYPT */
 
 #ifdef HAVE_SNI
     if (sniHostName)
@@ -1343,7 +1353,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
         do {
 #ifdef WOLFSSL_ASYNC_CRYPT
             if (err == WC_PENDING_E) {
-                ret = AsyncCryptPoll(ssl);
+                ret = wolfSSL_AsyncPoll(ssl, WOLF_POLL_FLAG_CHECK_HW);
                 if (ret < 0) { break; } else if (ret == 0) { continue; }
             }
 #endif
@@ -1622,6 +1632,10 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 
     ((func_args*)args)->return_code = 0;
 
+#ifdef WOLFSSL_ASYNC_CRYPT
+    wolfAsync_DevClose(&devId);
+#endif
+
 #if defined(USE_WOLFSSL_MEMORY) && !defined(WOLFSSL_STATIC_MEMORY)
     if (trackMemory)
         ShowMemoryTracker();
@@ -1650,11 +1664,6 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     {
         func_args args;
 
-#ifdef HAVE_CAVIUM
-        int ret = OpenNitroxDevice(CAVIUM_DIRECT, CAVIUM_DEV_ID);
-        if (ret != 0)
-            err_sys("Cavium OpenNitroxDevice failed");
-#endif /* HAVE_CAVIUM */
 
         StartTCP();
 
@@ -1673,10 +1682,6 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
         client_test(&args);
 #endif
         wolfSSL_Cleanup();
-
-#ifdef HAVE_CAVIUM
-        CspShutdown(CAVIUM_DEV_ID);
-#endif
 
 #ifdef HAVE_WNR
     if (wc_FreeNetRandom() < 0)

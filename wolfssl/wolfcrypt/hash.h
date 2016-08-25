@@ -58,7 +58,7 @@ enum wc_HashType {
     #define WC_MAX_DIGEST_SIZE 64 /* default to max size of 64 */
 #endif
 
-#ifndef NO_ASN
+#if !defined(NO_ASN) || !defined(NO_DH) || defined(HAVE_ECC)
 WOLFSSL_API int wc_HashGetOID(enum wc_HashType hash_type);
 #endif
 

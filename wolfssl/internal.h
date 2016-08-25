@@ -155,7 +155,7 @@
 #endif
 
 #ifdef WOLFSSL_ASYNC_CRYPT
-    #include <wolfssl/async.h>
+    #include <wolfssl/wolfcrypt/async.h>
 #endif
 
 #ifdef _MSC_VER
@@ -1059,8 +1059,6 @@ enum Misc {
 
     HASH_SIG_SIZE      =   2,  /* default SHA1 RSA */
 
-    NO_CAVIUM_DEVICE   =  -2,  /* invalid cavium device id */
-
     NO_COPY            =   0,  /* should we copy static buffer for write */
     COPY               =   1   /* should we copy static buffer for write */
 };
@@ -1899,20 +1897,6 @@ WOLFSSL_LOCAL int TLSX_ValidateQSHScheme(TLSX** extensions, word16 name);
 #endif /* HAVE_QSH */
 
 
-#ifdef HAVE_WOLF_EVENT
-typedef struct {
-    WOLF_EVENT*         head;     /* head of queue */
-    WOLF_EVENT*         tail;     /* tail of queue */
-#ifndef SINGLE_THREADED
-    wolfSSL_Mutex       lock;     /* queue lock */
-#endif
-} WOLF_EVENT_QUEUE;
-
-WOLFSSL_LOCAL int wolfSSL_EventInit(WOLFSSL* ssl, WOLF_EVENT_TYPE type);
-
-WOLFSSL_LOCAL int wolfSSL_CTX_EventPush(WOLFSSL_CTX* ctx, WOLF_EVENT* event);
-#endif /* HAVE_WOLF_EVENT */
-
 #ifdef WOLFSSL_STATIC_MEMORY
 WOLFSSL_LOCAL int wolfSSL_init_memory_heap(WOLFSSL_HEAP* heap);
 #endif
@@ -2002,9 +1986,7 @@ struct WOLFSSL_CTX {
 #ifdef HAVE_OCSP
     WOLFSSL_OCSP      ocsp;
 #endif
-#ifdef HAVE_CAVIUM
-    int              devId;            /* cavium device id to use */
-#endif
+    int             devId;              /* async device id to use */
 #ifdef HAVE_TLS_EXTENSIONS
     TLSX* extensions;                  /* RFC 6066 TLS Extensions data */
     #ifndef NO_WOLFSSL_SERVER
@@ -2314,6 +2296,7 @@ enum AcceptState {
 enum KeyShareState {
     KEYSHARE_BEGIN = 0,
     KEYSHARE_BUILD,
+    KEYSHARE_DO,
     KEYSHARE_VERIFY,
     KEYSHARE_FINALIZE,
     KEYSHARE_END
@@ -2326,6 +2309,7 @@ typedef struct Buffers {
     buffer          domainName;             /* for client check */
     buffer          clearOutputBuffer;
     buffer          sig;                   /* signature data */
+    buffer          digest;                /* digest data */
     int             prevSent;              /* previous plain text bytes sent
                                               when got WANT_WRITE            */
     int             plainSz;               /* plain text bytes in buffer to send
@@ -2683,7 +2667,8 @@ struct WOLFSSL {
     void*           hsDoneCtx;         /*  user handshake cb context  */
 #endif
 #ifdef WOLFSSL_ASYNC_CRYPT
-    AsyncCrypt      async;
+    AsyncCryptSSLState  async;
+    AsyncCryptDev       asyncDev;
 #endif
     void*           sigKey;             /* RsaKey or ecc_key allocated from heap */
     word32          sigType;            /* Type of sigKey */
@@ -2782,9 +2767,7 @@ struct WOLFSSL {
 #if defined(FORTRESS) || defined(HAVE_STUNNEL)
     void*           ex_data[MAX_EX_DATA]; /* external data, for Fortress */
 #endif
-#ifdef HAVE_CAVIUM
-    int              devId;            /* cavium device id to use */
-#endif
+    int              devId;             /* async device id to use */
 #ifdef HAVE_ONE_TIME_AUTH
     OneTimeAuth     auth;
 #endif
@@ -2846,9 +2829,6 @@ struct WOLFSSL {
 #ifdef HAVE_WOLF_EVENT
     WOLF_EVENT event;
 #endif /* HAVE_WOLF_EVENT */
-#ifdef WOLFSSL_ASYNC_CRYPT_TEST
-    AsyncCryptTests asyncCryptTest;
-#endif /* WOLFSSL_ASYNC_CRYPT_TEST */
 };
 
 
@@ -3001,7 +2981,7 @@ WOLFSSL_LOCAL int VerifyClientSuite(WOLFSSL* ssl);
 #ifndef NO_CERTS
     #ifndef NO_RSA
         WOLFSSL_LOCAL int VerifyRsaSign(WOLFSSL* ssl,
-                                        const byte* sig, word32 sigSz,
+                                        byte* verifySig, word32 sigSz,
                                         const byte* plain, word32 plainSz,
                                         RsaKey* key);
         WOLFSSL_LOCAL int RsaSign(WOLFSSL* ssl, const byte* in, word32 inSz, byte* out,
@@ -3010,6 +2990,8 @@ WOLFSSL_LOCAL int VerifyClientSuite(WOLFSSL* ssl);
             byte** out, RsaKey* key, const byte* keyBuf, word32 keySz, void* ctx);
         WOLFSSL_LOCAL int RsaDec(WOLFSSL* ssl, byte* in, word32 inSz, byte** out,
             word32* outSz, RsaKey* key, const byte* keyBuf, word32 keySz, void* ctx);
+        WOLFSSL_LOCAL int RsaEnc(WOLFSSL* ssl, const byte* in, word32 inSz, byte* out,
+            word32* outSz, RsaKey* key, const byte* keyBuf, word32 keySz, void* ctx);
     #endif /* !NO_RSA */
 
     #ifdef HAVE_ECC
@@ -3017,7 +2999,7 @@ WOLFSSL_LOCAL int VerifyClientSuite(WOLFSSL* ssl);
             byte* out, word32* outSz, ecc_key* key, byte* keyBuf, word32 keySz,
             void* ctx);
         WOLFSSL_LOCAL int EccVerify(WOLFSSL* ssl, const byte* in, word32 inSz,
-            byte* out, word32 outSz, ecc_key* key, byte* keyBuf, word32 keySz,
+            const byte* out, word32 outSz, ecc_key* key, byte* keyBuf, word32 keySz,
             void* ctx);
         WOLFSSL_LOCAL int EccSharedSecret(WOLFSSL* ssl, ecc_key* priv_key,
             ecc_key* pub_key, byte* out, word32* outSz);
@@ -3132,7 +3114,7 @@ WOLFSSL_LOCAL int SetKeysSide(WOLFSSL*, enum encrypt_side);
 #endif
 
 #ifdef HAVE_ECC
-    WOLFSSL_LOCAL int EccMakeTempKey(WOLFSSL* ssl);
+    WOLFSSL_LOCAL int EccMakeKey(WOLFSSL* ssl, ecc_key* key, ecc_key* peer);
 #endif
 
 WOLFSSL_LOCAL int BuildMessage(WOLFSSL* ssl, byte* output, int outSz,

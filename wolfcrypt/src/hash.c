@@ -34,42 +34,54 @@
 #include <wolfssl/wolfcrypt/hash.h>
 
 
-#ifndef NO_ASN
+#if !defined(NO_ASN) || !defined(NO_DH) || defined(HAVE_ECC)
+
+#ifdef NO_ASN
+enum Hash_Sum  {
+    MD2h    = 646,
+    MD5h    = 649,
+    SHAh    =  88,
+    SHA256h = 414,
+    SHA384h = 415,
+    SHA512h = 416
+};
+#endif
+
 int wc_HashGetOID(enum wc_HashType hash_type)
 {
     int oid = HASH_TYPE_E; /* Default to hash type error */
     switch(hash_type)
     {
         case WC_HASH_TYPE_MD2:
-#ifdef WOLFSSL_MD2
+        #ifdef WOLFSSL_MD2
             oid = MD2h;
-#endif
+        #endif
             break;
         case WC_HASH_TYPE_MD5_SHA:
         case WC_HASH_TYPE_MD5:
-#ifndef NO_MD5
+        #ifndef NO_MD5
             oid = MD5h;
-#endif
+        #endif
             break;
         case WC_HASH_TYPE_SHA:
-#ifndef NO_SHA
+        #ifndef NO_SHA
             oid = SHAh;
-#endif
+        #endif
             break;
         case WC_HASH_TYPE_SHA256:
-#ifndef NO_SHA256
+        #ifndef NO_SHA256
             oid = SHA256h;
-#endif
+        #endif
             break;
         case WC_HASH_TYPE_SHA384:
-#if defined(WOLFSSL_SHA512) && defined(WOLFSSL_SHA384)
+        #if defined(WOLFSSL_SHA512) && defined(WOLFSSL_SHA384)
             oid = SHA384h;
-#endif
+        #endif
             break;
         case WC_HASH_TYPE_SHA512:
-#ifdef WOLFSSL_SHA512
+        #ifdef WOLFSSL_SHA512
             oid = SHA512h;
-#endif
+        #endif
             break;
 
         /* Not Supported */
