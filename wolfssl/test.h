@@ -358,8 +358,7 @@ static const word16      wolfSSLPort = 11111;
 static INLINE void err_sys(const char* msg)
 {
     printf("wolfSSL error: %s\n", msg);
-    if (msg)
-        exit(EXIT_FAILURE);
+    exit(EXIT_FAILURE);
 }
 
 
