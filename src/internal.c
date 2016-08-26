@@ -13300,7 +13300,9 @@ static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
     int    ret = 0;
     word16 length = 0;
     word32 idx = *inOutIdx, begin = *inOutIdx;
+#ifndef NO_RSA
     int    typeH = 0;
+#endif
     byte*  output  = NULL;
     byte   sigAlgo = ssl->specs.sig_algo;
     word16 sigSz = 0;
@@ -13310,7 +13312,6 @@ static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
 
     (void)output;
     (void)sigSz;
-    (void)typeH;
 
     WOLFSSL_ENTER("DoServerKeyExchange");
 
@@ -13332,7 +13333,9 @@ static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
             length = ssl->async.length;
             output = ssl->async.output;
             sigSz = ssl->async.sigSz;
+        #ifndef NO_RSA
             typeH = ssl->async.hashAlgo;
+        #endif
             sigAlgo = ssl->async.sigAlgo;
         #if !defined(NO_DH) || defined(HAVE_ECC)
             verifySig = ssl->async.data;
@@ -13410,7 +13413,7 @@ static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
                         ERROR_OUT(DH_KEY_SIZE_E, exit_dske);
                     }
 
-                    ssl->buffers.serverDH_P.buffer = 
+                    ssl->buffers.serverDH_P.buffer =
                         (byte*)XMALLOC(length, ssl->heap, DYNAMIC_TYPE_DH);
                     if (ssl->buffers.serverDH_P.buffer) {
                         ssl->buffers.serverDH_P.length = length;
@@ -13436,7 +13439,7 @@ static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
                         ERROR_OUT(BUFFER_ERROR, exit_dske);
                     }
 
-                    ssl->buffers.serverDH_G.buffer = 
+                    ssl->buffers.serverDH_G.buffer =
                         (byte*)XMALLOC(length, ssl->heap, DYNAMIC_TYPE_DH);
                     if (ssl->buffers.serverDH_G.buffer) {
                         ssl->buffers.serverDH_G.length = length;
@@ -13808,7 +13811,9 @@ static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
                             ERROR_OUT(ALGO_ID_E, exit_dske);
                         #endif
                     }
+                #ifndef NO_RSA
                     typeH = wc_HashGetOID(hashType);
+                #endif
 
                     /* signature */
                     if ((idx - begin) + OPAQUE16_LEN > size) {
@@ -13840,7 +13845,7 @@ static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
                     }
 
                     /* build message to hash */
-                    XMEMCPY(ssl->buffers.sig.buffer, 
+                    XMEMCPY(ssl->buffers.sig.buffer,
                         ssl->arrays->clientRandom, RAN_LEN);
                     XMEMCPY(&ssl->buffers.sig.buffer[RAN_LEN],
                         ssl->arrays->serverRandom, RAN_LEN);
@@ -13920,7 +13925,8 @@ static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
                     }
 
                     if (verifySig == NULL) {
-                        verifySig = (byte*)XMALLOC(length, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
+                        verifySig = (byte*)XMALLOC(length, ssl->heap,
+                                                    DYNAMIC_TYPE_TMP_BUFFER);
                         if (!verifySig) {
                             ERROR_OUT(MEMORY_E, exit_dske);
                         }
@@ -14040,8 +14046,8 @@ static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
                                 encSigSz = wc_EncodeSignature(encodedSig,
                                     ssl->buffers.digest.buffer,
                                     ssl->buffers.digest.length, typeH);
-                                if (encSigSz != sigSz || !output || 
-                                    XMEMCMP(output, encodedSig, 
+                                if (encSigSz != sigSz || !output ||
+                                    XMEMCMP(output, encodedSig,
                                             min(encSigSz, MAX_ENCODED_SIG_SZ)) != 0) {
                                     ret = VERIFY_SIGN_ERROR;
                                 }
@@ -14101,7 +14107,7 @@ static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
                 idx += OPAQUE16_LEN;
 
                 if (name == TLSX_QUANTUM_SAFE_HYBRID) {
-                    /* if qshSz is larger than 0 it is the length of 
+                    /* if qshSz is larger than 0 it is the length of
                        buffer used */
                     if ((qshSz = TLSX_QSHCipher_Parse(ssl, input + idx,
                                                        size, 0)) < 0) {
@@ -14152,7 +14158,9 @@ exit_dske:
         ssl->async.length = length;
         ssl->async.output = output;
         ssl->async.sigSz = sigSz;
+    #ifndef NO_RSA
         ssl->async.hashAlgo = typeH;
+    #endif
         ssl->async.sigAlgo = sigAlgo;
     #if !defined(NO_DH) || defined(HAVE_ECC)
         ssl->async.data = verifySig;
@@ -15037,7 +15045,7 @@ int SendClientKeyExchange(WOLFSSL* ssl)
             #ifdef HAVE_ECC
                 case ecc_diffie_hellman_kea:
                 {
-                    ecc_key* peerKey = (ssl->specs.static_ecdh) ? 
+                    ecc_key* peerKey = (ssl->specs.static_ecdh) ?
                                 ssl->peerEccDsaKey : ssl->peerEccKey;
 
                     ret = EccSharedSecret(ssl, (ecc_key*)ssl->sigKey, peerKey,
@@ -15548,7 +15556,7 @@ int SendCertificateVerify(WOLFSSL* ssl)
             ssl->buffers.digest.buffer = ssl->hsHashes->certHashes.sha256;
             typeH = SHA256h;
         #endif
-            
+
             if (IsAtLeastTLSv1_2(ssl)) {
                 verify[0] = ssl->suites->hashAlgo;
                 verify[1] = (ssl->sigType == DYNAMIC_TYPE_ECC) ?
@@ -15617,9 +15625,6 @@ int SendCertificateVerify(WOLFSSL* ssl)
 
         case KEYSHARE_DO:
         {
-            /* restore verify pointer */
-            verify = &output[idx];
-
         #ifdef HAVE_ECC
            if (ssl->sigType == DYNAMIC_TYPE_ECC) {
                 ret = EccSign(ssl,
@@ -15638,6 +15643,9 @@ int SendCertificateVerify(WOLFSSL* ssl)
         #endif /* HAVE_ECC */
         #ifndef NO_RSA
             if (ssl->sigType == DYNAMIC_TYPE_RSA) {
+                /* restore verify pointer */
+                verify = &output[idx];
+
                 ret = RsaSign(ssl,
                     ssl->buffers.sig.buffer, ssl->buffers.sig.length,
                     verify + extraSz + VERIFY_HEADER, &ssl->sigLen,
@@ -15683,7 +15691,8 @@ int SendCertificateVerify(WOLFSSL* ssl)
                     if (verifySig == NULL) {
                         ERROR_OUT(MEMORY_E, exit_scv);
                     }
-                    XMEMCPY(verifySig, verify + extraSz + VERIFY_HEADER, ssl->sigLen);
+                    XMEMCPY(verifySig, verify + extraSz + VERIFY_HEADER,
+                                                                ssl->sigLen);
                 }
 
                 /* check for signature faults */
@@ -15822,7 +15831,7 @@ exit_scv:
 
     return ret;
 }
-    
+
 #endif /* NO_CERTS */
 
 
@@ -19219,7 +19228,7 @@ int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                         ssl->peerEccKeyPresent = 1;
 
                         ssl->sigLen = sizeof(ssl->arrays->preMasterSecret);
-                        
+
                         if (ret != 0) {
                             goto exit_dcke;
                         }
@@ -19375,7 +19384,7 @@ int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                 /* Advance state and proceed */
                 ssl->options.keyShareState = KEYSHARE_DO;
             } /* KEYSHARE_BUILD */
-            
+
             case KEYSHARE_DO:
             {
                 switch (ssl->specs.kea) {
@@ -19671,7 +19680,7 @@ int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         } /* switch(ssl->options.keyShareState) */
 
     exit_dcke:
-    
+
         WOLFSSL_LEAVE("DoClientKeyExchange", ret);
 
         /* Handle cleanup for stack variables here */
