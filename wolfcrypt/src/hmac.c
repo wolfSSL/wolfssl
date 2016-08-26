@@ -739,13 +739,13 @@ int wc_HKDF(int type, const byte* inKey, word32 inKeySz,
         return BAD_FUNC_ARG;
 
 #ifdef WOLFSSL_SMALL_STACK
-    tmp = (byte*)XMALLOC(MAX_DIGEST_SIZE, hmac->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    tmp = (byte*)XMALLOC(MAX_DIGEST_SIZE, myHmac.heap, DYNAMIC_TYPE_TMP_BUFFER);
     if (tmp == NULL)
         return MEMORY_E;
 
-    prk = (byte*)XMALLOC(MAX_DIGEST_SIZE, hmac->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    prk = (byte*)XMALLOC(MAX_DIGEST_SIZE, myHmac.heap, DYNAMIC_TYPE_TMP_BUFFER);
     if (prk == NULL) {
-        XFREE(tmp, hmac->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(tmp, myHmac.heap, DYNAMIC_TYPE_TMP_BUFFER);
         return MEMORY_E;
     }
 #endif
