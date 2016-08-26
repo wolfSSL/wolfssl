@@ -436,7 +436,7 @@ const ecc_set_type ecc_sets[] = {
         "9487239995A5EE76B55F9C2F098",  /* Gx         */
         "A89CE5AF8724C0A23E0E0FF77500", /* Gy         */
         ecc_oid_secp112r1,              /* oid/oidSz  */
-        sizeof(ecc_oid_secp112r1) / sizeof(ecc_oid_t), 
+        sizeof(ecc_oid_secp112r1) / sizeof(ecc_oid_t),
         ECC_SECP112R1_OID,              /* oid sum    */
         1,                              /* cofactor   */
     },
@@ -805,7 +805,7 @@ const ecc_set_type ecc_sets[] = {
         "8BD2AEB9CB7E57CB2C4B482FFC81B7AFB9DE27E1E3BD23C23A4453BD9ACE3262", /* Gx         */
         "547EF835C3DAC4FD97F8461A14611DC9C27745132DED8E545C1D54C72F046997", /* Gy         */
         ecc_oid_brainpoolp256r1,                                            /* oid/oidSz  */
-        sizeof(ecc_oid_brainpoolp256r1) / sizeof(ecc_oid_t), 
+        sizeof(ecc_oid_brainpoolp256r1) / sizeof(ecc_oid_t),
         ECC_BRAINPOOLP256R1_OID,                                            /* oid sum    */
         1,                                                                  /* cofactor   */
     },
@@ -936,7 +936,7 @@ static int wc_ecc_export_x963_compressed(ecc_key*, byte* out, word32* outLen);
 
 static int wc_ecc_set_curve(ecc_key* key, int keysize, int curve_id)
 {
-    if (keysize <=0 && curve_id <= 0) {
+    if (keysize <= 0 && curve_id <= 0) {
         return BAD_FUNC_ARG;
     }
 
@@ -1037,12 +1037,12 @@ int ecc_projective_add_point(ecc_point* P, ecc_point* Q, ecc_point* R,
           return ecc_projective_dbl_point(P, R, a, modulus, mp);
        }
    }
-   
+
    if (err != MP_OKAY) {
       goto done;
    }
 
-/* If use ALT_ECC_SIZE we need to use local stack variable since 
+/* If use ALT_ECC_SIZE we need to use local stack variable since
    ecc_point x,y,z is reduced size */
 #ifdef ALT_ECC_SIZE
    /* Use local stack variable */
@@ -1312,7 +1312,7 @@ int ecc_projective_dbl_point(ecc_point *P, ecc_point *R, mp_int* a,
       return err;
    }
 
-/* If use ALT_ECC_SIZE we need to use local stack variable since 
+/* If use ALT_ECC_SIZE we need to use local stack variable since
    ecc_point x,y,z is reduced size */
 #ifdef ALT_ECC_SIZE
    /* Use local stack variable */
@@ -1571,7 +1571,7 @@ int ecc_map(ecc_point* P, mp_int* modulus, mp_digit mp)
    if ((err = mp_init_multi(x, y, z, NULL, NULL, NULL)) != MP_OKAY) {
        goto done;
    }
-   
+
    if (err == MP_OKAY)
        err = mp_copy(P->x, x);
    if (err == MP_OKAY)
@@ -1871,7 +1871,7 @@ int wc_ecc_mulmod(mp_int* k, ecc_point *G, ecc_point *R, mp_int* a,
 {
     return wc_ecc_mulmod_ex(k, G, R, a, modulus, map, NULL);
 }
-#endif /* ! FP_ECC */
+#endif /* !FP_ECC */
 #undef WINSIZE
 
 #else /* ECC_TIMING_RESISTANT */
@@ -1979,7 +1979,7 @@ int wc_ecc_mulmod_ex(mp_int* k, ecc_point *G, ecc_point *R,
                    break;
                }
                buf = get_digit(k, digidx);
-               bitcnt = (int) DIGIT_BIT;
+               bitcnt = (int)DIGIT_BIT;
                --digidx;
            }
 
@@ -3786,7 +3786,7 @@ static int ecc_check_pubkey_order(ecc_key* key, mp_int* a, mp_int* prime,
     if (inf == NULL)
         err = MEMORY_E;
     else {
-        err = wc_ecc_mulmod_ex(order, &key->pubkey, inf, a, prime, 1,
+    	err = wc_ecc_mulmod_ex(order, &key->pubkey, inf, a, prime, 1,
                                                                   key->heap);
         if (err == MP_OKAY && !wc_ecc_point_is_at_infinity(inf))
             err = ECC_INF_E;
@@ -6615,7 +6615,7 @@ int wc_ecc_set_custom_curve(ecc_key* key, const ecc_set_type* dp)
         return BAD_FUNC_ARG;
     }
 
-    key->idx = WOLFSSL_CUSTOM_CURVES;
+    key->idx = ECC_CUSTOM_IDX;
     key->dp = dp;
 
     return 0;
