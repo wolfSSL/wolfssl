@@ -6679,7 +6679,7 @@ typedef struct eccVector {
 
 static int ecc_test_vector_item(const eccVector* vector)
 {
-    int ret, verify;
+    int ret = 0, verify;
     word32  x;
     ecc_key userA;
     byte    sig[1024];
@@ -6692,22 +6692,24 @@ static int ecc_test_vector_item(const eccVector* vector)
     ret = wc_ecc_import_raw(&userA, vector->Qx, vector->Qy,
                                              vector->d, vector->curveName);
     if (ret != 0)
-        return -1018;
+        goto done;
 
     ret = wc_ecc_rs_to_sig(vector->R, vector->S, sig, &x);
     if (ret != 0)
-        return -1019;
+        goto done;
 
-    ret = wc_ecc_verify_hash(sig, x, (byte*)vector->msg, vector->msgLen, &verify, &userA);
+    ret = wc_ecc_verify_hash(sig, x, (byte*)vector->msg, vector->msgLen,
+                                                            &verify, &userA);
     if (ret != 0)
-        return -1021;
+        goto done;
 
     if (verify != 1)
-        return -1023;
+        ret = -1023;
 
+done:
     wc_ecc_free(&userA);
 
-    return 0;
+    return ret;
 }
 
 static int ecc_test_vector(int keySize)
@@ -6791,7 +6793,7 @@ static int ecc_test_vector(int keySize)
 
 #if defined(HAVE_ECC239) || defined(HAVE_ALL_CURVES)
     case 30:
-        return 0;    
+        return 0;
 #endif /* HAVE_ECC239 */
 
 #if !defined(NO_ECC256) || defined(HAVE_ALL_CURVES)
@@ -6904,7 +6906,7 @@ static int ecc_test_vector(int keySize)
 #ifdef WOLFSSL_KEY_GEN
 static int ecc_test_key_gen(WC_RNG* rng, int keySize)
 {
-    int   ret;
+    int   ret = 0;
     int   derSz, pemSz;
     byte  der[FOURK_BUF];
     byte  pem[FOURK_BUF];
@@ -6917,46 +6919,49 @@ static int ecc_test_key_gen(WC_RNG* rng, int keySize)
 
     ret = wc_ecc_make_key(rng, keySize, &userA);
     if (ret != 0)
-        return -1014;
+        goto done;
 
     ret = wc_ecc_check_key(&userA);
     if (ret != 0)
-        return -1023;
+        goto done;
 
     derSz = wc_EccKeyToDer(&userA, der, FOURK_BUF);
     if (derSz < 0) {
-        return -1024;
+        ERROR_OUT(derSz, done);
     }
 
     keyFile = fopen("./ecc-key.der", "wb");
     if (!keyFile) {
-        return -1025;
+        ERROR_OUT(-1025, done);
     }
     ret = (int)fwrite(der, 1, derSz, keyFile);
     fclose(keyFile);
     if (ret != derSz) {
-        return -1026;
+        ERROR_OUT(-1026, done);
     }
 
     pemSz = wc_DerToPem(der, derSz, pem, FOURK_BUF, ECC_PRIVATEKEY_TYPE);
     if (pemSz < 0) {
-        return -1027;
+        ERROR_OUT(pemSz, done);
     }
 
     pemFile = fopen("./ecc-key.pem", "wb");
     if (!pemFile) {
-        return -1028;
+        ERROR_OUT(-1028, done);
     }
     ret = (int)fwrite(pem, 1, pemSz, pemFile);
     fclose(pemFile);
     if (ret != pemSz) {
-        return -1029;
+        ERROR_OUT(-1029, done);
     }
 
     /* test export of public key */
     derSz = wc_EccPublicKeyToDer(&userA, der, FOURK_BUF, 1);
-    if (derSz <= 0) {
-       return -5516;
+    if (derSz < 0) {
+        ERROR_OUT(derSz, done);
+    }
+    if (derSz == 0) {
+        ERROR_OUT(-5416, done);
     }
 #ifdef FREESCALE_MQX
         keyFile = fopen("a:\\certs\\ecc-public-key.der", "wb");
@@ -6964,17 +6969,19 @@ static int ecc_test_key_gen(WC_RNG* rng, int keySize)
         keyFile = fopen("./ecc-public-key.der", "wb");
 #endif
     if (!keyFile) {
-       return -5417;
+        ERROR_OUT(-5417, done);
     }
     ret = (int)fwrite(der, 1, derSz, keyFile);
     fclose(keyFile);
     if (ret != derSz) {
-       return -5418;
+        ERROR_OUT(-5418, done);
     }
+    ret = 0;
 
+done:
     wc_ecc_free(&userA);
 
-    return 0;
+    return ret;
 }
 #endif /* WOLFSSL_KEY_GEN */
 static int ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerifyCount,
@@ -7010,28 +7017,27 @@ static int ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerifyCount,
 
     ret = wc_ecc_make_key_ex(rng, keySize, &userA, curve_id);
     if (ret != 0)
-        ERROR_OUT(-1014, done);
+        goto done;
 
     ret = wc_ecc_check_key(&userA);
     if (ret != 0)
-        ERROR_OUT(-1023, done);
+        goto done;
 
     ret = wc_ecc_make_key_ex(rng, keySize, &userB, curve_id);
     if (ret != 0)
-        ERROR_OUT(-1002, done);
+        goto done;
 
 #ifdef HAVE_ECC_DHE
     x = sizeof(sharedA);
     ret = wc_ecc_shared_secret(&userA, &userB, sharedA, &x);
     if (ret != 0) {
-        printf("wc_ecc_shared_secret %d\n", ret);
-        ERROR_OUT(-1015, done);
+        goto done;
     }
 
     y = sizeof(sharedB);
     ret = wc_ecc_shared_secret(&userB, &userA, sharedB, &y);
     if (ret != 0)
-        ERROR_OUT(-1003, done);
+        goto done;
 
     if (y != x)
         ERROR_OUT(-1004, done);
@@ -7044,18 +7050,18 @@ static int ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerifyCount,
     x = sizeof(exportBuf);
     ret = wc_ecc_export_x963(&userA, exportBuf, &x);
     if (ret != 0)
-        ERROR_OUT(-1006, done);
+        goto done;
 
 #ifdef HAVE_ECC_KEY_IMPORT
     ret = wc_ecc_import_x963_ex(exportBuf, x, &pubKey, curve_id);
     if (ret != 0)
-        ERROR_OUT(-1007, done);
+        goto done;
 
 #ifdef HAVE_ECC_DHE
     y = sizeof(sharedB);
     ret = wc_ecc_shared_secret(&userB, &pubKey, sharedB, &y);
     if (ret != 0)
-        ERROR_OUT(-1008, done);
+        goto done;
 
     if (XMEMCMP(sharedA, sharedB, y))
         ERROR_OUT(-1009, done);
@@ -7066,19 +7072,19 @@ static int ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerifyCount,
         x = sizeof(exportBuf);
         ret = wc_ecc_export_x963_ex(&userA, exportBuf, &x, 1);
         if (ret != 0)
-            ERROR_OUT(-1010, done);
+            goto done;
         wc_ecc_free(&pubKey);
         wc_ecc_init(&pubKey);
 
         ret = wc_ecc_import_x963_ex(exportBuf, x, &pubKey, curve_id);
         if (ret != 0)
-            ERROR_OUT(-1011, done);
+            goto done;
 
     #ifdef HAVE_ECC_DHE
         y = sizeof(sharedB);
         ret = wc_ecc_shared_secret(&userB, &pubKey, sharedB, &y);
         if (ret != 0)
-            ERROR_OUT(-1012, done);
+            goto done;
 
         if (XMEMCMP(sharedA, sharedB, y))
             ERROR_OUT(-1013, done);
@@ -7097,16 +7103,15 @@ static int ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerifyCount,
 
     x = sizeof(sig);
     ret = wc_ecc_sign_hash(digest, sizeof(digest), sig, &x, rng, &userA);
-
     if (ret != 0)
-        ERROR_OUT(-1014, done);
+        goto done;
 
 #ifdef HAVE_ECC_VERIFY
     for (i=0; i<testVerifyCount; i++) {
         verify = 0;
         ret = wc_ecc_verify_hash(sig, x, digest, sizeof(digest), &verify, &userA);
         if (ret != 0)
-            ERROR_OUT(-1015, done);
+            goto done;
         if (verify != 1)
             ERROR_OUT(-1016, done);
     }
@@ -7129,7 +7134,7 @@ static int ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerifyCount,
         verify = 0;
         ret = wc_ecc_verify_hash(sig, x, digest, sizeof(digest), &verify, &userA);
         if (ret != 0)
-            ERROR_OUT(-1015, done);
+            goto done;
         if (verify != 1)
             ERROR_OUT(-1016, done);
     }
@@ -7140,7 +7145,7 @@ static int ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerifyCount,
     x = sizeof(exportBuf);
     ret = wc_ecc_export_private_only(&userA, exportBuf, &x);
     if (ret != 0)
-        ERROR_OUT(-1017, done);
+        goto done;
 #endif /* HAVE_ECC_KEY_EXPORT */
 
 done:
