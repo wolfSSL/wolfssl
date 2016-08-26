@@ -662,11 +662,11 @@ static INLINE void build_addr(SOCKADDR_IN_T* addr, const char* peer,
 static INLINE void tcp_socket(SOCKET_T* sockfd, int udp, int sctp)
 {
     if (udp)
-        *sockfd = socket(AF_INET_V, SOCK_DGRAM, 0);
+        *sockfd = socket(AF_INET_V, SOCK_DGRAM, IPPROTO_UDP);
     else if (sctp)
-        *sockfd = socket(AF_INET_V, SOCK_STREAM, 0);
+        *sockfd = socket(AF_INET_V, SOCK_STREAM, IPPROTO_SCTP);
     else
-        *sockfd = socket(AF_INET_V, SOCK_STREAM, 0);
+        *sockfd = socket(AF_INET_V, SOCK_STREAM, IPPROTO_TCP);
 
     if(WOLFSSL_SOCKET_IS_INVALID(*sockfd)) {
         err_sys("socket failed\n");

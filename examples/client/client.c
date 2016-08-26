@@ -1131,6 +1131,11 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
         }
     }
 
+#ifdef WOLFSSL_SCTP
+    if (dtlsSCTP)
+        wolfSSL_CTX_dtls_set_sctp(ctx);
+#endif
+
 #if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
     wolfSSL_CTX_set_default_passwd_cb(ctx, PasswordCallBack);
 #endif
