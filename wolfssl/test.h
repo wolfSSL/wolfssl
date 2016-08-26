@@ -564,11 +564,12 @@ static INLINE void showPeer(WOLFSSL* ssl)
 
 
 static INLINE void build_addr(SOCKADDR_IN_T* addr, const char* peer,
-                              word16 port, int udp)
+                              word16 port, int udp, int sctp)
 {
     int useLookup = 0;
     (void)useLookup;
     (void)udp;
+    (void)sctp;
 
     if (addr == NULL)
         err_sys("invalid argument to build_addr, addr is NULL");
@@ -628,8 +629,17 @@ static INLINE void build_addr(SOCKADDR_IN_T* addr, const char* peer,
             memset(&hints, 0, sizeof(hints));
 
             hints.ai_family   = AF_INET_V;
-            hints.ai_socktype = udp ? SOCK_DGRAM : SOCK_STREAM;
-            hints.ai_protocol = udp ? IPPROTO_UDP : IPPROTO_TCP;
+            if (udp) {
+                hints.ai_socktype = SOCK_DGRAM;
+                hints.ai_protocol = IPPROTO_UDP;
+            } else if (sctp) {
+                hints.ai_socktype = SOCK_STREAM;
+                hints.ai_protocol = IPPROTO_SCTP;
+            }
+            else {
+                hints.ai_socktype = SOCK_STREAM;
+                hints.ai_protocol = IPPROTO_TCP;
+            }
 
             SNPRINTF(strPort, sizeof(strPort), "%d", port);
             strPort[79] = '\0';
@@ -649,10 +659,12 @@ static INLINE void build_addr(SOCKADDR_IN_T* addr, const char* peer,
 }
 
 
-static INLINE void tcp_socket(SOCKET_T* sockfd, int udp)
+static INLINE void tcp_socket(SOCKET_T* sockfd, int udp, int sctp)
 {
     if (udp)
         *sockfd = socket(AF_INET_V, SOCK_DGRAM, 0);
+    else if (sctp)
+        *sockfd = socket(AF_INET_V, SOCK_STREAM, 0);
     else
         *sockfd = socket(AF_INET_V, SOCK_STREAM, 0);
 
@@ -677,7 +689,7 @@ static INLINE void tcp_socket(SOCKET_T* sockfd, int udp)
 #endif /* S_NOSIGPIPE */
 
 #if defined(TCP_NODELAY)
-    if (!udp)
+    if (!udp && !sctp)
     {
         int       on = 1;
         socklen_t len = sizeof(on);
@@ -690,14 +702,14 @@ static INLINE void tcp_socket(SOCKET_T* sockfd, int udp)
 }
 
 static INLINE void tcp_connect(SOCKET_T* sockfd, const char* ip, word16 port,
-                               int udp, WOLFSSL* ssl)
+                               int udp, int sctp, WOLFSSL* ssl)
 {
     SOCKADDR_IN_T addr;
-    build_addr(&addr, ip, port, udp);
-    if(udp) {
+    build_addr(&addr, ip, port, udp, sctp);
+    if (udp) {
         wolfSSL_dtls_set_peer(ssl, &addr, sizeof(addr));
     }
-    tcp_socket(sockfd, udp);
+    tcp_socket(sockfd, udp, sctp);
 
     if (!udp) {
         if (connect(*sockfd, (const struct sockaddr*)&addr, sizeof(addr)) != 0)
@@ -757,14 +769,14 @@ static INLINE int tcp_select(SOCKET_T socketfd, int to_sec)
 
 
 static INLINE void tcp_listen(SOCKET_T* sockfd, word16* port, int useAnyAddr,
-                              int udp)
+                              int udp, int sctp)
 {
     SOCKADDR_IN_T addr;
 
     /* don't use INADDR_ANY by default, firewall may block, make user switch
        on */
-    build_addr(&addr, (useAnyAddr ? INADDR_ANY : wolfSSLIP), *port, udp);
-    tcp_socket(sockfd, udp);
+    build_addr(&addr, (useAnyAddr ? INADDR_ANY : wolfSSLIP), *port, udp, sctp);
+    tcp_socket(sockfd, udp, sctp);
 
 #if !defined(USE_WINDOWS_API) && !defined(WOLFSSL_MDK_ARM)\
                               && !defined(WOLFSSL_KEIL_TCP_NET)
@@ -826,8 +838,8 @@ static INLINE void udp_accept(SOCKET_T* sockfd, SOCKET_T* clientfd,
     SOCKADDR_IN_T addr;
 
     (void)args;
-    build_addr(&addr, (useAnyAddr ? INADDR_ANY : wolfSSLIP), port, 1);
-    tcp_socket(sockfd, 1);
+    build_addr(&addr, (useAnyAddr ? INADDR_ANY : wolfSSLIP), port, 1, 0);
+    tcp_socket(sockfd, 1, 0);
 
 
 #if !defined(USE_WINDOWS_API) && !defined(WOLFSSL_MDK_ARM) \
@@ -879,7 +891,7 @@ static INLINE void udp_accept(SOCKET_T* sockfd, SOCKET_T* clientfd,
 
 static INLINE void tcp_accept(SOCKET_T* sockfd, SOCKET_T* clientfd,
                               func_args* args, word16 port, int useAnyAddr,
-                              int udp, int ready_file, int do_listen)
+                              int udp, int sctp, int ready_file, int do_listen)
 {
     SOCKADDR_IN_T client;
     socklen_t client_len = sizeof(client);
@@ -893,7 +905,7 @@ static INLINE void tcp_accept(SOCKET_T* sockfd, SOCKET_T* clientfd,
     }
 
     if(do_listen) {
-        tcp_listen(sockfd, &port, useAnyAddr, udp);
+        tcp_listen(sockfd, &port, useAnyAddr, udp, sctp);
 
     #if defined(_POSIX_THREADS) && defined(NO_MAIN_DRIVER) && !defined(__MINGW32__)
         /* signal ready to tcp_accept */

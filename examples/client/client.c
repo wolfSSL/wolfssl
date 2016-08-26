@@ -156,8 +156,10 @@ static void ShowVersions(void)
     printf("3\n");
 }
 
-int ClientBenchmarkConnections(WOLFSSL_CTX* ctx, char* host, word16 port,
-    int doDTLS, int benchmark, int resumeSession)
+/* Measures average time to create, connect and disconnect a connection (TPS).
+Benchmark = number of connections. */
+static int ClientBenchmarkConnections(WOLFSSL_CTX* ctx, char* host, word16 port,
+    int dtlsUDP, int dtlsSCTP, int benchmark, int resumeSession)
 {
     /* time passed in number of connects give average */
     int times = benchmark;
@@ -180,7 +182,7 @@ int ClientBenchmarkConnections(WOLFSSL_CTX* ctx, char* host, word16 port,
             if (ssl == NULL)
                 err_sys("unable to get SSL object");
 
-            tcp_connect(&sockfd, host, port, doDTLS, ssl);
+            tcp_connect(&sockfd, host, port, dtlsUDP, dtlsSCTP, ssl);
 
     #ifndef NO_SESSION_CACHE
             if (benchResume)
@@ -215,8 +217,9 @@ int ClientBenchmarkConnections(WOLFSSL_CTX* ctx, char* host, word16 port,
     return EXIT_SUCCESS;
 }
 
-int ClientBenchmarkThroughput(WOLFSSL_CTX* ctx, char* host, word16 port,
-    int doDTLS, int throughput)
+/* Measures throughput in kbps. Throughput = number of bytes */
+static int ClientBenchmarkThroughput(WOLFSSL_CTX* ctx, char* host, word16 port,
+    int dtlsUDP, int dtlsSCTP, int throughput)
 {
     double start, conn_time = 0, tx_time = 0, rx_time = 0;
     SOCKET_T sockfd;
@@ -227,7 +230,7 @@ int ClientBenchmarkThroughput(WOLFSSL_CTX* ctx, char* host, word16 port,
     ssl = wolfSSL_new(ctx);
     if (ssl == NULL)
         err_sys("unable to get SSL object");
-    tcp_connect(&sockfd, host, port, doDTLS, ssl);
+    tcp_connect(&sockfd, host, port, dtlsUDP, dtlsSCTP, ssl);
     if (wolfSSL_set_fd(ssl, sockfd) != SSL_SUCCESS) {
         err_sys("error in setting fd");
     }
@@ -343,7 +346,8 @@ const char* starttlsCmd[6] = {
     "QUIT\r\n",
 };
 
-int StartTLS_Init(SOCKET_T* sockfd)
+/* Initiates the STARTTLS command sequence over TCP */
+static int StartTLS_Init(SOCKET_T* sockfd)
 {
     char tmpBuf[256];
 
@@ -399,7 +403,8 @@ int StartTLS_Init(SOCKET_T* sockfd)
     return SSL_SUCCESS;
 }
 
-int SMTP_Shutdown(WOLFSSL* ssl, int wc_shutdown)
+/* Closes down the SMTP connection */
+static int SMTP_Shutdown(WOLFSSL* ssl, int wc_shutdown)
 {
     int ret;
     char tmpBuf[256];
@@ -461,6 +466,10 @@ static void Usage(void)
     printf("-g          Send server HTTP GET\n");
     printf("-u          Use UDP DTLS,"
            " add -v 2 for DTLSv1, -v 3 for DTLSv1.2 (default)\n");
+#ifdef WOLFSSL_SCTP
+    printf("-G          Use SCTP DTLS,"
+           " add -v 2 for DTLSv1, -v 3 for DTLSv1.2 (default)\n");
+#endif
     printf("-m          Match domain name in cert\n");
     printf("-N          Use Non-blocking sockets\n");
     printf("-r          Resume session\n");
@@ -551,6 +560,8 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     int    benchmark = 0;
     int    throughput = 0;
     int    doDTLS    = 0;
+    int    dtlsUDP   = 0;
+    int    dtlsSCTP  = 0;
     int    matchName = 0;
     int    doPeerCheck = 1;
     int    nonBlocking = 0;
@@ -640,7 +651,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 
 #ifndef WOLFSSL_VXWORKS
     while ((ch = mygetopt(argc, argv,
-          "?gdeDusmNrwRitfxXUPCVh:p:v:l:A:c:k:Z:b:zS:F:L:ToO:aB:W:E:M:q:"))
+          "?gdeDuGsmNrwRitfxXUPCVh:p:v:l:A:c:k:Z:b:zS:F:L:ToO:aB:W:E:M:q:"))
             != -1) {
         switch (ch) {
             case '?' :
@@ -670,7 +681,15 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
                 break;
 
             case 'u' :
-                doDTLS  = 1;
+                doDTLS = 1;
+                dtlsUDP = 1;
+                break;
+
+            case 'G' :
+            #ifdef WOLFSSL_SCTP
+                doDTLS = 1;
+                dtlsSCTP = 1;
+            #endif
                 break;
 
             case 's' :
@@ -1212,14 +1231,16 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 
     if (benchmark) {
         ((func_args*)args)->return_code =
-            ClientBenchmarkConnections(ctx, host, port, doDTLS, benchmark, resumeSession);
+            ClientBenchmarkConnections(ctx, host, port, dtlsUDP, dtlsSCTP,
+                                       benchmark, resumeSession);
         wolfSSL_CTX_free(ctx);
         exit(EXIT_SUCCESS);
     }
 
     if(throughput) {
         ((func_args*)args)->return_code =
-            ClientBenchmarkThroughput(ctx, host, port, doDTLS, throughput);
+            ClientBenchmarkThroughput(ctx, host, port, dtlsUDP, dtlsSCTP,
+                                      throughput);
         wolfSSL_CTX_free(ctx);
         exit(EXIT_SUCCESS);
     }
@@ -1305,7 +1326,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     }
 #endif
 
-    tcp_connect(&sockfd, host, port, doDTLS, ssl);
+    tcp_connect(&sockfd, host, port, dtlsUDP, dtlsSCTP, ssl);
     if (wolfSSL_set_fd(ssl, sockfd) != SSL_SUCCESS) {
         err_sys("error in setting fd");
     }
@@ -1484,7 +1505,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     }
 #endif
 
-    if (doDTLS == 0) {           /* don't send alert after "break" command */
+    if (dtlsUDP == 0) {           /* don't send alert after "break" command */
         ret = wolfSSL_shutdown(ssl);
         if (wc_shutdown && ret == SSL_SHUTDOWN_NOT_DONE)
             wolfSSL_shutdown(ssl);    /* bidirectional shutdown */
@@ -1498,7 +1519,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 
 #ifndef NO_SESSION_CACHE
     if (resumeSession) {
-        if (doDTLS) {
+        if (dtlsUDP) {
 #ifdef USE_WINDOWS_API
             Sleep(500);
 #elif defined(WOLFSSL_TIRTOS)
@@ -1507,7 +1528,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
             sleep(1);
 #endif
         }
-        tcp_connect(&sockfd, host, port, doDTLS, sslResume);
+        tcp_connect(&sockfd, host, port, dtlsUDP, dtlsSCTP, sslResume);
         if (wolfSSL_set_fd(sslResume, sockfd) != SSL_SUCCESS) {
             err_sys("error in setting fd");
         }
