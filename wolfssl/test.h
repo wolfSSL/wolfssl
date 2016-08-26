@@ -355,10 +355,29 @@ void join_thread(THREAD_TYPE);
 #endif
 static const word16      wolfSSLPort = 11111;
 
-static INLINE void err_sys(const char* msg)
+
+#if defined(__GNUC__)
+    #define WC_NORETURN __attribute__((noreturn))
+#else
+    #define WC_NORETURN
+#endif
+
+static INLINE WC_NORETURN void err_sys(const char* msg)
 {
     printf("wolfSSL error: %s\n", msg);
-    exit(EXIT_FAILURE);
+
+#if !defined(__GNUC__)
+    /* scan-build (which pretends to be gnuc) can get confused and think the
+     * msg pointer can be null even when hardcoded and then it won't exit,
+     * making null pointer checks above the err_sys() call useless.
+     * We could just always exit() but some compilers will complain about no
+     * possible return, with gcc we know the attribute to handle that with 
+     * WC_NORETURN. */
+    if (msg)
+#endif
+    {
+        exit(EXIT_FAILURE);
+    }
 }
 
 
