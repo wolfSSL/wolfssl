@@ -111,7 +111,7 @@ int main()
 
     unsigned char bigBuf[4096];
 
-    got = wolfSSL_read(ssl, bigBuf, sizeof(bigBuf));
+    wolfSSL_read(ssl, bigBuf, sizeof(bigBuf));
     wolfSSL_write(ssl, bigBuf, sizeof(bigBuf));
 
     wolfSSL_shutdown(ssl);
