@@ -171,24 +171,22 @@
 	/* default to libc stuff */
 	/* XREALLOC is used once in normal math lib, not in fast math lib */
 	/* XFREE on some embeded systems doesn't like free(0) so test  */
-	#if defined(XMALLOC_USER)
+	#if defined(HAVE_IO_POOL)
+		WOLFSSL_API void* XMALLOC(size_t n, void* heap, int type);
+		WOLFSSL_API void* XREALLOC(void *p, size_t n, void* heap, int type);
+		WOLFSSL_API void XFREE(void *p, void* heap, int type);
+	#elif defined(XMALLOC_USER)
 	    /* prototypes for user heap override functions */
 	    #include <stddef.h>  /* for size_t */
 	    extern void *XMALLOC(size_t n, void* heap, int type);
 	    extern void *XREALLOC(void *p, size_t n, void* heap, int type);
 	    extern void XFREE(void *p, void* heap, int type);
-        #ifdef WOLFSSL_STATIC_MEMORY /* don't use wolfSSL static memory either*/
-            #undef WOLFSSL_STATIC_MEMORY
-        #endif
 	#elif defined(NO_WOLFSSL_MEMORY)
 	    /* just use plain C stdlib stuff if desired */
 	    #include <stdlib.h>
 	    #define XMALLOC(s, h, t)     ((void)h, (void)t, malloc((s)))
 	    #define XFREE(p, h, t)       {void* xp = (p); if((xp)) free((xp));}
 	    #define XREALLOC(p, n, h, t) realloc((p), (n))
-        #ifdef WOLFSSL_STATIC_MEMORY /* don't use wolfSSL static memory either*/
-            #undef WOLFSSL_STATIC_MEMORY
-        #endif
 	#elif !defined(MICRIUM_MALLOC) && !defined(EBSNET) \
 	        && !defined(WOLFSSL_SAFERTOS) && !defined(FREESCALE_MQX) \
 	        && !defined(FREESCALE_KSDK_MQX) && !defined(FREESCALE_FREE_RTOS) \
@@ -196,19 +194,27 @@
             && !defined(WOLFSSL_uITRON4) && !defined(WOLFSSL_uTKERNEL2)
 	    /* default C runtime, can install different routines at runtime via cbs */
 	    #include <wolfssl/wolfcrypt/memory.h>
-       #if defined(WOLFSSL_DEBUG_MEMORY) && !defined(WOLFSSL_STATIC_MEMORY)
-           #define XMALLOC(s, h, t)     ((void)h, (void)t, wolfSSL_Malloc((s), __func__, __LINE__))
-           #define XFREE(p, h, t)       {void* xp = (p); if((xp)) wolfSSL_Free((xp), __func__, __LINE__);}
-           #define XREALLOC(p, n, h, t) wolfSSL_Realloc((p), (n), __func__, __LINE__)
-       #elif defined(WOLFSSL_STATIC_MEMORY)
-           #define XMALLOC(s, h, t)     wolfSSL_Malloc((s), (h), (t))
-           #define XFREE(p, h, t)       {void* xp = (p); if((xp)) wolfSSL_Free((xp), (h), (t));}
-           #define XREALLOC(p, n, h, t) wolfSSL_Realloc((p), (n), (h), (t))
-       #else
-           #define XMALLOC(s, h, t)     ((void)h, (void)t, wolfSSL_Malloc((s)))
-           #define XFREE(p, h, t)       {void* xp = (p); if((xp)) wolfSSL_Free((xp));}
-           #define XREALLOC(p, n, h, t) wolfSSL_Realloc((p), (n))
-       #endif
+        #ifdef WOLFSSL_STATIC_MEMORY
+            #ifdef WOLFSSL_DEBUG_MEMORY
+				#define XMALLOC(s, h, t)     wolfSSL_Malloc((s), (h), (t), __func__, __LINE__)
+				#define XFREE(p, h, t)       {void* xp = (p); if((xp)) wolfSSL_Free((xp), (h), (t), __func__, __LINE__);}
+				#define XREALLOC(p, n, h, t) wolfSSL_Realloc((p), (n), (h), (t), __func__, __LINE__)
+            #else
+	            #define XMALLOC(s, h, t)     wolfSSL_Malloc((s), (h), (t))
+				#define XFREE(p, h, t)       {void* xp = (p); if((xp)) wolfSSL_Free((xp), (h), (t));}
+				#define XREALLOC(p, n, h, t) wolfSSL_Realloc((p), (n), (h), (t))
+            #endif /* WOLFSSL_DEBUG_MEMORY */
+        #else
+            #ifdef WOLFSSL_DEBUG_MEMORY
+				#define XMALLOC(s, h, t)     ((void)h, (void)t, wolfSSL_Malloc((s), __func__, __LINE__))
+				#define XFREE(p, h, t)       {void* xp = (p); if((xp)) wolfSSL_Free((xp), __func__, __LINE__);}
+				#define XREALLOC(p, n, h, t) wolfSSL_Realloc((p), (n), __func__, __LINE__)
+            #else
+	            #define XMALLOC(s, h, t)     ((void)h, (void)t, wolfSSL_Malloc((s)))
+	            #define XFREE(p, h, t)       {void* xp = (p); if((xp)) wolfSSL_Free((xp));}
+	            #define XREALLOC(p, n, h, t) wolfSSL_Realloc((p), (n))
+            #endif /* WOLFSSL_DEBUG_MEMORY */
+        #endif /* WOLFSSL_STATIC_MEMORY */
 	#endif
 
 

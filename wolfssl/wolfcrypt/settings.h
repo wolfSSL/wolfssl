@@ -1251,6 +1251,9 @@ static char *fgets(char *buff, int sz, FILE *fp)
 
 /* restriction with static memory */
 #ifdef WOLFSSL_STATIC_MEMORY
+    #if defined(HAVE_IO_POOL) || defined(XMALLOC_USER) || defined(NO_WOLFSSL_MEMORY)
+         #error static memory cannot be used with HAVE_IO_POOL, XMALLOC_USER or NO_WOLFSSL_MEMORY
+    #endif
     #ifndef USE_FAST_MATH
         #error static memory requires fast math please define USE_FAST_MATH
     #endif
@@ -1258,6 +1261,8 @@ static char *fgets(char *buff, int sz, FILE *fp)
         #error static memory does not support small stack please undefine
     #endif
 #endif /* WOLFSSL_STATIC_MEMORY */
+
+
 /* Place any other flags or defines here */
 
 #if defined(WOLFSSL_MYSQL_COMPATIBLE) && defined(_WIN32) \

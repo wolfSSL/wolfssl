@@ -638,31 +638,9 @@ int wolfSSL_GetObjectSize(void)
     return sizeof(WOLFSSL);
 }
 #endif
+
+
 #ifdef WOLFSSL_STATIC_MEMORY
-
-
-int wolfSSL_init_memory_heap(WOLFSSL_HEAP* heap)
-{
-    word32 wc_MemSz[WOLFMEM_DEF_BUCKETS] = { WOLFMEM_BUCKETS };
-    word32 wc_Dist[WOLFMEM_DEF_BUCKETS]  = { WOLFMEM_DIST };
-
-    if (heap == NULL) {
-        return BAD_FUNC_ARG;
-    }
-
-    XMEMSET(heap, 0, sizeof(WOLFSSL_HEAP));
-
-    XMEMCPY(heap->sizeList, wc_MemSz, sizeof(wc_MemSz));
-    XMEMCPY(heap->distList, wc_Dist,  sizeof(wc_Dist));
-
-    if (InitMutex(&(heap->memory_mutex)) != 0) {
-        WOLFSSL_MSG("Error creating heap memory mutex");
-        return BAD_MUTEX_E;
-    }
-
-    return SSL_SUCCESS;
-}
-
 
 int wolfSSL_CTX_load_static_memory(WOLFSSL_CTX** ctx, wolfSSL_method_func method,
                                    unsigned char* buf, unsigned int sz,
@@ -680,34 +658,23 @@ int wolfSSL_CTX_load_static_memory(WOLFSSL_CTX** ctx, wolfSSL_method_func method
         return BAD_FUNC_ARG;
     }
 
-    if (*ctx == NULL) {
+    if (*ctx == NULL || (*ctx)->heap == NULL) {
         if (sizeof(WOLFSSL_HEAP) + sizeof(WOLFSSL_HEAP_HINT) > sz - idx) {
             return BUFFER_E; /* not enough memory for structures */
         }
         heap = (WOLFSSL_HEAP*)buf;
         idx += sizeof(WOLFSSL_HEAP);
-        if (wolfSSL_init_memory_heap(heap) != SSL_SUCCESS) {
+        if (wolfSSL_init_memory_heap(heap) != 0) {
             return SSL_FAILURE;
         }
         hint = (WOLFSSL_HEAP_HINT*)(buf + idx);
         idx += sizeof(WOLFSSL_HEAP_HINT);
         XMEMSET(hint, 0, sizeof(WOLFSSL_HEAP_HINT));
         hint->memory = heap;
-    }
-    else if ((*ctx)->heap == NULL) {
-        if (sizeof(WOLFSSL_HEAP) + sizeof(WOLFSSL_HEAP_HINT) > sz - idx) {
-            return BUFFER_E; /* not enough memory for structures */
+
+        if (*ctx && (*ctx)->heap == NULL) {
+            (*ctx)->heap = (void*)hint;
         }
-        heap = (WOLFSSL_HEAP*)buf;
-        idx += sizeof(WOLFSSL_HEAP);
-        if (wolfSSL_init_memory_heap(heap) != SSL_SUCCESS) {
-            return SSL_FAILURE;
-        }
-        hint = (WOLFSSL_HEAP_HINT*)(buf + idx);
-        idx += sizeof(WOLFSSL_HEAP_HINT);
-        XMEMSET(hint, 0, sizeof(WOLFSSL_HEAP_HINT));
-        hint->memory = heap;
-        (*ctx)->heap = (void*)hint;
     }
     else {
 #ifdef WOLFSSL_HEAP_TEST
@@ -767,7 +734,7 @@ int wolfSSL_is_static_memory(WOLFSSL* ssl, WOLFSSL_MEM_CONN_STATS* mem_stats)
         }
     }
 
-    return (ssl->heap)? 1 : 0;
+    return (ssl->heap) ? 1 : 0;
 }
 
 
@@ -786,7 +753,7 @@ int wolfSSL_CTX_is_static_memory(WOLFSSL_CTX* ctx, WOLFSSL_MEM_STATS* mem_stats)
         }
     }
 
-    return (ctx->heap)? 1 : 0;
+    return (ctx->heap) ? 1 : 0;
 }
 
 #endif /* WOLFSSL_STATIC_MEMORY */

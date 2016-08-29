@@ -659,7 +659,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
         err_sys("unable to load static memory and create ctx");
 #else
     ctx = SSL_CTX_new(method(NULL));
-#endif
+#endif /* WOLFSSL_STATIC_MEMORY */
     if (ctx == NULL)
         err_sys("unable to get ctx");
 

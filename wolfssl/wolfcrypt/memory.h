@@ -33,36 +33,42 @@
     extern "C" {
 #endif
 
-#ifdef WOLFSSL_DEBUG_MEMORY
-    typedef void *(*wolfSSL_Malloc_cb)(size_t size, const char* func, unsigned int line);
-    typedef void (*wolfSSL_Free_cb)(void *ptr, const char* func, unsigned int line);
-    typedef void *(*wolfSSL_Realloc_cb)(void *ptr, size_t size, const char* func, unsigned int line);
-
-    /* Public in case user app wants to use XMALLOC/XFREE */
-    WOLFSSL_API void* wolfSSL_Malloc(size_t size, const char* func, unsigned int line);
-    WOLFSSL_API void  wolfSSL_Free(void *ptr, const char* func, unsigned int line);
-    WOLFSSL_API void* wolfSSL_Realloc(void *ptr, size_t size, const char* func, unsigned int line);
-
-#else
-    #if defined(WOLFSSL_STATIC_MEMORY)
-    typedef void *(*wolfSSL_Malloc_cb)(size_t size, void* heap, int type);
-    typedef void (*wolfSSL_Free_cb)(void *ptr, void* heap, int type);
-    typedef void *(*wolfSSL_Realloc_cb)(void *ptr, size_t size,
-                                                          void* heap, int type);
-    WOLFSSL_API void* wolfSSL_Malloc(size_t size, void* heap, int type);
-    WOLFSSL_API void  wolfSSL_Free(void *ptr, void* heap, int type);
-    WOLFSSL_API void* wolfSSL_Realloc(void *ptr, size_t size,
-                                                          void* heap, int type);
+#ifdef WOLFSSL_STATIC_MEMORY
+    #ifdef WOLFSSL_DEBUG_MEMORY
+        typedef void *(*wolfSSL_Malloc_cb)(size_t size, void* heap, int type, const char* func, unsigned int line);
+        typedef void (*wolfSSL_Free_cb)(void *ptr, void* heap, int type, const char* func, unsigned int line);
+        typedef void *(*wolfSSL_Realloc_cb)(void *ptr, size_t size, void* heap, int type, const char* func, unsigned int line);
+        WOLFSSL_API void* wolfSSL_Malloc(size_t size, void* heap, int type, const char* func, unsigned int line);
+        WOLFSSL_API void  wolfSSL_Free(void *ptr, void* heap, int type, const char* func, unsigned int line);
+        WOLFSSL_API void* wolfSSL_Realloc(void *ptr, size_t size, void* heap, int type, const char* func, unsigned int line);
     #else
-    typedef void *(*wolfSSL_Malloc_cb)(size_t size);
-    typedef void (*wolfSSL_Free_cb)(void *ptr);
-    typedef void *(*wolfSSL_Realloc_cb)(void *ptr, size_t size);
-    /* Public in case user app wants to use XMALLOC/XFREE */
-    WOLFSSL_API void* wolfSSL_Malloc(size_t size);
-    WOLFSSL_API void  wolfSSL_Free(void *ptr);
-    WOLFSSL_API void* wolfSSL_Realloc(void *ptr, size_t size);
-    #endif
-#endif
+        typedef void *(*wolfSSL_Malloc_cb)(size_t size, void* heap, int type);
+        typedef void (*wolfSSL_Free_cb)(void *ptr, void* heap, int type);
+        typedef void *(*wolfSSL_Realloc_cb)(void *ptr, size_t size, void* heap, int type);
+        WOLFSSL_API void* wolfSSL_Malloc(size_t size, void* heap, int type);
+        WOLFSSL_API void  wolfSSL_Free(void *ptr, void* heap, int type);
+        WOLFSSL_API void* wolfSSL_Realloc(void *ptr, size_t size, void* heap, int type);
+    #endif /* WOLFSSL_DEBUG_MEMORY */
+#else
+    #ifdef WOLFSSL_DEBUG_MEMORY
+        typedef void *(*wolfSSL_Malloc_cb)(size_t size, const char* func, unsigned int line);
+        typedef void (*wolfSSL_Free_cb)(void *ptr, const char* func, unsigned int line);
+        typedef void *(*wolfSSL_Realloc_cb)(void *ptr, size_t size, const char* func, unsigned int line);
+
+        /* Public in case user app wants to use XMALLOC/XFREE */
+        WOLFSSL_API void* wolfSSL_Malloc(size_t size, const char* func, unsigned int line);
+        WOLFSSL_API void  wolfSSL_Free(void *ptr, const char* func, unsigned int line);
+        WOLFSSL_API void* wolfSSL_Realloc(void *ptr, size_t size, const char* func, unsigned int line);
+    #else
+        typedef void *(*wolfSSL_Malloc_cb)(size_t size);
+        typedef void (*wolfSSL_Free_cb)(void *ptr);
+        typedef void *(*wolfSSL_Realloc_cb)(void *ptr, size_t size);
+        /* Public in case user app wants to use XMALLOC/XFREE */
+        WOLFSSL_API void* wolfSSL_Malloc(size_t size);
+        WOLFSSL_API void  wolfSSL_Free(void *ptr);
+        WOLFSSL_API void* wolfSSL_Realloc(void *ptr, size_t size);
+    #endif /* WOLFSSL_DEBUG_MEMORY */
+#endif /* WOLFSSL_STATIC_MEMORY */
 
 /* Public set function */
 WOLFSSL_API int wolfSSL_SetAllocators(wolfSSL_Malloc_cb  malloc_function,
@@ -156,7 +162,10 @@ WOLFSSL_API int wolfSSL_SetAllocators(wolfSSL_Malloc_cb  malloc_function,
         byte        haFlag; /* flag used for checking handshake count */
     } WOLFSSL_HEAP_HINT;
 
+    WOLFSSL_API int wc_LoadStaticMemory(WOLFSSL_HEAP_HINT** pHint,
+            unsigned char* buf, unsigned int sz, int flag, int max);
 
+    WOLFSSL_LOCAL int wolfSSL_init_memory_heap(WOLFSSL_HEAP* heap);
     WOLFSSL_LOCAL int wolfSSL_load_static_memory(byte* buffer, word32 sz,
                                                   int flag, WOLFSSL_HEAP* heap);
     WOLFSSL_LOCAL int wolfSSL_GetMemStats(WOLFSSL_HEAP* heap,
