@@ -1705,6 +1705,67 @@ static INLINE int myEccVerify(WOLFSSL* ssl, const byte* sig, word32 sigSz,
     return ret;
 }
 
+static INLINE int myEccSharedSecret(WOLFSSL* ssl,
+        unsigned char* pubKeyDer, unsigned int* pubKeySz,
+        unsigned char* out, unsigned int* outlen,
+        int side, void* ctx)
+{
+    int      ret;
+    ecc_key* privKey;
+    ecc_key* pubKey;
+    ecc_key  tmpKey;
+
+    (void)ssl;
+    (void)ctx;
+
+    ret = wc_ecc_init(&tmpKey);
+    if (ret != 0) {
+        return ret;
+    }
+
+    /* for client: create and export public key */
+    if (side == WOLFSSL_CLIENT_END) {
+        WC_RNG  rng;
+        ret = wc_InitRng(&rng);
+        if (ret == 0) {
+            ret = wolfSSL_GetEccKey(ssl, &pubKey);
+            if (ret != 0) {
+                return ret;
+            }
+            privKey = &tmpKey;
+
+            ret = wc_ecc_make_key_ex(&rng, 0, privKey, pubKey->dp->id);
+            if (ret == 0) {
+                ret = wc_ecc_export_x963(privKey, pubKeyDer, pubKeySz);
+            }
+            wc_FreeRng(&rng);
+        }
+    }
+
+    /* for server: import public key */
+    else if (side == WOLFSSL_SERVER_END) {
+        ret = wolfSSL_GetEccKey(ssl, &privKey);
+        if (ret != 0) {
+            return ret;
+        }
+        pubKey = &tmpKey;
+
+        ret = wc_ecc_import_x963_ex(pubKeyDer, *pubKeySz, pubKey, privKey->dp->id);
+    }
+    else {
+        ret = -1;
+    }
+
+    /* generate shared secret and return it */
+    if (ret == 0) {
+        ret = wc_ecc_shared_secret(privKey, pubKey, out, outlen);
+    }
+
+    wc_ecc_free(&tmpKey);
+
+    return ret;
+}
+
 #endif /* HAVE_ECC */
 
 #ifndef NO_RSA
@@ -1834,6 +1895,7 @@ static INLINE void SetupPkCallbacks(WOLFSSL_CTX* ctx, WOLFSSL* ssl)
     #ifdef HAVE_ECC
         wolfSSL_CTX_SetEccSignCb(ctx, myEccSign);
         wolfSSL_CTX_SetEccVerifyCb(ctx, myEccVerify);
+        wolfSSL_CTX_SetEccSharedSecretCb(ctx, myEccSharedSecret);
     #endif /* HAVE_ECC */
     #ifndef NO_RSA
         wolfSSL_CTX_SetRsaSignCb(ctx, myRsaSign);

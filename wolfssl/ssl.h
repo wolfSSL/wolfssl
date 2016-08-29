@@ -1043,6 +1043,8 @@ WOLFSSL_API int wolfSSL_SetMinRsaKey_Sz(WOLFSSL*, short);
 #ifdef HAVE_ECC
 WOLFSSL_API int wolfSSL_CTX_SetMinEccKey_Sz(WOLFSSL_CTX*, short);
 WOLFSSL_API int wolfSSL_SetMinEccKey_Sz(WOLFSSL*, short);
+struct ecc_key;
+WOLFSSL_API int wolfSSL_GetEccKey(WOLFSSL*, struct ecc_key**);
 #endif /* NO_RSA */
 
 WOLFSSL_API int  wolfSSL_SetTmpEC_DHE_Sz(WOLFSSL*, unsigned short);
@@ -1340,6 +1342,14 @@ typedef int (*CallbackEccVerify)(WOLFSSL* ssl,
 WOLFSSL_API void  wolfSSL_CTX_SetEccVerifyCb(WOLFSSL_CTX*, CallbackEccVerify);
 WOLFSSL_API void  wolfSSL_SetEccVerifyCtx(WOLFSSL* ssl, void *ctx);
 WOLFSSL_API void* wolfSSL_GetEccVerifyCtx(WOLFSSL* ssl);
+
+typedef int (*CallbackEccSharedSecret)(WOLFSSL* ssl,
+        unsigned char* pubKeyDer, unsigned int* pubKeySz,
+        unsigned char* out, unsigned int* outlen,
+        int side, void* ctx); /* side is WOLFSSL_CLIENT_END or WOLFSSL_SERVER_END */
+WOLFSSL_API void  wolfSSL_CTX_SetEccSharedSecretCb(WOLFSSL_CTX*, CallbackEccSharedSecret);
+WOLFSSL_API void  wolfSSL_SetEccSharedSecretCtx(WOLFSSL* ssl, void *ctx);
+WOLFSSL_API void* wolfSSL_GetEccSharedSecretCtx(WOLFSSL* ssl);
 
 typedef int (*CallbackRsaSign)(WOLFSSL* ssl,
        const unsigned char* in, unsigned int inSz,

@@ -2036,6 +2036,7 @@ struct WOLFSSL_CTX {
     #ifdef HAVE_ECC
         CallbackEccSign   EccSignCb;    /* User EccSign   Callback handler */
         CallbackEccVerify EccVerifyCb;  /* User EccVerify Callback handler */
+        CallbackEccSharedSecret EccSharedSecretCb;     /* User EccVerify Callback handler */
     #endif /* HAVE_ECC */
     #ifndef NO_RSA
         CallbackRsaSign   RsaSignCb;    /* User RsaSign   Callback handler */
@@ -2850,6 +2851,7 @@ struct WOLFSSL {
     #ifdef HAVE_ECC
         void* EccSignCtx;     /* Ecc Sign   Callback Context */
         void* EccVerifyCtx;   /* Ecc Verify Callback Context */
+        void* EccSharedSecretCtx; /* Ecc Pms Callback Context */
     #endif /* HAVE_ECC */
     #ifndef NO_RSA
         void* RsaSignCtx;     /* Rsa Sign   Callback Context */
@@ -3044,7 +3046,8 @@ WOLFSSL_LOCAL int VerifyClientSuite(WOLFSSL* ssl);
             const byte* out, word32 outSz, ecc_key* key, byte* keyBuf, word32 keySz,
             void* ctx);
         WOLFSSL_LOCAL int EccSharedSecret(WOLFSSL* ssl, ecc_key* priv_key,
-            ecc_key* pub_key, byte* out, word32* outSz);
+            ecc_key* pub_key, byte* pubKeyDer, word32* pubKeySz, byte* out,
+            word32* outlen, int side, void* ctx);
     #endif /* HAVE_ECC */
 
     #ifdef WOLFSSL_TRUST_PEER_CERT

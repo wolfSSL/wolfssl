@@ -2966,15 +2966,29 @@ int EccVerify(WOLFSSL* ssl, const byte* in, word32 inSz, const byte* out,
 }
 
 int EccSharedSecret(WOLFSSL* ssl, ecc_key* priv_key, ecc_key* pub_key,
-    byte* out, word32* outSz)
+        byte* pubKeyDer, word32* pubKeySz, byte* out, word32* outlen,
+        int side, void* ctx)
 {
     int ret;
 
     (void)ssl;
+    (void)pubKeyDer;
+    (void)pubKeySz;
+    (void)side;
+    (void)ctx;
 
     WOLFSSL_ENTER("EccSharedSecret");
 
-    ret = wc_ecc_shared_secret(priv_key, pub_key, out, outSz);
+#ifdef HAVE_PK_CALLBACKS
+    if (ssl->ctx->EccSharedSecretCb) {
+        ret = ssl->ctx->EccSharedSecretCb(ssl, pubKeyDer, pubKeySz,
+            out, outlen, side, ctx);
+    }
+    else
+#endif
+    {
+        ret = wc_ecc_shared_secret(priv_key, pub_key, out, outlen);
+    }
 
     /* Handle async pending response */
 #if defined(WOLFSSL_ASYNC_CRYPT)
@@ -15437,20 +15451,25 @@ int SendClientKeyExchange(WOLFSSL* ssl)
                         ERROR_OUT(NO_PEER_KEY, exit_scke);
                     }
 
-                    /* create private key */
-                    ssl->sigKey = XMALLOC(sizeof(ecc_key),
-                                               ssl->heap, DYNAMIC_TYPE_ECC);
-                    if (ssl->sigKey == NULL) {
-                        ERROR_OUT(MEMORY_E, exit_scke);
-                    }
-                    ssl->sigType = DYNAMIC_TYPE_ECC;
+                #ifdef HAVE_PK_CALLBACKS
+                    if (ssl->ctx->EccSharedSecretCb == NULL)
+                #endif
+                    {
+                        /* create private key */
+                        ssl->sigKey = XMALLOC(sizeof(ecc_key),
+                                                   ssl->heap, DYNAMIC_TYPE_ECC);
+                        if (ssl->sigKey == NULL) {
+                            ERROR_OUT(MEMORY_E, exit_scke);
+                        }
+                        ssl->sigType = DYNAMIC_TYPE_ECC;
 
-                    ret = wc_ecc_init_ex((ecc_key*)ssl->sigKey, ssl->heap,
-                                                                ssl->devId);
-                    if (ret != 0) {
-                        goto exit_scke;
+                        ret = wc_ecc_init_ex((ecc_key*)ssl->sigKey, ssl->heap,
+                                                                    ssl->devId);
+                        if (ret != 0) {
+                            goto exit_scke;
+                        }
+                        ret = EccMakeKey(ssl, (ecc_key*)ssl->sigKey, ssl->peerEccKey);
                     }
-                    ret = EccMakeKey(ssl, (ecc_key*)ssl->sigKey, ssl->peerEccKey);
                     break;
             #endif /* HAVE_ECC && !NO_PSK */
             #ifdef HAVE_NTRU
@@ -15463,41 +15482,46 @@ int SendClientKeyExchange(WOLFSSL* ssl)
             #ifdef HAVE_ECC
                 case ecc_diffie_hellman_kea:
                 {
-                    ecc_key* peerKey;
+                #ifdef HAVE_PK_CALLBACKS
+                    if (ssl->ctx->EccSharedSecretCb == NULL)
+                #endif
+                    {
+                        ecc_key* peerKey;
 
-                    if (ssl->specs.static_ecdh) {
-                        /* TODO: EccDsa is really fixed Ecc change naming */
-                        if (!ssl->peerEccDsaKey || !ssl->peerEccDsaKeyPresent ||
-                                                   !ssl->peerEccDsaKey->dp) {
+                        if (ssl->specs.static_ecdh) {
+                            /* TODO: EccDsa is really fixed Ecc change naming */
+                            if (!ssl->peerEccDsaKey || !ssl->peerEccDsaKeyPresent ||
+                                                       !ssl->peerEccDsaKey->dp) {
+                                ERROR_OUT(NO_PEER_KEY, exit_scke);
+                            }
+                            peerKey = ssl->peerEccDsaKey;
+                        }
+                        else {
+                            if (!ssl->peerEccKey || !ssl->peerEccKeyPresent ||
+                                                    !ssl->peerEccKey->dp) {
+                                ERROR_OUT(NO_PEER_KEY, exit_scke);
+                            }
+                            peerKey = ssl->peerEccKey;
+                        }
+                        if (peerKey == NULL) {
                             ERROR_OUT(NO_PEER_KEY, exit_scke);
                         }
-                        peerKey = ssl->peerEccDsaKey;
-                    }
-                    else {
-                        if (!ssl->peerEccKey || !ssl->peerEccKeyPresent ||
-                                                !ssl->peerEccKey->dp) {
-                            ERROR_OUT(NO_PEER_KEY, exit_scke);
+
+                        /* create private key */
+                        ssl->sigKey = XMALLOC(sizeof(ecc_key),
+                                                   ssl->heap, DYNAMIC_TYPE_ECC);
+                        if (ssl->sigKey == NULL) {
+                            ERROR_OUT(MEMORY_E, exit_scke);
                         }
-                        peerKey = ssl->peerEccKey;
-                    }
-                    if (peerKey == NULL) {
-                        ERROR_OUT(NO_PEER_KEY, exit_scke);
-                    }
+                        ssl->sigType = DYNAMIC_TYPE_ECC;
 
-                    /* create private key */
-                    ssl->sigKey = XMALLOC(sizeof(ecc_key),
-                                               ssl->heap, DYNAMIC_TYPE_ECC);
-                    if (ssl->sigKey == NULL) {
-                        ERROR_OUT(MEMORY_E, exit_scke);
+                        ret = wc_ecc_init_ex((ecc_key*)ssl->sigKey, ssl->heap,
+                                                                    ssl->devId);
+                        if (ret != 0) {
+                            goto exit_scke;
+                        }
+                        ret = EccMakeKey(ssl, (ecc_key*)ssl->sigKey, peerKey);
                     }
-                    ssl->sigType = DYNAMIC_TYPE_ECC;
-
-                    ret = wc_ecc_init_ex((ecc_key*)ssl->sigKey, ssl->heap,
-                                                                ssl->devId);
-                    if (ret != 0) {
-                        goto exit_scke;
-                    }
-                    ret = EccMakeKey(ssl, (ecc_key*)ssl->sigKey, peerKey);
                     break;
                 }
             #endif /* HAVE_ECC */
@@ -15649,21 +15673,20 @@ int SendClientKeyExchange(WOLFSSL* ssl)
                     output += esSz;
                     encSz = esSz + OPAQUE16_LEN;
 
-                    /* Place ECC key in output buffer, leaving room for size */
+                    /* length is used for public key size */
                     *length = MAX_ENCRYPT_SZ;
-                    ret = wc_ecc_export_x963((ecc_key*)ssl->sigKey,
-                                                        output + 1, length);
-                    if (ret != 0) {
-                        ERROR_OUT(ECC_EXPORT_ERROR, exit_scke);
+
+                #ifdef HAVE_PK_CALLBACKS
+                    if (ssl->ctx->EccSharedSecretCb == NULL)
+                #endif
+                    {
+                        /* Place ECC key in buffer, leaving room for size */
+                        ret = wc_ecc_export_x963((ecc_key*)ssl->sigKey,
+                                                output + OPAQUE8_LEN, length);
+                        if (ret != 0) {
+                            ERROR_OUT(ECC_EXPORT_ERROR, exit_scke);
+                        }
                     }
-
-                    *output = (byte)*length; /* place size of key in output buffer */
-                    encSz += *length + 1;
-
-                    /* Create shared ECC key leaving room at the begining
-                       of buffer for size of shared key. Note sizeof
-                       preMasterSecret is ENCRYPT_LEN currently 512 */
-                    *length = sizeof(ssl->arrays->preMasterSecret) - OPAQUE16_LEN;
                     break;
                 }
             #endif /* HAVE_ECC && !NO_PSK */
@@ -15684,18 +15707,17 @@ int SendClientKeyExchange(WOLFSSL* ssl)
             #ifdef HAVE_ECC
                 case ecc_diffie_hellman_kea:
                 {
-                    /* precede export with 1 byte length */
-                    *length = MAX_ENCRYPT_SZ;
-                    ret = wc_ecc_export_x963((ecc_key*)ssl->sigKey,
-                                    encSecret + 1, length);
-                    if (ret != 0) {
-                        ERROR_OUT(ECC_EXPORT_ERROR, exit_scke);
+                #ifdef HAVE_PK_CALLBACKS
+                    if (ssl->ctx->EccSharedSecretCb == NULL)
+                #endif
+                    {
+                        /* Place ECC key in buffer, leaving room for size */
+                        ret = wc_ecc_export_x963((ecc_key*)ssl->sigKey,
+                                            encSecret + OPAQUE8_LEN, &encSz);
+                        if (ret != 0) {
+                            ERROR_OUT(ECC_EXPORT_ERROR, exit_scke);
+                        }
                     }
-
-                    encSecret[0] = (byte)*length;
-                    encSz = *length + 1;
-
-                    *length = sizeof(ssl->arrays->preMasterSecret);
                     break;
                 }
             #endif /* HAVE_ECC */
@@ -15778,10 +15800,22 @@ int SendClientKeyExchange(WOLFSSL* ssl)
             #if defined(HAVE_ECC) && !defined(NO_PSK)
                 case ecdhe_psk_kea:
                 {
-                    ret = EccSharedSecret(ssl, (ecc_key*)ssl->sigKey,
-                        ssl->peerEccKey,
+                    /* Create shared ECC key leaving room at the begining
+                       of buffer for size of shared key. */
+                    ssl->arrays->preMasterSz = ENCRYPT_LEN - OPAQUE16_LEN;
+
+                    ret = EccSharedSecret(ssl,
+                        (ecc_key*)ssl->sigKey, ssl->peerEccKey,
+                        output + OPAQUE8_LEN, length,
                         ssl->arrays->preMasterSecret + OPAQUE16_LEN,
-                        length);
+                        &ssl->arrays->preMasterSz,
+                        WOLFSSL_CLIENT_END,
+                    #ifdef HAVE_PK_CALLBACKS
+                        ssl->EccSharedSecretCtx
+                    #else
+                        NULL
+                    #endif
+                    );
                     break;
                 }
             #endif /* HAVE_ECC && !NO_PSK */
@@ -15815,8 +15849,20 @@ int SendClientKeyExchange(WOLFSSL* ssl)
                     ecc_key* peerKey = (ssl->specs.static_ecdh) ?
                                 ssl->peerEccDsaKey : ssl->peerEccKey;
 
-                    ret = EccSharedSecret(ssl, (ecc_key*)ssl->sigKey, peerKey,
-                             ssl->arrays->preMasterSecret, length);
+                    ssl->arrays->preMasterSz = ENCRYPT_LEN;
+
+                    ret = EccSharedSecret(ssl,
+                        (ecc_key*)ssl->sigKey, peerKey,
+                        encSecret + OPAQUE8_LEN, &encSz,
+                        ssl->arrays->preMasterSecret,
+                        &ssl->arrays->preMasterSz,
+                        WOLFSSL_CLIENT_END,
+                    #ifdef HAVE_PK_CALLBACKS
+                        ssl->EccSharedSecretCtx
+                    #else
+                        NULL
+                    #endif
+                    );
                     break;
                 }
             #endif /* HAVE_ECC */
@@ -15861,6 +15907,11 @@ int SendClientKeyExchange(WOLFSSL* ssl)
                 {
                     byte*  pms = ssl->arrays->preMasterSecret;
 
+                    /* validate args */
+                    if (output == NULL || *length == 0) {
+                        ERROR_OUT(BAD_FUNC_ARG, exit_scke);
+                    }
+
                     c16toa((word16)*length, output);
                     encSz += *length + OPAQUE16_LEN;
                     c16toa((word16)ssl->arrays->preMasterSz, pms);
@@ -15884,10 +15935,19 @@ int SendClientKeyExchange(WOLFSSL* ssl)
                 {
                     byte* pms = ssl->arrays->preMasterSecret;
 
+                    /* validate args */
+                    if (output == NULL || *length > ENCRYPT_LEN) {
+                        ERROR_OUT(BAD_FUNC_ARG, exit_scke);
+                    }
+
+                    /* place size of public key in output buffer */
+                    *output = (byte)*length;
+                    encSz += *length + OPAQUE8_LEN;
+
                     /* Create pre master secret is the concatination of
                        eccSize + eccSharedKey + pskSize + pskKey */
-                    c16toa((word16)*length, pms);
-                    ssl->arrays->preMasterSz += OPAQUE16_LEN + *length;
+                    c16toa((word16)ssl->arrays->preMasterSz, pms);
+                    ssl->arrays->preMasterSz += OPAQUE16_LEN;
                     pms += ssl->arrays->preMasterSz;
 
                     c16toa((word16)ssl->arrays->psk_keySz, pms);
@@ -15910,7 +15970,9 @@ int SendClientKeyExchange(WOLFSSL* ssl)
             #ifdef HAVE_ECC
                 case ecc_diffie_hellman_kea:
                 {
-                    ssl->arrays->preMasterSz = *length;
+                    /* place size of public key in buffer */
+                    *encSecret = (byte)encSz;
+                    encSz += OPAQUE8_LEN;
                     break;
                 }
             #endif /* HAVE_ECC */
@@ -19839,11 +19901,6 @@ int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                 #ifdef HAVE_ECC
                     case ecc_diffie_hellman_kea:
                     {
-                        if (!ssl->specs.static_ecdh &&
-                            ssl->eccTempKeyPresent == 0) {
-                            WOLFSSL_MSG("Ecc ephemeral key not made correctly");
-                            ERROR_OUT(ECC_MAKEKEY_ERROR, exit_dcke);
-                        }
                         break;
                     }
                 #endif /* HAVE_ECC */
@@ -19871,11 +19928,6 @@ int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                         if (ssl->options.server_psk_cb == NULL) {
                             WOLFSSL_MSG("No server PSK callback set");
                             ERROR_OUT(PSK_KEY_ERROR, exit_dcke);
-                        }
-
-                        if (ssl->eccTempKeyPresent == 0) {
-                            WOLFSSL_MSG("Ecc ephemeral key not made correctly");
-                            ERROR_OUT(ECC_MAKEKEY_ERROR, exit_dcke);
                         }
                         break;
                     }
@@ -20093,42 +20145,47 @@ int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                             ERROR_OUT(BUFFER_ERROR, exit_dcke);
                         }
 
-                        if (ssl->peerEccKey == NULL) {
-                            /* alloc/init on demand */
-                            ssl->peerEccKey = (ecc_key*)XMALLOC(sizeof(ecc_key),
-                                                      ssl->heap, DYNAMIC_TYPE_ECC);
+                    #ifdef HAVE_PK_CALLBACKS
+                        if (ssl->ctx->EccSharedSecretCb == NULL)
+                    #endif
+                        {
+                            if (!ssl->specs.static_ecdh &&
+                                ssl->eccTempKeyPresent == 0) {
+                                WOLFSSL_MSG("Ecc ephemeral key not made correctly");
+                                ERROR_OUT(ECC_MAKEKEY_ERROR, exit_dcke);
+                            }
+
                             if (ssl->peerEccKey == NULL) {
-                                WOLFSSL_MSG("PeerEccKey Memory error");
-                                ERROR_OUT(MEMORY_E, exit_dcke);
+                                /* alloc/init on demand */
+                                ssl->peerEccKey = (ecc_key*)XMALLOC(sizeof(ecc_key),
+                                                          ssl->heap, DYNAMIC_TYPE_ECC);
+                                if (ssl->peerEccKey == NULL) {
+                                    WOLFSSL_MSG("PeerEccKey Memory error");
+                                    ERROR_OUT(MEMORY_E, exit_dcke);
+                                }
+                                ret = wc_ecc_init_ex(ssl->peerEccKey, ssl->heap,
+                                                                    ssl->devId);
+                                if (ret != 0) {
+                                    goto exit_dcke;
+                                }
+                            } else if (ssl->peerEccKeyPresent) {  /* don't leak on reuse */
+                                wc_ecc_free(ssl->peerEccKey);
+                                ssl->peerEccKeyPresent = 0;
+                                ret = wc_ecc_init_ex(ssl->peerEccKey, ssl->heap,
+                                                                    ssl->devId);
+                                if (ret != 0) {
+                                    goto exit_dcke;
+                                }
                             }
-                            ret = wc_ecc_init_ex(ssl->peerEccKey, ssl->heap,
-                                                                ssl->devId);
-                            if (ret != 0) {
-                                goto exit_dcke;
+
+                            if (wc_ecc_import_x963_ex(input + idx, length, ssl->peerEccKey,
+                                    private_key->dp->id)) {
+                                ERROR_OUT(ECC_PEERKEY_ERROR, exit_dcke);
                             }
-                        } else if (ssl->peerEccKeyPresent) {  /* don't leak on reuse */
-                            wc_ecc_free(ssl->peerEccKey);
-                            ssl->peerEccKeyPresent = 0;
-                            ret = wc_ecc_init_ex(ssl->peerEccKey, ssl->heap,
-                                                                ssl->devId);
-                            if (ret != 0) {
-                                goto exit_dcke;
-                            }
+
+                            ssl->peerEccKeyPresent = 1;
                         }
 
-                        if (wc_ecc_import_x963_ex(input + idx, length, ssl->peerEccKey,
-                                private_key->dp->id)) {
-                            ERROR_OUT(ECC_PEERKEY_ERROR, exit_dcke);
-                        }
-
-                        idx += length;
-                        ssl->peerEccKeyPresent = 1;
-
-                        ssl->sigLen = sizeof(ssl->arrays->preMasterSecret);
-
-                        if (ret != 0) {
-                            goto exit_dcke;
-                        }
                         break;
                     }
                 #endif /* HAVE_ECC */
@@ -20229,42 +20286,45 @@ int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                             ERROR_OUT(BUFFER_ERROR, exit_dcke);
                         }
 
-                        if (ssl->peerEccKey == NULL) {
-                            /* alloc/init on demand */
-                            ssl->peerEccKey = (ecc_key*)XMALLOC(sizeof(ecc_key),
-                                              ssl->heap, DYNAMIC_TYPE_ECC);
+                    #ifdef HAVE_PK_CALLBACKS
+                        if (ssl->ctx->EccSharedSecretCb == NULL)
+                    #endif
+                        {
+                            if (ssl->eccTempKeyPresent == 0) {
+                                WOLFSSL_MSG("Ecc ephemeral key not made correctly");
+                                ERROR_OUT(ECC_MAKEKEY_ERROR, exit_dcke);
+                            }
+
                             if (ssl->peerEccKey == NULL) {
-                                WOLFSSL_MSG("PeerEccKey Memory error");
-                                ERROR_OUT(MEMORY_E, exit_dcke);
+                                /* alloc/init on demand */
+                                ssl->peerEccKey = (ecc_key*)XMALLOC(sizeof(ecc_key),
+                                                  ssl->heap, DYNAMIC_TYPE_ECC);
+                                if (ssl->peerEccKey == NULL) {
+                                    WOLFSSL_MSG("PeerEccKey Memory error");
+                                    ERROR_OUT(MEMORY_E, exit_dcke);
+                                }
+                                ret = wc_ecc_init_ex(ssl->peerEccKey, ssl->heap,
+                                                                    ssl->devId);
+                                if (ret != 0) {
+                                    goto exit_dcke;
+                                }
                             }
-                            ret = wc_ecc_init_ex(ssl->peerEccKey, ssl->heap,
-                                                                ssl->devId);
-                            if (ret != 0) {
-                                goto exit_dcke;
+                            else if (ssl->peerEccKeyPresent) {  /* don't leak on reuse */
+                                wc_ecc_free(ssl->peerEccKey);
+                                ssl->peerEccKeyPresent = 0;
+                                ret = wc_ecc_init_ex(ssl->peerEccKey, ssl->heap,
+                                                                    ssl->devId);
+                                if (ret != 0) {
+                                    goto exit_dcke;
+                                }
                             }
-                        } else if (ssl->peerEccKeyPresent) {  /* don't leak on reuse */
-                            wc_ecc_free(ssl->peerEccKey);
-                            ssl->peerEccKeyPresent = 0;
-                            ret = wc_ecc_init_ex(ssl->peerEccKey, ssl->heap,
-                                                                ssl->devId);
-                            if (ret != 0) {
-                                goto exit_dcke;
+
+                            if (wc_ecc_import_x963_ex(input + idx, length,
+                                     ssl->peerEccKey, ssl->eccTempKey->dp->id)) {
+                                ERROR_OUT(ECC_PEERKEY_ERROR, exit_dcke);
                             }
-                        }
-                        if (wc_ecc_import_x963_ex(input + idx, length,
-                                 ssl->peerEccKey, ssl->eccTempKey->dp->id)) {
-                            ERROR_OUT(ECC_PEERKEY_ERROR, exit_dcke);
-                        }
 
-                        idx += length;
-                        ssl->peerEccKeyPresent = 1;
-
-                        /* Note sizeof preMasterSecret is ENCRYPT_LEN currently 512 */
-                        ssl->sigLen = sizeof(ssl->arrays->preMasterSecret);
-
-                        if (ssl->eccTempKeyPresent == 0) {
-                            WOLFSSL_MSG("Ecc ephemeral key not made correctly");
-                            ERROR_OUT(ECC_MAKEKEY_ERROR, exit_dcke);
+                            ssl->peerEccKeyPresent = 1;
                         }
                         break;
                     }
@@ -20325,9 +20385,21 @@ int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                             private_key = (ecc_key*)ssl->sigKey;
                         }
 
+                        ssl->arrays->preMasterSz = ENCRYPT_LEN;
+
                         /* Generate shared secret */
-                        ret = EccSharedSecret(ssl, private_key, ssl->peerEccKey,
-                            ssl->arrays->preMasterSecret, &ssl->sigLen);
+                        ret = EccSharedSecret(ssl,
+                            private_key, ssl->peerEccKey,
+                            input + idx, &length,
+                            ssl->arrays->preMasterSecret,
+                            &ssl->arrays->preMasterSz,
+                            WOLFSSL_SERVER_END,
+                        #ifdef HAVE_PK_CALLBACKS
+                            ssl->EccSharedSecretCtx
+                        #else
+                            NULL
+                        #endif
+                        );
                         break;
                     }
                 #endif /* HAVE_ECC */
@@ -20377,12 +20449,21 @@ int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                 #if defined(HAVE_ECC) && !defined(NO_PSK)
                     case ecdhe_psk_kea:
                     {
+                        ssl->sigLen = ENCRYPT_LEN - OPAQUE16_LEN;
+
                         /* Generate shared secret */
                         ret = EccSharedSecret(ssl,
-                            ssl->eccTempKey,
-                            ssl->peerEccKey,
+                            ssl->eccTempKey, ssl->peerEccKey,
+                            input + idx, &length,
                             ssl->arrays->preMasterSecret + OPAQUE16_LEN,
-                            &ssl->sigLen);
+                            &ssl->sigLen,
+                            WOLFSSL_SERVER_END,
+                        #ifdef HAVE_PK_CALLBACKS
+                            ssl->EccSharedSecretCtx
+                        #else
+                            NULL
+                        #endif
+                        );
                         break;
                     }
                 #endif /* HAVE_ECC && !NO_PSK */
@@ -20436,7 +20517,8 @@ int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                 #ifdef HAVE_ECC
                     case ecc_diffie_hellman_kea:
                     {
-                        ssl->arrays->preMasterSz = ssl->sigLen;
+                        /* skip past the imported peer key */
+                        idx += length;
                         break;
                     }
                 #endif /* HAVE_ECC */
@@ -20482,6 +20564,9 @@ int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                     case ecdhe_psk_kea:
                     {
                         byte* pms = ssl->arrays->preMasterSecret;
+
+                        /* skip past the imported peer key */
+                        idx += length;
 
                         /* Add preMasterSecret */
                         c16toa((word16)ssl->sigLen, pms);

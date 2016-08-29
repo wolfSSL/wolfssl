@@ -80,6 +80,8 @@
     #elif defined(WOLFSSL_VXWORKS)
         #include <sockLib.h>
         #include <errno.h>
+    #elif defined(WOLFSSL_ATMEL)
+        #include "socket/include/socket.h"
     #else
         #include <sys/types.h>
         #include <errno.h>
