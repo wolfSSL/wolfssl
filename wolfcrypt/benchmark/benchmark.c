@@ -32,6 +32,13 @@
 /* Macro to disable benchmark */
 #ifndef NO_CRYPT_BENCHMARK
 
+#ifdef WOLFSSL_STATIC_MEMORY
+    #include <wolfssl/wolfcrypt/memory.h>
+    static WOLFSSL_HEAP_HINT* HEAP_HINT;
+#else
+    #define HEAP_HINT NULL
+#endif /* WOLFSSL_STATIC_MEMORY */
+
 #include <string.h>
 
 #ifdef FREESCALE_MQX
@@ -85,8 +92,8 @@
 
 #ifdef WOLFSSL_ASYNC_CRYPT
     #include <wolfssl/wolfcrypt/async.h>
-    static int devId = INVALID_DEVID;
 #endif
+static int devId = INVALID_DEVID;
 
 #ifdef HAVE_WNR
     const char* wnrConfigFile = "wnr-example.conf";
@@ -247,6 +254,20 @@ int main(int argc, char** argv)
 int benchmark_test(void *args)
 {
     (void)args;
+#endif
+
+#ifdef WOLFSSL_STATIC_MEMORY
+    #ifdef BENCH_EMBEDDED
+        byte memory[50000];
+    #else
+        byte memory[400000];
+    #endif
+
+    if (wc_LoadStaticMemory(&HEAP_HINT, memory, sizeof(memory),
+                                                WOLFMEM_GENERAL, 1) != 0) {
+        printf("unable to load static memory");
+        exit(EXIT_FAILURE);
+    }
 #endif
 
 #if defined(USE_WOLFSSL_MEMORY) && defined(WOLFSSL_TRACK_MEMORY)
@@ -1406,7 +1427,7 @@ void bench_rsa(void)
     #error "need a cert buffer size"
 #endif /* USE_CERT_BUFFERS */
 
-    if ((ret = wc_InitRsaKey(&rsaKey, 0)) < 0) {
+    if ((ret = wc_InitRsaKey(&rsaKey, HEAP_HINT)) < 0) {
         printf("InitRsaKey failed! %d\n", ret);
         return;
     }
@@ -1440,7 +1461,7 @@ void bench_rsa(void)
     wc_RsaSetRNG(&rsaKey, &rng);
 #endif
     start = current_time(1);
-    
+
     /* capture resulting encrypt length */
     idx = ret;
 
@@ -1509,7 +1530,7 @@ void bench_rsa_async(void)
     /* init events and keys */
     for (i = 0; i < WOLF_ASYNC_MAX_PENDING; i++) {
         /* setup an async context for each key */
-        if ((ret = wc_InitRsaKey_ex(&rsaKey[i], 0, devId)) < 0) {
+        if ((ret = wc_InitRsaKey_ex(&rsaKey[i], HEAP_HINT, devId)) < 0) {
             goto done;
         }
     #ifdef WC_RSA_BLINDING
@@ -1538,7 +1559,7 @@ void bench_rsa_async(void)
 
         /* while free pending slots in queue, submit RSA operations */
         for (evtNum = 0; evtNum < WOLF_ASYNC_MAX_PENDING; evtNum++) {
-            if (events[evtNum].done || (events[evtNum].pending == 0 && 
+            if (events[evtNum].done || (events[evtNum].pending == 0 &&
                                                     (i + asyncPend) < ntimes))
             {
                 /* check for event error */
@@ -1592,7 +1613,7 @@ void bench_rsa_async(void)
 
     /* begin private async RSA */
     start = current_time(1);
-    
+
     /* capture resulting encrypt length */
     idx = sizeof(enc); /* fixed at 2048 bit */
 
@@ -1602,7 +1623,7 @@ void bench_rsa_async(void)
 
         /* while free pending slots in queue, submit RSA operations */
         for (evtNum = 0; evtNum < WOLF_ASYNC_MAX_PENDING; evtNum++) {
-            if (events[evtNum].done || (events[evtNum].pending == 0 && 
+            if (events[evtNum].done || (events[evtNum].pending == 0 &&
                                                     (i + asyncPend) < ntimes))
             {
                 /* check for event error */
@@ -1772,7 +1793,7 @@ void bench_rsaKeyGen(void)
     start = current_time(1);
 
     for(i = 0; i < genTimes; i++) {
-        wc_InitRsaKey(&genKey, 0);
+        wc_InitRsaKey(&genKey, HEAP_HINT);
         wc_MakeRsaKey(&genKey, 1024, 65537, &rng);
         wc_FreeRsaKey(&genKey);
     }
@@ -1788,7 +1809,7 @@ void bench_rsaKeyGen(void)
     start = current_time(1);
 
     for(i = 0; i < genTimes; i++) {
-        wc_InitRsaKey(&genKey, 0);
+        wc_InitRsaKey(&genKey, HEAP_HINT);
         wc_MakeRsaKey(&genKey, 2048, 65537, &rng);
         wc_FreeRsaKey(&genKey);
     }
@@ -2045,7 +2066,7 @@ void bench_eccKeyGen(void)
     start = current_time(1);
 
     for(i = 0; i < genTimes; i++) {
-        wc_ecc_init(&genKey);
+        wc_ecc_init_ex(&genKey, HEAP_HINT, devId);
         wc_ecc_make_key(&rng, 32, &genKey);
         wc_ecc_free(&genKey);
     }
@@ -2071,8 +2092,8 @@ void bench_eccKeyAgree(void)
     byte   digest[32];
     word32 x = 0;
 
-    wc_ecc_init(&genKey);
-    wc_ecc_init(&genKey2);
+    wc_ecc_init_ex(&genKey, HEAP_HINT, devId);
+    wc_ecc_init_ex(&genKey2, HEAP_HINT, devId);
 
     ret = wc_ecc_make_key(&rng, 32, &genKey);
     if (ret != 0) {
@@ -2158,8 +2179,8 @@ void bench_eccEncrypt(void)
     int     ret, i;
     double start, total, each, milliEach;
 
-    wc_ecc_init(&userA);
-    wc_ecc_init(&userB);
+    wc_ecc_init_ex(&userA, HEAP_HINT, devId);
+    wc_ecc_init_ex(&userB, HEAP_HINT, devId);
 
     wc_ecc_make_key(&rng, 32, &userA);
     wc_ecc_make_key(&rng, 32, &userB);
@@ -2449,7 +2470,7 @@ void bench_ed25519KeySign(void)
     }
 
 #elif defined(WOLFSSL_EMBOS)
-    
+
     #include "RTOS.h"
 
     double current_time(int reset)
