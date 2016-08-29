@@ -229,6 +229,20 @@ AC_ARG_ENABLE([sctp],
 
 AM_CONDITIONAL([BUILD_SCTP], [test "x$ENABLED_SCTP" = "xyes"])
 
+AS_IF([test "x$ENABLED_SCTP" = "xyes"],
+        [AC_MSG_CHECKING([for SCTP])
+         AC_RUN_IFELSE(
+            [AC_LANG_PROGRAM(
+[[
+#include <sys/socket.h>
+#include <arpa/inet.h>
+]],
+[[int s = socket(AF_INET, SOCK_STREAM, IPPROTO_SCTP); if (s == -1) return 1;]])],
+[AC_MSG_RESULT(yes)],
+[AC_MSG_RESULT(no)
+ AC_MSG_ERROR([SCTP not available, remove enable-sctp from configure])])
+])
+
 
 # OpenSSH compatibility Build
 AC_ARG_ENABLE([openssh],
