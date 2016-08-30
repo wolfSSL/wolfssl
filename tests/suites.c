@@ -513,6 +513,16 @@ int SuiteTest(void)
         exit(EXIT_FAILURE);
     }
 #endif
+#ifdef WOLFSSL_SCTP
+    /* add dtls-sctp extra suites */
+    strcpy(argv0[1], "tests/test-sctp.conf");
+    printf("starting dtls-sctp extra cipher suite tests\n");
+    test_harness(&args);
+    if (args.return_code != 0) {
+        printf("error from script %d\n", args.return_code);
+        exit(EXIT_FAILURE);
+    }
+#endif
 #ifndef WC_STRICT_SIG
 #if !defined(NO_RSA) && defined(HAVE_ECC) /* testing mixed ECC/RSA cert */
     /* add extra signature test suites */

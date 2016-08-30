@@ -547,6 +547,61 @@ int wolfSSL_dtls_get_peer(WOLFSSL* ssl, void* peer, unsigned int* peerSz)
     return SSL_NOT_IMPLEMENTED;
 #endif
 }
+
+
+#if defined(WOLFSSL_SCTP) && defined(WOLFSSL_DTLS)
+
+int wolfSSL_CTX_dtls_set_sctp(WOLFSSL_CTX* ctx)
+{
+    WOLFSSL_ENTER("wolfSSL_CTX_dtls_set_sctp()");
+
+    if (ctx == NULL)
+        return BAD_FUNC_ARG;
+
+    ctx->dtlsSctp = 1;
+    return SSL_SUCCESS;
+}
+
+
+int wolfSSL_dtls_set_sctp(WOLFSSL* ssl)
+{
+    WOLFSSL_ENTER("wolfSSL_dtls_set_sctp()");
+
+    if (ssl == NULL)
+        return BAD_FUNC_ARG;
+
+    ssl->options.dtlsSctp = 1;
+    return SSL_SUCCESS;
+}
+
+
+int wolfSSL_CTX_dtls_set_mtu(WOLFSSL_CTX* ctx, word16 newMtu)
+{
+    if (ctx == NULL || newMtu > MAX_RECORD_SIZE)
+        return BAD_FUNC_ARG;
+
+    ctx->dtlsMtuSz = newMtu;
+    return SSL_SUCCESS;
+}
+
+
+int wolfSSL_dtls_set_mtu(WOLFSSL* ssl, word16 newMtu)
+{
+    if (ssl == NULL)
+        return BAD_FUNC_ARG;
+
+    if (newMtu > MAX_RECORD_SIZE) {
+        ssl->error = BAD_FUNC_ARG;
+        return SSL_FAILURE;
+    }
+
+    ssl->dtlsMtuSz = newMtu;
+    return SSL_SUCCESS;
+}
+
+
+#endif /* WOLFSSL_DTLS && WOLFSSL_SCTP */
+
 #endif /* WOLFSSL_LEANPSK */
 
 
@@ -1020,17 +1075,22 @@ static int wolfSSL_read_internal(WOLFSSL* ssl, void* data, int sz, int peek)
 #ifdef HAVE_ERRNO_H
         errno = 0;
 #endif
+
 #ifdef WOLFSSL_DTLS
-    if (ssl->options.dtls)
+    if (ssl->options.dtls) {
         ssl->dtls_expected_rx = max(sz + 100, MAX_MTU);
+#ifdef WOLFSSL_SCTP
+        if (ssl->options.dtlsSctp)
+            ssl->dtls_expected_rx = max(ssl->dtls_expected_rx, ssl->dtlsMtuSz);
+#endif
+    }
 #endif
 
+    sz = min(sz, OUTPUT_RECORD_SIZE);
 #ifdef HAVE_MAX_FRAGMENT
-    ret = ReceiveData(ssl, (byte*)data,
-                      min(sz, min(ssl->max_fragment, OUTPUT_RECORD_SIZE)),peek);
-#else
-    ret = ReceiveData(ssl, (byte*)data, min(sz, OUTPUT_RECORD_SIZE), peek);
+    sz = min(sz, ssl->max_fragment);
 #endif
+    ret = ReceiveData(ssl, (byte*)data, sz, peek);
 
     WOLFSSL_LEAVE("wolfSSL_read_internal()", ret);
 
@@ -6753,6 +6813,21 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
         }
     #endif
 
+    /* If SCTP is not enabled returns the state of the dtls option.
+     * If SCTP is enabled returns dtls && !sctp. */
+    static INLINE int IsDtlsNotSctpMode(WOLFSSL* ssl)
+    {
+        int result = ssl->options.dtls;
+
+        if (result) {
+        #ifdef WOLFSSL_SCTP
+            result = !ssl->options.dtlsSctp;
+        #endif
+        }
+
+        return result;
+    }
+
     /* please see note at top of README if you get an error from connect */
     int wolfSSL_connect(WOLFSSL* ssl)
     {
@@ -6822,7 +6897,7 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
                 /* In DTLS, when resuming, we can go straight to FINISHED,
                  * or do a cookie exchange and then skip to FINISHED, assume
                  * we need the cookie exchange first. */
-                if (ssl->options.dtls)
+                if (IsDtlsNotSctpMode(ssl))
                     neededState = SERVER_HELLOVERIFYREQUEST_COMPLETE;
             #endif
             /* get response */
@@ -6834,7 +6909,7 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
                 /* if resumption failed, reset needed state */
                 else if (neededState == SERVER_FINISHED_COMPLETE)
                     if (!ssl->options.resuming) {
-                        if (!ssl->options.dtls)
+                        if (!IsDtlsNotSctpMode(ssl))
                             neededState = SERVER_HELLODONE_COMPLETE;
                         else
                             neededState = SERVER_HELLOVERIFYREQUEST_COMPLETE;
@@ -6849,7 +6924,7 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
                 return SSL_SUCCESS;
 
             #ifdef WOLFSSL_DTLS
-                if (ssl->options.dtls) {
+                if (IsDtlsNotSctpMode(ssl)) {
                     /* re-init hashes, exclude first hello and verify request */
 #ifndef NO_OLD_TLS
                     wc_InitMd5(&ssl->hsHashes->hashMd5);
@@ -6894,7 +6969,7 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
 
         case HELLO_AGAIN_REPLY :
             #ifdef WOLFSSL_DTLS
-                if (ssl->options.dtls) {
+                if (IsDtlsNotSctpMode(ssl)) {
                     neededState = ssl->options.resuming ?
                            SERVER_FINISHED_COMPLETE : SERVER_HELLODONE_COMPLETE;
 

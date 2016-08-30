@@ -1936,6 +1936,10 @@ struct WOLFSSL_CTX {
     byte        quietShutdown;    /* don't send close notify */
     byte        groupMessages;    /* group handshake messages before sending */
     byte        minDowngrade;     /* minimum downgrade version */
+#if defined(WOLFSSL_SCTP) && defined(WOLFSSL_DTLS)
+    byte        dtlsSctp;         /* DTLS-over-SCTP mode */
+    word16      dtlsMtuSz;        /* DTLS MTU size */
+#endif
 #ifndef NO_DH
     word16      minDhKeySz;       /* minimum DH key size */
 #endif
@@ -2401,6 +2405,9 @@ typedef struct Options {
 #endif
 #ifdef WOLFSSL_DTLS
     word16            dtlsHsRetain:1;     /* DTLS retaining HS data */
+#ifdef WOLFSSL_SCTP
+    word16            dtlsSctp:1;         /* DTLS-over-SCTP mode */
+#endif
 #endif
 
     /* need full byte values for this section */
@@ -2740,6 +2747,9 @@ struct WOLFSSL {
     void*           IOCB_CookieCtx;     /* gen cookie ctx */
     word32          dtls_expected_rx;
     wc_dtls_export  dtls_export;        /* export function for session */
+#ifdef WOLFSSL_SCTP
+    word16          dtlsMtuSz;
+#endif /* WOLFSSL_SCTP */
 #endif
 #ifdef WOLFSSL_CALLBACKS
     HandShakeInfo   handShakeInfo;      /* info saved during handshake */

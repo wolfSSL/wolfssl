@@ -136,7 +136,7 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
     fdOpenSession(Task_self());
 #endif
 
-    tcp_listen(&sockfd, &port, useAnyAddr, doDTLS);
+    tcp_listen(&sockfd, &port, useAnyAddr, doDTLS, 0);
 
 #if defined(CYASSL_DTLS)
     method  = CyaDTLSv1_2_server_method();
@@ -373,7 +373,7 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
         CyaSSL_free(ssl);
         CloseSocket(clientfd);
 #ifdef CYASSL_DTLS
-        tcp_listen(&sockfd, &port, useAnyAddr, doDTLS);
+        tcp_listen(&sockfd, &port, useAnyAddr, doDTLS, 0);
         SignalReady(args, port);
 #endif
     }

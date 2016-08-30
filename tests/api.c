@@ -672,7 +672,7 @@ static THREAD_RETURN WOLFSSL_THREAD test_server_nofail(void* args)
     }
 
     ssl = wolfSSL_new(ctx);
-    tcp_accept(&sockfd, &clientfd, (func_args*)args, port, 0, 0, 0, 1);
+    tcp_accept(&sockfd, &clientfd, (func_args*)args, port, 0, 0, 0, 0, 1);
     CloseSocket(sockfd);
 
     if (wolfSSL_set_fd(ssl, clientfd) != SSL_SUCCESS) {
@@ -800,7 +800,8 @@ static void test_client_nofail(void* args)
     }
 
     ssl = wolfSSL_new(ctx);
-    tcp_connect(&sockfd, wolfSSLIP, ((func_args*)args)->signal->port, 0, ssl);
+    tcp_connect(&sockfd, wolfSSLIP, ((func_args*)args)->signal->port,
+                0, 0, ssl);
     if (wolfSSL_set_fd(ssl, sockfd) != SSL_SUCCESS) {
         /*err_sys("SSL_set_fd failed");*/
         goto done2;
@@ -919,14 +920,14 @@ static THREAD_RETURN WOLFSSL_THREAD run_wolfssl_server(void* args)
         socklen_t     cliLen;
 
         cliLen = sizeof(cliAddr);
-        tcp_accept(&sfd, &cfd, (func_args*)args, port, 0, 1, 0, 0);
+        tcp_accept(&sfd, &cfd, (func_args*)args, port, 0, 1, 0, 0, 0);
         idx = (int)recvfrom(sfd, input, sizeof(input), MSG_PEEK,
                 (struct sockaddr*)&cliAddr, &cliLen);
         AssertIntGT(idx, 0);
         wolfSSL_dtls_set_peer(ssl, &cliAddr, cliLen);
     }
     else {
-        tcp_accept(&sfd, &cfd, (func_args*)args, port, 0, 0, 0, 1);
+        tcp_accept(&sfd, &cfd, (func_args*)args, port, 0, 0, 0, 0, 1);
         CloseSocket(sfd);
     }
 
@@ -1051,10 +1052,12 @@ static void run_wolfssl_client(void* args)
 
     ssl = wolfSSL_new(ctx);
     if (wolfSSL_dtls(ssl)) {
-        tcp_connect(&sfd, wolfSSLIP, ((func_args*)args)->signal->port, 1, ssl);
+        tcp_connect(&sfd, wolfSSLIP, ((func_args*)args)->signal->port,
+                    1, 0, ssl);
     }
     else {
-        tcp_connect(&sfd, wolfSSLIP, ((func_args*)args)->signal->port, 0, ssl);
+        tcp_connect(&sfd, wolfSSLIP, ((func_args*)args)->signal->port,
+                    0, 0, ssl);
     }
     AssertIntEQ(SSL_SUCCESS, wolfSSL_set_fd(ssl, sfd));
 

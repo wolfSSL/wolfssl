@@ -5,3 +5,4 @@ include examples/client/include.am
 include examples/echoclient/include.am
 include examples/echoserver/include.am
 include examples/server/include.am
+include examples/sctp/include.am
