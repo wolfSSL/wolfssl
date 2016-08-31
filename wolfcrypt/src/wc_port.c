@@ -652,7 +652,33 @@ int UnLockMutex(wolfSSL_Mutex *m)
                 return ;
             }
         }
+    #elif defined (WOLFSSL_FROSTED)
+        int InitMutex(wolfSSL_Mutex* m) 
+        {
+            *m = mutex_init();
+            if (*m)
+                return 0;
+            else
+                return -1;
+        }
 
+        int FreeMutex(wolfSSL_Mutex* m)
+        {
+            mutex_destroy(*m);
+            return(0) ;
+        }
+
+        int LockMutex(wolfSSL_Mutex* m)
+        {
+            mutex_lock(*m);
+            return 0;
+        }
+
+        int UnLockMutex(wolfSSL_Mutex* m)
+        {
+            mutex_unlock(*m);
+            return 0;
+        }
     #elif defined(WOLFSSL_MDK_ARM)|| defined(WOLFSSL_CMSIS_RTOS)
     
         #if defined(WOLFSSL_CMSIS_RTOS)

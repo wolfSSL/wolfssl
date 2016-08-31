@@ -73,6 +73,8 @@
 #elif defined(WOLFSSL_TIRTOS)
     #include <ti/sysbios/BIOS.h>
     #include <ti/sysbios/knl/Semaphore.h>
+#elif defined(WOLFSSL_FROSTED)
+    #include <semaphore.h>
 #else
     #ifndef SINGLE_THREADED
         #define WOLFSSL_PTHREADS
@@ -133,6 +135,8 @@
         typedef osMutexId wolfSSL_Mutex;
     #elif defined(WOLFSSL_TIRTOS)
         typedef ti_sysbios_knl_Semaphore_Handle wolfSSL_Mutex;
+    #elif defined(WOLFSSL_FROSTED)
+        typedef mutex_t * wolfSSL_Mutex;
     #else
         #error Need a mutex type in multithreaded mode
     #endif /* USE_WINDOWS_API */
