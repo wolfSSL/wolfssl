@@ -963,6 +963,7 @@ enum Misc {
     MAX_EXPORT_BUFFER        = 500, /* max size of buffer for exporting */
     FINISHED_LABEL_SZ   = 15,  /* TLS finished label size */
     TLS_FINISHED_SZ     = 12,  /* TLS has a shorter size  */
+    EXT_MASTER_LABEL_SZ = 22,  /* TLS extended master secret label sz */
     MASTER_LABEL_SZ     = 13,  /* TLS master secret label sz */
     KEY_LABEL_SZ        = 13,  /* TLS key block expansion sz */
     MAX_PRF_HALF        = 256, /* Maximum half secret len */
@@ -1644,6 +1645,7 @@ typedef enum {
     TLSX_SUPPORTED_GROUPS           = 0x000a, /* a.k.a. Supported Curves */
     TLSX_APPLICATION_LAYER_PROTOCOL = 0x0010, /* a.k.a. ALPN */
     TLSX_STATUS_REQUEST_V2          = 0x0011, /* a.k.a. OCSP stapling v2 */
+    TLSX_EXTENDED_MASTER_SECRET     = 0x0017,
     TLSX_QUANTUM_SAFE_HYBRID        = 0x0018, /* a.k.a. QSH  */
     TLSX_SESSION_TICKET             = 0x0023,
     TLSX_RENEGOTIATION_INFO         = 0xff01
@@ -1895,6 +1897,14 @@ WOLFSSL_LOCAL int TLSX_ValidateQSHScheme(TLSX** extensions, word16 name);
 #endif
 
 #endif /* HAVE_QSH */
+
+
+/* TLS Extended Master Secret, RFC 7627 */
+#ifdef HAVE_EXTENDED_MASTER
+
+WOLFSSL_LOCAL int TLSX_UseExtendedMasterSecret(TLSX** extensions, void* heap);
+
+#endif
 
 
 /* wolfSSL context type */
@@ -2225,6 +2235,7 @@ struct WOLFSSL_SESSION {
     byte            sessionID[ID_LEN];             /* id for protocol */
     byte            sessionIDSz;
     byte            masterSecret[SECRET_LEN];      /* stored secret */
+    word16          haveEMS;                       /* ext master secret flag */
 #ifdef SESSION_CERTS
     WOLFSSL_X509_CHAIN chain;                    /* peer cert chain, static  */
     ProtocolVersion version;                    /* which version was used */
@@ -2409,6 +2420,7 @@ typedef struct Options {
     word16            dtlsSctp:1;         /* DTLS-over-SCTP mode */
 #endif
 #endif
+    word16            haveEMS:1;          /* using extended master secret */
 
     /* need full byte values for this section */
     byte            processReply;           /* nonblocking resume */
@@ -3028,6 +3040,8 @@ WOLFSSL_LOCAL int VerifyClientSuite(WOLFSSL* ssl);
         WOLFSSL_LOCAL Signer* GetCAByName(void* cm, byte* hash);
     #endif
 #endif /* !NO_CERTS */
+WOLFSSL_LOCAL int  BuildTlsHandshakeHash(WOLFSSL* ssl, byte* hash,
+                                   word32* hashLen);
 WOLFSSL_LOCAL int  BuildTlsFinished(WOLFSSL* ssl, Hashes* hashes,
                                    const byte* sender);
 WOLFSSL_LOCAL void FreeArrays(WOLFSSL* ssl, int keep);

@@ -341,21 +341,23 @@ static int PRF(byte* digest, word32 digLen, const byte* secret, word32 secLen,
 #endif
 
 
-int BuildTlsFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
+int BuildTlsHandshakeHash(WOLFSSL* ssl, byte* hash, word32* hashLen)
 {
-    const byte* side;
-    byte        handshake_hash[HSHASH_SZ];
-    word32      hashSz = FINISHED_SZ;
+    word32 hashSz = FINISHED_SZ;
+
+    if (ssl == NULL || hash == NULL || hashLen == NULL || *hashLen < HSHASH_SZ)
+        return BAD_FUNC_ARG;
 
 #ifndef NO_OLD_TLS
-    wc_Md5GetHash(&ssl->hsHashes->hashMd5, handshake_hash);
-    wc_ShaGetHash(&ssl->hsHashes->hashSha, &handshake_hash[MD5_DIGEST_SIZE]);
+    wc_Md5GetHash(&ssl->hsHashes->hashMd5, hash);
+    wc_ShaGetHash(&ssl->hsHashes->hashSha, &hash[MD5_DIGEST_SIZE]);
 #endif
 
     if (IsAtLeastTLSv1_2(ssl)) {
 #ifndef NO_SHA256
-        if (ssl->specs.mac_algorithm <= sha256_mac || ssl->specs.mac_algorithm == blake2b_mac) {
-            int ret = wc_Sha256GetHash(&ssl->hsHashes->hashSha256,handshake_hash);
+        if (ssl->specs.mac_algorithm <= sha256_mac ||
+            ssl->specs.mac_algorithm == blake2b_mac) {
+            int ret = wc_Sha256GetHash(&ssl->hsHashes->hashSha256, hash);
 
             if (ret != 0)
                 return ret;
@@ -365,7 +367,7 @@ int BuildTlsFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
 #endif
 #ifdef WOLFSSL_SHA384
         if (ssl->specs.mac_algorithm == sha384_mac) {
-            int ret = wc_Sha384Final(&ssl->hsHashes->hashSha384,handshake_hash);
+            int ret = wc_Sha384GetHash(&ssl->hsHashes->hashSha384, hash);
 
             if (ret != 0)
                 return ret;
@@ -374,6 +376,23 @@ int BuildTlsFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
         }
 #endif
     }
+
+    *hashLen = hashSz;
+
+    return 0;
+}
+
+
+int BuildTlsFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
+{
+    int         ret;
+    const byte* side;
+    byte        handshake_hash[HSHASH_SZ];
+    word32      hashSz = HSHASH_SZ;
+
+    ret = BuildTlsHandshakeHash(ssl, handshake_hash, &hashSz);
+    if (ret < 0)
+        return ret;
 
     if ( XSTRNCMP((const char*)sender, (const char*)client, SIZEOF_SENDER) == 0)
         side = tls_client;
@@ -420,6 +439,10 @@ ProtocolVersion MakeTLSv1_2(void)
 }
 
 
+#ifdef HAVE_EXTENDED_MASTER
+static const byte ext_master_label[EXT_MASTER_LABEL_SZ + 1] =
+                                                      "extended master secret";
+#endif
 static const byte master_label[MASTER_LABEL_SZ + 1] = "master secret";
 static const byte key_label   [KEY_LABEL_SZ + 1]    = "key expansion";
 
@@ -490,10 +513,41 @@ int wolfSSL_MakeTlsMasterSecret(byte* ms, word32 msLen,
 }
 
 
+#ifdef HAVE_EXTENDED_MASTER
+
+/* External facing wrapper so user can call as well, 0 on success */
+int wolfSSL_MakeTlsExtendedMasterSecret(byte* ms, word32 msLen,
+                                        const byte* pms, word32 pmsLen,
+                                        const byte* sHash, word32 sHashLen,
+                                        int tls1_2, int hash_type)
+{
+    return PRF(ms, msLen, pms, pmsLen, ext_master_label, EXT_MASTER_LABEL_SZ,
+               sHash, sHashLen, tls1_2, hash_type);
+}
+
+#endif /* HAVE_EXTENDED_MASTER */
+
+
 int MakeTlsMasterSecret(WOLFSSL* ssl)
 {
-    int   ret;
+    int    ret;
+#ifdef HAVE_EXTENDED_MASTER
+    byte   handshake_hash[HSHASH_SZ];
+    word32 hashSz = HSHASH_SZ;
 
+    if (ssl->options.haveEMS) {
+
+        ret = BuildTlsHandshakeHash(ssl, handshake_hash, &hashSz);
+        if (ret < 0)
+            return ret;
+
+        ret = wolfSSL_MakeTlsExtendedMasterSecret(
+                ssl->arrays->masterSecret, SECRET_LEN,
+                ssl->arrays->preMasterSecret, ssl->arrays->preMasterSz,
+                handshake_hash, hashSz,
+                IsAtLeastTLSv1_2(ssl), ssl->specs.mac_algorithm);
+    } else
+#endif
     ret = wolfSSL_MakeTlsMasterSecret(ssl->arrays->masterSecret, SECRET_LEN,
               ssl->arrays->preMasterSecret, ssl->arrays->preMasterSz,
               ssl->arrays->clientRandom, ssl->arrays->serverRandom,
@@ -3889,6 +3943,58 @@ int TLSX_UseQSHScheme(TLSX** extensions, word16 name, byte* pKey, word16 pkeySz,
 #endif /* HAVE_QSH */
 
 /******************************************************************************/
+/* TLS Extended Master Secret                                                 */
+/******************************************************************************/
+
+#ifdef HAVE_EXTENDED_MASTER
+
+static int TLSX_EMS_Parse(WOLFSSL* ssl, byte* input, word16 length,
+                                                                 byte isRequest)
+{
+    (void)isRequest;
+
+    if (length != 0 || input == NULL)
+        return BUFFER_ERROR;
+
+#ifndef NO_WOLFSSL_SERVER
+    if (isRequest) {
+        int r = TLSX_UseExtendedMasterSecret(&ssl->extensions, ssl->heap);
+
+        if (r != SSL_SUCCESS)
+            return r; /* throw error */
+
+        TLSX_SetResponse(ssl, TLSX_EXTENDED_MASTER_SECRET);
+    }
+#endif
+
+    ssl->options.haveEMS = 1;
+
+    return 0;
+}
+
+int TLSX_UseExtendedMasterSecret(TLSX** extensions, void* heap)
+{
+    int ret = 0;
+
+    if (extensions == NULL)
+        return BAD_FUNC_ARG;
+
+    if ((ret = TLSX_Push(extensions, TLSX_EXTENDED_MASTER_SECRET, NULL,
+                         heap)) != 0)
+        return ret;
+
+    return SSL_SUCCESS;
+}
+
+#define EMS_PARSE TLSX_EMS_Parse
+
+#else
+
+#define EMS_PARSE(a, b, c, d) 0
+
+#endif /* HAVE_EXTENDED_MASTER */
+
+/******************************************************************************/
 /* TLS Extensions Framework                                                   */
 /******************************************************************************/
 
@@ -3935,6 +4041,10 @@ void TLSX_FreeAll(TLSX* list, void* heap)
 
             case TLSX_STATUS_REQUEST_V2:
                 CSR2_FREE_ALL(extension->data, heap);
+                break;
+
+            case TLSX_EXTENDED_MASTER_SECRET:
+                /* Nothing to do. */
                 break;
 
             case TLSX_RENEGOTIATION_INFO:
@@ -4014,6 +4124,10 @@ static word16 TLSX_GetSize(TLSX* list, byte* semaphore, byte isRequest)
                 length += CSR2_GET_SIZE(extension->data, isRequest);
                 break;
 
+            case TLSX_EXTENDED_MASTER_SECRET:
+                /* always empty. */
+                break;
+
             case TLSX_RENEGOTIATION_INFO:
                 length += SCR_GET_SIZE(extension->data, isRequest);
                 break;
@@ -4091,6 +4205,10 @@ static word16 TLSX_Write(TLSX* list, byte* output, byte* semaphore,
             case TLSX_STATUS_REQUEST_V2:
                 offset += CSR2_WRITE(extension->data, output + offset,
                                                                      isRequest);
+                break;
+
+            case TLSX_EXTENDED_MASTER_SECRET:
+                /* always empty. */
                 break;
 
             case TLSX_RENEGOTIATION_INFO:
@@ -4604,6 +4722,12 @@ int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte isRequest,
                 WOLFSSL_MSG("Certificate Status Request v2 extension received");
 
                 ret = CSR2_PARSE(ssl, input + offset, size, isRequest);
+                break;
+
+            case TLSX_EXTENDED_MASTER_SECRET:
+                WOLFSSL_MSG("Extended Master Secret extension received");
+
+                ret = EMS_PARSE(ssl, input + offset, size, isRequest);
                 break;
 
             case TLSX_RENEGOTIATION_INFO:

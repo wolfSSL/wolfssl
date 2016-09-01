@@ -1704,6 +1704,16 @@ WOLFSSL_API int wolfSSL_UseSupportedQSH(WOLFSSL* ssl, unsigned short name);
 #endif
 #endif
 
+/* TLS Extended Master Secret Extension */
+#ifdef HAVE_EXTENDED_MASTER
+#ifndef NO_WOLFSSL_CLIENT
+
+WOLFSSL_API int wolfSSL_UseExtendedMasterSecret(WOLFSSL* ssl);
+WOLFSSL_API int wolfSSL_CTX_UseExtendedMasterSecret(WOLFSSL_CTX* ctx);
+
+#endif /* NO_WOLFSSL_CLIENT */
+#endif /* HAVE_EXTENDED_MASTER */
+
 #define WOLFSSL_CRL_MONITOR   0x01   /* monitor this dir flag */
 #define WOLFSSL_CRL_START_MON 0x02   /* start monitoring flag */
 
@@ -1724,6 +1734,12 @@ int wolfSSL_MakeTlsMasterSecret(unsigned char* ms, unsigned int msLen,
                                const unsigned char* pms, unsigned int pmsLen,
                                const unsigned char* cr, const unsigned char* sr,
                                int tls1_2, int hash_type);
+
+WOLFSSL_API
+int wolfSSL_MakeTlsExtendedMasterSecret(unsigned char* ms, unsigned int msLen,
+                              const unsigned char* pms, unsigned int pmsLen,
+                              const unsigned char* sHash, unsigned int sHashLen,
+                              int tls1_2, int hash_type);
 
 WOLFSSL_API
 int wolfSSL_DeriveTlsKeys(unsigned char* key_data, unsigned int keyLen,

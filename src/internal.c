@@ -11432,6 +11432,9 @@ const char* wolfSSL_ERR_reason_error_string(unsigned long e)
     case CTX_INIT_MUTEX_E:
         return "Initialize ctx mutex error";
 
+    case EXT_MASTER_SECRET_NEEDED_E:
+        return "Extended Master Secret must be enabled to resume EMS session";
+
     default :
         return "unknown error number";
     }
@@ -18184,6 +18187,17 @@ int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             if (!session) {
                 WOLFSSL_MSG("Session lookup for resume failed");
                 ssl->options.resuming = 0;
+            }
+            else if (session->haveEMS != ssl->options.haveEMS) {
+                /* RFC 7627, 5.3, server-side */
+                /* if old sess didn't have EMS, but new does, full handshake */
+                if (!session->haveEMS && ssl->options.haveEMS) {
+                    ssl->options.resuming = 0;
+                }
+                /* if old sess used EMS, but new doesn't, MUST abort */
+                else if (session->haveEMS && !ssl->options.haveEMS) {
+                    return EXT_MASTER_SECRET_NEEDED_E;
+                }
             }
             else {
                 if (MatchSuite(ssl, &clSuites) < 0) {
