@@ -46,23 +46,8 @@
 #include <emmintrin.h>
 #include <smmintrin.h>
 
-#if !defined (ALIGN16)
-    #if defined (__GNUC__)
-        #define ALIGN16 __attribute__ ( (aligned (16)))
-    #elif defined(_MSC_VER)
-        /* disable align warning, we want alignment ! */
-        #pragma warning(disable: 4324)
-        #define ALIGN16 __declspec (align (16))
-    #else
-        #define ALIGN16
-    #endif
-#endif
-
 #endif /* WOLFSSL_AESNI */
 
-#if !defined (ALIGN16)
-    #define ALIGN16
-#endif
 #endif /* HAVE_FIPS */
 
 #ifdef __cplusplus
