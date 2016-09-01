@@ -5074,7 +5074,7 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
         }
     #endif
 
- if (verify && type != CA_TYPE && type != TRUSTED_PEER_TYPE) {
+   if (verify != NO_VERIFY && type != CA_TYPE && type != TRUSTED_PEER_TYPE) {
         Signer* ca = NULL;
         #ifndef NO_SKID
             if (cert->extAuthKeyIdSet)
@@ -5099,23 +5099,26 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
             if (ret != 0)
                 return ret;
 #endif /* HAVE_OCSP */
-            /* try to confirm/verify signature */
-            if (!ConfirmSignature(cert->source + cert->certBegin,
-                        cert->sigIndex - cert->certBegin,
-                    ca->publicKey, ca->pubKeySize, ca->keyOID,
-                    cert->signature, cert->sigLength, cert->signatureOID,
-                    cert->heap)) {
-                WOLFSSL_MSG("Confirm signature failed");
-                return ASN_SIG_CONFIRM_E;
+
+            if (verify == VERIFY) {
+                /* try to confirm/verify signature */
+                if (!ConfirmSignature(cert->source + cert->certBegin,
+                            cert->sigIndex - cert->certBegin,
+                        ca->publicKey, ca->pubKeySize, ca->keyOID,
+                        cert->signature, cert->sigLength, cert->signatureOID,
+                        cert->heap)) {
+                    WOLFSSL_MSG("Confirm signature failed");
+                    return ASN_SIG_CONFIRM_E;
+                }
+                #ifndef IGNORE_NAME_CONSTRAINTS
+                /* check that this cert's name is permitted by the signer's
+                 * name constraints */
+                if (!ConfirmNameConstraints(ca, cert)) {
+                    WOLFSSL_MSG("Confirm name constraint failed");
+                    return ASN_NAME_INVALID_E;
+                }
+                #endif /* IGNORE_NAME_CONSTRAINTS */
             }
-#ifndef IGNORE_NAME_CONSTRAINTS
-            /* check that this cert's name is permitted by the signer's
-             * name constraints */
-            if (!ConfirmNameConstraints(ca, cert)) {
-                WOLFSSL_MSG("Confirm name constraint failed");
-                return ASN_NAME_INVALID_E;
-            }
-#endif /* IGNORE_NAME_CONSTRAINTS */
         }
         else {
             /* no signer */

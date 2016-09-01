@@ -312,8 +312,10 @@ enum ExtKeyUsage_Sum { /* From RFC 5280 */
 
 
 enum VerifyType {
-    NO_VERIFY = 0,
-    VERIFY    = 1
+    NO_VERIFY   = 0,
+    VERIFY      = 1,
+    VERIFY_CRL  = 2,
+    VERIFY_OCSP = 3
 };
 
 #ifdef WOLFSSL_CERT_EXT
