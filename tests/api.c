@@ -1927,6 +1927,28 @@ static void test_wolfSSL_UseALPN(void)
 #endif
 }
 
+static void test_wolfSSL_UseExtendedMasterSecret(void)
+{
+#ifdef HAVE_EXTENDED_MASTER
+    WOLFSSL_CTX *ctx = wolfSSL_CTX_new(wolfSSLv23_client_method());
+    WOLFSSL     *ssl = wolfSSL_new(ctx);
+
+    AssertNotNull(ctx);
+    AssertNotNull(ssl);
+
+    /* error cases */
+    AssertIntNE(SSL_SUCCESS, wolfSSL_CTX_UseExtendedMasterSecret(NULL));
+    AssertIntNE(SSL_SUCCESS, wolfSSL_UseExtendedMasterSecret(NULL));
+
+    /* success cases */
+    AssertIntEQ(SSL_SUCCESS, wolfSSL_CTX_UseExtendedMasterSecret(ctx));
+    AssertIntEQ(SSL_SUCCESS, wolfSSL_UseExtendedMasterSecret(ssl));
+
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+#endif
+}
+
 /*----------------------------------------------------------------------------*
  | X509 Tests
  *----------------------------------------------------------------------------*/
@@ -2129,6 +2151,7 @@ void ApiTest(void)
     test_wolfSSL_UseTruncatedHMAC();
     test_wolfSSL_UseSupportedCurve();
     test_wolfSSL_UseALPN();
+    test_wolfSSL_UseExtendedMasterSecret();
 
     /* X509 tests */
     test_wolfSSL_X509_NAME_get_entry();
