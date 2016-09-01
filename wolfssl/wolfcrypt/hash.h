@@ -105,10 +105,12 @@ WOLFSSL_API int wc_Sha256Hash(const byte*, word32, byte*);
 
 #ifdef WOLFSSL_SHA512
 #include <wolfssl/wolfcrypt/sha512.h>
+WOLFSSL_API int wc_Sha512GetHash(Sha512*, byte*);
 WOLFSSL_API int wc_Sha512Hash(const byte*, word32, byte*);
 #define wc_Sha512Free(d)
 
     #if defined(WOLFSSL_SHA384)
+        WOLFSSL_API int wc_Sha384GetHash(Sha384*, byte*);
         WOLFSSL_API int wc_Sha384Hash(const byte*, word32, byte*);
         #define wc_Sha384Free(d)
     #endif /* defined(WOLFSSL_SHA384) */
