@@ -4570,7 +4570,7 @@ int wolfSSL_CertManagerCheckOCSP(WOLFSSL_CERT_MANAGER* cm, byte* der, int sz)
 
     InitDecodedCert(cert, der, sz, NULL);
 
-    if ((ret = ParseCertRelative(cert, CERT_TYPE, NO_VERIFY, cm)) != 0) {
+    if ((ret = ParseCertRelative(cert, CERT_TYPE, VERIFY_OCSP, cm)) != 0) {
         WOLFSSL_MSG("ParseCert failed");
     }
     else if ((ret = CheckCertOCSP(cm->ocsp, cert, NULL)) != 0) {
@@ -5046,7 +5046,7 @@ int wolfSSL_CertManagerCheckCRL(WOLFSSL_CERT_MANAGER* cm, byte* der, int sz)
 
     InitDecodedCert(cert, der, sz, NULL);
 
-    if ((ret = ParseCertRelative(cert, CERT_TYPE, NO_VERIFY, cm)) != 0) {
+    if ((ret = ParseCertRelative(cert, CERT_TYPE, VERIFY_CRL, cm)) != 0) {
         WOLFSSL_MSG("ParseCert failed");
     }
     else if ((ret = CheckCertCRL(cm->crl, cert)) != 0) {
