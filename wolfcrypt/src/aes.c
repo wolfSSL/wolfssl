@@ -347,12 +347,8 @@ void wc_AesAsyncFree(Aes* aes)
 #elif defined(WOLFSSL_ARMASM)
     static int wc_AesEncrypt(Aes* aes, const byte* inBlock, byte* outBlock)
     {
-            byte* keyPt = (byte*)aes->key;
+            byte*  keyPt  = (byte*)aes->key;
             word32 rounds = aes->rounds;
-            byte out[AES_BLOCK_SIZE];
-            byte* output = out;
-            byte* input = (byte*)inBlock;
-
 
             /*
               AESE exor's input with round key
@@ -361,7 +357,7 @@ void wc_AesAsyncFree(Aes* aes)
              */
 
             __asm__ __volatile__ (
-                "LD1 {v0.16b}, [%[CtrIn]], #16 \n"
+                "LD1 {v0.16b}, [%[CtrIn]] \n"
                 "LD1 {v1.16b-v4.16b}, [%[Key]], #64  \n"
 
                 "AESE v0.16b, v1.16b  \n"
@@ -386,12 +382,12 @@ void wc_AesAsyncFree(Aes* aes)
                 "LD1 {v1.16b-v2.16b}, [%[Key]], #32  \n"
                 "AESE v0.16b, v1.16b  \n"
                 "AESMC v0.16b, v0.16b \n"
-                "AESE v0.16b, v2.16b \n"
+                "AESE v0.16b, v2.16b  \n"
 
                 "#subtract rounds done so far and see if should continue\n"
-                "MOV w12, %w[R] \n"
+                "MOV w12, %w[R]    \n"
                 "SUB w12, w12, #10 \n"
-                "CBZ w12, final \n"
+                "CBZ w12, final    \n"
                 "LD1 {v1.16b-v2.16b}, [%[Key]], #32  \n"
                 "AESMC v0.16b, v0.16b \n"
                 "AESE v0.16b, v1.16b  \n"
@@ -399,7 +395,7 @@ void wc_AesAsyncFree(Aes* aes)
                 "AESE v0.16b, v2.16b  \n"
 
                 "SUB w12, w12, #2 \n"
-                "CBZ w12, final \n"
+                "CBZ w12, final   \n"
                 "LD1 {v1.16b-v2.16b}, [%[Key]], #32  \n"
                 "AESMC v0.16b, v0.16b \n"
                 "AESE v0.16b, v1.16b  \n"
@@ -408,27 +404,24 @@ void wc_AesAsyncFree(Aes* aes)
 
                 "#Final AddRoundKey then store result \n"
                 "final: \n"
-                "LD1 {v1.16b}, [%[Key]], #16  \n"
-                "EOR v0.16b, v0.16b, v1.16b \n"
-                "ST1 {v0.16b}, [%[CtrOut]] \n"
+                "LD1 {v1.16b}, [%[Key]], #16 \n"
+                "EOR v0.16b, v0.16b, v1.16b  \n"
+                "ST1 {v0.16b}, [%[CtrOut]]   \n"
 
-                :[CtrOut] "=r" (output), "=r" (keyPt), "=r" (rounds)
-                :[Key] "1" (keyPt), [R] "2" (rounds), [CtrIn] "r" (input), "0" (output)
+                :[CtrOut] "=r" (outBlock), "=r" (keyPt), "=r" (rounds),
+                 "=r" (inBlock)
+                :"0" (outBlock), [Key] "1" (keyPt), [R] "2" (rounds),
+                 [CtrIn] "3" (inBlock)
                 : "cc", "memory", "w12"
             );
-
-            XMEMCPY(outBlock, out, AES_BLOCK_SIZE);
 
         return 0;
     }
     #ifdef HAVE_AES_DECRYPT
     static int wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
     {
-            byte* keyPt = (byte*)aes->key;
+            byte*  keyPt  = (byte*)aes->key;
             word32 rounds = aes->rounds;
-            byte out[AES_BLOCK_SIZE];
-            byte* output = out;
-            byte* input = (byte*)inBlock;
 
             /*
               AESE exor's input with round key
@@ -437,63 +430,63 @@ void wc_AesAsyncFree(Aes* aes)
              */
 
             __asm__ __volatile__ (
-                "LD1 {v0.16b}, [%[CtrIn]], #16 \n"
+                "LD1 {v0.16b}, [%[CtrIn]] \n"
                 "LD1 {v1.16b-v4.16b}, [%[Key]], #64  \n"
 
-                "AESD v0.16b, v1.16b  \n"
+                "AESD v0.16b, v1.16b   \n"
                 "AESIMC v0.16b, v0.16b \n"
-                "AESD v0.16b, v2.16b  \n"
+                "AESD v0.16b, v2.16b   \n"
                 "AESIMC v0.16b, v0.16b \n"
-                "AESD v0.16b, v3.16b  \n"
+                "AESD v0.16b, v3.16b   \n"
                 "AESIMC v0.16b, v0.16b \n"
-                "AESD v0.16b, v4.16b  \n"
+                "AESD v0.16b, v4.16b   \n"
                 "AESIMC v0.16b, v0.16b \n"
 
                 "LD1 {v1.16b-v4.16b}, [%[Key]], #64  \n"
-                "AESD v0.16b, v1.16b  \n"
+                "AESD v0.16b, v1.16b   \n"
                 "AESIMC v0.16b, v0.16b \n"
-                "AESD v0.16b, v2.16b  \n"
+                "AESD v0.16b, v2.16b   \n"
                 "AESIMC v0.16b, v0.16b \n"
-                "AESD v0.16b, v3.16b  \n"
+                "AESD v0.16b, v3.16b   \n"
                 "AESIMC v0.16b, v0.16b \n"
-                "AESD v0.16b, v4.16b  \n"
+                "AESD v0.16b, v4.16b   \n"
                 "AESIMC v0.16b, v0.16b \n"
 
                 "LD1 {v1.16b-v2.16b}, [%[Key]], #32  \n"
-                "AESD v0.16b, v1.16b  \n"
+                "AESD v0.16b, v1.16b   \n"
                 "AESIMC v0.16b, v0.16b \n"
-                "AESD v0.16b, v2.16b \n"
+                "AESD v0.16b, v2.16b   \n"
 
                 "#subtract rounds done so far and see if should continue\n"
-                "MOV w12, %w[R] \n"
+                "MOV w12, %w[R]    \n"
                 "SUB w12, w12, #10 \n"
                 "CBZ w12, finalDec \n"
                 "LD1 {v1.16b-v2.16b}, [%[Key]], #32  \n"
                 "AESIMC v0.16b, v0.16b \n"
-                "AESD v0.16b, v1.16b  \n"
+                "AESD v0.16b, v1.16b   \n"
                 "AESIMC v0.16b, v0.16b \n"
-                "AESD v0.16b, v2.16b  \n"
+                "AESD v0.16b, v2.16b   \n"
 
-                "SUB w12, w12, #2 \n"
+                "SUB w12, w12, #2  \n"
                 "CBZ w12, finalDec \n"
                 "LD1 {v1.16b-v2.16b}, [%[Key]], #32  \n"
                 "AESIMC v0.16b, v0.16b \n"
-                "AESD v0.16b, v1.16b  \n"
+                "AESD v0.16b, v1.16b   \n"
                 "AESIMC v0.16b, v0.16b \n"
-                "AESD v0.16b, v2.16b  \n"
+                "AESD v0.16b, v2.16b   \n"
 
                 "#Final AddRoundKey then store result \n"
                 "finalDec: \n"
-                "LD1 {v1.16b}, [%[Key]], #16  \n"
-                "EOR v0.16b, v0.16b, v1.16b \n"
-                "ST1 {v0.4s}, [%[CtrOut]] \n"
+                "LD1 {v1.16b}, [%[Key]], #16 \n"
+                "EOR v0.16b, v0.16b, v1.16b  \n"
+                "ST1 {v0.4s}, [%[CtrOut]]    \n"
 
-                :[CtrOut] "=r" (output), "=r" (keyPt), "=r" (rounds), "=r" (input)
-                :[Key] "1" (keyPt), [R] "2" (rounds), [CtrIn] "3" (input), "0" (output)
+                :[CtrOut] "=r" (outBlock), "=r" (keyPt), "=r" (rounds),
+                 "=r" (inBlock)
+                :"0" (outBlock), [Key] "1" (keyPt), [R] "2" (rounds),
+                 [CtrIn] "3" (inBlock)
                 : "cc", "memory", "w12"
             );
-
-            XMEMCPY(outBlock, out, AES_BLOCK_SIZE);
 
         return 0;
 }
