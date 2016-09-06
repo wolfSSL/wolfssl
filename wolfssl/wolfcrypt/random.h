@@ -39,18 +39,35 @@
 #define RNG_MAX_BLOCK_LEN (0x10000)
 
 #ifndef HAVE_FIPS /* avoid redefining structs and macros */
+
 #if defined(WOLFSSL_FORCE_RC4_DRBG) && defined(NO_RC4)
     #error Cannot have WOLFSSL_FORCE_RC4_DRBG and NO_RC4 defined.
 #endif /* WOLFSSL_FORCE_RC4_DRBG && NO_RC4 */
-#if defined(HAVE_HASHDRBG) || defined(NO_RC4)
+
+
+/* RNG supports the following sources (in order):
+ * 1. CUSTOM_RAND_GENERATE_BLOCK: Defines name of function as RNG source and
+ *     bypasses the P-RNG.
+ * 2. HAVE_HASHDRBG && !SHA256 (default). Uses SHA256 based P-RNG
+ *     seeded via wc_GenerateSeed.
+ * 3. !HAVE_HASHDRBG && RC4 enabled. Uses RC4
+ */
+
+#if defined(CUSTOM_RAND_GENERATE_BLOCK)
+    /* To use define the following:
+     * #define CUSTOM_RAND_GENERATE_BLOCK myRngFunc
+     * extern int myRngFunc(byte* output, word32 sz);
+     */
+#elif (defined(HAVE_HASHDRBG) || defined(NO_RC4))
     #ifdef NO_SHA256
         #error "Hash DRBG requires SHA-256."
     #endif /* NO_SHA256 */
 
     #include <wolfssl/wolfcrypt/sha256.h>
-#else /* HAVE_HASHDRBG || NO_RC4 */
+#else
     #include <wolfssl/wolfcrypt/arc4.h>
-#endif /* HAVE_HASHDRBG || NO_RC4 */
+#endif
+
 
 #ifdef HAVE_WNR
     #include <wnr.h>
