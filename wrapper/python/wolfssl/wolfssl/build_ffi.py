@@ -26,7 +26,6 @@ ffi = FFI()
 ffi.set_source("wolfssl._ffi",
     """
         #include <wolfssl/options.h>
-
         #include <wolfssl/ssl.h>
     """,
     include_dirs=["/usr/local/include"],
@@ -39,20 +38,12 @@ ffi.cdef(
     typedef unsigned char byte;
     typedef unsigned int  word32;
 
-    typedef struct { ...; } WOLFSSL_METHOD;
-    typedef struct { ...; } WOLFSSL_CTX;
-    typedef struct { ...; } WOLFSSL;
-
-    WOLFSSL_METHOD* wolfSSLv23_client_method(void);
-    WOLFSSL_METHOD* wolfSSLv23_server_method(void);
-    WOLFSSL_METHOD* wolfSSLv3_server_method(void);
-    WOLFSSL_METHOD* wolfSSLv3_client_method(void);
-    WOLFSSL_METHOD* wolfTLSv1_server_method(void);
-    WOLFSSL_METHOD* wolfTLSv1_client_method(void);
-    WOLFSSL_METHOD* wolfTLSv1_1_server_method(void);
-    WOLFSSL_METHOD* wolfTLSv1_1_client_method(void);
-    WOLFSSL_METHOD* wolfTLSv1_2_server_method(void);
-    WOLFSSL_METHOD* wolfTLSv1_2_client_method(void);
+    void* wolfTLSv1_server_method(void);
+    void* wolfTLSv1_client_method(void);
+    void* wolfTLSv1_1_server_method(void);
+    void* wolfTLSv1_1_client_method(void);
+    void* wolfTLSv1_2_server_method(void);
+    void* wolfTLSv1_2_client_method(void);
 """
 )
 
