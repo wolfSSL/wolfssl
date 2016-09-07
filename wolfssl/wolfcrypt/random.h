@@ -48,9 +48,9 @@
 /* RNG supports the following sources (in order):
  * 1. CUSTOM_RAND_GENERATE_BLOCK: Defines name of function as RNG source and
  *     bypasses the P-RNG.
- * 2. HAVE_HASHDRBG && !SHA256 (default). Uses SHA256 based P-RNG
- *     seeded via wc_GenerateSeed.
- * 3. !HAVE_HASHDRBG && RC4 enabled. Uses RC4
+ * 2. HAVE_HASHDRBG && !NO_SHA256 (SHA256 enabled): Uses SHA256 based P-RNG
+ *     seeded via wc_GenerateSeed. This is the default source.
+ * 3. !NO_RC4 (RC4 enabled): Uses RC4
  */
 
 #if defined(CUSTOM_RAND_GENERATE_BLOCK)
