@@ -18071,23 +18071,34 @@ int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         }
 #endif /* WOLFSSL_DTLS */
 
-        if (ssl->options.usingCompression) {
-            int match = 0;
+        {
+            /* copmression match types */
+            int matchNo = 0;
+            int matchZlib = 0;
 
             while (b--) {
                 byte comp = input[i++];
 
-                if (comp == ZLIB_COMPRESSION)
-                    match = 1;
+                if (comp == NO_COMPRESSION) {
+                    matchNo = 1;
+                }
+                if (comp == ZLIB_COMPRESSION) {
+                    matchZlib = 1;
+                }
             }
 
-            if (!match) {
-                WOLFSSL_MSG("Not matching compression, turning off");
+            if (ssl->options.usingCompression == 0 && matchNo) {
+                WOLFSSL_MSG("Matched No Compression");
+            } else if (ssl->options.usingCompression && matchZlib) {
+                WOLFSSL_MSG("Matched zlib Compression");
+            } else if (ssl->options.usingCompression && matchNo) {
+                WOLFSSL_MSG("Could only match no compression, turning off");
                 ssl->options.usingCompression = 0;  /* turn off */
+            } else {
+                WOLFSSL_MSG("Could not match compression");
+                return COMPRESSION_ERROR;
             }
         }
-        else
-            i += b; /* ignore, since we're not on */
 
         *inOutIdx = i;
 
