@@ -110,11 +110,39 @@
     #define HAVE_GET_CYCLES
     static INLINE word64 get_intel_cycles(void);
     static word64 total_cycles;
+    #define INIT_CYCLE_COUNTER
     #define BEGIN_INTEL_CYCLES total_cycles = get_intel_cycles();
     #define END_INTEL_CYCLES   total_cycles = get_intel_cycles() - total_cycles;
     #define SHOW_INTEL_CYCLES  printf(" Cycles per byte = %6.2f", \
                                (float)total_cycles / (numBlocks*sizeof(plain)));
+#elif defined(LINUX_CYCLE_COUNT)
+    #include <linux/perf_event.h>
+    #include <sys/syscall.h>
+    #include <unistd.h>
+
+    #define HAVE_GET_CYCLES
+    static word64 begin_cycles;
+    static word64 total_cycles;
+    static int cycles = -1;
+    static struct perf_event_attr atr;
+
+    #define INIT_CYCLE_COUNTER do { \
+        atr.type   = PERF_TYPE_HARDWARE; \
+        atr.config = PERF_COUNT_HW_CPU_CYCLES; \
+        cycles = syscall(__NR_perf_event_open, &atr, 0, -1, -1, 0); \
+    } while (0);
+
+    #define BEGIN_INTEL_CYCLES read(cycles, &begin_cycles, sizeof(begin_cycles));
+    #define END_INTEL_CYCLES   do { \
+        read(cycles, &total_cycles, sizeof(total_cycles)); \
+        total_cycles = total_cycles - begin_cycles; \
+    } while (0);
+
+    #define SHOW_INTEL_CYCLES  printf(" Cycles per byte = %6.2f", \
+                               (float)total_cycles / (numBlocks*sizeof(plain)));
+
 #else
+    #define INIT_CYCLE_COUNTER
     #define BEGIN_INTEL_CYCLES
     #define END_INTEL_CYCLES
     #define SHOW_INTEL_CYCLES
@@ -277,6 +305,7 @@ int benchmark_test(void *args)
 #endif
 
     wolfCrypt_Init();
+    INIT_CYCLE_COUNTER
 
 #if defined(DEBUG_WOLFSSL) && !defined(HAVE_VALGRIND)
     wolfSSL_Debugging_ON();
