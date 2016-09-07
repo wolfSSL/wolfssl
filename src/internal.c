@@ -11162,6 +11162,9 @@ const char* wolfSSL_ERR_reason_error_string(unsigned long e)
     case MATCH_SUITE_ERROR :
         return "can't match cipher suite";
 
+    case COMPRESSION_ERROR :
+        return "compression mismatch error";
+
     case BUILD_MSG_ERROR :
         return "build message failure";
 
@@ -13047,6 +13050,11 @@ static void PickHashSigAlgo(WOLFSSL* ssl,
         ssl->options.cipherSuite0 = cs0;
         ssl->options.cipherSuite  = cs1;
         compression = input[i++];
+
+        if (compression != NO_COMPRESSION && !ssl->options.usingCompression) {
+            WOLFSSL_MSG("Server forcing compression w/o support");
+            return COMPRESSION_ERROR;
+        }
 
         if (compression != ZLIB_COMPRESSION && ssl->options.usingCompression) {
             WOLFSSL_MSG("Server refused compression, turning off");
