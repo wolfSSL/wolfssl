@@ -75,6 +75,8 @@ int unit_test(int argc, char** argv)
         printf("hash test failed with %d\n", ret);
         return ret;
     }
+    /*wolfcrypt functions within HashTest() functions. */
+
 
 #ifndef SINGLE_THREADED
     if ( (ret = SuiteTest()) != 0){

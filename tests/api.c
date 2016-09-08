@@ -43,6 +43,10 @@
 #include <wolfssl/test.h>
 #include <tests/unit.h>
 
+#ifndef NO_MD5
+#include <wolfssl/wolfcrypt/md5.h>
+#endif
+
 #ifdef OPENSSL_EXTRA
     #include <wolfssl/openssl/ssl.h>
 #endif
@@ -2032,6 +2036,29 @@ static int test_wolfSSL_UseOCSPStaplingV2(void)
 
 } /*END test_wolfSSL_UseOCSPStaplingV2*/
 
+/*----------------------------------------------------------------------------*
+ |  Wolfcrypt
+ *----------------------------------------------------------------------------*/
+static int test_wc_InitMd5(void)
+{
+#ifndef NO_MD5
+
+    Md5 md5;
+
+    printf(testingFmt, "wc_InitMd5()");
+    wc_InitMd5(&md5);
+
+    if(md5.buffLen == 0 && md5.loLen == 0){
+        printf(resultFmt, md5.buffLen == 0 && md5.loLen == 0? passed : failed);
+        return SSL_SUCCESS;
+    } else {
+        return SSL_FAILURE;
+    }
+#else
+    return SSL_SUCCESS;
+#endif
+}     /* END test_wc_InitMd5 */
+
 
 /*----------------------------------------------------------------------------*
  | Main
@@ -2041,8 +2068,8 @@ void ApiTest(void)
 {
     printf(" Begin API Tests\n");
     AssertIntEQ(test_wolfSSL_Init(), SSL_SUCCESS);
-    /* wolfcrypt initialization tests */
-    AssertFalse(test_wolfCrypt_Init());
+    ///* wolfcrypt initialization tests */
+   // AssertFalse(test_wolfCrypt_Init());
     test_wolfSSL_Method_Allocators();
     test_wolfSSL_CTX_new(wolfSSLv23_server_method());
     test_wolfSSL_CTX_use_certificate_file();
@@ -2076,6 +2103,12 @@ void ApiTest(void)
     AssertIntEQ(test_wolfSSL_UseOCSPStaplingV2(), SSL_SUCCESS);
 
     AssertIntEQ(test_wolfSSL_Cleanup(), SSL_SUCCESS);
+
+    /*wolfcrypt */
+    AssertFalse(test_wolfCrypt_Init());
+    printf("-----------------wolfcrypt unit tests------------------\n");
+   AssertTrue(test_wc_InitMd5());
+
     printf(" End API Tests\n");
 
 }
