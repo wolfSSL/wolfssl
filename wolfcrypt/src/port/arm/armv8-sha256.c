@@ -110,159 +110,204 @@ int wc_Sha256Update(Sha256* sha256, const byte* data, word32 len)
 {
 
     /* do block size increments */
-    byte* local = (byte*)sha256->buffer;
+    word32 add = min(len, SHA256_BLOCK_SIZE - sha256->buffLen);
+    word32 numBlocks;
 
-    while (len) {
-        word32 add = min(len, SHA256_BLOCK_SIZE - sha256->buffLen);
-        XMEMCPY(&local[sha256->buffLen], data, add);
+    /* fill leftover buffer with data */
+    XMEMCPY((byte*)(sha256->buffer) + sha256->buffLen, data, add);
+    sha256->buffLen += add;
+    data            += add;
+    len             -= add;
 
-        sha256->buffLen += add;
-        data            += add;
-        len             -= add;
+    /* number of blocks in a row to complete */
+    numBlocks = (len + sha256->buffLen)/SHA256_BLOCK_SIZE;
 
-        if (sha256->buffLen == SHA256_BLOCK_SIZE) {
-            word32* Kpt = (word32*)K;
-            word32* bufferPt = sha256->buffer;
-            word32* digestPt = sha256->digest;
+    if (numBlocks > 0) {
+        word32* bufferPt = sha256->buffer;
+        word32* digestPt = sha256->digest;
 
-         __asm__ volatile (
-            "#load in message and schedual updates \n"
-            "LD1 {v4.16b-v7.16b}, [%[buffer]]      \n"
-            "MOV v0.16b, v4.16b   \n"
-            "MOV v1.16b, v5.16b   \n"
-            "REV32 v0.16b, v0.16b \n"
-            "MOV v2.16b, v6.16b   \n"
-            "REV32 v1.16b, v1.16b \n"
-            "MOV v3.16b, v7.16b   \n"
-            "REV32 v2.16b, v2.16b \n"
-            "REV32 v3.16b, v3.16b \n"
+        /* get leftover amount after blocks */
+        add = (len + sha256->buffLen) - numBlocks * SHA256_BLOCK_SIZE;
+        __asm__ volatile (
+        "#load leftover data\n"
+        "LD1 {v0.2d-v3.2d}, [%[buffer]]   \n"
 
-            "MOV v4.16b, v0.16b                    \n"
-            "MOV v5.16b, v1.16b                    \n"
-            "SHA256SU0 v4.4s, v1.4s                \n"
-            "SHA256SU1 v4.4s, v2.4s, v3.4s         \n"
-            "MOV v6.16b, v2.16b                    \n"
-            "SHA256SU0 v5.4s, v2.4s                \n"
-            "SHA256SU1 v5.4s, v3.4s, v4.4s         \n"
-            "MOV v7.16b, v3.16b                    \n"
-            "SHA256SU0 v6.4s, v3.4s                \n"
-            "SHA256SU1 v6.4s, v4.4s, v5.4s         \n"
-            "MOV v8.16b, v4.16b                    \n"
-            "SHA256SU0 v7.4s, v4.4s                \n"
-            "SHA256SU1 v7.4s, v5.4s, v6.4s         \n"
-            "MOV v9.16b, v5.16b                    \n"
-            "SHA256SU0 v8.4s, v5.4s                \n"
-            "SHA256SU1 v8.4s, v6.4s, v7.4s         \n"
-            "MOV v10.16b, v6.16b                   \n"
-            "SHA256SU0 v9.4s, v6.4s                \n"
-            "SHA256SU1 v9.4s, v7.4s, v8.4s         \n"
-            "MOV v11.16b, v7.16b                   \n"
-            "SHA256SU0 v10.4s, v7.4s               \n"
-            "SHA256SU1 v10.4s, v8.4s, v9.4s        \n"
-            "MOV v12.16b, v8.16b                   \n"
-            "SHA256SU0 v11.4s, v8.4s               \n"
-            "SHA256SU1 v11.4s, v9.4s, v10.4s       \n"
-            "MOV v13.16b, v9.16b                   \n"
-            "SHA256SU0 v12.4s, v9.4s               \n"
-            "SHA256SU1 v12.4s, v10.4s, v11.4s      \n"
-            "MOV v14.16b, v10.16b                  \n"
-            "SHA256SU0 v13.4s, v10.4s              \n"
-            "SHA256SU1 v13.4s, v11.4s, v12.4s      \n"
-            "MOV v15.16b, v11.16b                  \n"
-            "SHA256SU0 v14.4s, v11.4s              \n"
-            "SHA256SU1 v14.4s, v12.4s, v13.4s      \n"
-            "SHA256SU0 v15.4s, v12.4s              \n"
-            "SHA256SU1 v15.4s, v13.4s, v14.4s      \n"
+        "#load current digest\n"
+        "LD1 {v12.2d-v13.2d}, [%[digest]] \n"
+        "MOV w8, %w[blocks] \n"
+        "REV32 v0.16b, v0.16b \n"
+        "REV32 v1.16b, v1.16b \n"
+        "REV32 v2.16b, v2.16b \n"
+        "REV32 v3.16b, v3.16b \n"
 
-            "#Add K values to message    \n"
-            "LD1 {v16.16b-v19.16b}, [%[k]], #64    \n"
-            "ADD v0.4s, v0.4s, v16.4s    \n"
-            "ADD v1.4s, v1.4s, v17.4s    \n"
-            "ADD v2.4s, v2.4s, v18.4s    \n"
-            "ADD v3.4s, v3.4s, v19.4s    \n"
-            "LD1 {v16.16b-v19.16b}, [%[k]], #64    \n"
-            "ADD v4.4s, v4.4s, v16.4s    \n"
-            "ADD v5.4s, v5.4s, v17.4s    \n"
-            "ADD v6.4s, v6.4s, v18.4s    \n"
-            "ADD v7.4s, v7.4s, v19.4s    \n"
-            "LD1 {v16.16b-v19.16b}, [%[k]], #64    \n"
-            "ADD v8.4s, v8.4s, v16.4s    \n"
-            "ADD v9.4s, v9.4s, v17.4s    \n"
-            "ADD v10.4s, v10.4s, v18.4s  \n"
-            "ADD v11.4s, v11.4s, v19.4s  \n"
-            "LD1 {v16.16b-v19.16b}, [%[k]]         \n"
-            "ADD v12.4s, v12.4s, v16.4s  \n"
-            "ADD v13.4s, v13.4s, v17.4s  \n"
-            "LD1 {v20.4s-v21.4s}, [%[digest]] \n"
-            "ADD v14.4s, v14.4s, v18.4s  \n"
-            "ADD v15.4s, v15.4s, v19.4s  \n"
+        "#load K values in \n"
+        "LD1 {v16.4s-v19.4s}, [%[k]], #64    \n"
+        "LD1 {v20.4s-v23.4s}, [%[k]], #64    \n"
+        "MOV v14.16b, v12.16b \n" /* store digest for add at the end */
+        "MOV v15.16b, v13.16b \n"
+        "LD1 {v24.4s-v27.4s}, [%[k]], #64    \n"
+        "LD1 {v28.4s-v31.4s}, [%[k]], #64    \n"
 
-            "#SHA256 operation on updated message  \n"
-            "MOV v16.16b, v20.16b      \n"
-            "MOV v17.16b, v21.16b      \n"
-            "MOV v18.16b, v16.16b      \n"
-            "SHA256H q16, q17, v0.4s   \n"
-            "SHA256H2 q17, q18, v0.4s  \n"
-            "MOV v18.16b, v16.16b      \n"
-            "SHA256H q16, q17, v1.4s   \n"
-            "SHA256H2 q17, q18, v1.4s  \n"
-            "MOV v18.16b, v16.16b      \n"
-            "SHA256H q16, q17, v2.4s   \n"
-            "SHA256H2 q17, q18, v2.4s  \n"
-            "MOV v18.16b, v16.16b      \n"
-            "SHA256H q16, q17, v3.4s   \n"
-            "SHA256H2 q17, q18, v3.4s  \n"
-            "MOV v18.16b, v16.16b      \n"
-            "SHA256H q16, q17, v4.4s   \n"
-            "SHA256H2 q17, q18, v4.4s  \n"
-            "MOV v18.16b, v16.16b      \n"
-            "SHA256H q16, q17, v5.4s   \n"
-            "SHA256H2 q17, q18, v5.4s  \n"
-            "MOV v18.16b, v16.16b      \n"
-            "SHA256H q16, q17, v6.4s   \n"
-            "SHA256H2 q17, q18, v6.4s  \n"
-            "MOV v18.16b, v16.16b      \n"
-            "SHA256H q16, q17, v7.4s   \n"
-            "SHA256H2 q17, q18, v7.4s  \n"
-            "MOV v18.16b, v16.16b      \n"
-            "SHA256H q16, q17, v8.4s   \n"
-            "SHA256H2 q17, q18, v8.4s  \n"
-            "MOV v18.16b, v16.16b      \n"
-            "SHA256H q16, q17, v9.4s   \n"
-            "SHA256H2 q17, q18, v9.4s  \n"
-            "MOV v18.16b, v16.16b      \n"
-            "SHA256H q16, q17, v10.4s  \n"
-            "SHA256H2 q17, q18, v10.4s \n"
-            "MOV v18.16b, v16.16b      \n"
-            "SHA256H q16, q17, v11.4s  \n"
-            "SHA256H2 q17, q18, v11.4s \n"
-            "MOV v18.16b, v16.16b      \n"
-            "SHA256H q16, q17, v12.4s  \n"
-            "SHA256H2 q17, q18, v12.4s \n"
-            "MOV v18.16b, v16.16b      \n"
-            "SHA256H q16, q17, v13.4s  \n"
-            "SHA256H2 q17, q18, v13.4s \n"
-            "MOV v18.16b, v16.16b      \n"
-            "SHA256H q16, q17, v14.4s  \n"
-            "SHA256H2 q17, q18, v14.4s \n"
-            "MOV v18.16b, v16.16b      \n"
-            "SHA256H q16, q17, v15.4s  \n"
-            "SHA256H2 q17, q18, v15.4s \n"
+        /* begining of SHA256 block operation */
+        "sha256Start:\n"
+        "MOV v4.16b, v0.16b        \n"
+        "ADD v0.4s, v0.4s, v16.4s  \n"
+        "MOV v11.16b, v12.16b      \n"
+        "SHA256H q12, q13, v0.4s   \n"
+        "SHA256H2 q13, q11, v0.4s  \n"
 
-            "#Add working vars back into digest state \n"
-            "ADD v16.4s, v16.4s, v20.4s \n"
-            "ADD v17.4s, v17.4s, v21.4s \n"
-            "STP q16, q17, [%[out]] \n"
-            : "=r" (Kpt), [out] "=r" (digestPt), "=r" (bufferPt)
-            : [k] "0" (Kpt), [digest] "1" (digestPt), [buffer] "2" (bufferPt)
-            : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7",
-                              "v8",  "v9",  "v10", "v11", "v12", "v13", "v14",
-                              "v15", "v16", "v17", "v18", "v19", "v20", "v21"
+        "ADD v0.4s, v1.4s, v17.4s  \n"
+        "MOV v11.16b, v12.16b      \n"
+        "SHA256H q12, q13, v0.4s   \n"
+        "SHA256H2 q13, q11, v0.4s  \n"
+
+        "ADD v0.4s, v2.4s, v18.4s  \n"
+        "MOV v11.16b, v12.16b      \n"
+        "SHA256H q12, q13, v0.4s   \n"
+        "SHA256H2 q13, q11, v0.4s  \n"
+
+        "SHA256SU0 v4.4s, v1.4s        \n"
+        "SHA256SU1 v4.4s, v2.4s, v3.4s \n"
+        "ADD v0.4s, v3.4s, v19.4s      \n"
+        "MOV v11.16b, v12.16b          \n"
+        "MOV v5.16b, v1.16b            \n"
+        "SHA256H q12, q13, v0.4s       \n"
+        "SHA256H2 q13, q11, v0.4s      \n"
+
+        "SHA256SU0 v5.4s, v2.4s        \n"
+        "SHA256SU1 v5.4s, v3.4s, v4.4s \n"
+        "ADD v0.4s, v4.4s, v20.4s      \n"
+        "MOV v11.16b, v12.16b          \n"
+        "MOV v6.16b, v2.16b            \n"
+        "SHA256H q12, q13, v0.4s       \n"
+        "SHA256H2 q13, q11, v0.4s      \n"
+
+        "SHA256SU0 v6.4s, v3.4s        \n"
+        "SHA256SU1 v6.4s, v4.4s, v5.4s \n"
+        "ADD v0.4s, v5.4s, v21.4s      \n"
+        "MOV v11.16b, v12.16b          \n"
+        "MOV v7.16b, v3.16b            \n"
+        "SHA256H q12, q13, v0.4s       \n"
+        "SHA256H2 q13, q11, v0.4s      \n"
+
+        "SHA256SU0 v7.4s, v4.4s        \n"
+        "SHA256SU1 v7.4s, v5.4s, v6.4s \n"
+        "ADD v0.4s, v6.4s, v22.4s      \n"
+        "MOV v11.16b, v12.16b          \n"
+        "MOV v8.16b, v4.16b            \n"
+        "SHA256H q12, q13, v0.4s       \n"
+        "SHA256H2 q13, q11, v0.4s      \n"
+
+        "SHA256SU0 v8.4s, v5.4s        \n"
+        "SHA256SU1 v8.4s, v6.4s, v7.4s \n"
+        "ADD v0.4s, v7.4s, v23.4s      \n"
+        "MOV v11.16b, v12.16b          \n"
+        "MOV v9.16b, v5.16b            \n"
+        "SHA256H q12, q13, v0.4s       \n"
+        "SHA256H2 q13, q11, v0.4s      \n"
+
+        "SHA256SU0 v9.4s, v6.4s        \n"
+        "SHA256SU1 v9.4s, v7.4s, v8.4s \n"
+        "ADD v0.4s, v8.4s, v24.4s      \n"
+        "MOV v11.16b, v12.16b          \n"
+        "MOV v10.16b, v6.16b           \n"
+        "SHA256H q12, q13, v0.4s       \n"
+        "SHA256H2 q13, q11, v0.4s      \n"
+
+        "SHA256SU0 v10.4s, v7.4s        \n"
+        "SHA256SU1 v10.4s, v8.4s, v9.4s \n"
+        "ADD v0.4s, v9.4s, v25.4s       \n"
+        "MOV v11.16b, v12.16b           \n"
+        "SHA256H q12, q13, v0.4s        \n"
+        "SHA256H2 q13, q11, v0.4s       \n"
+
+        "ADD v0.4s, v10.4s, v26.4s      \n"
+        "MOV v11.16b, v12.16b           \n"
+        "SHA256H q12, q13, v0.4s        \n"
+        "SHA256H2 q13, q11, v0.4s       \n"
+
+        /* Re-use of registers is needed in order to not overwrite
+         * previous digest value. */
+        "#move to lower register and handle last rounds 11-15 \n"
+        "MOV v4.16b, v7.16b  \n"
+        "MOV v1.16b, v8.16b  \n"
+        "MOV v2.16b, v9.16b  \n"
+        "MOV v3.16b, v10.16b \n"
+        "MOV v5.16b, v8.16b  \n"
+
+        "SHA256SU0 v4.4s, v1.4s        \n" /* 4 -> 11 */
+        "SHA256SU1 v4.4s, v2.4s, v3.4s \n"
+        "SHA256SU0 v5.4s, v2.4s        \n"
+        "SHA256SU1 v5.4s, v3.4s, v4.4s \n"
+        "ADD v0.4s, v4.4s, v27.4s      \n"
+        "MOV v11.16b, v12.16b          \n"
+        "MOV v6.16b, v2.16b            \n"
+        "SHA256H q12, q13, v0.4s       \n"
+        "SHA256H2 q13, q11, v0.4s      \n"
+
+        "SHA256SU0 v6.4s, v3.4s        \n"
+        "SHA256SU1 v6.4s, v4.4s, v5.4s \n"
+        "ADD v0.4s, v5.4s, v28.4s      \n"
+        "MOV v11.16b, v12.16b          \n"
+        "MOV v7.16b, v3.16b            \n"
+        "SHA256H q12, q13, v0.4s       \n"
+        "SHA256H2 q13, q11, v0.4s      \n"
+
+        "SHA256SU0 v7.4s, v4.4s        \n"
+        "SHA256SU1 v7.4s, v5.4s, v6.4s \n"
+        "ADD v0.4s, v6.4s, v29.4s      \n"
+        "MOV v11.16b, v12.16b          \n"
+        "MOV v8.16b, v4.16b            \n"
+        "SHA256H q12, q13, v0.4s       \n"
+        "SHA256H2 q13, q11, v0.4s      \n"
+
+        "SHA256SU0 v8.4s, v5.4s        \n"
+        "SHA256SU1 v8.4s, v6.4s, v7.4s \n"
+        "ADD v0.4s, v7.4s, v30.4s      \n"
+        "MOV v11.16b, v12.16b          \n"
+        "SHA256H q12, q13, v0.4s       \n"
+        "SHA256H2 q13, q11, v0.4s      \n"
+
+        "ADD v0.4s, v8.4s, v31.4s      \n"
+        "MOV v11.16b, v12.16b          \n"
+        "SHA256H q12, q13, v0.4s       \n"
+        "SHA256H2 q13, q11, v0.4s      \n"
+
+        "#Add working vars back into digest state \n"
+        "ADD v12.4s, v12.4s, v14.4s \n"
+        "ADD v13.4s, v13.4s, v15.4s \n"
+
+        "#check if more blocks should be done\n"
+        "SUB w8, w8, #1    \n"
+        "CBZ w8, sha256End \n"
+
+        "#load in message and schedual updates \n"
+        "LD1 {v0.2d-v3.2d}, [%[dataIn]], #64   \n"
+        "MOV v14.16b, v12.16b \n"
+        "MOV v15.16b, v13.16b \n"
+        "REV32 v0.16b, v0.16b \n"
+        "REV32 v1.16b, v1.16b \n"
+        "REV32 v2.16b, v2.16b \n"
+        "REV32 v3.16b, v3.16b \n"
+        "B sha256Start \n" /* do another block */
+
+        "sha256End:\n"
+        "STP q12, q13, [%[out]] \n"
+
+        : [out] "=r" (digestPt), "=r" (bufferPt), "=r" (numBlocks),
+          "=r" (data)
+        : [k] "r" (K), [digest] "0" (digestPt), [buffer] "1" (bufferPt),
+          [blocks] "2" (numBlocks), [dataIn] "3" (data)
+        : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7",
+                          "v8",  "v9",  "v10", "v11", "v12", "v13", "v14",
+                          "v15"
         );
 
-            AddLength(sha256, SHA256_BLOCK_SIZE);
-            sha256->buffLen = 0;
-        }
+        AddLength(sha256, SHA256_BLOCK_SIZE * numBlocks);
+
+        /* copy over any remaining data leftover */
+        XMEMCPY(sha256->buffer, data, add);
+        sha256->buffLen = add;
     }
 
     return 0;
@@ -272,10 +317,8 @@ int wc_Sha256Update(Sha256* sha256, const byte* data, word32 len)
 int wc_Sha256Final(Sha256* sha256, byte* hash)
 {
     byte* local      = (byte*)sha256->buffer;
-    word32* Kpt      = (word32*)K;
     word32* bufferPt = sha256->buffer;
     word32* digestPt = sha256->digest;
-    word32* hashPt   = (word32*)hash;
     
     AddLength(sha256, sha256->buffLen);  /* before adding pads */
 
@@ -285,143 +328,152 @@ int wc_Sha256Final(Sha256* sha256, byte* hash)
     if (sha256->buffLen > SHA256_PAD_SIZE) {
 
         XMEMSET(&local[sha256->buffLen], 0, SHA256_BLOCK_SIZE - sha256->buffLen);
-
         sha256->buffLen += SHA256_BLOCK_SIZE - sha256->buffLen;
-        bufferPt = sha256->buffer;
-        digestPt = sha256->digest;
-        Kpt      = (word32*)K;
         __asm__ volatile (
-            "#load in message and schedual updates \n"
             "LD1 {v4.16b-v7.16b}, [%[buffer]]      \n"
             "MOV v0.16b, v4.16b                    \n"
             "MOV v1.16b, v5.16b                    \n"
             "REV32 v0.16b, v0.16b                  \n"
-            "MOV v2.16b, v6.16b                    \n"
             "REV32 v1.16b, v1.16b                  \n"
+            "MOV v2.16b, v6.16b                    \n"
             "MOV v3.16b, v7.16b                    \n"
             "REV32 v2.16b, v2.16b                  \n"
             "REV32 v3.16b, v3.16b                  \n"
             "MOV v4.16b, v0.16b                    \n"
             "MOV v5.16b, v1.16b                    \n"
-            "SHA256SU0 v4.4s, v1.4s                \n"
-            "SHA256SU1 v4.4s, v2.4s, v3.4s         \n"
-            "MOV v6.16b, v2.16b                    \n"
-            "SHA256SU0 v5.4s, v2.4s                \n"
-            "SHA256SU1 v5.4s, v3.4s, v4.4s         \n"
-            "MOV v7.16b, v3.16b                    \n"
-            "SHA256SU0 v6.4s, v3.4s                \n"
-            "SHA256SU1 v6.4s, v4.4s, v5.4s         \n"
-            "MOV v8.16b, v4.16b                    \n"
-            "SHA256SU0 v7.4s, v4.4s                \n"
-            "SHA256SU1 v7.4s, v5.4s, v6.4s         \n"
-            "MOV v9.16b, v5.16b                    \n"
-            "SHA256SU0 v8.4s, v5.4s                \n"
-            "SHA256SU1 v8.4s, v6.4s, v7.4s         \n"
-            "MOV v10.16b, v6.16b                   \n"
-            "SHA256SU0 v9.4s, v6.4s                \n"
-            "SHA256SU1 v9.4s, v7.4s, v8.4s         \n"
-            "MOV v11.16b, v7.16b                   \n"
-            "SHA256SU0 v10.4s, v7.4s               \n"
-            "SHA256SU1 v10.4s, v8.4s, v9.4s        \n"
-            "MOV v12.16b, v8.16b                   \n"
-            "SHA256SU0 v11.4s, v8.4s               \n"
-            "SHA256SU1 v11.4s, v9.4s, v10.4s       \n"
-            "MOV v13.16b, v9.16b                   \n"
-            "SHA256SU0 v12.4s, v9.4s               \n"
-            "SHA256SU1 v12.4s, v10.4s, v11.4s      \n"
-            "MOV v14.16b, v10.16b                  \n"
-            "SHA256SU0 v13.4s, v10.4s              \n"
-            "SHA256SU1 v13.4s, v11.4s, v12.4s      \n"
-            "MOV v15.16b, v11.16b                  \n"
-            "SHA256SU0 v14.4s, v11.4s              \n"
-            "SHA256SU1 v14.4s, v12.4s, v13.4s      \n"
-            "SHA256SU0 v15.4s, v12.4s              \n"
-            "SHA256SU1 v15.4s, v13.4s, v14.4s      \n"
-
-            "#Add K values to message    \n"
-            "LD1 {v16.16b-v19.16b}, [%[k]], #64    \n"
-            "ADD v0.4s, v0.4s, v16.4s    \n"
-            "ADD v1.4s, v1.4s, v17.4s    \n"
-            "ADD v2.4s, v2.4s, v18.4s    \n"
-            "ADD v3.4s, v3.4s, v19.4s    \n"
-            "LD1 {v16.16b-v19.16b}, [%[k]], #64    \n"
-            "ADD v4.4s, v4.4s, v16.4s    \n"
-            "ADD v5.4s, v5.4s, v17.4s    \n"
-            "ADD v6.4s, v6.4s, v18.4s    \n"
-            "ADD v7.4s, v7.4s, v19.4s    \n"
-            "LD1 {v16.16b-v19.16b}, [%[k]], #64    \n"
-            "ADD v8.4s, v8.4s, v16.4s    \n"
-            "ADD v9.4s, v9.4s, v17.4s    \n"
-            "ADD v10.4s, v10.4s, v18.4s  \n"
-            "ADD v11.4s, v11.4s, v19.4s  \n"
-            "LD1 {v16.16b-v19.16b}, [%[k]]         \n"
-            "ADD v12.4s, v12.4s, v16.4s  \n"
-            "ADD v13.4s, v13.4s, v17.4s  \n"
             "LD1 {v20.4s-v21.4s}, [%[digest]] \n"
-            "ADD v14.4s, v14.4s, v18.4s  \n"
-            "ADD v15.4s, v15.4s, v19.4s  \n"
 
             "#SHA256 operation on updated message  \n"
             "MOV v16.16b, v20.16b \n"
             "MOV v17.16b, v21.16b \n"
-            "MOV v18.16b, v16.16b      \n"
-            "SHA256H q16, q17, v0.4s   \n"
-            "SHA256H2 q17, q18, v0.4s  \n"
-            "MOV v18.16b, v16.16b      \n"
-            "SHA256H q16, q17, v1.4s   \n"
-            "SHA256H2 q17, q18, v1.4s  \n"
-            "MOV v18.16b, v16.16b      \n"
-            "SHA256H q16, q17, v2.4s   \n"
-            "SHA256H2 q17, q18, v2.4s  \n"
-            "MOV v18.16b, v16.16b      \n"
-            "SHA256H q16, q17, v3.4s   \n"
-            "SHA256H2 q17, q18, v3.4s  \n"
-            "MOV v18.16b, v16.16b      \n"
-            "SHA256H q16, q17, v4.4s   \n"
-            "SHA256H2 q17, q18, v4.4s  \n"
-            "MOV v18.16b, v16.16b      \n"
-            "SHA256H q16, q17, v5.4s   \n"
-            "SHA256H2 q17, q18, v5.4s  \n"
-            "MOV v18.16b, v16.16b      \n"
-            "SHA256H q16, q17, v6.4s   \n"
-            "SHA256H2 q17, q18, v6.4s  \n"
-            "MOV v18.16b, v16.16b      \n"
-            "SHA256H q16, q17, v7.4s   \n"
-            "SHA256H2 q17, q18, v7.4s  \n"
-            "MOV v18.16b, v16.16b      \n"
-            "SHA256H q16, q17, v8.4s   \n"
-            "SHA256H2 q17, q18, v8.4s  \n"
-            "MOV v18.16b, v16.16b      \n"
-            "SHA256H q16, q17, v9.4s   \n"
-            "SHA256H2 q17, q18, v9.4s  \n"
-            "MOV v18.16b, v16.16b      \n"
-            "SHA256H q16, q17, v10.4s  \n"
-            "SHA256H2 q17, q18, v10.4s \n"
-            "MOV v18.16b, v16.16b      \n"
-            "SHA256H q16, q17, v11.4s  \n"
-            "SHA256H2 q17, q18, v11.4s \n"
-            "MOV v18.16b, v16.16b      \n"
-            "SHA256H q16, q17, v12.4s  \n"
-            "SHA256H2 q17, q18, v12.4s \n"
-            "MOV v18.16b, v16.16b      \n"
-            "SHA256H q16, q17, v13.4s  \n"
-            "SHA256H2 q17, q18, v13.4s \n"
-            "MOV v18.16b, v16.16b      \n"
-            "SHA256H q16, q17, v14.4s  \n"
-            "SHA256H2 q17, q18, v14.4s \n"
-            "MOV v18.16b, v16.16b      \n"
-            "SHA256H q16, q17, v15.4s  \n"
-            "SHA256H2 q17, q18, v15.4s \n"
+
+            "LD1 {v22.16b-v25.16b}, [%[k]], #64 \n"
+            "SHA256SU0 v4.4s, v1.4s        \n"
+            "SHA256SU1 v4.4s, v2.4s, v3.4s \n"
+            "ADD v0.4s, v0.4s, v22.4s      \n"
+            "MOV v6.16b, v2.16b            \n"
+            "MOV v18.16b, v16.16b          \n"
+            "SHA256H q16, q17, v0.4s       \n"
+            "SHA256H2 q17, q18, v0.4s      \n"
+
+            "SHA256SU0 v5.4s, v2.4s        \n"
+            "SHA256SU1 v5.4s, v3.4s, v4.4s \n"
+            "ADD v1.4s, v1.4s, v23.4s      \n"
+            "MOV v18.16b, v16.16b          \n"
+            "MOV v7.16b, v3.16b            \n"
+            "SHA256H q16, q17, v1.4s       \n"
+            "SHA256H2 q17, q18, v1.4s      \n"
+
+            "SHA256SU0 v6.4s, v3.4s        \n"
+            "SHA256SU1 v6.4s, v4.4s, v5.4s \n"
+            "ADD v2.4s, v2.4s, v24.4s      \n"
+            "MOV v18.16b, v16.16b          \n"
+            "MOV v8.16b, v4.16b            \n"
+            "SHA256H q16, q17, v2.4s       \n"
+            "SHA256H2 q17, q18, v2.4s      \n"
+
+            "SHA256SU0 v7.4s, v4.4s        \n"
+            "SHA256SU1 v7.4s, v5.4s, v6.4s \n"
+            "ADD v3.4s, v3.4s, v25.4s      \n"
+            "MOV v18.16b, v16.16b          \n"
+            "MOV v9.16b, v5.16b            \n"
+            "SHA256H q16, q17, v3.4s       \n"
+            "SHA256H2 q17, q18, v3.4s      \n"
+
+            "LD1 {v22.16b-v25.16b}, [%[k]], #64 \n"
+            "SHA256SU0 v8.4s, v5.4s        \n"
+            "SHA256SU1 v8.4s, v6.4s, v7.4s \n"
+            "ADD v4.4s, v4.4s, v22.4s      \n"
+            "MOV v18.16b, v16.16b          \n"
+            "MOV v10.16b, v6.16b           \n"
+            "SHA256H q16, q17, v4.4s       \n"
+            "SHA256H2 q17, q18, v4.4s      \n"
+
+            "SHA256SU0 v9.4s, v6.4s        \n"
+            "SHA256SU1 v9.4s, v7.4s, v8.4s \n"
+            "ADD v5.4s, v5.4s, v23.4s      \n"
+            "MOV v18.16b, v16.16b          \n"
+            "MOV v11.16b, v7.16b           \n"
+            "SHA256H q16, q17, v5.4s       \n"
+            "SHA256H2 q17, q18, v5.4s      \n"
+
+            "SHA256SU0 v10.4s, v7.4s        \n"
+            "SHA256SU1 v10.4s, v8.4s, v9.4s \n"
+            "ADD v6.4s, v6.4s, v24.4s       \n"
+            "MOV v18.16b, v16.16b           \n"
+            "MOV v12.16b, v8.16b            \n"
+            "SHA256H q16, q17, v6.4s        \n"
+            "SHA256H2 q17, q18, v6.4s       \n"
+
+            "SHA256SU0 v11.4s, v8.4s         \n"
+            "SHA256SU1 v11.4s, v9.4s, v10.4s \n"
+            "ADD v7.4s, v7.4s, v25.4s        \n"
+            "MOV v18.16b, v16.16b            \n"
+            "MOV v13.16b, v9.16b             \n"
+            "SHA256H q16, q17, v7.4s         \n"
+            "SHA256H2 q17, q18, v7.4s        \n"
+
+            "LD1 {v22.16b-v25.16b}, [%[k]], #64 \n"
+            "SHA256SU0 v12.4s, v9.4s            \n"
+            "SHA256SU1 v12.4s, v10.4s, v11.4s   \n"
+            "ADD v8.4s, v8.4s, v22.4s           \n"
+            "MOV v18.16b, v16.16b               \n"
+            "MOV v14.16b, v10.16b               \n"
+            "SHA256H q16, q17, v8.4s            \n"
+            "SHA256H2 q17, q18, v8.4s           \n"
+
+            "SHA256SU0 v13.4s, v10.4s           \n"
+            "SHA256SU1 v13.4s, v11.4s, v12.4s   \n"
+            "ADD v9.4s, v9.4s, v23.4s           \n"
+            "MOV v18.16b, v16.16b               \n"
+            "MOV v15.16b, v11.16b               \n"
+            "SHA256H q16, q17, v9.4s            \n"
+            "SHA256H2 q17, q18, v9.4s           \n"
+
+            "SHA256SU0 v14.4s, v11.4s           \n"
+            "SHA256SU1 v14.4s, v12.4s, v13.4s   \n"
+            "ADD v10.4s, v10.4s, v24.4s         \n"
+            "MOV v18.16b, v16.16b               \n"
+            "SHA256H q16, q17, v10.4s           \n"
+            "SHA256H2 q17, q18, v10.4s          \n"
+
+            "SHA256SU0 v15.4s, v12.4s           \n"
+            "SHA256SU1 v15.4s, v13.4s, v14.4s   \n"
+
+            "ADD v11.4s, v11.4s, v25.4s  \n"
+            "MOV v18.16b, v16.16b        \n"
+            "SHA256H q16, q17, v11.4s    \n"
+            "SHA256H2 q17, q18, v11.4s   \n"
+
+            "LD1 {v22.16b-v25.16b}, [%[k]] \n"
+            "ADD v12.4s, v12.4s, v22.4s    \n"
+            "MOV v18.16b, v16.16b          \n"
+            "SHA256H q16, q17, v12.4s      \n"
+            "SHA256H2 q17, q18, v12.4s     \n"
+
+            "ADD v13.4s, v13.4s, v23.4s    \n"
+            "MOV v18.16b, v16.16b          \n"
+            "SHA256H q16, q17, v13.4s      \n"
+            "SHA256H2 q17, q18, v13.4s     \n"
+
+            "ADD v14.4s, v14.4s, v24.4s  \n"
+            "MOV v18.16b, v16.16b        \n"
+            "SHA256H q16, q17, v14.4s    \n"
+            "SHA256H2 q17, q18, v14.4s   \n"
+
+            "ADD v15.4s, v15.4s, v25.4s  \n"
+            "MOV v18.16b, v16.16b        \n"
+            "SHA256H q16, q17, v15.4s    \n"
+            "SHA256H2 q17, q18, v15.4s   \n"
 
             "#Add working vars back into digest state \n"
             "ADD v16.4s, v16.4s, v20.4s \n"
             "ADD v17.4s, v17.4s, v21.4s \n"
             "STP q16, q17, [%[out]] \n"
-            : "=r" (Kpt), [out] "=r" (digestPt), "=r" (bufferPt)
-            : [k] "0" (Kpt), [digest] "1" (digestPt), [buffer] "2" (bufferPt)
-            : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7",
-                              "v8",  "v9",  "v10", "v11", "v12", "v13", "v14",
-                              "v15", "v16", "v17", "v18", "v19", "v20", "v21"
+            : [out] "=r" (digestPt)
+            : [k] "r" (K), [digest] "0" (digestPt), [buffer] "r" (bufferPt)
+            : "cc", "memory", "v0", "v1", "v2", "v3", "v8",  "v9",  "v10", "v11"
+                            , "v12", "v13", "v14", "v15", "v16", "v17", "v18"
         );
 
         sha256->buffLen = 0;
@@ -435,7 +487,6 @@ int wc_Sha256Final(Sha256* sha256, byte* hash)
 
     /* store lengths */
     #if defined(LITTLE_ENDIAN_ORDER)
-        bufferPt = sha256->buffer;
         __asm__ volatile (
             "LD1 {v0.16b}, [%[in]] \n"
             "REV32 v0.16b, v0.16b \n"
@@ -451,7 +502,7 @@ int wc_Sha256Final(Sha256* sha256, byte* hash)
             "ST1 {v0.16b}, [%[out]] \n"
             : [out] "=r" (bufferPt)
             : [in] "0" (bufferPt)
-            : "cc"
+            : "cc", "memory"
         );
     #endif
     /* ! length ordering dependent on digest endian type ! */
@@ -459,9 +510,9 @@ int wc_Sha256Final(Sha256* sha256, byte* hash)
     XMEMCPY(&local[SHA256_PAD_SIZE + sizeof(word32)], &sha256->loLen,
             sizeof(word32));
 
+    /* pointer needs reset because of little endian asm above advancing when
+     * placing values back into buffer as an output */
     bufferPt = sha256->buffer;
-    digestPt = sha256->digest;
-    Kpt = (word32*)K;
     __asm__ volatile (
         "#load in message and schedual updates \n"
         "LD1 {v4.16b-v7.16b}, [%[buffer]]      \n"
@@ -469,120 +520,131 @@ int wc_Sha256Final(Sha256* sha256, byte* hash)
         "MOV v1.16b, v5.16b \n"
         "MOV v2.16b, v6.16b \n"
         "MOV v3.16b, v7.16b \n"
-        "SHA256SU0 v4.4s, v1.4s                \n"
-        "SHA256SU1 v4.4s, v2.4s, v3.4s         \n"
-        "MOV v6.16b, v2.16b                    \n"
-        "SHA256SU0 v5.4s, v2.4s                \n"
-        "SHA256SU1 v5.4s, v3.4s, v4.4s         \n"
-        "MOV v7.16b, v3.16b                    \n"
-        "SHA256SU0 v6.4s, v3.4s                \n"
-        "SHA256SU1 v6.4s, v4.4s, v5.4s         \n"
-        "MOV v8.16b, v4.16b                    \n"
-        "SHA256SU0 v7.4s, v4.4s                \n"
-        "SHA256SU1 v7.4s, v5.4s, v6.4s         \n"
-        "MOV v9.16b, v5.16b                    \n"
-        "SHA256SU0 v8.4s, v5.4s                \n"
-        "SHA256SU1 v8.4s, v6.4s, v7.4s         \n"
-        "MOV v10.16b, v6.16b                   \n"
-        "SHA256SU0 v9.4s, v6.4s                \n"
-        "SHA256SU1 v9.4s, v7.4s, v8.4s         \n"
-        "MOV v11.16b, v7.16b                   \n"
-        "SHA256SU0 v10.4s, v7.4s               \n"
-        "SHA256SU1 v10.4s, v8.4s, v9.4s        \n"
-        "MOV v12.16b, v8.16b                   \n"
-        "SHA256SU0 v11.4s, v8.4s               \n"
-        "SHA256SU1 v11.4s, v9.4s, v10.4s       \n"
-        "MOV v13.16b, v9.16b                   \n"
-        "SHA256SU0 v12.4s, v9.4s               \n"
-        "SHA256SU1 v12.4s, v10.4s, v11.4s      \n"
-        "MOV v14.16b, v10.16b                  \n"
-        "SHA256SU0 v13.4s, v10.4s              \n"
-        "SHA256SU1 v13.4s, v11.4s, v12.4s      \n"
-        "MOV v15.16b, v11.16b                  \n"
-        "SHA256SU0 v14.4s, v11.4s              \n"
-        "SHA256SU1 v14.4s, v12.4s, v13.4s      \n"
-        "SHA256SU0 v15.4s, v12.4s              \n"
-        "SHA256SU1 v15.4s, v13.4s, v14.4s      \n"
-
-        "#Add K values to message    \n"
-        "LD1 {v16.16b-v19.16b}, [%[k]], #64    \n"
-        "ADD v0.4s, v0.4s, v16.4s    \n"
-        "ADD v1.4s, v1.4s, v17.4s    \n"
-        "ADD v2.4s, v2.4s, v18.4s    \n"
-        "ADD v3.4s, v3.4s, v19.4s    \n"
-        "LD1 {v16.16b-v19.16b}, [%[k]], #64    \n"
-        "ADD v4.4s, v4.4s, v16.4s    \n"
-        "ADD v5.4s, v5.4s, v17.4s    \n"
-        "ADD v6.4s, v6.4s, v18.4s    \n"
-        "ADD v7.4s, v7.4s, v19.4s    \n"
-        "LD1 {v16.16b-v19.16b}, [%[k]], #64    \n"
-        "ADD v8.4s, v8.4s, v16.4s    \n"
-        "ADD v9.4s, v9.4s, v17.4s    \n"
-        "ADD v10.4s, v10.4s, v18.4s  \n"
-        "ADD v11.4s, v11.4s, v19.4s  \n"
-        "LD1 {v16.16b-v19.16b}, [%[k]]         \n"
-        "ADD v12.4s, v12.4s, v16.4s  \n"
-        "ADD v13.4s, v13.4s, v17.4s  \n"
         "LD1 {v20.4s-v21.4s}, [%[digest]] \n"
-        "ADD v14.4s, v14.4s, v18.4s  \n"
-        "ADD v15.4s, v15.4s, v19.4s  \n"
 
-        "#SHA256 operation on updated message  \n"
         "MOV v16.16b, v20.16b      \n"
         "MOV v17.16b, v21.16b      \n"
-        "MOV v18.16b, v16.16b      \n"
-        "SHA256H q16, q17, v0.4s   \n"
-        "SHA256H2 q17, q18, v0.4s  \n"
-        "MOV v18.16b, v16.16b      \n"
-        "SHA256H q16, q17, v1.4s   \n"
-        "SHA256H2 q17, q18, v1.4s  \n"
-        "MOV v18.16b, v16.16b      \n"
-        "SHA256H q16, q17, v2.4s   \n"
-        "SHA256H2 q17, q18, v2.4s  \n"
-        "MOV v18.16b, v16.16b      \n"
-        "SHA256H q16, q17, v3.4s   \n"
-        "SHA256H2 q17, q18, v3.4s  \n"
-        "MOV v18.16b, v16.16b      \n"
-        "SHA256H q16, q17, v4.4s   \n"
-        "SHA256H2 q17, q18, v4.4s  \n"
-        "MOV v18.16b, v16.16b      \n"
-        "SHA256H q16, q17, v5.4s   \n"
-        "SHA256H2 q17, q18, v5.4s  \n"
-        "MOV v18.16b, v16.16b      \n"
-        "SHA256H q16, q17, v6.4s   \n"
-        "SHA256H2 q17, q18, v6.4s  \n"
-        "MOV v18.16b, v16.16b      \n"
-        "SHA256H q16, q17, v7.4s   \n"
-        "SHA256H2 q17, q18, v7.4s  \n"
-        "MOV v18.16b, v16.16b      \n"
-        "SHA256H q16, q17, v8.4s   \n"
-        "SHA256H2 q17, q18, v8.4s  \n"
-        "MOV v18.16b, v16.16b      \n"
-        "SHA256H q16, q17, v9.4s   \n"
-        "SHA256H2 q17, q18, v9.4s  \n"
-        "MOV v18.16b, v16.16b      \n"
-        "SHA256H q16, q17, v10.4s  \n"
-        "SHA256H2 q17, q18, v10.4s \n"
-        "MOV v18.16b, v16.16b      \n"
-        "SHA256H q16, q17, v11.4s  \n"
-        "SHA256H2 q17, q18, v11.4s \n"
-        "MOV v18.16b, v16.16b      \n"
-        "SHA256H q16, q17, v12.4s  \n"
-        "SHA256H2 q17, q18, v12.4s \n"
-        "MOV v18.16b, v16.16b      \n"
-        "SHA256H q16, q17, v13.4s  \n"
-        "SHA256H2 q17, q18, v13.4s \n"
-        "MOV v18.16b, v16.16b      \n"
-        "SHA256H q16, q17, v14.4s  \n"
-        "SHA256H2 q17, q18, v14.4s \n"
-        "MOV v18.16b, v16.16b      \n"
-        "SHA256H q16, q17, v15.4s  \n"
-        "SHA256H2 q17, q18, v15.4s \n"
+        "LD1 {v22.16b-v25.16b}, [%[k]], #64 \n"
+        "SHA256SU0 v4.4s, v1.4s          \n"
+        "SHA256SU1 v4.4s, v2.4s, v3.4s   \n"
+        "ADD v0.4s, v0.4s, v22.4s        \n"
+        "MOV v6.16b, v2.16b              \n"
+        "MOV v18.16b, v16.16b            \n"
+        "SHA256H q16, q17, v0.4s         \n"
+        "SHA256H2 q17, q18, v0.4s        \n"
+
+        "SHA256SU0 v5.4s, v2.4s          \n"
+        "SHA256SU1 v5.4s, v3.4s, v4.4s   \n"
+        "ADD v1.4s, v1.4s, v23.4s        \n"
+        "MOV v7.16b, v3.16b              \n"
+        "MOV v18.16b, v16.16b            \n"
+        "SHA256H q16, q17, v1.4s         \n"
+        "SHA256H2 q17, q18, v1.4s        \n"
+
+        "SHA256SU0 v6.4s, v3.4s          \n"
+        "SHA256SU1 v6.4s, v4.4s, v5.4s   \n"
+        "ADD v2.4s, v2.4s, v24.4s        \n"
+        "MOV v18.16b, v16.16b            \n"
+        "MOV v8.16b, v4.16b              \n"
+        "SHA256H q16, q17, v2.4s         \n"
+        "SHA256H2 q17, q18, v2.4s        \n"
+
+        "SHA256SU0 v7.4s, v4.4s          \n"
+        "SHA256SU1 v7.4s, v5.4s, v6.4s   \n"
+        "ADD v3.4s, v3.4s, v25.4s        \n"
+        "MOV v18.16b, v16.16b            \n"
+        "MOV v9.16b, v5.16b              \n"
+        "SHA256H q16, q17, v3.4s         \n"
+        "SHA256H2 q17, q18, v3.4s        \n"
+
+        "LD1 {v22.16b-v25.16b}, [%[k]], #64 \n"
+        "SHA256SU0 v8.4s, v5.4s          \n"
+        "SHA256SU1 v8.4s, v6.4s, v7.4s   \n"
+        "ADD v4.4s, v4.4s, v22.4s        \n"
+        "MOV v18.16b, v16.16b            \n"
+        "MOV v10.16b, v6.16b             \n"
+        "SHA256H q16, q17, v4.4s         \n"
+        "SHA256H2 q17, q18, v4.4s        \n"
+
+        "SHA256SU0 v9.4s, v6.4s          \n"
+        "SHA256SU1 v9.4s, v7.4s, v8.4s   \n"
+        "ADD v5.4s, v5.4s, v23.4s        \n"
+        "MOV v18.16b, v16.16b            \n"
+        "MOV v11.16b, v7.16b             \n"
+        "SHA256H q16, q17, v5.4s         \n"
+        "SHA256H2 q17, q18, v5.4s        \n"
+
+        "SHA256SU0 v10.4s, v7.4s         \n"
+        "SHA256SU1 v10.4s, v8.4s, v9.4s  \n"
+        "ADD v6.4s, v6.4s, v24.4s        \n"
+        "MOV v18.16b, v16.16b            \n"
+        "MOV v12.16b, v8.16b             \n"
+        "SHA256H q16, q17, v6.4s         \n"
+        "SHA256H2 q17, q18, v6.4s        \n"
+
+        "SHA256SU0 v11.4s, v8.4s         \n"
+        "SHA256SU1 v11.4s, v9.4s, v10.4s \n"
+        "ADD v7.4s, v7.4s, v25.4s        \n"
+        "MOV v18.16b, v16.16b            \n"
+        "MOV v13.16b, v9.16b             \n"
+        "SHA256H q16, q17, v7.4s         \n"
+        "SHA256H2 q17, q18, v7.4s        \n"
+
+        "LD1 {v22.16b-v25.16b}, [%[k]], #64 \n"
+        "SHA256SU0 v12.4s, v9.4s          \n"
+        "SHA256SU1 v12.4s, v10.4s, v11.4s \n"
+        "ADD v8.4s, v8.4s, v22.4s         \n"
+        "MOV v18.16b, v16.16b             \n"
+        "MOV v14.16b, v10.16b             \n"
+        "SHA256H q16, q17, v8.4s          \n"
+        "SHA256H2 q17, q18, v8.4s         \n"
+
+        "SHA256SU0 v13.4s, v10.4s         \n"
+        "SHA256SU1 v13.4s, v11.4s, v12.4s \n"
+        "ADD v9.4s, v9.4s, v23.4s         \n"
+        "MOV v18.16b, v16.16b             \n"
+        "MOV v15.16b, v11.16b             \n"
+        "SHA256H q16, q17, v9.4s          \n"
+        "SHA256H2 q17, q18, v9.4s         \n"
+
+        "SHA256SU0 v14.4s, v11.4s         \n"
+        "SHA256SU1 v14.4s, v12.4s, v13.4s \n"
+        "ADD v10.4s, v10.4s, v24.4s       \n"
+        "MOV v18.16b, v16.16b             \n"
+        "SHA256H q16, q17, v10.4s         \n"
+        "SHA256H2 q17, q18, v10.4s        \n"
+
+        "SHA256SU0 v15.4s, v12.4s         \n"
+        "SHA256SU1 v15.4s, v13.4s, v14.4s \n"
+        "ADD v11.4s, v11.4s, v25.4s       \n"
+        "MOV v18.16b, v16.16b             \n"
+        "SHA256H q16, q17, v11.4s         \n"
+        "SHA256H2 q17, q18, v11.4s        \n"
+
+        "LD1 {v22.16b-v25.16b}, [%[k]] \n"
+        "ADD v12.4s, v12.4s, v22.4s    \n"
+        "MOV v18.16b, v16.16b          \n"
+        "SHA256H q16, q17, v12.4s      \n"
+        "SHA256H2 q17, q18, v12.4s     \n"
+
+        "ADD v13.4s, v13.4s, v23.4s \n"
+        "MOV v18.16b, v16.16b       \n"
+        "SHA256H q16, q17, v13.4s   \n"
+        "SHA256H2 q17, q18, v13.4s  \n"
+
+        "ADD v14.4s, v14.4s, v24.4s \n"
+        "MOV v18.16b, v16.16b       \n"
+        "SHA256H q16, q17, v14.4s   \n"
+        "SHA256H2 q17, q18, v14.4s  \n"
+
+        "ADD v15.4s, v15.4s, v25.4s \n"
+        "MOV v18.16b, v16.16b       \n"
+        "SHA256H q16, q17, v15.4s   \n"
+        "SHA256H2 q17, q18, v15.4s  \n"
 
         "#Add working vars back into digest state \n"
         "ADD v16.4s, v16.4s, v20.4s \n"
         "ADD v17.4s, v17.4s, v21.4s \n"
-        "STP q16, q17, [%[out]] \n"
 
         "#Store value as hash output \n"
     #if defined(LITTLE_ENDIAN_ORDER)
@@ -593,12 +655,12 @@ int wc_Sha256Final(Sha256* sha256, byte* hash)
         "REV32 v17.16b, v17.16b \n"
     #endif
         "ST1 {v17.16b}, [%[hashOut]] \n"
-        : "=r" (Kpt), [out] "=r" (digestPt), "=r" (bufferPt),
-          [hashOut] "=r" (hashPt)
-        : [k] "0" (Kpt), [digest] "1" (digestPt), [buffer] "2" (bufferPt), "3" (hashPt)
+        : [hashOut] "=r" (hash)
+        : [k] "r" (K), [digest] "r" (digestPt), [buffer] "r" (bufferPt),
+          "0" (hash)
             : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7",
                               "v8",  "v9",  "v10", "v11", "v12", "v13", "v14",
-                              "v15", "v16", "v17", "v18", "v19", "v20", "v21"
+                              "v15", "v16", "v17", "v18"
     );
 
     return wc_InitSha256(sha256);  /* reset state */
