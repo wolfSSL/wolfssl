@@ -18032,6 +18032,11 @@ int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         if ((i - begin) + b > helloSz)
             return BUFFER_ERROR;
 
+        if (b == 0) {
+            WOLFSSL_MSG("No compression types in list");
+            return COMPRESSION_ERROR;
+        }
+
 #ifdef WOLFSSL_DTLS
         if (IsDtlsNotSctpMode(ssl)) {
             byte newCookie[MAX_COOKIE_LEN];
