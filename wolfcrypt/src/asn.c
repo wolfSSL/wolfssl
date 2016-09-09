@@ -5572,7 +5572,7 @@ static int SetRsaPublicKey(byte* output, RsaKey* key,
     n[0] = ASN_INTEGER;
     nSz  = SetLength(rawLen, n + 1) + 1;  /* int tag */
 
-    if ( (nSz + rawLen) < MAX_RSA_INT_SZ) {
+    if ( (nSz + rawLen) <= MAX_RSA_INT_SZ) {
         if (leadingBit)
             n[nSz] = 0;
 #ifdef HAVE_USER_RSA
