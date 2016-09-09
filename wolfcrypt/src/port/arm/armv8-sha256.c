@@ -108,12 +108,15 @@ static INLINE void AddLength(Sha256* sha256, word32 len)
 /* ARMv8 hardware accleration */
 int wc_Sha256Update(Sha256* sha256, const byte* data, word32 len)
 {
-
-    /* do block size increments */
-    word32 add = min(len, SHA256_BLOCK_SIZE - sha256->buffLen);
+    word32 add;
     word32 numBlocks;
 
+    if (sha256 == NULL || (data == NULL && len != 0)) {
+        return BAD_FUNC_ARG;
+    }
+
     /* fill leftover buffer with data */
+    add = min(len, SHA256_BLOCK_SIZE - sha256->buffLen);
     XMEMCPY((byte*)(sha256->buffer) + sha256->buffLen, data, add);
     sha256->buffLen += add;
     data            += add;
@@ -123,17 +126,14 @@ int wc_Sha256Update(Sha256* sha256, const byte* data, word32 len)
     numBlocks = (len + sha256->buffLen)/SHA256_BLOCK_SIZE;
 
     if (numBlocks > 0) {
-        word32* bufferPt = sha256->buffer;
-        word32* digestPt = sha256->digest;
-
         /* get leftover amount after blocks */
         add = (len + sha256->buffLen) - numBlocks * SHA256_BLOCK_SIZE;
         __asm__ volatile (
         "#load leftover data\n"
-        "LD1 {v0.2d-v3.2d}, [%[buffer]]   \n"
+        "LD1 {v0.2d-v3.2d}, %[buffer]   \n"
 
         "#load current digest\n"
-        "LD1 {v12.2d-v13.2d}, [%[digest]] \n"
+        "LD1 {v12.2d-v13.2d}, %[digest] \n"
         "MOV w8, %w[blocks] \n"
         "REV32 v0.16b, v0.16b \n"
         "REV32 v1.16b, v1.16b \n"
@@ -292,11 +292,11 @@ int wc_Sha256Update(Sha256* sha256, const byte* data, word32 len)
         "B sha256Start \n" /* do another block */
 
         "sha256End:\n"
-        "STP q12, q13, [%[out]] \n"
+        "STP q12, q13, %[out] \n"
 
-        : [out] "=r" (digestPt), "=r" (bufferPt), "=r" (numBlocks),
+        : [out] "=m" (sha256->digest), "=m" (sha256->buffer), "=r" (numBlocks),
           "=r" (data)
-        : [k] "r" (K), [digest] "0" (digestPt), [buffer] "1" (bufferPt),
+        : [k] "r" (K), [digest] "m" (sha256->digest), [buffer] "m" (sha256->buffer),
           [blocks] "2" (numBlocks), [dataIn] "3" (data)
         : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7",
                           "v8",  "v9",  "v10", "v11", "v12", "v13", "v14",
@@ -316,10 +316,13 @@ int wc_Sha256Update(Sha256* sha256, const byte* data, word32 len)
 
 int wc_Sha256Final(Sha256* sha256, byte* hash)
 {
-    byte* local      = (byte*)sha256->buffer;
-    word32* bufferPt = sha256->buffer;
-    word32* digestPt = sha256->digest;
+    byte* local;
+
+    if (sha256 == NULL || hash == NULL) {
+        return BAD_FUNC_ARG;
+    }
     
+    local = (byte*)sha256->buffer;
     AddLength(sha256, sha256->buffLen);  /* before adding pads */
 
     local[sha256->buffLen++] = 0x80;     /* add 1 */
@@ -330,7 +333,7 @@ int wc_Sha256Final(Sha256* sha256, byte* hash)
         XMEMSET(&local[sha256->buffLen], 0, SHA256_BLOCK_SIZE - sha256->buffLen);
         sha256->buffLen += SHA256_BLOCK_SIZE - sha256->buffLen;
         __asm__ volatile (
-            "LD1 {v4.16b-v7.16b}, [%[buffer]]      \n"
+            "LD1 {v4.2d-v7.2d}, %[buffer]          \n"
             "MOV v0.16b, v4.16b                    \n"
             "MOV v1.16b, v5.16b                    \n"
             "REV32 v0.16b, v0.16b                  \n"
@@ -341,7 +344,7 @@ int wc_Sha256Final(Sha256* sha256, byte* hash)
             "REV32 v3.16b, v3.16b                  \n"
             "MOV v4.16b, v0.16b                    \n"
             "MOV v5.16b, v1.16b                    \n"
-            "LD1 {v20.4s-v21.4s}, [%[digest]] \n"
+            "LD1 {v20.2d-v21.2d}, %[digest]        \n"
 
             "#SHA256 operation on updated message  \n"
             "MOV v16.16b, v20.16b \n"
@@ -469,9 +472,10 @@ int wc_Sha256Final(Sha256* sha256, byte* hash)
             "#Add working vars back into digest state \n"
             "ADD v16.4s, v16.4s, v20.4s \n"
             "ADD v17.4s, v17.4s, v21.4s \n"
-            "STP q16, q17, [%[out]] \n"
-            : [out] "=r" (digestPt)
-            : [k] "r" (K), [digest] "0" (digestPt), [buffer] "r" (bufferPt)
+            "STP q16, q17, %[out] \n"
+            : [out] "=m" (sha256->digest)
+            : [k] "r" (K), [digest] "m" (sha256->digest),
+              [buffer] "m" (sha256->buffer)
             : "cc", "memory", "v0", "v1", "v2", "v3", "v8",  "v9",  "v10", "v11"
                             , "v12", "v13", "v14", "v15", "v16", "v17", "v18"
         );
@@ -488,20 +492,14 @@ int wc_Sha256Final(Sha256* sha256, byte* hash)
     /* store lengths */
     #if defined(LITTLE_ENDIAN_ORDER)
         __asm__ volatile (
-            "LD1 {v0.16b}, [%[in]] \n"
+            "LD1 {v0.2d-v3.2d}, %[in] \n"
             "REV32 v0.16b, v0.16b \n"
-            "ST1 {v0.16b}, [%[out]], #16 \n"
-            "LD1 {v0.16b}, [%[in]] \n"
-            "REV32 v0.16b, v0.16b \n"
-            "ST1 {v0.16b}, [%[out]], #16 \n"
-            "LD1 {v0.16b}, [%[in]] \n"
-            "REV32 v0.16b, v0.16b \n"
-            "ST1 {v0.16b}, [%[out]], #16 \n"
-            "LD1 {v0.16b}, [%[in]] \n"
-            "REV32 v0.16b, v0.16b \n"
-            "ST1 {v0.16b}, [%[out]] \n"
-            : [out] "=r" (bufferPt)
-            : [in] "0" (bufferPt)
+            "REV32 v1.16b, v1.16b \n"
+            "REV32 v2.16b, v2.16b \n"
+            "REV32 v3.16b, v3.16b \n"
+            "ST1 {v0.2d-v3.2d}, %[out] \n"
+            : [out] "=m" (sha256->buffer)
+            : [in] "m" (sha256->buffer)
             : "cc", "memory"
         );
     #endif
@@ -510,17 +508,14 @@ int wc_Sha256Final(Sha256* sha256, byte* hash)
     XMEMCPY(&local[SHA256_PAD_SIZE + sizeof(word32)], &sha256->loLen,
             sizeof(word32));
 
-    /* pointer needs reset because of little endian asm above advancing when
-     * placing values back into buffer as an output */
-    bufferPt = sha256->buffer;
     __asm__ volatile (
         "#load in message and schedual updates \n"
-        "LD1 {v4.16b-v7.16b}, [%[buffer]]      \n"
+        "LD1 {v4.2d-v7.2d}, %[buffer]        \n"
         "MOV v0.16b, v4.16b \n"
         "MOV v1.16b, v5.16b \n"
         "MOV v2.16b, v6.16b \n"
         "MOV v3.16b, v7.16b \n"
-        "LD1 {v20.4s-v21.4s}, [%[digest]] \n"
+        "LD1 {v20.2d-v21.2d}, %[digest] \n"
 
         "MOV v16.16b, v20.16b      \n"
         "MOV v17.16b, v21.16b      \n"
@@ -656,7 +651,8 @@ int wc_Sha256Final(Sha256* sha256, byte* hash)
     #endif
         "ST1 {v17.16b}, [%[hashOut]] \n"
         : [hashOut] "=r" (hash)
-        : [k] "r" (K), [digest] "r" (digestPt), [buffer] "r" (bufferPt),
+        : [k] "r" (K), [digest] "m" (sha256->digest),
+          [buffer] "m" (sha256->buffer),
           "0" (hash)
             : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7",
                               "v8",  "v9",  "v10", "v11", "v12", "v13", "v14",
