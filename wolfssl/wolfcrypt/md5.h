@@ -73,9 +73,19 @@ typedef struct Md5 {
     #include "wolfssl/wolfcrypt/port/ti/ti-hash.h"
 #endif
 
-WOLFSSL_API void wc_InitMd5(Md5*);
-WOLFSSL_API void wc_Md5Update(Md5*, const byte*, word32);
-WOLFSSL_API void wc_Md5Final(Md5*, byte*);
+
+
+#if !defined(STM32F2_HASH)
+    WOLFSSL_API int wc_InitMd5(Md5*);
+    WOLFSSL_API int wc_Md5Update(Md5*, const byte*, word32);
+    WOLFSSL_API int wc_Md5Final(Md5*, byte*);
+#else
+    WOLFSSL_API void wc_InitMd5(Md5*);
+    WOLFSSL_API void wc_Md5Update(Md5*, const byte*, word32);
+    WOLFSSL_API void wc_Md5Final(Md5*, byte*);
+#endif
+
+
 WOLFSSL_API int  wc_Md5Hash(const byte*, word32, byte*);
 
 #ifdef __cplusplus
