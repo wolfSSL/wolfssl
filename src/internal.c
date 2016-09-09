@@ -11162,6 +11162,9 @@ const char* wolfSSL_ERR_reason_error_string(unsigned long e)
     case MATCH_SUITE_ERROR :
         return "can't match cipher suite";
 
+    case COMPRESSION_ERROR :
+        return "compression mismatch error";
+
     case BUILD_MSG_ERROR :
         return "build message failure";
 
@@ -13047,6 +13050,11 @@ static void PickHashSigAlgo(WOLFSSL* ssl,
         ssl->options.cipherSuite0 = cs0;
         ssl->options.cipherSuite  = cs1;
         compression = input[i++];
+
+        if (compression != NO_COMPRESSION && !ssl->options.usingCompression) {
+            WOLFSSL_MSG("Server forcing compression w/o support");
+            return COMPRESSION_ERROR;
+        }
 
         if (compression != ZLIB_COMPRESSION && ssl->options.usingCompression) {
             WOLFSSL_MSG("Server refused compression, turning off");
@@ -18024,6 +18032,11 @@ int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         if ((i - begin) + b > helloSz)
             return BUFFER_ERROR;
 
+        if (b == 0) {
+            WOLFSSL_MSG("No compression types in list");
+            return COMPRESSION_ERROR;
+        }
+
 #ifdef WOLFSSL_DTLS
         if (IsDtlsNotSctpMode(ssl)) {
             byte newCookie[MAX_COOKIE_LEN];
@@ -18063,23 +18076,34 @@ int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         }
 #endif /* WOLFSSL_DTLS */
 
-        if (ssl->options.usingCompression) {
-            int match = 0;
+        {
+            /* copmression match types */
+            int matchNo = 0;
+            int matchZlib = 0;
 
             while (b--) {
                 byte comp = input[i++];
 
-                if (comp == ZLIB_COMPRESSION)
-                    match = 1;
+                if (comp == NO_COMPRESSION) {
+                    matchNo = 1;
+                }
+                if (comp == ZLIB_COMPRESSION) {
+                    matchZlib = 1;
+                }
             }
 
-            if (!match) {
-                WOLFSSL_MSG("Not matching compression, turning off");
+            if (ssl->options.usingCompression == 0 && matchNo) {
+                WOLFSSL_MSG("Matched No Compression");
+            } else if (ssl->options.usingCompression && matchZlib) {
+                WOLFSSL_MSG("Matched zlib Compression");
+            } else if (ssl->options.usingCompression && matchNo) {
+                WOLFSSL_MSG("Could only match no compression, turning off");
                 ssl->options.usingCompression = 0;  /* turn off */
+            } else {
+                WOLFSSL_MSG("Could not match compression");
+                return COMPRESSION_ERROR;
             }
         }
-        else
-            i += b; /* ignore, since we're not on */
 
         *inOutIdx = i;
 
