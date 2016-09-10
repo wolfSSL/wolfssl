@@ -495,7 +495,7 @@ static void Usage(void)
     printf("-T          Use Truncated HMAC\n");
 #endif
 #ifdef HAVE_EXTENDED_MASTER
-    printf("-n          Use Extended Master Secret\n");
+    printf("-n          Disable Extended Master Secret\n");
 #endif
 #ifdef HAVE_OCSP
     printf("-o          Perform OCSP lookup on peer certificate\n");
@@ -613,7 +613,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     byte statusRequest = 0;
 #endif
 #ifdef HAVE_EXTENDED_MASTER
-    byte extMasterSecret = 0;
+    byte disableExtMasterSecret = 0;
 #endif
 
 
@@ -865,7 +865,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 
             case 'n' :
                 #ifdef HAVE_EXTENDED_MASTER
-                    extMasterSecret = 1;
+                    disableExtMasterSecret = 1;
                 #endif
                 break;
 
@@ -1246,9 +1246,9 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
         err_sys("UseSessionTicket failed");
 #endif
 #ifdef HAVE_EXTENDED_MASTER
-    if (extMasterSecret)
-        if (wolfSSL_CTX_UseExtendedMasterSecret(ctx) != SSL_SUCCESS)
-            err_sys("UseExtendedMasterSecret failed");
+    if (disableExtMasterSecret)
+        if (wolfSSL_CTX_DisableExtendedMasterSecret(ctx) != SSL_SUCCESS)
+            err_sys("DisableExtendedMasterSecret failed");
 #endif
 
     if (benchmark) {

@@ -3943,58 +3943,6 @@ int TLSX_UseQSHScheme(TLSX** extensions, word16 name, byte* pKey, word16 pkeySz,
 #endif /* HAVE_QSH */
 
 /******************************************************************************/
-/* TLS Extended Master Secret                                                 */
-/******************************************************************************/
-
-#ifdef HAVE_EXTENDED_MASTER
-
-static int TLSX_EMS_Parse(WOLFSSL* ssl, byte* input, word16 length,
-                                                                 byte isRequest)
-{
-    (void)isRequest;
-
-    if (length != 0 || input == NULL)
-        return BUFFER_ERROR;
-
-#ifndef NO_WOLFSSL_SERVER
-    if (isRequest) {
-        int r = TLSX_UseExtendedMasterSecret(&ssl->extensions, ssl->heap);
-
-        if (r != SSL_SUCCESS)
-            return r; /* throw error */
-
-        TLSX_SetResponse(ssl, TLSX_EXTENDED_MASTER_SECRET);
-    }
-#endif
-
-    ssl->options.haveEMS = 1;
-
-    return 0;
-}
-
-int TLSX_UseExtendedMasterSecret(TLSX** extensions, void* heap)
-{
-    int ret = 0;
-
-    if (extensions == NULL)
-        return BAD_FUNC_ARG;
-
-    if ((ret = TLSX_Push(extensions, TLSX_EXTENDED_MASTER_SECRET, NULL,
-                         heap)) != 0)
-        return ret;
-
-    return SSL_SUCCESS;
-}
-
-#define EMS_PARSE TLSX_EMS_Parse
-
-#else
-
-#define EMS_PARSE(a, b, c, d) 0
-
-#endif /* HAVE_EXTENDED_MASTER */
-
-/******************************************************************************/
 /* TLS Extensions Framework                                                   */
 /******************************************************************************/
 
@@ -4041,10 +3989,6 @@ void TLSX_FreeAll(TLSX* list, void* heap)
 
             case TLSX_STATUS_REQUEST_V2:
                 CSR2_FREE_ALL(extension->data, heap);
-                break;
-
-            case TLSX_EXTENDED_MASTER_SECRET:
-                /* Nothing to do. */
                 break;
 
             case TLSX_RENEGOTIATION_INFO:
@@ -4124,10 +4068,6 @@ static word16 TLSX_GetSize(TLSX* list, byte* semaphore, byte isRequest)
                 length += CSR2_GET_SIZE(extension->data, isRequest);
                 break;
 
-            case TLSX_EXTENDED_MASTER_SECRET:
-                /* always empty. */
-                break;
-
             case TLSX_RENEGOTIATION_INFO:
                 length += SCR_GET_SIZE(extension->data, isRequest);
                 break;
@@ -4205,10 +4145,6 @@ static word16 TLSX_Write(TLSX* list, byte* output, byte* semaphore,
             case TLSX_STATUS_REQUEST_V2:
                 offset += CSR2_WRITE(extension->data, output + offset,
                                                                      isRequest);
-                break;
-
-            case TLSX_EXTENDED_MASTER_SECRET:
-                /* always empty. */
                 break;
 
             case TLSX_RENEGOTIATION_INFO:
@@ -4552,7 +4488,13 @@ word16 TLSX_GetRequestSize(WOLFSSL* ssl)
             length += TLSX_GetSize(ssl->ctx->extensions, semaphore, 1);
 
         if (IsAtLeastTLSv1_2(ssl) && ssl->suites->hashSigAlgoSz)
-            length += ssl->suites->hashSigAlgoSz + HELLO_EXT_LEN;
+            length += HELLO_EXT_SZ + HELLO_EXT_SIGALGO_SZ
+                   + ssl->suites->hashSigAlgoSz;
+
+#ifdef HAVE_EXTENDED_MASTER
+        if (ssl->options.haveEMS)
+            length += HELLO_EXT_SZ;
+#endif
     }
 
     if (length)
@@ -4583,15 +4525,15 @@ word16 TLSX_WriteRequest(WOLFSSL* ssl, byte* output)
             offset += TLSX_Write(ssl->ctx->extensions, output + offset,
                                                                   semaphore, 1);
 
-        if (IsAtLeastTLSv1_2(ssl) && ssl->suites->hashSigAlgoSz)
-        {
+        if (IsAtLeastTLSv1_2(ssl) && ssl->suites->hashSigAlgoSz) {
             int i;
             /* extension type */
             c16toa(HELLO_EXT_SIG_ALGO, output + offset);
             offset += HELLO_EXT_TYPE_SZ;
 
             /* extension data length */
-            c16toa(OPAQUE16_LEN + ssl->suites->hashSigAlgoSz, output + offset);
+            c16toa(OPAQUE16_LEN + ssl->suites->hashSigAlgoSz,
+                   output + offset);
             offset += OPAQUE16_LEN;
 
             /* sig algos length */
@@ -4602,6 +4544,15 @@ word16 TLSX_WriteRequest(WOLFSSL* ssl, byte* output)
             for (i = 0; i < ssl->suites->hashSigAlgoSz; i++, offset++)
                 output[offset] = ssl->suites->hashSigAlgo[i];
         }
+
+#ifdef HAVE_EXTENDED_MASTER
+        if (ssl->options.haveEMS) {
+            c16toa(HELLO_EXT_EXTMS, output + offset);
+            offset += HELLO_EXT_TYPE_SZ;
+            c16toa(0, output + offset);
+            offset += HELLO_EXT_SZ_SZ;
+        }
+#endif
 
         if (offset > OPAQUE16_LEN)
             c16toa(offset - OPAQUE16_LEN, output); /* extensions length */
@@ -4629,13 +4580,18 @@ word16 TLSX_GetResponseSize(WOLFSSL* ssl)
         }
     #endif
 
+#ifdef HAVE_EXTENDED_MASTER
+    if (ssl->options.haveEMS)
+        length += HELLO_EXT_SZ;
+#endif
+
     if (TLSX_SupportExtensions(ssl))
         length += TLSX_GetSize(ssl->extensions, semaphore, 0);
 
     /* All the response data is set at the ssl object only, so no ctx here. */
 
     if (length)
-        length += OPAQUE16_LEN; /* for total length storage */
+        length += OPAQUE16_LEN; /* for total length storage. */
 
     return length;
 }
@@ -4652,6 +4608,15 @@ word16 TLSX_WriteResponse(WOLFSSL *ssl, byte* output)
 
         offset += TLSX_Write(ssl->extensions, output + offset, semaphore, 0);
 
+#ifdef HAVE_EXTENDED_MASTER
+        if (ssl->options.haveEMS) {
+            c16toa(HELLO_EXT_EXTMS, output + offset);
+            offset += HELLO_EXT_TYPE_SZ;
+            c16toa(0, output + offset);
+            offset += HELLO_EXT_SZ_SZ;
+        }
+#endif
+
         if (offset > OPAQUE16_LEN)
             c16toa(offset - OPAQUE16_LEN, output); /* extensions length */
     }
@@ -4667,6 +4632,9 @@ int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte isRequest,
 {
     int ret = 0;
     word16 offset = 0;
+#ifdef HAVE_EXTENDED_MASTER
+    byte pendingEMS = 0;
+#endif
 
     if (!ssl || !input || (isRequest && !suites))
         return BAD_FUNC_ARG;
@@ -4724,11 +4692,17 @@ int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte isRequest,
                 ret = CSR2_PARSE(ssl, input + offset, size, isRequest);
                 break;
 
-            case TLSX_EXTENDED_MASTER_SECRET:
+#ifdef HAVE_EXTENDED_MASTER
+            case HELLO_EXT_EXTMS:
                 WOLFSSL_MSG("Extended Master Secret extension received");
 
-                ret = EMS_PARSE(ssl, input + offset, size, isRequest);
+#ifndef NO_WOLFSSL_SERVER
+                if (isRequest)
+                    ssl->options.haveEMS = 1;
+#endif
+                pendingEMS = 1;
                 break;
+#endif
 
             case TLSX_RENEGOTIATION_INFO:
                 WOLFSSL_MSG("Secure Renegotiation extension received");
@@ -4778,6 +4752,11 @@ int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte isRequest,
         /* offset should be updated here! */
         offset += size;
     }
+
+#ifdef HAVE_EXTENDED_MASTER
+    if (!isRequest && ssl->options.haveEMS && !pendingEMS)
+        ssl->options.haveEMS = 0;
+#endif
 
     if (ret == 0)
         ret = SNI_VERIFY_PARSE(ssl, isRequest);

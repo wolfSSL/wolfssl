@@ -1749,27 +1749,34 @@ WOLFSSL_API int wolfSSL_set_SessionTicket_cb(WOLFSSL* ssl,
 }
 #endif
 
+
 #ifdef HAVE_EXTENDED_MASTER
 #ifndef NO_WOLFSSL_CLIENT
 
-int wolfSSL_UseExtendedMasterSecret(WOLFSSL* ssl)
-{
-    if (ssl == NULL)
-        return BAD_FUNC_ARG;
-
-    return TLSX_UseExtendedMasterSecret(&ssl->extensions, ssl->heap);
-}
-
-int wolfSSL_CTX_UseExtendedMasterSecret(WOLFSSL_CTX* ctx)
+int wolfSSL_CTX_DisableExtendedMasterSecret(WOLFSSL_CTX* ctx)
 {
     if (ctx == NULL)
         return BAD_FUNC_ARG;
 
-    return TLSX_UseExtendedMasterSecret(&ctx->extensions, ctx->heap);
+    ctx->haveEMS = 0;
+
+    return SSL_SUCCESS;
 }
 
-#endif /* NO_WOLFSSL_CLIENT */
-#endif /* HAVE_EXTENDED_MASTER */
+
+int wolfSSL_DisableExtendedMasterSecret(WOLFSSL* ssl)
+{
+    if (ssl == NULL)
+        return BAD_FUNC_ARG;
+
+    ssl->options.haveEMS = 0;
+
+    return SSL_SUCCESS;
+}
+
+#endif
+#endif
+
 
 #ifndef WOLFSSL_LEANPSK
 

@@ -2130,6 +2130,10 @@ static int DoHandShake(const byte* input, int* sslBytes,
                 free(session->hash);
                 session->hash = NULL;
             }
+            else {
+                session->sslServer->options.haveEMS = 0;
+                session->sslClient->options.haveEMS = 0;
+            }
 #endif
             ret = ProcessClientKeyExchange(input, sslBytes, session, error);
             break;

@@ -878,6 +878,7 @@ enum Misc {
     NO_COMPRESSION  =  0,
     ZLIB_COMPRESSION = 221,     /* wolfSSL zlib compression */
     HELLO_EXT_SIG_ALGO = 13,    /* ID for the sig_algo hello extension */
+    HELLO_EXT_EXTMS = 0x0017,   /* ID for the extended master secret ext */
     SECRET_LEN      = 48,       /* pre RSA and all master */
 #if defined(WOLFSSL_MYSQL_COMPATIBLE)
     ENCRYPT_LEN     = 1024,     /* allow larger static buffer with mysql */
@@ -939,10 +940,10 @@ enum Misc {
     REQ_HEADER_SZ         = 2,  /* cert request header sz  */
     HINT_LEN_SZ           = 2,  /* length of hint size field */
     TRUNCATED_HMAC_SZ     = 10, /* length of hmac w/ truncated hmac extension */
+    HELLO_EXT_SZ          = 4,  /* base length of a hello extension */
     HELLO_EXT_TYPE_SZ     = 2,  /* length of a hello extension type */
-    HELLO_EXT_SZ          = 8,  /* total length of the lazy hello extensions */
-    HELLO_EXT_LEN         = 6,  /* length of the lazy hello extensions */
-    HELLO_EXT_SIGALGO_SZ  = 2,  /* length of signature algo extension  */
+    HELLO_EXT_SZ_SZ       = 2,  /* length of a hello extension size */
+    HELLO_EXT_SIGALGO_SZ  = 2,  /* length of number of items in sigalgo list */
     HELLO_EXT_SIGALGO_MAX = 32, /* number of items in the signature algo list */
 
     DTLS_HANDSHAKE_HEADER_SZ = 12, /* normal + seq(2) + offset(3) + length(3) */
@@ -1645,7 +1646,6 @@ typedef enum {
     TLSX_SUPPORTED_GROUPS           = 0x000a, /* a.k.a. Supported Curves */
     TLSX_APPLICATION_LAYER_PROTOCOL = 0x0010, /* a.k.a. ALPN */
     TLSX_STATUS_REQUEST_V2          = 0x0011, /* a.k.a. OCSP stapling v2 */
-    TLSX_EXTENDED_MASTER_SECRET     = 0x0017,
     TLSX_QUANTUM_SAFE_HYBRID        = 0x0018, /* a.k.a. QSH  */
     TLSX_SESSION_TICKET             = 0x0023,
     TLSX_RENEGOTIATION_INFO         = 0xff01
@@ -1899,14 +1899,6 @@ WOLFSSL_LOCAL int TLSX_ValidateQSHScheme(TLSX** extensions, word16 name);
 #endif /* HAVE_QSH */
 
 
-/* TLS Extended Master Secret, RFC 7627 */
-#ifdef HAVE_EXTENDED_MASTER
-
-WOLFSSL_LOCAL int TLSX_UseExtendedMasterSecret(TLSX** extensions, void* heap);
-
-#endif
-
-
 /* wolfSSL context type */
 struct WOLFSSL_CTX {
     WOLFSSL_METHOD* method;
@@ -1946,6 +1938,7 @@ struct WOLFSSL_CTX {
     byte        quietShutdown;    /* don't send close notify */
     byte        groupMessages;    /* group handshake messages before sending */
     byte        minDowngrade;     /* minimum downgrade version */
+    byte        haveEMS;          /* have extended master secret extension */
 #if defined(WOLFSSL_SCTP) && defined(WOLFSSL_DTLS)
     byte        dtlsSctp;         /* DTLS-over-SCTP mode */
     word16      dtlsMtuSz;        /* DTLS MTU size */
