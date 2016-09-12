@@ -16164,7 +16164,9 @@ int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             c16toa(HELLO_EXT_EXTMS, output + idx);
             idx += HELLO_EXT_TYPE_SZ;
             c16toa(0, output + idx);
-            idx += HELLO_EXT_SZ_SZ;
+            /*idx += HELLO_EXT_SZ_SZ;*/
+            /* idx is not used after this point. uncomment the line above
+             * if adding any more extentions in the future. */
         }
 #endif
 #endif
