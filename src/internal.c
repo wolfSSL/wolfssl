@@ -18732,6 +18732,7 @@ int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         byte            suite[SUITE_LEN];      /* cipher suite when created */
         byte            msecret[SECRET_LEN];   /* master secret */
         word32          timestamp;             /* born on */
+        word16          haveEMS;               /* have extended master secret */
     } InternalTicket;
 
     /* fit within SESSION_TICKET_LEN */
@@ -18753,6 +18754,8 @@ int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         int ret;
         byte zeros[WOLFSSL_TICKET_MAC_SZ];   /* biggest cmp size */
 
+        XMEMSET(&it, 0, sizeof(it));
+
         /* build internal */
         it.pv.major = ssl->version.major;
         it.pv.minor = ssl->version.minor;
@@ -18762,6 +18765,7 @@ int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
         XMEMCPY(it.msecret, ssl->arrays->masterSecret, SECRET_LEN);
         c32toa(LowResTimer(), (byte*)&it.timestamp);
+        it.haveEMS = ssl->options.haveEMS;
 
         /* build external */
         XMEMCPY(et->enc_ticket, &it, sizeof(InternalTicket));
@@ -18853,8 +18857,10 @@ int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         }
 
         /* get master secret */
-        if (ret == WOLFSSL_TICKET_RET_OK || ret == WOLFSSL_TICKET_RET_CREATE)
+        if (ret == WOLFSSL_TICKET_RET_OK || ret == WOLFSSL_TICKET_RET_CREATE) {
             XMEMCPY(ssl->arrays->masterSecret, it->msecret, SECRET_LEN);
+            ssl->session.haveEMS = it->haveEMS;
+        }
 
         return ret;
     }
