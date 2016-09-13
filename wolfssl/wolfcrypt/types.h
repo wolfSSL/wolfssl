@@ -91,6 +91,7 @@
 	     defined(__mips64)  || defined(__x86_64__) || defined(_M_X64)) || \
          defined(__aarch64__)
 	    typedef word64 wolfssl_word;
+        #define WC_64BIT_CPU
 	#else
 	    typedef word32 wolfssl_word;
 	    #ifdef WORD64_AVAILABLE
