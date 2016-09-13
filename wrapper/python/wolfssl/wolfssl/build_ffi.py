@@ -38,12 +38,13 @@ ffi.cdef(
     typedef unsigned char byte;
     typedef unsigned int  word32;
 
-    void* wolfTLSv1_server_method(void);
-    void* wolfTLSv1_client_method(void);
-    void* wolfTLSv1_1_server_method(void);
-    void* wolfTLSv1_1_client_method(void);
-    void* wolfTLSv1_2_server_method(void);
-    void* wolfTLSv1_2_client_method(void);
+    int wolfSSL_Init(void);
+    int wolfSSL_Cleanup(void);
+
+    void *wolfSSLv23_server_method(void);
+    void *wolfSSLv23_client_method(void);
+    void *wolfTLSv1_2_server_method(void);
+    void *wolfTLSv1_2_client_method(void);
 """
 )
 
