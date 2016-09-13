@@ -1260,7 +1260,8 @@ static INLINE word32 PreFetchTe(void)
     int i,j;
 
     for (i = 0; i < 4; i++) {
-        for (j = 0; j < 256; j += WC_CACHE_LINE_SZ) {
+        /* 256 elements, each one is 4 bytes */
+        for (j = 0; j < 256; j += WC_CACHE_LINE_SZ/4) {
             x &= Te[i][j];
         }
     }
@@ -1461,7 +1462,8 @@ static INLINE word32 PreFetchTd(void)
     int i,j;
 
     for (i = 0; i < 4; i++) {
-        for (j = 0; j < 256; j += WC_CACHE_LINE_SZ) {
+        /* 256 elements, each one is 4 bytes */
+        for (j = 0; j < 256; j += WC_CACHE_LINE_SZ/4) {
             x &= Td[i][j];
         }
     }
