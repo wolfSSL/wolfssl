@@ -1876,6 +1876,27 @@ int wc_ecc_mulmod(mp_int* k, ecc_point *G, ecc_point *R, mp_int* a,
 
 #else /* ECC_TIMING_RESISTANT */
 
+
+#if defined(TFM_TIMINING_RESISTANT) && defined(USE_FAST_MATH)
+    /* let's use the one we already have */
+    extern const wolfssl_word wc_off_on_addr[2];
+#else
+    static const wolfssl_word wc_off_on_addr[2] =
+    {
+    #if defined(WC_64BIT_CPU)
+        W64LIT(0x0000000000000000),
+        W64LIT(0xffffffffffffffff)
+    #elif defined(WC_16BIT_CPU)
+        0x0000U,
+        0xffffU
+    #else
+        /* 32 bit */
+        0x00000000U,
+        0xffffffffU
+    #endif
+    };
+#endif
+
 /**
    Perform a point multiplication  (timing resistant)
    k    The scalar to multiply by
@@ -2013,8 +2034,42 @@ int wc_ecc_mulmod_ex(mp_int* k, ecc_point *G, ecc_point *R,
            if (err == MP_OKAY)
                err = ecc_projective_add_point(M[0], M[1], M[i^1], a, modulus,
                                                                        mp);
+            /* instead of using M[i] for double, which leaks key bit to cache
+             * monitor, use M[2] as temp, make sure address calc is constant,
+             * keep &M[0] and &M[1] in cache */
            if (err == MP_OKAY)
-               err = ecc_projective_dbl_point(M[i], M[i], a, modulus, mp);
+               err = mp_copy((mp_int*)
+                             ( ((wolfssl_word)&M[0]->x & wc_off_on_addr[i^1]) +
+                               ((wolfssl_word)&M[1]->x & wc_off_on_addr[i])),
+                             M[2]->x);
+           if (err == MP_OKAY)
+               err = mp_copy((mp_int*)
+                             ( ((wolfssl_word)&M[0]->y & wc_off_on_addr[i^1]) +
+                               ((wolfssl_word)&M[1]->y & wc_off_on_addr[i])),
+                             M[2]->y);
+           if (err == MP_OKAY)
+               err = mp_copy((mp_int*)
+                             ( ((wolfssl_word)&M[0]->z & wc_off_on_addr[i^1]) +
+                               ((wolfssl_word)&M[1]->z & wc_off_on_addr[i])),
+                             M[2]->z);
+           if (err == MP_OKAY)
+               err = ecc_projective_dbl_point(M[2], M[2], a, modulus, mp);
+           /* copy M[2] back to M[i] */
+           if (err == MP_OKAY)
+               err = mp_copy(M[2]->x,
+                             (mp_int*)
+                             ( ((wolfssl_word)&M[0]->x & wc_off_on_addr[i^1]) +
+                               ((wolfssl_word)&M[1]->x & wc_off_on_addr[i])) );
+           if (err == MP_OKAY)
+               err = mp_copy(M[2]->y,
+                             (mp_int*)
+                             ( ((wolfssl_word)&M[0]->y & wc_off_on_addr[i^1]) +
+                               ((wolfssl_word)&M[1]->y & wc_off_on_addr[i])) );
+           if (err == MP_OKAY)
+               err = mp_copy(M[2]->z,
+                             (mp_int*)
+                             ( ((wolfssl_word)&M[0]->z & wc_off_on_addr[i^1]) +
+                               ((wolfssl_word)&M[1]->z & wc_off_on_addr[i])) );
            if (err != MP_OKAY)
                break;
        } /* end for */
