@@ -1035,6 +1035,7 @@ int fp_addmod(fp_int *a, fp_int *b, fp_int *c, fp_int *d)
 
 #ifdef TFM_TIMING_RESISTANT
 
+#ifndef WC_NO_CACHE_RESISTANT
 /* all off / all on pointer addresses for constant calculations */
 /* ecc.c uses same table */
 const wolfssl_word wc_off_on_addr[2] =
@@ -1051,6 +1052,8 @@ const wolfssl_word wc_off_on_addr[2] =
     0xffffffffU
 #endif
 };
+
+#endif /* WC_NO_CACHE_RESISTANT */
 
 /* timing resistant montgomery ladder based exptmod
    Based on work by Marc Joye, Sung-Ming Yen, "The Montgomery Powering Ladder",
@@ -1111,6 +1114,9 @@ static int _fp_exptmod(fp_int * G, fp_int * X, fp_int * P, fp_int * Y)
     /* do ops */
     fp_mul(&R[0], &R[1], &R[y^1]); fp_montgomery_reduce(&R[y^1], P, mp);
 
+#ifdef WC_NO_CACHE_RESISTANT
+    fp_sqr(&R[y], &R[y]);          fp_montgomery_reduce(&R[y], P, mp);
+#else
     /* instead of using R[y] for sqr, which leaks key bit to cache monitor,
      * use R[2] as temp, make sure address calc is constant, keep
      * &R[0] and &R[1] in cache */
@@ -1121,6 +1127,7 @@ static int _fp_exptmod(fp_int * G, fp_int * X, fp_int * P, fp_int * Y)
     fp_copy(&R[2],
             (fp_int*) ( ((wolfssl_word)&R[0] & wc_off_on_addr[y^1]) +
                         ((wolfssl_word)&R[1] & wc_off_on_addr[y]) ) );
+#endif /* WC_NO_CACHE_RESISTANT */
   }
 
    fp_montgomery_reduce(&R[0], P, mp);
