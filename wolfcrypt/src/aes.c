@@ -1244,7 +1244,8 @@ static int AES_set_decrypt_key(const unsigned char* userKey, const int bits,
 
 
 #ifndef WC_CACHE_LINE_SZ
-    #if defined(__x86_64__) || defined(_M_X64) || (__ILP32__ >= 1)
+    #if defined(__x86_64__) || defined(_M_X64) || \
+       (defined(__ILP32__) && (__ILP32__ >= 1))
         #define WC_CACHE_LINE_SZ 64
     #else
         /* default cache line size */
