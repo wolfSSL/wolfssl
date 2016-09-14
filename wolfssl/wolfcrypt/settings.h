@@ -134,7 +134,9 @@
 /* #define WOLFSSL_STATIC_RSA */
 
 /* Uncomment next line if building for ARDUINO */
+/* Uncomment both lines if building for ARDUINO on INTEL_GALILEO */
 /* #define WOLFSSL_ARDUINO */
+/* #define INTEL_GALILEO */
 
 /* Uncomment next line to enable asynchronous crypto WC_PENDING_E */
 /* #define WOLFSSL_ASYNC_CRYPT */
