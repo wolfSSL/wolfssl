@@ -1061,7 +1061,11 @@ const wolfssl_word wc_off_on_addr[2] =
 */
 static int _fp_exptmod(fp_int * G, fp_int * X, fp_int * P, fp_int * Y)
 {
-  fp_int   R[3];
+#ifdef WC_NO_CACHE_RESISTANT
+  fp_int   R[2];
+#else
+  fp_int   R[3];   /* need a temp for cache resistance */
+#endif
   fp_digit buf, mp;
   int      err, bitcnt, digidx, y;
 
@@ -1072,7 +1076,9 @@ static int _fp_exptmod(fp_int * G, fp_int * X, fp_int * P, fp_int * Y)
 
   fp_init(&R[0]);
   fp_init(&R[1]);
+#ifndef WC_NO_CACHE_RESISTANT
   fp_init(&R[2]);
+#endif
 
   /* now we need R mod m */
   fp_montgomery_calc_normalization (&R[0], P);
