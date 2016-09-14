@@ -198,6 +198,9 @@ int wc_InitRsaKey_ex(RsaKey* key, void* heap, int devId)
     key->tmp = NULL;
     key->tmpLen = 0;
     key->tmpIsAlloc = 0;
+#ifdef WC_RSA_BLINDING
+    key->rng = NULL;
+#endif
 
 #ifdef WOLFSSL_ASYNC_CRYPT
     if (devId != INVALID_DEVID) {
