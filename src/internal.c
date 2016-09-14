@@ -18313,10 +18313,15 @@ int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                 /* RFC 7627, 5.3, server-side */
                 /* if old sess didn't have EMS, but new does, full handshake */
                 if (!session->haveEMS && ssl->options.haveEMS) {
+                    WOLFSSL_MSG("Attempting to resume a session that didn't "
+                                "use EMS with a new session with EMS. Do full "
+                                "handshake.");
                     ssl->options.resuming = 0;
                 }
                 /* if old sess used EMS, but new doesn't, MUST abort */
                 else if (session->haveEMS && !ssl->options.haveEMS) {
+                    WOLFSSL_MSG("Trying to resume a session with EMS without "
+                                "using EMS");
                     return EXT_MASTER_SECRET_NEEDED_E;
                 }
             }
@@ -18859,6 +18864,8 @@ int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         /* get master secret */
         if (ret == WOLFSSL_TICKET_RET_OK || ret == WOLFSSL_TICKET_RET_CREATE) {
             XMEMCPY(ssl->arrays->masterSecret, it->msecret, SECRET_LEN);
+            /* Copy the haveExtendedMasterSecret property from the ticket to
+             * the saved session, so the property may be checked later. */
             ssl->session.haveEMS = it->haveEMS;
         }
 

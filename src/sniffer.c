@@ -254,7 +254,8 @@ static const char* const msgTable[] =
     "Clear ACK Fault",
 
     /* 81 */
-    "Bad Decrypt Size"
+    "Bad Decrypt Size",
+    "Extended Master Secret Hash Error"
 };
 
 
@@ -359,9 +360,6 @@ typedef struct HsHashes {
 #endif
 #ifdef WOLFSSL_SHA384
     Sha384 hashSha384;
-#endif
-#ifdef WOLFSSL_SHA512
-    Sha512 hashSha512;
 #endif
 } HsHashes;
 
@@ -590,10 +588,6 @@ static int HashInit(HsHashes* hash)
     if (ret == 0)
         ret = wc_InitSha384(&hash->hashSha384);
 #endif
-#ifdef WOLFSSL_SHA512
-    if (ret == 0)
-        ret = wc_InitSha512(&hash->hashSha512);
-#endif
 
     return ret;
 }
@@ -624,10 +618,6 @@ static int HashUpdate(HsHashes* hash, const byte* input, int sz)
     if (ret == 0)
         ret = wc_Sha384Update(&hash->hashSha384, input, sz);
 #endif
-#ifdef WOLFSSL_SHA512
-    if (ret == 0)
-        ret = wc_Sha512Update(&hash->hashSha512, input, sz);
-#endif
 
     return ret;
 }
@@ -649,9 +639,6 @@ static int HashCopy(HS_Hashes* d, HsHashes* s)
 #endif
 #ifdef WOLFSSL_SHA384
         XMEMCPY(&d->hashSha384, &s->hashSha384, sizeof(Sha384));
-#endif
-#ifdef WOLFSSL_SHA512
-        XMEMCPY(&d->hashSha512, &s->hashSha512, sizeof(Sha512));
 #endif
 
     return 0;
@@ -2077,8 +2064,13 @@ static int DoHandShake(const byte* input, int* sslBytes,
     }
     
 #ifdef HAVE_EXTENDED_MASTER
-    if (session->hash)
-        HashUpdate(session->hash, input, size);
+    if (session->hash) {
+        if (HashUpdate(session->hash, input, size) != 0) {
+            SetError(EXTENDED_MASTER_HASH_STR, error,
+                     session, FATAL_ERROR_STATE);
+            return -1;
+        }
+    }
 #endif
 
     switch (type) {
@@ -2123,10 +2115,20 @@ static int DoHandShake(const byte* input, int* sslBytes,
             Trace(GOT_CLIENT_KEY_EX_STR);
 #ifdef HAVE_EXTENDED_MASTER
             if (session->flags.expectEms && session->hash != NULL) {
-                HashCopy(session->sslServer->hsHashes, session->hash);
-                HashCopy(session->sslClient->hsHashes, session->hash);
-                session->sslServer->options.haveEMS = 1;
-                session->sslClient->options.haveEMS = 1;
+                if (HashCopy(session->sslServer->hsHashes,
+                             session->hash) == 0 &&
+                    HashCopy(session->sslClient->hsHashes,
+                             session->hash) == 0) {
+
+                    session->sslServer->options.haveEMS = 1;
+                    session->sslClient->options.haveEMS = 1;
+                }
+                else {
+                    SetError(EXTENDED_MASTER_HASH_STR, error,
+                             session, FATAL_ERROR_STATE);
+                    ret = -1;
+                }
+                XMEMSET(session->hash, 0, sizeof(HsHashes));
                 free(session->hash);
                 session->hash = NULL;
             }
@@ -2135,7 +2137,8 @@ static int DoHandShake(const byte* input, int* sslBytes,
                 session->sslClient->options.haveEMS = 0;
             }
 #endif
-            ret = ProcessClientKeyExchange(input, sslBytes, session, error);
+            if (ret == 0)
+                ret = ProcessClientKeyExchange(input, sslBytes, session, error);
             break;
         case certificate_verify:
             Trace(GOT_CERT_VER_STR);
@@ -2355,7 +2358,11 @@ static SnifferSession* CreateSession(IpInfo* ipInfo, TcpInfo* tcpInfo,
             free(session);
             return 0;
         }
-        HashInit(newHash);
+        if (HashInit(newHash) != 0) {
+            SetError(EXTENDED_MASTER_HASH_STR, error, NULL, 0);
+            free(session);
+            return 0;
+        }
         session->hash = newHash;
     }
 #endif
