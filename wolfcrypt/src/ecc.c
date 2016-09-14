@@ -1877,7 +1877,8 @@ int wc_ecc_mulmod(mp_int* k, ecc_point *G, ecc_point *R, mp_int* a,
 #else /* ECC_TIMING_RESISTANT */
 
 
-#if defined(TFM_TIMINING_RESISTANT) && defined(USE_FAST_MATH)
+#ifndef WC_NO_CACHE_RESISTANT
+#if defined(TFM_TIMING_RESISTANT) && defined(USE_FAST_MATH)
     /* let's use the one we already have */
     extern const wolfssl_word wc_off_on_addr[2];
 #else
@@ -1895,7 +1896,8 @@ int wc_ecc_mulmod(mp_int* k, ecc_point *G, ecc_point *R, mp_int* a,
         0xffffffffU
     #endif
     };
-#endif
+#endif /* TFM_TIMING_RESISTANT && USE_FAST_MATH */
+#endif /* WC_NO_CACHE_RESISTANT */
 
 /**
    Perform a point multiplication  (timing resistant)
@@ -2034,6 +2036,10 @@ int wc_ecc_mulmod_ex(mp_int* k, ecc_point *G, ecc_point *R,
            if (err == MP_OKAY)
                err = ecc_projective_add_point(M[0], M[1], M[i^1], a, modulus,
                                                                        mp);
+#ifdef WC_NO_CACHE_RESISTANT
+           if (err == MP_OKAY)
+               err = ecc_projective_dbl_point(M[i], M[i], a, modulus, mp);
+#else
             /* instead of using M[i] for double, which leaks key bit to cache
              * monitor, use M[2] as temp, make sure address calc is constant,
              * keep &M[0] and &M[1] in cache */
@@ -2072,6 +2078,7 @@ int wc_ecc_mulmod_ex(mp_int* k, ecc_point *G, ecc_point *R,
                                ((wolfssl_word)&M[1]->z & wc_off_on_addr[i])) );
            if (err != MP_OKAY)
                break;
+#endif /* WC_NO_CACHE_RESISTANT */
        } /* end for */
    }
 
