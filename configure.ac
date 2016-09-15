@@ -1944,9 +1944,9 @@ fi
 
 # Supported Elliptic Curves Extensions
 AC_ARG_ENABLE([supportedcurves],
-    [AS_HELP_STRING([--enable-supportedcurves],[Enable Supported Elliptic Curves (default: enabled)])],
+    [AS_HELP_STRING([--enable-supportedcurves],[Enable Supported Elliptic Curves (default: disabled)])],
     [ ENABLED_SUPPORTED_CURVES=$enableval ],
-    [ ENABLED_SUPPORTED_CURVES=yes ]
+    [ ENABLED_SUPPORTED_CURVES=no ]
     )
 
 if test "x$ENABLED_SUPPORTED_CURVES" = "xyes"
