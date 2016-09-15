@@ -28,6 +28,7 @@
     #define WOLFSSL_RIPEMD
     #define WOLFSSL_SHA512
     #define NO_PSK
+    #define HAVE_EXTENDED_MASTER
     #define WOLFSSL_SNIFFER
 #else
     /* The servers and clients */

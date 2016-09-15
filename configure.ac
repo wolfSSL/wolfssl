@@ -1975,6 +1975,18 @@ then
     AM_CFLAGS="$AM_CFLAGS -DHAVE_TLS_EXTENSIONS -DHAVE_SESSION_TICKET"
 fi
 
+# Extended Master Secret Extension
+AC_ARG_ENABLE([extended-master],
+    [AS_HELP_STRING([--enable-extended-master],[Enable Extended Master Secret (default: enabled)])],
+    [ ENABLED_EXTENDED_MASTER=$enableval ],
+    [ ENABLED_EXTENDED_MASTER=yes ]
+    )
+
+if test "x$ENABLED_EXTENDED_MASTER" = "xyes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_EXTENDED_MASTER"
+fi
+
 # TLS Extensions
 AC_ARG_ENABLE([tlsx],
     [  --enable-tlsx           Enable all TLS Extensions (default: disabled)],
@@ -3217,6 +3229,7 @@ echo "   * Maximum Fragment Length:    $ENABLED_MAX_FRAGMENT"
 echo "   * Truncated HMAC:             $ENABLED_TRUNCATED_HMAC"
 echo "   * Supported Elliptic Curves:  $ENABLED_SUPPORTED_CURVES"
 echo "   * Session Ticket:             $ENABLED_SESSION_TICKET"
+echo "   * Extended Master Secret:     $ENABLED_EXTENDED_MASTER"
 echo "   * Renegotiation Indication:   $ENABLED_RENEGOTIATION_INDICATION"
 echo "   * Secure Renegotiation:       $ENABLED_SECURE_RENEGOTIATION"
 echo "   * All TLS Extensions:         $ENABLED_TLSX"

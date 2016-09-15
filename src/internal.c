@@ -1401,6 +1401,20 @@ int InitSSL_Ctx(WOLFSSL_CTX* ctx, WOLFSSL_METHOD* method, void* heap)
     }
 #endif
 
+#if defined(HAVE_EXTENDED_MASTER) && !defined(NO_WOLFSSL_CLIENT)
+    if (method->side == WOLFSSL_CLIENT_END) {
+        if ((method->version.major == SSLv3_MAJOR) &&
+             (method->version.minor >= TLSv1_MINOR)) {
+
+            ctx->haveEMS = 1;
+        }
+#ifdef WOLFSSL_DTLS
+        if (method->version.major == DTLS_MAJOR)
+            ctx->haveEMS = 1;
+#endif /* WOLFSSL_DTLS */
+    }
+#endif /* HAVE_EXTENDED_MASTER && !NO_WOLFSSL_CLIENT */
+
 #if defined(HAVE_SESSION_TICKET) && !defined(NO_WOLFSSL_SERVER)
     ctx->ticketHint = SESSION_TICKET_HINT_DEFAULT;
 #endif
@@ -3374,6 +3388,10 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
 
 
     ssl->cipher.ssl = ssl;
+
+#ifdef HAVE_EXTENDED_MASTER
+    ssl->options.haveEMS = ctx->haveEMS;
+#endif
 
 #ifdef HAVE_TLS_EXTENSIONS
 #ifdef HAVE_MAX_FRAGMENT
@@ -11435,6 +11453,9 @@ const char* wolfSSL_ERR_reason_error_string(unsigned long e)
     case CTX_INIT_MUTEX_E:
         return "Initialize ctx mutex error";
 
+    case EXT_MASTER_SECRET_NEEDED_E:
+        return "Extended Master Secret must be enabled to resume EMS session";
+
     default :
         return "unknown error number";
     }
@@ -12681,6 +12702,7 @@ static void PickHashSigAlgo(WOLFSSL* ssl,
                                 ? ssl->session.sessionIDSz
                                 : 0;
         int                ret;
+        word16             extSz = 0;
 
         if (ssl->suites == NULL) {
             WOLFSSL_MSG("Bad suites pointer in SendClientHello");
@@ -12714,11 +12736,19 @@ static void PickHashSigAlgo(WOLFSSL* ssl,
         if (QSH_Init(ssl) != 0)
             return MEMORY_E;
     #endif
-        length += TLSX_GetRequestSize(ssl);
+        extSz = TLSX_GetRequestSize(ssl);
+        if (extSz != 0)
+            length += extSz;
 #else
-        if (IsAtLeastTLSv1_2(ssl) && ssl->suites->hashSigAlgoSz) {
-            length += ssl->suites->hashSigAlgoSz + HELLO_EXT_SZ;
-        }
+        if (IsAtLeastTLSv1_2(ssl) && ssl->suites->hashSigAlgoSz)
+            extSz += HELLO_EXT_SZ + HELLO_EXT_SIGALGO_SZ
+                   + ssl->suites->hashSigAlgoSz;
+#ifdef HAVE_EXTENDED_MASTER
+        if (ssl->options.haveEMS)
+            extSz += HELLO_EXT_SZ;
+#endif
+        if (extSz != 0)
+            length += extSz + HELLO_EXT_SZ_SZ;
 #endif
         sendSz = length + HANDSHAKE_HEADER_SZ + RECORD_HEADER_SZ;
 
@@ -12803,24 +12833,36 @@ static void PickHashSigAlgo(WOLFSSL* ssl,
 
         (void)idx; /* suppress analyzer warning, keep idx current */
 #else
-        if (IsAtLeastTLSv1_2(ssl) && ssl->suites->hashSigAlgoSz)
-        {
-            int i;
-            /* add in the extensions length */
-            c16toa((word16)(HELLO_EXT_LEN + ssl->suites->hashSigAlgoSz),
-                    output + idx);
-            idx += 2;
+        if (extSz != 0) {
+            c16toa(extSz, output + idx);
+            idx += HELLO_EXT_SZ_SZ;
 
-            c16toa(HELLO_EXT_SIG_ALGO, output + idx);
-            idx += 2;
-            c16toa((word16)(HELLO_EXT_SIGALGO_SZ + ssl->suites->hashSigAlgoSz),
-                    output+idx);
-            idx += 2;
-            c16toa(ssl->suites->hashSigAlgoSz, output + idx);
-            idx += 2;
-            for (i = 0; i < ssl->suites->hashSigAlgoSz; i++, idx++) {
-                output[idx] = ssl->suites->hashSigAlgo[i];
+            if (IsAtLeastTLSv1_2(ssl)) {
+                if (ssl->suites->hashSigAlgoSz) {
+                    int i;
+                    /* extension type */
+                    c16toa(HELLO_EXT_SIG_ALGO, output + idx);
+                    idx += HELLO_EXT_TYPE_SZ;
+                    /* extension data length */
+                    c16toa(HELLO_EXT_SIGALGO_SZ + ssl->suites->hashSigAlgoSz,
+                           output + idx);
+                    idx += HELLO_EXT_SZ_SZ;
+                    /* sig algos length */
+                    c16toa(ssl->suites->hashSigAlgoSz, output + idx);
+                    idx += HELLO_EXT_SIGALGO_SZ;
+                    for (i = 0; i < ssl->suites->hashSigAlgoSz; i++, idx++) {
+                        output[idx] = ssl->suites->hashSigAlgo[i];
+                    }
+                }
             }
+#ifdef HAVE_EXTENDED_MASTER
+            if (ssl->options.haveEMS) {
+                c16toa(HELLO_EXT_EXTMS, output + idx);
+                idx += HELLO_EXT_TYPE_SZ;
+                c16toa(0, output + idx);
+                idx += HELLO_EXT_SZ_SZ;
+            }
+#endif
         }
 #endif
 
@@ -13063,9 +13105,8 @@ static void PickHashSigAlgo(WOLFSSL* ssl,
 
         *inOutIdx = i;
 
-
-        if ( (i - begin) < helloSz) {
 #ifdef HAVE_TLS_EXTENSIONS
+        if ( (i - begin) < helloSz) {
             if (TLSX_SupportExtensions(ssl)) {
                 int    ret = 0;
                 word16 totalExtSz;
@@ -13087,9 +13128,70 @@ static void PickHashSigAlgo(WOLFSSL* ssl,
                 *inOutIdx = i;
             }
             else
-#endif
                 *inOutIdx = begin + helloSz; /* skip extensions */
         }
+        else
+            ssl->options.haveEMS = 0; /* If no extensions, no EMS */
+#else
+        {
+            int allowExt = 0;
+            byte pendingEMS = 0;
+
+            if ( (i - begin) < helloSz) {
+                if (ssl->version.major == SSLv3_MAJOR &&
+                    ssl->version.minor >= TLSv1_MINOR) {
+
+                    allowExt = 1;
+                }
+#ifdef WOLFSSL_DTLS
+                if (ssl->version.major == DTLS_MAJOR)
+                    allowExt = 1;
+#endif
+
+                if (allowExt) {
+                    word16 totalExtSz;
+
+                    if ((i - begin) + OPAQUE16_LEN > helloSz)
+                        return BUFFER_ERROR;
+
+                    ato16(&input[i], &totalExtSz);
+                    i += OPAQUE16_LEN;
+
+                    if ((i - begin) + totalExtSz > helloSz)
+                        return BUFFER_ERROR;
+
+                    while (totalExtSz) {
+                        word16 extId, extSz;
+
+                        if (OPAQUE16_LEN + OPAQUE16_LEN > totalExtSz)
+                            return BUFFER_ERROR;
+
+                        ato16(&input[i], &extId);
+                        i += OPAQUE16_LEN;
+                        ato16(&input[i], &extSz);
+                        i += OPAQUE16_LEN;
+
+                        if (OPAQUE16_LEN + OPAQUE16_LEN + extSz > totalExtSz)
+                            return BUFFER_ERROR;
+
+                        if (extId == HELLO_EXT_EXTMS)
+                            pendingEMS = 1;
+                        else
+                            i += extSz;
+
+                        totalExtSz -= OPAQUE16_LEN + OPAQUE16_LEN + extSz;
+                    }
+
+                    *inOutIdx = i;
+                }
+                else
+                    *inOutIdx = begin + helloSz; /* skip extensions */
+            }
+
+            if (!pendingEMS && ssl->options.haveEMS)
+                ssl->options.haveEMS = 0;
+        }
+#endif
 
         ssl->options.serverState = SERVER_HELLO_COMPLETE;
 
@@ -15984,6 +16086,10 @@ int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             length -= (ID_LEN - sessIdSz);  /* adjust ID_LEN assumption */
         }
     #endif /* HAVE_SESSION_TICKET */
+#else
+        if (ssl->options.haveEMS) {
+            length += HELLO_EXT_SZ_SZ + HELLO_EXT_SZ;
+        }
 #endif
 
         /* check for avalaible size */
@@ -16057,6 +16163,20 @@ int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         /* last, extensions */
 #ifdef HAVE_TLS_EXTENSIONS
         TLSX_WriteResponse(ssl, output + idx);
+#else
+#ifdef HAVE_EXTENDED_MASTER
+        if (ssl->options.haveEMS) {
+            c16toa(HELLO_EXT_SZ, output + idx);
+            idx += HELLO_EXT_SZ_SZ;
+
+            c16toa(HELLO_EXT_EXTMS, output + idx);
+            idx += HELLO_EXT_TYPE_SZ;
+            c16toa(0, output + idx);
+            /*idx += HELLO_EXT_SZ_SZ;*/
+            /* idx is not used after this point. uncomment the line above
+             * if adding any more extentions in the future. */
+        }
+#endif
 #endif
 
         ssl->buffers.outputBuffer.length += sendSz;
@@ -18176,6 +18296,10 @@ int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                         if (clSuites.hashSigAlgoSz > HELLO_EXT_SIGALGO_MAX)
                             clSuites.hashSigAlgoSz = HELLO_EXT_SIGALGO_MAX;
                     }
+#ifdef HAVE_EXTENDED_MASTER
+                    else if (extId == HELLO_EXT_EXTMS)
+                        ssl->options.haveEMS = 1;
+#endif
                     else
                         i += extSz;
 
@@ -18208,6 +18332,22 @@ int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             if (!session) {
                 WOLFSSL_MSG("Session lookup for resume failed");
                 ssl->options.resuming = 0;
+            }
+            else if (session->haveEMS != ssl->options.haveEMS) {
+                /* RFC 7627, 5.3, server-side */
+                /* if old sess didn't have EMS, but new does, full handshake */
+                if (!session->haveEMS && ssl->options.haveEMS) {
+                    WOLFSSL_MSG("Attempting to resume a session that didn't "
+                                "use EMS with a new session with EMS. Do full "
+                                "handshake.");
+                    ssl->options.resuming = 0;
+                }
+                /* if old sess used EMS, but new doesn't, MUST abort */
+                else if (session->haveEMS && !ssl->options.haveEMS) {
+                    WOLFSSL_MSG("Trying to resume a session with EMS without "
+                                "using EMS");
+                    return EXT_MASTER_SECRET_NEEDED_E;
+                }
             }
             else {
                 if (MatchSuite(ssl, &clSuites) < 0) {
@@ -18621,6 +18761,7 @@ int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         byte            suite[SUITE_LEN];      /* cipher suite when created */
         byte            msecret[SECRET_LEN];   /* master secret */
         word32          timestamp;             /* born on */
+        word16          haveEMS;               /* have extended master secret */
     } InternalTicket;
 
     /* fit within SESSION_TICKET_LEN */
@@ -18642,6 +18783,8 @@ int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         int ret;
         byte zeros[WOLFSSL_TICKET_MAC_SZ];   /* biggest cmp size */
 
+        XMEMSET(&it, 0, sizeof(it));
+
         /* build internal */
         it.pv.major = ssl->version.major;
         it.pv.minor = ssl->version.minor;
@@ -18651,6 +18794,7 @@ int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
         XMEMCPY(it.msecret, ssl->arrays->masterSecret, SECRET_LEN);
         c32toa(LowResTimer(), (byte*)&it.timestamp);
+        it.haveEMS = ssl->options.haveEMS;
 
         /* build external */
         XMEMCPY(et->enc_ticket, &it, sizeof(InternalTicket));
@@ -18742,8 +18886,12 @@ int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         }
 
         /* get master secret */
-        if (ret == WOLFSSL_TICKET_RET_OK || ret == WOLFSSL_TICKET_RET_CREATE)
+        if (ret == WOLFSSL_TICKET_RET_OK || ret == WOLFSSL_TICKET_RET_CREATE) {
             XMEMCPY(ssl->arrays->masterSecret, it->msecret, SECRET_LEN);
+            /* Copy the haveExtendedMasterSecret property from the ticket to
+             * the saved session, so the property may be checked later. */
+            ssl->session.haveEMS = it->haveEMS;
+        }
 
         return ret;
     }

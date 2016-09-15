@@ -878,6 +878,7 @@ enum Misc {
     NO_COMPRESSION  =  0,
     ZLIB_COMPRESSION = 221,     /* wolfSSL zlib compression */
     HELLO_EXT_SIG_ALGO = 13,    /* ID for the sig_algo hello extension */
+    HELLO_EXT_EXTMS = 0x0017,   /* ID for the extended master secret ext */
     SECRET_LEN      = 48,       /* pre RSA and all master */
 #if defined(WOLFSSL_MYSQL_COMPATIBLE)
     ENCRYPT_LEN     = 1024,     /* allow larger static buffer with mysql */
@@ -939,10 +940,10 @@ enum Misc {
     REQ_HEADER_SZ         = 2,  /* cert request header sz  */
     HINT_LEN_SZ           = 2,  /* length of hint size field */
     TRUNCATED_HMAC_SZ     = 10, /* length of hmac w/ truncated hmac extension */
+    HELLO_EXT_SZ          = 4,  /* base length of a hello extension */
     HELLO_EXT_TYPE_SZ     = 2,  /* length of a hello extension type */
-    HELLO_EXT_SZ          = 8,  /* total length of the lazy hello extensions */
-    HELLO_EXT_LEN         = 6,  /* length of the lazy hello extensions */
-    HELLO_EXT_SIGALGO_SZ  = 2,  /* length of signature algo extension  */
+    HELLO_EXT_SZ_SZ       = 2,  /* length of a hello extension size */
+    HELLO_EXT_SIGALGO_SZ  = 2,  /* length of number of items in sigalgo list */
     HELLO_EXT_SIGALGO_MAX = 32, /* number of items in the signature algo list */
 
     DTLS_HANDSHAKE_HEADER_SZ = 12, /* normal + seq(2) + offset(3) + length(3) */
@@ -963,6 +964,7 @@ enum Misc {
     MAX_EXPORT_BUFFER        = 500, /* max size of buffer for exporting */
     FINISHED_LABEL_SZ   = 15,  /* TLS finished label size */
     TLS_FINISHED_SZ     = 12,  /* TLS has a shorter size  */
+    EXT_MASTER_LABEL_SZ = 22,  /* TLS extended master secret label sz */
     MASTER_LABEL_SZ     = 13,  /* TLS master secret label sz */
     KEY_LABEL_SZ        = 13,  /* TLS key block expansion sz */
     MAX_PRF_HALF        = 256, /* Maximum half secret len */
@@ -1936,6 +1938,7 @@ struct WOLFSSL_CTX {
     byte        quietShutdown;    /* don't send close notify */
     byte        groupMessages;    /* group handshake messages before sending */
     byte        minDowngrade;     /* minimum downgrade version */
+    byte        haveEMS;          /* have extended master secret extension */
 #if defined(WOLFSSL_SCTP) && defined(WOLFSSL_DTLS)
     byte        dtlsSctp;         /* DTLS-over-SCTP mode */
     word16      dtlsMtuSz;        /* DTLS MTU size */
@@ -2225,6 +2228,7 @@ struct WOLFSSL_SESSION {
     byte            sessionID[ID_LEN];             /* id for protocol */
     byte            sessionIDSz;
     byte            masterSecret[SECRET_LEN];      /* stored secret */
+    word16          haveEMS;                       /* ext master secret flag */
 #ifdef SESSION_CERTS
     WOLFSSL_X509_CHAIN chain;                    /* peer cert chain, static  */
     ProtocolVersion version;                    /* which version was used */
@@ -2409,6 +2413,7 @@ typedef struct Options {
     word16            dtlsSctp:1;         /* DTLS-over-SCTP mode */
 #endif
 #endif
+    word16            haveEMS:1;          /* using extended master secret */
 
     /* need full byte values for this section */
     byte            processReply;           /* nonblocking resume */
@@ -3028,6 +3033,8 @@ WOLFSSL_LOCAL int VerifyClientSuite(WOLFSSL* ssl);
         WOLFSSL_LOCAL Signer* GetCAByName(void* cm, byte* hash);
     #endif
 #endif /* !NO_CERTS */
+WOLFSSL_LOCAL int  BuildTlsHandshakeHash(WOLFSSL* ssl, byte* hash,
+                                   word32* hashLen);
 WOLFSSL_LOCAL int  BuildTlsFinished(WOLFSSL* ssl, Hashes* hashes,
                                    const byte* sender);
 WOLFSSL_LOCAL void FreeArrays(WOLFSSL* ssl, int keep);

@@ -98,5 +98,6 @@ STRINGTABLE
     80, "Clear ACK Fault"
 
     81, "Bad Decrypt Size"
+    82, "Extended Master Secret Hash Error"
 }
 

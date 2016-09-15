@@ -494,6 +494,9 @@ static void Usage(void)
 #ifdef HAVE_TRUNCATED_HMAC
     printf("-T          Use Truncated HMAC\n");
 #endif
+#ifdef HAVE_EXTENDED_MASTER
+    printf("-n          Disable Extended Master Secret\n");
+#endif
 #ifdef HAVE_OCSP
     printf("-o          Perform OCSP lookup on peer certificate\n");
     printf("-O <url>    Perform OCSP lookup using <url> as responder\n");
@@ -609,6 +612,9 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
  || defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
     byte statusRequest = 0;
 #endif
+#ifdef HAVE_EXTENDED_MASTER
+    byte disableExtMasterSecret = 0;
+#endif
 
 
 #ifdef HAVE_OCSP
@@ -651,7 +657,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 
 #ifndef WOLFSSL_VXWORKS
     while ((ch = mygetopt(argc, argv,
-          "?gdeDuGsmNrwRitfxXUPCVh:p:v:l:A:c:k:Z:b:zS:F:L:ToO:aB:W:E:M:q:"))
+          "?gdeDuGsmNrwRitfxXUPCVh:p:v:l:A:c:k:Z:b:zS:F:L:TnoO:aB:W:E:M:q:"))
             != -1) {
         switch (ch) {
             case '?' :
@@ -854,6 +860,12 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
             case 'T' :
                 #ifdef HAVE_TRUNCATED_HMAC
                     truncatedHMAC = 1;
+                #endif
+                break;
+
+            case 'n' :
+                #ifdef HAVE_EXTENDED_MASTER
+                    disableExtMasterSecret = 1;
                 #endif
                 break;
 
@@ -1233,6 +1245,11 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     if (wolfSSL_CTX_UseSessionTicket(ctx) != SSL_SUCCESS)
         err_sys("UseSessionTicket failed");
 #endif
+#ifdef HAVE_EXTENDED_MASTER
+    if (disableExtMasterSecret)
+        if (wolfSSL_CTX_DisableExtendedMasterSecret(ctx) != SSL_SUCCESS)
+            err_sys("DisableExtendedMasterSecret failed");
+#endif
 
     if (benchmark) {
         ((func_args*)args)->return_code =
@@ -1555,6 +1572,32 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
         wolfSSL_set_SessionTicket_cb(sslResume, sessionTicketCB,
                                     (void*)"resumed session");
 #endif
+    #ifdef HAVE_SUPPORTED_CURVES /* add curves to supported curves extension */
+        if (wolfSSL_UseSupportedCurve(sslResume, WOLFSSL_ECC_SECP256R1)
+                != SSL_SUCCESS) {
+            err_sys("unable to set curve secp256r1");
+        }
+        if (wolfSSL_UseSupportedCurve(sslResume, WOLFSSL_ECC_SECP384R1)
+                != SSL_SUCCESS) {
+            err_sys("unable to set curve secp384r1");
+        }
+        if (wolfSSL_UseSupportedCurve(sslResume, WOLFSSL_ECC_SECP521R1)
+                != SSL_SUCCESS) {
+            err_sys("unable to set curve secp521r1");
+        }
+        if (wolfSSL_UseSupportedCurve(sslResume, WOLFSSL_ECC_SECP224R1)
+                != SSL_SUCCESS) {
+            err_sys("unable to set curve secp224r1");
+        }
+        if (wolfSSL_UseSupportedCurve(sslResume, WOLFSSL_ECC_SECP192R1)
+                != SSL_SUCCESS) {
+            err_sys("unable to set curve secp192r1");
+        }
+        if (wolfSSL_UseSupportedCurve(sslResume, WOLFSSL_ECC_SECP160R1)
+                != SSL_SUCCESS) {
+            err_sys("unable to set curve secp160r1");
+        }
+    #endif
 
 #ifndef WOLFSSL_CALLBACKS
         if (nonBlocking) {

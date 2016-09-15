@@ -324,6 +324,21 @@ int wc_Sha256Hash(const byte* data, word32 len, byte* hash)
 #endif /* !defined(WOLFSSL_TI_HASH) */
 
 #if defined(WOLFSSL_SHA512)
+int wc_Sha512GetHash(Sha512* sha512, byte* hash)
+{
+    int ret;
+    Sha512 save;
+
+    if (sha512 == NULL || hash == NULL)
+        return BAD_FUNC_ARG;
+
+    save= *sha512;
+    ret = wc_Sha512Final(sha512, hash);
+    *sha512 = save;
+
+    return ret;
+}
+
 int wc_Sha512Hash(const byte* data, word32 len, byte* hash)
 {
     int ret = 0;
@@ -357,6 +372,21 @@ int wc_Sha512Hash(const byte* data, word32 len, byte* hash)
 }
 
 #if defined(WOLFSSL_SHA384)
+int wc_Sha384GetHash(Sha384* sha384, byte* hash)
+{
+    int ret;
+    Sha384 save;
+
+    if (sha384 == NULL || hash == NULL)
+        return BAD_FUNC_ARG;
+
+    save= *sha384;
+    ret = wc_Sha384Final(sha384, hash);
+    *sha384 = save;
+
+    return ret;
+}
+
 int wc_Sha384Hash(const byte* data, word32 len, byte* hash)
 {
     int ret = 0;

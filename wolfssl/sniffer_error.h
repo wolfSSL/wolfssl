@@ -117,6 +117,7 @@
 #define CLEAR_ACK_FAULT 80
 
 #define BAD_DECRYPT_SIZE 81
+#define EXTENDED_MASTER_HASH_STR 82
 /* !!!! also add to msgTable in sniffer.c and .rc file !!!! */
 
 
