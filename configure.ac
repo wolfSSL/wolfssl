@@ -2873,6 +2873,9 @@ AS_IF([test "x$ENABLED_CMAC" = "xyes" && \
 # Update CFLAGS based on options                                               #
 ################################################################################
 
+AS_IF([test "x$ENABLED_MCAPI" = "xyes"],
+      [AS_IF([test "x$ENABLED_DES3" = "xno"],[ENABLED_DES3="yes"])])
+
 if test "$ENABLED_WOLFSCEP" = "yes"
 then
     # Enable prereqs if not already enabled
