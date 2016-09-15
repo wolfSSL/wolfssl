@@ -6,7 +6,7 @@
 
 DIR=${PWD##*/}
 
-if [ "$DIR" == "ARDUINO" ]; then
+if [ "$DIR" = "ARDUINO" ]; then
     cp ../../src/*.c ../../
     cp ../../wolfcrypt/src/*.c ../../
     echo "/* stub header file for Arduino compatibility */" >> ../../wolfssl.h

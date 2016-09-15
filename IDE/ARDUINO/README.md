@@ -7,10 +7,16 @@ files to be in the library's root directory with a header file in the name of
 the library. This script moves all src/ files to the root wolfssl directory and 
 creates a stub header file called wolfssl.h.
 
-To configure wolfSSL with Arduino, enter the following from within the 
+Step 1: To configure wolfSSL with Arduino, enter the following from within the
 wolfssl/IDE/ARDUINO directory:
 
-    ./wolfssl-arduino.sh
+        ./wolfssl-arduino.sh
+
+
+Step 2: Edit <wolfssl-root>/wolfssl/wolfcrypt/settings.h uncomment the define for
+WOLFSSL_ARDUINO
+
+also uncomment the define for INTEL_GALILEO if building for that platform
     
 #####Including wolfSSL in Arduino Libraries (for Arduino version 1.6.6)
 1. Copy the wolfSSL directory into Arduino/libraries (or wherever Arduino searches for libraries).
