@@ -15,6 +15,7 @@
 #                       1024/client-cert.der
 #                       1024/client-cert.pem
 #                       server-ecc-comp.pem
+#                       client-ca.pem
 # updates the following crls:
 #                       crl/cliCrl.pem
 #                       crl/crl.pem
@@ -199,6 +200,13 @@ function run_renewcerts(){
 
     openssl x509 -in server-ecc-comp.pem -text > tmp.pem
     mv tmp.pem server-ecc-comp.pem
+
+    ############################################################
+    ############## create the client-ca.pem file ###############
+    ############################################################
+    echo "Updating client-ca.pem"
+    echo ""
+    cat client-cert.pem client-ecc-cert.pem > client-ca.pem
 
     ############################################################
     ########## make .der files from .pem files #################

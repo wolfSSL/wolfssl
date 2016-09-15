@@ -82,7 +82,7 @@ found_free_port=0
 while [ "$counter" -lt 20 ]; do
     echo -e "\nTrying to start openssl server on port $openssl_port...\n"
 
-    openssl s_server -accept $openssl_port -cert ./certs/server-cert.pem -key ./certs/server-key.pem  -quiet -CAfile ./certs/client-cert.pem -www  -dhparam ./certs/dh2048.pem -dcert ./certs/server-ecc.pem -dkey ./certs/ecc-key.pem -verify 10 -verify_return_error -cipher "ALL:eNULL" &
+    openssl s_server -accept $openssl_port -cert ./certs/server-cert.pem -key ./certs/server-key.pem  -quiet -CAfile ./certs/client-ca.pem -www  -dhparam ./certs/dh2048.pem -dcert ./certs/server-ecc.pem -dkey ./certs/ecc-key.pem -verify 10 -verify_return_error -cipher "ALL:eNULL" &
     server_pid=$!
     # wait to see if s_server successfully starts before continuing
     sleep 0.1
