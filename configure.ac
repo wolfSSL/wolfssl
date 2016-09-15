@@ -1491,6 +1491,11 @@ then
         AM_CFLAGS="$AM_CFLAGS -DHAVE_AESGCM"
         AM_CONDITIONAL([BUILD_SHA512], [test "x$ENABLED_SHA512" = "xyes"])
     fi
+    # requires DES3
+    if test "x$ENABLED_DES3" = "xno"
+    then
+        ENABLED_DES3="yes"
+    fi
     AM_CFLAGS="$AM_CFLAGS -DHAVE_FIPS"
 fi
 
