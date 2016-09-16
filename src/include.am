@@ -89,7 +89,11 @@ endif
 endif
 
 if BUILD_AES
+if BUILD_ARMASM
+src_libwolfssl_la_SOURCES += wolfcrypt/src/port/arm/armv8-aes.c
+else
 src_libwolfssl_la_SOURCES += wolfcrypt/src/aes.c
+endif
 endif
 
 if BUILD_CMAC

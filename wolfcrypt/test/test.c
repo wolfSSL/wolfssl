@@ -2815,6 +2815,7 @@ int aes_test(void)
                 ret = wc_AesCbcEncrypt(&enc, bigCipher, bigMsg, msgSz);
                 if (ret != 0)
                     return -1032;
+
                 ret = wc_AesCbcDecrypt(&dec, bigPlain, bigCipher, msgSz);
                 if (ret != 0)
                     return -1033;
@@ -2878,6 +2879,64 @@ int aes_test(void)
             0xc2
         };
 
+
+        /* test vector from "Recommendation for Block Cipher Modes of Operation"
+         * NIST Special Publication 800-38A */
+        const byte ctr192Key[] =
+        {
+            0x8e,0x73,0xb0,0xf7,0xda,0x0e,0x64,0x52,
+            0xc8,0x10,0xf3,0x2b,0x80,0x90,0x79,0xe5,
+            0x62,0xf8,0xea,0xd2,0x52,0x2c,0x6b,0x7b
+        };
+
+        const byte ctr192Iv[] =
+        {
+            0xf0,0xf1,0xf2,0xf3,0xf4,0xf5,0xf6,0xf7,
+            0xf8,0xf9,0xfa,0xfb,0xfc,0xfd,0xfe,0xff
+        };
+
+
+        const byte ctr192Plain[] =
+        {
+            0x6b,0xc1,0xbe,0xe2,0x2e,0x40,0x9f,0x96,
+            0xe9,0x3d,0x7e,0x11,0x73,0x93,0x17,0x2a
+        };
+
+        const byte ctr192Cipher[] =
+        {
+            0x1a,0xbc,0x93,0x24,0x17,0x52,0x1c,0xa2,
+            0x4f,0x2b,0x04,0x59,0xfe,0x7e,0x6e,0x0b
+        };
+
+        /* test vector from "Recommendation for Block Cipher Modes of Operation"
+         * NIST Special Publication 800-38A */
+        const byte ctr256Key[] =
+        {
+            0x60,0x3d,0xeb,0x10,0x15,0xca,0x71,0xbe,
+            0x2b,0x73,0xae,0xf0,0x85,0x7d,0x77,0x81,
+            0x1f,0x35,0x2c,0x07,0x3b,0x61,0x08,0xd7,
+            0x2d,0x98,0x10,0xa3,0x09,0x14,0xdf,0xf4
+        };
+
+        const byte ctr256Iv[] =
+        {
+            0xf0,0xf1,0xf2,0xf3,0xf4,0xf5,0xf6,0xf7,
+            0xf8,0xf9,0xfa,0xfb,0xfc,0xfd,0xfe,0xff
+        };
+
+
+        const byte ctr256Plain[] =
+        {
+            0x6b,0xc1,0xbe,0xe2,0x2e,0x40,0x9f,0x96,
+            0xe9,0x3d,0x7e,0x11,0x73,0x93,0x17,0x2a
+        };
+
+        const byte ctr256Cipher[] =
+        {
+            0x60,0x1e,0xc3,0x13,0x77,0x57,0x89,0xa5,
+            0xb7,0xa7,0xf5,0x04,0xbb,0xf3,0xd2,0x28
+        };
+
         wc_AesSetKeyDirect(&enc, ctrKey, AES_BLOCK_SIZE, ctrIv, AES_ENCRYPTION);
         /* Ctr only uses encrypt, even on key setup */
         wc_AesSetKeyDirect(&dec, ctrKey, AES_BLOCK_SIZE, ctrIv, AES_ENCRYPTION);
@@ -2914,6 +2973,40 @@ int aes_test(void)
 
         if (XMEMCMP(cipher, oddCipher, 9))
             return -71;
+
+        /* 192 bit key */
+        wc_AesSetKeyDirect(&enc, ctr192Key, sizeof(ctr192Key),
+                           ctr192Iv, AES_ENCRYPTION);
+        /* Ctr only uses encrypt, even on key setup */
+        wc_AesSetKeyDirect(&dec, ctr192Key, sizeof(ctr192Key),
+                           ctr192Iv, AES_ENCRYPTION);
+
+        XMEMSET(plain, 0, sizeof(plain));
+        wc_AesCtrEncrypt(&enc, plain, ctr192Cipher, sizeof(ctr192Cipher));
+
+        if (XMEMCMP(plain, ctr192Plain, sizeof(ctr192Plain)))
+            return -72;
+
+        wc_AesCtrEncrypt(&dec, cipher, ctr192Plain, sizeof(ctr192Plain));
+        if (XMEMCMP(ctr192Cipher, cipher, sizeof(ctr192Cipher)))
+            return -73;
+
+        /* 256 bit key */
+        wc_AesSetKeyDirect(&enc, ctr256Key, sizeof(ctr256Key),
+                           ctr256Iv, AES_ENCRYPTION);
+        /* Ctr only uses encrypt, even on key setup */
+        wc_AesSetKeyDirect(&dec, ctr256Key, sizeof(ctr256Key),
+                           ctr256Iv, AES_ENCRYPTION);
+
+        XMEMSET(plain, 0, sizeof(plain));
+        wc_AesCtrEncrypt(&enc, plain, ctr256Cipher, sizeof(ctr256Cipher));
+
+        if (XMEMCMP(plain, ctr256Plain, sizeof(ctr256Plain)))
+            return -74;
+
+        wc_AesCtrEncrypt(&dec, cipher, ctr256Plain, sizeof(ctr256Plain));
+        if (XMEMCMP(ctr256Cipher, cipher, sizeof(ctr256Cipher)))
+            return -75;
     }
 #endif /* WOLFSSL_AES_COUNTER */
 

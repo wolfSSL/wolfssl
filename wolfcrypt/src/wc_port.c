@@ -69,6 +69,10 @@ int wolfCrypt_Init()
         }
     #endif
 
+    #ifdef WOLFSSL_ARMASM
+        WOLFSSL_MSG("Using ARM hardware acceleration");
+    #endif
+
         initRefCount = 1;
     }
 
