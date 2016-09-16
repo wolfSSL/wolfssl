@@ -34,42 +34,54 @@
 #include <wolfssl/wolfcrypt/hash.h>
 
 
-#ifndef NO_ASN
+#if !defined(NO_ASN) || !defined(NO_DH) || defined(HAVE_ECC)
+
+#ifdef NO_ASN
+enum Hash_Sum  {
+    MD2h    = 646,
+    MD5h    = 649,
+    SHAh    =  88,
+    SHA256h = 414,
+    SHA384h = 415,
+    SHA512h = 416
+};
+#endif
+
 int wc_HashGetOID(enum wc_HashType hash_type)
 {
     int oid = HASH_TYPE_E; /* Default to hash type error */
     switch(hash_type)
     {
         case WC_HASH_TYPE_MD2:
-#ifdef WOLFSSL_MD2
+        #ifdef WOLFSSL_MD2
             oid = MD2h;
-#endif
+        #endif
             break;
         case WC_HASH_TYPE_MD5_SHA:
         case WC_HASH_TYPE_MD5:
-#ifndef NO_MD5
+        #ifndef NO_MD5
             oid = MD5h;
-#endif
+        #endif
             break;
         case WC_HASH_TYPE_SHA:
-#ifndef NO_SHA
+        #ifndef NO_SHA
             oid = SHAh;
-#endif
+        #endif
             break;
         case WC_HASH_TYPE_SHA256:
-#ifndef NO_SHA256
+        #ifndef NO_SHA256
             oid = SHA256h;
-#endif
+        #endif
             break;
         case WC_HASH_TYPE_SHA384:
-#if defined(WOLFSSL_SHA512) && defined(WOLFSSL_SHA384)
+        #if defined(WOLFSSL_SHA512) && defined(WOLFSSL_SHA384)
             oid = SHA384h;
-#endif
+        #endif
             break;
         case WC_HASH_TYPE_SHA512:
-#ifdef WOLFSSL_SHA512
+        #ifdef WOLFSSL_SHA512
             oid = SHA512h;
-#endif
+        #endif
             break;
 
         /* Not Supported */
@@ -312,6 +324,21 @@ int wc_Sha256Hash(const byte* data, word32 len, byte* hash)
 #endif /* !defined(WOLFSSL_TI_HASH) */
 
 #if defined(WOLFSSL_SHA512)
+int wc_Sha512GetHash(Sha512* sha512, byte* hash)
+{
+    int ret;
+    Sha512 save;
+
+    if (sha512 == NULL || hash == NULL)
+        return BAD_FUNC_ARG;
+
+    save= *sha512;
+    ret = wc_Sha512Final(sha512, hash);
+    *sha512 = save;
+
+    return ret;
+}
+
 int wc_Sha512Hash(const byte* data, word32 len, byte* hash)
 {
     int ret = 0;
@@ -345,6 +372,21 @@ int wc_Sha512Hash(const byte* data, word32 len, byte* hash)
 }
 
 #if defined(WOLFSSL_SHA384)
+int wc_Sha384GetHash(Sha384* sha384, byte* hash)
+{
+    int ret;
+    Sha384 save;
+
+    if (sha384 == NULL || hash == NULL)
+        return BAD_FUNC_ARG;
+
+    save= *sha384;
+    ret = wc_Sha384Final(sha384, hash);
+    *sha384 = save;
+
+    return ret;
+}
+
 int wc_Sha384Hash(const byte* data, word32 len, byte* hash)
 {
     int ret = 0;

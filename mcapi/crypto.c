@@ -223,6 +223,7 @@ int CRYPT_SHA512_Finalize(CRYPT_SHA512_CTX* sha512, unsigned char* digest)
 int CRYPT_HMAC_SetKey(CRYPT_HMAC_CTX* hmac, int type, const unsigned char* key,
                       unsigned int sz)
 {
+    /* compile-time check to verify CRYPT_HMAC_CTX is large enough to hold Hmac */
     typedef char hmac_test[sizeof(CRYPT_HMAC_CTX) >= sizeof(Hmac) ? 1 : -1];
     (void)sizeof(hmac_test);
 

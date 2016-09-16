@@ -62,8 +62,21 @@ endif
 src_libwolfssl_la_SOURCES += \
                wolfcrypt/src/hmac.c \
                wolfcrypt/src/random.c \
-               wolfcrypt/src/sha256.c \
                wolfcrypt/src/hash.c
+
+if BUILD_ARMASM
+src_libwolfssl_la_SOURCES += wolfcrypt/src/port/arm/armv8-sha256.c
+else
+src_libwolfssl_la_SOURCES += wolfcrypt/src/sha256.c
+endif
+
+if BUILD_WOLFEVENT
+src_libwolfssl_la_SOURCES += wolfcrypt/src/wolfevent.c
+endif
+
+if BUILD_ASYNCCRYPT
+src_libwolfssl_la_SOURCES += wolfcrypt/src/async.c
+endif
 
 if !BUILD_USER_RSA
 if BUILD_RSA
@@ -252,10 +265,6 @@ endif
 
 if BUILD_SNIFFER
 src_libwolfssl_la_SOURCES += src/sniffer.c
-endif
-
-if BUILD_ASYNCCRYPT
-src_libwolfssl_la_SOURCES += src/async.c
 endif
 
 endif # !BUILD_CRYPTONLY

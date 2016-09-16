@@ -56,11 +56,6 @@
     #define AesCcmDecrypt wc_AesCcmDecrypt
 #endif /* HAVE_AESCCM */
 
-#ifdef HAVE_CAVIUM
-    #define AesInitCavium wc_AesInitCavium
-    #define AesFreeCavium wc_AesFreeCavium
-#endif
-
 #endif /* CTAO_CRYPT_AES_H */
 #endif /* NO_AES */
 

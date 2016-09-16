@@ -289,6 +289,9 @@ typedef struct {
     int      size;
 #endif
     fp_digit dp[FP_SIZE];
+#ifdef WOLFSSL_ASYNC_CRYPT
+    byte *dpraw; /* Used for hardware crypto */
+#endif
 } fp_int;
 
 /* externally define this symbol to ignore the default settings, useful for changing the build from the make process */

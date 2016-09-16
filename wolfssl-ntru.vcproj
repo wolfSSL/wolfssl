@@ -322,6 +322,10 @@
 				RelativePath=".\wolfcrypt\src\wc_encrypt.c"
 				>
 			</File>
+			<File
+				RelativePath=".\wolfcrypt\src\wolfevent.c"
+				>
+			</File>
 		</Filter>
 		<Filter
 			Name="Header Files"

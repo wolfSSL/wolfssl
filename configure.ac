@@ -125,6 +125,71 @@ AS_IF([test "$ax_enable_debug" = "yes"],
       [AM_CFLAGS="$AM_CFLAGS -DNDEBUG"])
 
 
+# Distro build feature subset (Debian, Ubuntu, etc.)
+AC_ARG_ENABLE([distro],
+    [  --enable-distro         Enable wolfSSL distro build (default: disabled)],
+    [ ENABLED_DISTRO=$enableval ],
+    [ ENABLED_DISTRO=no ]
+    )
+if test "$ENABLED_DISTRO" = "yes"
+then
+    enable_shared=yes
+    enable_static=yes
+    enable_dtls=yes
+    enable_openssh=yes
+    enable_opensslextra=yes
+    enable_savesession=yes
+    enable_savecert=yes
+    enable_atomicuser=yes
+    enable_pkcallbacks=yes
+    enable_aesgcm=yes
+    enable_aesccm=yes
+    enable_camellia=yes
+    enable_ripemd=yes
+    enable_sha512=yes
+    enable_sessioncerts=yes
+    enable_keygen=yes
+    enable_certgen=yes
+    enable_certreq=yes
+    enable_certext=yes
+    enable_sep=yes
+    enable_hkdf=yes
+    enable_dsa=yes
+    enable_ecccustcurves=yes
+    enable_compkey=yes
+    enable_curve25519=yes
+    enable_ed25519=yes
+    enable_fpecc=yes
+    enable_eccencrypt=yes
+    enable_psk=yes
+    enable_idea=yes
+    enable_cmac=yes
+    enable_webserver=yes
+    enable_hc128=yes
+    enable_rabbit=yes
+    enable_ocsp=yes
+    enable_ocspstapling=yes
+    enable_ocspstapling2=yes
+    enable_crl=yes
+    enable_crl_monitor=yes
+    enable_sni=yes
+    enable_maxfragment=yes
+    enable_alpn=yes
+    enable_truncatedhmac=yes
+    enable_supportedcurves=yes
+    enable_session_ticket=yes
+    enable_tlsx=yes
+    enable_pkcs7=yes
+    enable_scep=yes
+    enable_srp=yes
+    enable_certservice=yes
+    enable_jni=yes
+    enable_lighty=yes
+    enable_stunnel=yes
+    enable_pwdbased=yes
+fi
+
+
 # SINGLE THREADED
 AC_ARG_ENABLE([singlethreaded],
     [  --enable-singlethreaded Enable wolfSSL single threaded (default: disabled)],
@@ -154,6 +219,29 @@ if test "$ENABLED_DTLS" = "yes"
 then
   AM_CFLAGS="-DWOLFSSL_DTLS $AM_CFLAGS"
 fi
+
+
+# DTLS-SCTP
+AC_ARG_ENABLE([sctp],
+    [AS_HELP_STRING([--enable-sctp],[Enable wolfSSL DTLS-SCTP support (default: disabled)])],
+    [ENABLED_SCTP=$enableval],
+    [ENABLED_SCTP=no])
+
+AM_CONDITIONAL([BUILD_SCTP], [test "x$ENABLED_SCTP" = "xyes"])
+
+AS_IF([test "x$ENABLED_SCTP" = "xyes"],
+        [AC_MSG_CHECKING([for SCTP])
+         AC_RUN_IFELSE(
+            [AC_LANG_PROGRAM(
+[[
+#include <sys/socket.h>
+#include <arpa/inet.h>
+]],
+[[int s = socket(AF_INET, SOCK_STREAM, IPPROTO_SCTP); if (s == -1) return 1;]])],
+[AC_MSG_RESULT(yes)],
+[AC_MSG_RESULT(no)
+ AC_MSG_ERROR([SCTP not available, remove enable-sctp from configure])])
+])
 
 
 # OpenSSH compatibility Build
@@ -453,6 +541,24 @@ fi
 
 AM_CONDITIONAL([BUILD_AESCCM], [test "x$ENABLED_AESCCM" = "xyes"])
 
+
+# AES-ARM
+AC_ARG_ENABLE([armasm],
+    [AS_HELP_STRING([--enable-armasm],[Enable wolfSSL ARM ASM support (default: disabled)])],
+    [ ENABLED_ARMASM=$enableval ],
+    [ ENABLED_ARMASM=no ]
+    )
+if test "$ENABLED_ARMASM" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ARMASM"
+    if test "$GCC" = "yes"
+    then
+        # GCC needs this flag
+        AM_CFLAGS="$AM_CFLAGS -mcpu=generic+crypto"
+    fi
+fi
+
+AM_CONDITIONAL([BUILD_ARMASM], [test "x$ENABLED_ARMASM" = "xyes"])
 
 # AES-NI
 AC_ARG_ENABLE([aesni],
@@ -1869,6 +1975,18 @@ then
     AM_CFLAGS="$AM_CFLAGS -DHAVE_TLS_EXTENSIONS -DHAVE_SESSION_TICKET"
 fi
 
+# Extended Master Secret Extension
+AC_ARG_ENABLE([extended-master],
+    [AS_HELP_STRING([--enable-extended-master],[Enable Extended Master Secret (default: enabled)])],
+    [ ENABLED_EXTENDED_MASTER=$enableval ],
+    [ ENABLED_EXTENDED_MASTER=yes ]
+    )
+
+if test "x$ENABLED_EXTENDED_MASTER" = "xyes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_EXTENDED_MASTER"
+fi
+
 # TLS Extensions
 AC_ARG_ENABLE([tlsx],
     [  --enable-tlsx           Enable all TLS Extensions (default: disabled)],
@@ -2439,27 +2557,68 @@ AC_ARG_WITH([cavium],
         AC_MSG_CHECKING([for cavium])
         CPPFLAGS="$CPPFLAGS -DHAVE_CAVIUM"
 
-            if test "x$withval" == "xyes" ; then
-                AC_MSG_ERROR([need a PATH for --with-cavium])
-            fi
-            if test "x$withval" != "xno" ; then
-                trycaviumdir=$withval
-            fi
+        if test "x$withval" == "xyes" ; then
+            AC_MSG_ERROR([need a PATH for --with-cavium])
+        fi
+        if test "x$withval" != "xno" ; then
+            trycaviumdir=$withval
+        fi
 
-            LDFLAGS="$AM_LDFLAGS $trycaviumdir/api/cavium_common.o"
-            CPPFLAGS="$CPPFLAGS -I$trycaviumdir/include"
+        LDFLAGS="$AM_LDFLAGS $trycaviumdir/api/cavium_common.o"
+        CPPFLAGS="$CPPFLAGS -I$trycaviumdir/include"
 
-            AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include "cavium_common.h"]], [[ CspShutdown(CAVIUM_DEV_ID); ]])],[ cavium_linked=yes ],[ cavium_linked=no ])
+        AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include "cavium_common.h"]], [[ CspShutdown(CAVIUM_DEV_ID); ]])],[ cavium_linked=yes ],[ cavium_linked=no ])
 
-            if test "x$cavium_linked" == "xno" ; then
-                AC_MSG_ERROR([cavium isn't found.
-                If it's already installed, specify its path using --with-cavium=/dir/])
-            fi
-            AC_MSG_RESULT([yes])
-            enable_shared=no
-            enable_static=yes
+        if test "x$cavium_linked" == "xno" ; then
+            AC_MSG_ERROR([cavium isn't found.
+            If it's already installed, specify its path using --with-cavium=/dir/])
+        fi
+        AC_MSG_RESULT([yes])
+        enable_shared=no
+        enable_static=yes
+        ENABLED_CAVIUM=yes
+    ],
+    [ ENABLED_CAVIUM=no ]
+)
+
+# cavium V
+trycaviumdir=""
+AC_ARG_WITH([cavium-v],
+    [  --with-cavium-v=PATH    PATH to Cavium V/software dir ],
+    [
+        AC_MSG_CHECKING([for cavium])
+        CPPFLAGS="$CPPFLAGS -DHAVE_CAVIUM -DHAVE_CAVIUM_V"
+
+        if test "x$withval" == "xyes" ; then
+            AC_MSG_ERROR([need a PATH for --with-cavium])
+        fi
+        if test "x$withval" != "xno" ; then
+            trycaviumdir=$withval
+        fi
+
+        LDFLAGS="$AM_LDFLAGS $trycaviumdir/utils/sample_tests/cavium_common.o $trycaviumdir/utils/sample_tests/cavium_sym_crypto.o $trycaviumdir/utils/sample_tests/cavium_asym_crypto.o"
+        CPPFLAGS="$CPPFLAGS -I$trycaviumdir/include"
+
+        #AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include "cavium_common.h"]], [[ CspShutdown(0); ]])],[ cavium_linked=yes ],[ cavium_linked=no ])
+
+        if test "x$cavium_linked" == "xno" ; then
+            AC_MSG_ERROR([cavium isn't found.
+            If it's already installed, specify its path using --with-cavium-v=/dir/])
+        fi
+        AC_MSG_RESULT([yes])
+
+        enable_shared=no
+        enable_static=yes
+        ENABLED_CAVIUM=yes
+        ENABLED_CAVIUM_V=yes
+    ],
+    [
+        ENABLED_CAVIUM_=no
+        ENABLED_CAVIUM_V=no
     ]
 )
+
+AM_CONDITIONAL([BUILD_CAVIUM], [test "x$ENABLED_CAVIUM" = "xyes"])
 
 
 # Fast RSA using Intel IPP
@@ -2668,7 +2827,7 @@ AC_ARG_ENABLE([asynccrypt],
 
 if test "$ENABLED_ASYNCCRYPT" = "yes"
 then
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ASYNC_CRYPT"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ASYNC_CRYPT -DHAVE_WOLF_EVENT"
     
     # if Cavium not enabled the use async simulator for testing
     if test "x$ENABLED_CAVIUM" = "xno"
@@ -2678,6 +2837,9 @@ then
 fi
 
 AM_CONDITIONAL([BUILD_ASYNCCRYPT], [test "x$ENABLED_ASYNCCRYPT" = "xyes"])
+
+AM_CONDITIONAL([BUILD_WOLFEVENT], [test "x$ENABLED_ASYNCCRYPT" = "xyes"])
+
 
 
 # Session Export
@@ -2776,6 +2938,15 @@ AS_IF([test "x$ENABLED_MAXSTRENGTH" = "xyes" && \
 AS_IF([test "x$ENABLED_MAXSTRENGTH" = "xyes" && \
        test "x$ENABLED_SSLV3" = "xyes"],
       [AC_MSG_ERROR([Cannot use Max Strength and SSLv3 at the same time.])])
+
+AS_IF([test "x$ENABLED_SCTP" = "xyes"],
+      [AM_CFLAGS="-DWOLFSSL_SCTP $AM_CFLAGS"])
+
+# SCTP requires DTLS
+AS_IF([test "x$ENABLED_DTLS" = "xno" && \
+       test "x$ENABLED_SCTP" = "xyes"],
+      [AM_CFLAGS="-DWOLFSSL_DTLS $AM_CFLAGS"
+       ENABLED_DTLS=yes])
 
 ################################################################################
 
@@ -2986,6 +3157,7 @@ echo "   * Filesystem:                 $ENABLED_FILESYSTEM"
 echo "   * OpenSSH Build:              $ENABLED_OPENSSH"
 echo "   * OpenSSL Extra API:          $ENABLED_OPENSSLEXTRA"
 echo "   * Max Strength Build:         $ENABLED_MAXSTRENGTH"
+echo "   * Distro Build:               $ENABLED_DISTRO"
 echo "   * fastmath:                   $ENABLED_FASTMATH"
 echo "   * sniffer:                    $ENABLED_SNIFFER"
 echo "   * snifftest:                  $ENABLED_SNIFFTEST"
@@ -3037,6 +3209,7 @@ echo "   * LIGHTY:                     $ENABLED_LIGHTY"
 echo "   * STUNNEL:                    $ENABLED_STUNNEL"
 echo "   * ERROR_STRINGS:              $ENABLED_ERROR_STRINGS"
 echo "   * DTLS:                       $ENABLED_DTLS"
+echo "   * SCTP:                       $ENABLED_SCTP"
 echo "   * Old TLS Versions:           $ENABLED_OLD_TLS"
 echo "   * SSL version 3.0:            $ENABLED_SSLV3"
 echo "   * OCSP:                       $ENABLED_OCSP"
@@ -3056,6 +3229,7 @@ echo "   * Maximum Fragment Length:    $ENABLED_MAX_FRAGMENT"
 echo "   * Truncated HMAC:             $ENABLED_TRUNCATED_HMAC"
 echo "   * Supported Elliptic Curves:  $ENABLED_SUPPORTED_CURVES"
 echo "   * Session Ticket:             $ENABLED_SESSION_TICKET"
+echo "   * Extended Master Secret:     $ENABLED_EXTENDED_MASTER"
 echo "   * Renegotiation Indication:   $ENABLED_RENEGOTIATION_INDICATION"
 echo "   * Secure Renegotiation:       $ENABLED_SECURE_RENEGOTIATION"
 echo "   * All TLS Extensions:         $ENABLED_TLSX"
@@ -3069,6 +3243,8 @@ echo "   * Examples:                   $ENABLED_EXAMPLES"
 echo "   * User Crypto:                $ENABLED_USER_CRYPTO"
 echo "   * Fast RSA:                   $ENABLED_FAST_RSA"
 echo "   * Async Crypto:               $ENABLED_ASYNCCRYPT"
+echo "   * Cavium:                     $ENABLED_CAVIUM"
+echo "   * ARM ASM:                    $ENABLED_ARMASM"
 echo ""
 echo "---"
 

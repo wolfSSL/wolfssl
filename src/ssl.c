@@ -547,6 +547,61 @@ int wolfSSL_dtls_get_peer(WOLFSSL* ssl, void* peer, unsigned int* peerSz)
     return SSL_NOT_IMPLEMENTED;
 #endif
 }
+
+
+#if defined(WOLFSSL_SCTP) && defined(WOLFSSL_DTLS)
+
+int wolfSSL_CTX_dtls_set_sctp(WOLFSSL_CTX* ctx)
+{
+    WOLFSSL_ENTER("wolfSSL_CTX_dtls_set_sctp()");
+
+    if (ctx == NULL)
+        return BAD_FUNC_ARG;
+
+    ctx->dtlsSctp = 1;
+    return SSL_SUCCESS;
+}
+
+
+int wolfSSL_dtls_set_sctp(WOLFSSL* ssl)
+{
+    WOLFSSL_ENTER("wolfSSL_dtls_set_sctp()");
+
+    if (ssl == NULL)
+        return BAD_FUNC_ARG;
+
+    ssl->options.dtlsSctp = 1;
+    return SSL_SUCCESS;
+}
+
+
+int wolfSSL_CTX_dtls_set_mtu(WOLFSSL_CTX* ctx, word16 newMtu)
+{
+    if (ctx == NULL || newMtu > MAX_RECORD_SIZE)
+        return BAD_FUNC_ARG;
+
+    ctx->dtlsMtuSz = newMtu;
+    return SSL_SUCCESS;
+}
+
+
+int wolfSSL_dtls_set_mtu(WOLFSSL* ssl, word16 newMtu)
+{
+    if (ssl == NULL)
+        return BAD_FUNC_ARG;
+
+    if (newMtu > MAX_RECORD_SIZE) {
+        ssl->error = BAD_FUNC_ARG;
+        return SSL_FAILURE;
+    }
+
+    ssl->dtlsMtuSz = newMtu;
+    return SSL_SUCCESS;
+}
+
+
+#endif /* WOLFSSL_DTLS && WOLFSSL_SCTP */
+
 #endif /* WOLFSSL_LEANPSK */
 
 
@@ -638,31 +693,9 @@ int wolfSSL_GetObjectSize(void)
     return sizeof(WOLFSSL);
 }
 #endif
+
+
 #ifdef WOLFSSL_STATIC_MEMORY
-
-
-int wolfSSL_init_memory_heap(WOLFSSL_HEAP* heap)
-{
-    word32 wc_MemSz[WOLFMEM_DEF_BUCKETS] = { WOLFMEM_BUCKETS };
-    word32 wc_Dist[WOLFMEM_DEF_BUCKETS]  = { WOLFMEM_DIST };
-
-    if (heap == NULL) {
-        return BAD_FUNC_ARG;
-    }
-
-    XMEMSET(heap, 0, sizeof(WOLFSSL_HEAP));
-
-    XMEMCPY(heap->sizeList, wc_MemSz, sizeof(wc_MemSz));
-    XMEMCPY(heap->distList, wc_Dist,  sizeof(wc_Dist));
-
-    if (InitMutex(&(heap->memory_mutex)) != 0) {
-        WOLFSSL_MSG("Error creating heap memory mutex");
-        return BAD_MUTEX_E;
-    }
-
-    return SSL_SUCCESS;
-}
-
 
 int wolfSSL_CTX_load_static_memory(WOLFSSL_CTX** ctx, wolfSSL_method_func method,
                                    unsigned char* buf, unsigned int sz,
@@ -680,34 +713,23 @@ int wolfSSL_CTX_load_static_memory(WOLFSSL_CTX** ctx, wolfSSL_method_func method
         return BAD_FUNC_ARG;
     }
 
-    if (*ctx == NULL) {
+    if (*ctx == NULL || (*ctx)->heap == NULL) {
         if (sizeof(WOLFSSL_HEAP) + sizeof(WOLFSSL_HEAP_HINT) > sz - idx) {
             return BUFFER_E; /* not enough memory for structures */
         }
         heap = (WOLFSSL_HEAP*)buf;
         idx += sizeof(WOLFSSL_HEAP);
-        if (wolfSSL_init_memory_heap(heap) != SSL_SUCCESS) {
+        if (wolfSSL_init_memory_heap(heap) != 0) {
             return SSL_FAILURE;
         }
         hint = (WOLFSSL_HEAP_HINT*)(buf + idx);
         idx += sizeof(WOLFSSL_HEAP_HINT);
         XMEMSET(hint, 0, sizeof(WOLFSSL_HEAP_HINT));
         hint->memory = heap;
-    }
-    else if ((*ctx)->heap == NULL) {
-        if (sizeof(WOLFSSL_HEAP) + sizeof(WOLFSSL_HEAP_HINT) > sz - idx) {
-            return BUFFER_E; /* not enough memory for structures */
+
+        if (*ctx && (*ctx)->heap == NULL) {
+            (*ctx)->heap = (void*)hint;
         }
-        heap = (WOLFSSL_HEAP*)buf;
-        idx += sizeof(WOLFSSL_HEAP);
-        if (wolfSSL_init_memory_heap(heap) != SSL_SUCCESS) {
-            return SSL_FAILURE;
-        }
-        hint = (WOLFSSL_HEAP_HINT*)(buf + idx);
-        idx += sizeof(WOLFSSL_HEAP_HINT);
-        XMEMSET(hint, 0, sizeof(WOLFSSL_HEAP_HINT));
-        hint->memory = heap;
-        (*ctx)->heap = (void*)hint;
     }
     else {
 #ifdef WOLFSSL_HEAP_TEST
@@ -767,7 +789,7 @@ int wolfSSL_is_static_memory(WOLFSSL* ssl, WOLFSSL_MEM_CONN_STATS* mem_stats)
         }
     }
 
-    return (ssl->heap)? 1 : 0;
+    return (ssl->heap) ? 1 : 0;
 }
 
 
@@ -786,7 +808,7 @@ int wolfSSL_CTX_is_static_memory(WOLFSSL_CTX* ctx, WOLFSSL_MEM_STATS* mem_stats)
         }
     }
 
-    return (ctx->heap)? 1 : 0;
+    return (ctx->heap) ? 1 : 0;
 }
 
 #endif /* WOLFSSL_STATIC_MEMORY */
@@ -1053,17 +1075,22 @@ static int wolfSSL_read_internal(WOLFSSL* ssl, void* data, int sz, int peek)
 #ifdef HAVE_ERRNO_H
         errno = 0;
 #endif
+
 #ifdef WOLFSSL_DTLS
-    if (ssl->options.dtls)
+    if (ssl->options.dtls) {
         ssl->dtls_expected_rx = max(sz + 100, MAX_MTU);
+#ifdef WOLFSSL_SCTP
+        if (ssl->options.dtlsSctp)
+            ssl->dtls_expected_rx = max(ssl->dtls_expected_rx, ssl->dtlsMtuSz);
+#endif
+    }
 #endif
 
+    sz = min(sz, OUTPUT_RECORD_SIZE);
 #ifdef HAVE_MAX_FRAGMENT
-    ret = ReceiveData(ssl, (byte*)data,
-                      min(sz, min(ssl->max_fragment, OUTPUT_RECORD_SIZE)),peek);
-#else
-    ret = ReceiveData(ssl, (byte*)data, min(sz, OUTPUT_RECORD_SIZE), peek);
+    sz = min(sz, ssl->max_fragment);
 #endif
+    ret = ReceiveData(ssl, (byte*)data, sz, peek);
 
     WOLFSSL_LEAVE("wolfSSL_read_internal()", ret);
 
@@ -1090,10 +1117,10 @@ int wolfSSL_read(WOLFSSL* ssl, void* data, int sz)
 }
 
 
-#ifdef HAVE_CAVIUM
+#ifdef WOLFSSL_ASYNC_CRYPT
 
-/* let's use cavium, SSL_SUCCESS on ok */
-int wolfSSL_UseCavium(WOLFSSL* ssl, int devId)
+/* let's use async hardware, SSL_SUCCESS on ok */
+int wolfSSL_UseAsync(WOLFSSL* ssl, int devId)
 {
     if (ssl == NULL)
         return BAD_FUNC_ARG;
@@ -1104,8 +1131,8 @@ int wolfSSL_UseCavium(WOLFSSL* ssl, int devId)
 }
 
 
-/* let's use cavium, SSL_SUCCESS on ok */
-int wolfSSL_CTX_UseCavium(WOLFSSL_CTX* ctx, int devId)
+/* let's use async hardware, SSL_SUCCESS on ok */
+int wolfSSL_CTX_UseAsync(WOLFSSL_CTX* ctx, int devId)
 {
     if (ctx == NULL)
         return BAD_FUNC_ARG;
@@ -1115,8 +1142,7 @@ int wolfSSL_CTX_UseCavium(WOLFSSL_CTX* ctx, int devId)
     return SSL_SUCCESS;
 }
 
-
-#endif /* HAVE_CAVIUM */
+#endif /* WOLFSSL_ASYNC_CRYPT */
 
 #ifdef HAVE_SNI
 
@@ -1722,6 +1748,35 @@ WOLFSSL_API int wolfSSL_set_SessionTicket_cb(WOLFSSL* ssl,
     return SSL_SUCCESS;
 }
 #endif
+
+
+#ifdef HAVE_EXTENDED_MASTER
+#ifndef NO_WOLFSSL_CLIENT
+
+int wolfSSL_CTX_DisableExtendedMasterSecret(WOLFSSL_CTX* ctx)
+{
+    if (ctx == NULL)
+        return BAD_FUNC_ARG;
+
+    ctx->haveEMS = 0;
+
+    return SSL_SUCCESS;
+}
+
+
+int wolfSSL_DisableExtendedMasterSecret(WOLFSSL* ssl)
+{
+    if (ssl == NULL)
+        return BAD_FUNC_ARG;
+
+    ssl->options.haveEMS = 0;
+
+    return SSL_SUCCESS;
+}
+
+#endif
+#endif
+
 
 #ifndef WOLFSSL_LEANPSK
 
@@ -4544,7 +4599,7 @@ int wolfSSL_CertManagerCheckOCSP(WOLFSSL_CERT_MANAGER* cm, byte* der, int sz)
 
     InitDecodedCert(cert, der, sz, NULL);
 
-    if ((ret = ParseCertRelative(cert, CERT_TYPE, NO_VERIFY, cm)) != 0) {
+    if ((ret = ParseCertRelative(cert, CERT_TYPE, VERIFY_OCSP, cm)) != 0) {
         WOLFSSL_MSG("ParseCert failed");
     }
     else if ((ret = CheckCertOCSP(cm->ocsp, cert, NULL)) != 0) {
@@ -5020,7 +5075,7 @@ int wolfSSL_CertManagerCheckCRL(WOLFSSL_CERT_MANAGER* cm, byte* der, int sz)
 
     InitDecodedCert(cert, der, sz, NULL);
 
-    if ((ret = ParseCertRelative(cert, CERT_TYPE, NO_VERIFY, cm)) != 0) {
+    if ((ret = ParseCertRelative(cert, CERT_TYPE, VERIFY_CRL, cm)) != 0) {
         WOLFSSL_MSG("ParseCert failed");
     }
     else if ((ret = CheckCertCRL(cm->crl, cert)) != 0) {
@@ -6787,6 +6842,21 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
         }
     #endif
 
+    /* If SCTP is not enabled returns the state of the dtls option.
+     * If SCTP is enabled returns dtls && !sctp. */
+    static INLINE int IsDtlsNotSctpMode(WOLFSSL* ssl)
+    {
+        int result = ssl->options.dtls;
+
+        if (result) {
+        #ifdef WOLFSSL_SCTP
+            result = !ssl->options.dtlsSctp;
+        #endif
+        }
+
+        return result;
+    }
+
     /* please see note at top of README if you get an error from connect */
     int wolfSSL_connect(WOLFSSL* ssl)
     {
@@ -6856,7 +6926,7 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
                 /* In DTLS, when resuming, we can go straight to FINISHED,
                  * or do a cookie exchange and then skip to FINISHED, assume
                  * we need the cookie exchange first. */
-                if (ssl->options.dtls)
+                if (IsDtlsNotSctpMode(ssl))
                     neededState = SERVER_HELLOVERIFYREQUEST_COMPLETE;
             #endif
             /* get response */
@@ -6868,7 +6938,7 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
                 /* if resumption failed, reset needed state */
                 else if (neededState == SERVER_FINISHED_COMPLETE)
                     if (!ssl->options.resuming) {
-                        if (!ssl->options.dtls)
+                        if (!IsDtlsNotSctpMode(ssl))
                             neededState = SERVER_HELLODONE_COMPLETE;
                         else
                             neededState = SERVER_HELLOVERIFYREQUEST_COMPLETE;
@@ -6883,7 +6953,7 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
                 return SSL_SUCCESS;
 
             #ifdef WOLFSSL_DTLS
-                if (ssl->options.dtls) {
+                if (IsDtlsNotSctpMode(ssl)) {
                     /* re-init hashes, exclude first hello and verify request */
 #ifndef NO_OLD_TLS
                     wc_InitMd5(&ssl->hsHashes->hashMd5);
@@ -6928,7 +6998,7 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
 
         case HELLO_AGAIN_REPLY :
             #ifdef WOLFSSL_DTLS
-                if (ssl->options.dtls) {
+                if (IsDtlsNotSctpMode(ssl)) {
                     neededState = ssl->options.resuming ?
                            SERVER_FINISHED_COMPLETE : SERVER_HELLODONE_COMPLETE;
 
@@ -7806,6 +7876,7 @@ int AddSession(WOLFSSL* ssl)
 
     XMEMCPY(SessionCache[row].Sessions[idx].masterSecret,
            ssl->arrays->masterSecret, SECRET_LEN);
+    SessionCache[row].Sessions[idx].haveEMS = ssl->options.haveEMS;
     XMEMCPY(SessionCache[row].Sessions[idx].sessionID, ssl->arrays->sessionID,
            ID_LEN);
     SessionCache[row].Sessions[idx].sessionIDSz = ssl->arrays->sessionIDSz;
@@ -19016,118 +19087,38 @@ void* wolfSSL_get_jobject(WOLFSSL* ssl)
 
 #endif /* WOLFSSL_JNI */
 
-#ifdef HAVE_WOLF_EVENT
-static int _wolfSSL_CTX_poll(WOLFSSL_CTX* ctx, WOLFSSL* ssl, WOLF_EVENT* events,
-    int maxEvents, unsigned char flags, int* eventCount)
+
+#ifdef WOLFSSL_ASYNC_CRYPT
+int wolfSSL_CTX_AsyncPoll(WOLFSSL_CTX* ctx, WOLF_EVENT** events, int maxEvents,
+    WOLF_EVENT_FLAG flags, int* eventCount)
 {
-    WOLF_EVENT* event, *event_prev = NULL;
-    int count = 0, ret = SSL_ERROR_NONE;
-
-    if (ctx == NULL || maxEvents <= 0) {
+    if (ctx == NULL) {
         return BAD_FUNC_ARG;
     }
 
-    /* Events arg can be NULL only if peek */
-    if (events == NULL && !(flags & WOLF_POLL_FLAG_PEEK)) {
+    return wolfAsync_EventQueuePoll(&ctx->event_queue, NULL,
+                                        events, maxEvents, flags, eventCount);
+}
+
+int wolfSSL_AsyncPoll(WOLFSSL* ssl, WOLF_EVENT_FLAG flags)
+{
+    int ret, eventCount = 0;
+    WOLF_EVENT* events[1];
+
+    if (ssl == NULL) {
         return BAD_FUNC_ARG;
     }
 
-#ifndef SINGLE_THREADED
-    /* In single threaded mode "event_queue.lock" doesn't exist */
-    if (LockMutex(&ctx->event_queue.lock) != 0) {
-        return BAD_MUTEX_E;
-    }
-#endif
-
-    /* Itterate event queue */
-    for (event = ctx->event_queue.head; event != NULL; event = event->next)
-    {
-        byte removeEvent = 0;
-
-        /* Optionally filter by ssl object pointer */
-        if (ssl == NULL || (ssl == event->ssl)) {
-            if (flags & WOLF_POLL_FLAG_PEEK) {
-                if (events) {
-                    /* Copy event data to provided buffer */
-                    XMEMCPY(&events[count], event, sizeof(WOLF_EVENT));
-                }
-                count++;
-            }
-            else {
-                /* Check hardware */
-                if (flags & WOLF_POLL_FLAG_CHECK_HW) {
-                #ifdef WOLFSSL_ASYNC_CRYPT
-                    if (event->type >= WOLF_EVENT_TYPE_ASYNC_FIRST &&
-                        event->type <= WOLF_EVENT_TYPE_ASYNC_LAST)
-                    {
-                        ret = wolfSSL_async_poll(event, flags);
-                    }
-                #endif /* WOLFSSL_ASYNC_CRYPT */
-                }
-
-                /* If event is done then return in 'events' argument */
-                if (event->done) {
-                    /* Copy event data to provided buffer */
-                    XMEMCPY(&events[count], event, sizeof(WOLF_EVENT));
-                    count++;
-                    removeEvent = 1;
-                }
-            }
-        }
-
-        if (removeEvent) {
-            /* Remove from queue list */
-            if (event_prev == NULL) {
-                ctx->event_queue.head = event->next;
-                if (ctx->event_queue.head == NULL) {
-                    ctx->event_queue.tail = NULL;
-                }
-            }
-            else {
-                event_prev->next = event->next;
-            }
-        }
-        else {
-            /* Leave in queue, save prev pointer */
-            event_prev = event;
-        }
-
-        /* Check to make sure our event list isn't full */
-        if (events && count >= maxEvents) {
-            break; /* Exit for */
-        }
-
-        /* Check for error */
-        if (ret < 0) {
-            break; /* Exit for */
-        }
-    }
-
-#ifndef SINGLE_THREADED
-    UnLockMutex(&ctx->event_queue.lock);
-#endif
-
-    /* Return number of properly populated events */
-    if (eventCount) {
-        *eventCount = count;
+    /* not filtering on "ssl", since its the asyncDev */
+    ret = wolfAsync_EventQueuePoll(&ssl->ctx->event_queue, NULL,
+        events, sizeof(events)/sizeof(events), flags, &eventCount);
+    if (ret == 0 && eventCount > 0) {
+        ret = 1; /* Success */
     }
 
     return ret;
 }
+#endif /* WOLFSSL_ASYNC_CRYPT */
 
-int wolfSSL_CTX_poll(WOLFSSL_CTX* ctx, WOLF_EVENT* events,
-    int maxEvents, unsigned char flags, int* eventCount)
-{
-    return _wolfSSL_CTX_poll(ctx, NULL, events, maxEvents, flags, eventCount);
-}
-
-int wolfSSL_poll(WOLFSSL* ssl, WOLF_EVENT* events,
-    int maxEvents, unsigned char flags, int* eventCount)
-{
-    return _wolfSSL_CTX_poll(ssl->ctx, ssl, events, maxEvents, flags,
-        eventCount);
-}
-
-#endif /* HAVE_WOLF_EVENT */
 
 #endif /* WOLFCRYPT_ONLY */

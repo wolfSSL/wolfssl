@@ -20,8 +20,8 @@ if test -d .git; then
   touch ./ctaocrypt/src/fips_test.c
 
   # touch async crypt files
-  touch ./src/async.c
-  touch ./wolfssl/async.h
+  touch ./wolfcrypt/src/async.c
+  touch ./wolfssl/wolfcrypt/async.h
 else
   WARNINGS="all"
 fi

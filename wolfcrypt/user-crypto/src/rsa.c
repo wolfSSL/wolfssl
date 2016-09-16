@@ -74,7 +74,7 @@ enum {
 };
 
 
-int wc_InitRsaKey(RsaKey* key, void* heap)
+int wc_InitRsaKey_ex(RsaKey* key, void* heap, int devId)
 {
 
     USER_DEBUG(("Entering wc_InitRsaKey\n"));
@@ -87,8 +87,14 @@ int wc_InitRsaKey(RsaKey* key, void* heap)
 
     USER_DEBUG(("\tExit wc_InitRsaKey\n"));
 
+    (void)devId;
     (void)heap;
     return 0;
+}
+
+int wc_InitRsaKey(RsaKey* key, void* heap)
+{
+    return wc_InitRsaKey_ex(key, heap, INVALID_DEVID);
 }
 
 

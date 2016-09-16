@@ -26,21 +26,6 @@
 
 THREAD_RETURN WOLFSSL_THREAD client_test(void* args);
 
-/* Measures average time to create, connect and disconnect a connection (TPS).
-Benchmark = number of connections. */
-int ClientBenchmarkConnections(WOLFSSL_CTX* ctx, char* host, word16 port,
-	int doDTLS, int benchmark, int resumeSession);
-
-/* Measures throughput in kbps. Throughput = number of bytes */
-int ClientBenchmarkThroughput(WOLFSSL_CTX* ctx, char* host, word16 port,
-	int doDTLS, int throughput);
-
-/* Initiates the STARTTLS command sequence over TCP */
-int StartTLS_Init(SOCKET_T* sockfd);
-
-/* Closes down the SMTP connection */
-int SMTP_Shutdown(WOLFSSL* ssl, int wc_shutdown);
-
 
 #endif /* WOLFSSL_CLIENT_H */
 

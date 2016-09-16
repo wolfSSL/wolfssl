@@ -31,13 +31,6 @@
 #include <wolfssl/wolfcrypt/des3.h>
 
 #ifdef HAVE_FIPS
-#ifdef HAVE_CAVIUM
-    static int wc_Des3_CaviumSetKey(Des3* des3, const byte* key, const byte* iv);
-    static int wc_Des3_CaviumCbcEncrypt(Des3* des3, byte* out, const byte* in,
-                                      word32 length);
-    static int wc_Des3_CaviumCbcDecrypt(Des3* des3, byte* out, const byte* in,
-                                      word32 length);
-#endif
 
 int wc_Des_SetKey(Des* des, const byte* key, const byte* iv, int dir)
 {
@@ -98,23 +91,24 @@ int wc_Des3_SetIV(Des3* des, const byte* iv)
 }
 
 
-#ifdef HAVE_CAVIUM
+#ifdef WOLFSSL_ASYNC_CRYPT
 
 /* Initialize Des3 for use with Nitrox device */
-int wc_Des3_InitCavium(Des3* des3, int devId)
+int wc_Des3AsyncInit(Des3* des3, int devId)
 {
-    return Des3_InitCavium(des3, devId);
+    return Des3AsyncInit(des3, devId);
 }
 
 
 /* Free Des3 from use with Nitrox device */
-void wc_Des3_FreeCavium(Des3* des3)
+void wc_Des3AsyncFree(Des3* des3)
 {
-    Des3_FreeCavium(des3);
+    Des3AsyncFree(des3);
 }
 
 
-#endif /* HAVE_CAVIUM */
+#endif /* WOLFSSL_ASYNC_CRYPT */
+
 #else /* build without fips */
 
 #if defined(WOLFSSL_TI_CRYPT)
@@ -132,17 +126,6 @@ void wc_Des3_FreeCavium(Des3* des3)
 #endif
 
 
-#ifdef HAVE_CAVIUM
-    static int wc_Des3_CaviumSetKey(Des3* des3, const byte* key, const byte* iv);
-    static int wc_Des3_CaviumCbcEncrypt(Des3* des3, byte* out, const byte* in,
-                                      word32 length);
-    static int wc_Des3_CaviumCbcDecrypt(Des3* des3, byte* out, const byte* in,
-                                      word32 length);
-#endif
-
-
-
-
 #ifdef STM32F2_CRYPTO
     /*
      * STM32F2 hardware DES/3DES support through the STM32F2 standard
@@ -150,7 +133,7 @@ void wc_Des3_FreeCavium(Des3* des3)
      * Peripheral Library document (See note in README).
      */
     #include "stm32f2xx.h"
-		#include "stm32f2xx_cryp.h"
+	#include "stm32f2xx_cryp.h"
 
     int wc_Des_SetKey(Des* des, const byte* key, const byte* iv, int dir)
     {
@@ -1292,9 +1275,10 @@ int wc_Des3_SetKey(Des3* des, const byte* key, const byte* iv, int dir)
 {
     int ret;
 
-#ifdef HAVE_CAVIUM
-    if (des->magic == WOLFSSL_3DES_CAVIUM_MAGIC)
-        return wc_Des3_CaviumSetKey(des, key, iv);
+#if defined(WOLFSSL_ASYNC_CRYPT) && defined(HAVE_CAVIUM)
+    if (des->asyncDev.marker == WOLFSSL_ASYNC_MARKER_3DES) {
+        return NitroxDes3SetKey(des, key, iv);
+    }
 #endif
 
     ret = DesSetKey(key + (dir == DES_ENCRYPTION ? 0:16), dir, des->key[0]);
@@ -1433,9 +1417,10 @@ int wc_Des3_CbcEncrypt(Des3* des, byte* out, const byte* in, word32 sz)
 {
     word32 blocks;
 
-#ifdef HAVE_CAVIUM
-    if (des->magic == WOLFSSL_3DES_CAVIUM_MAGIC)
-        return wc_Des3_CaviumCbcEncrypt(des, out, in, sz);
+#if defined(WOLFSSL_ASYNC_CRYPT) && defined(HAVE_CAVIUM)
+    if (des->asyncDev.marker == WOLFSSL_ASYNC_MARKER_3DES) {
+        return NitroxDes3CbcEncrypt(des, out, in, sz);
+    }
 #endif
 
     blocks = sz / DES_BLOCK_SIZE;
@@ -1455,9 +1440,10 @@ int wc_Des3_CbcDecrypt(Des3* des, byte* out, const byte* in, word32 sz)
 {
     word32 blocks;
 
-#ifdef HAVE_CAVIUM
-    if (des->magic == WOLFSSL_3DES_CAVIUM_MAGIC)
-        return wc_Des3_CaviumCbcDecrypt(des, out, in, sz);
+#if defined(WOLFSSL_ASYNC_CRYPT) && defined(HAVE_CAVIUM)
+    if (des->asyncDev.marker == WOLFSSL_ASYNC_MARKER_3DES) {
+        return NitroxDes3CbcDecrypt(des, out, in, sz);
+    }
 #endif
 
     blocks = sz / DES_BLOCK_SIZE;
@@ -1513,122 +1499,29 @@ int wc_Des3_SetIV(Des3* des, const byte* iv)
 }
 
 
-#ifdef HAVE_CAVIUM
-
-#include "cavium_common.h"
+#ifdef WOLFSSL_ASYNC_CRYPT
 
 /* Initialize Des3 for use with Nitrox device */
-int wc_Des3_InitCavium(Des3* des3, int devId)
+int wc_Des3AsyncInit(Des3* des3, int devId)
 {
     if (des3 == NULL)
-        return -1;
+        return BAD_FUNC_ARG;
 
-    if (CspAllocContext(CONTEXT_SSL, &des3->contextHandle, devId) != 0)
-        return -1;
-
-    des3->devId = devId;
-    des3->magic = WOLFSSL_3DES_CAVIUM_MAGIC;
-   
-    return 0;
+    return wolfAsync_DevCtxInit(&des3->asyncDev, WOLFSSL_ASYNC_MARKER_3DES, devId);
 }
 
 
 /* Free Des3 from use with Nitrox device */
-void wc_Des3_FreeCavium(Des3* des3)
+void wc_Des3AsyncFree(Des3* des3)
 {
     if (des3 == NULL)
         return;
 
-    if (des3->magic != WOLFSSL_3DES_CAVIUM_MAGIC)
-        return;
-
-    CspFreeContext(CONTEXT_SSL, des3->contextHandle, des3->devId);
-    des3->magic = 0;
+    wolfAsync_DevCtxFree(&des3->asyncDev);
 }
 
+#endif /* WOLFSSL_ASYNC_CRYPT */
 
-static int wc_Des3_CaviumSetKey(Des3* des3, const byte* key, const byte* iv)
-{
-    if (des3 == NULL)
-        return -1;
-
-    /* key[0] holds key, iv in reg */
-    XMEMCPY(des3->key[0], key, DES_BLOCK_SIZE*3);
-
-    return wc_Des3_SetIV(des3, iv);
-}
-
-
-static int wc_Des3_CaviumCbcEncrypt(Des3* des3, byte* out, const byte* in,
-                                  word32 length)
-{
-    wolfssl_word offset = 0;
-    word32 requestId;
-   
-    while (length > WOLFSSL_MAX_16BIT) {
-        word16 slen = (word16)WOLFSSL_MAX_16BIT;
-        if (CspEncrypt3Des(CAVIUM_BLOCKING, des3->contextHandle,
-                           CAVIUM_NO_UPDATE, slen, (byte*)in + offset,
-                           out + offset, (byte*)des3->reg, (byte*)des3->key[0],
-                           &requestId, des3->devId) != 0) {
-            WOLFSSL_MSG("Bad Cavium 3DES Cbc Encrypt");
-            return -1;
-        }
-        length -= WOLFSSL_MAX_16BIT;
-        offset += WOLFSSL_MAX_16BIT;
-        XMEMCPY(des3->reg, out + offset - DES_BLOCK_SIZE, DES_BLOCK_SIZE);
-    }
-    if (length) {
-        word16 slen = (word16)length;
-
-        if (CspEncrypt3Des(CAVIUM_BLOCKING, des3->contextHandle,
-                           CAVIUM_NO_UPDATE, slen, (byte*)in + offset,
-                           out + offset, (byte*)des3->reg, (byte*)des3->key[0],
-                           &requestId, des3->devId) != 0) {
-            WOLFSSL_MSG("Bad Cavium 3DES Cbc Encrypt");
-            return -1;
-        }
-        XMEMCPY(des3->reg, out+offset+length - DES_BLOCK_SIZE, DES_BLOCK_SIZE);
-    }
-    return 0;
-}
-
-static int wc_Des3_CaviumCbcDecrypt(Des3* des3, byte* out, const byte* in,
-                                 word32 length)
-{
-    word32 requestId;
-    wolfssl_word offset = 0;
-
-    while (length > WOLFSSL_MAX_16BIT) {
-        word16 slen = (word16)WOLFSSL_MAX_16BIT;
-        XMEMCPY(des3->tmp, in + offset + slen - DES_BLOCK_SIZE, DES_BLOCK_SIZE);
-        if (CspDecrypt3Des(CAVIUM_BLOCKING, des3->contextHandle,
-                           CAVIUM_NO_UPDATE, slen, (byte*)in+offset, out+offset,
-                           (byte*)des3->reg, (byte*)des3->key[0], &requestId,
-                           des3->devId) != 0) {
-            WOLFSSL_MSG("Bad Cavium 3Des Decrypt");
-            return -1;
-        }
-        length -= WOLFSSL_MAX_16BIT;
-        offset += WOLFSSL_MAX_16BIT;
-        XMEMCPY(des3->reg, des3->tmp, DES_BLOCK_SIZE);
-    }
-    if (length) {
-        word16 slen = (word16)length;
-        XMEMCPY(des3->tmp, in + offset + slen - DES_BLOCK_SIZE,DES_BLOCK_SIZE);
-        if (CspDecrypt3Des(CAVIUM_BLOCKING, des3->contextHandle,
-                           CAVIUM_NO_UPDATE, slen, (byte*)in+offset, out+offset,
-                           (byte*)des3->reg, (byte*)des3->key[0], &requestId,
-                           des3->devId) != 0) {
-            WOLFSSL_MSG("Bad Cavium 3Des Decrypt");
-            return -1;
-        }
-        XMEMCPY(des3->reg, des3->tmp, DES_BLOCK_SIZE);
-    }
-    return 0;
-}
-
-#endif /* HAVE_CAVIUM */
 #endif /* WOLFSSL_TI_CRYPT */
 #endif /* HAVE_FIPS */
 #endif /* NO_DES3 */

@@ -56,10 +56,15 @@ nobase_include_HEADERS+= \
                          wolfssl/wolfcrypt/memory.h \
                          wolfssl/wolfcrypt/mpi_class.h \
                          wolfssl/wolfcrypt/mpi_superclass.h \
-                         wolfssl/wolfcrypt/mem_track.h
+                         wolfssl/wolfcrypt/mem_track.h \
+                         wolfssl/wolfcrypt/wolfevent.h
 
 noinst_HEADERS+= \
                          wolfssl/wolfcrypt/port/pic32/pic32mz-crypt.h \
                          wolfssl/wolfcrypt/port/ti/ti-hash.h \
                          wolfssl/wolfcrypt/port/ti/ti-ccm.h \
                          wolfssl/wolfcrypt/port/nrf51.h
+
+if BUILD_CAVIUM
+noinst_HEADERS+=         wolfssl/wolfcrypt/port/cavium/cavium_nitrox.h
+endif

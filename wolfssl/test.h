@@ -107,10 +107,11 @@
     #define SNPRINTF snprintf
 #endif /* USE_WINDOWS_API */
 
+#ifdef WOLFSSL_ASYNC_CRYPT
+    #include <wolfssl/wolfcrypt/async.h>
+#endif
 #ifdef HAVE_CAVIUM
-    #include "cavium_sysdep.h"
-    #include "cavium_common.h"
-    #include "cavium_ioctl.h"
+    #include <wolfssl/wolfcrypt/port/cavium/cavium_nitrox.h>
 #endif
 
 #ifdef _MSC_VER
@@ -354,11 +355,29 @@ void join_thread(THREAD_TYPE);
 #endif
 static const word16      wolfSSLPort = 11111;
 
-static INLINE void err_sys(const char* msg)
+
+#if defined(__GNUC__)
+    #define WC_NORETURN __attribute__((noreturn))
+#else
+    #define WC_NORETURN
+#endif
+
+static INLINE WC_NORETURN void err_sys(const char* msg)
 {
     printf("wolfSSL error: %s\n", msg);
+
+#if !defined(__GNUC__)
+    /* scan-build (which pretends to be gnuc) can get confused and think the
+     * msg pointer can be null even when hardcoded and then it won't exit,
+     * making null pointer checks above the err_sys() call useless.
+     * We could just always exit() but some compilers will complain about no
+     * possible return, with gcc we know the attribute to handle that with 
+     * WC_NORETURN. */
     if (msg)
+#endif
+    {
         exit(EXIT_FAILURE);
+    }
 }
 
 
@@ -545,11 +564,12 @@ static INLINE void showPeer(WOLFSSL* ssl)
 
 
 static INLINE void build_addr(SOCKADDR_IN_T* addr, const char* peer,
-                              word16 port, int udp)
+                              word16 port, int udp, int sctp)
 {
     int useLookup = 0;
     (void)useLookup;
     (void)udp;
+    (void)sctp;
 
     if (addr == NULL)
         err_sys("invalid argument to build_addr, addr is NULL");
@@ -609,8 +629,17 @@ static INLINE void build_addr(SOCKADDR_IN_T* addr, const char* peer,
             memset(&hints, 0, sizeof(hints));
 
             hints.ai_family   = AF_INET_V;
-            hints.ai_socktype = udp ? SOCK_DGRAM : SOCK_STREAM;
-            hints.ai_protocol = udp ? IPPROTO_UDP : IPPROTO_TCP;
+            if (udp) {
+                hints.ai_socktype = SOCK_DGRAM;
+                hints.ai_protocol = IPPROTO_UDP;
+            } else if (sctp) {
+                hints.ai_socktype = SOCK_STREAM;
+                hints.ai_protocol = IPPROTO_SCTP;
+            }
+            else {
+                hints.ai_socktype = SOCK_STREAM;
+                hints.ai_protocol = IPPROTO_TCP;
+            }
 
             SNPRINTF(strPort, sizeof(strPort), "%d", port);
             strPort[79] = '\0';
@@ -630,12 +659,14 @@ static INLINE void build_addr(SOCKADDR_IN_T* addr, const char* peer,
 }
 
 
-static INLINE void tcp_socket(SOCKET_T* sockfd, int udp)
+static INLINE void tcp_socket(SOCKET_T* sockfd, int udp, int sctp)
 {
     if (udp)
-        *sockfd = socket(AF_INET_V, SOCK_DGRAM, 0);
+        *sockfd = socket(AF_INET_V, SOCK_DGRAM, IPPROTO_UDP);
+    else if (sctp)
+        *sockfd = socket(AF_INET_V, SOCK_STREAM, IPPROTO_SCTP);
     else
-        *sockfd = socket(AF_INET_V, SOCK_STREAM, 0);
+        *sockfd = socket(AF_INET_V, SOCK_STREAM, IPPROTO_TCP);
 
     if(WOLFSSL_SOCKET_IS_INVALID(*sockfd)) {
         err_sys("socket failed\n");
@@ -658,7 +689,7 @@ static INLINE void tcp_socket(SOCKET_T* sockfd, int udp)
 #endif /* S_NOSIGPIPE */
 
 #if defined(TCP_NODELAY)
-    if (!udp)
+    if (!udp && !sctp)
     {
         int       on = 1;
         socklen_t len = sizeof(on);
@@ -671,14 +702,14 @@ static INLINE void tcp_socket(SOCKET_T* sockfd, int udp)
 }
 
 static INLINE void tcp_connect(SOCKET_T* sockfd, const char* ip, word16 port,
-                               int udp, WOLFSSL* ssl)
+                               int udp, int sctp, WOLFSSL* ssl)
 {
     SOCKADDR_IN_T addr;
-    build_addr(&addr, ip, port, udp);
-    if(udp) {
+    build_addr(&addr, ip, port, udp, sctp);
+    if (udp) {
         wolfSSL_dtls_set_peer(ssl, &addr, sizeof(addr));
     }
-    tcp_socket(sockfd, udp);
+    tcp_socket(sockfd, udp, sctp);
 
     if (!udp) {
         if (connect(*sockfd, (const struct sockaddr*)&addr, sizeof(addr)) != 0)
@@ -738,14 +769,14 @@ static INLINE int tcp_select(SOCKET_T socketfd, int to_sec)
 
 
 static INLINE void tcp_listen(SOCKET_T* sockfd, word16* port, int useAnyAddr,
-                              int udp)
+                              int udp, int sctp)
 {
     SOCKADDR_IN_T addr;
 
     /* don't use INADDR_ANY by default, firewall may block, make user switch
        on */
-    build_addr(&addr, (useAnyAddr ? INADDR_ANY : wolfSSLIP), *port, udp);
-    tcp_socket(sockfd, udp);
+    build_addr(&addr, (useAnyAddr ? INADDR_ANY : wolfSSLIP), *port, udp, sctp);
+    tcp_socket(sockfd, udp, sctp);
 
 #if !defined(USE_WINDOWS_API) && !defined(WOLFSSL_MDK_ARM)\
                               && !defined(WOLFSSL_KEIL_TCP_NET)
@@ -807,8 +838,8 @@ static INLINE void udp_accept(SOCKET_T* sockfd, SOCKET_T* clientfd,
     SOCKADDR_IN_T addr;
 
     (void)args;
-    build_addr(&addr, (useAnyAddr ? INADDR_ANY : wolfSSLIP), port, 1);
-    tcp_socket(sockfd, 1);
+    build_addr(&addr, (useAnyAddr ? INADDR_ANY : wolfSSLIP), port, 1, 0);
+    tcp_socket(sockfd, 1, 0);
 
 
 #if !defined(USE_WINDOWS_API) && !defined(WOLFSSL_MDK_ARM) \
@@ -860,7 +891,7 @@ static INLINE void udp_accept(SOCKET_T* sockfd, SOCKET_T* clientfd,
 
 static INLINE void tcp_accept(SOCKET_T* sockfd, SOCKET_T* clientfd,
                               func_args* args, word16 port, int useAnyAddr,
-                              int udp, int ready_file, int do_listen)
+                              int udp, int sctp, int ready_file, int do_listen)
 {
     SOCKADDR_IN_T client;
     socklen_t client_len = sizeof(client);
@@ -874,7 +905,7 @@ static INLINE void tcp_accept(SOCKET_T* sockfd, SOCKET_T* clientfd,
     }
 
     if(do_listen) {
-        tcp_listen(sockfd, &port, useAnyAddr, udp);
+        tcp_listen(sockfd, &port, useAnyAddr, udp, sctp);
 
     #if defined(_POSIX_THREADS) && defined(NO_MAIN_DRIVER) && !defined(__MINGW32__)
         /* signal ready to tcp_accept */
@@ -1217,29 +1248,6 @@ static INLINE void CaCb(unsigned char* der, int sz, int type)
 }
 
 #endif /* !NO_CERTS */
-
-#ifdef HAVE_CAVIUM
-
-static INLINE int OpenNitroxDevice(int dma_mode,int dev_id)
-{
-   Csp1CoreAssignment core_assign;
-   Uint32             device;
-
-   if (CspInitialize(CAVIUM_DIRECT,CAVIUM_DEV_ID))
-      return -1;
-   if (Csp1GetDevType(&device))
-      return -1;
-   if (device != NPX_DEVICE) {
-      if (ioctl(gpkpdev_hdlr[CAVIUM_DEV_ID], IOCTL_CSP1_GET_CORE_ASSIGNMENT,
-                (Uint32 *)&core_assign)!= 0)
-         return -1;
-   }
-   CspShutdown(CAVIUM_DEV_ID);
-
-   return CspInitialize(dma_mode, dev_id);
-}
-
-#endif /* HAVE_CAVIUM */
 
 
 /* Wolf Root Directory Helper */
@@ -1973,24 +1981,6 @@ static INLINE const char* mymktemp(char *tempfn, int len, int num)
     }
 
 #endif  /* HAVE_SESSION_TICKET && CHACHA20 && POLY1305 */
-
-#ifdef WOLFSSL_ASYNC_CRYPT
-    static INLINE int AsyncCryptPoll(WOLFSSL* ssl)
-    {
-        int ret, eventCount = 0;
-        WOLF_EVENT events[1];
-
-        printf("Connect/Accept got WC_PENDING_E\n");
-
-        ret = wolfSSL_poll(ssl, events, sizeof(events)/sizeof(WOLF_EVENT),
-            WOLF_POLL_FLAG_CHECK_HW, &eventCount);
-        if (ret == 0 && eventCount > 0) {
-            ret = 1; /* Success */
-        }
-
-        return ret;
-    }
-#endif
 
 static INLINE word16 GetRandomPort(void)
 {

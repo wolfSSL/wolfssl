@@ -31,6 +31,10 @@
 #include <wolfssl/wolfcrypt/settings.h>
 #include <wolfssl/version.h>
 
+#ifdef HAVE_WOLF_EVENT
+    #include <wolfssl/wolfcrypt/wolfevent.h>
+#endif
+
 #ifndef NO_FILESYSTEM
     #if defined(FREESCALE_MQX) || defined(FREESCALE_KSDK_MQX)
         #if MQX_USE_IO_OLD
@@ -404,6 +408,11 @@ WOLFSSL_API int  wolfSSL_dtls(WOLFSSL* ssl);
 
 WOLFSSL_API int  wolfSSL_dtls_set_peer(WOLFSSL*, void*, unsigned int);
 WOLFSSL_API int  wolfSSL_dtls_get_peer(WOLFSSL*, void*, unsigned int*);
+
+WOLFSSL_API int  wolfSSL_CTX_dtls_set_sctp(WOLFSSL_CTX*);
+WOLFSSL_API int  wolfSSL_dtls_set_sctp(WOLFSSL*);
+WOLFSSL_API int  wolfSSL_CTX_dtls_set_mtu(WOLFSSL_CTX*, unsigned short);
+WOLFSSL_API int  wolfSSL_dtls_set_mtu(WOLFSSL*, unsigned short);
 
 WOLFSSL_API int   wolfSSL_ERR_GET_REASON(unsigned long err);
 WOLFSSL_API char* wolfSSL_ERR_error_string(unsigned long,char*);
@@ -1416,9 +1425,9 @@ WOLFSSL_API void wolfSSL_KeepArrays(WOLFSSL*);
 WOLFSSL_API void wolfSSL_FreeArrays(WOLFSSL*);
 
 
-/* cavium additions */
-WOLFSSL_API int wolfSSL_UseCavium(WOLFSSL*, int devId);
-WOLFSSL_API int wolfSSL_CTX_UseCavium(WOLFSSL_CTX*, int devId);
+/* async additions */
+WOLFSSL_API int wolfSSL_UseAsync(WOLFSSL*, int devId);
+WOLFSSL_API int wolfSSL_CTX_UseAsync(WOLFSSL_CTX*, int devId);
 
 /* TLS Extensions */
 
@@ -1695,6 +1704,11 @@ WOLFSSL_API int wolfSSL_UseSupportedQSH(WOLFSSL* ssl, unsigned short name);
 #endif
 #endif
 
+/* TLS Extended Master Secret Extension */
+WOLFSSL_API int wolfSSL_DisableExtendedMasterSecret(WOLFSSL* ssl);
+WOLFSSL_API int wolfSSL_CTX_DisableExtendedMasterSecret(WOLFSSL_CTX* ctx);
+
+
 #define WOLFSSL_CRL_MONITOR   0x01   /* monitor this dir flag */
 #define WOLFSSL_CRL_START_MON 0x02   /* start monitoring flag */
 
@@ -1715,6 +1729,12 @@ int wolfSSL_MakeTlsMasterSecret(unsigned char* ms, unsigned int msLen,
                                const unsigned char* pms, unsigned int pmsLen,
                                const unsigned char* cr, const unsigned char* sr,
                                int tls1_2, int hash_type);
+
+WOLFSSL_API
+int wolfSSL_MakeTlsExtendedMasterSecret(unsigned char* ms, unsigned int msLen,
+                              const unsigned char* pms, unsigned int pmsLen,
+                              const unsigned char* sHash, unsigned int sHashLen,
+                              int tls1_2, int hash_type);
 
 WOLFSSL_API
 int wolfSSL_DeriveTlsKeys(unsigned char* key_data, unsigned int keyLen,
@@ -1909,41 +1929,13 @@ WOLFSSL_API int wolfSSL_set_jobject(WOLFSSL* ssl, void* objPtr);
 WOLFSSL_API void* wolfSSL_get_jobject(WOLFSSL* ssl);
 #endif /* WOLFSSL_JNI */
 
-#ifdef HAVE_WOLF_EVENT
-typedef enum WOLF_EVENT_TYPE {
-    WOLF_EVENT_TYPE_NONE,
-    #ifdef WOLFSSL_ASYNC_CRYPT
-        WOLF_EVENT_TYPE_ASYNC_ACCEPT,
-        WOLF_EVENT_TYPE_ASYNC_CONNECT,
-        WOLF_EVENT_TYPE_ASYNC_READ,
-        WOLF_EVENT_TYPE_ASYNC_WRITE,
-        WOLF_EVENT_TYPE_ASYNC_FIRST = WOLF_EVENT_TYPE_ASYNC_ACCEPT,
-        WOLF_EVENT_TYPE_ASYNC_LAST = WOLF_EVENT_TYPE_ASYNC_WRITE,
-    #endif
-} WOLF_EVENT_TYPE;
 
-typedef struct WOLF_EVENT WOLF_EVENT;
-struct WOLF_EVENT {
-    WOLF_EVENT*         next;   /* To support event linked list */
-	WOLFSSL*            ssl;    /* Reference back to SSL object */
-    int                 ret;    /* Async return code */
-    WOLF_EVENT_TYPE     type;
-    unsigned short      pending:1;
-    unsigned short      done:1;
-    /* Future event flags can go here */
-};
+#ifdef WOLFSSL_ASYNC_CRYPT
+WOLFSSL_API int wolfSSL_AsyncPoll(WOLFSSL* ssl, WOLF_EVENT_FLAG flags);
+WOLFSSL_API int wolfSSL_CTX_AsyncPoll(WOLFSSL_CTX* ctx, WOLF_EVENT** events, int maxEvents,
+    WOLF_EVENT_FLAG flags, int* eventCount);
+#endif /* WOLFSSL_ASYNC_CRYPT */
 
-enum WOLF_POLL_FLAGS {
-    WOLF_POLL_FLAG_CHECK_HW = 0x01,
-    WOLF_POLL_FLAG_PEEK = 0x02,
-};
-
-WOLFSSL_API int wolfSSL_CTX_poll(WOLFSSL_CTX* ctx, WOLF_EVENT* events,
-    int maxEvents, unsigned char flags, int* eventCount);
-WOLFSSL_API int wolfSSL_poll(WOLFSSL* ssl, WOLF_EVENT* events,
-    int maxEvents, unsigned char flags, int* eventCount);
-
-#endif /* HAVE_WOLF_EVENT */
 
 #ifdef __cplusplus
     }  /* extern "C" */

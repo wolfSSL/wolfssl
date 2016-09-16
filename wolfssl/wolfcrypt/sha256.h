@@ -59,8 +59,8 @@ typedef struct Sha256 {
     word32  buffLen;   /* in bytes          */
     word32  loLen;     /* length in bytes   */
     word32  hiLen;     /* length in bytes   */
-    word32  digest[SHA256_DIGEST_SIZE / sizeof(word32)];
-    word32  buffer[SHA256_BLOCK_SIZE  / sizeof(word32)];
+    ALIGN16 word32  digest[SHA256_DIGEST_SIZE / sizeof(word32)];
+    ALIGN16 word32  buffer[SHA256_BLOCK_SIZE  / sizeof(word32)];
     #ifdef WOLFSSL_PIC32MZ_HASH
         pic32mz_desc desc ; /* Crypt Engine descriptor */
     #endif
