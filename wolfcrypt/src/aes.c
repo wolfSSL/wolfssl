@@ -1608,7 +1608,7 @@ static void wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
      * map cipher state to byte array block:
      */
 
-    s0 |= PreFetchTd4();
+    t0 |= PreFetchTd4();
 
     s0 =
         ((word32)Td4[GETBYTE(t0, 3)] << 24) ^
