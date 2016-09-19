@@ -1953,14 +1953,15 @@ fi
 
 # Supported Elliptic Curves Extensions
 AC_ARG_ENABLE([supportedcurves],
-    [AS_HELP_STRING([--enable-supportedcurves],[Enable Supported Elliptic Curves (default: disabled)])],
-    [ ENABLED_SUPPORTED_CURVES=$enableval ],
-    [ ENABLED_SUPPORTED_CURVES=no ]
-    )
+    [AS_HELP_STRING([--enable-supportedcurves],[Enable Supported Elliptic Curves (default: enabled)])],
+    [ENABLED_SUPPORTED_CURVES=$enableval],
+    [ENABLED_SUPPORTED_CURVES=$ECC_DEFAULT])
 
 if test "x$ENABLED_SUPPORTED_CURVES" = "xyes"
 then
-    AM_CFLAGS="$AM_CFLAGS -DHAVE_TLS_EXTENSIONS -DHAVE_SUPPORTED_CURVES"
+    AS_IF([test "x$ENABLED_ECC" = "xno"],
+          [ENABLED_SUPPORTED_CURVES=no],
+          [AM_CFLAGS="$AM_CFLAGS -DHAVE_TLS_EXTENSIONS -DHAVE_SUPPORTED_CURVES"])
 fi
 
 # Session Ticket Extension
@@ -1996,12 +1997,15 @@ AC_ARG_ENABLE([tlsx],
 
 if test "x$ENABLED_TLSX" = "xyes"
 then
-	ENABLED_SNI=yes
-	ENABLED_MAX_FRAGMENT=yes
-	ENABLED_TRUNCATED_HMAC=yes
-	ENABLED_SUPPORTED_CURVES=yes
-	ENABLED_ALPN=yes
-    AM_CFLAGS="$AM_CFLAGS -DHAVE_TLS_EXTENSIONS -DHAVE_SNI -DHAVE_MAX_FRAGMENT -DHAVE_TRUNCATED_HMAC -DHAVE_SUPPORTED_CURVES -DHAVE_ALPN"
+    ENABLED_SNI=yes
+    ENABLED_MAX_FRAGMENT=yes
+    ENABLED_TRUNCATED_HMAC=yes
+    ENABLED_ALPN=yes
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_TLS_EXTENSIONS -DHAVE_SNI -DHAVE_MAX_FRAGMENT -DHAVE_TRUNCATED_HMAC -DHAVE_ALPN"
+    # Check the ECC supported curves prereq
+    AS_IF([test "x$ENABLED_ECC" = "xyes"],
+          [ENABLED_SUPPORTED_CURVES=yes
+           AM_CFLAGS="$AM_CFLAGS -DHAVE_SUPPORTED_CURVES"])
 fi
 
 # PKCS7
