@@ -1630,7 +1630,7 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
          /* don't fallback to /dev/urandom */
          return ret;
 #else
-         /* fallback to /dev/urrandom attempt */
+         /* fallback to /dev/urandom attempt */
          ret = 0;
 #endif
     }
