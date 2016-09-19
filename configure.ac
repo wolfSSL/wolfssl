@@ -348,7 +348,7 @@ AC_ARG_ENABLE([leanpsk],
 
 if test "$ENABLED_LEANPSK" = "yes"
 then
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_LEANPSK -DHAVE_NULL_CIPHER -DSINGLE_THREADED -DNO_AES -DNO_FILESYSTEM -DNO_RABBIT -DNO_RSA -DNO_DSA -DNO_DH -DNO_CERTS -DNO_PWDBASED -DNO_DES3 -DNO_MD4 -DNO_MD5 -DNO_ERROR_STRINGS -DNO_OLD_TLS -DNO_RC4 -DNO_WRITEV -DNO_SESSION_CACHE -DNO_DEV_RANDOM -DWOLFSSL_USER_IO -DNO_SHA -DUSE_SLOW_SHA"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_LEANPSK -DHAVE_NULL_CIPHER -DSINGLE_THREADED -DNO_AES -DNO_FILESYSTEM -DNO_RABBIT -DNO_RSA -DNO_DSA -DNO_DH -DNO_CERTS -DNO_PWDBASED -DNO_MD4 -DNO_MD5 -DNO_ERROR_STRINGS -DNO_OLD_TLS -DNO_RC4 -DNO_WRITEV -DNO_SESSION_CACHE -DNO_DEV_RANDOM -DWOLFSSL_USER_IO -DNO_SHA -DUSE_SLOW_SHA"
     ENABLED_SLOWMATH="no"
     ENABLED_SINGLETHREADED="yes"
 fi
@@ -365,7 +365,7 @@ AC_ARG_ENABLE([leantls],
 
 if test "$ENABLED_LEANTLS" = "yes"
 then
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_LEANTLS -DNO_WRITEV -DHAVE_ECC -DTFM_ECC256 -DECC_USER_CURVES -DNO_WOLFSSL_SERVER -DNO_RABBIT -DNO_RSA -DNO_DSA -DNO_DH -DNO_PWDBASED -DNO_DES3 -DNO_MD5 -DNO_ERROR_STRINGS -DNO_OLD_TLS -DNO_RC4 -DNO_SESSION_CACHE -DNO_SHA -DUSE_SLOW_SHA -DUSE_SLOW_SHA2 -DNO_PSK -DNO_WOLFSSL_MEMORY"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_LEANTLS -DNO_WRITEV -DHAVE_ECC -DTFM_ECC256 -DECC_USER_CURVES -DNO_WOLFSSL_SERVER -DNO_RABBIT -DNO_RSA -DNO_DSA -DNO_DH -DNO_PWDBASED -DNO_MD5 -DNO_ERROR_STRINGS -DNO_OLD_TLS -DNO_RC4 -DNO_SESSION_CACHE -DNO_SHA -DUSE_SLOW_SHA -DUSE_SLOW_SHA2 -DNO_PSK -DNO_WOLFSSL_MEMORY"
 fi
 
 AM_CONDITIONAL([BUILD_LEANTLS], [test "x$ENABLED_LEANTLS" = "xyes"])
@@ -1309,24 +1309,10 @@ fi
 
 # DES3
 AC_ARG_ENABLE([des3],
-    [  --enable-des3           Enable DES3 (default: enabled)],
+    [AS_HELP_STRING([--enable-des3],[Enable DES3 (default: disabled)])],
     [ ENABLED_DES3=$enableval ],
-    [ ENABLED_DES3=yes ]
+    [ ENABLED_DES3=no ]
     )
-
-if test "$ENABLED_DES3" = "no"
-then
-    AM_CFLAGS="$AM_CFLAGS -DNO_DES3"
-else
-    # turn off DES3 if leanpsk or leantls on
-    if test "$ENABLED_LEANPSK" = "yes" || test "$ENABLED_LEANTLS" = "yes"
-    then
-        AM_CFLAGS="$AM_CFLAGS -DNO_DES3"
-        ENABLED_DES3=no
-    fi
-fi
-
-AM_CONDITIONAL([BUILD_DES3], [test "x$ENABLED_DES3" = "xyes"])
 
 
 # IDEA
@@ -1504,6 +1490,11 @@ then
         ENABLED_AESGCM="yes"
         AM_CFLAGS="$AM_CFLAGS -DHAVE_AESGCM"
         AM_CONDITIONAL([BUILD_SHA512], [test "x$ENABLED_SHA512" = "xyes"])
+    fi
+    # requires DES3
+    if test "x$ENABLED_DES3" = "xno"
+    then
+        ENABLED_DES3="yes"
     fi
     AM_CFLAGS="$AM_CFLAGS -DHAVE_FIPS"
 fi
@@ -2010,17 +2001,10 @@ fi
 
 # PKCS7
 AC_ARG_ENABLE([pkcs7],
-    [  --enable-pkcs7          Enable PKCS7 (default: disabled)],
+    [AS_HELP_STRING([--enable-pkcs7],[Enable PKCS7 (default: disabled)])],
     [ ENABLED_PKCS7=$enableval ],
     [ ENABLED_PKCS7=no ],
     )
-
-if test "$ENABLED_PKCS7" = "yes"
-then
-    AM_CFLAGS="$AM_CFLAGS -DHAVE_PKCS7"
-fi
-
-AM_CONDITIONAL([BUILD_PKCS7], [test "x$ENABLED_PKCS7" = "xyes"])
 
 
 # Simple Certificate Enrollment Protocol (SCEP)
@@ -2029,37 +2013,6 @@ AC_ARG_ENABLE([scep],
     [ ENABLED_WOLFSCEP=$enableval ],
     [ ENABLED_WOLFSCEP=no ]
     )
-if test "$ENABLED_WOLFSCEP" = "yes"
-then
-    # Enable prereqs if not already enabled
-    if test "x$ENABLED_KEYGEN" = "xno"
-    then
-        ENABLED_KEYGEN="yes"
-        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_KEY_GEN"
-    fi
-    if test "x$ENABLED_CERTGEN" = "xno"
-    then
-        ENABLED_CERTGEN="yes"
-        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_CERT_GEN"
-    fi
-    if test "x$ENABLED_CERTREQ" = "xno"
-    then
-        ENABLED_CERTREQ="yes"
-        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_CERT_REQ"
-    fi
-    if test "x$ENABLED_CERTEXT" = "xno"
-    then
-        ENABLED_CERTEXT="yes"
-        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_CERT_EXT"
-    fi
-    if test "x$ENABLED_PKCS7" = "xno"
-    then
-        ENABLED_PKCS7="yes"
-        AM_CFLAGS="$AM_CFLAGS -DHAVE_PKCS7"
-        AM_CONDITIONAL([BUILD_PKCS7], [test "x$ENABLED_PKCS7" = "xyes"])
-    fi
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_HAVE_WOLFSCEP"
-fi
 
 
 # Secure Remote Password
@@ -2922,6 +2875,11 @@ AS_IF([test "x$ENABLED_SNIFFER" = "xyes" && \
        test "x$ENABLED_RSA" = "xno"],
       [AC_MSG_ERROR([please enable rsa if enabling sniffer.])])
 
+# Lean TLS forces off prereqs of SCEP.
+AS_IF([test "x$ENABLED_SCEP" = "xyes" && \
+       test "x$ENABLED_LEANTLS" = "xyes"],
+      [AC_MSG_ERROR([Cannot use SCEP and Lean TLS at the same time.])])
+
 # CMAC currently requires AES.
 AS_IF([test "x$ENABLED_CMAC" = "xyes" && \
        test "x$ENABLED_AES" = "xno"],
@@ -2930,6 +2888,62 @@ AS_IF([test "x$ENABLED_CMAC" = "xyes" && \
 ################################################################################
 # Update CFLAGS based on options                                               #
 ################################################################################
+
+AS_IF([test "x$ENABLED_MCAPI" = "xyes"],
+      [AS_IF([test "x$ENABLED_DES3" = "xno"],[ENABLED_DES3="yes"])])
+
+if test "$ENABLED_WOLFSCEP" = "yes"
+then
+    # Enable prereqs if not already enabled
+    if test "x$ENABLED_KEYGEN" = "xno"
+    then
+        ENABLED_KEYGEN="yes"
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_KEY_GEN"
+    fi
+    if test "x$ENABLED_CERTGEN" = "xno"
+    then
+        ENABLED_CERTGEN="yes"
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_CERT_GEN"
+    fi
+    if test "x$ENABLED_CERTREQ" = "xno"
+    then
+        ENABLED_CERTREQ="yes"
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_CERT_REQ"
+    fi
+    if test "x$ENABLED_CERTEXT" = "xno"
+    then
+        ENABLED_CERTEXT="yes"
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_CERT_EXT"
+    fi
+    if test "x$ENABLED_PKCS7" = "xno"
+    then
+        ENABLED_PKCS7="yes"
+    fi
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_HAVE_WOLFSCEP"
+fi
+
+if test "x$ENABLED_PKCS7" = "xyes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_PKCS7"
+    # Enable prereqs if not already enabled
+    AS_IF([test "x$ENABLED_DES3" = "xno"],
+          [ENABLED_DES3=yes])
+fi
+
+if test "x$ENABLED_DES3" = "xno"
+then
+    AM_CFLAGS="$AM_CFLAGS -DNO_DES3"
+else
+    # turn off DES3 if leanpsk or leantls on
+    if test "$ENABLED_LEANPSK" = "yes" || test "$ENABLED_LEANTLS" = "yes"
+    then
+        AM_CFLAGS="$AM_CFLAGS -DNO_DES3"
+        ENABLED_DES3=no
+    fi
+fi
+
+AM_CONDITIONAL([BUILD_DES3], [test "x$ENABLED_DES3" = "xyes"])
+AM_CONDITIONAL([BUILD_PKCS7], [test "x$ENABLED_PKCS7" = "xyes"])
 
 AS_IF([test "x$ENABLED_MAXSTRENGTH" = "xyes"],
       [AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_MAX_STRENGTH"])

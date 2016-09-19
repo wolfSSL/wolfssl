@@ -9844,6 +9844,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
     {
         int ret = -1;  /* failure local, during function 0 means success
                           because internal functions work that way */
+        (void)key;
         (void)iv;
         (void)enc;
 

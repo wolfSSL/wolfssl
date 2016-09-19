@@ -2162,6 +2162,10 @@ static int Decrypt(SSL* ssl, byte* output, const byte* input, word32 sz)
 {
     int ret = 0;
 
+    (void)output;
+    (void)input;
+    (void)sz;
+
     switch (ssl->specs.bulk_cipher_algorithm) {
         #ifdef BUILD_ARC4
         case wolfssl_rc4:
@@ -2918,14 +2922,20 @@ static int FindNextRecordInAssembly(SnifferSession* session,
             return 0;
         }
         else if (ssl->specs.cipher_type == block) {
-            if (ssl->specs.bulk_cipher_algorithm == wolfssl_aes)
+            if (ssl->specs.bulk_cipher_algorithm == wolfssl_aes) {
+#ifdef BUILD_AES
                 wc_AesSetIV(ssl->decrypt.aes,
                             curr->data + curr->end - curr->begin
                                        - ssl->specs.block_size + 1);
-            else if (ssl->specs.bulk_cipher_algorithm == wolfssl_triple_des)
+#endif
+            }
+            else if (ssl->specs.bulk_cipher_algorithm == wolfssl_triple_des) {
+#ifdef BUILD_DES3
                 wc_Des3_SetIV(ssl->decrypt.des3,
                               curr->data + curr->end - curr->begin
                                          - ssl->specs.block_size + 1);
+#endif
+            }
         }
 
         Trace(DROPPING_LOST_FRAG_STR);

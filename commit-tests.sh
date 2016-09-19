@@ -23,7 +23,7 @@ RESULT=$?
 
 # make sure full config is ok
 echo -e "\n\nTesting full config as well...\n\n"
-./configure --enable-opensslextra --enable-dh --enable-ecc --enable-dtls --enable-aesgcm --enable-aesccm --enable-hc128 --enable-sniffer --enable-psk --enable-rabbit --enable-camellia --enable-sha512 --enable-crl --enable-ocsp --enable-savesession --enable-savecert --enable-atomicuser --enable-pkcallbacks --enable-scep;
+./configure --enable-opensslextra --enable-des3 --enable-dh --enable-ecc --enable-dtls --enable-aesgcm --enable-aesccm --enable-hc128 --enable-sniffer --enable-psk --enable-rabbit --enable-camellia --enable-sha512 --enable-crl --enable-ocsp --enable-savesession --enable-savecert --enable-atomicuser --enable-pkcallbacks --enable-scep;
 RESULT=$?
 [ $RESULT -ne 0 ] && echo -e "\n\nFull config ./configure failed" && exit 1
 
