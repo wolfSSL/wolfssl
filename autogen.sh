@@ -13,7 +13,7 @@ if test -d .git; then
 fi
 
 # If this is a source checkout then call autoreconf with error as well
-if test -d .git; then
+if test -e .git; then
   WARNINGS="all,error"
   # touch fips files for non fips distribution
   touch ./ctaocrypt/src/fips.c
