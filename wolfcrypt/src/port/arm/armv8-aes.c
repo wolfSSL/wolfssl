@@ -1417,7 +1417,7 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
 
             :[out] "=r" (c), "=r" (keyPt), [ctrOut] "=r" (ctr), "=r" (p)
             :"0" (c), [Key] "1" (keyPt), [ctr] "2" (ctr), [blocks] "r" (blocks),
-             [input] "r" (p)
+             [input] "3" (p)
             : "cc", "memory", "w11", "v0", "v1", "v2", "v3", "v4", "v5",
             "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14"
             );
@@ -1694,8 +1694,8 @@ int  wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
             "ST1 {v12.16b}, [%[ctrOut]] \n"
 
             :[out] "=r" (p), "=r" (keyPt), [ctrOut] "=r" (ctr), "=r" (c)
-            :"0" (p), [Key] "1" (keyPt),
-             [ctr] "2" (ctr), [blocks] "r" (blocks), [input] "r" (c)
+            :"0" (p), [Key] "1" (keyPt), [ctr] "2" (ctr), [blocks] "r" (blocks),
+             [input] "3" (c)
             : "cc", "memory", "w11", "v0", "v1", "v2", "v3", "v4", "v5",
             "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14"
             );
@@ -1763,8 +1763,8 @@ int  wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
             "ST1 {v14.2d}, [%[ctrOut]]   \n"
 
             :[out] "=r" (p), "=r" (keyPt), [ctrOut] "=r" (ctr), "=r" (c)
-            :"0" (p), [Key] "1" (keyPt),
-             [ctr] "2" (ctr), [blocks] "r" (blocks), [input] "3" (c)
+            :"0" (p), [Key] "1" (keyPt), [ctr] "2" (ctr), [blocks] "r" (blocks),
+             [input] "3" (c)
             : "cc", "memory", "w11", "v0", "v1", "v2", "v3", "v4", "v5",
             "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15",
             "v16"
@@ -1836,8 +1836,8 @@ int  wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
             "ST1 {v17.2d}, [%[ctrOut]] \n"
 
             :[out] "=r" (p), "=r" (keyPt), [ctrOut] "=r" (ctr), "=r" (c)
-            :"0" (p), [Key] "1" (keyPt),
-             [ctr] "2" (ctr), [blocks] "r" (blocks), [input] "3" (c)
+            :"0" (p), [Key] "1" (keyPt), [ctr] "2" (ctr), [blocks] "r" (blocks),
+             [input] "3" (c)
             : "cc", "memory", "w11", "v0", "v1", "v2", "v3", "v4", "v5",
             "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15",
             "v16", "v17", "v18", "v19"
