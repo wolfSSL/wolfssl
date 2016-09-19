@@ -642,20 +642,49 @@ static INLINE void c32toa(word32 u32, byte* c)
 }
 
 
-static INLINE word32 GetSEQIncrement(WOLFSSL* ssl, int verify)
+static INLINE void GetSEQIncrement(WOLFSSL* ssl, int verify, word32 seq[2])
 {
 #ifdef WOLFSSL_DTLS
     if (ssl->options.dtls) {
-        if (verify)
-            return ssl->keys.dtls_state.curSeq; /* explicit from peer */
-        else
-            return ssl->keys.dtls_sequence_number - 1; /* already incremented */
+        if (verify) {
+            seq[0] = 0;
+            seq[1] = ssl->keys.dtls_state.curSeq; /* explicit from peer */
+        }
+        else {
+            seq[0] = 0;
+            /* already incremented dtls seq number */
+            seq[1] = ssl->keys.dtls_sequence_number - 1;
+        }
+        return;
     }
 #endif
-    if (verify)
-        return ssl->keys.peer_sequence_number++;
-    else
-        return ssl->keys.sequence_number++;
+    if (verify) {
+        seq[0] = ssl->keys.peer_sequence_number_hi;
+        seq[1] = ssl->keys.peer_sequence_number_lo++;
+        if (seq[1] > ssl->keys.peer_sequence_number_lo) {
+            /* handle rollover */
+            ssl->keys.peer_sequence_number_hi++;
+        }
+    }
+    else {
+        seq[0] = ssl->keys.sequence_number_hi;
+        seq[1] = ssl->keys.sequence_number_lo++;
+        if (seq[1] > ssl->keys.sequence_number_lo) {
+            /* handle rollover */
+            ssl->keys.sequence_number_hi++;
+        }
+    }
+}
+
+
+static INLINE void WriteSEQ(WOLFSSL* ssl, int verify, byte* out)
+{
+    word32 seq[2];
+
+    GetSEQIncrement(ssl, verify, seq);
+
+    c32toa(seq[0], out);
+    c32toa(seq[1], out+4);
 }
 
 
@@ -733,7 +762,7 @@ int wolfSSL_SetTlsHmacInner(WOLFSSL* ssl, byte* inner, word32 sz, int content,
     if (ssl->options.dtls)
         c16toa((word16)GetEpoch(ssl, verify), inner);
 #endif
-    c32toa(GetSEQIncrement(ssl, verify), &inner[sizeof(word32)]);
+    WriteSEQ(ssl, verify, inner);
     inner[SEQ_SZ] = (byte)content;
     inner[SEQ_SZ + ENUM_LEN]            = ssl->version.major;
     inner[SEQ_SZ + ENUM_LEN + ENUM_LEN] = ssl->version.minor;

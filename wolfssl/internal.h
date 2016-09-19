@@ -1613,8 +1613,10 @@ typedef struct Keys {
     byte aead_dec_imp_IV[AEAD_MAX_IMP_SZ];
 #endif
 
-    word32 peer_sequence_number;
-    word32 sequence_number;
+    word32 peer_sequence_number_hi;
+    word32 peer_sequence_number_lo;
+    word32 sequence_number_hi;
+    word32 sequence_number_lo;
 
 #ifdef WOLFSSL_DTLS
     DtlsState dtls_state;                       /* Peer's state */

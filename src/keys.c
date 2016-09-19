@@ -2628,10 +2628,14 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
     }
 #endif
 
-    if (enc)
-        keys->sequence_number      = 0;
-    if (dec)
-        keys->peer_sequence_number = 0;
+    if (enc) {
+        keys->sequence_number_hi      = 0;
+        keys->sequence_number_lo      = 0;
+    }
+    if (dec) {
+        keys->peer_sequence_number_hi = 0;
+        keys->peer_sequence_number_lo = 0;
+    }
     (void)side;
     (void)heap;
     (void)enc;
@@ -2766,7 +2770,8 @@ int SetKeysSide(WOLFSSL* ssl, enum encrypt_side side)
             #endif
         }
         if (wc_decrypt) {
-            ssl->keys.peer_sequence_number = keys->peer_sequence_number;
+            ssl->keys.peer_sequence_number_hi = keys->peer_sequence_number_hi;
+            ssl->keys.peer_sequence_number_lo = keys->peer_sequence_number_lo;
             #ifdef HAVE_AEAD
                 if (ssl->specs.cipher_type == aead) {
                     /* Initialize decrypt implicit IV by decrypt side */

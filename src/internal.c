@@ -581,9 +581,10 @@ static int ExportKeyState(WOLFSSL* ssl, byte* exp, word32 len, byte ver)
 
     XMEMSET(exp, 0, DTLS_EXPORT_KEY_SZ);
 
-    c32toa(keys->peer_sequence_number, exp + idx); idx += OPAQUE32_LEN;
-    c32toa(keys->peer_sequence_number, exp + idx); idx += OPAQUE32_LEN;
-    c32toa(keys->sequence_number, exp + idx);      idx += OPAQUE32_LEN;
+    c32toa(keys->peer_sequence_number_hi, exp + idx); idx += OPAQUE32_LEN;
+    c32toa(keys->peer_sequence_number_lo, exp + idx); idx += OPAQUE32_LEN;
+    c32toa(keys->sequence_number_hi, exp + idx);      idx += OPAQUE32_LEN;
+    c32toa(keys->sequence_number_lo, exp + idx);      idx += OPAQUE32_LEN;
 
     c16toa(keys->dtls_state.nextEpoch, exp + idx); idx += OPAQUE16_LEN;
     c32toa(keys->dtls_state.nextSeq, exp + idx);   idx += OPAQUE32_LEN;
@@ -706,9 +707,10 @@ static int ImportKeyState(WOLFSSL* ssl, byte* exp, word32 len, byte ver)
     if (len < DTLS_EXPORT_MIN_KEY_SZ) {
         return BUFFER_E;
     }
-    ato32(exp + idx, &keys->peer_sequence_number); idx += OPAQUE32_LEN;
-    ato32(exp + idx, &keys->peer_sequence_number); idx += OPAQUE32_LEN;
-    ato32(exp + idx, &keys->sequence_number);      idx += OPAQUE32_LEN;
+    ato32(exp + idx, &keys->peer_sequence_number_hi); idx += OPAQUE32_LEN;
+    ato32(exp + idx, &keys->peer_sequence_number_lo); idx += OPAQUE32_LEN;
+    ato32(exp + idx, &keys->sequence_number_hi);      idx += OPAQUE32_LEN;
+    ato32(exp + idx, &keys->sequence_number_lo);      idx += OPAQUE32_LEN;
 
     ato16(exp + idx, &keys->dtls_state.nextEpoch); idx += OPAQUE16_LEN;
     ato32(exp + idx, &keys->dtls_state.nextSeq);   idx += OPAQUE32_LEN;
@@ -7864,20 +7866,49 @@ static int DoDtlsHandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 
 #if !defined(NO_OLD_TLS) || defined(HAVE_CHACHA) || defined(HAVE_AESCCM) \
     || defined(HAVE_AESGCM)
-static INLINE word32 GetSEQIncrement(WOLFSSL* ssl, int verify)
+static INLINE void GetSEQIncrement(WOLFSSL* ssl, int verify, word32 seq[2])
 {
 #ifdef WOLFSSL_DTLS
     if (ssl->options.dtls) {
-        if (verify)
-            return ssl->keys.dtls_state.curSeq; /* explicit from peer */
-        else
-            return ssl->keys.dtls_sequence_number - 1; /* already incremented */
+        if (verify) {
+            seq[0] = 0;
+            seq[1] = ssl->keys.dtls_state.curSeq; /* explicit from peer */
+        }
+        else {
+            seq[0] = 0;
+            /* already incremented dtls seq number */
+            seq[1] = ssl->keys.dtls_sequence_number - 1;
+        }
+        return;
     }
 #endif
-    if (verify)
-        return ssl->keys.peer_sequence_number++;
-    else
-        return ssl->keys.sequence_number++;
+    if (verify) {
+        seq[0] = ssl->keys.peer_sequence_number_hi;
+        seq[1] = ssl->keys.peer_sequence_number_lo++;
+        if (seq[1] > ssl->keys.peer_sequence_number_lo) {
+            /* handle rollover */
+            ssl->keys.peer_sequence_number_hi++;
+        }
+    }
+    else {
+        seq[0] = ssl->keys.sequence_number_hi;
+        seq[1] = ssl->keys.sequence_number_lo++;
+        if (seq[1] > ssl->keys.sequence_number_lo) {
+            /* handle rollover */
+            ssl->keys.sequence_number_hi++;
+        }
+    }
+}
+
+
+static INLINE void WriteSEQ(WOLFSSL* ssl, int verify, byte* out)
+{
+    word32 seq[2];
+
+    GetSEQIncrement(ssl, verify, seq);
+
+    c32toa(seq[0], out);
+    c32toa(seq[1], out+4);
 }
 #endif
 
@@ -7967,11 +7998,11 @@ static int  ChachaAEADEncrypt(WOLFSSL* ssl, byte* out, const byte* input,
 
     if (ssl->options.oldPoly != 0) {
         /* get nonce */
-        c32toa(ssl->keys.sequence_number, nonce + CHACHA20_OLD_OFFSET);
+        c32toa(ssl->keys.sequence_number_lo, nonce + CHACHA20_OLD_OFFSET);
     }
 
     /* opaque SEQ number stored for AD */
-    c32toa(GetSEQIncrement(ssl, 0), add + AEAD_SEQ_OFFSET);
+    WriteSEQ(ssl, 0, add);
 
     /* Store the type, version. Unfortunately, they are in
      * the input buffer ahead of the plaintext. */
@@ -8111,11 +8142,11 @@ static int ChachaAEADDecrypt(WOLFSSL* ssl, byte* plain, const byte* input,
 
     if (ssl->options.oldPoly != 0) {
         /* get nonce */
-        c32toa(ssl->keys.peer_sequence_number, nonce + CHACHA20_OLD_OFFSET);
+        c32toa(ssl->keys.peer_sequence_number_lo, nonce + CHACHA20_OLD_OFFSET);
     }
 
-    /* sequence number field is 64-bits, we only use 32-bits */
-    c32toa(GetSEQIncrement(ssl, 1), add + AEAD_SEQ_OFFSET);
+    /* sequence number field is 64-bits */
+    WriteSEQ(ssl, 1, add);
 
     /* get AD info */
     add[AEAD_TYPE_OFFSET] = ssl->curRL.type;
@@ -8262,9 +8293,8 @@ static INLINE int Encrypt(WOLFSSL* ssl, byte* out, const byte* input, word16 sz)
 
                     XMEMSET(additional, 0, AEAD_AUTH_DATA_SZ);
 
-                    /* sequence number field is 64-bits, we only use 32-bits */
-                    c32toa(GetSEQIncrement(ssl, 0),
-                                            additional + AEAD_SEQ_OFFSET);
+                    /* sequence number field is 64-bits */
+                    WriteSEQ(ssl, 0, additional);
 
                     /* Store the type, version. Unfortunately, they are in
                      * the input buffer ahead of the plaintext. */
@@ -8307,9 +8337,8 @@ static INLINE int Encrypt(WOLFSSL* ssl, byte* out, const byte* input, word16 sz)
 
                     XMEMSET(additional, 0, AEAD_AUTH_DATA_SZ);
 
-                    /* sequence number field is 64-bits, we only use 32-bits */
-                    c32toa(GetSEQIncrement(ssl, 0),
-                                            additional + AEAD_SEQ_OFFSET);
+                    /* sequence number field is 64-bits */
+                    WriteSEQ(ssl, 0, additional);
 
                     /* Store the type, version. Unfortunately, they are in
                      * the input buffer ahead of the plaintext. */
@@ -8431,8 +8460,8 @@ static INLINE int Decrypt(WOLFSSL* ssl, byte* plain, const byte* input,
 
                 XMEMSET(additional, 0, AEAD_AUTH_DATA_SZ);
 
-                /* sequence number field is 64-bits, we only use 32-bits */
-                c32toa(GetSEQIncrement(ssl, 1), additional + AEAD_SEQ_OFFSET);
+                /* sequence number field is 64-bits */
+                WriteSEQ(ssl, 1, additional);
 
                 #ifdef WOLFSSL_DTLS
                     if (ssl->options.dtls)
@@ -8473,8 +8502,8 @@ static INLINE int Decrypt(WOLFSSL* ssl, byte* plain, const byte* input,
 
                 XMEMSET(additional, 0, AEAD_AUTH_DATA_SZ);
 
-                /* sequence number field is 64-bits, we only use 32-bits */
-                c32toa(GetSEQIncrement(ssl, 1), additional + AEAD_SEQ_OFFSET);
+                /* sequence number field is 64-bits */
+                WriteSEQ(ssl, 1, additional);
 
                 #ifdef WOLFSSL_DTLS
                     if (ssl->options.dtls)
@@ -9626,7 +9655,7 @@ static int SSL_hmac(WOLFSSL* ssl, byte* digest, const byte* in, word32 sz,
     XMEMSET(seq, 0, SEQ_SZ);
     conLen[0] = (byte)content;
     c16toa((word16)sz, &conLen[ENUM_LEN]);
-    c32toa(GetSEQIncrement(ssl, verify), &seq[sizeof(word32)]);
+    WriteSEQ(ssl, verify, seq);
 
     if (ssl->specs.mac_algorithm == md5_mac) {
         wc_InitMd5(&md5);
