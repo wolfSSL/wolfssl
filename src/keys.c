@@ -2751,7 +2751,8 @@ int SetKeysSide(WOLFSSL* ssl, enum encrypt_side side)
                     keys->server_write_IV, MAX_WRITE_IV_SZ);
         }
         if (wc_encrypt) {
-            ssl->keys.sequence_number = keys->sequence_number;
+            ssl->keys.sequence_number_hi = keys->sequence_number_hi;
+            ssl->keys.sequence_number_lo = keys->sequence_number_lo;
             #ifdef HAVE_AEAD
                 if (ssl->specs.cipher_type == aead) {
                     /* Initialize the AES-GCM/CCM explicit IV to a zero. */
