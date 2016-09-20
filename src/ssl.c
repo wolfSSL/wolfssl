@@ -3412,6 +3412,9 @@ static int wolfssl_encrypt_buffer_key(byte* der, word32 derSz, byte* password,
     byte  key[AES_256_KEY_SIZE];
 #endif
 
+    (void)derSz;
+    (void)passwordSz;
+
     WOLFSSL_ENTER("wolfssl_encrypt_buffer_key");
 
     if (der == NULL || password == NULL || info == NULL || info->ivSz == 0) {
@@ -3438,26 +3441,29 @@ static int wolfssl_encrypt_buffer_key(byte* der, word32 derSz, byte* password,
         return SSL_FATAL_ERROR;
     }
 #else
-    (void) passwordSz;
+
 #endif /* NO_MD5 */
 
+    if (ret > 0) {
+        ret = SSL_BAD_FILE; /* Reset error return */
 #ifndef NO_DES3
-    if (XSTRNCMP(info->name, EVP_DES_CBC, EVP_DES_SIZE) == 0)
-        ret = wc_Des_CbcEncryptWithKey(der, der, derSz, key, info->iv);
-    else if (XSTRNCMP(info->name, EVP_DES_EDE3_CBC, EVP_DES_EDE3_SIZE) == 0)
-        ret = wc_Des3_CbcEncryptWithKey(der, der, derSz, key, info->iv);
+        if (XSTRNCMP(info->name, EVP_DES_CBC, EVP_DES_SIZE) == 0)
+            ret = wc_Des_CbcEncryptWithKey(der, der, derSz, key, info->iv);
+        else if (XSTRNCMP(info->name, EVP_DES_EDE3_CBC, EVP_DES_EDE3_SIZE) == 0)
+            ret = wc_Des3_CbcEncryptWithKey(der, der, derSz, key, info->iv);
 #endif /* NO_DES3 */
 #ifndef NO_AES
-    if (XSTRNCMP(info->name, EVP_AES_128_CBC, EVP_AES_SIZE) == 0)
-        ret = wc_AesCbcEncryptWithKey(der, der, derSz,
-                                      key, AES_128_KEY_SIZE, info->iv);
-    else if (XSTRNCMP(info->name, EVP_AES_192_CBC, EVP_AES_SIZE) == 0)
-        ret = wc_AesCbcEncryptWithKey(der, der, derSz,
-                                      key, AES_192_KEY_SIZE, info->iv);
-    else if (XSTRNCMP(info->name, EVP_AES_256_CBC, EVP_AES_SIZE) == 0)
-        ret = wc_AesCbcEncryptWithKey(der, der, derSz,
-                                      key, AES_256_KEY_SIZE, info->iv);
+        if (XSTRNCMP(info->name, EVP_AES_128_CBC, EVP_AES_SIZE) == 0)
+            ret = wc_AesCbcEncryptWithKey(der, der, derSz,
+                                          key, AES_128_KEY_SIZE, info->iv);
+        else if (XSTRNCMP(info->name, EVP_AES_192_CBC, EVP_AES_SIZE) == 0)
+            ret = wc_AesCbcEncryptWithKey(der, der, derSz,
+                                          key, AES_192_KEY_SIZE, info->iv);
+        else if (XSTRNCMP(info->name, EVP_AES_256_CBC, EVP_AES_SIZE) == 0)
+            ret = wc_AesCbcEncryptWithKey(der, der, derSz,
+                                          key, AES_256_KEY_SIZE, info->iv);
 #endif /* NO_AES */
+    }
 
 #ifdef WOLFSSL_SMALL_STACK
     XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
