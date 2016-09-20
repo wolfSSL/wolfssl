@@ -3440,7 +3440,6 @@ static int wolfssl_encrypt_buffer_key(byte* der, word32 derSz, byte* password,
 #endif
         return SSL_FATAL_ERROR;
     }
-#else
 
 #endif /* NO_MD5 */
 
