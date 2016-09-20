@@ -1029,29 +1029,28 @@ static int wc_InitRng_IntelRD()
     return 1 ;
 }
 
-#define INTELRD_RETRY 10
+#define INTELRD_RETRY 32
 
 #if defined(HAVE_HASHDRBG) || defined(NO_RC4)
 
 /* return 0 on success */
-static INLINE int IntelRDseed32(unsigned int *seed)
+static INLINE int IntelRDseed64(word64* seed)
 {
-    int rdseed;  unsigned char ok ;
+    unsigned char ok;
 
-    __asm__ volatile("rdseed %0; setc %1":"=r"(rdseed), "=qm"(ok));
+    __asm__ volatile("rdseed %0; setc %1":"=r"(*seed), "=qm"(ok));
     if(ok){
-        *seed = rdseed ;
         return 0 ;
     } else
         return 1;
 }
 
 /* return 0 on success */
-static INLINE int IntelRDseed32_r(unsigned int *rnd)
+static INLINE int IntelRDseed64_r(word64* rnd)
 {
-    int i ;
+    int i;
     for(i=0; i<INTELRD_RETRY;i++) {
-       if(IntelRDseed32(rnd) == 0) return 0 ;
+       if(IntelRDseed64(rnd) == 0) return 0 ;
     }
     return 1 ;
 }
@@ -1061,17 +1060,17 @@ static int wc_GenerateSeed_IntelRD(OS_Seed* os, byte* output, word32 sz)
 {
     (void) os ;
     int ret ;
-    unsigned int rndTmp ;
+    word64 rndTmp ;
 
-    for(  ; sz/4 > 0; sz-=4, output+=4) {
-        if(IS_INTEL_RDSEED)ret = IntelRDseed32_r((word32 *)output) ;
+    for(  ; sz/8 > 0; sz-=8, output+=8) {
+        if(IS_INTEL_RDSEED)ret = IntelRDseed64_r((word64*)output);
         else return 1 ;
         if(ret)
              return 1 ;
     }
     if(sz == 0)return 0 ;
 
-    if(IS_INTEL_RDSEED)ret = IntelRDseed32_r(&rndTmp) ;
+    if(IS_INTEL_RDSEED)ret = IntelRDseed64_r(&rndTmp) ;
     else return 1 ;
     if(ret)
          return 1 ;
@@ -1621,8 +1620,21 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 
 #if defined(HAVE_INTEL_RDGEN) && (defined(HAVE_HASHDRBG) || defined(NO_RC4))
     wc_InitRng_IntelRD() ; /* set cpuid_flags if not yet */
-    if(IS_INTEL_RDSEED)
-         return wc_GenerateSeed_IntelRD(NULL, output, sz) ;
+    if(IS_INTEL_RDSEED) {
+         ret = wc_GenerateSeed_IntelRD(NULL, output, sz);
+         if (ret == 0) {
+             /* success, we're done */
+             return ret;
+         }
+#ifdef FORCE_FAILURE_RDSEED
+         /* don't fallback to /dev/urandom */
+         return ret;
+#else
+         /* fallback to /dev/urandom attempt */
+         ret = 0;
+#endif
+    }
+
 #endif
 
     os->fd = open("/dev/urandom",O_RDONLY);

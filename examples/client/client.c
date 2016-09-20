@@ -1084,6 +1084,12 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     if (ctx == NULL)
         err_sys("unable to get ctx");
 
+#ifdef SINGLE_THREADED
+    if (wolfSSL_CTX_new_rng(ctx) != SSL_SUCCESS) {
+        err_sys("Single Threaded new rng at CTX failed");
+    }
+#endif
+
     if (cipherList) {
         if (wolfSSL_CTX_set_cipher_list(ctx, cipherList) != SSL_SUCCESS)
             err_sys("client can't set cipher list 1");

@@ -2323,6 +2323,39 @@ int wolfSSL_CertManagerUnloadCAs(WOLFSSL_CERT_MANAGER* cm)
 }
 
 
+#ifdef SINGLE_THREADED
+/* no locking in single threaded mode, allow a CTX level rng to be shared with
+ * WOLFSSL objects, SSL_SUCCESS on ok */
+int wolfSSL_CTX_new_rng(WOLFSSL_CTX* ctx)
+{
+    WC_RNG* rng;
+    int     ret;
+
+    if (ctx == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    rng = XMALLOC(sizeof(WC_RNG), ctx->heap, DYNAMIC_TYPE_RNG);
+    if (rng == NULL) {
+        return MEMORY_E;
+    }
+
+#ifndef HAVE_FIPS
+    ret = wc_InitRng_ex(rng, ctx->heap);
+#else
+    ret = wc_InitRng(rng);
+#endif
+    if (ret != 0) {
+        XFREE(rng, ctx->heap, DYNAMIC_TYPE_RNG);
+        return ret;
+    }
+
+    ctx->rng = rng;
+    return SSL_SUCCESS;
+}
+#endif
+
+
 #ifdef WOLFSSL_TRUST_PEER_CERT
 int wolfSSL_CertManagerUnload_trust_peers(WOLFSSL_CERT_MANAGER* cm)
 {

@@ -1449,6 +1449,13 @@ void SSL_CtxResourceFree(WOLFSSL_CTX* ctx)
     XFREE(ctx->serverDH_P.buffer, ctx->heap, DYNAMIC_TYPE_DH);
 #endif
 
+#ifdef SINGLE_THREADED
+    if (ctx->rng) {
+        wc_FreeRng(ctx->rng);
+        XFREE(ctx->rng, ctx->heap, DYNAMIC_TYPE_RNG);
+    }
+#endif
+
 #ifndef NO_CERTS
     FreeDer(&ctx->privateKey);
     FreeDer(&ctx->certificate);
@@ -3475,25 +3482,32 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
     }
 #endif
 
-    /* RNG */
-    ssl->rng = (WC_RNG*)XMALLOC(sizeof(WC_RNG), ssl->heap, DYNAMIC_TYPE_RNG);
-    if (ssl->rng == NULL) {
-        WOLFSSL_MSG("RNG Memory error");
-        return MEMORY_E;
-    }
-
-    /* FIPS RNG API does not accept a heap hint */
-#ifndef HAVE_FIPS
-    if ( (ret = wc_InitRng_ex(ssl->rng, ssl->heap)) != 0) {
-        WOLFSSL_MSG("RNG Init error");
-        return ret;
-    }
-#else
-    if ( (ret = wc_InitRng(ssl->rng)) != 0) {
-        WOLFSSL_MSG("RNG Init error");
-        return ret;
-    }
+#ifdef SINGLE_THREADED
+    ssl->rng = ctx->rng;   /* CTX may have one, if so use it */
 #endif
+
+    if (ssl->rng == NULL) {
+        /* RNG */
+        ssl->rng = (WC_RNG*)XMALLOC(sizeof(WC_RNG), ssl->heap,DYNAMIC_TYPE_RNG);
+        if (ssl->rng == NULL) {
+            WOLFSSL_MSG("RNG Memory error");
+            return MEMORY_E;
+        }
+        ssl->options.weOwnRng = 1;
+
+        /* FIPS RNG API does not accept a heap hint */
+#ifndef HAVE_FIPS
+        if ( (ret = wc_InitRng_ex(ssl->rng, ssl->heap)) != 0) {
+            WOLFSSL_MSG("RNG Init error");
+            return ret;
+        }
+#else
+        if ( (ret = wc_InitRng(ssl->rng)) != 0) {
+            WOLFSSL_MSG("RNG Init error");
+            return ret;
+        }
+#endif
+    }
 
 #if defined(WOLFSSL_DTLS) && !defined(NO_WOLFSSL_SERVER)
     if (ssl->options.dtls && ssl->options.side == WOLFSSL_SERVER_END) {
@@ -3591,8 +3605,10 @@ void SSL_ResourceFree(WOLFSSL* ssl)
     FreeCiphers(ssl);
     FreeArrays(ssl, 0);
     FreeKeyExchange(ssl);
-    wc_FreeRng(ssl->rng);
-    XFREE(ssl->rng, ssl->heap, DYNAMIC_TYPE_RNG);
+    if (ssl->options.weOwnRng) {
+        wc_FreeRng(ssl->rng);
+        XFREE(ssl->rng, ssl->heap, DYNAMIC_TYPE_RNG);
+    }
     XFREE(ssl->suites, ssl->heap, DYNAMIC_TYPE_SUITES);
     XFREE(ssl->hsHashes, ssl->heap, DYNAMIC_TYPE_HASHES);
     XFREE(ssl->buffers.domainName.buffer, ssl->heap, DYNAMIC_TYPE_DOMAIN);
@@ -3783,9 +3799,12 @@ void FreeHandshakeResources(WOLFSSL* ssl)
 
     /* RNG */
     if (ssl->specs.cipher_type == stream || ssl->options.tls1_1 == 0) {
-        wc_FreeRng(ssl->rng);
-        XFREE(ssl->rng, ssl->heap, DYNAMIC_TYPE_RNG);
-        ssl->rng = NULL;
+        if (ssl->options.weOwnRng) {
+            wc_FreeRng(ssl->rng);
+            XFREE(ssl->rng, ssl->heap, DYNAMIC_TYPE_RNG);
+            ssl->rng = NULL;
+            ssl->options.weOwnRng = 0;
+        }
     }
 
 #ifdef WOLFSSL_DTLS

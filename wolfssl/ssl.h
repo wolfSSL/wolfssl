@@ -1418,6 +1418,11 @@ WOLFSSL_API void* wolfSSL_GetRsaDecCtx(WOLFSSL* ssl);
     WOLFSSL_API int wolfSSL_CTX_EnableOCSPStapling(WOLFSSL_CTX*);
 #endif /* !NO_CERTS */
 
+
+#ifdef SINGLE_THREADED
+    WOLFSSL_API int wolfSSL_CTX_new_rng(WOLFSSL_CTX*);
+#endif
+
 /* end of handshake frees temporary arrays, if user needs for get_keys or
    psk hints, call KeepArrays before handshake and then FreeArrays when done
    if don't want to wait for object free */

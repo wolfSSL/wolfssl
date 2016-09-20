@@ -1902,7 +1902,10 @@ WOLFSSL_LOCAL int TLSX_ValidateQSHScheme(TLSX** extensions, word16 name);
 /* wolfSSL context type */
 struct WOLFSSL_CTX {
     WOLFSSL_METHOD* method;
-    wolfSSL_Mutex   countMutex;    /* reference count mutex */
+#ifdef SINGLE_THREADED
+    WC_RNG*         rng;          /* to be shared with WOLFSSL w/o locking */
+#endif
+    wolfSSL_Mutex   countMutex;   /* reference count mutex */
     int         refCount;         /* reference count */
     int         err;              /* error code in case of mutex not created */
 #ifndef NO_DH
@@ -2396,6 +2399,7 @@ typedef struct Options {
     word16            usingNonblock:1;    /* are we using nonblocking socket */
     word16            saveArrays:1;       /* save array Memory for user get keys
                                            or psk */
+    word16            weOwnRng:1;         /* will be true unless CTX owns */
 #ifdef HAVE_POLY1305
     word16            oldPoly:1;        /* set when to use old rfc way of poly*/
 #endif
