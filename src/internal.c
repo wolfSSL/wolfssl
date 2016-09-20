@@ -6099,7 +6099,7 @@ int CopyDecodedToX509(WOLFSSL_X509* x509, DecodedCert* dCert)
 
     x509->basicConstSet = dCert->extBasicConstSet;
     x509->basicConstCrit = dCert->extBasicConstCrit;
-    x509->basicConstPlSet = dCert->extBasicConstPlSet;
+    x509->basicConstPlSet = dCert->pathLengthSet;
     x509->subjAltNameSet = dCert->extSubjAltNameSet;
     x509->subjAltNameCrit = dCert->extSubjAltNameCrit;
     x509->authKeyIdSet = dCert->extAuthKeyIdSet;

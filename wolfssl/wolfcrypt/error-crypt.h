@@ -175,6 +175,8 @@ enum {
     WC_KEY_SIZE_E       = -234,  /* Key size error, either too small or large */
     ASN_COUNTRY_SIZE_E  = -235,  /* ASN Cert Gen, invalid country code size */
     MISSING_RNG_E       = -236,  /* RNG required but not provided */
+    ASN_PATHLEN_SIZE_E  = -237,  /* ASN CA path length too large error */
+    ASN_PATHLEN_INV_E   = -238,  /* ASN CA path length inversion error */
 
     MIN_CODE_E          = -300   /* errors -101 - -299 */
 

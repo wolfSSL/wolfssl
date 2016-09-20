@@ -444,6 +444,8 @@ struct DecodedCert {
     byte    extNameConstraintSet;
 #endif /* IGNORE_NAME_CONSTRAINTS */
     byte    isCA;                    /* CA basic constraint true         */
+    byte    pathLengthSet;           /* CA basic const path length set   */
+    byte    pathLength;              /* CA basic constraint path length  */
     byte    weOwnAltNames;           /* altNames haven't been given to copy */
     byte    extKeyUsageSet;
     word16  extKeyUsage;             /* Key usage bitfield               */
@@ -452,8 +454,6 @@ struct DecodedCert {
 #ifdef OPENSSL_EXTRA
     byte    extBasicConstSet;
     byte    extBasicConstCrit;
-    byte    extBasicConstPlSet;
-    word32  pathLength;              /* CA basic constraint path length, opt */
     byte    extSubjAltNameSet;
     byte    extSubjAltNameCrit;
     byte    extAuthKeyIdCrit;
@@ -564,6 +564,8 @@ struct Signer {
     word32  pubKeySize;
     word32  keyOID;                  /* key type */
     word16  keyUsage;
+    byte    pathLength;
+    byte    pathLengthSet;
     byte*   publicKey;
     int     nameLen;
     char*   name;                    /* common name */

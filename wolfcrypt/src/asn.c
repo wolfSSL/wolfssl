@@ -2171,6 +2171,8 @@ void InitDecodedCert(DecodedCert* cert, byte* source, word32 inSz, void* heap)
     cert->extExtKeyUsageSet = 0;
     cert->extExtKeyUsage    = 0;
     cert->isCA            = 0;
+    cert->pathLengthSet   = 0;
+    cert->pathLength      = 0;
 #ifdef HAVE_PKCS7
     cert->issuerRaw       = NULL;
     cert->issuerRawLen    = 0;
@@ -2206,8 +2208,6 @@ void InitDecodedCert(DecodedCert* cert, byte* source, word32 inSz, void* heap)
     XMEMSET(&cert->subjectName, 0, sizeof(DecodedName));
     cert->extBasicConstSet = 0;
     cert->extBasicConstCrit = 0;
-    cert->extBasicConstPlSet = 0;
-    cert->pathLength = 0;
     cert->extSubjAltNameSet = 0;
     cert->extSubjAltNameCrit = 0;
     cert->extAuthKeyIdCrit = 0;
@@ -4184,25 +4184,23 @@ static int DecodeBasicCaConstraint(byte* input, int sz, DecodedCert* cert)
     if (input[idx++])
         cert->isCA = 1;
 
-    #ifdef OPENSSL_EXTRA
-        /* If there isn't any more data, return. */
-        if (idx >= (word32)sz)
-            return 0;
+    /* If there isn't any more data, return. */
+    if (idx >= (word32)sz)
+        return 0;
 
-        /* Anything left should be the optional pathlength */
-        if (input[idx++] != ASN_INTEGER) {
-            WOLFSSL_MSG("\tfail: pathlen not INTEGER");
-            return ASN_PARSE_E;
-        }
+    /* Anything left should be the optional pathlength */
+    if (input[idx++] != ASN_INTEGER) {
+        WOLFSSL_MSG("\tfail: pathlen not INTEGER");
+        return ASN_PARSE_E;
+    }
 
-        if (input[idx++] != 1) {
-            WOLFSSL_MSG("\tfail: pathlen too long");
-            return ASN_PARSE_E;
-        }
+    if (input[idx++] != 1) {
+        WOLFSSL_MSG("\tfail: pathlen too long");
+        return ASN_PATHLEN_SIZE_E;
+    }
 
-        cert->pathLength = input[idx];
-        cert->extBasicConstPlSet = 1;
-    #endif /* OPENSSL_EXTRA */
+    cert->pathLength = input[idx];
+    cert->pathLengthSet = 1;
 
     return 0;
 }
@@ -5087,6 +5085,21 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
         WOLFSSL_MSG("About to verify certificate signature");
 
         if (ca) {
+            if (cert->isCA) {
+                if (ca->pathLengthSet) {
+                    if (ca->pathLength == 0) {
+                        WOLFSSL_MSG("CA with path length 0 signing a CA");
+                        return ASN_PATHLEN_INV_E;
+                    }
+                    if (cert->pathLengthSet &&
+                        cert->pathLength >= ca->pathLength) {
+
+                        WOLFSSL_MSG("CA signing CA with longer path length");
+                        return ASN_PATHLEN_INV_E;
+                    }
+                }
+            }
+
 #ifdef HAVE_OCSP
             /* Need the ca's public key hash for OCSP */
     #ifdef NO_SHA
@@ -5152,6 +5165,8 @@ Signer* MakeSigner(void* heap)
             signer->permittedNames = NULL;
             signer->excludedNames = NULL;
         #endif /* IGNORE_NAME_CONSTRAINTS */
+        signer->pathLengthSet = 0;
+        signer->pathLength = 0;
         signer->next       = NULL;
     }
     (void)heap;

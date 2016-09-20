@@ -395,6 +395,12 @@ const char* wc_GetErrorString(int error)
     case MISSING_RNG_E:
         return "RNG required but not provided";
 
+    case ASN_PATHLEN_SIZE_E:
+        return "ASN CA path length value too large error";
+
+    case ASN_PATHLEN_INV_E:
+        return "ASN CA path length larger than signer error";
+
     default:
         return "unknown error number";
 
