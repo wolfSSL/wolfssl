@@ -24,6 +24,8 @@ certs/
   ocspd0.sh - ocsp responder for root-ca-cert.pem
   ocspd1.sh - ocsp responder for intermediate1-ca-cert.pem
   ocspd2.sh - ocsp responder for intermediate2-ca-cert.pem
+ test-pathlen/
+  assemble-chains.sh - composes the cert chain files out of the certs
 
 scripts/
  external.test - example client test against our website, part of tests
