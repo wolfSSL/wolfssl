@@ -9407,6 +9407,8 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
             return 0;
     #endif
 
+        (void)type;
+
         WOLFSSL_ENTER("wolfSSL_EVP_BytesToKey");
         wc_InitMd5(md5);
 
@@ -9425,6 +9427,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         }
         else
         #endif /* NO_DES3 */
+        #ifndef NO_AES
         if (XSTRNCMP(type, EVP_AES_128_CBC, EVP_AES_SIZE) == 0) {
             keyLen = AES_128_KEY_SIZE;
             ivLen  = AES_IV_SIZE;
@@ -9437,7 +9440,9 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
             keyLen = AES_256_KEY_SIZE;
             ivLen  = AES_IV_SIZE;
         }
-        else {
+        else
+        #endif /* NO_AES */
+        {
         #ifdef WOLFSSL_SMALL_STACK
             XFREE(md5, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         #endif
