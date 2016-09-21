@@ -21,61 +21,6 @@ import unittest
 from wolfcrypt.ciphers import *
 from wolfcrypt.utils   import t2b, h2b
 
-class TestDes3(unittest.TestCase):
-    key    = h2b("0123456789abcdeffedeba987654321089abcdef01234567")
-    IV     = h2b("1234567890abcdef")
-    plain  = t2b("Now is the time for all ")
-    cipher = h2b("43a0297ed184f80e8964843212d508981894157487127db0")
-
-
-    def setUp(self):
-        self.des3 = Des3.new(self.key, MODE_CBC, self.IV)
-
-
-    def test_raises(self):
-        # invalid key length
-        self.assertRaises(ValueError, Des3.new, "key", MODE_CBC, self.IV)
-
-        # invalid mode
-        self.assertRaises(ValueError, Des3.new, self.key, MODE_ECB, self.IV)
-
-        # invalid iv length
-        self.assertRaises(ValueError, Des3.new, self.key, MODE_CBC, "IV")
-
-        # invalid data length
-        self.assertRaises(ValueError, self.des3.encrypt, "foo")
-        self.assertRaises(ValueError, self.des3.decrypt, "bar")
-
-
-    def test_single_encryption(self):
-        assert self.des3.encrypt(self.plain) == self.cipher
-
-
-    def test_multi_encryption(self):
-        result = t2b("")
-        segments = tuple(self.plain[i:i + Des3.block_size] \
-            for i in range(0, len(self.plain), Des3.block_size))
-
-        for segment in segments:
-            result += self.des3.encrypt(segment)
-
-        assert result == self.cipher
-
-
-    def test_single_decryption(self):
-        assert self.des3.decrypt(self.cipher) == self.plain
-
-
-    def test_multi_decryption(self):
-        result = t2b("")
-        segments = tuple(self.cipher[i:i + Des3.block_size] \
-            for i in range(0, len(self.cipher), Des3.block_size))
-
-        for segment in segments:
-            result += self.des3.decrypt(segment)
-
-        assert result == self.plain
-
 
 class TestAes(unittest.TestCase):
     key    = "0123456789abcdef"
