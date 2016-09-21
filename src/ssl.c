@@ -2416,7 +2416,9 @@ static const char *EVP_AES_256_CBC = "AES-256-CBC";
     static const char *EVP_AES_192_CTR = "AES-192-CTR";
     static const char *EVP_AES_256_CTR = "AES-256-CTR";
 #endif
+#ifndef NO_AES
 static const int  EVP_AES_SIZE = 11;
+#endif
 
 #ifndef NO_DES3
 static const char *EVP_DES_CBC = "DES-CBC";
@@ -3331,6 +3333,9 @@ static int wolfssl_decrypt_buffer_key(DerBuffer* der, byte* password,
     byte  key[AES_256_KEY_SIZE];
 #endif
 
+    (void)passwordSz;
+    (void)key;
+
     WOLFSSL_ENTER("wolfssl_decrypt_buffer_key");
 
     if (der == NULL || password == NULL || info == NULL) {
@@ -3362,8 +3367,7 @@ static int wolfssl_decrypt_buffer_key(DerBuffer* der, byte* password,
 #endif
         return SSL_FATAL_ERROR;
     }
-#else
-    (void) passwordSz;
+
 #endif /* NO_MD5 */
 
 #ifndef NO_DES3
@@ -3414,6 +3418,7 @@ static int wolfssl_encrypt_buffer_key(byte* der, word32 derSz, byte* password,
 
     (void)derSz;
     (void)passwordSz;
+    (void)key;
 
     WOLFSSL_ENTER("wolfssl_encrypt_buffer_key");
 
