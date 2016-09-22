@@ -2441,6 +2441,7 @@ int wolfSSL_CertPemToDer(const unsigned char* pem, int pemSz,
 
 #if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
 
+#ifndef NO_AES
 static const char *EVP_AES_128_CBC = "AES-128-CBC";
 static const char *EVP_AES_192_CBC = "AES-192-CBC";
 static const char *EVP_AES_256_CBC = "AES-256-CBC";
@@ -2449,7 +2450,6 @@ static const char *EVP_AES_256_CBC = "AES-256-CBC";
     static const char *EVP_AES_192_CTR = "AES-192-CTR";
     static const char *EVP_AES_256_CTR = "AES-256-CTR";
 #endif
-#ifndef NO_AES
 static const int  EVP_AES_SIZE = 11;
 #endif
 
@@ -9775,6 +9775,8 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         /* do nothing */
     }
 
+    #ifndef NO_AES
+
     const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aes_128_cbc(void)
     {
         WOLFSSL_ENTER("wolfSSL_EVP_aes_128_cbc");
@@ -9816,6 +9818,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         return EVP_AES_256_CTR;
     }
 
+    #endif /* NO_AES */
 
 #ifndef NO_DES3
     const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_des_cbc(void)
