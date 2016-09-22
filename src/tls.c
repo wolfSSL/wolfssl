@@ -2895,7 +2895,6 @@ int TLSX_ValidateEllipticCurves(WOLFSSL* ssl, byte first, byte second) {
 
         if (first == ECC_BYTE) {
         switch (second) {
-#ifndef NO_DSA
             /* ECDHE_ECDSA */
             case TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA:
             case TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA:
@@ -2911,6 +2910,7 @@ int TLSX_ValidateEllipticCurves(WOLFSSL* ssl, byte first, byte second) {
                 key |= ssl->eccTempKeySz == octets;
             break;
 
+#ifdef WOLFSSL_STATIC_DH
             /* ECDH_ECDSA */
             case TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA:
             case TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA:
@@ -2923,7 +2923,7 @@ int TLSX_ValidateEllipticCurves(WOLFSSL* ssl, byte first, byte second) {
                 sig |= ssl->pkCurveOID == oid;
                 key |= ssl->pkCurveOID == oid;
             break;
-#endif
+#endif /* WOLFSSL_STATIC_DH */
 #ifndef NO_RSA
             /* ECDHE_RSA */
             case TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA:
@@ -2938,6 +2938,7 @@ int TLSX_ValidateEllipticCurves(WOLFSSL* ssl, byte first, byte second) {
                 key |= ssl->eccTempKeySz == octets;
             break;
 
+#ifdef WOLFSSL_STATIC_DH
             /* ECDH_RSA */
             case TLS_ECDH_RSA_WITH_AES_256_CBC_SHA:
             case TLS_ECDH_RSA_WITH_AES_128_CBC_SHA:
@@ -2950,6 +2951,7 @@ int TLSX_ValidateEllipticCurves(WOLFSSL* ssl, byte first, byte second) {
                 sig = 1;
                 key |= ssl->pkCurveOID == oid;
             break;
+#endif /* WOLFSSL_STATIC_DH */
 #endif
             default:
                 sig = 1;
@@ -2961,14 +2963,12 @@ int TLSX_ValidateEllipticCurves(WOLFSSL* ssl, byte first, byte second) {
         /* ChaCha20-Poly1305 ECC cipher suites */
         if (first == CHACHA_BYTE) {
         switch (second) {
-#ifndef NO_DSA
             /* ECDHE_ECDSA */
             case TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256 :
             case TLS_ECDHE_ECDSA_WITH_CHACHA20_OLD_POLY1305_SHA256 :
                 sig |= ssl->pkCurveOID == oid;
                 key |= ssl->eccTempKeySz == octets;
             break;
-#endif
 #ifndef NO_RSA
             /* ECDHE_RSA */
             case TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256 :
