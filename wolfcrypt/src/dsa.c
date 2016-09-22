@@ -401,6 +401,10 @@ int wc_DsaSign(const byte* digest, byte* out, DsaKey* key, WC_RNG* rng)
     if (ret == 0 && mp_mulmod(&s, &kInv, &key->q, &s) != MP_OKAY)
         ret = MP_MULMOD_E;
 
+    /* detect zero r or s */
+    if (ret == 0 && (mp_iszero(&r) == MP_YES || mp_iszero(&s) == MP_YES))
+        ret = MP_ZERO_E;
+
     /* write out */
     if (ret == 0)  {
         int rSz = mp_unsigned_bin_size(&r);
