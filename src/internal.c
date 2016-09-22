@@ -121,8 +121,8 @@ WOLFSSL_CALLBACKS needs LARGE_STATIC_BUFFERS, please add LARGE_STATIC_BUFFERS
 
 
 #ifdef WOLFSSL_DTLS
-    static INLINE int DtlsCheckWindow(DtlsState* state);
-    static INLINE int DtlsUpdateWindow(DtlsState* state);
+    static INLINE int DtlsCheckWindow(WOLFSSL* ssl);
+    static INLINE int DtlsUpdateWindow(WOLFSSL* ssl);
 #endif
 
 
@@ -187,7 +187,7 @@ static INLINE int IsEncryptionOn(WOLFSSL* ssl, int isSend)
 
     #ifdef WOLFSSL_DTLS
     /* For DTLS, epoch 0 is always not encrypted. */
-    if (ssl->options.dtls && !isSend && ssl->keys.dtls_state.curEpoch == 0)
+    if (ssl->options.dtls && !isSend && ssl->keys.curEpoch == 0)
         return 0;
     #endif /* WOLFSSL_DTLS */
 
@@ -334,21 +334,6 @@ void c32to24(word32 in, word24 out)
     out[1] = (in >>  8) & 0xff;
     out[2] =  in & 0xff;
 }
-
-
-#ifdef WOLFSSL_DTLS
-
-static INLINE void c32to48(word32 in, byte out[6])
-{
-    out[0] = 0;
-    out[1] = 0;
-    out[2] = (in >> 24) & 0xff;
-    out[3] = (in >> 16) & 0xff;
-    out[4] = (in >>  8) & 0xff;
-    out[5] =  in & 0xff;
-}
-
-#endif /* WOLFSSL_DTLS */
 
 
 /* convert 16 bit integer to opaque */
@@ -586,11 +571,11 @@ static int ExportKeyState(WOLFSSL* ssl, byte* exp, word32 len, byte ver)
     c32toa(keys->sequence_number_hi, exp + idx);      idx += OPAQUE32_LEN;
     c32toa(keys->sequence_number_lo, exp + idx);      idx += OPAQUE32_LEN;
 
-    c16toa(keys->dtls_state.nextEpoch, exp + idx); idx += OPAQUE16_LEN;
-    c32toa(keys->dtls_state.nextSeq, exp + idx);   idx += OPAQUE32_LEN;
-    c16toa(keys->dtls_state.curEpoch, exp + idx);  idx += OPAQUE16_LEN;
-    c32toa(keys->dtls_state.curSeq, exp + idx);    idx += OPAQUE32_LEN;
-    c32toa(keys->dtls_state.prevSeq, exp + idx);   idx += OPAQUE32_LEN;
+    c16toa(keys->nextEpoch, exp + idx); idx += OPAQUE16_LEN;
+    c32toa(keys->nextSeq, exp + idx);   idx += OPAQUE32_LEN;
+    c16toa(keys->curEpoch, exp + idx);  idx += OPAQUE16_LEN;
+    c32toa(keys->curSeq, exp + idx);    idx += OPAQUE32_LEN;
+    c32toa(keys->prevSeq, exp + idx);   idx += OPAQUE32_LEN;
 
     c16toa(keys->dtls_peer_handshake_number, exp + idx); idx += OPAQUE16_LEN;
     c16toa(keys->dtls_expected_peer_handshake_number, exp + idx);
@@ -606,13 +591,13 @@ static int ExportKeyState(WOLFSSL* ssl, byte* exp, word32 len, byte ver)
     exp[idx++] = keys->decryptedCur;
 
 #ifdef WORD64_AVAILABLE
-    c64toa(keys->dtls_state.window, exp + idx);     idx += OPAQUE64_LEN;
-    c64toa(keys->dtls_state.prevWindow, exp + idx); idx += OPAQUE64_LEN;
+    c64toa(keys->window, exp + idx);     idx += OPAQUE64_LEN;
+    c64toa(keys->prevWindow, exp + idx); idx += OPAQUE64_LEN;
 #else
-    c32toa(keys->dtls_state.window, exp + idx);     idx += OPAQUE32_LEN;
-    c32toa(0, exp + idx);                           idx += OPAQUE32_LEN;
-    c32toa(keys->dtls_state.prevWindow, exp + idx); idx += OPAQUE32_LEN;
-    c32toa(0, exp + idx);                           idx += OPAQUE32_LEN;
+    c32toa(keys->window, exp + idx);     idx += OPAQUE32_LEN;
+    c32toa(0, exp + idx);                idx += OPAQUE32_LEN;
+    c32toa(keys->prevWindow, exp + idx); idx += OPAQUE32_LEN;
+    c32toa(0, exp + idx);                idx += OPAQUE32_LEN;
 #endif
 
 #ifdef HAVE_TRUNCATED_HMAC
@@ -712,11 +697,11 @@ static int ImportKeyState(WOLFSSL* ssl, byte* exp, word32 len, byte ver)
     ato32(exp + idx, &keys->sequence_number_hi);      idx += OPAQUE32_LEN;
     ato32(exp + idx, &keys->sequence_number_lo);      idx += OPAQUE32_LEN;
 
-    ato16(exp + idx, &keys->dtls_state.nextEpoch); idx += OPAQUE16_LEN;
-    ato32(exp + idx, &keys->dtls_state.nextSeq);   idx += OPAQUE32_LEN;
-    ato16(exp + idx, &keys->dtls_state.curEpoch);  idx += OPAQUE16_LEN;
-    ato32(exp + idx, &keys->dtls_state.curSeq);    idx += OPAQUE32_LEN;
-    ato32(exp + idx, &keys->dtls_state.prevSeq);   idx += OPAQUE32_LEN;
+    ato16(exp + idx, &keys->nextEpoch); idx += OPAQUE16_LEN;
+    ato32(exp + idx, &keys->nextSeq);   idx += OPAQUE32_LEN;
+    ato16(exp + idx, &keys->curEpoch);  idx += OPAQUE16_LEN;
+    ato32(exp + idx, &keys->curSeq);    idx += OPAQUE32_LEN;
+    ato32(exp + idx, &keys->prevSeq);   idx += OPAQUE32_LEN;
 
     ato16(exp + idx, &keys->dtls_peer_handshake_number); idx += OPAQUE16_LEN;
     ato16(exp + idx, &keys->dtls_expected_peer_handshake_number);
@@ -732,13 +717,13 @@ static int ImportKeyState(WOLFSSL* ssl, byte* exp, word32 len, byte ver)
     keys->decryptedCur = exp[idx++];
 
 #ifdef WORD64_AVAILABLE
-    ato64(exp + idx, &keys->dtls_state.window);     idx += OPAQUE64_LEN;
-    ato64(exp + idx, &keys->dtls_state.prevWindow); idx += OPAQUE64_LEN;
+    ato64(exp + idx, &keys->window);     idx += OPAQUE64_LEN;
+    ato64(exp + idx, &keys->prevWindow); idx += OPAQUE64_LEN;
 #else
-    ato32(exp + idx, &keys->dtls_state.window);     idx += OPAQUE32_LEN;
-    ato32(exp + idx, 0);                            idx += OPAQUE32_LEN;
-    ato32(exp + idx, &keys->dtls_state.prevWindow); idx += OPAQUE32_LEN;
-    ato32(exp + idx, 0);                            idx += OPAQUE32_LEN;
+    ato32(exp + idx, &keys->window);     idx += OPAQUE32_LEN;
+    ato32(exp + idx, 0);                 idx += OPAQUE32_LEN;
+    ato32(exp + idx, &keys->prevWindow); idx += OPAQUE32_LEN;
+    ato32(exp + idx, 0);                 idx += OPAQUE32_LEN;
 #endif
 
 #ifdef HAVE_TRUNCATED_HMAC
@@ -1046,7 +1031,7 @@ static int ExportPeerInfo(WOLFSSL* ssl, byte* exp, word32 len, byte ver)
         return SOCKET_ERROR_E;
     }
 
-    c16toa((word16)fam, exp + idx);          idx += DTLS_EXPORT_LEN;
+    c16toa((word16)fam, exp + idx);  idx += DTLS_EXPORT_LEN;
     c16toa((word16)ipSz, exp + idx); idx += DTLS_EXPORT_LEN;
     XMEMCPY(exp + idx, ip, ipSz);    idx += ipSz;
     c16toa(port, exp + idx);         idx += DTLS_EXPORT_LEN;
@@ -3922,6 +3907,98 @@ void FreeSSL(WOLFSSL* ssl, void* heap)
 }
 
 
+#if !defined(NO_OLD_TLS) || defined(HAVE_CHACHA) || defined(HAVE_AESCCM) \
+    || defined(HAVE_AESGCM)
+static INLINE void GetSEQIncrement(WOLFSSL* ssl, int verify, word32 seq[2])
+{
+    if (verify) {
+        seq[0] = ssl->keys.peer_sequence_number_hi;
+        seq[1] = ssl->keys.peer_sequence_number_lo++;
+        if (seq[1] > ssl->keys.peer_sequence_number_lo) {
+            /* handle rollover */
+            ssl->keys.peer_sequence_number_hi++;
+        }
+    }
+    else {
+        seq[0] = ssl->keys.sequence_number_hi;
+        seq[1] = ssl->keys.sequence_number_lo++;
+        if (seq[1] > ssl->keys.sequence_number_lo) {
+            /* handle rollover */
+            ssl->keys.sequence_number_hi++;
+        }
+    }
+}
+
+
+#ifdef WOLFSSL_DTLS
+static INLINE void DtlsGetSEQ(WOLFSSL* ssl, int verify, word32 seq[2])
+{
+    if (verify == -1) {
+        /* Previous epoch case */
+        seq[0] = ((ssl->keys.dtls_epoch - 1) << 16) |
+                 (ssl->keys.dtls_prev_sequence_number_hi & 0xFFFF);
+        seq[1] = ssl->keys.dtls_prev_sequence_number_lo;
+    }
+    else if (verify == 1) {
+        seq[0] = (ssl->keys.curEpoch << 16) |
+                 (ssl->keys.curSeq_hi & 0xFFFF);
+        seq[1] = ssl->keys.curSeq_lo; /* explicit from peer */
+    }
+    else {
+        seq[0] = (ssl->keys.dtls_epoch << 16) |
+                 (ssl->keys.dtls_sequence_number_hi & 0xFFFF);
+        seq[1] = ssl->keys.dtls_sequence_number_lo;
+    }
+}
+
+static INLINE void DtlsSEQIncrement(WOLFSSL* ssl, int verify)
+{
+    word32 seq;
+
+    if (verify == -1) {
+        seq = ssl->keys.dtls_prev_sequence_number_lo++;
+        if (seq > ssl->keys.dtls_prev_sequence_number_lo) {
+            /* handle rollover */
+            ssl->keys.dtls_prev_sequence_number_hi++;
+        }
+    }
+    else if (verify == 1) {
+        seq = ssl->keys.peer_sequence_number_lo++;
+        if (seq > ssl->keys.peer_sequence_number_lo) {
+            /* handle rollover */
+            ssl->keys.peer_sequence_number_hi++;
+        }
+    }
+    else {
+        seq = ssl->keys.dtls_sequence_number_lo++;
+        if (seq > ssl->keys.dtls_sequence_number_lo) {
+            /* handle rollover */
+            ssl->keys.dtls_sequence_number_hi++;
+        }
+    }
+}
+#endif /* WOLFSSL_DTLS */
+
+
+static INLINE void WriteSEQ(WOLFSSL* ssl, int verify, byte* out)
+{
+    word32 seq[2];
+
+    if (!ssl->options.dtls) {
+        GetSEQIncrement(ssl, verify, seq);
+    }
+    else {
+#ifdef WOLFSSL_DTLS
+        DtlsGetSEQ(ssl, verify, seq);
+#endif
+    }
+
+    c32toa(seq[0], out);
+    c32toa(seq[1], out+4);
+}
+#endif
+
+
 #ifdef WOLFSSL_DTLS
 
 int DtlsPoolInit(WOLFSSL* ssl)
@@ -4022,13 +4099,13 @@ int DtlsPoolSend(WOLFSSL* ssl)
         for (i = 0, buf = pool->buf; i < pool->used; i++, buf++) {
             if (pool->epoch[i] == 0) {
                 DtlsRecordLayerHeader* dtls;
-                word32*                seqNumber;
+                int epochZero;
 
                 dtls = (DtlsRecordLayerHeader*)buf->buffer;
-                seqNumber = (ssl->keys.dtls_epoch == 0) ?
-                                &ssl->keys.dtls_sequence_number :
-                                &ssl->keys.dtls_prev_sequence_number;
-                c32to48((*seqNumber)++, dtls->sequence_number);
+                epochZero = (ssl->keys.dtls_epoch == 0) ? 0 : -1;
+
+                WriteSEQ(ssl, epochZero, dtls->sequence_number);
+                DtlsSEQIncrement(ssl, epochZero);
                 if ((ret = CheckAvailableSize(ssl, buf->length)) != 0)
                     return ret;
 
@@ -4694,8 +4771,7 @@ static void AddRecordHeader(byte* output, word32 length, byte type, WOLFSSL* ssl
 
         /* dtls record layer header extensions */
         dtls = (DtlsRecordLayerHeader*)output;
-        c16toa(ssl->keys.dtls_epoch, dtls->epoch);
-        c32to48(ssl->keys.dtls_sequence_number++, dtls->sequence_number);
+        WriteSEQ(ssl, 0, dtls->sequence_number);
         c16toa((word16)length, dtls->length);
 #endif
     }
@@ -5085,9 +5161,11 @@ static int GetRecordHeader(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         /* type and version in same sport */
         XMEMCPY(rh, input + *inOutIdx, ENUM_LEN + VERSION_SZ);
         *inOutIdx += ENUM_LEN + VERSION_SZ;
-        ato16(input + *inOutIdx, &ssl->keys.dtls_state.curEpoch);
-        *inOutIdx += 4; /* advance past epoch, skip first 2 seq bytes for now */
-        ato32(input + *inOutIdx, &ssl->keys.dtls_state.curSeq);
+        ato16(input + *inOutIdx, &ssl->keys.curEpoch);
+        *inOutIdx += 2;
+        ato16(input + *inOutIdx, &ssl->keys.curSeq_hi);
+        *inOutIdx += 2;
+        ato32(input + *inOutIdx, &ssl->keys.curSeq_lo);
         *inOutIdx += 4;  /* advance past rest of seq */
         ato16(input + *inOutIdx, size);
         *inOutIdx += LENGTH_SZ;
@@ -5096,8 +5174,8 @@ static int GetRecordHeader(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
 #ifdef WOLFSSL_DTLS
     if (IsDtlsNotSctpMode(ssl) &&
-        (!DtlsCheckWindow(&ssl->keys.dtls_state) ||
-         (ssl->options.handShakeDone && ssl->keys.dtls_state.curEpoch == 0))) {
+        (!DtlsCheckWindow(ssl) ||
+         (ssl->options.handShakeDone && ssl->keys.curEpoch == 0))) {
             return SEQUENCE_ERROR;
     }
 #endif
@@ -7680,33 +7758,35 @@ static int DoHandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 
 #ifdef WOLFSSL_DTLS
 
-static INLINE int DtlsCheckWindow(DtlsState* state)
+static INLINE int DtlsCheckWindow(WOLFSSL* ssl)
 {
-    word32 cur;
-    word32 next;
+    word32 cur_hi, cur_lo, next_hi, next_lo;
     DtlsSeq window;
 
-    if (state->curEpoch == state->nextEpoch) {
-        next = state->nextSeq;
-        window = state->window;
+    if (ssl->keys.curEpoch == ssl->keys.nextEpoch) {
+        next_hi = ssl->keys.nextSeq_hi;
+        next_lo = ssl->keys.nextSeq_lo;
+        window = ssl->keys.window;
     }
-    else if (state->curEpoch == state->nextEpoch - 1) {
-        next = state->prevSeq;
-        window = state->prevWindow;
+    else if (ssl->keys.curEpoch == ssl->keys.nextEpoch - 1) {
+        next_hi = ssl->keys.prevSeq_hi;
+        next_lo = ssl->keys.prevSeq_lo;
+        window = ssl->keys.prevWindow;
     }
     else {
         return 0;
     }
+/* XXX Handle rollover */
+    cur_hi = ssl->keys.curSeq_hi;
+    cur_lo = ssl->keys.curSeq_lo;
 
-    cur = state->curSeq;
-
-    if ((next > DTLS_SEQ_BITS) && (cur < next - DTLS_SEQ_BITS)) {
+    if ((next_lo > DTLS_SEQ_BITS) && (cur_lo < next_lo - DTLS_SEQ_BITS)) {
         return 0;
     }
-    else if ((cur < next) && (window & ((DtlsSeq)1 << (next - cur - 1)))) {
+    else if ((cur_lo < next_lo) && (window & ((DtlsSeq)1 << (next_lo - cur_lo - 1)))) {
         return 0;
     }
-    else if (cur > next + DTLS_SEQ_BITS) {
+    else if (cur_lo > next_lo + DTLS_SEQ_BITS) {
         return 0;
     }
 
@@ -7714,22 +7794,22 @@ static INLINE int DtlsCheckWindow(DtlsState* state)
 }
 
 
-static INLINE int DtlsUpdateWindow(DtlsState* state)
+static INLINE int DtlsUpdateWindow(WOLFSSL* ssl)
 {
     word32 cur;
     word32* next;
     DtlsSeq* window;
 
-    if (state->curEpoch == state->nextEpoch) {
-        next = &state->nextSeq;
-        window = &state->window;
+    if (ssl->keys.curEpoch == ssl->keys.nextEpoch) {
+        next = &ssl->keys.nextSeq_lo;
+        window = &ssl->keys.window;
     }
     else {
-        next = &state->prevSeq;
-        window = &state->prevWindow;
+        next = &ssl->keys.prevSeq_lo;
+        window = &ssl->keys.prevWindow;
     }
 
-    cur = state->curSeq;
+    cur = ssl->keys.curSeq_lo;
 
     if (cur < *next) {
         *window |= ((DtlsSeq)1 << (*next - cur - 1));
@@ -7864,55 +7944,6 @@ static int DoDtlsHandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 #endif
 
 
-#if !defined(NO_OLD_TLS) || defined(HAVE_CHACHA) || defined(HAVE_AESCCM) \
-    || defined(HAVE_AESGCM)
-static INLINE void GetSEQIncrement(WOLFSSL* ssl, int verify, word32 seq[2])
-{
-#ifdef WOLFSSL_DTLS
-    if (ssl->options.dtls) {
-        if (verify) {
-            seq[0] = 0;
-            seq[1] = ssl->keys.dtls_state.curSeq; /* explicit from peer */
-        }
-        else {
-            seq[0] = 0;
-            /* already incremented dtls seq number */
-            seq[1] = ssl->keys.dtls_sequence_number - 1;
-        }
-        return;
-    }
-#endif
-    if (verify) {
-        seq[0] = ssl->keys.peer_sequence_number_hi;
-        seq[1] = ssl->keys.peer_sequence_number_lo++;
-        if (seq[1] > ssl->keys.peer_sequence_number_lo) {
-            /* handle rollover */
-            ssl->keys.peer_sequence_number_hi++;
-        }
-    }
-    else {
-        seq[0] = ssl->keys.sequence_number_hi;
-        seq[1] = ssl->keys.sequence_number_lo++;
-        if (seq[1] > ssl->keys.sequence_number_lo) {
-            /* handle rollover */
-            ssl->keys.sequence_number_hi++;
-        }
-    }
-}
-
-
-static INLINE void WriteSEQ(WOLFSSL* ssl, int verify, byte* out)
-{
-    word32 seq[2];
-
-    GetSEQIncrement(ssl, verify, seq);
-
-    c32toa(seq[0], out);
-    c32toa(seq[1], out+4);
-}
-#endif
-
-
 #ifdef HAVE_AEAD
 static INLINE void AeadIncrementExpIV(WOLFSSL* ssl)
 {
@@ -7998,7 +8029,7 @@ static int  ChachaAEADEncrypt(WOLFSSL* ssl, byte* out, const byte* input,
 
     if (ssl->options.oldPoly != 0) {
         /* get nonce */
-        c32toa(ssl->keys.sequence_number_lo, nonce + CHACHA20_OLD_OFFSET);
+        WriteSEQ(ssl, 0, nonce + CHACHA20_OLD_OFFSET);
     }
 
     /* opaque SEQ number stored for AD */
@@ -8008,8 +8039,8 @@ static int  ChachaAEADEncrypt(WOLFSSL* ssl, byte* out, const byte* input,
      * the input buffer ahead of the plaintext. */
     #ifdef WOLFSSL_DTLS
         if (ssl->options.dtls) {
-            c16toa(ssl->keys.dtls_epoch, add);
             additionalSrc -= DTLS_HANDSHAKE_EXTRA;
+            DtlsSEQIncrement(ssl, 0);
         }
     #endif
 
@@ -8142,22 +8173,17 @@ static int ChachaAEADDecrypt(WOLFSSL* ssl, byte* plain, const byte* input,
 
     if (ssl->options.oldPoly != 0) {
         /* get nonce */
-        c32toa(ssl->keys.peer_sequence_number_lo, nonce + CHACHA20_OLD_OFFSET);
+        WriteSEQ(ssl, 1, nonce + CHACHA20_OLD_OFFSET);
     }
 
     /* sequence number field is 64-bits */
     WriteSEQ(ssl, 1, add);
 
     /* get AD info */
+    /* Store the type, version. */
     add[AEAD_TYPE_OFFSET] = ssl->curRL.type;
     add[AEAD_VMAJ_OFFSET] = ssl->curRL.pvMajor;
     add[AEAD_VMIN_OFFSET] = ssl->curRL.pvMinor;
-
-    /* Store the type, version. */
-    #ifdef WOLFSSL_DTLS
-        if (ssl->options.dtls)
-            c16toa(ssl->keys.dtls_state.curEpoch, add);
-    #endif
 
     /* add TLS message size to additional data */
     add[AEAD_AUTH_DATA_SZ - 2] = (msgLen >> 8) & 0xff;
@@ -8300,7 +8326,6 @@ static INLINE int Encrypt(WOLFSSL* ssl, byte* out, const byte* input, word16 sz)
                      * the input buffer ahead of the plaintext. */
                     #ifdef WOLFSSL_DTLS
                         if (ssl->options.dtls) {
-                            c16toa(ssl->keys.dtls_epoch, additional);
                             additionalSrc -= DTLS_HANDSHAKE_EXTRA;
                         }
                     #endif
@@ -8323,6 +8348,10 @@ static INLINE int Encrypt(WOLFSSL* ssl, byte* out, const byte* input, word16 sz)
                                  additional, AEAD_AUTH_DATA_SZ);
                     AeadIncrementExpIV(ssl);
                     ForceZero(nonce, AESGCM_NONCE_SZ);
+                    #ifdef WOLFSSL_DTLS
+                        if (ssl->options.dtls)
+                            DtlsSEQIncrement(ssl, 0);
+                    #endif
                 }
                 break;
         #endif
@@ -8344,7 +8373,6 @@ static INLINE int Encrypt(WOLFSSL* ssl, byte* out, const byte* input, word16 sz)
                      * the input buffer ahead of the plaintext. */
                     #ifdef WOLFSSL_DTLS
                         if (ssl->options.dtls) {
-                            c16toa(ssl->keys.dtls_epoch, additional);
                             additionalSrc -= DTLS_HANDSHAKE_EXTRA;
                         }
                     #endif
@@ -8367,6 +8395,10 @@ static INLINE int Encrypt(WOLFSSL* ssl, byte* out, const byte* input, word16 sz)
                         additional, AEAD_AUTH_DATA_SZ);
                     AeadIncrementExpIV(ssl);
                     ForceZero(nonce, AESGCM_NONCE_SZ);
+                    #ifdef WOLFSSL_DTLS
+                        if (ssl->options.dtls)
+                            DtlsSEQIncrement(ssl, 0);
+                    #endif
                 }
                 break;
         #endif
@@ -8463,11 +8495,6 @@ static INLINE int Decrypt(WOLFSSL* ssl, byte* plain, const byte* input,
                 /* sequence number field is 64-bits */
                 WriteSEQ(ssl, 1, additional);
 
-                #ifdef WOLFSSL_DTLS
-                    if (ssl->options.dtls)
-                        c16toa(ssl->keys.dtls_state.curEpoch, additional);
-                #endif
-
                 additional[AEAD_TYPE_OFFSET] = ssl->curRL.type;
                 additional[AEAD_VMAJ_OFFSET] = ssl->curRL.pvMajor;
                 additional[AEAD_VMIN_OFFSET] = ssl->curRL.pvMinor;
@@ -8504,11 +8531,6 @@ static INLINE int Decrypt(WOLFSSL* ssl, byte* plain, const byte* input,
 
                 /* sequence number field is 64-bits */
                 WriteSEQ(ssl, 1, additional);
-
-                #ifdef WOLFSSL_DTLS
-                    if (ssl->options.dtls)
-                        c16toa(ssl->keys.dtls_state.curEpoch, additional);
-                #endif
 
                 additional[AEAD_TYPE_OFFSET] = ssl->curRL.type;
                 additional[AEAD_VMAJ_OFFSET] = ssl->curRL.pvMajor;
@@ -9353,7 +9375,7 @@ int ProcessReply(WOLFSSL* ssl)
 
             #ifdef WOLFSSL_DTLS
             if (IsDtlsNotSctpMode(ssl)) {
-                DtlsUpdateWindow(&ssl->keys.dtls_state);
+                DtlsUpdateWindow(ssl);
             }
             #endif /* WOLFSSL_DTLS */
 
@@ -9463,8 +9485,8 @@ int ProcessReply(WOLFSSL* ssl)
                     #ifdef WOLFSSL_DTLS
                         if (ssl->options.dtls) {
                             DtlsPoolReset(ssl);
-                            ssl->keys.dtls_state.nextEpoch++;
-                            ssl->keys.dtls_state.nextSeq = 0;
+                            ssl->keys.nextEpoch++;
+                            ssl->keys.nextSeq_lo = 0;
                         }
                     #endif
 
@@ -9975,6 +9997,10 @@ int BuildMessage(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
 #endif
                 ret = ssl->hmac(ssl, output+idx, output + headerSz + ivSz, inSz,
                                                                        type, 0);
+                #ifdef WOLFSSL_DTLS
+                    if (ssl->options.dtls)
+                        DtlsSEQIncrement(ssl, 0);
+                #endif
         }
         if (ret != 0)
             return ret;
@@ -10012,9 +10038,12 @@ int SendFinished(WOLFSSL* ssl)
         if (ssl->options.dtls) {
             headerSz += DTLS_HANDSHAKE_EXTRA;
             ssl->keys.dtls_epoch++;
-            ssl->keys.dtls_prev_sequence_number =
-                    ssl->keys.dtls_sequence_number;
-            ssl->keys.dtls_sequence_number = 0;
+            ssl->keys.dtls_prev_sequence_number_hi =
+                    ssl->keys.dtls_sequence_number_hi;
+            ssl->keys.dtls_prev_sequence_number_lo =
+                    ssl->keys.dtls_sequence_number_lo;
+            ssl->keys.dtls_sequence_number_hi = 0;
+            ssl->keys.dtls_sequence_number_lo = 0;
         }
     #endif
 
@@ -10199,7 +10228,6 @@ int SendCertificate(WOLFSSL* ssl)
                                   HANDSHAKE_HEADER_SZ + DTLS_HANDSHAKE_EXTRA);
                 /* Adding the headers increments these, decrement them for
                  * actual message header. */
-                ssl->keys.dtls_sequence_number--;
                 ssl->keys.dtls_handshake_number--;
                 AddFragHeaders(output, fragSz, 0, payloadSz, certificate, ssl);
                 ssl->keys.dtls_handshake_number--;
@@ -10286,6 +10314,10 @@ int SendCertificate(WOLFSSL* ssl)
             if (sendSz < 0)
                 return sendSz;
         }
+        else {
+            if (ssl->options.dtls)
+                DtlsSEQIncrement(ssl, 0);
+        }
 
         #ifdef WOLFSSL_DTLS
             if (IsDtlsNotSctpMode(ssl)) {
@@ -10310,10 +10342,7 @@ int SendCertificate(WOLFSSL* ssl)
     if (ret != WANT_WRITE) {
         /* Clean up the fragment offset. */
         ssl->fragOffset = 0;
-        #ifdef WOLFSSL_DTLS
-        if (ssl->options.dtls)
-            ssl->keys.dtls_handshake_number++;
-        #endif
+        ssl->keys.dtls_handshake_number++;
         if (ssl->options.side == WOLFSSL_SERVER_END)
             ssl->options.serverState = SERVER_CERT_COMPLETE;
     }
@@ -10387,6 +10416,8 @@ int SendCertificateRequest(WOLFSSL* ssl)
             if ((ret = DtlsPoolSave(ssl, output, sendSz)) != 0)
                 return ret;
         }
+        if (ssl->options.dtls)
+            DtlsSEQIncrement(ssl, 0);
     #endif
 
     ret = HashOutput(ssl, output, sendSz, 0);
@@ -10478,8 +10509,13 @@ static int BuildCertificateStatus(WOLFSSL* ssl, byte type, buffer* status,
             if (sendSz < 0)
                 ret = sendSz;
         }
-        else
+        else {
+            #ifdef WOLFSSL_DTLS
+                if (ssl->options.dtls)
+                    DtlsSEQIncrement(ssl, 0);
+            #endif
             ret = HashOutput(ssl, output, sendSz, 0);
+        }
 
     #ifdef WOLFSSL_DTLS
         if (ret == 0 && IsDtlsNotSctpMode(ssl))
@@ -12911,6 +12947,10 @@ static void PickHashSigAlgo(WOLFSSL* ssl,
             if (sendSz < 0)
                 return sendSz;
         } else {
+            #ifdef WOLFSSL_DTLS
+                if (ssl->options.dtls)
+                    DtlsSEQIncrement(ssl, 0);
+            #endif
             ret = HashOutput(ssl, output, sendSz, 0);
             if (ret != 0)
                 return ret;
@@ -15431,6 +15471,10 @@ int SendClientKeyExchange(WOLFSSL* ssl)
                 }
             }
             else {
+                #ifdef WOLFSSL_DTLS
+                    if (ssl->options.dtls)
+                        DtlsSEQIncrement(ssl, 0);
+                #endif
                 ret = HashOutput(ssl, output, sendSz, 0);
                 if (ret != 0) {
                     goto exit_scke;
@@ -15911,6 +15955,10 @@ int SendCertificateVerify(WOLFSSL* ssl)
                 }
             }
             else {
+                #ifdef WOLFSSL_DTLS
+                    if (ssl->options.dtls)
+                        DtlsSEQIncrement(ssl, 0);
+                #endif
                 ret = HashOutput(ssl, output, sendSz, 0);
             }
 
@@ -16134,7 +16182,8 @@ int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         if (ssl->options.dtls) {
             /* Server Hello should use the same sequence number as the
              * Client Hello. */
-            ssl->keys.dtls_sequence_number = ssl->keys.dtls_state.curSeq;
+            ssl->keys.dtls_sequence_number_hi = ssl->keys.curSeq_hi;
+            ssl->keys.dtls_sequence_number_lo = ssl->keys.curSeq_lo;
             idx    += DTLS_RECORD_EXTRA + DTLS_HANDSHAKE_EXTRA;
             sendSz += DTLS_RECORD_EXTRA + DTLS_HANDSHAKE_EXTRA;
         }
@@ -16213,6 +16262,10 @@ int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             if (IsDtlsNotSctpMode(ssl)) {
                 if ((ret = DtlsPoolSave(ssl, output, sendSz)) != 0)
                     return ret;
+            }
+
+            if (ssl->options.dtls) {
+                DtlsSEQIncrement(ssl, 0);
             }
         #endif
 
@@ -17539,6 +17592,9 @@ int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                         goto exit_sske;
                     }
                 }
+
+                if (ssl->options.dtls)
+                    DtlsSEQIncrement(ssl, 0);
             #endif
 
                 ret = HashOutput(ssl, output, sendSz, 0);
@@ -18757,6 +18813,9 @@ int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                 if ((ret = DtlsPoolSave(ssl, output, sendSz)) != 0)
                     return 0;
             }
+
+            if (ssl->options.dtls)
+                DtlsSEQIncrement(ssl, 0);
         #endif
 
         ret = HashOutput(ssl, output, sendSz, 0);
@@ -18975,6 +19034,8 @@ int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         if (ssl->options.dtls) {
             if ((ret = DtlsPoolSave(ssl, output, sendSz)) != 0)
                 return ret;
+
+            DtlsSEQIncrement(ssl, 0);
         }
         #endif
 
@@ -19008,7 +19069,8 @@ int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
         /* Hello Verify Request should use the same sequence number as the
          * Client Hello. */
-        ssl->keys.dtls_sequence_number = ssl->keys.dtls_state.curSeq;
+        ssl->keys.dtls_sequence_number_hi = ssl->keys.curSeq_hi;
+        ssl->keys.dtls_sequence_number_lo = ssl->keys.curSeq_lo;
         AddHeaders(output, length, hello_verify_request, ssl);
 
 #ifdef OPENSSL_EXTRA

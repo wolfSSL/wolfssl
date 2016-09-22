@@ -644,20 +644,6 @@ static INLINE void c32toa(word32 u32, byte* c)
 
 static INLINE void GetSEQIncrement(WOLFSSL* ssl, int verify, word32 seq[2])
 {
-#ifdef WOLFSSL_DTLS
-    if (ssl->options.dtls) {
-        if (verify) {
-            seq[0] = 0;
-            seq[1] = ssl->keys.dtls_state.curSeq; /* explicit from peer */
-        }
-        else {
-            seq[0] = 0;
-            /* already incremented dtls seq number */
-            seq[1] = ssl->keys.dtls_sequence_number - 1;
-        }
-        return;
-    }
-#endif
     if (verify) {
         seq[0] = ssl->keys.peer_sequence_number_hi;
         seq[1] = ssl->keys.peer_sequence_number_lo++;
@@ -677,28 +663,45 @@ static INLINE void GetSEQIncrement(WOLFSSL* ssl, int verify, word32 seq[2])
 }
 
 
+#ifdef WOLFSSL_DTLS
+static INLINE void DtlsGetSEQ(WOLFSSL* ssl, int verify, word32 seq[2])
+{
+    if (verify == -1) {
+        /* Previous epoch case */
+        seq[0] = ((ssl->keys.dtls_epoch - 1) << 16) |
+                 (ssl->keys.dtls_prev_sequence_number_hi & 0xFFFF);
+        seq[1] = ssl->keys.dtls_prev_sequence_number_lo;
+    }
+    else if (verify == 1) {
+        seq[0] = (ssl->keys.curEpoch << 16) |
+                 (ssl->keys.curSeq_hi & 0xFFFF);
+        seq[1] = ssl->keys.curSeq_lo; /* explicit from peer */
+    }
+    else {
+        seq[0] = (ssl->keys.dtls_epoch << 16) |
+                 (ssl->keys.dtls_sequence_number_hi & 0xFFFF);
+        seq[1] = ssl->keys.dtls_sequence_number_lo;
+    }
+}
+#endif /* WOLFSSL_DTLS */
+
+
 static INLINE void WriteSEQ(WOLFSSL* ssl, int verify, byte* out)
 {
     word32 seq[2];
 
-    GetSEQIncrement(ssl, verify, seq);
+    if (!ssl->options.dtls) {
+        GetSEQIncrement(ssl, verify, seq);
+    }
+    else {
+#ifdef WOLFSSL_DTLS
+        DtlsGetSEQ(ssl, verify, seq);
+#endif
+    }
 
     c32toa(seq[0], out);
     c32toa(seq[1], out+4);
 }
-
-
-#ifdef WOLFSSL_DTLS
-
-static INLINE word32 GetEpoch(WOLFSSL* ssl, int verify)
-{
-    if (verify)
-        return ssl->keys.dtls_state.curEpoch;
-    else
-        return ssl->keys.dtls_epoch;
-}
-
-#endif /* WOLFSSL_DTLS */
 
 
 /*** end copy ***/
@@ -758,10 +761,6 @@ int wolfSSL_SetTlsHmacInner(WOLFSSL* ssl, byte* inner, word32 sz, int content,
 
     XMEMSET(inner, 0, WOLFSSL_TLS_HMAC_INNER_SZ);
 
-#ifdef WOLFSSL_DTLS
-    if (ssl->options.dtls)
-        c16toa((word16)GetEpoch(ssl, verify), inner);
-#endif
     WriteSEQ(ssl, verify, inner);
     inner[SEQ_SZ] = (byte)content;
     inner[SEQ_SZ + ENUM_LEN]            = ssl->version.major;
