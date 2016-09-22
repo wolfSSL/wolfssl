@@ -2905,6 +2905,9 @@ typedef struct EncryptedInfo {
                               DerBuffer** pDer, void* heap, EncryptedInfo* info,
                               int* eccKey);
 
+    WOLFSSL_LOCAL int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
+                                    long sz, int format, int type, WOLFSSL* ssl,
+                                    long* used, int userChain);
     WOLFSSL_LOCAL int ProcessFile(WOLFSSL_CTX* ctx, const char* fname, int format,
                                  int type, WOLFSSL* ssl, int userChain,
                                 WOLFSSL_CRL* crl);

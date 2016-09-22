@@ -3783,15 +3783,138 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
 }
 
 
+
+/* process user cert chain to pass during the handshake */
+static int ProcessUserChain(WOLFSSL_CTX* ctx, const unsigned char* buff,
+                         long sz, int format, int type, WOLFSSL* ssl,
+                         long* used, EncryptedInfo* info)
+{
+    int ret = 0;
+    void* heap = ctx ? ctx->heap : ((ssl) ? ssl->heap : NULL);
+
+    /* we may have a user cert chain, try to consume */
+    if (type == CERT_TYPE && info->consumed < sz) {
+    #ifdef WOLFSSL_SMALL_STACK
+        byte   staticBuffer[1];                 /* force heap usage */
+    #else
+        byte   staticBuffer[FILE_BUFFER_SIZE];  /* tmp chain buffer */
+    #endif
+        byte*  chainBuffer = staticBuffer;
+        int    dynamicBuffer = 0;
+        word32 bufferSz = FILE_BUFFER_SIZE;
+        long   consumed = info->consumed;
+        word32 idx = 0;
+        int    gotOne = 0;
+
+        if ( (sz - consumed) > (int)bufferSz) {
+            WOLFSSL_MSG("Growing Tmp Chain Buffer");
+            bufferSz = (word32)(sz - consumed);
+                       /* will shrink to actual size */
+            chainBuffer = (byte*)XMALLOC(bufferSz, heap, DYNAMIC_TYPE_FILE);
+            if (chainBuffer == NULL) {
+                return MEMORY_E;
+            }
+            dynamicBuffer = 1;
+        }
+
+        WOLFSSL_MSG("Processing Cert Chain");
+        while (consumed < sz) {
+            int eccKey = 0;
+            DerBuffer* part = NULL;
+            word32 remain = (word32)(sz - consumed);
+            info->consumed = 0;
+
+            if (format == SSL_FILETYPE_PEM) {
+                ret = PemToDer(buff + consumed, remain, type, &part,
+                               heap, info, &eccKey);
+            }
+            else {
+                int length = remain;
+                if (format == SSL_FILETYPE_ASN1) {
+                    /* get length of der (read sequence) */
+                    word32 inOutIdx = 0;
+                    if (GetSequence(buff + consumed, &inOutIdx, &length, remain) < 0) {
+                        ret = SSL_NO_PEM_HEADER;
+                    }
+                    length += inOutIdx; /* include leading squence */
+                }
+                info->consumed = length;
+                if (ret == 0) {
+                    ret = AllocDer(&part, length, type, heap);
+                    if (ret == 0) {
+                        XMEMCPY(part->buffer, buff + consumed, length);
+                    }
+                }
+            }
+            if (ret == 0) {
+                gotOne = 1;
+                if ((idx + part->length) > bufferSz) {
+                    WOLFSSL_MSG("   Cert Chain bigger than buffer");
+                    ret = BUFFER_E;
+                }
+                else {
+                    c32to24(part->length, &chainBuffer[idx]);
+                    idx += CERT_HEADER_SZ;
+                    XMEMCPY(&chainBuffer[idx], part->buffer, part->length);
+                    idx += part->length;
+                    consumed  += info->consumed;
+                    if (used)
+                        *used += info->consumed;
+                }
+            }
+            FreeDer(&part);
+
+            if (ret == SSL_NO_PEM_HEADER && gotOne) {
+                WOLFSSL_MSG("We got one good cert, so stuff at end ok");
+                break;
+            }
+
+            if (ret < 0) {
+                WOLFSSL_MSG("   Error in Cert in Chain");
+                if (dynamicBuffer)
+                    XFREE(chainBuffer, heap, DYNAMIC_TYPE_FILE);
+                return ret;
+            }
+            WOLFSSL_MSG("   Consumed another Cert in Chain");
+        }
+        WOLFSSL_MSG("Finished Processing Cert Chain");
+
+        /* only retain actual size used */
+        ret = 0;
+        if (idx > 0) {
+            if (ssl) {
+                if (ssl->buffers.weOwnCertChain) {
+                    FreeDer(&ssl->buffers.certChain);
+                }
+                ret = AllocDer(&ssl->buffers.certChain, idx, type, heap);
+                if (ret == 0) {
+                    XMEMCPY(ssl->buffers.certChain->buffer, chainBuffer, idx);
+                    ssl->buffers.weOwnCertChain = 1;
+                }
+            } else if (ctx) {
+                FreeDer(&ctx->certChain);
+                ret = AllocDer(&ctx->certChain, idx, type, heap);
+                if (ret == 0) {
+                    XMEMCPY(ctx->certChain->buffer, chainBuffer, idx);
+                }
+            }
+        }
+
+        if (dynamicBuffer)
+            XFREE(chainBuffer, heap, DYNAMIC_TYPE_FILE);
+    }
+
+    return ret;
+}
 /* process the buffer buff, length sz, into ctx of format and type
    used tracks bytes consumed, userChain specifies a user cert chain
    to pass during the handshake */
-static int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
+int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
                          long sz, int format, int type, WOLFSSL* ssl,
                          long* used, int userChain)
 {
     DerBuffer*    der = NULL;        /* holds DER or RAW (for NTRU) */
-    int           ret;
+    int           ret = 0;
     int           eccKey = 0;
     int           rsaKey = 0;
     void*         heap = ctx ? ctx->heap : ((ssl) ? ssl->heap : NULL);
@@ -3806,6 +3929,7 @@ static int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
     if (used)
         *used = sz;     /* used bytes default to sz, PEM chain may shorten*/
 
+    /* check args */
     if (format != SSL_FILETYPE_ASN1 && format != SSL_FILETYPE_PEM
                                     && format != SSL_FILETYPE_RAW)
         return SSL_BAD_FILETYPE;
@@ -3826,134 +3950,44 @@ static int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
 
     if (format == SSL_FILETYPE_PEM) {
         ret = PemToDer(buff, sz, type, &der, heap, info, &eccKey);
-
-        if (used)
-            *used = info->consumed;
-
-        if (ret < 0) {
-        #ifdef WOLFSSL_SMALL_STACK
-            XFREE(info, heap, DYNAMIC_TYPE_TMP_BUFFER);
-        #endif
-            FreeDer(&der);
-            return ret;
+    }
+    else {  /* ASN1 (DER) or RAW (NTRU) */
+        int length = (int)sz;
+        if (format == SSL_FILETYPE_ASN1) {
+            /* get length of der (read sequence) */
+            word32 inOutIdx = 0;
+            if (GetSequence(buff, &inOutIdx, &length, (word32)sz) < 0) {
+                ret = ASN_PARSE_E;
+            }
+            length += inOutIdx; /* include leading squence */
         }
-
-        /* we may have a user cert chain, try to consume */
-        if (userChain && type == CERT_TYPE && info->consumed < sz) {
-        #ifdef WOLFSSL_SMALL_STACK
-            byte   staticBuffer[1];                 /* force heap usage */
-        #else
-            byte   staticBuffer[FILE_BUFFER_SIZE];  /* tmp chain buffer */
-        #endif
-            byte*  chainBuffer = staticBuffer;
-            int    dynamicBuffer = 0;
-            word32 bufferSz = sizeof(staticBuffer);
-            long   consumed = info->consumed;
-            word32 idx = 0;
-            int    gotOne = 0;
-
-            if ( (sz - consumed) > (int)bufferSz) {
-                WOLFSSL_MSG("Growing Tmp Chain Buffer");
-                bufferSz = (word32)(sz - consumed);
-                           /* will shrink to actual size */
-                chainBuffer = (byte*)XMALLOC(bufferSz, heap, DYNAMIC_TYPE_FILE);
-                if (chainBuffer == NULL) {
-                #ifdef WOLFSSL_SMALL_STACK
-                    XFREE(info, heap, DYNAMIC_TYPE_TMP_BUFFER);
-                #endif
-                    FreeDer(&der);
-                    return MEMORY_E;
-                }
-                dynamicBuffer = 1;
-            }
-
-            WOLFSSL_MSG("Processing Cert Chain");
-            while (consumed < sz) {
-                DerBuffer* part = NULL;
-                info->consumed = 0;
-
-                ret = PemToDer(buff + consumed, sz - consumed, type, &part,
-                               heap, info, &eccKey);
-                if (ret == 0) {
-                    gotOne = 1;
-                    if ( (idx + part->length) > bufferSz) {
-                        WOLFSSL_MSG("   Cert Chain bigger than buffer");
-                        ret = BUFFER_E;
-                    }
-                    else {
-                        c32to24(part->length, &chainBuffer[idx]);
-                        idx += CERT_HEADER_SZ;
-                        XMEMCPY(&chainBuffer[idx], part->buffer, part->length);
-                        idx += part->length;
-                        consumed  += info->consumed;
-                        if (used)
-                            *used += info->consumed;
-                    }
-                }
-                FreeDer(&part);
-
-                if (ret == SSL_NO_PEM_HEADER && gotOne) {
-                    WOLFSSL_MSG("We got one good PEM so stuff at end ok");
-                    break;
-                }
-
-                if (ret < 0) {
-                    WOLFSSL_MSG("   Error in Cert in Chain");
-                    if (dynamicBuffer)
-                        XFREE(chainBuffer, heap, DYNAMIC_TYPE_FILE);
-                #ifdef WOLFSSL_SMALL_STACK
-                    XFREE(info, heap, DYNAMIC_TYPE_TMP_BUFFER);
-                #endif
-                    FreeDer(&der);
-                    return ret;
-                }
-                WOLFSSL_MSG("   Consumed another Cert in Chain");
-            }
-            WOLFSSL_MSG("Finished Processing Cert Chain");
-
-            /* only retain actual size used */
-            ret = 0;
-            if (idx > 0) {
-                if (ssl) {
-                    if (ssl->buffers.weOwnCertChain) {
-                        FreeDer(&ssl->buffers.certChain);
-                    }
-                    ret = AllocDer(&ssl->buffers.certChain, idx, type, heap);
-                    if (ret == 0) {
-                        XMEMCPY(ssl->buffers.certChain->buffer, chainBuffer, idx);
-                        ssl->buffers.weOwnCertChain = 1;
-                    }
-                } else if (ctx) {
-                    FreeDer(&ctx->certChain);
-                    ret = AllocDer(&ctx->certChain, idx, type, heap);
-                    if (ret == 0) {
-                        XMEMCPY(ctx->certChain->buffer, chainBuffer, idx);
-                    }
-                }
-            }
-
-            if (dynamicBuffer)
-                XFREE(chainBuffer, heap, DYNAMIC_TYPE_FILE);
-
-            if (ret < 0) {
-            #ifdef WOLFSSL_SMALL_STACK
-                XFREE(info, heap, DYNAMIC_TYPE_TMP_BUFFER);
-            #endif
-                FreeDer(&der);
-                return ret;
+        info->consumed = length;
+        if (ret == 0) {
+            ret = AllocDer(&der, (word32)length, type, heap);
+            if (ret == 0) {
+                XMEMCPY(der->buffer, buff, length);
             }
         }
     }
-    else {  /* ASN1 (DER) or RAW (NTRU) */
-        ret = AllocDer(&der, (word32)sz, type, heap);
-        if (ret < 0) {
-        #ifdef WOLFSSL_SMALL_STACK
-            XFREE(info, heap, DYNAMIC_TYPE_TMP_BUFFER);
-        #endif
-            return ret;
-        }
 
-        XMEMCPY(der->buffer, buff, sz);
+    if (used) {
+        *used = info->consumed;
+    }
+
+    /* process user chain */
+    if (ret >= 0) {
+        if (userChain) {
+            ret = ProcessUserChain(ctx, buff, sz, format, type, ssl, used, info);
+        }
+    }
+
+    /* check for error */
+    if (ret < 0) {
+    #ifdef WOLFSSL_SMALL_STACK
+        XFREE(info, heap, DYNAMIC_TYPE_TMP_BUFFER);
+    #endif
+        FreeDer(&der);
+        return ret;
     }
 
 #if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
@@ -8775,12 +8809,18 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
     }
 
 
+    int wolfSSL_CTX_use_certificate_chain_buffer_format(WOLFSSL_CTX* ctx,
+                                 const unsigned char* in, long sz, int format)
+    {
+        WOLFSSL_ENTER("wolfSSL_CTX_use_certificate_chain_buffer_format");
+        return ProcessBuffer(ctx, in, sz, format, CERT_TYPE, NULL, NULL, 1);
+    }
+
     int wolfSSL_CTX_use_certificate_chain_buffer(WOLFSSL_CTX* ctx,
                                  const unsigned char* in, long sz)
     {
-        WOLFSSL_ENTER("wolfSSL_CTX_use_certificate_chain_buffer");
-        return ProcessBuffer(ctx, in, sz, SSL_FILETYPE_PEM, CERT_TYPE, NULL,
-                             NULL, 1);
+        return wolfSSL_CTX_use_certificate_chain_buffer_format(ctx, in, sz,
+                                                            SSL_FILETYPE_PEM);
     }
 
 
@@ -11833,6 +11873,10 @@ WOLFSSL_X509* wolfSSL_get_certificate(WOLFSSL* ssl)
 
     if (ssl->buffers.weOwnCert) {
         if (ssl->ourCert == NULL) {
+            if (ssl->buffers.certificate == NULL) {
+                WOLFSSL_MSG("Certificate buffer not set!");
+                return NULL;
+            }
             ssl->ourCert = wolfSSL_X509_d2i(NULL,
                                               ssl->buffers.certificate->buffer,
                                               ssl->buffers.certificate->length);
@@ -11842,16 +11886,19 @@ WOLFSSL_X509* wolfSSL_get_certificate(WOLFSSL* ssl)
     else { /* if cert not owned get parent ctx cert or return null */
         if (ssl->ctx) {
             if (ssl->ctx->ourCert == NULL) {
+                if (ssl->ctx->certificate == NULL) {
+                    WOLFSSL_MSG("Ctx Certificate buffer not set!");
+                    return NULL;
+                }
                 ssl->ctx->ourCert = wolfSSL_X509_d2i(NULL,
                                                ssl->ctx->certificate->buffer,
                                                ssl->ctx->certificate->length);
             }
             return ssl->ctx->ourCert;
         }
-        else {
-            return NULL;
-        }
     }
+
+    return NULL;
 }
 #endif /* OPENSSL_EXTRA && KEEP_OUR_CERT */
 #endif /* NO_CERTS */
@@ -18701,7 +18748,7 @@ void* wolfSSL_GetRsaDecCtx(WOLFSSL* ssl)
                 return ecc_sets[i].id;
             }
         }
-        return -1; 
+        return -1;
     }
 #endif /* HAVE_ECC */
 
