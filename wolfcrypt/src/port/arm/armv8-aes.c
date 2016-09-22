@@ -1269,8 +1269,6 @@ static void GMULT(byte* X, byte* Y)
 }
 #endif
 
-/* Currently is a copy from GCM_SMALL wolfSSL version. Duplicated and set
- * seperate for future optimizations. */
 static void GHASH(Aes* aes, const byte* a, word32 aSz,
                                 const byte* c, word32 cSz, byte* s, word32 sSz)
 {
@@ -1320,28 +1318,35 @@ static void GHASH(Aes* aes, const byte* a, word32 aSz,
     FlattenSzInBits(&scratch[0], aSz);
     FlattenSzInBits(&scratch[8], cSz);
     xorbuf(x, scratch, AES_BLOCK_SIZE);
-    GMULT(x, h);
 
-    /* Copy the result into s. */
+    /* Copy the result (minus last GMULT) into s. */
     XMEMCPY(s, x, sSz);
 }
 
 
-int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
+/* internal function : see wc_AesGcmEncrypt */
+static int Aes128GcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
                    const byte* iv, word32 ivSz,
                    byte* authTag, word32 authTagSz,
                    const byte* authIn, word32 authInSz)
 {
-    word32 blocks = sz / AES_BLOCK_SIZE;
-    word32 partial = sz % AES_BLOCK_SIZE;
-    const byte* p = in;
-    byte* c = out;
+    word32 blocks;
+    word32 partial;
     byte counter[AES_BLOCK_SIZE];
     byte initialCounter[AES_BLOCK_SIZE];
-    byte *ctr ;
+    byte x[AES_BLOCK_SIZE];
     byte scratch[AES_BLOCK_SIZE];
 
-    ctr = counter ;
+    /* Noticed different optimization levels treated head of array different.
+       Some cases was stack pointer plus offset others was a regester containing
+       address. To make uniform for passing in to inline assembly code am using
+       pointers to the head of each local array.
+     */
+    byte* ctr  = counter;
+    byte* iCtr = initialCounter;
+    byte* xPt  = x;
+    byte* sPt  = scratch;
+    byte* keyPt; /* pointer to handle pointer advencment */
 
     XMEMSET(initialCounter, 0, AES_BLOCK_SIZE);
     if (ivSz == NONCE_SZ) {
@@ -1350,37 +1355,56 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     }
     else {
         GHASH(aes, NULL, 0, iv, ivSz, initialCounter, AES_BLOCK_SIZE);
+        GMULT(initialCounter, aes->H);
     }
-    XMEMCPY(ctr, initialCounter, AES_BLOCK_SIZE);
+    XMEMCPY(counter, initialCounter, AES_BLOCK_SIZE);
+
+
+    /* Hash in the Additional Authentication Data */
+    XMEMSET(x, 0, AES_BLOCK_SIZE);
+    if (authInSz != 0 && authIn != NULL) {
+        blocks = authInSz / AES_BLOCK_SIZE;
+        partial = authInSz % AES_BLOCK_SIZE;
+        /* do as many blocks as possible */
+        while (blocks--) {
+            xorbuf(x, authIn, AES_BLOCK_SIZE);
+            GMULT(x, aes->H);
+            authIn += AES_BLOCK_SIZE;
+        }
+        if (partial != 0) {
+            XMEMSET(scratch, 0, AES_BLOCK_SIZE);
+            XMEMCPY(scratch, authIn, partial);
+            xorbuf(x, scratch, AES_BLOCK_SIZE);
+            GMULT(x, aes->H);
+        }
+    }
 
     /* do as many blocks as possible */
+    blocks = sz / AES_BLOCK_SIZE;
+    partial = sz % AES_BLOCK_SIZE;
     if (blocks > 0) {
-        /* pointer needed because it is incremented when read, causing
-         * an issue with call to encrypt/decrypt leftovers */
-        byte*  keyPt  = (byte*)aes->key;
-        switch(aes->rounds) {
-        case 10: /* AES 128 BLOCK */
-            __asm__ __volatile__ (
+        keyPt  = (byte*)aes->key;
+        __asm__ __volatile__ (
             "MOV w11, %w[blocks] \n"
-            "LD1 {v1.2d-v4.2d}, [%[Key]], #64 \n"
+            "LD1 {v13.2d}, [%[ctr]] \n"
 
             "#Create vector with the value 1  \n"
             "MOVI v14.16b, #1                 \n"
             "USHR v14.2d, v14.2d, #56         \n"
-            "LD1 {v5.2d-v8.2d}, [%[Key]], #64 \n"
-            "EOR v13.16b, v13.16b, v13.16b    \n"
-            "EXT v14.16b, v14.16b, v13.16b, #8\n"
+            "EOR v22.16b, v22.16b, v22.16b    \n"
+            "EXT v14.16b, v14.16b, v22.16b, #8\n"
 
-            "LD1 {v9.2d-v11.2d}, [%[Key]], #48\n"
-            "LD1 {v13.2d}, [%[ctr]] \n"
 
-            "LD1 {v12.2d}, [%[input]], #16 \n"
-            "AESGCM128Block: \n"
+            /***************************************************
+               Get first out block for GHASH using AES encrypt
+             ***************************************************/
             "REV64 v13.16b, v13.16b \n" /* network order */
+            "LD1 {v1.2d-v4.2d}, [%[Key]], #64 \n"
             "EXT v13.16b, v13.16b, v13.16b, #8 \n"
             "ADD v13.2d, v13.2d, v14.2d \n" /* add 1 to counter */
             "EXT v13.16b, v13.16b, v13.16b, #8 \n"
             "REV64 v13.16b, v13.16b \n" /* revert from network order */
+            "LD1 {v5.2d-v8.2d}, [%[Key]], #64 \n"
             "MOV v0.16b, v13.16b  \n"
             "AESE v0.16b, v1.16b  \n"
             "AESMC v0.16b, v0.16b \n"
@@ -1388,17 +1412,23 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
             "AESMC v0.16b, v0.16b \n"
             "AESE v0.16b, v3.16b  \n"
             "AESMC v0.16b, v0.16b \n"
+            "LD1 {v16.2d}, %[inY] \n"
             "AESE v0.16b, v4.16b  \n"
             "AESMC v0.16b, v0.16b \n"
             "SUB w11, w11, #1     \n"
+            "LD1 {v9.2d-v11.2d}, [%[Key]], #48\n"
             "AESE v0.16b, v5.16b  \n"
             "AESMC v0.16b, v0.16b \n"
+            "MOVI v23.16b, #0x87 \n"
             "AESE v0.16b, v6.16b  \n"
             "AESMC v0.16b, v0.16b \n"
+            "LD1 {v17.2d}, [%[inX]] \n" /* account for additional data */
             "AESE v0.16b, v7.16b  \n"
             "AESMC v0.16b, v0.16b \n"
+            "USHR v23.2d, v23.2d, #56 \n"
             "AESE v0.16b, v8.16b  \n"
             "AESMC v0.16b, v0.16b \n"
+            "LD1 {v12.2d}, [%[input]], #16 \n"
             "AESE v0.16b, v9.16b  \n"
             "AESMC v0.16b, v0.16b \n"
             "AESE v0.16b, v10.16b \n"
@@ -1406,190 +1436,945 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
 
             "EOR v0.16b, v0.16b, v12.16b \n"
             "ST1 {v0.2d}, [%[out]], #16  \n"
+            "MOV v15.16b, v0.16b \n"
+
+            "CBZ w11, AESGCMend \n" /* only one block jump to final GHASH */
+            "LD1 {v12.2d}, [%[input]], #16 \n"
+
+            /***************************************************
+               Interweave GHASH and encrypt if more then 1 block
+             ***************************************************/
+            "AESGCM128Block: \n"
+            "REV64 v13.16b, v13.16b \n" /* network order */
+            "EOR v15.16b, v17.16b, v15.16b \n"
+            "EXT v13.16b, v13.16b, v13.16b, #8 \n"
+            "ADD v13.2d, v13.2d, v14.2d \n" /* add 1 to counter */
+            "RBIT v15.16b, v15.16b \n" /* v15 is encrypted out block (c) */
+            "EXT v13.16b, v13.16b, v13.16b, #8 \n"
+            "REV64 v13.16b, v13.16b \n" /* revert from network order */
+            "PMULL  v18.1q, v15.1d, v16.1d \n"     /* a0 * b0 = C */
+            "MOV v0.16b, v13.16b  \n"
+            "PMULL2 v19.1q, v15.2d, v16.2d \n"     /* a1 * b1 = D */
+            "AESE v0.16b, v1.16b  \n"
+            "AESMC v0.16b, v0.16b \n"
+            "EXT v20.16b, v16.16b, v16.16b, #8 \n" /* b0b1 -> b1b0 */
+            "AESE v0.16b, v2.16b  \n"
+            "AESMC v0.16b, v0.16b \n"
+            "PMULL  v21.1q, v15.1d, v20.1d \n"     /* a0 * b1 = E */
+            "PMULL2 v20.1q, v15.2d, v20.2d \n"     /* a1 * b0 = F */
+            "AESE v0.16b, v3.16b  \n"
+            "AESMC v0.16b, v0.16b \n"
+            "EOR v20.16b, v20.16b, v21.16b \n"     /* F ^ E */
+            "AESE v0.16b, v4.16b  \n"
+            "AESMC v0.16b, v0.16b \n"
+            "EXT v21.16b, v22.16b, v20.16b, #8 \n" /* get (F^E)[0] */
+            "SUB w11, w11, #1     \n"
+            "AESE v0.16b, v5.16b  \n"
+            "AESMC v0.16b, v0.16b \n"
+            "EOR v18.16b, v18.16b, v21.16b \n"     /* low 128 bits in v3 */
+            "EXT v21.16b, v20.16b, v22.16b, #8 \n" /* get (F^E)[1] */
+            "AESE v0.16b, v6.16b  \n"
+            "AESMC v0.16b, v0.16b \n"
+            "EOR v19.16b, v19.16b, v21.16b \n"     /* high 128 bits in v4 */
+            "AESE v0.16b, v7.16b  \n"
+            "AESMC v0.16b, v0.16b \n"
+            "PMULL2 v20.1q, v19.2d, v23.2d \n"
+            "AESE v0.16b, v8.16b  \n"
+            "AESMC v0.16b, v0.16b \n"
+            "EXT v21.16b, v20.16b, v22.16b, #8 \n" /* v22 is all 0's */
+            "AESE v0.16b, v9.16b  \n"
+            "AESMC v0.16b, v0.16b \n"
+            "EOR v19.16b, v19.16b, v21.16b \n"
+            "AESE v0.16b, v10.16b \n"
+            "EXT v21.16b, v22.16b, v20.16b, #8 \n"
+            "EOR v0.16b, v0.16b, v11.16b \n"
+            "EOR v18.16b, v18.16b, v21.16b \n"
+
+            "EOR v0.16b, v0.16b, v12.16b \n"
+            "PMULL v20.1q, v19.1d, v23.1d  \n"
+            "ST1 {v0.2d}, [%[out]], #16  \n"
+            "EOR v19.16b, v18.16b, v20.16b \n"
+            "MOV v15.16b, v0.16b \n"
+            "RBIT v17.16b, v19.16b \n"
 
             "CBZ w11, AESGCMend \n"
             "LD1 {v12.2d}, [%[input]], #16 \n"
             "B AESGCM128Block \n"
 
+            /***************************************************
+               GHASH on last block
+             ***************************************************/
             "AESGCMend: \n"
-            "#store current counter value at the end \n"
+            "EOR v15.16b, v17.16b, v15.16b \n"
+            "RBIT v15.16b, v15.16b \n" /* v15 is encrypted out block */
+
+            "#store current AES counter value \n"
             "ST1 {v13.2d}, [%[ctrOut]] \n"
+            "PMULL  v18.1q, v15.1d, v16.1d \n"     /* a0 * b0 = C */
+            "PMULL2 v19.1q, v15.2d, v16.2d \n"     /* a1 * b1 = D */
+            "EXT v20.16b, v16.16b, v16.16b, #8 \n" /* b0b1 -> b1b0 */
+            "PMULL  v21.1q, v15.1d, v20.1d \n"     /* a0 * b1 = E */
+            "PMULL2 v20.1q, v15.2d, v20.2d \n"     /* a1 * b0 = F */
+            "EOR v20.16b, v20.16b, v21.16b \n"     /* F ^ E */
+            "EXT v21.16b, v22.16b, v20.16b, #8 \n" /* get (F^E)[0] */
+            "EOR v18.16b, v18.16b, v21.16b \n"     /* low 128 bits in v3 */
+            "EXT v21.16b, v20.16b, v22.16b, #8 \n" /* get (F^E)[1] */
+            "EOR v19.16b, v19.16b, v21.16b \n"     /* high 128 bits in v4 */
 
-            :[out] "=r" (c), "=r" (keyPt), [ctrOut] "=r" (ctr), "=r" (p)
-            :"0" (c), [Key] "1" (keyPt), [ctr] "2" (ctr), [blocks] "r" (blocks),
-             [input] "3" (p)
-            : "cc", "memory", "w11", "v0", "v1", "v2", "v3", "v4", "v5",
+            "#Reduce product from multiplication \n"
+            "PMULL2 v20.1q, v19.2d, v23.2d \n"
+            "EXT v21.16b, v20.16b, v22.16b, #8 \n" /* v22 is all 0's */
+            "EOR v19.16b, v19.16b, v21.16b \n"
+            "EXT v21.16b, v22.16b, v20.16b, #8 \n"
+            "EOR v18.16b, v18.16b, v21.16b \n"
+            "PMULL v20.1q, v19.1d, v23.1d  \n"
+            "EOR v19.16b, v18.16b, v20.16b \n"
+            "RBIT v17.16b, v19.16b \n"
+            "STR q17, [%[xOut]] \n" /* GHASH x value for partial blocks */
+
+            :[out] "=r" (out), "=r" (keyPt), [ctrOut] "=r" (ctr), "=r" (in)
+            ,[xOut] "=r" (xPt),"=m" (aes->H)
+            :"0" (out), [Key] "1" (keyPt), [ctr] "2" (ctr), [blocks] "r" (blocks),
+             [input] "3" (in)
+            ,[inX] "4" (xPt), [inY] "m" (aes->H)
+            : "cc", "w11", "v0", "v1", "v2", "v3", "v4", "v5",
             "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14"
-            );
-            break;
-
-        case 12: /* AES 192 BLOCK */
-            __asm__ __volatile__ (
-            "MOV w11, %w[blocks] \n"
-            "LD1 {v1.2d-v4.2d}, [%[Key]], #64\n"
-
-            "#Create vector with the value 1  \n"
-            "MOVI v16.16b, #1                 \n"
-            "USHR v16.2d, v16.2d, #56         \n"
-            "LD1 {v5.2d-v8.2d}, [%[Key]], #64 \n"
-            "EOR v14.16b, v14.16b, v14.16b    \n"
-            "EXT v16.16b, v16.16b, v14.16b, #8\n"
-
-            "LD1 {v9.2d-v12.2d}, [%[Key]], #64\n"
-            "LD1 {v13.2d}, [%[Key]], #16      \n"
-            "LD1 {v14.2d}, [%[input]], #16    \n"
-            "LD1 {v15.2d}, [%[ctr]]           \n"
-
-            "AESGCM192Block: \n"
-            "REV64 v15.16b, v15.16b \n" /* network order */
-            "EXT v15.16b, v15.16b, v15.16b, #8 \n"
-            "ADD v15.2d, v15.2d, v16.2d \n" /* add 1 to counter */
-            "EXT v15.16b, v15.16b, v15.16b, #8 \n"
-            "REV64 v15.16b, v15.16b \n" /* revert from network order */
-            "MOV v0.16b, v15.16b  \n"
-            "AESE v0.16b, v1.16b  \n"
-            "AESMC v0.16b, v0.16b \n"
-            "AESE v0.16b, v2.16b  \n"
-            "AESMC v0.16b, v0.16b \n"
-            "AESE v0.16b, v3.16b  \n"
-            "AESMC v0.16b, v0.16b \n"
-            "AESE v0.16b, v4.16b  \n"
-            "AESMC v0.16b, v0.16b \n"
-            "SUB w11, w11, #1     \n"
-            "AESE v0.16b, v5.16b  \n"
-            "AESMC v0.16b, v0.16b \n"
-            "AESE v0.16b, v6.16b  \n"
-            "AESMC v0.16b, v0.16b \n"
-            "AESE v0.16b, v7.16b  \n"
-            "AESMC v0.16b, v0.16b \n"
-            "AESE v0.16b, v8.16b  \n"
-            "AESMC v0.16b, v0.16b \n"
-            "AESE v0.16b, v9.16b  \n"
-            "AESMC v0.16b, v0.16b \n"
-            "AESE v0.16b, v10.16b \n"
-            "AESMC v0.16b, v0.16b \n"
-            "AESE v0.16b, v11.16b \n"
-            "AESMC v0.16b, v0.16b \n"
-            "AESE v0.16b, v12.16b \n"
-            "EOR v0.16b, v0.16b, v13.16b \n"
-
-            "EOR v0.16b, v0.16b, v14.16b \n"
-            "ST1 {v0.2d}, [%[out]], #16  \n"
-
-            "CBZ w11, AESGCM192end \n"
-            "LD1 {v14.2d}, [%[input]], #16 \n"
-            "B AESGCM192Block \n"
-
-            "AESGCM192end: \n"
-            "#store current counter value at the end \n"
-            "ST1 {v15.16b}, [%[ctrOut]]   \n"
-
-            :[out] "=r" (c), "=r" (keyPt), [ctrOut] "=r" (ctr), "=r" (p)
-            :"0" (c), [Key] "1" (keyPt), [ctr] "2" (ctr), [blocks] "r" (blocks),
-             [input] "3" (p)
-            : "cc", "memory", "w11", "v0", "v1", "v2", "v3", "v4", "v5",
-            "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15",
-            "v16"
-            );
-            break;
-        case 14: /* AES 256 BLOCK */
-            __asm__ __volatile__ (
-            "MOV w11, %w[blocks] \n"
-            "LD1 {v1.2d-v4.2d}, [%[Key]], #64  \n"
-
-            "#Create vector with the value 1   \n"
-            "MOVI v18.16b, #1                  \n"
-            "USHR v18.2d, v18.2d, #56          \n"
-            "LD1 {v5.2d-v8.2d}, [%[Key]], #64  \n"
-            "EOR v19.16b, v19.16b, v19.16b     \n"
-            "EXT v18.16b, v18.16b, v19.16b, #8 \n"
-
-            "LD1 {v9.2d-v12.2d}, [%[Key]], #64  \n"
-            "LD1 {v17.2d}, [%[ctr]]             \n"
-            "LD1 {v13.2d-v15.2d}, [%[Key]], #48 \n"
-            "LD1 {v16.2d}, [%[input]], #16      \n"
-
-            "AESGCM256Block: \n"
-            "REV64 v17.16b, v17.16b \n" /* network order */
-            "EXT v17.16b, v17.16b, v17.16b, #8 \n"
-            "ADD v17.2d, v17.2d, v18.2d \n" /* add 1 to counter */
-            "EXT v17.16b, v17.16b, v17.16b, #8 \n"
-            "REV64 v17.16b, v17.16b \n" /* revert from network order */
-            "MOV v0.16b, v17.16b \n"
-
-            "AESE v0.16b, v1.16b  \n"
-            "AESMC v0.16b, v0.16b \n"
-            "AESE v0.16b, v2.16b  \n"
-            "AESMC v0.16b, v0.16b \n"
-            "AESE v0.16b, v3.16b  \n"
-            "AESMC v0.16b, v0.16b \n"
-            "AESE v0.16b, v4.16b  \n"
-            "AESMC v0.16b, v0.16b \n"
-            "SUB w11, w11, #1     \n"
-            "AESE v0.16b, v5.16b  \n"
-            "AESMC v0.16b, v0.16b \n"
-            "AESE v0.16b, v6.16b  \n"
-            "AESMC v0.16b, v0.16b \n"
-            "AESE v0.16b, v7.16b  \n"
-            "AESMC v0.16b, v0.16b \n"
-            "AESE v0.16b, v8.16b  \n"
-            "AESMC v0.16b, v0.16b \n"
-            "AESE v0.16b, v9.16b  \n"
-            "AESMC v0.16b, v0.16b \n"
-            "AESE v0.16b, v10.16b \n"
-            "AESMC v0.16b, v0.16b \n"
-            "AESE v0.16b, v11.16b \n"
-            "AESMC v0.16b, v0.16b \n"
-            "AESE v0.16b, v12.16b \n"
-            "AESMC v0.16b, v0.16b \n"
-            "AESE v0.16b, v13.16b \n"
-            "AESMC v0.16b, v0.16b \n"
-            "AESE v0.16b, v14.16b \n"
-            "EOR v0.16b, v0.16b, v15.16b \n"
-
-            "EOR v0.16b, v0.16b, v16.16b \n"
-            "ST1 {v0.2d}, [%[out]], #16  \n"
-
-            "CBZ w11, AESGCM256end \n"
-            "LD1 {v16.2d}, [%[input]], #16 \n"
-            "B AESGCM256Block \n"
-
-            "AESGCM256end:\n"
-            "#store current counter value at the end \n"
-            "ST1 {v17.2d}, [%[ctrOut]] \n"
-
-            :[out] "=r" (c), "=r" (keyPt), [ctrOut] "=r" (ctr), "=r" (p)
-            :"0" (c), [Key] "1" (keyPt), [ctr] "2" (ctr), [blocks] "r" (blocks),
-             [input] "3" (p)
-            : "cc", "memory", "w11", "v0", "v1", "v2", "v3", "v4", "v5",
-            "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15",
-            "v16", "v17", "v18", "v19"
-            );
-            break;
-
-        default:
-            WOLFSSL_MSG("Bad AES-GCM round value");
-            return BAD_FUNC_ARG;
-        }
+            ,"v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "x12"
+        );
     }
 
+    /* take care of partial block sizes leftover */
     if (partial != 0) {
-        IncrementGcmCounter(ctr);
-        wc_AesEncrypt(aes, ctr, scratch);
-        xorbuf(scratch, p, partial);
-        XMEMCPY(c, scratch, partial);
+        IncrementGcmCounter(counter);
+        wc_AesEncrypt(aes, counter, scratch);
+        xorbuf(scratch, in, partial);
+        XMEMCPY(out, scratch, partial);
 
+        XMEMSET(scratch, 0, AES_BLOCK_SIZE);
+        XMEMCPY(scratch, out, partial);
+        xorbuf(x, scratch, AES_BLOCK_SIZE);
+        GMULT(x, aes->H);
     }
 
-    GHASH(aes, authIn, authInSz, out, sz, authTag, authTagSz);
-    wc_AesEncrypt(aes, initialCounter, scratch);
-    xorbuf(authTag, scratch, authTagSz);
+    /* Hash in the lengths of A and C in bits */
+    XMEMSET(scratch, 0, AES_BLOCK_SIZE);
+    FlattenSzInBits(&scratch[0], authInSz);
+    FlattenSzInBits(&scratch[8], sz);
+    xorbuf(x, scratch, AES_BLOCK_SIZE);
+    XMEMCPY(scratch, x, AES_BLOCK_SIZE);
+
+    keyPt  = (byte*)aes->key;
+    __asm__ __volatile__ (
+
+        "LD1 {v16.16b}, [%[tag]] \n"
+        "LD1 {v17.16b}, %[h] \n"
+        "RBIT v16.16b, v16.16b \n"
+
+        "LD1 {v1.2d-v4.2d}, [%[Key]], #64 \n"
+        "PMULL  v18.1q, v16.1d, v17.1d \n"     /* a0 * b0 = C */
+        "PMULL2 v19.1q, v16.2d, v17.2d \n"     /* a1 * b1 = D */
+        "LD1 {v5.2d-v8.2d}, [%[Key]], #64 \n"
+        "EXT v20.16b, v17.16b, v17.16b, #8 \n" /* b0b1 -> b1b0 */
+        "LD1 {v9.2d-v11.2d}, [%[Key]], #48\n"
+        "PMULL  v21.1q, v16.1d, v20.1d \n"     /* a0 * b1 = E */
+        "PMULL2 v20.1q, v16.2d, v20.2d \n"     /* a1 * b0 = F */
+        "LD1 {v0.2d}, [%[ctr]]             \n"
+
+        "#Set a register to all 0s using EOR \n"
+        "EOR v22.16b, v22.16b, v22.16b \n"
+        "EOR v20.16b, v20.16b, v21.16b \n"     /* F ^ E */
+        "AESE v0.16b, v1.16b  \n"
+        "AESMC v0.16b, v0.16b \n"
+        "EXT v21.16b, v22.16b, v20.16b, #8 \n" /* get (F^E)[0] */
+        "AESE v0.16b, v2.16b  \n"
+        "AESMC v0.16b, v0.16b \n"
+        "EOR v18.16b, v18.16b, v21.16b \n"     /* low 128 bits in v3 */
+        "EXT v21.16b, v20.16b, v22.16b, #8 \n" /* get (F^E)[1] */
+        "AESE v0.16b, v3.16b  \n"
+        "AESMC v0.16b, v0.16b \n"
+        "EOR v19.16b, v19.16b, v21.16b \n"     /* high 128 bits in v4 */
+        "MOVI v23.16b, #0x87 \n"
+        "AESE v0.16b, v4.16b  \n"
+        "AESMC v0.16b, v0.16b \n"
+        "USHR v23.2d, v23.2d, #56 \n"
+        "PMULL2 v20.1q, v19.2d, v23.2d \n"
+        "AESE v0.16b, v5.16b  \n"
+        "AESMC v0.16b, v0.16b \n"
+        "EXT v21.16b, v20.16b, v22.16b, #8 \n"
+        "AESE v0.16b, v6.16b  \n"
+        "AESMC v0.16b, v0.16b \n"
+        "EOR v19.16b, v19.16b, v21.16b \n"
+        "AESE v0.16b, v7.16b  \n"
+        "AESMC v0.16b, v0.16b \n"
+        "EXT v21.16b, v22.16b, v20.16b, #8 \n"
+        "AESE v0.16b, v8.16b  \n"
+        "AESMC v0.16b, v0.16b \n"
+        "EOR v18.16b, v18.16b, v21.16b \n"
+        "AESE v0.16b, v9.16b  \n"
+        "AESMC v0.16b, v0.16b \n"
+        "PMULL v20.1q, v19.1d, v23.1d  \n"
+        "EOR v19.16b, v18.16b, v20.16b \n"
+        "AESE v0.16b, v10.16b \n"
+        "RBIT v19.16b, v19.16b \n"
+        "EOR v0.16b, v0.16b, v11.16b \n"
+        "EOR v19.16b, v19.16b, v0.16b \n"
+        "STR q19, [%[out]] \n"
+
+        :[out] "=r" (sPt), "=r" (keyPt), "=r" (iCtr)
+        :[tag] "0" (sPt), [Key] "1" (keyPt),
+        [ctr] "2" (iCtr) , [h] "m" (aes->H)
+        : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v5",
+        "v6", "v7", "v8", "v9", "v10","v11","v12","v13","v14",
+        "v15", "v16", "v17","v18", "v19", "v20","v21","v22","v23","v24"
+    );
+
+
+    /* authTagSz can be smaller than AES_BLOCK_SIZE */
+    XMEMCPY(authTag, scratch, authTagSz);
 
     return 0;
 }
 
 
+/* internal function : see wc_AesGcmEncrypt */
+static int Aes192GcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
+                   const byte* iv, word32 ivSz,
+                   byte* authTag, word32 authTagSz,
+                   const byte* authIn, word32 authInSz)
+{
+    word32 blocks;
+    word32 partial;
+    byte counter[AES_BLOCK_SIZE];
+    byte initialCounter[AES_BLOCK_SIZE];
+    byte x[AES_BLOCK_SIZE];
+    byte scratch[AES_BLOCK_SIZE];
+
+    /* Noticed different optimization levels treated head of array different.
+       Some cases was stack pointer plus offset others was a regester containing
+       address. To make uniform for passing in to inline assembly code am using
+       pointers to the head of each local array.
+     */
+    byte* ctr  = counter;
+    byte* iCtr = initialCounter;
+    byte* xPt  = x;
+    byte* sPt  = scratch;
+    byte* keyPt; /* pointer to handle pointer advencment */
+
+    XMEMSET(initialCounter, 0, AES_BLOCK_SIZE);
+    if (ivSz == NONCE_SZ) {
+        XMEMCPY(initialCounter, iv, ivSz);
+        initialCounter[AES_BLOCK_SIZE - 1] = 1;
+    }
+    else {
+        GHASH(aes, NULL, 0, iv, ivSz, initialCounter, AES_BLOCK_SIZE);
+        GMULT(initialCounter, aes->H);
+    }
+    XMEMCPY(counter, initialCounter, AES_BLOCK_SIZE);
+
+
+    /* Hash in the Additional Authentication Data */
+    XMEMSET(x, 0, AES_BLOCK_SIZE);
+    if (authInSz != 0 && authIn != NULL) {
+        blocks = authInSz / AES_BLOCK_SIZE;
+        partial = authInSz % AES_BLOCK_SIZE;
+        /* do as many blocks as possible */
+        while (blocks--) {
+            xorbuf(x, authIn, AES_BLOCK_SIZE);
+            GMULT(x, aes->H);
+            authIn += AES_BLOCK_SIZE;
+        }
+        if (partial != 0) {
+            XMEMSET(scratch, 0, AES_BLOCK_SIZE);
+            XMEMCPY(scratch, authIn, partial);
+            xorbuf(x, scratch, AES_BLOCK_SIZE);
+            GMULT(x, aes->H);
+        }
+    }
+
+    /* do as many blocks as possible */
+    blocks = sz / AES_BLOCK_SIZE;
+    partial = sz % AES_BLOCK_SIZE;
+    if (blocks > 0) {
+        keyPt  = (byte*)aes->key;
+        __asm__ __volatile__ (
+            "MOV w11, %w[blocks] \n"
+            "LD1 {v13.2d}, [%[ctr]] \n"
+
+            "#Create vector with the value 1  \n"
+            "MOVI v14.16b, #1                 \n"
+            "USHR v14.2d, v14.2d, #56         \n"
+            "EOR v22.16b, v22.16b, v22.16b    \n"
+            "EXT v14.16b, v14.16b, v22.16b, #8\n"
+
+
+            /***************************************************
+               Get first out block for GHASH using AES encrypt
+             ***************************************************/
+            "REV64 v13.16b, v13.16b \n" /* network order */
+            "LD1 {v1.2d-v4.2d}, [%[Key]], #64 \n"
+            "EXT v13.16b, v13.16b, v13.16b, #8 \n"
+            "ADD v13.2d, v13.2d, v14.2d \n" /* add 1 to counter */
+            "EXT v13.16b, v13.16b, v13.16b, #8 \n"
+            "REV64 v13.16b, v13.16b \n" /* revert from network order */
+            "LD1 {v5.2d-v8.2d}, [%[Key]], #64 \n"
+            "MOV v0.16b, v13.16b  \n"
+            "AESE v0.16b, v1.16b  \n"
+            "AESMC v0.16b, v0.16b \n"
+            "AESE v0.16b, v2.16b  \n"
+            "AESMC v0.16b, v0.16b \n"
+            "AESE v0.16b, v3.16b  \n"
+            "AESMC v0.16b, v0.16b \n"
+            "LD1 {v16.2d}, %[inY] \n"
+            "AESE v0.16b, v4.16b  \n"
+            "AESMC v0.16b, v0.16b \n"
+            "SUB w11, w11, #1     \n"
+            "LD1 {v9.2d-v11.2d}, [%[Key]], #48\n"
+            "LD1 {v30.2d-v31.2d}, [%[Key]], #32\n"
+            "AESE v0.16b, v5.16b  \n"
+            "AESMC v0.16b, v0.16b \n"
+            "MOVI v23.16b, #0x87 \n"
+            "AESE v0.16b, v6.16b  \n"
+            "AESMC v0.16b, v0.16b \n"
+            "LD1 {v17.2d}, [%[inX]] \n" /* account for additional data */
+            "AESE v0.16b, v7.16b  \n"
+            "AESMC v0.16b, v0.16b \n"
+            "USHR v23.2d, v23.2d, #56 \n"
+            "AESE v0.16b, v8.16b  \n"
+            "AESMC v0.16b, v0.16b \n"
+            "LD1 {v12.2d}, [%[input]], #16 \n"
+            "AESE v0.16b, v9.16b  \n"
+            "AESMC v0.16b, v0.16b \n"
+            "AESE v0.16b, v10.16b  \n"
+            "AESMC v0.16b, v0.16b \n"
+            "AESE v0.16b, v11.16b  \n"
+            "AESMC v0.16b, v0.16b \n"
+            "AESE v0.16b, v30.16b \n"
+            "EOR v0.16b, v0.16b, v31.16b \n"
+
+            "EOR v0.16b, v0.16b, v12.16b \n"
+            "ST1 {v0.2d}, [%[out]], #16  \n"
+            "MOV v15.16b, v0.16b \n"
+
+            "CBZ w11, AESGCM192end \n" /* only one block jump to final GHASH */
+            "LD1 {v12.2d}, [%[input]], #16 \n"
+
+            /***************************************************
+               Interweave GHASH and encrypt if more then 1 block
+             ***************************************************/
+            "AESGCM192Block: \n"
+            "REV64 v13.16b, v13.16b \n" /* network order */
+            "EOR v15.16b, v17.16b, v15.16b \n"
+            "EXT v13.16b, v13.16b, v13.16b, #8 \n"
+            "ADD v13.2d, v13.2d, v14.2d \n" /* add 1 to counter */
+            "RBIT v15.16b, v15.16b \n" /* v15 is encrypted out block (c) */
+            "EXT v13.16b, v13.16b, v13.16b, #8 \n"
+            "REV64 v13.16b, v13.16b \n" /* revert from network order */
+            "PMULL  v18.1q, v15.1d, v16.1d \n"     /* a0 * b0 = C */
+            "MOV v0.16b, v13.16b  \n"
+            "PMULL2 v19.1q, v15.2d, v16.2d \n"     /* a1 * b1 = D */
+            "AESE v0.16b, v1.16b  \n"
+            "AESMC v0.16b, v0.16b \n"
+            "EXT v20.16b, v16.16b, v16.16b, #8 \n" /* b0b1 -> b1b0 */
+            "AESE v0.16b, v2.16b  \n"
+            "AESMC v0.16b, v0.16b \n"
+            "PMULL  v21.1q, v15.1d, v20.1d \n"     /* a0 * b1 = E */
+            "PMULL2 v20.1q, v15.2d, v20.2d \n"     /* a1 * b0 = F */
+            "AESE v0.16b, v3.16b  \n"
+            "AESMC v0.16b, v0.16b \n"
+            "EOR v20.16b, v20.16b, v21.16b \n"     /* F ^ E */
+            "AESE v0.16b, v4.16b  \n"
+            "AESMC v0.16b, v0.16b \n"
+            "EXT v21.16b, v22.16b, v20.16b, #8 \n" /* get (F^E)[0] */
+            "SUB w11, w11, #1     \n"
+            "AESE v0.16b, v5.16b  \n"
+            "AESMC v0.16b, v0.16b \n"
+            "EOR v18.16b, v18.16b, v21.16b \n"     /* low 128 bits in v3 */
+            "EXT v21.16b, v20.16b, v22.16b, #8 \n" /* get (F^E)[1] */
+            "AESE v0.16b, v6.16b  \n"
+            "AESMC v0.16b, v0.16b \n"
+            "EOR v19.16b, v19.16b, v21.16b \n"     /* high 128 bits in v4 */
+            "AESE v0.16b, v7.16b  \n"
+            "AESMC v0.16b, v0.16b \n"
+            "PMULL2 v20.1q, v19.2d, v23.2d \n"
+            "AESE v0.16b, v8.16b  \n"
+            "AESMC v0.16b, v0.16b \n"
+            "EXT v21.16b, v20.16b, v22.16b, #8 \n" /* v22 is all 0's */
+            "AESE v0.16b, v9.16b  \n"
+            "AESMC v0.16b, v0.16b \n"
+            "AESE v0.16b, v10.16b  \n"
+            "AESMC v0.16b, v0.16b \n"
+            "AESE v0.16b, v11.16b  \n"
+            "AESMC v0.16b, v0.16b \n"
+            "EOR v19.16b, v19.16b, v21.16b \n"
+            "AESE v0.16b, v30.16b \n"
+            "EXT v21.16b, v22.16b, v20.16b, #8 \n"
+            "EOR v0.16b, v0.16b, v31.16b \n"
+            "EOR v18.16b, v18.16b, v21.16b \n"
+
+            "EOR v0.16b, v0.16b, v12.16b \n"
+            "PMULL v20.1q, v19.1d, v23.1d  \n"
+            "ST1 {v0.2d}, [%[out]], #16  \n"
+            "EOR v19.16b, v18.16b, v20.16b \n"
+            "MOV v15.16b, v0.16b \n"
+            "RBIT v17.16b, v19.16b \n"
+
+            "CBZ w11, AESGCM192end \n"
+            "LD1 {v12.2d}, [%[input]], #16 \n"
+            "B AESGCM192Block \n"
+
+            /***************************************************
+               GHASH on last block
+             ***************************************************/
+            "AESGCM192end: \n"
+            "EOR v15.16b, v17.16b, v15.16b \n"
+            "RBIT v15.16b, v15.16b \n" /* v15 is encrypted out block */
+
+            "#store current AES counter value \n"
+            "ST1 {v13.2d}, [%[ctrOut]] \n"
+            "PMULL  v18.1q, v15.1d, v16.1d \n"     /* a0 * b0 = C */
+            "PMULL2 v19.1q, v15.2d, v16.2d \n"     /* a1 * b1 = D */
+            "EXT v20.16b, v16.16b, v16.16b, #8 \n" /* b0b1 -> b1b0 */
+            "PMULL  v21.1q, v15.1d, v20.1d \n"     /* a0 * b1 = E */
+            "PMULL2 v20.1q, v15.2d, v20.2d \n"     /* a1 * b0 = F */
+            "EOR v20.16b, v20.16b, v21.16b \n"     /* F ^ E */
+            "EXT v21.16b, v22.16b, v20.16b, #8 \n" /* get (F^E)[0] */
+            "EOR v18.16b, v18.16b, v21.16b \n"     /* low 128 bits in v3 */
+            "EXT v21.16b, v20.16b, v22.16b, #8 \n" /* get (F^E)[1] */
+            "EOR v19.16b, v19.16b, v21.16b \n"     /* high 128 bits in v4 */
+
+            "#Reduce product from multiplication \n"
+            "PMULL2 v20.1q, v19.2d, v23.2d \n"
+            "EXT v21.16b, v20.16b, v22.16b, #8 \n" /* v22 is all 0's */
+            "EOR v19.16b, v19.16b, v21.16b \n"
+            "EXT v21.16b, v22.16b, v20.16b, #8 \n"
+            "EOR v18.16b, v18.16b, v21.16b \n"
+            "PMULL v20.1q, v19.1d, v23.1d  \n"
+            "EOR v19.16b, v18.16b, v20.16b \n"
+            "RBIT v17.16b, v19.16b \n"
+            "STR q17, [%[xOut]] \n" /* GHASH x value for partial blocks */
+
+            :[out] "=r" (out), "=r" (keyPt), [ctrOut] "=r" (ctr), "=r" (in)
+            ,[xOut] "=r" (xPt),"=m" (aes->H)
+            :"0" (out), [Key] "1" (keyPt), [ctr] "2" (ctr), [blocks] "r" (blocks),
+             [input] "3" (in)
+            ,[inX] "4" (xPt), [inY] "m" (aes->H)
+            : "cc", "w11", "v0", "v1", "v2", "v3", "v4", "v5",
+            "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14"
+            ,"v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "x12"
+        );
+    }
+
+    /* take care of partial block sizes leftover */
+    if (partial != 0) {
+        IncrementGcmCounter(counter);
+        wc_AesEncrypt(aes, counter, scratch);
+        xorbuf(scratch, in, partial);
+        XMEMCPY(out, scratch, partial);
+
+        XMEMSET(scratch, 0, AES_BLOCK_SIZE);
+        XMEMCPY(scratch, out, partial);
+        xorbuf(x, scratch, AES_BLOCK_SIZE);
+        GMULT(x, aes->H);
+    }
+
+    /* Hash in the lengths of A and C in bits */
+    XMEMSET(scratch, 0, AES_BLOCK_SIZE);
+    FlattenSzInBits(&scratch[0], authInSz);
+    FlattenSzInBits(&scratch[8], sz);
+    xorbuf(x, scratch, AES_BLOCK_SIZE);
+    XMEMCPY(scratch, x, AES_BLOCK_SIZE);
+
+    keyPt  = (byte*)aes->key;
+    __asm__ __volatile__ (
+
+        "LD1 {v16.16b}, [%[tag]] \n"
+        "LD1 {v17.16b}, %[h] \n"
+        "RBIT v16.16b, v16.16b \n"
+
+        "LD1 {v1.2d-v4.2d}, [%[Key]], #64 \n"
+        "PMULL  v18.1q, v16.1d, v17.1d \n"     /* a0 * b0 = C */
+        "PMULL2 v19.1q, v16.2d, v17.2d \n"     /* a1 * b1 = D */
+        "LD1 {v5.2d-v8.2d}, [%[Key]], #64 \n"
+        "EXT v20.16b, v17.16b, v17.16b, #8 \n" /* b0b1 -> b1b0 */
+        "LD1 {v9.2d-v11.2d}, [%[Key]], #48\n"
+        "LD1 {v30.2d-v31.2d}, [%[Key]], #32\n"
+        "PMULL  v21.1q, v16.1d, v20.1d \n"     /* a0 * b1 = E */
+        "PMULL2 v20.1q, v16.2d, v20.2d \n"     /* a1 * b0 = F */
+        "LD1 {v0.2d}, [%[ctr]]             \n"
+
+        "#Set a register to all 0s using EOR \n"
+        "EOR v22.16b, v22.16b, v22.16b \n"
+        "EOR v20.16b, v20.16b, v21.16b \n"     /* F ^ E */
+        "AESE v0.16b, v1.16b  \n"
+        "AESMC v0.16b, v0.16b \n"
+        "EXT v21.16b, v22.16b, v20.16b, #8 \n" /* get (F^E)[0] */
+        "AESE v0.16b, v2.16b  \n"
+        "AESMC v0.16b, v0.16b \n"
+        "EOR v18.16b, v18.16b, v21.16b \n"     /* low 128 bits in v3 */
+        "EXT v21.16b, v20.16b, v22.16b, #8 \n" /* get (F^E)[1] */
+        "AESE v0.16b, v3.16b  \n"
+        "AESMC v0.16b, v0.16b \n"
+        "EOR v19.16b, v19.16b, v21.16b \n"     /* high 128 bits in v4 */
+        "MOVI v23.16b, #0x87 \n"
+        "AESE v0.16b, v4.16b  \n"
+        "AESMC v0.16b, v0.16b \n"
+        "USHR v23.2d, v23.2d, #56 \n"
+        "PMULL2 v20.1q, v19.2d, v23.2d \n"
+        "AESE v0.16b, v5.16b  \n"
+        "AESMC v0.16b, v0.16b \n"
+        "EXT v21.16b, v20.16b, v22.16b, #8 \n"
+        "AESE v0.16b, v6.16b  \n"
+        "AESMC v0.16b, v0.16b \n"
+        "EOR v19.16b, v19.16b, v21.16b \n"
+        "AESE v0.16b, v7.16b  \n"
+        "AESMC v0.16b, v0.16b \n"
+        "EXT v21.16b, v22.16b, v20.16b, #8 \n"
+        "AESE v0.16b, v8.16b  \n"
+        "AESMC v0.16b, v0.16b \n"
+        "EOR v18.16b, v18.16b, v21.16b \n"
+        "AESE v0.16b, v9.16b  \n"
+        "AESMC v0.16b, v0.16b \n"
+        "AESE v0.16b, v10.16b  \n"
+        "AESMC v0.16b, v0.16b \n"
+        "AESE v0.16b, v11.16b  \n"
+        "AESMC v0.16b, v0.16b \n"
+        "PMULL v20.1q, v19.1d, v23.1d  \n"
+        "EOR v19.16b, v18.16b, v20.16b \n"
+        "AESE v0.16b, v30.16b \n"
+        "RBIT v19.16b, v19.16b \n"
+        "EOR v0.16b, v0.16b, v31.16b \n"
+        "EOR v19.16b, v19.16b, v0.16b \n"
+        "STR q19, [%[out]] \n"
+
+        :[out] "=r" (sPt), "=r" (keyPt), "=r" (iCtr)
+        :[tag] "0" (sPt), [Key] "1" (keyPt),
+        [ctr] "2" (iCtr) , [h] "m" (aes->H)
+        : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v5",
+        "v6", "v7", "v8", "v9", "v10","v11","v12","v13","v14",
+        "v15", "v16", "v17","v18", "v19", "v20","v21","v22","v23","v24"
+    );
+
+
+    /* authTagSz can be smaller than AES_BLOCK_SIZE */
+    XMEMCPY(authTag, scratch, authTagSz);
+
+    return 0;
+}
+
+
+/* internal function : see wc_AesGcmEncrypt */
+static int Aes256GcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
+                   const byte* iv, word32 ivSz,
+                   byte* authTag, word32 authTagSz,
+                   const byte* authIn, word32 authInSz)
+{
+    word32 blocks;
+    word32 partial;
+    byte counter[AES_BLOCK_SIZE];
+    byte initialCounter[AES_BLOCK_SIZE];
+    byte x[AES_BLOCK_SIZE];
+    byte scratch[AES_BLOCK_SIZE];
+
+    /* Noticed different optimization levels treated head of array different.
+       Some cases was stack pointer plus offset others was a regester containing
+       address. To make uniform for passing in to inline assembly code am using
+       pointers to the head of each local array.
+     */
+    byte* ctr  = counter;
+    byte* iCtr = initialCounter;
+    byte* xPt  = x;
+    byte* sPt  = scratch;
+    byte* keyPt; /* pointer to handle pointer advencment */
+
+    XMEMSET(initialCounter, 0, AES_BLOCK_SIZE);
+    if (ivSz == NONCE_SZ) {
+        XMEMCPY(initialCounter, iv, ivSz);
+        initialCounter[AES_BLOCK_SIZE - 1] = 1;
+    }
+    else {
+        GHASH(aes, NULL, 0, iv, ivSz, initialCounter, AES_BLOCK_SIZE);
+        GMULT(initialCounter, aes->H);
+    }
+    XMEMCPY(counter, initialCounter, AES_BLOCK_SIZE);
+
+
+    /* Hash in the Additional Authentication Data */
+    XMEMSET(x, 0, AES_BLOCK_SIZE);
+    if (authInSz != 0 && authIn != NULL) {
+        blocks = authInSz / AES_BLOCK_SIZE;
+        partial = authInSz % AES_BLOCK_SIZE;
+        /* do as many blocks as possible */
+        while (blocks--) {
+            xorbuf(x, authIn, AES_BLOCK_SIZE);
+            GMULT(x, aes->H);
+            authIn += AES_BLOCK_SIZE;
+        }
+        if (partial != 0) {
+            XMEMSET(scratch, 0, AES_BLOCK_SIZE);
+            XMEMCPY(scratch, authIn, partial);
+            xorbuf(x, scratch, AES_BLOCK_SIZE);
+            GMULT(x, aes->H);
+        }
+    }
+
+    /* do as many blocks as possible */
+    blocks = sz / AES_BLOCK_SIZE;
+    partial = sz % AES_BLOCK_SIZE;
+    if (blocks > 0) {
+        keyPt  = (byte*)aes->key;
+        __asm__ __volatile__ (
+            "MOV w11, %w[blocks] \n"
+            "LD1 {v13.2d}, [%[ctr]] \n"
+
+            "#Create vector with the value 1  \n"
+            "MOVI v14.16b, #1                 \n"
+            "USHR v14.2d, v14.2d, #56         \n"
+            "EOR v22.16b, v22.16b, v22.16b    \n"
+            "EXT v14.16b, v14.16b, v22.16b, #8\n"
+
+
+            /***************************************************
+               Get first out block for GHASH using AES encrypt
+             ***************************************************/
+            "REV64 v13.16b, v13.16b \n" /* network order */
+            "LD1 {v1.2d-v4.2d}, [%[Key]], #64 \n"
+            "EXT v13.16b, v13.16b, v13.16b, #8 \n"
+            "ADD v13.2d, v13.2d, v14.2d \n" /* add 1 to counter */
+            "EXT v13.16b, v13.16b, v13.16b, #8 \n"
+            "REV64 v13.16b, v13.16b \n" /* revert from network order */
+            "LD1 {v5.2d-v8.2d}, [%[Key]], #64 \n"
+            "MOV v0.16b, v13.16b  \n"
+            "AESE v0.16b, v1.16b  \n"
+            "AESMC v0.16b, v0.16b \n"
+            "AESE v0.16b, v2.16b  \n"
+            "AESMC v0.16b, v0.16b \n"
+            "AESE v0.16b, v3.16b  \n"
+            "AESMC v0.16b, v0.16b \n"
+            "LD1 {v16.2d}, %[inY] \n"
+            "AESE v0.16b, v4.16b  \n"
+            "AESMC v0.16b, v0.16b \n"
+            "SUB w11, w11, #1     \n"
+            "LD1 {v9.2d-v11.2d}, [%[Key]], #48\n"
+            "LD1 {v28.2d-v31.2d}, [%[Key]], #64\n"
+            "AESE v0.16b, v5.16b  \n"
+            "AESMC v0.16b, v0.16b \n"
+            "MOVI v23.16b, #0x87 \n"
+            "AESE v0.16b, v6.16b  \n"
+            "AESMC v0.16b, v0.16b \n"
+            "LD1 {v17.2d}, [%[inX]] \n" /* account for additional data */
+            "AESE v0.16b, v7.16b  \n"
+            "AESMC v0.16b, v0.16b \n"
+            "USHR v23.2d, v23.2d, #56 \n"
+            "AESE v0.16b, v8.16b  \n"
+            "AESMC v0.16b, v0.16b \n"
+            "LD1 {v12.2d}, [%[input]], #16 \n"
+            "AESE v0.16b, v9.16b  \n"
+            "AESMC v0.16b, v0.16b \n"
+            "AESE v0.16b, v10.16b  \n"
+            "AESMC v0.16b, v0.16b \n"
+            "AESE v0.16b, v11.16b  \n"
+            "AESMC v0.16b, v0.16b \n"
+            "AESE v0.16b, v28.16b  \n"
+            "AESMC v0.16b, v0.16b \n"
+            "AESE v0.16b, v29.16b  \n"
+            "AESMC v0.16b, v0.16b \n"
+            "AESE v0.16b, v30.16b \n"
+            "EOR v0.16b, v0.16b, v31.16b \n"
+
+            "EOR v0.16b, v0.16b, v12.16b \n"
+            "ST1 {v0.2d}, [%[out]], #16  \n"
+            "MOV v15.16b, v0.16b \n"
+
+            "CBZ w11, AESGCM256end \n" /* only one block jump to final GHASH */
+            "LD1 {v12.2d}, [%[input]], #16 \n"
+
+            /***************************************************
+               Interweave GHASH and encrypt if more then 1 block
+             ***************************************************/
+            "AESGCM256Block: \n"
+            "REV64 v13.16b, v13.16b \n" /* network order */
+            "EOR v15.16b, v17.16b, v15.16b \n"
+            "EXT v13.16b, v13.16b, v13.16b, #8 \n"
+            "ADD v13.2d, v13.2d, v14.2d \n" /* add 1 to counter */
+            "RBIT v15.16b, v15.16b \n" /* v15 is encrypted out block (c) */
+            "EXT v13.16b, v13.16b, v13.16b, #8 \n"
+            "REV64 v13.16b, v13.16b \n" /* revert from network order */
+            "PMULL  v18.1q, v15.1d, v16.1d \n"     /* a0 * b0 = C */
+            "MOV v0.16b, v13.16b  \n"
+            "PMULL2 v19.1q, v15.2d, v16.2d \n"     /* a1 * b1 = D */
+            "AESE v0.16b, v1.16b  \n"
+            "AESMC v0.16b, v0.16b \n"
+            "EXT v20.16b, v16.16b, v16.16b, #8 \n" /* b0b1 -> b1b0 */
+            "AESE v0.16b, v2.16b  \n"
+            "AESMC v0.16b, v0.16b \n"
+            "PMULL  v21.1q, v15.1d, v20.1d \n"     /* a0 * b1 = E */
+            "PMULL2 v20.1q, v15.2d, v20.2d \n"     /* a1 * b0 = F */
+            "AESE v0.16b, v3.16b  \n"
+            "AESMC v0.16b, v0.16b \n"
+            "EOR v20.16b, v20.16b, v21.16b \n"     /* F ^ E */
+            "AESE v0.16b, v4.16b  \n"
+            "AESMC v0.16b, v0.16b \n"
+            "EXT v21.16b, v22.16b, v20.16b, #8 \n" /* get (F^E)[0] */
+            "SUB w11, w11, #1     \n"
+            "AESE v0.16b, v5.16b  \n"
+            "AESMC v0.16b, v0.16b \n"
+            "EOR v18.16b, v18.16b, v21.16b \n"     /* low 128 bits in v3 */
+            "EXT v21.16b, v20.16b, v22.16b, #8 \n" /* get (F^E)[1] */
+            "AESE v0.16b, v6.16b  \n"
+            "AESMC v0.16b, v0.16b \n"
+            "EOR v19.16b, v19.16b, v21.16b \n"     /* high 128 bits in v4 */
+            "AESE v0.16b, v7.16b  \n"
+            "AESMC v0.16b, v0.16b \n"
+            "PMULL2 v20.1q, v19.2d, v23.2d \n"
+            "AESE v0.16b, v8.16b  \n"
+            "AESMC v0.16b, v0.16b \n"
+            "EXT v21.16b, v20.16b, v22.16b, #8 \n" /* v22 is all 0's */
+            "AESE v0.16b, v9.16b  \n"
+            "AESMC v0.16b, v0.16b \n"
+            "AESE v0.16b, v10.16b  \n"
+            "AESMC v0.16b, v0.16b \n"
+            "AESE v0.16b, v11.16b  \n"
+            "AESMC v0.16b, v0.16b \n"
+            "AESE v0.16b, v28.16b  \n"
+            "AESMC v0.16b, v0.16b \n"
+            "AESE v0.16b, v29.16b  \n"
+            "AESMC v0.16b, v0.16b \n"
+            "EOR v19.16b, v19.16b, v21.16b \n"
+            "AESE v0.16b, v30.16b \n"
+            "EXT v21.16b, v22.16b, v20.16b, #8 \n"
+            "EOR v0.16b, v0.16b, v31.16b \n"
+            "EOR v18.16b, v18.16b, v21.16b \n"
+
+            "EOR v0.16b, v0.16b, v12.16b \n"
+            "PMULL v20.1q, v19.1d, v23.1d  \n"
+            "ST1 {v0.2d}, [%[out]], #16  \n"
+            "EOR v19.16b, v18.16b, v20.16b \n"
+            "MOV v15.16b, v0.16b \n"
+            "RBIT v17.16b, v19.16b \n"
+
+            "CBZ w11, AESGCM256end \n"
+            "LD1 {v12.2d}, [%[input]], #16 \n"
+            "B AESGCM256Block \n"
+
+            /***************************************************
+               GHASH on last block
+             ***************************************************/
+            "AESGCM256end: \n"
+            "EOR v15.16b, v17.16b, v15.16b \n"
+            "RBIT v15.16b, v15.16b \n" /* v15 is encrypted out block */
+
+            "#store current AES counter value \n"
+            "ST1 {v13.2d}, [%[ctrOut]] \n"
+            "PMULL  v18.1q, v15.1d, v16.1d \n"     /* a0 * b0 = C */
+            "PMULL2 v19.1q, v15.2d, v16.2d \n"     /* a1 * b1 = D */
+            "EXT v20.16b, v16.16b, v16.16b, #8 \n" /* b0b1 -> b1b0 */
+            "PMULL  v21.1q, v15.1d, v20.1d \n"     /* a0 * b1 = E */
+            "PMULL2 v20.1q, v15.2d, v20.2d \n"     /* a1 * b0 = F */
+            "EOR v20.16b, v20.16b, v21.16b \n"     /* F ^ E */
+            "EXT v21.16b, v22.16b, v20.16b, #8 \n" /* get (F^E)[0] */
+            "EOR v18.16b, v18.16b, v21.16b \n"     /* low 128 bits in v3 */
+            "EXT v21.16b, v20.16b, v22.16b, #8 \n" /* get (F^E)[1] */
+            "EOR v19.16b, v19.16b, v21.16b \n"     /* high 128 bits in v4 */
+
+            "#Reduce product from multiplication \n"
+            "PMULL2 v20.1q, v19.2d, v23.2d \n"
+            "EXT v21.16b, v20.16b, v22.16b, #8 \n" /* v22 is all 0's */
+            "EOR v19.16b, v19.16b, v21.16b \n"
+            "EXT v21.16b, v22.16b, v20.16b, #8 \n"
+            "EOR v18.16b, v18.16b, v21.16b \n"
+            "PMULL v20.1q, v19.1d, v23.1d  \n"
+            "EOR v19.16b, v18.16b, v20.16b \n"
+            "RBIT v17.16b, v19.16b \n"
+            "STR q17, [%[xOut]] \n" /* GHASH x value for partial blocks */
+
+            :[out] "=r" (out), "=r" (keyPt), [ctrOut] "=r" (ctr), "=r" (in)
+            ,[xOut] "=r" (xPt),"=m" (aes->H)
+            :"0" (out), [Key] "1" (keyPt), [ctr] "2" (ctr), [blocks] "r" (blocks),
+             [input] "3" (in)
+            ,[inX] "4" (xPt), [inY] "m" (aes->H)
+            : "cc", "w11", "v0", "v1", "v2", "v3", "v4", "v5",
+            "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14"
+            ,"v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "x12"
+        );
+    }
+
+    /* take care of partial block sizes leftover */
+    if (partial != 0) {
+        IncrementGcmCounter(counter);
+        wc_AesEncrypt(aes, counter, scratch);
+        xorbuf(scratch, in, partial);
+        XMEMCPY(out, scratch, partial);
+
+        XMEMSET(scratch, 0, AES_BLOCK_SIZE);
+        XMEMCPY(scratch, out, partial);
+        xorbuf(x, scratch, AES_BLOCK_SIZE);
+        GMULT(x, aes->H);
+    }
+
+    /* Hash in the lengths of A and C in bits */
+    XMEMSET(scratch, 0, AES_BLOCK_SIZE);
+    FlattenSzInBits(&scratch[0], authInSz);
+    FlattenSzInBits(&scratch[8], sz);
+    xorbuf(x, scratch, AES_BLOCK_SIZE);
+    XMEMCPY(scratch, x, AES_BLOCK_SIZE);
+
+    keyPt  = (byte*)aes->key;
+    __asm__ __volatile__ (
+
+        "LD1 {v16.16b}, [%[tag]] \n"
+        "LD1 {v17.16b}, %[h] \n"
+        "RBIT v16.16b, v16.16b \n"
+
+        "LD1 {v1.2d-v4.2d}, [%[Key]], #64 \n"
+        "PMULL  v18.1q, v16.1d, v17.1d \n"     /* a0 * b0 = C */
+        "PMULL2 v19.1q, v16.2d, v17.2d \n"     /* a1 * b1 = D */
+        "LD1 {v5.2d-v8.2d}, [%[Key]], #64 \n"
+        "EXT v20.16b, v17.16b, v17.16b, #8 \n" /* b0b1 -> b1b0 */
+        "LD1 {v9.2d-v11.2d}, [%[Key]], #48\n"
+        "LD1 {v28.2d-v31.2d}, [%[Key]], #64\n"
+        "PMULL  v21.1q, v16.1d, v20.1d \n"     /* a0 * b1 = E */
+        "PMULL2 v20.1q, v16.2d, v20.2d \n"     /* a1 * b0 = F */
+        "LD1 {v0.2d}, [%[ctr]]             \n"
+
+        "#Set a register to all 0s using EOR \n"
+        "EOR v22.16b, v22.16b, v22.16b \n"
+        "EOR v20.16b, v20.16b, v21.16b \n"     /* F ^ E */
+        "AESE v0.16b, v1.16b  \n"
+        "AESMC v0.16b, v0.16b \n"
+        "EXT v21.16b, v22.16b, v20.16b, #8 \n" /* get (F^E)[0] */
+        "AESE v0.16b, v2.16b  \n"
+        "AESMC v0.16b, v0.16b \n"
+        "EOR v18.16b, v18.16b, v21.16b \n"     /* low 128 bits in v3 */
+        "EXT v21.16b, v20.16b, v22.16b, #8 \n" /* get (F^E)[1] */
+        "AESE v0.16b, v3.16b  \n"
+        "AESMC v0.16b, v0.16b \n"
+        "EOR v19.16b, v19.16b, v21.16b \n"     /* high 128 bits in v4 */
+        "MOVI v23.16b, #0x87 \n"
+        "AESE v0.16b, v4.16b  \n"
+        "AESMC v0.16b, v0.16b \n"
+        "USHR v23.2d, v23.2d, #56 \n"
+        "PMULL2 v20.1q, v19.2d, v23.2d \n"
+        "AESE v0.16b, v5.16b  \n"
+        "AESMC v0.16b, v0.16b \n"
+        "EXT v21.16b, v20.16b, v22.16b, #8 \n"
+        "AESE v0.16b, v6.16b  \n"
+        "AESMC v0.16b, v0.16b \n"
+        "EOR v19.16b, v19.16b, v21.16b \n"
+        "AESE v0.16b, v7.16b  \n"
+        "AESMC v0.16b, v0.16b \n"
+        "EXT v21.16b, v22.16b, v20.16b, #8 \n"
+        "AESE v0.16b, v8.16b  \n"
+        "AESMC v0.16b, v0.16b \n"
+        "EOR v18.16b, v18.16b, v21.16b \n"
+        "AESE v0.16b, v9.16b  \n"
+        "AESMC v0.16b, v0.16b \n"
+        "AESE v0.16b, v10.16b  \n"
+        "AESMC v0.16b, v0.16b \n"
+        "AESE v0.16b, v11.16b  \n"
+        "AESMC v0.16b, v0.16b \n"
+        "AESE v0.16b, v28.16b  \n"
+        "AESMC v0.16b, v0.16b \n"
+        "AESE v0.16b, v29.16b  \n"
+        "AESMC v0.16b, v0.16b \n"
+        "PMULL v20.1q, v19.1d, v23.1d  \n"
+        "EOR v19.16b, v18.16b, v20.16b \n"
+        "AESE v0.16b, v30.16b \n"
+        "RBIT v19.16b, v19.16b \n"
+        "EOR v0.16b, v0.16b, v31.16b \n"
+        "EOR v19.16b, v19.16b, v0.16b \n"
+        "STR q19, [%[out]] \n"
+
+        :[out] "=r" (sPt), "=r" (keyPt), "=r" (iCtr)
+        :[tag] "0" (sPt), [Key] "1" (keyPt),
+        [ctr] "2" (iCtr) , [h] "m" (aes->H)
+        : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v5",
+        "v6", "v7", "v8", "v9", "v10","v11","v12","v13","v14",
+        "v15", "v16", "v17","v18", "v19", "v20","v21","v22","v23","v24"
+    );
+
+
+    /* authTagSz can be smaller than AES_BLOCK_SIZE */
+    XMEMCPY(authTag, scratch, authTagSz);
+
+    return 0;
+}
+
+
+/* aarch64 with PMULL and PMULL2
+ * Encrypt and tag data using AES with GCM mode.
+ * aes: Aes structure having already been set with set key function
+ * out: encrypted data output buffer
+ * in:  plain text input buffer
+ * sz:  size of plain text and out buffer
+ * iv:  initialization vector
+ * ivSz:      size of iv buffer
+ * authTag:   buffer to hold tag
+ * authTagSz: size of tag buffer
+ * authIn:    additional data buffer
+ * authInSz:  size of additional data buffer
+ *
+ * Notes:
+ * GHASH multiplication based from Algorithm 1 from Intel GCM white paper.
+ * "Carry-Less Multiplication and Its Usage for Computing the GCM Mode"
+ *
+ * GHASH reduction Based from White Paper "Implementing GCM on ARMv8"
+ * by Conrado P.L. Gouvea and Julio Lopez reduction on 256bit value using
+ * Algorithm 5
+ */
+int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
+                   const byte* iv, word32 ivSz,
+                   byte* authTag, word32 authTagSz,
+                   const byte* authIn, word32 authInSz)
+{
+    /* sanity checks */
+    if (authTagSz > AES_BLOCK_SIZE) {
+        WOLFSSL_MSG("parameter authTagSz can not be larger than 16 bytes");
+        return BAD_FUNC_ARG; /* is bigger then scratch buffer */
+    }
+
+    if (aes == NULL || (iv == NULL && ivSz > 0) ||
+                       (authTag == NULL && authTagSz > 0) ||
+                       (authIn == NULL && authInSz > 0) ||
+                       (in == NULL && sz > 0) ||
+                       (out == NULL && authTag == NULL)) {
+        WOLFSSL_MSG("a NULL parameter passed in when size is larger than 0");
+        return BAD_FUNC_ARG;
+    }
+
+    switch (aes->rounds) {
+        case 10:
+            return Aes128GcmEncrypt(aes, out, in, sz, iv, ivSz,
+                                    authTag, authTagSz, authIn, authInSz);
+
+        case 12:
+            return Aes192GcmEncrypt(aes, out, in, sz, iv, ivSz,
+                                    authTag, authTagSz, authIn, authInSz);
+
+        case 14:
+            return Aes256GcmEncrypt(aes, out, in, sz, iv, ivSz,
+                                    authTag, authTagSz, authIn, authInSz);
+
+        default:
+            WOLFSSL_MSG("AES-GCM invalid round number");
+            return BAD_FUNC_ARG;
+    }
+}
+
+
 #ifdef HAVE_AES_DECRYPT
+/*
+ * Check tag and decrypt data using AES with GCM mode.
+ * aes: Aes structure having already been set with set key function
+ * out: decrypted data output buffer
+ * in:  cipher text buffer
+ * sz:  size of plain text and out buffer
+ * iv:  initialization vector
+ * ivSz:      size of iv buffer
+ * authTag:   buffer holding tag
+ * authTagSz: size of tag buffer
+ * authIn:    additional data buffer
+ * authInSz:  size of additional data buffer
+ */
 int  wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
                    const byte* iv, word32 ivSz,
                    const byte* authTag, word32 authTagSz,
@@ -1606,6 +2391,21 @@ int  wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
 
     ctr = counter ;
 
+    /* sanity checks */
+    if (authTagSz > AES_BLOCK_SIZE) {
+        WOLFSSL_MSG("parameter authTagSz can not be larger than 16 bytes");
+        return BAD_FUNC_ARG; /* is bigger then scratch buffer */
+    }
+
+    if (aes == NULL || (iv == NULL && ivSz > 0) ||
+                       (authTag == NULL && authTagSz > 0) ||
+                       (authIn == NULL && authInSz > 0) ||
+                       (in == NULL && sz > 0) ||
+                       (out == NULL && authTag == NULL)) {
+        WOLFSSL_MSG("a NULL parameter passed in when size is larger than 0");
+        return BAD_FUNC_ARG;
+    }
+
     XMEMSET(initialCounter, 0, AES_BLOCK_SIZE);
     if (ivSz == NONCE_SZ) {
         XMEMCPY(initialCounter, iv, ivSz);
@@ -1613,6 +2413,7 @@ int  wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     }
     else {
         GHASH(aes, NULL, 0, iv, ivSz, initialCounter, AES_BLOCK_SIZE);
+        GMULT(initialCounter, aes->H);
     }
     XMEMCPY(ctr, initialCounter, AES_BLOCK_SIZE);
 
@@ -1623,6 +2424,7 @@ int  wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
         byte EKY0[AES_BLOCK_SIZE];
 
         GHASH(aes, authIn, authInSz, in, sz, Tprime, sizeof(Tprime));
+        GMULT(Tprime, aes->H);
         wc_AesEncrypt(aes, ctr, EKY0);
         xorbuf(Tprime, EKY0, sizeof(Tprime));
 
