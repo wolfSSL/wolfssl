@@ -3229,6 +3229,8 @@ static int TLSX_SessionTicket_Parse(WOLFSSL* ssl, byte* input, word16 length,
 {
     int ret = 0;
 
+    (void) input; /* avoid unused parameter if NO_WOLFSSL_SERVER defined */
+
     if (!isRequest) {
         /* client side */
         if (length != 0)
