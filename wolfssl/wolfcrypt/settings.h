@@ -401,6 +401,24 @@
     #define SINGLE_THREADED         /* Not ported at this time */
 #endif
 
+#ifdef WOLFSSL_NRF5x
+		#define SIZEOF_LONG 4
+		#define SIZEOF_LONG_LONG 8
+		#define NO_ASN_TIME
+		#define NO_DEV_RANDOM
+		#define NO_FILESYSTEM
+		#define NO_MAIN_DRIVER
+		#define NO_WRITEV
+		#define SINGLE_THREADED
+		#define USE_FAST_MATH
+		#define TFM_TIMING_RESISTANT
+		#define ECC_TIMING_RESISTANT
+		#define USE_WOLFSSL_MEMORY
+		#define WOLFSSL_NRF51
+		#define WOLFSSL_USER_IO
+		#define NO_SESSION_CACHE
+#endif
+
 /* Micrium will use Visual Studio for compilation but not the Win32 API */
 #if defined(_WIN32) && !defined(MICRIUM) && !defined(FREERTOS) && \
 	!defined(FREERTOS_TCP) && !defined(EBSNET) && !defined(WOLFSSL_EROAD) && \
