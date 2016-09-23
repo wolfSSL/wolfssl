@@ -758,7 +758,7 @@ static unsigned char negative(signed char b)
 }
 
 
-static void cmov(ge_precomp *t,ge_precomp *u,unsigned char b)
+static void cmov(ge_precomp *t,const ge_precomp *u,unsigned char b)
 {
   fe_cmov(t->yplusx,u->yplusx,b);
   fe_cmov(t->yminusx,u->yminusx,b);
@@ -767,7 +767,7 @@ static void cmov(ge_precomp *t,ge_precomp *u,unsigned char b)
 
 
 /* base[i][j] = (j+1)*256^i*B */
-static ge_precomp base[32][8] = {
+static const ge_precomp base[32][8] = {
 {
  {
   { 25967493,-14356035,29566456,3660896,-12694345,4014787,27544626,-11754271,-6079156,2047605 },
@@ -2222,7 +2222,7 @@ static void slide(signed char *r,const unsigned char *a)
 }
 
 
-static ge_precomp Bi[8] = {
+static const ge_precomp Bi[8] = {
  {
   { 25967493,-14356035,29566456,3660896,-12694345,4014787,27544626,-11754271,-6079156,2047605 },
   { -12545711,934262,-2722910,3049990,-727428,9406986,12720692,5043384,19500929,-15469378 },
