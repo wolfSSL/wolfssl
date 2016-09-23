@@ -15186,7 +15186,7 @@ int SendClientKeyExchange(WOLFSSL* ssl)
                                                   ssl->peerNtruKey,
                                                   ssl->arrays->preMasterSz,
                                                   ssl->arrays->preMasterSecret,
-                                                  &encSz,
+                                                  (word16*)&encSz,
                                                   encSecret);
                     ntru_crypto_drbg_uninstantiate(drbg);
                     if (rc != NTRU_OK) {
