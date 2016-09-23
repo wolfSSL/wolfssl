@@ -35,6 +35,45 @@ before calling wolfSSL_new();  Though it's not recommended.
 *** end Notes ***
 
 
+********* wolfSSL (Formerly CyaSSL) Release 3.9.10 (9/23/2016)
+
+Release 3.9.10 of wolfSSL has bug fixes and new features including:
+
+- Default configure option changes:
+  1. DES3 disabled by default
+  2. ECC Supported Curves Extension enabled by default
+  3. New option Extended Master Secret enabled by default
+- Added checking CA certificate path length, and new test certs
+- Fix to DSA pre padding and sanity check on R/S values
+- Added CTX level RNG for single-threaded builds
+- Intel RDSEED enhancements
+- ARMv8 hardware acceleration support for AES-CBC/CTR/GCM, SHA-256
+- Arduino support updates
+- Added the Extended Master Secret TLS extension
+  1. Enabled by default in configure options, API to disable
+  2. Added support for Extended Master Secret to sniffer
+- OCSP fix with issuer key hash, lookup refactor
+- Added support for Frosted OS
+- Added support for DTLS over SCTP
+- Added support for static memory with wolfCrypt
+- Fix to ECC Custom Curve support
+- Support for asynchronous wolfCrypt RSA and TLS client
+- Added distribution build configure option
+- Update the test certificates
+
+This release of wolfSSL fixes medium level security vulnerabilities.  Fixes for
+potential AES, RSA, and ECC side channel leaks is included that a local user
+monitoring the same CPU core cache could exploit.  VM users, hyper-threading
+users, and users where potential attackers have access to the CPU cache will
+need to update if they utilize AES, RSA private keys, or ECC private keys.
+Thanks to Gorka Irazoqui Apecechea and Xiaofei Guo from Intel Corporation for
+the report.  More information will be available on our site:
+
+    https://wolfssl.com/wolfSSL/security/vulnerabilities.php
+
+See INSTALL file for build instructions.
+More info can be found on-line at http://wolfssl.com/wolfSSL/Docs.html
+
 ********* wolfSSL (Formerly CyaSSL) Release 3.9.8 (7/29/2016)
 
 Release 3.9.8 of wolfSSL has bug fixes and new features including:

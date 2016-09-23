@@ -19,6 +19,7 @@ config*
 ipch/
 build-aux/
 rpm/spec
+*.rpm
 stamp-h
 cyassl/options.h
 wolfssl/options.h
