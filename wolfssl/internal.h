@@ -1527,7 +1527,7 @@ struct WOLFSSL_CERT_MANAGER {
 #endif
     WOLFSSL_CRL*    crl;                 /* CRL checker */
     WOLFSSL_OCSP*   ocsp;                /* OCSP checker */
-#if !defined(NO_WOLFSSL_SEVER) && (defined(HAVE_CERTIFICATE_STATUS_REQUEST) \
+#if !defined(NO_WOLFSSL_SERVER) && (defined(HAVE_CERTIFICATE_STATUS_REQUEST) \
                                ||  defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2))
     WOLFSSL_OCSP*   ocsp_stapling;       /* OCSP checker for OCSP stapling */
 #endif
@@ -2004,7 +2004,7 @@ struct WOLFSSL_CTX {
             OcspRequest* chainOcspRequest[MAX_CHAIN_DEPTH];
         #endif
     #endif
-    #if defined(HAVE_SESSION_TICKET) && !defined(NO_WOLFSSL_SEVER)
+    #if defined(HAVE_SESSION_TICKET) && !defined(NO_WOLFSSL_SERVER)
         SessionTicketEncCb ticketEncCb;   /* enc/dec session ticket Cb */
         void*              ticketEncCtx;  /* session encrypt context */
         int                ticketHint;    /* ticket hint in seconds */
