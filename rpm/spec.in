@@ -65,11 +65,15 @@ mkdir -p $RPM_BUILD_ROOT/
 %{_docdir}/wolfssl/example/server.c
 %{_docdir}/wolfssl/example/echoclient.c
 %{_docdir}/wolfssl/example/client.c
+%{_docdir}/wolfssl/example/sctp-client.c
+%{_docdir}/wolfssl/example/sctp-server.c
+%{_docdir}/wolfssl/example/sctp-client-dtls.c
+%{_docdir}/wolfssl/example/sctp-server-dtls.c
 %{_docdir}/wolfssl/README.txt
 %{_libdir}/libwolfssl.la
 %{_libdir}/libwolfssl.so
 %{_libdir}/libwolfssl.so.3
-%{_libdir}/libwolfssl.so.3.4.0
+%{_libdir}/libwolfssl.so.3.5.0
 
 %files devel
 %defattr(-,root,root,-)
@@ -200,6 +204,7 @@ mkdir -p $RPM_BUILD_ROOT/
 %{_includedir}/wolfssl/wolfcrypt/md2.h
 %{_includedir}/wolfssl/wolfcrypt/md4.h
 %{_includedir}/wolfssl/wolfcrypt/md5.h
+%{_includedir}/wolfssl/wolfcrypt/mem_track.h
 %{_includedir}/wolfssl/wolfcrypt/memory.h
 %{_includedir}/wolfssl/wolfcrypt/misc.h
 %{_includedir}/wolfssl/wolfcrypt/mpi_class.h
@@ -222,7 +227,7 @@ mkdir -p $RPM_BUILD_ROOT/
 %{_includedir}/wolfssl/wolfcrypt/types.h
 %{_includedir}/wolfssl/wolfcrypt/visibility.h
 %{_includedir}/wolfssl/wolfcrypt/wc_encrypt.h
-%{_includedir}/wolfssl/wolfcrypt/mem_track.h
+%{_includedir}/wolfssl/wolfcrypt/wolfevent.h
 %{_includedir}/wolfssl/error-ssl.h
 %{_includedir}/wolfssl/ocsp.h
 %{_includedir}/wolfssl/openssl/asn1.h
@@ -269,6 +274,8 @@ mkdir -p $RPM_BUILD_ROOT/
 %{_libdir}/pkgconfig/wolfssl.pc
 
 %changelog
+* Fri Sep 23 2016 John Safranek <john@wolfssl.com>
+- Add the dtls-sctp example sources
 * Mon Jun 14 2016 Jacob Barthelmeh <jacob@wolfssl.com>
 - Change location for mem_track.h header
 - Added header for cmac.h
