@@ -1878,7 +1878,8 @@ int wc_ecc_mulmod(mp_int* k, ecc_point *G, ecc_point *R, mp_int* a,
 
 
 #ifndef WC_NO_CACHE_RESISTANT
-#if defined(TFM_TIMING_RESISTANT) && defined(USE_FAST_MATH)
+#if defined(TFM_TIMING_RESISTANT) && defined(USE_FAST_MATH) && \
+    !defined(__cplusplus)
     /* let's use the one we already have */
     extern const wolfssl_word wc_off_on_addr[2];
 #else

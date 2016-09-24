@@ -8576,7 +8576,7 @@ static INLINE int Decrypt(WOLFSSL* ssl, byte* plain, const byte* input,
 static int SanityCheckCipherText(WOLFSSL* ssl, word32 encryptSz)
 {
 #ifdef HAVE_TRUNCATED_HMAC
-    word32 minLength = ssl->truncated_hmac ? TRUNCATED_HMAC_SZ
+    word32 minLength = ssl->truncated_hmac ? (byte)TRUNCATED_HMAC_SZ
                                            : ssl->specs.hash_size;
 #else
     word32 minLength = ssl->specs.hash_size; /* covers stream */
@@ -9041,7 +9041,7 @@ static INLINE int VerifyMac(WOLFSSL* ssl, const byte* input, word32 msgSz,
     word32 pad     = 0;
     word32 padByte = 0;
 #ifdef HAVE_TRUNCATED_HMAC
-    word32 digestSz = ssl->truncated_hmac ? TRUNCATED_HMAC_SZ
+    word32 digestSz = ssl->truncated_hmac ? (byte)TRUNCATED_HMAC_SZ
                                           : ssl->specs.hash_size;
 #else
     word32 digestSz = ssl->specs.hash_size;
@@ -9819,13 +9819,8 @@ static int BuildCertHashes(WOLFSSL* ssl, Hashes* hashes)
 int BuildMessage(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
                  int inSz, int type, int hashOutput, int sizeOnly)
 {
-#ifdef HAVE_TRUNCATED_HMAC
-    word32 digestSz = min(ssl->specs.hash_size,
-                ssl->truncated_hmac ? TRUNCATED_HMAC_SZ : ssl->specs.hash_size);
-#else
-    word32 digestSz = ssl->specs.hash_size;
-#endif
-    word32 sz = RECORD_HEADER_SZ + inSz + digestSz;
+    word32 digestSz;
+    word32 sz = RECORD_HEADER_SZ + inSz;
     word32 pad  = 0, i;
     word32 idx  = RECORD_HEADER_SZ;
     word32 ivSz = 0;      /* TLSv1.1  IV */
@@ -9849,6 +9844,12 @@ int BuildMessage(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
         return BAD_FUNC_ARG;
     }
 
+    digestSz = ssl->specs.hash_size;
+#ifdef HAVE_TRUNCATED_HMAC
+    if (ssl->truncated_hmac)
+        digestSz = min(TRUNCATED_HMAC_SZ, digestSz);
+#endif
+    sz += digestSz;
 
 #ifdef WOLFSSL_DTLS
     if (ssl->options.dtls) {
