@@ -4823,6 +4823,7 @@ int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte isRequest,
         WOLFSSL_METHOD* method =
                               (WOLFSSL_METHOD*) XMALLOC(sizeof(WOLFSSL_METHOD),
                                                      heap, DYNAMIC_TYPE_METHOD);
+        (void)heap;
         if (method)
             InitSSL_Method(method, MakeTLSv1_2());
         return method;
@@ -4841,6 +4842,7 @@ int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte isRequest,
         WOLFSSL_METHOD* method =
                               (WOLFSSL_METHOD*) XMALLOC(sizeof(WOLFSSL_METHOD),
                                                      heap, DYNAMIC_TYPE_METHOD);
+        (void)heap;
         if (method) {
 #ifndef NO_SHA256         /* 1.2 requires SHA256 */
             InitSSL_Method(method, MakeTLSv1_2());
@@ -4911,6 +4913,7 @@ int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte isRequest,
         WOLFSSL_METHOD* method =
                               (WOLFSSL_METHOD*) XMALLOC(sizeof(WOLFSSL_METHOD), 
                                                      heap, DYNAMIC_TYPE_METHOD);
+        (void)heap;
         if (method) {
             InitSSL_Method(method, MakeTLSv1_2());
             method->side = WOLFSSL_SERVER_END;
@@ -4931,6 +4934,7 @@ int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte isRequest,
         WOLFSSL_METHOD* method =
                               (WOLFSSL_METHOD*) XMALLOC(sizeof(WOLFSSL_METHOD),
                                                      heap, DYNAMIC_TYPE_METHOD);
+        (void)heap;
         if (method) {
 #ifndef NO_SHA256         /* 1.2 requires SHA256 */
             InitSSL_Method(method, MakeTLSv1_2());

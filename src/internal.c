@@ -13465,6 +13465,7 @@ static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
 #endif
 
     (void)output;
+    (void)sigAlgo;
     (void)sigSz;
 
     WOLFSSL_ENTER("DoServerKeyExchange");
