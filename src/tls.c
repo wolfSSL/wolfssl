@@ -930,7 +930,8 @@ static ALPN* TLSX_ALPN_New(char *protocol_name, word16 protocol_nameSz,
     alpn->negotiated = 0;
     alpn->options = 0;
 
-    alpn->protocol_name = XMALLOC(protocol_nameSz + 1, heap, DYNAMIC_TYPE_TLSX);
+    alpn->protocol_name = (char*)XMALLOC(protocol_nameSz + 1,
+                                         heap, DYNAMIC_TYPE_TLSX);
     if (alpn->protocol_name == NULL) {
         WOLFSSL_MSG("Memory failure");
         XFREE(alpn, heap, DYNAMIC_TYPE_TLSX);
@@ -1241,7 +1242,7 @@ int TLSX_ALPN_GetRequest(TLSX* extensions, void** data, word16 *dataSz)
     }
 
     *data = alpn->protocol_name;
-    *dataSz = (word16)XSTRLEN(*data);
+    *dataSz = (word16)XSTRLEN((char*)*data);
 
     return SSL_SUCCESS;
 }
@@ -1282,8 +1283,8 @@ static SNI* TLSX_SNI_New(byte type, const void* data, word16 size, void* heap)
 
         switch (sni->type) {
             case WOLFSSL_SNI_HOST_NAME:
-                sni->data.host_name = XMALLOC(size+1, heap, DYNAMIC_TYPE_TLSX);
-
+                sni->data.host_name = (char*)XMALLOC(size + 1, heap,
+                                                     DYNAMIC_TYPE_TLSX);
                 if (sni->data.host_name) {
                     XSTRNCPY(sni->data.host_name, (const char*)data, size);
                     sni->data.host_name[size] = 0;
@@ -1398,7 +1399,7 @@ static SNI* TLSX_SNI_Find(SNI *list, byte type)
 static void TLSX_SNI_SetStatus(TLSX* extensions, byte type, byte status)
 {
     TLSX* extension = TLSX_Find(extensions, TLSX_SERVER_NAME);
-    SNI* sni = TLSX_SNI_Find(extension ? extension->data : NULL, type);
+    SNI* sni = TLSX_SNI_Find(extension ? (SNI*)extension->data : NULL, type);
 
     if (sni)
         sni->status = status;
@@ -1408,7 +1409,7 @@ static void TLSX_SNI_SetStatus(TLSX* extensions, byte type, byte status)
 byte TLSX_SNI_Status(TLSX* extensions, byte type)
 {
     TLSX* extension = TLSX_Find(extensions, TLSX_SERVER_NAME);
-    SNI* sni = TLSX_SNI_Find(extension ? extension->data : NULL, type);
+    SNI* sni = TLSX_SNI_Find(extension ? (SNI*)extension->data : NULL, type);
 
     if (sni)
         return sni->status;
@@ -1535,8 +1536,8 @@ static int TLSX_SNI_VerifyParse(WOLFSSL* ssl,  byte isRequest)
     #ifndef NO_WOLFSSL_SERVER
         TLSX* ctx_ext = TLSX_Find(ssl->ctx->extensions, TLSX_SERVER_NAME);
         TLSX* ssl_ext = TLSX_Find(ssl->extensions,      TLSX_SERVER_NAME);
-        SNI* ctx_sni = ctx_ext ? ctx_ext->data : NULL;
-        SNI* ssl_sni = ssl_ext ? ssl_ext->data : NULL;
+        SNI* ctx_sni = ctx_ext ? (SNI*)ctx_ext->data : NULL;
+        SNI* ssl_sni = ssl_ext ? (SNI*)ssl_ext->data : NULL;
         SNI* sni = NULL;
 
         for (; ctx_sni; ctx_sni = ctx_sni->next) {
@@ -1620,13 +1621,13 @@ int TLSX_UseSNI(TLSX** extensions, byte type, const void* data, word16 size,
 word16 TLSX_SNI_GetRequest(TLSX* extensions, byte type, void** data)
 {
     TLSX* extension = TLSX_Find(extensions, TLSX_SERVER_NAME);
-    SNI* sni = TLSX_SNI_Find(extension ? extension->data : NULL, type);
+    SNI* sni = TLSX_SNI_Find(extension ? (SNI*)extension->data : NULL, type);
 
     if (sni && sni->status != WOLFSSL_SNI_NO_MATCH) {
         switch (sni->type) {
             case WOLFSSL_SNI_HOST_NAME:
                 *data = sni->data.host_name;
-                return XSTRLEN(*data);
+                return XSTRLEN((char*)*data);
         }
     }
 
@@ -1637,7 +1638,7 @@ word16 TLSX_SNI_GetRequest(TLSX* extensions, byte type, void** data)
 void TLSX_SNI_SetOptions(TLSX* extensions, byte type, byte options)
 {
     TLSX* extension = TLSX_Find(extensions, TLSX_SERVER_NAME);
-    SNI* sni = TLSX_SNI_Find(extension ? extension->data : NULL, type);
+    SNI* sni = TLSX_SNI_Find(extension ? (SNI*)extension->data : NULL, type);
 
     if (sni)
         sni->options = options;
@@ -1870,7 +1871,7 @@ int TLSX_UseMaxFragment(TLSX** extensions, byte mfl, void* heap)
     if (mfl < WOLFSSL_MFL_2_9 || WOLFSSL_MFL_2_13 < mfl)
         return BAD_FUNC_ARG;
 
-    if ((data = XMALLOC(ENUM_LEN, heap, DYNAMIC_TYPE_TLSX)) == NULL)
+    if ((data = (byte*)XMALLOC(ENUM_LEN, heap, DYNAMIC_TYPE_TLSX)) == NULL)
         return MEMORY_E;
 
     data[0] = mfl;
@@ -2831,7 +2832,10 @@ int TLSX_ValidateEllipticCurves(WOLFSSL* ssl, byte first, byte second) {
     if (!extension)
         return 1; /* no suite restriction */
 
-    for (curve = extension->data; curve && !(sig && key); curve = curve->next) {
+    for (curve = (EllipticCurve*)extension->data;
+         curve && !(sig && key);
+         curve = curve->next) {
+
         /* find supported curve */
         switch (curve->name) {
     #if defined(HAVE_ECC160) || defined(HAVE_ALL_CURVES)
@@ -3982,7 +3986,7 @@ void TLSX_FreeAll(TLSX* list, void* heap)
                 break;
 
             case TLSX_SUPPORTED_GROUPS:
-                EC_FREE_ALL(extension->data, heap);
+                EC_FREE_ALL((EllipticCurve*)extension->data, heap);
                 break;
 
             case TLSX_STATUS_REQUEST:
@@ -4047,7 +4051,7 @@ static word16 TLSX_GetSize(TLSX* list, byte* semaphore, byte isRequest)
             case TLSX_SERVER_NAME:
                 /* SNI only sends the name on the request. */
                 if (isRequest)
-                    length += SNI_GET_SIZE(extension->data);
+                    length += SNI_GET_SIZE((SNI*)extension->data);
                 break;
 
             case TLSX_MAX_FRAGMENT_LENGTH:
@@ -4059,7 +4063,7 @@ static word16 TLSX_GetSize(TLSX* list, byte* semaphore, byte isRequest)
                 break;
 
             case TLSX_SUPPORTED_GROUPS:
-                length += EC_GET_SIZE(extension->data);
+                length += EC_GET_SIZE((EllipticCurve*)extension->data);
                 break;
 
             case TLSX_STATUS_REQUEST:
@@ -4083,7 +4087,7 @@ static word16 TLSX_GetSize(TLSX* list, byte* semaphore, byte isRequest)
                 break;
 
             case TLSX_APPLICATION_LAYER_PROTOCOL:
-                length += ALPN_GET_SIZE(extension->data);
+                length += ALPN_GET_SIZE((ALPN*)extension->data);
                 break;
 
         }
@@ -4124,11 +4128,11 @@ static word16 TLSX_Write(TLSX* list, byte* output, byte* semaphore,
         switch (extension->type) {
             case TLSX_SERVER_NAME:
                 if (isRequest)
-                    offset += SNI_WRITE(extension->data, output + offset);
+                    offset += SNI_WRITE((SNI*)extension->data, output + offset);
                 break;
 
             case TLSX_MAX_FRAGMENT_LENGTH:
-                offset += MFL_WRITE(extension->data, output + offset);
+                offset += MFL_WRITE((byte*)extension->data, output + offset);
                 break;
 
             case TLSX_TRUNCATED_HMAC:
@@ -4136,7 +4140,8 @@ static word16 TLSX_Write(TLSX* list, byte* output, byte* semaphore,
                 break;
 
             case TLSX_SUPPORTED_GROUPS:
-                offset += EC_WRITE(extension->data, output + offset);
+                offset += EC_WRITE((EllipticCurve*)extension->data,
+                                    output + offset);
                 break;
 
             case TLSX_STATUS_REQUEST:
@@ -4168,7 +4173,7 @@ static word16 TLSX_Write(TLSX* list, byte* output, byte* semaphore,
                 break;
 
             case TLSX_APPLICATION_LAYER_PROTOCOL:
-                offset += ALPN_WRITE(extension->data, output + offset);
+                offset += ALPN_WRITE((ALPN*)extension->data, output + offset);
                 break;
         }
 
