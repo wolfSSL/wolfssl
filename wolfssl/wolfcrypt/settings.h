@@ -124,6 +124,9 @@
 /* Uncomment next line if building for VxWorks */
 /* #define WOLFSSL_VXWORKS */
 
+/* Uncomment next line if building for Nordic nRF5x platofrm */
+/* #define WOLFSSL_NRF5x */
+
 /* Uncomment next line to enable deprecated less secure static DH suites */
 /* #define WOLFSSL_STATIC_DH */
 
@@ -412,7 +415,6 @@
 		#define SINGLE_THREADED
 		#define USE_FAST_MATH
 		#define TFM_TIMING_RESISTANT
-		#define ECC_TIMING_RESISTANT
 		#define USE_WOLFSSL_MEMORY
 		#define WOLFSSL_NRF51
 		#define WOLFSSL_USER_IO
