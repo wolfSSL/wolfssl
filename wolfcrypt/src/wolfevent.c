@@ -79,7 +79,7 @@ int wolfEventQueue_Init(WOLF_EVENT_QUEUE* queue)
 
     XMEMSET(queue, 0, sizeof(WOLF_EVENT_QUEUE));
 #ifndef SINGLE_THREADED
-    ret = InitMutex(&queue->lock);
+    ret = wc_InitMutex(&queue->lock);
 #endif
     return ret;
 }
@@ -94,7 +94,7 @@ int wolfEventQueue_Push(WOLF_EVENT_QUEUE* queue, WOLF_EVENT* event)
     }
 
 #ifndef SINGLE_THREADED
-    if ((ret = LockMutex(&queue->lock)) != 0) {
+    if ((ret = wc_LockMutex(&queue->lock)) != 0) {
         return ret;
     }
 #endif
@@ -115,7 +115,7 @@ int wolfEventQueue_Push(WOLF_EVENT_QUEUE* queue, WOLF_EVENT* event)
     ret = 0;
 
 #ifndef SINGLE_THREADED
-    UnLockMutex(&queue->lock);
+    wc_UnLockMutex(&queue->lock);
 #endif
 
     return ret;
@@ -131,7 +131,7 @@ int wolfEventQueue_Pop(WOLF_EVENT_QUEUE* queue, WOLF_EVENT** event)
 
 #ifndef SINGLE_THREADED
     /* In single threaded mode "event_queue.lock" doesn't exist */
-    if ((ret = LockMutex(&queue->lock)) != 0) {
+    if ((ret = wc_LockMutex(&queue->lock)) != 0) {
         return ret;
     }
 #endif
@@ -141,7 +141,7 @@ int wolfEventQueue_Pop(WOLF_EVENT_QUEUE* queue, WOLF_EVENT** event)
     ret = wolfEventQueue_Remove(queue, *event);
 
 #ifndef SINGLE_THREADED
-    UnLockMutex(&queue->lock);
+    wc_UnLockMutex(&queue->lock);
 #endif
 
     return ret;
@@ -191,7 +191,7 @@ int wolfEventQueue_Poll(WOLF_EVENT_QUEUE* queue, void* context_filter,
 
 #ifndef SINGLE_THREADED
     /* In single threaded mode "event_queue.lock" doesn't exist */
-    if ((ret = LockMutex(&queue->lock)) != 0) {
+    if ((ret = wc_LockMutex(&queue->lock)) != 0) {
         return ret;
     }
 #endif
@@ -227,7 +227,7 @@ int wolfEventQueue_Poll(WOLF_EVENT_QUEUE* queue, void* context_filter,
     }
 
 #ifndef SINGLE_THREADED
-    UnLockMutex(&queue->lock);
+    wc_UnLockMutex(&queue->lock);
 #endif
 
     /* return number of properly populated events */
@@ -248,7 +248,7 @@ int wolfEventQueue_Count(WOLF_EVENT_QUEUE* queue)
 
 #ifndef SINGLE_THREADED
     /* In single threaded mode "event_queue.lock" doesn't exist */
-    if ((ret = LockMutex(&queue->lock)) != 0) {
+    if ((ret = wc_LockMutex(&queue->lock)) != 0) {
         return ret;
     }
 #endif
@@ -256,7 +256,7 @@ int wolfEventQueue_Count(WOLF_EVENT_QUEUE* queue)
     ret = queue->count;
 
 #ifndef SINGLE_THREADED
-    UnLockMutex(&queue->lock);
+    wc_UnLockMutex(&queue->lock);
 #endif
 
     return ret;
@@ -266,7 +266,7 @@ void wolfEventQueue_Free(WOLF_EVENT_QUEUE* queue)
 {
     if (queue) {
     #ifndef SINGLE_THREADED
-        FreeMutex(&queue->lock);
+        wc_FreeMutex(&queue->lock);
     #endif
     }
 }

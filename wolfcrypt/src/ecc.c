@@ -5489,10 +5489,10 @@ int ecc_mul2add(ecc_point* A, mp_int* kA,
 
 #ifndef HAVE_THREAD_LS
    if (initMutex == 0) {
-        InitMutex(&ecc_fp_lock);
+        wc_InitMutex(&ecc_fp_lock);
         initMutex = 1;
    }
-   if (LockMutex(&ecc_fp_lock) != 0)
+   if (wc_LockMutex(&ecc_fp_lock) != 0)
       return BAD_MUTEX_E;
 #endif /* HAVE_THREAD_LS */
 
@@ -5580,7 +5580,7 @@ int ecc_mul2add(ecc_point* A, mp_int* kA,
     }
 
 #ifndef HAVE_THREAD_LS
-    UnLockMutex(&ecc_fp_lock);
+    wc_UnLockMutex(&ecc_fp_lock);
 #endif /* HAVE_THREAD_LS */
 #ifndef USE_FAST_MATH
     mp_clear(&mu);
@@ -5629,11 +5629,11 @@ int wc_ecc_mulmod_ex(mp_int* k, ecc_point *G, ecc_point *R, mp_int* a,
 
 #ifndef HAVE_THREAD_LS
    if (initMutex == 0) {
-        InitMutex(&ecc_fp_lock);
+        wc_InitMutex(&ecc_fp_lock);
         initMutex = 1;
    }
 
-   if (LockMutex(&ecc_fp_lock) != 0)
+   if (wc_LockMutex(&ecc_fp_lock) != 0)
       return BAD_MUTEX_E;
 #endif /* HAVE_THREAD_LS */
 
@@ -5686,7 +5686,7 @@ int wc_ecc_mulmod_ex(mp_int* k, ecc_point *G, ecc_point *R, mp_int* a,
      }
 
 #ifndef HAVE_THREAD_LS
-    UnLockMutex(&ecc_fp_lock);
+    wc_UnLockMutex(&ecc_fp_lock);
 #endif /* HAVE_THREAD_LS */
 #ifndef USE_FAST_MATH
     mp_clear(&mu);
@@ -5720,18 +5720,18 @@ void wc_ecc_fp_free(void)
 {
 #ifndef HAVE_THREAD_LS
    if (initMutex == 0) {
-        InitMutex(&ecc_fp_lock);
+        wc_InitMutex(&ecc_fp_lock);
         initMutex = 1;
    }
 
-   if (LockMutex(&ecc_fp_lock) == 0) {
+   if (wc_LockMutex(&ecc_fp_lock) == 0) {
 #endif /* HAVE_THREAD_LS */
 
        wc_ecc_fp_free_cache();
 
 #ifndef HAVE_THREAD_LS
-       UnLockMutex(&ecc_fp_lock);
-       FreeMutex(&ecc_fp_lock);
+       wc_UnLockMutex(&ecc_fp_lock);
+       wc_FreeMutex(&ecc_fp_lock);
        initMutex = 0;
    }
 #endif /* HAVE_THREAD_LS */

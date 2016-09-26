@@ -562,7 +562,7 @@ static void command_invoke(void const *args)
     
     func = (void(*)(void const *))((func_args *)args)->argv[0] ; 
     #if defined(HAVE_KEIL_RTX)
-    LockMutex((wolfSSL_Mutex *)&command_mutex) ;
+    wc_LockMutex((wolfSSL_Mutex *)&command_mutex) ;
     #endif
     iteration = for_iteration ;
     for(i=0; i< iteration; i++) {
@@ -582,7 +582,7 @@ static void command_invoke(void const *args)
     for_iteration = 1 ;
     osDelay(20000) ;
     #ifdef HAVE_KEIL_RTX
-        UnLockMutex((wolfSSL_Mutex *)&command_mutex) ;
+        wc_UnLockMutex((wolfSSL_Mutex *)&command_mutex) ;
         #ifdef WOLFSSL_CMSIS_RTOS
             osThreadTerminate(osThreadGetId()) ;
         #else
@@ -635,7 +635,7 @@ void shell_main(void *arg) {
         /* Dummy for avoiding warning: BackGround is defined but not used. */
     
  #if defined(HAVE_KEIL_RTX) 
-    InitMutex(&command_mutex) ;
+    wc_InitMutex(&command_mutex) ;
 #endif
     help_comm(NULL) ;
     
@@ -647,13 +647,13 @@ void shell_main(void *arg) {
             args.argv[0] = (char *) commandTable[i].func ;
                 if(bf_flg == FORGROUND) {
                     #if defined(HAVE_KEIL_RTX) && !defined(WOLFSSL_CMSIS_RTOS)
-                        UnLockMutex((wolfSSL_Mutex *)&command_mutex) ;
+                        wc_UnLockMutex((wolfSSL_Mutex *)&command_mutex) ;
                         os_tsk_create_user_ex( (void(*)(void *))&command_invoke, 7,
                                  command_stack, COMMAND_STACK_SIZE, &args) ;
                         os_tsk_pass ();
                     #else
                         #if defined(WOLFSSL_CMSIS_RTOS)
-                             UnLockMutex((wolfSSL_Mutex *)&command_mutex) ;
+                             wc_UnLockMutex((wolfSSL_Mutex *)&command_mutex) ;
                              cmd = osThreadCreate (osThread (command_invoke) , &args); 
                              if(cmd == NULL) {
 															     printf("Cannon create command thread\n") ;
@@ -664,7 +664,7 @@ void shell_main(void *arg) {
                         #endif
                     #endif
                     #ifdef  HAVE_KEIL_RTX
-                    LockMutex((wolfSSL_Mutex *)&command_mutex) ;
+                    wc_LockMutex((wolfSSL_Mutex *)&command_mutex) ;
                     #endif
                 } else {
                     #if (!defined(NO_SIMPLE_SERVER) && \

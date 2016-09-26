@@ -396,7 +396,7 @@ static void wc_Des_Cbc(byte* out, const byte* in, word32 sz,
     int size ;
     volatile int v ;
  
-    LockMutex(&Mutex_DesSEC) ;
+    wc_LockMutex(&Mutex_DesSEC) ;
     
     secDesc->length1 = 0x0;
     secDesc->pointer1 = NULL;
@@ -464,7 +464,7 @@ static void wc_Des_Cbc(byte* out, const byte* in, word32 sz,
         out += size ;
                 
     }
-    UnLockMutex(&Mutex_DesSEC) ;
+    wc_UnLockMutex(&Mutex_DesSEC) ;
     
 }
 
@@ -532,7 +532,7 @@ int wc_Des_SetKey(Des* des, const byte* key, const byte* iv, int dir)
         #warning "Allocate non-Cache buffers"
         #endif
         
-        InitMutex(&Mutex_DesSEC) ;
+        wc_InitMutex(&Mutex_DesSEC) ;
     }
      
     XMEMCPY(des->key, key, DES_KEYLEN);  
@@ -562,7 +562,7 @@ int wc_Des3_SetKey(Des3* des3, const byte* key, const byte* iv, int dir)
         #warning "Allocate non-Cache buffers"
         #endif
         
-        InitMutex(&Mutex_DesSEC) ;
+        wc_InitMutex(&Mutex_DesSEC) ;
     }
     
     XMEMCPY(des3->key[0], key, DES3_KEYLEN); 

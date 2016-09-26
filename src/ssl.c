@@ -2270,14 +2270,14 @@ WOLFSSL_CERT_MANAGER* wolfSSL_CertManagerNew_ex(void* heap)
     if (cm) {
         XMEMSET(cm, 0, sizeof(WOLFSSL_CERT_MANAGER));
 
-        if (InitMutex(&cm->caLock) != 0) {
+        if (wc_InitMutex(&cm->caLock) != 0) {
             WOLFSSL_MSG("Bad mutex init");
             wolfSSL_CertManagerFree(cm);
             return NULL;
         }
 
         #ifdef WOLFSSL_TRUST_PEER_CERT
-        if (InitMutex(&cm->tpLock) != 0) {
+        if (wc_InitMutex(&cm->tpLock) != 0) {
             WOLFSSL_MSG("Bad mutex init");
             wolfSSL_CertManagerFree(cm);
             return NULL;
@@ -2323,11 +2323,11 @@ void wolfSSL_CertManagerFree(WOLFSSL_CERT_MANAGER* cm)
         #endif
         #endif
         FreeSignerTable(cm->caTable, CA_TABLE_SIZE, cm->heap);
-        FreeMutex(&cm->caLock);
+        wc_FreeMutex(&cm->caLock);
 
         #ifdef WOLFSSL_TRUST_PEER_CERT
         FreeTrustedPeerTable(cm->tpTable, TP_TABLE_SIZE, cm->heap);
-        FreeMutex(&cm->tpLock);
+        wc_FreeMutex(&cm->tpLock);
         #endif
 
         XFREE(cm, cm->heap, DYNAMIC_TYPE_CERT_MANAGER);
@@ -2344,12 +2344,12 @@ int wolfSSL_CertManagerUnloadCAs(WOLFSSL_CERT_MANAGER* cm)
     if (cm == NULL)
         return BAD_FUNC_ARG;
 
-    if (LockMutex(&cm->caLock) != 0)
+    if (wc_LockMutex(&cm->caLock) != 0)
         return BAD_MUTEX_E;
 
     FreeSignerTable(cm->caTable, CA_TABLE_SIZE, NULL);
 
-    UnLockMutex(&cm->caLock);
+    wc_UnLockMutex(&cm->caLock);
 
 
     return SSL_SUCCESS;
@@ -2364,12 +2364,12 @@ int wolfSSL_CertManagerUnload_trust_peers(WOLFSSL_CERT_MANAGER* cm)
     if (cm == NULL)
         return BAD_FUNC_ARG;
 
-    if (LockMutex(&cm->tpLock) != 0)
+    if (wc_LockMutex(&cm->tpLock) != 0)
         return BAD_MUTEX_E;
 
     FreeTrustedPeerTable(cm->tpTable, TP_TABLE_SIZE, NULL);
 
-    UnLockMutex(&cm->tpLock);
+    wc_UnLockMutex(&cm->tpLock);
 
 
     return SSL_SUCCESS;
@@ -2777,7 +2777,7 @@ int AlreadySigner(WOLFSSL_CERT_MANAGER* cm, byte* hash)
     int     ret = 0;
     word32  row = HashSigner(hash);
 
-    if (LockMutex(&cm->caLock) != 0)
+    if (wc_LockMutex(&cm->caLock) != 0)
         return  ret;
     signers = cm->caTable[row];
     while (signers) {
@@ -2793,7 +2793,7 @@ int AlreadySigner(WOLFSSL_CERT_MANAGER* cm, byte* hash)
         }
         signers = signers->next;
     }
-    UnLockMutex(&cm->caLock);
+    wc_UnLockMutex(&cm->caLock);
 
     return ret;
 }
@@ -2813,7 +2813,7 @@ int AlreadyTrustedPeer(WOLFSSL_CERT_MANAGER* cm, byte* hash)
     int     ret = 0;
     word32  row = TrustedPeerHashSigner(hash);
 
-    if (LockMutex(&cm->tpLock) != 0)
+    if (wc_LockMutex(&cm->tpLock) != 0)
         return  ret;
     tp = cm->tpTable[row];
     while (tp) {
@@ -2829,7 +2829,7 @@ int AlreadyTrustedPeer(WOLFSSL_CERT_MANAGER* cm, byte* hash)
         }
         tp = tp->next;
     }
-    UnLockMutex(&cm->tpLock);
+    wc_UnLockMutex(&cm->tpLock);
 
     return ret;
 }
@@ -2850,7 +2850,7 @@ TrustedPeerCert* GetTrustedPeer(void* vp, byte* hash, int type)
 
     row = TrustedPeerHashSigner(hash);
 
-    if (LockMutex(&cm->tpLock) != 0)
+    if (wc_LockMutex(&cm->tpLock) != 0)
         return ret;
 
     tp = cm->tpTable[row];
@@ -2867,7 +2867,7 @@ TrustedPeerCert* GetTrustedPeer(void* vp, byte* hash, int type)
                 break;
             default:
                 WOLFSSL_MSG("Unknown search type");
-                UnLockMutex(&cm->tpLock);
+                wc_UnLockMutex(&cm->tpLock);
                 return NULL;
         }
         if (XMEMCMP(hash, subjectHash, SIGNER_DIGEST_SIZE) == 0) {
@@ -2876,7 +2876,7 @@ TrustedPeerCert* GetTrustedPeer(void* vp, byte* hash, int type)
         }
         tp = tp->next;
     }
-    UnLockMutex(&cm->tpLock);
+    wc_UnLockMutex(&cm->tpLock);
 
     return ret;
 }
@@ -2916,7 +2916,7 @@ Signer* GetCA(void* vp, byte* hash)
     if (cm == NULL)
         return NULL;
 
-    if (LockMutex(&cm->caLock) != 0)
+    if (wc_LockMutex(&cm->caLock) != 0)
         return ret;
 
     signers = cm->caTable[row];
@@ -2933,7 +2933,7 @@ Signer* GetCA(void* vp, byte* hash)
         }
         signers = signers->next;
     }
-    UnLockMutex(&cm->caLock);
+    wc_UnLockMutex(&cm->caLock);
 
     return ret;
 }
@@ -2951,7 +2951,7 @@ Signer* GetCAByName(void* vp, byte* hash)
     if (cm == NULL)
         return NULL;
 
-    if (LockMutex(&cm->caLock) != 0)
+    if (wc_LockMutex(&cm->caLock) != 0)
         return ret;
 
     for (row = 0; row < CA_TABLE_SIZE && ret == NULL; row++) {
@@ -2964,7 +2964,7 @@ Signer* GetCAByName(void* vp, byte* hash)
             signers = signers->next;
         }
     }
-    UnLockMutex(&cm->caLock);
+    wc_UnLockMutex(&cm->caLock);
 
     return ret;
 }
@@ -3072,10 +3072,10 @@ int AddTrustedPeer(WOLFSSL_CERT_MANAGER* cm, DerBuffer** pDer, int verify)
             row = TrustedPeerHashSigner(peerCert->subjectNameHash);
         #endif
 
-            if (LockMutex(&cm->tpLock) == 0) {
+            if (wc_LockMutex(&cm->tpLock) == 0) {
                 peerCert->next = cm->tpTable[row];
                 cm->tpTable[row] = peerCert;   /* takes ownership */
-                UnLockMutex(&cm->tpLock);
+                wc_UnLockMutex(&cm->tpLock);
             }
             else {
                 WOLFSSL_MSG("    Trusted Peer Cert Mutex Lock failed");
@@ -3218,10 +3218,10 @@ int AddCA(WOLFSSL_CERT_MANAGER* cm, DerBuffer** pDer, int type, int verify)
             row = HashSigner(signer->subjectNameHash);
         #endif
 
-            if (LockMutex(&cm->caLock) == 0) {
+            if (wc_LockMutex(&cm->caLock) == 0) {
                 signer->next = cm->caTable[row];
                 cm->caTable[row] = signer;   /* takes ownership */
-                UnLockMutex(&cm->caLock);
+                wc_UnLockMutex(&cm->caLock);
                 if (cm->caCacheCallback)
                     cm->caCacheCallback(der->buffer, (int)der->length, type);
             }
@@ -3331,24 +3331,24 @@ int wolfSSL_Init(void)
             return WC_INIT_E;
         }
 #ifndef NO_SESSION_CACHE
-        if (InitMutex(&session_mutex) != 0) {
+        if (wc_InitMutex(&session_mutex) != 0) {
             WOLFSSL_MSG("Bad Init Mutex session");
             return BAD_MUTEX_E;
         }
 #endif
-        if (InitMutex(&count_mutex) != 0) {
+        if (wc_InitMutex(&count_mutex) != 0) {
             WOLFSSL_MSG("Bad Init Mutex count");
             return BAD_MUTEX_E;
         }
     }
 
-    if (LockMutex(&count_mutex) != 0) {
+    if (wc_LockMutex(&count_mutex) != 0) {
         WOLFSSL_MSG("Bad Lock Mutex count");
         return BAD_MUTEX_E;
     }
 
     initRefCount++;
-    UnLockMutex(&count_mutex);
+    wc_UnLockMutex(&count_mutex);
 
     return SSL_SUCCESS;
 }
@@ -5956,7 +5956,7 @@ int wolfSSL_memsave_session_cache(void* mem, int sz)
     cache_header.sessionSz = (int)sizeof(WOLFSSL_SESSION);
     XMEMCPY(mem, &cache_header, sizeof(cache_header));
 
-    if (LockMutex(&session_mutex) != 0) {
+    if (wc_LockMutex(&session_mutex) != 0) {
         WOLFSSL_MSG("Session cache mutex lock failed");
         return BAD_MUTEX_E;
     }
@@ -5970,7 +5970,7 @@ int wolfSSL_memsave_session_cache(void* mem, int sz)
         XMEMCPY(clRow++, ClientCache + i, sizeof(ClientRow));
 #endif
 
-    UnLockMutex(&session_mutex);
+    wc_UnLockMutex(&session_mutex);
 
     WOLFSSL_LEAVE("wolfSSL_memsave_session_cache", SSL_SUCCESS);
 
@@ -6005,7 +6005,7 @@ int wolfSSL_memrestore_session_cache(const void* mem, int sz)
         return CACHE_MATCH_ERROR;
     }
 
-    if (LockMutex(&session_mutex) != 0) {
+    if (wc_LockMutex(&session_mutex) != 0) {
         WOLFSSL_MSG("Session cache mutex lock failed");
         return BAD_MUTEX_E;
     }
@@ -6019,7 +6019,7 @@ int wolfSSL_memrestore_session_cache(const void* mem, int sz)
         XMEMCPY(ClientCache + i, clRow++, sizeof(ClientRow));
 #endif
 
-    UnLockMutex(&session_mutex);
+    wc_UnLockMutex(&session_mutex);
 
     WOLFSSL_LEAVE("wolfSSL_memrestore_session_cache", SSL_SUCCESS);
 
@@ -6058,7 +6058,7 @@ int wolfSSL_save_session_cache(const char *fname)
         return FWRITE_ERROR;
     }
 
-    if (LockMutex(&session_mutex) != 0) {
+    if (wc_LockMutex(&session_mutex) != 0) {
         WOLFSSL_MSG("Session cache mutex lock failed");
         XFCLOSE(file);
         return BAD_MUTEX_E;
@@ -6086,7 +6086,7 @@ int wolfSSL_save_session_cache(const char *fname)
     }
 #endif /* NO_CLIENT_CACHE */
 
-    UnLockMutex(&session_mutex);
+    wc_UnLockMutex(&session_mutex);
 
     XFCLOSE(file);
     WOLFSSL_LEAVE("wolfSSL_save_session_cache", rc);
@@ -6129,7 +6129,7 @@ int wolfSSL_restore_session_cache(const char *fname)
         return CACHE_MATCH_ERROR;
     }
 
-    if (LockMutex(&session_mutex) != 0) {
+    if (wc_LockMutex(&session_mutex) != 0) {
         WOLFSSL_MSG("Session cache mutex lock failed");
         XFCLOSE(file);
         return BAD_MUTEX_E;
@@ -6160,7 +6160,7 @@ int wolfSSL_restore_session_cache(const char *fname)
 
 #endif /* NO_CLIENT_CACHE */
 
-    UnLockMutex(&session_mutex);
+    wc_UnLockMutex(&session_mutex);
 
     XFCLOSE(file);
     WOLFSSL_LEAVE("wolfSSL_restore_session_cache", rc);
@@ -6497,8 +6497,8 @@ int CM_SaveCertCache(WOLFSSL_CERT_MANAGER* cm, const char* fname)
        return SSL_BAD_FILE;
     }
 
-    if (LockMutex(&cm->caLock) != 0) {
-        WOLFSSL_MSG("LockMutex on caLock failed");
+    if (wc_LockMutex(&cm->caLock) != 0) {
+        WOLFSSL_MSG("wc_LockMutex on caLock failed");
         XFCLOSE(file);
         return BAD_MUTEX_E;
     }
@@ -6520,7 +6520,7 @@ int CM_SaveCertCache(WOLFSSL_CERT_MANAGER* cm, const char* fname)
         XFREE(mem, cm->heap, DYNAMIC_TYPE_TMP_BUFFER);
     }
 
-    UnLockMutex(&cm->caLock);
+    wc_UnLockMutex(&cm->caLock);
     XFCLOSE(file);
 
     return rc;
@@ -6588,8 +6588,8 @@ int CM_MemSaveCertCache(WOLFSSL_CERT_MANAGER* cm, void* mem, int sz, int* used)
 
     WOLFSSL_ENTER("CM_MemSaveCertCache");
 
-    if (LockMutex(&cm->caLock) != 0) {
-        WOLFSSL_MSG("LockMutex on caLock failed");
+    if (wc_LockMutex(&cm->caLock) != 0) {
+        WOLFSSL_MSG("wc_LockMutex on caLock failed");
         return BAD_MUTEX_E;
     }
 
@@ -6597,7 +6597,7 @@ int CM_MemSaveCertCache(WOLFSSL_CERT_MANAGER* cm, void* mem, int sz, int* used)
     if (ret == SSL_SUCCESS)
         *used  = GetCertCacheMemSize(cm);
 
-    UnLockMutex(&cm->caLock);
+    wc_UnLockMutex(&cm->caLock);
 
     return ret;
 }
@@ -6627,8 +6627,8 @@ int CM_MemRestoreCertCache(WOLFSSL_CERT_MANAGER* cm, const void* mem, int sz)
         return CACHE_MATCH_ERROR;
     }
 
-    if (LockMutex(&cm->caLock) != 0) {
-        WOLFSSL_MSG("LockMutex on caLock failed");
+    if (wc_LockMutex(&cm->caLock) != 0) {
+        WOLFSSL_MSG("wc_LockMutex on caLock failed");
         return BAD_MUTEX_E;
     }
 
@@ -6644,7 +6644,7 @@ int CM_MemRestoreCertCache(WOLFSSL_CERT_MANAGER* cm, const void* mem, int sz)
         current += added;
     }
 
-    UnLockMutex(&cm->caLock);
+    wc_UnLockMutex(&cm->caLock);
 
     return ret;
 }
@@ -6657,14 +6657,14 @@ int CM_GetCertCacheMemSize(WOLFSSL_CERT_MANAGER* cm)
 
     WOLFSSL_ENTER("CM_GetCertCacheMemSize");
 
-    if (LockMutex(&cm->caLock) != 0) {
-        WOLFSSL_MSG("LockMutex on caLock failed");
+    if (wc_LockMutex(&cm->caLock) != 0) {
+        WOLFSSL_MSG("wc_LockMutex on caLock failed");
         return BAD_MUTEX_E;
     }
 
     sz = GetCertCacheMemSize(cm);
 
-    UnLockMutex(&cm->caLock);
+    wc_UnLockMutex(&cm->caLock);
 
     return sz;
 }
@@ -7514,7 +7514,7 @@ int wolfSSL_Cleanup(void)
     if (initRefCount == 0)
         return ret;  /* possibly no init yet, but not failure either way */
 
-    if (LockMutex(&count_mutex) != 0) {
+    if (wc_LockMutex(&count_mutex) != 0) {
         WOLFSSL_MSG("Bad Lock Mutex count");
         return BAD_MUTEX_E;
     }
@@ -7523,16 +7523,16 @@ int wolfSSL_Cleanup(void)
     if (initRefCount < 0)
         initRefCount = 0;
 
-    UnLockMutex(&count_mutex);
+    wc_UnLockMutex(&count_mutex);
 
     if (!release)
         return ret;
 
 #ifndef NO_SESSION_CACHE
-    if (FreeMutex(&session_mutex) != 0)
+    if (wc_FreeMutex(&session_mutex) != 0)
         ret = BAD_MUTEX_E;
 #endif
-    if (FreeMutex(&count_mutex) != 0)
+    if (wc_FreeMutex(&count_mutex) != 0)
         ret = BAD_MUTEX_E;
 
 #if defined(HAVE_ECC) && defined(FP_ECC)
@@ -7620,7 +7620,7 @@ WOLFSSL_SESSION* GetSessionClient(WOLFSSL* ssl, const byte* id, int len)
         return NULL;
     }
 
-    if (LockMutex(&session_mutex) != 0) {
+    if (wc_LockMutex(&session_mutex) != 0) {
         WOLFSSL_MSG("Lock session mutex failed");
         return NULL;
     }
@@ -7657,7 +7657,7 @@ WOLFSSL_SESSION* GetSessionClient(WOLFSSL* ssl, const byte* id, int len)
         }
     }
 
-    UnLockMutex(&session_mutex);
+    wc_UnLockMutex(&session_mutex);
 
     return ret;
 }
@@ -7699,7 +7699,7 @@ WOLFSSL_SESSION* GetSession(WOLFSSL* ssl, byte* masterSecret,
         return NULL;
     }
 
-    if (LockMutex(&session_mutex) != 0)
+    if (wc_LockMutex(&session_mutex) != 0)
         return 0;
 
     /* start from most recently used */
@@ -7744,7 +7744,7 @@ WOLFSSL_SESSION* GetSession(WOLFSSL* ssl, byte* masterSecret,
         }
     }
 
-    UnLockMutex(&session_mutex);
+    wc_UnLockMutex(&session_mutex);
 
     return ret;
 }
@@ -7774,7 +7774,7 @@ static int GetDeepCopySession(WOLFSSL* ssl, WOLFSSL_SESSION* copyFrom)
     }
 #endif
 
-    if (LockMutex(&session_mutex) != 0)
+    if (wc_LockMutex(&session_mutex) != 0)
         return BAD_MUTEX_E;
 
 #ifdef HAVE_SESSION_TICKET
@@ -7791,7 +7791,7 @@ static int GetDeepCopySession(WOLFSSL* ssl, WOLFSSL_SESSION* copyFrom)
     copyInto->isDynamic = 0;
 #endif
 
-    if (UnLockMutex(&session_mutex) != 0) {
+    if (wc_UnLockMutex(&session_mutex) != 0) {
         return BAD_MUTEX_E;
     }
 
@@ -7803,7 +7803,7 @@ static int GetDeepCopySession(WOLFSSL* ssl, WOLFSSL_SESSION* copyFrom)
         if (!tmpBuff)
             return MEMORY_ERROR;
 
-        if (LockMutex(&session_mutex) != 0) {
+        if (wc_LockMutex(&session_mutex) != 0) {
             XFREE(tmpBuff, ssl->heap, DYNAMIC_TYPE_SESSION_TICK);
             return BAD_MUTEX_E;
         }
@@ -7825,7 +7825,7 @@ static int GetDeepCopySession(WOLFSSL* ssl, WOLFSSL_SESSION* copyFrom)
         copyInto->ticket = copyInto->staticTicket;
     }
 
-    if (UnLockMutex(&session_mutex) != 0) {
+    if (wc_UnLockMutex(&session_mutex) != 0) {
         if (ret == SSL_SUCCESS)
             ret = BAD_MUTEX_E;
     }
@@ -7907,7 +7907,7 @@ int AddSession(WOLFSSL* ssl)
     }
 #endif
 
-    if (LockMutex(&session_mutex) != 0) {
+    if (wc_LockMutex(&session_mutex) != 0) {
 #ifdef HAVE_SESSION_TICKET
         XFREE(tmpBuff, ssl->heap, DYNAMIC_TYPE_SESSION_TICK);
 #endif
@@ -8033,7 +8033,7 @@ int AddSession(WOLFSSL* ssl)
     }
 #endif /* defined(WOLFSSL_SESSION_STATS) && defined(WOLFSSL_PEAK_SESSIONS) */
 
-    if (UnLockMutex(&session_mutex) != 0)
+    if (wc_UnLockMutex(&session_mutex) != 0)
         return BAD_MUTEX_E;
 
     return error;
@@ -8059,7 +8059,7 @@ int wolfSSL_GetSessionAtIndex(int idx, WOLFSSL_SESSION* session)
     row = idx >> SESSIDX_ROW_SHIFT;
     col = idx & SESSIDX_IDX_MASK;
 
-    if (LockMutex(&session_mutex) != 0) {
+    if (wc_LockMutex(&session_mutex) != 0) {
         return BAD_MUTEX_E;
     }
 
@@ -8070,7 +8070,7 @@ int wolfSSL_GetSessionAtIndex(int idx, WOLFSSL_SESSION* session)
         result = SSL_SUCCESS;
     }
 
-    if (UnLockMutex(&session_mutex) != 0)
+    if (wc_UnLockMutex(&session_mutex) != 0)
         result = BAD_MUTEX_E;
 
     WOLFSSL_LEAVE("wolfSSL_GetSessionAtIndex", result);
@@ -8174,13 +8174,13 @@ int wolfSSL_get_session_stats(word32* active, word32* total, word32* peak,
     if (active == NULL && total == NULL && peak == NULL)
         return BAD_FUNC_ARG;
 
-    if (LockMutex(&session_mutex) != 0) {
+    if (wc_LockMutex(&session_mutex) != 0) {
         return BAD_MUTEX_E;
     }
 
     result = get_locked_session_stats(active, total, peak);
 
-    if (UnLockMutex(&session_mutex) != 0)
+    if (wc_UnLockMutex(&session_mutex) != 0)
         result = BAD_MUTEX_E;
 
     WOLFSSL_LEAVE("wolfSSL_get_session_stats", result);
@@ -17959,7 +17959,7 @@ void* wolfSSL_GetRsaDecCtx(WOLFSSL* ssl)
 
 
 #ifdef OPENSSL_EXTRA /*Lighttp compatibility*/
-#if defined(HAVE_LIGHTY) || defined(WOLFSSL_MYSQL_COMPATIBLE)
+#if defined(HAVE_LIGHTY) || defined(WOLFSSL_MYSQL_COMPATIBLE) || defined(HAVE_STUNNEL)
 
     unsigned char *wolfSSL_SHA1(const unsigned char *d, size_t n, unsigned char *md)
     {
@@ -18149,7 +18149,7 @@ void* wolfSSL_GetRsaDecCtx(WOLFSSL* ssl)
         return NULL;
     }
 
-#endif /* HAVE_LIGHTY || WOLFSSL_MYSQL_COMPATIBLE */
+#endif /* HAVE_LIGHTY || WOLFSSL_MYSQL_COMPATIBLE || HAVE_STUNNEL */
 #endif
 
 
@@ -18556,7 +18556,7 @@ int wolfSSL_get_state(const WOLFSSL* ssl)
 }
 
 
-void* wolfSSL_sk_X509_NAME_value(STACK_OF(WOLFSSL_X509_NAME)* sk, int i)
+void* wolfSSL_sk_X509_NAME_value(const STACK_OF(WOLFSSL_X509_NAME)* sk, int i)
 {
     (void)sk;
     (void)i;

@@ -79,6 +79,16 @@ int wolfCrypt_Init()
     return ret;
 }
 
+wolfSSL_Mutex* wc_InitAndAllocMutex()
+{
+    wolfSSL_Mutex* m = XMALLOC(sizeof(wolfSSL_Mutex), NULL,
+            DYNAMIC_TYPE_MUTEX);
+    if(m && wc_InitMutex(m))
+        return m;
+    XFREE(m, NULL, DYNAMIC_TYPE_MUTEX);
+    m = NULL;
+    return m;
+}
 
 #if WOLFSSL_CRYPT_HW_MUTEX
 /* Mutex for protection of cryptography hardware */
@@ -88,7 +98,7 @@ static int wcCryptHwMutexInit = 0;
 int wolfSSL_CryptHwMutexInit(void) {
     int ret = 0;
     if(wcCryptHwMutexInit == 0) {
-        ret = InitMutex(&wcCryptHwMutex);
+        ret = wc_InitMutex(&wcCryptHwMutex);
         if(ret == 0) {
             wcCryptHwMutexInit = 1;
         }
@@ -103,16 +113,16 @@ int wolfSSL_CryptHwMutexLock(void) {
     wolfSSL_CryptHwMutexInit();
 
     if(wcCryptHwMutexInit) {
-        ret = LockMutex(&wcCryptHwMutex);
+        ret = wc_LockMutex(&wcCryptHwMutex);
     }
     return ret;
 }
 
 int wolfSSL_CryptHwMutexUnLock(void) {
     int ret = BAD_MUTEX_E;
-    
+
     if(wcCryptHwMutexInit) {
-        ret = UnLockMutex(&wcCryptHwMutex);
+        ret = wc_UnLockMutex(&wcCryptHwMutex);
     }
     return ret;
 }
@@ -121,28 +131,27 @@ int wolfSSL_CryptHwMutexUnLock(void) {
 
 #ifdef SINGLE_THREADED
 
-int InitMutex(wolfSSL_Mutex* m)
+int wc_InitMutex(wolfSSL_Mutex* m)
+{
+    (void)m;
+    return 0;
+}
+
+int wc_FreeMutex(wolfSSL_Mutex *m)
 {
     (void)m;
     return 0;
 }
 
 
-int FreeMutex(wolfSSL_Mutex *m)
+int wc_LockMutex(wolfSSL_Mutex *m)
 {
     (void)m;
     return 0;
 }
 
 
-int LockMutex(wolfSSL_Mutex *m)
-{
-    (void)m;
-    return 0;
-}
-
-
-int UnLockMutex(wolfSSL_Mutex *m)
+int wc_UnLockMutex(wolfSSL_Mutex *m)
 {
     (void)m;
     return 0;
@@ -153,7 +162,7 @@ int UnLockMutex(wolfSSL_Mutex *m)
     #if defined(FREERTOS)  || defined(FREERTOS_TCP) || \
         defined(FREESCALE_FREE_RTOS)
 
-        int InitMutex(wolfSSL_Mutex* m)
+        int wc_InitMutex(wolfSSL_Mutex* m)
         {
             int iReturn;
 
@@ -166,20 +175,21 @@ int UnLockMutex(wolfSSL_Mutex *m)
             return iReturn;
         }
 
-        int FreeMutex(wolfSSL_Mutex* m)
+
+        int wc_FreeMutex(wolfSSL_Mutex* m)
         {
             vSemaphoreDelete( *m );
             return 0;
         }
 
-        int LockMutex(wolfSSL_Mutex* m)
+        int wc_LockMutex(wolfSSL_Mutex* m)
         {
             /* Assume an infinite block, or should there be zero block? */
             xSemaphoreTake( *m, portMAX_DELAY );
             return 0;
         }
 
-        int UnLockMutex(wolfSSL_Mutex* m)
+        int wc_UnLockMutex(wolfSSL_Mutex* m)
         {
             xSemaphoreGive( *m );
             return 0;
@@ -187,7 +197,7 @@ int UnLockMutex(wolfSSL_Mutex *m)
 
     #elif defined(WOLFSSL_SAFERTOS)
 
-        int InitMutex(wolfSSL_Mutex* m)
+        int wc_InitMutex(wolfSSL_Mutex* m)
         {
             vSemaphoreCreateBinary(m->mutexBuffer, m->mutex);
             if (m->mutex == NULL)
@@ -196,20 +206,20 @@ int UnLockMutex(wolfSSL_Mutex *m)
             return 0;
         }
 
-        int FreeMutex(wolfSSL_Mutex* m)
+        int wc_FreeMutex(wolfSSL_Mutex* m)
         {
             (void)m;
             return 0;
         }
 
-        int LockMutex(wolfSSL_Mutex* m)
+        int wc_LockMutex(wolfSSL_Mutex* m)
         {
             /* Assume an infinite block */
             xSemaphoreTake(m->mutex, portMAX_DELAY);
             return 0;
         }
 
-        int UnLockMutex(wolfSSL_Mutex* m)
+        int wc_UnLockMutex(wolfSSL_Mutex* m)
         {
             xSemaphoreGive(m->mutex);
             return 0;
@@ -218,28 +228,28 @@ int UnLockMutex(wolfSSL_Mutex *m)
 
     #elif defined(USE_WINDOWS_API)
 
-        int InitMutex(wolfSSL_Mutex* m)
+        int wc_InitMutex(wolfSSL_Mutex* m)
         {
             InitializeCriticalSection(m);
             return 0;
         }
 
 
-        int FreeMutex(wolfSSL_Mutex* m)
+        int wc_FreeMutex(wolfSSL_Mutex* m)
         {
             DeleteCriticalSection(m);
             return 0;
         }
 
 
-        int LockMutex(wolfSSL_Mutex* m)
+        int wc_LockMutex(wolfSSL_Mutex* m)
         {
             EnterCriticalSection(m);
             return 0;
         }
 
 
-        int UnLockMutex(wolfSSL_Mutex* m)
+        int wc_UnLockMutex(wolfSSL_Mutex* m)
         {
             LeaveCriticalSection(m);
             return 0;
@@ -247,7 +257,7 @@ int UnLockMutex(wolfSSL_Mutex *m)
 
     #elif defined(WOLFSSL_PTHREADS)
 
-        int InitMutex(wolfSSL_Mutex* m)
+        int wc_InitMutex(wolfSSL_Mutex* m)
         {
             if (pthread_mutex_init(m, 0) == 0)
                 return 0;
@@ -256,7 +266,7 @@ int UnLockMutex(wolfSSL_Mutex *m)
         }
 
 
-        int FreeMutex(wolfSSL_Mutex* m)
+        int wc_FreeMutex(wolfSSL_Mutex* m)
         {
             if (pthread_mutex_destroy(m) == 0)
                 return 0;
@@ -265,7 +275,7 @@ int UnLockMutex(wolfSSL_Mutex *m)
         }
 
 
-        int LockMutex(wolfSSL_Mutex* m)
+        int wc_LockMutex(wolfSSL_Mutex* m)
         {
             if (pthread_mutex_lock(m) == 0)
                 return 0;
@@ -274,7 +284,7 @@ int UnLockMutex(wolfSSL_Mutex *m)
         }
 
 
-        int UnLockMutex(wolfSSL_Mutex* m)
+        int wc_UnLockMutex(wolfSSL_Mutex* m)
         {
             if (pthread_mutex_unlock(m) == 0)
                 return 0;
@@ -284,7 +294,7 @@ int UnLockMutex(wolfSSL_Mutex *m)
 
     #elif defined(THREADX)
 
-        int InitMutex(wolfSSL_Mutex* m)
+        int wc_InitMutex(wolfSSL_Mutex* m)
         {
             if (tx_mutex_create(m, "wolfSSL Mutex", TX_NO_INHERIT) == 0)
                 return 0;
@@ -293,7 +303,7 @@ int UnLockMutex(wolfSSL_Mutex *m)
         }
 
 
-        int FreeMutex(wolfSSL_Mutex* m)
+        int wc_FreeMutex(wolfSSL_Mutex* m)
         {
             if (tx_mutex_delete(m) == 0)
                 return 0;
@@ -302,7 +312,7 @@ int UnLockMutex(wolfSSL_Mutex *m)
         }
 
 
-        int LockMutex(wolfSSL_Mutex* m)
+        int wc_LockMutex(wolfSSL_Mutex* m)
         {
             if (tx_mutex_get(m, TX_WAIT_FOREVER) == 0)
                 return 0;
@@ -311,7 +321,7 @@ int UnLockMutex(wolfSSL_Mutex *m)
         }
 
 
-        int UnLockMutex(wolfSSL_Mutex* m)
+        int wc_UnLockMutex(wolfSSL_Mutex* m)
         {
             if (tx_mutex_put(m) == 0)
                 return 0;
@@ -321,7 +331,7 @@ int UnLockMutex(wolfSSL_Mutex *m)
 
     #elif defined(MICRIUM)
 
-        int InitMutex(wolfSSL_Mutex* m)
+        int wc_InitMutex(wolfSSL_Mutex* m)
         {
             #if (NET_SECURE_MGR_CFG_EN == DEF_ENABLED)
                 if (NetSecure_OS_MutexCreate(m) == 0)
@@ -334,10 +344,10 @@ int UnLockMutex(wolfSSL_Mutex *m)
         }
 
 
-        int FreeMutex(wolfSSL_Mutex* m)
+        int wc_FreeMutex(wolfSSL_Mutex* m)
         {
             #if (NET_SECURE_MGR_CFG_EN == DEF_ENABLED)
-                if (NetSecure_OS_FreeMutex(m) == 0)
+                if (NetSecure_OS_wc_FreeMutex(m) == 0)
                     return 0;
                 else
                     return BAD_MUTEX_E;
@@ -347,10 +357,10 @@ int UnLockMutex(wolfSSL_Mutex *m)
         }
 
 
-        int LockMutex(wolfSSL_Mutex* m)
+        int wc_LockMutex(wolfSSL_Mutex* m)
         {
             #if (NET_SECURE_MGR_CFG_EN == DEF_ENABLED)
-                if (NetSecure_OS_LockMutex(m) == 0)
+                if (NetSecure_OS_wc_LockMutex(m) == 0)
                     return 0;
                 else
                     return BAD_MUTEX_E;
@@ -360,10 +370,10 @@ int UnLockMutex(wolfSSL_Mutex *m)
         }
 
 
-        int UnLockMutex(wolfSSL_Mutex* m)
+        int wc_UnLockMutex(wolfSSL_Mutex* m)
         {
             #if (NET_SECURE_MGR_CFG_EN == DEF_ENABLED)
-                if (NetSecure_OS_UnLockMutex(m) == 0)
+                if (NetSecure_OS_wc_UnLockMutex(m) == 0)
                     return 0;
                 else
                     return BAD_MUTEX_E;
@@ -375,7 +385,7 @@ int UnLockMutex(wolfSSL_Mutex *m)
 
     #elif defined(EBSNET)
 
-        int InitMutex(wolfSSL_Mutex* m)
+        int wc_InitMutex(wolfSSL_Mutex* m)
         {
             if (rtp_sig_mutex_alloc(m, "wolfSSL Mutex") == -1)
                 return BAD_MUTEX_E;
@@ -383,13 +393,13 @@ int UnLockMutex(wolfSSL_Mutex *m)
                 return 0;
         }
 
-        int FreeMutex(wolfSSL_Mutex* m)
+        int wc_FreeMutex(wolfSSL_Mutex* m)
         {
             rtp_sig_mutex_free(*m);
             return 0;
         }
 
-        int LockMutex(wolfSSL_Mutex* m)
+        int wc_LockMutex(wolfSSL_Mutex* m)
         {
             if (rtp_sig_mutex_claim_timed(*m, RTIP_INF) == 0)
                 return 0;
@@ -397,7 +407,7 @@ int UnLockMutex(wolfSSL_Mutex *m)
                 return BAD_MUTEX_E;
         }
 
-        int UnLockMutex(wolfSSL_Mutex* m)
+        int wc_UnLockMutex(wolfSSL_Mutex* m)
         {
             rtp_sig_mutex_release(*m);
             return 0;
@@ -405,7 +415,7 @@ int UnLockMutex(wolfSSL_Mutex *m)
 
     #elif defined(FREESCALE_MQX) || defined(FREESCALE_KSDK_MQX)
 
-        int InitMutex(wolfSSL_Mutex* m)
+        int wc_InitMutex(wolfSSL_Mutex* m)
         {
             if (_mutex_init(m, NULL) == MQX_EOK)
                 return 0;
@@ -413,7 +423,7 @@ int UnLockMutex(wolfSSL_Mutex *m)
                 return BAD_MUTEX_E;
         }
 
-        int FreeMutex(wolfSSL_Mutex* m)
+        int wc_FreeMutex(wolfSSL_Mutex* m)
         {
             if (_mutex_destroy(m) == MQX_EOK)
                 return 0;
@@ -421,7 +431,7 @@ int UnLockMutex(wolfSSL_Mutex *m)
                 return BAD_MUTEX_E;
         }
 
-        int LockMutex(wolfSSL_Mutex* m)
+        int wc_LockMutex(wolfSSL_Mutex* m)
         {
             if (_mutex_lock(m) == MQX_EOK)
                 return 0;
@@ -429,7 +439,7 @@ int UnLockMutex(wolfSSL_Mutex *m)
                 return BAD_MUTEX_E;
         }
 
-        int UnLockMutex(wolfSSL_Mutex* m)
+        int wc_UnLockMutex(wolfSSL_Mutex* m)
         {
             if (_mutex_unlock(m) == MQX_EOK)
                 return 0;
@@ -439,7 +449,7 @@ int UnLockMutex(wolfSSL_Mutex *m)
 
     #elif defined (WOLFSSL_TIRTOS)
         #include <xdc/runtime/Error.h>
-        int InitMutex(wolfSSL_Mutex* m)
+        int wc_InitMutex(wolfSSL_Mutex* m)
         {
            Semaphore_Params params;
            Error_Block eb;
@@ -454,21 +464,21 @@ int UnLockMutex(wolfSSL_Mutex *m)
            } else return 0;
         }
 
-        int FreeMutex(wolfSSL_Mutex* m)
+        int wc_FreeMutex(wolfSSL_Mutex* m)
         {
             Semaphore_delete(m);
 
             return 0;
         }
 
-        int LockMutex(wolfSSL_Mutex* m)
+        int wc_LockMutex(wolfSSL_Mutex* m)
         {
             Semaphore_pend(*m, BIOS_WAIT_FOREVER);
 
             return 0;
         }
 
-        int UnLockMutex(wolfSSL_Mutex* m)
+        int wc_UnLockMutex(wolfSSL_Mutex* m)
         {
             Semaphore_post(*m);
 
@@ -478,7 +488,7 @@ int UnLockMutex(wolfSSL_Mutex *m)
     #elif defined(WOLFSSL_uITRON4)
 				#include "stddef.h"
         #include "kernel.h"
-        int InitMutex(wolfSSL_Mutex* m)
+        int wc_InitMutex(wolfSSL_Mutex* m)
         {
             int iReturn;
             m->sem.sematr  = TA_TFIFO ;
@@ -495,19 +505,19 @@ int UnLockMutex(wolfSSL_Mutex *m)
             return iReturn;
         }
 
-        int FreeMutex(wolfSSL_Mutex* m)
+        int wc_FreeMutex(wolfSSL_Mutex* m)
         {
             del_sem( m->id );
             return 0;
         }
 
-        int LockMutex(wolfSSL_Mutex* m)
+        int wc_LockMutex(wolfSSL_Mutex* m)
         {
             wai_sem(m->id);
             return 0;
         }
 
-        int UnLockMutex(wolfSSL_Mutex* m)
+        int wc_UnLockMutex(wolfSSL_Mutex* m)
         {
             sig_sem(m->id);
             return 0;
@@ -568,7 +578,7 @@ int UnLockMutex(wolfSSL_Mutex *m)
 
 #elif defined(WOLFSSL_uTKERNEL2)
         #include "tk/tkernel.h"
-        int InitMutex(wolfSSL_Mutex* m)
+        int wc_InitMutex(wolfSSL_Mutex* m)
         {
             int iReturn;
             m->sem.sematr  = TA_TFIFO ;
@@ -584,19 +594,19 @@ int UnLockMutex(wolfSSL_Mutex *m)
             return iReturn;
         }
 
-        int FreeMutex(wolfSSL_Mutex* m)
+        int wc_FreeMutex(wolfSSL_Mutex* m)
         {
             tk_del_sem( m->id );
             return 0;
         }
 
-        int LockMutex(wolfSSL_Mutex* m)
+        int wc_LockMutex(wolfSSL_Mutex* m)
         {
             tk_wai_sem(m->id, 1, TMO_FEVR);
             return 0;
         }
 
-        int UnLockMutex(wolfSSL_Mutex* m)
+        int wc_UnLockMutex(wolfSSL_Mutex* m)
         {
             tk_sig_sem(m->id, 1);
             return 0;
@@ -657,7 +667,7 @@ int UnLockMutex(wolfSSL_Mutex *m)
             }
         }
     #elif defined (WOLFSSL_FROSTED)
-        int InitMutex(wolfSSL_Mutex* m) 
+        int wc_InitMutex(wolfSSL_Mutex* m) 
         {
             *m = mutex_init();
             if (*m)
@@ -666,19 +676,19 @@ int UnLockMutex(wolfSSL_Mutex *m)
                 return -1;
         }
 
-        int FreeMutex(wolfSSL_Mutex* m)
+        int wc_FreeMutex(wolfSSL_Mutex* m)
         {
             mutex_destroy(*m);
             return(0) ;
         }
 
-        int LockMutex(wolfSSL_Mutex* m)
+        int wc_LockMutex(wolfSSL_Mutex* m)
         {
             mutex_lock(*m);
             return 0;
         }
 
-        int UnLockMutex(wolfSSL_Mutex* m)
+        int wc_UnLockMutex(wolfSSL_Mutex* m)
         {
             mutex_unlock(*m);
             return 0;
@@ -700,7 +710,7 @@ int UnLockMutex(wolfSSL_Mutex *m)
             
             static osMutexId CMSIS_mutexID[CMSIS_NMUTEX] = {0} ;
 
-            int InitMutex(wolfSSL_Mutex* m)
+            int wc_InitMutex(wolfSSL_Mutex* m)
             {
                 int i ;
                 for (i=0; i<CMSIS_NMUTEX; i++) {
@@ -713,7 +723,7 @@ int UnLockMutex(wolfSSL_Mutex *m)
                 return -1 ;
             }
 
-            int FreeMutex(wolfSSL_Mutex* m)
+            int wc_FreeMutex(wolfSSL_Mutex* m)
             {
                 int i ;
                 osMutexDelete   (*m) ;
@@ -725,37 +735,37 @@ int UnLockMutex(wolfSSL_Mutex *m)
                 }
                 return(-1) ;
             }
-            
-            int LockMutex(wolfSSL_Mutex* m)
+
+            int wc_LockMutex(wolfSSL_Mutex* m)
             {
                 osMutexWait(*m, osWaitForever) ;
                 return(0) ;
             }
 
-            int UnLockMutex(wolfSSL_Mutex* m)
+            int wc_UnLockMutex(wolfSSL_Mutex* m)
             {
                 osMutexRelease (*m);
                 return 0;
             }
         #else
-        int InitMutex(wolfSSL_Mutex* m)
+        int wc_InitMutex(wolfSSL_Mutex* m)
         {
             os_mut_init (m); 
             return 0;
         }
 
-        int FreeMutex(wolfSSL_Mutex* m)
+        int wc_FreeMutex(wolfSSL_Mutex* m)
         {
             return(0) ;
         }
 
-        int LockMutex(wolfSSL_Mutex* m)
+        int wc_LockMutex(wolfSSL_Mutex* m)
         {
             os_mut_wait (m, 0xffff);
             return(0) ;
         }
 
-        int UnLockMutex(wolfSSL_Mutex* m)
+        int wc_UnLockMutex(wolfSSL_Mutex* m)
         {
             os_mut_release (m);
             return 0;

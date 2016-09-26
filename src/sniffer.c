@@ -411,9 +411,9 @@ static word32 MissedDataSessions = 0;    /* # of sessions with missed data */
 
 static void UpdateMissedDataSessions(void)
 {
-    LockMutex(&RecoveryMutex);
+    wc_LockMutex(&RecoveryMutex);
     MissedDataSessions += 1;
-    UnLockMutex(&RecoveryMutex);
+    wc_UnLockMutex(&RecoveryMutex);
 }
 
 
@@ -421,9 +421,9 @@ static void UpdateMissedDataSessions(void)
 void ssl_InitSniffer(void)
 {
     wolfSSL_Init();
-    InitMutex(&ServerListMutex);
-    InitMutex(&SessionMutex);
-    InitMutex(&RecoveryMutex);
+    wc_InitMutex(&ServerListMutex);
+    wc_InitMutex(&SessionMutex);
+    wc_InitMutex(&RecoveryMutex);
 }
 
 
@@ -461,10 +461,10 @@ static void FreeSnifferServer(SnifferServer* srv)
 {
     if (srv) {
 #ifdef HAVE_SNI
-        LockMutex(&srv->namedKeysMutex);
+        wc_LockMutex(&srv->namedKeysMutex);
         FreeNamedKeyList(srv->namedKeys);
-        UnLockMutex(&srv->namedKeysMutex);
-        FreeMutex(&srv->namedKeysMutex);
+        wc_UnLockMutex(&srv->namedKeysMutex);
+        wc_FreeMutex(&srv->namedKeysMutex);
 #endif
         SSL_CTX_free(srv->ctx);
     }
@@ -526,8 +526,8 @@ void ssl_FreeSniffer(void)
     SnifferSession* removeSession;
     int i;
 
-    LockMutex(&ServerListMutex);
-    LockMutex(&SessionMutex);
+    wc_LockMutex(&ServerListMutex);
+    wc_LockMutex(&SessionMutex);
     
     srv = ServerList;
     while (srv) {
@@ -545,12 +545,12 @@ void ssl_FreeSniffer(void)
         }
     }
 
-    UnLockMutex(&SessionMutex);
-    UnLockMutex(&ServerListMutex);
+    wc_UnLockMutex(&SessionMutex);
+    wc_UnLockMutex(&ServerListMutex);
 
-    FreeMutex(&RecoveryMutex);
-    FreeMutex(&SessionMutex);
-    FreeMutex(&ServerListMutex);
+    wc_FreeMutex(&RecoveryMutex);
+    wc_FreeMutex(&SessionMutex);
+    wc_FreeMutex(&ServerListMutex);
 
     if (TraceFile) {
         TraceOn = 0;
@@ -656,7 +656,7 @@ static void InitSnifferServer(SnifferServer* sniffer)
     sniffer->port     = 0;
 #ifdef HAVE_SNI
     sniffer->namedKeys = 0;
-    InitMutex(&sniffer->namedKeysMutex);
+    wc_InitMutex(&sniffer->namedKeysMutex);
 #endif
     sniffer->next     = 0;
 }
@@ -1040,7 +1040,7 @@ static int IsServerRegistered(word32 addr)
     int ret = 0;     /* false */
     SnifferServer* sniffer;
 
-    LockMutex(&ServerListMutex);
+    wc_LockMutex(&ServerListMutex);
     
     sniffer = ServerList;
     while (sniffer) {
@@ -1051,7 +1051,7 @@ static int IsServerRegistered(word32 addr)
         sniffer = sniffer->next;
     }
     
-    UnLockMutex(&ServerListMutex);
+    wc_UnLockMutex(&ServerListMutex);
 
     return ret;
 }
@@ -1064,7 +1064,7 @@ static int IsPortRegistered(word32 port)
     int ret = 0;    /* false */
     SnifferServer* sniffer;
     
-    LockMutex(&ServerListMutex);
+    wc_LockMutex(&ServerListMutex);
     
     sniffer = ServerList;
     while (sniffer) {
@@ -1075,7 +1075,7 @@ static int IsPortRegistered(word32 port)
         sniffer = sniffer->next;
     }
     
-    UnLockMutex(&ServerListMutex);
+    wc_UnLockMutex(&ServerListMutex);
 
     return ret;
 }
@@ -1086,7 +1086,7 @@ static SnifferServer* GetSnifferServer(IpInfo* ipInfo, TcpInfo* tcpInfo)
 {
     SnifferServer* sniffer;
     
-    LockMutex(&ServerListMutex);
+    wc_LockMutex(&ServerListMutex);
     
     sniffer = ServerList;
     while (sniffer) {
@@ -1097,7 +1097,7 @@ static SnifferServer* GetSnifferServer(IpInfo* ipInfo, TcpInfo* tcpInfo)
         sniffer = sniffer->next;
     }
     
-    UnLockMutex(&ServerListMutex);
+    wc_UnLockMutex(&ServerListMutex);
     
     return sniffer;
 }
@@ -1122,7 +1122,7 @@ static SnifferSession* GetSnifferSession(IpInfo* ipInfo, TcpInfo* tcpInfo)
 
     assert(row <= HASH_SIZE);
     
-    LockMutex(&SessionMutex);
+    wc_LockMutex(&SessionMutex);
     
     session = SessionTable[row];
     while (session) {
@@ -1141,7 +1141,7 @@ static SnifferSession* GetSnifferSession(IpInfo* ipInfo, TcpInfo* tcpInfo)
     if (session)
         session->lastUsed= currTime; /* keep session alive, remove stale will */
                                      /* leave alone */   
-    UnLockMutex(&SessionMutex);
+    wc_UnLockMutex(&SessionMutex);
     
     /* determine side */
     if (session) {
@@ -1315,10 +1315,10 @@ static int SetNamedPrivateKey(const char* name, const char* address, int port,
     }
 #ifdef HAVE_SNI
     else {
-        LockMutex(&sniffer->namedKeysMutex);
+        wc_LockMutex(&sniffer->namedKeysMutex);
         namedKey->next = sniffer->namedKeys;
         sniffer->namedKeys = namedKey;
-        UnLockMutex(&sniffer->namedKeysMutex);
+        wc_UnLockMutex(&sniffer->namedKeysMutex);
     }
 #endif
 
@@ -1345,10 +1345,10 @@ int ssl_SetNamedPrivateKey(const char* name,
     TraceHeader();
     TraceSetNamedServer(name, address, port, keyFile);
 
-    LockMutex(&ServerListMutex);
+    wc_LockMutex(&ServerListMutex);
     ret = SetNamedPrivateKey(name, address, port, keyFile,
                              typeKey, password, error);
-    UnLockMutex(&ServerListMutex);
+    wc_UnLockMutex(&ServerListMutex);
 
     if (ret == 0)
         Trace(NEW_SERVER_STR);
@@ -1369,10 +1369,10 @@ int ssl_SetPrivateKey(const char* address, int port, const char* keyFile,
     TraceHeader();
     TraceSetServer(address, port, keyFile);
 
-    LockMutex(&ServerListMutex);
+    wc_LockMutex(&ServerListMutex);
     ret = SetNamedPrivateKey(NULL, address, port, keyFile,
                              typeKey, password, error);
-    UnLockMutex(&ServerListMutex);
+    wc_UnLockMutex(&ServerListMutex);
 
     if (ret == 0)
         Trace(NEW_SERVER_STR);
@@ -1824,7 +1824,7 @@ static int ProcessClientHello(const byte* input, int* sslBytes,
             if (nameSz >= sizeof(name))
                 nameSz = sizeof(name) - 1;
             name[nameSz] = 0;
-            LockMutex(&session->context->namedKeysMutex);
+            wc_LockMutex(&session->context->namedKeysMutex);
             namedKey = session->context->namedKeys;
             while (namedKey != NULL) {
                 if (nameSz == namedKey->nameSz &&
@@ -1832,7 +1832,7 @@ static int ProcessClientHello(const byte* input, int* sslBytes,
                     if (wolfSSL_use_PrivateKey_buffer(session->sslServer,
                                             namedKey->key, namedKey->keySz,
                                             SSL_FILETYPE_ASN1) != SSL_SUCCESS) {
-                        UnLockMutex(&session->context->namedKeysMutex);
+                        wc_UnLockMutex(&session->context->namedKeysMutex);
                         SetError(CLIENT_HELLO_LATE_KEY_STR, error, session,
                                                              FATAL_ERROR_STATE);
                         return -1;
@@ -1842,7 +1842,7 @@ static int ProcessClientHello(const byte* input, int* sslBytes,
                 else
                     namedKey = namedKey->next;
             }
-            UnLockMutex(&session->context->namedKeysMutex);
+            wc_UnLockMutex(&session->context->namedKeysMutex);
         }
     }
 #endif
@@ -2296,7 +2296,7 @@ static void RemoveSession(SnifferSession* session, IpInfo* ipInfo,
     Trace(REMOVE_SESSION_STR);
     
     if (!haveLock)
-        LockMutex(&SessionMutex);
+        wc_LockMutex(&SessionMutex);
     
     current = SessionTable[row];
     
@@ -2315,7 +2315,7 @@ static void RemoveSession(SnifferSession* session, IpInfo* ipInfo,
     }
     
     if (!haveLock)
-        UnLockMutex(&SessionMutex);
+        wc_UnLockMutex(&SessionMutex);
 }
 
 
@@ -2406,7 +2406,7 @@ static SnifferSession* CreateSession(IpInfo* ipInfo, TcpInfo* tcpInfo,
     row = SessionHash(ipInfo, tcpInfo);
     
     /* add it to the session table */
-    LockMutex(&SessionMutex);
+    wc_LockMutex(&SessionMutex);
         
     session->next = SessionTable[row];
     SessionTable[row] = session;
@@ -2418,7 +2418,7 @@ static SnifferSession* CreateSession(IpInfo* ipInfo, TcpInfo* tcpInfo,
         RemoveStaleSessions();
     }
         
-    UnLockMutex(&SessionMutex);
+    wc_UnLockMutex(&SessionMutex);
         
     /* determine headed side */
     if (ipInfo->dst == session->context->server &&
@@ -3562,9 +3562,9 @@ int ssl_GetSessionStats(unsigned int* active,     unsigned int* total,
     int ret;
 
     if (missedData) {
-        LockMutex(&RecoveryMutex);
+        wc_LockMutex(&RecoveryMutex);
         *missedData = MissedDataSessions;
-        UnLockMutex(&RecoveryMutex);
+        wc_UnLockMutex(&RecoveryMutex);
     }
 
     if (reassemblyMem) {
@@ -3572,7 +3572,7 @@ int ssl_GetSessionStats(unsigned int* active,     unsigned int* total,
         int i;
 
         *reassemblyMem = 0;
-        LockMutex(&SessionMutex);
+        wc_LockMutex(&SessionMutex);
         for (i = 0; i < HASH_SIZE; i++) {
             session = SessionTable[i];
             while (session) {
@@ -3581,7 +3581,7 @@ int ssl_GetSessionStats(unsigned int* active,     unsigned int* total,
                 session = session->next;
             }
         }
-        UnLockMutex(&SessionMutex);
+        wc_UnLockMutex(&SessionMutex);
     }
 
     ret = wolfSSL_get_session_stats(active, total, peak, maxSessions);

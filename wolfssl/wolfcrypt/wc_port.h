@@ -90,7 +90,7 @@
     typedef int wolfSSL_Mutex;
 #else /* MULTI_THREADED */
     /* FREERTOS comes first to enable use of FreeRTOS Windows simulator only */
-    #if defined(FREERTOS) 
+    #if defined(FREERTOS)
         typedef xSemaphoreHandle wolfSSL_Mutex;
     #elif defined(FREERTOS_TCP)
         #include "FreeRTOS.h"
@@ -169,10 +169,11 @@
 #endif /* WOLFSSL_CRYPT_HW_MUTEX */
 
 /* Mutex functions */
-WOLFSSL_LOCAL int InitMutex(wolfSSL_Mutex*);
-WOLFSSL_LOCAL int FreeMutex(wolfSSL_Mutex*);
-WOLFSSL_LOCAL int LockMutex(wolfSSL_Mutex*);
-WOLFSSL_LOCAL int UnLockMutex(wolfSSL_Mutex*);
+WOLFSSL_API int wc_InitMutex(wolfSSL_Mutex*);
+WOLFSSL_API wolfSSL_Mutex* wc_InitAndAllocMutex(void);
+WOLFSSL_API int wc_FreeMutex(wolfSSL_Mutex*);
+WOLFSSL_API int wc_LockMutex(wolfSSL_Mutex*);
+WOLFSSL_API int wc_UnLockMutex(wolfSSL_Mutex*);
 
 /* main crypto initialization function */
 WOLFSSL_API int wolfCrypt_Init(void);
