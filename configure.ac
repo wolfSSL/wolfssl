@@ -544,18 +544,28 @@ AM_CONDITIONAL([BUILD_AESCCM], [test "x$ENABLED_AESCCM" = "xyes"])
 
 # AES-ARM
 AC_ARG_ENABLE([armasm],
-    [AS_HELP_STRING([--enable-armasm],[Enable wolfSSL ARM ASM support (default: disabled)])],
+    [AS_HELP_STRING([--enable-armasm],[Enable wolfSSL ARMv8 ASM support (default: disabled)])],
     [ ENABLED_ARMASM=$enableval ],
     [ ENABLED_ARMASM=no ]
     )
 if test "$ENABLED_ARMASM" = "yes"
 then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ARMASM"
-    if test "$GCC" = "yes"
-    then
-        # GCC needs this flag
-        AM_CFLAGS="$AM_CFLAGS -mcpu=generic+crypto"
-    fi
+    #Check if mcpu and mfpu values already set if not use default
+    case $CPPFLAGS in
+    *mcpu* | *mfpu*)
+        break;; #Do not override user set values
+    *)
+        case $host_cpu in
+        *aarch64*)
+	    #+crypto needed for hardware acceleration
+            AM_CPPFLAGS="$AM_CPPFLAGS -mcpu=generic+crypto"
+            AC_MSG_NOTICE([64bit ARMv8 found, setting mcpu to generic+crypto]);;
+        *)
+            AM_CPPFLAGS="$AM_CPPFLAGS -mfpu=crypto-neon-fp-armv8"
+            AC_MSG_NOTICE([32bit ARMv8 found, setting mfpu to crypto-neon-fp-armv8]);;
+        esac
+    esac
 fi
 
 AM_CONDITIONAL([BUILD_ARMASM], [test "x$ENABLED_ARMASM" = "xyes"])
