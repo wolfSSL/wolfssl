@@ -1608,25 +1608,25 @@ typedef struct Keys {
 
 #ifdef WOLFSSL_DTLS
     DtlsSeq window;     /* Sliding window for current epoch    */
-        word16 nextEpoch;   /* Expected epoch in next record       */
-        word16 nextSeq_hi;  /* Expected sequence in next record    */
-        word32 nextSeq_lo;
+    word16 nextEpoch;   /* Expected epoch in next record       */
+    word16 nextSeq_hi;  /* Expected sequence in next record    */
+    word32 nextSeq_lo;
 
-        word16 curEpoch;    /* Received epoch in current record    */
-        word16 curSeq_hi;   /* Received sequence in current record */
-        word32 curSeq_lo;
+    word16 curEpoch;    /* Received epoch in current record    */
+    word16 curSeq_hi;   /* Received sequence in current record */
+    word32 curSeq_lo;
 
-        DtlsSeq prevWindow; /* Sliding window for old epoch        */
-        word16 prevSeq_hi;  /* Next sequence in allowed old epoch  */
-        word32 prevSeq_lo;
+    DtlsSeq prevWindow; /* Sliding window for old epoch        */
+    word16 prevSeq_hi;  /* Next sequence in allowed old epoch  */
+    word32 prevSeq_lo;
 
     word16 dtls_peer_handshake_number;
     word16 dtls_expected_peer_handshake_number;
 
     word16 dtls_epoch;                          /* Current epoch    */
-    word32 dtls_sequence_number_hi;             /* Current epoch */
+    word16 dtls_sequence_number_hi;             /* Current epoch */
     word32 dtls_sequence_number_lo;
-    word32 dtls_prev_sequence_number_hi;        /* Previous epoch */
+    word16 dtls_prev_sequence_number_hi;        /* Previous epoch */
     word32 dtls_prev_sequence_number_lo;
     word16 dtls_handshake_number;               /* Current tx handshake seq */
 #endif

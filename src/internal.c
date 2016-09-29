@@ -571,22 +571,27 @@ static int ExportKeyState(WOLFSSL* ssl, byte* exp, word32 len, byte ver)
     c32toa(keys->sequence_number_hi, exp + idx);      idx += OPAQUE32_LEN;
     c32toa(keys->sequence_number_lo, exp + idx);      idx += OPAQUE32_LEN;
 
-    c16toa(keys->nextEpoch, exp + idx); idx += OPAQUE16_LEN;
-    c32toa(keys->nextSeq, exp + idx);   idx += OPAQUE32_LEN;
-    c16toa(keys->curEpoch, exp + idx);  idx += OPAQUE16_LEN;
-    c32toa(keys->curSeq, exp + idx);    idx += OPAQUE32_LEN;
-    c32toa(keys->prevSeq, exp + idx);   idx += OPAQUE32_LEN;
+    c16toa(keys->nextEpoch, exp + idx);  idx += OPAQUE16_LEN;
+    c16toa(keys->nextSeq_hi, exp + idx); idx += OPAQUE16_LEN;
+    c32toa(keys->nextSeq_lo, exp + idx); idx += OPAQUE32_LEN;
+    c16toa(keys->curEpoch, exp + idx);   idx += OPAQUE16_LEN;
+    c16toa(keys->curSeq_hi, exp + idx);  idx += OPAQUE16_LEN;
+    c32toa(keys->curSeq_lo, exp + idx);  idx += OPAQUE32_LEN;
+    c16toa(keys->prevSeq_hi, exp + idx); idx += OPAQUE16_LEN;
+    c32toa(keys->prevSeq_lo, exp + idx); idx += OPAQUE32_LEN;
 
     c16toa(keys->dtls_peer_handshake_number, exp + idx); idx += OPAQUE16_LEN;
     c16toa(keys->dtls_expected_peer_handshake_number, exp + idx);
     idx += OPAQUE16_LEN;
 
-    c32toa(keys->dtls_sequence_number, exp + idx);      idx += OPAQUE32_LEN;
-    c32toa(keys->dtls_prev_sequence_number, exp + idx); idx += OPAQUE32_LEN;
-    c16toa(keys->dtls_epoch, exp + idx);                idx += OPAQUE16_LEN;
-    c16toa(keys->dtls_handshake_number, exp + idx);     idx += OPAQUE16_LEN;
-    c32toa(keys->encryptSz, exp + idx);                 idx += OPAQUE32_LEN;
-    c32toa(keys->padSz, exp + idx);                     idx += OPAQUE32_LEN;
+    c16toa(keys->dtls_sequence_number_hi, exp + idx);      idx += OPAQUE16_LEN;
+    c32toa(keys->dtls_sequence_number_lo, exp + idx);      idx += OPAQUE32_LEN;
+    c16toa(keys->dtls_prev_sequence_number_hi, exp + idx); idx += OPAQUE16_LEN;
+    c32toa(keys->dtls_prev_sequence_number_lo, exp + idx); idx += OPAQUE32_LEN;
+    c16toa(keys->dtls_epoch, exp + idx);                   idx += OPAQUE16_LEN;
+    c16toa(keys->dtls_handshake_number, exp + idx);        idx += OPAQUE16_LEN;
+    c32toa(keys->encryptSz, exp + idx);                    idx += OPAQUE32_LEN;
+    c32toa(keys->padSz, exp + idx);                        idx += OPAQUE32_LEN;
     exp[idx++] = keys->encryptionOn;
     exp[idx++] = keys->decryptedCur;
 
@@ -697,22 +702,27 @@ static int ImportKeyState(WOLFSSL* ssl, byte* exp, word32 len, byte ver)
     ato32(exp + idx, &keys->sequence_number_hi);      idx += OPAQUE32_LEN;
     ato32(exp + idx, &keys->sequence_number_lo);      idx += OPAQUE32_LEN;
 
-    ato16(exp + idx, &keys->nextEpoch); idx += OPAQUE16_LEN;
-    ato32(exp + idx, &keys->nextSeq);   idx += OPAQUE32_LEN;
-    ato16(exp + idx, &keys->curEpoch);  idx += OPAQUE16_LEN;
-    ato32(exp + idx, &keys->curSeq);    idx += OPAQUE32_LEN;
-    ato32(exp + idx, &keys->prevSeq);   idx += OPAQUE32_LEN;
+    ato16(exp + idx, &keys->nextEpoch);  idx += OPAQUE16_LEN;
+    ato16(exp + idx, &keys->nextSeq_hi); idx += OPAQUE16_LEN;
+    ato32(exp + idx, &keys->nextSeq_lo); idx += OPAQUE32_LEN;
+    ato16(exp + idx, &keys->curEpoch);   idx += OPAQUE16_LEN;
+    ato16(exp + idx, &keys->curSeq_hi);  idx += OPAQUE16_LEN;
+    ato32(exp + idx, &keys->curSeq_lo);  idx += OPAQUE32_LEN;
+    ato16(exp + idx, &keys->prevSeq_hi); idx += OPAQUE16_LEN;
+    ato32(exp + idx, &keys->prevSeq_lo); idx += OPAQUE32_LEN;
 
     ato16(exp + idx, &keys->dtls_peer_handshake_number); idx += OPAQUE16_LEN;
     ato16(exp + idx, &keys->dtls_expected_peer_handshake_number);
     idx += OPAQUE16_LEN;
 
-    ato32(exp + idx, &keys->dtls_sequence_number);      idx += OPAQUE32_LEN;
-    ato32(exp + idx, &keys->dtls_prev_sequence_number); idx += OPAQUE32_LEN;
-    ato16(exp + idx, &keys->dtls_epoch);                idx += OPAQUE16_LEN;
-    ato16(exp + idx, &keys->dtls_handshake_number);     idx += OPAQUE16_LEN;
-    ato32(exp + idx, &keys->encryptSz);                 idx += OPAQUE32_LEN;
-    ato32(exp + idx, &keys->padSz);                     idx += OPAQUE32_LEN;
+    ato16(exp + idx, &keys->dtls_sequence_number_hi);      idx += OPAQUE16_LEN;
+    ato32(exp + idx, &keys->dtls_sequence_number_lo);      idx += OPAQUE32_LEN;
+    ato16(exp + idx, &keys->dtls_prev_sequence_number_hi); idx += OPAQUE16_LEN;
+    ato32(exp + idx, &keys->dtls_prev_sequence_number_lo); idx += OPAQUE32_LEN;
+    ato16(exp + idx, &keys->dtls_epoch);                   idx += OPAQUE16_LEN;
+    ato16(exp + idx, &keys->dtls_handshake_number);        idx += OPAQUE16_LEN;
+    ato32(exp + idx, &keys->encryptSz);                    idx += OPAQUE32_LEN;
+    ato32(exp + idx, &keys->padSz);                        idx += OPAQUE32_LEN;
     keys->encryptionOn = exp[idx++];
     keys->decryptedCur = exp[idx++];
 
@@ -7776,7 +7786,7 @@ static INLINE int DtlsCheckWindow(WOLFSSL* ssl)
     else {
         return 0;
     }
-/* XXX Handle rollover */
+
     cur_hi = ssl->keys.curSeq_hi;
     cur_lo = ssl->keys.curSeq_lo;
 
@@ -10315,8 +10325,10 @@ int SendCertificate(WOLFSSL* ssl)
                 return sendSz;
         }
         else {
-            if (ssl->options.dtls)
-                DtlsSEQIncrement(ssl, 0);
+            #ifdef WOLFSSL_DTLS
+                if (ssl->options.dtls)
+                    DtlsSEQIncrement(ssl, 0);
+            #endif
         }
 
         #ifdef WOLFSSL_DTLS
@@ -10342,7 +10354,10 @@ int SendCertificate(WOLFSSL* ssl)
     if (ret != WANT_WRITE) {
         /* Clean up the fragment offset. */
         ssl->fragOffset = 0;
-        ssl->keys.dtls_handshake_number++;
+        #ifdef WOLFSSL_DTLS
+            if (ssl->options.dtls)
+                ssl->keys.dtls_handshake_number++;
+        #endif
         if (ssl->options.side == WOLFSSL_SERVER_END)
             ssl->options.serverState = SERVER_CERT_COMPLETE;
     }
