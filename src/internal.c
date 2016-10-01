@@ -7770,8 +7770,10 @@ static int DoHandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 
 static INLINE int DtlsCheckWindow(WOLFSSL* ssl)
 {
-    word32 cur_hi, cur_lo, next_hi, next_lo;
     DtlsSeq window;
+    word16 cur_hi, next_hi;
+    word32 cur_lo, next_lo, diff;
+    int curLT;
 
     if (ssl->keys.curEpoch == ssl->keys.nextEpoch) {
         next_hi = ssl->keys.nextSeq_hi;
@@ -7790,13 +7792,34 @@ static INLINE int DtlsCheckWindow(WOLFSSL* ssl)
     cur_hi = ssl->keys.curSeq_hi;
     cur_lo = ssl->keys.curSeq_lo;
 
-    if ((next_lo > DTLS_SEQ_BITS) && (cur_lo < next_lo - DTLS_SEQ_BITS)) {
+    /* If the difference between next and cur is > 2^32, way outside window. */
+    if ((cur_hi > next_hi + 1) || (next_hi > cur_hi + 1))
+        return 0;
+
+    if (cur_hi == next_hi) {
+        curLT = cur_lo < next_lo;
+        diff = curLT ? next_lo - cur_lo : cur_lo - next_lo;
+    }
+    else {
+        curLT = cur_hi < next_hi;
+        diff = curLT ? cur_lo - next_lo : next_lo - cur_lo;
+    }
+
+    /* Check to see that the next value is greater than the number of messages
+     * trackable in the window (32 or 64), and that the difference between the
+     * next expected sequence number and the received sequence number is
+     * inside the window. */
+    if ((next_hi || next_lo > DTLS_SEQ_BITS) &&
+        curLT && (diff > DTLS_SEQ_BITS)) {
+
         return 0;
     }
-    else if ((cur_lo < next_lo) && (window & ((DtlsSeq)1 << (next_lo - cur_lo - 1)))) {
+    else if (curLT && (window & ((DtlsSeq)1 << diff))) {
+
         return 0;
     }
-    else if (cur_lo > next_lo + DTLS_SEQ_BITS) {
+    else if ((cur_hi == next_hi) && (diff > DTLS_SEQ_BITS)) {
+
         return 0;
     }
 
@@ -7806,28 +7829,45 @@ static INLINE int DtlsCheckWindow(WOLFSSL* ssl)
 
 static INLINE int DtlsUpdateWindow(WOLFSSL* ssl)
 {
-    word32 cur;
-    word32* next;
     DtlsSeq* window;
+    word32* next_lo;
+    word16* next_hi;
+    int curLT;
+    word32 cur_lo, diff;
+    word16 cur_hi;
 
     if (ssl->keys.curEpoch == ssl->keys.nextEpoch) {
-        next = &ssl->keys.nextSeq_lo;
+        next_hi = &ssl->keys.nextSeq_hi;
+        next_lo = &ssl->keys.nextSeq_lo;
         window = &ssl->keys.window;
     }
     else {
-        next = &ssl->keys.prevSeq_lo;
+        next_hi = &ssl->keys.prevSeq_hi;
+        next_lo = &ssl->keys.prevSeq_lo;
         window = &ssl->keys.prevWindow;
     }
 
-    cur = ssl->keys.curSeq_lo;
+    cur_hi = ssl->keys.curSeq_hi;
+    cur_lo = ssl->keys.curSeq_lo;
 
-    if (cur < *next) {
-        *window |= ((DtlsSeq)1 << (*next - cur - 1));
+    if (cur_hi == *next_hi) {
+        curLT = cur_lo < *next_lo;
+        diff = curLT ? *next_lo - cur_lo : cur_lo - *next_lo;
     }
     else {
-        *window <<= (1 + cur - *next);
+        curLT = cur_hi < *next_hi;
+        diff = curLT ? cur_lo - *next_lo : *next_lo - cur_lo;
+    }
+
+    if (curLT) {
+        *window |= ((DtlsSeq)1 << (diff - 1));
+    }
+    else {
+        *window <<= (1 + diff);
         *window |= 1;
-        *next = cur + 1;
+        *next_lo = cur_lo + 1;
+        if (*next_lo < cur_lo)
+            (*next_hi)++;
     }
 
     return 1;
