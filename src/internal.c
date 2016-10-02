@@ -3992,7 +3992,7 @@ static INLINE void DtlsSEQIncrement(WOLFSSL* ssl, int verify)
 
 static INLINE void WriteSEQ(WOLFSSL* ssl, int verify, byte* out)
 {
-    word32 seq[2];
+    word32 seq[2] = {0, 0};
 
     if (!ssl->options.dtls) {
         GetSEQIncrement(ssl, verify, seq);
