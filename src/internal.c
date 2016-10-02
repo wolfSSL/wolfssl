@@ -7793,8 +7793,10 @@ static INLINE int DtlsCheckWindow(WOLFSSL* ssl)
     cur_lo = ssl->keys.curSeq_lo;
 
     /* If the difference between next and cur is > 2^32, way outside window. */
-    if ((cur_hi > next_hi + 1) || (next_hi > cur_hi + 1))
+    if ((cur_hi > next_hi + 1) || (next_hi > cur_hi + 1)) {
+        WOLFSSL_MSG("Current record from way too far in the future.");
         return 0;
+    }
 
     if (cur_hi == next_hi) {
         curLT = cur_lo < next_lo;
@@ -7812,14 +7814,15 @@ static INLINE int DtlsCheckWindow(WOLFSSL* ssl)
     if ((next_hi || next_lo > DTLS_SEQ_BITS) &&
         curLT && (diff > DTLS_SEQ_BITS)) {
 
+        WOLFSSL_MSG("Current record sequence number from the past.");
         return 0;
     }
-    else if (curLT && (window & ((DtlsSeq)1 << diff))) {
-
+    else if (curLT && (window & ((DtlsSeq)1 << (diff - 1)))) {
+        WOLFSSL_MSG("Current record sequence number already received.");
         return 0;
     }
-    else if ((cur_hi == next_hi) && (diff > DTLS_SEQ_BITS)) {
-
+    else if (!curLT && (diff > DTLS_SEQ_BITS)) {
+        WOLFSSL_MSG("Rejecting message too far into the future.");
         return 0;
     }
 
@@ -7863,7 +7866,10 @@ static INLINE int DtlsUpdateWindow(WOLFSSL* ssl)
         *window |= ((DtlsSeq)1 << (diff - 1));
     }
     else {
-        *window <<= (1 + diff);
+        if (diff >= DTLS_SEQ_BITS)
+            *window = 0;
+        else
+            *window <<= (1 + diff);
         *window |= 1;
         *next_lo = cur_lo + 1;
         if (*next_lo < cur_lo)
@@ -9537,6 +9543,8 @@ int ProcessReply(WOLFSSL* ssl)
                             DtlsPoolReset(ssl);
                             ssl->keys.nextEpoch++;
                             ssl->keys.nextSeq_lo = 0;
+                            ssl->keys.prevWindow = ssl->keys.window;
+                            ssl->keys.window = 0;
                         }
                     #endif
 
