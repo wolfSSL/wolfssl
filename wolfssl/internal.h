@@ -1062,7 +1062,11 @@ enum Misc {
     HASH_SIG_SIZE      =   2,  /* default SHA1 RSA */
 
     NO_COPY            =   0,  /* should we copy static buffer for write */
-    COPY               =   1   /* should we copy static buffer for write */
+    COPY               =   1,  /* should we copy static buffer for write */
+
+    PREV_ORDER         = -1,   /* Sequence number is in previous epoch. */
+    PEER_ORDER         = 1,    /* Peer sequence number for verify. */
+    CUR_ORDER          = 0     /* Current sequence number. */
 };
 
 

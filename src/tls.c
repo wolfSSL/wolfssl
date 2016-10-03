@@ -664,15 +664,15 @@ static INLINE void GetSEQIncrement(WOLFSSL* ssl, int verify, word32 seq[2])
 
 
 #ifdef WOLFSSL_DTLS
-static INLINE void DtlsGetSEQ(WOLFSSL* ssl, int verify, word32 seq[2])
+static INLINE void DtlsGetSEQ(WOLFSSL* ssl, int order, word32 seq[2])
 {
-    if (verify == -1) {
+    if (order == PREV_ORDER) {
         /* Previous epoch case */
         seq[0] = ((ssl->keys.dtls_epoch - 1) << 16) |
                  (ssl->keys.dtls_prev_sequence_number_hi & 0xFFFF);
         seq[1] = ssl->keys.dtls_prev_sequence_number_lo;
     }
-    else if (verify == 1) {
+    else if (order == PEER_ORDER) {
         seq[0] = (ssl->keys.curEpoch << 16) |
                  (ssl->keys.curSeq_hi & 0xFFFF);
         seq[1] = ssl->keys.curSeq_lo; /* explicit from peer */
@@ -686,21 +686,21 @@ static INLINE void DtlsGetSEQ(WOLFSSL* ssl, int verify, word32 seq[2])
 #endif /* WOLFSSL_DTLS */
 
 
-static INLINE void WriteSEQ(WOLFSSL* ssl, int verify, byte* out)
+static INLINE void WriteSEQ(WOLFSSL* ssl, int verifyOrder, byte* out)
 {
     word32 seq[2] = {0, 0};
 
     if (!ssl->options.dtls) {
-        GetSEQIncrement(ssl, verify, seq);
+        GetSEQIncrement(ssl, verifyOrder, seq);
     }
     else {
 #ifdef WOLFSSL_DTLS
-        DtlsGetSEQ(ssl, verify, seq);
+        DtlsGetSEQ(ssl, verifyOrder, seq);
 #endif
     }
 
     c32toa(seq[0], out);
-    c32toa(seq[1], out+4);
+    c32toa(seq[1], out + OPAQUE32_LEN);
 }
 
 
