@@ -994,7 +994,7 @@ enum Misc {
 
     CHACHA20_IMP_IV_SZ  = 12,  /* Size of ChaCha20 AEAD implicit IV */
     CHACHA20_NONCE_SZ   = 12,  /* Size of ChacCha20 nonce           */
-    CHACHA20_OLD_OFFSET = 8,   /* Offset for seq # in old poly1305  */
+    CHACHA20_OLD_OFFSET = 4,   /* Offset for seq # in old poly1305  */
 
     /* For any new implicit/explicit IV size adjust AEAD_MAX_***_SZ */
 
@@ -1062,7 +1062,11 @@ enum Misc {
     HASH_SIG_SIZE      =   2,  /* default SHA1 RSA */
 
     NO_COPY            =   0,  /* should we copy static buffer for write */
-    COPY               =   1   /* should we copy static buffer for write */
+    COPY               =   1,  /* should we copy static buffer for write */
+
+    PREV_ORDER         = -1,   /* Sequence number is in previous epoch. */
+    PEER_ORDER         = 1,    /* Peer sequence number for verify. */
+    CUR_ORDER          = 0     /* Current sequence number. */
 };
 
 
@@ -1581,18 +1585,6 @@ typedef struct WOLFSSL_DTLS_CTX {
     #endif
     #define DTLS_SEQ_BITS (sizeof(DtlsSeq) * CHAR_BIT)
 
-    typedef struct DtlsState {
-        DtlsSeq window;     /* Sliding window for current epoch    */
-        word16 nextEpoch;   /* Expected epoch in next record       */
-        word32 nextSeq;     /* Expected sequence in next record    */
-
-        word16 curEpoch;    /* Received epoch in current record    */
-        word32 curSeq;      /* Received sequence in current record */
-
-        DtlsSeq prevWindow; /* Sliding window for old epoch        */
-        word32 prevSeq;     /* Next sequence in allowed old epoch  */
-    } DtlsState;
-
 #endif /* WOLFSSL_DTLS */
 
 
@@ -1613,17 +1605,33 @@ typedef struct Keys {
     byte aead_dec_imp_IV[AEAD_MAX_IMP_SZ];
 #endif
 
-    word32 peer_sequence_number;
-    word32 sequence_number;
+    word32 peer_sequence_number_hi;
+    word32 peer_sequence_number_lo;
+    word32 sequence_number_hi;
+    word32 sequence_number_lo;
 
 #ifdef WOLFSSL_DTLS
-    DtlsState dtls_state;                       /* Peer's state */
+    DtlsSeq window;     /* Sliding window for current epoch    */
+    word16 nextEpoch;   /* Expected epoch in next record       */
+    word16 nextSeq_hi;  /* Expected sequence in next record    */
+    word32 nextSeq_lo;
+
+    word16 curEpoch;    /* Received epoch in current record    */
+    word16 curSeq_hi;   /* Received sequence in current record */
+    word32 curSeq_lo;
+
+    DtlsSeq prevWindow; /* Sliding window for old epoch        */
+    word16 prevSeq_hi;  /* Next sequence in allowed old epoch  */
+    word32 prevSeq_lo;
+
     word16 dtls_peer_handshake_number;
     word16 dtls_expected_peer_handshake_number;
 
-    word32 dtls_sequence_number;                /* Current tx sequence */
-    word32 dtls_prev_sequence_number;           /* Previous epoch's seq number*/
-    word16 dtls_epoch;                          /* Current tx epoch    */
+    word16 dtls_epoch;                          /* Current epoch    */
+    word16 dtls_sequence_number_hi;             /* Current epoch */
+    word32 dtls_sequence_number_lo;
+    word16 dtls_prev_sequence_number_hi;        /* Previous epoch */
+    word32 dtls_prev_sequence_number_lo;
     word16 dtls_handshake_number;               /* Current tx handshake seq */
 #endif
 
@@ -2571,8 +2579,7 @@ typedef struct DtlsRecordLayerHeader {
     byte            type;
     byte            pvMajor;
     byte            pvMinor;
-    byte            epoch[2];             /* increment on cipher state change */
-    byte            sequence_number[6];   /* per record */
+    byte            sequence_number[8];   /* per record */
     byte            length[2];
 } DtlsRecordLayerHeader;
 

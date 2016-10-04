@@ -642,34 +642,66 @@ static INLINE void c32toa(word32 u32, byte* c)
 }
 
 
-static INLINE word32 GetSEQIncrement(WOLFSSL* ssl, int verify)
+static INLINE void GetSEQIncrement(WOLFSSL* ssl, int verify, word32 seq[2])
 {
-#ifdef WOLFSSL_DTLS
-    if (ssl->options.dtls) {
-        if (verify)
-            return ssl->keys.dtls_state.curSeq; /* explicit from peer */
-        else
-            return ssl->keys.dtls_sequence_number - 1; /* already incremented */
+    if (verify) {
+        seq[0] = ssl->keys.peer_sequence_number_hi;
+        seq[1] = ssl->keys.peer_sequence_number_lo++;
+        if (seq[1] > ssl->keys.peer_sequence_number_lo) {
+            /* handle rollover */
+            ssl->keys.peer_sequence_number_hi++;
+        }
     }
-#endif
-    if (verify)
-        return ssl->keys.peer_sequence_number++;
-    else
-        return ssl->keys.sequence_number++;
+    else {
+        seq[0] = ssl->keys.sequence_number_hi;
+        seq[1] = ssl->keys.sequence_number_lo++;
+        if (seq[1] > ssl->keys.sequence_number_lo) {
+            /* handle rollover */
+            ssl->keys.sequence_number_hi++;
+        }
+    }
 }
 
 
 #ifdef WOLFSSL_DTLS
-
-static INLINE word32 GetEpoch(WOLFSSL* ssl, int verify)
+static INLINE void DtlsGetSEQ(WOLFSSL* ssl, int order, word32 seq[2])
 {
-    if (verify)
-        return ssl->keys.dtls_state.curEpoch;
-    else
-        return ssl->keys.dtls_epoch;
+    if (order == PREV_ORDER) {
+        /* Previous epoch case */
+        seq[0] = ((ssl->keys.dtls_epoch - 1) << 16) |
+                 (ssl->keys.dtls_prev_sequence_number_hi & 0xFFFF);
+        seq[1] = ssl->keys.dtls_prev_sequence_number_lo;
+    }
+    else if (order == PEER_ORDER) {
+        seq[0] = (ssl->keys.curEpoch << 16) |
+                 (ssl->keys.curSeq_hi & 0xFFFF);
+        seq[1] = ssl->keys.curSeq_lo; /* explicit from peer */
+    }
+    else {
+        seq[0] = (ssl->keys.dtls_epoch << 16) |
+                 (ssl->keys.dtls_sequence_number_hi & 0xFFFF);
+        seq[1] = ssl->keys.dtls_sequence_number_lo;
+    }
 }
-
 #endif /* WOLFSSL_DTLS */
+
+
+static INLINE void WriteSEQ(WOLFSSL* ssl, int verifyOrder, byte* out)
+{
+    word32 seq[2] = {0, 0};
+
+    if (!ssl->options.dtls) {
+        GetSEQIncrement(ssl, verifyOrder, seq);
+    }
+    else {
+#ifdef WOLFSSL_DTLS
+        DtlsGetSEQ(ssl, verifyOrder, seq);
+#endif
+    }
+
+    c32toa(seq[0], out);
+    c32toa(seq[1], out + OPAQUE32_LEN);
+}
 
 
 /*** end copy ***/
@@ -729,11 +761,7 @@ int wolfSSL_SetTlsHmacInner(WOLFSSL* ssl, byte* inner, word32 sz, int content,
 
     XMEMSET(inner, 0, WOLFSSL_TLS_HMAC_INNER_SZ);
 
-#ifdef WOLFSSL_DTLS
-    if (ssl->options.dtls)
-        c16toa((word16)GetEpoch(ssl, verify), inner);
-#endif
-    c32toa(GetSEQIncrement(ssl, verify), &inner[sizeof(word32)]);
+    WriteSEQ(ssl, verify, inner);
     inner[SEQ_SZ] = (byte)content;
     inner[SEQ_SZ + ENUM_LEN]            = ssl->version.major;
     inner[SEQ_SZ + ENUM_LEN + ENUM_LEN] = ssl->version.minor;
