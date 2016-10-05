@@ -79,7 +79,7 @@ static const ALIGN32 word32 K[64] = {
 int wc_InitSha256(Sha256* sha256)
 {
     int ret = 0;
-    
+
     sha256->digest[0] = 0x6A09E667L;
     sha256->digest[1] = 0xBB67AE85L;
     sha256->digest[2] = 0x3C6EF372L;
@@ -92,7 +92,7 @@ int wc_InitSha256(Sha256* sha256)
     sha256->buffLen = 0;
     sha256->loLen   = 0;
     sha256->hiLen   = 0;
-    
+
     return ret;
 }
 
@@ -151,135 +151,133 @@ int wc_Sha256Update(Sha256* sha256, const byte* data, word32 len)
 
         /* begining of SHA256 block operation */
         "sha256Start:\n"
+        /* Round 1 */
         "MOV v4.16b, v0.16b        \n"
         "ADD v0.4s, v0.4s, v16.4s  \n"
         "MOV v11.16b, v12.16b      \n"
         "SHA256H q12, q13, v0.4s   \n"
         "SHA256H2 q13, q11, v0.4s  \n"
 
+        /* Round 2 */
+        "SHA256SU0 v4.4s, v1.4s        \n"
         "ADD v0.4s, v1.4s, v17.4s  \n"
         "MOV v11.16b, v12.16b      \n"
+        "SHA256SU1 v4.4s, v2.4s, v3.4s \n"
         "SHA256H q12, q13, v0.4s   \n"
         "SHA256H2 q13, q11, v0.4s  \n"
 
+        /* Round 3 */
+        "SHA256SU0 v1.4s, v2.4s        \n"
         "ADD v0.4s, v2.4s, v18.4s  \n"
         "MOV v11.16b, v12.16b      \n"
+        "SHA256SU1 v1.4s, v3.4s, v4.4s \n"
         "SHA256H q12, q13, v0.4s   \n"
         "SHA256H2 q13, q11, v0.4s  \n"
 
-        "SHA256SU0 v4.4s, v1.4s        \n"
+        /* Round 4 */
+        "SHA256SU0 v2.4s, v3.4s        \n"
         "ADD v0.4s, v3.4s, v19.4s      \n"
         "MOV v11.16b, v12.16b          \n"
-        "MOV v5.16b, v1.16b            \n"
-        "SHA256SU1 v4.4s, v2.4s, v3.4s \n"
+        "SHA256SU1 v2.4s, v4.4s, v1.4s \n"
         "SHA256H q12, q13, v0.4s       \n"
         "SHA256H2 q13, q11, v0.4s      \n"
 
-        "SHA256SU0 v5.4s, v2.4s        \n"
+        /* Round 5 */
+        "SHA256SU0 v3.4s, v4.4s        \n"
         "ADD v0.4s, v4.4s, v20.4s      \n"
         "MOV v11.16b, v12.16b          \n"
-        "MOV v6.16b, v2.16b            \n"
-        "SHA256SU1 v5.4s, v3.4s, v4.4s \n"
+        "SHA256SU1 v3.4s, v1.4s, v2.4s \n"
         "SHA256H q12, q13, v0.4s       \n"
         "SHA256H2 q13, q11, v0.4s      \n"
 
-        "SHA256SU0 v6.4s, v3.4s        \n"
-        "ADD v0.4s, v5.4s, v21.4s      \n"
+        /* Round 6 */
+        "SHA256SU0 v4.4s, v1.4s        \n"
+        "ADD v0.4s, v1.4s, v21.4s      \n"
         "MOV v11.16b, v12.16b          \n"
-        "MOV v7.16b, v3.16b            \n"
-        "SHA256SU1 v6.4s, v4.4s, v5.4s \n"
-        "SHA256H q12, q13, v0.4s       \n"
-        "SHA256H2 q13, q11, v0.4s      \n"
-
-        "SHA256SU0 v7.4s, v4.4s        \n"
-        "ADD v0.4s, v6.4s, v22.4s      \n"
-        "MOV v11.16b, v12.16b          \n"
-        "MOV v8.16b, v4.16b            \n"
-        "SHA256SU1 v7.4s, v5.4s, v6.4s \n"
-        "SHA256H q12, q13, v0.4s       \n"
-        "SHA256H2 q13, q11, v0.4s      \n"
-
-        "SHA256SU0 v8.4s, v5.4s        \n"
-        "ADD v0.4s, v7.4s, v23.4s      \n"
-        "MOV v11.16b, v12.16b          \n"
-        "MOV v9.16b, v5.16b            \n"
-        "SHA256SU1 v8.4s, v6.4s, v7.4s \n"
-        "SHA256H q12, q13, v0.4s       \n"
-        "SHA256H2 q13, q11, v0.4s      \n"
-
-        "SHA256SU0 v9.4s, v6.4s        \n"
-        "ADD v0.4s, v8.4s, v24.4s      \n"
-        "MOV v11.16b, v12.16b          \n"
-        "MOV v10.16b, v6.16b           \n"
-        "SHA256SU1 v9.4s, v7.4s, v8.4s \n"
-        "SHA256H q12, q13, v0.4s       \n"
-        "SHA256H2 q13, q11, v0.4s      \n"
-
-        "SHA256SU0 v10.4s, v7.4s        \n"
-        "ADD v0.4s, v9.4s, v25.4s       \n"
-        "MOV v11.16b, v12.16b           \n"
-        "SHA256SU1 v10.4s, v8.4s, v9.4s \n"
-        "SHA256H q12, q13, v0.4s        \n"
-        "SHA256H2 q13, q11, v0.4s       \n"
-
-        "ADD v0.4s, v10.4s, v26.4s      \n"
-        "MOV v11.16b, v12.16b           \n"
-        "SHA256H q12, q13, v0.4s        \n"
-        "SHA256H2 q13, q11, v0.4s       \n"
-
-        /* Re-use of registers is needed in order to not overwrite
-         * previous digest value. */
-        "#move to lower register and handle last rounds 11-15 \n"
-        "MOV v4.16b, v7.16b  \n"
-        "MOV v1.16b, v8.16b  \n"
-        "MOV v2.16b, v9.16b  \n"
-        "MOV v3.16b, v10.16b \n"
-        "MOV v5.16b, v8.16b  \n"
-
-        "SHA256SU0 v4.4s, v1.4s        \n" /* 4 -> 11 */
-        "SHA256SU0 v5.4s, v2.4s        \n"
         "SHA256SU1 v4.4s, v2.4s, v3.4s \n"
-        "SHA256SU1 v5.4s, v3.4s, v4.4s \n"
-        "ADD v0.4s, v4.4s, v27.4s      \n"
-        "MOV v11.16b, v12.16b          \n"
-        "MOV v6.16b, v2.16b            \n"
         "SHA256H q12, q13, v0.4s       \n"
         "SHA256H2 q13, q11, v0.4s      \n"
 
-        "SHA256SU0 v6.4s, v3.4s        \n"
-        "ADD v0.4s, v5.4s, v28.4s      \n"
+        /* Round 7 */
+        "SHA256SU0 v1.4s, v2.4s        \n"
+        "ADD v0.4s, v2.4s, v22.4s      \n"
         "MOV v11.16b, v12.16b          \n"
-        "MOV v7.16b, v3.16b            \n"
-        "SHA256SU1 v6.4s, v4.4s, v5.4s \n"
+        "SHA256SU1 v1.4s, v3.4s, v4.4s \n"
         "SHA256H q12, q13, v0.4s       \n"
         "SHA256H2 q13, q11, v0.4s      \n"
 
-        "SHA256SU0 v7.4s, v4.4s        \n"
-        "ADD v0.4s, v6.4s, v29.4s      \n"
+        /* Round 8 */
+        "SHA256SU0 v2.4s, v3.4s        \n"
+        "ADD v0.4s, v3.4s, v23.4s      \n"
         "MOV v11.16b, v12.16b          \n"
-        "MOV v8.16b, v4.16b            \n"
-        "SHA256SU1 v7.4s, v5.4s, v6.4s \n"
+        "SHA256SU1 v2.4s, v4.4s, v1.4s \n"
         "SHA256H q12, q13, v0.4s       \n"
         "SHA256H2 q13, q11, v0.4s      \n"
 
-        "SHA256SU0 v8.4s, v5.4s        \n"
-        "ADD v0.4s, v7.4s, v30.4s      \n"
+        /* Round 9 */
+        "SHA256SU0 v3.4s, v4.4s        \n"
+        "ADD v0.4s, v4.4s, v24.4s      \n"
         "MOV v11.16b, v12.16b          \n"
-        "SHA256SU1 v8.4s, v6.4s, v7.4s \n"
+        "SHA256SU1 v3.4s, v1.4s, v2.4s \n"
         "SHA256H q12, q13, v0.4s       \n"
         "SHA256H2 q13, q11, v0.4s      \n"
 
-        "ADD v0.4s, v8.4s, v31.4s      \n"
+        /* Round 10 */
+        "SHA256SU0 v4.4s, v1.4s        \n"
+        "ADD v0.4s, v1.4s, v25.4s      \n"
+        "MOV v11.16b, v12.16b          \n"
+        "SHA256SU1 v4.4s, v2.4s, v3.4s \n"
+        "SHA256H q12, q13, v0.4s       \n"
+        "SHA256H2 q13, q11, v0.4s      \n"
+
+        /* Round 11 */
+        "SHA256SU0 v1.4s, v2.4s        \n"
+        "ADD v0.4s, v2.4s, v26.4s      \n"
+        "MOV v11.16b, v12.16b          \n"
+        "SHA256SU1 v1.4s, v3.4s, v4.4s \n"
+        "SHA256H q12, q13, v0.4s       \n"
+        "SHA256H2 q13, q11, v0.4s      \n"
+
+        /* Round 12 */
+        "SHA256SU0 v2.4s, v3.4s        \n"
+        "ADD v0.4s, v3.4s, v27.4s      \n"
+        "MOV v11.16b, v12.16b          \n"
+        "SHA256SU1 v2.4s, v4.4s, v1.4s \n"
+        "SHA256H q12, q13, v0.4s       \n"
+        "SHA256H2 q13, q11, v0.4s      \n"
+
+        /* Round 13 */
+        "SHA256SU0 v3.4s, v4.4s        \n"
+        "ADD v0.4s, v4.4s, v28.4s      \n"
+        "MOV v11.16b, v12.16b          \n"
+        "SHA256SU1 v3.4s, v1.4s, v2.4s \n"
+        "SHA256H q12, q13, v0.4s       \n"
+        "SHA256H2 q13, q11, v0.4s      \n"
+
+        /* Round 14 */
+        "ADD v0.4s, v1.4s, v29.4s      \n"
+        "MOV v11.16b, v12.16b          \n"
+        "SHA256H q12, q13, v0.4s       \n"
+        "SHA256H2 q13, q11, v0.4s      \n"
+
+        /* Round 15 */
+        "ADD v0.4s, v2.4s, v30.4s      \n"
+        "MOV v11.16b, v12.16b          \n"
+        "SHA256H q12, q13, v0.4s       \n"
+        "SHA256H2 q13, q11, v0.4s      \n"
+
+        /* Round 16 */
+        "ADD v0.4s, v3.4s, v31.4s      \n"
         "MOV v11.16b, v12.16b          \n"
         "SHA256H q12, q13, v0.4s       \n"
         "SHA256H2 q13, q11, v0.4s      \n"
 
         "#Add working vars back into digest state \n"
+        "SUB w8, w8, #1    \n"
         "ADD v12.4s, v12.4s, v14.4s \n"
         "ADD v13.4s, v13.4s, v15.4s \n"
 
         "#check if more blocks should be done\n"
-        "SUB w8, w8, #1    \n"
         "CBZ w8, sha256End \n"
 
         "#load in message and schedual updates \n"
@@ -301,7 +299,7 @@ int wc_Sha256Update(Sha256* sha256, const byte* data, word32 len)
           [blocks] "2" (numBlocks), [dataIn] "3" (data)
         : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7",
                           "v8",  "v9",  "v10", "v11", "v12", "v13", "v14",
-                          "v15"
+                          "v15", "w8"
         );
 
         AddLength(sha256, SHA256_BLOCK_SIZE * numBlocks);
@@ -691,20 +689,17 @@ int wc_Sha256Update(Sha256* sha256, const byte* data, word32 len)
         add = (len + sha256->buffLen) - numBlocks * SHA256_BLOCK_SIZE;
         __asm__ volatile (
         "#load leftover data\n"
-        "VLD1.32 {q0}, [%[buffer]]!   \n"
-        "VLD1.32 {q1}, [%[buffer]]!   \n"
-        "VLD1.32 {q2}, [%[buffer]]!   \n"
-        "VLD1.32 {q3}, [%[buffer]]   \n"
+        "VLDM %[buffer]!, {q0-q3} \n"
 
         "#load current digest\n"
-        "VLD1.32 {q12}, [%[digest]]! \n"
-        "VLD1.32 {q13}, [%[digest]]  \n"
-        "SUB %[digest], %[digest], #16 \n"
+        "VLDM %[digest], {q12-q13} \n"
         "MOV r8, %r[blocks] \n"
         "VREV32.8 q0, q0 \n"
         "VREV32.8 q1, q1 \n"
         "VREV32.8 q2, q2 \n"
         "VREV32.8 q3, q3 \n"
+        "VLDM %[k]! ,{q5-q8} \n"
+        "VLDM %[k]! ,{q9}\n"
 
         "VMOV.32 q14, q12 \n" /* store digest for add at the end */
         "VMOV.32 q15, q13 \n"
@@ -713,151 +708,135 @@ int wc_Sha256Update(Sha256* sha256, const byte* data, word32 len)
         "sha256Start:\n"
 
         /* Round 1 */
-        "VLD1.32 {q5}, [%[k]]! \n"
-        "VMOV.32 q4, q0        \n"
-        "VADD.i32 q0, q0, q5    \n"
-        "VMOV.32 q11, q12      \n"
+        "VMOV.32 q4, q0           \n"
+        "VADD.i32 q0, q0, q5      \n"
+        "VMOV.32 q11, q12         \n"
         "SHA256H.32 q12, q13, q0  \n"
         "SHA256H2.32 q13, q11, q0 \n"
 
         /* Round 2 */
-        "VLD1.32 {q5}, [%[k]]! \n"
-        "VADD.i32 q0, q1, q5   \n"
-        "VMOV.32 q11, q12      \n"
+        "SHA256SU0.32 q4, q1      \n"
+        "VADD.i32 q0, q1, q6      \n"
+        "VMOV.32 q11, q12         \n"
+        "SHA256SU1.32 q4, q2, q3  \n"
         "SHA256H.32 q12, q13, q0  \n"
         "SHA256H2.32 q13, q11, q0 \n"
 
         /* Round 3 */
-        "VLD1.32 {q5}, [%[k]]! \n"
-        "VADD.i32 q0, q2, q5   \n"
-        "VMOV.32 q11, q12      \n"
+        "SHA256SU0.32 q1, q2      \n"
+        "VADD.i32 q0, q2, q7      \n"
+        "VMOV.32 q11, q12         \n"
+        "SHA256SU1.32 q1, q3, q4  \n"
         "SHA256H.32 q12, q13, q0  \n"
         "SHA256H2.32 q13, q11, q0 \n"
 
         /* Round 4 */
-        "VLD1.32 {q5}, [%[k]]! \n"
-        "SHA256SU0.32 q4, q1        \n"
-        "VADD.i32 q0, q3, q5   \n"
-        "VMOV.32 q11, q12      \n"
-        "VMOV.32 q6,  q1       \n"
-        "SHA256SU1.32 q4, q2, q3    \n"
+        "SHA256SU0.32 q2, q3      \n"
+        "VADD.i32 q0, q3, q8      \n"
+        "VMOV.32 q11, q12         \n"
+        "SHA256SU1.32 q2, q4, q1  \n"
         "SHA256H.32 q12, q13, q0  \n"
         "SHA256H2.32 q13, q11, q0 \n"
 
         /* Round 5 */
-        "VLD1.32 {q5}, [%[k]]! \n"
-        "SHA256SU0.32 q6, q2        \n"
-        "VADD.i32 q0, q4, q5   \n"
-        "VMOV.32 q11, q12      \n"
-        "VMOV.32 q7, q2        \n"
-        "SHA256SU1.32 q6, q3, q4 \n"
+        "SHA256SU0.32 q3, q4      \n"
+        "VADD.i32 q0, q4, q9      \n"
+        "VMOV.32 q11, q12         \n"
+        "SHA256SU1.32 q3, q1, q2  \n"
         "SHA256H.32 q12, q13, q0  \n"
         "SHA256H2.32 q13, q11, q0 \n"
 
         /* Round 6 */
-        "VLD1.32 {q5}, [%[k]]! \n"
-        "SHA256SU0.32 q7, q3        \n"
-        "VADD.i32 q0, q6, q5        \n"
-        "VMOV.32 q11, q12      \n"
-        "VMOV.32 q8, q3        \n"
-        "VMOV.32 q11, q12      \n"
-        "SHA256SU1.32 q7, q4, q6    \n"
+        "VLD1.32 {q10}, [%[k]]!   \n"
+        "SHA256SU0.32 q4, q1      \n"
+        "VADD.i32 q0, q1, q10     \n"
+        "VMOV.32 q11, q12         \n"
+        "SHA256SU1.32 q4, q2, q3  \n"
         "SHA256H.32 q12, q13, q0  \n"
         "SHA256H2.32 q13, q11, q0 \n"
 
         /* Round 7 */
-        "VLD1.32 {q5}, [%[k]]! \n"
-        "SHA256SU0.32 q8, q4     \n"
-        "VADD.i32 q0, q7, q5   \n"
-        "VMOV.32 q11, q12      \n"
-        "VMOV q9, q4           \n"
-        "SHA256SU1.32 q8, q6, q7 \n"
+        "VLD1.32 {q10}, [%[k]]!   \n"
+        "SHA256SU0.32 q1, q2      \n"
+        "VADD.i32 q0, q2, q10     \n"
+        "VMOV.32 q11, q12         \n"
+        "SHA256SU1.32 q1, q3, q4  \n"
         "SHA256H.32 q12, q13, q0  \n"
         "SHA256H2.32 q13, q11, q0 \n"
 
         /* Round 8 */
-        "VLD1.32 {q5}, [%[k]]! \n"
-        "SHA256SU0.32 q9, q6        \n"
-        "VADD.i32 q0, q8, q5   \n"
-        "VMOV.32 q11, q12      \n"
-        "VMOV.32 q10, q6            \n"
-        "SHA256SU1.32 q9, q7, q8    \n"
+        "VLD1.32 {q10}, [%[k]]!   \n"
+        "SHA256SU0.32 q2, q3      \n"
+        "VADD.i32 q0, q3, q10     \n"
+        "VMOV.32 q11, q12         \n"
+        "SHA256SU1.32 q2, q4, q1  \n"
         "SHA256H.32 q12, q13, q0  \n"
         "SHA256H2.32 q13, q11, q0 \n"
 
         /* Round 9 */
-        "VLD1.32 {q5}, [%[k]]! \n"
-        "SHA256SU0.32 q10, q7        \n"
-        "VMOV.32 q1, q7        \n"
-        "VADD.i32 q0, q9, q5   \n"
-        "VMOV.32 q11, q12      \n"
-        "SHA256SU1.32 q10, q8, q9 \n"
+        "VLD1.32 {q10}, [%[k]]!   \n"
+        "SHA256SU0.32 q3, q4      \n"
+        "VADD.i32 q0, q4, q10     \n"
+        "VMOV.32 q11, q12         \n"
+        "SHA256SU1.32 q3, q1, q2  \n"
         "SHA256H.32 q12, q13, q0  \n"
         "SHA256H2.32 q13, q11, q0 \n"
 
         /* Round 10 */
-        "VLD1.32 {q5}, [%[k]]! \n"
-        "SHA256SU0.32 q1, q8        \n"
-        "VMOV.32 q2, q8        \n"
-        "VADD.i32 q0, q10, q5   \n"
-        "VMOV.32 q11, q12      \n"
-        "SHA256SU1.32 q1, q9, q10 \n"
+        "VLD1.32 {q10}, [%[k]]!   \n"
+        "SHA256SU0.32 q4, q1      \n"
+        "VADD.i32 q0, q1, q10     \n"
+        "VMOV.32 q11, q12         \n"
+        "SHA256SU1.32 q4, q2, q3  \n"
         "SHA256H.32 q12, q13, q0  \n"
         "SHA256H2.32 q13, q11, q0 \n"
 
         /* Round 11 */
-        "VLD1.32 {q5}, [%[k]]! \n"
-        "SHA256SU0.32 q2, q9        \n"
-        "VMOV.32 q3, q9        \n"
-        "VADD.i32 q0, q1, q5   \n"
-        "VMOV.32 q11, q12      \n"
-        "SHA256SU1.32 q2, q10, q1 \n"
+        "VLD1.32 {q10}, [%[k]]!   \n"
+        "SHA256SU0.32 q1, q2      \n"
+        "VADD.i32 q0, q2, q10     \n"
+        "VMOV.32 q11, q12         \n"
+        "SHA256SU1.32 q1, q3, q4  \n"
         "SHA256H.32 q12, q13, q0  \n"
         "SHA256H2.32 q13, q11, q0 \n"
 
         /* Round 12 */
-        "VLD1.32 {q5}, [%[k]]! \n"
-        "SHA256SU0.32 q3, q10        \n"
-        "VMOV.32 q4, q10        \n"
-        "VADD.i32 q0, q2, q5   \n"
-        "VMOV.32 q11, q12      \n"
-        "SHA256SU1.32 q3, q1, q2 \n"
+        "VLD1.32 {q10}, [%[k]]!   \n"
+        "SHA256SU0.32 q2, q3      \n"
+        "VADD.i32 q0, q3, q10     \n"
+        "VMOV.32 q11, q12         \n"
+        "SHA256SU1.32 q2, q4, q1  \n"
         "SHA256H.32 q12, q13, q0  \n"
         "SHA256H2.32 q13, q11, q0 \n"
 
         /* Round 13 */
-        "VLD1.32 {q5}, [%[k]]! \n"
-        "SHA256SU0.32 q4, q1        \n"
-        "VMOV.32 q6, q1        \n"
-        "VADD.i32 q0, q3, q5   \n"
-        "VMOV.32 q11, q12      \n"
-        "SHA256SU1.32 q4, q2, q3 \n"
+        "VLD1.32 {q10}, [%[k]]!   \n"
+        "SHA256SU0.32 q3, q4      \n"
+        "VADD.i32 q0, q4, q10     \n"
+        "VMOV.32 q11, q12         \n"
+        "SHA256SU1.32 q3, q1, q2  \n"
         "SHA256H.32 q12, q13, q0  \n"
         "SHA256H2.32 q13, q11, q0 \n"
 
         /* Round 14 */
-        "VLD1.32 {q5}, [%[k]]! \n"
-        "SHA256SU0.32 q6, q2        \n"
-        "VMOV.32 q7, q2        \n"
-        "VADD.i32 q0, q4, q5   \n"
-        "VMOV.32 q11, q12      \n"
-        "SHA256SU1.32 q6, q3, q4 \n"
+        "VLD1.32 {q10}, [%[k]]!   \n"
+        "VADD.i32 q0, q1, q10     \n"
+        "VMOV.32 q11, q12         \n"
         "SHA256H.32 q12, q13, q0  \n"
         "SHA256H2.32 q13, q11, q0 \n"
 
         /* Round 15 */
-        "VLD1.32 {q5}, [%[k]]! \n"
-        "SHA256SU0.32 q7, q3        \n"
-        "VADD.i32 q0, q6, q5   \n"
-        "VMOV.32 q11, q12      \n"
-        "SHA256SU1.32 q7, q4, q6 \n"
+        "VLD1.32 {q10}, [%[k]]!   \n"
+        "VADD.i32 q0, q2, q10     \n"
+        "VMOV.32 q11, q12         \n"
         "SHA256H.32 q12, q13, q0  \n"
         "SHA256H2.32 q13, q11, q0 \n"
 
         /* Round 16 */
-        "VLD1.32 {q5}, [%[k]]! \n"
-        "VADD.i32 q0, q7, q5   \n"
-        "VMOV.32 q11, q12      \n"
+        "VLD1.32 {q10}, [%[k]]    \n"
+        "SUB r8, r8, #1           \n"
+        "VADD.i32 q0, q3, q10     \n"
+        "VMOV.32 q11, q12         \n"
         "SHA256H.32 q12, q13, q0  \n"
         "SHA256H2.32 q13, q11, q0 \n"
 
@@ -866,7 +845,6 @@ int wc_Sha256Update(Sha256* sha256, const byte* data, word32 len)
         "VADD.i32 q13, q13, q15 \n"
 
         "#check if more blocks should be done\n"
-        "SUB r8, r8, #1    \n"
         "CMP r8, #0 \n"
         "BEQ sha256End \n"
 
@@ -877,7 +855,7 @@ int wc_Sha256Update(Sha256* sha256, const byte* data, word32 len)
         "VLD1.32 {q3}, [%[dataIn]]!   \n"
 
         /* reset K pointer */
-        "SUB %[k], %[k], #256 \n"
+        "SUB %[k], %[k], #160 \n"
         "VREV32.8 q0, q0 \n"
         "VREV32.8 q1, q1 \n"
         "VREV32.8 q2, q2 \n"
@@ -895,7 +873,7 @@ int wc_Sha256Update(Sha256* sha256, const byte* data, word32 len)
           [blocks] "2" (numBlocks), [dataIn] "3" (data)
         : "cc", "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7",
                           "q8",  "q9",  "q10", "q11", "q12", "q13", "q14",
-                          "q15"
+                          "q15", "r8"
         );
 
         AddLength(sha256, SHA256_BLOCK_SIZE * numBlocks);
@@ -930,15 +908,10 @@ int wc_Sha256Final(Sha256* sha256, byte* hash)
         sha256->buffLen += SHA256_BLOCK_SIZE - sha256->buffLen;
         __asm__ volatile (
         "#load leftover data\n"
-        "VLD1.32 {q0}, [%[buffer]]!   \n"
-        "VLD1.32 {q1}, [%[buffer]]!   \n"
-        "VLD1.32 {q2}, [%[buffer]]!   \n"
-        "VLD1.32 {q3}, [%[buffer]]   \n"
+        "VLDM %[buffer]!, {q0-q3} \n"
 
         "#load current digest\n"
-        "VLD1.32 {q12}, [%[digest]]! \n"
-        "VLD1.32 {q13}, [%[digest]]  \n"
-        "SUB %[digest], %[digest], #16 \n"
+        "VLDM %[digest], {q12-q13} \n"
         "VREV32.8 q0, q0 \n"
         "VREV32.8 q1, q1 \n"
         "VREV32.8 q2, q2 \n"
@@ -949,153 +922,140 @@ int wc_Sha256Final(Sha256* sha256, byte* hash)
         "VMOV.32 q15, q13 \n"
 
         /* begining of SHA256 block operation */
-
         /* Round 1 */
-        "VLD1.32 {q5}, [%[k]]! \n"
-        "VMOV.32 q4, q0        \n"
-        "VADD.i32 q0, q0, q5    \n"
-        "VMOV.32 q11, q12      \n"
+        "VLD1.32 {q5}, [%[k]]!    \n"
+        "VMOV.32 q4, q0           \n"
+        "VADD.i32 q0, q0, q5      \n"
+        "VMOV.32 q11, q12         \n"
         "SHA256H.32 q12, q13, q0  \n"
         "SHA256H2.32 q13, q11, q0 \n"
 
         /* Round 2 */
-        "VLD1.32 {q5}, [%[k]]! \n"
-        "VADD.i32 q0, q1, q5   \n"
-        "VMOV.32 q11, q12      \n"
+        "VLD1.32 {q5}, [%[k]]!    \n"
+        "SHA256SU0.32 q4, q1      \n"
+        "VADD.i32 q0, q1, q5      \n"
+        "VMOV.32 q11, q12         \n"
+        "SHA256SU1.32 q4, q2, q3  \n"
         "SHA256H.32 q12, q13, q0  \n"
         "SHA256H2.32 q13, q11, q0 \n"
 
         /* Round 3 */
-        "VLD1.32 {q5}, [%[k]]! \n"
-        "VADD.i32 q0, q2, q5   \n"
-        "VMOV.32 q11, q12      \n"
+        "VLD1.32 {q5}, [%[k]]!    \n"
+        "SHA256SU0.32 q1, q2      \n"
+        "VADD.i32 q0, q2, q5      \n"
+        "VMOV.32 q11, q12         \n"
+        "SHA256SU1.32 q1, q3, q4  \n"
         "SHA256H.32 q12, q13, q0  \n"
         "SHA256H2.32 q13, q11, q0 \n"
 
         /* Round 4 */
-        "VLD1.32 {q5}, [%[k]]! \n"
-        "SHA256SU0.32 q4, q1        \n"
-        "VADD.i32 q0, q3, q5   \n"
-        "VMOV.32 q11, q12      \n"
-        "VMOV.32 q6,  q1       \n"
-        "SHA256SU1.32 q4, q2, q3    \n"
+        "VLD1.32 {q5}, [%[k]]!    \n"
+        "SHA256SU0.32 q2, q3      \n"
+        "VADD.i32 q0, q3, q5      \n"
+        "VMOV.32 q11, q12         \n"
+        "SHA256SU1.32 q2, q4, q1  \n"
         "SHA256H.32 q12, q13, q0  \n"
         "SHA256H2.32 q13, q11, q0 \n"
 
         /* Round 5 */
-        "VLD1.32 {q5}, [%[k]]! \n"
-        "SHA256SU0.32 q6, q2        \n"
-        "VADD.i32 q0, q4, q5   \n"
-        "VMOV.32 q11, q12      \n"
-        "VMOV.32 q7, q2        \n"
-        "SHA256SU1.32 q6, q3, q4 \n"
+        "VLD1.32 {q5}, [%[k]]!    \n"
+        "SHA256SU0.32 q3, q4      \n"
+        "VADD.i32 q0, q4, q5      \n"
+        "VMOV.32 q11, q12         \n"
+        "SHA256SU1.32 q3, q1, q2  \n"
         "SHA256H.32 q12, q13, q0  \n"
         "SHA256H2.32 q13, q11, q0 \n"
 
         /* Round 6 */
-        "VLD1.32 {q5}, [%[k]]! \n"
-        "SHA256SU0.32 q7, q3        \n"
-        "VADD.i32 q0, q6, q5        \n"
-        "VMOV.32 q11, q12      \n"
-        "VMOV.32 q8, q3        \n"
-        "VMOV.32 q11, q12      \n"
-        "SHA256SU1.32 q7, q4, q6    \n"
+        "VLD1.32 {q5}, [%[k]]!    \n"
+        "SHA256SU0.32 q4, q1      \n"
+        "VADD.i32 q0, q1, q5     \n"
+        "VMOV.32 q11, q12         \n"
+        "SHA256SU1.32 q4, q2, q3  \n"
         "SHA256H.32 q12, q13, q0  \n"
         "SHA256H2.32 q13, q11, q0 \n"
 
         /* Round 7 */
-        "VLD1.32 {q5}, [%[k]]! \n"
-        "SHA256SU0.32 q8, q4     \n"
-        "VADD.i32 q0, q7, q5   \n"
-        "VMOV.32 q11, q12      \n"
-        "VMOV q9, q4           \n"
-        "SHA256SU1.32 q8, q6, q7 \n"
+        "VLD1.32 {q5}, [%[k]]!    \n"
+        "SHA256SU0.32 q1, q2      \n"
+        "VADD.i32 q0, q2, q5      \n"
+        "VMOV.32 q11, q12         \n"
+        "SHA256SU1.32 q1, q3, q4  \n"
         "SHA256H.32 q12, q13, q0  \n"
         "SHA256H2.32 q13, q11, q0 \n"
 
         /* Round 8 */
-        "VLD1.32 {q5}, [%[k]]! \n"
-        "SHA256SU0.32 q9, q6        \n"
-        "VADD.i32 q0, q8, q5   \n"
-        "VMOV.32 q11, q12      \n"
-        "VMOV.32 q10, q6            \n"
-        "SHA256SU1.32 q9, q7, q8    \n"
+        "VLD1.32 {q5}, [%[k]]!    \n"
+        "SHA256SU0.32 q2, q3      \n"
+        "VADD.i32 q0, q3, q5      \n"
+        "VMOV.32 q11, q12         \n"
+        "SHA256SU1.32 q2, q4, q1  \n"
         "SHA256H.32 q12, q13, q0  \n"
         "SHA256H2.32 q13, q11, q0 \n"
 
         /* Round 9 */
-        "VLD1.32 {q5}, [%[k]]! \n"
-        "SHA256SU0.32 q10, q7        \n"
-        "VMOV.32 q1, q7        \n"
-        "VADD.i32 q0, q9, q5   \n"
-        "VMOV.32 q11, q12      \n"
-        "SHA256SU1.32 q10, q8, q9 \n"
+        "VLD1.32 {q5}, [%[k]]!    \n"
+        "SHA256SU0.32 q3, q4      \n"
+        "VADD.i32 q0, q4, q5      \n"
+        "VMOV.32 q11, q12         \n"
+        "SHA256SU1.32 q3, q1, q2  \n"
         "SHA256H.32 q12, q13, q0  \n"
         "SHA256H2.32 q13, q11, q0 \n"
 
         /* Round 10 */
-        "VLD1.32 {q5}, [%[k]]! \n"
-        "SHA256SU0.32 q1, q8        \n"
-        "VMOV.32 q2, q8        \n"
-        "VADD.i32 q0, q10, q5   \n"
-        "VMOV.32 q11, q12      \n"
-        "SHA256SU1.32 q1, q9, q10 \n"
+        "VLD1.32 {q5}, [%[k]]!    \n"
+        "SHA256SU0.32 q4, q1      \n"
+        "VADD.i32 q0, q1, q5      \n"
+        "VMOV.32 q11, q12         \n"
+        "SHA256SU1.32 q4, q2, q3  \n"
         "SHA256H.32 q12, q13, q0  \n"
         "SHA256H2.32 q13, q11, q0 \n"
 
         /* Round 11 */
-        "VLD1.32 {q5}, [%[k]]! \n"
-        "SHA256SU0.32 q2, q9        \n"
-        "VMOV.32 q3, q9        \n"
-        "VADD.i32 q0, q1, q5   \n"
-        "VMOV.32 q11, q12      \n"
-        "SHA256SU1.32 q2, q10, q1 \n"
+        "VLD1.32 {q5}, [%[k]]!    \n"
+        "SHA256SU0.32 q1, q2      \n"
+        "VADD.i32 q0, q2, q5      \n"
+        "VMOV.32 q11, q12         \n"
+        "SHA256SU1.32 q1, q3, q4  \n"
         "SHA256H.32 q12, q13, q0  \n"
         "SHA256H2.32 q13, q11, q0 \n"
 
         /* Round 12 */
-        "VLD1.32 {q5}, [%[k]]! \n"
-        "SHA256SU0.32 q3, q10        \n"
-        "VMOV.32 q4, q10        \n"
-        "VADD.i32 q0, q2, q5   \n"
-        "VMOV.32 q11, q12      \n"
-        "SHA256SU1.32 q3, q1, q2 \n"
+        "VLD1.32 {q5}, [%[k]]!    \n"
+        "SHA256SU0.32 q2, q3      \n"
+        "VADD.i32 q0, q3, q5      \n"
+        "VMOV.32 q11, q12         \n"
+        "SHA256SU1.32 q2, q4, q1  \n"
         "SHA256H.32 q12, q13, q0  \n"
         "SHA256H2.32 q13, q11, q0 \n"
 
         /* Round 13 */
-        "VLD1.32 {q5}, [%[k]]! \n"
-        "SHA256SU0.32 q4, q1        \n"
-        "VMOV.32 q6, q1        \n"
-        "VADD.i32 q0, q3, q5   \n"
-        "VMOV.32 q11, q12      \n"
-        "SHA256SU1.32 q4, q2, q3 \n"
+        "VLD1.32 {q5}, [%[k]]!    \n"
+        "SHA256SU0.32 q3, q4      \n"
+        "VADD.i32 q0, q4, q5      \n"
+        "VMOV.32 q11, q12         \n"
+        "SHA256SU1.32 q3, q1, q2  \n"
         "SHA256H.32 q12, q13, q0  \n"
         "SHA256H2.32 q13, q11, q0 \n"
 
         /* Round 14 */
-        "VLD1.32 {q5}, [%[k]]! \n"
-        "SHA256SU0.32 q6, q2        \n"
-        "VMOV.32 q7, q2        \n"
-        "VADD.i32 q0, q4, q5   \n"
-        "VMOV.32 q11, q12      \n"
-        "SHA256SU1.32 q6, q3, q4 \n"
+        "VLD1.32 {q5}, [%[k]]!    \n"
+        "VADD.i32 q0, q1, q5      \n"
+        "VMOV.32 q11, q12         \n"
         "SHA256H.32 q12, q13, q0  \n"
         "SHA256H2.32 q13, q11, q0 \n"
 
         /* Round 15 */
-        "VLD1.32 {q5}, [%[k]]! \n"
-        "SHA256SU0.32 q7, q3        \n"
-        "VADD.i32 q0, q6, q5   \n"
-        "VMOV.32 q11, q12      \n"
-        "SHA256SU1.32 q7, q4, q6 \n"
+        "VLD1.32 {q5}, [%[k]]!    \n"
+        "VADD.i32 q0, q2, q5      \n"
+        "VMOV.32 q11, q12         \n"
         "SHA256H.32 q12, q13, q0  \n"
         "SHA256H2.32 q13, q11, q0 \n"
 
         /* Round 16 */
-        "VLD1.32 {q5}, [%[k]]! \n"
-        "VADD.i32 q0, q7, q5   \n"
-        "VMOV.32 q11, q12      \n"
+        "VLD1.32 {q5}, [%[k]]!     \n"
+        "VADD.i32 q0, q3, q5      \n"
+        "VMOV.32 q11, q12         \n"
         "SHA256H.32 q12, q13, q0  \n"
         "SHA256H2.32 q13, q11, q0 \n"
 
@@ -1153,167 +1113,149 @@ int wc_Sha256Final(Sha256* sha256, byte* hash)
     word32* digPt = sha256->digest;
     __asm__ volatile (
         "#load leftover data\n"
-        "VLD1.32 {q0}, [%[buffer]]!  \n"
-        "VLD1.32 {q1}, [%[buffer]]!  \n"
-        "VLD1.32 {q2}, [%[buffer]]!  \n"
-        "VLD1.32 {q3}, [%[buffer]]   \n"
+        "VLDM %[buffer]!, {q0-q3} \n"
 
         "#load current digest\n"
-        "VLD1.32 {q12}, [%[digest]]! \n"
-        "VLD1.32 {q13}, [%[digest]]  \n"
-        "SUB %[digest], %[digest], #16 \n"
+        "VLDM %[digest], {q12-q13} \n"
 
         "VMOV.32 q14, q12 \n" /* store digest for add at the end */
         "VMOV.32 q15, q13 \n"
 
         /* begining of SHA256 block operation */
-
         /* Round 1 */
-        "VLD1.32 {q5}, [%[k]]! \n"
-        "VMOV.32 q4, q0        \n"
-        "VADD.i32 q0, q0, q5    \n"
-        "VMOV.32 q11, q12      \n"
+        "VLD1.32 {q5}, [%[k]]!    \n"
+        "VMOV.32 q4, q0           \n"
+        "VADD.i32 q0, q0, q5      \n"
+        "VMOV.32 q11, q12         \n"
         "SHA256H.32 q12, q13, q0  \n"
         "SHA256H2.32 q13, q11, q0 \n"
 
         /* Round 2 */
-        "VLD1.32 {q5}, [%[k]]! \n"
-        "VADD.i32 q0, q1, q5   \n"
-        "VMOV.32 q11, q12      \n"
+        "VLD1.32 {q5}, [%[k]]!    \n"
+        "SHA256SU0.32 q4, q1      \n"
+        "VADD.i32 q0, q1, q5      \n"
+        "VMOV.32 q11, q12         \n"
+        "SHA256SU1.32 q4, q2, q3  \n"
         "SHA256H.32 q12, q13, q0  \n"
         "SHA256H2.32 q13, q11, q0 \n"
 
         /* Round 3 */
-        "VLD1.32 {q5}, [%[k]]! \n"
-        "VADD.i32 q0, q2, q5   \n"
-        "VMOV.32 q11, q12      \n"
+        "VLD1.32 {q5}, [%[k]]!    \n"
+        "SHA256SU0.32 q1, q2      \n"
+        "VADD.i32 q0, q2, q5      \n"
+        "VMOV.32 q11, q12         \n"
+        "SHA256SU1.32 q1, q3, q4  \n"
         "SHA256H.32 q12, q13, q0  \n"
         "SHA256H2.32 q13, q11, q0 \n"
 
         /* Round 4 */
-        "VLD1.32 {q5}, [%[k]]! \n"
-        "SHA256SU0.32 q4, q1        \n"
-        "VADD.i32 q0, q3, q5   \n"
-        "VMOV.32 q11, q12      \n"
-        "VMOV.32 q6,  q1       \n"
-        "SHA256SU1.32 q4, q2, q3    \n"
+        "VLD1.32 {q5}, [%[k]]!    \n"
+        "SHA256SU0.32 q2, q3      \n"
+        "VADD.i32 q0, q3, q5      \n"
+        "VMOV.32 q11, q12         \n"
+        "SHA256SU1.32 q2, q4, q1  \n"
         "SHA256H.32 q12, q13, q0  \n"
         "SHA256H2.32 q13, q11, q0 \n"
 
         /* Round 5 */
-        "VLD1.32 {q5}, [%[k]]! \n"
-        "SHA256SU0.32 q6, q2        \n"
-        "VADD.i32 q0, q4, q5   \n"
-        "VMOV.32 q11, q12      \n"
-        "VMOV.32 q7, q2        \n"
-        "SHA256SU1.32 q6, q3, q4 \n"
+        "VLD1.32 {q5}, [%[k]]!    \n"
+        "SHA256SU0.32 q3, q4      \n"
+        "VADD.i32 q0, q4, q5      \n"
+        "VMOV.32 q11, q12         \n"
+        "SHA256SU1.32 q3, q1, q2  \n"
         "SHA256H.32 q12, q13, q0  \n"
         "SHA256H2.32 q13, q11, q0 \n"
 
         /* Round 6 */
-        "VLD1.32 {q5}, [%[k]]! \n"
-        "SHA256SU0.32 q7, q3        \n"
-        "VADD.i32 q0, q6, q5        \n"
-        "VMOV.32 q11, q12      \n"
-        "VMOV.32 q8, q3        \n"
-        "VMOV.32 q11, q12      \n"
-        "SHA256SU1.32 q7, q4, q6    \n"
+        "VLD1.32 {q5}, [%[k]]!    \n"
+        "SHA256SU0.32 q4, q1      \n"
+        "VADD.i32 q0, q1, q5     \n"
+        "VMOV.32 q11, q12         \n"
+        "SHA256SU1.32 q4, q2, q3  \n"
         "SHA256H.32 q12, q13, q0  \n"
         "SHA256H2.32 q13, q11, q0 \n"
 
         /* Round 7 */
-        "VLD1.32 {q5}, [%[k]]! \n"
-        "SHA256SU0.32 q8, q4     \n"
-        "VADD.i32 q0, q7, q5   \n"
-        "VMOV.32 q11, q12      \n"
-        "VMOV q9, q4           \n"
-        "SHA256SU1.32 q8, q6, q7 \n"
+        "VLD1.32 {q5}, [%[k]]!    \n"
+        "SHA256SU0.32 q1, q2      \n"
+        "VADD.i32 q0, q2, q5      \n"
+        "VMOV.32 q11, q12         \n"
+        "SHA256SU1.32 q1, q3, q4  \n"
         "SHA256H.32 q12, q13, q0  \n"
         "SHA256H2.32 q13, q11, q0 \n"
 
         /* Round 8 */
-        "VLD1.32 {q5}, [%[k]]! \n"
-        "SHA256SU0.32 q9, q6        \n"
-        "VADD.i32 q0, q8, q5   \n"
-        "VMOV.32 q11, q12      \n"
-        "VMOV.32 q10, q6            \n"
-        "SHA256SU1.32 q9, q7, q8    \n"
+        "VLD1.32 {q5}, [%[k]]!    \n"
+        "SHA256SU0.32 q2, q3      \n"
+        "VADD.i32 q0, q3, q5      \n"
+        "VMOV.32 q11, q12         \n"
+        "SHA256SU1.32 q2, q4, q1  \n"
         "SHA256H.32 q12, q13, q0  \n"
         "SHA256H2.32 q13, q11, q0 \n"
 
         /* Round 9 */
-        "VLD1.32 {q5}, [%[k]]! \n"
-        "SHA256SU0.32 q10, q7        \n"
-        "VMOV.32 q1, q7        \n"
-        "VADD.i32 q0, q9, q5   \n"
-        "VMOV.32 q11, q12      \n"
-        "SHA256SU1.32 q10, q8, q9 \n"
+        "VLD1.32 {q5}, [%[k]]!    \n"
+        "SHA256SU0.32 q3, q4      \n"
+        "VADD.i32 q0, q4, q5      \n"
+        "VMOV.32 q11, q12         \n"
+        "SHA256SU1.32 q3, q1, q2  \n"
         "SHA256H.32 q12, q13, q0  \n"
         "SHA256H2.32 q13, q11, q0 \n"
 
         /* Round 10 */
-        "VLD1.32 {q5}, [%[k]]! \n"
-        "SHA256SU0.32 q1, q8        \n"
-        "VMOV.32 q2, q8        \n"
-        "VADD.i32 q0, q10, q5   \n"
-        "VMOV.32 q11, q12      \n"
-        "SHA256SU1.32 q1, q9, q10 \n"
+        "VLD1.32 {q5}, [%[k]]!    \n"
+        "SHA256SU0.32 q4, q1      \n"
+        "VADD.i32 q0, q1, q5      \n"
+        "VMOV.32 q11, q12         \n"
+        "SHA256SU1.32 q4, q2, q3  \n"
         "SHA256H.32 q12, q13, q0  \n"
         "SHA256H2.32 q13, q11, q0 \n"
 
         /* Round 11 */
-        "VLD1.32 {q5}, [%[k]]! \n"
-        "SHA256SU0.32 q2, q9        \n"
-        "VMOV.32 q3, q9        \n"
-        "VADD.i32 q0, q1, q5   \n"
-        "VMOV.32 q11, q12      \n"
-        "SHA256SU1.32 q2, q10, q1 \n"
+        "VLD1.32 {q5}, [%[k]]!    \n"
+        "SHA256SU0.32 q1, q2      \n"
+        "VADD.i32 q0, q2, q5      \n"
+        "VMOV.32 q11, q12         \n"
+        "SHA256SU1.32 q1, q3, q4  \n"
         "SHA256H.32 q12, q13, q0  \n"
         "SHA256H2.32 q13, q11, q0 \n"
 
         /* Round 12 */
-        "VLD1.32 {q5}, [%[k]]! \n"
-        "SHA256SU0.32 q3, q10        \n"
-        "VMOV.32 q4, q10        \n"
-        "VADD.i32 q0, q2, q5   \n"
-        "VMOV.32 q11, q12      \n"
-        "SHA256SU1.32 q3, q1, q2 \n"
+        "VLD1.32 {q5}, [%[k]]!    \n"
+        "SHA256SU0.32 q2, q3      \n"
+        "VADD.i32 q0, q3, q5      \n"
+        "VMOV.32 q11, q12         \n"
+        "SHA256SU1.32 q2, q4, q1  \n"
         "SHA256H.32 q12, q13, q0  \n"
         "SHA256H2.32 q13, q11, q0 \n"
 
         /* Round 13 */
-        "VLD1.32 {q5}, [%[k]]! \n"
-        "SHA256SU0.32 q4, q1        \n"
-        "VMOV.32 q6, q1        \n"
-        "VADD.i32 q0, q3, q5   \n"
-        "VMOV.32 q11, q12      \n"
-        "SHA256SU1.32 q4, q2, q3 \n"
+        "VLD1.32 {q5}, [%[k]]!    \n"
+        "SHA256SU0.32 q3, q4      \n"
+        "VADD.i32 q0, q4, q5      \n"
+        "VMOV.32 q11, q12         \n"
+        "SHA256SU1.32 q3, q1, q2  \n"
         "SHA256H.32 q12, q13, q0  \n"
         "SHA256H2.32 q13, q11, q0 \n"
 
         /* Round 14 */
-        "VLD1.32 {q5}, [%[k]]! \n"
-        "SHA256SU0.32 q6, q2        \n"
-        "VMOV.32 q7, q2        \n"
-        "VADD.i32 q0, q4, q5   \n"
-        "VMOV.32 q11, q12      \n"
-        "SHA256SU1.32 q6, q3, q4 \n"
+        "VLD1.32 {q5}, [%[k]]!    \n"
+        "VADD.i32 q0, q1, q5      \n"
+        "VMOV.32 q11, q12         \n"
         "SHA256H.32 q12, q13, q0  \n"
         "SHA256H2.32 q13, q11, q0 \n"
 
         /* Round 15 */
-        "VLD1.32 {q5}, [%[k]]! \n"
-        "SHA256SU0.32 q7, q3        \n"
-        "VADD.i32 q0, q6, q5   \n"
-        "VMOV.32 q11, q12      \n"
-        "SHA256SU1.32 q7, q4, q6 \n"
+        "VLD1.32 {q5}, [%[k]]!    \n"
+        "VADD.i32 q0, q2, q5      \n"
+        "VMOV.32 q11, q12         \n"
         "SHA256H.32 q12, q13, q0  \n"
         "SHA256H2.32 q13, q11, q0 \n"
 
         /* Round 16 */
-        "VLD1.32 {q5}, [%[k]]! \n"
-        "VADD.i32 q0, q7, q5   \n"
-        "VMOV.32 q11, q12      \n"
+        "VLD1.32 {q5}, [%[k]]!     \n"
+        "VADD.i32 q0, q3, q5      \n"
+        "VMOV.32 q11, q12         \n"
         "SHA256H.32 q12, q13, q0  \n"
         "SHA256H2.32 q13, q11, q0 \n"
 
