@@ -3720,19 +3720,19 @@ int  wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
                     "AESE.8 q15, q8\n"
                     "AESMC.8 q15, q15\n"
 
+                    "VLD1.32 {q12}, [%[Key]]! \n"
                     "AESE.8 q15, q9\n"
                     "AESMC.8 q15, q15\n"
-                    "VLD1.32 {q12}, [%[input]]!  \n"
                     "AESE.8 q15, q10\n"
                     "AESMC.8 q15, q15\n"
 
                     "AESE.8 q15, q11\n"
                     "AESMC.8 q15, q15\n"
-                    "VLD1.32 {q11}, [%[Key]]! \n"
-                    "AESE.8 q0, q11\n"
-                    "AESE.8 q15, q11\n"
-
                     "VLD1.32 {q11}, [%[Key]] \n"
+                    "AESE.8 q0, q12\n"
+                    "AESE.8 q15, q12\n"
+
+                    "VLD1.32 {q12}, [%[input]]!  \n"
                     "VEOR.32 q0, q0, q11\n"
                     "VEOR.32 q15, q15, q11\n"
                     "VEOR.32 q0, q0, q12\n"
@@ -3748,7 +3748,6 @@ int  wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
 
                     /* single block */
                     "AESCTR192Block:      \n"
-                    "VLD1.32 {q12}, [%[input]]! \n"
                     "VLD1.32 {q11}, [%[Key]]! \n"
                     "VMOV.32 q0, q13  \n"
                     "AESE.8 q0, q1\n"
@@ -3777,11 +3776,12 @@ int  wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
                     "AESMC.8 q0, q0\n"
                     "AESE.8 q0, q10\n"
                     "AESMC.8 q0, q0\n"
+                    "VLD1.32 {q12}, [%[Key]]! \n"
                     "AESE.8 q0, q11\n"
                     "AESMC.8 q0, q0\n"
-                    "VLD1.32 {q11}, [%[Key]]! \n"
-                    "AESE.8 q0, q11\n"
                     "VLD1.32 {q11}, [%[Key]] \n"
+                    "AESE.8 q0, q12\n"
+                    "VLD1.32 {q12}, [%[input]]! \n"
                     "VEOR.32 q0, q0, q11\n"
                     "#CTR operations, increment counter and xorbuf \n"
                     "VEOR.32 q0, q0, q12\n"
@@ -3846,9 +3846,9 @@ int  wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
                     "AESE.8 q0, q4\n"
                     "AESMC.8 q0, q0\n"
                     "VREV64.8 q15, q15\n" /* revert from network order */
-                    "VREV64.8 q13, q13\n" /* revert from network order */
                     "AESE.8 q0, q5\n"
                     "AESMC.8 q0, q0\n"
+                    "VREV64.8 q13, q13\n" /* revert from network order */
                     "AESE.8 q15, q1\n"
                     "AESMC.8 q15, q15\n"
 
@@ -3888,7 +3888,7 @@ int  wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
 
                     "AESE.8 q15, q9\n"
                     "AESMC.8 q15, q15\n"
-                    "VLD1.32 {q12}, [%[input]]!  \n"
+                    "VLD1.32 {q12}, [%[Key]]!  \n"
                     "AESE.8 q15, q10\n"
                     "AESMC.8 q15, q15\n"
 
@@ -3896,22 +3896,22 @@ int  wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
                     "AESMC.8 q15, q15\n"
 
                     "VLD1.32 {q11}, [%[Key]]! \n"
-                    "AESE.8 q0, q11\n" /* rnd 12*/
+                    "AESE.8 q0, q12\n" /* rnd 12*/
                     "AESMC.8 q0, q0\n"
-                    "AESE.8 q15, q11\n" /* rnd 12 */
+                    "AESE.8 q15, q12\n" /* rnd 12 */
                     "AESMC.8 q15, q15\n"
 
-                    "VLD1.32 {q11}, [%[Key]]! \n"
+                    "VLD1.32 {q12}, [%[Key]]!  \n"
                     "AESE.8 q0, q11\n" /* rnd 13 */
                     "AESMC.8 q0, q0\n"
                     "AESE.8 q15, q11\n" /* rnd 13 */
                     "AESMC.8 q15, q15\n"
 
                     "VLD1.32 {q11}, [%[Key]]! \n"
-                    "AESE.8 q0, q11\n" /* rnd 14 */
-                    "AESE.8 q15, q11\n" /* rnd 14 */
+                    "AESE.8 q0, q12\n" /* rnd 14 */
+                    "AESE.8 q15, q12\n" /* rnd 14 */
 
-                    "VLD1.32 {q11}, [%[Key]] \n"
+                    "VLD1.32 {q12}, [%[input]]!  \n"
                     "VEOR.32 q0, q0, q11\n" /* rnd 15 */
                     "VEOR.32 q15, q15, q11\n" /* rnd 15 */
                     "VEOR.32 q0, q0, q12\n"
@@ -3926,7 +3926,6 @@ int  wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
                     "B AESCTR256Block2 \n"
 
                     "AESCTR256Block:      \n"
-                    "VLD1.32 {q12}, [%[input]]! \n"
                     "VLD1.32 {q11}, [%[Key]]! \n"
                     "VMOV.32 q0, q13  \n"
                     "AESE.8 q0, q1\n"
@@ -3954,17 +3953,18 @@ int  wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
                     "AESMC.8 q0, q0\n"
                     "AESE.8 q0, q10\n"
                     "AESMC.8 q0, q0\n"
+                    "VLD1.32 {q12}, [%[Key]]! \n"
                     "AESE.8 q0, q11\n"
                     "AESMC.8 q0, q0\n"
                     "VLD1.32 {q11}, [%[Key]]! \n"
-                    "AESE.8 q0, q11\n" /* rnd 12 */
+                    "AESE.8 q0, q12\n" /* rnd 12 */
                     "AESMC.8 q0, q0\n"
-                    "VLD1.32 {q11}, [%[Key]]! \n"
+                    "VLD1.32 {q12}, [%[Key]]! \n"
                     "AESE.8 q0, q11\n" /* rnd 13 */
                     "AESMC.8 q0, q0\n"
-                    "VLD1.32 {q11}, [%[Key]]! \n"
-                    "AESE.8 q0, q11\n" /* rnd 14 */
                     "VLD1.32 {q11}, [%[Key]] \n"
+                    "AESE.8 q0, q12\n" /* rnd 14 */
+                    "VLD1.32 {q12}, [%[input]]! \n"
                     "VEOR.32 q0, q0, q11\n" /* rnd 15 */
                     "#CTR operations, increment counter and xorbuf \n"
                     "VEOR.32 q0, q0, q12\n"
