@@ -85,6 +85,13 @@
     #endif
 #endif
 
+/* For FIPS keep the function names the same */
+#ifdef HAVE_FIPS
+#define wc_InitMutex   InitMutex
+#define wc_FreeMutex   FreeMutex
+#define wc_LockMutex   LockMutex
+#define wc_UnLockMutex UnLockMutex
+#endif /* HAVE_FIPS */
 
 #ifdef SINGLE_THREADED
     typedef int wolfSSL_Mutex;
