@@ -2274,6 +2274,12 @@ then
         AM_CONDITIONAL([BUILD_CRL], [test "x$ENABLED_CRL" = "xyes"])
     fi
 
+    # Requires DES3, make sure on
+    if test "x$ENABLED_DES3" = "xno"
+    then
+        ENABLED_DES3="yes"
+    fi
+
     # Requires tlsx, make sure on
     if test "x$ENABLED_TLSX" = "xno"
     then
