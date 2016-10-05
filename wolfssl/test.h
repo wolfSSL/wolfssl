@@ -632,10 +632,13 @@ static INLINE void build_addr(SOCKADDR_IN_T* addr, const char* peer,
             if (udp) {
                 hints.ai_socktype = SOCK_DGRAM;
                 hints.ai_protocol = IPPROTO_UDP;
-            } else if (sctp) {
+            }
+        #ifdef WOLFSSL_SCTP
+            else if (sctp) {
                 hints.ai_socktype = SOCK_STREAM;
                 hints.ai_protocol = IPPROTO_SCTP;
             }
+        #endif
             else {
                 hints.ai_socktype = SOCK_STREAM;
                 hints.ai_protocol = IPPROTO_TCP;
@@ -663,8 +666,10 @@ static INLINE void tcp_socket(SOCKET_T* sockfd, int udp, int sctp)
 {
     if (udp)
         *sockfd = socket(AF_INET_V, SOCK_DGRAM, IPPROTO_UDP);
+#ifdef WOLFSSL_SCTP
     else if (sctp)
         *sockfd = socket(AF_INET_V, SOCK_STREAM, IPPROTO_SCTP);
+#endif
     else
         *sockfd = socket(AF_INET_V, SOCK_STREAM, IPPROTO_TCP);
 
