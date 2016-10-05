@@ -81,7 +81,7 @@ int wolfCrypt_Init()
 
 wolfSSL_Mutex* wc_InitAndAllocMutex()
 {
-    wolfSSL_Mutex* m = XMALLOC(sizeof(wolfSSL_Mutex), NULL,
+    wolfSSL_Mutex* m = (wolfSSL_Mutex*) XMALLOC(sizeof(wolfSSL_Mutex), NULL,
             DYNAMIC_TYPE_MUTEX);
     if(m && wc_InitMutex(m))
         return m;
