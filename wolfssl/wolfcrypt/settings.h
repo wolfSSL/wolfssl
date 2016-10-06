@@ -124,6 +124,9 @@
 /* Uncomment next line if building for VxWorks */
 /* #define WOLFSSL_VXWORKS */
 
+/* Uncomment next line if building for Nordic nRF5x platofrm */
+/* #define WOLFSSL_NRF5x */
+
 /* Uncomment next line to enable deprecated less secure static DH suites */
 /* #define WOLFSSL_STATIC_DH */
 
@@ -399,6 +402,23 @@
     #define NO_MAIN_DRIVER
     #define NO_RC4
     #define SINGLE_THREADED         /* Not ported at this time */
+#endif
+
+#ifdef WOLFSSL_NRF5x
+		#define SIZEOF_LONG 4
+		#define SIZEOF_LONG_LONG 8
+		#define NO_ASN_TIME
+		#define NO_DEV_RANDOM
+		#define NO_FILESYSTEM
+		#define NO_MAIN_DRIVER
+		#define NO_WRITEV
+		#define SINGLE_THREADED
+		#define USE_FAST_MATH
+		#define TFM_TIMING_RESISTANT
+		#define USE_WOLFSSL_MEMORY
+		#define WOLFSSL_NRF51
+		#define WOLFSSL_USER_IO
+		#define NO_SESSION_CACHE
 #endif
 
 /* Micrium will use Visual Studio for compilation but not the Win32 API */
