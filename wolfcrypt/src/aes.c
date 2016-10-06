@@ -3425,8 +3425,6 @@ static void GHASH(Aes* aes, const byte* a, word32 aSz,
     GMULT(x, h);
 
     /* Copy the result into s. */
-    if (sSz > AES_BLOCK_SIZE)
-        sSz = AES_BLOCK_SIZE;
     XMEMCPY(s, x, sSz);
 }
 
@@ -3575,8 +3573,6 @@ static void GHASH(Aes* aes, const byte* a, word32 aSz,
     GMULT(x, aes->M0);
 
     /* Copy the result into s. */
-    if (sSz > AES_BLOCK_SIZE)
-        sSz = AES_BLOCK_SIZE;
     XMEMCPY(s, x, sSz);
 }
 
@@ -3701,8 +3697,6 @@ static void GHASH(Aes* aes, const byte* a, word32 aSz,
     #ifdef LITTLE_ENDIAN_ORDER
         ByteReverseWords64(x, x, AES_BLOCK_SIZE);
     #endif
-    if (sSz > AES_BLOCK_SIZE)
-        sSz = AES_BLOCK_SIZE;
     XMEMCPY(s, x, sSz);
 }
 
@@ -3850,8 +3844,6 @@ static void GHASH(Aes* aes, const byte* a, word32 aSz,
     #ifdef LITTLE_ENDIAN_ORDER
         ByteReverseWords(x, x, AES_BLOCK_SIZE);
     #endif
-    if (sSz > AES_BLOCK_SIZE)
-        sSz = AES_BLOCK_SIZE;
     XMEMCPY(s, x, sSz);
 }
 
@@ -3871,6 +3863,10 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     byte initialCounter[AES_BLOCK_SIZE];
     byte *ctr ;
     byte scratch[AES_BLOCK_SIZE];
+
+    /* Sanity check for XMEMCPY in GHASH function and local xorbuf call */
+    if (authTagSz > AES_BLOCK_SIZE)
+        return BAD_FUNC_ARG;
 
 #ifdef WOLFSSL_AESNI
     if (haveAESNI) {
@@ -3922,8 +3918,6 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
 
     GHASH(aes, authIn, authInSz, out, sz, authTag, authTagSz);
     wc_AesEncrypt(aes, initialCounter, scratch);
-    if (authTagSz > AES_BLOCK_SIZE)
-        authTagSz = AES_BLOCK_SIZE;
     xorbuf(authTag, scratch, authTagSz);
 
     return 0;
@@ -3944,6 +3938,10 @@ int  wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     byte initialCounter[AES_BLOCK_SIZE];
     byte *ctr ;
     byte scratch[AES_BLOCK_SIZE];
+
+    /* Sanity check for local ConstantCompare call */
+    if (authTagSz > AES_BLOCK_SIZE)
+        return BAD_FUNC_ARG;
 
 #ifdef WOLFSSL_AESNI
     if (haveAESNI) {
