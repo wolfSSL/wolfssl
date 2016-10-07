@@ -3811,22 +3811,27 @@ static int ecc_check_privkey_gen(ecc_key* key, mp_int* a, mp_int* prime)
 static int ecc_check_privkey_gen_helper(ecc_key* key)
 {
     mp_int prime;
+    mp_int a;
     int    err;
 
     if (key == NULL)
         return BAD_FUNC_ARG;
 
-    err = mp_init(&prime);
+    err = mp_init_multi(&prime, &a, NULL, NULL, NULL, NULL);
     if (err != MP_OKAY)
         return err;
 
     err = mp_read_radix(&prime, key->dp->prime, 16);
 
     if (err == MP_OKAY)
-        err = ecc_check_privkey_gen(key, &prime);
+        err = mp_read_radix(&a, key->dp->Af, 16);
+
+    if (err == MP_OKAY)
+        err = ecc_check_privkey_gen(key, &a, &prime);
 
 #ifndef USE_FAST_MATH
     mp_clear(&prime);
+    mp_clear(&a);
 #endif
 
     return err;
