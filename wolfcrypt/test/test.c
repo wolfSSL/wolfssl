@@ -111,6 +111,7 @@
     #include <wolfssl/openssl/evp.h>
     #include <wolfssl/openssl/rand.h>
     #include <wolfssl/openssl/hmac.h>
+    #include <wolfssl/openssl/aes.h>
     #include <wolfssl/openssl/des.h>
 #endif
 
@@ -2081,7 +2082,7 @@ int hc128_test(void)
                                            (word32)test_hc128[i].outLen) != 0) {
             return -110;
         }
-        if (wc_Hc128_Process(&dec, plain, cipher, 
+        if (wc_Hc128_Process(&dec, plain, cipher,
                                            (word32)test_hc128[i].outLen) != 0) {
             return -115;
         }
@@ -4860,7 +4861,7 @@ int rsa_test(void)
         !defined(HAVE_FIPS)
     #ifndef NO_SHA
     XMEMSET(plain, 0, sizeof(plain));
-    
+
     do {
 #if defined(WOLFSSL_ASYNC_CRYPT)
         ret = wc_RsaAsyncWait(ret, &key);
@@ -6926,8 +6927,63 @@ int openssl_test(void)
 
 #endif /* NO_AES */
 
+#define OPENSSL_TEST_ERROR (-10000)
+
+
+#ifdef WOLFSSL_AES_DIRECT
+  /* enable HAVE_AES_DECRYPT for AES_encrypt/decrypt */
+
+  /* Test: AES_encrypt/decrypt/set Key */
+  AES_KEY enc;
+#ifdef HAVE_AES_DECRYPT
+  AES_KEY dec;
+#endif
+
+  const byte msg[] =
+  {
+      0x6b,0xc1,0xbe,0xe2,0x2e,0x40,0x9f,0x96,
+      0xe9,0x3d,0x7e,0x11,0x73,0x93,0x17,0x2a
+  };
+
+  const byte verify[] =
+  {
+      0xf3,0xee,0xd1,0xbd,0xb5,0xd2,0xa0,0x3c,
+      0x06,0x4b,0x5a,0x7e,0x3d,0xb1,0x81,0xf8
+  };
+
+  const byte key[] =
+  {
+      0x60,0x3d,0xeb,0x10,0x15,0xca,0x71,0xbe,
+      0x2b,0x73,0xae,0xf0,0x85,0x7d,0x77,0x81,
+      0x1f,0x35,0x2c,0x07,0x3b,0x61,0x08,0xd7,
+      0x2d,0x98,0x10,0xa3,0x09,0x14,0xdf,0xf4
+  };
+
+  byte plain[sizeof(msg)];
+  byte cipher[sizeof(msg)];
+
+  printf("openSSL extra test\n") ;
+
+
+  AES_set_encrypt_key(key, sizeof(key)*8, &enc);
+  AES_set_decrypt_key(key,  sizeof(key)*8, &dec);
+
+  AES_encrypt(msg, cipher, &enc);
+
+#ifdef HAVE_AES_DECRYPT
+  AES_decrypt(cipher, plain, &dec);
+  if (XMEMCMP(plain, msg, AES_BLOCK_SIZE))
+      return OPENSSL_TEST_ERROR-60;
+#endif /* HAVE_AES_DECRYPT */
+
+  if (XMEMCMP(cipher, verify, AES_BLOCK_SIZE))
+      return OPENSSL_TEST_ERROR-61;
+
+#endif
+
     return 0;
 }
+
 
 #endif /* OPENSSL_EXTRA */
 
@@ -7094,6 +7150,7 @@ int pbkdf2_test(void)
         return -102;
 
     return 0;
+
 }
 
 
@@ -8838,7 +8895,7 @@ int ed25519_test(void)
 
 
 #if defined(WOLFSSL_CMAC) && !defined(NO_AES)
- 
+
 typedef struct CMAC_Test_Case {
     int type;
     int partial;
