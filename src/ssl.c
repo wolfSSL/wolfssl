@@ -13964,6 +13964,7 @@ static void InitwolfSSL_DH(WOLFSSL_DH* dh)
     if (dh) {
         dh->p        = NULL;
         dh->g        = NULL;
+        dh->q        = NULL;
         dh->pub_key  = NULL;
         dh->priv_key = NULL;
         dh->internal = NULL;
@@ -14016,6 +14017,7 @@ void wolfSSL_DH_free(WOLFSSL_DH* dh)
         wolfSSL_BN_free(dh->pub_key);
         wolfSSL_BN_free(dh->g);
         wolfSSL_BN_free(dh->p);
+        wolfSSL_BN_free(dh->q);
         InitwolfSSL_DH(dh);  /* set back to NULLs for safety */
 
         XFREE(dh, NULL, DYNAMIC_TYPE_DH);
