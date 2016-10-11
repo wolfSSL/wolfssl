@@ -561,6 +561,7 @@ static int ExportKeyState(WOLFSSL* ssl, byte* exp, word32 len, byte ver)
     keys = &(ssl->keys);
 
     if (DTLS_EXPORT_KEY_SZ > len) {
+        WOLFSSL_MSG("Buffer not large enough for max key struct size");
         return BUFFER_E;
     }
 
@@ -633,7 +634,8 @@ static int ExportKeyState(WOLFSSL* ssl, byte* exp, word32 len, byte ver)
     XMEMCPY(exp + idx, keys->aead_enc_imp_IV, sz); idx += sz;
     XMEMCPY(exp + idx, keys->aead_dec_imp_IV, sz); idx += sz;
 
- if (idx > DTLS_EXPORT_KEY_SZ) {
+    /* DTLS_EXPORT_KEY_SZ is max value. idx size can vary */
+    if (idx > DTLS_EXPORT_KEY_SZ) {
         WOLFSSL_MSG("DTLS_EXPORT_KEY_SZ needs updated and export version");
         return DTLS_EXPORT_VER_E;
     }
@@ -657,6 +659,7 @@ static int ImportCipherSpecState(WOLFSSL* ssl, byte* exp, word32 len, byte ver)
     specs= &(ssl->specs);
 
     if (DTLS_EXPORT_SPC_SZ > len) {
+        WOLFSSL_MSG("Buffer not large enough for max spec struct size");
         return BUFFER_E;
     }
 
@@ -905,7 +908,7 @@ static int dtls_export_load(WOLFSSL* ssl, byte* exp, word32 len, byte ver)
     int idx = 0;
     Options* options = &ssl->options;
 
-    if (ver != 1) {
+    if (ver != DTLS_EXPORT_VERSION) {
         WOLFSSL_MSG("Export version not supported");
         return BAD_FUNC_ARG;
     }
@@ -1017,7 +1020,7 @@ static int ExportPeerInfo(WOLFSSL* ssl, byte* exp, word32 len, byte ver)
     word16 port = 0;
     char   ip[DTLS_EXPORT_IP];
 
-    if (ver != 1) {
+    if (ver != DTLS_EXPORT_VERSION) {
         WOLFSSL_MSG("Export version not supported");
         return BAD_FUNC_ARG;
     }
@@ -1058,7 +1061,7 @@ static int ImportPeerInfo(WOLFSSL* ssl, byte* buf, word32 len, byte ver)
     word16 port;
     char   ip[DTLS_EXPORT_IP];
 
-    if (ver != 1) {
+    if (ver != DTLS_EXPORT_VERSION) {
         WOLFSSL_MSG("Export version not supported");
         return BAD_FUNC_ARG;
     }
