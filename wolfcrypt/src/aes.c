@@ -3864,6 +3864,10 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     byte *ctr ;
     byte scratch[AES_BLOCK_SIZE];
 
+    /* Sanity check for XMEMCPY in GHASH function and local xorbuf call */
+    if (authTagSz > AES_BLOCK_SIZE)
+        return BAD_FUNC_ARG;
+
 #ifdef WOLFSSL_AESNI
     if (haveAESNI) {
         AES_GCM_encrypt((void*)in, out, (void*)authIn, (void*)iv, authTag,
@@ -3934,6 +3938,10 @@ int  wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     byte initialCounter[AES_BLOCK_SIZE];
     byte *ctr ;
     byte scratch[AES_BLOCK_SIZE];
+
+    /* Sanity check for local ConstantCompare call */
+    if (authTagSz > AES_BLOCK_SIZE)
+        return BAD_FUNC_ARG;
 
 #ifdef WOLFSSL_AESNI
     if (haveAESNI) {
