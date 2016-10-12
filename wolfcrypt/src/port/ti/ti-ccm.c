@@ -64,7 +64,7 @@ int wolfSSL_TI_CCMInit(void)
     WAIT(ROM_SysCtlPeripheralReady(SYSCTL_PERIPH_CCM0)) ;
     
 #ifndef SINGLE_THREADED
-    if(InitMutex(&TI_CCM_Mutex))return false ;
+    if(wc_InitMutex(&TI_CCM_Mutex))return false ;
 #endif
 
     return true ;
@@ -72,11 +72,11 @@ int wolfSSL_TI_CCMInit(void)
 
 #ifndef SINGLE_THREADED
 void wolfSSL_TI_lockCCM(void) {
-    LockMutex(&TI_CCM_Mutex) ;
+    wc_LockMutex(&TI_CCM_Mutex) ;
 }
 
 void wolfSSL_TI_unlockCCM(void) {
-    UnLockMutex(&TI_CCM_Mutex) ;
+    wc_UnLockMutex(&TI_CCM_Mutex) ;
 }
 #endif
 

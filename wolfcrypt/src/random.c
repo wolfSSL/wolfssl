@@ -896,13 +896,13 @@ int wc_InitNetRandom(const char* configFile, wnr_hmac_key hmac_cb, int timeout)
         return 0;
     }
 
-    if (InitMutex(&wnr_mutex) != 0) {
+    if (wc_InitMutex(&wnr_mutex) != 0) {
         WOLFSSL_MSG("Bad Init Mutex wnr_mutex");
         return BAD_MUTEX_E;
     }
     wnr_mutex_init = 1;
 
-    if (LockMutex(&wnr_mutex) != 0) {
+    if (wc_LockMutex(&wnr_mutex) != 0) {
         WOLFSSL_MSG("Bad Lock Mutex wnr_mutex");
         return BAD_MUTEX_E;
     }
@@ -942,7 +942,7 @@ int wc_InitNetRandom(const char* configFile, wnr_hmac_key hmac_cb, int timeout)
         return RNG_FAILURE_E;
     }
 
-    UnLockMutex(&wnr_mutex);
+    wc_UnLockMutex(&wnr_mutex);
 
     return 0;
 }
@@ -955,7 +955,7 @@ int wc_FreeNetRandom(void)
 {
     if (wnr_mutex_init > 0) {
 
-        if (LockMutex(&wnr_mutex) != 0) {
+        if (wc_LockMutex(&wnr_mutex) != 0) {
             WOLFSSL_MSG("Bad Lock Mutex wnr_mutex");
             return BAD_MUTEX_E;
         }
@@ -966,9 +966,9 @@ int wc_FreeNetRandom(void)
         }
         wnr_poll_destroy();
 
-        UnLockMutex(&wnr_mutex);
+        wc_UnLockMutex(&wnr_mutex);
 
-        FreeMutex(&wnr_mutex);
+        wc_FreeMutex(&wnr_mutex);
         wnr_mutex_init = 0;
     }
 
@@ -1539,7 +1539,7 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
             return RNG_FAILURE_E;
         }
 
-        if (LockMutex(&wnr_mutex) != 0) {
+        if (wc_LockMutex(&wnr_mutex) != 0) {
             WOLFSSL_MSG("Bad Lock Mutex wnr_mutex\n");
             return BAD_MUTEX_E;
         }
@@ -1548,7 +1548,7 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
                 WNR_ERROR_NONE)
             return RNG_FAILURE_E;
 
-        UnLockMutex(&wnr_mutex);
+        wc_UnLockMutex(&wnr_mutex);
 
         return 0;
     }

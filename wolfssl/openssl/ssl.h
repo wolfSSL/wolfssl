@@ -259,6 +259,12 @@ typedef WOLFSSL_X509_STORE_CTX X509_STORE_CTX;
 #define CRYPTO_set_dynlock_destroy_callback wolfSSL_set_dynlock_destroy_callback
 #define CRYPTO_num_locks wolfSSL_num_locks
 
+
+#  define CRYPTO_LOCK             1
+#  define CRYPTO_UNLOCK           2
+#  define CRYPTO_READ             4
+#  define CRYPTO_WRITE            8
+
 #define X509_STORE_CTX_get_current_cert wolfSSL_X509_STORE_CTX_get_current_cert
 #define X509_STORE_CTX_get_error wolfSSL_X509_STORE_CTX_get_error
 #define X509_STORE_CTX_get_error_depth wolfSSL_X509_STORE_CTX_get_error_depth
@@ -411,7 +417,7 @@ typedef WOLFSSL_X509_STORE_CTX X509_STORE_CTX;
 
 /* Lighthttp compatibility */
 
-#if defined(HAVE_LIGHTY) || defined(WOLFSSL_MYSQL_COMPATIBLE)
+#if defined(HAVE_LIGHTY) || defined(WOLFSSL_MYSQL_COMPATIBLE) || defined(HAVE_STUNNEL)
 typedef WOLFSSL_X509_NAME_ENTRY X509_NAME_ENTRY;
 
 #define SSL_CB_HANDSHAKE_START          0x10

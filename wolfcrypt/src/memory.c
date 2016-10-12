@@ -210,7 +210,7 @@ int wolfSSL_init_memory_heap(WOLFSSL_HEAP* heap)
     XMEMCPY(heap->sizeList, wc_MemSz, sizeof(wc_MemSz));
     XMEMCPY(heap->distList, wc_Dist,  sizeof(wc_Dist));
 
-    if (InitMutex(&(heap->memory_mutex)) != 0) {
+    if (wc_InitMutex(&(heap->memory_mutex)) != 0) {
         WOLFSSL_MSG("Error creating heap memory mutex");
         return BAD_MUTEX_E;
     }
@@ -524,7 +524,7 @@ void* wolfSSL_Malloc(size_t size, void* heap, int type)
         WOLFSSL_HEAP_HINT* hint = (WOLFSSL_HEAP_HINT*)heap;
         WOLFSSL_HEAP*      mem  = hint->memory;
 
-        if (LockMutex(&(mem->memory_mutex)) != 0) {
+        if (wc_LockMutex(&(mem->memory_mutex)) != 0) {
             WOLFSSL_MSG("Bad memory_mutex lock");
             return NULL;
         }
@@ -591,7 +591,7 @@ void* wolfSSL_Malloc(size_t size, void* heap, int type)
             WOLFSSL_MSG("ERROR ran out of static memory");
         }
 
-        UnLockMutex(&(mem->memory_mutex));
+        wc_UnLockMutex(&(mem->memory_mutex));
     }
 
     #ifdef WOLFSSL_MALLOC_CHECK
@@ -651,7 +651,7 @@ void wolfSSL_Free(void *ptr, void* heap, int type)
 
             /* get memory struct and add it to available list */
             pt = (wc_Memory*)((byte*)ptr - sizeof(wc_Memory) - padSz);
-            if (LockMutex(&(mem->memory_mutex)) != 0) {
+            if (wc_LockMutex(&(mem->memory_mutex)) != 0) {
                 WOLFSSL_MSG("Bad memory_mutex lock");
                 return;
             }
@@ -703,7 +703,7 @@ void wolfSSL_Free(void *ptr, void* heap, int type)
                     stats->totalFr++;
                 }
             }
-            UnLockMutex(&(mem->memory_mutex));
+            wc_UnLockMutex(&(mem->memory_mutex));
         }
     }
 
@@ -745,7 +745,7 @@ void* wolfSSL_Realloc(void *ptr, size_t size, void* heap, int type)
         WOLFSSL_HEAP*      mem  = hint->memory;
         word32 padSz = -(int)sizeof(wc_Memory) & (WOLFSSL_STATIC_ALIGN - 1);
 
-        if (LockMutex(&(mem->memory_mutex)) != 0) {
+        if (wc_LockMutex(&(mem->memory_mutex)) != 0) {
             WOLFSSL_MSG("Bad memory_mutex lock");
             return NULL;
         }
@@ -786,19 +786,19 @@ void* wolfSSL_Realloc(void *ptr, size_t size, void* heap, int type)
                 mem->alloc += 1;
 
                 /* free memory that was previously being used */
-                UnLockMutex(&(mem->memory_mutex));
+                wc_UnLockMutex(&(mem->memory_mutex));
                 wolfSSL_Free(ptr, heap, type
             #ifdef WOLFSSL_DEBUG_MEMORY
                     , func, line
             #endif
                 );
-                if (LockMutex(&(mem->memory_mutex)) != 0) {
+                if (wc_LockMutex(&(mem->memory_mutex)) != 0) {
                     WOLFSSL_MSG("Bad memory_mutex lock");
                     return NULL;
                 }
             }
         }
-        UnLockMutex(&(mem->memory_mutex));
+        wc_UnLockMutex(&(mem->memory_mutex));
     }
 
     #ifdef WOLFSSL_MALLOC_CHECK

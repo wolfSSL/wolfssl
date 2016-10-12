@@ -1574,7 +1574,7 @@ static void wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
                 #warning "Allocate non-Cache buffers"
             #endif
 
-            InitMutex(&Mutex_AesSEC);
+            wc_InitMutex(&Mutex_AesSEC);
         }
 
         if (!((keylen == 16) || (keylen == 24) || (keylen == 32)))
@@ -2165,7 +2165,7 @@ int wc_InitAes_h(Aes* aes, void* h)
         if ((pi == NULL) || (po == NULL))
             return BAD_FUNC_ARG;    /*wrong pointer*/
 
-        LockMutex(&Mutex_AesSEC);
+        wc_LockMutex(&Mutex_AesSEC);
 
         /* Set descriptor for SEC */
         secDesc->length1 = 0x0;
@@ -2241,7 +2241,7 @@ int wc_InitAes_h(Aes* aes, void* h)
             po += size;
         }
 
-        UnLockMutex(&Mutex_AesSEC);
+        wc_UnLockMutex(&Mutex_AesSEC);
         return 0;
     }
 

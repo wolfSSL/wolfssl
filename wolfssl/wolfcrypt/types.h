@@ -337,7 +337,8 @@
         DYNAMIC_TYPE_DTLS_FRAG    = 55,
         DYNAMIC_TYPE_DTLS_BUFFER  = 56,
         DYNAMIC_TYPE_SESSION_TICK = 57,
-        DYNAMIC_TYPE_PKCS         = 58
+        DYNAMIC_TYPE_PKCS         = 58,
+        DYNAMIC_TYPE_MUTEX        = 59
 	};
 
 	/* max error buffer string size */

@@ -1789,7 +1789,7 @@ struct WOLFSSL_X509_NAME_ENTRY {
     int size;
 };
 
-#if defined(HAVE_LIGHTY) || defined(WOLFSSL_MYSQL_COMPATIBLE)
+#if defined(HAVE_LIGHTY) || defined(WOLFSSL_MYSQL_COMPATIBLE) || defined(HAVE_STUNNEL)
 WOLFSSL_API void wolfSSL_X509_NAME_free(WOLFSSL_X509_NAME *name);
 WOLFSSL_API char wolfSSL_CTX_use_certificate(WOLFSSL_CTX *ctx, WOLFSSL_X509 *x);
 WOLFSSL_API int wolfSSL_CTX_use_PrivateKey(WOLFSSL_CTX *ctx, WOLFSSL_EVP_PKEY *pkey);
@@ -1810,7 +1810,7 @@ WOLFSSL_API unsigned char *wolfSSL_SHA1(const unsigned char *d, size_t n, unsign
 WOLFSSL_API int wolfSSL_X509_check_private_key(WOLFSSL_X509*, WOLFSSL_EVP_PKEY*);
 WOLFSSL_API STACK_OF(WOLFSSL_X509_NAME) *wolfSSL_dup_CA_list( STACK_OF(WOLFSSL_X509_NAME) *sk );
 
-/* end lighttpd*/
+/* end lighttpd, mysql, have_stunnel*/
 #endif
 #endif
 
@@ -1875,7 +1875,7 @@ WOLFSSL_API int  wolfSSL_version(WOLFSSL*);
 
 WOLFSSL_API int wolfSSL_get_state(const WOLFSSL*);
 
-WOLFSSL_API void* wolfSSL_sk_X509_NAME_value(STACK_OF(WOLFSSL_X509_NAME)*, int);
+WOLFSSL_API void* wolfSSL_sk_X509_NAME_value(const STACK_OF(WOLFSSL_X509_NAME)*, int);
 
 WOLFSSL_API void* wolfSSL_sk_X509_value(STACK_OF(WOLFSSL_X509)*, int);
 

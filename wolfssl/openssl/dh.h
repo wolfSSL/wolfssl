@@ -14,12 +14,13 @@
 struct WOLFSSL_DH {
     WOLFSSL_BIGNUM* p;
     WOLFSSL_BIGNUM* g;
+    WOLFSSL_BIGNUM* q;
     WOLFSSL_BIGNUM* pub_key;      /* openssh deference g^x */
     WOLFSSL_BIGNUM* priv_key;     /* openssh deference x   */
     void*          internal;     /* our DH */
     char           inSet;        /* internal set from external ? */
     char           exSet;        /* external set from internal ? */
-    /*added for lighttpd openssl compatibility, go back and add a getter in 
+    /*added for lighttpd openssl compatibility, go back and add a getter in
      * lighttpd src code.
      */
      int length;
@@ -36,7 +37,7 @@ WOLFSSL_API int wolfSSL_DH_compute_key(unsigned char* key, WOLFSSL_BIGNUM* pub,
 
 typedef WOLFSSL_DH DH;
 
-#define DH_new  wolfSSL_DH_new 
+#define DH_new  wolfSSL_DH_new
 #define DH_free wolfSSL_DH_free
 
 #define DH_size         wolfSSL_DH_size
@@ -45,7 +46,7 @@ typedef WOLFSSL_DH DH;
 
 
 #ifdef __cplusplus
-    }  /* extern "C" */ 
+    }  /* extern "C" */
 #endif
 
 #ifdef HAVE_STUNNEL

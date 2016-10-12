@@ -4234,12 +4234,12 @@ static word32 GetEntropy(unsigned char* out, word32 num_bytes)
         if ((rngMutex = (wolfSSL_Mutex*)XMALLOC(sizeof(wolfSSL_Mutex), NULL,
                                                     DYNAMIC_TYPE_TLSX)) == NULL)
             return DRBG_OUT_OF_MEMORY;
-        InitMutex(rngMutex);
+        wc_InitMutex(rngMutex);
     }
 
-    ret |= LockMutex(rngMutex);
+    ret |= wc_LockMutex(rngMutex);
     ret |= wc_RNG_GenerateBlock(rng, out, num_bytes);
-    ret |= UnLockMutex(rngMutex);
+    ret |= wc_UnLockMutex(rngMutex);
 
     if (ret != 0)
         return DRBG_ENTROPY_FAIL;
