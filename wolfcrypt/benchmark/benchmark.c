@@ -742,8 +742,12 @@ void bench_aesccm(void)
     Aes    enc;
     double start, total, persec;
     int    i;
+    int    ret;
 
-    wc_AesCcmSetKey(&enc, key, 16);
+    if ((ret = wc_AesCcmSetKey(&enc, key, 16)) != 0) {
+        printf("wc_AesCcmSetKey failed, ret = %d\n", ret);
+        return;
+    }
     start = current_time(1);
     BEGIN_INTEL_CYCLES
 

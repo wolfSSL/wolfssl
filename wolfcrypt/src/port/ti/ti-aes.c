@@ -518,9 +518,9 @@ WOLFSSL_API int wc_GmacUpdate(Gmac* gmac, const byte* iv, word32 ivSz,
 #endif /* HAVE_AESGCM */
 
 #ifdef HAVE_AESCCM
-WOLFSSL_API void wc_AesCcmSetKey(Aes* aes, const byte* key, word32 keySz)
+WOLFSSL_API int wc_AesCcmSetKey(Aes* aes, const byte* key, word32 keySz)
 {
-    AesAuthSetKey(aes, key, keySz) ;
+    return AesAuthSetKey(aes, key, keySz) ;
 }
 
 WOLFSSL_API int wc_AesCcmEncrypt(Aes* aes, byte* out, const byte* in, word32 inSz,

@@ -2473,6 +2473,8 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
     #endif
 
     if (specs->bulk_cipher_algorithm == wolfssl_aes_ccm) {
+        int CcmRet;
+
         if (enc && enc->aes == NULL)
             enc->aes = (Aes*)XMALLOC(sizeof(Aes), heap, DYNAMIC_TYPE_CIPHER);
         if (enc && enc->aes == NULL)
@@ -2484,24 +2486,40 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
 
         if (side == WOLFSSL_CLIENT_END) {
             if (enc) {
-                wc_AesCcmSetKey(enc->aes, keys->client_write_key, specs->key_size);
+                CcmRet = wc_AesCcmSetKey(enc->aes, keys->client_write_key,
+                                         specs->key_size);
+                if (CcmRet != 0) {
+                    return CcmRet;
+                }
                 XMEMCPY(keys->aead_enc_imp_IV, keys->client_write_IV,
                         AESGCM_IMP_IV_SZ);
             }
             if (dec) {
-                wc_AesCcmSetKey(dec->aes, keys->server_write_key, specs->key_size);
+                CcmRet = wc_AesCcmSetKey(dec->aes, keys->server_write_key,
+                                         specs->key_size);
+                if (CcmRet != 0) {
+                    return CcmRet;
+                }
                 XMEMCPY(keys->aead_dec_imp_IV, keys->server_write_IV,
                         AESGCM_IMP_IV_SZ);
             }
         }
         else {
             if (enc) {
-                wc_AesCcmSetKey(enc->aes, keys->server_write_key, specs->key_size);
+                CcmRet = wc_AesCcmSetKey(enc->aes, keys->server_write_key,
+                                         specs->key_size);
+                if (CcmRet != 0) {
+                    return CcmRet;
+                }
                 XMEMCPY(keys->aead_enc_imp_IV, keys->server_write_IV,
                         AESGCM_IMP_IV_SZ);
             }
             if (dec) {
-                wc_AesCcmSetKey(dec->aes, keys->client_write_key, specs->key_size);
+                CcmRet = wc_AesCcmSetKey(dec->aes, keys->client_write_key,
+                                         specs->key_size);
+                if (CcmRet != 0) {
+                    return CcmRet;
+                }
                 XMEMCPY(keys->aead_dec_imp_IV, keys->client_write_IV,
                         AESGCM_IMP_IV_SZ);
             }
