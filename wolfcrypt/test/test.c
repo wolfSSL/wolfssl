@@ -3349,7 +3349,10 @@ int aesccm_test(void)
     XMEMSET(c2, 0, sizeof(c2));
     XMEMSET(p2, 0, sizeof(p2));
 
-    wc_AesCcmSetKey(&enc, k, sizeof(k));
+    result = wc_AesCcmSetKey(&enc, k, sizeof(k));
+    if (result != 0)
+        return -105;
+
     /* AES-CCM encrypt and decrypt both use AES encrypt internally */
     result = wc_AesCcmEncrypt(&enc, c2, p, sizeof(c2), iv, sizeof(iv),
                                                  t2, sizeof(t2), a, sizeof(a));

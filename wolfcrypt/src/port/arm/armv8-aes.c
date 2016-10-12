@@ -4307,15 +4307,15 @@ int  wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
 /* Software version of AES-CCM from wolfcrypt/src/aes.c
  * Gets some speed up from hardware acceleration of wc_AesEncrypt */
 
-void wc_AesCcmSetKey(Aes* aes, const byte* key, word32 keySz)
+int wc_AesCcmSetKey(Aes* aes, const byte* key, word32 keySz)
 {
     byte nonce[AES_BLOCK_SIZE];
 
     if (!((keySz == 16) || (keySz == 24) || (keySz == 32)))
-        return;
+        return BAD_FUNC_ARG;
 
     XMEMSET(nonce, 0, sizeof(nonce));
-    wc_AesSetKey(aes, key, keySz, nonce, AES_ENCRYPTION);
+    return wc_AesSetKey(aes, key, keySz, nonce, AES_ENCRYPTION);
 }
 
 

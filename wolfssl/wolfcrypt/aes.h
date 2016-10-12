@@ -154,7 +154,7 @@ WOLFSSL_API int  wc_AesCbcDecrypt(Aes* aes, byte* out,
                                byte* authTag, word32 authTagSz);
 #endif /* HAVE_AESGCM */
 #ifdef HAVE_AESCCM
- WOLFSSL_API void wc_AesCcmSetKey(Aes* aes, const byte* key, word32 keySz);
+ WOLFSSL_API int  wc_AesCcmSetKey(Aes* aes, const byte* key, word32 keySz);
  WOLFSSL_API int  wc_AesCcmEncrypt(Aes* aes, byte* out,
                                    const byte* in, word32 inSz,
                                    const byte* nonce, word32 nonceSz,
