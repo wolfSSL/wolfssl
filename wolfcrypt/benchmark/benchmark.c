@@ -120,7 +120,6 @@
     #include <sys/syscall.h>
     #include <unistd.h>
 
-    #define HAVE_GET_CYCLES
     static word64 begin_cycles;
     static word64 total_cycles;
     static int cycles = -1;
@@ -2534,7 +2533,7 @@ void bench_ed25519KeySign(void)
 
 #endif /* _WIN32 */
 
-#ifdef HAVE_GET_CYCLES
+#if defined(HAVE_GET_CYCLES)
 
 static INLINE word64 get_intel_cycles(void)
 {

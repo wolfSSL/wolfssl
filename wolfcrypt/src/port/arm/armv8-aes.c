@@ -2511,10 +2511,10 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
 {
     /* sanity checks */
     if (aes == NULL || (iv == NULL && ivSz > 0) ||
-                       (authTag == NULL && authTagSz > 0) ||
-                       (authIn == NULL && authInSz > 0) ||
+                       (authTag == NULL) ||
+                       (authIn == NULL) ||
                        (in == NULL && sz > 0) ||
-                       (out == NULL && authTag == NULL)) {
+                       (out == NULL && sz > 0)) {
         WOLFSSL_MSG("a NULL parameter passed in when size is larger than 0");
         return BAD_FUNC_ARG;
     }
@@ -2571,10 +2571,10 @@ int  wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
 
     /* sanity checks */
     if (aes == NULL || (iv == NULL && ivSz > 0) ||
-                       (authTag == NULL && authTagSz > 0) ||
-                       (authIn == NULL && authInSz > 0) ||
-                       (in == NULL && sz > 0) ||
-                       (out == NULL && authTag == NULL)) {
+                       (authTag == NULL) ||
+                       (authIn == NULL) ||
+                       (in  == NULL && sz > 0) ||
+                       (out == NULL && sz > 0)) {
         WOLFSSL_MSG("a NULL parameter passed in when size is larger than 0");
         return BAD_FUNC_ARG;
     }
@@ -2827,6 +2827,12 @@ int  wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     if (partial != 0) {
         IncrementGcmCounter(ctr);
         wc_AesEncrypt(aes, ctr, scratch);
+
+        /* check if pointer is null after main AES-GCM blocks
+         * helps static analysis */
+        if (p == NULL || c == NULL) {
+            return BAD_STATE_E;
+        }
         xorbuf(scratch, c, partial);
         XMEMCPY(p, scratch, partial);
     }
@@ -4157,10 +4163,10 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
 
     /* sanity checks */
     if (aes == NULL || (iv == NULL && ivSz > 0) ||
-                       (authTag == NULL && authTagSz > 0) ||
-                       (authIn == NULL && authInSz > 0) ||
+                       (authTag == NULL) ||
+                       (authIn == NULL) ||
                        (in == NULL && sz > 0) ||
-                       (out == NULL && authTag == NULL)) {
+                       (out == NULL && sz > 0)) {
         WOLFSSL_MSG("a NULL parameter passed in when size is larger than 0");
         return BAD_FUNC_ARG;
     }
@@ -4234,6 +4240,16 @@ int  wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     byte scratch[AES_BLOCK_SIZE];
     ctr = counter ;
 
+    /* sanity checks */
+    if (aes == NULL || (iv == NULL && ivSz > 0) ||
+                       (authTag == NULL) ||
+                       (authIn == NULL) ||
+                       (in  == NULL && sz > 0) ||
+                       (out == NULL && sz > 0)) {
+        WOLFSSL_MSG("a NULL parameter passed in when size is larger than 0");
+        return BAD_FUNC_ARG;
+    }
+
     XMEMSET(initialCounter, 0, AES_BLOCK_SIZE);
     if (ivSz == NONCE_SZ) {
         XMEMCPY(initialCounter, iv, ivSz);
@@ -4270,6 +4286,12 @@ int  wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     if (partial != 0) {
         IncrementGcmCounter(ctr);
         wc_AesEncrypt(aes, ctr, scratch);
+
+        /* check if pointer is null after main AES-GCM blocks
+         * helps static analysis */
+        if (p == NULL || c == NULL) {
+            return BAD_STATE_E;
+        }
         xorbuf(scratch, c, partial);
         XMEMCPY(p, scratch, partial);
     }
