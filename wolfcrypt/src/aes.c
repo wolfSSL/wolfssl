@@ -2842,6 +2842,33 @@ int wc_InitAes_h(Aes* aes, void* h)
 #endif /* AES-CBC block */
 #endif /* HAVE_AES_CBC */
 
+#ifdef HAVE_AES_ECB
+int wc_AesEcbEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
+{
+    if((in == NULL) || (out == NULL) || (aes == NULL))
+      return BAD_FUNC_ARG;
+    while(sz>0){
+      wc_AesEncryptDirect(aes, out, in);
+      out += AES_BLOCK_SIZE;
+      in  += AES_BLOCK_SIZE;
+      sz  -= AES_BLOCK_SIZE;
+    }
+    return 0;
+}
+int wc_AesEcbDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
+{
+    if((in == NULL) || (out == NULL) || (aes == NULL))
+      return BAD_FUNC_ARG;
+    while(sz>0){
+      wc_AesDecryptDirect(aes, out, in);
+      out += AES_BLOCK_SIZE;
+      in  += AES_BLOCK_SIZE;
+      sz  -= AES_BLOCK_SIZE;
+    }
+    return 0;
+}
+#endif
+
 /* AES-CTR */
 #ifdef WOLFSSL_AES_COUNTER
 

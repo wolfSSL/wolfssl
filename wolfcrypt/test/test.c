@@ -6880,7 +6880,7 @@ int openssl_test(void)
 
 #ifndef NO_AES
 
-    {  /* evp_cipher test */
+    {  /* evp_cipher test: EVP_aes_128_cbc */
         EVP_CIPHER_CTX ctx;
 
 
@@ -6923,7 +6923,57 @@ int openssl_test(void)
             return -86;
 
 
+    }  /* end evp_cipher test: EVP_aes_128_cbc*/
+
+#ifdef HAVE_AES_ECB
+    {  /* evp_cipher test: EVP_aes_128_ecb*/
+        EVP_CIPHER_CTX ctx;
+        const byte msg[] =
+        {
+          0x6b,0xc1,0xbe,0xe2,0x2e,0x40,0x9f,0x96,
+          0xe9,0x3d,0x7e,0x11,0x73,0x93,0x17,0x2a
+        };
+
+        const byte verify[] =
+        {
+            0xf3,0xee,0xd1,0xbd,0xb5,0xd2,0xa0,0x3c,
+            0x06,0x4b,0x5a,0x7e,0x3d,0xb1,0x81,0xf8
+        };
+
+        const byte key[] =
+        {
+          0x60,0x3d,0xeb,0x10,0x15,0xca,0x71,0xbe,
+          0x2b,0x73,0xae,0xf0,0x85,0x7d,0x77,0x81,
+          0x1f,0x35,0x2c,0x07,0x3b,0x61,0x08,0xd7,
+          0x2d,0x98,0x10,0xa3,0x09,0x14,0xdf,0xf4
+        };
+
+
+        byte cipher[AES_BLOCK_SIZE * 4];
+        byte plain [AES_BLOCK_SIZE * 4];
+
+        EVP_CIPHER_CTX_init(&ctx);
+        if (EVP_CipherInit(&ctx, EVP_aes_256_ecb(), (unsigned char*)key, NULL, 1) == 0)
+            return -181;
+
+        if (EVP_Cipher(&ctx, cipher, (byte*)msg, 16) == 0)
+            return -182;
+
+        if (XMEMCMP(cipher, verify, AES_BLOCK_SIZE))
+            return -183;
+
+        EVP_CIPHER_CTX_init(&ctx);
+        if (EVP_CipherInit(&ctx, EVP_aes_256_ecb(), (unsigned char*)key, NULL, 0) == 0)
+            return -184;
+
+        if (EVP_Cipher(&ctx, plain, cipher, 16) == 0)
+            return -185;
+
+        if (XMEMCMP(plain, msg, AES_BLOCK_SIZE))
+            return -186;
+
     }  /* end evp_cipher test */
+#endif
 
 #endif /* NO_AES */
 
