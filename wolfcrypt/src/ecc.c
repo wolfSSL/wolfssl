@@ -3380,11 +3380,11 @@ int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
 #ifdef FREESCALE_LTC_ECC
    /* use PKHA to compute u1*mG + u2*mQ */
    if (err == MP_OKAY)
-           err = wc_ecc_mulmod_ex(&u1, mG, mG, &m, 0, NULL);
+       err = wc_ecc_mulmod_ex(&u1, mG, mG, &a, &modulus, 0, NULL);
    if (err == MP_OKAY)
-           err = wc_ecc_mulmod_ex(&u2, mQ, mQ, &m, 0, NULL);
+       err = wc_ecc_mulmod_ex(&u2, mQ, mQ, &a, &modulus, 0, NULL);
    if (err == MP_OKAY)
-           err = wc_ecc_point_add(mG, mQ, mG, &m);
+       err = wc_ecc_point_add(mG, mQ, mG, &modulus);
 #else /* FREESCALE_LTC_ECC */
 #ifndef ECC_SHAMIR
     {

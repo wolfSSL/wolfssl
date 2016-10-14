@@ -43,7 +43,7 @@ int ksdk_port_init(void);
 	int _fp_exptmod(fp_int *G, fp_int *X, fp_int *P, fp_int *Y);
 	#ifndef NO_RSA
 		#include <wolfssl/wolfcrypt/rsa.h>
-		int wc_RsaFunction(const byte *in, word32 inLen, byte *out, word32 *outLen, int type, RsaKey *key);
+      int wc_RsaFunction(const byte* in, word32 inLen, byte* out, word32* outLen, int type, RsaKey* key, WC_RNG* rng);
 	#endif
 #endif /* FREESCALE_LTC_TFM */
 

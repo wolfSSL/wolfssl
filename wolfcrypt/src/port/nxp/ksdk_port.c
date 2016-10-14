@@ -435,11 +435,13 @@ int _fp_exptmod(fp_int *G, fp_int *X, fp_int *P, fp_int *Y)
 }
 
 #ifndef NO_RSA
-int wc_RsaFunction(const byte *in, word32 inLen, byte *out, word32 *outLen, int type, RsaKey *key)
+int wc_RsaFunction(const byte *in, word32 inLen, byte *out, word32 *outLen, int type, RsaKey *key, WC_RNG* rng)
 {
     mp_int tmp;
     int ret = 0;
     word32 keyLen, len;
+
+    (void)rng;
 
     if (mp_init(&tmp) != MP_OKAY)
         return MP_INIT_E;
@@ -788,8 +790,8 @@ static int ltc_get_ecc_specs(const uint8_t **modulus, const uint8_t **r2modn,
             (1==map, 0 == leave in projective)
    return MP_OKAY on success
 */
-int wc_ecc_mulmod_ex(mp_int *k, ecc_point *G, ecc_point *R, mp_int *modulus,
-    int map, void* heap)
+int wc_ecc_mulmod_ex(mp_int *k, ecc_point *G, ecc_point *R, mp_int* a,
+    mp_int *modulus, int map, void* heap)
 {
     ltc_pkha_ecc_point_t B;
     uint8_t size;
@@ -797,6 +799,8 @@ int wc_ecc_mulmod_ex(mp_int *k, ecc_point *G, ecc_point *R, mp_int *modulus,
     int szkbin;
     bool point_of_infinity;
     status_t status;
+
+    (void)a;
 
     uint8_t Gxbin[LTC_MAX_ECC_BITS / 8];
     uint8_t Gybin[LTC_MAX_ECC_BITS / 8];

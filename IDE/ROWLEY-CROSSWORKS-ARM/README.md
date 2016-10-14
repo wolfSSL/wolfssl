@@ -27,20 +27,23 @@ Also the "Target Processor" in each of the projects ("Project Properties" -> "Ta
 
 ## Hardware Crypto Acceleration
 
-To enable Freescale MMCAU:
+To enable NXP/Freescale MMCAU:
 
 1. [Download the MMCAU library](http://www.freescale.com/products/arm-processors/kinetis-cortex-m/k-series/k7x-glcd-mcus/crypto-acceleration-unit-cau-and-mmcau-software-library:CAUAP).
 2. Copy the `lib_mmcau.a` and `cau_api.h` files into the project.
-3. Enable the `FREESCALE_MMCAU` define in `user_settings.h` and make sure its value is `1`.
+3. Define `USE_NXP_MMCAU` to enable in `user_settings.h`.
 4. Add the `lib_mmcau.a` file to `Source Files` in the application project.
+5. Open the wolfssl_ltc.hzp CrossWorks project
+6. Build and run
 
-To enable the NXP LTC:
+To enable the NXP/Freescale MMCAU and/or LTC:
 
 1. [Download the NXP KSDK 2.0](https://nxp.flexnetoperations.com/control/frse/download?agree=Accept&element=7353807)
 2. Copy the following folders into IDE/ROWLEY-CROSSWORKS-ARM: drivers, mmcau_2.0.0 and CMSIS.
 3. Copy the following files into IDE/ROWLEY-CROSSWORKS-ARM: clock_config.c, clock_config.h, fsl_debug_console.c, fsl_debug_console.h, fsl_device_registers.h, system_MK82F25615.c, system_MK82F25615.h, MK82F25615.h and MK82F25615_features.h.
-4. Open the wolfssl_ltc.hzp CrossWorks project
-5. Build and run
+4. Define `USE_NXP_LTX` to enable in `user_settings.h`.
+5. Open the wolfssl_ltc.hzp CrossWorks project
+6. Build and run
 
 # Project Files
 

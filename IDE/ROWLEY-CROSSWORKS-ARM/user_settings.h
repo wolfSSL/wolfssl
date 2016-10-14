@@ -56,7 +56,9 @@ extern "C" {
     #define HAVE_ECC224
     #undef NO_ECC256
     #define HAVE_ECC384
-    #define HAVE_ECC521
+    #ifndef USE_NXP_LTC /* NXP LTC HW supports up to 512 */
+        #define HAVE_ECC521
+    #endif
 
     /* Fixed point cache (speeds repeated operations against same private key) */
     #undef  FP_ECC
@@ -72,7 +74,9 @@ extern "C" {
     /* Optional ECC calculation method */
     /* Note: doubles heap usage, but slightly faster */
     #undef  ECC_SHAMIR
-    #define ECC_SHAMIR
+    #ifndef USE_NXP_LTC /* Don't enable Shamir code for HW ECC */
+        #define ECC_SHAMIR
+    #endif
 
     /* Reduces heap usage, but slower */
     #undef  ECC_TIMING_RESISTANT
@@ -83,16 +87,22 @@ extern "C" {
         #undef  ALT_ECC_SIZE
         #define ALT_ECC_SIZE
 
-        /* optionally override the default max ecc bits */
-        #undef  FP_MAX_BITS_ECC
-        //#define FP_MAX_BITS_ECC     512
-
         /* Enable TFM optimizations for ECC */
-        #define TFM_ECC192
-        #define TFM_ECC224
-        #define TFM_ECC256
-        #define TFM_ECC384
-        #define TFM_ECC521
+        #if defined(HAVE_ECC192) || defined(HAVE_ALL_CURVES)
+            #define TFM_ECC192
+        #endif
+        #if defined(HAVE_ECC224) || defined(HAVE_ALL_CURVES)
+            #define TFM_ECC224
+        #endif
+        #if !defined(NO_ECC256) || defined(HAVE_ALL_CURVES)
+            #define TFM_ECC256
+        #endif
+        #if defined(HAVE_ECC384) || defined(HAVE_ALL_CURVES)
+            #define TFM_ECC384
+        #endif
+        #if defined(HAVE_ECC521) || defined(HAVE_ALL_CURVES)
+            #define TFM_ECC521
+        #endif
     #endif
 #endif
 
@@ -195,20 +205,20 @@ extern "C" {
 /* ------------------------------------------------------------------------- */
 /* HW Crypto Acceleration */
 /* ------------------------------------------------------------------------- */
-// See README.md for instructions
-#if 0
-    #define FREESCALE_MMCAU     1
+#if 1
+    /* NXP MMCAU / LTC Support (See README.md for instructions) */
+    #if defined(USE_NXP_MMCAU) || defined(USE_NXP_LTC)
+        #define FSL_HW_CRYPTO_MANUAL_SELECTION
+        #ifdef USE_NXP_MMCAU
+            #define FREESCALE_USE_MMCAU
+        #endif
+        #ifdef USE_NXP_LTC
+            #define FREESCALE_USE_LTC
+            #define LTC_MAX_ECC_BITS    (512)
+            #define LTC_MAX_INT_BYTES   (256)
+        #endif
+    #endif
 #endif
-
-/* NXP LTC Support (See README.md for instructions) */
-#if 0
-    #define FSL_HW_CRYPTO_MANUAL_SELECTION
-    #define FREESCALE_USE_MMCAU
-    #define FREESCALE_USE_LTC
-    #define LTC_MAX_ECC_BITS    (512)
-    #define LTC_MAX_INT_BYTES   (256)
-#endif
-
 
 /* ------------------------------------------------------------------------- */
 /* Benchmark / Test */

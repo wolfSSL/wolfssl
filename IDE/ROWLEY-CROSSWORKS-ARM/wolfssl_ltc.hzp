@@ -4,7 +4,7 @@
     <configuration
       Name="Common"
       build_output_file_name="$(OutDir)/$(ProjectName)$(LibExt)$(LIB)"
-      c_preprocessor_definitions="WOLFSSL_ROWLEY_ARM;WOLFSSL_USER_SETTINGS"
+      c_preprocessor_definitions="WOLFSSL_ROWLEY_ARM;WOLFSSL_USER_SETTINGS;USE_NXP_LTC;USE_NXP_MMCAU"
       c_user_include_directories=".;../;../../;./drivers;./mmcau_2.0.0;./CMSIS/Include"
       project_directory=""
       project_type="Library" />
@@ -322,7 +322,7 @@
       arm_simulator_memory_simulation_parameter="MK82FN256xxx15;0x40000;0x0;0x0;0x40000;4"
       arm_target_loader_applicable_loaders="Flash"
       arm_target_loader_default_loader="Flash"
-      c_preprocessor_definitions="WOLFSSL_ROWLEY_ARM;WOLFSSL_USER_SETTINGS"
+      c_preprocessor_definitions="WOLFSSL_ROWLEY_ARM;WOLFSSL_USER_SETTINGS;USE_NXP_LTC;USE_NXP_MMCAU"
       c_user_include_directories=".;./drivers;./mmcau_2.0.0;./CMSIS/Include;../;../../;$(TargetsDir);$(TargetsDir)/Kinetis;$(TargetsDir)/Kinetis/CMSIS;$(TargetsDir)/Kinetis/CMSIS/include;$(TargetsDir)/CMSIS_3/CMSIS/include"
       debug_register_definition_file="$(TargetsDir)/Kinetis/MK82F25615_Peripherals.xml"
       linker_memory_map_file="$(TargetsDir)/Kinetis/MK82FN256xxx15_MemoryMap.xml"
@@ -377,7 +377,7 @@
       arm_simulator_memory_simulation_parameter="MK82FN256xxx15;0x40000;0x0;0x0;0x40000;4"
       arm_target_loader_applicable_loaders="Flash"
       arm_target_loader_default_loader="Flash"
-      c_preprocessor_definitions="WOLFSSL_ROWLEY_ARM;WOLFSSL_USER_SETTINGS"
+      c_preprocessor_definitions="WOLFSSL_ROWLEY_ARM;WOLFSSL_USER_SETTINGS;USE_NXP_LTC;USE_NXP_MMCAU"
       c_user_include_directories=".;./drivers;./mmcau_2.0.0;./CMSIS/Include;../;../../;$(TargetsDir);$(TargetsDir)/Kinetis;$(TargetsDir)/Kinetis/CMSIS;$(TargetsDir)/Kinetis/CMSIS/include;$(TargetsDir)/CMSIS_3/CMSIS/include"
       debug_register_definition_file="$(TargetsDir)/Kinetis/MK82F25615_Peripherals.xml"
       linker_memory_map_file="$(TargetsDir)/Kinetis/MK82FN256xxx15_MemoryMap.xml"

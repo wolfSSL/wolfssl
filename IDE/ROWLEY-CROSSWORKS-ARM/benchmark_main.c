@@ -54,7 +54,7 @@ void main(void)
 
 /* 
 SAMPLE OUTPUT: Freescale K64 running at 96MHz with no MMCAU:
-Benchmark Test 1:
+Benchmark Test 0:
 AES      25 kB took 0.073 seconds,    0.334 MB/s
 ARC4     25 kB took 0.033 seconds,    0.740 MB/s
 RABBIT   25 kB took 0.027 seconds,    0.904 MB/s
@@ -66,10 +66,10 @@ RSA 1024 encryption took 91.000 milliseconds, avg over 1 iterations
 RSA 1024 decryption took 573.000 milliseconds, avg over 1 iterations
 DH  1024 key generation  253.000 milliseconds, avg over 1 iterations
 DH  1024 key agreement   311.000 milliseconds, avg over 1 iterations
-Benchmark Test 1: Return code 0
+Benchmark Test 0: Return code 0
 
 SAMPLE OUTPUT: Freescale K64 running at 96MHz with MMCAU enabled:
-Benchmark Test 1:
+Benchmark Test 0:
 AES      25 kB took 0.019 seconds,    1.285 MB/s
 ARC4     25 kB took 0.033 seconds,    0.740 MB/s
 RABBIT   25 kB took 0.028 seconds,    0.872 MB/s
@@ -81,5 +81,72 @@ RSA 1024 encryption took 89.000 milliseconds, avg over 1 iterations
 RSA 1024 decryption took 573.000 milliseconds, avg over 1 iterations
 DH  1024 key generation  250.000 milliseconds, avg over 1 iterations
 DH  1024 key agreement   308.000 milliseconds, avg over 1 iterations
-Benchmark Test 1: Return code 0
+Benchmark Test 0: Return code 0
+
+
+SAMPLE OUTPUT: NXP K82 running at 150Mhz w/MMCAU and LTC
+Benchmark Test 0:
+RNG      25 kB took 0.026 seconds,    0.939 MB/s
+AES enc  25 kB took 0.002 seconds,   12.207 MB/s
+AES dec  25 kB took 0.002 seconds,   12.207 MB/s
+AES-GCM  25 kB took 0.002 seconds,   12.207 MB/s
+AES-CTR  25 kB took 0.003 seconds,    8.138 MB/s
+AES-CCM  25 kB took 0.004 seconds,    6.104 MB/s
+CHACHA   25 kB took 0.008 seconds,    3.052 MB/s
+CHA-POLY 25 kB took 0.013 seconds,    1.878 MB/s
+
+POLY1305 25 kB took 0.003 seconds,    8.138 MB/s
+SHA      25 kB took 0.006 seconds,    4.069 MB/s
+SHA-256  25 kB took 0.009 seconds,    2.713 MB/s
+SHA-384  25 kB took 0.032 seconds,    0.763 MB/s
+SHA-512  25 kB took 0.035 seconds,    0.698 MB/s
+
+RSA 2048 public          12.000 milliseconds, avg over 1 iterations
+RSA 2048 private         135.000 milliseconds, avg over 1 iterations
+
+ECC  256 key generation  17.400 milliseconds, avg over 5 iterations
+EC-DHE   key agreement   15.200 milliseconds, avg over 5 iterations
+EC-DSA   sign   time     20.200 milliseconds, avg over 5 iterations
+EC-DSA   verify time     33.000 milliseconds, avg over 5 iterations
+
+CURVE25519 256 key generation 14.400 milliseconds, avg over 5 iterations
+CURVE25519 key agreement      14.400 milliseconds, avg over 5 iterations
+
+ED25519  key generation  14.800 milliseconds, avg over 5 iterations
+ED25519  sign   time     16.800 milliseconds, avg over 5 iterations
+ED25519  verify time     30.400 milliseconds, avg over 5 iterations
+Benchmark Test 0: Return code 0
+
+SAMPLE OUTPUT: NXP K82 running at 150Mhz software only
+Benchmark Test 0:
+RNG      25 kB took 0.026 seconds,    0.939 MB/s
+AES enc  25 kB took 0.002 seconds,   12.207 MB/s
+AES dec  25 kB took 0.002 seconds,   12.207 MB/s
+AES-GCM  25 kB took 0.002 seconds,   12.207 MB/s
+AES-CTR  25 kB took 0.002 seconds,   12.207 MB/s
+AES-CCM  25 kB took 0.004 seconds,    6.104 MB/s
+CHACHA   25 kB took 0.009 seconds,    2.713 MB/s
+CHA-POLY 25 kB took 0.013 seconds,    1.878 MB/s
+
+POLY1305 25 kB took 0.003 seconds,    8.138 MB/s
+SHA      25 kB took 0.006 seconds,    4.069 MB/s
+SHA-256  25 kB took 0.008 seconds,    3.052 MB/s
+SHA-384  25 kB took 0.033 seconds,    0.740 MB/s
+SHA-512  25 kB took 0.034 seconds,    0.718 MB/s
+
+RSA 2048 public          11.000 milliseconds, avg over 1 iterations
+RSA 2048 private         135.000 milliseconds, avg over 1 iterations
+
+ECC  256 key generation  17.400 milliseconds, avg over 5 iterations
+EC-DHE   key agreement   15.000 milliseconds, avg over 5 iterations
+EC-DSA   sign   time     20.400 milliseconds, avg over 5 iterations
+EC-DSA   verify time     33.200 milliseconds, avg over 5 iterations
+
+CURVE25519 256 key generation 14.600 milliseconds, avg over 5 iterations
+CURVE25519 key agreement      14.400 milliseconds, avg over 5 iterations
+
+ED25519  key generation  15.000 milliseconds, avg over 5 iterations
+ED25519  sign   time     16.800 milliseconds, avg over 5 iterations
+ED25519  verify time     30.400 milliseconds, avg over 5 iterations
+Benchmark Test 0: Return code 0
 */
