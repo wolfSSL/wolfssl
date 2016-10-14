@@ -2364,4 +2364,220 @@ int GNRC_GenerateCookie(WOLFSSL* ssl, byte *buf, int sz, void *_ctx)
 
 #endif /* WOLFSSL_GNRC */
 
+
+#ifdef HAVE_LWIP_NATIVE
+
+#include "lwip/tcp.h"
+#include "lwip/pbuf.h"
+#include "lwip/sockets.h"
+
+#if 0
+/*Enable debug*/
+#include <cstdio>
+#define DBG_PRINTF(x, ...) printf("[SSLClient : DBG]"x"\r\n", ##__VA_ARGS__);
+#define ERR_PRINTF(x, ...) printf("[SSLClient:ERROR]"x"\r\n", ##__VA_ARGS__);
+#else
+/*Disable debug*/
+#define DBG_PRINTF(x, ...)
+#define ERR_PRINTF(x, ...)
+#endif
+
+#if 0
+/*Enable debug*/
+#define DBG_PRINTF_CB(x, ...) printf("[HTTPSClient : DBG]"x"\r\n", ##__VA_ARGS__);
+#else
+/*Disable debug*/
+#define DBG_PRINTF_CB(x, ...)
+#endif
+
+#ifdef WOLFSSL_IAR_ARM
+    #include  "intrinsics.h" 
+#endif
+
+void wolfSSL_LwIP_PbufFree(WOLFSSL *ssl)
+{
+    struct pbuf *p ;
+    struct pbuf * next;
+    
+    if(ssl->lwipCtx.pbuf == NULL)return ;
+    tcp_recved(ssl->lwipCtx.pcb, ssl->lwipCtx.pbuf->tot_len) ;
+    p = ssl->lwipCtx.pbuf ;
+    while(p->next != NULL)
+    {
+        next = p->next;
+        pbuf_free(p);   
+        p = next;
+    }    
+    pbuf_free(p);
+    ssl->lwipCtx.pbuf = NULL ;
+}
+
+static int wolfSSL_GetDataFromPbuf(char *buff, WOLFSSL *ssl, int size)
+{
+    struct pbuf *p ;
+    struct pbuf *p_next ;
+    int totalLen ;
+    int skipLen = 0 ;
+ 
+    p = ssl->lwipCtx.pbuf ;
+
+    #if defined(DEBUG_PBUF)
+    printf("WantRead Size=%d\n", size) ;
+    do {
+        printf("p=%x, p->len=%d, p->tot_len=%d\n", p, p->len,  p->tot_len) ;
+        if(p != p->next)
+            p = p->next ;
+        else break ;
+    } while(p) ;
+    p = ssl->lwipCtx.pbuf ;    
+    #endif
+    if(p->tot_len < (ssl->lwipCtx.pulled + size))
+        return 0 ;
+    
+    while(p) { /* skip the part pulled before */
+        if(p->len && p->len > (ssl->lwipCtx.pulled - skipLen) ){ 
+            skipLen = (ssl->lwipCtx.pulled - skipLen) ;
+            break ;
+        } else {
+            skipLen += p->len ;
+            if(p->next)
+                p = p->next ;
+            else return 0 ;
+        }
+    } 
+    
+    totalLen = 0 ;
+    while(p){
+        if(p->len) {
+          if((p->len - skipLen) > (size - totalLen)) { /* buffer full */
+                memcpy(&buff[totalLen], (const char *)&(((char *)(p->payload))[skipLen]), size-totalLen) ;
+                totalLen = size  ;
+                break ;
+          } else {
+                memcpy(&buff[totalLen], (const char *)&(((char *)(p->payload))[skipLen]), p->len - skipLen) ;
+                totalLen += (p->len-skipLen) ;
+                skipLen = 0 ;
+          }
+        }
+        if(p->next){
+            p_next = p->next ;
+            p = p_next ;
+        } else break ;
+    }
+    ssl->lwipCtx.pulled += totalLen ;
+    if(ssl->lwipCtx.pbuf->tot_len <= ssl->lwipCtx.pulled) {
+        wolfSSL_LwIP_PbufFree(ssl) ;
+        ssl->lwipCtx.pbuf = NULL ;
+        tcp_recved(ssl->lwipCtx.pcb,ssl->lwipCtx.pbuf->tot_len) ;
+    }
+    return totalLen;
+}
+
+err_t wolfSSL_LwIP_recv_cb(void *cb, struct tcp_pcb *pcb, struct pbuf *p, s8_t err)
+{
+    struct pbuf *next ;
+    WOLFSSL *ssl ;
+    ssl = (WOLFSSL *)cb ;
+    
+    if((cb == NULL)||(pcb == NULL))
+        ERR_PRINTF("wolfSSL_LwIP_recv_cb, cb=%x, pcb=%d\n", cb, pcb) ;
+    if(p && (err == 0)) {
+        DBG_PRINTF_CB("wolfSSL_LwIP_recv_cb, pbuf=%x, err=%d, tot_len=%d\n", p, err, p->tot_len) ;
+    }else {
+        ERR_PRINTF("wolfSSL_LwIP_recv_cb, pbuf=%x, err=%d\n", p, err) ;
+        return ERR_OK; /* don't go to SSL_CONN */
+    }
+    if(ssl->lwipCtx.pbuf) {
+        next = ssl->lwipCtx.pbuf ;
+        while(1) {
+            if(next == p)return ERR_OK ; /* throw away */
+            if(next->next && (next != next->next))
+                next = next->next ;
+            else break ;
+        }
+        next->next = p ;
+        ssl->lwipCtx.pbuf->tot_len += p->tot_len ;
+    } else {
+        ssl->lwipCtx.pbuf = p ;
+    }
+    ssl->lwipCtx.pulled = 0 ;
+    ssl->lwipCtx.wait = 10000 ;
+    if(ssl->lwipCtx.recv)
+        return ssl->lwipCtx.recv(ssl->lwipCtx.arg, pcb, p, err) ; 
+                                                      /* user callback */
+    return ERR_OK;
+}
+ 
+err_t  wolfSSL_LwIP_sent_cb(void *cb, struct tcp_pcb *pcb, u16_t err)
+{
+    WOLFSSL *ssl ;
+    ssl = (WOLFSSL *)cb ;
+    DBG_PRINTF_CB("wolfSSL_LwIP_write_cb, err=%d\n", err) ;
+    if(ssl->lwipCtx.sent)
+        return ssl->lwipCtx.sent(ssl->lwipCtx.arg, pcb, err) ; 
+                                                      /* user callback */
+    return ERR_OK;
+}
+
+int wolfSSL_LwIP_Receive(WOLFSSL* ssl, char *buf, int sz, void *cb)
+{
+    int ret ;
+    DBG_PRINTF_CB("wolfSSL_LwIP_Receive: ssl_nb = %x\n", ssl) ;  
+
+    if(ssl->lwipCtx.pbuf) {
+        if(ssl->lwipCtx.wait){
+            ssl->lwipCtx.wait-- ;
+            return WOLFSSL_CBIO_ERR_WANT_READ ;
+        }
+        DBG_PRINTF_CB("Received Len=%d, Want Len= %d\n", ssl->lwipCtx.pbuf->tot_len, sz) ;
+        ret = wolfSSL_GetDataFromPbuf(buf, ssl, sz) ;
+        if(ret == 0) {
+             ret = WOLFSSL_CBIO_ERR_WANT_READ ;
+             ssl->lwipCtx.wait = 10 ;
+        }
+    } else {
+        DBG_PRINTF_CB("No Received Data\n") ;
+        ssl->lwipCtx.wait = 10 ;
+        ret = WOLFSSL_CBIO_ERR_WANT_READ ;
+    }
+    return ret ;
+}
+
+int wolfSSL_LwIP_Send(WOLFSSL* ssl, char *buf, int sz, void *cb)
+{
+    err_t ret ;
+    
+    DBG_PRINTF_CB("wolfSSL_LwIP_Send: ssl = %x, pcb = %x\n", ssl, ssl->lwipCtx.pcb) ;
+    DBG_PRINTF_CB("Send buf[0,1,2,3]=%x,%x,%x,%x, sz=%d\n", buf[0], buf[1], buf[2], buf[3], sz) ;
+    ret = tcp_write(ssl->lwipCtx.pcb, buf, sz, TCP_WRITE_FLAG_COPY) ;
+    if(ret == ERR_OK)
+        return sz ;
+    else {
+        ERR_PRINTF("Send ssl=%x, ret=%d\n", ssl, ret) ;
+        return -1 ;
+    }
+}
+
+int wolfSSL_SetIO_LwIP(WOLFSSL* ssl, void* pcb, 
+                              tcp_recv_fn recv, tcp_sent_fn sent, void *arg)
+{
+    if (ssl && pcb) {
+        ssl->lwipCtx.pcb = (struct tcp_pcb *)pcb ;
+        ssl->lwipCtx.recv = recv ; /*  recv user callback */
+        ssl->lwipCtx.sent = sent ; /*  sent user callback */
+        ssl->lwipCtx.arg  = arg  ;
+        ssl->lwipCtx.pbuf = 0 ;
+        ssl->lwipCtx.pulled = 0 ;
+        ssl->lwipCtx.wait = 0 ;
+        /* wolfSSL_LwIP_recv/sent_cb invokes recv/sent user callback in them. */
+        tcp_recv(pcb, wolfSSL_LwIP_recv_cb) ;
+        tcp_sent(pcb, wolfSSL_LwIP_sent_cb) ;    
+        tcp_arg (pcb, (void *)ssl) ;
+    } else return BAD_FUNC_ARG ;
+    return ERR_OK ;
+}
+
+#endif /* HAVE_LWIP_NATIVE */
+
+
 #endif /* WOLFCRYPT_ONLY */

@@ -3653,6 +3653,21 @@ typedef struct DtlsMsg {
 
 #endif
 
+#ifdef HAVE_LWIP_NATIVE
+    /* LwIP native tpc socket context */
+    typedef struct LwIP_native_Ctx {
+        struct tcp_pcb * pcb ;
+        tcp_recv_fn recv ;
+        tcp_sent_fn sent ;
+        int    pulled  ; 
+        struct pbuf *pbuf ;
+        int    wait ;
+        void * arg ;   /* arg for application */
+        int    idle_count ;
+    } LwIP_native_Ctx ;    
+#endif
+
+
 /* Handshake messages received from peer (plus change cipher */
 typedef struct MsgsReceived {
     word16 got_hello_request:1;
@@ -4016,6 +4031,9 @@ struct WOLFSSL {
 #endif /* defined(WOLFSSL_APACHE_MYNEWT) && !defined(WOLFSSL_LWIP) */
 #ifdef WOLFSSL_GNRC
     struct gnrc_wolfssl_ctx *gnrcCtx;  /* Riot-OS GNRC UDP/IP context */
+#endif
+#ifdef HAVE_LWIP_NATIVE
+    LwIP_native_Ctx        lwipCtx;    /* LwIP native socket IO Context */
 #endif
 #ifdef SESSION_INDEX
     int sessionIndex;                  /* Session's location in the cache. */

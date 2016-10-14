@@ -64,6 +64,8 @@
             #include <errno.h>
             #define LWIP_PROVIDE_ERRNO 1
         #endif
+    #elif defined(HAVE_LWIP_NATIVE)
+        #include "lwip/tcp.h"
     #elif defined(FREESCALE_MQX)
         #include <posix.h>
         #include <rtcs.h>
@@ -445,6 +447,14 @@ WOLFSSL_API void wolfSSL_SetIOWriteFlags(WOLFSSL* ssl, int flags);
     WOLFSSL_API void wolfSSL_SetIO_NetX(WOLFSSL* ssl, NX_TCP_SOCKET* nxsocket,
                                       ULONG waitoption);
 #endif /* HAVE_NETX */
+
+#ifdef HAVE_LWIP_NATIVE
+    WOLFSSL_LOCAL int wolfSSL_LwIP_Send(WOLFSSL* ssl, char *buf, int sz, void *cb);
+    WOLFSSL_LOCAL int wolfSSL_LwIP_Receive(WOLFSSL* ssl, char *buf, int sz, void *cb);
+    WOLFSSL_API int wolfSSL_SetIO_LwIP(WOLFSSL* ssl, void *pcb,
+                                tcp_recv_fn recv, tcp_sent_fn sent, void *arg);
+    WOLFSSL_API void wolfSSL_LwIP_PbufFree(WOLFSSL *ssl) ;
+#endif /* HAVE_LWIP_NATIVE */
 
 #ifdef MICRIUM
     WOLFSSL_LOCAL int MicriumSend(WOLFSSL* ssl, char* buf, int sz, void* ctx);
