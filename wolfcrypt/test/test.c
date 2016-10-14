@@ -7031,6 +7031,210 @@ int openssl_test(void)
 
 #endif
 
+/* EVP_Cipher with EVP_aes_xxx_ctr() */
+#ifdef WOLFSSL_AES_COUNTER
+{
+    const byte ctrKey[] =
+    {
+        0x2b,0x7e,0x15,0x16,0x28,0xae,0xd2,0xa6,
+        0xab,0xf7,0x15,0x88,0x09,0xcf,0x4f,0x3c
+    };
+
+    const byte ctrIv[] =
+    {
+        0xf0,0xf1,0xf2,0xf3,0xf4,0xf5,0xf6,0xf7,
+        0xf8,0xf9,0xfa,0xfb,0xfc,0xfd,0xfe,0xff
+    };
+
+
+    const byte ctrPlain[] =
+    {
+        0x6b,0xc1,0xbe,0xe2,0x2e,0x40,0x9f,0x96,
+        0xe9,0x3d,0x7e,0x11,0x73,0x93,0x17,0x2a,
+        0xae,0x2d,0x8a,0x57,0x1e,0x03,0xac,0x9c,
+        0x9e,0xb7,0x6f,0xac,0x45,0xaf,0x8e,0x51,
+        0x30,0xc8,0x1c,0x46,0xa3,0x5c,0xe4,0x11,
+        0xe5,0xfb,0xc1,0x19,0x1a,0x0a,0x52,0xef,
+        0xf6,0x9f,0x24,0x45,0xdf,0x4f,0x9b,0x17,
+        0xad,0x2b,0x41,0x7b,0xe6,0x6c,0x37,0x10
+    };
+
+    const byte ctrCipher[] =
+    {
+        0x87,0x4d,0x61,0x91,0xb6,0x20,0xe3,0x26,
+        0x1b,0xef,0x68,0x64,0x99,0x0d,0xb6,0xce,
+        0x98,0x06,0xf6,0x6b,0x79,0x70,0xfd,0xff,
+        0x86,0x17,0x18,0x7b,0xb9,0xff,0xfd,0xff,
+        0x5a,0xe4,0xdf,0x3e,0xdb,0xd5,0xd3,0x5e,
+        0x5b,0x4f,0x09,0x02,0x0d,0xb0,0x3e,0xab,
+        0x1e,0x03,0x1d,0xda,0x2f,0xbe,0x03,0xd1,
+        0x79,0x21,0x70,0xa0,0xf3,0x00,0x9c,0xee
+    };
+
+    byte plainBuff [64];
+    byte cipherBuff[64];
+
+    const byte oddCipher[] =
+    {
+        0xb9,0xd7,0xcb,0x08,0xb0,0xe1,0x7b,0xa0,
+        0xc2
+    };
+
+
+    /* test vector from "Recommendation for Block Cipher Modes of Operation"
+     * NIST Special Publication 800-38A */
+    const byte ctr192Key[] =
+    {
+        0x8e,0x73,0xb0,0xf7,0xda,0x0e,0x64,0x52,
+        0xc8,0x10,0xf3,0x2b,0x80,0x90,0x79,0xe5,
+        0x62,0xf8,0xea,0xd2,0x52,0x2c,0x6b,0x7b
+    };
+
+    const byte ctr192Iv[] =
+    {
+        0xf0,0xf1,0xf2,0xf3,0xf4,0xf5,0xf6,0xf7,
+        0xf8,0xf9,0xfa,0xfb,0xfc,0xfd,0xfe,0xff
+    };
+
+
+    const byte ctr192Plain[] =
+    {
+        0x6b,0xc1,0xbe,0xe2,0x2e,0x40,0x9f,0x96,
+        0xe9,0x3d,0x7e,0x11,0x73,0x93,0x17,0x2a
+    };
+
+    const byte ctr192Cipher[] =
+    {
+        0x1a,0xbc,0x93,0x24,0x17,0x52,0x1c,0xa2,
+        0x4f,0x2b,0x04,0x59,0xfe,0x7e,0x6e,0x0b
+    };
+
+    /* test vector from "Recommendation for Block Cipher Modes of Operation"
+     * NIST Special Publication 800-38A */
+    const byte ctr256Key[] =
+    {
+        0x60,0x3d,0xeb,0x10,0x15,0xca,0x71,0xbe,
+        0x2b,0x73,0xae,0xf0,0x85,0x7d,0x77,0x81,
+        0x1f,0x35,0x2c,0x07,0x3b,0x61,0x08,0xd7,
+        0x2d,0x98,0x10,0xa3,0x09,0x14,0xdf,0xf4
+    };
+
+    const byte ctr256Iv[] =
+    {
+        0xf0,0xf1,0xf2,0xf3,0xf4,0xf5,0xf6,0xf7,
+        0xf8,0xf9,0xfa,0xfb,0xfc,0xfd,0xfe,0xff
+    };
+
+
+    const byte ctr256Plain[] =
+    {
+        0x6b,0xc1,0xbe,0xe2,0x2e,0x40,0x9f,0x96,
+        0xe9,0x3d,0x7e,0x11,0x73,0x93,0x17,0x2a
+    };
+
+    const byte ctr256Cipher[] =
+    {
+        0x60,0x1e,0xc3,0x13,0x77,0x57,0x89,0xa5,
+        0xb7,0xa7,0xf5,0x04,0xbb,0xf3,0xd2,0x28
+    };
+
+    EVP_CIPHER_CTX en;
+    EVP_CIPHER_CTX de;
+
+    EVP_CIPHER_CTX_init(&en);
+    if (EVP_CipherInit(&en, EVP_aes_128_ctr(),
+            (unsigned char*)ctrKey, (unsigned char*)ctrIv, 0) == 0)
+        return OPENSSL_TEST_ERROR-361;
+    if (EVP_Cipher(&en, (byte*)cipherBuff, (byte*)ctrPlain, AES_BLOCK_SIZE*4) == 0)
+        return -3301;
+    EVP_CIPHER_CTX_init(&de);
+    if (EVP_CipherInit(&de, EVP_aes_128_ctr(),
+            (unsigned char*)ctrKey, (unsigned char*)ctrIv, 0) == 0)
+        return -3302;
+
+    if (EVP_Cipher(&de, (byte*)plainBuff, (byte*)cipherBuff, AES_BLOCK_SIZE*4) == 0)
+        return -3303;
+
+    if (XMEMCMP(cipherBuff, ctrCipher, AES_BLOCK_SIZE*4))
+        return -3304;
+    if (XMEMCMP(plainBuff, ctrPlain, AES_BLOCK_SIZE*4))
+        return -3305;
+
+    EVP_CIPHER_CTX_init(&en);
+    if (EVP_CipherInit(&en, EVP_aes_128_ctr(),
+        (unsigned char*)ctrKey, (unsigned char*)ctrIv, 0) == 0)
+        return -3306;
+    if (EVP_Cipher(&en, (byte*)cipherBuff, (byte*)ctrPlain, 9) == 0)
+        return -3307;
+
+    EVP_CIPHER_CTX_init(&de);
+    if (EVP_CipherInit(&de, EVP_aes_128_ctr(),
+        (unsigned char*)ctrKey, (unsigned char*)ctrIv, 0) == 0)
+        return -3308;
+
+    if (EVP_Cipher(&de, (byte*)plainBuff, (byte*)cipherBuff, 9) == 0)
+        return -3309;
+
+    if (XMEMCMP(plainBuff, ctrPlain, 9))
+        return -3310;
+    if (XMEMCMP(cipherBuff, ctrCipher, 9))
+        return -3311;
+
+    if (EVP_Cipher(&en, (byte*)cipherBuff, (byte*)ctrPlain, 9) == 0)
+        return -3312;
+    if (EVP_Cipher(&de, (byte*)plainBuff, (byte*)cipherBuff, 9) == 0)
+        return -3313;
+
+    if (XMEMCMP(plainBuff, ctrPlain, 9))
+        return -3314;
+    if (XMEMCMP(cipherBuff, oddCipher, 9))
+        return -3315;
+
+    EVP_CIPHER_CTX_init(&en);
+    if (EVP_CipherInit(&en, EVP_aes_192_ctr(),
+            (unsigned char*)ctr192Key, (unsigned char*)ctr192Iv, 0) == 0)
+        return -3316;
+    printf("EVP_Cipher\n");
+    if (EVP_Cipher(&en, (byte*)cipherBuff, (byte*)ctr192Plain, AES_BLOCK_SIZE*4) == 0)
+        return -3317;
+    EVP_CIPHER_CTX_init(&de);
+    if (EVP_CipherInit(&de, EVP_aes_192_ctr(),
+        (unsigned char*)ctr192Key, (unsigned char*)ctr192Iv, 0) == 0)
+        return -3318;
+
+    XMEMSET(plainBuff, 0, sizeof(plainBuff));
+    if (EVP_Cipher(&de, (byte*)plainBuff, (byte*)cipherBuff, AES_BLOCK_SIZE*4) == 0)
+        return -3319;
+
+    if (XMEMCMP(plainBuff, ctr192Plain, sizeof(ctr192Plain)))
+        return -3320;
+    if (XMEMCMP(ctr192Cipher, cipherBuff, sizeof(ctr192Cipher)))
+        return -3321;
+
+    EVP_CIPHER_CTX_init(&en);
+    if (EVP_CipherInit(&en, EVP_aes_256_ctr(),
+        (unsigned char*)ctr256Key, (unsigned char*)ctr256Iv, 0) == 0)
+        return -3322;
+    if (EVP_Cipher(&en, (byte*)cipherBuff, (byte*)ctr256Plain, AES_BLOCK_SIZE*4) == 0)
+        return -3323;
+    EVP_CIPHER_CTX_init(&de);
+    if (EVP_CipherInit(&de, EVP_aes_256_ctr(),
+        (unsigned char*)ctr256Key, (unsigned char*)ctr256Iv, 0) == 0)
+        return -3324;
+
+    XMEMSET(plainBuff, 0, sizeof(plainBuff));
+    if (EVP_Cipher(&de, (byte*)plainBuff, (byte*)cipherBuff, AES_BLOCK_SIZE*4) == 0)
+        return -3325;
+
+    if (XMEMCMP(plainBuff, ctr256Plain, sizeof(ctr256Plain)))
+        return -3326;
+    if (XMEMCMP(ctr256Cipher, cipherBuff, sizeof(ctr256Cipher)))
+        return -3327;
+
+}
+
+#endif /* HAVE_AES_COUNTER */
+
     return 0;
 }
 
