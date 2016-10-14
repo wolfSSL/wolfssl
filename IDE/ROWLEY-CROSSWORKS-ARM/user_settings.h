@@ -205,8 +205,8 @@ extern "C" {
 /* ------------------------------------------------------------------------- */
 /* HW Crypto Acceleration */
 /* ------------------------------------------------------------------------- */
-#if 1
 #define FSL_HW_CRYPTO_MANUAL_SELECTION
+#if 1
     /* NXP MMCAU / LTC Support (See README.md for instructions) */
     #if defined(USE_NXP_MMCAU) || defined(USE_NXP_LTC)
         #ifdef USE_NXP_MMCAU
