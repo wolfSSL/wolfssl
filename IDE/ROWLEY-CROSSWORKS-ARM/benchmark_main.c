@@ -119,34 +119,36 @@ Benchmark Test 0: Return code 0
 
 SAMPLE OUTPUT: NXP K82 running at 150Mhz software only
 Benchmark Test 0:
-RNG      25 kB took 0.026 seconds,    0.939 MB/s
-AES enc  25 kB took 0.002 seconds,   12.207 MB/s
-AES dec  25 kB took 0.002 seconds,   12.207 MB/s
-AES-GCM  25 kB took 0.002 seconds,   12.207 MB/s
-AES-CTR  25 kB took 0.002 seconds,   12.207 MB/s
-AES-CCM  25 kB took 0.004 seconds,    6.104 MB/s
+RNG      25 kB took 0.035 seconds,    0.698 MB/s
+AES enc  25 kB took 0.038 seconds,    0.642 MB/s
+AES dec  25 kB took 0.036 seconds,    0.678 MB/s
+AES-GCM  25 kB took 0.485 seconds,    0.050 MB/s
+AES-CTR  25 kB took 0.038 seconds,    0.642 MB/s
+AES-CCM  25 kB took 0.077 seconds,    0.317 MB/s
 CHACHA   25 kB took 0.009 seconds,    2.713 MB/s
 CHA-POLY 25 kB took 0.013 seconds,    1.878 MB/s
 
 POLY1305 25 kB took 0.003 seconds,    8.138 MB/s
 SHA      25 kB took 0.006 seconds,    4.069 MB/s
-SHA-256  25 kB took 0.008 seconds,    3.052 MB/s
-SHA-384  25 kB took 0.033 seconds,    0.740 MB/s
+SHA-256  25 kB took 0.014 seconds,    1.744 MB/s
+SHA-384  25 kB took 0.032 seconds,    0.763 MB/s
 SHA-512  25 kB took 0.034 seconds,    0.718 MB/s
 
-RSA 2048 public          11.000 milliseconds, avg over 1 iterations
-RSA 2048 private         135.000 milliseconds, avg over 1 iterations
+RSA 1024 encryption took 18.000 milliseconds, avg over 1 iterations
+RSA 1024 decryption took 123.000 milliseconds, avg over 1 iterations
+RSA 2048 encryption took 63.000 milliseconds, avg over 1 iterations
+RSA 2048 decryption took 1011.000 milliseconds, avg over 1 iterations
 
-ECC  256 key generation  17.400 milliseconds, avg over 5 iterations
-EC-DHE   key agreement   15.000 milliseconds, avg over 5 iterations
-EC-DSA   sign   time     20.400 milliseconds, avg over 5 iterations
-EC-DSA   verify time     33.200 milliseconds, avg over 5 iterations
+ECC  256 key generation  180.800 milliseconds, avg over 5 iterations
+EC-DHE   key agreement   178.600 milliseconds, avg over 5 iterations
+EC-DSA   sign   time     184.600 milliseconds, avg over 5 iterations
+EC-DSA   verify time     130.200 milliseconds, avg over 5 iterations
 
-CURVE25519 256 key generation 14.600 milliseconds, avg over 5 iterations
-CURVE25519 key agreement      14.400 milliseconds, avg over 5 iterations
+CURVE25519 256 key generation 41.800 milliseconds, avg over 5 iterations
+CURVE25519 key agreement      41.600 milliseconds, avg over 5 iterations
 
-ED25519  key generation  15.000 milliseconds, avg over 5 iterations
-ED25519  sign   time     16.800 milliseconds, avg over 5 iterations
-ED25519  verify time     30.400 milliseconds, avg over 5 iterations
+ED25519  key generation  14.800 milliseconds, avg over 5 iterations
+ED25519  sign   time     16.600 milliseconds, avg over 5 iterations
+ED25519  verify time     48.000 milliseconds, avg over 5 iterations
 Benchmark Test 0: Return code 0
 */
