@@ -2043,21 +2043,21 @@ int wc_ecc_mulmod_ex(mp_int* k, ecc_point *G, ecc_point *R,
 #else
             /* instead of using M[i] for double, which leaks key bit to cache
              * monitor, use M[2] as temp, make sure address calc is constant,
-             * keep &M[0] and &M[1] in cache */
+             * keep M[0] and M[1] in cache */
            if (err == MP_OKAY)
                err = mp_copy((mp_int*)
-                             ( ((wolfssl_word)&M[0]->x & wc_off_on_addr[i^1]) +
-                               ((wolfssl_word)&M[1]->x & wc_off_on_addr[i])),
+                             ( ((wolfssl_word)M[0]->x & wc_off_on_addr[i^1]) +
+                               ((wolfssl_word)M[1]->x & wc_off_on_addr[i])),
                              M[2]->x);
            if (err == MP_OKAY)
                err = mp_copy((mp_int*)
-                             ( ((wolfssl_word)&M[0]->y & wc_off_on_addr[i^1]) +
-                               ((wolfssl_word)&M[1]->y & wc_off_on_addr[i])),
+                             ( ((wolfssl_word)M[0]->y & wc_off_on_addr[i^1]) +
+                               ((wolfssl_word)M[1]->y & wc_off_on_addr[i])),
                              M[2]->y);
            if (err == MP_OKAY)
                err = mp_copy((mp_int*)
-                             ( ((wolfssl_word)&M[0]->z & wc_off_on_addr[i^1]) +
-                               ((wolfssl_word)&M[1]->z & wc_off_on_addr[i])),
+                             ( ((wolfssl_word)M[0]->z & wc_off_on_addr[i^1]) +
+                               ((wolfssl_word)M[1]->z & wc_off_on_addr[i])),
                              M[2]->z);
            if (err == MP_OKAY)
                err = ecc_projective_dbl_point(M[2], M[2], a, modulus, mp);
@@ -2065,18 +2065,18 @@ int wc_ecc_mulmod_ex(mp_int* k, ecc_point *G, ecc_point *R,
            if (err == MP_OKAY)
                err = mp_copy(M[2]->x,
                              (mp_int*)
-                             ( ((wolfssl_word)&M[0]->x & wc_off_on_addr[i^1]) +
-                               ((wolfssl_word)&M[1]->x & wc_off_on_addr[i])) );
+                             ( ((wolfssl_word)M[0]->x & wc_off_on_addr[i^1]) +
+                               ((wolfssl_word)M[1]->x & wc_off_on_addr[i])) );
            if (err == MP_OKAY)
                err = mp_copy(M[2]->y,
                              (mp_int*)
-                             ( ((wolfssl_word)&M[0]->y & wc_off_on_addr[i^1]) +
-                               ((wolfssl_word)&M[1]->y & wc_off_on_addr[i])) );
+                             ( ((wolfssl_word)M[0]->y & wc_off_on_addr[i^1]) +
+                               ((wolfssl_word)M[1]->y & wc_off_on_addr[i])) );
            if (err == MP_OKAY)
                err = mp_copy(M[2]->z,
                              (mp_int*)
-                             ( ((wolfssl_word)&M[0]->z & wc_off_on_addr[i^1]) +
-                               ((wolfssl_word)&M[1]->z & wc_off_on_addr[i])) );
+                             ( ((wolfssl_word)M[0]->z & wc_off_on_addr[i^1]) +
+                               ((wolfssl_word)M[1]->z & wc_off_on_addr[i])) );
            if (err != MP_OKAY)
                break;
 #endif /* WC_NO_CACHE_RESISTANT */
