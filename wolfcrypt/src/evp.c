@@ -19,6 +19,8 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
+static unsigned char cipherType(const WOLFSSL_EVP_CIPHER *cipher);
+
 WOLFSSL_API int  wolfSSL_EVP_EncryptInit(WOLFSSL_EVP_CIPHER_CTX* ctx,
                                         const WOLFSSL_EVP_CIPHER* type,
                                         unsigned char* key, unsigned char* iv)
@@ -62,6 +64,7 @@ WOLFSSL_API int wolfSSL_EVP_DigestInit_ex(WOLFSSL_EVP_MD_CTX* ctx,
 
 WOLFSSL_API int wolfSSL_EVP_CIPHER_CTX_block_size(const WOLFSSL_EVP_CIPHER_CTX *ctx)
 {
+  if(ctx == NULL)return BAD_FUNC_ARG;
     switch(ctx->cipherType){
 
 #if !defined(NO_AES) && defined(HAVE_AES_CBC)
@@ -136,6 +139,7 @@ static unsigned char cipherType(const WOLFSSL_EVP_CIPHER *cipher)
 
 WOLFSSL_API int wolfSSL_EVP_CIPHER_block_size(const WOLFSSL_EVP_CIPHER *cipher)
 {
+  if(cipher == NULL)return BAD_FUNC_ARG;
   switch(cipherType(cipher)){
   #if !defined(NO_AES) && defined(HAVE_AES_CBC)
       case AES_128_CBC_TYPE: return 16;
@@ -163,7 +167,7 @@ WOLFSSL_API int wolfSSL_EVP_CIPHER_block_size(const WOLFSSL_EVP_CIPHER *cipher)
       }
 }
 
-WOLFSSL_API unsigned long WOLFSSL_CIPHER_mode(const WOLFSSL_EVP_CIPHER *cipher)
+static unsigned long WOLFSSL_CIPHER_mode(const WOLFSSL_EVP_CIPHER *cipher)
 {
     switch(cipherType(cipher)){
     #if !defined(NO_AES) && defined(HAVE_AES_CBC)
@@ -197,18 +201,27 @@ WOLFSSL_API unsigned long WOLFSSL_CIPHER_mode(const WOLFSSL_EVP_CIPHER *cipher)
         }
 }
 
+WOLFSSL_API unsigned long WOLFSSL_EVP_CIPHER_mode(const WOLFSSL_EVP_CIPHER *cipher)
+{
+  if(cipher == NULL)return BAD_FUNC_ARG;
+  return WOLFSSL_CIPHER_mode(cipher);
+}
+
+WOLFSSL_API void wolfSSL_EVP_CIPHER_CTX_set_flags(WOLFSSL_EVP_CIPHER_CTX *ctx, int flags)
+{
+  ctx->flags = flags;
+}
+
 WOLFSSL_API unsigned long wolfSSL_EVP_CIPHER_flags(const WOLFSSL_EVP_CIPHER *cipher)
 {
+  if(cipher == NULL)return BAD_FUNC_ARG;
   return WOLFSSL_CIPHER_mode(cipher);
 }
 
 WOLFSSL_API int  wolfSSL_EVP_CIPHER_CTX_set_padding(WOLFSSL_EVP_CIPHER_CTX *ctx, int padding)
 {
-  (void) ctx;
-  (void) padding;
-  /*
+  if(ctx == NULL)return BAD_FUNC_ARG;
   if(padding)ctx->flags &= ~WOLFSSL_EVP_CIPH_NO_PADDING;
   else       ctx->flags |=  WOLFSSL_EVP_CIPH_NO_PADDING;
-  */
-  return 0;
+  return 1;
 }

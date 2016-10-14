@@ -155,6 +155,7 @@ enum {
 typedef struct WOLFSSL_EVP_CIPHER_CTX {
     int            keyLen;         /* user may set for variable */
     int            block_size;
+    unsigned long  flags;
     unsigned char  enc;            /* if encrypt side, then true */
     unsigned char  cipherType;
 #ifndef NO_AES
@@ -258,7 +259,7 @@ WOLFSSL_API int  wolfSSL_SetInternalIV(WOLFSSL_EVP_CIPHER_CTX* ctx);
 
 WOLFSSL_API int wolfSSL_EVP_CIPHER_CTX_block_size(const WOLFSSL_EVP_CIPHER_CTX *ctx);
 WOLFSSL_API int wolfSSL_EVP_CIPHER_block_size(const WOLFSSL_EVP_CIPHER *cipher);
-WOLFSSL_API unsigned long WOLFSSL_CIPHER_mode(const WOLFSSL_EVP_CIPHER *cipher);
+WOLFSSL_API unsigned long WOLFSSL_EVP_CIPHER_mode(const WOLFSSL_EVP_CIPHER *cipher);
 WOLFSSL_API unsigned long wolfSSL_EVP_CIPHER_flags(const WOLFSSL_EVP_CIPHER *cipher);
 WOLFSSL_API void wolfSSL_EVP_CIPHER_CTX_set_flags(WOLFSSL_EVP_CIPHER_CTX *ctx, int flags);
 WOLFSSL_API int  wolfSSL_EVP_CIPHER_CTX_set_padding(WOLFSSL_EVP_CIPHER_CTX *c, int pad);
@@ -272,6 +273,7 @@ WOLFSSL_API int  wolfSSL_EVP_CIPHER_CTX_set_padding(WOLFSSL_EVP_CIPHER_CTX *c, i
 #define WOLFSSL_EVP_CIPH_CTR_MODE           0x5
 #define WOLFSSL_EVP_CIPH_GCM_MODE           0x6
 #define WOLFSSL_EVP_CIPH_CCM_MODE           0x7
+#define WOLFSSL_EVP_CIPH_NO_PADDING       0x100
 
 #define wolfSSL_EVP_CIPHER_CTX_flags(c) wolfSSL_EVP_CIPHER_flags(WOLFSSL_EVP_CIPHER_CTX_cipher(c))
 

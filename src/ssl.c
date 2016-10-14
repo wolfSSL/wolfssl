@@ -10452,6 +10452,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
                     ret = wc_AesCbcDecrypt(&ctx->cipher.aes, dst, src, len);
                 break;
 #endif /* HAVE_AES_CBC */
+#ifdef HAVE_AES_ECB
             case AES_128_ECB_TYPE :
             case AES_192_ECB_TYPE :
             case AES_256_ECB_TYPE :
@@ -10461,6 +10462,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
                 else
                     ret = wc_AesEcbDecrypt(&ctx->cipher.aes, dst, src, len);
                 break;
+#endif
 #ifdef WOLFSSL_AES_COUNTER
             case AES_128_CTR_TYPE :
             case AES_192_CTR_TYPE :
