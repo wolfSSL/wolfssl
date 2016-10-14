@@ -10104,6 +10104,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         }
 
 #ifndef NO_AES
+        printf("cipherType=%d\n", ctx->cipherType);
         if (ctx->cipherType == AES_128_CBC_TYPE ||
             (type && XSTRNCMP(type, EVP_AES_128_CBC, EVP_AES_SIZE) == 0)) {
             WOLFSSL_MSG(EVP_AES_128_CBC);
@@ -10174,8 +10175,8 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
             if (enc == 0 || enc == 1)
                 ctx->enc = enc ? 1 : 0;
             if (key) {
-                ret = wc_AesSetKey(&ctx->cipher.aes, key, ctx->keyLen, iv,
-                                ctx->enc ? AES_ENCRYPTION : AES_DECRYPTION));
+              ret = wc_AesSetKey(&ctx->cipher.aes, key, ctx->keyLen, iv,
+                    AES_ENCRYPTION);
                 if (ret != 0)
                     return ret;
             }
@@ -10195,7 +10196,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
                 ctx->enc = enc ? 1 : 0;
             if (key) {
                 ret = wc_AesSetKey(&ctx->cipher.aes, key, ctx->keyLen, iv,
-                                ctx->enc ? AES_ENCRYPTION : AES_DECRYPTION));
+                      AES_ENCRYPTION);
                 if (ret != 0)
                     return ret;
             }
@@ -10215,7 +10216,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
                 ctx->enc = enc ? 1 : 0;
             if (key) {
                 ret = wc_AesSetKey(&ctx->cipher.aes, key, ctx->keyLen, iv,
-                                ctx->enc ? AES_ENCRYPTION : AES_DECRYPTION));
+                      AES_ENCRYPTION);
                 if (ret != 0)
                     return ret;
             }
