@@ -305,8 +305,6 @@
     {
         word32 W[SHA_BLOCK_SIZE / sizeof(word32)];
 
-        (void)data; /* Not used */
-
         /* Copy context->state[] to working vars */
         word32 a = sha->digest[0];
         word32 b = sha->digest[1];
@@ -376,6 +374,8 @@
         sha->digest[2] += c;
         sha->digest[3] += d;
         sha->digest[4] += e;
+
+        (void)data; /* Not used */
     }
 #endif /* !USE_CUSTOM_SHA_TRANSFORM */
 
