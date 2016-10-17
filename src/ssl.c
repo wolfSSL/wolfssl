@@ -12026,6 +12026,9 @@ const char* wolfSSL_CIPHER_get_name_from_suite(const unsigned char cipherSuite,
 
     WOLFSSL_ENTER("wolfSSL_CIPHER_get_name_from_suite");
 
+    (void)cipherSuite;
+    (void)cipherSuite0;
+
 #ifndef NO_ERROR_STRINGS
 
 #if defined(HAVE_CHACHA)
