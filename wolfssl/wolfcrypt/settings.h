@@ -922,10 +922,48 @@ static char *fgets(char *buff, int sz, FILE *fp)
     #define SIZEOF_LONG_LONG 8
     #define NO_DEV_RANDOM
     #define NO_WOLFSSL_DIR
+    #undef  NO_RABBIT
     #define NO_RABBIT
     #define STM32F2_RNG
     #define STM32F2_CRYPTO
-    #define KEIL_INTRINSICS
+    #ifndef __GNUC__
+        #define KEIL_INTRINSICS
+    #endif
+    #define NO_OLD_RNGNAME
+    #ifdef WOLFSSL_STM32_CUBEMX
+        #include "stm32f2xx_hal.h"
+		#ifndef STM32_HAL_TIMEOUT
+        	#define STM32_HAL_TIMEOUT   0xFF
+		#endif
+    #else
+        #include "stm32f2xx.h"
+        #include "stm32f2xx_cryp.h"
+        #include "stm32f2xx_hash.h"
+    #endif /* WOLFSSL_STM32_CUBEMX */
+#endif
+
+#ifdef WOLFSSL_STM32F4
+    #define SIZEOF_LONG_LONG 8
+    #define NO_DEV_RANDOM
+    #define NO_WOLFSSL_DIR
+    #undef  NO_RABBIT
+    #define NO_RABBIT
+    #define STM32F4_RNG
+    #define STM32F4_CRYPTO
+    #define NO_OLD_RNGNAME
+    #ifndef __GNUC__
+        #define KEIL_INTRINSICS
+    #endif
+    #ifdef WOLFSSL_STM32_CUBEMX
+        #include "stm32f4xx_hal.h"
+		#ifndef STM32_HAL_TIMEOUT
+        	#define STM32_HAL_TIMEOUT   0xFF
+		#endif
+    #else
+        #include "stm32f4xx.h"
+        #include "stm32f4xx_cryp.h"
+        #include "stm32f4xx_hash.h"
+    #endif /* WOLFSSL_STM32_CUBEMX */
 #endif
 
 #ifdef MICRIUM

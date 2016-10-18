@@ -43,7 +43,7 @@
 #ifndef HAVE_FIPS /* avoid redefining structs */
 /* in bytes */
 enum {
-#ifdef STM32F2_HASH
+#if defined(STM32F2_HASH) || defined(STM32F4_HASH)
     SHA_REG_SIZE     =  4,    /* STM32 register size, bytes */
 #endif
     SHA              =  1,    /* hash type unique */
