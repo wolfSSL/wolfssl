@@ -17565,6 +17565,9 @@ int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                             case rsa_sa_algo:
                             {
                                 if (verifySig == NULL) {
+                                    if (ssl->sigLen == 0) {
+                                        ERROR_OUT(BAD_COND_E, exit_sske);
+                                    }
                                     verifySig = (byte*)XMALLOC(ssl->sigLen, ssl->heap,
                                                       DYNAMIC_TYPE_TMP_BUFFER);
                                     if (!verifySig) {
@@ -17611,6 +17614,9 @@ int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                                 }
 
                                 if (verifySig == NULL) {
+                                    if (ssl->sigLen == 0) {
+                                        ERROR_OUT(BAD_COND_E, exit_sske);
+                                    }
                                     verifySig = (byte*)XMALLOC(ssl->sigLen, ssl->heap,
                                                       DYNAMIC_TYPE_TMP_BUFFER);
                                     if (!verifySig) {
