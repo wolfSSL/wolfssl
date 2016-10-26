@@ -142,7 +142,6 @@ enum wolfSSL_ErrorCodes {
     UNKNOWN_ALPN_PROTOCOL_NAME_E = -405,   /* Unrecognized protocol name Error*/
     BAD_CERTIFICATE_STATUS_ERROR = -406,   /* Bad certificate status message */
     OCSP_INVALID_STATUS          = -407,   /* Invalid OCSP Status */
-    ASYNC_NOT_PENDING            = -408,   /* Async operation not pending */
 
     RSA_KEY_SIZE_E               = -409,   /* RSA key too small */
     ECC_KEY_SIZE_E               = -410,   /* ECC key too small */
@@ -150,11 +149,13 @@ enum wolfSSL_ErrorCodes {
     DTLS_EXPORT_VER_E            = -411,   /* export version error */
     INPUT_SIZE_E                 = -412,   /* input size too big error */
     CTX_INIT_MUTEX_E             = -413,   /* initialize ctx mutex error */
+    EXT_MASTER_SECRET_NEEDED_E   = -414,   /* need EMS enabled to resume */
     /* add strings to wolfSSL_ERR_reason_error_string in internal.c !!!!! */
 
     /* begin negotiation parameter errors */
     UNSUPPORTED_SUITE            = -500,        /* unsupported cipher suite */
-    MATCH_SUITE_ERROR            = -501         /* can't match cipher suite */
+    MATCH_SUITE_ERROR            = -501,        /* can't match cipher suite */
+    COMPRESSION_ERROR            = -502         /* compression mismatch */
     /* end negotiation parameter errors only 10 for now */
     /* add strings to wolfSSL_ERR_reason_error_string in internal.c !!!!! */
 

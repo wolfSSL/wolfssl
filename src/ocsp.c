@@ -49,7 +49,7 @@ int InitOCSP(WOLFSSL_OCSP* ocsp, WOLFSSL_CERT_MANAGER* cm)
 
     ForceZero(ocsp, sizeof(WOLFSSL_OCSP));
 
-    if (InitMutex(&ocsp->ocspLock) != 0)
+    if (wc_InitMutex(&ocsp->ocspLock) != 0)
         return BAD_MUTEX_E;
 
     ocsp->cm = cm;
@@ -102,7 +102,7 @@ void FreeOCSP(WOLFSSL_OCSP* ocsp, int dynamic)
         XFREE(entry, ocsp->cm->heap, DYNAMIC_TYPE_OCSP_ENTRY);
     }
 
-    FreeMutex(&ocsp->ocspLock);
+    wc_FreeMutex(&ocsp->ocspLock);
 
     if (dynamic)
         XFREE(ocsp, ocsp->cm->heap, DYNAMIC_TYPE_OCSP);
@@ -167,7 +167,7 @@ static int GetOcspEntry(WOLFSSL_OCSP* ocsp, OcspRequest* request,
 
     *entry = NULL;
 
-    if (LockMutex(&ocsp->ocspLock) != 0) {
+    if (wc_LockMutex(&ocsp->ocspLock) != 0) {
         WOLFSSL_LEAVE("CheckCertOCSP", BAD_MUTEX_E);
         return BAD_MUTEX_E;
     }
@@ -189,7 +189,7 @@ static int GetOcspEntry(WOLFSSL_OCSP* ocsp, OcspRequest* request,
         }
     }
 
-    UnLockMutex(&ocsp->ocspLock);
+    wc_UnLockMutex(&ocsp->ocspLock);
 
     return *entry ? 0 : MEMORY_ERROR;
 }
@@ -204,7 +204,7 @@ static int GetOcspStatus(WOLFSSL_OCSP* ocsp, OcspRequest* request,
 
     *status = NULL;
 
-    if (LockMutex(&ocsp->ocspLock) != 0) {
+    if (wc_LockMutex(&ocsp->ocspLock) != 0) {
         WOLFSSL_LEAVE("CheckCertOCSP", BAD_MUTEX_E);
         return BAD_MUTEX_E;
     }
@@ -239,7 +239,7 @@ static int GetOcspStatus(WOLFSSL_OCSP* ocsp, OcspRequest* request,
         }
     }
 
-    UnLockMutex(&ocsp->ocspLock);
+    wc_UnLockMutex(&ocsp->ocspLock);
 
     return ret;
 }
@@ -346,7 +346,7 @@ int CheckOcspRequest(WOLFSSL_OCSP* ocsp, OcspRequest* ocspRequest,
 
                 ret = xstat2err(ocspResponse->status->status);
 
-                if (LockMutex(&ocsp->ocspLock) != 0)
+                if (wc_LockMutex(&ocsp->ocspLock) != 0)
                     ret = BAD_MUTEX_E;
                 else {
                     if (status != NULL) {
@@ -383,7 +383,7 @@ int CheckOcspRequest(WOLFSSL_OCSP* ocsp, OcspRequest* ocspRequest,
                         }
                     }
 
-                    UnLockMutex(&ocsp->ocspLock);
+                    wc_UnLockMutex(&ocsp->ocspLock);
                 }
             }
             else

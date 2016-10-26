@@ -1035,13 +1035,37 @@ int fp_addmod(fp_int *a, fp_int *b, fp_int *c, fp_int *d)
 
 #ifdef TFM_TIMING_RESISTANT
 
+#ifndef WC_NO_CACHE_RESISTANT
+/* all off / all on pointer addresses for constant calculations */
+/* ecc.c uses same table */
+const wolfssl_word wc_off_on_addr[2] =
+{
+#if defined(WC_64BIT_CPU)
+    W64LIT(0x0000000000000000),
+    W64LIT(0xffffffffffffffff)
+#elif defined(WC_16BIT_CPU)
+    0x0000U,
+    0xffffU
+#else
+    /* 32 bit */
+    0x00000000U,
+    0xffffffffU
+#endif
+};
+
+#endif /* WC_NO_CACHE_RESISTANT */
+
 /* timing resistant montgomery ladder based exptmod
    Based on work by Marc Joye, Sung-Ming Yen, "The Montgomery Powering Ladder",
    Cryptographic Hardware and Embedded Systems, CHES 2002
 */
 static int _fp_exptmod(fp_int * G, fp_int * X, fp_int * P, fp_int * Y)
 {
+#ifdef WC_NO_CACHE_RESISTANT
   fp_int   R[2];
+#else
+  fp_int   R[3];   /* need a temp for cache resistance */
+#endif
   fp_digit buf, mp;
   int      err, bitcnt, digidx, y;
 
@@ -1052,6 +1076,9 @@ static int _fp_exptmod(fp_int * G, fp_int * X, fp_int * P, fp_int * Y)
 
   fp_init(&R[0]);
   fp_init(&R[1]);
+#ifndef WC_NO_CACHE_RESISTANT
+  fp_init(&R[2]);
+#endif
 
   /* now we need R mod m */
   fp_montgomery_calc_normalization (&R[0], P);
@@ -1092,7 +1119,21 @@ static int _fp_exptmod(fp_int * G, fp_int * X, fp_int * P, fp_int * Y)
 
     /* do ops */
     fp_mul(&R[0], &R[1], &R[y^1]); fp_montgomery_reduce(&R[y^1], P, mp);
+
+#ifdef WC_NO_CACHE_RESISTANT
     fp_sqr(&R[y], &R[y]);          fp_montgomery_reduce(&R[y], P, mp);
+#else
+    /* instead of using R[y] for sqr, which leaks key bit to cache monitor,
+     * use R[2] as temp, make sure address calc is constant, keep
+     * &R[0] and &R[1] in cache */
+    fp_copy((fp_int*) ( ((wolfssl_word)&R[0] & wc_off_on_addr[y^1]) +
+                        ((wolfssl_word)&R[1] & wc_off_on_addr[y]) ),
+            &R[2]);
+    fp_sqr(&R[2], &R[2]);          fp_montgomery_reduce(&R[2], P, mp);
+    fp_copy(&R[2],
+            (fp_int*) ( ((wolfssl_word)&R[0] & wc_off_on_addr[y^1]) +
+                        ((wolfssl_word)&R[1] & wc_off_on_addr[y]) ) );
+#endif /* WC_NO_CACHE_RESISTANT */
   }
 
    fp_montgomery_reduce(&R[0], P, mp);

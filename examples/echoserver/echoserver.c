@@ -53,6 +53,10 @@
 
 #include "examples/echoserver/echoserver.h"
 
+#ifdef WOLFSSL_ASYNC_CRYPT
+    static int devId = INVALID_DEVID;
+#endif
+
 #define SVR_COMMAND_SIZE 256
 
 static void SignalReady(void* args, word16 port)
@@ -132,7 +136,7 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
     fdOpenSession(Task_self());
 #endif
 
-    tcp_listen(&sockfd, &port, useAnyAddr, doDTLS);
+    tcp_listen(&sockfd, &port, useAnyAddr, doDTLS, 0);
 
 #if defined(CYASSL_DTLS)
     method  = CyaDTLSv1_2_server_method();
@@ -226,6 +230,14 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
 #endif
     }
 
+#ifdef WOLFSSL_ASYNC_CRYPT
+    ret = wolfAsync_DevOpen(&devId);
+    if (ret != 0) {
+        err_sys("Async device open failed");
+    }
+    wolfSSL_CTX_UseAsync(ctx, devId);
+#endif /* WOLFSSL_ASYNC_CRYPT */
+
     SignalReady(args, port);
 
     while (!shutDown) {
@@ -272,7 +284,7 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
         do {
 #ifdef WOLFSSL_ASYNC_CRYPT
             if (err == WC_PENDING_E) {
-                ret = AsyncCryptPoll(ssl);
+                ret = wolfSSL_AsyncPoll(ssl, WOLF_POLL_FLAG_CHECK_HW);
                 if (ret < 0) { break; } else if (ret == 0) { continue; }
             }
 #endif
@@ -361,7 +373,7 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
         CyaSSL_free(ssl);
         CloseSocket(clientfd);
 #ifdef CYASSL_DTLS
-        tcp_listen(&sockfd, &port, useAnyAddr, doDTLS);
+        tcp_listen(&sockfd, &port, useAnyAddr, doDTLS, 0);
         SignalReady(args, port);
 #endif
     }
@@ -390,6 +402,10 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
     TicketCleanup();
 #endif
 
+#ifdef WOLFSSL_ASYNC_CRYPT
+    wolfAsync_DevClose(&devId);
+#endif
+
 #ifndef CYASSL_TIRTOS
     return 0;
 #endif
@@ -402,12 +418,6 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
     int main(int argc, char** argv)
     {
         func_args args;
-
-#ifdef HAVE_CAVIUM
-        int ret = OpenNitroxDevice(CAVIUM_DIRECT, CAVIUM_DEV_ID);
-        if (ret != 0)
-            err_sys("Cavium OpenNitroxDevice failed");
-#endif /* HAVE_CAVIUM */
 
 #ifdef HAVE_WNR
         if (wc_InitNetRandom(wnrConfig, NULL, 5000) != 0)
@@ -426,10 +436,6 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
         ChangeToWolfRoot();
         echoserver_test(&args);
         CyaSSL_Cleanup();
-
-#ifdef HAVE_CAVIUM
-        CspShutdown(CAVIUM_DEV_ID);
-#endif
 
 #ifdef HAVE_WNR
         if (wc_FreeNetRandom() < 0)

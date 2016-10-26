@@ -19,6 +19,7 @@ config*
 ipch/
 build-aux/
 rpm/spec
+*.rpm
 stamp-h
 cyassl/options.h
 wolfssl/options.h
@@ -41,6 +42,8 @@ fips_test.c
 fips
 src/async.c
 wolfssl/async.h
+wolfcrypt/src/async.c
+wolfssl/wolfcrypt/async.h
 ctaocrypt/benchmark/benchmark
 ctaocrypt/test/testctaocrypt
 wolfcrypt/benchmark/benchmark
@@ -49,6 +52,10 @@ examples/client/client
 examples/echoclient/echoclient
 examples/echoserver/echoserver
 examples/server/server
+examples/sctp/sctp-server
+examples/sctp/sctp-server-dtls
+examples/sctp/sctp-client
+examples/sctp/sctp-client-dtls
 server_ready
 snifftest
 output

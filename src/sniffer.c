@@ -90,6 +90,7 @@ enum {
     EXT_TYPE_SZ        = 2,   /* Extension length */
     MAX_INPUT_SZ       = MAX_RECORD_SIZE + COMP_EXTRA + MAX_MSG_EXTRA +
                          MTU_EXTRA,  /* Max input sz of reassembly */
+    EXT_MASTER_SECRET  = 0x17, /* Extended Master Secret Extension ID */
     TICKET_EXT_ID      = 0x23 /* Session Ticket Extension ID */
 };
 
@@ -253,7 +254,8 @@ static const char* const msgTable[] =
     "Clear ACK Fault",
 
     /* 81 */
-    "Bad Decrypt Size"
+    "Bad Decrypt Size",
+    "Extended Master Secret Hash Error"
 };
 
 
@@ -329,6 +331,9 @@ typedef struct Flags {
     byte           srvAckFault;     /* server acked unseen data from client */
     byte           cliSkipPartial;  /* client skips partial data to catch up */
     byte           srvSkipPartial;  /* server skips partial data to catch up */
+#ifdef HAVE_EXTENDED_MASTER
+    byte           expectEms;       /* expect extended master secret */
+#endif
 } Flags;
 
 
@@ -339,6 +344,24 @@ typedef struct FinCaputre {
     byte   cliCounted;              /* did we count yet, detects duplicates */
     byte   srvCounted;              /* did we count yet, detects duplicates */
 } FinCaputre;
+
+
+typedef struct HsHashes {
+#ifndef NO_OLD_TLS
+#ifndef NO_SHA
+    Sha hashSha;
+#endif
+#ifndef NO_MD5
+    Md5 hashMd5;
+#endif
+#endif
+#ifndef NO_SHA256
+    Sha256 hashSha256;
+#endif
+#ifdef WOLFSSL_SHA384
+    Sha384 hashSha384;
+#endif
+} HsHashes;
 
 
 /* Sniffer Session holds info for each client/server SSL/TLS session */
@@ -363,6 +386,9 @@ typedef struct SnifferSession {
     word32         srvReassemblyMemory; /* server packet memory used */
     struct SnifferSession* next;      /* for hash table list */
     byte*          ticketID;          /* mac ID of session ticket */
+#ifdef HAVE_EXTENDED_MASTER
+    HsHashes*       hash;
+#endif
 } SnifferSession;
 
 
@@ -385,9 +411,9 @@ static word32 MissedDataSessions = 0;    /* # of sessions with missed data */
 
 static void UpdateMissedDataSessions(void)
 {
-    LockMutex(&RecoveryMutex);
+    wc_LockMutex(&RecoveryMutex);
     MissedDataSessions += 1;
-    UnLockMutex(&RecoveryMutex);
+    wc_UnLockMutex(&RecoveryMutex);
 }
 
 
@@ -395,9 +421,9 @@ static void UpdateMissedDataSessions(void)
 void ssl_InitSniffer(void)
 {
     wolfSSL_Init();
-    InitMutex(&ServerListMutex);
-    InitMutex(&SessionMutex);
-    InitMutex(&RecoveryMutex);
+    wc_InitMutex(&ServerListMutex);
+    wc_InitMutex(&SessionMutex);
+    wc_InitMutex(&RecoveryMutex);
 }
 
 
@@ -435,10 +461,10 @@ static void FreeSnifferServer(SnifferServer* srv)
 {
     if (srv) {
 #ifdef HAVE_SNI
-        LockMutex(&srv->namedKeysMutex);
+        wc_LockMutex(&srv->namedKeysMutex);
         FreeNamedKeyList(srv->namedKeys);
-        UnLockMutex(&srv->namedKeysMutex);
-        FreeMutex(&srv->namedKeysMutex);
+        wc_UnLockMutex(&srv->namedKeysMutex);
+        wc_FreeMutex(&srv->namedKeysMutex);
 #endif
         SSL_CTX_free(srv->ctx);
     }
@@ -483,6 +509,9 @@ static void FreeSnifferSession(SnifferSession* session)
         FreePacketList(session->srvReassemblyList);
 
         free(session->ticketID);
+#ifdef HAVE_EXTENDED_MASTER
+        free(session->hash);
+#endif
     }
     free(session);
 }
@@ -497,8 +526,8 @@ void ssl_FreeSniffer(void)
     SnifferSession* removeSession;
     int i;
 
-    LockMutex(&ServerListMutex);
-    LockMutex(&SessionMutex);
+    wc_LockMutex(&ServerListMutex);
+    wc_LockMutex(&SessionMutex);
     
     srv = ServerList;
     while (srv) {
@@ -516,12 +545,12 @@ void ssl_FreeSniffer(void)
         }
     }
 
-    UnLockMutex(&SessionMutex);
-    UnLockMutex(&ServerListMutex);
+    wc_UnLockMutex(&SessionMutex);
+    wc_UnLockMutex(&ServerListMutex);
 
-    FreeMutex(&RecoveryMutex);
-    FreeMutex(&SessionMutex);
-    FreeMutex(&ServerListMutex);
+    wc_FreeMutex(&RecoveryMutex);
+    wc_FreeMutex(&SessionMutex);
+    wc_FreeMutex(&ServerListMutex);
 
     if (TraceFile) {
         TraceOn = 0;
@@ -533,6 +562,91 @@ void ssl_FreeSniffer(void)
 }
 
 
+#ifdef HAVE_EXTENDED_MASTER
+
+static int HashInit(HsHashes* hash)
+{
+    int ret = 0;
+
+    XMEMSET(hash, 0, sizeof(HsHashes));
+
+#ifndef NO_OLD_TLS
+#ifndef NO_SHA
+    if (ret == 0)
+        ret = wc_InitSha(&hash->hashSha);
+#endif
+#ifndef NO_MD5
+    if (ret == 0)
+        wc_InitMd5(&hash->hashMd5);
+#endif
+#endif
+#ifndef NO_SHA256
+    if (ret == 0)
+        ret = wc_InitSha256(&hash->hashSha256);
+#endif
+#ifdef WOLFSSL_SHA384
+    if (ret == 0)
+        ret = wc_InitSha384(&hash->hashSha384);
+#endif
+
+    return ret;
+}
+
+
+static int HashUpdate(HsHashes* hash, const byte* input, int sz)
+{
+    int ret = 0;
+
+    input -= HANDSHAKE_HEADER_SZ;
+    sz += HANDSHAKE_HEADER_SZ;
+
+#ifndef NO_OLD_TLS
+#ifndef NO_SHA
+    if (ret == 0)
+        ret = wc_ShaUpdate(&hash->hashSha, input, sz);
+#endif
+#ifndef NO_MD5
+    if (ret == 0)
+        wc_Md5Update(&hash->hashMd5, input, sz);
+#endif
+#endif
+#ifndef NO_SHA256
+    if (ret == 0)
+        ret = wc_Sha256Update(&hash->hashSha256, input, sz);
+#endif
+#ifdef WOLFSSL_SHA384
+    if (ret == 0)
+        ret = wc_Sha384Update(&hash->hashSha384, input, sz);
+#endif
+
+    return ret;
+}
+
+
+static int HashCopy(HS_Hashes* d, HsHashes* s)
+{
+#ifndef NO_OLD_TLS
+#ifndef NO_SHA
+        XMEMCPY(&d->hashSha, &s->hashSha, sizeof(Sha));
+#endif
+#ifndef NO_MD5
+        XMEMCPY(&d->hashMd5, &s->hashMd5, sizeof(Md5));
+#endif
+#endif
+
+#ifndef NO_SHA256
+        XMEMCPY(&d->hashSha256, &s->hashSha256, sizeof(Sha256));
+#endif
+#ifdef WOLFSSL_SHA384
+        XMEMCPY(&d->hashSha384, &s->hashSha384, sizeof(Sha384));
+#endif
+
+    return 0;
+}
+
+#endif
+
+
 /* Initialize a SnifferServer */
 static void InitSnifferServer(SnifferServer* sniffer)
 {
@@ -542,7 +656,7 @@ static void InitSnifferServer(SnifferServer* sniffer)
     sniffer->port     = 0;
 #ifdef HAVE_SNI
     sniffer->namedKeys = 0;
-    InitMutex(&sniffer->namedKeysMutex);
+    wc_InitMutex(&sniffer->namedKeysMutex);
 #endif
     sniffer->next     = 0;
 }
@@ -563,6 +677,9 @@ static void InitFlags(Flags* flags)
     flags->srvAckFault    = 0;
     flags->cliSkipPartial = 0;
     flags->srvSkipPartial = 0;
+#ifdef HAVE_EXTENDED_MASTER
+    flags->expectEms      = 0;
+#endif
 }
 
 
@@ -600,6 +717,9 @@ static void InitSession(SnifferSession* session)
     
     InitFlags(&session->flags);
     InitFinCapture(&session->finCaputre);
+#ifdef HAVE_EXTENDED_MASTER
+    session->hash = 0;
+#endif
 }
 
 
@@ -920,7 +1040,7 @@ static int IsServerRegistered(word32 addr)
     int ret = 0;     /* false */
     SnifferServer* sniffer;
 
-    LockMutex(&ServerListMutex);
+    wc_LockMutex(&ServerListMutex);
     
     sniffer = ServerList;
     while (sniffer) {
@@ -931,7 +1051,7 @@ static int IsServerRegistered(word32 addr)
         sniffer = sniffer->next;
     }
     
-    UnLockMutex(&ServerListMutex);
+    wc_UnLockMutex(&ServerListMutex);
 
     return ret;
 }
@@ -944,7 +1064,7 @@ static int IsPortRegistered(word32 port)
     int ret = 0;    /* false */
     SnifferServer* sniffer;
     
-    LockMutex(&ServerListMutex);
+    wc_LockMutex(&ServerListMutex);
     
     sniffer = ServerList;
     while (sniffer) {
@@ -955,7 +1075,7 @@ static int IsPortRegistered(word32 port)
         sniffer = sniffer->next;
     }
     
-    UnLockMutex(&ServerListMutex);
+    wc_UnLockMutex(&ServerListMutex);
 
     return ret;
 }
@@ -966,7 +1086,7 @@ static SnifferServer* GetSnifferServer(IpInfo* ipInfo, TcpInfo* tcpInfo)
 {
     SnifferServer* sniffer;
     
-    LockMutex(&ServerListMutex);
+    wc_LockMutex(&ServerListMutex);
     
     sniffer = ServerList;
     while (sniffer) {
@@ -977,7 +1097,7 @@ static SnifferServer* GetSnifferServer(IpInfo* ipInfo, TcpInfo* tcpInfo)
         sniffer = sniffer->next;
     }
     
-    UnLockMutex(&ServerListMutex);
+    wc_UnLockMutex(&ServerListMutex);
     
     return sniffer;
 }
@@ -1002,7 +1122,7 @@ static SnifferSession* GetSnifferSession(IpInfo* ipInfo, TcpInfo* tcpInfo)
 
     assert(row <= HASH_SIZE);
     
-    LockMutex(&SessionMutex);
+    wc_LockMutex(&SessionMutex);
     
     session = SessionTable[row];
     while (session) {
@@ -1021,7 +1141,7 @@ static SnifferSession* GetSnifferSession(IpInfo* ipInfo, TcpInfo* tcpInfo)
     if (session)
         session->lastUsed= currTime; /* keep session alive, remove stale will */
                                      /* leave alone */   
-    UnLockMutex(&SessionMutex);
+    wc_UnLockMutex(&SessionMutex);
     
     /* determine side */
     if (session) {
@@ -1195,10 +1315,10 @@ static int SetNamedPrivateKey(const char* name, const char* address, int port,
     }
 #ifdef HAVE_SNI
     else {
-        LockMutex(&sniffer->namedKeysMutex);
+        wc_LockMutex(&sniffer->namedKeysMutex);
         namedKey->next = sniffer->namedKeys;
         sniffer->namedKeys = namedKey;
-        UnLockMutex(&sniffer->namedKeysMutex);
+        wc_UnLockMutex(&sniffer->namedKeysMutex);
     }
 #endif
 
@@ -1225,10 +1345,10 @@ int ssl_SetNamedPrivateKey(const char* name,
     TraceHeader();
     TraceSetNamedServer(name, address, port, keyFile);
 
-    LockMutex(&ServerListMutex);
+    wc_LockMutex(&ServerListMutex);
     ret = SetNamedPrivateKey(name, address, port, keyFile,
                              typeKey, password, error);
-    UnLockMutex(&ServerListMutex);
+    wc_UnLockMutex(&ServerListMutex);
 
     if (ret == 0)
         Trace(NEW_SERVER_STR);
@@ -1249,10 +1369,10 @@ int ssl_SetPrivateKey(const char* address, int port, const char* keyFile,
     TraceHeader();
     TraceSetServer(address, port, keyFile);
 
-    LockMutex(&ServerListMutex);
+    wc_LockMutex(&ServerListMutex);
     ret = SetNamedPrivateKey(NULL, address, port, keyFile,
                              typeKey, password, error);
-    UnLockMutex(&ServerListMutex);
+    wc_UnLockMutex(&ServerListMutex);
 
     if (ret == 0)
         Trace(NEW_SERVER_STR);
@@ -1483,13 +1603,17 @@ static int ProcessSessionTicket(const byte* input, int* sslBytes,
 
 
 /* Process Server Hello */
-static int ProcessServerHello(const byte* input, int* sslBytes,
+static int ProcessServerHello(int msgSz, const byte* input, int* sslBytes,
                               SnifferSession* session, char* error)
 {
     ProtocolVersion pv;
     byte            b;
     int             toRead = VERSION_SZ + RAN_LEN + ENUM_LEN;
     int             doResume     = 0;
+    int             initialBytes = *sslBytes;
+
+    (void)msgSz;
+    (void)initialBytes;
 
     /* make sure we didn't miss ClientHello */
     if (session->flags.clientHello == 0) {
@@ -1547,6 +1671,62 @@ static int ProcessServerHello(const byte* input, int* sslBytes,
         SetError(BAD_COMPRESSION_STR, error, session, FATAL_ERROR_STATE);
         return -1;
     }
+
+#ifdef HAVE_EXTENDED_MASTER
+    /* extensions */
+    if ((initialBytes - *sslBytes) < msgSz) {
+        word16 len;
+
+        /* skip extensions until extended master secret */
+        /* make sure can read len */
+        if (SUITE_LEN > *sslBytes) {
+            SetError(SERVER_HELLO_INPUT_STR, error, session, FATAL_ERROR_STATE);
+            return -1;
+        }
+        len = (word16)((input[0] << 8) | input[1]);
+        input     += SUITE_LEN;
+        *sslBytes -= SUITE_LEN;
+        /* make sure can read through all extensions */
+        if (len > *sslBytes) {
+            SetError(SERVER_HELLO_INPUT_STR, error, session, FATAL_ERROR_STATE);
+            return -1;
+        }
+
+        while (len >= EXT_TYPE_SZ + LENGTH_SZ) {
+            byte   extType[EXT_TYPE_SZ];
+            word16 extLen;
+
+            extType[0] = input[0];
+            extType[1] = input[1];
+            input     += EXT_TYPE_SZ;
+            *sslBytes -= EXT_TYPE_SZ;
+
+            extLen = (word16)((input[0] << 8) | input[1]);
+            input     += LENGTH_SZ;
+            *sslBytes -= LENGTH_SZ;
+
+            /* make sure can read through individual extension */
+            if (extLen > *sslBytes) {
+                SetError(SERVER_HELLO_INPUT_STR, error, session,
+                         FATAL_ERROR_STATE);
+                return -1;
+            }
+
+            if (extType[0] == 0x00 && extType[1] == EXT_MASTER_SECRET) {
+                session->flags.expectEms = 1;
+            }
+
+            input     += extLen;
+            *sslBytes -= extLen;
+            len       -= extLen + EXT_TYPE_SZ + LENGTH_SZ;
+        }
+    }
+
+    if (!session->flags.expectEms) {
+        free(session->hash);
+        session->hash = NULL;
+    }
+#endif
 
     if (session->sslServer->options.haveSessionId &&
             XMEMCMP(session->sslServer->arrays->sessionID,
@@ -1644,7 +1824,7 @@ static int ProcessClientHello(const byte* input, int* sslBytes,
             if (nameSz >= sizeof(name))
                 nameSz = sizeof(name) - 1;
             name[nameSz] = 0;
-            LockMutex(&session->context->namedKeysMutex);
+            wc_LockMutex(&session->context->namedKeysMutex);
             namedKey = session->context->namedKeys;
             while (namedKey != NULL) {
                 if (nameSz == namedKey->nameSz &&
@@ -1652,7 +1832,7 @@ static int ProcessClientHello(const byte* input, int* sslBytes,
                     if (wolfSSL_use_PrivateKey_buffer(session->sslServer,
                                             namedKey->key, namedKey->keySz,
                                             SSL_FILETYPE_ASN1) != SSL_SUCCESS) {
-                        UnLockMutex(&session->context->namedKeysMutex);
+                        wc_UnLockMutex(&session->context->namedKeysMutex);
                         SetError(CLIENT_HELLO_LATE_KEY_STR, error, session,
                                                              FATAL_ERROR_STATE);
                         return -1;
@@ -1662,7 +1842,7 @@ static int ProcessClientHello(const byte* input, int* sslBytes,
                 else
                     namedKey = namedKey->next;
             }
-            UnLockMutex(&session->context->namedKeysMutex);
+            wc_UnLockMutex(&session->context->namedKeysMutex);
         }
     }
 #endif
@@ -1758,7 +1938,7 @@ static int ProcessClientHello(const byte* input, int* sslBytes,
         return -1;
     }
 
-    while (len > EXT_TYPE_SZ + LENGTH_SZ) {
+    while (len >= EXT_TYPE_SZ + LENGTH_SZ) {
         byte   extType[EXT_TYPE_SZ];
         word16 extLen;
 
@@ -1883,6 +2063,16 @@ static int DoHandShake(const byte* input, int* sslBytes,
         return -1;
     }
     
+#ifdef HAVE_EXTENDED_MASTER
+    if (session->hash) {
+        if (HashUpdate(session->hash, input, size) != 0) {
+            SetError(EXTENDED_MASTER_HASH_STR, error,
+                     session, FATAL_ERROR_STATE);
+            return -1;
+        }
+    }
+#endif
+
     switch (type) {
         case hello_verify_request:
             Trace(GOT_HELLO_VERIFY_STR);
@@ -1896,7 +2086,7 @@ static int DoHandShake(const byte* input, int* sslBytes,
             break;
         case server_hello:
             Trace(GOT_SERVER_HELLO_STR);
-            ret = ProcessServerHello(input, sslBytes, session, error);
+            ret = ProcessServerHello(size, input, sslBytes, session, error);
             break;
         case certificate_request:
             Trace(GOT_CERT_REQ_STR);
@@ -1923,7 +2113,32 @@ static int DoHandShake(const byte* input, int* sslBytes,
             break;
         case client_key_exchange:
             Trace(GOT_CLIENT_KEY_EX_STR);
-            ret = ProcessClientKeyExchange(input, sslBytes, session, error);
+#ifdef HAVE_EXTENDED_MASTER
+            if (session->flags.expectEms && session->hash != NULL) {
+                if (HashCopy(session->sslServer->hsHashes,
+                             session->hash) == 0 &&
+                    HashCopy(session->sslClient->hsHashes,
+                             session->hash) == 0) {
+
+                    session->sslServer->options.haveEMS = 1;
+                    session->sslClient->options.haveEMS = 1;
+                }
+                else {
+                    SetError(EXTENDED_MASTER_HASH_STR, error,
+                             session, FATAL_ERROR_STATE);
+                    ret = -1;
+                }
+                XMEMSET(session->hash, 0, sizeof(HsHashes));
+                free(session->hash);
+                session->hash = NULL;
+            }
+            else {
+                session->sslServer->options.haveEMS = 0;
+                session->sslClient->options.haveEMS = 0;
+            }
+#endif
+            if (ret == 0)
+                ret = ProcessClientKeyExchange(input, sslBytes, session, error);
             break;
         case certificate_verify:
             Trace(GOT_CERT_VER_STR);
@@ -1946,6 +2161,10 @@ static int DoHandShake(const byte* input, int* sslBytes,
 static int Decrypt(SSL* ssl, byte* output, const byte* input, word32 sz)
 {
     int ret = 0;
+
+    (void)output;
+    (void)input;
+    (void)sz;
 
     switch (ssl->specs.bulk_cipher_algorithm) {
         #ifdef BUILD_ARC4
@@ -2077,7 +2296,7 @@ static void RemoveSession(SnifferSession* session, IpInfo* ipInfo,
     Trace(REMOVE_SESSION_STR);
     
     if (!haveLock)
-        LockMutex(&SessionMutex);
+        wc_LockMutex(&SessionMutex);
     
     current = SessionTable[row];
     
@@ -2096,7 +2315,7 @@ static void RemoveSession(SnifferSession* session, IpInfo* ipInfo,
     }
     
     if (!haveLock)
-        UnLockMutex(&SessionMutex);
+        wc_UnLockMutex(&SessionMutex);
 }
 
 
@@ -2135,6 +2354,22 @@ static SnifferSession* CreateSession(IpInfo* ipInfo, TcpInfo* tcpInfo,
         return 0;
     }
     InitSession(session);
+#ifdef HAVE_EXTENDED_MASTER
+    {
+        HsHashes* newHash = (HsHashes*)malloc(sizeof(HsHashes));
+        if (newHash == NULL) {
+            SetError(MEMORY_STR, error, NULL, 0);
+            free(session);
+            return 0;
+        }
+        if (HashInit(newHash) != 0) {
+            SetError(EXTENDED_MASTER_HASH_STR, error, NULL, 0);
+            free(session);
+            return 0;
+        }
+        session->hash = newHash;
+    }
+#endif
     session->server  = ipInfo->dst;
     session->client  = ipInfo->src;
     session->srvPort = (word16)tcpInfo->dstPort;
@@ -2171,7 +2406,7 @@ static SnifferSession* CreateSession(IpInfo* ipInfo, TcpInfo* tcpInfo,
     row = SessionHash(ipInfo, tcpInfo);
     
     /* add it to the session table */
-    LockMutex(&SessionMutex);
+    wc_LockMutex(&SessionMutex);
         
     session->next = SessionTable[row];
     SessionTable[row] = session;
@@ -2183,7 +2418,7 @@ static SnifferSession* CreateSession(IpInfo* ipInfo, TcpInfo* tcpInfo,
         RemoveStaleSessions();
     }
         
-    UnLockMutex(&SessionMutex);
+    wc_UnLockMutex(&SessionMutex);
         
     /* determine headed side */
     if (ipInfo->dst == session->context->server &&
@@ -2687,14 +2922,20 @@ static int FindNextRecordInAssembly(SnifferSession* session,
             return 0;
         }
         else if (ssl->specs.cipher_type == block) {
-            if (ssl->specs.bulk_cipher_algorithm == wolfssl_aes)
+            if (ssl->specs.bulk_cipher_algorithm == wolfssl_aes) {
+#ifdef BUILD_AES
                 wc_AesSetIV(ssl->decrypt.aes,
                             curr->data + curr->end - curr->begin
                                        - ssl->specs.block_size + 1);
-            else if (ssl->specs.bulk_cipher_algorithm == wolfssl_triple_des)
+#endif
+            }
+            else if (ssl->specs.bulk_cipher_algorithm == wolfssl_triple_des) {
+#ifdef BUILD_DES3
                 wc_Des3_SetIV(ssl->decrypt.des3,
                               curr->data + curr->end - curr->begin
                                          - ssl->specs.block_size + 1);
+#endif
+            }
         }
 
         Trace(DROPPING_LOST_FRAG_STR);
@@ -3321,9 +3562,9 @@ int ssl_GetSessionStats(unsigned int* active,     unsigned int* total,
     int ret;
 
     if (missedData) {
-        LockMutex(&RecoveryMutex);
+        wc_LockMutex(&RecoveryMutex);
         *missedData = MissedDataSessions;
-        UnLockMutex(&RecoveryMutex);
+        wc_UnLockMutex(&RecoveryMutex);
     }
 
     if (reassemblyMem) {
@@ -3331,7 +3572,7 @@ int ssl_GetSessionStats(unsigned int* active,     unsigned int* total,
         int i;
 
         *reassemblyMem = 0;
-        LockMutex(&SessionMutex);
+        wc_LockMutex(&SessionMutex);
         for (i = 0; i < HASH_SIZE; i++) {
             session = SessionTable[i];
             while (session) {
@@ -3340,7 +3581,7 @@ int ssl_GetSessionStats(unsigned int* active,     unsigned int* total,
                 session = session->next;
             }
         }
-        UnLockMutex(&SessionMutex);
+        wc_UnLockMutex(&SessionMutex);
     }
 
     ret = wolfSSL_get_session_stats(active, total, peak, maxSessions);

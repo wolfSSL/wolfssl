@@ -300,6 +300,7 @@
     <ClCompile Include="..\..\src\ssl.c" />
     <ClCompile Include="..\..\src\tls.c" />
     <ClCompile Include="..\..\wolfcrypt\src\wc_encrypt.c" />
+    <ClCompile Include="..\..\wolfcrypt\src\wolfevent.c" />
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="..\..\wolfcrypt\src\aes_asm.asm">

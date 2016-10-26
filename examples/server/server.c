@@ -55,6 +55,10 @@
 
 #include "examples/server/server.h"
 
+#ifdef WOLFSSL_ASYNC_CRYPT
+    static int devId = INVALID_DEVID;
+#endif
+
 /* Note on using port 0: if the server uses port 0 to bind an ephemeral port
  * number and is using the ready file for scripted testing, the code in
  * test.h will write the actual port number into the ready file for use
@@ -215,6 +219,10 @@ static void Usage(void)
     printf("-t          Track wolfSSL memory use\n");
     printf("-u          Use UDP DTLS,"
            " add -v 2 for DTLSv1, -v 3 for DTLSv1.2 (default)\n");
+#ifdef WOLFSSL_SCTP
+    printf("-G          Use SCTP DTLS,"
+           " add -v 2 for DTLSv1, -v 3 for DTLSv1.2 (default)\n");
+#endif
     printf("-f          Fewer packets/group messages\n");
     printf("-r          Allow one client Resumption\n");
     printf("-N          Use Non-blocking sockets\n");
@@ -271,6 +279,8 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     int    usePskPlus = 0;
     int    useAnon = 0;
     int    doDTLS = 0;
+    int    dtlsUDP = 0;
+    int    dtlsSCTP = 0;
     int    needDH = 0;
     int    useNtruKey   = 0;
     int    nonBlocking  = 0;
@@ -366,7 +376,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     useAnyAddr = 1;
 #else
     while ((ch = mygetopt(argc, argv,
-                  "?jdbstnNufrawPIR:p:v:l:A:c:k:Z:S:oO:D:L:ieB:E:q:")) != -1) {
+                  "?jdbstnNuGfrawPIR:p:v:l:A:c:k:Z:S:oO:D:L:ieB:E:q:")) != -1) {
         switch (ch) {
             case '?' :
                 Usage();
@@ -400,6 +410,14 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
 
             case 'u' :
                 doDTLS  = 1;
+                dtlsUDP = 1;
+                break;
+
+            case 'G' :
+            #ifdef WOLFSSL_SCTP
+                doDTLS  = 1;
+                dtlsSCTP = 1;
+            #endif
                 break;
 
             case 'f' :
@@ -559,6 +577,11 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     myoptind = 0;      /* reset for test cases */
 #endif /* !WOLFSSL_VXWORKS */
 
+    /* Can only use DTLS over UDP or SCTP, can't do both. */
+    if (dtlsUDP && dtlsSCTP) {
+        err_sys("Cannot use DTLS with both UDP and SCTP.");
+    }
+
     /* sort out DTLS versus TLS versions */
     if (version == CLIENT_INVALID_VERSION) {
         if (doDTLS)
@@ -655,7 +678,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
         err_sys("unable to load static memory and create ctx");
 #else
     ctx = SSL_CTX_new(method(NULL));
-#endif
+#endif /* WOLFSSL_STATIC_MEMORY */
     if (ctx == NULL)
         err_sys("unable to get ctx");
 
@@ -684,6 +707,11 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
 
     if (fewerPackets)
         CyaSSL_CTX_set_group_messages(ctx);
+
+#ifdef WOLFSSL_SCTP
+    if (dtlsSCTP)
+        wolfSSL_CTX_dtls_set_sctp(ctx);
+#endif
 
 #if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
     SSL_CTX_set_default_passwd_cb(ctx, PasswordCallBack);
@@ -806,16 +834,24 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     }
 #endif /* USE_WINDOWS_API */
 
+#ifdef WOLFSSL_ASYNC_CRYPT
+    ret = wolfAsync_DevOpen(&devId);
+    if (ret != 0) {
+        err_sys("Async device open failed");
+    }
+    wolfSSL_CTX_UseAsync(ctx, devId);
+#endif /* WOLFSSL_ASYNC_CRYPT */
+
     while (1) {
         /* allow resume option */
         if(resumeCount > 1) {
-            if (doDTLS == 0) {
+            if (dtlsUDP == 0) {
                 SOCKADDR_IN_T client;
                 socklen_t client_len = sizeof(client);
                 clientfd = accept(sockfd, (struct sockaddr*)&client,
                                  (ACCEPT_THIRD_T)&client_len);
             } else {
-                tcp_listen(&sockfd, &port, useAnyAddr, doDTLS);
+                tcp_listen(&sockfd, &port, useAnyAddr, dtlsUDP, dtlsSCTP);
                 clientfd = sockfd;
             }
             if(WOLFSSL_SOCKET_IS_INVALID(clientfd)) {
@@ -896,7 +932,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
             readySignal->srfName = serverReadyFile;
         }
         tcp_accept(&sockfd, &clientfd, (func_args*)args, port, useAnyAddr,
-                       doDTLS, serverReadyFile ? 1 : 0, doListen);
+                       dtlsUDP, dtlsSCTP, serverReadyFile ? 1 : 0, doListen);
         doListen = 0; /* Don't listen next time */
 
         if (SSL_set_fd(ssl, clientfd) != SSL_SUCCESS) {
@@ -911,7 +947,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
 #endif
 
 #ifdef WOLFSSL_DTLS
-        if (doDTLS) {
+        if (doDTLS && dtlsUDP) {
             SOCKADDR_IN_T cliaddr;
             byte          b[1500];
             int           n;
@@ -947,7 +983,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
         do {
 #ifdef WOLFSSL_ASYNC_CRYPT
             if (err == WC_PENDING_E) {
-                ret = AsyncCryptPoll(ssl);
+                ret = wolfSSL_AsyncPoll(ssl, WOLF_POLL_FLAG_CHECK_HW);
                 if (ret < 0) { break; } else if (ret == 0) { continue; }
             }
 #endif
@@ -1027,7 +1063,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
         Task_yield();
 #endif
 
-        if (doDTLS == 0) {
+        if (dtlsUDP == 0) {
             ret = SSL_shutdown(ssl);
             if (wc_shutdown && ret == SSL_SHUTDOWN_NOT_DONE)
                 SSL_shutdown(ssl);    /* bidirectional shutdown */
@@ -1088,6 +1124,10 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     TicketCleanup();
 #endif
 
+#ifdef WOLFSSL_ASYNC_CRYPT
+    wolfAsync_DevClose(&devId);
+#endif
+
     /* There are use cases  when these assignments are not read. To avoid
      * potential confusion those warnings have been handled here.
      */
@@ -1112,11 +1152,6 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
         func_args args;
         tcp_ready ready;
 
-#ifdef HAVE_CAVIUM
-        int ret = OpenNitroxDevice(CAVIUM_DIRECT, CAVIUM_DEV_ID);
-        if (ret != 0)
-            err_sys("Cavium OpenNitroxDevice failed");
-#endif /* HAVE_CAVIUM */
 
         StartTCP();
 
@@ -1138,10 +1173,6 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
 #endif
         CyaSSL_Cleanup();
         FreeTcpReady(&ready);
-
-#ifdef HAVE_CAVIUM
-        CspShutdown(CAVIUM_DEV_ID);
-#endif
 
 #ifdef HAVE_WNR
     if (wc_FreeNetRandom() < 0)

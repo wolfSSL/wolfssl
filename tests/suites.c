@@ -48,6 +48,7 @@
 static WOLFSSL_CTX* cipherSuiteCtx = NULL;
 static char nonblockFlag[] = "-N";
 static char noVerifyFlag[] = "-d";
+static char disableEMSFlag[] = "-n";
 static char flagSep[] = " ";
 #if !defined(USE_WINDOWS_API) && !defined(WOLFSSL_TIRTOS)
     static char portFlag[] = "-p";
@@ -153,7 +154,8 @@ static int IsValidCipherSuite(const char* line, char* suite)
 
 static int execute_test_case(int svr_argc, char** svr_argv,
                               int cli_argc, char** cli_argv,
-                              int addNoVerify, int addNonBlocking)
+                              int addNoVerify, int addNonBlocking,
+                              int addDisableEMS)
 {
 #ifdef WOLFSSL_TIRTOS
     func_args cliArgs = {0};
@@ -266,6 +268,18 @@ static int execute_test_case(int svr_argc, char** svr_argv,
         else  {
             cli_argv[cli_argc++] = nonblockFlag;
             strcat(commandLine, nonblockFlag);
+            strcat(commandLine, flagSep);
+            cliArgs.argc = cli_argc;
+        }
+    }
+    if (addDisableEMS) {
+        printf("repeating test without extended master secret\n");
+        added += 4;   /* -n plus terminator */
+        if (added >= MAX_COMMAND_SZ)
+            printf("client command line too long\n");
+        else {
+            cli_argv[cli_argc++] = disableEMSFlag;
+            strcat(commandLine, disableEMSFlag);
             strcat(commandLine, flagSep);
             cliArgs.argc = cli_argc;
         }
@@ -437,12 +451,26 @@ static void test_harness(void* vargs)
         }
 
         if (do_it) {
-            ret = execute_test_case(svrArgsSz, svrArgs, cliArgsSz, cliArgs,0,0);
+            ret = execute_test_case(svrArgsSz, svrArgs,
+                                    cliArgsSz, cliArgs, 0, 0, 0);
             /* don't repeat if not supported in build */
             if (ret == 0) {
-                execute_test_case(svrArgsSz, svrArgs, cliArgsSz, cliArgs, 0, 1);
-                execute_test_case(svrArgsSz, svrArgs, cliArgsSz, cliArgs, 1, 0);
-                execute_test_case(svrArgsSz, svrArgs, cliArgsSz, cliArgs, 1, 1);
+                execute_test_case(svrArgsSz, svrArgs,
+                                  cliArgsSz, cliArgs, 0, 1, 0);
+                execute_test_case(svrArgsSz, svrArgs,
+                                  cliArgsSz, cliArgs, 1, 0, 0);
+                execute_test_case(svrArgsSz, svrArgs,
+                                  cliArgsSz, cliArgs, 1, 1, 0);
+#ifdef HAVE_EXTENDED_MASTER
+                execute_test_case(svrArgsSz, svrArgs,
+                                  cliArgsSz, cliArgs, 0, 0, 1);
+                execute_test_case(svrArgsSz, svrArgs,
+                                  cliArgsSz, cliArgs, 0, 1, 1);
+                execute_test_case(svrArgsSz, svrArgs,
+                                  cliArgsSz, cliArgs, 1, 0, 1);
+                execute_test_case(svrArgsSz, svrArgs,
+                                  cliArgsSz, cliArgs, 1, 1, 1);
+#endif
             }
             svrArgsSz = 1;
             cliArgsSz = 1;
@@ -507,6 +535,16 @@ int SuiteTest(void)
     /* add dtls extra suites */
     strcpy(argv0[1], "tests/test-dtls.conf");
     printf("starting dtls extra cipher suite tests\n");
+    test_harness(&args);
+    if (args.return_code != 0) {
+        printf("error from script %d\n", args.return_code);
+        exit(EXIT_FAILURE);
+    }
+#endif
+#ifdef WOLFSSL_SCTP
+    /* add dtls-sctp extra suites */
+    strcpy(argv0[1], "tests/test-sctp.conf");
+    printf("starting dtls-sctp extra cipher suite tests\n");
     test_harness(&args);
     if (args.return_code != 0) {
         printf("error from script %d\n", args.return_code);

@@ -73,6 +73,8 @@
 #elif defined(WOLFSSL_TIRTOS)
     #include <ti/sysbios/BIOS.h>
     #include <ti/sysbios/knl/Semaphore.h>
+#elif defined(WOLFSSL_FROSTED)
+    #include <semaphore.h>
 #else
     #ifndef SINGLE_THREADED
         #define WOLFSSL_PTHREADS
@@ -83,12 +85,19 @@
     #endif
 #endif
 
+/* For FIPS keep the function names the same */
+#ifdef HAVE_FIPS
+#define wc_InitMutex   InitMutex
+#define wc_FreeMutex   FreeMutex
+#define wc_LockMutex   LockMutex
+#define wc_UnLockMutex UnLockMutex
+#endif /* HAVE_FIPS */
 
 #ifdef SINGLE_THREADED
     typedef int wolfSSL_Mutex;
 #else /* MULTI_THREADED */
     /* FREERTOS comes first to enable use of FreeRTOS Windows simulator only */
-    #if defined(FREERTOS) 
+    #if defined(FREERTOS)
         typedef xSemaphoreHandle wolfSSL_Mutex;
     #elif defined(FREERTOS_TCP)
         #include "FreeRTOS.h"
@@ -133,6 +142,8 @@
         typedef osMutexId wolfSSL_Mutex;
     #elif defined(WOLFSSL_TIRTOS)
         typedef ti_sysbios_knl_Semaphore_Handle wolfSSL_Mutex;
+    #elif defined(WOLFSSL_FROSTED)
+        typedef mutex_t * wolfSSL_Mutex;
     #else
         #error Need a mutex type in multithreaded mode
     #endif /* USE_WINDOWS_API */
@@ -165,10 +176,11 @@
 #endif /* WOLFSSL_CRYPT_HW_MUTEX */
 
 /* Mutex functions */
-WOLFSSL_LOCAL int InitMutex(wolfSSL_Mutex*);
-WOLFSSL_LOCAL int FreeMutex(wolfSSL_Mutex*);
-WOLFSSL_LOCAL int LockMutex(wolfSSL_Mutex*);
-WOLFSSL_LOCAL int UnLockMutex(wolfSSL_Mutex*);
+WOLFSSL_API int wc_InitMutex(wolfSSL_Mutex*);
+WOLFSSL_API wolfSSL_Mutex* wc_InitAndAllocMutex(void);
+WOLFSSL_API int wc_FreeMutex(wolfSSL_Mutex*);
+WOLFSSL_API int wc_LockMutex(wolfSSL_Mutex*);
+WOLFSSL_API int wc_UnLockMutex(wolfSSL_Mutex*);
 
 /* main crypto initialization function */
 WOLFSSL_API int wolfCrypt_Init(void);

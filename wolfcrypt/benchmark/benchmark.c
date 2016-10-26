@@ -32,6 +32,13 @@
 /* Macro to disable benchmark */
 #ifndef NO_CRYPT_BENCHMARK
 
+#ifdef WOLFSSL_STATIC_MEMORY
+    #include <wolfssl/wolfcrypt/memory.h>
+    static WOLFSSL_HEAP_HINT* HEAP_HINT;
+#else
+    #define HEAP_HINT NULL
+#endif /* WOLFSSL_STATIC_MEMORY */
+
 #include <string.h>
 
 #ifdef FREESCALE_MQX
@@ -77,15 +84,18 @@
 #endif
 
 #include <wolfssl/wolfcrypt/dh.h>
-#ifdef HAVE_CAVIUM
-    #include "cavium_sysdep.h"
-    #include "cavium_common.h"
-    #include "cavium_ioctl.h"
-#endif
 #ifdef HAVE_NTRU
     #include "libntruencrypt/ntru_crypto.h"
 #endif
 #include <wolfssl/wolfcrypt/random.h>
+#include <wolfssl/wolfcrypt/error-crypt.h>
+
+#ifdef WOLFSSL_ASYNC_CRYPT
+    #include <wolfssl/wolfcrypt/async.h>
+#endif
+#if defined(WOLFSSL_ASYNC_CRYPT) || defined(HAVE_ECC)
+    static int devId = INVALID_DEVID;
+#endif
 
 #ifdef HAVE_WNR
     const char* wnrConfigFile = "wnr-example.conf";
@@ -100,11 +110,38 @@
     #define HAVE_GET_CYCLES
     static INLINE word64 get_intel_cycles(void);
     static word64 total_cycles;
+    #define INIT_CYCLE_COUNTER
     #define BEGIN_INTEL_CYCLES total_cycles = get_intel_cycles();
     #define END_INTEL_CYCLES   total_cycles = get_intel_cycles() - total_cycles;
     #define SHOW_INTEL_CYCLES  printf(" Cycles per byte = %6.2f", \
                                (float)total_cycles / (numBlocks*sizeof(plain)));
+#elif defined(LINUX_CYCLE_COUNT)
+    #include <linux/perf_event.h>
+    #include <sys/syscall.h>
+    #include <unistd.h>
+
+    static word64 begin_cycles;
+    static word64 total_cycles;
+    static int cycles = -1;
+    static struct perf_event_attr atr;
+
+    #define INIT_CYCLE_COUNTER do { \
+        atr.type   = PERF_TYPE_HARDWARE; \
+        atr.config = PERF_COUNT_HW_CPU_CYCLES; \
+        cycles = syscall(__NR_perf_event_open, &atr, 0, -1, -1, 0); \
+    } while (0);
+
+    #define BEGIN_INTEL_CYCLES read(cycles, &begin_cycles, sizeof(begin_cycles));
+    #define END_INTEL_CYCLES   do { \
+        read(cycles, &total_cycles, sizeof(total_cycles)); \
+        total_cycles = total_cycles - begin_cycles; \
+    } while (0);
+
+    #define SHOW_INTEL_CYCLES  printf(" Cycles per byte = %6.2f", \
+                               (float)total_cycles / (numBlocks*sizeof(plain)));
+
 #else
+    #define INIT_CYCLE_COUNTER
     #define BEGIN_INTEL_CYCLES
     #define END_INTEL_CYCLES
     #define SHOW_INTEL_CYCLES
@@ -161,6 +198,9 @@ void bench_ripemd(void);
 void bench_cmac(void);
 
 void bench_rsa(void);
+#ifdef WOLFSSL_ASYNC_CRYPT
+    void bench_rsa_async(void);
+#endif
 void bench_rsaKeyGen(void);
 void bench_dh(void);
 #ifdef HAVE_ECC
@@ -188,29 +228,6 @@ void bench_rng(void);
 
 double current_time(int);
 
-
-#ifdef HAVE_CAVIUM
-
-static int OpenNitroxDevice(int dma_mode,int dev_id)
-{
-   Csp1CoreAssignment core_assign;
-   Uint32             device;
-
-   if (CspInitialize(CAVIUM_DIRECT,CAVIUM_DEV_ID))
-      return -1;
-   if (Csp1GetDevType(&device))
-      return -1;
-   if (device != NPX_DEVICE) {
-      if (ioctl(gpkpdev_hdlr[CAVIUM_DEV_ID], IOCTL_CSP1_GET_CORE_ASSIGNMENT,
-                (Uint32 *)&core_assign)!= 0)
-         return -1;
-   }
-   CspShutdown(CAVIUM_DEV_ID);
-
-   return CspInitialize(dma_mode, dev_id);
-}
-
-#endif
 
 #if defined(DEBUG_WOLFSSL) && !defined(HAVE_VALGRIND)
     WOLFSSL_API int wolfSSL_Debugging_ON();
@@ -243,7 +260,8 @@ static const XGEN_ALIGN byte key[] =
 {
     0x01,0x23,0x45,0x67,0x89,0xab,0xcd,0xef,
     0xfe,0xde,0xba,0x98,0x76,0x54,0x32,0x10,
-    0x89,0xab,0xcd,0xef,0x01,0x23,0x45,0x67
+    0x89,0xab,0xcd,0xef,0x01,0x23,0x45,0x67,
+    0x01,0x23,0x45,0x67,0x89,0xab,0xcd,0xef
 };
 
 static const XGEN_ALIGN byte iv[] =
@@ -268,35 +286,49 @@ int benchmark_test(void *args)
     (void)args;
 #endif
 
+#ifdef WOLFSSL_STATIC_MEMORY
+    #ifdef BENCH_EMBEDDED
+        byte memory[50000];
+    #else
+        byte memory[400000];
+    #endif
+
+    if (wc_LoadStaticMemory(&HEAP_HINT, memory, sizeof(memory),
+                                                WOLFMEM_GENERAL, 1) != 0) {
+        printf("unable to load static memory");
+        exit(EXIT_FAILURE);
+    }
+#endif
+
 #if defined(USE_WOLFSSL_MEMORY) && defined(WOLFSSL_TRACK_MEMORY)
     InitMemoryTracker();
 #endif
 
     wolfCrypt_Init();
+    INIT_CYCLE_COUNTER
 
-    #if defined(DEBUG_WOLFSSL) && !defined(HAVE_VALGRIND)
-        wolfSSL_Debugging_ON();
-    #endif
+#if defined(DEBUG_WOLFSSL) && !defined(HAVE_VALGRIND)
+    wolfSSL_Debugging_ON();
+#endif
 
     (void)plain;
     (void)cipher;
     (void)key;
     (void)iv;
 
-	#ifdef HAVE_CAVIUM
-    int ret = OpenNitroxDevice(CAVIUM_DIRECT, CAVIUM_DEV_ID);
-    if (ret != 0) {
-        printf("Cavium OpenNitroxDevice failed\n");
+#ifdef WOLFSSL_ASYNC_CRYPT
+    if (wolfAsync_DevOpen(&devId) != 0) {
+        printf("Async device open failed\n");
         exit(-1);
     }
-    #endif /* HAVE_CAVIUM */
+#endif /* WOLFSSL_ASYNC_CRYPT */
 
-    #ifdef HAVE_WNR
+#ifdef HAVE_WNR
     if (wc_InitNetRandom(wnrConfigFile, NULL, 5000) != 0) {
         printf("Whitewood netRandom config init failed\n");
         exit(-1);
     }
-    #endif /* HAVE_WNR */
+#endif /* HAVE_WNR */
 
 #if defined(HAVE_LOCAL_RNG)
     {
@@ -384,14 +416,16 @@ int benchmark_test(void *args)
 
 #ifndef NO_RSA
     bench_rsa();
+    #ifdef WOLFSSL_ASYNC_CRYPT
+        bench_rsa_async();
+    #endif
+    #ifdef WOLFSSL_KEY_GEN
+        bench_rsaKeyGen();
+    #endif
 #endif
 
 #ifndef NO_DH
     bench_dh();
-#endif
-
-#if defined(WOLFSSL_KEY_GEN) && !defined(NO_RSA)
-    bench_rsaKeyGen();
 #endif
 
 #ifdef HAVE_NTRU
@@ -426,6 +460,10 @@ int benchmark_test(void *args)
     wc_FreeRng(&rng);
 #endif
 
+#ifdef WOLFSSL_ASYNC_CRYPT
+    wolfAsync_DevClose(&devId);
+#endif
+
 #ifdef HAVE_WNR
     if (wc_FreeNetRandom() < 0) {
         printf("Failed to free netRandom context\n");
@@ -452,9 +490,15 @@ static const char blockType[] = "kB";   /* used in printf output */
 #else
 enum BenchmarkBounds {
     numBlocks  = 50,  /* how many megs to test (en/de)cryption */
+#ifdef WOLFSSL_ASYNC_CRYPT
+    ntimes     = 1000,
+    genTimes   = 1000,
+    agreeTimes = 1000
+#else
     ntimes     = 100,
     genTimes   = 100,
     agreeTimes = 100
+#endif
 };
 static const char blockType[] = "megs"; /* used in printf output */
 #endif
@@ -526,9 +570,9 @@ void bench_aes(int show)
     int    i;
     int    ret;
 
-#ifdef HAVE_CAVIUM
-    if (wc_AesInitCavium(&enc, CAVIUM_DEV_ID) != 0) {
-        printf("aes init cavium failed\n");
+#ifdef WOLFSSL_ASYNC_CRYPT
+    if ((ret = wc_AesAsyncInit(&enc, devId)) != 0) {
+        printf("wc_AesAsyncInit failed, ret = %d\n", ret);
         return;
     }
 #endif
@@ -559,10 +603,10 @@ void bench_aes(int show)
         SHOW_INTEL_CYCLES
         printf("\n");
     }
-#ifdef HAVE_CAVIUM
-    wc_AesFreeCavium(&enc);
-    if (wc_AesInitCavium(&enc, CAVIUM_DEV_ID) != 0) {
-        printf("aes init cavium failed\n");
+#ifdef WOLFSSL_ASYNC_CRYPT
+    wc_AesAsyncFree(&enc);
+    if ((ret = wc_AesAsyncInit(&enc, devId)) != 0) {
+        printf("wc_AesAsyncInit failed, ret = %d\n", ret);
         return;
     }
 #endif
@@ -593,8 +637,8 @@ void bench_aes(int show)
         SHOW_INTEL_CYCLES
         printf("\n");
     }
-#ifdef HAVE_CAVIUM
-    wc_AesFreeCavium(&enc);
+#ifdef WOLFSSL_ASYNC_CRYPT
+    wc_AesAsyncFree(&enc);
 #endif
 }
 #endif /* HAVE_AES_CBC */
@@ -697,8 +741,12 @@ void bench_aesccm(void)
     Aes    enc;
     double start, total, persec;
     int    i;
+    int    ret;
 
-    wc_AesCcmSetKey(&enc, key, 16);
+    if ((ret = wc_AesCcmSetKey(&enc, key, 16)) != 0) {
+        printf("wc_AesCcmSetKey failed, ret = %d\n", ret);
+        return;
+    }
     start = current_time(1);
     BEGIN_INTEL_CYCLES
 
@@ -805,9 +853,9 @@ void bench_des(void)
     double start, total, persec;
     int    i, ret;
 
-#ifdef HAVE_CAVIUM
-    if (wc_Des3_InitCavium(&enc, CAVIUM_DEV_ID) != 0)
-        printf("des3 init cavium failed\n");
+#ifdef WOLFSSL_ASYNC_CRYPT
+    if (wc_Des3AsyncInit(&enc, devId) != 0)
+        printf("des3 async init failed\n");
 #endif
     ret = wc_Des3_SetKey(&enc, key, iv, DES_ENCRYPTION);
     if (ret != 0) {
@@ -833,8 +881,8 @@ void bench_des(void)
                                               blockType, total, persec);
     SHOW_INTEL_CYCLES
     printf("\n");
-#ifdef HAVE_CAVIUM
-    wc_Des3_FreeCavium(&enc);
+#ifdef WOLFSSL_ASYNC_CRYPT
+    wc_Des3AsyncFree(&enc);
 #endif
 }
 #endif
@@ -882,9 +930,9 @@ void bench_arc4(void)
     double start, total, persec;
     int    i;
 
-#ifdef HAVE_CAVIUM
-    if (wc_Arc4InitCavium(&enc, CAVIUM_DEV_ID) != 0)
-        printf("arc4 init cavium failed\n");
+#ifdef WOLFSSL_ASYNC_CRYPT
+    if (wc_Arc4AsyncInit(&enc, devId) != 0)
+        printf("arc4 async init failed\n");
 #endif
 
     wc_Arc4SetKey(&enc, key, 16);
@@ -906,8 +954,8 @@ void bench_arc4(void)
                                               blockType, total, persec);
     SHOW_INTEL_CYCLES
     printf("\n");
-#ifdef HAVE_CAVIUM
-    wc_Arc4FreeCavium(&enc);
+#ifdef WOLFSSL_ASYNC_CRYPT
+    wc_Arc4AsyncFree(&enc);
 #endif
 }
 #endif
@@ -1395,7 +1443,7 @@ void bench_rsa(void)
     word32 idx = 0;
     const byte* tmp;
 
-    byte      message[] = "Everyone gets Friday off.";
+    const byte message[] = "Everyone gets Friday off.";
     byte      enc[256];  /* for up to 2048 bit */
     const int len = (int)strlen((char*)message);
     double    start, total, each, milliEach;
@@ -1414,32 +1462,33 @@ void bench_rsa(void)
     #error "need a cert buffer size"
 #endif /* USE_CERT_BUFFERS */
 
-
-#ifdef HAVE_CAVIUM
-    if (wc_RsaInitCavium(&rsaKey, CAVIUM_DEV_ID) != 0)
-        printf("RSA init cavium failed\n");
-#endif
-    ret = wc_InitRsaKey(&rsaKey, 0);
-    if (ret < 0) {
-        printf("InitRsaKey failed\n");
+    if ((ret = wc_InitRsaKey(&rsaKey, HEAP_HINT)) < 0) {
+        printf("InitRsaKey failed! %d\n", ret);
         return;
     }
+
+    /* decode the private key */
     ret = wc_RsaPrivateKeyDecode(tmp, &idx, &rsaKey, (word32)bytes);
 
     start = current_time(1);
 
-    for (i = 0; i < ntimes; i++)
-        ret = wc_RsaPublicEncrypt(message,len,enc,sizeof(enc), &rsaKey, &rng);
+    for (i = 0; i < ntimes; i++) {
+        ret = wc_RsaPublicEncrypt(message, len, enc, sizeof(enc),
+                                                        &rsaKey, &rng);
+        if (ret < 0) {
+            break;
+        }
+    } /* for ntimes */
 
     total = current_time(0) - start;
     each  = total / ntimes;   /* per second   */
     milliEach = each * 1000; /* milliseconds */
 
-    printf("RSA %d encryption took %6.3f milliseconds, avg over %d"
+    printf("RSA %d public          %6.3f milliseconds, avg over %d"
            " iterations\n", rsaKeySz, milliEach, ntimes);
 
     if (ret < 0) {
-        printf("Rsa Public Encrypt failed\n");
+        printf("Rsa Public Encrypt failed! %d\n", ret);
         return;
     }
 
@@ -1448,24 +1497,231 @@ void bench_rsa(void)
 #endif
     start = current_time(1);
 
+    /* capture resulting encrypt length */
+    idx = ret;
+
     for (i = 0; i < ntimes; i++) {
-         byte  out[256];  /* for up to 2048 bit */
-         wc_RsaPrivateDecrypt(enc, (word32)ret, out, sizeof(out), &rsaKey);
-    }
+        byte  out[256];  /* for up to 2048 bit */
+
+        ret = wc_RsaPrivateDecrypt(enc, idx, out, sizeof(out), &rsaKey);
+        if (ret < 0 && ret != WC_PENDING_E) {
+            break;
+        }
+    } /* for ntimes */
 
     total = current_time(0) - start;
     each  = total / ntimes;   /* per second   */
     milliEach = each * 1000; /* milliseconds */
 
-    printf("RSA %d decryption took %6.3f milliseconds, avg over %d"
+    printf("RSA %d private         %6.3f milliseconds, avg over %d"
            " iterations\n", rsaKeySz, milliEach, ntimes);
 
     wc_FreeRsaKey(&rsaKey);
-#ifdef HAVE_CAVIUM
-    wc_RsaFreeCavium(&rsaKey);
-#endif
 }
-#endif
+
+
+#ifdef WOLFSSL_ASYNC_CRYPT
+void bench_rsa_async(void)
+{
+    int    i;
+    int    ret;
+    size_t bytes;
+    word32 idx = 0;
+    const byte* tmp;
+
+    const byte message[] = "Everyone gets Friday off.";
+    byte      enc[256];  /* for up to 2048 bit */
+    const int len = (int)strlen((char*)message);
+    double    start, total, each, milliEach;
+
+    RsaKey rsaKey[WOLF_ASYNC_MAX_PENDING];
+    int    rsaKeySz = 2048; /* used in printf */
+
+    WOLF_EVENT events[WOLF_ASYNC_MAX_PENDING];
+    WOLF_EVENT_QUEUE eventQueue;
+    int evtNum, asyncDone, asyncPend;
+
+#ifdef USE_CERT_BUFFERS_1024
+    tmp = rsa_key_der_1024;
+    bytes = sizeof_rsa_key_der_1024;
+    rsaKeySz = 1024;
+#elif defined(USE_CERT_BUFFERS_2048)
+    tmp = rsa_key_der_2048;
+    bytes = sizeof_rsa_key_der_2048;
+#else
+    #error "need a cert buffer size"
+#endif /* USE_CERT_BUFFERS */
+
+    /* init event queue */
+    ret = wolfEventQueue_Init(&eventQueue);
+    if (ret != 0) {
+        return;
+    }
+
+    /* clear for done cleanup */
+    XMEMSET(&events, 0, sizeof(events));
+    XMEMSET(&rsaKey, 0, sizeof(rsaKey));
+
+    /* init events and keys */
+    for (i = 0; i < WOLF_ASYNC_MAX_PENDING; i++) {
+        /* setup an async context for each key */
+        if ((ret = wc_InitRsaKey_ex(&rsaKey[i], HEAP_HINT, devId)) < 0) {
+            goto done;
+        }
+    #ifdef WC_RSA_BLINDING
+        wc_RsaSetRNG(&rsaKey[i], &rng);
+    #endif
+        if ((ret = wolfAsync_EventInit(&events[i],
+                WOLF_EVENT_TYPE_ASYNC_WOLFCRYPT, &rsaKey[i].asyncDev)) != 0) {
+            goto done;
+        }
+        events[i].pending = 0; /* Reset pending flag */
+
+        /* decode the private key */
+        idx = 0;
+        if ((ret = wc_RsaPrivateKeyDecode(tmp, &idx, &rsaKey[i],
+                                                        (word32)bytes)) != 0) {
+            printf("wc_RsaPrivateKeyDecode failed! %d\n", ret);
+            goto done;
+        }
+    }
+
+    /* begin public async RSA */
+    start = current_time(1);
+
+    asyncPend = 0;
+    for (i = 0; i < ntimes; ) {
+
+        /* while free pending slots in queue, submit RSA operations */
+        for (evtNum = 0; evtNum < WOLF_ASYNC_MAX_PENDING; evtNum++) {
+            if (events[evtNum].done || (events[evtNum].pending == 0 &&
+                                                    (i + asyncPend) < ntimes))
+            {
+                /* check for event error */
+                if (events[evtNum].ret != WC_PENDING_E && events[evtNum].ret < 0) {
+                    printf("wc_RsaPublicEncrypt: Async event error: %d\n", events[evtNum].ret);
+                    goto done;
+                }
+
+                ret = wc_RsaPublicEncrypt(message, len, enc, sizeof(enc),
+                                                        &rsaKey[evtNum], &rng);
+                if (ret == WC_PENDING_E) {
+                    ret = wc_RsaAsyncHandle(&rsaKey[evtNum], &eventQueue,
+                                                            &events[evtNum]);
+                    if (ret != 0) goto done;
+                    asyncPend++;
+                }
+                else if (ret >= 0) {
+                    /* operation completed */
+                    i++;
+                    asyncPend--;
+                    events[evtNum].done = 0;
+                }
+                else {
+                    printf("wc_RsaPublicEncrypt failed: %d\n", ret);
+                    goto done;
+                }
+            }
+        } /* for evtNum */
+
+        /* poll until there are events done */
+        if (asyncPend > 0) {
+            do {
+                ret = wolfAsync_EventQueuePoll(&eventQueue, NULL, NULL, 0,
+                                        WOLF_POLL_FLAG_CHECK_HW, &asyncDone);
+                if (ret != 0) goto done;
+            } while (asyncDone == 0);
+        }
+    } /* for ntimes */
+
+    total = current_time(0) - start;
+    each  = total / ntimes;   /* per second   */
+    milliEach = each * 1000; /* milliseconds */
+
+    printf("RSA %d public async    %6.3f milliseconds, avg over %d"
+           " iterations\n", rsaKeySz, milliEach, ntimes);
+
+    if (ret < 0) {
+        goto done;
+    }
+
+
+    /* begin private async RSA */
+    start = current_time(1);
+
+    /* capture resulting encrypt length */
+    idx = sizeof(enc); /* fixed at 2048 bit */
+
+    asyncPend = 0;
+    for (i = 0; i < ntimes; ) {
+        byte  out[256];  /* for up to 2048 bit */
+
+        /* while free pending slots in queue, submit RSA operations */
+        for (evtNum = 0; evtNum < WOLF_ASYNC_MAX_PENDING; evtNum++) {
+            if (events[evtNum].done || (events[evtNum].pending == 0 &&
+                                                    (i + asyncPend) < ntimes))
+            {
+                /* check for event error */
+                if (events[evtNum].ret != WC_PENDING_E && events[evtNum].ret < 0) {
+                    printf("wc_RsaPrivateDecrypt: Async event error: %d\n", events[evtNum].ret);
+                    goto done;
+                }
+
+                ret = wc_RsaPrivateDecrypt(enc, idx, out, sizeof(out),
+                                                            &rsaKey[evtNum]);
+                if (ret == WC_PENDING_E) {
+                    ret = wc_RsaAsyncHandle(&rsaKey[evtNum], &eventQueue,
+                                                            &events[evtNum]);
+                    if (ret != 0) goto done;
+                    asyncPend++;
+                }
+                else if (ret >= 0) {
+                    /* operation completed */
+                    i++;
+                    asyncPend--;
+                    events[evtNum].done = 0;
+                }
+                else {
+                    printf("wc_RsaPrivateDecrypt failed: %d\n", ret);
+                    goto done;
+                }
+            }
+        } /* for evtNum */
+
+        /* poll until there are events done */
+        if (asyncPend > 0) {
+            do {
+                ret = wolfAsync_EventQueuePoll(&eventQueue, NULL, NULL, 0,
+                                        WOLF_POLL_FLAG_CHECK_HW, &asyncDone);
+                if (ret != 0) goto done;
+            } while (asyncDone == 0);
+        }
+    } /* for ntimes */
+
+    total = current_time(0) - start;
+    each  = total / ntimes;   /* per second   */
+    milliEach = each * 1000; /* milliseconds */
+
+    printf("RSA %d private async   %6.3f milliseconds, avg over %d"
+           " iterations\n", rsaKeySz, milliEach, ntimes);
+
+done:
+
+    if (ret < 0) {
+        printf("bench_rsa_async failed: %d\n", ret);
+    }
+
+    /* cleanup */
+    for (i = 0; i < WOLF_ASYNC_MAX_PENDING; i++) {
+        wc_FreeRsaKey(&rsaKey[i]);
+    }
+
+    /* free event queue */
+    wolfEventQueue_Free(&eventQueue);
+}
+#endif /* WOLFSSL_ASYNC_CRYPT */
+
+#endif /* !NO_RSA */
 
 
 #ifndef NO_DH
@@ -1572,7 +1828,7 @@ void bench_rsaKeyGen(void)
     start = current_time(1);
 
     for(i = 0; i < genTimes; i++) {
-        wc_InitRsaKey(&genKey, 0);
+        wc_InitRsaKey(&genKey, HEAP_HINT);
         wc_MakeRsaKey(&genKey, 1024, 65537, &rng);
         wc_FreeRsaKey(&genKey);
     }
@@ -1588,7 +1844,7 @@ void bench_rsaKeyGen(void)
     start = current_time(1);
 
     for(i = 0; i < genTimes; i++) {
-        wc_InitRsaKey(&genKey, 0);
+        wc_InitRsaKey(&genKey, HEAP_HINT);
         wc_MakeRsaKey(&genKey, 2048, 65537, &rng);
         wc_FreeRsaKey(&genKey);
     }
@@ -1845,7 +2101,7 @@ void bench_eccKeyGen(void)
     start = current_time(1);
 
     for(i = 0; i < genTimes; i++) {
-        wc_ecc_init(&genKey);
+        wc_ecc_init_ex(&genKey, HEAP_HINT, devId);
         wc_ecc_make_key(&rng, 32, &genKey);
         wc_ecc_free(&genKey);
     }
@@ -1871,8 +2127,8 @@ void bench_eccKeyAgree(void)
     byte   digest[32];
     word32 x = 0;
 
-    wc_ecc_init(&genKey);
-    wc_ecc_init(&genKey2);
+    wc_ecc_init_ex(&genKey, HEAP_HINT, devId);
+    wc_ecc_init_ex(&genKey2, HEAP_HINT, devId);
 
     ret = wc_ecc_make_key(&rng, 32, &genKey);
     if (ret != 0) {
@@ -1958,8 +2214,8 @@ void bench_eccEncrypt(void)
     int     ret, i;
     double start, total, each, milliEach;
 
-    wc_ecc_init(&userA);
-    wc_ecc_init(&userB);
+    wc_ecc_init_ex(&userA, HEAP_HINT, devId);
+    wc_ecc_init_ex(&userB, HEAP_HINT, devId);
 
     wc_ecc_make_key(&rng, 32, &userA);
     wc_ecc_make_key(&rng, 32, &userB);
@@ -2249,7 +2505,7 @@ void bench_ed25519KeySign(void)
     }
 
 #elif defined(WOLFSSL_EMBOS)
-    
+
     #include "RTOS.h"
 
     double current_time(int reset)
@@ -2281,7 +2537,7 @@ void bench_ed25519KeySign(void)
 
 #endif /* _WIN32 */
 
-#ifdef HAVE_GET_CYCLES
+#if defined(HAVE_GET_CYCLES)
 
 static INLINE word64 get_intel_cycles(void)
 {

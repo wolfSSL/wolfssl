@@ -32,6 +32,9 @@ namespace wolfSSL.CSharp {
     {
         private const string wolfssl_dll = "wolfssl.dll";
 
+        /* wait for 6 seconds default on TCP socket state poll if timeout not set */
+        private const int WC_WAIT = 6000000;
+
         /********************************
          * Class for DTLS connections
          */
@@ -336,9 +339,17 @@ namespace wolfSSL.CSharp {
                 System.Runtime.InteropServices.GCHandle gch;
                 gch = GCHandle.FromIntPtr(ctx);
                 Socket con = (System.Net.Sockets.Socket)gch.Target;
-
                 Byte[] msg = new Byte[sz];
                 amtRecv = con.Receive(msg, msg.Length, 0);
+                if (amtRecv == 0)
+                {
+                    /* No data received so check for a response to see if connection is still open */
+                    if (con.Poll((con.ReceiveTimeout > 0) ? con.ReceiveTimeout : WC_WAIT, SelectMode.SelectRead))
+                    {
+                        log(ERROR_LOG, "socket connection issue, suspected connection termination.");
+                        return wolfssl.CBIO_ERR_CONN_CLOSE;
+                    }
+                }
                 Marshal.Copy(msg, 0, buf, sz);
             }
             catch (Exception e)
@@ -373,10 +384,17 @@ namespace wolfSSL.CSharp {
                 gch = GCHandle.FromIntPtr(ctx);
 
                 Socket con = (System.Net.Sockets.Socket)gch.Target;
-
                 Byte[] msg = new Byte[sz];
                 Marshal.Copy(buf, msg, 0, sz);
-                con.Send(msg, 0, msg.Length, SocketFlags.None);
+                if (con.Send(msg, 0, msg.Length, SocketFlags.None) == 0 && sz !=0)
+                {
+                    /* no data sent and msg size is larger then 0, check for lost connection */
+                    if (con.Poll((con.SendTimeout > 0) ? con.SendTimeout : WC_WAIT, SelectMode.SelectWrite))
+                    {
+                        log(ERROR_LOG, "socket connection issue, suspect connection termination");
+                        return wolfssl.CBIO_ERR_CONN_CLOSE;
+                    }
+                }
                 return sz;
             }
             catch (Exception e)

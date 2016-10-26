@@ -209,7 +209,7 @@ int wc_SignatureVerify(
                 if (plain_len < sig_len) {
                     plain_len = sig_len;
                 }
-                plain_data = (byte*)XMALLOC(hash_len, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                plain_data = (byte*)XMALLOC(plain_len, NULL, DYNAMIC_TYPE_TMP_BUFFER);
                 if (plain_data) {
                     /* Perform verification of signature using provided RSA key */
                     ret = wc_RsaSSL_Verify(sig, sig_len, plain_data, plain_len,

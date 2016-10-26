@@ -13,15 +13,15 @@ if test -d .git; then
 fi
 
 # If this is a source checkout then call autoreconf with error as well
-if test -d .git; then
+if test -e .git; then
   WARNINGS="all,error"
   # touch fips files for non fips distribution
   touch ./ctaocrypt/src/fips.c
   touch ./ctaocrypt/src/fips_test.c
 
   # touch async crypt files
-  touch ./src/async.c
-  touch ./wolfssl/async.h
+  touch ./wolfcrypt/src/async.c
+  touch ./wolfssl/wolfcrypt/async.h
 else
   WARNINGS="all"
 fi

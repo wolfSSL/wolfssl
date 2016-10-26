@@ -91,9 +91,6 @@
 /* Uncomment next line if using STM32F2 */
 /* #define WOLFSSL_STM32F2 */
 
-/* Uncomment next line if using Comverge settings */
-/* #define COMVERGE */
-
 /* Uncomment next line if using QL SEP settings */
 /* #define WOLFSSL_QL */
 
@@ -127,6 +124,9 @@
 /* Uncomment next line if building for VxWorks */
 /* #define WOLFSSL_VXWORKS */
 
+/* Uncomment next line if building for Nordic nRF5x platofrm */
+/* #define WOLFSSL_NRF5x */
+
 /* Uncomment next line to enable deprecated less secure static DH suites */
 /* #define WOLFSSL_STATIC_DH */
 
@@ -134,7 +134,9 @@
 /* #define WOLFSSL_STATIC_RSA */
 
 /* Uncomment next line if building for ARDUINO */
+/* Uncomment both lines if building for ARDUINO on INTEL_GALILEO */
 /* #define WOLFSSL_ARDUINO */
+/* #define INTEL_GALILEO */
 
 /* Uncomment next line to enable asynchronous crypto WC_PENDING_E */
 /* #define WOLFSSL_ASYNC_CRYPT */
@@ -163,26 +165,6 @@
 #ifdef IPHONE
     #define SIZEOF_LONG_LONG 8
 #endif
-
-
-#ifdef COMVERGE
-    #define THREADX
-    #define HAVE_NETX
-    #define WOLFSSL_USER_IO
-    #define NO_WRITEV
-    #define NO_DEV_RANDOM
-    #define NO_FILESYSTEM
-    #define NO_SHA512
-    #define NO_DH
-    /* Allows use of DH with fixed points if uncommented and NO_DH is removed */
-    /* WOLFSSL_DH_CONST */
-    #define NO_DSA
-    #define NO_HC128
-    #define NO_RSA
-    #define NO_SESSION_CACHE
-    #define HAVE_ECC
-#endif
-
 
 #ifdef THREADX
     #define SIZEOF_LONG_LONG 8
@@ -420,6 +402,23 @@
     #define NO_MAIN_DRIVER
     #define NO_RC4
     #define SINGLE_THREADED         /* Not ported at this time */
+#endif
+
+#ifdef WOLFSSL_NRF5x
+		#define SIZEOF_LONG 4
+		#define SIZEOF_LONG_LONG 8
+		#define NO_ASN_TIME
+		#define NO_DEV_RANDOM
+		#define NO_FILESYSTEM
+		#define NO_MAIN_DRIVER
+		#define NO_WRITEV
+		#define SINGLE_THREADED
+		#define USE_FAST_MATH
+		#define TFM_TIMING_RESISTANT
+		#define USE_WOLFSSL_MEMORY
+		#define WOLFSSL_NRF51
+		#define WOLFSSL_USER_IO
+		#define NO_SESSION_CACHE
 #endif
 
 /* Micrium will use Visual Studio for compilation but not the Win32 API */
@@ -1235,9 +1234,10 @@ static char *fgets(char *buff, int sz, FILE *fp)
     /* Make sure wolf events are enabled */
     #undef HAVE_WOLF_EVENT
     #define HAVE_WOLF_EVENT
-#else
-    #ifdef WOLFSSL_ASYNC_CRYPT_TEST
-        #error Must have WOLFSSL_ASYNC_CRYPT enabled with WOLFSSL_ASYNC_CRYPT_TEST
+
+    #if !defined(HAVE_CAVIUM) && !defined(HAVE_INTEL_QA) && \
+        !defined(WOLFSSL_ASYNC_CRYPT_TEST)
+        #error No async hardware defined with WOLFSSL_ASYNC_CRYPT!
     #endif
 #endif /* WOLFSSL_ASYNC_CRYPT */
 
@@ -1250,6 +1250,9 @@ static char *fgets(char *buff, int sz, FILE *fp)
 
 /* restriction with static memory */
 #ifdef WOLFSSL_STATIC_MEMORY
+    #if defined(HAVE_IO_POOL) || defined(XMALLOC_USER) || defined(NO_WOLFSSL_MEMORY)
+         #error static memory cannot be used with HAVE_IO_POOL, XMALLOC_USER or NO_WOLFSSL_MEMORY
+    #endif
     #ifndef USE_FAST_MATH
         #error static memory requires fast math please define USE_FAST_MATH
     #endif
@@ -1257,6 +1260,8 @@ static char *fgets(char *buff, int sz, FILE *fp)
         #error static memory does not support small stack please undefine
     #endif
 #endif /* WOLFSSL_STATIC_MEMORY */
+
+
 /* Place any other flags or defines here */
 
 #if defined(WOLFSSL_MYSQL_COMPATIBLE) && defined(_WIN32) \

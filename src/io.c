@@ -1015,7 +1015,7 @@ static int process_http_response(int sfd, byte** respBuf,
         XMEMCPY(recvBuf, start, len);
 
     /* receive the OCSP response data */
-    do {
+    while (len < recvBufSz) {
         result = (int)recv(sfd, (char*)recvBuf+len, recvBufSz-len, 0);
         if (result > 0)
             len += result;
@@ -1023,7 +1023,7 @@ static int process_http_response(int sfd, byte** respBuf,
             WOLFSSL_MSG("process_http_response recv ocsp from peer failed");
             return -1;
         }
-    } while (len != recvBufSz);
+    }
 
     *respBuf = recvBuf;
     return recvBufSz;

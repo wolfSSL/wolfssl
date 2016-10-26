@@ -62,6 +62,15 @@ const char* wc_GetErrorString(int error)
     case BAD_MUTEX_E :
         return "Bad mutex, operation failed";
 
+    case WC_TIMEOUT_E:
+        return "Timeout error";
+
+    case WC_PENDING_E:
+        return "wolfCrypt Operation Pending (would block / eagain) error";
+
+    case WC_NOT_PENDING_E:
+        return "wolfCrypt operation not pending error";
+
     case MP_INIT_E :
         return "mp_init error state";
 
@@ -227,8 +236,8 @@ const char* wc_GetErrorString(int error)
     case AES_CCM_AUTH_E:
         return "AES-CCM Authentication check fail";
 
-    case CAVIUM_INIT_E:
-        return "Cavium Init type error";
+    case ASYNC_INIT_E:
+        return "Async Init error";
 
     case COMPRESS_INIT_E:
         return "Compress Init error";
@@ -257,8 +266,8 @@ const char* wc_GetErrorString(int error)
     case ASN_OCSP_CONFIRM_E :
         return "ASN OCSP sig error, confirm failure";
 
-    case BAD_ENC_STATE_E:
-        return "Bad ecc encrypt state operation";
+    case BAD_STATE_E:
+        return "Bad state operation";
 
     case BAD_PADDING_E:
         return "Bad padding, message wrong length";
@@ -377,9 +386,6 @@ const char* wc_GetErrorString(int error)
     case HASH_TYPE_E:
         return "Hash type not enabled/available";
 
-    case WC_PENDING_E:
-        return "wolfCrypt Operation Pending (would block / eagain) error";
-
     case WC_KEY_SIZE_E:
         return "Key size error, either too small or large";
 
@@ -388,6 +394,12 @@ const char* wc_GetErrorString(int error)
 
     case MISSING_RNG_E:
         return "RNG required but not provided";
+
+    case ASN_PATHLEN_SIZE_E:
+        return "ASN CA path length value too large error";
+
+    case ASN_PATHLEN_INV_E:
+        return "ASN CA path length larger than signer error";
 
     default:
         return "unknown error number";

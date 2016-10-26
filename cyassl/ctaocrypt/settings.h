@@ -79,9 +79,6 @@
 /* Uncomment next line if using STM32F2 */
 /* #define CYASSL_STM32F2 */
 
-/* Uncomment next line if using Comverge settings */
-/* #define COMVERGE */
-
 /* Uncomment next line if using QL SEP settings */
 /* #define CYASSL_QL */
 
@@ -113,24 +110,6 @@
 
 /* for reverse compatibility after name change */
 #include <cyassl/ctaocrypt/settings_comp.h>
-
-
-#ifdef COMVERGE
-    #define THREADX
-    #define HAVE_NETX
-    #define CYASSL_USER_IO
-    #define NO_WRITEV
-    #define NO_DEV_RANDOM
-    #define NO_FILESYSTEM
-    #define NO_SHA512
-    #define NO_DH
-    #define NO_DSA
-    #define NO_HC128
-    #define NO_RSA
-    #define NO_SESSION_CACHE
-    #define HAVE_ECC 
-#endif
-
 
 #ifdef THREADX 
     #define SIZEOF_LONG_LONG 8

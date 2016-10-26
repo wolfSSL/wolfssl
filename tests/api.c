@@ -636,6 +636,7 @@ static THREAD_RETURN WOLFSSL_THREAD test_server_nofail(void* args)
     char msg[] = "I hear you fa shizzle!";
     char input[1024];
     int idx;
+    int ret, err = 0;
 
 #ifdef WOLFSSL_TIRTOS
     fdOpenSession(Task_self());
@@ -685,7 +686,7 @@ static THREAD_RETURN WOLFSSL_THREAD test_server_nofail(void* args)
     }
 
     ssl = wolfSSL_new(ctx);
-    tcp_accept(&sockfd, &clientfd, (func_args*)args, port, 0, 0, 0, 1);
+    tcp_accept(&sockfd, &clientfd, (func_args*)args, port, 0, 0, 0, 0, 1);
     CloseSocket(sockfd);
 
     if (wolfSSL_set_fd(ssl, clientfd) != SSL_SUCCESS) {
@@ -701,9 +702,22 @@ static THREAD_RETURN WOLFSSL_THREAD test_server_nofail(void* args)
     #endif
 #endif
 
-    if (wolfSSL_accept(ssl) != SSL_SUCCESS)
-    {
-        int err = wolfSSL_get_error(ssl, 0);
+    do {
+#ifdef WOLFSSL_ASYNC_CRYPT
+        if (err == WC_PENDING_E) {
+            ret = wolfSSL_AsyncPoll(ssl, WOLF_POLL_FLAG_CHECK_HW);
+            if (ret < 0) { break; } else if (ret == 0) { continue; }
+        }
+#endif
+
+        err = 0; /* Reset error */
+        ret = wolfSSL_accept(ssl);
+        if (ret != SSL_SUCCESS) {
+            err = wolfSSL_get_error(ssl, 0);
+        }
+    } while (ret != SSL_SUCCESS && err == WC_PENDING_E);
+
+    if (ret != SSL_SUCCESS) {
         char buffer[WOLFSSL_MAX_ERROR_SZ];
         printf("error = %d, %s\n", err, wolfSSL_ERR_error_string(err, buffer));
         /*err_sys("SSL_accept failed");*/
@@ -765,6 +779,7 @@ static void test_client_nofail(void* args)
     char reply[1024];
     int  input;
     int  msgSz = (int)XSTRLEN(msg);
+    int  ret, err = 0;
 
 #ifdef WOLFSSL_TIRTOS
     fdOpenSession(Task_self());
@@ -799,18 +814,32 @@ static void test_client_nofail(void* args)
     }
 
     ssl = wolfSSL_new(ctx);
-    tcp_connect(&sockfd, wolfSSLIP, ((func_args*)args)->signal->port, 0, ssl);
+    tcp_connect(&sockfd, wolfSSLIP, ((func_args*)args)->signal->port,
+                0, 0, ssl);
     if (wolfSSL_set_fd(ssl, sockfd) != SSL_SUCCESS) {
         /*err_sys("SSL_set_fd failed");*/
         goto done2;
     }
 
-    if (wolfSSL_connect(ssl) != SSL_SUCCESS)
-    {
-        int  err = wolfSSL_get_error(ssl, 0);
+    do {
+#ifdef WOLFSSL_ASYNC_CRYPT
+        if (err == WC_PENDING_E) {
+            ret = wolfSSL_AsyncPoll(ssl, WOLF_POLL_FLAG_CHECK_HW);
+            if (ret < 0) { break; } else if (ret == 0) { continue; }
+        }
+#endif
+
+        err = 0; /* Reset error */
+        ret = wolfSSL_connect(ssl);
+        if (ret != SSL_SUCCESS) {
+            err = wolfSSL_get_error(ssl, 0);
+        }
+    } while (ret != SSL_SUCCESS && err == WC_PENDING_E);
+
+    if (ret != SSL_SUCCESS) {
         char buffer[WOLFSSL_MAX_ERROR_SZ];
-        printf("err = %d, %s\n", err, wolfSSL_ERR_error_string(err, buffer));
-        /*printf("SSL_connect failed");*/
+        printf("error = %d, %s\n", err, wolfSSL_ERR_error_string(err, buffer));
+        /*err_sys("SSL_connect failed");*/
         goto done2;
     }
 
@@ -858,6 +887,7 @@ static THREAD_RETURN WOLFSSL_THREAD run_wolfssl_server(void* args)
     int  len   = (int) XSTRLEN(msg);
     char input[1024];
     int  idx;
+    int  ret, err = 0;
 
 #ifdef WOLFSSL_TIRTOS
     fdOpenSession(Task_self());
@@ -904,14 +934,14 @@ static THREAD_RETURN WOLFSSL_THREAD run_wolfssl_server(void* args)
         socklen_t     cliLen;
 
         cliLen = sizeof(cliAddr);
-        tcp_accept(&sfd, &cfd, (func_args*)args, port, 0, 1, 0, 0);
+        tcp_accept(&sfd, &cfd, (func_args*)args, port, 0, 1, 0, 0, 0);
         idx = (int)recvfrom(sfd, input, sizeof(input), MSG_PEEK,
                 (struct sockaddr*)&cliAddr, &cliLen);
         AssertIntGT(idx, 0);
         wolfSSL_dtls_set_peer(ssl, &cliAddr, cliLen);
     }
     else {
-        tcp_accept(&sfd, &cfd, (func_args*)args, port, 0, 0, 0, 1);
+        tcp_accept(&sfd, &cfd, (func_args*)args, port, 0, 0, 0, 0, 1);
         CloseSocket(sfd);
     }
 
@@ -928,13 +958,27 @@ static THREAD_RETURN WOLFSSL_THREAD run_wolfssl_server(void* args)
     if (callbacks->ssl_ready)
         callbacks->ssl_ready(ssl);
 
-    /* AssertIntEQ(SSL_SUCCESS, wolfSSL_accept(ssl)); */
-    if (wolfSSL_accept(ssl) != SSL_SUCCESS) {
-        int err = wolfSSL_get_error(ssl, 0);
+    do {
+#ifdef WOLFSSL_ASYNC_CRYPT
+        if (err == WC_PENDING_E) {
+            ret = wolfSSL_AsyncPoll(ssl, WOLF_POLL_FLAG_CHECK_HW);
+            if (ret < 0) { break; } else if (ret == 0) { continue; }
+        }
+#endif
+
+        err = 0; /* Reset error */
+        ret = wolfSSL_accept(ssl);
+        if (ret != SSL_SUCCESS) {
+            err = wolfSSL_get_error(ssl, 0);
+        }
+    } while (ret != SSL_SUCCESS && err == WC_PENDING_E);
+
+    if (ret != SSL_SUCCESS) {
         char buffer[WOLFSSL_MAX_ERROR_SZ];
         printf("error = %d, %s\n", err, wolfSSL_ERR_error_string(err, buffer));
-
-    } else {
+        /*err_sys("SSL_accept failed");*/
+    }
+    else {
         if (0 < (idx = wolfSSL_read(ssl, input, sizeof(input)-1))) {
             input[idx] = 0;
             printf("Client message: %s\n", input);
@@ -997,6 +1041,7 @@ static void run_wolfssl_client(void* args)
     int  len   = (int) XSTRLEN(msg);
     char input[1024];
     int  idx;
+    int  ret, err = 0;
 
 #ifdef WOLFSSL_TIRTOS
     fdOpenSession(Task_self());
@@ -1021,22 +1066,39 @@ static void run_wolfssl_client(void* args)
 
     ssl = wolfSSL_new(ctx);
     if (wolfSSL_dtls(ssl)) {
-        tcp_connect(&sfd, wolfSSLIP, ((func_args*)args)->signal->port, 1, ssl);
+        tcp_connect(&sfd, wolfSSLIP, ((func_args*)args)->signal->port,
+                    1, 0, ssl);
     }
     else {
-        tcp_connect(&sfd, wolfSSLIP, ((func_args*)args)->signal->port, 0, ssl);
+        tcp_connect(&sfd, wolfSSLIP, ((func_args*)args)->signal->port,
+                    0, 0, ssl);
     }
     AssertIntEQ(SSL_SUCCESS, wolfSSL_set_fd(ssl, sfd));
 
     if (callbacks->ssl_ready)
         callbacks->ssl_ready(ssl);
 
-    if (wolfSSL_connect(ssl) != SSL_SUCCESS) {
-        int err = wolfSSL_get_error(ssl, 0);
+    do {
+#ifdef WOLFSSL_ASYNC_CRYPT
+        if (err == WC_PENDING_E) {
+            ret = wolfSSL_AsyncPoll(ssl, WOLF_POLL_FLAG_CHECK_HW);
+            if (ret < 0) { break; } else if (ret == 0) { continue; }
+        }
+#endif
+
+        err = 0; /* Reset error */
+        ret = wolfSSL_connect(ssl);
+        if (ret != SSL_SUCCESS) {
+            err = wolfSSL_get_error(ssl, 0);
+        }
+    } while (ret != SSL_SUCCESS && err == WC_PENDING_E);
+
+    if (ret != SSL_SUCCESS) {
         char buffer[WOLFSSL_MAX_ERROR_SZ];
         printf("error = %d, %s\n", err, wolfSSL_ERR_error_string(err, buffer));
-
-    } else {
+        /*err_sys("SSL_connect failed");*/
+    }
+    else {
         AssertIntEQ(len, wolfSSL_write(ssl, msg, len));
 
         if (0 < (idx = wolfSSL_read(ssl, input, sizeof(input)-1))) {
@@ -1879,6 +1941,28 @@ static void test_wolfSSL_UseALPN(void)
 #endif
 }
 
+static void test_wolfSSL_DisableExtendedMasterSecret(void)
+{
+#ifdef HAVE_EXTENDED_MASTER
+    WOLFSSL_CTX *ctx = wolfSSL_CTX_new(wolfSSLv23_client_method());
+    WOLFSSL     *ssl = wolfSSL_new(ctx);
+
+    AssertNotNull(ctx);
+    AssertNotNull(ssl);
+
+    /* error cases */
+    AssertIntNE(SSL_SUCCESS, wolfSSL_CTX_DisableExtendedMasterSecret(NULL));
+    AssertIntNE(SSL_SUCCESS, wolfSSL_DisableExtendedMasterSecret(NULL));
+
+    /* success cases */
+    AssertIntEQ(SSL_SUCCESS, wolfSSL_CTX_DisableExtendedMasterSecret(ctx));
+    AssertIntEQ(SSL_SUCCESS, wolfSSL_DisableExtendedMasterSecret(ssl));
+
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+#endif
+}
+
 /*----------------------------------------------------------------------------*
  | X509 Tests
  *----------------------------------------------------------------------------*/
@@ -2221,6 +2305,7 @@ void ApiTest(void)
     test_wolfSSL_UseTruncatedHMAC();
     test_wolfSSL_UseSupportedCurve();
     test_wolfSSL_UseALPN();
+    test_wolfSSL_DisableExtendedMasterSecret();
 
     /* X509 tests */
     test_wolfSSL_X509_NAME_get_entry();

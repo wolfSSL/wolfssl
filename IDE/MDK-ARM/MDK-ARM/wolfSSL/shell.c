@@ -491,7 +491,7 @@ static void command_invoke(void *args)
 
     func = (void(*)(void *))((func_args *)args)->argv[0] ; 
     #ifdef  HAVE_KEIL_RTX
-    LockMutex((wolfSSL_Mutex *)&command_mutex) ;
+    wc_LockMutex((wolfSSL_Mutex *)&command_mutex) ;
     #endif
     iteration = for_iteration ;
     for(i=0; i< iteration; i++) {
@@ -509,7 +509,7 @@ static void command_invoke(void *args)
     if(iteration > 1) 
         for_iteration = 1 ;
     #ifdef HAVE_KEIL_RTX
-    UnLockMutex((wolfSSL_Mutex *)&command_mutex) ;
+    wc_UnLockMutex((wolfSSL_Mutex *)&command_mutex) ;
     os_tsk_delete_self() ;
     #endif
 }
@@ -548,7 +548,7 @@ void shell_main(void) {
     
     
  #if defined(HAVE_KEIL_RTX)
-    InitMutex(&command_mutex) ;
+    wc_InitMutex(&command_mutex) ;
 #endif
     printf("Starting Shell\n") ;
     while(1) {
@@ -558,14 +558,14 @@ void shell_main(void) {
             args.argv[0] = (char *) commandTable[i].func ;
                 if(bf_flg == FORGROUND) {
                     #ifdef  HAVE_KEIL_RTX
-                    UnLockMutex((wolfSSL_Mutex *)&command_mutex) ;
+                    wc_UnLockMutex((wolfSSL_Mutex *)&command_mutex) ;
                     os_tsk_create_user_ex( (void(*)(void *))&command_invoke, 7,
                             command_stack, COMMAND_STACK_SIZE, &args) ;
                     #else
                     command_invoke(&args) ;
                     #endif
                     #ifdef  HAVE_KEIL_RTX
-                    LockMutex((wolfSSL_Mutex *)&command_mutex) ;
+                    wc_LockMutex((wolfSSL_Mutex *)&command_mutex) ;
                     #endif
                 } else {
                     #if (!defined(NO_SIMPLE_SERVER) && \

@@ -30,7 +30,9 @@
     extern "C" {
 #endif
 
-#define WOLFSSL_ARC4_CAVIUM_MAGIC 0xBEEF0001
+#ifdef WOLFSSL_ASYNC_CRYPT
+    #include <wolfssl/wolfcrypt/async.h>
+#endif
 
 enum {
 	ARC4_ENC_TYPE   = 4,    /* cipher unique type */
@@ -42,19 +44,17 @@ typedef struct Arc4 {
     byte x;
     byte y;
     byte state[ARC4_STATE_SIZE];
-#ifdef HAVE_CAVIUM
-    int    devId;           /* nitrox device id */
-    word32 magic;           /* using cavium magic */
-    word64 contextHandle;   /* nitrox context memory handle */
+#ifdef WOLFSSL_ASYNC_CRYPT
+    AsyncCryptDev asyncDev;
 #endif
 } Arc4;
 
 WOLFSSL_API void wc_Arc4Process(Arc4*, byte*, const byte*, word32);
 WOLFSSL_API void wc_Arc4SetKey(Arc4*, const byte*, word32);
 
-#ifdef HAVE_CAVIUM
-    WOLFSSL_API int  wc_Arc4InitCavium(Arc4*, int);
-    WOLFSSL_API void wc_Arc4FreeCavium(Arc4*);
+#ifdef WOLFSSL_ASYNC_CRYPT
+    WOLFSSL_API int  wc_Arc4AsyncInit(Arc4*, int);
+    WOLFSSL_API void wc_Arc4AsyncFree(Arc4*);
 #endif
 
 #ifdef __cplusplus

@@ -2070,18 +2070,18 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
             dec->arc4 = (Arc4*)XMALLOC(sizeof(Arc4), heap, DYNAMIC_TYPE_CIPHER);
         if (dec && dec->arc4 == NULL)
             return MEMORY_E;
-#ifdef HAVE_CAVIUM
-        if (devId != NO_CAVIUM_DEVICE) {
+#ifdef WOLFSSL_ASYNC_CRYPT
+        if (devId != INVALID_DEVID) {
             if (enc) {
-                if (wc_Arc4InitCavium(enc->arc4, devId) != 0) {
-                    WOLFSSL_MSG("Arc4InitCavium failed in SetKeys");
-                    return CAVIUM_INIT_E;
+                if (wc_Arc4AsyncInit(enc->arc4, devId) != 0) {
+                    WOLFSSL_MSG("Arc4AsyncInit failed in SetKeys");
+                    return ASYNC_INIT_E;
                 }
             }
             if (dec) {
-                if (wc_Arc4InitCavium(dec->arc4, devId) != 0) {
-                    WOLFSSL_MSG("Arc4InitCavium failed in SetKeys");
-                    return CAVIUM_INIT_E;
+                if (wc_Arc4AsyncInit(dec->arc4, devId) != 0) {
+                    WOLFSSL_MSG("Arc4AsyncInit failed in SetKeys");
+                    return ASYNC_INIT_E;
                 }
             }
         }
@@ -2282,18 +2282,18 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
             dec->des3 = (Des3*)XMALLOC(sizeof(Des3), heap, DYNAMIC_TYPE_CIPHER);
         if (dec && dec->des3 == NULL)
             return MEMORY_E;
-#ifdef HAVE_CAVIUM
-        if (devId != NO_CAVIUM_DEVICE) {
+#ifdef WOLFSSL_ASYNC_CRYPT
+        if (devId != INVALID_DEVID) {
             if (enc) {
-                if (wc_Des3_InitCavium(enc->des3, devId) != 0) {
-                    WOLFSSL_MSG("Des3_InitCavium failed in SetKeys");
-                    return CAVIUM_INIT_E;
+                if (wc_Des3AsyncInit(enc->des3, devId) != 0) {
+                    WOLFSSL_MSG("Des3AsyncInit failed in SetKeys");
+                    return ASYNC_INIT_E;
                 }
             }
             if (dec) {
-                if (wc_Des3_InitCavium(dec->des3, devId) != 0) {
-                    WOLFSSL_MSG("Des3_InitCavium failed in SetKeys");
-                    return CAVIUM_INIT_E;
+                if (wc_Des3AsyncInit(dec->des3, devId) != 0) {
+                    WOLFSSL_MSG("Des3AsyncInit failed in SetKeys");
+                    return ASYNC_INIT_E;
                 }
             }
         }
@@ -2346,18 +2346,18 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
             dec->aes = (Aes*)XMALLOC(sizeof(Aes), heap, DYNAMIC_TYPE_CIPHER);
         if (dec && dec->aes == NULL)
             return MEMORY_E;
-#ifdef HAVE_CAVIUM
-        if (devId != NO_CAVIUM_DEVICE) {
+#ifdef WOLFSSL_ASYNC_CRYPT
+        if (devId != INVALID_DEVID) {
             if (enc) {
-                if (wc_AesInitCavium(enc->aes, devId) != 0) {
-                    WOLFSSL_MSG("AesInitCavium failed in SetKeys");
-                    return CAVIUM_INIT_E;
+                if (wc_AesAsyncInit(enc->aes, devId) != 0) {
+                    WOLFSSL_MSG("AesAsyncInit failed in SetKeys");
+                    return ASYNC_INIT_E;
                 }
             }
             if (dec) {
-                if (wc_AesInitCavium(dec->aes, devId) != 0) {
-                    WOLFSSL_MSG("AesInitCavium failed in SetKeys");
-                    return CAVIUM_INIT_E;
+                if (wc_AesAsyncInit(dec->aes, devId) != 0) {
+                    WOLFSSL_MSG("AesAsyncInit failed in SetKeys");
+                    return ASYNC_INIT_E;
                 }
             }
         }
@@ -2473,6 +2473,8 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
     #endif
 
     if (specs->bulk_cipher_algorithm == wolfssl_aes_ccm) {
+        int CcmRet;
+
         if (enc && enc->aes == NULL)
             enc->aes = (Aes*)XMALLOC(sizeof(Aes), heap, DYNAMIC_TYPE_CIPHER);
         if (enc && enc->aes == NULL)
@@ -2484,24 +2486,40 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
 
         if (side == WOLFSSL_CLIENT_END) {
             if (enc) {
-                wc_AesCcmSetKey(enc->aes, keys->client_write_key, specs->key_size);
+                CcmRet = wc_AesCcmSetKey(enc->aes, keys->client_write_key,
+                                         specs->key_size);
+                if (CcmRet != 0) {
+                    return CcmRet;
+                }
                 XMEMCPY(keys->aead_enc_imp_IV, keys->client_write_IV,
                         AESGCM_IMP_IV_SZ);
             }
             if (dec) {
-                wc_AesCcmSetKey(dec->aes, keys->server_write_key, specs->key_size);
+                CcmRet = wc_AesCcmSetKey(dec->aes, keys->server_write_key,
+                                         specs->key_size);
+                if (CcmRet != 0) {
+                    return CcmRet;
+                }
                 XMEMCPY(keys->aead_dec_imp_IV, keys->server_write_IV,
                         AESGCM_IMP_IV_SZ);
             }
         }
         else {
             if (enc) {
-                wc_AesCcmSetKey(enc->aes, keys->server_write_key, specs->key_size);
+                CcmRet = wc_AesCcmSetKey(enc->aes, keys->server_write_key,
+                                         specs->key_size);
+                if (CcmRet != 0) {
+                    return CcmRet;
+                }
                 XMEMCPY(keys->aead_enc_imp_IV, keys->server_write_IV,
                         AESGCM_IMP_IV_SZ);
             }
             if (dec) {
-                wc_AesCcmSetKey(dec->aes, keys->client_write_key, specs->key_size);
+                CcmRet = wc_AesCcmSetKey(dec->aes, keys->client_write_key,
+                                         specs->key_size);
+                if (CcmRet != 0) {
+                    return CcmRet;
+                }
                 XMEMCPY(keys->aead_dec_imp_IV, keys->client_write_IV,
                         AESGCM_IMP_IV_SZ);
             }
@@ -2628,10 +2646,14 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
     }
 #endif
 
-    if (enc)
-        keys->sequence_number      = 0;
-    if (dec)
-        keys->peer_sequence_number = 0;
+    if (enc) {
+        keys->sequence_number_hi      = 0;
+        keys->sequence_number_lo      = 0;
+    }
+    if (dec) {
+        keys->peer_sequence_number_hi = 0;
+        keys->peer_sequence_number_lo = 0;
+    }
     (void)side;
     (void)heap;
     (void)enc;
@@ -2675,14 +2697,14 @@ static int SetAuthKeys(OneTimeAuth* authentication, Keys* keys,
  */
 int SetKeysSide(WOLFSSL* ssl, enum encrypt_side side)
 {
-    int devId = NO_CAVIUM_DEVICE, ret, copy = 0;
+    int devId = INVALID_DEVID, ret, copy = 0;
     Ciphers* wc_encrypt = NULL;
     Ciphers* wc_decrypt = NULL;
     Keys*    keys    = &ssl->keys;
 
     (void)copy;
 
-#ifdef HAVE_CAVIUM
+#ifdef WOLFSSL_ASYNC_CRYPT
     devId = ssl->devId;
 #endif
 
@@ -2747,7 +2769,8 @@ int SetKeysSide(WOLFSSL* ssl, enum encrypt_side side)
                     keys->server_write_IV, MAX_WRITE_IV_SZ);
         }
         if (wc_encrypt) {
-            ssl->keys.sequence_number = keys->sequence_number;
+            ssl->keys.sequence_number_hi = keys->sequence_number_hi;
+            ssl->keys.sequence_number_lo = keys->sequence_number_lo;
             #ifdef HAVE_AEAD
                 if (ssl->specs.cipher_type == aead) {
                     /* Initialize the AES-GCM/CCM explicit IV to a zero. */
@@ -2766,7 +2789,8 @@ int SetKeysSide(WOLFSSL* ssl, enum encrypt_side side)
             #endif
         }
         if (wc_decrypt) {
-            ssl->keys.peer_sequence_number = keys->peer_sequence_number;
+            ssl->keys.peer_sequence_number_hi = keys->peer_sequence_number_hi;
+            ssl->keys.peer_sequence_number_lo = keys->peer_sequence_number_lo;
             #ifdef HAVE_AEAD
                 if (ssl->specs.cipher_type == aead) {
                     /* Initialize decrypt implicit IV by decrypt side */
