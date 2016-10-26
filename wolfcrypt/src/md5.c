@@ -296,7 +296,7 @@ static void Transform(Md5* md5)
     MD5STEP(F4, d, a, b, c, md5->buffer[11] + 0xbd3af235, 10);
     MD5STEP(F4, c, d, a, b, md5->buffer[2]  + 0x2ad7d2bb, 15);
     MD5STEP(F4, b, c, d, a, md5->buffer[9]  + 0xeb86d391, 21);
-    
+
     /* Add the working vars back into digest state[]  */
     md5->digest[0] += a;
     md5->digest[1] += b;
@@ -349,9 +349,11 @@ int wc_Md5Update(Md5* md5, const byte* data, word32 len)
 
 int wc_Md5Final(Md5* md5, byte* hash)
 {
+    byte* local;
+
     if (md5 == NULL || hash == NULL) { return BAD_FUNC_ARG; }
 
-    byte* local = (byte*)md5->buffer;
+    local = (byte*)md5->buffer;
 
     AddLength(md5, md5->buffLen);  /* before adding pads */
 

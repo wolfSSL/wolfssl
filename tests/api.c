@@ -2197,7 +2197,6 @@ void ApiTest(void)
     printf(" Begin API Tests\n");
     AssertIntEQ(test_wolfSSL_Init(), SSL_SUCCESS);
     ///* wolfcrypt initialization tests */
-   // AssertFalse(test_wolfCrypt_Init());
     test_wolfSSL_Method_Allocators();
     test_wolfSSL_CTX_new(wolfSSLv23_server_method());
     test_wolfSSL_CTX_use_certificate_file();
@@ -2234,7 +2233,6 @@ void ApiTest(void)
 
     /*wolfcrypt */
     AssertFalse(test_wolfCrypt_Init());
-    printf("\n-----------------wolfcrypt unit tests------------------\n");
     AssertTrue(test_wc_InitMd5());
     AssertTrue(test_wc_UpdateMd5());
     AssertTrue(test_wc_Md5Final());
