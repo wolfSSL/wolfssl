@@ -6750,7 +6750,7 @@ int wolfSSL_dtls_got_timeout(WOLFSSL* ssl)
     int result = SSL_SUCCESS;
 
     if (!ssl->options.handShakeDone &&
-        (DtlsPoolTimeout(ssl) < 0 || DtlsPoolSend(ssl) < 0)) {
+        (DtlsPoolTimeout(ssl) < 0 || DtlsPoolSend(ssl, 0) < 0)) {
 
         result = SSL_FATAL_ERROR;
     }

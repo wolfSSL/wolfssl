@@ -4118,8 +4118,23 @@ int DtlsPoolTimeout(WOLFSSL* ssl)
     return result;
 }
 
+int VerifyForDtlsPoolSend(WOLFSSL* ssl, byte type, word32 fragOffset)
+{
+    /**
+     * only the first message from previous flight should be valid
+     * to be used for triggering retransmission of whole DtlsPool.
+     * change cipher suite type is not verified here
+     */
+    return ((fragOffset == 0) &&
+           (((ssl->options.side == WOLFSSL_SERVER_END) &&
+             ((type == client_hello) ||
+             ((ssl->options.verifyPeer) && (type == certificate)) ||
+             ((!ssl->options.verifyPeer) && (type == client_key_exchange)))) ||
+            ((ssl->options.side == WOLFSSL_CLIENT_END) &&
+             (type == server_hello))));
+}
 
-int DtlsPoolSend(WOLFSSL* ssl)
+int DtlsPoolSend(WOLFSSL* ssl, byte sendOnlyFirstPacket)
 {
     DtlsPool* pool = ssl->dtls_pool;
 
@@ -4127,8 +4142,19 @@ int DtlsPoolSend(WOLFSSL* ssl)
         int ret = 0;
         int     i;
         buffer* buf;
+        /**
+         * on server side, retranmission is being triggered only by sending
+         * first message of given flight, in order to trigger client
+         * to retransmit its whole flight. Sending the whole previous flight
+         * could lead to retranmission of previous client flight for each
+         * server message from previous flight. Therefore one message should be
+         * enough to do the trick.
+         */
+        int maxPoolIndex = (((sendOnlyFirstPacket == 1) &&
+                            (ssl->options.side == WOLFSSL_SERVER_END) &&
+                            (pool->used >= 1)) ? 1 : pool->used);
 
-        for (i = 0, buf = pool->buf; i < pool->used; i++, buf++) {
+        for (i = 0, buf = pool->buf; i < maxPoolIndex; i++, buf++) {
             if (pool->epoch[i] == 0) {
                 DtlsRecordLayerHeader* dtls;
                 int epochOrder;
@@ -4938,7 +4964,7 @@ retry:
                 if (IsDtlsNotSctpMode(ssl) &&
                     !ssl->options.handShakeDone &&
                     DtlsPoolTimeout(ssl) == 0 &&
-                    DtlsPoolSend(ssl) == 0) {
+                    DtlsPoolSend(ssl, 0) == 0) {
 
                     goto retry;
                 }
@@ -7995,8 +8021,8 @@ static int DoDtlsHandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
             }
             *inOutIdx += ssl->keys.padSz;
         }
-        if (IsDtlsNotSctpMode(ssl))
-            ret = DtlsPoolSend(ssl);
+        if (IsDtlsNotSctpMode(ssl) && VerifyForDtlsPoolSend(ssl, type, fragOffset))
+            ret = DtlsPoolSend(ssl, 0);
     }
     else if (fragSz < size) {
         /* Since this branch is in order, but fragmented, dtls_msg_list will be
@@ -9356,7 +9382,7 @@ int ProcessReply(WOLFSSL* ssl)
                 ssl->buffers.inputBuffer.idx = 0;
 
                 if (IsDtlsNotSctpMode(ssl) && ssl->options.dtlsHsRetain) {
-                    ret = DtlsPoolSend(ssl);
+                    ret = DtlsPoolSend(ssl, 0);
                     if (ret != 0)
                         return ret;
                 }
@@ -9515,7 +9541,7 @@ int ProcessReply(WOLFSSL* ssl)
                                 return ret;
 
                             if (IsDtlsNotSctpMode(ssl)) {
-                                ret = DtlsPoolSend(ssl);
+                                ret = DtlsPoolSend(ssl, 1);
                                 if (ret != 0)
                                     return ret;
                             }
