@@ -7754,7 +7754,7 @@ static int GetDeepCopySession(WOLFSSL* ssl, WOLFSSL_SESSION* copyFrom)
 {
     WOLFSSL_SESSION* copyInto = &ssl->session;
     void* tmpBuff             = NULL;
-    int ticketLen;
+    int ticketLen             = 0;
     int doDynamicCopy         = 0;
     int ret                   = SSL_SUCCESS;
 
