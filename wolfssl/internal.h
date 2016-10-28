@@ -2584,13 +2584,6 @@ typedef struct DtlsRecordLayerHeader {
 } DtlsRecordLayerHeader;
 
 
-typedef struct DtlsPool {
-    buffer          buf[DTLS_POOL_SZ];
-    word16          epoch[DTLS_POOL_SZ];
-    int             used;
-} DtlsPool;
-
-
 typedef struct DtlsFrag {
     word32 begin;
     word32 end;
@@ -2758,7 +2751,7 @@ struct WOLFSSL {
     int             dtls_timeout_init;  /* starting timeout value */
     int             dtls_timeout_max;   /* maximum timeout value */
     int             dtls_timeout;       /* current timeout value, changes */
-    DtlsPool*       dtls_pool;
+    DtlsMsg*        dtls_tx_msg_list;
     DtlsMsg*        dtls_msg_list;
     void*           IOCB_CookieCtx;     /* gen cookie ctx */
     word32          dtls_expected_rx;
@@ -3070,14 +3063,6 @@ WOLFSSL_LOCAL  int GrowInputBuffer(WOLFSSL* ssl, int size, int usedLength);
 #endif /* NO_WOLFSSL_SERVER */
 
 #ifdef WOLFSSL_DTLS
-    WOLFSSL_LOCAL int  DtlsPoolInit(WOLFSSL*);
-    WOLFSSL_LOCAL int  DtlsPoolSave(WOLFSSL*, const byte*, int);
-    WOLFSSL_LOCAL int  DtlsPoolTimeout(WOLFSSL*);
-    WOLFSSL_LOCAL int  DtlsPoolSend(WOLFSSL*, byte);
-    WOLFSSL_LOCAL int  VerifyForDtlsPoolSend(WOLFSSL*, byte, word32);
-    WOLFSSL_LOCAL void DtlsPoolReset(WOLFSSL*);
-    WOLFSSL_LOCAL void DtlsPoolDelete(WOLFSSL*);
-
     WOLFSSL_LOCAL DtlsMsg* DtlsMsgNew(word32, void*);
     WOLFSSL_LOCAL void DtlsMsgDelete(DtlsMsg*, void*);
     WOLFSSL_LOCAL void DtlsMsgListDelete(DtlsMsg*, void*);
@@ -3087,6 +3072,12 @@ WOLFSSL_LOCAL  int GrowInputBuffer(WOLFSSL* ssl, int size, int usedLength);
     WOLFSSL_LOCAL DtlsMsg* DtlsMsgStore(DtlsMsg*, word32, const byte*, word32,
                                                 byte, word32, word32, void*);
     WOLFSSL_LOCAL DtlsMsg* DtlsMsgInsert(DtlsMsg*, DtlsMsg*);
+
+    WOLFSSL_LOCAL int  DtlsMsgPoolSave(WOLFSSL*, const byte*, word32);
+    WOLFSSL_LOCAL int  DtlsMsgPoolTimeout(WOLFSSL*);
+    WOLFSSL_LOCAL int  VerifyForDtlsMsgPoolSend(WOLFSSL*, byte, word32);
+    WOLFSSL_LOCAL void DtlsMsgPoolReset(WOLFSSL*);
+    WOLFSSL_LOCAL int  DtlsMsgPoolSend(WOLFSSL*, int);
 #endif /* WOLFSSL_DTLS */
 
 #ifndef NO_TLS

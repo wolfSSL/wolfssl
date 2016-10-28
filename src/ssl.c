@@ -6750,7 +6750,7 @@ int wolfSSL_dtls_got_timeout(WOLFSSL* ssl)
     int result = SSL_SUCCESS;
 
     if (!ssl->options.handShakeDone &&
-        (DtlsPoolTimeout(ssl) < 0 || DtlsPoolSend(ssl, 0) < 0)) {
+        (DtlsMsgPoolTimeout(ssl) < 0 || DtlsMsgPoolSend(ssl, 0) < 0)) {
 
         result = SSL_FATAL_ERROR;
     }
@@ -6923,12 +6923,6 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
                 ssl->options.dtls   = 1;
                 ssl->options.tls    = 1;
                 ssl->options.tls1_1 = 1;
-
-                if (DtlsPoolInit(ssl) != 0) {
-                    ssl->error = MEMORY_ERROR;
-                    WOLFSSL_ERROR(ssl->error);
-                    return SSL_FATAL_ERROR;
-                }
             }
         #endif
 
@@ -7285,12 +7279,6 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
                 ssl->options.dtls   = 1;
                 ssl->options.tls    = 1;
                 ssl->options.tls1_1 = 1;
-
-                if (DtlsPoolInit(ssl) != 0) {
-                    ssl->error = MEMORY_ERROR;
-                    WOLFSSL_ERROR(ssl->error);
-                    return SSL_FATAL_ERROR;
-                }
             }
         #endif
 
