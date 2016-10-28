@@ -1,4 +1,4 @@
-/* md5.c
+                            /* md5.c
  *
  * Copyright (C) 2006-2016 wolfSSL Inc.
  *
@@ -157,7 +157,7 @@
 
         /* wait until Busy flag == RESET */
         while (HASH_GetFlagStatus(HASH_FLAG_BUSY) != RESET) {}
-        
+
         /* read message digest */
         md5->digest[0] = HASH->HR[0];
         md5->digest[1] = HASH->HR[1];
@@ -349,6 +349,7 @@ int wc_Md5Update(Md5* md5, const byte* data, word32 len)
 
 int wc_Md5Final(Md5* md5, byte* hash)
 {
+
     byte* local;
 
     if (md5 == NULL || hash == NULL) { return BAD_FUNC_ARG; }
