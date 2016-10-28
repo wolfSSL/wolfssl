@@ -78,7 +78,6 @@ WOLFSSL_API int wc_InitMd5(Md5*);
 WOLFSSL_API int wc_Md5Update(Md5*, const byte*, word32);
 WOLFSSL_API int wc_Md5Final(Md5*, byte*);
 
-
 WOLFSSL_API int  wc_Md5Hash(const byte*, word32, byte*);
 
 #ifdef __cplusplus

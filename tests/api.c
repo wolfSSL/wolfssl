@@ -2156,7 +2156,6 @@ static int test_wc_InitMd5 (void)
     printf(testingFmt, "wc_InitMd5()");
 
     flag = SSL_SUCCESS;
-
     /* Test good arg. */
     ret = wc_InitMd5(&md5);
     if (ret != 0) { flag = SSL_FAILURE; }
@@ -2217,7 +2216,6 @@ static int test_wc_InitSha256 (void)
     if (ret != 0) { flag = SSL_FAILURE; }
     /* Test bad arg. */
     ret = wc_InitSha256(NULL);
-
     if (ret != BAD_FUNC_ARG) { flag = SSL_FAILURE; }
 
     printf(resultFmt, flag == SSL_SUCCESS ? passed : failed);
@@ -2261,7 +2259,6 @@ static int test_wc_InitSha512 (void)
 /*
  * Testing wc_UpdateMd5()
  */
-
 static int test_wc_UpdateMd5 (void)
 {
 
