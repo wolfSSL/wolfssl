@@ -195,7 +195,8 @@ enum Misc_ASN {
     MAX_PUBLIC_KEY_SZ   = MAX_NTRU_ENC_SZ + MAX_ALGO_SZ + MAX_SEQ_SZ * 2,
                                    /* use bigger NTRU size */
     HEADER_ENCRYPTED_KEY_SIZE = 88,/* Extra header size for encrypted key */
-    TRAILING_ZERO       = 1        /* Used for size of zero pad */
+    TRAILING_ZERO       = 1,       /* Used for size of zero pad */
+    MIN_VERSION_SZ      = 3        /* Min bytes needed for GetMyVersion */
 };
 
 
@@ -633,6 +634,7 @@ WOLFSSL_LOCAL void    FreeTrustedPeerTable(TrustedPeerCert**, int, void*);
 
 WOLFSSL_LOCAL int ToTraditional(byte* buffer, word32 length);
 WOLFSSL_LOCAL int ToTraditionalEnc(byte* buffer, word32 length,const char*,int);
+WOLFSSL_LOCAL int DecryptContent(byte* input, word32 sz,const char* psw,int pswSz);
 
 typedef struct tm wolfssl_tm;
 #if defined(WOLFSSL_MYSQL_COMPATIBLE)
@@ -646,6 +648,8 @@ WOLFSSL_LOCAL int ValidateDate(const byte* date, byte format, int dateType);
 #ifdef WOLFSSL_CERT_GEN
 WOLFSSL_TEST_API int SetName(byte* output, word32 outputSz, CertName* name);
 #endif
+WOLFSSL_LOCAL int GetShortInt(const byte* input, word32* inOutIdx, int* number,
+                              word32 maxIdx);
 WOLFSSL_LOCAL int GetLength(const byte* input, word32* inOutIdx, int* len,
                            word32 maxIdx);
 WOLFSSL_LOCAL int GetSequence(const byte* input, word32* inOutIdx, int* len,
@@ -653,7 +657,7 @@ WOLFSSL_LOCAL int GetSequence(const byte* input, word32* inOutIdx, int* len,
 WOLFSSL_LOCAL int GetSet(const byte* input, word32* inOutIdx, int* len,
                         word32 maxIdx);
 WOLFSSL_LOCAL int GetMyVersion(const byte* input, word32* inOutIdx,
-                              int* version);
+                              int* version, word32 maxIdx);
 WOLFSSL_LOCAL int GetInt(mp_int* mpi, const byte* input, word32* inOutIdx,
                         word32 maxIdx);
 #ifdef HAVE_OID_ENCODING
@@ -681,6 +685,7 @@ WOLFSSL_LOCAL int GetSerialNumber(const byte* input, word32* inOutIdx,
     byte* serial, int* serialSz, word32 maxIdx);
 WOLFSSL_LOCAL int GetNameHash(const byte* source, word32* idx, byte* hash,
                              int maxIdx);
+WOLFSSL_LOCAL int wc_CheckPrivateKey(byte* key, word32 keySz, DecodedCert* der);
 
 #ifdef HAVE_ECC
     /* ASN sig helpers */

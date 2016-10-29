@@ -305,6 +305,7 @@
     <ClCompile Include="wolfcrypt\src\md5.c" />
     <ClCompile Include="wolfcrypt\src\memory.c" />
     <ClCompile Include="wolfcrypt\src\pkcs7.c" />
+    <ClCompile Include="wolfcrypt\src\pkcs12.c" />
     <ClCompile Include="wolfcrypt\src\poly1305.c" />
     <ClCompile Include="wolfcrypt\src\pwdbased.c" />
     <ClCompile Include="wolfcrypt\src\rabbit.c" />

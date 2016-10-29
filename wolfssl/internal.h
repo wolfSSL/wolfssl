@@ -45,6 +45,7 @@
 #endif
 #ifndef NO_ASN
     #include <wolfssl/wolfcrypt/asn.h>
+    #include <wolfssl/wolfcrypt/pkcs12.h>
 #endif
 #ifndef NO_MD5
     #include <wolfssl/wolfcrypt/md5.h>
@@ -2484,6 +2485,17 @@ typedef struct Arrays {
 #ifndef MAX_DATE_SZ
 #define MAX_DATE_SZ 32
 #endif
+
+typedef struct WOLFSSL_STACK {
+    unsigned long num; /* number of nodes in stack
+                        * (saftey measure for freeing and shortcut for count) */
+    union {
+        WOLFSSL_X509* x509;
+        WOLFSSL_BIO*  bio;
+    } data;
+    WOLFSSL_STACK* next;
+} WOLFSSL_STACK;
+
 
 struct WOLFSSL_X509_NAME {
     char  *name;

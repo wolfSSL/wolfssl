@@ -28,7 +28,8 @@ EXTRA_DIST += \
 	     certs/server-keyPkcs8.pem \
 	     certs/server-revoked-cert.pem \
 	     certs/server-revoked-key.pem \
-         certs/wolfssl-website-ca.pem
+	     certs/wolfssl-website-ca.pem \
+	     certs/test-servercert.p12
 EXTRA_DIST += \
 	     certs/ca-key.der \
 	     certs/ca-cert.der \
