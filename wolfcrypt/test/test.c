@@ -8538,8 +8538,8 @@ int pkcs7enveloped_test(void)
         0x72,0x6c,0x64
     };
 
-    pkcs7EnvelopedVector a, b, c;
-    pkcs7EnvelopedVector test_pkcs7env[3];
+    pkcs7EnvelopedVector a, b, c, d;
+    pkcs7EnvelopedVector test_pkcs7env[4];
     int times = sizeof(test_pkcs7env) / sizeof(pkcs7EnvelopedVector), i;
 
     /* read client cert and key in DER format */
@@ -8604,9 +8604,18 @@ int pkcs7enveloped_test(void)
     c.privateKeySz = (word32)privKeySz;
     c.outFileName  = "pkcs7envelopedDataAES192CBC.der";
 
+    d.content      = data;
+    d.contentSz    = (word32)sizeof(data);
+    d.contentOID   = DATA;
+    d.encryptOID   = AES256CBCb;
+    d.privateKey   = privKey;
+    d.privateKeySz = (word32)privKeySz;
+    d.outFileName  = "pkcs7envelopedDataAES256CBC.der";
+
     test_pkcs7env[0] = a;
     test_pkcs7env[1] = b;
     test_pkcs7env[2] = c;
+    test_pkcs7env[3] = d;
 
     for (i = 0; i < times; i++) {
         pkcs7.content     = (byte*)test_pkcs7env[i].content;

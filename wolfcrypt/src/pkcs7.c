@@ -1193,6 +1193,7 @@ int wc_PKCS7_EncryptContent(int encryptOID, byte* key, int keySz,
 #ifndef NO_AES
         case AES128CBCb:
         case AES192CBCb:
+        case AES256CBCb:
             if (ivSz != AES_BLOCK_SIZE)
                 return BAD_FUNC_ARG;
 
@@ -1252,6 +1253,7 @@ int wc_PKCS7_DecryptContent(int encryptOID, byte* key, int keySz,
 #ifndef NO_AES
         case AES128CBCb:
         case AES192CBCb:
+        case AES256CBCb:
             if (ivSz != AES_BLOCK_SIZE)
                 return BAD_FUNC_ARG;
 
@@ -1340,7 +1342,7 @@ int wc_PKCS7_EncodeEnvelopedData(PKCS7* pkcs7, byte* output, word32 outputSz)
     if (output == NULL || outputSz == 0)
         return BAD_FUNC_ARG;
 
-    /* wolfCrypt PKCS#7 supports AES-128-CBC, DES, 3DES for now */
+    /* wolfCrypt PKCS#7 supports AES-128/192/256-CBC, DES, 3DES for now */
     switch (pkcs7->encryptOID) {
         case AES128CBCb:
             blockKeySz = 16;
@@ -1349,6 +1351,11 @@ int wc_PKCS7_EncodeEnvelopedData(PKCS7* pkcs7, byte* output, word32 outputSz)
 
         case AES192CBCb:
             blockKeySz = 24;
+            blockSz    = AES_BLOCK_SIZE;
+            break;
+
+        case AES256CBCb:
+            blockKeySz = 32;
             blockSz    = AES_BLOCK_SIZE;
             break;
 
@@ -1801,6 +1808,11 @@ WOLFSSL_API int wc_PKCS7_DecodeEnvelopedData(PKCS7* pkcs7, byte* pkiMsg,
 
         case AES192CBCb:
             blockKeySz = 24;
+            expBlockSz = AES_BLOCK_SIZE;
+            break;
+
+        case AES256CBCb:
+            blockKeySz = 32;
             expBlockSz = AES_BLOCK_SIZE;
             break;
 

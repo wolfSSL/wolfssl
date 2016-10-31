@@ -785,6 +785,7 @@ static const byte hashSha512hOid[] = {96, 134, 72, 1, 101, 3, 4, 2, 3};
 /* blkType */
 static const byte blkAes128CbcOid[] = {96, 134, 72, 1, 101, 3, 4, 1, 2};
 static const byte blkAes192CbcOid[] = {96, 134, 72, 1, 101, 3, 4, 1, 22};
+static const byte blkAes256CbcOid[] = {96, 134, 72, 1, 101, 3, 4, 1, 42};
 static const byte blkDesCbcOid[]  = {43, 14, 3, 2, 7};
 static const byte blkDes3CbcOid[] = {42, 134, 72, 134, 247, 13, 3, 7};
 
@@ -968,6 +969,10 @@ static const byte* OidFromId(word32 id, word32 type, word32* oidSz)
                 case AES192CBCb:
                     oid = blkAes192CbcOid;
                     *oidSz = sizeof(blkAes192CbcOid);
+                    break;
+                case AES256CBCb:
+                    oid = blkAes256CbcOid;
+                    *oidSz = sizeof(blkAes256CbcOid);
                     break;
                 case DESb:
                     oid = blkDesCbcOid;
