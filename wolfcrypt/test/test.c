@@ -51,7 +51,13 @@
 #include <wolfssl/wolfcrypt/sha256.h>
 #include <wolfssl/wolfcrypt/sha512.h>
 #include <wolfssl/wolfcrypt/arc4.h>
-#include <wolfssl/wolfcrypt/random.h>
+
+#if defined(WC_NO_RNG) && defined(USE_FAST_MATH)
+    #include <wolfssl/wolfcrypt/tfm.h>
+#else
+    #include <wolfssl/wolfcrypt/random.h>
+#endif
+
 #include <wolfssl/wolfcrypt/coding.h>
 #include <wolfssl/wolfcrypt/rsa.h>
 #include <wolfssl/wolfcrypt/des3.h>
@@ -195,7 +201,9 @@ int  rsa_test(void);
 int  dh_test(void);
 int  dsa_test(void);
 int  srp_test(void);
+#ifndef WC_NO_RNG
 int  random_test(void);
+#endif /* WC_NO_RNG */
 int  pwdbased_test(void);
 int  ripemd_test(void);
 int  openssl_test(void);   /* test mini api */
@@ -548,10 +556,12 @@ int wolfcrypt_test(void* args)
         printf( "IDEA     test passed!\n");
 #endif
 
+#ifndef WC_NO_RNG
     if ( (ret = random_test()) != 0)
         return err_sys("RANDOM   test failed!\n", ret);
     else
         printf( "RANDOM   test passed!\n");
+#endif /* WC_NO_RNG */
 
 #ifdef WOLFSSL_STATIC_MEMORY
     if ( (ret = memory_test()) != 0)
@@ -3747,6 +3757,7 @@ int idea_test(void)
         }
     }
 
+#ifndef WC_NO_RNG
     /* random test for CBC */
     {
         WC_RNG rng;
@@ -3814,12 +3825,14 @@ int idea_test(void)
 
         wc_FreeRng(&rng);
     }
+#endif /* WC_NO_RNG */
 
     return 0;
 }
 #endif /* HAVE_IDEA */
 
 
+#ifndef WC_NO_RNG
 static int random_rng_test(void)
 {
     WC_RNG rng;
@@ -3947,6 +3960,7 @@ int random_test(void)
 }
 
 #endif /* (HAVE_HASHDRBG || NO_RC4) && !CUSTOM_RAND_GENERATE_BLOCK */
+#endif /* WC_NO_RNG */
 
 
 #ifdef WOLFSSL_STATIC_MEMORY

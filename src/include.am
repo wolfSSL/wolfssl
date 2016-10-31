@@ -61,8 +61,11 @@ endif
 
 src_libwolfssl_la_SOURCES += \
                wolfcrypt/src/hmac.c \
-               wolfcrypt/src/random.c \
                wolfcrypt/src/hash.c
+
+if BUILD_RNG
+src_libwolfssl_la_SOURCES += wolfcrypt/src/random.c
+endif
 
 if BUILD_ARMASM
 src_libwolfssl_la_SOURCES += wolfcrypt/src/port/arm/armv8-sha256.c

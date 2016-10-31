@@ -3781,6 +3781,7 @@ static int ConfirmSignature(const byte* buf, word32 bufSz,
             WOLFSSL_MSG("Verify Key type unknown");
     }
 
+    (void)digestSz;
 #ifdef WOLFSSL_SMALL_STACK
     XFREE(digest, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif

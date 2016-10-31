@@ -221,6 +221,19 @@ then
 fi
 
 
+AC_ARG_ENABLE([norng],
+    [  --enable-norng       Enable Test Cert (default: disabled)],
+    [ ENABLED_NORNG=$enableval ],
+    [ ENABLED_NORNG=no ]
+    )
+
+if test "$ENABLED_NORNG" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWC_NO_RNG"
+fi
+AM_CONDITIONAL([BUILD_RNG], [test "x$ENABLED_NORNG" = "xno"])
+
+
 # DTLS-SCTP
 AC_ARG_ENABLE([sctp],
     [AS_HELP_STRING([--enable-sctp],[Enable wolfSSL DTLS-SCTP support (default: disabled)])],

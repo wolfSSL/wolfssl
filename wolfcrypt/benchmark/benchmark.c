@@ -224,7 +224,9 @@ void bench_ed25519KeySign(void);
 void bench_ntru(void);
 void bench_ntruKeyGen(void);
 #endif
+#ifndef WC_NO_RNG
 void bench_rng(void);
+#endif /* WC_NO_RNG */
 
 double current_time(int);
 
@@ -340,7 +342,9 @@ int benchmark_test(void *args)
     }
 #endif
 
+#ifndef WC_NO_RNG
     bench_rng();
+#endif /* WC_NO_RNG */
 #ifndef NO_AES
 #ifdef HAVE_AES_CBC
     bench_aes(0);
@@ -503,6 +507,7 @@ enum BenchmarkBounds {
 static const char blockType[] = "megs"; /* used in printf output */
 #endif
 
+#ifndef WC_NO_RNG
 void bench_rng(void)
 {
     int    ret, i;
@@ -558,6 +563,7 @@ void bench_rng(void)
     wc_FreeRng(&rng);
 #endif
 }
+#endif /* WC_NO_RNG */
 
 
 #ifndef NO_AES
