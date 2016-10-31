@@ -104,7 +104,7 @@ enum {
 
 /* HMAC */
 typedef struct CRYPT_HMAC_CTX {
-    long long holder[68];   /* big enough to hold internal, but check on init */
+    long long holder[104];   /* big enough to hold internal, but check on init */
 } CRYPT_HMAC_CTX;
 
 int CRYPT_HMAC_SetKey(CRYPT_HMAC_CTX*, int, const unsigned char*, unsigned int);
@@ -164,7 +164,7 @@ enum {
 
 /* AES */
 typedef struct CRYPT_AES_CTX {
-    int holder[76];   /* big enough to hold internal, but check on init */
+    int holder[80];   /* big enough to hold internal, but check on init */
 } CRYPT_AES_CTX;
 
 /* key */
