@@ -32,6 +32,9 @@
 #endif
 #include <wolfssl/wolfcrypt/asn_public.h>
 #include <wolfssl/wolfcrypt/random.h>
+#ifndef NO_AES
+    #include <wolfssl/wolfcrypt/aes.h>
+#endif
 #ifndef NO_DES3
     #include <wolfssl/wolfcrypt/des3.h>
 #endif
@@ -52,12 +55,14 @@ enum PKCS7_TYPES {
 };
 
 enum Pkcs7_Misc {
-    PKCS7_NONCE_SZ       = 16,
-    MAX_ENCRYPTED_KEY_SZ = 512,           /* max enc. key size, RSA <= 4096 */
-    MAX_CONTENT_KEY_LEN  = DES3_KEYLEN,   /* highest current cipher is 3DES */
-    MAX_RECIP_SZ         = MAX_VERSION_SZ +
-                           MAX_SEQ_SZ + ASN_NAME_MAX + MAX_SN_SZ +
-                           MAX_SEQ_SZ + MAX_ALGO_SZ + 1 + MAX_ENCRYPTED_KEY_SZ
+    PKCS7_NONCE_SZ        = 16,
+    MAX_ENCRYPTED_KEY_SZ  = 512,           /* max enc. key size, RSA <= 4096 */
+    MAX_CONTENT_KEY_LEN   = DES3_KEYLEN,   /* highest current cipher is 3DES */
+    MAX_CONTENT_IV_SIZE   = 16,            /* highest current is AES128 */
+    MAX_CONTENT_BLOCK_LEN = AES_BLOCK_SIZE,
+    MAX_RECIP_SZ          = MAX_VERSION_SZ +
+                            MAX_SEQ_SZ + ASN_NAME_MAX + MAX_SN_SZ +
+                            MAX_SEQ_SZ + MAX_ALGO_SZ + 1 + MAX_ENCRYPTED_KEY_SZ
 };
 
 
@@ -106,6 +111,12 @@ WOLFSSL_LOCAL int wc_CreateRecipientInfo(const byte* cert, word32 certSz,
                                      WC_RNG* rng, byte* contentKeyPlain,
                                      byte* contentKeyEnc, int* keyEncSz,
                                      byte* out, word32 outSz, void* heap);
+WOLFSSL_LOCAL int wc_PKCS7_EncryptContent(int encryptOID, byte* key, int keySz,
+                                     byte* iv, int ivSz, byte* in, int inSz,
+                                     byte* out);
+WOLFSSL_LOCAL int wc_PKCS7_DecryptContent(int encryptOID, byte* key, int keySz,
+                                     byte* iv, int ivSz, byte* in, int inSz,
+                                     byte* out);
 
 WOLFSSL_API int  wc_PKCS7_InitWithCert(PKCS7* pkcs7, byte* cert, word32 certSz);
 WOLFSSL_API void wc_PKCS7_Free(PKCS7* pkcs7);

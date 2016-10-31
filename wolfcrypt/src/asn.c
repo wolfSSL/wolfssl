@@ -783,6 +783,7 @@ static const byte hashSha512hOid[] = {96, 134, 72, 1, 101, 3, 4, 2, 3};
 #endif /* HAVE_ECC */
 
 /* blkType */
+static const byte blkAes128CbcOid[] = {96, 134, 72, 1, 101, 3, 4, 1, 2};
 static const byte blkDesCbcOid[]  = {43, 14, 3, 2, 7};
 static const byte blkDes3CbcOid[] = {42, 134, 72, 134, 247, 13, 3, 7};
 
@@ -959,6 +960,10 @@ static const byte* OidFromId(word32 id, word32 type, word32* oidSz)
 
         case oidBlkType:
             switch (id) {
+                case AES128CBCb:
+                    oid = blkAes128CbcOid;
+                    *oidSz = sizeof(blkAes128CbcOid);
+                    break;
                 case DESb:
                     oid = blkDesCbcOid;
                     *oidSz = sizeof(blkDesCbcOid);
