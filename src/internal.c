@@ -7503,6 +7503,16 @@ static int SanityCheckMsgReceived(WOLFSSL* ssl, byte type)
                     WOLFSSL_MSG("No ServerHelloDone before ChangeCipher");
                     return OUT_OF_ORDER_E;
                 }
+                #ifdef HAVE_SESSION_TICKET
+                    if (ssl->expect_session_ticket) {
+                        WOLFSSL_MSG("Expected session ticket missing");
+                        #ifdef WOLFSSL_DTLS
+                            if (ssl->options.dtls)
+                                return OUT_OF_ORDER_E;
+                        #endif
+                        return SESSION_TICKET_EXPECT_E;
+                    }
+                #endif
             }
 #endif
 #ifndef NO_WOLFSSL_SERVER
@@ -7512,6 +7522,20 @@ static int SanityCheckMsgReceived(WOLFSSL* ssl, byte type)
                     WOLFSSL_MSG("No ClientKeyExchange before ChangeCipher");
                     return OUT_OF_ORDER_E;
                 }
+                #ifndef NO_CERTS
+                    if (ssl->options.verifyPeer &&
+                        ssl->options.havePeerCert) {
+
+                        if (!ssl->options.havePeerVerify) {
+                            WOLFSSL_MSG("client didn't send cert verify");
+                            #ifdef WOLFSSL_DTLS
+                                if (ssl->options.dtls)
+                                    return OUT_OF_ORDER_E;
+                            #endif
+                            return NO_PEER_VERIFY;
+                        }
+                    }
+                #endif
             }
 #endif
             if (ssl->options.dtls)
@@ -9538,14 +9562,6 @@ int ProcessReply(WOLFSSL* ssl)
                         }
                     }
 
-#ifdef HAVE_SESSION_TICKET
-                    if (ssl->options.side == WOLFSSL_CLIENT_END &&
-                                                  ssl->expect_session_ticket) {
-                        WOLFSSL_MSG("Expected session ticket missing");
-                        return SESSION_TICKET_EXPECT_E;
-                    }
-#endif
-
                     if (IsEncryptionOn(ssl, 0) && ssl->options.handShakeDone) {
                         ssl->buffers.inputBuffer.idx += ssl->keys.padSz;
                         ssl->curSize -= (word16) ssl->buffers.inputBuffer.idx;
@@ -9555,16 +9571,6 @@ int ProcessReply(WOLFSSL* ssl)
                         WOLFSSL_MSG("Malicious or corrupted ChangeCipher msg");
                         return LENGTH_ERROR;
                     }
-                    #ifndef NO_CERTS
-                        if (ssl->options.side == WOLFSSL_SERVER_END &&
-                                 ssl->options.verifyPeer &&
-                                 ssl->options.havePeerCert)
-                            if (!ssl->options.havePeerVerify) {
-                                WOLFSSL_MSG("client didn't send cert verify");
-                                return NO_PEER_VERIFY;
-                            }
-                    #endif
-
 
                     ssl->buffers.inputBuffer.idx++;
                     ssl->keys.encryptionOn = 1;
