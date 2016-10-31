@@ -1192,7 +1192,8 @@ int wc_PKCS7_EncryptContent(int encryptOID, byte* key, int keySz,
     switch (encryptOID) {
 #ifndef NO_AES
         case AES128CBCb:
-            if (keySz != 16 || ivSz != AES_BLOCK_SIZE)
+        case AES192CBCb:
+            if (ivSz != AES_BLOCK_SIZE)
                 return BAD_FUNC_ARG;
 
             ret = wc_AesSetKey(&aes, key, keySz, iv, AES_ENCRYPTION);
@@ -1211,6 +1212,7 @@ int wc_PKCS7_EncryptContent(int encryptOID, byte* key, int keySz,
                 ret = wc_Des_CbcEncrypt(&des, out, in, inSz);
 
             break;
+
         case DES3b:
             if (keySz != DES3_KEYLEN || ivSz != DES_BLOCK_SIZE)
                 return BAD_FUNC_ARG;
@@ -1249,7 +1251,8 @@ int wc_PKCS7_DecryptContent(int encryptOID, byte* key, int keySz,
     switch (encryptOID) {
 #ifndef NO_AES
         case AES128CBCb:
-            if (keySz != 16 || ivSz != AES_BLOCK_SIZE)
+        case AES192CBCb:
+            if (ivSz != AES_BLOCK_SIZE)
                 return BAD_FUNC_ARG;
 
             ret = wc_AesSetKey(&aes, key, keySz, iv, AES_DECRYPTION);
@@ -1341,6 +1344,11 @@ int wc_PKCS7_EncodeEnvelopedData(PKCS7* pkcs7, byte* output, word32 outputSz)
     switch (pkcs7->encryptOID) {
         case AES128CBCb:
             blockKeySz = 16;
+            blockSz    = AES_BLOCK_SIZE;
+            break;
+
+        case AES192CBCb:
+            blockKeySz = 24;
             blockSz    = AES_BLOCK_SIZE;
             break;
 
@@ -1788,6 +1796,11 @@ WOLFSSL_API int wc_PKCS7_DecodeEnvelopedData(PKCS7* pkcs7, byte* pkiMsg,
     switch(encOID) {
         case AES128CBCb:
             blockKeySz = 16;
+            expBlockSz = AES_BLOCK_SIZE;
+            break;
+
+        case AES192CBCb:
+            blockKeySz = 24;
             expBlockSz = AES_BLOCK_SIZE;
             break;
 

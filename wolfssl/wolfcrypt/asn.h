@@ -228,6 +228,7 @@ enum Hash_Sum  {
 
 enum Block_Sum {
     AES128CBCb = 414,
+    AES192CBCb = 434,
     DESb       = 69,
     DES3b      = 652
 };
