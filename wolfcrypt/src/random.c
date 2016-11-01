@@ -82,6 +82,7 @@ int  wc_RNG_GenerateByte(WC_RNG* rng, byte* b)
     }
 #endif /* HAVE_HASHDRBG || NO_RC4 */
 #else /* else build without fips */
+#ifndef WC_NO_RNG /* if not FIPS and RNG is disabled then do not compile */
 #include <wolfssl/wolfcrypt/error-crypt.h>
 
 /* Allow custom RNG system */
@@ -1671,5 +1672,6 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 
 #endif /* USE_WINDOWS_API */
 #endif /* CUSTOM_RAND_GENERATE_BLOCK */
+#endif /* WC_NO_RNG */
 #endif /* HAVE_FIPS */
 

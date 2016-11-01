@@ -221,17 +221,17 @@ then
 fi
 
 
-AC_ARG_ENABLE([norng],
-    [  --enable-norng       Enable Test Cert (default: disabled)],
-    [ ENABLED_NORNG=$enableval ],
-    [ ENABLED_NORNG=no ]
+AC_ARG_ENABLE([rng],
+    [AS_HELP_STRING([  --enable-rng       Enable compiling and using RNG (default: enabled)])],
+    [ ENABLED_RNG=$enableval ],
+    [ ENABLED_RNG=yes ]
     )
 
-if test "$ENABLED_NORNG" = "yes"
+if test "$ENABLED_RNG" = "no"
 then
     AM_CFLAGS="$AM_CFLAGS -DWC_NO_RNG"
 fi
-AM_CONDITIONAL([BUILD_RNG], [test "x$ENABLED_NORNG" = "xno"])
+AM_CONDITIONAL([BUILD_RNG], [test "x$ENABLED_RNG" = "xyes"])
 
 
 # DTLS-SCTP
