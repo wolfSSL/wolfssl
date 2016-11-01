@@ -3073,7 +3073,8 @@ WOLFSSL_LOCAL  int GrowInputBuffer(WOLFSSL* ssl, int size, int usedLength);
     WOLFSSL_LOCAL int  DtlsPoolInit(WOLFSSL*);
     WOLFSSL_LOCAL int  DtlsPoolSave(WOLFSSL*, const byte*, int);
     WOLFSSL_LOCAL int  DtlsPoolTimeout(WOLFSSL*);
-    WOLFSSL_LOCAL int  DtlsPoolSend(WOLFSSL*);
+    WOLFSSL_LOCAL int  DtlsPoolSend(WOLFSSL*, byte);
+    WOLFSSL_LOCAL int  VerifyForDtlsPoolSend(WOLFSSL*, byte, word32);
     WOLFSSL_LOCAL void DtlsPoolReset(WOLFSSL*);
     WOLFSSL_LOCAL void DtlsPoolDelete(WOLFSSL*);
 
