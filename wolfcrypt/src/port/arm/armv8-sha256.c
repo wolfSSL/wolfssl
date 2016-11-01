@@ -156,7 +156,7 @@ int wc_Sha256Update(Sha256* sha256, const byte* data, word32 len)
             "LD1 {v28.4s-v31.4s}, [%[k]], #64    \n"
 
             /* begining of SHA256 block operation */
-            "sha256Start:\n"
+            "1:\n"
             /* Round 1 */
             "MOV v4.16b, v0.16b        \n"
             "ADD v0.4s, v0.4s, v16.4s  \n"
@@ -284,7 +284,7 @@ int wc_Sha256Update(Sha256* sha256, const byte* data, word32 len)
             "ADD v13.4s, v13.4s, v15.4s \n"
 
             "#check if more blocks should be done\n"
-            "CBZ w8, sha256End \n"
+            "CBZ w8, 2f \n"
 
             "#load in message and schedual updates \n"
             "LD1 {v0.2d-v3.2d}, [%[dataIn]], #64   \n"
@@ -294,9 +294,9 @@ int wc_Sha256Update(Sha256* sha256, const byte* data, word32 len)
             "REV32 v1.16b, v1.16b \n"
             "REV32 v2.16b, v2.16b \n"
             "REV32 v3.16b, v3.16b \n"
-            "B sha256Start \n" /* do another block */
+            "B 1b \n" /* do another block */
 
-            "sha256End:\n"
+            "2:\n"
             "STP q12, q13, %[out] \n"
 
             : [out] "=m" (sha256->digest), "=m" (sha256->buffer), "=r" (numBlocks),
@@ -718,7 +718,7 @@ int wc_Sha256Update(Sha256* sha256, const byte* data, word32 len)
             "VMOV.32 q15, q13 \n"
 
             /* begining of SHA256 block operation */
-            "sha256Start:\n"
+            "1:\n"
 
             /* Round 1 */
             "VMOV.32 q4, q0           \n"
@@ -859,7 +859,7 @@ int wc_Sha256Update(Sha256* sha256, const byte* data, word32 len)
 
             "#check if more blocks should be done\n"
             "CMP r8, #0 \n"
-            "BEQ sha256End \n"
+            "BEQ 2f \n"
 
             "#load in message and schedual updates \n"
             "VLD1.32 {q0}, [%[dataIn]]!   \n"
@@ -875,9 +875,9 @@ int wc_Sha256Update(Sha256* sha256, const byte* data, word32 len)
             "VREV32.8 q3, q3 \n"
             "VMOV.32 q14, q12 \n"
             "VMOV.32 q15, q13 \n"
-            "B sha256Start \n" /* do another block */
+            "B 1b \n" /* do another block */
 
-            "sha256End:\n"
+            "2:\n"
             "VST1.32 {q12, q13}, [%[out]] \n"
 
             : [out] "=r" (digPt), "=r" (bufPt), "=r" (numBlocks),

@@ -63,7 +63,7 @@ static const byte rcon[] = {
                 "DUP v1.4s, %w[in]  \n"  \
                 "MOVI v0.16b, #0     \n" \
                 "AESE v0.16b, v1.16b \n" \
-                "UMOV %w[out], v0.4s[0] \n" \
+                "UMOV %w[out], v0.s[0] \n" \
                 : [out] "=r"((x))        \
                 : [in] "r" ((x))         \
                 : "cc", "memory", "v0", "v1"\
@@ -318,6 +318,8 @@ int wc_InitAes_h(Aes* aes, void* h)
     defined(WOLFSSL_AES_DIRECT) || defined(WOLFSSL_AES_COUNTER)
     static int wc_AesEncrypt(Aes* aes, const byte* inBlock, byte* outBlock)
     {
+            word32* keyPt = aes->key;
+
             /*
               AESE exor's input with round key
                    shift rows of exor'ed result
@@ -326,7 +328,7 @@ int wc_InitAes_h(Aes* aes, void* h)
 
             __asm__ __volatile__ (
                 "LD1 {v0.16b}, [%[CtrIn]] \n"
-                "LD1 {v1.2d-v4.2d}, %[Key], #64  \n"
+                "LD1 {v1.2d-v4.2d}, [%[Key]], #64  \n"
 
                 "AESE v0.16b, v1.16b  \n"
                 "AESMC v0.16b, v0.16b \n"
@@ -337,7 +339,7 @@ int wc_InitAes_h(Aes* aes, void* h)
                 "AESE v0.16b, v4.16b  \n"
                 "AESMC v0.16b, v0.16b \n"
 
-                "LD1 {v1.2d-v4.2d}, %[Key], #64  \n"
+                "LD1 {v1.2d-v4.2d}, [%[Key]], #64  \n"
                 "AESE v0.16b, v1.16b  \n"
                 "AESMC v0.16b, v0.16b \n"
                 "AESE v0.16b, v2.16b  \n"
@@ -347,7 +349,7 @@ int wc_InitAes_h(Aes* aes, void* h)
                 "AESE v0.16b, v4.16b  \n"
                 "AESMC v0.16b, v0.16b \n"
 
-                "LD1 {v1.2d-v2.2d}, %[Key], #32  \n"
+                "LD1 {v1.2d-v2.2d}, [%[Key]], #32  \n"
                 "AESE v0.16b, v1.16b  \n"
                 "AESMC v0.16b, v0.16b \n"
                 "AESE v0.16b, v2.16b  \n"
@@ -355,30 +357,31 @@ int wc_InitAes_h(Aes* aes, void* h)
                 "#subtract rounds done so far and see if should continue\n"
                 "MOV w12, %w[R]    \n"
                 "SUB w12, w12, #10 \n"
-                "CBZ w12, final    \n"
-                "LD1 {v1.2d-v2.2d}, %[Key], #32  \n"
+                "CBZ w12, 1f       \n"
+                "LD1 {v1.2d-v2.2d}, [%[Key]], #32  \n"
                 "AESMC v0.16b, v0.16b \n"
                 "AESE v0.16b, v1.16b  \n"
                 "AESMC v0.16b, v0.16b \n"
                 "AESE v0.16b, v2.16b  \n"
 
                 "SUB w12, w12, #2 \n"
-                "CBZ w12, final   \n"
-                "LD1 {v1.2d-v2.2d}, %[Key], #32  \n"
+                "CBZ w12, 1f      \n"
+                "LD1 {v1.2d-v2.2d}, [%[Key]], #32  \n"
                 "AESMC v0.16b, v0.16b \n"
                 "AESE v0.16b, v1.16b  \n"
                 "AESMC v0.16b, v0.16b \n"
                 "AESE v0.16b, v2.16b  \n"
 
                 "#Final AddRoundKey then store result \n"
-                "final: \n"
-                "LD1 {v1.2d}, %[Key], #16 \n"
+                "1: \n"
+                "LD1 {v1.2d}, [%[Key]], #16 \n"
                 "EOR v0.16b, v0.16b, v1.16b  \n"
                 "ST1 {v0.16b}, [%[CtrOut]]   \n"
 
-                :[CtrOut] "=r" (outBlock)
-                :"0" (outBlock), [Key] "m" (aes->key), [R] "r" (aes->rounds),
-                 [CtrIn] "r" (inBlock)
+                :[CtrOut] "=r" (outBlock), "=r" (keyPt), "=r" (aes->rounds),
+                 "=r" (inBlock)
+                :"0" (outBlock), [Key] "1" (keyPt), [R] "2" (aes->rounds),
+                 [CtrIn] "3" (inBlock)
                 : "cc", "memory", "w12", "v0", "v1", "v2", "v3", "v4"
             );
 
@@ -389,6 +392,8 @@ int wc_InitAes_h(Aes* aes, void* h)
     #ifdef HAVE_AES_DECRYPT
     static int wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
     {
+            word32* keyPt = aes->key;
+
             /*
               AESE exor's input with round key
                    shift rows of exor'ed result
@@ -397,7 +402,7 @@ int wc_InitAes_h(Aes* aes, void* h)
 
             __asm__ __volatile__ (
                 "LD1 {v0.16b}, [%[CtrIn]] \n"
-                "LD1 {v1.2d-v4.2d}, %[Key], #64  \n"
+                "LD1 {v1.2d-v4.2d}, [%[Key]], #64  \n"
 
                 "AESD v0.16b, v1.16b   \n"
                 "AESIMC v0.16b, v0.16b \n"
@@ -408,7 +413,7 @@ int wc_InitAes_h(Aes* aes, void* h)
                 "AESD v0.16b, v4.16b   \n"
                 "AESIMC v0.16b, v0.16b \n"
 
-                "LD1 {v1.2d-v4.2d}, %[Key], #64  \n"
+                "LD1 {v1.2d-v4.2d}, [%[Key]], #64  \n"
                 "AESD v0.16b, v1.16b   \n"
                 "AESIMC v0.16b, v0.16b \n"
                 "AESD v0.16b, v2.16b   \n"
@@ -418,7 +423,7 @@ int wc_InitAes_h(Aes* aes, void* h)
                 "AESD v0.16b, v4.16b   \n"
                 "AESIMC v0.16b, v0.16b \n"
 
-                "LD1 {v1.2d-v2.2d}, %[Key], #32  \n"
+                "LD1 {v1.2d-v2.2d}, [%[Key]], #32  \n"
                 "AESD v0.16b, v1.16b   \n"
                 "AESIMC v0.16b, v0.16b \n"
                 "AESD v0.16b, v2.16b   \n"
@@ -426,30 +431,31 @@ int wc_InitAes_h(Aes* aes, void* h)
                 "#subtract rounds done so far and see if should continue\n"
                 "MOV w12, %w[R]    \n"
                 "SUB w12, w12, #10 \n"
-                "CBZ w12, finalDec \n"
-                "LD1 {v1.2d-v2.2d}, %[Key], #32  \n"
+                "CBZ w12, 1f       \n"
+                "LD1 {v1.2d-v2.2d}, [%[Key]], #32  \n"
                 "AESIMC v0.16b, v0.16b \n"
                 "AESD v0.16b, v1.16b   \n"
                 "AESIMC v0.16b, v0.16b \n"
                 "AESD v0.16b, v2.16b   \n"
 
                 "SUB w12, w12, #2  \n"
-                "CBZ w12, finalDec \n"
-                "LD1 {v1.2d-v2.2d}, %[Key], #32  \n"
+                "CBZ w12, 1f       \n"
+                "LD1 {v1.2d-v2.2d}, [%[Key]], #32  \n"
                 "AESIMC v0.16b, v0.16b \n"
                 "AESD v0.16b, v1.16b   \n"
                 "AESIMC v0.16b, v0.16b \n"
                 "AESD v0.16b, v2.16b   \n"
 
                 "#Final AddRoundKey then store result \n"
-                "finalDec: \n"
-                "LD1 {v1.2d}, %[Key], #16 \n"
+                "1: \n"
+                "LD1 {v1.2d}, [%[Key]], #16 \n"
                 "EOR v0.16b, v0.16b, v1.16b  \n"
                 "ST1 {v0.4s}, [%[CtrOut]]    \n"
 
-                :[CtrOut] "=r" (outBlock)
-                :[Key] "m" (aes->key), "0" (outBlock), [R] "r" (aes->rounds),
-                 [CtrIn] "r" (inBlock)
+                :[CtrOut] "=r" (outBlock), "=r" (keyPt), "=r" (aes->rounds),
+                 "=r" (inBlock)
+                :[Key] "1" (aes->key), "0" (outBlock), [R] "2" (aes->rounds),
+                 [CtrIn] "3" (inBlock)
                 : "cc", "memory", "w12", "v0", "v1", "v2", "v3", "v4"
             );
 
@@ -487,7 +493,7 @@ int wc_InitAes_h(Aes* aes, void* h)
                 "LD1 {v0.2d}, %[reg] \n"
 
                 "LD1 {v12.2d}, [%[input]], #16 \n"
-                "AESCBC128Block:\n"
+                "1:\n"
                 "#CBC operations, xorbuf in with current aes->reg \n"
                 "EOR v0.16b, v0.16b, v12.16b \n"
                 "AESE v0.16b, v1.16b  \n"
@@ -513,11 +519,11 @@ int wc_InitAes_h(Aes* aes, void* h)
                 "EOR v0.16b, v0.16b, v11.16b  \n"
                 "ST1 {v0.2d}, [%[out]], #16   \n"
 
-                "CBZ w11, AESCBC128end \n"
+                "CBZ w11, 2f \n"
                 "LD1 {v12.2d}, [%[input]], #16 \n"
-                "B AESCBC128Block \n"
+                "B 1b \n"
 
-                "AESCBC128end:\n"
+                "2:\n"
                 "#store current counter value at the end \n"
                 "ST1 {v0.2d}, %[regOut] \n"
 
@@ -539,7 +545,7 @@ int wc_InitAes_h(Aes* aes, void* h)
                 "LD1 {v0.2d}, %[reg] \n"
 
                 "LD1 {v14.2d}, [%[input]], #16  \n"
-                "AESCBC192Block:\n"
+                "1:\n"
                 "#CBC operations, xorbuf in with current aes->reg \n"
                 "EOR v0.16b, v0.16b, v14.16b \n"
                 "AESE v0.16b, v1.16b  \n"
@@ -569,11 +575,11 @@ int wc_InitAes_h(Aes* aes, void* h)
                 "SUB w11, w11, #1 \n"
                 "ST1 {v0.2d}, [%[out]], #16  \n"
 
-                "CBZ w11, AESCBC192end \n"
+                "CBZ w11, 2f \n"
                 "LD1 {v14.2d}, [%[input]], #16\n"
-                "B AESCBC192Block \n"
+                "B 1b \n"
 
-                "AESCBC192end:\n"
+                "2:\n"
                 "#store current counter value at the end \n"
                 "ST1 {v0.2d}, %[regOut]   \n"
 
@@ -597,7 +603,7 @@ int wc_InitAes_h(Aes* aes, void* h)
                 "LD1 {v0.2d}, %[reg] \n"
 
                 "LD1 {v16.2d}, [%[input]], #16  \n"
-                "AESCBC256Block: \n"
+                "1: \n"
                 "#CBC operations, xorbuf in with current aes->reg \n"
                 "EOR v0.16b, v0.16b, v16.16b \n"
                 "AESE v0.16b, v1.16b  \n"
@@ -631,11 +637,11 @@ int wc_InitAes_h(Aes* aes, void* h)
                 "SUB w11, w11, #1     \n"
                 "ST1 {v0.2d}, [%[out]], #16  \n"
 
-                "CBZ w11, AESCBC256end \n"
+                "CBZ w11, 2f \n"
                 "LD1 {v16.2d}, [%[input]], #16 \n"
-                "B AESCBC256Block \n"
+                "B 1b \n"
 
-                "AESCBC256end: \n"
+                "2: \n"
                 "#store current counter value at the end \n"
                 "ST1 {v0.2d}, %[regOut]   \n"
 
@@ -678,7 +684,7 @@ int wc_InitAes_h(Aes* aes, void* h)
                 "LD1 {v9.2d-v11.2d},%[Key], #48  \n"
                 "LD1 {v13.2d}, %[reg] \n"
 
-                "AESCBC128BlockDec:\n"
+                "1:\n"
                 "LD1 {v0.2d}, [%[input]], #16  \n"
                 "MOV v12.16b, v0.16b \n"
                 "AESD v0.16b, v1.16b   \n"
@@ -707,10 +713,10 @@ int wc_InitAes_h(Aes* aes, void* h)
                 "ST1 {v0.2d}, [%[out]], #16  \n"
                 "MOV v13.16b, v12.16b        \n"
 
-                "CBZ w11, AESCBC128endDec \n"
-                "B AESCBC128BlockDec      \n"
+                "CBZ w11, 2f \n"
+                "B 1b      \n"
 
-                "AESCBC128endDec: \n"
+                "2: \n"
                 "#store current counter value at the end \n"
                 "ST1 {v13.2d}, %[regOut] \n"
 
@@ -732,7 +738,7 @@ int wc_InitAes_h(Aes* aes, void* h)
                 "LD1 {v15.2d}, %[reg]       \n"
 
                 "LD1 {v0.2d}, [%[input]], #16  \n"
-                "AESCBC192BlockDec:    \n"
+                "1:    \n"
                 "MOV v14.16b, v0.16b   \n"
                 "AESD v0.16b, v1.16b   \n"
                 "AESIMC v0.16b, v0.16b \n"
@@ -764,11 +770,11 @@ int wc_InitAes_h(Aes* aes, void* h)
                 "ST1 {v0.2d}, [%[out]], #16  \n"
                 "MOV v15.16b, v14.16b        \n"
 
-                "CBZ w11, AESCBC192endDec \n"
+                "CBZ w11, 2f \n"
                 "LD1 {v0.2d}, [%[input]], #16 \n"
-                "B AESCBC192BlockDec \n"
+                "B 1b \n"
 
-                "AESCBC192endDec:\n"
+                "2:\n"
                 "#store current counter value at the end \n"
                 "ST1 {v15.2d}, %[regOut] \n"
 
@@ -790,7 +796,7 @@ int wc_InitAes_h(Aes* aes, void* h)
                 "LD1 {v17.2d}, %[reg] \n"
 
                 "LD1 {v0.2d}, [%[input]], #16  \n"
-                "AESCBC256BlockDec:    \n"
+                "1:    \n"
                 "MOV v16.16b, v0.16b   \n"
                 "AESD v0.16b, v1.16b   \n"
                 "AESIMC v0.16b, v0.16b \n"
@@ -826,11 +832,11 @@ int wc_InitAes_h(Aes* aes, void* h)
                 "ST1 {v0.2d}, [%[out]], #16  \n"
                 "MOV v17.16b, v16.16b        \n"
 
-                "CBZ w11, AESCBC256endDec \n"
+                "CBZ w11, 2f \n"
                 "LD1 {v0.2d}, [%[input]], #16  \n"
-                "B AESCBC256BlockDec \n"
+                "B 1b \n"
 
-                "AESCBC256endDec:\n"
+                "2:\n"
                 "#store current counter value at the end \n"
                 "ST1 {v17.2d}, %[regOut]   \n"
 
@@ -906,11 +912,11 @@ int wc_InitAes_h(Aes* aes, void* h)
                     "LD1 {v13.2d}, %[reg]             \n"
 
                     /* double block */
-                    "AESCTR128Block2:      \n"
+                    "1:      \n"
                     "CMP w11, #1 \n"
-                    "BEQ AESCTR128Block    \n"
+                    "BEQ 2f    \n"
                     "CMP w11, #0 \n"
-                    "BEQ AESCTRend    \n"
+                    "BEQ 3f    \n"
 
                     "MOV v0.16b, v13.16b  \n"
                     "AESE v0.16b, v1.16b  \n"
@@ -981,10 +987,10 @@ int wc_InitAes_h(Aes* aes, void* h)
                     "EOR v15.16b, v15.16b, v12.16b \n"
                     "ST1 {v15.2d}, [%[out]], #16  \n"
 
-                    "B AESCTR128Block2 \n"
+                    "B 1b \n"
 
                     /* single block */
-                    "AESCTR128Block: \n"
+                    "2: \n"
                     "MOV v0.16b, v13.16b  \n"
                     "AESE v0.16b, v1.16b  \n"
                     "AESMC v0.16b, v0.16b \n"
@@ -1017,7 +1023,7 @@ int wc_InitAes_h(Aes* aes, void* h)
                     "EOR v0.16b, v0.16b, v12.16b \n"
                     "ST1 {v0.2d}, [%[out]], #16  \n"
 
-                    "AESCTRend: \n"
+                    "3: \n"
                     "#store current counter value at the end \n"
                     "ST1 {v13.2d}, %[regOut]   \n"
 
@@ -1026,7 +1032,7 @@ int wc_InitAes_h(Aes* aes, void* h)
                     :"0" (out), [Key] "1" (keyPt), [input] "3" (in),
                      [blocks] "r" (numBlocks), [reg] "m" (aes->reg)
                     : "cc", "memory", "w11", "v0", "v1", "v2", "v3", "v4", "v5",
-                    "v6", "v7", "v8", "v9", "v10","v11","v12","v13","v14"
+                    "v6", "v7", "v8", "v9", "v10","v11","v12","v13","v14","v15"
                     );
                     break;
 
@@ -1040,18 +1046,18 @@ int wc_InitAes_h(Aes* aes, void* h)
                     "USHR v16.2d, v16.2d, #56         \n"
                     "LD1 {v5.2d-v8.2d}, [%[Key]], #64 \n"
                     "EOR v14.16b, v14.16b, v14.16b    \n"
-                    "EXT v16.16b, v18.16b, v14.16b, #8\n"
+                    "EXT v16.16b, v16.16b, v14.16b, #8\n"
 
                     "LD1 {v9.2d-v12.2d}, [%[Key]], #64\n"
                     "LD1 {v15.2d}, %[reg]             \n"
                     "LD1 {v13.16b}, [%[Key]], #16     \n"
 
                     /* double block */
-                    "AESCTR192Block2:      \n"
+                    "1:      \n"
                     "CMP w11, #1 \n"
-                    "BEQ AESCTR192Block    \n"
+                    "BEQ 2f    \n"
                     "CMP w11, #0 \n"
-                    "BEQ AESCTR192end    \n"
+                    "BEQ 3f    \n"
 
                     "MOV v0.16b, v15.16b  \n"
                     "AESE v0.16b, v1.16b  \n"
@@ -1132,9 +1138,9 @@ int wc_InitAes_h(Aes* aes, void* h)
                     "EOR v17.16b, v17.16b, v14.16b \n"
                     "ST1 {v17.2d}, [%[out]], #16  \n"
 
-                    "B AESCTR192Block2 \n"
+                    "B 1b \n"
 
-                    "AESCTR192Block:      \n"
+                    "2:      \n"
                     "LD1 {v14.2d}, [%[input]], #16    \n"
                     "MOV v0.16b, v15.16b  \n"
 
@@ -1172,7 +1178,7 @@ int wc_InitAes_h(Aes* aes, void* h)
                     "EOR v0.16b, v0.16b, v14.16b \n"
                     "ST1 {v0.2d}, [%[out]], #16  \n"
 
-                    "AESCTR192end: \n"
+                    "3: \n"
                     "#store current counter value at the end \n"
                     "ST1 {v15.2d}, %[regOut] \n"
 
@@ -1203,11 +1209,11 @@ int wc_InitAes_h(Aes* aes, void* h)
                     "LD1 {v17.2d}, %[reg]               \n"
 
                     /* double block */
-                    "AESCTR256Block2:      \n"
+                    "1:      \n"
                     "CMP w11, #1 \n"
-                    "BEQ AESCTR256Block    \n"
+                    "BEQ 2f    \n"
                     "CMP w11, #0 \n"
-                    "BEQ AESCTR256end    \n"
+                    "BEQ 3f    \n"
 
                     "MOV v0.16b, v17.16b  \n"
                     "AESE v0.16b, v1.16b  \n"
@@ -1215,7 +1221,7 @@ int wc_InitAes_h(Aes* aes, void* h)
                     "REV64 v17.16b, v17.16b \n" /* network order */
                     "AESE v0.16b, v2.16b  \n"
                     "AESMC v0.16b, v0.16b \n"
-                    "EXT v19.16b, v17.16b, v18.16b, #8 \n"
+                    "EXT v17.16b, v17.16b, v17.16b, #8 \n"
                     "SUB w11, w11, #2     \n"
                     "ADD v19.2d, v17.2d, v18.2d \n" /* add 1 to counter */
                     "ADD v17.2d, v19.2d, v18.2d \n" /* add 1 to counter */
@@ -1298,9 +1304,9 @@ int wc_InitAes_h(Aes* aes, void* h)
                     "EOR v19.16b, v19.16b, v16.16b \n"
                     "ST1 {v19.2d}, [%[out]], #16  \n"
 
-                    "B AESCTR256Block2 \n"
+                    "B 1b \n"
 
-                    "AESCTR256Block:      \n"
+                    "2:      \n"
                     "LD1 {v16.2d}, [%[input]], #16 \n"
                     "MOV v0.16b, v17.16b  \n"
                     "AESE v0.16b, v1.16b  \n"
@@ -1340,7 +1346,7 @@ int wc_InitAes_h(Aes* aes, void* h)
                     "EOR v0.16b, v0.16b, v16.16b \n"
                     "ST1 {v0.2d}, [%[out]], #16 \n"
 
-                    "AESCTR256end: \n"
+                    "3: \n"
                     "#store current counter value at the end \n"
                     "ST1 {v17.2d}, %[regOut] \n"
 
@@ -1606,14 +1612,14 @@ static int Aes128GcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
             "ST1 {v0.2d}, [%[out]], #16  \n"
             "MOV v15.16b, v0.16b \n"
 
-            "CBZ w11, AESGCMend \n" /* only one block jump to final GHASH */
+            "CBZ w11, 1f \n" /* only one block jump to final GHASH */
 
             "LD1 {v12.2d}, [%[input]], #16 \n"
 
             /***************************************************
                Interweave GHASH and encrypt if more then 1 block
              ***************************************************/
-            "AESGCM128Block: \n"
+            "2: \n"
             "REV64 v13.16b, v13.16b \n" /* network order */
             "EOR v15.16b, v17.16b, v15.16b \n"
             "EXT v13.16b, v13.16b, v13.16b, #8 \n"
@@ -1666,14 +1672,14 @@ static int Aes128GcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
             "MOV v15.16b, v0.16b \n"
             "RBIT v17.16b, v19.16b \n"
 
-            "CBZ w11, AESGCMend \n"
+            "CBZ w11, 1f \n"
             "LD1 {v12.2d}, [%[input]], #16 \n"
-            "B AESGCM128Block \n"
+            "B 2b \n"
 
             /***************************************************
                GHASH on last block
              ***************************************************/
-            "AESGCMend: \n"
+            "1: \n"
             "EOR v15.16b, v17.16b, v15.16b \n"
             "RBIT v15.16b, v15.16b \n" /* v15 is encrypted out block */
 
@@ -1928,13 +1934,13 @@ static int Aes192GcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
             "ST1 {v0.2d}, [%[out]], #16  \n"
             "MOV v15.16b, v0.16b \n"
 
-            "CBZ w11, AESGCM192end \n" /* only one block jump to final GHASH */
+            "CBZ w11, 1f \n" /* only one block jump to final GHASH */
             "LD1 {v12.2d}, [%[input]], #16 \n"
 
             /***************************************************
                Interweave GHASH and encrypt if more then 1 block
              ***************************************************/
-            "AESGCM192Block: \n"
+            "2: \n"
             "REV64 v13.16b, v13.16b \n" /* network order */
             "EOR v15.16b, v17.16b, v15.16b \n"
             "EXT v13.16b, v13.16b, v13.16b, #8 \n"
@@ -1991,14 +1997,14 @@ static int Aes192GcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
             "MOV v15.16b, v0.16b \n"
             "RBIT v17.16b, v19.16b \n"
 
-            "CBZ w11, AESGCM192end \n"
+            "CBZ w11, 1f \n"
             "LD1 {v12.2d}, [%[input]], #16 \n"
-            "B AESGCM192Block \n"
+            "B 2b \n"
 
             /***************************************************
                GHASH on last block
              ***************************************************/
-            "AESGCM192end: \n"
+            "1: \n"
             "EOR v15.16b, v17.16b, v15.16b \n"
             "RBIT v15.16b, v15.16b \n" /* v15 is encrypted out block */
 
@@ -2263,13 +2269,13 @@ static int Aes256GcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
             "ST1 {v0.2d}, [%[out]], #16  \n"
             "MOV v15.16b, v0.16b \n"
 
-            "CBZ w11, AESGCM256end \n" /* only one block jump to final GHASH */
+            "CBZ w11, 1f \n" /* only one block jump to final GHASH */
             "LD1 {v12.2d}, [%[input]], #16 \n"
 
             /***************************************************
                Interweave GHASH and encrypt if more then 1 block
              ***************************************************/
-            "AESGCM256Block: \n"
+            "2: \n"
             "REV64 v13.16b, v13.16b \n" /* network order */
             "EOR v15.16b, v17.16b, v15.16b \n"
             "EXT v13.16b, v13.16b, v13.16b, #8 \n"
@@ -2330,14 +2336,14 @@ static int Aes256GcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
             "MOV v15.16b, v0.16b \n"
             "RBIT v17.16b, v19.16b \n"
 
-            "CBZ w11, AESGCM256end \n"
+            "CBZ w11, 1f \n"
             "LD1 {v12.2d}, [%[input]], #16 \n"
-            "B AESGCM256Block \n"
+            "B 2b \n"
 
             /***************************************************
                GHASH on last block
              ***************************************************/
-            "AESGCM256end: \n"
+            "1: \n"
             "EOR v15.16b, v17.16b, v15.16b \n"
             "RBIT v15.16b, v15.16b \n" /* v15 is encrypted out block */
 
@@ -2628,7 +2634,7 @@ int  wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
             "LD1 {v12.2d}, [%[ctr]]            \n"
             "LD1 {v13.2d}, [%[input]], #16     \n"
 
-            "AESGCM128BlockDec: \n"
+            "1: \n"
             "REV64 v12.16b, v12.16b \n" /* network order */
             "EXT v12.16b, v12.16b, v12.16b, #8 \n"
             "ADD v12.2d, v12.2d, v14.2d \n" /* add 1 to counter */
@@ -2660,11 +2666,11 @@ int  wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
             "EOR v0.16b, v0.16b, v13.16b \n"
             "ST1 {v0.2d}, [%[out]], #16  \n"
 
-            "CBZ w11, AESGCMendDec \n"
+            "CBZ w11, 2f \n"
             "LD1 {v13.2d}, [%[input]], #16 \n"
-            "B AESGCM128BlockDec \n"
+            "B 1b \n"
 
-            "AESGCMendDec: \n"
+            "2: \n"
             "#store current counter value at the end \n"
             "ST1 {v12.16b}, [%[ctrOut]] \n"
 
@@ -2693,7 +2699,7 @@ int  wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
             "LD1 {v14.2d}, [%[ctr]]            \n"
             "LD1 {v15.2d}, [%[input]], #16     \n"
 
-            "AESGCM192BlockDec: \n"
+            "1: \n"
             "REV64 v14.16b, v14.16b \n" /* network order */
             "EXT v14.16b, v14.16b, v14.16b, #8 \n"
             "ADD v14.2d, v14.2d, v16.2d \n" /* add 1 to counter */
@@ -2729,11 +2735,11 @@ int  wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
             "EOR v0.16b, v0.16b, v15.16b \n"
             "ST1 {v0.2d}, [%[out]], #16  \n"
 
-            "CBZ w11, AESGCM192endDec \n"
+            "CBZ w11, 2f \n"
             "LD1 {v15.2d}, [%[input]], #16 \n"
-            "B AESGCM192BlockDec \n"
+            "B 1b \n"
 
-            "AESGCM192endDec: \n"
+            "2: \n"
             "#store current counter value at the end \n"
             "ST1 {v14.2d}, [%[ctrOut]]   \n"
 
@@ -2762,7 +2768,7 @@ int  wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
             "LD1 {v17.2d}, [%[ctr]]             \n"
             "LD1 {v16.2d}, [%[input]], #16      \n"
 
-            "AESGCM256BlockDec: \n"
+            "1: \n"
             "REV64 v17.16b, v17.16b \n" /* network order */
             "EXT v17.16b, v17.16b, v17.16b, #8 \n"
             "ADD v17.2d, v17.2d, v18.2d \n" /* add 1 to counter */
@@ -2802,11 +2808,11 @@ int  wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
             "EOR v0.16b, v0.16b, v16.16b \n"
             "ST1 {v0.2d}, [%[out]], #16  \n"
 
-            "CBZ w11, AESGCM256endDec \n"
+            "CBZ w11, 2f \n"
             "LD1 {v16.2d}, [%[input]], #16 \n"
-            "B AESGCM256BlockDec \n"
+            "B 1b \n"
 
-            "AESGCM256endDec: \n"
+            "2: \n"
             "#store current counter value at the end \n"
             "ST1 {v17.2d}, [%[ctrOut]] \n"
 
@@ -2896,7 +2902,7 @@ int  wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
                 "#subtract rounds done so far and see if should continue\n"
                 "MOV r12, %r[R]    \n"
                 "CMP r12, #10 \n"
-                "BEQ final    \n"
+                "BEQ 1f    \n"
                 "VLD1.32 {q1}, [%[Key]]!  \n"
                 "AESMC.8 q0, q0\n"
                 "VLD1.32 {q2}, [%[Key]]!  \n"
@@ -2905,7 +2911,7 @@ int  wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
                 "AESE.8 q0, q2\n"
 
                 "CMP r12, #12 \n"
-                "BEQ final    \n"
+                "BEQ 1f    \n"
                 "VLD1.32 {q1}, [%[Key]]!  \n"
                 "AESMC.8 q0, q0\n"
                 "VLD1.32 {q2}, [%[Key]]!  \n"
@@ -2914,7 +2920,7 @@ int  wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
                 "AESE.8 q0, q2\n"
 
                 "#Final AddRoundKey then store result \n"
-                "final: \n"
+                "1: \n"
                 "VLD1.32 {q1}, [%[Key]]!  \n"
                 "VEOR.32 q0, q0, q1\n"
                 "VST1.32 {q0}, [%[CtrOut]]   \n"
@@ -2974,7 +2980,7 @@ int  wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
                 "#subtract rounds done so far and see if should continue\n"
                 "MOV r12, %r[R]    \n"
                 "CMP r12, #10 \n"
-                "BEQ finalDec \n"
+                "BEQ 1f \n"
                 "VLD1.32 {q1}, %[Key]!  \n"
                 "AESIMC.8 q0, q0\n"
                 "VLD1.32 {q2}, %[Key]!  \n"
@@ -2983,7 +2989,7 @@ int  wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
                 "AESD.8 q0, q2\n"
 
                 "CMP r12, #12  \n"
-                "BEQ finalDec \n"
+                "BEQ 1f \n"
                 "VLD1.32 {q1}, %[Key]!  \n"
                 "AESIMC.8 q0, q0\n"
                 "VLD1.32 {q2}, %[Key]!  \n"
@@ -2992,7 +2998,7 @@ int  wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
                 "AESD.8 q0, q2\n"
 
                 "#Final AddRoundKey then store result \n"
-                "finalDec: \n"
+                "1: \n"
                 "VLD1.32 {q1}, %[Key]! \n"
                 "VEOR.32 q0, q0, q1\n"
                 "VST1.32 {q0}, [%[CtrOut]]    \n"
@@ -3047,7 +3053,7 @@ int  wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
                 "VLD1.32 {q0}, [%[reg]]   \n"
                 "VLD1.32 {q12}, [%[input]]!\n"
 
-                "AESCBC128Block:\n"
+                "1:\n"
                 "#CBC operations, xorbuf in with current aes->reg \n"
                 "VEOR.32 q0, q0, q12 \n"
                 "AESE.8 q0, q1 \n"
@@ -3074,11 +3080,11 @@ int  wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
                 "VST1.32 {q0}, [%[out]]!   \n"
 
                 "CMP r11, #0   \n"
-                "BEQ AESCBC128end \n"
+                "BEQ 2f \n"
                 "VLD1.32 {q12}, [%[input]]! \n"
-                "B AESCBC128Block \n"
+                "B 1b \n"
 
-                "AESCBC128end:\n"
+                "2:\n"
                 "#store current counter value at the end \n"
                 "VST1.32 {q0}, [%[regOut]] \n"
 
@@ -3109,7 +3115,7 @@ int  wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
                 "VLD1.32 {q13}, [%[Key]]!  \n"
                 "VLD1.32 {q14}, [%[Key]]!  \n"
 
-                "AESCBC192Block:\n"
+                "1:\n"
                 "#CBC operations, xorbuf in with current aes->reg \n"
                 "VEOR.32 q0, q0, q12 \n"
                 "AESE.8 q0, q1 \n"
@@ -3140,11 +3146,11 @@ int  wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
                 "VST1.32 {q0}, [%[out]]!   \n"
 
                 "CMP r11, #0   \n"
-                "BEQ AESCBC192end \n"
+                "BEQ 2f \n"
                 "VLD1.32 {q12}, [%[input]]! \n"
-                "B AESCBC192Block \n"
+                "B 1b \n"
 
-                "AESCBC192end:\n"
+                "2:\n"
                 "#store current counter qalue at the end \n"
                 "VST1.32 {q0}, [%[regOut]] \n"
 
@@ -3175,7 +3181,7 @@ int  wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
                 "VLD1.32 {q13}, [%[Key]]!  \n"
                 "VLD1.32 {q14}, [%[Key]]!  \n"
 
-                "AESCBC256Block:\n"
+                "1:\n"
                 "#CBC operations, xorbuf in with current aes->reg \n"
                 "VEOR.32 q0, q0, q12 \n"
                 "AESE.8 q0, q1 \n"
@@ -3213,11 +3219,11 @@ int  wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
                 "SUB %[Key], %[Key], #16   \n"
 
                 "CMP r11, #0   \n"
-                "BEQ AESCBC256end \n"
+                "BEQ 2f \n"
                 "VLD1.32 {q12}, [%[input]]! \n"
-                "B AESCBC256Block \n"
+                "B 1b \n"
 
-                "AESCBC256end:\n"
+                "2:\n"
                 "#store current counter qalue at the end \n"
                 "VST1.32 {q0}, [%[regOut]] \n"
 
@@ -3269,7 +3275,7 @@ int  wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
                 "VLD1.32 {q13}, [%[reg]]  \n"
                 "VLD1.32 {q0}, [%[input]]!\n"
 
-                "AESCBC128BlockDec:\n"
+                "1:\n"
                 "VMOV.32 q12, q0 \n"
                 "AESD.8 q0, q1\n"
                 "AESIMC.8 q0, q0\n"
@@ -3298,11 +3304,11 @@ int  wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
                 "VMOV.32 q13, q12        \n"
 
                 "CMP r11, #0 \n"
-                "BEQ AESCBC128endDec \n"
+                "BEQ 2f \n"
                 "VLD1.32 {q0}, [%[input]]!  \n"
-                "B AESCBC128BlockDec      \n"
+                "B 1b      \n"
 
-                "AESCBC128endDec: \n"
+                "2: \n"
                 "#store current counter qalue at the end \n"
                 "VST1.32 {q13}, [%[regOut]] \n"
 
@@ -3333,7 +3339,7 @@ int  wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
                 "VLD1.32 {q14}, [%[reg]]  \n"
                 "VLD1.32 {q0}, [%[input]]!\n"
 
-                "AESCBC192BlockDec:    \n"
+                "1:    \n"
                 "VMOV.32 q15, q0 \n"
                 "AESD.8 q0, q1\n"
                 "AESIMC.8 q0, q0\n"
@@ -3366,11 +3372,11 @@ int  wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
                 "VMOV.32 q14, q15        \n"
 
                 "CMP r11, #0 \n"
-                "BEQ AESCBC192endDec \n"
+                "BEQ 2f \n"
                 "VLD1.32 {q0}, [%[input]]!  \n"
-                "B AESCBC192BlockDec \n"
+                "B 1b \n"
 
-                "AESCBC192endDec:\n"
+                "2:\n"
                 "#store current counter value at the end \n"
                 "VST1.32 {q15}, [%[regOut]] \n"
 
@@ -3400,7 +3406,7 @@ int  wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
                 "VLD1.32 {q14}, [%[reg]]  \n"
                 "VLD1.32 {q0}, [%[input]]!\n"
 
-                "AESCBC256BlockDec:\n"
+                "1:\n"
                 "VMOV.32 q15, q0 \n"
                 "AESD.8 q0, q1\n"
                 "AESIMC.8 q0, q0\n"
@@ -3441,11 +3447,11 @@ int  wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
                 "VMOV.32 q14, q15        \n"
 
                 "CMP r11, #0 \n"
-                "BEQ AESCBC256endDec \n"
+                "BEQ 2f \n"
                 "VLD1.32 {q0}, [%[input]]!  \n"
-                "B AESCBC256BlockDec \n"
+                "B 1b \n"
 
-                "AESCBC256endDec:\n"
+                "2:\n"
                 "#store current counter value at the end \n"
                 "VST1.32 {q15}, [%[regOut]] \n"
 
@@ -3521,11 +3527,11 @@ int  wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
                     "VLD1.32 {q13}, [%[reg]]\n"
 
                     /* double block */
-                    "AESCTR128Block2:      \n"
+                    "1:      \n"
                     "CMP r11, #1 \n"
-                    "BEQ AESCTR128Block    \n"
+                    "BEQ 2f    \n"
                     "CMP r11, #0 \n"
-                    "BEQ AESCTRend    \n"
+                    "BEQ 3f    \n"
 
                     "VMOV.32 q0, q13  \n"
                     "AESE.8 q0, q1\n"
@@ -3592,10 +3598,10 @@ int  wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
                     "VEOR.32 q15, q15, q12\n"
                     "VST1.32 {q15}, [%[out]]!  \n"
 
-                    "B AESCTR128Block2 \n"
+                    "B 1b \n"
 
                     /* single block */
-                    "AESCTR128Block:      \n"
+                    "2:      \n"
                     "VMOV.32 q0, q13  \n"
                     "AESE.8 q0, q1\n"
                     "AESMC.8 q0, q0\n"
@@ -3622,12 +3628,13 @@ int  wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
                     "AESE.8 q0, q9\n"
                     "AESMC.8 q0, q0\n"
                     "AESE.8 q0, q10\n"
+                    "VLD1.32 {q12}, [%[input]]!  \n"
                     "VEOR.32 q0, q0, q11\n"
                     "#CTR operations, increment counter and xorbuf \n"
                     "VEOR.32 q0, q0, q12\n"
                     "VST1.32 {q0}, [%[out]]!  \n"
 
-                    "AESCTRend: \n"
+                    "3: \n"
                     "#store current counter qalue at the end \n"
                     "VST1.32 {q13}, [%[regOut]]   \n"
 
@@ -3663,11 +3670,11 @@ int  wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
                     "VLD1.32 {q13}, [%[reg]]\n"
 
                     /* double block */
-                    "AESCTR192Block2:   \n"
+                    "1:   \n"
                     "CMP r11, #1 \n"
-                    "BEQ AESCTR192Block \n"
+                    "BEQ 2f \n"
                     "CMP r11, #0 \n"
-                    "BEQ AESCTR192end   \n"
+                    "BEQ 3f   \n"
 
                     "VMOV.32 q0, q13\n"
                     "AESE.8 q0, q1\n"
@@ -3749,11 +3756,11 @@ int  wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
                     "VST1.32 {q15}, [%[out]]!  \n"
                     "SUB %[Key], %[Key], #32 \n"
 
-                    "B AESCTR192Block2 \n"
+                    "B 1b \n"
 
 
                     /* single block */
-                    "AESCTR192Block:      \n"
+                    "2:      \n"
                     "VLD1.32 {q11}, [%[Key]]! \n"
                     "VMOV.32 q0, q13  \n"
                     "AESE.8 q0, q1\n"
@@ -3793,7 +3800,7 @@ int  wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
                     "VEOR.32 q0, q0, q12\n"
                     "VST1.32 {q0}, [%[out]]!  \n"
 
-                    "AESCTR192end: \n"
+                    "3: \n"
                     "#store current counter qalue at the end \n"
                     "VST1.32 {q13}, [%[regOut]]   \n"
 
@@ -3829,11 +3836,11 @@ int  wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
                     "VLD1.32 {q13}, [%[reg]]\n"
 
                     /* double block */
-                    "AESCTR256Block2:      \n"
+                    "1:      \n"
                     "CMP r11, #1 \n"
-                    "BEQ AESCTR256Block    \n"
+                    "BEQ 2f    \n"
                     "CMP r11, #0 \n"
-                    "BEQ AESCTR256end    \n"
+                    "BEQ 3f    \n"
 
                     "VMOV.32 q0, q13  \n"
                     "AESE.8 q0, q1\n"
@@ -3913,7 +3920,7 @@ int  wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
                     "AESE.8 q15, q11\n" /* rnd 13 */
                     "AESMC.8 q15, q15\n"
 
-                    "VLD1.32 {q11}, [%[Key]]! \n"
+                    "VLD1.32 {q11}, [%[Key]] \n"
                     "AESE.8 q0, q12\n" /* rnd 14 */
                     "AESE.8 q15, q12\n" /* rnd 14 */
 
@@ -3929,9 +3936,9 @@ int  wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
                     "SUB %[Key], %[Key], #64 \n"
 
                     /* single block */
-                    "B AESCTR256Block2 \n"
+                    "B 1b \n"
 
-                    "AESCTR256Block:      \n"
+                    "2:      \n"
                     "VLD1.32 {q11}, [%[Key]]! \n"
                     "VMOV.32 q0, q13  \n"
                     "AESE.8 q0, q1\n"
@@ -3976,7 +3983,7 @@ int  wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
                     "VEOR.32 q0, q0, q12\n"
                     "VST1.32 {q0}, [%[out]]!  \n"
 
-                    "AESCTR256end: \n"
+                    "3: \n"
                     "#store current counter qalue at the end \n"
                     "VST1.32 {q13}, [%[regOut]]   \n"
 
