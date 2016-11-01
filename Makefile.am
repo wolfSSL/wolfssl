@@ -38,7 +38,10 @@ CLEANFILES+= cert.der \
              othercert.der \
              othercert.pem \
              pkcs7cert.der \
-             pkcs7envelopedData.der \
+             pkcs7envelopedDataDES3.der \
+             pkcs7envelopedDataAES128CBC.der \
+             pkcs7envelopedDataAES192CBC.der \
+             pkcs7envelopedDataAES256CBC.der \
              pkcs7signedData.der
 
 exampledir = $(docdir)/example

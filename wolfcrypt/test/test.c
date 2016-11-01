@@ -8520,11 +8520,20 @@ int compress_test(void)
 
 #ifdef HAVE_PKCS7
 
+typedef struct {
+    const char* outFileName;
+    const byte* content;
+    word32      contentSz;
+    int         contentOID;
+    int         encryptOID;
+    byte*       privateKey;
+    word32      privateKeySz;
+} pkcs7EnvelopedVector;
+
 int pkcs7enveloped_test(void)
 {
     int ret = 0;
 
-    int cipher = DES3b;
     int envelopedSz, decodedSz;
     PKCS7 pkcs7;
     byte* cert;
@@ -8537,12 +8546,15 @@ int pkcs7enveloped_test(void)
     FILE*  certFile;
     FILE*  keyFile;
     FILE*  pkcs7File;
-    const char* pkcs7OutFile = "pkcs7envelopedData.der";
 
     const byte data[] = { /* Hello World */
         0x48,0x65,0x6c,0x6c,0x6f,0x20,0x57,0x6f,
         0x72,0x6c,0x64
     };
+
+    pkcs7EnvelopedVector a, b, c, d;
+    pkcs7EnvelopedVector test_pkcs7env[4];
+    int times = sizeof(test_pkcs7env) / sizeof(pkcs7EnvelopedVector), i;
 
     /* read client cert and key in DER format */
     cert = (byte*)XMALLOC(FOURK_BUF, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
@@ -8580,48 +8592,90 @@ int pkcs7enveloped_test(void)
     fclose(keyFile);
 
     wc_PKCS7_InitWithCert(&pkcs7, cert, (word32)certSz);
-    pkcs7.content     = (byte*)data;
-    pkcs7.contentSz   = (word32)sizeof(data);
-    pkcs7.contentOID  = DATA;
-    pkcs7.encryptOID  = cipher;
-    pkcs7.privateKey  = privKey;
-    pkcs7.privateKeySz = (word32)privKeySz;
 
-    /* encode envelopedData */
-    envelopedSz = wc_PKCS7_EncodeEnvelopedData(&pkcs7, enveloped,
-                                            sizeof(enveloped));
-    if (envelopedSz <= 0) {
-        XFREE(cert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-        XFREE(privKey, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-        return -203;
+    /* set up test vectors */
+    a.content      = data;
+    a.contentSz    = (word32)sizeof(data);
+    a.contentOID   = DATA;
+    a.encryptOID   = DES3b;
+    a.privateKey   = privKey;
+    a.privateKeySz = (word32)privKeySz;
+    a.outFileName  = "pkcs7envelopedDataDES3.der";
+
+    b.content      = data;
+    b.contentSz    = (word32)sizeof(data);
+    b.contentOID   = DATA;
+    b.encryptOID   = AES128CBCb;
+    b.privateKey   = privKey;
+    b.privateKeySz = (word32)privKeySz;
+    b.outFileName  = "pkcs7envelopedDataAES128CBC.der";
+
+    c.content      = data;
+    c.contentSz    = (word32)sizeof(data);
+    c.contentOID   = DATA;
+    c.encryptOID   = AES192CBCb;
+    c.privateKey   = privKey;
+    c.privateKeySz = (word32)privKeySz;
+    c.outFileName  = "pkcs7envelopedDataAES192CBC.der";
+
+    d.content      = data;
+    d.contentSz    = (word32)sizeof(data);
+    d.contentOID   = DATA;
+    d.encryptOID   = AES256CBCb;
+    d.privateKey   = privKey;
+    d.privateKeySz = (word32)privKeySz;
+    d.outFileName  = "pkcs7envelopedDataAES256CBC.der";
+
+    test_pkcs7env[0] = a;
+    test_pkcs7env[1] = b;
+    test_pkcs7env[2] = c;
+    test_pkcs7env[3] = d;
+
+    for (i = 0; i < times; i++) {
+        pkcs7.content     = (byte*)test_pkcs7env[i].content;
+        pkcs7.contentSz   = test_pkcs7env[i].contentSz;
+        pkcs7.contentOID  = test_pkcs7env[i].contentOID;
+        pkcs7.encryptOID  = test_pkcs7env[i].encryptOID;
+        pkcs7.privateKey  = test_pkcs7env[i].privateKey;
+        pkcs7.privateKeySz = test_pkcs7env[i].privateKeySz;
+
+        /* encode envelopedData */
+        envelopedSz = wc_PKCS7_EncodeEnvelopedData(&pkcs7, enveloped,
+                                                sizeof(enveloped));
+        if (envelopedSz <= 0) {
+            XFREE(cert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(privKey, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            printf("envelopedSz = %d\n", envelopedSz);
+            return -203;
+        }
+
+        /* decode envelopedData */
+        decodedSz = wc_PKCS7_DecodeEnvelopedData(&pkcs7, enveloped, envelopedSz,
+                                              decoded, sizeof(decoded));
+        if (decodedSz <= 0) {
+            XFREE(cert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(privKey, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            return -204;
+        }
+
+        /* test decode result */
+        if (XMEMCMP(decoded, data, sizeof(data)) != 0) {
+            XFREE(cert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(privKey, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            return -205;
+        }
+
+        /* output pkcs7 envelopedData for external testing */
+        pkcs7File = fopen(test_pkcs7env[i].outFileName, "wb");
+        if (!pkcs7File) {
+            XFREE(cert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(privKey, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            return -206;
+        }
+
+        ret = (int)fwrite(enveloped, envelopedSz, 1, pkcs7File);
+        fclose(pkcs7File);
     }
-
-    /* decode envelopedData */
-    decodedSz = wc_PKCS7_DecodeEnvelopedData(&pkcs7, enveloped, envelopedSz,
-                                          decoded, sizeof(decoded));
-    if (decodedSz <= 0) {
-        XFREE(cert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-        XFREE(privKey, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-        return -204;
-    }
-
-    /* test decode result */
-    if (XMEMCMP(decoded, data, sizeof(data)) != 0) {
-        XFREE(cert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-        XFREE(privKey, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-        return -205;
-    }
-
-    /* output pkcs7 envelopedData for external testing */
-    pkcs7File = fopen(pkcs7OutFile, "wb");
-    if (!pkcs7File) {
-        XFREE(cert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-        XFREE(privKey, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-        return -206;
-    }
-
-    ret = (int)fwrite(enveloped, envelopedSz, 1, pkcs7File);
-    fclose(pkcs7File);
 
     XFREE(cert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(privKey, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);

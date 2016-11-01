@@ -85,7 +85,10 @@ certreq.der
 certreq.pem
 pkcs7cert.der
 pkcs7signedData.der
-pkcs7envelopedData.der
+pkcs7envelopedDataDES3.der
+pkcs7envelopedDataAES128CBC.der
+pkcs7envelopedDataAES192CBC.der
+pkcs7envelopedDataAES256CBC.der
 diff
 sslSniffer/sslSnifferTest/tracefile.txt
 tracefile.txt
