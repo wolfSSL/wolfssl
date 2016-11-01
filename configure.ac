@@ -221,6 +221,19 @@ then
 fi
 
 
+AC_ARG_ENABLE([rng],
+    [AS_HELP_STRING([  --enable-rng       Enable compiling and using RNG (default: enabled)])],
+    [ ENABLED_RNG=$enableval ],
+    [ ENABLED_RNG=yes ]
+    )
+
+if test "$ENABLED_RNG" = "no"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWC_NO_RNG"
+fi
+AM_CONDITIONAL([BUILD_RNG], [test "x$ENABLED_RNG" = "xyes"])
+
+
 # DTLS-SCTP
 AC_ARG_ENABLE([sctp],
     [AS_HELP_STRING([--enable-sctp],[Enable wolfSSL DTLS-SCTP support (default: disabled)])],
