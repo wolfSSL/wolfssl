@@ -3644,10 +3644,11 @@ void SSL_ResourceFree(WOLFSSL* ssl)
     if (ssl->buffers.outputBuffer.dynamicFlag)
         ShrinkOutputBuffer(ssl);
 #ifdef WOLFSSL_DTLS
-    DtlsPoolDelete(ssl);
-    if (ssl->dtls_msg_list != NULL) {
-        DtlsMsgListDelete(ssl->dtls_msg_list, ssl->heap);
-        ssl->dtls_msg_list = NULL;
+    DtlsMsgPoolReset(ssl);
+    if (ssl->dtls_rx_msg_list != NULL) {
+        DtlsMsgListDelete(ssl->dtls_rx_msg_list, ssl->heap);
+        ssl->dtls_rx_msg_list = NULL;
+        ssl->dtls_rx_msg_list_sz = 0;
     }
     XFREE(ssl->buffers.dtlsCtx.peer.sa, ssl->heap, DYNAMIC_TYPE_SOCKADDR);
     ssl->buffers.dtlsCtx.peer.sa = NULL;
@@ -3810,9 +3811,10 @@ void FreeHandshakeResources(WOLFSSL* ssl)
 #ifdef WOLFSSL_DTLS
     /* DTLS_POOL */
     if (ssl->options.dtls) {
-        DtlsPoolDelete(ssl);
-        DtlsMsgListDelete(ssl->dtls_msg_list, ssl->heap);
-        ssl->dtls_msg_list = NULL;
+        DtlsMsgPoolReset(ssl);
+        DtlsMsgListDelete(ssl->dtls_rx_msg_list, ssl->heap);
+        ssl->dtls_rx_msg_list = NULL;
+        ssl->dtls_rx_msg_list_sz = 0;
     }
 #endif
 
@@ -4033,183 +4035,6 @@ static INLINE void WriteSEQ(WOLFSSL* ssl, int verifyOrder, byte* out)
 
 #ifdef WOLFSSL_DTLS
 
-int DtlsPoolInit(WOLFSSL* ssl)
-{
-    if (ssl->dtls_pool == NULL) {
-        DtlsPool *pool = (DtlsPool*)XMALLOC(sizeof(DtlsPool),
-                                             ssl->heap, DYNAMIC_TYPE_DTLS_POOL);
-        if (pool == NULL) {
-            WOLFSSL_MSG("DTLS Buffer Pool Memory error");
-            return MEMORY_E;
-        }
-        else {
-            int i;
-
-            for (i = 0; i < DTLS_POOL_SZ; i++) {
-                pool->buf[i].length = 0;
-                pool->buf[i].buffer = NULL;
-            }
-            pool->used = 0;
-            ssl->dtls_pool = pool;
-        }
-    }
-    return 0;
-}
-
-
-int DtlsPoolSave(WOLFSSL* ssl, const byte *src, int sz)
-{
-    DtlsPool *pool = ssl->dtls_pool;
-    if (src == NULL) {
-        return BAD_FUNC_ARG;
-    }
-    if (pool != NULL && pool->used < DTLS_POOL_SZ) {
-        buffer *pBuf = &pool->buf[pool->used];
-        pBuf->buffer = (byte*)XMALLOC(sz, ssl->heap, DYNAMIC_TYPE_DTLS_POOL);
-        if (pBuf->buffer == NULL) {
-            WOLFSSL_MSG("DTLS Buffer Memory error");
-            return MEMORY_ERROR;
-        }
-        XMEMCPY(pBuf->buffer, src, sz);
-        pool->epoch[pool->used] = ssl->keys.dtls_epoch;
-        pBuf->length = (word32)sz;
-        pool->used++;
-    }
-    return 0;
-}
-
-
-void DtlsPoolReset(WOLFSSL* ssl)
-{
-    DtlsPool *pool = ssl->dtls_pool;
-    if (pool != NULL) {
-        buffer *pBuf;
-        int i, used;
-
-        used = pool->used;
-        for (i = 0, pBuf = &pool->buf[0]; i < used; i++, pBuf++) {
-            XFREE(pBuf->buffer, ssl->heap, DYNAMIC_TYPE_DTLS_POOL);
-            pBuf->buffer = NULL;
-            pBuf->length = 0;
-        }
-        pool->used = 0;
-    }
-    ssl->dtls_timeout = ssl->dtls_timeout_init;
-}
-
-
-void DtlsPoolDelete(WOLFSSL* ssl)
-{
-    if (ssl->dtls_pool != NULL) {
-        DtlsPoolReset(ssl);
-        XFREE(ssl->dtls_pool, ssl->heap, DYNAMIC_TYPE_DTLS_POOL);
-        ssl->dtls_pool = NULL;
-    }
-}
-
-
-int DtlsPoolTimeout(WOLFSSL* ssl)
-{
-    int result = -1;
-    if (ssl->dtls_timeout <  ssl->dtls_timeout_max) {
-        ssl->dtls_timeout *= DTLS_TIMEOUT_MULTIPLIER;
-        result = 0;
-    }
-    return result;
-}
-
-int VerifyForDtlsPoolSend(WOLFSSL* ssl, byte type, word32 fragOffset)
-{
-    /**
-     * only the first message from previous flight should be valid
-     * to be used for triggering retransmission of whole DtlsPool.
-     * change cipher suite type is not verified here
-     */
-    return ((fragOffset == 0) &&
-           (((ssl->options.side == WOLFSSL_SERVER_END) &&
-             ((type == client_hello) ||
-             ((ssl->options.verifyPeer) && (type == certificate)) ||
-             ((!ssl->options.verifyPeer) && (type == client_key_exchange)))) ||
-            ((ssl->options.side == WOLFSSL_CLIENT_END) &&
-             (type == server_hello))));
-}
-
-int DtlsPoolSend(WOLFSSL* ssl, byte sendOnlyFirstPacket)
-{
-    DtlsPool* pool = ssl->dtls_pool;
-
-    if (pool != NULL && pool->used > 0) {
-        int ret = 0;
-        int     i;
-        buffer* buf;
-        /**
-         * on server side, retranmission is being triggered only by sending
-         * first message of given flight, in order to trigger client
-         * to retransmit its whole flight. Sending the whole previous flight
-         * could lead to retranmission of previous client flight for each
-         * server message from previous flight. Therefore one message should be
-         * enough to do the trick.
-         */
-        int maxPoolIndex = (((sendOnlyFirstPacket == 1) &&
-                            (ssl->options.side == WOLFSSL_SERVER_END) &&
-                            (pool->used >= 1)) ? 1 : pool->used);
-
-        for (i = 0, buf = pool->buf; i < maxPoolIndex; i++, buf++) {
-            if (pool->epoch[i] == 0) {
-                DtlsRecordLayerHeader* dtls;
-                int epochOrder;
-
-                dtls = (DtlsRecordLayerHeader*)buf->buffer;
-                /* If the stored record's epoch is 0, and the currently set
-                 * epoch is 0, use the "current order" sequence number.
-                 * If the stored record's epoch is 0 and the currently set
-                 * epoch is not 0, the stored record is considered a "previous
-                 * order" sequence number. */
-                epochOrder = (ssl->keys.dtls_epoch == 0) ?
-                             CUR_ORDER : PREV_ORDER;
-
-                WriteSEQ(ssl, epochOrder, dtls->sequence_number);
-                DtlsSEQIncrement(ssl, epochOrder);
-                if ((ret = CheckAvailableSize(ssl, buf->length)) != 0)
-                    return ret;
-
-                XMEMCPY(ssl->buffers.outputBuffer.buffer,
-                        buf->buffer, buf->length);
-                ssl->buffers.outputBuffer.idx = 0;
-                ssl->buffers.outputBuffer.length = buf->length;
-            }
-            else if (pool->epoch[i] == ssl->keys.dtls_epoch) {
-                byte*  input;
-                byte*  output;
-                int    inputSz, sendSz;
-
-                input = buf->buffer;
-                inputSz = buf->length;
-                sendSz = inputSz + MAX_MSG_EXTRA;
-
-                if ((ret = CheckAvailableSize(ssl, sendSz)) != 0)
-                    return ret;
-
-                output = ssl->buffers.outputBuffer.buffer +
-                         ssl->buffers.outputBuffer.length;
-                sendSz = BuildMessage(ssl, output, sendSz, input, inputSz,
-                                      handshake, 0, 0);
-                if (sendSz < 0)
-                    return BUILD_MSG_ERROR;
-
-                ssl->buffers.outputBuffer.length += sendSz;
-            }
-
-            ret = SendBuffered(ssl);
-            if (ret < 0) {
-                return ret;
-            }
-        }
-    }
-    return 0;
-}
-
-
 /* functions for managing DTLS datagram reordering */
 
 /* Need to allocate space for the handshake message header. The hashing
@@ -4403,10 +4228,9 @@ DtlsMsg* DtlsMsgFind(DtlsMsg* head, word32 seq)
 }
 
 
-DtlsMsg* DtlsMsgStore(DtlsMsg* head, word32 seq, const byte* data,
+void DtlsMsgStore(WOLFSSL* ssl, word32 seq, const byte* data,
         word32 dataSz, byte type, word32 fragOffset, word32 fragSz, void* heap)
 {
-
     /* See if seq exists in the list. If it isn't in the list, make
      * a new item of size dataSz, copy fragSz bytes from data to msg->msg
      * starting at offset fragOffset, and add fragSz to msg->fragSz. If
@@ -4424,6 +4248,8 @@ DtlsMsg* DtlsMsgStore(DtlsMsg* head, word32 seq, const byte* data,
      *    belongs without overlaps.
      */
 
+    DtlsMsg* head = ssl->dtls_rx_msg_list;
+
     if (head != NULL) {
         DtlsMsg* cur = DtlsMsgFind(head, seq);
         if (cur == NULL) {
@@ -4432,9 +4258,11 @@ DtlsMsg* DtlsMsgStore(DtlsMsg* head, word32 seq, const byte* data,
                 if (DtlsMsgSet(cur, seq, data, type,
                                                 fragOffset, fragSz, heap) < 0) {
                     DtlsMsgDelete(cur, heap);
-                    return head;
                 }
-                head = DtlsMsgInsert(head, cur);
+                else {
+                    ssl->dtls_rx_msg_list_sz++;
+                    head = DtlsMsgInsert(head, cur);
+                }
             }
         }
         else {
@@ -4446,11 +4274,14 @@ DtlsMsg* DtlsMsgStore(DtlsMsg* head, word32 seq, const byte* data,
         head = DtlsMsgNew(dataSz, heap);
         if (DtlsMsgSet(head, seq, data, type, fragOffset, fragSz, heap) < 0) {
             DtlsMsgDelete(head, heap);
-            return NULL;
+            head = NULL;
+        }
+        else {
+            ssl->dtls_rx_msg_list_sz++;
         }
     }
 
-    return head;
+    ssl->dtls_rx_msg_list = head;
 }
 
 
@@ -4482,6 +4313,164 @@ DtlsMsg* DtlsMsgInsert(DtlsMsg* head, DtlsMsg* item)
     }
 
     return head;
+}
+
+
+/* DtlsMsgPoolSave() adds the message to the end of the stored transmit list. */
+int DtlsMsgPoolSave(WOLFSSL* ssl, const byte* data, word32 dataSz)
+{
+    DtlsMsg* item;
+    int ret = 0;
+
+    if (ssl->dtls_tx_msg_list_sz > DTLS_POOL_SZ)
+        return DTLS_POOL_SZ_E;
+
+    item = DtlsMsgNew(dataSz, ssl->heap);
+
+    if (item != NULL) {
+        DtlsMsg* cur = ssl->dtls_tx_msg_list;
+
+        XMEMCPY(item->buf, data, dataSz);
+        item->sz = dataSz;
+        item->seq = ssl->keys.dtls_epoch;
+
+        if (cur == NULL)
+            ssl->dtls_tx_msg_list = item;
+        else {
+            while (cur->next)
+                cur = cur->next;
+            cur->next = item;
+        }
+        ssl->dtls_tx_msg_list_sz++;
+    }
+    else
+        ret = MEMORY_E;
+
+    return ret;
+}
+
+
+/* DtlsMsgPoolTimeout() updates the timeout time. */
+int DtlsMsgPoolTimeout(WOLFSSL* ssl)
+{
+    int result = -1;
+    if (ssl->dtls_timeout <  ssl->dtls_timeout_max) {
+        ssl->dtls_timeout *= DTLS_TIMEOUT_MULTIPLIER;
+        result = 0;
+    }
+    return result;
+}
+
+
+/* DtlsMsgPoolReset() deletes the stored transmit list and resets the timeout
+ * value. */
+void DtlsMsgPoolReset(WOLFSSL* ssl)
+{
+    if (ssl->dtls_tx_msg_list) {
+        DtlsMsgListDelete(ssl->dtls_tx_msg_list, ssl->heap);
+        ssl->dtls_tx_msg_list = NULL;
+        ssl->dtls_tx_msg_list_sz = 0;
+        ssl->dtls_timeout = ssl->dtls_timeout_init;
+    }
+}
+
+
+int VerifyForDtlsMsgPoolSend(WOLFSSL* ssl, byte type, word32 fragOffset)
+{
+    /**
+     * only the first message from previous flight should be valid
+     * to be used for triggering retransmission of whole DtlsMsgPool.
+     * change cipher suite type is not verified here
+     */
+    return ((fragOffset == 0) &&
+           (((ssl->options.side == WOLFSSL_SERVER_END) &&
+             ((type == client_hello) ||
+             ((ssl->options.verifyPeer) && (type == certificate)) ||
+             ((!ssl->options.verifyPeer) && (type == client_key_exchange)))) ||
+            ((ssl->options.side == WOLFSSL_CLIENT_END) &&
+             (type == server_hello))));
+}
+
+
+/* DtlsMsgPoolSend() will send the stored transmit list. The stored list is
+ * updated with new sequence numbers, and will be re-encrypted if needed. */
+int DtlsMsgPoolSend(WOLFSSL* ssl, int sendOnlyFirstPacket)
+{
+    int ret = 0;
+    DtlsMsg* pool = ssl->dtls_tx_msg_list;
+
+    if (pool != NULL) {
+
+        while (pool != NULL) {
+            if (pool->seq == 0) {
+                DtlsRecordLayerHeader* dtls;
+                int epochOrder;
+
+                dtls = (DtlsRecordLayerHeader*)pool->buf;
+                /* If the stored record's epoch is 0, and the currently set
+                 * epoch is 0, use the "current order" sequence number.
+                 * If the stored record's epoch is 0 and the currently set
+                 * epoch is not 0, the stored record is considered a "previous
+                 * order" sequence number. */
+                epochOrder = (ssl->keys.dtls_epoch == 0) ?
+                             CUR_ORDER : PREV_ORDER;
+
+                WriteSEQ(ssl, epochOrder, dtls->sequence_number);
+                DtlsSEQIncrement(ssl, epochOrder);
+                if ((ret = CheckAvailableSize(ssl, pool->sz)) != 0)
+                    return ret;
+
+                XMEMCPY(ssl->buffers.outputBuffer.buffer,
+                        pool->buf, pool->sz);
+                ssl->buffers.outputBuffer.idx = 0;
+                ssl->buffers.outputBuffer.length = pool->sz;
+            }
+            else if (pool->seq == ssl->keys.dtls_epoch) {
+                byte*  input;
+                byte*  output;
+                int    inputSz, sendSz;
+
+                input = pool->buf;
+                inputSz = pool->sz;
+                sendSz = inputSz + MAX_MSG_EXTRA;
+
+                if ((ret = CheckAvailableSize(ssl, sendSz)) != 0)
+                    return ret;
+
+                output = ssl->buffers.outputBuffer.buffer +
+                         ssl->buffers.outputBuffer.length;
+                sendSz = BuildMessage(ssl, output, sendSz, input, inputSz,
+                                      handshake, 0, 0);
+                if (sendSz < 0)
+                    return BUILD_MSG_ERROR;
+
+                ssl->buffers.outputBuffer.length += sendSz;
+            }
+
+            ret = SendBuffered(ssl);
+            if (ret < 0) {
+                return ret;
+            }
+
+            /**
+             * on server side, retranmission is being triggered only by sending
+             * first message of given flight, in order to trigger client
+             * to retransmit its whole flight. Sending the whole previous flight
+             * could lead to retranmission of previous client flight for each
+             * server message from previous flight. Therefore one message should
+             * be enough to do the trick.
+             */
+            if (sendOnlyFirstPacket &&
+                ssl->options.side == WOLFSSL_SERVER_END) {
+
+                pool = NULL;
+            }
+            else
+                pool = pool->next;
+        }
+    }
+
+    return ret;
 }
 
 #endif /* WOLFSSL_DTLS */
@@ -4963,8 +4952,8 @@ retry:
                 #ifdef WOLFSSL_DTLS
                 if (IsDtlsNotSctpMode(ssl) &&
                     !ssl->options.handShakeDone &&
-                    DtlsPoolTimeout(ssl) == 0 &&
-                    DtlsPoolSend(ssl, 0) == 0) {
+                    DtlsMsgPoolTimeout(ssl) == 0 &&
+                    DtlsMsgPoolSend(ssl, 0) == 0) {
 
                     goto retry;
                 }
@@ -7525,6 +7514,16 @@ static int SanityCheckMsgReceived(WOLFSSL* ssl, byte type)
                     WOLFSSL_MSG("No ServerHelloDone before ChangeCipher");
                     return OUT_OF_ORDER_E;
                 }
+                #ifdef HAVE_SESSION_TICKET
+                    if (ssl->expect_session_ticket) {
+                        WOLFSSL_MSG("Expected session ticket missing");
+                        #ifdef WOLFSSL_DTLS
+                            if (ssl->options.dtls)
+                                return OUT_OF_ORDER_E;
+                        #endif
+                        return SESSION_TICKET_EXPECT_E;
+                    }
+                #endif
             }
 #endif
 #ifndef NO_WOLFSSL_SERVER
@@ -7534,6 +7533,20 @@ static int SanityCheckMsgReceived(WOLFSSL* ssl, byte type)
                     WOLFSSL_MSG("No ClientKeyExchange before ChangeCipher");
                     return OUT_OF_ORDER_E;
                 }
+                #ifndef NO_CERTS
+                    if (ssl->options.verifyPeer &&
+                        ssl->options.havePeerCert) {
+
+                        if (!ssl->options.havePeerVerify) {
+                            WOLFSSL_MSG("client didn't send cert verify");
+                            #ifdef WOLFSSL_DTLS
+                                if (ssl->options.dtls)
+                                    return OUT_OF_ORDER_E;
+                            #endif
+                            return NO_PEER_VERIFY;
+                        }
+                    }
+                #endif
             }
 #endif
             if (ssl->options.dtls)
@@ -7936,7 +7949,7 @@ static INLINE int DtlsUpdateWindow(WOLFSSL* ssl)
 
 static int DtlsMsgDrain(WOLFSSL* ssl)
 {
-    DtlsMsg* item = ssl->dtls_msg_list;
+    DtlsMsg* item = ssl->dtls_rx_msg_list;
     int ret = 0;
 
     /* While there is an item in the store list, and it is the expected
@@ -7950,9 +7963,10 @@ static int DtlsMsgDrain(WOLFSSL* ssl)
         ssl->keys.dtls_expected_peer_handshake_number++;
         ret = DoHandShakeMsgType(ssl, item->msg,
                                  &idx, item->type, item->sz, item->sz);
-        ssl->dtls_msg_list = item->next;
+        ssl->dtls_rx_msg_list = item->next;
         DtlsMsgDelete(item, ssl->heap);
-        item = ssl->dtls_msg_list;
+        item = ssl->dtls_rx_msg_list;
+        ssl->dtls_rx_msg_list_sz--;
     }
 
     return ret;
@@ -7996,10 +8010,11 @@ static int DoDtlsHandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
          * the client could be sending multiple new client hello messages
          * with newer and newer cookies.) */
         if (type != client_hello) {
-            ssl->dtls_msg_list = DtlsMsgStore(ssl->dtls_msg_list,
-                            ssl->keys.dtls_peer_handshake_number,
-                            input + *inOutIdx, size, type,
-                            fragOffset, fragSz, ssl->heap);
+            if (ssl->dtls_rx_msg_list_sz < DTLS_POOL_SZ) {
+                DtlsMsgStore(ssl, ssl->keys.dtls_peer_handshake_number,
+                             input + *inOutIdx, size, type,
+                             fragOffset, fragSz, ssl->heap);
+            }
             *inOutIdx += fragSz;
             ret = 0;
         }
@@ -8021,20 +8036,25 @@ static int DoDtlsHandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
             }
             *inOutIdx += ssl->keys.padSz;
         }
-        if (IsDtlsNotSctpMode(ssl) && VerifyForDtlsPoolSend(ssl, type, fragOffset))
-            ret = DtlsPoolSend(ssl, 0);
+        if (IsDtlsNotSctpMode(ssl) &&
+            VerifyForDtlsMsgPoolSend(ssl, type, fragOffset)) {
+
+            ret = DtlsMsgPoolSend(ssl, 0);
+        }
     }
     else if (fragSz < size) {
-        /* Since this branch is in order, but fragmented, dtls_msg_list will be
-         * pointing to the message with this fragment in it. Check it to see
+        /* Since this branch is in order, but fragmented, dtls_rx_msg_list will
+         * be pointing to the message with this fragment in it. Check it to see
          * if it is completed. */
-        ssl->dtls_msg_list = DtlsMsgStore(ssl->dtls_msg_list,
-                        ssl->keys.dtls_peer_handshake_number, input + *inOutIdx,
-                        size, type, fragOffset, fragSz, ssl->heap);
+        if (ssl->dtls_rx_msg_list_sz < DTLS_POOL_SZ) {
+            DtlsMsgStore(ssl, ssl->keys.dtls_peer_handshake_number,
+                         input + *inOutIdx, size, type,
+                         fragOffset, fragSz, ssl->heap);
+        }
         *inOutIdx += fragSz;
         ret = 0;
-        if (ssl->dtls_msg_list != NULL &&
-            ssl->dtls_msg_list->fragSz >= ssl->dtls_msg_list->sz)
+        if (ssl->dtls_rx_msg_list != NULL &&
+            ssl->dtls_rx_msg_list->fragSz >= ssl->dtls_rx_msg_list->sz)
             ret = DtlsMsgDrain(ssl);
     }
     else {
@@ -8042,7 +8062,7 @@ static int DoDtlsHandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
         ret = DoHandShakeMsgType(ssl, input, inOutIdx, type, size, totalSz);
         if (ret == 0) {
             ssl->keys.dtls_expected_peer_handshake_number++;
-            if (ssl->dtls_msg_list != NULL) {
+            if (ssl->dtls_rx_msg_list != NULL) {
                 ret = DtlsMsgDrain(ssl);
             }
         }
@@ -9382,7 +9402,7 @@ int ProcessReply(WOLFSSL* ssl)
                 ssl->buffers.inputBuffer.idx = 0;
 
                 if (IsDtlsNotSctpMode(ssl) && ssl->options.dtlsHsRetain) {
-                    ret = DtlsPoolSend(ssl, 0);
+                    ret = DtlsMsgPoolSend(ssl, 0);
                     if (ret != 0)
                         return ret;
                 }
@@ -9541,7 +9561,7 @@ int ProcessReply(WOLFSSL* ssl)
                                 return ret;
 
                             if (IsDtlsNotSctpMode(ssl)) {
-                                ret = DtlsPoolSend(ssl, 1);
+                                ret = DtlsMsgPoolSend(ssl, 1);
                                 if (ret != 0)
                                     return ret;
                             }
@@ -9557,14 +9577,6 @@ int ProcessReply(WOLFSSL* ssl)
                         }
                     }
 
-#ifdef HAVE_SESSION_TICKET
-                    if (ssl->options.side == WOLFSSL_CLIENT_END &&
-                                                  ssl->expect_session_ticket) {
-                        WOLFSSL_MSG("Expected session ticket missing");
-                        return SESSION_TICKET_EXPECT_E;
-                    }
-#endif
-
                     if (IsEncryptionOn(ssl, 0) && ssl->options.handShakeDone) {
                         ssl->buffers.inputBuffer.idx += ssl->keys.padSz;
                         ssl->curSize -= (word16) ssl->buffers.inputBuffer.idx;
@@ -9574,16 +9586,6 @@ int ProcessReply(WOLFSSL* ssl)
                         WOLFSSL_MSG("Malicious or corrupted ChangeCipher msg");
                         return LENGTH_ERROR;
                     }
-                    #ifndef NO_CERTS
-                        if (ssl->options.side == WOLFSSL_SERVER_END &&
-                                 ssl->options.verifyPeer &&
-                                 ssl->options.havePeerCert)
-                            if (!ssl->options.havePeerVerify) {
-                                WOLFSSL_MSG("client didn't send cert verify");
-                                return NO_PEER_VERIFY;
-                            }
-                    #endif
-
 
                     ssl->buffers.inputBuffer.idx++;
                     ssl->keys.encryptionOn = 1;
@@ -9594,7 +9596,7 @@ int ProcessReply(WOLFSSL* ssl)
 
                     #ifdef WOLFSSL_DTLS
                         if (ssl->options.dtls) {
-                            DtlsPoolReset(ssl);
+                            DtlsMsgPoolReset(ssl);
                             ssl->keys.nextEpoch++;
                             ssl->keys.nextSeq_lo = 0;
                             ssl->keys.prevWindow = ssl->keys.window;
@@ -9738,7 +9740,7 @@ int SendChangeCipher(WOLFSSL* ssl)
 
     #ifdef WOLFSSL_DTLS
         if (IsDtlsNotSctpMode(ssl)) {
-            if ((ret = DtlsPoolSave(ssl, output, sendSz)) != 0)
+            if ((ret = DtlsMsgPoolSave(ssl, output, sendSz)) != 0)
                 return ret;
         }
     #endif
@@ -10185,7 +10187,7 @@ int SendFinished(WOLFSSL* ssl)
 
     #ifdef WOLFSSL_DTLS
         if (IsDtlsNotSctpMode(ssl)) {
-            if ((ret = DtlsPoolSave(ssl, input, headerSz + finishedSz)) != 0)
+            if ((ret = DtlsMsgPoolSave(ssl, input, headerSz + finishedSz)) != 0)
                 return ret;
         }
     #endif
@@ -10436,7 +10438,7 @@ int SendCertificate(WOLFSSL* ssl)
 
         #ifdef WOLFSSL_DTLS
             if (IsDtlsNotSctpMode(ssl)) {
-                if ((ret = DtlsPoolSave(ssl, output, sendSz)) != 0)
+                if ((ret = DtlsMsgPoolSave(ssl, output, sendSz)) != 0)
                     return ret;
             }
         #endif
@@ -10531,7 +10533,7 @@ int SendCertificateRequest(WOLFSSL* ssl)
 
     #ifdef WOLFSSL_DTLS
         if (IsDtlsNotSctpMode(ssl)) {
-            if ((ret = DtlsPoolSave(ssl, output, sendSz)) != 0)
+            if ((ret = DtlsMsgPoolSave(ssl, output, sendSz)) != 0)
                 return ret;
         }
         if (ssl->options.dtls)
@@ -10637,7 +10639,7 @@ static int BuildCertificateStatus(WOLFSSL* ssl, byte type, buffer* status,
 
     #ifdef WOLFSSL_DTLS
         if (ret == 0 && IsDtlsNotSctpMode(ssl))
-            ret = DtlsPoolSave(ssl, output, sendSz);
+            ret = DtlsMsgPoolSave(ssl, output, sendSz);
     #endif
 
     #ifdef WOLFSSL_CALLBACKS
@@ -11638,6 +11640,9 @@ const char* wolfSSL_ERR_reason_error_string(unsigned long e)
 
     case EXT_MASTER_SECRET_NEEDED_E:
         return "Extended Master Secret must be enabled to resume EMS session";
+
+    case DTLS_POOL_SZ_E:
+        return "Maximum DTLS pool size exceeded";
 
     default :
         return "unknown error number";
@@ -13076,7 +13081,7 @@ static void PickHashSigAlgo(WOLFSSL* ssl,
 
         #ifdef WOLFSSL_DTLS
             if (IsDtlsNotSctpMode(ssl)) {
-                if ((ret = DtlsPoolSave(ssl, output, sendSz)) != 0)
+                if ((ret = DtlsMsgPoolSave(ssl, output, sendSz)) != 0)
                     return ret;
             }
         #endif
@@ -13111,7 +13116,7 @@ static void PickHashSigAlgo(WOLFSSL* ssl,
 
 #ifdef WOLFSSL_DTLS
         if (ssl->options.dtls) {
-            DtlsPoolReset(ssl);
+            DtlsMsgPoolReset(ssl);
         }
 #endif
 
@@ -13429,7 +13434,7 @@ static void PickHashSigAlgo(WOLFSSL* ssl,
         }
         #ifdef WOLFSSL_DTLS
             if (ssl->options.dtls) {
-                DtlsPoolReset(ssl);
+                DtlsMsgPoolReset(ssl);
             }
         #endif
 
@@ -15602,7 +15607,7 @@ int SendClientKeyExchange(WOLFSSL* ssl)
 
         #ifdef WOLFSSL_DTLS
             if (IsDtlsNotSctpMode(ssl)) {
-                if ((ret = DtlsPoolSave(ssl, output, sendSz)) != 0) {
+                if ((ret = DtlsMsgPoolSave(ssl, output, sendSz)) != 0) {
                     goto exit_scke;
                 }
             }
@@ -16083,7 +16088,7 @@ int SendCertificateVerify(WOLFSSL* ssl)
 
         #ifdef WOLFSSL_DTLS
             if (IsDtlsNotSctpMode(ssl)) {
-                ret = DtlsPoolSave(ssl, output, sendSz);
+                ret = DtlsMsgPoolSave(ssl, output, sendSz);
             }
         #endif
 
@@ -16379,7 +16384,7 @@ int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         ssl->buffers.outputBuffer.length += sendSz;
         #ifdef WOLFSSL_DTLS
             if (IsDtlsNotSctpMode(ssl)) {
-                if ((ret = DtlsPoolSave(ssl, output, sendSz)) != 0)
+                if ((ret = DtlsMsgPoolSave(ssl, output, sendSz)) != 0)
                     return ret;
             }
 
@@ -17713,7 +17718,7 @@ int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
             #ifdef WOLFSSL_DTLS
                 if (IsDtlsNotSctpMode(ssl)) {
-                    if ((ret = DtlsPoolSave(ssl, output, sendSz)) != 0) {
+                    if ((ret = DtlsMsgPoolSave(ssl, output, sendSz)) != 0) {
                         goto exit_sske;
                     }
                 }
@@ -18935,7 +18940,7 @@ int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
         #ifdef WOLFSSL_DTLS
             if (IsDtlsNotSctpMode(ssl)) {
-                if ((ret = DtlsPoolSave(ssl, output, sendSz)) != 0)
+                if ((ret = DtlsMsgPoolSave(ssl, output, sendSz)) != 0)
                     return 0;
             }
 
@@ -19157,7 +19162,7 @@ int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
         #ifdef WOLFSSL_DTLS
         if (ssl->options.dtls) {
-            if ((ret = DtlsPoolSave(ssl, output, sendSz)) != 0)
+            if ((ret = DtlsMsgPoolSave(ssl, output, sendSz)) != 0)
                 return ret;
 
             DtlsSEQIncrement(ssl, CUR_ORDER);
