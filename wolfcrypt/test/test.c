@@ -8552,8 +8552,13 @@ int pkcs7enveloped_test(void)
         0x72,0x6c,0x64
     };
 
-    pkcs7EnvelopedVector a, b, c, d;
+    pkcs7EnvelopedVector a;
+#ifndef NO_AES
+    pkcs7EnvelopedVector b, c, d;
     pkcs7EnvelopedVector test_pkcs7env[4];
+#else
+    pkcs7EnvelopedVector test_pkcs7env[1];
+#endif
     int times = sizeof(test_pkcs7env) / sizeof(pkcs7EnvelopedVector), i;
 
     /* read client cert and key in DER format */
@@ -8602,6 +8607,7 @@ int pkcs7enveloped_test(void)
     a.privateKeySz = (word32)privKeySz;
     a.outFileName  = "pkcs7envelopedDataDES3.der";
 
+#ifndef NO_AES
     b.content      = data;
     b.contentSz    = (word32)sizeof(data);
     b.contentOID   = DATA;
@@ -8625,11 +8631,14 @@ int pkcs7enveloped_test(void)
     d.privateKey   = privKey;
     d.privateKeySz = (word32)privKeySz;
     d.outFileName  = "pkcs7envelopedDataAES256CBC.der";
+#endif
 
     test_pkcs7env[0] = a;
+#ifndef NO_AES
     test_pkcs7env[1] = b;
     test_pkcs7env[2] = c;
     test_pkcs7env[3] = d;
+#endif
 
     for (i = 0; i < times; i++) {
         pkcs7.content     = (byte*)test_pkcs7env[i].content;
