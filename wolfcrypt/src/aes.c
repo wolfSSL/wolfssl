@@ -204,8 +204,7 @@ void wc_AesAsyncFree(Aes* aes)
 #if defined(STM32F2_CRYPTO) || defined(STM32F4_CRYPTO)
      /* STM32F2/F4 hardware AES support for CBC, CTR modes */
 
-#if defined(HAVE_AES_CBC) || defined(WOLFSSL_AES_DIRECT) ||\
-    defined(HAVE_AESGCM)
+#if defined(WOLFSSL_AES_DIRECT) || defined(HAVE_AESGCM) || defined(HAVE_AESCCM)
     static int wc_AesEncrypt(Aes* aes, const byte* inBlock, byte* outBlock)
     {
         int ret = 0;
@@ -322,10 +321,10 @@ void wc_AesAsyncFree(Aes* aes)
     #endif /* WOLFSSL_STM32_CUBEMX */
         return ret;
     }
-#endif /* AES_CBC or AES_DIRECT or AESGCM */
+#endif /* WOLFSSL_AES_DIRECT || HAVE_AESGCM || HAVE_AESCCM */
 
 #ifdef HAVE_AES_DECRYPT
-    #if defined(HAVE_AES_CBC) || defined(WOLFSSL_AES_DIRECT)
+    #if defined(WOLFSSL_AES_DIRECT) || defined(HAVE_AESGCM)
     static int wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
     {
         int ret = 0;
@@ -365,7 +364,7 @@ void wc_AesAsyncFree(Aes* aes)
     #endif /* WOLFSSL_STM32_CUBEMX */
         return ret;
     }
-    #endif /* AES_CBC or AES_DIRECT */
+    #endif /* WOLFSSL_AES_DIRECT || HAVE_AESGCM */
 #endif /* HAVE_AES_DECRYPT */
 
 #elif defined(HAVE_COLDFIRE_SEC)
