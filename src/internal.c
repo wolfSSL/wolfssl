@@ -3644,13 +3644,11 @@ void SSL_ResourceFree(WOLFSSL* ssl)
     if (ssl->buffers.outputBuffer.dynamicFlag)
         ShrinkOutputBuffer(ssl);
 #ifdef WOLFSSL_DTLS
-    if (ssl->dtls_tx_msg_list != NULL) {
-        DtlsMsgListDelete(ssl->dtls_tx_msg_list, ssl->heap);
-        ssl->dtls_tx_msg_list = NULL;
-    }
-    if (ssl->dtls_msg_list != NULL) {
-        DtlsMsgListDelete(ssl->dtls_msg_list, ssl->heap);
-        ssl->dtls_msg_list = NULL;
+    DtlsMsgPoolReset(ssl);
+    if (ssl->dtls_rx_msg_list != NULL) {
+        DtlsMsgListDelete(ssl->dtls_rx_msg_list, ssl->heap);
+        ssl->dtls_rx_msg_list = NULL;
+        ssl->dtls_rx_msg_list_sz = 0;
     }
     XFREE(ssl->buffers.dtlsCtx.peer.sa, ssl->heap, DYNAMIC_TYPE_SOCKADDR);
     ssl->buffers.dtlsCtx.peer.sa = NULL;
@@ -3813,10 +3811,10 @@ void FreeHandshakeResources(WOLFSSL* ssl)
 #ifdef WOLFSSL_DTLS
     /* DTLS_POOL */
     if (ssl->options.dtls) {
-        DtlsMsgListDelete(ssl->dtls_tx_msg_list, ssl->heap);
-        ssl->dtls_tx_msg_list = NULL;
-        DtlsMsgListDelete(ssl->dtls_msg_list, ssl->heap);
-        ssl->dtls_msg_list = NULL;
+        DtlsMsgPoolReset(ssl);
+        DtlsMsgListDelete(ssl->dtls_rx_msg_list, ssl->heap);
+        ssl->dtls_rx_msg_list = NULL;
+        ssl->dtls_rx_msg_list_sz = 0;
     }
 #endif
 
@@ -4230,10 +4228,9 @@ DtlsMsg* DtlsMsgFind(DtlsMsg* head, word32 seq)
 }
 
 
-DtlsMsg* DtlsMsgStore(DtlsMsg* head, word32 seq, const byte* data,
+void DtlsMsgStore(WOLFSSL* ssl, word32 seq, const byte* data,
         word32 dataSz, byte type, word32 fragOffset, word32 fragSz, void* heap)
 {
-
     /* See if seq exists in the list. If it isn't in the list, make
      * a new item of size dataSz, copy fragSz bytes from data to msg->msg
      * starting at offset fragOffset, and add fragSz to msg->fragSz. If
@@ -4251,6 +4248,8 @@ DtlsMsg* DtlsMsgStore(DtlsMsg* head, word32 seq, const byte* data,
      *    belongs without overlaps.
      */
 
+    DtlsMsg* head = ssl->dtls_rx_msg_list;
+
     if (head != NULL) {
         DtlsMsg* cur = DtlsMsgFind(head, seq);
         if (cur == NULL) {
@@ -4259,9 +4258,11 @@ DtlsMsg* DtlsMsgStore(DtlsMsg* head, word32 seq, const byte* data,
                 if (DtlsMsgSet(cur, seq, data, type,
                                                 fragOffset, fragSz, heap) < 0) {
                     DtlsMsgDelete(cur, heap);
-                    return head;
                 }
-                head = DtlsMsgInsert(head, cur);
+                else {
+                    ssl->dtls_rx_msg_list_sz++;
+                    head = DtlsMsgInsert(head, cur);
+                }
             }
         }
         else {
@@ -4273,11 +4274,14 @@ DtlsMsg* DtlsMsgStore(DtlsMsg* head, word32 seq, const byte* data,
         head = DtlsMsgNew(dataSz, heap);
         if (DtlsMsgSet(head, seq, data, type, fragOffset, fragSz, heap) < 0) {
             DtlsMsgDelete(head, heap);
-            return NULL;
+            head = NULL;
+        }
+        else {
+            ssl->dtls_rx_msg_list_sz++;
         }
     }
 
-    return head;
+    ssl->dtls_rx_msg_list = head;
 }
 
 
@@ -4318,6 +4322,9 @@ int DtlsMsgPoolSave(WOLFSSL* ssl, const byte* data, word32 dataSz)
     DtlsMsg* item;
     int ret = 0;
 
+    if (ssl->dtls_tx_msg_list_sz > DTLS_POOL_SZ)
+        return DTLS_POOL_SZ_E;
+
     item = DtlsMsgNew(dataSz, ssl->heap);
 
     if (item != NULL) {
@@ -4334,6 +4341,7 @@ int DtlsMsgPoolSave(WOLFSSL* ssl, const byte* data, word32 dataSz)
                 cur = cur->next;
             cur->next = item;
         }
+        ssl->dtls_tx_msg_list_sz++;
     }
     else
         ret = MEMORY_E;
@@ -4358,9 +4366,12 @@ int DtlsMsgPoolTimeout(WOLFSSL* ssl)
  * value. */
 void DtlsMsgPoolReset(WOLFSSL* ssl)
 {
-    DtlsMsgListDelete(ssl->dtls_tx_msg_list, ssl->heap);
-    ssl->dtls_tx_msg_list = NULL;
-    ssl->dtls_timeout = ssl->dtls_timeout_init;
+    if (ssl->dtls_tx_msg_list) {
+        DtlsMsgListDelete(ssl->dtls_tx_msg_list, ssl->heap);
+        ssl->dtls_tx_msg_list = NULL;
+        ssl->dtls_tx_msg_list_sz = 0;
+        ssl->dtls_timeout = ssl->dtls_timeout_init;
+    }
 }
 
 
@@ -4368,7 +4379,7 @@ int VerifyForDtlsMsgPoolSend(WOLFSSL* ssl, byte type, word32 fragOffset)
 {
     /**
      * only the first message from previous flight should be valid
-     * to be used for triggering retransmission of whole DtlsPool.
+     * to be used for triggering retransmission of whole DtlsMsgPool.
      * change cipher suite type is not verified here
      */
     return ((fragOffset == 0) &&
@@ -7938,7 +7949,7 @@ static INLINE int DtlsUpdateWindow(WOLFSSL* ssl)
 
 static int DtlsMsgDrain(WOLFSSL* ssl)
 {
-    DtlsMsg* item = ssl->dtls_msg_list;
+    DtlsMsg* item = ssl->dtls_rx_msg_list;
     int ret = 0;
 
     /* While there is an item in the store list, and it is the expected
@@ -7952,9 +7963,10 @@ static int DtlsMsgDrain(WOLFSSL* ssl)
         ssl->keys.dtls_expected_peer_handshake_number++;
         ret = DoHandShakeMsgType(ssl, item->msg,
                                  &idx, item->type, item->sz, item->sz);
-        ssl->dtls_msg_list = item->next;
+        ssl->dtls_rx_msg_list = item->next;
         DtlsMsgDelete(item, ssl->heap);
-        item = ssl->dtls_msg_list;
+        item = ssl->dtls_rx_msg_list;
+        ssl->dtls_rx_msg_list_sz--;
     }
 
     return ret;
@@ -7998,10 +8010,11 @@ static int DoDtlsHandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
          * the client could be sending multiple new client hello messages
          * with newer and newer cookies.) */
         if (type != client_hello) {
-            ssl->dtls_msg_list = DtlsMsgStore(ssl->dtls_msg_list,
-                            ssl->keys.dtls_peer_handshake_number,
-                            input + *inOutIdx, size, type,
-                            fragOffset, fragSz, ssl->heap);
+            if (ssl->dtls_rx_msg_list_sz < DTLS_POOL_SZ) {
+                DtlsMsgStore(ssl, ssl->keys.dtls_peer_handshake_number,
+                             input + *inOutIdx, size, type,
+                             fragOffset, fragSz, ssl->heap);
+            }
             *inOutIdx += fragSz;
             ret = 0;
         }
@@ -8030,16 +8043,18 @@ static int DoDtlsHandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
         }
     }
     else if (fragSz < size) {
-        /* Since this branch is in order, but fragmented, dtls_msg_list will be
-         * pointing to the message with this fragment in it. Check it to see
+        /* Since this branch is in order, but fragmented, dtls_rx_msg_list will
+         * be pointing to the message with this fragment in it. Check it to see
          * if it is completed. */
-        ssl->dtls_msg_list = DtlsMsgStore(ssl->dtls_msg_list,
-                        ssl->keys.dtls_peer_handshake_number, input + *inOutIdx,
-                        size, type, fragOffset, fragSz, ssl->heap);
+        if (ssl->dtls_rx_msg_list_sz < DTLS_POOL_SZ) {
+            DtlsMsgStore(ssl, ssl->keys.dtls_peer_handshake_number,
+                         input + *inOutIdx, size, type,
+                         fragOffset, fragSz, ssl->heap);
+        }
         *inOutIdx += fragSz;
         ret = 0;
-        if (ssl->dtls_msg_list != NULL &&
-            ssl->dtls_msg_list->fragSz >= ssl->dtls_msg_list->sz)
+        if (ssl->dtls_rx_msg_list != NULL &&
+            ssl->dtls_rx_msg_list->fragSz >= ssl->dtls_rx_msg_list->sz)
             ret = DtlsMsgDrain(ssl);
     }
     else {
@@ -8047,7 +8062,7 @@ static int DoDtlsHandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
         ret = DoHandShakeMsgType(ssl, input, inOutIdx, type, size, totalSz);
         if (ret == 0) {
             ssl->keys.dtls_expected_peer_handshake_number++;
-            if (ssl->dtls_msg_list != NULL) {
+            if (ssl->dtls_rx_msg_list != NULL) {
                 ret = DtlsMsgDrain(ssl);
             }
         }
@@ -11625,6 +11640,9 @@ const char* wolfSSL_ERR_reason_error_string(unsigned long e)
 
     case EXT_MASTER_SECRET_NEEDED_E:
         return "Extended Master Secret must be enabled to resume EMS session";
+
+    case DTLS_POOL_SZ_E:
+        return "Maximum DTLS pool size exceeded";
 
     default :
         return "unknown error number";
