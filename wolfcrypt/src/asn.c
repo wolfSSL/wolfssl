@@ -1449,9 +1449,9 @@ int wc_CheckPrivateKey(byte* key, word32 keySz, DecodedCert* der)
         int    ret    = 0;
 
         /* test if RSA key */
-        if (wc_InitRsaKey(&a, NULL) == 0) {
-            if (wc_RsaPrivateKeyDecode(key, &keyIdx, &a, keySz) == 0 &&
-                der->keyOID == RSAk) {
+        if (der->keyOID == RSAk) {
+            if (wc_InitRsaKey(&a, NULL) == 0 &&
+                wc_RsaPrivateKeyDecode(key, &keyIdx, &a, keySz) == 0) {
                 WOLFSSL_MSG("Checking RSA key pair");
                 keyIdx = 0; /* reset to 0 for parsing public key */
 
@@ -1499,9 +1499,9 @@ int wc_CheckPrivateKey(byte* key, word32 keySz, DecodedCert* der)
         word32  keyIdx = 0;
         ecc_key key_pair;
 
-        if ((ret = wc_ecc_init(&key_pair)) == 0) {
-            if (wc_EccPrivateKeyDecode(key, &keyIdx, &key_pair, keySz) == 0 &&
-                    der->keyOID == ECDSAk) {
+        if (der->keyOID == ECDSAk) {
+            if ((ret = wc_ecc_init(&key_pair)) == 0 &&
+                wc_EccPrivateKeyDecode(key, &keyIdx, &key_pair, keySz) == 0) {
                 WOLFSSL_MSG("Checking ECC key pair");
                 keyIdx = 0;
                 if ((ret = wc_ecc_import_x963(der->publicKey, der->pubKeySize,

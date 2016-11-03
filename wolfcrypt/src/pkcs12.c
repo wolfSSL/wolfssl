@@ -42,10 +42,73 @@
 #include <wolfssl/wolfcrypt/pkcs12.h>
 #include <wolfssl/wolfcrypt/pwdbased.h>
 
+
+enum {
+    WC_PKCS12_KeyBag = 667,
+    WC_PKCS12_ShroudedKeyBag = 668,
+    WC_PKCS12_CertBag = 669,
+    WC_PKCS12_CertBag_Type1 = 675,
+    WC_PKCS12_CrlBag = 670,
+    WC_PKCS12_SecretBag = 671,
+    WC_PKCS12_SafeContentsBag = 672,
+    WC_PKCS12_DATA = 651,
+    WC_PKCS12_ENCRYPTED_DATA = 656,
+};
+
+typedef struct ContentInfo ContentInfo;
+typedef struct ContentInfo {
+    byte* data;
+    ContentInfo* next;
+    word32 encC;  /* encryptedContent */
+    word32 dataSz;
+    int type; /* DATA / encrypted / envelpoed */
+} ContentInfo;
+
+
+typedef struct AuthenticatedSafe {
+    ContentInfo* CI;
+    byte* data; /* T contents.... */
+    word32 oid; /* encrypted or not */
+    word32 numCI; /* number of Content Info structs */
+    word32 dataSz;
+} AuthenticatedSafe;
+
+
+typedef struct MacData {
+    byte* digest;
+    byte* salt;
+    word32 oid;
+    word32 digestSz;
+    word32 saltSz;
+    int itt; /* number of itterations when creating HMAC key */
+} MacData;
+
+
+typedef struct WC_PKCS12 {
+    void* heap;
+    AuthenticatedSafe* safe;
+    MacData* signData;
+    word32 oid; /* DATA / Enveloped DATA ... */
+} WC_PKCS12;
+
+
+/* for friendlyName, localKeyId .... */
+typedef struct WC_PKCS12_ATTRIBUTE {
+    byte* data;
+    word32 oid;
+    word32 dataSz;
+} WC_PKCS12_ATTRIBUTE;
+
+
 WC_PKCS12* wc_PKCS12_new(void)
 {
     WC_PKCS12* pkcs12 = (WC_PKCS12*)XMALLOC(sizeof(WC_PKCS12),
                                                       NULL, DYNAMIC_TYPE_PKCS);
+    if (pkcs12 == NULL) {
+        WOLFSSL_MSG("Memory issue when creating WC_PKCS12 struct");
+        return NULL;
+    }
+
     XMEMSET(pkcs12, 0, sizeof(WC_PKCS12));
 
     return pkcs12;
@@ -567,9 +630,9 @@ int wc_d2i_PKCS12(const byte* der, word32 derSz, WC_PKCS12* pkcs12)
 }
 
 
-/* helper function to free DerCertList */
-static void freeCertList(DerCertList* list, void* heap) {
-    DerCertList* current;
+/* helper function to free WC_DerCertList */
+static void freeCertList(WC_DerCertList* list, void* heap) {
+    WC_DerCertList* current;
 
     if (list == NULL) {
         return;
@@ -577,7 +640,7 @@ static void freeCertList(DerCertList* list, void* heap) {
 
     current = list;
     while(current != NULL) {
-        DerCertList* next = current->next;
+        WC_DerCertList* next = current->next;
         if (current->buffer != NULL) {
             XFREE(current->buffer, heap, DYNAMIC_TYPE_PKCS);
         }
@@ -616,10 +679,10 @@ static void freeBuffers(byte* a, byte* b, void* heap)
  */
 int wc_PKCS12_parse(WC_PKCS12* pkcs12, const char* psw,
         byte** pkey, word32* pkeySz, byte** cert, word32* certSz,
-        DerCertList** ca)
+        WC_DerCertList** ca)
 {
     ContentInfo* ci       = NULL;
-    DerCertList* certList = NULL;
+    WC_DerCertList* certList = NULL;
     byte* buf             = NULL;
     word32 i, oid;
     int ret, pswSz;
@@ -885,7 +948,7 @@ int wc_PKCS12_parse(WC_PKCS12* pkcs12, const char* psw,
 
                 case WC_PKCS12_CertBag: /* 669 */
                 {
-                    DerCertList* node;
+                    WC_DerCertList* node;
                     WOLFSSL_MSG("PKCS12 Cert Bag found");
                     if (data[idx++] !=
                                      (ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC)) {
@@ -952,14 +1015,14 @@ int wc_PKCS12_parse(WC_PKCS12* pkcs12, const char* psw,
                     }
 
                     /* list to hold all certs found */
-                    node = (DerCertList*)XMALLOC(sizeof(DerCertList),
+                    node = (WC_DerCertList*)XMALLOC(sizeof(WC_DerCertList),
                                                pkcs12->heap, DYNAMIC_TYPE_PKCS);
                     if (node == NULL) {
                         freeBuffers(*pkey, buf, pkcs12->heap);
                         freeCertList(certList, pkcs12->heap);
                         return MEMORY_E;
                     }
-                    XMEMSET(node, 0, sizeof(DerCertList));
+                    XMEMSET(node, 0, sizeof(WC_DerCertList));
 
                     node->buffer = (byte*)XMALLOC(size, pkcs12->heap,
                                                              DYNAMIC_TYPE_PKCS);
@@ -1020,8 +1083,8 @@ int wc_PKCS12_parse(WC_PKCS12* pkcs12, const char* psw,
 
     /* check if key pair, remove from list */
     {
-        DerCertList* current  = certList;
-        DerCertList* previous = NULL;
+        WC_DerCertList* current  = certList;
+        WC_DerCertList* previous = NULL;
 
         if (*pkey != NULL) {
 
@@ -1076,6 +1139,17 @@ int wc_PKCS12_SetHeap(WC_PKCS12* pkcs12, void* heap)
     pkcs12->heap = heap;
 
     return 0;
+}
+
+
+/* getter for heap */
+void* wc_PKCS12_GetHeap(WC_PKCS12* pkcs12)
+{
+    if (pkcs12 == NULL) {
+        return NULL;
+    }
+
+    return pkcs12->heap;
 }
 
 #endif /* !defined(NO_ASN) && !defined(NO_PWDBASED) */
