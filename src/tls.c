@@ -3163,16 +3163,29 @@ static int TLSX_SecureRenegotiation_Parse(WOLFSSL* ssl, byte* input,
                     ret = 0;
                 }
             }
-            else if (*input == 2 * TLS_FINISHED_SZ) {
-                /* TODO compare client_verify_data and server_verify_data */
-                ret = 0;
+            else if (*input == 2 * TLS_FINISHED_SZ &&
+                     length == 2 * TLS_FINISHED_SZ + OPAQUE8_LEN) {
+                input++;  /* get past size */
+
+                /* validate client and server verify data */
+                if (XMEMCMP(input,
+                            ssl->secure_renegotiation->client_verify_data,
+                            TLS_FINISHED_SZ) == 0 &&
+                    XMEMCMP(input + TLS_FINISHED_SZ,
+                            ssl->secure_renegotiation->server_verify_data,
+                            TLS_FINISHED_SZ) == 0) {
+                    WOLFSSL_MSG("SCR client and server verify data match");
+                    ret = 0;  /* verified */
+                } else {
+                    /* already in error state */
+                    WOLFSSL_MSG("SCR client and server verify data Failure");
+                }
             }
         #endif
         }
     }
 
     if (ret != 0) {
-        /* TODO: turn on fatal error at ssl level too */
         SendAlert(ssl, alert_fatal, handshake_failure);
     }
 

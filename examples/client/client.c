@@ -1520,8 +1520,10 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     }
     else if (input < 0) {
         int readErr = wolfSSL_get_error(ssl, 0);
-        if (readErr != SSL_ERROR_WANT_READ)
+        if (readErr != SSL_ERROR_WANT_READ) {
+            printf("wolfSSL_read error %d!\n", readErr);
             err_sys("wolfSSL_read failed");
+        }
     }
 
 #ifndef NO_SESSION_CACHE
@@ -1687,8 +1689,10 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
         }
     } else if (input < 0) {
         int readErr = wolfSSL_get_error(ssl, 0);
-        if (readErr != SSL_ERROR_WANT_READ)
+        if (readErr != SSL_ERROR_WANT_READ) {
+            printf("wolfSSL_read error %d!\n", readErr);
             err_sys("wolfSSL_read failed");
+        }
     }
 
         /* try to send session break */
