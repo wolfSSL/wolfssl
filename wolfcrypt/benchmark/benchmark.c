@@ -128,7 +128,7 @@
     #define INIT_CYCLE_COUNTER do { \
         atr.type   = PERF_TYPE_HARDWARE; \
         atr.config = PERF_COUNT_HW_CPU_CYCLES; \
-        cycles = syscall(__NR_perf_event_open, &atr, 0, -1, -1, 0); \
+        cycles = (int)syscall(__NR_perf_event_open, &atr, 0, -1, -1, 0); \
     } while (0);
 
     #define BEGIN_INTEL_CYCLES read(cycles, &begin_cycles, sizeof(begin_cycles));

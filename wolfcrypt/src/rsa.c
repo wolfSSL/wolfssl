@@ -1535,7 +1535,7 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
     if ((err = mp_init_multi(&p, &q, &tmp1, &tmp2, &tmp3, NULL)) != MP_OKAY)
         return err;
 
-    err = mp_set_int(&tmp3, e);
+    err = mp_set_int(&tmp3, (mp_digit)e);
 
     /* make p */
     if (err == MP_OKAY) {
@@ -1577,7 +1577,7 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
 
     /* make key */
     if (err == MP_OKAY)
-        err = mp_set_int(&key->e, e);  /* key->e = e */
+        err = mp_set_int(&key->e, (mp_digit)e);  /* key->e = e */
 
     if (err == MP_OKAY)                /* key->d = 1/e mod lcm(p-1, q-1) */
         err = mp_invmod(&key->e, &tmp1, &key->d);
