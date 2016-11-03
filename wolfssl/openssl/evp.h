@@ -21,7 +21,7 @@
 
 
 
-/*  evp.h defines mini evp openssl compatibility layer 
+/*  evp.h defines mini evp openssl compatibility layer
  *
  */
 
@@ -164,6 +164,10 @@ typedef struct WOLFSSL_EVP_CIPHER_CTX {
     unsigned char  iv[DES_BLOCK_SIZE];    /* working iv pointer into cipher */
 #endif
     WOLFSSL_Cipher  cipher;
+    byte buf[AES_BLOCK_SIZE];
+    int  bufUsed;
+    byte fin[AES_BLOCK_SIZE];
+    int  finUsed;
 } WOLFSSL_EVP_CIPHER_CTX;
 
 typedef int WOLFSSL_ENGINE  ;
@@ -219,8 +223,11 @@ WOLFSSL_API int  wolfSSL_EVP_DecryptInit_ex(WOLFSSL_EVP_CIPHER_CTX* ctx,
                                     const WOLFSSL_EVP_CIPHER* type,
                                     WOLFSSL_ENGINE *impl,
                                     unsigned char* key, unsigned char* iv);
+WOLFSSL_API int wolfSSL_EVP_CipherUpdate(WOLFSSL_EVP_CIPHER_CTX *ctx,
+                                   unsigned char *out, int *outl,
+                                   const unsigned char *in, int inl);
 WOLFSSL_API int  wolfSSL_EVP_CipherFinal(WOLFSSL_EVP_CIPHER_CTX *ctx,
-                                   unsigned char *out, int *outl, int enc);
+                                   unsigned char *out, int *outl);
 WOLFSSL_API int  wolfSSL_EVP_CipherFinal_ex(WOLFSSL_EVP_CIPHER_CTX *ctx,
                                    unsigned char *out, int *outl, int enc);
 WOLFSSL_API int  wolfSSL_EVP_EncryptFinal(WOLFSSL_EVP_CIPHER_CTX *ctx,
@@ -260,6 +267,7 @@ WOLFSSL_API int  wolfSSL_SetInternalIV(WOLFSSL_EVP_CIPHER_CTX* ctx);
 WOLFSSL_API int wolfSSL_EVP_CIPHER_CTX_block_size(const WOLFSSL_EVP_CIPHER_CTX *ctx);
 WOLFSSL_API int wolfSSL_EVP_CIPHER_block_size(const WOLFSSL_EVP_CIPHER *cipher);
 WOLFSSL_API unsigned long WOLFSSL_EVP_CIPHER_mode(const WOLFSSL_EVP_CIPHER *cipher);
+WOLFSSL_API unsigned long WOLFSSL_CIPHER_mode(const WOLFSSL_EVP_CIPHER *cipher);
 WOLFSSL_API unsigned long wolfSSL_EVP_CIPHER_flags(const WOLFSSL_EVP_CIPHER *cipher);
 WOLFSSL_API void wolfSSL_EVP_CIPHER_CTX_set_flags(WOLFSSL_EVP_CIPHER_CTX *ctx, int flags);
 WOLFSSL_API int  wolfSSL_EVP_CIPHER_CTX_set_padding(WOLFSSL_EVP_CIPHER_CTX *c, int pad);
@@ -326,13 +334,22 @@ typedef WOLFSSL_EVP_CIPHER_CTX EVP_CIPHER_CTX;
 #define EVP_CIPHER_CTX_key_length     wolfSSL_EVP_CIPHER_CTX_key_length
 #define EVP_CIPHER_CTX_set_key_length wolfSSL_EVP_CIPHER_CTX_set_key_length
 #define EVP_CipherInit                wolfSSL_EVP_CipherInit
-#define EVP_CipherInit_ex             wolfSSL_EVP_CipherInit_ex
+#define EVP_CipherInit_ex             wolfSSL_EVP_CipherInit
 #define EVP_EncryptInit               wolfSSL_EVP_EncryptInit
 #define EVP_EncryptInit_ex            wolfSSL_EVP_EncryptInit_ex
 #define EVP_DecryptInit               wolfSSL_EVP_DecryptInit
 #define EVP_DecryptInit_ex            wolfSSL_EVP_DecryptInit_ex
 
 #define EVP_Cipher                    wolfSSL_EVP_Cipher
+#define EVP_CipherUpdate              wolfSSL_EVP_CipherUpdate
+#define EVP_EncryptUpdate             wolfSSL_EVP_CipherUpdate
+#define EVP_DecryptUpdate             wolfSSL_EVP_CipherUpdate
+#define EVP_CipherFinal               wolfSSL_EVP_CipherFinal
+#define EVP_CipherFinal_ex            wolfSSL_EVP_CipherFinal
+#define EVP_EncryptFinal              wolfSSL_EVP_CipherFinal
+#define EVP_EncryptFinal_ex           wolfSSL_EVP_CipherFinal
+#define EVP_DecryptFinal              wolfSSL_EVP_CipherFinal
+#define EVP_DecryptFinal_ex           wolfSSL_EVP_CipherFinal
 
 #define EVP_get_digestbynid           wolfSSL_EVP_get_digestbynid
 

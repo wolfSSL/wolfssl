@@ -463,16 +463,23 @@ typedef WOLFSSL_X509_NAME_ENTRY X509_NAME_ENTRY;
 #define PEM_read_bio_DHparams wolfSSL_PEM_read_bio_DHparams
 #define PEM_write_bio_X509 PEM_write_bio_WOLFSSL_X509
 #define SSL_CTX_set_tmp_dh wolfSSL_CTX_set_tmp_dh
-#define BIO_new_file wolfSSL_BIO_new_file
-
 
 #endif /* HAVE_STUNNEL || HAVE_LIGHTY || WOLFSSL_MYSQL_COMPATIBLE */
+
+#define BIO_new_file        wolfSSL_BIO_new_file
+#define BIO_ctrl            wolfSSL_BIO_ctrl
+#define BIO_ctrl_pending    wolfSSL_BIO_ctrl_pending
+#define BIO_get_mem_ptr(b,pp)   wolfSSL_BIO_ctrl(b,BIO_C_GET_BUF_MEM_PTR,0,(char *)pp)
+#define BIO_int_ctrl        wolfSSL_BIO_int_ctrl
+#define BIO_reset(b)   (int)wolfSSL_BIO_ctrl(b,BIO_CTRL_RESET,0,NULL)
+#define BIO_s_socket        wolfSSL_BIO_s_socket
+#define BIO_set_fd(b,fd,c)  wolfSSL_BIO_int_ctrl(b,BIO_C_SET_FD,c,fd)
 
 #ifdef HAVE_STUNNEL
 #include <wolfssl/openssl/asn1.h>
 
 /* defined as: (SSL_ST_ACCEPT|SSL_CB_LOOP), which becomes 0x2001*/
-#define SSL_CB_ACCEPT_LOOP               0x2001 
+#define SSL_CB_ACCEPT_LOOP               0x2001
 #define SSL2_VERSION                     0x0002
 #define SSL3_VERSION                     0x0300
 #define TLS1_VERSION                     0x0301

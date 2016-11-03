@@ -10102,6 +10102,8 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
             WOLFSSL_MSG("no type set");
             return 0;   /* failure */
         }
+        ctx->bufUsed = 0;
+        ctx->finUsed = 0;
 
 #ifndef NO_AES
         printf("cipherType=%d\n", ctx->cipherType);
@@ -18775,6 +18777,10 @@ void* wolfSSL_get_ex_data(const WOLFSSL* ssl, int idx)
 #endif
     return 0;
 }
+
+
+#include "src/bio.c"
+
 #endif /* OPENSSL_EXTRA */
 
 
