@@ -90,6 +90,9 @@ typedef WOLFSSL_X509_REVOKED   X509_REVOKED;
 typedef WOLFSSL_X509_OBJECT    X509_OBJECT;
 typedef WOLFSSL_X509_STORE_CTX X509_STORE_CTX;
 
+#define CRYPTO_free   XFREE
+#define CRYPTO_malloc XMALLOC
+
 #define SSL_get_cipher_list(ctx,i)          wolfSSL_get_cipher_list((i))
 #define SSL_get_cipher_name(ctx)            wolfSSL_get_cipher((ctx))
 #define SSL_get_shared_ciphers(ctx,buf,len) \

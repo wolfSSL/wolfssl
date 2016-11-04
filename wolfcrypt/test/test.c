@@ -6311,6 +6311,14 @@ int openssl_test(void)
     (void)e;
     (void)f;
 
+    /* test malloc / free , 10 is an arbitrary amount of memory chosen */
+    {
+        byte* p;
+        p = (byte*)CRYPTO_malloc(10, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        XMEMSET(p, 0, 10);
+        CRYPTO_free(p, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+
 #ifndef NO_MD5
 
     a.input  = "1234567890123456789012345678901234567890123456789012345678"
