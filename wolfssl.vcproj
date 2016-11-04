@@ -260,6 +260,10 @@
 				>
 			</File>
 			<File
+				RelativePath=".\wolfcrypt\src\pkcs12.c"
+				>
+			</File>
+			<File
 				RelativePath=".\wolfcrypt\src\poly1305.c"
 				>
 			</File>

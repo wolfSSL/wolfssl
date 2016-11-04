@@ -156,6 +156,7 @@ endif
 
 if BUILD_PWDBASED
 src_libwolfssl_la_SOURCES += wolfcrypt/src/pwdbased.c
+src_libwolfssl_la_SOURCES += wolfcrypt/src/pkcs12.c
 endif
 
 if BUILD_DSA

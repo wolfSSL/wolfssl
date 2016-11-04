@@ -70,6 +70,7 @@ typedef struct WOLFSSL_SESSION  WOLFSSL_SESSION;
 typedef struct WOLFSSL_METHOD   WOLFSSL_METHOD;
 typedef struct WOLFSSL_CTX      WOLFSSL_CTX;
 
+typedef struct WOLFSSL_STACK      WOLFSSL_STACK;
 typedef struct WOLFSSL_X509       WOLFSSL_X509;
 typedef struct WOLFSSL_X509_NAME  WOLFSSL_X509_NAME;
 typedef struct WOLFSSL_X509_NAME_ENTRY  WOLFSSL_X509_NAME_ENTRY;
@@ -422,7 +423,11 @@ WOLFSSL_API const char* wolfSSL_ERR_reason_error_string(unsigned long);
 
 /* extras */
 
-#define STACK_OF(x) x
+#define STACK_OF(x) WOLFSSL_STACK
+WOLFSSL_API int wolfSSL_sk_X509_push(STACK_OF(WOLFSSL_X509_NAME)* sk,
+                                                            WOLFSSL_X509* x509);
+WOLFSSL_API WOLFSSL_X509* wolfSSL_sk_X509_pop(STACK_OF(WOLFSSL_X509_NAME)* sk);
+WOLFSSL_API void wolfSSL_sk_X509_free(STACK_OF(WOLFSSL_X509_NAME)* sk);
 
 WOLFSSL_API int  wolfSSL_set_ex_data(WOLFSSL*, int, void*);
 WOLFSSL_API int  wolfSSL_get_shutdown(const WOLFSSL*);
@@ -981,6 +986,18 @@ WOLFSSL_API WOLFSSL_X509* wolfSSL_X509_load_certificate_buffer(
 
 /* connect enough to get peer cert */
 WOLFSSL_API int  wolfSSL_connect_cert(WOLFSSL* ssl);
+
+
+
+/* PKCS12 compatibility */
+typedef struct WC_PKCS12 WC_PKCS12;
+WOLFSSL_API WC_PKCS12* wolfSSL_d2i_PKCS12_bio(WOLFSSL_BIO* bio,
+                                       WC_PKCS12** pkcs12);
+WOLFSSL_API int wolfSSL_PKCS12_parse(WC_PKCS12* pkcs12, const char* psw,
+     WOLFSSL_EVP_PKEY** pkey, WOLFSSL_X509** cert, STACK_OF(WOLFSSL_X509)** ca);
+WOLFSSL_API void wolfSSL_PKCS12_PBE_add(void);
+
+
 
 #ifndef NO_DH
 /* server Diffie-Hellman parameters */
@@ -1778,8 +1795,9 @@ WOLFSSL_API char* wolfSSL_ASN1_TIME_to_string(WOLFSSL_ASN1_TIME* time,
                                                             char* buf, int len);
 #endif /* WOLFSSL_MYSQL_COMPATIBLE */
 
-#ifdef OPENSSL_EXTRA /*lighttp compatibility */
+#ifdef OPENSSL_EXTRA
 
+ /*lighttp compatibility */
 #include <wolfssl/openssl/asn1.h>
 struct WOLFSSL_X509_NAME_ENTRY {
     WOLFSSL_ASN1_OBJECT* object; /* not defined yet */

@@ -149,6 +149,7 @@ mplabx/wolfcrypt_test.X/nbproject/Makefile-*
 mplabx/wolfcrypt_test.X/nbproject/Package-default.bash
 mplabx/wolfssl.X/nbproject/Makefile-*
 mplabx/wolfssl.X/nbproject/Package-default.bash
+*.dSYM
 
 # Vagrant folder
 .vagrant/

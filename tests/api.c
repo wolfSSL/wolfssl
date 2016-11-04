@@ -45,6 +45,7 @@
 
 #ifdef OPENSSL_EXTRA
     #include <wolfssl/openssl/ssl.h>
+    #include <wolfssl/openssl/pkcs12.h>
 #endif
 
 /* enable testing buffer load functions */
@@ -1996,6 +1997,83 @@ static void test_wolfSSL_X509_NAME_get_entry(void)
 #endif /* !NO_CERTS */
 }
 
+
+/* Testing functions dealing with PKCS12 parsing out X509 certs */
+static void test_wolfSSL_PKCS12(void)
+{
+    /* .p12 file is encrypted with DES3 */
+#if defined(OPENSSL_EXTRA) && !defined(NO_DES3) && !defined(NO_FILESYSTEM) && \
+    !defined(NO_ASN) && !defined(NO_PWDBASED)
+    byte buffer[5300];
+    char file[] = "./certs/test-servercert.p12";
+    FILE *f;
+    int  bytes, ret;
+    WOLFSSL_BIO      *bio;
+    WOLFSSL_EVP_PKEY *pkey;
+    WC_PKCS12        *pkcs12;
+    WOLFSSL_X509     *cert;
+    WOLFSSL_X509     *tmp;
+    STACK_OF(WOLFSSL_X509) *ca;
+
+    printf(testingFmt, "wolfSSL_PKCS12()");
+
+    f = fopen(file, "rb");
+    AssertNotNull(f);
+    bytes = (int)fread(buffer, 1, sizeof(buffer), f);
+    fclose(f);
+
+    bio = BIO_new_mem_buf((void*)buffer, bytes);
+    AssertNotNull(bio);
+
+    pkcs12 = d2i_PKCS12_bio(bio, NULL);
+    AssertNotNull(pkcs12);
+    PKCS12_free(pkcs12);
+
+    d2i_PKCS12_bio(bio, &pkcs12);
+    AssertNotNull(pkcs12);
+
+    /* check verify MAC fail case */
+    ret = PKCS12_parse(pkcs12, "bad", &pkey, &cert, NULL);
+    AssertIntEQ(ret, 0);
+    AssertNull(pkey);
+    AssertNull(cert);
+
+    /* check parse with no extra certs kept */
+    ret = PKCS12_parse(pkcs12, "wolfSSL test", &pkey, &cert, NULL);
+    AssertIntEQ(ret, 1);
+    AssertNotNull(pkey);
+    AssertNotNull(cert);
+
+    wolfSSL_EVP_PKEY_free(pkey);
+    wolfSSL_X509_free(cert);
+
+    /* check parse with extra certs kept */
+    ret = PKCS12_parse(pkcs12, "wolfSSL test", &pkey, &cert, &ca);
+    AssertIntEQ(ret, 1);
+    AssertNotNull(pkey);
+    AssertNotNull(cert);
+    AssertNotNull(ca);
+
+    /* should be 2 other certs on stack */
+    tmp = sk_X509_pop(ca);
+    AssertNotNull(tmp);
+    X509_free(tmp);
+    tmp = sk_X509_pop(ca);
+    AssertNotNull(tmp);
+    X509_free(tmp);
+    AssertNull(sk_X509_pop(ca));
+
+    EVP_PKEY_free(pkey);
+    X509_free(cert);
+    BIO_free(bio);
+    PKCS12_free(pkcs12);
+    sk_X509_free(ca);
+
+    printf(resultFmt, passed);
+#endif /* OPENSSL_EXTRA */
+}
+
+
 /* Testing function  wolfSSL_CTX_SetMinVersion; sets the minimum downgrade
  * version allowed.
  * POST: 1 on success.
@@ -2155,6 +2233,7 @@ void ApiTest(void)
 
     /* X509 tests */
     test_wolfSSL_X509_NAME_get_entry();
+    test_wolfSSL_PKCS12();
 
     /*OCSP Stapling. */
     AssertIntEQ(test_wolfSSL_UseOCSPStapling(), SSL_SUCCESS);

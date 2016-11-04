@@ -210,6 +210,7 @@ mkdir -p $RPM_BUILD_ROOT/
 %{_includedir}/wolfssl/wolfcrypt/mpi_class.h
 %{_includedir}/wolfssl/wolfcrypt/mpi_superclass.h
 %{_includedir}/wolfssl/wolfcrypt/pkcs7.h
+%{_includedir}/wolfssl/wolfcrypt/pkcs12.h
 %{_includedir}/wolfssl/wolfcrypt/wc_port.h
 %{_includedir}/wolfssl/wolfcrypt/poly1305.h
 %{_includedir}/wolfssl/wolfcrypt/pwdbased.h
@@ -274,6 +275,8 @@ mkdir -p $RPM_BUILD_ROOT/
 %{_libdir}/pkgconfig/wolfssl.pc
 
 %changelog
+* Fri Oct 28 2016 Jacob Barthelmeh <jacob@wolfssl.com>
+- Added header for pkcs12
 * Fri Sep 23 2016 John Safranek <john@wolfssl.com>
 - Add the dtls-sctp example sources
 * Mon Jun 14 2016 Jacob Barthelmeh <jacob@wolfssl.com>

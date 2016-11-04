@@ -735,7 +735,7 @@ int wc_PKCS7_VerifySignedData(PKCS7* pkcs7, byte* pkiMsg, word32 pkiMsgSz)
         return ASN_PARSE_E;
 
     /* Get the version */
-    if (GetMyVersion(pkiMsg, &idx, &version) < 0)
+    if (GetMyVersion(pkiMsg, &idx, &version, pkiMsgSz) < 0)
         return ASN_PARSE_E;
 
     if (version != 1) {
@@ -830,7 +830,7 @@ int wc_PKCS7_VerifySignedData(PKCS7* pkcs7, byte* pkiMsg, word32 pkiMsgSz)
             return ASN_PARSE_E;
 
         /* Get the version */
-        if (GetMyVersion(pkiMsg, &idx, &version) < 0)
+        if (GetMyVersion(pkiMsg, &idx, &version, pkiMsgSz) < 0)
             return ASN_PARSE_E;
 
         if (version != 1) {
@@ -1644,7 +1644,7 @@ WOLFSSL_API int wc_PKCS7_DecodeEnvelopedData(PKCS7* pkcs7, byte* pkiMsg,
     if (GetSequence(pkiMsg, &idx, &length, pkiMsgSz) < 0)
         return ASN_PARSE_E;
 
-    if (GetMyVersion(pkiMsg, &idx, &version) < 0)
+    if (GetMyVersion(pkiMsg, &idx, &version, pkiMsgSz) < 0)
         return ASN_PARSE_E;
 
     if (version != 0) {
@@ -1677,7 +1677,7 @@ WOLFSSL_API int wc_PKCS7_DecodeEnvelopedData(PKCS7* pkcs7, byte* pkiMsg,
             break;
         }
 
-        if (GetMyVersion(pkiMsg, &idx, &version) < 0) {
+        if (GetMyVersion(pkiMsg, &idx, &version, pkiMsgSz) < 0) {
             idx = savedIdx;
             break;
         }
