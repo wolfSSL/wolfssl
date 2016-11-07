@@ -5630,6 +5630,43 @@ int wolfSSL_use_certificate_chain_file(WOLFSSL* ssl, const char* file)
 
 
 
+#if !defined(NO_WOLFSSL_CLIENT)
+/* Return the amount of random bytes copied over or error case.
+ * ssl : ssl struct after handshake
+ * out : buffer to hold random bytes
+ * outSz : either 0 (return max buffer sz) or size of out buffer
+ *
+ * NOTE: wolfSSL_KeepArrays(ssl) must be called to retain handshake information.
+ */
+int wolfSSL_get_client_random(WOLFSSL* ssl, unsigned char* out, int outSz)
+{
+    int size;
+
+    /* return max size of buffer */
+    if (outSz == 0) {
+        return RAN_LEN;
+    }
+
+    if (ssl == NULL || out == NULL || outSz < 0) {
+        return BAD_FUNC_ARG;
+    }
+
+    if (ssl->options.saveArrays == 0 || ssl->arrays == NULL) {
+        WOLFSSL_MSG("Arrays struct not saved after handshake");
+    }
+
+    if (outSz > RAN_LEN) {
+        size = RAN_LEN;
+    }
+    else {
+        size = outSz;
+    }
+
+    XMEMCPY(out, ssl->arrays->clientRandom, size);
+    return size;
+}
+#endif /* !defined(NO_WOLFSSL_CLIENT) */
+
 #ifdef HAVE_ECC
 
 /* Set Temp CTX EC-DHE size in octets, should be 20 - 66 for 160 - 521 bit */

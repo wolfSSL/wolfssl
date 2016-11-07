@@ -1797,7 +1797,12 @@ WOLFSSL_API char* wolfSSL_ASN1_TIME_to_string(WOLFSSL_ASN1_TIME* time,
 
 #ifdef OPENSSL_EXTRA
 
- /*lighttp compatibility */
+WOLFSSL_API int wolfSSL_get_client_random(WOLFSSL* ssl, unsigned char* out,
+                                                                     int outSz);
+
+
+/*lighttp compatibility */
+
 #include <wolfssl/openssl/asn1.h>
 struct WOLFSSL_X509_NAME_ENTRY {
     WOLFSSL_ASN1_OBJECT* object; /* not defined yet */
