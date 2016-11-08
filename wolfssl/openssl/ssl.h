@@ -469,11 +469,77 @@ typedef WOLFSSL_X509_NAME_ENTRY X509_NAME_ENTRY;
 #define BIO_new_file        wolfSSL_BIO_new_file
 #define BIO_ctrl            wolfSSL_BIO_ctrl
 #define BIO_ctrl_pending    wolfSSL_BIO_ctrl_pending
-#define BIO_get_mem_ptr(b,pp)   wolfSSL_BIO_ctrl(b,BIO_C_GET_BUF_MEM_PTR,0,(char *)pp)
+#define BIO_get_mem_ptr     wolfSSL_BIO_get_mem_ptr
 #define BIO_int_ctrl        wolfSSL_BIO_int_ctrl
-#define BIO_reset(b)   (int)wolfSSL_BIO_ctrl(b,BIO_CTRL_RESET,0,NULL)
+#define BIO_reset           wolfSSL_BIO_reset
 #define BIO_s_socket        wolfSSL_BIO_s_socket
-#define BIO_set_fd(b,fd,c)  wolfSSL_BIO_int_ctrl(b,BIO_C_SET_FD,c,fd)
+#define BIO_set_fd          wolfSSL_BBIO_set_fd
+
+#define BIO_set_write_buf_size wolfSSL_BIO_set_write_buf_size
+#define BIO_make_bio_pair   wolfSSL_BIO_make_bio_pair
+
+#define BIO_set_fp          wolfSSL_BIO_set_fp
+#define BIO_get_fp          wolfSSL_BIO_get_fp
+#define BIO_seek            wolfSSL_BIO_seek
+#define BIO_write_filename  wolfSSL_BIO_write_filename
+#define BIO_set_mem_eof_return wolfSSL_BIO_set_mem_eof_return
+
+#define SSL_set_options      wolfSSL_SSL_set_options
+#define SSL_get_options      wolfSSL_SSL_get_options
+#define SSL_set_tmp_dh       wolfSSL_SSL_set_tmp_dh
+#define SSL_clear_num_renegotiations    wolfSSL_SSL_clear_num_renegotiations
+#define SSL_total_renegotiations       wolfSSL_SSSL_total_renegotiations
+#define SSL_set_tlsext_debug_arg        wolfSSL_SSL_set_tlsext_debug_arg
+#define SSL_set_tlsext_status_type      wolfSSL_SSL_set_tlsext_status_type
+#define SSL_set_tlsext_status_exts      wolfSSL_SSL_set_tlsext_status_exts 
+#define SSL_get_tlsext_status_ids       wolfSSL_SSL_get_tlsext_status_ids
+#define SSL_set_tlsext_status_ids       wolfSSL_SSL_set_tlsext_status_ids
+#define SSL_get_tlsext_status_ocsp_resp wolfSSL_SSL_get_tlsext_status_ocsp_resp
+#define SSL_set_tlsext_status_ocsp_resp wolfSSL_SSL_set_tlsext_status_ocsp_resp
+
+#define SSL_CTX_need_tmp_RSA() wolfSSL_SSL_CTX_ctrl(ctx,SSL_CTRL_NEED_TMP_RSA,0,NULL)
+#define SSL_CTX_set_tmp_rsa() wolfSSL_SSL_CTX_ctrl(ctx,SSL_CTRL_SET_TMP_RSA,0,(char *)rsa)
+#define SSL_CTX_set_tmp_dh() wolfSSL_SSL_CTX_ctrl(ctx,SSL_CTRL_SET_TMP_DH,0,(char *)dh)
+#define SSL_CTX_add_extra_chain_cert() wolfSSL_SSL_CTX_ctrl(ctx,SSL_CTRL_EXTRA_CHAIN_CERT,0,(char *)x509)
+#define SSL_CTX_get_read_ahead() wolfSSL_SSL_CTX_ctrl(ctx,SSL_CTRL_GET_READ_AHEAD,0,NULL)
+#define SSL_CTX_set_read_ahead() wolfSSL_SSL_CTX_ctrl(ctx,SSL_CTRL_SET_READ_AHEAD,m,NULL)
+#define SSL_CTX_set_tlsext_status_arg() wolfSSL_SSL_CTX_ctrl(ssl,SSL_CTRL_SET_TLSEXT_STATUS_REQ_CB_ARG,0, (void *)arg)
+#define SSL_CTX_set_tlsext_opaque_prf_input_callback_arg() wolfSSL_SSL_CTX_ctrl(ctx,SSL_CTRL_SET_TLSEXT_OPAQUE_PRF_INPUT_CB_ARG, 0, arg)
+
+#define BIO_C_SET_FILE_PTR                      106
+#define BIO_C_GET_FILE_PTR                      107
+#define BIO_C_SET_FILENAME                      108
+#define BIO_C_FILE_SEEK                         128
+#define BIO_C_SET_BUF_MEM_EOF_RETURN            130
+#define BIO_C_SET_WRITE_BUF_SIZE                136
+#define BIO_C_MAKE_BIO_PAIR                     138
+
+#define BIO_CTRL_RESET          1
+#define BIO_CTRL_INFO           3
+#define BIO_CTRL_FLUSH          11
+#define BIO_CLOSE               0x01
+#define BIO_FP_WRITE            0x04
+
+#define SSL_CTRL_CLEAR_NUM_RENEGOTIATIONS         11
+#define SSL_CTRL_GET_TOTAL_RENEGOTIATIONS         12
+#define SSL_CTRL_SET_TMP_DH                       3
+#define SSL_CTRL_SET_TLSEXT_DEBUG_ARG             57
+#define SSL_CTRL_SET_TLSEXT_STATUS_REQ_TYPE       65
+#define SSL_CTRL_GET_TLSEXT_STATUS_REQ_EXTS       66
+#define SSL_CTRL_SET_TLSEXT_STATUS_REQ_EXTS       67
+#define SSL_CTRL_GET_TLSEXT_STATUS_REQ_IDS        68
+#define SSL_CTRL_SET_TLSEXT_STATUS_REQ_IDS        69
+#define SSL_CTRL_GET_TLSEXT_STATUS_REQ_OCSP_RESP  70
+#define SSL_CTRL_SET_TLSEXT_STATUS_REQ_OCSP_RESP  71
+
+#define SSL_CTRL_SET_TMP_DH                     3
+#define SSL_CTRL_EXTRA_CHAIN_CERT               14
+
+#define SSL_CTRL_SET_SESS_CACHE_SIZE            42
+#define SSL_CTRL_GET_READ_AHEAD                 40
+#define SSL_CTRL_SET_READ_AHEAD                 41
+
+#define SSL_CTRL_SET_TLSEXT_STATUS_REQ_CB_ARG   64
 
 #ifdef HAVE_STUNNEL
 #include <wolfssl/openssl/asn1.h>

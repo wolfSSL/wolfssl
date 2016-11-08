@@ -13172,13 +13172,105 @@ int wolfSSL_PEM_def_callback(char* name, int num, int w, void* key)
     return 0;
 }
 
+/*** TBD ***/
+WOLFSSL_API unsigned long wolfSSL_SSL_set_options(WOLFSSL *s, unsigned long op)
+{
+    (void)s;
+    (void)op;
+    return 0;
+}
+
+/*** TBD ***/
+WOLFSSL_API unsigned long wolfSSL_SSL_get_options(const WOLFSSL *s)
+{
+    (void)s;
+    return 0;
+}
+
+/*** TBD ***/
+WOLFSSL_API long wolfSSL_SSL_clear_num_renegotiations(WOLFSSL *s)
+{
+    (void)s;
+    return 0;
+}
+
+/*** TBD ***/
+WOLFSSL_API long wolfSSL_SSL_total_renegotiations(WOLFSSL *s)
+{
+    (void)s;
+    return 0;
+}
+
+/*** TBD ***/
+WOLFSSL_API long wolfSSL_SSL_set_tmp_dh(WOLFSSL *s, WOLFSSL_DH *dh)
+{
+    (void)s;
+    (void)dh;
+    return 0;
+}
+
+/*** TBD ***/
+WOLFSSL_API long wolfSSL_SSL_set_tlsext_debug_arg(WOLFSSL *s, void *arg)
+{
+    (void)s;
+    (void)arg;
+    return 0;
+}
+
+/*** TBD ***/
+WOLFSSL_API long wolfSSL_SSL_set_tlsext_status_type(WOLFSSL *s, int type)
+{
+    (void)s;
+    (void)type;
+    return 0;
+}
+
+/*** TBD ***/
+WOLFSSL_API long wolfSSL_SSL_set_tlsext_status_exts(WOLFSSL *s, void *arg)
+{
+    (void)s;
+    (void)arg;
+    return 0;
+}
+
+/*** TBD ***/
+WOLFSSL_API long wolfSSL_SSL_get_tlsext_status_ids(WOLFSSL *s, void *arg)
+{
+    (void)s;
+    (void)arg;
+    return 0;
+}
+
+/*** TBD ***/
+WOLFSSL_API long wolfSSL_SSL_set_tlsext_status_ids(WOLFSSL *s, void *arg)
+{
+    (void)s;
+    (void)arg;
+    return 0;
+}
+
+/*** TBD ***/
+WOLFSSL_API long wolfSSL_SSL_get_tlsext_status_ocsp_resp(WOLFSSL *s, unsigned char **resp)
+{
+    (void)s;
+    (void)resp;
+    return 0;
+}
+
+/*** TBD ***/
+WOLFSSL_API long wolfSSL_SSL_set_tlsext_status_ocsp_resp(WOLFSSL *s, unsigned char *resp, int len)
+{
+    (void)s;
+    (void)resp;
+    (void)len;
+    return 0;
+}
 
 long wolfSSL_CTX_sess_accept(WOLFSSL_CTX* ctx)
 {
     (void)ctx;
     return 0;
 }
-
 
 long wolfSSL_CTX_sess_connect(WOLFSSL_CTX* ctx)
 {
@@ -13251,6 +13343,83 @@ long wolfSSL_CTX_sess_timeouts(WOLFSSL_CTX* ctx)
 
 
 long wolfSSL_CTX_sess_number(WOLFSSL_CTX* ctx)
+{
+    (void)ctx;
+    return 0;
+}
+
+/*** TBC ***/
+WOLFSSL_API long wolfSSL_SSL_CTX_need_tmp_RSA(WOLFSSL_CTX* ctx)
+{
+    (void)ctx;
+    return 0;
+}
+
+/*** TBC ***/
+WOLFSSL_API long wolfSSL_SSL_CTX_set_tmp_rsa(WOLFSSL_CTX* ctx)
+{
+    (void)ctx;
+    return 0;
+}
+
+/*** TBC ***/
+WOLFSSL_API long wolfSSL_SSL_CTX_set_tmp_dh(WOLFSSL_CTX* ctx)
+{
+    (void)ctx;
+    return 0;
+}
+
+/*** TBC ***/
+WOLFSSL_API long wolfSSL_SSL_CTX_add_extra_chain_cert(WOLFSSL_CTX* ctx)
+{
+    (void)ctx;
+    return 0;
+}
+
+/*** TBC ***/
+WOLFSSL_API long wolfSSL_SSL_CTX_sess_set_cache_size(WOLFSSL_CTX* ctx)
+{
+    (void)ctx;
+    return 0;
+}
+
+/*** TBC ***/
+WOLFSSL_API long wolfSSL_SSL_CTX_sess_get_cache_size(WOLFSSL_CTX* ctx)
+{
+    (void)ctx;
+    return 0;
+}
+
+/*** TBC ***/
+WOLFSSL_API long wolfSSL_SSL_CTX_get_session_cache_mode(WOLFSSL_CTX* ctx)
+{
+    (void)ctx;
+    return 0;
+}
+
+/*** TBC ***/
+WOLFSSL_API long wolfSSL_SSL_CTX_get_read_ahead(WOLFSSL_CTX* ctx)
+{
+    (void)ctx;
+    return 0;
+}
+
+/*** TBC ***/
+WOLFSSL_API long wolfSSL_SSL_CTX_set_read_ahead(WOLFSSL_CTX* ctx)
+{
+    (void)ctx;
+    return 0;
+}
+
+/*** TBC ***/
+WOLFSSL_API long wolfSSL_SSL_CTX_set_tlsext_status_arg(WOLFSSL_CTX* ctx)
+{
+    (void)ctx;
+    return 0;
+}
+
+/*** TBC ***/
+WOLFSSL_API long wolfSSL_SSL_CTX_set_tlsext_opaque_prf_input_callback_arg(WOLFSSL_CTX* ctx)
 {
     (void)ctx;
     return 0;
