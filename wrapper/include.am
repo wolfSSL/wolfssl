@@ -1,3 +1,8 @@
+# vim:ft=automake
+# included from Top Level Makefile.am
+# All paths should be given relative to the root
+
+include wrapper/python/wolfcrypt/include.am
 
 # wolfSSL CSharp wrapper files
 EXTRA_DIST+= wrapper/CSharp/wolfSSL-DTLS-PSK-Server/App.config
@@ -28,6 +33,3 @@ EXTRA_DIST+= wrapper/CSharp/wolfSSL_CSharp/Properties/Resources.Designer.cs
 EXTRA_DIST+= wrapper/CSharp/wolfSSL_CSharp/Properties/Resources.resx
 EXTRA_DIST+= wrapper/CSharp/wolfSSL_CSharp/wolfSSL.cs
 EXTRA_DIST+= wrapper/CSharp/wolfSSL_CSharp/wolfSSL_CSharp.csproj
-
-# wolfcrypt python wrapper
-include wrapper/python/wolfcrypt/include.am
