@@ -55,10 +55,9 @@ enum {
     WC_PKCS12_ENCRYPTED_DATA = 656,
 };
 
-typedef struct ContentInfo ContentInfo;
 typedef struct ContentInfo {
     byte* data;
-    ContentInfo* next;
+    struct ContentInfo* next;
     word32 encC;  /* encryptedContent */
     word32 dataSz;
     int type; /* DATA / encrypted / envelpoed */
@@ -84,12 +83,12 @@ typedef struct MacData {
 } MacData;
 
 
-typedef struct WC_PKCS12 {
+struct WC_PKCS12 {
     void* heap;
     AuthenticatedSafe* safe;
     MacData* signData;
     word32 oid; /* DATA / Enveloped DATA ... */
-} WC_PKCS12;
+};
 
 
 /* for friendlyName, localKeyId .... */

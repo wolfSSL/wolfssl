@@ -2486,7 +2486,7 @@ typedef struct Arrays {
 #define MAX_DATE_SZ 32
 #endif
 
-typedef struct WOLFSSL_STACK {
+struct WOLFSSL_STACK {
     unsigned long num; /* number of nodes in stack
                         * (saftey measure for freeing and shortcut for count) */
     union {
@@ -2494,7 +2494,7 @@ typedef struct WOLFSSL_STACK {
         WOLFSSL_BIO*  bio;
     } data;
     WOLFSSL_STACK* next;
-} WOLFSSL_STACK;
+};
 
 
 struct WOLFSSL_X509_NAME {
