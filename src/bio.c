@@ -63,7 +63,7 @@ WOLFSSL_API long wolfSSL_BIO_int_ctrl(WOLFSSL_BIO *bp, int cmd, long larg, int i
 WOLFSSL_API const WOLFSSL_BIO_METHOD *wolfSSL_BIO_s_socket(void)
 {
     WOLFSSL_ENTER("BIO_s_socket");
-    return (void *)0;
+    return NULL;
 }
 
 /*** TBD ***/

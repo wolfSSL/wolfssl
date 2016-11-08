@@ -530,7 +530,6 @@ WOLFSSL_API long wolfSSL_BIO_seek(WOLFSSL_BIO *bio, int ofs);
 WOLFSSL_API long wolfSSL_BIO_write_filename(WOLFSSL_BIO *bio, char *name);
 WOLFSSL_API long wolfSSL_BIO_set_mem_eof_return(WOLFSSL_BIO *bio, int v);
 WOLFSSL_API long wolfSSL_BIO_get_mem_ptr(WOLFSSL_BIO *b, void *m);
-const WOLFSSL_BIO_METHOD *wolfSSL_BIO_s_socket(void);
 
 WOLFSSL_API void        wolfSSL_RAND_screen(void);
 WOLFSSL_API const char* wolfSSL_RAND_file_name(char*, unsigned long);
@@ -1911,8 +1910,6 @@ WOLFSSL_API STACK_OF(WOLFSSL_X509_NAME) *wolfSSL_dup_CA_list( STACK_OF(WOLFSSL_X
 
 WOLFSSL_API unsigned long wolfSSL_SSL_CTX_get_options(const WOLFSSL_CTX *ctx);
 WOLFSSL_API unsigned long wolfSSL_SSL_CTX_set_options(WOLFSSL_CTX *ctx, unsigned long op);
-WOLFSSL_API unsigned long wolfSSL_SSL_get_options(const WOLFSSL *s);
-WOLFSSL_API unsigned long wolfSSL_SSL_set_options(WOLFSSL *s, unsigned long op);
 
 /* end lighttpd*/
 #endif
