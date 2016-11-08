@@ -20,7 +20,7 @@
 
 metadata = dict(
   __name__         = "wolfcrypt",
-  __version__      = "0.1.8",
+  __version__      = "0.1.9",
   __license__      = "GPLv2 or Commercial License",
   __author__       = "wolfSSL Inc.",
   __author_email__ = "info@wolfssl.com",

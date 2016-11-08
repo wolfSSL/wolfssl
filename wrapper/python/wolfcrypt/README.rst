@@ -117,8 +117,8 @@ Testing ``wolfcrypt``'s source code with ``tox`` :
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 To run the unit tests in the source code, you'll need ``tox`` and a few other
-requirements. The source code relies at 'WOLFSSL_DIR/wrapper/python' where
-WOLFSSL_DIR is the path of ``wolfssl``'s source code.
+requirements. The source code relies at 'WOLFSSL_DIR/wrapper/python/wolfcrypt'
+where WOLFSSL_DIR is the path of ``wolfssl``'s source code.
 
 1. Make sure that the testing requirements are installed:
 

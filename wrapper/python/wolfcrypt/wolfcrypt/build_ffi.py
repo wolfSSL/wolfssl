@@ -94,13 +94,6 @@ ffi.cdef(
     int wc_AesCbcDecrypt(Aes*, byte*, const byte*, word32);
 
 
-    typedef struct { ...; } Des3;
-
-    int wc_Des3_SetKey(Des3*, const byte*, const byte*, int);
-    int wc_Des3_CbcEncrypt(Des3*, byte*, const byte*, word32);
-    int wc_Des3_CbcDecrypt(Des3*, byte*, const byte*, word32);
-
-
     typedef struct { ...; } WC_RNG;
 
     int wc_InitRng(WC_RNG*);
@@ -112,6 +105,7 @@ ffi.cdef(
     typedef struct {...; } RsaKey;
 
     int wc_InitRsaKey(RsaKey* key, void*);
+    int wc_RsaSetRNG(RsaKey* key, WC_RNG* rng);
     int wc_FreeRsaKey(RsaKey* key);
 
     int wc_RsaPrivateKeyDecode(const byte*, word32*, RsaKey*, word32);

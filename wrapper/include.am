@@ -1,3 +1,8 @@
+# vim:ft=automake
+# included from Top Level Makefile.am
+# All paths should be given relative to the root
+
+include wrapper/python/wolfcrypt/include.am
 
 # wolfSSL CSharp wrapper files
 EXTRA_DIST+= wrapper/CSharp/wolfSSL-DTLS-PSK-Server/App.config
@@ -28,31 +33,3 @@ EXTRA_DIST+= wrapper/CSharp/wolfSSL_CSharp/Properties/Resources.Designer.cs
 EXTRA_DIST+= wrapper/CSharp/wolfSSL_CSharp/Properties/Resources.resx
 EXTRA_DIST+= wrapper/CSharp/wolfSSL_CSharp/wolfSSL.cs
 EXTRA_DIST+= wrapper/CSharp/wolfSSL_CSharp/wolfSSL_CSharp.csproj
-
-# wolfcrypt python wrapper files
-EXTRA_DIST+= wrapper/python/.gitignore
-EXTRA_DIST+= wrapper/python/docs/asymmetric.rst
-EXTRA_DIST+= wrapper/python/docs/conf.py
-EXTRA_DIST+= wrapper/python/docs/digest.rst
-EXTRA_DIST+= wrapper/python/docs/index.rst
-EXTRA_DIST+= wrapper/python/docs/mac.rst
-EXTRA_DIST+= wrapper/python/docs/Makefile
-EXTRA_DIST+= wrapper/python/docs/random.rst
-EXTRA_DIST+= wrapper/python/docs/symmetric.rst
-EXTRA_DIST+= wrapper/python/LICENSING.rst
-EXTRA_DIST+= wrapper/python/MANIFEST.in
-EXTRA_DIST+= wrapper/python/README.rst
-EXTRA_DIST+= wrapper/python/requirements-testing.txt
-EXTRA_DIST+= wrapper/python/setup.py
-EXTRA_DIST+= wrapper/python/test/test_ciphers.py
-EXTRA_DIST+= wrapper/python/test/test_hashes.py
-EXTRA_DIST+= wrapper/python/test/test_random.py
-EXTRA_DIST+= wrapper/python/tox.ini
-EXTRA_DIST+= wrapper/python/wolfcrypt/__about__.py
-EXTRA_DIST+= wrapper/python/wolfcrypt/__init__.py
-EXTRA_DIST+= wrapper/python/wolfcrypt/build_ffi.py
-EXTRA_DIST+= wrapper/python/wolfcrypt/ciphers.py
-EXTRA_DIST+= wrapper/python/wolfcrypt/exceptions.py
-EXTRA_DIST+= wrapper/python/wolfcrypt/hashes.py
-EXTRA_DIST+= wrapper/python/wolfcrypt/random.py
-EXTRA_DIST+= wrapper/python/wolfcrypt/utils.py

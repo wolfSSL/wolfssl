@@ -178,33 +178,6 @@ class Aes(_Cipher):
         return _lib.wc_AesCbcDecrypt(self._dec, destination, source,len(source))
 
 
-class Des3(_Cipher):
-    """
-    **Triple DES** (3DES) is the common name for the **Triple Data
-    Encryption Algorithm** (TDEA or Triple DEA) symmetric-key block
-    cipher, which applies the **Data Encryption Standard** (DES)
-    cipher algorithm three times to each data block.
-    """
-    block_size   = 8
-    key_size     = 24
-    _native_type = "Des3 *"
-
-
-    def _set_key(self, direction):
-        if direction == _ENCRYPTION:
-            return _lib.wc_Des3_SetKey(self._enc,self._key,self._IV,_ENCRYPTION)
-        else:
-            return _lib.wc_Des3_SetKey(self._dec,self._key,self._IV,_DECRYPTION)
-
-
-    def _encrypt(self, destination, source):
-        return _lib.wc_Des3_CbcEncrypt(self._enc,destination,source,len(source))
-
-
-    def _decrypt(self, destination, source):
-        return _lib.wc_Des3_CbcDecrypt(self._dec,destination,source,len(source))
-
-
 class _Rsa(object):
     RSA_MIN_PAD_SIZE = 11
 
@@ -215,6 +188,9 @@ class _Rsa(object):
             raise WolfCryptError("Invalid key error (%d)" % ret)
 
         self._random = Random()
+        ret = _lib.wc_RsaSetRNG(self.native_object, self._random.native_object)
+        if ret < 0:
+            raise WolfCryptError("Key initialization error (%d)" % ret)
 
 
     def __del__(self):
