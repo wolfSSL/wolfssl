@@ -1959,6 +1959,9 @@ int wc_AesSetKey(Aes* aes, const byte* userKey, word32 keylen,
             checkAESNI = 1;
         }
         if (haveAESNI) {
+            #ifdef WOLFSSL_AES_COUNTER
+                aes->left = 0;
+            #endif /* WOLFSSL_AES_COUNTER */
             aes->use_aesni = 1;
             if (iv)
                 XMEMCPY(aes->reg, iv, AES_BLOCK_SIZE);

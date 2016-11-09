@@ -159,14 +159,16 @@ typedef struct WOLFSSL_EVP_CIPHER_CTX {
     unsigned char  enc;            /* if encrypt side, then true */
     unsigned char  cipherType;
 #ifndef NO_AES
-    unsigned char  iv[AES_BLOCK_SIZE];    /* working iv pointer into cipher */
+    /* working iv pointer into cipher */
+    ALIGN16 unsigned char  iv[AES_BLOCK_SIZE];
 #elif !defined(NO_DES3)
-    unsigned char  iv[DES_BLOCK_SIZE];    /* working iv pointer into cipher */
+    /* working iv pointer into cipher */
+    ALIGN16 unsigned char  iv[DES_BLOCK_SIZE];
 #endif
     WOLFSSL_Cipher  cipher;
-    byte buf[WOLFSSL_EVP_BUF_SIZE];
+    ALIGN16 byte buf[WOLFSSL_EVP_BUF_SIZE];
     int  bufUsed;
-    byte fin[WOLFSSL_EVP_BUF_SIZE];
+    ALIGN16 byte fin[WOLFSSL_EVP_BUF_SIZE];
     int  finUsed;
 } WOLFSSL_EVP_CIPHER_CTX;
 

@@ -7195,7 +7195,7 @@ int openssl_test(void)
             (unsigned char*)ctr192Key, (unsigned char*)ctr192Iv, 0) == 0)
         return -3316;
     printf("EVP_Cipher\n");
-    if (EVP_Cipher(&en, (byte*)cipherBuff, (byte*)ctr192Plain, AES_BLOCK_SIZE*4) == 0)
+    if (EVP_Cipher(&en, (byte*)cipherBuff, (byte*)ctr192Plain, AES_BLOCK_SIZE) == 0)
         return -3317;
     EVP_CIPHER_CTX_init(&de);
     if (EVP_CipherInit(&de, EVP_aes_192_ctr(),
@@ -7203,7 +7203,7 @@ int openssl_test(void)
         return -3318;
 
     XMEMSET(plainBuff, 0, sizeof(plainBuff));
-    if (EVP_Cipher(&de, (byte*)plainBuff, (byte*)cipherBuff, AES_BLOCK_SIZE*4) == 0)
+    if (EVP_Cipher(&de, (byte*)plainBuff, (byte*)cipherBuff, AES_BLOCK_SIZE) == 0)
         return -3319;
 
     if (XMEMCMP(plainBuff, ctr192Plain, sizeof(ctr192Plain)))
@@ -7215,7 +7215,7 @@ int openssl_test(void)
     if (EVP_CipherInit(&en, EVP_aes_256_ctr(),
         (unsigned char*)ctr256Key, (unsigned char*)ctr256Iv, 0) == 0)
         return -3322;
-    if (EVP_Cipher(&en, (byte*)cipherBuff, (byte*)ctr256Plain, AES_BLOCK_SIZE*4) == 0)
+    if (EVP_Cipher(&en, (byte*)cipherBuff, (byte*)ctr256Plain, AES_BLOCK_SIZE) == 0)
         return -3323;
     EVP_CIPHER_CTX_init(&de);
     if (EVP_CipherInit(&de, EVP_aes_256_ctr(),
@@ -7223,7 +7223,7 @@ int openssl_test(void)
         return -3324;
 
     XMEMSET(plainBuff, 0, sizeof(plainBuff));
-    if (EVP_Cipher(&de, (byte*)plainBuff, (byte*)cipherBuff, AES_BLOCK_SIZE*4) == 0)
+    if (EVP_Cipher(&de, (byte*)plainBuff, (byte*)cipherBuff, AES_BLOCK_SIZE) == 0)
         return -3325;
 
     if (XMEMCMP(plainBuff, ctr256Plain, sizeof(ctr256Plain)))
