@@ -64,13 +64,17 @@ WOLFSSL_API int wolfSSL_EVP_DigestInit_ex(WOLFSSL_EVP_MD_CTX* ctx,
     return wolfSSL_EVP_DigestInit(ctx, type);
 }
 
+#ifdef DEBUG_WOLFSSL
 #define PRINT_BUF(b, sz) { int i; for(i=0; i<(sz); i++){printf("%02x(%c),", (b)[i], (b)[i]); if((i+1)%8==0)printf("\n");}}
+#else
+#define PRINT_BUF(b, sz)
+#endif
 
 static int fillBuff(WOLFSSL_EVP_CIPHER_CTX *ctx, const unsigned char *in, int sz)
 {
     int fill;
     WOLFSSL_ENTER("fillBuff");
-    printf("ctx->bufUsed=%d, sz=%d\n",ctx->bufUsed, sz);
+    /* printf("ctx->bufUsed=%d, sz=%d\n",ctx->bufUsed, sz); */
     if (sz > 0) {
         if ((sz+ctx->bufUsed) > ctx->block_size) {
             fill = ctx->block_size - ctx->bufUsed;
@@ -79,7 +83,7 @@ static int fillBuff(WOLFSSL_EVP_CIPHER_CTX *ctx, const unsigned char *in, int sz
         }
         XMEMCPY(&(ctx->buf[ctx->bufUsed]), in, fill);
         ctx->bufUsed += fill;
-        printf("Result: ctx->bufUsed=%d\n",ctx->bufUsed);
+        /* printf("Result: ctx->bufUsed=%d\n",ctx->bufUsed); */
         return fill;
     } else return 0;
 }
@@ -89,12 +93,12 @@ static int evpCipherBlock(WOLFSSL_EVP_CIPHER_CTX *ctx,
                                    const unsigned char *in, int inl)
 {
     WOLFSSL_ENTER("evpCipherBlock");
-    switch(ctx->cipherType){
+    switch (ctx->cipherType) {
     #if !defined(NO_AES) && defined(HAVE_AES_CBC)
         case AES_128_CBC_TYPE:
         case AES_192_CBC_TYPE:
         case AES_256_CBC_TYPE:
-            if(ctx->enc)
+            if (ctx->enc)
                 wc_AesCbcEncrypt(&ctx->cipher.aes, out, in, inl);
             else
                 wc_AesCbcDecrypt(&ctx->cipher.aes, out, in, inl);
@@ -104,7 +108,7 @@ static int evpCipherBlock(WOLFSSL_EVP_CIPHER_CTX *ctx,
         case AES_128_CTR_TYPE:
         case AES_192_CTR_TYPE:
         case AES_256_CTR_TYPE:
-            if(ctx->enc)
+            if (ctx->enc)
                 wc_AesCtrEncrypt(&ctx->cipher.aes, out, in, inl);
             else
                 wc_AesCtrEncrypt(&ctx->cipher.aes, out, in, inl);
@@ -150,6 +154,7 @@ static int evpCipherBlock(WOLFSSL_EVP_CIPHER_CTX *ctx,
         }
         ctx->finUsed = 1;
         XMEMCPY(ctx->fin, (const byte *)&out[inl-ctx->block_size], ctx->block_size);
+        (void)in;
         return 1;
 }
 
@@ -203,7 +208,7 @@ static void padBlock(WOLFSSL_EVP_CIPHER_CTX *ctx)
     int i;
     WOLFSSL_ENTER("paddBlock");
     for (i = ctx->bufUsed; i < ctx->block_size; i++)
-        ctx->buf[i] = ctx->block_size - ctx->bufUsed;
+        ctx->buf[i] = (byte)(ctx->block_size - ctx->bufUsed);
 }
 
 static int checkPad(WOLFSSL_EVP_CIPHER_CTX *ctx)
@@ -232,7 +237,7 @@ WOLFSSL_API int  wolfSSL_EVP_CipherFinal(WOLFSSL_EVP_CIPHER_CTX *ctx,
     if (ctx->bufUsed > 0) {
         if (ctx->enc) {
             padBlock(ctx);
-            printf("Enc: block_size=%d\n", ctx->block_size);
+            /* printf("Enc: block_size=%d\n", ctx->block_size); */
             PRINT_BUF(ctx->buf, ctx->block_size);
             if (evpCipherBlock(ctx, out, ctx->buf, ctx->block_size) == 0)
                 return 0;
@@ -241,7 +246,7 @@ WOLFSSL_API int  wolfSSL_EVP_CipherFinal(WOLFSSL_EVP_CIPHER_CTX *ctx,
         else {
             if (evpCipherBlock(ctx, out, ctx->buf, ctx->block_size) == 0)
                 return 0;
-            printf("Dec: block_size=%d\n", ctx->block_size);
+            /* printf("Dec: block_size=%d\n", ctx->block_size); */
             PRINT_BUF(ctx->buf, ctx->block_size);
             if ((fl = checkPad(ctx)) >= 0) {
                 XMEMCPY(out, ctx->buf, fl);
@@ -286,7 +291,7 @@ WOLFSSL_API int wolfSSL_EVP_CIPHER_CTX_block_size(const WOLFSSL_EVP_CIPHER_CTX *
 
 static unsigned char cipherType(const WOLFSSL_EVP_CIPHER *cipher)
 {
-      if (0) return 0; /* dummy for #ifdef */
+    if (cipher == NULL) return 0; /* dummy for #ifdef */
   #ifndef NO_DES3
       else if (XSTRNCMP(cipher, EVP_DES_CBC, EVP_DES_SIZE) == 0)
           return DES_CBC_TYPE;
@@ -393,7 +398,7 @@ unsigned long WOLFSSL_CIPHER_mode(const WOLFSSL_EVP_CIPHER *cipher)
 
 WOLFSSL_API unsigned long WOLFSSL_EVP_CIPHER_mode(const WOLFSSL_EVP_CIPHER *cipher)
 {
-  if (cipher == NULL) return BAD_FUNC_ARG;
+  if (cipher == NULL) return 0;
   return WOLFSSL_CIPHER_mode(cipher);
 }
 
@@ -404,7 +409,7 @@ WOLFSSL_API void wolfSSL_EVP_CIPHER_CTX_set_flags(WOLFSSL_EVP_CIPHER_CTX *ctx, i
 
 WOLFSSL_API unsigned long wolfSSL_EVP_CIPHER_flags(const WOLFSSL_EVP_CIPHER *cipher)
 {
-  if (cipher == NULL) return BAD_FUNC_ARG;
+  if (cipher == NULL) return 0;
   return WOLFSSL_CIPHER_mode(cipher);
 }
 

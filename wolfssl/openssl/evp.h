@@ -151,7 +151,7 @@ enum {
     NID_md5           =  4
 };
 
-
+#define WOLFSSL_EVP_BUF_SIZE 16
 typedef struct WOLFSSL_EVP_CIPHER_CTX {
     int            keyLen;         /* user may set for variable */
     int            block_size;
@@ -164,9 +164,9 @@ typedef struct WOLFSSL_EVP_CIPHER_CTX {
     unsigned char  iv[DES_BLOCK_SIZE];    /* working iv pointer into cipher */
 #endif
     WOLFSSL_Cipher  cipher;
-    byte buf[AES_BLOCK_SIZE];
+    byte buf[WOLFSSL_EVP_BUF_SIZE];
     int  bufUsed;
-    byte fin[AES_BLOCK_SIZE];
+    byte fin[WOLFSSL_EVP_BUF_SIZE];
     int  finUsed;
 } WOLFSSL_EVP_CIPHER_CTX;
 

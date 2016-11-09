@@ -10106,7 +10106,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         ctx->finUsed = 0;
 
 #ifndef NO_AES
-        printf("cipherType=%d\n", ctx->cipherType);
+        /* printf("cipherType=%d\n", ctx->cipherType); */
         if (ctx->cipherType == AES_128_CBC_TYPE ||
             (type && XSTRNCMP(type, EVP_AES_128_CBC, EVP_AES_SIZE) == 0)) {
             WOLFSSL_MSG(EVP_AES_128_CBC);

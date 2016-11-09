@@ -499,7 +499,6 @@ typedef WOLFSSL_X509_NAME_ENTRY X509_NAME_ENTRY;
 
 #define SSL_CTX_need_tmp_RSA() wolfSSL_SSL_CTX_ctrl(ctx,SSL_CTRL_NEED_TMP_RSA,0,NULL)
 #define SSL_CTX_set_tmp_rsa() wolfSSL_SSL_CTX_ctrl(ctx,SSL_CTRL_SET_TMP_RSA,0,(char *)rsa)
-#define SSL_CTX_set_tmp_dh() wolfSSL_SSL_CTX_ctrl(ctx,SSL_CTRL_SET_TMP_DH,0,(char *)dh)
 #define SSL_CTX_add_extra_chain_cert() wolfSSL_SSL_CTX_ctrl(ctx,SSL_CTRL_EXTRA_CHAIN_CERT,0,(char *)x509)
 #define SSL_CTX_get_read_ahead() wolfSSL_SSL_CTX_ctrl(ctx,SSL_CTRL_GET_READ_AHEAD,0,NULL)
 #define SSL_CTX_set_read_ahead() wolfSSL_SSL_CTX_ctrl(ctx,SSL_CTRL_SET_READ_AHEAD,m,NULL)
