@@ -85,10 +85,10 @@ static const byte rcon[] = {
     #define SBOX(x)                      \
         do {                             \
             __asm__ volatile (           \
-                "VDUP.32 q1, %r[in]  \n" \
+                "VDUP.32 q1, %[in]   \n" \
                 "VMOV.i32 q0, #0     \n" \
                 "AESE.8 q0, q1      \n" \
-                "VMOV.32 %r[out], d0[0] \n" \
+                "VMOV.32 %[out], d0[0] \n" \
                 : [out] "=r"((x))        \
                 : [in] "r" ((x))         \
                 : "cc", "memory", "q0", "q1"\
@@ -2868,10 +2868,7 @@ int  wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
             word32* keyPt = aes->key;
             __asm__ __volatile__ (
                 "VLD1.32 {q0}, [%[CtrIn]] \n"
-                "VLD1.32 {q1}, [%[Key]]!  \n"
-                "VLD1.32 {q2}, [%[Key]]!  \n"
-                "VLD1.32 {q3}, [%[Key]]!  \n"
-                "VLD1.32 {q4}, [%[Key]]!  \n"
+                "VLDM %[Key]!, {q1-q4}    \n"
 
                 "AESE.8 q0, q1\n"
                 "AESMC.8 q0, q0\n"
@@ -2899,8 +2896,7 @@ int  wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
                 "AESMC.8 q0, q0\n"
                 "AESE.8 q0, q2\n"
 
-                "#subtract rounds done so far and see if should continue\n"
-                "MOV r12, %r[R]    \n"
+                "MOV r12, %[R]    \n"
                 "CMP r12, #10 \n"
                 "BEQ 1f    \n"
                 "VLD1.32 {q1}, [%[Key]]!  \n"
@@ -2925,9 +2921,10 @@ int  wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
                 "VEOR.32 q0, q0, q1\n"
                 "VST1.32 {q0}, [%[CtrOut]]   \n"
 
-                :[CtrOut] "=r" (outBlock)
-                :"0" (outBlock), [Key] "r" (keyPt), [R] "r" (aes->rounds),
-                 [CtrIn] "r" (inBlock)
+                :[CtrOut] "=r" (outBlock), "=r" (keyPt), "=r" (aes->rounds),
+                 "=r" (inBlock)
+                :"0" (outBlock), [Key] "1" (keyPt), [R] "2" (aes->rounds),
+                 [CtrIn] "3" (inBlock)
                 : "cc", "memory", "r12", "q0", "q1", "q2", "q3", "q4"
             );
 
@@ -2944,68 +2941,66 @@ int  wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
                    sub bytes for shifted rows
              */
 
+            word32* keyPt = aes->key;
             __asm__ __volatile__ (
                 "VLD1.32 {q0}, [%[CtrIn]] \n"
-                "VLD1.32 {q1}, %[Key]!  \n"
-                "VLD1.32 {q2}, %[Key]!  \n"
-                "VLD1.32 {q3}, %[Key]!  \n"
-                "VLD1.32 {q4}, %[Key]!  \n"
+                "VLDM %[Key]!, {q1-q4}    \n"
 
                 "AESD.8 q0, q1\n"
                 "AESIMC.8 q0, q0\n"
                 "AESD.8 q0, q2\n"
                 "AESIMC.8 q0, q0\n"
-                "VLD1.32 {q1}, %[Key]!  \n"
+                "VLD1.32 {q1}, [%[Key]]!  \n"
                 "AESD.8 q0, q3\n"
                 "AESIMC.8 q0, q0\n"
-                "VLD1.32 {q2}, %[Key]!  \n"
+                "VLD1.32 {q2}, [%[Key]]!  \n"
                 "AESD.8 q0, q4\n"
                 "AESIMC.8 q0, q0\n"
-                "VLD1.32 {q3}, %[Key]!  \n"
+                "VLD1.32 {q3}, [%[Key]]!  \n"
                 "AESD.8 q0, q1\n"
                 "AESIMC.8 q0, q0\n"
-                "VLD1.32 {q4}, %[Key]!  \n"
+                "VLD1.32 {q4}, [%[Key]]!  \n"
                 "AESD.8 q0, q2\n"
                 "AESIMC.8 q0, q0\n"
                 "AESD.8 q0, q3\n"
                 "AESIMC.8 q0, q0\n"
-                "VLD1.32 {q1}, %[Key]!  \n"
+                "VLD1.32 {q1}, [%[Key]]!  \n"
                 "AESD.8 q0, q4\n"
                 "AESIMC.8 q0, q0\n"
-                "VLD1.32 {q2}, %[Key]!  \n"
+                "VLD1.32 {q2}, [%[Key]]!  \n"
                 "AESD.8 q0, q1\n"
                 "AESIMC.8 q0, q0\n"
                 "AESD.8 q0, q2\n"
 
-                "#subtract rounds done so far and see if should continue\n"
-                "MOV r12, %r[R]    \n"
-                "CMP r12, #10 \n"
+                "MOV r12, %[R] \n"
+                "CMP r12, #10  \n"
                 "BEQ 1f \n"
-                "VLD1.32 {q1}, %[Key]!  \n"
+                "VLD1.32 {q1}, [%[Key]]!  \n"
                 "AESIMC.8 q0, q0\n"
-                "VLD1.32 {q2}, %[Key]!  \n"
+                "VLD1.32 {q2}, [%[Key]]!  \n"
                 "AESD.8 q0, q1\n"
                 "AESIMC.8 q0, q0\n"
                 "AESD.8 q0, q2\n"
 
                 "CMP r12, #12  \n"
                 "BEQ 1f \n"
-                "VLD1.32 {q1}, %[Key]!  \n"
+                "VLD1.32 {q1}, [%[Key]]!  \n"
                 "AESIMC.8 q0, q0\n"
-                "VLD1.32 {q2}, %[Key]!  \n"
+                "VLD1.32 {q2}, [%[Key]]!  \n"
                 "AESD.8 q0, q1\n"
                 "AESIMC.8 q0, q0\n"
                 "AESD.8 q0, q2\n"
 
                 "#Final AddRoundKey then store result \n"
                 "1: \n"
-                "VLD1.32 {q1}, %[Key]! \n"
+                "VLD1.32 {q1}, [%[Key]]! \n"
                 "VEOR.32 q0, q0, q1\n"
                 "VST1.32 {q0}, [%[CtrOut]]    \n"
 
-                :[CtrOut] "=r" (outBlock)
-                :[Key] "m" (aes->key), "0" (outBlock), [R] "r" (aes->rounds),
-                 [CtrIn] "r" (inBlock)
+                :[CtrOut] "=r" (outBlock), "=r" (keyPt), "=r" (aes->rounds),
+                 "=r" (inBlock)
+                :"0" (outBlock), [Key] "1" (keyPt), [R] "2" (aes->rounds),
+                 [CtrIn] "3" (inBlock)
                 : "cc", "memory", "r12", "q0", "q1", "q2", "q3", "q4"
             );
 
@@ -3038,7 +3033,7 @@ int  wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
             switch(aes->rounds) {
             case 10: /* AES 128 BLOCK */
                 __asm__ __volatile__ (
-                "MOV r11, %r[blocks] \n"
+                "MOV r11, %[blocks] \n"
                 "VLD1.32 {q1}, [%[Key]]!  \n"
                 "VLD1.32 {q2}, [%[Key]]!  \n"
                 "VLD1.32 {q3}, [%[Key]]!  \n"
@@ -3098,7 +3093,7 @@ int  wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
 
             case 12: /* AES 192 BLOCK */
                 __asm__ __volatile__ (
-                "MOV r11, %r[blocks] \n"
+                "MOV r11, %[blocks] \n"
                 "VLD1.32 {q1}, [%[Key]]!  \n"
                 "VLD1.32 {q2}, [%[Key]]!  \n"
                 "VLD1.32 {q3}, [%[Key]]!  \n"
@@ -3164,7 +3159,7 @@ int  wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
 
             case 14: /* AES 256 BLOCK */
                 __asm__ __volatile__ (
-                "MOV r11, %r[blocks] \n"
+                "MOV r11, %[blocks] \n"
                 "VLD1.32 {q1}, [%[Key]]!  \n"
                 "VLD1.32 {q2}, [%[Key]]!  \n"
                 "VLD1.32 {q3}, [%[Key]]!  \n"
@@ -3260,7 +3255,7 @@ int  wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
             switch(aes->rounds) {
             case 10: /* AES 128 BLOCK */
                 __asm__ __volatile__ (
-                "MOV r11, %r[blocks] \n"
+                "MOV r11, %[blocks] \n"
                 "VLD1.32 {q1}, [%[Key]]!  \n"
                 "VLD1.32 {q2}, [%[Key]]!  \n"
                 "VLD1.32 {q3}, [%[Key]]!  \n"
@@ -3322,7 +3317,7 @@ int  wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
 
             case 12: /* AES 192 BLOCK */
                 __asm__ __volatile__ (
-                "MOV r11, %r[blocks] \n"
+                "MOV r11, %[blocks] \n"
                 "VLD1.32 {q1}, [%[Key]]!  \n"
                 "VLD1.32 {q2}, [%[Key]]!  \n"
                 "VLD1.32 {q3}, [%[Key]]!  \n"
@@ -3390,7 +3385,7 @@ int  wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
 
             case 14: /* AES 256 BLOCK */
                 __asm__ __volatile__ (
-                "MOV r11, %r[blocks] \n"
+                "MOV r11, %[blocks] \n"
                 "VLD1.32 {q1}, [%[Key]]!  \n"
                 "VLD1.32 {q2}, [%[Key]]!  \n"
                 "VLD1.32 {q3}, [%[Key]]!  \n"
@@ -3513,7 +3508,7 @@ int  wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
                 switch(aes->rounds) {
                 case 10: /* AES 128 BLOCK */
                     __asm__ __volatile__ (
-                    "MOV r11, %r[blocks] \n"
+                    "MOV r11, %[blocks] \n"
                     "VLDM %[Key]!, {q1-q4} \n"
 
                     "#Create vector with the value 1  \n"
@@ -3649,24 +3644,17 @@ int  wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
 
                 case 12: /* AES 192 BLOCK */
                     __asm__ __volatile__ (
-                    "MOV r11, %r[blocks] \n"
-                    "VLD1.32 {q1}, [%[Key]]! \n"
-                    "VLD1.32 {q2}, [%[Key]]! \n"
-                    "VLD1.32 {q3}, [%[Key]]! \n"
-                    "VLD1.32 {q4}, [%[Key]]! \n"
+                    "MOV r11, %[blocks] \n"
+                    "VLDM %[Key]!, {q1-q4} \n"
 
                     "#Create vector with the value 1  \n"
                     "VMOV.u32 q15, #1                 \n"
                     "VSHR.u64 q15, q15, #32  \n"
-                    "VLD1.32 {q5}, [%[Key]]! \n"
-                    "VLD1.32 {q6}, [%[Key]]! \n"
-                    "VLD1.32 {q7}, [%[Key]]! \n"
-                    "VLD1.32 {q8}, [%[Key]]! \n"
+                    "VLDM %[Key]!, {q5-q8} \n"
                     "VEOR.32 q14, q14, q14    \n"
                     "VEXT.8 q14, q15, q14, #8\n"
 
-                    "VLD1.32 {q9}, [%[Key]]! \n"
-                    "VLD1.32 {q10}, [%[Key]]!\n"
+                    "VLDM %[Key]!, {q9-q10} \n"
                     "VLD1.32 {q13}, [%[reg]]\n"
 
                     /* double block */
@@ -3815,24 +3803,17 @@ int  wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
 
                 case 14: /* AES 256 BLOCK */
                     __asm__ __volatile__ (
-                    "MOV r11, %r[blocks] \n"
-                    "VLD1.32 {q1}, [%[Key]]! \n"
-                    "VLD1.32 {q2}, [%[Key]]! \n"
-                    "VLD1.32 {q3}, [%[Key]]! \n"
-                    "VLD1.32 {q4}, [%[Key]]! \n"
+                    "MOV r11, %[blocks] \n"
+                    "VLDM %[Key]!, {q1-q4} \n"
 
                     "#Create vector with the value 1  \n"
                     "VMOV.u32 q15, #1                 \n"
                     "VSHR.u64 q15, q15, #32  \n"
-                    "VLD1.32 {q5}, [%[Key]]! \n"
-                    "VLD1.32 {q6}, [%[Key]]! \n"
-                    "VLD1.32 {q7}, [%[Key]]! \n"
-                    "VLD1.32 {q8}, [%[Key]]! \n"
+                    "VLDM %[Key]!, {q5-q8} \n"
                     "VEOR.32 q14, q14, q14    \n"
                     "VEXT.8 q14, q15, q14, #8\n"
 
-                    "VLD1.32 {q9}, [%[Key]]! \n"
-                    "VLD1.32 {q10}, [%[Key]]! \n"
+                    "VLDM %[Key]!, {q9-q10} \n"
                     "VLD1.32 {q13}, [%[reg]]\n"
 
                     /* double block */

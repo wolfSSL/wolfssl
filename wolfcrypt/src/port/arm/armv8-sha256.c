@@ -706,7 +706,7 @@ int wc_Sha256Update(Sha256* sha256, const byte* data, word32 len)
 
             "#load current digest\n"
             "VLDM %[digest], {q12-q13} \n"
-            "MOV r8, %r[blocks] \n"
+            "MOV r8, %[blocks] \n"
             "VREV32.8 q0, q0 \n"
             "VREV32.8 q1, q1 \n"
             "VREV32.8 q2, q2 \n"
