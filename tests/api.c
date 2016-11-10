@@ -46,7 +46,10 @@
 #ifdef OPENSSL_EXTRA
     #include <wolfssl/openssl/ssl.h>
     #include <wolfssl/openssl/pkcs12.h>
+#ifndef NO_DES3
+    #include <wolfssl/openssl/des.h>
 #endif
+#endif /* OPENSSL_EXTRA */
 
 /* enable testing buffer load functions */
 #ifndef USE_CERT_BUFFERS_2048
@@ -2196,6 +2199,53 @@ static int test_wolfSSL_UseOCSPStaplingV2(void)
 
 
 /*----------------------------------------------------------------------------*
+ | Compatibility Tests
+ *----------------------------------------------------------------------------*/
+
+
+static void test_wolfSSL_DES(void)
+{
+    #if defined(OPENSSL_EXTRA) && !defined(NO_DES3)
+    const_DES_cblock myDes;
+    DES_key_schedule key;
+    word32 i;
+
+    printf(testingFmt, "wolfSSL_DES()");
+
+    DES_check_key(1);
+    DES_set_key(&myDes, &key);
+
+    /* check, check of odd parity */
+    XMEMSET(key, 4, sizeof(DES_key_schedule));  key[0] = 3; /*set even parity*/
+    XMEMSET(myDes, 5, sizeof(const_DES_cblock));
+    DES_set_key_checked(&myDes, &key);
+    AssertIntNE(key[0], myDes[0]); /* should not have copied over key */
+
+    /* set odd parity for success case */
+    key[0] = 4;
+    DES_set_key_checked(&myDes, &key);
+    for (i = 0; i < sizeof(DES_key_schedule); i++) {
+        AssertIntEQ(key[i], myDes[i]);
+    }
+
+    /* check weak key */
+    XMEMSET(key, 1, sizeof(DES_key_schedule));
+    XMEMSET(myDes, 5, sizeof(const_DES_cblock));
+    DES_set_key_checked(&myDes, &key);
+    AssertIntNE(key[0], myDes[0]); /* should not have copied over key */
+
+    /* now do unchecked copy of a weak key over */
+    DES_set_key_unchecked(&myDes, &key);
+    /* compare arrays, should be the same */
+    for (i = 0; i < sizeof(DES_key_schedule); i++) {
+        AssertIntEQ(key[i], myDes[i]);
+    }
+
+    printf(resultFmt, passed);
+    #endif /* defined(OPENSSL_EXTRA) && !defined(NO_DES3) */
+}
+
+/*----------------------------------------------------------------------------*
  | Main
  *----------------------------------------------------------------------------*/
 
@@ -2238,6 +2288,9 @@ void ApiTest(void)
     /*OCSP Stapling. */
     AssertIntEQ(test_wolfSSL_UseOCSPStapling(), SSL_SUCCESS);
     AssertIntEQ(test_wolfSSL_UseOCSPStaplingV2(), SSL_SUCCESS);
+
+    /* compatibility tests */
+    test_wolfSSL_DES();
 
     AssertIntEQ(test_wolfSSL_Cleanup(), SSL_SUCCESS);
     printf(" End API Tests\n");

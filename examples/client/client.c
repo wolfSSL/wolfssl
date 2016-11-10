@@ -1281,6 +1281,10 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     if (ssl == NULL)
         err_sys("unable to get SSL object");
 
+    #ifdef OPENSSL_EXTRA
+    wolfSSL_KeepArrays(ssl);
+    #endif
+
     #ifdef HAVE_SUPPORTED_CURVES /* add curves to supported curves extension */
         if (wolfSSL_UseSupportedCurve(ssl, WOLFSSL_ECC_SECP256R1)
                 != SSL_SUCCESS) {
@@ -1427,6 +1431,36 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     NonBlockingSSL_Connect(ssl);  /* will keep retrying on timeout */
 #endif
     showPeer(ssl);
+
+#ifdef OPENSSL_EXTRA
+    {
+        byte* rnd;
+        byte* pt;
+        int   size;
+
+        /* get size of buffer then print */
+        size = wolfSSL_get_client_random(NULL, NULL, 0);
+        if (size < 0) {
+            err_sys("error getting client random buffer size");
+        }
+
+        rnd = (byte*)XMALLOC(size, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        if (rnd == NULL) {
+            err_sys("error creating client random buffer");
+        }
+
+        size = wolfSSL_get_client_random(ssl, rnd, size);
+        if (size < 0) {
+            XFREE(rnd, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            err_sys("error getting client random buffer");
+        }
+
+        printf("Client Random : ");
+        for (pt = rnd; pt < rnd + size; pt++) printf("%02X", *pt);
+        printf("\n");
+        XFREE(rnd, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+#endif
 
     if (doSTARTTLS) {
         if (XSTRNCMP(starttlsProt, "smtp", 4) == 0) {

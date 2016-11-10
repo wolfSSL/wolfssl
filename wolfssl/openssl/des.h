@@ -53,6 +53,10 @@ enum {
 };
 
 
+WOLFSSL_API void wolfSSL_DES_set_key(WOLFSSL_const_DES_cblock* myDes,
+                                               WOLFSSL_DES_key_schedule* key);
+WOLFSSL_API void wolfSSL_DES_set_key_checked(WOLFSSL_const_DES_cblock* myDes,
+                                               WOLFSSL_DES_key_schedule* key);
 WOLFSSL_API void wolfSSL_DES_set_key_unchecked(WOLFSSL_const_DES_cblock*,
                                              WOLFSSL_DES_key_schedule*);
 WOLFSSL_API int  wolfSSL_DES_key_sched(WOLFSSL_const_DES_cblock* key,
@@ -81,6 +85,9 @@ typedef WOLFSSL_DES_cblock DES_cblock;
 typedef WOLFSSL_const_DES_cblock const_DES_cblock;
 typedef WOLFSSL_DES_key_schedule DES_key_schedule;
 
+#define DES_check_key(x) /* Define WOLFSSL_CHECK_DESKEY to check key */
+#define DES_set_key           wolfSSL_DES_set_key
+#define DES_set_key_checked   wolfSSL_DES_set_key_checked
 #define DES_set_key_unchecked wolfSSL_DES_set_key_unchecked
 #define DES_key_sched         wolfSSL_DES_key_sched
 #define DES_cbc_encrypt       wolfSSL_DES_cbc_encrypt
