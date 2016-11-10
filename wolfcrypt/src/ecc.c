@@ -1069,7 +1069,7 @@ int ecc_projective_add_point(ecc_point* P, ecc_point* Q, ecc_point* R,
 
    /* if Z is one then these are no-operations */
    if (err == MP_OKAY) {
-       if (get_digit_count(Q->z)) {
+       if (!mp_isone(Q->z)) {
            /* T1 = Z' * Z' */
            err = mp_sqr(Q->z, &t1);
            if (err == MP_OKAY)
@@ -1123,7 +1123,7 @@ int ecc_projective_add_point(ecc_point* P, ecc_point* Q, ecc_point* R,
    if (err == MP_OKAY)
        err = mp_sub(y, &t1, y);
    if (err == MP_OKAY) {
-       if (mp_cmp_d(y, 0) == MP_LT)
+       if (mp_isneg(y))
            err = mp_add(y, modulus, y);
    }
    /* T1 = 2T1 */
@@ -1144,7 +1144,7 @@ int ecc_projective_add_point(ecc_point* P, ecc_point* Q, ecc_point* R,
    if (err == MP_OKAY)
        err = mp_sub(x, &t2, x);
    if (err == MP_OKAY) {
-       if (mp_cmp_d(x, 0) == MP_LT)
+       if (mp_isneg(x))
            err = mp_add(x, modulus, x);
    }
    /* T2 = 2T2 */
@@ -1163,7 +1163,7 @@ int ecc_projective_add_point(ecc_point* P, ecc_point* Q, ecc_point* R,
    }
 
    if (err == MP_OKAY) {
-       if (get_digit_count(Q->z)) {
+       if (!mp_isone(Q->z)) {
            /* Z = Z * Z' */
            err = mp_mul(z, Q->z, z);
            if (err == MP_OKAY)
@@ -1211,21 +1211,21 @@ int ecc_projective_add_point(ecc_point* P, ecc_point* Q, ecc_point* R,
    if (err == MP_OKAY)
        err = mp_sub(x, &t2, x);
    if (err == MP_OKAY) {
-       if (mp_cmp_d(x, 0) == MP_LT)
+       if (mp_isneg(x))
            err = mp_add(x, modulus, x);
    }
    /* T2 = T2 - X */
    if (err == MP_OKAY)
        err = mp_sub(&t2, x, &t2);
    if (err == MP_OKAY) {
-       if (mp_cmp_d(&t2, 0) == MP_LT)
+       if (mp_isneg(&t2))
            err = mp_add(&t2, modulus, &t2);
    }
    /* T2 = T2 - X */
    if (err == MP_OKAY)
        err = mp_sub(&t2, x, &t2);
    if (err == MP_OKAY) {
-       if (mp_cmp_d(&t2, 0) == MP_LT)
+       if (mp_isneg(&t2))
            err = mp_add(&t2, modulus, &t2);
    }
    /* T2 = T2 * Y */
@@ -1238,7 +1238,7 @@ int ecc_projective_add_point(ecc_point* P, ecc_point* Q, ecc_point* R,
    if (err == MP_OKAY)
        err = mp_sub(&t2, &t1, y);
    if (err == MP_OKAY) {
-       if (mp_cmp_d(y, 0) == MP_LT)
+       if (mp_isneg(y))
            err = mp_add(y, modulus, y);
    }
    /* Y = Y/2 */
@@ -1405,7 +1405,7 @@ int ecc_projective_dbl_point(ecc_point *P, ecc_point *R, mp_int* a,
    if (err == MP_OKAY)
        err = mp_sub(x, &t1, &t2);
    if (err == MP_OKAY) {
-       if (mp_cmp_d(&t2, 0) == MP_LT)
+       if (mp_isneg(&t2))
            err = mp_add(&t2, modulus, &t2);
    }
    /* T1 = X + T1 */
@@ -1480,14 +1480,14 @@ int ecc_projective_dbl_point(ecc_point *P, ecc_point *R, mp_int* a,
    if (err == MP_OKAY)
        err = mp_sub(x, y, x);
    if (err == MP_OKAY) {
-       if (mp_cmp_d(x, 0) == MP_LT)
+       if (mp_isneg(x))
            err = mp_add(x, modulus, x);
    }
    /* X = X - Y */
    if (err == MP_OKAY)
        err = mp_sub(x, y, x);
    if (err == MP_OKAY) {
-       if (mp_cmp_d(x, 0) == MP_LT)
+       if (mp_isneg(x))
            err = mp_add(x, modulus, x);
    }
 
@@ -1495,7 +1495,7 @@ int ecc_projective_dbl_point(ecc_point *P, ecc_point *R, mp_int* a,
    if (err == MP_OKAY)
        err = mp_sub(y, x, y);
    if (err == MP_OKAY) {
-       if (mp_cmp_d(y, 0) == MP_LT)
+       if (mp_isneg(y))
            err = mp_add(y, modulus, y);
    }
    /* Y = Y * T1 */
@@ -1508,7 +1508,7 @@ int ecc_projective_dbl_point(ecc_point *P, ecc_point *R, mp_int* a,
    if (err == MP_OKAY)
        err = mp_sub(y, &t2, y);
    if (err == MP_OKAY) {
-       if (mp_cmp_d(y, 0) == MP_LT)
+       if (mp_isneg(y))
            err = mp_add(y, modulus, y);
    }
 
@@ -2007,7 +2007,7 @@ int wc_ecc_mulmod_ex(mp_int* k, ecc_point *G, ecc_point *R,
                --digidx;
            }
 
-           /* grab the next msb from the ltiplicand */
+           /* grab the next msb from the multiplicand */
            i = (buf >> (DIGIT_BIT - 1)) & 1;
            buf <<= 1;
 
@@ -3732,7 +3732,7 @@ static int ecc_is_point(const ecc_set_type* dp, ecc_point* ecp, mp_int* prime)
 #endif /* WOLFSSL_CUSTOM_CURVES */
 
    /* adjust range (0, prime) */
-   while (err == MP_OKAY && mp_cmp_d(&t1, 0) == MP_LT) {
+   while (err == MP_OKAY && mp_isneg(&t1)) {
       err = mp_add(&t1, prime, &t1);
    }
    while (err == MP_OKAY && mp_cmp(&t1, prime) != MP_LT) {

@@ -2365,11 +2365,6 @@ int mp_iszero(mp_int* a)
     return fp_iszero(a);
 }
 
-int mp_isneg(mp_int* a)
-{
-    return fp_isneg(a);
-}
-
 int mp_count_bits (mp_int* a)
 {
     return fp_count_bits(a);
