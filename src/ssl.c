@@ -10486,9 +10486,9 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
 #ifdef WOLFSSL_DES_ECB
             case DES_ECB_TYPE :
                 if (ctx->enc)
-                    wc_Des_EbcEncrypt(&ctx->cipher.des, dst, src, len);
+                    ret = wc_Des_EcbEncrypt(&ctx->cipher.des, dst, src, len);
             else
-                    wc_Des_EbcDecrypt(&ctx->cipher.des, dst, src, len);
+                    ret = wc_Des_EcbDecrypt(&ctx->cipher.des, dst, src, len);
             break;
 #endif
             case DES_EDE3_CBC_TYPE :

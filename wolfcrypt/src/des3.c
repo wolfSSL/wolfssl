@@ -1621,6 +1621,10 @@ int wc_Des_EcbEncrypt(Des* des, byte* out, const byte* in, word32 sz)
 {
     word32 blocks = sz / DES_BLOCK_SIZE;
 
+    if (des == NULL || out == NULL || in == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
     while (blocks--) {
         DesProcessBlock(des, in, out);
 
@@ -1632,15 +1636,19 @@ int wc_Des_EcbEncrypt(Des* des, byte* out, const byte* in, word32 sz)
 
 int wc_Des3_EcbEncrypt(Des3* des, byte* out, const byte* in, word32 sz)
 {
-    word32 blocks = sz / DES3_BLOCK_SIZE;
-    printf("wc_Des3_EcbEncrypt(%016x, %016x, %d)\n",
-        *(unsigned long *)in, *(unsigned long *)out, sz) ;
+    word32 blocks = sz / DES_BLOCK_SIZE;
+    /* printf("wc_Des3_EcbEncrypt(%016x, %016x, %d)\n",
+        *(unsigned long *)in, *(unsigned long *)out, sz) ; */
+
+    if (des == NULL || out == NULL || in == NULL) {
+        return BAD_FUNC_ARG;
+    }
 
     while (blocks--) {
         Des3ProcessBlock(des, in, out);
 
-        out += DES3_BLOCK_SIZE;
-        in  += DES3_BLOCK_SIZE;
+        out += DES_BLOCK_SIZE;
+        in  += DES_BLOCK_SIZE;
     }
     return 0;
 }
