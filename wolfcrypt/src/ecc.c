@@ -2505,23 +2505,27 @@ int wc_ecc_make_key_ex(WC_RNG* rng, int keysize, ecc_key* key, int curve_id)
 
     /* make up random string */
     err = wc_RNG_GenerateBlock(rng, buf, keysize);
+    if (err != 0) {
+    #ifdef WOLFSSL_SMALL_STACK
+        XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    #endif
+        return err;
+    }
 
     /* setup the key variables */
-    if (err == 0) {
-        err = mp_init_multi(&key->k, &prime, &order, &a, NULL, NULL);
-        if (err == MP_OKAY) {
-        #ifndef ALT_ECC_SIZE
-            err = mp_init_multi(key->pubkey.x, key->pubkey.y, key->pubkey.z,
-                                                            NULL, NULL, NULL);
-        #else
-            key->pubkey.x = (mp_int*)&key->pubkey.xyz[0];
-            key->pubkey.y = (mp_int*)&key->pubkey.xyz[1];
-            key->pubkey.z = (mp_int*)&key->pubkey.xyz[2];
-            alt_fp_init(key->pubkey.x);
-            alt_fp_init(key->pubkey.y);
-            alt_fp_init(key->pubkey.z);
-        #endif
-        }
+    err = mp_init_multi(&key->k, &prime, &order, &a, NULL, NULL);
+    if (err == MP_OKAY) {
+    #ifndef ALT_ECC_SIZE
+        err = mp_init_multi(key->pubkey.x, key->pubkey.y, key->pubkey.z,
+                                                        NULL, NULL, NULL);
+    #else
+        key->pubkey.x = (mp_int*)&key->pubkey.xyz[0];
+        key->pubkey.y = (mp_int*)&key->pubkey.xyz[1];
+        key->pubkey.z = (mp_int*)&key->pubkey.xyz[2];
+        alt_fp_init(key->pubkey.x);
+        alt_fp_init(key->pubkey.y);
+        alt_fp_init(key->pubkey.z);
+    #endif
     }
 
     if (err == MP_OKAY) {
