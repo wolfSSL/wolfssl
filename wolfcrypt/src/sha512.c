@@ -481,13 +481,8 @@ static int _Transform(Sha512* sha512)
     sha512->digest[7] += h(0);
 
     /* Wipe variables */
-#ifdef SHA512_FORCE_ZERO
     ForceZero(W, sizeof(word64) * 16);
     ForceZero(T, sizeof(T));
-#else
-    XMEMSET(W, 0, sizeof(word64) * 16);
-    XMEMSET(T, 0, sizeof(T));
-#endif
 
 #ifdef WOLFSSL_SMALL_STACK
     XFREE(W, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -1043,9 +1038,9 @@ static int Transform_AVX1(Sha512* sha512)
 
     /* Wipe variables */
     #if !defined(HAVE_INTEL_AVX1)&&!defined(HAVE_INTEL_AVX2)
-    XMEMSET(W_X, 0, sizeof(word64) * 16);
+    ForceZero(W_X, 0, sizeof(word64) * 16);
     #endif
-    XMEMSET(T, 0, sizeof(T));
+    ForceZero(T, 0, sizeof(T));
 
     return 0;
 }
@@ -1114,9 +1109,9 @@ static int Transform_AVX1_RORX(Sha512* sha512)
 
     /* Wipe variables */
     #if !defined(HAVE_INTEL_AVX1)&&!defined(HAVE_INTEL_AVX2)
-    XMEMSET(W_X, 0, sizeof(word64) * 16);
+    ForceZero(W_X, 0, sizeof(word64) * 16);
     #endif
-    XMEMSET(T, 0, sizeof(T));
+    ForceZero(T, 0, sizeof(T));
 
     return 0;
 }
@@ -1294,9 +1289,9 @@ static int Transform_AVX2(Sha512* sha512)
 
     /* Wipe variables */
     #if !defined(HAVE_INTEL_AVX1)&&!defined(HAVE_INTEL_AVX2)
-    XMEMSET(W, 0, sizeof(word64) * 16);
+    ForceZero(W, 0, sizeof(word64) * 16);
     #endif
-    XMEMSET(T, 0, sizeof(T));
+    ForceZero(T, 0, sizeof(T));
 
     return 0;
 }
