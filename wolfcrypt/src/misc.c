@@ -183,9 +183,18 @@ STATIC INLINE void xorbuf(void* buf, const void* mask, word32 count)
 /* Make sure compiler doesn't skip */
 STATIC INLINE void ForceZero(const void* mem, word32 len)
 {
+#ifdef WOLFCRYPT_FORCEZERO_BYTE
     volatile byte* z = (volatile byte*)mem;
 
     while (len--) *z++ = 0;
+#else
+    volatile word64 *z = (volatile word64 *)mem;
+    volatile byte *b;
+
+    while (len >= sizeof(word64)) { *z++ = 0; len -= sizeof(word64); }
+    b = (volatile byte *)z;
+    while (len--) *b++ = 0;
+#endif
 }
 
 

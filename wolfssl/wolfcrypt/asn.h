@@ -221,6 +221,7 @@ enum Hash_Sum  {
     MD2h    = 646,
     MD5h    = 649,
     SHAh    =  88,
+    SHA224h = 417,
     SHA256h = 414,
     SHA384h = 415,
     SHA512h = 416

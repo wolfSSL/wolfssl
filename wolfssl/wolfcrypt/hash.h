@@ -36,6 +36,7 @@ enum wc_HashType {
     WC_HASH_TYPE_MD4 = 2,
     WC_HASH_TYPE_MD5 = 3,
     WC_HASH_TYPE_SHA = 4, /* SHA-1 (not old SHA-0) */
+    WC_HASH_TYPE_SHA224 = 9,
     WC_HASH_TYPE_SHA256 = 5,
     WC_HASH_TYPE_SHA384 = 6,
     WC_HASH_TYPE_SHA512 = 7,
@@ -50,6 +51,8 @@ enum wc_HashType {
     #define WC_MAX_DIGEST_SIZE SHA384_DIGEST_SIZE
 #elif !defined(NO_SHA256)
     #define WC_MAX_DIGEST_SIZE SHA256_DIGEST_SIZE
+#elif defined(WOLFSSL_SHA224)
+    #define WC_MAX_DIGEST_SIZE SHA224_DIGEST_SIZE
 #elif !defined(NO_SHA)
     #define WC_MAX_DIGEST_SIZE SHA_DIGEST_SIZE
 #elif !defined(NO_MD5)
@@ -101,6 +104,12 @@ WOLFSSL_API int wc_Sha256Hash(const byte*, word32, byte*);
 #else
     #define wc_Sha256Free(d)
 #endif
+
+    #if defined(WOLFSSL_SHA224)
+        WOLFSSL_API int wc_Sha224GetHash(Sha224*, byte*);
+        WOLFSSL_API int wc_Sha224Hash(const byte*, word32, byte*);
+        #define wc_Sha224Free(d)
+    #endif /* defined(WOLFSSL_SHA224) */
 #endif
 
 #ifdef WOLFSSL_SHA512

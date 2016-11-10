@@ -750,6 +750,7 @@ static int GetIntRsa(RsaKey* key, mp_int* mpi, const byte* input,
 static const byte hashMd2hOid[] = {42, 134, 72, 134, 247, 13, 2, 2};
 static const byte hashMd5hOid[] = {42, 134, 72, 134, 247, 13, 2, 5};
 static const byte hashSha1hOid[] = {43, 14, 3, 2, 26};
+static const byte hashSha224hOid[] = {96, 134, 72, 1, 101, 3, 4, 2, 4};
 static const byte hashSha256hOid[] = {96, 134, 72, 1, 101, 3, 4, 2, 1};
 static const byte hashSha384hOid[] = {96, 134, 72, 1, 101, 3, 4, 2, 2};
 static const byte hashSha512hOid[] = {96, 134, 72, 1, 101, 3, 4, 2, 3};
@@ -762,12 +763,14 @@ static const byte hashSha512hOid[] = {96, 134, 72, 1, 101, 3, 4, 2, 3};
     static const byte sigMd2wRsaOid[] = {42, 134, 72, 134, 247, 13, 1, 1, 2};
     static const byte sigMd5wRsaOid[] = {42, 134, 72, 134, 247, 13, 1, 1, 4};
     static const byte sigSha1wRsaOid[] = {42, 134, 72, 134, 247, 13, 1, 1, 5};
+    static const byte sigSha224wRsaOid[] = {42, 134, 72, 134, 247, 13, 1, 1,14};
     static const byte sigSha256wRsaOid[] = {42, 134, 72, 134, 247, 13, 1, 1,11};
     static const byte sigSha384wRsaOid[] = {42, 134, 72, 134, 247, 13, 1, 1,12};
     static const byte sigSha512wRsaOid[] = {42, 134, 72, 134, 247, 13, 1, 1,13};
 #endif /* NO_RSA */
 #ifdef HAVE_ECC
     static const byte sigSha1wEcdsaOid[] = {42, 134, 72, 206, 61, 4, 1};
+    static const byte sigSha224wEcdsaOid[] = {42, 134, 72, 206, 61, 4, 3, 1};
     static const byte sigSha256wEcdsaOid[] = {42, 134, 72, 206, 61, 4, 3, 2};
     static const byte sigSha384wEcdsaOid[] = {42, 134, 72, 206, 61, 4, 3, 3};
     static const byte sigSha512wEcdsaOid[] = {42, 134, 72, 206, 61, 4, 3, 4};
@@ -859,6 +862,10 @@ static const byte* OidFromId(word32 id, word32 type, word32* oidSz)
                     oid = hashSha1hOid;
                     *oidSz = sizeof(hashSha1hOid);
                     break;
+                case SHA224h:
+                    oid = hashSha224hOid;
+                    *oidSz = sizeof(hashSha224hOid);
+                    break;
                 case SHA256h:
                     oid = hashSha256hOid;
                     *oidSz = sizeof(hashSha256hOid);
@@ -895,6 +902,10 @@ static const byte* OidFromId(word32 id, word32 type, word32* oidSz)
                     oid = sigSha1wRsaOid;
                     *oidSz = sizeof(sigSha1wRsaOid);
                     break;
+                case CTC_SHA224wRSA:
+                    oid = sigSha224wRsaOid;
+                    *oidSz = sizeof(sigSha224wRsaOid);
+                    break;
                 case CTC_SHA256wRSA:
                     oid = sigSha256wRsaOid;
                     *oidSz = sizeof(sigSha256wRsaOid);
@@ -912,6 +923,10 @@ static const byte* OidFromId(word32 id, word32 type, word32* oidSz)
                 case CTC_SHAwECDSA:
                     oid = sigSha1wEcdsaOid;
                     *oidSz = sizeof(sigSha1wEcdsaOid);
+                    break;
+                case CTC_SHA224wECDSA:
+                    oid = sigSha224wEcdsaOid;
+                    *oidSz = sizeof(sigSha224wEcdsaOid);
                     break;
                 case CTC_SHA256wECDSA:
                     oid = sigSha256wEcdsaOid;
@@ -3785,6 +3800,10 @@ int wc_GetCTC_HashOID(int type)
         case SHA:
             return SHAh;
 #endif
+#ifdef WOLFSSL_SHA224
+        case SHA224:
+            return SHA224h;
+#endif
 #ifndef NO_SHA256
         case SHA256:
             return SHA256h;
@@ -3852,6 +3871,15 @@ static int ConfirmSignature(const byte* buf, word32 bufSz,
         if (wc_ShaHash(buf, bufSz, digest) == 0) {
             typeH    = SHAh;
             digestSz = SHA_DIGEST_SIZE;
+        }
+        break;
+    #endif
+    #ifdef WOLFSSL_SHA224
+        case CTC_SHA224wRSA:
+        case CTC_SHA224wECDSA:
+        if (wc_Sha224Hash(buf, bufSz, digest) == 0) {
+            typeH    = SHA224h;
+            digestSz = SHA224_DIGEST_SIZE;
         }
         break;
     #endif
@@ -7613,6 +7641,15 @@ static int MakeSignature(const byte* buffer, int sz, byte* sig, int sigSz,
         }
         break;
     #endif
+    #ifdef WOLFSSL_SHA224
+        case CTC_SHA224wRSA:
+        case CTC_SHA224wECDSA:
+        if ((ret = wc_Sha224Hash(buffer, sz, digest)) == 0) {
+            typeH    = SHA224h;
+            digestSz = SHA224_DIGEST_SIZE;
+        }
+        break;
+    #endif
     #ifndef NO_SHA256
         case CTC_SHA256wRSA:
         case CTC_SHA256wECDSA:
@@ -7622,12 +7659,21 @@ static int MakeSignature(const byte* buffer, int sz, byte* sig, int sigSz,
         }
         break;
     #endif
+    #ifdef WOLFSSL_SHA384
+        case CTC_SHA384wRSA:
+        case CTC_SHA384wECDSA:
+        if ((ret = wc_Sha384Hash(buffer, sz, digest)) == 0) {
+            typeH    = SHA384h;
+            digestSz = SHA384_DIGEST_SIZE;
+        }
+        break;
+    #endif
     #ifdef WOLFSSL_SHA512
         case CTC_SHA512wRSA:
         case CTC_SHA512wECDSA:
         if ((ret = wc_Sha512Hash(buffer, sz, digest)) == 0) {
-            typeH    = SHA256h;
-            digestSz = SHA256_DIGEST_SIZE;
+            typeH    = SHA512h;
+            digestSz = SHA512_DIGEST_SIZE;
         }
         break;
     #endif
