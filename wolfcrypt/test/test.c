@@ -3052,6 +3052,8 @@ int aes_test(void)
 
 
 #ifdef HAVE_AESGCM
+/* NOTE: AESNI requires 128 bit alignment, padding arrays with 0's to be
+   aligned */
 int aesgcm_test(void)
 {
     Aes enc;
@@ -3070,15 +3072,17 @@ int aesgcm_test(void)
         0x1c, 0x3c, 0x0c, 0x95, 0x95, 0x68, 0x09, 0x53,
         0x2f, 0xcf, 0x0e, 0x24, 0x49, 0xa6, 0xb5, 0x25,
         0xb1, 0x6a, 0xed, 0xf5, 0xaa, 0x0d, 0xe6, 0x57,
-        0xba, 0x63, 0x7b, 0x39
+        0xba, 0x63, 0x7b, 0x39, 0x00, 0x00, 0x00, 0x00
     };
+    word32 pSz = 60;
 
     const byte a[] =
     {
         0xfe, 0xed, 0xfa, 0xce, 0xde, 0xad, 0xbe, 0xef,
         0xfe, 0xed, 0xfa, 0xce, 0xde, 0xad, 0xbe, 0xef,
-        0xab, 0xad, 0xda, 0xd2
+        0xab, 0xad, 0xda, 0xd2, 0x00, 0x00, 0x00, 0x00
     };
+    word32 aSz = 20;
 
     const byte k1[] =
     {
@@ -3091,8 +3095,9 @@ int aesgcm_test(void)
     const byte iv1[] =
     {
         0xca, 0xfe, 0xba, 0xbe, 0xfa, 0xce, 0xdb, 0xad,
-        0xde, 0xca, 0xf8, 0x88
+        0xde, 0xca, 0xf8, 0x88, 0x00, 0x00, 0x00, 0x00
     };
+    word32 iv1Sz = 12;
 
     const byte c1[] =
     {
@@ -3130,8 +3135,9 @@ int aesgcm_test(void)
         0xc3, 0xc0, 0xc9, 0x51, 0x56, 0x80, 0x95, 0x39,
         0xfc, 0xf0, 0xe2, 0x42, 0x9a, 0x6b, 0x52, 0x54,
         0x16, 0xae, 0xdb, 0xf5, 0xa0, 0xde, 0x6a, 0x57,
-        0xa6, 0x37, 0xb3, 0x9b
+        0xa6, 0x37, 0xb3, 0x9b, 0x00, 0x00, 0x00, 0x00
     };
+    word32 iv2Sz = 60;
 
     const byte c2[] =
     {
@@ -3163,15 +3169,15 @@ int aesgcm_test(void)
 
     wc_AesGcmSetKey(&enc, k1, sizeof(k1));
     /* AES-GCM encrypt and decrypt both use AES encrypt internally */
-    wc_AesGcmEncrypt(&enc, resultC, p, sizeof(p), iv1, sizeof(iv1),
-                                        resultT, sizeof(resultT), a, sizeof(a));
-    if (XMEMCMP(c1, resultC, sizeof(resultC)))
+    wc_AesGcmEncrypt(&enc, resultC, p, pSz, iv1, iv1Sz,
+                                        resultT, sizeof(resultT), a, aSz);
+    if (XMEMCMP(c1, resultC, sizeof(c1)))
         return -68;
-    if (XMEMCMP(t1, resultT, sizeof(resultT)))
+    if (XMEMCMP(t1, resultT, sizeof(t1)))
         return -69;
 
-    result = wc_AesGcmDecrypt(&enc, resultP, resultC, sizeof(resultC),
-                      iv1, sizeof(iv1), resultT, sizeof(resultT), a, sizeof(a));
+    result = wc_AesGcmDecrypt(&enc, resultP, resultC, pSz,
+                      iv1, iv1Sz, resultT, sizeof(resultT), a, aSz);
     if (result != 0)
         return -70;
     if (XMEMCMP(p, resultP, sizeof(resultP)))
@@ -3184,15 +3190,15 @@ int aesgcm_test(void)
 
     wc_AesGcmSetKey(&enc, k2, sizeof(k2));
     /* AES-GCM encrypt and decrypt both use AES encrypt internally */
-    wc_AesGcmEncrypt(&enc, resultC, p, sizeof(p), iv2, sizeof(iv2),
-                                        resultT, sizeof(resultT), a, sizeof(a));
-    if (XMEMCMP(c2, resultC, sizeof(resultC)))
+    wc_AesGcmEncrypt(&enc, resultC, p, pSz, iv2, iv2Sz,
+                                        resultT, sizeof(resultT), a, aSz);
+    if (XMEMCMP(c2, resultC, sizeof(c2)))
         return -230;
-    if (XMEMCMP(t2, resultT, sizeof(resultT)))
+    if (XMEMCMP(t2, resultT, sizeof(t2)))
         return -231;
 
-    result = wc_AesGcmDecrypt(&enc, resultP, resultC, sizeof(resultC),
-                      iv2, sizeof(iv2), resultT, sizeof(resultT), a, sizeof(a));
+    result = wc_AesGcmDecrypt(&enc, resultP, resultC, pSz,
+                      iv2, iv2Sz, resultT, sizeof(resultT), a, aSz);
     if (result != 0)
         return -232;
     if (XMEMCMP(p, resultP, sizeof(resultP)))
@@ -3202,6 +3208,8 @@ int aesgcm_test(void)
     return 0;
 }
 
+
+/* NOTE: AESNI requires 128 bit alignment, padding arrays to be aligned */
 int gmac_test(void)
 {
     Gmac gmac;
@@ -3214,8 +3222,9 @@ int gmac_test(void)
     const byte iv1[] =
     {
         0xd1, 0xb1, 0x04, 0xc8, 0x15, 0xbf, 0x1e, 0x94,
-        0xe2, 0x8c, 0x8f, 0x16
+        0xe2, 0x8c, 0x8f, 0x16, 0x00, 0x00, 0x00, 0x00
     };
+    word32 iv1Sz    = 12;
     const byte a1[] =
     {
        0x82, 0xad, 0xcd, 0x63, 0x8d, 0x3f, 0xa9, 0xd9,
@@ -3235,8 +3244,9 @@ int gmac_test(void)
     const byte iv2[] =
     {
         0xee, 0x9c, 0x6e, 0x06, 0x15, 0x45, 0x45, 0x03,
-        0x1a, 0x60, 0x24, 0xa7
+        0x1a, 0x60, 0x24, 0xa7, 0x00, 0x00, 0x00, 0x00
     };
+    word32 iv2Sz    = 12;
     const byte a2[] =
     {
         0x94, 0x81, 0x2c, 0x87, 0x07, 0x4e, 0x15, 0x18,
@@ -3256,8 +3266,9 @@ int gmac_test(void)
     const byte iv3[] =
     {
         0xe4, 0x4a, 0x42, 0x18, 0x8c, 0xae, 0x94, 0x92,
-        0x6a, 0x9c, 0x26, 0xb0
+        0x6a, 0x9c, 0x26, 0xb0, 0x00, 0x00, 0x00, 0x00
     };
+    word32 iv3Sz    = 12;
     const byte a3[] =
     {
         0x9d, 0xb9, 0x61, 0x68, 0xa6, 0x76, 0x7a, 0x31,
@@ -3272,19 +3283,19 @@ int gmac_test(void)
 
     XMEMSET(tag, 0, sizeof(tag));
     wc_GmacSetKey(&gmac, k1, sizeof(k1));
-    wc_GmacUpdate(&gmac, iv1, sizeof(iv1), a1, sizeof(a1), tag, sizeof(t1));
+    wc_GmacUpdate(&gmac, iv1, iv1Sz, a1, sizeof(a1), tag, sizeof(t1));
     if (XMEMCMP(t1, tag, sizeof(t1)) != 0)
         return -126;
 
     XMEMSET(tag, 0, sizeof(tag));
     wc_GmacSetKey(&gmac, k2, sizeof(k2));
-    wc_GmacUpdate(&gmac, iv2, sizeof(iv2), a2, sizeof(a2), tag, sizeof(t2));
+    wc_GmacUpdate(&gmac, iv2, iv2Sz, a2, sizeof(a2), tag, sizeof(t2));
     if (XMEMCMP(t2, tag, sizeof(t2)) != 0)
         return -127;
 
     XMEMSET(tag, 0, sizeof(tag));
     wc_GmacSetKey(&gmac, k3, sizeof(k3));
-    wc_GmacUpdate(&gmac, iv3, sizeof(iv3), a3, sizeof(a3), tag, sizeof(t3));
+    wc_GmacUpdate(&gmac, iv3, iv3Sz, a3, sizeof(a3), tag, sizeof(t3));
     if (XMEMCMP(t3, tag, sizeof(t3)) != 0)
         return -128;
 
