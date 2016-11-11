@@ -53,7 +53,6 @@
     extern "C" {
 #endif
 
-typedef char WOLFSSL_EVP_MD;
 typedef char WOLFSSL_EVP_CIPHER;
 
 #ifndef NO_MD5

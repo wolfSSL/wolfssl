@@ -5685,6 +5685,30 @@ int wolfSSL_CTX_SetTmpDH_file(WOLFSSL_CTX* ctx, const char* fname, int format)
 /* put SSL type in extra for now, not very common */
 
 #ifndef NO_CERTS
+void* wolfSSL_X509_get_ext_d2i(const WOLFSSL_X509* x509,
+                                                     int nid, int* c, int* idx)
+{
+    WOLFSSL_STUB("wolfSSL_X509_get_ext_d2i");
+    (void)x509;
+    (void)nid;
+    (void)c;
+    (void)idx;
+    return NULL;
+}
+
+
+int wolfSSL_X509_digest(const WOLFSSL_X509* x509, const WOLFSSL_EVP_MD* digest,
+        unsigned char* buf, unsigned int* len)
+{
+    WOLFSSL_STUB("wolfSSL_X509_digest");
+    (void)x509;
+    (void)digest;
+    (void)buf;
+    (void)len;
+    return SSL_FAILURE;
+}
+
+
 int wolfSSL_use_PrivateKey(WOLFSSL* ssl, WOLFSSL_EVP_PKEY* pkey)
 {
     WOLFSSL_STUB("wolfSSL_use_PrivateKey");
@@ -7051,6 +7075,12 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
 
 #endif /* WOLFSSL_DTLS && !NO_WOLFSSL_SERVER */
 
+#ifdef OPENSSL_EXTRA
+    WOLFSSL_METHOD* wolfSSLv23_method(void) {
+        WOLFSSL_STUB("SSLv23_method");
+        return NULL; 
+    }
+#endif /* OPENSSL_EXTRA */
 
 /* client only parts */
 #ifndef NO_WOLFSSL_CLIENT
@@ -19387,7 +19417,7 @@ void WOLFSSL_ERR_remove_thread_state(void* pid)
 }
 
 /***TBD ***/
-void wolfSSL_ERR_print_errors_fp(XFILE *fp)
+void wolfSSL_print_all_errors_fp(XFILE *fp)
 {
     (void)fp;
 }

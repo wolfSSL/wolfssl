@@ -118,6 +118,7 @@ typedef struct WOLFSSL_ASN1_BIT_STRING  WOLFSSL_ASN1_BIT_STRING;
 
 #define WOLFSSL_ASN1_UTCTIME WOLFSSL_ASN1_TIME
 
+typedef char   WOLFSSL_EVP_MD;
 typedef struct WOLFSSL_EVP_PKEY {
     int type;         /* openssh dereference */
     int save_type;    /* openssh dereference */
@@ -242,6 +243,7 @@ WOLFSSL_API WOLFSSL_METHOD *wolfSSLv23_client_method_ex(void* heap);
     WOLFSSL_API WOLFSSL_METHOD *wolfDTLSv1_2_client_method_ex(void* heap);
     WOLFSSL_API WOLFSSL_METHOD *wolfDTLSv1_2_server_method_ex(void* heap);
 #endif
+WOLFSSL_API WOLFSSL_METHOD *wolfSSLv23_method(void);
 WOLFSSL_API WOLFSSL_METHOD *wolfSSLv3_server_method(void);
 WOLFSSL_API WOLFSSL_METHOD *wolfSSLv3_client_method(void);
 WOLFSSL_API WOLFSSL_METHOD *wolfTLSv1_server_method(void);
@@ -1894,6 +1896,10 @@ WOLFSSL_API char* wolfSSL_ASN1_TIME_to_string(WOLFSSL_ASN1_TIME* time,
 #ifdef OPENSSL_EXTRA
 
 #ifndef NO_CERTS
+WOLFSSL_API void* wolfSSL_X509_get_ext_d2i(const WOLFSSL_X509* x509,
+                                                     int nid, int* c, int* idx);
+WOLFSSL_API int wolfSSL_X509_digest(const WOLFSSL_X509* x509,
+        const WOLFSSL_EVP_MD* digest, unsigned char* buf, unsigned int* len);
 WOLFSSL_API int wolfSSL_use_certificate(WOLFSSL* ssl, WOLFSSL_X509* x509);
 WOLFSSL_API int wolfSSL_use_certificate_ASN1(WOLFSSL* ssl, unsigned char* der,
                                                                      int derSz);
@@ -2063,7 +2069,7 @@ WOLFSSL_API void WOLFSSL_ERR_remove_thread_state(void*);
 WOLFSSL_API unsigned long wolfSSL_ERR_peek_last_error_line(const char **file, int *line);
 
 #ifndef NO_FILESYSTEM
-WOLFSSL_API void wolfSSL_ERR_print_errors_fp(XFILE *fp);
+WOLFSSL_API void wolfSSL_print_all_errors_fp(XFILE *fp);
 #endif
 
 WOLFSSL_API long wolfSSL_CTX_clear_options(WOLFSSL_CTX*, long);

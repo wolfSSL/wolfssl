@@ -101,7 +101,7 @@ typedef WOLFSSL_X509_STORE_CTX X509_STORE_CTX;
                                 strncpy(buf, "Not Implemented, SSLv2 only", len)
 
 /* @TODO */
-#define ERR_print_errors_fp(file)
+#define ERR_print_errors_fp(file) wolfSSL_print_all_errors_fp((file))
 
 /* at the moment only returns ok */
 #define SSL_get_verify_result(ctx)    X509_V_OK
@@ -117,6 +117,7 @@ typedef WOLFSSL_X509_STORE_CTX X509_STORE_CTX;
 #define SSL_use_PrivateKey_ASN1    wolfSSL_use_PrivateKey_ASN1
 #define SSL_use_RSAPrivateKey_ASN1 wolfSSL_use_RSAPrivateKey_ASN1
 
+#define SSLv23_method       wolfSSLv23_method
 #define SSLv3_server_method wolfSSLv3_server_method
 #define SSLv3_client_method wolfSSLv3_client_method
 #define TLSv1_server_method wolfTLSv1_server_method
@@ -211,6 +212,9 @@ typedef WOLFSSL_X509_STORE_CTX X509_STORE_CTX;
 #define SSL_SESSION_get_master_key        wolfSSL_SESSION_get_master_key
 #define SSL_SESSION_get_master_key_length wolfSSL_SESSION_get_master_key_length
 
+#define SSL_X509_NAME_get_text_by_NID wolfSSL_X509_NAME_get_text_by_NID
+#define SSL_X509_get_ext_d2i wolfSSL_X509_get_ext_d2i
+#define SSL_X509_digest wolfSSL_X509_digest
 #define X509_free wolfSSL_X509_free
 #define OPENSSL_free wolfSSL_OPENSSL_free
 

@@ -2278,11 +2278,13 @@ static void test_wolfSSL_certs(void)
         SSL_use_PrivateKey
         SSL_use_PrivateKey_ASN1
         SSL_use_RSAPrivateKey_ASN1
+        SSL_X509_digest
+        SSL_X509_get_ext_d2i
     */
 
     SSL_free(ssl);
     SSL_CTX_free(ctx);
-    wolfSSL_FreeX509(x509);
+    X509_free(x509);
 
     printf(resultFmt, passed);
     #endif /* defined(OPENSSL_EXTRA) && !defined(NO_CERTS) */
