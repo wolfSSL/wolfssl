@@ -59,7 +59,9 @@
     #undef OCSP_RESPONSE
 #endif
 
-
+#ifdef OPENSSL_EXTRA
+    #include <wolfssl/openssl/bn.h>
+#endif
 
 #ifdef __cplusplus
     extern "C" {
@@ -636,7 +638,11 @@ WOLFSSL_API int  wolfSSL_ASN1_INTEGER_cmp(const WOLFSSL_ASN1_INTEGER*,
                                        const WOLFSSL_ASN1_INTEGER*);
 WOLFSSL_API long wolfSSL_ASN1_INTEGER_get(const WOLFSSL_ASN1_INTEGER*);
 
+#ifdef OPENSSL_EXTRA
+WOLFSSL_API WOLFSSL_BIGNUM *wolfSSL_ASN1_INTEGER_to_BN(const WOLFSSL_ASN1_INTEGER *ai,
+                                       WOLFSSL_BIGNUM *bn);
 WOLFSSL_API STACK_OF(WOLFSSL_X509_NAME)* wolfSSL_load_client_CA_file(const char*);
+#endif
 
 WOLFSSL_API void  wolfSSL_CTX_set_client_CA_list(WOLFSSL_CTX*,
                                                STACK_OF(WOLFSSL_X509_NAME)*);
@@ -705,6 +711,8 @@ WOLFSSL_API long wolfSSL_SSL_get_tlsext_status_ids(WOLFSSL *s, void *arg);
 WOLFSSL_API long wolfSSL_SSL_set_tlsext_status_ids(WOLFSSL *s, void *arg);
 WOLFSSL_API long wolfSSL_SSL_get_tlsext_status_ocsp_resp(WOLFSSL *s, unsigned char **resp);
 WOLFSSL_API long wolfSSL_SSL_set_tlsext_status_ocsp_resp(WOLFSSL *s, unsigned char *resp, int len);
+
+WOLFSSL_API void wolfSSL_CONF_modules_unload(int all);
 
 #define WOLFSSL_DEFAULT_CIPHER_LIST ""   /* default all */
 #define WOLFSSL_RSA_F4 0x10001L

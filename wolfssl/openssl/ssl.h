@@ -318,6 +318,7 @@ typedef WOLFSSL_X509_STORE_CTX X509_STORE_CTX;
 
 #define ASN1_INTEGER_cmp wolfSSL_ASN1_INTEGER_cmp
 #define ASN1_INTEGER_get wolfSSL_ASN1_INTEGER_get
+#define ASN1_INTEGER_to_BN wolfSSL_ASN1_INTEGER_to_BN
 
 #define SSL_load_client_CA_file wolfSSL_load_client_CA_file
 
@@ -427,6 +428,11 @@ typedef WOLFSSL_X509_STORE_CTX X509_STORE_CTX;
 #define SSL_SESSION_get_timeout wolfSSL_SESSION_get_timeout
 #define SSL_SESSION_get_time wolfSSL_SESSION_get_time
 #define SSL_CTX_get_ex_new_index wolfSSL_CTX_get_ex_new_index
+
+/*#if OPENSSL_API_COMPAT < 0x10100000L*/
+# define CONF_modules_free() while(0) continue
+/*#endif*/
+#define CONF_modules_unload wolfSSL_CONF_modules_unload
 
 /* yassl had set the default to be 500 */
 #define SSL_get_default_timeout(ctx) 500

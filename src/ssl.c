@@ -13233,6 +13233,14 @@ long wolfSSL_ASN1_INTEGER_get(const WOLFSSL_ASN1_INTEGER* i)
     return 0;
 }
 
+/*** TBC ***/
+WOLFSSL_API WOLFSSL_BIGNUM *ASN1_INTEGER_to_BN(const WOLFSSL_ASN1_INTEGER *ai,
+                                       WOLFSSL_BIGNUM *bn)
+{
+    (void)ai;
+    (void)bn;
+    return 0;
+}
 
 
 void* wolfSSL_X509_STORE_CTX_get_ex_data(WOLFSSL_X509_STORE_CTX* ctx, int idx)
@@ -13558,6 +13566,12 @@ WOLFSSL_API long wolfSSL_SSL_CTX_set_tlsext_opaque_prf_input_callback_arg(WOLFSS
 {
     (void)ctx;
     return 0;
+}
+
+/*** TBC ***/
+WOLFSSL_API void wolfSSL_CONF_modules_unload(int all)
+{
+    (void) all;
 }
 
 #ifndef NO_DES3
@@ -14095,6 +14109,17 @@ int wolfSSL_BN_mod(WOLFSSL_BIGNUM* r, const WOLFSSL_BIGNUM* a,
     return 0;
 }
 
+/*** TBFD ***/
+WOLFSSL_API int wolfSSL_BN_mod_exp(WOLFSSL_BIGNUM *r, const WOLFSSL_BIGNUM *a,
+      const WOLFSSL_BIGNUM *p, const WOLFSSL_BIGNUM *m, WOLFSSL_BN_CTX *ctx)
+{
+    (void) r;
+    (void) a;
+    (void) p;
+    (void) m;
+    (void) ctx;
+    return 0;
+}
 
 const WOLFSSL_BIGNUM* wolfSSL_BN_value_one(void)
 {
@@ -15130,6 +15155,14 @@ void wolfSSL_DSA_free(WOLFSSL_DSA* dsa)
         dsa = NULL;
     }
 }
+
+/*** TBD ***/
+WOLFSSL_API WOLFSSL_DH *wolfSSL_DSA_dup_DH(const WOLFSSL_DSA *r)
+{
+    (void) r;
+    return NULL;
+}
+
 #endif /* NO_DSA */
 
 #ifndef NO_RSA
