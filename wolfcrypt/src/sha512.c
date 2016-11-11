@@ -1038,9 +1038,9 @@ static int Transform_AVX1(Sha512* sha512)
 
     /* Wipe variables */
     #if !defined(HAVE_INTEL_AVX1)&&!defined(HAVE_INTEL_AVX2)
-    ForceZero(W_X, 0, sizeof(word64) * 16);
+    ForceZero(W_X, sizeof(word64) * 16);
     #endif
-    ForceZero(T, 0, sizeof(T));
+    ForceZero(T, sizeof(T));
 
     return 0;
 }
@@ -1109,9 +1109,9 @@ static int Transform_AVX1_RORX(Sha512* sha512)
 
     /* Wipe variables */
     #if !defined(HAVE_INTEL_AVX1)&&!defined(HAVE_INTEL_AVX2)
-    ForceZero(W_X, 0, sizeof(word64) * 16);
+    ForceZero(W_X, sizeof(word64) * 16);
     #endif
-    ForceZero(T, 0, sizeof(T));
+    ForceZero(T, sizeof(T));
 
     return 0;
 }
@@ -1289,9 +1289,9 @@ static int Transform_AVX2(Sha512* sha512)
 
     /* Wipe variables */
     #if !defined(HAVE_INTEL_AVX1)&&!defined(HAVE_INTEL_AVX2)
-    ForceZero(W, 0, sizeof(word64) * 16);
+    ForceZero(W, sizeof(word64) * 16);
     #endif
-    ForceZero(T, 0, sizeof(T));
+    ForceZero(T, sizeof(T));
 
     return 0;
 }
