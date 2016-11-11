@@ -1069,7 +1069,7 @@ int ecc_projective_add_point(ecc_point* P, ecc_point* Q, ecc_point* R,
 
    /* if Z is one then these are no-operations */
    if (err == MP_OKAY) {
-       if (!mp_isone(Q->z)) {
+       if (!mp_iszero(Q->z)) {
            /* T1 = Z' * Z' */
            err = mp_sqr(Q->z, &t1);
            if (err == MP_OKAY)
@@ -1163,7 +1163,7 @@ int ecc_projective_add_point(ecc_point* P, ecc_point* Q, ecc_point* R,
    }
 
    if (err == MP_OKAY) {
-       if (!mp_isone(Q->z)) {
+       if (!mp_iszero(Q->z)) {
            /* Z = Z * Z' */
            err = mp_mul(z, Q->z, z);
            if (err == MP_OKAY)
