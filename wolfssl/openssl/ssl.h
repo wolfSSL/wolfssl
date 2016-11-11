@@ -525,6 +525,10 @@ typedef WOLFSSL_X509_NAME_ENTRY X509_NAME_ENTRY;
 #define SSL_CTX_set_tlsext_status_arg wolfSSL_SSL_CTX_set_tlsext_status_arg
 #define SSL_CTX_set_tlsext_opaque_prf_input_callback_arg \
                    wolfSSL_SSL_CTX_set_tlsext_opaque_prf_input_callback_arg
+#define SSL_get_server_random wolfSSL_SSL_get_server_random
+
+#define SSL_get_server_random wolfSSL_SSL_get_server_random
+#define SSL_get_tlsext_status_exts wolfSSL_SSL_get_tlsext_status_exts
 
 #define BIO_C_SET_FILE_PTR                      106
 #define BIO_C_GET_FILE_PTR                      107

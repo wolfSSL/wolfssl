@@ -13381,6 +13381,14 @@ WOLFSSL_API long wolfSSL_SSL_set_tlsext_status_type(WOLFSSL *s, int type)
 }
 
 /*** TBD ***/
+WOLFSSL_API long wolfSSL_SSL_get_tlsext_status_exts(WOLFSSL *s, void *arg)
+{
+    (void)s;
+    (void)arg;
+    return 0;
+}
+
+/*** TBD ***/
 WOLFSSL_API long wolfSSL_SSL_set_tlsext_status_exts(WOLFSSL *s, void *arg)
 {
     (void)s;
@@ -13419,6 +13427,35 @@ WOLFSSL_API long wolfSSL_SSL_set_tlsext_status_ocsp_resp(WOLFSSL *s, unsigned ch
     (void)resp;
     (void)len;
     return 0;
+}
+
+WOLFSSL_API unsigned long wolfSSL_SSL_get_server_random(const WOLFSSL *ssl, unsigned char *out,
+                                    unsigned long outlen)
+{
+    (void)ssl;
+    (void)out;
+    (void)outlen;
+    return 0;
+}
+
+/*** TBD ***/
+WOLFSSL_API unsigned long wolfSSL_SSL_get_verify_result(const WOLFSSL *ssl)
+{
+      (void)ssl;
+      return 0;
+}
+
+/*** TBD ***/
+WOLFSSL_API WOLFSSL_SESSION *wolfSSL_SSL_get1_session(WOLFSSL *ssl)
+{
+      (void)ssl;
+      return 0;
+}
+
+/*** TBD ***/
+WOLFSSL_API void wolfSSL_SSL_set_accept_state(WOLFSSL *s)
+{
+      (void)s;
 }
 
 long wolfSSL_CTX_sess_accept(WOLFSSL_CTX* ctx)
@@ -16703,6 +16740,7 @@ int wolfSSL_PEM_write_RSAPrivateKey(FILE *fp, WOLFSSL_RSA *rsa,
 #endif /* NO_FILESYSTEM */
 
 /*** TBD ***/
+WOLFSSL_API
 int wolfSSL_PEM_write_bio_PrivateKey(WOLFSSL_BIO* bio, RSA* rsa,
                                         const EVP_CIPHER* cipher,
                                         unsigned char* passwd, int len,
