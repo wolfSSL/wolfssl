@@ -88,8 +88,8 @@ enum {
 #ifndef HAVE_BLAKE2
     BLAKE2B_ID = 7,
 #endif
-#ifndef WOLFSSL_SHA384
-    SHA256  = 8,
+#ifndef WOLFSSL_SHA224
+    SHA224  = 8,
 #endif
 
 /* Select the largest available hash for the buffer size. */
