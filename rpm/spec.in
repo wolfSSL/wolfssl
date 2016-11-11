@@ -231,6 +231,7 @@ mkdir -p $RPM_BUILD_ROOT/
 %{_includedir}/wolfssl/wolfcrypt/wolfevent.h
 %{_includedir}/wolfssl/error-ssl.h
 %{_includedir}/wolfssl/ocsp.h
+%{_includedir}/wolfssl/openssl/aes.h
 %{_includedir}/wolfssl/openssl/asn1.h
 %{_includedir}/wolfssl/openssl/bio.h
 %{_includedir}/wolfssl/openssl/bn.h
@@ -275,6 +276,8 @@ mkdir -p $RPM_BUILD_ROOT/
 %{_libdir}/pkgconfig/wolfssl.pc
 
 %changelog
+* Fri Nov 11 2016 Jacob Barthelmeh <jacob@wolfssl.com>
+- Added header for wolfssl/openssl/aes.h
 * Fri Oct 28 2016 Jacob Barthelmeh <jacob@wolfssl.com>
 - Added header for pkcs12
 * Fri Sep 23 2016 John Safranek <john@wolfssl.com>

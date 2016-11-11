@@ -5685,6 +5685,33 @@ int wolfSSL_CTX_SetTmpDH_file(WOLFSSL_CTX* ctx, const char* fname, int format)
 /* put SSL type in extra for now, not very common */
 
 #ifndef NO_CERTS
+int wolfSSL_check_private_key(const WOLFSSL* ssl)
+{
+    DecodedCert der;
+    word32 size;
+    byte*  buff;
+    int    ret;
+
+    if (ssl == NULL) {
+        return SSL_FAILURE;
+    }
+
+    size = ssl->buffers.certificate->length;
+    buff = ssl->buffers.certificate->buffer;
+    InitDecodedCert(&der, buff, size, ssl->heap);
+    if (ParseCertRelative(&der, CERT_TYPE, NO_VERIFY, NULL) != 0) {
+        FreeDecodedCert(&der);
+        return SSL_FAILURE;
+    }
+
+    size = ssl->buffers.key->length;
+    buff = ssl->buffers.key->buffer;
+    ret  = wc_CheckPrivateKey(buff, size, &der);
+    FreeDecodedCert(&der);
+    return ret;
+}
+
+
 void* wolfSSL_X509_get_ext_d2i(const WOLFSSL_X509* x509,
                                                      int nid, int* c, int* idx)
 {
@@ -5808,6 +5835,39 @@ int wolfSSL_use_certificate_chain_file(WOLFSSL* ssl, const char* file)
 
 
 
+#if !defined(NO_WOLFSSL_SERVER)
+size_t wolfSSL_get_server_random(const WOLFSSL *ssl, unsigned char *out,
+                                                                   size_t outSz)
+{
+    size_t size;
+
+    /* return max size of buffer */
+    if (outSz == 0) {
+        return RAN_LEN;
+    }
+
+    if (ssl == NULL || out == NULL) {
+        return 0;
+    }
+
+    if (ssl->options.saveArrays == 0 || ssl->arrays == NULL) {
+        WOLFSSL_MSG("Arrays struct not saved after handshake");
+        return 0;
+    }
+
+    if (outSz > RAN_LEN) {
+        size = RAN_LEN;
+    }
+    else {
+        size = outSz;
+    }
+
+    XMEMCPY(out, ssl->arrays->serverRandom, size);
+    return 0;
+}
+#endif /* !defined(NO_WOLFSSL_SERVER) */
+
+
 #if !defined(NO_WOLFSSL_CLIENT)
 /* Return the amount of random bytes copied over or error case.
  * ssl : ssl struct after handshake
@@ -5816,22 +5876,23 @@ int wolfSSL_use_certificate_chain_file(WOLFSSL* ssl, const char* file)
  *
  * NOTE: wolfSSL_KeepArrays(ssl) must be called to retain handshake information.
  */
-int wolfSSL_get_client_random(WOLFSSL* ssl, unsigned char* out, int outSz)
+size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
+                                                                   size_t outSz)
 {
-    int size;
+    size_t size;
 
     /* return max size of buffer */
     if (outSz == 0) {
         return RAN_LEN;
     }
 
-    if (ssl == NULL || out == NULL || outSz < 0) {
-        return BAD_FUNC_ARG;
+    if (ssl == NULL || out == NULL) {
+        return 0;
     }
 
     if (ssl->options.saveArrays == 0 || ssl->arrays == NULL) {
         WOLFSSL_MSG("Arrays struct not saved after handshake");
-        return BAD_FUNC_ARG;
+        return 0;
     }
 
     if (outSz > RAN_LEN) {
@@ -13521,15 +13582,6 @@ WOLFSSL_API long wolfSSL_SSL_set_tlsext_status_ocsp_resp(WOLFSSL *s, unsigned ch
     (void)s;
     (void)resp;
     (void)len;
-    return 0;
-}
-
-WOLFSSL_API unsigned long wolfSSL_SSL_get_server_random(const WOLFSSL *ssl, unsigned char *out,
-                                    unsigned long outlen)
-{
-    (void)ssl;
-    (void)out;
-    (void)outlen;
     return 0;
 }
 

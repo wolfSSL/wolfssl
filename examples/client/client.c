@@ -1445,13 +1445,13 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 
 #ifdef OPENSSL_EXTRA
     {
-        byte* rnd;
-        byte* pt;
-        int   size;
+        byte*  rnd;
+        byte*  pt;
+        size_t size;
 
         /* get size of buffer then print */
         size = wolfSSL_get_client_random(NULL, NULL, 0);
-        if (size < 0) {
+        if (size == 0) {
             err_sys("error getting client random buffer size");
         }
 
@@ -1461,7 +1461,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
         }
 
         size = wolfSSL_get_client_random(ssl, rnd, size);
-        if (size < 0) {
+        if (size == 0) {
             XFREE(rnd, NULL, DYNAMIC_TYPE_TMP_BUFFER);
             err_sys("error getting client random buffer");
         }

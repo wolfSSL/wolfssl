@@ -2261,11 +2261,15 @@ static void test_wolfSSL_certs(void)
     AssertTrue(SSL_CTX_use_PrivateKey_file(ctx, svrKey, SSL_FILETYPE_PEM));
     AssertNotNull(ssl = SSL_new(ctx));
 
+    AssertIntEQ(wolfSSL_check_private_key(ssl), SSL_SUCCESS);
 
     /* create and use x509 */
-    x509 = wolfSSL_X509_load_certificate_file(svrCert, SSL_FILETYPE_PEM);
+    x509 = wolfSSL_X509_load_certificate_file(cliCert, SSL_FILETYPE_PEM);
     AssertNotNull(x509);
     AssertIntEQ(SSL_use_certificate(ssl, x509), SSL_SUCCESS);
+
+    /* with loading in a new cert the check on private key should now fail */
+    AssertIntNE(wolfSSL_check_private_key(ssl), SSL_SUCCESS);
 
 
     #if defined(USE_CERT_BUFFERS_2048)

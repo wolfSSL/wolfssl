@@ -715,8 +715,6 @@ WOLFSSL_API long wolfSSL_SSL_get_tlsext_status_ocsp_resp(WOLFSSL *s, unsigned ch
 WOLFSSL_API long wolfSSL_SSL_set_tlsext_status_ocsp_resp(WOLFSSL *s, unsigned char *resp, int len);
 
 WOLFSSL_API void wolfSSL_CONF_modules_unload(int all);
-WOLFSSL_API unsigned long wolfSSL_SSL_get_server_random(const WOLFSSL *ssl, unsigned char *out,
-                                    unsigned long outlen);
 WOLFSSL_API long wolfSSL_SSL_get_tlsext_status_exts(WOLFSSL *s, void *arg);
 WOLFSSL_API unsigned long wolfSSL_SSL_get_verify_result(const WOLFSSL *ssl);
 WOLFSSL_API void wolfSSL_SSL_set_accept_state(WOLFSSL *s);
@@ -1896,6 +1894,7 @@ WOLFSSL_API char* wolfSSL_ASN1_TIME_to_string(WOLFSSL_ASN1_TIME* time,
 #ifdef OPENSSL_EXTRA
 
 #ifndef NO_CERTS
+WOLFSSL_API int wolfSSL_check_private_key(const WOLFSSL* ssl);
 WOLFSSL_API void* wolfSSL_X509_get_ext_d2i(const WOLFSSL_X509* x509,
                                                      int nid, int* c, int* idx);
 WOLFSSL_API int wolfSSL_X509_digest(const WOLFSSL_X509* x509,
@@ -1922,8 +1921,10 @@ WOLFSSL_API void wolfSSL_CTX_set_cert_store(WOLFSSL_CTX* ctx,
 WOLFSSL_X509* wolfSSL_d2i_X509_bio(WOLFSSL_BIO* bio, WOLFSSL_X509** x509);
 WOLFSSL_API WOLFSSL_X509_STORE* wolfSSL_CTX_get_cert_store(WOLFSSL_CTX* ctx);
 
-WOLFSSL_API int wolfSSL_get_client_random(WOLFSSL* ssl, unsigned char* out,
-                                                                     int outSz);
+WOLFSSL_API size_t wolfSSL_get_server_random(const WOLFSSL *ssl,
+                                             unsigned char *out, size_t outlen);
+WOLFSSL_API size_t wolfSSL_get_client_random(const WOLFSSL* ssl,
+                                              unsigned char* out, size_t outSz);
 WOLFSSL_API pem_password_cb *wolfSSL_SSL_CTX_get_default_passwd_cb(WOLFSSL_CTX *ctx);
 WOLFSSL_API void *wolfSSL_SSL_CTX_get_default_passwd_cb_userdata(WOLFSSL_CTX *ctx);
 
