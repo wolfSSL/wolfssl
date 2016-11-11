@@ -110,6 +110,12 @@ typedef WOLFSSL_X509_STORE_CTX X509_STORE_CTX;
 #define SSL_CTX_get_verify_mode       wolfSSL_CTX_get_verify_mode
 #define SSL_CTX_get_verify_depth      wolfSSL_CTX_get_verify_depth
 #define SSL_get_certificate           wolfSSL_get_certificate
+#define SSL_use_certificate           wolfSSL_use_certificate
+#define SSL_use_certificate_ASN1      wolfSSL_use_certificate_ASN1
+
+#define SSL_use_PrivateKey         wolfSSL_use_PrivateKey
+#define SSL_use_PrivateKey_ASN1    wolfSSL_use_PrivateKey_ASN1
+#define SSL_use_RSAPrivateKey_ASN1 wolfSSL_use_RSAPrivateKey_ASN1
 
 #define SSLv3_server_method wolfSSLv3_server_method
 #define SSLv3_client_method wolfSSLv3_client_method

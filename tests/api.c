@@ -2245,6 +2245,49 @@ static void test_wolfSSL_DES(void)
     #endif /* defined(OPENSSL_EXTRA) && !defined(NO_DES3) */
 }
 
+
+static void test_wolfSSL_certs(void)
+{
+    #if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && \
+       !defined(NO_FILESYSTEM) && !defined(NO_RSA)
+    X509*  x509;
+    WOLFSSL*     ssl;
+    WOLFSSL_CTX* ctx;
+
+    printf(testingFmt, "wolfSSL_certs()");
+
+    AssertNotNull(ctx = SSL_CTX_new(wolfSSLv23_server_method()));
+    AssertTrue(SSL_CTX_use_certificate_file(ctx, svrCert, SSL_FILETYPE_PEM));
+    AssertTrue(SSL_CTX_use_PrivateKey_file(ctx, svrKey, SSL_FILETYPE_PEM));
+    AssertNotNull(ssl = SSL_new(ctx));
+
+
+    /* create and use x509 */
+    x509 = wolfSSL_X509_load_certificate_file(svrCert, SSL_FILETYPE_PEM);
+    AssertNotNull(x509);
+    AssertIntEQ(SSL_use_certificate(ssl, x509), SSL_SUCCESS);
+
+
+    #if defined(USE_CERT_BUFFERS_2048)
+        AssertIntEQ(SSL_use_certificate_ASN1(ssl,
+                                  (unsigned char*)server_cert_der_2048,
+                                  sizeof_server_cert_der_2048), SSL_SUCCESS);
+    #endif
+
+    /* needs tested after stubs filled out @TODO
+        SSL_use_PrivateKey
+        SSL_use_PrivateKey_ASN1
+        SSL_use_RSAPrivateKey_ASN1
+    */
+
+    SSL_free(ssl);
+    SSL_CTX_free(ctx);
+    wolfSSL_FreeX509(x509);
+
+    printf(resultFmt, passed);
+    #endif /* defined(OPENSSL_EXTRA) && !defined(NO_CERTS) */
+}
+
 /*----------------------------------------------------------------------------*
  | Main
  *----------------------------------------------------------------------------*/
@@ -2291,6 +2334,7 @@ void ApiTest(void)
 
     /* compatibility tests */
     test_wolfSSL_DES();
+    test_wolfSSL_certs();
 
     AssertIntEQ(test_wolfSSL_Cleanup(), SSL_SUCCESS);
     printf(" End API Tests\n");

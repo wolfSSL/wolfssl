@@ -5684,6 +5684,71 @@ int wolfSSL_CTX_SetTmpDH_file(WOLFSSL_CTX* ctx, const char* fname, int format)
 #ifdef OPENSSL_EXTRA
 /* put SSL type in extra for now, not very common */
 
+#ifndef NO_CERTS
+int wolfSSL_use_PrivateKey(WOLFSSL* ssl, WOLFSSL_EVP_PKEY* pkey)
+{
+    WOLFSSL_STUB("wolfSSL_use_PrivateKey");
+    (void)ssl;
+    (void)pkey;
+    return SSL_FAILURE;
+}
+
+
+int wolfSSL_use_PrivateKey_ASN1(int pri, WOLFSSL* ssl, unsigned char* der,
+                                long derSz)
+{
+    WOLFSSL_STUB("wolfSSL_use_PrivateKey_ASN1");
+    (void)ssl;
+    (void)pri;
+    (void)der;
+    (void)derSz;
+    return SSL_FAILURE;
+}
+
+
+#ifndef NO_RSA
+int wolfSSL_use_RSAPrivateKey_ASN1(WOLFSSL* ssl, WOLFSSL_RSA* rsa)
+{
+    WOLFSSL_STUB("wolfSSL_use_RSAPrivateKey");
+    (void)ssl;
+    (void)rsa;
+    return SSL_FAILURE;
+}
+#endif
+
+int wolfSSL_use_certificate_ASN1(WOLFSSL* ssl, unsigned char* der, int derSz)
+{
+    long idx;
+
+    WOLFSSL_ENTER("wolfSSL_use_certificate_ASN1");
+    if (der != NULL && ssl != NULL) {
+        if (ProcessBuffer(NULL, der, derSz, SSL_FILETYPE_ASN1, CERT_TYPE, ssl,
+                                                        &idx, 0) == SSL_SUCCESS)
+            return SSL_SUCCESS;
+    }
+
+    (void)idx;
+    return SSL_FAILURE;
+}
+
+
+int wolfSSL_use_certificate(WOLFSSL* ssl, WOLFSSL_X509* x509)
+{
+    long idx;
+
+    WOLFSSL_ENTER("wolfSSL_use_certificate");
+    if (x509 != NULL && ssl != NULL && x509->derCert != NULL) {
+        if (ProcessBuffer(NULL, x509->derCert->buffer, x509->derCert->length,
+                     SSL_FILETYPE_ASN1, CERT_TYPE, ssl, &idx, 0) == SSL_SUCCESS)
+            return SSL_SUCCESS;
+    }
+
+    (void)idx;
+    return SSL_FAILURE;
+}
+#endif /* NO_CERTS */
+
+
 int wolfSSL_use_certificate_file(WOLFSSL* ssl, const char* file, int format)
 {
     WOLFSSL_ENTER("wolfSSL_use_certificate_file");
