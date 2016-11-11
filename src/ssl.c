@@ -19226,6 +19226,11 @@ void WOLFSSL_ERR_remove_thread_state(void* pid)
     return;
 }
 
+/***TBD ***/
+void wolfSSL_ERR_print_errors_fp(XFILE *fp)
+{
+    (void)fp;
+}
 
 int wolfSSL_SESSION_set_ex_data(WOLFSSL_SESSION* session, int idx, void* data)
 {

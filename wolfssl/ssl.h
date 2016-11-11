@@ -2034,6 +2034,8 @@ WOLFSSL_API void wolfSSL_CTX_set_servername_callback(WOLFSSL_CTX *,
 WOLFSSL_API void wolfSSL_CTX_set_servername_arg(WOLFSSL_CTX *, void*);
 
 WOLFSSL_API void WOLFSSL_ERR_remove_thread_state(void*);
+WOLFSSL_API unsigned long wolfSSL_ERR_peek_last_error_line(const char **file, int *line);
+WOLFSSL_API void wolfSSL_ERR_print_errors_fp(FILE *fp);
 
 WOLFSSL_API long wolfSSL_CTX_clear_options(WOLFSSL_CTX*, long);
 

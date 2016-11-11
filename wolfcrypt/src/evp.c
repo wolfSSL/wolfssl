@@ -425,3 +425,9 @@ WOLFSSL_API int  wolfSSL_EVP_CIPHER_CTX_set_padding(WOLFSSL_EVP_CIPHER_CTX *ctx,
   return 1;
 }
 
+/*** TBD ***/
+WOLFSSL_API int wolfSSL_EVP_add_digest(const WOLFSSL_EVP_MD *digest)
+{
+    (void)digest;
+    return 0;
+}

@@ -336,6 +336,8 @@ typedef WOLFSSL_X509_STORE_CTX X509_STORE_CTX;
 #define SSL_CTX_set_info_callback wolfSSL_CTX_set_info_callback
 
 #define ERR_peek_error wolfSSL_ERR_peek_error
+#define ERR_peek_last_error_line  wolfSSL_ERR_peek_last_error_line
+#define ERR_peek_errors_fp         wolfSSL_ERR_peek_errors_fp
 #define ERR_GET_REASON wolfSSL_ERR_GET_REASON
 
 #define SSL_alert_type_string wolfSSL_alert_type_string
