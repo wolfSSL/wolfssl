@@ -992,11 +992,6 @@ enum Misc {
     AESGCM_IMP_IV_SZ    = 4,   /* Size of GCM/CCM AEAD implicit IV */
     AESGCM_EXP_IV_SZ    = 8,   /* Size of GCM/CCM AEAD explicit IV */
     AESGCM_NONCE_SZ     = AESGCM_EXP_IV_SZ + AESGCM_IMP_IV_SZ,
-#ifdef WOLFSSL_AESNI
-    /* with AESNI make buffer 128 bit aligned */
-    AEAD_AUTH_SZ_PAD    = -(int)AEAD_AUTH_DATA_SZ & 15,
-    AESGCM_NONCE_SZ_PAD = -(int)AESGCM_NONCE_SZ   & 15,
-#endif
 
     CHACHA20_IMP_IV_SZ  = 12,  /* Size of ChaCha20 AEAD implicit IV */
     CHACHA20_NONCE_SZ   = 12,  /* Size of ChacCha20 nonce           */

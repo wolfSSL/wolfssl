@@ -8444,13 +8444,8 @@ static INLINE int Encrypt(WOLFSSL* ssl, byte* out, const byte* input, word16 sz)
         #ifdef BUILD_AESGCM
             case wolfssl_aes_gcm:
                 {
-                #ifdef WOLFSSL_AESNI /* pad buffer for AESNI */
-                    byte additional[AEAD_AUTH_DATA_SZ + AEAD_AUTH_SZ_PAD];
-                    byte nonce[AESGCM_NONCE_SZ + AESGCM_NONCE_SZ_PAD];
-                #else
                     byte additional[AEAD_AUTH_DATA_SZ];
                     byte nonce[AESGCM_NONCE_SZ];
-                #endif
                     const byte* additionalSrc = input - 5;
 
                     XMEMSET(additional, 0, AEAD_AUTH_DATA_SZ);
@@ -8623,13 +8618,8 @@ static INLINE int Decrypt(WOLFSSL* ssl, byte* plain, const byte* input,
         #ifdef BUILD_AESGCM
             case wolfssl_aes_gcm:
             {
-            #ifdef WOLFSSL_AESNI /* pad buffer for AESNI */
-                byte additional[AEAD_AUTH_DATA_SZ + AEAD_AUTH_SZ_PAD];
-                byte nonce[AESGCM_NONCE_SZ + AESGCM_NONCE_SZ_PAD];
-            #else
                 byte additional[AEAD_AUTH_DATA_SZ];
                 byte nonce[AESGCM_NONCE_SZ];
-            #endif
 
                 XMEMSET(additional, 0, AEAD_AUTH_DATA_SZ);
 
