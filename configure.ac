@@ -1529,9 +1529,11 @@ AM_CONDITIONAL([BUILD_FIPS], [test "x$ENABLED_FIPS" = "xyes"])
 SHA224_DEFAULT=no
 if test "$host_cpu" = "x86_64"
 then
-    SHA224_DEFAULT=yes
+    if test "x$ENABLED_FIPS" = "xno"
+    then
+        SHA224_DEFAULT=yes
+    fi
 fi
-SHA224_DEFAULT=$ENABLED_FIPS
 
 # SHA224
 AC_ARG_ENABLE([sha224],
