@@ -76,7 +76,7 @@ WOLFSSL_API int wc_InitSha256(Sha256*);
 WOLFSSL_API int wc_Sha256Update(Sha256*, const byte*, word32);
 WOLFSSL_API int wc_Sha256Final(Sha256*, byte*);
 
-#if defined(WOLFSSL_SHA224)
+#ifdef WOLFSSL_SHA224
 
 #ifndef HAVE_FIPS /* avoid redefinition of structs */
 /* in bytes */
