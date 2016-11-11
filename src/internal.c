@@ -1402,6 +1402,10 @@ int InitSSL_Ctx(WOLFSSL_CTX* ctx, WOLFSSL_METHOD* method, void* heap)
         WOLFSSL_MSG("Bad Cert Manager New");
         return BAD_CERT_MANAGER_ERROR;
     }
+    #ifdef OPENSSL_EXTRA
+    /* setup WOLFSSL_X509_STORE */
+    ctx->x509_store.cm = ctx->cm;
+    #endif
 #endif
 
 #if defined(HAVE_EXTENDED_MASTER) && !defined(NO_WOLFSSL_CLIENT)

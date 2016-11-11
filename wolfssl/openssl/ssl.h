@@ -21,7 +21,7 @@
 
 
 
-/*  ssl.h defines wolfssl_openssl compatibility layer 
+/*  ssl.h defines wolfssl_openssl compatibility layer
  *
  */
 
@@ -134,7 +134,7 @@ typedef WOLFSSL_X509_STORE_CTX X509_STORE_CTX;
     #define SSL_CTX_load_verify_locations wolfSSL_CTX_load_verify_locations
     #define SSL_CTX_use_certificate_chain_file wolfSSL_CTX_use_certificate_chain_file
     #define SSL_CTX_use_RSAPrivateKey_file wolfSSL_CTX_use_RSAPrivateKey_file
-    
+
     #define SSL_use_certificate_file wolfSSL_use_certificate_file
     #define SSL_use_PrivateKey_file wolfSSL_use_PrivateKey_file
     #define SSL_use_certificate_chain_file wolfSSL_use_certificate_chain_file
@@ -147,6 +147,7 @@ typedef WOLFSSL_X509_STORE_CTX X509_STORE_CTX;
 #define SSL_get_fd  wolfSSL_get_fd
 #define SSL_connect wolfSSL_connect
 #define SSL_clear   wolfSSL_clear
+#define SSL_state   wolfSSL_state
 
 #define SSL_write    wolfSSL_write
 #define SSL_read     wolfSSL_read
@@ -201,6 +202,8 @@ typedef WOLFSSL_X509_STORE_CTX X509_STORE_CTX;
 
 #define SSL_get_keyblock_size wolfSSL_get_keyblock_size
 #define SSL_get_keys          wolfSSL_get_keys
+#define SSL_SESSION_get_master_key        wolfSSL_SESSION_get_master_key
+#define SSL_SESSION_get_master_key_length wolfSSL_SESSION_get_master_key_length
 
 #define X509_free wolfSSL_X509_free
 #define OPENSSL_free wolfSSL_OPENSSL_free
@@ -271,6 +274,9 @@ typedef WOLFSSL_X509_STORE_CTX X509_STORE_CTX;
 #  define CRYPTO_WRITE            8
 
 #define X509_STORE_CTX_get_current_cert wolfSSL_X509_STORE_CTX_get_current_cert
+#define X509_STORE_add_cert             wolfSSL_X509_STORE_add_cert
+#define X509_STORE_set_flags            wolfSSL_X509_STORE_set_flags
+#define X509_STORE_CTX_get_chain        wolfSSL_X509_STORE_CTX_get_chain
 #define X509_STORE_CTX_get_error wolfSSL_X509_STORE_CTX_get_error
 #define X509_STORE_CTX_get_error_depth wolfSSL_X509_STORE_CTX_get_error_depth
 
@@ -316,6 +322,8 @@ typedef WOLFSSL_X509_STORE_CTX X509_STORE_CTX;
 #define SSL_load_client_CA_file wolfSSL_load_client_CA_file
 
 #define SSL_CTX_set_client_CA_list         wolfSSL_CTX_set_client_CA_list
+#define SSL_CTX_set_cert_store             wolfSSL_CTX_set_cert_store
+#define SSL_CTX_get_cert_store             wolfSSL_CTX_get_cert_store
 #define X509_STORE_CTX_get_ex_data         wolfSSL_X509_STORE_CTX_get_ex_data
 #define SSL_get_ex_data_X509_STORE_CTX_idx wolfSSL_get_ex_data_X509_STORE_CTX_idx
 #define SSL_get_ex_data wolfSSL_get_ex_data
@@ -405,6 +413,7 @@ typedef WOLFSSL_X509_STORE_CTX X509_STORE_CTX;
 #define sk_value wolfSSL_sk_value
 #define sk_X509_pop  wolfSSL_sk_X509_pop
 #define sk_X509_free wolfSSL_sk_X509_free
+#define d2i_X509_bio wolfSSL_d2i_X509_bio
 
 #define SSL_CTX_get_ex_data wolfSSL_CTX_get_ex_data
 #define SSL_CTX_set_ex_data wolfSSL_CTX_set_ex_data

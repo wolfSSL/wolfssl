@@ -1948,6 +1948,17 @@ int wolfSSL_shutdown(WOLFSSL* ssl)
 }
 
 
+/* get current error state value */
+int wolfSSL_state(WOLFSSL* ssl)
+{
+    if (ssl == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    return ssl->error;
+}
+
+
 int wolfSSL_get_error(WOLFSSL* ssl, int ret)
 {
     WOLFSSL_ENTER("SSL_get_error");
@@ -2147,7 +2158,6 @@ const byte* wolfSSL_GetServerWriteIV(WOLFSSL* ssl)
 
     return NULL;
 }
-
 
 int wolfSSL_GetKeySize(WOLFSSL* ssl)
 {
@@ -5793,6 +5803,47 @@ int wolfSSL_use_RSAPrivateKey_file(WOLFSSL* ssl, const char* file, int format)
     return wolfSSL_use_PrivateKey_file(ssl, file, format);
 }
 
+
+/* Copies the master secret over to out buffer. If outSz is 0 returns the size
+ * of master secret.
+ *
+ * ses : a session from completed TLS/SSL handshake
+ * out : buffer to hold copy of master secret
+ * outSz : size of out buffer
+ * returns : number of bytes copied into out buffer on success
+ *           less then or equal to 0 is considered a failure case
+ */
+int wolfSSL_SESSION_get_master_key(const WOLFSSL_SESSION* ses,
+        unsigned char* out, int outSz)
+{
+    int size;
+
+    if (outSz == 0) {
+        return SECRET_LEN;
+    }
+
+    if (ses == NULL || out == NULL || outSz < 0) {
+        return 0;
+    }
+
+    if (outSz > SECRET_LEN) {
+        size = SECRET_LEN;
+    }
+    else {
+        size = outSz;
+    }
+
+    XMEMCPY(out, ses->masterSecret, size);
+    return size;
+}
+
+
+int wolfSSL_SESSION_get_master_key_length(const WOLFSSL_SESSION* ses)
+{
+    (void)ses;
+    return SECRET_LEN;
+}
+
 #endif /* OPENSSL_EXTRA */
 
 #ifdef HAVE_NTRU
@@ -9222,6 +9273,30 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
     }
 
 
+    WOLFSSL_X509_STORE* wolfSSL_CTX_get_cert_store(WOLFSSL_CTX* ctx)
+    {
+        if (ctx == NULL) {
+            return NULL;
+        }
+
+        return &(ctx->x509_store);
+    }
+
+
+    void wolfSSL_CTX_set_cert_store(WOLFSSL_CTX* ctx, WOLFSSL_X509_STORE* str)
+    {
+        if (ctx == NULL || str == NULL) {
+            return;
+        }
+
+        /* free cert manager if have one */
+        if (ctx->cm != NULL) {
+            wolfSSL_CertManagerFree(ctx->cm);
+        }
+        ctx->cm               = str->cm;
+        ctx->x509_store.cache = str->cache;
+    }
+
 
     WOLFSSL_X509* wolfSSL_X509_STORE_CTX_get_current_cert(
                                                     WOLFSSL_X509_STORE_CTX* ctx)
@@ -12477,6 +12552,39 @@ WOLFSSL_X509_LOOKUP* wolfSSL_X509_STORE_add_lookup(WOLFSSL_X509_STORE* store,
 
 
 #ifndef NO_CERTS
+WOLFSSL_X509* wolfSSL_d2i_X509_bio(WOLFSSL_BIO* bio, WOLFSSL_X509** x509)
+{
+    WOLFSSL_X509* localX509 = NULL;
+    const unsigned char* mem  = NULL;
+    int    ret;
+    word32 size;
+
+    WOLFSSL_ENTER("wolfSSL_d2i_X509_bio");
+
+    if (bio == NULL) {
+        WOLFSSL_MSG("Bad Function Argument bio is NULL");
+        return NULL;
+    }
+
+    ret = wolfSSL_BIO_get_mem_data(bio, &mem);
+    if (mem == NULL || ret <= 0) {
+        WOLFSSL_MSG("Failed to get data from bio struct");
+        return NULL;
+    }
+    size = ret;
+
+    localX509 = wolfSSL_X509_d2i(NULL, mem, size);
+    if (localX509 == NULL) {
+        return NULL;
+    }
+
+    if (x509 != NULL) {
+        *x509 = localX509;
+    }
+
+    return localX509;
+}
+
 
 #if !defined(NO_ASN) && !defined(NO_PWDBASED)
 WC_PKCS12* wolfSSL_d2i_PKCS12_bio(WOLFSSL_BIO* bio, WC_PKCS12** pkcs12)
@@ -12792,6 +12900,18 @@ void wolfSSL_PKCS12_PBE_add(void)
     WOLFSSL_ENTER("wolfSSL_PKCS12_PBE_add");
 }
 
+
+
+WOLFSSL_STACK* wolfSSL_X509_STORE_CTX_get_chain(WOLFSSL_X509_STORE_CTX* ctx)
+{
+    if (ctx == NULL) {
+        return NULL;
+    }
+
+    return ctx->chain;
+}
+
+
 int wolfSSL_X509_STORE_add_cert(WOLFSSL_X509_STORE* store, WOLFSSL_X509* x509)
 {
     int result = SSL_FATAL_ERROR;
@@ -12849,6 +12969,18 @@ void wolfSSL_X509_STORE_free(WOLFSSL_X509_STORE* store)
 }
 
 
+int wolfSSL_X509_STORE_set_flags(WOLFSSL_X509_STORE* store, unsigned long flag)
+{
+
+    WOLFSSL_STUB("wolfSSL_X509_STORE_set_flags");
+
+    (void)store;
+    (void)flag;
+
+    return 1;
+}
+
+
 int wolfSSL_X509_STORE_set_default_paths(WOLFSSL_X509_STORE* store)
 {
     (void)store;
@@ -12887,6 +13019,7 @@ int wolfSSL_X509_STORE_CTX_init(WOLFSSL_X509_STORE_CTX* ctx,
     if (ctx != NULL) {
         ctx->store = store;
         ctx->current_cert = x509;
+        ctx->chain  = sk;
         ctx->domain = NULL;
         ctx->ex_data = NULL;
         ctx->userCtx = NULL;
@@ -12906,6 +13039,8 @@ void wolfSSL_X509_STORE_CTX_free(WOLFSSL_X509_STORE_CTX* ctx)
             wolfSSL_X509_STORE_free(ctx->store);
         if (ctx->current_cert != NULL)
             wolfSSL_FreeX509(ctx->current_cert);
+        if (ctx->chain != NULL)
+            wolfSSL_sk_X509_free(ctx->chain);
         XFREE(ctx, NULL, DYNAMIC_TYPE_X509_CTX);
     }
 }

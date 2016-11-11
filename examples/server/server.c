@@ -1022,6 +1022,9 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
         }
 
         showPeer(ssl);
+        if (SSL_state(ssl) != 0) {
+            err_sys("SSL in error state");
+        }
 
 #ifdef HAVE_ALPN
         if (alpnList != NULL) {
