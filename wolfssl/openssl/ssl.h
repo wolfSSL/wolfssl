@@ -455,6 +455,7 @@ typedef WOLFSSL_X509_NAME_ENTRY X509_NAME_ENTRY;
 #define OBJ_obj2nid wolf_OBJ_obj2nid
 #define OBJ_sn2nid wolf_OBJ_sn2nid
 #define PEM_read_bio_X509 PEM_read_bio_WOLFSSL_X509
+#define PEM_read_bio_X509_AUX PEM_read_bio_WOLFSSL_X509_AUX
 #define SSL_CTX_set_verify_depth wolfSSL_CTX_set_verify_depth
 #define SSL_get_app_data wolfSSL_get_app_data
 #define SSL_set_app_data wolfSSL_set_app_data
@@ -479,6 +480,7 @@ typedef WOLFSSL_X509_NAME_ENTRY X509_NAME_ENTRY;
 #define OBJ_nid2ln wolf_OBJ_nid2ln
 #define OBJ_txt2nid wolf_OBJ_txt2nid
 #define PEM_read_bio_DHparams wolfSSL_PEM_read_bio_DHparams
+#define PEM_read_bio_DSAparams wolfSSL_PEM_read_bio_DSAparams
 #define PEM_write_bio_X509 PEM_write_bio_WOLFSSL_X509
 #define SSL_CTX_set_tmp_dh wolfSSL_CTX_set_tmp_dh
 
@@ -515,13 +517,14 @@ typedef WOLFSSL_X509_NAME_ENTRY X509_NAME_ENTRY;
 #define SSL_get_tlsext_status_ocsp_resp wolfSSL_SSL_get_tlsext_status_ocsp_resp
 #define SSL_set_tlsext_status_ocsp_resp wolfSSL_SSL_set_tlsext_status_ocsp_resp
 
-#define SSL_CTX_need_tmp_RSA() wolfSSL_SSL_CTX_ctrl(ctx,SSL_CTRL_NEED_TMP_RSA,0,NULL)
-#define SSL_CTX_set_tmp_rsa() wolfSSL_SSL_CTX_ctrl(ctx,SSL_CTRL_SET_TMP_RSA,0,(char *)rsa)
-#define SSL_CTX_add_extra_chain_cert() wolfSSL_SSL_CTX_ctrl(ctx,SSL_CTRL_EXTRA_CHAIN_CERT,0,(char *)x509)
-#define SSL_CTX_get_read_ahead() wolfSSL_SSL_CTX_ctrl(ctx,SSL_CTRL_GET_READ_AHEAD,0,NULL)
-#define SSL_CTX_set_read_ahead() wolfSSL_SSL_CTX_ctrl(ctx,SSL_CTRL_SET_READ_AHEAD,m,NULL)
-#define SSL_CTX_set_tlsext_status_arg() wolfSSL_SSL_CTX_ctrl(ssl,SSL_CTRL_SET_TLSEXT_STATUS_REQ_CB_ARG,0, (void *)arg)
-#define SSL_CTX_set_tlsext_opaque_prf_input_callback_arg() wolfSSL_SSL_CTX_ctrl(ctx,SSL_CTRL_SET_TLSEXT_OPAQUE_PRF_INPUT_CB_ARG, 0, arg)
+#define SSL_CTX_need_tmp_RSA wolfSSL_SSL_CTX_need_tmp_RSA
+#define SSL_CTX_set_tmp_rsa wolfSSL_SSL_CTX_set_tmp_rsa
+#define SSL_CTX_add_extra_chain_cert wolfSSL_SSL_CTX_add_extra_chain_cert
+#define SSL_CTX_get_read_ahead wolfSSL_SSL_CTX_get_read_ahead
+#define SSL_CTX_set_read_ahead wolfSSL_SSL_CTX_set_read_ahead
+#define SSL_CTX_set_tlsext_status_arg wolfSSL_SSL_CTX_set_tlsext_status_arg
+#define SSL_CTX_set_tlsext_opaque_prf_input_callback_arg \
+                   wolfSSL_SSL_CTX_set_tlsext_opaque_prf_input_callback_arg
 
 #define BIO_C_SET_FILE_PTR                      106
 #define BIO_C_GET_FILE_PTR                      107
@@ -608,8 +611,10 @@ typedef WOLFSSL_ASN1_BIT_STRING    ASN1_BIT_STRING;
 #define SSL_get_servername wolfSSL_get_servername
 #define SSL_set_SSL_CTX                  wolfSSL_set_SSL_CTX
 #define SSL_CTX_get_verify_callback      wolfSSL_CTX_get_verify_callback
-#define SSL_CTX_set_tlsext_servername_callback      wolfSSL_CTX_set_servername_callback
-#define SSL_CTX_set_tlsext_servername_arg           wolfSSL_CTX_set_servername_arg
+#define SSL_CTX_set_tlsext_servername_callback wolfSSL_CTX_set_servername_callback
+#define SSL_CTX_set_tlsext_servername_arg      wolfSSL_CTX_set_servername_arg
+#define SSL_CTX_get_default_passwd_cb          wolfSSL_SSL_CTX_get_default_passwd_cb
+#define SSL_CTX_get_default_passwd_cb_userdata wolfSSL_SSL_CTX_get_default_passwd_cb_userdata
 
 #define PSK_MAX_PSK_LEN                      256
 #define PSK_MAX_IDENTITY_LEN                 128

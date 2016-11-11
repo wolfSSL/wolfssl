@@ -1897,7 +1897,8 @@ WOLFSSL_API WOLFSSL_X509_STORE* wolfSSL_CTX_get_cert_store(WOLFSSL_CTX* ctx);
 
 WOLFSSL_API int wolfSSL_get_client_random(WOLFSSL* ssl, unsigned char* out,
                                                                      int outSz);
-
+WOLFSSL_API pem_password_cb *wolfSSL_SSL_CTX_get_default_passwd_cb(WOLFSSL_CTX *ctx);
+WOLFSSL_API void *wolfSSL_SSL_CTX_get_default_passwd_cb_userdata(WOLFSSL_CTX *ctx);
 
 /*lighttp compatibility */
 
@@ -1921,6 +1922,8 @@ WOLFSSL_API const char *  wolf_OBJ_nid2sn(int n);
 WOLFSSL_API int wolf_OBJ_obj2nid(const WOLFSSL_ASN1_OBJECT *o);
 WOLFSSL_API int wolf_OBJ_sn2nid(const char *sn);
 WOLFSSL_API WOLFSSL_X509 *PEM_read_bio_WOLFSSL_X509(WOLFSSL_BIO *bp, WOLFSSL_X509 **x, pem_password_cb *cb, void *u);
+WOLFSSL_API WOLFSSL_X509 *PEM_read_bio_WOLFSSL_X509_AUX
+        (WOLFSSL_BIO *bp, WOLFSSL_X509 **x, pem_password_cb *cb, void *u);
 WOLFSSL_API void wolfSSL_CTX_set_verify_depth(WOLFSSL_CTX *ctx,int depth);
 WOLFSSL_API void* wolfSSL_get_app_data( const WOLFSSL *ssl);
 WOLFSSL_API void wolfSSL_set_app_data(WOLFSSL *ssl, void *arg);
@@ -1947,6 +1950,8 @@ WOLFSSL_API WOLFSSL_BIO* wolfSSL_BIO_new_file(const char *filename, const char *
 WOLFSSL_API long wolfSSL_CTX_set_tmp_dh(WOLFSSL_CTX*, WOLFSSL_DH*);
 WOLFSSL_API WOLFSSL_DH *wolfSSL_PEM_read_bio_DHparams(WOLFSSL_BIO *bp,
     WOLFSSL_DH **x, pem_password_cb *cb, void *u);
+WOLFSSL_API WOLFSSL_DSA *wolfSSL_PEM_read_bio_DSAparams(WOLFSSL_BIO *bp,
+    WOLFSSL_DSA **x, pem_password_cb *cb, void *u);
 WOLFSSL_API int PEM_write_bio_WOLFSSL_X509(WOLFSSL_BIO *bp, WOLFSSL_X509 *x);
 
 
@@ -2035,7 +2040,10 @@ WOLFSSL_API void wolfSSL_CTX_set_servername_arg(WOLFSSL_CTX *, void*);
 
 WOLFSSL_API void WOLFSSL_ERR_remove_thread_state(void*);
 WOLFSSL_API unsigned long wolfSSL_ERR_peek_last_error_line(const char **file, int *line);
-WOLFSSL_API void wolfSSL_ERR_print_errors_fp(FILE *fp);
+
+#ifndef NO_FILESYSTEM
+WOLFSSL_API void wolfSSL_ERR_print_errors_fp(XFILE *fp);
+#endif
 
 WOLFSSL_API long wolfSSL_CTX_clear_options(WOLFSSL_CTX*, long);
 

@@ -11173,6 +11173,18 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         return 0;
     }
 
+    WOLFSSL_API pem_password_cb *wolfSSL_SSL_CTX_get_default_passwd_cb(WOLFSSL_CTX *ctx)
+    {
+        (void) ctx;
+        return NULL;
+    }
+
+    WOLFSSL_API void *wolfSSL_SSL_CTX_get_default_passwd_cb_userdata(WOLFSSL_CTX *ctx)
+    {
+        (void) ctx;
+        return NULL;
+    }
+
 #endif /* OPENSSL_EXTRA */
 
 
@@ -16690,6 +16702,25 @@ int wolfSSL_PEM_write_RSAPrivateKey(FILE *fp, WOLFSSL_RSA *rsa,
 }
 #endif /* NO_FILESYSTEM */
 
+/*** TBD ***/
+int wolfSSL_PEM_write_bio_PrivateKey(WOLFSSL_BIO* bio, RSA* rsa,
+                                        const EVP_CIPHER* cipher,
+                                        unsigned char* passwd, int len,
+                                        pem_password_cb cb, void* arg)
+{
+    (void)bio;
+    (void)rsa;
+    (void)cipher;
+    (void)passwd;
+    (void)len;
+    (void)cb;
+    (void)arg;
+
+    WOLFSSL_MSG("wolfSSL_PEM_write_bio_PrivateKey not implemented");
+
+    return SSL_FAILURE;
+}
+
 int wolfSSL_PEM_write_bio_RSAPrivateKey(WOLFSSL_BIO* bio, RSA* rsa,
                                         const EVP_CIPHER* cipher,
                                         unsigned char* passwd, int len,
@@ -18924,6 +18955,18 @@ void* wolfSSL_GetRsaDecCtx(WOLFSSL* ssl)
         return NULL;
     }
 
+    /*** TBD ***/
+    WOLFSSL_X509 *PEM_read_bio_WOLFSSL_X509_AUX(WOLFSSL_BIO *bp, WOLFSSL_X509 **x, pem_password_cb *cb, void *u) {
+        (void)bp;
+        (void)x;
+        (void)cb;
+        (void)u;
+        WOLFSSL_ENTER("PEM_read_bio_WOLFSSL_X509");
+        WOLFSSL_STUB("PEM_read_bio_WOLFSSL_X509");
+
+        return NULL;
+    }
+
     void wolfSSL_CTX_set_verify_depth(WOLFSSL_CTX *ctx, int depth) {
         (void)ctx;
         (void)depth;
@@ -19159,6 +19202,20 @@ WOLFSSL_DH *wolfSSL_PEM_read_bio_DHparams(WOLFSSL_BIO *bp, WOLFSSL_DH **x, pem_p
 
     WOLFSSL_ENTER("wolfSSL_PEM_read_bio_DHparams");
     WOLFSSL_STUB("wolfSSL_PEM_read_bio_DHparams");
+
+    return NULL;
+}
+
+/*** TBD ***/
+WOLFSSL_DSA *wolfSSL_PEM_read_bio_DSAparams(WOLFSSL_BIO *bp, WOLFSSL_DSA **x, pem_password_cb *cb, void *u)
+{
+    (void) bp;
+    (void) x;
+    (void) cb;
+    (void) u;
+
+    WOLFSSL_ENTER("wolfSSL_PEM_read_bio_DSAparams");
+    WOLFSSL_STUB("wolfSSL_PEM_read_bio_DSAparams");
 
     return NULL;
 }
