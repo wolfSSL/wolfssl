@@ -574,6 +574,9 @@ typedef WOLFSSL_X509_NAME_ENTRY X509_NAME_ENTRY;
 
 #define SSL_CTRL_SET_TLSEXT_STATUS_REQ_CB_ARG   64
 
+#define SSL_ctrl     wolfSSL_ctrl
+#define SSL_CTX_ctrl wolfSSL_CTX_ctrl
+
 #ifdef HAVE_STUNNEL
 #include <wolfssl/openssl/asn1.h>
 

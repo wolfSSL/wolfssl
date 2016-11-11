@@ -2268,8 +2268,10 @@ static void test_wolfSSL_certs(void)
     AssertNotNull(x509);
     AssertIntEQ(SSL_use_certificate(ssl, x509), SSL_SUCCESS);
 
+    #ifndef HAVE_USER_RSA
     /* with loading in a new cert the check on private key should now fail */
     AssertIntNE(wolfSSL_check_private_key(ssl), SSL_SUCCESS);
+    #endif
 
 
     #if defined(USE_CERT_BUFFERS_2048)
@@ -2292,6 +2294,20 @@ static void test_wolfSSL_certs(void)
 
     printf(resultFmt, passed);
     #endif /* defined(OPENSSL_EXTRA) && !defined(NO_CERTS) */
+}
+
+static void test_wolfSSL_ctrl(void)
+{
+    #if defined(OPENSSL_EXTRA)
+    printf(testingFmt, "wolfSSL_crtl()");
+
+    /* needs tested after stubs filled out @TODO
+        SSL_ctrl
+        SSL_CTX_ctrl
+    */
+
+    printf(resultFmt, passed);
+    #endif /* defined(OPENSSL_EXTRA) */
 }
 
 /*----------------------------------------------------------------------------*
@@ -2341,6 +2357,7 @@ void ApiTest(void)
     /* compatibility tests */
     test_wolfSSL_DES();
     test_wolfSSL_certs();
+    test_wolfSSL_ctrl();
 
     AssertIntEQ(test_wolfSSL_Cleanup(), SSL_SUCCESS);
     printf(" End API Tests\n");

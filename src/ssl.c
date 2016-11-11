@@ -5684,6 +5684,27 @@ int wolfSSL_CTX_SetTmpDH_file(WOLFSSL_CTX* ctx, const char* fname, int format)
 #ifdef OPENSSL_EXTRA
 /* put SSL type in extra for now, not very common */
 
+long wolfSSL_ctrl(WOLFSSL* ssl, int cmd, long opt, void* pt)
+{
+    WOLFSSL_STUB("wolfSSL_ctrl");
+    (void)ssl;
+    (void)cmd;
+    (void)opt;
+    (void)pt;
+    return SSL_FAILURE;
+}
+
+
+long wolfSSL_CTX_ctrl(WOLFSSL_CTX* ctx, int cmd, long opt, void* pt)
+{
+    WOLFSSL_STUB("wolfSSL_CTX_ctrl");
+    (void)ctx;
+    (void)cmd;
+    (void)opt;
+    (void)pt;
+    return SSL_FAILURE;
+}
+
 #ifndef NO_CERTS
 int wolfSSL_check_private_key(const WOLFSSL* ssl)
 {
