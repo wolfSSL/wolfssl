@@ -186,7 +186,7 @@ int wc_Hash(enum wc_HashType hash_type, const byte* data,
 #endif
             break;
         case WC_HASH_TYPE_SHA224:
-#ifdef WOLFSSL_SHA512
+#ifdef WOLFSSL_SHA224
             ret = wc_Sha224Hash(data, data_len, hash);
 #endif
             break;

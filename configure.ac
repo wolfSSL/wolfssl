@@ -747,28 +747,6 @@ fi
 AM_CONDITIONAL([BUILD_SHA512], [test "x$ENABLED_SHA512" = "xyes"])
 
 
-# set sha224 default
-SHA224_DEFAULT=no
-if test "$host_cpu" = "x86_64"
-then
-SHA224_DEFAULT=yes
-fi
-
-# SHA224
-AC_ARG_ENABLE([sha224],
-    [AS_HELP_STRING([--enable-sha224],[Enable wolfSSL SHA-224 support (default: enabled on x86_64)])],
-    [ ENABLED_SHA224=$enableval ],
-    [ ENABLED_SHA224=$SHA224_DEFAULT ]
-    )
-
-if test "$ENABLED_SHA224" = "yes"
-then
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SHA224"
-fi
-
-AM_CONDITIONAL([BUILD_SHA224], [test "x$ENABLED_SHA224" = "xyes"])
-
-
 # SESSION CERTS
 AC_ARG_ENABLE([sessioncerts],
     [  --enable-sessioncerts   Enable session cert storing (default: disabled)],
@@ -1545,6 +1523,29 @@ then
 fi
 
 AM_CONDITIONAL([BUILD_FIPS], [test "x$ENABLED_FIPS" = "xyes"])
+
+
+# set sha224 default
+SHA224_DEFAULT=no
+if test "$host_cpu" = "x86_64"
+then
+    SHA224_DEFAULT=yes
+fi
+SHA224_DEFAULT=$ENABLED_FIPS
+
+# SHA224
+AC_ARG_ENABLE([sha224],
+    [AS_HELP_STRING([--enable-sha224],[Enable wolfSSL SHA-224 support (default: enabled on x86_64)])],
+    [ ENABLED_SHA224=$enableval ],
+    [ ENABLED_SHA224=$SHA224_DEFAULT ]
+    )
+
+if test "$ENABLED_SHA224" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SHA224"
+fi
+
+AM_CONDITIONAL([BUILD_SHA224], [test "x$ENABLED_SHA224" = "xyes"])
 
 
 # set POLY1305 default

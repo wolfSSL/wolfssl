@@ -124,7 +124,7 @@ int wc_HmacSizeByType(int type)
             return SHA_DIGEST_SIZE;
     #endif
 
-    #ifndef WOLF_SHA224
+    #ifdef WOLF_SHA224
         case SHA224:
             return SHA224_DIGEST_SIZE;
     #endif
