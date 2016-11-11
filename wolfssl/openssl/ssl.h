@@ -386,7 +386,7 @@ typedef WOLFSSL_X509_STORE_CTX X509_STORE_CTX;
 #define RAND_status wolfSSL_RAND_status
 #define RAND_bytes wolfSSL_RAND_bytes
 #define SSLv23_server_method wolfSSLv23_server_method
-#define SSL_CTX_set_options wolfSSL_CTX_set_options 
+#define SSL_CTX_set_options wolfSSL_CTX_set_options
 #define SSL_CTX_check_private_key wolfSSL_CTX_check_private_key
 
 #define ERR_free_strings wolfSSL_ERR_free_strings
@@ -431,6 +431,7 @@ typedef WOLFSSL_X509_STORE_CTX X509_STORE_CTX;
 
 /*#if OPENSSL_API_COMPAT < 0x10100000L*/
 # define CONF_modules_free() while(0) continue
+# define ENGINE_cleanup() while(0) continue
 /*#endif*/
 #define CONF_modules_unload wolfSSL_CONF_modules_unload
 
@@ -506,7 +507,7 @@ typedef WOLFSSL_X509_NAME_ENTRY X509_NAME_ENTRY;
 #define SSL_total_renegotiations       wolfSSL_SSSL_total_renegotiations
 #define SSL_set_tlsext_debug_arg        wolfSSL_SSL_set_tlsext_debug_arg
 #define SSL_set_tlsext_status_type      wolfSSL_SSL_set_tlsext_status_type
-#define SSL_set_tlsext_status_exts      wolfSSL_SSL_set_tlsext_status_exts 
+#define SSL_set_tlsext_status_exts      wolfSSL_SSL_set_tlsext_status_exts
 #define SSL_get_tlsext_status_ids       wolfSSL_SSL_get_tlsext_status_ids
 #define SSL_set_tlsext_status_ids       wolfSSL_SSL_set_tlsext_status_ids
 #define SSL_get_tlsext_status_ocsp_resp wolfSSL_SSL_get_tlsext_status_ocsp_resp
