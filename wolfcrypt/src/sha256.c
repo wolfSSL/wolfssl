@@ -49,27 +49,6 @@ int wc_Sha256Final(Sha256* sha, byte* out)
     return Sha256Final_fips(sha, out);
 }
 
-#if defined(WOLFSSL_SHA224)
-
-int wc_InitSha224(Sha224* sha)
-{
-    return InitSha224_fips(sha);
-}
-
-
-int wc_Sha224Update(Sha224* sha, const byte* data, word32 len)
-{
-    return Sha224Update_fips(sha, data, len);
-}
-
-
-int wc_Sha224Final(Sha224* sha, byte* out)
-{
-    return Sha224Final_fips(sha, out);
-}
-
-
-#endif /* WOLFSSL_SHA224 */
 #else /* else build without fips */
 
 #if !defined(NO_SHA256) && defined(WOLFSSL_TI_HASH)
