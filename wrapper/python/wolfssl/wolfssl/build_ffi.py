@@ -40,15 +40,19 @@ ffi.cdef(
     typedef unsigned char byte;
     typedef unsigned int  word32;
 
-    void  wolfSSL_Free(void *ptr, void* heap, int type);
+    void  wolfSSL_Free(void*, void*, int);
 
     void* wolfSSLv23_server_method(void);
     void* wolfSSLv23_client_method(void);
     void* wolfTLSv1_2_server_method(void);
     void* wolfTLSv1_2_client_method(void);
 
-    void* wolfSSL_CTX_new(void* method);
-    void  wolfSSL_CTX_free(void* ctx);
+    void* wolfSSL_CTX_new(void*);
+    void  wolfSSL_CTX_free(void*);
+
+    int wolfSSL_CTX_use_PrivateKey_file(void*, const char*, int);
+    int wolfSSL_CTX_load_verify_locations(void*, const char*, const char*);
+    int wolfSSL_CTX_use_certificate_chain_file(void*, const char *);
 """
 )
 
