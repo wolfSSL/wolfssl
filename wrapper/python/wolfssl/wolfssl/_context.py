@@ -76,8 +76,7 @@ class SSLContext:
             if ret != 0:
                 raise SSLError("Unnable to load certificate chain")
         else:
-            raise TypeError(
-                "certfile needs to be string or buffer, NoneType found")
+            raise TypeError("certfile should be a valid filesystem path")
 
         if keyfile:
             ret = _lib.wolfSSL_CTX_use_PrivateKey_file(
@@ -87,8 +86,8 @@ class SSLContext:
 
 
     def load_verify_locations(self, cafile=None, capath=None, cadata=None):
-        if cafile is None and capath is None:
-            raise SSLError("Unnable to load verify locations")
+        if cafile is None and capath is None and cadata is None:
+            raise TypeError("cafile, capath and cadata cannot be all omitted")
 
         ret = _lib.wolfSSL_CTX_load_verify_locations(
             self.native_object,
