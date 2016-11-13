@@ -24,10 +24,13 @@ except ImportError:
     pass
 
 from wolfssl._methods import WolfSSLMethod
+from wolfssl._exceptions import *
 
 CERT_NONE     = 0
 CERT_OPTIONAL = 1
 CERT_REQUIRED = 2
+
+_SSL_FILETYPE_PEM = 1
 
 class SSLContext:
     """An SSLContext holds various SSL-related configuration options and
@@ -66,9 +69,31 @@ class SSLContext:
 #                         _context=self)
 #
 #
-#    def load_cert_chain(self, certfile, keyfile=None, password=None):
-#        pass
-#
-#
-#    def load_verify_locations(self, cafile=None, capath=None, cadata=None):
-#        pass
+    def load_cert_chain(self, certfile, keyfile=None, password=None):
+        if certfile:
+            ret = _lib.wolfSSL_CTX_use_certificate_chain_file(
+                self.native_object, certfile)
+            if ret != 0:
+                raise SSLError("Unnable to load certificate chain")
+        else:
+            raise TypeError(
+                "certfile needs to be string or buffer, NoneType found")
+
+        if keyfile:
+            ret = _lib.wolfSSL_CTX_use_PrivateKey_file(
+                self.native_object, keyfile, _SSL_FILETYPE_PEM)
+            if ret != 0:
+                raise SSLError("Unnable to load private key")
+
+
+    def load_verify_locations(self, cafile=None, capath=None, cadata=None):
+        if cafile is None and capath is None:
+            raise SSLError("Unnable to load verify locations")
+
+        ret = _lib.wolfSSL_CTX_load_verify_locations(
+            self.native_object,
+            cafile if cafile else _ffi.NULL,
+            capath if capath else _ffi.NULL)
+
+        if ret != 0:
+            raise SSLError("Unnable to load verify locations")
