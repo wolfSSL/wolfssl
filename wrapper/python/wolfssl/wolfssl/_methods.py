@@ -45,16 +45,16 @@ class WolfSSLMethod:
         if protocol not in _PROTOCOL_LIST:
             raise ValueError("this protocol is not supported")
 
-        elif protocol is PROTOCOL_SSLv3:
+        elif protocol == PROTOCOL_SSLv3:
             raise ValueError("this protocol is not supported")
 
-        elif protocol is PROTOCOL_TLSv1:
+        elif protocol == PROTOCOL_TLSv1:
             raise ValueError("this protocol is not supported")
 
-        elif protocol is PROTOCOL_TLSv1_1:
+        elif protocol == PROTOCOL_TLSv1_1:
             raise ValueError("this protocol is not supported")
 
-        elif protocol is PROTOCOL_TLSv1_2:
+        elif protocol == PROTOCOL_TLSv1_2:
             self.native_object =                                     \
                 _lib.wolfTLSv1_2_server_method() if server_side else \
                 _lib.wolfTLSv1_2_client_method()
