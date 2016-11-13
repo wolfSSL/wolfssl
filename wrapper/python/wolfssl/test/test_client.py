@@ -32,7 +32,7 @@ class SSLClientTest(unittest.TestCase):
 
     def test_wrap_socket(self):
         self.secure_sock = self.ssl_provider.wrap_socket(
-                                    self.sock, ssl_version=ssl.PROTOCOL_TLSv1_2)
+                                    self.sock, ssl_version=ssl.PROTOCOL_SSLv23)
         self.secure_sock.connect((self.host, self.port))
 
         self.secure_sock.send(b"GET / HTTP/1.1\n\n")
