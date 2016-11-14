@@ -4085,11 +4085,10 @@ int wc_ecc_export_private_only(ecc_key* key, byte* out, word32* outLen)
 #endif /* HAVE_ECC_KEY_EXPORT */
 
 #ifdef HAVE_ECC_KEY_IMPORT
-/* ecc private key import, public key in ANSI X9.63 format, private raw */
-int wc_ecc_import_private_key(const byte* priv, word32 privSz, const byte* pub,
-                           word32 pubSz, ecc_key* key)
+int wc_ecc_import_private_key_ex(const byte* priv, word32 privSz, const byte* pub,
+                           word32 pubSz, ecc_key* key, int curve_id)
 {
-    int ret = wc_ecc_import_x963(pub, pubSz, key);
+    int ret = wc_ecc_import_x963_ex(pub, pubSz, key, curve_id);
     if (ret != 0)
         return ret;
 
@@ -4103,6 +4102,14 @@ int wc_ecc_import_private_key(const byte* priv, word32 privSz, const byte* pub,
 #endif
 
     return ret;
+}
+
+/* ecc private key import, public key in ANSI X9.63 format, private raw */
+int wc_ecc_import_private_key(const byte* priv, word32 privSz, const byte* pub,
+                           word32 pubSz, ecc_key* key)
+{
+    return wc_ecc_import_private_key_ex(priv, privSz, pub, pubSz, key,
+                                                                ECC_CURVE_DEF);
 }
 #endif /* HAVE_ECC_KEY_IMPORT */
 
