@@ -2956,7 +2956,9 @@ static void AES_GCM_encrypt(const unsigned char *in,
     __m128i X = _mm_setzero_si128();
 
     if(ibytes == 96/8) {
-        Y = _mm_loadu_si128((__m128i*)ivec);
+        Y = _mm_setzero_si128();
+        for(j=0; j < ibytes%16; j++)
+            ((unsigned char*)&Y)[j] = ivec[j];
         Y = _mm_insert_epi32(Y, 0x1000000, 3);
             /* (Compute E[ZERO, KS] and E[Y0, KS] together */
         tmp1 = _mm_xor_si128(X, KEY[0]);
@@ -3105,7 +3107,9 @@ static void AES_GCM_encrypt(const unsigned char *in,
         }
         tmp1 = _mm_aesenc_si128(tmp1, KEY[nr-1]);
         tmp1 = _mm_aesenclast_si128(tmp1, KEY[nr]);
-        tmp1 = _mm_xor_si128(tmp1, _mm_loadu_si128(&((__m128i*)in)[k]));
+        for(j=0; j < nbytes%16; j++)
+            ((unsigned char*)&last_block)[j]= in[k*16+j];
+        tmp1 = _mm_xor_si128(tmp1, last_block);
         last_block = tmp1;
         for(j=0; j < nbytes%16; j++)
             out[k*16+j]=((unsigned char*)&last_block)[j];
@@ -3149,7 +3153,9 @@ static int AES_GCM_decrypt(const unsigned char *in,
     __m128i X = _mm_setzero_si128();
 
     if (ibytes == 96/8) {
-        Y = _mm_loadu_si128((__m128i*)ivec);
+        Y = _mm_setzero_si128();
+        for(j=0; j < ibytes%16; j++)
+            ((unsigned char*)&Y)[j] = ivec[j];
         Y = _mm_insert_epi32(Y, 0x1000000, 3);
             /* (Compute E[ZERO, KS] and E[Y0, KS] together */
         tmp1 = _mm_xor_si128(X, KEY[0]);
@@ -3337,7 +3343,9 @@ static int AES_GCM_decrypt(const unsigned char *in,
         }
         tmp1 = _mm_aesenc_si128(tmp1, KEY[nr-1]);
         tmp1 = _mm_aesenclast_si128(tmp1, KEY[nr]);
-        tmp1 = _mm_xor_si128(tmp1, _mm_loadu_si128(&((__m128i*)in)[k]));
+        for(j=0; j < nbytes%16; j++)
+            ((unsigned char*)&last_block)[j]= in[k*16+j];
+        tmp1 = _mm_xor_si128(tmp1, last_block);
         last_block = tmp1;
         for (j = 0; j < nbytes % 16; j++)
             out[k*16+j]=((unsigned char*)&last_block)[j];
@@ -3871,8 +3879,8 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
 
 #ifdef WOLFSSL_AESNI
     if (haveAESNI) {
-        AES_GCM_encrypt((void*)in, out, (void*)authIn, (void*)iv, authTag,
-                    sz, authInSz, ivSz, (byte*)aes->key, aes->rounds);
+        AES_GCM_encrypt(in, out, authIn, iv, authTag,
+                    sz, authInSz, ivSz, (const byte*)aes->key, aes->rounds);
         return 0;
     }
 #endif
