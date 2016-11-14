@@ -8940,11 +8940,10 @@ int wc_EccPrivateKeyDecode(const byte* input, word32* inOutIdx, ecc_key* key,
                     oidSum += input[*inOutIdx];
                     *inOutIdx += 1;
                 }
-                if (CheckCurve(oidSum) < 0)
+                if ((ret = CheckCurve(oidSum)) < 0) {
                     ret = ECC_CURVE_OID_E;
-
-                ret = wc_ecc_get_oid(oidSum, NULL, NULL);
-                if (ret >= 0) {
+                }
+                else {
                     curve_id = ret;
                     ret = 0;
                 }
