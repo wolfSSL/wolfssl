@@ -1694,7 +1694,8 @@ WOLFSSL_LOCAL int    TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length,
    || defined(HAVE_ALPN)                          \
    || defined(HAVE_QSH)                           \
    || defined(HAVE_SESSION_TICKET)                \
-   || defined(HAVE_SECURE_RENEGOTIATION)
+   || defined(HAVE_SECURE_RENEGOTIATION)          \
+   || defined(HAVE_SERVER_RENEGOTIATION_INFO)
 
 #error Using TLS extensions requires HAVE_TLS_EXTENSIONS to be defined.
 
@@ -1823,7 +1824,8 @@ WOLFSSL_LOCAL int TLSX_ValidateEllipticCurves(WOLFSSL* ssl, byte first,
 #endif /* HAVE_SUPPORTED_CURVES */
 
 /** Renegotiation Indication - RFC 5746 */
-#ifdef HAVE_SECURE_RENEGOTIATION
+#if defined(HAVE_SECURE_RENEGOTIATION) \
+ || defined(HAVE_SERVER_RENEGOTIATION_INFO)
 
 enum key_cache_state {
     SCR_CACHE_NULL   = 0,       /* empty / begin state */
@@ -1845,6 +1847,10 @@ typedef struct SecureRenegotiation {
 } SecureRenegotiation;
 
 WOLFSSL_LOCAL int TLSX_UseSecureRenegotiation(TLSX** extensions, void* heap);
+
+#ifdef HAVE_SERVER_RENEGOTIATION_INFO
+WOLFSSL_LOCAL int TLSX_AddEmptyRenegotiationInfo(TLSX** extensions, void* heap);
+#endif
 
 #endif /* HAVE_SECURE_RENEGOTIATION */
 
@@ -2814,7 +2820,8 @@ struct WOLFSSL {
     #ifdef HAVE_CERTIFICATE_STATUS_REQUEST_V2
         byte status_request_v2;
     #endif
-    #ifdef HAVE_SECURE_RENEGOTIATION
+    #if defined(HAVE_SECURE_RENEGOTIATION) \
+        || defined(HAVE_SERVER_RENEGOTIATION_INFO)
         SecureRenegotiation* secure_renegotiation; /* valid pointer indicates */
     #endif                                         /* user turned on */
     #ifdef HAVE_ALPN

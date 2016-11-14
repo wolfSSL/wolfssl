@@ -17820,6 +17820,28 @@ int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         return ret;
     }
 
+#ifdef HAVE_SERVER_RENEGOTIATION_INFO
+
+    /* search suites for specific one, idx on success, negative on error */
+    static int FindSuite(Suites* suites, byte first, byte second)
+    {
+        int i;
+
+        if (suites == NULL) {
+            WOLFSSL_MSG("Suites pointer error");
+            return SUITES_ERROR;
+        }
+
+        for (i = 0; i < suites->suiteSz; i += 2) {
+            if (suites->suites[i]   == first &&
+                suites->suites[i+1] == second )
+                return i;
+        }
+
+        return MATCH_SUITE_ERROR;
+    }
+
+#endif
 
     /* Make sure server cert/key are valid for this suite, true on success */
     static int VerifyServerSuite(WOLFSSL* ssl, word16 idx)
@@ -18351,6 +18373,18 @@ int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             return BUFFER_ERROR;
 
         XMEMCPY(clSuites.suites, input + i, clSuites.suiteSz);
+
+#ifdef HAVE_SERVER_RENEGOTIATION_INFO
+        /* check for TLS_EMPTY_RENEGOTIATION_INFO_SCSV suite */
+        if (FindSuite(&clSuites, 0, TLS_EMPTY_RENEGOTIATION_INFO_SCSV) >= 0) {
+            int ret = 0;
+
+            ret = TLSX_AddEmptyRenegotiationInfo(&ssl->extensions, ssl->heap);
+            if (ret != SSL_SUCCESS)
+                return ret;
+        }
+#endif /* HAVE_SERVER_RENEGOTIATION_INFO */
+
 #ifdef WOLFSSL_DTLS
         if (IsDtlsNotSctpMode(ssl)) {
             int ret = wc_HmacUpdate(&cookieHmac,
