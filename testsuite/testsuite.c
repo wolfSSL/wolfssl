@@ -42,7 +42,9 @@
 #include "examples/client/client.h"
 
 
+#ifndef NO_SHA256
 void file_test(const char* file, byte* hash);
+#endif
 
 void simple_test(func_args*);
 
@@ -102,7 +104,7 @@ int testsuite_test(int argc, char** argv)
 #endif
 
 #if !defined(WOLFSSL_TIRTOS)
-	ChangeToWolfRoot();
+    ChangeToWolfRoot();
 #endif
 
 #ifdef WOLFSSL_TIRTOS
@@ -181,14 +183,18 @@ int testsuite_test(int argc, char** argv)
 
     /* validate output equals input */
     {
+    #ifndef NO_SHA256
         byte input[SHA256_DIGEST_SIZE];
         byte output[SHA256_DIGEST_SIZE];
 
         file_test("input",  input);
         file_test(outputName, output);
+    #endif
         remove(outputName);
+    #ifndef NO_SHA256
         if (memcmp(input, output, sizeof(input)) != 0)
             return EXIT_FAILURE;
+    #endif
     }
 
     wolfSSL_Cleanup();
@@ -325,7 +331,7 @@ void join_thread(THREAD_TYPE thread)
 #elif defined(WOLFSSL_TIRTOS)
     while(1) {
         if (Task_getMode(thread) == Task_Mode_TERMINATED) {
-		    Task_sleep(5);
+            Task_sleep(5);
             break;
         }
         Task_yield();
@@ -340,6 +346,7 @@ void join_thread(THREAD_TYPE thread)
 }
 
 
+#ifndef NO_SHA256
 void file_test(const char* file, byte* check)
 {
     FILE* f;
@@ -382,7 +389,7 @@ void file_test(const char* file, byte* check)
 
     fclose(f);
 }
-
+#endif
 
 #else /* SINGLE_THREADED */
 

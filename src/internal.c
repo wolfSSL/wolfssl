@@ -4659,6 +4659,11 @@ ProtocolVersion MakeDTLSv1_2(void)
 #ifndef NO_CERTS
 static int HashOutputRaw(WOLFSSL* ssl, const byte* output, int sz)
 {
+    int ret = 0;
+
+    (void)output;
+    (void)sz;
+
 #ifdef HAVE_FUZZER
     if (ssl->fuzzerCb)
         ssl->fuzzerCb(ssl, output, sz, FUZZ_HASH, ssl->fuzzerCtx);
@@ -4670,11 +4675,9 @@ static int HashOutputRaw(WOLFSSL* ssl, const byte* output, int sz)
 #ifndef NO_MD5
     wc_Md5Update(&ssl->hsHashes->hashMd5, output, sz);
 #endif
-#endif
+#endif /* NO_OLD_TLS */
 
     if (IsAtLeastTLSv1_2(ssl)) {
-        int ret;
-
 #ifndef NO_SHA256
         ret = wc_Sha256Update(&ssl->hsHashes->hashSha256, output, sz);
         if (ret != 0)
@@ -4692,7 +4695,7 @@ static int HashOutputRaw(WOLFSSL* ssl, const byte* output, int sz)
 #endif
     }
 
-    return 0;
+    return ret;
 }
 #endif /* NO_CERTS */
 
@@ -4700,7 +4703,10 @@ static int HashOutputRaw(WOLFSSL* ssl, const byte* output, int sz)
 /* add output to md5 and sha handshake hashes, exclude record header */
 static int HashOutput(WOLFSSL* ssl, const byte* output, int sz, int ivSz)
 {
-    const byte* adj = output + RECORD_HEADER_SZ + ivSz;
+    int ret = 0;
+    const byte* adj;
+
+    adj = output + RECORD_HEADER_SZ + ivSz;
     sz -= RECORD_HEADER_SZ;
 
 #ifdef HAVE_FUZZER
@@ -4723,8 +4729,6 @@ static int HashOutput(WOLFSSL* ssl, const byte* output, int sz, int ivSz)
 #endif
 
     if (IsAtLeastTLSv1_2(ssl)) {
-        int ret;
-
 #ifndef NO_SHA256
         ret = wc_Sha256Update(&ssl->hsHashes->hashSha256, adj, sz);
         if (ret != 0)
@@ -4742,15 +4746,18 @@ static int HashOutput(WOLFSSL* ssl, const byte* output, int sz, int ivSz)
 #endif
     }
 
-    return 0;
+    return ret;
 }
 
 
 /* add input to md5 and sha handshake hashes, include handshake header */
 static int HashInput(WOLFSSL* ssl, const byte* input, int sz)
 {
+    int ret = 0;
     const byte* adj = input - HANDSHAKE_HEADER_SZ;
     sz += HANDSHAKE_HEADER_SZ;
+
+    (void)adj;
 
 #ifdef WOLFSSL_DTLS
     if (ssl->options.dtls) {
@@ -4769,8 +4776,6 @@ static int HashInput(WOLFSSL* ssl, const byte* input, int sz)
 #endif
 
     if (IsAtLeastTLSv1_2(ssl)) {
-        int ret;
-
 #ifndef NO_SHA256
         ret = wc_Sha256Update(&ssl->hsHashes->hashSha256, adj, sz);
         if (ret != 0)
@@ -4788,7 +4793,7 @@ static int HashInput(WOLFSSL* ssl, const byte* input, int sz)
 #endif
     }
 
-    return 0;
+    return ret;
 }
 
 
@@ -8881,8 +8886,11 @@ static INLINE void RmdRounds(int rounds, const byte* data, int sz)
 /* Do dummy rounds */
 static INLINE void DoRounds(int type, int rounds, const byte* data, int sz)
 {
-    switch (type) {
+    (void)rounds;
+    (void)data;
+    (void)sz;
 
+    switch (type) {
         case no_mac :
             break;
 
@@ -9907,6 +9915,7 @@ static void BuildSHA_CertVerify(WOLFSSL* ssl, byte* digest)
 
 static int BuildCertHashes(WOLFSSL* ssl, Hashes* hashes)
 {
+    int ret = 0;
     /* store current states, building requires get_digest which resets state */
     #ifdef WOLFSSL_SHA384
         Sha384 sha384 = ssl->hsHashes->hashSha384;
@@ -9915,14 +9924,14 @@ static int BuildCertHashes(WOLFSSL* ssl, Hashes* hashes)
         Sha512 sha512 = ssl->hsHashes->hashSha512;
     #endif
 
+    (void)hashes;
+
     if (ssl->options.tls) {
 #if ! defined( NO_OLD_TLS )
         wc_Md5GetHash(&ssl->hsHashes->hashMd5, hashes->md5);
         wc_ShaGetHash(&ssl->hsHashes->hashSha, hashes->sha);
 #endif
         if (IsAtLeastTLSv1_2(ssl)) {
-            int ret;
-
             #ifndef NO_SHA256
                 ret = wc_Sha256GetHash(&ssl->hsHashes->hashSha256,hashes->sha256);
                 if (ret != 0)
@@ -9957,7 +9966,7 @@ static int BuildCertHashes(WOLFSSL* ssl, Hashes* hashes)
         #endif
     }
 
-    return 0;
+    return ret;
 }
 
 #endif /* WOLFSSL_LEANPSK */
@@ -15774,8 +15783,8 @@ int SendCertificateVerify(WOLFSSL* ssl)
 
         case KEYSHARE_BUILD:
         {
-            int    keySz;
-            int    typeH;
+            int keySz;
+            int typeH = 0;
 
             ret = BuildCertHashes(ssl, &ssl->hsHashes->certHashes);
             if (ret != 0) {
@@ -15878,17 +15887,21 @@ int SendCertificateVerify(WOLFSSL* ssl)
             }
         #endif
 
-        #ifndef NO_OLD_TLS
+    #ifndef NO_OLD_TLS
+        #ifndef NO_SHA
             /* old tls default */
             ssl->buffers.digest.length = SHA_DIGEST_SIZE;
             ssl->buffers.digest.buffer = ssl->hsHashes->certHashes.sha;
             typeH = SHAh;
-        #else
+        #endif
+    #else
+        #ifndef NO_SHA256
             /* new tls default */
             ssl->buffers.digest.length = SHA256_DIGEST_SIZE;
             ssl->buffers.digest.buffer = ssl->hsHashes->certHashes.sha256;
             typeH = SHA256h;
         #endif
+    #endif /* !NO_OLD_TLS */
 
             if (IsAtLeastTLSv1_2(ssl)) {
                 verify[0] = ssl->suites->hashAlgo;
@@ -15935,7 +15948,9 @@ int SendCertificateVerify(WOLFSSL* ssl)
             }
         #endif
 
-            (void)typeH;
+            if (typeH == 0) {
+                ERROR_OUT(ALGO_ID_E, exit_scv);
+            }
 
         #ifndef NO_RSA
             if (ssl->sigType == DYNAMIC_TYPE_RSA) {
