@@ -17827,12 +17827,12 @@ int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     {
         int i;
 
-        if (suites == NULL) {
-            WOLFSSL_MSG("Suites pointer error");
+        if (suites == NULL || suites->suiteSz == 0) {
+            WOLFSSL_MSG("Suites pointer error or suiteSz 0");
             return SUITES_ERROR;
         }
 
-        for (i = 0; i < suites->suiteSz; i += 2) {
+        for (i = 0; i < suites->suiteSz-1; i += SUITE_LEN) {
             if (suites->suites[i]   == first &&
                 suites->suites[i+1] == second )
                 return i;
