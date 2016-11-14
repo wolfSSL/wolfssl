@@ -1313,7 +1313,7 @@ int GetObjectId(const byte* input, word32* inOutIdx, word32* oid,
             #endif /* HAVE_OID_DECODING */
         #endif
 
-            if (checkOid != NULL && 
+            if (checkOid != NULL &&
                 (checkOidSz != actualOidSz ||
                     XMEMCMP(actualOid, checkOid, checkOidSz) != 0)) {
                 WOLFSSL_MSG("OID Check Failed");
@@ -8864,11 +8864,12 @@ int DecodeECC_DSA_Sig(const byte* sig, word32 sigLen, mp_int* r, mp_int* s)
 int wc_EccPrivateKeyDecode(const byte* input, word32* inOutIdx, ecc_key* key,
                         word32 inSz)
 {
-    word32 oid = 0;
+    word32 oidSum = 0;
     int    version, length;
     int    privSz, pubSz;
     byte   b;
     int    ret = 0;
+    int    curve_id = ECC_CURVE_DEF;
 #ifdef WOLFSSL_SMALL_STACK
     byte* priv;
     byte* pub;
@@ -8936,11 +8937,17 @@ int wc_EccPrivateKeyDecode(const byte* input, word32* inOutIdx, ecc_key* key,
             }
             else {
                 while(length--) {
-                    oid += input[*inOutIdx];
+                    oidSum += input[*inOutIdx];
                     *inOutIdx += 1;
                 }
-                if (CheckCurve(oid) < 0)
+                if (CheckCurve(oidSum) < 0)
                     ret = ECC_CURVE_OID_E;
+
+                ret = wc_ecc_get_oid(oidSum, NULL, NULL);
+                if (ret >= 0) {
+                    curve_id = ret;
+                    ret = 0;
+                }
             }
         }
     }
@@ -8984,8 +8991,8 @@ int wc_EccPrivateKeyDecode(const byte* input, word32* inOutIdx, ecc_key* key,
                     if (pubSz < 2*(ECC_MAXSIZE+1)) {
                         XMEMCPY(pub, &input[*inOutIdx], pubSz);
                         *inOutIdx += length;
-                        ret = wc_ecc_import_private_key(priv, privSz, pub, pubSz,
-                                                     key);
+                        ret = wc_ecc_import_private_key_ex(priv, privSz, pub,
+                                                        pubSz, key, curve_id);
                     } else
                         ret = BUFFER_E;
                 }

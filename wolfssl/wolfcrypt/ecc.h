@@ -331,6 +331,9 @@ WOLFSSL_API
 int wc_ecc_import_private_key(const byte* priv, word32 privSz, const byte* pub,
                            word32 pubSz, ecc_key* key);
 WOLFSSL_API
+int wc_ecc_import_private_key_ex(const byte* priv, word32 privSz,
+                const byte* pub, word32 pubSz, ecc_key* key, int curve_id);
+WOLFSSL_API
 int wc_ecc_rs_to_sig(const char* r, const char* s, byte* out, word32* outlen);
 WOLFSSL_API
 int wc_ecc_import_raw(ecc_key* key, const char* qx, const char* qy,
