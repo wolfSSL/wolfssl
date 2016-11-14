@@ -3452,9 +3452,12 @@ int wc_ecc_import_point_der(byte* in, word32 inLen, const int curve_idx,
 #ifdef HAVE_COMP_KEY
     if (err == MP_OKAY && compressed == 1) {   /* build y */
         mp_int t1, t2, prime, a, b;
+        int did_init = 0;
 
         if (mp_init_multi(&t1, &t2, &prime, &a, &b, NULL) != MP_OKAY)
             err = MEMORY_E;
+        else
+            did_init = 1;
 
         /* read in the specs for this curve */
         if (err == MP_OKAY)
@@ -3495,13 +3498,15 @@ int wc_ecc_import_point_der(byte* in, word32 inLen, const int curve_idx,
             }
         }
 
+        if (did_init) {
     #ifndef USE_FAST_MATH
-        mp_clear(&a);
-        mp_clear(&b);
-        mp_clear(&prime);
-        mp_clear(&t2);
-        mp_clear(&t1);
+            mp_clear(&a);
+            mp_clear(&b);
+            mp_clear(&prime);
+            mp_clear(&t2);
+            mp_clear(&t1);
     #endif
+        }
     }
 #endif
 
@@ -3881,6 +3886,8 @@ int wc_ecc_check_key(ecc_key* key)
         return ECC_INF_E;
 
     err = mp_init_multi(&prime, &a, &order, NULL, NULL, NULL);
+    if (err != MP_OKAY)
+        return err;
 
     /* read in the specs for this curve */
     if (err == MP_OKAY)
@@ -3975,9 +3982,12 @@ int wc_ecc_import_x963_ex(const byte* in, word32 inLen, ecc_key* key,
 #ifdef HAVE_COMP_KEY
     if (err == MP_OKAY && compressed == 1) {   /* build y */
         mp_int t1, t2, prime, a, b;
+        int did_init = 0;
 
         if (mp_init_multi(&t1, &t2, &prime, &a, &b, NULL) != MP_OKAY)
             err = MEMORY_E;
+        else
+            did_init = 1;
 
         /* read in the specs for this curve */
         if (err == MP_OKAY)
@@ -4019,13 +4029,15 @@ int wc_ecc_import_x963_ex(const byte* in, word32 inLen, ecc_key* key,
             mp_copy(&t2, key->pubkey.y);
         }
 
+        if (did_init) {
     #ifndef USE_FAST_MATH
-        mp_clear(&a);
-        mp_clear(&b);
-        mp_clear(&prime);
-        mp_clear(&t2);
-        mp_clear(&t1);
+            mp_clear(&a);
+            mp_clear(&b);
+            mp_clear(&prime);
+            mp_clear(&t2);
+            mp_clear(&t1);
     #endif
+        }
     }
 #endif /* HAVE_COMP_KEY */
 

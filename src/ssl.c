@@ -17521,9 +17521,9 @@ WOLFSSL_ECDSA_SIG *wolfSSL_ECDSA_do_sign(const unsigned char *d, int dlen,
                     sig = NULL;
                 }
 
-                mp_clear(&sig_r);
-                mp_clear(&sig_s);
             }
+            mp_clear(&sig_r);
+            mp_clear(&sig_s);
         }
     }
 
