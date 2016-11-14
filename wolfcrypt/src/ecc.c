@@ -2514,19 +2514,24 @@ int wc_ecc_make_key_ex(WC_RNG* rng, int keysize, ecc_key* key, int curve_id)
 
     /* setup the key variables */
     err = mp_init_multi(&key->k, &prime, &order, &a, NULL, NULL);
-    if (err == MP_OKAY) {
-    #ifndef ALT_ECC_SIZE
-        err = mp_init_multi(key->pubkey.x, key->pubkey.y, key->pubkey.z,
-                                                        NULL, NULL, NULL);
-    #else
-        key->pubkey.x = (mp_int*)&key->pubkey.xyz[0];
-        key->pubkey.y = (mp_int*)&key->pubkey.xyz[1];
-        key->pubkey.z = (mp_int*)&key->pubkey.xyz[2];
-        alt_fp_init(key->pubkey.x);
-        alt_fp_init(key->pubkey.y);
-        alt_fp_init(key->pubkey.z);
+    if (err != MP_OKAY) {
+    #ifdef WOLFSSL_SMALL_STACK
+        XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     #endif
+        return err;
     }
+
+#ifndef ALT_ECC_SIZE
+    err = mp_init_multi(key->pubkey.x, key->pubkey.y, key->pubkey.z,
+                                                    NULL, NULL, NULL);
+#else
+    key->pubkey.x = (mp_int*)&key->pubkey.xyz[0];
+    key->pubkey.y = (mp_int*)&key->pubkey.xyz[1];
+    key->pubkey.z = (mp_int*)&key->pubkey.xyz[2];
+    alt_fp_init(key->pubkey.x);
+    alt_fp_init(key->pubkey.y);
+    alt_fp_init(key->pubkey.z);
+#endif
 
     if (err == MP_OKAY) {
         base = wc_ecc_new_point_h(key->heap);
@@ -2580,14 +2585,15 @@ int wc_ecc_make_key_ex(WC_RNG* rng, int keysize, ecc_key* key, int curve_id)
     if (err == MP_OKAY)
         key->type = ECC_PRIVATEKEY;
 
+    /* cleanup these on failure case only */
     if (err != MP_OKAY) {
-        /* clean up */
         mp_clear(key->pubkey.x);
         mp_clear(key->pubkey.y);
         mp_clear(key->pubkey.z);
         mp_forcezero(&key->k);
     }
 
+    /* cleanup allocations */
     wc_ecc_del_point_h(base, key->heap);
 #ifndef USE_FAST_MATH
     mp_clear(&a);
