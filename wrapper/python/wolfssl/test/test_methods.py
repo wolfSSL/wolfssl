@@ -17,8 +17,13 @@
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
+
+# pylint: disable=missing-docstring, invalid-name, import-error
+
 import unittest
-from wolfssl._methods import *
+from wolfssl._methods import (WolfSSLMethod, PROTOCOL_SSLv3, PROTOCOL_SSLv23,
+                              PROTOCOL_TLS, PROTOCOL_TLSv1, PROTOCOL_TLSv1_1,
+                              PROTOCOL_TLSv1_2)
 from wolfssl._ffi import ffi as _ffi
 
 
@@ -41,31 +46,31 @@ class TestMethods(unittest.TestCase):
     def test_SSLv23_doesnt_raises(self):
         client = WolfSSLMethod(PROTOCOL_SSLv23, False)
         server = WolfSSLMethod(PROTOCOL_SSLv23, True)
-        
+
         self.assertIsInstance(client, WolfSSLMethod)
         self.assertIsInstance(server, WolfSSLMethod)
 
-        self.assertNotEquals(client.native_object, _ffi.NULL)
-        self.assertNotEquals(server.native_object, _ffi.NULL)
+        self.assertNotEqual(client.native_object, _ffi.NULL)
+        self.assertNotEqual(server.native_object, _ffi.NULL)
 
 
     def test_TLS_doesnt_raises(self):
         client = WolfSSLMethod(PROTOCOL_TLS, False)
         server = WolfSSLMethod(PROTOCOL_TLS, True)
-        
+
         self.assertIsInstance(client, WolfSSLMethod)
         self.assertIsInstance(server, WolfSSLMethod)
 
-        self.assertNotEquals(client.native_object, _ffi.NULL)
-        self.assertNotEquals(server.native_object, _ffi.NULL)
+        self.assertNotEqual(client.native_object, _ffi.NULL)
+        self.assertNotEqual(server.native_object, _ffi.NULL)
 
 
     def test_TLSv1_2_doesnt_raises(self):
         client = WolfSSLMethod(PROTOCOL_TLSv1_2, False)
         server = WolfSSLMethod(PROTOCOL_TLSv1_2, True)
-        
+
         self.assertIsInstance(client, WolfSSLMethod)
         self.assertIsInstance(server, WolfSSLMethod)
 
-        self.assertNotEquals(client.native_object, _ffi.NULL)
-        self.assertNotEquals(server.native_object, _ffi.NULL)
+        self.assertNotEqual(client.native_object, _ffi.NULL)
+        self.assertNotEqual(server.native_object, _ffi.NULL)

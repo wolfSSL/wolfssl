@@ -17,9 +17,12 @@
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
+
+# pylint: disable=missing-docstring, invalid-name, import-error
+
 import unittest
-import wolfssl
 import ssl
+import wolfssl
 
 
 class TestSSLContext(unittest.TestCase):
@@ -34,8 +37,11 @@ class TestSSLContext(unittest.TestCase):
     def test_load_cert_chain(self):
         self.assertRaises(TypeError, self.ctx.load_cert_chain, None)
 
-    def test_load_verify_locations(self):
+    def test_load_verify_locations_raises(self):
         self.assertRaises(TypeError, self.ctx.load_verify_locations, None)
+
+    def test_load_verify_locations_with_cafile(self):
+        self.ctx.load_verify_locations(cafile="../../../certs/ca-cert.pem")
 
 class TestWolfSSLContext(TestSSLContext):
     provider = wolfssl

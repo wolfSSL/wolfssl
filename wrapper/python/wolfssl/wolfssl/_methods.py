@@ -28,10 +28,10 @@ from wolfssl._memory import (
 )
 
 
-PROTOCOL_SSLv23  = 1
-PROTOCOL_SSLv3   = 2
-PROTOCOL_TLS     = 1
-PROTOCOL_TLSv1   = 3
+PROTOCOL_SSLv23 = 1
+PROTOCOL_SSLv3 = 2
+PROTOCOL_TLS = 1
+PROTOCOL_TLSv1 = 3
 PROTOCOL_TLSv1_1 = 4
 PROTOCOL_TLSv1_2 = 5
 
@@ -40,6 +40,10 @@ _PROTOCOL_LIST = [PROTOCOL_SSLv23, PROTOCOL_SSLv3, PROTOCOL_TLS,
 
 
 class WolfSSLMethod:
+    """
+    An SSLMethod holds SSL-related configuration options such as
+    protocol version and communication side.
+    """
 
     def __init__(self, protocol, server_side):
         if protocol not in _PROTOCOL_LIST:

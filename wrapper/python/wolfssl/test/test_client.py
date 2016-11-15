@@ -17,28 +17,31 @@
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
+
+# pylint: disable=missing-docstring, invalid-name, import-error
+
 import unittest
 import socket
-import wolfssl
 import ssl
+# import wolfssl
 
 class SSLClientTest(unittest.TestCase):
     ssl_provider = ssl
     host = "www.google.com"
     port = 443
-    
+
     def setUp(self):
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
     def test_wrap_socket(self):
-        self.secure_sock = self.ssl_provider.wrap_socket(
-                                    self.sock, ssl_version=ssl.PROTOCOL_SSLv23)
-        self.secure_sock.connect((self.host, self.port))
+        secure_sock = self.ssl_provider.wrap_socket(
+            self.sock, ssl_version=ssl.PROTOCOL_SSLv23)
+        secure_sock.connect((self.host, self.port))
 
-        self.secure_sock.send(b"GET / HTTP/1.1\n\n")
-        self.assertEquals(b"HTTP", self.secure_sock.recv(4))
+        secure_sock.send(b"GET / HTTP/1.1\n\n")
+        self.assertEqual(b"HTTP", secure_sock.recv(4))
 
-        self.secure_sock.close()
+        secure_sock.close()
 
 
 #class TestWolfSSL(SSLClientTest):
