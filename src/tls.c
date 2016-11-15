@@ -3093,14 +3093,16 @@ int TLSX_UseSupportedCurve(TLSX** extensions, word16 name, void* heap)
 /* Renegotiation Indication                                                   */
 /******************************************************************************/
 
-#ifdef HAVE_SECURE_RENEGOTIATION
+#if defined(HAVE_SECURE_RENEGOTIATION) \
+ || defined(HAVE_SERVER_RENEGOTIATION_INFO)
 
 static byte TLSX_SecureRenegotiation_GetSize(SecureRenegotiation* data,
                                                                   int isRequest)
 {
     byte length = OPAQUE8_LEN; /* empty info length */
 
-    if (data->enabled) {
+    /* data will be NULL for HAVE_SERVER_RENEGOTIATION_INFO only */
+    if (data && data->enabled) {
         /* client sends client_verify_data only */
         length += TLS_FINISHED_SZ;
 
@@ -3117,7 +3119,7 @@ static word16 TLSX_SecureRenegotiation_Write(SecureRenegotiation* data,
 {
     word16 offset = OPAQUE8_LEN; /* RenegotiationInfo length */
 
-    if (data->enabled) {
+    if (data && data->enabled) {
         /* client sends client_verify_data only */
         XMEMCPY(output + offset, data->client_verify_data, TLS_FINISHED_SZ);
         offset += TLS_FINISHED_SZ;
@@ -3143,8 +3145,29 @@ static int TLSX_SecureRenegotiation_Parse(WOLFSSL* ssl, byte* input,
         if (ssl->secure_renegotiation == NULL) {
         #ifndef NO_WOLFSSL_SERVER
             if (isRequest && *input == 0) {
+            #ifdef HAVE_SERVER_RENEGOTIATION_INFO
+                if (length == OPAQUE8_LEN) {
+                    if (TLSX_Find(ssl->extensions,
+                                  TLSX_RENEGOTIATION_INFO) == NULL) {
+                        ret = TLSX_AddEmptyRenegotiationInfo(&ssl->extensions,
+                                                             ssl->heap);
+                        if (ret == SSL_SUCCESS)
+                            ret = 0;
+
+                    } else {
+                        ret = 0;
+                    }
+                }
+            #else
                 ret = 0;  /* don't reply, user didn't enable */
+            #endif /* HAVE_SERVER_RENEGOTIATION_INFO */
             }
+            #ifdef HAVE_SERVER_RENEGOTIATION_INFO
+            else if (!isRequest) {
+                /* don't do anything on client side */
+                ret = 0;
+            }
+            #endif
         #endif
         }
         else if (isRequest) {
@@ -3212,6 +3235,26 @@ int TLSX_UseSecureRenegotiation(TLSX** extensions, void* heap)
 
     return SSL_SUCCESS;
 }
+
+#ifdef HAVE_SERVER_RENEGOTIATION_INFO
+
+int TLSX_AddEmptyRenegotiationInfo(TLSX** extensions, void* heap)
+{
+    int ret;
+
+    ret = TLSX_Push(extensions, TLSX_RENEGOTIATION_INFO, NULL, heap);
+    if (ret != 0)
+        return ret;
+
+    /* send empty renegotiation_info extension */
+    TLSX* ext = TLSX_Find(*extensions, TLSX_RENEGOTIATION_INFO);
+    if (ext)
+        ext->resp = 1;
+
+    return SSL_SUCCESS;
+}
+
+#endif /* HAVE_SERVER_RENEGOTIATION_INFO */
 
 
 #define SCR_FREE_ALL(data, heap) XFREE(data, (heap), DYNAMIC_TYPE_TLSX)
