@@ -18,8 +18,8 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
 try:
-    from wolfssl._ffi  import ffi as _ffi
-    from wolfssl._ffi  import lib as _lib
+    from wolfssl._ffi import ffi as _ffi
+    from wolfssl._ffi import lib as _lib
 except ImportError:
     pass
 
@@ -77,7 +77,7 @@ class SSLContext:
         Load a private key and the corresponding certificate. The certfile
         string must be the path to a single file in PEM format containing
         the certificate as well as any number of CA certificates needed to
-        establish the certificate’s authenticity.
+        establish the certificate's authenticity.
 
         The keyfile string, if present, must point to a file containing the
         private key in.
@@ -100,8 +100,8 @@ class SSLContext:
 
     def load_verify_locations(self, cafile=None, capath=None, cadata=None):
         """
-        Load a set of “certification authority” (CA) certificates used to
-        validate other peers’ certificates when verify_mode is other than
+        Load a set of "certification authority" (CA) certificates used to
+        validate other peers' certificates when verify_mode is other than
         CERT_NONE. At least one of cafile or capath must be specified.
 
         The cafile string, if present, is the path to a file of concatenated

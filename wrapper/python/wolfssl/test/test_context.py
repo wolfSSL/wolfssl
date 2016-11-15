@@ -34,8 +34,12 @@ class TestSSLContext(unittest.TestCase):
     def test_context_creation(self):
         self.assertIsNotNone(self.ctx)
 
-    def test_load_cert_chain(self):
+    def test_load_cert_chain_raises(self):
         self.assertRaises(TypeError, self.ctx.load_cert_chain, None)
+
+    def test_load_cert_chain(self):
+        self.ctx.load_cert_chain("../../../certs/client-cert.pem",
+                                 "../../../certs/client-key.pem")
 
     def test_load_verify_locations_raises(self):
         self.assertRaises(TypeError, self.ctx.load_verify_locations, None)
