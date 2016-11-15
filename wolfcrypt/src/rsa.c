@@ -961,10 +961,17 @@ static int wc_RsaFunctionSync(const byte* in, word32 inLen, byte* out,
         if (mp_exptmod(&tmp, &key->d, &key->n, &tmp) != MP_OKAY)
             ERROR_OUT(MP_EXPTMOD_E);
     #else
-        #define INNER_ERROR_OUT(x) { ret = (x); goto inner_done; }
+        /* Return 0 when cond is false and n when cond is true. */
+        #define COND_N(cond, n)    ((0 - (cond)) & (n))
+        /* If ret has an error value return it otherwise if r is OK then return
+         * 0 otherwise return e.
+         */
+        #define RET_ERR(ret, r, e) \
+            ((ret) | (COND_N((ret) == 0, COND_N((r) != MP_OKAY, (e)))))
     
         { /* tmpa/b scope */
         mp_int tmpa, tmpb;
+        int r;
 
         if (mp_init(&tmpa) != MP_OKAY)
             ERROR_OUT(MP_INIT_E);
@@ -975,35 +982,35 @@ static int wc_RsaFunctionSync(const byte* in, word32 inLen, byte* out,
         }
 
         /* tmpa = tmp^dP mod p */
-        if (mp_exptmod(&tmp, &key->dP, &key->p, &tmpa) != MP_OKAY)
-            INNER_ERROR_OUT(MP_EXPTMOD_E);
+        r = mp_exptmod(&tmp, &key->dP, &key->p, &tmpa);
+        ret = RET_ERR(ret, r, MP_EXPTMOD_E);
 
         /* tmpb = tmp^dQ mod q */
-        if (mp_exptmod(&tmp, &key->dQ, &key->q, &tmpb) != MP_OKAY)
-            INNER_ERROR_OUT(MP_EXPTMOD_E);
+        r = mp_exptmod(&tmp, &key->dQ, &key->q, &tmpb);
+        ret = RET_ERR(ret, r, MP_EXPTMOD_E);
 
         /* tmp = (tmpa - tmpb) * qInv (mod p) */
-        if (mp_sub(&tmpa, &tmpb, &tmp) != MP_OKAY)
-            INNER_ERROR_OUT(MP_SUB_E);
+        r = mp_sub(&tmpa, &tmpb, &tmp);
+        ret = RET_ERR(ret, r, MP_SUB_E);
 
-        if (mp_mulmod(&tmp, &key->u, &key->p, &tmp) != MP_OKAY)
-            INNER_ERROR_OUT(MP_MULMOD_E);
+        r = mp_mulmod(&tmp, &key->u, &key->p, &tmp);
+        ret = RET_ERR(ret, r, MP_MULMOD_E);
 
         /* tmp = tmpb + q * tmp */
-        if (mp_mul(&tmp, &key->q, &tmp) != MP_OKAY)
-            INNER_ERROR_OUT(MP_MUL_E);
+        r = mp_mul(&tmp, &key->q, &tmp);
+        ret = RET_ERR(ret, r, MP_MUL_E);
 
-        if (mp_add(&tmp, &tmpb, &tmp) != MP_OKAY)
-            INNER_ERROR_OUT(MP_ADD_E);
+        r = mp_add(&tmp, &tmpb, &tmp);
+        ret = RET_ERR(ret, r, MP_ADD_E);
 
-    inner_done:
         mp_clear(&tmpa);
         mp_clear(&tmpb);
 
         if (ret != 0) {
             goto done;
         }
-        #undef INNER_ERROR_OUT
+        #undef RET_ERR
+        #undef COND_N
         } /* tmpa/b scope */
     #endif   /* RSA_LOW_MEM */
 
