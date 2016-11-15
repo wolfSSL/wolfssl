@@ -699,6 +699,9 @@ int wolfSSL_GetObjectSize(void)
 #ifndef NO_SHA
     printf("    sizeof SHA          = %lu\n", sizeof(Sha));
 #endif
+#ifdef WOLFSSL_SHA224
+    printf("    sizeof SHA224       = %lu\n", sizeof(Sha224));
+#endif
 #ifndef NO_SHA256
     printf("    sizeof SHA256       = %lu\n", sizeof(Sha256));
 #endif
@@ -9652,6 +9655,36 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
     }
 #endif /* NO_SHA */
 
+    #ifdef WOLFSSL_SHA224
+
+    void wolfSSL_SHA224_Init(WOLFSSL_SHA224_CTX* sha)
+    {
+        typedef char sha_test[sizeof(SHA224_CTX) >= sizeof(Sha224) ? 1 : -1];
+        (void)sizeof(sha_test);
+
+        WOLFSSL_ENTER("SHA224_Init");
+        wc_InitSha224((Sha224*)sha);   /* OpenSSL compat, no error */
+    }
+
+
+    void wolfSSL_SHA224_Update(WOLFSSL_SHA224_CTX* sha, const void* input,
+                           unsigned long sz)
+    {
+        WOLFSSL_ENTER("SHA224_Update");
+        wc_Sha224Update((Sha224*)sha, (const byte*)input, (word32)sz);
+        /* OpenSSL compat, no error */
+    }
+
+
+    void wolfSSL_SHA224_Final(byte* input, WOLFSSL_SHA224_CTX* sha)
+    {
+        WOLFSSL_ENTER("SHA224_Final");
+        wc_Sha224Final((Sha224*)sha, input);
+        /* OpenSSL compat, no error */
+    }
+
+    #endif /* WOLFSSL_SHA224 */
+
 
     void wolfSSL_SHA256_Init(WOLFSSL_SHA256_CTX* sha256)
     {
@@ -9762,6 +9795,17 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         return type;
     }
 #endif /* NO_SHA */
+
+    #ifdef WOLFSSL_SHA224
+
+    const WOLFSSL_EVP_MD* wolfSSL_EVP_sha224(void)
+    {
+        static const char* type = "SHA224";
+        WOLFSSL_ENTER("EVP_sha224");
+        return type;
+    }
+
+    #endif /* WOLFSSL_SHA224 */
 
 
     const WOLFSSL_EVP_MD* wolfSSL_EVP_sha256(void)
@@ -10402,6 +10446,12 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
              ctx->macType = SHA256;
              wolfSSL_SHA256_Init((SHA256_CTX*)&ctx->hash);
         }
+    #ifdef WOLFSSL_SHA224
+        else if (XSTRNCMP(type, "SHA224", 6) == 0) {
+             ctx->macType = SHA224;
+             wolfSSL_SHA224_Init((SHA224_CTX*)&ctx->hash);
+        }
+    #endif
     #ifdef WOLFSSL_SHA384
         else if (XSTRNCMP(type, "SHA384", 6) == 0) {
              ctx->macType = SHA384;
@@ -10421,7 +10471,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         }
     #endif
     #ifndef NO_SHA
-        /* has to be last since would pick or 256, 384, or 512 too */
+        /* has to be last since would pick or 224, 256, 384, or 512 too */
         else if (XSTRNCMP(type, "SHA", 3) == 0) {
              ctx->macType = SHA;
              wolfSSL_SHA_Init((SHA_CTX*)&ctx->hash);
@@ -10451,6 +10501,12 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
             case SHA:
                 wolfSSL_SHA_Update((SHA_CTX*)&ctx->hash, data,
                                   (unsigned long)sz);
+                break;
+#endif
+#ifdef WOLFSSL_SHA224
+            case SHA224:
+                wolfSSL_SHA224_Update((SHA224_CTX*)&ctx->hash, data,
+                                     (unsigned long)sz);
                 break;
 #endif
 #ifndef NO_SHA256
@@ -10495,6 +10551,12 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
             case SHA:
                 wolfSSL_SHA_Final(md, (SHA_CTX*)&ctx->hash);
                 if (s) *s = SHA_DIGEST_SIZE;
+                break;
+#endif
+#ifdef WOLFSSL_SHA224
+            case SHA224:
+                wolfSSL_SHA224_Final(md, (SHA224_CTX*)&ctx->hash);
+                if (s) *s = SHA224_DIGEST_SIZE;
                 break;
 #endif
 #ifndef NO_SHA256
@@ -16071,6 +16133,11 @@ int wolfSSL_EVP_MD_size(const WOLFSSL_EVP_MD* type)
 #ifndef NO_MD5
     else if (XSTRNCMP(type, "MD5", 3) == 0) {
         return MD5_DIGEST_SIZE;
+    }
+#endif
+#ifdef WOLFSSL_SHA224
+    else if (XSTRNCMP(type, "SHA224", 6) == 0) {
+        return SHA224_DIGEST_SIZE;
     }
 #endif
 #ifdef WOLFSSL_SHA384

@@ -108,7 +108,8 @@ int wc_HKDF(int type, const byte* inKey, word32 inKeySz,
 int wc_HmacSizeByType(int type)
 {
     if (!(type == MD5 || type == SHA    || type == SHA256 || type == SHA384
-                      || type == SHA512 || type == BLAKE2B_ID)) {
+                      || type == SHA512 || type == BLAKE2B_ID)
+                      || type == SHA224) {
         return BAD_FUNC_ARG;
     }
 
@@ -121,6 +122,11 @@ int wc_HmacSizeByType(int type)
     #ifndef NO_SHA
         case SHA:
             return SHA_DIGEST_SIZE;
+    #endif
+
+    #ifdef WOLF_SHA224
+        case SHA224:
+            return SHA224_DIGEST_SIZE;
     #endif
 
     #ifndef NO_SHA256
@@ -156,7 +162,8 @@ static int InitHmac(Hmac* hmac, int type)
     hmac->macType = (byte)type;
 
     if (!(type == MD5 || type == SHA    || type == SHA256 || type == SHA384
-                      || type == SHA512 || type == BLAKE2B_ID))
+                      || type == SHA512 || type == BLAKE2B_ID
+                      || type == SHA224))
         return BAD_FUNC_ARG;
 
     switch (type) {
@@ -169,6 +176,12 @@ static int InitHmac(Hmac* hmac, int type)
         #ifndef NO_SHA
         case SHA:
             ret = wc_InitSha(&hmac->hash.sha);
+        break;
+        #endif
+
+        #ifdef WOLFSSL_SHA224
+        case SHA224:
+            ret = wc_InitSha224(&hmac->hash.sha224);
         break;
         #endif
 
@@ -254,6 +267,28 @@ int wc_HmacSetKey(Hmac* hmac, int type, const byte* key, word32 length)
                 wc_ShaUpdate(&hmac->hash.sha, key, length);
                 wc_ShaFinal(&hmac->hash.sha, ip);
                 length = SHA_DIGEST_SIZE;
+            }
+        }
+        break;
+        #endif
+
+        #ifdef WOLFSSL_SHA224
+        case SHA224:
+        {
+            hmac_block_size = SHA224_BLOCK_SIZE;
+            if (length <= SHA224_BLOCK_SIZE) {
+                XMEMCPY(ip, key, length);
+            }
+            else {
+                ret = wc_Sha224Update(&hmac->hash.sha224, key, length);
+                if (ret != 0)
+                    return ret;
+
+                ret = wc_Sha224Final(&hmac->hash.sha224, ip);
+                if (ret != 0)
+                    return ret;
+
+                length = SHA224_DIGEST_SIZE;
             }
         }
         break;
@@ -378,6 +413,15 @@ static int HmacKeyInnerHash(Hmac* hmac)
         break;
         #endif
 
+        #ifdef WOLFSSL_SHA224
+        case SHA224:
+            ret = wc_Sha224Update(&hmac->hash.sha224,
+                                         (byte*) hmac->ipad, SHA224_BLOCK_SIZE);
+            if (ret != 0)
+                return ret;
+        break;
+        #endif
+
         #ifndef NO_SHA256
         case SHA256:
             ret = wc_Sha256Update(&hmac->hash.sha256,
@@ -450,6 +494,14 @@ int wc_HmacUpdate(Hmac* hmac, const byte* msg, word32 length)
         #ifndef NO_SHA
         case SHA:
             wc_ShaUpdate(&hmac->hash.sha, msg, length);
+        break;
+        #endif
+
+        #ifdef WOLFSSL_SHA224
+        case SHA224:
+            ret = wc_Sha224Update(&hmac->hash.sha224, msg, length);
+            if (ret != 0)
+                return ret;
         break;
         #endif
 
@@ -534,6 +586,30 @@ int wc_HmacFinal(Hmac* hmac, byte* hash)
                                      (byte*) hmac->innerHash, SHA_DIGEST_SIZE);
 
             wc_ShaFinal(&hmac->hash.sha, hash);
+        }
+        break;
+        #endif
+
+        #ifdef WOLFSSL_SHA224
+        case SHA224:
+        {
+            ret = wc_Sha224Final(&hmac->hash.sha224, (byte*) hmac->innerHash);
+            if (ret != 0)
+                return ret;
+
+            ret = wc_Sha224Update(&hmac->hash.sha224,
+                                 (byte*) hmac->opad, SHA224_BLOCK_SIZE);
+            if (ret != 0)
+                return ret;
+
+            ret = wc_Sha224Update(&hmac->hash.sha224,
+                                 (byte*) hmac->innerHash, SHA224_DIGEST_SIZE);
+            if (ret != 0)
+                return ret;
+
+            ret = wc_Sha224Final(&hmac->hash.sha224, hash);
+            if (ret != 0)
+                return ret;
         }
         break;
         #endif

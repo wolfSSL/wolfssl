@@ -49,7 +49,6 @@ int wc_Sha256Final(Sha256* sha, byte* out)
     return Sha256Final_fips(sha, out);
 }
 
-
 #else /* else build without fips */
 
 #if !defined(NO_SHA256) && defined(WOLFSSL_TI_HASH)
@@ -219,7 +218,7 @@ static int set_cpuid_flags(void) {
 }
 
 
-/* #if defined(HAVE_INTEL_AVX1/2) at the tail of sha512 */
+/* #if defined(HAVE_INTEL_AVX1/2) at the tail of sha256 */
 static int Transform(Sha256* sha256);
 
 #if defined(HAVE_INTEL_AVX1)
@@ -441,7 +440,7 @@ static INLINE void AddLength(Sha256* sha256, word32 len)
         sha256->hiLen++;                       /* carry low to high */
 }
 
-int wc_Sha256Update(Sha256* sha256, const byte* data, word32 len)
+static INLINE int Sha256Update(Sha256* sha256, const byte* data, word32 len)
 {
 
     /* do block size increments */
@@ -479,7 +478,12 @@ int wc_Sha256Update(Sha256* sha256, const byte* data, word32 len)
     return 0;
 }
 
-int wc_Sha256Final(Sha256* sha256, byte* hash)
+int wc_Sha256Update(Sha256* sha256, const byte* data, word32 len)
+{
+    return Sha256Update(sha256, data, len);
+}
+
+static INLINE int Sha256Final(Sha256* sha256)
 {
     byte* local = (byte*)sha256->buffer;
     int ret;
@@ -537,7 +541,14 @@ int wc_Sha256Final(Sha256* sha256, byte* hash)
                          2 * sizeof(word32));
     #endif
 
-    ret = XTRANSFORM(sha256, local);
+    return XTRANSFORM(sha256, local);
+}
+
+int wc_Sha256Final(Sha256* sha256, byte* hash)
+{
+    int ret;
+
+    ret = Sha256Final(sha256);
     if (ret != 0)
         return ret;
 
@@ -548,8 +559,6 @@ int wc_Sha256Final(Sha256* sha256, byte* hash)
 
     return wc_InitSha256(sha256);  /* reset state */
 }
-
-
 
 
 #if defined(HAVE_INTEL_AVX1) || defined(HAVE_INTEL_AVX2)
@@ -1732,6 +1741,50 @@ static int Transform_AVX2(Sha256* sha256)
 }
 
 #endif   /* HAVE_INTEL_AVX2 */
+
+#ifdef WOLFSSL_SHA224
+int wc_InitSha224(Sha224* sha224)
+{
+    sha224->digest[0] = 0xc1059ed8;
+    sha224->digest[1] = 0x367cd507;
+    sha224->digest[2] = 0x3070dd17;
+    sha224->digest[3] = 0xf70e5939;
+    sha224->digest[4] = 0xffc00b31;
+    sha224->digest[5] = 0x68581511;
+    sha224->digest[6] = 0x64f98fa7;
+    sha224->digest[7] = 0xbefa4fa4;
+
+    sha224->buffLen = 0;
+    sha224->loLen   = 0;
+    sha224->hiLen   = 0;
+
+#if defined(HAVE_INTEL_AVX1)|| defined(HAVE_INTEL_AVX2)
+    set_Transform() ;
+#endif
+
+    return 0;
+}
+
+int wc_Sha224Update(Sha224* sha224, const byte* data, word32 len)
+{
+    return Sha256Update((Sha256 *)sha224, data, len);
+}
+
+
+int wc_Sha224Final(Sha224* sha224, byte* hash)
+{
+    int ret = Sha256Final((Sha256 *)sha224);
+    if (ret != 0)
+        return ret;
+
+    #if defined(LITTLE_ENDIAN_ORDER)
+        ByteReverseWords(sha224->digest, sha224->digest, SHA224_DIGEST_SIZE);
+    #endif
+    XMEMCPY(hash, sha224->digest, SHA224_DIGEST_SIZE);
+
+    return wc_InitSha224(sha224);  /* reset state */
+}
+#endif /* WOLFSSL_SHA224 */
 
 #endif   /* HAVE_FIPS */
 

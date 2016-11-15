@@ -36,7 +36,7 @@
     #include <wolfssl/wolfcrypt/sha.h>
 #endif
 
-#ifndef NO_SHA256
+#if !defined(NO_SHA256) || defined(WOLFSSL_SHA224)
     #include <wolfssl/wolfcrypt/sha256.h>
 #endif
 
@@ -88,6 +88,9 @@ enum {
 #ifndef HAVE_BLAKE2
     BLAKE2B_ID = 7,
 #endif
+#ifndef WOLFSSL_SHA224
+    SHA224  = 8,
+#endif
 
 /* Select the largest available hash for the buffer size. */
 #if defined(WOLFSSL_SHA512)
@@ -102,6 +105,9 @@ enum {
 #elif !defined(NO_SHA256)
     MAX_DIGEST_SIZE = SHA256_DIGEST_SIZE,
     HMAC_BLOCK_SIZE = SHA256_BLOCK_SIZE
+#elif defined(WOLFSSL_SHA224)
+    MAX_DIGEST_SIZE = SHA224_DIGEST_SIZE,
+    HMAC_BLOCK_SIZE = SHA224_BLOCK_SIZE
 #elif !defined(NO_SHA)
     MAX_DIGEST_SIZE = SHA_DIGEST_SIZE,
     HMAC_BLOCK_SIZE = SHA_BLOCK_SIZE
@@ -121,6 +127,9 @@ typedef union {
     #endif
     #ifndef NO_SHA
         Sha sha;
+    #endif
+    #ifdef WOLFSSL_SHA224
+        Sha224 sha224;
     #endif
     #ifndef NO_SHA256
         Sha256 sha256;

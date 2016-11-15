@@ -41,6 +41,7 @@ enum Hash_Sum  {
     MD2h    = 646,
     MD5h    = 649,
     SHAh    =  88,
+    SHA224h = 417,
     SHA256h = 414,
     SHA384h = 415,
     SHA512h = 416
@@ -66,6 +67,11 @@ int wc_HashGetOID(enum wc_HashType hash_type)
         case WC_HASH_TYPE_SHA:
         #ifndef NO_SHA
             oid = SHAh;
+        #endif
+            break;
+        case WC_HASH_TYPE_SHA224:
+        #if defined(WOLFSSL_SHA224)
+            oid = SHA224h;
         #endif
             break;
         case WC_HASH_TYPE_SHA256:
@@ -109,6 +115,11 @@ int wc_HashGetDigestSize(enum wc_HashType hash_type)
         case WC_HASH_TYPE_SHA:
 #ifndef NO_SHA
             dig_size = SHA_DIGEST_SIZE;
+#endif
+            break;
+        case WC_HASH_TYPE_SHA224:
+#ifdef WOLFSSL_SHA224
+            dig_size = SHA224_DIGEST_SIZE;
 #endif
             break;
         case WC_HASH_TYPE_SHA256:
@@ -172,6 +183,11 @@ int wc_Hash(enum wc_HashType hash_type, const byte* data,
         case WC_HASH_TYPE_SHA:
 #ifndef NO_SHA
             ret = wc_ShaHash(data, data_len, hash);
+#endif
+            break;
+        case WC_HASH_TYPE_SHA224:
+#ifdef WOLFSSL_SHA224
+            ret = wc_Sha224Hash(data, data_len, hash);
 #endif
             break;
         case WC_HASH_TYPE_SHA256:
@@ -272,6 +288,56 @@ int wc_ShaHash(const byte* data, word32 len, byte* hash)
 }
 
 #endif /* !defined(NO_SHA) */
+
+#if defined(WOLFSSL_SHA224)
+int wc_Sha224GetHash(Sha224* sha224, byte* hash)
+{
+    int ret;
+    Sha224 save;
+
+    if (sha224 == NULL || hash == NULL)
+        return BAD_FUNC_ARG;
+
+    save= *sha224;
+    ret = wc_Sha224Final(sha224, hash);
+    *sha224 = save;
+
+    return ret;
+}
+
+int wc_Sha224Hash(const byte* data, word32 len, byte* hash)
+{
+    int ret = 0;
+#ifdef WOLFSSL_SMALL_STACK
+    Sha224* sha224;
+#else
+    Sha224 sha224[1];
+#endif
+
+#ifdef WOLFSSL_SMALL_STACK
+    sha224 = (Sha224*)XMALLOC(sizeof(Sha224), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (sha224 == NULL)
+        return MEMORY_E;
+#endif
+
+    if ((ret = wc_InitSha224(sha224)) != 0) {
+        WOLFSSL_MSG("InitSha224 failed");
+    }
+    else if ((ret = wc_Sha224Update(sha224, data, len)) != 0) {
+        WOLFSSL_MSG("Sha224Update failed");
+    }
+    else if ((ret = wc_Sha224Final(sha224, hash)) != 0) {
+        WOLFSSL_MSG("Sha224Final failed");
+    }
+
+#ifdef WOLFSSL_SMALL_STACK
+    XFREE(sha224, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+
+    return ret;
+}
+
+#endif /* defined(WOLFSSL_SHA224) */
 
 #if !defined(NO_SHA256)
 int wc_Sha256GetHash(Sha256* sha256, byte* hash)

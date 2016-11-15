@@ -135,6 +135,7 @@ WOLFSSL_API int wc_RsaSetRNG(RsaKey* key, WC_RNG* rng);
 /* Mask Generation Function Identifiers */
 #define WC_MGF1NONE   0
 #define WC_MGF1SHA1   26
+#define WC_MGF1SHA224 4
 #define WC_MGF1SHA256 1
 #define WC_MGF1SHA384 2
 #define WC_MGF1SHA512 3

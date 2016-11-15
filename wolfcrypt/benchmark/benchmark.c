@@ -191,6 +191,7 @@ void bench_camellia(void);
 
 void bench_md5(void);
 void bench_sha(void);
+void bench_sha224(void);
 void bench_sha256(void);
 void bench_sha384(void);
 void bench_sha512(void);
@@ -396,6 +397,9 @@ int benchmark_test(void *args)
 #endif
 #ifndef NO_SHA
     bench_sha();
+#endif
+#ifdef WOLFSSL_SHA224
+    bench_sha224();
 #endif
 #ifndef NO_SHA256
     bench_sha256();
@@ -1162,6 +1166,51 @@ void bench_sha(void)
 }
 #endif /* NO_SHA */
 
+
+#ifdef WOLFSSL_SHA224
+void bench_sha224(void)
+{
+    Sha224 hash;
+    byte   digest[SHA224_DIGEST_SIZE];
+    double start, total, persec;
+    int    i, ret;
+
+    ret = wc_InitSha224(&hash);
+    if (ret != 0) {
+        printf("InitSha224 failed, ret = %d\n", ret);
+        return;
+    }
+    start = current_time(1);
+    BEGIN_INTEL_CYCLES
+
+    for(i = 0; i < numBlocks; i++) {
+        ret = wc_Sha224Update(&hash, plain, sizeof(plain));
+        if (ret != 0) {
+            printf("Sha224Update failed, ret = %d\n", ret);
+            return;
+        }
+    }
+
+    ret = wc_Sha224Final(&hash, digest);
+    if (ret != 0) {
+        printf("Sha224Final failed, ret = %d\n", ret);
+        return;
+    }
+
+    END_INTEL_CYCLES
+    total = current_time(0) - start;
+    persec = 1 / total * numBlocks;
+#ifdef BENCH_EMBEDDED
+    /* since using kB, convert to MB/s */
+    persec = persec / 1024;
+#endif
+
+    printf("SHA-224  %d %s took %5.3f seconds, %8.3f MB/s", numBlocks,
+                                              blockType, total, persec);
+    SHOW_INTEL_CYCLES
+    printf("\n");
+}
+#endif
 
 #ifndef NO_SHA256
 void bench_sha256(void)

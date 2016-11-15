@@ -40,7 +40,7 @@
 
 typedef struct testVector {
     const char*  input;
-    const char*  output; 
+    const char*  output;
     size_t inLen;
     size_t outLen;
 } testVector;
@@ -48,12 +48,14 @@ typedef struct testVector {
 int  md4_test(void);
 int  md5_test(void);
 int  sha_test(void);
+int  sha224_test(void);
 int  sha256_test(void);
 int  sha512_test(void);
 int  sha384_test(void);
 int  ripemd_test(void);
 int  hmac_md5_test(void);
 int  hmac_sha_test(void);
+int  hmac_sha224_test(void);
 int  hmac_sha256_test(void);
 int  hmac_sha384_test(void);
 
@@ -66,7 +68,7 @@ int HashTest(void)
 #ifndef NO_MD4
     if ( (ret = md4_test()) ) {
         printf( "   MD4      test failed!\n");
-        return ret; 
+        return ret;
     } else
         printf( "   MD4      test passed!\n");
 #endif
@@ -74,23 +76,31 @@ int HashTest(void)
 #ifndef NO_MD5
     if ( (ret = md5_test()) ) {
         printf( "   MD5      test failed!\n");
-        return ret; 
+        return ret;
     } else
         printf( "   MD5      test passed!\n");
 #endif
-    
+
 #ifndef NO_SHA
     if ( (ret = sha_test()) ) {
         printf( "   SHA      test failed!\n");
-        return ret; 
+        return ret;
     } else
         printf( "   SHA      test passed!\n");
 #endif
-    
+
+#ifdef WOLFSSL_SHA224
+    if ( (ret = sha224_test()) ) {
+        printf( "   SHA-224  test failed!\n");
+        return ret;
+    } else
+        printf( "   SHA-224  test passed!\n");
+#endif
+
 #ifndef NO_SHA256
     if ( (ret = sha256_test()) ) {
         printf( "   SHA-256  test failed!\n");
-        return ret; 
+        return ret;
     } else
         printf( "   SHA-256  test passed!\n");
 #endif
@@ -98,7 +108,7 @@ int HashTest(void)
 #ifdef WOLFSSL_SHA512
     if ( (ret = sha512_test()) ) {
         printf( "   SHA-512  test failed!\n");
-        return ret; 
+        return ret;
     } else
         printf( "   SHA-512  test passed!\n");
 #endif
@@ -106,7 +116,7 @@ int HashTest(void)
 #ifdef WOLFSSL_SHA384
     if ( (ret = sha384_test()) ) {
         printf( "   SHA-384  test failed!\n");
-        return ret; 
+        return ret;
     } else
         printf( "   SHA-384  test passed!\n");
 #endif
@@ -114,7 +124,7 @@ int HashTest(void)
 #ifdef WOLFSSL_RIPEMD
     if ( (ret = ripemd_test()) ) {
         printf( "   RIPEMD   test failed!\n");
-        return ret; 
+        return ret;
     } else
         printf( "   RIPEMD   test passed!\n");
 #endif
@@ -123,27 +133,34 @@ int HashTest(void)
     #ifndef NO_MD5
         if ( (ret = hmac_md5_test()) ) {
             printf( "   HMAC-MD5 test failed!\n");
-            return ret; 
+            return ret;
         } else
             printf( "   HMAC-MD5 test passed!\n");
     #endif
 
     #ifndef NO_SHA
-    if ( (ret = hmac_sha_test()) ) 
+    if ( (ret = hmac_sha_test()) )
         printf( "   HMAC-SHA test failed!\n");
     else
         printf( "   HMAC-SHA test passed!\n");
     #endif
 
+    #ifdef WOLFSSL_SHA224
+        if ( (ret = hmac_sha224_test()) )
+            printf( "   HMAC-SHA224 test failed!\n");
+        else
+            printf( "   HMAC-SHA224 test passed!\n");
+    #endif
+
     #ifndef NO_SHA256
-        if ( (ret = hmac_sha256_test()) ) 
+        if ( (ret = hmac_sha256_test()) )
             printf( "   HMAC-SHA256 test failed!\n");
         else
             printf( "   HMAC-SHA256 test passed!\n");
     #endif
 
     #ifdef WOLFSSL_SHA384
-        if ( (ret = hmac_sha384_test()) ) 
+        if ( (ret = hmac_sha384_test()) )
             printf( "   HMAC-SHA384 test failed!\n");
         else
             printf( "   HMAC-SHA384 test passed!\n");
@@ -151,7 +168,7 @@ int HashTest(void)
 #endif
 
     printf(" End HASH Tests\n");
-    
+
     return 0;
 }
 
@@ -167,45 +184,45 @@ int md4_test(void)
     int times = sizeof(test_md4) / sizeof(testVector), i;
 
     a.input  = "";
-    a.output = "\x31\xd6\xcf\xe0\xd1\x6a\xe9\x31\xb7\x3c\x59\xd7\xe0\xc0\x89" 
+    a.output = "\x31\xd6\xcf\xe0\xd1\x6a\xe9\x31\xb7\x3c\x59\xd7\xe0\xc0\x89"
                "\xc0";
     a.inLen  = XSTRLEN(a.input);
     a.outLen = XSTRLEN(a.output);
 
     b.input  = "a";
-    b.output = "\xbd\xe5\x2c\xb3\x1d\xe3\x3e\x46\x24\x5e\x05\xfb\xdb\xd6\xfb" 
+    b.output = "\xbd\xe5\x2c\xb3\x1d\xe3\x3e\x46\x24\x5e\x05\xfb\xdb\xd6\xfb"
                "\x24";
     b.inLen  = XSTRLEN(b.input);
     b.outLen = XSTRLEN(b.output);
 
     c.input  = "abc";
-    c.output = "\xa4\x48\x01\x7a\xaf\x21\xd8\x52\x5f\xc1\x0a\xe8\x7a\xa6\x72" 
+    c.output = "\xa4\x48\x01\x7a\xaf\x21\xd8\x52\x5f\xc1\x0a\xe8\x7a\xa6\x72"
                "\x9d";
     c.inLen  = XSTRLEN(c.input);
     c.outLen = XSTRLEN(c.output);
 
     d.input  = "message digest";
-    d.output = "\xd9\x13\x0a\x81\x64\x54\x9f\xe8\x18\x87\x48\x06\xe1\xc7\x01" 
+    d.output = "\xd9\x13\x0a\x81\x64\x54\x9f\xe8\x18\x87\x48\x06\xe1\xc7\x01"
                "\x4b";
     d.inLen  = XSTRLEN(d.input);
     d.outLen = XSTRLEN(d.output);
 
     e.input  = "abcdefghijklmnopqrstuvwxyz";
-    e.output = "\xd7\x9e\x1c\x30\x8a\xa5\xbb\xcd\xee\xa8\xed\x63\xdf\x41\x2d" 
+    e.output = "\xd7\x9e\x1c\x30\x8a\xa5\xbb\xcd\xee\xa8\xed\x63\xdf\x41\x2d"
                "\xa9";
     e.inLen  = XSTRLEN(e.input);
     e.outLen = XSTRLEN(e.output);
 
     f.input  = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz012345"
                "6789";
-    f.output = "\x04\x3f\x85\x82\xf2\x41\xdb\x35\x1c\xe6\x27\xe1\x53\xe7\xf0" 
+    f.output = "\x04\x3f\x85\x82\xf2\x41\xdb\x35\x1c\xe6\x27\xe1\x53\xe7\xf0"
                "\xe4";
     f.inLen  = XSTRLEN(f.input);
     f.outLen = XSTRLEN(f.output);
 
     g.input  = "1234567890123456789012345678901234567890123456789012345678"
                "9012345678901234567890";
-    g.output = "\xe3\x3b\x4d\xdc\x9c\x38\xf2\x19\x9c\x3e\x7b\x16\x4f\xcc\x05" 
+    g.output = "\xe3\x3b\x4d\xdc\x9c\x38\xf2\x19\x9c\x3e\x7b\x16\x4f\xcc\x05"
                "\x36";
     g.inLen  = XSTRLEN(g.input);
     g.outLen = XSTRLEN(g.output);
@@ -356,6 +373,52 @@ int sha_test(void)
 }
 #endif /* NO_SHA */
 
+#ifdef WOLFSSL_SHA224
+int sha224_test(void)
+{
+    Sha224 sha;
+    byte   hash[SHA224_DIGEST_SIZE];
+
+    testVector a, b;
+    testVector test_sha[2];
+    int ret;
+    int times = sizeof(test_sha) / sizeof(struct testVector), i;
+
+    a.input  = "abc";
+    a.output = "\x23\x09\x7d\x22\x34\x05\xd8\x22\x86\x42\xa4\x77\xbd\xa2\x55"
+               "\xb3\x2a\xad\xbc\xe4\xbd\xa0\xb3\xf7\xe3\x6c\x9d\xa7";
+    a.inLen  = XSTRLEN(a.input);
+    a.outLen = SHA224_DIGEST_SIZE;
+
+    b.input  = "abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq";
+    b.output = "\x75\x38\x8b\x16\x51\x27\x76\xcc\x5d\xba\x5d\xa1\xfd\x89\x01"
+               "\x50\xb0\xc6\x45\x5c\xb4\xf5\x8b\x19\x52\x52\x25\x25";
+    b.inLen  = XSTRLEN(b.input);
+    b.outLen = SHA224_DIGEST_SIZE;
+
+    test_sha[0] = a;
+    test_sha[1] = b;
+
+    ret = wc_InitSha224(&sha);
+    if (ret != 0)
+        return -4005;
+
+    for (i = 0; i < times; ++i) {
+        ret = wc_Sha224Update(&sha, (byte*)test_sha[i].input,(word32)test_sha[i].inLen);
+        if (ret != 0)
+            return ret;
+        ret = wc_Sha224Final(&sha, hash);
+        if (ret != 0)
+            return ret;
+
+        if (XMEMCMP(hash, test_sha[i].output, SHA224_DIGEST_SIZE) != 0)
+            return -10 - i;
+    }
+
+    return 0;
+}
+#endif
+
 #ifndef NO_SHA256
 int sha256_test(void)
 {
@@ -431,7 +494,7 @@ int sha512_test(void)
                "\x3f\x8f\x77\x79\xc6\xeb\x9f\x7f\xa1\x72\x99\xae\xad\xb6\x88"
                "\x90\x18\x50\x1d\x28\x9e\x49\x00\xf7\xe4\x33\x1b\x99\xde\xc4"
                "\xb5\x43\x3a\xc7\xd3\x29\xee\xb6\xdd\x26\x54\x5e\x96\xe5\x5b"
-               "\x87\x4b\xe9\x09"; 
+               "\x87\x4b\xe9\x09";
     b.inLen  = XSTRLEN(b.input);
     b.outLen = XSTRLEN(b.output);
 
@@ -533,7 +596,7 @@ int ripemd_test(void)
     b.inLen  = XSTRLEN(b.input);
     b.outLen = XSTRLEN(b.output);
 
-    c.input  = "abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq"; 
+    c.input  = "abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq";
     c.output = "\x12\xa0\x53\x38\x4a\x9c\x0c\x88\xe4\x05\xa0\x6c\x27\xdc"
                "\xf4\x9a\xda\x62\xeb\x2b";
     c.inLen  = XSTRLEN(c.input);
@@ -542,7 +605,7 @@ int ripemd_test(void)
     d.input  = "12345678901234567890123456789012345678901234567890123456"
                "789012345678901234567890";
     d.output = "\x9b\x75\x2e\x45\x57\x3d\x4b\x39\xf4\xdb\xd3\x32\x3c\xab"
-               "\x82\xbf\x63\x32\x6b\xfb"; 
+               "\x82\xbf\x63\x32\x6b\xfb";
     d.inLen  = XSTRLEN(d.input);
     d.outLen = XSTRLEN(d.output);
 
@@ -703,6 +766,80 @@ int hmac_sha_test(void)
     return 0;
 }
 #endif
+
+#if !defined(NO_HMAC) && defined(WOLFSSL_SHA224)
+int hmac_sha224_test(void)
+{
+    Hmac hmac;
+    byte hash[SHA224_DIGEST_SIZE];
+
+    const char* keys[]=
+    {
+        "\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b"
+                                                                "\x0b\x0b\x0b",
+        "Jefe",
+        "\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA"
+                                                                "\xAA\xAA\xAA"
+    };
+
+    testVector a, b, c;
+    testVector test_hmac[3];
+
+    int ret;
+    int times = sizeof(test_hmac) / sizeof(testVector), i;
+
+    a.input  = "Hi There";
+    a.output = "\x89\x6f\xb1\x12\x8a\xbb\xdf\x19\x68\x32\x10\x7c\xd4\x9d\xf3"
+               "\x3f\x47\xb4\xb1\x16\x99\x12\xba\x4f\x53\x68\x4b\x22";
+    a.inLen  = XSTRLEN(a.input);
+    a.outLen = SHA224_DIGEST_SIZE;
+
+    b.input  = "what do ya want for nothing?";
+    b.output = "\xa3\x0e\x01\x09\x8b\xc6\xdb\xbf\x45\x69\x0f\x3a\x7e\x9e\x6d"
+               "\x0f\x8b\xbe\xa2\xa3\x9e\x61\x48\x00\x8f\xd0\x5e\x44";
+    b.inLen  = XSTRLEN(b.input);
+    b.outLen = SHA224_DIGEST_SIZE;
+
+    c.input  = "\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD"
+               "\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD"
+               "\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD"
+               "\xDD\xDD\xDD\xDD\xDD\xDD";
+    c.output = "\x7f\xb3\xcb\x35\x88\xc6\xc1\xf6\xff\xa9\x69\x4d\x7d\x6a\xd2"
+               "\x64\x93\x65\xb0\xc1\xf6\x5d\x69\xd1\xec\x83\x33\xea";
+    c.inLen  = XSTRLEN(c.input);
+    c.outLen = SHA224_DIGEST_SIZE;
+
+    test_hmac[0] = a;
+    test_hmac[1] = b;
+    test_hmac[2] = c;
+
+    for (i = 0; i < times; ++i) {
+#if defined(HAVE_FIPS) || defined(HAVE_CAVIUM)
+        if (i == 1)
+            continue; /* cavium can't handle short keys, fips not allowed */
+#endif
+        ret = wc_HmacSetKey(&hmac, SHA224, (byte*)keys[i],(word32)XSTRLEN(keys[i]));
+        if (ret != 0)
+            return -4021;
+        ret = wc_HmacUpdate(&hmac, (byte*)test_hmac[i].input,
+                   (word32)test_hmac[i].inLen);
+        if (ret != 0)
+            return -4022;
+        ret = wc_HmacFinal(&hmac, hash);
+        if (ret != 0)
+            return -4023;
+
+        if (XMEMCMP(hash, test_hmac[i].output, SHA224_DIGEST_SIZE) != 0)
+            return -20 - i;
+#ifdef WOLFSSL_ASYNC_CRYPT
+        wc_HmacAsyncFree(&hmac);
+#endif
+    }
+
+    return 0;
+}
+#endif
+
 
 #if !defined(NO_HMAC) && !defined(NO_SHA256)
 int hmac_sha256_test(void)

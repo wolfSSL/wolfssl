@@ -60,6 +60,7 @@ typedef char WOLFSSL_EVP_CIPHER;
     WOLFSSL_API const WOLFSSL_EVP_MD* wolfSSL_EVP_md5(void);
 #endif
 WOLFSSL_API const WOLFSSL_EVP_MD* wolfSSL_EVP_sha1(void);
+WOLFSSL_API const WOLFSSL_EVP_MD* wolfSSL_EVP_sha224(void);
 WOLFSSL_API const WOLFSSL_EVP_MD* wolfSSL_EVP_sha256(void);
 WOLFSSL_API const WOLFSSL_EVP_MD* wolfSSL_EVP_sha384(void);
 WOLFSSL_API const WOLFSSL_EVP_MD* wolfSSL_EVP_sha512(void);
@@ -83,6 +84,9 @@ typedef union {
         WOLFSSL_MD5_CTX    md5;
     #endif
     WOLFSSL_SHA_CTX    sha;
+    #ifdef WOLFSSL_SHA224
+        WOLFSSL_SHA224_CTX sha224;
+    #endif
     WOLFSSL_SHA256_CTX sha256;
     #ifdef WOLFSSL_SHA384
         WOLFSSL_SHA384_CTX sha384;
@@ -217,6 +221,7 @@ typedef WOLFSSL_EVP_CIPHER_CTX EVP_CIPHER_CTX;
     #define EVP_md5       wolfSSL_EVP_md5
 #endif
 #define EVP_sha1      wolfSSL_EVP_sha1
+#define EVP_sha224    wolfSSL_EVP_sha224
 #define EVP_sha256    wolfSSL_EVP_sha256
 #define EVP_sha384    wolfSSL_EVP_sha384
 #define EVP_sha512    wolfSSL_EVP_sha512

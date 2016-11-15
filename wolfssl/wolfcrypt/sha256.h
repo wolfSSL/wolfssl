@@ -76,6 +76,26 @@ WOLFSSL_API int wc_InitSha256(Sha256*);
 WOLFSSL_API int wc_Sha256Update(Sha256*, const byte*, word32);
 WOLFSSL_API int wc_Sha256Final(Sha256*, byte*);
 
+#ifdef WOLFSSL_SHA224
+
+#ifndef HAVE_FIPS /* avoid redefinition of structs */
+/* in bytes */
+enum {
+    SHA224              =   8,   /* hash type unique */
+    SHA224_BLOCK_SIZE   =   SHA256_BLOCK_SIZE,
+    SHA224_DIGEST_SIZE  =   28,
+    SHA224_PAD_SIZE     =   SHA256_PAD_SIZE
+};
+
+typedef Sha256 Sha224;
+#endif /* HAVE_FIPS */
+
+WOLFSSL_API int wc_InitSha224(Sha224*);
+WOLFSSL_API int wc_Sha224Update(Sha224*, const byte*, word32);
+WOLFSSL_API int wc_Sha224Final(Sha224*, byte*);
+
+#endif /* WOLFSSL_SHA224 */
+
 #ifdef __cplusplus
     } /* extern "C" */
 #endif

@@ -1525,6 +1525,31 @@ fi
 AM_CONDITIONAL([BUILD_FIPS], [test "x$ENABLED_FIPS" = "xyes"])
 
 
+# set sha224 default
+SHA224_DEFAULT=no
+if test "$host_cpu" = "x86_64"
+then
+    if test "x$ENABLED_FIPS" = "xno"
+    then
+        SHA224_DEFAULT=yes
+    fi
+fi
+
+# SHA224
+AC_ARG_ENABLE([sha224],
+    [AS_HELP_STRING([--enable-sha224],[Enable wolfSSL SHA-224 support (default: enabled on x86_64)])],
+    [ ENABLED_SHA224=$enableval ],
+    [ ENABLED_SHA224=$SHA224_DEFAULT ]
+    )
+
+if test "$ENABLED_SHA224" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SHA224"
+fi
+
+AM_CONDITIONAL([BUILD_SHA224], [test "x$ENABLED_SHA224" = "xyes"])
+
+
 # set POLY1305 default
 POLY1305_DEFAULT=yes
 
@@ -3220,6 +3245,7 @@ echo "   * NULL Cipher:                $ENABLED_NULL_CIPHER"
 echo "   * MD5:                        $ENABLED_MD5"
 echo "   * RIPEMD:                     $ENABLED_RIPEMD"
 echo "   * SHA:                        $ENABLED_SHA"
+echo "   * SHA-224:                    $ENABLED_SHA224"
 echo "   * SHA-512:                    $ENABLED_SHA512"
 echo "   * BLAKE2:                     $ENABLED_BLAKE2"
 echo "   * CMAC:                       $ENABLED_CMAC"

@@ -35,6 +35,13 @@
 #define Sha256Final  wc_Sha256Final
 #define Sha256Hash   wc_Sha256Hash
 
+#ifdef WOLFSSL_SHA224
+    #define InitSha224   wc_InitSha224
+    #define Sha224Update wc_Sha224Update
+    #define Sha224Final  wc_Sha224Final
+    #define Sha224Hash   wc_Sha224Hash
+#endif
+
 #endif /* CTAO_CRYPT_SHA256_H */
 #endif /* NO_SHA256 */
 
