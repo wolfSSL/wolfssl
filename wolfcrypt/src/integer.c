@@ -1074,6 +1074,12 @@ int mp_invmod_slow (mp_int * a, mp_int * b, mp_int * c)
 
   /* init rest of tmps temps */
   if ((res = mp_init_multi(&C, &D, 0, 0, 0, 0)) != MP_OKAY) {
+     mp_clear(&x);
+     mp_clear(&y);
+     mp_clear(&u);
+     mp_clear(&v);
+     mp_clear(&A);
+     mp_clear(&B);
      return res;
   }
 
