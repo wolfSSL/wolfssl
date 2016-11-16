@@ -81,6 +81,11 @@ typedef WOLFSSL_ASN1_OBJECT    ASN1_OBJECT;
 typedef WOLFSSL_ASN1_STRING    ASN1_STRING;
 typedef WOLFSSL_dynlock_value  CRYPTO_dynlock_value;
 
+/* GENERAL_NAME and BASIC_CONSTRAINTS structs may need implemented as
+ * compatibility layer expands. For now treating them as an ASN1_OBJECT */
+typedef WOLFSSL_ASN1_OBJECT GENERAL_NAME;
+typedef WOLFSSL_ASN1_OBJECT BASIC_CONSTRAINTS;
+
 #define ASN1_UTCTIME WOLFSSL_ASN1_TIME
 
 typedef WOLFSSL_MD4_CTX        MD4_CTX;
@@ -213,8 +218,8 @@ typedef WOLFSSL_X509_STORE_CTX X509_STORE_CTX;
 #define SSL_SESSION_get_master_key_length wolfSSL_SESSION_get_master_key_length
 
 #define SSL_X509_NAME_get_text_by_NID wolfSSL_X509_NAME_get_text_by_NID
-#define SSL_X509_get_ext_d2i wolfSSL_X509_get_ext_d2i
-#define SSL_X509_digest wolfSSL_X509_digest
+#define X509_get_ext_d2i wolfSSL_X509_get_ext_d2i
+#define X509_digest wolfSSL_X509_digest
 #define X509_free wolfSSL_X509_free
 #define OPENSSL_free wolfSSL_OPENSSL_free
 
@@ -639,6 +644,24 @@ typedef WOLFSSL_ASN1_BIT_STRING    ASN1_BIT_STRING;
 
 
 #endif /* HAVE_STUNNEL */
+
+/* certificate extension NIDs */
+#define NID_basic_constraints         133
+#define NID_key_usage                 129  /* 2.5.29.15 */
+#define NID_ext_key_usage             151  /* 2.5.29.37 */
+#define NID_subject_key_identifier    128
+#define NID_authority_key_identifier  149
+#define NID_private_key_usage_period  130  /* 2.5.29.16 */
+#define NID_subject_alt_name          131
+#define NID_issuer_alt_name           132
+#define NID_info_access               69
+#define NID_sinfo_access              79  /* id-pe 11 */
+#define NID_name_constraints          144 /* 2.5.29.30 */
+#define NID_certificate_policies      146
+#define NID_policy_mappings           147
+#define NID_policy_constraints        150
+#define NID_inhibit_any_policy        168 /* 2.5.29.54 */
+#define NID_tlsfeature                92  /* id-pe 24 */
 
 #ifdef __cplusplus
     } /* extern "C" */

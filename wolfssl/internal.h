@@ -2503,6 +2503,7 @@ struct WOLFSSL_STACK {
     union {
         WOLFSSL_X509* x509;
         WOLFSSL_BIO*  bio;
+        WOLFSSL_ASN1_OBJECT* obj;
     } data;
     WOLFSSL_STACK* next;
 };
@@ -2566,9 +2567,21 @@ struct WOLFSSL_X509 {
     void*            heap;                           /* heap hint */
     byte             dynamicMemory;                  /* dynamic memory flag */
     byte             isCa;
+#ifdef WOLFSSL_CERT_EXT
+    char             certPolicies[MAX_CERTPOL_NB][MAX_CERTPOL_SZ];
+    int              certPoliciesNb;
+#endif /* WOLFSSL_CERT_EXT */
 #ifdef OPENSSL_EXTRA
     word32           pathLength;
     word16           keyUsage;
+    byte             CRLdistSet;
+    byte             CRLdistCrit;
+    byte*            CRLInfo;
+    int              CRLInfoSz;
+    byte             authInfoSet;
+    byte             authInfoCrit;
+    byte*            authInfo;
+    int              authInfoSz;
     byte             basicConstSet;
     byte             basicConstCrit;
     byte             basicConstPlSet;
@@ -2584,6 +2597,10 @@ struct WOLFSSL_X509 {
     word32           subjKeyIdSz;
     byte             keyUsageSet;
     byte             keyUsageCrit;
+    byte             extKeyUsageCrit;
+    byte*            extKeyUsageSrc;
+    word32           extKeyUsageSz;
+    word32           extKeyUsageCount;
 #endif /* OPENSSL_EXTRA */
 };
 

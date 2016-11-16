@@ -1398,6 +1398,38 @@ int GetObjectId(const byte* input, word32* inOutIdx, word32* oid,
 }
 
 
+WOLFSSL_ASN1_OBJECT* wolfSSL_ASN1_OBJECT_new(void)
+{
+    WOLFSSL_ASN1_OBJECT* obj;
+
+    obj = (WOLFSSL_ASN1_OBJECT*)XMALLOC(sizeof(WOLFSSL_ASN1_OBJECT), NULL,
+                                        DYNAMIC_TYPE_ASN1);
+    if (obj == NULL) {
+        return NULL;
+    }
+
+    XMEMSET(obj, 0, sizeof(WOLFSSL_ASN1_OBJECT));
+    return obj;
+}
+
+
+void wolfSSL_ASN1_OBJECT_free(WOLFSSL_ASN1_OBJECT* obj)
+{
+    if (obj == NULL) {
+        return;
+    }
+
+    if (obj->dynamic == 1) {
+        if (obj->obj != NULL) {
+            WOLFSSL_MSG("Freeing ASN1 OBJECT data");
+            XFREE(obj->obj, obj->heap, DYNAMIC_TYPE_ASN1);
+        }
+    }
+
+    XFREE(obj, NULL, DYNAMIC_TYPE_ASN1);
+}
+
+
 #ifndef NO_RSA
 #ifndef HAVE_USER_RSA
 #if defined(OPENSSL_EXTRA) || defined(RSA_DECODE_EXTRA)
@@ -2560,6 +2592,10 @@ void InitDecodedCert(DecodedCert* cert, byte* source, word32 inSz, void* heap)
 #ifdef OPENSSL_EXTRA
     XMEMSET(&cert->issuerName, 0, sizeof(DecodedName));
     XMEMSET(&cert->subjectName, 0, sizeof(DecodedName));
+    cert->extCRLdistSet = 0;
+    cert->extCRLdistCrit = 0;
+    cert->extAuthInfoSet = 0;
+    cert->extAuthInfoCrit = 0;
     cert->extBasicConstSet = 0;
     cert->extBasicConstCrit = 0;
     cert->extSubjAltNameSet = 0;
@@ -5206,11 +5242,19 @@ static int DecodeCertExtensions(DecodedCert* cert)
                 break;
 
             case CRL_DIST_OID:
+                #ifdef OPENSSL_EXTRA
+                    cert->extCRLdistSet  = 1;
+                    cert->extCRLdistCrit = critical;
+                #endif
                 if (DecodeCrlDist(&input[idx], length, cert) < 0)
                     return ASN_PARSE_E;
                 break;
 
             case AUTH_INFO_OID:
+                #ifdef OPENSSL_EXTRA
+                    cert->extAuthInfoSet  = 1;
+                    cert->extAuthInfoCrit = critical;
+                #endif
                 if (DecodeAuthInfo(&input[idx], length, cert) < 0)
                     return ASN_PARSE_E;
                 break;

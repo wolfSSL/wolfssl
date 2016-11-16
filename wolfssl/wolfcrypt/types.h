@@ -339,7 +339,8 @@
         DYNAMIC_TYPE_SESSION_TICK = 57,
         DYNAMIC_TYPE_PKCS         = 58,
         DYNAMIC_TYPE_MUTEX        = 59,
-        DYNAMIC_TYPE_PKCS7        = 60
+        DYNAMIC_TYPE_PKCS7        = 60,
+        DYNAMIC_TYPE_ASN1         = 61
 	};
 
 	/* max error buffer string size */
