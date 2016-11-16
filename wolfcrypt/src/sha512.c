@@ -499,7 +499,7 @@ static int _Transform(Sha512* sha512)
 
 static INLINE void AddLength(Sha512* sha512, word32 len)
 {
-    word32 tmp = sha512->loLen;
+    word64 tmp = sha512->loLen;
     if ( (sha512->loLen += len) < tmp)
         sha512->hiLen++;                       /* carry low to high */
 }
@@ -1418,7 +1418,7 @@ static int _Transform384(Sha384* sha384)
 
 static INLINE void AddLength384(Sha384* sha384, word32 len)
 {
-    word32 tmp = sha384->loLen;
+    word64 tmp = sha384->loLen;
     if ( (sha384->loLen += len) < tmp)
         sha384->hiLen++;                       /* carry low to high */
 }
