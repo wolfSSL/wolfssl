@@ -503,8 +503,12 @@ int wc_PKCS7_EncodeSignedData(PKCS7* pkcs7, byte* output, word32 outputSz)
             }
             wc_ShaUpdate(&esd->sha, attribSet, attribSetSz);
             wc_ShaUpdate(&esd->sha, flatSignedAttribs, flatSignedAttribsSz);
+            wc_ShaFinal(&esd->sha, esd->contentAttribsDigest);
+        } else {
+            /* when no attrs, digest is contentDigest without tag and length */
+            XMEMCPY(esd->contentAttribsDigest, esd->contentDigest + 2,
+                    SHA_DIGEST_SIZE);
         }
-        wc_ShaFinal(&esd->sha, esd->contentAttribsDigest);
 
         digestStrSz = SetOctetString(SHA_DIGEST_SIZE, digestStr);
         digestInfoSeqSz = SetSequence(esd->signerDigAlgoIdSz +
