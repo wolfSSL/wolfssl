@@ -1584,12 +1584,13 @@ typedef struct WOLFSSL_DTLS_CTX {
 
 #ifdef WOLFSSL_DTLS
 
-    #ifdef WORD64_AVAILABLE
-        typedef word64 DtlsSeq;
-    #else
-        typedef word32 DtlsSeq;
-    #endif
-    #define DTLS_SEQ_BITS (sizeof(DtlsSeq) * CHAR_BIT)
+    #ifndef WOLFSSL_DTLS_WINDOW_WORDS
+        #define WOLFSSL_DTLS_WINDOW_WORDS 2
+    #endif /* WOLFSSL_DTLS_WINDOW_WORDS */
+
+    #define DTLS_WORD_BITS (sizeof(word32) * CHAR_BIT)
+    #define DTLS_SEQ_BITS  (WOLFSSL_DTLS_WINDOW_WORDS * DTLS_WORD_BITS)
+    #define DTLS_SEQ_SZ    (sizeof(word32) * WOLFSSL_DTLS_WINDOW_WORDS)
 
 #endif /* WOLFSSL_DTLS */
 
@@ -1617,7 +1618,8 @@ typedef struct Keys {
     word32 sequence_number_lo;
 
 #ifdef WOLFSSL_DTLS
-    DtlsSeq window;     /* Sliding window for current epoch    */
+    word32 window[WOLFSSL_DTLS_WINDOW_WORDS];
+                        /* Sliding window for current epoch    */
     word16 nextEpoch;   /* Expected epoch in next record       */
     word16 nextSeq_hi;  /* Expected sequence in next record    */
     word32 nextSeq_lo;
@@ -1626,7 +1628,8 @@ typedef struct Keys {
     word16 curSeq_hi;   /* Received sequence in current record */
     word32 curSeq_lo;
 
-    DtlsSeq prevWindow; /* Sliding window for old epoch        */
+    word32 prevWindow[WOLFSSL_DTLS_WINDOW_WORDS];
+                        /* Sliding window for old epoch        */
     word16 prevSeq_hi;  /* Next sequence in allowed old epoch  */
     word32 prevSeq_lo;
 
