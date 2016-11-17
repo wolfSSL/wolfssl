@@ -3755,30 +3755,19 @@ void SSL_ResourceFree(WOLFSSL* ssl)
 #endif /* WOLFSSL_STATIC_MEMORY */
 }
 
-#ifdef WOLFSSL_TI_HASH
-static void HashFinal(WOLFSSL * ssl) {
-    byte dummyHash[32] ;
-#ifndef NO_MD5
-    wc_Md5Final(&(ssl->hsHashes->hashMd5), dummyHash) ;
-#endif
-#ifndef NO_SHA
-    wc_ShaFinal(&(ssl->hsHashes->hashSha), dummyHash) ;
-#endif
-#ifndef NO_SHA256
-    wc_Sha256Final(&(ssl->hsHashes->hashSha256), dummyHash) ;
-#endif
-}
-#else
-
-    #define HashFinal(ssl)
-
-#endif /* WOLFSSL_TI_HASH */
-
 /* Free any handshake resources no longer needed */
 void FreeHandshakeResources(WOLFSSL* ssl)
 {
+#ifndef NO_MD5
+    wc_Md5Free(&ssl->hsHashes->hashMd5);
+#endif
+#ifndef NO_SHA
+    wc_ShaFree(&ssl->hsHashes->hashSha);
+#endif
+#ifndef NO_SHA256
+    wc_Sha256Free(&ssl->hsHashes->hashSha25);
+#endif
 
-    HashFinal(ssl) ;
 #ifdef HAVE_SECURE_RENEGOTIATION
     if (ssl->secure_renegotiation && ssl->secure_renegotiation->enabled) {
         WOLFSSL_MSG("Secure Renegotiation needs to retain handshake resources");
