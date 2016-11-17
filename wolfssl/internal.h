@@ -3654,17 +3654,17 @@ typedef struct DtlsMsg {
 #endif
 
 #ifdef HAVE_LWIP_NATIVE
-    /* LwIP native tpc socket context */
-    typedef struct LwIP_native_Ctx {
-        struct tcp_pcb * pcb ;
-        tcp_recv_fn recv ;
-        tcp_sent_fn sent ;
-        int    pulled  ; 
-        struct pbuf *pbuf ;
-        int    wait ;
-        void * arg ;   /* arg for application */
-        int    idle_count ;
-    } LwIP_native_Ctx ;    
+    /* LwIP native TCP socket context */
+    typedef struct WOLF_LWIP_NATIVE_CTX {
+        struct tcp_pcb * pcb;
+        tcp_recv_fn recv_fn;
+        tcp_sent_fn sent_fn;
+        int    pulled;
+        struct pbuf *pbuf;
+        int    wait;
+        void * arg;   /* arg for application */
+        int    idle_count;
+    } WOLF_LWIP_NATIVE_CTX;
 #endif
 
 
@@ -4033,7 +4033,7 @@ struct WOLFSSL {
     struct gnrc_wolfssl_ctx *gnrcCtx;  /* Riot-OS GNRC UDP/IP context */
 #endif
 #ifdef HAVE_LWIP_NATIVE
-    LwIP_native_Ctx        lwipCtx;    /* LwIP native socket IO Context */
+    WOLF_LWIP_NATIVE_CTX      lwipCtx; /* LwIP native socket IO Context */
 #endif
 #ifdef SESSION_INDEX
     int sessionIndex;                  /* Session's location in the cache. */
