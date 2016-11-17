@@ -103,6 +103,12 @@ typedef struct PKCS7 {
 
     PKCS7Attrib* signedAttribs;
     word32 signedAttribsSz;
+
+    /* Encrypted-data Content Type */
+    byte* encryptionKey;                /* block cipher encryption key */
+    word32 encryptionKeySz;             /* size of key buffer, bytes */
+    PKCS7Attrib* unprotectedAttribs;    /* optional */
+    word32 unprotectedAttribsSz;
 } PKCS7;
 
 
@@ -124,7 +130,8 @@ WOLFSSL_LOCAL int wc_PKCS7_DecryptContent(int encryptOID, byte* key, int keySz,
 
 WOLFSSL_API int  wc_PKCS7_InitWithCert(PKCS7* pkcs7, byte* cert, word32 certSz);
 WOLFSSL_API void wc_PKCS7_Free(PKCS7* pkcs7);
-WOLFSSL_API int  wc_PKCS7_EncodeData(PKCS7* pkcs7, byte* output, word32 outputSz);
+WOLFSSL_API int  wc_PKCS7_EncodeData(PKCS7* pkcs7, byte* output,
+                                       word32 outputSz);
 WOLFSSL_API int  wc_PKCS7_EncodeSignedData(PKCS7* pkcs7,
                                        byte* output, word32 outputSz);
 WOLFSSL_API int  wc_PKCS7_VerifySignedData(PKCS7* pkcs7,
@@ -134,7 +141,11 @@ WOLFSSL_API int  wc_PKCS7_EncodeEnvelopedData(PKCS7* pkcs7,
 WOLFSSL_API int  wc_PKCS7_DecodeEnvelopedData(PKCS7* pkcs7, byte* pkiMsg,
                                           word32 pkiMsgSz, byte* output,
                                           word32 outputSz);
-
+WOLFSSL_API int  wc_PKCS7_EncodeEncryptedData(PKCS7* pkcs7,
+                                          byte* output, word32 outputSz);
+WOLFSSL_API int  wc_PKCS7_DecodeEncryptedData(PKCS7* pkcs7, byte* pkiMsg,
+                                          word32 pkiMsgSz, byte* output,
+                                          word32 outputSz);
 #ifdef __cplusplus
     } /* extern "C" */
 #endif
