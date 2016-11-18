@@ -88,10 +88,16 @@ int  wc_RNG_GenerateByte(WC_RNG* rng, byte* b)
 /* Allow custom RNG system */
 #ifdef CUSTOM_RAND_GENERATE_BLOCK
 
-int wc_InitRng(WC_RNG* rng)
+int wc_InitRng_ex(WC_RNG* rng, void* heap)
 {
     (void)rng;
+    (void)heap;
     return 0;
+}
+
+int wc_InitRng(WC_RNG* rng)
+{
+    return wc_InitRng_ex(rng, NULL);
 }
 
 int wc_RNG_GenerateBlock(WC_RNG* rng, byte* output, word32 sz)
@@ -201,7 +207,7 @@ int wc_FreeRng(WC_RNG* rng)
 #if RNG_MAX_BLOCK_LEN > MAX_REQUEST_LEN
     #error RNG_MAX_BLOCK_LEN is larger than NIST DBRG max request length
 #endif
-    
+
 
 enum {
     drbgInitC     = 0,
@@ -676,7 +682,7 @@ int wc_RNG_HealthTest(int reseed, const byte* entropyA, word32 entropyASz,
     if (Hash_DRBG_Generate(drbg, output, outputSz) != 0) {
         goto exit_rng_ht;
     }
-    
+
     /* Mark success */
     ret = 0;
 
@@ -776,7 +782,7 @@ static int wc_RNG_HealthTestLocal(int reseed)
                                 NULL, 0,
                                 check, RNG_HEALTH_TEST_CHECK_SIZE);
         if (ret == 0) {
-            if (ConstantCompare(check, outputB, 
+            if (ConstantCompare(check, outputB,
                                 RNG_HEALTH_TEST_CHECK_SIZE) != 0)
                 ret = -1;
         }

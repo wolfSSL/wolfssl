@@ -53,6 +53,18 @@
 
 #ifndef NO_TLS
 
+/* Digest enable checks */
+#ifdef NO_OLD_TLS /* TLS 1.2 only */
+    #if defined(NO_SHA256) && !defined(WOLFSSL_SHA384) && \
+            !defined(WOLFSSL_SHA512)
+        #error Must have SHA256, SHA384 or SHA512 enabled for TLS 1.2
+    #endif
+#else  /* TLS 1.1 or older */
+    #if defined(NO_MD5) && defined(NO_SHA)
+        #error Must have SHA1 and MD5 enabled for old TLS
+    #endif
+#endif
+
 
 #ifndef WOLFSSL_HAVE_MIN
 #define WOLFSSL_HAVE_MIN
@@ -4900,7 +4912,6 @@ int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte isRequest,
 
 #endif /* !NO_OLD_TLS */
 
-#ifndef NO_SHA256   /* can't use without SHA256 */
 
     WOLFSSL_METHOD* wolfTLSv1_2_client_method(void)
     {
@@ -4917,7 +4928,6 @@ int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte isRequest,
             InitSSL_Method(method, MakeTLSv1_2());
         return method;
     }
-#endif
 
 
     WOLFSSL_METHOD* wolfSSLv23_client_method(void)
@@ -4933,10 +4943,12 @@ int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte isRequest,
                                                      heap, DYNAMIC_TYPE_METHOD);
         (void)heap;
         if (method) {
-#ifndef NO_SHA256         /* 1.2 requires SHA256 */
+#if !defined(NO_SHA256) || defined(WOLFSSL_SHA384) || defined(WOLFSSL_SHA512)
             InitSSL_Method(method, MakeTLSv1_2());
 #else
+    #ifndef NO_OLD_TLS
             InitSSL_Method(method, MakeTLSv1_1());
+    #endif
 #endif
 #ifndef NO_OLD_TLS
             method->downgrade = 1;
@@ -4990,7 +5002,6 @@ int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte isRequest,
     }
 #endif /* !NO_OLD_TLS */
 
-#ifndef NO_SHA256   /* can't use without SHA256 */
 
     WOLFSSL_METHOD* wolfTLSv1_2_server_method(void)
     {
@@ -5000,7 +5011,7 @@ int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte isRequest,
     WOLFSSL_METHOD* wolfTLSv1_2_server_method_ex(void* heap)
     {
         WOLFSSL_METHOD* method =
-                              (WOLFSSL_METHOD*) XMALLOC(sizeof(WOLFSSL_METHOD), 
+                              (WOLFSSL_METHOD*) XMALLOC(sizeof(WOLFSSL_METHOD),
                                                      heap, DYNAMIC_TYPE_METHOD);
         (void)heap;
         if (method) {
@@ -5009,8 +5020,6 @@ int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte isRequest,
         }
         return method;
     }
-
-#endif
 
 
     WOLFSSL_METHOD* wolfSSLv23_server_method(void)
@@ -5025,15 +5034,19 @@ int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte isRequest,
                                                      heap, DYNAMIC_TYPE_METHOD);
         (void)heap;
         if (method) {
-#ifndef NO_SHA256         /* 1.2 requires SHA256 */
+#if !defined(NO_SHA256) || defined(WOLFSSL_SHA384) || defined(WOLFSSL_SHA512)
             InitSSL_Method(method, MakeTLSv1_2());
 #else
+    #ifndef NO_OLD_TLS
             InitSSL_Method(method, MakeTLSv1_1());
+    #else
+            #error Must have SHA256, SHA384 or SHA512 enabled for TLS 1.2
+    #endif
 #endif
-            method->side      = WOLFSSL_SERVER_END;
 #ifndef NO_OLD_TLS
             method->downgrade = 1;
-#endif /* !NO_OLD_TLS */
+#endif
+            method->side      = WOLFSSL_SERVER_END;
         }
         return method;
     }
