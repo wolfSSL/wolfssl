@@ -447,10 +447,12 @@ typedef WOLFSSL_X509_STORE_CTX X509_STORE_CTX;
 #define SSL_CTX_get_ex_new_index wolfSSL_CTX_get_ex_new_index
 
 /*#if OPENSSL_API_COMPAT < 0x10100000L*/
-# define CONF_modules_free() while(0) continue
-# define ENGINE_cleanup() while(0) continue
+# define CONF_modules_free()
+# define ENGINE_cleanup()
 /*#endif*/
-#define CONF_modules_unload wolfSSL_CONF_modules_unload
+#define CONF_modules_unload()
+
+#define SSL_get_hit wolfSSL_session_reused
 
 /* yassl had set the default to be 500 */
 #define SSL_get_default_timeout(ctx) 500
@@ -497,9 +499,9 @@ typedef WOLFSSL_X509_NAME_ENTRY X509_NAME_ENTRY;
 #define PEM_read_bio_DHparams wolfSSL_PEM_read_bio_DHparams
 #define PEM_read_bio_DSAparams wolfSSL_PEM_read_bio_DSAparams
 #define PEM_write_bio_X509 PEM_write_bio_WOLFSSL_X509
-#define SSL_CTX_set_tmp_dh wolfSSL_CTX_set_tmp_dh
 
 #endif /* HAVE_STUNNEL || HAVE_LIGHTY || WOLFSSL_MYSQL_COMPATIBLE */
+#define SSL_CTX_set_tmp_dh wolfSSL_CTX_set_tmp_dh
 
 #define BIO_new_file        wolfSSL_BIO_new_file
 #define BIO_ctrl            wolfSSL_BIO_ctrl
@@ -519,30 +521,30 @@ typedef WOLFSSL_X509_NAME_ENTRY X509_NAME_ENTRY;
 #define BIO_write_filename  wolfSSL_BIO_write_filename
 #define BIO_set_mem_eof_return wolfSSL_BIO_set_mem_eof_return
 
-#define SSL_set_options      wolfSSL_SSL_set_options
-#define SSL_get_options      wolfSSL_SSL_get_options
-#define SSL_set_tmp_dh       wolfSSL_SSL_set_tmp_dh
-#define SSL_clear_num_renegotiations    wolfSSL_SSL_clear_num_renegotiations
-#define SSL_total_renegotiations       wolfSSL_SSSL_total_renegotiations
-#define SSL_set_tlsext_debug_arg        wolfSSL_SSL_set_tlsext_debug_arg
-#define SSL_set_tlsext_status_type      wolfSSL_SSL_set_tlsext_status_type
-#define SSL_set_tlsext_status_exts      wolfSSL_SSL_set_tlsext_status_exts
-#define SSL_get_tlsext_status_ids       wolfSSL_SSL_get_tlsext_status_ids
-#define SSL_set_tlsext_status_ids       wolfSSL_SSL_set_tlsext_status_ids
-#define SSL_get_tlsext_status_ocsp_resp wolfSSL_SSL_get_tlsext_status_ocsp_resp
-#define SSL_set_tlsext_status_ocsp_resp wolfSSL_SSL_set_tlsext_status_ocsp_resp
+#define SSL_set_options      wolfSSL_set_options
+#define SSL_get_options      wolfSSL_get_options
+#define SSL_set_tmp_dh       wolfSSL_set_tmp_dh
+#define SSL_clear_num_renegotiations    wolfSSL_clear_num_renegotiations
+#define SSL_total_renegotiations       wolfSSL_total_renegotiations
+#define SSL_set_tlsext_debug_arg        wolfSSL_set_tlsext_debug_arg
+#define SSL_set_tlsext_status_type      wolfSSL_set_tlsext_status_type
+#define SSL_set_tlsext_status_exts      wolfSSL_set_tlsext_status_exts
+#define SSL_get_tlsext_status_ids       wolfSSL_get_tlsext_status_ids
+#define SSL_set_tlsext_status_ids       wolfSSL_set_tlsext_status_ids
+#define SSL_get_tlsext_status_ocsp_resp wolfSSL_get_tlsext_status_ocsp_resp
+#define SSL_set_tlsext_status_ocsp_resp wolfSSL_set_tlsext_status_ocsp_resp
 
-#define SSL_CTX_need_tmp_RSA wolfSSL_SSL_CTX_need_tmp_RSA
-#define SSL_CTX_set_tmp_rsa wolfSSL_SSL_CTX_set_tmp_rsa
-#define SSL_CTX_add_extra_chain_cert wolfSSL_SSL_CTX_add_extra_chain_cert
-#define SSL_CTX_get_read_ahead wolfSSL_SSL_CTX_get_read_ahead
-#define SSL_CTX_set_read_ahead wolfSSL_SSL_CTX_set_read_ahead
-#define SSL_CTX_set_tlsext_status_arg wolfSSL_SSL_CTX_set_tlsext_status_arg
+#define SSL_CTX_need_tmp_RSA wolfSSL_CTX_need_tmp_RSA
+#define SSL_CTX_set_tmp_rsa wolfSSL_CTX_set_tmp_rsa
+#define SSL_CTX_add_extra_chain_cert wolfSSL_CTX_add_extra_chain_cert
+#define SSL_CTX_get_read_ahead wolfSSL_CTX_get_read_ahead
+#define SSL_CTX_set_read_ahead wolfSSL_CTX_set_read_ahead
+#define SSL_CTX_set_tlsext_status_arg wolfSSL_CTX_set_tlsext_status_arg
 #define SSL_CTX_set_tlsext_opaque_prf_input_callback_arg \
-                   wolfSSL_SSL_CTX_set_tlsext_opaque_prf_input_callback_arg
+                   wolfSSL_CTX_set_tlsext_opaque_prf_input_callback_arg
 #define SSL_get_server_random wolfSSL_get_server_random
 
-#define SSL_get_tlsext_status_exts wolfSSL_SSL_get_tlsext_status_exts
+#define SSL_get_tlsext_status_exts wolfSSL_get_tlsext_status_exts
 
 #define BIO_C_SET_FILE_PTR                      106
 #define BIO_C_GET_FILE_PTR                      107

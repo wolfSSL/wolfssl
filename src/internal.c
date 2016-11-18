@@ -2593,6 +2593,13 @@ void FreeX509Name(WOLFSSL_X509_NAME* name, void* heap)
 /* Initialize wolfSSL X509 type */
 void InitX509(WOLFSSL_X509* x509, int dynamicFlag, void* heap)
 {
+    if (x509 == NULL) {
+        WOLFSSL_MSG("Null parameter passed in!");
+        return;
+    }
+
+    XMEMSET(x509, 0, sizeof(WOLFSSL_X509));
+
     x509->heap = heap;
     InitX509Name(&x509->issuer, 0);
     InitX509Name(&x509->subject, 0);

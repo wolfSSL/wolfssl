@@ -46,6 +46,8 @@
 #ifdef OPENSSL_EXTRA
     #include <wolfssl/openssl/ssl.h>
     #include <wolfssl/openssl/pkcs12.h>
+    #include <wolfssl/openssl/evp.h>
+    #include <wolfssl/openssl/dh.h>
 #ifndef NO_DES3
     #include <wolfssl/openssl/des.h>
 #endif
@@ -2282,12 +2284,18 @@ static void test_wolfSSL_certs(void)
                                   sizeof_server_cert_der_2048), SSL_SUCCESS);
     #endif
 
-    /* needs tested after stubs filled out @TODO
-        SSL_use_PrivateKey
-        SSL_use_PrivateKey_ASN1
-        SSL_use_RSAPrivateKey_ASN1
-        SSL_X509_digest
-    */
+    /************* Get Digest of Certificate ******************/
+    {
+        byte   digest[64]; /* max digest size */
+        word32 digestSz;
+
+        XMEMSET(digest, 0, sizeof(digest));
+        AssertIntEQ(X509_digest(x509, wolfSSL_EVP_sha1(), digest, &digestSz),
+                    SSL_SUCCESS);
+
+        AssertIntEQ(X509_digest(NULL, wolfSSL_EVP_sha1(), digest, &digestSz),
+                    SSL_FAILURE);
+    }
 
     /* test and checkout X509 extensions */
     sk = X509_get_ext_d2i(x509, NID_basic_constraints, &crit, NULL);
@@ -2301,8 +2309,7 @@ static void test_wolfSSL_certs(void)
     wolfSSL_sk_ASN1_OBJECT_free(sk);
 
     sk = X509_get_ext_d2i(x509, NID_ext_key_usage, &crit, NULL);
-    AssertNotNull(sk);
-    AssertIntEQ(crit, -2); /* multiple cases */
+    /* AssertNotNull(sk); no extension set */
     wolfSSL_sk_ASN1_OBJECT_free(sk);
 
     sk = X509_get_ext_d2i(x509, NID_authority_key_identifier, &crit, NULL);
@@ -2373,7 +2380,101 @@ static void test_wolfSSL_certs(void)
     sk = X509_get_ext_d2i(NULL, NID_tlsfeature, NULL, NULL);
     AssertNull(sk);
 
+    AssertIntEQ(SSL_get_hit(ssl), 0);
     SSL_free(ssl); /* frees x509 also since loaded into ssl */
+    SSL_CTX_free(ctx);
+
+    printf(resultFmt, passed);
+    #endif /* defined(OPENSSL_EXTRA) && !defined(NO_CERTS) */
+}
+
+
+static void test_wolfSSL_private_keys(void)
+{
+    #if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && \
+       !defined(NO_FILESYSTEM) && !defined(NO_RSA)
+    WOLFSSL*     ssl;
+    WOLFSSL_CTX* ctx;
+    EVP_PKEY* pkey = NULL;
+
+    printf(testingFmt, "wolfSSL_private_keys()");
+
+    AssertNotNull(ctx = SSL_CTX_new(wolfSSLv23_server_method()));
+    AssertTrue(SSL_CTX_use_certificate_file(ctx, svrCert, SSL_FILETYPE_PEM));
+    AssertTrue(SSL_CTX_use_PrivateKey_file(ctx, svrKey, SSL_FILETYPE_PEM));
+    AssertNotNull(ssl = SSL_new(ctx));
+
+    AssertIntEQ(wolfSSL_check_private_key(ssl), SSL_SUCCESS);
+
+#ifdef USE_CERT_BUFFERS_2048
+    AssertIntEQ(SSL_use_RSAPrivateKey_ASN1(ssl,
+                (unsigned char*)client_key_der_2048,
+                sizeof_client_key_der_2048), SSL_SUCCESS);
+    /* Should missmatch now that a different private key loaded */
+    AssertIntNE(wolfSSL_check_private_key(ssl), SSL_SUCCESS);
+
+    AssertIntEQ(SSL_use_PrivateKey_ASN1(0, ssl,
+                (unsigned char*)server_key_der_2048,
+                sizeof_server_key_der_2048), SSL_SUCCESS);
+    /* After loading back in DER format of original key, should match */
+    AssertIntEQ(wolfSSL_check_private_key(ssl), SSL_SUCCESS);
+#endif
+
+    /* pkey not set yet, expecting to fail */
+    AssertIntEQ(SSL_use_PrivateKey(ssl, pkey), SSL_FAILURE);
+
+    SSL_free(ssl); /* frees x509 also since loaded into ssl */
+    SSL_CTX_free(ctx);
+
+    /* test existence of no-op macros in wolfssl/openssl/ssl.h */
+    CONF_modules_free();
+    ENGINE_cleanup();
+    CONF_modules_unload();
+
+    printf(resultFmt, passed);
+    #endif /* defined(OPENSSL_EXTRA) && !defined(NO_CERTS) */
+}
+
+
+static void test_wolfSSL_tmp_dh(void)
+{
+    #if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && \
+       !defined(NO_FILESYSTEM) && !defined(NO_DSA)
+    byte buffer[5300];
+    char file[] = "./certs/dsaparams.pem";
+    FILE *f;
+    int  bytes;
+    DSA* dsa;
+    DH*  dh;
+    BIO*     bio;
+    SSL*     ssl;
+    SSL_CTX* ctx;
+
+    printf(testingFmt, "wolfSSL_tmp_dh()");
+
+    AssertNotNull(ctx = SSL_CTX_new(wolfSSLv23_server_method()));
+    AssertTrue(SSL_CTX_use_certificate_file(ctx, svrCert, SSL_FILETYPE_PEM));
+    AssertTrue(SSL_CTX_use_PrivateKey_file(ctx, svrKey, SSL_FILETYPE_PEM));
+    AssertNotNull(ssl = SSL_new(ctx));
+
+    f = fopen(file, "rb");
+    AssertNotNull(f);
+    bytes = (int)fread(buffer, 1, sizeof(buffer), f);
+    fclose(f);
+
+    bio = BIO_new_mem_buf((void*)buffer, bytes);
+    AssertNotNull(bio);
+
+    dsa = wolfSSL_PEM_read_bio_DSAparams(bio, NULL, NULL, NULL);
+    AssertNotNull(dsa);
+
+    dh = wolfSSL_DSA_dup_DH(dsa);
+    AssertNotNull(dh);
+
+    AssertIntEQ(SSL_CTX_set_tmp_dh(ctx, dh), SSL_SUCCESS);
+    AssertIntEQ(SSL_set_tmp_dh(ssl, dh), SSL_SUCCESS);
+
+    SSL_free(ssl);
     SSL_CTX_free(ctx);
 
     printf(resultFmt, passed);
@@ -2441,6 +2542,8 @@ void ApiTest(void)
     /* compatibility tests */
     test_wolfSSL_DES();
     test_wolfSSL_certs();
+    test_wolfSSL_private_keys();
+    test_wolfSSL_tmp_dh();
     test_wolfSSL_ctrl();
 
     AssertIntEQ(test_wolfSSL_Cleanup(), SSL_SUCCESS);

@@ -578,6 +578,8 @@ extern const char* BEGIN_CERT;
 extern const char* END_CERT;
 extern const char* BEGIN_CERT_REQ;
 extern const char* END_CERT_REQ;
+extern const char* BEGIN_DSA_PARAM;
+extern const char* END_DSA_PARAM;
 extern const char* BEGIN_DH_PARAM;
 extern const char* END_DH_PARAM;
 extern const char* BEGIN_X509_CRL;

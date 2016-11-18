@@ -1046,7 +1046,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
             err_sys("error creating server random buffer");
         }
 
-        size = wolfSSL_get_client_random(ssl, rnd, size);
+        size = wolfSSL_get_server_random(ssl, rnd, size);
         if (size == 0) {
             XFREE(rnd, NULL, DYNAMIC_TYPE_TMP_BUFFER);
             err_sys("error getting server random buffer");
