@@ -146,7 +146,7 @@ static int hashHash(const byte* data, word32 len, byte* hash, word32 algo, word3
     }
 
 #ifdef WOLFSSL_SMALL_STACK
-    XFREE(hash, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(hash_desc, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
 
     return ret;
