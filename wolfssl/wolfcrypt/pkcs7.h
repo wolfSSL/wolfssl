@@ -127,6 +127,13 @@ WOLFSSL_LOCAL int wc_PKCS7_EncryptContent(int encryptOID, byte* key, int keySz,
 WOLFSSL_LOCAL int wc_PKCS7_DecryptContent(int encryptOID, byte* key, int keySz,
                                      byte* iv, int ivSz, byte* in, int inSz,
                                      byte* out);
+WOLFSSL_LOCAL int wc_PKCS7_GenerateIV(WC_RNG* rng, byte* iv, word32 ivSz);
+WOLFSSL_LOCAL int wc_PKCS7_GetPadSize(word32 inputSz, word32 blockSz);
+WOLFSSL_LOCAL int wc_PKCS7_PadData(byte* in, word32 inSz, byte* out, word32 outSz,
+                                     word32 blockSz);
+WOLFSSL_LOCAL int wc_PKCS7_GetOIDBlockSize(int oid);
+WOLFSSL_LOCAL int wc_PKCS7_GetOIDKeySize(int oid);
+
 
 WOLFSSL_API int  wc_PKCS7_InitWithCert(PKCS7* pkcs7, byte* cert, word32 certSz);
 WOLFSSL_API void wc_PKCS7_Free(PKCS7* pkcs7);

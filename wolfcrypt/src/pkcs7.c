@@ -1198,7 +1198,10 @@ int wc_PKCS7_EncryptContent(int encryptOID, byte* key, int keySz,
         case AES128CBCb:
         case AES192CBCb:
         case AES256CBCb:
-            if (ivSz != AES_BLOCK_SIZE)
+            if ( (encryptOID == AES128CBCb && keySz != 16 ) ||
+                 (encryptOID == AES192CBCb && keySz != 24 ) ||
+                 (encryptOID == AES256CBCb && keySz != 32 ) ||
+                 (ivSz  != AES_BLOCK_SIZE) )
                 return BAD_FUNC_ARG;
 
             ret = wc_AesSetKey(&aes, key, keySz, iv, AES_ENCRYPTION);
@@ -1258,7 +1261,10 @@ int wc_PKCS7_DecryptContent(int encryptOID, byte* key, int keySz,
         case AES128CBCb:
         case AES192CBCb:
         case AES256CBCb:
-            if (ivSz != AES_BLOCK_SIZE)
+            if ( (encryptOID == AES128CBCb && keySz != 16 ) ||
+                 (encryptOID == AES192CBCb && keySz != 24 ) ||
+                 (encryptOID == AES256CBCb && keySz != 32 ) ||
+                 (ivSz  != AES_BLOCK_SIZE) )
                 return BAD_FUNC_ARG;
 
             ret = wc_AesSetKey(&aes, key, keySz, iv, AES_DECRYPTION);
@@ -1296,11 +1302,144 @@ int wc_PKCS7_DecryptContent(int encryptOID, byte* key, int keySz,
 }
 
 
+/* generate random IV, place in iv, return 0 on success negative on error */
+int wc_PKCS7_GenerateIV(WC_RNG* rng, byte* iv, word32 ivSz)
+{
+    int ret;
+    WC_RNG* random;
+
+    if (iv == NULL || ivSz == 0)
+        return BAD_FUNC_ARG;
+
+    /* input RNG is optional, init local one if input rng is NULL */
+    if (rng == NULL) {
+        random = XMALLOC(sizeof(WC_RNG), NULL, DYNAMIC_TYPE_RNG);
+        if (random == NULL)
+            return MEMORY_E;
+    } else {
+        random = rng;
+    }
+
+    ret = wc_InitRng(random);
+    if (ret == 0) {
+        ret = wc_RNG_GenerateBlock(random, iv, ivSz);
+        wc_FreeRng(random);
+    }
+
+    if (rng == NULL) {
+        XFREE(random, NULL, DYNAMIC_TYPE_RNG);
+    }
+
+    return ret;
+}
+
+
+/* return size of padded data, padded to blockSz chunks, or negative on error */
+int wc_PKCS7_GetPadSize(word32 inputSz, word32 blockSz)
+{
+    int padSz;
+
+    if (blockSz == 0)
+        return BAD_FUNC_ARG;
+
+    padSz = blockSz - (inputSz % blockSz);
+
+    return padSz;
+}
+
+
+/* pad input data to blockSz chunk, place in outSz. out must be big enough
+ * for input + pad bytes. See wc_PKCS7_GetPadLength() helper. */
+int wc_PKCS7_PadData(byte* in, word32 inSz, byte* out, word32 outSz,
+                     word32 blockSz)
+{
+    int i, padSz;
+
+    if (in == NULL  || inSz == 0 ||
+        out == NULL || outSz == 0)
+        return BAD_FUNC_ARG;
+
+    padSz = blockSz - (inSz % blockSz);
+
+    if (outSz < (inSz + padSz))
+        return BAD_FUNC_ARG;
+
+    XMEMCPY(out, in, inSz);
+
+    for (i = 0; i < padSz; i++) {
+        out[inSz + i] = (byte)padSz;
+    }
+
+    return inSz + padSz;
+}
+
+
+int wc_PKCS7_GetOIDBlockSize(int oid)
+{
+    int blockSz;
+
+    switch (oid) {
+#ifndef NO_AES
+        case AES128CBCb:
+        case AES192CBCb:
+        case AES256CBCb:
+            blockSz = AES_BLOCK_SIZE;
+            break;
+#endif
+        case DESb:
+        case DES3b:
+            blockSz = DES_BLOCK_SIZE;
+            break;
+
+        default:
+            WOLFSSL_MSG("Unsupported content cipher type");
+            return ALGO_ID_E;
+    };
+
+    return blockSz;
+}
+
+
+int wc_PKCS7_GetOIDKeySize(int oid)
+{
+    int blockKeySz;
+
+    switch (oid) {
+#ifndef NO_AES
+        case AES128CBCb:
+            blockKeySz = 16;
+            break;
+
+        case AES192CBCb:
+            blockKeySz = 24;
+            break;
+
+        case AES256CBCb:
+            blockKeySz = 32;
+            break;
+#endif
+        case DESb:
+            blockKeySz = DES_KEYLEN;
+            break;
+
+        case DES3b:
+            blockKeySz = DES3_KEYLEN;
+            break;
+
+        default:
+            WOLFSSL_MSG("Unsupported content cipher type");
+            return ALGO_ID_E;
+    };
+
+    return blockKeySz;
+}
+
+
 /* build PKCS#7 envelopedData content type, return enveloped size */
 int wc_PKCS7_EncodeEnvelopedData(PKCS7* pkcs7, byte* output, word32 outputSz)
 {
-    int i, ret, idx = 0;
-    int totalSz, padSz, desOutSz;
+    int ret, idx = 0;
+    int totalSz, padSz, encryptedOutSz;
 
     int contentInfoSeqSz, outerContentTypeSz, outerContentSz;
     byte contentInfoSeq[MAX_SEQ_SZ];
@@ -1346,38 +1485,13 @@ int wc_PKCS7_EncodeEnvelopedData(PKCS7* pkcs7, byte* output, word32 outputSz)
     if (output == NULL || outputSz == 0)
         return BAD_FUNC_ARG;
 
-    /* wolfCrypt PKCS#7 supports AES-128/192/256-CBC, DES, 3DES for now */
-    switch (pkcs7->encryptOID) {
-#ifndef NO_AES
-        case AES128CBCb:
-            blockKeySz = 16;
-            blockSz    = AES_BLOCK_SIZE;
-            break;
+    blockKeySz = wc_PKCS7_GetOIDKeySize(pkcs7->encryptOID);
+    if (blockKeySz < 0)
+        return blockKeySz;
 
-        case AES192CBCb:
-            blockKeySz = 24;
-            blockSz    = AES_BLOCK_SIZE;
-            break;
-
-        case AES256CBCb:
-            blockKeySz = 32;
-            blockSz    = AES_BLOCK_SIZE;
-            break;
-#endif
-        case DESb:
-            blockKeySz = DES_KEYLEN;
-            blockSz    = DES_BLOCK_SIZE;
-            break;
-
-        case DES3b:
-            blockKeySz = DES3_KEYLEN;
-            blockSz    = DES_BLOCK_SIZE;
-            break;
-
-        default:
-            WOLFSSL_MSG("Unsupported content cipher type");
-            return ALGO_ID_E;
-    };
+    blockSz    = wc_PKCS7_GetOIDBlockSize(pkcs7->encryptOID);
+    if (blockSz < 0)
+        return blockSz;
 
     /* outer content type */
     outerContentTypeSz = wc_SetContentType(ENVELOPED_DATA, outerContentType);
@@ -1432,7 +1546,7 @@ int wc_PKCS7_EncodeEnvelopedData(PKCS7* pkcs7, byte* output, word32 outputSz)
     recipSetSz = SetSet(recipSz, recipSet);
 
     /* generate IV for block cipher */
-    ret = wc_RNG_GenerateBlock(&rng, tmpIv, blockSz);
+    ret = wc_PKCS7_GenerateIV(&rng, tmpIv, blockSz);
     wc_FreeRng(&rng);
     if (ret != 0) {
 #ifdef WOLFSSL_SMALL_STACK
@@ -1451,24 +1565,30 @@ int wc_PKCS7_EncodeEnvelopedData(PKCS7* pkcs7, byte* output, word32 outputSz)
     }
 
     /* allocate encrypted content buffer and PKCS#7 padding */
-    padSz = blockSz - (pkcs7->contentSz % blockSz);
-    desOutSz = pkcs7->contentSz + padSz;
+    padSz = wc_PKCS7_GetPadSize(pkcs7->contentSz, blockSz);
+    if (padSz < 0)
+        return padSz;
 
-    plain = (byte*)XMALLOC(desOutSz, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    encryptedOutSz = pkcs7->contentSz + padSz;
+
+    plain = (byte*)XMALLOC(encryptedOutSz, pkcs7->heap,
+                           DYNAMIC_TYPE_TMP_BUFFER);
     if (plain == NULL) {
 #ifdef WOLFSSL_SMALL_STACK
         XFREE(recip, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
         return MEMORY_E;
     }
-    XMEMCPY(plain, pkcs7->content, pkcs7->contentSz);
 
-    for (i = 0; i < padSz; i++) {
-        plain[pkcs7->contentSz + i] = (byte)padSz;
+    ret = wc_PKCS7_PadData(pkcs7->content, pkcs7->contentSz, plain,
+                           encryptedOutSz, blockSz);
+    if (ret < 0) {
+        XFREE(plain, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        return ret;
     }
 
-    encryptedContent = (byte*)XMALLOC(desOutSz, pkcs7->heap,
-                                                       DYNAMIC_TYPE_TMP_BUFFER);
+    encryptedContent = (byte*)XMALLOC(encryptedOutSz, pkcs7->heap,
+                                      DYNAMIC_TYPE_TMP_BUFFER);
     if (encryptedContent == NULL) {
         XFREE(plain, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
 #ifdef WOLFSSL_SMALL_STACK
@@ -1496,7 +1616,8 @@ int wc_PKCS7_EncodeEnvelopedData(PKCS7* pkcs7, byte* output, word32 outputSz)
 
     /* encrypt content */
     ret = wc_PKCS7_EncryptContent(pkcs7->encryptOID, contentKeyPlain,
-            blockKeySz, tmpIv, blockSz, plain, desOutSz, encryptedContent);
+            blockKeySz, tmpIv, blockSz, plain, encryptedOutSz,
+            encryptedContent);
 
     if (ret != 0) {
         XFREE(encryptedContent, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
@@ -1507,17 +1628,18 @@ int wc_PKCS7_EncodeEnvelopedData(PKCS7* pkcs7, byte* output, word32 outputSz)
         return ret;
     }
 
-    encContentOctetSz = SetImplicit(ASN_OCTET_STRING, 0,
-                                    desOutSz, encContentOctet);
+    encContentOctetSz = SetImplicit(ASN_OCTET_STRING, 0, encryptedOutSz,
+                                    encContentOctet);
 
     encContentSeqSz = SetSequence(contentTypeSz + contentEncAlgoSz +
                                   ivOctetStringSz + blockSz +
-                                  encContentOctetSz + desOutSz, encContentSeq);
+                                  encContentOctetSz + encryptedOutSz,
+                                  encContentSeq);
 
     /* keep track of sizes for outer wrapper layering */
     totalSz = verSz + recipSetSz + recipSz + encContentSeqSz + contentTypeSz +
               contentEncAlgoSz + ivOctetStringSz + blockSz +
-              encContentOctetSz + desOutSz;
+              encContentOctetSz + encryptedOutSz;
 
     /* EnvelopedData */
     envDataSeqSz = SetSequence(totalSz, envDataSeq);
@@ -1568,8 +1690,8 @@ int wc_PKCS7_EncodeEnvelopedData(PKCS7* pkcs7, byte* output, word32 outputSz)
     idx += blockSz;
     XMEMCPY(output + idx, encContentOctet, encContentOctetSz);
     idx += encContentOctetSz;
-    XMEMCPY(output + idx, encryptedContent, desOutSz);
-    idx += desOutSz;
+    XMEMCPY(output + idx, encryptedContent, encryptedOutSz);
+    idx += encryptedOutSz;
 
     ForceZero(contentKeyPlain, MAX_CONTENT_KEY_LEN);
 
@@ -1804,38 +1926,17 @@ WOLFSSL_API int wc_PKCS7_DecodeEnvelopedData(PKCS7* pkcs7, byte* pkiMsg,
         return ASN_PARSE_E;
     }
 
-    /* wolfCrypt PKCS#7 supports AES-128-CBC, DES, 3DES for now */
-    switch(encOID) {
-#ifndef NO_AES
-        case AES128CBCb:
-            blockKeySz = 16;
-            expBlockSz = AES_BLOCK_SIZE;
-            break;
+    blockKeySz = wc_PKCS7_GetOIDKeySize(encOID);
+    if (blockKeySz < 0) {
+        XFREE(encryptedKey, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        return blockKeySz;
+    }
 
-        case AES192CBCb:
-            blockKeySz = 24;
-            expBlockSz = AES_BLOCK_SIZE;
-            break;
-
-        case AES256CBCb:
-            blockKeySz = 32;
-            expBlockSz = AES_BLOCK_SIZE;
-            break;
-#endif
-        case DESb:
-            blockKeySz = DES_KEYLEN;
-            expBlockSz = DES_BLOCK_SIZE;
-            break;
-
-        case DES3b:
-            blockKeySz = DES3_KEYLEN;
-            expBlockSz = DES_BLOCK_SIZE;
-            break;
-
-        default:
-            WOLFSSL_MSG("Unsupported content cipher type");
-            return ALGO_ID_E;
-    };
+    expBlockSz = wc_PKCS7_GetOIDBlockSize(encOID);
+    if (expBlockSz < 0) {
+        XFREE(encryptedKey, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        return expBlockSz;
+    }
 
     /* get block cipher IV, stored in OPTIONAL parameter of AlgoID */
     if (pkiMsg[idx++] != ASN_OCTET_STRING) {
@@ -1985,20 +2086,17 @@ WOLFSSL_API int wc_PKCS7_DecodeEnvelopedData(PKCS7* pkcs7, byte* pkiMsg,
 /* build PKCS#7 encryptedData content type, return encrypted size */
 int wc_PKCS7_EncodeEncryptedData(PKCS7* pkcs7, byte* output, word32 outputSz)
 {
-    int i, ret, idx = 0;
-    int totalSz, padSz, desOutSz;
+    int ret, idx = 0;
+    int totalSz, padSz, encryptedOutSz;
 
     int contentInfoSeqSz, outerContentTypeSz, outerContentSz;
     byte contentInfoSeq[MAX_SEQ_SZ];
     byte outerContentType[MAX_ALGO_SZ];
     byte outerContent[MAX_SEQ_SZ];
 
-    int encDataSeqSz, verSz;
+    int encDataSeqSz, verSz, blockSz;
     byte encDataSeq[MAX_SEQ_SZ];
     byte ver[MAX_VERSION_SZ];
-
-    WC_RNG rng;
-    word32 blockSz, blockKeySz;
 
     byte* plain;
     byte* encryptedContent;
@@ -2020,80 +2118,41 @@ int wc_PKCS7_EncodeEncryptedData(PKCS7* pkcs7, byte* output, word32 outputSz)
     if (output == NULL || outputSz == 0)
         return BAD_FUNC_ARG;
 
-    /* wolfCrypt EncryptedData supports AES-128/192/256-CBC, DES 3DES for now */
-    switch (pkcs7->encryptOID) {
-#ifndef NO_AES
-        case AES128CBCb:
-            blockKeySz = 16;
-            blockSz    = AES_BLOCK_SIZE;
-            break;
-
-        case AES192CBCb:
-            blockKeySz = 24;
-            blockSz    = AES_BLOCK_SIZE;
-            break;
-
-        case AES256CBCb:
-            blockKeySz = 32;
-            blockSz    = AES_BLOCK_SIZE;
-            break;
-#endif
-        case DESb:
-            blockKeySz = DES_KEYLEN;
-            blockSz    = DES_BLOCK_SIZE;
-            break;
-
-        case DES3b:
-            blockKeySz = DES3_KEYLEN;
-            blockSz    = DES_BLOCK_SIZE;
-            break;
-
-        default:
-            WOLFSSL_MSG("Unsupported content cipher type");
-            return ALGO_ID_E;
-    }
-
-    if (pkcs7->encryptionKeySz != blockKeySz) {
-        WOLFSSL_MSG("Encryption key wrong size for block cipher being used");
-        return BAD_FUNC_ARG;
-    }
-
     /* outer content type */
     outerContentTypeSz = wc_SetContentType(ENCRYPTED_DATA, outerContentType);
 
     /* version, 2 if unprotectedAttrs present, 0 if absent */
     verSz = SetMyVersion(0, ver, 0);
 
-    /* generate IV for block cipher */
-    ret = wc_InitRng(&rng);
-    if (ret != 0)
-        return ret;
-
-    ret = wc_RNG_GenerateBlock(&rng, tmpIv, blockSz);
-    wc_FreeRng(&rng);
-    if (ret != 0)
-        return ret;
-
     /* EncryptedContentInfo */
     contentTypeSz = wc_SetContentType(pkcs7->contentOID, contentType);
     if (contentTypeSz == 0)
         return BAD_FUNC_ARG;
 
-    /* allocate encrypted content buffer and PKCS#7 padding */
-    padSz = blockSz - (pkcs7->contentSz % blockSz);
-    desOutSz = pkcs7->contentSz + padSz;
+    /* allocate encrypted content buffer, do PKCS#7 padding */
+    blockSz = wc_PKCS7_GetOIDBlockSize(pkcs7->encryptOID);
+    if (blockSz < 0)
+        return blockSz;
 
-    plain = (byte*)XMALLOC(desOutSz, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    padSz = wc_PKCS7_GetPadSize(pkcs7->contentSz, blockSz);
+    if (padSz < 0)
+        return padSz;
+
+    encryptedOutSz = pkcs7->contentSz + padSz;
+
+    plain = (byte*)XMALLOC(encryptedOutSz, pkcs7->heap,
+                           DYNAMIC_TYPE_TMP_BUFFER);
     if (plain == NULL)
         return MEMORY_E;
 
-    XMEMCPY(plain, pkcs7->content, pkcs7->contentSz);
-
-    for (i = 0; i < padSz; i++) {
-        plain[pkcs7->contentSz + i] = (byte)padSz;
+    ret = wc_PKCS7_PadData(pkcs7->content, pkcs7->contentSz, plain,
+                           encryptedOutSz, blockSz);
+    if (ret < 0) {
+        XFREE(plain, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        return ret;
     }
 
-    encryptedContent = (byte*)XMALLOC(desOutSz, pkcs7->heap,
+    encryptedContent = (byte*)XMALLOC(encryptedOutSz, pkcs7->heap,
                                       DYNAMIC_TYPE_TMP_BUFFER);
     if (encryptedContent == NULL) {
         XFREE(plain, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
@@ -2114,8 +2173,12 @@ int wc_PKCS7_EncodeEncryptedData(PKCS7* pkcs7, byte* output, word32 outputSz)
     }
 
     /* encrypt content */
+    ret = wc_PKCS7_GenerateIV(NULL, tmpIv, blockSz);
+    if (ret != 0)
+        return ret;
+
     ret = wc_PKCS7_EncryptContent(pkcs7->encryptOID, pkcs7->encryptionKey,
-            pkcs7->encryptionKeySz, tmpIv, blockSz, plain, desOutSz,
+            pkcs7->encryptionKeySz, tmpIv, blockSz, plain, encryptedOutSz,
             encryptedContent);
     if (ret != 0) {
         XFREE(encryptedContent, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
@@ -2124,15 +2187,16 @@ int wc_PKCS7_EncodeEncryptedData(PKCS7* pkcs7, byte* output, word32 outputSz)
     }
 
     encContentOctetSz = SetImplicit(ASN_OCTET_STRING, 0,
-                                    desOutSz, encContentOctet);
+                                    encryptedOutSz, encContentOctet);
 
     encContentSeqSz = SetSequence(contentTypeSz + contentEncAlgoSz +
                                   ivOctetStringSz + blockSz +
-                                  encContentOctetSz + desOutSz, encContentSeq);
+                                  encContentOctetSz + encryptedOutSz,
+                                  encContentSeq);
 
     /* keep track of sizes for outer wrapper layering */
     totalSz = verSz + encContentSeqSz + contentTypeSz + contentEncAlgoSz +
-              ivOctetStringSz + blockSz + encContentOctetSz + desOutSz;
+              ivOctetStringSz + blockSz + encContentOctetSz + encryptedOutSz;
 
     /* EncryptedData */
     encDataSeqSz = SetSequence(totalSz, encDataSeq);
@@ -2176,8 +2240,8 @@ int wc_PKCS7_EncodeEncryptedData(PKCS7* pkcs7, byte* output, word32 outputSz)
     idx += blockSz;
     XMEMCPY(output + idx, encContentOctet, encContentOctetSz);
     idx += encContentOctetSz;
-    XMEMCPY(output + idx, encryptedContent, desOutSz);
-    idx += desOutSz;
+    XMEMCPY(output + idx, encryptedContent, encryptedOutSz);
+    idx += encryptedOutSz;
 
     XFREE(encryptedContent, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(plain, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
@@ -2195,7 +2259,6 @@ int  wc_PKCS7_DecodeEncryptedData(PKCS7* pkcs7, byte* pkiMsg, word32 pkiMsgSz,
     word32 contentType, encOID;
 
     int expBlockSz;
-    word32 blockKeySz;
     byte tmpIv[MAX_CONTENT_IV_SIZE];
 
     int encryptedContentSz;
@@ -2250,43 +2313,9 @@ int  wc_PKCS7_DecodeEncryptedData(PKCS7* pkcs7, byte* pkiMsg, word32 pkiMsgSz,
     if (GetAlgoId(pkiMsg, &idx, &encOID, oidBlkType, pkiMsgSz) < 0)
         return ASN_PARSE_E;
 
-    /* wolfCrypt PKCS#7/CMS supports AES-128/192/256-CBC, DES, 3DES for now */
-    switch (encOID) {
-#ifndef NO_AES
-        case AES128CBCb:
-            blockKeySz = 16;
-            expBlockSz = AES_BLOCK_SIZE;
-            break;
-
-        case AES192CBCb:
-            blockKeySz = 24;
-            expBlockSz = AES_BLOCK_SIZE;
-            break;
-
-        case AES256CBCb:
-            blockKeySz = 32;
-            expBlockSz = AES_BLOCK_SIZE;
-            break;
-#endif
-        case DESb:
-            blockKeySz = DES_KEYLEN;
-            expBlockSz = DES_BLOCK_SIZE;
-            break;
-
-        case DES3b:
-            blockKeySz = DES3_KEYLEN;
-            expBlockSz = DES_BLOCK_SIZE;
-            break;
-
-        default:
-            WOLFSSL_MSG("Unsupported content cipher type");
-            return ALGO_ID_E;
-    };
-
-    if (pkcs7->encryptionKeySz != blockKeySz) {
-        WOLFSSL_MSG("Encryption key wrong size for block cipher being used");
-        return BAD_FUNC_ARG;
-    }
+    expBlockSz = wc_PKCS7_GetOIDBlockSize(encOID);
+    if (expBlockSz < 0)
+        return expBlockSz;
 
     /* get block cipher IV, stored in OPTIONAL parameter of AlgoID */
     if (pkiMsg[idx++] != ASN_OCTET_STRING)
