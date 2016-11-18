@@ -920,11 +920,12 @@ int wc_PKCS12_parse(WC_PKCS12* pkcs12, const char* psw,
                             if (k == NULL) {
                                 freeBuffers(*pkey, buf, pkcs12->heap);
                                 freeCertList(certList, pkcs12->heap);
+                                return MEMORY_E;
                             }
                         }
                         size = ret;
 
-			if (*pkey == NULL) {
+                        if (*pkey == NULL) {
                             *pkey = k;
                             *pkeySz = size;
                         }
