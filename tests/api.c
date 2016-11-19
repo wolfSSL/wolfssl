@@ -2267,6 +2267,10 @@ static void test_wolfSSL_certs(void)
 
     AssertIntEQ(wolfSSL_check_private_key(ssl), SSL_SUCCESS);
 
+    #ifdef HAVE_PK_CALLBACKS
+    AssertIntEQ((int)SSL_set_tlsext_debug_arg(ssl, NULL), SSL_SUCCESS);
+    #endif /* HAVE_PK_CALLBACKS */
+
     /* create and use x509 */
     x509 = wolfSSL_X509_load_certificate_file(cliCert, SSL_FILETYPE_PEM);
     AssertNotNull(x509);
@@ -2284,6 +2288,7 @@ static void test_wolfSSL_certs(void)
                                   sizeof_server_cert_der_2048), SSL_SUCCESS);
     #endif
 
+    #if !defined(NO_SHA) && !defined(NO_SHA256)
     /************* Get Digest of Certificate ******************/
     {
         byte   digest[64]; /* max digest size */
@@ -2292,59 +2297,73 @@ static void test_wolfSSL_certs(void)
         XMEMSET(digest, 0, sizeof(digest));
         AssertIntEQ(X509_digest(x509, wolfSSL_EVP_sha1(), digest, &digestSz),
                     SSL_SUCCESS);
+        AssertIntEQ(X509_digest(x509, wolfSSL_EVP_sha256(), digest, &digestSz),
+                    SSL_SUCCESS);
 
         AssertIntEQ(X509_digest(NULL, wolfSSL_EVP_sha1(), digest, &digestSz),
                     SSL_FAILURE);
     }
+    #endif /* !NO_SHA && !NO_SHA256*/
 
     /* test and checkout X509 extensions */
-    sk = X509_get_ext_d2i(x509, NID_basic_constraints, &crit, NULL);
+    sk = (STACK_OF(ASN1_OBJECT)*)X509_get_ext_d2i(x509, NID_basic_constraints,
+            &crit, NULL);
     AssertNotNull(sk);
     AssertIntEQ(crit, 0);
     wolfSSL_sk_ASN1_OBJECT_free(sk);
 
-    sk = X509_get_ext_d2i(x509, NID_key_usage, &crit, NULL);
+    sk = (STACK_OF(ASN1_OBJECT)*)X509_get_ext_d2i(x509, NID_key_usage,
+            &crit, NULL);
     /* AssertNotNull(sk); NID not yet supported */
     AssertIntEQ(crit, -1);
     wolfSSL_sk_ASN1_OBJECT_free(sk);
 
-    sk = X509_get_ext_d2i(x509, NID_ext_key_usage, &crit, NULL);
+    sk = (STACK_OF(ASN1_OBJECT)*)X509_get_ext_d2i(x509, NID_ext_key_usage,
+            &crit, NULL);
     /* AssertNotNull(sk); no extension set */
     wolfSSL_sk_ASN1_OBJECT_free(sk);
 
-    sk = X509_get_ext_d2i(x509, NID_authority_key_identifier, &crit, NULL);
+    sk = (STACK_OF(ASN1_OBJECT)*)X509_get_ext_d2i(x509,
+            NID_authority_key_identifier, &crit, NULL);
     AssertNotNull(sk);
     wolfSSL_sk_ASN1_OBJECT_free(sk);
 
-    sk = X509_get_ext_d2i(x509, NID_private_key_usage_period, &crit, NULL);
+    sk = (STACK_OF(ASN1_OBJECT)*)X509_get_ext_d2i(x509,
+            NID_private_key_usage_period, &crit, NULL);
     /* AssertNotNull(sk); NID not yet supported */
     AssertIntEQ(crit, -1);
     wolfSSL_sk_ASN1_OBJECT_free(sk);
 
-    sk = X509_get_ext_d2i(x509, NID_subject_alt_name, &crit, NULL);
+    sk = (STACK_OF(ASN1_OBJECT)*)X509_get_ext_d2i(x509, NID_subject_alt_name,
+            &crit, NULL);
     /* AssertNotNull(sk); no alt names set */
     wolfSSL_sk_ASN1_OBJECT_free(sk);
 
-    sk = X509_get_ext_d2i(x509, NID_issuer_alt_name, &crit, NULL);
+    sk = (STACK_OF(ASN1_OBJECT)*)X509_get_ext_d2i(x509, NID_issuer_alt_name,
+            &crit, NULL);
     /* AssertNotNull(sk); NID not yet supported */
     AssertIntEQ(crit, -1);
     wolfSSL_sk_ASN1_OBJECT_free(sk);
 
-    sk = X509_get_ext_d2i(x509, NID_info_access, &crit, NULL);
+    sk = (STACK_OF(ASN1_OBJECT)*)X509_get_ext_d2i(x509, NID_info_access, &crit,
+            NULL);
     /* AssertNotNull(sk); no auth info set */
     wolfSSL_sk_ASN1_OBJECT_free(sk);
 
-    sk = X509_get_ext_d2i(x509, NID_sinfo_access, &crit, NULL);
+    sk = (STACK_OF(ASN1_OBJECT)*)X509_get_ext_d2i(x509, NID_sinfo_access,
+            &crit, NULL);
     /* AssertNotNull(sk); NID not yet supported */
     AssertIntEQ(crit, -1);
     wolfSSL_sk_ASN1_OBJECT_free(sk);
 
-    sk = X509_get_ext_d2i(x509, NID_name_constraints, &crit, NULL);
+    sk = (STACK_OF(ASN1_OBJECT)*)X509_get_ext_d2i(x509, NID_name_constraints,
+            &crit, NULL);
     /* AssertNotNull(sk); NID not yet supported */
     AssertIntEQ(crit, -1);
     wolfSSL_sk_ASN1_OBJECT_free(sk);
 
-    sk = X509_get_ext_d2i(x509, NID_certificate_policies, &crit, NULL);
+    sk = (STACK_OF(ASN1_OBJECT)*)X509_get_ext_d2i(x509,
+            NID_certificate_policies, &crit, NULL);
     #if !defined(WOLFSSL_SEP) && !defined(WOLFSSL_CERT_EXT)
         AssertNull(sk);
     #else
@@ -2352,36 +2371,42 @@ static void test_wolfSSL_certs(void)
     #endif
     wolfSSL_sk_ASN1_OBJECT_free(sk);
 
-    sk = X509_get_ext_d2i(x509, NID_policy_mappings, &crit, NULL);
+    sk = (STACK_OF(ASN1_OBJECT)*)X509_get_ext_d2i(x509, NID_policy_mappings,
+            &crit, NULL);
     /* AssertNotNull(sk); NID not yet supported */
     AssertIntEQ(crit, -1);
     wolfSSL_sk_ASN1_OBJECT_free(sk);
 
-    sk = X509_get_ext_d2i(x509, NID_policy_constraints, &crit, NULL);
+    sk = (STACK_OF(ASN1_OBJECT)*)X509_get_ext_d2i(x509, NID_policy_constraints,
+            &crit, NULL);
     /* AssertNotNull(sk); NID not yet supported */
     AssertIntEQ(crit, -1);
     wolfSSL_sk_ASN1_OBJECT_free(sk);
 
-    sk = X509_get_ext_d2i(x509, NID_inhibit_any_policy, &crit, NULL);
+    sk = (STACK_OF(ASN1_OBJECT)*)X509_get_ext_d2i(x509, NID_inhibit_any_policy,
+            &crit, NULL);
     /* AssertNotNull(sk); NID not yet supported */
     AssertIntEQ(crit, -1);
     wolfSSL_sk_ASN1_OBJECT_free(sk);
 
-    sk = X509_get_ext_d2i(x509, NID_tlsfeature, &crit, NULL);
+    sk = (STACK_OF(ASN1_OBJECT)*)X509_get_ext_d2i(x509, NID_tlsfeature, &crit,
+            NULL);
     /* AssertNotNull(sk); NID not yet supported */
     AssertIntEQ(crit, -1);
     wolfSSL_sk_ASN1_OBJECT_free(sk);
     
     /* test invalid cases */
     crit = 0;
-    sk = X509_get_ext_d2i(x509, -1, &crit, NULL);
+    sk = (STACK_OF(ASN1_OBJECT)*)X509_get_ext_d2i(x509, -1, &crit, NULL);
     AssertNull(sk);
     AssertIntEQ(crit, -1);
-    sk = X509_get_ext_d2i(NULL, NID_tlsfeature, NULL, NULL);
+    sk = (STACK_OF(ASN1_OBJECT)*)X509_get_ext_d2i(NULL, NID_tlsfeature,
+            NULL, NULL);
     AssertNull(sk);
 
     AssertIntEQ(SSL_get_hit(ssl), 0);
-    SSL_free(ssl); /* frees x509 also since loaded into ssl */
+    X509_free(x509);
+    SSL_free(ssl);
     SSL_CTX_free(ctx);
 
     printf(resultFmt, passed);
@@ -2474,6 +2499,9 @@ static void test_wolfSSL_tmp_dh(void)
     AssertIntEQ(SSL_CTX_set_tmp_dh(ctx, dh), SSL_SUCCESS);
     AssertIntEQ(SSL_set_tmp_dh(ssl, dh), SSL_SUCCESS);
 
+    BIO_free(bio);
+    DSA_free(dsa);
+    DH_free(dh);
     SSL_free(ssl);
     SSL_CTX_free(ctx);
 

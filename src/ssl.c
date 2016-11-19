@@ -9625,7 +9625,11 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         (void)ctx;
         (void)sz;
         WOLFSSL_MSG("session cache is set at compile time");
-        return SESSIONS_PER_ROW * SESSION_ROWS;
+        #ifndef NO_SESSION_CACHE
+            return SESSIONS_PER_ROW * SESSION_ROWS;
+        #else
+            return 0;
+        #endif
     }
 
 
@@ -9764,6 +9768,16 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
 
         ssl->options.sentNotify =  (opt&SSL_SENT_SHUTDOWN) > 0;
         ssl->options.closeNotify = (opt&SSL_RECEIVED_SHUTDOWN) > 0;
+    }
+
+
+    long wolfSSL_CTX_get_options(WOLFSSL_CTX* ctx)
+    {
+        (void)ctx;
+        WOLFSSL_ENTER("wolfSSL_CTX_get_options");
+        WOLFSSL_MSG("wolfSSL options are set through API calls and macros");
+
+        return 0;
     }
 
 
@@ -11696,7 +11710,11 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
     long wolfSSL_CTX_sess_get_cache_size(WOLFSSL_CTX* ctx)
     {
         (void)ctx;
-        return SESSIONS_PER_ROW * SESSION_ROWS;
+        #ifndef NO_SESSION_CACHE
+            return SESSIONS_PER_ROW * SESSION_ROWS;
+        #else
+            return 0;
+        #endif
     }
 
     unsigned long wolfSSL_ERR_get_error_line_data(const char** file, int* line,
@@ -13968,18 +13986,24 @@ int wolfSSL_PEM_def_callback(char* name, int num, int w, void* key)
     return 0;
 }
 
-/*** TBD ***/
-WOLFSSL_API unsigned long wolfSSL_set_options(WOLFSSL *s, unsigned long op)
+
+/* wolfSSL options are set through API calls and macros.
+ * return 0 for no options set */
+unsigned long wolfSSL_set_options(WOLFSSL* ssl, unsigned long op)
 {
-    (void)s;
+    (void)ssl;
     (void)op;
+    WOLFSSL_MSG("Set options in wolfSSL through API and macros");
     return 0;
 }
 
-/*** TBD ***/
-WOLFSSL_API unsigned long wolfSSL_get_options(const WOLFSSL *s)
+
+/* wolfSSL options are set through API calls and macros.
+ * return 0 for no options set */
+WOLFSSL_API unsigned long wolfSSL_get_options(const WOLFSSL* ssl)
 {
-    (void)s;
+    (void)ssl;
+    WOLFSSL_MSG("Set options in wolfSSL through API and macros");
     return 0;
 }
 
@@ -13998,6 +14022,7 @@ WOLFSSL_API long wolfSSL_total_renegotiations(WOLFSSL *s)
 }
 
 
+#ifndef NO_DH
 long wolfSSL_set_tmp_dh(WOLFSSL *ssl, WOLFSSL_DH *dh)
 {
     int pSz, gSz;
@@ -14022,7 +14047,7 @@ long wolfSSL_set_tmp_dh(WOLFSSL *ssl, WOLFSSL_DH *dh)
 
     g = (byte*)XMALLOC(gSz, ssl->heap, DYNAMIC_TYPE_DH);
     if (!g) {
-        XFREE(p, ctx->heap, DYNAMIC_TYPE_DH);
+        XFREE(p, ssl->heap, DYNAMIC_TYPE_DH);
         return MEMORY_E;
     }
 
@@ -14032,20 +14057,25 @@ long wolfSSL_set_tmp_dh(WOLFSSL *ssl, WOLFSSL_DH *dh)
     if (pSz >= 0 && gSz >= 0) /* Conversion successful */
         ret = wolfSSL_SetTmpDH(ssl, p, pSz, g, gSz);
 
-    XFREE(p, ctx->heap, DYNAMIC_TYPE_DH);
-    XFREE(g, ctx->heap, DYNAMIC_TYPE_DH);
+    XFREE(p, ssl->heap, DYNAMIC_TYPE_DH);
+    XFREE(g, ssl->heap, DYNAMIC_TYPE_DH);
 
     return pSz > 0 && gSz > 0 ? ret : SSL_FATAL_ERROR;
 }
+#endif /* !NO_DH */
 
 
-/*** TBD ***/
-WOLFSSL_API long wolfSSL_set_tlsext_debug_arg(WOLFSSL *s, void *arg)
+#ifdef HAVE_PK_CALLBACKS
+long wolfSSL_set_tlsext_debug_arg(WOLFSSL* ssl, void *arg)
 {
-    (void)s;
-    (void)arg;
-    return 0;
+    if (ssl == NULL) {
+        return SSL_FAILURE;
+    }
+
+    ssl->loggingCtx = arg;
+    return SSL_SUCCESS;
 }
+#endif /* HAVE_PK_CALLBACKS */
 
 /*** TBD ***/
 WOLFSSL_API long wolfSSL_set_tlsext_status_type(WOLFSSL *s, int type)
@@ -15963,6 +15993,7 @@ static int SetIndividualInternal(WOLFSSL_BIGNUM* bn, mp_int* mpi)
 }
 
 
+#if !defined(NO_DSA) && !defined(NO_DH)
 WOLFSSL_DH *wolfSSL_DSA_dup_DH(const WOLFSSL_DSA *dsa)
 {
     WOLFSSL_DH* dh;
@@ -16000,6 +16031,7 @@ WOLFSSL_DH *wolfSSL_DSA_dup_DH(const WOLFSSL_DSA *dsa)
 
     return dh;
 }
+#endif /* !defined(NO_DSA) && !defined(NO_DH) */
 
 #endif /* !NO_RSA && !NO_DSA */
 
@@ -19578,18 +19610,6 @@ void* wolfSSL_GetRsaDecCtx(WOLFSSL* ssl)
         return 0;
     }
 
-    int wolfSSL_CTX_use_PrivateKey(WOLFSSL_CTX *ctx, WOLFSSL_EVP_PKEY *pkey) {
-        WOLFSSL_ENTER("wolfSSL_CTX_use_PrivateKey");
-
-        if (ctx == NULL || pkey == NULL) {
-            return SSL_FAILURE;
-        }
-
-        return wolfSSL_CTX_use_PrivateKey_buffer(ssl, pkey->pkey->ptr,
-                                                pkey->pkey_sz, PRIVATEKEY_TYPE);
-    }
-
-
     int wolfSSL_BIO_read_filename(WOLFSSL_BIO *b, const char *name) {
         (void)b;
         (void)name;
@@ -19767,6 +19787,20 @@ void* wolfSSL_GetRsaDecCtx(WOLFSSL* ssl)
 
 
 #ifdef OPENSSL_EXTRA
+
+int wolfSSL_CTX_use_PrivateKey(WOLFSSL_CTX *ctx, WOLFSSL_EVP_PKEY *pkey)
+{
+    WOLFSSL_ENTER("wolfSSL_CTX_use_PrivateKey");
+
+    if (ctx == NULL || pkey == NULL) {
+        return SSL_FAILURE;
+    }
+
+    return wolfSSL_CTX_use_PrivateKey_buffer(ctx,
+                                       (const unsigned char*)pkey->pkey.ptr,
+                                       pkey->pkey_sz, PRIVATEKEY_TYPE);
+}
+
 void* wolfSSL_CTX_get_ex_data(const WOLFSSL_CTX* ctx, int idx)
 {
     WOLFSSL_ENTER("wolfSSL_CTX_get_ex_data");
@@ -19895,41 +19929,51 @@ WOLFSSL_DSA *wolfSSL_PEM_read_bio_DSAparams(WOLFSSL_BIO *bp, WOLFSSL_DSA **x, pe
 
     if ((ret = GetSequence(pDer->buffer, &idx, &length, pDer->length)) < 0) {
         WOLFSSL_LEAVE("wolfSSL_PEM_read_bio_DSAparams", ret);
+        FreeDer(&pDer);
         return NULL;
     }
 
     dsa = wolfSSL_DSA_new();
     if (dsa == NULL) {
+        FreeDer(&pDer);
         WOLFSSL_MSG("Error creating DSA struct");
+        return NULL;
     }
 
     key = (DsaKey*)dsa->internal;
     if (key == NULL) {
+        FreeDer(&pDer);
+        wolfSSL_DSA_free(dsa);
         WOLFSSL_MSG("Error finding DSA key struct");
+        return NULL;
     }
 
     if (GetInt(&key->p,  pDer->buffer, &idx, pDer->length) < 0 ||
         GetInt(&key->q,  pDer->buffer, &idx, pDer->length) < 0 ||
         GetInt(&key->g,  pDer->buffer, &idx, pDer->length) < 0 ) {
         WOLFSSL_MSG("dsa key error");
+        FreeDer(&pDer);
         wolfSSL_DSA_free(dsa);
         return NULL;
     }
 
     if (SetIndividualExternal(&dsa->p, &key->p) != SSL_SUCCESS) {
         WOLFSSL_MSG("dsa p key error");
+        FreeDer(&pDer);
         wolfSSL_DSA_free(dsa);
         return NULL;
     }
 
     if (SetIndividualExternal(&dsa->q, &key->q) != SSL_SUCCESS) {
         WOLFSSL_MSG("dsa q key error");
+        FreeDer(&pDer);
         wolfSSL_DSA_free(dsa);
         return NULL;
     }
 
     if (SetIndividualExternal(&dsa->g, &key->g) != SSL_SUCCESS) {
         WOLFSSL_MSG("dsa g key error");
+        FreeDer(&pDer);
         wolfSSL_DSA_free(dsa);
         return NULL;
     }
@@ -19938,6 +19982,7 @@ WOLFSSL_DSA *wolfSSL_PEM_read_bio_DSAparams(WOLFSSL_BIO *bp, WOLFSSL_DSA **x, pe
         *x = dsa;
     }
 
+    FreeDer(&pDer);
     return dsa;
 }
 #endif /* NO_DSA */
@@ -20320,16 +20365,6 @@ STACK_OF(WOLFSSL_X509)* wolfSSL_get_peer_cert_chain(const WOLFSSL* ssl)
     WOLFSSL_STUB("wolfSSL_get_peer_cert_chain");
 
     return NULL;
-}
-
-
-long wolfSSL_CTX_get_options(WOLFSSL_CTX* ctx)
-{
-    (void)ctx;
-    WOLFSSL_ENTER("wolfSSL_CTX_get_options");
-    WOLFSSL_STUB("wolfSSL_CTX_get_options");
-
-    return 0;
 }
 
 
