@@ -257,9 +257,10 @@ typedef WOLFSSL_X509_STORE_CTX X509_STORE_CTX;
 #define BIO_f_base64  wolfSSL_BIO_f_base64
 #define BIO_set_flags wolfSSL_BIO_set_flags
 
+#define OpenSSL_add_all_digests()
 #define OpenSSL_add_all_algorithms wolfSSL_add_all_algorithms
 #define SSLeay_add_ssl_algorithms  wolfSSL_add_all_algorithms
-#define SSLeay_add_all_algorithms wolfSSL_add_all_algorithms
+#define SSLeay_add_all_algorithms  wolfSSL_add_all_algorithms
 
 #define RAND_screen     wolfSSL_RAND_screen
 #define RAND_file_name  wolfSSL_RAND_file_name

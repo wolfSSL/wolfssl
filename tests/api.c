@@ -2424,6 +2424,9 @@ static void test_wolfSSL_private_keys(void)
 
     printf(testingFmt, "wolfSSL_private_keys()");
 
+    OpenSSL_add_all_digests();
+    OpenSSL_add_all_algorithms();
+
     AssertNotNull(ctx = SSL_CTX_new(wolfSSLv23_server_method()));
     AssertTrue(SSL_CTX_use_certificate_file(ctx, svrCert, SSL_FILETYPE_PEM));
     AssertTrue(SSL_CTX_use_PrivateKey_file(ctx, svrKey, SSL_FILETYPE_PEM));
@@ -2435,8 +2438,10 @@ static void test_wolfSSL_private_keys(void)
     AssertIntEQ(SSL_use_RSAPrivateKey_ASN1(ssl,
                 (unsigned char*)client_key_der_2048,
                 sizeof_client_key_der_2048), SSL_SUCCESS);
+#ifndef HAVE_USER_RSA
     /* Should missmatch now that a different private key loaded */
     AssertIntNE(wolfSSL_check_private_key(ssl), SSL_SUCCESS);
+#endif
 
     AssertIntEQ(SSL_use_PrivateKey_ASN1(0, ssl,
                 (unsigned char*)server_key_der_2048,
