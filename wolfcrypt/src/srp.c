@@ -322,7 +322,7 @@ int wc_SrpSetParams(Srp* srp, const byte* N,    word32 nSz,
     if (mp_read_unsigned_bin(&srp->N, N, nSz) != MP_OKAY)
         return MP_READ_E;
 
-    if (mp_count_bits(&srp->N) < SRP_DEFAULT_MIN_BITS)
+    if (mp_count_bits(&srp->N) < SRP_MODULUS_MIN_BITS)
         return BAD_FUNC_ARG;
 
     /* Set g */
@@ -512,7 +512,7 @@ int wc_SrpGetPublic(Srp* srp, byte* pub, word32* size)
 
     /* priv = random() */
     if (mp_iszero(&srp->priv) == MP_YES)
-        r = wc_SrpGenPrivate(srp, pub, modulusSz);
+        r = wc_SrpGenPrivate(srp, pub, SRP_PRIVATE_KEY_MIN_BITS / 8);
 
     /* client side: A = g ^ a % N */
     if (srp->side == SRP_CLIENT_SIDE) {

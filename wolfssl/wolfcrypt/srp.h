@@ -49,7 +49,10 @@
 #endif
 
 /* Set the minimum number of bits acceptable in an SRP modulus */
-#define SRP_DEFAULT_MIN_BITS 512
+#define SRP_MODULUS_MIN_BITS 512
+
+/* Set the minimum number of bits acceptable for private keys (RFC 5054) */
+#define SRP_PRIVATE_KEY_MIN_BITS 256
 
 /**
  * SRP side, client or server.
