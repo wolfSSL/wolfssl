@@ -355,20 +355,6 @@ static INLINE void c32toa(word32 u32, byte* c)
     c[3] =  u32 & 0xff;
 }
 
-#if defined(WOLFSSL_SESSION_EXPORT)
-/* convert 64 bit integer to opaque */
-static INLINE void c64toa(word64 u64, byte* c)
-{
-    c[0] = (u64 >> 56) & 0xff;
-    c[1] = (u64 >> 48) & 0xff;
-    c[2] = (u64 >> 40) & 0xff;
-    c[3] = (u64 >> 32) & 0xff;
-    c[4] = (u64 >> 24) & 0xff;
-    c[5] = (u64 >> 16) & 0xff;
-    c[6] = (u64 >>  8) & 0xff;
-    c[7] =  u64 & 0xff;
-}
-#endif /* WOLFSSL_SESSION_EXPORT */
 #endif
 
 
@@ -395,21 +381,6 @@ static INLINE void ato32(const byte* c, word32* u32)
     *u32 = (c[0] << 24) | (c[1] << 16) | (c[2] << 8) | c[3];
 }
 
-#if defined(WOLFSSL_SESSION_EXPORT)
-/* convert opaque to word64 type */
-static INLINE void ato64(const byte* c, word64* u64)
-{
-    /* when doing cast to allow for shift, mask the values */
-    *u64 = (((word64)c[0] << 56) & 0xff00000000000000) |
-           (((word64)c[1] << 48) & 0x00ff000000000000) |
-           (((word64)c[2] << 40) & 0x0000ff0000000000) |
-           (((word64)c[3] << 32) & 0x000000ff00000000) |
-           (((word64)c[4] << 24) & 0x00000000ff000000) |
-           (((word64)c[5] << 16) & 0x0000000000ff0000) |
-           (((word64)c[6] <<  8) & 0x000000000000ff00) |
-            ((word64)c[7]        & 0x00000000000000ff);
-}
-#endif /* WOLFSSL_SESSION_EXPORT */
 #endif /* WOLFSSL_DTLS */
 
 
@@ -596,15 +567,18 @@ static int ExportKeyState(WOLFSSL* ssl, byte* exp, word32 len, byte ver)
     exp[idx++] = keys->encryptionOn;
     exp[idx++] = keys->decryptedCur;
 
-#ifdef WORD64_AVAILABLE
-    c64toa(keys->window, exp + idx);     idx += OPAQUE64_LEN;
-    c64toa(keys->prevWindow, exp + idx); idx += OPAQUE64_LEN;
-#else
-    c32toa(keys->window, exp + idx);     idx += OPAQUE32_LEN;
-    c32toa(0, exp + idx);                idx += OPAQUE32_LEN;
-    c32toa(keys->prevWindow, exp + idx); idx += OPAQUE32_LEN;
-    c32toa(0, exp + idx);                idx += OPAQUE32_LEN;
-#endif
+    c16toa(WOLFSSL_DTLS_WINDOW_WORDS, exp + idx); idx += OPAQUE16_LEN;
+    {
+        word32 i;
+        for (i = 0; i < WOLFSSL_DTLS_WINDOW_WORDS; i++) {
+            c32toa(keys->window[i], exp + idx);
+            idx += OPAQUE32_LEN;
+        }
+        for (i = 0; i < WOLFSSL_DTLS_WINDOW_WORDS; i++) {
+            c32toa(keys->prevWindow[i], exp + idx);
+            idx += OPAQUE32_LEN;
+        }
+    }
 
 #ifdef HAVE_TRUNCATED_HMAC
     sz         = ssl->truncated_hmac ? TRUNCATED_HMAC_SZ: ssl->specs.hash_size;
@@ -729,15 +703,28 @@ static int ImportKeyState(WOLFSSL* ssl, byte* exp, word32 len, byte ver)
     keys->encryptionOn = exp[idx++];
     keys->decryptedCur = exp[idx++];
 
-#ifdef WORD64_AVAILABLE
-    ato64(exp + idx, &keys->window);     idx += OPAQUE64_LEN;
-    ato64(exp + idx, &keys->prevWindow); idx += OPAQUE64_LEN;
-#else
-    ato32(exp + idx, &keys->window);     idx += OPAQUE32_LEN;
-    ato32(exp + idx, 0);                 idx += OPAQUE32_LEN;
-    ato32(exp + idx, &keys->prevWindow); idx += OPAQUE32_LEN;
-    ato32(exp + idx, 0);                 idx += OPAQUE32_LEN;
-#endif
+    {
+        word16 windowSz, i, adj = 0;
+
+        ato16(exp + idx, &windowSz);
+        idx += OPAQUE16_LEN;
+
+        if (windowSz > WOLFSSL_DTLS_WINDOW_WORDS) {
+            adj = WOLFSSL_DTLS_WINDOW_WORDS - windowSz;
+            windowSz = WOLFSSL_DTLS_WINDOW_WORDS;
+        }
+
+        for (i = 0; i < windowSz; i++) {
+            ato32(exp + idx, &keys->window[i]);
+            idx += OPAQUE32_LEN;
+        }
+        idx += adj;
+        for (i = 0; i < windowSz; i++) {
+            ato32(exp + idx, &keys->prevWindow[i]);
+            idx += OPAQUE32_LEN;
+        }
+        idx += adj;
+    }
 
 #ifdef HAVE_TRUNCATED_HMAC
     ssl->truncated_hmac = exp[idx++];
