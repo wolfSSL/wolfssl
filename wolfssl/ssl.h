@@ -175,6 +175,8 @@ typedef struct WOLFSSL_X509_STORE_CTX {
     int   error;                 /* current error */
     int   error_depth;           /* cert depth for this error */
     int   discardSessionCerts;   /* so verify callback can flag for discard */
+    int   totalCerts;            /* number of peer cert buffers */
+    struct buffer* certs;        /* peer certs */
 } WOLFSSL_X509_STORE_CTX;
 
 

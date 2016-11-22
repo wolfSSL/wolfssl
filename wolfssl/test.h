@@ -371,7 +371,7 @@ static INLINE WC_NORETURN void err_sys(const char* msg)
      * msg pointer can be null even when hardcoded and then it won't exit,
      * making null pointer checks above the err_sys() call useless.
      * We could just always exit() but some compilers will complain about no
-     * possible return, with gcc we know the attribute to handle that with 
+     * possible return, with gcc we know the attribute to handle that with
      * WC_NORETURN. */
     if (msg)
 #endif
@@ -1143,17 +1143,20 @@ static INLINE int myVerify(int preverify, WOLFSSL_X509_STORE_CTX* store)
                                        wolfSSL_X509_get_issuer_name(peer), 0, 0);
         char* subject = wolfSSL_X509_NAME_oneline(
                                       wolfSSL_X509_get_subject_name(peer), 0, 0);
-        printf("peer's cert info:\n issuer : %s\n subject: %s\n", issuer,
+        printf("\tPeer's cert info:\n issuer : %s\n subject: %s\n", issuer,
                                                                   subject);
         XFREE(subject, 0, DYNAMIC_TYPE_OPENSSL);
         XFREE(issuer,  0, DYNAMIC_TYPE_OPENSSL);
     }
     else
-        printf("peer has no cert!\n");
+        printf("\tPeer has no cert!\n");
+#else
+    printf("\tPeer certs: %d\n", store->totalCerts);
 #endif
-    printf("Subject's domain name is %s\n", store->domain);
 
-    printf("Allowing to continue anyway (shouldn't do this, EVER!!!)\n");
+    printf("\tSubject's domain name is %s\n", store->domain);
+
+    printf("\tAllowing to continue anyway (shouldn't do this, EVER!!!)\n");
     return 1;
 }
 
@@ -1267,7 +1270,7 @@ static INLINE void CaCb(unsigned char* der, int sz, int type)
 
     static INLINE int ChangeToWolfRoot(void)
     {
-        #if !defined(NO_FILESYSTEM) 
+        #if !defined(NO_FILESYSTEM)
             int depth, res;
             XFILE file;
             for(depth = 0; depth <= MAX_WOLF_ROOT_DEPTH; depth++) {
@@ -1286,7 +1289,7 @@ static INLINE void CaCb(unsigned char* der, int sz, int type)
                     break;
                 }
             }
-        
+
             err_sys("wolf root not found");
             return -1;
         #else
