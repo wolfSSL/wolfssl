@@ -111,13 +111,21 @@ class SSLContext:
         several CA certificates in PEM format.
         """
 
-        if cafile is None and capath is None:
-            raise TypeError("cafile and capath cannot be all omitted")
+        if cafile is None and capath is None and cadata is None:
+            raise TypeError("cafile, capath and cadata cannot be all omitted")
 
-        ret = _lib.wolfSSL_CTX_load_verify_locations(
-            self.native_object,
-            t2b(cafile) if cafile else _ffi.NULL,
-            t2b(capath) if capath else _ffi.NULL)
+        if cafile or capath:
+            ret = _lib.wolfSSL_CTX_load_verify_locations(
+                self.native_object,
+                t2b(cafile) if cafile else _ffi.NULL,
+                t2b(capath) if capath else _ffi.NULL)
 
-        if ret != _SSL_SUCCESS:
-            raise SSLError("Unnable to load verify locations. Error: %d" % ret)
+            if ret != _SSL_SUCCESS:
+                raise SSLError("Unnable to load verify locations. Err %d" % ret)
+
+        if cadata:
+            ret = _lib.wolfSSL_CTX_load_verify_buffer(
+                self.native_object, t2b(cadata), len(cadata), _SSL_FILETYPE_PEM)
+
+            if ret != _SSL_SUCCESS:
+                raise SSLError("Unnable to load verify locations. Err %d" % ret)
