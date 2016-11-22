@@ -1205,7 +1205,7 @@ pslldq $4, %xmm4
 pxor   %xmm4, %xmm3
 pxor   %xmm2, %xmm3
 ret
- 
+
 
 /*
 void AES_256_Key_Expansion (const unsigned char *userkey,
@@ -1372,3 +1372,7 @@ gfmul:
         ret
 
 #endif /* HAVE_AESGCM */
+
+#if defined(__linux__) && defined(__ELF__)
+    .section .note.GNU-stack,"",%progbits
+#endif
