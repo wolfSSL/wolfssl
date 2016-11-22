@@ -567,13 +567,15 @@ static int ExportKeyState(WOLFSSL* ssl, byte* exp, word32 len, byte ver)
     exp[idx++] = keys->encryptionOn;
     exp[idx++] = keys->decryptedCur;
 
-    c16toa(WOLFSSL_DTLS_WINDOW_WORDS, exp + idx); idx += OPAQUE16_LEN;
     {
         word32 i;
+
+        c16toa(WOLFSSL_DTLS_WINDOW_WORDS, exp + idx); idx += OPAQUE16_LEN;
         for (i = 0; i < WOLFSSL_DTLS_WINDOW_WORDS; i++) {
             c32toa(keys->window[i], exp + idx);
             idx += OPAQUE32_LEN;
         }
+        c16toa(WOLFSSL_DTLS_WINDOW_WORDS, exp + idx); idx += OPAQUE16_LEN;
         for (i = 0; i < WOLFSSL_DTLS_WINDOW_WORDS; i++) {
             c32toa(keys->prevWindow[i], exp + idx);
             idx += OPAQUE32_LEN;
@@ -704,26 +706,40 @@ static int ImportKeyState(WOLFSSL* ssl, byte* exp, word32 len, byte ver)
     keys->decryptedCur = exp[idx++];
 
     {
-        word16 windowSz, i, adj = 0;
+        word16 i, wordCount, wordAdj = 0;
 
-        ato16(exp + idx, &windowSz);
+        /* do window */
+        ato16(exp + idx, &wordCount);
         idx += OPAQUE16_LEN;
 
-        if (windowSz > WOLFSSL_DTLS_WINDOW_WORDS) {
-            adj = WOLFSSL_DTLS_WINDOW_WORDS - windowSz;
-            windowSz = WOLFSSL_DTLS_WINDOW_WORDS;
+        if (wordCount > WOLFSSL_DTLS_WINDOW_WORDS) {
+            wordCount = WOLFSSL_DTLS_WINDOW_WORDS;
+            wordAdj = (WOLFSSL_DTLS_WINDOW_WORDS - wordCount) * sizeof(word32);
         }
 
-        for (i = 0; i < windowSz; i++) {
+        XMEMSET(keys->window, 0xFF, DTLS_SEQ_SZ);
+        for (i = 0; i < wordCount; i++) {
             ato32(exp + idx, &keys->window[i]);
             idx += OPAQUE32_LEN;
         }
-        idx += adj;
-        for (i = 0; i < windowSz; i++) {
+        idx += wordAdj;
+
+        /* do prevWindow */
+        ato16(exp + idx, &wordCount);
+        idx += OPAQUE16_LEN;
+
+        if (wordCount > WOLFSSL_DTLS_WINDOW_WORDS) {
+            wordCount = WOLFSSL_DTLS_WINDOW_WORDS;
+            wordAdj = (WOLFSSL_DTLS_WINDOW_WORDS - wordCount) * sizeof(word32);
+        }
+
+        XMEMSET(keys->prevWindow, 0xFF, DTLS_SEQ_SZ);
+        for (i = 0; i < wordCount; i++) {
             ato32(exp + idx, &keys->prevWindow[i]);
             idx += OPAQUE32_LEN;
         }
-        idx += adj;
+        idx += wordAdj;
+
     }
 
 #ifdef HAVE_TRUNCATED_HMAC
@@ -7919,7 +7935,8 @@ static INLINE int DtlsUpdateWindow(WOLFSSL* ssl)
         word32 idx = diff / DTLS_WORD_BITS;
         word32 newDiff = diff % DTLS_WORD_BITS;
 
-        window[idx] |= (1 << (newDiff - 1));
+        if (idx < WOLFSSL_DTLS_WINDOW_WORDS)
+            window[idx] |= (1 << (newDiff - 1));
     }
     else {
         if (diff >= DTLS_SEQ_BITS)

@@ -970,9 +970,9 @@ enum Misc {
     DTLS_EXPORT_PRO          = 165,/* wolfSSL protocol for serialized session */
     DTLS_EXPORT_VERSION      = 3,  /* wolfSSL version for serialized session */
     DTLS_EXPORT_OPT_SZ       = 57, /* amount of bytes used from Options */
-    DTLS_EXPORT_KEY_SZ       = 323 + (DTLS_SEQ_SZ * 2),
+    DTLS_EXPORT_KEY_SZ       = 325 + (DTLS_SEQ_SZ * 2),
                                    /* max amount of bytes used from Keys */
-    DTLS_EXPORT_MIN_KEY_SZ   = 76 + (DTLS_SEQ_SZ * 2),
+    DTLS_EXPORT_MIN_KEY_SZ   = 78 + (DTLS_SEQ_SZ * 2),
                                    /* min amount of bytes used from Keys */
     DTLS_EXPORT_SPC_SZ       = 16, /* amount of bytes used from CipherSpecs */
     DTLS_EXPORT_LEN          = 2,  /* 2 bytes for length and protocol */
