@@ -863,6 +863,14 @@ enum {
 #endif
 
 
+#ifndef WOLFSSL_DTLS_WINDOW_WORDS
+    #define WOLFSSL_DTLS_WINDOW_WORDS 2
+#endif /* WOLFSSL_DTLS_WINDOW_WORDS */
+#define DTLS_WORD_BITS (sizeof(word32) * CHAR_BIT)
+#define DTLS_SEQ_BITS  (WOLFSSL_DTLS_WINDOW_WORDS * DTLS_WORD_BITS)
+#define DTLS_SEQ_SZ    (sizeof(word32) * WOLFSSL_DTLS_WINDOW_WORDS)
+
+
 enum Misc {
     ECC_BYTE    = 0xC0,            /* ECC first cipher suite byte */
     QSH_BYTE    = 0xD0,            /* Quantum-safe Handshake cipher suite */
@@ -960,10 +968,12 @@ enum Misc {
     DTLS_HANDSHAKE_FRAG_SZ   = 3,  /* fragment offset and length are 24 bit */
     DTLS_POOL_SZ             = 255,/* allowed number of list items in TX pool */
     DTLS_EXPORT_PRO          = 165,/* wolfSSL protocol for serialized session */
-    DTLS_EXPORT_VERSION      = 2,  /* wolfSSL version for serialized session */
+    DTLS_EXPORT_VERSION      = 3,  /* wolfSSL version for serialized session */
     DTLS_EXPORT_OPT_SZ       = 57, /* amount of bytes used from Options */
-    DTLS_EXPORT_KEY_SZ       = 337,/* max amount of bytes used from Keys */
-    DTLS_EXPORT_MIN_KEY_SZ   = 89, /* min amount of bytes used from Keys */
+    DTLS_EXPORT_KEY_SZ       = 325 + (DTLS_SEQ_SZ * 2),
+                                   /* max amount of bytes used from Keys */
+    DTLS_EXPORT_MIN_KEY_SZ   = 78 + (DTLS_SEQ_SZ * 2),
+                                   /* min amount of bytes used from Keys */
     DTLS_EXPORT_SPC_SZ       = 16, /* amount of bytes used from CipherSpecs */
     DTLS_EXPORT_LEN          = 2,  /* 2 bytes for length and protocol */
     DTLS_EXPORT_IP           = 46, /* max ip size IPv4 mapped IPv6 */
@@ -1582,18 +1592,6 @@ typedef struct WOLFSSL_DTLS_CTX {
 } WOLFSSL_DTLS_CTX;
 
 
-#ifdef WOLFSSL_DTLS
-
-    #ifdef WORD64_AVAILABLE
-        typedef word64 DtlsSeq;
-    #else
-        typedef word32 DtlsSeq;
-    #endif
-    #define DTLS_SEQ_BITS (sizeof(DtlsSeq) * CHAR_BIT)
-
-#endif /* WOLFSSL_DTLS */
-
-
 #define MAX_WRITE_IV_SZ 16 /* max size of client/server write_IV */
 
 /* keys and secrets
@@ -1617,7 +1615,8 @@ typedef struct Keys {
     word32 sequence_number_lo;
 
 #ifdef WOLFSSL_DTLS
-    DtlsSeq window;     /* Sliding window for current epoch    */
+    word32 window[WOLFSSL_DTLS_WINDOW_WORDS];
+                        /* Sliding window for current epoch    */
     word16 nextEpoch;   /* Expected epoch in next record       */
     word16 nextSeq_hi;  /* Expected sequence in next record    */
     word32 nextSeq_lo;
@@ -1626,7 +1625,8 @@ typedef struct Keys {
     word16 curSeq_hi;   /* Received sequence in current record */
     word32 curSeq_lo;
 
-    DtlsSeq prevWindow; /* Sliding window for old epoch        */
+    word32 prevWindow[WOLFSSL_DTLS_WINDOW_WORDS];
+                        /* Sliding window for old epoch        */
     word16 prevSeq_hi;  /* Next sequence in allowed old epoch  */
     word32 prevSeq_lo;
 

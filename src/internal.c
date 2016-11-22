@@ -355,20 +355,6 @@ static INLINE void c32toa(word32 u32, byte* c)
     c[3] =  u32 & 0xff;
 }
 
-#if defined(WOLFSSL_SESSION_EXPORT)
-/* convert 64 bit integer to opaque */
-static INLINE void c64toa(word64 u64, byte* c)
-{
-    c[0] = (u64 >> 56) & 0xff;
-    c[1] = (u64 >> 48) & 0xff;
-    c[2] = (u64 >> 40) & 0xff;
-    c[3] = (u64 >> 32) & 0xff;
-    c[4] = (u64 >> 24) & 0xff;
-    c[5] = (u64 >> 16) & 0xff;
-    c[6] = (u64 >>  8) & 0xff;
-    c[7] =  u64 & 0xff;
-}
-#endif /* WOLFSSL_SESSION_EXPORT */
 #endif
 
 
@@ -395,21 +381,6 @@ static INLINE void ato32(const byte* c, word32* u32)
     *u32 = (c[0] << 24) | (c[1] << 16) | (c[2] << 8) | c[3];
 }
 
-#if defined(WOLFSSL_SESSION_EXPORT)
-/* convert opaque to word64 type */
-static INLINE void ato64(const byte* c, word64* u64)
-{
-    /* when doing cast to allow for shift, mask the values */
-    *u64 = (((word64)c[0] << 56) & 0xff00000000000000) |
-           (((word64)c[1] << 48) & 0x00ff000000000000) |
-           (((word64)c[2] << 40) & 0x0000ff0000000000) |
-           (((word64)c[3] << 32) & 0x000000ff00000000) |
-           (((word64)c[4] << 24) & 0x00000000ff000000) |
-           (((word64)c[5] << 16) & 0x0000000000ff0000) |
-           (((word64)c[6] <<  8) & 0x000000000000ff00) |
-            ((word64)c[7]        & 0x00000000000000ff);
-}
-#endif /* WOLFSSL_SESSION_EXPORT */
 #endif /* WOLFSSL_DTLS */
 
 
@@ -596,15 +567,20 @@ static int ExportKeyState(WOLFSSL* ssl, byte* exp, word32 len, byte ver)
     exp[idx++] = keys->encryptionOn;
     exp[idx++] = keys->decryptedCur;
 
-#ifdef WORD64_AVAILABLE
-    c64toa(keys->window, exp + idx);     idx += OPAQUE64_LEN;
-    c64toa(keys->prevWindow, exp + idx); idx += OPAQUE64_LEN;
-#else
-    c32toa(keys->window, exp + idx);     idx += OPAQUE32_LEN;
-    c32toa(0, exp + idx);                idx += OPAQUE32_LEN;
-    c32toa(keys->prevWindow, exp + idx); idx += OPAQUE32_LEN;
-    c32toa(0, exp + idx);                idx += OPAQUE32_LEN;
-#endif
+    {
+        word32 i;
+
+        c16toa(WOLFSSL_DTLS_WINDOW_WORDS, exp + idx); idx += OPAQUE16_LEN;
+        for (i = 0; i < WOLFSSL_DTLS_WINDOW_WORDS; i++) {
+            c32toa(keys->window[i], exp + idx);
+            idx += OPAQUE32_LEN;
+        }
+        c16toa(WOLFSSL_DTLS_WINDOW_WORDS, exp + idx); idx += OPAQUE16_LEN;
+        for (i = 0; i < WOLFSSL_DTLS_WINDOW_WORDS; i++) {
+            c32toa(keys->prevWindow[i], exp + idx);
+            idx += OPAQUE32_LEN;
+        }
+    }
 
 #ifdef HAVE_TRUNCATED_HMAC
     sz         = ssl->truncated_hmac ? TRUNCATED_HMAC_SZ: ssl->specs.hash_size;
@@ -729,15 +705,42 @@ static int ImportKeyState(WOLFSSL* ssl, byte* exp, word32 len, byte ver)
     keys->encryptionOn = exp[idx++];
     keys->decryptedCur = exp[idx++];
 
-#ifdef WORD64_AVAILABLE
-    ato64(exp + idx, &keys->window);     idx += OPAQUE64_LEN;
-    ato64(exp + idx, &keys->prevWindow); idx += OPAQUE64_LEN;
-#else
-    ato32(exp + idx, &keys->window);     idx += OPAQUE32_LEN;
-    ato32(exp + idx, 0);                 idx += OPAQUE32_LEN;
-    ato32(exp + idx, &keys->prevWindow); idx += OPAQUE32_LEN;
-    ato32(exp + idx, 0);                 idx += OPAQUE32_LEN;
-#endif
+    {
+        word16 i, wordCount, wordAdj = 0;
+
+        /* do window */
+        ato16(exp + idx, &wordCount);
+        idx += OPAQUE16_LEN;
+
+        if (wordCount > WOLFSSL_DTLS_WINDOW_WORDS) {
+            wordCount = WOLFSSL_DTLS_WINDOW_WORDS;
+            wordAdj = (WOLFSSL_DTLS_WINDOW_WORDS - wordCount) * sizeof(word32);
+        }
+
+        XMEMSET(keys->window, 0xFF, DTLS_SEQ_SZ);
+        for (i = 0; i < wordCount; i++) {
+            ato32(exp + idx, &keys->window[i]);
+            idx += OPAQUE32_LEN;
+        }
+        idx += wordAdj;
+
+        /* do prevWindow */
+        ato16(exp + idx, &wordCount);
+        idx += OPAQUE16_LEN;
+
+        if (wordCount > WOLFSSL_DTLS_WINDOW_WORDS) {
+            wordCount = WOLFSSL_DTLS_WINDOW_WORDS;
+            wordAdj = (WOLFSSL_DTLS_WINDOW_WORDS - wordCount) * sizeof(word32);
+        }
+
+        XMEMSET(keys->prevWindow, 0xFF, DTLS_SEQ_SZ);
+        for (i = 0; i < wordCount; i++) {
+            ato32(exp + idx, &keys->prevWindow[i]);
+            idx += OPAQUE32_LEN;
+        }
+        idx += wordAdj;
+
+    }
 
 #ifdef HAVE_TRUNCATED_HMAC
     ssl->truncated_hmac = exp[idx++];
@@ -7831,7 +7834,7 @@ static int DoHandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 
 static INLINE int DtlsCheckWindow(WOLFSSL* ssl)
 {
-    DtlsSeq window;
+    word32* window;
     word16 cur_hi, next_hi;
     word32 cur_lo, next_lo, diff;
     int curLT;
@@ -7869,22 +7872,27 @@ static INLINE int DtlsCheckWindow(WOLFSSL* ssl)
     }
 
     /* Check to see that the next value is greater than the number of messages
-     * trackable in the window (32 or 64), and that the difference between the
-     * next expected sequence number and the received sequence number is
-     * inside the window. */
+     * trackable in the window, and that the difference between the next
+     * expected sequence number and the received sequence number is inside the
+     * window. */
     if ((next_hi || next_lo > DTLS_SEQ_BITS) &&
         curLT && (diff > DTLS_SEQ_BITS)) {
 
         WOLFSSL_MSG("Current record sequence number from the past.");
         return 0;
     }
-    else if (curLT && (window & ((DtlsSeq)1 << (diff - 1)))) {
-        WOLFSSL_MSG("Current record sequence number already received.");
-        return 0;
-    }
     else if (!curLT && (diff > DTLS_SEQ_BITS)) {
         WOLFSSL_MSG("Rejecting message too far into the future.");
         return 0;
+    }
+    else if (curLT) {
+        word32 idx = diff / DTLS_WORD_BITS;
+        word32 newDiff = diff % DTLS_WORD_BITS;
+
+        if (window[idx] & (1 << (newDiff - 1))) {
+            WOLFSSL_MSG("Current record sequence number already received.");
+            return 0;
+        }
     }
 
     return 1;
@@ -7893,7 +7901,7 @@ static INLINE int DtlsCheckWindow(WOLFSSL* ssl)
 
 static INLINE int DtlsUpdateWindow(WOLFSSL* ssl)
 {
-    DtlsSeq* window;
+    word32* window;
     word32* next_lo;
     word16* next_hi;
     int curLT;
@@ -7903,12 +7911,12 @@ static INLINE int DtlsUpdateWindow(WOLFSSL* ssl)
     if (ssl->keys.curEpoch == ssl->keys.nextEpoch) {
         next_hi = &ssl->keys.nextSeq_hi;
         next_lo = &ssl->keys.nextSeq_lo;
-        window = &ssl->keys.window;
+        window = ssl->keys.window;
     }
     else {
         next_hi = &ssl->keys.prevSeq_hi;
         next_lo = &ssl->keys.prevSeq_lo;
-        window = &ssl->keys.prevWindow;
+        window = ssl->keys.prevWindow;
     }
 
     cur_hi = ssl->keys.curSeq_hi;
@@ -7924,14 +7932,37 @@ static INLINE int DtlsUpdateWindow(WOLFSSL* ssl)
     }
 
     if (curLT) {
-        *window |= ((DtlsSeq)1 << (diff - 1));
+        word32 idx = diff / DTLS_WORD_BITS;
+        word32 newDiff = diff % DTLS_WORD_BITS;
+
+        if (idx < WOLFSSL_DTLS_WINDOW_WORDS)
+            window[idx] |= (1 << (newDiff - 1));
     }
     else {
         if (diff >= DTLS_SEQ_BITS)
-            *window = 0;
-        else
-            *window <<= (1 + diff);
-        *window |= 1;
+            XMEMSET(window, 0, DTLS_SEQ_SZ);
+        else {
+            word32 idx, newDiff, temp, i;
+            word32 oldWindow[WOLFSSL_DTLS_WINDOW_WORDS];
+
+            temp = 0;
+            diff++;
+            idx = diff / DTLS_WORD_BITS;
+            newDiff = diff % DTLS_WORD_BITS;
+
+            XMEMCPY(oldWindow, window, sizeof(oldWindow));
+
+            for (i = 0; i < WOLFSSL_DTLS_WINDOW_WORDS; i++) {
+                if (i < idx)
+                    window[i] = 0;
+                else {
+                    temp |= (oldWindow[i-idx] << newDiff);
+                    window[i] = temp;
+                    temp = oldWindow[i-idx] >> (DTLS_WORD_BITS - newDiff);
+                }
+            }
+        }
+        window[0] |= 1;
         *next_lo = cur_lo + 1;
         if (*next_lo < cur_lo)
             (*next_hi)++;
@@ -9597,8 +9628,9 @@ int ProcessReply(WOLFSSL* ssl)
                             DtlsMsgPoolReset(ssl);
                             ssl->keys.nextEpoch++;
                             ssl->keys.nextSeq_lo = 0;
-                            ssl->keys.prevWindow = ssl->keys.window;
-                            ssl->keys.window = 0;
+                            XMEMCPY(ssl->keys.prevWindow, ssl->keys.window,
+                                    DTLS_SEQ_SZ);
+                            XMEMSET(ssl->keys.window, 0, DTLS_SEQ_SZ);
                         }
                     #endif
 
