@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #
+# setup.py
+#
 # Copyright (C) 2006-2016 wolfSSL Inc.
 #
 # This file is part of wolfSSL. (formerly known as CyaSSL)
@@ -23,33 +25,33 @@
 from __future__ import absolute_import
 import os
 import sys
-from wolfssl.__about__ import metadata
+from wolfssl.__about__ import METADATA
 from setuptools import setup, find_packages
 
 os.chdir(os.path.dirname(sys.argv[0]) or ".")
 
-long_description = open("README.rst", "rt").read().replace(
+LONG_DESCRIPTION = open("README.rst", "rt").read().replace(
     ".. include:: LICENSING.rst\n",
     open("LICENSING.rst", "rt").read()
 )
 
-info = dict(
-    metadata     = {k[2:-2]: metadata[k] for k in metadata},
-    contents     = {
-                     "long_description": long_description,
-                     "package_data":     {"":  ["*.txt"]},
-                     "packages":         find_packages(),
-                     "cffi_modules":     ["./wolfssl/build_ffi.py:ffi"],
+INFO = dict(
+    metadata={k[2:-2]: METADATA[k] for k in METADATA},
+    contents={
+        "long_description" : LONG_DESCRIPTION,
+        "package_data"     : {"":  ["*.txt"]},
+        "packages"         : find_packages(),
+        "cffi_modules"     : ["./wolfssl/build_ffi.py:ffi"],
     },
-    requirements = {
-                    "setup_requires":    ["cffi>=1.6.0"],
-                    "install_requires":  ["cffi>=1.6.0"],
+    requirements={
+        "setup_requires"   : ["cffi>=1.6.0"],
+        "install_requires" : ["cffi>=1.6.0"],
     },
-    scripts      = {},
-    plugins      = {},
-    tests        = {},
+    scripts={},
+    plugins={},
+    tests={},
 )
 
 if __name__ == "__main__":
-    kwargs = {k:v for dct in info.values() for (k,v) in dct.items()}
-    setup(**kwargs)
+    KWARGS = {k:v for dct in INFO.values() for (k, v) in dct.items()}
+    setup(**KWARGS)

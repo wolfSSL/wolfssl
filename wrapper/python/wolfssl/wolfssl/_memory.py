@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+#
 # _memory.py
 #
 # Copyright (C) 2006-2016 wolfSSL Inc.
