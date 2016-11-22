@@ -327,6 +327,7 @@ typedef WOLFSSL_EVP_CIPHER_CTX EVP_CIPHER_CTX;
 #define EVP_MD_CTX_init    wolfSSL_EVP_MD_CTX_init
 #define EVP_MD_CTX_cleanup wolfSSL_EVP_MD_CTX_cleanup
 #define EVP_DigestInit     wolfSSL_EVP_DigestInit
+#define EVP_DigestInit_ex  wolfSSL_EVP_DigestInit_ex
 #define EVP_DigestUpdate   wolfSSL_EVP_DigestUpdate
 #define EVP_DigestFinal    wolfSSL_EVP_DigestFinal
 #define EVP_DigestFinal_ex wolfSSL_EVP_DigestFinal_ex
