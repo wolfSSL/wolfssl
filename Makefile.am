@@ -88,23 +88,28 @@ include testsuite/include.am
 include tests/include.am
 include sslSniffer/sslSnifferTest/include.am
 include rpm/include.am
-include mqx/util_lib/Sources/include.am
-include mqx/wolfcrypt_benchmark/Sources/include.am
-include mqx/wolfcrypt_test/Sources/include.am
-include mqx/wolfssl/include.am
-include mqx/wolfssl_client/Sources/include.am
-include mplabx/include.am
-include mplabx/wolfcrypt_benchmark.X/nbproject/include.am
-include mplabx/wolfcrypt_test.X/nbproject/include.am
-include mplabx/wolfssl.X/nbproject/include.am
-include mcapi/include.am
-include mcapi/wolfcrypt_mcapi.X/nbproject/include.am
-include mcapi/wolfcrypt_test.X/nbproject/include.am
-include mcapi/wolfssl.X/nbproject/include.am
-include mcapi/zlib.X/nbproject/include.am
-include tirtos/include.am
+
+if BUILD_DISTRO
+    # Exclude references to non-DFSG sources from build files
+else
+    include mqx/util_lib/Sources/include.am
+    include mqx/wolfcrypt_benchmark/Sources/include.am
+    include mqx/wolfcrypt_test/Sources/include.am
+    include mqx/wolfssl/include.am
+    include mqx/wolfssl_client/Sources/include.am
+    include mplabx/include.am
+    include mplabx/wolfcrypt_benchmark.X/nbproject/include.am
+    include mplabx/wolfcrypt_test.X/nbproject/include.am
+    include mplabx/wolfssl.X/nbproject/include.am
+    include mcapi/include.am
+    include mcapi/wolfcrypt_mcapi.X/nbproject/include.am
+    include mcapi/wolfcrypt_test.X/nbproject/include.am
+    include mcapi/wolfssl.X/nbproject/include.am
+    include mcapi/zlib.X/nbproject/include.am
+    include tirtos/include.am
+    include IDE/include.am
+endif
 include scripts/include.am
-include IDE/include.am
 
 if USE_VALGRIND
 TESTS_ENVIRONMENT=./valgrind-error.sh

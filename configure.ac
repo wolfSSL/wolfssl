@@ -188,6 +188,7 @@ then
     enable_stunnel=yes
     enable_pwdbased=yes
 fi
+AM_CONDITIONAL([BUILD_DISTRO], [test "x$ENABLED_DISTRO" = "xyes"])
 
 
 # SINGLE THREADED
@@ -2165,7 +2166,7 @@ then
         ENABLED_ECC="yes"
         AM_CFLAGS="$AM_CFLAGS -DHAVE_ECC -DTFM_ECC256"
         AM_CONDITIONAL([BUILD_ECC], [test "x$ENABLED_ECC" = "xyes"])
-        
+
         if test "$ENABLED_ECC_SHAMIR" = "yes"
         then
             AM_CFLAGS="$AM_CFLAGS -DECC_SHAMIR"
@@ -2238,7 +2239,7 @@ then
         ENABLED_ECC="yes"
         AM_CFLAGS="$AM_CFLAGS -DHAVE_ECC -DTFM_ECC256"
         AM_CONDITIONAL([BUILD_ECC], [test "x$ENABLED_ECC" = "xyes"])
-        
+
         if test "$ENABLED_ECC_SHAMIR" = "yes"
         then
             AM_CFLAGS="$AM_CFLAGS -DECC_SHAMIR"
@@ -2342,7 +2343,7 @@ then
         ENABLED_ECC="yes"
         AM_CFLAGS="$AM_CFLAGS -DHAVE_ECC -DTFM_ECC256"
         AM_CONDITIONAL([BUILD_ECC], [test "x$ENABLED_ECC" = "xyes"])
-        
+
         if test "$ENABLED_ECC_SHAMIR" = "yes"
         then
             AM_CFLAGS="$AM_CFLAGS -DECC_SHAMIR"
@@ -2839,7 +2840,7 @@ AC_ARG_ENABLE([asynccrypt],
 if test "$ENABLED_ASYNCCRYPT" = "yes"
 then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ASYNC_CRYPT -DHAVE_WOLF_EVENT"
-    
+
     # if Cavium not enabled the use async simulator for testing
     if test "x$ENABLED_CAVIUM" = "xno"
     then
@@ -3023,7 +3024,8 @@ AS_IF([test "x$ENABLED_DTLS" = "xno" && \
 ################################################################################
 
 # OPTIMIZE FLAGS
-if test "$GCC" = "yes"
+# For distro disable custom build options that interfere with symbol generation
+if test "$GCC" = "yes" && test "$ENABLED_DISTRO" = "no"
 then
     AM_CFLAGS="$AM_CFLAGS -Wall -Wno-unused"
     if test "$ax_enable_debug" = "no"
@@ -3072,7 +3074,11 @@ case $host_os in
 esac
 
 # add user C_EXTRA_FLAGS back
-CFLAGS="$CFLAGS $USER_C_EXTRA_FLAGS"
+# For distro disable custom build options that interfere with symbol generation
+if test "$ENABLED_DISTRO" = "no"
+then
+    CFLAGS="$CFLAGS $USER_C_EXTRA_FLAGS"
+fi
 OPTION_FLAGS="$USER_CFLAGS $USER_C_EXTRA_FLAGS $AM_CFLAGS"
 
 CREATE_HEX_VERSION
