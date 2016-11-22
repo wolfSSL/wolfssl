@@ -77,3 +77,10 @@ class SSLEOFError(SSLError):
     when this error is encountered.
     """
     pass
+
+class CertificateError(ValueError):
+    """
+    Raised to signal an error with a certificate (such as mismatching hostname).
+    Certificate errors detected by wolfSSL, though, raise an SSLError.
+    """
+    pass
