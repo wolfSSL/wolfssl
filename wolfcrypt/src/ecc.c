@@ -1362,79 +1362,89 @@ int ecc_projective_dbl_point(ecc_point *P, ecc_point *R, mp_int* a,
 
    /* Determine if curve "a" should be used in calc */
 #ifdef WOLFSSL_CUSTOM_CURVES
-    /* T2 = T1 * T1 */
-   if (err == MP_OKAY)
-       err = mp_sqr(&t1, &t2);
-   if (err == MP_OKAY)
-       err = mp_montgomery_reduce(&t2, modulus, mp);
-   /* T1 = T2 * a */
-   if (err == MP_OKAY)
-       err = mp_mulmod(&t2, a, modulus, &t1);
-   /* T2 = X * X */
-   if (err == MP_OKAY)
-       err = mp_sqr(x, &t2);
-   if (err == MP_OKAY)
-       err = mp_montgomery_reduce(&t2, modulus, mp);
-   /* T1 = T2 + T1 */
-   if (err == MP_OKAY)
-       err = mp_add(&t1, &t2, &t1);
    if (err == MP_OKAY) {
-       if (mp_cmp(&t1, modulus) != MP_LT)
-           err = mp_sub(&t1, modulus, &t1);
+      /* Use a and prime to determine if a == 3 */
+      err = mp_submod(modulus, a, modulus, &t2);
    }
-   /* T1 = T2 + T1 */
-   if (err == MP_OKAY)
-       err = mp_add(&t1, &t2, &t1);
-   if (err == MP_OKAY) {
-       if (mp_cmp(&t1, modulus) != MP_LT)
-           err = mp_sub(&t1, modulus, &t1);
-   }
-   /* T1 = T2 + T1 */
-   if (err == MP_OKAY)
-       err = mp_add(&t1, &t2, &t1);
-   if (err == MP_OKAY) {
-       if (mp_cmp(&t1, modulus) != MP_LT)
-           err = mp_sub(&t1, modulus, &t1);
-   }
-#else
-   /* Assumes a = 3 */
-   (void)a;
+   if (err == MP_OKAY && mp_cmp_d(&t2, 3) != MP_EQ) {
+      /* use "a" in calc */
 
-   /* T2 = X - T1 */
-   if (err == MP_OKAY)
-       err = mp_sub(x, &t1, &t2);
-   if (err == MP_OKAY) {
-       if (mp_isneg(&t2))
-           err = mp_add(&t2, modulus, &t2);
+      /* T2 = T1 * T1 */
+      if (err == MP_OKAY)
+          err = mp_sqr(&t1, &t2);
+      if (err == MP_OKAY)
+          err = mp_montgomery_reduce(&t2, modulus, mp);
+      /* T1 = T2 * a */
+      if (err == MP_OKAY)
+          err = mp_mulmod(&t2, a, modulus, &t1);
+      /* T2 = X * X */
+      if (err == MP_OKAY)
+          err = mp_sqr(x, &t2);
+      if (err == MP_OKAY)
+          err = mp_montgomery_reduce(&t2, modulus, mp);
+      /* T1 = T2 + T1 */
+      if (err == MP_OKAY)
+          err = mp_add(&t1, &t2, &t1);
+      if (err == MP_OKAY) {
+         if (mp_cmp(&t1, modulus) != MP_LT)
+            err = mp_sub(&t1, modulus, &t1);
+      }
+      /* T1 = T2 + T1 */
+      if (err == MP_OKAY)
+          err = mp_add(&t1, &t2, &t1);
+      if (err == MP_OKAY) {
+          if (mp_cmp(&t1, modulus) != MP_LT)
+              err = mp_sub(&t1, modulus, &t1);
+      }
+      /* T1 = T2 + T1 */
+      if (err == MP_OKAY)
+          err = mp_add(&t1, &t2, &t1);
+      if (err == MP_OKAY) {
+         if (mp_cmp(&t1, modulus) != MP_LT)
+            err = mp_sub(&t1, modulus, &t1);
+      }
    }
-   /* T1 = X + T1 */
-   if (err == MP_OKAY)
-       err = mp_add(&t1, x, &t1);
-   if (err == MP_OKAY) {
-       if (mp_cmp(&t1, modulus) != MP_LT)
-           err = mp_sub(&t1, modulus, &t1);
-   }
-   /* T2 = T1 * T2 */
-   if (err == MP_OKAY)
-       err = mp_mul(&t1, &t2, &t2);
-   if (err == MP_OKAY)
-       err = mp_montgomery_reduce(&t2, modulus, mp);
-
-   /* T1 = 2T2 */
-   if (err == MP_OKAY)
-       err = mp_add(&t2, &t2, &t1);
-   if (err == MP_OKAY) {
-       if (mp_cmp(&t1, modulus) != MP_LT)
-           err = mp_sub(&t1, modulus, &t1);
-   }
-   /* T1 = T1 + T2 */
-   if (err == MP_OKAY)
-       err = mp_add(&t1, &t2, &t1);
-   if (err == MP_OKAY) {
-       if (mp_cmp(&t1, modulus) != MP_LT)
-           err = mp_sub(&t1, modulus, &t1);
-   }
+   else
 #endif /* WOLFSSL_CUSTOM_CURVES */
+   {
+      /* assumes "a" == 3 */
+      (void)a;
+
+      /* T2 = X - T1 */
+      if (err == MP_OKAY)
+          err = mp_sub(x, &t1, &t2);
+      if (err == MP_OKAY) {
+          if (mp_isneg(&t2))
+              err = mp_add(&t2, modulus, &t2);
+      }
+      /* T1 = X + T1 */
+      if (err == MP_OKAY)
+          err = mp_add(&t1, x, &t1);
+      if (err == MP_OKAY) {
+          if (mp_cmp(&t1, modulus) != MP_LT)
+              err = mp_sub(&t1, modulus, &t1);
+      }
+      /* T2 = T1 * T2 */
+      if (err == MP_OKAY)
+          err = mp_mul(&t1, &t2, &t2);
+      if (err == MP_OKAY)
+          err = mp_montgomery_reduce(&t2, modulus, mp);
+
+      /* T1 = 2T2 */
+      if (err == MP_OKAY)
+          err = mp_add(&t2, &t2, &t1);
+      if (err == MP_OKAY) {
+          if (mp_cmp(&t1, modulus) != MP_LT)
+              err = mp_sub(&t1, modulus, &t1);
+      }
+      /* T1 = T1 + T2 */
+      if (err == MP_OKAY)
+          err = mp_add(&t1, &t2, &t1);
+      if (err == MP_OKAY) {
+          if (mp_cmp(&t1, modulus) != MP_LT)
+              err = mp_sub(&t1, modulus, &t1);
+      }
+   }
 
    /* Y = 2Y */
    if (err == MP_OKAY)
@@ -3722,28 +3732,34 @@ static int ecc_is_point(const ecc_set_type* dp, ecc_point* ecp, mp_int* prime)
 
    /* Determine if curve "a" should be used in calc */
 #ifdef WOLFSSL_CUSTOM_CURVES
-   /* compute y^2 - x^3 + a*x */
-   mp_set(&t2, 0);
-   if (err == MP_OKAY)
-       err = mp_submod(prime, &a, prime, &t2);
-   if (err == MP_OKAY)
-       err = mp_mulmod(&t2, ecp->x, prime, &t2);
-   if (err == MP_OKAY)
-       err = mp_addmod(&t1, &t2, prime, &t1);
-#else
-   /* Assumes a = 3 */
-   (void)a;
-
-   /* compute y^2 - x^3 + 3x */
-   if (err == MP_OKAY)
-       err = mp_add(&t1, ecp->x, &t1);
-   if (err == MP_OKAY)
-       err = mp_add(&t1, ecp->x, &t1);
-   if (err == MP_OKAY)
-       err = mp_add(&t1, ecp->x, &t1);
-   if (err == MP_OKAY)
-       err = mp_mod(&t1, prime, &t1);
+   if (err == MP_OKAY) {
+      /* Use a and prime to determine if a == 3 */
+      mp_set(&t2, 0);
+      err = mp_submod(prime, &a, prime, &t2);
+   }
+   if (err == MP_OKAY && mp_cmp_d(&t2, 3) != MP_EQ) {
+      /* compute y^2 - x^3 + a*x */
+      if (err == MP_OKAY)
+          err = mp_mulmod(&t2, ecp->x, prime, &t2);
+      if (err == MP_OKAY)
+          err = mp_addmod(&t1, &t2, prime, &t1);
+   }
+   else
 #endif /* WOLFSSL_CUSTOM_CURVES */
+   {
+      /* assumes "a" == 3 */
+      (void)a;
+
+      /* compute y^2 - x^3 + 3x */
+      if (err == MP_OKAY)
+          err = mp_add(&t1, ecp->x, &t1);
+      if (err == MP_OKAY)
+          err = mp_add(&t1, ecp->x, &t1);
+      if (err == MP_OKAY)
+          err = mp_add(&t1, ecp->x, &t1);
+      if (err == MP_OKAY)
+          err = mp_mod(&t1, prime, &t1);
+  }
 
    /* adjust range (0, prime) */
    while (err == MP_OKAY && mp_isneg(&t1)) {
