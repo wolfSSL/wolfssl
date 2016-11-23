@@ -6864,6 +6864,7 @@ static int DoCertificate(WOLFSSL* ssl, byte* input, word32* inOutIdx,
         return MEMORY_E;
     }
 #endif
+    XMEMSET(store, 0, sizeof(WOLFSSL_X509_STORE_CTX));
 
     if (anyError != 0 && ret == 0)
         ret = anyError;
@@ -6882,6 +6883,8 @@ static int DoCertificate(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                 store->discardSessionCerts = 0;
                 store->domain = domain;
                 store->userCtx = ssl->verifyCbCtx;
+                store->certs = certs;
+                store->totalCerts = totalCerts;
 #ifdef KEEP_PEER_CERT
                 store->current_cert = &ssl->peerCert;
 #else
@@ -6919,6 +6922,8 @@ static int DoCertificate(WOLFSSL* ssl, byte* input, word32* inOutIdx,
             store->discardSessionCerts = 0;
             store->domain = domain;
             store->userCtx = ssl->verifyCbCtx;
+            store->certs = certs;
+            store->totalCerts = totalCerts;
 #ifdef KEEP_PEER_CERT
             store->current_cert = &ssl->peerCert;
 #endif

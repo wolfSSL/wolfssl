@@ -166,6 +166,11 @@ typedef struct WOLFSSL_X509_OBJECT {
     } data;
 } WOLFSSL_X509_OBJECT;
 
+typedef struct WOLFSSL_BUFFER_INFO {
+    unsigned char* buffer;
+    unsigned int length;
+} WOLFSSL_BUFFER_INFO;
+
 typedef struct WOLFSSL_X509_STORE_CTX {
     WOLFSSL_X509_STORE* store;    /* Store full of a CA cert chain */
     WOLFSSL_X509* current_cert;   /* stunnel dereference */
@@ -175,6 +180,8 @@ typedef struct WOLFSSL_X509_STORE_CTX {
     int   error;                 /* current error */
     int   error_depth;           /* cert depth for this error */
     int   discardSessionCerts;   /* so verify callback can flag for discard */
+    int   totalCerts;            /* number of peer cert buffers */
+    WOLFSSL_BUFFER_INFO* certs;  /* peer certs */
 } WOLFSSL_X509_STORE_CTX;
 
 

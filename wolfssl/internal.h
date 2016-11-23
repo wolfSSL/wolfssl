@@ -1290,11 +1290,8 @@ WOLFSSL_LOCAL int DoFinished(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 WOLFSSL_LOCAL int DoApplicationData(WOLFSSL* ssl, byte* input, word32* inOutIdx);
 
 
-/* wolfSSL buffer type */
-typedef struct buffer {
-    byte*  buffer;
-    word32 length;
-} buffer;
+/* wolfSSL buffer type - internal uses "buffer" type */
+typedef WOLFSSL_BUFFER_INFO buffer;
 
 #ifndef NO_CERTS
     /* wolfSSL DER buffer */
