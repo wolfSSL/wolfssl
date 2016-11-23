@@ -1152,6 +1152,14 @@ static INLINE int myVerify(int preverify, WOLFSSL_X509_STORE_CTX* store)
         printf("\tPeer has no cert!\n");
 #else
     printf("\tPeer certs: %d\n", store->totalCerts);
+    #ifdef VERIFY_CALLBACK_SHOW_PEER_CERTS
+    {   int i;
+        for (i=0; i<store->totalCerts; i++) {
+            WOLFSSL_BUFFER_INFO* cert = &store->certs[i];
+            printf("\t\tCert %d: Ptr %p, Len %u\n", i, cert->buffer, cert->length);
+        }
+    }
+    #endif
 #endif
 
     printf("\tSubject's domain name is %s\n", store->domain);
