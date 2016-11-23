@@ -108,8 +108,8 @@ int wc_HKDF(int type, const byte* inKey, word32 inKeySz,
 int wc_HmacSizeByType(int type)
 {
     if (!(type == MD5 || type == SHA    || type == SHA256 || type == SHA384
-                      || type == SHA512 || type == BLAKE2B_ID)
-                      || type == SHA224) {
+                      || type == SHA512 || type == BLAKE2B_ID
+                      || type == SHA224)) {
         return BAD_FUNC_ARG;
     }
 
