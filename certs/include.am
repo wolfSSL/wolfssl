@@ -42,7 +42,8 @@ EXTRA_DIST += \
 	     certs/ecc-key.der \
 	     certs/ecc-keyPub.der \
 	     certs/server-key.der \
-	     certs/server-cert.der
+	     certs/server-cert.der \
+         certs/server-cert-chain.der
 
 dist_doc_DATA+= certs/taoCert.txt
 

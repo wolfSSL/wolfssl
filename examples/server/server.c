@@ -717,12 +717,17 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     SSL_CTX_set_default_passwd_cb(ctx, PasswordCallBack);
 #endif
 
-#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS)
+#if !defined(NO_CERTS)
     if ((!usePsk || usePskPlus) && !useAnon) {
+    #if !defined(NO_FILESYSTEM)
         if (SSL_CTX_use_certificate_chain_file(ctx, ourCert)
                                          != SSL_SUCCESS)
             err_sys("can't load server cert file, check file and run from"
                     " wolfSSL home dir");
+    #else
+        /* loads cert chain file using buffer API */
+        load_buffer(ctx, ourCert, WOLFSSL_CERT_CHAIN);
+    #endif
     }
 #endif
 
@@ -750,12 +755,17 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
                     "Please run from wolfSSL home dir");
     }
 #endif
-#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS)
+#if !defined(NO_CERTS)
     if (!useNtruKey && (!usePsk || usePskPlus) && !useAnon) {
+    #if !defined(NO_FILESYSTEM)
         if (SSL_CTX_use_PrivateKey_file(ctx, ourKey, SSL_FILETYPE_PEM)
                                          != SSL_SUCCESS)
             err_sys("can't load server private key file, check file and run "
                 "from wolfSSL home dir");
+    #else
+        /* loads private key file using buffer API */
+        load_buffer(ctx, ourKey, WOLFSSL_KEY);
+    #endif
     }
 #endif
 

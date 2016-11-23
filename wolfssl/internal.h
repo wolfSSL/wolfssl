@@ -3130,7 +3130,8 @@ WOLFSSL_LOCAL const char* const* GetCipherNames(void);
 WOLFSSL_LOCAL int GetCipherNamesSize(void);
 WOLFSSL_LOCAL const char* GetCipherNameInternal(const char* cipherName, int cipherSuite);
 WOLFSSL_LOCAL const char* wolfSSL_get_cipher_name_internal(WOLFSSL* ssl);
-
+WOLFSSL_LOCAL const char* wolfSSL_get_cipher_name_from_suite(
+    const unsigned char cipherSuite, const unsigned char cipherSuite0);
 
 enum encrypt_side {
     ENCRYPT_SIDE_ONLY = 1,
