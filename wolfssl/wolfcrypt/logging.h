@@ -79,7 +79,7 @@ WOLFSSL_API int wolfSSL_SetLoggingCb(wolfSSL_Logging_cb log_function);
         WOLFSSL_MSG(WOLFSSL_LOG_CAT(wolfSSL Stub, m, not implemented))
 
     void WOLFSSL_MSG(const char* msg);
-    void WOLFSSL_BUFFER(byte* buffer, word32 length);
+    void WOLFSSL_BUFFER(const byte* buffer, word32 length);
 
 #else /* DEBUG_WOLFSSL   */
 

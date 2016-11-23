@@ -161,7 +161,7 @@ void WOLFSSL_MSG(const char* msg)
 }
 
 
-void WOLFSSL_BUFFER(byte* buffer, word32 length)
+void WOLFSSL_BUFFER(const byte* buffer, word32 length)
 {
     #define LINE_LEN 16
 

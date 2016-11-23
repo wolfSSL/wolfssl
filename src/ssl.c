@@ -1600,6 +1600,17 @@ int wolfSSL_UseSupportedCurve(WOLFSSL* ssl, word16 name)
         case WOLFSSL_ECC_BRAINPOOLP512R1:
             break;
 
+#ifdef WOLFSSL_TLS13
+        case WOLFSSL_FFDHE_2048:
+        case WOLFSSL_FFDHE_3072:
+        case WOLFSSL_FFDHE_4096:
+        case WOLFSSL_FFDHE_6144:
+        case WOLFSSL_FFDHE_8192:
+            if (!IsAtLeastTLSv1_3(ssl->version))
+                return SSL_SUCCESS;
+            break;
+#endif
+
         default:
             return BAD_FUNC_ARG;
     }
@@ -1631,6 +1642,15 @@ int wolfSSL_CTX_UseSupportedCurve(WOLFSSL_CTX* ctx, word16 name)
         case WOLFSSL_ECC_BRAINPOOLP384R1:
         case WOLFSSL_ECC_BRAINPOOLP512R1:
             break;
+
+#ifdef WOLFSSL_TLS13
+        case WOLFSSL_FFDHE_2048:
+        case WOLFSSL_FFDHE_3072:
+        case WOLFSSL_FFDHE_4096:
+        case WOLFSSL_FFDHE_6144:
+        case WOLFSSL_FFDHE_8192:
+            break;
+#endif
 
         default:
             return BAD_FUNC_ARG;
@@ -1695,7 +1715,6 @@ int wolfSSL_UseSupportedQSH(WOLFSSL* ssl, word16 name)
     }
 #endif /* NO_WOLFSSL_CLIENT */
 #endif /* HAVE_QSH */
-
 
 /* Application-Layer Protocol Negotiation */
 #ifdef HAVE_ALPN
@@ -1869,33 +1888,9 @@ int wolfSSL_Rehandshake(WOLFSSL* ssl)
 
     ssl->secure_renegotiation->cache_status = SCR_CACHE_NEEDED;
 
-#ifndef NO_OLD_TLS
-#ifndef NO_MD5
-    ret = wc_InitMd5_ex(&ssl->hsHashes->hashMd5, ssl->heap, ssl->devId);
+    ret = InitHandshakeHashes(ssl);
     if (ret !=0)
         return ret;
-#endif
-#ifndef NO_SHA
-    ret = wc_InitSha_ex(&ssl->hsHashes->hashSha, ssl->heap, ssl->devId);
-    if (ret !=0)
-        return ret;
-#endif
-#endif /* NO_OLD_TLS */
-#ifndef NO_SHA256
-    ret = wc_InitSha256_ex(&ssl->hsHashes->hashSha256, ssl->heap, ssl->devId);
-    if (ret !=0)
-        return ret;
-#endif
-#ifdef WOLFSSL_SHA384
-    ret = wc_InitSha384_ex(&ssl->hsHashes->hashSha384, ssl->heap, ssl->devId);
-    if (ret !=0)
-        return ret;
-#endif
-#ifdef WOLFSSL_SHA512
-    ret = wc_InitSha512_ex(&ssl->hsHashes->hashSha512, ssl->heap, ssl->devId);
-    if (ret !=0)
-        return ret;
-#endif
 
     ret = wolfSSL_negotiate(ssl);
     return ret;
@@ -4203,6 +4198,9 @@ static int ProcessUserChain(WOLFSSL_CTX* ctx, const unsigned char* buff,
 {
     int ret = 0;
     void* heap = ctx ? ctx->heap : ((ssl) ? ssl->heap : NULL);
+#ifdef WOLFSSL_TLS13
+    int cnt = 0;
+#endif
 
     /* we may have a user cert chain, try to consume */
     if (type == CERT_TYPE && info->consumed < sz) {
@@ -4260,6 +4258,9 @@ static int ProcessUserChain(WOLFSSL_CTX* ctx, const unsigned char* buff,
             }
             if (ret == 0) {
                 gotOne = 1;
+#ifdef WOLFSSL_TLS13
+                cnt++;
+#endif
                 if ((idx + part->length) > bufferSz) {
                     WOLFSSL_MSG("   Cert Chain bigger than buffer");
                     ret = BUFFER_E;
@@ -4303,12 +4304,18 @@ static int ProcessUserChain(WOLFSSL_CTX* ctx, const unsigned char* buff,
                     XMEMCPY(ssl->buffers.certChain->buffer, chainBuffer, idx);
                     ssl->buffers.weOwnCertChain = 1;
                 }
+#ifdef WOLFSSL_TLS13
+                ssl->buffers.certChainCnt = cnt;
+#endif
             } else if (ctx) {
                 FreeDer(&ctx->certChain);
                 ret = AllocDer(&ctx->certChain, idx, type, heap);
                 if (ret == 0) {
                     XMEMCPY(ctx->certChain->buffer, chainBuffer, idx);
                 }
+#ifdef WOLFSSL_TLS13
+                ctx->certChainCnt = cnt;
+#endif
             }
         }
 
@@ -8028,6 +8035,7 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
         return result;
     }
 
+
     /* please see note at top of README if you get an error from connect */
     int wolfSSL_connect(WOLFSSL* ssl)
     {
@@ -8120,46 +8128,17 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
             if (ssl->options.certOnly)
                 return SSL_SUCCESS;
 
+#ifdef WOLFSSL_TLS13
+            if (ssl->options.tls1_3)
+                return wolfSSL_connect_TLSv13(ssl);
+#endif
+
             #ifdef WOLFSSL_DTLS
                 if (IsDtlsNotSctpMode(ssl)) {
                     /* re-init hashes, exclude first hello and verify request */
-#ifndef NO_OLD_TLS
-                    if ( (ssl->error = wc_InitMd5_ex(&ssl->hsHashes->hashMd5,
-                                                 ssl->heap, ssl->devId)) != 0) {
+                    if ((ssl->error = InitHandshakeHashes(ssl)) != 0) {
                         WOLFSSL_ERROR(ssl->error);
                         return SSL_FATAL_ERROR;
-                    }
-                    if ( (ssl->error = wc_InitSha_ex(&ssl->hsHashes->hashSha,
-                                                 ssl->heap, ssl->devId)) != 0) {
-                        WOLFSSL_ERROR(ssl->error);
-                        return SSL_FATAL_ERROR;
-                    }
-#endif
-                    if (IsAtLeastTLSv1_2(ssl)) {
-                        #ifndef NO_SHA256
-                            if ( (ssl->error = wc_InitSha256_ex(
-                                            &ssl->hsHashes->hashSha256,
-                                            ssl->heap, ssl->devId)) != 0) {
-                                WOLFSSL_ERROR(ssl->error);
-                                return SSL_FATAL_ERROR;
-                            }
-                        #endif
-                        #ifdef WOLFSSL_SHA384
-                            if ( (ssl->error = wc_InitSha384_ex(
-                                            &ssl->hsHashes->hashSha384,
-                                            ssl->heap, ssl->devId)) != 0) {
-                                WOLFSSL_ERROR(ssl->error);
-                                return SSL_FATAL_ERROR;
-                            }
-                        #endif
-                        #ifdef WOLFSSL_SHA512
-                            if ( (ssl->error = wc_InitSha512_ex(
-                                            &ssl->hsHashes->hashSha512,
-                                            ssl->heap, ssl->devId)) != 0) {
-                                WOLFSSL_ERROR(ssl->error);
-                                return SSL_FATAL_ERROR;
-                            }
-                        #endif
                     }
                     if ( (ssl->error = SendClientHello(ssl)) != 0) {
                         WOLFSSL_ERROR(ssl->error);
@@ -8374,10 +8353,17 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
         }
     #endif
 
+
     int wolfSSL_accept(WOLFSSL* ssl)
     {
         word16 havePSK = 0;
         word16 haveAnon = 0;
+
+#ifdef WOLFSSL_TLS13
+        if (ssl->options.tls1_3)
+            return wolfSSL_accept_TLSv13(ssl);
+#endif
+
         WOLFSSL_ENTER("SSL_accept()");
 
         #ifdef HAVE_ERRNO_H
@@ -8451,14 +8437,37 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
                     WOLFSSL_ERROR(ssl->error);
                     return SSL_FATAL_ERROR;
                 }
+#ifdef WOLFSSL_TLS13
             ssl->options.acceptState = ACCEPT_CLIENT_HELLO_DONE;
             WOLFSSL_MSG("accept state ACCEPT_CLIENT_HELLO_DONE");
 
         case ACCEPT_CLIENT_HELLO_DONE :
+            if (ssl->options.serverState == SERVER_HELLO_RETRY_REQUEST) {
+                if ((ssl->error = SendTls13HelloRetryRequest(ssl)) != 0) {
+                    WOLFSSL_ERROR(ssl->error);
+                    return SSL_FATAL_ERROR;
+                }
+            }
+            ssl->options.acceptState = ACCEPT_HELLO_RETRY_REQUEST_DONE;
+            WOLFSSL_MSG("accept state ACCEPT_HELLO_RETRY_REQUEST_DONE");
+
+        case ACCEPT_HELLO_RETRY_REQUEST_DONE :
+            if (ssl->options.serverState == SERVER_HELLO_RETRY_REQUEST) {
+                if ( (ssl->error = ProcessReply(ssl)) < 0) {
+                    WOLFSSL_ERROR(ssl->error);
+                    return SSL_FATAL_ERROR;
+                }
+            }
+#endif
             ssl->options.acceptState = ACCEPT_FIRST_REPLY_DONE;
             WOLFSSL_MSG("accept state ACCEPT_FIRST_REPLY_DONE");
 
         case ACCEPT_FIRST_REPLY_DONE :
+#ifdef WOLFSSL_TLS13
+            if (ssl->options.tls1_3) {
+                return wolfSSL_accept_TLSv13(ssl);
+            }
+#endif
             if ( (ssl->error = SendServerHello(ssl)) != 0) {
                 WOLFSSL_ERROR(ssl->error);
                 return SSL_FATAL_ERROR;
@@ -8974,6 +8983,24 @@ static int GetDeepCopySession(WOLFSSL* ssl, WOLFSSL_SESSION* copyFrom)
     }
 
 #ifdef HAVE_SESSION_TICKET
+#ifdef WOLFSSL_TLS13
+    if (wc_LockMutex(&session_mutex) != 0) {
+        XFREE(tmpBuff, ssl->heap, DYNAMIC_TYPE_SESSION_TICK);
+        return BAD_MUTEX_E;
+    }
+
+    copyInto->cipherSuite0 = copyFrom->cipherSuite0;
+    copyInto->cipherSuite = copyFrom->cipherSuite;
+    copyInto->namedGroup = copyFrom->namedGroup;
+    copyInto->ticketSeen = copyFrom->ticketSeen;
+    copyInto->ticketAdd = copyFrom->ticketAdd;
+    XMEMCPY(copyInto->masterSecret, copyFrom->masterSecret, SECRET_LEN);
+
+    if (wc_UnLockMutex(&session_mutex) != 0) {
+        if (ret == SSL_SUCCESS)
+            ret = BAD_MUTEX_E;
+    }
+#endif
     /* If doing dynamic copy, need to alloc outside lock, then inside a lock
      * confirm the size still matches and memcpy */
     if (doDynamicCopy) {
@@ -9033,7 +9060,8 @@ int SetSession(WOLFSSL* ssl, WOLFSSL_SESSION* session)
         if (ret == SSL_SUCCESS) {
             ssl->options.resuming = 1;
 
-#ifdef SESSION_CERTS
+#if defined(SESSION_CERTS) || (defined(WOLFSSL_TLS13) && \
+                               defined(HAVE_SESSION_TICKET) && !defined(NO_PSK))
             ssl->version              = session->version;
             ssl->options.cipherSuite0 = session->cipherSuite0;
             ssl->options.cipherSuite  = session->cipherSuite;
@@ -9127,7 +9155,10 @@ int AddSession(WOLFSSL* ssl)
         session = &SessionCache[row].Sessions[idx];
     }
 
-    XMEMCPY(session->masterSecret, ssl->arrays->masterSecret, SECRET_LEN);
+    if (!ssl->options.tls1_3)
+        XMEMCPY(session->masterSecret, ssl->arrays->masterSecret, SECRET_LEN);
+    else
+        XMEMCPY(session->masterSecret, ssl->session.masterSecret, SECRET_LEN);
     session->haveEMS = ssl->options.haveEMS;
     XMEMCPY(session->sessionID, ssl->arrays->sessionID, ID_LEN);
     session->sessionIDSz = ssl->arrays->sessionIDSz;
@@ -9177,12 +9208,23 @@ int AddSession(WOLFSSL* ssl)
         session->chain.count = ssl->session.chain.count;
         XMEMCPY(session->chain.certs, ssl->session.chain.certs,
                 sizeof(x509_buffer) * MAX_CHAIN_DEPTH);
-
+    }
+#endif /* SESSION_CERTS */
+#if defined(SESSION_CERTS) || (defined(WOLFSSL_TLS13) && \
+                               defined(HAVE_SESSION_TICKET) && !defined(NO_PSK))
+    if (error == 0) {
         session->version      = ssl->version;
         session->cipherSuite0 = ssl->options.cipherSuite0;
         session->cipherSuite  = ssl->options.cipherSuite;
     }
-#endif /* SESSION_CERTS */
+#endif /* SESSION_CERTS || (WOLFSSL_TLS13 & !NO_PSK) */
+#if defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET)
+    if (error == 0) {
+        session->namedGroup = ssl->session.namedGroup;
+        session->ticketSeen = ssl->session.ticketSeen;
+        session->ticketAdd = ssl->session.ticketAdd;
+    }
+#endif /* WOLFSSL_TLS13 && HAVE_SESSION_TICKET */
 #ifdef HAVE_EXT_CACHE
     if (!ssl->options.internalCacheOff)
 #endif
@@ -14042,6 +14084,8 @@ const char* wolfSSL_get_version(WOLFSSL* ssl)
                 return "TLSv1.1";
             case TLSv1_2_MINOR :
                 return "TLSv1.2";
+            case TLSv1_3_MINOR :
+                return "TLSv1.3";
             default:
                 return "unknown";
         }
@@ -23106,6 +23150,7 @@ int wolfSSL_version(WOLFSSL* ssl)
             case TLSv1_MINOR :
             case TLSv1_1_MINOR :
             case TLSv1_2_MINOR :
+            case TLSv1_3_MINOR :
                 return TLS1_VERSION;
             default:
                 return SSL_FAILURE;

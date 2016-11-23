@@ -140,6 +140,7 @@ then
     enable_shared=yes
     enable_static=yes
     enable_dtls=yes
+    enable_tls13=yes
     enable_openssh=yes
     enable_opensslextra=yes
     enable_savesession=yes
@@ -231,6 +232,21 @@ if test "$ENABLED_DTLS" = "yes"
 then
   AM_CFLAGS="-DWOLFSSL_DTLS $AM_CFLAGS"
 fi
+
+
+# TLS v1.3
+AC_ARG_ENABLE([tls13],
+    [  --enable-tls13          Enable wolfSSL TLS v1.3 (default: disabled)],
+    [ ENABLED_TLS13=$enableval ],
+    [ ENABLED_TLS13=no ]
+    )
+if test "$ENABLED_TLS13" = "yes"
+then
+  AM_CFLAGS="-DWOLFSSL_TLS13 -DHAVE_TLS_EXTENSIONS -DHAVE_FFDHE_2048 $AM_CFLAGS"
+fi
+
+# check if TLS v1.3 was enabled for conditionally running tls13.test script
+AM_CONDITIONAL([BUILD_TLS13], [test "x$ENABLED_TLS13" = "xyes"])
 
 
 AC_ARG_ENABLE([rng],
@@ -845,6 +861,10 @@ if test "x$ENABLED_NGINX" = "xyes"
 then
     ENABLED_SESSIONCERTS=yes
 fi
+if test "$ENABLED_TLS13" = "yes" && test "$ENABLED_PSK" = "yes"
+then
+    ENABLED_SESSIONCERTS=yes
+fi
 
 if test "$ENABLED_SESSIONCERTS" = "yes"
 then
@@ -930,6 +950,10 @@ AC_ARG_ENABLE([hkdf],
     [ ENABLED_HKDF=$enableval ],
     [ ENABLED_HKDF=no ]
     )
+if test "$ENABLED_TLS13" = "yes"
+then
+  ENABLED_HKDF="yes"
+fi
 if test "$ENABLED_HKDF" = "yes"
 then
   AM_CFLAGS="$AM_CFLAGS -DHAVE_HKDF"
@@ -3620,6 +3644,7 @@ echo "   * DTLS:                       $ENABLED_DTLS"
 echo "   * SCTP:                       $ENABLED_SCTP"
 echo "   * Old TLS Versions:           $ENABLED_OLD_TLS"
 echo "   * SSL version 3.0:            $ENABLED_SSLV3"
+echo "   * TLS v1.3:                   $ENABLED_TLS13"
 echo "   * OCSP:                       $ENABLED_OCSP"
 echo "   * OCSP Stapling:              $ENABLED_CERTIFICATE_STATUS_REQUEST"
 echo "   * OCSP Stapling v2:           $ENABLED_CERTIFICATE_STATUS_REQUEST_V2"

@@ -304,7 +304,11 @@ static void Usage(void)
 #endif
     printf("-g          Return basic HTML web page\n");
     printf("-C <num>    The number of connections to accept, default: 1\n");
-    printf("-U          Force use of the default cipher suite list\n");
+    printf("-H          Force use of the default cipher suite list\n");
+#ifdef WOLFSSL_TLS13
+    printf("-K          Key Exchange for PSK not using (EC)DHE\n");
+    printf("-U          Update keys and IVs before sending\n");
+#endif
 }
 
 THREAD_RETURN CYASSL_THREAD server_test(void* args)
@@ -386,6 +390,10 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     const char* wnrConfigFile = wnrConfig;
 #endif
     char buffer[CYASSL_MAX_ERROR_SZ];
+#ifdef WOLFSSL_TLS13
+    int noPskDheKe = 0;
+#endif
+    int updateKeysIVs = 0;
 
 #ifdef WOLFSSL_STATIC_MEMORY
     #if (defined(HAVE_ECC) && !defined(ALT_ECC_SIZE)) \
@@ -421,6 +429,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     (void)alpn_opt;
     (void)crlFlags;
     (void)readySignal;
+    (void)updateKeysIVs;
 
 #ifdef CYASSL_TIRTOS
     fdOpenSession(Task_self());
@@ -429,10 +438,10 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
 #ifdef WOLFSSL_VXWORKS
     useAnyAddr = 1;
 #else
-    /* Not Used: h, m, t, x, y, z, F, J, K, M, Q, T, U, V, W, X, Y */
+    /* Not Used: h, m, t, x, y, z, F, J, M, Q, T, V, W, X, Y */
     while ((ch = mygetopt(argc, argv, "?"
                 "abc:defgijk:l:nop:q:rsuv:w"
-                "A:B:C:D:E:GHIL:NO:PR:S:YZ:")) != -1) {
+                "A:B:C:D:E:GHIKL:NO:PR:S:UYZ:")) != -1) {
         switch (ch) {
             case '?' :
                 Usage();
@@ -500,7 +509,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
 
             case 'v' :
                 version = atoi(myoptarg);
-                if (version < 0 || version > 3) {
+                if (version < 0 || version > 4) {
                     Usage();
                     exit(MY_EX_USAGE);
                 }
@@ -634,6 +643,18 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
                 useWebServerMsg = 1;
                 break;
 
+            case 'K' :
+                #ifdef WOLFSSL_TLS13
+                    noPskDheKe = 1;
+                #endif
+                break;
+
+            case 'U' :
+                #ifdef WOLFSSL_TLS13
+                    updateKeysIVs = 1;
+                #endif
+                break;
+
             default:
                 Usage();
                 exit(MY_EX_USAGE);
@@ -693,6 +714,12 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
 #ifndef NO_TLS
         case 3:
             method = wolfTLSv1_2_server_method_ex;
+            break;
+#endif
+
+#ifdef WOLFSSL_TLS13
+        case 4:
+            method = wolfTLSv1_3_server_method_ex;
             break;
 #endif
 
@@ -913,6 +940,11 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     }
     wolfSSL_CTX_UseAsync(ctx, devId);
 #endif /* WOLFSSL_ASYNC_CRYPT */
+
+#ifdef WOLFSSL_TLS13
+        if (noPskDheKe)
+            wolfSSL_CTX_no_dhe_psk(ctx);
+#endif
 
     while (1) {
         /* allow resume option */
@@ -1173,6 +1205,11 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
                 input[ret] = 0; /* null terminate message */
                 printf("Client message: %s\n", input);
             }
+
+#ifdef WOLFSSL_TLS13
+            if (updateKeysIVs)
+                wolfSSL_update_keys(ssl);
+#endif
 
             /* Write data */
             if (!useWebServerMsg) {
