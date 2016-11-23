@@ -9041,14 +9041,16 @@ int compress_test(void)
 
 typedef struct {
     const char* outFileName;
-    const byte* content;
-    word32      contentSz;
-    int         contentOID;
-    int         encryptOID;
-    byte*       privateKey;
-    word32      privateKeySz;
-    byte*       encryptionKey;
-    word32      encryptionKeySz;
+    const byte*  content;
+    word32       contentSz;
+    int          contentOID;
+    int          encryptOID;
+    byte*        privateKey;
+    word32       privateKeySz;
+    byte*        encryptionKey;
+    word32       encryptionKeySz;
+    PKCS7Attrib* attribs;
+    word32       attribsSz;
 } pkcs7Vector;
 
 int pkcs7enveloped_test(void)
@@ -9224,6 +9226,9 @@ int pkcs7encrypted_test(void)
     byte  decoded[2048];
     FILE* pkcs7File;
 
+    PKCS7Attrib* expectedAttrib;
+    PKCS7DecodedAttrib* decodedAttrib;
+
     const byte data[] = { /* Hello World */
         0x48,0x65,0x6c,0x6c,0x6f,0x20,0x57,0x6f,
         0x72,0x6c,0x64
@@ -9248,19 +9253,52 @@ int pkcs7encrypted_test(void)
     };
     byte aes256Key[] = {
         0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08,
-        0x01,0x02,0x03,0x05,0x05,0x06,0x07,0x08,
-        0x01,0x02,0x03,0x05,0x05,0x06,0x07,0x08,
-        0x01,0x02,0x03,0x05,0x05,0x06,0x07,0x08
+        0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08,
+        0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08,
+        0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08
+    };
+
+    /* Attribute example from RFC 4134, Section 7.2
+     * OID = 1.2.5555
+     * OCTET STRING = 'This is a test General ASN Attribute, number 1.' */
+    static byte genAttrOid[] = { 0x06, 0x03, 0x2a, 0xab, 0x33 };
+    static byte genAttr[] = { 0x04, 47,
+                              0x54, 0x68, 0x69, 0x73, 0x20, 0x69, 0x73, 0x20,
+                              0x61, 0x20, 0x74, 0x65, 0x73, 0x74, 0x20, 0x47,
+                              0x65, 0x6e, 0x65, 0x72, 0x61, 0x6c, 0x20, 0x41,
+                              0x53, 0x4e, 0x20, 0x41, 0x74, 0x74, 0x72, 0x69,
+                              0x62, 0x75, 0x74, 0x65, 0x2c, 0x20, 0x6e, 0x75,
+                              0x6d, 0x62, 0x65, 0x72, 0x20, 0x31, 0x2e };
+
+    static byte genAttrOid2[] = { 0x06, 0x03, 0x2a, 0xab, 0x34 };
+    static byte genAttr2[] = { 0x04, 47,
+                              0x54, 0x68, 0x69, 0x73, 0x20, 0x69, 0x73, 0x20,
+                              0x61, 0x20, 0x74, 0x65, 0x73, 0x74, 0x20, 0x47,
+                              0x65, 0x6e, 0x65, 0x72, 0x61, 0x6c, 0x20, 0x41,
+                              0x53, 0x4e, 0x20, 0x41, 0x74, 0x74, 0x72, 0x69,
+                              0x62, 0x75, 0x74, 0x65, 0x2c, 0x20, 0x6e, 0x75,
+                              0x6d, 0x62, 0x65, 0x72, 0x20, 0x32, 0x2e };
+
+    PKCS7Attrib attribs[] =
+    {
+        { genAttrOid, sizeof(genAttrOid), genAttr, sizeof(genAttr) }
+    };
+
+    PKCS7Attrib multiAttribs[] =
+    {
+        { genAttrOid, sizeof(genAttrOid), genAttr, sizeof(genAttr) },
+        { genAttrOid2, sizeof(genAttrOid2), genAttr2, sizeof(genAttr2) }
     };
 
     pkcs7Vector a, b;
 #ifndef NO_AES
-    pkcs7Vector c, d, e;
-    pkcs7Vector test_pkcs7enc[4];
+    pkcs7Vector c, d, e, f, g;
+    pkcs7Vector test_pkcs7enc[7];
 #else
     pkcs7Vector test_pkcs7enc[1];
 #endif
-    int times = sizeof(test_pkcs7enc) / sizeof(pkcs7Vector), i;
+    int times = sizeof(test_pkcs7enc) / sizeof(pkcs7Vector);
+    int i, attribIdx;
 
     /* set up test vectors */
     a.content         = data;
@@ -9270,6 +9308,8 @@ int pkcs7encrypted_test(void)
     a.encryptionKey   = des3Key;
     a.encryptionKeySz = sizeof(des3Key);
     a.outFileName     = "pkcs7encryptedDataDES3.der";
+    a.attribs         = NULL;
+    a.attribsSz       = 0;
 
     b.content         = data;
     b.contentSz       = (word32)sizeof(data);
@@ -9278,6 +9318,8 @@ int pkcs7encrypted_test(void)
     b.encryptionKey   = desKey;
     b.encryptionKeySz = sizeof(desKey);
     b.outFileName     = "pkcs7encryptedDataDES.der";
+    b.attribs         = NULL;
+    b.attribsSz       = 0;
 
 #ifndef NO_AES
     c.content         = data;
@@ -9287,6 +9329,8 @@ int pkcs7encrypted_test(void)
     c.encryptionKey   = aes128Key;
     c.encryptionKeySz = sizeof(aes128Key);
     c.outFileName     = "pkcs7encryptedDataAES128CBC.der";
+    c.attribs         = NULL;
+    c.attribsSz       = 0;
 
     d.content         = data;
     d.contentSz       = (word32)sizeof(data);
@@ -9295,6 +9339,8 @@ int pkcs7encrypted_test(void)
     d.encryptionKey   = aes192Key;
     d.encryptionKeySz = sizeof(aes192Key);
     d.outFileName     = "pkcs7encryptedDataAES192CBC.der";
+    d.attribs         = NULL;
+    d.attribsSz       = 0;
 
     e.content         = data;
     e.contentSz       = (word32)sizeof(data);
@@ -9303,6 +9349,28 @@ int pkcs7encrypted_test(void)
     e.encryptionKey   = aes256Key;
     e.encryptionKeySz = sizeof(aes256Key);
     e.outFileName     = "pkcs7encryptedDataAES256CBC.der";
+    e.attribs         = NULL;
+    e.attribsSz       = 0;
+
+    f.content         = data;
+    f.contentSz       = (word32)sizeof(data);
+    f.contentOID      = DATA;
+    f.encryptOID      = AES256CBCb;
+    f.encryptionKey   = aes256Key;
+    f.encryptionKeySz = sizeof(aes256Key);
+    f.outFileName     = "pkcs7encryptedDataAES256CBC_attribs.der";
+    f.attribs = attribs;
+    f.attribsSz = sizeof(attribs)/sizeof(PKCS7Attrib);
+
+    g.content         = data;
+    g.contentSz       = (word32)sizeof(data);
+    g.contentOID      = DATA;
+    g.encryptOID      = AES256CBCb;
+    g.encryptionKey   = aes256Key;
+    g.encryptionKeySz = sizeof(aes256Key);
+    g.outFileName     = "pkcs7encryptedDataAES256CBC_multi_attribs.der";
+    g.attribs = multiAttribs;
+    g.attribsSz = sizeof(multiAttribs)/sizeof(PKCS7Attrib);
 #endif
 
     test_pkcs7enc[0] = a;
@@ -9311,6 +9379,8 @@ int pkcs7encrypted_test(void)
     test_pkcs7enc[2] = c;
     test_pkcs7enc[3] = d;
     test_pkcs7enc[4] = e;
+    test_pkcs7enc[5] = f;
+    test_pkcs7enc[6] = g;
 #endif
 
     for (i = 0; i < times; i++) {
@@ -9320,6 +9390,8 @@ int pkcs7encrypted_test(void)
         pkcs7.encryptOID      = test_pkcs7enc[i].encryptOID;
         pkcs7.encryptionKey   = test_pkcs7enc[i].encryptionKey;
         pkcs7.encryptionKeySz = test_pkcs7enc[i].encryptionKeySz;
+        pkcs7.unprotectedAttribs   = test_pkcs7enc[i].attribs;
+        pkcs7.unprotectedAttribsSz = test_pkcs7enc[i].attribsSz;
 
         /* encode encryptedData */
         encryptedSz = wc_PKCS7_EncodeEncryptedData(&pkcs7, encrypted,
@@ -9337,10 +9409,36 @@ int pkcs7encrypted_test(void)
         if (XMEMCMP(decoded, data, sizeof(data)) != 0)
             return -205;
 
+        /* verify decoded unprotected attributes */
+        if (pkcs7.decodedAttrib != NULL) {
+            decodedAttrib = pkcs7.decodedAttrib;
+            attribIdx = 1;
+
+            while (decodedAttrib != NULL) {
+
+                /* expected attribute, stored list is reversed */
+                expectedAttrib = &(pkcs7.unprotectedAttribs
+                        [pkcs7.unprotectedAttribsSz - attribIdx]);
+
+                /* verify oid */
+                if (XMEMCMP(decodedAttrib->oid, expectedAttrib->oid,
+                            decodedAttrib->oidSz) != 0)
+                    return -206;
+
+                /* verify value */
+                if (XMEMCMP(decodedAttrib->value, expectedAttrib->value,
+                            decodedAttrib->valueSz) != 0)
+                    return -207;
+
+                decodedAttrib = decodedAttrib->next;
+                attribIdx++;
+            }
+        }
+
         /* output pkcs7 envelopedData for external testing */
         pkcs7File = fopen(test_pkcs7enc[i].outFileName, "wb");
         if (!pkcs7File)
-            return -206;
+            return -208;
 
         ret = (int)fwrite(encrypted, encryptedSz, 1, pkcs7File);
         fclose(pkcs7File);

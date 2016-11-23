@@ -78,6 +78,15 @@ typedef struct PKCS7Attrib {
 } PKCS7Attrib;
 
 
+typedef struct PKCS7DecodedAttrib {
+    byte* oid;
+    word32 oidSz;
+    byte* value;
+    word32 valueSz;
+    struct PKCS7DecodedAttrib* next;
+} PKCS7DecodedAttrib;
+
+
 typedef struct PKCS7 {
     byte* content;                /* inner content, not owner             */
     word32 contentSz;             /* content size                         */
@@ -105,10 +114,11 @@ typedef struct PKCS7 {
     word32 signedAttribsSz;
 
     /* Encrypted-data Content Type */
-    byte* encryptionKey;                /* block cipher encryption key */
-    word32 encryptionKeySz;             /* size of key buffer, bytes */
+    byte*        encryptionKey;         /* block cipher encryption key */
+    word32       encryptionKeySz;       /* size of key buffer, bytes */
     PKCS7Attrib* unprotectedAttribs;    /* optional */
-    word32 unprotectedAttribsSz;
+    word32       unprotectedAttribsSz;
+    PKCS7DecodedAttrib* decodedAttrib;  /* linked list of decoded attribs */
 } PKCS7;
 
 
@@ -133,6 +143,11 @@ WOLFSSL_LOCAL int wc_PKCS7_PadData(byte* in, word32 inSz, byte* out, word32 outS
                                      word32 blockSz);
 WOLFSSL_LOCAL int wc_PKCS7_GetOIDBlockSize(int oid);
 WOLFSSL_LOCAL int wc_PKCS7_GetOIDKeySize(int oid);
+WOLFSSL_LOCAL int wc_PKCS7_DecodeUnprotectedAttributes(PKCS7* pkcs7,
+                                     byte* pkiMsg, word32 pkiMsgSz,
+                                     word32* inOutIdx);
+WOLFSSL_LOCAL void wc_PKCS7_FreeDecodedAttrib(PKCS7DecodedAttrib* attrib,
+                                     void* heap);
 
 
 WOLFSSL_API int  wc_PKCS7_InitWithCert(PKCS7* pkcs7, byte* cert, word32 certSz);
