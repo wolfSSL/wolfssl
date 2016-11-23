@@ -305,7 +305,9 @@ int wc_Sha256Update(Sha256* sha256, const byte* data, word32 len)
               [blocks] "2" (numBlocks), [dataIn] "3" (data)
             : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7",
                               "v8",  "v9",  "v10", "v11", "v12", "v13", "v14",
-                              "v15", "w8"
+                              "v15", "v16", "v17", "v18", "v19", "v20", "v21",
+                              "v22", "v23", "v24", "v25", "v26", "v27", "v28",
+                              "v29", "v30", "v31", "w8"
             );
 
             AddLength(sha256, SHA256_BLOCK_SIZE * numBlocks);
@@ -488,6 +490,7 @@ int wc_Sha256Final(Sha256* sha256, byte* hash)
               [buffer] "m" (sha256->buffer)
             : "cc", "memory", "v0", "v1", "v2", "v3", "v8",  "v9",  "v10", "v11"
                             , "v12", "v13", "v14", "v15", "v16", "v17", "v18"
+                            , "v19", "v20", "v21", "v22", "v23", "v24", "v25"
         );
 
         sha256->buffLen = 0;
@@ -510,7 +513,7 @@ int wc_Sha256Final(Sha256* sha256, byte* hash)
             "ST1 {v0.2d-v3.2d}, %[out] \n"
             : [out] "=m" (sha256->buffer)
             : [in] "m" (sha256->buffer)
-            : "cc", "memory"
+            : "cc", "memory", "v0", "v1", "v2", "v3"
         );
     #endif
     /* ! length ordering dependent on digest endian type ! */
@@ -666,7 +669,8 @@ int wc_Sha256Final(Sha256* sha256, byte* hash)
           "0" (hash)
             : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7",
                               "v8",  "v9",  "v10", "v11", "v12", "v13", "v14",
-                              "v15", "v16", "v17", "v18"
+                              "v15", "v16", "v17", "v18", "v19", "v20", "v21",
+                              "v22", "v23", "v24", "v25"
     );
 
     return wc_InitSha256(sha256);  /* reset state */
@@ -1119,7 +1123,7 @@ int wc_Sha256Final(Sha256* sha256, byte* hash)
             "VST1.32 {q3}, [%[out]] \n"
             : [out] "=r" (bufPt)
             : [in] "0" (bufPt)
-            : "cc", "memory"
+            : "cc", "memory", "q0", "q1", "q2", "q3"
         );
     #endif
     /* ! length ordering dependent on digest endian type ! */

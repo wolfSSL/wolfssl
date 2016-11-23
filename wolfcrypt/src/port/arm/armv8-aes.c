@@ -527,8 +527,8 @@ int wc_InitAes_h(Aes* aes, void* h)
                 "#store current counter value at the end \n"
                 "ST1 {v0.2d}, %[regOut] \n"
 
-                :[out] "=r" (out), [regOut] "=m" (aes->reg)
-                :"0" (out), [Key] "m" (aes->key), [input] "r" (in),
+                :[out] "=r" (out), [regOut] "=m" (aes->reg), "=r" (in)
+                :"0" (out), [Key] "m" (aes->key), [input] "2" (in),
                  [blocks] "r" (numBlocks), [reg] "m" (aes->reg)
                 : "cc", "memory", "w11", "v0", "v1", "v2", "v3", "v4", "v5",
                 "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13"
@@ -584,8 +584,8 @@ int wc_InitAes_h(Aes* aes, void* h)
                 "ST1 {v0.2d}, %[regOut]   \n"
 
 
-                :[out] "=r" (out), [regOut] "=m" (aes->reg)
-                :"0" (out), [Key] "m" (aes->key), [input] "r" (in),
+                :[out] "=r" (out), [regOut] "=m" (aes->reg), "=r" (in)
+                :"0" (out), [Key] "m" (aes->key), [input] "2" (in),
                  [blocks] "r" (numBlocks), [reg] "m" (aes->reg)
                 : "cc", "memory", "w11", "v0", "v1", "v2", "v3", "v4", "v5",
                 "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14"
@@ -646,8 +646,8 @@ int wc_InitAes_h(Aes* aes, void* h)
                 "ST1 {v0.2d}, %[regOut]   \n"
 
 
-                :[out] "=r" (out), [regOut] "=m" (aes->reg)
-                :"0" (out), [Key] "m" (aes->key), [input] "r" (in),
+                :[out] "=r" (out), [regOut] "=m" (aes->reg), "=r" (in)
+                :"0" (out), [Key] "m" (aes->key), [input] "2" (in),
                  [blocks] "r" (numBlocks), [reg] "m" (aes->reg)
                 : "cc", "memory", "w11", "v0", "v1", "v2", "v3", "v4", "v5",
                 "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14","v15",
@@ -720,8 +720,8 @@ int wc_InitAes_h(Aes* aes, void* h)
                 "#store current counter value at the end \n"
                 "ST1 {v13.2d}, %[regOut] \n"
 
-                :[out] "=r" (out), [regOut] "=m" (aes->reg)
-                :"0" (out), [Key] "m" (aes->key), [input] "r" (in),
+                :[out] "=r" (out), [regOut] "=m" (aes->reg), "=r" (in)
+                :"0" (out), [Key] "m" (aes->key), [input] "2" (in),
                  [blocks] "r" (numBlocks), [reg] "m" (aes->reg)
                 : "cc", "memory", "w11", "v0", "v1", "v2", "v3", "v4", "v5",
                 "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13"
@@ -778,8 +778,8 @@ int wc_InitAes_h(Aes* aes, void* h)
                 "#store current counter value at the end \n"
                 "ST1 {v15.2d}, %[regOut] \n"
 
-                :[out] "=r" (out), [regOut] "=m" (aes->reg)
-                :"0" (out), [Key] "m" (aes->key), [input] "r" (in),
+                :[out] "=r" (out), [regOut] "=m" (aes->reg), "=r" (in)
+                :"0" (out), [Key] "m" (aes->key), [input] "2" (in),
                  [blocks] "r" (numBlocks), [reg] "m" (aes->reg)
                 : "cc", "memory", "w11", "v0", "v1", "v2", "v3", "v4", "v5",
                 "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15"
@@ -840,8 +840,8 @@ int wc_InitAes_h(Aes* aes, void* h)
                 "#store current counter value at the end \n"
                 "ST1 {v17.2d}, %[regOut]   \n"
 
-                :[out] "=r" (out), [regOut] "=m" (aes->reg)
-                :"0" (out), [Key] "m" (aes->key), [input] "r" (in),
+                :[out] "=r" (out), [regOut] "=m" (aes->reg), "=r" (in)
+                :"0" (out), [Key] "m" (aes->key), [input] "2" (in),
                  [blocks] "r" (numBlocks), [reg] "m" (aes->reg)
                 : "cc", "memory", "w11", "v0", "v1", "v2", "v3", "v4", "v5",
                 "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14","v15",
@@ -2039,7 +2039,8 @@ static int Aes192GcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
             ,[inX] "4" (xPt), [inY] "m" (aes->H)
             : "cc", "w11", "v0", "v1", "v2", "v3", "v4", "v5",
             "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14"
-            ,"v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24"
+            ,"v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23",
+            "v24","v25","v26","v27","v28","v29","v30","v31"
         );
     }
 
@@ -2473,7 +2474,8 @@ static int Aes256GcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
         [ctr] "2" (iCtr) , [h] "m" (aes->H)
         : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v5",
         "v6", "v7", "v8", "v9", "v10","v11","v12","v13","v14",
-        "v15", "v16", "v17","v18", "v19", "v20","v21","v22","v23","v24"
+        "v15", "v16", "v17","v18", "v19", "v20","v21","v22","v23",
+        "v24","v25","v26","v27","v28","v29","v30","v31"
     );
 
 
@@ -4061,7 +4063,8 @@ static void GMULT(byte* X, byte* Y)
 
         : [xOut] "=r" (X), [yOut] "=r" (Y)
         : [x] "0" (X), [y] "1" (Y)
-        :
+        : "cc", "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q6" ,"q7", "q8",
+        "q9", "q10", "q11" ,"q12", "q13", "q14", "q15"
     );
 }
 
@@ -4597,7 +4600,7 @@ int wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len)
                 "ST1 {v0.16b}, [%[out]] \n"
                 : [out] "=r" (pt)
                 : [h] "0" (pt)
-                : "cc", "memory"
+                : "cc", "memory", "v0"
             );
         }
     #else
@@ -4610,7 +4613,7 @@ int wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len)
                 "VST1.32 {q0}, [%[out]] \n"
                 : [out] "=r" (pt)
                 : [h] "0" (pt)
-                : "cc", "memory"
+                : "cc", "memory", "q0"
             );
         }
     #endif
