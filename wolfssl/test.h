@@ -934,7 +934,7 @@ static INLINE void tcp_accept(SOCKET_T* sockfd, SOCKET_T* clientfd,
     #endif
 
         if (ready_file) {
-        #ifndef NO_FILESYSTEM
+        #if !defined(NO_FILESYSTEM) || defined(FORCE_BUFFER_TEST)
             FILE* srf = NULL;
             if (args)
                 ready = args->signal;
@@ -1080,7 +1080,7 @@ static INLINE unsigned int my_psk_server_cb(WOLFSSL* ssl, const char* identity,
 #endif /* USE_WINDOWS_API */
 
 
-#if defined(NO_FILESYSTEM) && !defined(NO_CERTS)
+#if defined(NO_FILESYSTEM) && !defined(NO_CERTS) && defined(FORCE_BUFFER_TEST)
 
     enum {
         WOLFSSL_CA   = 1,
@@ -1291,13 +1291,13 @@ static INLINE void CaCb(unsigned char* der, int sz, int type)
 
     static INLINE int ChangeToWolfRoot(void)
     {
-        #if !defined(NO_FILESYSTEM)
+        #if !defined(NO_FILESYSTEM) || defined(FORCE_BUFFER_TEST)
             int depth, res;
-            XFILE file;
+            FILE* file;
             for(depth = 0; depth <= MAX_WOLF_ROOT_DEPTH; depth++) {
-                file = XFOPEN(ntruKey, "rb");
-                if (file != XBADFILE) {
-                    XFCLOSE(file);
+                file = fopen(ntruKey, "rb");
+                if (file != NULL) {
+                    fclose(file);
                     return depth;
                 }
             #ifdef USE_WINDOWS_API
