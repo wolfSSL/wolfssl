@@ -64,7 +64,7 @@ WOLFSSL_API int wolfSSL_EVP_DigestInit_ex(WOLFSSL_EVP_MD_CTX* ctx,
     return wolfSSL_EVP_DigestInit(ctx, type);
 }
 
-#ifdef DEBUG_WOLFSSL
+#ifdef DEBUG_WOLFSSL_EVP
 #define PRINT_BUF(b, sz) { int i; for(i=0; i<(sz); i++){printf("%02x(%c),", (b)[i], (b)[i]); if((i+1)%8==0)printf("\n");}}
 #else
 #define PRINT_BUF(b, sz)
@@ -73,8 +73,7 @@ WOLFSSL_API int wolfSSL_EVP_DigestInit_ex(WOLFSSL_EVP_MD_CTX* ctx,
 static int fillBuff(WOLFSSL_EVP_CIPHER_CTX *ctx, const unsigned char *in, int sz)
 {
     int fill;
-    WOLFSSL_ENTER("fillBuff");
-    /* printf("ctx->bufUsed=%d, sz=%d\n",ctx->bufUsed, sz); */
+
     if (sz > 0) {
         if ((sz+ctx->bufUsed) > ctx->block_size) {
             fill = ctx->block_size - ctx->bufUsed;
@@ -83,7 +82,6 @@ static int fillBuff(WOLFSSL_EVP_CIPHER_CTX *ctx, const unsigned char *in, int sz
         }
         XMEMCPY(&(ctx->buf[ctx->bufUsed]), in, fill);
         ctx->bufUsed += fill;
-        /* printf("Result: ctx->bufUsed=%d\n",ctx->bufUsed); */
         return fill;
     } else return 0;
 }
@@ -92,7 +90,6 @@ static int evpCipherBlock(WOLFSSL_EVP_CIPHER_CTX *ctx,
                                    unsigned char *out,
                                    const unsigned char *in, int inl)
 {
-    WOLFSSL_ENTER("evpCipherBlock");
     switch (ctx->cipherType) {
     #if !defined(NO_AES) && defined(HAVE_AES_CBC)
         case AES_128_CBC_TYPE:
@@ -152,8 +149,6 @@ static int evpCipherBlock(WOLFSSL_EVP_CIPHER_CTX *ctx,
         default:
             return 0;
         }
-        ctx->finUsed = 1;
-        XMEMCPY(ctx->fin, (const byte *)&out[inl-ctx->block_size], ctx->block_size);
         (void)in;
         return 1;
 }
@@ -173,12 +168,25 @@ WOLFSSL_API int wolfSSL_EVP_CipherUpdate(WOLFSSL_EVP_CIPHER_CTX *ctx,
         inl -= fill;
         in  += fill;
     }
-    if (ctx->bufUsed == ctx->block_size) {
-        /* the buff is full, flash out */
-        if (evpCipherBlock(ctx, out, ctx->buf, ctx->block_size) == 0)
-            return 0;
+    if((ctx->enc == 0)&& (ctx->lastUsed == 1)){
+        PRINT_BUF(ctx->lastBlock, ctx->block_size);
+        XMEMCPY(out, ctx->lastBlock, ctx->block_size);
         *outl+= ctx->block_size;
         out  += ctx->block_size;
+    }
+    if ((ctx->bufUsed == ctx->block_size) || (ctx->flags & WOLFSSL_EVP_CIPH_NO_PADDING)){
+        /* the buff is full, flash out */
+        PRINT_BUF(ctx->buf, ctx->block_size);
+        if (evpCipherBlock(ctx, out, ctx->buf, ctx->block_size) == 0)
+            return 0;
+        PRINT_BUF(out, ctx->block_size);
+        if(ctx->enc == 0){
+            ctx->lastUsed = 1;
+            XMEMCPY(ctx->lastBlock, out, ctx->block_size);
+        } else {
+            *outl+= ctx->block_size;
+            out  += ctx->block_size;
+        }
         ctx->bufUsed = 0;
     }
 
@@ -187,10 +195,17 @@ WOLFSSL_API int wolfSSL_EVP_CipherUpdate(WOLFSSL_EVP_CIPHER_CTX *ctx,
         /* process blocks */
         if (evpCipherBlock(ctx, out, ctx->buf, blocks) == 0)
             return 0;
+        PRINT_BUF(ctx->buf, ctx->block_size);
+        PRINT_BUF(out,      ctx->block_size);
         inl  -= ctx->block_size * blocks;
-        *outl+= ctx->block_size * blocks;
         in   += ctx->block_size * blocks;
-        out  += ctx->block_size * blocks;
+        if(ctx->enc == 0){
+            ctx->lastUsed = 1;
+            XMEMCPY(ctx->lastBlock, &out[ctx->block_size * (blocks-1)], ctx->block_size);
+            *outl+= ctx->block_size * (blocks-1);
+        } else {
+            *outl+= ctx->block_size * blocks;
+        }
     }
     if (inl > 0) {
         /* put fraction into buff */
@@ -206,22 +221,22 @@ WOLFSSL_API int wolfSSL_EVP_CipherUpdate(WOLFSSL_EVP_CIPHER_CTX *ctx,
 static void padBlock(WOLFSSL_EVP_CIPHER_CTX *ctx)
 {
     int i;
-    WOLFSSL_ENTER("paddBlock");
     for (i = ctx->bufUsed; i < ctx->block_size; i++)
         ctx->buf[i] = (byte)(ctx->block_size - ctx->bufUsed);
 }
 
-static int checkPad(WOLFSSL_EVP_CIPHER_CTX *ctx)
+static int checkPad(WOLFSSL_EVP_CIPHER_CTX *ctx, unsigned char *buff)
 {
     int i;
     int n;
-    WOLFSSL_ENTER("checkPad");
-    n = ctx->buf[ctx->block_size-1];
+    n = buff[ctx->block_size-1];
+
     if (n > ctx->block_size) return FALSE;
-    for (i = n; i < ctx->block_size; i++)
-        if (ctx->buf[i] != n)
-            return -1;
-    return n;
+    for (i = 0; i < n; i++){
+        if (buff[ctx->block_size-i-1] != n)
+            return FALSE;
+    }
+    return ctx->block_size - n;
 }
 
 WOLFSSL_API int  wolfSSL_EVP_CipherFinal(WOLFSSL_EVP_CIPHER_CTX *ctx,
@@ -234,24 +249,22 @@ WOLFSSL_API int  wolfSSL_EVP_CipherFinal(WOLFSSL_EVP_CIPHER_CTX *ctx,
         *outl = 0;
         return 1;
     }
-    if (ctx->bufUsed > 0) {
-        if (ctx->enc) {
+    if (ctx->enc) {
+        if (ctx->bufUsed > 0) {
             padBlock(ctx);
-            /* printf("Enc: block_size=%d\n", ctx->block_size); */
             PRINT_BUF(ctx->buf, ctx->block_size);
             if (evpCipherBlock(ctx, out, ctx->buf, ctx->block_size) == 0)
                 return 0;
+            PRINT_BUF(out, ctx->block_size);
             *outl = ctx->block_size;
         }
-        else {
-            if (evpCipherBlock(ctx, out, ctx->buf, ctx->block_size) == 0)
-                return 0;
-            /* printf("Dec: block_size=%d\n", ctx->block_size); */
-            PRINT_BUF(ctx->buf, ctx->block_size);
-            if ((fl = checkPad(ctx)) >= 0) {
-                XMEMCPY(out, ctx->buf, fl);
+    } else {
+        if (ctx->lastUsed){
+            PRINT_BUF(ctx->lastBlock, ctx->block_size);
+            if ((fl = checkPad(ctx, ctx->lastBlock)) >= 0) {
+                XMEMCPY(out, ctx->lastBlock, fl);
                 *outl = fl;
-           } else return 0;
+            } else return 0;
         }
     }
     return 1;

@@ -6982,6 +6982,7 @@ int openssl_test(void)
 
 #ifdef WOLFSSL_AES_DIRECT
   /* enable HAVE_AES_DECRYPT for AES_encrypt/decrypt */
+{
 
   /* Test: AES_encrypt/decrypt/set Key */
   AES_KEY enc;
@@ -7028,6 +7029,7 @@ int openssl_test(void)
 
   if (XMEMCMP(cipher, verify, AES_BLOCK_SIZE))
       return OPENSSL_TEST_ERROR-61;
+}
 
 #endif
 
@@ -7194,7 +7196,6 @@ int openssl_test(void)
     if (EVP_CipherInit(&en, EVP_aes_192_ctr(),
             (unsigned char*)ctr192Key, (unsigned char*)ctr192Iv, 0) == 0)
         return -3316;
-    printf("EVP_Cipher\n");
     if (EVP_Cipher(&en, (byte*)cipherBuff, (byte*)ctr192Plain, AES_BLOCK_SIZE) == 0)
         return -3317;
     EVP_CIPHER_CTX_init(&de);
@@ -7230,10 +7231,95 @@ int openssl_test(void)
         return -3326;
     if (XMEMCMP(ctr256Cipher, cipherBuff, sizeof(ctr256Cipher)))
         return -3327;
-
 }
-
 #endif /* HAVE_AES_COUNTER */
+
+{
+      /* EVP_CipherUpdate test */
+
+
+        const byte cbcPlain[] =
+        {
+            0x6b,0xc1,0xbe,0xe2,0x2e,0x40,0x9f,0x96,
+            0xe9,0x3d,0x7e,0x11,0x73,0x93,0x17,0x2a,
+            0xae,0x2d,0x8a,0x57,0x1e,0x03,0xac,0x9c,
+            0x9e,0xb7,0x6f,0xac,0x45,0xaf,0x8e,0x51,
+            0x30,0xc8,0x1c,0x46,0xa3,0x5c,0xe4,0x11,
+            0xe5,0xfb,0xc1,0x19,0x1a,0x0a,0x52,0xef,
+            0xf6,0x9f,0x24,0x45,0xdf,0x4f,0x9b,0x17,
+            0xad,0x2b,0x41,0x7b,0xe6,0x6c,0x37,0x10
+        };
+
+        byte key[] = "0123456789abcdef   ";  /* align */
+        byte iv[]  = "1234567890abcdef   ";  /* align */
+
+        byte cipher[AES_BLOCK_SIZE * 4];
+        byte plain [AES_BLOCK_SIZE * 4];
+        EVP_CIPHER_CTX en;
+        EVP_CIPHER_CTX de;
+        int outlen ;
+        int total = 0;
+
+        EVP_CIPHER_CTX_init(&en);
+        if (EVP_CipherInit(&en, EVP_aes_128_cbc(),
+            (unsigned char*)key, (unsigned char*)iv, 1) == 0)
+            return -3401;
+        if (EVP_CipherUpdate(&en, (byte*)cipher, &outlen, (byte*)cbcPlain, 9) == 0)
+            return -3402;
+        if(outlen != 0)
+            return -3403;
+        total += outlen;
+
+        if (EVP_CipherUpdate(&en, (byte*)&cipher[total], &outlen, (byte*)&cbcPlain[9]  , 9) == 0)
+            return -3404;
+        if(outlen != 16)
+            return -3405;
+        total += outlen;
+
+        if (EVP_CipherFinal(&en, (byte*)&cipher[total], &outlen) == 0)
+            return -3406;
+        if(outlen != 16)
+            return -3407;
+        total += outlen;
+        if(total != 32)
+            return 3408;
+
+        total = 0;
+        EVP_CIPHER_CTX_init(&de);
+        if (EVP_CipherInit(&de, EVP_aes_128_cbc(),
+            (unsigned char*)key, (unsigned char*)iv, 0) == 0)
+            return -3420;
+
+        if (EVP_CipherUpdate(&de, (byte*)plain, &outlen, (byte*)cipher, 6) == 0)
+            return -3421;
+        if(outlen != 0)
+            return -3422;
+        total += outlen;
+
+        if (EVP_CipherUpdate(&de, (byte*)&plain[total], &outlen, (byte*)&cipher[6], 12) == 0)
+            return -3423;
+        if(outlen != 0)
+        total += outlen;
+
+        if (EVP_CipherUpdate(&de, (byte*)&plain[total], &outlen, (byte*)&cipher[6+12], 14) == 0)
+            return -3423;
+        if(outlen != 16)
+            return -3424;
+        total += outlen;
+
+        if (EVP_CipherFinal(&de, (byte*)&plain[total], &outlen) == 0)
+            return -3425;
+        if(outlen != 2)
+            return -3426;
+        total += outlen;
+
+        if(total != 18)
+            return 3427;
+
+        if (XMEMCMP(plain, cbcPlain, 18))
+            return -3428;
+
+    }
 
     return 0;
 }

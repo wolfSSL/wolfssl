@@ -169,8 +169,8 @@ typedef struct WOLFSSL_EVP_CIPHER_CTX {
     WOLFSSL_Cipher  cipher;
     ALIGN16 byte buf[WOLFSSL_EVP_BUF_SIZE];
     int  bufUsed;
-    ALIGN16 byte fin[WOLFSSL_EVP_BUF_SIZE];
-    int  finUsed;
+    ALIGN16 byte lastBlock[WOLFSSL_EVP_BUF_SIZE];
+    int  lastUsed;
 } WOLFSSL_EVP_CIPHER_CTX;
 
 typedef int WOLFSSL_ENGINE  ;

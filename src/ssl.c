@@ -10730,7 +10730,8 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
             return 0;   /* failure */
         }
         ctx->bufUsed = 0;
-        ctx->finUsed = 0;
+        ctx->lastUsed = 0;
+        ctx->flags   = 0;
 
 #ifndef NO_AES
         /* printf("cipherType=%d\n", ctx->cipherType); */
