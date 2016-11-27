@@ -13906,7 +13906,7 @@ long wolfSSL_ASN1_INTEGER_get(const WOLFSSL_ASN1_INTEGER* i)
 }
 
 /*** TBC ***/
-WOLFSSL_API WOLFSSL_BIGNUM *ASN1_INTEGER_to_BN(const WOLFSSL_ASN1_INTEGER *ai,
+WOLFSSL_API WOLFSSL_BIGNUM *wolfSSL_ASN1_INTEGER_to_BN(const WOLFSSL_ASN1_INTEGER *ai,
                                        WOLFSSL_BIGNUM *bn)
 {
     (void)ai;
@@ -14219,20 +14219,6 @@ long wolfSSL_CTX_sess_timeouts(WOLFSSL_CTX* ctx)
 
 
 long wolfSSL_CTX_sess_number(WOLFSSL_CTX* ctx)
-{
-    (void)ctx;
-    return 0;
-}
-
-/*** TBC ***/
-WOLFSSL_API long wolfSSL_CTX_need_tmp_RSA(WOLFSSL_CTX* ctx)
-{
-    (void)ctx;
-    return 0;
-}
-
-/*** TBC ***/
-WOLFSSL_API long wolfSSL_CTX_set_tmp_rsa(WOLFSSL_CTX* ctx)
 {
     (void)ctx;
     return 0;

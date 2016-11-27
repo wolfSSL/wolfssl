@@ -448,8 +448,12 @@ typedef WOLFSSL_X509_STORE_CTX X509_STORE_CTX;
 #define SSL_CTX_get_ex_new_index wolfSSL_CTX_get_ex_new_index
 
 /*#if OPENSSL_API_COMPAT < 0x10100000L*/
-# define CONF_modules_free()
-# define ENGINE_cleanup()
+#define CONF_modules_free()
+#define ENGINE_cleanup()
+#define SSL_CTX_need_tmp_RSA(ctx)            0
+#define SSL_CTX_set_tmp_rsa(ctx,rsa)         1
+#define SSL_need_tmp_RSA(ssl)                0
+#define SSL_set_tmp_rsa(ssl,rsa)             1
 /*#endif*/
 #define CONF_modules_unload()
 
@@ -535,8 +539,6 @@ typedef WOLFSSL_X509_NAME_ENTRY X509_NAME_ENTRY;
 #define SSL_get_tlsext_status_ocsp_resp wolfSSL_get_tlsext_status_ocsp_resp
 #define SSL_set_tlsext_status_ocsp_resp wolfSSL_set_tlsext_status_ocsp_resp
 
-#define SSL_CTX_need_tmp_RSA wolfSSL_CTX_need_tmp_RSA
-#define SSL_CTX_set_tmp_rsa wolfSSL_CTX_set_tmp_rsa
 #define SSL_CTX_add_extra_chain_cert wolfSSL_CTX_add_extra_chain_cert
 #define SSL_CTX_get_read_ahead wolfSSL_CTX_get_read_ahead
 #define SSL_CTX_set_read_ahead wolfSSL_CTX_set_read_ahead
