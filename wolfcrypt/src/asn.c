@@ -4300,7 +4300,7 @@ static int DecodeAltNames(byte* input, int sz, DecodedCert* cert)
                                         DYNAMIC_TYPE_ALTNAME);
             if (dnsEntry == NULL) {
                 WOLFSSL_MSG("\tOut of Memory");
-                return ASN_PARSE_E;
+                return MEMORY_E;
             }
 
             dnsEntry->name = (char*)XMALLOC(strLen + 1, cert->heap,
@@ -4308,7 +4308,7 @@ static int DecodeAltNames(byte* input, int sz, DecodedCert* cert)
             if (dnsEntry->name == NULL) {
                 WOLFSSL_MSG("\tOut of Memory");
                 XFREE(dnsEntry, cert->heap, DYNAMIC_TYPE_ALTNAME);
-                return ASN_PARSE_E;
+                return MEMORY_E;
             }
 
             XMEMCPY(dnsEntry->name, &input[idx], strLen);
@@ -4336,7 +4336,7 @@ static int DecodeAltNames(byte* input, int sz, DecodedCert* cert)
                                         DYNAMIC_TYPE_ALTNAME);
             if (emailEntry == NULL) {
                 WOLFSSL_MSG("\tOut of Memory");
-                return ASN_PARSE_E;
+                return MEMORY_E;
             }
 
             emailEntry->name = (char*)XMALLOC(strLen + 1, cert->heap,
@@ -4344,7 +4344,7 @@ static int DecodeAltNames(byte* input, int sz, DecodedCert* cert)
             if (emailEntry->name == NULL) {
                 WOLFSSL_MSG("\tOut of Memory");
                 XFREE(emailEntry, cert->heap, DYNAMIC_TYPE_ALTNAME);
-                return ASN_PARSE_E;
+                return MEMORY_E;
             }
 
             XMEMCPY(emailEntry->name, &input[idx], strLen);
