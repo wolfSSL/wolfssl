@@ -5685,6 +5685,42 @@ int wolfSSL_CTX_SetTmpDH_file(WOLFSSL_CTX* ctx, const char* fname, int format)
 #ifdef OPENSSL_EXTRA
 /* put SSL type in extra for now, not very common */
 
+WOLFSSL_EVP_PKEY* wolfSSL_d2i_PrivateKey(int type, WOLFSSL_EVP_PKEY** out,
+        const unsigned char **in, long inSz)
+{
+    WOLFSSL_EVP_PKEY* local;
+
+    WOLFSSL_ENTER("wolfSSL_d2i_PrivateKey");
+
+    if (in == NULL || inSz < 0) {
+        WOLFSSL_MSG("Bad argument");
+        return NULL;
+    }
+
+    local = wolfSSL_PKEY_new();
+    if (local == NULL) {
+        return NULL;
+    }
+
+    local->type     = type;
+    local->pkey_sz  = inSz;
+    local->pkey.ptr = (char*)XMALLOC(inSz, NULL, DYNAMIC_TYPE_PUBLIC_KEY);
+    if (local->pkey.ptr == NULL) {
+        wolfSSL_EVP_PKEY_free(local);
+        local = NULL;
+    }
+    else {
+        XMEMCPY(local->pkey.ptr, *in, inSz);
+    }
+
+    if (out != NULL) {
+        *out = local;
+    }
+
+    return local;
+}
+
+
 long wolfSSL_ctrl(WOLFSSL* ssl, int cmd, long opt, void* pt)
 {
     WOLFSSL_STUB("wolfSSL_ctrl");
@@ -13803,6 +13839,20 @@ void wolfSSL_X509_OBJECT_free_contents(WOLFSSL_X509_OBJECT* obj)
 }
 
 
+WOLFSSL_EVP_PKEY* wolfSSL_PKEY_new()
+{
+    WOLFSSL_EVP_PKEY* pkey;
+
+    pkey = (WOLFSSL_EVP_PKEY*)XMALLOC(sizeof(WOLFSSL_EVP_PKEY), NULL,
+            DYNAMIC_TYPE_PUBLIC_KEY);
+    if (pkey != NULL) {
+        XMEMSET(pkey, 0, sizeof(WOLFSSL_EVP_PKEY));
+    }
+
+    return pkey;
+}
+
+
 void wolfSSL_EVP_PKEY_free(WOLFSSL_EVP_PKEY* key)
 {
     if (key != NULL) {
@@ -17417,25 +17467,71 @@ int wolfSSL_PEM_write_RSAPrivateKey(FILE *fp, WOLFSSL_RSA *rsa,
 }
 #endif /* NO_FILESYSTEM */
 
-/*** TBD ***/
-WOLFSSL_API
-int wolfSSL_PEM_write_bio_PrivateKey(WOLFSSL_BIO* bio, RSA* rsa,
-                                        const EVP_CIPHER* cipher,
+int wolfSSL_PEM_write_bio_PrivateKey(WOLFSSL_BIO* bio, WOLFSSL_EVP_PKEY* key,
+                                        const WOLFSSL_EVP_CIPHER* cipher,
                                         unsigned char* passwd, int len,
                                         pem_password_cb cb, void* arg)
 {
-    (void)bio;
-    (void)rsa;
+    byte* keyDer;
+    int pemSz;
+    int type;
+    int ret;
+
     (void)cipher;
     (void)passwd;
     (void)len;
     (void)cb;
     (void)arg;
 
-    WOLFSSL_MSG("wolfSSL_PEM_write_bio_PrivateKey not implemented");
+    WOLFSSL_ENTER("wolfSSL_PEM_write_bio_PrivateKey");
 
-    return SSL_FAILURE;
+    if (bio == NULL || key == NULL) {
+        return SSL_FAILURE;
+    }
+
+    keyDer = (byte*)key->pkey.ptr;
+
+    switch (key->type) {
+        case EVP_PKEY_RSA:
+            type = PRIVATEKEY_TYPE;
+            break;
+
+#ifndef NO_DSA
+        case EVP_PKEY_DSA:
+            type = DSA_PRIVATEKEY_TYPE;
+            break;
+#endif
+
+        case EVP_PKEY_EC:
+            type = ECC_PRIVATEKEY_TYPE;
+            break;
+
+        default:
+            WOLFSSL_MSG("Unknown Key type!");
+            type = PRIVATEKEY_TYPE;
+    }
+
+    pemSz = wc_DerToPem(keyDer, key->pkey_sz, NULL, 0, type);
+    if (pemSz < 0) {
+        WOLFSSL_LEAVE("wolfSSL_PEM_write_bio_PrivateKey", pemSz);
+        return SSL_FAILURE;
+    }
+    if (bio->mem != NULL) {
+        XFREE(bio->mem, NULL, DYNAMIC_TYPE_OPENSSL);
+    }
+    bio->mem = (byte*)XMALLOC(pemSz, NULL, DYNAMIC_TYPE_OPENSSL);
+    bio->memLen = pemSz;
+
+    ret = wc_DerToPemEx(keyDer, key->pkey_sz, bio->mem, bio->memLen,
+                                NULL, type);
+    if (ret < 0) {
+        WOLFSSL_LEAVE("wolfSSL_PEM_write_bio_PrivateKey", ret);
+        return SSL_FAILURE;
+    }
+
+    return SSL_SUCCESS;
 }
+
 
 int wolfSSL_PEM_write_bio_RSAPrivateKey(WOLFSSL_BIO* bio, RSA* rsa,
                                         const EVP_CIPHER* cipher,

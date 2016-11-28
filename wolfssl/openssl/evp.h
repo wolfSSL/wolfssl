@@ -145,7 +145,7 @@ enum {
     NULL_CIPHER_TYPE  = 15,
     EVP_PKEY_RSA      = 16,
     EVP_PKEY_DSA      = 17,
-	  EVP_PKEY_EC 		  = 18,
+    EVP_PKEY_EC       = 18,
     IDEA_CBC_TYPE     = 19,
     NID_sha1          = 64,
     NID_md2           = 3,

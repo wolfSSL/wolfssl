@@ -5908,6 +5908,20 @@ int wc_DerToPemEx(const byte* der, word32 derSz, byte* output, word32 outSz,
     headerLen = (int)XSTRLEN(header);
     footerLen = (int)XSTRLEN(footer);
 
+    /* if null output and 0 size passed in then return size needed */
+    if (!output && outSz == 0) {
+#ifdef WOLFSSL_SMALL_STACK
+        XFREE(header, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(footer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+        outLen = 0;
+        if ((err = Base64_Encode(der, derSz, NULL, (word32*)&outLen))
+                != LENGTH_ONLY_E) {
+            return err;
+        }
+        return headerLen + footerLen + outLen;
+    }
+
     if (!der || !output) {
 #ifdef WOLFSSL_SMALL_STACK
         XFREE(header, NULL, DYNAMIC_TYPE_TMP_BUFFER);

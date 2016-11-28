@@ -6980,6 +6980,7 @@ int openssl_test(void)
 #define OPENSSL_TEST_ERROR (-10000)
 
 
+#ifndef NO_AES
 #ifdef WOLFSSL_AES_DIRECT
   /* enable HAVE_AES_DECRYPT for AES_encrypt/decrypt */
 {
@@ -7320,6 +7321,7 @@ int openssl_test(void)
             return -3428;
 
     }
+#endif /* ifndef NO_AES */
 
     return 0;
 }

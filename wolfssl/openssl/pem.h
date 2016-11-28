@@ -13,6 +13,7 @@
     extern "C" {
 #endif
 
+#define PEM_write_bio_PrivateKey wolfSSL_PEM_write_bio_PrivateKey
 
 /* RSA */
 WOLFSSL_API
@@ -90,8 +91,8 @@ WOLFSSL_EVP_PKEY* wolfSSL_PEM_read_bio_PrivateKey(WOLFSSL_BIO* bio,
                                                   pem_password_cb cb,
                                                   void* arg);
 WOLFSSL_API
-int wolfSSL_PEM_write_bio_PrivateKey(WOLFSSL_BIO* bio, RSA* rsa,
-                                        const EVP_CIPHER* cipher,
+int wolfSSL_PEM_write_bio_PrivateKey(WOLFSSL_BIO* bio, WOLFSSL_EVP_PKEY* key,
+                                        const WOLFSSL_EVP_CIPHER* cipher,
                                         unsigned char* passwd, int len,
                                         pem_password_cb cb, void* arg);
 

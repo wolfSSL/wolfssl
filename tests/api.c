@@ -48,6 +48,7 @@
     #include <wolfssl/openssl/pkcs12.h>
     #include <wolfssl/openssl/evp.h>
     #include <wolfssl/openssl/dh.h>
+    #include <wolfssl/openssl/pem.h>
 #ifndef NO_DES3
     #include <wolfssl/openssl/des.h>
 #endif
@@ -2435,6 +2436,9 @@ static void test_wolfSSL_private_keys(void)
     AssertIntEQ(wolfSSL_check_private_key(ssl), SSL_SUCCESS);
 
 #ifdef USE_CERT_BUFFERS_2048
+    {
+    const unsigned char* server_key = (const unsigned char*)server_key_der_2048;
+
     AssertIntEQ(SSL_use_RSAPrivateKey_ASN1(ssl,
                 (unsigned char*)client_key_der_2048,
                 sizeof_client_key_der_2048), SSL_SUCCESS);
@@ -2444,15 +2448,23 @@ static void test_wolfSSL_private_keys(void)
 #endif
 
     AssertIntEQ(SSL_use_PrivateKey_ASN1(0, ssl,
-                (unsigned char*)server_key_der_2048,
+                (unsigned char*)server_key,
                 sizeof_server_key_der_2048), SSL_SUCCESS);
     /* After loading back in DER format of original key, should match */
     AssertIntEQ(wolfSSL_check_private_key(ssl), SSL_SUCCESS);
-#endif
 
     /* pkey not set yet, expecting to fail */
     AssertIntEQ(SSL_use_PrivateKey(ssl, pkey), SSL_FAILURE);
 
+    /* set PKEY and test again */
+    AssertNotNull(wolfSSL_d2i_PrivateKey(EVP_PKEY_RSA, &pkey,
+                &server_key, (long)sizeof_server_key_der_2048));
+    AssertIntEQ(SSL_use_PrivateKey(ssl, pkey), SSL_SUCCESS);
+    }
+#endif
+
+
+    EVP_PKEY_free(pkey);
     SSL_free(ssl); /* frees x509 also since loaded into ssl */
     SSL_CTX_free(ctx);
 
@@ -2460,6 +2472,34 @@ static void test_wolfSSL_private_keys(void)
     CONF_modules_free();
     ENGINE_cleanup();
     CONF_modules_unload();
+
+    printf(resultFmt, passed);
+    #endif /* defined(OPENSSL_EXTRA) && !defined(NO_CERTS) */
+}
+
+
+static void test_wolfSSL_PEM_PrivateKey(void)
+{
+    #if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && \
+       !defined(NO_FILESYSTEM) && !defined(NO_RSA)   && \
+       (defined(WOLFSSL_KEY_GEN) || defined(WOLFSSL_CERT_GEN)) && \
+       defined(USE_CERT_BUFFERS_2048)
+    const unsigned char* server_key = (const unsigned char*)server_key_der_2048;
+    EVP_PKEY* pkey = NULL;
+    BIO*      bio;
+
+    printf(testingFmt, "wolfSSL_PEM_PrivateKey()");
+
+    bio = wolfSSL_BIO_new(wolfSSL_BIO_s_mem());
+    AssertNotNull(bio);
+
+    AssertNotNull(wolfSSL_d2i_PrivateKey(EVP_PKEY_RSA, &pkey,
+            &server_key, (long)sizeof_server_key_der_2048));
+    AssertIntEQ(PEM_write_bio_PrivateKey(bio, pkey, NULL, NULL, 0, NULL, NULL),
+            SSL_SUCCESS);
+
+    BIO_free(bio);
+    EVP_PKEY_free(pkey);
 
     printf(resultFmt, passed);
     #endif /* defined(OPENSSL_EXTRA) && !defined(NO_CERTS) */
@@ -2576,6 +2616,7 @@ void ApiTest(void)
     test_wolfSSL_DES();
     test_wolfSSL_certs();
     test_wolfSSL_private_keys();
+    test_wolfSSL_PEM_PrivateKey();
     test_wolfSSL_tmp_dh();
     test_wolfSSL_ctrl();
 

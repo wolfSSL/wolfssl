@@ -150,6 +150,8 @@ static int evpCipherBlock(WOLFSSL_EVP_CIPHER_CTX *ctx,
             return 0;
         }
         (void)in;
+        (void)inl;
+        (void)out;
         return 1;
 }
 
