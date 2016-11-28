@@ -693,8 +693,6 @@ WOLFSSL_API long wolfSSL_CTX_sess_misses(WOLFSSL_CTX*);
 WOLFSSL_API long wolfSSL_CTX_sess_timeouts(WOLFSSL_CTX*);
 WOLFSSL_API long wolfSSL_CTX_sess_number(WOLFSSL_CTX*);
 
-WOLFSSL_API long wolfSSL_CTX_need_tmp_RSA(WOLFSSL_CTX*);
-WOLFSSL_API long wolfSSL_CTX_set_tmp_rsa(WOLFSSL_CTX*);
 WOLFSSL_API long wolfSSL_CTX_add_extra_chain_cert(WOLFSSL_CTX*);
 WOLFSSL_API long wolfSSL_CTX_sess_set_cache_size(WOLFSSL_CTX*, long);
 WOLFSSL_API long wolfSSL_CTX_sess_get_cache_size(WOLFSSL_CTX*);
