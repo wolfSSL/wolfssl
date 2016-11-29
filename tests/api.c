@@ -2541,8 +2541,8 @@ static void test_wolfSSL_tmp_dh(void)
     dh = wolfSSL_DSA_dup_DH(dsa);
     AssertNotNull(dh);
 
-    AssertIntEQ(SSL_CTX_set_tmp_dh(ctx, dh), SSL_SUCCESS);
-    AssertIntEQ(SSL_set_tmp_dh(ssl, dh), SSL_SUCCESS);
+    AssertIntEQ((int)SSL_CTX_set_tmp_dh(ctx, dh), SSL_SUCCESS);
+    AssertIntEQ((int)SSL_set_tmp_dh(ssl, dh), SSL_SUCCESS);
 
     BIO_free(bio);
     DSA_free(dsa);
