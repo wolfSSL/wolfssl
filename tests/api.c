@@ -2568,6 +2568,34 @@ static void test_wolfSSL_ctrl(void)
     #endif /* defined(OPENSSL_EXTRA) */
 }
 
+
+static void test_wolfSSL_CTX_add_extra_chain_cert(void)
+{
+    #if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && \
+       !defined(NO_FILESYSTEM)
+    char caFile[] = "./certs/client-ca.pem";
+    char clientFile[] = "./certs/client-cert.pem";
+    SSL_CTX* ctx;
+    X509* x509;
+
+    printf(testingFmt, "wolfSSL_CTX_add_extra_chain_cert()");
+
+    AssertNotNull(ctx = SSL_CTX_new(wolfSSLv23_server_method()));
+
+    x509 = wolfSSL_X509_load_certificate_file(caFile, SSL_FILETYPE_PEM);
+    AssertNotNull(x509);
+    AssertIntEQ((int)wolfSSL_CTX_add_extra_chain_cert(ctx, x509), SSL_SUCCESS);
+
+    x509 = wolfSSL_X509_load_certificate_file(clientFile, SSL_FILETYPE_PEM);
+    AssertNotNull(x509);
+    AssertIntEQ((int)wolfSSL_CTX_add_extra_chain_cert(ctx, x509), SSL_SUCCESS);
+
+    SSL_CTX_free(ctx);
+    printf(resultFmt, passed);
+    #endif /* defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && \
+             !defined(NO_FILESYSTEM) */
+}
+
 /*----------------------------------------------------------------------------*
  | Main
  *----------------------------------------------------------------------------*/
@@ -2619,6 +2647,7 @@ void ApiTest(void)
     test_wolfSSL_PEM_PrivateKey();
     test_wolfSSL_tmp_dh();
     test_wolfSSL_ctrl();
+    test_wolfSSL_CTX_add_extra_chain_cert();
 
     AssertIntEQ(test_wolfSSL_Cleanup(), SSL_SUCCESS);
     printf(" End API Tests\n");
