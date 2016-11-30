@@ -3387,7 +3387,8 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
     ssl->dtls_timeout_init              = DTLS_TIMEOUT_INIT;
     ssl->dtls_timeout_max               = DTLS_TIMEOUT_MAX;
     ssl->dtls_timeout                   = ssl->dtls_timeout_init;
-    ssl->buffers.dtlsCtx.fd             = -1;
+    ssl->buffers.dtlsCtx.rfd            = -1;
+    ssl->buffers.dtlsCtx.wfd            = -1;
 #endif
 
     #ifndef NO_OLD_TLS

@@ -398,7 +398,7 @@ int EmbedReceiveFrom(WOLFSSL *ssl, char *buf, int sz, void *ctx)
     WOLFSSL_DTLS_CTX* dtlsCtx = (WOLFSSL_DTLS_CTX*)ctx;
     int recvd;
     int err;
-    int sd = dtlsCtx->fd;
+    int sd = dtlsCtx->rfd;
     int dtls_timeout = wolfSSL_dtls_get_current_timeout(ssl);
     struct sockaddr_storage peer;
     XSOCKLENT peerSz = sizeof(peer);
@@ -477,7 +477,7 @@ int EmbedReceiveFrom(WOLFSSL *ssl, char *buf, int sz, void *ctx)
 int EmbedSendTo(WOLFSSL* ssl, char *buf, int sz, void *ctx)
 {
     WOLFSSL_DTLS_CTX* dtlsCtx = (WOLFSSL_DTLS_CTX*)ctx;
-    int sd = dtlsCtx->fd;
+    int sd = dtlsCtx->wfd;
     int sent;
     int len = sz;
     int err;
