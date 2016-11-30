@@ -636,7 +636,13 @@ static THREAD_RETURN WOLFSSL_THREAD test_server_nofail(void* args)
 #endif
 
     ((func_args*)args)->return_code = TEST_FAIL;
-    method = wolfSSLv23_server_method();
+    if (((func_args*)args)->callbacks != NULL &&
+        ((func_args*)args)->callbacks->method != NULL) {
+        method = ((func_args*)args)->callbacks->method();
+    }
+    else {
+        method = wolfSSLv23_server_method();
+    }
     ctx = wolfSSL_CTX_new(method);
 
 #if defined(USE_WINDOWS_API)
@@ -779,7 +785,13 @@ static void test_client_nofail(void* args)
 #endif
 
     ((func_args*)args)->return_code = TEST_FAIL;
-    method = wolfSSLv23_client_method();
+    if (((func_args*)args)->callbacks != NULL &&
+        ((func_args*)args)->callbacks->method != NULL) {
+        method = ((func_args*)args)->callbacks->method();
+    }
+    else {
+        method = wolfSSLv23_client_method();
+    }
     ctx = wolfSSL_CTX_new(method);
 
 #ifdef OPENSSL_EXTRA
@@ -1145,6 +1157,8 @@ static void test_wolfSSL_read_write(void)
     func_args server_args;
     THREAD_TYPE serverThread;
 
+    XMEMSET(&client_args, 0, sizeof(func_args));
+    XMEMSET(&server_args, 0, sizeof(func_args));
 #ifdef WOLFSSL_TIRTOS
     fdOpenSession(Task_self());
 #endif
@@ -1190,6 +1204,8 @@ static void test_wolfSSL_dtls_export(void)
     InitTcpReady(&ready);
 
     /* set using dtls */
+    XMEMSET(&client_args, 0, sizeof(func_args));
+    XMEMSET(&server_args, 0, sizeof(func_args));
     XMEMSET(&server_cbf, 0, sizeof(callback_functions));
     XMEMSET(&client_cbf, 0, sizeof(callback_functions));
     server_cbf.method = wolfDTLSv1_2_server_method;
@@ -1232,6 +1248,9 @@ static void test_wolfSSL_client_server(callback_functions* client_callbacks,
     func_args client_args;
     func_args server_args;
     THREAD_TYPE serverThread;
+
+    XMEMSET(&client_args, 0, sizeof(func_args));
+    XMEMSET(&server_args, 0, sizeof(func_args));
 
     StartTCP();
 
@@ -2572,11 +2591,11 @@ static void test_wolfSSL_ctrl(void)
 static void test_wolfSSL_CTX_add_extra_chain_cert(void)
 {
     #if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && \
-       !defined(NO_FILESYSTEM)
+       !defined(NO_FILESYSTEM) && !defined(NO_RSA)
     char caFile[] = "./certs/client-ca.pem";
     char clientFile[] = "./certs/client-cert.pem";
     SSL_CTX* ctx;
-    X509* x509;
+    X509* x509 = NULL;
 
     printf(testingFmt, "wolfSSL_CTX_add_extra_chain_cert()");
 
@@ -2593,7 +2612,64 @@ static void test_wolfSSL_CTX_add_extra_chain_cert(void)
     SSL_CTX_free(ctx);
     printf(resultFmt, passed);
     #endif /* defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && \
-             !defined(NO_FILESYSTEM) */
+             !defined(NO_FILESYSTEM) && !defined(NO_RSA) */
+}
+
+
+static void test_wolfSSL_ERR_peek_last_error_line(void)
+{
+    #if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && \
+       !defined(NO_FILESYSTEM) && defined(DEBUG_WOLFSSL)
+    tcp_ready ready;
+    func_args client_args;
+    func_args server_args;
+    THREAD_TYPE serverThread;
+    callback_functions client_cb;
+    callback_functions server_cb;
+    int         line = 0;
+    const char* file = NULL;
+
+    printf(testingFmt, "wolfSSL_ERR_peek_last_error_line()");
+
+    /* create a failed connection and inspect the error */
+#ifdef WOLFSSL_TIRTOS
+    fdOpenSession(Task_self());
+#endif
+    XMEMSET(&client_args, 0, sizeof(func_args));
+    XMEMSET(&server_args, 0, sizeof(func_args));
+
+    StartTCP();
+    InitTcpReady(&ready);
+
+    client_cb.method  = wolfTLSv1_1_client_method;
+    server_cb.method  = wolfTLSv1_2_server_method;
+
+    server_args.signal    = &ready;
+    server_args.callbacks = &server_cb;
+    client_args.signal    = &ready;
+    client_args.callbacks = &client_cb;
+
+    start_thread(test_server_nofail, &server_args, &serverThread);
+    wait_tcp_ready(&server_args);
+    test_client_nofail(&client_args);
+    join_thread(serverThread);
+
+    FreeTcpReady(&ready);
+
+    /* check that error code was stored */
+    AssertIntNE(wolfSSL_ERR_peek_last_error_line(NULL, NULL), 0);
+    wolfSSL_ERR_peek_last_error_line(NULL, &line);
+    AssertIntNE(line, 0);
+    wolfSSL_ERR_peek_last_error_line(&file, NULL);
+    AssertNotNull(file);
+
+#ifdef WOLFSSL_TIRTOS
+    fdOpenSession(Task_self());
+#endif
+
+    printf(resultFmt, passed);
+    #endif /* defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && \
+             !defined(NO_FILESYSTEM) && !defined(NO_RSA) */
 }
 
 /*----------------------------------------------------------------------------*
@@ -2648,6 +2724,7 @@ void ApiTest(void)
     test_wolfSSL_tmp_dh();
     test_wolfSSL_ctrl();
     test_wolfSSL_CTX_add_extra_chain_cert();
+    test_wolfSSL_ERR_peek_last_error_line();
 
     AssertIntEQ(test_wolfSSL_Cleanup(), SSL_SUCCESS);
     printf(" End API Tests\n");

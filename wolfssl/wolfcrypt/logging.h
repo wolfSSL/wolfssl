@@ -55,7 +55,18 @@ WOLFSSL_API int wolfSSL_SetLoggingCb(wolfSSL_Logging_cb log_function);
     #define WOLFSSL_STUB(m) \
         WOLFSSL_MSG(WOLFSSL_LOG_CAT(wolfSSL Stub, m, not implemented))
 
+#if defined(OPENSSL_EXTRA) || defined(DEBUG_WOLFSSL_VERBOSE)
+    /* make these variables global and declare them in logging.c */
+    extern volatile char          wc_last_error_file[80];
+    extern volatile unsigned long wc_last_error_line;
+    extern volatile unsigned long wc_last_error;
+
+    void WOLFSSL_ERROR_LINE(int err, const char* func, unsigned int line,
+            const char* file, void* ctx);
+    #define WOLFSSL_ERROR(x) WOLFSSL_ERROR_LINE((x), __func__, __LINE__, __FILE__,NULL)
+#else
     void WOLFSSL_ERROR(int);
+#endif
     void WOLFSSL_MSG(const char* msg);
     void WOLFSSL_BUFFER(byte* buffer, word32 length);
 

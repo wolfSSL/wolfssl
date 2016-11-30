@@ -12824,6 +12824,38 @@ WOLFSSL_ASN1_OBJECT* wolfSSL_sk_ASN1_OBJCET_pop(
 }
 
 
+WOLFSSL_ASN1_OBJECT* wolfSSL_ASN1_OBJECT_new(void)
+{
+    WOLFSSL_ASN1_OBJECT* obj;
+
+    obj = (WOLFSSL_ASN1_OBJECT*)XMALLOC(sizeof(WOLFSSL_ASN1_OBJECT), NULL,
+                                        DYNAMIC_TYPE_ASN1);
+    if (obj == NULL) {
+        return NULL;
+    }
+
+    XMEMSET(obj, 0, sizeof(WOLFSSL_ASN1_OBJECT));
+    return obj;
+}
+
+
+void wolfSSL_ASN1_OBJECT_free(WOLFSSL_ASN1_OBJECT* obj)
+{
+    if (obj == NULL) {
+        return;
+    }
+
+    if (obj->dynamic == 1) {
+        if (obj->obj != NULL) {
+            WOLFSSL_MSG("Freeing ASN1 OBJECT data");
+            XFREE(obj->obj, obj->heap, DYNAMIC_TYPE_ASN1);
+        }
+    }
+
+    XFREE(obj, NULL, DYNAMIC_TYPE_ASN1);
+}
+
+
 /* free structure for x509 stack */
 void wolfSSL_sk_ASN1_OBJECT_free(STACK_OF(WOLFSSL_ASN1_OBJECT)* sk)
 {
@@ -19923,6 +19955,29 @@ void* wolfSSL_GetRsaDecCtx(WOLFSSL* ssl)
 
 
 #ifdef OPENSSL_EXTRA
+
+/* wolfSSL uses negative values for error states. This function returns an
+ * unsigned type so the value returned is the absolute value of the error.
+ */
+unsigned long wolfSSL_ERR_peek_last_error_line(const char **file, int *line)
+{
+    WOLFSSL_ENTER("wolfSSL_ERR_peek_last_error");
+
+    (void)line;
+    (void)file;
+#if defined(DEBUG_WOLFSSL)
+    if (line != NULL) {
+        *line = (int)wc_last_error_line;
+    }
+    if (file != NULL) {
+        *file = (char*)wc_last_error_file;
+    }
+    return wc_last_error;
+#else
+    return NOT_COMPILED_IN;
+#endif
+}
+
 
 int wolfSSL_CTX_use_PrivateKey(WOLFSSL_CTX *ctx, WOLFSSL_EVP_PKEY *pkey)
 {

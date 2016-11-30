@@ -443,7 +443,8 @@ WOLFSSL_API int wolfSSL_sk_X509_push(STACK_OF(WOLFSSL_X509_NAME)* sk,
                                                             WOLFSSL_X509* x509);
 WOLFSSL_API WOLFSSL_X509* wolfSSL_sk_X509_pop(STACK_OF(WOLFSSL_X509_NAME)* sk);
 WOLFSSL_API void wolfSSL_sk_X509_free(STACK_OF(WOLFSSL_X509_NAME)* sk);
-
+WOLFSSL_API WOLFSSL_ASN1_OBJECT* wolfSSL_ASN1_OBJECT_new(void);
+WOLFSSL_API void wolfSSL_ASN1_OBJECT_free(WOLFSSL_ASN1_OBJECT* obj);
 WOLFSSL_API int wolfSSL_sk_ASN1_OBJECT_push(STACK_OF(WOLFSSL_ASN1_OBJEXT)* sk,
                                                       WOLFSSL_ASN1_OBJECT* obj);
 WOLFSSL_API WOLFSSL_ASN1_OBJECT* wolfSSL_sk_ASN1_OBJCET_pop(
@@ -1895,6 +1896,7 @@ WOLFSSL_API char* wolfSSL_ASN1_TIME_to_string(WOLFSSL_ASN1_TIME* time,
 #endif /* WOLFSSL_MYSQL_COMPATIBLE */
 
 #ifdef OPENSSL_EXTRA
+WOLFSSL_API unsigned long wolfSSL_ERR_peek_last_error_line(const char **file, int *line);
 WOLFSSL_API long wolfSSL_ctrl(WOLFSSL* ssl, int cmd, long opt, void* pt);
 WOLFSSL_API long wolfSSL_CTX_ctrl(WOLFSSL_CTX* ctx, int cmd, long opt,void* pt);
 
@@ -2071,7 +2073,6 @@ WOLFSSL_API void wolfSSL_CTX_set_servername_callback(WOLFSSL_CTX *,
 WOLFSSL_API void wolfSSL_CTX_set_servername_arg(WOLFSSL_CTX *, void*);
 
 WOLFSSL_API void WOLFSSL_ERR_remove_thread_state(void*);
-WOLFSSL_API unsigned long wolfSSL_ERR_peek_last_error_line(const char **file, int *line);
 
 #ifndef NO_FILESYSTEM
 WOLFSSL_API void wolfSSL_print_all_errors_fp(XFILE *fp);

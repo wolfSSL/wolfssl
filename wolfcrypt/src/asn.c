@@ -1398,38 +1398,6 @@ int GetObjectId(const byte* input, word32* inOutIdx, word32* oid,
 }
 
 
-WOLFSSL_ASN1_OBJECT* wolfSSL_ASN1_OBJECT_new(void)
-{
-    WOLFSSL_ASN1_OBJECT* obj;
-
-    obj = (WOLFSSL_ASN1_OBJECT*)XMALLOC(sizeof(WOLFSSL_ASN1_OBJECT), NULL,
-                                        DYNAMIC_TYPE_ASN1);
-    if (obj == NULL) {
-        return NULL;
-    }
-
-    XMEMSET(obj, 0, sizeof(WOLFSSL_ASN1_OBJECT));
-    return obj;
-}
-
-
-void wolfSSL_ASN1_OBJECT_free(WOLFSSL_ASN1_OBJECT* obj)
-{
-    if (obj == NULL) {
-        return;
-    }
-
-    if (obj->dynamic == 1) {
-        if (obj->obj != NULL) {
-            WOLFSSL_MSG("Freeing ASN1 OBJECT data");
-            XFREE(obj->obj, obj->heap, DYNAMIC_TYPE_ASN1);
-        }
-    }
-
-    XFREE(obj, NULL, DYNAMIC_TYPE_ASN1);
-}
-
-
 #ifndef NO_RSA
 #ifndef HAVE_USER_RSA
 #if defined(OPENSSL_EXTRA) || defined(RSA_DECODE_EXTRA)

@@ -158,12 +158,6 @@ typedef struct Cert {
 #endif
     void*   heap; /* heap hint */
 } Cert;
-#endif /* WOLFSSL_CERT_GEN */
-
-typedef struct WOLFSSL_ASN1_OBJECT WOLFSSL_ASN1_OBJECT;
-
-#ifdef WOLFSSL_CERT_GEN
-
 
 
 /* Initialize and Set Certificate defaults:
@@ -281,9 +275,6 @@ WOLFSSL_API int wc_GetCTC_HashOID(int type);
     rc = wc_GetTime(&lTime, (word32)sizeof(lTime));
 */
 WOLFSSL_API int wc_GetTime(void* timePtr, word32 timeSize);
-
-WOLFSSL_API WOLFSSL_ASN1_OBJECT* wolfSSL_ASN1_OBJECT_new(void);
-WOLFSSL_API void wolfSSL_ASN1_OBJECT_free(WOLFSSL_ASN1_OBJECT* obj);
 
 #ifdef __cplusplus
     } /* extern "C" */
