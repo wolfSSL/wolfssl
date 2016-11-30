@@ -431,29 +431,64 @@ int wolfSSL_use_old_poly(WOLFSSL* ssl, int value)
 }
 #endif
 
+
 int wolfSSL_set_fd(WOLFSSL* ssl, int fd)
 {
+    int ret;
+
     WOLFSSL_ENTER("SSL_set_fd");
+
+    ret = wolfSSL_set_read_fd(ssl, fd);
+    if (ret == SSL_SUCCESS) {
+        ret = wolfSSL_set_write_fd(ssl, fd);
+    }
+
+    return ret;
+}
+
+
+int wolfSSL_set_read_fd(WOLFSSL* ssl, int fd)
+{
+    WOLFSSL_ENTER("SSL_set_read_fd");
 
     if (ssl == NULL) {
         return BAD_FUNC_ARG;
     }
 
     ssl->rfd = fd;      /* not used directly to allow IO callbacks */
-    ssl->wfd = fd;
-
     ssl->IOCB_ReadCtx  = &ssl->rfd;
-    ssl->IOCB_WriteCtx = &ssl->wfd;
 
     #ifdef WOLFSSL_DTLS
         if (ssl->options.dtls) {
             ssl->IOCB_ReadCtx = &ssl->buffers.dtlsCtx;
-            ssl->IOCB_WriteCtx = &ssl->buffers.dtlsCtx;
-            ssl->buffers.dtlsCtx.fd = fd;
+            ssl->buffers.dtlsCtx.rfd = fd;
         }
     #endif
 
-    WOLFSSL_LEAVE("SSL_set_fd", SSL_SUCCESS);
+    WOLFSSL_LEAVE("SSL_set_read_fd", SSL_SUCCESS);
+    return SSL_SUCCESS;
+}
+
+
+int wolfSSL_set_write_fd(WOLFSSL* ssl, int fd)
+{
+    WOLFSSL_ENTER("SSL_set_write_fd");
+
+    if (ssl == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    ssl->wfd = fd;      /* not used directly to allow IO callbacks */
+    ssl->IOCB_WriteCtx  = &ssl->wfd;
+
+    #ifdef WOLFSSL_DTLS
+        if (ssl->options.dtls) {
+            ssl->IOCB_WriteCtx = &ssl->buffers.dtlsCtx;
+            ssl->buffers.dtlsCtx.wfd = fd;
+        }
+    #endif
+
+    WOLFSSL_LEAVE("SSL_set_write_fd", SSL_SUCCESS);
     return SSL_SUCCESS;
 }
 

@@ -1585,7 +1585,8 @@ struct WOLFSSL_SOCKADDR {
 
 typedef struct WOLFSSL_DTLS_CTX {
     WOLFSSL_SOCKADDR peer;
-    int fd;
+    int rfd;
+    int wfd;
 } WOLFSSL_DTLS_CTX;
 
 
