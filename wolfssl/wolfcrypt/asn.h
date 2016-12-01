@@ -610,20 +610,20 @@ struct TrustedPeerCert {
 #endif /* WOLFSSL_TRUST_PEER_CERT */
 
 
-/* not for public consumption but may use for testing sometimes */
-#ifdef WOLFSSL_TEST_CERT
-    #define WOLFSSL_TEST_API WOLFSSL_API
+/* for testing or custom openssl wrappers */
+#if defined(WOLFSSL_TEST_CERT) || defined(OPENSSL_EXTRA)
+    #define WOLFSSL_ASN_API WOLFSSL_API
 #else
-    #define WOLFSSL_TEST_API WOLFSSL_LOCAL
+    #define WOLFSSL_ASN_API WOLFSSL_LOCAL
 #endif
 
-WOLFSSL_TEST_API void FreeAltNames(DNS_entry*, void*);
+WOLFSSL_ASN_API void FreeAltNames(DNS_entry*, void*);
 #ifndef IGNORE_NAME_CONSTRAINTS
-    WOLFSSL_TEST_API void FreeNameSubtrees(Base_entry*, void*);
+    WOLFSSL_ASN_API void FreeNameSubtrees(Base_entry*, void*);
 #endif /* IGNORE_NAME_CONSTRAINTS */
-WOLFSSL_TEST_API void InitDecodedCert(DecodedCert*, byte*, word32, void*);
-WOLFSSL_TEST_API void FreeDecodedCert(DecodedCert*);
-WOLFSSL_TEST_API int  ParseCert(DecodedCert*, int type, int verify, void* cm);
+WOLFSSL_ASN_API void InitDecodedCert(DecodedCert*, byte*, word32, void*);
+WOLFSSL_ASN_API void FreeDecodedCert(DecodedCert*);
+WOLFSSL_ASN_API int  ParseCert(DecodedCert*, int type, int verify, void* cm);
 
 WOLFSSL_LOCAL int ParseCertRelative(DecodedCert*,int type,int verify,void* cm);
 WOLFSSL_LOCAL int DecodeToKey(DecodedCert*, int verify);
@@ -636,7 +636,7 @@ WOLFSSL_LOCAL void    FreeTrustedPeer(TrustedPeerCert*, void*);
 WOLFSSL_LOCAL void    FreeTrustedPeerTable(TrustedPeerCert**, int, void*);
 #endif /* WOLFSSL_TRUST_PEER_CERT */
 
-WOLFSSL_LOCAL int ToTraditional(byte* buffer, word32 length);
+WOLFSSL_ASN_API int ToTraditional(byte* buffer, word32 length);
 WOLFSSL_LOCAL int ToTraditionalEnc(byte* buffer, word32 length,const char*,int);
 WOLFSSL_LOCAL int DecryptContent(byte* input, word32 sz,const char* psw,int pswSz);
 
@@ -650,7 +650,7 @@ WOLFSSL_LOCAL int ValidateDate(const byte* date, byte format, int dateType);
 
 /* ASN.1 helper functions */
 #ifdef WOLFSSL_CERT_GEN
-WOLFSSL_TEST_API int SetName(byte* output, word32 outputSz, CertName* name);
+WOLFSSL_ASN_API int SetName(byte* output, word32 outputSz, CertName* name);
 #endif
 WOLFSSL_LOCAL int GetShortInt(const byte* input, word32* inOutIdx, int* number,
                               word32 maxIdx);

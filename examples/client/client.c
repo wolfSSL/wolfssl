@@ -1186,8 +1186,9 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 #ifdef VERIFY_CALLBACK
     wolfSSL_CTX_set_verify(ctx, SSL_VERIFY_PEER, myVerify);
 #endif
-#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS)
+#if !defined(NO_CERTS)
     if (useClientCert){
+#if !defined(NO_FILESYSTEM)
         if (wolfSSL_CTX_use_certificate_chain_file(ctx, ourCert) != SSL_SUCCESS)
             err_sys("can't load client cert file, check file and run from"
                     " wolfSSL home dir");
@@ -1196,32 +1197,42 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
                                          != SSL_SUCCESS)
             err_sys("can't load client private key file, check file and run "
                     "from wolfSSL home dir");
+#else
+        load_buffer(ctx, ourCert, WOLFSSL_CERT_CHAIN);
+        load_buffer(ctx, ourKey, WOLFSSL_KEY);
+#endif  /* !defined(NO_FILESYSTEM) */
     }
 
     if (!usePsk && !useAnon) {
+#if !defined(NO_FILESYSTEM)
         if (wolfSSL_CTX_load_verify_locations(ctx, verifyCert,0) != SSL_SUCCESS)
             err_sys("can't load ca file, Please run from wolfSSL home dir");
+#else
+        load_buffer(ctx, verifyCert, WOLFSSL_CA);
+#endif  /* !defined(NO_FILESYSTEM) */
 #ifdef HAVE_ECC
         /* load ecc verify too, echoserver uses it by default w/ ecc */
+#if !defined(NO_FILESYSTEM)
         if (wolfSSL_CTX_load_verify_locations(ctx, eccCert, 0) != SSL_SUCCESS)
             err_sys("can't load ecc ca file, Please run from wolfSSL home dir");
+#else
+        load_buffer(ctx, eccCert, WOLFSSL_CA);
+#endif  /* !defined(NO_FILESYSTEM) */
 #endif /* HAVE_ECC */
-#ifdef WOLFSSL_TRUST_PEER_CERT
+#if defined(WOLFSSL_TRUST_PEER_CERT) && !defined(NO_FILESYSTEM)
         if (trustCert) {
             if ((ret = wolfSSL_CTX_trust_peer_cert(ctx, trustCert,
                                             SSL_FILETYPE_PEM)) != SSL_SUCCESS) {
                 err_sys("can't load trusted peer cert file");
             }
         }
-#endif /* WOLFSSL_TRUST_PEER_CERT */
+#endif /* WOLFSSL_TRUST_PEER_CERT && !NO_FILESYSTEM */
     }
-#endif /* !NO_FILESYSTEM && !NO_CERTS */
-#if !defined(NO_CERTS)
     if (!usePsk && !useAnon && doPeerCheck == 0)
         wolfSSL_CTX_set_verify(ctx, SSL_VERIFY_NONE, 0);
     if (!usePsk && !useAnon && overrideDateErrors == 1)
         wolfSSL_CTX_set_verify(ctx, SSL_VERIFY_PEER, myDateCb);
-#endif
+#endif /* !defined(NO_CERTS) */
 
 #ifdef WOLFSSL_ASYNC_CRYPT
     ret = wolfAsync_DevOpen(&devId);

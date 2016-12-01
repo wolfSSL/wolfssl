@@ -934,7 +934,7 @@ static INLINE void tcp_accept(SOCKET_T* sockfd, SOCKET_T* clientfd,
     #endif
 
         if (ready_file) {
-        #ifndef NO_FILESYSTEM
+        #if !defined(NO_FILESYSTEM) || defined(FORCE_BUFFER_TEST)
             FILE* srf = NULL;
             if (args)
                 ready = args->signal;
@@ -1080,16 +1080,19 @@ static INLINE unsigned int my_psk_server_cb(WOLFSSL* ssl, const char* identity,
 #endif /* USE_WINDOWS_API */
 
 
-#if defined(NO_FILESYSTEM) && !defined(NO_CERTS)
+#if defined(NO_FILESYSTEM) && !defined(NO_CERTS) && defined(FORCE_BUFFER_TEST)
 
     enum {
         WOLFSSL_CA   = 1,
         WOLFSSL_CERT = 2,
-        WOLFSSL_KEY  = 3
+        WOLFSSL_KEY  = 3,
+        WOLFSSL_CERT_CHAIN = 4,
     };
 
     static INLINE void load_buffer(WOLFSSL_CTX* ctx, const char* fname, int type)
     {
+        int format = SSL_FILETYPE_PEM;
+
         /* test buffer load */
         long  sz = 0;
         byte  buff[10000];
@@ -1103,21 +1106,31 @@ static INLINE unsigned int my_psk_server_cb(WOLFSSL* ssl, const char* identity,
         rewind(file);
         fread(buff, sizeof(buff), 1, file);
 
+        /* determine format */
+        if (strstr(fname, ".der"))
+            format = SSL_FILETYPE_ASN1;
+
         if (type == WOLFSSL_CA) {
-            if (wolfSSL_CTX_load_verify_buffer(ctx, buff, sz, SSL_FILETYPE_PEM)
+            if (wolfSSL_CTX_load_verify_buffer(ctx, buff, sz, format)
                                               != SSL_SUCCESS)
                 err_sys("can't load buffer ca file");
         }
         else if (type == WOLFSSL_CERT) {
             if (wolfSSL_CTX_use_certificate_buffer(ctx, buff, sz,
-                        SSL_FILETYPE_PEM) != SSL_SUCCESS)
+                        format) != SSL_SUCCESS)
                 err_sys("can't load buffer cert file");
         }
         else if (type == WOLFSSL_KEY) {
             if (wolfSSL_CTX_use_PrivateKey_buffer(ctx, buff, sz,
-                        SSL_FILETYPE_PEM) != SSL_SUCCESS)
+                        format) != SSL_SUCCESS)
                 err_sys("can't load buffer key file");
         }
+        else if (type == WOLFSSL_CERT_CHAIN) {
+            if (wolfSSL_CTX_use_certificate_chain_buffer_format(ctx, buff, sz,
+                        format) != SSL_SUCCESS)
+                err_sys("can't load cert chain buffer");
+        }
+
         fclose(file);
     }
 
@@ -1278,13 +1291,13 @@ static INLINE void CaCb(unsigned char* der, int sz, int type)
 
     static INLINE int ChangeToWolfRoot(void)
     {
-        #if !defined(NO_FILESYSTEM)
+        #if !defined(NO_FILESYSTEM) || defined(FORCE_BUFFER_TEST)
             int depth, res;
-            XFILE file;
+            FILE* file;
             for(depth = 0; depth <= MAX_WOLF_ROOT_DEPTH; depth++) {
-                file = XFOPEN(ntruKey, "rb");
-                if (file != XBADFILE) {
-                    XFCLOSE(file);
+                file = fopen(ntruKey, "rb");
+                if (file != NULL) {
+                    fclose(file);
                     return depth;
                 }
             #ifdef USE_WINDOWS_API

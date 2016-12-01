@@ -3783,15 +3783,138 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
 }
 
 
+
+/* process user cert chain to pass during the handshake */
+static int ProcessUserChain(WOLFSSL_CTX* ctx, const unsigned char* buff,
+                         long sz, int format, int type, WOLFSSL* ssl,
+                         long* used, EncryptedInfo* info)
+{
+    int ret = 0;
+    void* heap = ctx ? ctx->heap : ((ssl) ? ssl->heap : NULL);
+
+    /* we may have a user cert chain, try to consume */
+    if (type == CERT_TYPE && info->consumed < sz) {
+    #ifdef WOLFSSL_SMALL_STACK
+        byte   staticBuffer[1];                 /* force heap usage */
+    #else
+        byte   staticBuffer[FILE_BUFFER_SIZE];  /* tmp chain buffer */
+    #endif
+        byte*  chainBuffer = staticBuffer;
+        int    dynamicBuffer = 0;
+        word32 bufferSz = FILE_BUFFER_SIZE;
+        long   consumed = info->consumed;
+        word32 idx = 0;
+        int    gotOne = 0;
+
+        if ( (sz - consumed) > (int)bufferSz) {
+            WOLFSSL_MSG("Growing Tmp Chain Buffer");
+            bufferSz = (word32)(sz - consumed);
+                       /* will shrink to actual size */
+            chainBuffer = (byte*)XMALLOC(bufferSz, heap, DYNAMIC_TYPE_FILE);
+            if (chainBuffer == NULL) {
+                return MEMORY_E;
+            }
+            dynamicBuffer = 1;
+        }
+
+        WOLFSSL_MSG("Processing Cert Chain");
+        while (consumed < sz) {
+            int eccKey = 0;
+            DerBuffer* part = NULL;
+            word32 remain = (word32)(sz - consumed);
+            info->consumed = 0;
+
+            if (format == SSL_FILETYPE_PEM) {
+                ret = PemToDer(buff + consumed, remain, type, &part,
+                               heap, info, &eccKey);
+            }
+            else {
+                int length = remain;
+                if (format == SSL_FILETYPE_ASN1) {
+                    /* get length of der (read sequence) */
+                    word32 inOutIdx = 0;
+                    if (GetSequence(buff + consumed, &inOutIdx, &length, remain) < 0) {
+                        ret = SSL_NO_PEM_HEADER;
+                    }
+                    length += inOutIdx; /* include leading squence */
+                }
+                info->consumed = length;
+                if (ret == 0) {
+                    ret = AllocDer(&part, length, type, heap);
+                    if (ret == 0) {
+                        XMEMCPY(part->buffer, buff + consumed, length);
+                    }
+                }
+            }
+            if (ret == 0) {
+                gotOne = 1;
+                if ((idx + part->length) > bufferSz) {
+                    WOLFSSL_MSG("   Cert Chain bigger than buffer");
+                    ret = BUFFER_E;
+                }
+                else {
+                    c32to24(part->length, &chainBuffer[idx]);
+                    idx += CERT_HEADER_SZ;
+                    XMEMCPY(&chainBuffer[idx], part->buffer, part->length);
+                    idx += part->length;
+                    consumed  += info->consumed;
+                    if (used)
+                        *used += info->consumed;
+                }
+            }
+            FreeDer(&part);
+
+            if (ret == SSL_NO_PEM_HEADER && gotOne) {
+                WOLFSSL_MSG("We got one good cert, so stuff at end ok");
+                break;
+            }
+
+            if (ret < 0) {
+                WOLFSSL_MSG("   Error in Cert in Chain");
+                if (dynamicBuffer)
+                    XFREE(chainBuffer, heap, DYNAMIC_TYPE_FILE);
+                return ret;
+            }
+            WOLFSSL_MSG("   Consumed another Cert in Chain");
+        }
+        WOLFSSL_MSG("Finished Processing Cert Chain");
+
+        /* only retain actual size used */
+        ret = 0;
+        if (idx > 0) {
+            if (ssl) {
+                if (ssl->buffers.weOwnCertChain) {
+                    FreeDer(&ssl->buffers.certChain);
+                }
+                ret = AllocDer(&ssl->buffers.certChain, idx, type, heap);
+                if (ret == 0) {
+                    XMEMCPY(ssl->buffers.certChain->buffer, chainBuffer, idx);
+                    ssl->buffers.weOwnCertChain = 1;
+                }
+            } else if (ctx) {
+                FreeDer(&ctx->certChain);
+                ret = AllocDer(&ctx->certChain, idx, type, heap);
+                if (ret == 0) {
+                    XMEMCPY(ctx->certChain->buffer, chainBuffer, idx);
+                }
+            }
+        }
+
+        if (dynamicBuffer)
+            XFREE(chainBuffer, heap, DYNAMIC_TYPE_FILE);
+    }
+
+    return ret;
+}
 /* process the buffer buff, length sz, into ctx of format and type
    used tracks bytes consumed, userChain specifies a user cert chain
    to pass during the handshake */
-static int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
+int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
                          long sz, int format, int type, WOLFSSL* ssl,
                          long* used, int userChain)
 {
     DerBuffer*    der = NULL;        /* holds DER or RAW (for NTRU) */
-    int           ret;
+    int           ret = 0;
     int           eccKey = 0;
     int           rsaKey = 0;
     void*         heap = ctx ? ctx->heap : ((ssl) ? ssl->heap : NULL);
@@ -3806,6 +3929,7 @@ static int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
     if (used)
         *used = sz;     /* used bytes default to sz, PEM chain may shorten*/
 
+    /* check args */
     if (format != SSL_FILETYPE_ASN1 && format != SSL_FILETYPE_PEM
                                     && format != SSL_FILETYPE_RAW)
         return SSL_BAD_FILETYPE;
@@ -3826,134 +3950,44 @@ static int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
 
     if (format == SSL_FILETYPE_PEM) {
         ret = PemToDer(buff, sz, type, &der, heap, info, &eccKey);
-
-        if (used)
-            *used = info->consumed;
-
-        if (ret < 0) {
-        #ifdef WOLFSSL_SMALL_STACK
-            XFREE(info, heap, DYNAMIC_TYPE_TMP_BUFFER);
-        #endif
-            FreeDer(&der);
-            return ret;
+    }
+    else {  /* ASN1 (DER) or RAW (NTRU) */
+        int length = (int)sz;
+        if (format == SSL_FILETYPE_ASN1) {
+            /* get length of der (read sequence) */
+            word32 inOutIdx = 0;
+            if (GetSequence(buff, &inOutIdx, &length, (word32)sz) < 0) {
+                ret = ASN_PARSE_E;
+            }
+            length += inOutIdx; /* include leading squence */
         }
-
-        /* we may have a user cert chain, try to consume */
-        if (userChain && type == CERT_TYPE && info->consumed < sz) {
-        #ifdef WOLFSSL_SMALL_STACK
-            byte   staticBuffer[1];                 /* force heap usage */
-        #else
-            byte   staticBuffer[FILE_BUFFER_SIZE];  /* tmp chain buffer */
-        #endif
-            byte*  chainBuffer = staticBuffer;
-            int    dynamicBuffer = 0;
-            word32 bufferSz = sizeof(staticBuffer);
-            long   consumed = info->consumed;
-            word32 idx = 0;
-            int    gotOne = 0;
-
-            if ( (sz - consumed) > (int)bufferSz) {
-                WOLFSSL_MSG("Growing Tmp Chain Buffer");
-                bufferSz = (word32)(sz - consumed);
-                           /* will shrink to actual size */
-                chainBuffer = (byte*)XMALLOC(bufferSz, heap, DYNAMIC_TYPE_FILE);
-                if (chainBuffer == NULL) {
-                #ifdef WOLFSSL_SMALL_STACK
-                    XFREE(info, heap, DYNAMIC_TYPE_TMP_BUFFER);
-                #endif
-                    FreeDer(&der);
-                    return MEMORY_E;
-                }
-                dynamicBuffer = 1;
-            }
-
-            WOLFSSL_MSG("Processing Cert Chain");
-            while (consumed < sz) {
-                DerBuffer* part = NULL;
-                info->consumed = 0;
-
-                ret = PemToDer(buff + consumed, sz - consumed, type, &part,
-                               heap, info, &eccKey);
-                if (ret == 0) {
-                    gotOne = 1;
-                    if ( (idx + part->length) > bufferSz) {
-                        WOLFSSL_MSG("   Cert Chain bigger than buffer");
-                        ret = BUFFER_E;
-                    }
-                    else {
-                        c32to24(part->length, &chainBuffer[idx]);
-                        idx += CERT_HEADER_SZ;
-                        XMEMCPY(&chainBuffer[idx], part->buffer, part->length);
-                        idx += part->length;
-                        consumed  += info->consumed;
-                        if (used)
-                            *used += info->consumed;
-                    }
-                }
-                FreeDer(&part);
-
-                if (ret == SSL_NO_PEM_HEADER && gotOne) {
-                    WOLFSSL_MSG("We got one good PEM so stuff at end ok");
-                    break;
-                }
-
-                if (ret < 0) {
-                    WOLFSSL_MSG("   Error in Cert in Chain");
-                    if (dynamicBuffer)
-                        XFREE(chainBuffer, heap, DYNAMIC_TYPE_FILE);
-                #ifdef WOLFSSL_SMALL_STACK
-                    XFREE(info, heap, DYNAMIC_TYPE_TMP_BUFFER);
-                #endif
-                    FreeDer(&der);
-                    return ret;
-                }
-                WOLFSSL_MSG("   Consumed another Cert in Chain");
-            }
-            WOLFSSL_MSG("Finished Processing Cert Chain");
-
-            /* only retain actual size used */
-            ret = 0;
-            if (idx > 0) {
-                if (ssl) {
-                    if (ssl->buffers.weOwnCertChain) {
-                        FreeDer(&ssl->buffers.certChain);
-                    }
-                    ret = AllocDer(&ssl->buffers.certChain, idx, type, heap);
-                    if (ret == 0) {
-                        XMEMCPY(ssl->buffers.certChain->buffer, chainBuffer, idx);
-                        ssl->buffers.weOwnCertChain = 1;
-                    }
-                } else if (ctx) {
-                    FreeDer(&ctx->certChain);
-                    ret = AllocDer(&ctx->certChain, idx, type, heap);
-                    if (ret == 0) {
-                        XMEMCPY(ctx->certChain->buffer, chainBuffer, idx);
-                    }
-                }
-            }
-
-            if (dynamicBuffer)
-                XFREE(chainBuffer, heap, DYNAMIC_TYPE_FILE);
-
-            if (ret < 0) {
-            #ifdef WOLFSSL_SMALL_STACK
-                XFREE(info, heap, DYNAMIC_TYPE_TMP_BUFFER);
-            #endif
-                FreeDer(&der);
-                return ret;
+        info->consumed = length;
+        if (ret == 0) {
+            ret = AllocDer(&der, (word32)length, type, heap);
+            if (ret == 0) {
+                XMEMCPY(der->buffer, buff, length);
             }
         }
     }
-    else {  /* ASN1 (DER) or RAW (NTRU) */
-        ret = AllocDer(&der, (word32)sz, type, heap);
-        if (ret < 0) {
-        #ifdef WOLFSSL_SMALL_STACK
-            XFREE(info, heap, DYNAMIC_TYPE_TMP_BUFFER);
-        #endif
-            return ret;
-        }
 
-        XMEMCPY(der->buffer, buff, sz);
+    if (used) {
+        *used = info->consumed;
+    }
+
+    /* process user chain */
+    if (ret >= 0) {
+        if (userChain) {
+            ret = ProcessUserChain(ctx, buff, sz, format, type, ssl, used, info);
+        }
+    }
+
+    /* check for error */
+    if (ret < 0) {
+    #ifdef WOLFSSL_SMALL_STACK
+        XFREE(info, heap, DYNAMIC_TYPE_TMP_BUFFER);
+    #endif
+        FreeDer(&der);
+        return ret;
     }
 
 #if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
@@ -4045,13 +4079,13 @@ static int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
         }
         else if (ctx) {
             FreeDer(&ctx->certificate); /* Make sure previous is free'd */
-            #ifdef KEEP_OUR_CERT
-                FreeX509(ctx->ourCert);
-                if (ctx->ourCert) {
-                    XFREE(ctx->ourCert, ctx->heap, DYNAMIC_TYPE_X509);
-                    ctx->ourCert = NULL;
-                }
-            #endif
+        #ifdef KEEP_OUR_CERT
+            FreeX509(ctx->ourCert);
+            if (ctx->ourCert) {
+                XFREE(ctx->ourCert, ctx->heap, DYNAMIC_TYPE_X509);
+                ctx->ourCert = NULL;
+            }
+        #endif
             ctx->certificate = der;
         }
     }
@@ -8775,12 +8809,18 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
     }
 
 
+    int wolfSSL_CTX_use_certificate_chain_buffer_format(WOLFSSL_CTX* ctx,
+                                 const unsigned char* in, long sz, int format)
+    {
+        WOLFSSL_ENTER("wolfSSL_CTX_use_certificate_chain_buffer_format");
+        return ProcessBuffer(ctx, in, sz, format, CERT_TYPE, NULL, NULL, 1);
+    }
+
     int wolfSSL_CTX_use_certificate_chain_buffer(WOLFSSL_CTX* ctx,
                                  const unsigned char* in, long sz)
     {
-        WOLFSSL_ENTER("wolfSSL_CTX_use_certificate_chain_buffer");
-        return ProcessBuffer(ctx, in, sz, SSL_FILETYPE_PEM, CERT_TYPE, NULL,
-                             NULL, 1);
+        return wolfSSL_CTX_use_certificate_chain_buffer_format(ctx, in, sz,
+                                                            SSL_FILETYPE_PEM);
     }
 
 
@@ -8891,13 +8931,19 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
                              ssl, NULL, 0);
     }
 
+    int wolfSSL_use_certificate_chain_buffer_format(WOLFSSL* ssl,
+                                 const unsigned char* in, long sz, int format)
+    {
+        WOLFSSL_ENTER("wolfSSL_use_certificate_chain_buffer_format");
+        return ProcessBuffer(ssl->ctx, in, sz, format, CERT_TYPE,
+                             ssl, NULL, 1);
+    }
 
     int wolfSSL_use_certificate_chain_buffer(WOLFSSL* ssl,
                                  const unsigned char* in, long sz)
     {
-        WOLFSSL_ENTER("wolfSSL_use_certificate_chain_buffer");
-        return ProcessBuffer(ssl->ctx, in, sz, SSL_FILETYPE_PEM, CERT_TYPE,
-                             ssl, NULL, 1);
+        return wolfSSL_use_certificate_chain_buffer_format(ssl, in, sz,
+                                                            SSL_FILETYPE_PEM);
     }
 
 
@@ -11833,6 +11879,10 @@ WOLFSSL_X509* wolfSSL_get_certificate(WOLFSSL* ssl)
 
     if (ssl->buffers.weOwnCert) {
         if (ssl->ourCert == NULL) {
+            if (ssl->buffers.certificate == NULL) {
+                WOLFSSL_MSG("Certificate buffer not set!");
+                return NULL;
+            }
             ssl->ourCert = wolfSSL_X509_d2i(NULL,
                                               ssl->buffers.certificate->buffer,
                                               ssl->buffers.certificate->length);
@@ -11842,16 +11892,19 @@ WOLFSSL_X509* wolfSSL_get_certificate(WOLFSSL* ssl)
     else { /* if cert not owned get parent ctx cert or return null */
         if (ssl->ctx) {
             if (ssl->ctx->ourCert == NULL) {
+                if (ssl->ctx->certificate == NULL) {
+                    WOLFSSL_MSG("Ctx Certificate buffer not set!");
+                    return NULL;
+                }
                 ssl->ctx->ourCert = wolfSSL_X509_d2i(NULL,
                                                ssl->ctx->certificate->buffer,
                                                ssl->ctx->certificate->length);
             }
             return ssl->ctx->ourCert;
         }
-        else {
-            return NULL;
-        }
     }
+
+    return NULL;
 }
 #endif /* OPENSSL_EXTRA && KEEP_OUR_CERT */
 #endif /* NO_CERTS */
@@ -11963,390 +12016,29 @@ WOLFSSL_CIPHER* wolfSSL_get_current_cipher(WOLFSSL* ssl)
 
 const char* wolfSSL_CIPHER_get_name(const WOLFSSL_CIPHER* cipher)
 {
-    (void)cipher;
-
     WOLFSSL_ENTER("SSL_CIPHER_get_name");
-#ifndef NO_ERROR_STRINGS
-    if (cipher) {
-#if defined(HAVE_CHACHA)
-        if (cipher->ssl->options.cipherSuite0 == CHACHA_BYTE) {
-        /* ChaCha suites */
-        switch (cipher->ssl->options.cipherSuite) {
-#ifdef HAVE_POLY1305
-#ifndef NO_RSA
-            case TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256 :
-                return "TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256";
 
-            case TLS_DHE_RSA_WITH_CHACHA20_POLY1305_SHA256 :
-                return "TLS_DHE_RSA_WITH_CHACHA20_POLY1305_SHA256";
-
-            case TLS_ECDHE_RSA_WITH_CHACHA20_OLD_POLY1305_SHA256 :
-                return "TLS_ECDHE_RSA_WITH_CHACHA20_OLD_POLY1305_SHA256";
-
-            case TLS_DHE_RSA_WITH_CHACHA20_OLD_POLY1305_SHA256 :
-                return "TLS_DHE_RSA_WITH_CHACHA20_OLD_POLY1305_SHA256";
-#endif
-            case TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256 :
-                return "TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256";
-
-            case TLS_ECDHE_ECDSA_WITH_CHACHA20_OLD_POLY1305_SHA256 :
-                return "TLS_ECDHE_ECDSA_WITH_CHACHA20_OLD_POLY1305_SHA256";
-#ifndef NO_PSK
-            case TLS_ECDHE_PSK_WITH_CHACHA20_POLY1305_SHA256 :
-                return "TLS_ECDHE_PSK_WITH_CHACHA20_POLY1305_SHA256";
-            case TLS_PSK_WITH_CHACHA20_POLY1305_SHA256 :
-                return "TLS_PSK_WITH_CHACHA20_POLY1305_SHA256";
-            case TLS_DHE_PSK_WITH_CHACHA20_POLY1305_SHA256 :
-                return "TLS_DHE_PSK_WITH_CHACHA20_POLY1305_SHA256";
-#endif /* NO_PSK */
-#endif /* HAVE_POLY1305 */
-            }
-        }
-#endif
-
-#if defined(HAVE_ECC) || defined(HAVE_AESCCM)
-        /* Awkwardly, the ECC cipher suites use the ECC_BYTE as expected,
-         * but the AES-CCM cipher suites also use it, even the ones that
-         * aren't ECC. */
-        if (cipher->ssl->options.cipherSuite0 == ECC_BYTE) {
-        /* ECC suites */
-        switch (cipher->ssl->options.cipherSuite) {
-#ifdef HAVE_ECC
-#ifndef NO_RSA
-            case TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256 :
-                return "TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256";
-#endif
-            case TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256 :
-                return "TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256";
-#ifndef NO_RSA
-            case TLS_ECDH_RSA_WITH_AES_128_CBC_SHA256 :
-                return "TLS_ECDH_RSA_WITH_AES_128_CBC_SHA256";
-#endif
-            case TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA256 :
-                return "TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA256";
-#ifndef NO_RSA
-            case TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384 :
-                return "TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384";
-#endif
-            case TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384 :
-                return "TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384";
-#ifndef NO_RSA
-            case TLS_ECDH_RSA_WITH_AES_256_CBC_SHA384 :
-                return "TLS_ECDH_RSA_WITH_AES_256_CBC_SHA384";
-#endif
-            case TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA384 :
-                return "TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA384";
-#ifndef NO_SHA
-#ifndef NO_RSA
-            case TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA :
-                return "TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA";
-            case TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA :
-                return "TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA";
-#endif
-            case TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA :
-                return "TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA";
-            case TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA :
-                return "TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA";
-#ifndef NO_RC4
-    #ifndef NO_RSA
-            case TLS_ECDHE_RSA_WITH_RC4_128_SHA :
-                return "TLS_ECDHE_RSA_WITH_RC4_128_SHA";
-    #endif
-            case TLS_ECDHE_ECDSA_WITH_RC4_128_SHA :
-                return "TLS_ECDHE_ECDSA_WITH_RC4_128_SHA";
-#endif
-#ifndef NO_DES3
-    #ifndef NO_RSA
-            case TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA :
-                return "TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA";
-    #endif
-            case TLS_ECDHE_ECDSA_WITH_3DES_EDE_CBC_SHA :
-                return "TLS_ECDHE_ECDSA_WITH_3DES_EDE_CBC_SHA";
-#endif
-
-#ifndef NO_RSA
-            case TLS_ECDH_RSA_WITH_AES_128_CBC_SHA :
-                return "TLS_ECDH_RSA_WITH_AES_128_CBC_SHA";
-            case TLS_ECDH_RSA_WITH_AES_256_CBC_SHA :
-                return "TLS_ECDH_RSA_WITH_AES_256_CBC_SHA";
-#endif
-            case TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA :
-                return "TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA";
-            case TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA :
-                return "TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA";
-#ifndef NO_RC4
-    #ifndef NO_RSA
-            case TLS_ECDH_RSA_WITH_RC4_128_SHA :
-                return "TLS_ECDH_RSA_WITH_RC4_128_SHA";
-    #endif
-            case TLS_ECDH_ECDSA_WITH_RC4_128_SHA :
-                return "TLS_ECDH_ECDSA_WITH_RC4_128_SHA";
-#endif
-#ifndef NO_DES3
-    #ifndef NO_RSA
-            case TLS_ECDH_RSA_WITH_3DES_EDE_CBC_SHA :
-                return "TLS_ECDH_RSA_WITH_3DES_EDE_CBC_SHA";
-    #endif
-            case TLS_ECDH_ECDSA_WITH_3DES_EDE_CBC_SHA :
-                return "TLS_ECDH_ECDSA_WITH_3DES_EDE_CBC_SHA";
-#endif
-#endif /* NO_SHA */
-
-#ifdef HAVE_AESGCM
-#ifndef NO_RSA
-            case TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256 :
-                return "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256";
-            case TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384 :
-                return "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384";
-#endif
-            case TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256 :
-                return "TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256";
-            case TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384 :
-                return "TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384";
-#ifndef NO_RSA
-            case TLS_ECDH_RSA_WITH_AES_128_GCM_SHA256 :
-                return "TLS_ECDH_RSA_WITH_AES_128_GCM_SHA256";
-            case TLS_ECDH_RSA_WITH_AES_256_GCM_SHA384 :
-                return "TLS_ECDH_RSA_WITH_AES_256_GCM_SHA384";
-#endif
-            case TLS_ECDH_ECDSA_WITH_AES_128_GCM_SHA256 :
-                return "TLS_ECDH_ECDSA_WITH_AES_128_GCM_SHA256";
-            case TLS_ECDH_ECDSA_WITH_AES_256_GCM_SHA384 :
-                return "TLS_ECDH_ECDSA_WITH_AES_256_GCM_SHA384";
-#endif
-            case TLS_ECDHE_ECDSA_WITH_NULL_SHA :
-                return "TLS_ECDHE_ECDSA_WITH_NULL_SHA";
-#ifndef NO_PSK
-            case TLS_ECDHE_PSK_WITH_NULL_SHA256 :
-                return "TLS_ECDHE_PSK_WITH_NULL_SHA256";
-            case TLS_ECDHE_PSK_WITH_AES_128_CBC_SHA256 :
-                return "TLS_ECDHE_PSK_WITH_AES_128_CBC_SHA256";
-#endif
-#endif /* HAVE_ECC */
-
-#ifdef HAVE_AESCCM
-#ifndef NO_RSA
-            case TLS_RSA_WITH_AES_128_CCM_8 :
-                return "TLS_RSA_WITH_AES_128_CCM_8";
-            case TLS_RSA_WITH_AES_256_CCM_8 :
-                return "TLS_RSA_WITH_AES_256_CCM_8";
-#endif
-#ifndef NO_PSK
-            case TLS_PSK_WITH_AES_128_CCM_8 :
-                return "TLS_PSK_WITH_AES_128_CCM_8";
-            case TLS_PSK_WITH_AES_256_CCM_8 :
-                return "TLS_PSK_WITH_AES_256_CCM_8";
-            case TLS_PSK_WITH_AES_128_CCM :
-                return "TLS_PSK_WITH_AES_128_CCM";
-            case TLS_PSK_WITH_AES_256_CCM :
-                return "TLS_PSK_WITH_AES_256_CCM";
-            case TLS_DHE_PSK_WITH_AES_128_CCM :
-                return "TLS_DHE_PSK_WITH_AES_128_CCM";
-            case TLS_DHE_PSK_WITH_AES_256_CCM :
-                return "TLS_DHE_PSK_WITH_AES_256_CCM";
-#endif
-#ifdef HAVE_ECC
-            case TLS_ECDHE_ECDSA_WITH_AES_128_CCM:
-                return "TLS_ECDHE_ECDSA_WITH_AES_128_CCM";
-            case TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8:
-                return "TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8";
-            case TLS_ECDHE_ECDSA_WITH_AES_256_CCM_8 :
-                return "TLS_ECDHE_ECDSA_WITH_AES_256_CCM_8";
-#endif
-#endif
-
-            default:
-                return "NONE";
-        }
-        }
-#endif  /* ECC */
-        if (cipher->ssl->options.cipherSuite0 != ECC_BYTE &&
-            cipher->ssl->options.cipherSuite0 != CHACHA_BYTE) {
-
-            /* normal suites */
-        switch (cipher->ssl->options.cipherSuite) {
-#ifndef NO_RSA
-#ifndef NO_RC4
-    #ifndef NO_SHA
-            case SSL_RSA_WITH_RC4_128_SHA :
-                return "SSL_RSA_WITH_RC4_128_SHA";
-    #endif
-    #ifndef NO_MD5
-            case SSL_RSA_WITH_RC4_128_MD5 :
-                return "SSL_RSA_WITH_RC4_128_MD5";
-    #endif
-#endif
-#ifndef NO_SHA
-    #ifndef NO_DES3
-            case SSL_RSA_WITH_3DES_EDE_CBC_SHA :
-                return "SSL_RSA_WITH_3DES_EDE_CBC_SHA";
-    #endif
-    #ifdef HAVE_IDEA
-            case SSL_RSA_WITH_IDEA_CBC_SHA :
-                return "SSL_RSA_WITH_IDEA_CBC_SHA";
-    #endif
-
-            case TLS_RSA_WITH_AES_128_CBC_SHA :
-                return "TLS_RSA_WITH_AES_128_CBC_SHA";
-            case TLS_RSA_WITH_AES_256_CBC_SHA :
-                return "TLS_RSA_WITH_AES_256_CBC_SHA";
-#endif
-            case TLS_RSA_WITH_AES_128_CBC_SHA256 :
-                return "TLS_RSA_WITH_AES_128_CBC_SHA256";
-            case TLS_RSA_WITH_AES_256_CBC_SHA256 :
-                return "TLS_RSA_WITH_AES_256_CBC_SHA256";
-    #ifdef HAVE_BLAKE2
-            case TLS_RSA_WITH_AES_128_CBC_B2B256:
-                return "TLS_RSA_WITH_AES_128_CBC_B2B256";
-            case TLS_RSA_WITH_AES_256_CBC_B2B256:
-                return "TLS_RSA_WITH_AES_256_CBC_B2B256";
-    #endif
-#ifndef NO_SHA
-            case TLS_RSA_WITH_NULL_SHA :
-                return "TLS_RSA_WITH_NULL_SHA";
-#endif
-            case TLS_RSA_WITH_NULL_SHA256 :
-                return "TLS_RSA_WITH_NULL_SHA256";
-#endif /* NO_RSA */
-#ifndef NO_PSK
-#ifndef NO_SHA
-            case TLS_PSK_WITH_AES_128_CBC_SHA :
-                return "TLS_PSK_WITH_AES_128_CBC_SHA";
-            case TLS_PSK_WITH_AES_256_CBC_SHA :
-                return "TLS_PSK_WITH_AES_256_CBC_SHA";
-#endif
-#ifndef NO_SHA256
-            case TLS_PSK_WITH_AES_128_CBC_SHA256 :
-                return "TLS_PSK_WITH_AES_128_CBC_SHA256";
-            case TLS_PSK_WITH_NULL_SHA256 :
-                return "TLS_PSK_WITH_NULL_SHA256";
-            case TLS_DHE_PSK_WITH_AES_128_CBC_SHA256 :
-                return "TLS_DHE_PSK_WITH_AES_128_CBC_SHA256";
-            case TLS_DHE_PSK_WITH_NULL_SHA256 :
-                return "TLS_DHE_PSK_WITH_NULL_SHA256";
-    #ifdef HAVE_AESGCM
-            case TLS_PSK_WITH_AES_128_GCM_SHA256 :
-                return "TLS_PSK_WITH_AES_128_GCM_SHA256";
-            case TLS_DHE_PSK_WITH_AES_128_GCM_SHA256 :
-                return "TLS_DHE_PSK_WITH_AES_128_GCM_SHA256";
-    #endif
-#endif
-#ifdef WOLFSSL_SHA384
-            case TLS_PSK_WITH_AES_256_CBC_SHA384 :
-                return "TLS_PSK_WITH_AES_256_CBC_SHA384";
-            case TLS_PSK_WITH_NULL_SHA384 :
-                return "TLS_PSK_WITH_NULL_SHA384";
-            case TLS_DHE_PSK_WITH_AES_256_CBC_SHA384 :
-                return "TLS_DHE_PSK_WITH_AES_256_CBC_SHA384";
-            case TLS_DHE_PSK_WITH_NULL_SHA384 :
-                return "TLS_DHE_PSK_WITH_NULL_SHA384";
-    #ifdef HAVE_AESGCM
-            case TLS_PSK_WITH_AES_256_GCM_SHA384 :
-                return "TLS_PSK_WITH_AES_256_GCM_SHA384";
-            case TLS_DHE_PSK_WITH_AES_256_GCM_SHA384 :
-                return "TLS_DHE_PSK_WITH_AES_256_GCM_SHA384";
-    #endif
-#endif
-#ifndef NO_SHA
-            case TLS_PSK_WITH_NULL_SHA :
-                return "TLS_PSK_WITH_NULL_SHA";
-#endif
-#endif /* NO_PSK */
-#ifndef NO_RSA
-            case TLS_DHE_RSA_WITH_AES_128_CBC_SHA256 :
-                return "TLS_DHE_RSA_WITH_AES_128_CBC_SHA256";
-            case TLS_DHE_RSA_WITH_AES_256_CBC_SHA256 :
-                return "TLS_DHE_RSA_WITH_AES_256_CBC_SHA256";
-#ifndef NO_SHA
-            case TLS_DHE_RSA_WITH_AES_128_CBC_SHA :
-                return "TLS_DHE_RSA_WITH_AES_128_CBC_SHA";
-            case TLS_DHE_RSA_WITH_AES_256_CBC_SHA :
-                return "TLS_DHE_RSA_WITH_AES_256_CBC_SHA";
-        #ifndef NO_DES3
-            case TLS_DHE_RSA_WITH_3DES_EDE_CBC_SHA:
-                return "TLS_DHE_RSA_WITH_3DES_EDE_CBC_SHA";
-         #endif
-#endif
-#ifndef NO_HC128
-    #ifndef NO_MD5
-            case TLS_RSA_WITH_HC_128_MD5 :
-                return "TLS_RSA_WITH_HC_128_MD5";
-    #endif
-    #ifndef NO_SHA
-            case TLS_RSA_WITH_HC_128_SHA :
-                return "TLS_RSA_WITH_HC_128_SHA";
-    #endif
-    #ifdef HAVE_BLAKE2
-            case TLS_RSA_WITH_HC_128_B2B256:
-                return "TLS_RSA_WITH_HC_128_B2B256";
-    #endif
-#endif /* NO_HC128 */
-#ifndef NO_SHA
-    #ifndef NO_RABBIT
-            case TLS_RSA_WITH_RABBIT_SHA :
-                return "TLS_RSA_WITH_RABBIT_SHA";
-    #endif
-    #ifdef HAVE_NTRU
-        #ifndef NO_RC4
-            case TLS_NTRU_RSA_WITH_RC4_128_SHA :
-                return "TLS_NTRU_RSA_WITH_RC4_128_SHA";
-        #endif
-        #ifndef NO_DES3
-            case TLS_NTRU_RSA_WITH_3DES_EDE_CBC_SHA :
-                return "TLS_NTRU_RSA_WITH_3DES_EDE_CBC_SHA";
-        #endif
-            case TLS_NTRU_RSA_WITH_AES_128_CBC_SHA :
-                return "TLS_NTRU_RSA_WITH_AES_128_CBC_SHA";
-            case TLS_NTRU_RSA_WITH_AES_256_CBC_SHA :
-                return "TLS_NTRU_RSA_WITH_AES_256_CBC_SHA";
-    #endif /* HAVE_NTRU */
-    #ifdef HAVE_QSH
-            case TLS_QSH :
-                return "TLS_QSH";
-    #endif /* HAVE_QSH*/
-#endif /* NO_SHA */
-            case TLS_RSA_WITH_AES_128_GCM_SHA256 :
-                return "TLS_RSA_WITH_AES_128_GCM_SHA256";
-            case TLS_RSA_WITH_AES_256_GCM_SHA384 :
-                return "TLS_RSA_WITH_AES_256_GCM_SHA384";
-            case TLS_DHE_RSA_WITH_AES_128_GCM_SHA256 :
-                return "TLS_DHE_RSA_WITH_AES_128_GCM_SHA256";
-            case TLS_DHE_RSA_WITH_AES_256_GCM_SHA384 :
-                return "TLS_DHE_RSA_WITH_AES_256_GCM_SHA384";
-#ifndef NO_SHA
-            case TLS_RSA_WITH_CAMELLIA_128_CBC_SHA :
-                return "TLS_RSA_WITH_CAMELLIA_128_CBC_SHA";
-            case TLS_RSA_WITH_CAMELLIA_256_CBC_SHA :
-                return "TLS_RSA_WITH_CAMELLIA_256_CBC_SHA";
-#endif
-            case TLS_RSA_WITH_CAMELLIA_128_CBC_SHA256 :
-                return "TLS_RSA_WITH_CAMELLIA_128_CBC_SHA256";
-            case TLS_RSA_WITH_CAMELLIA_256_CBC_SHA256 :
-                return "TLS_RSA_WITH_CAMELLIA_256_CBC_SHA256";
-#ifndef NO_SHA
-            case TLS_DHE_RSA_WITH_CAMELLIA_128_CBC_SHA :
-                return "TLS_DHE_RSA_WITH_CAMELLIA_128_CBC_SHA";
-            case TLS_DHE_RSA_WITH_CAMELLIA_256_CBC_SHA :
-                return "TLS_DHE_RSA_WITH_CAMELLIA_256_CBC_SHA";
-#endif
-            case TLS_DHE_RSA_WITH_CAMELLIA_128_CBC_SHA256 :
-                return "TLS_DHE_RSA_WITH_CAMELLIA_128_CBC_SHA256";
-            case TLS_DHE_RSA_WITH_CAMELLIA_256_CBC_SHA256 :
-                return "TLS_DHE_RSA_WITH_CAMELLIA_256_CBC_SHA256";
-#endif /* NO_RSA */
-#ifdef BUILD_TLS_DH_anon_WITH_AES_128_CBC_SHA
-            case TLS_DH_anon_WITH_AES_128_CBC_SHA :
-                return "TLS_DH_anon_WITH_AES_128_CBC_SHA";
-#endif
-            default:
-                return "NONE";
-        }  /* switch */
-        }  /* normal / ECC */
+    if (cipher == NULL || cipher->ssl == NULL) {
+        return NULL;
     }
-#endif /* NO_ERROR_STRINGS */
-    return "NONE";
+
+    return wolfSSL_get_cipher_name_from_suite(cipher->ssl->options.cipherSuite,
+        cipher->ssl->options.cipherSuite0);
 }
 
+const char* wolfSSL_SESSION_CIPHER_get_name(WOLFSSL_SESSION* session)
+{
+    if (session == NULL) {
+        return NULL;
+    }
+
+#ifdef SESSION_CERTS
+    return wolfSSL_get_cipher_name_from_suite(session->cipherSuite,
+        session->cipherSuite0);
+#else
+    return NULL;
+#endif
+}
 
 const char* wolfSSL_get_cipher(WOLFSSL* ssl)
 {
@@ -12360,9 +12052,9 @@ const char* wolfSSL_get_cipher_name(WOLFSSL* ssl)
     /* get access to cipher_name_idx in internal.c */
     return wolfSSL_get_cipher_name_internal(ssl);
 }
+
+
 #ifdef OPENSSL_EXTRA
-
-
 
 char* wolfSSL_CIPHER_description(WOLFSSL_CIPHER* cipher, char* in, int len)
 {
@@ -18701,7 +18393,7 @@ void* wolfSSL_GetRsaDecCtx(WOLFSSL* ssl)
                 return ecc_sets[i].id;
             }
         }
-        return -1; 
+        return -1;
     }
 #endif /* HAVE_ECC */
 
