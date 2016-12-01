@@ -212,6 +212,8 @@ int wc_ShaFinal(Sha* sha, byte* hash)
 
 int wc_InitSha(Sha* sha)
 {
+    if (sha == NULL){ return BAD_FUNC_ARG; }
+
     int ret = 0;
 #ifdef FREESCALE_MMCAU
     ret = wolfSSL_CryptHwMutexLock();
@@ -358,6 +360,7 @@ static INLINE void AddLength(Sha* sha, word32 len)
 
 int wc_ShaUpdate(Sha* sha, const byte* data, word32 len)
 {
+    if (sha == NULL || (data == NULL && len > 0)) { return BAD_FUNC_ARG; }
     /* do block size increments */
     byte* local = (byte*)sha->buffer;
 
@@ -385,6 +388,7 @@ int wc_ShaUpdate(Sha* sha, const byte* data, word32 len)
 
 int wc_ShaFinal(Sha* sha, byte* hash)
 {
+    if (sha == NULL || hash == NULL) { return BAD_FUNC_ARG; }
     byte* local = (byte*)sha->buffer;
 
     AddLength(sha, sha->buffLen);  /* before adding pads */

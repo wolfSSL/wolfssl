@@ -302,6 +302,8 @@ static void set_Transform(void) {
 
 int wc_InitSha256(Sha256* sha256)
 {
+    if (sha256 == NULL) { return BAD_FUNC_ARG; }
+
     int ret = 0;
     #ifdef FREESCALE_MMCAU
         ret = wolfSSL_CryptHwMutexLock();
@@ -442,6 +444,7 @@ static INLINE void AddLength(Sha256* sha256, word32 len)
 
 static INLINE int Sha256Update(Sha256* sha256, const byte* data, word32 len)
 {
+    if (sha256 == NULL || (data == NULL && len > 0)) { return BAD_FUNC_ARG; }
 
     /* do block size increments */
     byte* local = (byte*)sha256->buffer;
@@ -485,6 +488,7 @@ int wc_Sha256Update(Sha256* sha256, const byte* data, word32 len)
 
 static INLINE int Sha256Final(Sha256* sha256)
 {
+    if (sha256 == NULL || hash == NULL) { return BAD_FUNC_ARG; }
     byte* local = (byte*)sha256->buffer;
     int ret;
     

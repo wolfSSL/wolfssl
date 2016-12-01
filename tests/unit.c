@@ -71,6 +71,7 @@ int unit_test(int argc, char** argv)
         return ret;
     }
 
+
 #ifndef SINGLE_THREADED
     if ( (ret = SuiteTest()) != 0){
         printf("suite test failed with %d\n", ret);

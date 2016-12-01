@@ -340,6 +340,8 @@ static INLINE ROTR(rotrFixed64_41, 41, x)
 
 int wc_InitSha512(Sha512* sha512)
 {
+    if (sha512 == NULL) { return BAD_FUNC_ARG; }
+
     sha512->digest[0] = W64LIT(0x6a09e667f3bcc908);
     sha512->digest[1] = W64LIT(0xbb67ae8584caa73b);
     sha512->digest[2] = W64LIT(0x3c6ef372fe94f82b);
@@ -506,6 +508,7 @@ static INLINE void AddLength(Sha512* sha512, word32 len)
 
 int wc_Sha512Update(Sha512* sha512, const byte* data, word32 len)
 {
+    if (sha512 == NULL || (data == NULL && len > 0)) { return BAD_FUNC_ARG; }
     /* do block size increments */
     byte* local = (byte*)sha512->buffer;
     SAVE_XMM_YMM ; /* for Intel AVX */
@@ -541,6 +544,7 @@ int wc_Sha512Update(Sha512* sha512, const byte* data, word32 len)
 
 int wc_Sha512Final(Sha512* sha512, byte* hash)
 {
+   if (sha512 == NULL || hash == NULL) { return BAD_FUNC_ARG; }
     byte* local = (byte*)sha512->buffer;
     int ret;
 
