@@ -1360,7 +1360,7 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 
         int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
         {
-            TRNG_DRV_GetRandomData(TRNG_INSTANCE, output, sz);
+            TRNG_GetRandomData(TRNG_INSTANCE, output, sz);
             return 0;
         }
 

@@ -760,6 +760,7 @@ static char *fgets(char *buff, int sz, FILE *fp)
     /* random seed */
     #define NO_OLD_RNGNAME
     #if (FSL_FEATURE_SOC_TRNG_COUNT > 0)
+        #include "fsl_trng.h"
         #define FREESCALE_TRNG
         #define TRNG_INSTANCE (0)
     #elif (FSL_FEATURE_SOC_RNG_COUNT > 0)

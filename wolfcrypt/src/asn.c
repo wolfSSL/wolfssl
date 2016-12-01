@@ -376,7 +376,7 @@ time_t mqx_time(time_t* timer)
 
 #if defined(FREESCALE_KSDK_BM) || defined(FREESCALE_FREE_RTOS)
 
-#include "fsl_pit_driver.h"
+#include "fsl_pit.h"
 
 time_t ksdk_time(time_t* timer)
 {
@@ -385,7 +385,7 @@ time_t ksdk_time(time_t* timer)
     if (timer == NULL)
         timer = &localTime;
 
-    *timer = (PIT_DRV_ReadTimerUs(PIT_INSTANCE, PIT_CHANNEL)) / 1000000;
+    *timer = COUNT_TO_USEC(PIT_GetCurrentTimerCount(PIT_INSTANCE, PIT_CHANNEL), SystemCoreClock) / 1000000;
     return *timer;
 }
 

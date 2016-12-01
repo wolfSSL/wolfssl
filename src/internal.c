@@ -4590,7 +4590,7 @@ ProtocolVersion MakeDTLSv1_2(void)
 
 #elif defined(FREESCALE_KSDK_BM) || defined(FREESCALE_FREE_RTOS)
 
-    #include "fsl_pit_driver.h"
+    #include "fsl_pit.h"
 
     word32 LowResTimer(void)
     {
