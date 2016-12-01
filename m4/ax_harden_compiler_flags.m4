@@ -61,6 +61,7 @@
 # AX_APPEND_COMPILE_FLAGS([-fstack-check],,[$ax_append_compile_cflags_extra]) -- problems with fastmath stack size checks
 # AX_APPEND_COMPILE_FLAGS([-floop-parallelize-all],,[$ax_append_compile_cflags_extra]) -- causes RSA verify problem on x64
 # AX_APPEND_COMPILE_FLAGS([-Wunreachable-code],,[$ax_append_compile_cflags_extra])  -- older clang and when gcc had it are buggy
+# AX_APPEND_COMPILE_FLAGS([-fPIE],,[$ax_append_compile_cflags_extra]) -- Flag for executables not libraries
 
 #serial 4.2
 # changes: deleted the clearing of CFLAGS
@@ -155,7 +156,6 @@
       AX_APPEND_COMPILE_FLAGS([-Wunused-variable],,[$ax_append_compile_cflags_extra])
       AX_APPEND_COMPILE_FLAGS([-Wwrite-strings],,[$ax_append_compile_cflags_extra])
       AX_APPEND_COMPILE_FLAGS([-fwrapv],,[$ax_append_compile_cflags_extra])
-      AX_APPEND_COMPILE_FLAGS([-fPIE],,[$ax_append_compile_cflags_extra])
       AC_LANG_POP
       ])
 
