@@ -115,6 +115,7 @@ typedef struct WOLFSSL_ASN1_STRING      WOLFSSL_ASN1_STRING;
 typedef struct WOLFSSL_dynlock_value    WOLFSSL_dynlock_value;
 typedef struct WOLFSSL_DH               WOLFSSL_DH;
 typedef struct WOLFSSL_ASN1_BIT_STRING  WOLFSSL_ASN1_BIT_STRING;
+typedef unsigned char*                  WOLFSSL_BUF_MEM;
 
 #define WOLFSSL_ASN1_UTCTIME WOLFSSL_ASN1_TIME
 
@@ -541,7 +542,7 @@ WOLFSSL_API long wolfSSL_BIO_get_fp(WOLFSSL_BIO *bio, XFILE fp);
 WOLFSSL_API long wolfSSL_BIO_seek(WOLFSSL_BIO *bio, int ofs);
 WOLFSSL_API long wolfSSL_BIO_write_filename(WOLFSSL_BIO *bio, char *name);
 WOLFSSL_API long wolfSSL_BIO_set_mem_eof_return(WOLFSSL_BIO *bio, int v);
-WOLFSSL_API long wolfSSL_BIO_get_mem_ptr(WOLFSSL_BIO *b, void *m);
+WOLFSSL_API long wolfSSL_BIO_get_mem_ptr(WOLFSSL_BIO *bio, WOLFSSL_BUF_MEM **m);
 
 WOLFSSL_API void        wolfSSL_RAND_screen(void);
 WOLFSSL_API const char* wolfSSL_RAND_file_name(char*, unsigned long);
@@ -751,6 +752,7 @@ enum {
     WOLFSSL_OCSP_CHECKALL     = 4,
 
     WOLFSSL_CRL_CHECKALL = 1,
+    WOLFSSL_CRL_CHECK    = 27,
 
     ASN1_GENERALIZEDTIME = 4,
 
@@ -1954,11 +1956,11 @@ WOLFSSL_API char wolfSSL_CTX_use_certificate(WOLFSSL_CTX *ctx, WOLFSSL_X509 *x);
 WOLFSSL_API int wolfSSL_BIO_read_filename(WOLFSSL_BIO *b, const char *name);
 WOLFSSL_API WOLFSSL_BIO_METHOD* wolfSSL_BIO_s_file(void);
 /* These are to be merged shortly */
-WOLFSSL_API const char *  wolf_OBJ_nid2sn(int n);
-WOLFSSL_API int wolf_OBJ_obj2nid(const WOLFSSL_ASN1_OBJECT *o);
-WOLFSSL_API int wolf_OBJ_sn2nid(const char *sn);
-WOLFSSL_API WOLFSSL_X509 *PEM_read_bio_WOLFSSL_X509(WOLFSSL_BIO *bp, WOLFSSL_X509 **x, pem_password_cb *cb, void *u);
-WOLFSSL_API WOLFSSL_X509 *PEM_read_bio_WOLFSSL_X509_AUX
+WOLFSSL_API const char *  wolfSSL_OBJ_nid2sn(int n);
+WOLFSSL_API int wolfSSL_OBJ_obj2nid(const WOLFSSL_ASN1_OBJECT *o);
+WOLFSSL_API int wolfSSL_OBJ_sn2nid(const char *sn);
+WOLFSSL_API WOLFSSL_X509 *wolfSSL_PEM_read_bio_X509(WOLFSSL_BIO *bp, WOLFSSL_X509 **x, pem_password_cb *cb, void *u);
+WOLFSSL_API WOLFSSL_X509 *wolfSSL_PEM_read_bio_X509_AUX
         (WOLFSSL_BIO *bp, WOLFSSL_X509 **x, pem_password_cb *cb, void *u);
 WOLFSSL_API void wolfSSL_CTX_set_verify_depth(WOLFSSL_CTX *ctx,int depth);
 WOLFSSL_API void* wolfSSL_get_app_data( const WOLFSSL *ssl);

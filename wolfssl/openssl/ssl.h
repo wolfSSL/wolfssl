@@ -80,6 +80,7 @@ typedef WOLFSSL_ASN1_INTEGER   ASN1_INTEGER;
 typedef WOLFSSL_ASN1_OBJECT    ASN1_OBJECT;
 typedef WOLFSSL_ASN1_STRING    ASN1_STRING;
 typedef WOLFSSL_dynlock_value  CRYPTO_dynlock_value;
+typedef WOLFSSL_BUF_MEM        BUF_MEM;
 
 /* GENERAL_NAME and BASIC_CONSTRAINTS structs may need implemented as
  * compatibility layer expands. For now treating them as an ASN1_OBJECT */
@@ -109,7 +110,7 @@ typedef WOLFSSL_X509_STORE_CTX X509_STORE_CTX;
 #define ERR_print_errors_fp(file) wolfSSL_print_all_errors_fp((file))
 
 /* at the moment only returns ok */
-#define SSL_get_verify_result(ctx)    X509_V_OK
+#define SSL_get_verify_result         wolfSSL_get_verify_result
 #define SSL_get_verify_mode           wolfSSL_SSL_get_mode
 #define SSL_get_verify_depth          wolfSSL_get_verify_depth
 #define SSL_CTX_get_verify_mode       wolfSSL_CTX_get_verify_mode
@@ -474,11 +475,11 @@ typedef WOLFSSL_X509_NAME_ENTRY X509_NAME_ENTRY;
 #define SSL_CTX_use_PrivateKey wolfSSL_CTX_use_PrivateKey
 #define BIO_read_filename wolfSSL_BIO_read_filename
 #define BIO_s_file wolfSSL_BIO_s_file
-#define OBJ_nid2sn wolf_OBJ_nid2sn
-#define OBJ_obj2nid wolf_OBJ_obj2nid
-#define OBJ_sn2nid wolf_OBJ_sn2nid
-#define PEM_read_bio_X509 PEM_read_bio_WOLFSSL_X509
-#define PEM_read_bio_X509_AUX PEM_read_bio_WOLFSSL_X509_AUX
+#define OBJ_nid2sn wolfSSL_OBJ_nid2sn
+#define OBJ_obj2nid wolfSSL_OBJ_obj2nid
+#define OBJ_sn2nid wolfSSL_OBJ_sn2nid
+#define PEM_read_bio_X509 wolfSSL_PEM_read_bio_X509
+#define PEM_read_bio_X509_AUX wolfSSL_PEM_read_bio_X509_AUX
 #define SSL_CTX_set_verify_depth wolfSSL_CTX_set_verify_depth
 #define SSL_get_app_data wolfSSL_get_app_data
 #define SSL_set_app_data wolfSSL_set_app_data
@@ -587,6 +588,9 @@ typedef WOLFSSL_X509_NAME_ENTRY X509_NAME_ENTRY;
 
 #define SSL_ctrl     wolfSSL_ctrl
 #define SSL_CTX_ctrl wolfSSL_CTX_ctrl
+
+#define X509_V_FLAG_CRL_CHECK     WOLFSSL_CRL_CHECK
+#define X509_V_FLAG_CRL_CHECK_ALL WOLFSSL_CRL_CHECKALL
 
 #ifdef HAVE_STUNNEL
 #include <wolfssl/openssl/asn1.h>

@@ -6462,8 +6462,12 @@ static int DoCertificate(WOLFSSL* ssl, byte* input, word32* inOutIdx,
     while (listSz) {
         word32 certSz;
 
-        if (totalCerts >= MAX_CHAIN_DEPTH)
+        if (totalCerts >= MAX_CHAIN_DEPTH) {
+        #ifdef OPENSSL_EXTRA
+            ssl->peerVerifyRet = X509_V_ERR_CERT_CHAIN_TOO_LONG;
+        #endif
             return MAX_CHAIN_ERROR;
+        }
 
         if ((*inOutIdx - begin) + OPAQUE24_LEN > size)
             return BUFFER_ERROR;
@@ -6684,6 +6688,9 @@ static int DoCertificate(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 
         if (ret == 0) {
             WOLFSSL_MSG("Verified Peer's cert");
+        #ifdef OPENSSL_EXTRA
+            ssl->peerVerifyRet = X509_V_OK;
+        #endif
             fatal = 0;
         }
         else if (ret == ASN_PARSE_E) {
@@ -6821,6 +6828,9 @@ static int DoCertificate(WOLFSSL* ssl, byte* input, word32* inOutIdx,
             XFREE(dCert, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         #endif
             ssl->error = ret;
+        #ifdef OPENSSL_EXTRA
+            ssl->peerVerifyRet = X509_V_ERR_CERT_REJECTED;
+        #endif
             return ret;
         }
         ssl->options.havePeerCert = 1;

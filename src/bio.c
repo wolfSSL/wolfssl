@@ -39,13 +39,17 @@ WOLFSSL_API long wolfSSL_BIO_ctrl_pending(WOLFSSL_BIO *b)
    return 0;
 }
 
-/*** TBD ***/
-WOLFSSL_API long wolfSSL_BIO_get_mem_ptr(WOLFSSL_BIO *b, void *m)
+
+long wolfSSL_BIO_get_mem_ptr(WOLFSSL_BIO *bio, WOLFSSL_BUF_MEM **ptr)
 {
-   (void) b;
-   (void) m;
     WOLFSSL_ENTER("BIO_get_mem_ptr");
-   return 0;
+
+    if (bio == NULL || ptr == NULL) {
+        return SSL_FAILURE;
+    }
+
+    *ptr = (WOLFSSL_BUF_MEM*)(bio->mem);
+    return SSL_SUCCESS;
 }
 
 /*** TBD ***/
@@ -57,13 +61,6 @@ WOLFSSL_API long wolfSSL_BIO_int_ctrl(WOLFSSL_BIO *bp, int cmd, long larg, int i
     (void) iarg;
     WOLFSSL_ENTER("BIO_int_ctrl");
     return 0;
-}
-
-/*** TBD ***/
-WOLFSSL_API const WOLFSSL_BIO_METHOD *wolfSSL_BIO_s_socket(void)
-{
-    WOLFSSL_ENTER("BIO_s_socket");
-    return NULL;
 }
 
 /*** TBD ***/

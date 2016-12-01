@@ -217,7 +217,6 @@ void WOLFSSL_ERROR(int error)
 {
     if (loggingEnabled) {
         char buffer[80];
-        sprintf(buffer, "wolfSSL error occurred, error = %d", error);
         #if defined(OPENSSL_EXTRA) || defined(DEBUG_WOLFSSL_VERBOSE)
             (void)usrCtx; /* a user ctx for future flexibility */
             (void)func;
@@ -228,7 +227,10 @@ void WOLFSSL_ERROR(int error)
             if (XSTRLEN(file) < sizeof(file)) {
 	            XSTRNCPY((char*)wc_last_error_file, file, XSTRLEN(file));
             }
-            sprintf(buffer, "%s line:%d file:%s", buffer, line, file);
+            sprintf(buffer, "wolfSSL error occurred, error = %d line:%d file:%s",
+                    error, line, file);
+        #else
+            sprintf(buffer, "wolfSSL error occurred, error = %d", error);
         #endif
         wolfssl_log(ERROR_LOG , buffer);
     }

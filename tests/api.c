@@ -48,6 +48,7 @@
     #include <wolfssl/openssl/pkcs12.h>
     #include <wolfssl/openssl/evp.h>
     #include <wolfssl/openssl/dh.h>
+    #include <wolfssl/openssl/bn.h>
     #include <wolfssl/openssl/pem.h>
 #ifndef NO_DES3
     #include <wolfssl/openssl/des.h>
@@ -2414,7 +2415,7 @@ static void test_wolfSSL_certs(void)
     /* AssertNotNull(sk); NID not yet supported */
     AssertIntEQ(crit, -1);
     wolfSSL_sk_ASN1_OBJECT_free(sk);
-    
+
     /* test invalid cases */
     crit = 0;
     sk = (STACK_OF(ASN1_OBJECT)*)X509_get_ext_d2i(x509, -1, &crit, NULL);
@@ -2576,13 +2577,26 @@ static void test_wolfSSL_tmp_dh(void)
 static void test_wolfSSL_ctrl(void)
 {
     #if defined(OPENSSL_EXTRA)
+    byte buffer[5300];
+    BIO* bio;
+    int  bytes;
+    BUF_MEM* ptr = NULL;
+
     printf(testingFmt, "wolfSSL_crtl()");
+
+    bytes = sizeof(buffer);
+    bio = BIO_new_mem_buf((void*)buffer, bytes);
+    AssertNotNull(bio);
+    AssertNotNull(BIO_s_socket());
+
+    AssertIntEQ((int)wolfSSL_BIO_get_mem_ptr(bio, &ptr), SSL_SUCCESS);
 
     /* needs tested after stubs filled out @TODO
         SSL_ctrl
         SSL_CTX_ctrl
     */
 
+    BIO_free(bio);
     printf(resultFmt, passed);
     #endif /* defined(OPENSSL_EXTRA) */
 }
@@ -2657,7 +2671,7 @@ static void test_wolfSSL_ERR_peek_last_error_line(void)
     FreeTcpReady(&ready);
 
     /* check that error code was stored */
-    AssertIntNE(wolfSSL_ERR_peek_last_error_line(NULL, NULL), 0);
+    AssertIntNE((int)wolfSSL_ERR_peek_last_error_line(NULL, NULL), 0);
     wolfSSL_ERR_peek_last_error_line(NULL, &line);
     AssertIntNE(line, 0);
     wolfSSL_ERR_peek_last_error_line(&file, NULL);
@@ -2669,7 +2683,81 @@ static void test_wolfSSL_ERR_peek_last_error_line(void)
 
     printf(resultFmt, passed);
     #endif /* defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && \
-             !defined(NO_FILESYSTEM) && !defined(NO_RSA) */
+             !defined(NO_FILESYSTEM) && !defined(DEBUG_WOLFSSL) */
+}
+
+
+static void test_wolfSSL_X509_STORE_set_flags(void)
+{
+    #if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && \
+       !defined(NO_FILESYSTEM)
+
+    X509_STORE* store;
+    X509* x509;
+
+    printf(testingFmt, "wolfSSL_ERR_peek_last_error_line()");
+    AssertNotNull((store = wolfSSL_X509_STORE_new()));
+    AssertNotNull((x509 =
+                wolfSSL_X509_load_certificate_file(svrCert, SSL_FILETYPE_PEM)));
+    AssertIntEQ(X509_STORE_add_cert(store, x509), SSL_SUCCESS);
+
+#ifdef HAVE_CRL
+    AssertIntEQ(X509_STORE_set_flags(store, WOLFSSL_CRL_CHECKALL), SSL_SUCCESS);
+#else
+    AssertIntEQ(X509_STORE_set_flags(store, WOLFSSL_CRL_CHECKALL),
+        NOT_COMPILED_IN);
+#endif
+
+    wolfSSL_X509_free(x509);
+    wolfSSL_X509_STORE_free(store);
+
+    printf(resultFmt, passed);
+    #endif /* defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && \
+             !defined(NO_FILESYSTEM) */
+}
+
+
+static void test_wolfSSL_BN(void)
+{
+    #if defined(OPENSSL_EXTRA)
+    BIGNUM* a;
+    BIGNUM* b;
+    BIGNUM* c;
+    BIGNUM* d;
+    unsigned char value[1];
+
+    printf(testingFmt, "wolfSSL_BN()");
+
+    AssertNotNull(a = BN_new());
+    AssertNotNull(b = BN_new());
+    AssertNotNull(c = BN_new());
+    AssertNotNull(d = BN_new());
+
+    value[0] = 0x03;
+    AssertNotNull(BN_bin2bn(value, sizeof(value), a));
+
+    value[0] = 0x02;
+    AssertNotNull(BN_bin2bn(value, sizeof(value), b));
+
+    value[0] = 0x05;
+    AssertNotNull(BN_bin2bn(value, sizeof(value), c));
+
+    /* a^b mod c = */
+    AssertIntEQ(BN_mod_exp(d, NULL, b, c, NULL), SSL_FAILURE);
+    AssertIntEQ(BN_mod_exp(d, a, b, c, NULL), SSL_SUCCESS);
+
+    /* check result  3^2 mod 5 */
+    value[0] = 0;
+    AssertIntEQ(BN_bn2bin(d, value), SSL_SUCCESS);
+    AssertIntEQ((int)(value[0] & 0x04), 4);
+
+    BN_free(a);
+    BN_free(b);
+    BN_free(c);
+    BN_clear_free(d);
+
+    printf(resultFmt, passed);
+    #endif /* defined(OPENSSL_EXTRA) */
 }
 
 /*----------------------------------------------------------------------------*
@@ -2725,6 +2813,8 @@ void ApiTest(void)
     test_wolfSSL_ctrl();
     test_wolfSSL_CTX_add_extra_chain_cert();
     test_wolfSSL_ERR_peek_last_error_line();
+    test_wolfSSL_X509_STORE_set_flags();
+    test_wolfSSL_BN();
 
     AssertIntEQ(test_wolfSSL_Cleanup(), SSL_SUCCESS);
     printf(" End API Tests\n");

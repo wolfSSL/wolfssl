@@ -2750,6 +2750,7 @@ struct WOLFSSL {
 #ifdef OPENSSL_EXTRA
     WOLFSSL_BIO*     biord;              /* socket bio read  to free/close */
     WOLFSSL_BIO*     biowr;              /* socket bio write to free/close */
+    unsigned long    peerVerifyRet;
 #ifdef HAVE_PK_CALLBACKS
     void*            loggingCtx;         /* logging callback argument */
 #endif
