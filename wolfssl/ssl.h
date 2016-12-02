@@ -728,6 +728,41 @@ WOLFSSL_API unsigned long wolfSSL_get_verify_result(const WOLFSSL *ssl);
 #define WOLFSSL_DEFAULT_CIPHER_LIST ""   /* default all */
 #define WOLFSSL_RSA_F4 0x10001L
 
+/* seperated out from other enums because of size */
+enum {
+    /* bit flags (ie 0001 vs 0010) : each is 2 times previous value */
+    SSL_OP_MICROSOFT_SESS_ID_BUG            = 1,
+    SSL_OP_NETSCAPE_CHALLENGE_BUG           = 2,
+    SSL_OP_NETSCAPE_REUSE_CIPHER_CHANGE_BUG = 4,
+    SSL_OP_SSLREF2_REUSE_CERT_TYPE_BUG      = 8,
+    SSL_OP_MICROSOFT_BIG_SSLV3_BUFFER       = 16,
+    SSL_OP_MSIE_SSLV2_RSA_PADDING           = 32,
+    SSL_OP_SSLEAY_080_CLIENT_DH_BUG         = 64,
+    SSL_OP_TLS_D5_BUG                       = 128,
+    SSL_OP_TLS_BLOCK_PADDING_BUG            = 256,
+    SSL_OP_TLS_ROLLBACK_BUG                 = 512,
+    SSL_OP_ALL                              = 1024,
+    SSL_OP_EPHEMERAL_RSA                    = 2048,
+    SSL_OP_NO_SSLv3                         = 4096,
+    SSL_OP_NO_TLSv1                         = 8192,
+    SSL_OP_PKCS1_CHECK_1                    = 16384,
+    SSL_OP_PKCS1_CHECK_2                    = 32768,
+    SSL_OP_NETSCAPE_CA_DN_BUG               = 65536,
+    SSL_OP_NETSCAPE_DEMO_CIPHER_CHANGE_BUG  = 131072,
+    SSL_OP_SINGLE_DH_USE                    = 262144,
+    SSL_OP_NO_TICKET                        = 524288,
+    SSL_OP_DONT_INSERT_EMPTY_FRAGMENTS      = 1048576,
+    SSL_OP_NO_QUERY_MTU                     = 2097152,
+    SSL_OP_COOKIE_EXCHANGE                  = 4194304,
+    SSL_OP_NO_SESSION_RESUMPTION_ON_RENEGOTIATION = 8388608,
+    SSL_OP_SINGLE_ECDH_USE                  = 16777216,
+    SSL_OP_CIPHER_SERVER_PREFERENCE         = 33554432,
+    SSL_OP_NO_TLSv1_1                       = 67108864,
+    SSL_OP_NO_TLSv1_2                       = 134217728,
+    SSL_OP_NO_COMPRESSION                   = 268435456,
+};
+
+
 enum {
     OCSP_NOCERTS     = 1,
     OCSP_NOINTERN    = 2,
@@ -755,34 +790,6 @@ enum {
     WOLFSSL_CRL_CHECK    = 27,
 
     ASN1_GENERALIZEDTIME = 4,
-
-    SSL_OP_MICROSOFT_SESS_ID_BUG = 1,
-    SSL_OP_NETSCAPE_CHALLENGE_BUG = 2,
-    SSL_OP_NETSCAPE_REUSE_CIPHER_CHANGE_BUG = 3,
-    SSL_OP_SSLREF2_REUSE_CERT_TYPE_BUG = 4,
-    SSL_OP_MICROSOFT_BIG_SSLV3_BUFFER = 5,
-    SSL_OP_MSIE_SSLV2_RSA_PADDING = 6,
-    SSL_OP_SSLEAY_080_CLIENT_DH_BUG = 7,
-    SSL_OP_TLS_D5_BUG = 8,
-    SSL_OP_TLS_BLOCK_PADDING_BUG = 9,
-    SSL_OP_TLS_ROLLBACK_BUG = 10,
-    SSL_OP_ALL = 11,
-    SSL_OP_EPHEMERAL_RSA = 12,
-    SSL_OP_NO_SSLv3 = 13,
-    SSL_OP_NO_TLSv1 = 14,
-    SSL_OP_PKCS1_CHECK_1 = 15,
-    SSL_OP_PKCS1_CHECK_2 = 16,
-    SSL_OP_NETSCAPE_CA_DN_BUG = 17,
-    SSL_OP_NETSCAPE_DEMO_CIPHER_CHANGE_BUG = 18,
-    SSL_OP_SINGLE_DH_USE = 19,
-    SSL_OP_NO_TICKET = 20,
-    SSL_OP_DONT_INSERT_EMPTY_FRAGMENTS = 21,
-    SSL_OP_NO_QUERY_MTU = 22,
-    SSL_OP_COOKIE_EXCHANGE = 23,
-    SSL_OP_NO_SESSION_RESUMPTION_ON_RENEGOTIATION = 24,
-    SSL_OP_SINGLE_ECDH_USE = 25,
-    SSL_OP_CIPHER_SERVER_PREFERENCE = 26,
-
     SSL_MAX_SSL_SESSION_ID_LENGTH = 32,
 
     EVP_R_BAD_DECRYPT = 2,

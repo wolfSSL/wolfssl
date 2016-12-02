@@ -14086,24 +14086,77 @@ int wolfSSL_PEM_def_callback(char* name, int num, int w, void* key)
 }
 
 
-/* wolfSSL options are set through API calls and macros.
- * return 0 for no options set */
 unsigned long wolfSSL_set_options(WOLFSSL* ssl, unsigned long op)
 {
-    (void)ssl;
-    (void)op;
-    WOLFSSL_MSG("Set options in wolfSSL through API and macros");
-    return 0;
+    WOLFSSL_ENTER("wolfSSL_set_options");
+
+    if (ssl == NULL) {
+        return 0;
+    }
+
+    /* if SSL_OP_ALL then turn all bug workarounds one */
+    if ((op & SSL_OP_ALL) == SSL_OP_ALL) {
+        WOLFSSL_MSG("\tSSL_OP_ALL");
+
+        op |= SSL_OP_MICROSOFT_SESS_ID_BUG;
+        op |= SSL_OP_NETSCAPE_CHALLENGE_BUG;
+        op |= SSL_OP_NETSCAPE_REUSE_CIPHER_CHANGE_BUG;
+        op |= SSL_OP_SSLREF2_REUSE_CERT_TYPE_BUG;
+        op |= SSL_OP_MICROSOFT_BIG_SSLV3_BUFFER;
+        op |= SSL_OP_MSIE_SSLV2_RSA_PADDING;
+        op |= SSL_OP_SSLEAY_080_CLIENT_DH_BUG;
+        op |= SSL_OP_TLS_D5_BUG;
+        op |= SSL_OP_TLS_BLOCK_PADDING_BUG;
+        op |= SSL_OP_TLS_ROLLBACK_BUG;
+        op |= SSL_OP_DONT_INSERT_EMPTY_FRAGMENTS;
+    }
+
+
+    /* by default cookie exchange is on with DTLS */
+    if ((op & SSL_OP_COOKIE_EXCHANGE) == SSL_OP_COOKIE_EXCHANGE) {
+        WOLFSSL_MSG("\tSSL_OP_COOKIE_EXCHANGE : on by default");
+    }
+
+    if ((op & SSL_OP_NO_SSLv2) == SSL_OP_NO_SSLv2) {
+        WOLFSSL_MSG("\tSSL_OP_NO_SSLv2 : wolfSSL does not support SSLv2");
+    }
+
+    if ((op & SSL_OP_NO_SSLv3) == SSL_OP_NO_SSLv3) {
+        WOLFSSL_MSG("\tSSL_OP_NO_SSLv3");
+    }
+
+    if ((op & SSL_OP_NO_TLSv1) == SSL_OP_NO_TLSv1) {
+        WOLFSSL_MSG("\tSSL_OP_NO_TLSv1");
+    }
+
+    if ((op & SSL_OP_NO_TLSv1_1) == SSL_OP_NO_TLSv1_1) {
+        WOLFSSL_MSG("\tSSL_OP_NO_TLSv1_1");
+    }
+
+    if ((op & SSL_OP_NO_TLSv1_2) == SSL_OP_NO_TLSv1_2) {
+        WOLFSSL_MSG("\tSSL_OP_NO_TLSv1_2");
+    }
+
+    if ((op & SSL_OP_NO_COMPRESSION) == SSL_OP_NO_COMPRESSION) {
+    #ifdef HAVE_LIBZ
+        WOLFSSL_MSG("SSL_OP_NO_COMPRESSION");
+        ssl->options.usingCompression = 0;
+    #else
+        WOLFSSL_MSG("SSL_OP_NO_COMPRESSION: compression not compiled in");
+    #endif
+    }
+
+    ssl->options.mask |= op;
+
+    return ssl->options.mask;
 }
 
 
-/* wolfSSL options are set through API calls and macros.
- * return 0 for no options set */
-WOLFSSL_API unsigned long wolfSSL_get_options(const WOLFSSL* ssl)
+unsigned long wolfSSL_get_options(const WOLFSSL* ssl)
 {
-    (void)ssl;
-    WOLFSSL_MSG("Set options in wolfSSL through API and macros");
-    return 0;
+    WOLFSSL_ENTER("wolfSSL_get_options");
+
+    return ssl->options.mask;
 }
 
 /*** TBD ***/

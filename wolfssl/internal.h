@@ -2379,6 +2379,9 @@ typedef struct Options {
     wc_psk_server_callback server_psk_cb;
     word16            havePSK:1;            /* psk key set by user */
 #endif /* NO_PSK */
+#ifdef OPENSSL_EXTRA
+    unsigned long     mask; /* store SSL_OP_ flags */
+#endif
 
     /* on/off or small bit flags, optimize layout */
     word16            sendVerify:2;     /* false = 0, true = 1, sendBlank = 2 */

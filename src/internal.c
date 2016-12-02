@@ -5328,6 +5328,32 @@ static int GetRecordHeader(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     }
 #endif
 
+#ifdef OPENSSL_EXTRA
+    /* case where specific protocols are turned off */
+    if (!ssl->options.dtls && ssl->options.mask > 0) {
+        if (rh->pvMinor == SSLv3_MINOR &&
+            (ssl->options.mask & SSL_OP_NO_SSLv3) == SSL_OP_NO_SSLv3) {
+            WOLFSSL_MSG("Option set to not allow SSLv3");
+            return VERSION_ERROR;
+        }
+        if (rh->pvMinor == TLSv1_MINOR &&
+            (ssl->options.mask & SSL_OP_NO_TLSv1) == SSL_OP_NO_TLSv1) {
+            WOLFSSL_MSG("Option set to not allow TLSv1");
+            return VERSION_ERROR;
+        }
+        if (rh->pvMinor == TLSv1_1_MINOR &&
+            (ssl->options.mask & SSL_OP_NO_TLSv1_1) == SSL_OP_NO_TLSv1_1) {
+            WOLFSSL_MSG("Option set to not allow TLSv1.1");
+            return VERSION_ERROR;
+        }
+        if (rh->pvMinor == TLSv1_2_MINOR &&
+            (ssl->options.mask & SSL_OP_NO_TLSv1_2) == SSL_OP_NO_TLSv1_2) {
+            WOLFSSL_MSG("Option set to not allow TLSv1.2");
+            return VERSION_ERROR;
+        }
+    }
+#endif /* OPENSSL_EXTRA */
+
     /* catch version mismatch */
     if (rh->pvMajor != ssl->version.major || rh->pvMinor != ssl->version.minor){
         if (ssl->options.side == WOLFSSL_SERVER_END &&
