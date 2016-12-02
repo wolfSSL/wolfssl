@@ -359,9 +359,23 @@ int _fp_exptmod(fp_int *G, fp_int *X, fp_int *P, fp_int *Y)
 {
 #if defined(FREESCALE_LTC_TFM_RSA_4096_ENABLE)
     int szA, szB, szC;
+    fp_int tmp;
+    int err;
+
+    /* if G cannot fit into LTC_PKHA, reduce it */
     szA = fp_unsigned_bin_size(G);
+    if (szA > LTC_MAX_INT_BYTES) {
+        fp_init(&tmp);
+        if ((err = fp_mod(G, P, &tmp)) != FP_OKAY) {
+            return err;
+        }
+        G = &tmp;
+        szA = fp_unsigned_bin_size(G);
+    }
+
     szB = fp_unsigned_bin_size(X);
     szC = fp_unsigned_bin_size(P);
+
     if ((szA <= LTC_MAX_INT_BYTES) && (szB <= LTC_MAX_INT_BYTES) && (szC <= LTC_MAX_INT_BYTES)) {
 #endif /* FREESCALE_LTC_TFM_RSA_4096_ENABLE */
         int res = FP_OKAY;
@@ -433,183 +447,6 @@ int _fp_exptmod(fp_int *G, fp_int *X, fp_int *P, fp_int *Y)
     }
 #endif /* FREESCALE_LTC_TFM_RSA_4096_ENABLE */
 }
-
-#ifndef NO_RSA
-int wc_RsaFunction(const byte *in, word32 inLen, byte *out, word32 *outLen, int type, RsaKey *key, WC_RNG* rng)
-{
-    mp_int tmp;
-    int ret = 0;
-    word32 keyLen, len;
-
-    (void)rng;
-
-    if (mp_init(&tmp) != MP_OKAY)
-        return MP_INIT_E;
-
-    if (mp_read_unsigned_bin(&tmp, (byte *)in, inLen) != MP_OKAY)
-        ERROR_OUT(MP_READ_E);
-
-    if (type == RSA_PRIVATE_DECRYPT || type == RSA_PRIVATE_ENCRYPT)
-    {
-        #define INNER_ERROR_OUT(x) { ret = (x); goto inner_done; }
-        mp_int tmpa, tmpb;
-
-        if (mp_init(&tmpa) != MP_OKAY)
-            ERROR_OUT(MP_INIT_E);
-
-        if (mp_init(&tmpb) != MP_OKAY)
-        {
-            mp_clear(&tmpa);
-            ERROR_OUT(MP_INIT_E);
-        }
-
-        /* tmpa = tmp^dP mod p */
-        if (mp_mod(&tmp, &key->p, &tmpa) != MP_OKAY)
-            INNER_ERROR_OUT(MP_EXPTMOD_E);
-        if (mp_exptmod(&tmpa, &key->dP, &key->p, &tmpa) != MP_OKAY)
-            INNER_ERROR_OUT(MP_EXPTMOD_E);
-
-        /* tmpb = tmp^dQ mod q */
-        if (mp_mod(&tmp, &key->q, &tmpb) != MP_OKAY)
-            INNER_ERROR_OUT(MP_EXPTMOD_E);
-        if (mp_exptmod(&tmpb, &key->dQ, &key->q, &tmpb) != MP_OKAY)
-            INNER_ERROR_OUT(MP_EXPTMOD_E);
-
-        /* tmp = (tmpa - tmpb) * qInv (mod p) */
-        if (mp_sub(&tmpa, &tmpb, &tmp) != MP_OKAY)
-            INNER_ERROR_OUT(MP_SUB_E);
-
-        if (mp_mulmod(&tmp, &key->u, &key->p, &tmp) != MP_OKAY)
-            INNER_ERROR_OUT(MP_MULMOD_E);
-
-        /* tmp = tmpb + q * tmp */
-        if (mp_mul(&tmp, &key->q, &tmp) != MP_OKAY)
-            INNER_ERROR_OUT(MP_MUL_E);
-
-        if (mp_add(&tmp, &tmpb, &tmp) != MP_OKAY)
-            INNER_ERROR_OUT(MP_ADD_E);
-
-    inner_done:
-        mp_clear(&tmpa);
-        mp_clear(&tmpb);
-
-        if (ret != 0) {
-            goto done;
-        }
-        #undef INNER_ERROR_OUT
-    }
-    else if (type == RSA_PUBLIC_ENCRYPT || type == RSA_PUBLIC_DECRYPT) {
-#if defined(FREESCALE_LTC_TFM_RSA_4096_ENABLE)
-        #define INNER_ERROR_OUT(x) { ret = (x); goto inner_done2; }
-
-        /* use CRT even for public key operation due to size of integer arguments
-         * because up to 256 bytes results can be achieved by LTC_PKHA_2048
-         */
-        mp_int tmpa, tmpb;
-        mp_int dP;
-        mp_int dQ;
-
-        if (mp_init(&tmpa) != MP_OKAY)
-            ERROR_OUT(MP_INIT_E);
-
-        if (mp_init(&tmpb) != MP_OKAY) {
-            mp_clear(&tmpa);
-            ERROR_OUT(MP_INIT_E);
-        }
-
-        if (mp_init(&dP) != MP_OKAY) {
-            mp_clear(&tmpa);
-            mp_clear(&tmpb);
-            ERROR_OUT(MP_INIT_E);
-        }
-
-        if (mp_init(&dQ) != MP_OKAY) {
-            mp_clear(&tmpa);
-            mp_clear(&tmpb);
-            mp_clear(&dP);
-            ERROR_OUT(MP_INIT_E);
-        }
-
-        mp_sub_d(&key->p, 1, &dP); /* dP = p-1 */
-        mp_mod(&key->e, &dP, &dP); /* dP = (e mod (p-1) */
-
-        mp_sub_d(&key->q, 1, &dQ); /* dQ = q-1 */
-        mp_mod(&key->e, &dQ, &dQ); /* dQ = (e mod (q-1) */
-
-        /* tmpa = tmp^dP mod p */
-        if (mp_mod(&tmp, &key->p, &tmpa) != MP_OKAY)
-            INNER_ERROR_OUT(MP_EXPTMOD_E);
-        if (mp_exptmod(&tmpa, &dP, &key->p, &tmpa) != MP_OKAY)
-            INNER_ERROR_OUT(MP_EXPTMOD_E);
-
-        /* tmpb = tmp^dQ mod q */
-        if (mp_mod(&tmp, &key->q, &tmpb) != MP_OKAY)
-            INNER_ERROR_OUT(MP_EXPTMOD_E);
-        if (mp_exptmod(&tmpb, &dQ, &key->q, &tmpb) != MP_OKAY)
-            INNER_ERROR_OUT(MP_EXPTMOD_E);
-
-        /* tmp = (tmpa - tmpb) * qInv (mod p) */
-        if (mp_sub(&tmpa, &tmpb, &tmp) != MP_OKAY)
-            INNER_ERROR_OUT(MP_SUB_E);
-
-        if (mp_mulmod(&tmp, &key->u, &key->p, &tmp) != MP_OKAY)
-            INNER_ERROR_OUT(MP_MULMOD_E);
-
-        /* tmp = tmpb + q * tmp */
-        if (mp_mul(&tmp, &key->q, &tmp) != MP_OKAY)
-            INNER_ERROR_OUT(MP_MUL_E);
-
-        if (mp_add(&tmp, &tmpb, &tmp) != MP_OKAY)
-            INNER_ERROR_OUT(MP_ADD_E);
-
-    inner_done2:
-        mp_clear(&tmpa);
-        mp_clear(&tmpb);
-        mp_clear(&dP);
-        mp_clear(&dQ);
-
-        if (ret != 0) {
-            goto done;
-        }
-        #undef INNER_ERROR_OUT
-#else
-        if (mp_exptmod(&tmp, &key->e, &key->n, &tmp) != MP_OKAY) {
-            ERROR_OUT(MP_EXPTMOD_E);
-        }
-#endif
-    }
-    else {
-        ERROR_OUT(RSA_WRONG_TYPE_E);
-    }
-
-    keyLen = mp_unsigned_bin_size(&key->n);
-    if (keyLen > *outLen) {
-        ERROR_OUT(RSA_BUFFER_E);
-    }
-
-    len = mp_unsigned_bin_size(&tmp);
-
-    /* pad front w/ zeros to match key length */
-    while (len < keyLen) {
-        *out++ = 0x00;
-        len++;
-    }
-
-    *outLen = keyLen;
-
-    /* convert */
-    if (mp_to_unsigned_bin(&tmp, out) != MP_OKAY) {
-        ERROR_OUT(MP_TO_E);
-    }
-
-done:
-    mp_clear(&tmp);
-    if (ret == MP_EXPTMOD_E) {
-        WOLFSSL_MSG("RSA_FUNCTION MP_EXPTMOD_E: memory/config problem");
-    }
-    return ret;
-}
-#endif /* NO_RSA */
 
 #endif /* USE_FAST_MATH && FREESCALE_LTC_TFM */
 

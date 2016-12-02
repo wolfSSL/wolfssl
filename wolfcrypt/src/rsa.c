@@ -153,10 +153,6 @@ int wc_RsaFlattenPublicKey(RsaKey* key, byte* a, word32* aSz, byte* b,
     static int FreeAsyncRsaKey(RsaKey* key);
 #endif /* WOLFSSL_ASYNC_CRYPT */
 
-#ifdef FREESCALE_LTC_TFM
-    #include <wolfssl/wolfcrypt/port/nxp/ksdk_port.h>
-#endif
-
 enum {
     RSA_STATE_NONE = 0,
 
@@ -1129,7 +1125,6 @@ static int wc_RsaFunctionAsync(const byte* in, word32 inLen, byte* out,
 }
 #endif /* WOLFSSL_ASYNC_CRYPT */
 
-#ifndef FREESCALE_LTC_TFM
 int wc_RsaFunction(const byte* in, word32 inLen, byte* out,
                           word32* outLen, int type, RsaKey* key, WC_RNG* rng)
 {
@@ -1156,7 +1151,6 @@ int wc_RsaFunction(const byte* in, word32 inLen, byte* out,
     }
     return ret;
 }
-#endif /* !FREESCALE_LTC_TFM */
 
 
 /* Internal Wrappers */
