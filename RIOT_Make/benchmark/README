@@ -9,7 +9,7 @@ clone wolfssl in that directory. You should end up with RIOT/examples/wolfssl
 
 git clone https://github.com/wolfssl/wolfssl
 
-cd <path-to>/RIOT/examples/wolfssl/RIOT_Make/testsuite
+cd <path-to>/RIOT/examples/wolfssl/RIOT_Make/benchmark
 
 run the script ./wolf-build-and-run-test.sh
 
@@ -17,14 +17,12 @@ That script will perform the following steps:
 1. copy the source files from:
     <wolfssl-root>/src
     <wolfssl-root>/wolfcrypt/src
-    <wolfssl-root>/wolfcrypt/test
-    <wolfssl-root>/testsuite
-    <wolfssl-root>/examples/[ echoserver/echoclient/client/server ]
+    <wolfssl-root>/wolfcrypt/benchmark
 
 2. Use the provided Makefile to build the example application:
-    "testwolfcrypt.elf"
+    "wolfbenchmark.elf"
     This application will be located here:
-    <path-to>/RIOT/examples/wolfssl/RIOT_Make/wolfcrypt-test/bin/native/testsuite.elf
+    <path-to>/RIOT/examples/wolfssl/RIOT_Make/wolfcrypt-test/bin/native/wolfbenchmark.elf
 
 3. Execute that application. You should see a pass or fail.
 
@@ -34,9 +32,7 @@ That script will perform the following steps:
             files located in their respective directories:
             <wolfssl-root>/src
             <wolfssl-root>/wolfcrypt/src
-            <wolfssl-root>/wolfcrypt/test
-            <wolfssl-root>/testsuite
-            <wolfssl-root>/examples/[ echoserver/echoclient/client/server ]
+            <wolfssl-root>/wolfcrypt/benchmark
             Then the script "wolf-build-and-run-test.sh" should be run again to
             test those changes
             If you do make changes to the temporary files those changes will be

@@ -483,7 +483,11 @@ int benchmark_test(void *args)
     ShowMemoryTracker();
 #endif
 
+#ifdef WOLFSSL_RIOT_OS
+    exit (0);
+#else
     return 0;
+#endif
 }
 
 

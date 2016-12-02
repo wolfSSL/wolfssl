@@ -1,0 +1,12 @@
+To test all three applications:
+
+wolfbenchmark
+testsuite
+wolfcrypt-test
+
+run the script in this directory: ./test-all.sh
+
+See the README in each respecive directory for more information on wolfSSL and
+RIOT_OS!
+
+

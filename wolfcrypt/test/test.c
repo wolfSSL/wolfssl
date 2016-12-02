@@ -262,7 +262,11 @@ static int err_sys(const char* msg, int es)
 
 {
     printf("%s error = %d\n", msg, es);
+#ifdef WOLFSSL_RIOT_OS
+    exit(-1);
+#else
     return -1; /* error state */
+#endif
 }
 
 /* func_args from test.h, so don't have to pull in other junk */

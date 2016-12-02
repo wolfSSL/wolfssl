@@ -41,13 +41,18 @@ then
 fi
 
 # run the test
-./bin/native/wolftestsuite.elf
-
+RESULT=`./bin/native/wolftestsuite.elf`
 # confirm success or failure
 export CFLAGS="${BACKUPCFLAGS}"
-RESULT=$?
- [ $RESULT != 0 ] && echo "TEST FAILED"  && wolf_riot_cleanup &&
-                     echo "cleanup done" && exit 2
+errstring="error"
+if test "${RESULT#*$errstring}" != "$RESULT"
+    then
+        echo "$RESULT"
+        echo "TEST FAILED" && wolf_riot_cleanup && echo "cleanup done" &&
+        exit 2
+    else
+        echo "$RESULT"
+    fi
 
 echo "TEST PASSED!"
 
