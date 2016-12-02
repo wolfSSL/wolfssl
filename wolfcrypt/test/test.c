@@ -729,7 +729,11 @@ int wolfcrypt_test(void* args)
             err_sys("Failed to free netRandom context", -1238);
 #endif /* HAVE_WNR */
 
+#ifdef WOLFSSL_RIOT_OS
+        exit(0);
+#else
         return args.return_code;
+#endif
     }
 
 #endif /* NO_MAIN_DRIVER */

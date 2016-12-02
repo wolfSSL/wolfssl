@@ -1,0 +1,49 @@
+These are the steps to properly setup a test of wolfssl in RIOT OS:
+
+To test wolfSSL in RIOT build system get the RIOT source code from here:
+git clone https://github.com/RIOT-OS/RIOT
+
+Then cd RIOT/examples
+
+clone wolfssl in that directory. You should end up with RIOT/examples/wolfssl
+
+git clone https://github.com/wolfssl/wolfssl
+
+cd <path-to>/RIOT/examples/wolfssl/RIOT_Make/wolfcrypt-test
+
+run the script ./wolf-build-and-run-test.sh
+
+That script will perform the following steps:
+1. copy the source files from:
+    <wolfssl-root>/src
+    <wolfssl-root>/wolfcrypt/src
+    <wolfssl-root>/wolfcrypt/test
+
+2. Use the provided Makefile to build the example application:
+    "testwolfcrypt.elf"
+    This application will be located here:
+    <path-to>/RIOT/examples/wolfssl/RIOT_Make/wolfcrypt-test/bin/native/testwolfcrypt.elf
+
+3. Execute that application. You should see a pass or fail.
+
+4. Lastly that script will cleanup the source files it copied in for building.
+    NOTE: this is HIGHLY RECOMMENDED to prevent making changes on temporary
+            files. All development changes should be made to the actual source
+            files located in their respective directories:
+            <wolfssl-root>/src
+            <wolfssl-root>/wolfcrypt/src
+            <wolfssl-root>/wolfcrypt/test
+            Then the script "build-and-run-test.sh" should be run again to test
+            those changes
+            If you do make changes to the temporary files those changes will be
+            ignored by <wolfssl-root>/.gitignore
+
+.
+NOTE: This test is only for the "native" test. To build for a specific platform
+        cd to RIOT directory and run "make doc" to generate doxygen docs.
+        (You will need to install doxygen if you don't have it already)
+        Then open the file: RIOT/doc/doxygen/html/index.html
+
+        This will provide you with the necessary help to setup and build for a
+        specific platform
+
