@@ -18,10 +18,6 @@ wolf_riot_cleanup () {
     rm Makefile
 }
 
-BACKUPCFLAGS=${CFLAGS}
-export CFLAGS="${CFLAGS} -DWOLFSSL_RIOT_OS"
-
-
 # copy the necessary files to this directory
 wolf_riot_setup
 
@@ -43,7 +39,6 @@ fi
 RESULT=`./bin/native/testwolfcrypt.elf`
 
 # confirm success or failure
-export CFLAGS="${BACKUPCFLAGS}"
 errstring="error"
 if test "${RESULT#*$errstring}" != "$RESULT"
     then

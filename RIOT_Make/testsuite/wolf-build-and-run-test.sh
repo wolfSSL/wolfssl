@@ -26,9 +26,6 @@ wolf_riot_cleanup () {
 }
 trap wolf_riot_cleanup INT TERM
 
-BACKUPCFLAGS=${CFLAGS}
-export CFLAGS="${CFLAGS} -DNO_MAIN_DRIVER -DWOLFSSL_RIOT_OS"
-
 # copy the necessary files to this directory
 wolf_riot_setup
 
@@ -45,7 +42,6 @@ fi
 # run the test
 RESULT=`./bin/native/wolftestsuite.elf`
 # confirm success or failure
-export CFLAGS="${BACKUPCFLAGS}"
 errstring="error"
 if test "${RESULT#*$errstring}" != "$RESULT"
     then

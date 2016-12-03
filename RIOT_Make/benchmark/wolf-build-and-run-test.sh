@@ -20,9 +20,6 @@ wolf_riot_cleanup () {
 }
 trap wolf_riot_cleanup INT TERM
 
-BACKUPCFLAGS=${CFLAGS}
-export CFLAGS="${CFLAGS} -DWOLFSSL_RIOT_OS"
-
 # copy the necessary files to this directory
 wolf_riot_setup
 
@@ -40,7 +37,6 @@ fi
 ./bin/native/wolfbenchmark.elf
 
 # confirm success or failure
-export CFLAGS="${BACKUPCFLAGS}"
 RESULT=$?
  [ $RESULT != 0 ] && echo "TEST FAILED"  && wolf_riot_cleanup &&
                      echo "cleanup done" && exit 2
