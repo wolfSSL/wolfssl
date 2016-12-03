@@ -2,6 +2,7 @@
 
 wolf_riot_setup () {
 #copy the test sources here
+cp Makefile.benchmark Makefile
 cp ../../wolfcrypt/benchmark/benchmark.c ./
 
 cp ../../wolfcrypt/src/*.c ./
@@ -15,6 +16,7 @@ wolf_riot_cleanup () {
     #leave this line in for testing. Comment it out when you want to build
     # a .elf for flashing to a device
     make clean &> /dev/null
+    rm Makefile
 }
 trap wolf_riot_cleanup INT TERM
 

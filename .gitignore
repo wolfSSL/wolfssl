@@ -191,5 +191,5 @@ wrapper/CSharp/x64/
 *.vscode
 
 # RIOT_OS workspace directories:
-RIOT_Make/*/bin/*
+RIOT_Make/*/bin/
 RIOT_Make/*/*.c

@@ -1,6 +1,7 @@
 #!/bin/sh
 
 wolf_riot_setup () {
+    cp Makefile.wolfcrypttest Makefile
     #copy the test sources here
     cp ../../wolfcrypt/test/*.c ./
 
@@ -14,6 +15,7 @@ wolf_riot_cleanup () {
     #leave this line in for testing. Comment it out when you want to build
     # a .elf for flashing to a device
     make clean &> /dev/null
+    rm Makefile
 }
 
 BACKUPCFLAGS=${CFLAGS}

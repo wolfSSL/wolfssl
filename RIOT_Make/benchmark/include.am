@@ -1,0 +1,7 @@
+# vim:ft=automake
+# included from Top Level Makefile.am
+# All paths should be given relative to the root
+
+EXTRA_DIST+= RIOT_Make/benchmark/README
+EXTRA_DIST+= RIOT_Make/benchmark/Makefile.benchmark
+EXTRA_DIST+= RIOT_Make/benchmark/wolf-build-and-run-test.sh

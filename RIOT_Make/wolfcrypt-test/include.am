@@ -1,0 +1,7 @@
+# vim:ft=automake
+# included from Top Level Makefile.am
+# All paths should be given relative to the root
+
+EXTRA_DIST+= RIOT_Make/wolfcrypt-test/README
+EXTRA_DIST+= RIOT_Make/wolfcrypt-test/Makefile.wolfcrypttest
+EXTRA_DIST+= RIOT_Make/wolfcrypt-test/wolf-build-and-run-test.sh
