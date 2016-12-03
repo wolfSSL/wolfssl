@@ -1,3 +1,14 @@
+To test wolfSSL in RIOT build system get the RIOT source code from here:
+git clone https://github.com/RIOT-OS/RIOT
+
+Then cd RIOT/examples
+
+clone wolfssl in that directory. You should end up with RIOT/examples/wolfssl
+
+git clone https://github.com/wolfssl/wolfssl
+
+cd <path-to>/RIOT/examples/wolfssl/RIOT_Make
+
 To test all three applications:
 
 wolfbenchmark
