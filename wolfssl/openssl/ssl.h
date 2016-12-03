@@ -457,7 +457,7 @@ typedef WOLFSSL_X509_STORE_CTX X509_STORE_CTX;
 #define SSL_need_tmp_RSA(ssl)                0
 #define SSL_set_tmp_rsa(ssl,rsa)             1
 /*#endif*/
-#define CONF_modules_unload()
+#define CONF_modules_unload(a)
 
 #define SSL_get_hit wolfSSL_session_reused
 
