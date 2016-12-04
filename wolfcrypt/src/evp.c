@@ -58,14 +58,17 @@ WOLFSSL_API int  wolfSSL_EVP_DecryptInit_ex(WOLFSSL_EVP_CIPHER_CTX* ctx,
 WOLFSSL_API WOLFSSL_EVP_CIPHER_CTX *wolfSSL_EVP_CIPHER_CTX_new(void)
 {
 	WOLFSSL_EVP_CIPHER_CTX *ctx=XMALLOC(sizeof *ctx, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-	if (ctx)
+	if (ctx){
+      WOLFSSL_ENTER("wolfSSL_EVP_CIPHER_CTX_new");  
 		  wolfSSL_EVP_CIPHER_CTX_init(ctx);
+  }
 	return ctx;
 }
 
 WOLFSSL_API void wolfSSL_EVP_CIPHER_CTX_free(WOLFSSL_EVP_CIPHER_CTX *ctx)
 {
     if (ctx) {
+        WOLFSSL_ENTER("wolfSSL_EVP_CIPHER_CTX_free");
 		    wolfSSL_EVP_CIPHER_CTX_cleanup(ctx);
 		    XFREE(ctx, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 		}
@@ -74,8 +77,10 @@ WOLFSSL_API void wolfSSL_EVP_CIPHER_CTX_free(WOLFSSL_EVP_CIPHER_CTX *ctx)
 WOLFSSL_API int  wolfSSL_EVP_EncryptFinal(WOLFSSL_EVP_CIPHER_CTX *ctx,
                                    unsigned char *out, int *outl)
 {
-    if (ctx->enc)
+    if (ctx->enc){
+        WOLFSSL_ENTER("wolfSSL_EVP_EncryptFinal");
         return wolfSSL_EVP_CipherFinal(ctx, out, outl);
+    }
     else
         return 0;
 }
@@ -83,8 +88,10 @@ WOLFSSL_API int  wolfSSL_EVP_EncryptFinal(WOLFSSL_EVP_CIPHER_CTX *ctx,
 WOLFSSL_API int  wolfSSL_EVP_EncryptFinal_ex(WOLFSSL_EVP_CIPHER_CTX *ctx,
                                    unsigned char *out, int *outl)
 {
-    if (ctx->enc)
+    if (ctx->enc){
+        WOLFSSL_ENTER("wolfSSL_EVP_EncryptFinal_ex");
         return wolfSSL_EVP_CipherFinal(ctx, out, outl);
+    }
     else
         return 0;
 }
@@ -94,8 +101,10 @@ WOLFSSL_API int  wolfSSL_EVP_DecryptFinal(WOLFSSL_EVP_CIPHER_CTX *ctx,
 {
   if (ctx->enc)
       return 0;
-  else
+  else{
+      WOLFSSL_ENTER("wolfSSL_EVP_DecryptFinal");
       return wolfSSL_EVP_CipherFinal(ctx, out, outl);
+  }
 }
 
 WOLFSSL_API int  wolfSSL_EVP_DecryptFinal_ex(WOLFSSL_EVP_CIPHER_CTX *ctx,
@@ -103,8 +112,10 @@ WOLFSSL_API int  wolfSSL_EVP_DecryptFinal_ex(WOLFSSL_EVP_CIPHER_CTX *ctx,
 {
     if (ctx->enc)
         return 0;
-    else
+    else{
+        WOLFSSL_ENTER("wolfSSL_EVP_CipherFinal_ex");
         return wolfSSL_EVP_CipherFinal(ctx, out, outl);
+    }
 }
 
 
