@@ -148,6 +148,7 @@ then
     enable_pkcallbacks=yes
     enable_aesgcm=yes
     enable_aesccm=yes
+    enable_aesctr=yes
     enable_camellia=yes
     enable_ripemd=yes
     enable_sha512=yes
@@ -560,6 +561,23 @@ then
 fi
 
 AM_CONDITIONAL([BUILD_AESCCM], [test "x$ENABLED_AESCCM" = "xyes"])
+
+
+# AES-CTR
+AC_ARG_ENABLE([aesctr],
+    [  --enable-aesctr         Enable wolfSSL AES-CTR support (default: disabled)],
+    [ ENABLED_AESCTR=$enableval ],
+    [ ENABLED_AESCTR=no ]
+    )
+
+if test "$ENABLED_AESCTR" = "yes"
+then
+    if test "x$ENABLED_FORTRESS" != "xyes"
+    then
+        # This is already implied by fortress build
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_AES_COUNTER -DWOLFSSL_AES_DIRECT"
+    fi
+fi
 
 
 # AES-ARM
@@ -1297,6 +1315,10 @@ then
     if test "$ENABLED_AESCCM" = "yes"
     then
         AC_MSG_ERROR([AESCCM requires AES.])
+    fi
+    if test "$ENABLED_AESCTR" = "yes"
+    then
+        AC_MSG_ERROR([AESCTR requires AES.])
     fi
 else
     # turn off AES if leanpsk on
@@ -2850,7 +2872,12 @@ AC_ARG_ENABLE([mcapi],
 
 if test "$ENABLED_MCAPI" = "yes"
 then
-    AM_CFLAGS="$AM_CFLAGS -DHAVE_MCAPI -DWOLFSSL_AES_COUNTER -DWOLFSSL_AES_DIRECT"
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_MCAPI"
+    if test "x$ENABLED_AESCTR" != "xyes"
+    then
+        # These flags are already implied by --enable-aesctr
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_AES_COUNTER -DWOLFSSL_AES_DIRECT"
+    fi
 fi
 
 if test "$ENABLED_MCAPI" = "yes" && test "$ENABLED_SHA512" = "no"
@@ -3308,6 +3335,7 @@ echo "   * AES:                        $ENABLED_AES"
 echo "   * AES-NI:                     $ENABLED_AESNI"
 echo "   * AES-GCM:                    $ENABLED_AESGCM"
 echo "   * AES-CCM:                    $ENABLED_AESCCM"
+echo "   * AES-CTR:                    $ENABLED_AESCTR"
 echo "   * DES3:                       $ENABLED_DES3"
 echo "   * IDEA:                       $ENABLED_IDEA"
 echo "   * Camellia:                   $ENABLED_CAMELLIA"
