@@ -2490,36 +2490,115 @@ int wolfSSL_CertPemToDer(const unsigned char* pem, int pemSz,
 
 #if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
 
-#ifndef NO_AES
-static const char *EVP_AES_128_CBC = "AES-128-CBC";
-static const char *EVP_AES_192_CBC = "AES-192-CBC";
-static const char *EVP_AES_256_CBC = "AES-256-CBC";
-#if defined(OPENSSL_EXTRA)
-    static const char *EVP_AES_128_CTR = "AES-128-CTR";
-    static const char *EVP_AES_192_CTR = "AES-192-CTR";
-    static const char *EVP_AES_256_CTR = "AES-256-CTR";
+static struct cipher{
+        unsigned char type;
+        const char *name;
+} cipher_tbl[] = {
 
-    static const char *EVP_AES_128_ECB = "AES-128-ECB";
-    static const char *EVP_AES_192_ECB = "AES-192-ECB";
-    static const char *EVP_AES_256_ECB = "AES-256-ECB";
+#ifndef NO_AES
+    {AES_128_CBC_TYPE, "AES-128-CBC"},
+    {AES_192_CBC_TYPE, "AES-192-CBC"},
+    {AES_256_CBC_TYPE, "AES-256-CBC"},
+#if defined(OPENSSL_EXTRA)
+        {AES_128_CTR_TYPE, "AES-128-CTR"},
+        {AES_192_CTR_TYPE, "AES-192-CTR"},
+        {AES_256_CTR_TYPE, "AES-256-CTR"},
+
+        {AES_128_ECB_TYPE, "AES-128-ECB"},
+        {AES_192_ECB_TYPE, "AES-192-ECB"},
+        {AES_256_ECB_TYPE, "AES-256-ECB"},
+#endif
+
+#endif
+
+#ifndef NO_DES3
+    {DES_CBC_TYPE, "DES-CBC"},
+    {DES_ECB_TYPE, "DES-ECB"},
+
+    {DES_EDE3_CBC_TYPE, "DES-EDE3-CBC"},
+    {DES_EDE3_ECB_TYPE, "DES-EDE3-ECB"},
+#endif
+
+#ifdef HAVE_IDEA
+    {IDEA_CBC_TYPE, "IDEA-CBC"},
+#endif
+    { 0, NULL}
+} ;
+
+const WOLFSSL_EVP_MD *wolfSSL_EVP_get_cipherbyname(const char *name)
+{
+
+    const struct cipher *ent ;
+    WOLFSSL_ENTER("EVP_get_cipherbyname");
+    for( ent = cipher_tbl; ent->name != NULL; ent++)
+        if(XSTRNCMP(name, ent->name, XSTRLEN(ent->name)+1) == 0) {
+            return (WOLFSSL_EVP_CIPHER *)ent->name;
+        }
+    return NULL;
+}
+
+
+#ifndef NO_AES
+static char *EVP_AES_128_CBC;
+static char *EVP_AES_192_CBC;
+static char *EVP_AES_256_CBC;
+#if defined(OPENSSL_EXTRA)
+    static char *EVP_AES_128_CTR;
+    static char *EVP_AES_192_CTR;
+    static char *EVP_AES_256_CTR;
+
+    static char *EVP_AES_128_ECB;
+    static char *EVP_AES_192_ECB;
+    static char *EVP_AES_256_ECB;
 #endif
 static const int  EVP_AES_SIZE = 11;
 #endif
 
 #ifndef NO_DES3
-static const char *EVP_DES_CBC = "DES-CBC";
-static const char *EVP_DES_ECB = "DES-ECB";
+static char *EVP_DES_CBC;
+static char *EVP_DES_ECB;
 static const int  EVP_DES_SIZE = 7;
 
-static const char *EVP_DES_EDE3_CBC = "DES-EDE3-CBC";
-static const char *EVP_DES_EDE3_ECB = "DES-EDE3-ECB";
+static char *EVP_DES_EDE3_CBC;
+static char *EVP_DES_EDE3_ECB;
 static const int  EVP_DES_EDE3_SIZE = 12;
 #endif
 
 #ifdef HAVE_IDEA
-static const char *EVP_IDEA_CBC = "IDEA-CBC";
+static char *EVP_IDEA_CBC;
 static const int  EVP_IDEA_SIZE = 8;
 #endif
+
+void wolfSSL_EVP_init(void)
+{
+#ifndef NO_AES
+    EVP_AES_128_CBC = (char *)EVP_get_cipherbyname("AES-128-CBC");
+    EVP_AES_192_CBC = (char *)EVP_get_cipherbyname("AES-192-CBC");
+    EVP_AES_256_CBC = (char *)EVP_get_cipherbyname("AES-256-CBC");
+
+#if defined(OPENSSL_EXTRA)
+        EVP_AES_128_CTR = (char *)EVP_get_cipherbyname("AES-128-CTR");
+        EVP_AES_192_CTR = (char *)EVP_get_cipherbyname("AES-192-CTR");
+        EVP_AES_256_CTR = (char *)EVP_get_cipherbyname("AES-256-CTR");
+
+        EVP_AES_128_ECB = (char *)EVP_get_cipherbyname("AES-128-ECB");
+        EVP_AES_192_ECB = (char *)EVP_get_cipherbyname("AES-192-ECB");
+        EVP_AES_256_ECB = (char *)EVP_get_cipherbyname("AES-256-ECB");
+#endif
+#endif
+
+#ifndef NO_DES3
+    EVP_DES_CBC = (char *)EVP_get_cipherbyname("DES-CBC");
+    EVP_DES_ECB = (char *)EVP_get_cipherbyname("DES-ECB");
+
+    EVP_DES_EDE3_CBC = (char *)EVP_get_cipherbyname("DES-EDE3-CBC");
+    EVP_DES_EDE3_ECB = (char *)EVP_get_cipherbyname("DES-EDE3-ECB");
+#endif
+
+#ifdef HAVE_IDEA
+    EVP_IDEA_CBC = (char *)EVP_get_cipherbyname("IDEA-CBC");
+#endif
+}
 
 /* our KeyPemToDer password callback, password in userData */
 static INLINE int OurPasswordCb(char* passwd, int sz, int rw, void* userdata)
