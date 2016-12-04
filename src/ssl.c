@@ -10538,12 +10538,48 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
 
     #endif /* WOLFSSL_SHA512 */
 
+const EVP_MD *wolfSSL_EVP_get_digestbyname(const char *name)
+{
+    static const char *md_tbl[] = {
+    #ifndef NO_MD5
+       "MD5",
+    #endif /* NO_MD5 */
+
+    #ifndef NO_SHA
+       "SHA",
+    #endif /* NO_SHA */
+
+    #ifdef WOLFSSL_SHA224
+       "SHA224",
+    #endif /* WOLFSSL_SHA224 */
+
+       "SHA256",
+
+    #ifdef WOLFSSL_SHA384
+       "SHA384",
+    #endif /* WOLFSSL_SHA384 */
+
+    #ifdef WOLFSSL_SHA512
+        "SHA512",
+    #endif /* WOLFSSL_SHA512 */
+
+        NULL
+    } ;
+
+    const char **tbl ;
+
+    for( tbl = md_tbl; *tbl != NULL; tbl++)
+        if(XSTRNCMP(name, *tbl, XSTRLEN(*tbl)+1) == 0) {
+            return (EVP_MD *)*tbl;
+        }
+    return NULL;
+}
 
     #ifndef NO_MD5
 
     const WOLFSSL_EVP_MD* wolfSSL_EVP_md5(void)
     {
-        static const char* type = "MD5";
+        const char* type = EVP_get_digestbyname("MD5");
         WOLFSSL_ENTER("EVP_md5");
         return type;
     }
@@ -10554,7 +10590,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
 #ifndef NO_SHA
     const WOLFSSL_EVP_MD* wolfSSL_EVP_sha1(void)
     {
-        static const char* type = "SHA";
+        const char* type = EVP_get_digestbyname("SHA");
         WOLFSSL_ENTER("EVP_sha1");
         return type;
     }
@@ -10564,7 +10600,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
 
     const WOLFSSL_EVP_MD* wolfSSL_EVP_sha224(void)
     {
-        static const char* type = "SHA224";
+        const char* type = EVP_get_digestbyname("SHA224");
         WOLFSSL_ENTER("EVP_sha224");
         return type;
     }
@@ -10574,7 +10610,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
 
     const WOLFSSL_EVP_MD* wolfSSL_EVP_sha256(void)
     {
-        static const char* type = "SHA256";
+        const char* type = EVP_get_digestbyname("SHA256");
         WOLFSSL_ENTER("EVP_sha256");
         return type;
     }
@@ -10583,7 +10619,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
 
     const WOLFSSL_EVP_MD* wolfSSL_EVP_sha384(void)
     {
-        static const char* type = "SHA384";
+        const char* type = EVP_get_digestbyname("SHA384");
         WOLFSSL_ENTER("EVP_sha384");
         return type;
     }
@@ -10594,7 +10630,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
 
     const WOLFSSL_EVP_MD* wolfSSL_EVP_sha512(void)
     {
-        static const char* type = "SHA512";
+        const char* type = EVP_get_digestbyname("SHA512");
         WOLFSSL_ENTER("EVP_sha512");
         return type;
     }

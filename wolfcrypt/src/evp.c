@@ -19,7 +19,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
-static unsigned char cipherType(const WOLFSSL_EVP_CIPHER *cipher);
+static unsigned int cipherType(const WOLFSSL_EVP_CIPHER *cipher);
 
 WOLFSSL_API int  wolfSSL_EVP_EncryptInit(WOLFSSL_EVP_CIPHER_CTX* ctx,
                                         const WOLFSSL_EVP_CIPHER* type,
@@ -54,6 +54,59 @@ WOLFSSL_API int  wolfSSL_EVP_DecryptInit_ex(WOLFSSL_EVP_CIPHER_CTX* ctx,
     WOLFSSL_ENTER("wolfSSL_EVP_DecryptInit");
     return wolfSSL_EVP_CipherInit(ctx, type, key, iv, 0);
 }
+
+WOLFSSL_API WOLFSSL_EVP_CIPHER_CTX *wolfSSL_EVP_CIPHER_CTX_new(void)
+{
+	WOLFSSL_EVP_CIPHER_CTX *ctx=XMALLOC(sizeof *ctx, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+	if (ctx)
+		  wolfSSL_EVP_CIPHER_CTX_init(ctx);
+	return ctx;
+}
+
+WOLFSSL_API void wolfSSL_EVP_CIPHER_CTX_free(WOLFSSL_EVP_CIPHER_CTX *ctx)
+{
+    if (ctx) {
+		    wolfSSL_EVP_CIPHER_CTX_cleanup(ctx);
+		    XFREE(ctx, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+		}
+}
+
+WOLFSSL_API int  wolfSSL_EVP_EncryptFinal(WOLFSSL_EVP_CIPHER_CTX *ctx,
+                                   unsigned char *out, int *outl)
+{
+    if (ctx->enc)
+        return wolfSSL_EVP_CipherFinal(ctx, out, outl);
+    else
+        return 0;
+}
+
+WOLFSSL_API int  wolfSSL_EVP_EncryptFinal_ex(WOLFSSL_EVP_CIPHER_CTX *ctx,
+                                   unsigned char *out, int *outl)
+{
+    if (ctx->enc)
+        return wolfSSL_EVP_CipherFinal(ctx, out, outl);
+    else
+        return 0;
+}
+
+WOLFSSL_API int  wolfSSL_EVP_DecryptFinal(WOLFSSL_EVP_CIPHER_CTX *ctx,
+                                   unsigned char *out, int *outl)
+{
+  if (ctx->enc)
+      return 0;
+  else
+      return wolfSSL_EVP_CipherFinal(ctx, out, outl);
+}
+
+WOLFSSL_API int  wolfSSL_EVP_DecryptFinal_ex(WOLFSSL_EVP_CIPHER_CTX *ctx,
+                                   unsigned char *out, int *outl)
+{
+    if (ctx->enc)
+        return 0;
+    else
+        return wolfSSL_EVP_CipherFinal(ctx, out, outl);
+}
+
 
 WOLFSSL_API int wolfSSL_EVP_DigestInit_ex(WOLFSSL_EVP_MD_CTX* ctx,
                                      const WOLFSSL_EVP_MD* type,
@@ -304,7 +357,7 @@ WOLFSSL_API int wolfSSL_EVP_CIPHER_CTX_block_size(const WOLFSSL_EVP_CIPHER_CTX *
     }
 }
 
-static unsigned char cipherType(const WOLFSSL_EVP_CIPHER *cipher)
+static unsigned int cipherType(const WOLFSSL_EVP_CIPHER *cipher)
 {
     if (cipher == NULL) return 0; /* dummy for #ifdef */
   #ifndef NO_DES3

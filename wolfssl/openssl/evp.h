@@ -179,6 +179,9 @@ WOLFSSL_API int  wolfSSL_EVP_MD_size(const WOLFSSL_EVP_MD* md);
 WOLFSSL_API void wolfSSL_EVP_MD_CTX_init(WOLFSSL_EVP_MD_CTX* ctx);
 WOLFSSL_API int  wolfSSL_EVP_MD_CTX_cleanup(WOLFSSL_EVP_MD_CTX* ctx);
 
+WOLFSSL_API const WOLFSSL_EVP_CIPHER *wolfSSL_EVP_get_cipherbyname(const char *name);
+WOLFSSL_API const WOLFSSL_EVP_MD     *wolfSSL_EVP_get_digestbyname(const char *name);
+
 WOLFSSL_API int wolfSSL_EVP_DigestInit(WOLFSSL_EVP_MD_CTX* ctx,
                                      const WOLFSSL_EVP_MD* type);
 WOLFSSL_API int wolfSSL_EVP_DigestInit_ex(WOLFSSL_EVP_MD_CTX* ctx,
@@ -242,6 +245,8 @@ WOLFSSL_API int  wolfSSL_EVP_DecryptFinal(WOLFSSL_EVP_CIPHER_CTX *ctx,
 WOLFSSL_API int  wolfSSL_EVP_DecryptFinal_ex(WOLFSSL_EVP_CIPHER_CTX *ctx,
                                    unsigned char *out, int *outl);
 
+WOLFSSL_API WOLFSSL_EVP_CIPHER_CTX *wolfSSL_EVP_CIPHER_CTX_new(void);
+WOLFSSL_API void wolfSSL_EVP_CIPHER_CTX_free(WOLFSSL_EVP_CIPHER_CTX *ctx);
 WOLFSSL_API int  wolfSSL_EVP_CIPHER_CTX_key_length(WOLFSSL_EVP_CIPHER_CTX* ctx);
 WOLFSSL_API int  wolfSSL_EVP_CIPHER_CTX_set_key_length(WOLFSSL_EVP_CIPHER_CTX* ctx,
                                                      int keylen);
@@ -250,7 +255,7 @@ WOLFSSL_API int  wolfSSL_EVP_Cipher(WOLFSSL_EVP_CIPHER_CTX* ctx,
                           unsigned int len);
 
 WOLFSSL_API const WOLFSSL_EVP_MD* wolfSSL_EVP_get_digestbynid(int);
-
+WOLFSSL_API const WOLFSSL_EVP_CIPHER *wolfSSL_EVP_get_cipherbyname(const char *name);
 WOLFSSL_API WOLFSSL_RSA* wolfSSL_EVP_PKEY_get1_RSA(WOLFSSL_EVP_PKEY*);
 WOLFSSL_API WOLFSSL_DSA* wolfSSL_EVP_PKEY_get1_DSA(WOLFSSL_EVP_PKEY*);
 WOLFSSL_API WOLFSSL_EC_KEY *wolfSSL_EVP_PKEY_get1_EC_KEY(WOLFSSL_EVP_PKEY *key);
@@ -333,6 +338,9 @@ typedef WOLFSSL_EVP_CIPHER_CTX EVP_CIPHER_CTX;
 #define EVP_DigestFinal_ex wolfSSL_EVP_DigestFinal_ex
 #define EVP_BytesToKey     wolfSSL_EVP_BytesToKey
 
+#define EVP_get_cipherbyname wolfSSL_EVP_get_cipherbyname
+#define EVP_get_digestbyname wolfSSL_EVP_get_digestbyname
+
 #define EVP_CIPHER_CTX_init           wolfSSL_EVP_CIPHER_CTX_init
 #define EVP_CIPHER_CTX_cleanup        wolfSSL_EVP_CIPHER_CTX_cleanup
 #define EVP_CIPHER_CTX_iv_length      wolfSSL_EVP_CIPHER_CTX_iv_length
@@ -356,7 +364,12 @@ typedef WOLFSSL_EVP_CIPHER_CTX EVP_CIPHER_CTX;
 #define EVP_DecryptFinal              wolfSSL_EVP_CipherFinal
 #define EVP_DecryptFinal_ex           wolfSSL_EVP_CipherFinal
 
+#define EVP_CIPHER_CTX_free           wolfSSL_EVP_CIPHER_CTX_free
+#define EVP_CIPHER_CTX_new            wolfSSL_EVP_CIPHER_CTX_new
+
 #define EVP_get_digestbynid           wolfSSL_EVP_get_digestbynid
+#define EVP_get_cipherbyname          wolfSSL_EVP_get_cipherbyname
+#define EVP_get_digestbyname          wolfSSL_EVP_get_digestbyname
 
 #define EVP_PKEY_get1_RSA   wolfSSL_EVP_PKEY_get1_RSA
 #define EVP_PKEY_get1_DSA   wolfSSL_EVP_PKEY_get1_DSA
