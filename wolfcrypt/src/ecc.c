@@ -103,6 +103,10 @@ ECC Curve Sizes:
     #include <wolfcrypt/src/misc.c>
 #endif
 
+#if defined(FREESCALE_LTC_ECC)
+    #include <wolfssl/wolfcrypt/port/nxp/ksdk_port.h>
+#endif
+
 #ifdef USE_FAST_MATH
     #define GEN_MEM_ERR FP_MEM
 #else
@@ -1645,6 +1649,7 @@ done:
    return err;
 }
 
+#if !defined(FREESCALE_LTC_ECC)
 
 #ifndef ECC_TIMING_RESISTANT
 
@@ -2122,6 +2127,8 @@ int wc_ecc_mulmod(mp_int* k, ecc_point *G, ecc_point *R, mp_int* a,
 #endif /* ! FP_ECC */
 #endif /* ECC_TIMING_RESISTANT */
 
+#endif /* !FREESCALE_LTC_ECC */
+
 
 #ifdef ALT_ECC_SIZE
 
@@ -2424,7 +2431,8 @@ int wc_ecc_shared_secret_ssh(ecc_key* private_key, ecc_point* point,
         err = mp_read_radix(&a, private_key->dp->Af, 16);
 
     if (err == MP_OKAY)
-        err = wc_ecc_mulmod(&private_key->k, point, result, &a, &prime, 1);
+        err = wc_ecc_mulmod_ex(&private_key->k, point, result, &a, &prime, 1,
+                                                        private_key->heap);
 
     if (err == MP_OKAY) {
         x = mp_unsigned_bin_size(&prime);
@@ -2572,6 +2580,12 @@ int wc_ecc_make_key_ex(WC_RNG* rng, int keysize, ecc_key* key, int curve_id)
     if (err == MP_OKAY) {
         if (mp_iszero(&key->k) == MP_YES)
           err = MP_ZERO_E;
+    }
+
+    /* the key should be smaller than the order of base point */
+    if (err == MP_OKAY) {
+        if (mp_cmp(&key->k, &order) != MP_LT)
+            err = mp_mod(&key->k, &order, &key->k);
     }
 
     /* the key should be smaller than the order of base point */
@@ -3363,6 +3377,15 @@ int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
    if (err == MP_OKAY)
        err = mp_copy(key->pubkey.z, mQ->z);
 
+#ifdef FREESCALE_LTC_ECC
+   /* use PKHA to compute u1*mG + u2*mQ */
+   if (err == MP_OKAY)
+       err = wc_ecc_mulmod_ex(&u1, mG, mG, &a, &modulus, 0, NULL);
+   if (err == MP_OKAY)
+       err = wc_ecc_mulmod_ex(&u2, mQ, mQ, &a, &modulus, 0, NULL);
+   if (err == MP_OKAY)
+       err = wc_ecc_point_add(mG, mQ, mG, &modulus);
+#else /* FREESCALE_LTC_ECC */
 #ifndef ECC_SHAMIR
     {
        mp_digit      mp;
@@ -3390,7 +3413,7 @@ int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
        if (err == MP_OKAY)
            err = ecc_mul2add(mG, &u1, mQ, &u2, mG, &a, &modulus, key->heap);
 #endif /* ECC_SHAMIR */
-
+#endif /* FREESCALE_LTC_ECC */
    /* v = X_x1 mod n */
    if (err == MP_OKAY)
        err = mp_mod(mG->x, &order, &v);
@@ -5639,6 +5662,7 @@ int ecc_mul2add(ecc_point* A, mp_int* kA,
 }
 #endif /* ECC_SHAMIR */
 
+#if !defined(FREESCALE_LTC_TFM)
 /** ECC Fixed Point mulmod global
     k        The multiplicand
     G        Base point to multiply
@@ -5654,7 +5678,7 @@ int wc_ecc_mulmod(mp_int* k, ecc_point *G, ecc_point *R, mp_int* a,
 {
     return wc_ecc_mulmod_ex(k, G, R, a, modulus, map, NULL);
 }
-
+#endif /* !FREESCALE_LTC_TFM */
 
 /** ECC Fixed Point mulmod global
     k        The multiplicand

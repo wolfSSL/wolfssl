@@ -157,6 +157,10 @@ int wc_FreeRng(WC_RNG* rng)
         #ifndef EBSNET
             #include <unistd.h>
         #endif
+    #elif defined(FREESCALE_KSDK_2_0_TRNG)
+        #include "fsl_trng.h"
+    #elif defined(FREESCALE_KSDK_2_0_RNGA)
+        #include "fsl_rnga.h"
     #else
         /* include headers that may be needed to get good seed */
     #endif
@@ -1356,12 +1360,36 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
             return 0;
         }
 
-    #elif defined(FREESCALE_TRNG)
+    #elif defined(FREESCALE_KSDK_2_0_TRNG)
 
         int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
         {
-            TRNG_DRV_GetRandomData(TRNG_INSTANCE, output, sz);
-            return 0;
+            status_t status;
+            status = TRNG_GetRandomData(TRNG0, output, sz);
+            if (status == kStatus_Success)
+            {
+                return(0);
+            }
+            else
+            {
+                return RAN_BLOCK_E;
+            }
+        }
+        
+    #elif defined(FREESCALE_KSDK_2_0_RNGA)
+
+        int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
+        {
+            status_t status;
+            status = RNGA_GetRandomData(RNG, output, sz);
+            if (status == kStatus_Success)
+            {
+                return(0);
+            }
+            else
+            {
+                return RAN_BLOCK_E;
+            }
         }
 
 

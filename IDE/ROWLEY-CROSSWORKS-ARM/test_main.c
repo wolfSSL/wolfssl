@@ -54,24 +54,26 @@ void main(void)
 
 
 /* SAMPLE OUTPUT: 
-Crypt Test 1:
-MD5      test passed!
-MD4      test passed!
+Crypt Test 0:
 SHA      test passed!
 SHA-256  test passed!
-HMAC-MD5 test passed!
+SHA-384  test passed!
+SHA-512  test passed!
 HMAC-SHA test passed!
 HMAC-SHA256 test passed!
-ARC4     test passed!
-HC-128   test passed!
-Rabbit   test passed!
-DES      test passed!
-DES3     test passed!
+HMAC-SHA384 test passed!
+HMAC-SHA512 test passed!
+GMAC     test passed!
+Chacha   test passed!
+POLY1305 test passed!
+ChaCha20-Poly1305 AEAD test passed!
 AES      test passed!
+AES-GCM  test passed!
+AES-CCM  test passed!
 RANDOM   test passed!
 RSA      test passed!
-DH       test passed!
-DSA      test passed!
-PWDBASED test passed!
-Crypt Test 1: Return code 0
+ECC      test passed!
+CURVE25519 test passed!
+ED25519  test passed!
+Crypt Test 0: Return code 0
 */

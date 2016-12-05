@@ -34,6 +34,10 @@
     #include <cyassl/ctaocrypt/sha256.h>
 #endif
 
+#ifdef FREESCALE_LTC_SHA
+    #include "fsl_ltc.h"
+#endif
+
 
 #ifdef __cplusplus
     extern "C" {
@@ -56,6 +60,9 @@ enum {
 
 /* Sha256 digest */
 typedef struct Sha256 {
+#ifdef FREESCALE_LTC_SHA
+    ltc_hash_ctx_t ctx;
+#else
     word32  buffLen;   /* in bytes          */
     word32  loLen;     /* length in bytes   */
     word32  hiLen;     /* length in bytes   */
@@ -64,6 +71,7 @@ typedef struct Sha256 {
     #ifdef WOLFSSL_PIC32MZ_HASH
         pic32mz_desc desc ; /* Crypt Engine descriptor */
     #endif
+#endif /* FREESCALE_LTC_SHA */
 } Sha256;
 
 #else /* WOLFSSL_TI_HASH */

@@ -4507,7 +4507,32 @@ ProtocolVersion MakeDTLSv1_2(void)
 
 
 
-#ifdef USE_WINDOWS_API
+#if defined(USER_TICKS)
+#if 0
+    word32 LowResTimer(void)
+    {
+        /*
+        write your own clock tick function if don't want time(0)
+        needs second accuracy but doesn't have to correlated to EPOCH
+        */
+    }
+#endif
+
+#elif defined(TIME_OVERRIDES)
+
+    /* use same asn time overrides unless user wants tick override above */
+
+    #ifndef HAVE_TIME_T_TYPE
+        typedef long time_t;
+    #endif
+    extern time_t XTIME(time_t * timer);
+
+    word32 LowResTimer(void)
+    {
+        return (word32) XTIME(0);
+    }
+
+#elif defined(USE_WINDOWS_API)
 
     word32 LowResTimer(void)
     {
@@ -4587,14 +4612,21 @@ ProtocolVersion MakeDTLSv1_2(void)
 
         return (word32) mqxTime.SECONDS;
     }
+#elif defined(FREESCALE_FREE_RTOS) || defined(FREESCALE_KSDK_FREERTOS)
 
-#elif defined(FREESCALE_KSDK_BM) || defined(FREESCALE_FREE_RTOS)
+    #include "include/task.h"
 
-    #include "fsl_pit_driver.h"
+    unsigned int LowResTimer(void)
+    {
+        return (unsigned int)(((float)xTaskGetTickCount())/configTICK_RATE_HZ);
+    }
 
+#elif defined(FREESCALE_KSDK_BM)
+
+    #include "lwip/sys.h" /* lwIP */
     word32 LowResTimer(void)
     {
-        return PIT_DRV_GetUs();
+        return sys_now()/1000;
     }
 
 #elif defined(WOLFSSL_TIRTOS)
@@ -4611,33 +4643,8 @@ ProtocolVersion MakeDTLSv1_2(void)
         return (word32)(uTaskerSystemTick / TICK_RESOLUTION);
     }
 
-#elif defined(USER_TICKS)
-#if 0
-    word32 LowResTimer(void)
-    {
-        /*
-        write your own clock tick function if don't want time(0)
-        needs second accuracy but doesn't have to correlated to EPOCH
-        */
-    }
-#endif
-
-#elif defined(TIME_OVERRIDES)
-
-    /* use same asn time overrides unless user wants tick override above */
-
-    #ifndef HAVE_TIME_T_TYPE
-        typedef long time_t;
-    #endif
-    extern time_t XTIME(time_t * timer);
-
-    word32 LowResTimer(void)
-    {
-        return (word32) XTIME(0);
-    }
-
-#else /* !USE_WINDOWS_API && !HAVE_RTP_SYS && !MICRIUM && !USER_TICKS */
-
+#else
+    /* Posix style time */
     #include <time.h>
 
     word32 LowResTimer(void)
@@ -4646,7 +4653,7 @@ ProtocolVersion MakeDTLSv1_2(void)
     }
 
 
-#endif /* USE_WINDOWS_API */
+#endif
 
 
 #ifndef NO_CERTS
