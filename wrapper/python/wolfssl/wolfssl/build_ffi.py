@@ -58,6 +58,14 @@ ffi.cdef(
     int  wolfSSL_CTX_load_verify_locations(void*, const char*, const char*);
     int  wolfSSL_CTX_load_verify_buffer(void*, const unsigned char*, long, int);
     int  wolfSSL_CTX_use_certificate_chain_file(void*, const char *);
+
+    void* wolfSSL_new(void*);
+    void  wolfSSL_free(void*);
+
+    int wolfSSL_set_fd(void*, int);
+    int wolfSSL_write(void*, const void*, int);
+    int wolfSSL_read(void*, void*, int);
+    int wolfSSL_shutdown(void*);
     """
 )
 
