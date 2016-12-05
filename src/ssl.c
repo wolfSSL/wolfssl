@@ -10764,6 +10764,25 @@ const EVP_MD *wolfSSL_EVP_get_digestbyname(const char *name)
 
     #endif /* WOLFSSL_SHA512 */
 
+    WOLFSSL_EVP_MD_CTX *wolfSSL_EVP_MD_CTX_new(void)
+    {
+        WOLFSSL_EVP_MD_CTX* ctx;
+        WOLFSSL_ENTER("EVP_MD_CTX_new");
+        ctx=XMALLOC(sizeof *ctx, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+      	if (ctx){
+            wolfSSL_EVP_MD_CTX_init(ctx);
+        }
+        return ctx;
+    }
+
+    WOLFSSL_API void wolfSSL_EVP_MD_CTX_free(WOLFSSL_EVP_MD_CTX *ctx)
+    {
+        if (ctx) {
+            WOLFSSL_ENTER("EVP_MD_CTX_free");
+    		    wolfSSL_EVP_MD_CTX_cleanup(ctx);
+    		    XFREE(ctx, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    		}
+    }
 
     void wolfSSL_EVP_MD_CTX_init(WOLFSSL_EVP_MD_CTX* ctx)
     {
