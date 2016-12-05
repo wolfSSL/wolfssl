@@ -103,6 +103,20 @@ class SSLContext(object):
 #                         _context=self)
 #
 #
+
+    def set_ciphers(self, ciphers):
+        """
+        Set the available ciphers for sockets created with this context. It
+        should be a string in the wolfSSL cipher list format. If no cipher can
+        be selected (because compile-time options or other configuration forbids
+        use of all the specified ciphers), an SSLError will be raised.
+        """
+        ret = _lib.wolfSSL_CTX_set_cipher_list(self.native_object, t2b(ciphers))
+
+        if ret != _SSL_SUCCESS:
+            raise SSLError("Unnable to set cipher list")
+
+
     def load_cert_chain(self, certfile, keyfile=None, password=None):
         """
         Load a private key and the corresponding certificate. The certfile
@@ -118,7 +132,7 @@ class SSLContext(object):
             ret = _lib.wolfSSL_CTX_use_certificate_chain_file(
                 self.native_object, t2b(certfile))
             if ret != _SSL_SUCCESS:
-                raise SSLError("Unnable to load certificate chain")
+                raise SSLError("Unnable to load certificate chain. Err %d"% ret)
         else:
             raise TypeError("certfile should be a valid filesystem path")
 
@@ -126,7 +140,7 @@ class SSLContext(object):
             ret = _lib.wolfSSL_CTX_use_PrivateKey_file(
                 self.native_object, t2b(keyfile), _SSL_FILETYPE_PEM)
             if ret != _SSL_SUCCESS:
-                raise SSLError("Unnable to load private key")
+                raise SSLError("Unnable to load private key. Err %d" % ret)
 
 
     def load_verify_locations(self, cafile=None, capath=None, cadata=None):
