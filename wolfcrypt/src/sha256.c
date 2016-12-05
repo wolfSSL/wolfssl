@@ -455,7 +455,7 @@ int wc_Sha256Update(Sha256* sha256, const byte* data, word32 len)
     return 0;
 }
 #else
-int wc_Sha256Update(Sha256* sha256, const byte* data, word32 len)
+static INLINE int Sha256Update(Sha256* sha256, const byte* data, word32 len)
 {
 
     /* do block size increments */
@@ -492,6 +492,12 @@ int wc_Sha256Update(Sha256* sha256, const byte* data, word32 len)
 
     return 0;
 }
+
+int wc_Sha256Update(Sha256* sha256, const byte* data, word32 len)
+{
+    return Sha256Update(sha256, data, len);
+}
+
 #endif /* FREESCALE_LTC_SHA */
 
 #ifdef FREESCALE_LTC_SHA
@@ -502,7 +508,7 @@ int wc_Sha256Final(Sha256* sha256, byte* hash)
     return wc_InitSha256(sha256);  /* reset state */
 }
 #else
-int wc_Sha256Final(Sha256* sha256, byte* hash)
+static INLINE int Sha256Final(Sha256* sha256)
 {
     byte* local = (byte*)sha256->buffer;
     int ret;
