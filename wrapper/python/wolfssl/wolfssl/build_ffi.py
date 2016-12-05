@@ -19,18 +19,18 @@
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
-import os
 
 from cffi import FFI
 
 ffi = FFI()
 
-ffi.set_source("wolfssl._ffi",
+ffi.set_source(
+    "wolfssl._ffi",
     """
-        #include <wolfssl/options.h>
-        #include <wolfssl/ssl.h>
+    #include <wolfssl/options.h>
+    #include <wolfssl/ssl.h>
 
-        void wolfSSL_Free(void *ptr, void* heap, int type);
+    void wolfSSL_Free(void *ptr, void* heap, int type);
     """,
     include_dirs=["/usr/local/include"],
     library_dirs=["/usr/local/lib"],
@@ -38,7 +38,7 @@ ffi.set_source("wolfssl._ffi",
 )
 
 ffi.cdef(
-"""
+    """
     typedef unsigned char byte;
     typedef unsigned int  word32;
 
@@ -52,11 +52,12 @@ ffi.cdef(
     void* wolfSSL_CTX_new(void*);
     void  wolfSSL_CTX_free(void*);
 
-    int wolfSSL_CTX_use_PrivateKey_file(void*, const char*, int);
-    int wolfSSL_CTX_load_verify_locations(void*, const char*, const char*);
-    int wolfSSL_CTX_load_verify_buffer(void*, const unsigned char*, long, int);
-    int wolfSSL_CTX_use_certificate_chain_file(void*, const char *);
-"""
+    void wolfSSL_CTX_set_verify(void*, int, void*);
+    int  wolfSSL_CTX_use_PrivateKey_file(void*, const char*, int);
+    int  wolfSSL_CTX_load_verify_locations(void*, const char*, const char*);
+    int  wolfSSL_CTX_load_verify_buffer(void*, const unsigned char*, long, int);
+    int  wolfSSL_CTX_use_certificate_chain_file(void*, const char *);
+    """
 )
 
 if __name__ == "__main__":

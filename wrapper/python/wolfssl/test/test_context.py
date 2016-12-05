@@ -125,6 +125,13 @@ class TestSSLContext(unittest.TestCase):
 
     def test_context_creation(self):
         self.assertIsNotNone(self.ctx)
+        self.assertEqual(self.ctx.verify_mode, self.provider.CERT_NONE)
+
+        self.ctx.verify_mode = self.provider.CERT_OPTIONAL
+        self.assertEqual(self.ctx.verify_mode, self.provider.CERT_OPTIONAL)
+
+        self.ctx.verify_mode = self.provider.CERT_REQUIRED
+        self.assertEqual(self.ctx.verify_mode, self.provider.CERT_REQUIRED)
 
     def test_load_cert_chain_raises(self):
         self.assertRaises(TypeError, self.ctx.load_cert_chain, None)

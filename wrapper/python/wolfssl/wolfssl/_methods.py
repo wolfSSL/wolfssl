@@ -41,7 +41,7 @@ _PROTOCOL_LIST = [PROTOCOL_SSLv23, PROTOCOL_SSLv3, PROTOCOL_TLS,
                   PROTOCOL_TLSv1, PROTOCOL_TLSv1_1, PROTOCOL_TLSv1_2]
 
 
-class WolfSSLMethod:
+class WolfSSLMethod(object):
     """
     An SSLMethod holds SSL-related configuration options such as
     protocol version and communication side.

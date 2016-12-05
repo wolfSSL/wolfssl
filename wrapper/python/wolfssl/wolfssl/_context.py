@@ -33,10 +33,12 @@ CERT_NONE = 0
 CERT_OPTIONAL = 1
 CERT_REQUIRED = 2
 
+_VERIFY_MODE_LIST = [CERT_NONE, CERT_OPTIONAL, CERT_REQUIRED]
+
 _SSL_SUCCESS = 1
 _SSL_FILETYPE_PEM = 1
 
-class SSLContext:
+class SSLContext(object):
     """
     An SSLContext holds various SSL-related configuration options and
     data, such as certificates and possibly a private key.
@@ -47,6 +49,7 @@ class SSLContext:
 
         self.protocol = protocol
         self._side = server_side
+        self._verify_mode = None
         self.native_object = _lib.wolfSSL_CTX_new(method.native_object)
 
         # wolfSSL_CTX_new() takes ownership of the method.
@@ -57,10 +60,36 @@ class SSLContext:
         if self.native_object == _ffi.NULL:
             raise MemoryError("Unnable to allocate context object")
 
+        # verify_mode initialization needs a valid native_object.
+        self.verify_mode = CERT_NONE
+
 
     def __del__(self):
         if self.native_object is not None:
             _lib.wolfSSL_CTX_free(self.native_object)
+
+
+    @property
+    def verify_mode(self):
+        """
+        Whether to try to verify other peers’ certificates and how to behave
+        if verification fails. This attribute must be one of CERT_NONE,
+        CERT_OPTIONAL or CERT_REQUIRED.
+        """
+        return self._verify_mode
+
+
+    @verify_mode.setter
+    def verify_mode(self, value):
+        if value not in _VERIFY_MODE_LIST:
+            raise ValueError("verify_mode must be one of CERT_NONE, "
+                             "CERT_OPTIONAL or CERT_REQUIRED")
+
+        if value != self._verify_mode:
+            self._verify_mode = value
+            _lib.wolfSSL_CTX_set_verify(self.native_object,
+                                        self._verify_mode,
+                                        _ffi.NULL)
 
 
 #    def wrap_socket(self, sock, server_side=False,
