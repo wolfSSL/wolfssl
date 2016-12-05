@@ -2528,12 +2528,43 @@ static struct cipher{
 const WOLFSSL_EVP_MD *wolfSSL_EVP_get_cipherbyname(const char *name)
 {
 
+    static const struct alias {
+        const char *name;
+        const char *alias;
+    } alias_tbl[] =
+    {
+        {"DES-CBC", "DES"},
+        {"DES-CBC", "des"},
+        {"DES-EDE3-CBC", "DES3"},
+        {"DES-EDE3-CBC", "des3"},
+        {"DES-EDE3-ECB", "des-ede3-ecb"},
+        {"IDEA-CBC", "IDEA"},
+        {"IDEA-CBC", "idea"},
+        {"AES-128-CBC", "AES128"},
+        {"AES-128-CBC", "aes128"},
+        {"AES-192-CBC", "AES192"},
+        {"AES-192-CBC", "aes192"},
+        {"AES-256-CBC", "AES256"},
+        {"AES-256-CBC", "aes256"},
+        { NULL, NULL}
+    };
+
     const struct cipher *ent ;
+    const struct alias  *al ;
+
     WOLFSSL_ENTER("EVP_get_cipherbyname");
+
+    for( al = alias_tbl; al->name != NULL; al++)
+        if(XSTRNCMP(name, al->alias, XSTRLEN(al->alias)+1) == 0) {
+            name = al->name;
+            break;
+        }
+
     for( ent = cipher_tbl; ent->name != NULL; ent++)
         if(XSTRNCMP(name, ent->name, XSTRLEN(ent->name)+1) == 0) {
             return (WOLFSSL_EVP_CIPHER *)ent->name;
         }
+
     return NULL;
 }
 
@@ -10645,7 +10676,24 @@ const EVP_MD *wolfSSL_EVP_get_digestbyname(const char *name)
         NULL
     } ;
 
+    static const struct alias {
+        const char *name;
+        const char *alias;
+    } alias_tbl[] =
+    {
+        {"MD5", "ssl3-md5"},
+        {"SHA1", "ssl3-sha1"},
+        { NULL, NULL}
+    };
+
+    const struct alias  *al ;
     const char **tbl ;
+
+    for( al = alias_tbl; al->name != NULL; al++)
+        if(XSTRNCMP(name, al->alias, XSTRLEN(al->alias)+1) == 0) {
+            name = al->name;
+            break;
+        }
 
     for( tbl = md_tbl; *tbl != NULL; tbl++)
         if(XSTRNCMP(name, *tbl, XSTRLEN(*tbl)+1) == 0) {
