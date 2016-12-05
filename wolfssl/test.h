@@ -1706,51 +1706,51 @@ static INLINE int myEccVerify(WOLFSSL* ssl, const byte* sig, word32 sigSz,
 }
 
 static INLINE int myEccSharedSecret(WOLFSSL* ssl,
+        const unsigned char* otherKeyDer, unsigned int otherKeySz,
+        unsigned int otherKeyId,
         unsigned char* pubKeyDer, unsigned int* pubKeySz,
         unsigned char* out, unsigned int* outlen,
         int side, void* ctx)
 {
-    int      ret;
-    ecc_key* privKey;
-    ecc_key* pubKey;
-    ecc_key  tmpKey;
+    int     ret;
+    ecc_key privKey;
+    ecc_key pubKey;
 
     (void)ssl;
     (void)ctx;
 
-    ret = wc_ecc_init(&tmpKey);
+    ret = wc_ecc_init(&privKey);
     if (ret != 0) {
+        return ret;
+    }
+    ret = wc_ecc_init(&pubKey);
+    if (ret != 0) {
+        wc_ecc_free(&privKey);
         return ret;
     }
 
     /* for client: create and export public key */
     if (side == WOLFSSL_CLIENT_END) {
-        WC_RNG  rng;
+        WC_RNG rng;
         ret = wc_InitRng(&rng);
         if (ret == 0) {
-            ret = wolfSSL_GetEccKey(ssl, &pubKey);
-            if (ret != 0) {
-                return ret;
-            }
-            privKey = &tmpKey;
-
-            ret = wc_ecc_make_key_ex(&rng, 0, privKey, pubKey->dp->id);
-            if (ret == 0) {
-                ret = wc_ecc_export_x963(privKey, pubKeyDer, pubKeySz);
-            }
+            ret = wc_ecc_import_x963_ex(otherKeyDer, otherKeySz, &pubKey,
+                otherKeyId);
+            if (ret == 0)
+                ret = wc_ecc_make_key_ex(&rng, 0, &privKey, otherKeyId);
+            if (ret == 0)
+                ret = wc_ecc_export_x963(&privKey, pubKeyDer, pubKeySz);
             wc_FreeRng(&rng);
         }
     }
 
     /* for server: import public key */
     else if (side == WOLFSSL_SERVER_END) {
-        ret = wolfSSL_GetEccKey(ssl, &privKey);
-        if (ret != 0) {
-            return ret;
-        }
-        pubKey = &tmpKey;
-
-        ret = wc_ecc_import_x963_ex(pubKeyDer, *pubKeySz, pubKey, privKey->dp->id);
+        ret = wc_ecc_import_x963_ex(otherKeyDer, otherKeySz, &privKey,
+                otherKeyId);
+        if (ret == 0)
+            ret = wc_ecc_import_x963_ex(pubKeyDer, *pubKeySz, &pubKey,
+                otherKeyId);
     }
     else {
         ret = -1;
@@ -1758,10 +1758,11 @@ static INLINE int myEccSharedSecret(WOLFSSL* ssl,
 
     /* generate shared secret and return it */
     if (ret == 0) {
-        ret = wc_ecc_shared_secret(privKey, pubKey, out, outlen);
+        ret = wc_ecc_shared_secret(&privKey, &pubKey, out, outlen);
     }
 
-    wc_ecc_free(&tmpKey);
+    wc_ecc_free(&privKey);
+    wc_ecc_free(&pubKey);
 
     return ret;
 }

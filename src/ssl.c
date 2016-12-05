@@ -959,50 +959,6 @@ int wolfSSL_SetMinEccKey_Sz(WOLFSSL* ssl, short keySz)
     return SSL_SUCCESS;
 }
 
-/* Gets ECC key for shared secret callback testing
- * Client side: returns peer key
- * Server side: returns private key
- */
-int wolfSSL_GetEccKey(WOLFSSL* ssl, struct ecc_key** key)
-{
-    if (ssl == NULL || key == NULL) {
-        return BAD_FUNC_ARG;
-    }
-
-    if (ssl->options.side == WOLFSSL_CLIENT_END) {
-        if (ssl->specs.static_ecdh) {
-            if (!ssl->peerEccDsaKey || !ssl->peerEccDsaKeyPresent ||
-                                       !ssl->peerEccDsaKey->dp) {
-                return NO_PEER_KEY;
-            }
-            *key = (struct ecc_key*)ssl->peerEccDsaKey;
-        }
-        else {
-            if (!ssl->peerEccKey || !ssl->peerEccKeyPresent ||
-                                    !ssl->peerEccKey->dp) {
-                return NO_PEER_KEY;
-            }
-            *key = (struct ecc_key*)ssl->peerEccKey;
-        }
-    }
-    else if (ssl->options.side == WOLFSSL_SERVER_END) {
-        if (ssl->specs.static_ecdh) {
-            if (ssl->sigKey == NULL) {
-                return NO_PRIVATE_KEY;
-            }
-            *key = (struct ecc_key*)ssl->sigKey;
-        }
-        else {
-            if (!ssl->eccTempKeyPresent) {
-                return NO_PRIVATE_KEY;
-            }
-            *key = (struct ecc_key*)ssl->eccTempKey;
-        }
-    }
-
-    return 0;
-}
-
 #endif /* !NO_RSA */
 
 #ifndef NO_RSA
