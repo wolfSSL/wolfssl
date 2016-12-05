@@ -449,11 +449,10 @@ WOLFSSL_API void wolfSSL_SetIOWriteFlags(WOLFSSL* ssl, int flags);
 #endif /* HAVE_NETX */
 
 #ifdef HAVE_LWIP_NATIVE
-    WOLFSSL_LOCAL int wolfSSL_LwIP_Send(WOLFSSL* ssl, char *buf, int sz, void *cb);
-    WOLFSSL_LOCAL int wolfSSL_LwIP_Receive(WOLFSSL* ssl, char *buf, int sz, void *cb);
+    WOLFSSL_API   int wolfSSL_LwIP_Send(WOLFSSL* ssl, char *buf, int sz, void *cb);
+    WOLFSSL_API   int wolfSSL_LwIP_Receive(WOLFSSL* ssl, char *buf, int sz, void *cb);
     WOLFSSL_API   int wolfSSL_SetIO_LwIP(WOLFSSL* ssl, void *pcb,
                                 tcp_recv_fn recv, tcp_sent_fn sent, void *arg);
-    WOLFSSL_LOCAL void wolfSSL_LwIP_PbufFree(WOLFSSL *ssl);
 #endif /* HAVE_LWIP_NATIVE */
 
 #ifdef MICRIUM

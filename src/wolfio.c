@@ -2394,7 +2394,7 @@ int GNRC_GenerateCookie(WOLFSSL* ssl, byte *buf, int sz, void *_ctx)
     #include  "intrinsics.h"
 #endif
 
-void wolfSSL_LwIP_PbufFree(WOLFSSL *ssl)
+static void wolfSSL_LwIP_PbufFree(WOLFSSL *ssl)
 {
     struct pbuf *p;
     struct pbuf * next;
