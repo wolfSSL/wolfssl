@@ -10099,12 +10099,22 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
 
     long wolfSSL_BIO_set_ssl(WOLFSSL_BIO* b, WOLFSSL* ssl, int closeF)
     {
-        WOLFSSL_ENTER("BIO_set_ssl");
+        WOLFSSL_ENTER("wolfSSL_BIO_set_ssl");
         b->ssl   = ssl;
         b->close = (byte)closeF;
     /* add to ssl for bio free if SSL_free called before/instead of free_all? */
 
         return 0;
+    }
+
+
+    long wolfSSL_BIO_set_fd(WOLFSSL_BIO* b, int fd, int closeF)
+    {
+        WOLFSSL_ENTER("wolfSSL_BIO_set_fd");
+        b->fd    = fd;
+        b->close = (byte)closeF;
+
+        return SSL_SUCCESS;
     }
 
 
@@ -20021,6 +20031,60 @@ void* wolfSSL_GetRsaDecCtx(WOLFSSL* ssl)
 
 
 #ifdef OPENSSL_EXTRA /*Lighttp compatibility*/
+
+    WOLFSSL_X509 *wolfSSL_PEM_read_bio_X509(WOLFSSL_BIO *bp, WOLFSSL_X509 **x,
+                                                 pem_password_cb *cb, void *u) {
+        WOLFSSL_X509* x509 = NULL;
+        const unsigned char* pem = NULL;
+        int pemSz;
+
+        WOLFSSL_ENTER("wolfSSL_PEM_read_bio_X509");
+
+        if (bp == NULL) {
+            WOLFSSL_LEAVE("wolfSSL_PEM_read_bio_X509", BAD_FUNC_ARG);
+            return NULL;
+        }
+
+        pemSz = wolfSSL_BIO_get_mem_data(bp, &pem);
+        if (pemSz <= 0 || pem == NULL) {
+            WOLFSSL_MSG("Issue getting WOLFSSL_BIO mem");
+            WOLFSSL_LEAVE("wolfSSL_PEM_read_bio_X509", pemSz);
+            return NULL;
+        }
+
+        x509 = wolfSSL_X509_load_certificate_buffer(pem, pemSz,
+                                                              SSL_FILETYPE_PEM);
+
+        if (x != NULL) {
+            *x = x509;
+        }
+
+        (void)cb;
+        (void)u;
+
+        return x509;
+    }
+
+
+    /*
+     * bp : bio to read X509 from
+     * x  : x509 to write to
+     * cb : password call back for reading PEM
+     * u  : password
+     * _AUX is for working with a trusted X509 certificate
+     */
+    WOLFSSL_X509 *wolfSSL_PEM_read_bio_X509_AUX(WOLFSSL_BIO *bp,
+                               WOLFSSL_X509 **x, pem_password_cb *cb, void *u) {
+        WOLFSSL_ENTER("wolfSSL_PEM_read_bio_X509");
+
+        /* AUX info is; trusted/rejected uses, friendly name, private key id,
+         * and potentially a stack of "other" info. wolfSSL does not store
+         * friendly name or private key id yet in WOLFSSL_X509 for human
+         * readibility and does not support extra trusted/rejected uses for
+         * root CA. */
+        return wolfSSL_PEM_read_bio_X509(bp, x, cb, u);
+    }
+
 #if defined(HAVE_LIGHTY) || defined(WOLFSSL_MYSQL_COMPATIBLE) || defined(HAVE_STUNNEL)
 
     unsigned char *wolfSSL_SHA1(const unsigned char *d, size_t n, unsigned char *md)
@@ -20093,29 +20157,6 @@ void* wolfSSL_GetRsaDecCtx(WOLFSSL* ssl)
     }
 #endif /* HAVE_ECC */
 
-
-    WOLFSSL_X509 *wolfSSL_PEM_read_bio_X509(WOLFSSL_BIO *bp, WOLFSSL_X509 **x, pem_password_cb *cb, void *u) {
-        (void)bp;
-        (void)x;
-        (void)cb;
-        (void)u;
-        WOLFSSL_ENTER("wolfSSL_PEM_read_bio_X509");
-        WOLFSSL_STUB("wolfSSL_PEM_read_bio_X509");
-
-        return NULL;
-    }
-
-    /*** TBD ***/
-    WOLFSSL_X509 *wolfSSL_PEM_read_bio_X509_AUX(WOLFSSL_BIO *bp, WOLFSSL_X509 **x, pem_password_cb *cb, void *u) {
-        (void)bp;
-        (void)x;
-        (void)cb;
-        (void)u;
-        WOLFSSL_ENTER("wolfSSL_PEM_read_bio_X509");
-        WOLFSSL_STUB("wolfSSL_PEM_read_bio_X509");
-
-        return NULL;
-    }
 
     void wolfSSL_CTX_set_verify_depth(WOLFSSL_CTX *ctx, int depth) {
         (void)ctx;
@@ -20448,18 +20489,18 @@ WOLFSSL_DSA *wolfSSL_PEM_read_bio_DSAparams(WOLFSSL_BIO *bp, WOLFSSL_DSA **x, pe
 
 #if defined(HAVE_LIGHTY) || defined(HAVE_STUNNEL) \
     || defined(WOLFSSL_MYSQL_COMPATIBLE) || defined(OPENSSL_EXTRA)
-char * wolf_OBJ_nid2ln(int n) {
+char * wolfSSL_OBJ_nid2ln(int n) {
     (void)n;
-    WOLFSSL_ENTER("wolf_OBJ_nid2ln");
-    WOLFSSL_STUB("wolf_OBJ_nid2ln");
+    WOLFSSL_ENTER("wolfSSL_OBJ_nid2ln");
+    WOLFSSL_STUB("wolfSSL_OBJ_nid2ln");
 
     return NULL;
 }
 
-int wolf_OBJ_txt2nid(const char* s) {
+int wolfSSL_OBJ_txt2nid(const char* s) {
     (void)s;
-    WOLFSSL_ENTER("wolf_OBJ_txt2nid");
-    WOLFSSL_STUB("wolf_OBJ_txt2nid");
+    WOLFSSL_ENTER("wolfSSL_OBJ_txt2nid");
+    WOLFSSL_STUB("wolfSSL_OBJ_txt2nid");
 
     return 0;
 }
@@ -20489,11 +20530,11 @@ WOLFSSL_DH *wolfSSL_PEM_read_bio_DHparams(WOLFSSL_BIO *bp, WOLFSSL_DH **x, pem_p
 }
 
 
-int PEM_write_bio_WOLFSSL_X509(WOLFSSL_BIO *bp, WOLFSSL_X509 *x) {
+int wolfSSL_PEM_write_bio_X509(WOLFSSL_BIO *bp, WOLFSSL_X509 *x) {
     (void)bp;
     (void)x;
-    WOLFSSL_ENTER("PEM_write_bio_WOLFSSL_X509");
-    WOLFSSL_STUB("PEM_write_bio_WOLFSSL_X509");
+    WOLFSSL_ENTER("wolfSSL_PEM_write_bio_X509");
+    WOLFSSL_STUB("wolfSSL_PEM_write_bio_X509");
 
     return 0;
 }

@@ -447,6 +447,8 @@ typedef WOLFSSL_X509_STORE_CTX X509_STORE_CTX;
 #define SSL_SESSION_get_timeout wolfSSL_SESSION_get_timeout
 #define SSL_SESSION_get_time wolfSSL_SESSION_get_time
 #define SSL_CTX_get_ex_new_index wolfSSL_CTX_get_ex_new_index
+#define PEM_read_bio_X509 wolfSSL_PEM_read_bio_X509
+#define PEM_read_bio_X509_AUX wolfSSL_PEM_read_bio_X509_AUX
 
 /*#if OPENSSL_API_COMPAT < 0x10100000L*/
 #define CONF_modules_free()
@@ -478,8 +480,6 @@ typedef WOLFSSL_X509_NAME_ENTRY X509_NAME_ENTRY;
 #define OBJ_nid2sn wolfSSL_OBJ_nid2sn
 #define OBJ_obj2nid wolfSSL_OBJ_obj2nid
 #define OBJ_sn2nid wolfSSL_OBJ_sn2nid
-#define PEM_read_bio_X509 wolfSSL_PEM_read_bio_X509
-#define PEM_read_bio_X509_AUX wolfSSL_PEM_read_bio_X509_AUX
 #define SSL_CTX_set_verify_depth wolfSSL_CTX_set_verify_depth
 #define SSL_get_app_data wolfSSL_get_app_data
 #define SSL_set_app_data wolfSSL_set_app_data
@@ -501,8 +501,8 @@ typedef WOLFSSL_X509_NAME_ENTRY X509_NAME_ENTRY;
 #if defined(HAVE_STUNNEL) || defined(HAVE_LIGHTY) \
     || defined(WOLFSSL_MYSQL_COMPATIBLE)
 
-#define OBJ_nid2ln wolf_OBJ_nid2ln
-#define OBJ_txt2nid wolf_OBJ_txt2nid
+#define OBJ_nid2ln wolfSSL_OBJ_nid2ln
+#define OBJ_txt2nid wolfSSL_OBJ_txt2nid
 #define PEM_read_bio_DHparams wolfSSL_PEM_read_bio_DHparams
 #define PEM_read_bio_DSAparams wolfSSL_PEM_read_bio_DSAparams
 #define PEM_write_bio_X509 PEM_write_bio_WOLFSSL_X509
@@ -517,7 +517,7 @@ typedef WOLFSSL_X509_NAME_ENTRY X509_NAME_ENTRY;
 #define BIO_int_ctrl        wolfSSL_BIO_int_ctrl
 #define BIO_reset           wolfSSL_BIO_reset
 #define BIO_s_socket        wolfSSL_BIO_s_socket
-#define BIO_set_fd          wolfSSL_BBIO_set_fd
+#define BIO_set_fd          wolfSSL_BIO_set_fd
 
 #define BIO_set_write_buf_size wolfSSL_BIO_set_write_buf_size
 #define BIO_make_bio_pair   wolfSSL_BIO_make_bio_pair

@@ -2617,11 +2617,11 @@ static void test_wolfSSL_CTX_add_extra_chain_cert(void)
 
     x509 = wolfSSL_X509_load_certificate_file(caFile, SSL_FILETYPE_PEM);
     AssertNotNull(x509);
-    AssertIntEQ((int)wolfSSL_CTX_add_extra_chain_cert(ctx, x509), SSL_SUCCESS);
+    AssertIntEQ((int)SSL_CTX_add_extra_chain_cert(ctx, x509), SSL_SUCCESS);
 
     x509 = wolfSSL_X509_load_certificate_file(clientFile, SSL_FILETYPE_PEM);
     AssertNotNull(x509);
-    AssertIntEQ((int)wolfSSL_CTX_add_extra_chain_cert(ctx, x509), SSL_SUCCESS);
+    AssertIntEQ((int)SSL_CTX_add_extra_chain_cert(ctx, x509), SSL_SUCCESS);
 
     SSL_CTX_free(ctx);
     printf(resultFmt, passed);
@@ -2671,10 +2671,10 @@ static void test_wolfSSL_ERR_peek_last_error_line(void)
     FreeTcpReady(&ready);
 
     /* check that error code was stored */
-    AssertIntNE((int)wolfSSL_ERR_peek_last_error_line(NULL, NULL), 0);
-    wolfSSL_ERR_peek_last_error_line(NULL, &line);
+    AssertIntNE((int)ERR_peek_last_error_line(NULL, NULL), 0);
+    ERR_peek_last_error_line(NULL, &line);
     AssertIntNE(line, 0);
-    wolfSSL_ERR_peek_last_error_line(&file, NULL);
+    ERR_peek_last_error_line(&file, NULL);
     AssertNotNull(file);
 
 #ifdef WOLFSSL_TIRTOS
@@ -2796,6 +2796,36 @@ static void test_wolfSSL_set_options(void)
 }
 
 
+static void test_wolfSSL_PEM_read_bio(void)
+{
+    #if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && \
+       !defined(NO_FILESYSTEM) && !defined(NO_RSA)
+    byte buffer[5300];
+    FILE *f;
+    int  bytes;
+    X509* x509;
+    BIO*  bio = NULL;
+
+    printf(testingFmt, "wolfSSL_PEM_read_bio()");
+
+    AssertNotNull(f = fopen(cliCert, "rb"));
+    bytes = (int)fread(buffer, 1, sizeof(buffer), f);
+    fclose(f);
+
+    AssertNull(x509 = PEM_read_bio_X509_AUX(bio, NULL, NULL, NULL));
+    AssertNotNull(bio = BIO_new_mem_buf((void*)buffer, bytes));
+    AssertNotNull(x509 = PEM_read_bio_X509_AUX(bio, NULL, NULL, NULL));
+    AssertIntEQ((int)BIO_set_fd(bio, 0, BIO_NOCLOSE), 1);
+
+    BIO_free(bio);
+    X509_free(x509);
+
+    printf(resultFmt, passed);
+    #endif /* defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && \
+             !defined(NO_FILESYSTEM) && !defined(NO_RSA) */
+}
+
+
 /*----------------------------------------------------------------------------*
  | Main
  *----------------------------------------------------------------------------*/
@@ -2852,6 +2882,7 @@ void ApiTest(void)
     test_wolfSSL_X509_STORE_set_flags();
     test_wolfSSL_BN();
     test_wolfSSL_set_options();
+    test_wolfSSL_PEM_read_bio();
 
     AssertIntEQ(test_wolfSSL_Cleanup(), SSL_SUCCESS);
     printf(" End API Tests\n");
