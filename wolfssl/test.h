@@ -1711,8 +1711,8 @@ static INLINE int myEccSharedSecret(WOLFSSL* ssl, ecc_key* otherKey,
         int side, void* ctx)
 {
     int      ret;
-    ecc_key* privKey;
-    ecc_key* pubKey;
+    ecc_key* privKey = NULL;
+    ecc_key* pubKey = NULL;
     ecc_key  tmpKey;
 
     (void)ssl;
@@ -1726,10 +1726,12 @@ static INLINE int myEccSharedSecret(WOLFSSL* ssl, ecc_key* otherKey,
     /* for client: create and export public key */
     if (side == WOLFSSL_CLIENT_END) {
         WC_RNG rng;
+
+        privKey = &tmpKey;
+        pubKey = otherKey;
+
         ret = wc_InitRng(&rng);
         if (ret == 0) {
-            privKey = &tmpKey;
-            pubKey = otherKey;
             ret = wc_ecc_make_key_ex(&rng, 0, privKey, otherKey->dp->id);
             if (ret == 0)
                 ret = wc_ecc_export_x963(privKey, pubKeyDer, pubKeySz);
@@ -1741,11 +1743,12 @@ static INLINE int myEccSharedSecret(WOLFSSL* ssl, ecc_key* otherKey,
     else if (side == WOLFSSL_SERVER_END) {
         privKey = otherKey;
         pubKey = &tmpKey;
+
         ret = wc_ecc_import_x963_ex(pubKeyDer, *pubKeySz, pubKey,
             otherKey->dp->id);
     }
     else {
-        ret = -1;
+        ret = BAD_FUNC_ARG;
     }
 
     /* generate shared secret and return it */
