@@ -47,6 +47,11 @@ if BUILD_TRUST_PEER_CERT
 dist_noinst_SCRIPTS+= scripts/trusted_peer.test
 endif
 
+if BUILD_PKCALLBACKS
+dist_noinst_SCRIPTS+= scripts/pkcallbacks.test
+scripts/pkcallbacks.log: scripts/resume.log
+endif
+
 endif # end of BUILD_EXAMPLE_SERVERS
 
 if BUILD_EXAMPLE_CLIENTS
