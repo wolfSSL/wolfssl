@@ -63,6 +63,7 @@ ffi.cdef(
     void  wolfSSL_free(void*);
 
     int wolfSSL_set_fd(void*, int);
+    int wolfSSL_negotiate(void*);
     int wolfSSL_write(void*, const void*, int);
     int wolfSSL_read(void*, void*, int);
     int wolfSSL_shutdown(void*);
