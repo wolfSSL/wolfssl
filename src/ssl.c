@@ -836,6 +836,64 @@ int wolfSSL_dtls_set_mtu(WOLFSSL* ssl, word16 newMtu)
 
 #endif /* WOLFSSL_DTLS && WOLFSSL_SCTP */
 
+
+#if defined(WOLFSSL_DTLS) && defined(WOLFSSL_MULTICAST)
+
+int wolfSSL_dtls_mcast_set_member_id(WOLFSSL* ssl, byte id)
+{
+    int ret = SSL_SUCCESS;
+
+    (void)ssl;
+    (void)id;
+
+    WOLFSSL_ENTER("wolfSSL_dtls_mcast_set_member_id()");
+    WOLFSSL_LEAVE("wolfSSL_dtls_mcast_set_member_id()", ret);
+    return ret;
+}
+
+
+int wolfSSL_dtls_mcast_set_secret(WOLFSSL* ssl, unsigned short epoch,
+                                  const byte* preMasterSecret,
+                                  word32 preMasterSz,
+                                  const byte* clientRandom,
+                                  const byte* serverRandom,
+                                  const byte* suite)
+{
+    int ret = SSL_SUCCESS;
+
+    (void)ssl;
+    (void)epoch;
+    (void)preMasterSecret;
+    (void)preMasterSz;
+    (void)clientRandom;
+    (void)serverRandom;
+    (void)suite;
+
+    WOLFSSL_ENTER("wolfSSL_dtls_mcast_set_secret()");
+    WOLFSSL_LEAVE("wolfSSL_dtls_mcast_set_secret()", ret);
+    return ret;
+}
+
+
+int wolfSSL_dtls_mcast_read(WOLFSSL* ssl, unsigned char* id,
+                            void* data, int sz)
+{
+    int ret = 0;
+
+    (void)ssl;
+    (void)data;
+    (void)sz;
+
+    WOLFSSL_ENTER("wolfSSL_dtls_mcast_read()");
+    if (id != NULL)
+        *id = 0;
+    WOLFSSL_LEAVE("wolfSSL_dtls_mcast_read()", ret);
+    return ret;
+}
+
+#endif /* WOLFSSL_DTLS && WOLFSSL_MULTICAST */
+
+
 #endif /* WOLFSSL_LEANPSK */
 
 

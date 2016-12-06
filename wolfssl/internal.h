@@ -2723,6 +2723,9 @@ typedef struct Options {
 #ifdef WOLFSSL_SCTP
     word16            dtlsSctp:1;         /* DTLS-over-SCTP mode */
 #endif
+#ifdef WOLFSSL_MULTICAST
+    word16            dtlsMcast:1;        /* using multicast ? */
+#endif
 #endif
     word16            haveEMS:1;          /* using extended master secret */
 #if defined(HAVE_TLS_EXTENSIONS) && defined(HAVE_SUPPORTED_CURVES)
