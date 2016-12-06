@@ -26,6 +26,7 @@ except ImportError:
     pass
 
 from wolfssl._methods import WolfSSLMethod
+from wolfssl._socket import SSLSocket
 from wolfssl._exceptions import SSLError
 from wolfssl.utils import t2b
 
@@ -92,17 +93,25 @@ class SSLContext(object):
                                         _ffi.NULL)
 
 
-#    def wrap_socket(self, sock, server_side=False,
-#                    do_handshake_on_connect=True,
-#                    suppress_ragged_eofs=True,
-#                    server_hostname=None):
-#        return SSLSocket(sock=sock, server_side=server_side,
-#                         do_handshake_on_connect=do_handshake_on_connect,
-#                         suppress_ragged_eofs=suppress_ragged_eofs,
-#                         server_hostname=server_hostname,
-#                         _context=self)
-#
-#
+    def wrap_socket(self, sock, server_side=False,
+                    do_handshake_on_connect=True,
+                    suppress_ragged_eofs=True,
+                    server_hostname=None):
+        """
+        Wrap an existing Python socket sock and return an SSLSocket object.
+        sock must be a SOCK_STREAM socket; other socket types are unsupported.
+
+        The returned SSL socket is tied to the context, its settings and
+        certificates. The parameters server_side, do_handshake_on_connect and
+        suppress_ragged_eofs have the same meaning as in the top-level
+        wrap_socket() function.
+        """
+        return SSLSocket(sock=sock, server_side=server_side,
+                         do_handshake_on_connect=do_handshake_on_connect,
+                         suppress_ragged_eofs=suppress_ragged_eofs,
+                         server_hostname=server_hostname,
+                         _context=self)
+
 
     def set_ciphers(self, ciphers):
         """
