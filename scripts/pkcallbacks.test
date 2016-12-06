@@ -23,6 +23,17 @@ remove_ready_file() {
     fi
 }
 
+do_cleanup() {
+    echo "in cleanup"
+
+    if  [ $server_pid != $no_pid ]
+    then
+        echo "killing server"
+        kill -9 $server_pid
+    fi
+    remove_ready_file
+}
+
 # trap this function so if user aborts with ^C or other kill signal we still
 # get an exit that will in turn clean up the file system
 abort_trap() {
@@ -94,7 +105,6 @@ run_test() {
     if [ $server_result != 0 ]
     then
         echo -e "server failed!"
-        do_cleanup
         exit 1
     fi
 
