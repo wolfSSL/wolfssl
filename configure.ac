@@ -349,6 +349,29 @@ AS_IF([test "x$ENABLED_SCTP" = "xyes"],
 ])
 
 
+# DTLS-MULTICAST
+AC_ARG_ENABLE([mcast],
+    [AS_HELP_STRING([--enable-mcast],[Enable wolfSSL DTLS multicast support (default: disabled)])],
+    [ENABLED_MCAST=$enableval],
+    [ENABLED_MCAST=no])
+
+AM_CONDITIONAL([BUILD_MCAST], [test "x$ENABLED_MCAST" = "xyes"])
+
+
+# RNG
+AC_ARG_ENABLE([rng],
+    [AS_HELP_STRING([--enable-rng],[Enable compiling and using RNG (default: enabled)])],
+    [ ENABLED_RNG=$enableval ],
+    [ ENABLED_RNG=yes ]
+    )
+
+if test "$ENABLED_RNG" = "no"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWC_NO_RNG"
+fi
+AM_CONDITIONAL([BUILD_RNG], [test "x$ENABLED_RNG" = "xyes"])
+
+
 # OpenSSH compatibility Build
 AC_ARG_ENABLE([openssh],
     [AS_HELP_STRING([--enable-openssh],[Enable OpenSSH compatibility build (default: disabled)])],
@@ -3532,9 +3555,12 @@ AS_IF([test "x$ENABLED_MAXSTRENGTH" = "xyes" && \
 AS_IF([test "x$ENABLED_SCTP" = "xyes"],
       [AM_CFLAGS="-DWOLFSSL_SCTP $AM_CFLAGS"])
 
-# SCTP requires DTLS
-AS_IF([test "x$ENABLED_DTLS" = "xno" && \
-       test "x$ENABLED_SCTP" = "xyes"],
+AS_IF([test "x$ENABLED_MCAST" = "xyes"],
+      [AM_CFLAGS="-DWOLFSSL_MULTICAST $AM_CFLAGS"])
+
+# SCTP and Multicast require DTLS
+AS_IF([(test "x$ENABLED_DTLS" = "xno") && \
+        (test "x$ENABLED_SCTP" = "xyes" || test "x$ENABLED_MCAST" = "xyes")],
       [AM_CFLAGS="-DWOLFSSL_DTLS $AM_CFLAGS"
        ENABLED_DTLS=yes])
 
@@ -3816,6 +3842,7 @@ echo "   * NGINX:                      $ENABLED_NGINX"
 echo "   * ERROR_STRINGS:              $ENABLED_ERROR_STRINGS"
 echo "   * DTLS:                       $ENABLED_DTLS"
 echo "   * SCTP:                       $ENABLED_SCTP"
+echo "   * Multicast:                  $ENABLED_MCAST"
 echo "   * Old TLS Versions:           $ENABLED_OLD_TLS"
 echo "   * SSL version 3.0:            $ENABLED_SSLV3"
 echo "   * TLS v1.3:                   $ENABLED_TLS13"
