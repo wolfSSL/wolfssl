@@ -43,6 +43,10 @@
 #include <wolfssl/test.h>
 #include <tests/unit.h>
 
+#ifndef NO_MD5
+#include <wolfssl/wolfcrypt/md5.h>
+#endif
+
 #ifdef OPENSSL_EXTRA
     #include <wolfssl/openssl/ssl.h>
     #include <wolfssl/openssl/pkcs12.h>
@@ -56,6 +60,16 @@
     #define USE_CERT_BUFFERS_2048
 #endif
 #include <wolfssl/certs_test.h>
+
+
+typedef struct testVector {
+    const char* input;
+    const char* output;
+    size_t inLen;
+    size_t outLen;
+
+} testVector;
+
 
 /*----------------------------------------------------------------------------*
  | Constants
@@ -2165,7 +2179,7 @@ static int test_wolfSSL_UseOCSPStapling(void)
  * check.
  * PRE: HAVE_CERTIFICATE_STATUS_REQUEST_V2 and HAVE_OCSP defined.
  */
-static int test_wolfSSL_UseOCSPStaplingV2(void)
+static int test_wolfSSL_UseOCSPStaplingV2 (void)
 {
     #if defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2) && defined(HAVE_OCSP)
         int                 ret;
@@ -2185,7 +2199,7 @@ static int test_wolfSSL_UseOCSPStaplingV2(void)
         wolfSSL_free(ssl);
         wolfSSL_CTX_free(ctx);
 
-        if(ret != SSL_SUCCESS){
+        if (ret != SSL_SUCCESS){
             wolfSSL_Cleanup();
             return SSL_FAILURE;
         }
@@ -2196,6 +2210,147 @@ static int test_wolfSSL_UseOCSPStaplingV2(void)
     #endif
 
 } /*END test_wolfSSL_UseOCSPStaplingV2*/
+
+/*----------------------------------------------------------------------------*
+ |  Wolfcrypt
+ *----------------------------------------------------------------------------*/
+static int test_wc_InitMd5 (void)
+{
+#ifndef NO_MD5
+
+    Md5 md5;
+    int ret, flag;
+
+    printf(testingFmt, "wc_InitMd5()");
+
+    flag = SSL_SUCCESS;
+
+    ret = wc_InitMd5(&md5);
+
+    if (ret != 0 ) { flag = SSL_FAILURE; }
+
+    ret = wc_InitMd5(NULL);
+    if (ret != BAD_FUNC_ARG) { flag = SSL_FAILURE; }
+
+    printf(resultFmt, flag == SSL_SUCCESS ? passed : failed);
+
+    return flag;
+#else
+    return SSL_SUCCESS;
+#endif
+}     /* END test_wc_InitMd5 */
+
+static int test_wc_UpdateMd5 (void)
+{
+
+#ifndef NO_MD5
+    Md5 md5;
+    byte hash[MD5_DIGEST_SIZE];
+
+    testVector a, b;
+    testVector test_md5[2];
+    int times, i, ret;
+
+    times = sizeof(test_md5) / sizeof(testVector);
+
+    wc_InitMd5(&md5);
+
+    printf(testingFmt, "wc_Md5Update()");
+
+    /* Input */
+    a.input = "a";
+    a.inLen = XSTRLEN(a.input);
+
+    wc_Md5Update(&md5, (byte*)a.input, (word32)a.inLen);
+    wc_Md5Final(&md5, hash);
+
+    /* Update input. */
+    a.input = "abc";
+    a.output = "\x90\x01\x50\x98\x3c\xd2\x4f\xb0\xd6\x96\x3f\x7d\x28\xe1\x7f"
+                "\x72";
+    a.inLen = XSTRLEN(a.input);
+    a.outLen = XSTRLEN(a.output);
+
+    /*Try passing bad values to get seg fault. */
+    b.input = NULL;
+    b.inLen = -1;
+
+    test_md5[0] = a;
+    test_md5[1] = b;
+
+    for (i = 0; i < times; i++) {
+        ret = wc_Md5Update(&md5, (byte*)test_md5[i].input, 
+                                                  (word32)test_md5[i].inLen);
+        wc_Md5Final(&md5, hash);
+
+        if (ret >= 0 && XMEMCMP(hash, test_md5[i].output,
+                                                       MD5_DIGEST_SIZE) != 0){
+            printf("%d\n", -5 - i);
+            return SSL_FAILURE;
+        }
+
+    }
+    /* Passed so far if not returned. */
+    Md5 md5_2;
+    ret = wc_Md5Update(&md5_2, (byte*)test_md5[1].input, 
+                                                   (word32)test_md5[1].inLen);
+    /* If this statement is reached test has passed. */
+    printf(resultFmt, ret <= 0 ? passed : failed);
+
+    return SSL_SUCCESS;
+#else
+    return SSL_SUCCESS;
+#endif
+} /* END test_wc_UpdateMd5  */
+
+
+/* Unit test on wc_Md5Final() in wolfcrypt/src/md5.c
+ * Testing cases that may cause a seg fault or other
+ * unexpected result.
+ */
+static int test_wc_Md5Final (void)
+{
+
+#ifndef NO_MD5
+    /* Instantiate */
+    Md5 md5;
+    byte* hash_test[3];
+    byte hash1[MD5_DIGEST_SIZE];
+    byte hash2[2*MD5_DIGEST_SIZE];
+    byte hash3[5*MD5_DIGEST_SIZE];
+    int times, i, flag, ret;
+
+    /* Initialize */
+    wc_InitMd5(&md5);
+    hash_test[0] = hash1;
+    hash_test[1] = hash2;
+    hash_test[2] = hash3;
+    times = sizeof(hash_test)/sizeof(byte*);
+    flag = SSL_SUCCESS;
+
+    /* Test good args. */
+    printf(testingFmt, "wc_Md5Final()");
+
+    for (i = 0; i < times; i++) {
+        ret = wc_Md5Final(&md5, hash_test[i]);
+        if(ret != 0){ flag = SSL_FAILURE; }
+    }
+    /* Test bad args. */
+    ret = wc_Md5Final(NULL, NULL);
+    if (ret != BAD_FUNC_ARG) { flag = SSL_FAILURE; }
+    ret = wc_Md5Final(NULL, hash1);
+    if (ret != BAD_FUNC_ARG) {flag = SSL_FAILURE; }
+    ret = wc_Md5Final(&md5, NULL);
+    if (ret != BAD_FUNC_ARG) {flag = SSL_FAILURE; }
+
+
+    printf(resultFmt, flag == SSL_SUCCESS ? passed : failed);
+    return flag;
+#else
+    return SSL_SUCCESS;
+#endif
+
+}
 
 
 /*----------------------------------------------------------------------------*
@@ -2253,8 +2408,7 @@ void ApiTest(void)
 {
     printf(" Begin API Tests\n");
     AssertIntEQ(test_wolfSSL_Init(), SSL_SUCCESS);
-    /* wolfcrypt initialization tests */
-    AssertFalse(test_wolfCrypt_Init());
+    ///* wolfcrypt initialization tests */
     test_wolfSSL_Method_Allocators();
     test_wolfSSL_CTX_new(wolfSSLv23_server_method());
     test_wolfSSL_CTX_use_certificate_file();
@@ -2293,6 +2447,12 @@ void ApiTest(void)
     test_wolfSSL_DES();
 
     AssertIntEQ(test_wolfSSL_Cleanup(), SSL_SUCCESS);
+
+    /*wolfcrypt */
+    AssertFalse(test_wolfCrypt_Init());
+    AssertTrue(test_wc_InitMd5());
+    AssertTrue(test_wc_UpdateMd5());
+    AssertTrue(test_wc_Md5Final());
     printf(" End API Tests\n");
 
 }

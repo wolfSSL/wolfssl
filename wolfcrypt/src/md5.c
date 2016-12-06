@@ -74,7 +74,7 @@
          * md5->loLen   = num bytes that have been written to STM32 FIFO
          */
         XMEMSET(md5->buffer, 0, MD5_REG_SIZE);
-			
+
         md5->buffLen = 0;
         md5->loLen = 0;
 
@@ -183,8 +183,10 @@
 
 #endif /* WOLFSSL_HAVE_MIN */
 
-void wc_InitMd5(Md5* md5)
+int wc_InitMd5(Md5* md5)
 {
+    if (md5 == NULL) { return BAD_FUNC_ARG; }
+
     md5->digest[0] = 0x67452301L;
     md5->digest[1] = 0xefcdab89L;
     md5->digest[2] = 0x98badcfeL;
@@ -193,6 +195,8 @@ void wc_InitMd5(Md5* md5)
     md5->buffLen = 0;
     md5->loLen   = 0;
     md5->hiLen   = 0;
+
+    return 0;
 }
 
 #ifdef FREESCALE_MMCAU_SHA
@@ -292,7 +296,7 @@ static void Transform(Md5* md5)
     MD5STEP(F4, d, a, b, c, md5->buffer[11] + 0xbd3af235, 10);
     MD5STEP(F4, c, d, a, b, md5->buffer[2]  + 0x2ad7d2bb, 15);
     MD5STEP(F4, b, c, d, a, md5->buffer[9]  + 0xeb86d391, 21);
-    
+
     /* Add the working vars back into digest state[]  */
     md5->digest[0] += a;
     md5->digest[1] += b;
@@ -311,10 +315,16 @@ static INLINE void AddLength(Md5* md5, word32 len)
 }
 
 
-void wc_Md5Update(Md5* md5, const byte* data, word32 len)
+int wc_Md5Update(Md5* md5, const byte* data, word32 len)
 {
+    byte* local;
+
+   if (md5 == NULL || (data == NULL && len > 0)) {
+        return BAD_FUNC_ARG;
+    }
+
     /* do block size increments */
-    byte* local = (byte*)md5->buffer;
+    local = (byte*)md5->buffer;
 
     while (len) {
         word32 add = min(len, MD5_BLOCK_SIZE - md5->buffLen);
@@ -333,12 +343,17 @@ void wc_Md5Update(Md5* md5, const byte* data, word32 len)
             md5->buffLen = 0;
         }
     }
+    return 0;
 }
 
 
-void wc_Md5Final(Md5* md5, byte* hash)
+int wc_Md5Final(Md5* md5, byte* hash)
 {
-    byte* local = (byte*)md5->buffer;
+    byte* local;
+
+    if (md5 == NULL || hash == NULL) { return BAD_FUNC_ARG; }
+
+    local = (byte*)md5->buffer;
 
     AddLength(md5, md5->buffLen);  /* before adding pads */
 
@@ -356,9 +371,9 @@ void wc_Md5Final(Md5* md5, byte* hash)
         md5->buffLen = 0;
     }
     XMEMSET(&local[md5->buffLen], 0, MD5_PAD_SIZE - md5->buffLen);
-   
+ 
     /* put lengths in bits */
-    md5->hiLen = (md5->loLen >> (8*sizeof(md5->loLen) - 3)) + 
+    md5->hiLen = (md5->loLen >> (8*sizeof(md5->loLen) - 3)) +
                  (md5->hiLen << 3);
     md5->loLen = md5->loLen << 3;
 
@@ -376,7 +391,9 @@ void wc_Md5Final(Md5* md5, byte* hash)
     #endif
     XMEMCPY(hash, md5->digest, MD5_DIGEST_SIZE);
 
+
     wc_InitMd5(md5);  /* reset state */
+    return 0;
 }
 
 #endif /* STM32F2_HASH */
