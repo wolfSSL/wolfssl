@@ -476,6 +476,8 @@ int wc_InitAes_h(Aes* aes, void* h)
 
         /* do as many block size ops as possible */
         if (numBlocks > 0) {
+            word32* key = aes->key;
+            word32* reg = aes->reg;
             /*
             AESE exor's input with round key
             shift rows of exor'ed result
@@ -487,10 +489,10 @@ int wc_InitAes_h(Aes* aes, void* h)
             case 10: /* AES 128 BLOCK */
                 __asm__ __volatile__ (
                 "MOV w11, %w[blocks] \n"
-                "LD1 {v1.2d-v4.2d}, %[Key], #64  \n"
-                "LD1 {v5.2d-v8.2d}, %[Key], #64  \n"
-                "LD1 {v9.2d-v11.2d},%[Key], #48  \n"
-                "LD1 {v0.2d}, %[reg] \n"
+                "LD1 {v1.2d-v4.2d}, [%[Key]], #64  \n"
+                "LD1 {v5.2d-v8.2d}, [%[Key]], #64  \n"
+                "LD1 {v9.2d-v11.2d},[%[Key]], #48  \n"
+                "LD1 {v0.2d}, [%[reg]] \n"
 
                 "LD1 {v12.2d}, [%[input]], #16 \n"
                 "1:\n"
@@ -525,11 +527,11 @@ int wc_InitAes_h(Aes* aes, void* h)
 
                 "2:\n"
                 "#store current counter value at the end \n"
-                "ST1 {v0.2d}, %[regOut] \n"
+                "ST1 {v0.2d}, [%[regOut]] \n"
 
-                :[out] "=r" (out), [regOut] "=m" (aes->reg), "=r" (in)
-                :"0" (out), [Key] "m" (aes->key), [input] "2" (in),
-                 [blocks] "r" (numBlocks), [reg] "m" (aes->reg)
+                :[out] "=r" (out), [regOut] "=r" (reg), "=r" (in)
+                :"0" (out), [Key] "r" (key), [input] "2" (in),
+                 [blocks] "r" (numBlocks), [reg] "1" (reg)
                 : "cc", "memory", "w11", "v0", "v1", "v2", "v3", "v4", "v5",
                 "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13"
                 );
@@ -675,14 +677,17 @@ int wc_InitAes_h(Aes* aes, void* h)
 
         /* do as many block size ops as possible */
         if (numBlocks > 0) {
+            word32* key = aes->key;
+            word32* reg = aes->reg;
+
             switch(aes->rounds) {
             case 10: /* AES 128 BLOCK */
                 __asm__ __volatile__ (
                 "MOV w11, %w[blocks] \n"
-                "LD1 {v1.2d-v4.2d}, %[Key], #64  \n"
-                "LD1 {v5.2d-v8.2d}, %[Key], #64  \n"
-                "LD1 {v9.2d-v11.2d},%[Key], #48  \n"
-                "LD1 {v13.2d}, %[reg] \n"
+                "LD1 {v1.2d-v4.2d}, [%[Key]], #64  \n"
+                "LD1 {v5.2d-v8.2d}, [%[Key]], #64  \n"
+                "LD1 {v9.2d-v11.2d},[%[Key]], #48  \n"
+                "LD1 {v13.2d}, [%[reg]] \n"
 
                 "1:\n"
                 "LD1 {v0.2d}, [%[input]], #16  \n"
@@ -718,11 +723,11 @@ int wc_InitAes_h(Aes* aes, void* h)
 
                 "2: \n"
                 "#store current counter value at the end \n"
-                "ST1 {v13.2d}, %[regOut] \n"
+                "ST1 {v13.2d}, [%[regOut]] \n"
 
-                :[out] "=r" (out), [regOut] "=m" (aes->reg), "=r" (in)
-                :"0" (out), [Key] "m" (aes->key), [input] "2" (in),
-                 [blocks] "r" (numBlocks), [reg] "m" (aes->reg)
+                :[out] "=r" (out), [regOut] "=r" (reg), "=r" (in)
+                :"0" (out), [Key] "r" (key), [input] "2" (in),
+                 [blocks] "r" (numBlocks), [reg] "1" (reg)
                 : "cc", "memory", "w11", "v0", "v1", "v2", "v3", "v4", "v5",
                 "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13"
                 );
@@ -731,11 +736,11 @@ int wc_InitAes_h(Aes* aes, void* h)
             case 12: /* AES 192 BLOCK */
                 __asm__ __volatile__ (
                 "MOV w11, %w[blocks] \n"
-                "LD1 {v1.2d-v4.2d}, %[Key], #64  \n"
-                "LD1 {v5.2d-v8.2d}, %[Key], #64  \n"
-                "LD1 {v9.2d-v12.2d},%[Key], #64  \n"
-                "LD1 {v13.16b}, %[Key], #16 \n"
-                "LD1 {v15.2d}, %[reg]       \n"
+                "LD1 {v1.2d-v4.2d}, [%[Key]], #64  \n"
+                "LD1 {v5.2d-v8.2d}, [%[Key]], #64  \n"
+                "LD1 {v9.2d-v12.2d},[%[Key]], #64  \n"
+                "LD1 {v13.16b}, [%[Key]], #16 \n"
+                "LD1 {v15.2d}, [%[reg]]       \n"
 
                 "LD1 {v0.2d}, [%[input]], #16  \n"
                 "1:    \n"
@@ -776,11 +781,11 @@ int wc_InitAes_h(Aes* aes, void* h)
 
                 "2:\n"
                 "#store current counter value at the end \n"
-                "ST1 {v15.2d}, %[regOut] \n"
+                "ST1 {v15.2d}, [%[regOut]] \n"
 
-                :[out] "=r" (out), [regOut] "=m" (aes->reg), "=r" (in)
-                :"0" (out), [Key] "m" (aes->key), [input] "2" (in),
-                 [blocks] "r" (numBlocks), [reg] "m" (aes->reg)
+                :[out] "=r" (out), [regOut] "=r" (reg), "=r" (in)
+                :"0" (out), [Key] "r" (key), [input] "2" (in),
+                 [blocks] "r" (numBlocks), [reg] "1" (reg)
                 : "cc", "memory", "w11", "v0", "v1", "v2", "v3", "v4", "v5",
                 "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15"
                 );
@@ -789,11 +794,11 @@ int wc_InitAes_h(Aes* aes, void* h)
             case 14: /* AES 256 BLOCK */
                 __asm__ __volatile__ (
                 "MOV w11, %w[blocks] \n"
-                "LD1 {v1.2d-v4.2d},   %[Key], #64  \n"
-                "LD1 {v5.2d-v8.2d},   %[Key], #64  \n"
-                "LD1 {v9.2d-v12.2d},  %[Key], #64  \n"
-                "LD1 {v13.2d-v15.2d}, %[Key], #48  \n"
-                "LD1 {v17.2d}, %[reg] \n"
+                "LD1 {v1.2d-v4.2d},   [%[Key]], #64  \n"
+                "LD1 {v5.2d-v8.2d},   [%[Key]], #64  \n"
+                "LD1 {v9.2d-v12.2d},  [%[Key]], #64  \n"
+                "LD1 {v13.2d-v15.2d}, [%[Key]], #48  \n"
+                "LD1 {v17.2d}, [%[reg]] \n"
 
                 "LD1 {v0.2d}, [%[input]], #16  \n"
                 "1:    \n"
@@ -838,11 +843,11 @@ int wc_InitAes_h(Aes* aes, void* h)
 
                 "2:\n"
                 "#store current counter value at the end \n"
-                "ST1 {v17.2d}, %[regOut]   \n"
+                "ST1 {v17.2d}, [%[regOut]]   \n"
 
-                :[out] "=r" (out), [regOut] "=m" (aes->reg), "=r" (in)
-                :"0" (out), [Key] "m" (aes->key), [input] "2" (in),
-                 [blocks] "r" (numBlocks), [reg] "m" (aes->reg)
+                :[out] "=r" (out), [regOut] "=r" (reg), "=r" (in)
+                :"0" (out), [Key] "r" (key), [input] "2" (in),
+                 [blocks] "r" (numBlocks), [reg] "1" (reg)
                 : "cc", "memory", "w11", "v0", "v1", "v2", "v3", "v4", "v5",
                 "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14","v15",
                 "v16", "v17"

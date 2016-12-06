@@ -133,6 +133,8 @@ int wc_Sha256Update(Sha256* sha256, const byte* data, word32 len)
         numBlocks = (len + sha256->buffLen)/SHA256_BLOCK_SIZE;
 
         if (numBlocks > 0) {
+            word32* k = (word32*)K;
+
             /* get leftover amount after blocks */
             add = (len + sha256->buffLen) - numBlocks * SHA256_BLOCK_SIZE;
             __asm__ volatile (
@@ -300,8 +302,8 @@ int wc_Sha256Update(Sha256* sha256, const byte* data, word32 len)
             "STP q12, q13, %[out] \n"
 
             : [out] "=m" (sha256->digest), "=m" (sha256->buffer), "=r" (numBlocks),
-              "=r" (data)
-            : [k] "r" (K), [digest] "m" (sha256->digest), [buffer] "m" (sha256->buffer),
+              "=r" (data), "=r" (k)
+            : [k] "4" (k), [digest] "m" (sha256->digest), [buffer] "m" (sha256->buffer),
               [blocks] "2" (numBlocks), [dataIn] "3" (data)
             : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7",
                               "v8",  "v9",  "v10", "v11", "v12", "v13", "v14",
