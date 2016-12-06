@@ -1425,7 +1425,7 @@ int wc_PKCS7_EncodeEnvelopedData(PKCS7* pkcs7, byte* output, word32 outputSz)
         WOLFSSL_MSG("Failed to create RecipientInfo");
         wc_FreeRng(&rng);
 #ifdef WOLFSSL_SMALL_STACK
-        XFREE(recip, NULL, DYNAMMIC_TYPE_TMP_BUFFER);
+        XFREE(recip, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
         return recipSz;
     }
@@ -1436,7 +1436,7 @@ int wc_PKCS7_EncodeEnvelopedData(PKCS7* pkcs7, byte* output, word32 outputSz)
     wc_FreeRng(&rng);
     if (ret != 0) {
 #ifdef WOLFSSL_SMALL_STACK
-        XFREE(recip, NULL, DYNAMMIC_TYPE_TMP_BUFFER);
+        XFREE(recip, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
         return ret;
     }
@@ -1445,7 +1445,7 @@ int wc_PKCS7_EncodeEnvelopedData(PKCS7* pkcs7, byte* output, word32 outputSz)
     contentTypeSz = wc_SetContentType(pkcs7->contentOID, contentType);
     if (contentTypeSz == 0) {
 #ifdef WOLFSSL_SMALL_STACK
-        XFREE(recip, NULL, DYNAMMIC_TYPE_TMP_BUFFER);
+        XFREE(recip, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
         return BAD_FUNC_ARG;
     }
@@ -1457,7 +1457,7 @@ int wc_PKCS7_EncodeEnvelopedData(PKCS7* pkcs7, byte* output, word32 outputSz)
     plain = (byte*)XMALLOC(desOutSz, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
     if (plain == NULL) {
 #ifdef WOLFSSL_SMALL_STACK
-        XFREE(recip, NULL, DYNAMMIC_TYPE_TMP_BUFFER);
+        XFREE(recip, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
         return MEMORY_E;
     }
@@ -1472,7 +1472,7 @@ int wc_PKCS7_EncodeEnvelopedData(PKCS7* pkcs7, byte* output, word32 outputSz)
     if (encryptedContent == NULL) {
         XFREE(plain, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
 #ifdef WOLFSSL_SMALL_STACK
-        XFREE(recip, NULL, DYNAMMIC_TYPE_TMP_BUFFER);
+        XFREE(recip, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
         return MEMORY_E;
     }
@@ -1489,7 +1489,7 @@ int wc_PKCS7_EncodeEnvelopedData(PKCS7* pkcs7, byte* output, word32 outputSz)
         XFREE(encryptedContent, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
         XFREE(plain, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
 #ifdef WOLFSSL_SMALL_STACK
-        XFREE(recip, NULL, DYNAMMIC_TYPE_TMP_BUFFER);
+        XFREE(recip, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
         return BAD_FUNC_ARG;
     }
@@ -1502,7 +1502,7 @@ int wc_PKCS7_EncodeEnvelopedData(PKCS7* pkcs7, byte* output, word32 outputSz)
         XFREE(encryptedContent, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
         XFREE(plain, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
 #ifdef WOLFSSL_SMALL_STACK
-        XFREE(recip, NULL, DYNAMMIC_TYPE_TMP_BUFFER);
+        XFREE(recip, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
         return ret;
     }
@@ -1537,7 +1537,7 @@ int wc_PKCS7_EncodeEnvelopedData(PKCS7* pkcs7, byte* output, word32 outputSz)
         XFREE(encryptedContent, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
         XFREE(plain, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
 #ifdef WOLFSSL_SMALL_STACK
-        XFREE(recip, NULL, DYNAMMIC_TYPE_TMP_BUFFER);
+        XFREE(recip, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
         return BUFFER_E;
     }
@@ -1577,7 +1577,7 @@ int wc_PKCS7_EncodeEnvelopedData(PKCS7* pkcs7, byte* output, word32 outputSz)
     XFREE(encryptedContent, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
 
 #ifdef WOLFSSL_SMALL_STACK
-    XFREE(recip, NULL, DYNAMMIC_TYPE_TMP_BUFFER);
+    XFREE(recip, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
 
     return idx;
