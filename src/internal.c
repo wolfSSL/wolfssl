@@ -2970,13 +2970,12 @@ int EccVerify(WOLFSSL* ssl, const byte* in, word32 inSz, const byte* out,
      * Client side: returns peer key
      * Server side: returns private key
      */
-    static int EccGetKey(WOLFSSL* ssl, byte* otherKeyDer,
-        word32* otherKeySz, word32* otherKeyId)
+    static int EccGetKey(WOLFSSL* ssl, ecc_key** otherKey)
     {
         int ret = NO_PEER_KEY;
-        ecc_key* otherKey = NULL;
+        ecc_key* tmpKey = NULL;
 
-        if (ssl == NULL || otherKeyDer == NULL || otherKeySz == NULL) {
+        if (ssl == NULL || otherKey == NULL) {
             return BAD_FUNC_ARG;
         }
 
@@ -2986,14 +2985,14 @@ int EccVerify(WOLFSSL* ssl, const byte* in, word32 inSz, const byte* out,
                                            !ssl->peerEccDsaKey->dp) {
                     return NO_PEER_KEY;
                 }
-                otherKey = (struct ecc_key*)ssl->peerEccDsaKey;
+                tmpKey = (struct ecc_key*)ssl->peerEccDsaKey;
             }
             else {
                 if (!ssl->peerEccKey || !ssl->peerEccKeyPresent ||
                                         !ssl->peerEccKey->dp) {
                     return NO_PEER_KEY;
                 }
-                otherKey = (struct ecc_key*)ssl->peerEccKey;
+                tmpKey = (struct ecc_key*)ssl->peerEccKey;
             }
         }
         else if (ssl->options.side == WOLFSSL_SERVER_END) {
@@ -3001,20 +3000,19 @@ int EccVerify(WOLFSSL* ssl, const byte* in, word32 inSz, const byte* out,
                 if (ssl->sigKey == NULL) {
                     return NO_PRIVATE_KEY;
                 }
-                otherKey = (struct ecc_key*)ssl->sigKey;
+                tmpKey = (struct ecc_key*)ssl->sigKey;
             }
             else {
                 if (!ssl->eccTempKeyPresent) {
                     return NO_PRIVATE_KEY;
                 }
-                otherKey = (struct ecc_key*)ssl->eccTempKey;
+                tmpKey = (struct ecc_key*)ssl->eccTempKey;
             }
         }
 
-        if (otherKey) {
-            ret = wc_ecc_export_x963(otherKey, otherKeyDer, otherKeySz);
-            if (otherKeyId)
-                *otherKeyId = otherKey->dp->id;
+        if (tmpKey) {
+            *otherKey = tmpKey;
+            ret = 0;
         }
 
         return ret;
@@ -3037,14 +3035,12 @@ int EccSharedSecret(WOLFSSL* ssl, ecc_key* priv_key, ecc_key* pub_key,
 
 #ifdef HAVE_PK_CALLBACKS
     if (ssl->ctx->EccSharedSecretCb) {
-        byte* otherKeyDer = NULL;
-        word32 otherKeySz = 0;
-        word32 otherKeyId = ECC_CURVE_DEF;
+        ecc_key* otherKey = NULL;
 
-        ret = EccGetKey(ssl, otherKeyDer, &otherKeySz, &otherKeyId);
+        ret = EccGetKey(ssl, &otherKey);
         if (ret == 0) {
-            ret = ssl->ctx->EccSharedSecretCb(ssl, otherKeyDer, otherKeySz,
-                otherKeyId, pubKeyDer, pubKeySz, out, outlen, side, ctx);
+            ret = ssl->ctx->EccSharedSecretCb(ssl, otherKey, pubKeyDer,
+                pubKeySz, out, outlen, side, ctx);
         }
     }
     else
