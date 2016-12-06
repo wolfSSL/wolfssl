@@ -177,12 +177,13 @@ typedef int WOLFSSL_ENGINE  ;
 
 WOLFSSL_API void wolfSSL_EVP_init(void);
 WOLFSSL_API int  wolfSSL_EVP_MD_size(const WOLFSSL_EVP_MD* md);
+WOLFSSL_API int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md);
 
 WOLFSSL_API WOLFSSL_EVP_MD_CTX *wolfSSL_EVP_MD_CTX_new (void);
 WOLFSSL_API void                wolfSSL_EVP_MD_CTX_free(WOLFSSL_EVP_MD_CTX* ctx);
 WOLFSSL_API void wolfSSL_EVP_MD_CTX_init(WOLFSSL_EVP_MD_CTX* ctx);
 WOLFSSL_API int  wolfSSL_EVP_MD_CTX_cleanup(WOLFSSL_EVP_MD_CTX* ctx);
-
+WOLFSSL_API const WOLFSSL_EVP_MD *wolfSSL_EVP_MD_CTX_md(const WOLFSSL_EVP_MD_CTX *ctx);
 WOLFSSL_API const WOLFSSL_EVP_CIPHER *wolfSSL_EVP_get_cipherbyname(const char *name);
 WOLFSSL_API const WOLFSSL_EVP_MD     *wolfSSL_EVP_get_digestbyname(const char *name);
 
@@ -336,8 +337,13 @@ typedef WOLFSSL_EVP_CIPHER_CTX EVP_CIPHER_CTX;
 #define EVP_MD_CTX_new     wolfSSL_EVP_MD_CTX_new
 #define EVP_MD_CTX_create  wolfSSL_EVP_MD_CTX_new
 #define EVP_MD_CTX_free    wolfSSL_EVP_MD_CTX_free
+#define EVP_MD_CTX_destroy wolfSSL_EVP_MD_CTX_free
 #define EVP_MD_CTX_init    wolfSSL_EVP_MD_CTX_init
 #define EVP_MD_CTX_cleanup wolfSSL_EVP_MD_CTX_cleanup
+#define EVP_MD_CTX_md      wolfSSL_EVP_MD_CTX_md
+#define EVP_MD_CTX_type    wolfSSL_EVP_MD_type
+#define EVP_MD_type        wolfSSL_EVP_MD_type
+
 #define EVP_DigestInit     wolfSSL_EVP_DigestInit
 #define EVP_DigestInit_ex  wolfSSL_EVP_DigestInit_ex
 #define EVP_DigestUpdate   wolfSSL_EVP_DigestUpdate

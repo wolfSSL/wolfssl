@@ -2525,7 +2525,7 @@ static struct cipher{
     { 0, NULL}
 } ;
 
-const WOLFSSL_EVP_MD *wolfSSL_EVP_get_cipherbyname(const char *name)
+const WOLFSSL_EVP_CIPHER *wolfSSL_EVP_get_cipherbyname(const char *name)
 {
 
     static const struct alias {
@@ -10658,34 +10658,37 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
 
     #endif /* WOLFSSL_SHA512 */
 
-const EVP_MD *wolfSSL_EVP_get_digestbyname(const char *name)
-{
-    static const char *md_tbl[] = {
+    static struct s_ent{
+        const unsigned char macType;
+        const char *name;
+    } md_tbl[] = {
     #ifndef NO_MD5
-       "MD5",
+       {MD5, "MD5"},
     #endif /* NO_MD5 */
 
     #ifndef NO_SHA
-       "SHA",
+       {SHA, "SHA"},
     #endif /* NO_SHA */
 
     #ifdef WOLFSSL_SHA224
-       "SHA224",
+       {SHA224, "SHA224"},
     #endif /* WOLFSSL_SHA224 */
 
-       "SHA256",
+       {SHA256, "SHA256"},
 
     #ifdef WOLFSSL_SHA384
-       "SHA384",
+       {SHA384, "SHA384"},
     #endif /* WOLFSSL_SHA384 */
 
     #ifdef WOLFSSL_SHA512
-        "SHA512",
+        {SHA512, "SHA512"},
     #endif /* WOLFSSL_SHA512 */
 
-        NULL
+        {0, NULL}
     } ;
 
+const WOLFSSL_EVP_MD *wolfSSL_EVP_get_digestbyname(const char *name)
+{
     static const struct alias {
         const char *name;
         const char *alias;
@@ -10697,7 +10700,7 @@ const EVP_MD *wolfSSL_EVP_get_digestbyname(const char *name)
     };
 
     const struct alias  *al ;
-    const char **tbl ;
+    const struct s_ent *ent ;
 
     for( al = alias_tbl; al->name != NULL; al++)
         if(XSTRNCMP(name, al->alias, XSTRLEN(al->alias)+1) == 0) {
@@ -10705,12 +10708,33 @@ const EVP_MD *wolfSSL_EVP_get_digestbyname(const char *name)
             break;
         }
 
-    for( tbl = md_tbl; *tbl != NULL; tbl++)
-        if(XSTRNCMP(name, *tbl, XSTRLEN(*tbl)+1) == 0) {
-            return (EVP_MD *)*tbl;
+    for( ent = md_tbl; ent->name != NULL; ent++)
+        if(XSTRNCMP(name, ent->name, XSTRLEN(ent->name)+1) == 0) {
+            return (EVP_MD *)ent->name;
         }
     return NULL;
 }
+
+static WOLFSSL_EVP_MD *wolfSSL_EVP_get_md(const unsigned char type)
+{
+    const struct s_ent *ent ;
+    for( ent = md_tbl; ent->macType != 0; ent++)
+        if(type == ent->macType) {
+            return (WOLFSSL_EVP_MD *)ent->name;
+        }
+    return 0;
+}
+
+int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
+{
+    const struct s_ent *ent ;
+    for( ent = md_tbl; ent->name != NULL; ent++)
+        if(XSTRNCMP((const char *)md, ent->name, XSTRLEN(ent->name)+1) == 0) {
+            return ent->macType;
+        }
+    return 0;
+}
+
 
     #ifndef NO_MD5
 
@@ -10799,6 +10823,13 @@ const EVP_MD *wolfSSL_EVP_get_digestbyname(const char *name)
         WOLFSSL_ENTER("EVP_CIPHER_MD_CTX_init");
         (void)ctx;
         /* do nothing */
+    }
+
+    const WOLFSSL_EVP_MD *wolfSSL_EVP_MD_CTX_md(const WOLFSSL_EVP_MD_CTX *ctx)
+    {
+        if (!ctx)
+            return NULL;
+        return (const WOLFSSL_EVP_MD *)wolfSSL_EVP_get_md(ctx->macType);
     }
 
     #ifndef NO_AES

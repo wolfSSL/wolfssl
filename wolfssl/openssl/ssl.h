@@ -107,7 +107,7 @@ typedef WOLFSSL_X509_STORE_CTX X509_STORE_CTX;
                                 strncpy(buf, "Not Implemented, SSLv2 only", len)
 
 /* @TODO */
-#define ERR_print_errors_fp(file) wolfSSL_print_all_errors_fp((file))
+#define ERR_print_errors_fp(file) wolfSSL_ERR_print_errors_fp((file))
 
 /* at the moment only returns ok */
 #define SSL_get_verify_result         wolfSSL_get_verify_result
@@ -320,6 +320,7 @@ typedef WOLFSSL_X509_STORE_CTX X509_STORE_CTX;
 #define X509_CRL_verify           wolfSSL_X509_CRL_verify
 #define X509_STORE_CTX_set_error  wolfSSL_X509_STORE_CTX_set_error
 #define X509_OBJECT_free_contents wolfSSL_X509_OBJECT_free_contents
+#define EVP_PKEY_new              wolfSSL_PKEY_new
 #define EVP_PKEY_free             wolfSSL_EVP_PKEY_free
 #define X509_cmp_current_time     wolfSSL_X509_cmp_current_time
 #define sk_X509_REVOKED_num       wolfSSL_sk_X509_REVOKED_num
