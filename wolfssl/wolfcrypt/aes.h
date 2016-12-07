@@ -167,6 +167,8 @@ WOLFSSL_API int  wc_AesCbcDecrypt(Aes* aes, byte* out,
                                    const byte* authIn, word32 authInSz);
 #endif /* HAVE_AESCCM */
 
+WOLFSSL_API int wc_AesGetKeySize(Aes* aes, word32* keySize);
+
 #ifdef WOLFSSL_ASYNC_CRYPT
      WOLFSSL_API int  wc_AesAsyncInit(Aes*, int);
      WOLFSSL_API void wc_AesAsyncFree(Aes*);

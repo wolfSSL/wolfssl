@@ -49,8 +49,8 @@
     #include <wolfcrypt/src/misc.c>
 #endif
 
-#ifdef FREESCALE_MMCAU
-    #include "cau_api.h"
+#ifdef FREESCALE_MMCAU_SHA
+    #include "fsl_mmcau.h"
     #define XTRANSFORM(S,B)  Transform((S), (B))
 #else
     #define XTRANSFORM(S,B)  Transform((S))
@@ -195,19 +195,19 @@ void wc_InitMd5(Md5* md5)
     md5->hiLen   = 0;
 }
 
-#ifdef FREESCALE_MMCAU
+#ifdef FREESCALE_MMCAU_SHA
 static int Transform(Md5* md5, byte* data)
 {
     int ret = wolfSSL_CryptHwMutexLock();
     if(ret == 0) {
-        cau_md5_hash_n(data, 1, (unsigned char*)md5->digest);
+        MMCAU_MD5_HashN(data, 1, (uint32_t*)(md5->digest));
         wolfSSL_CryptHwMutexUnLock();
     }
     return ret;
 }
-#endif /* FREESCALE_MMCAU */
+#endif /* FREESCALE_MMCAU_SHA */
 
-#ifndef FREESCALE_MMCAU
+#ifndef FREESCALE_MMCAU_SHA
 
 static void Transform(Md5* md5)
 {
@@ -325,7 +325,7 @@ void wc_Md5Update(Md5* md5, const byte* data, word32 len)
         len          -= add;
 
         if (md5->buffLen == MD5_BLOCK_SIZE) {
-            #if defined(BIG_ENDIAN_ORDER) && !defined(FREESCALE_MMCAU)
+            #if defined(BIG_ENDIAN_ORDER) && !defined(FREESCALE_MMCAU_SHA)
                 ByteReverseWords(md5->buffer, md5->buffer, MD5_BLOCK_SIZE);
             #endif
             XTRANSFORM(md5, local);
@@ -349,7 +349,7 @@ void wc_Md5Final(Md5* md5, byte* hash)
         XMEMSET(&local[md5->buffLen], 0, MD5_BLOCK_SIZE - md5->buffLen);
         md5->buffLen += MD5_BLOCK_SIZE - md5->buffLen;
 
-        #if defined(BIG_ENDIAN_ORDER) && !defined(FREESCALE_MMCAU)
+        #if defined(BIG_ENDIAN_ORDER) && !defined(FREESCALE_MMCAU_SHA)
             ByteReverseWords(md5->buffer, md5->buffer, MD5_BLOCK_SIZE);
         #endif
         XTRANSFORM(md5, local);
@@ -363,7 +363,7 @@ void wc_Md5Final(Md5* md5, byte* hash)
     md5->loLen = md5->loLen << 3;
 
     /* store lengths */
-    #if defined(BIG_ENDIAN_ORDER) && !defined(FREESCALE_MMCAU)
+    #if defined(BIG_ENDIAN_ORDER) && !defined(FREESCALE_MMCAU_SHA)
         ByteReverseWords(md5->buffer, md5->buffer, MD5_BLOCK_SIZE);
     #endif
     /* ! length ordering dependent on digest endian type ! */

@@ -1,11 +1,11 @@
 <!DOCTYPE CrossStudio_Project_File>
-<solution Name="wolfssl" target="8" version="2">
-  <project Name="libwolfssl">
+<solution Name="wolfssl_ltc" target="8" version="2">
+  <project Name="libwolfssl_ltc">
     <configuration
       Name="Common"
       build_output_file_name="$(OutDir)/$(ProjectName)$(LibExt)$(LIB)"
       c_preprocessor_definitions="WOLFSSL_ROWLEY_ARM;WOLFSSL_USER_SETTINGS"
-      c_user_include_directories=".;../;../../"
+      c_user_include_directories=".;../;../../;./drivers;./mmcau_2.0.0;./CMSIS/Include"
       project_directory=""
       project_type="Library" />
     <folder Name="Source Files">
@@ -19,7 +19,9 @@
         <folder Name="src">
           <file file_name="../../wolfcrypt/src/aes.c" />
           <file file_name="../../wolfcrypt/src/arc4.c" />
-          <file file_name="../../wolfcrypt/src/asm.c" />
+          <file file_name="../../wolfcrypt/src/asm.c">
+            <configuration Name="ARM_Debug" build_exclude_from_build="Yes" />
+          </file>
           <file file_name="../../wolfcrypt/src/asn.c" />
           <file file_name="../../wolfcrypt/src/blake2b.c" />
           <file file_name="../../wolfcrypt/src/camellia.c" />
@@ -102,6 +104,182 @@
           <file file_name="../../wolfcrypt/src/tfm.c" />
           <file file_name="../../wolfcrypt/src/wc_encrypt.c" />
           <file file_name="../../wolfcrypt/src/wc_port.c" />
+          <folder Name="port">
+            <folder Name="nxp">
+              <file file_name="../../wolfcrypt/src/port/nxp/ksdk_port.c" />
+              <file file_name="fsl_debug_console.c" />
+              <file file_name="MK82F25615.h" />
+              <file file_name="MK82F25615_features.h" />
+              <file file_name="arm_common_tables.h" />
+              <file file_name="arm_const_structs.h" />
+              <file file_name="arm_math.h" />
+              <file file_name="cmsis_gcc.h" />
+              <file file_name="core_cm4.h" />
+              <file file_name="core_cmFunc.h" />
+              <file file_name="core_cmInstr.h" />
+              <file file_name="core_cmSimd.h" />
+              <file file_name="fsl_debug_console.h" />
+              <file file_name="fsl_device_registers.h" />
+              <file file_name="system_MK82F25615.h" />
+              <file file_name="clock_config.c" />
+              <file file_name="clock_config.h" />
+              <folder Name="drivers">
+                <file file_name="drivers/fsl_adc16.c" />
+                <file file_name="drivers/fsl_adc16.h" />
+                <file file_name="drivers/fsl_clock.c" />
+                <file file_name="drivers/fsl_clock.h" />
+                <file file_name="drivers/fsl_cmp.c" />
+                <file file_name="drivers/fsl_cmp.h" />
+                <file file_name="drivers/fsl_cmt.c" />
+                <file file_name="drivers/fsl_cmt.h" />
+                <file file_name="drivers/fsl_common.c" />
+                <file file_name="drivers/fsl_common.h" />
+                <file file_name="drivers/fsl_crc.c" />
+                <file file_name="drivers/fsl_crc.h" />
+                <file file_name="drivers/fsl_dac.c" />
+                <file file_name="drivers/fsl_dac.h" />
+                <file file_name="drivers/fsl_dmamux.c" />
+                <file file_name="drivers/fsl_dmamux.h" />
+                <file file_name="drivers/fsl_dspi.c" />
+                <file file_name="drivers/fsl_dspi.h" />
+                <file file_name="drivers/fsl_dspi_edma.c" />
+                <file file_name="drivers/fsl_dspi_edma.h" />
+                <file file_name="drivers/fsl_dspi_freertos.c">
+                  <configuration
+                    Name="ARM_Debug"
+                    build_exclude_from_build="Yes" />
+                  <configuration
+                    Name="ARM_Release"
+                    build_exclude_from_build="Yes" />
+                </file>
+                <file file_name="drivers/fsl_dspi_freertos.h" />
+                <file file_name="drivers/fsl_edma.c" />
+                <file file_name="drivers/fsl_edma.h" />
+                <file file_name="drivers/fsl_ewm.c" />
+                <file file_name="drivers/fsl_ewm.h" />
+                <file file_name="drivers/fsl_flash.c" />
+                <file file_name="drivers/fsl_flash.h" />
+                <file file_name="drivers/fsl_flexbus.c" />
+                <file file_name="drivers/fsl_flexbus.h" />
+                <file file_name="drivers/fsl_flexio.c" />
+                <file file_name="drivers/fsl_flexio.h" />
+                <file file_name="drivers/fsl_flexio_camera.c" />
+                <file file_name="drivers/fsl_flexio_camera.h" />
+                <file file_name="drivers/fsl_flexio_camera_edma.c" />
+                <file file_name="drivers/fsl_flexio_camera_edma.h" />
+                <file file_name="drivers/fsl_flexio_i2c_master.c" />
+                <file file_name="drivers/fsl_flexio_i2c_master.h" />
+                <file file_name="drivers/fsl_flexio_i2s.c" />
+                <file file_name="drivers/fsl_flexio_i2s.h" />
+                <file file_name="drivers/fsl_flexio_i2s_edma.c" />
+                <file file_name="drivers/fsl_flexio_i2s_edma.h" />
+                <file file_name="drivers/fsl_flexio_spi.c" />
+                <file file_name="drivers/fsl_flexio_spi.h" />
+                <file file_name="drivers/fsl_flexio_spi_edma.c" />
+                <file file_name="drivers/fsl_flexio_spi_edma.h" />
+                <file file_name="drivers/fsl_flexio_uart.c" />
+                <file file_name="drivers/fsl_flexio_uart.h" />
+                <file file_name="drivers/fsl_flexio_uart_edma.c" />
+                <file file_name="drivers/fsl_flexio_uart_edma.h" />
+                <file file_name="drivers/fsl_ftm.c" />
+                <file file_name="drivers/fsl_ftm.h" />
+                <file file_name="drivers/fsl_gpio.c" />
+                <file file_name="drivers/fsl_gpio.h" />
+                <file file_name="drivers/fsl_i2c.c" />
+                <file file_name="drivers/fsl_i2c.h" />
+                <file file_name="drivers/fsl_i2c_edma.c" />
+                <file file_name="drivers/fsl_i2c_edma.h" />
+                <file file_name="drivers/fsl_i2c_freertos.c">
+                  <configuration
+                    Name="ARM_Debug"
+                    build_exclude_from_build="Yes" />
+                  <configuration
+                    Name="ARM_Release"
+                    build_exclude_from_build="Yes" />
+                </file>
+                <file file_name="drivers/fsl_i2c_freertos.h" />
+                <file file_name="drivers/fsl_llwu.c" />
+                <file file_name="drivers/fsl_llwu.h" />
+                <file file_name="drivers/fsl_lmem_cache.c" />
+                <file file_name="drivers/fsl_lmem_cache.h" />
+                <file file_name="drivers/fsl_lptmr.c" />
+                <file file_name="drivers/fsl_lptmr.h" />
+                <file file_name="drivers/fsl_lpuart.c" />
+                <file file_name="drivers/fsl_lpuart.h" />
+                <file file_name="drivers/fsl_lpuart_edma.c" />
+                <file file_name="drivers/fsl_lpuart_edma.h" />
+                <file file_name="fsl_lpuart_freertos.c">
+                  <configuration
+                    Name="ARM_Debug"
+                    build_exclude_from_build="Yes" />
+                  <configuration
+                    Name="ARM_Release"
+                    build_exclude_from_build="Yes" />
+                </file>
+                <file file_name="drivers/fsl_lpuart_freertos.h" />
+                <file file_name="drivers/fsl_ltc.c" />
+                <file file_name="drivers/fsl_ltc.h" />
+                <file file_name="drivers/fsl_ltc_edma.c" />
+                <file file_name="drivers/fsl_ltc_edma.h" />
+                <file file_name="drivers/fsl_mpu.c" />
+                <file file_name="drivers/fsl_mpu.h" />
+                <file file_name="drivers/fsl_pdb.c" />
+                <file file_name="drivers/fsl_pdb.h" />
+                <file file_name="drivers/fsl_pit.c" />
+                <file file_name="drivers/fsl_pit.h" />
+                <file file_name="drivers/fsl_pmc.c" />
+                <file file_name="drivers/fsl_pmc.h" />
+                <file file_name="drivers/fsl_port.h" />
+                <file file_name="drivers/fsl_qspi.c" />
+                <file file_name="drivers/fsl_qspi.h" />
+                <file file_name="drivers/fsl_qspi_edma.c" />
+                <file file_name="drivers/fsl_qspi_edma.h" />
+                <file file_name="drivers/fsl_rcm.c" />
+                <file file_name="drivers/fsl_rcm.h" />
+                <file file_name="drivers/fsl_rtc.c" />
+                <file file_name="drivers/fsl_rtc.h" />
+                <file file_name="drivers/fsl_sai.c" />
+                <file file_name="drivers/fsl_sai.h" />
+                <file file_name="drivers/fsl_sai_edma.c" />
+                <file file_name="drivers/fsl_sai_edma.h" />
+                <file file_name="drivers/fsl_sdhc.c" />
+                <file file_name="drivers/fsl_sdhc.h" />
+                <file file_name="drivers/fsl_sdramc.c" />
+                <file file_name="drivers/fsl_sdramc.h" />
+                <file file_name="drivers/fsl_sim.c" />
+                <file file_name="drivers/fsl_sim.h" />
+                <file file_name="drivers/fsl_smartcard.h" />
+                <file file_name="drivers/fsl_smartcard_emvsim.c" />
+                <file file_name="drivers/fsl_smartcard_emvsim.h" />
+                <file file_name="drivers/fsl_smartcard_freertos.c">
+                  <configuration
+                    Name="ARM_Debug"
+                    build_exclude_from_build="Yes" />
+                  <configuration
+                    Name="ARM_Release"
+                    build_exclude_from_build="Yes" />
+                </file>
+                <file file_name="drivers/fsl_smartcard_freertos.h" />
+                <file file_name="drivers/fsl_smartcard_phy_emvsim.c" />
+                <file file_name="drivers/fsl_smartcard_phy_emvsim.h" />
+                <file file_name="drivers/fsl_smartcard_phy_ncn8025.c" />
+                <file file_name="drivers/fsl_smartcard_phy_ncn8025.h" />
+                <file file_name="drivers/fsl_smc.c" />
+                <file file_name="drivers/fsl_smc.h" />
+                <file file_name="drivers/fsl_tpm.c" />
+                <file file_name="drivers/fsl_tpm.h" />
+                <file file_name="drivers/fsl_trng.c" />
+                <file file_name="drivers/fsl_trng.h" />
+                <file file_name="drivers/fsl_tsi_v4.c" />
+                <file file_name="drivers/fsl_tsi_v4.h" />
+                <file file_name="drivers/fsl_vref.c" />
+                <file file_name="drivers/fsl_vref.h" />
+                <file file_name="drivers/fsl_wdog.c" />
+                <file file_name="drivers/fsl_wdog.h" />
+              </folder>
+              <file file_name="system_MK82F25615.c" />
+            </folder>
+          </folder>
         </folder>
         <folder Name="test">
           <file file_name="../../wolfcrypt/test/include.am" />
@@ -128,26 +306,29 @@
         recurse="No" />
     </folder>
   </project>
-  <project Name="test">
+  <project Name="test_ltc">
     <configuration
       Name="Common"
       Placement="Flash"
-      Target="MK64FN1M0xxx12"
+      Target="MK82FN256xxx15"
+      arm_architecture="v7EM"
+      arm_core_type="Cortex-M4"
+      arm_fpu_type="FPv4-SP-D16"
       arm_linker_fiq_stack_size="0"
       arm_linker_heap_size="91136"
       arm_linker_irq_stack_size="0"
       arm_linker_stack_size="30720"
       arm_simulator_memory_simulation_filename="$(TargetsDir)/Kinetis/KinetisSimulatorMemory.dll"
-      arm_simulator_memory_simulation_parameter="MK64FN1M0xxx12;0x100000;0x0;0x0;0x40000"
+      arm_simulator_memory_simulation_parameter="MK82FN256xxx15;0x40000;0x0;0x0;0x40000;4"
       arm_target_loader_applicable_loaders="Flash"
       arm_target_loader_default_loader="Flash"
       c_preprocessor_definitions="WOLFSSL_ROWLEY_ARM;WOLFSSL_USER_SETTINGS"
-      c_user_include_directories=".;../;../../;$(TargetsDir);$(TargetsDir)/Kinetis;$(TargetsDir)/Kinetis/CMSIS;$(TargetsDir)/Kinetis/CMSIS/include;$(TargetsDir)/CMSIS_3/CMSIS/include"
-      debug_register_definition_file="$(TargetsDir)/Kinetis/MK64F12_Peripherals.xml"
-      linker_memory_map_file="$(TargetsDir)/Kinetis/MK64FN1M0xxx12_MemoryMap.xml"
-      linker_memory_map_macros="FLASHSIZE=0x80000;SRAMSIZE=0x20000"
+      c_user_include_directories=".;./drivers;./mmcau_2.0.0;./CMSIS/Include;../;../../;$(TargetsDir);$(TargetsDir)/Kinetis;$(TargetsDir)/Kinetis/CMSIS;$(TargetsDir)/Kinetis/CMSIS/include;$(TargetsDir)/CMSIS_3/CMSIS/include"
+      debug_register_definition_file="$(TargetsDir)/Kinetis/MK82F25615_Peripherals.xml"
+      linker_memory_map_file="$(TargetsDir)/Kinetis/MK82FN256xxx15_MemoryMap.xml"
+      linker_memory_map_macros="FLASHSIZE=0x40000;SRAMSIZE=0x40000"
       linker_output_format="bin"
-      project_dependencies="libwolfssl"
+      project_dependencies="libwolfssl_ltc"
       project_type="Executable"
       property_groups_file_path="$(TargetsDir)/Kinetis/propertyGroups.xml"
       target_get_partname_script="GetPartName()"
@@ -163,16 +344,28 @@
       <file file_name="arm_startup.c" />
       <file file_name="user_settings.h" />
       <file file_name="README.md" />
+      <folder Name="mmcau">
+        <file file_name="mmcau_2.0.0/cau_api.h" />
+        <file file_name="mmcau_2.0.0/fsl_mmcau.c" />
+        <file file_name="mmcau_2.0.0/fsl_mmcau.h" />
+        <file file_name="mmcau_2.0.0/README.txt" />
+        <folder Name="asm-cm4-cm7">
+          <file file_name="mmcau_2.0.0/asm-cm4-cm7/lib_mmcau.a" />
+        </folder>
+      </folder>
     </folder>
     <folder Name="System Files">
       <file file_name="Kinetis_FlashPlacement.xml" />
     </folder>
+    <configuration
+      Name="Flash"
+      arm_target_flash_loader_file_path="$(TargetsDir)/Kinetis/Release/Loader3.elf" />
   </project>
-  <project Name="benchmark">
+  <project Name="benchmark_ltc">
     <configuration
       Name="Common"
       Placement="Flash"
-      Target="MK64FN1M0xxx12"
+      Target="MK82FN256xxx15"
       arm_architecture="v7EM"
       arm_core_type="Cortex-M4"
       arm_fpu_type="FPv4-SP-D16"
@@ -181,16 +374,16 @@
       arm_linker_irq_stack_size="0"
       arm_linker_stack_size="30720"
       arm_simulator_memory_simulation_filename="$(TargetsDir)/Kinetis/KinetisSimulatorMemory.dll"
-      arm_simulator_memory_simulation_parameter="MK64FN1M0xxx12;0x100000;0x0;0x0;0x40000;4"
+      arm_simulator_memory_simulation_parameter="MK82FN256xxx15;0x40000;0x0;0x0;0x40000;4"
       arm_target_loader_applicable_loaders="Flash"
       arm_target_loader_default_loader="Flash"
       c_preprocessor_definitions="WOLFSSL_ROWLEY_ARM;WOLFSSL_USER_SETTINGS"
-      c_user_include_directories=".;../;../../;$(TargetsDir);$(TargetsDir)/Kinetis;$(TargetsDir)/Kinetis/CMSIS;$(TargetsDir)/Kinetis/CMSIS/include;$(TargetsDir)/CMSIS_3/CMSIS/include"
-      debug_register_definition_file="$(TargetsDir)/Kinetis/MK64F12_Peripherals.xml"
-      linker_memory_map_file="$(TargetsDir)/Kinetis/MK64FN1M0xxx12_MemoryMap.xml"
-      linker_memory_map_macros="FLASHSIZE=0x80000;SRAMSIZE=0x20000"
+      c_user_include_directories=".;./drivers;./mmcau_2.0.0;./CMSIS/Include;../;../../;$(TargetsDir);$(TargetsDir)/Kinetis;$(TargetsDir)/Kinetis/CMSIS;$(TargetsDir)/Kinetis/CMSIS/include;$(TargetsDir)/CMSIS_3/CMSIS/include"
+      debug_register_definition_file="$(TargetsDir)/Kinetis/MK82F25615_Peripherals.xml"
+      linker_memory_map_file="$(TargetsDir)/Kinetis/MK82FN256xxx15_MemoryMap.xml"
+      linker_memory_map_macros="FLASHSIZE=0x40000;SRAMSIZE=0x40000"
       linker_output_format="bin"
-      project_dependencies="libwolfssl"
+      project_dependencies="libwolfssl_ltc"
       project_type="Executable"
       property_groups_file_path="$(TargetsDir)/Kinetis/propertyGroups.xml"
       target_get_partname_script="GetPartName()"
@@ -206,14 +399,24 @@
       <file file_name="arm_startup.c" />
       <file file_name="user_settings.h" />
       <file file_name="README.md" />
+      <folder Name="mmcau">
+        <file file_name="mmcau_2.0.0/cau_api.h" />
+        <file file_name="mmcau_2.0.0/fsl_mmcau.c" />
+        <file file_name="mmcau_2.0.0/fsl_mmcau.h" />
+        <file file_name="mmcau_2.0.0/README.txt" />
+        <folder Name="asm-cm4-cm7">
+          <file file_name="mmcau_2.0.0/asm-cm4-cm7/lib_mmcau.a">
+            <configuration Name="ARM_Debug" build_exclude_from_build="No" />
+          </file>
+        </folder>
+      </folder>
     </folder>
     <folder Name="System Files">
       <file file_name="Kinetis_FlashPlacement.xml" />
     </folder>
     <configuration
       Name="Flash"
-      arm_target_flash_loader_file_path="$(TargetsDir)/Kinetis/Release/Loader.elf"
-      arm_target_loader_parameter="4" />
+      arm_target_flash_loader_file_path="$(TargetsDir)/Kinetis/Release/Loader3.elf" />
   </project>
   <configuration
     Name="ARM"
@@ -292,7 +495,7 @@
   <configuration
     Name="Kinetis"
     arm_target_debug_interface_type="ADIv5"
-    c_preprocessor_definitions="FREESCALE;K_SERIES"
+    c_preprocessor_definitions="FREESCALE;K_SERIES;CPU_MK82FN256VLL15;FREESCALE_KSDK_BM;USE_NXP_LTC;USE_NXP_MMCAU"
     hidden="Yes"
     linker_section_placement_file="$(ProjectDir)/Kinetis_FlashPlacement.xml" />
   <configuration

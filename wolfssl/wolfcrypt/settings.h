@@ -85,8 +85,8 @@
 /* Uncomment next line if building for Freescale KSDK Bare Metal */
 /* #define FREESCALE_KSDK_BM */
 
-/* Uncomment next line if building for Freescale FreeRTOS */
-/* #define FREESCALE_FREE_RTOS */
+/* Uncomment next line if building for Freescale KSDK FreeRTOS (old name FREESCALE_FREE_RTOS) */
+/* #define FREESCALE_KSDK_FREERTOS */
 
 /* Uncomment next line if using STM32F2 */
 /* #define WOLFSSL_STM32F2 */
@@ -188,7 +188,9 @@
 #if defined(WOLFSSL_IAR_ARM) || defined(WOLFSSL_ROWLEY_ARM)
     #define NO_MAIN_DRIVER
     #define SINGLE_THREADED
-    #define USE_CERT_BUFFERS_1024
+    #if !defined(USE_CERT_BUFFERS_2048) && !defined(USE_CERT_BUFFERS_4096)
+        #define USE_CERT_BUFFERS_1024
+    #endif
     #define BENCH_EMBEDDED
     #define NO_FILESYSTEM
     #define NO_WRITEV
@@ -240,7 +242,9 @@
     #define WOLFSSL_USER_IO
     #define NO_FILESYSTEM
     #define NO_CERT
-    #define USE_CERT_BUFFERS_1024
+    #if !defined(USE_CERT_BUFFERS_2048) && !defined(USE_CERT_BUFFERS_4096)
+        #define USE_CERT_BUFFERS_1024
+    #endif
     #define NO_WRITEV
     #define NO_DEV_RANDOM
     #define NO_SHA512
@@ -713,76 +717,214 @@ static char *fgets(char *buff, int sz, FILE *fp)
     #define MQX_FILE_PTR FILE *
     #define IO_SEEK_SET  SEEK_SET
     #define IO_SEEK_END  SEEK_END
-#endif
+#endif /* FREESCALE_KSDK_MQX */
+
+#if defined(FREESCALE_FREE_RTOS) || defined(FREESCALE_KSDK_FREERTOS)
+    /* Allows use of DH with fixed points if uncommented and NO_DH is removed */
+    /* WOLFSSL_DH_CONST */
+    /* Allows use of DH with fixed points if uncommented and NO_DH is removed */
+    /* WOLFSSL_DH_CONST */
+    /* Allows use of DH with fixed points if uncommented and NO_DH is removed */
+    /* WOLFSSL_DH_CONST */
+    #define NO_FILESYSTEM
+    #define WOLFSSL_CRYPT_HW_MUTEX 1
+        
+    #if !defined(XMALLOC_USER) && !defined(NO_WOLFSSL_MEMORY)
+        #define XMALLOC(s, h, type)  pvPortMalloc((s))
+        #define XFREE(p, h, type)    vPortFree((p))
+    #endif
+    
+    //#define USER_TICKS
+    /* Allows use of DH with fixed points if uncommented and NO_DH is removed */
+    /* WOLFSSL_DH_CONST */
+    #define WOLFSSL_LWIP
+    #define FREERTOS_TCP
+
+    #define FREESCALE_FREE_RTOS
+    #define FREERTOS_SOCKET_ERROR ( -1 )
+    #define FREERTOS_EWOULDBLOCK ( -2 )
+    #define FREERTOS_EINVAL ( -4 )
+    #define FREERTOS_EADDRNOTAVAIL ( -5 )
+    #define FREERTOS_EADDRINUSE ( -6 )
+    #define FREERTOS_ENOBUFS ( -7 )
+    #define FREERTOS_ENOPROTOOPT ( -8 )
+#endif /* FREESCALE_FREE_RTOS || FREESCALE_KSDK_FREERTOS */
 
 #ifdef FREESCALE_KSDK_BM
     #define FREESCALE_COMMON
     #define WOLFSSL_USER_IO
     #define SINGLE_THREADED
     #define NO_FILESYSTEM
-    #define USE_WOLFSSL_MEMORY
-#endif
-
-#ifdef FREESCALE_FREE_RTOS
-    #define FREESCALE_COMMON
-    #define NO_FILESYSTEM
-    #define NO_MAIN_DRIVER
-    #define XMALLOC(s, h, t)  OSA_MemAlloc(s);(void)h;(void)t;
-    #define XFREE(p, h, t)    {void* xp = (p); if((xp)) OSA_MemFree((xp));}
-    #ifdef FREESCALE_KSDK_BM
-        #error Baremetal and FreeRTOS cannot be both enabled at the same time!
-    #endif
-    #ifndef SINGLE_THREADED
-        #include "FreeRTOS.h"
-        #include "semphr.h"
-    #endif
-#endif
+    #define USER_TICKS
+#endif /* FREESCALE_KSDK_BM */
 
 #ifdef FREESCALE_COMMON
     #define SIZEOF_LONG_LONG 8
 
     /* disable features */
+    #undef  NO_WRITEV
     #define NO_WRITEV
+    #undef  NO_DEV_RANDOM
     #define NO_DEV_RANDOM
+    #undef  NO_RABBIT
     #define NO_RABBIT
+    #undef  NO_WOLFSSL_DIR
     #define NO_WOLFSSL_DIR
+    #undef  NO_RC4
+    #define NO_RC4
 
     /* enable features */
+    #undef  USE_FAST_MATH
     #define USE_FAST_MATH
-    #define HAVE_ECC
-    #define HAVE_AESGCM
 
-    /* memory reduction */
+    #define USE_CERT_BUFFERS_2048
+    #define BENCH_EMBEDDED
+
     #define TFM_TIMING_RESISTANT
     #define ECC_TIMING_RESISTANT
-    #define ALT_ECC_SIZE
 
-    /* setting for PIT timer */
-    #define PIT_INSTANCE 0
-    #define PIT_CHANNEL  0
-
-    #if defined(FREESCALE_KSDK_MQX) || defined(FREESCALE_KSDK_BM) || \
-        defined(FREESCALE_FREE_RTOS)
-        #include "fsl_device_registers.h"
+    #undef  HAVE_ECC
+    #define HAVE_ECC
+    #ifndef NO_AES
+        #undef  HAVE_AESCCM
+        #define HAVE_AESCCM
+        #undef  HAVE_AESGCM
+        #define HAVE_AESGCM
+        #undef  WOLFSSL_AES_COUNTER
+        #define WOLFSSL_AES_COUNTER
+        #undef  WOLFSSL_AES_DIRECT
+        #define WOLFSSL_AES_DIRECT
     #endif
+
+    #include "fsl_common.h"
 
     /* random seed */
     #define NO_OLD_RNGNAME
-    #if (FSL_FEATURE_SOC_TRNG_COUNT > 0)
-        #define FREESCALE_TRNG
-        #define TRNG_INSTANCE (0)
-    #elif (FSL_FEATURE_SOC_RNG_COUNT > 0)
-        #include "fsl_rnga_driver.h"
+    #if defined(FSL_FEATURE_SOC_TRNG_COUNT) && (FSL_FEATURE_SOC_TRNG_COUNT > 0)
+        #define FREESCALE_KSDK_2_0_TRNG
+    #elif defined(FSL_FEATURE_SOC_RNG_COUNT) && (FSL_FEATURE_SOC_RNG_COUNT > 0)
+        #define FREESCALE_KSDK_2_0_RNGA
+    #elif !defined(FREESCALE_KSDK_BM) && !defined(FREESCALE_FREE_RTOS) && !defined(FREESCALE_KSDK_FREERTOS)
         #define FREESCALE_RNGA
         #define RNGA_INSTANCE (0)
-    #elif !defined(FREESCALE_KSDK_BM) && !defined(FREESCALE_FREE_RTOS)
         /* defaulting to K70 RNGA, user should change if different */
         /* #define FREESCALE_K53_RNGB */
         #define FREESCALE_K70_RNGA
     #endif
 
     /* HW crypto */
-    /* #define FREESCALE_MMCAU */
+    /* automatic enable based on Kinetis feature */
+    /* if case manual selection is required, for example for benchmarking purposes,
+     * just define FREESCALE_USE_MMCAU or FREESCALE_USE_LTC or none of these two macros (for software only)
+     * both can be enabled simultaneously as LTC has priority over MMCAU in source code.
+     */
+    /* #define FSL_HW_CRYPTO_MANUAL_SELECTION */
+    #ifndef FSL_HW_CRYPTO_MANUAL_SELECTION
+        #if defined(FSL_FEATURE_SOC_MMCAU_COUNT) && FSL_FEATURE_SOC_MMCAU_COUNT
+            #define FREESCALE_USE_MMCAU
+        #endif
+
+        #if defined(FSL_FEATURE_SOC_LTC_COUNT) && FSL_FEATURE_SOC_LTC_COUNT
+            #define FREESCALE_USE_LTC
+        #endif
+    #else
+        /* #define FREESCALE_USE_MMCAU */
+        /* #define FREESCALE_USE_LTC */
+    #endif
+#endif /* FREESCALE_COMMON */
+
+#ifdef FREESCALE_USE_MMCAU
+    /* AES and DES */
+    #define FREESCALE_MMCAU
+    /* MD5, SHA-1 and SHA-256 */
+    #define FREESCALE_MMCAU_SHA
+#endif /* FREESCALE_USE_MMCAU */
+
+#ifdef FREESCALE_USE_LTC
+    #if defined(FSL_FEATURE_SOC_LTC_COUNT) && FSL_FEATURE_SOC_LTC_COUNT
+        #define FREESCALE_LTC
+        #define LTC_BASE LTC0
+
+        #if defined(FSL_FEATURE_LTC_HAS_DES) && FSL_FEATURE_LTC_HAS_DES
+            #define FREESCALE_LTC_DES
+        #endif
+
+        #if defined(FSL_FEATURE_LTC_HAS_GCM) && FSL_FEATURE_LTC_HAS_GCM
+            #define FREESCALE_LTC_AES_GCM
+        #endif
+        
+        #if defined(FSL_FEATURE_LTC_HAS_SHA) && FSL_FEATURE_LTC_HAS_SHA
+            #define FREESCALE_LTC_SHA
+        #endif
+
+        #if defined(FSL_FEATURE_LTC_HAS_PKHA) && FSL_FEATURE_LTC_HAS_PKHA
+            #define FREESCALE_LTC_ECC
+            #define FREESCALE_LTC_TFM
+
+            /* the LTC PKHA hardware limit is 2048 bits (256 bytes) for integer arithmetic.
+               the LTC_MAX_INT_BYTES defines the size of local variables that hold big integers. */
+            #ifndef LTC_MAX_INT_BYTES
+                #define LTC_MAX_INT_BYTES (256)
+            #endif
+
+            /* This FREESCALE_LTC_TFM_RSA_4096_ENABLE macro can be defined. 
+             * In such a case both software and hardware algorithm
+             * for TFM is linked in. The decision for which algorithm is used is determined at runtime
+             * from size of inputs. If inputs and result can fit into LTC (see LTC_MAX_INT_BYTES)
+             * then we call hardware algorithm, otherwise we call software algorithm.
+             * 
+             * Chinese reminder theorem is used to break RSA 4096 exponentiations (both public and private key)
+             * into several computations with 2048-bit modulus and exponents.
+             */
+            /* #define FREESCALE_LTC_TFM_RSA_4096_ENABLE */
+
+            /* ECC-384, ECC-256, ECC-224 and ECC-192 have been enabled with LTC PKHA acceleration */
+            #ifdef HAVE_ECC
+                #undef  ECC_TIMING_RESISTANT
+                #define ECC_TIMING_RESISTANT
+
+                /* the LTC PKHA hardware limit is 512 bits (64 bytes) for ECC.
+                   the LTC_MAX_ECC_BITS defines the size of local variables that hold ECC parameters 
+                   and point coordinates */
+                #ifndef LTC_MAX_ECC_BITS
+                    #define LTC_MAX_ECC_BITS (384)
+                #endif
+
+                /* Enable curves up to 384 bits */
+                #if !defined(ECC_USER_CURVES) && !defined(HAVE_ALL_CURVES)
+                    #define ECC_USER_CURVES
+                    #define HAVE_ECC192
+                    #define HAVE_ECC224
+                    #undef  NO_ECC256
+                    #define HAVE_ECC384
+                #endif
+
+                /* enable features */
+                #undef  HAVE_CURVE25519
+                #define HAVE_CURVE25519
+                #undef  HAVE_ED25519
+                #define HAVE_ED25519
+                #undef  WOLFSSL_SHA512
+                #define WOLFSSL_SHA512
+            #endif
+        #endif
+    #endif
+#endif /* FREESCALE_USE_LTC */
+
+#ifdef FREESCALE_LTC_TFM_RSA_4096_ENABLE
+    #undef  USE_CERT_BUFFERS_2048
+    #define USE_CERT_BUFFERS_4096
+    #define FP_MAX_BITS (8192)
+
+    #undef  NO_DH
+    #define NO_DH
+    #undef  NO_DSA
+    #define NO_DSA
+#endif /* FREESCALE_LTC_TFM_RSA_4096_ENABLE */
+
+/* if LTC has AES engine but doesn't have GCM, use software with LTC AES ECB mode */
+#if defined(FREESCALE_USE_LTC) && !defined(FREESCALE_LTC_AES_GCM)
+    #define GCM_TABLE
 #endif
 
 #ifdef WOLFSSL_STM32F2
@@ -1044,9 +1186,10 @@ static char *fgets(char *buff, int sz, FILE *fp)
 #endif
 
 
-/* FreeScale MMCAU hardware crypto has 4 byte alignment */
+/* FreeScale MMCAU hardware crypto has 4 byte alignment.
+   However, fsl_mmcau.h gives API with no alignment requirements (4 byte alignment is managed internally by fsl_mmcau.c) */
 #ifdef FREESCALE_MMCAU
-    #define WOLFSSL_MMCAU_ALIGNMENT 4
+    #define WOLFSSL_MMCAU_ALIGNMENT 0
 #endif
 
 /* if using hardware crypto and have alignment requirements, specify the

@@ -359,20 +359,26 @@ int wc_DsaSign(const byte* digest, byte* out, DsaKey* key, WC_RNG* rng)
     byte*  tmp = out;  /* initial output pointer */
 
     sz = min((int)sizeof(buffer), mp_unsigned_bin_size(&key->q));
-
-    /* generate k */
-    ret = wc_RNG_GenerateBlock(rng, buffer, sz);
-    if (ret != 0)
-        return ret;
-
-    buffer[0] |= 0x0C;
-
+    
     if (mp_init_multi(&k, &kInv, &r, &s, &H, 0) != MP_OKAY)
         return MP_INIT_E;
 
-    if (mp_read_unsigned_bin(&k, buffer, sz) != MP_OKAY)
-        ret = MP_READ_E;
+    do {
+        /* generate k */
+        ret = wc_RNG_GenerateBlock(rng, buffer, sz);
+        if (ret != 0)
+            return ret;
 
+        buffer[0] |= 0x0C;
+
+        if (mp_read_unsigned_bin(&k, buffer, sz) != MP_OKAY)
+            ret = MP_READ_E;
+            
+        /* k is a random numnber and it should be less than q
+         * if k greater than repeat
+         */
+    } while (mp_cmp(&k, &key->q) != MP_LT);
+    
     if (ret == 0 && mp_cmp_d(&k, 1) != MP_GT)
         ret = MP_CMP_E;
 

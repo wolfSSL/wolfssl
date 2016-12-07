@@ -41,6 +41,10 @@
     #include <wolfcrypt/src/misc.c>
 #endif
 
+#ifdef FREESCALE_LTC_ECC
+    #include <wolfssl/wolfcrypt/port/nxp/ksdk_port.h>
+#endif
+
 /* generate an ed25519 key pair.
  * returns 0 on success
  */
@@ -48,7 +52,9 @@ int wc_ed25519_make_key(WC_RNG* rng, int keySz, ed25519_key* key)
 {
     byte  az[ED25519_PRV_KEY_SIZE];
     int   ret;
+#if !defined(FREESCALE_LTC_ECC)
     ge_p3 A;
+#endif
 
     if (rng == NULL || key == NULL)
         return BAD_FUNC_ARG;
@@ -71,9 +77,16 @@ int wc_ed25519_make_key(WC_RNG* rng, int keySz, ed25519_key* key)
     az[31] &= 63; /* same than az[31] &= 127 because of az[31] |= 64 */
     az[31] |= 64;
 
+#ifdef FREESCALE_LTC_ECC
+    ltc_pkha_ecc_point_t publicKey = {0};
+    publicKey.X = key->pointX;
+    publicKey.Y = key->pointY;
+    LTC_PKHA_Ed25519_PointMul(LTC_PKHA_Ed25519_BasePoint(), az, ED25519_KEY_SIZE, &publicKey, kLTC_Ed25519 /* result on Ed25519 */);
+    LTC_PKHA_Ed25519_Compress(&publicKey, key->p);
+#else
     ge_scalarmult_base(&A, az);
     ge_p3_tobytes(key->p, &A);
-
+#endif
     /* put public key after private key, on the same buffer */
     XMEMMOVE(key->k + ED25519_KEY_SIZE, key->p, ED25519_PUB_KEY_SIZE);
 
@@ -94,8 +107,12 @@ int wc_ed25519_make_key(WC_RNG* rng, int keySz, ed25519_key* key)
 int wc_ed25519_sign_msg(const byte* in, word32 inlen, byte* out,
                         word32 *outLen, ed25519_key* key)
 {
+#ifdef FREESCALE_LTC_ECC
+    byte   tempBuf[ED25519_PRV_KEY_SIZE];
+#else
     ge_p3  R;
-    byte   nonce[SHA512_DIGEST_SIZE];
+#endif
+    byte   nonce[SHA512_DIGEST_SIZE];    
     byte   hram[SHA512_DIGEST_SIZE];
     byte   az[ED25519_PRV_KEY_SIZE];
     Sha512 sha;
@@ -136,12 +153,21 @@ int wc_ed25519_sign_msg(const byte* in, word32 inlen, byte* out,
     if (ret != 0)
         return ret;
 
+#ifdef FREESCALE_LTC_ECC
+    ltc_pkha_ecc_point_t ltcPoint = {0};
+    ltcPoint.X = &tempBuf[0];
+    ltcPoint.Y = &tempBuf[32];
+    LTC_PKHA_sc_reduce(nonce);
+    LTC_PKHA_Ed25519_PointMul(LTC_PKHA_Ed25519_BasePoint(), nonce, ED25519_KEY_SIZE, &ltcPoint, kLTC_Ed25519 /* result on Ed25519 */);
+    LTC_PKHA_Ed25519_Compress(&ltcPoint, out);
+#else
     sc_reduce(nonce);
 
     /* step 2: computing R = rB where rB is the scalar multiplication of
        r and B */
     ge_scalarmult_base(&R,nonce);
     ge_p3_tobytes(out,&R);
+#endif
 
     /* step 3: hash R + public key + message getting H(R,A,M) then
        creating S = (r + H(R,A,M)a) mod l */
@@ -161,8 +187,13 @@ int wc_ed25519_sign_msg(const byte* in, word32 inlen, byte* out,
     if (ret != 0)
         return ret;
 
+#ifdef FREESCALE_LTC_ECC
+    LTC_PKHA_sc_reduce(hram);
+    LTC_PKHA_sc_muladd(out + (ED25519_SIG_SIZE/2), hram, az, nonce);
+#else
     sc_reduce(hram);
     sc_muladd(out + (ED25519_SIG_SIZE/2), hram, az, nonce);
+#endif 
 
     return ret;
 }
@@ -184,8 +215,10 @@ int wc_ed25519_verify_msg(byte* sig, word32 siglen, const byte* msg,
 {
     byte   rcheck[ED25519_KEY_SIZE];
     byte   h[SHA512_DIGEST_SIZE];
+#ifndef FREESCALE_LTC_ECC
     ge_p3  A;
     ge_p2  R;
+#endif
     int    ret;
     Sha512 sha;
 
@@ -201,8 +234,10 @@ int wc_ed25519_verify_msg(byte* sig, word32 siglen, const byte* msg,
         return BAD_FUNC_ARG;
 
     /* uncompress A (public key), test if valid, and negate it */
+#ifndef FREESCALE_LTC_ECC    
     if (ge_frombytes_negate_vartime(&A, key->p) != 0)
         return BAD_FUNC_ARG;
+#endif
 
     /* find H(R,A,M) and store it as h */
     ret  = wc_InitSha512(&sha);
@@ -221,6 +256,10 @@ int wc_ed25519_verify_msg(byte* sig, word32 siglen, const byte* msg,
     if (ret != 0)
         return ret;
 
+#ifdef FREESCALE_LTC_ECC
+    LTC_PKHA_sc_reduce(h);
+    LTC_PKHA_SignatureForVerify(rcheck, h, sig + (ED25519_SIG_SIZE/2), key);
+#else
     sc_reduce(h);
 
     /*
@@ -232,6 +271,7 @@ int wc_ed25519_verify_msg(byte* sig, word32 siglen, const byte* msg,
         return ret;
 
     ge_tobytes(rcheck, &R);
+#endif /* FREESCALE_LTC_ECC */
 
     /* comparison of R created to R in sig */
     ret = ConstantCompare(rcheck, sig, ED25519_SIG_SIZE/2);
@@ -319,14 +359,32 @@ int wc_ed25519_import_public(const byte* in, word32 inLen, ed25519_key* key)
     if (in[0] == 0x40 && inLen > ED25519_PUB_KEY_SIZE) {
         /* key is stored in compressed format so just copy in */
         XMEMCPY(key->p, (in + 1), ED25519_PUB_KEY_SIZE);
+#ifdef FREESCALE_LTC_ECC
+        /* recover X coordinate */
+        ltc_pkha_ecc_point_t pubKey;
+        pubKey.X = key->pointX;
+        pubKey.Y = key->pointY;
+        LTC_PKHA_Ed25519_PointDecompress(key->p, ED25519_PUB_KEY_SIZE, &pubKey);
+#endif
         return 0;
     }
 
     /* importing uncompressed public key */
     if (in[0] == 0x04 && inLen > 2*ED25519_PUB_KEY_SIZE) {
+#ifdef FREESCALE_LTC_ECC
+        /* reverse bytes for little endian byte order */
+        for (int i = 0; i < ED25519_KEY_SIZE; i++)
+        {
+            key->pointX[i] = *(in + ED25519_KEY_SIZE - i);
+            key->pointY[i] = *(in + 2*ED25519_KEY_SIZE - i);
+        }
+        XMEMCPY(key->p, key->pointY, ED25519_KEY_SIZE);
+        ret = 0;
+#else
         /* pass in (x,y) and store compressed key */
         ret = ge_compress_key(key->p, in+1,
                               in+1+ED25519_PUB_KEY_SIZE, ED25519_PUB_KEY_SIZE);
+#endif /* FREESCALE_LTC_ECC */
         return ret;
     }
 
@@ -334,6 +392,13 @@ int wc_ed25519_import_public(const byte* in, word32 inLen, ed25519_key* key)
        if key size is equal to compressed key size copy in key */
     if (inLen == ED25519_PUB_KEY_SIZE) {
         XMEMCPY(key->p, in, ED25519_PUB_KEY_SIZE);
+#ifdef FREESCALE_LTC_ECC
+        /* recover X coordinate */
+        ltc_pkha_ecc_point_t pubKey;
+        pubKey.X = key->pointX;
+        pubKey.Y = key->pointY;
+        LTC_PKHA_Ed25519_PointDecompress(key->p, ED25519_PUB_KEY_SIZE, &pubKey);
+#endif
         return 0;
     }
 

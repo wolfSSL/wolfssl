@@ -21,9 +21,9 @@
 
 
 #include "hw.h"
+#include "user_settings.h"
 
 #if defined(FREESCALE) && defined(K_SERIES)
-
 
 /**********************************************
  * NOTE: Customize for actual hardware
@@ -33,27 +33,53 @@
 // $(TargetsDir) location:
 // On Mac OS/X: Users/USERNAME/Library/Rowley Associates Limited/CrossWorks for ARM/packages/targets/
 // On Windows: C:/Users/USERNAME/Application Data/Local/Rowley Associates Limited/CrossWorks for ARM/packages/targets/
-#include <MK64F12.h> // Located in $(TargetsDir)/Kinetis/CMSIS/
+
+// Located in $(TargetsDir)/Kinetis/CMSIS/
+#ifdef FREESCALE_KSDK_BM
+    #include "fsl_common.h"
+    #include "fsl_debug_console.h"
+    #include "fsl_rtc.h"
+    #include "fsl_trng.h"
+    #include "fsl_lpuart.h"
+    #include "fsl_port.h"
+    #include "clock_config.h"
+#else
+    #include <MK64F12.h> // Located in $(TargetsDir)/Kinetis/CMSIS/
+#endif
+
 
 // System clock
-#define SYS_CLK_KHZ     96000ul                     /* Core system clock in KHz */
-#define SYS_CLK_DRS     MCG_C4_DRST_DRS(0x03)       /* DRS 0=24MHz, 1=48MHz, 2=72MHz, 3=96MHz */
-#define SYS_CLK_DMX     MCG_C4_DMX32_MASK           /* 0=Disable DMX32 (lower actual speed), MCG_C4_DMX32_MASK=Enable DMX32 */
-#define SYS_CLK_DIV     1                           /* System clock divisor */
-#define BUS_CLK_DIV     2                           /* Bus clock divisor */
-#define BUS_CLK_KHZ     (SYS_CLK_KHZ/BUS_CLK_DIV)   /* Helper to calculate bus speed for UART */
-#define FLASH_CLK_DIV   4                           /* Flash clock divisor */
+#ifdef FREESCALE_KSDK_BM
+    #define SYS_CLK_HZ      SystemCoreClock
+#else
+    #define SYS_CLK_HZ      96000000ul                  /* Core system clock in Hz */
+    #define SYS_CLK_DRS     MCG_C4_DRST_DRS(0x03)       /* DRS 0=24MHz, 1=48MHz, 2=72MHz, 3=96MHz */
+    #define SYS_CLK_DMX     MCG_C4_DMX32_MASK           /* 0=Disable DMX32 (lower actual speed), MCG_C4_DMX32_MASK=Enable DMX32 */
+    #define SYS_CLK_DIV     1                           /* System clock divisor */
+    #define BUS_CLK_DIV     2                           /* Bus clock divisor */
+    #define BUS_CLK_KHZ     (SYS_CLK_HZ/BUS_CLK_DIV)    /* Helper to calculate bus speed for UART */
+    #define FLASH_CLK_DIV   4                           /* Flash clock divisor */
+#endif
 
 // UART TX Port, Pin, Mux and Baud
-#define UART_PORT       UART4                       /* UART Port */
-#define UART_TX_PORT    PORTE                       /* UART TX Port */
-#define UART_TX_PIN     24                          /* UART TX Pin */
-#define UART_TX_MUX     0x3                         /* Kinetis UART pin mux */
-#define UART_BAUD       115200                      /* UART Baud Rate */
+#ifdef FREESCALE_KSDK_BM
+    #define UART_PORT       LPUART0                     /* UART Port */
+    #define UART_TX_PORT    PORTA                       /* UART TX Port */
+    #define UART_TX_PIN     2U                          /* UART TX Pin */
+    #define UART_TX_MUX     kPORT_MuxAlt2               /* Kinetis UART pin mux */
+#else
+    #define UART_PORT       UART4                       /* UART Port */
+    #define UART_TX_PORT    PORTE                       /* UART TX Port */
+    #define UART_TX_PIN     24U                         /* UART TX Pin */
+    #define UART_TX_MUX     0x3                         /* Kinetis UART pin mux */
+#endif
+#define UART_BAUD       115200                          /* UART Baud Rate */
+
 /* Note: You will also need to update the UART clock gate in hw_uart_init (SIM_SCGC1_UART5_MASK) */
 /* Note: TWR-K60 is UART3, PTC17 */
 /* Note: FRDM-K64 is UART4, PTE24 */
 /* Note: TWR-K64 is UART5, PTE8 */
+/* Note: FRDM-K82F is LPUART0 A2, LPUART4 PTC15 */
 
 /***********************************************/
 
@@ -70,6 +96,9 @@ static void delay_nop(uint32_t count)
 
 static void hw_mcg_init(void)
 {
+#ifdef FREESCALE_KSDK_BM
+    BOARD_BootClockHSRUN();
+#else
     /* Adjust clock dividers (core/system=div/1, bus=div/2, flex bus=div/2, flash=div/4) */
     SIM->CLKDIV1 = SIM_CLKDIV1_OUTDIV1(SYS_CLK_DIV-1) | SIM_CLKDIV1_OUTDIV2(BUS_CLK_DIV-1) | 
         SIM_CLKDIV1_OUTDIV3(BUS_CLK_DIV-1) | SIM_CLKDIV1_OUTDIV4(FLASH_CLK_DIV-1);
@@ -77,10 +106,18 @@ static void hw_mcg_init(void)
     /* Configure FEI internal clock speed */
     MCG->C4 = (SYS_CLK_DMX | SYS_CLK_DRS);
     while((MCG->C4 & (MCG_C4_DRST_DRS_MASK | MCG_C4_DMX32_MASK)) != (SYS_CLK_DMX | SYS_CLK_DRS));
+#endif
 }
 
 static void hw_gpio_init(void)
 {
+#ifdef FREESCALE_KSDK_BM
+    CLOCK_EnableClock(kCLOCK_PortA);
+    CLOCK_EnableClock(kCLOCK_PortB);
+    CLOCK_EnableClock(kCLOCK_PortC);
+    CLOCK_EnableClock(kCLOCK_PortD);
+    CLOCK_EnableClock(kCLOCK_PortE);
+#else
     /* Enable clocks to all GPIO ports */
     SIM->SCGC5 |= (SIM_SCGC5_PORTA_MASK | SIM_SCGC5_PORTB_MASK
 #ifdef SIM_SCGC5_PORTC_MASK
@@ -93,6 +130,7 @@ static void hw_gpio_init(void)
         | SIM_SCGC5_PORTE_MASK
 #endif
    );
+#endif
 }
 
 static void hw_uart_init(void)
@@ -100,7 +138,13 @@ static void hw_uart_init(void)
     register uint16_t sbr, brfa;
     uint8_t temp;
 
+#ifdef FREESCALE_KSDK_BM
+    PORT_SetPinMux(UART_TX_PORT, UART_TX_PIN, UART_TX_MUX);
+    CLOCK_SetLpuartClock(1); /* MCGPLLCLK */
+    DbgConsole_Init((uint32_t)UART_PORT, UART_BAUD, DEBUG_CONSOLE_DEVICE_TYPE_LPUART, SYS_CLK_HZ);
+#else
     /* Enable UART core clock */
+    /* Note: Remember to update me if UART_PORT changes */
     SIM->SCGC1 |= SIM_SCGC1_UART4_MASK;
     
     /* Configure UART TX pin */
@@ -125,12 +169,13 @@ static void hw_uart_init(void)
 
     /* Enable receiver and transmitter */
 	UART_PORT->C2 |= (UART_C2_TE_MASK | UART_C2_RE_MASK);
+#endif
 }
 
 static void hw_rtc_init(void)
 {
     /* Init nop delay */
-    mDelayCyclesPerUs = (SYS_CLK_KHZ / 1000 / NOP_FOR_LOOP_INSTRUCTION_COUNT);
+    mDelayCyclesPerUs = (SYS_CLK_HZ / 1000000 / NOP_FOR_LOOP_INSTRUCTION_COUNT);
 
     /* Enable RTC clock and oscillator */
     SIM->SCGC6 |= SIM_SCGC6_RTC_MASK;
@@ -145,7 +190,7 @@ static void hw_rtc_init(void)
     }
 
     /* Disable RTC Interrupts */
-    RTC_IER = 0;
+    RTC->IER = 0;
 
     /* Enable OSC */
     if ((RTC->CR & RTC_CR_OSCE_MASK) == 0) {
@@ -164,6 +209,14 @@ static void hw_rtc_init(void)
 
 static void hw_rand_init(void)
 {
+#ifdef FREESCALE_KSDK_BM
+    trng_config_t trngConfig;
+    TRNG_GetDefaultConfig(&trngConfig);
+    /* Set sample mode of the TRNG ring oscillator to Von Neumann, for better random data.*/
+    trngConfig.sampleMode = kTRNG_SampleModeVonNeumann;
+    /* Initialize TRNG */
+    TRNG_Init(TRNG0, &trngConfig);
+#else
     /* Enable RNG clocks */
     SIM->SCGC6 |= SIM_SCGC6_RNGA_MASK;
     SIM->SCGC3 |= SIM_SCGC3_RNGA_MASK;
@@ -176,6 +229,7 @@ static void hw_rand_init(void)
 
     /* Enable RNG generation to RANDOUT FIFO */
     RNG->CR |= RNG_CR_GO_MASK;
+#endif
 }
 
 
@@ -204,14 +258,24 @@ uint32_t hw_get_time_msec(void)
 
 void hw_uart_printchar(int c)
 {
+#ifdef FREESCALE_KSDK_BM
+    LPUART_WriteBlocking(UART_PORT, (const uint8_t*)&c, 1); /* Send the character */
+#else
     while(!(UART_PORT->S1 & UART_S1_TDRE_MASK)); /* Wait until space is available in the FIFO */
     UART_PORT->D = (uint8_t)c; /* Send the character */
+#endif
 }
 
 uint32_t hw_rand(void)
 {
+    uint32_t rng;
+#ifdef FREESCALE_KSDK_BM
+    TRNG_GetRandomData(TRNG0, &rng, sizeof(rng));
+#else
     while((RNG->SR & RNG_SR_OREG_LVL(0xF)) == 0) {}; /* Wait until FIFO has a value available */
-    return RNG->OR; /* Return next value in FIFO output register */
+    rng = RNG->OR; /* Return next value in FIFO output register */
+#endif
+    return rng;
 }
 
 void delay_us(uint32_t microseconds)

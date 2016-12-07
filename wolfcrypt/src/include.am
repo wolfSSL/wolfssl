@@ -45,8 +45,9 @@ EXTRA_DIST += wolfcrypt/src/port/ti/ti-aes.c \
               wolfcrypt/src/port/ti/ti-ccm.c \
               wolfcrypt/src/port/pic32/pic32mz-hash.c \
               wolfcrypt/src/port/nrf51.c \
+              wolfcrypt/src/port/arm/armv8-aes.c \
               wolfcrypt/src/port/arm/armv8-sha256.c \
-              wolfcrypt/src/port/arm/armv8-aes.c
+              wolfssl/wolfcrypt/port/nxp/ksdk_port.c
 
 if BUILD_CAVIUM
 src_libwolfssl_la_SOURCES += wolfcrypt/src/port/cavium/cavium_nitrox.c

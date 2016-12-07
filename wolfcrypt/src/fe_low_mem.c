@@ -130,7 +130,7 @@ static void xc_diffadd(byte *x5, byte *z5,
 	fe_mul__distinct(z5, x1, b);
 }
 
-
+#ifndef FREESCALE_LTC_ECC
 int curve25519(byte *result, byte *e, byte *q)
 {
 	/* Current point: P_m */
@@ -174,7 +174,7 @@ int curve25519(byte *result, byte *e, byte *q)
 	fe_normalize(result);
     return 0;
 }
-
+#endif /* !FREESCALE_LTC_ECC */
 
 static void raw_add(byte *x, const byte *p)
 {

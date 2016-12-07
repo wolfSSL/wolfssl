@@ -250,7 +250,7 @@ static void set_Transform(void) {
 }
 
 #else
-   #if defined(FREESCALE_MMCAU)
+   #if defined(FREESCALE_MMCAU_SHA)
       #define XTRANSFORM(sha256, B) Transform(sha256, B)
    #else
       #define XTRANSFORM(sha256, B) Transform(sha256)
@@ -285,8 +285,8 @@ static void set_Transform(void) {
     #include <wolfcrypt/src/misc.c>
 #endif
 
-#ifdef FREESCALE_MMCAU
-    #include "cau_api.h"
+#ifdef FREESCALE_MMCAU_SHA
+    #include "fsl_mmcau.h"
 #endif
 
 #ifndef WOLFSSL_HAVE_MIN
@@ -299,16 +299,22 @@ static void set_Transform(void) {
 
 #endif /* WOLFSSL_HAVE_MIN */
 
-
+#ifdef FREESCALE_LTC_SHA
+int wc_InitSha256(Sha256* sha256)
+{
+    LTC_HASH_Init(LTC_BASE, &sha256->ctx, kLTC_Sha256, NULL, 0);
+    return 0;
+}
+#else
 int wc_InitSha256(Sha256* sha256)
 {
     int ret = 0;
-    #ifdef FREESCALE_MMCAU
+    #ifdef FREESCALE_MMCAU_SHA
         ret = wolfSSL_CryptHwMutexLock();
         if(ret != 0) {
             return ret;
         }
-        cau_sha256_initialize_output(sha256->digest);
+        MMCAU_SHA256_InitializeOutput((uint32_t*)sha256->digest);
         wolfSSL_CryptHwMutexUnLock();
     #else
         sha256->digest[0] = 0x6A09E667L;
@@ -331,9 +337,10 @@ int wc_InitSha256(Sha256* sha256)
 
     return ret;
 }
+#endif /* FREESCALE_LTC_SHA */
 
-
-#if !defined(FREESCALE_MMCAU)
+#if !defined(FREESCALE_LTC_SHA)
+#if !defined(FREESCALE_MMCAU_SHA)
 static const ALIGN32 word32 K[64] = {
     0x428A2F98L, 0x71374491L, 0xB5C0FBCFL, 0xE9B5DBA5L, 0x3956C25BL,
     0x59F111F1L, 0x923F82A4L, 0xAB1C5ED5L, 0xD807AA98L, 0x12835B01L,
@@ -352,19 +359,19 @@ static const ALIGN32 word32 K[64] = {
 
 #endif
 
-#if defined(FREESCALE_MMCAU)
+#if defined(FREESCALE_MMCAU_SHA)
 
 static int Transform(Sha256* sha256, byte* buf)
 {
     int ret = wolfSSL_CryptHwMutexLock();
     if(ret == 0) {
-        cau_sha256_hash_n(buf, 1, sha256->digest);
+        MMCAU_SHA256_HashN(buf, 1, (uint32_t*)sha256->digest);
         wolfSSL_CryptHwMutexUnLock();
     }
     return ret;
 }
 
-#endif /* FREESCALE_MMCAU */
+#endif /* FREESCALE_MMCAU_SHA */
 
 #define Ch(x,y,z)       ((z) ^ ((x) & ((y) ^ (z))))
 #define Maj(x,y,z)      ((((x) | (y)) & (z)) | ((x) & (y)))
@@ -382,7 +389,7 @@ static int Transform(Sha256* sha256, byte* buf)
      (d) += t0; \
      (h)  = t0 + t1;
 
-#if !defined(FREESCALE_MMCAU)
+#if !defined(FREESCALE_MMCAU_SHA)
 static int Transform(Sha256* sha256)
 {
     word32 S[8], t0, t1;
@@ -431,7 +438,7 @@ static int Transform(Sha256* sha256)
     return 0;
 }
 
-#endif /* #if !defined(FREESCALE_MMCAU) */
+#endif /* #if !defined(FREESCALE_MMCAU_SHA) */
 
 static INLINE void AddLength(Sha256* sha256, word32 len)
 {
@@ -439,7 +446,15 @@ static INLINE void AddLength(Sha256* sha256, word32 len)
     if ( (sha256->loLen += len) < tmp)
         sha256->hiLen++;                       /* carry low to high */
 }
+#endif /* FREESCALE_LTC_SHA */
 
+#ifdef FREESCALE_LTC_SHA
+int wc_Sha256Update(Sha256* sha256, const byte* data, word32 len)
+{
+    LTC_HASH_Update(&sha256->ctx, data, len);
+    return 0;
+}
+#else
 static INLINE int Sha256Update(Sha256* sha256, const byte* data, word32 len)
 {
 
@@ -459,7 +474,7 @@ static INLINE int Sha256Update(Sha256* sha256, const byte* data, word32 len)
         if (sha256->buffLen == SHA256_BLOCK_SIZE) {
             int ret;
 
-            #if defined(LITTLE_ENDIAN_ORDER) && !defined(FREESCALE_MMCAU)
+            #if defined(LITTLE_ENDIAN_ORDER) && !defined(FREESCALE_MMCAU_SHA)
                 #if defined(HAVE_INTEL_AVX1) || defined(HAVE_INTEL_AVX2)
                 if(!IS_INTEL_AVX1 && !IS_INTEL_AVX2)
                 #endif
@@ -483,6 +498,16 @@ int wc_Sha256Update(Sha256* sha256, const byte* data, word32 len)
     return Sha256Update(sha256, data, len);
 }
 
+#endif /* FREESCALE_LTC_SHA */
+
+#ifdef FREESCALE_LTC_SHA
+int wc_Sha256Final(Sha256* sha256, byte* hash)
+{
+    uint32_t hashlen = SHA256_DIGEST_SIZE;
+    LTC_HASH_Finish(&sha256->ctx, hash, &hashlen);
+    return wc_InitSha256(sha256);  /* reset state */
+}
+#else
 static INLINE int Sha256Final(Sha256* sha256)
 {
     byte* local = (byte*)sha256->buffer;
@@ -499,7 +524,7 @@ static INLINE int Sha256Final(Sha256* sha256)
         XMEMSET(&local[sha256->buffLen], 0, SHA256_BLOCK_SIZE - sha256->buffLen);
         sha256->buffLen += SHA256_BLOCK_SIZE - sha256->buffLen;
 
-        #if defined(LITTLE_ENDIAN_ORDER) && !defined(FREESCALE_MMCAU)
+        #if defined(LITTLE_ENDIAN_ORDER) && !defined(FREESCALE_MMCAU_SHA)
             #if defined(HAVE_INTEL_AVX1) || defined(HAVE_INTEL_AVX2)
             if(!IS_INTEL_AVX1 && !IS_INTEL_AVX2)
             #endif
@@ -520,7 +545,7 @@ static INLINE int Sha256Final(Sha256* sha256)
     sha256->loLen = sha256->loLen << 3;
 
     /* store lengths */
-    #if defined(LITTLE_ENDIAN_ORDER) && !defined(FREESCALE_MMCAU)
+    #if defined(LITTLE_ENDIAN_ORDER) && !defined(FREESCALE_MMCAU_SHA)
         #if defined(HAVE_INTEL_AVX1) || defined(HAVE_INTEL_AVX2)
         if(!IS_INTEL_AVX1 && !IS_INTEL_AVX2)
         #endif
@@ -531,7 +556,7 @@ static INLINE int Sha256Final(Sha256* sha256)
     XMEMCPY(&local[SHA256_PAD_SIZE + sizeof(word32)], &sha256->loLen,
             sizeof(word32));
 
-    #if defined(FREESCALE_MMCAU) || defined(HAVE_INTEL_AVX1) || defined(HAVE_INTEL_AVX2)
+    #if defined(FREESCALE_MMCAU_SHA) || defined(HAVE_INTEL_AVX1) || defined(HAVE_INTEL_AVX2)
         /* Kinetis requires only these bytes reversed */
         #if defined(HAVE_INTEL_AVX1) || defined(HAVE_INTEL_AVX2)
         if(IS_INTEL_AVX1 || IS_INTEL_AVX2)
@@ -559,6 +584,8 @@ int wc_Sha256Final(Sha256* sha256, byte* hash)
 
     return wc_InitSha256(sha256);  /* reset state */
 }
+#endif /* FREESCALE_LTC_SHA */
+
 
 
 #if defined(HAVE_INTEL_AVX1) || defined(HAVE_INTEL_AVX2)

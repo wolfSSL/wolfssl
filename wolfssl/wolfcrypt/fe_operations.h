@@ -47,7 +47,9 @@ Bounds on each t[i] vary depending on context.
     typedef int32_t  fe[10];
 #endif
 
+#if! defined FREESCALE_LTC_ECC
 WOLFSSL_LOCAL int  curve25519(byte * q, byte * n, byte * p);
+#endif
 WOLFSSL_LOCAL void fe_copy(fe, const fe);
 WOLFSSL_LOCAL void fe_add(fe, const fe, const fe);
 WOLFSSL_LOCAL void fe_neg(fe,const fe);
