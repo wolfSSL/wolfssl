@@ -10040,17 +10040,20 @@ static int BuildCertHashes(WOLFSSL* ssl, Hashes* hashes)
 #endif
         if (IsAtLeastTLSv1_2(ssl)) {
             #ifndef NO_SHA256
-                ret = wc_Sha256GetHash(&ssl->hsHashes->hashSha256,hashes->sha256);
+                ret = wc_Sha256GetHash(&ssl->hsHashes->hashSha256,
+                                       hashes->sha256);
                 if (ret != 0)
                     return ret;
             #endif
             #ifdef WOLFSSL_SHA384
-                ret = wc_Sha384Final(&ssl->hsHashes->hashSha384,hashes->sha384);
+                ret = wc_Sha384GetHash(&ssl->hsHashes->hashSha384,
+                                       hashes->sha384);
                 if (ret != 0)
                     return ret;
             #endif
             #ifdef WOLFSSL_SHA512
-                ret = wc_Sha512Final(&ssl->hsHashes->hashSha512,hashes->sha512);
+                ret = wc_Sha512GetHash(&ssl->hsHashes->hashSha512,
+                                       hashes->sha512);
                 if (ret != 0)
                     return ret;
             #endif
