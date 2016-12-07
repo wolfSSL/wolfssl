@@ -1705,6 +1705,62 @@ static INLINE int myEccVerify(WOLFSSL* ssl, const byte* sig, word32 sigSz,
     return ret;
 }
 
+static INLINE int myEccSharedSecret(WOLFSSL* ssl, ecc_key* otherKey,
+        unsigned char* pubKeyDer, unsigned int* pubKeySz,
+        unsigned char* out, unsigned int* outlen,
+        int side, void* ctx)
+{
+    int      ret;
+    ecc_key* privKey = NULL;
+    ecc_key* pubKey = NULL;
+    ecc_key  tmpKey;
+
+    (void)ssl;
+    (void)ctx;
+
+    ret = wc_ecc_init(&tmpKey);
+    if (ret != 0) {
+        return ret;
+    }
+
+    /* for client: create and export public key */
+    if (side == WOLFSSL_CLIENT_END) {
+        WC_RNG rng;
+
+        privKey = &tmpKey;
+        pubKey = otherKey;
+
+        ret = wc_InitRng(&rng);
+        if (ret == 0) {
+            ret = wc_ecc_make_key_ex(&rng, 0, privKey, otherKey->dp->id);
+            if (ret == 0)
+                ret = wc_ecc_export_x963(privKey, pubKeyDer, pubKeySz);
+            wc_FreeRng(&rng);
+        }
+    }
+
+    /* for server: import public key */
+    else if (side == WOLFSSL_SERVER_END) {
+        privKey = otherKey;
+        pubKey = &tmpKey;
+
+        ret = wc_ecc_import_x963_ex(pubKeyDer, *pubKeySz, pubKey,
+            otherKey->dp->id);
+    }
+    else {
+        ret = BAD_FUNC_ARG;
+    }
+
+    /* generate shared secret and return it */
+    if (ret == 0) {
+        ret = wc_ecc_shared_secret(privKey, pubKey, out, outlen);
+    }
+
+    wc_ecc_free(&tmpKey);
+
+    return ret;
+}
+
 #endif /* HAVE_ECC */
 
 #ifndef NO_RSA
@@ -1834,6 +1890,7 @@ static INLINE void SetupPkCallbacks(WOLFSSL_CTX* ctx, WOLFSSL* ssl)
     #ifdef HAVE_ECC
         wolfSSL_CTX_SetEccSignCb(ctx, myEccSign);
         wolfSSL_CTX_SetEccVerifyCb(ctx, myEccVerify);
+        wolfSSL_CTX_SetEccSharedSecretCb(ctx, myEccSharedSecret);
     #endif /* HAVE_ECC */
     #ifndef NO_RSA
         wolfSSL_CTX_SetRsaSignCb(ctx, myRsaSign);

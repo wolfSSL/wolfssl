@@ -39,6 +39,10 @@
     #include <wolfssl/wolfcrypt/port/nxp/ksdk_port.h>
 #endif
 
+#ifdef WOLFSSL_ATMEL
+    #include <wolfssl/wolfcrypt/port/atmel/atmel.h>
+#endif
+
 #ifdef _MSC_VER
     /* 4996 warning to use MS extensions e.g., strcpy_s instead of strncpy */
     #pragma warning(disable: 4996)
@@ -50,7 +54,7 @@ static volatile int initRefCount = 0;
 /* Used to initialize state for wolfcrypt
    return 0 on success
  */
-int wolfCrypt_Init()
+int wolfCrypt_Init(void)
 {
     int ret = 0;
 
@@ -75,6 +79,10 @@ int wolfCrypt_Init()
 
     #if defined(FREESCALE_LTC_TFM) || defined(FREESCALE_LTC_ECC)
         ksdk_port_init();
+    #endif
+
+    #ifdef WOLFSSL_ATMEL
+        atmel_init();
     #endif
 
     #ifdef WOLFSSL_ARMASM

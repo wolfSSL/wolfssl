@@ -958,6 +958,7 @@ int wolfSSL_SetMinEccKey_Sz(WOLFSSL* ssl, short keySz)
     ssl->options.minEccKeySz = keySz / 8;
     return SSL_SUCCESS;
 }
+
 #endif /* !NO_RSA */
 
 #ifndef NO_RSA
@@ -18202,6 +18203,26 @@ void* wolfSSL_GetEccVerifyCtx(WOLFSSL* ssl)
     return NULL;
 }
 
+void wolfSSL_CTX_SetEccSharedSecretCb(WOLFSSL_CTX* ctx, CallbackEccSharedSecret cb)
+{
+    if (ctx)
+        ctx->EccSharedSecretCb = cb;
+}
+
+void  wolfSSL_SetEccSharedSecretCtx(WOLFSSL* ssl, void *ctx)
+{
+    if (ssl)
+        ssl->EccSharedSecretCtx = ctx;
+}
+
+
+void* wolfSSL_GetEccSharedSecretCtx(WOLFSSL* ssl)
+{
+    if (ssl)
+        return ssl->EccSharedSecretCtx;
+
+    return NULL;
+}
 #endif /* HAVE_ECC */
 
 #ifndef NO_RSA
