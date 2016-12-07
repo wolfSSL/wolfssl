@@ -654,6 +654,12 @@ typedef byte word24[3];
     #endif
 #endif
 
+#ifdef WOLFSSL_MULTICAST
+    #if defined(HAVE_NULL_CIPHER) && !defined(NO_SHA256)
+        #define BUILD_WDM_WITH_NULL_SHA256
+    #endif
+#endif
+
 #if defined(BUILD_SSL_RSA_WITH_RC4_128_SHA) || \
     defined(BUILD_SSL_RSA_WITH_RC4_128_MD5)
     #define BUILD_ARC4
@@ -791,6 +797,7 @@ enum {
     TLS_RSA_WITH_HC_128_MD5       = 0xFB,
     TLS_RSA_WITH_HC_128_SHA       = 0xFC,
     TLS_RSA_WITH_RABBIT_SHA       = 0xFD,
+    WDM_WITH_NULL_SHA256          = 0xFE, /* wolfSSL DTLS Multicast */
 
     /* wolfSSL extension - Blake2b 256 */
     TLS_RSA_WITH_AES_128_CBC_B2B256   = 0xF8,
@@ -1020,6 +1027,7 @@ enum Misc {
     DTLS_EXPORT_LEN          = 2,  /* 2 bytes for length and protocol */
     DTLS_EXPORT_IP           = 46, /* max ip size IPv4 mapped IPv6 */
     MAX_EXPORT_BUFFER        = 514, /* max size of buffer for exporting */
+    DTLS_MCAST_ID_MAX        = 100, /* max allowed multicast group ID */
     FINISHED_LABEL_SZ   = 15,  /* TLS finished label size */
     TLS_FINISHED_SZ     = 12,  /* TLS has a shorter size  */
     EXT_MASTER_LABEL_SZ = 22,  /* TLS extended master secret label sz */

@@ -2083,6 +2083,19 @@ int SetCipherSpecs(WOLFSSL* ssl)
             break;
 #endif
 
+#ifdef BUILD_WDM_WITH_NULL_SHA256
+        case WDM_WITH_NULL_SHA256 :
+            ssl->specs.bulk_cipher_algorithm = wolfssl_cipher_null;
+            ssl->specs.cipher_type           = stream;
+            ssl->specs.mac_algorithm         = sha256_mac;
+            ssl->specs.kea                   = no_kea;
+            ssl->specs.sig_algo              = anonymous_sa_algo;
+            ssl->specs.hash_size             = SHA256_DIGEST_SIZE;
+            ssl->specs.pad_size              = PAD_SHA;
+
+            break;
+#endif
+
     default:
         WOLFSSL_MSG("Unsupported cipher suite, SetCipherSpecs");
         return UNSUPPORTED_SUITE;

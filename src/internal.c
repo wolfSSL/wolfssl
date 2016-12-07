@@ -14061,6 +14061,9 @@ static const char* const cipher_names[] =
     "TLS13-AES128-CCM-8-SHA256",
 #endif
 
+#ifdef BUILD_WDM_WITH_NULL_SHA256
+    "WDM-NULL-SHA256",
+#endif
 };
 
 
@@ -14528,6 +14531,9 @@ static int cipher_name_idx[] =
     TLS_AES_128_CCM_8_SHA256,
 #endif
 
+#ifdef BUILD_WDM_WITH_NULL_SHA256
+    WDM_WITH_NULL_SHA256,
+#endif
 };
 
 
@@ -15016,6 +15022,10 @@ const char* wolfSSL_get_cipher_name_from_suite(const unsigned char cipherSuite,
 #ifdef BUILD_TLS_DH_anon_WITH_AES_128_CBC_SHA
             case TLS_DH_anon_WITH_AES_128_CBC_SHA :
                 return "TLS_DH_anon_WITH_AES_128_CBC_SHA";
+#endif
+#ifdef BUILD_WDM_WITH_NULL_SHA256
+            case WDM_WITH_NULL_SHA256 :
+                return "WDM_WITH_NULL_SHA256";
 #endif
             default:
                 return "NONE";

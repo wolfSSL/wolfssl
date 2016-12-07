@@ -2284,7 +2284,7 @@ static void test_wolfSSL_dtls_mcast(void)
     byte preMasterSecret[512];
     byte clientRandom[32];
     byte serverRandom[32];
-    byte suite[2] = {0, 0xb0};  /* TLS_PSK_WITH_NULL_SHA256 */
+    byte suite[2] = {0, 0xfe};  /* WDM_WITH_NULL_SHA256 */
     byte buf[256];
     byte newId;
 
