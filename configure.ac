@@ -1782,7 +1782,12 @@ then
     *linux* | *darwin* | *freebsd*)
         AM_CFLAGS="$AM_CFLAGS -DHAVE_CRL_MONITOR" ;;
     *)
-        AC_MSG_ERROR([crl monitor only allowed on linux, OS X, or freebsd]) ;;
+        if test "x$ENABLED_DISTRO" = "xyes" ; then
+            ENABLED_CRL_MONITOR="no"
+        else
+            AC_MSG_ERROR( [crl monitor only allowed on linux, OS X, or freebsd])
+        fi
+        break;;
     esac
 fi
 
@@ -2232,7 +2237,7 @@ then
         AM_CFLAGS="$AM_CFLAGS -DHAVE_OCSP"
         AM_CONDITIONAL([BUILD_OCSP], [test "x$ENABLED_OCSP" = "xyes"])
     fi
-    if test "x$ENABLED_CRL_MONITOR" = "xno"
+    if test "x$ENABLED_CRL_MONITOR" = "xno" && test "x$ENABLED_DISTRO" = "xno"
     then
         ENABLED_CRL_MONITOR="yes"
         AM_CFLAGS="$AM_CFLAGS -DHAVE_CRL_MONITOR"
