@@ -1760,10 +1760,10 @@ static int Transform_AVX2(Sha256* sha256)
 
     RegToDigest(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7) ;  
 
-    #ifdef WOLFSSL_SMALL_STACK
-        XFREE(W, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    #endif
-    
+#ifdef WOLFSSL_SMALL_STACK
+    XFREE(W_K, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+
     return 0;
 }
 

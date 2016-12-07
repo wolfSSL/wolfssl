@@ -873,8 +873,8 @@ int wc_HKDF(int type, const byte* inKey, word32 inKeySz,
     }
 
 #ifdef WOLFSSL_SMALL_STACK
-    XFREE(tmp, hmac->heap, DYNAMIC_TYPE_TMP_BUFFER);
-    XFREE(prk, hmac->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(tmp, myHmac.heap, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(prk, myHmac.heap, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
 
     return ret;
