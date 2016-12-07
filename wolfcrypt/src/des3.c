@@ -151,6 +151,7 @@ void wc_Des3AsyncFree(Des3* des3)
 
     int wc_Des3_SetKey(Des3* des, const byte* key, const byte* iv, int dir)
     {
+    #ifndef WOLFSSL_STM32_CUBEMX
         word32 *dkey1 = des->key[0];
         word32 *dkey2 = des->key[1];
         word32 *dkey3 = des->key[2];
@@ -161,10 +162,12 @@ void wc_Des3AsyncFree(Des3* des3)
         XMEMCPY(dkey2, key + 8, 8);     /* set key 2 */
         XMEMCPY(dkey3, key + 16, 8);    /* set key 3 */
 
-    #ifndef WOLFSSL_STM32_CUBEMX
         ByteReverseWords(dkey1, dkey1, 8);
         ByteReverseWords(dkey2, dkey2, 8);
         ByteReverseWords(dkey3, dkey3, 8);
+    #else
+        (void)dir;
+        XMEMCPY(des->key[0], key, DES3_KEYLEN); /* CUBEMX wants keys in sequential memory */
     #endif
 
         return wc_Des3_SetIV(des, iv);
@@ -479,9 +482,9 @@ static void wc_Des_Cbc(byte* out, const byte* in, word32 sz,
     #endif
     int size ;
     volatile int v ;
- 
+
     wc_LockMutex(&Mutex_DesSEC) ;
-    
+
     secDesc->length1 = 0x0;
     secDesc->pointer1 = NULL;
     if((desc==SEC_DESC_DES_CBC_ENCRYPT)||(desc==SEC_DESC_DES_CBC_DECRYPT)){
@@ -549,7 +552,7 @@ static void wc_Des_Cbc(byte* out, const byte* in, word32 sz,
 
     }
     wc_UnLockMutex(&Mutex_DesSEC) ;
-    
+
 }
 
 
@@ -615,7 +618,7 @@ int wc_Des_SetKey(Des* des, const byte* key, const byte* iv, int dir)
         #else
         #warning "Allocate non-Cache buffers"
         #endif
-        
+
         wc_InitMutex(&Mutex_DesSEC) ;
     }
 
@@ -645,7 +648,7 @@ int wc_Des3_SetKey(Des3* des3, const byte* key, const byte* iv, int dir)
         #else
         #warning "Allocate non-Cache buffers"
         #endif
-        
+
         wc_InitMutex(&Mutex_DesSEC) ;
     }
 
