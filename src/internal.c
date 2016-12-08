@@ -10023,13 +10023,6 @@ static void BuildSHA_CertVerify(WOLFSSL* ssl, byte* digest)
 static int BuildCertHashes(WOLFSSL* ssl, Hashes* hashes)
 {
     int ret = 0;
-    /* store current states, building requires get_digest which resets state */
-    #ifdef WOLFSSL_SHA384
-        Sha384 sha384 = ssl->hsHashes->hashSha384;
-    #endif
-    #ifdef WOLFSSL_SHA512
-        Sha512 sha512 = ssl->hsHashes->hashSha512;
-    #endif
 
     (void)hashes;
 
@@ -10064,17 +10057,7 @@ static int BuildCertHashes(WOLFSSL* ssl, Hashes* hashes)
         BuildMD5_CertVerify(ssl, hashes->md5);
         BuildSHA_CertVerify(ssl, hashes->sha);
     }
-
-    /* restore */
 #endif
-    if (IsAtLeastTLSv1_2(ssl)) {
-        #ifdef WOLFSSL_SHA384
-            ssl->hsHashes->hashSha384 = sha384;
-        #endif
-        #ifdef WOLFSSL_SHA512
-            ssl->hsHashes->hashSha512 = sha512;
-        #endif
-    }
 
     return ret;
 }
