@@ -333,9 +333,11 @@ int wolfSSL_BIO_reset(WOLFSSL_BIO *bio)
     }
 
     switch (bio->type) {
+        #ifndef NO_FILESYSTEM
         case BIO_FILE:
             XREWIND(bio->file);
             return 0;
+        #endif
 
         case BIO_BIO:
             bio->rdIdx = 0;
@@ -412,7 +414,7 @@ int wolfSSL_BIO_write_filename(WOLFSSL_BIO *bio, char *name)
 
     return SSL_FAILURE;
 }
-#endif /* NO_FILESYSTEM */
+
 
 int wolfSSL_BIO_seek(WOLFSSL_BIO *bio, int ofs)
 {
@@ -429,6 +431,7 @@ int wolfSSL_BIO_seek(WOLFSSL_BIO *bio, int ofs)
 
       return 0;
 }
+#endif /* NO_FILESYSTEM */
 
 
 long wolfSSL_BIO_set_mem_eof_return(WOLFSSL_BIO *bio, int v)

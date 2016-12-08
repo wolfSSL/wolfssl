@@ -10055,6 +10055,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
     }
 
 
+#ifndef NO_FILESYSTEM
     WOLFSSL_BIO_METHOD* wolfSSL_BIO_s_file(void)
     {
         static WOLFSSL_BIO_METHOD file_meth;
@@ -10064,6 +10065,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
 
         return &file_meth;
     }
+#endif
 
 
     WOLFSSL_BIO_METHOD* wolfSSL_BIO_f_ssl(void)
@@ -10077,7 +10079,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
     }
 
 
-    const WOLFSSL_BIO_METHOD *wolfSSL_BIO_s_socket(void)
+    WOLFSSL_BIO_METHOD *wolfSSL_BIO_s_socket(void)
     {
         static WOLFSSL_BIO_METHOD meth;
 
@@ -10213,11 +10215,13 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
                     CloseSocket(bio->fd);
             }
 
+        #ifndef NO_FILESYSTEM
             if (bio->type == BIO_FILE && bio->close == BIO_CLOSE) {
                 if (bio->file) {
                     XFCLOSE(bio->file);
                 }
             }
+        #endif
 
             if (bio->mem)
                 XFREE(bio->mem, bio->heap, DYNAMIC_TYPE_OPENSSL);
@@ -10266,12 +10270,14 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
             return wolfSSL_BIO_BIO_read(bio, buf, len);
         }
 
+    #ifndef NO_FILESYSTEM
         if (bio && bio->type == BIO_FILE) {
             return (int)XFREAD(buf, 1, len, bio->file);
         }
+    #endif
 
         /* already got eof, again is error */
-        if (front->eof)
+        if (bio && front->eof)
             return SSL_FATAL_ERROR;
 
         while(bio && ((ssl = bio->ssl) == 0) )
@@ -10324,12 +10330,14 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
             return wolfSSL_BIO_BIO_write(bio, data, len);
         }
 
+    #ifndef NO_FILESYSTEM
         if (bio && bio->type == BIO_FILE) {
             return (int)XFWRITE(data, 1, len, bio->file);
         }
+    #endif
 
         /* already got eof, again is error */
-        if (front->eof)
+        if (bio && front->eof)
             return SSL_FATAL_ERROR;
 
         while(bio && ((ssl = bio->ssl) == 0) )
