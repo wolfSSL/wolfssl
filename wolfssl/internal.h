@@ -1249,7 +1249,9 @@ enum BIO_TYPE {
     BIO_BUFFER = 1,
     BIO_SOCKET = 2,
     BIO_SSL    = 3,
-    BIO_MEMORY = 4
+    BIO_MEMORY = 4,
+    BIO_BIO    = 5,
+    BIO_FILE   = 6
 };
 
 
@@ -1261,15 +1263,22 @@ struct WOLFSSL_BIO_METHOD {
 
 /* wolfSSL BIO type */
 struct WOLFSSL_BIO {
-    byte        type;          /* method type */
-    byte        close;         /* close flag */
-    byte        eof;           /* eof flag */
     WOLFSSL*     ssl;           /* possible associated ssl */
-    byte*       mem;           /* memory buffer */
-    int         memLen;        /* memory buffer length */
-    int         fd;            /* possible file descriptor */
+    XFILE        file;
     WOLFSSL_BIO* prev;          /* previous in chain */
     WOLFSSL_BIO* next;          /* next in chain */
+    WOLFSSL_BIO* pair;          /* BIO paired with */
+    void*        heap;          /* user heap hint */
+    byte*        mem;           /* memory buffer */
+    int         wrSz;          /* write buffer size (mem) */
+    int         wrIdx;         /* current index for write buffer */
+    int         rdIdx;         /* current read index */
+    int         readRq;        /* read request */
+    int         memLen;        /* memory buffer length */
+    int         fd;            /* possible file descriptor */
+    int         eof;           /* eof flag */
+    byte        type;          /* method type */
+    byte        close;         /* close flag */
 };
 
 

@@ -236,7 +236,11 @@ typedef WOLFSSL_X509_STORE_CTX X509_STORE_CTX;
 #define BIO_new      wolfSSL_BIO_new
 #define BIO_free     wolfSSL_BIO_free
 #define BIO_free_all wolfSSL_BIO_free_all
+#define BIO_nread0   wolfSSL_BIO_nread0
+#define BIO_nread    wolfSSL_BIO_nread
 #define BIO_read     wolfSSL_BIO_read
+#define BIO_nwrite0  wolfSSL_BIO_nwrite0
+#define BIO_nwrite   wolfSSL_BIO_nwrite
 #define BIO_write    wolfSSL_BIO_write
 #define BIO_push     wolfSSL_BIO_push
 #define BIO_pop      wolfSSL_BIO_pop
@@ -517,6 +521,8 @@ typedef WOLFSSL_X509_NAME_ENTRY X509_NAME_ENTRY;
 #define BIO_get_mem_ptr     wolfSSL_BIO_get_mem_ptr
 #define BIO_int_ctrl        wolfSSL_BIO_int_ctrl
 #define BIO_reset           wolfSSL_BIO_reset
+#define BIO_s_file          wolfSSL_BIO_s_file
+#define BIO_s_bio           wolfSSL_BIO_s_bio
 #define BIO_s_socket        wolfSSL_BIO_s_socket
 #define BIO_set_fd          wolfSSL_BIO_set_fd
 

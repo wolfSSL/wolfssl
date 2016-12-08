@@ -519,29 +519,23 @@ WOLFSSL_API long wolfSSL_BIO_set_fd(WOLFSSL_BIO* b, int fd, int flag);
 WOLFSSL_API void wolfSSL_set_bio(WOLFSSL*, WOLFSSL_BIO* rd, WOLFSSL_BIO* wr);
 WOLFSSL_API int  wolfSSL_add_all_algorithms(void);
 
+WOLFSSL_API WOLFSSL_BIO_METHOD *wolfSSL_BIO_s_file(void);
+WOLFSSL_API WOLFSSL_BIO_METHOD *wolfSSL_BIO_s_bio(void);
 WOLFSSL_API const WOLFSSL_BIO_METHOD *wolfSSL_BIO_s_socket(void);
 
 WOLFSSL_API long wolfSSL_BIO_ctrl(WOLFSSL_BIO *bp, int cmd, long larg, void *parg);
-WOLFSSL_API long wolfSSL_BIO_ctrl_pending(WOLFSSL_BIO *b);
 WOLFSSL_API long wolfSSL_BIO_int_ctrl(WOLFSSL_BIO *bp, int cmd, long larg, int iarg);
 
-WOLFSSL_API long wolfSSL_BIO_set_write_buf_size(WOLFSSL_BIO *b, long size);
-WOLFSSL_API long wolfSSL_BIO_make_bio_pair(WOLFSSL_BIO *b1, WOLFSSL_BIO *b2);
+WOLFSSL_API int  wolfSSL_BIO_set_write_buf_size(WOLFSSL_BIO *b, long size);
+WOLFSSL_API int  wolfSSL_BIO_make_bio_pair(WOLFSSL_BIO *b1, WOLFSSL_BIO *b2);
 WOLFSSL_API int  wolfSSL_BIO_ctrl_reset_read_request(WOLFSSL_BIO *b);
 WOLFSSL_API int  wolfSSL_BIO_nread0(WOLFSSL_BIO *bio, char **buf);
 WOLFSSL_API int  wolfSSL_BIO_nread(WOLFSSL_BIO *bio, char **buf, int num);
-WOLFSSL_API long wolfSSL_BIO_nwrite(WOLFSSL_BIO *bio, char **buf, int num);
-WOLFSSL_API long wolfSSL_BIO_reset(WOLFSSL_BIO *bio);
+WOLFSSL_API int  wolfSSL_BIO_nwrite(WOLFSSL_BIO *bio, char **buf, int num);
+WOLFSSL_API int  wolfSSL_BIO_reset(WOLFSSL_BIO *bio);
 
-#if 0
-#ifndef NO_FILESYSTEM
-WOLFSSL_API long wolfSSL_BIO_set_fp(WOLFSSL_BIO *bio, XFILE fp, int c);
-WOLFSSL_API long wolfSSL_BIO_get_fp(WOLFSSL_BIO *bio, XFILE fp);
-#endif
-#endif
-
-WOLFSSL_API long wolfSSL_BIO_seek(WOLFSSL_BIO *bio, int ofs);
-WOLFSSL_API long wolfSSL_BIO_write_filename(WOLFSSL_BIO *bio, char *name);
+WOLFSSL_API int  wolfSSL_BIO_seek(WOLFSSL_BIO *bio, int ofs);
+WOLFSSL_API int  wolfSSL_BIO_write_filename(WOLFSSL_BIO *bio, char *name);
 WOLFSSL_API long wolfSSL_BIO_set_mem_eof_return(WOLFSSL_BIO *bio, int v);
 WOLFSSL_API long wolfSSL_BIO_get_mem_ptr(WOLFSSL_BIO *bio, WOLFSSL_BUF_MEM **m);
 
@@ -937,6 +931,14 @@ enum { /* ssl Constants */
 enum {  /* ERR Constants */
     ERR_TXT_STRING = 1
 };
+
+/* bio misc */
+enum {
+    WOLFSSL_BIO_ERROR = -1,
+    WOLFSSL_BIO_UNSET = -2,
+    WOLFSSL_BIO_SIZE  = 17000 /* default BIO write size if not set */
+};
+
 
 WOLFSSL_API unsigned long wolfSSL_ERR_get_error_line_data(const char**, int*,
                                                  const char**, int *);
@@ -1906,6 +1908,12 @@ WOLFSSL_API char* wolfSSL_ASN1_TIME_to_string(WOLFSSL_ASN1_TIME* time,
 #endif /* WOLFSSL_MYSQL_COMPATIBLE */
 
 #ifdef OPENSSL_EXTRA
+
+#ifndef NO_FILESYSTEM
+WOLFSSL_API long wolfSSL_BIO_set_fp(WOLFSSL_BIO *bio, XFILE fp, int c);
+WOLFSSL_API long wolfSSL_BIO_get_fp(WOLFSSL_BIO *bio, XFILE* fp);
+#endif
+
 WOLFSSL_API unsigned long wolfSSL_ERR_peek_last_error_line(const char **file, int *line);
 WOLFSSL_API long wolfSSL_ctrl(WOLFSSL* ssl, int cmd, long opt, void* pt);
 WOLFSSL_API long wolfSSL_CTX_ctrl(WOLFSSL_CTX* ctx, int cmd, long opt,void* pt);
@@ -1939,6 +1947,7 @@ WOLFSSL_API void wolfSSL_CTX_set_cert_store(WOLFSSL_CTX* ctx,
 WOLFSSL_X509* wolfSSL_d2i_X509_bio(WOLFSSL_BIO* bio, WOLFSSL_X509** x509);
 WOLFSSL_API WOLFSSL_X509_STORE* wolfSSL_CTX_get_cert_store(WOLFSSL_CTX* ctx);
 
+WOLFSSL_API size_t wolfSSL_BIO_ctrl_pending(WOLFSSL_BIO *b);
 WOLFSSL_API size_t wolfSSL_get_server_random(const WOLFSSL *ssl,
                                              unsigned char *out, size_t outlen);
 WOLFSSL_API size_t wolfSSL_get_client_random(const WOLFSSL* ssl,
@@ -1965,7 +1974,6 @@ struct WOLFSSL_X509_NAME_ENTRY {
 WOLFSSL_API void wolfSSL_X509_NAME_free(WOLFSSL_X509_NAME *name);
 WOLFSSL_API char wolfSSL_CTX_use_certificate(WOLFSSL_CTX *ctx, WOLFSSL_X509 *x);
 WOLFSSL_API int wolfSSL_BIO_read_filename(WOLFSSL_BIO *b, const char *name);
-WOLFSSL_API WOLFSSL_BIO_METHOD* wolfSSL_BIO_s_file(void);
 /* These are to be merged shortly */
 WOLFSSL_API const char *  wolfSSL_OBJ_nid2sn(int n);
 WOLFSSL_API int wolfSSL_OBJ_obj2nid(const WOLFSSL_ASN1_OBJECT *o);

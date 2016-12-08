@@ -57,7 +57,8 @@ WOLFSSL_API int  wolfSSL_EVP_DecryptInit_ex(WOLFSSL_EVP_CIPHER_CTX* ctx,
 
 WOLFSSL_API WOLFSSL_EVP_CIPHER_CTX *wolfSSL_EVP_CIPHER_CTX_new(void)
 {
-	WOLFSSL_EVP_CIPHER_CTX *ctx=XMALLOC(sizeof *ctx, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+	WOLFSSL_EVP_CIPHER_CTX *ctx = (WOLFSSL_EVP_CIPHER_CTX*)XMALLOC(sizeof *ctx,
+                                                 NULL, DYNAMIC_TYPE_TMP_BUFFER);
 	if (ctx){
       WOLFSSL_ENTER("wolfSSL_EVP_CIPHER_CTX_new");  
 		  wolfSSL_EVP_CIPHER_CTX_init(ctx);

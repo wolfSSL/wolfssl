@@ -1981,7 +1981,7 @@ static void test_wolfSSL_DisableExtendedMasterSecret(void)
  *----------------------------------------------------------------------------*/
 static void test_wolfSSL_X509_NAME_get_entry(void)
 {
-#ifndef NO_CERTS
+#if !defined(NO_CERTS) && !defined(NO_RSA)
 #if defined(OPENSSL_EXTRA) && (defined(KEEP_PEER_CERT) || defined(SESSION_CERTS)) \
     && (defined(HAVE_LIGHTY) || defined(WOLFSSL_MYSQL_COMPATIBLE))
     printf(testingFmt, "wolfSSL_X509_NAME_get_entry()");
@@ -2029,7 +2029,7 @@ static void test_wolfSSL_PKCS12(void)
 {
     /* .p12 file is encrypted with DES3 */
 #if defined(OPENSSL_EXTRA) && !defined(NO_DES3) && !defined(NO_FILESYSTEM) && \
-    !defined(NO_ASN) && !defined(NO_PWDBASED)
+    !defined(NO_ASN) && !defined(NO_PWDBASED) && !defined(NO_RSA)
     byte buffer[5300];
     char file[] = "./certs/test-servercert.p12";
     FILE *f;
@@ -2529,7 +2529,7 @@ static void test_wolfSSL_PEM_PrivateKey(void)
 static void test_wolfSSL_tmp_dh(void)
 {
     #if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && \
-       !defined(NO_FILESYSTEM) && !defined(NO_DSA)
+       !defined(NO_FILESYSTEM) && !defined(NO_DSA) && !defined(NO_RSA)
     byte buffer[5300];
     char file[] = "./certs/dsaparams.pem";
     FILE *f;
@@ -2826,6 +2826,176 @@ static void test_wolfSSL_PEM_read_bio(void)
 }
 
 
+static void test_wolfSSL_BIO(void)
+{
+    #if defined(OPENSSL_EXTRA)
+    byte buffer[20];
+    BIO* bio1;
+    BIO* bio2;
+    BIO* bio3;
+    char* bufPt;
+    int i;
+
+    printf(testingFmt, "wolfSSL_BIO()");
+
+    for (i = 0; i < 20; i++) {
+        buffer[i] = i;
+    }
+
+    /* Creating and testing type BIO_s_bio */
+    AssertNotNull(bio1 = BIO_new(BIO_s_bio()));
+    AssertNotNull(bio2 = BIO_new(BIO_s_bio()));
+    AssertNotNull(bio3 = BIO_new(BIO_s_bio()));
+
+    /* read/write before set up */
+    AssertIntEQ(BIO_read(bio1, buffer, 2),  WOLFSSL_BIO_UNSET);
+    AssertIntEQ(BIO_write(bio1, buffer, 2), WOLFSSL_BIO_UNSET);
+
+    AssertIntEQ(BIO_set_write_buf_size(bio1, 20), SSL_SUCCESS);
+    AssertIntEQ(BIO_set_write_buf_size(bio2, 8),  SSL_SUCCESS);
+    AssertIntEQ(BIO_make_bio_pair(bio1, bio2),    SSL_SUCCESS);
+
+    AssertIntEQ(BIO_nwrite(bio1, &bufPt, 10), 10);
+    XMEMCPY(bufPt, buffer, 10);
+    AssertIntEQ(BIO_write(bio1, buffer + 10, 10), 10);
+    /* write buffer full */
+    AssertIntEQ(BIO_write(bio1, buffer, 10), WOLFSSL_BIO_ERROR);
+    AssertIntEQ(BIO_flush(bio1), SSL_SUCCESS);
+    AssertIntEQ((int)BIO_ctrl_pending(bio1), 0);
+
+    /* write the other direction with pair */
+    AssertIntEQ((int)BIO_nwrite(bio2, &bufPt, 10), 8);
+    XMEMCPY(bufPt, buffer, 8);
+    AssertIntEQ(BIO_write(bio2, buffer, 10), WOLFSSL_BIO_ERROR);
+
+    /* try read */
+    AssertIntEQ((int)BIO_ctrl_pending(bio1), 8);
+    AssertIntEQ((int)BIO_ctrl_pending(bio2), 20);
+
+    AssertIntEQ(BIO_nread(bio2, &bufPt, (int)BIO_ctrl_pending(bio2)), 20);
+    for (i = 0; i < 20; i++) {
+        AssertIntEQ((int)bufPt[i], i);
+    }
+    AssertIntEQ(BIO_nread(bio2, &bufPt, 1), WOLFSSL_BIO_ERROR);
+    AssertIntEQ(BIO_nread(bio1, &bufPt, (int)BIO_ctrl_pending(bio1)), 8);
+    for (i = 0; i < 8; i++) {
+        AssertIntEQ((int)bufPt[i], i);
+    }
+    AssertIntEQ(BIO_nread(bio1, &bufPt, 1), WOLFSSL_BIO_ERROR);
+
+    /* new pair */
+    AssertIntEQ(BIO_make_bio_pair(bio1, bio3), SSL_FAILURE);
+    BIO_free(bio2); /* free bio2 and automaticly remove from pair */
+    AssertIntEQ(BIO_make_bio_pair(bio1, bio3), SSL_SUCCESS);
+    AssertIntEQ((int)BIO_ctrl_pending(bio3), 0);
+    AssertIntEQ(BIO_nread(bio3, &bufPt, 10), WOLFSSL_BIO_ERROR);
+
+    /* test wrap around... */
+    AssertIntEQ(BIO_reset(bio1), 0);
+    AssertIntEQ(BIO_reset(bio3), 0);
+
+    /* fill write buffer, read only small amount then write again */
+    AssertIntEQ(BIO_nwrite(bio1, &bufPt, 20), 20);
+    XMEMCPY(bufPt, buffer, 20);
+    AssertIntEQ(BIO_nread(bio3, &bufPt, 4), 4);
+    for (i = 0; i < 4; i++) {
+        AssertIntEQ(bufPt[i], i);
+    }
+
+    /* try writing over read index */
+    AssertIntEQ(BIO_nwrite(bio1, &bufPt, 5), 4);
+    XMEMSET(bufPt, 0, 4);
+    AssertIntEQ((int)BIO_ctrl_pending(bio3), 20);
+
+    /* read and write 0 bytes */
+    AssertIntEQ(BIO_nread(bio3, &bufPt, 0), 0);
+    AssertIntEQ(BIO_nwrite(bio1, &bufPt, 0), 0);
+
+    /* should read only to end of write buffer then need to read again */
+    AssertIntEQ(BIO_nread(bio3, &bufPt, 20), 16);
+    for (i = 0; i < 16; i++) {
+        AssertIntEQ(bufPt[i], buffer[4 + i]);
+    }
+
+    AssertIntEQ(BIO_nread(bio3, NULL, 0), SSL_FAILURE);
+    AssertIntEQ(BIO_nread0(bio3, &bufPt), 4);
+    for (i = 0; i < 4; i++) {
+        AssertIntEQ(bufPt[i], 0);
+    }
+
+    /* read index should not have advanced with nread0 */
+    AssertIntEQ(BIO_nread(bio3, &bufPt, 5), 4);
+    for (i = 0; i < 4; i++) {
+        AssertIntEQ(bufPt[i], 0);
+    }
+
+    /* write and fill up buffer checking reset of index state */
+    AssertIntEQ(BIO_nwrite(bio1, &bufPt, 20), 20);
+    XMEMCPY(bufPt, buffer, 20);
+
+    /* test reset on data in bio1 write buffer */
+    AssertIntEQ(BIO_reset(bio1), 0);
+    AssertIntEQ((int)BIO_ctrl_pending(bio3), 0);
+    AssertIntEQ(BIO_nread(bio3, &bufPt, 3), WOLFSSL_BIO_ERROR);
+    AssertIntEQ(BIO_nwrite(bio1, &bufPt, 20), 20);
+    XMEMCPY(bufPt, buffer, 20);
+    AssertIntEQ(BIO_nread(bio3, &bufPt, 6), 6);
+    for (i = 0; i < 6; i++) {
+        AssertIntEQ(bufPt[i], i);
+    }
+
+    /* test case of writing twice with offset read index */
+    AssertIntEQ(BIO_nwrite(bio1, &bufPt, 3), 3);
+    AssertIntEQ(BIO_nwrite(bio1, &bufPt, 4), 3); /* try overwriting */
+    AssertIntEQ(BIO_nwrite(bio1, &bufPt, 4), WOLFSSL_BIO_ERROR);
+    AssertIntEQ(BIO_nread(bio3, &bufPt, 0), 0);
+    AssertIntEQ(BIO_nwrite(bio1, &bufPt, 4), WOLFSSL_BIO_ERROR);
+    AssertIntEQ(BIO_nread(bio3, &bufPt, 1), 1);
+    AssertIntEQ(BIO_nwrite(bio1, &bufPt, 4), 1);
+    AssertIntEQ(BIO_nwrite(bio1, &bufPt, 4), WOLFSSL_BIO_ERROR);
+
+    BIO_free(bio1);
+    BIO_free(bio3);
+
+    /* BIOs with file pointers */
+    #if !defined(NO_FILESYSTEM)
+    {
+        XFILE f1;
+        XFILE f2;
+        BIO*  f_bio1;
+        BIO*  f_bio2;
+        unsigned char cert[300];
+        char testFile[] = "tests/bio_write_test.txt";
+        char msg[]      = "bio_write_test.txt contains the first 300 bytes of certs/server-cert.pem\ncreated by tests/unit.test\n\n";
+
+        AssertNotNull(f_bio1 = BIO_new(BIO_s_file()));
+        AssertNotNull(f_bio2 = BIO_new(BIO_s_file()));
+
+        AssertIntEQ((int)BIO_set_mem_eof_return(f_bio1, -1), 0);
+        AssertIntEQ((int)BIO_set_mem_eof_return(NULL, -1),   0);
+
+        f1 = XFOPEN(svrCert, "rwb");
+        AssertIntEQ((int)BIO_set_fp(f_bio1, f1, BIO_CLOSE), SSL_SUCCESS);
+        AssertIntEQ(BIO_write_filename(f_bio2, testFile),
+                SSL_SUCCESS);
+
+        AssertIntEQ(BIO_read(f_bio1, cert, sizeof(cert)), sizeof(cert));
+        AssertIntEQ(BIO_write(f_bio2, msg, sizeof(msg)), sizeof(msg));
+        AssertIntEQ(BIO_write(f_bio2, cert, sizeof(cert)), sizeof(cert));
+
+        AssertIntEQ((int)BIO_get_fp(f_bio2, &f2), SSL_SUCCESS);
+
+        BIO_free(f_bio1);
+        BIO_free(f_bio2);
+    }
+    #endif /* !defined(NO_FILESYSTEM) */
+
+
+    printf(resultFmt, passed);
+    #endif
+}
+
+
 /*----------------------------------------------------------------------------*
  | Main
  *----------------------------------------------------------------------------*/
@@ -2883,6 +3053,7 @@ void ApiTest(void)
     test_wolfSSL_BN();
     test_wolfSSL_set_options();
     test_wolfSSL_PEM_read_bio();
+    test_wolfSSL_BIO();
 
     AssertIntEQ(test_wolfSSL_Cleanup(), SSL_SUCCESS);
     printf(" End API Tests\n");
