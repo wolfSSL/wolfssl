@@ -850,6 +850,18 @@ then
 fi
 
 
+# X9.63 KDF
+AC_ARG_ENABLE([x963kdf],
+    [  --enable-x963kdf        Enable X9.63 KDF support (default: disabled)],
+    [ ENABLED_X963KDF=$enableval ],
+    [ ENABLED_X963KDF=no ]
+    )
+if test "$ENABLED_X963KDF" = "yes"
+then
+  AM_CFLAGS="$AM_CFLAGS -DHAVE_X963_KDF"
+fi
+
+
 # DSA
 AC_ARG_ENABLE([dsa],
     [  --enable-dsa            Enable DSA (default: disabled)],
@@ -3266,6 +3278,7 @@ echo "   * Hash DRBG:                  $ENABLED_HASHDRBG"
 echo "   * PWDBASED:                   $ENABLED_PWDBASED"
 echo "   * wolfCrypt Only:             $ENABLED_CRYPTONLY"
 echo "   * HKDF:                       $ENABLED_HKDF"
+echo "   * X9.63 KDF:                  $ENABLED_X963KDF"
 echo "   * MD4:                        $ENABLED_MD4"
 echo "   * PSK:                        $ENABLED_PSK"
 echo "   * Poly1305:                   $ENABLED_POLY1305"

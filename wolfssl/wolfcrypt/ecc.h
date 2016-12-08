@@ -30,6 +30,10 @@
 #include <wolfssl/wolfcrypt/integer.h>
 #include <wolfssl/wolfcrypt/random.h>
 
+#ifdef HAVE_X963_KDF
+    #include <wolfssl/wolfcrypt/hash.h>
+#endif
+
 #ifdef WOLFSSL_ASYNC_CRYPT
     #include <wolfssl/wolfcrypt/async.h>
 #endif
@@ -452,6 +456,12 @@ int wc_ecc_decrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
                 word32 msgSz, byte* out, word32* outSz, ecEncCtx* ctx);
 
 #endif /* HAVE_ECC_ENCRYPT */
+
+#ifdef HAVE_X963_KDF
+WOLFSSL_API int wc_X963_KDF(enum wc_HashType type, const byte* secret,
+                word32 secretSz, const byte* sinfo, word32 sinfoSz,
+                byte* out, word32 outSz);
+#endif
 
 #ifdef WOLFSSL_ASYNC_CRYPT
     WOLFSSL_API int wc_ecc_async_handle(ecc_key* key,
