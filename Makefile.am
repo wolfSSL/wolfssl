@@ -105,7 +105,6 @@ include mcapi/zlib.X/nbproject/include.am
 include tirtos/include.am
 include scripts/include.am
 include IDE/include.am
-include RIOT_Make/include.am
 
 if USE_VALGRIND
 TESTS_ENVIRONMENT=./valgrind-error.sh
