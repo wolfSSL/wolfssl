@@ -3143,7 +3143,7 @@ static word16 TLSX_SecureRenegotiation_Write(SecureRenegotiation* data,
         }
     }
 
-    output[0] = offset - 1;  /* info length - self */
+    output[0] = (byte)(offset - 1);  /* info length - self */
 
     return offset;
 }
