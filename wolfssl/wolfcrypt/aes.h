@@ -64,6 +64,7 @@ enum {
     AES_ENC_TYPE   = 1,   /* cipher unique type */
     AES_ENCRYPTION = 0,
     AES_DECRYPTION = 1,
+    KEYWRAP_BLOCK_SIZE = 8,
     AES_BLOCK_SIZE = 16
 };
 
@@ -166,6 +167,16 @@ WOLFSSL_API int  wc_AesCbcDecrypt(Aes* aes, byte* out,
                                    const byte* authTag, word32 authTagSz,
                                    const byte* authIn, word32 authInSz);
 #endif /* HAVE_AESCCM */
+#ifdef HAVE_AES_KEYWRAP
+ WOLFSSL_API int  wc_AesKeyWrap(const byte* key, word32 keySz,
+                                const byte* in, word32 inSz,
+                                byte* out, word32 outSz,
+                                const byte* iv);
+ WOLFSSL_API int  wc_AesKeyUnWrap(const byte* key, word32 keySz,
+                                const byte* in, word32 inSz,
+                                byte* out, word32 outSz,
+                                const byte* iv);
+#endif /* HAVE_AES_KEYWRAP */
 
 WOLFSSL_API int wc_AesGetKeySize(Aes* aes, word32* keySize);
 

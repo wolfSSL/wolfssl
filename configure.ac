@@ -2876,6 +2876,19 @@ then
 fi
 
 
+# AES key wrap
+AC_ARG_ENABLE([aeskeywrap],
+    [AS_HELP_STRING([--enable-aeskeywrap],[Enable AES key wrap support (default: disabled)])],
+    [ ENABLED_AESKEYWRAP=$enableval ],
+    [ ENABLED_AESKEYWRAP=no ]
+    )
+
+if test "$ENABLED_AESKEYWRAP" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_AES_KEYWRAP -DWOLFSSL_AES_DIRECT"
+fi
+
+
 # check if PSK was enabled for conditionally running psk.test script
 AM_CONDITIONAL([BUILD_PSK], [test "x$ENABLED_PSK" = "xyes"])
 
@@ -3324,6 +3337,7 @@ echo "   * Fast RSA:                   $ENABLED_FAST_RSA"
 echo "   * Async Crypto:               $ENABLED_ASYNCCRYPT"
 echo "   * Cavium:                     $ENABLED_CAVIUM"
 echo "   * ARM ASM:                    $ENABLED_ARMASM"
+echo "   * AES Key Wrap:               $ENABLED_AESKEYWRAP"
 echo ""
 echo "---"
 

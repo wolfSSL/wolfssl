@@ -4715,6 +4715,178 @@ int  wc_AesCcmDecrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
 #endif /* HAVE_AESCCM */
 
 
+#ifdef HAVE_AES_KEYWRAP
+
+/* Initialize key wrap counter with value */
+static INLINE void InitKeyWrapCounter(byte* inOutCtr, word32 value)
+{
+    int i;
+    word32 bytes;
+
+    bytes = sizeof(word32);
+    for (i = 0; i < (int)sizeof(word32); i++) {
+        inOutCtr[i+sizeof(word32)] = (value >> ((bytes - 1) * 8)) & 0xFF;
+        bytes--;
+    }
+}
+
+/* Increment key wrap counter */
+static INLINE void IncrementKeyWrapCounter(byte* inOutCtr)
+{
+    int i;
+
+    /* in network byte order so start at end and work back */
+    for (i = KEYWRAP_BLOCK_SIZE - 1; i >= 0; i--) {
+        if (++inOutCtr[i])  /* we're done unless we overflow */
+            return;
+    }
+}
+
+/* Decrement key wrap counter */
+static INLINE void DecrementKeyWrapCounter(byte* inOutCtr)
+{
+    int i;
+
+    for (i = KEYWRAP_BLOCK_SIZE - 1; i >= 0; i--) {
+        if (--inOutCtr[i] != 0xFF)  /* we're done unless we underflow */
+            return;
+    }
+}
+
+/* perform AES key wrap (RFC3394), return out sz on success, negative on err */
+int wc_AesKeyWrap(const byte* key, word32 keySz, const byte* in, word32 inSz,
+                  byte* out, word32 outSz, const byte* iv)
+{
+    Aes aes;
+    byte* r;
+    word32 i;
+    int ret, j;
+
+    byte t[KEYWRAP_BLOCK_SIZE];
+    byte tmp[AES_BLOCK_SIZE];
+
+    /* n must be at least 2, output size is n + 8 bytes */
+    if (key == NULL || in  == NULL || inSz < 2 ||
+        out == NULL || outSz < (inSz + KEYWRAP_BLOCK_SIZE))
+        return BAD_FUNC_ARG;
+
+    /* input must be multiple of 64-bits */
+    if (inSz % KEYWRAP_BLOCK_SIZE != 0)
+        return BAD_FUNC_ARG;
+
+    /* user IV is optional */
+    if (iv == NULL) {
+        XMEMSET(tmp, 0xA6, KEYWRAP_BLOCK_SIZE);
+    } else {
+        XMEMCPY(tmp, iv, KEYWRAP_BLOCK_SIZE);
+    }
+
+    r = out + 8;
+    XMEMCPY(r, in, inSz);
+    XMEMSET(t, 0, sizeof(t));
+
+    ret = wc_AesSetKey(&aes, key, keySz, NULL, AES_ENCRYPTION);
+    if (ret != 0)
+        return ret;
+
+    for (j = 0; j <= 5; j++) {
+        for (i = 1; i <= inSz / KEYWRAP_BLOCK_SIZE; i++) {
+
+            /* load R[i] */
+            XMEMCPY(tmp + KEYWRAP_BLOCK_SIZE, r, KEYWRAP_BLOCK_SIZE);
+
+            wc_AesEncryptDirect(&aes, tmp, tmp);
+
+            /* calculate new A */
+            IncrementKeyWrapCounter(t);
+            xorbuf(tmp, t, KEYWRAP_BLOCK_SIZE);
+
+            /* save R[i] */
+            XMEMCPY(r, tmp + KEYWRAP_BLOCK_SIZE, KEYWRAP_BLOCK_SIZE);
+            r += KEYWRAP_BLOCK_SIZE;
+        }
+        r = out + KEYWRAP_BLOCK_SIZE;
+    }
+
+    /* C[0] = A */
+    XMEMCPY(out, tmp, KEYWRAP_BLOCK_SIZE);
+
+    return inSz + KEYWRAP_BLOCK_SIZE;
+}
+
+int wc_AesKeyUnWrap(const byte* key, word32 keySz, const byte* in, word32 inSz,
+                    byte* out, word32 outSz, const byte* iv)
+{
+    (void)iv;
+
+    Aes aes;
+    byte* r;
+    word32 i, n;
+    int ret, j;
+
+    byte t[KEYWRAP_BLOCK_SIZE];
+    byte tmp[AES_BLOCK_SIZE];
+
+    const byte* expIv;
+    const byte defaultIV[] = {
+        0xA6, 0xA6, 0xA6, 0xA6, 0xA6, 0xA6, 0xA6, 0xA6
+    };
+
+    if (key == NULL || in == NULL || inSz < 3 ||
+        out == NULL || outSz < (inSz - KEYWRAP_BLOCK_SIZE))
+        return BAD_FUNC_ARG;
+
+    /* input must be multiple of 64-bits */
+    if (inSz % KEYWRAP_BLOCK_SIZE != 0)
+        return BAD_FUNC_ARG;
+
+    /* user IV optional */
+    if (iv != NULL) {
+        expIv = iv;
+    } else {
+        expIv = defaultIV;
+    }
+
+    /* A = C[0], R[i] = C[i] */
+    XMEMCPY(tmp, in, KEYWRAP_BLOCK_SIZE);
+    XMEMCPY(out, in + KEYWRAP_BLOCK_SIZE, inSz - KEYWRAP_BLOCK_SIZE);
+    XMEMSET(t, 0, sizeof(t));
+
+    ret = wc_AesSetKey(&aes, key, keySz, NULL, AES_DECRYPTION);
+    if (ret != 0)
+        return ret;
+
+    /* initialize counter to 6n */
+    n = (inSz - 1) / KEYWRAP_BLOCK_SIZE;
+    InitKeyWrapCounter(t, 6 * n);
+
+    for (j = 5; j >= 0; j--) {
+        for (i = n; i >= 1; i--) {
+
+            /* calculate A */
+            xorbuf(tmp, t, KEYWRAP_BLOCK_SIZE);
+            DecrementKeyWrapCounter(t);
+
+            /* load R[i], starting at end of R */
+            r = out + ((i - 1) * KEYWRAP_BLOCK_SIZE);
+            XMEMCPY(tmp + KEYWRAP_BLOCK_SIZE, r, KEYWRAP_BLOCK_SIZE);
+            wc_AesDecryptDirect(&aes, tmp, tmp);
+
+            /* save R[i] */
+            XMEMCPY(r, tmp + KEYWRAP_BLOCK_SIZE, KEYWRAP_BLOCK_SIZE);
+        }
+    }
+
+    /* verify IV */
+    if (XMEMCMP(tmp, expIv, KEYWRAP_BLOCK_SIZE) != 0)
+        return BAD_KEYWRAP_IV_E;
+
+    return inSz - KEYWRAP_BLOCK_SIZE;
+}
+
+#endif /* HAVE_AES_KEYWRAP */
+
+
 #ifdef WOLFSSL_ASYNC_CRYPT
 
 /* Initialize Aes for use with Nitrox device */

@@ -1442,6 +1442,12 @@ static char *fgets(char *buff, int sz, FILE *fp)
     #endif
 #endif /* WOLFSSL_STATIC_MEMORY */
 
+#ifdef HAVE_AES_KEYWRAP
+    #ifndef WOLFSSL_AES_DIRECT
+        #error AES key wrap requires AES direct please define WOLFSSL_AES_DIRECT
+    #endif
+#endif
+
 
 /* Place any other flags or defines here */
 
