@@ -412,9 +412,11 @@
 #endif
 
 #ifdef WOLFSSL_RIOT_OS
+    #define TFM_NO_ASM
+    #define USE_FAST_MATH
+    #define NO_FILE_SYSTEM
     #define USE_CERT_BUFFERS_2048
     #define HAVE_ECC
-    #define NO_INLINE
 #endif
 
 #ifdef WOLFSSL_NRF5x
