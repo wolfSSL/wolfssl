@@ -10052,7 +10052,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
 
         if (b != NULL) {
             b->ssl   = ssl;
-            b->close = closeF;
+            b->close = (byte)closeF;
     /* add to ssl for bio free if SSL_free called before/instead of free_all? */
         }
 
@@ -10066,7 +10066,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
 
         if (b != NULL) {
             b->fd    = fd;
-            b->close = closeF;
+            b->close = (byte)closeF;
         }
 
         return SSL_SUCCESS;
@@ -14785,7 +14785,7 @@ int wolfSSL_CTX_set_read_ahead(WOLFSSL_CTX* ctx, int v)
         return SSL_FAILURE;
     }
 
-    ctx->readAhead = v;
+    ctx->readAhead = (byte)v;
 
     return SSL_SUCCESS;
 }
