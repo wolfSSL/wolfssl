@@ -7010,10 +7010,15 @@ int wc_X963_KDF(enum wc_HashType type, const byte* secret, word32 secretSz,
     int ret, i;
     int digestSz, copySz;
     int remaining = outSz;
-    byte* tmp;
     byte* outIdx;
     byte  counter[4];
-    wc_HashAlg hash;
+    byte  tmp[WC_MAX_DIGEST_SIZE];
+
+#ifdef WOLFSSL_SMALL_STACK
+    wc_HashAlg* hash;
+#else
+    wc_HashAlg hash[1];
+#endif
 
     if (secret == NULL || secretSz == 0 || out == NULL)
         return BAD_FUNC_ARG;
@@ -7028,13 +7033,18 @@ int wc_X963_KDF(enum wc_HashType type, const byte* secret, word32 secretSz,
     if (digestSz < 0)
         return digestSz;
 
-    tmp = (byte*)XMALLOC(digestSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    if (tmp == NULL)
+#ifdef WOLFSSL_SMALL_STACK
+    hash = (wc_HashAlg*)XMALLOC(sizeof(wc_HashAlg), NULL,
+                                DYNAMIC_TYPE_TMP_BUFFER);
+    if (hash == NULL)
         return MEMORY_E;
+#endif
 
-    ret = wc_HashInit(&hash, type);
+    ret = wc_HashInit(hash, type);
     if (ret != 0) {
-        XFREE(tmp, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#ifdef WOLFSSL_SMALL_STACK
+        XFREE(hash, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
         return ret;
     }
 
@@ -7045,29 +7055,37 @@ int wc_X963_KDF(enum wc_HashType type, const byte* secret, word32 secretSz,
 
         IncrementX963KdfCounter(counter);
 
-        ret = wc_HashUpdate(&hash, type, secret, secretSz);
+        ret = wc_HashUpdate(hash, type, secret, secretSz);
         if (ret != 0) {
-            XFREE(tmp, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#ifdef WOLFSSL_SMALL_STACK
+            XFREE(hash, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
             return ret;
         }
 
-        ret = wc_HashUpdate(&hash, type, counter, sizeof(counter));
+        ret = wc_HashUpdate(hash, type, counter, sizeof(counter));
         if (ret != 0) {
-            XFREE(tmp, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#ifdef WOLFSSL_SMALL_STACK
+            XFREE(hash, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
             return ret;
         }
 
         if (sinfo) {
-            ret = wc_HashUpdate(&hash, type, sinfo, sinfoSz);
+            ret = wc_HashUpdate(hash, type, sinfo, sinfoSz);
             if (ret != 0) {
-                XFREE(tmp, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#ifdef WOLFSSL_SMALL_STACK
+                XFREE(hash, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
                 return ret;
             }
         }
 
-        ret = wc_HashFinal(&hash, type, tmp);
+        ret = wc_HashFinal(hash, type, tmp);
         if (ret != 0) {
-            XFREE(tmp, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#ifdef WOLFSSL_SMALL_STACK
+            XFREE(hash, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
             return ret;
         }
 
@@ -7078,7 +7096,9 @@ int wc_X963_KDF(enum wc_HashType type, const byte* secret, word32 secretSz,
         outIdx += copySz;
     }
 
-    XFREE(tmp, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#ifdef WOLFSSL_SMALL_STACK
+     XFREE(hash, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
 
     return 0;
 }
