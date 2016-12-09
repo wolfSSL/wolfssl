@@ -73,18 +73,16 @@
     #define wc_ShaUpdate wc_ShaUpdate_sw
     #define wc_ShaFinal  wc_ShaFinal_sw
 
-#elif defined(STM32F2_HASH)
+#elif defined(STM32F2_HASH) || defined(STM32F4_HASH)
+
     /*
-     * STM32F2 hardware SHA1 support through the STM32F2 standard peripheral
-     * library. Documentation located in STM32F2xx Standard Peripheral Library
-     * document (See note in README).
+     * STM32F2/F4 hardware SHA1 support through the standard peripheral
+     * library. (See note in README).
      */
-    #include "stm32f2xx.h"
-    #include "stm32f2xx_hash.h"
 
     int wc_InitSha(Sha* sha)
     {
-        /* STM32F2 struct notes:
+        /* STM32 struct notes:
          * sha->buffer  = first 4 bytes used to hold partial block if needed
          * sha->buffLen = num bytes currently stored in sha->buffer
          * sha->loLen   = num bytes that have been written to STM32 FIFO
