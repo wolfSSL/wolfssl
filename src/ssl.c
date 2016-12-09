@@ -844,46 +844,75 @@ int wolfSSL_dtls_set_mtu(WOLFSSL* ssl, word16 newMtu)
 #endif /* WOLFSSL_DTLS && WOLFSSL_SCTP */
 
 
-#if defined(WOLFSSL_DTLS) && defined(WOLFSSL_MULTICAST)
+#if defined(WOLFSSL_MULTICAST)
 
-int wolfSSL_dtls_mcast_set_member_id(WOLFSSL* ssl, byte id)
+int wolfSSL_CTX_mcast_set_member_id(WOLFSSL_CTX* ctx, byte id)
 {
-    int ret = SSL_SUCCESS;
+    int ret = 0;
 
-    (void)ssl;
-    (void)id;
+    WOLFSSL_ENTER("wolfSSL_CTX_mcast_set_member_id()");
 
-    WOLFSSL_ENTER("wolfSSL_dtls_mcast_set_member_id()");
-    WOLFSSL_LEAVE("wolfSSL_dtls_mcast_set_member_id()", ret);
+    if (ctx == NULL)
+        ret = BAD_FUNC_ARG;
+
+    if (ret == 0) {
+        /* check if side == MASTER. only work for client */
+        ctx->haveEMS = 0;
+        ctx->mcastID = id;
+    }
+
+    if (ret == 0)
+        ret = SSL_SUCCESS;
+    WOLFSSL_LEAVE("wolfSSL_CTX_mcast_set_member_id()", ret);
     return ret;
 }
 
 
-int wolfSSL_dtls_mcast_set_secret(WOLFSSL* ssl, unsigned short epoch,
-                                  const byte* preMasterSecret,
-                                  word32 preMasterSz,
-                                  const byte* clientRandom,
-                                  const byte* serverRandom,
-                                  const byte* suite)
+int wolfSSL_set_secret(WOLFSSL* ssl, unsigned short epoch,
+                       const byte* preMasterSecret, word32 preMasterSz,
+                       const byte* clientRandom, const byte* serverRandom,
+                       const byte* suite)
 {
-    int ret = SSL_SUCCESS;
+    int ret = 0;
 
-    (void)ssl;
     (void)epoch;
-    (void)preMasterSecret;
-    (void)preMasterSz;
-    (void)clientRandom;
-    (void)serverRandom;
-    (void)suite;
 
-    WOLFSSL_ENTER("wolfSSL_dtls_mcast_set_secret()");
-    WOLFSSL_LEAVE("wolfSSL_dtls_mcast_set_secret()", ret);
+    WOLFSSL_ENTER("wolfSSL_set_secret()");
+
+    if (ssl == NULL || preMasterSecret == NULL || preMasterSz == 0 ||
+        preMasterSz > sizeof(ssl->arrays->preMasterSecret) ||
+        clientRandom == NULL || serverRandom == NULL || suite == NULL) {
+
+        ret = BAD_FUNC_ARG;
+    }
+
+    if (ret == 0) {
+        XMEMCPY(ssl->arrays->preMasterSecret, preMasterSecret, preMasterSz);
+        ssl->arrays->preMasterSz = preMasterSz;
+        XMEMCPY(ssl->arrays->clientRandom, clientRandom, RAN_LEN);
+        XMEMCPY(ssl->arrays->serverRandom, serverRandom, RAN_LEN);
+        ssl->options.cipherSuite0 = suite[0];
+        ssl->options.cipherSuite = suite[1];
+
+        ret = SetCipherSpecs(ssl);
+    }
+
+    if (ret == 0)
+        ret = MakeTlsMasterSecret(ssl);
+
+    if (ret == 0)
+        ret = SSL_SUCCESS;
+    else {
+        if (ssl)
+            ssl->error = ret;
+        ret = SSL_FATAL_ERROR;
+    }
+    WOLFSSL_LEAVE("wolfSSL_set_secret()", ret);
     return ret;
 }
 
 
-int wolfSSL_dtls_mcast_read(WOLFSSL* ssl, unsigned char* id,
-                            void* data, int sz)
+int wolfSSL_mcast_read(WOLFSSL* ssl, unsigned char* id, void* data, int sz)
 {
     int ret = 0;
 
@@ -891,14 +920,14 @@ int wolfSSL_dtls_mcast_read(WOLFSSL* ssl, unsigned char* id,
     (void)data;
     (void)sz;
 
-    WOLFSSL_ENTER("wolfSSL_dtls_mcast_read()");
-    if (id != NULL)
+    WOLFSSL_ENTER("wolfSSL_mcast_read()");
+    if (ssl->options.dtls && id != NULL)
         *id = 0;
-    WOLFSSL_LEAVE("wolfSSL_dtls_mcast_read()", ret);
+    WOLFSSL_LEAVE("wolfSSL_mcast_read()", ret);
     return ret;
 }
 
-#endif /* WOLFSSL_DTLS && WOLFSSL_MULTICAST */
+#endif /* WOLFSSL_MULTICAST */
 
 
 #endif /* WOLFSSL_LEANPSK */

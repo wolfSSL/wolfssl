@@ -1035,7 +1035,7 @@ enum Misc {
     DTLS_EXPORT_LEN          = 2,  /* 2 bytes for length and protocol */
     DTLS_EXPORT_IP           = 46, /* max ip size IPv4 mapped IPv6 */
     MAX_EXPORT_BUFFER        = 514, /* max size of buffer for exporting */
-    DTLS_MCAST_ID_MAX        = 100, /* max allowed multicast group ID */
+    MULTICAST_SZ             = 100, /* max allowed multicast group peers */
     FINISHED_LABEL_SZ   = 15,  /* TLS finished label size */
     TLS_FINISHED_SZ     = 12,  /* TLS has a shorter size  */
     EXT_MASTER_LABEL_SZ = 22,  /* TLS extended master secret label sz */
@@ -2239,6 +2239,9 @@ struct WOLFSSL_CTX {
 #endif
 #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_POST_HANDSHAKE_AUTH)
     byte        postHandshakeAuth:1;  /* Post-handshake auth supported. */
+#endif
+#ifdef WOLFSSL_MULTICAST
+    byte        mcastID;          /* multicast group ID */
 #endif
 #if defined(WOLFSSL_SCTP) && defined(WOLFSSL_DTLS)
     byte        dtlsSctp;         /* DTLS-over-SCTP mode */

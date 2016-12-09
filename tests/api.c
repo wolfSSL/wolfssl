@@ -2345,9 +2345,9 @@ static int test_wolfSSL_UseOCSPStaplingV2 (void)
 } /*END test_wolfSSL_UseOCSPStaplingV2*/
 
 /*----------------------------------------------------------------------------*
- | DTLS Multicast Tests
+ | Multicast Tests
  *----------------------------------------------------------------------------*/
-static void test_wolfSSL_dtls_mcast(void)
+static void test_wolfSSL_mcast(void)
 {
 #if defined(WOLFSSL_DTLS) && defined(WOLFSSL_MULTICAST)
     WOLFSSL_CTX* ctx;
@@ -2362,21 +2362,22 @@ static void test_wolfSSL_dtls_mcast(void)
 
     ctx = wolfSSL_CTX_new(wolfDTLSv1_2_client_method());
     AssertNotNull(ctx);
+
+    result = wolfSSL_CTX_mcast_set_member_id(ctx, 0);
+    AssertIntEQ(result, SSL_SUCCESS);
+
     ssl = wolfSSL_new(ctx);
     AssertNotNull(ssl);
-
-    result = wolfSSL_dtls_mcast_set_member_id(ssl, 0);
-    AssertIntEQ(result, SSL_SUCCESS);
 
     XMEMSET(preMasterSecret, 0x23, sizeof(preMasterSecret));
     XMEMSET(clientRandom, 0xA5, sizeof(clientRandom));
     XMEMSET(serverRandom, 0x5A, sizeof(serverRandom));
-    result = wolfSSL_dtls_mcast_set_secret(ssl, 23,
-            preMasterSecret, sizeof(preMasterSecret),
-            clientRandom, serverRandom, suite);
+    result = wolfSSL_set_secret(ssl, 23,
+                preMasterSecret, sizeof(preMasterSecret),
+                clientRandom, serverRandom, suite);
     AssertIntEQ(result, SSL_SUCCESS);
 
-    result = wolfSSL_dtls_mcast_read(ssl, &newId, buf, sizeof(buf));
+    result = wolfSSL_mcast_read(ssl, &newId, buf, sizeof(buf));
     AssertIntLE(result, 0);
     AssertIntLE(newId, 100);
 
@@ -9717,8 +9718,8 @@ void ApiTest(void)
     AssertIntEQ(test_wolfSSL_UseOCSPStapling(), SSL_SUCCESS);
     AssertIntEQ(test_wolfSSL_UseOCSPStaplingV2(), SSL_SUCCESS);
 
-    /* DTLS-MULTICAST */
-    test_wolfSSL_dtls_mcast();
+    /* Multicast */
+    test_wolfSSL_mcast();
 
     /* compatibility tests */
     test_wolfSSL_DES();
