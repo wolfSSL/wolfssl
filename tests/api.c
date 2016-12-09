@@ -2719,22 +2719,28 @@ static void test_wolfSSL_X509_STORE_set_flags(void)
 
 static void test_wolfSSL_BN(void)
 {
-    #if defined(OPENSSL_EXTRA)
+    #if defined(OPENSSL_EXTRA) && !defined(NO_ASN)
     BIGNUM* a;
     BIGNUM* b;
     BIGNUM* c;
     BIGNUM* d;
+    ASN1_INTEGER ai;
     unsigned char value[1];
 
     printf(testingFmt, "wolfSSL_BN()");
 
-    AssertNotNull(a = BN_new());
     AssertNotNull(b = BN_new());
     AssertNotNull(c = BN_new());
     AssertNotNull(d = BN_new());
 
     value[0] = 0x03;
-    AssertNotNull(BN_bin2bn(value, sizeof(value), a));
+
+    /* at the moment hard setting since no set function */
+    ai.data[0] = 0x02; /* tag for ASN_INTEGER */
+    ai.data[1] = 0x01; /* length of integer */
+    ai.data[2] = value[0];
+
+    AssertNotNull(a = ASN1_INTEGER_to_BN(&ai, NULL));
 
     value[0] = 0x02;
     AssertNotNull(BN_bin2bn(value, sizeof(value), b));
@@ -2757,7 +2763,7 @@ static void test_wolfSSL_BN(void)
     BN_clear_free(d);
 
     printf(resultFmt, passed);
-    #endif /* defined(OPENSSL_EXTRA) */
+    #endif /* defined(OPENSSL_EXTRA) && !defined(NO_ASN) */
 }
 
 
@@ -2882,6 +2888,7 @@ static void test_wolfSSL_BIO(void)
         AssertIntEQ((int)bufPt[i], i);
     }
     AssertIntEQ(BIO_nread(bio1, &bufPt, 1), WOLFSSL_BIO_ERROR);
+    AssertIntEQ(BIO_ctrl_reset_read_request(bio1), 1);
 
     /* new pair */
     AssertIntEQ(BIO_make_bio_pair(bio1, bio3), SSL_FAILURE);

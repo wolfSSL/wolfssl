@@ -2013,6 +2013,8 @@ struct WOLFSSL_CTX {
     pem_password_cb passwd_cb;
     void*           userdata;
     WOLFSSL_X509_STORE x509_store; /* points to ctx->cm */
+    byte            readAhead;
+    void*           userPRFArg; /* passed to prf callback */
 #endif /* OPENSSL_EXTRA */
 #ifdef HAVE_STUNNEL
     void*           ex_data[MAX_EX_DATA];
@@ -2765,6 +2767,7 @@ struct WOLFSSL {
     WOLFSSL_BIO*     biord;              /* socket bio read  to free/close */
     WOLFSSL_BIO*     biowr;              /* socket bio write to free/close */
     unsigned long    peerVerifyRet;
+    byte             readAhead;
 #ifdef HAVE_PK_CALLBACKS
     void*            loggingCtx;         /* logging callback argument */
 #endif

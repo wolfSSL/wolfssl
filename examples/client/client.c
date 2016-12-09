@@ -1288,6 +1288,13 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     wolfSSL_CTX_set_verify(ctx, SSL_VERIFY_NONE, 0);
     #endif
 
+    #if defined(OPENSSL_EXTRA)
+    if (wolfSSL_CTX_get_read_ahead(ctx) != 0) {
+        err_sys("bad read ahead default value");
+    }
+    /* wolfSSL_CTX_set_read_ahead(ctx, 1); use not recommended */
+    #endif
+
     ssl = wolfSSL_new(ctx);
     if (ssl == NULL)
         err_sys("unable to get SSL object");

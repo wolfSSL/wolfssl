@@ -525,6 +525,7 @@ typedef WOLFSSL_X509_NAME_ENTRY X509_NAME_ENTRY;
 #define BIO_s_bio           wolfSSL_BIO_s_bio
 #define BIO_s_socket        wolfSSL_BIO_s_socket
 #define BIO_set_fd          wolfSSL_BIO_set_fd
+#define BIO_ctrl_reset_read_request wolfSSL_BIO_ctrl_reset_read_request
 
 #define BIO_set_write_buf_size wolfSSL_BIO_set_write_buf_size
 #define BIO_make_bio_pair   wolfSSL_BIO_make_bio_pair

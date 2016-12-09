@@ -119,6 +119,13 @@ typedef unsigned char*                  WOLFSSL_BUF_MEM;
 
 #define WOLFSSL_ASN1_UTCTIME WOLFSSL_ASN1_TIME
 
+struct WOLFSSL_ASN1_INTEGER {
+    /* size can be increased set at 20 for tag, length then to hold at least 16
+     * byte type */
+    unsigned char data[20];
+    /* ASN_INTEGER | LENGTH | hex of number */
+};
+
 typedef char   WOLFSSL_EVP_MD;
 typedef struct WOLFSSL_EVP_PKEY {
     int type;         /* openssh dereference */
@@ -701,10 +708,11 @@ WOLFSSL_API long wolfSSL_CTX_sess_set_cache_size(WOLFSSL_CTX*, long);
 WOLFSSL_API long wolfSSL_CTX_sess_get_cache_size(WOLFSSL_CTX*);
 
 WOLFSSL_API long wolfSSL_CTX_get_session_cache_mode(WOLFSSL_CTX*);
-WOLFSSL_API long wolfSSL_CTX_get_read_ahead(WOLFSSL_CTX*);
-WOLFSSL_API long wolfSSL_CTX_set_read_ahead(WOLFSSL_CTX*);
-WOLFSSL_API long wolfSSL_CTX_set_tlsext_status_arg(WOLFSSL_CTX*);
-WOLFSSL_API long wolfSSL_CTX_set_tlsext_opaque_prf_input_callback_arg(WOLFSSL_CTX*);
+WOLFSSL_API int  wolfSSL_CTX_get_read_ahead(WOLFSSL_CTX*);
+WOLFSSL_API int  wolfSSL_CTX_set_read_ahead(WOLFSSL_CTX*, int v);
+WOLFSSL_API long wolfSSL_CTX_set_tlsext_status_arg(WOLFSSL_CTX*, void* arg);
+WOLFSSL_API long wolfSSL_CTX_set_tlsext_opaque_prf_input_callback_arg(
+        WOLFSSL_CTX*, void* arg);
 
 WOLFSSL_API unsigned long wolfSSL_set_options(WOLFSSL *s, unsigned long op);
 WOLFSSL_API unsigned long wolfSSL_get_options(const WOLFSSL *s);
