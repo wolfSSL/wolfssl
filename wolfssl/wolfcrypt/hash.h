@@ -25,6 +25,19 @@
 
 #include <wolfssl/wolfcrypt/types.h>
 
+#ifndef NO_MD5
+    #include <wolfssl/wolfcrypt/md5.h>
+#endif
+#ifndef NO_SHA
+    #include <wolfssl/wolfcrypt/sha.h>
+#endif
+#if defined(WOLFSSL_SHA224) || !defined(NO_SHA256)
+    #include <wolfssl/wolfcrypt/sha256.h>
+#endif
+#if defined(WOLFSSL_SHA384) || defined(WOLFSSL_SHA512)
+    #include <wolfssl/wolfcrypt/sha512.h>
+#endif
+
 #ifdef __cplusplus
     extern "C" {
 #endif
@@ -42,6 +55,27 @@ enum wc_HashType {
     WC_HASH_TYPE_SHA512 = 7,
     WC_HASH_TYPE_MD5_SHA = 8,
 };
+
+typedef union {
+    #ifndef NO_MD5
+        Md5 md5;
+    #endif
+    #ifndef NO_SHA
+        Sha sha;
+    #endif
+    #ifdef WOLFSSL_SHA224
+        Sha224 sha224;
+    #endif
+    #ifndef NO_SHA256
+        Sha256 sha256;
+    #endif
+    #ifdef WOLFSSL_SHA384
+        Sha384 sha384;
+    #endif
+    #ifdef WOLFSSL_SHA512
+        Sha512 sha512;
+    #endif
+} wc_HashAlg;
 
 /* Find largest possible digest size
    Note if this gets up to the size of 80 or over check smallstack build */
@@ -69,6 +103,13 @@ WOLFSSL_API int wc_HashGetDigestSize(enum wc_HashType hash_type);
 WOLFSSL_API int wc_Hash(enum wc_HashType hash_type,
     const byte* data, word32 data_len,
     byte* hash, word32 hash_len);
+
+/* generic hash operation wrappers */
+WOLFSSL_API int wc_HashInit(wc_HashAlg* hash, enum wc_HashType type);
+WOLFSSL_API int wc_HashUpdate(wc_HashAlg* hash, enum wc_HashType type,
+    const byte* data, word32 dataSz);
+WOLFSSL_API int wc_HashFinal(wc_HashAlg* hash, enum wc_HashType type,
+    byte* out);
 
 
 #ifndef NO_MD5
