@@ -30,6 +30,8 @@
     #define NO_PSK
     #define HAVE_EXTENDED_MASTER
     #define WOLFSSL_SNIFFER
+    #define HAVE_TLS_EXTENSIONS
+    #define HAVE_SECURE_RENEGOTIATION
 #else
     /* The servers and clients */
     #define OPENSSL_EXTRA
