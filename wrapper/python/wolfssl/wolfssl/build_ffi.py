@@ -20,6 +20,8 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
 
+# pylint: disable=missing-docstring, invalid-name
+
 from cffi import FFI
 
 ffi = FFI()
@@ -63,6 +65,7 @@ ffi.cdef(
     void  wolfSSL_free(void*);
 
     int wolfSSL_set_fd(void*, int);
+    int wolfSSL_get_error(void*, int);
     int wolfSSL_negotiate(void*);
     int wolfSSL_write(void*, const void*, int);
     int wolfSSL_read(void*, void*, int);

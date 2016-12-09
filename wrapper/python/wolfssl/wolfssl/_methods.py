@@ -19,9 +19,12 @@
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
+
+# pylint: disable=missing-docstring, invalid-name
+
 try:
-    from wolfssl._ffi  import ffi as _ffi
-    from wolfssl._ffi  import lib as _lib
+    from wolfssl._ffi import ffi as _ffi
+    from wolfssl._ffi import lib as _lib
 except ImportError:
     pass
 
@@ -66,8 +69,8 @@ class WolfSSLMethod(object):
                 _lib.wolfTLSv1_2_client_method()
 
         elif protocol in [PROTOCOL_SSLv23, PROTOCOL_TLS]:
-            self.native_object =                                     \
-                _lib.wolfSSLv23_server_method()  if server_side else \
+            self.native_object =                                    \
+                _lib.wolfSSLv23_server_method() if server_side else \
                 _lib.wolfSSLv23_client_method()
 
         if self.native_object == _ffi.NULL:
