@@ -13376,6 +13376,10 @@ char* wolfSSL_CIPHER_description(WOLFSSL_CIPHER* cipher, char* in, int len)
 
 WOLFSSL_SESSION* wolfSSL_get1_session(WOLFSSL* ssl)
 {
+    if (ssl == NULL) {
+        return NULL;
+    }
+
     /* sessions are stored statically, no need for reference count */
     return wolfSSL_get_session(ssl);
 }
@@ -14601,8 +14605,12 @@ WOLFSSL_API long wolfSSL_set_tlsext_status_ocsp_resp(WOLFSSL *s, unsigned char *
 }
 
 
-unsigned long wolfSSL_get_verify_result(const WOLFSSL *ssl)
+long wolfSSL_get_verify_result(const WOLFSSL *ssl)
 {
+    if (ssl == NULL) {
+        return SSL_FAILURE;
+    }
+
     return ssl->peerVerifyRet;
 }
 

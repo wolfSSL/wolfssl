@@ -729,7 +729,7 @@ WOLFSSL_API long wolfSSL_set_tlsext_status_ocsp_resp(WOLFSSL *s, unsigned char *
 
 WOLFSSL_API void wolfSSL_CONF_modules_unload(int all);
 WOLFSSL_API long wolfSSL_get_tlsext_status_exts(WOLFSSL *s, void *arg);
-WOLFSSL_API unsigned long wolfSSL_get_verify_result(const WOLFSSL *ssl);
+WOLFSSL_API long wolfSSL_get_verify_result(const WOLFSSL *ssl);
 
 #define WOLFSSL_DEFAULT_CIPHER_LIST ""   /* default all */
 #define WOLFSSL_RSA_F4 0x10001L
