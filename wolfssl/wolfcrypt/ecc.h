@@ -34,6 +34,11 @@
     #include <wolfssl/wolfcrypt/async.h>
 #endif
 
+#ifdef WOLFSSL_ATECC508A
+    #include <wolfssl/wolfcrypt/port/atmel/atmel.h>
+#endif /* WOLFSSL_ATECC508A */
+
+
 #ifdef __cplusplus
     extern "C" {
 #endif
@@ -205,7 +210,7 @@ typedef struct alt_fp_int {
     int used, sign, size;
     fp_digit dp[FP_SIZE_ECC];
 } alt_fp_int;
-#endif
+#endif /* ALT_ECC_SIZE */
 
 /* A point on an ECC curve, stored in Jacbobian format such that (x,y,z) =>
    (x/z^2, y/z^3, 1) when interpreted as affine */
@@ -224,16 +229,21 @@ typedef struct {
 
 
 /* An ECC Key */
-typedef struct {
+typedef struct ecc_key {
     int type;           /* Public or Private */
     int idx;            /* Index into the ecc_sets[] for the parameters of
                            this curve if -1, this key is using user supplied
                            curve in dp */
     const ecc_set_type* dp;     /* domain parameters, either points to NIST
                                    curves (idx >= 0) or user supplied */
+    void* heap;         /* heap hint */
+#ifdef WOLFSSL_ATECC508A
+    int  slot;        /* Key Slot Number (-1 unknown) */
+    byte pubkey[PUB_KEY_SIZE];
+#else
     ecc_point pubkey;   /* public key */
     mp_int    k;        /* private key */
-    void*     heap;     /* heap hint */
+#endif
 
 #ifdef WOLFSSL_ASYNC_CRYPT
     AsyncCryptDev asyncDev;
@@ -257,9 +267,11 @@ int wc_ecc_check_key(ecc_key* key);
 WOLFSSL_API
 int wc_ecc_shared_secret(ecc_key* private_key, ecc_key* public_key, byte* out,
                       word32* outlen);
+#ifndef WOLFSSL_ATECC508A
 WOLFSSL_API
 int wc_ecc_shared_secret_ssh(ecc_key* private_key, ecc_point* point,
                              byte* out, word32 *outlen);
+#endif /* !WOLFSSL_ATECC508A */
 #endif /* HAVE_ECC_DHE */
 
 #ifdef HAVE_ECC_SIGN
@@ -290,6 +302,11 @@ WOLFSSL_API
 void wc_ecc_fp_free(void);
 
 WOLFSSL_API
+int wc_ecc_is_valid_idx(int n);
+
+#ifndef WOLFSSL_ATECC508A
+
+WOLFSSL_API
 ecc_point* wc_ecc_new_point(void);
 WOLFSSL_API
 ecc_point* wc_ecc_new_point_h(void* h);
@@ -304,14 +321,14 @@ int wc_ecc_cmp_point(ecc_point* a, ecc_point *b);
 WOLFSSL_API
 int wc_ecc_point_is_at_infinity(ecc_point *p);
 WOLFSSL_API
-int wc_ecc_is_valid_idx(int n);
-WOLFSSL_API
 int wc_ecc_mulmod(mp_int* k, ecc_point *G, ecc_point *R,
                   mp_int* a, mp_int* modulus, int map);
-
 WOLFSSL_LOCAL
 int wc_ecc_mulmod_ex(mp_int* k, ecc_point *G, ecc_point *R,
                   mp_int* a, mp_int* modulus, int map, void* heap);
+#endif /* !WOLFSSL_ATECC508A */
+
+
 #ifdef HAVE_ECC_KEY_EXPORT
 /* ASN key helpers */
 WOLFSSL_API
@@ -346,11 +363,15 @@ int wc_ecc_import_raw_ex(ecc_key* key, const char* qx, const char* qy,
 #ifdef HAVE_ECC_KEY_EXPORT
 WOLFSSL_API
 int wc_ecc_export_private_only(ecc_key* key, byte* out, word32* outLen);
+#endif /* HAVE_ECC_KEY_EXPORT */
+
+#ifdef HAVE_ECC_KEY_EXPORT
 
 WOLFSSL_API
 int wc_ecc_export_point_der(const int curve_idx, ecc_point* point,
                             byte* out, word32* outLen);
 #endif /* HAVE_ECC_KEY_EXPORT */
+
 
 #ifdef HAVE_ECC_KEY_IMPORT
 WOLFSSL_API

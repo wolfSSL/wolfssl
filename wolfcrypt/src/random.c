@@ -1436,18 +1436,37 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     return 0;
 }
 
-#elif defined(STM32F2_RNG)
-    #undef RNG
-    #include "stm32f2xx_rng.h"
-    #include "stm32f2xx_rcc.h"
+#elif defined(STM32F2_RNG) || defined(STM32F4_RNG)
     /*
      * wc_Generate a RNG seed using the hardware random number generator
-     * on the STM32F2. Documentation located in STM32F2xx Standard Peripheral
-     * Library document (See note in README).
-     */
+     * on the STM32F2/F4. */
+
+#ifdef WOLFSSL_STM32_CUBEMX
+    int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
+    {
+        RNG_HandleTypeDef hrng;
+        int i;
+        (void)os;
+
+        /* enable RNG clock source */
+        __HAL_RCC_RNG_CLK_ENABLE();
+
+        /* enable RNG peripheral */
+        hrng.Instance = RNG;
+        HAL_RNG_Init(&hrng);
+
+        for (i = 0; i < (int)sz; i++) {
+            /* get value */
+            output[i] = (byte)HAL_RNG_GetRandomNumber(&hrng);
+        }
+
+        return 0;
+    }
+#else
     int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     {
         int i;
+        (void)os;
 
         /* enable RNG clock source */
         RCC_AHB2PeriphClockCmd(RCC_AHB2Periph_RNG, ENABLE);
@@ -1455,7 +1474,7 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
         /* enable RNG peripheral */
         RNG_Cmd(ENABLE);
 
-        for (i = 0; i < sz; i++) {
+        for (i = 0; i < (int)sz; i++) {
             /* wait until RNG number is ready */
             while(RNG_GetFlagStatus(RNG_FLAG_DRDY)== RESET) { }
 
@@ -1465,6 +1484,8 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 
         return 0;
     }
+#endif /* WOLFSSL_STM32_CUBEMX */
+
 #elif defined(WOLFSSL_LPC43xx) || defined(WOLFSSL_STM32F2xx) || defined(MBED) \
       || defined(WOLFSSL_EMBOS)
 
@@ -1617,6 +1638,23 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
         }
 
         return 0;
+    }
+
+#elif defined(WOLFSSL_ATMEL)
+    #include <wolfssl/wolfcrypt/port/atmel/atmel.h>
+    
+    int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
+    {
+    	int ret = 0;
+
+        (void)os;
+    	if (output == NULL) {
+    		return BUFFER_E;
+    	}
+
+    	ret = atmel_get_random_number(sz, output);
+
+    	return ret;
     }
 
 #elif defined(NO_DEV_RANDOM)

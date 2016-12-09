@@ -1197,6 +1197,7 @@ static int LoadKeyFile(byte** keyBuf, word32* keyBufSz,
             if (saveBufSz < 0) {
                 saveBufSz = 0;
                 free(saveBuf);
+                saveBuf = NULL;
             }
             else
                 ret = 0;
@@ -1205,8 +1206,10 @@ static int LoadKeyFile(byte** keyBuf, word32* keyBufSz,
         ForceZero(loadBuf, (word32)fileSz);
         free(loadBuf);
 
-        *keyBuf = saveBuf;
-        *keyBufSz = (word32)saveBufSz;
+        if (saveBuf) {
+            *keyBuf = saveBuf;
+            *keyBufSz = (word32)saveBufSz;
+        }
     }
     else {
         *keyBuf = loadBuf;

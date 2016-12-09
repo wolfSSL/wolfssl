@@ -201,96 +201,171 @@ void wc_AesAsyncFree(Aes* aes)
 #endif
 
 /* Define AES implementation includes and functions */
-#if defined(STM32F2_CRYPTO)
-     /* STM32F2 hardware AES support for CBC, CTR modes through the STM32F2
-      * Standard Peripheral Library. Documentation located in STM32F2xx
-      * Standard Peripheral Library document (See note in README). */
-    #include "stm32f2xx.h"
-    #include "stm32f2xx_cryp.h"
+#if defined(STM32F2_CRYPTO) || defined(STM32F4_CRYPTO)
+     /* STM32F2/F4 hardware AES support for CBC, CTR modes */
 
+#if defined(WOLFSSL_AES_DIRECT) || defined(HAVE_AESGCM) || defined(HAVE_AESCCM)
     static int wc_AesEncrypt(Aes* aes, const byte* inBlock, byte* outBlock)
     {
-    	word32 *enc_key;
-    	CRYP_InitTypeDef AES_CRYP_InitStructure;
-    	CRYP_KeyInitTypeDef AES_CRYP_KeyInitStructure;
+        int ret = 0;
+    #ifdef WOLFSSL_STM32_CUBEMX
+        CRYP_HandleTypeDef hcryp;
 
-    	enc_key = aes->key;
+        /* load key into correct registers */
+        switch(aes->rounds) {
+            case 10: /* 128-bit key */
+                hcryp.Init.KeySize = CRYP_KEYSIZE_128B;
+                break;
+            case 12: /* 192-bit key */
+                hcryp.Init.KeySize = CRYP_KEYSIZE_192B;
+                break;
+            case 14: /* 256-bit key */
+                hcryp.Init.KeySize = CRYP_KEYSIZE_256B;
+                break;
+            default:
+                break;
+        }
 
-    	/* crypto structure initialization */
-    	CRYP_KeyStructInit(&AES_CRYP_KeyInitStructure);
-    	CRYP_StructInit(&AES_CRYP_InitStructure);
+        XMEMSET(&hcryp, 0, sizeof(CRYP_HandleTypeDef));
+        hcryp.Instance = CRYP;
+        hcryp.Init.DataType = CRYP_DATATYPE_8B;
+        hcryp.Init.pKey = (uint8_t*)aes->key;
 
-    	/* reset registers to their default values */
-    	CRYP_DeInit();
+        HAL_CRYP_Init(&hcryp);
 
-    	/* load key into correct registers */
-    	switch(aes->rounds)
-    	{
-    		case 10: /* 128-bit key */
-    			AES_CRYP_InitStructure.CRYP_KeySize = CRYP_KeySize_128b;
-    			AES_CRYP_KeyInitStructure.CRYP_Key2Left  = enc_key[0];
-    			AES_CRYP_KeyInitStructure.CRYP_Key2Right = enc_key[1];
-    			AES_CRYP_KeyInitStructure.CRYP_Key3Left  = enc_key[2];
-    			AES_CRYP_KeyInitStructure.CRYP_Key3Right = enc_key[3];
-    			break;
+        if (HAL_CRYP_AESECB_Encrypt(&hcryp, (uint8_t*)inBlock, AES_BLOCK_SIZE,
+                                                outBlock, STM32_HAL_TIMEOUT) != HAL_OK) {
+            ret = WC_TIMEOUT_E;
+        }
 
-    		case 12: /* 192-bit key */
-    			AES_CRYP_InitStructure.CRYP_KeySize = CRYP_KeySize_192b;
-    			AES_CRYP_KeyInitStructure.CRYP_Key1Left  = enc_key[0];
-    			AES_CRYP_KeyInitStructure.CRYP_Key1Right = enc_key[1];
-    			AES_CRYP_KeyInitStructure.CRYP_Key2Left  = enc_key[2];
-    			AES_CRYP_KeyInitStructure.CRYP_Key2Right = enc_key[3];
-    			AES_CRYP_KeyInitStructure.CRYP_Key3Left  = enc_key[4];
-    			AES_CRYP_KeyInitStructure.CRYP_Key3Right = enc_key[5];
-    			break;
+        HAL_CRYP_DeInit(&hcryp);
+    #else
+        word32 *enc_key;
+        CRYP_InitTypeDef AES_CRYP_InitStructure;
+        CRYP_KeyInitTypeDef AES_CRYP_KeyInitStructure;
 
-    		case 14: /* 256-bit key */
-    			AES_CRYP_InitStructure.CRYP_KeySize = CRYP_KeySize_256b;
-    			AES_CRYP_KeyInitStructure.CRYP_Key0Left  = enc_key[0];
-    			AES_CRYP_KeyInitStructure.CRYP_Key0Right = enc_key[1];
-    			AES_CRYP_KeyInitStructure.CRYP_Key1Left  = enc_key[2];
-    			AES_CRYP_KeyInitStructure.CRYP_Key1Right = enc_key[3];
-    			AES_CRYP_KeyInitStructure.CRYP_Key2Left  = enc_key[4];
-    			AES_CRYP_KeyInitStructure.CRYP_Key2Right = enc_key[5];
-    			AES_CRYP_KeyInitStructure.CRYP_Key3Left  = enc_key[6];
-    			AES_CRYP_KeyInitStructure.CRYP_Key3Right = enc_key[7];
-    			break;
+        enc_key = aes->key;
 
-    		default:
-    			break;
-    	}
-    	CRYP_KeyInit(&AES_CRYP_KeyInitStructure);
+        /* crypto structure initialization */
+        CRYP_KeyStructInit(&AES_CRYP_KeyInitStructure);
+        CRYP_StructInit(&AES_CRYP_InitStructure);
 
-    	/* set direction, mode, and datatype */
-    	AES_CRYP_InitStructure.CRYP_AlgoDir  = CRYP_AlgoDir_Encrypt;
-    	AES_CRYP_InitStructure.CRYP_AlgoMode = CRYP_AlgoMode_AES_ECB;
-    	AES_CRYP_InitStructure.CRYP_DataType = CRYP_DataType_8b;
-    	CRYP_Init(&AES_CRYP_InitStructure);
+        /* reset registers to their default values */
+        CRYP_DeInit();
 
-    	/* enable crypto processor */
-    	CRYP_Cmd(ENABLE);
+        /* load key into correct registers */
+        switch(aes->rounds)
+        {
+            case 10: /* 128-bit key */
+                AES_CRYP_InitStructure.CRYP_KeySize = CRYP_KeySize_128b;
+                AES_CRYP_KeyInitStructure.CRYP_Key2Left  = enc_key[0];
+                AES_CRYP_KeyInitStructure.CRYP_Key2Right = enc_key[1];
+                AES_CRYP_KeyInitStructure.CRYP_Key3Left  = enc_key[2];
+                AES_CRYP_KeyInitStructure.CRYP_Key3Right = enc_key[3];
+                break;
 
-    	/* flush IN/OUT FIFOs */
-    	CRYP_FIFOFlush();
+            case 12: /* 192-bit key */
+                AES_CRYP_InitStructure.CRYP_KeySize = CRYP_KeySize_192b;
+                AES_CRYP_KeyInitStructure.CRYP_Key1Left  = enc_key[0];
+                AES_CRYP_KeyInitStructure.CRYP_Key1Right = enc_key[1];
+                AES_CRYP_KeyInitStructure.CRYP_Key2Left  = enc_key[2];
+                AES_CRYP_KeyInitStructure.CRYP_Key2Right = enc_key[3];
+                AES_CRYP_KeyInitStructure.CRYP_Key3Left  = enc_key[4];
+                AES_CRYP_KeyInitStructure.CRYP_Key3Right = enc_key[5];
+                break;
 
-    	CRYP_DataIn(*(uint32_t*)&inBlock[0]);
-    	CRYP_DataIn(*(uint32_t*)&inBlock[4]);
-    	CRYP_DataIn(*(uint32_t*)&inBlock[8]);
-    	CRYP_DataIn(*(uint32_t*)&inBlock[12]);
+            case 14: /* 256-bit key */
+                AES_CRYP_InitStructure.CRYP_KeySize = CRYP_KeySize_256b;
+                AES_CRYP_KeyInitStructure.CRYP_Key0Left  = enc_key[0];
+                AES_CRYP_KeyInitStructure.CRYP_Key0Right = enc_key[1];
+                AES_CRYP_KeyInitStructure.CRYP_Key1Left  = enc_key[2];
+                AES_CRYP_KeyInitStructure.CRYP_Key1Right = enc_key[3];
+                AES_CRYP_KeyInitStructure.CRYP_Key2Left  = enc_key[4];
+                AES_CRYP_KeyInitStructure.CRYP_Key2Right = enc_key[5];
+                AES_CRYP_KeyInitStructure.CRYP_Key3Left  = enc_key[6];
+                AES_CRYP_KeyInitStructure.CRYP_Key3Right = enc_key[7];
+                break;
 
-    	/* wait until the complete message has been processed */
-    	while(CRYP_GetFlagStatus(CRYP_FLAG_BUSY) != RESET) {}
+            default:
+                break;
+        }
+        CRYP_KeyInit(&AES_CRYP_KeyInitStructure);
 
-    	*(uint32_t*)&outBlock[0]  = CRYP_DataOut();
-    	*(uint32_t*)&outBlock[4]  = CRYP_DataOut();
-    	*(uint32_t*)&outBlock[8]  = CRYP_DataOut();
-    	*(uint32_t*)&outBlock[12] = CRYP_DataOut();
+        /* set direction, mode, and datatype */
+        AES_CRYP_InitStructure.CRYP_AlgoDir  = CRYP_AlgoDir_Encrypt;
+        AES_CRYP_InitStructure.CRYP_AlgoMode = CRYP_AlgoMode_AES_ECB;
+        AES_CRYP_InitStructure.CRYP_DataType = CRYP_DataType_8b;
+        CRYP_Init(&AES_CRYP_InitStructure);
 
-    	/* disable crypto processor */
-    	CRYP_Cmd(DISABLE);
+        /* enable crypto processor */
+        CRYP_Cmd(ENABLE);
 
-        return 0;
+        /* flush IN/OUT FIFOs */
+        CRYP_FIFOFlush();
+
+        CRYP_DataIn(*(uint32_t*)&inBlock[0]);
+        CRYP_DataIn(*(uint32_t*)&inBlock[4]);
+        CRYP_DataIn(*(uint32_t*)&inBlock[8]);
+        CRYP_DataIn(*(uint32_t*)&inBlock[12]);
+
+        /* wait until the complete message has been processed */
+        while(CRYP_GetFlagStatus(CRYP_FLAG_BUSY) != RESET) {}
+
+        *(uint32_t*)&outBlock[0]  = CRYP_DataOut();
+        *(uint32_t*)&outBlock[4]  = CRYP_DataOut();
+        *(uint32_t*)&outBlock[8]  = CRYP_DataOut();
+        *(uint32_t*)&outBlock[12] = CRYP_DataOut();
+
+        /* disable crypto processor */
+        CRYP_Cmd(DISABLE);
+    #endif /* WOLFSSL_STM32_CUBEMX */
+        return ret;
     }
+#endif /* WOLFSSL_AES_DIRECT || HAVE_AESGCM || HAVE_AESCCM */
+
+#ifdef HAVE_AES_DECRYPT
+    #if defined(WOLFSSL_AES_DIRECT) || defined(HAVE_AESGCM)
+    static int wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
+    {
+        int ret = 0;
+    #ifdef WOLFSSL_STM32_CUBEMX
+        CRYP_HandleTypeDef hcryp;
+
+        /* load key into correct registers */
+        switch(aes->rounds) {
+            case 10: /* 128-bit key */
+                hcryp.Init.KeySize = CRYP_KEYSIZE_128B;
+                break;
+            case 12: /* 192-bit key */
+                hcryp.Init.KeySize = CRYP_KEYSIZE_192B;
+                break;
+            case 14: /* 256-bit key */
+                hcryp.Init.KeySize = CRYP_KEYSIZE_256B;
+                break;
+            default:
+                break;
+        }
+
+        XMEMSET(&hcryp, 0, sizeof(CRYP_HandleTypeDef));
+        hcryp.Instance = CRYP;
+        hcryp.Init.DataType = CRYP_DATATYPE_8B;
+        hcryp.Init.pKey = (uint8_t*)aes->key;
+
+        HAL_CRYP_Init(&hcryp);
+
+        if (HAL_CRYP_AESECB_Decrypt(&hcryp, (uint8_t*)inBlock, AES_BLOCK_SIZE,
+                                                outBlock, STM32_HAL_TIMEOUT) != HAL_OK) {
+            ret = WC_TIMEOUT_E;
+        }
+
+        HAL_CRYP_DeInit(&hcryp);
+    #else
+        #error AES Decrypt not implemented for STM32 StdPeri lib
+    #endif /* WOLFSSL_STM32_CUBEMX */
+        return ret;
+    }
+    #endif /* WOLFSSL_AES_DIRECT || HAVE_AESGCM */
+#endif /* HAVE_AES_DECRYPT */
 
 #elif defined(HAVE_COLDFIRE_SEC)
     /* Freescale Coldfire SEC support for CBC mode.
@@ -1525,9 +1600,10 @@ static void wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
 
 
 /* wc_AesSetKey */
-#ifdef STM32F2_CRYPTO
-    int wc_AesSetKey(Aes* aes, const byte* userKey, word32 keylen, const byte* iv,
-                  int dir)
+#if defined(STM32F2_CRYPTO) || defined(STM32F4_CRYPTO)
+
+int wc_AesSetKey(Aes* aes, const byte* userKey, word32 keylen,
+            const byte* iv, int dir)
     {
         word32 *rk = aes->key;
 
@@ -1538,7 +1614,9 @@ static void wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
 
         aes->rounds = keylen/4 + 6;
         XMEMCPY(rk, userKey, keylen);
+    #ifndef WOLFSSL_STM32_CUBEMX
         ByteReverseWords(rk, rk, keylen);
+    #endif
 
         return wc_AesSetIV(aes, iv);
     }
@@ -1549,6 +1627,7 @@ static void wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
             return wc_AesSetKey(aes, userKey, keylen, iv, dir);
         }
     #endif
+
 #elif defined(HAVE_COLDFIRE_SEC)
     #if defined (HAVE_THREADX)
         #include "memory_pools.h"
@@ -1574,7 +1653,7 @@ static void wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
     {
         if (AESBuffIn == NULL) {
             #if defined (HAVE_THREADX)
-			    int s1, s2, s3, s4, s5 ;
+                int s1, s2, s3, s4, s5 ;
                 s5 = tx_byte_allocate(&mp_ncached,(void *)&secDesc,
                                       sizeof(SECdescriptorType), TX_NO_WAIT);
                 s1 = tx_byte_allocate(&mp_ncached, (void *)&AESBuffIn,
@@ -1905,7 +1984,7 @@ static void wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
     }
 
     #endif /* WOLFSSL_AES_DIRECT || WOLFSSL_AES_COUNTER */
-#endif /* STM32F2_CRYPTO, wc_AesSetKey block */
+#endif /* wc_AesSetKey block */
 
 
 /* wc_AesSetIV is shared between software and hardware */
@@ -1939,10 +2018,7 @@ int wc_InitAes_h(Aes* aes, void* h)
 
 /* AES-DIRECT */
 #if defined(WOLFSSL_AES_DIRECT)
-    #if defined(STM32F2_CRYPTO) && defined(HAVE_AES_DECRYPT)
-        #error "STM32F2 crypto doesn't yet support AES direct decrypt"
-
-    #elif defined(HAVE_COLDFIRE_SEC)
+    #if defined(HAVE_COLDFIRE_SEC)
         #error "Coldfire SEC doesn't yet support AES direct"
 
     #elif defined(WOLFSSL_PIC32MZ_CRYPT)
@@ -1994,7 +2070,105 @@ int wc_InitAes_h(Aes* aes, void* h)
 
 /* AES-CBC */
 #ifdef HAVE_AES_CBC
-#ifdef STM32F2_CRYPTO
+#if defined(STM32F2_CRYPTO) || defined(STM32F4_CRYPTO)
+
+#ifdef WOLFSSL_STM32_CUBEMX
+    int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
+    {
+        int ret = 0;
+        CRYP_HandleTypeDef hcryp;
+
+        /* load key into correct registers */
+        switch(aes->rounds) {
+            case 10: /* 128-bit key */
+                hcryp.Init.KeySize = CRYP_KEYSIZE_128B;
+                break;
+            case 12: /* 192-bit key */
+                hcryp.Init.KeySize = CRYP_KEYSIZE_192B;
+                break;
+            case 14: /* 256-bit key */
+                hcryp.Init.KeySize = CRYP_KEYSIZE_256B;
+                break;
+            default:
+                break;
+        }
+
+        XMEMSET(&hcryp, 0, sizeof(CRYP_HandleTypeDef));
+        hcryp.Instance = CRYP;
+        hcryp.Init.DataType = CRYP_DATATYPE_8B;
+        hcryp.Init.pKey = (uint8_t*)aes->key;
+        hcryp.Init.pInitVect = (uint8_t*)aes->reg;
+
+        HAL_CRYP_Init(&hcryp);
+
+        while (sz > 0) {
+            if (HAL_CRYP_AESCBC_Encrypt(&hcryp, (uint8_t*)in, AES_BLOCK_SIZE,
+                                           out, STM32_HAL_TIMEOUT) != HAL_OK) {
+                ret = WC_TIMEOUT_E;
+                break;
+            }
+
+            /* store iv for next call */
+            XMEMCPY(aes->reg, out + sz - AES_BLOCK_SIZE, AES_BLOCK_SIZE);
+
+            sz  -= AES_BLOCK_SIZE;
+            in  += AES_BLOCK_SIZE;
+            out += AES_BLOCK_SIZE;
+        }
+
+        HAL_CRYP_DeInit(&hcryp);
+
+        return ret;
+    }
+    #ifdef HAVE_AES_DECRYPT
+    int wc_AesCbcDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
+    {
+        int ret = 0;
+        CRYP_HandleTypeDef hcryp;
+
+        /* load key into correct registers */
+        switch(aes->rounds) {
+            case 10: /* 128-bit key */
+                hcryp.Init.KeySize = CRYP_KEYSIZE_128B;
+                break;
+            case 12: /* 192-bit key */
+                hcryp.Init.KeySize = CRYP_KEYSIZE_192B;
+                break;
+            case 14: /* 256-bit key */
+                hcryp.Init.KeySize = CRYP_KEYSIZE_256B;
+                break;
+            default:
+                break;
+        }
+
+        XMEMSET(&hcryp, 0, sizeof(CRYP_HandleTypeDef));
+        hcryp.Instance = CRYP;
+        hcryp.Init.DataType = CRYP_DATATYPE_8B;
+        hcryp.Init.pKey = (uint8_t*)aes->key;
+        hcryp.Init.pInitVect = (uint8_t*)aes->reg;
+
+        HAL_CRYP_Init(&hcryp);
+
+        while (sz > 0) {
+            if (HAL_CRYP_AESCBC_Decrypt(&hcryp, (uint8_t*)in, AES_BLOCK_SIZE,
+                                           out, STM32_HAL_TIMEOUT) != HAL_OK) {
+                ret = WC_TIMEOUT_E;
+            }
+
+            /* store iv for next call */
+            XMEMCPY(aes->reg, aes->tmp, AES_BLOCK_SIZE);
+
+            sz -= AES_BLOCK_SIZE;
+            in += AES_BLOCK_SIZE;
+            out += AES_BLOCK_SIZE;
+        }
+
+        HAL_CRYP_DeInit(&hcryp);
+
+        return ret;
+    }
+    #endif /* HAVE_AES_DECRYPT */
+#else
     int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
     {
         word32 *enc_key, *iv;
@@ -2222,13 +2396,15 @@ int wc_InitAes_h(Aes* aes, void* h)
         return 0;
     }
     #endif /* HAVE_AES_DECRYPT */
+#endif /* WOLFSSL_STM32_CUBEMX */
+
 #elif defined(HAVE_COLDFIRE_SEC)
     static int wc_AesCbcCrypt(Aes* aes, byte* po, const byte* pi, word32 sz,
                            word32 descHeader)
     {
         #ifdef DEBUG_WOLFSSL
             int i; int stat1, stat2; int ret;
-	    #endif
+        #endif
 
         int size;
         volatile int v;
@@ -2663,13 +2839,47 @@ int wc_InitAes_h(Aes* aes, void* h)
     }
     #endif
 
-#endif /* STM32F2_CRYPTO, AES-CBC block */
+#endif /* AES-CBC block */
 #endif /* HAVE_AES_CBC */
 
 /* AES-CTR */
 #ifdef WOLFSSL_AES_COUNTER
 
-    #ifdef STM32F2_CRYPTO
+    #if defined(STM32F2_CRYPTO) || defined(STM32F4_CRYPTO)
+    #ifdef WOLFSSL_STM32_CUBEMX
+        void wc_AesCtrEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
+        {
+            CRYP_HandleTypeDef hcryp;
+
+            /* load key into correct registers */
+            switch(aes->rounds) {
+                case 10: /* 128-bit key */
+                    hcryp.Init.KeySize = CRYP_KEYSIZE_128B;
+                    break;
+                case 12: /* 192-bit key */
+                    hcryp.Init.KeySize = CRYP_KEYSIZE_192B;
+                    break;
+                case 14: /* 256-bit key */
+                    hcryp.Init.KeySize = CRYP_KEYSIZE_256B;
+                    break;
+                default:
+                    break;
+            }
+
+            XMEMSET(&hcryp, 0, sizeof(CRYP_HandleTypeDef));
+            hcryp.Instance = CRYP;
+            hcryp.Init.DataType = CRYP_DATATYPE_8B;
+            hcryp.Init.pKey = aes->key;
+            hcryp.Init.pInitVect = aes->reg;
+
+            HAL_CRYP_Init(&hcryp);
+
+            HAL_CRYP_AESCTR_Encrypt(&hcryp, in, AES_BLOCK_SIZE, out,
+                                                            STM32_HAL_TIMEOUT);
+
+            HAL_CRYP_DeInit(&hcryp);
+        }
+    #else
         void wc_AesCtrEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
         {
             word32 *enc_key, *iv;
@@ -2772,6 +2982,7 @@ int wc_InitAes_h(Aes* aes, void* h)
             /* disable crypto processor */
             CRYP_Cmd(DISABLE);
         }
+        #endif /* WOLFSSL_STM32_CUBEMX */
 
     #elif defined(WOLFSSL_PIC32MZ_CRYPT)
         void wc_AesCtrEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
@@ -2911,7 +3122,7 @@ int wc_InitAes_h(Aes* aes, void* h)
             }
         }
 
-    #endif /* STM32F2_CRYPTO, AES-CTR block */
+    #endif /* AES-CTR block */
 
 #endif /* WOLFSSL_AES_COUNTER */
 
@@ -4505,7 +4716,7 @@ int  wc_AesCcmDecrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
 
 
 #ifdef WOLFSSL_ASYNC_CRYPT
-    
+
 /* Initialize Aes for use with Nitrox device */
 int wc_AesAsyncInit(Aes* aes, int devId)
 {

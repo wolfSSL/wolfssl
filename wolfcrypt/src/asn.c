@@ -149,9 +149,15 @@ ASN Options:
 #elif defined(FREESCALE_KSDK_BM) || defined(FREESCALE_FREE_RTOS) || defined(FREESCALE_KSDK_FREERTOS)
     #include <time.h>
     #ifndef XTIME
-    #define XTIME(t1)  0 
+        #define XTIME(t1)   ksdk_time((t1))
     #endif
     #define XGMTIME(c, t)   gmtime((c))
+
+#elif defined(WOLFSSL_ATMEL)
+    #define XTIME(t1)       atmel_get_curr_time_and_date((t1))
+    #define WOLFSSL_GMTIME
+    #define USE_WOLF_TM
+    #define USE_WOLF_TIME_T
 
 #elif defined(IDIRECT_DEV_TIME)
     /*Gets the timestamp from cloak software owned by VT iDirect
@@ -224,6 +230,8 @@ ASN Options:
 #elif defined(TIME_OVERRIDES)
     extern time_t XTIME(time_t * timer);
     extern struct tm* XGMTIME(const time_t* timer, struct tm* tmp);
+#elif defined(WOLFSSL_GMTIME)
+    struct tm* gmtime(const time_t* timer);
 #endif
 
 

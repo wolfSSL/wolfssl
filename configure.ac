@@ -67,6 +67,13 @@ AS_IF([ test -n "$CFLAG_VISIBILITY" ], [
 
 m4_ifdef([AM_SILENT_RULES],[AM_SILENT_RULES([yes])])
 
+# Moved these size of and type checks before the library checks.
+# The library checks add the library to subsequent test compiles
+# and in some rare cases, the networking check causes these sizeof
+# checks to fail.
+AC_CHECK_SIZEOF(long long, 8)
+AC_CHECK_SIZEOF(long, 4)
+AC_CHECK_TYPES(__uint128_t)
 AC_CHECK_FUNCS([gethostbyname])
 AC_CHECK_FUNCS([getaddrinfo])
 AC_CHECK_FUNCS([gettimeofday])
@@ -85,9 +92,6 @@ AC_CHECK_HEADERS([sys/socket.h])
 AC_CHECK_HEADERS([sys/time.h])
 AC_CHECK_HEADERS([errno.h])
 AC_CHECK_LIB(network,socket)
-AC_CHECK_SIZEOF(long long, 8)
-AC_CHECK_SIZEOF(long, 4)
-AC_CHECK_TYPES(__uint128_t)
 AC_C_BIGENDIAN
 # mktime check takes forever on some systems, if time supported it would be
 # highly unusual for mktime to be missing
