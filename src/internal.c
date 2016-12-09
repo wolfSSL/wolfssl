@@ -9384,15 +9384,6 @@ static int GetInputData(WOLFSSL *ssl, word32 size)
             return MEMORY_E;
     }
 
-#ifdef OPENSSL_EXTRA
-    /* if read ahead then try to read the full buffer size */
-    if (ssl->readAhead != 0 && ssl->options.usingNonblock) {
-        if (maxLength > inSz) {
-            inSz = maxLength;
-        }
-    }
-#endif /* OPENSSL_EXTRA */
-
     /* Put buffer data at start if not there */
     if (usedLength > 0 && ssl->buffers.inputBuffer.idx != 0)
         XMEMMOVE(ssl->buffers.inputBuffer.buffer,
@@ -9504,7 +9495,7 @@ int ProcessReply(WOLFSSL* ssl)
     int    ret = 0, type, readSz;
     int    atomicUser = 0;
     word32 startIdx = 0;
-#if defined(WOLFSSL_DTLS) || defined(OPENSSL_EXTRA)
+#if defined(WOLFSSL_DTLS)
     int    used;
 #endif
 
@@ -9535,18 +9526,6 @@ int ProcessReply(WOLFSSL* ssl)
 
             /* get header or return error */
             if (!ssl->options.dtls) {
-            #ifdef OPENSSL_EXTRA
-                (void)used;
-                if (ssl->readAhead != 0 && ssl->options.usingNonblock) {
-                    /* read ahead may already have header */
-                    used = ssl->buffers.inputBuffer.length -
-                       ssl->buffers.inputBuffer.idx;
-                    if (used < readSz)
-                        if ((ret = GetInputData(ssl, readSz)) < 0)
-                            return ret;
-                }
-                else
-             #endif /* OPENSSL_EXTRA */
                 if ((ret = GetInputData(ssl, readSz)) < 0)
                     return ret;
             } else {
@@ -9603,17 +9582,6 @@ int ProcessReply(WOLFSSL* ssl)
 
             /* get sz bytes or return error */
             if (!ssl->options.dtls) {
-            #ifdef OPENSSL_EXTRA
-                if (ssl->readAhead != 0 && ssl->options.usingNonblock) {
-                    /* read ahead may already have */
-                    used = ssl->buffers.inputBuffer.length -
-                       ssl->buffers.inputBuffer.idx;
-                    if (used < ssl->curSize)
-                        if ((ret = GetInputData(ssl, ssl->curSize)) < 0)
-                            return ret;
-                }
-                else
-             #endif /* OPENSSL_EXTRA */
                 if ((ret = GetInputData(ssl, ssl->curSize)) < 0)
                     return ret;
             } else {
@@ -9675,17 +9643,6 @@ int ProcessReply(WOLFSSL* ssl)
 
             /* get sz bytes or return error */
             if (!ssl->options.dtls) {
-            #ifdef OPENSSL_EXTRA
-                if (ssl->readAhead != 0 && ssl->options.usingNonblock) {
-                    /* read ahead may already have header */
-                    used = ssl->buffers.inputBuffer.length -
-                       ssl->buffers.inputBuffer.idx;
-                    if (used < ssl->curSize)
-                        if ((ret = GetInputData(ssl, ssl->curSize)) < 0)
-                            return ret;
-                }
-                else
-             #endif /* OPENSSL_EXTRA */
                 if ((ret = GetInputData(ssl, ssl->curSize)) < 0)
                     return ret;
             } else {

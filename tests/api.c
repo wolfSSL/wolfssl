@@ -2991,6 +2991,8 @@ static void test_wolfSSL_BIO(void)
         AssertIntEQ(BIO_write(f_bio2, cert, sizeof(cert)), sizeof(cert));
 
         AssertIntEQ((int)BIO_get_fp(f_bio2, &f2), SSL_SUCCESS);
+        AssertIntEQ(BIO_reset(f_bio2), 0);
+        AssertIntEQ(BIO_seek(f_bio2, 4), 0);
 
         BIO_free(f_bio1);
         BIO_free(f_bio2);

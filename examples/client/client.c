@@ -1292,7 +1292,9 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     if (wolfSSL_CTX_get_read_ahead(ctx) != 0) {
         err_sys("bad read ahead default value");
     }
-    /* wolfSSL_CTX_set_read_ahead(ctx, 1); use not recommended */
+    if (wolfSSL_CTX_set_read_ahead(ctx, 1) != SSL_SUCCESS) {
+        err_sys("error setting read ahead value");
+    }
     #endif
 
     ssl = wolfSSL_new(ctx);

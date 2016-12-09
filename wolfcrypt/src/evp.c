@@ -78,7 +78,7 @@ WOLFSSL_API void wolfSSL_EVP_CIPHER_CTX_free(WOLFSSL_EVP_CIPHER_CTX *ctx)
 WOLFSSL_API int  wolfSSL_EVP_EncryptFinal(WOLFSSL_EVP_CIPHER_CTX *ctx,
                                    unsigned char *out, int *outl)
 {
-    if (ctx->enc){
+    if (ctx && ctx->enc){
         WOLFSSL_ENTER("wolfSSL_EVP_EncryptFinal");
         return wolfSSL_EVP_CipherFinal(ctx, out, outl);
     }
@@ -89,7 +89,7 @@ WOLFSSL_API int  wolfSSL_EVP_EncryptFinal(WOLFSSL_EVP_CIPHER_CTX *ctx,
 WOLFSSL_API int  wolfSSL_EVP_EncryptFinal_ex(WOLFSSL_EVP_CIPHER_CTX *ctx,
                                    unsigned char *out, int *outl)
 {
-    if (ctx->enc){
+    if (ctx && ctx->enc){
         WOLFSSL_ENTER("wolfSSL_EVP_EncryptFinal_ex");
         return wolfSSL_EVP_CipherFinal(ctx, out, outl);
     }
@@ -100,7 +100,7 @@ WOLFSSL_API int  wolfSSL_EVP_EncryptFinal_ex(WOLFSSL_EVP_CIPHER_CTX *ctx,
 WOLFSSL_API int  wolfSSL_EVP_DecryptFinal(WOLFSSL_EVP_CIPHER_CTX *ctx,
                                    unsigned char *out, int *outl)
 {
-  if (ctx->enc)
+  if (ctx && ctx->enc)
       return 0;
   else{
       WOLFSSL_ENTER("wolfSSL_EVP_DecryptFinal");
@@ -111,7 +111,7 @@ WOLFSSL_API int  wolfSSL_EVP_DecryptFinal(WOLFSSL_EVP_CIPHER_CTX *ctx,
 WOLFSSL_API int  wolfSSL_EVP_DecryptFinal_ex(WOLFSSL_EVP_CIPHER_CTX *ctx,
                                    unsigned char *out, int *outl)
 {
-    if (ctx->enc)
+    if (ctx && ctx->enc)
         return 0;
     else{
         WOLFSSL_ENTER("wolfSSL_EVP_CipherFinal_ex");
