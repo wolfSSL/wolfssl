@@ -474,7 +474,6 @@ int wolfcrypt_test(void* args)
         else
             printf( "HMAC-KDF    test passed!\n");
     #endif
-
 #endif
 
 #ifdef HAVE_X963_KDF
@@ -4438,6 +4437,10 @@ byte GetEntropy(ENTROPY_CMD cmd, byte* out)
     #ifdef FREESCALE_MQX
         static const char* clientKey  = "a:\\certs\\client-key.der";
         static const char* clientCert = "a:\\certs\\client-cert.der";
+        #ifdef HAVE_PKCS7
+            static const char* eccClientKey  = "a:\\certs\\ecc-client-key.der";
+            static const char* eccClientCert = "a:\\certs\\client-ecc-cert.der";
+        #endif
         #ifdef WOLFSSL_CERT_EXT
             static const char* clientKeyPub  = "a:\\certs\\client-keyPub.der";
         #endif
@@ -4460,6 +4463,12 @@ byte GetEntropy(ENTROPY_CMD cmd, byte* out)
         static char* clientCert = "certs/client-cert.der";
         void set_clientKey(char *key) {  clientKey = key ; }
         void set_clientCert(char *cert) {  clientCert = cert ; }
+        #ifdef HAVE_PKCS7
+            static const char* eccClientKey  = "certs/ecc-client-key.der";
+            static const char* eccClientCert = "certs/client-ecc-cert.der";
+            void set_eccClientKey(char* key) { eccClientKey = key ; }
+            void set_eccClientCert(char* cert) { eccClientCert = cert ; }
+        #endif
         #ifdef WOLFSSL_CERT_EXT
             static const char* clientKeyPub  = "certs/client-keyPub.der";
             void set_clientKeyPub(char *key) { clientKeyPub = key ; }
@@ -4487,6 +4496,10 @@ byte GetEntropy(ENTROPY_CMD cmd, byte* out)
     #else
         static const char* clientKey  = "./certs/client-key.der";
         static const char* clientCert = "./certs/client-cert.der";
+        #ifdef HAVE_PKCS7
+            static const char* eccClientKey  = "./certs/ecc-client-key.der";
+            static const char* eccClientCert = "./certs/client-ecc-cert.der";
+        #endif
         #ifdef WOLFSSL_CERT_EXT
             static const char* clientKeyPub  = "./certs/client-keyPub.der";
         #endif
@@ -9040,34 +9053,33 @@ int compress_test(void)
 #ifdef HAVE_PKCS7
 
 typedef struct {
-    const char* outFileName;
     const byte*  content;
     word32       contentSz;
     int          contentOID;
     int          encryptOID;
+    int          keyWrapOID;
+    int          keyAgreeOID;
+    byte*        cert;
+    size_t       certSz;
     byte*        privateKey;
     word32       privateKeySz;
-    byte*        encryptionKey;
-    word32       encryptionKeySz;
-    PKCS7Attrib* attribs;
-    word32       attribsSz;
-} pkcs7Vector;
+    byte*        optionalUkm;
+    word32       optionalUkmSz;
+    const char*  outFileName;
+} pkcs7EnvelopedVector;
 
-int pkcs7enveloped_test(void)
+
+static int pkcs7enveloped_run_vectors(byte* rsaCert, word32 rsaCertSz,
+                                      byte* rsaPrivKey,  word32 rsaPrivKeySz,
+                                      byte* eccCert, word32 eccCertSz,
+                                      byte* eccPrivKey,  word32 eccPrivKeySz)
 {
-    int ret = 0;
-
+    int ret, testSz, i;
     int envelopedSz, decodedSz;
-    PKCS7 pkcs7;
-    byte* cert;
-    byte* privKey;
-    byte  enveloped[2048];
-    byte  decoded[2048];
 
-    size_t certSz;
-    size_t privKeySz;
-    FILE*  certFile;
-    FILE*  keyFile;
+    byte   enveloped[2048];
+    byte   decoded[2048];
+    PKCS7  pkcs7;
     FILE*  pkcs7File;
 
     const byte data[] = { /* Hello World */
@@ -9075,152 +9087,251 @@ int pkcs7enveloped_test(void)
         0x72,0x6c,0x64
     };
 
-    pkcs7Vector a;
-#ifndef NO_AES
-    pkcs7Vector b, c, d;
-    pkcs7Vector test_pkcs7env[4];
-#else
-    pkcs7Vector test_pkcs7env[1];
-#endif
-    int times = sizeof(test_pkcs7env) / sizeof(pkcs7Vector), i;
+    byte optionalUkm[] = {
+        0x00,0x01,0x02,0x03,0x04,0x05,0x06,0x07
+    };
 
-    /* read client cert and key in DER format */
-    cert = (byte*)XMALLOC(FOURK_BUF, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-    if (cert == NULL)
+    const pkcs7EnvelopedVector testVectors[] =
+    {
+        /* key transport key encryption technique */
+#ifndef NO_RSA
+        {data, (word32)sizeof(data), DATA, DES3b, 0, 0, rsaCert, rsaCertSz,
+         rsaPrivKey, rsaPrivKeySz, NULL, 0, "pkcs7envelopedDataDES3.der"},
+
+    #ifndef NO_AES
+        {data, (word32)sizeof(data), DATA, AES128CBCb, 0, 0, rsaCert, rsaCertSz,
+         rsaPrivKey, rsaPrivKeySz, NULL, 0, "pkcs7envelopedDataAES128CBC.der"},
+
+        {data, (word32)sizeof(data), DATA, AES192CBCb, 0, 0, rsaCert, rsaCertSz,
+         rsaPrivKey, rsaPrivKeySz, NULL, 0, "pkcs7envelopedDataAES192CBC.der"},
+
+        {data, (word32)sizeof(data), DATA, AES256CBCb, 0, 0, rsaCert, rsaCertSz,
+         rsaPrivKey, rsaPrivKeySz, NULL, 0, "pkcs7envelopedDataAES256CBC.der"},
+    #endif /* NO_AES */
+#endif
+
+        /* key agreement key encryption technique*/
+#ifdef HAVE_ECC
+    #ifndef NO_AES
+        #ifndef NO_SHA
+        {data, (word32)sizeof(data), DATA, AES128CBCb, AES128_WRAP,
+         dhSinglePass_stdDH_sha1kdf_scheme, eccCert, eccCertSz, eccPrivKey,
+         eccPrivKeySz, NULL, 0,
+         "pkcs7envelopedDataAES128CBC_ECDH_SHA1KDF.der"},
+        #endif
+
+        #ifndef NO_SHA256
+        {data, (word32)sizeof(data), DATA, AES256CBCb, AES256_WRAP,
+         dhSinglePass_stdDH_sha256kdf_scheme, eccCert, eccCertSz, eccPrivKey,
+         eccPrivKeySz, NULL, 0,
+         "pkcs7envelopedDataAES256CBC_ECDH_SHA256KDF.der"},
+        #endif /* NO_SHA256 */
+
+        #ifdef WOLFSSL_SHA512
+        {data, (word32)sizeof(data), DATA, AES256CBCb, AES256_WRAP,
+         dhSinglePass_stdDH_sha512kdf_scheme, eccCert, eccCertSz, eccPrivKey,
+         eccPrivKeySz, NULL, 0,
+         "pkcs7envelopedDataAES256CBC_ECDH_SHA512KDF.der"},
+
+        /* with optional user keying material (ukm) */
+        {data, (word32)sizeof(data), DATA, AES256CBCb, AES256_WRAP,
+         dhSinglePass_stdDH_sha512kdf_scheme, eccCert, eccCertSz, eccPrivKey,
+         eccPrivKeySz, optionalUkm, sizeof(optionalUkm),
+         "pkcs7envelopedDataAES256CBC_ECDH_SHA512KDF_ukm.der"},
+        #endif /* WOLFSSL_SHA512 */
+    #endif /* NO_AES */
+#endif
+    };
+
+    testSz = sizeof(testVectors) / sizeof(pkcs7EnvelopedVector);
+
+    for (i = 0; i < testSz; i++) {
+
+        ret = wc_PKCS7_InitWithCert(&pkcs7, testVectors[i].cert,
+                                    (word32)testVectors[i].certSz);
+        if (ret != 0)
+            return -209;
+
+        pkcs7.content      = (byte*)testVectors[i].content;
+        pkcs7.contentSz    = testVectors[i].contentSz;
+        pkcs7.contentOID   = testVectors[i].contentOID;
+        pkcs7.encryptOID   = testVectors[i].encryptOID;
+        pkcs7.keyWrapOID   = testVectors[i].keyWrapOID;
+        pkcs7.keyAgreeOID  = testVectors[i].keyAgreeOID;
+        pkcs7.privateKey   = testVectors[i].privateKey;
+        pkcs7.privateKeySz = testVectors[i].privateKeySz;
+        pkcs7.ukm          = testVectors[i].optionalUkm;
+        pkcs7.ukmSz        = testVectors[i].optionalUkmSz;
+
+        /* encode envelopedData */
+        envelopedSz = wc_PKCS7_EncodeEnvelopedData(&pkcs7, enveloped,
+                                                   sizeof(enveloped));
+        if (envelopedSz <= 0)
+            return -210;
+
+        /* decode envelopedData */
+        decodedSz = wc_PKCS7_DecodeEnvelopedData(&pkcs7, enveloped, envelopedSz,
+                                                 decoded, sizeof(decoded));
+        if (decodedSz <= 0)
+            return -211;
+
+        /* test decode result */
+        if (XMEMCMP(decoded, data, sizeof(data)) != 0)
+            return -212;
+
+        /* output pkcs7 envelopedData for external testing */
+        pkcs7File = fopen(testVectors[i].outFileName, "wb");
+        if (!pkcs7File)
+            return -213;
+
+        ret = (int)fwrite(enveloped, envelopedSz, 1, pkcs7File);
+        fclose(pkcs7File);
+
+        wc_PKCS7_Free(&pkcs7);
+    }
+
+    return 0;
+}
+
+
+int pkcs7enveloped_test(void)
+{
+    int ret = 0;
+
+    byte* rsaCert    = NULL;
+    byte* eccCert    = NULL;
+    byte* rsaPrivKey = NULL;
+    byte* eccPrivKey = NULL;
+
+    size_t rsaCertSz    = 0;
+    size_t eccCertSz    = 0;
+    size_t rsaPrivKeySz = 0;
+    size_t eccPrivKeySz = 0;
+
+    FILE*  certFile;
+    FILE*  keyFile;
+
+#ifndef NO_RSA
+    /* read client RSA cert and key in DER format */
+    rsaCert = (byte*)XMALLOC(FOURK_BUF, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    if (rsaCert == NULL)
         return -201;
 
-    privKey =(byte*)XMALLOC(FOURK_BUF, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-    if (privKey == NULL) {
-        XFREE(cert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    rsaPrivKey = (byte*)XMALLOC(FOURK_BUF, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    if (rsaPrivKey == NULL) {
+        XFREE(rsaCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
         return -202;
     }
 
     certFile = fopen(clientCert, "rb");
     if (!certFile) {
-        XFREE(cert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-        XFREE(privKey, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(rsaCert,    HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(rsaPrivKey, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
         err_sys("can't open ./certs/client-cert.der, "
                 "Please run from wolfSSL home dir", -42);
-        return -42;
+        return -203;
     }
 
-    certSz = fread(cert, 1, FOURK_BUF, certFile);
+    rsaCertSz = fread(rsaCert, 1, FOURK_BUF, certFile);
     fclose(certFile);
 
     keyFile = fopen(clientKey, "rb");
     if (!keyFile) {
-        XFREE(cert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-        XFREE(privKey, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(rsaCert,    HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(rsaPrivKey, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
         err_sys("can't open ./certs/client-key.der, "
                 "Please run from wolfSSL home dir", -43);
-        return -43;
+        return -204;
     }
 
-    privKeySz = fread(privKey, 1, FOURK_BUF, keyFile);
+    rsaPrivKeySz = fread(rsaPrivKey, 1, FOURK_BUF, keyFile);
     fclose(keyFile);
+#endif /* NO_RSA */
 
-    wc_PKCS7_InitWithCert(&pkcs7, cert, (word32)certSz);
-
-    /* set up test vectors */
-    a.content      = data;
-    a.contentSz    = (word32)sizeof(data);
-    a.contentOID   = DATA;
-    a.encryptOID   = DES3b;
-    a.privateKey   = privKey;
-    a.privateKeySz = (word32)privKeySz;
-    a.outFileName  = "pkcs7envelopedDataDES3.der";
-
-#ifndef NO_AES
-    b.content      = data;
-    b.contentSz    = (word32)sizeof(data);
-    b.contentOID   = DATA;
-    b.encryptOID   = AES128CBCb;
-    b.privateKey   = privKey;
-    b.privateKeySz = (word32)privKeySz;
-    b.outFileName  = "pkcs7envelopedDataAES128CBC.der";
-
-    c.content      = data;
-    c.contentSz    = (word32)sizeof(data);
-    c.contentOID   = DATA;
-    c.encryptOID   = AES192CBCb;
-    c.privateKey   = privKey;
-    c.privateKeySz = (word32)privKeySz;
-    c.outFileName  = "pkcs7envelopedDataAES192CBC.der";
-
-    d.content      = data;
-    d.contentSz    = (word32)sizeof(data);
-    d.contentOID   = DATA;
-    d.encryptOID   = AES256CBCb;
-    d.privateKey   = privKey;
-    d.privateKeySz = (word32)privKeySz;
-    d.outFileName  = "pkcs7envelopedDataAES256CBC.der";
-#endif
-
-    test_pkcs7env[0] = a;
-#ifndef NO_AES
-    test_pkcs7env[1] = b;
-    test_pkcs7env[2] = c;
-    test_pkcs7env[3] = d;
-#endif
-
-    for (i = 0; i < times; i++) {
-        pkcs7.content     = (byte*)test_pkcs7env[i].content;
-        pkcs7.contentSz   = test_pkcs7env[i].contentSz;
-        pkcs7.contentOID  = test_pkcs7env[i].contentOID;
-        pkcs7.encryptOID  = test_pkcs7env[i].encryptOID;
-        pkcs7.privateKey  = test_pkcs7env[i].privateKey;
-        pkcs7.privateKeySz = test_pkcs7env[i].privateKeySz;
-
-        /* encode envelopedData */
-        envelopedSz = wc_PKCS7_EncodeEnvelopedData(&pkcs7, enveloped,
-                                                sizeof(enveloped));
-        if (envelopedSz <= 0) {
-            XFREE(cert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-            XFREE(privKey, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-            return -203;
-        }
-
-        /* decode envelopedData */
-        decodedSz = wc_PKCS7_DecodeEnvelopedData(&pkcs7, enveloped, envelopedSz,
-                                              decoded, sizeof(decoded));
-        if (decodedSz <= 0) {
-            XFREE(cert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-            XFREE(privKey, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-            return -204;
-        }
-
-        /* test decode result */
-        if (XMEMCMP(decoded, data, sizeof(data)) != 0) {
-            XFREE(cert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-            XFREE(privKey, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-            return -205;
-        }
-
-        /* output pkcs7 envelopedData for external testing */
-        pkcs7File = fopen(test_pkcs7env[i].outFileName, "wb");
-        if (!pkcs7File) {
-            XFREE(cert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-            XFREE(privKey, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-            return -206;
-        }
-
-        ret = (int)fwrite(enveloped, envelopedSz, 1, pkcs7File);
-        fclose(pkcs7File);
+#ifdef HAVE_ECC
+    /* read client ECC cert and key in DER format */
+    eccCert = (byte*)XMALLOC(FOURK_BUF, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    if (eccCert == NULL) {
+        XFREE(rsaCert,    HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(rsaPrivKey, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        return -205;
     }
 
-    XFREE(cert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-    XFREE(privKey, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-    wc_PKCS7_Free(&pkcs7);
+    eccPrivKey =(byte*)XMALLOC(FOURK_BUF, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    if (eccPrivKey == NULL) {
+        XFREE(rsaCert,    HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(rsaPrivKey, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(eccCert,    HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        return -206;
+    }
 
-    if (ret > 0)
-        return 0;
+    certFile = fopen(eccClientCert, "rb");
+    if (!certFile) {
+        XFREE(rsaCert,    HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(rsaPrivKey, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(eccCert,    HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(eccPrivKey, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        err_sys("can't open ./certs/client-ecc-cert.der, "
+                "Please run from wolfSSL home dir", -42);
+        return -207;
+    }
 
-    return ret;
+    eccCertSz = fread(eccCert, 1, FOURK_BUF, certFile);
+    fclose(certFile);
+
+    keyFile = fopen(eccClientKey, "rb");
+    if (!keyFile) {
+        XFREE(rsaCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(rsaPrivKey, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(eccCert,    HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(eccPrivKey, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        err_sys("can't open ./certs/ecc-client-key.der, "
+                "Please run from wolfSSL home dir", -43);
+        return -208;
+    }
+
+    eccPrivKeySz = fread(eccPrivKey, 1, FOURK_BUF, keyFile);
+    fclose(keyFile);
+#endif /* HAVE_ECC */
+
+    ret = pkcs7enveloped_run_vectors(rsaCert, rsaCertSz,
+                                     rsaPrivKey, rsaPrivKeySz,
+                                     eccCert, eccCertSz,
+                                     eccPrivKey, eccPrivKeySz);
+    if (ret != 0) {
+        XFREE(rsaCert,    HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(rsaPrivKey, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(eccCert,    HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(eccPrivKey, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        return ret;
+    }
+
+    XFREE(rsaCert,    HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(rsaPrivKey, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(eccCert,    HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(eccPrivKey, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+
+    return 0;
 }
+
+
+typedef struct {
+    const byte*  content;
+    word32       contentSz;
+    int          contentOID;
+    int          encryptOID;
+    byte*        encryptionKey;
+    word32       encryptionKeySz;
+    PKCS7Attrib* attribs;
+    word32       attribsSz;
+    const char*  outFileName;
+} pkcs7EncryptedVector;
+
 
 int pkcs7encrypted_test(void)
 {
-    int   ret, encryptedSz, decodedSz;
+    int ret, i, testSz;
+    int encryptedSz, decodedSz, attribIdx;
     PKCS7 pkcs7;
     byte  encrypted[2048];
     byte  decoded[2048];
@@ -9248,8 +9359,8 @@ int pkcs7encrypted_test(void)
     };
     byte aes192Key[] = {
         0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08,
-        0x01,0x02,0x03,0x05,0x05,0x06,0x07,0x08,
-        0x01,0x02,0x03,0x05,0x05,0x06,0x07,0x08
+        0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08,
+        0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08
     };
     byte aes256Key[] = {
         0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08,
@@ -9290,108 +9401,50 @@ int pkcs7encrypted_test(void)
         { genAttrOid2, sizeof(genAttrOid2), genAttr2, sizeof(genAttr2) }
     };
 
-    pkcs7Vector a, b;
-#ifndef NO_AES
-    pkcs7Vector c, d, e, f, g;
-    pkcs7Vector test_pkcs7enc[7];
-#else
-    pkcs7Vector test_pkcs7enc[1];
-#endif
-    int times = sizeof(test_pkcs7enc) / sizeof(pkcs7Vector);
-    int i, attribIdx;
+    const pkcs7EncryptedVector testVectors[] =
+    {
+#ifndef NO_DES3
+        {data, (word32)sizeof(data), DATA, DES3b, des3Key, sizeof(des3Key),
+         NULL, 0, "pkcs7encryptedDataDES3.der"},
 
-    /* set up test vectors */
-    a.content         = data;
-    a.contentSz       = (word32)sizeof(data);
-    a.contentOID      = DATA;
-    a.encryptOID      = DES3b;
-    a.encryptionKey   = des3Key;
-    a.encryptionKeySz = sizeof(des3Key);
-    a.outFileName     = "pkcs7encryptedDataDES3.der";
-    a.attribs         = NULL;
-    a.attribsSz       = 0;
-
-    b.content         = data;
-    b.contentSz       = (word32)sizeof(data);
-    b.contentOID      = DATA;
-    b.encryptOID      = DESb;
-    b.encryptionKey   = desKey;
-    b.encryptionKeySz = sizeof(desKey);
-    b.outFileName     = "pkcs7encryptedDataDES.der";
-    b.attribs         = NULL;
-    b.attribsSz       = 0;
+        {data, (word32)sizeof(data), DATA, DESb, desKey, sizeof(desKey),
+         NULL, 0, "pkcs7encryptedDataDES.der"},
+#endif /* NO_DES3 */
 
 #ifndef NO_AES
-    c.content         = data;
-    c.contentSz       = (word32)sizeof(data);
-    c.contentOID      = DATA;
-    c.encryptOID      = AES128CBCb;
-    c.encryptionKey   = aes128Key;
-    c.encryptionKeySz = sizeof(aes128Key);
-    c.outFileName     = "pkcs7encryptedDataAES128CBC.der";
-    c.attribs         = NULL;
-    c.attribsSz       = 0;
+        {data, (word32)sizeof(data), DATA, AES128CBCb, aes128Key,
+         sizeof(aes128Key), NULL, 0, "pkcs7encryptedDataAES128CBC.der"},
 
-    d.content         = data;
-    d.contentSz       = (word32)sizeof(data);
-    d.contentOID      = DATA;
-    d.encryptOID      = AES192CBCb;
-    d.encryptionKey   = aes192Key;
-    d.encryptionKeySz = sizeof(aes192Key);
-    d.outFileName     = "pkcs7encryptedDataAES192CBC.der";
-    d.attribs         = NULL;
-    d.attribsSz       = 0;
+        {data, (word32)sizeof(data), DATA, AES192CBCb, aes192Key,
+         sizeof(aes192Key), NULL, 0, "pkcs7encryptedDataAES192CBC.der"},
 
-    e.content         = data;
-    e.contentSz       = (word32)sizeof(data);
-    e.contentOID      = DATA;
-    e.encryptOID      = AES256CBCb;
-    e.encryptionKey   = aes256Key;
-    e.encryptionKeySz = sizeof(aes256Key);
-    e.outFileName     = "pkcs7encryptedDataAES256CBC.der";
-    e.attribs         = NULL;
-    e.attribsSz       = 0;
+        {data, (word32)sizeof(data), DATA, AES256CBCb, aes256Key,
+         sizeof(aes256Key), NULL, 0, "pkcs7encryptedDataAES256CBC.der"},
 
-    f.content         = data;
-    f.contentSz       = (word32)sizeof(data);
-    f.contentOID      = DATA;
-    f.encryptOID      = AES256CBCb;
-    f.encryptionKey   = aes256Key;
-    f.encryptionKeySz = sizeof(aes256Key);
-    f.outFileName     = "pkcs7encryptedDataAES256CBC_attribs.der";
-    f.attribs = attribs;
-    f.attribsSz = sizeof(attribs)/sizeof(PKCS7Attrib);
+        /* test with optional unprotected attributes */
+        {data, (word32)sizeof(data), DATA, AES256CBCb, aes256Key,
+         sizeof(aes256Key), attribs, (sizeof(attribs)/sizeof(PKCS7Attrib)),
+         "pkcs7encryptedDataAES256CBC_attribs.der"},
 
-    g.content         = data;
-    g.contentSz       = (word32)sizeof(data);
-    g.contentOID      = DATA;
-    g.encryptOID      = AES256CBCb;
-    g.encryptionKey   = aes256Key;
-    g.encryptionKeySz = sizeof(aes256Key);
-    g.outFileName     = "pkcs7encryptedDataAES256CBC_multi_attribs.der";
-    g.attribs = multiAttribs;
-    g.attribsSz = sizeof(multiAttribs)/sizeof(PKCS7Attrib);
-#endif
+        /* test with multiple optional unprotected attributes */
+        {data, (word32)sizeof(data), DATA, AES256CBCb, aes256Key,
+         sizeof(aes256Key), multiAttribs,
+         (sizeof(multiAttribs)/sizeof(PKCS7Attrib)),
+         "pkcs7encryptedDataAES256CBC_multi_attribs.der"},
+#endif /* NO_AES */
+    };
 
-    test_pkcs7enc[0] = a;
-    test_pkcs7enc[1] = b;
-#ifndef NO_AES
-    test_pkcs7enc[2] = c;
-    test_pkcs7enc[3] = d;
-    test_pkcs7enc[4] = e;
-    test_pkcs7enc[5] = f;
-    test_pkcs7enc[6] = g;
-#endif
+    testSz = sizeof(testVectors) / sizeof(pkcs7EncryptedVector);
 
-    for (i = 0; i < times; i++) {
-        pkcs7.content         = (byte*)test_pkcs7enc[i].content;
-        pkcs7.contentSz       = test_pkcs7enc[i].contentSz;
-        pkcs7.contentOID      = test_pkcs7enc[i].contentOID;
-        pkcs7.encryptOID      = test_pkcs7enc[i].encryptOID;
-        pkcs7.encryptionKey   = test_pkcs7enc[i].encryptionKey;
-        pkcs7.encryptionKeySz = test_pkcs7enc[i].encryptionKeySz;
-        pkcs7.unprotectedAttribs   = test_pkcs7enc[i].attribs;
-        pkcs7.unprotectedAttribsSz = test_pkcs7enc[i].attribsSz;
+    for (i = 0; i < testSz; i++) {
+        pkcs7.content              = (byte*)testVectors[i].content;
+        pkcs7.contentSz            = testVectors[i].contentSz;
+        pkcs7.contentOID           = testVectors[i].contentOID;
+        pkcs7.encryptOID           = testVectors[i].encryptOID;
+        pkcs7.encryptionKey        = testVectors[i].encryptionKey;
+        pkcs7.encryptionKeySz      = testVectors[i].encryptionKeySz;
+        pkcs7.unprotectedAttribs   = testVectors[i].attribs;
+        pkcs7.unprotectedAttribsSz = testVectors[i].attribsSz;
 
         /* encode encryptedData */
         encryptedSz = wc_PKCS7_EncodeEncryptedData(&pkcs7, encrypted,
@@ -9436,15 +9489,15 @@ int pkcs7encrypted_test(void)
         }
 
         /* output pkcs7 envelopedData for external testing */
-        pkcs7File = fopen(test_pkcs7enc[i].outFileName, "wb");
+        pkcs7File = fopen(testVectors[i].outFileName, "wb");
         if (!pkcs7File)
             return -208;
 
         ret = (int)fwrite(encrypted, encryptedSz, 1, pkcs7File);
         fclose(pkcs7File);
-    }
 
-    wc_PKCS7_Free(&pkcs7);
+        wc_PKCS7_Free(&pkcs7);
+    }
 
     if (ret > 0)
         return 0;

@@ -213,6 +213,8 @@ enum Oid_Types {
     oidCertAltNameType  = 9,
     oidCertKeyUseType   = 10,
     oidKdfType          = 11,
+    oidKeyWrapType      = 12,
+    oidCmsKeyAgreeType  = 13,
     oidIgnoreType
 };
 
@@ -242,6 +244,22 @@ enum Key_Sum {
     RSAk   = 645,
     NTRUk  = 274,
     ECDSAk = 518
+};
+
+
+enum KeyWrap_Sum {
+    AES128_WRAP = 417,
+    AES192_WRAP = 437,
+    AES256_WRAP = 457
+};
+
+
+enum Key_Agree {
+    dhSinglePass_stdDH_sha1kdf_scheme   = 464,
+    dhSinglePass_stdDH_sha224kdf_scheme = 188,
+    dhSinglePass_stdDH_sha256kdf_scheme = 189,
+    dhSinglePass_stdDH_sha384kdf_scheme = 190,
+    dhSinglePass_stdDH_sha512kdf_scheme = 191,
 };
 
 

@@ -38,6 +38,18 @@ CLEANFILES+= cert.der \
              othercert.der \
              othercert.pem \
              pkcs7cert.der \
+             pkcs7encryptedDataAES128CBC.der \
+             pkcs7encryptedDataAES192CBC.der \
+             pkcs7encryptedDataAES256CBC_attribs.der \
+             pkcs7encryptedDataAES256CBC.der \
+             pkcs7encryptedDataAES256CBC_multi_attribs.der \
+             pkcs7encryptedDataDES3.der \
+             pkcs7encryptedDataDES.der \
+             pkcs7envelopedDataAES256CBC_ECDH.der \
+             pkcs7envelopedDataAES128CBC_ECDH_SHA1KDF.der \
+             pkcs7envelopedDataAES256CBC_ECDH_SHA256KDF.der \
+             pkcs7envelopedDataAES256CBC_ECDH_SHA512KDF.der \
+             pkcs7envelopedDataAES256CBC_ECDH_SHA512KDF_ukm.der \
              pkcs7envelopedDataDES3.der \
              pkcs7envelopedDataAES128CBC.der \
              pkcs7envelopedDataAES192CBC.der \
