@@ -174,6 +174,7 @@ typedef struct WOLFSSL_EVP_CIPHER_CTX {
 } WOLFSSL_EVP_CIPHER_CTX;
 
 typedef int WOLFSSL_ENGINE  ;
+typedef WOLFSSL_ENGINE ENGINE;
 
 WOLFSSL_API void wolfSSL_EVP_init(void);
 WOLFSSL_API int  wolfSSL_EVP_MD_size(const WOLFSSL_EVP_MD* md);
@@ -360,7 +361,7 @@ typedef WOLFSSL_EVP_CIPHER_CTX EVP_CIPHER_CTX;
 #define EVP_CIPHER_CTX_key_length     wolfSSL_EVP_CIPHER_CTX_key_length
 #define EVP_CIPHER_CTX_set_key_length wolfSSL_EVP_CIPHER_CTX_set_key_length
 #define EVP_CipherInit                wolfSSL_EVP_CipherInit
-#define EVP_CipherInit_ex             wolfSSL_EVP_CipherInit
+#define EVP_CipherInit_ex             wolfSSL_EVP_CipherInit_ex
 #define EVP_EncryptInit               wolfSSL_EVP_EncryptInit
 #define EVP_EncryptInit_ex            wolfSSL_EVP_EncryptInit_ex
 #define EVP_DecryptInit               wolfSSL_EVP_DecryptInit

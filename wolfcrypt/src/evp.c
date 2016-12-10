@@ -86,6 +86,17 @@ WOLFSSL_API int  wolfSSL_EVP_EncryptFinal(WOLFSSL_EVP_CIPHER_CTX *ctx,
         return 0;
 }
 
+
+WOLFSSL_API int  wolfSSL_EVP_CipherInit_ex(WOLFSSL_EVP_CIPHER_CTX* ctx,
+                                    const WOLFSSL_EVP_CIPHER* type,
+                                    WOLFSSL_ENGINE *impl,
+                                    unsigned char* key, unsigned char* iv,
+                                    int enc)
+{
+    (void)impl;
+    return wolfSSL_EVP_CipherInit(ctx, type, key, iv, enc);
+}
+
 WOLFSSL_API int  wolfSSL_EVP_EncryptFinal_ex(WOLFSSL_EVP_CIPHER_CTX *ctx,
                                    unsigned char *out, int *outl)
 {

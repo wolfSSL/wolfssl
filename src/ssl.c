@@ -11677,6 +11677,11 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
                                const WOLFSSL_EVP_MD* type)
     {
         WOLFSSL_ENTER("EVP_DigestInit");
+
+        if (ctx == NULL || type == NULL) {
+            return BAD_FUNC_ARG;
+        }
+
         if (XSTRNCMP(type, "SHA256", 6) == 0) {
              ctx->macType = SHA256;
              wolfSSL_SHA256_Init((SHA256_CTX*)&ctx->hash);
