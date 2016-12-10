@@ -14812,13 +14812,15 @@ long wolfSSL_CTX_set_tlsext_opaque_prf_input_callback_arg(WOLFSSL_CTX* ctx,
 
 
 #ifndef NO_DES3
-void wolfSSL_DES_set_key(WOLFSSL_const_DES_cblock* myDes,
+/* 0 on success */
+int wolfSSL_DES_set_key(WOLFSSL_const_DES_cblock* myDes,
                                                WOLFSSL_DES_key_schedule* key)
 {
 #ifdef WOLFSSL_CHECK_DESKEY
-    wolfSSL_DES_set_key_checked(myDes, key);
+    return wolfSSL_DES_set_key_checked(myDes, key);
 #else
     wolfSSL_DES_set_key_unchecked(myDes, key);
+    return 0;
 #endif
 }
 
@@ -14836,12 +14838,14 @@ static int DES_check(word32 mask, word32 mask2, unsigned char* key)
 }
 
 
-/* check that the key is odd parity and is not a weak key */
-void wolfSSL_DES_set_key_checked(WOLFSSL_const_DES_cblock* myDes,
+/* check that the key is odd parity and is not a weak key
+ * returns -1 if parity is wrong, -2 if weak/null key and 0 on success */
+int wolfSSL_DES_set_key_checked(WOLFSSL_const_DES_cblock* myDes,
                                                WOLFSSL_DES_key_schedule* key)
 {
     if (myDes == NULL || key == NULL) {
         WOLFSSL_MSG("Bad argument passed to wolfSSL_DES_set_key_checked");
+        return -2;
     }
     else {
         word32 i, mask, mask2;
@@ -14850,7 +14854,7 @@ void wolfSSL_DES_set_key_checked(WOLFSSL_const_DES_cblock* myDes,
         /* sanity check before call to DES_check */
         if (sz != (sizeof(word32) * 2)) {
             WOLFSSL_MSG("Unexpected WOLFSSL_DES_key_schedule size");
-            return;
+            return -2;
         }
 
         /* check odd parity */
@@ -14865,7 +14869,7 @@ void wolfSSL_DES_set_key_checked(WOLFSSL_const_DES_cblock* myDes,
                 ((c >> 6) & 0x01) ^
                 ((c >> 7) & 0x01)) != 1) {
                 WOLFSSL_MSG("Odd parity test fail");
-                return;
+                return -1;
             }
         }
 
@@ -14876,25 +14880,25 @@ void wolfSSL_DES_set_key_checked(WOLFSSL_const_DES_cblock* myDes,
         mask = 0x01010101; mask2 = 0x01010101;
         if (DES_check(mask, mask2, *key)) {
             WOLFSSL_MSG("Weak key found");
-            return;
+            return -2;
         }
 
         mask = 0xFEFEFEFE; mask2 = 0xFEFEFEFE;
         if (DES_check(mask, mask2, *key)) {
             WOLFSSL_MSG("Weak key found");
-            return;
+            return -2;
         }
 
         mask = 0xE0E0E0E0; mask2 = 0xF1F1F1F1;
         if (DES_check(mask, mask2, *key)) {
             WOLFSSL_MSG("Weak key found");
-            return;
+            return -2;
         }
 
         mask = 0x1F1F1F1F; mask2 = 0x0E0E0E0E;
         if (DES_check(mask, mask2, *key)) {
             WOLFSSL_MSG("Weak key found");
-            return;
+            return -2;
         }
 
         /* semi-weak *key check (list from same Nist paper) */
@@ -14902,39 +14906,41 @@ void wolfSSL_DES_set_key_checked(WOLFSSL_const_DES_cblock* myDes,
         if (DES_check(mask, mask2, *key) ||
            DES_check(ByteReverseWord32(mask), ByteReverseWord32(mask2), *key)) {
             WOLFSSL_MSG("Weak key found");
-            return;
+            return -2;
         }
 
         mask  = 0x01E001E0; mask2 = 0x01F101F1;
         if (DES_check(mask, mask2, *key) ||
            DES_check(ByteReverseWord32(mask), ByteReverseWord32(mask2), *key)) {
             WOLFSSL_MSG("Weak key found");
-            return;
+            return -2;
         }
 
         mask  = 0x01FE01FE; mask2 = 0x01FE01FE;
         if (DES_check(mask, mask2, *key) ||
            DES_check(ByteReverseWord32(mask), ByteReverseWord32(mask2), *key)) {
             WOLFSSL_MSG("Weak key found");
-            return;
+            return -2;
         }
 
         mask  = 0x1FE01FE0; mask2 = 0x0EF10EF1;
         if (DES_check(mask, mask2, *key) ||
            DES_check(ByteReverseWord32(mask), ByteReverseWord32(mask2), *key)) {
             WOLFSSL_MSG("Weak key found");
-            return;
+            return -2;
         }
 
         mask  = 0x1FFE1FFE; mask2 = 0x0EFE0EFE;
         if (DES_check(mask, mask2, *key) ||
            DES_check(ByteReverseWord32(mask), ByteReverseWord32(mask2), *key)) {
             WOLFSSL_MSG("Weak key found");
-            return;
+            return -2;
         }
 
         /* passed tests, now copy over key */
         XMEMCPY(key, myDes, sizeof(WOLFSSL_const_DES_cblock));
+
+        return 0;
     }
 }
 

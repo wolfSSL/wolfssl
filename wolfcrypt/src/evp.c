@@ -417,19 +417,22 @@ WOLFSSL_API int wolfSSL_EVP_CIPHER_block_size(const WOLFSSL_EVP_CIPHER *cipher)
   if (cipher == NULL) return BAD_FUNC_ARG;
   switch (cipherType(cipher)) {
   #if !defined(NO_AES) && defined(HAVE_AES_CBC)
-      case AES_128_CBC_TYPE: return 16;
-      case AES_192_CBC_TYPE: return 24;
-      case AES_256_CBC_TYPE: return 32;
+      case AES_128_CBC_TYPE:
+      case AES_192_CBC_TYPE:
+      case AES_256_CBC_TYPE:
+                             return AES_BLOCK_SIZE;
   #endif
   #if !defined(NO_AES) && defined(WOLFSSL_AES_COUNTER)
-      case AES_128_CTR_TYPE: return 16;
-      case AES_192_CTR_TYPE: return 24;
-      case AES_256_CTR_TYPE: return 32;
+      case AES_128_CTR_TYPE:
+      case AES_192_CTR_TYPE:
+      case AES_256_CTR_TYPE:
+                             return AES_BLOCK_SIZE;
   #endif
   #if !defined(NO_AES) && defined(HAVE_AES_ECB)
-      case AES_128_ECB_TYPE: return 16;
-      case AES_192_ECB_TYPE: return 24;
-      case AES_256_ECB_TYPE: return 32;
+      case AES_128_ECB_TYPE:
+      case AES_192_ECB_TYPE:
+      case AES_256_ECB_TYPE:
+                             return AES_BLOCK_SIZE;
   #endif
   #ifndef NO_DES3
       case DES_CBC_TYPE: return 8;
