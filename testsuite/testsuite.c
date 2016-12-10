@@ -210,11 +210,7 @@ int testsuite_test(int argc, char** argv)
 #endif /* HAVE_WNR */
 
     printf("\nAll tests passed!\n");
-#ifdef WOLFSSL_RIOT_OS
-    exit(0);
-#else
-    return EXIT_SUCCESS;
-#endif
+    EXIT_TEST(EXIT_SUCCESS);
 }
 
 void simple_test(func_args* args)
@@ -415,11 +411,8 @@ int main(int argc, char** argv)
     if (server_args.return_code != 0) return server_args.return_code;
 
     printf("\nAll tests passed!\n");
-#ifdef WOLFSSL_RIOT_OS
-    exit(0);
-#else
-    return EXIT_SUCCESS;
-#endif
+
+    EXIT_TEST(EXIT_SUCCESS);
 }
 
 

@@ -262,11 +262,8 @@ static int err_sys(const char* msg, int es)
 
 {
     printf("%s error = %d\n", msg, es);
-#ifdef WOLFSSL_RIOT_OS
-    exit(-1);
-#else
-    return -1; /* error state */
-#endif
+
+    EXIT_TEST(-1);
 }
 
 /* func_args from test.h, so don't have to pull in other junk */
@@ -733,11 +730,7 @@ int wolfcrypt_test(void* args)
             err_sys("Failed to free netRandom context", -1238);
 #endif /* HAVE_WNR */
 
-#ifdef WOLFSSL_RIOT_OS
-        exit(0);
-#else
-        return args.return_code;
-#endif
+        EXIT_TEST(args.return_code);
     }
 
 #endif /* NO_MAIN_DRIVER */
