@@ -412,6 +412,7 @@
 #endif
 
 #ifdef WOLFSSL_RIOT_OS
+    #define NO_WRITEV
     #define TFM_NO_ASM
     #define USE_FAST_MATH
     #define NO_FILE_SYSTEM
