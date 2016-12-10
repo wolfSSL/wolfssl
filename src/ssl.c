@@ -17861,7 +17861,7 @@ static int EncryptDerKey(byte *der, int *derSz, const EVP_CIPHER* cipher,
 int wolfSSL_PEM_write_bio_PrivateKey(WOLFSSL_BIO* bio, WOLFSSL_EVP_PKEY* key,
                                         const WOLFSSL_EVP_CIPHER* cipher,
                                         unsigned char* passwd, int len,
-                                        pem_password_cb cb, void* arg)
+                                        pem_password_cb* cb, void* arg)
 {
     byte* keyDer;
     int pemSz;
@@ -18075,7 +18075,7 @@ int wolfSSL_PEM_write_RSAPrivateKey(FILE *fp, WOLFSSL_RSA *rsa,
 int wolfSSL_PEM_write_bio_RSAPrivateKey(WOLFSSL_BIO* bio, RSA* rsa,
                                         const EVP_CIPHER* cipher,
                                         unsigned char* passwd, int len,
-                                        pem_password_cb cb, void* arg)
+                                        pem_password_cb* cb, void* arg)
 {
     (void)bio;
     (void)rsa;
@@ -19318,7 +19318,7 @@ int wolfSSL_PEM_write_EC_PUBKEY(FILE *fp, WOLFSSL_EC_KEY *x)
 int wolfSSL_PEM_write_bio_ECPrivateKey(WOLFSSL_BIO* bio, WOLFSSL_EC_KEY* ecc,
                                        const EVP_CIPHER* cipher,
                                        unsigned char* passwd, int len,
-                                       pem_password_cb cb, void* arg)
+                                       pem_password_cb* cb, void* arg)
 {
     (void)bio;
     (void)ecc;
@@ -19493,7 +19493,7 @@ int wolfSSL_PEM_write_ECPrivateKey(FILE *fp, WOLFSSL_EC_KEY *ecc,
 int wolfSSL_PEM_write_bio_DSAPrivateKey(WOLFSSL_BIO* bio, WOLFSSL_DSA* dsa,
                                        const EVP_CIPHER* cipher,
                                        unsigned char* passwd, int len,
-                                       pem_password_cb cb, void* arg)
+                                       pem_password_cb* cb, void* arg)
 {
     (void)bio;
     (void)dsa;
@@ -19673,7 +19673,7 @@ int wolfSSL_PEM_write_DSA_PUBKEY(FILE *fp, WOLFSSL_DSA *x)
 #endif /* #ifndef NO_DSA */
 
 WOLFSSL_EVP_PKEY* wolfSSL_PEM_read_bio_PrivateKey(WOLFSSL_BIO* bio,
-                    WOLFSSL_EVP_PKEY** key, pem_password_cb cb, void* arg)
+                    WOLFSSL_EVP_PKEY** key, pem_password_cb* cb, void* arg)
 {
     (void)bio;
     (void)key;
