@@ -483,7 +483,7 @@ int benchmark_test(void *args)
     ShowMemoryTracker();
 #endif
 
-    return 0;
+    EXIT_TEST(0);
 }
 
 

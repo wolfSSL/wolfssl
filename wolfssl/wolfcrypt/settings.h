@@ -147,6 +147,9 @@
 /* Uncomment next line if building for embOS */
 /* #define WOLFSSL_EMBOS */
 
+/* Uncomment next line if building for RIOT-OS */
+/* #define WOLFSSL_RIOT_OS */
+
 #include <wolfssl/wolfcrypt/visibility.h>
 
 #ifdef WOLFSSL_USER_SETTINGS
@@ -406,6 +409,15 @@
     #define NO_MAIN_DRIVER
     #define NO_RC4
     #define SINGLE_THREADED         /* Not ported at this time */
+#endif
+
+#ifdef WOLFSSL_RIOT_OS
+    #define NO_WRITEV
+    #define TFM_NO_ASM
+    #define USE_FAST_MATH
+    #define NO_FILE_SYSTEM
+    #define USE_CERT_BUFFERS_2048
+    #define HAVE_ECC
 #endif
 
 #ifdef WOLFSSL_NRF5x

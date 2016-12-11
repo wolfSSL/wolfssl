@@ -407,6 +407,11 @@
         #endif
     #endif /* WOLFSSL_AESNI or WOLFSSL_ARMASM */
 
+    #ifdef WOLFSSL_RIOT_OS
+        #define EXIT_TEST(ret) exit(ret)
+    #else
+        #define EXIT_TEST(ret) return ret
+    #endif
 
 	#ifdef __cplusplus
 	    }   /* extern "C" */
