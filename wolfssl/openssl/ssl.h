@@ -652,8 +652,6 @@ typedef WOLFSSL_ASN1_BIT_STRING    ASN1_BIT_STRING;
 #define SSL_CTX_get_verify_callback      wolfSSL_CTX_get_verify_callback
 #define SSL_CTX_set_tlsext_servername_callback wolfSSL_CTX_set_servername_callback
 #define SSL_CTX_set_tlsext_servername_arg      wolfSSL_CTX_set_servername_arg
-#define SSL_CTX_get_default_passwd_cb          wolfSSL_SSL_CTX_get_default_passwd_cb
-#define SSL_CTX_get_default_passwd_cb_userdata wolfSSL_SSL_CTX_get_default_passwd_cb_userdata
 
 #define PSK_MAX_PSK_LEN                      256
 #define PSK_MAX_IDENTITY_LEN                 128
@@ -662,6 +660,8 @@ typedef WOLFSSL_ASN1_BIT_STRING    ASN1_BIT_STRING;
 
 
 #endif /* HAVE_STUNNEL */
+#define SSL_CTX_get_default_passwd_cb          wolfSSL_CTX_get_default_passwd_cb
+#define SSL_CTX_get_default_passwd_cb_userdata wolfSSL_CTX_get_default_passwd_cb_userdata
 
 /* certificate extension NIDs */
 #define NID_basic_constraints         133

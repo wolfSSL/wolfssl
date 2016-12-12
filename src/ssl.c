@@ -12102,14 +12102,14 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
         return 0;
     }
 
-    WOLFSSL_API pem_password_cb wolfSSL_CTX_get_default_passwd_cb(
+    WOLFSSL_API pem_password_cb* wolfSSL_CTX_get_default_passwd_cb(
                                                                WOLFSSL_CTX *ctx)
     {
-        if (ctx == NULL) {
+        if (ctx == NULL || ctx->passwd_cb == NULL) {
             return NULL;
         }
 
-        return ctx->passwd_cb;
+        return &(ctx->passwd_cb);
     }
 
 

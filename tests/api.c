@@ -2623,6 +2623,9 @@ static void test_wolfSSL_CTX_add_extra_chain_cert(void)
     AssertNotNull(x509);
     AssertIntEQ((int)SSL_CTX_add_extra_chain_cert(ctx, x509), SSL_SUCCESS);
 
+    AssertNull(SSL_CTX_get_default_passwd_cb(ctx));
+    AssertNull(SSL_CTX_get_default_passwd_cb_userdata(ctx));
+
     SSL_CTX_free(ctx);
     printf(resultFmt, passed);
     #endif /* defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && \
