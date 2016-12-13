@@ -30,7 +30,7 @@ except ImportError:
 
 from wolfssl.utils import t2b
 
-from wolfssl._exceptions import (
+from wolfssl.exceptions import (
     CertificateError, SSLError, SSLEOFError, SSLSyscallError,
     SSLWantReadError, SSLWantWriteError, SSLZeroReturnError
 )

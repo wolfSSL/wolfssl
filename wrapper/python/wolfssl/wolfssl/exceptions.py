@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# _exceptions.py
+# exceptions.py
 #
 # Copyright (C) 2006-2016 wolfSSL Inc.
 #
