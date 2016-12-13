@@ -1052,19 +1052,19 @@ int wc_PKCS7_VerifySignedData(PKCS7* pkcs7, byte* pkiMsg, word32 pkiMsgSz)
 /* KARI == KeyAgreeRecipientInfo (key agreement) */
 typedef struct WC_PKCS7_KARI {
     DecodedCert* decoded;          /* decoded recip cert */
+    void*    heap;                 /* user heap, points to PKCS7->heap */
     ecc_key* recipKey;             /* recip key  (pub | priv) */
     ecc_key* senderKey;            /* sender key (pub | priv) */
     byte*    senderKeyExport;      /* sender ephemeral key DER */
-    word32   senderKeyExportSz;    /* size of sender ephemeral key DER */
     byte*    kek;                  /* key encryption key */
-    word32   kekSz;                /* size of key encryption key */
     byte*    ukm;                  /* OPTIONAL user keying material */
-    word32   ukmSz;                /* size of user keying material */
-    byte     ukmOwner;             /* do we own ukm buffer? 1:yes, 0:no */
     byte*    sharedInfo;           /* ECC-CMS-SharedInfo ASN.1 encoded blob */
+    word32   senderKeyExportSz;    /* size of sender ephemeral key DER */
+    word32   kekSz;                /* size of key encryption key */
+    word32   ukmSz;                /* size of user keying material */
     word32   sharedInfoSz;         /* size of ECC-CMS-SharedInfo encoded */
+    byte     ukmOwner;             /* do we own ukm buffer? 1:yes, 0:no */
     byte     direction;            /* WC_PKCS7_ENCODE | WC_PKCS7_DECODE */
-    void*    heap;                 /* user heap, points to PKCS7->heap */
 } WC_PKCS7_KARI;
 
 
@@ -2468,7 +2468,7 @@ static int wc_PKCS7_DecodeKtri(PKCS7* pkcs7, byte* pkiMsg, word32 pkiMsgSz,
     word32 encOID;
     word32 keyIdx;
     byte   issuerHash[SHA_DIGEST_SIZE];
-    byte*  outKey;
+    byte*  outKey = NULL;
 
 #ifdef WC_RSA_BLINDING
     WC_RNG rng;
@@ -2605,7 +2605,7 @@ static int wc_PKCS7_DecodeKtri(PKCS7* pkcs7, byte* pkiMsg, word32 pkiMsgSz,
     XFREE(privKey, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
 
-    if (keySz <= 0) {
+    if (keySz <= 0 || outKey == NULL) {
         ForceZero(encryptedKey, MAX_ENCRYPTED_KEY_SZ);
         return keySz;
     } else {

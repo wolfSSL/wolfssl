@@ -9052,6 +9052,15 @@ int compress_test(void)
 
 #ifdef HAVE_PKCS7
 
+/* External Debugging/Testing Note:
+ *
+ * PKCS#7 test functions can output generated PKCS#7/CMS bundles for
+ * additional testing. To dump bundles to files DER encoded files, please
+ * define:
+ *
+ * #define PKCS7_OUTPUT_TEST_BUNDLES
+ */
+
 typedef struct {
     const byte*  content;
     word32       contentSz;
@@ -9080,7 +9089,9 @@ static int pkcs7enveloped_run_vectors(byte* rsaCert, word32 rsaCertSz,
     byte   enveloped[2048];
     byte   decoded[2048];
     PKCS7  pkcs7;
+#ifdef PKCS7_OUTPUT_TEST_BUNDLES
     FILE*  pkcs7File;
+#endif
 
     const byte data[] = { /* Hello World */
         0x48,0x65,0x6c,0x6c,0x6f,0x20,0x57,0x6f,
@@ -9179,6 +9190,7 @@ static int pkcs7enveloped_run_vectors(byte* rsaCert, word32 rsaCertSz,
         if (XMEMCMP(decoded, data, sizeof(data)) != 0)
             return -212;
 
+#ifdef PKCS7_OUTPUT_TEST_BUNDLES
         /* output pkcs7 envelopedData for external testing */
         pkcs7File = fopen(testVectors[i].outFileName, "wb");
         if (!pkcs7File)
@@ -9186,6 +9198,7 @@ static int pkcs7enveloped_run_vectors(byte* rsaCert, word32 rsaCertSz,
 
         ret = (int)fwrite(enveloped, envelopedSz, 1, pkcs7File);
         fclose(pkcs7File);
+#endif /* PKCS7_OUTPUT_TEST_BUNDLES */
 
         wc_PKCS7_Free(&pkcs7);
     }
@@ -9294,10 +9307,10 @@ int pkcs7enveloped_test(void)
     fclose(keyFile);
 #endif /* HAVE_ECC */
 
-    ret = pkcs7enveloped_run_vectors(rsaCert, rsaCertSz,
-                                     rsaPrivKey, rsaPrivKeySz,
-                                     eccCert, eccCertSz,
-                                     eccPrivKey, eccPrivKeySz);
+    ret = pkcs7enveloped_run_vectors(rsaCert, (word32)rsaCertSz,
+                                     rsaPrivKey, (word32)rsaPrivKeySz,
+                                     eccCert, (word32)eccCertSz,
+                                     eccPrivKey, (word32)eccPrivKeySz);
     if (ret != 0) {
         XFREE(rsaCert,    HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
         XFREE(rsaPrivKey, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
@@ -9330,12 +9343,15 @@ typedef struct {
 
 int pkcs7encrypted_test(void)
 {
-    int ret, i, testSz;
+    int ret = 0;
+    int i, testSz;
     int encryptedSz, decodedSz, attribIdx;
     PKCS7 pkcs7;
     byte  encrypted[2048];
     byte  decoded[2048];
+#ifdef PKCS7_OUTPUT_TEST_BUNDLES
     FILE* pkcs7File;
+#endif
 
     PKCS7Attrib* expectedAttrib;
     PKCS7DecodedAttrib* decodedAttrib;
@@ -9488,6 +9504,7 @@ int pkcs7encrypted_test(void)
             }
         }
 
+#ifdef PKCS7_OUTPUT_TEST_BUNDLES
         /* output pkcs7 envelopedData for external testing */
         pkcs7File = fopen(testVectors[i].outFileName, "wb");
         if (!pkcs7File)
@@ -9495,6 +9512,7 @@ int pkcs7encrypted_test(void)
 
         ret = (int)fwrite(encrypted, encryptedSz, 1, pkcs7File);
         fclose(pkcs7File);
+#endif
 
         wc_PKCS7_Free(&pkcs7);
     }
@@ -9646,6 +9664,7 @@ int pkcs7signed_test(void)
     else
         outSz = ret;
 
+#ifdef PKCS7_OUTPUT_TEST_BUNDLES
     /* write PKCS#7 to output file for more testing */
     file = fopen("./pkcs7signedData.der", "wb");
     if (!file) {
@@ -9664,6 +9683,7 @@ int pkcs7signed_test(void)
         wc_PKCS7_Free(&msg);
         return -218;
     }
+#endif /* PKCS7_OUTPUT_TEST_BUNDLES */
 
     wc_PKCS7_Free(&msg);
     wc_PKCS7_InitWithCert(&msg, NULL, 0);
@@ -9685,6 +9705,7 @@ int pkcs7signed_test(void)
         return -215;
     }
 
+#ifdef PKCS7_OUTPUT_TEST_BUNDLES
     file = fopen("./pkcs7cert.der", "wb");
     if (!file) {
         XFREE(certDer, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
@@ -9695,6 +9716,7 @@ int pkcs7signed_test(void)
     }
     ret = (int)fwrite(msg.singleCert, 1, msg.singleCertSz, file);
     fclose(file);
+#endif /* PKCS7_OUTPUT_TEST_BUNDLES */
 
     XFREE(certDer, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(keyDer, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
