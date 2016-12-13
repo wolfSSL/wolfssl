@@ -78,5 +78,5 @@ class WolfSSLMethod(object):
 
 
     def __del__(self):
-        if self.native_object is not None:
+        if getattr(self, 'native_object', _ffi.NULL) != _ffi.NULL:
             _native_free(self.native_object, _DYNAMIC_TYPE_METHOD)

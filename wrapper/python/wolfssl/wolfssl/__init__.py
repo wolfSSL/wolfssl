@@ -74,7 +74,7 @@ class SSLContext(object):
         # wolfSSL_CTX_new() takes ownership of the method.
         # the method is freed later inside wolfSSL_CTX_free()
         # or if wolfSSL_CTX_new() failed to allocate the context object.
-        method.native_object = None
+        method.native_object = _ffi.NULL
 
         if self.native_object == _ffi.NULL:
             raise MemoryError("Unnable to allocate context object")
@@ -84,7 +84,7 @@ class SSLContext(object):
 
 
     def __del__(self):
-        if self.native_object is not None:
+        if getattr(self, 'native_object', _ffi.NULL) != _ffi.NULL:
             _lib.wolfSSL_CTX_free(self.native_object)
 
 
@@ -315,7 +315,7 @@ class SSLSocket(socket):
 
 
     def _release_native_object(self):
-        if self.native_object != _ffi.NULL:
+        if getattr(self, 'native_object', _ffi.NULL) != _ffi.NULL:
             _lib.wolfSSL_CTX_free(self.native_object)
             self.native_object = _ffi.NULL
 
