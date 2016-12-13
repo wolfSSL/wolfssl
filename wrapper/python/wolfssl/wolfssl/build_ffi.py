@@ -60,6 +60,8 @@ ffi.cdef(
     int  wolfSSL_CTX_load_verify_locations(void*, const char*, const char*);
     int  wolfSSL_CTX_load_verify_buffer(void*, const unsigned char*, long, int);
     int  wolfSSL_CTX_use_certificate_chain_file(void*, const char *);
+    int  wolfSSL_CTX_UseSupportedCurve(void*, short);
+
 
     void* wolfSSL_new(void*);
     void  wolfSSL_free(void*);

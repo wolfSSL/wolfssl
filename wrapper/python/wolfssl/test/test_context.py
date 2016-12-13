@@ -136,7 +136,7 @@ class TestSSLContext(unittest.TestCase):
         self.assertEqual(self.ctx.verify_mode, self.provider.CERT_REQUIRED)
 
     def test_set_ciphers(self):
-        self.ctx.set_ciphers("DHE-RSA-AES256-SHA256:AES256-SHA256")
+        self.ctx.set_ciphers("DHE-RSA-AES256-SHA256")
 
     def test_load_cert_chain_raises(self):
         self.assertRaises(TypeError, self.ctx.load_cert_chain, None)

@@ -25,7 +25,7 @@
 import unittest
 import socket
 import ssl
-# import wolfssl
+import wolfssl
 
 class SSLClientTest(unittest.TestCase):
     ssl_provider = ssl
@@ -37,14 +37,14 @@ class SSLClientTest(unittest.TestCase):
 
     def test_wrap_socket(self):
         secure_sock = self.ssl_provider.wrap_socket(
-            self.sock, ssl_version=ssl.PROTOCOL_SSLv23)
+            self.sock, ssl_version=self.ssl_provider.PROTOCOL_SSLv23)
         secure_sock.connect((self.host, self.port))
 
-        secure_sock.send(b"GET / HTTP/1.1\n\n")
-        self.assertEqual(b"HTTP", secure_sock.recv(4))
+        secure_sock.write(b"GET / HTTP/1.1\n\n")
+        self.assertEqual(b"HTTP", secure_sock.read(4))
 
         secure_sock.close()
 
 
-#class TestWolfSSL(SSLClientTest):
-#    ssl_provider = wolfssl
+class TestWolfSSL(SSLClientTest):
+    ssl_provider = wolfssl

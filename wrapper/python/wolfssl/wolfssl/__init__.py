@@ -19,8 +19,11 @@
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
+import sys
 import errno
-from socket import socket, AF_INET, SOCK_STREAM, SOL_SOCKET, SO_TYPE
+from socket import (
+    socket, AF_INET, SOCK_STREAM, SOL_SOCKET, SO_TYPE, error as socket_error
+)
 
 try:
     from wolfssl._ffi import ffi as _ffi
@@ -57,6 +60,32 @@ _SSL_SUCCESS = 1
 _SSL_FILETYPE_PEM = 1
 _SSL_ERROR_WANT_READ = 2
 
+_WOLFSSL_ECC_SECP160K1 = 15
+_WOLFSSL_ECC_SECP160R1 = 16
+_WOLFSSL_ECC_SECP160R2 = 17
+_WOLFSSL_ECC_SECP192K1 = 18
+_WOLFSSL_ECC_SECP192R1 = 19
+_WOLFSSL_ECC_SECP224K1 = 20
+_WOLFSSL_ECC_SECP224R1 = 21
+_WOLFSSL_ECC_SECP256K1 = 22
+_WOLFSSL_ECC_SECP256R1 = 23
+_WOLFSSL_ECC_SECP384R1 = 24
+_WOLFSSL_ECC_SECP521R1 = 25
+_WOLFSSL_ECC_BRAINPOOLP256R1 = 26
+_WOLFSSL_ECC_BRAINPOOLP384R1 = 27
+_WOLFSSL_ECC_BRAINPOOLP512R1 = 28
+
+_SUPPORTED_CURVES = [
+    _WOLFSSL_ECC_SECP160K1, _WOLFSSL_ECC_SECP160R1, _WOLFSSL_ECC_SECP160R2,
+    _WOLFSSL_ECC_SECP192K1, _WOLFSSL_ECC_SECP192R1, _WOLFSSL_ECC_SECP224K1,
+    _WOLFSSL_ECC_SECP224R1, _WOLFSSL_ECC_SECP256K1, _WOLFSSL_ECC_SECP256R1,
+    _WOLFSSL_ECC_SECP384R1, _WOLFSSL_ECC_SECP521R1,
+    _WOLFSSL_ECC_BRAINPOOLP256R1, _WOLFSSL_ECC_BRAINPOOLP384R1,
+    _WOLFSSL_ECC_BRAINPOOLP512R1
+]
+
+_PY3 = sys.version_info[0] == 3
+
 class SSLContext(object):
     """
     An SSLContext holds various SSL-related configuration options and
@@ -81,6 +110,13 @@ class SSLContext(object):
 
         # verify_mode initialization needs a valid native_object.
         self.verify_mode = CERT_NONE
+
+        if not server_side:
+            for curve in _SUPPORTED_CURVES:
+                ret = _lib.wolfSSL_CTX_UseSupportedCurve(self.native_object,
+                                                         curve)
+                if ret != _SSL_SUCCESS:
+                    raise SSLError("unnable to set curve (%d)" % curve)
 
 
     def __del__(self):
@@ -262,13 +298,19 @@ class SSLSocket(socket):
             if sock.getsockopt(SOL_SOCKET, SO_TYPE) != SOCK_STREAM:
                 raise NotImplementedError("only stream sockets are supported")
 
-            socket.__init__(self,
-                            family=sock.family,
-                            type=sock.type,
-                            proto=sock.proto,
-                            fileno=sock.fileno())
+            if _PY3:
+                socket.__init__(self,
+                                family=sock.family,
+                                type=sock.type,
+                                proto=sock.proto,
+                                fileno=sock.fileno())
+            else:
+                socket.__init__(self, _sock=sock._sock)
+
             self.settimeout(sock.gettimeout())
-            sock.detach()
+
+            if _PY3:
+                sock.detach()
 
         elif fileno is not None:
             socket.__init__(self, fileno=fileno)
@@ -280,7 +322,7 @@ class SSLSocket(socket):
         # see if we are connected
         try:
             self.getpeername()
-        except OSError as exception:
+        except socket_error as exception:
             if exception.errno != errno.ENOTCONN:
                 raise
             connected = False
