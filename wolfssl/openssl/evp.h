@@ -284,10 +284,20 @@ WOLFSSL_API unsigned long WOLFSSL_EVP_CIPHER_mode(const WOLFSSL_EVP_CIPHER *ciph
 WOLFSSL_API unsigned long WOLFSSL_CIPHER_mode(const WOLFSSL_EVP_CIPHER *cipher);
 WOLFSSL_API unsigned long wolfSSL_EVP_CIPHER_flags(const WOLFSSL_EVP_CIPHER *cipher);
 WOLFSSL_API void wolfSSL_EVP_CIPHER_CTX_set_flags(WOLFSSL_EVP_CIPHER_CTX *ctx, int flags);
+WOLFSSL_API unsigned long wolfSSL_EVP_CIPHER_CTX_mode(const WOLFSSL_EVP_CIPHER_CTX *ctx);
 WOLFSSL_API int  wolfSSL_EVP_CIPHER_CTX_set_padding(WOLFSSL_EVP_CIPHER_CTX *c, int pad);
 WOLFSSL_API int  wolfSSL_EVP_add_digest(const WOLFSSL_EVP_MD *digest);
 
-#define WOLFSSL_EVP_CIPH_MODE           0xF0007
+#define EVP_CIPH_STREAM_CIPHER WOLFSSL_EVP_CIPH_STREAM_CIPHER
+#define EVP_CIPH_ECB_MODE WOLFSSL_EVP_CIPH_ECB_MODE
+#define EVP_CIPH_CBC_MODE WOLFSSL_EVP_CIPH_CBC_MODE
+#define EVP_CIPH_CFB_MODE WOLFSSL_EVP_CIPH_CFB_MODE
+#define EVP_CIPH_OFB_MODE WOLFSSL_EVP_CIPH_OFB_MODE
+#define EVP_CIPH_CTR_MODE WOLFSSL_EVP_CIPH_CTR_MODE
+#define EVP_CIPH_GCM_MODE WOLFSSL_EVP_CIPH_GCM_MODE
+#define EVP_CIPH_CCM_MODE WOLFSSL_EVP_CIPH_CCM_MODE
+
+#define WOLFSSL_EVP_CIPH_MODE           0x0007
 #define WOLFSSL_EVP_CIPH_STREAM_CIPHER      0x0
 #define WOLFSSL_EVP_CIPH_ECB_MODE           0x1
 #define WOLFSSL_EVP_CIPH_CBC_MODE           0x2
@@ -297,8 +307,6 @@ WOLFSSL_API int  wolfSSL_EVP_add_digest(const WOLFSSL_EVP_MD *digest);
 #define WOLFSSL_EVP_CIPH_GCM_MODE           0x6
 #define WOLFSSL_EVP_CIPH_CCM_MODE           0x7
 #define WOLFSSL_EVP_CIPH_NO_PADDING       0x100
-
-#define wolfSSL_EVP_CIPHER_CTX_flags(c) wolfSSL_EVP_CIPHER_flags(WOLFSSL_EVP_CIPHER_CTX_cipher(c))
 
 /* end OpenSSH compat */
 
@@ -360,6 +368,8 @@ typedef WOLFSSL_EVP_CIPHER_CTX EVP_CIPHER_CTX;
 #define EVP_CIPHER_CTX_iv_length      wolfSSL_EVP_CIPHER_CTX_iv_length
 #define EVP_CIPHER_CTX_key_length     wolfSSL_EVP_CIPHER_CTX_key_length
 #define EVP_CIPHER_CTX_set_key_length wolfSSL_EVP_CIPHER_CTX_set_key_length
+#define EVP_CIPHER_CTX_mode           wolfSSL_EVP_CIPHER_CTX_mode
+
 #define EVP_CipherInit                wolfSSL_EVP_CipherInit
 #define EVP_CipherInit_ex             wolfSSL_EVP_CipherInit_ex
 #define EVP_EncryptInit               wolfSSL_EVP_EncryptInit
