@@ -936,6 +936,8 @@ static char *fgets(char *buff, int sz, FILE *fp)
     #define NO_WOLFSSL_DIR
     #undef  NO_RABBIT
     #define NO_RABBIT
+    #undef  NO_64BIT
+    #define NO_64BIT
     #define STM32F2_RNG
     #define STM32F2_CRYPTO
     #if !defined(__GNUC__) && !defined(__ICCARM__)
@@ -960,6 +962,8 @@ static char *fgets(char *buff, int sz, FILE *fp)
     #define NO_WOLFSSL_DIR
     #undef  NO_RABBIT
     #define NO_RABBIT
+    #undef  NO_64BIT
+    #define NO_64BIT
     #define STM32F4_RNG
     #define STM32F4_CRYPTO
     #define NO_OLD_RNGNAME
