@@ -264,7 +264,7 @@ class SSLSocket(socket):
 
             socket.__init__(self,
                             family=sock.family,
-                            sock_type=sock.type,
+                            type=sock.type,
                             proto=sock.proto,
                             fileno=sock.fileno())
             self.settimeout(sock.gettimeout())
@@ -274,7 +274,7 @@ class SSLSocket(socket):
             socket.__init__(self, fileno=fileno)
 
         else:
-            socket.__init__(self, family=family, sock_type=sock_type,
+            socket.__init__(self, family=family, type=sock_type,
                             proto=proto)
 
         # see if we are connected
@@ -306,7 +306,7 @@ class SSLSocket(socket):
                     self.do_handshake()
             except:
                 self._release_native_object()
-                self._socket.close()
+                self.close()
                 raise
 
 
@@ -412,7 +412,7 @@ class SSLSocket(socket):
                              "read() on %s" % self.__class__)
 
         data = t2b("\0" * length)
-        length = _lib.WolfSSL_read(self.native_object, data, length)
+        length = _lib.wolfSSL_read(self.native_object, data, length)
 
         if length < 0:
             err = _lib.wolfSSL_get_error(self.native_object, 0)
@@ -506,10 +506,10 @@ class SSLSocket(socket):
             raise ValueError("attempt to connect already-connected SSLSocket!")
 
         if connect_ex:
-            err = self._socket.connect_ex(addr)
+            err = socket.connect_ex(self, addr)
         else:
             err = 0
-            self._socket.connect(addr)
+            socket.connect(self, addr)
 
         if err == 0:
             self._connected = True
