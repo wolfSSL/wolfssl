@@ -2600,19 +2600,23 @@ static int wc_PKCS7_DecodeKtri(PKCS7* pkcs7, byte* pkiMsg, word32 pkiMsgSz,
     }
     wc_FreeRsaKey(privKey);
 
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(encryptedKey, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    XFREE(privKey, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
-
     if (keySz <= 0 || outKey == NULL) {
         ForceZero(encryptedKey, MAX_ENCRYPTED_KEY_SZ);
+#ifdef WOLFSSL_SMALL_STACK
+        XFREE(encryptedKey, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(privKey, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
         return keySz;
     } else {
         *decryptedKeySz = keySz;
         XMEMCPY(decryptedKey, outKey, keySz);
         ForceZero(encryptedKey, MAX_ENCRYPTED_KEY_SZ);
     }
+
+#ifdef WOLFSSL_SMALL_STACK
+    XFREE(encryptedKey, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(privKey, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
 
     return 0;
 }
