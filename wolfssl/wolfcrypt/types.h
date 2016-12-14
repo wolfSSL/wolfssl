@@ -132,18 +132,18 @@
 	#endif
 
 
-	/* set up rotate style */
-	#if defined(_MSC_VER) || defined(__BCPLUSPLUS__)
-	    #define INTEL_INTRINSICS
-	    #define FAST_ROTATE
-	#elif defined(__MWERKS__) && TARGET_CPU_PPC
-	    #define PPC_INTRINSICS
-	    #define FAST_ROTATE
-	#elif defined(__GNUC__) && defined(__i386__)
-	        /* GCC does peephole optimizations which should result in using rotate
-	           instructions  */
-	    #define FAST_ROTATE
-	#endif
+    /* set up rotate style */
+    #if (defined(_MSC_VER) || defined(__BCPLUSPLUS__)) && !defined(WOLFSSL_SGX)
+        #define INTEL_INTRINSICS
+        #define FAST_ROTATE
+    #elif defined(__MWERKS__) && TARGET_CPU_PPC
+        #define PPC_INTRINSICS
+        #define FAST_ROTATE
+    #elif defined(__GNUC__) && defined(__i386__)
+        /* GCC does peephole optimizations which should result in using rotate
+           instructions  */
+        #define FAST_ROTATE
+    #endif
 
 
 	/* set up thread local storage if available */

@@ -1226,6 +1226,20 @@ static char *fgets(char *buff, int sz, FILE *fp)
     #endif
 #endif
 
+#ifdef WOLFSSL_SGX
+    #define WOLFCRYPT_ONLY   /* limitation until IO resolved */
+    #define SINGLE_THREADED
+    #define NO_ASN_TIME /* can not use headers such as windows.h */
+
+    /* options used in created example */
+    #define HAVE_AESGCM
+    #define USE_CERT_BUFFERS_2048
+    #define USE_FAST_MATH
+    #define NO_RC4
+    #define NO_DES3
+    #define NO_SHA
+    #define NO_MD5
+#endif /* WOLFSSL_SGX */
 
 /* FreeScale MMCAU hardware crypto has 4 byte alignment.
    However, fsl_mmcau.h gives API with no alignment requirements (4 byte alignment is managed internally by fsl_mmcau.c) */

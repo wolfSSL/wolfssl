@@ -135,7 +135,9 @@ int wc_FreeRng(WC_RNG* rng)
     #endif
 #endif /* HAVE_HASHDRBG || NO_RC4 */
 
-#if defined(USE_WINDOWS_API)
+#if defined(WOLFSSL_SGX)
+#include <sgx_trts.h>
+#elif defined(USE_WINDOWS_API)
     #ifndef _WIN32_WINNT
         #define _WIN32_WINNT 0x0400
     #endif
@@ -1167,6 +1169,20 @@ static int wc_GenerateRand_IntelRD(OS_Seed* os, byte* output, word32 sz)
         return CUSTOM_RAND_GENERATE_SEED_OS(os, output, sz);
     }
 
+#elif defined(WOLFSSL_SGX)
+
+int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
+{
+	int ret = !SGX_SUCCESS;
+	int i, read_max = 10;
+
+	for (i = 0; i < read_max && ret != SGX_SUCCESS; i++) {
+		ret = sgx_read_rand(output, sz);
+	}
+
+	(void)os;
+	return (ret == SGX_SUCCESS) ? 0 : 1;
+}
 
 #elif defined(USE_WINDOWS_API)
 
