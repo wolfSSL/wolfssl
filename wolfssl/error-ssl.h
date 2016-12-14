@@ -151,6 +151,7 @@ enum wolfSSL_ErrorCodes {
     CTX_INIT_MUTEX_E             = -413,   /* initialize ctx mutex error */
     EXT_MASTER_SECRET_NEEDED_E   = -414,   /* need EMS enabled to resume */
     DTLS_POOL_SZ_E               = -415,   /* exceeded DTLS pool size */
+    DECODE_E                     = -416,   /* decode handshake message error */
     /* add strings to wolfSSL_ERR_reason_error_string in internal.c !!!!! */
 
     /* begin negotiation parameter errors */
