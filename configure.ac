@@ -2427,6 +2427,24 @@ fi
 AM_CONDITIONAL([BUILD_PWDBASED], [test "x$ENABLED_PWDBASED" = "xyes"])
 
 
+AC_ARG_ENABLE([scrypt],
+    [  --enable-scrypt         Enable SCRYPT (default: disabled)],
+    [ ENABLED_SCRYPT=$enableval ],
+    [ ENABLED_SCRYPT=no ]
+    )
+
+if test "$ENABLED_SCRYPT" = "yes"
+then
+    if test "$ENABLED_PWDBASED" = "no"
+    then
+        AC_MSG_ERROR([cannot enable scrypt without enabling pwdbased.])
+    fi
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_SCRYPT"
+fi
+
+AM_CONDITIONAL([BUILD_SCRYPT], [test "x$ENABLED_SCRYPT" = "xyes"])
+
+
 # wolfCrypt Only Build
 AC_ARG_ENABLE([cryptonly],
     [AS_HELP_STRING([--enable-cryptonly],[Enable wolfCrypt Only build (default: disabled)])],
@@ -3289,6 +3307,7 @@ echo "   * RABBIT:                     $ENABLED_RABBIT"
 echo "   * CHACHA:                     $ENABLED_CHACHA"
 echo "   * Hash DRBG:                  $ENABLED_HASHDRBG"
 echo "   * PWDBASED:                   $ENABLED_PWDBASED"
+echo "   * scrypt:                     $ENABLED_SCRYPT"
 echo "   * wolfCrypt Only:             $ENABLED_CRYPTONLY"
 echo "   * HKDF:                       $ENABLED_HKDF"
 echo "   * X9.63 KDF:                  $ENABLED_X963KDF"

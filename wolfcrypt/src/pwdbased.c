@@ -569,6 +569,243 @@ int wc_PKCS12_PBKDF_ex(byte* output, const byte* passwd, int passLen,
     return ret;
 }
 
+#ifdef HAVE_SCRYPT
+/* Rotate the 32-bit value a by b bits to the left.
+ *
+ * a  32-bit value.
+ * b  Number of bits to rotate.
+ * returns rotated value.
+ */
+#define R(a, b) rotlFixed(a, b)
+
+/* One round of Salsa20/8.
+ * Code taken from RFC 7914: scrypt PBKDF.
+ *
+ * out  Output buffer.
+ * in   Input data to hash.
+ */
+static void scryptSalsa(word32* out, word32* in)
+{
+    int    i;
+    word32 x[16];
+
+#ifdef LITTLE_ENDIAN_ORDER
+    for (i = 0; i < 16; ++i)
+        x[i] = in[i];
+#else
+    for (i = 0; i < 16; i++)
+        x[i] = ByteReverseWord32(in[i]);
+#endif
+    for (i = 8; i > 0; i -= 2) {
+        x[ 4] ^= R(x[ 0] + x[12],  7);  x[ 8] ^= R(x[ 4] + x[ 0],  9);
+        x[12] ^= R(x[ 8] + x[ 4], 13);  x[ 0] ^= R(x[12] + x[ 8], 18);
+        x[ 9] ^= R(x[ 5] + x[ 1],  7);  x[13] ^= R(x[ 9] + x[ 5],  9);
+        x[ 1] ^= R(x[13] + x[ 9], 13);  x[ 5] ^= R(x[ 1] + x[13], 18);
+        x[14] ^= R(x[10] + x[ 6],  7);  x[ 2] ^= R(x[14] + x[10],  9);
+        x[ 6] ^= R(x[ 2] + x[14], 13);  x[10] ^= R(x[ 6] + x[ 2], 18);
+        x[ 3] ^= R(x[15] + x[11],  7);  x[ 7] ^= R(x[ 3] + x[15],  9);
+        x[11] ^= R(x[ 7] + x[ 3], 13);  x[15] ^= R(x[11] + x[ 7], 18);
+        x[ 1] ^= R(x[ 0] + x[ 3],  7);  x[ 2] ^= R(x[ 1] + x[ 0],  9);
+        x[ 3] ^= R(x[ 2] + x[ 1], 13);  x[ 0] ^= R(x[ 3] + x[ 2], 18);
+        x[ 6] ^= R(x[ 5] + x[ 4],  7);  x[ 7] ^= R(x[ 6] + x[ 5],  9);
+        x[ 4] ^= R(x[ 7] + x[ 6], 13);  x[ 5] ^= R(x[ 4] + x[ 7], 18);
+        x[11] ^= R(x[10] + x[ 9],  7);  x[ 8] ^= R(x[11] + x[10],  9);
+        x[ 9] ^= R(x[ 8] + x[11], 13);  x[10] ^= R(x[ 9] + x[ 8], 18);
+        x[12] ^= R(x[15] + x[14],  7);  x[13] ^= R(x[12] + x[15],  9);
+        x[14] ^= R(x[13] + x[12], 13);  x[15] ^= R(x[14] + x[13], 18);
+    }
+#ifdef LITTLE_ENDIAN_ORDER
+    for (i = 0; i < 16; ++i)
+        out[i] = in[i] + x[i];
+#else
+    for (i = 0; i < 16; i++)
+        out[i] = ByteReverseWord32(in[i] + x[i]);
+#endif
+}
+
+/* Mix a block using Salsa20/8.
+ * Based on RFC 7914: scrypt PBKDF.
+ *
+ * b  Blocks to mix.
+ * y  Temporary storage.
+ * r  Size of the block.
+ */
+static void scryptBlockMix(byte* b, byte* y, int r)
+{
+    byte x[64];
+#ifdef WORD64_AVAILABLE
+    word64* b64 = (word64*)b;
+    word64* y64 = (word64*)y;
+    word64* x64 = (word64*)x;
+#else
+    word32* b32 = (word32*)b;
+    word32* y32 = (word32*)y;
+    word32* x32 = (word32*)x;
+#endif
+    int  i;
+    int  j;
+
+    /* Step 1. */
+    XMEMCPY(x, b + (2 * r - 1) * 64, sizeof(x));
+    /* Step 2. */
+    for (i = 0; i < 2 * r; i++)
+    {
+#ifdef WORD64_AVAILABLE
+        for (j = 0; j < 8; j++)
+            x64[j] ^= b64[i * 8 + j];
+#else
+        for (j = 0; j < 16; j++)
+            x32[j] ^= b32[i * 16 + j];
+#endif
+        scryptSalsa((word32*)x, (word32*)x);
+        XMEMCPY(y + i * 64, x, sizeof(x));
+    }
+    /* Step 3. */
+    for (i = 0; i < r; i++) {
+#ifdef WORD64_AVAILABLE
+        for (j = 0; j < 8; j++) {
+            b64[i * 8 + j] = y64[2 * i * 8 + j];
+            b64[(r + i) * 8 + j] = y64[(2 * i + 1) * 8 + j];
+        }
+#else
+        for (j = 0; j < 16; j++) {
+            b32[i * 16 + j] = y32[2 * i * 16 + j];
+            b32[(r + i) * 16 + j] = y32[(2 * i + 1) * 16 + j];
+        }
+#endif
+    }
+}
+
+/* Random oracles mix.
+ * Based on RFC 7914: scrypt PBKDF.
+ *
+ * x  Data to mix.
+ * v  Temporary buffer.
+ * y  Temporary buffer for the block mix.
+ * r  Block size parameter.
+ * n  CPU/Memory cost parameter.
+ */
+static void scryptROMix(byte* x, byte* v, byte* y, int r, word32 n)
+{
+    word32 i;
+    word32 j;
+    word32 k;
+    word32 bSz = 128 * r;
+#ifdef WORD64_AVAILABLE
+    word64* x64 = (word64*)x;
+    word64* v64 = (word64*)v;
+#else
+    word32* x32 = (word32*)x;
+    word32* v32 = (word32*)v;
+#endif
+
+    /* Step 1. X = B (B not needed therefore not implemented) */
+    /* Step 2. */
+    for (i = 0; i < n; i++)
+    {
+        XMEMCPY(v + i * bSz, x, bSz);
+        scryptBlockMix(x, y, r);
+    }
+
+    /* Step 3. */
+    for (i = 0; i < n; i++)
+    {
+#ifdef LITTLE_ENDIAN_ORDER
+#ifdef WORD64_AVAILABLE
+        j = *(word64*)(x + (2*r - 1) * 64) & (n-1);
+#else
+        j = *(word32*)(x + (2*r - 1) * 64) & (n-1);
+#endif
+#else
+        byte* t = x + (2*r - 1) * 64;
+        j = (t[0] | (t[1] << 8) | (t[2] << 16) | (t[3] << 24)) & (n-1);
+#endif
+#ifdef WORD64_AVAILABLE
+        for (k = 0; k < bSz / 8; k++)
+            x64[k] ^= v64[j * bSz / 8 + k];
+#else
+        for (k = 0; k < bSz / 4; k++)
+            x32[k] ^= v32[j * bSz / 4 + k];
+#endif
+        scryptBlockMix(x, y, r);
+    }
+    /* Step 4. B' = X (B = X = B' so not needed, therefore not implemented) */
+}
+
+/* Generates an key derived from a password and salt using a memory hard
+ * algorithm.
+ * Implements RFC 7914: scrypt PBKDF.
+ *
+ * output     The derived key.
+ * passwd     The password to derive key from.
+ * passLen    The length of the password.
+ * salt       The key specific data.
+ * saltLen    The length of the salt data.
+ * cost       The CPU/memory cost parameter. Range: 1..(128*r/8-1)
+ *            (Iterations = 2^cost)
+ * blockSize  The number of 128 byte octets in a working block.
+ * parallel   The number of parallel mix operations to perform.
+ *            (Note: this implementation does not use threads.)
+ * dkLen      The length of the derived key in bytes.
+ * returns BAD_FUNC_ARG when: parallel not 1, blockSize is too large for cost.
+ */
+int wc_scrypt(byte* output, const byte* passwd, int passLen,
+              const byte* salt, int saltLen, int cost, int blockSize,
+              int parallel, int dkLen)
+{
+    int    ret = 0;
+    int    i;
+    byte*  v = NULL;
+    byte*  y = NULL;
+    byte*  blocks = NULL;
+    word32 blocksSz;
+    word32 bSz;
+
+    if (blockSize > 8)
+        return BAD_FUNC_ARG;
+
+    if (cost < 1 || cost >= 128 * blockSize / 8)
+        return BAD_FUNC_ARG;
+
+    bSz = 128 * blockSize;
+    blocksSz = bSz * parallel;
+    blocks = XMALLOC(blocksSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (blocks == NULL)
+        goto end;
+    /* Temporary for scryptROMix. */
+    v = XMALLOC((1 << cost) * bSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (v == NULL)
+        goto end;
+    /* Temporary for scryptBlockMix. */
+    y = XMALLOC(blockSize * 128, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (y == NULL)
+        goto end;
+
+    /* Step 1. */
+    ret = wc_PBKDF2(blocks, passwd, passLen, salt, saltLen, 1, blocksSz,
+                    SHA256);
+    if (ret != 0)
+        goto end;
+
+    /* Step 2. */
+    for (i = 0; i < parallel; i++)
+        scryptROMix(blocks + i * bSz, v, y, blockSize, 1 << cost);
+
+    /* Step 3. */
+    ret = wc_PBKDF2(output, passwd, passLen, blocks, blocksSz, 1, dkLen,
+                    SHA256);
+end:
+    if (blocks != NULL)
+        XFREE(blocks, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (v != NULL)
+        XFREE(v, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (y != NULL)
+        XFREE(y, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
+    return ret;
+}
+#endif
+
 #undef PBKDF_DIGEST_SIZE
 
 #endif /* NO_PWDBASED */
