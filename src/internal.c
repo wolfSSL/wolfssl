@@ -10611,7 +10611,8 @@ int SendCertificateRequest(WOLFSSL* ssl)
     /* write to output */
     output[i++] = (byte)typeTotal;  /* # of types */
 #ifdef HAVE_ECC
-    if (ssl->options.cipherSuite0 == ECC_BYTE &&
+    if ((ssl->options.cipherSuite0 == ECC_BYTE ||
+         ssl->options.cipherSuite0 == CHACHA_BYTE) &&
                      ssl->specs.sig_algo == ecc_dsa_sa_algo) {
         output[i++] = ecdsa_sign;
     } else
