@@ -4281,6 +4281,23 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
 #ifdef HAVE_SESSION_TICKET
     ssl->session.ticket = ssl->session.staticTicket;
 #endif
+
+#ifdef WOLFSSL_MULTICAST
+    if (ctx->haveMcast) {
+        ssl->options.haveMcast = 1;
+        ssl->options.mcastID = ctx->mcastID;
+
+        /* Force the state to look like handshake has completed. */
+        /* Keying material is supplied externally. */
+        ssl->options.serverState = SERVER_FINISHED_COMPLETE;
+        ssl->options.clientState = CLIENT_FINISHED_COMPLETE;
+        ssl->options.connectState = SECOND_REPLY_DONE;
+        ssl->options.acceptState = ACCEPT_THIRD_REPLY_DONE;
+        ssl->options.handShakeState = HANDSHAKE_DONE;
+        ssl->options.handShakeDone = 1;
+    }
+#endif
+
     return 0;
 }
 
@@ -7058,6 +7075,10 @@ static int BuildFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
         case TLS_DH_anon_WITH_AES_128_CBC_SHA :
             if (requirement == REQUIRES_DHE)
                 return 1;
+            break;
+#endif
+#ifdef WOLFSSL_MULTICAST
+        case WDM_WITH_NULL_SHA256 :
             break;
 #endif
 
