@@ -2175,6 +2175,7 @@ struct WOLFSSL_CTX {
     byte        noPskDheKe;       /* Don't use (EC)DHE with PSK */
 #endif
 #ifdef WOLFSSL_MULTICAST
+    byte        haveMcast;        /* multicast requested */
     byte        mcastID;          /* multicast group ID */
 #endif
 #if defined(WOLFSSL_SCTP) && defined(WOLFSSL_DTLS)
@@ -2715,6 +2716,7 @@ typedef struct Options {
     word16            saveArrays:1;       /* save array Memory for user get keys
                                            or psk */
     word16            weOwnRng:1;         /* will be true unless CTX owns */
+    word16            haveEMS:1;          /* using extended master secret */
 #ifdef HAVE_POLY1305
     word16            oldPoly:1;        /* set when to use old rfc way of poly*/
 #endif
@@ -2734,9 +2736,9 @@ typedef struct Options {
 #ifdef WOLFSSL_SCTP
     word16            dtlsSctp:1;         /* DTLS-over-SCTP mode */
 #endif
-#ifdef WOLFSSL_MULTICAST
-    word16            dtlsMcast:1;        /* using multicast ? */
 #endif
+#ifdef WOLFSSL_MULTICAST
+    word16            haveMcast:1;        /* using multicast ? */
 #endif
     word16            haveEMS:1;          /* using extended master secret */
 #if defined(HAVE_TLS_EXTENSIONS) && defined(HAVE_SUPPORTED_CURVES)
@@ -2758,6 +2760,9 @@ typedef struct Options {
     byte            acceptState;        /* nonblocking resume */
     byte            asyncState;         /* sub-state for enum asyncState */
     byte            buildMsgState;      /* sub-state for enum buildMsgState */
+#ifdef WOLFSSL_MULTICAST
+    byte            mcastID;            /* Multicast group ID */
+#endif
 #ifndef NO_DH
     word16          minDhKeySz;         /* minimum DH key size */
     word16          dhKeySz;            /* actual DH key size */

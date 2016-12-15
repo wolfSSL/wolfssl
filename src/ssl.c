@@ -849,8 +849,8 @@ int wolfSSL_CTX_mcast_set_member_id(WOLFSSL_CTX* ctx, byte id)
         ret = BAD_FUNC_ARG;
 
     if (ret == 0) {
-        /* check if side == MASTER. only work for client */
         ctx->haveEMS = 0;
+        ctx->haveMcast = 1;
         ctx->mcastID = id;
     }
 
@@ -892,6 +892,11 @@ int wolfSSL_set_secret(WOLFSSL* ssl, unsigned short epoch,
 
     if (ret == 0)
         ret = MakeTlsMasterSecret(ssl);
+
+    if (ret == 0) {
+        ssl->keys.encryptionOn = 1;
+        ret = SetKeysSide(ssl, ENCRYPT_AND_DECRYPT_SIDE);
+    }
 
     if (ret == 0)
         ret = SSL_SUCCESS;

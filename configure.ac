@@ -3480,6 +3480,12 @@ AS_IF([(test "x$ENABLED_DTLS" = "xno") && \
       [AM_CFLAGS="-DWOLFSSL_DTLS $AM_CFLAGS"
        ENABLED_DTLS=yes])
 
+# Multicast requires the null cipher
+AS_IF([test "x$ENABLED_NULL_CIPHER" = "xno" && \
+        test "x$ENABLED_MCAST" = "xyes"],
+      [AM_CFLAGS="-DHAVE_NULL_CIPHER $AM_CFLAGS"
+       ENABLED_NULL_CIPHER=yes])
+
 ################################################################################
 
 # OPTIMIZE FLAGS

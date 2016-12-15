@@ -632,7 +632,11 @@ static void Usage(void)
 #ifdef HAVE_CURVE25519
     printf("-t          Use X25519 for key exchange\n");
 #endif
+#ifdef WOLFSSL_MULTICAST
+    printf("-3 <grpid>  Multicast, grpid < 256\n");
+#endif
 }
+
 
 THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 {
@@ -673,6 +677,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     int    doDTLS    = 0;
     int    dtlsUDP   = 0;
     int    dtlsSCTP  = 0;
+    int    doMcast   = 0;
     int    matchName = 0;
     int    doPeerCheck = 1;
     int    nonBlocking = 0;
@@ -730,6 +735,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     int noPskDheKe = 0;
 #endif
     int updateKeysIVs = 0;
+    byte mcastID = 0;
 
 #ifdef HAVE_OCSP
     int    useOcsp  = 0;
@@ -771,6 +777,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     (void)alpnList;
     (void)alpn_opt;
     (void)updateKeysIVs;
+    (void)mcastID;
 
     StackTrap();
 
@@ -778,7 +785,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     /* Not used: t, Q */
     while ((ch = mygetopt(argc, argv, "?"
             "ab:c:defgh:ijk:l:mnop:q:rstuv:wxyz"
-            "A:B:CDE:F:GHIJKL:M:NO:PRS:TUVW:XYZ:")) != -1) {
+            "A:B:CDE:F:GHIJKL:M:NO:PRS:TUVW:XYZ:3:")) != -1) {
         switch (ch) {
             case '?' :
                 Usage();
@@ -1048,6 +1055,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
                 #endif
                 break;
 
+<<<<<<< HEAD
             case 'J' :
                 #ifdef WOLFSSL_TLS13
                     helloRetry = 1;
@@ -1085,6 +1093,13 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
             case 't' :
                 #ifdef HAVE_CURVE25519
                     useX25519 = 1;
+                #endif
+                break;
+
+            case '3' :
+                #ifdef WOLFSSL_MULTICAST
+                    doMcast = 1;
+                    mcastID = (byte)(atoi(myoptarg) & 0xFF);
                 #endif
                 break;
 
@@ -1506,6 +1521,13 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     if (noPskDheKe)
         wolfSSL_CTX_no_dhe_psk(ctx);
     #endif
+    if (doMcast) {
+#ifdef WOLFSSL_MULTICAST
+        wolfSSL_CTX_mcast_set_member_id(ctx, mcastID);
+        if (wolfSSL_CTX_set_cipher_list(ctx, "WDM-NULL-SHA256") != SSL_SUCCESS)
+            err_sys("Couldn't set multicast cipher list.");
+#endif
+    }
 
     ssl = wolfSSL_new(ctx);
     if (ssl == NULL) {
@@ -1547,6 +1569,23 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
         wolfSSL_NoKeyShares(ssl);
     }
     #endif
+
+    if (doMcast) {
+#ifdef WOLFSSL_MULTICAST
+        byte pms[512];
+        byte cr[32];
+        byte sr[32];
+        const byte suite[2] = {0, 0xfe};  /* WDM_WITH_NULL_SHA256 */
+
+        XMEMSET(pms, 0x23, sizeof(pms));
+        XMEMSET(cr, 0xA5, sizeof(cr));
+        XMEMSET(sr, 0x5A, sizeof(sr));
+
+        if (wolfSSL_set_secret(ssl, 1, pms, sizeof(pms), cr, sr, suite)
+                != SSL_SUCCESS)
+            err_sys("unable to set mcast secret");
+#endif
+    }
 
     #ifdef HAVE_SESSION_TICKET
     wolfSSL_set_SessionTicket_cb(ssl, sessionTicketCB, (void*)"initial session");
