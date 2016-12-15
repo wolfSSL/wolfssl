@@ -3011,6 +3011,16 @@ if test "x$ENABLED_PKCS7" = "xyes"
 then
     AM_CFLAGS="$AM_CFLAGS -DHAVE_PKCS7"
     # Enable prereqs if not already enabled
+    if test "x$ENABLED_AESKEYWRAP" = "xno"
+    then
+        ENABLED_AESKEYWRAP="yes"
+        AM_CFLAGS="$AM_CFLAGS -DHAVE_AES_KEYWRAP -DWOLFSSL_AES_DIRECT"
+    fi
+    if test "x$ENABLED_X963KDF" = "xno"
+    then
+        ENABLED_X963KDF="yes"
+        AM_CFLAGS="$AM_CFLAGS -DHAVE_X963_KDF"
+    fi
     AS_IF([test "x$ENABLED_DES3" = "xno"],
           [ENABLED_DES3=yes])
 fi

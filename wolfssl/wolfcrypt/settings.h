@@ -1464,6 +1464,15 @@ static char *fgets(char *buff, int sz, FILE *fp)
     #endif
 #endif
 
+#ifdef HAVE_PKCS7
+    #ifndef HAVE_AES_KEYWRAP
+        #error PKCS7 requires AES key wrap please define HAVE_AES_KEYWRAP
+    #endif
+    #ifndef HAVE_X963_KDF
+        #error PKCS7 requires X963 KDF please define HAVE_X963_KDF
+    #endif
+#endif
+
 
 /* Place any other flags or defines here */
 
