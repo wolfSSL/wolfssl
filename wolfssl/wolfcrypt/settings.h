@@ -936,9 +936,11 @@ static char *fgets(char *buff, int sz, FILE *fp)
     #define NO_WOLFSSL_DIR
     #undef  NO_RABBIT
     #define NO_RABBIT
+    #undef  NO_64BIT
+    #define NO_64BIT
     #define STM32F2_RNG
     #define STM32F2_CRYPTO
-    #ifndef __GNUC__
+    #if !defined(__GNUC__) && !defined(__ICCARM__)
         #define KEIL_INTRINSICS
     #endif
     #define NO_OLD_RNGNAME
@@ -960,10 +962,12 @@ static char *fgets(char *buff, int sz, FILE *fp)
     #define NO_WOLFSSL_DIR
     #undef  NO_RABBIT
     #define NO_RABBIT
+    #undef  NO_64BIT
+    #define NO_64BIT
     #define STM32F4_RNG
     #define STM32F4_CRYPTO
     #define NO_OLD_RNGNAME
-    #ifndef __GNUC__
+    #if !defined(__GNUC__) && !defined(__ICCARM__)
         #define KEIL_INTRINSICS
     #endif
     #ifdef WOLFSSL_STM32_CUBEMX
