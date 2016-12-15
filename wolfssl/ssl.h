@@ -200,6 +200,7 @@ enum AlertDescription {
     certificate_expired             =  45,
     certificate_unknown             =  46,
     illegal_parameter               =  47,
+    decode_error                    =  50,
     decrypt_error                   =  51,
     #ifdef WOLFSSL_MYSQL_COMPATIBLE
     /* catch name conflict for enum protocol with MYSQL build */

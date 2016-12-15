@@ -7649,13 +7649,16 @@ static int DoHandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                           byte type, word32 size, word32 totalSz)
 {
     int ret = 0;
-    (void)totalSz;
+    word32 expectedIdx;
 
     WOLFSSL_ENTER("DoHandShakeMsgType");
 
     /* make sure can read the message */
     if (*inOutIdx + size > totalSz)
         return INCOMPLETE_DATA;
+
+    expectedIdx = *inOutIdx + size +
+                  (ssl->keys.encryptionOn ? ssl->keys.padSz : 0);
 
     /* sanity check msg received */
     if ( (ret = SanityCheckMsgReceived(ssl, type)) != 0) {
@@ -7809,6 +7812,13 @@ static int DoHandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
         WOLFSSL_MSG("Unknown handshake message type");
         ret = UNKNOWN_HANDSHAKE_TYPE;
         break;
+    }
+
+    if (ret == 0 && expectedIdx != *inOutIdx) {
+        WOLFSSL_MSG("Extra data in handshake message");
+        if (!ssl->options.dtls)
+            SendAlert(ssl, alert_fatal, decode_error);
+        ret = DECODE_E;
     }
 
     /* if async, offset index so this msg will be processed again */
@@ -11746,6 +11756,9 @@ const char* wolfSSL_ERR_reason_error_string(unsigned long e)
 
     case DTLS_POOL_SZ_E:
         return "Maximum DTLS pool size exceeded";
+
+    case DECODE_E:
+        return "Decode handshake message error";
 
     default :
         return "unknown error number";
