@@ -941,6 +941,10 @@ const ecc_set_type ecc_sets[] = {
     static oid_cache_t ecc_oid_cache[ECC_SET_COUNT];
 #endif
 
+#ifdef HAVE_COMP_KEY
+static int wc_ecc_export_x963_compressed(ecc_key*, byte* out, word32* outLen);
+#endif
+
 #ifdef ECC_CACHE_CURVE
     /* cache (mp_int) of the curve parameters */
     static ecc_curve_spec ecc_curve_spec_cache[ECC_SET_COUNT];
@@ -4310,6 +4314,7 @@ int wc_ecc_import_x963_ex(const byte* in, word32 inLen, ecc_key* key,
     if (err == MP_OKAY && compressed == 1) {   /* build y */
         DECLARE_CURVE_SPECS
         mp_int t1, t2;
+        int did_init = 0;
 
         if (mp_init_multi(&t1, &t2, NULL, NULL, NULL, NULL) != MP_OKAY)
             err = MEMORY_E;
@@ -4356,9 +4361,10 @@ int wc_ecc_import_x963_ex(const byte* in, word32 inLen, ecc_key* key,
 
         if (did_init) {
     #ifndef USE_FAST_MATH
-        mp_clear(&t2);
-        mp_clear(&t1);
+            mp_clear(&t2);
+            mp_clear(&t1);
     #endif
+        }
 
         wc_ecc_curve_free(curve);
     }
