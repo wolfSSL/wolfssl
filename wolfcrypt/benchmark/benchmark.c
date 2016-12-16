@@ -70,6 +70,9 @@
 #include <wolfssl/wolfcrypt/asn.h>
 #include <wolfssl/wolfcrypt/ripemd.h>
 #include <wolfssl/wolfcrypt/cmac.h>
+#ifndef NO_PWDBASED
+    #include <wolfssl/wolfcrypt/pwdbased.h>
+#endif
 #ifdef HAVE_ECC
     #include <wolfssl/wolfcrypt/ecc.h>
 #endif
@@ -197,6 +200,7 @@ void bench_sha384(void);
 void bench_sha512(void);
 void bench_ripemd(void);
 void bench_cmac(void);
+void bench_scrypt(void);
 
 void bench_rsa(void);
 #ifdef WOLFSSL_ASYNC_CRYPT
@@ -422,6 +426,12 @@ int benchmark_test(void *args)
 
     printf("\n");
 
+#ifdef HAVE_SCRYPT
+    bench_scrypt();
+#endif
+
+    printf("\n");
+
 #ifndef NO_RSA
     bench_rsa();
     #ifdef WOLFSSL_ASYNC_CRYPT
@@ -490,6 +500,7 @@ int benchmark_test(void *args)
 #ifdef BENCH_EMBEDDED
 enum BenchmarkBounds {
     numBlocks  = 25, /* how many kB to test (en/de)cryption */
+    scryptCnt  = 1,
     ntimes     = 1,
     genTimes   = 5,  /* public key iterations */
     agreeTimes = 5
@@ -498,6 +509,7 @@ static const char blockType[] = "kB";   /* used in printf output */
 #else
 enum BenchmarkBounds {
     numBlocks  = 50,  /* how many megs to test (en/de)cryption */
+    scryptCnt  = 10,
 #ifdef WOLFSSL_ASYNC_CRYPT
     ntimes     = 1000,
     genTimes   = 1000,
@@ -1474,6 +1486,32 @@ void bench_cmac(void)
 
 #endif /* WOLFSSL_CMAC */
 
+#ifdef HAVE_SCRYPT
+
+void bench_scrypt(void)
+{
+    byte   derived[64];
+    double start, total, each, milliEach;
+    int    ret, i;
+
+    start = current_time(1);
+    for (i = 0; i < scryptCnt; i++) {
+        ret = wc_scrypt(derived, (byte*)"pleaseletmein", 13,
+                        (byte*)"SodiumChloride", 14, 14, 8, 1, sizeof(derived));
+        if (ret != 0) {
+            printf("scrypt failed, ret = %d\n", ret);
+            return;
+        }
+    }
+    total = current_time(0) - start;
+    each  = total / scryptCnt;   /* per second   */
+    milliEach = each * 1000; /* milliseconds */
+
+    printf("scrypt   %6.3f milliseconds, avg over %d"
+           " iterations\n", milliEach, scryptCnt);
+}
+
+#endif /* HAVE_SCRYPT */
 
 #ifndef NO_RSA
 

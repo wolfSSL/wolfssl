@@ -54,6 +54,12 @@ WOLFSSL_API int wc_PKCS12_PBKDF_ex(byte* output, const byte* passwd,int passLen,
                        const byte* salt, int saltLen, int iterations, int kLen,
                        int hashType, int id, void* heap);
 
+#ifdef HAVE_SCRYPT
+WOLFSSL_API int wc_scrypt(byte* output, const byte* passwd, int passLen,
+                          const byte* salt, int saltLen, int cost,
+                          int blockSize, int parallel, int dkLen);
+#endif
+
 /* helper functions */
 WOLFSSL_LOCAL int GetDigestSize(int typeH);
 WOLFSSL_LOCAL int GetPKCS12HashSizes(int typeH, word32* v, word32* u);
