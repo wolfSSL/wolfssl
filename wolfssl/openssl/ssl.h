@@ -30,7 +30,10 @@
 #define WOLFSSL_OPENSSL_H_
 
 /* wolfssl_openssl compatibility layer */
+#ifndef OPENSSL_EXTRA_SSL_GUARD
+#define OPENSSL_EXTRA_SSL_GUARD
 #include <wolfssl/ssl.h>
+#endif /* OPENSSL_EXTRA_SSL_GUARD */
 
 #include <wolfssl/openssl/evp.h>
 
@@ -63,20 +66,26 @@ typedef WOLFSSL_X509_CHAIN X509_CHAIN;
 #define WOLFSSL_TYPES_DEFINED
 
 
-typedef WOLFSSL_EVP_PKEY               EVP_PKEY;
-typedef WOLFSSL_BIO                    BIO;
-typedef WOLFSSL_BIO_METHOD             BIO_METHOD;
-typedef WOLFSSL_CIPHER                 SSL_CIPHER;
-typedef WOLFSSL_X509_LOOKUP            X509_LOOKUP;
-typedef WOLFSSL_X509_LOOKUP_METHOD     X509_LOOKUP_METHOD;
-typedef WOLFSSL_X509_CRL               X509_CRL;
-typedef WOLFSSL_X509_EXTENSION         X509_EXTENSION;
-typedef WOLFSSL_ASN1_TIME              ASN1_TIME;
-typedef WOLFSSL_ASN1_INTEGER           ASN1_INTEGER;
-typedef WOLFSSL_ASN1_OBJECT            ASN1_OBJECT;
-typedef WOLFSSL_ASN1_STRING            ASN1_STRING;
-typedef WOLFSSL_dynlock_value          CRYPTO_dynlock_value;
-typedef WOLFSSL_BUF_MEM                BUF_MEM;
+typedef WOLFSSL_EVP_PKEY       EVP_PKEY;
+typedef WOLFSSL_RSA            RSA;
+typedef WOLFSSL_DSA            DSA;
+typedef WOLFSSL_EC_KEY         EC_KEY;
+typedef WOLFSSL_EC_GROUP       EC_GROUP;
+typedef WOLFSSL_EC_POINT       EC_POINT;
+typedef WOLFSSL_ECDSA_SIG	   ECDSA_SIG;
+typedef WOLFSSL_BIO            BIO;
+typedef WOLFSSL_BIO_METHOD     BIO_METHOD;
+typedef WOLFSSL_CIPHER         SSL_CIPHER;
+typedef WOLFSSL_X509_LOOKUP    X509_LOOKUP;
+typedef WOLFSSL_X509_LOOKUP_METHOD X509_LOOKUP_METHOD;
+typedef WOLFSSL_X509_CRL       X509_CRL;
+typedef WOLFSSL_X509_EXTENSION X509_EXTENSION;
+typedef WOLFSSL_ASN1_TIME      ASN1_TIME;
+typedef WOLFSSL_ASN1_INTEGER   ASN1_INTEGER;
+typedef WOLFSSL_ASN1_OBJECT    ASN1_OBJECT;
+typedef WOLFSSL_ASN1_STRING    ASN1_STRING;
+typedef WOLFSSL_dynlock_value  CRYPTO_dynlock_value;
+typedef WOLFSSL_BUF_MEM        BUF_MEM;
 
 /* GENERAL_NAME and BASIC_CONSTRAINTS structs may need implemented as
  * compatibility layer expands. For now treating them as an ASN1_OBJECT */

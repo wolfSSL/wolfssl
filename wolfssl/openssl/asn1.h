@@ -23,18 +23,14 @@
 
 #ifndef WOLFSSL_ASN1_H_
 #define WOLFSSL_ASN1_H_
-struct WOLFSSL_ASN1_BIT_STRING {
-    int length;
-    int type;
-    char* data;
-    long flags;
-};
 
-struct WOLFSSL_ASN1_STRING {
-    int length;
-    int type;
-    char* data;
-    long flags;
-};
+#include <wolfssl/openssl/ssl.h>
+typedef struct WOLFSSL_ASN1_STRING      ASN1_STRING;
 
+#define ASN1_STRING_new      wolfSSL_ASN1_STRING_type_new
+#define ASN1_STRING_type_new wolfSSL_ASN1_STRING_type_new
+#define ASN1_STRING_set      wolfSSL_ASN1_STRING_set
+#define ASN1_STRING_free     wolfSSL_ASN1_STRING_free
+
+#define V_ASN1_OCTET_STRING  0x04 /* tag for ASN1_OCTET_STRING */
 #endif /* WOLFSSL_ASN1_H_ */

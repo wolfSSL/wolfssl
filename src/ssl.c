@@ -14546,6 +14546,86 @@ static void ExternalFreeX509(WOLFSSL_X509* x509)
     }
 
 
+    WOLFSSL_ASN1_STRING* wolfSSL_ASN1_STRING_new()
+    {
+        WOLFSSL_ASN1_STRING* asn1;
+
+        WOLFSSL_ENTER("wolfSSL_ASN1_STRING_new");
+
+        asn1 = (WOLFSSL_ASN1_STRING*)XMALLOC(sizeof(WOLFSSL_ASN1_STRING), NULL,
+                DYNAMIC_TYPE_OPENSSL);
+        if (asn1 != NULL) {
+            XMEMSET(asn1, 0, sizeof(WOLFSSL_ASN1_STRING));
+        }
+
+        return asn1; /* no check for null because error case is returning null*/
+    }
+
+
+    void wolfSSL_ASN1_STRING_free(WOLFSSL_ASN1_STRING* asn1)
+    {
+        WOLFSSL_ENTER("wolfSSL_ASN1_STRING_free");
+
+        if (asn1 != NULL) {
+            if (asn1->length > 0 && asn1->data != NULL) {
+                XFREE(asn1->data, NULL, DYNAMIC_TYPE_OPENSSL);
+            }
+            XFREE(asn1, NULL, DYNAMIC_TYPE_OPENSSL);
+        }
+    }
+
+
+    WOLFSSL_ASN1_STRING* wolfSSL_ASN1_STRING_type_new(int type)
+    {
+        WOLFSSL_ASN1_STRING* asn1;
+
+        WOLFSSL_ENTER("wolfSSL_ASN1_STRING_type_new");
+
+        asn1 = wolfSSL_ASN1_STRING_new();
+        if (asn1 == NULL) {
+            return NULL;
+        }
+        asn1->type = type;
+
+        return asn1;
+    }
+
+
+    /* if dataSz is negative then use XSTRLEN to find length of data
+     * return SSL_SUCCESS on success and SSL_FAILURE on failure */
+    int wolfSSL_ASN1_STRING_set(WOLFSSL_ASN1_STRING* asn1, const void* data,
+            int dataSz)
+    {
+        int sz;
+
+        WOLFSSL_ENTER("wolfSSL_ASN1_STRING_set");
+
+        if (data == NULL || asn1 == NULL) {
+            return SSL_FAILURE;
+        }
+
+        if (dataSz < 0) {
+            sz = (int)XSTRLEN(data);
+        }
+        else {
+            sz = dataSz;
+        }
+
+        if (sz < 0) {
+            return SSL_FAILURE;
+        }
+
+        asn1->data = (char*)XMALLOC(sz, NULL, DYNAMIC_TYPE_OPENSSL);
+        if (asn1->data == NULL) {
+            return SSL_FAILURE;
+        }
+        XMEMCPY(asn1->data, data, sz);
+        asn1->length = sz;
+
+        return SSL_SUCCESS;
+    }
+
+
     char* wolfSSL_ASN1_STRING_data(WOLFSSL_ASN1_STRING* asn)
     {
         WOLFSSL_ENTER("wolfSSL_ASN1_STRING_data");
