@@ -178,7 +178,8 @@ enum {
     ASN_PATHLEN_SIZE_E  = -237,  /* ASN CA path length too large error */
     ASN_PATHLEN_INV_E   = -238,  /* ASN CA path length inversion error */
 
-    BAD_KEYWRAP_IV_E    = -239,  /* Decrypted AES key wrap IV incorrect */
+    BAD_KEYWRAP_ALG_E   = -239,
+    BAD_KEYWRAP_IV_E    = -240,  /* Decrypted AES key wrap IV incorrect */
 
     MIN_CODE_E          = -300   /* errors -101 - -299 */
 

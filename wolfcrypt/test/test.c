@@ -9099,9 +9099,11 @@ static int pkcs7enveloped_run_vectors(byte* rsaCert, word32 rsaCertSz,
         0x72,0x6c,0x64
     };
 
+#ifndef NO_AES
     byte optionalUkm[] = {
         0x00,0x01,0x02,0x03,0x04,0x05,0x06,0x07
     };
+#endif /* NO_AES */
 
     const pkcs7EnvelopedVector testVectors[] =
     {
@@ -9178,8 +9180,10 @@ static int pkcs7enveloped_run_vectors(byte* rsaCert, word32 rsaCertSz,
         /* encode envelopedData */
         envelopedSz = wc_PKCS7_EncodeEnvelopedData(&pkcs7, enveloped,
                                                    sizeof(enveloped));
-        if (envelopedSz <= 0)
+        if (envelopedSz <= 0) {
+            printf("DEBUG: i = %d, envelopedSz = %d\n", i, envelopedSz);
             return -210;
+        }
 
         /* decode envelopedData */
         decodedSz = wc_PKCS7_DecodeEnvelopedData(&pkcs7, enveloped, envelopedSz,
@@ -9204,6 +9208,10 @@ static int pkcs7enveloped_run_vectors(byte* rsaCert, word32 rsaCertSz,
         wc_PKCS7_Free(&pkcs7);
     }
 
+    (void)eccCert;
+    (void)eccCertSz;
+    (void)eccPrivKey;
+    (void)eccPrivKeySz;
     return 0;
 }
 
@@ -9362,6 +9370,7 @@ int pkcs7encrypted_test(void)
         0x72,0x6c,0x64
     };
 
+#ifndef NO_DES3
     byte desKey[] = {
         0x01,0x23,0x45,0x67,0x89,0xab,0xcd,0xef
     };
@@ -9370,6 +9379,9 @@ int pkcs7encrypted_test(void)
         0xfe,0xde,0xba,0x98,0x76,0x54,0x32,0x10,
         0x89,0xab,0xcd,0xef,0x01,0x23,0x45,0x67
     };
+#endif
+
+#ifndef NO_AES
     byte aes128Key[] = {
         0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08,
         0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08
@@ -9417,6 +9429,7 @@ int pkcs7encrypted_test(void)
         { genAttrOid, sizeof(genAttrOid), genAttr, sizeof(genAttr) },
         { genAttrOid2, sizeof(genAttrOid2), genAttr2, sizeof(genAttr2) }
     };
+#endif /* NO_AES */
 
     const pkcs7EncryptedVector testVectors[] =
     {
