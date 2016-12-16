@@ -231,17 +231,15 @@ static word32 cpuid_flag(word32 leaf, word32 sub, word32 num, word32 bit) {
     return 0 ;
 }
 
-#define CHECK_SHA512 0x1
-#define CHECK_SHA384 0x2
 
-static int set_cpuid_flags(int sha) {  
-    if((cpuid_check & sha) ==0) {
+static int set_cpuid_flags() {
+    if(cpuid_check ==0) {
         if(cpuid_flag(1, 0, ECX, 28)){ cpuid_flags |= CPUID_AVX1 ;}
         if(cpuid_flag(7, 0, EBX, 5)){  cpuid_flags |= CPUID_AVX2 ; }
         if(cpuid_flag(7, 0, EBX, 8)) { cpuid_flags |= CPUID_BMI2 ; }
         if(cpuid_flag(1, 0, ECX, 30)){ cpuid_flags |= CPUID_RDRAND ;  } 
         if(cpuid_flag(7, 0, EBX, 18)){ cpuid_flags |= CPUID_RDSEED ;  }
-		cpuid_check |= sha ;
+		cpuid_check = 1 ;
 		return 0 ;
     }
     return 1 ;
@@ -270,7 +268,7 @@ static int (*Transform_p)(Sha512* sha512) = _Transform ;
 #define Transform(sha512) (*Transform_p)(sha512)
 
 static void set_Transform(void) {
-     if(set_cpuid_flags(CHECK_SHA512)) return ;
+     if(set_cpuid_flags()) return ;
 
 #if defined(HAVE_INTEL_AVX2)
      if(IS_INTEL_AVX2 && IS_INTEL_BMI2){ 
@@ -430,11 +428,6 @@ static const word64 K512[80] = {
 #define R(i) h(i)+=S1(e(i))+Ch(e(i),f(i),g(i))+K[i+j]+(j?blk2(i):blk0(i));\
     d(i)+=h(i);h(i)+=S0(a(i))+Maj(a(i),b(i),c(i))
 
-#define blk384(i) (W[i] = sha384->buffer[i])
-
-#define R2(i) h(i)+=S1(e(i))+Ch(e(i),f(i),g(i))+K[i+j]+(j?blk2(i):blk384(i));\
-    d(i)+=h(i);h(i)+=S0(a(i))+Maj(a(i),b(i),c(i))
-
 static int _Transform(Sha512* sha512)
 {
     const word64* K = K512;
@@ -504,7 +497,7 @@ static INLINE void AddLength(Sha512* sha512, word32 len)
         sha512->hiLen++;                       /* carry low to high */
 }
 
-int wc_Sha512Update(Sha512* sha512, const byte* data, word32 len)
+static INLINE int Sha512Update(Sha512* sha512, const byte* data, word32 len)
 {
     /* do block size increments */
     byte* local = (byte*)sha512->buffer;
@@ -538,8 +531,13 @@ int wc_Sha512Update(Sha512* sha512, const byte* data, word32 len)
     return 0;
 }
 
+int wc_Sha512Update(Sha512* sha512, const byte* data, word32 len)
+{
+    return Sha512Update(sha512, data, len);
+}
 
-int wc_Sha512Final(Sha512* sha512, byte* hash)
+
+static INLINE int Sha512Final(Sha512* sha512)
 {
     byte* local = (byte*)sha512->buffer;
     int ret;
@@ -596,11 +594,20 @@ int wc_Sha512Final(Sha512* sha512, byte* hash)
     #ifdef LITTLE_ENDIAN_ORDER
         ByteReverseWords64(sha512->digest, sha512->digest, SHA512_DIGEST_SIZE);
     #endif
+
+    return 0;
+}
+
+int wc_Sha512Final(Sha512* sha512, byte* hash)
+{
+    int ret = Sha512Final(sha512);
+    if (ret != 0)
+        return ret;
+
     XMEMCPY(hash, sha512->digest, SHA512_DIGEST_SIZE);
 
     return wc_InitSha512(sha512);  /* reset state */
 }
-
 
 
 #if defined(HAVE_INTEL_AVX1)
@@ -1121,8 +1128,6 @@ static int Transform_AVX1_RORX(Sha512* sha512)
 #define s0_y(dest, src)       s0_1y(dest, src) ; s0_2y(dest, src) ; s0_3y(dest, src)
 #define s1_y(dest, src)       s1_1y(dest, src) ; s1_2y(dest, src) ; s1_3y(dest, src)
 
-#define blk384(i) (W[i] = sha384->buffer[i])
-
 
 #define Block_Y_xx_1(i, w_0, w_4, w_8, w_12)\
     MOVE_W_to_W_I_15(W_I_15y, w_0, w_4) ;\
@@ -1293,46 +1298,6 @@ static int Transform_AVX2(Sha512* sha512)
 
 
 #ifdef WOLFSSL_SHA384
-
-#if defined(HAVE_INTEL_AVX1) ||  defined(HAVE_INTEL_AVX2) 
-
-#if defined(HAVE_INTEL_AVX1)
-static int Transform384_AVX1(Sha384 *sha384) ;
-#endif
-#if defined(HAVE_INTEL_AVX2)
-static int Transform384_AVX2(Sha384 *sha384) ; 
-#endif
-
-#if defined(HAVE_INTEL_AVX1) &&  defined(HAVE_INTEL_AVX2) &&defined(HAVE_INTEL_RORX)
-static int Transform384_AVX1_RORX(Sha384 *sha384) ; 
-#endif
-
-static int _Transform384(Sha384 *sha384) ; 
-static int (*Transform384_p)(Sha384* sha384) = _Transform384 ;
-
-#define Transform384(sha384) (*Transform384_p)(sha384)
-static void set_Transform384(void) {
-     if(set_cpuid_flags(CHECK_SHA384))return ;
-
-#if defined(HAVE_INTEL_AVX1) && !defined(HAVE_INTEL_AVX2)
-     Transform384_p = ((IS_INTEL_AVX1) ? Transform384_AVX1 : _Transform384) ;
-#elif defined(HAVE_INTEL_AVX2)
-     #if defined(HAVE_INTEL_AVX1) && defined(HAVE_INTEL_RORX)
-     if(IS_INTEL_AVX2 && IS_INTEL_BMI2) { Transform384_p = Transform384_AVX1_RORX ; return ; }
-     #endif
-     if(IS_INTEL_AVX2) { Transform384_p = Transform384_AVX2 ; return ; }
-     #if defined(HAVE_INTEL_AVX1)
-     Transform384_p = ((IS_INTEL_AVX1) ? Transform384_AVX1 : _Transform384) ;
-     #endif
-#else
-     Transform384_p = ((IS_INTEL_AVX1) ? Transform384_AVX1 : _Transform384) ;
-#endif
-}
-
-#else
-   #define Transform384(sha512) _Transform384(sha512)
-#endif
-
 int wc_InitSha384(Sha384* sha384)
 {
     sha384->digest[0] = W64LIT(0xcbbb9d5dc1059ed8);
@@ -1349,385 +1314,28 @@ int wc_InitSha384(Sha384* sha384)
     sha384->hiLen   = 0;
 
 #if defined(HAVE_INTEL_AVX1)|| defined(HAVE_INTEL_AVX2)
-    set_Transform384() ;
+    set_Transform() ;
 #endif
     
     return 0;
-}
-
-static int _Transform384(Sha384* sha384)
-{
-    const word64* K = K512;
-
-    word32 j;
-    word64 T[8];
-
-#ifdef WOLFSSL_SMALL_STACK
-    word64* W;
-
-    W = (word64*) XMALLOC(sizeof(word64) * 16, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    if (W == NULL)
-        return MEMORY_E;
-#else
-    word64 W[16];
-#endif
-
-    /* Copy digest to working vars */
-    XMEMCPY(T, sha384->digest, sizeof(T));
-
-#ifdef USE_SLOW_SHA2
-    /* over twice as small, but 50% slower */
-    /* 80 operations, not unrolled */
-    for (j = 0; j < 80; j += 16) {
-        int m;
-        for (m = 0; m < 16; m++) {  /* braces needed for macros {} */
-            R2(m);
-        }
-    }
-#else
-    /* 80 operations, partially loop unrolled */
-    for (j = 0; j < 80; j += 16) {
-        R2( 0); R2( 1); R2( 2); R2( 3);
-        R2( 4); R2( 5); R2( 6); R2( 7);
-        R2( 8); R2( 9); R2(10); R2(11);
-        R2(12); R2(13); R2(14); R2(15);
-    }
-#endif /* USE_SLOW_SHA2 */
-
-    /* Add the working vars back into digest */
-
-    sha384->digest[0] += a(0);
-    sha384->digest[1] += b(0);
-    sha384->digest[2] += c(0);
-    sha384->digest[3] += d(0);
-    sha384->digest[4] += e(0);
-    sha384->digest[5] += f(0);
-    sha384->digest[6] += g(0);
-    sha384->digest[7] += h(0);
-
-    /* Wipe variables */
-    XMEMSET(W, 0, sizeof(word64) * 16);
-    XMEMSET(T, 0, sizeof(T));
-
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(W, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
-
-    return 0;
-}
-
-static INLINE void AddLength384(Sha384* sha384, word32 len)
-{
-    word64 tmp = sha384->loLen;
-    if ( (sha384->loLen += len) < tmp)
-        sha384->hiLen++;                       /* carry low to high */
 }
 
 int wc_Sha384Update(Sha384* sha384, const byte* data, word32 len)
 {
-    /* do block size increments */
-    byte* local = (byte*)sha384->buffer;
-	
-    SAVE_XMM_YMM ; /* for Intel AVX */
-    
-    while (len) {
-        word32 add = min(len, SHA384_BLOCK_SIZE - sha384->buffLen);
-        XMEMCPY(&local[sha384->buffLen], data, add);
-
-        sha384->buffLen += add;
-        data         += add;
-        len          -= add;
-
-        if (sha384->buffLen == SHA384_BLOCK_SIZE) {
-            int ret;
-
-            #if defined(LITTLE_ENDIAN_ORDER)
-                #if defined(HAVE_INTEL_AVX1) || defined(HAVE_INTEL_AVX2)
-                if(!IS_INTEL_AVX1 && !IS_INTEL_AVX2) 
-                #endif
-                    ByteReverseWords64(sha384->buffer, sha384->buffer,
-                                   SHA384_BLOCK_SIZE);
-            #endif
-            ret = Transform384(sha384);
-            if (ret != 0)
-                return ret;
-
-            AddLength384(sha384, SHA384_BLOCK_SIZE);
-            sha384->buffLen = 0;
-        }
-    }
-    return 0;
+    return Sha512Update((Sha512 *)sha384, data, len);
 }
 
 
 int wc_Sha384Final(Sha384* sha384, byte* hash)
 {
-    byte* local = (byte*)sha384->buffer;
-    int ret;
-
-    SAVE_XMM_YMM ; /* for Intel AVX */
-    AddLength384(sha384, sha384->buffLen);              /* before adding pads */
-
-    local[sha384->buffLen++] = 0x80;  /* add 1 */
-
-    /* pad with zeros */
-    if (sha384->buffLen > SHA384_PAD_SIZE) {
-        XMEMSET(&local[sha384->buffLen], 0, SHA384_BLOCK_SIZE -sha384->buffLen);
-        sha384->buffLen += SHA384_BLOCK_SIZE - sha384->buffLen;
-
-        #if defined(LITTLE_ENDIAN_ORDER)
-            #if defined(HAVE_INTEL_AVX1) || defined(HAVE_INTEL_AVX2)
-            if(!IS_INTEL_AVX1 && !IS_INTEL_AVX2) 
-            #endif
-                 ByteReverseWords64(sha384->buffer, sha384->buffer,
-                               SHA384_BLOCK_SIZE);
-        #endif
-        ret = Transform384(sha384);
-        if (ret !=  0)
-            return ret;
-
-        sha384->buffLen = 0;
-    }
-    XMEMSET(&local[sha384->buffLen], 0, SHA384_PAD_SIZE - sha384->buffLen);
-   
-    /* put lengths in bits */
-    sha384->hiLen = (sha384->loLen >> (8*sizeof(sha384->loLen) - 3)) + 
-                 (sha384->hiLen << 3);
-    sha384->loLen = sha384->loLen << 3;
-
-    /* store lengths */
-    #if defined(LITTLE_ENDIAN_ORDER)
-        #if defined(HAVE_INTEL_AVX1) || defined(HAVE_INTEL_AVX2)
-        if(!IS_INTEL_AVX1 && !IS_INTEL_AVX2) 
-        #endif
-             ByteReverseWords64(sha384->buffer, sha384->buffer,
-                           SHA384_BLOCK_SIZE);
-    #endif
-    /* ! length ordering dependent on digest endian type ! */
-    sha384->buffer[SHA384_BLOCK_SIZE / sizeof(word64) - 2] = sha384->hiLen;
-    sha384->buffer[SHA384_BLOCK_SIZE / sizeof(word64) - 1] = sha384->loLen;
-    #if defined(HAVE_INTEL_AVX1) || defined(HAVE_INTEL_AVX2)
-    if(IS_INTEL_AVX1 || IS_INTEL_AVX2)
-        ByteReverseWords64(&(sha384->buffer[SHA384_BLOCK_SIZE / sizeof(word64) - 2]),
-                           &(sha384->buffer[SHA384_BLOCK_SIZE / sizeof(word64) - 2]),
-                           SHA384_BLOCK_SIZE - SHA384_PAD_SIZE);
-    #endif
-    ret = Transform384(sha384);
+    int ret = Sha512Final((Sha512 *)sha384);
     if (ret != 0)
         return ret;
 
-    #ifdef LITTLE_ENDIAN_ORDER
-        ByteReverseWords64(sha384->digest, sha384->digest, SHA384_DIGEST_SIZE);
-    #endif
     XMEMCPY(hash, sha384->digest, SHA384_DIGEST_SIZE);
 
     return wc_InitSha384(sha384);  /* reset state */
 }
-
-
-
-#if defined(HAVE_INTEL_AVX1)
- 
-static int Transform384_AVX1(Sha384* sha384)
-{
-    const word64* K = K512;
-    word64 W_X[16+4];
-    word32 j;
-    word64 T[8];
-
-    /* Copy digest to working vars */
-    XMEMCPY(T, sha384->digest, sizeof(T));
-    W_from_buff(W_X, sha384->buffer) ;
-    for (j = 0; j < 80; j += 16) {
-        Rx_1( 0); Block_0_1(W_X); Rx_2( 0); Block_0_2(W_X); Rx_3( 0); Block_0_3(); 
-        Rx_1( 1); Block_0_4(); Rx_2( 1); Block_0_5(); Rx_3( 1); Block_0_6(W_X); 
-        Rx_1( 2); Block_0_7(W_X); Rx_2( 2); Block_0_8(W_X); Rx_3( 2); Block_0_9();
-        Rx_1( 3); Block_0_10();Rx_2( 3); Block_0_11();Rx_3( 3); Block_0_12(W_X);   
-        
-        Rx_1( 4); Block_4_1(W_X); Rx_2( 4); Block_4_2(W_X); Rx_3( 4); Block_4_3(); 
-        Rx_1( 5); Block_4_4(); Rx_2( 5); Block_4_5(); Rx_3( 5); Block_4_6(W_X); 
-        Rx_1( 6); Block_4_7(W_X); Rx_2( 6); Block_4_8(W_X); Rx_3( 6); Block_4_9();
-        Rx_1( 7); Block_4_10();Rx_2( 7); Block_4_11();Rx_3( 7); Block_4_12(W_X);   
-        
-        Rx_1( 8); Block_8_1(W_X); Rx_2( 8); Block_8_2(W_X); Rx_3( 8); Block_8_3(); 
-        Rx_1( 9); Block_8_4(); Rx_2( 9); Block_8_5(); Rx_3( 9); Block_8_6(W_X); 
-        Rx_1(10); Block_8_7(W_X); Rx_2(10); Block_8_8(W_X); Rx_3(10); Block_8_9();
-        Rx_1(11); Block_8_10();Rx_2(11); Block_8_11();Rx_3(11); Block_8_12(W_X);   
-        
-        Rx_1(12); Block_12_1(W_X); Rx_2(12); Block_12_2(W_X); Rx_3(12); Block_12_3(); 
-        Rx_1(13); Block_12_4(); Rx_2(13); Block_12_5(); Rx_3(13); Block_12_6(W_X); 
-        Rx_1(14); Block_12_7(W_X); Rx_2(14); Block_12_8(W_X); Rx_3(14); Block_12_9();
-        Rx_1(15); Block_12_10();Rx_2(15); Block_12_11();Rx_3(15); Block_12_12(W_X);     
-    }
-
-    /* Add the working vars back into digest */
-
-    sha384->digest[0] += a(0);
-    sha384->digest[1] += b(0);
-    sha384->digest[2] += c(0);
-    sha384->digest[3] += d(0);
-    sha384->digest[4] += e(0);
-    sha384->digest[5] += f(0);
-    sha384->digest[6] += g(0);
-    sha384->digest[7] += h(0);
-
-    /* Wipe variables */
-    #if !defined(HAVE_INTEL_AVX1)&&!defined(HAVE_INTEL_AVX2)
-    XMEMSET(W, 0, sizeof(word64) * 16);
-    #endif
-    XMEMSET(T, 0, sizeof(T));
-
-    return 0;
-}
-
-#endif
-
-#if defined(HAVE_INTEL_AVX1) && defined(HAVE_INTEL_AVX2) && defined(HAVE_INTEL_RORX)
-static int Transform384_AVX1_RORX(Sha384* sha384)
-{
-    const word64* K = K512;
-    word64 W_X[16+4];
-    word32 j;
-    word64 T[8];
-
-    /* Copy digest to working vars */
-    XMEMCPY(T, sha384->digest, sizeof(T));
-
-    W_from_buff(W_X, sha384->buffer) ;
-    for (j = 0; j < 80; j += 16) {
-        Rx_RORX_1( 0); Block_0_1(W_X); Rx_RORX_2( 0); 
-            Block_0_2(W_X); Rx_RORX_3( 0); Block_0_3(); 
-        Rx_RORX_1( 1); Block_0_4(); Rx_RORX_2( 1); 
-            Block_0_5(); Rx_RORX_3( 1); Block_0_6(W_X); 
-        Rx_RORX_1( 2); Block_0_7(W_X); Rx_RORX_2( 2); 
-            Block_0_8(W_X); Rx_RORX_3( 2); Block_0_9();
-        Rx_RORX_1( 3); Block_0_10();Rx_RORX_2( 3); 
-            Block_0_11();Rx_RORX_3( 3); Block_0_12(W_X);   
-        
-        Rx_RORX_1( 4); Block_4_1(W_X); Rx_RORX_2( 4); 
-            Block_4_2(W_X); Rx_RORX_3( 4); Block_4_3(); 
-        Rx_RORX_1( 5); Block_4_4(); Rx_RORX_2( 5); 
-            Block_4_5(); Rx_RORX_3( 5); Block_4_6(W_X); 
-        Rx_RORX_1( 6); Block_4_7(W_X); Rx_RORX_2( 6); 
-            Block_4_8(W_X); Rx_RORX_3( 6); Block_4_9();
-        Rx_RORX_1( 7); Block_4_10();Rx_RORX_2( 7); 
-            Block_4_11();Rx_RORX_3( 7); Block_4_12(W_X);   
-        
-        Rx_RORX_1( 8); Block_8_1(W_X); Rx_RORX_2( 8); 
-            Block_8_2(W_X); Rx_RORX_3( 8); Block_8_3(); 
-        Rx_RORX_1( 9); Block_8_4(); Rx_RORX_2( 9); 
-            Block_8_5(); Rx_RORX_3( 9); Block_8_6(W_X); 
-        Rx_RORX_1(10); Block_8_7(W_X); Rx_RORX_2(10); 
-            Block_8_8(W_X); Rx_RORX_3(10); Block_8_9();
-        Rx_RORX_1(11); Block_8_10();Rx_RORX_2(11); 
-            Block_8_11();Rx_RORX_3(11); Block_8_12(W_X);   
-        
-        Rx_RORX_1(12); Block_12_1(W_X); Rx_RORX_2(12);
-            Block_12_2(W_X); Rx_RORX_3(12); Block_12_3(); 
-        Rx_RORX_1(13); Block_12_4(); Rx_RORX_2(13); 
-            Block_12_5(); Rx_RORX_3(13); Block_12_6(W_X); 
-        Rx_RORX_1(14); Block_12_7(W_X); Rx_RORX_2(14); 
-            Block_12_8(W_X); Rx_RORX_3(14); Block_12_9();
-        Rx_RORX_1(15); Block_12_10();Rx_RORX_2(15); 
-            Block_12_11();Rx_RORX_3(15); Block_12_12(W_X);     
-    }
-
-    /* Add the working vars back into digest */
-
-    sha384->digest[0] += a(0);
-    sha384->digest[1] += b(0);
-    sha384->digest[2] += c(0);
-    sha384->digest[3] += d(0);
-    sha384->digest[4] += e(0);
-    sha384->digest[5] += f(0);
-    sha384->digest[6] += g(0);
-    sha384->digest[7] += h(0);
-
-    /* Wipe variables */
-    #if !defined(HAVE_INTEL_AVX1)&&!defined(HAVE_INTEL_AVX2)
-    XMEMSET(W, 0, sizeof(word64) * 16);
-    #endif
-    XMEMSET(T, 0, sizeof(T));
-
-    return 0;
-}
-#endif
-
-#if defined(HAVE_INTEL_AVX2)
-
-static int Transform384_AVX2(Sha384* sha384)
-{
-    const word64* K = K512;
-    word64 w[4] ;
-    word32 j;
-    word64 T[8];
-
-    /* Copy digest to working vars */
-    XMEMCPY(T, sha384->digest, sizeof(T));
-
-    /* over twice as small, but 50% slower */
-    /* 80 operations, not unrolled */
-
-    W_from_buff_Y(sha384->buffer) ;
-
-    MOVE_to_MEMy(w,0, W_0y) ;
-    for (j = 0; j < 80; j += 16) {
-        Ry_1( 0, w[0]); Block_Y_0_1(); Ry_2( 0, w[0]); 
-            Block_Y_0_2(); Ry_3( 0, w[0]); Block_Y_0_3(); 
-        Ry_1( 1, w[1]); Block_Y_0_4(); Ry_2( 1, w[1]); 
-            Block_Y_0_5(); Ry_3( 1, w[1]); Block_Y_0_6();  
-        Ry_1( 2, w[2]); Block_Y_0_7(); Ry_2( 2, w[2]); 
-            Block_Y_0_8(); Ry_3( 2, w[2]); Block_Y_0_9();
-        Ry_1( 3, w[3]); Block_Y_0_10();Ry_2( 3, w[3]); 
-            Block_Y_0_11();Ry_3( 3, w[3]); Block_Y_0_12(w);
-        
-        Ry_1( 4, w[0]); Block_Y_4_1(); Ry_2( 4, w[0]); 
-            Block_Y_4_2(); Ry_3( 4, w[0]); Block_Y_4_3(); 
-        Ry_1( 5, w[1]); Block_Y_4_4(); Ry_2( 5, w[1]);   
-            Block_Y_4_5(); Ry_3( 5, w[1]); Block_Y_4_6();
-        Ry_1( 6, w[2]); Block_Y_4_7(); Ry_2( 6, w[2]); 
-            Block_Y_4_8(); Ry_3( 6, w[2]); Block_Y_4_9();
-        Ry_1( 7, w[3]); Block_Y_4_10(); Ry_2( 7, w[3]);
-            Block_Y_4_11(); Ry_3( 7, w[3]);Block_Y_4_12(w);  
-        
-        Ry_1( 8, w[0]); Block_Y_8_1(); Ry_2( 8, w[0]); 
-            Block_Y_8_2(); Ry_3( 8, w[0]); Block_Y_8_3();
-        Ry_1( 9, w[1]); Block_Y_8_4(); Ry_2( 9, w[1]);
-            Block_Y_8_5(); Ry_3( 9, w[1]); Block_Y_8_6();
-        Ry_1(10, w[2]); Block_Y_8_7(); Ry_2(10, w[2]); 
-            Block_Y_8_8(); Ry_3(10, w[2]); Block_Y_8_9(); 
-        Ry_1(11, w[3]); Block_Y_8_10();Ry_2(11, w[3]); 
-           Block_Y_8_11();Ry_3(11, w[3]); Block_Y_8_12(w);
-                 
-        Ry_1(12, w[0]); Block_Y_12_1(); Ry_2(12, w[0]); 
-            Block_Y_12_2(); Ry_3(12, w[0]); Block_Y_12_3();
-        Ry_1(13, w[1]); Block_Y_12_4(); Ry_2(13, w[1]); 
-            Block_Y_12_5(); Ry_3(13, w[1]); Block_Y_12_6(); 
-        Ry_1(14, w[2]); Block_Y_12_7(); Ry_2(14, w[2]); 
-            Block_Y_12_8(); Ry_3(14, w[2]); Block_Y_12_9();
-        Ry_1(15, w[3]); Block_Y_12_10();Ry_2(15, w[3]); 
-            Block_Y_12_11();Ry_3(15, w[3]); Block_Y_12_12(w);
-    }
-
-    /* Add the working vars back into digest */
-
-    sha384->digest[0] += a(0);
-    sha384->digest[1] += b(0);
-    sha384->digest[2] += c(0);
-    sha384->digest[3] += d(0);
-    sha384->digest[4] += e(0);
-    sha384->digest[5] += f(0);
-    sha384->digest[6] += g(0);
-    sha384->digest[7] += h(0);
-
-    /* Wipe variables */
-    XMEMSET(T, 0, sizeof(T));
-
-    return 0;
-}
-
-#endif
-
 #endif /* WOLFSSL_SHA384 */
 
 #endif /* HAVE_FIPS */
