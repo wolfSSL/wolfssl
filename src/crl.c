@@ -42,8 +42,12 @@
 #include <string.h>
 
 #ifdef HAVE_CRL_MONITOR
-    static int StopMonitor(int mfd);
-#endif
+    #if (defined(__MACH__) || defined(__FreeBSD__) || defined(__linux__))
+        static int StopMonitor(int mfd);
+    #else
+        #error "CRL monitor only currently supported on linux or mach"
+    #endif
+#endif /* HAVE_CRL_MONITOR */
 
 
 /* Initialize CRL members */
@@ -717,11 +721,6 @@ static void* DoMonitor(void* arg)
 
     return NULL;
 }
-
-
-#else
-
-#error "CRL monitor only currently supported on linux or mach"
 
 #endif /* MACH or linux */
 
