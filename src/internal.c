@@ -6177,7 +6177,8 @@ int CopyDecodedToX509(WOLFSSL_X509* x509, DecodedCert* dCert)
 {
     int ret = 0;
 
-    if (x509 == NULL || dCert == NULL)
+    if (x509 == NULL || dCert == NULL ||
+        dCert->subjectCNLen < 0)
         return BAD_FUNC_ARG;
 
     x509->version = dCert->version + 1;
@@ -6234,14 +6235,14 @@ int CopyDecodedToX509(WOLFSSL_X509* x509, DecodedCert* dCert)
         else
             x509->deviceTypeSz = 0;
         minSz = min(dCert->hwTypeSz, EXTERNAL_SERIAL_SIZE);
-        if (minSz != 0) {
+        if (minSz > 0) {
             x509->hwTypeSz = minSz;
             XMEMCPY(x509->hwType, dCert->hwType, minSz);
         }
         else
             x509->hwTypeSz = 0;
         minSz = min(dCert->hwSerialNumSz, EXTERNAL_SERIAL_SIZE);
-        if (minSz != 0) {
+        if (minSz > 0) {
             x509->hwSerialNumSz = minSz;
             XMEMCPY(x509->hwSerialNum, dCert->hwSerialNum, minSz);
         }
@@ -6251,14 +6252,14 @@ int CopyDecodedToX509(WOLFSSL_X509* x509, DecodedCert* dCert)
 #endif /* WOLFSSL_SEP */
     {
         int minSz = min(dCert->beforeDateLen, MAX_DATE_SZ);
-        if (minSz != 0) {
+        if (minSz > 0) {
             x509->notBeforeSz = minSz;
             XMEMCPY(x509->notBefore, dCert->beforeDate, minSz);
         }
         else
             x509->notBeforeSz = 0;
         minSz = min(dCert->afterDateLen, MAX_DATE_SZ);
-        if (minSz != 0) {
+        if (minSz > 0) {
             x509->notAfterSz = minSz;
             XMEMCPY(x509->notAfter, dCert->afterDate, minSz);
         }

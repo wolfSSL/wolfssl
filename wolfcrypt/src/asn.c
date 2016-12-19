@@ -410,7 +410,7 @@ time_t XTIME(time_t * timer)
 
 static INLINE word32 btoi(byte b)
 {
-    return b - 0x30;
+    return (word32)(b - 0x30);
 }
 
 
