@@ -401,6 +401,9 @@ const char* wc_GetErrorString(int error)
     case ASN_PATHLEN_INV_E:
         return "ASN CA path length larger than signer error";
 
+    case BAD_KEYWRAP_ALG_E:
+        return "Unsupported key wrap algorithm error";
+
     case BAD_KEYWRAP_IV_E:
         return "Decrypted AES key wrap IV does not match expected";
 

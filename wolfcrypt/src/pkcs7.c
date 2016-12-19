@@ -1079,6 +1079,7 @@ static int wc_PKCS7_KariKeyWrap(byte* cek, word32 cekSz, byte* kek,
         return BAD_FUNC_ARG;
 
     switch (keyWrapAlgo) {
+#ifndef NO_AES
         case AES128_WRAP:
         case AES192_WRAP:
         case AES256_WRAP:
@@ -1101,12 +1102,17 @@ static int wc_PKCS7_KariKeyWrap(byte* cek, word32 cekSz, byte* kek,
                 return ret;
 
             break;
+#endif /* NO_AES */
 
         default:
             WOLFSSL_MSG("Unsupported key wrap algorithm");
-            return BAD_FUNC_ARG;
+            return BAD_KEYWRAP_ALG_E;
     };
 
+    (void)cekSz;
+    (void)kekSz;
+    (void)outSz;
+    (void)direction;
     return ret;
 }
 
@@ -1515,7 +1521,7 @@ static int wc_CreateKeyAgreeRecipientInfo(PKCS7* pkcs7, const byte* cert,
                             int* keyEncSz, byte* out, word32 outSz)
 {
     int ret = 0, idx = 0;
-    int keySz;
+    int keySz, direction = 0;
 
     /* ASN.1 layout */
     int totalSz = 0;
@@ -1561,6 +1567,20 @@ static int wc_CreateKeyAgreeRecipientInfo(PKCS7* pkcs7, const byte* cert,
     if (keyAgreeAlgo != ECDSAk)
         return BAD_FUNC_ARG;
 
+    /* set direction based on keyWrapAlgo */
+    switch (keyWrapAlgo) {
+#ifndef NO_AES
+        case AES128_WRAP:
+        case AES192_WRAP:
+        case AES256_WRAP:
+            direction = AES_ENCRYPTION;
+            break;
+#endif
+        default:
+            WOLFSSL_MSG("Unsupported key wrap algorithm");
+            return BAD_KEYWRAP_ALG_E;
+    }
+
     kari = wc_PKCS7_KariNew(pkcs7, WC_PKCS7_ENCODE);
     if (kari == NULL)
         return MEMORY_E;
@@ -1596,7 +1616,7 @@ static int wc_CreateKeyAgreeRecipientInfo(PKCS7* pkcs7, const byte* cert,
     /* encrypt CEK with KEK */
     keySz = wc_PKCS7_KariKeyWrap(contentKeyPlain, blockKeySz, kari->kek,
                         kari->kekSz, contentKeyEnc, *keyEncSz, keyWrapAlgo,
-                        AES_ENCRYPTION);
+                        direction);
     if (keySz <= 0) {
         wc_PKCS7_KariFree(kari);
         return ret;
@@ -2836,6 +2856,7 @@ static int wc_PKCS7_DecodeKari(PKCS7* pkcs7, byte* pkiMsg, word32 pkiMsgSz,
 {
     int ret, keySz;
     int encryptedKeySz;
+    int direction = 0;
     word32 keyAgreeOID, keyWrapOID;
 
 #ifdef WOLFSSL_SMALL_STACK
@@ -2908,6 +2929,24 @@ static int wc_PKCS7_DecodeKari(PKCS7* pkcs7, byte* pkiMsg, word32 pkiMsgSz,
         return ret;
     }
 
+    /* set direction based on key wrap algorithm */
+    switch (keyWrapOID) {
+#ifndef NO_AES
+        case AES128_WRAP:
+        case AES192_WRAP:
+        case AES256_WRAP:
+            direction = AES_DECRYPTION;
+            break;
+#endif
+        default:
+            wc_PKCS7_KariFree(kari);
+            #ifdef WOLFSSL_SMALL_STACK
+                XFREE(encryptedKey, NULL, DYNAMIC_TYPE_PKCS7);
+            #endif
+            WOLFSSL_MSG("AES key wrap algorithm unsupported");
+            return BAD_KEYWRAP_ALG_E;
+    }
+
     /* remove RecipientEncryptedKeys */
     ret = wc_PKCS7_KariGetRecipientEncryptedKeys(kari, pkiMsg, pkiMsgSz,
                                idx, recipFound, encryptedKey, &encryptedKeySz);
@@ -2932,7 +2971,7 @@ static int wc_PKCS7_DecodeKari(PKCS7* pkcs7, byte* pkiMsg, word32 pkiMsgSz,
     /* decrypt CEK with KEK */
     keySz = wc_PKCS7_KariKeyWrap(encryptedKey, encryptedKeySz, kari->kek,
                                  kari->kekSz, decryptedKey, *decryptedKeySz,
-                                 keyWrapOID, AES_DECRYPTION);
+                                 keyWrapOID, direction);
     if (keySz <= 0) {
         wc_PKCS7_KariFree(kari);
         #ifdef WOLFSSL_SMALL_STACK
@@ -3147,13 +3186,17 @@ WOLFSSL_API int wc_PKCS7_DecodeEnvelopedData(PKCS7* pkcs7, byte* pkiMsg,
 
     blockKeySz = wc_PKCS7_GetOIDKeySize(encOID);
     if (blockKeySz < 0) {
+#ifdef WOLFSSL_SMALL_STACK
         XFREE(decryptedKey, NULL, DYNAMIC_TYPE_PKCS7);
+#endif
         return blockKeySz;
     }
 
     expBlockSz = wc_PKCS7_GetOIDBlockSize(encOID);
     if (expBlockSz < 0) {
+#ifdef WOLFSSL_SMALL_STACK
         XFREE(decryptedKey, NULL, DYNAMIC_TYPE_PKCS7);
+#endif
         return expBlockSz;
     }
 
