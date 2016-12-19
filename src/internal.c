@@ -10537,7 +10537,9 @@ int SendCertificate(WOLFSSL* ssl)
 
             sendSz = BuildMessage(ssl, output, sendSz, input, inputSz,
                                   handshake, 1, 0);
-            XFREE(input, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
+
+            if (inputSz > 0)
+                XFREE(input, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
 
             if (sendSz < 0)
                 return sendSz;

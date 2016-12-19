@@ -1963,6 +1963,14 @@ int ToTraditionalEnc(byte* input, word32 sz,const char* password,int passwordSz)
             return ASN_PARSE_E;
         }
 
+        if (length > MAX_IV_SIZE) {
+#ifdef WOLFSSL_SMALL_STACK
+            XFREE(salt,  NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(cbcIv, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+            return ASN_PARSE_E;
+        }
+
         XMEMCPY(cbcIv, &input[inOutIdx], length);
         inOutIdx += length;
     }
