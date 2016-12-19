@@ -216,6 +216,8 @@ extern "C" {
             #define FREESCALE_USE_LTC
             #define LTC_MAX_ECC_BITS    (512)
             #define LTC_MAX_INT_BYTES   (256)
+
+            //#define FREESCALE_LTC_TFM_RSA_4096_ENABLE
         #endif
     #endif
 #endif
@@ -230,14 +232,17 @@ extern "C" {
 #undef  USE_CERT_BUFFERS_2048
 #define USE_CERT_BUFFERS_2048
 
+#undef  USE_CERT_BUFFERS_256
+#define USE_CERT_BUFFERS_256
+
 
 /* ------------------------------------------------------------------------- */
 /* Debugging */
 /* ------------------------------------------------------------------------- */
-#undef  WOLFSSL_DEBUG
-//#define WOLFSSL_DEBUG
+#undef  DEBUG_WOLFSSL
+//#define DEBUG_WOLFSSL
 
-#ifdef WOLFSSL_DEBUG
+#ifdef DEBUG_WOLFSSL
     #define fprintf(file, format, ...)   printf(format, ##__VA_ARGS__)
 
     /* Use this to measure / print heap usage */
@@ -253,7 +258,7 @@ extern "C" {
     #define NO_WOLFSSL_MEMORY
 
     #undef  NO_ERROR_STRINGS
-    #define NO_ERROR_STRINGS
+    //#define NO_ERROR_STRINGS
 #endif
 
 
@@ -273,17 +278,21 @@ extern "C" {
 /* Size of returned HW RNG value */
 #define CUSTOM_RAND_TYPE      unsigned int
 
+/* Seed source */
+extern unsigned int custom_rand_generate(void);
+#undef  CUSTOM_RAND_GENERATE
+#define CUSTOM_RAND_GENERATE  custom_rand_generate
+
 /* Choose RNG method */
 #if 1
     /* Use built-in P-RNG (SHA256 based) with HW RNG */
     /* P-RNG + HW RNG (P-RNG is ~8K) */
     #undef  HAVE_HASHDRBG
     #define HAVE_HASHDRBG
-
-    extern unsigned int custom_rand_generate(void);
-    #undef  CUSTOM_RAND_GENERATE
-    #define CUSTOM_RAND_GENERATE  custom_rand_generate
 #else
+    #undef  WC_NO_HASHDRBG
+    #define WC_NO_HASHDRBG
+
     /* Bypass P-RNG and use only HW RNG */
     extern int custom_rand_generate_block(unsigned char* output, unsigned int sz);
     #undef  CUSTOM_RAND_GENERATE_BLOCK

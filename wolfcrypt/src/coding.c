@@ -347,7 +347,8 @@ int Base64_Encode_NoNl(const byte* in, word32 inLen, byte* out, word32* outLen)
 #endif  /* defined(WOLFSSL_BASE64_ENCODE) */
 
 
-#if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER) || defined(HAVE_FIPS)
+#if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER) || defined(HAVE_FIPS) \
+                           || defined(HAVE_ECC_CDH)
 
 static
 const byte hexDecode[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9,

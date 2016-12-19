@@ -31,7 +31,7 @@
 
 #include <wolfssl/wolfcrypt/misc.h>
 
-/* inlining these functions is a huge speed increase and a small size decrease, 
+/* inlining these functions is a huge speed increase and a small size decrease,
    because the functions are smaller than function call setup/cleanup, e.g.,
    md5 benchmark is twice as fast with inline.  If you don't want it, then
    define NO_INLINE and compile this file into wolfssl, otherwise it's used as
@@ -49,6 +49,12 @@
     #warning misc.c does not need to be compiled when using inline (NO_INLINE not defined)
 
 #else
+
+
+#if defined(__ICCARM__)
+    #include <intrinsics.h>
+#endif
+
 
 #ifdef INTEL_INTRINSICS
 
@@ -73,7 +79,7 @@
     STATIC INLINE word32 rotlFixed(word32 x, word32 y)
     {
         return (x << y) | (x >> (sizeof(y) * 8 - y));
-    }   
+    }
 
 
     STATIC INLINE word32 rotrFixed(word32 x, word32 y)
@@ -122,7 +128,7 @@ STATIC INLINE void ByteReverseWords(word32* out, const word32* in,
 STATIC INLINE word64 rotlFixed64(word64 x, word64 y)
 {
     return (x << y) | (x >> (sizeof(y) * 8 - y));
-}  
+}
 
 
 STATIC INLINE word64 rotrFixed64(word64 x, word64 y)
@@ -133,8 +139,8 @@ STATIC INLINE word64 rotrFixed64(word64 x, word64 y)
 
 STATIC INLINE word64 ByteReverseWord64(word64 value)
 {
-#ifdef WOLFCRYPT_SLOW_WORD64
-	return (word64)(ByteReverseWord32((word32)value)) << 32 | 
+#if defined(WOLFCRYPT_SLOW_WORD64)
+	return (word64)(ByteReverseWord32((word32)value)) << 32 |
                     ByteReverseWord32((word32)(value>>32));
 #else
 	value = ((value & W64LIT(0xFF00FF00FF00FF00)) >> 8) |
@@ -210,8 +216,31 @@ STATIC INLINE int ConstantCompare(const byte* a, const byte* b, int length)
     return compareSum;
 }
 
-#undef STATIC
 
+#ifndef WOLFSSL_HAVE_MIN
+    #define WOLFSSL_HAVE_MIN
+    #if defined(HAVE_FIPS) && !defined(min) /* so ifdef check passes */
+        #define min min
+    #endif
+    STATIC INLINE word32 min(word32 a, word32 b)
+    {
+        return a > b ? b : a;
+    }
+#endif /* !WOLFSSL_HAVE_MIN */
+
+#ifndef WOLFSSL_HAVE_MAX
+    #define WOLFSSL_HAVE_MAX
+    #if defined(HAVE_FIPS) && !defined(max) /* so ifdef check passes */
+        #define max max
+    #endif
+    STATIC INLINE word32 max(word32 a, word32 b)
+    {
+        return a > b ? a : b;
+    }
+#endif /* !WOLFSSL_HAVE_MAX */
+
+
+#undef STATIC
 
 #endif /* !WOLFSSL_MISC_INCLUDED && !NO_INLINE */
 

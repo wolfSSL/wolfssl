@@ -26,13 +26,60 @@
 
 #include <wolfssl/wolfcrypt/settings.h>
 
-
 #if !defined(NO_SHA)
 
 #include <wolfssl/wolfcrypt/sha.h>
-#include <wolfssl/wolfcrypt/logging.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
 
+/* fips wrapper calls, user can call direct */
+#ifdef HAVE_FIPS
+    int wc_InitSha(Sha* sha)
+    {
+        if (sha == NULL) {
+            return BAD_FUNC_ARG;
+        }
+        return InitSha_fips(sha);
+    }
+    int wc_InitSha_ex(Sha* sha, void* heap, int devId)
+    {
+        (void)heap;
+        (void)devId;
+        if (sha == NULL) {
+            return BAD_FUNC_ARG;
+        }
+        return InitSha_fips(sha);
+    }
+
+    int wc_ShaUpdate(Sha* sha, const byte* data, word32 len)
+    {
+        if (sha == NULL || (data == NULL && len > 0)) {
+            return BAD_FUNC_ARG;
+        }
+        return ShaUpdate_fips(sha, data, len);
+    }
+
+    int wc_ShaFinal(Sha* sha, byte* out)
+    {
+        if (sha == NULL || out == NULL) {
+            return BAD_FUNC_ARG;
+        }
+        return ShaFinal_fips(sha,out);
+    }
+    void wc_ShaFree(Sha* sha)
+    {
+        (void)sha;
+        /* Not supported in FIPS */
+    }
+
+#else /* else build without fips */
+
+
+#if defined(WOLFSSL_TI_HASH)
+    /* #include <wolfcrypt/src/port/ti/ti-hash.c> included by wc_port.c */
+
+#else
+
+#include <wolfssl/wolfcrypt/logging.h>
 #ifdef NO_INLINE
     #include <wolfssl/wolfcrypt/misc.h>
 #else
@@ -41,33 +88,8 @@
 #endif
 
 
-/* fips wrapper calls, user can call direct */
-#ifdef HAVE_FIPS
-	int wc_InitSha(Sha* sha)
-	{
-	    return InitSha_fips(sha);
-	}
-
-	int wc_ShaUpdate(Sha* sha, const byte* data, word32 len)
-	{
-	    return ShaUpdate_fips(sha, data, len);
-	}
-
-	int wc_ShaFinal(Sha* sha, byte* out)
-	{
-	    return ShaFinal_fips(sha,out);
-    }
-
-#else /* else build without fips */
-
-
-/****************************************/
-/* SHA Hardware Variations */
-/****************************************/
-#if defined(WOLFSSL_TI_HASH)
-    /* #include <wolfcrypt/src/port/ti/ti-hash.c> included by wc_port.c */
-
-#elif defined(WOLFSSL_PIC32MZ_HASH)
+/* Hardware Acceleration */
+#if defined(WOLFSSL_PIC32MZ_HASH)
     #define USE_SHA_SOFTWARE_IMPL
     #define wc_InitSha   wc_InitSha_sw
     #define wc_ShaUpdate wc_ShaUpdate_sw
@@ -80,7 +102,7 @@
      * library. (See note in README).
      */
 
-    int wc_InitSha(Sha* sha)
+    static int InitSha(Sha* sha)
     {
         /* STM32 struct notes:
          * sha->buffer  = first 4 bytes used to hold partial block if needed
@@ -193,7 +215,7 @@
 #elif defined(FREESCALE_LTC_SHA)
 
     #include "fsl_ltc.h"
-    int wc_InitSha(Sha* sha)
+    static int InitSha(Sha* sha)
     {
         LTC_HASH_Init(LTC_BASE, &sha->ctx, kLTC_Sha1, NULL, 0);
         return 0;
@@ -219,7 +241,7 @@
     #define USE_SHA_SOFTWARE_IMPL /* Only for API's, actual transform is here */
     #define XSHATRANSFORM   ShaTransform
 
-    int wc_InitSha(Sha* sha)
+    static int InitSha(Sha* sha)
     {
         int ret = 0;
         ret = wolfSSL_CryptHwMutexLock();
@@ -251,7 +273,7 @@
     /* Software implementation */
     #define USE_SHA_SOFTWARE_IMPL
 
-    int wc_InitSha(Sha* sha)
+    static int InitSha(Sha* sha)
     {
         int ret = 0;
 
@@ -268,7 +290,7 @@
         return ret;
     }
 
-#endif
+#endif /* End Hardware Acceleration */
 
 
 /* Software implementation */
@@ -378,13 +400,6 @@
 #endif /* !USE_CUSTOM_SHA_TRANSFORM */
 
 
-#ifndef WOLFSSL_HAVE_MIN
-    #define WOLFSSL_HAVE_MIN
-    static INLINE word32 min(word32 a, word32 b) {
-        return a > b ? b : a;
-    }
-#endif /* WOLFSSL_HAVE_MIN */
-
 static INLINE void AddLength(Sha* sha, word32 len)
 {
     word32 tmp = sha->loLen;
@@ -392,11 +407,51 @@ static INLINE void AddLength(Sha* sha, word32 len)
         sha->hiLen++;                       /* carry low to high */
 }
 
-
-int wc_ShaUpdate(Sha* sha, const byte* data, word32 len)
+int wc_InitSha_ex(Sha* sha, void* heap, int devId)
 {
+    int ret = 0;
+
+    if (sha == NULL)
+        return BAD_FUNC_ARG;
+
+    sha->heap = heap;
+
+    ret = InitSha(sha);
+    if (ret != 0)
+        return ret;
+
+#if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_SHA)
+    ret = wolfAsync_DevCtxInit(&sha->asyncDev, WOLFSSL_ASYNC_MARKER_SHA,
+                                                            sha->heap, devId);
+#else
+    (void)devId;
+#endif /* WOLFSSL_ASYNC_CRYPT */
+
+    return ret;
+}
+
+int wc_ShaUpdate (Sha* sha, const byte* data, word32 len)
+{
+    byte* local;
+
+    if (sha == NULL ||(data == NULL && len > 0)) {
+        return BAD_FUNC_ARG;
+    }
+
     /* do block size increments */
-    byte* local = (byte*)sha->buffer;
+    local = (byte*)sha->buffer;
+
+#if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_SHA)
+    if (sha->asyncDev.marker == WOLFSSL_ASYNC_MARKER_SHA) {
+    #if defined(HAVE_INTEL_QA)
+        return IntelQaSymSha(&sha->asyncDev, NULL, data, len);
+    #endif
+    }
+#endif /* WOLFSSL_ASYNC_CRYPT */
+
+    /* check that internal buffLen is valid */
+    if (sha->buffLen >= SHA_BLOCK_SIZE)
+        return BUFFER_E;
 
     while (len) {
         word32 add = min(len, SHA_BLOCK_SIZE - sha->buffLen);
@@ -421,7 +476,21 @@ int wc_ShaUpdate(Sha* sha, const byte* data, word32 len)
 
 int wc_ShaFinal(Sha* sha, byte* hash)
 {
-    byte* local = (byte*)sha->buffer;
+    byte* local;
+
+    if (sha == NULL || hash == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    local = (byte*)sha->buffer;
+
+#if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_SHA)
+    if (sha->asyncDev.marker == WOLFSSL_ASYNC_MARKER_SHA) {
+    #if defined(HAVE_INTEL_QA)
+        return IntelQaSymSha(&sha->asyncDev, hash, NULL, SHA_DIGEST_SIZE);
+    #endif
+    }
+#endif /* WOLFSSL_ASYNC_CRYPT */
 
     AddLength(sha, sha->buffLen);  /* before adding pads */
 
@@ -466,10 +535,61 @@ int wc_ShaFinal(Sha* sha, byte* hash)
 #endif
     XMEMCPY(hash, sha->digest, SHA_DIGEST_SIZE);
 
-    return wc_InitSha(sha);  /* reset state */
+    return InitSha(sha); /* reset state */
 }
 
 #endif /* USE_SHA_SOFTWARE_IMPL */
 
+
+int wc_InitSha(Sha* sha)
+{
+    return wc_InitSha_ex(sha, NULL, INVALID_DEVID);
+}
+
+void wc_ShaFree(Sha* sha)
+{
+    if (sha == NULL)
+        return;
+
+#if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_SHA)
+    wolfAsync_DevCtxFree(&sha->asyncDev, WOLFSSL_ASYNC_MARKER_SHA);
+#endif /* WOLFSSL_ASYNC_CRYPT */
+}
+
+#endif /* !WOLFSSL_TI_HASH */
 #endif /* HAVE_FIPS */
+
+#ifndef WOLFSSL_TI_HASH
+int wc_ShaGetHash(Sha* sha, byte* hash)
+{
+    int ret;
+    Sha tmpSha;
+
+    if (sha == NULL || hash == NULL)
+        return BAD_FUNC_ARG;
+
+    ret = wc_ShaCopy(sha, &tmpSha);
+    if (ret == 0) {
+        ret = wc_ShaFinal(&tmpSha, hash);
+    }
+    return ret;
+}
+
+int wc_ShaCopy(Sha* src, Sha* dst)
+{
+    int ret = 0;
+
+    if (src == NULL || dst == NULL)
+        return BAD_FUNC_ARG;
+
+    XMEMCPY(dst, src, sizeof(Sha));
+
+#ifdef WOLFSSL_ASYNC_CRYPT
+    ret = wolfAsync_DevCopy(&src->asyncDev, &dst->asyncDev);
+#endif
+
+    return ret;
+}
+#endif /* !WOLFSSL_TI_HASH */
+
 #endif /* !NO_SHA */

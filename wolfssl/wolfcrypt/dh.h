@@ -34,14 +34,44 @@
     extern "C" {
 #endif
 
+#ifdef WOLFSSL_ASYNC_CRYPT
+    #include <wolfssl/wolfcrypt/async.h>
+#endif
+typedef struct DhParams {
+    const byte* p;
+    word32      p_len;
+    const byte* g;
+    word32      g_len;
+} DhParams;
 
 /* Diffie-Hellman Key */
 typedef struct DhKey {
     mp_int p, g;                            /* group parameters  */
+    void* heap;
+#ifdef WOLFSSL_ASYNC_CRYPT
+    WC_ASYNC_DEV asyncDev;
+#endif
 } DhKey;
 
 
-WOLFSSL_API void wc_InitDhKey(DhKey* key);
+#ifdef HAVE_FFDHE_2048
+WOLFSSL_API const DhParams* wc_Dh_ffdhe2048_Get(void);
+#endif
+#ifdef HAVE_FFDHE_3072
+WOLFSSL_API const DhParams* wc_Dh_ffdhe3072_Get(void);
+#endif
+#ifdef HAVE_FFDHE_4096
+WOLFSSL_API const DhParams* wc_Dh_ffdhe4096_Get(void);
+#endif
+#ifdef HAVE_FFDHE_6144
+WOLFSSL_API const DhParams* wc_Dh_ffdhe6144_Get(void);
+#endif
+#ifdef HAVE_FFDHE_8192
+WOLFSSL_API const DhParams* wc_Dh_ffdhe8192_Get(void);
+#endif
+
+WOLFSSL_API int wc_InitDhKey(DhKey* key);
+WOLFSSL_API int wc_InitDhKey_ex(DhKey* key, void* heap, int devId);
 WOLFSSL_API void wc_FreeDhKey(DhKey* key);
 
 WOLFSSL_API int wc_DhGenerateKeyPair(DhKey* key, WC_RNG* rng, byte* priv,
@@ -56,7 +86,7 @@ WOLFSSL_API int wc_DhSetKey(DhKey* key, const byte* p, word32 pSz, const byte* g
                         word32 gSz);
 WOLFSSL_API int wc_DhParamsLoad(const byte* input, word32 inSz, byte* p,
                             word32* pInOutSz, byte* g, word32* gInOutSz);
-
+WOLFSSL_API int wc_DhCheckPubKey(DhKey* key, const byte* pub, word32 pubSz);
 
 #ifdef __cplusplus
     } /* extern "C" */

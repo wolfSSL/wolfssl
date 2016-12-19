@@ -72,8 +72,8 @@ mkdir -p $RPM_BUILD_ROOT/
 %{_docdir}/wolfssl/README.txt
 %{_libdir}/libwolfssl.la
 %{_libdir}/libwolfssl.so
-%{_libdir}/libwolfssl.so.3
-%{_libdir}/libwolfssl.so.3.6.0
+%{_libdir}/libwolfssl.so.12
+%{_libdir}/libwolfssl.so.12.0.0
 
 %files devel
 %defattr(-,root,root,-)
@@ -159,6 +159,7 @@ mkdir -p $RPM_BUILD_ROOT/
 %{_includedir}/cyassl/openssl/rsa.h
 %{_includedir}/cyassl/openssl/sha.h
 %{_includedir}/cyassl/openssl/ssl.h
+%{_includedir}/cyassl/openssl/ssl23.h
 %{_includedir}/cyassl/openssl/stack.h
 %{_includedir}/cyassl/openssl/ui.h
 %{_includedir}/cyassl/openssl/x509.h
@@ -172,6 +173,7 @@ mkdir -p $RPM_BUILD_ROOT/
 %{_includedir}/wolfssl/callbacks.h
 %{_includedir}/wolfssl/certs_test.h
 %{_includedir}/wolfssl/crl.h
+%{_includedir}/wolfssl/io.h
 %{_includedir}/wolfssl/wolfcrypt/aes.h
 %{_includedir}/wolfssl/wolfcrypt/cmac.h
 %{_includedir}/wolfssl/wolfcrypt/arc4.h
@@ -229,8 +231,10 @@ mkdir -p $RPM_BUILD_ROOT/
 %{_includedir}/wolfssl/wolfcrypt/visibility.h
 %{_includedir}/wolfssl/wolfcrypt/wc_encrypt.h
 %{_includedir}/wolfssl/wolfcrypt/wolfevent.h
+%{_includedir}/wolfssl/wolfcrypt/wolfmath.h
 %{_includedir}/wolfssl/error-ssl.h
 %{_includedir}/wolfssl/ocsp.h
+%{_includedir}/wolfssl/openssl/aes.h
 %{_includedir}/wolfssl/openssl/asn1.h
 %{_includedir}/wolfssl/openssl/bio.h
 %{_includedir}/wolfssl/openssl/bn.h
@@ -262,6 +266,7 @@ mkdir -p $RPM_BUILD_ROOT/
 %{_includedir}/wolfssl/openssl/rsa.h
 %{_includedir}/wolfssl/openssl/sha.h
 %{_includedir}/wolfssl/openssl/ssl.h
+%{_includedir}/wolfssl/openssl/ssl23.h
 %{_includedir}/wolfssl/openssl/stack.h
 %{_includedir}/wolfssl/openssl/ui.h
 %{_includedir}/wolfssl/openssl/x509.h
@@ -275,6 +280,12 @@ mkdir -p $RPM_BUILD_ROOT/
 %{_libdir}/pkgconfig/wolfssl.pc
 
 %changelog
+* Thu May 04 2017 Jacob Barthelmeh <jacob@wolfssl.com>
+- Added header for wolfssl/io.h, wolfssl/openssl/ssl23.h, cyassl/openssl/ssl23.h
+* Thu Feb 09 2017 Jacob Barthelmeh <jacob@wolfssl.com>
+- Added header for wolfssl/wolfcrypt/wolfmath.h
+* Fri Nov 11 2016 Jacob Barthelmeh <jacob@wolfssl.com>
+- Added header for wolfssl/openssl/aes.h
 * Fri Oct 28 2016 Jacob Barthelmeh <jacob@wolfssl.com>
 - Added header for pkcs12
 * Fri Sep 23 2016 John Safranek <john@wolfssl.com>

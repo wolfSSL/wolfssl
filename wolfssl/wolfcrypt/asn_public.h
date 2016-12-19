@@ -25,15 +25,23 @@
 #define WOLF_CRYPT_ASN_PUBLIC_H
 
 #include <wolfssl/wolfcrypt/types.h>
-#ifdef HAVE_ECC
-    #include <wolfssl/wolfcrypt/ecc.h>
-#endif
-#if defined(WOLFSSL_CERT_GEN) && !defined(NO_RSA)
-    #include <wolfssl/wolfcrypt/rsa.h>
-#endif
 
 #ifdef __cplusplus
     extern "C" {
+#endif
+
+/* guard on redeclaration */
+#ifndef WC_ECCKEY_TYPE_DEFINED
+    typedef struct ecc_key ecc_key;
+    #define WC_ECCKEY_TYPE_DEFINED
+#endif
+#ifndef WC_RSAKEY_TYPE_DEFINED
+    typedef struct RsaKey RsaKey;
+    #define WC_RSAKEY_TYPE_DEFINED
+#endif
+#ifndef WC_RNG_TYPE_DEFINED
+    typedef struct WC_RNG WC_RNG;
+    #define WC_RNG_TYPE_DEFINED
 #endif
 
 /* Certificate file Type */
@@ -41,6 +49,7 @@ enum CertType {
     CERT_TYPE       = 0,
     PRIVATEKEY_TYPE,
     DH_PARAM_TYPE,
+    DSA_PARAM_TYPE,
     CRL_TYPE,
     CA_TYPE,
     ECC_PRIVATEKEY_TYPE,
@@ -94,14 +103,8 @@ enum Ctc_Misc {
 #endif /* WOLFSSL_CERT_EXT */
 };
 
-#ifdef WOLFSSL_CERT_GEN
 
-#ifndef HAVE_ECC
-    typedef struct ecc_key ecc_key;
-#endif
-#ifdef NO_RSA
-    typedef struct RsaKey RsaKey;
-#endif
+#ifdef WOLFSSL_CERT_GEN
 
 typedef struct CertName {
     char country[CTC_NAME_SIZE];
@@ -157,11 +160,6 @@ typedef struct Cert {
 #endif
     void*   heap; /* heap hint */
 } Cert;
-#endif /* WOLFSSL_CERT_GEN */
-
-
-#ifdef WOLFSSL_CERT_GEN
-
 
 
 /* Initialize and Set Certificate defaults:
@@ -244,7 +242,8 @@ WOLFSSL_API int wc_SetKeyUsage(Cert *cert, const char *value);
     #endif /* WOLFSSL_PEMPUBKEY_TODER_DEFINED */
 #endif /* WOLFSSL_CERT_EXT || WOLFSSL_PUB_PEM_TO_DER */
 
-#if defined(WOLFSSL_KEY_GEN) || defined(WOLFSSL_CERT_GEN) || !defined(NO_DSA)
+#if defined(WOLFSSL_KEY_GEN) || defined(WOLFSSL_CERT_GEN) || !defined(NO_DSA) \
+                             || defined(OPENSSL_EXTRA)
     WOLFSSL_API int wc_DerToPem(const byte* der, word32 derSz, byte* output,
                                 word32 outputSz, int type);
     WOLFSSL_API int wc_DerToPemEx(const byte* der, word32 derSz, byte* output,
@@ -256,6 +255,8 @@ WOLFSSL_API int wc_SetKeyUsage(Cert *cert, const char *value);
     WOLFSSL_API int wc_EccPrivateKeyDecode(const byte*, word32*,
                                            ecc_key*, word32);
     WOLFSSL_API int wc_EccKeyToDer(ecc_key*, byte* output, word32 inLen);
+    WOLFSSL_API int wc_EccPrivateKeyToDer(ecc_key* key, byte* output,
+                                          word32 inLen);
 
     /* public key helper */
     WOLFSSL_API int wc_EccPublicKeyDecode(const byte*, word32*,
@@ -270,6 +271,11 @@ WOLFSSL_API int wc_SetKeyUsage(Cert *cert, const char *value);
 WOLFSSL_API word32 wc_EncodeSignature(byte* out, const byte* digest,
                                       word32 digSz, int hashOID);
 WOLFSSL_API int wc_GetCTC_HashOID(int type);
+
+WOLFSSL_API int wc_GetPkcs8TraditionalOffset(byte* input,
+                                             word32* inOutIdx, word32 sz);
+WOLFSSL_API int wc_CreatePKCS8Key(byte* out, word32* outSz,
+       byte* key, word32 keySz, int algoID, const byte* curveOID, word32 oidSz);
 
 /* Time */
 /* Returns seconds (Epoch/UTC)

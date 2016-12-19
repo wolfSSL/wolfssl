@@ -4,7 +4,6 @@
 #ifndef WOLFSSL_RSA_H_
 #define WOLFSSL_RSA_H_
 
-#include <wolfssl/openssl/ssl.h>
 #include <wolfssl/openssl/bn.h>
 
 
@@ -23,6 +22,13 @@ enum {
     NID_sha384 = 673,
     NID_sha512 = 674
 };
+
+#ifndef WOLFSSL_RSA_TYPE_DEFINED /* guard on redeclaration */
+typedef struct WOLFSSL_RSA            WOLFSSL_RSA;
+#define WOLFSSL_RSA_TYPE_DEFINED
+#endif
+
+typedef WOLFSSL_RSA                   RSA;
 
 struct WOLFSSL_RSA {
 	WOLFSSL_BIGNUM* n;

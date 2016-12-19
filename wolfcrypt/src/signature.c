@@ -175,7 +175,15 @@ int wc_SignatureVerify(
                 int is_valid_sig = 0;
 
                 /* Perform verification of signature using provided ECC key */
-                ret = wc_ecc_verify_hash(sig, sig_len, hash_data, hash_len, &is_valid_sig, (ecc_key*)key);
+                do {
+                #ifdef WOLFSSL_ASYNC_CRYPT
+                    ret = wc_AsyncWait(ret, &((ecc_key*)key)->asyncDev,
+                        WC_ASYNC_FLAG_CALL_AGAIN);
+                #endif
+                if (ret >= 0)
+                    ret = wc_ecc_verify_hash(sig, sig_len, hash_data, hash_len,
+                        &is_valid_sig, (ecc_key*)key);
+                } while (ret == WC_PENDING_E);
                 if (ret != 0 || is_valid_sig != 1) {
                     ret = SIG_VERIFY_E;
                 }
@@ -198,6 +206,7 @@ int wc_SignatureVerify(
                 /* Otherwise fall-through and perform normal RSA verify against updated
                  * DER encoding + hash */
 #endif
+                FALL_THROUGH;
 
             case WC_SIGNATURE_TYPE_RSA:
             {
@@ -212,8 +221,15 @@ int wc_SignatureVerify(
                 plain_data = (byte*)XMALLOC(plain_len, NULL, DYNAMIC_TYPE_TMP_BUFFER);
                 if (plain_data) {
                     /* Perform verification of signature using provided RSA key */
-                    ret = wc_RsaSSL_Verify(sig, sig_len, plain_data, plain_len,
-                        (RsaKey*)key);
+                    do {
+                    #ifdef WOLFSSL_ASYNC_CRYPT
+                        ret = wc_AsyncWait(ret, &((RsaKey*)key)->asyncDev,
+                            WC_ASYNC_FLAG_CALL_AGAIN);
+                    #endif
+                    if (ret >= 0)
+                        ret = wc_RsaSSL_Verify(sig, sig_len, plain_data,
+                            plain_len, (RsaKey*)key);
+                    } while (ret == WC_PENDING_E);
                     if (ret >= 0) {
                         if ((word32)ret == hash_len &&
                                 XMEMCMP(plain_data, hash_data, hash_len) == 0) {
@@ -296,7 +312,15 @@ int wc_SignatureGenerate(
             case WC_SIGNATURE_TYPE_ECC:
 #if defined(HAVE_ECC) && defined(HAVE_ECC_SIGN)
                 /* Create signature using provided ECC key */
-                ret = wc_ecc_sign_hash(hash_data, hash_len, sig, sig_len, rng, (ecc_key*)key);
+                do {
+                #ifdef WOLFSSL_ASYNC_CRYPT
+                    ret = wc_AsyncWait(ret, &((ecc_key*)key)->asyncDev,
+                        WC_ASYNC_FLAG_CALL_AGAIN);
+                #endif
+                if (ret >= 0)
+                    ret = wc_ecc_sign_hash(hash_data, hash_len, sig, sig_len,
+                        rng, (ecc_key*)key);
+                } while (ret == WC_PENDING_E);
 #else
                 ret = SIG_TYPE_E;
 #endif
@@ -315,11 +339,19 @@ int wc_SignatureGenerate(
                 /* Otherwise fall-through and perform normal RSA sign against updated
                  * DER encoding + hash */
 #endif
-
+                FALL_THROUGH;
             case WC_SIGNATURE_TYPE_RSA:
 #ifndef NO_RSA
                 /* Create signature using provided RSA key */
-                ret = wc_RsaSSL_Sign(hash_data, hash_len, sig, *sig_len, (RsaKey*)key, rng);
+                do {
+                #ifdef WOLFSSL_ASYNC_CRYPT
+                    ret = wc_AsyncWait(ret, &((RsaKey*)key)->asyncDev,
+                        WC_ASYNC_FLAG_CALL_AGAIN);
+                #endif
+                    if (ret >= 0)
+                        ret = wc_RsaSSL_Sign(hash_data, hash_len, sig, *sig_len,
+                            (RsaKey*)key, rng);
+                } while (ret == WC_PENDING_E);
                 if (ret >= 0) {
                     *sig_len = ret;
                     ret = 0; /* Success */

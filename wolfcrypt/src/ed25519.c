@@ -207,11 +207,11 @@ int wc_ed25519_sign_msg(const byte* in, word32 inlen, byte* out,
    siglen  is the length of sig byte array
    msg     the array of bytes containing the message
    msglen  length of msg array
-   stat    will be 1 on successful verify and 0 on unsuccessful
-   return  0 and stat of 1 on success
+   res     will be 1 on successful verify and 0 on unsuccessful
+   return  0 and res of 1 on success
 */
 int wc_ed25519_verify_msg(byte* sig, word32 siglen, const byte* msg,
-                          word32 msglen, int* stat, ed25519_key* key)
+                          word32 msglen, int* res, ed25519_key* key)
 {
     byte   rcheck[ED25519_KEY_SIZE];
     byte   h[SHA512_DIGEST_SIZE];
@@ -223,11 +223,11 @@ int wc_ed25519_verify_msg(byte* sig, word32 siglen, const byte* msg,
     Sha512 sha;
 
     /* sanity check on arguments */
-    if (sig == NULL || msg == NULL || stat == NULL || key == NULL)
+    if (sig == NULL || msg == NULL || res == NULL || key == NULL)
         return BAD_FUNC_ARG;
 
     /* set verification failed by default */
-    *stat = 0;
+    *res = 0;
 
     /* check on basics needed to verify signature */
     if (siglen < ED25519_SIG_SIZE || (sig[ED25519_SIG_SIZE-1] & 224))
@@ -279,7 +279,7 @@ int wc_ed25519_verify_msg(byte* sig, word32 siglen, const byte* msg,
         return SIG_VERIFY_E;
 
     /* set the verification status */
-    *stat = 1;
+    *res = 1;
 
     return ret;
 }

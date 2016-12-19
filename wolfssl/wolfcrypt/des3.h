@@ -80,10 +80,14 @@ typedef struct Des3 {
     word32 reg[DES_BLOCK_SIZE / sizeof(word32)];      /* for CBC mode */
     word32 tmp[DES_BLOCK_SIZE / sizeof(word32)];      /* same         */
 #ifdef WOLFSSL_ASYNC_CRYPT
-    AsyncCryptDev asyncDev;
+    const byte* key_raw;
+    const byte* iv_raw;
+    WC_ASYNC_DEV asyncDev;
 #endif
+    void* heap;
 } Des3;
 #endif /* HAVE_FIPS */
+
 
 WOLFSSL_API int  wc_Des_SetKey(Des* des, const byte* key,
                                const byte* iv, int dir);
@@ -94,6 +98,12 @@ WOLFSSL_API int  wc_Des_CbcDecrypt(Des* des, byte* out,
                                    const byte* in, word32 sz);
 WOLFSSL_API int  wc_Des_EcbEncrypt(Des* des, byte* out,
                                    const byte* in, word32 sz);
+WOLFSSL_API int wc_Des3_EcbEncrypt(Des3* des, byte* out,
+                                   const byte* in, word32 sz);
+
+/* ECB decrypt same process as encrypt but with decrypt key */
+#define wc_Des_EcbDecrypt  wc_Des_EcbEncrypt
+#define wc_Des3_EcbDecrypt wc_Des3_EcbEncrypt
 
 WOLFSSL_API int  wc_Des3_SetKey(Des3* des, const byte* key,
                                 const byte* iv,int dir);
@@ -103,10 +113,10 @@ WOLFSSL_API int  wc_Des3_CbcEncrypt(Des3* des, byte* out,
 WOLFSSL_API int  wc_Des3_CbcDecrypt(Des3* des, byte* out,
                                     const byte* in,word32 sz);
 
-#ifdef WOLFSSL_ASYNC_CRYPT
-    WOLFSSL_API int  wc_Des3AsyncInit(Des3*, int);
-    WOLFSSL_API void wc_Des3AsyncFree(Des3*);
-#endif
+/* These are only required when using either:
+  static memory (WOLFSSL_STATIC_MEMORY) or asynchronous (WOLFSSL_ASYNC_CRYPT) */
+WOLFSSL_API int  wc_Des3Init(Des3*, void*, int);
+WOLFSSL_API void wc_Des3Free(Des3*);
 
 #ifdef __cplusplus
     } /* extern "C" */

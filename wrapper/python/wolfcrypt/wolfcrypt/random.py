@@ -46,23 +46,23 @@ class Random(object):
         """
         Generate and return a random byte.
         """
-        result = t2b("\0")
+        result = _ffi.new('byte[1]')
 
         ret = _lib.wc_RNG_GenerateByte(self.native_object, result)
         if ret < 0:
             raise WolfCryptError("RNG generate byte error (%d)" % ret)
 
-        return result
+        return _ffi.buffer(result, 1)[:]
 
 
     def bytes(self, length):
         """
         Generate and return a random sequence of length bytes.
         """
-        result = t2b("\0" * length)
+        result = _ffi.new('byte[%d]' % length)
 
         ret = _lib.wc_RNG_GenerateBlock(self.native_object, result, length)
         if ret < 0:
             raise WolfCryptError("RNG generate block error (%d)" % ret)
 
-        return result
+        return _ffi.buffer(result, length)[:]

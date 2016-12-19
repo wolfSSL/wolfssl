@@ -9,20 +9,28 @@
 # This should check out all the approved versions. The command line
 # option selects the version.
 #
-#     $ ./fips-check [version]
+#     $ ./fips-check [version] [keep]
 #
-#     - version: linux (default), ios, android, windows, freertos
+#     - version: linux (default), ios, android, windows, freertos, linux-ecc
+#
+#     - keep: (default off) XXX-fips-test temp dir around for inspection
 #
 
 function Usage() {
-    echo "Usage: $0 [platform]"
-    echo "Where \"platform\" is one of linux (default), ios, android, windows, freertos"
+    echo "Usage: $0 [platform] [keep]"
+    echo "Where \"platform\" is one of linux (default), ios, android, windows, freertos, openrtos-3.9.2, linux-ecc"
+    echo "Where \"keep\" means keep (default off) XXX-fips-test temp dir around for inspection"
 }
 
 LINUX_FIPS_VERSION=v3.2.6
 LINUX_FIPS_REPO=git@github.com:wolfSSL/fips.git
 LINUX_CTAO_VERSION=v3.2.6
 LINUX_CTAO_REPO=git@github.com:cyassl/cyassl.git
+
+LINUX_ECC_FIPS_VERSION=v3.10.3
+LINUX_ECC_FIPS_REPO=git@github.com:wolfSSL/fips.git
+LINUX_ECC_CTAO_VERSION=v3.2.6
+LINUX_ECC_CTAO_REPO=git@github.com:cyassl/cyassl.git
 
 IOS_FIPS_VERSION=v3.4.8a
 IOS_FIPS_REPO=git@github.com:wolfSSL/fips.git
@@ -44,6 +52,11 @@ FREERTOS_FIPS_REPO=git@github.com:wolfSSL/fips.git
 FREERTOS_CTAO_VERSION=v3.6.1
 FREERTOS_CTAO_REPO=git@github.com:cyassl/cyassl.git
 
+OPENRTOS_3_9_2_FIPS_VERSION=v3.9.2-OpenRTOS
+OPENRTOS_3_9_2_FIPS_REPO=git@github.com:wolfSSL/fips.git
+OPENRTOS_3_9_2_CTAO_VERSION=v3.6.1
+OPENRTOS_3_9_2_CTAO_REPO=git@github.com:cyassl/cyassl.git
+
 FIPS_SRCS=( fips.c fips_test.c )
 WC_MODS=( aes des3 sha sha256 sha512 rsa hmac random )
 TEST_DIR=XXX-fips-test
@@ -51,6 +64,8 @@ WC_INC_PATH=cyassl/ctaocrypt
 WC_SRC_PATH=ctaocrypt/src
 
 if [ "x$1" == "x" ]; then PLATFORM="linux"; else PLATFORM=$1; fi
+
+if [ "x$2" == "xkeep" ]; then KEEP="yes"; else KEEP="no"; fi
 
 case $PLATFORM in
 ios)
@@ -77,11 +92,24 @@ freertos)
   CTAO_VERSION=$FREERTOS_CTAO_VERSION
   CTAO_REPO=$FREERTOS_CTAO_REPO
   ;;
+openrtos-3.9.2)
+  FIPS_VERSION=$OPENRTOS_3_9_2_FIPS_VERSION
+  FIPS_REPO=$OPENRTOS_3_9_2_FIPS_REPO
+  CTAO_VERSION=$OPENRTOS_3_9_2_CTAO_VERSION
+  CTAO_REPO=$OPENRTOS_3_9_2_CTAO_REPO
+  FIPS_CONFLICTS=( aes hmac random sha256 )
+  ;;
 linux)
   FIPS_VERSION=$LINUX_FIPS_VERSION
   FIPS_REPO=$LINUX_FIPS_REPO
   CTAO_VERSION=$LINUX_CTAO_VERSION
   CTAO_REPO=$LINUX_CTAO_REPO
+  ;;
+linux-ecc)
+  FIPS_VERSION=$LINUX_ECC_FIPS_VERSION
+  FIPS_REPO=$LINUX_ECC_FIPS_REPO
+  CTAO_VERSION=$LINUX_ECC_CTAO_VERSION
+  CTAO_REPO=$LINUX_ECC_CTAO_REPO
   ;;
 *)
   Usage
@@ -134,7 +162,22 @@ fi
 make test
 [ $? -ne 0 ] && echo "\n\nTest failed. Debris left for analysis." && exit 1
 
+if [ ${#FIPS_CONFLICTS[@]} -ne 0 ];
+then
+    echo "Due to the way this package is compiled by the customer duplicate"
+    echo "source file names are an issue, renaming:"
+    for FNAME in ${FIPS_CONFLICTS[@]}
+    do
+        echo "wolfcrypt/src/$FNAME.c to wolfcrypt/src/wc_$FNAME.c"
+        mv ./wolfcrypt/src/$FNAME.c ./wolfcrypt/src/wc_$FNAME.c
+    done
+    echo "Confirming files were renamed..."
+    ls -la ./wolfcrypt/src/wc_*.c
+fi
+
 # Clean up
 popd
-rm -rf $TEST_DIR
-
+if [ "x$KEEP" == "xno" ];
+then
+    rm -rf $TEST_DIR
+fi

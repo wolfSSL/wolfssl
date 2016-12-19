@@ -44,8 +44,12 @@
 #endif
 
 #ifndef HAVE_FIPS /* avoid redefinition of structs */
+
 #ifdef WOLFSSL_PIC32MZ_HASH
     #include "port/pic32/pic32mz-crypt.h"
+#endif
+#ifdef WOLFSSL_ASYNC_CRYPT
+    #include <wolfssl/wolfcrypt/async.h>
 #endif
 
 /* in bytes */
@@ -63,14 +67,19 @@ typedef struct Sha256 {
 #ifdef FREESCALE_LTC_SHA
     ltc_hash_ctx_t ctx;
 #else
+    /* alignment on digest and buffer speeds up ARMv8 crypto operations */
+    ALIGN16 word32  digest[SHA256_DIGEST_SIZE / sizeof(word32)];
+    ALIGN16 word32  buffer[SHA256_BLOCK_SIZE  / sizeof(word32)];
     word32  buffLen;   /* in bytes          */
     word32  loLen;     /* length in bytes   */
     word32  hiLen;     /* length in bytes   */
-    ALIGN16 word32  digest[SHA256_DIGEST_SIZE / sizeof(word32)];
-    ALIGN16 word32  buffer[SHA256_BLOCK_SIZE  / sizeof(word32)];
-    #ifdef WOLFSSL_PIC32MZ_HASH
-        pic32mz_desc desc ; /* Crypt Engine descriptor */
-    #endif
+    void*   heap;
+#ifdef WOLFSSL_PIC32MZ_HASH
+    pic32mz_desc desc; /* Crypt Engine descriptor */
+#endif
+#ifdef WOLFSSL_ASYNC_CRYPT
+    WC_ASYNC_DEV asyncDev;
+#endif /* WOLFSSL_ASYNC_CRYPT */
 #endif /* FREESCALE_LTC_SHA */
 } Sha256;
 
@@ -81,8 +90,13 @@ typedef struct Sha256 {
 #endif /* HAVE_FIPS */
 
 WOLFSSL_API int wc_InitSha256(Sha256*);
+WOLFSSL_API int wc_InitSha256_ex(Sha256*, void*, int);
 WOLFSSL_API int wc_Sha256Update(Sha256*, const byte*, word32);
 WOLFSSL_API int wc_Sha256Final(Sha256*, byte*);
+WOLFSSL_API void wc_Sha256Free(Sha256*);
+
+WOLFSSL_API int wc_Sha256GetHash(Sha256*, byte*);
+WOLFSSL_API int wc_Sha256Copy(Sha256* src, Sha256* dst);
 
 #ifdef WOLFSSL_SHA224
 
@@ -99,8 +113,13 @@ typedef Sha256 Sha224;
 #endif /* HAVE_FIPS */
 
 WOLFSSL_API int wc_InitSha224(Sha224*);
+WOLFSSL_API int wc_InitSha224_ex(Sha224*, void*, int);
 WOLFSSL_API int wc_Sha224Update(Sha224*, const byte*, word32);
 WOLFSSL_API int wc_Sha224Final(Sha224*, byte*);
+WOLFSSL_API void wc_Sha224Free(Sha224*);
+
+WOLFSSL_API int wc_Sha224GetHash(Sha224*, byte*);
+WOLFSSL_API int wc_Sha224Copy(Sha224* src, Sha224* dst);
 
 #endif /* WOLFSSL_SHA224 */
 

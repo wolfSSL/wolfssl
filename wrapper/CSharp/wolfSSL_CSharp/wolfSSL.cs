@@ -193,6 +193,8 @@ namespace wolfSSL.CSharp {
         [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
         private extern static int wolfSSL_CTX_use_certificate_file(IntPtr ctx, string file, int type);
         [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
+        private extern static int wolfSSL_CTX_load_verify_locations(IntPtr ctx, string file, string path);
+        [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
         private extern static int wolfSSL_CTX_use_PrivateKey_file(IntPtr ctx, string file, int type);
         [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
         private extern static void wolfSSL_CTX_free(IntPtr ctx);
@@ -1564,6 +1566,33 @@ namespace wolfSSL.CSharp {
             }
         }
 
+
+        /// <summary>
+        /// Used to load in the peer trusted root file
+        /// </summary>
+        /// <param name="ctx">CTX structure for TLS/SSL connections</param>
+        /// <param name="fileCert">Name of the file to load including absolute path</param>
+        /// <param name="type">path to multiple certificates (try to load all in path) </param>
+        /// <returns>1 on success</returns>
+        public static int CTX_load_verify_locations(IntPtr ctx, string fileCert, string path)
+        {
+            try
+            {
+                IntPtr local_ctx = unwrap(ctx);
+                if (local_ctx == IntPtr.Zero)
+                {
+                    log(ERROR_LOG, "CTX load verify locations certificate file error");
+                    return FAILURE;
+                }
+
+                return wolfSSL_CTX_load_verify_locations(local_ctx, fileCert, path);
+            }
+            catch (Exception e)
+            {
+                log(ERROR_LOG, "wolfssl ctx load verify locations file error " + e.ToString());
+                return FAILURE;
+            }
+        }
 
         /// <summary>
         /// Used to load in the private key from a file 

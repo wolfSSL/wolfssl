@@ -34,7 +34,7 @@
  *
  * On startup call:
  * InitMemoryTracker();
- * 
+ *
  * When ready to dump the memory report call:
  * ShowMemoryTracker();
  *
@@ -64,6 +64,7 @@
 
     typedef struct memoryStats {
         size_t totalAllocs;     /* number of allocations */
+        size_t totalDeallocs;   /* number of deallocations */
         size_t totalBytes;      /* total number of bytes allocated */
         size_t peakBytes;       /* concurrent max bytes */
         size_t currentBytes;    /* total current bytes in use */
@@ -149,6 +150,7 @@
 
 #ifdef DO_MEM_STATS
         ourMemStats.currentBytes -= mt->u.hint.thisSize;
+        ourMemStats.totalDeallocs++;
 #endif
 
 #ifdef WOLFSSL_DEBUG_MEMORY
@@ -194,6 +196,7 @@
         return ret;
     }
 
+#ifdef WOLFSSL_TRACK_MEMORY
     STATIC INLINE int InitMemoryTracker(void)
     {
         int ret = wolfSSL_SetAllocators(TrackMalloc, TrackFree, TrackRealloc);
@@ -204,6 +207,7 @@
 
     #ifdef DO_MEM_STATS
         ourMemStats.totalAllocs  = 0;
+        ourMemStats.totalDeallocs = 0;
         ourMemStats.totalBytes   = 0;
         ourMemStats.peakBytes    = 0;
         ourMemStats.currentBytes = 0;
@@ -217,6 +221,8 @@
     #ifdef DO_MEM_STATS
         printf("total   Allocs = %9lu\n",
                                        (unsigned long)ourMemStats.totalAllocs);
+        printf("total   Deallocs = %9lu\n",
+                                       (unsigned long)ourMemStats.totalDeallocs);
         printf("total   Bytes  = %9lu\n",
                                        (unsigned long)ourMemStats.totalBytes);
         printf("peak    Bytes  = %9lu\n",
@@ -225,6 +231,7 @@
                                        (unsigned long)ourMemStats.currentBytes);
     #endif
     }
+#endif
 
 #endif /* USE_WOLFSSL_MEMORY */
 

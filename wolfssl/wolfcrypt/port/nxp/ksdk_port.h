@@ -23,7 +23,11 @@
 #define _KSDK_PORT_H_
 
 #include <wolfssl/wolfcrypt/settings.h>
-#include <wolfssl/wolfcrypt/tfm.h>
+#ifdef USE_FAST_MATH
+    #include <wolfssl/wolfcrypt/tfm.h>
+#else
+    #include <wolfssl/wolfcrypt/integer.h>
+#endif
 #include <wolfssl/wolfcrypt/ecc.h>
 #include <wolfssl/wolfcrypt/curve25519.h>
 #include <wolfssl/wolfcrypt/ed25519.h>
@@ -34,13 +38,12 @@ int ksdk_port_init(void);
 
 /* software algorithm, by wolfcrypt */
 #if defined(FREESCALE_LTC_TFM)
-	void wolfcrypt_fp_mul(fp_int *A, fp_int *B, fp_int *C);
-	int wolfcrypt_fp_mod(fp_int *a, fp_int *b, fp_int *c);
-	int wolfcrypt_fp_mulmod(fp_int *a, fp_int *b, fp_int *c, fp_int *d);
-	int wolfcrypt_fp_mod(fp_int *a, fp_int *b, fp_int *c);
-	int wolfcrypt_fp_invmod(fp_int *a, fp_int *b, fp_int *c);
-	int _wolfcrypt_fp_exptmod(fp_int *G, fp_int *X, fp_int *P, fp_int *Y);
-	int _fp_exptmod(fp_int *G, fp_int *X, fp_int *P, fp_int *Y);
+	int wolfcrypt_mp_mul(mp_int *A, mp_int *B, mp_int *C);
+	int wolfcrypt_mp_mod(mp_int *a, mp_int *b, mp_int *c);
+	int wolfcrypt_mp_mulmod(mp_int *a, mp_int *b, mp_int *c, mp_int *d);
+	int wolfcrypt_mp_mod(mp_int *a, mp_int *b, mp_int *c);
+	int wolfcrypt_mp_invmod(mp_int *a, mp_int *b, mp_int *c);
+	int wolfcrypt_mp_exptmod(mp_int *G, mp_int *X, mp_int *P, mp_int *Y);
 #endif /* FREESCALE_LTC_TFM */
 
 #if defined(FREESCALE_LTC_ECC)

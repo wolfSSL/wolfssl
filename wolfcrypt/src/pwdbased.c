@@ -59,16 +59,6 @@
     #include <wolfcrypt/src/misc.c>
 #endif
 
-#ifndef WOLFSSL_HAVE_MIN
-#define WOLFSSL_HAVE_MIN
-
-    static INLINE word32 min(word32 a, word32 b)
-    {
-        return a > b ? b : a;
-    }
-
-#endif /* WOLFSSL_HAVE_MIN */
-
 
 #ifndef NO_SHA
 /* PBKDF1 needs at least SHA available */
@@ -100,10 +90,22 @@ int wc_PBKDF1(byte* output, const byte* passwd, int pLen, const byte* salt,
     switch (hashType) {
 #ifndef NO_MD5
         case MD5:
-            wc_InitMd5(&md5);
-            wc_Md5Update(&md5, passwd, pLen);
-            wc_Md5Update(&md5, salt,   sLen);
-            wc_Md5Final(&md5,  buffer);
+            ret = wc_InitMd5(&md5);
+            if (ret != 0) {
+                return ret;
+            }
+            ret = wc_Md5Update(&md5, passwd, pLen);
+            if (ret != 0) {
+                return ret;
+            }
+            ret = wc_Md5Update(&md5, salt,   sLen);
+            if (ret != 0) {
+                return ret;
+            }
+            ret = wc_Md5Final(&md5,  buffer);
+            if (ret != 0) {
+                return ret;
+            }
             break;
 #endif /* NO_MD5 */
         case SHA:
@@ -124,8 +126,14 @@ int wc_PBKDF1(byte* output, const byte* passwd, int pLen, const byte* salt,
         }
 #ifndef NO_MD5
         else {
-            wc_Md5Update(&md5, buffer, hLen);
-            wc_Md5Final(&md5,  buffer);
+            ret = wc_Md5Update(&md5, buffer, hLen);
+            if (ret != 0) {
+                return ret;
+            }
+            ret = wc_Md5Final(&md5,  buffer);
+            if (ret != 0) {
+                return ret;
+            }
         }
 #endif
     }
@@ -192,10 +200,11 @@ int wc_PBKDF2(byte* output, const byte* passwd, int pLen, const byte* salt,
         return MEMORY_E;
 #endif
 
-    ret = wc_HmacSetKey(&hmac, hashType, passwd, pLen);
-
+    ret = wc_HmacInit(&hmac, NULL, INVALID_DEVID);
     if (ret == 0) {
-        while (kLen) {
+        ret = wc_HmacSetKey(&hmac, hashType, passwd, pLen);
+
+        while (ret == 0 && kLen) {
             int currentLen;
 
             ret = wc_HmacUpdate(&hmac, salt, sLen);
@@ -240,6 +249,7 @@ int wc_PBKDF2(byte* output, const byte* passwd, int pLen, const byte* salt,
             kLen   -= currentLen;
             i++;
         }
+        wc_HmacFree(&hmac);
     }
 
 #ifdef WOLFSSL_SMALL_STACK
@@ -310,13 +320,28 @@ int DoPKCS12Hash(int hashType, byte* buffer, word32 totalLen,
         case MD5:
             {
                 Md5 md5;
-                wc_InitMd5(&md5);
-                wc_Md5Update(&md5, buffer, totalLen);
-                wc_Md5Final(&md5, Ai);
+                ret = wc_InitMd5(&md5);
+                if (ret != 0) {
+                    break;
+                }
+                ret = wc_Md5Update(&md5, buffer, totalLen);
+                if (ret != 0) {
+                    break;
+                }
+                ret = wc_Md5Final(&md5, Ai);
+                if (ret != 0) {
+                    break;
+                }
 
                 for (i = 1; i < iterations; i++) {
-                    wc_Md5Update(&md5, Ai, u);
-                    wc_Md5Final(&md5, Ai);
+                    ret = wc_Md5Update(&md5, Ai, u);
+                    if (ret != 0) {
+                        break;
+                    }
+                    ret = wc_Md5Final(&md5, Ai);
+                    if (ret != 0) {
+                        break;
+                    }
                 }
             }
             break;
@@ -328,12 +353,24 @@ int DoPKCS12Hash(int hashType, byte* buffer, word32 totalLen,
                 ret = wc_InitSha(&sha);
                 if (ret != 0)
                     break;
-                wc_ShaUpdate(&sha, buffer, totalLen);
-                wc_ShaFinal(&sha, Ai);
+                ret = wc_ShaUpdate(&sha, buffer, totalLen);
+                if (ret != 0) {
+                    break;
+                }
+                ret = wc_ShaFinal(&sha, Ai);
+                if (ret != 0) {
+                    break;
+                }
 
                 for (i = 1; i < iterations; i++) {
-                    wc_ShaUpdate(&sha, Ai, u);
-                    wc_ShaFinal(&sha, Ai);
+                    ret = wc_ShaUpdate(&sha, Ai, u);
+                    if (ret != 0) {
+                        break;
+                    }
+                    ret = wc_ShaFinal(&sha, Ai);
+                    if (ret != 0) {
+                        break;
+                    }
                 }
             }
             break;
@@ -619,7 +656,7 @@ static void scryptSalsa(word32* out, word32* in)
         out[i] = in[i] + x[i];
 #else
     for (i = 0; i < 16; i++)
-        out[i] = ByteReverseWord32(in[i] + x[i]);
+        out[i] = ByteReverseWord32(ByteReverseWord32(in[i]) + x[i]);
 #endif
 }
 
@@ -769,15 +806,15 @@ int wc_scrypt(byte* output, const byte* passwd, int passLen,
 
     bSz = 128 * blockSize;
     blocksSz = bSz * parallel;
-    blocks = XMALLOC(blocksSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    blocks = (byte*)XMALLOC(blocksSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (blocks == NULL)
         goto end;
     /* Temporary for scryptROMix. */
-    v = XMALLOC((1 << cost) * bSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    v = (byte*)XMALLOC((1 << cost) * bSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (v == NULL)
         goto end;
     /* Temporary for scryptBlockMix. */
-    y = XMALLOC(blockSize * 128, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    y = (byte*)XMALLOC(blockSize * 128, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (y == NULL)
         goto end;
 

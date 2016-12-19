@@ -301,14 +301,20 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
 
 
 /* set the heap hint for aes struct */
-int wc_InitAes_h(Aes* aes, void* h)
+int wc_AesInit(Aes* aes, void* heap, int devId)
 {
     if (aes == NULL)
         return BAD_FUNC_ARG;
 
-    aes->heap = h;
+    aes->heap = heap;
+    (void)devId;
 
     return 0;
+}
+
+void wc_AesFree(Aes* aes)
+{
+    (void)aes;
 }
 
 
@@ -2532,6 +2538,11 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
         return BAD_FUNC_ARG;
     }
 
+    if (authTagSz < WOLFSSL_MIN_AUTH_TAG_SZ) {
+        WOLFSSL_MSG("GcmEncrypt authTagSz too small error");
+        return BAD_FUNC_ARG;
+    }
+
     switch (aes->rounds) {
         case 10:
             return Aes128GcmEncrypt(aes, out, in, sz, iv, ivSz,
@@ -4547,26 +4558,7 @@ int  wc_AesCcmDecrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
 #endif /* HAVE_AES_DECRYPT */
 #endif /* HAVE_AESCCM */
 
-#ifdef WOLFSSL_ASYNC_CRYPT
 
-/* Initialize Aes for use with Nitrox device */
-int wc_AesAsyncInit(Aes* aes, int devId)
-{
-    WOLFSSL_STUB("wc_AesAsyncInit");
-    (void)aes;
-    (void)devId;
-    return 0;
-}
-
-
-/* Free Aes from use with Nitrox device */
-void wc_AesAsyncFree(Aes* aes)
-{
-    WOLFSSL_STUB("wc_AesAsyncFree");
-    (void)aes;
-}
-
-#endif /* WOLFSSL_ASYNC_CRYPT */
 
 #ifdef HAVE_AESGCM /* common GCM functions 32 and 64 bit */
 WOLFSSL_API int wc_GmacSetKey(Gmac* gmac, const byte* key, word32 len)
@@ -4652,6 +4644,32 @@ int wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len)
         }
     #endif /* HAVE_AES_DECRYPT */
 #endif /* WOLFSSL_AES_DIRECT */
+
+int wc_AesGetKeySize(Aes* aes, word32* keySize)
+{
+    int ret = 0;
+
+    if (aes == NULL || keySize == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    switch (aes->rounds) {
+    case 10:
+        *keySize = 16;
+        break;
+    case 12:
+        *keySize = 24;
+        break;
+    case 14:
+        *keySize = 32;
+        break;
+    default:
+        *keySize = 0;
+        ret = BAD_FUNC_ARG;
+    }
+
+    return ret;
+}
 
 #endif /* NO_AES */
 

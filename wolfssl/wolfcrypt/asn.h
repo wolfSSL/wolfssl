@@ -28,9 +28,6 @@
 #ifndef NO_ASN
 
 #include <wolfssl/wolfcrypt/integer.h>
-#ifndef NO_RSA
-    #include <wolfssl/wolfcrypt/rsa.h>
-#endif
 
 /* fips declare of RsaPrivateKeyDecode @wc_fips */
 #if defined(HAVE_FIPS) && !defined(NO_RSA)
@@ -51,9 +48,7 @@
 #endif
 #include <wolfssl/wolfcrypt/sha256.h>
 #include <wolfssl/wolfcrypt/asn_public.h>   /* public interface */
-#ifdef HAVE_ECC
-    #include <wolfssl/wolfcrypt/ecc.h>
-#endif
+
 
 #ifdef __cplusplus
     extern "C" {
@@ -134,7 +129,8 @@ enum Misc_ASN {
     MAX_KEY_SIZE        =  64,     /* MAX PKCS Key  length */
     PKCS5               =   5,     /* PKCS oid tag */
     PKCS5v2             =   6,     /* PKCS #5 v2.0 */
-    PKCS12              =  12,     /* PKCS #12 */
+    PKCS8v0             =   0,     /* default PKCS#8 version */
+    PKCS12v1            =  12,     /* PKCS #12 */
     MAX_UNICODE_SZ      = 256,
     ASN_BOOL_SIZE       =   2,     /* including type */
     ASN_ECC_HEADER_SZ   =   2,     /* String type + 1 byte len */
@@ -188,7 +184,7 @@ enum Misc_ASN {
     MAX_CERTPOL_NB      = CTC_MAX_CERTPOL_NB,/* Max number of Cert Policy */
     MAX_CERTPOL_SZ      = CTC_MAX_CERTPOL_SZ,
 #endif
-    OCSP_NONCE_EXT_SZ   = 37,      /* OCSP Nonce Extension size */
+    OCSP_NONCE_EXT_SZ   = 35,      /* OCSP Nonce Extension size */
     MAX_OCSP_EXT_SZ     = 58,      /* Max OCSP Extension length */
     MAX_OCSP_NONCE_SZ   = 16,      /* OCSP Nonce size           */
     EIGHTK_BUF          = 8192,    /* Tmp buffer size           */
@@ -196,7 +192,10 @@ enum Misc_ASN {
                                    /* use bigger NTRU size */
     HEADER_ENCRYPTED_KEY_SIZE = 88,/* Extra header size for encrypted key */
     TRAILING_ZERO       = 1,       /* Used for size of zero pad */
-    MIN_VERSION_SZ      = 3        /* Min bytes needed for GetMyVersion */
+    MIN_VERSION_SZ      = 3,       /* Min bytes needed for GetMyVersion */
+#if defined(WOLFSSL_MYSQL_COMPATIBLE) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
+    MAX_TIME_STRING_SZ  = 21,      /* Max length of formatted time string */
+#endif
 };
 
 
@@ -303,14 +302,20 @@ enum Extensions_Sum {
     BASIC_CA_OID    = 133,
     ALT_NAMES_OID   = 131,
     CRL_DIST_OID    = 145,
-    AUTH_INFO_OID   = 69,
+    AUTH_INFO_OID   = 69, /* id-pe 1 */
     AUTH_KEY_OID    = 149,
     SUBJ_KEY_OID    = 128,
     CERT_POLICY_OID = 146,
     KEY_USAGE_OID   = 129,  /* 2.5.29.15 */
     INHIBIT_ANY_OID = 168,  /* 2.5.29.54 */
-    EXT_KEY_USAGE_OID = 151, /* 2.5.29.37 */
-    NAME_CONS_OID   = 144   /* 2.5.29.30 */
+    EXT_KEY_USAGE_OID         = 151, /* 2.5.29.37 */
+    NAME_CONS_OID             = 144, /* 2.5.29.30 */
+    PRIV_KEY_USAGE_PERIOD_OID = 130, /* 2.5.29.16 */
+    SUBJECT_INFO_ACCESS       = 79,  /* id-pe 11 */
+    POLICY_MAP_OID            = 147,
+    POLICY_CONST_OID          = 150,
+    ISSUE_ALT_NAMES_OID       = 132,
+    TLS_FEATURE_OID           = 92   /* id-pe 24 */
 };
 
 enum CertificatePolicy_Sum {
@@ -408,6 +413,60 @@ struct DecodedName {
     int     serialLen;
 };
 
+enum SignatureState {
+    SIG_STATE_BEGIN,
+    SIG_STATE_HASH,
+    SIG_STATE_KEY,
+    SIG_STATE_DO,
+    SIG_STATE_CHECK,
+};
+
+struct SignatureCtx {
+    void* heap;
+    byte* digest;
+#ifndef NO_RSA
+    byte* out;
+    byte* plain;
+#endif
+#ifdef HAVE_ECC
+    int verify;
+#endif
+    union {
+    #ifndef NO_RSA
+        struct RsaKey* rsa;
+    #endif
+    #ifdef HAVE_ECC
+        struct ecc_key* ecc;
+    #endif
+        void* ptr;
+    } key;
+    int devId;
+    int state;
+    int typeH;
+    int digestSz;
+    word32 keyOID;
+#ifdef WOLFSSL_ASYNC_CRYPT
+    WC_ASYNC_DEV* asyncDev;
+#endif
+};
+
+enum CertSignState {
+    CERTSIGN_STATE_BEGIN,
+    CERTSIGN_STATE_DIGEST,
+    CERTSIGN_STATE_ENCODE,
+    CERTSIGN_STATE_DO,
+};
+
+struct CertSignCtx {
+    byte* sig;
+    byte* digest;
+    #ifndef NO_RSA
+        byte* encSig;
+        int encSigSz;
+    #endif
+    int state; /* enum CertSignState */
+};
+
 
 typedef struct DecodedCert DecodedCert;
 typedef struct DecodedName DecodedName;
@@ -415,6 +474,8 @@ typedef struct Signer      Signer;
 #ifdef WOLFSSL_TRUST_PEER_CERT
 typedef struct TrustedPeerCert TrustedPeerCert;
 #endif /* WOLFSSL_TRUST_PEER_CERT */
+typedef struct SignatureCtx SignatureCtx;
+typedef struct CertSignCtx  CertSignCtx;
 
 
 struct DecodedCert {
@@ -475,6 +536,10 @@ struct DecodedCert {
     byte    extExtKeyUsageSet;       /* Extended Key Usage               */
     byte    extExtKeyUsage;          /* Extended Key usage bitfield      */
 #ifdef OPENSSL_EXTRA
+    byte    extCRLdistSet;
+    byte    extCRLdistCrit;
+    byte    extAuthInfoSet;
+    byte    extAuthInfoCrit;
     byte    extBasicConstSet;
     byte    extBasicConstCrit;
     byte    extSubjAltNameSet;
@@ -552,12 +617,27 @@ struct DecodedCert {
     char    extCertPolicies[MAX_CERTPOL_NB][MAX_CERTPOL_SZ];
     int     extCertPoliciesNb;
 #endif /* WOLFSSL_CERT_EXT */
+
+    Signer* ca;
+    SignatureCtx sigCtx;
 };
+
+
+struct WOLFSSL_ASN1_OBJECT {
+    void*  heap;
+    byte*  obj;
+    int    type; /* oid */
+    word32 objSz;
+    byte   dynamic; /* if 1 then obj was dynamiclly created, 0 otherwise */
+};
+
 
 extern const char* BEGIN_CERT;
 extern const char* END_CERT;
 extern const char* BEGIN_CERT_REQ;
 extern const char* END_CERT_REQ;
+extern const char* BEGIN_DSA_PARAM;
+extern const char* END_DSA_PARAM;
 extern const char* BEGIN_DH_PARAM;
 extern const char* END_DH_PARAM;
 extern const char* BEGIN_X509_CRL;
@@ -655,11 +735,15 @@ WOLFSSL_LOCAL void    FreeTrustedPeerTable(TrustedPeerCert**, int, void*);
 #endif /* WOLFSSL_TRUST_PEER_CERT */
 
 WOLFSSL_ASN_API int ToTraditional(byte* buffer, word32 length);
+WOLFSSL_LOCAL int ToTraditionalInline(const byte* input, word32* inOutIdx,
+                                      word32 length);
 WOLFSSL_LOCAL int ToTraditionalEnc(byte* buffer, word32 length,const char*,int);
 WOLFSSL_LOCAL int DecryptContent(byte* input, word32 sz,const char* psw,int pswSz);
+WOLFSSL_LOCAL int wc_GetKeyOID(byte* key, word32 keySz, const byte** curveOID,
+        word32* oidSz, int* algoID, void* heap);
 
 typedef struct tm wolfssl_tm;
-#if defined(WOLFSSL_MYSQL_COMPATIBLE)
+#if defined(WOLFSSL_MYSQL_COMPATIBLE) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
 WOLFSSL_LOCAL int GetTimeString(byte* date, int format, char* buf, int len);
 #endif
 WOLFSSL_LOCAL int ExtractDate(const unsigned char* date, unsigned char format,
@@ -716,6 +800,10 @@ WOLFSSL_LOCAL int wc_CheckPrivateKey(byte* key, word32 keySz, DecodedCert* der);
     WOLFSSL_LOCAL int DecodeECC_DSA_Sig(const byte* sig, word32 sigLen,
                                        mp_int* r, mp_int* s);
 #endif
+
+WOLFSSL_LOCAL void InitSignatureCtx(SignatureCtx* sigCtx, void* heap, int devId);
+WOLFSSL_LOCAL void FreeSignatureCtx(SignatureCtx* sigCtx);
+
 
 #ifdef WOLFSSL_CERT_GEN
 
@@ -785,6 +873,10 @@ struct CertStatus {
     byte nextDate[MAX_DATE_SIZE];
     byte thisDateFormat;
     byte nextDateFormat;
+#if defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
+    byte* thisDateAsn;
+    byte* nextDateAsn;
+#endif
 
     byte*  rawOcspResponse;
     word32 rawOcspResponseSz;
@@ -831,11 +923,15 @@ struct OcspRequest {
     byte   nonce[MAX_OCSP_NONCE_SZ];
     int    nonceSz;
     void*  heap;
+
+#if defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
+    void*  ssl;
+#endif
 };
 
 
 WOLFSSL_LOCAL void InitOcspResponse(OcspResponse*, CertStatus*, byte*, word32);
-WOLFSSL_LOCAL int  OcspResponseDecode(OcspResponse*, void*, void* heap);
+WOLFSSL_LOCAL int  OcspResponseDecode(OcspResponse*, void*, void* heap, int);
 
 WOLFSSL_LOCAL int    InitOcspRequest(OcspRequest*, DecodedCert*, byte, void*);
 WOLFSSL_LOCAL void   FreeOcspRequest(OcspRequest*);
@@ -880,6 +976,11 @@ struct DecodedCRL {
 };
 
 WOLFSSL_LOCAL void InitDecodedCRL(DecodedCRL*, void* heap);
+WOLFSSL_LOCAL int VerifyCRL_Signature(SignatureCtx* sigCtx,
+                                      const byte* toBeSigned, word32 tbsSz,
+                                      const byte* signature, word32 sigSz,
+                                      word32 signatureOID, Signer *ca,
+                                      void* heap);
 WOLFSSL_LOCAL int  ParseCRL(DecodedCRL*, const byte* buff, word32 sz, void* cm);
 WOLFSSL_LOCAL void FreeDecodedCRL(DecodedCRL*);
 

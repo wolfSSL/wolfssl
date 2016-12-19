@@ -37,17 +37,6 @@
 #endif
 
 
-#ifndef WOLFSSL_HAVE_MIN
-#define WOLFSSL_HAVE_MIN
-
-    static INLINE word32 min(word32 a, word32 b)
-    {
-        return a > b ? b : a;
-    }
-
-#endif /* WOLFSSL_HAVE_MIN */
-
-
 void wc_InitMd4(Md4* md4)
 {
     md4->digest[0] = 0x67452301L;

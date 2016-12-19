@@ -36,6 +36,9 @@
 
 #ifdef WOLFSSL_ASYNC_CRYPT
     #include <wolfssl/wolfcrypt/async.h>
+    #ifdef WOLFSSL_CERT_GEN
+        #include <wolfssl/wolfcrypt/asn.h>
+    #endif
 #endif
 
 #ifdef WOLFSSL_ATECC508A
@@ -46,6 +49,53 @@
 #ifdef __cplusplus
     extern "C" {
 #endif
+
+
+/* Enable curve B parameter if needed */
+#if defined(HAVE_COMP_KEY) || defined(ECC_CACHE_CURVE)
+    #ifndef USE_ECC_B_PARAM /* Allow someone to force enable */
+        #define USE_ECC_B_PARAM
+    #endif
+#endif
+
+
+/* Use this as the key->idx if a custom ecc_set is used for key->dp */
+#define ECC_CUSTOM_IDX    (-1)
+
+
+/* Determine max ECC bits based on enabled curves */
+#if defined(HAVE_ECC521) || defined(HAVE_ALL_CURVES)
+    #define MAX_ECC_BITS    521
+#elif defined(HAVE_ECC512)
+    #define MAX_ECC_BITS    512
+#elif defined(HAVE_ECC384)
+    #define MAX_ECC_BITS    384
+#elif defined(HAVE_ECC320)
+    #define MAX_ECC_BITS    320
+#elif defined(HAVE_ECC239)
+    #define MAX_ECC_BITS    239
+#elif defined(HAVE_ECC224)
+    #define MAX_ECC_BITS    224
+#elif !defined(NO_ECC256)
+    #define MAX_ECC_BITS    256
+#elif defined(HAVE_ECC192)
+    #define MAX_ECC_BITS    192
+#elif defined(HAVE_ECC160)
+    #define MAX_ECC_BITS    160
+#elif defined(HAVE_ECC128)
+    #define MAX_ECC_BITS    128
+#elif defined(HAVE_ECC112)
+    #define MAX_ECC_BITS    112
+#endif
+
+/* calculate max ECC bytes */
+#if ((MAX_ECC_BITS * 2) % 8) == 0
+    #define MAX_ECC_BYTES     (MAX_ECC_BITS / 8)
+#else
+    /* add byte if not aligned */
+    #define MAX_ECC_BYTES     ((MAX_ECC_BITS / 8) + 1)
+#endif
+
 
 enum {
     ECC_PUBLICKEY   = 1,
@@ -58,11 +108,13 @@ enum {
     ECC_MAXSIZE_GEN = 74,   /* MAX Buffer size required when generating ECC keys*/
     ECC_MAX_PAD_SZ  = 4,    /* ECC maximum padding size */
     ECC_MAX_OID_LEN = 16,
+    ECC_MAX_SIG_SIZE= ((MAX_ECC_BYTES * 2) + ECC_MAX_PAD_SZ + SIG_HEADER_SZ)
 };
 
 /* Curve Types */
 typedef enum ecc_curve_id {
-    ECC_CURVE_DEF, /* NIST or SECP */
+    ECC_CURVE_INVALID = -1,
+    ECC_CURVE_DEF = 0, /* NIST or SECP */
 
     /* NIST Prime Curves */
     ECC_SECP192R1,
@@ -98,6 +150,14 @@ typedef enum ecc_curve_id {
     ECC_BRAINPOOLP320R1,
     ECC_BRAINPOOLP384R1,
     ECC_BRAINPOOLP512R1,
+
+    /* Twisted Edwards Curves */
+#ifdef HAVE_CURVE25519
+    ECC_X25519,
+#endif
+#ifdef HAVE_X448
+    ECC_X448,
+#endif
 } ecc_curve_id;
 
 #ifdef HAVE_OID_ENCODING
@@ -110,7 +170,7 @@ typedef byte   ecc_oid_t;
 #endif
 
 /* ECC set type defined a GF(p) curve */
-typedef struct {
+typedef struct ecc_set_type {
     int size;             /* The size of the curve in octets */
     int id;               /* id of this curve */
     const char* name;     /* name of this curve */
@@ -125,37 +185,6 @@ typedef struct {
     word32      oidSum;    /* sum of encoded OID bytes */
     int         cofactor;
 } ecc_set_type;
-
-
-/* Use this as the key->idx if a custom ecc_set is used for key->dp */
-#define ECC_CUSTOM_IDX    (-1)
-
-
-/* Determine max ECC bits based on enabled curves */
-#if defined(HAVE_ECC521) || defined(HAVE_ALL_CURVES)
-    #define MAX_ECC_BITS    521
-#elif defined(HAVE_ECC512)
-    #define MAX_ECC_BITS    512
-#elif defined(HAVE_ECC384)
-    #define MAX_ECC_BITS    384
-#elif defined(HAVE_ECC320)
-    #define MAX_ECC_BITS    320
-#elif defined(HAVE_ECC239)
-    #define MAX_ECC_BITS    239
-#elif defined(HAVE_ECC224)
-    #define MAX_ECC_BITS    224
-#elif !defined(NO_ECC256)
-    #define MAX_ECC_BITS    256
-#elif defined(HAVE_ECC192)
-    #define MAX_ECC_BITS    192
-#elif defined(HAVE_ECC160)
-    #define MAX_ECC_BITS    160
-#elif defined(HAVE_ECC128)
-    #define MAX_ECC_BITS    128
-#elif defined(HAVE_ECC112)
-    #define MAX_ECC_BITS    112
-#endif
-
 
 
 #ifdef ALT_ECC_SIZE
@@ -216,6 +245,7 @@ typedef struct alt_fp_int {
 } alt_fp_int;
 #endif /* ALT_ECC_SIZE */
 
+
 /* A point on an ECC curve, stored in Jacbobian format such that (x,y,z) =>
    (x/z^2, y/z^3, 1) when interpreted as affine */
 typedef struct {
@@ -231,13 +261,22 @@ typedef struct {
 #endif
 } ecc_point;
 
+/* ECC Flags */
+enum {
+    WC_ECC_FLAG_NONE = 0x00,
+#ifdef HAVE_ECC_CDH
+    WC_ECC_FLAG_COFACTOR = 0x01,
+#endif
+};
 
 /* An ECC Key */
-typedef struct ecc_key {
+struct ecc_key {
     int type;           /* Public or Private */
     int idx;            /* Index into the ecc_sets[] for the parameters of
                            this curve if -1, this key is using user supplied
                            curve in dp */
+    int    state;
+    word32 flags;
     const ecc_set_type* dp;     /* domain parameters, either points to NIST
                                    curves (idx >= 0) or user supplied */
     void* heap;         /* heap hint */
@@ -248,16 +287,43 @@ typedef struct ecc_key {
     ecc_point pubkey;   /* public key */
     mp_int    k;        /* private key */
 #endif
-
 #ifdef WOLFSSL_ASYNC_CRYPT
-    AsyncCryptDev asyncDev;
+    mp_int* r;          /* sign/verify temps */
+    mp_int* s;
+    WC_ASYNC_DEV asyncDev;
+    #ifdef WOLFSSL_CERT_GEN
+        CertSignCtx certSignCtx; /* context info for cert sign (MakeSignature) */
+    #endif
+#endif /* WOLFSSL_ASYNC_CRYPT */
+};
+
+#ifndef WC_ECCKEY_TYPE_DEFINED
+    typedef struct ecc_key ecc_key;
+    #define WC_ECCKEY_TYPE_DEFINED
 #endif
-} ecc_key;
 
 
 /* ECC predefined curve sets  */
 extern const ecc_set_type ecc_sets[];
 
+WOLFSSL_API
+const char* wc_ecc_get_name(int curve_id);
+
+#ifndef WOLFSSL_ATECC508A
+
+#ifdef WOLFSSL_PUBLIC_ECC_ADD_DBL
+    #define ECC_API    WOLFSSL_API
+#else
+    #define ECC_API    WOLFSSL_LOCAL
+#endif
+
+ECC_API int ecc_map(ecc_point*, mp_int*, mp_digit);
+ECC_API int ecc_projective_add_point(ecc_point* P, ecc_point* Q, ecc_point* R,
+                                     mp_int* a, mp_int* modulus, mp_digit mp);
+ECC_API int ecc_projective_dbl_point(ecc_point* P, ecc_point* R, mp_int* a,
+                                     mp_int* modulus, mp_digit mp);
+
+#endif
 
 WOLFSSL_API
 int wc_ecc_make_key(WC_RNG* rng, int keysize, ecc_key* key);
@@ -266,16 +332,20 @@ int wc_ecc_make_key_ex(WC_RNG* rng, int keysize, ecc_key* key,
     int curve_id);
 WOLFSSL_API
 int wc_ecc_check_key(ecc_key* key);
+WOLFSSL_API
+int wc_ecc_is_point(ecc_point* ecp, mp_int* a, mp_int* b, mp_int* prime);
 
 #ifdef HAVE_ECC_DHE
 WOLFSSL_API
 int wc_ecc_shared_secret(ecc_key* private_key, ecc_key* public_key, byte* out,
                       word32* outlen);
-#ifndef WOLFSSL_ATECC508A
-WOLFSSL_API
-int wc_ecc_shared_secret_ssh(ecc_key* private_key, ecc_point* point,
+WOLFSSL_LOCAL
+int wc_ecc_shared_secret_gen(ecc_key* private_key, ecc_point* point,
                              byte* out, word32 *outlen);
-#endif /* !WOLFSSL_ATECC508A */
+WOLFSSL_API
+int wc_ecc_shared_secret_ex(ecc_key* private_key, ecc_point* point,
+                             byte* out, word32 *outlen);
+#define wc_ecc_shared_secret_ssh wc_ecc_shared_secret_ex /* For backwards compat */
 #endif /* HAVE_ECC_DHE */
 
 #ifdef HAVE_ECC_SIGN
@@ -303,10 +373,34 @@ int wc_ecc_init_ex(ecc_key* key, void* heap, int devId);
 WOLFSSL_API
 void wc_ecc_free(ecc_key* key);
 WOLFSSL_API
+int wc_ecc_set_flags(ecc_key* key, word32 flags);
+WOLFSSL_API
 void wc_ecc_fp_free(void);
 
 WOLFSSL_API
+int wc_ecc_set_curve(ecc_key* key, int keysize, int curve_id);
+
+WOLFSSL_API
 int wc_ecc_is_valid_idx(int n);
+WOLFSSL_API
+int wc_ecc_get_curve_idx(int curve_id);
+WOLFSSL_API
+int wc_ecc_get_curve_id(int curve_idx);
+#define wc_ecc_get_curve_name_from_id wc_ecc_get_name
+WOLFSSL_API
+int wc_ecc_get_curve_size_from_id(int curve_id);
+
+WOLFSSL_API
+int wc_ecc_get_curve_idx_from_name(const char* curveName);
+WOLFSSL_API
+int wc_ecc_get_curve_size_from_name(const char* curveName);
+WOLFSSL_API
+int wc_ecc_get_curve_id_from_name(const char* curveName);
+WOLFSSL_API
+int wc_ecc_get_curve_id_from_params(int fieldSize,
+        const byte* prime, word32 primeSz, const byte* Af, word32 AfSz,
+        const byte* Bf, word32 BfSz, const byte* order, word32 orderSz,
+        const byte* Gx, word32 GxSz, const byte* Gy, word32 GySz, int cofactor);
 
 #ifndef WOLFSSL_ATECC508A
 
@@ -357,6 +451,9 @@ int wc_ecc_import_private_key_ex(const byte* priv, word32 privSz,
 WOLFSSL_API
 int wc_ecc_rs_to_sig(const char* r, const char* s, byte* out, word32* outlen);
 WOLFSSL_API
+int wc_ecc_sig_to_rs(const byte* sig, word32 sigLen, byte* r, word32* rLen,
+                   byte* s, word32* sLen);
+WOLFSSL_API
 int wc_ecc_import_raw(ecc_key* key, const char* qx, const char* qy,
                    const char* d, const char* curveName);
 WOLFSSL_API
@@ -367,6 +464,12 @@ int wc_ecc_import_raw_ex(ecc_key* key, const char* qx, const char* qy,
 #ifdef HAVE_ECC_KEY_EXPORT
 WOLFSSL_API
 int wc_ecc_export_private_only(ecc_key* key, byte* out, word32* outLen);
+WOLFSSL_API
+int wc_ecc_export_public_raw(ecc_key* key, byte* qx, word32* qxLen,
+                             byte* qy, word32* qyLen);
+WOLFSSL_API
+int wc_ecc_export_private_raw(ecc_key* key, byte* qx, word32* qxLen,
+                            byte* qy, word32* qyLen, byte* d, word32* dLen);
 #endif /* HAVE_ECC_KEY_EXPORT */
 
 #ifdef HAVE_ECC_KEY_EXPORT
@@ -463,11 +566,11 @@ WOLFSSL_API int wc_X963_KDF(enum wc_HashType type, const byte* secret,
                 byte* out, word32 outSz);
 #endif
 
-#ifdef WOLFSSL_ASYNC_CRYPT
-    WOLFSSL_API int wc_ecc_async_handle(ecc_key* key,
-        WOLF_EVENT_QUEUE* queue, WOLF_EVENT* event);
-    WOLFSSL_API int wc_ecc_async_wait(int ret, ecc_key* key);
+#ifdef ECC_CACHE_CURVE
+WOLFSSL_API int wc_ecc_curve_cache_init(void);
+WOLFSSL_API void wc_ecc_curve_cache_free(void);
 #endif
+
 
 #ifdef __cplusplus
     }    /* extern "C" */

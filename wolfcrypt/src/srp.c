@@ -310,7 +310,8 @@ int wc_SrpSetParams(Srp* srp, const byte* N,    word32 nSz,
     byte digest1[SRP_MAX_DIGEST_SIZE];
     byte digest2[SRP_MAX_DIGEST_SIZE];
     byte pad = 0;
-    int i, j, r;
+    int i, r;
+    int j = 0;
 
     if (!srp || !N || !g || !salt || nSz < gSz)
         return BAD_FUNC_ARG;
@@ -348,8 +349,9 @@ int wc_SrpSetParams(Srp* srp, const byte* N,    word32 nSz,
     /* Set k = H(N, g) */
             r = SrpHashInit(&hash, srp->type);
     if (!r) r = SrpHashUpdate(&hash, (byte*) N, nSz);
-    for (i = 0; (word32)i < nSz - gSz; i++)
-        SrpHashUpdate(&hash, &pad, 1);
+    for (i = 0; (word32)i < nSz - gSz; i++) {
+        if (!r) r = SrpHashUpdate(&hash, &pad, 1);
+    }
     if (!r) r = SrpHashUpdate(&hash, (byte*) g, gSz);
     if (!r) r = SrpHashFinal(&hash, srp->k);
 
@@ -454,12 +456,12 @@ int wc_SrpSetVerifier(Srp* srp, const byte* verifier, word32 size)
     return mp_read_unsigned_bin(&srp->auth, verifier, size);
 }
 
-int wc_SrpSetPrivate(Srp* srp, const byte* private, word32 size)
+int wc_SrpSetPrivate(Srp* srp, const byte* priv, word32 size)
 {
     mp_int p;
     int r;
 
-    if (!srp || !private || !size)
+    if (!srp || !priv || !size)
         return BAD_FUNC_ARG;
 
     if (mp_iszero(&srp->auth) == MP_YES)
@@ -468,7 +470,7 @@ int wc_SrpSetPrivate(Srp* srp, const byte* private, word32 size)
     r = mp_init(&p);
     if (r != MP_OKAY)
         return MP_INIT_E;
-    if (!r) r = mp_read_unsigned_bin(&p, private, size);
+    if (!r) r = mp_read_unsigned_bin(&p, priv, size);
     if (!r) r = mp_mod(&p, &srp->N, &srp->priv);
     if (!r) r = mp_iszero(&srp->priv) == MP_YES ? SRP_BAD_KEY_E : 0;
 
@@ -551,6 +553,8 @@ static int wc_SrpSetKey(Srp* srp, byte* secret, word32 size)
     byte counter[4];
     int r = BAD_FUNC_ARG;
 
+    XMEMSET(digest, 0, SRP_MAX_DIGEST_SIZE);
+
     srp->key = (byte*)XMALLOC(2 * digestSz, srp->heap, DYNAMIC_TYPE_SRP);
     if (srp->key == NULL)
         return MEMORY_E;
@@ -567,7 +571,7 @@ static int wc_SrpSetKey(Srp* srp, byte* secret, word32 size)
         if (!r) r = SrpHashUpdate(&hash, secret, size);
         if (!r) r = SrpHashUpdate(&hash, counter, 4);
 
-        if(j + digestSz > srp->keySz) {
+        if (j + digestSz > srp->keySz) {
             if (!r) r = SrpHashFinal(&hash, digest);
             XMEMCPY(srp->key + j, digest, srp->keySz - j);
             j = srp->keySz;

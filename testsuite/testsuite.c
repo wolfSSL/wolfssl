@@ -210,7 +210,7 @@ int testsuite_test(int argc, char** argv)
 #endif /* HAVE_WNR */
 
     printf("\nAll tests passed!\n");
-    EXIT_TEST(EXIT_SUCCESS);
+    return EXIT_SUCCESS;
 }
 
 void simple_test(func_args* args)
@@ -405,11 +405,13 @@ int main(int argc, char** argv)
     server_args.argc = argc;
     server_args.argv = argv;
 
+    wolfSSL_Init();
     ChangeToWolfRoot();
 
     wolfcrypt_test(&server_args);
     if (server_args.return_code != 0) return server_args.return_code;
 
+    wolfSSL_Cleanup();
     printf("\nAll tests passed!\n");
 
     EXIT_TEST(EXIT_SUCCESS);

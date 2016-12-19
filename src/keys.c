@@ -1053,8 +1053,109 @@ int SetCipherSpecs(WOLFSSL* ssl)
         return UNSUPPORTED_SUITE;
     }   /* switch */
     }   /* if     */
-    if (ssl->options.cipherSuite0 != ECC_BYTE && 
-            ssl->options.cipherSuite0 != CHACHA_BYTE) {   /* normal suites */
+
+    /* TLSi v1.3 cipher suites, 0x13 */
+    if (ssl->options.cipherSuite0 == TLS13_BYTE) {
+        switch (ssl->options.cipherSuite) {
+
+#ifdef WOLFSSL_TLS13
+    #ifdef BUILD_TLS_AES_128_GCM_SHA256
+        case TLS_AES_128_GCM_SHA256 :
+            ssl->specs.bulk_cipher_algorithm = wolfssl_aes_gcm;
+            ssl->specs.cipher_type           = aead;
+            ssl->specs.mac_algorithm         = sha256_mac;
+            ssl->specs.kea                   = 0;
+            ssl->specs.sig_algo              = 0;
+            ssl->specs.hash_size             = SHA256_DIGEST_SIZE;
+            ssl->specs.pad_size              = PAD_SHA;
+            ssl->specs.static_ecdh           = 0;
+            ssl->specs.key_size              = AES_128_KEY_SIZE;
+            ssl->specs.block_size            = AES_BLOCK_SIZE;
+            ssl->specs.iv_size               = AESGCM_NONCE_SZ;
+            ssl->specs.aead_mac_size         = AES_GCM_AUTH_SZ;
+
+            break;
+    #endif
+
+    #ifdef BUILD_TLS_AES_256_GCM_SHA384
+        case TLS_AES_256_GCM_SHA384 :
+            ssl->specs.bulk_cipher_algorithm = wolfssl_aes_gcm;
+            ssl->specs.cipher_type           = aead;
+            ssl->specs.mac_algorithm         = sha384_mac;
+            ssl->specs.kea                   = 0;
+            ssl->specs.sig_algo              = 0;
+            ssl->specs.hash_size             = SHA384_DIGEST_SIZE;
+            ssl->specs.pad_size              = PAD_SHA;
+            ssl->specs.static_ecdh           = 0;
+            ssl->specs.key_size              = AES_256_KEY_SIZE;
+            ssl->specs.block_size            = AES_BLOCK_SIZE;
+            ssl->specs.iv_size               = AESGCM_NONCE_SZ;
+            ssl->specs.aead_mac_size         = AES_GCM_AUTH_SZ;
+
+            break;
+    #endif
+
+    #ifdef BUILD_TLS_CHACHA20_POLY1305_SHA256
+        case TLS_CHACHA20_POLY1305_SHA256 :
+            ssl->specs.bulk_cipher_algorithm = wolfssl_chacha;
+            ssl->specs.cipher_type           = aead;
+            ssl->specs.mac_algorithm         = sha256_mac;
+            ssl->specs.kea                   = 0;
+            ssl->specs.sig_algo              = 0;
+            ssl->specs.hash_size             = SHA256_DIGEST_SIZE;
+            ssl->specs.pad_size              = PAD_SHA;
+            ssl->specs.static_ecdh           = 0;
+            ssl->specs.key_size              = CHACHA20_256_KEY_SIZE;
+            ssl->specs.block_size            = CHACHA20_BLOCK_SIZE;
+            ssl->specs.iv_size               = CHACHA20_IV_SIZE;
+            ssl->specs.aead_mac_size         = POLY1305_AUTH_SZ;
+            ssl->options.oldPoly             = 0; /* use recent padding RFC */
+
+            break;
+    #endif
+
+    #ifdef BUILD_TLS_AES_128_CCM_SHA256
+        case TLS_AES_128_CCM_SHA256 :
+            ssl->specs.bulk_cipher_algorithm = wolfssl_aes_ccm;
+            ssl->specs.cipher_type           = aead;
+            ssl->specs.mac_algorithm         = sha256_mac;
+            ssl->specs.kea                   = 0;
+            ssl->specs.sig_algo              = 0;
+            ssl->specs.hash_size             = SHA256_DIGEST_SIZE;
+            ssl->specs.pad_size              = PAD_SHA;
+            ssl->specs.static_ecdh           = 0;
+            ssl->specs.key_size              = AES_128_KEY_SIZE;
+            ssl->specs.block_size            = AES_BLOCK_SIZE;
+            ssl->specs.iv_size               = AESGCM_NONCE_SZ;
+            ssl->specs.aead_mac_size         = AES_CCM_16_AUTH_SZ;
+
+            break;
+    #endif
+
+    #ifdef BUILD_TLS_AES_128_CCM_8_SHA256
+        case TLS_AES_128_CCM_8_SHA256 :
+            ssl->specs.bulk_cipher_algorithm = wolfssl_aes_ccm;
+            ssl->specs.cipher_type           = aead;
+            ssl->specs.mac_algorithm         = sha256_mac;
+            ssl->specs.kea                   = 0;
+            ssl->specs.sig_algo              = 0;
+            ssl->specs.hash_size             = SHA256_DIGEST_SIZE;
+            ssl->specs.pad_size              = PAD_SHA;
+            ssl->specs.static_ecdh           = 0;
+            ssl->specs.key_size              = AES_128_KEY_SIZE;
+            ssl->specs.block_size            = AES_BLOCK_SIZE;
+            ssl->specs.iv_size               = AESGCM_NONCE_SZ;
+            ssl->specs.aead_mac_size         = AES_CCM_8_AUTH_SZ;
+
+            break;
+    #endif
+#endif /* WOLFSSL_TLS13 */
+        }
+    }
+
+    if (ssl->options.cipherSuite0 != ECC_BYTE &&
+            ssl->options.cipherSuite0 != CHACHA_BYTE &&
+            ssl->options.cipherSuite0 != TLS13_BYTE) {   /* normal suites */
     switch (ssl->options.cipherSuite) {
 
 #ifdef BUILD_SSL_RSA_WITH_RC4_128_SHA
@@ -1653,7 +1754,7 @@ int SetCipherSpecs(WOLFSSL* ssl)
 
         break;
 #endif
-            
+
 #ifdef BUILD_TLS_RSA_WITH_HC_128_SHA
         case TLS_RSA_WITH_HC_128_SHA :
             ssl->specs.bulk_cipher_algorithm = wolfssl_hc128;
@@ -1667,7 +1768,7 @@ int SetCipherSpecs(WOLFSSL* ssl)
             ssl->specs.key_size              = HC_128_KEY_SIZE;
             ssl->specs.block_size            = 0;
             ssl->specs.iv_size               = HC_128_IV_SIZE;
-            
+
             break;
 #endif
 
@@ -1684,7 +1785,7 @@ int SetCipherSpecs(WOLFSSL* ssl)
             ssl->specs.key_size              = HC_128_KEY_SIZE;
             ssl->specs.block_size            = 0;
             ssl->specs.iv_size               = HC_128_IV_SIZE;
-            
+
             break;
 #endif
 
@@ -1701,7 +1802,7 @@ int SetCipherSpecs(WOLFSSL* ssl)
             ssl->specs.key_size              = AES_128_KEY_SIZE;
             ssl->specs.iv_size               = AES_IV_SIZE;
             ssl->specs.block_size            = AES_BLOCK_SIZE;
-            
+
             break;
 #endif
 
@@ -1718,7 +1819,7 @@ int SetCipherSpecs(WOLFSSL* ssl)
             ssl->specs.key_size              = AES_256_KEY_SIZE;
             ssl->specs.iv_size               = AES_IV_SIZE;
             ssl->specs.block_size            = AES_BLOCK_SIZE;
-            
+
             break;
 #endif
 
@@ -1827,7 +1928,7 @@ int SetCipherSpecs(WOLFSSL* ssl)
 
         break;
 #endif
-    
+
 #ifdef BUILD_TLS_RSA_WITH_CAMELLIA_256_CBC_SHA
     case TLS_RSA_WITH_CAMELLIA_256_CBC_SHA :
         ssl->specs.bulk_cipher_algorithm = wolfssl_camellia;
@@ -1978,7 +2079,7 @@ int SetCipherSpecs(WOLFSSL* ssl)
             ssl->specs.key_size              = IDEA_KEY_SIZE;
             ssl->specs.block_size            = IDEA_BLOCK_SIZE;
             ssl->specs.iv_size               = IDEA_IV_SIZE;
-            
+
             break;
 #endif
 
@@ -1993,8 +2094,11 @@ int SetCipherSpecs(WOLFSSL* ssl)
 #ifndef NO_TLS
         ssl->options.tls = 1;
         ssl->hmac = TLS_hmac;
-        if (ssl->version.minor >= 2)
+        if (ssl->version.minor >= 2) {
             ssl->options.tls1_1 = 1;
+            if (ssl->version.minor >= 4)
+                ssl->options.tls1_3 = 1;
+        }
 #endif
     }
 
@@ -2049,7 +2153,7 @@ static int SetPrefix(byte* sha_input, int idx)
         break;
     default:
         WOLFSSL_MSG("Set Prefix error, bad input");
-        return 0; 
+        return 0;
     }
     return 1;
 }
@@ -2070,22 +2174,20 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
             dec->arc4 = (Arc4*)XMALLOC(sizeof(Arc4), heap, DYNAMIC_TYPE_CIPHER);
         if (dec && dec->arc4 == NULL)
             return MEMORY_E;
-#ifdef WOLFSSL_ASYNC_CRYPT
-        if (devId != INVALID_DEVID) {
-            if (enc) {
-                if (wc_Arc4AsyncInit(enc->arc4, devId) != 0) {
-                    WOLFSSL_MSG("Arc4AsyncInit failed in SetKeys");
-                    return ASYNC_INIT_E;
-                }
-            }
-            if (dec) {
-                if (wc_Arc4AsyncInit(dec->arc4, devId) != 0) {
-                    WOLFSSL_MSG("Arc4AsyncInit failed in SetKeys");
-                    return ASYNC_INIT_E;
-                }
+
+        if (enc) {
+            if (wc_Arc4Init(enc->arc4, heap, devId) != 0) {
+                WOLFSSL_MSG("Arc4Init failed in SetKeys");
+                return ASYNC_INIT_E;
             }
         }
-#endif
+        if (dec) {
+            if (wc_Arc4Init(dec->arc4, heap, devId) != 0) {
+                WOLFSSL_MSG("Arc4Init failed in SetKeys");
+                return ASYNC_INIT_E;
+            }
+        }
+
         if (side == WOLFSSL_CLIENT_END) {
             if (enc)
                 wc_Arc4SetKey(enc->arc4, keys->client_write_key, sz);
@@ -2103,9 +2205,9 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
         if (dec)
             dec->setup = 1;
     }
-#endif
+#endif /* BUILD_ARC4 */
 
-    
+
 #if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
     /* Check that the max implicit iv size is suffecient */
     #if (AEAD_MAX_IMP_SZ < 12) /* CHACHA20_IMP_IV_SZ */
@@ -2165,7 +2267,8 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
         if (dec)
             dec->setup = 1;
     }
-#endif
+#endif /* HAVE_CHACHA && HAVE_POLY1305 */
+
 
 #ifdef HAVE_HC128
     /* check that buffer sizes are sufficient */
@@ -2214,8 +2317,8 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
         if (dec)
             dec->setup = 1;
     }
-#endif
-    
+#endif /* HAVE_HC128 */
+
 #ifdef BUILD_RABBIT
     /* check that buffer sizes are sufficient */
     #if (MAX_WRITE_IV_SZ < 8) /* RABBIT_IV_SIZE */
@@ -2263,8 +2366,8 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
         if (dec)
             dec->setup = 1;
     }
-#endif
-    
+#endif /* BUILD_RABBIT */
+
 #ifdef BUILD_DES3
     /* check that buffer sizes are sufficient */
     #if (MAX_WRITE_IV_SZ < 8) /* DES_IV_SIZE */
@@ -2274,30 +2377,34 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
     if (specs->bulk_cipher_algorithm == wolfssl_triple_des) {
         int desRet = 0;
 
-        if (enc && enc->des3 == NULL)
-            enc->des3 = (Des3*)XMALLOC(sizeof(Des3), heap, DYNAMIC_TYPE_CIPHER);
-        if (enc && enc->des3 == NULL)
-            return MEMORY_E;
-        if (dec && dec->des3 == NULL)
-            dec->des3 = (Des3*)XMALLOC(sizeof(Des3), heap, DYNAMIC_TYPE_CIPHER);
-        if (dec && dec->des3 == NULL)
-            return MEMORY_E;
-#ifdef WOLFSSL_ASYNC_CRYPT
-        if (devId != INVALID_DEVID) {
-            if (enc) {
-                if (wc_Des3AsyncInit(enc->des3, devId) != 0) {
-                    WOLFSSL_MSG("Des3AsyncInit failed in SetKeys");
-                    return ASYNC_INIT_E;
-                }
-            }
-            if (dec) {
-                if (wc_Des3AsyncInit(dec->des3, devId) != 0) {
-                    WOLFSSL_MSG("Des3AsyncInit failed in SetKeys");
-                    return ASYNC_INIT_E;
-                }
+        if (enc) {
+            if (enc->des3 == NULL)
+                enc->des3 = (Des3*)XMALLOC(sizeof(Des3), heap, DYNAMIC_TYPE_CIPHER);
+            if (enc->des3 == NULL)
+                return MEMORY_E;
+            XMEMSET(enc->des3, 0, sizeof(Des3));
+        }
+        if (dec) {
+            if (dec->des3 == NULL)
+                dec->des3 = (Des3*)XMALLOC(sizeof(Des3), heap, DYNAMIC_TYPE_CIPHER);
+            if (dec->des3 == NULL)
+                return MEMORY_E;
+            XMEMSET(dec->des3, 0, sizeof(Des3));
+        }
+
+        if (enc) {
+            if (wc_Des3Init(enc->des3, heap, devId) != 0) {
+                WOLFSSL_MSG("Des3Init failed in SetKeys");
+                return ASYNC_INIT_E;
             }
         }
-#endif
+        if (dec) {
+            if (wc_Des3Init(dec->des3, heap, devId) != 0) {
+                WOLFSSL_MSG("Des3Init failed in SetKeys");
+                return ASYNC_INIT_E;
+            }
+        }
+
         if (side == WOLFSSL_CLIENT_END) {
             if (enc) {
                 desRet = wc_Des3_SetKey(enc->des3, keys->client_write_key,
@@ -2327,7 +2434,7 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
         if (dec)
             dec->setup = 1;
     }
-#endif
+#endif /* BUILD_DES3 */
 
 #ifdef BUILD_AES
     /* check that buffer sizes are sufficient */
@@ -2338,30 +2445,33 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
     if (specs->bulk_cipher_algorithm == wolfssl_aes) {
         int aesRet = 0;
 
-        if (enc && enc->aes == NULL)
-            enc->aes = (Aes*)XMALLOC(sizeof(Aes), heap, DYNAMIC_TYPE_CIPHER);
-        if (enc && enc->aes == NULL)
-            return MEMORY_E;
-        if (dec && dec->aes == NULL)
-            dec->aes = (Aes*)XMALLOC(sizeof(Aes), heap, DYNAMIC_TYPE_CIPHER);
-        if (dec && dec->aes == NULL)
-            return MEMORY_E;
-#ifdef WOLFSSL_ASYNC_CRYPT
-        if (devId != INVALID_DEVID) {
-            if (enc) {
-                if (wc_AesAsyncInit(enc->aes, devId) != 0) {
-                    WOLFSSL_MSG("AesAsyncInit failed in SetKeys");
-                    return ASYNC_INIT_E;
-                }
-            }
-            if (dec) {
-                if (wc_AesAsyncInit(dec->aes, devId) != 0) {
-                    WOLFSSL_MSG("AesAsyncInit failed in SetKeys");
-                    return ASYNC_INIT_E;
-                }
+        if (enc) {
+            if (enc->aes == NULL)
+                enc->aes = (Aes*)XMALLOC(sizeof(Aes), heap, DYNAMIC_TYPE_CIPHER);
+            if (enc->aes == NULL)
+                return MEMORY_E;
+            XMEMSET(enc->aes, 0, sizeof(Aes));
+        }
+        if (dec) {
+            if (dec->aes == NULL)
+                dec->aes = (Aes*)XMALLOC(sizeof(Aes), heap, DYNAMIC_TYPE_CIPHER);
+            if (dec->aes == NULL)
+                return MEMORY_E;
+            XMEMSET(dec->aes, 0, sizeof(Aes));
+        }
+        if (enc) {
+            if (wc_AesInit(enc->aes, heap, devId) != 0) {
+                WOLFSSL_MSG("AesInit failed in SetKeys");
+                return ASYNC_INIT_E;
             }
         }
-#endif
+        if (dec) {
+            if (wc_AesInit(dec->aes, heap, devId) != 0) {
+                WOLFSSL_MSG("AesInit failed in SetKeys");
+                return ASYNC_INIT_E;
+            }
+        }
+
         if (side == WOLFSSL_CLIENT_END) {
             if (enc) {
                 aesRet = wc_AesSetKey(enc->aes, keys->client_write_key,
@@ -2395,7 +2505,7 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
         if (dec)
             dec->setup = 1;
     }
-#endif
+#endif /* BUILD_AES */
 
 #ifdef BUILD_AESGCM
     /* check that buffer sizes are sufficient */
@@ -2412,14 +2522,33 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
     if (specs->bulk_cipher_algorithm == wolfssl_aes_gcm) {
         int gcmRet;
 
-        if (enc && enc->aes == NULL)
-            enc->aes = (Aes*)XMALLOC(sizeof(Aes), heap, DYNAMIC_TYPE_CIPHER);
-        if (enc && enc->aes == NULL)
-            return MEMORY_E;
-        if (dec && dec->aes == NULL)
-            dec->aes = (Aes*)XMALLOC(sizeof(Aes), heap, DYNAMIC_TYPE_CIPHER);
-        if (dec && dec->aes == NULL)
-            return MEMORY_E;
+        if (enc) {
+            if (enc->aes == NULL)
+                enc->aes = (Aes*)XMALLOC(sizeof(Aes), heap, DYNAMIC_TYPE_CIPHER);
+            if (enc->aes == NULL)
+                return MEMORY_E;
+            XMEMSET(enc->aes, 0, sizeof(Aes));
+        }
+        if (dec) {
+            if (dec->aes == NULL)
+                dec->aes = (Aes*)XMALLOC(sizeof(Aes), heap, DYNAMIC_TYPE_CIPHER);
+            if (dec->aes == NULL)
+                return MEMORY_E;
+            XMEMSET(dec->aes, 0, sizeof(Aes));
+        }
+
+        if (enc) {
+            if (wc_AesInit(enc->aes, heap, devId) != 0) {
+                WOLFSSL_MSG("AesInit failed in SetKeys");
+                return ASYNC_INIT_E;
+            }
+        }
+        if (dec) {
+            if (wc_AesInit(dec->aes, heap, devId) != 0) {
+                WOLFSSL_MSG("AesInit failed in SetKeys");
+                return ASYNC_INIT_E;
+            }
+        }
 
         if (side == WOLFSSL_CLIENT_END) {
             if (enc) {
@@ -2427,14 +2556,14 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
                                       specs->key_size);
                 if (gcmRet != 0) return gcmRet;
                 XMEMCPY(keys->aead_enc_imp_IV, keys->client_write_IV,
-                        AESGCM_IMP_IV_SZ);
+                        AEAD_MAX_IMP_SZ);
             }
             if (dec) {
                 gcmRet = wc_AesGcmSetKey(dec->aes, keys->server_write_key,
                                       specs->key_size);
                 if (gcmRet != 0) return gcmRet;
                 XMEMCPY(keys->aead_dec_imp_IV, keys->server_write_IV,
-                        AESGCM_IMP_IV_SZ);
+                        AEAD_MAX_IMP_SZ);
             }
         }
         else {
@@ -2443,14 +2572,14 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
                                       specs->key_size);
                 if (gcmRet != 0) return gcmRet;
                 XMEMCPY(keys->aead_enc_imp_IV, keys->server_write_IV,
-                        AESGCM_IMP_IV_SZ);
+                        AEAD_MAX_IMP_SZ);
             }
             if (dec) {
                 gcmRet = wc_AesGcmSetKey(dec->aes, keys->client_write_key,
                                       specs->key_size);
                 if (gcmRet != 0) return gcmRet;
                 XMEMCPY(keys->aead_dec_imp_IV, keys->client_write_IV,
-                        AESGCM_IMP_IV_SZ);
+                        AEAD_MAX_IMP_SZ);
             }
         }
         if (enc)
@@ -2458,7 +2587,7 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
         if (dec)
             dec->setup = 1;
     }
-#endif
+#endif /* BUILD_AESGCM */
 
 #ifdef HAVE_AESCCM
     /* check that buffer sizes are sufficient (CCM is same size as GCM) */
@@ -2475,14 +2604,33 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
     if (specs->bulk_cipher_algorithm == wolfssl_aes_ccm) {
         int CcmRet;
 
-        if (enc && enc->aes == NULL)
-            enc->aes = (Aes*)XMALLOC(sizeof(Aes), heap, DYNAMIC_TYPE_CIPHER);
-        if (enc && enc->aes == NULL)
-            return MEMORY_E;
-        if (dec && dec->aes == NULL)
-            dec->aes = (Aes*)XMALLOC(sizeof(Aes), heap, DYNAMIC_TYPE_CIPHER);
-        if (dec && dec->aes == NULL)
-            return MEMORY_E;
+        if (enc) {
+            if (enc->aes == NULL)
+                enc->aes = (Aes*)XMALLOC(sizeof(Aes), heap, DYNAMIC_TYPE_CIPHER);
+            if (enc->aes == NULL)
+                return MEMORY_E;
+            XMEMSET(enc->aes, 0, sizeof(Aes));
+        }
+        if (dec) {
+            if (dec->aes == NULL)
+                dec->aes = (Aes*)XMALLOC(sizeof(Aes), heap, DYNAMIC_TYPE_CIPHER);
+            if (dec->aes == NULL)
+                return MEMORY_E;
+            XMEMSET(dec->aes, 0, sizeof(Aes));
+        }
+
+        if (enc) {
+            if (wc_AesInit(enc->aes, heap, devId) != 0) {
+                WOLFSSL_MSG("AesInit failed in SetKeys");
+                return ASYNC_INIT_E;
+            }
+        }
+        if (dec) {
+            if (wc_AesInit(dec->aes, heap, devId) != 0) {
+                WOLFSSL_MSG("AesInit failed in SetKeys");
+                return ASYNC_INIT_E;
+            }
+        }
 
         if (side == WOLFSSL_CLIENT_END) {
             if (enc) {
@@ -2529,7 +2677,7 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
         if (dec)
             dec->setup = 1;
     }
-#endif
+#endif /* HAVE_AESCCM */
 
 #ifdef HAVE_CAMELLIA
     /* check that buffer sizes are sufficient */
@@ -2581,7 +2729,7 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
         if (dec)
             dec->setup = 1;
     }
-#endif
+#endif /* HAVE_CAMELLIA */
 
 #ifdef HAVE_IDEA
     /* check that buffer sizes are sufficient */
@@ -2635,7 +2783,7 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
         if (dec)
             dec->setup = 1;
     }
-#endif
+#endif /* HAVE_IDEA */
 
 #ifdef HAVE_NULL_CIPHER
     if (specs->bulk_cipher_algorithm == wolfssl_cipher_null) {
@@ -2681,6 +2829,7 @@ static int SetAuthKeys(OneTimeAuth* authentication, Keys* keys,
         if (authentication)
             authentication->setup = 1;
 #endif
+        (void)authentication;
         (void)heap;
         (void)keys;
         (void)specs;
@@ -2689,6 +2838,40 @@ static int SetAuthKeys(OneTimeAuth* authentication, Keys* keys,
         return 0;
 }
 #endif /* HAVE_ONE_TIME_AUTH */
+
+#ifdef HAVE_SECURE_RENEGOTIATION
+/* function name is for cache_status++
+ * This function was added because of error incrementing enum type when
+ * compiling with a C++ compiler.
+ */
+static void CacheStatusPP(SecureRenegotiation* cache)
+{
+    switch (cache->cache_status) {
+        case SCR_CACHE_NULL:
+            cache->cache_status = SCR_CACHE_NEEDED;
+            break;
+
+        case SCR_CACHE_NEEDED:
+            cache->cache_status = SCR_CACHE_COPY;
+            break;
+
+        case SCR_CACHE_COPY:
+            cache->cache_status = SCR_CACHE_PARTIAL;
+            break;
+
+        case SCR_CACHE_PARTIAL:
+            cache->cache_status = SCR_CACHE_COMPLETE;
+            break;
+
+        case SCR_CACHE_COMPLETE:
+            WOLFSSL_MSG("SCR Cache state Complete");
+            break;
+
+        default:
+            WOLFSSL_MSG("Unknown cache state!!");
+    }
+}
+#endif /* HAVE_SECURE_RENEGOTIATION */
 
 
 /* Set wc_encrypt/wc_decrypt or both sides of key setup
@@ -2804,7 +2987,7 @@ int SetKeysSide(WOLFSSL* ssl, enum encrypt_side side)
                 }
             #endif
         }
-        ssl->secure_renegotiation->cache_status++;
+        CacheStatusPP(ssl->secure_renegotiation);
     }
 #endif /* HAVE_SECURE_RENEGOTIATION */
 
@@ -2822,7 +3005,7 @@ int StoreKeys(WOLFSSL* ssl, const byte* keyData)
     if (ssl->secure_renegotiation && ssl->secure_renegotiation->cache_status ==
                                                             SCR_CACHE_NEEDED) {
         keys = &ssl->secure_renegotiation->tmp_keys;
-        ssl->secure_renegotiation->cache_status++;
+        CacheStatusPP(ssl->secure_renegotiation);
     }
 #endif /* HAVE_SECURE_RENEGOTIATION */
 
@@ -2857,12 +3040,12 @@ int StoreKeys(WOLFSSL* ssl, const byte* keyData)
 #ifndef NO_OLD_TLS
 int DeriveKeys(WOLFSSL* ssl)
 {
-    int    length = 2 * ssl->specs.hash_size + 
+    int    length = 2 * ssl->specs.hash_size +
                     2 * ssl->specs.key_size  +
                     2 * ssl->specs.iv_size;
     int    rounds = (length + MD5_DIGEST_SIZE - 1 ) / MD5_DIGEST_SIZE, i;
     int    ret = 0;
-    
+
 #ifdef WOLFSSL_SMALL_STACK
     byte*  shaOutput;
     byte*  md5Input;
@@ -2878,9 +3061,9 @@ int DeriveKeys(WOLFSSL* ssl)
     Md5    md5[1];
     Sha    sha[1];
 #endif
-    
+
 #ifdef WOLFSSL_SMALL_STACK
-    shaOutput = (byte*)XMALLOC(SHA_DIGEST_SIZE, 
+    shaOutput = (byte*)XMALLOC(SHA_DIGEST_SIZE,
                                             NULL, DYNAMIC_TYPE_TMP_BUFFER);
     md5Input  = (byte*)XMALLOC(SECRET_LEN + SHA_DIGEST_SIZE,
                                             NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -2890,7 +3073,7 @@ int DeriveKeys(WOLFSSL* ssl)
                                             NULL, DYNAMIC_TYPE_TMP_BUFFER);
     md5       =  (Md5*)XMALLOC(sizeof(Md5), NULL, DYNAMIC_TYPE_TMP_BUFFER);
     sha       =  (Sha*)XMALLOC(sizeof(Sha), NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    
+
     if (shaOutput == NULL || md5Input == NULL || shaInput == NULL ||
         keyData   == NULL || md5      == NULL || sha      == NULL) {
         if (shaOutput) XFREE(shaOutput, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -2899,15 +3082,15 @@ int DeriveKeys(WOLFSSL* ssl)
         if (keyData)   XFREE(keyData,   NULL, DYNAMIC_TYPE_TMP_BUFFER);
         if (md5)       XFREE(md5,       NULL, DYNAMIC_TYPE_TMP_BUFFER);
         if (sha)       XFREE(sha,       NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        
+
         return MEMORY_E;
     }
 #endif
 
-    wc_InitMd5(md5);
-
-    ret = wc_InitSha(sha);
-
+    ret = wc_InitMd5(md5);
+    if (ret == 0) {
+        ret = wc_InitSha(sha);
+    }
     if (ret == 0) {
         XMEMCPY(md5Input, ssl->arrays->masterSecret, SECRET_LEN);
 
@@ -2925,14 +3108,21 @@ int DeriveKeys(WOLFSSL* ssl)
             XMEMCPY(shaInput + idx, ssl->arrays->serverRandom, RAN_LEN);
             idx += RAN_LEN;
             XMEMCPY(shaInput + idx, ssl->arrays->clientRandom, RAN_LEN);
-
-            wc_ShaUpdate(sha, shaInput, (KEY_PREFIX + SECRET_LEN + 2 * RAN_LEN)
-                                                              - KEY_PREFIX + j);
-            wc_ShaFinal(sha, shaOutput);
+            if (ret == 0) {
+                ret = wc_ShaUpdate(sha, shaInput,
+                    (KEY_PREFIX + SECRET_LEN + 2 * RAN_LEN) - KEY_PREFIX + j);
+            }
+            if (ret == 0) {
+                ret = wc_ShaFinal(sha, shaOutput);
+            }
 
             XMEMCPY(md5Input + SECRET_LEN, shaOutput, SHA_DIGEST_SIZE);
-            wc_Md5Update(md5, md5Input, SECRET_LEN + SHA_DIGEST_SIZE);
-            wc_Md5Final(md5, keyData + i * MD5_DIGEST_SIZE);
+            if (ret == 0) {
+                ret = wc_Md5Update(md5, md5Input, SECRET_LEN + SHA_DIGEST_SIZE);
+            }
+            if (ret == 0) {
+                ret = wc_Md5Final(md5, keyData + i * MD5_DIGEST_SIZE);
+            }
         }
 
         if (ret == 0)
@@ -3010,7 +3200,7 @@ static int MakeSslMasterSecret(WOLFSSL* ssl)
                                             NULL, DYNAMIC_TYPE_TMP_BUFFER);
     md5       =  (Md5*)XMALLOC(sizeof(Md5), NULL, DYNAMIC_TYPE_TMP_BUFFER);
     sha       =  (Sha*)XMALLOC(sizeof(Sha), NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    
+
     if (shaOutput == NULL || md5Input == NULL || shaInput == NULL ||
                              md5      == NULL || sha      == NULL) {
         if (shaOutput) XFREE(shaOutput, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -3018,15 +3208,15 @@ static int MakeSslMasterSecret(WOLFSSL* ssl)
         if (shaInput)  XFREE(shaInput,  NULL, DYNAMIC_TYPE_TMP_BUFFER);
         if (md5)       XFREE(md5,       NULL, DYNAMIC_TYPE_TMP_BUFFER);
         if (sha)       XFREE(sha,       NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        
+
         return MEMORY_E;
     }
 #endif
 
-    wc_InitMd5(md5);
-    
-    ret = wc_InitSha(sha);
-    
+    ret = wc_InitMd5(md5);
+    if (ret == 0) {
+        ret = wc_InitSha(sha);
+    }
     if (ret == 0) {
         XMEMCPY(md5Input, ssl->arrays->preMasterSecret, pmsSz);
 
@@ -3047,14 +3237,22 @@ static int MakeSslMasterSecret(WOLFSSL* ssl)
             idx += RAN_LEN;
             XMEMCPY(shaInput + idx, ssl->arrays->serverRandom, RAN_LEN);
             idx += RAN_LEN;
-            wc_ShaUpdate(sha, shaInput, idx);
-            wc_ShaFinal(sha, shaOutput);
-
+            if (ret == 0) {
+                ret = wc_ShaUpdate(sha, shaInput, idx);
+            }
+            if (ret == 0) {
+                ret = wc_ShaFinal(sha, shaOutput);
+            }
             idx = pmsSz;  /* preSz */
             XMEMCPY(md5Input + idx, shaOutput, SHA_DIGEST_SIZE);
             idx += SHA_DIGEST_SIZE;
-            wc_Md5Update(md5, md5Input, idx);
-            wc_Md5Final(md5, &ssl->arrays->masterSecret[i * MD5_DIGEST_SIZE]);
+            if (ret == 0) {
+                ret = wc_Md5Update(md5, md5Input, idx);
+            }
+            if (ret == 0) {
+                ret = wc_Md5Final(md5,
+                            &ssl->arrays->masterSecret[i * MD5_DIGEST_SIZE]);
+            }
         }
 
 #ifdef SHOW_SECRETS

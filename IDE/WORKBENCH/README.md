@@ -1,5 +1,5 @@
 ## Wind River Workbench using VxWorks with wolfSSL
-####1 Steps to Add wolfSSL to Workbench Project
+#### 1 Steps to Add wolfSSL to Workbench Project
 1. Start by creating a new VxWorks image in Workbench by going to File > New >
 Project and then selecting VxWorks Image Project.
 
@@ -52,8 +52,8 @@ workspace folder. This is where the simulator looks for the filesystem.
     new project you created. Click "Ok".
     - Rebuild the project.
 
-####2 Testing wolfSSL with VxWorks:
-#####2.1 wolfCrypt Test and Benchmark Applications
+#### 2 Testing wolfSSL with VxWorks:
+##### 2.1 wolfCrypt Test and Benchmark Applications
 The wolfCrypt test application will test each of the cryptographic algorithms
 and output the status for each as a success or failure. The benchmark application will output the runtime of the cryptographic algorithms in milliseconds.
 
@@ -85,7 +85,7 @@ by adding the following to the usrAppInit() function:
 
 4. To run the VxWorks simulator, click the dropdown list next to "VxWorks Simulator" at the top of Workbench and go to "Open Connection Details". Add the correct Kernel Image file. This will be located in ```workspace/<project_name>/default/vxWorks```. Click Apply. Start the simulator by clicking the green, "Connect 'VxWorks Simulator'" button to the right of the "VxWorks Simulator" dropdown list. Verify in the simulator terminal that all wolfCrypt tests pass.
 
-#####2.2 Example Client
+##### 2.2 Example Client
 The wolfSSL example client.c file can be found in ```<path_to_wolfssl>/wolfssl/examples/client```.
 
 1. Add the following include to usrAppInit.c:
@@ -117,7 +117,7 @@ section, and add a call to the client function:
         SSL cipher suite is TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384
         Server response: I hear you fa shizzle!
 
-#####2.3 Example Server
+##### 2.3 Example Server
 The example server requires more configuration than the client if using the
 VxWorks simulator.
 
@@ -164,7 +164,7 @@ Note: The wolfSSL example server and client cannot run at the same time on the V
         SSL cipher suite is TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384
         Client message: hello wolfssl!
 
-####3 Necessary Files if Using VxWorks Simulator
+#### 3 Necessary Files if Using VxWorks Simulator
 The following files are required to replicate this build:
 * vxsim\_linux\_1\_0\_2\_2 (directory)
 * compilers/gnu-4.8.1.5/include/c++/4.8

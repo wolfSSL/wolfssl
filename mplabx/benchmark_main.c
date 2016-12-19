@@ -53,7 +53,7 @@ void bench_md5(void);
 void bench_sha(void);
 void bench_sha256(void);
 void bench_sha512(void);
-void bench_ripemd(void);
+int  bench_ripemd(void);
 
 void bench_rsa(void);
 void bench_rsaKeyGen(void);

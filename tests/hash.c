@@ -255,6 +255,7 @@ int md4_test(void)
 int md5_test(void)
 {
     Md5  md5;
+    int ret;
     byte hash[MD5_DIGEST_SIZE];
 
     testVector a, b, c, d, e;
@@ -299,11 +300,22 @@ int md5_test(void)
     test_md5[3] = d;
     test_md5[4] = e;
 
-    wc_InitMd5(&md5);
+    ret = wc_InitMd5(&md5);
+    if (ret) {
+        return ret;
+    }
 
     for (i = 0; i < times; ++i) {
-        wc_Md5Update(&md5, (byte*)test_md5[i].input, (word32)test_md5[i].inLen);
-        wc_Md5Final(&md5, hash);
+        ret = wc_Md5Update(&md5, (byte*)test_md5[i].input,
+                                                (word32)test_md5[i].inLen);
+        if (ret) {
+            return ret;
+        }
+
+        ret = wc_Md5Final(&md5, hash);
+        if (ret) {
+            return ret;
+        }
 
         if (XMEMCMP(hash, test_md5[i].output, MD5_DIGEST_SIZE) != 0)
             return -5 - i;
@@ -578,6 +590,7 @@ int sha384_test()
 int ripemd_test(void)
 {
     RipeMd  ripemd;
+    int ret;
     byte hash[RIPEMD_DIGEST_SIZE];
 
     testVector a, b, c, d;
@@ -614,12 +627,22 @@ int ripemd_test(void)
     test_ripemd[2] = c;
     test_ripemd[3] = d;
 
-    wc_InitRipeMd(&ripemd);
+    ret = wc_InitRipeMd(&ripemd);
+    if (ret) {
+        return ret;
+    }
 
     for (i = 0; i < times; ++i) {
-        wc_RipeMdUpdate(&ripemd, (byte*)test_ripemd[i].input,
-                     (word32)test_ripemd[i].inLen);
-        wc_RipeMdFinal(&ripemd, hash);
+        ret = wc_RipeMdUpdate(&ripemd, (byte*)test_ripemd[i].input,
+                             (word32)test_ripemd[i].inLen);
+        if (ret) {
+            return ret;
+        }
+
+        ret = wc_RipeMdFinal(&ripemd, hash);
+        if (ret) {
+            return ret;
+        }
 
         if (XMEMCMP(hash, test_ripemd[i].output, RIPEMD_DIGEST_SIZE) != 0)
             return -10 - i;
@@ -673,6 +696,10 @@ int hmac_md5_test(void)
     test_hmac[1] = b;
     test_hmac[2] = c;
 
+    ret = wc_HmacInit(&hmac, NULL, INVALID_DEVID);
+    if (ret != 0)
+        return -20009;
+
     for (i = 0; i < times; ++i) {
 #if defined(HAVE_FIPS)
         if (i == 1)
@@ -692,6 +719,8 @@ int hmac_md5_test(void)
         if (XMEMCMP(hash, test_hmac[i].output, MD5_DIGEST_SIZE) != 0)
             return -20 - i;
     }
+
+    wc_HmacFree(&hmac);
 
     return 0;
 }
@@ -743,6 +772,10 @@ int hmac_sha_test(void)
     test_hmac[1] = b;
     test_hmac[2] = c;
 
+    ret = wc_HmacInit(&hmac, NULL, INVALID_DEVID);
+    if (ret != 0)
+        return -20009;
+
     for (i = 0; i < times; ++i) {
 #if defined(HAVE_FIPS)
         if (i == 1)
@@ -762,6 +795,8 @@ int hmac_sha_test(void)
         if (XMEMCMP(hash, test_hmac[i].output, SHA_DIGEST_SIZE) != 0)
             return -20 - i;
     }
+
+    wc_HmacFree(&hmac);
 
     return 0;
 }
@@ -813,6 +848,10 @@ int hmac_sha224_test(void)
     test_hmac[1] = b;
     test_hmac[2] = c;
 
+    ret = wc_HmacInit(&hmac, NULL, INVALID_DEVID);
+    if (ret != 0)
+        return -20009;
+
     for (i = 0; i < times; ++i) {
 #if defined(HAVE_FIPS) || defined(HAVE_CAVIUM)
         if (i == 1)
@@ -831,10 +870,9 @@ int hmac_sha224_test(void)
 
         if (XMEMCMP(hash, test_hmac[i].output, SHA224_DIGEST_SIZE) != 0)
             return -20 - i;
-#ifdef WOLFSSL_ASYNC_CRYPT
-        wc_HmacAsyncFree(&hmac);
-#endif
     }
+
+    wc_HmacFree(&hmac);
 
     return 0;
 }
@@ -890,6 +928,10 @@ int hmac_sha256_test(void)
     test_hmac[1] = b;
     test_hmac[2] = c;
 
+    ret = wc_HmacInit(&hmac, NULL, INVALID_DEVID);
+    if (ret != 0)
+        return -20009;
+
     for (i = 0; i < times; ++i) {
 #if defined(HAVE_FIPS)
         if (i == 1)
@@ -909,6 +951,8 @@ int hmac_sha256_test(void)
         if (XMEMCMP(hash, test_hmac[i].output, SHA256_DIGEST_SIZE) != 0)
             return -20 - i;
     }
+
+    wc_HmacFree(&hmac);
 
     return 0;
 }
@@ -967,6 +1011,10 @@ int hmac_sha384_test(void)
     test_hmac[1] = b;
     test_hmac[2] = c;
 
+    ret = wc_HmacInit(&hmac, NULL, INVALID_DEVID);
+    if (ret != 0)
+        return -20009;
+
     for (i = 0; i < times; ++i) {
 #if defined(HAVE_FIPS)
         if (i == 1)
@@ -986,6 +1034,8 @@ int hmac_sha384_test(void)
         if (XMEMCMP(hash, test_hmac[i].output, SHA384_DIGEST_SIZE) != 0)
             return -20 - i;
     }
+
+    wc_HmacFree(&hmac);
 
     return 0;
 }

@@ -90,7 +90,7 @@ enum wolfSSL_ErrorCodes {
     ECC_EXPORT_ERROR             = -354,   /* Bad ECC Export Key */
     ECC_SHARED_ERROR             = -355,   /* Bad ECC Shared Secret */
     NOT_CA_ERROR                 = -357,   /* Not a CA cert error */
-    BAD_PATH_ERROR               = -358,   /* Bad path for opendir */
+
     BAD_CERT_MANAGER_ERROR       = -359,   /* Bad Cert Manager */
     OCSP_CERT_REVOKED            = -360,   /* OCSP Certificate revoked */
     CRL_CERT_REVOKED             = -361,   /* CRL Certificate revoked */
@@ -152,12 +152,22 @@ enum wolfSSL_ErrorCodes {
     EXT_MASTER_SECRET_NEEDED_E   = -414,   /* need EMS enabled to resume */
     DTLS_POOL_SZ_E               = -415,   /* exceeded DTLS pool size */
     DECODE_E                     = -416,   /* decode handshake message error */
+    HTTP_TIMEOUT                 = -417,   /* HTTP timeout for OCSP or CRL req */
+    WRITE_DUP_READ_E             = -418,   /* Write dup write side can't read */
+    WRITE_DUP_WRITE_E            = -419,   /* Write dup read side can't write */
+    INVALID_CERT_CTX_E           = -420,   /* TLS cert ctx not matching */
+    BAD_KEY_SHARE_DATA           = -421,   /* Key Share data invalid */
+    MISSING_HANDSHAKE_DATA       = -422,   /* Handshake message missing data */
+    BAD_BINDER                   = -423,   /* Binder does not match */
+    EXT_NOT_ALLOWED              = -424,   /* Extension not allowed in msg */
+    INVALID_PARAMETER            = -425,   /* Security parameter invalid */
     /* add strings to wolfSSL_ERR_reason_error_string in internal.c !!!!! */
 
     /* begin negotiation parameter errors */
     UNSUPPORTED_SUITE            = -500,        /* unsupported cipher suite */
     MATCH_SUITE_ERROR            = -501,        /* can't match cipher suite */
-    COMPRESSION_ERROR            = -502         /* compression mismatch */
+    COMPRESSION_ERROR            = -502,        /* compression mismatch */
+    KEY_SHARE_ERROR              = -503         /* key share mismatch */
     /* end negotiation parameter errors only 10 for now */
     /* add strings to wolfSSL_ERR_reason_error_string in internal.c !!!!! */
 

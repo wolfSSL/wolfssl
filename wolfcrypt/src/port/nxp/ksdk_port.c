@@ -23,7 +23,6 @@
     #include <config.h>
 #endif
 
-/* in case user set USE_FAST_MATH there */
 #include <wolfssl/wolfcrypt/settings.h>
 #ifdef NO_INLINE
     #include <wolfssl/wolfcrypt/misc.h>
@@ -33,8 +32,7 @@
 #endif
 
 /* If FREESCALE_LTC_TFM or FREESCALE_LTC_ECC */
-#if (defined(USE_FAST_MATH) && defined(FREESCALE_LTC_TFM)) ||\
-    defined(FREESCALE_LTC_ECC)
+#if defined(FREESCALE_LTC_TFM) || defined(FREESCALE_LTC_ECC)
 
 #include <wolfssl/wolfcrypt/port/nxp/ksdk_port.h>
 #include <wolfssl/wolfcrypt/random.h>
@@ -42,12 +40,12 @@
 #include <wolfssl/wolfcrypt/logging.h>
 #include <stdint.h>
 
-#define ERROR_OUT(err) { ret = (err); goto done; }
+#define ERROR_OUT(res) { ret = (res); goto done; }
 
 
 int ksdk_port_init(void)
 {
-#if defined(USE_FAST_MATH) && defined(FREESCALE_LTC_TFM)
+#if defined(FREESCALE_LTC_TFM)
     LTC_Init(LTC0);
 #endif
 
@@ -56,8 +54,7 @@ int ksdk_port_init(void)
 
 
 /* LTC TFM */
-#if defined(USE_FAST_MATH) && defined(FREESCALE_LTC_TFM)
-#include <wolfssl/wolfcrypt/tfm.h>
+#if defined(FREESCALE_LTC_TFM)
 
 /* Reverse array in memory (in place) */
 static void ltc_reverse_array(uint8_t *src, size_t src_len)
@@ -73,39 +70,52 @@ static void ltc_reverse_array(uint8_t *src, size_t src_len)
     }
 }
 
-/* same as fp_to_unsigned_bin() with fp_reverse() skipped */
-static void fp_to_unsigned_lsb_bin(fp_int *a, unsigned char *b)
+/* same as mp_to_unsigned_bin() with mp_reverse() skipped */
+static int mp_to_unsigned_lsb_bin(mp_int *a, unsigned char *b)
 {
-    fp_int t;
+    int res;
+    mp_int t;
 
-    fp_init_copy(&t, a);
+    res = mp_init_copy(&t, a);
+    if (res == MP_OKAY) {
+        res = mp_to_unsigned_bin_at_pos(0, &t, b);
+        if (res >= 0)
+            res = 0;
+    #ifndef USE_FAST_MATH
+        mp_clear(&t);
+    #endif
+    }
 
-    (void)fp_to_unsigned_bin_at_pos(0, &t, b);
+    return res;
 }
 
-static void ltc_get_lsb_bin_from_mp_int(uint8_t *dst, mp_int *A, uint16_t *psz)
+static int ltc_get_lsb_bin_from_mp_int(uint8_t *dst, mp_int *A, uint16_t *psz)
 {
+    int res;
     uint16_t sz;
 
     sz = mp_unsigned_bin_size(A);
-    fp_to_unsigned_lsb_bin(A, dst); /* result is lsbyte at lowest addr as required by LTC */
+    res = mp_to_unsigned_lsb_bin(A, dst); /* result is lsbyte at lowest addr as required by LTC */
     *psz = sz;
+
+    return res;
 }
 
 /* these function are used by wolfSSL upper layers (like RSA) */
 
 /* c = a * b */
-void fp_mul(fp_int *A, fp_int *B, fp_int *C)
+int mp_mul(mp_int *A, mp_int *B, mp_int *C)
 {
+    int res = MP_OKAY;
     int szA, szB;
-    szA = fp_unsigned_bin_size(A);
-    szB = fp_unsigned_bin_size(B);
+    szA = mp_unsigned_bin_size(A);
+    szB = mp_unsigned_bin_size(B);
 
     /* if unsigned mul can fit into LTC PKHA let's use it, otherwise call software mul */
     if ((szA <= LTC_MAX_INT_BYTES / 2) && (szB <= LTC_MAX_INT_BYTES / 2)) {
         int neg;
 
-        neg = (A->sign == B->sign) ? FP_ZPOS : FP_NEG;
+        neg = (A->sign == B->sign) ? MP_ZPOS : MP_NEG;
 
         /* unsigned multiply */
         uint8_t *ptrA = (uint8_t *)XMALLOC(LTC_MAX_INT_BYTES, 0, DYNAMIC_TYPE_BIGINT);
@@ -115,16 +125,19 @@ void fp_mul(fp_int *A, fp_int *B, fp_int *C)
         if (ptrA && ptrB && ptrC) {
             uint16_t sizeA, sizeB;
 
-            ltc_get_lsb_bin_from_mp_int(ptrA, A, &sizeA);
-            ltc_get_lsb_bin_from_mp_int(ptrB, B, &sizeB);
-            XMEMSET(ptrC, 0xFF, LTC_MAX_INT_BYTES);
+            res = ltc_get_lsb_bin_from_mp_int(ptrA, A, &sizeA);
+            if (res == MP_OKAY)
+                res = ltc_get_lsb_bin_from_mp_int(ptrB, B, &sizeB);
+            if (res == MP_OKAY) {
+                XMEMSET(ptrC, 0xFF, LTC_MAX_INT_BYTES);
 
-            LTC_PKHA_ModMul(LTC_BASE, ptrA, sizeA, ptrB, sizeB, ptrC, LTC_MAX_INT_BYTES, ptrB, &sizeB,
-                            kLTC_PKHA_IntegerArith, kLTC_PKHA_NormalValue, kLTC_PKHA_NormalValue,
-                            kLTC_PKHA_TimingEqualized);
+                LTC_PKHA_ModMul(LTC_BASE, ptrA, sizeA, ptrB, sizeB, ptrC, LTC_MAX_INT_BYTES, ptrB, &sizeB,
+                                kLTC_PKHA_IntegerArith, kLTC_PKHA_NormalValue, kLTC_PKHA_NormalValue,
+                                kLTC_PKHA_TimingEqualized);
 
-            ltc_reverse_array(ptrB, sizeB);
-            mp_read_unsigned_bin(C, ptrB, sizeB);
+                ltc_reverse_array(ptrB, sizeB);
+                res = mp_read_unsigned_bin(C, ptrB, sizeB);
+            }
         }
 
         /* fix sign */
@@ -138,52 +151,53 @@ void fp_mul(fp_int *A, fp_int *B, fp_int *C)
         if (ptrC) {
             XFREE(ptrC, NULL, DYNAMIC_TYPE_BIGINT);
         }
-        return;
     }
     else {
-        wolfcrypt_fp_mul(A, B, C);
+        res = wolfcrypt_mp_mul(A, B, C);
     }
+    return res;
 }
 
 /* c = a mod b, 0 <= c < b  */
-int fp_mod(fp_int *a, fp_int *b, fp_int *c)
+int mp_mod(mp_int *a, mp_int *b, mp_int *c)
 {
+    int res = MP_OKAY;
 #if defined(FREESCALE_LTC_TFM_RSA_4096_ENABLE)
     int szA, szB;
-    szA = fp_unsigned_bin_size(a);
-    szB = fp_unsigned_bin_size(b);
+    szA = mp_unsigned_bin_size(a);
+    szB = mp_unsigned_bin_size(b);
     if ((szA <= LTC_MAX_INT_BYTES) && (szB <= LTC_MAX_INT_BYTES))
     {
 #endif /* FREESCALE_LTC_TFM_RSA_4096_ENABLE */
-        int res = FP_OKAY;
         int neg;
-
         uint8_t *ptrA = (uint8_t *)XMALLOC(LTC_MAX_INT_BYTES, 0, DYNAMIC_TYPE_BIGINT);
         uint8_t *ptrB = (uint8_t *)XMALLOC(LTC_MAX_INT_BYTES, 0, DYNAMIC_TYPE_BIGINT);
         uint8_t *ptrC = (uint8_t *)XMALLOC(LTC_MAX_INT_BYTES, 0, DYNAMIC_TYPE_BIGINT);
 
         /* get sign for the result */
-        neg = (a->sign == b->sign) ? FP_ZPOS : FP_NEG;
+        neg = (a->sign == b->sign) ? MP_ZPOS : MP_NEG;
 
         /* get remainder of unsigned a divided by unsigned b */
         if (ptrA && ptrB && ptrC) {
             uint16_t sizeA, sizeB, sizeC;
 
-            ltc_get_lsb_bin_from_mp_int(ptrA, a, &sizeA);
-            ltc_get_lsb_bin_from_mp_int(ptrB, b, &sizeB);
-
-            if (kStatus_Success ==
-                LTC_PKHA_ModRed(LTC_BASE, ptrA, sizeA, ptrB, sizeB, ptrC, &sizeC, kLTC_PKHA_IntegerArith))
-            {
-                ltc_reverse_array(ptrC, sizeC);
-                mp_read_unsigned_bin(c, ptrC, sizeC);
-            }
-            else {
-                res = FP_VAL;
+            res = ltc_get_lsb_bin_from_mp_int(ptrA, a, &sizeA);
+            if (res == MP_OKAY)
+                res = ltc_get_lsb_bin_from_mp_int(ptrB, b, &sizeB);
+            if (res == MP_OKAY) {
+                if (kStatus_Success ==
+                    LTC_PKHA_ModRed(LTC_BASE, ptrA, sizeA, ptrB, sizeB, ptrC, &sizeC, kLTC_PKHA_IntegerArith))
+                {
+                    ltc_reverse_array(ptrC, sizeC);
+                    res = mp_read_unsigned_bin(c, ptrC, sizeC);
+                }
+                else {
+                    res = MP_VAL;
+                }
             }
         }
         else {
-            res = FP_MEM;
+            res = MP_MEM;
         }
 
         /* fix sign */
@@ -198,26 +212,25 @@ int fp_mod(fp_int *a, fp_int *b, fp_int *c)
         if (ptrC) {
             XFREE(ptrC, NULL, DYNAMIC_TYPE_BIGINT);
         }
-        return res;
 #if defined(FREESCALE_LTC_TFM_RSA_4096_ENABLE)
     }
     else {
-        return wolfcrypt_fp_mod(a, b, c);
+        res = wolfcrypt_mp_mod(a, b, c);
     }
 #endif /* FREESCALE_LTC_TFM_RSA_4096_ENABLE */
+    return res;
 }
 
 /* c = 1/a (mod b) for odd b only */
-int fp_invmod(fp_int *a, fp_int *b, fp_int *c)
+int mp_invmod(mp_int *a, mp_int *b, mp_int *c)
 {
+    int res = MP_OKAY;
 #if defined(FREESCALE_LTC_TFM_RSA_4096_ENABLE)
     int szA, szB;
-    szA = fp_unsigned_bin_size(a);
-    szB = fp_unsigned_bin_size(b);
+    szA = mp_unsigned_bin_size(a);
+    szB = mp_unsigned_bin_size(b);
     if ((szA <= LTC_MAX_INT_BYTES) && (szB <= LTC_MAX_INT_BYTES)) {
 #endif
-        int res = FP_OKAY;
-
         uint8_t *ptrA = (uint8_t *)XMALLOC(LTC_MAX_INT_BYTES, 0, DYNAMIC_TYPE_BIGINT);
         uint8_t *ptrB = (uint8_t *)XMALLOC(LTC_MAX_INT_BYTES, 0, DYNAMIC_TYPE_BIGINT);
         uint8_t *ptrC = (uint8_t *)XMALLOC(LTC_MAX_INT_BYTES, 0, DYNAMIC_TYPE_BIGINT);
@@ -225,21 +238,23 @@ int fp_invmod(fp_int *a, fp_int *b, fp_int *c)
         if (ptrA && ptrB && ptrC) {
             uint16_t sizeA, sizeB, sizeC;
 
-            ltc_get_lsb_bin_from_mp_int(ptrA, a, &sizeA);
-            ltc_get_lsb_bin_from_mp_int(ptrB, b, &sizeB);
-
-            if (kStatus_Success ==
-                LTC_PKHA_ModInv(LTC_BASE, ptrA, sizeA, ptrB, sizeB, ptrC, &sizeC, kLTC_PKHA_IntegerArith))
-            {
-                ltc_reverse_array(ptrC, sizeC);
-                mp_read_unsigned_bin(c, ptrC, sizeC);
-            }
-            else {
-                res = FP_VAL;
+            res = ltc_get_lsb_bin_from_mp_int(ptrA, a, &sizeA);
+            if (res == MP_OKAY)
+                res = ltc_get_lsb_bin_from_mp_int(ptrB, b, &sizeB);
+            if (res == MP_OKAY) {
+                if (kStatus_Success ==
+                    LTC_PKHA_ModInv(LTC_BASE, ptrA, sizeA, ptrB, sizeB, ptrC, &sizeC, kLTC_PKHA_IntegerArith))
+                {
+                    ltc_reverse_array(ptrC, sizeC);
+                    res = mp_read_unsigned_bin(c, ptrC, sizeC);
+                }
+                else {
+                    res = MP_VAL;
+                }
             }
         }
         else {
-            res = FP_MEM;
+            res = MP_MEM;
         }
 
         c->sign = a->sign;
@@ -252,85 +267,91 @@ int fp_invmod(fp_int *a, fp_int *b, fp_int *c)
         if (ptrC) {
             XFREE(ptrC, NULL, DYNAMIC_TYPE_BIGINT);
         }
-        return res;
 #if defined(FREESCALE_LTC_TFM_RSA_4096_ENABLE)
     }
     else {
-        return wolfcrypt_fp_invmod(a, b, c);
+        res = wolfcrypt_mp_invmod(a, b, c);
     }
 #endif /* FREESCALE_LTC_TFM_RSA_4096_ENABLE */
+    return res;
 }
 
 /* d = a * b (mod c) */
-int fp_mulmod(fp_int *a, fp_int *b, fp_int *c, fp_int *d)
+int mp_mulmod(mp_int *a, mp_int *b, mp_int *c, mp_int *d)
 {
+    int res = MP_OKAY;
 #if defined(FREESCALE_LTC_TFM_RSA_4096_ENABLE)
     int szA, szB, szC;
-    szA = fp_unsigned_bin_size(a);
-    szB = fp_unsigned_bin_size(b);
-    szC = fp_unsigned_bin_size(c);
+    szA = mp_unsigned_bin_size(a);
+    szB = mp_unsigned_bin_size(b);
+    szC = mp_unsigned_bin_size(c);
     if ((szA <= LTC_MAX_INT_BYTES) && (szB <= LTC_MAX_INT_BYTES) && (szC <= LTC_MAX_INT_BYTES)) {
 #endif /* FREESCALE_LTC_TFM_RSA_4096_ENABLE */
-        int res = FP_OKAY;
-        fp_int t;
+        mp_int t;
 
         uint8_t *ptrA = (uint8_t *)XMALLOC(LTC_MAX_INT_BYTES, NULL, DYNAMIC_TYPE_BIGINT);
         uint8_t *ptrB = (uint8_t *)XMALLOC(LTC_MAX_INT_BYTES, NULL, DYNAMIC_TYPE_BIGINT);
         uint8_t *ptrC = (uint8_t *)XMALLOC(LTC_MAX_INT_BYTES, NULL, DYNAMIC_TYPE_BIGINT);
         uint8_t *ptrD = (uint8_t *)XMALLOC(LTC_MAX_INT_BYTES, NULL, DYNAMIC_TYPE_BIGINT);
 
-        /* if A or B is negative, substracta abs(A) or abs(B) from modulus to get positive integer representation of the
+        /* if A or B is negative, subtract abs(A) or abs(B) from modulus to get positive integer representation of the
          * same number */
-        fp_init(&t);
+        res = mp_init(&t);
         if (a->sign) {
-            fp_add(a, c, &t);
-            fp_copy(&t, a);
+            if (res == MP_OKAY)
+                res = mp_add(a, c, &t);
+            if (res == MP_OKAY)
+                res = mp_copy(&t, a);
         }
         if (b->sign) {
-            fp_add(b, c, &t);
-            fp_copy(&t, b);
+            if (res == MP_OKAY)
+                res = mp_add(b, c, &t);
+            if (res == MP_OKAY)
+                res = mp_copy(&t, b);
         }
 
-        if (ptrA && ptrB && ptrC && ptrD) {
+        if (res == MP_OKAY && ptrA && ptrB && ptrC && ptrD) {
             uint16_t sizeA, sizeB, sizeC, sizeD;
 
-            ltc_get_lsb_bin_from_mp_int(ptrA, a, &sizeA);
-            ltc_get_lsb_bin_from_mp_int(ptrB, b, &sizeB);
-            ltc_get_lsb_bin_from_mp_int(ptrC, c, &sizeC);
+            res = ltc_get_lsb_bin_from_mp_int(ptrA, a, &sizeA);
+            if (res == MP_OKAY)
+                res = ltc_get_lsb_bin_from_mp_int(ptrB, b, &sizeB);
+            if (res == MP_OKAY)
+                res = ltc_get_lsb_bin_from_mp_int(ptrC, c, &sizeC);
 
             /* (A*B)mod C = ((A mod C) * (B mod C)) mod C  */
-            if (LTC_PKHA_CompareBigNum(ptrA, sizeA, ptrC, sizeC) >= 0) {
+            if (res == MP_OKAY && LTC_PKHA_CompareBigNum(ptrA, sizeA, ptrC, sizeC) >= 0) {
                 if (kStatus_Success !=
                     LTC_PKHA_ModRed(LTC_BASE, ptrA, sizeA, ptrC, sizeC, ptrA, &sizeA, kLTC_PKHA_IntegerArith))
                 {
-                    res = FP_VAL;
+                    res = MP_VAL;
                 }
             }
-            if ((FP_OKAY == res) && (LTC_PKHA_CompareBigNum(ptrB, sizeB, ptrC, sizeC) >= 0))
+            if (res == MP_OKAY && (LTC_PKHA_CompareBigNum(ptrB, sizeB, ptrC, sizeC) >= 0))
             {
                 if (kStatus_Success !=
                     LTC_PKHA_ModRed(LTC_BASE, ptrB, sizeB, ptrC, sizeC, ptrB, &sizeB, kLTC_PKHA_IntegerArith))
                 {
-                    res = FP_VAL;
+                    res = MP_VAL;
                 }
             }
 
-            if (FP_OKAY == res) {
+            if (res == MP_OKAY) {
                 if (kStatus_Success != LTC_PKHA_ModMul(LTC_BASE, ptrA, sizeA, ptrB, sizeB, ptrC, sizeC, ptrD, &sizeD,
                                                        kLTC_PKHA_IntegerArith, kLTC_PKHA_NormalValue,
                                                        kLTC_PKHA_NormalValue, kLTC_PKHA_TimingEqualized))
                 {
-                    res = FP_VAL;
+                    res = MP_VAL;
                 }
             }
 
-            if (FP_OKAY == res) {
+            if (res == MP_OKAY) {
                 ltc_reverse_array(ptrD, sizeD);
-                mp_read_unsigned_bin(d, ptrD, sizeD);
+                res = mp_read_unsigned_bin(d, ptrD, sizeD);
             }
         }
         else {
-            res = FP_MEM;
+            res = MP_MEM;
         }
 
         if (ptrA) {
@@ -345,41 +366,45 @@ int fp_mulmod(fp_int *a, fp_int *b, fp_int *c, fp_int *d)
         if (ptrD) {
             XFREE(ptrD, NULL, DYNAMIC_TYPE_BIGINT);
         }
-        return res;
+    #ifndef USE_FAST_MATH
+        mp_clear(&t);
+    #endif
 #if defined(FREESCALE_LTC_TFM_RSA_4096_ENABLE)
     }
     else {
-        return wolfcrypt_fp_mulmod(a, b, c, d);
+        res = wolfcrypt_mp_mulmod(a, b, c, d);
     }
 #endif /* FREESCALE_LTC_TFM_RSA_4096_ENABLE */
+    return res;
 }
 
 /* Y = G^X mod P */
-int _fp_exptmod(fp_int *G, fp_int *X, fp_int *P, fp_int *Y)
+int mp_exptmod(mp_int *G, mp_int *X, mp_int *P, mp_int *Y)
 {
+    int res = MP_OKAY;
 #if defined(FREESCALE_LTC_TFM_RSA_4096_ENABLE)
     int szA, szB, szC;
-    fp_int tmp;
-    int err;
+    mp_int tmp;
 
     /* if G cannot fit into LTC_PKHA, reduce it */
-    szA = fp_unsigned_bin_size(G);
+    szA = mp_unsigned_bin_size(G);
     if (szA > LTC_MAX_INT_BYTES) {
-        fp_init(&tmp);
-        if ((err = fp_mod(G, P, &tmp)) != FP_OKAY) {
-            return err;
+        res = mp_init(&tmp);
+        if (res != MP_OKAY)
+            return res;
+        if ((res = mp_mod(G, P, &tmp)) != MP_OKAY) {
+            return res;
         }
         G = &tmp;
-        szA = fp_unsigned_bin_size(G);
+        szA = mp_unsigned_bin_size(G);
     }
 
-    szB = fp_unsigned_bin_size(X);
-    szC = fp_unsigned_bin_size(P);
+    szB = mp_unsigned_bin_size(X);
+    szC = mp_unsigned_bin_size(P);
 
     if ((szA <= LTC_MAX_INT_BYTES) && (szB <= LTC_MAX_INT_BYTES) && (szC <= LTC_MAX_INT_BYTES)) {
 #endif /* FREESCALE_LTC_TFM_RSA_4096_ENABLE */
-        int res = FP_OKAY;
-        fp_int t;
+        mp_int t;
 
         uint16_t sizeG, sizeX, sizeP;
         uint8_t *ptrG = (uint8_t *)XMALLOC(LTC_MAX_INT_BYTES, 0, DYNAMIC_TYPE_BIGINT);
@@ -387,16 +412,20 @@ int _fp_exptmod(fp_int *G, fp_int *X, fp_int *P, fp_int *Y)
         uint8_t *ptrP = (uint8_t *)XMALLOC(LTC_MAX_INT_BYTES, 0, DYNAMIC_TYPE_BIGINT);
 
         /* if G is negative, add modulus to convert to positive number for LTC */
-        fp_init(&t);
+        res = mp_init(&t);
         if (G->sign) {
-            fp_add(G, P, &t);
-            fp_copy(&t, G);
+            if (res == MP_OKAY)
+                res = mp_add(G, P, &t);
+            if (res == MP_OKAY)
+                res = mp_copy(&t, G);
         }
 
-        if (ptrG && ptrX && ptrP) {
-            ltc_get_lsb_bin_from_mp_int(ptrG, G, &sizeG);
-            ltc_get_lsb_bin_from_mp_int(ptrX, X, &sizeX);
-            ltc_get_lsb_bin_from_mp_int(ptrP, P, &sizeP);
+        if (res == MP_OKAY && ptrG && ptrX && ptrP) {
+            res = ltc_get_lsb_bin_from_mp_int(ptrG, G, &sizeG);
+            if (res == MP_OKAY)
+                res = ltc_get_lsb_bin_from_mp_int(ptrX, X, &sizeX);
+            if (res == MP_OKAY)
+                res = ltc_get_lsb_bin_from_mp_int(ptrP, P, &sizeP);
 
             /* if number if greater that modulo, we must first reduce due to LTC requirement on modular exponentiaton */
             /* it needs number less than modulus.  */
@@ -405,29 +434,29 @@ int _fp_exptmod(fp_int *G, fp_int *X, fp_int *P, fp_int *Y)
                and then the modular exponentiation.
              */
             /* if G >= P then */
-            if (LTC_PKHA_CompareBigNum(ptrG, sizeG, ptrP, sizeP) >= 0) {
+            if (res == MP_OKAY && LTC_PKHA_CompareBigNum(ptrG, sizeG, ptrP, sizeP) >= 0) {
                 res = (int)LTC_PKHA_ModRed(LTC_BASE, ptrG, sizeG, ptrP, sizeP, ptrG, &sizeG, kLTC_PKHA_IntegerArith);
 
                 if (res != kStatus_Success) {
-                    res = FP_VAL;
+                    res = MP_VAL;
                 }
             }
 
-            if (FP_OKAY == res) {
+            if (res == MP_OKAY) {
                 res = (int)LTC_PKHA_ModExp(LTC_BASE, ptrG, sizeG, ptrP, sizeP, ptrX, sizeX, ptrP, &sizeP,
                                            kLTC_PKHA_IntegerArith, kLTC_PKHA_NormalValue, kLTC_PKHA_TimingEqualized);
 
                 if (res != kStatus_Success) {
-                    res = FP_VAL;
+                    res = MP_VAL;
                 }
                 else {
                     ltc_reverse_array(ptrP, sizeP);
-                    mp_read_unsigned_bin(Y, ptrP, sizeP);
+                    res = mp_read_unsigned_bin(Y, ptrP, sizeP);
                 }
             }
         }
         else {
-            res = FP_MEM;
+            res = MP_MEM;
         }
 
         if (ptrG) {
@@ -439,16 +468,24 @@ int _fp_exptmod(fp_int *G, fp_int *X, fp_int *P, fp_int *Y)
         if (ptrP) {
             XFREE(ptrP, NULL, DYNAMIC_TYPE_BIGINT);
         }
-        return res;
+    #ifndef USE_FAST_MATH
+        mp_clear(&t);
+    #endif
 #if defined(FREESCALE_LTC_TFM_RSA_4096_ENABLE)
     }
     else {
-        return _wolfcrypt_fp_exptmod(G, X, P, Y);
+        res = wolfcrypt_mp_exptmod(G, X, P, Y);
     }
+
+#ifndef USE_FAST_MATH
+    if (szA > LTC_MAX_INT_BYTES)
+        mp_clear(&tmp);
+#endif
 #endif /* FREESCALE_LTC_TFM_RSA_4096_ENABLE */
+    return res;
 }
 
-#endif /* USE_FAST_MATH && FREESCALE_LTC_TFM */
+#endif /* FREESCALE_LTC_TFM */
 
 
 /* ECC */
@@ -457,11 +494,12 @@ int _fp_exptmod(fp_int *G, fp_int *X, fp_int *P, fp_int *Y)
 /* convert from mp_int to LTC integer, as array of bytes of size sz.
  * if mp_int has less bytes than sz, add zero bytes at most significant byte positions.
  * This is when for example modulus is 32 bytes (P-256 curve)
- * and mp_int has only 31 bytes, we add leading zeroes
+ * and mp_int has only 31 bytes, we add leading zeros
  * so that result array has 32 bytes, same as modulus (sz).
  */
-static void ltc_get_from_mp_int(uint8_t *dst, mp_int *a, int sz)
+static int ltc_get_from_mp_int(uint8_t *dst, mp_int *a, int sz)
 {
+    int res;
     int szbin;
     int offset;
 
@@ -480,10 +518,14 @@ static void ltc_get_from_mp_int(uint8_t *dst, mp_int *a, int sz)
         XMEMSET(dst, 0, offset);
 
     /* convert mp_int to array of bytes */
-    mp_to_unsigned_bin(a, dst + offset);
+    res = mp_to_unsigned_bin(a, dst + offset);
 
-    /* reverse array for LTC direct use */
-    ltc_reverse_array(dst, sz);
+    if (res == MP_OKAY) {
+        /* reverse array for LTC direct use */
+        ltc_reverse_array(dst, sz);
+    }
+
+    return res;
 }
 
 /* ECC specs in lsbyte at lowest address format for direct use by LTC PKHA driver functions */
@@ -636,8 +678,10 @@ int wc_ecc_mulmod_ex(mp_int *k, ecc_point *G, ecc_point *R, mp_int* a,
     int szkbin;
     bool point_of_infinity;
     status_t status;
+    int res;
 
     (void)a;
+    (void)heap;
 
     uint8_t Gxbin[LTC_MAX_ECC_BITS / 8];
     uint8_t Gybin[LTC_MAX_ECC_BITS / 8];
@@ -655,9 +699,14 @@ int wc_ecc_mulmod_ex(mp_int *k, ecc_point *G, ecc_point *R, mp_int* a,
     szModulus = mp_unsigned_bin_size(modulus);
     szkbin = mp_unsigned_bin_size(k);
 
-    ltc_get_from_mp_int(kbin, k, szkbin);
-    ltc_get_from_mp_int(Gxbin, G->x, szModulus);
-    ltc_get_from_mp_int(Gybin, G->y, szModulus);
+    res = ltc_get_from_mp_int(kbin, k, szkbin);
+    if (res == MP_OKAY)
+        res = ltc_get_from_mp_int(Gxbin, G->x, szModulus);
+    if (res == MP_OKAY)
+        res = ltc_get_from_mp_int(Gybin, G->y, szModulus);
+
+    if (res != MP_OKAY)
+        return res;
 
     size = szModulus;
     /* find LTC friendly parameters for the selected curve */
@@ -671,25 +720,28 @@ int wc_ecc_mulmod_ex(mp_int *k, ecc_point *G, ecc_point *R, mp_int* a,
     status = LTC_PKHA_ECC_PointMul(LTC_BASE, &B, kbin, szkbin, modbin, r2modn, aCurveParam, bCurveParam, size,
                                    kLTC_PKHA_TimingEqualized, kLTC_PKHA_IntegerArith, &B, &point_of_infinity);
     if (status != kStatus_Success) {
-        return FP_VAL;
+        return MP_VAL;
     }
 
     ltc_reverse_array(Gxbin, size);
     ltc_reverse_array(Gybin, size);
-    mp_read_unsigned_bin(R->x, Gxbin, size);
-    mp_read_unsigned_bin(R->y, Gybin, size);
-    /* if k is negative, we compute the multiplication with abs(-k)
-     * with result (x, y) and modify the result to (x, -y)
-     */
-    R->y->sign = k->sign;
-    mp_set(R->z, 1);
+    res = mp_read_unsigned_bin(R->x, Gxbin, size);
+    if (res == MP_OKAY) {
+        res = mp_read_unsigned_bin(R->y, Gybin, size);
+        /* if k is negative, we compute the multiplication with abs(-k)
+         * with result (x, y) and modify the result to (x, -y)
+         */
+        R->y->sign = k->sign;
+    }
+    if (res == MP_OKAY)
+        res = mp_set(R->z, 1);
 
-    return MP_OKAY;
+    return res;
 }
 
 int wc_ecc_point_add(ecc_point *mG, ecc_point *mQ, ecc_point *mR, mp_int *m)
 {
-    int err;
+    int res;
     ltc_pkha_ecc_point_t A, B;
     int size;
     status_t status;
@@ -704,15 +756,22 @@ int wc_ecc_point_add(ecc_point *mG, ecc_point *mQ, ecc_point *mR, mp_int *m)
     const uint8_t *r2modn;
 
     size = mp_unsigned_bin_size(m);
+
     /* find LTC friendly parameters for the selected curve */
-    if (0 != ltc_get_ecc_specs(&modbin, &r2modn, &aCurveParam, &bCurveParam, size)) {
-        err = ECC_BAD_ARG_E;
+    if (ltc_get_ecc_specs(&modbin, &r2modn, &aCurveParam, &bCurveParam, size) != 0) {
+        res = ECC_BAD_ARG_E;
     }
     else {
-        ltc_get_from_mp_int(Gxbin, mG->x, size);
-        ltc_get_from_mp_int(Gybin, mG->y, size);
-        ltc_get_from_mp_int(Qxbin, mQ->x, size);
-        ltc_get_from_mp_int(Qybin, mQ->y, size);
+        res = ltc_get_from_mp_int(Gxbin, mG->x, size);
+        if (res == MP_OKAY)
+            res = ltc_get_from_mp_int(Gybin, mG->y, size);
+        if (res == MP_OKAY)
+            res = ltc_get_from_mp_int(Qxbin, mQ->x, size);
+        if (res == MP_OKAY)
+            res = ltc_get_from_mp_int(Qybin, mQ->y, size);
+
+        if (res != MP_OKAY)
+            return res;
 
         A.X = Gxbin;
         A.Y = Gybin;
@@ -723,18 +782,19 @@ int wc_ecc_point_add(ecc_point *mG, ecc_point *mQ, ecc_point *mR, mp_int *m)
         status = LTC_PKHA_ECC_PointAdd(LTC_BASE, &A, &B, modbin, r2modn, aCurveParam, bCurveParam, size,
                                        kLTC_PKHA_IntegerArith, &A);
         if (status != kStatus_Success) {
-            err = FP_VAL;
+            res = MP_VAL;
         }
         else {
             ltc_reverse_array(Gxbin, size);
             ltc_reverse_array(Gybin, size);
-            mp_read_unsigned_bin(mR->x, Gxbin, size);
-            mp_read_unsigned_bin(mR->y, Gybin, size);
-            mp_set(mR->z, 1);
-            err = MP_OKAY;
+            res = mp_read_unsigned_bin(mR->x, Gxbin, size);
+            if (res == MP_OKAY)
+                res = mp_read_unsigned_bin(mR->y, Gybin, size);
+            if (res == MP_OKAY)
+                res = mp_set(mR->z, 1);
         }
     }
-    return err;
+    return res;
 }
 
 #if defined(HAVE_ED25519) || defined(HAVE_CURVE25519)
@@ -852,7 +912,7 @@ status_t LTC_PKHA_Prime25519SquareRootMod(const uint8_t *A, size_t sizeA,
      *
      * X mod 2 get from LSB bit0
      */
-    if ((status == kStatus_Success) && 
+    if ((status == kStatus_Success) &&
         ((bool)sign != (bool)(res[0] & 0x01u)))
     {
         status = LTC_PKHA_ModSub1(LTC_BASE, modbin, sizeof(modbin), res,
@@ -1036,7 +1096,7 @@ int wc_curve25519(ECPoint *q, byte *n, const ECPoint *p, fsl_ltc_ecc_coordinate_
     ltcPoint.X = &pIn.point[0];
     ltcPoint.Y = &pIn.pointY[0];
 
-    /* if input point P is on Curve25519 Montgomery curve, transform 
+    /* if input point P is on Curve25519 Montgomery curve, transform
         it to Weierstrass equivalent */
     if (type == kLTC_Curve25519) {
         LTC_PKHA_Curve25519ToWeierstrass(&ltcPoint, &ltcPoint);
@@ -1197,7 +1257,7 @@ status_t LTC_PKHA_Ed25519ToWeierstrass(const ltc_pkha_ecc_point_t *ltcPointIn,
     Mx = (1 + Ey) * ModularArithmetic.invert(1 - Ey, prime) % prime
     My = (1 + Ey) * ModularArithmetic.invert((1 - Ey)*Ex, prime) % prime */
 
-    /* Gx = ((Mx * ModularArithmetic.invert(B, prime)) + 
+    /* Gx = ((Mx * ModularArithmetic.invert(B, prime)) +
         (A * ModularArithmetic.invert(3*B, prime))) % prime
     Gy = (My * ModularArithmetic.invert(B, prime)) % prime */
 
@@ -1497,7 +1557,7 @@ status_t LTC_PKHA_sc_muladd(uint8_t *s, const uint8_t *a,
     uint8_t tempB[32] = {0};
     status_t status;
 
-    /* Assume only b can be larger than modulus. It is called durind 
+    /* Assume only b can be larger than modulus. It is called durind
      * wc_ed25519_sign_msg() where hram (=a) and nonce(=c)
      * have been reduced by LTC_PKHA_sc_reduce()
      * Thus reducing b only.
@@ -1622,4 +1682,4 @@ status_t LTC_PKHA_Ed25519_Compress(const ltc_pkha_ecc_point_t *ltcPointIn,
 
 #undef ERROR_OUT
 
-#endif /* (USE_FAST_MATH && FREESCALE_LTC_TFM) || FREESCALE_LTC_ECC */
+#endif /* FREESCALE_LTC_TFM || FREESCALE_LTC_ECC */

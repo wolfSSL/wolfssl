@@ -5,6 +5,7 @@
 #define WOLFSSL_SHA_H_
 
 #include <wolfssl/wolfcrypt/settings.h>
+#include <wolfssl/wolfcrypt/types.h>
 
 #ifdef WOLFSSL_PREFIX
 #include "prefix_sha.h"
@@ -16,7 +17,8 @@
 
 
 typedef struct WOLFSSL_SHA_CTX {
-    int holder[24];   /* big enough to hold wolfcrypt sha, but check on init */
+    /* big enough to hold wolfcrypt Sha, but check on init */
+    int holder[28 + (WC_ASYNC_DEV_SIZE / sizeof(int))];
 } WOLFSSL_SHA_CTX;
 
 WOLFSSL_API void wolfSSL_SHA_Init(WOLFSSL_SHA_CTX*);
@@ -46,8 +48,12 @@ typedef WOLFSSL_SHA_CTX SHA_CTX;
 
 #ifdef WOLFSSL_SHA224
 
+/* Using ALIGN16 because when AES-NI is enabled digest and buffer in Sha256
+ * struct are 16 byte aligned. Any derefrence to those elements after casting to
+ * Sha224, is expected to also be 16 byte aligned addresses.  */
 typedef struct WOLFSSL_SHA224_CTX {
-    long long holder[28];   /* big enough, but check on init */
+    /* big enough to hold wolfcrypt Sha224, but check on init */
+    ALIGN16 int holder[34 + (WC_ASYNC_DEV_SIZE / sizeof(int))];
 } WOLFSSL_SHA224_CTX;
 
 WOLFSSL_API void wolfSSL_SHA224_Init(WOLFSSL_SHA224_CTX*);
@@ -69,8 +75,12 @@ typedef WOLFSSL_SHA224_CTX SHA224_CTX;
 #endif /* WOLFSSL_SHA224 */
 
 
+/* Using ALIGN16 because when AES-NI is enabled digest and buffer in Sha256
+ * struct are 16 byte aligned. Any derefrence to those elements after casting to
+ * Sha256, is expected to also be 16 byte aligned addresses.  */
 typedef struct WOLFSSL_SHA256_CTX {
-    int holder[28];   /* big enough to hold wolfcrypt sha, but check on init */
+    /* big enough to hold wolfcrypt Sha256, but check on init */
+    ALIGN16 int holder[34 + (WC_ASYNC_DEV_SIZE / sizeof(int))];
 } WOLFSSL_SHA256_CTX;
 
 WOLFSSL_API void wolfSSL_SHA256_Init(WOLFSSL_SHA256_CTX*);
@@ -93,7 +103,8 @@ typedef WOLFSSL_SHA256_CTX SHA256_CTX;
 #ifdef WOLFSSL_SHA384
 
 typedef struct WOLFSSL_SHA384_CTX {
-    long long holder[32];   /* big enough, but check on init */
+    /* big enough to hold wolfCrypt Sha384, but check on init */
+    long long holder[32 + (WC_ASYNC_DEV_SIZE / sizeof(long long))];
 } WOLFSSL_SHA384_CTX;
 
 WOLFSSL_API void wolfSSL_SHA384_Init(WOLFSSL_SHA384_CTX*);
@@ -117,7 +128,8 @@ typedef WOLFSSL_SHA384_CTX SHA384_CTX;
 #ifdef WOLFSSL_SHA512
 
 typedef struct WOLFSSL_SHA512_CTX {
-    long long holder[36];   /* big enough, but check on init */
+    /* big enough to hold wolfCrypt Sha384, but check on init */
+    long long holder[36 + (WC_ASYNC_DEV_SIZE / sizeof(long long))];
 } WOLFSSL_SHA512_CTX;
 
 WOLFSSL_API void wolfSSL_SHA512_Init(WOLFSSL_SHA512_CTX*);

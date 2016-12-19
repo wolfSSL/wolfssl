@@ -200,7 +200,7 @@ static int GetSafeContent(WC_PKCS12* pkcs12, const byte* input,
         freeSafe(safe, pkcs12->heap);
         return ASN_PARSE_E;
     }
-    if ((ret = GetLength(input, &localIdx, &size, maxIdx)) < 0) {
+    if ((ret = GetLength(input, &localIdx, &size, maxIdx)) <= 0) {
         freeSafe(safe, pkcs12->heap);
         return ret;
     }
@@ -218,7 +218,7 @@ static int GetSafeContent(WC_PKCS12* pkcs12, const byte* input,
                 freeSafe(safe, pkcs12->heap);
                 return ASN_PARSE_E;
             }
-            if ((ret = GetLength(input, &localIdx, &size, maxIdx)) < 0) {
+            if ((ret = GetLength(input, &localIdx, &size, maxIdx)) <= 0) {
                 freeSafe(safe, pkcs12->heap);
                 return ret;
             }
@@ -367,7 +367,7 @@ static int GetSignData(WC_PKCS12* pkcs12, const byte* mem, word32* idx,
         return ASN_PARSE_E;
     }
 
-    if ((ret = GetLength(mem, &curIdx, &size, totalSz)) < 0) {
+    if ((ret = GetLength(mem, &curIdx, &size, totalSz)) <= 0) {
         XFREE(mac, pkcs12->heap, DYNAMIC_TYPE_PKCS);
         return ret;
     }
@@ -398,7 +398,7 @@ static int GetSignData(WC_PKCS12* pkcs12, const byte* mem, word32* idx,
         return ASN_PARSE_E;
     }
 
-    if ((ret = GetLength(mem, &curIdx, &size, totalSz)) < 0) {
+    if ((ret = GetLength(mem, &curIdx, &size, totalSz)) <= 0) {
         XFREE(mac->digest, pkcs12->heap, DYNAMIC_TYPE_PKCS);
         XFREE(mac, pkcs12->heap, DYNAMIC_TYPE_PKCS);
         return ret;
@@ -527,15 +527,19 @@ static int wc_PKCS12_verify(WC_PKCS12* pkcs12, byte* data, word32 dataSz,
     }
 
     /* now that key has been created use it to get HMAC hash on data */
-    if ((ret = wc_HmacSetKey(&hmac, typeH, key, kLen)) != 0) {
+    if ((ret = wc_HmacInit(&hmac, NULL, INVALID_DEVID)) != 0) {
         return ret;
     }
-    if ((ret = wc_HmacUpdate(&hmac, data, dataSz)) != 0) {
+    ret = wc_HmacSetKey(&hmac, typeH, key, kLen);
+    if (ret == 0)
+        ret = wc_HmacUpdate(&hmac, data, dataSz);
+    if (ret == 0)
+        ret = wc_HmacFinal(&hmac, digest);
+    wc_HmacFree(&hmac);
+
+    if (ret != 0)
         return ret;
-    }
-    if ((ret = wc_HmacFinal(&hmac, digest)) != 0) {
-        return ret;
-    }
+
 #ifdef WOLFSSL_DEBUG_PKCS12
     {
         byte* p;
@@ -709,6 +713,10 @@ int wc_PKCS12_parse(WC_PKCS12* pkcs12, const char* psw,
         }
     }
 
+    if (pkcs12->safe == NULL) {
+        WOLFSSL_MSG("No PKCS12 safes to parse");
+        return BAD_FUNC_ARG;
+    }
 
     /* Decode content infos */
     ci = pkcs12->safe->CI;
@@ -800,7 +808,7 @@ int wc_PKCS12_parse(WC_PKCS12* pkcs12, const char* psw,
                 freeCertList(certList, pkcs12->heap);
                 return ASN_PARSE_E;
             }
-            if ((ret = GetLength(data, &idx, &size, ci->dataSz)) < 0) {
+            if ((ret = GetLength(data, &idx, &size, ci->dataSz)) <= 0) {
                 freeBuffers(*pkey, buf, pkcs12->heap);
                 freeCertList(certList, pkcs12->heap);
                 return ret;
@@ -851,7 +859,7 @@ int wc_PKCS12_parse(WC_PKCS12* pkcs12, const char* psw,
                         freeCertList(certList, pkcs12->heap);
                         return ASN_PARSE_E;
                     }
-                    if ((ret = GetLength(data, &idx, &size, ci->dataSz)) < 0) {
+                    if ((ret = GetLength(data, &idx, &size, ci->dataSz)) <= 0) {
                         freeBuffers(*pkey, buf, pkcs12->heap);
                         freeCertList(certList, pkcs12->heap);
                         return ASN_PARSE_E;
@@ -987,7 +995,7 @@ int wc_PKCS12_parse(WC_PKCS12* pkcs12, const char* psw,
                                 return ASN_PARSE_E;
                             }
                             if ((ret = GetLength(data, &idx, &size, ci->dataSz))
-                                                                          < 0) {
+                                                                         <= 0) {
                                 freeBuffers(*pkey, buf, pkcs12->heap);
                                 freeCertList(certList, pkcs12->heap);
                                 return ret;

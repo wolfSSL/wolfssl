@@ -45,7 +45,7 @@ int main(int argc, char** argv)
 
 int unit_test(int argc, char** argv)
 {
-    int ret;
+    int ret = 0;
 
     (void)argc;
     (void)argv;
@@ -68,24 +68,25 @@ int unit_test(int argc, char** argv)
 
     if ( (ret = HashTest()) != 0){
         printf("hash test failed with %d\n", ret);
-        return ret;
+        goto exit;
     }
 
 #ifndef SINGLE_THREADED
     if ( (ret = SuiteTest()) != 0){
         printf("suite test failed with %d\n", ret);
-        return ret;
+        goto exit;
     }
 #endif
 
     SrpTest();
 
+exit:
 #ifdef HAVE_WNR
     if (wc_FreeNetRandom() < 0)
         err_sys("Failed to free netRandom context");
 #endif /* HAVE_WNR */
 
-    return 0;
+    return ret;
 }
 
 
