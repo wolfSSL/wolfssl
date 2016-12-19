@@ -1671,7 +1671,10 @@ int wolfSSL_Rehandshake(WOLFSSL* ssl)
 
 #ifndef NO_OLD_TLS
 #ifndef NO_MD5
-    wc_InitMd5(&ssl->hsHashes->hashMd5);
+    ret = wc_InitMd5(&ssl->hsHashes->hashMd5);
+    if (ret != 0) {
+        return ret;
+    }
 #endif
 #ifndef NO_SHA
     ret = wc_InitSha(&ssl->hsHashes->hashSha);
@@ -7017,6 +7020,9 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
     int wolfSSL_connect(WOLFSSL* ssl)
     {
         int neededState;
+        #if !defined(NO_OLD_TLS) && defined(WOLFSSL_DTLS)
+            int ret;
+        #endif
 
         WOLFSSL_ENTER("SSL_connect()");
 
@@ -7105,14 +7111,17 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
             #ifdef WOLFSSL_DTLS
                 if (IsDtlsNotSctpMode(ssl)) {
                     /* re-init hashes, exclude first hello and verify request */
-#ifndef NO_OLD_TLS
-                    wc_InitMd5(&ssl->hsHashes->hashMd5);
+                #ifndef NO_OLD_TLS
+                    ret = wc_InitMd5(&ssl->hsHashes->hashMd5);
+                    if (ret) {
+                        return ret;
+                    }
                     if ( (ssl->error = wc_InitSha(&ssl->hsHashes->hashSha))
                                                                          != 0) {
                         WOLFSSL_ERROR(ssl->error);
                         return SSL_FATAL_ERROR;
                     }
-#endif
+                #endif
                     if (IsAtLeastTLSv1_2(ssl)) {
                         #ifndef NO_SHA256
                             if ( (ssl->error = wc_InitSha256(
@@ -9540,6 +9549,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         int  keyLeft;
         int  ivLeft;
         int  keyOutput = 0;
+        int  ret;
         byte digest[MD5_DIGEST_SIZE];
     #ifdef WOLFSSL_SMALL_STACK
         Md5* md5 = NULL;
@@ -9556,7 +9566,9 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         (void)type;
 
         WOLFSSL_ENTER("wolfSSL_EVP_BytesToKey");
-        wc_InitMd5(md5);
+        if (wc_InitMd5(md5)) {
+            return SSL_FATAL_ERROR;
+        }
 
         /* only support MD5 for now */
         if (XSTRNCMP(md, "MD5", 3) != 0) return 0;
@@ -9601,18 +9613,56 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         while (keyOutput < (keyLen + ivLen)) {
             int digestLeft = MD5_DIGEST_SIZE;
             /* D_(i - 1) */
-            if (keyOutput)                      /* first time D_0 is empty */
-                wc_Md5Update(md5, digest, MD5_DIGEST_SIZE);
+            if (keyOutput) {          /* first time D_0 is empty */
+                ret = wc_Md5Update(md5, digest, MD5_DIGEST_SIZE);
+                if (ret != 0) {
+                #ifdef WOLFSSL_SMALL_STACK
+                    XFREE(md5, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                #endif
+                    return ret;
+                }
+            }
             /* data */
-            wc_Md5Update(md5, data, sz);
+            ret = wc_Md5Update(md5, data, sz);
+            if (ret !=0) {
+            #ifdef WOLFSSL_SMALL_STACK
+                XFREE(md5, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            #endif
+                return ret;
+            }
             /* salt */
-            if (salt)
-                wc_Md5Update(md5, salt, EVP_SALT_SIZE);
-            wc_Md5Final(md5, digest);
+            if (salt) {
+                ret = wc_Md5Update(md5, salt, EVP_SALT_SIZE);
+                if (ret != 0) {
+                #ifdef WOLFSSL_SMALL_STACK
+                    XFREE(md5, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                #endif
+                    return ret;
+                }
+            }
+            ret = wc_Md5Final(md5, digest);
+            if (ret != 0) {
+            #ifdef WOLFSSL_SMALL_STACK
+                XFREE(md5, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            #endif
+                return ret;
+            }
             /* count */
             for (j = 1; j < count; j++) {
-                wc_Md5Update(md5, digest, MD5_DIGEST_SIZE);
-                wc_Md5Final(md5, digest);
+                ret = wc_Md5Update(md5, digest, MD5_DIGEST_SIZE);
+                if (ret != 0) {
+                #ifdef WOLFSSL_SMALL_STACK
+                    XFREE(md5, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                #endif
+                    return ret;
+                }
+                ret = wc_Md5Final(md5, digest);
+                if (ret != 0) {
+                #ifdef WOLFSSL_SMALL_STACK
+                    XFREE(md5, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                #endif
+                    return ret;
+                }
             }
 
             if (keyLeft) {

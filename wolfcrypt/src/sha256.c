@@ -34,18 +34,27 @@
 
 int wc_InitSha256(Sha256* sha)
 {
+    if (sha == NULL) {
+        return -173;
+    }
     return InitSha256_fips(sha);
 }
 
 
 int wc_Sha256Update(Sha256* sha, const byte* data, word32 len)
 {
+    if (sha == NULL ||  (data == NULL && len > 0)) {
+        return -173;
+    }
     return Sha256Update_fips(sha, data, len);
 }
 
 
 int wc_Sha256Final(Sha256* sha, byte* out)
 {
+    if (sha == NULL || out == NULL) {
+        return -173;
+    }
     return Sha256Final_fips(sha, out);
 }
 
@@ -309,28 +318,33 @@ int wc_InitSha256(Sha256* sha256)
 int wc_InitSha256(Sha256* sha256)
 {
     int ret = 0;
-    #ifdef FREESCALE_MMCAU_SHA
-        ret = wolfSSL_CryptHwMutexLock();
-        if(ret != 0) {
-            return ret;
-        }
-        MMCAU_SHA256_InitializeOutput((uint32_t*)sha256->digest);
-        wolfSSL_CryptHwMutexUnLock();
-    #else
-        sha256->digest[0] = 0x6A09E667L;
-        sha256->digest[1] = 0xBB67AE85L;
-        sha256->digest[2] = 0x3C6EF372L;
-        sha256->digest[3] = 0xA54FF53AL;
-        sha256->digest[4] = 0x510E527FL;
-        sha256->digest[5] = 0x9B05688CL;
-        sha256->digest[6] = 0x1F83D9ABL;
-        sha256->digest[7] = 0x5BE0CD19L;
-    #endif
+
+    if (sha256 == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+#ifdef FREESCALE_MMCAU_SHA
+    ret = wolfSSL_CryptHwMutexLock();
+    if(ret != 0) {
+        return ret;
+    }
+    MMCAU_SHA256_InitializeOutput((uint32_t*)sha256->digest);
+    wolfSSL_CryptHwMutexUnLock();
+#else
+    sha256->digest[0] = 0x6A09E667L;
+    sha256->digest[1] = 0xBB67AE85L;
+    sha256->digest[2] = 0x3C6EF372L;
+    sha256->digest[3] = 0xA54FF53AL;
+    sha256->digest[4] = 0x510E527FL;
+    sha256->digest[5] = 0x9B05688CL;
+    sha256->digest[6] = 0x1F83D9ABL;
+    sha256->digest[7] = 0x5BE0CD19L;
+#endif
 
     sha256->buffLen = 0;
     sha256->loLen   = 0;
     sha256->hiLen   = 0;
-    
+
 #if defined(HAVE_INTEL_AVX1)|| defined(HAVE_INTEL_AVX2)
     set_Transform() ; /* choose best Transform function under this runtime environment */
 #endif
@@ -457,9 +471,14 @@ int wc_Sha256Update(Sha256* sha256, const byte* data, word32 len)
 #else
 static INLINE int Sha256Update(Sha256* sha256, const byte* data, word32 len)
 {
+    byte* local;
+
+    if (sha256 == NULL || (data == NULL && len > 0)) {
+        return BAD_FUNC_ARG;
+    }
 
     /* do block size increments */
-    byte* local = (byte*)sha256->buffer;
+    local = (byte*)sha256->buffer;
 
     SAVE_XMM_YMM ; /* for Intel AVX */
 
@@ -572,6 +591,10 @@ static INLINE int Sha256Final(Sha256* sha256)
 int wc_Sha256Final(Sha256* sha256, byte* hash)
 {
     int ret;
+
+    if (sha256 == NULL || hash == NULL) {
+        return BAD_FUNC_ARG;
+    }
 
     ret = Sha256Final(sha256);
     if (ret != 0)

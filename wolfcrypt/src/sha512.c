@@ -32,18 +32,27 @@
 #ifdef HAVE_FIPS
 int wc_InitSha512(Sha512* sha)
 {
+    if (sha == NULL) {
+        return -173;
+    }
     return InitSha512_fips(sha);
 }
 
 
 int wc_Sha512Update(Sha512* sha, const byte* data, word32 len)
 {
+    if (sha == NULL || (data == NULL && len > 0)) {
+        return -173;
+    }
     return Sha512Update_fips(sha, data, len);
 }
 
 
 int wc_Sha512Final(Sha512* sha, byte* out)
 {
+    if (sha == NULL || out == NULL) {
+        return -173;
+    }
     return Sha512Final_fips(sha, out);
 }
 
@@ -52,18 +61,27 @@ int wc_Sha512Final(Sha512* sha, byte* out)
 
 int wc_InitSha384(Sha384* sha)
 {
+    if (sha == NULL) {
+        return -173;
+    }
     return InitSha384_fips(sha);
 }
 
 
 int wc_Sha384Update(Sha384* sha, const byte* data, word32 len)
 {
+    if (sha == NULL || (data == NULL && len > 0)) {
+        return -173;
+    }
     return Sha384Update_fips(sha, data, len);
 }
 
 
 int wc_Sha384Final(Sha384* sha, byte* out)
 {
+    if (sha == NULL || out == NULL) {
+        return -173;
+    }
     return Sha384Final_fips(sha, out);
 }
 
@@ -113,7 +131,7 @@ Intel AVX1/AVX2 Macro Control Structure
     #define HAVE_INTEL_AVX2
 #endif
 
-int InitSha512(Sha512* sha512) { 
+int InitSha512(Sha512* sha512) {
      Save/Recover XMM, YMM
      ...
 
@@ -121,27 +139,27 @@ int InitSha512(Sha512* sha512) {
 }
 
 #if defined(HAVE_INTEL_AVX1)|| defined(HAVE_INTEL_AVX2)
-  Transform_AVX1() ; # Function prototype 
+  Transform_AVX1() ; # Function prototype
   Transform_AVX2() ; #
 #endif
 
   _Transform() {     # Native Transform Function body
-  
+
   }
-  
-  int Sha512Update() { 
+
+  int Sha512Update() {
      Save/Recover XMM, YMM
      ...
   }
-  
-  int Sha512Final() { 
+
+  int Sha512Final() {
      Save/Recover XMM, YMM
      ...
   }
 
 
 #if defined(HAVE_INTEL_AVX1)
-   
+
    XMM Instructions/INLINE asm Definitions
 
 #endif
@@ -153,7 +171,7 @@ int InitSha512(Sha512* sha512) {
 #endif
 
 #if defnied(HAVE_INTEL_AVX1)
-  
+
   int Transform_AVX1() {
       Stitched Message Sched/Round
   }
@@ -161,7 +179,7 @@ int InitSha512(Sha512* sha512) {
 #endif
 
 #if defnied(HAVE_INTEL_AVX2)
-  
+
   int Transform_AVX2() {
       Stitched Message Sched/Round
   }
@@ -195,9 +213,9 @@ int InitSha512(Sha512* sha512) {
 
 #define EAX 0
 #define EBX 1
-#define ECX 2 
+#define ECX 2
 #define EDX 3
-    
+
 #define CPUID_AVX1   0x1
 #define CPUID_AVX2   0x2
 #define CPUID_RDRAND 0x4
@@ -215,15 +233,15 @@ static word32 cpuid_flags = 0 ;
 
 static word32 cpuid_flag(word32 leaf, word32 sub, word32 num, word32 bit) {
     int got_intel_cpu=0;
-    unsigned int reg[5]; 
-    
+    unsigned int reg[5];
+
     reg[4] = '\0' ;
-    cpuid(reg, 0, 0);  
-    if(XMEMCMP((char *)&(reg[EBX]), "Genu", 4) == 0 &&  
-                XMEMCMP((char *)&(reg[EDX]), "ineI", 4) == 0 &&  
-                XMEMCMP((char *)&(reg[ECX]), "ntel", 4) == 0) {  
-        got_intel_cpu = 1;  
-    }    
+    cpuid(reg, 0, 0);
+    if(XMEMCMP((char *)&(reg[EBX]), "Genu", 4) == 0 &&
+                XMEMCMP((char *)&(reg[EDX]), "ineI", 4) == 0 &&
+                XMEMCMP((char *)&(reg[ECX]), "ntel", 4) == 0) {
+        got_intel_cpu = 1;
+    }
     if (got_intel_cpu) {
         cpuid(reg, leaf, sub);
         return((reg[num]>>bit)&0x1) ;
@@ -237,7 +255,7 @@ static int set_cpuid_flags() {
         if(cpuid_flag(1, 0, ECX, 28)){ cpuid_flags |= CPUID_AVX1 ;}
         if(cpuid_flag(7, 0, EBX, 5)){  cpuid_flags |= CPUID_AVX2 ; }
         if(cpuid_flag(7, 0, EBX, 8)) { cpuid_flags |= CPUID_BMI2 ; }
-        if(cpuid_flag(1, 0, ECX, 30)){ cpuid_flags |= CPUID_RDRAND ;  } 
+        if(cpuid_flag(1, 0, ECX, 30)){ cpuid_flags |= CPUID_RDRAND ;  }
         if(cpuid_flag(7, 0, EBX, 18)){ cpuid_flags |= CPUID_RDSEED ;  }
 		cpuid_check = 1 ;
 		return 0 ;
@@ -253,7 +271,7 @@ static int Transform_AVX1(Sha512 *sha512) ;
 #endif
 
 #if defined(HAVE_INTEL_AVX2)
-static int Transform_AVX2(Sha512 *sha512) ; 
+static int Transform_AVX2(Sha512 *sha512) ;
 
 #if defined(HAVE_INTEL_AVX1) && defined(HAVE_INTEL_AVX2) && defined(HAVE_INTEL_RORX)
 static int Transform_AVX1_RORX(Sha512 *sha512) ;
@@ -261,8 +279,8 @@ static int Transform_AVX1_RORX(Sha512 *sha512) ;
 
 #endif
 
-static int _Transform(Sha512 *sha512) ; 
-    
+static int _Transform(Sha512 *sha512) ;
+
 static int (*Transform_p)(Sha512* sha512) = _Transform ;
 
 #define Transform(sha512) (*Transform_p)(sha512)
@@ -271,9 +289,9 @@ static void set_Transform(void) {
      if(set_cpuid_flags()) return ;
 
 #if defined(HAVE_INTEL_AVX2)
-     if(IS_INTEL_AVX2 && IS_INTEL_BMI2){ 
-         Transform_p = Transform_AVX1_RORX; return ; 
-         Transform_p = Transform_AVX2      ; 
+     if(IS_INTEL_AVX2 && IS_INTEL_BMI2){
+         Transform_p = Transform_AVX1_RORX; return ;
+         Transform_p = Transform_AVX2      ;
                   /* for avoiding warning,"not used" */
      }
 #endif
@@ -338,6 +356,10 @@ static INLINE ROTR(rotrFixed64_41, 41, x)
 
 int wc_InitSha512(Sha512* sha512)
 {
+    if (sha512 == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
     sha512->digest[0] = W64LIT(0x6a09e667f3bcc908);
     sha512->digest[1] = W64LIT(0xbb67ae8584caa73b);
     sha512->digest[2] = W64LIT(0x3c6ef372fe94f82b);
@@ -350,11 +372,11 @@ int wc_InitSha512(Sha512* sha512)
     sha512->buffLen = 0;
     sha512->loLen   = 0;
     sha512->hiLen   = 0;
-    
+
 #if defined(HAVE_INTEL_AVX1)|| defined(HAVE_INTEL_AVX2)
     set_Transform() ; /* choose best Transform function under this runtime environment */
 #endif
-    
+
     return 0 ;
 }
 
@@ -452,7 +474,7 @@ static int _Transform(Sha512* sha512)
     /* over twice as small, but 50% slower */
     /* 80 operations, not unrolled */
     for (j = 0; j < 80; j += 16) {
-        int m; 
+        int m;
         for (m = 0; m < 16; m++) { /* braces needed here for macros {} */
             R(m);
         }
@@ -499,8 +521,13 @@ static INLINE void AddLength(Sha512* sha512, word32 len)
 
 static INLINE int Sha512Update(Sha512* sha512, const byte* data, word32 len)
 {
+    byte* local;
+
+    if (sha512 == NULL ||(data == NULL && len > 0)) {
+        return BAD_FUNC_ARG;
+    }
     /* do block size increments */
-    byte* local = (byte*)sha512->buffer;
+    local = (byte*)sha512->buffer;
     SAVE_XMM_YMM ; /* for Intel AVX */
 
     while (len) {
@@ -515,7 +542,7 @@ static INLINE int Sha512Update(Sha512* sha512, const byte* data, word32 len)
             int ret;
             #if defined(LITTLE_ENDIAN_ORDER)
                 #if defined(HAVE_INTEL_AVX1) || defined(HAVE_INTEL_AVX2)
-                if(!IS_INTEL_AVX1 && !IS_INTEL_AVX2) 
+                if(!IS_INTEL_AVX1 && !IS_INTEL_AVX2)
                 #endif
                     ByteReverseWords64(sha512->buffer, sha512->buffer,
                                    SHA512_BLOCK_SIZE);
@@ -551,7 +578,7 @@ static INLINE int Sha512Final(Sha512* sha512)
     if (sha512->buffLen > SHA512_PAD_SIZE) {
         XMEMSET(&local[sha512->buffLen], 0, SHA512_BLOCK_SIZE -sha512->buffLen);
         sha512->buffLen += SHA512_BLOCK_SIZE - sha512->buffLen;
-        #if defined(LITTLE_ENDIAN_ORDER) 
+        #if defined(LITTLE_ENDIAN_ORDER)
             #if defined(HAVE_INTEL_AVX1) || defined(HAVE_INTEL_AVX2)
             if(!IS_INTEL_AVX1 && !IS_INTEL_AVX2)
             #endif
@@ -564,9 +591,9 @@ static INLINE int Sha512Final(Sha512* sha512)
         sha512->buffLen = 0;
     }
     XMEMSET(&local[sha512->buffLen], 0, SHA512_PAD_SIZE - sha512->buffLen);
-   
+
     /* put lengths in bits */
-    sha512->hiLen = (sha512->loLen >> (8*sizeof(sha512->loLen) - 3)) + 
+    sha512->hiLen = (sha512->loLen >> (8*sizeof(sha512->loLen) - 3)) +
                  (sha512->hiLen << 3);
     sha512->loLen = sha512->loLen << 3;
 
@@ -600,7 +627,13 @@ static INLINE int Sha512Final(Sha512* sha512)
 
 int wc_Sha512Final(Sha512* sha512, byte* hash)
 {
-    int ret = Sha512Final(sha512);
+    int ret;
+
+    if (sha512 == NULL || hash == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    ret = Sha512Final(sha512);
     if (ret != 0)
         return ret;
 
@@ -624,8 +657,8 @@ int wc_Sha512Final(Sha512* sha512, byte* hash)
 
 #endif
 
-#if defined(HAVE_INTEL_AVX2) 
-#define Ry_1(i, w) h(i)+=S1(e(i))+Ch(e(i),f(i),g(i))+K[i+j] + w ; 
+#if defined(HAVE_INTEL_AVX2)
+#define Ry_1(i, w) h(i)+=S1(e(i))+Ch(e(i),f(i),g(i))+K[i+j] + w ;
 #define Ry_2(i, w) d(i)+=h(i);
 #define Ry_3(i, w) h(i)+=S0(a(i))+Maj(a(i),b(i),c(i));
 #endif
@@ -648,13 +681,13 @@ int wc_Sha512Final(Sha512* sha512, byte* hash)
       RECV_REG(10); RECV_REG(11); RECV_REG(12); RECV_REG(13); RECV_REG(14); RECV_REG(15);\
     }
 
-#define DUMP_REG(REG) _DUMP_REG(REG, #REG) 
-#define PRINTF(fmt, ...) 
+#define DUMP_REG(REG) _DUMP_REG(REG, #REG)
+#define PRINTF(fmt, ...)
 
 #else
 
-#define DUMP_REG(REG) 
-#define PRINTF(fmt, ...) 
+#define DUMP_REG(REG)
+#define PRINTF(fmt, ...)
 
 #endif
 
@@ -681,7 +714,7 @@ int wc_Sha512Final(Sha512* sha512, byte* hash)
 
 #define MOVE_to_REG(xymm, mem)      _MOVE_to_REG(xymm, mem)
 #define MOVE_to_MEM(mem, i, xymm)   _MOVE_to_MEM(mem, i, xymm)
-#define MOVE(dest, src)             _MOVE(dest, src)  
+#define MOVE(dest, src)             _MOVE(dest, src)
 
 #define XOR(dest, src1, src2)      _XOR(dest, src1, src2)
 #define OR(dest, src1, src2)       _OR(dest, src1, src2)
@@ -693,7 +726,7 @@ int wc_Sha512Final(Sha512* sha512, byte* hash)
 
 #define Init_Mask(mask) \
      __asm__ volatile("vmovdqu %0, %%xmm1\n\t"::"m"(mask):"%xmm1") ;
-     
+
 #define _W_from_buff1(w, buff, xmm) \
     /* X0..3(xmm4..7), W[0..15] = sha512->buffer[0.15];  */\
      __asm__ volatile("vmovdqu %1, %%"#xmm"\n\t"\
@@ -701,7 +734,7 @@ int wc_Sha512Final(Sha512* sha512, byte* hash)
                       "vmovdqu %%"#xmm", %0"\
                       :"=m"(w): "m"(buff):"%xmm0") ;
 
-#define W_from_buff1(w, buff, xmm) _W_from_buff1(w, buff, xmm) 
+#define W_from_buff1(w, buff, xmm) _W_from_buff1(w, buff, xmm)
 
 #define W_from_buff(w, buff)\
      Init_Mask(mBYTE_FLIP_MASK[0]) ;\
@@ -713,7 +746,7 @@ int wc_Sha512Final(Sha512* sha512, byte* hash)
      W_from_buff1(w[10],buff[10],W_10);\
      W_from_buff1(w[12],buff[12],W_12);\
      W_from_buff1(w[14],buff[14],W_14);
-                          
+
 static word64 mBYTE_FLIP_MASK[] =  { 0x0001020304050607, 0x08090a0b0c0d0e0f } ;
 
 #define W_I_15  xmm14
@@ -735,35 +768,35 @@ static word64 mBYTE_FLIP_MASK[] =  { 0x0001020304050607, 0x08090a0b0c0d0e0f } ;
 
 #define XMM_REGs
 
-#define s0_1(dest, src)      AVX1_S(dest, src, 1); 
-#define s0_2(dest, src)      AVX1_S(G_TEMP, src, 8); XOR(dest, G_TEMP, dest) ; 
+#define s0_1(dest, src)      AVX1_S(dest, src, 1);
+#define s0_2(dest, src)      AVX1_S(G_TEMP, src, 8); XOR(dest, G_TEMP, dest) ;
 #define s0_3(dest, src)      AVX1_R(G_TEMP, src, 7);  XOR(dest, G_TEMP, dest) ;
 
 #define s1_1(dest, src)      AVX1_S(dest, src, 19);
-#define s1_2(dest, src)      AVX1_S(G_TEMP, src, 61); XOR(dest, G_TEMP, dest) ; 
+#define s1_2(dest, src)      AVX1_S(G_TEMP, src, 61); XOR(dest, G_TEMP, dest) ;
 #define s1_3(dest, src)      AVX1_R(G_TEMP, src, 6); XOR(dest, G_TEMP, dest) ;
 
 #define s0_(dest, src)       s0_1(dest, src) ; s0_2(dest, src) ; s0_3(dest, src)
 #define s1_(dest, src)       s1_1(dest, src) ; s1_2(dest, src) ; s1_3(dest, src)
-        
+
 #define Block_xx_1(i) \
     MOVE_to_REG(W_I_15, W_X[(i-15)&15]) ;\
     MOVE_to_REG(W_I_7,  W_X[(i- 7)&15]) ;\
-        
+
 #define Block_xx_2(i) \
     MOVE_to_REG(W_I_2,  W_X[(i- 2)&15]) ;\
     MOVE_to_REG(W_I,    W_X[(i)]) ;\
-        
+
 #define Block_xx_3(i) \
     s0_ (XMM_TEMP0, W_I_15) ;\
-        
+
 #define Block_xx_4(i) \
     ADD(W_I, W_I, XMM_TEMP0) ;\
     ADD(W_I, W_I, W_I_7) ;\
-        
+
 #define Block_xx_5(i) \
     s1_ (XMM_TEMP0, W_I_2) ;\
-    
+
 #define Block_xx_6(i) \
     ADD(W_I, W_I, XMM_TEMP0) ;\
     MOVE_to_MEM(W_X,i, W_I) ;\
@@ -773,7 +806,7 @@ static word64 mBYTE_FLIP_MASK[] =  { 0x0001020304050607, 0x08090a0b0c0d0e0f } ;
 #define Block_xx_7(i) \
     MOVE_to_REG(W_I_15, W_X[(i-15)&15]) ;\
     MOVE_to_REG(W_I_7,  W_X[(i- 7)&15]) ;\
-            
+
 #define Block_xx_8(i) \
     MOVE_to_REG(W_I_2,  W_X[(i- 2)&15]) ;\
     MOVE_to_REG(W_I,    W_X[(i)]) ;\
@@ -884,15 +917,15 @@ static const unsigned long mBYTE_FLIP_MASK_Y[] =
       RECV_REG_Y(13); RECV_REG_Y(14); RECV_REG_Y(15);\
     }
 
-#define DUMP_REG_Y(REG) _DUMP_REG_Y(REG, #REG) 
-#define DUMP_REG2_Y(REG) _DUMP_REG_Y(REG, #REG) 
-#define PRINTF_Y(fmt, ...) 
+#define DUMP_REG_Y(REG) _DUMP_REG_Y(REG, #REG)
+#define DUMP_REG2_Y(REG) _DUMP_REG_Y(REG, #REG)
+#define PRINTF_Y(fmt, ...)
 
 #else
 
-#define DUMP_REG_Y(REG) 
+#define DUMP_REG_Y(REG)
 #define DUMP_REG2_Y(REG)
-#define PRINTF_Y(fmt, ...) 
+#define PRINTF_Y(fmt, ...)
 
 #endif
 
@@ -921,7 +954,7 @@ static const unsigned long mBYTE_FLIP_MASK_Y[] =
 #define MOVE_to_REGy(ymm, mem)      _MOVE_to_REGy(ymm, mem)
 #define MOVE_to_MEMy(mem, i, ymm)   _MOVE_to_MEMy(mem, i, ymm)
 
-#define MOVE_128y(ymm0, ymm1, ymm2, map) _MOVE_128y(ymm0, ymm1, ymm2, map) 
+#define MOVE_128y(ymm0, ymm1, ymm2, map) _MOVE_128y(ymm0, ymm1, ymm2, map)
 #define XORy(dest, src1, src2)      _XORy(dest, src1, src2)
 #define ADDy(dest, src1, src2)      _ADDy(dest, src1, src2)
 #define BLENDy(map, dest, src1, src2) _BLENDy(map, dest, src1, src2)
@@ -935,12 +968,12 @@ static const unsigned long mBYTE_FLIP_MASK_Y[] =
 
 
 #define    FEEDBACK1_to_W_I_2(w_i_2, w_i)    MOVE_128y(YMM_TEMP0, w_i, w_i, 0x08) ;\
-                                       BLENDy(0xf0, w_i_2, YMM_TEMP0, w_i_2) ; 
+                                       BLENDy(0xf0, w_i_2, YMM_TEMP0, w_i_2) ;
 
 #define    MOVE_W_to_W_I_15(w_i_15, w_0, w_4)  BLENDQy(0x1, w_i_15, w_4, w_0) ;\
                                        PERMQy(0x39, w_i_15, w_i_15) ;
 #define    MOVE_W_to_W_I_7(w_i_7,  w_8, w_12)  BLENDQy(0x1, w_i_7, w_12, w_8) ;\
-                                       PERMQy(0x39, w_i_7, w_i_7) ; 
+                                       PERMQy(0x39, w_i_7, w_i_7) ;
 #define    MOVE_W_to_W_I_2(w_i_2,  w_12)       BLENDQy(0xc, w_i_2, w_12, w_i_2) ;\
                                        PERMQy(0x0e, w_i_2, w_i_2) ;
 
@@ -1002,25 +1035,25 @@ static int Transform_AVX1(Sha512* sha512)
 
     W_from_buff(W_X, sha512->buffer) ;
     for (j = 0; j < 80; j += 16) {
-        Rx_1( 0); Block_0_1(W_X); Rx_2( 0); Block_0_2(W_X); Rx_3( 0); Block_0_3(); 
-        Rx_1( 1); Block_0_4(); Rx_2( 1); Block_0_5(); Rx_3( 1); Block_0_6(W_X); 
+        Rx_1( 0); Block_0_1(W_X); Rx_2( 0); Block_0_2(W_X); Rx_3( 0); Block_0_3();
+        Rx_1( 1); Block_0_4(); Rx_2( 1); Block_0_5(); Rx_3( 1); Block_0_6(W_X);
         Rx_1( 2); Block_0_7(W_X); Rx_2( 2); Block_0_8(W_X); Rx_3( 2); Block_0_9();
-        Rx_1( 3); Block_0_10();Rx_2( 3); Block_0_11();Rx_3( 3); Block_0_12(W_X);   
-        
-        Rx_1( 4); Block_4_1(W_X); Rx_2( 4); Block_4_2(W_X); Rx_3( 4); Block_4_3(); 
-        Rx_1( 5); Block_4_4(); Rx_2( 5); Block_4_5(); Rx_3( 5); Block_4_6(W_X); 
+        Rx_1( 3); Block_0_10();Rx_2( 3); Block_0_11();Rx_3( 3); Block_0_12(W_X);
+
+        Rx_1( 4); Block_4_1(W_X); Rx_2( 4); Block_4_2(W_X); Rx_3( 4); Block_4_3();
+        Rx_1( 5); Block_4_4(); Rx_2( 5); Block_4_5(); Rx_3( 5); Block_4_6(W_X);
         Rx_1( 6); Block_4_7(W_X); Rx_2( 6); Block_4_8(W_X); Rx_3( 6); Block_4_9();
-        Rx_1( 7); Block_4_10();Rx_2( 7); Block_4_11();Rx_3( 7); Block_4_12(W_X);   
-        
-        Rx_1( 8); Block_8_1(W_X); Rx_2( 8); Block_8_2(W_X); Rx_3( 8); Block_8_3(); 
-        Rx_1( 9); Block_8_4(); Rx_2( 9); Block_8_5(); Rx_3( 9); Block_8_6(W_X); 
+        Rx_1( 7); Block_4_10();Rx_2( 7); Block_4_11();Rx_3( 7); Block_4_12(W_X);
+
+        Rx_1( 8); Block_8_1(W_X); Rx_2( 8); Block_8_2(W_X); Rx_3( 8); Block_8_3();
+        Rx_1( 9); Block_8_4(); Rx_2( 9); Block_8_5(); Rx_3( 9); Block_8_6(W_X);
         Rx_1(10); Block_8_7(W_X); Rx_2(10); Block_8_8(W_X); Rx_3(10); Block_8_9();
-        Rx_1(11); Block_8_10();Rx_2(11); Block_8_11();Rx_3(11); Block_8_12(W_X);   
-        
-        Rx_1(12); Block_12_1(W_X); Rx_2(12); Block_12_2(W_X); Rx_3(12); Block_12_3(); 
-        Rx_1(13); Block_12_4(); Rx_2(13); Block_12_5(); Rx_3(13); Block_12_6(W_X); 
+        Rx_1(11); Block_8_10();Rx_2(11); Block_8_11();Rx_3(11); Block_8_12(W_X);
+
+        Rx_1(12); Block_12_1(W_X); Rx_2(12); Block_12_2(W_X); Rx_3(12); Block_12_3();
+        Rx_1(13); Block_12_4(); Rx_2(13); Block_12_5(); Rx_3(13); Block_12_6(W_X);
         Rx_1(14); Block_12_7(W_X); Rx_2(14); Block_12_8(W_X); Rx_3(14); Block_12_9();
-        Rx_1(15); Block_12_10();Rx_2(15); Block_12_11();Rx_3(15); Block_12_12(W_X);     
+        Rx_1(15); Block_12_10();Rx_2(15); Block_12_11();Rx_3(15); Block_12_12(W_X);
     }
 
     /* Add the working vars back into digest */
@@ -1058,41 +1091,41 @@ static int Transform_AVX1_RORX(Sha512* sha512)
 
     W_from_buff(W_X, sha512->buffer) ;
     for (j = 0; j < 80; j += 16) {
-        Rx_RORX_1( 0); Block_0_1(W_X); Rx_RORX_2( 0); Block_0_2(W_X); 
-                                    Rx_RORX_3( 0); Block_0_3(); 
-        Rx_RORX_1( 1); Block_0_4(); Rx_RORX_2( 1); Block_0_5(); 
-                                    Rx_RORX_3( 1); Block_0_6(W_X); 
-        Rx_RORX_1( 2); Block_0_7(W_X); Rx_RORX_2( 2); Block_0_8(W_X); 
+        Rx_RORX_1( 0); Block_0_1(W_X); Rx_RORX_2( 0); Block_0_2(W_X);
+                                    Rx_RORX_3( 0); Block_0_3();
+        Rx_RORX_1( 1); Block_0_4(); Rx_RORX_2( 1); Block_0_5();
+                                    Rx_RORX_3( 1); Block_0_6(W_X);
+        Rx_RORX_1( 2); Block_0_7(W_X); Rx_RORX_2( 2); Block_0_8(W_X);
                                     Rx_RORX_3( 2); Block_0_9();
         Rx_RORX_1( 3); Block_0_10();Rx_RORX_2( 3); Block_0_11();
-                                    Rx_RORX_3( 3); Block_0_12(W_X);   
-        
-        Rx_RORX_1( 4); Block_4_1(W_X); Rx_RORX_2( 4); Block_4_2(W_X); 
-                                    Rx_RORX_3( 4); Block_4_3(); 
-        Rx_RORX_1( 5); Block_4_4(); Rx_RORX_2( 5); Block_4_5(); 
-                                    Rx_RORX_3( 5); Block_4_6(W_X); 
-        Rx_RORX_1( 6); Block_4_7(W_X); Rx_RORX_2( 6); Block_4_8(W_X); 
+                                    Rx_RORX_3( 3); Block_0_12(W_X);
+
+        Rx_RORX_1( 4); Block_4_1(W_X); Rx_RORX_2( 4); Block_4_2(W_X);
+                                    Rx_RORX_3( 4); Block_4_3();
+        Rx_RORX_1( 5); Block_4_4(); Rx_RORX_2( 5); Block_4_5();
+                                    Rx_RORX_3( 5); Block_4_6(W_X);
+        Rx_RORX_1( 6); Block_4_7(W_X); Rx_RORX_2( 6); Block_4_8(W_X);
                                     Rx_RORX_3( 6); Block_4_9();
         Rx_RORX_1( 7); Block_4_10();Rx_RORX_2( 7); Block_4_11();
-                                    Rx_RORX_3( 7); Block_4_12(W_X);   
-        
-        Rx_RORX_1( 8); Block_8_1(W_X); Rx_RORX_2( 8); Block_8_2(W_X); 
-                                    Rx_RORX_3( 8); Block_8_3(); 
-        Rx_RORX_1( 9); Block_8_4(); Rx_RORX_2( 9); Block_8_5(); 
-                                    Rx_RORX_3( 9); Block_8_6(W_X); 
-        Rx_RORX_1(10); Block_8_7(W_X); Rx_RORX_2(10); Block_8_8(W_X); 
+                                    Rx_RORX_3( 7); Block_4_12(W_X);
+
+        Rx_RORX_1( 8); Block_8_1(W_X); Rx_RORX_2( 8); Block_8_2(W_X);
+                                    Rx_RORX_3( 8); Block_8_3();
+        Rx_RORX_1( 9); Block_8_4(); Rx_RORX_2( 9); Block_8_5();
+                                    Rx_RORX_3( 9); Block_8_6(W_X);
+        Rx_RORX_1(10); Block_8_7(W_X); Rx_RORX_2(10); Block_8_8(W_X);
                                     Rx_RORX_3(10); Block_8_9();
         Rx_RORX_1(11); Block_8_10();Rx_RORX_2(11); Block_8_11();
-                                    Rx_RORX_3(11); Block_8_12(W_X);   
-        
-        Rx_RORX_1(12); Block_12_1(W_X); Rx_RORX_2(12); Block_12_2(W_X); 
-                                     Rx_RORX_3(12); Block_12_3(); 
-        Rx_RORX_1(13); Block_12_4(); Rx_RORX_2(13); Block_12_5(); 
-                                     Rx_RORX_3(13); Block_12_6(W_X); 
-        Rx_RORX_1(14); Block_12_7(W_X); Rx_RORX_2(14); Block_12_8(W_X); 
+                                    Rx_RORX_3(11); Block_8_12(W_X);
+
+        Rx_RORX_1(12); Block_12_1(W_X); Rx_RORX_2(12); Block_12_2(W_X);
+                                     Rx_RORX_3(12); Block_12_3();
+        Rx_RORX_1(13); Block_12_4(); Rx_RORX_2(13); Block_12_5();
+                                     Rx_RORX_3(13); Block_12_6(W_X);
+        Rx_RORX_1(14); Block_12_7(W_X); Rx_RORX_2(14); Block_12_8(W_X);
                                      Rx_RORX_3(14); Block_12_9();
         Rx_RORX_1(15); Block_12_10();Rx_RORX_2(15); Block_12_11();
-                                     Rx_RORX_3(15); Block_12_12(W_X);     
+                                     Rx_RORX_3(15); Block_12_12(W_X);
     }
     /* Add the working vars back into digest */
 
@@ -1117,12 +1150,12 @@ static int Transform_AVX1_RORX(Sha512* sha512)
 
 #if defined(HAVE_INTEL_AVX2)
 
-#define s0_1y(dest, src)      AVX2_S(dest, src, 1); 
-#define s0_2y(dest, src)      AVX2_S(G_TEMPy, src, 8); XORy(dest, G_TEMPy, dest) ; 
+#define s0_1y(dest, src)      AVX2_S(dest, src, 1);
+#define s0_2y(dest, src)      AVX2_S(G_TEMPy, src, 8); XORy(dest, G_TEMPy, dest) ;
 #define s0_3y(dest, src)      AVX2_R(G_TEMPy, src, 7);  XORy(dest, G_TEMPy, dest) ;
 
 #define s1_1y(dest, src)      AVX2_S(dest, src, 19);
-#define s1_2y(dest, src)      AVX2_S(G_TEMPy, src, 61); XORy(dest, G_TEMPy, dest) ; 
+#define s1_2y(dest, src)      AVX2_S(G_TEMPy, src, 61); XORy(dest, G_TEMPy, dest) ;
 #define s1_3y(dest, src)      AVX2_R(G_TEMPy, src, 6); XORy(dest, G_TEMPy, dest) ;
 
 #define s0_y(dest, src)       s0_1y(dest, src) ; s0_2y(dest, src) ; s0_3y(dest, src)
@@ -1235,45 +1268,45 @@ static int Transform_AVX2(Sha512* sha512)
     XMEMCPY(T, sha512->digest, sizeof(T));
 
     W_from_buff_Y(sha512->buffer) ;
-    MOVE_to_MEMy(w,0, W_0y) ; 
+    MOVE_to_MEMy(w,0, W_0y) ;
     for (j = 0; j < 80; j += 16) {
-        Ry_1( 0, w[0]); Block_Y_0_1(); Ry_2( 0, w[0]); Block_Y_0_2(); 
-                                       Ry_3( 0, w[0]); Block_Y_0_3(); 
-        Ry_1( 1, w[1]); Block_Y_0_4(); Ry_2( 1, w[1]); Block_Y_0_5(); 
-                                       Ry_3( 1, w[1]); Block_Y_0_6();  
-        Ry_1( 2, w[2]); Block_Y_0_7(); Ry_2( 2, w[2]); Block_Y_0_8(); 
+        Ry_1( 0, w[0]); Block_Y_0_1(); Ry_2( 0, w[0]); Block_Y_0_2();
+                                       Ry_3( 0, w[0]); Block_Y_0_3();
+        Ry_1( 1, w[1]); Block_Y_0_4(); Ry_2( 1, w[1]); Block_Y_0_5();
+                                       Ry_3( 1, w[1]); Block_Y_0_6();
+        Ry_1( 2, w[2]); Block_Y_0_7(); Ry_2( 2, w[2]); Block_Y_0_8();
                                        Ry_3( 2, w[2]); Block_Y_0_9();
         Ry_1( 3, w[3]); Block_Y_0_10();Ry_2( 3, w[3]); Block_Y_0_11();
                                        Ry_3( 3, w[3]); Block_Y_0_12(w);
-        
-        Ry_1( 4, w[0]); Block_Y_4_1(); Ry_2( 4, w[0]); Block_Y_4_2(); 
-                                       Ry_3( 4, w[0]); Block_Y_4_3(); 
-        Ry_1( 5, w[1]); Block_Y_4_4(); Ry_2( 5, w[1]); Block_Y_4_5(); 
+
+        Ry_1( 4, w[0]); Block_Y_4_1(); Ry_2( 4, w[0]); Block_Y_4_2();
+                                       Ry_3( 4, w[0]); Block_Y_4_3();
+        Ry_1( 5, w[1]); Block_Y_4_4(); Ry_2( 5, w[1]); Block_Y_4_5();
                                        Ry_3( 5, w[1]); Block_Y_4_6();
-        Ry_1( 6, w[2]); Block_Y_4_7(); Ry_2( 6, w[2]); Block_Y_4_8(); 
+        Ry_1( 6, w[2]); Block_Y_4_7(); Ry_2( 6, w[2]); Block_Y_4_8();
                                        Ry_3( 6, w[2]); Block_Y_4_9();
-        Ry_1( 7, w[3]); Block_Y_4_10(); Ry_2( 7, w[3]);Block_Y_4_11(); 
-                                        Ry_3( 7, w[3]);Block_Y_4_12(w);  
-        
-        Ry_1( 8, w[0]); Block_Y_8_1(); Ry_2( 8, w[0]); Block_Y_8_2(); 
+        Ry_1( 7, w[3]); Block_Y_4_10(); Ry_2( 7, w[3]);Block_Y_4_11();
+                                        Ry_3( 7, w[3]);Block_Y_4_12(w);
+
+        Ry_1( 8, w[0]); Block_Y_8_1(); Ry_2( 8, w[0]); Block_Y_8_2();
                                        Ry_3( 8, w[0]); Block_Y_8_3();
-        Ry_1( 9, w[1]); Block_Y_8_4(); Ry_2( 9, w[1]); Block_Y_8_5(); 
+        Ry_1( 9, w[1]); Block_Y_8_4(); Ry_2( 9, w[1]); Block_Y_8_5();
                                        Ry_3( 9, w[1]); Block_Y_8_6();
-        Ry_1(10, w[2]); Block_Y_8_7(); Ry_2(10, w[2]); Block_Y_8_8(); 
-                                       Ry_3(10, w[2]); Block_Y_8_9(); 
+        Ry_1(10, w[2]); Block_Y_8_7(); Ry_2(10, w[2]); Block_Y_8_8();
+                                       Ry_3(10, w[2]); Block_Y_8_9();
         Ry_1(11, w[3]); Block_Y_8_10();Ry_2(11, w[3]); Block_Y_8_11();
                                        Ry_3(11, w[3]); Block_Y_8_12(w);
-                 
-        Ry_1(12, w[0]); Block_Y_12_1(); Ry_2(12, w[0]); Block_Y_12_2(); 
+
+        Ry_1(12, w[0]); Block_Y_12_1(); Ry_2(12, w[0]); Block_Y_12_2();
                                         Ry_3(12, w[0]); Block_Y_12_3();
-        Ry_1(13, w[1]); Block_Y_12_4(); Ry_2(13, w[1]); Block_Y_12_5(); 
-                                        Ry_3(13, w[1]); Block_Y_12_6(); 
-        Ry_1(14, w[2]); Block_Y_12_7(); Ry_2(14, w[2]); Block_Y_12_8(); 
+        Ry_1(13, w[1]); Block_Y_12_4(); Ry_2(13, w[1]); Block_Y_12_5();
+                                        Ry_3(13, w[1]); Block_Y_12_6();
+        Ry_1(14, w[2]); Block_Y_12_7(); Ry_2(14, w[2]); Block_Y_12_8();
                                         Ry_3(14, w[2]); Block_Y_12_9();
         Ry_1(15, w[3]); Block_Y_12_10();Ry_2(15, w[3]); Block_Y_12_11();
                                         Ry_3(15, w[3]);Block_Y_12_12(w);
     }
- 
+
     /* Add the working vars back into digest */
 
     sha512->digest[0] += a(0);
@@ -1300,6 +1333,10 @@ static int Transform_AVX2(Sha512* sha512)
 #ifdef WOLFSSL_SHA384
 int wc_InitSha384(Sha384* sha384)
 {
+    if (sha384 == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
     sha384->digest[0] = W64LIT(0xcbbb9d5dc1059ed8);
     sha384->digest[1] = W64LIT(0x629a292a367cd507);
     sha384->digest[2] = W64LIT(0x9159015a3070dd17);
@@ -1316,7 +1353,7 @@ int wc_InitSha384(Sha384* sha384)
 #if defined(HAVE_INTEL_AVX1)|| defined(HAVE_INTEL_AVX2)
     set_Transform() ;
 #endif
-    
+
     return 0;
 }
 
@@ -1328,7 +1365,13 @@ int wc_Sha384Update(Sha384* sha384, const byte* data, word32 len)
 
 int wc_Sha384Final(Sha384* sha384, byte* hash)
 {
-    int ret = Sha512Final((Sha512 *)sha384);
+    int ret;
+
+    if (sha384 == NULL || hash == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    ret = Sha512Final((Sha512 *)sha384);
     if (ret != 0)
         return ret;
 

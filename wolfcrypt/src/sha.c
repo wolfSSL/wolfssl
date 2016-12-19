@@ -45,16 +45,25 @@
 #ifdef HAVE_FIPS
 	int wc_InitSha(Sha* sha)
 	{
+        if (sha == NULL) {
+            return -173;
+        }
 	    return InitSha_fips(sha);
 	}
 
 	int wc_ShaUpdate(Sha* sha, const byte* data, word32 len)
 	{
+        if (sha == NULL || (data == NULL && len > 0)) {
+            return -173;
+        }
 	    return ShaUpdate_fips(sha, data, len);
 	}
 
 	int wc_ShaFinal(Sha* sha, byte* out)
 	{
+        if (sha == NULL || out == NULL) {
+            return -173;
+        }
 	    return ShaFinal_fips(sha,out);
     }
 
@@ -255,6 +264,9 @@
     {
         int ret = 0;
 
+        if (sha == NULL) {
+            return BAD_FUNC_ARG;
+        }
         sha->digest[0] = 0x67452301L;
         sha->digest[1] = 0xEFCDAB89L;
         sha->digest[2] = 0x98BADCFEL;
@@ -393,10 +405,16 @@ static INLINE void AddLength(Sha* sha, word32 len)
 }
 
 
-int wc_ShaUpdate(Sha* sha, const byte* data, word32 len)
+int wc_ShaUpdate (Sha* sha, const byte* data, word32 len)
 {
+    byte* local;
+
+    if (sha == NULL ||(data == NULL && len > 0)) {
+        return BAD_FUNC_ARG;
+    }
+
     /* do block size increments */
-    byte* local = (byte*)sha->buffer;
+    local = (byte*)sha->buffer;
 
     while (len) {
         word32 add = min(len, SHA_BLOCK_SIZE - sha->buffLen);
@@ -421,7 +439,13 @@ int wc_ShaUpdate(Sha* sha, const byte* data, word32 len)
 
 int wc_ShaFinal(Sha* sha, byte* hash)
 {
-    byte* local = (byte*)sha->buffer;
+    byte* local;
+
+    if (sha == NULL || hash == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    local = (byte*)sha->buffer;
 
     AddLength(sha, sha->buffLen);  /* before adding pads */
 

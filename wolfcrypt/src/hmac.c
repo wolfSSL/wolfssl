@@ -169,7 +169,7 @@ static int InitHmac(Hmac* hmac, int type)
     switch (type) {
         #ifndef NO_MD5
         case MD5:
-            wc_InitMd5(&hmac->hash.md5);
+            ret = wc_InitMd5(&hmac->hash.md5);
         break;
         #endif
 
@@ -248,8 +248,14 @@ int wc_HmacSetKey(Hmac* hmac, int type, const byte* key, word32 length)
                 XMEMCPY(ip, key, length);
             }
             else {
-                wc_Md5Update(&hmac->hash.md5, key, length);
-                wc_Md5Final(&hmac->hash.md5, ip);
+                ret = wc_Md5Update(&hmac->hash.md5, key, length);
+                if (ret != 0) {
+                    return ret;
+                }
+                ret = wc_Md5Final(&hmac->hash.md5, ip);
+                if (ret != 0) {
+                    return ret;
+                }
                 length = MD5_DIGEST_SIZE;
             }
         }
@@ -403,13 +409,21 @@ static int HmacKeyInnerHash(Hmac* hmac)
     switch (hmac->macType) {
         #ifndef NO_MD5
         case MD5:
-            wc_Md5Update(&hmac->hash.md5, (byte*) hmac->ipad, MD5_BLOCK_SIZE);
+            ret = wc_Md5Update(&hmac->hash.md5, (byte*) hmac->ipad,
+                                                    MD5_BLOCK_SIZE);
+            if (ret != 0) {
+                return ret;
+            }
         break;
         #endif
 
         #ifndef NO_SHA
         case SHA:
-            wc_ShaUpdate(&hmac->hash.sha, (byte*) hmac->ipad, SHA_BLOCK_SIZE);
+            ret = wc_ShaUpdate(&hmac->hash.sha, (byte*) hmac->ipad,
+                                                    SHA_BLOCK_SIZE);
+            if (ret != 0) {
+                return ret;
+            }
         break;
         #endif
 
@@ -487,13 +501,19 @@ int wc_HmacUpdate(Hmac* hmac, const byte* msg, word32 length)
     switch (hmac->macType) {
         #ifndef NO_MD5
         case MD5:
-            wc_Md5Update(&hmac->hash.md5, msg, length);
+            ret = wc_Md5Update(&hmac->hash.md5, msg, length);
+            if (ret != 0) {
+                return ret;
+            }
         break;
         #endif
 
         #ifndef NO_SHA
         case SHA:
-            wc_ShaUpdate(&hmac->hash.sha, msg, length);
+            ret = wc_ShaUpdate(&hmac->hash.sha, msg, length);
+            if (ret != 0) {
+                return ret;
+            }
         break;
         #endif
 
@@ -565,13 +585,27 @@ int wc_HmacFinal(Hmac* hmac, byte* hash)
         #ifndef NO_MD5
         case MD5:
         {
-            wc_Md5Final(&hmac->hash.md5, (byte*) hmac->innerHash);
+            ret = wc_Md5Final(&hmac->hash.md5, (byte*) hmac->innerHash);
+            if (ret != 0) {
+                return ret;
+            }
 
-            wc_Md5Update(&hmac->hash.md5, (byte*) hmac->opad, MD5_BLOCK_SIZE);
-            wc_Md5Update(&hmac->hash.md5,
+            ret = wc_Md5Update(&hmac->hash.md5, (byte*) hmac->opad,
+                                                        MD5_BLOCK_SIZE);
+            if (ret != 0) {
+                return ret;
+            }
+
+            ret = wc_Md5Update(&hmac->hash.md5,
                                      (byte*) hmac->innerHash, MD5_DIGEST_SIZE);
+            if (ret != 0) {
+                return ret;
+            }
 
-            wc_Md5Final(&hmac->hash.md5, hash);
+            ret = wc_Md5Final(&hmac->hash.md5, hash);
+            if (ret != 0) {
+                return ret;
+            }
         }
         break;
         #endif
@@ -579,13 +613,24 @@ int wc_HmacFinal(Hmac* hmac, byte* hash)
         #ifndef NO_SHA
         case SHA:
         {
-            wc_ShaFinal(&hmac->hash.sha, (byte*) hmac->innerHash);
-
-            wc_ShaUpdate(&hmac->hash.sha, (byte*) hmac->opad, SHA_BLOCK_SIZE);
-            wc_ShaUpdate(&hmac->hash.sha,
+            ret = wc_ShaFinal(&hmac->hash.sha, (byte*) hmac->innerHash);
+            if (ret != 0) {
+                return ret;
+            }
+            ret = wc_ShaUpdate(&hmac->hash.sha, (byte*) hmac->opad,
+                                                            SHA_BLOCK_SIZE);
+            if (ret != 0) {
+                return ret;
+            }
+            ret = wc_ShaUpdate(&hmac->hash.sha,
                                      (byte*) hmac->innerHash, SHA_DIGEST_SIZE);
-
-            wc_ShaFinal(&hmac->hash.sha, hash);
+            if (ret != 0) {
+                return ret;
+            }
+            ret = wc_ShaFinal(&hmac->hash.sha, hash);
+            if (ret != 0) {
+                return ret;
+            }
         }
         break;
         #endif

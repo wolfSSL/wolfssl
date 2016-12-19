@@ -2862,7 +2862,7 @@ int DeriveKeys(WOLFSSL* ssl)
                     2 * ssl->specs.iv_size;
     int    rounds = (length + MD5_DIGEST_SIZE - 1 ) / MD5_DIGEST_SIZE, i;
     int    ret = 0;
-    
+
 #ifdef WOLFSSL_SMALL_STACK
     byte*  shaOutput;
     byte*  md5Input;
@@ -2878,7 +2878,7 @@ int DeriveKeys(WOLFSSL* ssl)
     Md5    md5[1];
     Sha    sha[1];
 #endif
-    
+
 #ifdef WOLFSSL_SMALL_STACK
     shaOutput = (byte*)XMALLOC(SHA_DIGEST_SIZE, 
                                             NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -2890,7 +2890,7 @@ int DeriveKeys(WOLFSSL* ssl)
                                             NULL, DYNAMIC_TYPE_TMP_BUFFER);
     md5       =  (Md5*)XMALLOC(sizeof(Md5), NULL, DYNAMIC_TYPE_TMP_BUFFER);
     sha       =  (Sha*)XMALLOC(sizeof(Sha), NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    
+
     if (shaOutput == NULL || md5Input == NULL || shaInput == NULL ||
         keyData   == NULL || md5      == NULL || sha      == NULL) {
         if (shaOutput) XFREE(shaOutput, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -2899,12 +2899,23 @@ int DeriveKeys(WOLFSSL* ssl)
         if (keyData)   XFREE(keyData,   NULL, DYNAMIC_TYPE_TMP_BUFFER);
         if (md5)       XFREE(md5,       NULL, DYNAMIC_TYPE_TMP_BUFFER);
         if (sha)       XFREE(sha,       NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        
+
         return MEMORY_E;
     }
 #endif
 
-    wc_InitMd5(md5);
+    ret = wc_InitMd5(md5);
+    if (ret != 0) {
+    #ifdef WOLFSSL_SMALL_STACK
+        XFREE(shaOutput, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(md5Input,  NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(shaInput,  NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(keyData,   NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(md5,       NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(sha,       NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    #endif
+        return ret;
+    }
 
     ret = wc_InitSha(sha);
 
@@ -2931,8 +2942,30 @@ int DeriveKeys(WOLFSSL* ssl)
             wc_ShaFinal(sha, shaOutput);
 
             XMEMCPY(md5Input + SECRET_LEN, shaOutput, SHA_DIGEST_SIZE);
-            wc_Md5Update(md5, md5Input, SECRET_LEN + SHA_DIGEST_SIZE);
-            wc_Md5Final(md5, keyData + i * MD5_DIGEST_SIZE);
+            ret = wc_Md5Update(md5, md5Input, SECRET_LEN + SHA_DIGEST_SIZE);
+            if (ret != 0) {
+            #ifdef WOLFSSL_SMALL_STACK
+                XFREE(shaOutput, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                XFREE(md5Input,  NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                XFREE(shaInput,  NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                XFREE(keyData,   NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                XFREE(md5,       NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                XFREE(sha,       NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            #endif
+                return ret;
+            }
+            ret = wc_Md5Final(md5, keyData + i * MD5_DIGEST_SIZE);
+            if (ret != 0) {
+            #ifdef WOLFSSL_SMALL_STACK
+                XFREE(shaOutput, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                XFREE(md5Input,  NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                XFREE(shaInput,  NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                XFREE(keyData,   NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                XFREE(md5,       NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                XFREE(sha,       NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            #endif
+                return ret;
+            }
         }
 
         if (ret == 0)
@@ -3010,7 +3043,7 @@ static int MakeSslMasterSecret(WOLFSSL* ssl)
                                             NULL, DYNAMIC_TYPE_TMP_BUFFER);
     md5       =  (Md5*)XMALLOC(sizeof(Md5), NULL, DYNAMIC_TYPE_TMP_BUFFER);
     sha       =  (Sha*)XMALLOC(sizeof(Sha), NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    
+
     if (shaOutput == NULL || md5Input == NULL || shaInput == NULL ||
                              md5      == NULL || sha      == NULL) {
         if (shaOutput) XFREE(shaOutput, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -3018,15 +3051,25 @@ static int MakeSslMasterSecret(WOLFSSL* ssl)
         if (shaInput)  XFREE(shaInput,  NULL, DYNAMIC_TYPE_TMP_BUFFER);
         if (md5)       XFREE(md5,       NULL, DYNAMIC_TYPE_TMP_BUFFER);
         if (sha)       XFREE(sha,       NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        
+
         return MEMORY_E;
     }
 #endif
 
-    wc_InitMd5(md5);
-    
+    ret = wc_InitMd5(md5);
+    if (ret != 0) {
+    #ifdef WOLFSSL_SMALL_STACK
+        XFREE(shaOutput, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(md5Input,  NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(shaInput,  NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(md5,       NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(sha,       NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    #endif
+        return ret;
+    }
+
     ret = wc_InitSha(sha);
-    
+
     if (ret == 0) {
         XMEMCPY(md5Input, ssl->arrays->preMasterSecret, pmsSz);
 
@@ -3053,8 +3096,28 @@ static int MakeSslMasterSecret(WOLFSSL* ssl)
             idx = pmsSz;  /* preSz */
             XMEMCPY(md5Input + idx, shaOutput, SHA_DIGEST_SIZE);
             idx += SHA_DIGEST_SIZE;
-            wc_Md5Update(md5, md5Input, idx);
-            wc_Md5Final(md5, &ssl->arrays->masterSecret[i * MD5_DIGEST_SIZE]);
+            ret = wc_Md5Update(md5, md5Input, idx);
+            if (ret != 0) {
+            #ifdef WOLFSSL_SMALL_STACK
+                XFREE(shaOutput, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                XFREE(md5Input,  NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                XFREE(shaInput,  NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                XFREE(md5,       NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                XFREE(sha,       NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            #endif
+                return ret;
+            }
+            ret = wc_Md5Final(md5, &ssl->arrays->masterSecret[i * MD5_DIGEST_SIZE]);
+            if (ret != 0) {
+            #ifdef WOLFSSL_SMALL_STACK
+                XFREE(shaOutput, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                XFREE(md5Input,  NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                XFREE(shaInput,  NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                XFREE(md5,       NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                XFREE(sha,       NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            #endif
+                return ret;
+            }
         }
 
 #ifdef SHOW_SECRETS

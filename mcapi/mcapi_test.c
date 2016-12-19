@@ -214,17 +214,27 @@ static int check_md5(void)
 {
     CRYPT_MD5_CTX mcMd5;
     Md5           defMd5;
+    int           ret;
     byte          mcDigest[CRYPT_MD5_DIGEST_SIZE];
     byte          defDigest[MD5_DIGEST_SIZE];
 
     CRYPT_MD5_Initialize(&mcMd5);
-    wc_InitMd5(&defMd5);
+    ret = wc_InitMd5(&defMd5);
+    if (ret != 0) {
+        return ret;
+    }
 
     CRYPT_MD5_DataAdd(&mcMd5, ourData, OUR_DATA_SIZE);
-    wc_Md5Update(&defMd5, ourData, OUR_DATA_SIZE);
+    ret = wc_Md5Update(&defMd5, ourData, OUR_DATA_SIZE);
+    if (ret != 0) {
+        return ret;
+    }
 
     CRYPT_MD5_Finalize(&mcMd5, mcDigest);
-    wc_Md5Final(&defMd5, defDigest);
+    ret = wc_Md5Final(&defMd5, defDigest);
+    if (ret != 0) {
+        return ret;
+    }
 
     if (memcmp(mcDigest, defDigest, CRYPT_MD5_DIGEST_SIZE) != 0) {
         printf("md5 final memcmp fialed\n");
@@ -232,7 +242,7 @@ static int check_md5(void)
     } 
     printf("md5         mcapi test passed\n");
 
-    return 0;
+    return ret;
 }
 
 

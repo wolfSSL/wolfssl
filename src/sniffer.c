@@ -576,8 +576,12 @@ static int HashInit(HsHashes* hash)
         ret = wc_InitSha(&hash->hashSha);
 #endif
 #ifndef NO_MD5
-    if (ret == 0)
-        wc_InitMd5(&hash->hashMd5);
+    if (ret == 0) {
+        ret = wc_InitMd5(&hash->hashMd5);
+        if (ret != 0) {
+            return ret;
+        }
+    }
 #endif
 #endif
 #ifndef NO_SHA256
@@ -606,8 +610,12 @@ static int HashUpdate(HsHashes* hash, const byte* input, int sz)
         ret = wc_ShaUpdate(&hash->hashSha, input, sz);
 #endif
 #ifndef NO_MD5
-    if (ret == 0)
-        wc_Md5Update(&hash->hashMd5, input, sz);
+    if (ret == 0) {
+        ret = wc_Md5Update(&hash->hashMd5, input, sz);
+        if (ret !=0) {
+            return ret;
+        }
+    }
 #endif
 #endif
 #ifndef NO_SHA256

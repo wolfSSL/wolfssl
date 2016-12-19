@@ -180,8 +180,12 @@
 
 #endif /* WOLFSSL_HAVE_MIN */
 
-void wc_InitMd5(Md5* md5)
+int wc_InitMd5(Md5* md5)
 {
+    if (md5 == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
     md5->digest[0] = 0x67452301L;
     md5->digest[1] = 0xefcdab89L;
     md5->digest[2] = 0x98badcfeL;
@@ -190,6 +194,8 @@ void wc_InitMd5(Md5* md5)
     md5->buffLen = 0;
     md5->loLen   = 0;
     md5->hiLen   = 0;
+
+    return 0;
 }
 
 #ifdef FREESCALE_MMCAU_SHA
@@ -308,10 +314,15 @@ static INLINE void AddLength(Md5* md5, word32 len)
 }
 
 
-void wc_Md5Update(Md5* md5, const byte* data, word32 len)
+int wc_Md5Update(Md5* md5, const byte* data, word32 len)
 {
+    byte* local;
+
+    if (md5 == NULL || (data == NULL && len > 0)){
+        return BAD_FUNC_ARG;
+    }
     /* do block size increments */
-    byte* local = (byte*)md5->buffer;
+    local = (byte*)md5->buffer;
 
     while (len) {
         word32 add = min(len, MD5_BLOCK_SIZE - md5->buffLen);
@@ -330,12 +341,19 @@ void wc_Md5Update(Md5* md5, const byte* data, word32 len)
             md5->buffLen = 0;
         }
     }
+    return 0;
 }
 
 
-void wc_Md5Final(Md5* md5, byte* hash)
+int wc_Md5Final(Md5* md5, byte* hash)
 {
-    byte* local = (byte*)md5->buffer;
+    byte* local;
+
+    if (md5 == NULL || hash == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    local = (byte*)md5->buffer;
 
     AddLength(md5, md5->buffLen);  /* before adding pads */
 
@@ -373,7 +391,8 @@ void wc_Md5Final(Md5* md5, byte* hash)
     #endif
     XMEMCPY(hash, md5->digest, MD5_DIGEST_SIZE);
 
-    wc_InitMd5(md5);  /* reset state */
+
+    return wc_InitMd5(md5);  /* reset state */
 }
 
 #endif /* End wolfCrypt software implementation */
@@ -381,6 +400,7 @@ void wc_Md5Final(Md5* md5, byte* hash)
 
 int wc_Md5Hash(const byte* data, word32 len, byte* hash)
 {
+    int ret;
 #ifdef WOLFSSL_SMALL_STACK
     Md5* md5;
 #else
@@ -393,9 +413,27 @@ int wc_Md5Hash(const byte* data, word32 len, byte* hash)
         return MEMORY_E;
 #endif
 
-    wc_InitMd5(md5);
-    wc_Md5Update(md5, data, len);
-    wc_Md5Final(md5, hash);
+    ret = wc_InitMd5(md5);
+    if (ret != 0) {
+    #ifdef WOLFSSL_SMALL_STACK
+        XFREE(md5, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    #endif
+        return ret;
+    }
+    ret = wc_Md5Update(md5, data, len);
+    if (ret != 0) {
+    #ifdef WOLFSSL_SMALL_STACK
+        XFREE(md5, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    #endif
+        return ret;
+    }
+    ret = wc_Md5Final(md5, hash);
+    if (ret != 0) {
+    #ifdef WOLFSSL_SMALL_STACK
+        XFREE(md5, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    #endif
+        return ret;
+    }
 
 #ifdef WOLFSSL_SMALL_STACK
     XFREE(md5, NULL, DYNAMIC_TYPE_TMP_BUFFER);
