@@ -91,7 +91,7 @@ int wc_PBKDF1(byte* output, const byte* passwd, int pLen, const byte* salt,
         hLen = (int)MD5_DIGEST_SIZE;
 #endif
 
-    if (kLen > hLen)
+    if ((kLen > hLen) || (kLen < 0))
         return BAD_FUNC_ARG;
 
     if (iterations < 1)
