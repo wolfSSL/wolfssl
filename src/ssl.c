@@ -875,8 +875,6 @@ int wolfSSL_set_secret(WOLFSSL* ssl, unsigned short epoch,
 {
     int ret = 0;
 
-    (void)epoch;
-
     WOLFSSL_ENTER("wolfSSL_set_secret()");
 
     if (ssl == NULL || preMasterSecret == NULL || preMasterSz == 0 ||
@@ -905,8 +903,21 @@ int wolfSSL_set_secret(WOLFSSL* ssl, unsigned short epoch,
         ret = SetKeysSide(ssl, ENCRYPT_AND_DECRYPT_SIDE);
     }
 
-    if (ret == 0)
+    if (ret == 0) {
+        if (ssl->options.dtls) {
+        #ifdef WOLFSSL_DTLS
+            ssl->keys.dtls_epoch = epoch;
+            ssl->keys.nextEpoch = epoch;
+            ssl->keys.prevSeq_lo = ssl->keys.nextSeq_lo;
+            ssl->keys.prevSeq_hi = ssl->keys.nextSeq_hi;
+            ssl->keys.nextSeq_lo = 0;
+            ssl->keys.nextSeq_hi = 0;
+            XMEMCPY(ssl->keys.prevWindow, ssl->keys.window, DTLS_SEQ_SZ);
+            XMEMSET(ssl->keys.window, 0, DTLS_SEQ_SZ);
+        #endif
+        }
         ret = SSL_SUCCESS;
+    }
     else {
         if (ssl)
             ssl->error = ret;
