@@ -9504,7 +9504,9 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
     void wolfSSL_CTX_set_default_passwd_cb(WOLFSSL_CTX* ctx, pem_password_cb cb)
     {
         WOLFSSL_ENTER("SSL_CTX_set_default_passwd_cb");
-        ctx->passwd_cb = cb;
+        if (ctx != NULL) {
+            ctx->passwd_cb = cb;
+        }
     }
 
     int wolfSSL_num_locks(void)
