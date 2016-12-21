@@ -1756,6 +1756,9 @@ typedef struct Keys {
     word16 curEpoch;    /* Received epoch in current record    */
     word16 curSeq_hi;   /* Received sequence in current record */
     word32 curSeq_lo;
+#ifdef WOLFSSL_MULTICAST
+    byte   curPeerId;   /* Received peer group ID in current record */
+#endif
 
     word32 prevWindow[WOLFSSL_DTLS_WINDOW_WORDS];
                         /* Sliding window for old epoch        */
@@ -2846,7 +2849,6 @@ typedef struct Options {
     word16            dtlsSctp:1;         /* DTLS-over-SCTP mode */
 #endif
 #endif
-#ifdef WOLFSSL_MULTICAST
     word16            haveMcast:1;        /* using multicast ? */
 #endif
     word16            haveEMS:1;          /* using extended master secret */
