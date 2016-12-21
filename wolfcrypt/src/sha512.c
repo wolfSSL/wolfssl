@@ -81,16 +81,6 @@ int wc_Sha384Final(Sha384* sha, byte* out)
 #endif
 
 
-#ifndef WOLFSSL_HAVE_MIN
-#define WOLFSSL_HAVE_MIN
-
-    static INLINE word32 min(word32 a, word32 b)
-    {
-        return a > b ? b : a;
-    }
-
-#endif /* WOLFSSL_HAVE_MIN */
-
 #if defined(USE_INTEL_SPEEDUP)
   #define HAVE_INTEL_AVX1
   #define HAVE_INTEL_AVX2

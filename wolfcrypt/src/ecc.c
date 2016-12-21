@@ -6982,16 +6982,6 @@ int wc_ecc_set_custom_curve(ecc_key* key, const ecc_set_type* dp)
 
 #ifdef HAVE_X963_KDF
 
-#ifndef WOLFSSL_HAVE_MIN
-#define WOLFSSL_HAVE_MIN
-
-    static INLINE word32 min(word32 a, word32 b)
-    {
-        return a > b ? b : a;
-    }
-
-#endif /* WOLFSSL_HAVE_MIN */
-
 static INLINE void IncrementX963KdfCounter(byte* inOutCtr)
 {
     int i;

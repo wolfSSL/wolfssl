@@ -38,27 +38,6 @@
     #include <wolfcrypt/src/misc.c>
 #endif
 
-#ifndef WOLFSSL_HAVE_MIN
-#define WOLFSSL_HAVE_MIN
-
-    static INLINE word32 min(word32 a, word32 b)
-    {
-        return a > b ? b : a;
-    }
-
-#endif /* WOLFSSL_HAVE_MIN */
-
-#if !defined (ALIGN32)
-    #if defined (__GNUC__)
-        #define ALIGN32 __attribute__ ( (aligned (32)))
-    #elif defined(_MSC_VER)
-        /* disable align warning, we want alignment ! */
-        #pragma warning(disable: 4324)
-        #define ALIGN32 __declspec (align (32))
-    #else
-        #define ALIGN32
-    #endif
-#endif
 
 static const ALIGN32 word32 K[64] = {
     0x428A2F98L, 0x71374491L, 0xB5C0FBCFL, 0xE9B5DBA5L, 0x3956C25BL,

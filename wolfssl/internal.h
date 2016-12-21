@@ -164,12 +164,6 @@
     #pragma warning(disable: 4996)
 #endif
 
-#ifdef NO_AES
-    #if !defined (ALIGN16)
-        #define ALIGN16
-    #endif
-#endif
-
 #ifdef NO_SHA
     #define SHA_DIGEST_SIZE 20
 #endif
@@ -924,7 +918,6 @@ enum Misc {
     LENGTH_SZ      =  2,       /* length field for HMAC, data only */
     VERSION_SZ     =  2,       /* length of proctocol version */
     SEQ_SZ         =  8,       /* 64 bit sequence number  */
-    BYTE3_LEN      =  3,       /* up to 24 bit byte lengths */
     ALERT_SIZE     =  2,       /* level + description     */
     VERIFY_HEADER  =  2,       /* always use 2 bytes      */
     EXT_ID_SZ      =  2,       /* always use 2 bytes      */

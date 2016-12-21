@@ -102,7 +102,7 @@ typedef union {
 
 typedef struct WOLFSSL_EVP_MD_CTX {
     unsigned char macType;
-    WOLFSSL_Hasher hash;
+    ALIGN16 WOLFSSL_Hasher hash;
 } WOLFSSL_EVP_MD_CTX;
 
 

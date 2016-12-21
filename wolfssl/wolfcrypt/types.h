@@ -391,22 +391,46 @@
 
     /* AESNI requires alignment and ARMASM gains some performance from it */
     #if defined(WOLFSSL_AESNI) || defined(WOLFSSL_ARMASM)
-    #if !defined (ALIGN16)
-        #if defined (__GNUC__)
-            #define ALIGN16 __attribute__ ( (aligned (16)))
-        #elif defined(_MSC_VER)
-            /* disable align warning, we want alignment ! */
-            #pragma warning(disable: 4324)
-            #define ALIGN16 __declspec (align (16))
-        #else
-            #define ALIGN16
-        #endif
-    #endif
+        #if !defined(ALIGN16)
+            #if defined(__GNUC__)
+                #define ALIGN16 __attribute__ ( (aligned (16)))
+            #elif defined(_MSC_VER)
+                /* disable align warning, we want alignment ! */
+                #pragma warning(disable: 4324)
+                #define ALIGN16 __declspec (align (16))
+            #else
+                #define ALIGN16
+            #endif
+        #endif /* !ALIGN16 */
+
+       #if !defined(ALIGN32)
+            #if defined(__GNUC__)
+                #define ALIGN32 __attribute__ ( (aligned (32)))
+            #elif defined(_MSC_VER)
+                /* disable align warning, we want alignment ! */
+                #pragma warning(disable: 4324)
+                #define ALIGN32 __declspec (align (32))
+            #else
+                #define ALIGN32
+            #endif
+        #endif /* !ALIGN32 */
     #else
         #ifndef ALIGN16
             #define ALIGN16
         #endif
-    #endif /* WOLFSSL_AESNI or WOLFSSL_ARMASM */
+        #ifndef ALIGN32
+            #define ALIGN32
+        #endif
+    #endif /* WOLFSSL_AESNI || WOLFSSL_ARMASM */
+
+
+    #ifndef TRUE
+        #define TRUE  1
+    #endif
+    #ifndef FALSE
+        #define FALSE 0
+    #endif
+
 
     #ifdef WOLFSSL_RIOT_OS
         #define EXIT_TEST(ret) exit(ret)

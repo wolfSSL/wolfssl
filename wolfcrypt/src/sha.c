@@ -30,15 +30,6 @@
 #if !defined(NO_SHA)
 
 #include <wolfssl/wolfcrypt/sha.h>
-#include <wolfssl/wolfcrypt/logging.h>
-#include <wolfssl/wolfcrypt/error-crypt.h>
-
-#ifdef NO_INLINE
-    #include <wolfssl/wolfcrypt/misc.h>
-#else
-    #define WOLFSSL_MISC_INCLUDED
-    #include <wolfcrypt/src/misc.c>
-#endif
 
 
 /* fips wrapper calls, user can call direct */
@@ -59,6 +50,15 @@
     }
 
 #else /* else build without fips */
+
+#include <wolfssl/wolfcrypt/logging.h>
+#include <wolfssl/wolfcrypt/error-crypt.h>
+#ifdef NO_INLINE
+    #include <wolfssl/wolfcrypt/misc.h>
+#else
+    #define WOLFSSL_MISC_INCLUDED
+    #include <wolfcrypt/src/misc.c>
+#endif
 
 
 /****************************************/
@@ -377,13 +377,6 @@
     }
 #endif /* !USE_CUSTOM_SHA_TRANSFORM */
 
-
-#ifndef WOLFSSL_HAVE_MIN
-    #define WOLFSSL_HAVE_MIN
-    static INLINE word32 min(word32 a, word32 b) {
-        return a > b ? b : a;
-    }
-#endif /* WOLFSSL_HAVE_MIN */
 
 static INLINE void AddLength(Sha* sha, word32 len)
 {

@@ -30,6 +30,14 @@
 
 #include <wolfssl/wolfcrypt/hmac.h>
 
+#ifdef NO_INLINE
+    #include <wolfssl/wolfcrypt/misc.h>
+#else
+    #define WOLFSSL_MISC_INCLUDED
+    #include <wolfcrypt/src/misc.c>
+#endif
+
+
 #ifdef HAVE_FIPS
 /* does init */
 int wc_HmacSetKey(Hmac* hmac, int type, const byte* key, word32 keySz)
@@ -779,17 +787,6 @@ int wolfSSL_GetHmacMaxSize(void)
 }
 
 #ifdef HAVE_HKDF
-
-#ifndef WOLFSSL_HAVE_MIN
-#define WOLFSSL_HAVE_MIN
-
-    static INLINE word32 min(word32 a, word32 b)
-    {
-        return a > b ? b : a;
-    }
-
-#endif /* WOLFSSL_HAVE_MIN */
-
 
 /* HMAC-KDF with hash type, optional salt and info, return 0 on success */
 int wc_HKDF(int type, const byte* inKey, word32 inKeySz,

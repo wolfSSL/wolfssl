@@ -67,6 +67,10 @@ WOLFSSL_LOCAL
 void   ByteReverseWords64(word64*, const word64*, word32);
 #endif /* WORD64_AVAILABLE */
 
+#ifndef WOLFSSL_HAVE_MIN
+    WOLFSSL_LOCAL word32 min(word32 a, word32 b);
+#endif
+
 #endif /* NO_INLINE */
 
 
