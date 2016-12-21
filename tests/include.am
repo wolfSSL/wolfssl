@@ -23,5 +23,6 @@ EXTRA_DIST += tests/test.conf \
               tests/test-qsh.conf \
               tests/test-psk-no-id.conf \
               tests/test-dtls.conf \
+              tests/test-sctp.conf \
               tests/test-sig.conf
 DISTCLEANFILES+= tests/.libs/unit.test
