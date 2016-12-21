@@ -120,7 +120,8 @@ src_libwolfssl_la_SOURCES += \
                wolfcrypt/src/wc_encrypt.c \
                wolfcrypt/src/wc_port.c \
                wolfcrypt/src/error.c \
-               wolfcrypt/src/signature.c
+               wolfcrypt/src/signature.c \
+               wolfcrypt/src/wolfmath.c
 
 if BUILD_MEMORY
 src_libwolfssl_la_SOURCES += wolfcrypt/src/memory.c

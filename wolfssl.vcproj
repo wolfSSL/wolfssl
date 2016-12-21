@@ -272,6 +272,10 @@
 				>
 			</File>
 			<File
+				RelativePath=".\wolfcrypt\src\wolfmath.c"
+				>
+			</File>
+			<File
 				RelativePath=".\wolfcrypt\src\pwdbased.c"
 				>
 			</File>
