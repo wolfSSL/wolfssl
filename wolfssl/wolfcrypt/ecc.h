@@ -166,30 +166,6 @@ typedef struct ecc_set_type {
     int         cofactor;
 } ecc_set_type;
 
-typedef struct ecc_curve_spec {
-    const ecc_set_type* dp;
-
-    mp_int prime;
-    mp_int Af;
-    mp_int Bf;
-    mp_int order;
-    mp_int Gx;
-    mp_int Gy;
-
-    byte load_mask;
-} ecc_curve_spec;
-
-enum ecc_curve_load_mask {
-    ECC_CURVE_FIELD_NONE    = 0x00,
-    ECC_CURVE_FIELD_PRIME   = 0x01,
-    ECC_CURVE_FIELD_AF      = 0x02,
-    ECC_CURVE_FIELD_BF      = 0x04,
-    ECC_CURVE_FIELD_ORDER   = 0x08,
-    ECC_CURVE_FIELD_GX      = 0x10,
-    ECC_CURVE_FIELD_GY      = 0x20,
-    ECC_CURVE_FIELD_ALL     = 0xFF
-};
-
 
 #ifdef ALT_ECC_SIZE
 
@@ -499,6 +475,10 @@ int wc_ecc_decrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
 WOLFSSL_API int wc_X963_KDF(enum wc_HashType type, const byte* secret,
                 word32 secretSz, const byte* sinfo, word32 sinfoSz,
                 byte* out, word32 outSz);
+#endif
+
+#ifdef ECC_CACHE_CURVE
+WOLFSSL_API void wc_ecc_curve_cache_free(void);
 #endif
 
 #ifdef WOLFSSL_ASYNC_CRYPT

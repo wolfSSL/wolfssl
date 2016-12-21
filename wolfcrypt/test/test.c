@@ -668,6 +668,12 @@ int wolfcrypt_test(void* args)
         else
             printf( "ECC buffer test passed!\n");
     #endif
+    #if defined(FP_ECC)
+        wc_ecc_fp_free();
+    #endif
+    #ifdef ECC_CACHE_CURVE
+        wc_ecc_curve_cache_free();
+    #endif
 #endif
 
 #ifdef HAVE_CURVE25519
