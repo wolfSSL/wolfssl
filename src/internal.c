@@ -4721,18 +4721,42 @@ static INLINE void DtlsGetSEQ(WOLFSSL* ssl, int order, word32 seq[2])
 {
     if (order == PREV_ORDER) {
         /* Previous epoch case */
-        seq[0] = ((ssl->keys.dtls_epoch - 1) << 16) |
-                 (ssl->keys.dtls_prev_sequence_number_hi & 0xFFFF);
+        if (ssl->options.haveMcast) {
+        #ifdef WOLFSSL_MULTICAST
+            seq[0] = ((ssl->keys.dtls_epoch - 1) << 16) |
+                     (ssl->options.mcastID << 8) |
+                     (ssl->keys.dtls_prev_sequence_number_hi & 0xFF);
+        #endif
+        }
+        else
+            seq[0] = ((ssl->keys.dtls_epoch - 1) << 16) |
+                     (ssl->keys.dtls_prev_sequence_number_hi & 0xFFFF);
         seq[1] = ssl->keys.dtls_prev_sequence_number_lo;
     }
     else if (order == PEER_ORDER) {
-        seq[0] = (ssl->keys.curEpoch << 16) |
-                 (ssl->keys.curSeq_hi & 0xFFFF);
+        if (ssl->options.haveMcast) {
+        #ifdef WOLFSSL_MULTICAST
+            seq[0] = (ssl->keys.curEpoch << 16) |
+                     (ssl->keys.curPeerId << 8) |
+                     (ssl->keys.curSeq_hi & 0xFF);
+        #endif
+        }
+        else
+            seq[0] = (ssl->keys.curEpoch << 16) |
+                     (ssl->keys.curSeq_hi & 0xFFFF);
         seq[1] = ssl->keys.curSeq_lo; /* explicit from peer */
     }
     else {
-        seq[0] = (ssl->keys.dtls_epoch << 16) |
-                 (ssl->keys.dtls_sequence_number_hi & 0xFFFF);
+        if (ssl->options.haveMcast) {
+        #ifdef WOLFSSL_MULTICAST
+            seq[0] = (ssl->keys.dtls_epoch << 16) |
+                     (ssl->options.mcastID << 8) |
+                     (ssl->keys.dtls_sequence_number_hi & 0xFF);
+        #endif
+        }
+        else
+            seq[0] = (ssl->keys.dtls_epoch << 16) |
+                     (ssl->keys.dtls_sequence_number_hi & 0xFFFF);
         seq[1] = ssl->keys.dtls_sequence_number_lo;
     }
 }
@@ -6029,7 +6053,14 @@ static int GetRecordHeader(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         *inOutIdx += ENUM_LEN + VERSION_SZ;
         ato16(input + *inOutIdx, &ssl->keys.curEpoch);
         *inOutIdx += OPAQUE16_LEN;
-        ato16(input + *inOutIdx, &ssl->keys.curSeq_hi);
+        if (ssl->options.haveMcast) {
+        #ifdef WOLFSSL_MULTICAST
+            ssl->keys.curPeerId = input[*inOutIdx];
+            ssl->keys.curSeq_hi = input[*inOutIdx+1];
+        #endif
+        }
+        else
+            ato16(input + *inOutIdx, &ssl->keys.curSeq_hi);
         *inOutIdx += OPAQUE16_LEN;
         ato32(input + *inOutIdx, &ssl->keys.curSeq_lo);
         *inOutIdx += OPAQUE32_LEN;  /* advance past rest of seq */
