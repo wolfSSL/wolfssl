@@ -6675,6 +6675,9 @@ int openssl_test(void)
     {
         byte* p;
         p = (byte*)CRYPTO_malloc(10, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        if (p == NULL) {
+            return -70;
+        }
         XMEMSET(p, 0, 10);
         CRYPTO_free(p, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     }

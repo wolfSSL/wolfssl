@@ -1457,6 +1457,7 @@ static int wc_PKCS7_KariGenerateKEK(WC_PKCS7_KARI* kari,
 
     } else {
         /* bad direction */
+        XFREE(secret, kari->heap, DYNAMIC_TYPE_PKCS7);
         return BAD_FUNC_ARG;
     }
 
@@ -2127,8 +2128,10 @@ static int wc_PKCS7_GenerateIV(WC_RNG* rng, byte* iv, word32 ivSz)
             return MEMORY_E;
 
         ret = wc_InitRng(random);
-        if (ret != 0)
+        if (ret != 0) {
+            XFREE(random, NULL, DYNAMIC_TYPE_RNG);
             return ret;
+        }
 
     } else {
         random = rng;
