@@ -9723,10 +9723,13 @@ int ProcessReply(WOLFSSL* ssl)
                     #ifdef WOLFSSL_DTLS
                         if (ssl->options.dtls) {
                             DtlsMsgPoolReset(ssl);
-                            ssl->keys.nextEpoch++;
-                            ssl->keys.nextSeq_lo = 0;
+                            ssl->keys.prevSeq_lo = ssl->keys.nextSeq_lo;
+                            ssl->keys.prevSeq_hi = ssl->keys.nextSeq_hi;
                             XMEMCPY(ssl->keys.prevWindow, ssl->keys.window,
                                     DTLS_SEQ_SZ);
+                            ssl->keys.nextEpoch++;
+                            ssl->keys.nextSeq_lo = 0;
+                            ssl->keys.nextSeq_hi = 0;
                             XMEMSET(ssl->keys.window, 0, DTLS_SEQ_SZ);
                         }
                     #endif
