@@ -188,7 +188,7 @@ enum Misc_ASN {
     MAX_CERTPOL_NB      = CTC_MAX_CERTPOL_NB,/* Max number of Cert Policy */
     MAX_CERTPOL_SZ      = CTC_MAX_CERTPOL_SZ,
 #endif
-    OCSP_NONCE_EXT_SZ   = 37,      /* OCSP Nonce Extension size */
+    OCSP_NONCE_EXT_SZ   = 35,      /* OCSP Nonce Extension size */
     MAX_OCSP_EXT_SZ     = 58,      /* Max OCSP Extension length */
     MAX_OCSP_NONCE_SZ   = 16,      /* OCSP Nonce size           */
     EIGHTK_BUF          = 8192,    /* Tmp buffer size           */
@@ -196,7 +196,10 @@ enum Misc_ASN {
                                    /* use bigger NTRU size */
     HEADER_ENCRYPTED_KEY_SIZE = 88,/* Extra header size for encrypted key */
     TRAILING_ZERO       = 1,       /* Used for size of zero pad */
-    MIN_VERSION_SZ      = 3        /* Min bytes needed for GetMyVersion */
+    MIN_VERSION_SZ      = 3,       /* Min bytes needed for GetMyVersion */
+#if defined(WOLFSSL_MYSQL_COMPATIBLE) || defined(WOLFSSL_NGINX)
+    MAX_TIME_STRING_SZ  = 21,      /* Max length of formatted time string */
+#endif
 };
 
 
@@ -681,7 +684,7 @@ WOLFSSL_LOCAL int ToTraditionalEnc(byte* buffer, word32 length,const char*,int);
 WOLFSSL_LOCAL int DecryptContent(byte* input, word32 sz,const char* psw,int pswSz);
 
 typedef struct tm wolfssl_tm;
-#if defined(WOLFSSL_MYSQL_COMPATIBLE)
+#if defined(WOLFSSL_MYSQL_COMPATIBLE) || defined(WOLFSSL_NGINX)
 WOLFSSL_LOCAL int GetTimeString(byte* date, int format, char* buf, int len);
 #endif
 WOLFSSL_LOCAL int ExtractDate(const unsigned char* date, unsigned char format,
@@ -807,6 +810,10 @@ struct CertStatus {
     byte nextDate[MAX_DATE_SIZE];
     byte thisDateFormat;
     byte nextDateFormat;
+#ifdef WOLFSSL_NGINX
+    byte* thisDateAsn;
+    byte* nextDateAsn;
+#endif
 
     byte*  rawOcspResponse;
     word32 rawOcspResponseSz;
@@ -853,6 +860,10 @@ struct OcspRequest {
     byte   nonce[MAX_OCSP_NONCE_SZ];
     int    nonceSz;
     void*  heap;
+
+#ifdef WOLFSSL_NGINX
+    void*  ssl;
+#endif
 };
 
 

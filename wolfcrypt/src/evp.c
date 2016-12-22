@@ -277,7 +277,7 @@ WOLFSSL_API int wolfSSL_EVP_CipherUpdate(WOLFSSL_EVP_CIPHER_CTX *ctx,
     blocks = inl / ctx->block_size;
     if (blocks > 0) {
         /* process blocks */
-        if (evpCipherBlock(ctx, out, ctx->buf, blocks) == 0)
+        if (evpCipherBlock(ctx, out, in, blocks*ctx->block_size) == 0)
             return 0;
         PRINT_BUF(ctx->buf, ctx->block_size);
         PRINT_BUF(out,      ctx->block_size);

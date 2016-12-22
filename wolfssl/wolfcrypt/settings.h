@@ -1495,6 +1495,27 @@ static char *fgets(char *buff, int sz, FILE *fp)
     #undef HAVE_GMTIME_R /* don't trust macro with windows */
 #endif /* WOLFSSL_MYSQL_COMPATIBLE */
 
+#ifdef WOLFSSL_NGINX
+    #define SSL_OP_NO_COMPRESSION    SSL_OP_NO_COMPRESSION
+    #define OPENSSL_NO_ENGINE
+    #define X509_CHECK_FLAG_ALWAYS_CHECK_SUBJECT
+    #ifndef OPENSSL_EXTRA
+        #define OPENSSL_EXTRA
+    #endif
+    #ifndef HAVE_SESSION_TICKET
+        #define HAVE_SESSION_TICKET
+    #endif
+    #ifndef HAVE_OCSP
+        #define HAVE_OCSP
+    #endif
+    #ifndef KEEP_OUR_CERT
+        #define KEEP_OUR_CERT
+    #endif
+    #ifndef HAVE_SNI
+        #define HAVE_SNI
+    #endif
+    #define SSL_CTRL_SET_TLSEXT_HOSTNAME
+#endif
 
 #ifdef __cplusplus
     }   /* extern "C" */

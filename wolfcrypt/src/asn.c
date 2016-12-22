@@ -3418,7 +3418,7 @@ static INLINE int DateLessThan(const struct tm* a, const struct tm* b)
 }
 
 
-#if defined(WOLFSSL_MYSQL_COMPATIBLE)
+#if defined(WOLFSSL_MYSQL_COMPATIBLE) || defined(WOLFSSL_NGINX)
 int GetTimeString(byte* date, int format, char* buf, int len)
 {
     struct tm t;
@@ -5808,7 +5808,7 @@ const char* END_DSA_PRIV       = "-----END DSA PRIVATE KEY-----";
 const char* BEGIN_PUB_KEY      = "-----BEGIN PUBLIC KEY-----";
 const char* END_PUB_KEY        = "-----END PUBLIC KEY-----";
 
-#if defined(WOLFSSL_KEY_GEN) || defined(WOLFSSL_CERT_GEN)
+#if defined(WOLFSSL_KEY_GEN) || defined(WOLFSSL_CERT_GEN) || defined(OPENSSL_EXTRA)
 
 /* Used for compatibility API */
 int wc_DerToPem(const byte* der, word32 derSz,
@@ -9498,6 +9498,9 @@ static int DecodeSingleResponse(byte* source,
             return ASN_PARSE_E;
     }
 
+#ifdef WOLFSSL_NGINX
+    cs->thisDateAsn = source + idx;
+#endif
     if (GetBasicDate(source, &idx, cs->thisDate,
                                                 &cs->thisDateFormat, size) < 0)
         return ASN_PARSE_E;
@@ -9513,6 +9516,9 @@ static int DecodeSingleResponse(byte* source,
         idx++;
         if (GetLength(source, &idx, &length, size) < 0)
             return ASN_PARSE_E;
+#ifdef WOLFSSL_NGINX
+        cs->nextDateAsn = source + idx;
+#endif
         if (GetBasicDate(source, &idx, cs->nextDate,
                                                 &cs->nextDateFormat, size) < 0)
             return ASN_PARSE_E;
@@ -9759,7 +9765,9 @@ static int DecodeBasicOcspResponse(byte* source, word32* ioIndex,
             return ASN_PARSE_E;
 
         InitDecodedCert(&cert, resp->cert, resp->certSz, heap);
-        ret = ParseCertRelative(&cert, CERT_TYPE, VERIFY, cm);
+        /* Don't verify if we don't have access to Cert Manager. */
+        ret = ParseCertRelative(&cert, CERT_TYPE,
+                                cm == NULL ? NO_VERIFY : VERIFY, cm);
         if (ret < 0) {
             WOLFSSL_MSG("\tOCSP Responder certificate parsing failed");
             FreeDecodedCert(&cert);
@@ -9818,6 +9826,7 @@ void InitOcspResponse(OcspResponse* resp, CertStatus* status,
 
 int OcspResponseDecode(OcspResponse* resp, void* cm, void* heap)
 {
+    int ret;
     int length = 0;
     word32 idx = 0;
     byte* source = resp->source;
@@ -9860,8 +9869,9 @@ int OcspResponseDecode(OcspResponse* resp, void* cm, void* heap)
     if (GetLength(source, &idx, &length, size) < 0)
         return ASN_PARSE_E;
 
-    if (DecodeBasicOcspResponse(source, &idx, resp, size, cm, heap) < 0)
-        return ASN_PARSE_E;
+    ret = DecodeBasicOcspResponse(source, &idx, resp, size, cm, heap);
+    if (ret < 0)
+        return ret;
 
     return 0;
 }
@@ -9871,8 +9881,8 @@ word32 EncodeOcspRequestExtensions(OcspRequest* req, byte* output, word32 size)
 {
     static const byte NonceObjId[] = { 0x2b, 0x06, 0x01, 0x05, 0x05, 0x07,
                                        0x30, 0x01, 0x02 };
-    byte seqArray[6][MAX_SEQ_SZ];
-    word32 seqSz[6], totalSz = (word32)sizeof(NonceObjId);
+    byte seqArray[5][MAX_SEQ_SZ];
+    word32 seqSz[5], totalSz = (word32)sizeof(NonceObjId);
 
     WOLFSSL_ENTER("SetOcspReqExtensions");
 
@@ -9886,15 +9896,11 @@ word32 EncodeOcspRequestExtensions(OcspRequest* req, byte* output, word32 size)
     totalSz += seqSz[2] = 1 + SetLength(sizeof(NonceObjId), &seqArray[2][1]);
     totalSz += seqSz[3] = SetSequence(totalSz, seqArray[3]);
     totalSz += seqSz[4] = SetSequence(totalSz, seqArray[4]);
-    totalSz += seqSz[5] = SetExplicit(2, totalSz, seqArray[5]);
 
     if (totalSz > size)
         return 0;
 
     totalSz = 0;
-
-    XMEMCPY(output + totalSz, seqArray[5], seqSz[5]);
-    totalSz += seqSz[5];
 
     XMEMCPY(output + totalSz, seqArray[4], seqSz[4]);
     totalSz += seqSz[4];
@@ -9946,8 +9952,14 @@ int EncodeOcspRequest(OcspRequest* req, byte* output, word32 size)
     snSz        = SetSerialNumber(req->serial,  req->serialSz, snArray);
     extSz       = 0;
 
-    if (req->nonceSz)
-        extSz = EncodeOcspRequestExtensions(req, extArray, OCSP_NONCE_EXT_SZ);
+    if (req->nonceSz) {
+        /* TLS Extensions use this function too - put extensions after
+         * ASN.1: Context Specific [2].
+         */
+        extSz = EncodeOcspRequestExtensions(req, extArray + 2,
+                                            OCSP_NONCE_EXT_SZ);
+        extSz += SetExplicit(2, extSz, extArray);
+    }
 
     totalSz = algoSz + issuerSz + issuerKeySz + snSz;
     for (i = 4; i >= 0; i--) {
@@ -9956,6 +9968,8 @@ int EncodeOcspRequest(OcspRequest* req, byte* output, word32 size)
         if (i == 2) totalSz += extSz;
     }
 
+    if (output == NULL)
+        return totalSz;
     if (totalSz > size)
         return BUFFER_E;
 

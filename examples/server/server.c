@@ -74,7 +74,19 @@
     int myHsDoneCb(WOLFSSL* ssl, void* user_ctx);
 #endif
 
-
+static const char webServerMsg[] =
+    "HTTP/1.1 200 OK\n"
+    "Content-Type: text/html\n"
+    "Connection: close\n"
+    "\n"
+    "<html>\n"
+    "<head>\n"
+    "<title>Welcome to wolfSSL!</title>\n"
+    "</head>\n"
+    "<body>\n"
+    "<p>wolfSSL has successfully performed handshake!</p>\n"
+    "</body>\n"
+    "</html>\n";
 
 static int NonBlockingSSL_Accept(SSL* ssl)
 {
@@ -253,6 +265,8 @@ static void Usage(void)
 #ifdef HAVE_WNR
     printf("-q <file>   Whitewood config file,      default %s\n", wnrConfig);
 #endif
+    printf("-g          Return basic HTML web page\n");
+    printf("-C <num>    The number of connections to accept, default: 1\n");
 }
 
 THREAD_RETURN CYASSL_THREAD server_test(void* args)
@@ -269,6 +283,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
 #else
     const char msg[] = "I hear you fa shizzle!\n";
 #endif
+    int    useWebServerMsg = 0;
     char   input[80];
     int    ch;
     int    version = SERVER_DEFAULT_VERSION;
@@ -290,7 +305,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     int    wc_shutdown     = 0;
     int    resume = 0;
     int    resumeCount = 0;
-    int    loopIndefinitely = 0;
+    int    loops = 1;
     int    echoData = 0;
     int    throughput = 0;
     int    minDhKeyBits  = DEFAULT_MIN_DHKEY_BITS;
@@ -376,7 +391,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     useAnyAddr = 1;
 #else
     while ((ch = mygetopt(argc, argv,
-                  "?jdbstnNuGfrawPIR:p:v:l:A:c:k:Z:S:oO:D:L:ieB:E:q:")) != -1) {
+               "?jdbstnNuGfrawPIR:p:v:l:A:c:k:Z:S:oO:D:L:ieB:E:q:gC:")) != -1) {
         switch (ch) {
             case '?' :
                 Usage();
@@ -541,7 +556,15 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
                 break;
 
             case 'i' :
-                loopIndefinitely = 1;
+                loops = -1;
+                break;
+
+            case 'C' :
+                loops = atoi(myoptarg);
+                if (loops <= 0) {
+                    Usage();
+                    exit(MY_EX_USAGE);
+                }
                 break;
 
             case 'e' :
@@ -566,6 +589,10 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
                 #ifdef HAVE_WNR
                     wnrConfigFile = myoptarg;
                 #endif
+                break;
+
+            case 'g' :
+                useWebServerMsg = 1;
                 break;
 
             default:
@@ -1096,8 +1123,15 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
                     err_sys("SSL_read failed");
             }
 
-            if (SSL_write(ssl, msg, sizeof(msg)) != sizeof(msg))
-                err_sys("SSL_write failed");
+            if (!useWebServerMsg) {
+                if (SSL_write(ssl, msg, sizeof(msg)) != sizeof(msg))
+                    err_sys("SSL_write failed");
+            }
+            else {
+                if (SSL_write(ssl, webServerMsg, sizeof(webServerMsg))
+                                                        != sizeof(webServerMsg))
+                    err_sys("SSL_write failed");
+            }
         }
         else {
             ServerEchoData(ssl, clientfd, echoData, throughput);
@@ -1139,7 +1173,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
         }
         resumeCount = 0;
 
-        if(!loopIndefinitely) {
+        if (loops > 0 && --loops == 0) {
             break;  /* out of while loop, done with normal and resume option */
         }
     } /* while(1) */

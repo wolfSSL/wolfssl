@@ -1195,6 +1195,22 @@ void wc_ecc_curve_cache_free(void)
 
 #endif /* WOLFSSL_ATECC508A */
 
+/* Retrieve the curve name for the ECC curve id.
+ *
+ * curve_id  The id of the curve.
+ * returns the name stored from the curve if available, otherwise NULL.
+ */
+const char* wc_ecc_get_name(int curve_id)
+{
+    int x;
+
+    for (x = 0; ecc_sets[x].size != 0; x++) {
+        if (curve_id == ecc_sets[x].id)
+            return ecc_sets[x].name;
+    }
+
+    return NULL;
+}
 
 static int wc_ecc_set_curve(ecc_key* key, int keysize, int curve_id)
 {

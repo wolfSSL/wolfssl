@@ -56,6 +56,7 @@
 #endif
 
 typedef char WOLFSSL_EVP_CIPHER;
+typedef char WOLFSSL_EVP_MD;
 
 #ifndef NO_MD5
     WOLFSSL_API const WOLFSSL_EVP_MD* wolfSSL_EVP_md5(void);
@@ -173,6 +174,24 @@ typedef struct WOLFSSL_EVP_CIPHER_CTX {
     int  lastUsed;
 } WOLFSSL_EVP_CIPHER_CTX;
 
+
+#ifndef WOLFSSL_EVP_PKEY_TYPE_DEFINED /* guard on redeclaration */
+typedef struct WOLFSSL_EVP_PKEY     WOLFSSL_EVP_PKEY;
+#define WOLFSSL_EVP_PKEY_TYPE_DEFINED
+#endif
+
+struct WOLFSSL_EVP_PKEY {
+    int type;         /* openssh dereference */
+    int save_type;    /* openssh dereference */
+    int pkey_sz;
+    union {
+        char* ptr; /* der format of key / or raw for NTRU */
+    } pkey;
+    #ifdef HAVE_ECC
+        int pkey_curve;
+    #endif
+};
+
 typedef int WOLFSSL_ENGINE  ;
 typedef WOLFSSL_ENGINE ENGINE;
 
@@ -210,6 +229,7 @@ WOLFSSL_API void wolfSSL_EVP_CIPHER_CTX_init(WOLFSSL_EVP_CIPHER_CTX* ctx);
 WOLFSSL_API int  wolfSSL_EVP_CIPHER_CTX_cleanup(WOLFSSL_EVP_CIPHER_CTX* ctx);
 
 WOLFSSL_API int  wolfSSL_EVP_CIPHER_CTX_iv_length(const WOLFSSL_EVP_CIPHER_CTX*);
+WOLFSSL_API int  wolfSSL_EVP_CIPHER_iv_length(const WOLFSSL_EVP_CIPHER*);
 
 
 WOLFSSL_API int  wolfSSL_EVP_CipherInit(WOLFSSL_EVP_CIPHER_CTX* ctx,
@@ -369,6 +389,8 @@ typedef WOLFSSL_EVP_CIPHER_CTX EVP_CIPHER_CTX;
 #define EVP_CIPHER_CTX_key_length     wolfSSL_EVP_CIPHER_CTX_key_length
 #define EVP_CIPHER_CTX_set_key_length wolfSSL_EVP_CIPHER_CTX_set_key_length
 #define EVP_CIPHER_CTX_mode           wolfSSL_EVP_CIPHER_CTX_mode
+
+#define EVP_CIPHER_iv_length          wolfSSL_EVP_CIPHER_iv_length
 
 #define EVP_CipherInit                wolfSSL_EVP_CipherInit
 #define EVP_CipherInit_ex             wolfSSL_EVP_CipherInit_ex

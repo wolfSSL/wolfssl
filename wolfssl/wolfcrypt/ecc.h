@@ -286,6 +286,8 @@ typedef struct ecc_key {
 /* ECC predefined curve sets  */
 extern const ecc_set_type ecc_sets[];
 
+WOLFSSL_API
+const char* wc_ecc_get_name(int curve_id);
 
 WOLFSSL_API
 int wc_ecc_make_key(WC_RNG* rng, int keysize, ecc_key* key);
