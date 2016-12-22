@@ -7,11 +7,13 @@ wolfssl: the wolfSSL Inc. SSL/TLS library
 **wolfSSL's C SSL/TLS library**.
 
 `wolfssl <https://wolfssl.com/wolfSSL/Products-wolfssl.html>`_ is a
-lightweight, portable, C-language-based crypto library
-targeted at IoT, embedded, and RTOS environments primarily because of its size,
-speed, and feature set. It works seamlessly in desktop, enterprise, and cloud
-environments as well. It is the crypto engine behind `wolfSSl's embedded ssl
-library <https://wolfssl.com/wolfSSL/Products-wolfssl.html>`_.
+lightweight C-language-based SSL/TLS library targeted for embedded, RTOS, or
+resource-constrained environments primarily because of its small size, speed,
+and portability. wolfSSL supports industry standards up to the current TLS 1.2
+and DTLS 1.2 levels, is up to 20 times smaller than OpenSSL,
+lightweight, portable, C-language-based crypto library offers a simple API, an
+OpenSSL compatibility layer, OCSP and CRL support, and offers several
+progressive ciphers.
 
 
 Installation
