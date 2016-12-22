@@ -35,6 +35,43 @@ before calling wolfSSL_new();  Though it's not recommended.
 *** end Notes ***
 
 
+********* wolfSSL (Formerly CyaSSL) Release 3.10.0 (12/21/2016)
+
+Release 3.10.0 of wolfSSL has bug fixes and new features including:
+
+- Added support for SHA224
+- Added scrypt feature
+- Build for Intel SGX use, added in directory IDE/WIN-SGX
+- Fix for ChaCha20-Poly1305 ECDSA certificate type request
+- Enhance PKCS#7 with ECC enveloped data and AES key wrap support
+- Added support for RIOT OS
+- Add support for parsing PKCS#12 files
+- ECC performance increased with custom curves
+- ARMv8 expanded to AArch32 and performance increased
+- Added ANSI-X9.63-KDF support
+- Port to STM32 F2/F4 CubeMX
+- Port to Atmel ATECC508A board
+- Removed fPIE by default when wolfSSL library is compiled
+- Update to Python wrapper, dropping DES and adding wc_RSASetRNG
+- Added support for NXP K82 hardware acceleration
+- Added SCR client and server verify check
+- Added a disable rng option with autoconf
+- Added more tests vectors to test.c with AES-CTR
+- Updated DTLS session export version number
+- Updated DTLS for 64 bit sequence numbers
+- Fix for memory management with TI and WOLFSSL_SMALL_STACK
+- Hardening RSA CRT to be constant time
+- Fix uninitialized warning with IAR compiler
+- Fix for C# wrapper example IO hang on unexpected connection termination
+
+
+This release of wolfSSL fixes a low level security vulnerability. The vulnerability reported was a potential cache attack on RSA operations. If using wolfSSL RSA on a server that other users can have access to monitor the cache, then it is recommended to update wolfSSL. Thanks to Andreas Zankl, Johann Heyszl and Georg Sigl at Fraunhofer AISEC for the report. More information will be available on our site:
+
+https://wolfssl.com/wolfSSL/security/vulnerabilities.php
+
+See INSTALL file for build instructions.
+More info can be found on-line at http://wolfssl.com/wolfSSL/Docs.html
+
 ********* wolfSSL (Formerly CyaSSL) Release 3.9.10 (9/23/2016)
 
 Release 3.9.10 of wolfSSL has bug fixes and new features including:
