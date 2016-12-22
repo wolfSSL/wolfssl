@@ -28,16 +28,15 @@ import ssl
 import wolfssl
 
 class SSLClientTest(unittest.TestCase):
-    ssl_provider = ssl
-    host = "www.google.com"
+    provider = ssl
+    host = "www.globalsign.com"
     port = 443
 
     def setUp(self):
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
     def test_wrap_socket(self):
-        secure_sock = self.ssl_provider.wrap_socket(
-            self.sock, ssl_version=self.ssl_provider.PROTOCOL_SSLv23)
+        secure_sock = self.provider.wrap_socket(self.sock)
         secure_sock.connect((self.host, self.port))
 
         secure_sock.write(b"GET / HTTP/1.1\n\n")
@@ -45,6 +44,44 @@ class SSLClientTest(unittest.TestCase):
 
         secure_sock.close()
 
+    def test_wrap_socket_with_ca(self):
+        secure_sock = self.provider.wrap_socket(
+            self.sock, cert_reqs=self.provider.CERT_REQUIRED,
+            ca_certs="../../../certs/external/ca-globalsign-root-r2.pem")
+        secure_sock.connect((self.host, self.port))
+
+        secure_sock.write(b"GET / HTTP/1.1\n\n")
+        self.assertEqual(b"HTTP", secure_sock.read(4))
+
+        secure_sock.close()
+
+    def test_wrap_socket_from_context(self):
+        ctx = self.provider.SSLContext(self.provider.PROTOCOL_TLSv1_2)
+
+        ctx.verify_mode = self.provider.CERT_REQUIRED
+        ctx.load_verify_locations(
+            "../../../certs/external/ca-globalsign-root-r2.pem")
+
+        secure_sock = ctx.wrap_socket(self.sock)
+        secure_sock.connect((self.host, self.port))
+
+        secure_sock.write(b"GET / HTTP/1.1\n\n")
+        self.assertEqual(b"HTTP", secure_sock.read(4))
+
+        secure_sock.close()
+
+    def test_ssl_socket(self):
+        secure_sock = self.provider.SSLSocket(
+            self.sock,
+            cert_reqs=self.provider.CERT_REQUIRED,
+            ca_certs="../../../certs/external/ca-globalsign-root-r2.pem")
+
+        secure_sock.connect((self.host, self.port))
+
+        secure_sock.write(b"GET / HTTP/1.1\n\n")
+        self.assertEqual(b"HTTP", secure_sock.read(4))
+
+        secure_sock.close()
 
 class TestWolfSSL(SSLClientTest):
-    ssl_provider = wolfssl
+    provider = wolfssl
