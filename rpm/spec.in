@@ -73,7 +73,7 @@ mkdir -p $RPM_BUILD_ROOT/
 %{_libdir}/libwolfssl.la
 %{_libdir}/libwolfssl.so
 %{_libdir}/libwolfssl.so.3
-%{_libdir}/libwolfssl.so.3.5.0
+%{_libdir}/libwolfssl.so.3.6.0
 
 %files devel
 %defattr(-,root,root,-)
