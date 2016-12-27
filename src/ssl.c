@@ -1790,7 +1790,7 @@ WOLFSSL_API int wolfSSL_set_SessionTicket(WOLFSSL* ssl, byte* buf, word32 bufSz)
                 if(ssl->session.isDynamic)
                     XFREE(ssl->session.ticket, ssl->heap,
                             DYNAMIC_TYPE_SESSION_TICK);
-                ssl->session.ticket = XMALLOC(bufSz, ssl->heap,
+                ssl->session.ticket = (byte*)XMALLOC(bufSz, ssl->heap,
                         DYNAMIC_TYPE_SESSION_TICK);
                 if(!ssl->session.ticket) {
                     ssl->session.ticket = ssl->session.staticTicket;
@@ -7898,7 +7898,8 @@ static int GetDeepCopySession(WOLFSSL* ssl, WOLFSSL_SESSION* copyFrom)
     /* If doing dynamic copy, need to alloc outside lock, then inside a lock
      * confirm the size still matches and memcpy */
     if (doDynamicCopy) {
-        tmpBuff = XMALLOC(ticketLen, ssl->heap, DYNAMIC_TYPE_SESSION_TICK);
+        tmpBuff = (byte*)XMALLOC(ticketLen, ssl->heap,
+                                                     DYNAMIC_TYPE_SESSION_TICK);
         if (!tmpBuff)
             return MEMORY_ERROR;
 
@@ -7914,7 +7915,7 @@ static int GetDeepCopySession(WOLFSSL* ssl, WOLFSSL_SESSION* copyFrom)
         }
 
         if (ret == SSL_SUCCESS) {
-            copyInto->ticket = tmpBuff;
+            copyInto->ticket = (byte*)tmpBuff;
             copyInto->isDynamic = 1;
             XMEMCPY(copyInto->ticket, copyFrom->ticket, ticketLen);
         }
@@ -7999,7 +8000,7 @@ int AddSession(WOLFSSL* ssl)
     ticLen = ssl->session.ticketLen;
     /* Alloc Memory here so if Malloc fails can exit outside of lock */
     if(ticLen > SESSION_TICKET_LEN) {
-        tmpBuff = XMALLOC(ticLen, ssl->heap,
+        tmpBuff = (byte*)XMALLOC(ticLen, ssl->heap,
                 DYNAMIC_TYPE_SESSION_TICK);
         if(!tmpBuff)
             return MEMORY_E;

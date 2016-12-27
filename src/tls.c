@@ -2084,13 +2084,14 @@ static int TLSX_CSR_Parse(WOLFSSL* ssl, byte* input, word16 length,
     if (!isRequest) {
 #ifndef NO_WOLFSSL_CLIENT
         TLSX* extension = TLSX_Find(ssl->extensions, TLSX_STATUS_REQUEST);
-        CertificateStatusRequest* csr = extension ? extension->data : NULL;
+        CertificateStatusRequest* csr = extension ?
+                              (CertificateStatusRequest*)extension->data : NULL;
 
         if (!csr) {
             /* look at context level */
 
             extension = TLSX_Find(ssl->ctx->extensions, TLSX_STATUS_REQUEST);
-            csr = extension ? extension->data : NULL;
+            csr = extension ? (CertificateStatusRequest*)extension->data : NULL;
 
             if (!csr)
                 return BUFFER_ERROR; /* unexpected extension */
@@ -2106,7 +2107,7 @@ static int TLSX_CSR_Parse(WOLFSSL* ssl, byte* input, word16 length,
                     /* propagate nonce */
                     if (csr->request.ocsp.nonceSz) {
                         OcspRequest* request =
-                                           TLSX_CSR_GetRequest(ssl->extensions);
+                             (OcspRequest*)TLSX_CSR_GetRequest(ssl->extensions);
 
                         if (request) {
                             XMEMCPY(request->nonce, csr->request.ocsp.nonce,
@@ -2185,7 +2186,8 @@ static int TLSX_CSR_Parse(WOLFSSL* ssl, byte* input, word16 length,
 int TLSX_CSR_InitRequest(TLSX* extensions, DecodedCert* cert, void* heap)
 {
     TLSX* extension = TLSX_Find(extensions, TLSX_STATUS_REQUEST);
-    CertificateStatusRequest* csr = extension ? extension->data : NULL;
+    CertificateStatusRequest* csr = extension ?
+        (CertificateStatusRequest*)extension->data : NULL;
     int ret = 0;
 
     if (csr) {
@@ -2215,7 +2217,8 @@ int TLSX_CSR_InitRequest(TLSX* extensions, DecodedCert* cert, void* heap)
 void* TLSX_CSR_GetRequest(TLSX* extensions)
 {
     TLSX* extension = TLSX_Find(extensions, TLSX_STATUS_REQUEST);
-    CertificateStatusRequest* csr = extension ? extension->data : NULL;
+    CertificateStatusRequest* csr = extension ?
+                              (CertificateStatusRequest*)extension->data : NULL;
 
     if (csr) {
         switch (csr->status_type) {
@@ -2231,7 +2234,8 @@ void* TLSX_CSR_GetRequest(TLSX* extensions)
 int TLSX_CSR_ForceRequest(WOLFSSL* ssl)
 {
     TLSX* extension = TLSX_Find(ssl->extensions, TLSX_STATUS_REQUEST);
-    CertificateStatusRequest* csr = extension ? extension->data : NULL;
+    CertificateStatusRequest* csr = extension ?
+                              (CertificateStatusRequest*)extension->data : NULL;
 
     if (csr) {
         switch (csr->status_type) {
@@ -2433,14 +2437,15 @@ static int TLSX_CSR2_Parse(WOLFSSL* ssl, byte* input, word16 length,
     if (!isRequest) {
 #ifndef NO_WOLFSSL_CLIENT
         TLSX* extension = TLSX_Find(ssl->extensions, TLSX_STATUS_REQUEST_V2);
-        CertificateStatusRequestItemV2* csr2 = extension ? extension->data
-                                                         : NULL;
+        CertificateStatusRequestItemV2* csr2 = extension ?
+                        (CertificateStatusRequestItemV2*)extension->data : NULL;
 
         if (!csr2) {
             /* look at context level */
 
             extension = TLSX_Find(ssl->ctx->extensions, TLSX_STATUS_REQUEST_V2);
-            csr2 = extension ? extension->data : NULL;
+            csr2 = extension ?
+                        (CertificateStatusRequestItemV2*)extension->data : NULL;
 
             if (!csr2)
                 return BUFFER_ERROR; /* unexpected extension */
@@ -2459,7 +2464,7 @@ static int TLSX_CSR2_Parse(WOLFSSL* ssl, byte* input, word16 length,
                         /* propagate nonce */
                         if (csr2->request.ocsp[0].nonceSz) {
                             OcspRequest* request =
-                                        TLSX_CSR2_GetRequest(ssl->extensions,
+                             (OcspRequest*)TLSX_CSR2_GetRequest(ssl->extensions,
                                                           csr2->status_type, 0);
 
                             if (request) {
@@ -2567,7 +2572,8 @@ int TLSX_CSR2_InitRequests(TLSX* extensions, DecodedCert* cert, byte isPeer,
                                                                      void* heap)
 {
     TLSX* extension = TLSX_Find(extensions, TLSX_STATUS_REQUEST_V2);
-    CertificateStatusRequestItemV2* csr2 = extension ? extension->data : NULL;
+    CertificateStatusRequestItemV2* csr2 = extension ?
+        (CertificateStatusRequestItemV2*)extension->data : NULL;
     int ret = 0;
 
     for (; csr2; csr2 = csr2->next) {
@@ -2602,13 +2608,15 @@ int TLSX_CSR2_InitRequests(TLSX* extensions, DecodedCert* cert, byte isPeer,
         }
     }
 
+    (void)cert;
     return ret;
 }
 
 void* TLSX_CSR2_GetRequest(TLSX* extensions, byte status_type, byte index)
 {
     TLSX* extension = TLSX_Find(extensions, TLSX_STATUS_REQUEST_V2);
-    CertificateStatusRequestItemV2* csr2 = extension ? extension->data : NULL;
+    CertificateStatusRequestItemV2* csr2 = extension ?
+                        (CertificateStatusRequestItemV2*)extension->data : NULL;
 
     for (; csr2; csr2 = csr2->next) {
         if (csr2->status_type == status_type) {
@@ -2632,7 +2640,8 @@ void* TLSX_CSR2_GetRequest(TLSX* extensions, byte status_type, byte index)
 int TLSX_CSR2_ForceRequest(WOLFSSL* ssl)
 {
     TLSX* extension = TLSX_Find(ssl->extensions, TLSX_STATUS_REQUEST_V2);
-    CertificateStatusRequestItemV2* csr2 = extension ? extension->data : NULL;
+    CertificateStatusRequestItemV2* csr2 = extension ?
+                        (CertificateStatusRequestItemV2*)extension->data : NULL;
 
     /* forces only the first one */
     if (csr2) {
@@ -3292,7 +3301,8 @@ int TLSX_AddEmptyRenegotiationInfo(TLSX** extensions, void* heap)
 static void TLSX_SessionTicket_ValidateRequest(WOLFSSL* ssl)
 {
     TLSX*          extension = TLSX_Find(ssl->extensions, TLSX_SESSION_TICKET);
-    SessionTicket* ticket    = extension ? extension->data : NULL;
+    SessionTicket* ticket    = extension ?
+                                         (SessionTicket*)extension->data : NULL;
 
     if (ticket) {
         /* TODO validate ticket timeout here! */
@@ -4086,11 +4096,12 @@ void TLSX_FreeAll(TLSX* list, void* heap)
                 break;
 
             case TLSX_STATUS_REQUEST:
-                CSR_FREE_ALL(extension->data, heap);
+                CSR_FREE_ALL((CertificateStatusRequest*)extension->data, heap);
                 break;
 
             case TLSX_STATUS_REQUEST_V2:
-                CSR2_FREE_ALL(extension->data, heap);
+                CSR2_FREE_ALL((CertificateStatusRequestItemV2*)extension->data,
+                        heap);
                 break;
 
             case TLSX_RENEGOTIATION_INFO:
@@ -4163,19 +4174,24 @@ static word16 TLSX_GetSize(TLSX* list, byte* semaphore, byte isRequest)
                 break;
 
             case TLSX_STATUS_REQUEST:
-                length += CSR_GET_SIZE(extension->data, isRequest);
+                length += CSR_GET_SIZE(
+                         (CertificateStatusRequest*)extension->data, isRequest);
                 break;
 
             case TLSX_STATUS_REQUEST_V2:
-                length += CSR2_GET_SIZE(extension->data, isRequest);
+                length += CSR2_GET_SIZE(
+                        (CertificateStatusRequestItemV2*)extension->data,
+                        isRequest);
                 break;
 
             case TLSX_RENEGOTIATION_INFO:
-                length += SCR_GET_SIZE(extension->data, isRequest);
+                length += SCR_GET_SIZE((SecureRenegotiation*)extension->data,
+                        isRequest);
                 break;
 
             case TLSX_SESSION_TICKET:
-                length += STK_GET_SIZE(extension->data, isRequest);
+                length += STK_GET_SIZE((SessionTicket*)extension->data,
+                        isRequest);
                 break;
 
             case TLSX_QUANTUM_SAFE_HYBRID:
@@ -4241,23 +4257,24 @@ static word16 TLSX_Write(TLSX* list, byte* output, byte* semaphore,
                 break;
 
             case TLSX_STATUS_REQUEST:
-                offset += CSR_WRITE(extension->data, output + offset,
-                                                                     isRequest);
+                offset += CSR_WRITE((CertificateStatusRequest*)extension->data,
+                        output + offset, isRequest);
                 break;
 
             case TLSX_STATUS_REQUEST_V2:
-                offset += CSR2_WRITE(extension->data, output + offset,
-                                                                     isRequest);
+                offset += CSR2_WRITE(
+                        (CertificateStatusRequestItemV2*)extension->data,
+                        output + offset, isRequest);
                 break;
 
             case TLSX_RENEGOTIATION_INFO:
-                offset += SCR_WRITE(extension->data, output + offset,
-                                                                     isRequest);
+                offset += SCR_WRITE((SecureRenegotiation*)extension->data,
+                        output + offset, isRequest);
                 break;
 
             case TLSX_SESSION_TICKET:
-                offset += STK_WRITE(extension->data, output + offset,
-                                                                     isRequest);
+                offset += STK_WRITE((SessionTicket*)extension->data,
+                        output + offset, isRequest);
                 break;
 
             case TLSX_QUANTUM_SAFE_HYBRID:

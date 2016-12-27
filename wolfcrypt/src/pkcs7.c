@@ -1415,7 +1415,8 @@ static int wc_PKCS7_KariGenerateKEK(WC_PKCS7_KARI* kari,
                                     int keyWrapOID, int keyEncOID)
 {
     int ret;
-    int kSz, kdfType;
+    int kSz;
+    enum wc_HashType kdfType;
     byte*  secret;
     word32 secretSz;
 
@@ -2123,7 +2124,7 @@ static int wc_PKCS7_GenerateIV(WC_RNG* rng, byte* iv, word32 ivSz)
 
     /* input RNG is optional, init local one if input rng is NULL */
     if (rng == NULL) {
-        random = XMALLOC(sizeof(WC_RNG), NULL, DYNAMIC_TYPE_RNG);
+        random = (WC_RNG*)XMALLOC(sizeof(WC_RNG), NULL, DYNAMIC_TYPE_RNG);
         if (random == NULL)
             return MEMORY_E;
 

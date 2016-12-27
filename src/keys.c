@@ -2690,6 +2690,40 @@ static int SetAuthKeys(OneTimeAuth* authentication, Keys* keys,
 }
 #endif /* HAVE_ONE_TIME_AUTH */
 
+#ifdef HAVE_SECURE_RENEGOTIATION
+/* function name is for cache_status++
+ * This function was added because of error incrementing enum type when
+ * compiling with a C++ compiler.
+ */
+static void CacheStatusPP(SecureRenegotiation* cache)
+{
+    switch (cache->cache_status) {
+        case SCR_CACHE_NULL:
+            cache->cache_status = SCR_CACHE_NEEDED;
+            break;
+
+        case SCR_CACHE_NEEDED:
+            cache->cache_status = SCR_CACHE_COPY;
+            break;
+
+        case SCR_CACHE_COPY:
+            cache->cache_status = SCR_CACHE_PARTIAL;
+            break;
+
+        case SCR_CACHE_PARTIAL:
+            cache->cache_status = SCR_CACHE_COMPLETE;
+            break;
+
+        case SCR_CACHE_COMPLETE:
+            WOLFSSL_MSG("SCR Cache state Complete");
+            break;
+
+        default:
+            WOLFSSL_MSG("Unknown cache state!!");
+    }
+}
+#endif /* HAVE_SECURE_RENEGOTIATION */
+
 
 /* Set wc_encrypt/wc_decrypt or both sides of key setup
  * note: use wc_encrypt to avoid shadowing global encrypt
@@ -2804,7 +2838,7 @@ int SetKeysSide(WOLFSSL* ssl, enum encrypt_side side)
                 }
             #endif
         }
-        ssl->secure_renegotiation->cache_status++;
+        CacheStatusPP(ssl->secure_renegotiation);
     }
 #endif /* HAVE_SECURE_RENEGOTIATION */
 
@@ -2822,7 +2856,7 @@ int StoreKeys(WOLFSSL* ssl, const byte* keyData)
     if (ssl->secure_renegotiation && ssl->secure_renegotiation->cache_status ==
                                                             SCR_CACHE_NEEDED) {
         keys = &ssl->secure_renegotiation->tmp_keys;
-        ssl->secure_renegotiation->cache_status++;
+        CacheStatusPP(ssl->secure_renegotiation);
     }
 #endif /* HAVE_SECURE_RENEGOTIATION */
 
