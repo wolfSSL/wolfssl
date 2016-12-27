@@ -36,6 +36,130 @@ WOLFSSL_API long wolfSSL_BIO_ctrl(WOLFSSL_BIO *bio, int cmd, long larg, void *pa
 }
 
 
+/* helper function for wolfSSL_BIO_gets
+ * size till a newline is hit
+ * returns the number of bytes
+ */
+static int wolfSSL_getLineLength(char* in, int inSz)
+{
+    int i;
+
+    for (i = 0; i < inSz; i++) {
+        if (in[i] == '\n') {
+            break;
+        }
+    }
+
+    return i + 1; /* +1 to return number of bytes not index */
+}
+
+
+int wolfSSL_BIO_gets(WOLFSSL_BIO* bio, char* buf, int sz)
+{
+    int ret = WOLFSSL_BIO_UNSET;
+
+    WOLFSSL_ENTER("wolfSSL_BIO_gets");
+
+    if (bio == NULL || buf == NULL) {
+        return SSL_FAILURE;
+    }
+
+    /* not enough space for character plus terminator */
+    if (sz <= 1) {
+        return 0;
+    }
+
+    switch (bio->type) {
+        case WOLFSSL_BIO_FILE:
+            #if defined(MICRIUM) || defined(LSR_FS) || defined(EBSNET)
+            WOLFSSL_MSG("XFGETS not ported for this system yet");
+            ret = XFGETS(buf, sz, bio->file);
+            #else
+            if (XFGETS(buf, sz, bio->file) != NULL) {
+                ret = (int)XSTRLEN(buf);
+            }
+            else {
+                ret = WOLFSSL_BIO_ERROR;
+            }
+            #endif
+            break;
+
+        case WOLFSSL_BIO_MEMORY:
+        case WOLFSSL_BIO_BIO:
+            {
+                char* c;
+                int   cSz;
+                cSz = wolfSSL_BIO_nread0(bio, &c);
+                if (cSz < 0) {
+                    ret = cSz;
+                    break;
+                }
+
+                cSz = wolfSSL_getLineLength(c, cSz);
+                /* check case where line was bigger then buffer and buffer
+                 * needs end terminator */
+                if (cSz > sz) {
+                    cSz = sz - 1;
+                    buf[cSz] = '\0';
+                }
+
+                ret = wolfSSL_BIO_nread(bio, &c, cSz);
+                if (ret > 0 && ret < sz) {
+                    XMEMCPY(buf, c, ret);
+                }
+                break;
+            }
+
+        default:
+            WOLFSSL_MSG("BIO type not supported yet with wolfSSL_BIO_gets");
+    }
+
+    return ret;
+}
+
+
+/* searches through bio list for a BIO of type "type"
+ * returns NULL on failure to find a given type */
+WOLFSSL_BIO* wolfSSL_BIO_find_type(WOLFSSL_BIO* bio, int type)
+{
+    WOLFSSL_BIO* local = NULL;
+    WOLFSSL_BIO* current;
+
+    WOLFSSL_ENTER("wolfSSL_BIO_find_type");
+
+    if (bio == NULL) {
+        return local;
+    }
+
+    current = bio;
+    while (current != NULL) {
+        if (current->type == type) {
+            WOLFSSL_MSG("Found matching WOLFSSL_BIO type");
+            local = current;
+            break;
+        }
+        current = current->next;
+    }
+
+    return local;
+}
+
+
+/* returns a pointer to the next WOLFSSL_BIO in the chain on success.
+ * If a failure case then NULL is returned */
+WOLFSSL_BIO* wolfSSL_BIO_next(WOLFSSL_BIO* bio)
+{
+    WOLFSSL_ENTER("wolfSSL_BIO_next");
+
+    if (bio == NULL) {
+        WOLFSSL_MSG("Bad argument passed in");
+        return NULL;
+    }
+
+    return bio->next;
+}
+
+
 /* Return the number of pending bytes in read and write buffers */
 size_t wolfSSL_BIO_ctrl_pending(WOLFSSL_BIO *bio)
 {
@@ -48,12 +172,12 @@ size_t wolfSSL_BIO_ctrl_pending(WOLFSSL_BIO *bio)
         return (long)wolfSSL_pending(bio->ssl);
     }
 
-    if (bio->type == BIO_MEMORY) {
+    if (bio->type == WOLFSSL_BIO_MEMORY) {
         return bio->memLen;
     }
 
     /* type BIO_BIO then check paired buffer */
-    if (bio->type == BIO_BIO && bio->pair != NULL) {
+    if (bio->type == WOLFSSL_BIO_BIO && bio->pair != NULL) {
         WOLFSSL_BIO* pair = bio->pair;
         if (pair->wrIdx > 0 && pair->wrIdx <= pair->rdIdx) {
             /* in wrap around state where begining of buffer is being
@@ -98,8 +222,8 @@ int wolfSSL_BIO_set_write_buf_size(WOLFSSL_BIO *bio, long size)
 {
     WOLFSSL_ENTER("wolfSSL_BIO_set_write_buf_size");
 
-    if (bio == NULL || bio->type != BIO_BIO || size < 0) {
-        return WOLFSSL_FAILURE;
+    if (bio == NULL || bio->type != WOLFSSL_BIO_BIO || size < 0) {
+        return SSL_FAILURE;
     }
 
     /* if already in pair then do not change size */
@@ -144,7 +268,7 @@ int wolfSSL_BIO_make_bio_pair(WOLFSSL_BIO *b1, WOLFSSL_BIO *b2)
     }
 
     /* both are expected to be of type BIO and not already paired */
-    if (b1->type != BIO_BIO || b2->type != BIO_BIO ||
+    if (b1->type != WOLFSSL_BIO_BIO || b2->type != WOLFSSL_BIO_BIO ||
         b1->pair != NULL || b2->pair != NULL) {
         WOLFSSL_MSG("Expected type BIO and not already paired");
         return WOLFSSL_FAILURE;
@@ -338,12 +462,12 @@ int wolfSSL_BIO_reset(WOLFSSL_BIO *bio)
 
     switch (bio->type) {
         #ifndef NO_FILESYSTEM
-        case BIO_FILE:
+        case WOLFSSL_BIO_FILE:
             XREWIND(bio->file);
             return 0;
         #endif
 
-        case BIO_BIO:
+        case WOLFSSL_BIO_BIO:
             bio->rdIdx = 0;
             bio->wrIdx = 0;
             return 0;
@@ -365,7 +489,7 @@ long wolfSSL_BIO_set_fp(WOLFSSL_BIO *bio, XFILE fp, int c)
         return WOLFSSL_FAILURE;
     }
 
-    if (bio->type != BIO_FILE) {
+    if (bio->type != WOLFSSL_BIO_FILE) {
         return WOLFSSL_FAILURE;
     }
 
@@ -384,8 +508,8 @@ long wolfSSL_BIO_get_fp(WOLFSSL_BIO *bio, XFILE* fp)
         return WOLFSSL_FAILURE;
     }
 
-    if (bio->type != BIO_FILE) {
-        return WOLFSSL_FAILURE;
+    if (bio->type != WOLFSSL_BIO_FILE) {
+        return SSL_FAILURE;
     }
 
     *fp = bio->file;
@@ -402,7 +526,7 @@ int wolfSSL_BIO_write_filename(WOLFSSL_BIO *bio, char *name)
         return WOLFSSL_FAILURE;
     }
 
-    if (bio->type == BIO_FILE) {
+    if (bio->type == WOLFSSL_BIO_FILE) {
         if (bio->file != NULL && bio->close == BIO_CLOSE) {
             XFCLOSE(bio->file);
         }
@@ -429,7 +553,8 @@ int wolfSSL_BIO_seek(WOLFSSL_BIO *bio, int ofs)
       }
 
       /* offset ofs from begining of file */
-      if (bio->type == BIO_FILE && XFSEEK(bio->file, ofs, SEEK_SET) < 0) {
+      if (bio->type == WOLFSSL_BIO_FILE &&
+              XFSEEK(bio->file, ofs, SEEK_SET) < 0) {
           return -1;
       }
 

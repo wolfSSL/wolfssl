@@ -203,6 +203,15 @@ typedef struct WOLFSSL_MD4_CTX {
 } WOLFSSL_MD4_CTX;
 
 
+enum BIO_TYPE {
+    WOLFSSL_BIO_BUFFER = 1,
+    WOLFSSL_BIO_SOCKET = 2,
+    WOLFSSL_BIO_SSL    = 3,
+    WOLFSSL_BIO_MEMORY = 4,
+    WOLFSSL_BIO_BIO    = 5,
+    WOLFSSL_BIO_FILE   = 6
+};
+
 typedef struct WOLFSSL_COMP_METHOD {
     int type;            /* stunnel dereference */
 } WOLFSSL_COMP_METHOD;
@@ -656,6 +665,9 @@ WOLFSSL_API void wolfSSL_MD4_Final(unsigned char*, WOLFSSL_MD4_CTX*);
 WOLFSSL_API WOLFSSL_BIO* wolfSSL_BIO_new(WOLFSSL_BIO_METHOD*);
 WOLFSSL_API int  wolfSSL_BIO_free(WOLFSSL_BIO*);
 WOLFSSL_API int  wolfSSL_BIO_free_all(WOLFSSL_BIO*);
+WOLFSSL_API int wolfSSL_BIO_gets(WOLFSSL_BIO* bio, char* buf, int sz);
+WOLFSSL_API WOLFSSL_BIO* wolfSSL_BIO_next(WOLFSSL_BIO* bio);
+WOLFSSL_API WOLFSSL_BIO* wolfSSL_BIO_find_type(WOLFSSL_BIO* bio, int type);
 WOLFSSL_API int  wolfSSL_BIO_read(WOLFSSL_BIO*, void*, int);
 WOLFSSL_API int  wolfSSL_BIO_write(WOLFSSL_BIO*, const void*, int);
 WOLFSSL_API WOLFSSL_BIO* wolfSSL_BIO_push(WOLFSSL_BIO*, WOLFSSL_BIO* append);
