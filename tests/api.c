@@ -3002,7 +3002,6 @@ static void test_wolfSSL_BIO(void)
     }
     #endif /* !defined(NO_FILESYSTEM) */
 
-
     printf(resultFmt, passed);
     #endif
 }
