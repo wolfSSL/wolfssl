@@ -1435,9 +1435,9 @@ int InitSSL_Ctx(WOLFSSL_CTX* ctx, WOLFSSL_METHOD* method, void* heap)
 /* In case contexts are held in array and don't want to free actual ctx */
 void SSL_CtxResourceFree(WOLFSSL_CTX* ctx)
 {
+#ifdef HAVE_CERTIFICATE_STATUS_REQUEST_V2
     int i;
-
-    (void)i;
+#endif
 
 #ifdef HAVE_WOLF_EVENT
     wolfEventQueue_Free(&ctx->event_queue);
@@ -1450,14 +1450,14 @@ void SSL_CtxResourceFree(WOLFSSL_CTX* ctx)
 #ifndef NO_DH
     XFREE(ctx->serverDH_G.buffer, ctx->heap, DYNAMIC_TYPE_DH);
     XFREE(ctx->serverDH_P.buffer, ctx->heap, DYNAMIC_TYPE_DH);
-#endif
+#endif /* !NO_DH */
 
 #ifdef SINGLE_THREADED
     if (ctx->rng) {
         wc_FreeRng(ctx->rng);
         XFREE(ctx->rng, ctx->heap, DYNAMIC_TYPE_RNG);
     }
-#endif
+#endif /* SINGLE_THREADED */
 
 #ifndef NO_CERTS
     FreeDer(&ctx->privateKey);
@@ -1467,16 +1467,15 @@ void SSL_CtxResourceFree(WOLFSSL_CTX* ctx)
         if (ctx->ourCert) {
             XFREE(ctx->ourCert, ctx->heap, DYNAMIC_TYPE_X509);
         }
-    #endif
+    #endif /* KEEP_OUR_CERT */
     FreeDer(&ctx->certChain);
     wolfSSL_CertManagerFree(ctx->cm);
-#endif
+#endif /* !NO_CERTS */
 
 #ifdef HAVE_TLS_EXTENSIONS
     TLSX_FreeAll(ctx->extensions, ctx->heap);
 
 #ifndef NO_WOLFSSL_SERVER
-
 #if defined(HAVE_CERTIFICATE_STATUS_REQUEST) \
  || defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
     if (ctx->certOcspRequest) {
@@ -1485,29 +1484,28 @@ void SSL_CtxResourceFree(WOLFSSL_CTX* ctx)
     }
 #endif
 
-#if defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
+#ifdef HAVE_CERTIFICATE_STATUS_REQUEST_V2
     for (i = 0; i < MAX_CHAIN_DEPTH; i++) {
         if (ctx->chainOcspRequest[i]) {
             FreeOcspRequest(ctx->chainOcspRequest[i]);
             XFREE(ctx->chainOcspRequest[i], ctx->heap, DYNAMIC_TYPE_OCSP_REQUEST);
         }
     }
-#endif
-
-#endif /* NO_WOLFSSL_SERVER */
+#endif /* HAVE_CERTIFICATE_STATUS_REQUEST_V2 */
+#endif /* !NO_WOLFSSL_SERVER */
 
 #endif /* HAVE_TLS_EXTENSIONS */
+
 #ifdef WOLFSSL_STATIC_MEMORY
     if (ctx->heap != NULL) {
 #ifdef WOLFSSL_HEAP_TEST
         /* avoid derefrencing a test value */
-        if (ctx->heap != (void*)WOLFSSL_HEAP_TEST) {
+        if (ctx->heap != (void*)WOLFSSL_HEAP_TEST)
 #endif
-        WOLFSSL_HEAP_HINT* hint = (WOLFSSL_HEAP_HINT*)(ctx->heap);
-        wc_FreeMutex(&((WOLFSSL_HEAP*)(hint->memory))->memory_mutex);
-#ifdef WOLFSSL_HEAP_TEST
+        {
+            WOLFSSL_HEAP_HINT* hint = (WOLFSSL_HEAP_HINT*)(ctx->heap);
+            wc_FreeMutex(&((WOLFSSL_HEAP*)(hint->memory))->memory_mutex);
         }
-#endif
     }
 #endif /* WOLFSSL_STATIC_MEMORY */
 }
