@@ -102,6 +102,8 @@
           <file file_name="../../wolfcrypt/src/tfm.c" />
           <file file_name="../../wolfcrypt/src/wc_encrypt.c" />
           <file file_name="../../wolfcrypt/src/wc_port.c" />
+          <file file_name="../../wolfcrypt/src/wolfmath.c" />
+          <file file_name="../../wolfcrypt/src/wolfevent.c" />
         </folder>
         <folder Name="test">
           <file file_name="../../wolfcrypt/test/include.am" />

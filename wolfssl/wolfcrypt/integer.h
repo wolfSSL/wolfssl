@@ -64,7 +64,7 @@ extern "C" {
 /* C on the other hand doesn't care */
 #define  OPT_CAST(x)
 
-#endif
+#endif /* __cplusplus */
 
 
 /* detect 64-bit mode if possible */
@@ -179,7 +179,7 @@ typedef int           mp_err;
 #define MP_WARRAY  (1 << (sizeof(mp_word) * CHAR_BIT - 2 * DIGIT_BIT + 1))
 
 /* the infamous mp_int structure */
-typedef struct  {
+typedef struct mp_int {
     int used, alloc, sign;
     mp_digit *dp;
 #ifdef WOLFSSL_ASYNC_CRYPT
@@ -341,6 +341,11 @@ int mp_radix_size (mp_int * a, int radix, int *size);
 
 int mp_cnt_lsb(mp_int *a);
 int mp_mod_d(mp_int* a, mp_digit b, mp_digit* c);
+
+
+/* wolf big int and common functions */
+#include <wolfssl/wolfcrypt/wolfmath.h>
+
 
 #ifdef __cplusplus
    }

@@ -104,6 +104,8 @@
           <file file_name="../../wolfcrypt/src/tfm.c" />
           <file file_name="../../wolfcrypt/src/wc_encrypt.c" />
           <file file_name="../../wolfcrypt/src/wc_port.c" />
+          <file file_name="../../wolfcrypt/src/wolfmath.c" />
+          <file file_name="../../wolfcrypt/src/wolfevent.c" />
           <folder Name="port">
             <folder Name="nxp">
               <file file_name="../../wolfcrypt/src/port/nxp/ksdk_port.c" />

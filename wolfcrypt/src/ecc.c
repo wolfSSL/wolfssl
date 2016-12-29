@@ -982,24 +982,6 @@ static int wc_ecc_set_curve(ecc_key* key, int keysize, int curve_id)
 
 #ifndef WOLFSSL_ATECC508A
 
-/* helper for either lib */
-static int get_digit_count(mp_int* a)
-{
-    if (a == NULL)
-        return 0;
-
-    return a->used;
-}
-
-/* helper for either lib */
-static mp_digit get_digit(mp_int* a, int n)
-{
-    if (a == NULL)
-        return 0;
-
-    return (n >= a->used || n < 0) ? 0 : a->dp[n];
-}
-
 /**
    Add two ECC points
    P        The point to add

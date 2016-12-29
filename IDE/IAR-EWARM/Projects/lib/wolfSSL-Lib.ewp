@@ -2040,6 +2040,12 @@
     <file>
       <name>$PROJ_DIR$\..\..\..\..\wolfcrypt\src\wc_port.c</name>
     </file>
+    <file>
+      <name>$PROJ_DIR$\..\..\..\..\wolfcrypt\src\wolfmath.c</name>
+    </file>
+    <file>
+      <name>$PROJ_DIR$\..\..\..\..\wolfcrypt\src\wolfevent.c</name>
+    </file>
   </group>
   <group>
     <name>wolfSSL</name>
