@@ -2348,18 +2348,32 @@ int mp_div_2d(fp_int* a, int b, fp_int* c, fp_int* d)
 
 void fp_copy(fp_int *a, fp_int *b)
 {
-    if (a != b && b->size >= a->used) {
-        int x, oldused;
-        oldused = b->used;
+    /* if source and destination are different */
+    if (a != b) {
+#ifdef ALT_ECC_SIZE
+        /* verify a will fit in b */
+        if (b->size >= a->used) {
+            int x, oldused;
+            oldused = b->used;
+            b->used = a->used;
+            b->sign = a->sign;
+
+            XMEMCPY(b->dp, a->dp, a->used * sizeof(fp_digit));
+
+            /* zero any excess digits on the destination that we didn't write to */
+            for (x = b->used; x < oldused; x++) {
+                b->dp[x] = 0;
+            }
+        }
+        else {
+            /* TODO: Handle error case */
+        }
+#else
+        /* all dp's are same size, so do straight copy */
         b->used = a->used;
         b->sign = a->sign;
-
-        XMEMCPY(b->dp, a->dp, a->used * sizeof(fp_digit));
-
-        /* zero any excess digits on the destination that we didn't write to */
-        for (x = b->used; x < oldused; x++) {
-            b->dp[x] = 0;
-        }
+        XMEMCPY(b->dp, a->dp, FP_SIZE * sizeof(fp_digit));
+#endif
     }
 }
 

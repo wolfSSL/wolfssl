@@ -283,8 +283,8 @@
 
 /* a FP type */
 typedef struct fp_int {
-    int      used,
-             sign;
+    int      used;
+    int      sign;
     int      size;
     fp_digit dp[FP_SIZE];
 #ifdef WOLFSSL_ASYNC_CRYPT
