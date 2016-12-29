@@ -7088,7 +7088,8 @@ static int DoCertificateStatus(WOLFSSL* ssl, byte* input, word32* inOutIdx,
             do {
                 #ifdef HAVE_CERTIFICATE_STATUS_REQUEST
                     if (ssl->status_request) {
-                        request = TLSX_CSR_GetRequest(ssl->extensions);
+                        request = (OcspRequest*)TLSX_CSR_GetRequest(
+                                                               ssl->extensions);
                         ssl->status_request = 0;
                         break;
                     }
@@ -7096,8 +7097,8 @@ static int DoCertificateStatus(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 
                 #ifdef HAVE_CERTIFICATE_STATUS_REQUEST_V2
                     if (ssl->status_request_v2) {
-                        request = TLSX_CSR2_GetRequest(ssl->extensions,
-                                                                status_type, 0);
+                        request = (OcspRequest*)TLSX_CSR2_GetRequest(
+                                               ssl->extensions, status_type, 0);
                         ssl->status_request_v2 = 0;
                         break;
                     }
@@ -7211,8 +7212,8 @@ static int DoCertificateStatus(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                         ret = BAD_CERTIFICATE_STATUS_ERROR;
 
                     while (ret == 0) {
-                        request = TLSX_CSR2_GetRequest(ssl->extensions,
-                                                          status_type, index++);
+                        request = (OcspRequest*)TLSX_CSR2_GetRequest(
+                                ssl->extensions, status_type, index++);
 
                         if (request == NULL)
                             ret = BAD_CERTIFICATE_STATUS_ERROR;
@@ -18810,7 +18811,7 @@ int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                                 ssl->buffers.dtlsCookieSecret.length);
             if (ret != 0) return ret;
             ret = wc_HmacUpdate(&cookieHmac,
-                                ssl->buffers.dtlsCtx.peer.sa,
+                                (const byte*)ssl->buffers.dtlsCtx.peer.sa,
                                 ssl->buffers.dtlsCtx.peer.sz);
             if (ret != 0) return ret;
             ret = wc_HmacUpdate(&cookieHmac, input + i, OPAQUE16_LEN);

@@ -117,8 +117,8 @@ static void test_SrpInit(void)
 
     /* invalid params */
     AssertIntEQ(BAD_FUNC_ARG, wc_SrpInit(NULL, SRP_TYPE_SHA, SRP_CLIENT_SIDE));
-    AssertIntEQ(BAD_FUNC_ARG, wc_SrpInit(&srp, 255,          SRP_CLIENT_SIDE));
-    AssertIntEQ(BAD_FUNC_ARG, wc_SrpInit(&srp, SRP_TYPE_SHA, 255            ));
+    AssertIntEQ(BAD_FUNC_ARG, wc_SrpInit(&srp, (SrpType)255, SRP_CLIENT_SIDE));
+    AssertIntEQ(BAD_FUNC_ARG, wc_SrpInit(&srp, SRP_TYPE_SHA, (SrpSide)255));
 
     /* success */
     AssertIntEQ(0, wc_SrpInit(&srp, SRP_TYPE_SHA, SRP_CLIENT_SIDE));
@@ -240,8 +240,8 @@ static void test_SrpSetPassword(void)
 static void test_SrpGetPublic(void)
 {
     Srp srp;
-    byte public[64];
-    word32 publicSz = 0;
+    byte pub[64];
+    word32 pubSz = 0;
 
     AssertIntEQ(0, wc_SrpInit(&srp, SRP_TYPE_SHA, SRP_CLIENT_SIDE));
     AssertIntEQ(0, wc_SrpSetUsername(&srp, username, usernameSz));
@@ -250,23 +250,23 @@ static void test_SrpGetPublic(void)
                                          salt, sizeof(salt)));
 
     /* invalid call order */
-    AssertIntEQ(SRP_CALL_ORDER_E, wc_SrpGetPublic(&srp, public, &publicSz));
+    AssertIntEQ(SRP_CALL_ORDER_E, wc_SrpGetPublic(&srp, pub, &pubSz));
 
     /* fix call order */
     AssertIntEQ(0, wc_SrpSetPassword(&srp, password, passwordSz));
 
     /* invalid params */
-    AssertIntEQ(BAD_FUNC_ARG, wc_SrpGetPublic(NULL, public, &publicSz));
-    AssertIntEQ(BAD_FUNC_ARG, wc_SrpGetPublic(&srp, NULL,   &publicSz));
-    AssertIntEQ(BAD_FUNC_ARG, wc_SrpGetPublic(&srp, public, NULL));
-    AssertIntEQ(BUFFER_E,     wc_SrpGetPublic(&srp, public, &publicSz));
+    AssertIntEQ(BAD_FUNC_ARG, wc_SrpGetPublic(NULL, pub, &pubSz));
+    AssertIntEQ(BAD_FUNC_ARG, wc_SrpGetPublic(&srp, NULL,   &pubSz));
+    AssertIntEQ(BAD_FUNC_ARG, wc_SrpGetPublic(&srp, pub, NULL));
+    AssertIntEQ(BUFFER_E,     wc_SrpGetPublic(&srp, pub, &pubSz));
 
     /* success */
-    publicSz = sizeof(public);
+    pubSz = sizeof(pub);
     AssertIntEQ(0, wc_SrpSetPrivate(&srp, a, sizeof(a)));
-    AssertIntEQ(0, wc_SrpGetPublic(&srp, public, &publicSz));
-    AssertIntEQ(publicSz, sizeof(A));
-    AssertIntEQ(0, XMEMCMP(public, A, publicSz));
+    AssertIntEQ(0, wc_SrpGetPublic(&srp, pub, &pubSz));
+    AssertIntEQ(pubSz, sizeof(A));
+    AssertIntEQ(0, XMEMCMP(pub, A, pubSz));
 
     wc_SrpTerm(&srp);
 
@@ -277,16 +277,16 @@ static void test_SrpGetPublic(void)
                                          salt, sizeof(salt)));
 
     /* invalid call order */
-    AssertIntEQ(SRP_CALL_ORDER_E, wc_SrpGetPublic(&srp, public, &publicSz));
+    AssertIntEQ(SRP_CALL_ORDER_E, wc_SrpGetPublic(&srp, pub, &pubSz));
 
     /* fix call order */
     AssertIntEQ(0, wc_SrpSetVerifier(&srp, verifier, sizeof(verifier)));
 
     /* success */
     AssertIntEQ(0, wc_SrpSetPrivate(&srp, b, sizeof(b)));
-    AssertIntEQ(0, wc_SrpGetPublic(&srp, public, &publicSz));
-    AssertIntEQ(publicSz, sizeof(B));
-    AssertIntEQ(0, XMEMCMP(public, B, publicSz));
+    AssertIntEQ(0, wc_SrpGetPublic(&srp, pub, &pubSz));
+    AssertIntEQ(pubSz, sizeof(B));
+    AssertIntEQ(0, XMEMCMP(pub, B, pubSz));
 
     wc_SrpTerm(&srp);
 }
