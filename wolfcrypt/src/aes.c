@@ -4464,12 +4464,12 @@ static void roll_auth(Aes* aes, const byte* in, word32 inSz, byte* out)
     word32 remainder;
 
     /* encode the length in */
-    if (inSz <= 0xFEFF) { /* 16-bit */
+    if (inSz <= 0xFEFF) {
         authLenSz = 2;
         out[0] ^= ((inSz & 0xFF00) >> 8);
         out[1] ^=  (inSz & 0x00FF);
     }
-    else if (inSz <= 0xFFFFFF) { /* 24-bit */
+    else if (inSz <= 0xFFFFFFFF) {
         authLenSz = 6;
         out[0] ^= 0xFF; out[1] ^= 0xFE;
         out[2] ^= ((inSz & 0xFF000000) >> 24);
