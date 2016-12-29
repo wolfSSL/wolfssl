@@ -66,17 +66,6 @@
 #endif
 
 
-#ifndef WOLFSSL_HAVE_MIN
-#define WOLFSSL_HAVE_MIN
-
-    static INLINE word32 min(word32 a, word32 b)
-    {
-        return a > b ? b : a;
-    }
-
-#endif /* WOLFSSL_HAVE_MIN */
-
-
 #ifdef WOLFSSL_SHA384
     #define P_HASH_MAX_SIZE SHA384_DIGEST_SIZE
 #else

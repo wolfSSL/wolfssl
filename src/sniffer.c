@@ -55,16 +55,6 @@
 #endif
 
 
-#ifndef WOLFSSL_HAVE_MIN
-#define WOLFSSL_HAVE_MIN
-
-static INLINE word32 min(word32 a, word32 b)
-{
-    return a > b ? b : a;
-}
-
-#endif /* WOLFSSL_HAVE_MIN */
-
 #ifndef WOLFSSL_SNIFFER_TIMEOUT
     #define WOLFSSL_SNIFFER_TIMEOUT 900
     /* Cache unclosed Sessions for 15 minutes since last used */

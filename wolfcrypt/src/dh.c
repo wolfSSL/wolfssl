@@ -30,6 +30,15 @@
 
 #include <wolfssl/wolfcrypt/dh.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
+#include <wolfssl/wolfcrypt/logging.h>
+
+#ifdef NO_INLINE
+    #include <wolfssl/wolfcrypt/misc.h>
+#else
+    #define WOLFSSL_MISC_INCLUDED
+    #include <wolfcrypt/src/misc.c>
+#endif
+
 
 #if !defined(USER_MATH_LIB) && !defined(WOLFSSL_DH_CONST)
     #include <math.h>
@@ -38,17 +47,6 @@
 #else
     /* user's own math lib */
 #endif
-
-
-#if !defined(WOLFSSL_HAVE_MIN) && !defined(WOLFSSL_DH_CONST)
-#define WOLFSSL_HAVE_MIN
-
-    static INLINE word32 min(word32 a, word32 b)
-    {
-        return a > b ? b : a;
-    }
-
-#endif /* WOLFSSL_HAVE_MIN */
 
 
 void wc_InitDhKey(DhKey* key)
@@ -185,7 +183,7 @@ int wc_DhAgree(DhKey* key, byte* agree, word32* agreeSz, const byte* priv,
 {
     int ret = 0;
 
-    mp_int x; 
+    mp_int x;
     mp_int y;
     mp_int z;
 

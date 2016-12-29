@@ -40,17 +40,6 @@
 #include <wolfssl/wolfcrypt/cmac.h>
 
 
-#ifndef WOLFSSL_HAVE_MIN
-#define WOLFSSL_HAVE_MIN
-
-    static INLINE word32 min(word32 a, word32 b)
-    {
-        return a > b ? b : a;
-    }
-
-#endif /* WOLFSSL_HAVE_MIN */
-
-
 static void ShiftAndXorRb(byte* out, byte* in)
 {
     int i, j, xorRb;

@@ -170,16 +170,6 @@
 
 #else /* Begin wolfCrypt software implementation */
 
-#ifndef WOLFSSL_HAVE_MIN
-#define WOLFSSL_HAVE_MIN
-
-    static INLINE word32 min(word32 a, word32 b)
-    {
-        return a > b ? b : a;
-    }
-
-#endif /* WOLFSSL_HAVE_MIN */
-
 void wc_InitMd5(Md5* md5)
 {
     md5->digest[0] = 0x67452301L;

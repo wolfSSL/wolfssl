@@ -96,13 +96,6 @@ ASN Options:
 #endif
 
 
-#ifndef TRUE
-    #define TRUE  1
-#endif
-#ifndef FALSE
-    #define FALSE 0
-#endif
-
 #ifndef NO_ASN_TIME
 #if defined(USER_TIME)
     /* user time, and gmtime compatible functions, there is a gmtime
@@ -6251,18 +6244,6 @@ int wc_RsaKeyToPublicDer(RsaKey* key, byte* output, word32 inLen)
 
 
 #if defined(WOLFSSL_CERT_GEN) && !defined(NO_RSA)
-
-
-#ifndef WOLFSSL_HAVE_MIN
-#define WOLFSSL_HAVE_MIN
-
-    static INLINE word32 min(word32 a, word32 b)
-    {
-        return a > b ? b : a;
-    }
-
-#endif /* WOLFSSL_HAVE_MIN */
-
 
 /* Initialize and Set Certificate defaults:
    version    = 3 (0x2)

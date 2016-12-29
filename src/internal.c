@@ -65,12 +65,6 @@
     #include <sys/filio.h>
 #endif
 
-#ifndef TRUE
-    #define TRUE  1
-#endif
-#ifndef FALSE
-    #define FALSE 0
-#endif
 
 #define ERROR_OUT(err, eLabel) { ret = (err); goto eLabel; }
 
@@ -149,16 +143,6 @@ static int BuildCertHashes(WOLFSSL* ssl, Hashes* hashes);
 #ifdef HAVE_QSH
     int QSH_Init(WOLFSSL* ssl);
 #endif
-
-#ifndef WOLFSSL_HAVE_MIN
-#define WOLFSSL_HAVE_MIN
-
-    static INLINE word32 min(word32 a, word32 b)
-    {
-        return a > b ? b : a;
-    }
-
-#endif /* WOLFSSL_HAVE_MIN */
 
 
 int IsTLS(const WOLFSSL* ssl)
@@ -5392,7 +5376,7 @@ static int GetDtlsHandShakeHeader(WOLFSSL* ssl, const byte* input,
 
     *type = input[idx++];
     c24to32(input + idx, size);
-    idx += BYTE3_LEN;
+    idx += OPAQUE24_LEN;
 
     ato16(input + idx, &ssl->keys.dtls_peer_handshake_number);
     idx += DTLS_HANDSHAKE_SEQ_SZ;
@@ -6156,7 +6140,7 @@ static int CheckAltNames(DecodedCert* dCert, char* domain)
         altName = dCert->altNames;
 
     while (altName) {
-        WOLFSSL_MSG("    individual AltName check");
+        WOLFSSL_MSG("\tindividual AltName check");
 
         if (MatchDomainName(altName->name,(int)XSTRLEN(altName->name), domain)){
             match = 1;
@@ -6436,7 +6420,7 @@ static int DoCertificate(WOLFSSL* ssl, byte* input, word32* inOutIdx,
         listSz -= certSz + CERT_HEADER_SZ;
 
         totalCerts++;
-        WOLFSSL_MSG("    Put another cert into chain");
+        WOLFSSL_MSG("\tPut another cert into chain");
     }
 
     count = totalCerts;
@@ -9243,7 +9227,7 @@ static int DoAlert(WOLFSSL* ssl, byte* input, word32* inOutIdx, int* type,
 
     WOLFSSL_MSG("Got alert");
     if (*type == close_notify) {
-        WOLFSSL_MSG("    close notify");
+        WOLFSSL_MSG("\tclose notify");
         ssl->options.closeNotify = 1;
     }
     WOLFSSL_ERROR(*type);
@@ -13723,11 +13707,11 @@ static void PickHashSigAlgo(WOLFSSL* ssl,
             WOLFSSL_MSG("server using lower version");
 
             if (!ssl->options.downgrade) {
-                WOLFSSL_MSG("    no downgrade allowed, fatal error");
+                WOLFSSL_MSG("\tno downgrade allowed, fatal error");
                 return VERSION_ERROR;
             }
             if (pv.minor < ssl->options.minDowngrade) {
-                WOLFSSL_MSG("    version below minimum allowed, fatal error");
+                WOLFSSL_MSG("\tversion below minimum allowed, fatal error");
                 return VERSION_ERROR;
             }
 
@@ -13742,19 +13726,19 @@ static void PickHashSigAlgo(WOLFSSL* ssl,
 
             if (pv.minor == SSLv3_MINOR) {
                 /* turn off tls */
-                WOLFSSL_MSG("    downgrading to SSLv3");
+                WOLFSSL_MSG("\tdowngrading to SSLv3");
                 ssl->options.tls    = 0;
                 ssl->options.tls1_1 = 0;
                 ssl->version.minor  = SSLv3_MINOR;
             }
             else if (pv.minor == TLSv1_MINOR) {
                 /* turn off tls 1.1+ */
-                WOLFSSL_MSG("    downgrading to TLSv1");
+                WOLFSSL_MSG("\tdowngrading to TLSv1");
                 ssl->options.tls1_1 = 0;
                 ssl->version.minor  = TLSv1_MINOR;
             }
             else if (pv.minor == TLSv1_1_MINOR) {
-                WOLFSSL_MSG("    downgrading to TLSv1.1");
+                WOLFSSL_MSG("\tdowngrading to TLSv1.1");
                 ssl->version.minor  = TLSv1_1_MINOR;
             }
         }
@@ -18627,24 +18611,24 @@ int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                 return VERSION_ERROR;
             }
             if (pv.minor < ssl->options.minDowngrade) {
-                WOLFSSL_MSG("    version below minimum allowed, fatal error");
+                WOLFSSL_MSG("\tversion below minimum allowed, fatal error");
                 return VERSION_ERROR;
             }
             if (pv.minor == SSLv3_MINOR) {
                 /* turn off tls */
-                WOLFSSL_MSG("    downgrading to SSLv3");
+                WOLFSSL_MSG("\tdowngrading to SSLv3");
                 ssl->options.tls    = 0;
                 ssl->options.tls1_1 = 0;
                 ssl->version.minor  = SSLv3_MINOR;
             }
             else if (pv.minor == TLSv1_MINOR) {
-                WOLFSSL_MSG("    downgrading to TLSv1");
+                WOLFSSL_MSG("\tdowngrading to TLSv1");
                 /* turn off tls 1.1+ */
                 ssl->options.tls1_1 = 0;
                 ssl->version.minor  = TLSv1_MINOR;
             }
             else if (pv.minor == TLSv1_1_MINOR) {
-                WOLFSSL_MSG("    downgrading to TLSv1.1");
+                WOLFSSL_MSG("\tdowngrading to TLSv1.1");
                 ssl->version.minor  = TLSv1_1_MINOR;
             }
 #ifndef NO_RSA
@@ -18833,25 +18817,25 @@ int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                 return VERSION_ERROR;
             }
             if (pv.minor < ssl->options.minDowngrade) {
-                WOLFSSL_MSG("    version below minimum allowed, fatal error");
+                WOLFSSL_MSG("\tversion below minimum allowed, fatal error");
                 return VERSION_ERROR;
             }
 
             if (pv.minor == SSLv3_MINOR) {
                 /* turn off tls */
-                WOLFSSL_MSG("    downgrading to SSLv3");
+                WOLFSSL_MSG("\tdowngrading to SSLv3");
                 ssl->options.tls    = 0;
                 ssl->options.tls1_1 = 0;
                 ssl->version.minor  = SSLv3_MINOR;
             }
             else if (pv.minor == TLSv1_MINOR) {
                 /* turn off tls 1.1+ */
-                WOLFSSL_MSG("    downgrading to TLSv1");
+                WOLFSSL_MSG("\tdowngrading to TLSv1");
                 ssl->options.tls1_1 = 0;
                 ssl->version.minor  = TLSv1_MINOR;
             }
             else if (pv.minor == TLSv1_1_MINOR) {
-                WOLFSSL_MSG("    downgrading to TLSv1.1");
+                WOLFSSL_MSG("\tdowngrading to TLSv1.1");
                 ssl->version.minor  = TLSv1_1_MINOR;
             }
 #ifndef NO_RSA

@@ -105,22 +105,6 @@
     #endif
 #endif /* NO_FILESYSTEM */
 
-#ifndef TRUE
-    #define TRUE  1
-#endif
-#ifndef FALSE
-    #define FALSE 0
-#endif
-
-#ifndef WOLFSSL_HAVE_MIN
-#define WOLFSSL_HAVE_MIN
-
-    static INLINE word32 min(word32 a, word32 b)
-    {
-        return a > b ? b : a;
-    }
-
-#endif /* WOLFSSSL_HAVE_MIN */
 
 #if defined(WOLFSSL_DTLS) && !defined(WOLFSSL_HAVE_MAX)
 #define WOLFSSL_HAVE_MAX

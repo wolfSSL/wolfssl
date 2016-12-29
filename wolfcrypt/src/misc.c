@@ -210,6 +210,18 @@ STATIC INLINE int ConstantCompare(const byte* a, const byte* b, int length)
     return compareSum;
 }
 
+#ifndef WOLFSSL_HAVE_MIN
+    #define WOLFSSL_HAVE_MIN
+    #if defined(HAVE_FIPS) && !defined(min)
+        #define min min
+    #endif
+    STATIC INLINE word32 min(word32 a, word32 b)
+    {
+        return a > b ? b : a;
+    }
+#endif /* WOLFSSL_HAVE_MIN */
+
+
 #undef STATIC
 
 
