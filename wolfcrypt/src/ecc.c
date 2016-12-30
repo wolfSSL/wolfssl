@@ -4364,6 +4364,9 @@ int wc_ecc_import_x963_ex(const byte* in, word32 inLen, ecc_key* key,
         return ECC_BAD_ARG_E;
     }
 
+    XMEMSET(key, 0, sizeof(ecc_key));
+    key->state = ECC_STATE_NONE;
+
 #ifdef WOLFSSL_ATECC508A
     /* TODO: Implement equiv call to ATECC508A */
     err = BAD_COND_E;
