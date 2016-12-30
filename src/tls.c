@@ -2078,7 +2078,6 @@ static int TLSX_CSR_Parse(WOLFSSL* ssl, byte* input, word16 length,
 
         if (!csr) {
             /* look at context level */
-
             extension = TLSX_Find(ssl->ctx->extensions, TLSX_STATUS_REQUEST);
             csr = extension ? (CertificateStatusRequest*)extension->data : NULL;
 
@@ -2149,6 +2148,10 @@ static int TLSX_CSR_Parse(WOLFSSL* ssl, byte* input, word16 length,
                     return 0;
             }
             break;
+
+            /* unknown status type */
+            default:
+                return 0;
         }
 
         /* if using status_request and already sending it, skip this one */
@@ -2431,7 +2434,6 @@ static int TLSX_CSR2_Parse(WOLFSSL* ssl, byte* input, word16 length,
 
         if (!csr2) {
             /* look at context level */
-
             extension = TLSX_Find(ssl->ctx->extensions, TLSX_STATUS_REQUEST_V2);
             csr2 = extension ?
                         (CertificateStatusRequestItemV2*)extension->data : NULL;
@@ -2468,7 +2470,6 @@ static int TLSX_CSR2_Parse(WOLFSSL* ssl, byte* input, word16 length,
                     break;
                 }
             }
-
         }
 
         ssl->status_request_v2 = 1;
