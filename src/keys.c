@@ -3045,7 +3045,7 @@ int SetKeysSide(WOLFSSL* ssl, enum encrypt_side side)
 /* TLS can call too */
 int StoreKeys(WOLFSSL* ssl, const byte* keyData, int side)
 {
-    int sz, i = 0;
+    int sz, i = 0, haveMcast = 0;
     Keys* keys = &ssl->keys;
 
 #ifdef HAVE_SECURE_RENEGOTIATION
@@ -3055,6 +3055,10 @@ int StoreKeys(WOLFSSL* ssl, const byte* keyData, int side)
         CacheStatusPP(ssl->secure_renegotiation);
     }
 #endif /* HAVE_SECURE_RENEGOTIATION */
+
+#ifdef WOLFSSL_MULTICAST
+    haveMcast = ssl->options.haveMcast;
+#endif
 
     if (ssl->specs.cipher_type != aead) {
         sz = ssl->specs.hash_size;
