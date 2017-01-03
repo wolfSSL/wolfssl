@@ -529,7 +529,6 @@ static void test_wolfSSL_SetTmpDH_buffer(void)
 
     wolfSSL_free(ssl);
     wolfSSL_CTX_free(ctx);
-    printf("SUCCESS4\n");
 #endif
 }
 
@@ -637,8 +636,7 @@ static THREAD_RETURN WOLFSSL_THREAD test_server_nofail(void* args)
     ctx = wolfSSL_CTX_new(method);
 
 #if defined(USE_WINDOWS_API)
-    /* Generate random port for testing */
-    port = GetRandomPort();
+    port = ((func_args*)args)->signal->port;
 #elif defined(NO_MAIN_DRIVER) && !defined(WOLFSSL_SNIFFER) && \
      !defined(WOLFSSL_MDK_SHELL) && !defined(WOLFSSL_TIRTOS)
     /* Let tcp_listen assign port */
@@ -885,8 +883,7 @@ static THREAD_RETURN WOLFSSL_THREAD run_wolfssl_server(void* args)
     ((func_args*)args)->return_code = TEST_FAIL;
 
 #if defined(USE_WINDOWS_API)
-    /* Generate random port for testing */
-    port = GetRandomPort();
+    port = ((func_args*)args)->signal->port;
 #elif defined(NO_MAIN_DRIVER) && !defined(WOLFSSL_SNIFFER) && \
      !defined(WOLFSSL_MDK_SHELL) && !defined(WOLFSSL_TIRTOS)
     /* Let tcp_listen assign port */
@@ -1149,6 +1146,11 @@ static void test_wolfSSL_read_write(void)
     StartTCP();
     InitTcpReady(&ready);
 
+#if defined(USE_WINDOWS_API)
+    /* use RNG to get random port if using windows */
+    ready.port = GetRandomPort();
+#endif
+
     server_args.signal = &ready;
     client_args.signal = &ready;
 
@@ -1185,6 +1187,11 @@ static void test_wolfSSL_dtls_export(void)
 #endif
 
     InitTcpReady(&ready);
+
+#if defined(USE_WINDOWS_API)
+    /* use RNG to get random port if using windows */
+    ready.port = GetRandomPort();
+#endif
 
     /* set using dtls */
     XMEMSET(&server_cbf, 0, sizeof(callback_functions));
@@ -1241,6 +1248,12 @@ static void test_wolfSSL_client_server(callback_functions* client_callbacks,
 
     /* RUN Server side */
     InitTcpReady(&ready);
+
+#if defined(USE_WINDOWS_API)
+    /* use RNG to get random port if using windows */
+    ready.port = GetRandomPort();
+#endif
+
     server_args.signal = &ready;
     client_args.signal = &ready;
     start_thread(run_wolfssl_server, &server_args, &serverThread);

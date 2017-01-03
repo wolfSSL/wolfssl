@@ -664,6 +664,8 @@ static INLINE void build_addr(SOCKADDR_IN_T* addr, const char* peer,
 
 static INLINE void tcp_socket(SOCKET_T* sockfd, int udp, int sctp)
 {
+    (void)sctp;
+
     if (udp)
         *sockfd = socket(AF_INET_V, SOCK_DGRAM, IPPROTO_UDP);
 #ifdef WOLFSSL_SCTP
