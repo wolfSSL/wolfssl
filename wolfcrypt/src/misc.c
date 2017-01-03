@@ -50,6 +50,12 @@
 
 #else
 
+
+#if defined(__ICCARM__)
+    #include <intrinsics.h>
+#endif
+
+
 #ifdef INTEL_INTRINSICS
 
     #include <stdlib.h>      /* get intrinsic definitions */

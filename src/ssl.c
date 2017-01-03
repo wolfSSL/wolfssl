@@ -19931,8 +19931,9 @@ WOLFSSL_X509* wolfSSL_get_chain_X509(WOLFSSL_X509_CHAIN* chain, int idx)
             InitDecodedCert(cert, chain->certs[idx].buffer,
                                   chain->certs[idx].length, NULL);
 
-            if ((ret = ParseCertRelative(cert, CERT_TYPE, 0, NULL)) != 0)
+            if ((ret = ParseCertRelative(cert, CERT_TYPE, 0, NULL)) != 0) {
                 WOLFSSL_MSG("Failed to parse cert");
+            }
             else {
                 x509 = (WOLFSSL_X509*)XMALLOC(sizeof(WOLFSSL_X509), NULL,
                                                              DYNAMIC_TYPE_X509);
@@ -20730,7 +20731,7 @@ int wolfSSL_PEM_write_bio_X509(WOLFSSL_BIO *bp, WOLFSSL_X509 *x) {
 }
 
 
-#ifndef NO_DH
+#if defined(OPENSSL_EXTRA) && !defined(NO_DH)
 /* Intialize ctx->dh with dh's params. Return SSL_SUCCESS on ok */
 long wolfSSL_CTX_set_tmp_dh(WOLFSSL_CTX* ctx, WOLFSSL_DH* dh)
 {
@@ -20771,7 +20772,7 @@ long wolfSSL_CTX_set_tmp_dh(WOLFSSL_CTX* ctx, WOLFSSL_DH* dh)
 
     return pSz > 0 && gSz > 0 ? ret : SSL_FATAL_ERROR;
 }
-#endif /* NO_DH */
+#endif /* OPENSSL_EXTRA && !NO_DH */
 #endif /* HAVE_LIGHTY || HAVE_STUNNEL || WOLFSSL_MYSQL_COMPATIBLE */
 
 

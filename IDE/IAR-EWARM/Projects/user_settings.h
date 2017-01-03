@@ -8,6 +8,7 @@
 #define NO_DEV_RANDOM
 #define USE_CERT_BUFFERS_2048
 #define WOLFSSL_USER_CURRTIME
+#define SIZEOF_LONG_LONG 8
 
 #define CUSTOM_RAND_GENERATE custom_rand_generate
 /*  warning "write a real random seed!!!!, just for testing now"   */

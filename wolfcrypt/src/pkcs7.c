@@ -3562,9 +3562,9 @@ static int wc_PKCS7_DecodeUnprotectedAttributes(PKCS7* pkcs7, byte* pkiMsg,
 
         /* save attribute value bytes and size */
         if (GetSet(pkiMsg, &idx, &length, pkiMsgSz) < 0) {
-            return ASN_PARSE_E;
             XFREE(attrib->oid, pkcs7->heap, DYNAMIC_TYPE_PKCS);
             XFREE(attrib, pkcs7->heap, DYNAMIC_TYPE_PKCS);
+            return ASN_PARSE_E;
         }
 
         if ((pkiMsgSz - idx) < (word32)length) {

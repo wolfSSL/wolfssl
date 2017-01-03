@@ -3855,9 +3855,9 @@ int wc_ecc_export_x963_ex(ecc_key* key, byte* out, word32* outLen,
 #ifdef HAVE_COMP_KEY
     else
         return wc_ecc_export_x963_compressed(key, out, outLen);
-#endif
-
+#else
     return NOT_COMPILED_IN;
+#endif
 }
 #endif /* HAVE_ECC_KEY_EXPORT */
 
@@ -5221,7 +5221,8 @@ static int add_entry(int idx, ecc_point *g)
 static int build_lut(int idx, mp_int* a, mp_int* modulus, mp_digit mp,
     mp_int* mu)
 {
-   unsigned x, y, err, bitlen, lut_gap;
+   int err;
+   unsigned x, y, bitlen, lut_gap;
    mp_int tmp;
 
    if (mp_init(&tmp) != MP_OKAY)
@@ -5367,8 +5368,8 @@ static int accel_fp_mul(int idx, mp_int* k, ecc_point *R, mp_int* a,
 #else
    unsigned char kb[KB_SIZE];
 #endif
-   int      x;
-   unsigned y, z = 0, err, bitlen, bitpos, lut_gap, first;
+   int      x, err;
+   unsigned y, z = 0, bitlen, bitpos, lut_gap, first;
    mp_int   tk, order;
 
    if (mp_init_multi(&tk, &order, NULL, NULL, NULL, NULL) != MP_OKAY)
@@ -5516,8 +5517,8 @@ static int accel_fp_mul2add(int idx1, int idx2,
 #else
    unsigned char kb[2][KB_SIZE];
 #endif
-   int      x;
-   unsigned y, z, err, bitlen, bitpos, lut_gap, first, zA, zB;
+   int      x, err;
+   unsigned y, z, bitlen, bitpos, lut_gap, first, zA, zB;
    mp_int tka, tkb, order;
 
    if (mp_init_multi(&tka, &tkb, &order, NULL, NULL, NULL) != MP_OKAY)
