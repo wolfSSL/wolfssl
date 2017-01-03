@@ -198,6 +198,8 @@ typedef struct WOLFSSL_EVP_PKEY     WOLFSSL_EVP_PKEY;
 #define WOLFSSL_EVP_PKEY_TYPE_DEFINED
 #endif
 
+#define WOLFSSL_EVP_PKEY_DEFAULT EVP_PKEY_RSA /* default key type */
+
 typedef struct WOLFSSL_MD4_CTX {
     int buffer[32];      /* big enough to hold, check size in Init */
 } WOLFSSL_MD4_CTX;
@@ -2678,7 +2680,6 @@ WOLFSSL_API void *X509_get0_tbs_sigalg(const WOLFSSL_X509 *x);
 WOLFSSL_API void X509_ALGOR_get0(WOLFSSL_ASN1_OBJECT **paobj, int *pptype, const void **ppval, const void *algor);
 WOLFSSL_API void *X509_get_X509_PUBKEY(void * x);
 WOLFSSL_API int X509_PUBKEY_get0_param(WOLFSSL_ASN1_OBJECT **ppkalg, const unsigned char **pk, int *ppklen, void **pa, WOLFSSL_EVP_PKEY *pub);
-WOLFSSL_API int EVP_PKEY_bits(WOLFSSL_EVP_PKEY *pkey);
 WOLFSSL_API int i2d_X509(WOLFSSL_X509 *x, unsigned char **out);
 WOLFSSL_API int i2t_ASN1_OBJECT(char *buf, int buf_len, WOLFSSL_ASN1_OBJECT *a);
 WOLFSSL_API void SSL_CTX_set_tmp_dh_callback(WOLFSSL_CTX *ctx, WOLFSSL_DH *(*dh) (WOLFSSL *ssl, int is_export, int keylength));

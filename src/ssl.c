@@ -11914,7 +11914,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
             return (int)XFREAD(buf, 1, len, bio->file);
         }
     #endif
-        if (bio && bio->type == BIO_MEMORY) {
+        if (bio && bio->type == WOLFSSL_BIO_MEMORY) {
             return wolfSSL_BIO_MEMORY_read(bio, buf, len);
         }
 
@@ -11979,7 +11979,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         }
     #endif
 
-        if (bio && bio->type == BIO_MEMORY) {
+        if (bio && bio->type == WOLFSSL_BIO_MEMORY) {
             /* Make buffer big enough to hold new data. */
             if (bio->mem == NULL) {
                 bio->mem = (byte*)XMALLOC(len, bio->heap, DYNAMIC_TYPE_OPENSSL);
@@ -12800,6 +12800,21 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
                 wolfSSL_EVP_MD_CTX_cleanup(ctx);
                 XFREE(ctx, NULL, DYNAMIC_TYPE_OPENSSL);
             }
+    }
+
+    int wolfSSL_EVP_MD_CTX_copy(WOLFSSL_EVP_MD_CTX *out, const WOLFSSL_EVP_MD_CTX *in)
+    {
+        return EVP_MD_CTX_copy_ex(out, in);
+    }
+
+    int wolfSSL_EVP_MD_CTX_copy_ex(WOLFSSL_EVP_MD_CTX *out, const WOLFSSL_EVP_MD_CTX *in)
+    {
+        if((out == NULL) || (in == NULL))return 0;
+        if((out->macType != 0) && (out->macType != in->macType))return 0;
+
+        WOLFSSL_ENTER("EVP_CIPHER_MD_CTX_copy_ex");
+        XMEMCPY(out, in, sizeof(WOLFSSL_EVP_MD_CTX));
+        return 1;
     }
 
     void wolfSSL_EVP_MD_CTX_init(WOLFSSL_EVP_MD_CTX* ctx)
@@ -15930,7 +15945,7 @@ WOLFSSL_BIO* wolfSSL_BIO_pop(WOLFSSL_BIO* top)
 
 int wolfSSL_BIO_pending(WOLFSSL_BIO* bio)
 {
-    if (bio && bio->type == BIO_MEMORY)
+    if (bio && bio->type == WOLFSSL_BIO_MEMORY)
         return bio->memLen;
     return 0;
 }
@@ -16805,6 +16820,7 @@ WOLFSSL_EVP_PKEY* wolfSSL_PKEY_new()
     if (pkey != NULL) {
         XMEMSET(pkey, 0, sizeof(WOLFSSL_EVP_PKEY));
     }
+    pkey->type = WOLFSSL_EVP_PKEY_DEFAULT;
 
     return pkey;
 }
@@ -17448,14 +17464,6 @@ WOLFSSL_API WOLFSSL_EVP_PKEY *wolfSSL_get_privatekey(const WOLFSSL *ssl)
     (void)ssl;
     WOLFSSL_STUB("SSL_get_privatekey");
     return NULL;
-}
-
-/*** TBD ***/
-WOLFSSL_API int EVP_PKEY_bits(WOLFSSL_EVP_PKEY *pkey)
-{
-    (void)pkey;
-    WOLFSSL_STUB("EVP_PKEY_bits");
-    return WOLFSSL_FAILURE;
 }
 
 /*** TBD ***/
@@ -24213,14 +24221,14 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
             return NULL;
         }
 
-        if (bp->type == BIO_MEMORY) {
+        if (bp->type == WOLFSSL_BIO_MEMORY) {
             l = (long)wolfSSL_BIO_ctrl_pending(bp);
             if (l <= 0) {
                 WOLFSSL_MSG("No pending data in WOLFSSL_BIO");
                 return NULL;
             }
         }
-        else if (bp->type == BIO_FILE) {
+        else if (bp->type == WOLFSSL_BIO_FILE) {
 #ifndef NO_FILESYSTEM
             /* Read in next certificate from file but no more. */
             i = XFTELL(bp->file);
@@ -24857,7 +24865,7 @@ WOLFSSL_DH *wolfSSL_PEM_read_bio_DHparams(WOLFSSL_BIO *bio, WOLFSSL_DH **x,
         return NULL;
     }
 
-    if (bio->type == BIO_MEMORY) {
+    if (bio->type == WOLFSSL_BIO_MEMORY) {
         /* Use the buffer directly. */
         ret = wolfSSL_BIO_get_mem_data(bio, &mem);
         if (mem == NULL || ret <= 0) {
@@ -24866,7 +24874,7 @@ WOLFSSL_DH *wolfSSL_PEM_read_bio_DHparams(WOLFSSL_BIO *bio, WOLFSSL_DH **x,
         }
         size = ret;
     }
-    else if (bio->type == BIO_FILE) {
+    else if (bio->type == WOLFSSL_BIO_FILE) {
         /* Read whole file into a new buffer. */
         XFSEEK(bio->file, 0, SEEK_END);
         sz = XFTELL(bio->file);
@@ -24967,7 +24975,7 @@ int wolfSSL_PEM_write_bio_X509(WOLFSSL_BIO *bio, WOLFSSL_X509 *cert)
         return WOLFSSL_FAILURE;
     }
 
-    if (bio->type != BIO_MEMORY) {
+    if (bio->type != WOLFSSL_BIO_MEMORY) {
         WOLFSSL_MSG("BIO type not supported for writing X509 as PEM");
         return WOLFSSL_FAILURE;
     }

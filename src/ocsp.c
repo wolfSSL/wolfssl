@@ -633,14 +633,14 @@ OcspResponse* wolfSSL_d2i_OCSP_RESPONSE_bio(WOLFSSL_BIO* bio,
     if (bio == NULL)
         return NULL;
 
-    if (bio->type == BIO_MEMORY) {
+    if (bio->type == WOLFSSL_BIO_MEMORY) {
         len = wolfSSL_BIO_get_mem_data(bio, &data);
         if (len <= 0 || data == NULL) {
             return NULL;
         }
     }
 #ifndef NO_FILESYSTEM
-    else if (bio->type == BIO_FILE) {
+    else if (bio->type == WOLFSSL_BIO_FILE) {
         long i;
         long l;
 

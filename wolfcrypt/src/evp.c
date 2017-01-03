@@ -593,6 +593,197 @@ WOLFSSL_API int wolfSSL_EVP_add_digest(const WOLFSSL_EVP_MD *digest)
     return 0;
 }
 
+WOLFSSL_API int wolfSSL_EVP_PKEY_bits(const WOLFSSL_EVP_PKEY *pkey)
+{
+    if (pkey == NULL)return 0;
+    WOLFSSL_ENTER("EVP_PKEY_bits");
+    return 1;
+}
+
+WOLFSSL_API int wolfSSL_EVP_PKEY_CTX_free(WOLFSSL_EVP_PKEY_CTX *ctx)
+{
+    if (ctx == NULL)return 0;
+    WOLFSSL_ENTER("EVP_PKEY_CTX_free");
+    return 1;
+}
+
+WOLFSSL_API WOLFSSL_EVP_PKEY_CTX *wolfSSL_EVP_PKEY_CTX_new(WOLFSSL_EVP_PKEY *pkey, WOLFSSL_ENGINE *e)
+{
+    WOLFSSL_EVP_PKEY_CTX* ctx;
+
+    if (pkey == NULL)return 0;
+    if (e != NULL)   return 0;
+    WOLFSSL_ENTER("EVP_PKEY_CTX_new");
+
+    ctx = (WOLFSSL_EVP_PKEY_CTX*)XMALLOC(sizeof(WOLFSSL_EVP_PKEY_CTX), NULL,
+            DYNAMIC_TYPE_PUBLIC_KEY);
+    if(ctx == NULL)return NULL;
+    ctx->pkey = pkey ;
+
+    return ctx;
+}
+
+WOLFSSL_API int wolfSSL_EVP_PKEY_CTX_set_rsa_padding(WOLFSSL_EVP_PKEY_CTX *ctx, int padding)
+{
+    if (ctx == NULL)return 0;
+    WOLFSSL_ENTER("EVP_PKEY_CTX_set_rsa_padding");
+    ctx->padding = padding;
+    return 1;
+}
+
+WOLFSSL_API int wolfSSL_EVP_PKEY_decrypt(WOLFSSL_EVP_PKEY_CTX *ctx,
+                     unsigned char *out, size_t *outlen,
+                     const unsigned char *in, size_t inlen)
+{
+    if (ctx == NULL)return 0;
+    WOLFSSL_ENTER("EVP_PKEY_decrypt");
+
+    switch(ctx->pkey->type){
+    case EVP_PKEY_RSA:
+        *outlen = wolfSSL_RSA_public_encrypt((int)inlen, (unsigned char*)in, out,
+              (WOLFSSL_RSA*)ctx->pkey->pkey.ptr, ctx->padding);
+        return (int)*outlen;
+
+    case EVP_PKEY_EC:
+        /* not implemented */
+    default:
+        return 0;
+    }
+}
+
+WOLFSSL_API int wolfSSL_EVP_PKEY_decrypt_init(WOLFSSL_EVP_PKEY_CTX *ctx)
+{
+    if (ctx == NULL)return 0;
+    WOLFSSL_ENTER("EVP_PKEY_decrypt_init");
+    switch(ctx->pkey->type){
+    case EVP_PKEY_RSA:
+        ctx->op = EVP_PKEY_OP_ENCRYPT;
+        return 1;
+
+    case EVP_PKEY_EC:
+        /* not implemented */
+    default:
+
+        return 0;
+    }
+}
+
+WOLFSSL_API int wolfSSL_EVP_PKEY_encrypt(WOLFSSL_EVP_PKEY_CTX *ctx,
+                     unsigned char *out, size_t *outlen,
+                     const unsigned char *in, size_t inlen)
+{
+    if (ctx == NULL)return 0;
+    WOLFSSL_ENTER("EVP_PKEY_encrypt");
+    if(ctx->op != EVP_PKEY_OP_ENCRYPT)return 0;
+
+    switch(ctx->pkey->type){
+    case EVP_PKEY_RSA:
+        *outlen = wolfSSL_RSA_public_encrypt((int)inlen, (unsigned char *)in, out,
+                  (WOLFSSL_RSA*)ctx->pkey->pkey.ptr, ctx->padding);
+        return (int)*outlen;
+
+    case EVP_PKEY_EC:
+        /* not implemented */
+    default:
+        return 0;
+    }
+}
+
+WOLFSSL_API int wolfSSL_EVP_PKEY_encrypt_init(WOLFSSL_EVP_PKEY_CTX *ctx)
+{
+    if (ctx == NULL)return 0;
+    WOLFSSL_ENTER("EVP_PKEY_encrypt_init");
+
+    switch(ctx->pkey->type){
+    case EVP_PKEY_RSA:
+        ctx->op = EVP_PKEY_OP_ENCRYPT;
+        return 1;
+    case EVP_PKEY_EC:
+    case EVP_PKEY_DSA:
+        /* not implemented */
+    default:
+
+        return 0;
+    }
+
+}
+
+WOLFSSL_API int wolfSSL_EVP_PKEY_size(WOLFSSL_EVP_PKEY *pkey)
+{
+    if (pkey == NULL)return 0;
+    WOLFSSL_ENTER("EVP_PKEY_size");
+
+    switch(pkey->type){
+    case EVP_PKEY_RSA:
+        return (int)wolfSSL_RSA_size((const WOLFSSL_RSA*)(pkey->pkey.ptr));
+        
+    case EVP_PKEY_EC:
+        /* not implemented */
+    default:
+        return 0;
+    }
+
+    return 1;
+}
+
+WOLFSSL_API int wolfSSL_EVP_SignFinal(WOLFSSL_EVP_MD_CTX *ctx, unsigned char *sigret,
+                  unsigned int *siglen, WOLFSSL_EVP_PKEY *pkey)
+{
+    (void)sigret;
+    (void)siglen;
+    (void)pkey;
+    if (ctx == NULL)return 0;
+    WOLFSSL_ENTER("EVP_SignFinal");
+    return 1;
+}
+
+WOLFSSL_API int wolfSSL_EVP_SignInit(WOLFSSL_EVP_MD_CTX *ctx, const WOLFSSL_EVP_MD *type)
+{
+    (void)type;
+
+    if (ctx == NULL)return 0;
+    WOLFSSL_ENTER("EVP_SignInit");
+    return 1;
+}
+
+WOLFSSL_API int wolfSSL_EVP_SignUpdate(WOLFSSL_EVP_MD_CTX *ctx, const void *data, size_t len)
+{
+    (void)data;
+    (void)len;
+
+    if (ctx == NULL)return 0;
+    WOLFSSL_ENTER("EVP_SignUpdate(");
+    return 1;
+}
+
+WOLFSSL_API int wolfSSL_EVP_VerifyFinal(WOLFSSL_EVP_MD_CTX *ctx, const uint8_t *sig, size_t sig_len,
+                    WOLFSSL_EVP_PKEY *pkey)
+{
+    (void)sig;
+    (void)sig_len;
+    (void)pkey;
+    if (ctx == NULL)return 0;
+    WOLFSSL_ENTER("EVP_VerifyFinal");
+    return 1;
+}
+
+WOLFSSL_API int wolfSSL_EVP_VerifyInit(WOLFSSL_EVP_MD_CTX *ctx, const WOLFSSL_EVP_MD *type)
+{
+    (void)type;
+    if (ctx == NULL)return 0;
+    WOLFSSL_ENTER("EVP_VerifyInit");
+    return 1;
+}
+
+WOLFSSL_API int wolfSSL_EVP_VerifyUpdate(WOLFSSL_EVP_MD_CTX *ctx, const void *data, size_t len)
+{
+    (void)data;
+    (void)len;
+    if (ctx == NULL)return 0;
+    WOLFSSL_ENTER("EVP_VerifyUpdate");
+    return 1;
+}
+
 WOLFSSL_API int wolfSSL_EVP_add_cipher(const WOLFSSL_EVP_CIPHER *cipher)
 {
     (void)cipher;
@@ -806,7 +997,6 @@ int wolfSSL_EVP_DigestSignFinal(WOLFSSL_EVP_MD_CTX *ctx,
     ForceZero(digest, sizeof(digest));
     return ret;
 }
-
 #endif /* WOLFSSL_EVP_INCLUDED */
 
 #if defined(OPENSSL_EXTRA) && !defined(NO_PWDBASED) && !defined(NO_SHA)
