@@ -8746,12 +8746,12 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
     {
         word16 havePSK = 0;
         word16 haveAnon = 0;
+        word16 haveMcast = 0;
 
 #ifdef WOLFSSL_TLS13
         if (ssl->options.tls1_3)
             return wolfSSL_accept_TLSv13(ssl);
 #endif
-
         WOLFSSL_ENTER("SSL_accept()");
 
         #ifdef HAVE_ERRNO_H
@@ -8768,6 +8768,10 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
         #endif
         (void)haveAnon;
 
+        #ifdef WOLFSSL_MULTICAST
+            haveMcast = ssl->options.haveMcast;
+        #endif
+
         if (ssl->options.side != WOLFSSL_SERVER_END) {
             WOLFSSL_ERROR(ssl->error = SIDE_ERROR);
             return SSL_FATAL_ERROR;
@@ -8775,7 +8779,7 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
 
         #ifndef NO_CERTS
             /* in case used set_accept_state after init */
-            if (!havePSK && !haveAnon &&
+            if (!havePSK && !haveAnon && !haveMcast &&
                 (!ssl->buffers.certificate ||
                  !ssl->buffers.certificate->buffer ||
                  !ssl->buffers.key ||
