@@ -3594,6 +3594,7 @@ int SetSSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
     byte haveAnon = 0;
     byte newSSL;
     byte haveRSA = 0;
+    byte haveMcast = 0;
     (void) haveAnon; /* Squash unused var warnings */
 
     if (!ssl || !ctx)
@@ -3620,6 +3621,9 @@ int SetSSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
 #ifdef HAVE_ANON
     haveAnon = ctx->haveAnon;
 #endif /* HAVE_ANON*/
+#ifdef WOLFSSL_MULTICAST
+    haveMcast = ctx->haveMcast;
+#endif /* WOLFSSL_MULTICAST */
 
     /* decrement previous CTX reference count if exists.
      * This should only happen if switching ctxs!*/
@@ -3741,11 +3745,12 @@ int SetSSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
                    ssl->options.side);
 
 #if !defined(NO_CERTS) && !defined(WOLFSSL_SESSION_EXPORT)
-        /* make sure server has cert and key unless using PSK or Anon
-        * This should be true even if just switching ssl ctx */
-        if (ssl->options.side == WOLFSSL_SERVER_END && !havePSK && !haveAnon)
+        /* make sure server has cert and key unless using PSK, Anon, or
+         * Multicast. This should be true even if just switching ssl ctx */
+        if (ssl->options.side == WOLFSSL_SERVER_END &&
+                !havePSK && !haveAnon && !haveMcast)
             if (!ssl->buffers.certificate || !ssl->buffers.certificate->buffer
-                     || !ssl->buffers.key || !ssl->buffers.key->buffer) {
+                || !ssl->buffers.key || !ssl->buffers.key->buffer) {
                 WOLFSSL_MSG("Server missing certificate and/or private key");
                 return NO_PRIVATE_KEY;
             }
