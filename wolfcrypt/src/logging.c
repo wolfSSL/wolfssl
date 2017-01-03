@@ -43,6 +43,11 @@
 
 
 #ifdef DEBUG_WOLFSSL
+    #if defined(OPENSSL_EXTRA) || defined(DEBUG_WOLFSSL_VERBOSE)
+    volatile char          wc_last_error_file[80];
+    volatile unsigned long wc_last_error_line;
+    volatile unsigned long wc_last_error;
+    #endif
 
 /* Set these to default values initially. */
 static wolfSSL_Logging_cb log_function = 0;
@@ -198,11 +203,35 @@ void WOLFSSL_LEAVE(const char* msg, int ret)
 }
 
 
+/*
+ * When using OPENSSL_EXTRA or DEBUG_WOLFSSL_VERBOSE macro then WOLFSSL_ERROR is
+ * mapped to new funtion WOLFSSL_ERROR_LINE which gets the line # and function
+ * name where WOLFSSL_ERROR is called at.
+ */
+#if defined(OPENSSL_EXTRA) || defined(DEBUG_WOLFSSL_VERBOSE)
+void WOLFSSL_ERROR_LINE(int error, const char* func, unsigned int line,
+            const char* file, void* usrCtx)
+#else
 void WOLFSSL_ERROR(int error)
+#endif
 {
     if (loggingEnabled) {
         char buffer[80];
-        sprintf(buffer, "wolfSSL error occurred, error = %d", error);
+        #if defined(OPENSSL_EXTRA) || defined(DEBUG_WOLFSSL_VERBOSE)
+            (void)usrCtx; /* a user ctx for future flexibility */
+            (void)func;
+            if (error < 0) error = error - (2*error); /* get absolute value */
+            wc_last_error      = (unsigned long)error;
+            wc_last_error_line = (unsigned long)line;
+            XMEMSET((char*)wc_last_error_file, 0, sizeof(file));
+            if (XSTRLEN(file) < sizeof(file)) {
+	            XSTRNCPY((char*)wc_last_error_file, file, XSTRLEN(file));
+            }
+            sprintf(buffer, "wolfSSL error occurred, error = %d line:%d file:%s",
+                    error, line, file);
+        #else
+            sprintf(buffer, "wolfSSL error occurred, error = %d", error);
+        #endif
         wolfssl_log(ERROR_LOG , buffer);
     }
 }

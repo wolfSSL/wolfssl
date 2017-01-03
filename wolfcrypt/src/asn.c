@@ -2553,6 +2553,10 @@ void InitDecodedCert(DecodedCert* cert, byte* source, word32 inSz, void* heap)
 #ifdef OPENSSL_EXTRA
     XMEMSET(&cert->issuerName, 0, sizeof(DecodedName));
     XMEMSET(&cert->subjectName, 0, sizeof(DecodedName));
+    cert->extCRLdistSet = 0;
+    cert->extCRLdistCrit = 0;
+    cert->extAuthInfoSet = 0;
+    cert->extAuthInfoCrit = 0;
     cert->extBasicConstSet = 0;
     cert->extBasicConstCrit = 0;
     cert->extSubjAltNameSet = 0;
@@ -5199,11 +5203,19 @@ static int DecodeCertExtensions(DecodedCert* cert)
                 break;
 
             case CRL_DIST_OID:
+                #ifdef OPENSSL_EXTRA
+                    cert->extCRLdistSet  = 1;
+                    cert->extCRLdistCrit = critical;
+                #endif
                 if (DecodeCrlDist(&input[idx], length, cert) < 0)
                     return ASN_PARSE_E;
                 break;
 
             case AUTH_INFO_OID:
+                #ifdef OPENSSL_EXTRA
+                    cert->extAuthInfoSet  = 1;
+                    cert->extAuthInfoCrit = critical;
+                #endif
                 if (DecodeAuthInfo(&input[idx], length, cert) < 0)
                     return ASN_PARSE_E;
                 break;
@@ -5727,6 +5739,8 @@ const char* BEGIN_CERT_REQ     = "-----BEGIN CERTIFICATE REQUEST-----";
 const char* END_CERT_REQ       = "-----END CERTIFICATE REQUEST-----";
 const char* BEGIN_DH_PARAM     = "-----BEGIN DH PARAMETERS-----";
 const char* END_DH_PARAM       = "-----END DH PARAMETERS-----";
+const char* BEGIN_DSA_PARAM    = "-----BEGIN DSA PARAMETERS-----";
+const char* END_DSA_PARAM      = "-----END DSA PARAMETERS-----";
 const char* BEGIN_X509_CRL     = "-----BEGIN X509 CRL-----";
 const char* END_X509_CRL       = "-----END X509 CRL-----";
 const char* BEGIN_RSA_PRIV     = "-----BEGIN RSA PRIVATE KEY-----";
@@ -5854,6 +5868,20 @@ int wc_DerToPemEx(const byte* der, word32 derSz, byte* output, word32 outSz,
 
     headerLen = (int)XSTRLEN(header);
     footerLen = (int)XSTRLEN(footer);
+
+    /* if null output and 0 size passed in then return size needed */
+    if (!output && outSz == 0) {
+#ifdef WOLFSSL_SMALL_STACK
+        XFREE(header, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(footer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+        outLen = 0;
+        if ((err = Base64_Encode(der, derSz, NULL, (word32*)&outLen))
+                != LENGTH_ONLY_E) {
+            return err;
+        }
+        return headerLen + footerLen + outLen;
+    }
 
     if (!der || !output) {
 #ifdef WOLFSSL_SMALL_STACK

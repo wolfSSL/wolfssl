@@ -64,6 +64,7 @@ testsuite/testsuite
 tests/unit
 testsuite/testsuite.test
 tests/unit.test
+tests/bio_write_test.txt
 testsuite/*.der
 testsuite/*.pem
 testsuite/*.raw

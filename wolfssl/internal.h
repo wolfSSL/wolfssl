@@ -1242,7 +1242,9 @@ enum BIO_TYPE {
     BIO_BUFFER = 1,
     BIO_SOCKET = 2,
     BIO_SSL    = 3,
-    BIO_MEMORY = 4
+    BIO_MEMORY = 4,
+    BIO_BIO    = 5,
+    BIO_FILE   = 6
 };
 
 
@@ -1254,15 +1256,24 @@ struct WOLFSSL_BIO_METHOD {
 
 /* wolfSSL BIO type */
 struct WOLFSSL_BIO {
-    byte        type;          /* method type */
-    byte        close;         /* close flag */
-    byte        eof;           /* eof flag */
     WOLFSSL*     ssl;           /* possible associated ssl */
-    byte*       mem;           /* memory buffer */
-    int         memLen;        /* memory buffer length */
-    int         fd;            /* possible file descriptor */
+#ifndef NO_FILESYSTEM
+    XFILE        file;
+#endif
     WOLFSSL_BIO* prev;          /* previous in chain */
     WOLFSSL_BIO* next;          /* next in chain */
+    WOLFSSL_BIO* pair;          /* BIO paired with */
+    void*        heap;          /* user heap hint */
+    byte*        mem;           /* memory buffer */
+    int         wrSz;          /* write buffer size (mem) */
+    int         wrIdx;         /* current index for write buffer */
+    int         rdIdx;         /* current read index */
+    int         readRq;        /* read request */
+    int         memLen;        /* memory buffer length */
+    int         fd;            /* possible file descriptor */
+    int         eof;           /* eof flag */
+    byte        type;          /* method type */
+    byte        close;         /* close flag */
 };
 
 
@@ -1994,6 +2005,9 @@ struct WOLFSSL_CTX {
 #if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
     pem_password_cb passwd_cb;
     void*           userdata;
+    WOLFSSL_X509_STORE x509_store; /* points to ctx->cm */
+    byte            readAhead;
+    void*           userPRFArg; /* passed to prf callback */
 #endif /* OPENSSL_EXTRA */
 #ifdef HAVE_STUNNEL
     void*           ex_data[MAX_EX_DATA];
@@ -2371,6 +2385,9 @@ typedef struct Options {
     wc_psk_server_callback server_psk_cb;
     word16            havePSK:1;            /* psk key set by user */
 #endif /* NO_PSK */
+#ifdef OPENSSL_EXTRA
+    unsigned long     mask; /* store SSL_OP_ flags */
+#endif
 
     /* on/off or small bit flags, optimize layout */
     word16            sendVerify:2;     /* false = 0, true = 1, sendBlank = 2 */
@@ -2495,6 +2512,7 @@ struct WOLFSSL_STACK {
     union {
         WOLFSSL_X509* x509;
         WOLFSSL_BIO*  bio;
+        WOLFSSL_ASN1_OBJECT* obj;
     } data;
     WOLFSSL_STACK* next;
 };
@@ -2558,9 +2576,21 @@ struct WOLFSSL_X509 {
     void*            heap;                           /* heap hint */
     byte             dynamicMemory;                  /* dynamic memory flag */
     byte             isCa;
+#ifdef WOLFSSL_CERT_EXT
+    char             certPolicies[MAX_CERTPOL_NB][MAX_CERTPOL_SZ];
+    int              certPoliciesNb;
+#endif /* WOLFSSL_CERT_EXT */
 #ifdef OPENSSL_EXTRA
     word32           pathLength;
     word16           keyUsage;
+    byte             CRLdistSet;
+    byte             CRLdistCrit;
+    byte*            CRLInfo;
+    int              CRLInfoSz;
+    byte             authInfoSet;
+    byte             authInfoCrit;
+    byte*            authInfo;
+    int              authInfoSz;
     byte             basicConstSet;
     byte             basicConstCrit;
     byte             basicConstPlSet;
@@ -2576,6 +2606,10 @@ struct WOLFSSL_X509 {
     word32           subjKeyIdSz;
     byte             keyUsageSet;
     byte             keyUsageCrit;
+    byte             extKeyUsageCrit;
+    byte*            extKeyUsageSrc;
+    word32           extKeyUsageSz;
+    word32           extKeyUsageCount;
 #endif /* OPENSSL_EXTRA */
 };
 
@@ -2725,6 +2759,11 @@ struct WOLFSSL {
 #ifdef OPENSSL_EXTRA
     WOLFSSL_BIO*     biord;              /* socket bio read  to free/close */
     WOLFSSL_BIO*     biowr;              /* socket bio write to free/close */
+    unsigned long    peerVerifyRet;
+    byte             readAhead;
+#ifdef HAVE_PK_CALLBACKS
+    void*            loggingCtx;         /* logging callback argument */
+#endif
 #endif
 #ifndef NO_RSA
     RsaKey*         peerRsaKey;

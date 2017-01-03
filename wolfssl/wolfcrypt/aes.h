@@ -124,6 +124,13 @@ WOLFSSL_API int  wc_AesCbcEncrypt(Aes* aes, byte* out,
 WOLFSSL_API int  wc_AesCbcDecrypt(Aes* aes, byte* out,
                                   const byte* in, word32 sz);
 
+#ifdef HAVE_AES_ECB
+WOLFSSL_API int wc_AesEcbEncrypt(Aes* aes, byte* out,
+                                  const byte* in, word32 sz);
+WOLFSSL_API int wc_AesEcbDecrypt(Aes* aes, byte* out,
+                                  const byte* in, word32 sz);
+#endif
+
 /* AES-CTR */
 #ifdef WOLFSSL_AES_COUNTER
  WOLFSSL_API void wc_AesCtrEncrypt(Aes* aes, byte* out,
@@ -192,4 +199,3 @@ WOLFSSL_API int wc_AesGetKeySize(Aes* aes, word32* keySize);
 
 #endif /* NO_AES */
 #endif /* WOLF_CRYPT_AES_H */
-

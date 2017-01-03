@@ -1386,6 +1386,10 @@ int InitSSL_Ctx(WOLFSSL_CTX* ctx, WOLFSSL_METHOD* method, void* heap)
         WOLFSSL_MSG("Bad Cert Manager New");
         return BAD_CERT_MANAGER_ERROR;
     }
+    #ifdef OPENSSL_EXTRA
+    /* setup WOLFSSL_X509_STORE */
+    ctx->x509_store.cm = ctx->cm;
+    #endif
 #endif
 
 #if defined(HAVE_EXTENDED_MASTER) && !defined(NO_WOLFSSL_CLIENT)
@@ -2573,6 +2577,13 @@ void FreeX509Name(WOLFSSL_X509_NAME* name, void* heap)
 /* Initialize wolfSSL X509 type */
 void InitX509(WOLFSSL_X509* x509, int dynamicFlag, void* heap)
 {
+    if (x509 == NULL) {
+        WOLFSSL_MSG("Null parameter passed in!");
+        return;
+    }
+
+    XMEMSET(x509, 0, sizeof(WOLFSSL_X509));
+
     x509->heap = heap;
     InitX509Name(&x509->issuer, 0);
     InitX509Name(&x509->subject, 0);
@@ -2628,6 +2639,12 @@ void FreeX509(WOLFSSL_X509* x509)
     #ifdef OPENSSL_EXTRA
         XFREE(x509->authKeyId, x509->heap, DYNAMIC_TYPE_X509_EXT);
         XFREE(x509->subjKeyId, x509->heap, DYNAMIC_TYPE_X509_EXT);
+        if (x509->authInfo != NULL) {
+            XFREE(x509->authInfo, x509->heap, DYNAMIC_TYPE_X509_EXT);
+        }
+        if (x509->extKeyUsageSrc != NULL) {
+            XFREE(x509->extKeyUsageSrc, x509->heap, DYNAMIC_TYPE_X509_EXT);
+        }
     #endif /* OPENSSL_EXTRA */
     if (x509->altNames)
         FreeAltNames(x509->altNames, NULL);
@@ -3297,6 +3314,10 @@ int SetSSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
     #ifdef WOLFSSL_DTLS
     ssl->dtls_export = ctx->dtls_export; /* export function for session */
     #endif
+#endif
+
+#ifdef OPENSSL_EXTRA
+    ssl->readAhead = ctx->readAhead;
 #endif
 
     return SSL_SUCCESS;
@@ -5295,6 +5316,32 @@ static int GetRecordHeader(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     }
 #endif
 
+#ifdef OPENSSL_EXTRA
+    /* case where specific protocols are turned off */
+    if (!ssl->options.dtls && ssl->options.mask > 0) {
+        if (rh->pvMinor == SSLv3_MINOR &&
+            (ssl->options.mask & SSL_OP_NO_SSLv3) == SSL_OP_NO_SSLv3) {
+            WOLFSSL_MSG("Option set to not allow SSLv3");
+            return VERSION_ERROR;
+        }
+        if (rh->pvMinor == TLSv1_MINOR &&
+            (ssl->options.mask & SSL_OP_NO_TLSv1) == SSL_OP_NO_TLSv1) {
+            WOLFSSL_MSG("Option set to not allow TLSv1");
+            return VERSION_ERROR;
+        }
+        if (rh->pvMinor == TLSv1_1_MINOR &&
+            (ssl->options.mask & SSL_OP_NO_TLSv1_1) == SSL_OP_NO_TLSv1_1) {
+            WOLFSSL_MSG("Option set to not allow TLSv1.1");
+            return VERSION_ERROR;
+        }
+        if (rh->pvMinor == TLSv1_2_MINOR &&
+            (ssl->options.mask & SSL_OP_NO_TLSv1_2) == SSL_OP_NO_TLSv1_2) {
+            WOLFSSL_MSG("Option set to not allow TLSv1.2");
+            return VERSION_ERROR;
+        }
+    }
+#endif /* OPENSSL_EXTRA */
+
     /* catch version mismatch */
     if (rh->pvMajor != ssl->version.major || rh->pvMinor != ssl->version.minor){
         if (ssl->options.side == WOLFSSL_SERVER_END &&
@@ -6293,6 +6340,23 @@ int CopyDecodedToX509(WOLFSSL_X509* x509, DecodedCert* dCert)
     x509->pathLength = dCert->pathLength;
     x509->keyUsage = dCert->extKeyUsage;
 
+    x509->CRLdistSet = dCert->extCRLdistSet;
+    x509->CRLdistCrit = dCert->extCRLdistCrit;
+    x509->CRLInfo = dCert->extCrlInfo;
+    x509->CRLInfoSz = dCert->extCrlInfoSz;
+    x509->authInfoSet = dCert->extAuthInfoSet;
+    x509->authInfoCrit = dCert->extAuthInfoCrit;
+    if (dCert->extAuthInfo != NULL && dCert->extAuthInfoSz > 0) {
+        x509->authInfo = (byte*)XMALLOC(dCert->extAuthInfoSz, x509->heap,
+                DYNAMIC_TYPE_X509_EXT);
+        if (x509->authInfo != NULL) {
+            XMEMCPY(x509->authInfo, dCert->extAuthInfo, dCert->extAuthInfoSz);
+            x509->authInfoSz = dCert->extAuthInfoSz;
+        }
+        else {
+            ret = MEMORY_E;
+        }
+    }
     x509->basicConstSet = dCert->extBasicConstSet;
     x509->basicConstCrit = dCert->extBasicConstCrit;
     x509->basicConstPlSet = dCert->pathLengthSet;
@@ -6326,10 +6390,33 @@ int CopyDecodedToX509(WOLFSSL_X509* x509, DecodedCert* dCert)
     }
     x509->keyUsageSet = dCert->extKeyUsageSet;
     x509->keyUsageCrit = dCert->extKeyUsageCrit;
+    if (dCert->extExtKeyUsageSrc != NULL && dCert->extExtKeyUsageSz > 0) {
+        x509->extKeyUsageSrc = (byte*)XMALLOC(dCert->extExtKeyUsageSz,
+                x509->heap, DYNAMIC_TYPE_X509_EXT);
+        if (x509->extKeyUsageSrc != NULL) {
+            XMEMCPY(x509->extKeyUsageSrc, dCert->extExtKeyUsageSrc,
+                                                       dCert->extExtKeyUsageSz);
+            x509->extKeyUsageSz    = dCert->extExtKeyUsageSz;
+            x509->extKeyUsageCrit  = dCert->extExtKeyUsageCrit;
+            x509->extKeyUsageCount = dCert->extExtKeyUsageCount;
+        }
+        else {
+            ret = MEMORY_E;
+        }
+    }
     #ifdef WOLFSSL_SEP
         x509->certPolicySet = dCert->extCertPolicySet;
         x509->certPolicyCrit = dCert->extCertPolicyCrit;
     #endif /* WOLFSSL_SEP */
+    #ifdef WOLFSSL_CERT_EXT
+        {
+            int i;
+            for (i = 0; i < dCert->extCertPoliciesNb && i < MAX_CERTPOL_NB; i++)
+                XMEMCPY(x509->certPolicies[i], dCert->extCertPolicies[i],
+                                                                MAX_CERTPOL_SZ);
+            x509->certPoliciesNb = dCert->extCertPoliciesNb;
+        }
+    #endif /* WOLFSSL_CERT_EXT */
 #endif /* OPENSSL_EXTRA */
 #ifdef HAVE_ECC
     x509->pkCurveOID = dCert->pkCurveOID;
@@ -6389,8 +6476,12 @@ static int DoCertificate(WOLFSSL* ssl, byte* input, word32* inOutIdx,
     while (listSz) {
         word32 certSz;
 
-        if (totalCerts >= MAX_CHAIN_DEPTH)
+        if (totalCerts >= MAX_CHAIN_DEPTH) {
+        #ifdef OPENSSL_EXTRA
+            ssl->peerVerifyRet = X509_V_ERR_CERT_CHAIN_TOO_LONG;
+        #endif
             return MAX_CHAIN_ERROR;
+        }
 
         if ((*inOutIdx - begin) + OPAQUE24_LEN > size)
             return BUFFER_ERROR;
@@ -6611,6 +6702,9 @@ static int DoCertificate(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 
         if (ret == 0) {
             WOLFSSL_MSG("Verified Peer's cert");
+        #ifdef OPENSSL_EXTRA
+            ssl->peerVerifyRet = X509_V_OK;
+        #endif
             fatal = 0;
         }
         else if (ret == ASN_PARSE_E) {
@@ -6748,6 +6842,9 @@ static int DoCertificate(WOLFSSL* ssl, byte* input, word32* inOutIdx,
             XFREE(dCert, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         #endif
             ssl->error = ret;
+        #ifdef OPENSSL_EXTRA
+            ssl->peerVerifyRet = X509_V_ERR_CERT_REJECTED;
+        #endif
             return ret;
         }
         ssl->options.havePeerCert = 1;
@@ -9383,7 +9480,7 @@ int ProcessReply(WOLFSSL* ssl)
     int    ret = 0, type, readSz;
     int    atomicUser = 0;
     word32 startIdx = 0;
-#ifdef WOLFSSL_DTLS
+#if defined(WOLFSSL_DTLS)
     int    used;
 #endif
 

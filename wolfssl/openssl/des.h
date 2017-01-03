@@ -53,9 +53,9 @@ enum {
 };
 
 
-WOLFSSL_API void wolfSSL_DES_set_key(WOLFSSL_const_DES_cblock* myDes,
+WOLFSSL_API int wolfSSL_DES_set_key(WOLFSSL_const_DES_cblock* myDes,
                                                WOLFSSL_DES_key_schedule* key);
-WOLFSSL_API void wolfSSL_DES_set_key_checked(WOLFSSL_const_DES_cblock* myDes,
+WOLFSSL_API int wolfSSL_DES_set_key_checked(WOLFSSL_const_DES_cblock* myDes,
                                                WOLFSSL_DES_key_schedule* key);
 WOLFSSL_API void wolfSSL_DES_set_key_unchecked(WOLFSSL_const_DES_cblock*,
                                              WOLFSSL_DES_key_schedule*);

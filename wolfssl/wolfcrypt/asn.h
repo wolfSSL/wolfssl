@@ -303,14 +303,20 @@ enum Extensions_Sum {
     BASIC_CA_OID    = 133,
     ALT_NAMES_OID   = 131,
     CRL_DIST_OID    = 145,
-    AUTH_INFO_OID   = 69,
+    AUTH_INFO_OID   = 69, /* id-pe 1 */
     AUTH_KEY_OID    = 149,
     SUBJ_KEY_OID    = 128,
     CERT_POLICY_OID = 146,
     KEY_USAGE_OID   = 129,  /* 2.5.29.15 */
     INHIBIT_ANY_OID = 168,  /* 2.5.29.54 */
-    EXT_KEY_USAGE_OID = 151, /* 2.5.29.37 */
-    NAME_CONS_OID   = 144   /* 2.5.29.30 */
+    EXT_KEY_USAGE_OID         = 151, /* 2.5.29.37 */
+    NAME_CONS_OID             = 144, /* 2.5.29.30 */
+    PRIV_KEY_USAGE_PERIOD_OID = 130, /* 2.5.29.16 */
+    SUBJECT_INFO_ACCESS       = 79,  /* id-pe 11 */
+    POLICY_MAP_OID            = 147,
+    POLICY_CONST_OID          = 150,
+    ISSUE_ALT_NAMES_OID       = 132,
+    TLS_FEATURE_OID           = 92   /* id-pe 24 */
 };
 
 enum CertificatePolicy_Sum {
@@ -475,6 +481,10 @@ struct DecodedCert {
     byte    extExtKeyUsageSet;       /* Extended Key Usage               */
     byte    extExtKeyUsage;          /* Extended Key usage bitfield      */
 #ifdef OPENSSL_EXTRA
+    byte    extCRLdistSet;
+    byte    extCRLdistCrit;
+    byte    extAuthInfoSet;
+    byte    extAuthInfoCrit;
     byte    extBasicConstSet;
     byte    extBasicConstCrit;
     byte    extSubjAltNameSet;
@@ -554,10 +564,22 @@ struct DecodedCert {
 #endif /* WOLFSSL_CERT_EXT */
 };
 
+
+struct WOLFSSL_ASN1_OBJECT {
+    void*  heap;
+    byte*  obj;
+    int    type; /* oid */
+    word32 objSz;
+    byte   dynamic; /* if 1 then obj was dynamiclly created, 0 otherwise */
+};
+
+
 extern const char* BEGIN_CERT;
 extern const char* END_CERT;
 extern const char* BEGIN_CERT_REQ;
 extern const char* END_CERT_REQ;
+extern const char* BEGIN_DSA_PARAM;
+extern const char* END_DSA_PARAM;
 extern const char* BEGIN_DH_PARAM;
 extern const char* END_DH_PARAM;
 extern const char* BEGIN_X509_CRL;

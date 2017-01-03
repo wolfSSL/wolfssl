@@ -32,11 +32,16 @@ typedef WOLFSSL_MD5_CTX MD5_CTX;
 #define MD5_Update wolfSSL_MD5_Update
 #define MD5_Final wolfSSL_MD5_Final
 
+#ifdef OPENSSL_EXTRA_BSD
+    #define MD5Init wolfSSL_MD5_Init
+    #define MD5Update wolfSSL_MD5_Update
+    #define MD5Final wolfSSL_MD5_Final
+#endif
+
 #ifdef __cplusplus
-    }  /* extern "C" */ 
+    }  /* extern "C" */
 #endif
 
 #endif /* NO_MD5 */
 
 #endif /* WOLFSSL_MD5_H_ */
-

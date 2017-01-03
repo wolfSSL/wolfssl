@@ -1,7 +1,9 @@
 # vim:ft=automake
 # All paths should be given relative to the root
 
+EXTRA_DIST += src/bio.c
 EXTRA_DIST += wolfcrypt/src/misc.c
+EXTRA_DIST += wolfcrypt/src/evp.c
 EXTRA_DIST += wolfcrypt/src/asm.c
 EXTRA_DIST += wolfcrypt/src/aes_asm.asm
 
