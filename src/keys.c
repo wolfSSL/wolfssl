@@ -3011,7 +3011,7 @@ int SetKeysSide(WOLFSSL* ssl, enum encrypt_side side)
 /* TLS can call too */
 int StoreKeys(WOLFSSL* ssl, const byte* keyData)
 {
-    int sz, i = 0;
+    int sz, i = 0, haveMcast = 0;
     Keys* keys = &ssl->keys;
 
 #ifdef HAVE_SECURE_RENEGOTIATION
@@ -3022,22 +3022,29 @@ int StoreKeys(WOLFSSL* ssl, const byte* keyData)
     }
 #endif /* HAVE_SECURE_RENEGOTIATION */
 
+#ifdef WOLFSSL_MULTICAST
+    haveMcast = ssl->options.haveMcast;
+#endif
+
     if (ssl->specs.cipher_type != aead) {
         sz = ssl->specs.hash_size;
         XMEMCPY(keys->client_write_MAC_secret,&keyData[i], sz);
-        i += sz;
+        if (!haveMcast)
+            i += sz;
         XMEMCPY(keys->server_write_MAC_secret,&keyData[i], sz);
         i += sz;
     }
     sz = ssl->specs.key_size;
     XMEMCPY(keys->client_write_key, &keyData[i], sz);
-    i += sz;
+    if (!haveMcast)
+        i += sz;
     XMEMCPY(keys->server_write_key, &keyData[i], sz);
     i += sz;
 
     sz = ssl->specs.iv_size;
     XMEMCPY(keys->client_write_IV, &keyData[i], sz);
-    i += sz;
+    if (!haveMcast)
+        i += sz;
     XMEMCPY(keys->server_write_IV, &keyData[i], sz);
 
 #ifdef HAVE_AEAD
