@@ -21603,4 +21603,35 @@ int wolfSSL_AsyncPoll(WOLFSSL* ssl, WOLF_EVENT_FLAG flags)
 #endif /* WOLFSSL_ASYNC_CRYPT */
 
 
+#ifdef OPENSSL_EXTRA
+int wolfSSL_CTX_set_msg_callback(WOLFSSL_CTX *ctx, SSL_Msg_Cb cb)
+{
+    WOLFSSL_STUB("SSL_CTX_set_msg_callback");
+    (void)ctx;
+    (void)cb;
+    return SSL_FAILURE;
+}
+int wolfSSL_set_msg_callback(WOLFSSL *ssl, SSL_Msg_Cb cb)
+{
+    WOLFSSL_STUB("SSL_set_msg_callback");
+    (void)ssl;
+    (void)cb;
+    return SSL_FAILURE;
+}
+int wolfSSL_CTX_set_msg_callback_arg(WOLFSSL_CTX *ctx, void* arg)
+{
+    WOLFSSL_STUB("SSL_CTX_set_msg_callback_arg");
+    (void)ctx;
+    (void)arg;
+    return SSL_FAILURE;
+}
+int wolfSSL_set_msg_callback_arg(WOLFSSL *ssl, void* arg)
+{
+    WOLFSSL_STUB("SSL_set_msg_callback_arg");
+    (void)ssl;
+    (void)arg;
+    return SSL_FAILURE;
+}
+#endif
+
 #endif /* WOLFCRYPT_ONLY */

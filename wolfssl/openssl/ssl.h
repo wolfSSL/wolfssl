@@ -476,7 +476,6 @@ typedef WOLFSSL_X509_STORE_CTX X509_STORE_CTX;
 #if defined(HAVE_LIGHTY) || defined(WOLFSSL_MYSQL_COMPATIBLE) || defined(HAVE_STUNNEL)
 typedef WOLFSSL_X509_NAME_ENTRY X509_NAME_ENTRY;
 
-#define SSL_CB_HANDSHAKE_START          0x10
 #define X509_NAME_free wolfSSL_X509_NAME_free
 #define SSL_CTX_use_certificate wolfSSL_CTX_use_certificate
 #define SSL_CTX_use_PrivateKey wolfSSL_CTX_use_PrivateKey
@@ -603,8 +602,6 @@ typedef WOLFSSL_X509_NAME_ENTRY X509_NAME_ENTRY;
 #ifdef HAVE_STUNNEL
 #include <wolfssl/openssl/asn1.h>
 
-/* defined as: (SSL_ST_ACCEPT|SSL_CB_LOOP), which becomes 0x2001*/
-#define SSL_CB_ACCEPT_LOOP               0x2001
 #define SSL2_VERSION                     0x0002
 #define SSL3_VERSION                     0x0300
 #define TLS1_VERSION                     0x0301
@@ -680,6 +677,13 @@ typedef WOLFSSL_ASN1_BIT_STRING    ASN1_BIT_STRING;
 #define NID_policy_constraints        150
 #define NID_inhibit_any_policy        168 /* 2.5.29.54 */
 #define NID_tlsfeature                92  /* id-pe 24 */
+
+
+#define SSL_CTX_set_msg_callback        wolfSSL_CTX_set_msg_callback
+#define SSL_set_msg_callback            wolfSSL_set_msg_callback
+#define SSL_CTX_set_msg_callback_arg    wolfSSL_CTX_set_msg_callback_arg
+#define SSL_set_msg_callback_arg        wolfSSL_set_msg_callback_arg
+
 
 #ifdef __cplusplus
     } /* extern "C" */
