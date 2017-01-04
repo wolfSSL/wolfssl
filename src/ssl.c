@@ -17873,7 +17873,7 @@ int wolfSSL_DES_set_key_checked(WOLFSSL_const_DES_cblock* myDes,
         return -2;
     }
     else {
-        word32 i, mask, mask2;
+        word32 i;
         word32 sz = sizeof(WOLFSSL_DES_key_schedule);
 
         /* sanity check before call to DES_check */
@@ -17898,66 +17898,7 @@ int wolfSSL_DES_set_key_checked(WOLFSSL_const_DES_cblock* myDes,
             }
         }
 
-        /* check is not weak. Weak key list from Nist
-           "Recommendation for the Triple
-           Data Encryption Algorithm
-           (TDEA) Block Cipher" */
-        mask = 0x01010101; mask2 = 0x01010101;
-        if (DES_check(mask, mask2, *key)) {
-            WOLFSSL_MSG("Weak key found");
-            return -2;
-        }
-
-        mask = 0xFEFEFEFE; mask2 = 0xFEFEFEFE;
-        if (DES_check(mask, mask2, *key)) {
-            WOLFSSL_MSG("Weak key found");
-            return -2;
-        }
-
-        mask = 0xE0E0E0E0; mask2 = 0xF1F1F1F1;
-        if (DES_check(mask, mask2, *key)) {
-            WOLFSSL_MSG("Weak key found");
-            return -2;
-        }
-
-        mask = 0x1F1F1F1F; mask2 = 0x0E0E0E0E;
-        if (DES_check(mask, mask2, *key)) {
-            WOLFSSL_MSG("Weak key found");
-            return -2;
-        }
-
-        /* semi-weak *key check (list from same Nist paper) */
-        mask  = 0x011F011F; mask2 = 0x010E010E;
-        if (DES_check(mask, mask2, *key) ||
-           DES_check(ByteReverseWord32(mask), ByteReverseWord32(mask2), *key)) {
-            WOLFSSL_MSG("Weak key found");
-            return -2;
-        }
-
-        mask  = 0x01E001E0; mask2 = 0x01F101F1;
-        if (DES_check(mask, mask2, *key) ||
-           DES_check(ByteReverseWord32(mask), ByteReverseWord32(mask2), *key)) {
-            WOLFSSL_MSG("Weak key found");
-            return -2;
-        }
-
-        mask  = 0x01FE01FE; mask2 = 0x01FE01FE;
-        if (DES_check(mask, mask2, *key) ||
-           DES_check(ByteReverseWord32(mask), ByteReverseWord32(mask2), *key)) {
-            WOLFSSL_MSG("Weak key found");
-            return -2;
-        }
-
-        mask  = 0x1FE01FE0; mask2 = 0x0EF10EF1;
-        if (DES_check(mask, mask2, *key) ||
-           DES_check(ByteReverseWord32(mask), ByteReverseWord32(mask2), *key)) {
-            WOLFSSL_MSG("Weak key found");
-            return -2;
-        }
-
-        mask  = 0x1FFE1FFE; mask2 = 0x0EFE0EFE;
-        if (DES_check(mask, mask2, *key) ||
-           DES_check(ByteReverseWord32(mask), ByteReverseWord32(mask2), *key)) {
+        if (wolfSSL_DES_is_weak_key(key) == 1) {
             WOLFSSL_MSG("Weak key found");
             return -2;
         }
@@ -17967,6 +17908,86 @@ int wolfSSL_DES_set_key_checked(WOLFSSL_const_DES_cblock* myDes,
 
         return 0;
     }
+}
+
+
+/* check is not weak. Weak key list from Nist "Recommendation for the Triple
+ * Data Encryption Algorithm (TDEA) Block Cipher"
+ *
+ * returns 1 if is weak 0 if not
+ */
+int wolfSSL_DES_is_weak_key(WOLFSSL_const_DES_cblock* key)
+{
+    word32 mask, mask2;
+
+    WOLFSSL_ENTER("wolfSSL_DES_is_weak_key");
+
+    if (key == NULL) {
+        WOLFSSL_MSG("NULL key passed in");
+        return 1;
+    }
+
+    mask = 0x01010101; mask2 = 0x01010101;
+    if (DES_check(mask, mask2, *key)) {
+        WOLFSSL_MSG("Weak key found");
+        return 1;
+    }
+
+    mask = 0xFEFEFEFE; mask2 = 0xFEFEFEFE;
+    if (DES_check(mask, mask2, *key)) {
+        WOLFSSL_MSG("Weak key found");
+        return 1;
+    }
+
+    mask = 0xE0E0E0E0; mask2 = 0xF1F1F1F1;
+    if (DES_check(mask, mask2, *key)) {
+        WOLFSSL_MSG("Weak key found");
+        return 1;
+    }
+
+    mask = 0x1F1F1F1F; mask2 = 0x0E0E0E0E;
+    if (DES_check(mask, mask2, *key)) {
+        WOLFSSL_MSG("Weak key found");
+        return 1;
+    }
+
+    /* semi-weak *key check (list from same Nist paper) */
+    mask  = 0x011F011F; mask2 = 0x010E010E;
+    if (DES_check(mask, mask2, *key) ||
+       DES_check(ByteReverseWord32(mask), ByteReverseWord32(mask2), *key)) {
+        WOLFSSL_MSG("Weak key found");
+        return 1;
+    }
+
+    mask  = 0x01E001E0; mask2 = 0x01F101F1;
+    if (DES_check(mask, mask2, *key) ||
+       DES_check(ByteReverseWord32(mask), ByteReverseWord32(mask2), *key)) {
+        WOLFSSL_MSG("Weak key found");
+        return 1;
+    }
+
+    mask  = 0x01FE01FE; mask2 = 0x01FE01FE;
+    if (DES_check(mask, mask2, *key) ||
+       DES_check(ByteReverseWord32(mask), ByteReverseWord32(mask2), *key)) {
+        WOLFSSL_MSG("Weak key found");
+        return 1;
+    }
+
+    mask  = 0x1FE01FE0; mask2 = 0x0EF10EF1;
+    if (DES_check(mask, mask2, *key) ||
+       DES_check(ByteReverseWord32(mask), ByteReverseWord32(mask2), *key)) {
+        WOLFSSL_MSG("Weak key found");
+        return 1;
+    }
+
+    mask  = 0x1FFE1FFE; mask2 = 0x0EFE0EFE;
+    if (DES_check(mask, mask2, *key) ||
+       DES_check(ByteReverseWord32(mask), ByteReverseWord32(mask2), *key)) {
+        WOLFSSL_MSG("Weak key found");
+        return 1;
+    }
+
+    return 0;
 }
 
 
