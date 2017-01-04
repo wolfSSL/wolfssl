@@ -13865,13 +13865,20 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
 
 
 #ifndef NO_DES3
-    /* WOLFSSL_SUCCESS on ok */
+    /* 0 on ok */
     int wolfSSL_DES_key_sched(WOLFSSL_const_DES_cblock* key,
                               WOLFSSL_DES_key_schedule* schedule)
     {
         WOLFSSL_ENTER("DES_key_sched");
-        XMEMCPY(schedule, key, sizeof(const_DES_cblock));
-        return WOLFSSL_SUCCESS;
+
+        if (key == NULL || schedule == NULL) {
+            WOLFSSL_MSG("Null argument passed in");
+        }
+        else {
+            XMEMCPY(schedule, key, sizeof(const_DES_cblock));
+        }
+
+        return 0;
     }
 
 
@@ -14620,7 +14627,7 @@ static void ExternalFreeX509(WOLFSSL_X509* x509)
         }
 
         if (dataSz < 0) {
-            sz = (int)XSTRLEN(data);
+            sz = (int)XSTRLEN((const char*)data);
         }
         else {
             sz = dataSz;
@@ -17884,7 +17891,7 @@ int wolfSSL_DES_set_key_checked(WOLFSSL_const_DES_cblock* myDes,
 
         /* check odd parity */
         for (i = 0; i < sz; i++) {
-            unsigned char c = *((unsigned char*)key + i);
+            unsigned char c = *((unsigned char*)myDes + i);
             if (((c & 0x01) ^
                 ((c >> 1) & 0x01) ^
                 ((c >> 2) & 0x01) ^
@@ -17898,7 +17905,7 @@ int wolfSSL_DES_set_key_checked(WOLFSSL_const_DES_cblock* myDes,
             }
         }
 
-        if (wolfSSL_DES_is_weak_key(key) == 1) {
+        if (wolfSSL_DES_is_weak_key(myDes) == 1) {
             WOLFSSL_MSG("Weak key found");
             return -2;
         }

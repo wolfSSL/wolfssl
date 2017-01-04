@@ -4197,9 +4197,42 @@ int des3_test(void)
     if (XMEMCMP(cipher, verify3, sizeof(cipher)))
         return -3907;
 
+#if defined(OPENSSL_EXTRA) && !defined(WOLFCRYPT_ONLY)
+    /* test the same vectors with using compatibility layer */
+    {
+        DES_key_schedule ks1;
+        DES_key_schedule ks2;
+        DES_key_schedule ks3;
+        DES_cblock iv4;
+
+        XMEMCPY(ks1, key3, sizeof(DES_key_schedule));
+        XMEMCPY(ks2, key3 + 8, sizeof(DES_key_schedule));
+        XMEMCPY(ks3, key3 + 16, sizeof(DES_key_schedule));
+        XMEMCPY(iv4, iv3, sizeof(DES_cblock));
+
+        XMEMSET(plain, 0, sizeof(plain));
+        XMEMSET(cipher, 0, sizeof(cipher));
+
+        DES_ede3_cbc_encrypt(vector, cipher, sizeof(vector), &ks1, &ks2, &ks3,
+                &iv4, DES_ENCRYPT);
+        DES_ede3_cbc_encrypt(cipher, plain, sizeof(cipher), &ks1, &ks2, &ks3,
+                &iv4, DES_DECRYPT);
+
+        if (XMEMCMP(plain, vector, sizeof(plain)))
+            return -37;
+
+        if (XMEMCMP(cipher, verify3, sizeof(cipher)))
+            return -38;
+    }
+#endif /* OPENSSL_EXTRA */
+
     wc_Des3Free(&enc);
     wc_Des3Free(&dec);
 
+#ifdef WOLFSSL_ASYNC_CRYPT
+    wc_Des3AsyncFree(&enc);
+    wc_Des3AsyncFree(&dec);
+#endif
     return 0;
 }
 #endif /* NO_DES */

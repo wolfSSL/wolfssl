@@ -13092,26 +13092,38 @@ static void test_wolfSSL_DES(void)
     DES_set_key(&myDes, &key);
 
     /* check, check of odd parity */
-    XMEMSET(key, 4, sizeof(DES_key_schedule));  key[0] = 3; /*set even parity*/
-    XMEMSET(myDes, 5, sizeof(const_DES_cblock));
+    XMEMSET(myDes, 4, sizeof(const_DES_cblock));  myDes[0] = 3; /*set even parity*/
+    XMEMSET(key, 5, sizeof(DES_key_schedule));
     AssertIntEQ(DES_set_key_checked(&myDes, &key), -1);
     AssertIntNE(key[0], myDes[0]); /* should not have copied over key */
 
     /* set odd parity for success case */
-    key[0] = 4;
+    myDes[0] = 4;
     AssertIntEQ(DES_set_key_checked(&myDes, &key), 0);
     for (i = 0; i < sizeof(DES_key_schedule); i++) {
         AssertIntEQ(key[i], myDes[i]);
     }
+    AssertIntEQ(DES_is_weak_key(&myDes), 0);
 
     /* check weak key */
-    XMEMSET(key, 1, sizeof(DES_key_schedule));
-    XMEMSET(myDes, 5, sizeof(const_DES_cblock));
+    XMEMSET(myDes, 1, sizeof(const_DES_cblock));
+    XMEMSET(key, 5, sizeof(DES_key_schedule));
     AssertIntEQ(DES_set_key_checked(&myDes, &key), -2);
     AssertIntNE(key[0], myDes[0]); /* should not have copied over key */
 
     /* now do unchecked copy of a weak key over */
     DES_set_key_unchecked(&myDes, &key);
+    /* compare arrays, should be the same */
+    for (i = 0; i < sizeof(DES_key_schedule); i++) {
+        AssertIntEQ(key[i], myDes[i]);
+    }
+    AssertIntEQ(DES_is_weak_key(&myDes), 1);
+
+    /* check DES_key_sched API */
+    XMEMSET(key, 1, sizeof(DES_key_schedule));
+    AssertIntEQ(DES_key_sched(&myDes, NULL), 0);
+    AssertIntEQ(DES_key_sched(NULL, &key),   0);
+    AssertIntEQ(DES_key_sched(&myDes, &key), 0);
     /* compare arrays, should be the same */
     for (i = 0; i < sizeof(DES_key_schedule); i++) {
         AssertIntEQ(key[i], myDes[i]);
