@@ -590,15 +590,8 @@ WOLFSSL_API int wolfSSL_EVP_add_digest(const WOLFSSL_EVP_MD *digest)
 {
     (void)digest;
     /* nothing to do */
-    return 0;
-}
+    return 0;}
 
-WOLFSSL_API int wolfSSL_EVP_PKEY_bits(const WOLFSSL_EVP_PKEY *pkey)
-{
-    if (pkey == NULL)return 0;
-    WOLFSSL_ENTER("EVP_PKEY_bits");
-    return 1;
-}
 
 WOLFSSL_API int wolfSSL_EVP_PKEY_CTX_free(WOLFSSL_EVP_PKEY_CTX *ctx)
 {
@@ -706,6 +699,16 @@ WOLFSSL_API int wolfSSL_EVP_PKEY_encrypt_init(WOLFSSL_EVP_PKEY_CTX *ctx)
         return 0;
     }
 
+}
+
+WOLFSSL_API int wolfSSL_EVP_PKEY_bits(const WOLFSSL_EVP_PKEY *pkey)
+{
+    int bytes;
+
+    if (pkey == NULL)return 0;
+    WOLFSSL_ENTER("EVP_PKEY_bits");
+    if((bytes = wolfSSL_EVP_PKEY_size((WOLFSSL_EVP_PKEY*)pkey)) ==0)return 0;
+    return bytes*8 ;
 }
 
 WOLFSSL_API int wolfSSL_EVP_PKEY_size(WOLFSSL_EVP_PKEY *pkey)

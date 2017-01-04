@@ -20381,25 +20381,21 @@ int wolfSSL_RSA_blinding_on(WOLFSSL_RSA* rsa, WOLFSSL_BN_CTX* bn)
 int wolfSSL_RSA_public_encrypt(int len, const unsigned char* fr,
                             unsigned char* to, WOLFSSL_RSA* rsa, int padding)
 {
-    int tlen = 0;
-    int     initTmpRng = 0;
-    WC_RNG* rng = NULL;
+    int initTmpRng = 0;
+    WC_RNG *rng = NULL;
+    int outLen;
+    int ret = 0;
 #ifdef WOLFSSL_SMALL_STACK
     WC_RNG* tmpRNG = NULL;
 #else
     WC_RNG  tmpRNG[1];
 #endif
 #if !defined(HAVE_FIPS) && !defined(HAVE_USER_RSA) && !defined(HAVE_FAST_RSA)
-    int mgf = WC_MGF1NONE;
+    int  mgf = WC_MGF1NONE;
     enum wc_HashType hash = WC_HASH_TYPE_NONE;
 #endif
 
     WOLFSSL_MSG("wolfSSL_RSA_public_encrypt");
-
-    if (rsa == NULL || rsa->internal == NULL || fr == NULL) {
-        WOLFSSL_MSG("Bad function arguments");
-        return 0;
-    }
 
     /* Check and remap the padding to internal values, if needed. */
 #if !defined(HAVE_FIPS) && !defined(HAVE_USER_RSA) && !defined(HAVE_FAST_RSA)
@@ -20421,13 +20417,13 @@ int wolfSSL_RSA_public_encrypt(int len, const unsigned char* fr,
 
     if (rsa->inSet == 0)
     {
-        WOLFSSL_MSG("No RSA internal set, do it");
-
-        if (SetRsaInternal(rsa) != WOLFSSL_SUCCESS) {
+        if (SetRsaInternal(rsa) != SSL_SUCCESS) {
             WOLFSSL_MSG("SetRsaInternal failed");
             return 0;
         }
     }
+
+    outLen = wolfSSL_RSA_size(rsa);
 
 #if !defined(HAVE_FIPS) && !defined(HAVE_USER_RSA) && \
     !defined(HAVE_FAST_RSA) && defined(WC_RSA_BLINDING)
@@ -20435,9 +20431,9 @@ int wolfSSL_RSA_public_encrypt(int len, const unsigned char* fr,
 #endif
     if (rng == NULL) {
 #ifdef WOLFSSL_SMALL_STACK
-        tmpRNG = (WC_RNG*)XMALLOC(sizeof(WC_RNG), NULL, DYNAMIC_TYPE_RNG);
+        tmpRNG = (WC_RNG*)XMALLOC(sizeof(WC_RNG), NULL, DYNAMIC_TYPE_TMP_BUFFER);
         if (tmpRNG == NULL)
-            return WOLFSSL_FATAL_ERROR;
+            return 0;
 #endif
 
         if (wc_InitRng(tmpRNG) == 0) {
@@ -20453,30 +20449,38 @@ int wolfSSL_RSA_public_encrypt(int len, const unsigned char* fr,
         }
     }
 
-    /* size of 'to' buffer must be size of RSA key */
+    if (outLen == 0) {
+        WOLFSSL_MSG("Bad RSA size");
+    }
+
     if (rng) {
 #if !defined(HAVE_FIPS) && !defined(HAVE_USER_RSA) && !defined(HAVE_FAST_RSA)
-        tlen = wc_RsaPublicEncrypt_ex(fr, len, to, wolfSSL_RSA_size(rsa),
+        ret = wc_RsaPublicEncrypt_ex(fr, len, to, outLen,
                              (RsaKey*)rsa->internal, rng, padding,
                              hash, mgf, NULL, 0);
 #else
-        tlen = wc_RsaPublicEncrypt(fr, len, to, wolfSSL_RSA_size(rsa),
+        ret = wc_RsaPublicEncrypt(fr, len, to, outLen,
                              (RsaKey*)rsa->internal, rng);
 #endif
-        if (tlen <= 0) {
-            WOLFSSL_MSG("wolfSSL_RSA_public_encrypt failed");
-        }
-        else {
-            WOLFSSL_MSG("wolfSSL_RSA_public_encrypt success");
+        if (ret <= 0) {
+            WOLFSSL_MSG("Bad Rsa Encrypt");
         }
     }
+
     if (initTmpRng)
         wc_FreeRng(tmpRNG);
 
 #ifdef WOLFSSL_SMALL_STACK
-    XFREE(tmpRNG, NULL, DYNAMIC_TYPE_RNG);
+    XFREE(tmpRNG,     NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
-    return tlen;
+
+    if (ret > 0)
+        WOLFSSL_MSG("wolfSSL_RSA_public_encrypt success");
+    else {
+        WOLFSSL_MSG("wolfSSL_RSA_public_encrypt failed");
+        ret = WOLFSSL_FATAL_ERROR; /* return -1 on error case */
+    }
+    return ret;
 }
 
 /* return compliant with OpenSSL
@@ -20485,20 +20489,15 @@ int wolfSSL_RSA_public_encrypt(int len, const unsigned char* fr,
 int wolfSSL_RSA_private_decrypt(int len, const unsigned char* fr,
                             unsigned char* to, WOLFSSL_RSA* rsa, int padding)
 {
-    int tlen = 0;
-#if !defined(HAVE_FIPS) && !defined(HAVE_USER_RSA) && !defined(HAVE_FAST_RSA)
+    int outLen;
+    int ret = 0;
+  #if !defined(HAVE_FIPS) && !defined(HAVE_USER_RSA) && !defined(HAVE_FAST_RSA)
     int mgf = WC_MGF1NONE;
     enum wc_HashType hash = WC_HASH_TYPE_NONE;
-#endif
+  #endif
 
     WOLFSSL_MSG("wolfSSL_RSA_private_decrypt");
 
-    if (rsa == NULL || rsa->internal == NULL || fr == NULL) {
-        WOLFSSL_MSG("Bad function arguments");
-        return 0;
-    }
-
-    /* Check and remap the padding to internal values, if needed. */
 #if !defined(HAVE_FIPS) && !defined(HAVE_USER_RSA) && !defined(HAVE_FAST_RSA)
     if (padding == RSA_PKCS1_PADDING)
         padding = WC_RSA_PKCSV15_PAD;
@@ -20518,30 +20517,38 @@ int wolfSSL_RSA_private_decrypt(int len, const unsigned char* fr,
 
     if (rsa->inSet == 0)
     {
-        WOLFSSL_MSG("No RSA internal set, do it");
-
-        if (SetRsaInternal(rsa) != WOLFSSL_SUCCESS) {
+        if (SetRsaInternal(rsa) != SSL_SUCCESS) {
             WOLFSSL_MSG("SetRsaInternal failed");
             return 0;
         }
     }
 
+    outLen = wolfSSL_RSA_size(rsa);
+    if (outLen == 0) {
+        WOLFSSL_MSG("Bad RSA size");
+    }
+
     /* size of 'to' buffer must be size of RSA key */
 #if !defined(HAVE_FIPS) && !defined(HAVE_USER_RSA) && !defined(HAVE_FAST_RSA)
-    tlen = wc_RsaPrivateDecrypt_ex(fr, len, to, wolfSSL_RSA_size(rsa),
+    ret = wc_RsaPrivateDecrypt_ex(fr, len, to, outLen,
                             (RsaKey*)rsa->internal, padding,
                             hash, mgf, NULL, 0);
 #else
-    tlen = wc_RsaPrivateDecrypt(fr, len, to, wolfSSL_RSA_size(rsa),
+    ret = wc_RsaPrivateDecrypt(fr, len, to, outLen,
                             (RsaKey*)rsa->internal);
 #endif
-    if (tlen <= 0) {
-        WOLFSSL_MSG("wolfSSL_RSA_private_decrypt failed");
+
+    if (len <= 0) {
+        WOLFSSL_MSG("Bad Rsa Decrypt");
     }
-    else {
+
+    if (ret > 0)
         WOLFSSL_MSG("wolfSSL_RSA_private_decrypt success");
+    else {
+        WOLFSSL_MSG("wolfSSL_RSA_private_decrypt failed");
+        ret = WOLFSSL_FATAL_ERROR;
     }
-    return tlen;
+    return ret;
 }
 
 /* return compliant with OpenSSL
