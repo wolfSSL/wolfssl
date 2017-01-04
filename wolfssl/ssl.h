@@ -800,15 +800,22 @@ enum {
 
     EVP_R_BAD_DECRYPT = 2,
 
-    SSL_CB_LOOP = 4,
-    SSL_ST_CONNECT = 5,
-    SSL_ST_ACCEPT  = 6,
-    SSL_CB_ALERT   = 7,
-    SSL_CB_READ    = 8,
-    SSL_CB_HANDSHAKE_DONE = 9,
-    /* additional SSL_CB_* enums not used in wolfSSL */
-    SSL_CB_HANDSHAKE_START,
-    SSL_CB_EXIT,
+    SSL_ST_CONNECT = 0x1000,
+    SSL_ST_ACCEPT  = 0x2000,
+
+    SSL_CB_LOOP = 0x01,
+    SSL_CB_EXIT = 0x02,
+    SSL_CB_READ = 0x04,
+    SSL_CB_WRITE = 0x08,
+    SSL_CB_HANDSHAKE_START = 0x10,
+    SSL_CB_HANDSHAKE_DONE = 0x20,
+    SSL_CB_ALERT = 0x4000,
+    SSL_CB_READ_ALERT = (SSL_CB_ALERT | SSL_CB_READ),
+    SSL_CB_WRITE_ALERT = (SSL_CB_ALERT | SSL_CB_WRITE),
+    SSL_CB_ACCEPT_LOOP = (SSL_ST_ACCEPT | SSL_CB_LOOP),
+    SSL_CB_ACCEPT_EXIT = (SSL_ST_ACCEPT | SSL_CB_EXIT),
+    SSL_CB_CONNECT_LOOP = (SSL_ST_CONNECT | SSL_CB_LOOP),
+    SSL_CB_CONNECT_EXIT = (SSL_ST_CONNECT | SSL_CB_EXIT),
 
     SSL_MODE_ENABLE_PARTIAL_WRITE = 2,
 
@@ -2172,6 +2179,16 @@ WOLFSSL_API int wolfSSL_AsyncPoll(WOLFSSL* ssl, WOLF_EVENT_FLAG flags);
 WOLFSSL_API int wolfSSL_CTX_AsyncPoll(WOLFSSL_CTX* ctx, WOLF_EVENT** events, int maxEvents,
     WOLF_EVENT_FLAG flags, int* eventCount);
 #endif /* WOLFSSL_ASYNC_CRYPT */
+
+#ifdef OPENSSL_EXTRA
+typedef void (*SSL_Msg_Cb)(int write_p, int version, int content_type,
+    const void *buf, size_t len, WOLFSSL *ssl, void *arg);
+
+WOLFSSL_API int wolfSSL_CTX_set_msg_callback(WOLFSSL_CTX *ctx, SSL_Msg_Cb cb);
+WOLFSSL_API int wolfSSL_set_msg_callback(WOLFSSL *ssl, SSL_Msg_Cb cb);
+WOLFSSL_API int wolfSSL_CTX_set_msg_callback_arg(WOLFSSL_CTX *ctx, void* arg);
+WOLFSSL_API int wolfSSL_set_msg_callback_arg(WOLFSSL *ssl, void* arg);
+#endif
 
 
 #ifdef __cplusplus
