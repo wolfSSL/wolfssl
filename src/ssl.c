@@ -16570,8 +16570,17 @@ WOLFSSL_BIGNUM *wolfSSL_ASN1_INTEGER_to_BN(const WOLFSSL_ASN1_INTEGER *ai,
         return NULL;
     }
 
-    if (SetIndividualExternal(&bn, &mpi) != SSL_SUCCESS) {
-        return NULL;
+    /* SetIndividualExternal mallocs bn in the case that bn is NULL */
+    if (bn == NULL) {
+        if (SetIndividualExternal(&bn, &mpi) != SSL_SUCCESS) {
+            wolfSSL_BN_free(bn);
+            return NULL;
+        }
+    }
+    else {
+        if (SetIndividualExternal(&bn, &mpi) != SSL_SUCCESS) {
+            return NULL;
+        }
     }
 
     return bn;
