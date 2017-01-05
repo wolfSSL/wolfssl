@@ -645,6 +645,7 @@ WOLFSSL_API const char*  wolfSSL_get_cipher(WOLFSSL*);
 WOLFSSL_API WOLFSSL_SESSION* wolfSSL_get1_session(WOLFSSL* ssl);
                            /* what's ref count */
 
+WOLFSSL_API WOLFSSL_X509* wolfSSL_X509_new(void);
 WOLFSSL_API void wolfSSL_X509_free(WOLFSSL_X509*);
 
 #ifdef OPENSSL_EXTRA

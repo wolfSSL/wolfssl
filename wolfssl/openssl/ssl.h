@@ -228,6 +228,7 @@ typedef WOLFSSL_X509_STORE_CTX X509_STORE_CTX;
 #define X509_get_ext_d2i wolfSSL_X509_get_ext_d2i
 #define X509_digest wolfSSL_X509_digest
 #define X509_free wolfSSL_X509_free
+#define X509_new  wolfSSL_X509_new
 #define OPENSSL_free wolfSSL_OPENSSL_free
 #define OPENSSL_malloc wolfSSL_OPENSSL_malloc
 

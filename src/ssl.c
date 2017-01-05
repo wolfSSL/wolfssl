@@ -15886,6 +15886,20 @@ void wolfSSL_X509_free(WOLFSSL_X509* x509)
     WOLFSSL_ENTER("wolfSSL_X509_free");
     ExternalFreeX509(x509);
 }
+
+
+WOLFSSL_X509* wolfSSL_X509_new()
+{
+    WOLFSSL_X509* x509;
+
+    x509 = (WOLFSSL_X509*)XMALLOC(sizeof(WOLFSSL_X509), NULL,
+            DYNAMIC_TYPE_X509);
+    if (x509 != NULL) {
+        InitX509(x509, 1, NULL);
+    }
+
+    return x509;
+}
 #endif /* NO_CERTS */
 
 
