@@ -293,12 +293,12 @@ int EmbedReceiveFrom(WOLFSSL *ssl, char *buf, int sz, void *ctx)
         }
     }
     else {
-        if (dtlsCtx->peer.sz > 0
-                && peerSz != (XSOCKLENT)dtlsCtx->peer.sz
-                && XMEMCMP(&peer, dtlsCtx->peer.sa, peerSz) != 0) {
-            WOLFSSL_MSG("\tIgnored packet from invalid peer");
-            return WOLFSSL_CBIO_ERR_WANT_READ;
-        }
+//        if (dtlsCtx->peer.sz > 0
+//                && peerSz != (XSOCKLENT)dtlsCtx->peer.sz
+//                && XMEMCMP(&peer, dtlsCtx->peer.sa, peerSz) != 0) {
+//            WOLFSSL_MSG("    Ignored packet from invalid peer");
+//            return WOLFSSL_CBIO_ERR_WANT_READ;
+//        }
     }
 
     return recvd;

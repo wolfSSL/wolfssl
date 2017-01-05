@@ -911,6 +911,15 @@ enum {
 #define DTLS_SEQ_BITS  (WOLFSSL_DTLS_WINDOW_WORDS * DTLS_WORD_BITS)
 #define DTLS_SEQ_SZ    (sizeof(word32) * WOLFSSL_DTLS_WINDOW_WORDS)
 
+#ifndef WOLFSSL_MULTICAST_PEERS
+    /* max allowed multicast group peers */
+    #ifdef WOLFSSL_MULTICAST
+        #define WOLFSSL_MULTICAST_PEERS 100
+    #else
+        #define WOLFSSL_MULTICAST_PEERS 1
+    #endif
+#endif /* WOLFSSL_MULTICAST_PEERS */
+
 
 enum Misc {
     ECC_BYTE    = 0xC0,            /* ECC first cipher suite byte */
@@ -1027,7 +1036,7 @@ enum Misc {
     DTLS_EXPORT_LEN          = 2,  /* 2 bytes for length and protocol */
     DTLS_EXPORT_IP           = 46, /* max ip size IPv4 mapped IPv6 */
     MAX_EXPORT_BUFFER        = 514, /* max size of buffer for exporting */
-    MULTICAST_SZ             = 100, /* max allowed multicast group peers */
+    MULTICAST_SZ        = WOLFSSL_MULTICAST_PEERS,
     FINISHED_LABEL_SZ   = 15,  /* TLS finished label size */
     TLS_FINISHED_SZ     = 12,  /* TLS has a shorter size  */
     EXT_MASTER_LABEL_SZ = 22,  /* TLS extended master secret label sz */
@@ -1698,6 +1707,20 @@ typedef struct WOLFSSL_DTLS_CTX {
 } WOLFSSL_DTLS_CTX;
 
 
+typedef struct WOLFSSL_DTLS_PEERSEQ {
+    word32 window[WOLFSSL_DTLS_WINDOW_WORDS];
+                        /* Sliding window for current epoch    */
+    word16 nextEpoch;   /* Expected epoch in next record       */
+    word16 nextSeq_hi;  /* Expected sequence in next record    */
+    word32 nextSeq_lo;
+
+    word32 prevWindow[WOLFSSL_DTLS_WINDOW_WORDS];
+                        /* Sliding window for old epoch        */
+    word16 prevSeq_hi;  /* Next sequence in allowed old epoch  */
+    word32 prevSeq_lo;
+} WOLFSSL_DTLS_PEERSEQ;
+
+
 #define MAX_WRITE_IV_SZ 16 /* max size of client/server write_IV */
 
 /* keys and secrets
@@ -1721,23 +1744,13 @@ typedef struct Keys {
     word32 sequence_number_lo;
 
 #ifdef WOLFSSL_DTLS
-    word32 window[WOLFSSL_DTLS_WINDOW_WORDS];
-                        /* Sliding window for current epoch    */
-    word16 nextEpoch;   /* Expected epoch in next record       */
-    word16 nextSeq_hi;  /* Expected sequence in next record    */
-    word32 nextSeq_lo;
-
     word16 curEpoch;    /* Received epoch in current record    */
     word16 curSeq_hi;   /* Received sequence in current record */
     word32 curSeq_lo;
 #ifdef WOLFSSL_MULTICAST
     byte   curPeerId;   /* Received peer group ID in current record */
 #endif
-
-    word32 prevWindow[WOLFSSL_DTLS_WINDOW_WORDS];
-                        /* Sliding window for old epoch        */
-    word16 prevSeq_hi;  /* Next sequence in allowed old epoch  */
-    word32 prevSeq_lo;
+    WOLFSSL_DTLS_PEERSEQ peerSeq[WOLFSSL_MULTICAST_PEERS];
 
     word16 dtls_peer_handshake_number;
     word16 dtls_expected_peer_handshake_number;
