@@ -16502,6 +16502,10 @@ void wolfSSL_RSA_free(WOLFSSL_RSA* rsa)
  * declared and then not used. */
 #if !defined(NO_ASN) || !defined(NO_DSA) || defined(HAVE_ECC) || \
     (!defined(NO_RSA) && !defined(HAVE_USER_RSA) && !defined(HAVE_FAST_RSA))
+/* when calling SetIndividualExternal, mpi should be cleared by caller if no
+ * longer used. ie mp_clear(mpi). This is to free data when fastmath is
+ * disabled since a copy of mpi is made by this function and placed into bn.
+ */
 static int SetIndividualExternal(WOLFSSL_BIGNUM** bn, mp_int* mpi)
 {
     WOLFSSL_MSG("Entering SetIndividualExternal");
@@ -16570,18 +16574,23 @@ WOLFSSL_BIGNUM *wolfSSL_ASN1_INTEGER_to_BN(const WOLFSSL_ASN1_INTEGER *ai,
         return NULL;
     }
 
-    /* SetIndividualExternal mallocs bn in the case that bn is NULL */
+    /* SetIndividualExternal mallocs bn in the case that bn is NULL
+     * mp_clear needs called because mpi is copied and causes memory leak with
+     * --disable-fastmath */
     if (bn == NULL) {
         if (SetIndividualExternal(&bn, &mpi) != SSL_SUCCESS) {
             wolfSSL_BN_free(bn);
+            mp_clear(&mpi);
             return NULL;
         }
     }
     else {
         if (SetIndividualExternal(&bn, &mpi) != SSL_SUCCESS) {
+            mp_clear(&mpi);
             return NULL;
         }
     }
+    mp_clear(&mpi);
 
     return bn;
 }
