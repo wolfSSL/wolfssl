@@ -13762,7 +13762,7 @@ int wolfSSL_PKCS12_parse(WC_PKCS12* pkcs12, const char* psw,
         WC_DerCertList* current = certList;
 
         *ca = (STACK_OF(WOLFSSL_X509)*)XMALLOC(sizeof(STACK_OF(WOLFSSL_X509)),
-                                               heap, DYNAMIC_TYPE_PKCS);
+                                               heap, DYNAMIC_TYPE_X509);
         if (*ca == NULL) {
             if (pk != NULL) {
                 XFREE(pk, heap, DYNAMIC_TYPE_PKCS);
@@ -13788,7 +13788,7 @@ int wolfSSL_PKCS12_parse(WC_PKCS12* pkcs12, const char* psw,
             WOLFSSL_X509* x509;
 
             x509 = (WOLFSSL_X509*)XMALLOC(sizeof(WOLFSSL_X509), heap,
-                                                             DYNAMIC_TYPE_PKCS);
+                                                             DYNAMIC_TYPE_X509);
             InitX509(x509, 1, heap);
             InitDecodedCert(&DeCert, current->buffer, current->bufferSz, heap);
             if (ParseCertRelative(&DeCert, CERT_TYPE, NO_VERIFY, NULL) != 0) {
@@ -13852,7 +13852,7 @@ int wolfSSL_PKCS12_parse(WC_PKCS12* pkcs12, const char* psw,
     /* Decode cert and place in X509 struct */
     if (certData != NULL) {
         *cert = (WOLFSSL_X509*)XMALLOC(sizeof(WOLFSSL_X509), heap,
-                                                             DYNAMIC_TYPE_PKCS);
+                                                             DYNAMIC_TYPE_X509);
         if (*cert == NULL) {
             if (pk != NULL) {
                 XFREE(pk, heap, DYNAMIC_TYPE_PKCS);
@@ -13888,8 +13888,9 @@ int wolfSSL_PKCS12_parse(WC_PKCS12* pkcs12, const char* psw,
     /* get key type */
     ret = BAD_STATE_E;
     if (pk != NULL) { /* decode key if present */
+        /* using dynamic type public key because of wolfSSL_EVP_PKEY_free */
         *pkey = (WOLFSSL_EVP_PKEY*)XMALLOC(sizeof(WOLFSSL_EVP_PKEY),
-                                               heap, DYNAMIC_TYPE_PKCS);
+                                               heap, DYNAMIC_TYPE_PUBLIC_KEY);
         if (*pkey == NULL) {
             wolfSSL_X509_free(*cert); *cert = NULL;
             if (ca != NULL) {
@@ -13928,7 +13929,7 @@ int wolfSSL_PKCS12_parse(WC_PKCS12* pkcs12, const char* psw,
                     if (ca != NULL) {
                         wolfSSL_sk_X509_free(*ca); *ca = NULL;
                     }
-                    XFREE(*pkey, heap, DYNAMIC_TYPE_PKCS); *pkey = NULL;
+                    XFREE(*pkey, heap, DYNAMIC_TYPE_PUBLIC_KEY); *pkey = NULL;
                     XFREE(pk, heap, DYNAMIC_TYPE_PKCS);
                     return 0;
                 }
@@ -13939,7 +13940,7 @@ int wolfSSL_PKCS12_parse(WC_PKCS12* pkcs12, const char* psw,
                     if (ca != NULL) {
                         wolfSSL_sk_X509_free(*ca); *ca = NULL;
                     }
-                    XFREE(*pkey, heap, DYNAMIC_TYPE_PKCS); *pkey = NULL;
+                    XFREE(*pkey, heap, DYNAMIC_TYPE_PUBLIC_KEY); *pkey = NULL;
                     XFREE(pk, heap, DYNAMIC_TYPE_PKCS);
                     WOLFSSL_MSG("Bad PKCS12 key format");
                     return 0;
@@ -13956,7 +13957,7 @@ int wolfSSL_PKCS12_parse(WC_PKCS12* pkcs12, const char* psw,
             if (ca != NULL) {
                 wolfSSL_sk_X509_free(*ca); *ca = NULL;
             }
-            XFREE(*pkey, heap, DYNAMIC_TYPE_PKCS); *pkey = NULL;
+            XFREE(*pkey, heap, DYNAMIC_TYPE_PUBLIC_KEY); *pkey = NULL;
             XFREE(pk, heap, DYNAMIC_TYPE_PKCS);
             WOLFSSL_MSG("Bad PKCS12 key format");
             return 0;
