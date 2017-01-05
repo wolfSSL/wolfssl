@@ -852,7 +852,7 @@ int wolfSSL_CTX_mcast_set_member_id(WOLFSSL_CTX* ctx, byte id)
 
     WOLFSSL_ENTER("wolfSSL_CTX_mcast_set_member_id()");
 
-    if (ctx == NULL)
+    if (ctx == NULL || id >= MULTICAST_SZ)
         ret = BAD_FUNC_ARG;
 
     if (ret == 0) {
@@ -906,14 +906,22 @@ int wolfSSL_set_secret(WOLFSSL* ssl, unsigned short epoch,
     if (ret == 0) {
         if (ssl->options.dtls) {
         #ifdef WOLFSSL_DTLS
+            WOLFSSL_DTLS_PEERSEQ* peerSeq;
+            int i;
+
             ssl->keys.dtls_epoch = epoch;
-            ssl->keys.nextEpoch = epoch;
-            ssl->keys.prevSeq_lo = ssl->keys.nextSeq_lo;
-            ssl->keys.prevSeq_hi = ssl->keys.nextSeq_hi;
-            ssl->keys.nextSeq_lo = 0;
-            ssl->keys.nextSeq_hi = 0;
-            XMEMCPY(ssl->keys.prevWindow, ssl->keys.window, DTLS_SEQ_SZ);
-            XMEMSET(ssl->keys.window, 0, DTLS_SEQ_SZ);
+            for (i = 0, peerSeq = ssl->keys.peerSeq;
+                 i < WOLFSSL_MULTICAST_PEERS;
+                 i++, peerSeq++) {
+
+                peerSeq->nextEpoch = epoch;
+                peerSeq->prevSeq_lo = peerSeq->nextSeq_lo;
+                peerSeq->prevSeq_hi = peerSeq->nextSeq_hi;
+                peerSeq->nextSeq_lo = 0;
+                peerSeq->nextSeq_hi = 0;
+                XMEMCPY(peerSeq->prevWindow, peerSeq->window, DTLS_SEQ_SZ);
+                XMEMSET(peerSeq->window, 0, DTLS_SEQ_SZ);
+            }
         #endif
         }
         ret = SSL_SUCCESS;

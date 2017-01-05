@@ -9609,16 +9609,22 @@ static INLINE int DtlsCheckWindow(WOLFSSL* ssl)
     word16 cur_hi, next_hi;
     word32 cur_lo, next_lo, diff;
     int curLT;
+    WOLFSSL_DTLS_PEERSEQ* peerSeq = ssl->keys.peerSeq;
 
-    if (ssl->keys.curEpoch == ssl->keys.nextEpoch) {
-        next_hi = ssl->keys.nextSeq_hi;
-        next_lo = ssl->keys.nextSeq_lo;
-        window = ssl->keys.window;
+#ifdef WOLFSSL_MULTICAST
+    if (ssl->options.haveMcast)
+        peerSeq += ssl->keys.curPeerId;
+#endif
+
+    if (ssl->keys.curEpoch == peerSeq->nextEpoch) {
+        next_hi = peerSeq->nextSeq_hi;
+        next_lo = peerSeq->nextSeq_lo;
+        window = peerSeq->window;
     }
-    else if (ssl->keys.curEpoch == ssl->keys.nextEpoch - 1) {
-        next_hi = ssl->keys.prevSeq_hi;
-        next_lo = ssl->keys.prevSeq_lo;
-        window = ssl->keys.prevWindow;
+    else if (ssl->keys.curEpoch == peerSeq->nextEpoch - 1) {
+        next_hi = peerSeq->prevSeq_hi;
+        next_lo = peerSeq->prevSeq_lo;
+        window = peerSeq->prevWindow;
     }
     else {
         return 0;
@@ -9684,16 +9690,22 @@ static INLINE int DtlsUpdateWindow(WOLFSSL* ssl)
     int curLT;
     word32 cur_lo, diff;
     word16 cur_hi;
+    WOLFSSL_DTLS_PEERSEQ* peerSeq = ssl->keys.peerSeq;
 
-    if (ssl->keys.curEpoch == ssl->keys.nextEpoch) {
-        next_hi = &ssl->keys.nextSeq_hi;
-        next_lo = &ssl->keys.nextSeq_lo;
-        window = ssl->keys.window;
+#ifdef WOLFSSL_MULTICAST
+    if (ssl->options.haveMcast)
+        peerSeq += ssl->keys.curPeerId;
+#endif
+
+    if (ssl->keys.curEpoch == peerSeq->nextEpoch) {
+        next_hi = &peerSeq->nextSeq_hi;
+        next_lo = &peerSeq->nextSeq_lo;
+        window = peerSeq->window;
     }
     else {
-        next_hi = &ssl->keys.prevSeq_hi;
-        next_lo = &ssl->keys.prevSeq_lo;
-        window = ssl->keys.prevWindow;
+        next_hi = &peerSeq->prevSeq_hi;
+        next_lo = &peerSeq->prevSeq_lo;
+        window = peerSeq->prevWindow;
     }
 
     cur_hi = ssl->keys.curSeq_hi;
@@ -11727,20 +11739,28 @@ int ProcessReply(WOLFSSL* ssl)
                     ssl->keys.encryptionOn = 1;
 
                     /* setup decrypt keys for following messages */
+                    /* XXX This might not be what we want to do when
+                     * receiving a CCS with multicast. We update the
+                     * key when the application updates them. */
                     if ((ret = SetKeysSide(ssl, DECRYPT_SIDE_ONLY)) != 0)
                         return ret;
 
                     #ifdef WOLFSSL_DTLS
                         if (ssl->options.dtls) {
+                            WOLFSSL_DTLS_PEERSEQ* peerSeq = ssl->keys.peerSeq;
+#ifdef WOLFSSL_MULTICAST
+                            if (ssl->options.haveMcast)
+                                peerSeq += ssl->keys.curPeerId;
+#endif
                             DtlsMsgPoolReset(ssl);
-                            ssl->keys.prevSeq_lo = ssl->keys.nextSeq_lo;
-                            ssl->keys.prevSeq_hi = ssl->keys.nextSeq_hi;
-                            XMEMCPY(ssl->keys.prevWindow, ssl->keys.window,
+                            peerSeq->nextEpoch++;
+                            peerSeq->prevSeq_lo = peerSeq->nextSeq_lo;
+                            peerSeq->prevSeq_hi = peerSeq->nextSeq_hi;
+                            peerSeq->nextSeq_lo = 0;
+                            peerSeq->nextSeq_hi = 0;
+                            XMEMCPY(peerSeq->prevWindow, peerSeq->window,
                                     DTLS_SEQ_SZ);
-                            ssl->keys.nextEpoch++;
-                            ssl->keys.nextSeq_lo = 0;
-                            ssl->keys.nextSeq_hi = 0;
-                            XMEMSET(ssl->keys.window, 0, DTLS_SEQ_SZ);
+                            XMEMSET(peerSeq->window, 0, DTLS_SEQ_SZ);
                         }
                     #endif
 
