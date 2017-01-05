@@ -16215,6 +16215,36 @@ WOLFSSL_X509_LOOKUP* wolfSSL_X509_STORE_add_lookup(WOLFSSL_X509_STORE* store,
 
 
 #ifndef NO_CERTS
+int wolfSSL_i2d_X509_bio(WOLFSSL_BIO* bio, WOLFSSL_X509* x509)
+{
+    WOLFSSL_ENTER("wolfSSL_i2d_X509_bio");
+
+    if (bio == NULL || x509 == NULL) {
+        return SSL_FAILURE;
+    }
+
+    if (bio->mem != NULL) {
+        XFREE(bio->mem, NULL, DYNAMIC_TYPE_OPENSSL);
+    }
+
+    if (x509->derCert != NULL) {
+        word32 len = x509->derCert->length;
+        byte*  der = x509->derCert->buffer;
+
+        bio->mem = (byte*)XMALLOC(len, NULL, DYNAMIC_TYPE_OPENSSL);
+        if (bio->mem == NULL) {
+            WOLFSSL_MSG("Memory allocation error");
+            return SSL_FAILURE;
+        }
+        bio->memLen = len;
+        XMEMCPY(bio->mem, der, len);
+        return SSL_SUCCESS;
+    }
+
+    return SSL_FAILURE;
+}
+
+
 WOLFSSL_X509* wolfSSL_d2i_X509_bio(WOLFSSL_BIO* bio, WOLFSSL_X509** x509)
 {
     WOLFSSL_X509* localX509 = NULL;

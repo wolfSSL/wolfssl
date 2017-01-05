@@ -14604,6 +14604,32 @@ static void test_wolfSSL_ASN1_TIME_adj(void)
 #endif
 }
 
+
+static void test_wolfSSL_X509(void)
+{
+    #if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && !defined(NO_FILESYSTEM)
+    X509* x509;
+    BIO*  bio;
+
+    printf(testingFmt, "wolfSSL_X509()");
+
+    AssertNotNull(x509 = X509_new());
+    X509_free(x509);
+
+    x509 = wolfSSL_X509_load_certificate_file(cliCertFile, SSL_FILETYPE_PEM);
+
+    AssertNotNull(bio = BIO_new(BIO_s_mem()));
+
+    AssertIntEQ(i2d_X509_bio(bio, x509), SSL_SUCCESS);
+
+    BIO_free(bio);
+    X509_free(x509);
+
+    printf(resultFmt, passed);
+    #endif
+}
+
+
 /*----------------------------------------------------------------------------*
  | wolfCrypt ASN
  *----------------------------------------------------------------------------*/
@@ -15373,7 +15399,9 @@ void ApiTest(void)
     test_wolfSSL_X509_STORE_CTX();
     test_wolfSSL_PEM_read_bio();
     test_wolfSSL_BIO();
+    test_wolfSSL_DES_ecb_encrypt();
     test_wolfSSL_ASN1_STRING();
+    test_wolfSSL_X509();
     test_wolfSSL_DES_ecb_encrypt();
     test_wolfSSL_set_tlsext_status_type();
     test_wolfSSL_ASN1_TIME_adj();

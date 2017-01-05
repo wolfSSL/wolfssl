@@ -271,6 +271,7 @@ typedef WOLFSSL_X509_STORE_CTX X509_STORE_CTX;
 #define BIO_set_flags wolfSSL_BIO_set_flags
 
 #define OpenSSL_add_all_digests()
+#define OpenSSL_add_all_ciphers()
 #define OpenSSL_add_all_algorithms wolfSSL_add_all_algorithms
 #define SSLeay_add_ssl_algorithms  wolfSSL_add_all_algorithms
 #define SSLeay_add_all_algorithms  wolfSSL_add_all_algorithms
@@ -457,6 +458,7 @@ typedef WOLFSSL_X509_STORE_CTX X509_STORE_CTX;
 #define sk_value wolfSSL_sk_value
 #define sk_X509_pop  wolfSSL_sk_X509_pop
 #define sk_X509_free wolfSSL_sk_X509_free
+#define i2d_X509_bio wolfSSL_i2d_X509_bio
 #define d2i_X509_bio wolfSSL_d2i_X509_bio
 
 #define SSL_CTX_get_ex_data wolfSSL_CTX_get_ex_data
