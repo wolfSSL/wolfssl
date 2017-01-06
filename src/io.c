@@ -297,32 +297,32 @@ int EmbedReceive(WOLFSSL *ssl, char *buf, int sz, void *ctx)
 
         if (err == SOCKET_EWOULDBLOCK || err == SOCKET_EAGAIN) {
             if (!wolfSSL_dtls(ssl) || wolfSSL_get_using_nonblock(ssl)) {
-                WOLFSSL_MSG("    Would block");
+                WOLFSSL_MSG("\tWould block");
                 return WOLFSSL_CBIO_ERR_WANT_READ;
             }
             else {
-                WOLFSSL_MSG("    Socket timeout");
+                WOLFSSL_MSG("\tSocket timeout");
                 return WOLFSSL_CBIO_ERR_TIMEOUT;
             }
         }
         else if (err == SOCKET_ECONNRESET) {
-            WOLFSSL_MSG("    Connection reset");
+            WOLFSSL_MSG("\tConnection reset");
             return WOLFSSL_CBIO_ERR_CONN_RST;
         }
         else if (err == SOCKET_EINTR) {
-            WOLFSSL_MSG("    Socket interrupted");
+            WOLFSSL_MSG("\tSocket interrupted");
             return WOLFSSL_CBIO_ERR_ISR;
         }
         else if (err == SOCKET_ECONNREFUSED) {
-            WOLFSSL_MSG("    Connection refused");
+            WOLFSSL_MSG("\tConnection refused");
             return WOLFSSL_CBIO_ERR_WANT_READ;
         }
         else if (err == SOCKET_ECONNABORTED) {
-            WOLFSSL_MSG("    Connection aborted");
+            WOLFSSL_MSG("\tConnection aborted");
             return WOLFSSL_CBIO_ERR_CONN_CLOSE;
         }
         else {
-            WOLFSSL_MSG("    General error");
+            WOLFSSL_MSG("\tGeneral error");
             return WOLFSSL_CBIO_ERR_GENERAL;
         }
     }
@@ -353,23 +353,23 @@ int EmbedSend(WOLFSSL* ssl, char *buf, int sz, void *ctx)
         WOLFSSL_MSG("Embed Send error");
 
         if (err == SOCKET_EWOULDBLOCK || err == SOCKET_EAGAIN) {
-            WOLFSSL_MSG("    Would Block");
+            WOLFSSL_MSG("\tWould Block");
             return WOLFSSL_CBIO_ERR_WANT_WRITE;
         }
         else if (err == SOCKET_ECONNRESET) {
-            WOLFSSL_MSG("    Connection reset");
+            WOLFSSL_MSG("\tConnection reset");
             return WOLFSSL_CBIO_ERR_CONN_RST;
         }
         else if (err == SOCKET_EINTR) {
-            WOLFSSL_MSG("    Socket interrupted");
+            WOLFSSL_MSG("\tSocket interrupted");
             return WOLFSSL_CBIO_ERR_ISR;
         }
         else if (err == SOCKET_EPIPE) {
-            WOLFSSL_MSG("    Socket EPIPE");
+            WOLFSSL_MSG("\tSocket EPIPE");
             return WOLFSSL_CBIO_ERR_CONN_CLOSE;
         }
         else {
-            WOLFSSL_MSG("    General error");
+            WOLFSSL_MSG("\tGeneral error");
             return WOLFSSL_CBIO_ERR_GENERAL;
         }
     }
@@ -435,28 +435,28 @@ int EmbedReceiveFrom(WOLFSSL *ssl, char *buf, int sz, void *ctx)
 
         if (err == SOCKET_EWOULDBLOCK || err == SOCKET_EAGAIN) {
             if (wolfSSL_get_using_nonblock(ssl)) {
-                WOLFSSL_MSG("    Would block");
+                WOLFSSL_MSG("\tWould block");
                 return WOLFSSL_CBIO_ERR_WANT_READ;
             }
             else {
-                WOLFSSL_MSG("    Socket timeout");
+                WOLFSSL_MSG("\tSocket timeout");
                 return WOLFSSL_CBIO_ERR_TIMEOUT;
             }
         }
         else if (err == SOCKET_ECONNRESET) {
-            WOLFSSL_MSG("    Connection reset");
+            WOLFSSL_MSG("\tConnection reset");
             return WOLFSSL_CBIO_ERR_CONN_RST;
         }
         else if (err == SOCKET_EINTR) {
-            WOLFSSL_MSG("    Socket interrupted");
+            WOLFSSL_MSG("\tSocket interrupted");
             return WOLFSSL_CBIO_ERR_ISR;
         }
         else if (err == SOCKET_ECONNREFUSED) {
-            WOLFSSL_MSG("    Connection refused");
+            WOLFSSL_MSG("\tConnection refused");
             return WOLFSSL_CBIO_ERR_WANT_READ;
         }
         else {
-            WOLFSSL_MSG("    General error");
+            WOLFSSL_MSG("\tGeneral error");
             return WOLFSSL_CBIO_ERR_GENERAL;
         }
     }
@@ -464,7 +464,7 @@ int EmbedReceiveFrom(WOLFSSL *ssl, char *buf, int sz, void *ctx)
         if (dtlsCtx->peer.sz > 0
                 && peerSz != (XSOCKLENT)dtlsCtx->peer.sz
                 && XMEMCMP(&peer, dtlsCtx->peer.sa, peerSz) != 0) {
-            WOLFSSL_MSG("    Ignored packet from invalid peer");
+            WOLFSSL_MSG("\tIgnored packet from invalid peer");
             return WOLFSSL_CBIO_ERR_WANT_READ;
         }
     }
@@ -497,23 +497,23 @@ int EmbedSendTo(WOLFSSL* ssl, char *buf, int sz, void *ctx)
         WOLFSSL_MSG("Embed Send To error");
 
         if (err == SOCKET_EWOULDBLOCK || err == SOCKET_EAGAIN) {
-            WOLFSSL_MSG("    Would Block");
+            WOLFSSL_MSG("\tWould Block");
             return WOLFSSL_CBIO_ERR_WANT_WRITE;
         }
         else if (err == SOCKET_ECONNRESET) {
-            WOLFSSL_MSG("    Connection reset");
+            WOLFSSL_MSG("\tConnection reset");
             return WOLFSSL_CBIO_ERR_CONN_RST;
         }
         else if (err == SOCKET_EINTR) {
-            WOLFSSL_MSG("    Socket interrupted");
+            WOLFSSL_MSG("\tSocket interrupted");
             return WOLFSSL_CBIO_ERR_ISR;
         }
         else if (err == SOCKET_EPIPE) {
-            WOLFSSL_MSG("    Socket EPIPE");
+            WOLFSSL_MSG("\tSocket EPIPE");
             return WOLFSSL_CBIO_ERR_CONN_CLOSE;
         }
         else {
-            WOLFSSL_MSG("    General error");
+            WOLFSSL_MSG("\tGeneral error");
             return WOLFSSL_CBIO_ERR_GENERAL;
         }
     }

@@ -882,6 +882,9 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
         ssl = SSL_new(ctx);
         if (ssl == NULL)
             err_sys("unable to get SSL");
+        #ifdef OPENSSL_EXTRA
+        wolfSSL_KeepArrays(ssl);
+        #endif
 
 #if defined(WOLFSSL_STATIC_MEMORY) && defined(DEBUG_WOLFSSL)
     {
@@ -1022,6 +1025,39 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
         }
 
         showPeer(ssl);
+        if (SSL_state(ssl) != 0) {
+            err_sys("SSL in error state");
+        }
+
+#ifdef OPENSSL_EXTRA
+    {
+        byte*  rnd;
+        byte*  pt;
+        size_t size;
+
+        /* get size of buffer then print */
+        size = wolfSSL_get_server_random(NULL, NULL, 0);
+        if (size == 0) {
+            err_sys("error getting server random buffer size");
+        }
+
+        rnd = (byte*)XMALLOC(size, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        if (rnd == NULL) {
+            err_sys("error creating server random buffer");
+        }
+
+        size = wolfSSL_get_server_random(ssl, rnd, size);
+        if (size == 0) {
+            XFREE(rnd, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            err_sys("error getting server random buffer");
+        }
+
+        printf("Server Random : ");
+        for (pt = rnd; pt < rnd + size; pt++) printf("%02X", *pt);
+        printf("\n");
+        XFREE(rnd, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+#endif
 
 #ifdef HAVE_ALPN
         if (alpnList != NULL) {

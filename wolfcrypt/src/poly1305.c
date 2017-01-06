@@ -68,9 +68,9 @@
         } word128;
 
         #define MUL(out, x, y) out.lo = _umul128((x), (y), &out.hi)
-        #define ADD(out, in) { word64 t = out.lo; out.lo += in.lo;
+        #define ADD(out, in) { word64 t = out.lo; out.lo += in.lo; \
                                out.hi += (out.lo < t) + in.hi; }
-        #define ADDLO(out, in) { word64 t = out.lo; out.lo += in;
+        #define ADDLO(out, in) { word64 t = out.lo; out.lo += in; \
                                  out.hi += (out.lo < t); }
         #define SHR(in, shift) (__shiftright128(in.lo, in.hi, (shift)))
         #define LO(in) (in.lo)

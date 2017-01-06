@@ -59,16 +59,6 @@
     #include <wolfcrypt/src/misc.c>
 #endif
 
-#ifndef WOLFSSL_HAVE_MIN
-#define WOLFSSL_HAVE_MIN
-
-    static INLINE word32 min(word32 a, word32 b)
-    {
-        return a > b ? b : a;
-    }
-
-#endif /* WOLFSSL_HAVE_MIN */
-
 
 #ifndef NO_SHA
 /* PBKDF1 needs at least SHA available */
@@ -91,7 +81,7 @@ int wc_PBKDF1(byte* output, const byte* passwd, int pLen, const byte* salt,
         hLen = (int)MD5_DIGEST_SIZE;
 #endif
 
-    if (kLen > hLen)
+    if ((kLen > hLen) || (kLen < 0))
         return BAD_FUNC_ARG;
 
     if (iterations < 1)

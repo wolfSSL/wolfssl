@@ -30,6 +30,14 @@
 
 #include <wolfssl/wolfcrypt/hmac.h>
 
+#ifdef NO_INLINE
+    #include <wolfssl/wolfcrypt/misc.h>
+#else
+    #define WOLFSSL_MISC_INCLUDED
+    #include <wolfcrypt/src/misc.c>
+#endif
+
+
 #ifdef HAVE_FIPS
 /* does init */
 int wc_HmacSetKey(Hmac* hmac, int type, const byte* key, word32 keySz)
@@ -825,17 +833,6 @@ int wolfSSL_GetHmacMaxSize(void)
 
 #ifdef HAVE_HKDF
 
-#ifndef WOLFSSL_HAVE_MIN
-#define WOLFSSL_HAVE_MIN
-
-    static INLINE word32 min(word32 a, word32 b)
-    {
-        return a > b ? b : a;
-    }
-
-#endif /* WOLFSSL_HAVE_MIN */
-
-
 /* HMAC-KDF with hash type, optional salt and info, return 0 on success */
 int wc_HKDF(int type, const byte* inKey, word32 inKeySz,
                    const byte* salt,  word32 saltSz,
@@ -860,13 +857,13 @@ int wc_HKDF(int type, const byte* inKey, word32 inKeySz,
         return BAD_FUNC_ARG;
 
 #ifdef WOLFSSL_SMALL_STACK
-    tmp = (byte*)XMALLOC(MAX_DIGEST_SIZE, myHmac.heap, DYNAMIC_TYPE_TMP_BUFFER);
+    tmp = (byte*)XMALLOC(MAX_DIGEST_SIZE, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (tmp == NULL)
         return MEMORY_E;
 
-    prk = (byte*)XMALLOC(MAX_DIGEST_SIZE, myHmac.heap, DYNAMIC_TYPE_TMP_BUFFER);
+    prk = (byte*)XMALLOC(MAX_DIGEST_SIZE, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (prk == NULL) {
-        XFREE(tmp, myHmac.heap, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(tmp, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         return MEMORY_E;
     }
 #endif
@@ -918,8 +915,8 @@ int wc_HKDF(int type, const byte* inKey, word32 inKeySz,
     }
 
 #ifdef WOLFSSL_SMALL_STACK
-    XFREE(tmp, myHmac.heap, DYNAMIC_TYPE_TMP_BUFFER);
-    XFREE(prk, myHmac.heap, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(tmp, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(prk, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
 
     return ret;

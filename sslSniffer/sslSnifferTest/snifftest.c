@@ -166,8 +166,9 @@ int main(int argc, char** argv)
 
 	    printf("Enter the interface number (1-%d): ", i);
 	    ret = scanf("%d", &inum);
-        if (ret != 1)
+        if (ret != 1) {
             printf("scanf port failed\n");
+        }
 
 	    if (inum < 1 || inum > i)
 		    err_sys("Interface number out of range");

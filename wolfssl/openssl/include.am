@@ -3,6 +3,7 @@
 
 nobase_include_HEADERS+= \
                          wolfssl/openssl/asn1.h \
+                         wolfssl/openssl/aes.h\
                          wolfssl/openssl/bio.h \
                          wolfssl/openssl/bn.h \
                          wolfssl/openssl/conf.h \

@@ -282,12 +282,10 @@
 #define FP_NO         0   /* no response */
 
 /* a FP type */
-typedef struct {
-    int      used,
-             sign;
-#ifdef ALT_ECC_SIZE
+typedef struct fp_int {
+    int      used;
+    int      sign;
     int      size;
-#endif
     fp_digit dp[FP_SIZE];
 #ifdef WOLFSSL_ASYNC_CRYPT
     byte *dpraw; /* Used for hardware crypto */
@@ -370,15 +368,9 @@ typedef struct {
 /*const char *fp_ident(void);*/
 
 /* initialize [or zero] an fp int */
-#ifdef ALT_ECC_SIZE
-    void fp_init(fp_int *a);
-    void fp_zero(fp_int *a);
-    void fp_clear(fp_int *a); /* uses ForceZero to clear sensitive memory */
-#else
-    #define fp_init(a)  (void)XMEMSET((a), 0, sizeof(fp_int))
-    #define fp_zero(a)  fp_init(a)
-    #define fp_clear(a) ForceZero((a), sizeof(fp_int));
-#endif
+void fp_init(fp_int *a);
+void fp_zero(fp_int *a);
+void fp_clear(fp_int *a); /* uses ForceZero to clear sensitive memory */
 
 /* zero/even/odd ? */
 #define fp_iszero(a) (((a)->used == 0) ? FP_YES : FP_NO)
@@ -397,13 +389,8 @@ int fp_is_bit_set(fp_int *a, fp_digit b);
 int fp_set_bit (fp_int * a, fp_digit b);
 
 /* copy from a to b */
-#ifndef ALT_ECC_SIZE
-    #define fp_copy(a, b)  (void)(((a) != (b)) ? ((void)XMEMCPY((b), (a), sizeof(fp_int))) : (void)0)
-    #define fp_init_copy(a, b) fp_copy(b, a)
-#else
-    void fp_copy(fp_int *a, fp_int *b);
-    void fp_init_copy(fp_int *a, fp_int *b);
-#endif
+void fp_copy(fp_int *a, fp_int *b);
+void fp_init_copy(fp_int *a, fp_int *b);
 
 /* clamp digits */
 #define fp_clamp(a)   { while ((a)->used && (a)->dp[(a)->used-1] == 0) --((a)->used); (a)->sign = (a)->used ? (a)->sign : FP_ZPOS; }
@@ -703,6 +690,12 @@ WOLFSSL_API word32 CheckRunTimeFastMath(void);
 /* If user uses RSA, DH, DSA, or ECC math lib directly then fast math FP_SIZE
    must match, return 1 if a match otherwise 0 */
 #define CheckFastMathSettings() (FP_SIZE == CheckRunTimeFastMath())
+
+
+/* wolf big int and common functions */
+#include <wolfssl/wolfcrypt/wolfmath.h>
+
+
 #ifdef __cplusplus
    }
 #endif

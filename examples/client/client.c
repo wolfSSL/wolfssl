@@ -1288,6 +1288,15 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     wolfSSL_CTX_set_verify(ctx, SSL_VERIFY_NONE, 0);
     #endif
 
+    #if defined(OPENSSL_EXTRA)
+    if (wolfSSL_CTX_get_read_ahead(ctx) != 0) {
+        err_sys("bad read ahead default value");
+    }
+    if (wolfSSL_CTX_set_read_ahead(ctx, 1) != SSL_SUCCESS) {
+        err_sys("error setting read ahead value");
+    }
+    #endif
+
     ssl = wolfSSL_new(ctx);
     if (ssl == NULL)
         err_sys("unable to get SSL object");
@@ -1445,13 +1454,13 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 
 #ifdef OPENSSL_EXTRA
     {
-        byte* rnd;
-        byte* pt;
-        int   size;
+        byte*  rnd;
+        byte*  pt;
+        size_t size;
 
         /* get size of buffer then print */
         size = wolfSSL_get_client_random(NULL, NULL, 0);
-        if (size < 0) {
+        if (size == 0) {
             err_sys("error getting client random buffer size");
         }
 
@@ -1461,7 +1470,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
         }
 
         size = wolfSSL_get_client_random(ssl, rnd, size);
-        if (size < 0) {
+        if (size == 0) {
             XFREE(rnd, NULL, DYNAMIC_TYPE_TMP_BUFFER);
             err_sys("error getting client random buffer");
         }

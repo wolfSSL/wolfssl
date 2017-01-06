@@ -318,6 +318,7 @@
     <ClCompile Include="wolfcrypt\src\signature.c" />
     <ClCompile Include="wolfcrypt\src\wc_encrypt.c" />
     <ClCompile Include="wolfcrypt\src\wc_port.c" />
+    <ClCompile Include="wolfcrypt\src\wolfmath.c" />
     <ClCompile Include="wolfcrypt\src\wolfevent.c" />
   </ItemGroup>
   <ItemGroup>

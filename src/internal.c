@@ -65,12 +65,6 @@
     #include <sys/filio.h>
 #endif
 
-#ifndef TRUE
-    #define TRUE  1
-#endif
-#ifndef FALSE
-    #define FALSE 0
-#endif
 
 #define ERROR_OUT(err, eLabel) { ret = (err); goto eLabel; }
 
@@ -149,16 +143,6 @@ static int BuildCertHashes(WOLFSSL* ssl, Hashes* hashes);
 #ifdef HAVE_QSH
     int QSH_Init(WOLFSSL* ssl);
 #endif
-
-#ifndef WOLFSSL_HAVE_MIN
-#define WOLFSSL_HAVE_MIN
-
-    static INLINE word32 min(word32 a, word32 b)
-    {
-        return a > b ? b : a;
-    }
-
-#endif /* WOLFSSL_HAVE_MIN */
 
 
 int IsTLS(const WOLFSSL* ssl)
@@ -1402,6 +1386,10 @@ int InitSSL_Ctx(WOLFSSL_CTX* ctx, WOLFSSL_METHOD* method, void* heap)
         WOLFSSL_MSG("Bad Cert Manager New");
         return BAD_CERT_MANAGER_ERROR;
     }
+    #ifdef OPENSSL_EXTRA
+    /* setup WOLFSSL_X509_STORE */
+    ctx->x509_store.cm = ctx->cm;
+    #endif
 #endif
 
 #if defined(HAVE_EXTENDED_MASTER) && !defined(NO_WOLFSSL_CLIENT)
@@ -1435,9 +1423,9 @@ int InitSSL_Ctx(WOLFSSL_CTX* ctx, WOLFSSL_METHOD* method, void* heap)
 /* In case contexts are held in array and don't want to free actual ctx */
 void SSL_CtxResourceFree(WOLFSSL_CTX* ctx)
 {
+#ifdef HAVE_CERTIFICATE_STATUS_REQUEST_V2
     int i;
-
-    (void)i;
+#endif
 
 #ifdef HAVE_WOLF_EVENT
     wolfEventQueue_Free(&ctx->event_queue);
@@ -1450,14 +1438,14 @@ void SSL_CtxResourceFree(WOLFSSL_CTX* ctx)
 #ifndef NO_DH
     XFREE(ctx->serverDH_G.buffer, ctx->heap, DYNAMIC_TYPE_DH);
     XFREE(ctx->serverDH_P.buffer, ctx->heap, DYNAMIC_TYPE_DH);
-#endif
+#endif /* !NO_DH */
 
 #ifdef SINGLE_THREADED
     if (ctx->rng) {
         wc_FreeRng(ctx->rng);
         XFREE(ctx->rng, ctx->heap, DYNAMIC_TYPE_RNG);
     }
-#endif
+#endif /* SINGLE_THREADED */
 
 #ifndef NO_CERTS
     FreeDer(&ctx->privateKey);
@@ -1467,16 +1455,15 @@ void SSL_CtxResourceFree(WOLFSSL_CTX* ctx)
         if (ctx->ourCert) {
             XFREE(ctx->ourCert, ctx->heap, DYNAMIC_TYPE_X509);
         }
-    #endif
+    #endif /* KEEP_OUR_CERT */
     FreeDer(&ctx->certChain);
     wolfSSL_CertManagerFree(ctx->cm);
-#endif
+#endif /* !NO_CERTS */
 
 #ifdef HAVE_TLS_EXTENSIONS
     TLSX_FreeAll(ctx->extensions, ctx->heap);
 
 #ifndef NO_WOLFSSL_SERVER
-
 #if defined(HAVE_CERTIFICATE_STATUS_REQUEST) \
  || defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
     if (ctx->certOcspRequest) {
@@ -1485,29 +1472,28 @@ void SSL_CtxResourceFree(WOLFSSL_CTX* ctx)
     }
 #endif
 
-#if defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
+#ifdef HAVE_CERTIFICATE_STATUS_REQUEST_V2
     for (i = 0; i < MAX_CHAIN_DEPTH; i++) {
         if (ctx->chainOcspRequest[i]) {
             FreeOcspRequest(ctx->chainOcspRequest[i]);
             XFREE(ctx->chainOcspRequest[i], ctx->heap, DYNAMIC_TYPE_OCSP_REQUEST);
         }
     }
-#endif
-
-#endif /* NO_WOLFSSL_SERVER */
+#endif /* HAVE_CERTIFICATE_STATUS_REQUEST_V2 */
+#endif /* !NO_WOLFSSL_SERVER */
 
 #endif /* HAVE_TLS_EXTENSIONS */
+
 #ifdef WOLFSSL_STATIC_MEMORY
     if (ctx->heap != NULL) {
 #ifdef WOLFSSL_HEAP_TEST
         /* avoid derefrencing a test value */
-        if (ctx->heap != (void*)WOLFSSL_HEAP_TEST) {
+        if (ctx->heap != (void*)WOLFSSL_HEAP_TEST)
 #endif
-        WOLFSSL_HEAP_HINT* hint = (WOLFSSL_HEAP_HINT*)(ctx->heap);
-        wc_FreeMutex(&((WOLFSSL_HEAP*)(hint->memory))->memory_mutex);
-#ifdef WOLFSSL_HEAP_TEST
+        {
+            WOLFSSL_HEAP_HINT* hint = (WOLFSSL_HEAP_HINT*)(ctx->heap);
+            wc_FreeMutex(&((WOLFSSL_HEAP*)(hint->memory))->memory_mutex);
         }
-#endif
     }
 #endif /* WOLFSSL_STATIC_MEMORY */
 }
@@ -2589,6 +2575,13 @@ void FreeX509Name(WOLFSSL_X509_NAME* name, void* heap)
 /* Initialize wolfSSL X509 type */
 void InitX509(WOLFSSL_X509* x509, int dynamicFlag, void* heap)
 {
+    if (x509 == NULL) {
+        WOLFSSL_MSG("Null parameter passed in!");
+        return;
+    }
+
+    XMEMSET(x509, 0, sizeof(WOLFSSL_X509));
+
     x509->heap = heap;
     InitX509Name(&x509->issuer, 0);
     InitX509Name(&x509->subject, 0);
@@ -2644,6 +2637,12 @@ void FreeX509(WOLFSSL_X509* x509)
     #ifdef OPENSSL_EXTRA
         XFREE(x509->authKeyId, x509->heap, DYNAMIC_TYPE_X509_EXT);
         XFREE(x509->subjKeyId, x509->heap, DYNAMIC_TYPE_X509_EXT);
+        if (x509->authInfo != NULL) {
+            XFREE(x509->authInfo, x509->heap, DYNAMIC_TYPE_X509_EXT);
+        }
+        if (x509->extKeyUsageSrc != NULL) {
+            XFREE(x509->extKeyUsageSrc, x509->heap, DYNAMIC_TYPE_X509_EXT);
+        }
     #endif /* OPENSSL_EXTRA */
     if (x509->altNames)
         FreeAltNames(x509->altNames, NULL);
@@ -3313,6 +3312,10 @@ int SetSSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
     #ifdef WOLFSSL_DTLS
     ssl->dtls_export = ctx->dtls_export; /* export function for session */
     #endif
+#endif
+
+#ifdef OPENSSL_EXTRA
+    ssl->readAhead = ctx->readAhead;
 #endif
 
     return SSL_SUCCESS;
@@ -5323,6 +5326,32 @@ static int GetRecordHeader(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     }
 #endif
 
+#ifdef OPENSSL_EXTRA
+    /* case where specific protocols are turned off */
+    if (!ssl->options.dtls && ssl->options.mask > 0) {
+        if (rh->pvMinor == SSLv3_MINOR &&
+            (ssl->options.mask & SSL_OP_NO_SSLv3) == SSL_OP_NO_SSLv3) {
+            WOLFSSL_MSG("Option set to not allow SSLv3");
+            return VERSION_ERROR;
+        }
+        if (rh->pvMinor == TLSv1_MINOR &&
+            (ssl->options.mask & SSL_OP_NO_TLSv1) == SSL_OP_NO_TLSv1) {
+            WOLFSSL_MSG("Option set to not allow TLSv1");
+            return VERSION_ERROR;
+        }
+        if (rh->pvMinor == TLSv1_1_MINOR &&
+            (ssl->options.mask & SSL_OP_NO_TLSv1_1) == SSL_OP_NO_TLSv1_1) {
+            WOLFSSL_MSG("Option set to not allow TLSv1.1");
+            return VERSION_ERROR;
+        }
+        if (rh->pvMinor == TLSv1_2_MINOR &&
+            (ssl->options.mask & SSL_OP_NO_TLSv1_2) == SSL_OP_NO_TLSv1_2) {
+            WOLFSSL_MSG("Option set to not allow TLSv1.2");
+            return VERSION_ERROR;
+        }
+    }
+#endif /* OPENSSL_EXTRA */
+
     /* catch version mismatch */
     if (rh->pvMajor != ssl->version.major || rh->pvMinor != ssl->version.minor){
         if (ssl->options.side == WOLFSSL_SERVER_END &&
@@ -5404,7 +5433,7 @@ static int GetDtlsHandShakeHeader(WOLFSSL* ssl, const byte* input,
 
     *type = input[idx++];
     c24to32(input + idx, size);
-    idx += BYTE3_LEN;
+    idx += OPAQUE24_LEN;
 
     ato16(input + idx, &ssl->keys.dtls_peer_handshake_number);
     idx += DTLS_HANDSHAKE_SEQ_SZ;
@@ -6232,7 +6261,7 @@ static int CheckAltNames(DecodedCert* dCert, char* domain)
         altName = dCert->altNames;
 
     while (altName) {
-        WOLFSSL_MSG("    individual AltName check");
+        WOLFSSL_MSG("\tindividual AltName check");
 
         if (MatchDomainName(altName->name,(int)XSTRLEN(altName->name), domain)){
             match = 1;
@@ -6253,7 +6282,8 @@ int CopyDecodedToX509(WOLFSSL_X509* x509, DecodedCert* dCert)
 {
     int ret = 0;
 
-    if (x509 == NULL || dCert == NULL)
+    if (x509 == NULL || dCert == NULL ||
+        dCert->subjectCNLen < 0)
         return BAD_FUNC_ARG;
 
     x509->version = dCert->version + 1;
@@ -6310,14 +6340,14 @@ int CopyDecodedToX509(WOLFSSL_X509* x509, DecodedCert* dCert)
         else
             x509->deviceTypeSz = 0;
         minSz = min(dCert->hwTypeSz, EXTERNAL_SERIAL_SIZE);
-        if (minSz != 0) {
+        if (minSz > 0) {
             x509->hwTypeSz = minSz;
             XMEMCPY(x509->hwType, dCert->hwType, minSz);
         }
         else
             x509->hwTypeSz = 0;
         minSz = min(dCert->hwSerialNumSz, EXTERNAL_SERIAL_SIZE);
-        if (minSz != 0) {
+        if (minSz > 0) {
             x509->hwSerialNumSz = minSz;
             XMEMCPY(x509->hwSerialNum, dCert->hwSerialNum, minSz);
         }
@@ -6327,14 +6357,14 @@ int CopyDecodedToX509(WOLFSSL_X509* x509, DecodedCert* dCert)
 #endif /* WOLFSSL_SEP */
     {
         int minSz = min(dCert->beforeDateLen, MAX_DATE_SZ);
-        if (minSz != 0) {
+        if (minSz > 0) {
             x509->notBeforeSz = minSz;
             XMEMCPY(x509->notBefore, dCert->beforeDate, minSz);
         }
         else
             x509->notBeforeSz = 0;
         minSz = min(dCert->afterDateLen, MAX_DATE_SZ);
-        if (minSz != 0) {
+        if (minSz > 0) {
             x509->notAfterSz = minSz;
             XMEMCPY(x509->notAfter, dCert->afterDate, minSz);
         }
@@ -6384,6 +6414,23 @@ int CopyDecodedToX509(WOLFSSL_X509* x509, DecodedCert* dCert)
     x509->pathLength = dCert->pathLength;
     x509->keyUsage = dCert->extKeyUsage;
 
+    x509->CRLdistSet = dCert->extCRLdistSet;
+    x509->CRLdistCrit = dCert->extCRLdistCrit;
+    x509->CRLInfo = dCert->extCrlInfo;
+    x509->CRLInfoSz = dCert->extCrlInfoSz;
+    x509->authInfoSet = dCert->extAuthInfoSet;
+    x509->authInfoCrit = dCert->extAuthInfoCrit;
+    if (dCert->extAuthInfo != NULL && dCert->extAuthInfoSz > 0) {
+        x509->authInfo = (byte*)XMALLOC(dCert->extAuthInfoSz, x509->heap,
+                DYNAMIC_TYPE_X509_EXT);
+        if (x509->authInfo != NULL) {
+            XMEMCPY(x509->authInfo, dCert->extAuthInfo, dCert->extAuthInfoSz);
+            x509->authInfoSz = dCert->extAuthInfoSz;
+        }
+        else {
+            ret = MEMORY_E;
+        }
+    }
     x509->basicConstSet = dCert->extBasicConstSet;
     x509->basicConstCrit = dCert->extBasicConstCrit;
     x509->basicConstPlSet = dCert->pathLengthSet;
@@ -6417,10 +6464,33 @@ int CopyDecodedToX509(WOLFSSL_X509* x509, DecodedCert* dCert)
     }
     x509->keyUsageSet = dCert->extKeyUsageSet;
     x509->keyUsageCrit = dCert->extKeyUsageCrit;
+    if (dCert->extExtKeyUsageSrc != NULL && dCert->extExtKeyUsageSz > 0) {
+        x509->extKeyUsageSrc = (byte*)XMALLOC(dCert->extExtKeyUsageSz,
+                x509->heap, DYNAMIC_TYPE_X509_EXT);
+        if (x509->extKeyUsageSrc != NULL) {
+            XMEMCPY(x509->extKeyUsageSrc, dCert->extExtKeyUsageSrc,
+                                                       dCert->extExtKeyUsageSz);
+            x509->extKeyUsageSz    = dCert->extExtKeyUsageSz;
+            x509->extKeyUsageCrit  = dCert->extExtKeyUsageCrit;
+            x509->extKeyUsageCount = dCert->extExtKeyUsageCount;
+        }
+        else {
+            ret = MEMORY_E;
+        }
+    }
     #ifdef WOLFSSL_SEP
         x509->certPolicySet = dCert->extCertPolicySet;
         x509->certPolicyCrit = dCert->extCertPolicyCrit;
     #endif /* WOLFSSL_SEP */
+    #ifdef WOLFSSL_CERT_EXT
+        {
+            int i;
+            for (i = 0; i < dCert->extCertPoliciesNb && i < MAX_CERTPOL_NB; i++)
+                XMEMCPY(x509->certPolicies[i], dCert->extCertPolicies[i],
+                                                                MAX_CERTPOL_SZ);
+            x509->certPoliciesNb = dCert->extCertPoliciesNb;
+        }
+    #endif /* WOLFSSL_CERT_EXT */
 #endif /* OPENSSL_EXTRA */
 #ifdef HAVE_ECC
     x509->pkCurveOID = dCert->pkCurveOID;
@@ -6480,8 +6550,12 @@ static int DoCertificate(WOLFSSL* ssl, byte* input, word32* inOutIdx,
     while (listSz) {
         word32 certSz;
 
-        if (totalCerts >= MAX_CHAIN_DEPTH)
+        if (totalCerts >= MAX_CHAIN_DEPTH) {
+        #ifdef OPENSSL_EXTRA
+            ssl->peerVerifyRet = X509_V_ERR_CERT_CHAIN_TOO_LONG;
+        #endif
             return MAX_CHAIN_ERROR;
+        }
 
         if ((*inOutIdx - begin) + OPAQUE24_LEN > size)
             return BUFFER_ERROR;
@@ -6511,7 +6585,7 @@ static int DoCertificate(WOLFSSL* ssl, byte* input, word32* inOutIdx,
         listSz -= certSz + CERT_HEADER_SZ;
 
         totalCerts++;
-        WOLFSSL_MSG("    Put another cert into chain");
+        WOLFSSL_MSG("\tPut another cert into chain");
     }
 
     count = totalCerts;
@@ -6702,6 +6776,9 @@ static int DoCertificate(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 
         if (ret == 0) {
             WOLFSSL_MSG("Verified Peer's cert");
+        #ifdef OPENSSL_EXTRA
+            ssl->peerVerifyRet = X509_V_OK;
+        #endif
             fatal = 0;
         }
         else if (ret == ASN_PARSE_E) {
@@ -6839,6 +6916,9 @@ static int DoCertificate(WOLFSSL* ssl, byte* input, word32* inOutIdx,
             XFREE(dCert, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         #endif
             ssl->error = ret;
+        #ifdef OPENSSL_EXTRA
+            ssl->peerVerifyRet = X509_V_ERR_CERT_REJECTED;
+        #endif
             return ret;
         }
         ssl->options.havePeerCert = 1;
@@ -7163,7 +7243,8 @@ static int DoCertificateStatus(WOLFSSL* ssl, byte* input, word32* inOutIdx,
             do {
                 #ifdef HAVE_CERTIFICATE_STATUS_REQUEST
                     if (ssl->status_request) {
-                        request = TLSX_CSR_GetRequest(ssl->extensions);
+                        request = (OcspRequest*)TLSX_CSR_GetRequest(
+                                                               ssl->extensions);
                         ssl->status_request = 0;
                         break;
                     }
@@ -7171,8 +7252,8 @@ static int DoCertificateStatus(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 
                 #ifdef HAVE_CERTIFICATE_STATUS_REQUEST_V2
                     if (ssl->status_request_v2) {
-                        request = TLSX_CSR2_GetRequest(ssl->extensions,
-                                                                status_type, 0);
+                        request = (OcspRequest*)TLSX_CSR2_GetRequest(
+                                               ssl->extensions, status_type, 0);
                         ssl->status_request_v2 = 0;
                         break;
                     }
@@ -7286,8 +7367,8 @@ static int DoCertificateStatus(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                         ret = BAD_CERTIFICATE_STATUS_ERROR;
 
                     while (ret == 0) {
-                        request = TLSX_CSR2_GetRequest(ssl->extensions,
-                                                          status_type, index++);
+                        request = (OcspRequest*)TLSX_CSR2_GetRequest(
+                                ssl->extensions, status_type, index++);
 
                         if (request == NULL)
                             ret = BAD_CERTIFICATE_STATUS_ERROR;
@@ -8258,7 +8339,7 @@ static int DoDtlsHandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
         /* This branch is in order next, and a complete message. */
         ret = DoHandShakeMsgType(ssl, input, inOutIdx, type, size, totalSz);
         if (ret == 0) {
-            if (type != client_hello)
+            if (type != client_hello || !IsDtlsNotSctpMode(ssl))
                 ssl->keys.dtls_expected_peer_handshake_number++;
             if (ssl->dtls_rx_msg_list != NULL) {
                 ret = DtlsMsgDrain(ssl);
@@ -9317,7 +9398,7 @@ static int DoAlert(WOLFSSL* ssl, byte* input, word32* inOutIdx, int* type,
 
     WOLFSSL_MSG("Got alert");
     if (*type == close_notify) {
-        WOLFSSL_MSG("    close notify");
+        WOLFSSL_MSG("\tclose notify");
         ssl->options.closeNotify = 1;
     }
     WOLFSSL_ERROR(*type);
@@ -9473,7 +9554,7 @@ int ProcessReply(WOLFSSL* ssl)
     int    ret = 0, type, readSz;
     int    atomicUser = 0;
     word32 startIdx = 0;
-#ifdef WOLFSSL_DTLS
+#if defined(WOLFSSL_DTLS)
     int    used;
 #endif
 
@@ -9798,10 +9879,13 @@ int ProcessReply(WOLFSSL* ssl)
                     #ifdef WOLFSSL_DTLS
                         if (ssl->options.dtls) {
                             DtlsMsgPoolReset(ssl);
-                            ssl->keys.nextEpoch++;
-                            ssl->keys.nextSeq_lo = 0;
+                            ssl->keys.prevSeq_lo = ssl->keys.nextSeq_lo;
+                            ssl->keys.prevSeq_hi = ssl->keys.nextSeq_hi;
                             XMEMCPY(ssl->keys.prevWindow, ssl->keys.window,
                                     DTLS_SEQ_SZ);
+                            ssl->keys.nextEpoch++;
+                            ssl->keys.nextSeq_lo = 0;
+                            ssl->keys.nextSeq_hi = 0;
                             XMEMSET(ssl->keys.window, 0, DTLS_SEQ_SZ);
                         }
                     #endif
@@ -10730,7 +10814,9 @@ int SendCertificate(WOLFSSL* ssl)
 
             sendSz = BuildMessage(ssl, output, sendSz, input, inputSz,
                                   handshake, 1, 0);
-            XFREE(input, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
+
+            if (inputSz > 0)
+                XFREE(input, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
 
             if (sendSz < 0)
                 return sendSz;
@@ -13909,11 +13995,11 @@ static void PickHashSigAlgo(WOLFSSL* ssl,
             WOLFSSL_MSG("server using lower version");
 
             if (!ssl->options.downgrade) {
-                WOLFSSL_MSG("    no downgrade allowed, fatal error");
+                WOLFSSL_MSG("\tno downgrade allowed, fatal error");
                 return VERSION_ERROR;
             }
             if (pv.minor < ssl->options.minDowngrade) {
-                WOLFSSL_MSG("    version below minimum allowed, fatal error");
+                WOLFSSL_MSG("\tversion below minimum allowed, fatal error");
                 return VERSION_ERROR;
             }
 
@@ -13928,19 +14014,19 @@ static void PickHashSigAlgo(WOLFSSL* ssl,
 
             if (pv.minor == SSLv3_MINOR) {
                 /* turn off tls */
-                WOLFSSL_MSG("    downgrading to SSLv3");
+                WOLFSSL_MSG("\tdowngrading to SSLv3");
                 ssl->options.tls    = 0;
                 ssl->options.tls1_1 = 0;
                 ssl->version.minor  = SSLv3_MINOR;
             }
             else if (pv.minor == TLSv1_MINOR) {
                 /* turn off tls 1.1+ */
-                WOLFSSL_MSG("    downgrading to TLSv1");
+                WOLFSSL_MSG("\tdowngrading to TLSv1");
                 ssl->options.tls1_1 = 0;
                 ssl->version.minor  = TLSv1_MINOR;
             }
             else if (pv.minor == TLSv1_1_MINOR) {
-                WOLFSSL_MSG("    downgrading to TLSv1.1");
+                WOLFSSL_MSG("\tdowngrading to TLSv1.1");
                 ssl->version.minor  = TLSv1_1_MINOR;
             }
         }
@@ -18813,24 +18899,24 @@ int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                 return VERSION_ERROR;
             }
             if (pv.minor < ssl->options.minDowngrade) {
-                WOLFSSL_MSG("    version below minimum allowed, fatal error");
+                WOLFSSL_MSG("\tversion below minimum allowed, fatal error");
                 return VERSION_ERROR;
             }
             if (pv.minor == SSLv3_MINOR) {
                 /* turn off tls */
-                WOLFSSL_MSG("    downgrading to SSLv3");
+                WOLFSSL_MSG("\tdowngrading to SSLv3");
                 ssl->options.tls    = 0;
                 ssl->options.tls1_1 = 0;
                 ssl->version.minor  = SSLv3_MINOR;
             }
             else if (pv.minor == TLSv1_MINOR) {
-                WOLFSSL_MSG("    downgrading to TLSv1");
+                WOLFSSL_MSG("\tdowngrading to TLSv1");
                 /* turn off tls 1.1+ */
                 ssl->options.tls1_1 = 0;
                 ssl->version.minor  = TLSv1_MINOR;
             }
             else if (pv.minor == TLSv1_1_MINOR) {
-                WOLFSSL_MSG("    downgrading to TLSv1.1");
+                WOLFSSL_MSG("\tdowngrading to TLSv1.1");
                 ssl->version.minor  = TLSv1_1_MINOR;
             }
 #ifndef NO_RSA
@@ -18997,7 +19083,7 @@ int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                                 ssl->buffers.dtlsCookieSecret.length);
             if (ret != 0) return ret;
             ret = wc_HmacUpdate(&cookieHmac,
-                                ssl->buffers.dtlsCtx.peer.sa,
+                                (const byte*)ssl->buffers.dtlsCtx.peer.sa,
                                 ssl->buffers.dtlsCtx.peer.sz);
             if (ret != 0) return ret;
             ret = wc_HmacUpdate(&cookieHmac, input + i, OPAQUE16_LEN);
@@ -19019,25 +19105,25 @@ int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                 return VERSION_ERROR;
             }
             if (pv.minor < ssl->options.minDowngrade) {
-                WOLFSSL_MSG("    version below minimum allowed, fatal error");
+                WOLFSSL_MSG("\tversion below minimum allowed, fatal error");
                 return VERSION_ERROR;
             }
 
             if (pv.minor == SSLv3_MINOR) {
                 /* turn off tls */
-                WOLFSSL_MSG("    downgrading to SSLv3");
+                WOLFSSL_MSG("\tdowngrading to SSLv3");
                 ssl->options.tls    = 0;
                 ssl->options.tls1_1 = 0;
                 ssl->version.minor  = SSLv3_MINOR;
             }
             else if (pv.minor == TLSv1_MINOR) {
                 /* turn off tls 1.1+ */
-                WOLFSSL_MSG("    downgrading to TLSv1");
+                WOLFSSL_MSG("\tdowngrading to TLSv1");
                 ssl->options.tls1_1 = 0;
                 ssl->version.minor  = TLSv1_MINOR;
             }
             else if (pv.minor == TLSv1_1_MINOR) {
-                WOLFSSL_MSG("    downgrading to TLSv1.1");
+                WOLFSSL_MSG("\tdowngrading to TLSv1.1");
                 ssl->version.minor  = TLSv1_1_MINOR;
             }
 #ifndef NO_RSA

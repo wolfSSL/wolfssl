@@ -38,15 +38,6 @@
 #endif
 
 
-#ifndef WOLFSSL_HAVE_MIN
-#define WOLFSSL_HAVE_MIN
-
-    static INLINE word32 min(word32 a, word32 b)
-    {
-        return a > b ? b : a;
-    }
-
-#endif /* WOLFSSL_HAVE_MIN */
 
 void wc_InitRipeMd(RipeMd* ripemd)
 {

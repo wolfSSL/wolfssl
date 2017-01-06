@@ -49,6 +49,7 @@
 #include <wolfssl/wolfcrypt/random.h>
 #include <wolfssl/wolfcrypt/tfm.h>
 #include <wolfcrypt/src/asm.c>  /* will define asm MACROS or C ones */
+#include <wolfssl/wolfcrypt/wolfmath.h> /* common functions */
 
 #if defined(FREESCALE_LTC_TFM)
     #include <wolfssl/wolfcrypt/port/nxp/ksdk_port.h>
@@ -446,12 +447,11 @@ INLINE static void fp_mul_comba_mulx(fp_int *A, fp_int *B, fp_int *C)
       pa = FP_SIZE-1;
    }
 
-   if (A == C || B == C) {
+   /* Always take branch to use tmp variable. This avoids a cache attack for
+    * determining if C equals A */
+   if (1) {
       fp_init(&tmp);
       dst = &tmp;
-   } else {
-      fp_zero(C);
-      dst = C;
    }
 
    TFM_INTEL_MUL_COMBA(A, B, dst) ;
@@ -1005,12 +1005,12 @@ int fp_mulmod(fp_int *a, fp_int *b, fp_int *c, fp_int *d)
 
   fp_init(&t);
   fp_mul(a, b, &t);
-#ifdef ALT_ECC_SIZE
-  err = fp_mod(&t, c, &t);
-  fp_copy(&t, d);
-#else
-  err = fp_mod(&t, c, d);
-#endif
+  if (d->size < FP_SIZE) {
+    err = fp_mod(&t, c, &t);
+    fp_copy(&t, d);
+  } else {
+    err = fp_mod(&t, c, d);
+  }
 
   return err;
 }
@@ -1023,12 +1023,12 @@ int fp_submod(fp_int *a, fp_int *b, fp_int *c, fp_int *d)
 
   fp_init(&t);
   fp_sub(a, b, &t);
-#ifdef ALT_ECC_SIZE
-  err = fp_mod(&t, c, &t);
-  fp_copy(&t, d);
-#else
-  err = fp_mod(&t, c, d);
-#endif
+  if (d->size < FP_SIZE) {
+    err = fp_mod(&t, c, &t);
+    fp_copy(&t, d);
+  } else {
+    err = fp_mod(&t, c, d);
+  }
 
   return err;
 }
@@ -1041,12 +1041,12 @@ int fp_addmod(fp_int *a, fp_int *b, fp_int *c, fp_int *d)
 
   fp_init(&t);
   fp_add(a, b, &t);
-#ifdef ALT_ECC_SIZE
-  err = fp_mod(&t, c, &t);
-  fp_copy(&t, d);
-#else
-  err = fp_mod(&t, c, d);
-#endif
+  if (d->size < FP_SIZE) {
+    err = fp_mod(&t, c, &t);
+    fp_copy(&t, d);
+  } else {
+    err = fp_mod(&t, c, d);
+  }
 
   return err;
 }
@@ -2168,12 +2168,12 @@ void fp_sub_d(fp_int *a, fp_digit b, fp_int *c)
    fp_int tmp;
    fp_init(&tmp);
    fp_set(&tmp, b);
-#ifdef ALT_ECC_SIZE
-   fp_sub(a, &tmp, &tmp);
-   fp_copy(&tmp, c);
-#else
-   fp_sub(a, &tmp, c);
- #endif
+   if (c->size < FP_SIZE) {
+     fp_sub(a, &tmp, &tmp);
+     fp_copy(&tmp, c);
+   } else {
+     fp_sub(a, &tmp, c);
+   }
 }
 
 
@@ -2187,7 +2187,6 @@ int mp_init (mp_int * a)
   return MP_OKAY;
 }
 
-#ifdef ALT_ECC_SIZE
 void fp_init(fp_int *a)
 {
     a->size = FP_SIZE;
@@ -2207,7 +2206,6 @@ void fp_clear(fp_int *a)
     a->sign = FP_ZPOS;
     ForceZero(a->dp, a->size * sizeof(fp_digit));
 }
-#endif
 
 
 /* clear one (frees)  */
@@ -2348,21 +2346,34 @@ int mp_div_2d(fp_int* a, int b, fp_int* c, fp_int* d)
     return MP_OKAY;
 }
 
-#ifdef ALT_ECC_SIZE
 void fp_copy(fp_int *a, fp_int *b)
 {
-    if (a != b && b->size >= a->used) {
-        int x, oldused;
-        oldused = b->used;
+    /* if source and destination are different */
+    if (a != b) {
+#ifdef ALT_ECC_SIZE
+        /* verify a will fit in b */
+        if (b->size >= a->used) {
+            int x, oldused;
+            oldused = b->used;
+            b->used = a->used;
+            b->sign = a->sign;
+
+            XMEMCPY(b->dp, a->dp, a->used * sizeof(fp_digit));
+
+            /* zero any excess digits on the destination that we didn't write to */
+            for (x = b->used; x < oldused; x++) {
+                b->dp[x] = 0;
+            }
+        }
+        else {
+            /* TODO: Handle error case */
+        }
+#else
+        /* all dp's are same size, so do straight copy */
         b->used = a->used;
         b->sign = a->sign;
-
-        XMEMCPY(b->dp, a->dp, a->used * sizeof(fp_digit));
-
-        /* zero any excess digits on the destination that we didn't write to */
-        for (x = b->used; x < oldused; x++) {
-            b->dp[x] = 0;
-        }
+        XMEMCPY(b->dp, a->dp, FP_SIZE * sizeof(fp_digit));
+#endif
     }
 }
 
@@ -2373,7 +2384,6 @@ void fp_init_copy(fp_int *a, fp_int* b)
         fp_copy(b, a);
     }
 }
-#endif
 
 /* fast math wrappers */
 int mp_copy(fp_int* a, fp_int* b)
@@ -2433,12 +2443,14 @@ int fp_sqrmod(fp_int *a, fp_int *b, fp_int *c)
 
   fp_init(&t);
   fp_sqr(a, &t);
-#ifdef ALT_ECC_SIZE
-  err = fp_mod(&t, b, &t);
-  fp_copy(&t, c);
-#else
-  err = fp_mod(&t, b, c);
-#endif
+
+  if (c->size < FP_SIZE) {
+    err = fp_mod(&t, b, &t);
+    fp_copy(&t, c);
+  }
+  else {
+    err = fp_mod(&t, b, c);
+  }
 
   return err;
 }
@@ -2851,7 +2863,7 @@ int fp_randprime(fp_int* N, int len, WC_RNG* rng, void* heap)
 
     XMEMSET(buf, 0, len);
     XFREE(buf, heap, DYNAMIC_TYPE_TMP_BUFFER);
-    
+
     return FP_OKAY;
 }
 
@@ -3173,14 +3185,9 @@ int mp_toradix (mp_int *a, char *str, int radix)
 void mp_dump(const char* desc, mp_int* a, byte verbose)
 {
   char buffer[FP_SIZE * sizeof(fp_digit) * 2];
-  int size = FP_SIZE;
-
-#ifdef ALT_ECC_SIZE
-  size = a->size;
-#endif
 
   printf("%s: ptr=%p, used=%d, sign=%d, size=%d, fpd=%d\n",
-    desc, a, a->used, a->sign, size, (int)sizeof(fp_digit));
+    desc, a, a->used, a->sign, a->size, (int)sizeof(fp_digit));
 
   mp_toradix(a, buffer, 16);
   printf("  %s\n  ", buffer);

@@ -43,6 +43,10 @@
     #include <wolfssl/wolfcrypt/port/atmel/atmel.h>
 #endif
 
+#if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
+    #include <wolfssl/openssl/evp.h>
+#endif
+
 #ifdef _MSC_VER
     /* 4996 warning to use MS extensions e.g., strcpy_s instead of strncpy */
     #pragma warning(disable: 4996)
@@ -87,6 +91,10 @@ int wolfCrypt_Init(void)
 
     #ifdef WOLFSSL_ARMASM
         WOLFSSL_MSG("Using ARM hardware acceleration");
+    #endif
+
+    #if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
+            wolfSSL_EVP_init();
     #endif
 
         initRefCount = 1;

@@ -298,15 +298,6 @@ static void set_Transform(void) {
     #include "fsl_mmcau.h"
 #endif
 
-#ifndef WOLFSSL_HAVE_MIN
-#define WOLFSSL_HAVE_MIN
-
-    static INLINE word32 min(word32 a, word32 b)
-    {
-        return a > b ? b : a;
-    }
-
-#endif /* WOLFSSL_HAVE_MIN */
 
 #ifdef FREESCALE_LTC_SHA
 int wc_InitSha256(Sha256* sha256)
