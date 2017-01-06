@@ -852,7 +852,7 @@ int wolfSSL_CTX_mcast_set_member_id(WOLFSSL_CTX* ctx, byte id)
 
     WOLFSSL_ENTER("wolfSSL_CTX_mcast_set_member_id()");
 
-    if (ctx == NULL || id >= MULTICAST_SZ)
+    if (ctx == NULL || id >= WOLFSSL_MULTICAST_PEERS)
         ret = BAD_FUNC_ARG;
 
     if (ret == 0) {
@@ -911,7 +911,7 @@ int wolfSSL_set_secret(WOLFSSL* ssl, unsigned short epoch,
 
             ssl->keys.dtls_epoch = epoch;
             for (i = 0, peerSeq = ssl->keys.peerSeq;
-                 i < WOLFSSL_MULTICAST_PEERS;
+                 i < WOLFSSL_DTLS_PEERSEQ_SZ;
                  i++, peerSeq++) {
 
                 peerSeq->nextEpoch = epoch;
