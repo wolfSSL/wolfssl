@@ -911,14 +911,16 @@ enum {
 #define DTLS_SEQ_BITS  (WOLFSSL_DTLS_WINDOW_WORDS * DTLS_WORD_BITS)
 #define DTLS_SEQ_SZ    (sizeof(word32) * WOLFSSL_DTLS_WINDOW_WORDS)
 
-#ifndef WOLFSSL_MULTICAST_PEERS
-    /* max allowed multicast group peers */
-    #ifdef WOLFSSL_MULTICAST
+#ifndef WOLFSSL_MULTICAST
+    #define WOLFSSL_DTLS_PEERSEQ_SZ 1
+#else
+    #ifndef WOLFSSL_MULTICAST_PEERS
+        /* max allowed multicast group peers */
         #define WOLFSSL_MULTICAST_PEERS 100
-    #else
-        #define WOLFSSL_MULTICAST_PEERS 1
     #endif
-#endif /* WOLFSSL_MULTICAST_PEERS */
+    #define WOLFSSL_DTLS_PEERSEQ_SZ WOLFSSL_MULTICAST_PEERS
+#endif /* WOLFSSL_MULTICAST */
+
 
 
 enum Misc {
@@ -1036,7 +1038,6 @@ enum Misc {
     DTLS_EXPORT_LEN          = 2,  /* 2 bytes for length and protocol */
     DTLS_EXPORT_IP           = 46, /* max ip size IPv4 mapped IPv6 */
     MAX_EXPORT_BUFFER        = 514, /* max size of buffer for exporting */
-    MULTICAST_SZ        = WOLFSSL_MULTICAST_PEERS,
     FINISHED_LABEL_SZ   = 15,  /* TLS finished label size */
     TLS_FINISHED_SZ     = 12,  /* TLS has a shorter size  */
     EXT_MASTER_LABEL_SZ = 22,  /* TLS extended master secret label sz */
@@ -1750,7 +1751,7 @@ typedef struct Keys {
 #ifdef WOLFSSL_MULTICAST
     byte   curPeerId;   /* Received peer group ID in current record */
 #endif
-    WOLFSSL_DTLS_PEERSEQ peerSeq[WOLFSSL_MULTICAST_PEERS];
+    WOLFSSL_DTLS_PEERSEQ peerSeq[WOLFSSL_DTLS_PEERSEQ_SZ];
 
     word16 dtls_peer_handshake_number;
     word16 dtls_expected_peer_handshake_number;
