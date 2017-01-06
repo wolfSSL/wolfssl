@@ -24387,6 +24387,21 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
          * root CA. */
         return wolfSSL_PEM_read_bio_X509(bp, x, cb, u);
     }
+
+
+    /* Copies entry into name. With it being copied freeing entry becomes the
+     * callers responsibility.
+     * returns 1 for success and 0 for error */
+    int wolfSSL_X509_NAME_add_entry(WOLFSSL_X509_NAME* name,
+            WOLFSSL_X509_NAME_ENTRY* entry, int idx, int set)
+    {
+        (void)name;
+        (void)entry;
+        (void)idx;
+        (void)set;
+        WOLFSSL_STUB("wolfSSL_X509_NAME_add_entry");
+        return SSL_FAILURE;
+    }
     #endif /* ifndef NO_CERTS */
 
     #ifndef NO_CERTS

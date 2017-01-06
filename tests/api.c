@@ -14610,6 +14610,8 @@ static void test_wolfSSL_X509(void)
     #if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && !defined(NO_FILESYSTEM)
     X509* x509;
     BIO*  bio;
+    X509_STORE_CTX* ctx;
+    X509_STORE* store;
 
     printf(testingFmt, "wolfSSL_X509()");
 
@@ -14622,8 +14624,18 @@ static void test_wolfSSL_X509(void)
 
     AssertIntEQ(i2d_X509_bio(bio, x509), SSL_SUCCESS);
 
+    AssertNotNull(ctx = X509_STORE_CTX_new());
+
+    AssertIntEQ(X509_verify_cert(ctx), SSL_FATAL_ERROR);
+
+    AssertNotNull(store = X509_STORE_new());
+    AssertIntEQ(X509_STORE_add_cert(store, x509), SSL_SUCCESS);
+    AssertIntEQ(X509_STORE_CTX_init(ctx, store, x509, NULL), SSL_SUCCESS);
+    AssertIntEQ(X509_verify_cert(ctx), SSL_SUCCESS);
+
+
+    X509_STORE_CTX_free(ctx);
     BIO_free(bio);
-    X509_free(x509);
 
     printf(resultFmt, passed);
     #endif
