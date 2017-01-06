@@ -340,7 +340,8 @@
         DYNAMIC_TYPE_PKCS         = 58,
         DYNAMIC_TYPE_MUTEX        = 59,
         DYNAMIC_TYPE_PKCS7        = 60,
-        DYNAMIC_TYPE_ASN1         = 61
+        DYNAMIC_TYPE_ASN1         = 61,
+        DYNAMIC_TYPE_LOG          = 62
 	};
 
 	/* max error buffer string size */

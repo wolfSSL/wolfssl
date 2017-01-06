@@ -326,6 +326,10 @@ int wolfcrypt_test(void* args)
 
     wolfCrypt_Init();
 
+#if defined(OPENSSL_EXTRA) || defined(DEBUG_WOLFSSL_VERBOSE)
+    wc_SetLoggingHeap(HEAP_HINT);
+#endif
+
 #ifdef HAVE_FIPS
     wolfCrypt_SetCb_fips(myFipsCb);
 #endif
@@ -716,6 +720,10 @@ int wolfcrypt_test(void* args)
     else
         printf( "PKCS7encrypted test passed!\n");
 #endif
+
+    if ((ret = wolfCrypt_Cleanup())!= 0) {
+        return err_sys("Error with wolfCrypt_Cleanup!\n", ret);
+    }
 
 #if defined(USE_WOLFSSL_MEMORY) && defined(WOLFSSL_TRACK_MEMORY)
     ShowMemoryTracker();

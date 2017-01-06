@@ -97,11 +97,34 @@ int wolfCrypt_Init(void)
             wolfSSL_EVP_init();
     #endif
 
+    #if defined(OPENSSL_EXTRA) || defined(DEBUG_WOLFSSL_VERBOSE)
+        if ((ret = wc_LoggingInit()) != 0) {
+            WOLFSSL_MSG("Error creating logging mutex");
+            return ret;
+        }
+    #endif
+
         initRefCount = 1;
     }
 
     return ret;
 }
+
+
+/* return success value is the same as wolfCrypt_Init */
+int wolfCrypt_Cleanup(void)
+{
+    int ret = 0;
+
+    WOLFSSL_ENTER("wolfCrypt_Cleanup");
+
+    #if defined(OPENSSL_EXTRA) || defined(DEBUG_WOLFSSL_VERBOSE)
+        ret = wc_LoggingCleanup();
+    #endif
+
+    return ret;
+}
+
 
 wolfSSL_Mutex* wc_InitAndAllocMutex()
 {

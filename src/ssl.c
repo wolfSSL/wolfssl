@@ -2721,6 +2721,12 @@ void wolfSSL_ERR_print_errors_fp(FILE* fp, int err)
     fprintf(fp, "%s", data);
 }
 
+#if defined(OPENSSL_EXTRA) || defined(DEBUG_WOLFSSL_VERBOSE)
+void wolfSSL_ERR_dump_errors_fp(FILE* fp)
+{
+    wc_ERR_print_errors_fp(fp);
+}
+#endif
 #endif
 
 
@@ -8287,6 +8293,10 @@ int wolfSSL_Cleanup(void)
 #if defined(HAVE_ECC) && defined(FP_ECC)
     wc_ecc_fp_free();
 #endif
+
+    if (wolfCrypt_Cleanup() != 0) {
+        WOLFSSL_MSG("Error with wolfCrypt_Cleanup call");
+    }
 
     return ret;
 }

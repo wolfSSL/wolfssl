@@ -489,6 +489,10 @@ int benchmark_test(void *args)
     }
 #endif
 
+    if (wolfCrypt_Cleanup() != 0) {
+        printf("error with wolfCrypt_Cleanup\n");
+    }
+
 #if defined(USE_WOLFSSL_MEMORY) && defined(WOLFSSL_TRACK_MEMORY)
     ShowMemoryTracker();
 #endif
