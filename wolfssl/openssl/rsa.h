@@ -32,11 +32,8 @@
     extern "C" {
 #endif
 
-
-enum  { 
-    RSA_PKCS1_PADDING = 1,
-    RSA_PKCS1_OAEP_PADDING = 4
- };
+#define RSA_PKCS1_PADDING      WC_RSA_PKCSV15_PAD
+#define RSA_PKCS1_OAEP_PADDING WC_RSA_OAEP_PAD
 
 /* rsaTypes */
 enum {
@@ -83,7 +80,10 @@ WOLFSSL_API int wolfSSL_RSA_size(const WOLFSSL_RSA*);
 WOLFSSL_API int wolfSSL_RSA_sign(int type, const unsigned char* m,
                                unsigned int mLen, unsigned char* sigRet,
                                unsigned int* sigLen, WOLFSSL_RSA*);
-WOLFSSL_API int wolfSSL_RSA_public_decrypt(int flen, const unsigned char* from,
+WOLFSSL_API int wolfSSL_RSA_verify(int type, const unsigned char* m,
+                               unsigned int mLen, const unsigned char* sig,
+                               unsigned int sigLen, WOLFSSL_RSA*);
+WOLFSSL_API int wolfSSL_RSA_public_decrypt(int flen, unsigned char* from,
                                   unsigned char* to, WOLFSSL_RSA*, int padding);
 WOLFSSL_API int wolfSSL_RSA_GenAdd(WOLFSSL_RSA*);
 WOLFSSL_API int wolfSSL_RSA_LoadDer(WOLFSSL_RSA*, const unsigned char*, int sz);
@@ -100,6 +100,7 @@ WOLFSSL_API int wolfSSL_RSA_LoadDer(WOLFSSL_RSA*, const unsigned char*, int sz);
 
 #define RSA_size           wolfSSL_RSA_size
 #define RSA_sign           wolfSSL_RSA_sign
+#define RSA_verify          wolfSSL_RSA_verify
 #define RSA_public_decrypt wolfSSL_RSA_public_decrypt
 
 

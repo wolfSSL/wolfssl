@@ -590,7 +590,8 @@ WOLFSSL_API int wolfSSL_EVP_add_digest(const WOLFSSL_EVP_MD *digest)
 {
     (void)digest;
     /* nothing to do */
-    return 0;}
+    return 0;
+}
 
 
 WOLFSSL_API int wolfSSL_EVP_PKEY_CTX_free(WOLFSSL_EVP_PKEY_CTX *ctx)
@@ -612,6 +613,7 @@ WOLFSSL_API WOLFSSL_EVP_PKEY_CTX *wolfSSL_EVP_PKEY_CTX_new(WOLFSSL_EVP_PKEY *pke
             DYNAMIC_TYPE_PUBLIC_KEY);
     if(ctx == NULL)return NULL;
     ctx->pkey = pkey ;
+    ctx->padding = RSA_PKCS1_PADDING;
 
     return ctx;
 }
@@ -638,6 +640,7 @@ WOLFSSL_API int wolfSSL_EVP_PKEY_decrypt(WOLFSSL_EVP_PKEY_CTX *ctx,
         return (int)*outlen;
 
     case EVP_PKEY_EC:
+        WOLFSSL_MSG("not implemented");
         /* not implemented */
     default:
         return 0;
@@ -654,6 +657,7 @@ WOLFSSL_API int wolfSSL_EVP_PKEY_decrypt_init(WOLFSSL_EVP_PKEY_CTX *ctx)
         return 1;
 
     case EVP_PKEY_EC:
+        WOLFSSL_MSG("not implemented");
         /* not implemented */
     default:
 
@@ -676,6 +680,7 @@ WOLFSSL_API int wolfSSL_EVP_PKEY_encrypt(WOLFSSL_EVP_PKEY_CTX *ctx,
         return (int)*outlen;
 
     case EVP_PKEY_EC:
+        WOLFSSL_MSG("not implemented");
         /* not implemented */
     default:
         return 0;
@@ -692,7 +697,7 @@ WOLFSSL_API int wolfSSL_EVP_PKEY_encrypt_init(WOLFSSL_EVP_PKEY_CTX *ctx)
         ctx->op = EVP_PKEY_OP_ENCRYPT;
         return 1;
     case EVP_PKEY_EC:
-    case EVP_PKEY_DSA:
+        WOLFSSL_MSG("not implemented");
         /* not implemented */
     default:
 
@@ -719,8 +724,9 @@ WOLFSSL_API int wolfSSL_EVP_PKEY_size(WOLFSSL_EVP_PKEY *pkey)
     switch(pkey->type){
     case EVP_PKEY_RSA:
         return (int)wolfSSL_RSA_size((const WOLFSSL_RSA*)(pkey->pkey.ptr));
-        
+
     case EVP_PKEY_EC:
+         WOLFSSL_MSG("not implemented");
         /* not implemented */
     default:
         return 0;
@@ -729,61 +735,84 @@ WOLFSSL_API int wolfSSL_EVP_PKEY_size(WOLFSSL_EVP_PKEY *pkey)
     return 1;
 }
 
-WOLFSSL_API int wolfSSL_EVP_SignFinal(WOLFSSL_EVP_MD_CTX *ctx, unsigned char *sigret,
-                  unsigned int *siglen, WOLFSSL_EVP_PKEY *pkey)
-{
-    (void)sigret;
-    (void)siglen;
-    (void)pkey;
-    if (ctx == NULL)return 0;
-    WOLFSSL_ENTER("EVP_SignFinal");
-    return 1;
-}
-
 WOLFSSL_API int wolfSSL_EVP_SignInit(WOLFSSL_EVP_MD_CTX *ctx, const WOLFSSL_EVP_MD *type)
 {
-    (void)type;
-
     if (ctx == NULL)return 0;
     WOLFSSL_ENTER("EVP_SignInit");
-    return 1;
+    return wolfSSL_EVP_DigestInit(ctx,type);
 }
 
 WOLFSSL_API int wolfSSL_EVP_SignUpdate(WOLFSSL_EVP_MD_CTX *ctx, const void *data, size_t len)
 {
-    (void)data;
-    (void)len;
-
     if (ctx == NULL)return 0;
     WOLFSSL_ENTER("EVP_SignUpdate(");
-    return 1;
+    return wolfSSL_EVP_DigestUpdate(ctx, data, len);
 }
 
-WOLFSSL_API int wolfSSL_EVP_VerifyFinal(WOLFSSL_EVP_MD_CTX *ctx, const uint8_t *sig, size_t sig_len,
-                    WOLFSSL_EVP_PKEY *pkey)
+WOLFSSL_API int wolfSSL_EVP_SignFinal(WOLFSSL_EVP_MD_CTX *ctx, unsigned char *sigret,
+                  unsigned int *siglen, WOLFSSL_EVP_PKEY *pkey)
 {
-    (void)sig;
-    (void)sig_len;
-    (void)pkey;
+    unsigned int mdsize;
+    unsigned char md[MAX_DIGEST_SIZE];
+    int ret;
     if (ctx == NULL)return 0;
-    WOLFSSL_ENTER("EVP_VerifyFinal");
+    WOLFSSL_ENTER("EVP_SignFinal");
+
+    ret = wolfSSL_EVP_DigestFinal(ctx, md, &mdsize);
+    if(ret <= 0)return ret;
+
+    switch(pkey->type){
+    case EVP_PKEY_RSA:
+        return wolfSSL_RSA_sign(ctx->macType, md, mdsize, sigret,
+                                siglen, (WOLFSSL_RSA*)(pkey->pkey.ptr));
+    case EVP_PKEY_DSA:
+    case EVP_PKEY_EC:
+        WOLFSSL_MSG("not implemented");
+        /* not implemented */
+    default:
+        return 0;
+    }
     return 1;
 }
 
 WOLFSSL_API int wolfSSL_EVP_VerifyInit(WOLFSSL_EVP_MD_CTX *ctx, const WOLFSSL_EVP_MD *type)
 {
-    (void)type;
     if (ctx == NULL)return 0;
     WOLFSSL_ENTER("EVP_VerifyInit");
+    return wolfSSL_EVP_DigestInit(ctx,type);
     return 1;
 }
 
 WOLFSSL_API int wolfSSL_EVP_VerifyUpdate(WOLFSSL_EVP_MD_CTX *ctx, const void *data, size_t len)
 {
-    (void)data;
-    (void)len;
     if (ctx == NULL)return 0;
     WOLFSSL_ENTER("EVP_VerifyUpdate");
+    return wolfSSL_EVP_DigestUpdate(ctx, data, len);
+}
+
+WOLFSSL_API int wolfSSL_EVP_VerifyFinal(WOLFSSL_EVP_MD_CTX *ctx, const uint8_t *sig, size_t siglen,
+                    WOLFSSL_EVP_PKEY *pkey)
+{
+    int ret;
+    unsigned char md[MAX_DIGEST_SIZE];
+    unsigned int mdsize;
+
+    if (ctx == NULL)return 0;
+    WOLFSSL_ENTER("EVP_VerifyFinal");
+    ret = wolfSSL_EVP_DigestFinal(ctx, md, &mdsize);
+    if(ret <= 0)return ret;
+
+    switch(pkey->type){
+    case EVP_PKEY_RSA:
+        return wolfSSL_RSA_verify(ctx->macType, md, mdsize, sig,
+              (unsigned int)siglen, (WOLFSSL_RSA*)(pkey->pkey.ptr));
+    case EVP_PKEY_DSA:
+    case EVP_PKEY_EC:
+        WOLFSSL_MSG("not implemented");
+        /* not implemented */
+    default:
+        return 0;
+    }
     return 1;
 }
 

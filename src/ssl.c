@@ -21009,6 +21009,44 @@ int wolfSSL_RSA_sign(int type, const unsigned char* m,
     return ret;
 }
 
+WOLFSSL_API int wolfSSL_RSA_verify(int type, const unsigned char* m,
+                               unsigned int mLen, const unsigned char* sig,
+                               unsigned int sigLen, WOLFSSL_RSA* rsa)
+{
+    int     ret;
+    unsigned char *sigRet ;
+    unsigned int len;
+
+    WOLFSSL_MSG("wolfSSL_RSA_verify");
+    if((m == NULL) || (sig == NULL)) {
+        WOLFSSL_MSG("Bad function arguments");
+        return 0;
+    }
+
+    sigRet = (unsigned char *)XMALLOC(sigLen, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if(sigRet == NULL){
+        WOLFSSL_MSG("Memory failure");
+        return 0;
+    }
+
+    ret = wolfSSL_RSA_sign(type, m, mLen, sigRet, &len, rsa);
+
+    if(ret <= 0){
+        WOLFSSL_MSG("RSA Sign error");
+        return 0;
+    }
+    if(sigLen != len){
+         WOLFSSL_MSG("sign length error");
+         return 0;
+    }
+    if(XMEMCMP(sig, sigRet, sigLen) == 0){
+        WOLFSSL_MSG("wolfSSL_RSA_verify success");
+        return 1;
+    } else {
+        WOLFSSL_MSG("wolfSSL_RSA_verify failed");
+        return 0;
+    }
+}
 
 int wolfSSL_RSA_public_decrypt(int flen, const unsigned char* from,
                           unsigned char* to, WOLFSSL_RSA* rsa, int padding)
