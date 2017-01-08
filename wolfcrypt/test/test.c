@@ -10231,6 +10231,66 @@ int openssl_test(void)
         if (XMEMCMP(plain, cbcPlain, 18))
             return -5977;
 
+        total = 0;
+        EVP_CIPHER_CTX_init(&en);
+        if (EVP_EncryptInit(&en, EVP_aes_128_cbc(),
+            (unsigned char*)key, (unsigned char*)iv) == 0)
+            return -3431;
+        if (EVP_CipherUpdate(&en, (byte*)cipher, &outlen, (byte*)cbcPlain, 9) == 0)
+            return -3432;
+        if(outlen != 0)
+            return -3433;
+        total += outlen;
+
+        if (EVP_CipherUpdate(&en, (byte*)&cipher[total], &outlen, (byte*)&cbcPlain[9]  , 9) == 0)
+            return -3434;
+        if(outlen != 16)
+            return -3435;
+        total += outlen;
+
+        if (EVP_EncryptFinal(&en, (byte*)&cipher[total], &outlen) == 0)
+            return -3436;
+        if(outlen != 16)
+            return -3437;
+        total += outlen;
+        if(total != 32)
+            return 3438;
+
+        total = 0;
+        EVP_CIPHER_CTX_init(&de);
+        if (EVP_DecryptInit(&de, EVP_aes_128_cbc(),
+            (unsigned char*)key, (unsigned char*)iv) == 0)
+            return -3440;
+
+        if (EVP_CipherUpdate(&de, (byte*)plain, &outlen, (byte*)cipher, 6) == 0)
+            return -3441;
+        if(outlen != 0)
+            return -3442;
+        total += outlen;
+
+        if (EVP_CipherUpdate(&de, (byte*)&plain[total], &outlen, (byte*)&cipher[6], 12) == 0)
+            return -3443;
+        if(outlen != 0)
+        total += outlen;
+
+        if (EVP_CipherUpdate(&de, (byte*)&plain[total], &outlen, (byte*)&cipher[6+12], 14) == 0)
+            return -3443;
+        if(outlen != 16)
+            return -3444;
+        total += outlen;
+
+        if (EVP_DecryptFinal(&de, (byte*)&plain[total], &outlen) == 0)
+            return -3445;
+        if(outlen != 2)
+            return -3446;
+        total += outlen;
+
+        if(total != 18)
+            return 3447;
+
+        if (XMEMCMP(plain, cbcPlain, 18))
+            return -3448;
+
     }
 #endif /* ifndef NO_AES */
     return 0;
