@@ -239,6 +239,7 @@ WOLFSSL_API void wolfSSL_EVP_MD_CTX_init(WOLFSSL_EVP_MD_CTX* ctx);
 WOLFSSL_API int  wolfSSL_EVP_MD_CTX_cleanup(WOLFSSL_EVP_MD_CTX* ctx);
 WOLFSSL_API int  wolfSSL_EVP_MD_CTX_copy(WOLFSSL_EVP_MD_CTX *out, const WOLFSSL_EVP_MD_CTX *in);
 WOLFSSL_API int  wolfSSL_EVP_MD_CTX_copy_ex(WOLFSSL_EVP_MD_CTX *out, const WOLFSSL_EVP_MD_CTX *in);
+WOLFSSL_API int  wolfSSL_EVP_MD_CTX_type(const WOLFSSL_EVP_MD_CTX *ctx);
 WOLFSSL_API const WOLFSSL_EVP_MD *wolfSSL_EVP_MD_CTX_md(const WOLFSSL_EVP_MD_CTX *ctx);
 WOLFSSL_API const WOLFSSL_EVP_CIPHER *wolfSSL_EVP_get_cipherbyname(const char *name);
 WOLFSSL_API const WOLFSSL_EVP_MD     *wolfSSL_EVP_get_digestbyname(const char *name);
@@ -476,7 +477,7 @@ typedef WOLFSSL_EVP_PKEY_CTX   EVP_PKEY_CTX;
 #define EVP_MD_CTX_init    wolfSSL_EVP_MD_CTX_init
 #define EVP_MD_CTX_cleanup wolfSSL_EVP_MD_CTX_cleanup
 #define EVP_MD_CTX_md      wolfSSL_EVP_MD_CTX_md
-#define EVP_MD_CTX_type    wolfSSL_EVP_MD_type
+#define EVP_MD_CTX_type    wolfSSL_EVP_MD_CTX_type
 #define EVP_MD_type        wolfSSL_EVP_MD_type
 
 #define EVP_DigestInit     wolfSSL_EVP_DigestInit
@@ -571,6 +572,8 @@ typedef WOLFSSL_EVP_PKEY_CTX   EVP_PKEY_CTX;
     #define EVP_MAX_BLOCK_LENGTH   32  /* 2 * blocklen(AES)? */
     /* They define this as 32. Using the same value here. */
 #endif
+
+WOLFSSL_API void printPKEY(WOLFSSL_EVP_PKEY *k);
 
 #ifdef __cplusplus
     } /* extern "C" */
