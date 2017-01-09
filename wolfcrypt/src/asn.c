@@ -9690,7 +9690,13 @@ static int DecodeBasicOcspResponse(byte* source, word32* ioIndex,
         }
     }
     else {
-        Signer* ca = GetCA(cm, resp->issuerKeyHash);
+        Signer* ca = NULL;
+
+        #ifndef NO_SKID
+            ca = GetCA(cm, resp->issuerKeyHash);
+        #else
+            ca = GetCA(cm, resp->issuerHash);
+        #endif
 
         if (!ca || !ConfirmSignature(resp->response, resp->responseSz,
                                      ca->publicKey, ca->pubKeySize, ca->keyOID,
