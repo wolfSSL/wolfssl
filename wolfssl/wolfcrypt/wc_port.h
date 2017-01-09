@@ -38,14 +38,14 @@
         #ifndef WIN32_LEAN_AND_MEAN
             #define WIN32_LEAN_AND_MEAN
         #endif
-    #ifndef WOLFCRYPT_ONLY
+    #ifndef WOLFSSL_SGX
         #if defined(_WIN32_WCE) || defined(WIN32_LEAN_AND_MEAN)
             /* On WinCE winsock2.h must be included before windows.h */
             #include <winsock2.h>
         #endif
         #include <windows.h>
     #endif
-    #endif /* WOLFCRYPT_ONLY */
+    #endif /* WOLFSSL_SGX */
 #elif defined(THREADX)
     #ifndef SINGLE_THREADED
         #include "tx_api.h"
