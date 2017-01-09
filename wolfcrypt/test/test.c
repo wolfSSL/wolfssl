@@ -2286,6 +2286,8 @@ int chacha_test(void)
     XMEMSET(cipher, 0, sizeof(cipher));
     XMEMCPY(cipher + 4, ivs[0], 8);
 
+    keySz = 32; /* explicitly state keySz */
+
     ret |= wc_Chacha_SetKey(&enc, keys[0], keySz);
     ret |= wc_Chacha_SetKey(&dec, keys[0], keySz);
     if (ret != 0)
