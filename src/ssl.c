@@ -15861,10 +15861,16 @@ int wolfSSL_BN_add_word(WOLFSSL_BIGNUM *bn, WOLFSSL_BN_ULONG w)
         return SSL_FAILURE;
     }
 
+#if defined(HAVE_ECC) || !defined(NO_PWDBASED)
     if (mp_add_d((mp_int*)bn->internal, w, (mp_int*)bn->internal) != MP_OKAY) {
         WOLFSSL_MSG("mp_add_d error");
         return SSL_FAILURE;
     }
+#else
+    /* Set to zero if unused */
+    w = 0;
+#endif
+
 
     return SSL_SUCCESS;
 }
@@ -15882,11 +15888,13 @@ int wolfSSL_BN_add(WOLFSSL_BIGNUM *r, WOLFSSL_BIGNUM *a, WOLFSSL_BIGNUM *b)
         return SSL_FAILURE;
     }
 
+#if defined(HAVE_ECC) || !defined(NO_PWDBASED)
     if (mp_add((mp_int*)a->internal, (mp_int*)b->internal,
                (mp_int*)r->internal) != MP_OKAY) {
         WOLFSSL_MSG("mp_add_d error");
         return SSL_FAILURE;
     }
+#endif
 
     return SSL_SUCCESS;
 }
@@ -15940,7 +15948,7 @@ WOLFSSL_BN_ULONG wolfSSL_BN_mod_word(const WOLFSSL_BIGNUM *bn,
     }
 
     if (mp_mod_d((mp_int*)bn->internal, w, &ret) != MP_OKAY) {
-        WOLFSSL_MSG("mp_add_d error");
+        WOLFSSL_MSG("mp_mod_d error");
         return (WOLFSSL_BN_ULONG)SSL_FATAL_ERROR;
     }
 
@@ -17400,11 +17408,13 @@ int wolfSSL_RSA_GenAdd(WOLFSSL_RSA* rsa)
         return SSL_FATAL_ERROR;
     }
 
+#if defined(HAVE_ECC) || !defined(NO_PWDBASED) || defined(USE_FAST_MATH)
     err = mp_sub_d((mp_int*)rsa->p->internal, 1, &tmp);
     if (err != MP_OKAY) {
         WOLFSSL_MSG("mp_sub_d error");
     }
     else
+#endif
         err = mp_mod((mp_int*)rsa->d->internal, &tmp,
                      (mp_int*)rsa->dmp1->internal);
 
@@ -17412,11 +17422,13 @@ int wolfSSL_RSA_GenAdd(WOLFSSL_RSA* rsa)
         WOLFSSL_MSG("mp_mod error");
     }
     else
+#if defined(HAVE_ECC) || !defined(NO_PWDBASED) || defined(USE_FAST_MATH)
         err = mp_sub_d((mp_int*)rsa->q->internal, 1, &tmp);
     if (err != MP_OKAY) {
         WOLFSSL_MSG("mp_sub_d error");
     }
     else
+#endif
         err = mp_mod((mp_int*)rsa->d->internal, &tmp,
                      (mp_int*)rsa->dmq1->internal);
 
