@@ -3573,6 +3573,7 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
             WOLFSSL_MSG("RNG Memory error");
             return MEMORY_E;
         }
+        XMEMSET(ssl->rng, 0, sizeof(WC_RNG));
         ssl->options.weOwnRng = 1;
 
         /* FIPS RNG API does not accept a heap hint */

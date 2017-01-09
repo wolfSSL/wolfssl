@@ -707,7 +707,7 @@ static int RsaUnPad_OAEP(byte *pkcsBlock, unsigned int pkcsBlockLen,
     /* find seedMask value */
     if ((ret = RsaMGF(mgf, (byte*)(pkcsBlock + (hLen + 1)),
                             pkcsBlockLen - hLen - 1, tmp, hLen, heap)) != 0) {
-        XFREE(tmp, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(tmp, heap, DYNAMIC_TYPE_TMP_BUFFER);
         return ret;
     }
 

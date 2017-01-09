@@ -1465,7 +1465,7 @@ static int wc_PKCS7_KariGenerateKEK(WC_PKCS7_KARI* kari,
             kdfType = WC_HASH_TYPE_SHA;
             break;
     #endif
-    #ifndef WOLF_SHA224
+    #ifndef WOLFSSL_SHA224
         case dhSinglePass_stdDH_sha224kdf_scheme:
             kdfType = WC_HASH_TYPE_SHA224;
             break;
