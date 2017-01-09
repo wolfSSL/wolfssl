@@ -40,6 +40,7 @@ Possible ECC enable options:
  * ECC_SHAMIR:          Enables Shamir calc method              default: on
  * HAVE_COMP_KEY:       Enables compressed key                  default: off
  * WOLFSSL_VALIDATE_ECC_IMPORT: Validate ECC key on import      default: off
+ * WOLFSSL_VALIDATE_ECC_KEYGEN: Validate ECC key gen            default: off
  * WOLFSSL_CUSTOM_CURVES: Allow non-standard curves.            default: off
  *                        Includes the curve "a" variable in calculation
  * ECC_DUMP_OID:        Enables dump of OID encoding and sum    default: off
