@@ -175,6 +175,10 @@ wc_egs:
 	$(MAKE) wolfcrypt/test/testwolfcrypt; \
 	$(MAKE) wolfcrypt/benchmark/benchmark;
 
+wolfc:
+	$(MAKE) wolfcrypt/test/testwolfcrypt; \
+	$(MAKE) wolfcrypt/benchmark/benchmark;
+
 install-exec-local:	install-generic-config
 
 install-generic-config:
