@@ -46,6 +46,8 @@ Possible ECC enable options:
  * ECC_CACHE_CURVE:     Enables cache of curve info to improve perofrmance
                                                                 default: off
  * FP_ECC:              ECC Fixed Point Cache                   default: off
+ * USE_ECC_B_PARAM:     Enable ECC curve B param                default: off
+                         (on for HAVE_COMP_KEY)
  */
 
 /*
@@ -970,7 +972,9 @@ typedef struct ecc_curve_spec {
 
     mp_int* prime;
     mp_int* Af;
-    mp_int* Bf;
+    #ifdef USE_ECC_B_PARAM
+        mp_int* Bf;
+    #endif
     mp_int* order;
     mp_int* Gx;
     mp_int* Gy;
@@ -978,7 +982,9 @@ typedef struct ecc_curve_spec {
 #ifdef ECC_CACHE_CURVE
     mp_int prime_lcl;
     mp_int Af_lcl;
-    mp_int Bf_lcl;
+    #ifdef USE_ECC_B_PARAM
+        mp_int Bf_lcl;
+    #endif
     mp_int order_lcl;
     mp_int Gx_lcl;
     mp_int Gy_lcl;
@@ -995,11 +1001,19 @@ enum ecc_curve_load_mask {
     ECC_CURVE_FIELD_NONE    = 0x00,
     ECC_CURVE_FIELD_PRIME   = 0x01,
     ECC_CURVE_FIELD_AF      = 0x02,
+#ifdef USE_ECC_B_PARAM
     ECC_CURVE_FIELD_BF      = 0x04,
+#endif
     ECC_CURVE_FIELD_ORDER   = 0x08,
     ECC_CURVE_FIELD_GX      = 0x10,
     ECC_CURVE_FIELD_GY      = 0x20,
-    ECC_CURVE_FIELD_ALL     = 0x3F
+#ifdef USE_ECC_B_PARAM
+    ECC_CURVE_FIELD_ALL     = 0x3F,
+    ECC_CURVE_FIELD_COUNT   = 6,
+#else
+    ECC_CURVE_FIELD_ALL     = 0x3B,
+    ECC_CURVE_FIELD_COUNT   = 5,
+#endif
 };
 
 #ifdef ECC_CACHE_CURVE
@@ -1029,8 +1043,10 @@ static void _wc_ecc_curve_free(ecc_curve_spec* curve)
         mp_clear(curve->prime);
     if (curve->load_mask & ECC_CURVE_FIELD_AF)
         mp_clear(curve->Af);
+#ifdef USE_ECC_B_PARAM
     if (curve->load_mask & ECC_CURVE_FIELD_BF)
         mp_clear(curve->Bf);
+#endif
     if (curve->load_mask & ECC_CURVE_FIELD_ORDER)
         mp_clear(curve->order);
     if (curve->load_mask & ECC_CURVE_FIELD_GX)
@@ -1114,7 +1130,9 @@ static int wc_ecc_curve_load(const ecc_set_type* dp, ecc_curve_spec** pCurve,
     #ifdef ECC_CACHE_CURVE
         curve->prime = &curve->prime_lcl;
         curve->Af = &curve->Af_lcl;
-        curve->Bf = &curve->Bf_lcl;
+        #ifdef USE_ECC_B_PARAM
+            curve->Bf = &curve->Bf_lcl;
+        #endif
         curve->order = &curve->order_lcl;
         curve->Gx = &curve->Gx_lcl;
         curve->Gy = &curve->Gy_lcl;
@@ -1133,9 +1151,11 @@ static int wc_ecc_curve_load(const ecc_set_type* dp, ecc_curve_spec** pCurve,
     if (load_items & ECC_CURVE_FIELD_AF)
         x += wc_ecc_curve_load_item(dp->Af, &curve->Af, curve,
             ECC_CURVE_FIELD_AF);
+#ifdef USE_ECC_B_PARAM
     if (load_items & ECC_CURVE_FIELD_BF)
         x += wc_ecc_curve_load_item(dp->Bf, &curve->Bf, curve,
             ECC_CURVE_FIELD_BF);
+#endif
     if (load_items & ECC_CURVE_FIELD_ORDER)
         x += wc_ecc_curve_load_item(dp->order, &curve->order, curve,
             ECC_CURVE_FIELD_ORDER);
@@ -2713,7 +2733,7 @@ int wc_ecc_make_key_ex(WC_RNG* rng, int keysize, ecc_key* key, int curve_id)
     int            err;
 #ifndef WOLFSSL_ATECC508A
     ecc_point*     base = NULL;
-    DECLARE_CURVE_SPECS(6)
+    DECLARE_CURVE_SPECS(ECC_CURVE_FIELD_COUNT)
 #endif
 
     if (key == NULL || rng == NULL) {
@@ -2798,8 +2818,7 @@ int wc_ecc_make_key_ex(WC_RNG* rng, int keysize, ecc_key* key, int curve_id)
 #ifdef WOLFSSL_VALIDATE_ECC_KEYGEN
     /* validate the public key, order * pubkey = point at infinity */
     if (err == MP_OKAY)
-        err = ecc_check_pubkey_order(key, curve->Af, curve->Bf, curve->prime,
-                                                                 curve->order);
+        err = ecc_check_pubkey_order(key, curve->Af, curve->prime, curve->order);
 #endif /* WOLFSSL_VALIDATE_KEYGEN */
 
     if (err == MP_OKAY)
@@ -3615,7 +3634,7 @@ int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
    mp_int        u1;
    mp_int        u2;
    mp_int        e;
-   DECLARE_CURVE_SPECS(6)
+   DECLARE_CURVE_SPECS(ECC_CURVE_FIELD_COUNT)
 #else
    byte sigRS[ATECC_KEY_SIZE*2];
 #endif
@@ -3840,61 +3859,58 @@ int wc_ecc_import_point_der(byte* in, word32 inLen, const int curve_idx,
 
 #ifdef HAVE_COMP_KEY
     if (err == MP_OKAY && compressed == 1) {   /* build y */
-        mp_int t1, t2, prime, a, b;
+        mp_int t1, t2;
+        DECLARE_CURVE_SPECS(3)
+
         int did_init = 0;
 
-        if (mp_init_multi(&t1, &t2, &prime, &a, &b, NULL) != MP_OKAY)
+        if (mp_init_multi(&t1, &t2, NULL, NULL, NULL, NULL) != MP_OKAY)
             err = MEMORY_E;
         else
             did_init = 1;
 
-        /* read in the specs for this curve */
-        if (err == MP_OKAY)
-            err = mp_read_radix(&prime, ecc_sets[curve_idx].prime, 16);
-        if (err == MP_OKAY)
-            err = mp_read_radix(&a, ecc_sets[curve_idx].Af, 16);
-        if (err == MP_OKAY)
-            err = mp_read_radix(&b, ecc_sets[curve_idx].Bf, 16);
+        /* load curve info */
+        err = wc_ecc_curve_load(&ecc_sets[curve_idx], &curve,
+            (ECC_CURVE_FIELD_PRIME | ECC_CURVE_FIELD_AF | ECC_CURVE_FIELD_BF));
 
         /* compute x^3 */
         if (err == MP_OKAY)
             err = mp_sqr(point->x, &t1);
         if (err == MP_OKAY)
-            err = mp_mulmod(&t1, point->x, &prime, &t1);
+            err = mp_mulmod(&t1, point->x, curve->prime, &t1);
 
         /* compute x^3 + a*x */
         if (err == MP_OKAY)
-            err = mp_mulmod(&a, point->x, &prime, &t2);
+            err = mp_mulmod(curve->Af, point->x, curve->prime, &t2);
         if (err == MP_OKAY)
             err = mp_add(&t1, &t2, &t1);
 
         /* compute x^3 + a*x + b */
         if (err == MP_OKAY)
-            err = mp_add(&t1, &b, &t1);
+            err = mp_add(&t1, curve->Bf, &t1);
 
         /* compute sqrt(x^3 + a*x + b) */
         if (err == MP_OKAY)
-            err = mp_sqrtmod_prime(&t1, &prime, &t2);
+            err = mp_sqrtmod_prime(&t1, curve->prime, &t2);
 
         /* adjust y */
         if (err == MP_OKAY) {
             if ((mp_isodd(&t2) == MP_YES && in[0] == 0x03) ||
                 (mp_isodd(&t2) == MP_NO && in[0] == 0x02)) {
-                err = mp_mod(&t2, &prime, point->y);
+                err = mp_mod(&t2, curve->prime, point->y);
             }
             else {
-                err = mp_submod(&prime, &t2, &prime, point->y);
+                err = mp_submod(curve->prime, &t2, curve->prime, point->y);
             }
         }
 
         if (did_init) {
-    #ifndef USE_FAST_MATH
-            mp_clear(&a);
-            mp_clear(&b);
-            mp_clear(&prime);
+        #ifndef USE_FAST_MATH
             mp_clear(&t2);
             mp_clear(&t1);
-    #endif
+        #endif
+
+            wc_ecc_curve_free(curve);
         }
     }
 #endif
@@ -4098,19 +4114,14 @@ int wc_ecc_export_x963_ex(ecc_key* key, byte* out, word32* outLen,
 #ifndef WOLFSSL_ATECC508A
 
 /* is ecc point on curve described by dp ? */
-static int ecc_is_point(const ecc_set_type* dp, ecc_point* ecp, mp_int* prime)
+int wc_ecc_is_point(ecc_point* ecp, mp_int* a, mp_int* b, mp_int* prime)
 {
-   mp_int a, b, t1, t2;
    int err;
+   mp_int t1, t2;
 
-   if ((err = mp_init_multi(&a, &b, &t1, &t2, NULL, NULL)) != MP_OKAY) {
+   if ((err = mp_init_multi(&t1, &t2, NULL, NULL, NULL, NULL)) != MP_OKAY) {
       return err;
    }
-
-   /* read in the specs for this curve */
-   err = mp_read_radix(&a, dp->Af, 16);
-   if (err == MP_OKAY)
-       err = mp_read_radix(&b, dp->Bf, 16);
 
    /* compute y^2 */
    if (err == MP_OKAY)
@@ -4133,7 +4144,7 @@ static int ecc_is_point(const ecc_set_type* dp, ecc_point* ecp, mp_int* prime)
    if (err == MP_OKAY) {
       /* Use a and prime to determine if a == 3 */
       mp_set(&t2, 0);
-      err = mp_submod(prime, &a, prime, &t2);
+      err = mp_submod(prime, a, prime, &t2);
    }
    if (err == MP_OKAY && mp_cmp_d(&t2, 3) != MP_EQ) {
       /* compute y^2 - x^3 + a*x */
@@ -4169,7 +4180,7 @@ static int ecc_is_point(const ecc_set_type* dp, ecc_point* ecp, mp_int* prime)
 
    /* compare to b */
    if (err == MP_OKAY) {
-       if (mp_cmp(&t1, &b) != MP_EQ) {
+       if (mp_cmp(&t1, b) != MP_EQ) {
           err = MP_VAL;
        } else {
           err = MP_OKAY;
@@ -4177,8 +4188,6 @@ static int ecc_is_point(const ecc_set_type* dp, ecc_point* ecp, mp_int* prime)
    }
 
 #ifndef USE_FAST_MATH
-   mp_clear(&a);
-   mp_clear(&b);
    mp_clear(&t1);
    mp_clear(&t2);
 #endif
@@ -4307,7 +4316,15 @@ int wc_ecc_check_key(ecc_key* key)
 {
     int    err;
 #ifndef WOLFSSL_ATECC508A
+    mp_int* b;
+#ifdef USE_ECC_B_PARAM
     DECLARE_CURVE_SPECS(4)
+#else
+    mp_int b_lcl;
+    DECLARE_CURVE_SPECS(3)
+    b = &b_lcl;
+    XMEMSET(b, 0, sizeof(mp_int));
+#endif
 #endif /* WOLFSSL_ATECC508A */
 
     if (key == NULL)
@@ -4325,11 +4342,25 @@ int wc_ecc_check_key(ecc_key* key)
 
     /* load curve info */
     err = wc_ecc_curve_load(key->dp, &curve, (ECC_CURVE_FIELD_PRIME |
-            ECC_CURVE_FIELD_AF | ECC_CURVE_FIELD_BF | ECC_CURVE_FIELD_ORDER));
+            ECC_CURVE_FIELD_AF | ECC_CURVE_FIELD_ORDER
+#ifdef USE_ECC_B_PARAM
+            | ECC_CURVE_FIELD_BF
+#endif
+    ));
+
+#ifndef USE_ECC_B_PARAM
+    /* load curve b parameter */
+    if (err == MP_OKAY)
+        err = mp_init(b);
+    if (err == MP_OKAY)
+        err = mp_read_radix(b, key->dp->Bf, 16);
+#else
+    b = curve->Bf;
+#endif
 
     /* make sure point is actually on curve */
     if (err == MP_OKAY)
-        err = ecc_is_point(key->dp, &key->pubkey, curve->prime);
+        err = wc_ecc_is_point(&key->pubkey, curve->Af, b, curve->prime);
 
     /* pubkey * order must be at infinity */
     if (err == MP_OKAY)
@@ -4340,6 +4371,10 @@ int wc_ecc_check_key(ecc_key* key)
         err = ecc_check_privkey_gen(key, curve->Af, curve->prime);
 
     wc_ecc_curve_free(curve);
+
+#ifndef USE_ECC_B_PARAM
+    mp_clear(b);
+#endif
 
 #endif /* WOLFSSL_ATECC508A */
 

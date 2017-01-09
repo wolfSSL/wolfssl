@@ -48,6 +48,14 @@
 #endif
 
 
+/* Enable curve B parameter if needed */
+#if defined(HAVE_COMP_KEY) || defined(ECC_CACHE_CURVE)
+    #ifndef USE_ECC_B_PARAM /* Allow someone to force enable */
+        #define USE_ECC_B_PARAM
+    #endif
+#endif
+
+
 /* Use this as the key->idx if a custom ecc_set is used for key->dp */
 #define ECC_CUSTOM_IDX    (-1)
 
@@ -278,6 +286,8 @@ int wc_ecc_make_key_ex(WC_RNG* rng, int keysize, ecc_key* key,
     int curve_id);
 WOLFSSL_API
 int wc_ecc_check_key(ecc_key* key);
+WOLFSSL_API
+int wc_ecc_is_point(ecc_point* ecp, mp_int* a, mp_int* b, mp_int* prime);
 
 #ifdef HAVE_ECC_DHE
 WOLFSSL_API
