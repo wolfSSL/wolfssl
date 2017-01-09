@@ -88,6 +88,8 @@ linux)
   exit 1
 esac
 
+unset GIT_WORK_TREE
+
 git clone . $TEST_DIR
 [ $? -ne 0 ] && echo "\n\nCouldn't duplicate current working directory.\n\n" && exit 1
 
