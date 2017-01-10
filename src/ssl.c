@@ -928,22 +928,6 @@ int wolfSSL_set_secret(WOLFSSL* ssl, unsigned short epoch,
     return ret;
 }
 
-
-int wolfSSL_mcast_read(WOLFSSL* ssl, unsigned char* id, void* data, int sz)
-{
-    int ret = 0;
-
-    (void)ssl;
-    (void)data;
-    (void)sz;
-
-    WOLFSSL_ENTER("wolfSSL_mcast_read()");
-    if (ssl->options.dtls && id != NULL)
-        *id = 0;
-    WOLFSSL_LEAVE("wolfSSL_mcast_read()", ret);
-    return ret;
-}
-
 #endif /* WOLFSSL_MULTICAST */
 
 
@@ -1522,6 +1506,22 @@ int wolfSSL_read(WOLFSSL* ssl, void* data, int sz)
     return wolfSSL_read_internal(ssl, data, sz, FALSE);
 }
 
+
+#ifdef WOLFSSL_MULTICAST
+
+int wolfSSL_mcast_read(WOLFSSL* ssl, unsigned char* id, void* data, int sz)
+{
+    int ret = 0;
+
+    WOLFSSL_ENTER("wolfSSL_mcast_read()");
+
+    ret = wolfSSL_read_internal(ssl, data, sz, FALSE);
+    if (ssl->options.dtls && ssl->options.haveMcast && id != NULL)
+        *id = ssl->keys.curPeerId;
+    return ret;
+}
+
+#endif /* WOLFSSL_MULTICAST */
 
 #ifdef WOLFSSL_ASYNC_CRYPT
 
