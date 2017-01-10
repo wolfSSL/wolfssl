@@ -1282,7 +1282,7 @@ static int wc_PKCS7_KariParseRecipCert(WC_PKCS7_KARI* kari, const byte* cert,
 /* create ephemeral ECC key, places ecc_key in kari->senderKey,
  * DER encoded in kari->senderKeyExport. return 0 on success,
  * negative on error */
-static int wc_PKCS7_KariGenerateEphemeralKey(WC_PKCS7_KARI* kari, RNG* rng)
+static int wc_PKCS7_KariGenerateEphemeralKey(WC_PKCS7_KARI* kari, WC_RNG* rng)
 {
     int ret;
 
