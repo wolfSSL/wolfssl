@@ -726,6 +726,7 @@ WOLFSSL_API int         wolfSSL_RAND_write_file(const char*);
 WOLFSSL_API int         wolfSSL_RAND_load_file(const char*, long);
 WOLFSSL_API int         wolfSSL_RAND_egd(const char*);
 WOLFSSL_API int         wolfSSL_RAND_seed(const void*, int);
+WOLFSSL_API void        wolfSSL_RAND_Cleanup(void);
 WOLFSSL_API void        wolfSSL_RAND_add(const void*, int, double);
 
 WOLFSSL_API WOLFSSL_COMP_METHOD* wolfSSL_COMP_zlib(void);

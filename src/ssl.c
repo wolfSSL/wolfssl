@@ -18560,7 +18560,18 @@ int wolfSSL_RAND_seed(const void* seed, int len)
 }
 
 
-/* WOLFSSL_SUCCESS on ok */
+void wolfSSL_RAND_Cleanup(void)
+{
+    WOLFSSL_ENTER("wolfSSL_RAND_Cleanup()");
+
+    if (initGlobalRNG != 0) {
+        wc_FreeRng(&globalRNG);
+        initGlobalRNG = 0;
+    }
+}
+
+
+/* SSL_SUCCESS on ok */
 int wolfSSL_RAND_bytes(unsigned char* buf, int num)
 {
     int     ret = 0;
@@ -20534,6 +20545,9 @@ int wolfSSL_RSA_public_encrypt(int len, const unsigned char* fr,
                              (RsaKey*)rsa->internal, rng);
 #endif
         if (ret <= 0) {
+            WOLFSSL_MSG("Bad Rsa Encrypt");
+        }
+        if (len <= 0) {
             WOLFSSL_MSG("Bad Rsa Encrypt");
         }
     }

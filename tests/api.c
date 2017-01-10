@@ -217,7 +217,8 @@
     #include <wolfssl/openssl/dh.h>
     #include <wolfssl/openssl/bn.h>
     #include <wolfssl/openssl/pem.h>
-    #include <wolfssl/openssl/ec.h>
+    #include <wolfssl/openssl/engine.h>
+    #include <wolfssl/openssl/crypto.h>
 #ifndef NO_DES3
     #include <wolfssl/openssl/des.h>
 #endif
@@ -14642,6 +14643,37 @@ static void test_wolfSSL_X509(void)
 }
 
 
+static void test_wolfSSL_RAND(void)
+{
+    #if defined(OPENSSL_EXTRA)
+    byte seed[16];
+
+    printf(testingFmt, "wolfSSL_RAND()");
+
+    RAND_seed(seed, sizeof(seed));
+    RAND_cleanup();
+
+    printf(resultFmt, passed);
+    #endif
+}
+
+
+static void test_no_op_functions(void)
+{
+    #if defined(OPENSSL_EXTRA)
+    printf(testingFmt, "no_op_functions()");
+
+    /* this makes sure wolfSSL can compile and run these no-op functions */
+    SSL_load_error_strings();
+    ENGINE_load_builtin_engines();
+    OpenSSL_add_all_ciphers();
+    CRYPTO_malloc_init();
+
+    printf(resultFmt, passed);
+    #endif
+}
+
+
 /*----------------------------------------------------------------------------*
  | wolfCrypt ASN
  *----------------------------------------------------------------------------*/
@@ -15414,6 +15446,7 @@ void ApiTest(void)
     test_wolfSSL_DES_ecb_encrypt();
     test_wolfSSL_ASN1_STRING();
     test_wolfSSL_X509();
+    test_wolfSSL_RAND();
     test_wolfSSL_DES_ecb_encrypt();
     test_wolfSSL_set_tlsext_status_type();
     test_wolfSSL_ASN1_TIME_adj();
@@ -15422,6 +15455,11 @@ void ApiTest(void)
     test_wolfSSL_CTX_set_srp_username();
     test_wolfSSL_CTX_set_srp_password();
     AssertIntEQ(test_wolfSSL_Cleanup(), WOLFSSL_SUCCESS);
+
+    /* test the no op functions for compatibility */
+    test_no_op_functions();
+
+    AssertIntEQ(test_wolfSSL_Cleanup(), SSL_SUCCESS);
 
     /* wolfCrypt ASN tests */
     test_wc_GetPkcs8TraditionalOffset();

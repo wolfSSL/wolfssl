@@ -45,7 +45,10 @@ WOLFSSL_API unsigned long wolfSSLeay(void);
 #define SSLEAY_VERSION 0x0090600fL
 #define SSLEAY_VERSION_NUMBER SSLEAY_VERSION
 
-#if defined(HAVE_STUNNEL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
+/* this function was used to set the default malloc, free, and realloc */
+#define CRYPTO_malloc_init() /* CRYPTO_malloc_init is not needed */
+
+#if defined(HAVE_STUNNEL) || defined(WOLFSSL_NGINX) || defined(HAPROXY)
 #define CRYPTO_set_mem_ex_functions      wolfSSL_CRYPTO_set_mem_ex_functions
 #define FIPS_mode                        wolfSSL_FIPS_mode
 #define FIPS_mode_set                    wolfSSL_FIPS_mode_set

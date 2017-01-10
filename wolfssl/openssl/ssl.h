@@ -282,6 +282,7 @@ typedef WOLFSSL_X509_STORE_CTX X509_STORE_CTX;
 #define RAND_load_file  wolfSSL_RAND_load_file
 #define RAND_egd        wolfSSL_RAND_egd
 #define RAND_seed       wolfSSL_RAND_seed
+#define RAND_cleanup    wolfSSL_RAND_Cleanup
 #define RAND_add        wolfSSL_RAND_add
 
 #define COMP_zlib                       wolfSSL_COMP_zlib
