@@ -16508,6 +16508,8 @@ void wolfSSL_RSA_free(WOLFSSL_RSA* rsa)
  */
 static int SetIndividualExternal(WOLFSSL_BIGNUM** bn, mp_int* mpi)
 {
+    byte dynamic = 0;
+
     WOLFSSL_MSG("Entering SetIndividualExternal");
 
     if (mpi == NULL || bn == NULL) {
@@ -16521,10 +16523,14 @@ static int SetIndividualExternal(WOLFSSL_BIGNUM** bn, mp_int* mpi)
             WOLFSSL_MSG("SetIndividualExternal alloc failed");
             return SSL_FATAL_ERROR;
         }
+        dynamic = 1;
     }
 
     if (mp_copy(mpi, (mp_int*)((*bn)->internal)) != MP_OKAY) {
         WOLFSSL_MSG("mp_copy error");
+        if (dynamic == 1) {
+            wolfSSL_BN_free(*bn);
+        }
         return SSL_FATAL_ERROR;
     }
 
@@ -16574,24 +16580,14 @@ WOLFSSL_BIGNUM *wolfSSL_ASN1_INTEGER_to_BN(const WOLFSSL_ASN1_INTEGER *ai,
         return NULL;
     }
 
-    /* SetIndividualExternal mallocs bn in the case that bn is NULL
-     * mp_clear needs called because mpi is copied and causes memory leak with
+    /* mp_clear needs called because mpi is copied and causes memory leak with
      * --disable-fastmath */
-    if (bn == NULL) {
-        if (SetIndividualExternal(&bn, &mpi) != SSL_SUCCESS) {
-            wolfSSL_BN_free(bn);
-            mp_clear(&mpi);
-            return NULL;
-        }
-    }
-    else {
-        if (SetIndividualExternal(&bn, &mpi) != SSL_SUCCESS) {
-            mp_clear(&mpi);
-            return NULL;
-        }
-    }
+    ret = SetIndividualExternal(&bn, &mpi);
     mp_clear(&mpi);
 
+    if (ret != SSL_SUCCESS) {
+        return NULL;
+    }
     return bn;
 }
 #endif /* !NO_ASN */
