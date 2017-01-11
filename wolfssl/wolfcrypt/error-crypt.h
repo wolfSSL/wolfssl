@@ -153,13 +153,14 @@ enum {
     IS_POINT_E          = -214,  /* ECC is point on curve failed */
     ECC_INF_E           = -215,  /* ECC point infinity error */
     ECC_PRIV_KEY_E      = -216,  /* ECC private key not valid error */
+    ECC_OUT_OF_RANGE_E  = -217,  /* ECC key component out of range */
 
-    SRP_CALL_ORDER_E    = -217,  /* SRP function called in the wrong order. */
-    SRP_VERIFY_E        = -218,  /* SRP proof verification failed. */
-    SRP_BAD_KEY_E       = -219,  /* SRP bad ephemeral values. */
+    SRP_CALL_ORDER_E    = -218,  /* SRP function called in the wrong order. */
+    SRP_VERIFY_E        = -219,  /* SRP proof verification failed. */
+    SRP_BAD_KEY_E       = -220,  /* SRP bad ephemeral values. */
 
-    ASN_NO_SKID         = -220,  /* ASN no Subject Key Identifier found */
-    ASN_NO_AKID         = -221,  /* ASN no Authority Key Identifier found */
+    ASN_NO_SKID         = -221,  /* ASN no Subject Key Identifier found */
+    ASN_NO_AKID         = -222,  /* ASN no Authority Key Identifier found */
     ASN_NO_KEYUSAGE     = -223,  /* ASN no Key Usage found */
     SKID_E              = -224,  /* setting Subject Key Identifier error */
     AKID_E              = -225,  /* setting Authority Key Identifier error */

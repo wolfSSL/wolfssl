@@ -338,6 +338,9 @@ const char* wc_GetErrorString(int error)
     case ECC_INF_E:
         return " ECC point at infinity error";
 
+    case ECC_OUT_OF_RANGE_E:
+        return " ECC Qx or Qy out of range error";
+
     case ECC_PRIV_KEY_E:
         return " ECC private key is not valid error";
 
