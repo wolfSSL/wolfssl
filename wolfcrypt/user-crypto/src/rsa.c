@@ -1950,7 +1950,7 @@ int wc_RsaFlattenPublicKey(RsaKey* key, byte* e, word32* eSz, byte* n,
     if (key == NULL || e == NULL || eSz == NULL || n == NULL || nSz == NULL)
        return USER_CRYPTO_ERROR;
 
-    bytSz = sizeof(byte);
+    bytSz = sizeof(byte) * 8;
     ret = ippsExtGet_BN(NULL, &sz, NULL, key->e);
     if (ret != ippStsNoErr)
         return USER_CRYPTO_ERROR;

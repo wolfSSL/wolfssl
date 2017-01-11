@@ -2043,26 +2043,26 @@ int fp_leading_bit(fp_int *a)
 
 void fp_lshd(fp_int *a, int x)
 {
-   int y;
+    int y;
 
-   /* move up and truncate as required */
-   y = MIN(a->used + x - 1, (int)(FP_SIZE-1));
+    /* move up and truncate as required */
+    y = MIN(a->used + x - 1, (int)(FP_SIZE-1));
 
-   /* store new size */
-   a->used = y + 1;
+    /* store new size */
+    a->used = y + 1;
 
-   /* move digits */
-   for (; y >= x; y--) {
-       a->dp[y] = a->dp[y-x];
-   }
+    /* move digits */
+    for (; y >= x; y--) {
+        a->dp[y] = a->dp[y-x];
+    }
 
-   /* zero lower digits */
-   for (; y >= 0; y--) {
-       a->dp[y] = 0;
-   }
+    /* zero lower digits */
+    for (; y >= 0; y--) {
+        a->dp[y] = 0;
+    }
 
-   /* clamp digits */
-   fp_clamp(a);
+    /* clamp digits */
+    fp_clamp(a);
 }
 
 
@@ -2095,6 +2095,9 @@ void fp_rshb(fp_int *c, int x)
       /* set the carry to the carry bits of the current word found above */
       r = rr;
     }
+
+    /* clamp digits */
+    fp_clamp(c);
 }
 
 
