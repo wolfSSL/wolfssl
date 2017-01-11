@@ -3160,8 +3160,7 @@ int wc_ecc_sign_hash_ex(const byte* in, word32 inlen, WC_RNG* rng,
    if (err == MP_OKAY) {
        int loop_check = 0;
        ecc_key pubkey;
-
-       if (wc_ecc_init(&pubkey) == MP_OKAY) {
+       if (wc_ecc_init_ex(&pubkey, key->heap, INVALID_DEVID) == MP_OKAY) {
            for (;;) {
                if (++loop_check > 64) {
                     err = RNG_FAILURE_E;
