@@ -217,6 +217,7 @@
     #include <wolfssl/openssl/dh.h>
     #include <wolfssl/openssl/bn.h>
     #include <wolfssl/openssl/pem.h>
+    #include <wolfssl/openssl/ec.h>
     #include <wolfssl/openssl/engine.h>
     #include <wolfssl/openssl/crypto.h>
 #ifndef NO_DES3
