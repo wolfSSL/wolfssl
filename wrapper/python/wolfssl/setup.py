@@ -22,11 +22,16 @@
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
 
 # Python 2.7 Standard Library
+
+# pylint: disable=import-error, wrong-import-position
+
 from __future__ import absolute_import
 import os
 import sys
-from wolfssl.__about__ import METADATA
 from setuptools import setup, find_packages
+
+sys.path.insert(0, 'src')
+from wolfssl.__about__ import METADATA
 
 os.chdir(os.path.dirname(sys.argv[0]) or ".")
 
@@ -40,8 +45,9 @@ INFO = dict(
     contents={
         "long_description" : LONG_DESCRIPTION,
         "package_data"     : {"":  ["*.txt"]},
-        "packages"         : find_packages(),
-        "cffi_modules"     : ["./wolfssl/build_ffi.py:ffi"],
+        "packages"         : find_packages("src"),
+        "package_dir"      : {"": "src"},
+        "cffi_modules"     : ["./src/wolfssl/build_ffi.py:ffi"],
     },
     requirements={
         "setup_requires"   : ["cffi>=1.6.0"],
