@@ -1127,7 +1127,7 @@ static WC_PKCS7_KARI* wc_PKCS7_KariNew(PKCS7* pkcs7, byte direction)
                                           DYNAMIC_TYPE_PKCS7);
     if (kari->decoded == NULL) {
         WOLFSSL_MSG("Failed to allocate DecodedCert");
-        XFREE(kari, heap, DYNAMIC_TYPE_PKCS7);
+        XFREE(kari, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
         return NULL;
     }
 
@@ -1135,8 +1135,8 @@ static WC_PKCS7_KARI* wc_PKCS7_KariNew(PKCS7* pkcs7, byte direction)
                                        DYNAMIC_TYPE_PKCS7);
     if (kari->recipKey == NULL) {
         WOLFSSL_MSG("Failed to allocate recipient ecc_key");
-        XFREE(kari->decoded, heap, DYNAMIC_TYPE_PKCS7);
-        XFREE(kari, heap, DYNAMIC_TYPE_PKCS7);
+        XFREE(kari->decoded, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+        XFREE(kari, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
         return NULL;
     }
 
@@ -1144,9 +1144,9 @@ static WC_PKCS7_KARI* wc_PKCS7_KariNew(PKCS7* pkcs7, byte direction)
                                         DYNAMIC_TYPE_PKCS7);
     if (kari->senderKey == NULL) {
         WOLFSSL_MSG("Failed to allocate sender ecc_key");
-        XFREE(kari->recipKey, heap, DYNAMIC_TYPE_PKCS7);
-        XFREE(kari->decoded, heap, DYNAMIC_TYPE_PKCS7);
-        XFREE(kari, heap, DYNAMIC_TYPE_PKCS7);
+        XFREE(kari->recipKey, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+        XFREE(kari->decoded, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+        XFREE(kari, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
         return NULL;
     }
 
@@ -1298,7 +1298,7 @@ static int wc_PKCS7_KariGenerateEphemeralKey(WC_PKCS7_KARI* kari, WC_RNG* rng)
 
     kari->senderKeyExportSz = kari->decoded->pubKeySize;
 
-    ret = wc_ecc_init(kari->senderKey);
+    ret = wc_ecc_init_ex(kari->senderKey, kari->heap, INVALID_DEVID);
     if (ret != 0)
         return ret;
 
@@ -2249,7 +2249,7 @@ int wc_PKCS7_EncodeEnvelopedData(PKCS7* pkcs7, byte* output, word32 outputSz)
     }
 
     /* generate random content encryption key */
-    ret = wc_InitRng(&rng);
+    ret = wc_InitRng_ex(&rng, pkcs7->heap);
     if (ret != 0)
         return ret;
 
