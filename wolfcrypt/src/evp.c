@@ -790,8 +790,8 @@ WOLFSSL_API int wolfSSL_EVP_VerifyUpdate(WOLFSSL_EVP_MD_CTX *ctx, const void *da
     return wolfSSL_EVP_DigestUpdate(ctx, data, len);
 }
 
-WOLFSSL_API int wolfSSL_EVP_VerifyFinal(WOLFSSL_EVP_MD_CTX *ctx, const uint8_t *sig, size_t siglen,
-                    WOLFSSL_EVP_PKEY *pkey)
+WOLFSSL_API int wolfSSL_EVP_VerifyFinal(WOLFSSL_EVP_MD_CTX *ctx,
+        unsigned char*sig, unsigned int siglen, WOLFSSL_EVP_PKEY *pkey)
 {
     int ret;
     unsigned char md[MAX_DIGEST_SIZE];
