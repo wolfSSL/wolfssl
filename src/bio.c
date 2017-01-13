@@ -173,7 +173,7 @@ size_t wolfSSL_BIO_ctrl_pending(WOLFSSL_BIO *bio)
     }
 
     if (bio->type == WOLFSSL_BIO_MEMORY) {
-        return bio->memLen;
+        return bio->wrSz;
     }
 
     /* type BIO_BIO then check paired buffer */
@@ -223,7 +223,7 @@ int wolfSSL_BIO_set_write_buf_size(WOLFSSL_BIO *bio, long size)
     WOLFSSL_ENTER("wolfSSL_BIO_set_write_buf_size");
 
     if (bio == NULL || bio->type != WOLFSSL_BIO_BIO || size < 0) {
-        return SSL_FAILURE;
+        return WOLFSSL_FAILURE;
     }
 
     /* if already in pair then do not change size */
@@ -247,6 +247,7 @@ int wolfSSL_BIO_set_write_buf_size(WOLFSSL_BIO *bio, long size)
         WOLFSSL_MSG("Memory allocation error");
         return WOLFSSL_FAILURE;
     }
+    bio->memLen = bio->wrSz;
     bio->wrIdx = 0;
     bio->rdIdx = 0;
 
@@ -296,8 +297,8 @@ int wolfSSL_BIO_ctrl_reset_read_request(WOLFSSL_BIO *b)
 {
     WOLFSSL_ENTER("wolfSSL_BIO_ctrl_reset_read_request");
 
-    if (b == NULL) {
-        return WOLFSSL_FAILURE;
+    if (b == NULL || b->type == WOLFSSL_BIO_MEMORY) {
+        return SSL_FAILURE;
     }
 
     b->readRq = 0;
@@ -346,6 +347,10 @@ int wolfSSL_BIO_nread(WOLFSSL_BIO *bio, char **buf, int num)
         return WOLFSSL_FAILURE;
     }
 
+    if (bio->type == WOLFSSL_BIO_MEMORY) {
+        return SSL_FAILURE;
+    }
+
     if (bio->pair != NULL) {
         /* special case if asking to read 0 bytes */
         if (num == 0) {
@@ -392,6 +397,10 @@ int wolfSSL_BIO_nwrite(WOLFSSL_BIO *bio, char **buf, int num)
     if (bio == NULL || buf == NULL) {
         WOLFSSL_MSG("NULL argument passed in");
         return 0;
+    }
+
+    if (bio->type != WOLFSSL_BIO_BIO) {
+        return SSL_FAILURE;
     }
 
     if (bio->pair != NULL) {

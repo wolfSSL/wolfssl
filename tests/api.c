@@ -13383,6 +13383,12 @@ static void test_wolfSSL_private_keys(void)
     AssertNotNull(wolfSSL_d2i_PrivateKey(EVP_PKEY_RSA, &pkey,
                 &server_key, (long)sizeof_server_key_der_2048));
     AssertIntEQ(SSL_use_PrivateKey(ssl, pkey), WOLFSSL_SUCCESS);
+
+    /* reuse PKEY structure and test
+     * this should be checked with a memory management sanity checker */
+    AssertNotNull(wolfSSL_d2i_PrivateKey(EVP_PKEY_RSA, &pkey,
+                &server_key, (long)sizeof_server_key_der_2048));
+    AssertIntEQ(SSL_use_PrivateKey(ssl, pkey), WOLFSSL_SUCCESS);
     }
 #endif
 
@@ -13408,21 +13414,45 @@ static void test_wolfSSL_PEM_PrivateKey(void)
        (defined(WOLFSSL_KEY_GEN) || defined(WOLFSSL_CERT_GEN)) && \
        defined(USE_CERT_BUFFERS_2048)
     const unsigned char* server_key = (const unsigned char*)server_key_der_2048;
-    EVP_PKEY* pkey = NULL;
+    EVP_PKEY* pkey  = NULL;
+    EVP_PKEY* pkey2 = NULL;
     BIO*      bio;
+    unsigned char extra[10];
+    int i;
 
     printf(testingFmt, "wolfSSL_PEM_PrivateKey()");
 
-    bio = wolfSSL_BIO_new(wolfSSL_BIO_s_mem());
-    AssertNotNull(bio);
+    XMEMSET(extra, 0, sizeof(extra));
+    AssertNotNull(bio = wolfSSL_BIO_new(wolfSSL_BIO_s_mem()));
+    AssertIntEQ(BIO_set_write_buf_size(bio, 4096), SSL_FAILURE);
 
     AssertNotNull(wolfSSL_d2i_PrivateKey(EVP_PKEY_RSA, &pkey,
             &server_key, (long)sizeof_server_key_der_2048));
     AssertIntEQ(PEM_write_bio_PrivateKey(bio, pkey, NULL, NULL, 0, NULL, NULL),
             WOLFSSL_SUCCESS);
 
+    /* test of creating new EVP_PKEY */
+    AssertNotNull((pkey2 = PEM_read_bio_PrivateKey(bio, NULL, NULL, NULL)));
+    AssertIntEQ((int)XMEMCMP(pkey->pkey.ptr, pkey2->pkey.ptr, pkey->pkey_sz),0);
+
+    /* test of reuse of EVP_PKEY */
+    AssertNull(PEM_read_bio_PrivateKey(bio, &pkey, NULL, NULL));
+    AssertIntEQ(BIO_pending(bio), 0);
+    AssertIntEQ(PEM_write_bio_PrivateKey(bio, pkey, NULL, NULL, 0, NULL, NULL),
+            SSL_SUCCESS);
+    AssertIntEQ(BIO_write(bio, extra, 10), 10); /*add 10 extra bytes after PEM*/
+    AssertNotNull(PEM_read_bio_PrivateKey(bio, &pkey, NULL, NULL));
+    AssertNotNull(pkey);
+    AssertIntEQ((int)XMEMCMP(pkey->pkey.ptr, pkey2->pkey.ptr, pkey->pkey_sz),0);
+    AssertIntEQ(BIO_pending(bio), 10); /* check 10 extra bytes still there */
+    AssertIntEQ(BIO_read(bio, extra, 10), 10);
+    for (i = 0; i < 10; i++) {
+        AssertIntEQ(extra[i], 0);
+    }
+
     BIO_free(bio);
     EVP_PKEY_free(pkey);
+    EVP_PKEY_free(pkey2);
 
     printf(resultFmt, passed);
     #endif /* defined(OPENSSL_EXTRA) && !defined(NO_CERTS) */
