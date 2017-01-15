@@ -582,7 +582,17 @@ class SSLSocket(socket):
         containing that new connection wrapped with a server-side secure
         channel, and the address of the remote client.
         """
-        pass
+        if not self.server_side:
+            raise ValueError("can't accept in client-side mode")
+
+        newsock, addr = socket.accept(self)
+        newsock = self.context.wrap_socket(
+            newsock,
+            do_handshake_on_connect=self.do_handshake_on_connect,
+            suppress_ragged_eofs=self.suppress_ragged_eofs,
+            server_side=True)
+
+        return newsock, addr
 
 
 def wrap_socket(sock, keyfile=None, certfile=None, server_side=False,

@@ -20,59 +20,39 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
 
-# pylint: disable=missing-docstring, invalid-name, import-error
+# pylint: disable=missing-docstring, redefined-outer-name, import-error
 
-import unittest
+import pytest
 from wolfssl._methods import (WolfSSLMethod, PROTOCOL_SSLv3, PROTOCOL_SSLv23,
                               PROTOCOL_TLS, PROTOCOL_TLSv1, PROTOCOL_TLSv1_1,
                               PROTOCOL_TLSv1_2)
 from wolfssl._ffi import ffi as _ffi
 
+@pytest.fixture(
+    params=[PROTOCOL_SSLv3, PROTOCOL_TLSv1, PROTOCOL_TLSv1_1],
+    ids=["SSLv3", "TLSv1", "TLSv1_1"])
+def unsupported_method(request):
+    yield request.param
 
-class TestMethods(unittest.TestCase):
-    def test_SSLv3_raises(self):
-        self.assertRaises(ValueError, WolfSSLMethod, PROTOCOL_SSLv3, False)
-        self.assertRaises(ValueError, WolfSSLMethod, PROTOCOL_SSLv3, True)
-
-
-    def test_TLSv1_raises(self):
-        self.assertRaises(ValueError, WolfSSLMethod, PROTOCOL_TLSv1, False)
-        self.assertRaises(ValueError, WolfSSLMethod, PROTOCOL_TLSv1, True)
-
-
-    def test_TLSv1_1_raises(self):
-        self.assertRaises(ValueError, WolfSSLMethod, PROTOCOL_TLSv1_1, False)
-        self.assertRaises(ValueError, WolfSSLMethod, PROTOCOL_TLSv1_1, True)
+@pytest.fixture(
+    params=[PROTOCOL_SSLv23, PROTOCOL_TLS, PROTOCOL_TLSv1_2],
+    ids=["SSLv23", "TLS", "TLSv1_2"])
+def supported_method(request):
+    yield request.param
 
 
-    def test_SSLv23_doesnt_raises(self):
-        client = WolfSSLMethod(PROTOCOL_SSLv23, False)
-        server = WolfSSLMethod(PROTOCOL_SSLv23, True)
+def test_unsupported_method(unsupported_method):
+    with pytest.raises(ValueError):
+        WolfSSLMethod(unsupported_method, False)
 
-        self.assertIsInstance(client, WolfSSLMethod)
-        self.assertIsInstance(server, WolfSSLMethod)
+    with pytest.raises(ValueError):
+        WolfSSLMethod(unsupported_method, True)
 
-        self.assertNotEqual(client.native_object, _ffi.NULL)
-        self.assertNotEqual(server.native_object, _ffi.NULL)
+def test_supported_method(supported_method):
+    client = WolfSSLMethod(supported_method, False)
+    server = WolfSSLMethod(supported_method, True)
 
-
-    def test_TLS_doesnt_raises(self):
-        client = WolfSSLMethod(PROTOCOL_TLS, False)
-        server = WolfSSLMethod(PROTOCOL_TLS, True)
-
-        self.assertIsInstance(client, WolfSSLMethod)
-        self.assertIsInstance(server, WolfSSLMethod)
-
-        self.assertNotEqual(client.native_object, _ffi.NULL)
-        self.assertNotEqual(server.native_object, _ffi.NULL)
-
-
-    def test_TLSv1_2_doesnt_raises(self):
-        client = WolfSSLMethod(PROTOCOL_TLSv1_2, False)
-        server = WolfSSLMethod(PROTOCOL_TLSv1_2, True)
-
-        self.assertIsInstance(client, WolfSSLMethod)
-        self.assertIsInstance(server, WolfSSLMethod)
-
-        self.assertNotEqual(client.native_object, _ffi.NULL)
-        self.assertNotEqual(server.native_object, _ffi.NULL)
+    assert isinstance(client, WolfSSLMethod)
+    assert isinstance(server, WolfSSLMethod)
+    assert client.native_object != _ffi.NULL
+    assert server.native_object != _ffi.NULL

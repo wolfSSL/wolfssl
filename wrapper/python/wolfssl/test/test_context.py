@@ -21,11 +21,11 @@
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
 
 # pylint: disable=missing-docstring, invalid-name, import-error
+# pylint: disable=redefined-outer-name
 
 import sys
-import unittest
 import ssl
-import wolfssl
+import pytest
 
 _CADATA = """"
 Certificate:
@@ -117,43 +117,36 @@ Lkp2vSl/HFM3Bq3pW2rWt06UonzorE6mUD4rMp5oQhvkWWdh6seaUZwcVaN3dg==
 -----END CERTIFICATE-----
 """
 
-class TestSSLContext(unittest.TestCase):
-    provider = ssl
+def test_context_creation(ssl_context):
+    assert ssl_context != None
 
-    def setUp(self):
-        self.ctx = self.provider.SSLContext(self.provider.PROTOCOL_SSLv23)
+def test_verify_mode(ssl_provider, ssl_context):
+    assert ssl_context.verify_mode == ssl_provider.CERT_NONE
 
-    def test_context_creation(self):
-        self.assertIsNotNone(self.ctx)
+    ssl_context.verify_mode = ssl_provider.CERT_REQUIRED
+    assert ssl_context.verify_mode == ssl_provider.CERT_REQUIRED
 
-    def test_verify_mode(self):
-        self.assertEqual(self.ctx.verify_mode, self.provider.CERT_NONE)
+def test_set_ciphers(ssl_context):
+    ssl_context.set_ciphers("DHE-RSA-AES256-SHA256")
 
-        self.ctx.verify_mode = self.provider.CERT_REQUIRED
-        self.assertEqual(self.ctx.verify_mode, self.provider.CERT_REQUIRED)
+def test_load_cert_chain_raises(ssl_context):
+    with pytest.raises(TypeError):
+        ssl_context.load_cert_chain(None)
 
-    def test_set_ciphers(self):
-        self.ctx.set_ciphers("DHE-RSA-AES256-SHA256")
+def test_load_cert_chain(ssl_context):
+    ssl_context.load_cert_chain("../../../certs/client-cert.pem",
+                                "../../../certs/client-key.pem")
 
-    def test_load_cert_chain_raises(self):
-        self.assertRaises(TypeError, self.ctx.load_cert_chain, None)
+def test_load_verify_locations_raises(ssl_context):
+    with pytest.raises(TypeError):
+        ssl_context.load_verify_locations(None)
 
-    def test_load_cert_chain(self):
-        self.ctx.load_cert_chain("../../../certs/client-cert.pem",
-                                 "../../../certs/client-key.pem")
+def test_load_verify_locations_with_cafile(ssl_context):
+    ssl_context.load_verify_locations(cafile="../../../certs/ca-cert.pem")
 
-    def test_load_verify_locations_raises(self):
-        self.assertRaises(TypeError, self.ctx.load_verify_locations, None)
+def test_load_verify_locations_with_cadata(ssl_provider, ssl_context):
+    if ssl_provider is ssl and sys.version_info[0] == 2:
+        # this test doesn't works for provider ssl in python 2
+        return
 
-    def test_load_verify_locations_with_cafile(self):
-        self.ctx.load_verify_locations(cafile="../../../certs/ca-cert.pem")
-
-    def test_load_verify_locations_with_cadata(self):
-        if self.provider is ssl and sys.version_info[0] == 2:
-            # this test doesn't works for provider ssl in python 2
-            return
-
-        self.ctx.load_verify_locations(cadata=_CADATA)
-
-class TestWolfSSLContext(TestSSLContext):
-    provider = wolfssl
+    ssl_context.load_verify_locations(cadata=_CADATA)

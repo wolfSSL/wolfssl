@@ -21,67 +21,45 @@
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
 
 # pylint: disable=missing-docstring, invalid-name, import-error
+# pylint: disable=redefined-outer-name
 
-import unittest
-import socket
-import ssl
-import wolfssl
+import pytest
 
-class SSLClientTest(unittest.TestCase):
-    provider = ssl
-    host = "www.globalsign.com"
-    port = 443
+HOST = "www.python.org"
+PORT = 443
+CA_CERTS = "/etc/ssl/cert.pem"
 
-    def setUp(self):
-        self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+@pytest.fixture(
+    params=["wrap_socket", "wrap_socket_with_ca",
+            "wrap_socket_from_context", "ssl_socket"])
+def secure_socket(request, ssl_provider, tcp_socket):
+    sock = None
 
-    def test_wrap_socket(self):
-        secure_sock = self.provider.wrap_socket(self.sock)
-        secure_sock.connect((self.host, self.port))
+    if request.param == "wrap_socket":
+        sock = ssl_provider.wrap_socket(tcp_socket)
 
-        secure_sock.write(b"GET / HTTP/1.1\n\n")
-        self.assertEqual(b"HTTP", secure_sock.read(4))
+    elif request.param == "wrap_socket_with_ca":
+        sock = ssl_provider.wrap_socket(
+            tcp_socket, cert_reqs=ssl_provider.CERT_REQUIRED, ca_certs=CA_CERTS)
 
-        secure_sock.close()
+    elif request.param == "wrap_socket_from_context":
+        ctx = ssl_provider.SSLContext(ssl_provider.PROTOCOL_TLSv1_2)
 
-    def test_wrap_socket_with_ca(self):
-        secure_sock = self.provider.wrap_socket(
-            self.sock, cert_reqs=self.provider.CERT_REQUIRED,
-            ca_certs="../../../certs/external/ca-globalsign-root-r2.pem")
-        secure_sock.connect((self.host, self.port))
+        ctx.verify_mode = ssl_provider.CERT_REQUIRED
+        ctx.load_verify_locations(CA_CERTS)
 
-        secure_sock.write(b"GET / HTTP/1.1\n\n")
-        self.assertEqual(b"HTTP", secure_sock.read(4))
+        sock = ctx.wrap_socket(tcp_socket)
 
-        secure_sock.close()
+    elif request.param == "ssl_socket":
+        sock = ssl_provider.SSLSocket(
+            tcp_socket, cert_reqs=ssl_provider.CERT_REQUIRED, ca_certs=CA_CERTS)
 
-    def test_wrap_socket_from_context(self):
-        ctx = self.provider.SSLContext(self.provider.PROTOCOL_TLSv1_2)
+    if sock:
+        yield sock
+        sock.close()
 
-        ctx.verify_mode = self.provider.CERT_REQUIRED
-        ctx.load_verify_locations(
-            "../../../certs/external/ca-globalsign-root-r2.pem")
+def test_secure_connection(secure_socket):
+    secure_socket.connect((HOST, PORT))
 
-        secure_sock = ctx.wrap_socket(self.sock)
-        secure_sock.connect((self.host, self.port))
-
-        secure_sock.write(b"GET / HTTP/1.1\n\n")
-        self.assertEqual(b"HTTP", secure_sock.read(4))
-
-        secure_sock.close()
-
-    def test_ssl_socket(self):
-        secure_sock = self.provider.SSLSocket(
-            self.sock,
-            cert_reqs=self.provider.CERT_REQUIRED,
-            ca_certs="../../../certs/external/ca-globalsign-root-r2.pem")
-
-        secure_sock.connect((self.host, self.port))
-
-        secure_sock.write(b"GET / HTTP/1.1\n\n")
-        self.assertEqual(b"HTTP", secure_sock.read(4))
-
-        secure_sock.close()
-
-class TestWolfSSL(SSLClientTest):
-    provider = wolfssl
+    secure_socket.write(b"GET / HTTP/1.1\n\n")
+    assert secure_socket.read(4) == b"HTTP"
