@@ -11,6 +11,9 @@ dist/
 
 # Unit test
 .tox/
+htmlcov/
+.coverage
+
 # Sphinx documentation
 docs/_build/
 

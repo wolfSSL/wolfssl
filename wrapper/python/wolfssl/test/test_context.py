@@ -121,6 +121,9 @@ def test_context_creation(ssl_context):
     assert ssl_context != None
 
 def test_verify_mode(ssl_provider, ssl_context):
+    with pytest.raises(ValueError):
+        ssl_context.verify_mode = -1
+
     assert ssl_context.verify_mode == ssl_provider.CERT_NONE
 
     ssl_context.verify_mode = ssl_provider.CERT_REQUIRED
@@ -128,6 +131,9 @@ def test_verify_mode(ssl_provider, ssl_context):
 
 def test_set_ciphers(ssl_context):
     ssl_context.set_ciphers("DHE-RSA-AES256-SHA256")
+
+    with pytest.raises(Exception):
+        ssl_context.set_ciphers("foo")
 
 def test_load_cert_chain_raises(ssl_context):
     with pytest.raises(TypeError):

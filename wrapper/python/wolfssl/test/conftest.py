@@ -29,9 +29,8 @@ import pytest
 
 @pytest.fixture
 def tcp_socket():
-    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    yield sock
-    sock.close()
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+        yield sock
 
 @pytest.fixture(params=[ssl, wolfssl], ids=["ssl", "wolfssl"])
 def ssl_provider(request):
