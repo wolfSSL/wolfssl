@@ -1,9 +1,12 @@
 [ "$(whoami)" != "root" ] && echo "Sorry, you are not root." && exit 1
 
 apt-get update
-apt-get install -y git autoconf libtool
+apt-get install -y \
+    git autoconf libtool python-dev python3-dev python-pip libffi-dev
 
-git clone https://github.com/wolfssl/wolfssl.git
+pip install -U pip setuptools
+
+git clone --depth 1 https://github.com/wolfssl/wolfssl.git
 [ $? -ne 0 ] && echo "\n\nCouldn't download wolfssl.\n\n" && exit 1
 
 pushd wolfssl
@@ -15,9 +18,20 @@ make install
 ldconfig
 
 popd
+
 rm -rf wolfssl
 
-apt-get install -y libffi-dev python-dev python-pip
+pushd /vagrant
 
-pip install wolfssl
-[ $? -ne 0 ] && echo "\n\nCouldn't install wolfssl.\n\n" && exit 1
+pip install -r requirements-testing.txt
+
+rm src/wolfssl/*.pyc
+rm -r src/wolfssl/*.egg-info/
+rm -r test/__pycache__/
+
+tox -r -- -v
+
+popd
+
+#pip install wolfssl
+#[ $? -ne 0 ] && echo -e "\n\nCouldn't install wolfssl.\n\n" && exit 1

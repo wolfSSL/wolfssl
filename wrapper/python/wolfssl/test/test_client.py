@@ -27,7 +27,7 @@ import pytest
 
 HOST = "www.python.org"
 PORT = 443
-CA_CERTS = "/etc/ssl/cert.pem"
+CA_CERTS = "certs/ca-digicert-ev.pem"
 
 @pytest.fixture(
     params=["wrap_socket", "wrap_socket_with_ca",
