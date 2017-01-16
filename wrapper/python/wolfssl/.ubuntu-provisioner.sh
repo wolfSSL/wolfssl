@@ -29,7 +29,7 @@ rm src/wolfssl/*.pyc
 rm -r src/wolfssl/*.egg-info/
 rm -r test/__pycache__/
 
-tox -r -- -v
+tox -r -e py27,py34 -- -v
 
 popd
 
