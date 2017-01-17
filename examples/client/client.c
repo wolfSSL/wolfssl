@@ -1086,13 +1086,16 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 
 #ifdef SINGLE_THREADED
     if (wolfSSL_CTX_new_rng(ctx) != SSL_SUCCESS) {
+        wolfSSL_CTX_free(ctx);
         err_sys("Single Threaded new rng at CTX failed");
     }
 #endif
 
     if (cipherList) {
-        if (wolfSSL_CTX_set_cipher_list(ctx, cipherList) != SSL_SUCCESS)
+        if (wolfSSL_CTX_set_cipher_list(ctx, cipherList) != SSL_SUCCESS) {
+            wolfSSL_CTX_free(ctx);
             err_sys("client can't set cipher list 1");
+        }
     }
 
 #ifdef WOLFSSL_LEANPSK
@@ -1127,8 +1130,10 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
                 defaultCipherList = "PSK-AES128-CBC-SHA256";
             #endif
             if (wolfSSL_CTX_set_cipher_list(ctx,defaultCipherList)
-                                                                  !=SSL_SUCCESS)
+                                                                !=SSL_SUCCESS) {
+                wolfSSL_CTX_free(ctx);
                 err_sys("client can't set cipher list 2");
+            }
         }
 #endif
         if (useClientCert) {
@@ -1140,8 +1145,11 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 #ifdef HAVE_ANON
         if (cipherList == NULL) {
             wolfSSL_CTX_allow_anon_cipher(ctx);
-            if (wolfSSL_CTX_set_cipher_list(ctx,"ADH-AES128-SHA") != SSL_SUCCESS)
+            if (wolfSSL_CTX_set_cipher_list(ctx,"ADH-AES128-SHA")
+                                                               != SSL_SUCCESS) {
+                wolfSSL_CTX_free(ctx);
                 err_sys("client can't set cipher list 4");
+            }
         }
 #endif
         if (useClientCert) {
@@ -1162,6 +1170,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     if (cipherList == NULL) {
         /* don't use EDH, can't sniff tmp keys */
         if (wolfSSL_CTX_set_cipher_list(ctx, "AES128-SHA") != SSL_SUCCESS) {
+            wolfSSL_CTX_free(ctx);
             err_sys("client can't set cipher list 3");
         }
     }
@@ -1189,14 +1198,19 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 #if !defined(NO_CERTS)
     if (useClientCert){
 #if !defined(NO_FILESYSTEM)
-        if (wolfSSL_CTX_use_certificate_chain_file(ctx, ourCert) != SSL_SUCCESS)
+        if (wolfSSL_CTX_use_certificate_chain_file(ctx, ourCert)
+                                                               != SSL_SUCCESS) {
+            wolfSSL_CTX_free(ctx);
             err_sys("can't load client cert file, check file and run from"
                     " wolfSSL home dir");
+        }
 
         if (wolfSSL_CTX_use_PrivateKey_file(ctx, ourKey, SSL_FILETYPE_PEM)
-                                         != SSL_SUCCESS)
+                                         != SSL_SUCCESS) {
+            wolfSSL_CTX_free(ctx);
             err_sys("can't load client private key file, check file and run "
                     "from wolfSSL home dir");
+        }
 #else
         load_buffer(ctx, ourCert, WOLFSSL_CERT_CHAIN);
         load_buffer(ctx, ourKey, WOLFSSL_KEY);
@@ -1205,16 +1219,21 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 
     if (!usePsk && !useAnon) {
 #if !defined(NO_FILESYSTEM)
-        if (wolfSSL_CTX_load_verify_locations(ctx, verifyCert,0) != SSL_SUCCESS)
+        if (wolfSSL_CTX_load_verify_locations(ctx, verifyCert,0)
+                                                               != SSL_SUCCESS) {
+            wolfSSL_CTX_free(ctx);
             err_sys("can't load ca file, Please run from wolfSSL home dir");
+        }
 #else
         load_buffer(ctx, verifyCert, WOLFSSL_CA);
 #endif  /* !defined(NO_FILESYSTEM) */
 #ifdef HAVE_ECC
         /* load ecc verify too, echoserver uses it by default w/ ecc */
 #if !defined(NO_FILESYSTEM)
-        if (wolfSSL_CTX_load_verify_locations(ctx, eccCert, 0) != SSL_SUCCESS)
+        if (wolfSSL_CTX_load_verify_locations(ctx, eccCert, 0) != SSL_SUCCESS) {
+            wolfSSL_CTX_free(ctx);
             err_sys("can't load ecc ca file, Please run from wolfSSL home dir");
+        }
 #else
         load_buffer(ctx, eccCert, WOLFSSL_CA);
 #endif  /* !defined(NO_FILESYSTEM) */
@@ -1223,6 +1242,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
         if (trustCert) {
             if ((ret = wolfSSL_CTX_trust_peer_cert(ctx, trustCert,
                                             SSL_FILETYPE_PEM)) != SSL_SUCCESS) {
+                wolfSSL_CTX_free(ctx);
                 err_sys("can't load trusted peer cert file");
             }
         }
@@ -1237,6 +1257,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 #ifdef WOLFSSL_ASYNC_CRYPT
     ret = wolfAsync_DevOpen(&devId);
     if (ret != 0) {
+        wolfSSL_CTX_free(ctx);
         err_sys("Async device open failed");
     }
     wolfSSL_CTX_UseAsync(ctx, devId);
@@ -1245,27 +1266,37 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 #ifdef HAVE_SNI
     if (sniHostName)
         if (wolfSSL_CTX_UseSNI(ctx, 0, sniHostName, XSTRLEN(sniHostName))
-                                                                 != SSL_SUCCESS)
+                                                               != SSL_SUCCESS) {
+            wolfSSL_CTX_free(ctx);
             err_sys("UseSNI failed");
+    }
 #endif
 #ifdef HAVE_MAX_FRAGMENT
     if (maxFragment)
-        if (wolfSSL_CTX_UseMaxFragment(ctx, maxFragment) != SSL_SUCCESS)
+        if (wolfSSL_CTX_UseMaxFragment(ctx, maxFragment) != SSL_SUCCESS) {
+            wolfSSL_CTX_free(ctx);
             err_sys("UseMaxFragment failed");
+        }
 #endif
 #ifdef HAVE_TRUNCATED_HMAC
     if (truncatedHMAC)
-        if (wolfSSL_CTX_UseTruncatedHMAC(ctx) != SSL_SUCCESS)
+        if (wolfSSL_CTX_UseTruncatedHMAC(ctx) != SSL_SUCCESS) {
+            wolfSSL_CTX_free(ctx);
             err_sys("UseTruncatedHMAC failed");
+        }
 #endif
 #ifdef HAVE_SESSION_TICKET
-    if (wolfSSL_CTX_UseSessionTicket(ctx) != SSL_SUCCESS)
+    if (wolfSSL_CTX_UseSessionTicket(ctx) != SSL_SUCCESS) {
+        wolfSSL_CTX_free(ctx);
         err_sys("UseSessionTicket failed");
+    }
 #endif
 #ifdef HAVE_EXTENDED_MASTER
     if (disableExtMasterSecret)
-        if (wolfSSL_CTX_DisableExtendedMasterSecret(ctx) != SSL_SUCCESS)
+        if (wolfSSL_CTX_DisableExtendedMasterSecret(ctx) != SSL_SUCCESS) {
+            wolfSSL_CTX_free(ctx);
             err_sys("DisableExtendedMasterSecret failed");
+        }
 #endif
 
     if (benchmark) {
@@ -1290,16 +1321,20 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 
     #if defined(OPENSSL_EXTRA)
     if (wolfSSL_CTX_get_read_ahead(ctx) != 0) {
+        wolfSSL_CTX_free(ctx);
         err_sys("bad read ahead default value");
     }
     if (wolfSSL_CTX_set_read_ahead(ctx, 1) != SSL_SUCCESS) {
+        wolfSSL_CTX_free(ctx);
         err_sys("error setting read ahead value");
     }
     #endif
 
     ssl = wolfSSL_new(ctx);
-    if (ssl == NULL)
+    if (ssl == NULL) {
+        wolfSSL_CTX_free(ctx);
         err_sys("unable to get SSL object");
+    }
 
     #ifdef OPENSSL_EXTRA
     wolfSSL_KeepArrays(ssl);
@@ -1308,26 +1343,38 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     #ifdef HAVE_SUPPORTED_CURVES /* add curves to supported curves extension */
         if (wolfSSL_UseSupportedCurve(ssl, WOLFSSL_ECC_SECP256R1)
                 != SSL_SUCCESS) {
+            wolfSSL_free(ssl);
+            wolfSSL_CTX_free(ctx);
             err_sys("unable to set curve secp256r1");
         }
         if (wolfSSL_UseSupportedCurve(ssl, WOLFSSL_ECC_SECP384R1)
                 != SSL_SUCCESS) {
+            wolfSSL_free(ssl);
+            wolfSSL_CTX_free(ctx);
             err_sys("unable to set curve secp384r1");
         }
         if (wolfSSL_UseSupportedCurve(ssl, WOLFSSL_ECC_SECP521R1)
                 != SSL_SUCCESS) {
+            wolfSSL_free(ssl);
+            wolfSSL_CTX_free(ctx);
             err_sys("unable to set curve secp521r1");
         }
         if (wolfSSL_UseSupportedCurve(ssl, WOLFSSL_ECC_SECP224R1)
                 != SSL_SUCCESS) {
+            wolfSSL_free(ssl);
+            wolfSSL_CTX_free(ctx);
             err_sys("unable to set curve secp224r1");
         }
         if (wolfSSL_UseSupportedCurve(ssl, WOLFSSL_ECC_SECP192R1)
                 != SSL_SUCCESS) {
+            wolfSSL_free(ssl);
+            wolfSSL_CTX_free(ctx);
             err_sys("unable to set curve secp192r1");
         }
         if (wolfSSL_UseSupportedCurve(ssl, WOLFSSL_ECC_SECP160R1)
                 != SSL_SUCCESS) {
+            wolfSSL_free(ssl);
+            wolfSSL_CTX_free(ctx);
             err_sys("unable to set curve secp160r1");
         }
     #endif
@@ -1347,8 +1394,11 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
         switch (statusRequest) {
             case WOLFSSL_CSR_OCSP:
                 if (wolfSSL_UseOCSPStapling(ssl, WOLFSSL_CSR_OCSP,
-                                     WOLFSSL_CSR_OCSP_USE_NONCE) != SSL_SUCCESS)
+                                   WOLFSSL_CSR_OCSP_USE_NONCE) != SSL_SUCCESS) {
+                    wolfSSL_free(ssl);
+                    wolfSSL_CTX_free(ctx);
                     err_sys("UseCertificateStatusRequest failed");
+                }
 
             break;
         }
@@ -1362,14 +1412,20 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
             case WOLFSSL_CSR2_OCSP:
                 if (wolfSSL_UseOCSPStaplingV2(ssl,
                     WOLFSSL_CSR2_OCSP, WOLFSSL_CSR2_OCSP_USE_NONCE)
-                                                                 != SSL_SUCCESS)
+                                                               != SSL_SUCCESS) {
+                    wolfSSL_free(ssl);
+                    wolfSSL_CTX_free(ctx);
                     err_sys("UseCertificateStatusRequest failed");
+                }
             break;
             case WOLFSSL_CSR2_OCSP_MULTI:
                 if (wolfSSL_UseOCSPStaplingV2(ssl,
                     WOLFSSL_CSR2_OCSP_MULTI, 0)
-                                                                 != SSL_SUCCESS)
+                                                               != SSL_SUCCESS) {
+                    wolfSSL_free(ssl);
+                    wolfSSL_CTX_free(ctx);
                     err_sys("UseCertificateStatusRequest failed");
+                }
             break;
 
         }
@@ -1380,30 +1436,47 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 
     tcp_connect(&sockfd, host, port, dtlsUDP, dtlsSCTP, ssl);
     if (wolfSSL_set_fd(ssl, sockfd) != SSL_SUCCESS) {
+        wolfSSL_free(ssl);
+        wolfSSL_CTX_free(ctx);
         err_sys("error in setting fd");
     }
 
     /* STARTTLS */
     if (doSTARTTLS) {
         if (StartTLS_Init(&sockfd) != SSL_SUCCESS) {
+            wolfSSL_free(ssl);
+            wolfSSL_CTX_free(ctx);
             err_sys("error during STARTTLS protocol");
         }
     }
 
 #ifdef HAVE_CRL
     if (disableCRL == 0) {
-        if (wolfSSL_EnableCRL(ssl, WOLFSSL_CRL_CHECKALL) != SSL_SUCCESS)
+        if (wolfSSL_EnableCRL(ssl, WOLFSSL_CRL_CHECKALL) != SSL_SUCCESS) {
+            wolfSSL_free(ssl);
+            wolfSSL_CTX_free(ctx);
             err_sys("can't enable crl check");
-        if (wolfSSL_LoadCRL(ssl, crlPemDir, SSL_FILETYPE_PEM, 0) != SSL_SUCCESS)
+        }
+        if (wolfSSL_LoadCRL(ssl, crlPemDir, SSL_FILETYPE_PEM, 0)
+                                                               != SSL_SUCCESS) {
+            wolfSSL_free(ssl);
+            wolfSSL_CTX_free(ctx);
             err_sys("can't load crl, check crlfile and date validity");
-        if (wolfSSL_SetCRL_Cb(ssl, CRL_CallBack) != SSL_SUCCESS)
+        }
+        if (wolfSSL_SetCRL_Cb(ssl, CRL_CallBack) != SSL_SUCCESS) {
+            wolfSSL_free(ssl);
+            wolfSSL_CTX_free(ctx);
             err_sys("can't set crl callback");
+        }
     }
 #endif
 #ifdef HAVE_SECURE_RENEGOTIATION
     if (scr) {
-        if (wolfSSL_UseSecureRenegotiation(ssl) != SSL_SUCCESS)
+        if (wolfSSL_UseSecureRenegotiation(ssl) != SSL_SUCCESS) {
+            wolfSSL_free(ssl);
+            wolfSSL_CTX_free(ctx);
             err_sys("can't enable secure renegotiation");
+        }
     }
 #endif
 #ifdef ATOMIC_USER
@@ -1440,6 +1513,8 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
         if (ret != SSL_SUCCESS) {
             char buffer[WOLFSSL_MAX_ERROR_SZ];
             printf("err = %d, %s\n", err, wolfSSL_ERR_error_string(err, buffer));
+            wolfSSL_free(ssl);
+            wolfSSL_CTX_free(ctx);
             err_sys("wolfSSL_connect failed");
             /* see note at top of README */
             /* if you're getting an error here  */
@@ -1461,17 +1536,23 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
         /* get size of buffer then print */
         size = wolfSSL_get_client_random(NULL, NULL, 0);
         if (size == 0) {
+            wolfSSL_free(ssl);
+            wolfSSL_CTX_free(ctx);
             err_sys("error getting client random buffer size");
         }
 
         rnd = (byte*)XMALLOC(size, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         if (rnd == NULL) {
+            wolfSSL_free(ssl);
+            wolfSSL_CTX_free(ctx);
             err_sys("error creating client random buffer");
         }
 
         size = wolfSSL_get_client_random(ssl, rnd, size);
         if (size == 0) {
             XFREE(rnd, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            wolfSSL_free(ssl);
+            wolfSSL_CTX_free(ctx);
             err_sys("error getting client random buffer");
         }
 
@@ -1485,6 +1566,8 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     if (doSTARTTLS) {
         if (XSTRNCMP(starttlsProt, "smtp", 4) == 0) {
             if (SMTP_Shutdown(ssl, wc_shutdown) != SSL_SUCCESS) {
+                wolfSSL_free(ssl);
+                wolfSSL_CTX_free(ctx);
                 err_sys("error closing STARTTLS connection");
             }
         }
@@ -1525,6 +1608,8 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
                 err = wolfSSL_get_error(ssl, 0);
                 printf("err = %d, %s\n", err,
                                 wolfSSL_ERR_error_string(err, buffer));
+                wolfSSL_free(ssl);
+                wolfSSL_CTX_free(ctx);
                 err_sys("wolfSSL_Rehandshake failed");
             }
         }
@@ -1552,8 +1637,11 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
             sleep(1);
     #endif
 #endif /* WOLFSSL_SESSION_EXPORT_DEBUG */
-    if (wolfSSL_write(ssl, msg, msgSz) != msgSz)
+    if (wolfSSL_write(ssl, msg, msgSz) != msgSz) {
+        wolfSSL_free(ssl);
+        wolfSSL_CTX_free(ctx);
         err_sys("SSL_write failed");
+    }
 
     input = wolfSSL_read(ssl, reply, sizeof(reply)-1);
     if (input > 0) {
@@ -1576,6 +1664,8 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
         int readErr = wolfSSL_get_error(ssl, 0);
         if (readErr != SSL_ERROR_WANT_READ) {
             printf("wolfSSL_read error %d!\n", readErr);
+            wolfSSL_free(ssl);
+            wolfSSL_CTX_free(ctx);
             err_sys("wolfSSL_read failed");
         }
     }
@@ -1584,8 +1674,11 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     if (resumeSession) {
         session   = wolfSSL_get_session(ssl);
         sslResume = wolfSSL_new(ctx);
-        if (sslResume == NULL)
+        if (sslResume == NULL) {
+            wolfSSL_free(ssl);
+            wolfSSL_CTX_free(ctx);
             err_sys("unable to get SSL object");
+        }
     }
 #endif
 
@@ -1614,6 +1707,8 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
         }
         tcp_connect(&sockfd, host, port, dtlsUDP, dtlsSCTP, sslResume);
         if (wolfSSL_set_fd(sslResume, sockfd) != SSL_SUCCESS) {
+            wolfSSL_free(sslResume);
+            wolfSSL_CTX_free(ctx);
             err_sys("error in setting fd");
         }
 #ifdef HAVE_ALPN
@@ -1625,8 +1720,11 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 #endif
 #ifdef HAVE_SECURE_RENEGOTIATION
         if (scr) {
-            if (wolfSSL_UseSecureRenegotiation(sslResume) != SSL_SUCCESS)
+            if (wolfSSL_UseSecureRenegotiation(sslResume) != SSL_SUCCESS) {
+                wolfSSL_free(sslResume);
+                wolfSSL_CTX_free(ctx);
                 err_sys("can't enable secure renegotiation");
+            }
         }
 #endif
         wolfSSL_set_session(sslResume, session);
@@ -1637,26 +1735,38 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     #ifdef HAVE_SUPPORTED_CURVES /* add curves to supported curves extension */
         if (wolfSSL_UseSupportedCurve(sslResume, WOLFSSL_ECC_SECP256R1)
                 != SSL_SUCCESS) {
+            wolfSSL_free(sslResume);
+            wolfSSL_CTX_free(ctx);
             err_sys("unable to set curve secp256r1");
         }
         if (wolfSSL_UseSupportedCurve(sslResume, WOLFSSL_ECC_SECP384R1)
                 != SSL_SUCCESS) {
+            wolfSSL_free(sslResume);
+            wolfSSL_CTX_free(ctx);
             err_sys("unable to set curve secp384r1");
         }
         if (wolfSSL_UseSupportedCurve(sslResume, WOLFSSL_ECC_SECP521R1)
                 != SSL_SUCCESS) {
+            wolfSSL_free(sslResume);
+            wolfSSL_CTX_free(ctx);
             err_sys("unable to set curve secp521r1");
         }
         if (wolfSSL_UseSupportedCurve(sslResume, WOLFSSL_ECC_SECP224R1)
                 != SSL_SUCCESS) {
+            wolfSSL_free(sslResume);
+            wolfSSL_CTX_free(ctx);
             err_sys("unable to set curve secp224r1");
         }
         if (wolfSSL_UseSupportedCurve(sslResume, WOLFSSL_ECC_SECP192R1)
                 != SSL_SUCCESS) {
+            wolfSSL_free(sslResume);
+            wolfSSL_CTX_free(ctx);
             err_sys("unable to set curve secp192r1");
         }
         if (wolfSSL_UseSupportedCurve(sslResume, WOLFSSL_ECC_SECP160R1)
                 != SSL_SUCCESS) {
+            wolfSSL_free(sslResume);
+            wolfSSL_CTX_free(ctx);
             err_sys("unable to set curve secp160r1");
         }
     #endif
@@ -1667,8 +1777,11 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
             tcp_set_nonblocking(&sockfd);
             NonBlockingSSL_Connect(sslResume);
         }
-        else if (wolfSSL_connect(sslResume) != SSL_SUCCESS)
+        else if (wolfSSL_connect(sslResume) != SSL_SUCCESS) {
+            wolfSSL_free(sslResume);
+            wolfSSL_CTX_free(ctx);
             err_sys("SSL resume failed");
+        }
 #else
         timeout.tv_sec  = 2;
         timeout.tv_usec = 0;
@@ -1710,8 +1823,11 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
         #endif
     #endif /* WOLFSSL_SESSION_EXPORT_DEBUG */
 
-        if (wolfSSL_write(sslResume, resumeMsg, resumeSz) != resumeSz)
+        if (wolfSSL_write(sslResume, resumeMsg, resumeSz) != resumeSz) {
+            wolfSSL_free(sslResume);
+            wolfSSL_CTX_free(ctx);
             err_sys("SSL_write failed");
+        }
 
         if (nonBlocking) {
             /* give server a chance to bounce a message back to client */
@@ -1742,9 +1858,11 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
             }
         }
     } else if (input < 0) {
-        int readErr = wolfSSL_get_error(ssl, 0);
+        int readErr = wolfSSL_get_error(sslResume, 0);
         if (readErr != SSL_ERROR_WANT_READ) {
             printf("wolfSSL_read error %d!\n", readErr);
+            wolfSSL_free(sslResume);
+            wolfSSL_CTX_free(ctx);
             err_sys("wolfSSL_read failed");
         }
     }

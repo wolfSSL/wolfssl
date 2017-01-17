@@ -422,6 +422,10 @@ int wolfSSL_set_fd(WOLFSSL* ssl, int fd)
 
     WOLFSSL_ENTER("SSL_set_fd");
 
+    if (ssl == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
     ret = wolfSSL_set_read_fd(ssl, fd);
     if (ret == SSL_SUCCESS) {
         ret = wolfSSL_set_write_fd(ssl, fd);
@@ -988,10 +992,14 @@ int wolfSSL_SetTmpDH(WOLFSSL* ssl, const unsigned char* p, int pSz,
     if (ssl->options.side != WOLFSSL_SERVER_END)
         return SIDE_ERROR;
 
-    if (ssl->buffers.serverDH_P.buffer && ssl->buffers.weOwnDH)
+    if (ssl->buffers.serverDH_P.buffer && ssl->buffers.weOwnDH) {
         XFREE(ssl->buffers.serverDH_P.buffer, ssl->heap, DYNAMIC_TYPE_DH);
-    if (ssl->buffers.serverDH_G.buffer && ssl->buffers.weOwnDH)
+        ssl->buffers.serverDH_P.buffer = NULL;
+    }
+    if (ssl->buffers.serverDH_G.buffer && ssl->buffers.weOwnDH) {
         XFREE(ssl->buffers.serverDH_G.buffer, ssl->heap, DYNAMIC_TYPE_DH);
+        ssl->buffers.serverDH_G.buffer = NULL;
+    }
 
     ssl->buffers.weOwnDH = 1;  /* SSL owns now */
     ssl->buffers.serverDH_P.buffer = (byte*)XMALLOC(pSz, ssl->heap,
@@ -1003,6 +1011,7 @@ int wolfSSL_SetTmpDH(WOLFSSL* ssl, const unsigned char* p, int pSz,
                                                     DYNAMIC_TYPE_DH);
     if (ssl->buffers.serverDH_G.buffer == NULL) {
         XFREE(ssl->buffers.serverDH_P.buffer, ssl->heap, DYNAMIC_TYPE_DH);
+        ssl->buffers.serverDH_P.buffer = NULL;
         return MEMORY_E;
     }
 
@@ -4335,6 +4344,7 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
 
         if (DecodeToKey(cert, 0) < 0) {
             WOLFSSL_MSG("Decode to key failed");
+            FreeDecodedCert(cert);
         #ifdef WOLFSSL_SMALL_STACK
             XFREE(cert, heap, DYNAMIC_TYPE_TMP_BUFFER);
         #endif
@@ -7673,6 +7683,9 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
         #ifdef HAVE_ERRNO_H
             errno = 0;
         #endif
+
+        if (ssl == NULL)
+            return BAD_FUNC_ARG;
 
         if (ssl->options.side != WOLFSSL_CLIENT_END) {
             WOLFSSL_ERROR(ssl->error = SIDE_ERROR);

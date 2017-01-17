@@ -834,6 +834,7 @@ int wc_InitRng(WC_RNG* rng)
     junk = (byte*)XMALLOC(256, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (junk == NULL) {
         XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        key = NULL;
         return MEMORY_E;
     }
 #endif

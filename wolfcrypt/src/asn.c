@@ -2481,6 +2481,7 @@ void InitDecodedCert(DecodedCert* cert, byte* source, word32 inSz, void* heap)
     cert->publicKey       = 0;
     cert->pubKeySize      = 0;
     cert->pubKeyStored    = 0;
+    cert->keyOID          = 0;
     cert->version         = 0;
     cert->signature       = 0;
     cert->subjectCN       = 0;
