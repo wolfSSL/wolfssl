@@ -30,14 +30,14 @@
 #if !defined(NO_SHA)
 
 #include <wolfssl/wolfcrypt/sha.h>
-
+#include <wolfssl/wolfcrypt/error-crypt.h>
 
 /* fips wrapper calls, user can call direct */
 #ifdef HAVE_FIPS
 	int wc_InitSha(Sha* sha)
 	{
         if (sha == NULL) {
-            return -173;
+            return BAD_FUNC_ARG;
         }
 	    return InitSha_fips(sha);
 	}
@@ -45,7 +45,7 @@
 	int wc_ShaUpdate(Sha* sha, const byte* data, word32 len)
 	{
         if (sha == NULL || (data == NULL && len > 0)) {
-            return -173;
+            return BAD_FUNC_ARG;
         }
 	    return ShaUpdate_fips(sha, data, len);
 	}
@@ -53,7 +53,7 @@
 	int wc_ShaFinal(Sha* sha, byte* out)
 	{
         if (sha == NULL || out == NULL) {
-            return -173;
+            return BAD_FUNC_ARG;
         }
 	    return ShaFinal_fips(sha,out);
     }
@@ -61,7 +61,6 @@
 #else /* else build without fips */
 
 #include <wolfssl/wolfcrypt/logging.h>
-#include <wolfssl/wolfcrypt/error-crypt.h>
 #ifdef NO_INLINE
     #include <wolfssl/wolfcrypt/misc.h>
 #else

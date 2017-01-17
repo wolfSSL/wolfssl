@@ -28,6 +28,7 @@
 
 #include <wolfssl/wolfcrypt/settings.h>
 #include <wolfssl/wolfcrypt/sha256.h>
+#include <wolfssl/wolfcrypt/error-crypt.h>
 
 #if !defined(NO_SHA256)
 #ifdef HAVE_FIPS
@@ -35,7 +36,7 @@
 int wc_InitSha256(Sha256* sha)
 {
     if (sha == NULL) {
-        return -173;
+        return BAD_FUNC_ARG;;
     }
     return InitSha256_fips(sha);
 }
@@ -44,7 +45,7 @@ int wc_InitSha256(Sha256* sha)
 int wc_Sha256Update(Sha256* sha, const byte* data, word32 len)
 {
     if (sha == NULL ||  (data == NULL && len > 0)) {
-        return -173;
+        return BAD_FUNC_ARG;;
     }
     return Sha256Update_fips(sha, data, len);
 }
@@ -53,7 +54,7 @@ int wc_Sha256Update(Sha256* sha, const byte* data, word32 len)
 int wc_Sha256Final(Sha256* sha, byte* out)
 {
     if (sha == NULL || out == NULL) {
-        return -173;
+        return BAD_FUNC_ARG;;
     }
     return Sha256Final_fips(sha, out);
 }
@@ -285,7 +286,6 @@ static void set_Transform(void) {
 #endif
 
 #include <wolfssl/wolfcrypt/logging.h>
-#include <wolfssl/wolfcrypt/error-crypt.h>
 
 #ifdef NO_INLINE
     #include <wolfssl/wolfcrypt/misc.h>

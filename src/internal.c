@@ -5649,13 +5649,14 @@ static int BuildFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
 #endif
 #ifndef NO_OLD_TLS
     if (!ssl->options.tls) {
-        if (BuildMD5(ssl, hashes, sender) != 0) {
+        ret = BuildMD5(ssl, hashes, sender);
+        if (ret != 0) {
         #ifdef WOLFSSL_SMALL_STACK
         #ifdef WOLFSSL_SHA384
             XFREE(sha384, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         #endif
         #endif
-            return SSL_FATAL_ERROR;
+            return ret;
         }
         BuildSHA(ssl, hashes, sender);
     }
@@ -10339,8 +10340,9 @@ static int BuildCertHashes(WOLFSSL* ssl, Hashes* hashes)
     }
 #if ! defined( NO_OLD_TLS )
     else {
-        if (BuildMD5_CertVerify(ssl, hashes->md5) != 0) {
-            return SSL_FATAL_ERROR;
+        ret = BuildMD5_CertVerify(ssl, hashes->md5);
+        if (ret  != 0) {
+            return ret;
         }
         BuildSHA_CertVerify(ssl, hashes->sha);
     }

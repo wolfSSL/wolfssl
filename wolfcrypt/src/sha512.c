@@ -28,12 +28,13 @@
 #include <wolfssl/wolfcrypt/sha512.h>
 
 #ifdef WOLFSSL_SHA512
+#include <wolfssl/wolfcrypt/error-crypt.h>
 
 #ifdef HAVE_FIPS
 int wc_InitSha512(Sha512* sha)
 {
     if (sha == NULL) {
-        return -173;
+        return BAD_FUNC_ARG;
     }
     return InitSha512_fips(sha);
 }
@@ -42,7 +43,7 @@ int wc_InitSha512(Sha512* sha)
 int wc_Sha512Update(Sha512* sha, const byte* data, word32 len)
 {
     if (sha == NULL || (data == NULL && len > 0)) {
-        return -173;
+        return BAD_FUNC_ARG;
     }
     return Sha512Update_fips(sha, data, len);
 }
@@ -51,7 +52,7 @@ int wc_Sha512Update(Sha512* sha, const byte* data, word32 len)
 int wc_Sha512Final(Sha512* sha, byte* out)
 {
     if (sha == NULL || out == NULL) {
-        return -173;
+        return BAD_FUNC_ARG;
     }
     return Sha512Final_fips(sha, out);
 }
@@ -62,7 +63,7 @@ int wc_Sha512Final(Sha512* sha, byte* out)
 int wc_InitSha384(Sha384* sha)
 {
     if (sha == NULL) {
-        return -173;
+        return BAD_FUNC_ARG;
     }
     return InitSha384_fips(sha);
 }
@@ -71,7 +72,7 @@ int wc_InitSha384(Sha384* sha)
 int wc_Sha384Update(Sha384* sha, const byte* data, word32 len)
 {
     if (sha == NULL || (data == NULL && len > 0)) {
-        return -173;
+        return BAD_FUNC_ARG;
     }
     return Sha384Update_fips(sha, data, len);
 }
@@ -80,7 +81,7 @@ int wc_Sha384Update(Sha384* sha, const byte* data, word32 len)
 int wc_Sha384Final(Sha384* sha, byte* out)
 {
     if (sha == NULL || out == NULL) {
-        return -173;
+        return BAD_FUNC_ARG;
     }
     return Sha384Final_fips(sha, out);
 }
@@ -89,7 +90,6 @@ int wc_Sha384Final(Sha384* sha, byte* out)
 #endif /* WOLFSSL_SHA384 */
 #else /* else build without using fips */
 #include <wolfssl/wolfcrypt/logging.h>
-#include <wolfssl/wolfcrypt/error-crypt.h>
 
 #ifdef NO_INLINE
     #include <wolfssl/wolfcrypt/misc.h>

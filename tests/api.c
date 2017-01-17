@@ -2426,7 +2426,7 @@ static int test_wc_InitSha384 (void)
 /*
  * Testing wc_UpdateMd5()
  */
-static int test_wc_UpdateMd5 (void)
+static int test_wc_Md5Update (void)
 {
 
 #ifndef NO_MD5
@@ -2471,7 +2471,7 @@ static int test_wc_UpdateMd5 (void)
         return ret;
     }
     if (ret != 0 && XMEMCMP(hash, a.output, MD5_DIGEST_SIZE) != 0) {
-               return SSL_FAILURE;
+        return SSL_FAILURE;
     }
 
     /*Pass in bad values. */
@@ -2497,14 +2497,13 @@ static int test_wc_UpdateMd5 (void)
         return SSL_FAILURE;
     }
 
-    /* If not returned then the unit test passed test vectors. */
-    printf(resultFmt, 0 == 0 ? passed : failed);
+    printf(resultFmt, ret == BAD_FUNC_ARG ? passed : failed);
 
-    return SSL_SUCCESS;
+        return SSL_SUCCESS;
 #else
     return SSL_SUCCESS;
 #endif
-} /* END test_wc_UpdateMd5  */
+} /* END test_wc_Md5Update()  */
 
 /*
  *  Tesing wc_ShaUpdate()
@@ -2579,14 +2578,14 @@ static int test_wc_ShaUpdate (void)
     }
 
     /* If not returned then the unit test passed test vectors. */
-    printf(resultFmt, 0 == 0 ? passed : failed);
+    printf(resultFmt, ret == BAD_FUNC_ARG ? passed : failed);
 
     return SSL_SUCCESS;
 #else
     return SSL_SUCCESS;
 #endif
 
-} /* END test_wc_ShaFinal */
+} /* END test_wc_ShaUpdate() */
 
 
 /*
@@ -2663,7 +2662,7 @@ static int test_wc_Sha256Update (void)
     }
 
     /* If not returned then the unit test passed. */
-    printf(resultFmt, 0 == 0 ? passed : failed);
+    printf(resultFmt, ret == BAD_FUNC_ARG ? passed : failed);
 
     return SSL_SUCCESS;
 #else 
@@ -2748,7 +2747,7 @@ static int test_wc_Sha384Update (void)
     }
 
     /* If not returned then the unit test passed test vectors. */
-    printf(resultFmt, 0 == 0 ? passed : failed);
+    printf(resultFmt, ret == BAD_FUNC_ARG ? passed : failed);
 
     return SSL_SUCCESS;
 #else
@@ -2833,7 +2832,7 @@ static int test_wc_Sha512Update (void)
     }
 
     /* If not returned then the unit test passed test vectors. */
-    printf(resultFmt, 0 == 0 ? passed : failed);
+    printf(resultFmt, ret == BAD_FUNC_ARG ? passed : failed);
 
     return SSL_SUCCESS;
 #else
@@ -3972,7 +3971,7 @@ void ApiTest(void)
     printf("\n-----------------wolfcrypt unit tests------------------\n");
     AssertFalse(test_wolfCrypt_Init());
     AssertTrue(test_wc_InitMd5());
-    AssertTrue(test_wc_UpdateMd5());
+    AssertTrue(test_wc_Md5Update());
     AssertTrue(test_wc_Md5Final());
     AssertTrue(test_wc_InitSha());
     AssertTrue(test_wc_ShaUpdate());

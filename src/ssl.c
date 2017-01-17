@@ -10377,8 +10377,9 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         (void)type;
 
         WOLFSSL_ENTER("wolfSSL_EVP_BytesToKey");
-        if (wc_InitMd5(md5)) {
-            return SSL_FATAL_ERROR;
+        ret = wc_InitMd5(md5);
+        if (ret != 0) {
+            return ret;
         }
 
         /* only support MD5 for now */
