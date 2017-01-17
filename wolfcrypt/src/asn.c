@@ -629,7 +629,6 @@ int GetShortInt(const byte* input, word32* inOutIdx, int* number, word32 maxIdx)
 }
 #endif /* !NO_PWDBASED */
 
-#ifndef NO_ASN_TIME
 /* May not have one, not an error */
 static int GetExplicitVersion(const byte* input, word32* inOutIdx, int* version,
                               word32 maxIdx)
@@ -647,7 +646,6 @@ static int GetExplicitVersion(const byte* input, word32* inOutIdx, int* version,
 
     return 0;
 }
-#endif /* !NO_ASN_TIME */
 
 int GetInt(mp_int* mpi, const byte* input, word32* inOutIdx,
                   word32 maxIdx)
@@ -2657,7 +2655,6 @@ void FreeDecodedCert(DecodedCert* cert)
 #endif /* OPENSSL_EXTRA */
 }
 
-#ifndef NO_ASN_TIME
 static int GetCertHeader(DecodedCert* cert)
 {
     int ret = 0, len;
@@ -2704,9 +2701,7 @@ static int StoreRsaKey(DecodedCert* cert)
 
     return 0;
 }
-#endif
-#endif /* !NO_ASN_TIME */
-
+#endif /* !NO_RSA */
 
 #ifdef HAVE_ECC
 
@@ -2727,7 +2722,6 @@ static int StoreRsaKey(DecodedCert* cert)
 
 #endif /* HAVE_ECC */
 
-#ifndef NO_ASN_TIME
 static int GetKey(DecodedCert* cert)
 {
     int length;
@@ -2867,7 +2861,6 @@ static int GetKey(DecodedCert* cert)
             return ASN_UNKNOWN_OID_E;
     }
 }
-
 
 /* process NAME, either issuer or subject */
 static int GetName(DecodedCert* cert, int nameType)
@@ -3348,6 +3341,7 @@ static int GetName(DecodedCert* cert, int nameType)
 }
 
 
+#ifndef NO_ASN_TIME
 #if !defined(NO_TIME_H) && defined(USE_WOLF_VALIDDATE)
 
 /* to the second */
@@ -3429,7 +3423,7 @@ int GetTimeString(byte* date, int format, char* buf, int len)
 
     return 1;
 }
-#endif /* MYSQL compatibility */
+#endif /* WOLFSSL_MYSQL_COMPATIBLE */
 
 int ExtractDate(const unsigned char* date, unsigned char format,
                                                   struct tm* certTime, int* idx)
@@ -3533,6 +3527,8 @@ int wc_GetTime(void* timePtr, word32 timeSize)
     return 0;
 }
 
+#endif /* !NO_ASN_TIME */
+
 static int GetDate(DecodedCert* cert, int dateType)
 {
     int    length;
@@ -3541,6 +3537,7 @@ static int GetDate(DecodedCert* cert, int dateType)
     word32 startIdx = 0;
 
     XMEMSET(date, 0, MAX_DATE_SIZE);
+
     if (dateType == BEFORE)
         cert->beforeDate = &cert->source[cert->srcIdx];
     else
@@ -3565,16 +3562,17 @@ static int GetDate(DecodedCert* cert, int dateType)
     else
         cert->afterDateLen  = cert->srcIdx - startIdx;
 
+#ifndef NO_ASN_TIME
     if (!XVALIDATE_DATE(date, b, dateType)) {
         if (dateType == BEFORE)
             return ASN_BEFORE_DATE_E;
         else
             return ASN_AFTER_DATE_E;
     }
+#endif
 
     return 0;
 }
-
 
 static int GetValidity(DecodedCert* cert, int verify)
 {
@@ -3635,7 +3633,6 @@ int DecodeToKey(DecodedCert* cert, int verify)
     return ret;
 }
 
-
 static int GetSignature(DecodedCert* cert)
 {
     int    length;
@@ -3659,7 +3656,6 @@ static int GetSignature(DecodedCert* cert)
 
     return 0;
 }
-#endif /* !NO_ASN_TIME */
 
 static word32 SetDigest(const byte* digest, word32 digSz, byte* output)
 {
@@ -3882,7 +3878,6 @@ int wc_GetCTC_HashOID(int type)
     };
 }
 
-#ifndef NO_ASN_TIME
 /* return true (1) or false (0) for Confirmation */
 static int ConfirmSignature(const byte* buf, word32 bufSz,
     const byte* key, word32 keySz, word32 keyOID,
@@ -4324,7 +4319,6 @@ static int ConfirmNameConstraints(Signer* signer, DecodedCert* cert)
 
 #endif /* IGNORE_NAME_CONSTRAINTS */
 
-
 static int DecodeAltNames(byte* input, int sz, DecodedCert* cert)
 {
     word32 idx = 0;
@@ -4517,7 +4511,6 @@ static int DecodeAltNames(byte* input, int sz, DecodedCert* cert)
     }
     return 0;
 }
-
 
 static int DecodeBasicCaConstraint(byte* input, int sz, DecodedCert* cert)
 {
@@ -4950,7 +4943,6 @@ static int DecodeNameConstraints(byte* input, int sz, DecodedCert* cert)
     return 0;
 }
 #endif /* IGNORE_NAME_CONSTRAINTS */
-#endif /* NO_ASN_TIME */
 
 #if defined(WOLFSSL_CERT_EXT) && !defined(WOLFSSL_SEP)
 
@@ -5120,7 +5112,6 @@ static int DecodePolicyOID(char *out, word32 outSz, byte *in, word32 inSz)
     }
 #endif /* WOLFSSL_SEP */
 
-#ifndef NO_ASN_TIME
 static int DecodeCertExtensions(DecodedCert* cert)
 /*
  *  Processing the Certificate Extensions. This does not modify the current
@@ -5311,7 +5302,6 @@ static int DecodeCertExtensions(DecodedCert* cert)
     return criticalFail ? ASN_CRIT_EXT_E : 0;
 }
 
-
 int ParseCert(DecodedCert* cert, int type, int verify, void* cm)
 {
     int   ret;
@@ -5345,8 +5335,6 @@ int ParseCert(DecodedCert* cert, int type, int verify, void* cm)
 
     return ret;
 }
-#endif /* !NO_ASN_TIME */
-
 
 /* from SSL proper, for locking can't do find here anymore */
 #ifdef __cplusplus
@@ -5382,7 +5370,6 @@ Signer* GetCAByName(void* signers, byte* hash)
 
 #endif /* WOLFCRYPT_ONLY || NO_CERTS */
 
-#ifndef NO_ASN_TIME
 int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
 {
     word32 confirmOID;
@@ -5523,7 +5510,6 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
 
     return 0;
 }
-#endif /* !NO_ASN_TIME */
 
 /* Create and init an new signer */
 Signer* MakeSigner(void* heap)
