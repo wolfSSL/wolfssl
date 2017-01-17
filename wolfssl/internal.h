@@ -1149,6 +1149,8 @@ enum Misc {
     NO_COPY            =   0,  /* should we copy static buffer for write */
     COPY               =   1,  /* should we copy static buffer for write */
 
+    INVALID_PEER_ID    = 0xFFFF, /* Initialize value for peer ID. */
+
     PREV_ORDER         = -1,   /* Sequence number is in previous epoch. */
     PEER_ORDER         = 1,    /* Peer sequence number for verify. */
     CUR_ORDER          = 0     /* Current sequence number. */
@@ -1717,8 +1719,10 @@ typedef struct WOLFSSL_DTLS_PEERSEQ {
 
     word32 prevWindow[WOLFSSL_DTLS_WINDOW_WORDS];
                         /* Sliding window for old epoch        */
-    word16 prevSeq_hi;  /* Next sequence in allowed old epoch  */
     word32 prevSeq_lo;
+    word16 prevSeq_hi;  /* Next sequence in allowed old epoch  */
+
+    word16 peerId;
 } WOLFSSL_DTLS_PEERSEQ;
 
 
@@ -2777,7 +2781,7 @@ typedef struct Options {
     byte            asyncState;         /* sub-state for enum asyncState */
     byte            buildMsgState;      /* sub-state for enum buildMsgState */
 #ifdef WOLFSSL_MULTICAST
-    byte            mcastID;            /* Multicast group ID */
+    word16          mcastID;            /* Multicast group ID */
 #endif
 #ifndef NO_DH
     word16          minDhKeySz;         /* minimum DH key size */

@@ -4142,6 +4142,8 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
 
 #ifdef WOLFSSL_MULTICAST
     if (ctx->haveMcast) {
+        int i;
+
         ssl->options.haveMcast = 1;
         ssl->options.mcastID = ctx->mcastID;
 
@@ -4153,6 +4155,9 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
         ssl->options.acceptState = ACCEPT_THIRD_REPLY_DONE;
         ssl->options.handShakeState = HANDSHAKE_DONE;
         ssl->options.handShakeDone = 1;
+
+        for (i = 0; i < WOLFSSL_DTLS_PEERSEQ_SZ; i++)
+            ssl->keys.peerSeq[i].peerId = INVALID_PEER_ID;
     }
 #endif
 
@@ -9244,12 +9249,31 @@ static INLINE int DtlsCheckWindow(WOLFSSL* ssl)
     word16 cur_hi, next_hi;
     word32 cur_lo, next_lo, diff;
     int curLT;
-    WOLFSSL_DTLS_PEERSEQ* peerSeq = ssl->keys.peerSeq;
+    WOLFSSL_DTLS_PEERSEQ* peerSeq = NULL;
 
+    if (!ssl->options.haveMcast)
+        peerSeq = ssl->keys.peerSeq;
+    else {
 #ifdef WOLFSSL_MULTICAST
-    if (ssl->options.haveMcast)
-        peerSeq += ssl->keys.curPeerId;
+        WOLFSSL_DTLS_PEERSEQ* p;
+        int i;
+
+        for (i = 0, p = ssl->keys.peerSeq;
+             i < WOLFSSL_DTLS_PEERSEQ_SZ;
+             i++, p++) {
+
+            if (p->peerId == ssl->keys.curPeerId) {
+                peerSeq = p;
+                break;
+            }
+        }
+
+        if (peerSeq == NULL) {
+            WOLFSSL_MSG("Couldn't find that peer ID to check window.");
+            return 0;
+        }
 #endif
+    }
 
     if (ssl->keys.curEpoch == peerSeq->nextEpoch) {
         next_hi = peerSeq->nextSeq_hi;
@@ -9327,10 +9351,30 @@ static INLINE int DtlsUpdateWindow(WOLFSSL* ssl)
     word16 cur_hi;
     WOLFSSL_DTLS_PEERSEQ* peerSeq = ssl->keys.peerSeq;
 
+    if (!ssl->options.haveMcast)
+        peerSeq = ssl->keys.peerSeq;
+    else {
 #ifdef WOLFSSL_MULTICAST
-    if (ssl->options.haveMcast)
-        peerSeq += ssl->keys.curPeerId;
+        WOLFSSL_DTLS_PEERSEQ* p;
+        int i;
+
+        peerSeq = NULL;
+        for (i = 0, p = ssl->keys.peerSeq;
+             i < WOLFSSL_DTLS_PEERSEQ_SZ;
+             i++, p++) {
+
+            if (p->peerId == ssl->keys.curPeerId) {
+                peerSeq = p;
+                break;
+            }
+        }
+
+        if (peerSeq == NULL) {
+            WOLFSSL_MSG("Couldn't find that peer ID to update window.");
+            return 0;
+        }
 #endif
+    }
 
     if (ssl->keys.curEpoch == peerSeq->nextEpoch) {
         next_hi = &peerSeq->nextSeq_hi;
