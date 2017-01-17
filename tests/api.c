@@ -2358,7 +2358,7 @@ static void test_wolfSSL_mcast(void)
     byte serverRandom[32];
     byte suite[2] = {0, 0xfe};  /* WDM_WITH_NULL_SHA256 */
     byte buf[256];
-    byte newId;
+    word16 newId;
 
     ctx = wolfSSL_CTX_new(wolfDTLSv1_2_client_method());
     AssertNotNull(ctx);

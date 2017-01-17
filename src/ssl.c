@@ -846,13 +846,13 @@ int wolfSSL_dtls_set_mtu(WOLFSSL* ssl, word16 newMtu)
 
 #if defined(WOLFSSL_MULTICAST)
 
-int wolfSSL_CTX_mcast_set_member_id(WOLFSSL_CTX* ctx, byte id)
+int wolfSSL_CTX_mcast_set_member_id(WOLFSSL_CTX* ctx, word16 id)
 {
     int ret = 0;
 
     WOLFSSL_ENTER("wolfSSL_CTX_mcast_set_member_id()");
 
-    if (ctx == NULL || id >= WOLFSSL_MULTICAST_PEERS)
+    if (ctx == NULL || id > 255)
         ret = BAD_FUNC_ARG;
 
     if (ret == 0) {
@@ -932,6 +932,56 @@ int wolfSSL_set_secret(WOLFSSL* ssl, unsigned short epoch,
         ret = SSL_FATAL_ERROR;
     }
     WOLFSSL_LEAVE("wolfSSL_set_secret()", ret);
+    return ret;
+}
+
+
+int wolfSSL_mcast_peer_add(WOLFSSL* ssl, word16 peerId, int remove)
+{
+    WOLFSSL_DTLS_PEERSEQ* p = NULL;
+    int ret = SSL_SUCCESS;
+    int i;
+
+    WOLFSSL_ENTER("wolfSSL_mcast_peer_add()");
+    if (ssl == NULL || peerId > 255)
+        return BAD_FUNC_ARG;
+
+    if (!remove) {
+        /* Make sure it isn't already present, while keeping the first
+         * open spot. */
+        for (i = 0; i < WOLFSSL_DTLS_PEERSEQ_SZ; i++) {
+            if (ssl->keys.peerSeq[i].peerId == INVALID_PEER_ID)
+                p = &ssl->keys.peerSeq[i];
+            if (ssl->keys.peerSeq[i].peerId == peerId) {
+                WOLFSSL_MSG("Peer ID already in multicast peer list.");
+                p = NULL;
+            }
+        }
+
+        if (p != NULL) {
+            XMEMSET(p, 0, sizeof(WOLFSSL_DTLS_PEERSEQ));
+            p->peerId = peerId;
+        }
+        else {
+            WOLFSSL_MSG("No room in peer list.");
+            ret = -1;
+        }
+    }
+    else {
+        for (i = 0; i < WOLFSSL_DTLS_PEERSEQ_SZ; i++) {
+            if (ssl->keys.peerSeq[i].peerId == peerId)
+                p = &ssl->keys.peerSeq[i];
+        }
+
+        if (p != NULL) {
+            p->peerId = INVALID_PEER_ID;
+        }
+        else {
+            WOLFSSL_MSG("Peer not found in list.");
+        }
+    }
+
+    WOLFSSL_LEAVE("wolfSSL_mcast_peer_add()", ret);
     return ret;
 }
 
@@ -1549,7 +1599,7 @@ int wolfSSL_read(WOLFSSL* ssl, void* data, int sz)
 
 #ifdef WOLFSSL_MULTICAST
 
-int wolfSSL_mcast_read(WOLFSSL* ssl, unsigned char* id, void* data, int sz)
+int wolfSSL_mcast_read(WOLFSSL* ssl, word16* id, void* data, int sz)
 {
     int ret = 0;
 
