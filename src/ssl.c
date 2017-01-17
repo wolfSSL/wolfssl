@@ -63,6 +63,7 @@
     #include <wolfssl/openssl/crypto.h>
     #include <wolfssl/openssl/des.h>
     #include <wolfssl/openssl/bn.h>
+    #include <wolfssl/openssl/buffer.h>
     #include <wolfssl/openssl/dh.h>
     #include <wolfssl/openssl/rsa.h>
     #include <wolfssl/openssl/pem.h>
@@ -25124,6 +25125,72 @@ WOLFSSL_DSA *wolfSSL_PEM_read_bio_DSAparams(WOLFSSL_BIO *bp, WOLFSSL_DSA **x,
 
 #define WOLFSSL_BIO_INCLUDED
 #include "src/bio.c"
+
+/* Begin functions for openssl/buffer.h */
+WOLFSSL_BUF_MEM* wolfSSL_BUF_MEM_new(void)
+{
+    WOLFSSL_BUF_MEM* buf;
+    buf = (WOLFSSL_BUF_MEM*)XMALLOC(sizeof(WOLFSSL_BUF_MEM), NULL,
+                                                        DYNAMIC_TYPE_OPENSSL);
+    if (buf) {
+        XMEMSET(buf, 0, sizeof(WOLFSSL_BUF_MEM));
+    }
+    return buf;
+}
+
+int wolfSSL_BUF_MEM_grow(WOLFSSL_BUF_MEM* buf, size_t len)
+{
+    size_t n;
+
+    /* verify provided arguments */
+    if (buf == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    /* check to see if buffer is already big enough */
+    if (buf->length > len) {
+        buf->length = len;
+        return (int)len;
+    }
+
+    /* check to see if buffer max fits */
+    if (buf->max >= len) {
+        if (buf->data != NULL) {
+            XMEMSET(&buf->data[buf->length], 0, len - buf->length);
+        }
+        buf->length = len;
+        return (int)len;
+    }
+
+    /* expand size, to handle growth */
+    n = (len + 3) / 3 * 4;
+
+    /* use realloc */
+    buf->data = (char*)XREALLOC(buf->data, n, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (buf->data == NULL) {
+        return ERR_R_MALLOC_FAILURE;
+    }
+
+    buf->max = n;
+    XMEMSET(&buf->data[buf->length], 0, len - buf->length);
+    buf->length = len;
+
+    return (int)len;
+}
+
+void wolfSSL_BUF_MEM_free(WOLFSSL_BUF_MEM* buf)
+{
+    if (buf) {
+        if (buf->data) {
+            XFREE(buf->data, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            buf->data = NULL;
+        }
+        buf->max = 0;
+        buf->length = 0;
+        XFREE(buf, NULL, DYNAMIC_TYPE_OPENSSL);
+    }
+}
+/* End Functions for openssl/buffer.h */
 
 #endif /* OPENSSL_EXTRA */
 
