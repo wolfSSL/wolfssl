@@ -1748,7 +1748,10 @@ typedef struct WOLFSSL_DTLS_PEERSEQ {
     word32 prevSeq_lo;
     word16 prevSeq_hi;  /* Next sequence in allowed old epoch  */
 
+#ifdef WOLFSSL_MULTICAST
     word16 peerId;
+    word32 highwaterMark;
+#endif
 } WOLFSSL_DTLS_PEERSEQ;
 
 
@@ -2331,6 +2334,12 @@ struct WOLFSSL_CTX {
 #if defined(HAVE_STUNNEL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
     CallbackSniRecv sniRecvCb;
     void*           sniRecvCbArg;
+#endif
+#if defined(WOLFSSL_MULTICAST) && defined(WOLFSSL_DTLS)
+    CallbackMcastHighwater mcastHwCb; /* Sequence number highwater callback */
+    word32      mcastFirstSeq;    /* first trigger level */
+    word32      mcastSecondSeq;   /* second tigger level */
+    word32      mcastMaxSeq;      /* max level */
 #endif
 #ifdef HAVE_OCSP
     WOLFSSL_OCSP      ocsp;
@@ -3335,7 +3344,10 @@ struct WOLFSSL {
 #ifdef WOLFSSL_SCTP
     word16          dtlsMtuSz;
 #endif /* WOLFSSL_SCTP */
-#endif
+#ifdef WOLFSSL_MULTICAST
+    void*           mcastHwCbCtx;       /* Multicast highwater callback ctx */
+#endif /* WOLFSSL_MULTICAST */
+#endif /* WOLFSSL_DTLS */
 #ifdef WOLFSSL_CALLBACKS
     HandShakeInfo   handShakeInfo;      /* info saved during handshake */
     TimeoutInfo     timeoutInfo;        /* info saved during handshake */

@@ -9706,6 +9706,24 @@ static INLINE int DtlsCheckWindow(WOLFSSL* ssl)
 }
 
 
+#ifdef WOLFSSL_MULTICAST
+static INLINE word32 UpdateHighwaterMark(word32 cur, word32 first,
+                                         word32 second, word32 max)
+{
+    word32 newCur = 0;
+
+    if (cur < first)
+        newCur = first;
+    else if (cur < second)
+        newCur = second;
+    else if (cur < max)
+        newCur = max;
+
+    return newCur;
+}
+#endif /* WOLFSSL_MULTICAST */
+
+
 static INLINE int DtlsUpdateWindow(WOLFSSL* ssl)
 {
     word32* window;
@@ -9715,6 +9733,9 @@ static INLINE int DtlsUpdateWindow(WOLFSSL* ssl)
     word32 cur_lo, diff;
     word16 cur_hi;
     WOLFSSL_DTLS_PEERSEQ* peerSeq = ssl->keys.peerSeq;
+
+    cur_hi = ssl->keys.curSeq_hi;
+    cur_lo = ssl->keys.curSeq_lo;
 
     if (!ssl->options.haveMcast)
         peerSeq = ssl->keys.peerSeq;
@@ -9738,6 +9759,24 @@ static INLINE int DtlsUpdateWindow(WOLFSSL* ssl)
             WOLFSSL_MSG("Couldn't find that peer ID to update window.");
             return 0;
         }
+
+        if (p->highwaterMark && cur_lo >= p->highwaterMark) {
+            int cbError = 0;
+
+            if (ssl->ctx->mcastHwCb)
+                cbError = ssl->ctx->mcastHwCb(p->peerId,
+                                              ssl->ctx->mcastMaxSeq,
+                                              cur_lo, ssl->mcastHwCbCtx);
+            if (cbError) {
+                WOLFSSL_MSG("Multicast highwater callback returned an error.");
+                return MCAST_HIGHWATER_CB_E;
+            }
+
+            p->highwaterMark = UpdateHighwaterMark(cur_lo,
+                                                   ssl->ctx->mcastFirstSeq,
+                                                   ssl->ctx->mcastSecondSeq,
+                                                   ssl->ctx->mcastMaxSeq);
+        }
 #endif
     }
 
@@ -9751,9 +9790,6 @@ static INLINE int DtlsUpdateWindow(WOLFSSL* ssl)
         next_lo = &peerSeq->prevSeq_lo;
         window = peerSeq->prevWindow;
     }
-
-    cur_hi = ssl->keys.curSeq_hi;
-    cur_lo = ssl->keys.curSeq_lo;
 
     if (cur_hi == *next_hi) {
         curLT = cur_lo < *next_lo;
@@ -11793,8 +11829,13 @@ int ProcessReply(WOLFSSL* ssl)
                         if (ssl->options.dtls) {
                             WOLFSSL_DTLS_PEERSEQ* peerSeq = ssl->keys.peerSeq;
 #ifdef WOLFSSL_MULTICAST
-                            if (ssl->options.haveMcast)
+                            if (ssl->options.haveMcast) {
                                 peerSeq += ssl->keys.curPeerId;
+                                peerSeq->highwaterMark = UpdateHighwaterMark(0,
+                                        ssl->ctx->mcastFirstSeq,
+                                        ssl->ctx->mcastSecondSeq,
+                                        ssl->ctx->mcastMaxSeq);
+                            }
 #endif
                             DtlsMsgPoolReset(ssl);
                             peerSeq->nextEpoch++;
@@ -14184,6 +14225,9 @@ const char* wolfSSL_ERR_reason_error_string(unsigned long e)
 
     case HRR_COOKIE_ERROR:
         return "Cookie does not match one sent in HelloRetryRequest";
+
+    case MCAST_HIGHWATER_CB_E:
+        return "Multicast highwater callback returned error";
 
     default :
         return "unknown error number";

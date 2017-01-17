@@ -868,6 +868,24 @@ int wolfSSL_CTX_mcast_set_member_id(WOLFSSL_CTX* ctx, word16 id)
 }
 
 
+#ifdef WOLFSSL_DTLS
+static INLINE word32 UpdateHighwaterMark(word32 cur, word32 first,
+                                         word32 second, word32 max)
+{
+    word32 newCur = 0;
+
+    if (cur < first)
+        newCur = first;
+    else if (cur < second)
+        newCur = second;
+    else if (cur < max)
+        newCur = max;
+
+    return newCur;
+}
+#endif /* WOLFSSL_DTLS */
+
+
 int wolfSSL_set_secret(WOLFSSL* ssl, unsigned short epoch,
                        const byte* preMasterSecret, word32 preMasterSz,
                        const byte* clientRandom, const byte* serverRandom,
@@ -921,6 +939,10 @@ int wolfSSL_set_secret(WOLFSSL* ssl, unsigned short epoch,
                 peerSeq->nextSeq_hi = 0;
                 XMEMCPY(peerSeq->prevWindow, peerSeq->window, DTLS_SEQ_SZ);
                 XMEMSET(peerSeq->window, 0, DTLS_SEQ_SZ);
+                peerSeq->highwaterMark = UpdateHighwaterMark(0,
+                        ssl->ctx->mcastFirstSeq,
+                        ssl->ctx->mcastSecondSeq,
+                        ssl->ctx->mcastMaxSeq);
             }
         #endif
         }
@@ -935,6 +957,8 @@ int wolfSSL_set_secret(WOLFSSL* ssl, unsigned short epoch,
     return ret;
 }
 
+
+#ifdef WOLFSSL_DTLS
 
 int wolfSSL_mcast_peer_add(WOLFSSL* ssl, word16 peerId, int remove)
 {
@@ -961,6 +985,10 @@ int wolfSSL_mcast_peer_add(WOLFSSL* ssl, word16 peerId, int remove)
         if (p != NULL) {
             XMEMSET(p, 0, sizeof(WOLFSSL_DTLS_PEERSEQ));
             p->peerId = peerId;
+            p->highwaterMark = UpdateHighwaterMark(0,
+                ssl->ctx->mcastFirstSeq,
+                ssl->ctx->mcastSecondSeq,
+                ssl->ctx->mcastMaxSeq);
         }
         else {
             WOLFSSL_MSG("No room in peer list.");
@@ -984,6 +1012,38 @@ int wolfSSL_mcast_peer_add(WOLFSSL* ssl, word16 peerId, int remove)
     WOLFSSL_LEAVE("wolfSSL_mcast_peer_add()", ret);
     return ret;
 }
+
+
+int wolfSSL_CTX_mcast_set_highwater_cb(WOLFSSL_CTX* ctx, word32 maxSeq,
+                                       word32 first, word32 second,
+                                       CallbackMcastHighwater cb)
+{
+    if (ctx == NULL || (second && first > second) ||
+        first > maxSeq || second > maxSeq || cb == NULL) {
+
+        return BAD_FUNC_ARG;
+    }
+
+    ctx->mcastHwCb = cb;
+    ctx->mcastFirstSeq = first;
+    ctx->mcastSecondSeq = second;
+    ctx->mcastMaxSeq = maxSeq;
+
+    return SSL_SUCCESS;
+}
+
+
+int wolfSSL_mcast_set_highwater_ctx(WOLFSSL* ssl, void* ctx)
+{
+    if (ssl == NULL || ctx == NULL)
+        return BAD_FUNC_ARG;
+
+    ssl->mcastHwCbCtx = ctx;
+
+    return SSL_SUCCESS;
+}
+
+#endif /* WOLFSSL_DTLS */
 
 #endif /* WOLFSSL_MULTICAST */
 
