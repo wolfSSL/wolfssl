@@ -637,6 +637,7 @@ void bench_aes(int show)
     }
 #endif
 
+#ifdef HAVE_AES_DECRYPT
     ret = wc_AesSetKey(&enc, key, 16, iv, AES_DECRYPTION);
     if (ret != 0) {
         printf("AesSetKey failed, ret = %d\n", ret);
@@ -663,6 +664,8 @@ void bench_aes(int show)
         SHOW_INTEL_CYCLES
         printf("\n");
     }
+#endif /* HAVE_AES_DECRYPT */
+
 #ifdef WOLFSSL_ASYNC_CRYPT
     wc_AesAsyncFree(&enc);
 #endif
@@ -1078,7 +1081,7 @@ void bench_chacha(void)
 }
 #endif /* HAVE_CHACHA*/
 
-#if( defined( HAVE_CHACHA ) && defined( HAVE_POLY1305 ) )
+#if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
 void bench_chacha20_poly1305_aead(void)
 {
     double start, total, persec;

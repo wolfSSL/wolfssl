@@ -32,6 +32,7 @@
 
 
 #if !defined(NO_AES) && defined(HAVE_AES_CBC)
+#ifdef HAVE_AES_DECRYPT
 int wc_AesCbcDecryptWithKey(byte* out, const byte* in, word32 inSz,
                                   const byte* key, word32 keySz, const byte* iv)
 {
@@ -58,6 +59,7 @@ int wc_AesCbcDecryptWithKey(byte* out, const byte* in, word32 inSz,
 
     return ret;
 }
+#endif /* HAVE_AES_DECRYPT */
 
 int wc_AesCbcEncryptWithKey(byte* out, const byte* in, word32 inSz,
                             const byte* key, word32 keySz, const byte* iv)

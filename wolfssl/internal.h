@@ -669,8 +669,9 @@ typedef byte word24[3];
     #define BUILD_DES3
 #endif
 
-#ifdef NO_AES
+#if defined(NO_AES) || defined(NO_AES_DECRYPT)
     #define AES_BLOCK_SIZE 16
+    #undef  BUILD_AES
 #else
     #undef  BUILD_AES
     #define BUILD_AES
