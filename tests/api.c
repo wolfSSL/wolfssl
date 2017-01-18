@@ -216,6 +216,7 @@
     #include <wolfssl/openssl/evp.h>
     #include <wolfssl/openssl/dh.h>
     #include <wolfssl/openssl/bn.h>
+    #include <wolfssl/openssl/buffer.h>
     #include <wolfssl/openssl/pem.h>
     #include <wolfssl/openssl/ec.h>
     #include <wolfssl/openssl/engine.h>
@@ -14689,6 +14690,18 @@ static void test_wolfSSL_RAND(void)
 }
 
 
+static void test_wolfSSL_BUF(void)
+{
+    #if defined(OPENSSL_EXTRA)
+    BUF_MEM* buf;
+    AssertNotNull(buf = BUF_MEM_new());
+    AssertIntEQ(BUF_MEM_grow(buf, 10), 10);
+    AssertIntEQ(BUF_MEM_grow(buf, -1), 0);
+    BUF_MEM_free(buf);
+    #endif /* OPENSSL_EXTRA */
+}
+
+
 static void test_no_op_functions(void)
 {
     #if defined(OPENSSL_EXTRA)
@@ -15478,6 +15491,7 @@ void ApiTest(void)
     test_wolfSSL_ASN1_STRING();
     test_wolfSSL_X509();
     test_wolfSSL_RAND();
+    test_wolfSSL_BUF();
     test_wolfSSL_DES_ecb_encrypt();
     test_wolfSSL_set_tlsext_status_type();
     test_wolfSSL_ASN1_TIME_adj();

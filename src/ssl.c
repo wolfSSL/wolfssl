@@ -25140,42 +25140,43 @@ WOLFSSL_BUF_MEM* wolfSSL_BUF_MEM_new(void)
 
 int wolfSSL_BUF_MEM_grow(WOLFSSL_BUF_MEM* buf, size_t len)
 {
-    size_t n;
+    int len_int = (int)len;
+    int max;
 
     /* verify provided arguments */
-    if (buf == NULL) {
-        return BAD_FUNC_ARG;
+    if (buf == NULL || len_int < 0) {
+        return 0; /* BAD_FUNC_ARG; */
     }
 
-    /* check to see if buffer is already big enough */
+    /* check to see if fits in existing length */
     if (buf->length > len) {
         buf->length = len;
-        return (int)len;
+        return len_int;
     }
 
-    /* check to see if buffer max fits */
+    /* check to see if fits in max buffer */
     if (buf->max >= len) {
         if (buf->data != NULL) {
             XMEMSET(&buf->data[buf->length], 0, len - buf->length);
         }
         buf->length = len;
-        return (int)len;
+        return len_int;
     }
 
     /* expand size, to handle growth */
-    n = (len + 3) / 3 * 4;
+    max = (len_int + 3) / 3 * 4;
 
     /* use realloc */
-    buf->data = (char*)XREALLOC(buf->data, n, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    buf->data = (char*)XREALLOC(buf->data, max, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (buf->data == NULL) {
-        return ERR_R_MALLOC_FAILURE;
+        return 0; /* ERR_R_MALLOC_FAILURE; */
     }
 
-    buf->max = n;
+    buf->max = max;
     XMEMSET(&buf->data[buf->length], 0, len - buf->length);
     buf->length = len;
 
-    return (int)len;
+    return len_int;
 }
 
 void wolfSSL_BUF_MEM_free(WOLFSSL_BUF_MEM* buf)
