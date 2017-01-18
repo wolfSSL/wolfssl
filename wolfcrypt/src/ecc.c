@@ -2452,6 +2452,55 @@ int wc_ecc_is_valid_idx(int n)
    return 0;
 }
 
+
+/*
+ * Returns the curve name that corresponds to an ecc_curve_id identifier
+ *
+ * id      curve id, from ecc_curve_id enum in ecc.h
+ * return  const char* representing curve name, from ecc_sets[] on success,
+ *         otherwise NULL if id not found.
+ */
+const char* wc_ecc_get_curve_name_from_id(int id)
+{
+    int i;
+
+    for (i = 0; ecc_sets[i].size != 0; i++) {
+        if (id == ecc_sets[i].id)
+            break;
+    }
+
+    if (ecc_sets[i].size == 0) {
+        WOLFSSL_MSG("ecc_set curve not found");
+        return NULL;
+    }
+
+    return ecc_sets[i].name;
+}
+
+
+/* Returns the curve size that corresponds to a given ecc_curve_id identifier
+ *
+ * id      curve id, from ecc_curve_id enum in ecc.h
+ * return  curve size, from ecc_sets[] on success, negative on error
+ */
+int wc_ecc_get_curve_size_from_id(int id)
+{
+    int i;
+
+    for (i = 0; ecc_sets[i].size != 0; i++) {
+        if (id == ecc_sets[i].id)
+            break;
+    }
+
+    if (ecc_sets[i].size == 0) {
+        WOLFSSL_MSG("ecc_set curve not found");
+        return ECC_BAD_ARG_E;
+    }
+
+    return ecc_sets[i].size;
+}
+
+
 #ifdef HAVE_ECC_DHE
 /**
   Create an ECC shared secret between two keys
@@ -4340,6 +4389,14 @@ int wc_ecc_check_key(ecc_key* key)
     b = curve->Bf;
 #endif
 
+    /* Qx must be in the range [0, p-1] */
+    if (mp_cmp(key->pubkey.x, curve->prime) != MP_LT)
+        err = ECC_OUT_OF_RANGE_E;
+
+    /* Qy must be in the range [0, p-1] */
+    if (mp_cmp(key->pubkey.y, curve->prime) != MP_LT)
+        err = ECC_OUT_OF_RANGE_E;
+
     /* make sure point is actually on curve */
     if (err == MP_OKAY)
         err = wc_ecc_is_point(&key->pubkey, curve->Af, b, curve->prime);
@@ -4556,6 +4613,102 @@ int wc_ecc_export_private_only(ecc_key* key, byte* out, word32* outLen)
                                            mp_unsigned_bin_size(&key->k)));
 #endif /* WOLFSSL_ATECC508A */
 }
+
+
+/* export ecc key to component form, d is optional if only exporting public
+ * return MP_OKAY on success */
+static int wc_ecc_export_raw(ecc_key* key, byte* qx, word32* qxLen,
+                             byte* qy, word32* qyLen, byte* d, word32* dLen)
+{
+    int  err;
+    byte exportPriv = 0;
+    word32 numLen;
+
+    if (key == NULL || qx == NULL || qxLen == NULL || qy == NULL ||
+        qyLen == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    if (wc_ecc_is_valid_idx(key->idx) == 0) {
+        return ECC_BAD_ARG_E;
+    }
+    numLen = key->dp->size;
+
+    if (d != NULL) {
+        if (dLen == NULL || key->type != ECC_PRIVATEKEY)
+            return BAD_FUNC_ARG;
+        exportPriv = 1;
+    }
+
+    /* check public buffer sizes */
+    if ((*qxLen < numLen) || (*qyLen < numLen)) {
+        *qxLen = numLen;
+        *qyLen = numLen;
+        return BUFFER_E;
+    }
+
+    *qxLen = numLen;
+    *qyLen = numLen;
+
+    XMEMSET(qx, 0, *qxLen);
+    XMEMSET(qy, 0, *qyLen);
+
+    /* private d component */
+    if (exportPriv == 1) {
+
+        /* check private buffer size */
+        if (*dLen < numLen) {
+            *dLen = numLen;
+            return BUFFER_E;
+        }
+
+        *dLen = numLen;
+        XMEMSET(d, 0, *dLen);
+
+        /* private key, d */
+        err = mp_to_unsigned_bin(&key->k, d +
+                            (numLen - mp_unsigned_bin_size(&key->k)));
+        if (err != MP_OKAY)
+            return err;
+    }
+
+    /* public x component */
+    err = mp_to_unsigned_bin(key->pubkey.x, qx +
+                            (numLen - mp_unsigned_bin_size(key->pubkey.x)));
+    if (err != MP_OKAY)
+        return err;
+
+    /* public y component */
+    err = mp_to_unsigned_bin(key->pubkey.y, qy +
+                            (numLen - mp_unsigned_bin_size(key->pubkey.y)));
+    if (err != MP_OKAY)
+        return err;
+
+    return 0;
+}
+
+
+/* export public key to raw elements including public (Qx,Qy)
+ * return MP_OKAY on success, negative on error */
+int wc_ecc_export_public_raw(ecc_key* key, byte* qx, word32* qxLen,
+                             byte* qy, word32* qyLen)
+{
+    return wc_ecc_export_raw(key, qx, qxLen, qy, qyLen, NULL, NULL);
+}
+
+
+/* export ecc key to raw elements including public (Qx,Qy) and private (d)
+ * return MP_OKAY on success, negative on error */
+int wc_ecc_export_private_raw(ecc_key* key, byte* qx, word32* qxLen,
+                              byte* qy, word32* qyLen, byte* d, word32* dLen)
+{
+    /* sanitize d and dLen, other args are checked later */
+    if (d == NULL || dLen == NULL)
+        return BAD_FUNC_ARG;
+
+    return wc_ecc_export_raw(key, qx, qxLen, qy, qyLen, d, dLen);
+}
+
 #endif /* HAVE_ECC_KEY_EXPORT */
 
 #ifdef HAVE_ECC_KEY_IMPORT
@@ -4637,6 +4790,62 @@ int wc_ecc_rs_to_sig(const char* r, const char* s, byte* out, word32* outlen)
 
     return err;
 }
+
+
+/**
+   Convert ECC signature to R,S
+   sig     DER-encoded ECDSA signature
+   sigLen  length of signature in octets
+   r       R component of signature
+   rLen    [in/out] output "r" buffer size, output "r" size
+   s       S component of signature
+   sLen    [in/out] output "s" buffer size, output "s" size
+   return  MP_OKAY on success, negative on error
+*/
+int wc_ecc_sig_to_rs(const byte* sig, word32 sigLen, byte* r, word32* rLen,
+                     byte* s, word32* sLen)
+{
+    int err;
+    word32 x = 0;
+    mp_int rtmp;
+    mp_int stmp;
+
+    if (sig == NULL || r == NULL || rLen == NULL || s == NULL || sLen == NULL)
+        return ECC_BAD_ARG_E;
+
+    err = DecodeECC_DSA_Sig(sig, sigLen, &rtmp, &stmp);
+
+    /* extract r */
+    if (err == MP_OKAY) {
+        x = mp_unsigned_bin_size(&rtmp);
+        if (*rLen < x)
+            err = BUFFER_E;
+
+        if (err == MP_OKAY) {
+            *rLen = x;
+            err = mp_to_unsigned_bin(&rtmp, r);
+        }
+    }
+
+    /* extract s */
+    if (err == MP_OKAY) {
+        x = mp_unsigned_bin_size(&stmp);
+        if (*sLen < x)
+            err = BUFFER_E;
+
+        if (err == MP_OKAY) {
+            *sLen = x;
+            err = mp_to_unsigned_bin(&stmp, s);
+        }
+    }
+
+#ifndef USE_FAST_MATH
+    mp_clear(&rtmp);
+    mp_clear(&stmp);
+#endif
+
+    return err;
+}
 #endif /* !NO_ASN */
 
 #ifdef HAVE_ECC_KEY_IMPORT
@@ -4645,7 +4854,8 @@ static int wc_ecc_import_raw_private(ecc_key* key, const char* qx,
 {
     int err = MP_OKAY;
 
-    if (key == NULL || qx == NULL || qy == NULL || d == NULL) {
+    /* if d is NULL, only import as public key using Qx,Qy */
+    if (key == NULL || qx == NULL || qy == NULL) {
         return BAD_FUNC_ARG;
     }
 
@@ -4690,8 +4900,12 @@ static int wc_ecc_import_raw_private(ecc_key* key, const char* qx,
 
     /* import private key */
     if (err == MP_OKAY) {
-        key->type = ECC_PRIVATEKEY;
-        err = mp_read_radix(&key->k, d, 16);
+        if (d != NULL) {
+            key->type = ECC_PRIVATEKEY;
+            err = mp_read_radix(&key->k, d, 16);
+        } else {
+            key->type = ECC_PUBLICKEY;
+        }
     }
 
 #ifdef WOLFSSL_VALIDATE_ECC_IMPORT
@@ -4715,7 +4929,8 @@ static int wc_ecc_import_raw_private(ecc_key* key, const char* qx,
    key       The destination ecc_key structure
    qx        x component of the public key, as ASCII hex string
    qy        y component of the public key, as ASCII hex string
-   d         private key, as ASCII hex string
+   d         private key, as ASCII hex string, optional if importing public
+             key only
    dp        Custom ecc_set_type
    return    MP_OKAY on success
 */
@@ -4731,7 +4946,8 @@ int wc_ecc_import_raw_ex(ecc_key* key, const char* qx, const char* qy,
    key       The destination ecc_key structure
    qx        x component of the public key, as ASCII hex string
    qy        y component of the public key, as ASCII hex string
-   d         private key, as ASCII hex string
+   d         private key, as ASCII hex string, optional if importing public
+             key only
    curveName ECC curve name, from ecc_sets[]
    return    MP_OKAY on success
 */
@@ -4740,8 +4956,8 @@ int wc_ecc_import_raw(ecc_key* key, const char* qx, const char* qy,
 {
     int err, x;
 
-    if (key == NULL || qx == NULL || qy == NULL || d == NULL ||
-        curveName == NULL) {
+    /* if d is NULL, only import as public key using Qx,Qy */
+    if (key == NULL || qx == NULL || qy == NULL || curveName == NULL) {
         return BAD_FUNC_ARG;
     }
 

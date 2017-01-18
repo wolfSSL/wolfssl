@@ -331,6 +331,10 @@ void wc_ecc_fp_free(void);
 
 WOLFSSL_API
 int wc_ecc_is_valid_idx(int n);
+WOLFSSL_API
+const char* wc_ecc_get_curve_name_from_id(int curve_id);
+WOLFSSL_API
+int wc_ecc_get_curve_size_from_id(int curve_id);
 
 #ifndef WOLFSSL_ATECC508A
 
@@ -381,6 +385,9 @@ int wc_ecc_import_private_key_ex(const byte* priv, word32 privSz,
 WOLFSSL_API
 int wc_ecc_rs_to_sig(const char* r, const char* s, byte* out, word32* outlen);
 WOLFSSL_API
+int wc_ecc_sig_to_rs(const byte* sig, word32 sigLen, byte* r, word32* rLen,
+                   byte* s, word32* sLen);
+WOLFSSL_API
 int wc_ecc_import_raw(ecc_key* key, const char* qx, const char* qy,
                    const char* d, const char* curveName);
 WOLFSSL_API
@@ -391,6 +398,12 @@ int wc_ecc_import_raw_ex(ecc_key* key, const char* qx, const char* qy,
 #ifdef HAVE_ECC_KEY_EXPORT
 WOLFSSL_API
 int wc_ecc_export_private_only(ecc_key* key, byte* out, word32* outLen);
+WOLFSSL_API
+int wc_ecc_export_public_raw(ecc_key* key, byte* qx, word32* qxLen,
+                             byte* qy, word32* qyLen);
+WOLFSSL_API
+int wc_ecc_export_private_raw(ecc_key* key, byte* qx, word32* qxLen,
+                            byte* qy, word32* qyLen, byte* d, word32* dLen);
 #endif /* HAVE_ECC_KEY_EXPORT */
 
 #ifdef HAVE_ECC_KEY_EXPORT
