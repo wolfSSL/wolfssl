@@ -1,11 +1,13 @@
 [ "$(whoami)" != "root" ] && echo "Sorry, you are not root." && exit 1
 
-rpm -ivh http://dl.fedoraproject.org/pub/epel/7/x86_64/e/epel-release-7-6.noarch.rpm
+rpm -ivh http://dl.fedoraproject.org/pub/epel/7/x86_64/e/epel-release-7-9.noarch.rpm
 yum update
 yum install -y \
-    git autoconf libtool libffi-devel python-devel python3-devel python-pip
+    git autoconf libtool libffi-devel python-devel python34-devel python2-pip
 
-git clone https://github.com/wolfssl/wolfssl.git
+pip install -U pip setuptools
+
+git clone --depth 1 https://github.com/wolfssl/wolfssl.git
 [ $? -ne 0 ] && echo "\n\nCouldn't download wolfssl.\n\n" && exit 1
 
 pushd wolfssl
