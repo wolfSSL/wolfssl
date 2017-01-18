@@ -1,7 +1,7 @@
 [ "$(whoami)" != "root" ] && echo "Sorry, you are not root." && exit 1
 
-rpm -ivh http://dl.fedoraproject.org/pub/epel/7/x86_64/e/epel-release-7-9.noarch.rpm
-yum update
+rpm -ivh http://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
+
 yum install -y \
     git autoconf libtool libffi-devel python-devel python34-devel python2-pip
 
@@ -28,7 +28,9 @@ pushd /vagrant
 
 pip install -r requirements-testing.txt
 
-make check
+make clean
+
+tox -epy27,py34 -- -v
 
 popd
 

@@ -1,6 +1,7 @@
 [ "$(whoami)" != "root" ] && echo "Sorry, you are not root." && exit 1
 
 apt-get update
+
 apt-get install -y \
     git autoconf libtool python-dev python3-dev python-pip libffi-dev
 
@@ -25,7 +26,9 @@ pushd /vagrant
 
 pip install -r requirements-testing.txt
 
-make check
+make clean
+
+tox -epy27,py34 -- -v
 
 popd
 
