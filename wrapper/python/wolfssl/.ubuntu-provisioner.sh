@@ -25,13 +25,9 @@ pushd /vagrant
 
 pip install -r requirements-testing.txt
 
-rm src/wolfssl/*.pyc
-rm -r src/wolfssl/*.egg-info/
-rm -r test/__pycache__/
-
-tox -r -e py27,py34 -- -v
+make check
 
 popd
 
-#pip install wolfssl
-#[ $? -ne 0 ] && echo -e "\n\nCouldn't install wolfssl.\n\n" && exit 1
+# pip install wolfssl
+# [ $? -ne 0 ] && echo -e "\n\nCouldn't install wolfssl.\n\n" && exit 1
