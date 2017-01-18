@@ -2,7 +2,7 @@
 #
 # -*- coding: utf-8 -*-
 #
-# server.py
+# client.py
 #
 # Copyright (C) 2006-2017 wolfSSL Inc.
 #
@@ -43,8 +43,13 @@ def build_arg_parser():
     )
 
     parser.add_argument(
+        "-h", metavar="host", default="127.0.0.1",
+        help="Host to connect to, default 127.0.0.1"
+    )
+
+    parser.add_argument(
         "-p", metavar="port", type=int, default=11111,
-        help="Port to listen on, not 0, default 11111"
+        help="Port to connect on, not 0, default 11111"
     )
 
     parser.add_argument(
@@ -58,18 +63,18 @@ def build_arg_parser():
     )
 
     parser.add_argument(
-        "-c", metavar="certificate", default="./certs/server-cert.pem",
-        help="Certificate file,           default ./certs/server-cert.pem"
+        "-c", metavar="certificate", default="./certs/client-cert.pem",
+        help="Certificate file,           default ./certs/client-cert.pem"
     )
 
     parser.add_argument(
-        "-k", metavar="key", default="./certs/server-key.pem",
-        help="Key file,                   default ./certs/server-key.pem"
+        "-k", metavar="key", default="./certs/client-key.pem",
+        help="Key file,                   default ./certs/client-key.pem"
     )
 
     parser.add_argument(
-        "-A", metavar="ca_file", default="./certs/client-cert.pem",
-        help="Certificate Authority file, default ./certs/client-cert.pem"
+        "-A", metavar="ca_file", default="./certs/ca-cert.pem",
+        help="Certificate Authority file, default ./certs/ca-cert.pem"
     )
 
     parser.add_argument(
@@ -78,13 +83,8 @@ def build_arg_parser():
     )
 
     parser.add_argument(
-        "-b", action="store_true",
-        help="Bind to any interface instead of localhost only"
-    )
-
-    parser.add_argument(
-        "-i", action="store_true",
-        help="Loop indefinitely (allow repeated connections)"
+        "-g", action="store_true",
+        help="Send server HTTP GET"
     )
 
     return parser
@@ -103,12 +103,8 @@ def main():
     args = build_arg_parser().parse_args()
 
     bind_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM, 0)
-    bind_socket.bind(("" if args.b else "localhost", args.p))
-    bind_socket.listen(5)
 
-    print("Server listening on port", bind_socket.getsockname()[1])
-
-    context = wolfssl.SSLContext(get_method(args.v), server_side=True)
+    context = wolfssl.SSLContext(get_method(args.v))
 
     context.load_cert_chain(args.c, args.k)
 
@@ -121,31 +117,23 @@ def main():
     if args.l:
         context.set_ciphers(args.l)
 
-    while True:
-        try:
-            secure_socket = None
+    try:
+        secure_socket = context.wrap_socket(bind_socket)
 
-            new_socket, from_addr = bind_socket.accept()
+        secure_socket.connect((args.h, args.p))
 
-            secure_socket = context.wrap_socket(new_socket)
+        if args.g:
+            secure_socket.write(b"GET / HTTP/1.1\n\n")
+        else:
+            secure_socket.write(b"hello wolfssl")
 
-            print("Connection received from", from_addr)
+        print("\n", secure_socket.read(), "\n")
 
-            print("\n", secure_socket.read(), "\n")
-            secure_socket.write(b"I hear you fa shizzle!")
+    except KeyboardInterrupt:
+        print()
 
-        except KeyboardInterrupt:
-            print()
-            break
-
-        finally:
-            if secure_socket:
-                secure_socket.close()
-
-        if not args.i:
-            break
-
-    bind_socket.close()
+    finally:
+        secure_socket.close()
 
 
 if __name__ == '__main__':
