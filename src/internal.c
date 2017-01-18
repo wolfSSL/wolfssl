@@ -3487,6 +3487,9 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
 #ifdef HAVE_ALPN
     ssl->alpn_client_list = NULL;
 #endif
+#ifdef HAVE_SUPPORTED_CURVES
+    ssl->options.userCurves = ctx->userCurves;
+#endif
 #endif /* HAVE_TLS_EXTENSIONS */
 
     /* default alert state (none) */

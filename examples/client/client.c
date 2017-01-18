@@ -1340,6 +1340,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     wolfSSL_KeepArrays(ssl);
     #endif
 
+    #if 0 /* all enabled and supported ECC curves will be added automatically */
     #ifdef HAVE_SUPPORTED_CURVES /* add curves to supported curves extension */
         if (wolfSSL_UseSupportedCurve(ssl, WOLFSSL_ECC_SECP256R1)
                 != SSL_SUCCESS) {
@@ -1377,6 +1378,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
             wolfSSL_CTX_free(ctx);
             err_sys("unable to set curve secp160r1");
         }
+    #endif
     #endif
 
     #ifdef HAVE_SESSION_TICKET
@@ -1732,6 +1734,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
         wolfSSL_set_SessionTicket_cb(sslResume, sessionTicketCB,
                                     (void*)"resumed session");
 #endif
+    #if 0 /* all enabled and supported ECC curves will be added automatically */
     #ifdef HAVE_SUPPORTED_CURVES /* add curves to supported curves extension */
         if (wolfSSL_UseSupportedCurve(sslResume, WOLFSSL_ECC_SECP256R1)
                 != SSL_SUCCESS) {
@@ -1769,6 +1772,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
             wolfSSL_CTX_free(ctx);
             err_sys("unable to set curve secp160r1");
         }
+    #endif
     #endif
 
 #ifndef WOLFSSL_CALLBACKS

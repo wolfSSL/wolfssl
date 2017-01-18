@@ -1401,6 +1401,8 @@ int wolfSSL_UseSupportedCurve(WOLFSSL* ssl, word16 name)
             return BAD_FUNC_ARG;
     }
 
+    ssl->options.userCurves = 1;
+
     return TLSX_UseSupportedCurve(&ssl->extensions, name, ssl->heap);
 }
 
@@ -1430,6 +1432,8 @@ int wolfSSL_CTX_UseSupportedCurve(WOLFSSL_CTX* ctx, word16 name)
         default:
             return BAD_FUNC_ARG;
     }
+
+    ctx->userCurves = 1;
 
     return TLSX_UseSupportedCurve(&ctx->extensions, name, ctx->heap);
 }

@@ -4479,98 +4479,175 @@ static byte* TLSX_QSHKeyFind_Pub(QSHKey* qsh, word16* pubLen, word16 name)
 
 int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
 {
+    int ret = 0;
     byte* public_key      = NULL;
     word16 public_key_len = 0;
-    #ifdef HAVE_QSH
-        TLSX* extension;
-        QSHScheme* qsh;
-        QSHScheme* next;
-    #endif
-    int ret = 0;
+#ifdef HAVE_QSH
+    TLSX* extension;
+    QSHScheme* qsh;
+    QSHScheme* next;
 
-    #ifdef HAVE_QSH
-        /* add supported QSHSchemes */
-        WOLFSSL_MSG("Adding supported QSH Schemes");
+    /* add supported QSHSchemes */
+    WOLFSSL_MSG("Adding supported QSH Schemes");
+#endif
 
-        /* server will add extension depending on whats parsed from client */
-        if (!isServer) {
+    /* server will add extension depending on whats parsed from client */
+    if (!isServer) {
 
-            /* test if user has set a specific scheme already */
-            if (!ssl->user_set_QSHSchemes) {
-                if (ssl->sendQSHKeys && ssl->QSH_Key == NULL) {
-                    if ((ret = TLSX_CreateQSHKey(ssl, WOLFSSL_NTRU_EESS743)) != 0) {
-                        WOLFSSL_MSG("Error creating ntru keys");
-                        return ret;
-                    }
-                    if ((ret = TLSX_CreateQSHKey(ssl, WOLFSSL_NTRU_EESS593)) != 0) {
-                        WOLFSSL_MSG("Error creating ntru keys");
-                        return ret;
-                    }
-                    if ((ret = TLSX_CreateQSHKey(ssl, WOLFSSL_NTRU_EESS439)) != 0) {
-                        WOLFSSL_MSG("Error creating ntru keys");
-                        return ret;
-                    }
+#ifdef HAVE_QSH
+        /* test if user has set a specific scheme already */
+        if (!ssl->user_set_QSHSchemes) {
+            if (ssl->sendQSHKeys && ssl->QSH_Key == NULL) {
+                if ((ret = TLSX_CreateQSHKey(ssl, WOLFSSL_NTRU_EESS743)) != 0) {
+                    WOLFSSL_MSG("Error creating ntru keys");
+                    return ret;
+                }
+                if ((ret = TLSX_CreateQSHKey(ssl, WOLFSSL_NTRU_EESS593)) != 0) {
+                    WOLFSSL_MSG("Error creating ntru keys");
+                    return ret;
+                }
+                if ((ret = TLSX_CreateQSHKey(ssl, WOLFSSL_NTRU_EESS439)) != 0) {
+                    WOLFSSL_MSG("Error creating ntru keys");
+                    return ret;
+                }
 
-                /* add NTRU 256 */
+            /* add NTRU 256 */
+            public_key = TLSX_QSHKeyFind_Pub(ssl->QSH_Key,
+                    &public_key_len, WOLFSSL_NTRU_EESS743);
+            }
+            if (TLSX_UseQSHScheme(&ssl->extensions, WOLFSSL_NTRU_EESS743,
+                                  public_key, public_key_len, ssl->heap)
+                                  != SSL_SUCCESS)
+                ret = -1;
+
+            /* add NTRU 196 */
+            if (ssl->sendQSHKeys) {
                 public_key = TLSX_QSHKeyFind_Pub(ssl->QSH_Key,
-                        &public_key_len, WOLFSSL_NTRU_EESS743);
-                }
-                if (TLSX_UseQSHScheme(&ssl->extensions, WOLFSSL_NTRU_EESS743,
-                                      public_key, public_key_len, ssl->heap)
-                                      != SSL_SUCCESS)
-                    ret = -1;
-
-                /* add NTRU 196 */
-                if (ssl->sendQSHKeys) {
-                    public_key = TLSX_QSHKeyFind_Pub(ssl->QSH_Key,
-                        &public_key_len, WOLFSSL_NTRU_EESS593);
-                }
-                if (TLSX_UseQSHScheme(&ssl->extensions, WOLFSSL_NTRU_EESS593,
-                                      public_key, public_key_len, ssl->heap)
-                                      != SSL_SUCCESS)
-                    ret = -1;
-
-                /* add NTRU 128 */
-                if (ssl->sendQSHKeys) {
-                    public_key = TLSX_QSHKeyFind_Pub(ssl->QSH_Key,
-                        &public_key_len, WOLFSSL_NTRU_EESS439);
-                }
-                if (TLSX_UseQSHScheme(&ssl->extensions, WOLFSSL_NTRU_EESS439,
-                                      public_key, public_key_len, ssl->heap)
-                                      != SSL_SUCCESS)
-                    ret = -1;
+                    &public_key_len, WOLFSSL_NTRU_EESS593);
             }
-            else if (ssl->sendQSHKeys && ssl->QSH_Key == NULL) {
-                /* for each scheme make a client key */
-                extension = TLSX_Find(ssl->extensions, TLSX_QUANTUM_SAFE_HYBRID);
-                if (extension) {
-                    qsh = (QSHScheme*)extension->data;
+            if (TLSX_UseQSHScheme(&ssl->extensions, WOLFSSL_NTRU_EESS593,
+                                  public_key, public_key_len, ssl->heap)
+                                  != SSL_SUCCESS)
+                ret = -1;
 
-                    while (qsh) {
-                        if ((ret = TLSX_CreateQSHKey(ssl, qsh->name)) != 0)
-                            return ret;
+            /* add NTRU 128 */
+            if (ssl->sendQSHKeys) {
+                public_key = TLSX_QSHKeyFind_Pub(ssl->QSH_Key,
+                    &public_key_len, WOLFSSL_NTRU_EESS439);
+            }
+            if (TLSX_UseQSHScheme(&ssl->extensions, WOLFSSL_NTRU_EESS439,
+                                  public_key, public_key_len, ssl->heap)
+                                  != SSL_SUCCESS)
+                ret = -1;
+        }
+        else if (ssl->sendQSHKeys && ssl->QSH_Key == NULL) {
+            /* for each scheme make a client key */
+            extension = TLSX_Find(ssl->extensions, TLSX_QUANTUM_SAFE_HYBRID);
+            if (extension) {
+                qsh = (QSHScheme*)extension->data;
 
-                        /* get next now because qsh could be freed */
-                        next = qsh->next;
+                while (qsh) {
+                    if ((ret = TLSX_CreateQSHKey(ssl, qsh->name)) != 0)
+                        return ret;
 
-                        /* find the public key created and add to extension*/
-                        public_key = TLSX_QSHKeyFind_Pub(ssl->QSH_Key,
-                                 &public_key_len, qsh->name);
-                        if (TLSX_UseQSHScheme(&ssl->extensions, qsh->name,
-                                              public_key, public_key_len,
-                                              ssl->heap) != SSL_SUCCESS)
-                            ret = -1;
-                        qsh = next;
-                    }
+                    /* get next now because qsh could be freed */
+                    next = qsh->next;
+
+                    /* find the public key created and add to extension*/
+                    public_key = TLSX_QSHKeyFind_Pub(ssl->QSH_Key,
+                             &public_key_len, qsh->name);
+                    if (TLSX_UseQSHScheme(&ssl->extensions, qsh->name,
+                                          public_key, public_key_len,
+                                          ssl->heap) != SSL_SUCCESS)
+                        ret = -1;
+                    qsh = next;
                 }
             }
-         } /* is not server */
-    #endif
+        }
+#else
+    #if defined(HAVE_ECC) && defined(HAVE_SUPPORTED_CURVES)
+        if (!ssl->options.userCurves && !ssl->ctx->userCurves) {
+        #if defined(HAVE_ECC160) || defined(HAVE_ALL_CURVES)
+            #ifndef NO_ECC_SECP
+                ret = TLSX_UseSupportedCurve(&ssl->extensions, WOLFSSL_ECC_SECP160R1, ssl->heap);
+                if (ret != SSL_SUCCESS) return ret;
+            #endif
+            #ifdef HAVE_ECC_SECPR2
+                ret = TLSX_UseSupportedCurve(&ssl->extensions, WOLFSSL_ECC_SECP160R2, ssl->heap);
+                if (ret != SSL_SUCCESS) return ret;
+            #endif
+            #ifdef HAVE_ECC_KOBLITZ
+                ret = TLSX_UseSupportedCurve(&ssl->extensions, WOLFSSL_ECC_SECP160K1, ssl->heap);
+                if (ret != SSL_SUCCESS) return ret;
+            #endif
+        #endif
+        #if defined(HAVE_ECC192) || defined(HAVE_ALL_CURVES)
+            #ifndef NO_ECC_SECP
+                ret = TLSX_UseSupportedCurve(&ssl->extensions, WOLFSSL_ECC_SECP192R1, ssl->heap);
+                if (ret != SSL_SUCCESS) return ret;
+            #endif
+            #ifdef HAVE_ECC_KOBLITZ
+                ret = TLSX_UseSupportedCurve(&ssl->extensions, WOLFSSL_ECC_SECP192K1, ssl->heap);
+                if (ret != SSL_SUCCESS) return ret;
+            #endif
+        #endif
+        #if defined(HAVE_ECC224) || defined(HAVE_ALL_CURVES)
+            #ifndef NO_ECC_SECP
+                ret = TLSX_UseSupportedCurve(&ssl->extensions, WOLFSSL_ECC_SECP224R1, ssl->heap);
+                if (ret != SSL_SUCCESS) return ret;
+            #endif
+            #ifdef HAVE_ECC_KOBLITZ
+                ret = TLSX_UseSupportedCurve(&ssl->extensions, WOLFSSL_ECC_SECP224K1, ssl->heap);
+                if (ret != SSL_SUCCESS) return ret;
+            #endif
+        #endif
+        #if !defined(NO_ECC256)  || defined(HAVE_ALL_CURVES)
+            #ifndef NO_ECC_SECP
+                ret = TLSX_UseSupportedCurve(&ssl->extensions, WOLFSSL_ECC_SECP256R1, ssl->heap);
+                if (ret != SSL_SUCCESS) return ret;
+            #endif
+            #ifdef HAVE_ECC_KOBLITZ
+                ret = TLSX_UseSupportedCurve(&ssl->extensions, WOLFSSL_ECC_SECP256K1, ssl->heap);
+                if (ret != SSL_SUCCESS) return ret;
+            #endif
+            #ifdef HAVE_ECC_BRAINPOOL
+                ret = TLSX_UseSupportedCurve(&ssl->extensions, WOLFSSL_ECC_BRAINPOOLP256R1, ssl->heap);
+                if (ret != SSL_SUCCESS) return ret;
+            #endif
+        #endif
+        #if defined(HAVE_ECC384) || defined(HAVE_ALL_CURVES)
+            #ifndef NO_ECC_SECP
+                ret = TLSX_UseSupportedCurve(&ssl->extensions, WOLFSSL_ECC_SECP384R1, ssl->heap);
+                if (ret != SSL_SUCCESS) return ret;
+            #endif
+            #ifdef HAVE_ECC_BRAINPOOL
+                ret = TLSX_UseSupportedCurve(&ssl->extensions, WOLFSSL_ECC_BRAINPOOLP384R1, ssl->heap);
+                if (ret != SSL_SUCCESS) return ret;
+            #endif
+        #endif
+        #if defined(HAVE_ECC512) || defined(HAVE_ALL_CURVES)
+            #ifdef HAVE_ECC_BRAINPOOL
+                ret = TLSX_UseSupportedCurve(&ssl->extensions, WOLFSSL_ECC_BRAINPOOLP512R1, ssl->heap);
+                if (ret != SSL_SUCCESS) return ret;
+            #endif
+        #endif
+        #if defined(HAVE_ECC521) || defined(HAVE_ALL_CURVES)
+            #ifndef NO_ECC_SECP
+                ret = TLSX_UseSupportedCurve(&ssl->extensions, WOLFSSL_ECC_SECP521R1, ssl->heap);
+                if (ret != SSL_SUCCESS) return ret;
+            #endif
+        #endif
+        }
+    #endif /* HAVE_ECC && HAVE_SUPPORTED_CURVES */
+#endif
+    } /* is not server */
 
-    (void)isServer;
     (void)public_key;
     (void)public_key_len;
     (void)ssl;
+
+    if (ret == SSL_SUCCESS)
+        ret = 0;
 
     return ret;
 }
