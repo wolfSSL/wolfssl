@@ -2868,11 +2868,12 @@ int aes_test(void)
 {
 #if defined(HAVE_AES_CBC) || defined(WOLFSSL_AES_COUNTER)
     Aes enc;
-    Aes dec;
-
     byte cipher[AES_BLOCK_SIZE * 4];
+#ifdef HAVE_AES_DECRYPT
+    Aes dec;
     byte plain [AES_BLOCK_SIZE * 4];
 #endif
+#endif /* HAVE_AES_CBC || WOLFSSL_AES_COUNTER */
     int  ret = 0;
 
 #ifdef HAVE_AES_CBC
@@ -2900,9 +2901,11 @@ int aes_test(void)
     ret = wc_AesSetKey(&enc, key, AES_BLOCK_SIZE, iv, AES_ENCRYPTION);
     if (ret != 0)
         return -1001;
+#ifdef HAVE_AES_DECRYPT
     ret = wc_AesSetKey(&dec, key, AES_BLOCK_SIZE, iv, AES_DECRYPTION);
     if (ret != 0)
         return -1002;
+#endif
 
     ret = wc_AesCbcEncrypt(&enc, cipher, msg,   AES_BLOCK_SIZE);
     if (ret != 0)

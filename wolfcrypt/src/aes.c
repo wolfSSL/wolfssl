@@ -324,7 +324,7 @@ void wc_AesAsyncFree(Aes* aes)
 #endif /* WOLFSSL_AES_DIRECT || HAVE_AESGCM || HAVE_AESCCM */
 
 #ifdef HAVE_AES_DECRYPT
-    #if defined(WOLFSSL_AES_DIRECT) || defined(HAVE_AESGCM)
+    #if defined(WOLFSSL_AES_DIRECT) || defined(HAVE_AESCCM)
     static int wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
     {
         int ret = 0;
@@ -364,7 +364,7 @@ void wc_AesAsyncFree(Aes* aes)
     #endif /* WOLFSSL_STM32_CUBEMX */
         return ret;
     }
-    #endif /* WOLFSSL_AES_DIRECT || HAVE_AESGCM */
+    #endif /* WOLFSSL_AES_DIRECT || HAVE_AESCCM */
 #endif /* HAVE_AES_DECRYPT */
 
 #elif defined(HAVE_COLDFIRE_SEC)
@@ -720,6 +720,7 @@ static const word32 Te[4][256] = {
 }
 };
 
+#ifdef HAVE_AES_DECRYPT
 static const word32 Td[4][256] = {
 {
     0x51f4a750U, 0x7e416553U, 0x1a17a4c3U, 0x3a275e96U,
@@ -1024,6 +1025,7 @@ static const byte Td4[256] =
     0x17U, 0x2bU, 0x04U, 0x7eU, 0xbaU, 0x77U, 0xd6U, 0x26U,
     0xe1U, 0x69U, 0x14U, 0x63U, 0x55U, 0x21U, 0x0cU, 0x7dU,
 };
+#endif /* HAVE_AES_DECRYPT */
 
 #define GETBYTE(x, y) (word32)((byte)((x) >> (8 * (y))))
 
@@ -1925,6 +1927,8 @@ int wc_AesSetKey(Aes* aes, const byte* userKey, word32 keylen,
                     Td[3][Te[1][GETBYTE(rk[3], 0)] & 0xff];
             }
         }
+#else
+        (void)dir;
 #endif /* HAVE_AES_DECRYPT */
 
         return wc_AesSetIV(aes, iv);
@@ -4325,7 +4329,7 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
 }
 
 
-#ifdef HAVE_AES_DECRYPT
+#if defined(HAVE_AES_DECRYPT) || defined(HAVE_AESGCM_DECRYPT)
 int  wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
                    const byte* iv, word32 ivSz,
                    const byte* authTag, word32 authTagSz,
@@ -4429,7 +4433,7 @@ int  wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
 #endif  /* FREESCALE_LTC_AES_GCM */
 }
 
-#endif /* HAVE_AES_DECRYPT */
+#endif /* HAVE_AES_DECRYPT || HAVE_AESGCM_DECRYPT */
 
 WOLFSSL_API int wc_GmacSetKey(Gmac* gmac, const byte* key, word32 len)
 {
