@@ -3901,8 +3901,9 @@ int wc_ecc_import_point_der(byte* in, word32 inLen, const int curve_idx,
             did_init = 1;
 
         /* load curve info */
-        err = wc_ecc_curve_load(&ecc_sets[curve_idx], &curve,
-            (ECC_CURVE_FIELD_PRIME | ECC_CURVE_FIELD_AF | ECC_CURVE_FIELD_BF));
+        if (err == MP_OKAY)
+            err = wc_ecc_curve_load(&ecc_sets[curve_idx], &curve,
+                (ECC_CURVE_FIELD_PRIME | ECC_CURVE_FIELD_AF | ECC_CURVE_FIELD_BF));
 
         /* compute x^3 */
         if (err == MP_OKAY)
@@ -3940,9 +3941,9 @@ int wc_ecc_import_point_der(byte* in, word32 inLen, const int curve_idx,
             mp_clear(&t2);
             mp_clear(&t1);
         #endif
-
-            wc_ecc_curve_free(curve);
         }
+
+        wc_ecc_curve_free(curve);
     }
 #endif
 
