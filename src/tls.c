@@ -4493,7 +4493,6 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
 
     /* server will add extension depending on whats parsed from client */
     if (!isServer) {
-
 #ifdef HAVE_QSH
         /* test if user has set a specific scheme already */
         if (!ssl->user_set_QSHSchemes) {
@@ -4564,8 +4563,9 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
                 }
             }
         }
-#else
-    #if defined(HAVE_ECC) && defined(HAVE_SUPPORTED_CURVES)
+#endif
+
+#if defined(HAVE_ECC) && defined(HAVE_SUPPORTED_CURVES)
         if (!ssl->options.userCurves && !ssl->ctx->userCurves) {
         #if defined(HAVE_ECC160) || defined(HAVE_ALL_CURVES)
             #ifndef NO_ECC_SECP
@@ -4638,8 +4638,7 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
             #endif
         #endif
         }
-    #endif /* HAVE_ECC && HAVE_SUPPORTED_CURVES */
-#endif
+#endif /* HAVE_ECC && HAVE_SUPPORTED_CURVES */
     } /* is not server */
 
     (void)public_key;
