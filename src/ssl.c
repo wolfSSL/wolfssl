@@ -24758,14 +24758,6 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
         return NULL;
     }
 
-    int wolfSSL_OBJ_obj2nid(const WOLFSSL_ASN1_OBJECT *o) {
-        (void)o;
-        WOLFSSL_ENTER("wolfSSL_OBJ_obj2nid");
-        WOLFSSL_STUB("wolfSSL_OBJ_obj2nid");
-
-        return 0;
-    }
-
     int wolfSSL_OBJ_sn2nid(const char *sn) {
         int i;
         WOLFSSL_ENTER("wolfSSL_OBJ_osn2nid");
@@ -24784,6 +24776,57 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
         return -1;
     }
 #endif /* HAVE_ECC */
+
+    int wolfSSL_OBJ_obj2nid(const WOLFSSL_ASN1_OBJECT *o) {
+        (void)o;
+        WOLFSSL_ENTER("wolfSSL_OBJ_obj2nid");
+        WOLFSSL_STUB("wolfSSL_OBJ_obj2nid");
+
+        return 0;
+    }
+
+    WOLFSSL_ASN1_OBJECT* wolfSSL_OBJ_nid2obj(int n)
+    {
+        (void)n;
+
+        WOLFSSL_STUB("wolfSSL_OBJ_nid2obj");
+
+        return NULL;
+    }
+
+    int wolfSSL_OBJ_obj2txt(char *buf, int buf_len, WOLFSSL_ASN1_OBJECT *a, int no_name)
+    {
+        (void)buf;
+        (void)buf_len;
+        (void)a;
+        (void)no_name;
+
+        WOLFSSL_STUB("wolfSSL_OBJ_obj2txt");
+
+        return 0;
+    }
+
+    char * wolfSSL_OBJ_nid2ln(int n)
+    {
+        (void)n;
+        WOLFSSL_ENTER("wolfSSL_OBJ_nid2ln");
+        WOLFSSL_STUB("wolfSSL_OBJ_nid2ln");
+
+        return NULL;
+    }
+
+    int wolfSSL_OBJ_txt2nid(const char* s)
+    {
+        (void)s;
+        WOLFSSL_STUB("wolfSSL_OBJ_txt2nid");
+
+        return 0;
+    }
+
+    void wolfSSL_OBJ_cleanup(void)
+    {
+        WOLFSSL_STUB("wolfSSL_OBJ_cleanup");
+    }
 
 
     void wolfSSL_CTX_set_verify_depth(WOLFSSL_CTX *ctx, int depth) {
@@ -25197,23 +25240,7 @@ void wolfSSL_BUF_MEM_free(WOLFSSL_BUF_MEM* buf)
 
 
 #if defined(HAVE_LIGHTY) || defined(HAVE_STUNNEL) \
-    || defined(WOLFSSL_MYSQL_COMPATIBLE) || defined(OPENSSL_EXTRA) || defined(WOLFSSL_HAPROXY)
-char * wolfSSL_OBJ_nid2ln(int n) {
-    (void)n;
-    WOLFSSL_ENTER("wolfSSL_OBJ_nid2ln");
-    WOLFSSL_STUB("wolfSSL_OBJ_nid2ln");
-
-    return NULL;
-}
-
-int wolfSSL_OBJ_txt2nid(const char* s) {
-    (void)s;
-    WOLFSSL_ENTER("wolfSSL_OBJ_txt2nid");
-    WOLFSSL_STUB("wolfSSL_OBJ_txt2nid");
-
-    return 0;
-}
-
+    || defined(WOLFSSL_MYSQL_COMPATIBLE) || defined(OPENSSL_EXTRA)
 
 WOLFSSL_BIO *wolfSSL_BIO_new_file(const char *filename, const char *mode)
 {

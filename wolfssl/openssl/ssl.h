@@ -513,9 +513,6 @@ typedef WOLFSSL_X509_NAME_ENTRY X509_NAME_ENTRY;
 #define SSL_CTX_use_PrivateKey wolfSSL_CTX_use_PrivateKey
 #define BIO_read_filename wolfSSL_BIO_read_filename
 #define BIO_s_file wolfSSL_BIO_s_file
-#define OBJ_nid2sn wolfSSL_OBJ_nid2sn
-#define OBJ_obj2nid wolfSSL_OBJ_obj2nid
-#define OBJ_sn2nid wolfSSL_OBJ_sn2nid
 #define SSL_CTX_set_verify_depth wolfSSL_CTX_set_verify_depth
 #define SSL_set_verify_depth wolfSSL_set_verify_depth
 #define SSL_get_app_data wolfSSL_get_app_data
@@ -534,8 +531,6 @@ typedef WOLFSSL_X509_NAME_ENTRY X509_NAME_ENTRY;
 
 #define NID_commonName 0x03 /* matchs ASN_COMMON_NAME in asn.h */
 
-#define OBJ_nid2ln wolfSSL_OBJ_nid2ln
-#define OBJ_txt2nid wolfSSL_OBJ_txt2nid
 #define PEM_read_bio_DHparams wolfSSL_PEM_read_bio_DHparams
 #define PEM_read_bio_DSAparams wolfSSL_PEM_read_bio_DSAparams
 #define PEM_write_bio_X509 wolfSSL_PEM_write_bio_X509
