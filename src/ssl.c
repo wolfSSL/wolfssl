@@ -8889,6 +8889,7 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
         #ifdef WOLFSSL_MULTICAST
             haveMcast = ssl->options.haveMcast;
         #endif
+        (void)haveMcast;
 
         if (ssl->options.side != WOLFSSL_SERVER_END) {
             WOLFSSL_ERROR(ssl->error = SIDE_ERROR);

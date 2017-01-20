@@ -3726,7 +3726,9 @@ int SetSSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
     byte newSSL;
     byte haveRSA = 0;
     byte haveMcast = 0;
-    (void) haveAnon; /* Squash unused var warnings */
+
+    (void)haveAnon; /* Squash unused var warnings */
+    (void)haveMcast;
 
     if (!ssl || !ctx)
         return BAD_FUNC_ARG;
