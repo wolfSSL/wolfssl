@@ -329,7 +329,8 @@ static INLINE void c16toa(word16 u16, byte* c)
 
 
 #if !defined(NO_OLD_TLS) || defined(HAVE_CHACHA) || defined(HAVE_AESCCM) \
-    || defined(HAVE_AESGCM) || defined(WOLFSSL_SESSION_EXPORT)
+    || defined(HAVE_AESGCM) || defined(WOLFSSL_SESSION_EXPORT) \
+    || defined(WOLFSSL_DTLS)
 /* convert 32 bit integer to opaque */
 static INLINE void c32toa(word32 u32, byte* c)
 {
@@ -4012,7 +4013,7 @@ void FreeSSL(WOLFSSL* ssl, void* heap)
 
 
 #if !defined(NO_OLD_TLS) || defined(HAVE_CHACHA) || defined(HAVE_AESCCM) \
-    || defined(HAVE_AESGCM)
+    || defined(HAVE_AESGCM) || defined(WOLFSSL_DTLS)
 static INLINE void GetSEQIncrement(WOLFSSL* ssl, int verify, word32 seq[2])
 {
     if (verify) {
@@ -4116,6 +4117,7 @@ DtlsMsg* DtlsMsgNew(word32 sz, void* heap)
 {
     DtlsMsg* msg = NULL;
 
+    (void)heap;
     msg = (DtlsMsg*)XMALLOC(sizeof(DtlsMsg), heap, DYNAMIC_TYPE_DTLS_MSG);
 
     if (msg != NULL) {
@@ -4172,6 +4174,7 @@ static DtlsFrag* CreateFragment(word32* begin, word32 end, const byte* data,
     DtlsFrag* newFrag;
     word32 added = end - *begin + 1;
 
+    (void)heap;
     newFrag = (DtlsFrag*)XMALLOC(sizeof(DtlsFrag), heap,
                                  DYNAMIC_TYPE_DTLS_FRAG);
     if (newFrag != NULL) {

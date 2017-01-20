@@ -38,6 +38,7 @@
 #include <wolfssl/wolfcrypt/error-crypt.h>
 #include <wolfssl/wolfcrypt/logging.h>
 
+#if defined(USE_FAST_MATH) || !defined(NO_BIG_INT)
 
 int get_digit_count(mp_int* a)
 {
@@ -102,3 +103,5 @@ int mp_rand(mp_int* a, int digits, WC_RNG* rng)
 
     return ret;
 }
+
+#endif

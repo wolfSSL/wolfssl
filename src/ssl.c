@@ -7654,6 +7654,7 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
             WOLFSSL_ENTER("DTLSv1_2_client_method_ex");
             if (method)
                 InitSSL_Method(method, MakeDTLSv1_2());
+            (void)heap;
             return method;
         }
     #endif
@@ -8005,6 +8006,7 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
                 InitSSL_Method(method, MakeDTLSv1_2());
                 method->side = WOLFSSL_SERVER_END;
             }
+            (void)heap;
             return method;
         }
     #endif

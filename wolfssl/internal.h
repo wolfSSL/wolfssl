@@ -150,6 +150,11 @@
     #endif
 #endif
 
+#ifndef CHAR_BIT
+    /* Needed for DTLS without big math */
+    #include <limits.h>
+#endif
+
 
 #ifdef HAVE_LIBZ
     #include "zlib.h"
