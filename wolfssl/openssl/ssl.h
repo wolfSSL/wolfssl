@@ -67,6 +67,7 @@ typedef WOLFSSL_X509_CHAIN X509_CHAIN;
 
 
 typedef WOLFSSL_EVP_PKEY       EVP_PKEY;
+typedef WOLFSSL_EVP_PKEY       PKCS8_PRIV_KEY_INFO;
 typedef WOLFSSL_RSA            RSA;
 typedef WOLFSSL_DSA            DSA;
 typedef WOLFSSL_EC_KEY         EC_KEY;
@@ -123,6 +124,8 @@ typedef WOLFSSL_X509_STORE_CTX X509_STORE_CTX;
 #define SSL_get_certificate           wolfSSL_get_certificate
 #define SSL_use_certificate           wolfSSL_use_certificate
 #define SSL_use_certificate_ASN1      wolfSSL_use_certificate_ASN1
+#define d2i_PKCS8_PRIV_KEY_INFO_bio   wolfSSL_d2i_PKCS8_PKEY_bio
+#define PKCS8_PRIV_KEY_INFO_free      wolfSSL_EVP_PKEY_free
 
 #define d2i_PrivateKey             wolfSSL_d2i_PrivateKey
 #define SSL_use_PrivateKey         wolfSSL_use_PrivateKey

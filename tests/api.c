@@ -14792,6 +14792,29 @@ static void test_wolfSSL_pseudo_rand(void)
     #endif
 }
 
+static void test_wolfSSL_pkcs8(void)
+{
+    #if defined(OPENSSL_EXTRA) && !defined(NO_FILESYSTEM) && defined(HAVE_ECC)
+    PKCS8_PRIV_KEY_INFO* pt;
+    BIO* bio;
+    FILE* f;
+    int bytes;
+    char buffer[512];
+
+    printf(testingFmt, "wolfSSL_pkcs8()");
+
+    /* file from wolfssl/certs/ directory */
+    AssertNotNull(f = fopen("./certs/ecc-keyPkcs8.pem", "rb"));
+    AssertIntGT((bytes = (int)fread(buffer, 1, sizeof(buffer), f)), 0);
+    AssertNotNull(bio = BIO_new_mem_buf((void*)buffer, bytes));
+    AssertNotNull(pt = d2i_PKCS8_PRIV_KEY_INFO_bio(bio, NULL));
+    BIO_free(bio);
+    PKCS8_PRIV_KEY_INFO_free(pt);
+
+    printf(resultFmt, passed);
+    #endif
+}
+
 
 static void test_no_op_functions(void)
 {
@@ -15591,7 +15614,7 @@ void ApiTest(void)
     test_wolfSSL_CTX_set_srp_username();
     test_wolfSSL_CTX_set_srp_password();
     test_wolfSSL_pseudo_rand();
-    AssertIntEQ(test_wolfSSL_Cleanup(), WOLFSSL_SUCCESS);
+    test_wolfSSL_pkcs8();
 
     /* test the no op functions for compatibility */
     test_no_op_functions();

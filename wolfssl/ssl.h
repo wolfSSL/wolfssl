@@ -193,6 +193,20 @@ struct WOLFSSL_ASN1_TIME {
     /* ASN_TIME | LENGTH | date bytes */
 };
 
+typedef char   WOLFSSL_EVP_MD;
+typedef struct WOLFSSL_EVP_PKEY {
+    int type;         /* openssh dereference */
+    int save_type;    /* openssh dereference */
+    int pkey_sz;
+    union {
+        char* ptr; /* der format of key / or raw for NTRU */
+    } pkey;
+    #ifdef HAVE_ECC
+        int pkey_curve;
+    #endif
+} WOLFSSL_EVP_PKEY;
+typedef struct WOLFSSL_EVP_PKEY WOLFSSL_PKCS8_PRIV_KEY_INFO;
+
 #ifndef WOLFSSL_EVP_PKEY_TYPE_DEFINED /* guard on redeclaration */
 typedef struct WOLFSSL_EVP_PKEY     WOLFSSL_EVP_PKEY;
 #define WOLFSSL_EVP_PKEY_TYPE_DEFINED
@@ -816,6 +830,8 @@ WOLFSSL_API int       wolfSSL_X509_CRL_verify(WOLFSSL_X509_CRL*, WOLFSSL_EVP_PKE
 WOLFSSL_API void      wolfSSL_X509_STORE_CTX_set_error(WOLFSSL_X509_STORE_CTX*,
                                                      int);
 WOLFSSL_API void      wolfSSL_X509_OBJECT_free_contents(WOLFSSL_X509_OBJECT*);
+WOLFSSL_API WOLFSSL_PKCS8_PRIV_KEY_INFO* wolfSSL_d2i_PKCS8_PKEY_bio(
+        WOLFSSL_BIO* bio, WOLFSSL_PKCS8_PRIV_KEY_INFO** pkey);
 WOLFSSL_API WOLFSSL_EVP_PKEY* wolfSSL_d2i_PrivateKey(int type,
         WOLFSSL_EVP_PKEY** out, const unsigned char **in, long inSz);
 WOLFSSL_API WOLFSSL_EVP_PKEY* wolfSSL_PKEY_new(void);

@@ -6836,6 +6836,51 @@ int wolfSSL_CTX_SetTmpDH_file(WOLFSSL_CTX* ctx, const char* fname, int format)
 #ifdef OPENSSL_EXTRA
 /* put SSL type in extra for now, not very common */
 
+WOLFSSL_PKCS8_PRIV_KEY_INFO* wolfSSL_d2i_PKCS8_PKEY_bio(WOLFSSL_BIO* bio,
+        WOLFSSL_PKCS8_PRIV_KEY_INFO** pkey)
+{
+    const unsigned char* mem;
+    int memSz;
+    int keySz;
+
+    WOLFSSL_PKCS8_PRIV_KEY_INFO* pkcs8;
+
+    WOLFSSL_MSG("wolfSSL_d2i_PKCS8_PKEY_bio()");
+
+    if (bio == NULL) {
+        return NULL;
+    }
+
+    if ((memSz = wolfSSL_BIO_get_mem_data(bio, &mem)) < 0) {
+        return NULL;
+    }
+
+    if ((keySz = wolfSSL_KeyPemToDer(mem, memSz, (unsigned char*)mem, memSz,
+                    NULL)) < 0) {
+        WOLFSSL_MSG("Not PEM format");
+        keySz = memSz;
+        if ((keySz = ToTraditional((byte*)mem, (word32)keySz)) < 0) {
+            return NULL;
+        }
+    }
+
+    pkcs8 = wolfSSL_PKEY_new();
+    pkcs8->pkey.ptr = (char*)XMALLOC(keySz, NULL, DYNAMIC_TYPE_PUBLIC_KEY);
+    if (pkcs8->pkey.ptr == NULL) {
+        wolfSSL_EVP_PKEY_free(pkcs8);
+        return NULL;
+    }
+    XMEMCPY(pkcs8->pkey.ptr, mem, keySz);
+    pkcs8->pkey_sz = keySz;
+
+    if (pkey != NULL) {
+        *pkey = pkcs8;
+    }
+
+    return pkcs8;
+}
+
+
 WOLFSSL_EVP_PKEY* wolfSSL_d2i_PrivateKey(int type, WOLFSSL_EVP_PKEY** out,
         const unsigned char **in, long inSz)
 {
