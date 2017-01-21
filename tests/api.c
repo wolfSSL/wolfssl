@@ -2523,11 +2523,13 @@ static void test_wolfSSL_PKCS12(void)
     !defined(NO_ASN) && !defined(NO_PWDBASED) && !defined(NO_RSA)
     byte buffer[5300];
     char file[] = "./certs/test-servercert.p12";
+    char pass[] = "a password";
     FILE *f;
     int  bytes, ret;
     WOLFSSL_BIO      *bio;
     WOLFSSL_EVP_PKEY *pkey;
     WC_PKCS12        *pkcs12;
+    WC_PKCS12        *pkcs12_2;
     WOLFSSL_X509     *cert;
     WOLFSSL_X509     *tmp;
     WOLF_STACK_OF(WOLFSSL_X509) *ca;
@@ -2571,6 +2573,7 @@ static void test_wolfSSL_PKCS12(void)
     AssertNotNull(cert);
     AssertNotNull(ca);
 
+
     /* should be 2 other certs on stack */
     tmp = sk_X509_pop(ca);
     AssertNotNull(tmp);
@@ -2582,8 +2585,62 @@ static void test_wolfSSL_PKCS12(void)
 
     EVP_PKEY_free(pkey);
     X509_free(cert);
+    sk_X509_free(ca);
+
+    /* check PKCS12_create */
+    AssertNull(PKCS12_create(pass, NULL, NULL, NULL, NULL, -1, -1, -1, -1,0));
+    AssertIntEQ(PKCS12_parse(pkcs12, "wolfSSL test", &pkey, &cert, &ca),
+            SSL_SUCCESS);
+    AssertNotNull((pkcs12_2 = PKCS12_create(pass, NULL, pkey, cert, ca,
+                    -1, -1, 100, -1, 0)));
+    EVP_PKEY_free(pkey);
+    X509_free(cert);
+    sk_X509_free(ca);
+
+    AssertIntEQ(PKCS12_parse(pkcs12_2, "a password", &pkey, &cert, &ca),
+            SSL_SUCCESS);
+    PKCS12_free(pkcs12_2);
+    AssertNotNull((pkcs12_2 = PKCS12_create(pass, NULL, pkey, cert, ca,
+             NID_pbe_WithSHA1And3_Key_TripleDES_CBC,
+             NID_pbe_WithSHA1And3_Key_TripleDES_CBC,
+             2000, 1, 0)));
+    EVP_PKEY_free(pkey);
+    X509_free(cert);
+    sk_X509_free(ca);
+
+    AssertIntEQ(PKCS12_parse(pkcs12_2, "a password", &pkey, &cert, &ca),
+            SSL_SUCCESS);
+
+    /* should be 2 other certs on stack */
+    tmp = sk_X509_pop(ca);
+    AssertNotNull(tmp);
+    X509_free(tmp);
+    tmp = sk_X509_pop(ca);
+    AssertNotNull(tmp);
+    X509_free(tmp);
+    AssertNull(sk_X509_pop(ca));
+
+
+#ifndef NO_RC4
+    PKCS12_free(pkcs12_2);
+    AssertNotNull((pkcs12_2 = PKCS12_create(pass, NULL, pkey, cert, NULL,
+             NID_pbe_WithSHA1And128BitRC4,
+             NID_pbe_WithSHA1And128BitRC4,
+             2000, 1, 0)));
+    EVP_PKEY_free(pkey);
+    X509_free(cert);
+    sk_X509_free(ca);
+
+    AssertIntEQ(PKCS12_parse(pkcs12_2, "a password", &pkey, &cert, &ca),
+            SSL_SUCCESS);
+
+#endif /* NO_RC4 */
+
+    EVP_PKEY_free(pkey);
+    X509_free(cert);
     BIO_free(bio);
     PKCS12_free(pkcs12);
+    PKCS12_free(pkcs12_2);
     sk_X509_free(ca);
 
     printf(resultFmt, passed);

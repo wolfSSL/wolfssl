@@ -1415,7 +1415,12 @@ typedef struct WC_PKCS12 WC_PKCS12;
 WOLFSSL_API WC_PKCS12* wolfSSL_d2i_PKCS12_bio(WOLFSSL_BIO* bio,
                                        WC_PKCS12** pkcs12);
 WOLFSSL_API int wolfSSL_PKCS12_parse(WC_PKCS12* pkcs12, const char* psw,
-     WOLFSSL_EVP_PKEY** pkey, WOLFSSL_X509** cert, WOLF_STACK_OF(WOLFSSL_X509)** ca);
+     WOLFSSL_EVP_PKEY** pkey, WOLFSSL_X509** cert,
+     WOLF_STACK_OF(WOLFSSL_X509)** ca);
+WOLFSSL_API WC_PKCS12* wolfSSL_PKCS12_create(char* pass, char* name,
+        WOLFSSL_EVP_PKEY* pkey, WOLFSSL_X509* cert,
+        WOLF_STACK_OF(WOLFSSL_X509)* ca,
+        int keyNID, int certNID, int itt, int macItt, int keytype);
 WOLFSSL_API void wolfSSL_PKCS12_PBE_add(void);
 
 

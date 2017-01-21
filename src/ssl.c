@@ -14838,7 +14838,7 @@ static void ExternalFreeX509(WOLFSSL_X509* x509)
     {
         WOLFSSL_ENTER("wolfSSL_X509_get_der");
 
-        if (x509 == NULL || outSz == NULL)
+        if (x509 == NULL || x509->derCert == NULL || outSz == NULL)
             return NULL;
 
         *outSz = (int)x509->derCert->length;
@@ -16400,6 +16400,97 @@ WC_PKCS12* wolfSSL_d2i_PKCS12_bio(WOLFSSL_BIO* bio, WC_PKCS12** pkcs12)
     }
 
     return localPkcs12;
+}
+
+
+/* helper function to get DER buffer from WOLFSSL_EVP_PKEY */
+static int wolfSSL_i2d_PrivateKey(WOLFSSL_EVP_PKEY* key, unsigned char** der)
+{
+    *der = (unsigned char*)key->pkey.ptr;
+
+    return key->pkey_sz;
+}
+
+
+
+WC_PKCS12* wolfSSL_PKCS12_create(char* pass, char* name,
+        WOLFSSL_EVP_PKEY* pkey, WOLFSSL_X509* cert,
+        WOLF_STACK_OF(WOLFSSL_X509)* ca,
+        int keyNID, int certNID, int itt, int macItt, int keyType)
+{
+    WC_PKCS12*      pkcs12;
+    WC_DerCertList* list = NULL;
+    word32 passSz = (word32)XSTRLEN(pass);
+    byte* keyDer;
+    word32 keyDerSz;
+    byte* certDer;
+    int certDerSz;
+
+    int ret;
+
+    WOLFSSL_ENTER("wolfSSL_PKCS12_create()");
+
+    if (pass == NULL || pkey == NULL || cert == NULL) {
+        WOLFSSL_LEAVE("wolfSSL_PKCS12_create()", BAD_FUNC_ARG);
+        return NULL;
+    }
+
+    if ((ret = wolfSSL_i2d_PrivateKey(pkey, &keyDer)) < 0) {
+        WOLFSSL_LEAVE("wolfSSL_PKCS12_create", ret);
+        return NULL;
+    }
+    keyDerSz = ret;
+
+    certDer = (byte*)wolfSSL_X509_get_der(cert, &certDerSz);
+    if (certDer == NULL) {
+        return NULL;
+    }
+
+    if (ca != NULL) {
+        WC_DerCertList* cur;
+        unsigned long numCerts = ca->num;
+        byte* curDer;
+        int   curDerSz = 0;
+        WOLFSSL_STACK* sk = ca;
+
+        while (numCerts > 0 && sk != NULL) {
+            cur = (WC_DerCertList*)XMALLOC(sizeof(WC_DerCertList), NULL,
+                    DYNAMIC_TYPE_PKCS);
+            if (cur == NULL) {
+                wc_FreeCertList(list, NULL);
+                return NULL;
+            }
+
+            curDer = (byte*)wolfSSL_X509_get_der(sk->data.x509, &curDerSz);
+            if (certDer == NULL || curDerSz < 0) {
+                wc_FreeCertList(list, NULL);
+                return NULL;
+            }
+
+            cur->buffer = (byte*)XMALLOC(curDerSz, NULL, DYNAMIC_TYPE_PKCS);
+            if (cur->buffer == NULL) {
+                wc_FreeCertList(list, NULL);
+                return NULL;
+            }
+            XMEMCPY(cur->buffer, curDer, curDerSz);
+            cur->bufferSz = curDerSz;
+            cur->next = list;
+            list = cur;
+
+            sk = sk->next;
+            numCerts--;
+        }
+    }
+
+    pkcs12 = wc_PKCS12_create(pass, passSz, name, keyDer, keyDerSz,
+            certDer, certDerSz, list, keyNID, certNID, itt, macItt,
+            keyType, NULL);
+
+    if (ca != NULL) {
+        wc_FreeCertList(list, NULL);
+    }
+
+    return pkcs12;
 }
 
 

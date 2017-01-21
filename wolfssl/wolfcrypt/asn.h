@@ -108,10 +108,13 @@ enum DN_Tags {
 
 enum PBES {
     PBE_MD5_DES      = 0,
-    PBE_SHA1_DES     = 1,
-    PBE_SHA1_DES3    = 2,
-    PBE_SHA1_RC4_128 = 3,
+    PBE_SHA1_RC4_128 = 1,
+    PBE_SHA1_DES     = 2,
+    PBE_SHA1_DES3    = 3,
     PBE_AES256_CBC   = 4,
+
+    PBE_SHA1_RC4_128_SUM = 657,
+    PBE_SHA1_DES3_SUM    = 659,
     PBES2            = 13       /* algo ID */
 };
 
@@ -146,6 +149,7 @@ enum Misc_ASN {
     MAX_ENCODED_SIG_SZ  = 512,
     MAX_SIG_SZ          = 256,
     MAX_ALGO_SZ         =  20,
+    MAX_SHORT_SZ        =   6,     /* asn int + byte len + 4 byte length */
     MAX_SEQ_SZ          =   5,     /* enum(seq | con) + length(4) */
     MAX_SET_SZ          =   5,     /* enum(set | con) + length(4) */
     MAX_OCTET_STR_SZ    =   5,     /* enum(set | con) + length(4) */
@@ -214,7 +218,8 @@ enum Oid_Types {
     oidKdfType          = 11,
     oidKeyWrapType      = 12,
     oidCmsKeyAgreeType  = 13,
-    oidHmacType         = 14,
+    oidPBEType          = 14,
+    oidHmacType         = 15,
     oidIgnoreType
 };
 
@@ -763,7 +768,13 @@ WOLFSSL_ASN_API int ToTraditional(byte* buffer, word32 length);
 WOLFSSL_LOCAL int ToTraditionalInline(const byte* input, word32* inOutIdx,
                                       word32 length);
 WOLFSSL_LOCAL int ToTraditionalEnc(byte* buffer, word32 length,const char*,int);
+WOLFSSL_ASN_API int UnTraditionalEnc(byte* key, word32 keySz, byte* out,
+        word32* outSz, const char* password, int passwordSz, int vPKCS,
+        int vAlgo, byte* salt, word32 saltSz, int itt, WC_RNG* rng, void* heap);
 WOLFSSL_LOCAL int DecryptContent(byte* input, word32 sz,const char* psw,int pswSz);
+WOLFSSL_LOCAL int EncryptContent(byte* input, word32 sz, byte* out, word32* outSz,
+        const char* password,int passwordSz, int vPKCS, int vAlgo,
+        byte* salt, word32 saltSz, int itt, WC_RNG* rng, void* heap);
 WOLFSSL_LOCAL int wc_GetKeyOID(byte* key, word32 keySz, const byte** curveOID,
         word32* oidSz, int* algoID, void* heap);
 
