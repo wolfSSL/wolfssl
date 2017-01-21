@@ -17035,8 +17035,8 @@ WOLFSSL_EVP_PKEY* wolfSSL_PKEY_new()
             DYNAMIC_TYPE_PUBLIC_KEY);
     if (pkey != NULL) {
         XMEMSET(pkey, 0, sizeof(WOLFSSL_EVP_PKEY));
+        pkey->type = WOLFSSL_EVP_PKEY_DEFAULT;
     }
-    pkey->type = WOLFSSL_EVP_PKEY_DEFAULT;
 
     return pkey;
 }
@@ -19185,6 +19185,91 @@ int wolfSSL_BN_rand(WOLFSSL_BIGNUM* bn, int bits, int top, int bottom)
 #ifdef WOLFSSL_SMALL_STACK
     XFREE(buff,   NULL, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(tmpRNG, NULL, DYNAMIC_TYPE_RNG);
+#endif
+
+    return ret;
+}
+
+
+/* SSL_SUCCESS on ok
+ * code is same as wolfSSL_BN_rand except for how top and bottom is handled.
+ * top -1 then leave most sig bit alone
+ * top 0 then most sig is set to 1
+ * top is 1 then first two most sig bits are 1
+ *
+ * bottom is hot then odd number */
+int wolfSSL_BN_pseudo_rand(WOLFSSL_BIGNUM* bn, int bits, int top, int bottom)
+{
+    int           ret    = 0;
+    int           len    = bits / 8;
+    int           initTmpRng = 0;
+    WC_RNG*       rng    = NULL;
+#ifdef WOLFSSL_SMALL_STACK
+    WC_RNG*       tmpRNG = NULL;
+    byte*         buff   = NULL;
+#else
+    WC_RNG        tmpRNG[1];
+    byte          buff[1024];
+#endif
+
+    WOLFSSL_MSG("wolfSSL_BN_rand");
+
+    if (bits % 8)
+        len++;
+
+#ifdef WOLFSSL_SMALL_STACK
+    buff   = (byte*)XMALLOC(1024,        NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    tmpRNG = (WC_RNG*) XMALLOC(sizeof(WC_RNG), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (buff == NULL || tmpRNG == NULL) {
+        XFREE(buff,   NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(tmpRNG, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        return ret;
+    }
+#endif
+
+    if (bn == NULL || bn->internal == NULL)
+        WOLFSSL_MSG("Bad function arguments");
+    else if (wc_InitRng(tmpRNG) == 0) {
+        rng = tmpRNG;
+        initTmpRng = 1;
+    }
+    else if (initGlobalRNG)
+        rng = &globalRNG;
+
+    if (rng) {
+        if (wc_RNG_GenerateBlock(rng, buff, len) != 0)
+            WOLFSSL_MSG("Bad wc_RNG_GenerateBlock");
+        else {
+            switch (top) {
+                case -1:
+                    break;
+
+                case 0:
+                    buff[0] |= 0x80;
+                    break;
+
+                case 1:
+                    buff[0] |= 0x80 | 0x40;
+                    break;
+            }
+
+            if (bottom == 1) {
+                buff[len-1] |= 0x01;
+            }
+
+            if (mp_read_unsigned_bin((mp_int*)bn->internal,buff,len) != MP_OKAY)
+                WOLFSSL_MSG("mp read bin failed");
+            else
+                ret = SSL_SUCCESS;
+        }
+    }
+
+    if (initTmpRng)
+        wc_FreeRng(tmpRNG);
+
+#ifdef WOLFSSL_SMALL_STACK
+    XFREE(buff,   NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(tmpRNG, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
 
     return ret;

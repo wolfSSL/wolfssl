@@ -14759,6 +14759,40 @@ static void test_wolfSSL_BUF(void)
 }
 
 
+static void test_wolfSSL_pseudo_rand(void)
+{
+    #if defined(OPENSSL_EXTRA)
+    BIGNUM* bn;
+    unsigned char bin[8];
+    int i;
+
+    printf(testingFmt, "wolfSSL_pseudo_rand()");
+
+    /* BN_pseudo_rand returns 1 on success 0 on failure
+     * int BN_pseudo_rand(BIGNUM* bn, int bits, int top, int bottom) */
+    for (i = 0; i < 10; i++) {
+        AssertNotNull(bn = BN_new());
+        XMEMSET(bn, 0, sizeof(bn));
+        AssertIntEQ(BN_pseudo_rand(bn, 8, 0, 0), SSL_SUCCESS);
+        AssertIntGT(BN_bn2bin(bn, bin),0);
+        AssertIntEQ((bin[0] & 0x80), 0x80); /* top bit should be set */
+        BN_free(bn);
+    }
+
+    for (i = 0; i < 10; i++) {
+        AssertNotNull(bn = BN_new());
+        XMEMSET(bn, 0, sizeof(bn));
+        AssertIntEQ(BN_pseudo_rand(bn, 8, 1, 1), SSL_SUCCESS);
+        AssertIntGT(BN_bn2bin(bn, bin),0);
+        AssertIntEQ((bin[0] & 0xc1), 0xc1); /* top bit should be set */
+        BN_free(bn);
+    }
+
+    printf(resultFmt, passed);
+    #endif
+}
+
+
 static void test_no_op_functions(void)
 {
     #if defined(OPENSSL_EXTRA)
@@ -15556,6 +15590,7 @@ void ApiTest(void)
     test_wolfSSL_CTX_add_client_CA();
     test_wolfSSL_CTX_set_srp_username();
     test_wolfSSL_CTX_set_srp_password();
+    test_wolfSSL_pseudo_rand();
     AssertIntEQ(test_wolfSSL_Cleanup(), WOLFSSL_SUCCESS);
 
     /* test the no op functions for compatibility */
