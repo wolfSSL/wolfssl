@@ -472,6 +472,7 @@ typedef WOLFSSL_X509_STORE_CTX X509_STORE_CTX;
 #define sk_X509_free wolfSSL_sk_X509_free
 #define i2d_X509_bio wolfSSL_i2d_X509_bio
 #define d2i_X509_bio wolfSSL_d2i_X509_bio
+#define d2i_X509     wolfSSL_d2i_X509
 
 #define SSL_CTX_get_ex_data wolfSSL_CTX_get_ex_data
 #define SSL_CTX_set_ex_data wolfSSL_CTX_set_ex_data

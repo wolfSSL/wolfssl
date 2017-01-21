@@ -24,25 +24,11 @@
 #define WOLFSSL_OBJECTS_H_
 
 #include <wolfssl/wolfcrypt/settings.h>
-#include <wolfssl/wolfcrypt/asn.h>
+#include <wolfssl/openssl/ssl.h>
 
 #ifdef __cplusplus
     extern "C" {
 #endif
-
-
-WOLFSSL_API const char *  wolfSSL_OBJ_nid2sn(int n);
-WOLFSSL_API int wolfSSL_OBJ_obj2nid(const WOLFSSL_ASN1_OBJECT *o);
-WOLFSSL_API int wolfSSL_OBJ_sn2nid(const char *sn);
-
-WOLFSSL_API char* wolfSSL_OBJ_nid2ln(int n);
-WOLFSSL_API int wolfSSL_OBJ_txt2nid(const char *sn);
-
-WOLFSSL_API WOLFSSL_ASN1_OBJECT* wolfSSL_OBJ_nid2obj(int n);
-WOLFSSL_API int wolfSSL_OBJ_obj2txt(char *buf, int buf_len, WOLFSSL_ASN1_OBJECT *a, int no_name);
-
-WOLFSSL_API void wolfSSL_OBJ_cleanup(void);
-
 
 #define OBJ_nid2sn  wolfSSL_OBJ_nid2sn
 #define OBJ_obj2nid wolfSSL_OBJ_obj2nid

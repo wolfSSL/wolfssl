@@ -14772,7 +14772,6 @@ static void test_wolfSSL_pseudo_rand(void)
      * int BN_pseudo_rand(BIGNUM* bn, int bits, int top, int bottom) */
     for (i = 0; i < 10; i++) {
         AssertNotNull(bn = BN_new());
-        XMEMSET(bn, 0, sizeof(bn));
         AssertIntEQ(BN_pseudo_rand(bn, 8, 0, 0), SSL_SUCCESS);
         AssertIntGT(BN_bn2bin(bn, bin),0);
         AssertIntEQ((bin[0] & 0x80), 0x80); /* top bit should be set */
@@ -14781,7 +14780,6 @@ static void test_wolfSSL_pseudo_rand(void)
 
     for (i = 0; i < 10; i++) {
         AssertNotNull(bn = BN_new());
-        XMEMSET(bn, 0, sizeof(bn));
         AssertIntEQ(BN_pseudo_rand(bn, 8, 1, 1), SSL_SUCCESS);
         AssertIntGT(BN_bn2bin(bn, bin),0);
         AssertIntEQ((bin[0] & 0xc1), 0xc1); /* top bit should be set */

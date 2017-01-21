@@ -24,17 +24,17 @@
 #define WOLFSSL_BUFFER_H_
 
 #include <wolfssl/wolfcrypt/settings.h>
-#include <wolfssl/wolfcrypt/error-crypt.h>
+#include <wolfssl/openssl/ssl.h>
 
 #ifdef __cplusplus
     extern "C" {
 #endif
 
-typedef struct WOLFSSL_BUF_MEM {
+struct WOLFSSL_BUF_MEM {
     char*  data;
     size_t length; /* current length */
     size_t max;    /* maximum length */
-} WOLFSSL_BUF_MEM;
+};
 
 
 WOLFSSL_API WOLFSSL_BUF_MEM* wolfSSL_BUF_MEM_new(void);

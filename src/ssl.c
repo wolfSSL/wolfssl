@@ -15109,6 +15109,14 @@ void wolfSSL_sk_X509_free(WOLF_STACK_OF(WOLFSSL_X509_NAME)* sk) {
 
 #endif /* NO_CERTS && OPENSSL_EXTRA */
 
+
+WOLFSSL_X509* wolfSSL_d2i_X509(WOLFSSL_X509** x509, const unsigned char** in,
+        int len)
+{
+    return wolfSSL_X509_d2i(x509, *in, len);
+}
+
+
 WOLFSSL_X509* wolfSSL_X509_d2i(WOLFSSL_X509** x509, const byte* in, int len)
 {
     WOLFSSL_X509 *newX509 = NULL;
