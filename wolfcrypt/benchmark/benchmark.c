@@ -339,7 +339,13 @@ int benchmark_test(void *args)
 
 #if defined(HAVE_LOCAL_RNG)
     {
-        int rngRet = wc_InitRng(&rng);
+        int rngRet;
+
+#ifndef HAVE_FIPS
+        rngRet = wc_InitRng_ex(&rng, HEAP_HINT);
+#else
+        rngRet = wc_InitRng(&rng);
+#endif
         if (rngRet < 0) {
             printf("InitRNG failed\n");
             return rngRet;
@@ -538,7 +544,11 @@ void bench_rng(void)
 #endif
 
 #ifndef HAVE_LOCAL_RNG
+#ifndef HAVE_FIPS
+    ret = wc_InitRng_ex(&rng, HEAP_HINT);
+#else
     ret = wc_InitRng(&rng);
+#endif
     if (ret < 0) {
         printf("InitRNG failed\n");
         return;
