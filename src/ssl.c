@@ -14220,6 +14220,94 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
         #endif
     }
 
+
+    unsigned long wolfSSL_ERR_get_error_line(const char** file, int* line)
+    {
+    #ifdef DEBUG_WOLFSSL
+        if (file != NULL) {
+            *file = (const char*)wc_last_error_file;
+        }
+
+        if (line != NULL) {
+            *line = (int)wc_last_error_line;
+
+        }
+
+        return wc_last_error;
+    #else
+        (void)file;
+        (void)line;
+
+        return 0;
+    #endif
+    }
+
+
+#ifdef DEBUG_WOLFSSL
+    static const char WOLFSSL_SYS_ACCEPT_T[]  = "accept";
+    static const char WOLFSSL_SYS_BIND_T[]    = "bind";
+    static const char WOLFSSL_SYS_CONNECT_T[] = "connect";
+    static const char WOLFSSL_SYS_FOPEN_T[]   = "fopen";
+    static const char WOLFSSL_SYS_FREAD_T[]   = "fread";
+    static const char WOLFSSL_SYS_GETADDRINFO_T[] = "getaddrinfo";
+    static const char WOLFSSL_SYS_GETSOCKOPT_T[]  = "getsockopt";
+    static const char WOLFSSL_SYS_GETSOCKNAME_T[] = "getsockname";
+    static const char WOLFSSL_SYS_GETHOSTBYNAME_T[] = "gethostbyname";
+    static const char WOLFSSL_SYS_GETNAMEINFO_T[]   = "getnameinfo";
+    static const char WOLFSSL_SYS_GETSERVBYNAME_T[] = "getservbyname";
+    static const char WOLFSSL_SYS_IOCTLSOCKET_T[]   = "ioctlsocket";
+    static const char WOLFSSL_SYS_LISTEN_T[]        = "listen";
+    static const char WOLFSSL_SYS_OPENDIR_T[]       = "opendir";
+    static const char WOLFSSL_SYS_SETSOCKOPT_T[]    = "setsockopt";
+    static const char WOLFSSL_SYS_SOCKET_T[]        = "socket";
+
+    /* switch with int mapped to function name for compatibility */
+    static const char* wolfSSL_ERR_sys_func(int fun)
+    {
+        switch (fun) {
+            case WOLFSSL_SYS_ACCEPT:      return WOLFSSL_SYS_ACCEPT_T;
+            case WOLFSSL_SYS_BIND:        return WOLFSSL_SYS_BIND_T;
+            case WOLFSSL_SYS_CONNECT:     return WOLFSSL_SYS_CONNECT_T;
+            case WOLFSSL_SYS_FOPEN:       return WOLFSSL_SYS_FOPEN_T;
+            case WOLFSSL_SYS_FREAD:       return WOLFSSL_SYS_FREAD_T;
+            case WOLFSSL_SYS_GETADDRINFO: return WOLFSSL_SYS_GETADDRINFO_T;
+            case WOLFSSL_SYS_GETSOCKOPT:  return WOLFSSL_SYS_GETSOCKOPT_T;
+            case WOLFSSL_SYS_GETSOCKNAME: return WOLFSSL_SYS_GETSOCKNAME_T;
+            case WOLFSSL_SYS_GETHOSTBYNAME: return WOLFSSL_SYS_GETHOSTBYNAME_T;
+            case WOLFSSL_SYS_GETNAMEINFO: return WOLFSSL_SYS_GETNAMEINFO_T;
+            case WOLFSSL_SYS_GETSERVBYNAME: return WOLFSSL_SYS_GETSERVBYNAME_T;
+            case WOLFSSL_SYS_IOCTLSOCKET: return WOLFSSL_SYS_IOCTLSOCKET_T;
+            case WOLFSSL_SYS_LISTEN:      return WOLFSSL_SYS_LISTEN_T;
+            case WOLFSSL_SYS_OPENDIR:     return WOLFSSL_SYS_OPENDIR_T;
+            case WOLFSSL_SYS_SETSOCKOPT:  return WOLFSSL_SYS_SETSOCKOPT_T;
+            case WOLFSSL_SYS_SOCKET:      return WOLFSSL_SYS_SOCKET_T;
+            default:
+                return "NULL";
+        }
+    }
+#endif /* DEBUG_WOLFSSL */
+
+
+    /* @TODO when having an error queue this needs to push to the queue */
+    void wolfSSL_ERR_put_error(int lib, int fun, int err, const char* file,
+            int line)
+    {
+        WOLFSSL_ENTER("wolfSSL_ERR_put_error");
+
+        #ifndef DEBUG_WOLFSSL
+        (void)fun;
+        (void)err;
+        (void)file;
+        (void)line;
+        WOLFSSL_MSG("Not compiled in debug mode");
+        #else
+        WOLFSSL_ERROR_LINE(err, wolfSSL_ERR_sys_func(fun), (unsigned int)line,
+            file, NULL);
+        #endif
+        (void)lib;
+    }
+
+
     unsigned long wolfSSL_ERR_get_error_line_data(const char** file, int* line,
                                                   const char** data, int *flags)
     {
@@ -14228,6 +14316,8 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
         (void)line;
         (void)data;
         (void)flags;
+        WOLFSSL_STUB("wolfSSL_ERR_get_error_line_data");
+
         return 0;
     }
 

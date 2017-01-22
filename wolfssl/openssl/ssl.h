@@ -429,6 +429,26 @@ typedef WOLFSSL_X509_STORE_CTX X509_STORE_CTX;
 #define SSL_CTX_set_psk_server_callback wolfSSL_CTX_set_psk_server_callback
 #define SSL_set_psk_server_callback wolfSSL_set_psk_server_callback
 
+/* system file ints for ERR_put_error */
+#define SYS_F_ACCEPT      WOLFSSL_SYS_ACCEPT
+#define SYS_F_BIND        WOLFSSL_SYS_BIND
+#define SYS_F_CONNECT     WOLFSSL_SYS_CONNECT
+#define SYS_F_FOPEN       WOLFSSL_SYS_FOPEN
+#define SYS_F_FREAD       WOLFSSL_SYS_FREAD
+#define SYS_F_GETADDRINFO WOLFSSL_SYS_GETADDRINFO
+#define SYS_F_GETSOCKOPT  WOLFSSL_SYS_GETSOCKOPT
+#define SYS_F_GETSOCKNAME WOLFSSL_SYS_GETSOCKNAME
+#define SYS_F_OPENDIR     WOLFSSL_SYS_OPENDIR
+#define SYS_F_SETSOCKOPT  WOLFSSL_SYS_SETSOCKOPT
+#define SYS_F_SOCKET      WOLFSSL_SYS_SOCKET
+#define SYS_F_GETHOSTBYNAME  WOLFSSL_SYS_GETHOSTBYNAME
+#define SYS_F_GETNAMEINFO    WOLFSSL_SYS_GETNAMEINFO
+#define SYS_F_GETSERVBYNAME  WOLFSSL_SYS_GETSERVBYNAME
+#define SYS_F_IOCTLSOCKET    WOLFSSL_SYS_IOCTLSOCKET
+#define SYS_F_LISTEN         WOLFSSL_SYS_LISTEN
+
+#define ERR_put_error           wolfSSL_ERR_put_error
+#define ERR_get_error_line      wolfSSL_ERR_get_error_line
 #define ERR_get_error_line_data wolfSSL_ERR_get_error_line_data
 
 #define ERR_get_error wolfSSL_ERR_get_error

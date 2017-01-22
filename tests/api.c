@@ -14814,6 +14814,52 @@ static void test_wolfSSL_pkcs8(void)
 }
 
 
+static void test_wolfSSL_ERR_put_error(void)
+{
+    #if defined(OPENSSL_EXTRA) && defined(DEBUG_WOLFSSL)
+    const char* file;
+    int line;
+
+    printf(testingFmt, "wolfSSL_ERR_put_error()");
+
+    ERR_put_error(0,SYS_F_ACCEPT, 0, "this file", 0);
+    AssertIntEQ(ERR_get_error_line(&file, &line), 0);
+    ERR_put_error(0,SYS_F_BIND, 1, "this file", 1);
+    AssertIntEQ(ERR_get_error_line(&file, &line), 1);
+    ERR_put_error(0,SYS_F_CONNECT, 2, "this file", 2);
+    AssertIntEQ(ERR_get_error_line(&file, &line), 2);
+    ERR_put_error(0,SYS_F_FOPEN, 3, "this file", 3);
+    AssertIntEQ(ERR_get_error_line(&file, &line), 3);
+    ERR_put_error(0,SYS_F_FREAD, 4, "this file", 4);
+    AssertIntEQ(ERR_get_error_line(&file, &line), 4);
+    ERR_put_error(0,SYS_F_GETADDRINFO, 5, "this file", 5);
+    AssertIntEQ(ERR_get_error_line(&file, &line), 5);
+    ERR_put_error(0,SYS_F_GETSOCKOPT, 6, "this file", 6);
+    AssertIntEQ(ERR_get_error_line(&file, &line), 6);
+    ERR_put_error(0,SYS_F_GETSOCKNAME, 7, "this file", 7);
+    AssertIntEQ(ERR_get_error_line(&file, &line), 7);
+    ERR_put_error(0,SYS_F_GETHOSTBYNAME, 8, "this file", 8);
+    AssertIntEQ(ERR_get_error_line(&file, &line), 8);
+    ERR_put_error(0,SYS_F_GETNAMEINFO, 9, "this file", 9);
+    AssertIntEQ(ERR_get_error_line(&file, &line), 9);
+    ERR_put_error(0,SYS_F_GETSERVBYNAME, 10, "this file", 10);
+    AssertIntEQ(ERR_get_error_line(&file, &line), 10);
+    ERR_put_error(0,SYS_F_IOCTLSOCKET, 11, "this file", 11);
+    AssertIntEQ(ERR_get_error_line(&file, &line), 11);
+    ERR_put_error(0,SYS_F_LISTEN, 12, "this file", 12);
+    AssertIntEQ(ERR_get_error_line(&file, &line), 12);
+    ERR_put_error(0,SYS_F_OPENDIR, 13, "this file", 13);
+    AssertIntEQ(ERR_get_error_line(&file, &line), 13);
+    ERR_put_error(0,SYS_F_SETSOCKOPT, 14, "this file", 14);
+    AssertIntEQ(ERR_get_error_line(&file, &line), 14);
+    ERR_put_error(0,SYS_F_SOCKET, 15, "this file", 15);
+    AssertIntEQ(ERR_get_error_line(&file, &line), 15);
+
+    printf(resultFmt, passed);
+    #endif
+}
+
+
 static void test_no_op_functions(void)
 {
     #if defined(OPENSSL_EXTRA)
@@ -15613,6 +15659,7 @@ void ApiTest(void)
     test_wolfSSL_CTX_set_srp_password();
     test_wolfSSL_pseudo_rand();
     test_wolfSSL_pkcs8();
+    test_wolfSSL_ERR_put_error();
 
     /* test the no op functions for compatibility */
     test_no_op_functions();

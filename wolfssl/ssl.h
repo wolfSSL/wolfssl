@@ -1274,6 +1274,9 @@ enum {
 
 #endif
 
+WOLFSSL_API void wolfSSL_ERR_put_error(int lib, int fun, int err,
+                                       const char* file, int line);
+WOLFSSL_API unsigned long wolfSSL_ERR_get_error_line(const char**, int*);
 WOLFSSL_API unsigned long wolfSSL_ERR_get_error_line_data(const char**, int*,
                                                  const char**, int *);
 
@@ -2332,6 +2335,25 @@ WOLFSSL_API char* wolfSSL_ASN1_TIME_to_string(WOLFSSL_ASN1_TIME* time,
 #endif /* WOLFSSL_MYSQL_COMPATIBLE */
 
 #ifdef OPENSSL_EXTRA
+
+enum {
+    WOLFSSL_SYS_ACCEPT = 0,
+    WOLFSSL_SYS_BIND,
+    WOLFSSL_SYS_CONNECT,
+    WOLFSSL_SYS_FOPEN,
+    WOLFSSL_SYS_FREAD,
+    WOLFSSL_SYS_GETADDRINFO,
+    WOLFSSL_SYS_GETSOCKOPT,
+    WOLFSSL_SYS_GETSOCKNAME,
+    WOLFSSL_SYS_GETHOSTBYNAME,
+    WOLFSSL_SYS_GETNAMEINFO,
+    WOLFSSL_SYS_GETSERVBYNAME,
+    WOLFSSL_SYS_IOCTLSOCKET,
+    WOLFSSL_SYS_LISTEN,
+    WOLFSSL_SYS_OPENDIR,
+    WOLFSSL_SYS_SETSOCKOPT,
+    WOLFSSL_SYS_SOCKET
+};
 
 /* Object functions */
 WOLFSSL_API const char *  wolfSSL_OBJ_nid2sn(int n);
