@@ -221,6 +221,7 @@
     #include <wolfssl/openssl/ec.h>
     #include <wolfssl/openssl/engine.h>
     #include <wolfssl/openssl/crypto.h>
+    #include <wolfssl/openssl/hmac.h>
 #ifndef NO_DES3
     #include <wolfssl/openssl/des.h>
 #endif
@@ -14860,6 +14861,35 @@ static void test_wolfSSL_ERR_put_error(void)
 }
 
 
+static void test_wolfSSL_HMAC(void)
+{
+    #if defined(OPENSSL_EXTRA) && !defined(NO_SHA256)
+    HMAC_CTX hmac;
+    ENGINE* e = NULL;
+    const unsigned char key[] = "simple test key";
+    unsigned char hash[MAX_DIGEST_SIZE];
+    unsigned int len;
+
+
+    printf(testingFmt, "wolfSSL_HMAC()");
+
+    HMAC_CTX_init(&hmac);
+    AssertIntEQ(HMAC_Init_ex(&hmac, (void*)key, (int)sizeof(key),
+                EVP_sha256(), e), SSL_SUCCESS);
+
+    /* re-using test key as data to hash */
+    AssertIntEQ(HMAC_Update(&hmac, key, (int)sizeof(key)), SSL_SUCCESS);
+    AssertIntEQ(HMAC_Update(&hmac, NULL, 0), SSL_SUCCESS);
+    AssertIntEQ(HMAC_Final(&hmac, hash, &len), SSL_SUCCESS);
+    AssertIntEQ(len, (int)SHA256_DIGEST_SIZE);
+
+    HMAC_cleanup(&hmac);
+
+    printf(resultFmt, passed);
+    #endif
+}
+
+
 static void test_no_op_functions(void)
 {
     #if defined(OPENSSL_EXTRA)
@@ -15660,6 +15690,7 @@ void ApiTest(void)
     test_wolfSSL_pseudo_rand();
     test_wolfSSL_pkcs8();
     test_wolfSSL_ERR_put_error();
+    test_wolfSSL_HMAC();
 
     /* test the no op functions for compatibility */
     test_no_op_functions();

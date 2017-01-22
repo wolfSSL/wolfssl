@@ -210,18 +210,6 @@ typedef struct  WOLFSSL_EVP_PKEY_CTX {
     int padding;
 } WOLFSSL_EVP_PKEY_CTX;
 
-struct WOLFSSL_EVP_PKEY {
-    int type;         /* openssh dereference */
-    int save_type;    /* openssh dereference */
-    int pkey_sz;
-    union {
-        char* ptr; /* der format of key / or raw for NTRU */
-    } pkey;
-    #ifdef HAVE_ECC
-        int pkey_curve;
-    #endif
-};
-
 typedef int WOLFSSL_ENGINE  ;
 typedef WOLFSSL_ENGINE ENGINE;
 typedef WOLFSSL_EVP_PKEY_CTX EVP_PKEY_CTX;

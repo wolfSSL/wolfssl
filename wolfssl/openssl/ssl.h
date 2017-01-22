@@ -127,6 +127,7 @@ typedef WOLFSSL_X509_STORE_CTX X509_STORE_CTX;
 #define d2i_PKCS8_PRIV_KEY_INFO_bio   wolfSSL_d2i_PKCS8_PKEY_bio
 #define PKCS8_PRIV_KEY_INFO_free      wolfSSL_EVP_PKEY_free
 
+#define d2i_PUBKEY_bio             wolfSSL_d2i_PUBKEY_bio
 #define d2i_PrivateKey             wolfSSL_d2i_PrivateKey
 #define SSL_use_PrivateKey         wolfSSL_use_PrivateKey
 #define SSL_use_PrivateKey_ASN1    wolfSSL_use_PrivateKey_ASN1
@@ -456,6 +457,7 @@ typedef WOLFSSL_X509_STORE_CTX X509_STORE_CTX;
 
 #define RAND_status wolfSSL_RAND_status
 #define RAND_bytes wolfSSL_RAND_bytes
+#define RAND_pseudo_bytes wolfSSL_RAND_pseudo_bytes
 #define SSLv23_server_method  wolfSSLv23_server_method
 #define SSL_CTX_set_options   wolfSSL_CTX_set_options
 #define SSL_CTX_get_options   wolfSSL_CTX_get_options

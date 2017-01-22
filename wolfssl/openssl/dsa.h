@@ -54,6 +54,11 @@ WOLFSSL_API WOLFSSL_DSA* wolfSSL_DSA_new(void);
 WOLFSSL_API void wolfSSL_DSA_free(WOLFSSL_DSA*);
 
 WOLFSSL_API int wolfSSL_DSA_generate_key(WOLFSSL_DSA*);
+
+typedef void (*WOLFSSL_BN_CB)(int i, int j, void* exArg);
+WOLFSSL_API WOLFSSL_DSA* wolfSSL_DSA_generate_parameters(int bits,
+                   unsigned char* seed, int seedLen, int* counterRet,
+                   unsigned long* hRet, WOLFSSL_BN_CB cb, void* CBArg);
 WOLFSSL_API int wolfSSL_DSA_generate_parameters_ex(WOLFSSL_DSA*, int bits,
                    unsigned char* seed, int seedLen, int* counterRet,
                    unsigned long* hRet, void* cb);
@@ -71,6 +76,7 @@ WOLFSSL_API int wolfSSL_DSA_do_verify(const unsigned char* d,
 #define DSA_free wolfSSL_DSA_free
 
 #define DSA_generate_key           wolfSSL_DSA_generate_key
+#define DSA_generate_parameters    wolfSSL_DSA_generate_parameters
 #define DSA_generate_parameters_ex wolfSSL_DSA_generate_parameters_ex
 
 

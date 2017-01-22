@@ -6881,6 +6881,91 @@ WOLFSSL_PKCS8_PRIV_KEY_INFO* wolfSSL_d2i_PKCS8_PKEY_bio(WOLFSSL_BIO* bio,
 }
 
 
+/* expecting DER format public key */
+WOLFSSL_EVP_PKEY* wolfSSL_d2i_PUBKEY_bio(WOLFSSL_BIO* bio,
+                                         WOLFSSL_EVP_PKEY** out)
+{
+    const unsigned char* mem;
+    int memSz;
+    WOLFSSL_EVP_PKEY* pkey = NULL;
+
+    WOLFSSL_ENTER("wolfSSL_d2i_PUBKEY_bio()");
+
+    if (bio == NULL) {
+        return NULL;
+    }
+    (void)out;
+
+    if ((memSz = wolfSSL_BIO_get_mem_data(bio, &mem)) < 0) {
+        return NULL;
+    }
+    if (mem == NULL) {
+        return NULL;
+    }
+
+    #if !defined(NO_RSA)
+    {
+        RsaKey rsa;
+        word32 keyIdx = 0;
+
+        /* test if RSA key */
+        if (wc_InitRsaKey(&rsa, NULL) == 0 &&
+            wc_RsaPublicKeyDecode(mem, &keyIdx, &rsa, memSz) == 0) {
+            wc_FreeRsaKey(&rsa);
+            pkey = wolfSSL_PKEY_new();
+            if (pkey != NULL) {
+                pkey->pkey_sz = keyIdx;
+                pkey->pkey.ptr = (char*)XMALLOC(memSz, NULL,
+                        DYNAMIC_TYPE_PUBLIC_KEY);
+                if (pkey->pkey.ptr == NULL) {
+                    wolfSSL_EVP_PKEY_free(pkey);
+                    return NULL;
+                }
+                XMEMCPY(pkey->pkey.ptr, mem, keyIdx);
+                pkey->type = RSAk;
+                if (out != NULL) {
+                    *out = pkey;
+                }
+                return pkey;
+            }
+        }
+        wc_FreeRsaKey(&rsa);
+    }
+    #endif /* NO_RSA */
+
+    #ifdef HAVE_ECC
+    {
+        word32  keyIdx = 0;
+        ecc_key ecc;
+
+        if (wc_ecc_init(&ecc) == 0 &&
+            wc_EccPublicKeyDecode(mem, &keyIdx, &ecc, memSz) == 0) {
+            wc_ecc_free(&ecc);
+            pkey = wolfSSL_PKEY_new();
+            if (pkey != NULL) {
+                pkey->pkey_sz = keyIdx;
+                pkey->pkey.ptr = (char*)XMALLOC(keyIdx, NULL,
+                        DYNAMIC_TYPE_PUBLIC_KEY);
+                if (pkey->pkey.ptr == NULL) {
+                    wolfSSL_EVP_PKEY_free(pkey);
+                    return NULL;
+                }
+                XMEMCPY(pkey->pkey.ptr, mem, keyIdx);
+                pkey->type = ECDSAk;
+                if (out != NULL) {
+                    *out = pkey;
+                }
+                return pkey;
+            }
+        }
+        wc_ecc_free(&ecc);
+    }
+    #endif /* HAVE_ECC */
+
+    return NULL;
+}
+
+
 WOLFSSL_EVP_PKEY* wolfSSL_d2i_PrivateKey(int type, WOLFSSL_EVP_PKEY** out,
         const unsigned char **in, long inSz)
 {
@@ -18879,6 +18964,12 @@ void wolfSSL_RAND_Cleanup(void)
 }
 
 
+int wolfSSL_RAND_pseudo_bytes(unsigned char* buf, int num)
+{
+    return wolfSSL_RAND_bytes(buf, num);
+}
+
+
 /* SSL_SUCCESS on ok */
 int wolfSSL_RAND_bytes(unsigned char* buf, int num)
 {
@@ -21122,6 +21213,31 @@ int wolfSSL_DSA_generate_key(WOLFSSL_DSA* dsa)
     return ret;
 }
 
+
+WOLFSSL_DSA* wolfSSL_DSA_generate_parameters(int bits, unsigned char* seed,
+        int seedLen, int* counterRet, unsigned long* hRet,
+        WOLFSSL_BN_CB cb, void* CBArg)
+{
+    WOLFSSL_DSA* dsa;
+
+    WOLFSSL_ENTER("wolfSSL_DSA_generate_parameters()");
+
+    (void)CBArg;
+    dsa = wolfSSL_DSA_new();
+    if (dsa == NULL) {
+        return NULL;
+    }
+
+    if (wolfSSL_DSA_generate_parameters_ex(dsa, bits, seed, seedLen,
+                                  counterRet, hRet, (void*)cb) != SSL_SUCCESS) {
+        wolfSSL_DSA_free(dsa);
+        return NULL;
+    }
+
+    return dsa;
+}
+
+
 /* return code compliant with OpenSSL :
  *   1 if success, 0 if error
  */
@@ -21191,7 +21307,7 @@ int wolfSSL_DSA_generate_parameters_ex(WOLFSSL_DSA* dsa, int bits,
 #endif
     }
 #else /* WOLFSSL_KEY_GEN */
-    WOLFSSL_MSG("No Key Gen built in");
+    WOLFSSL_MSG("No Key Gen built in, please enable keygen");
 #endif
 
     return ret;
@@ -21547,13 +21663,27 @@ int wolfSSL_RSA_GenAdd(WOLFSSL_RSA* rsa)
 }
 #endif /* NO_RSA */
 
-#ifdef WOLFSSL_SIGNAL
-int wolfSSL_HMAC_CTX_init(HMAC_CTX* ctx)
+int wolfSSL_HMAC_CTX_init(WOLFSSL_HMAC_CTX* ctx)
 {
     WOLFSSL_MSG("wolfSSL_HMAC_CTX_init");
-    (void) ctx;
+
+    if (ctx != NULL) {
+        /* wc_HmacSetKey sets up ctx->hmac */
+        XMEMSET(ctx, 0, sizeof(WOLFSSL_HMAC_CTX));
+    }
 
     return SSL_SUCCESS;
+}
+
+
+int wolfSSL_HMAC_Init_ex(WOLFSSL_HMAC_CTX* ctx, const void* key,
+                             int keylen, const EVP_MD* type, WOLFSSL_ENGINE* e)
+{
+    WOLFSSL_ENTER("wolfSSL_HMAC_Init_ex()");
+
+    /* WOLFSSL_ENGINE not used, call wolfSSL_HMAC_Init */
+    (void)e;
+    return wolfSSL_HMAC_Init(ctx, key, keylen, type);
 }
 
 
@@ -21609,14 +21739,6 @@ int wolfSSL_HMAC_Init(WOLFSSL_HMAC_CTX* ctx, const void* key, int keylen,
     }
 
     return SSL_SUCCESS;
-}
-
-
-int wolfSSL_HMAC_Init_ex(WOLFSSL_HMAC_CTX* ctx, const void* key, int len,
-                         const EVP_MD* md, void* impl)
-{
-    (void)impl;
-    return wolfSSL_HMAC_Init(ctx, key, len, md);
 }
 
 
@@ -21695,122 +21817,6 @@ int wolfSSL_HMAC_cleanup(WOLFSSL_HMAC_CTX* ctx)
     return SSL_SUCCESS;
 }
 
-#else /* WOLFSSL_SIGNAL */
-
-void wolfSSL_HMAC_CTX_init(HMAC_CTX* ctx)
-{
-    WOLFSSL_MSG("wolfSSL_HMAC_CTX_init");
-    (void) ctx;
-}
-
-
-void wolfSSL_HMAC_Init(WOLFSSL_HMAC_CTX* ctx, const void* key, int keylen,
-                  const EVP_MD* type)
-{
-    WOLFSSL_MSG("wolfSSL_HMAC_Init");
-
-    if (ctx == NULL) {
-        WOLFSSL_MSG("no ctx on init");
-        return;
-    }
-
-    if (type) {
-        WOLFSSL_MSG("init has type");
-
-        if (XSTRNCMP(type, "MD5", 3) == 0) {
-            WOLFSSL_MSG("md5 hmac");
-            ctx->type = WC_MD5;
-        }
-        else if (XSTRNCMP(type, "SHA256", 6) == 0) {
-            WOLFSSL_MSG("sha256 hmac");
-            ctx->type = WC_SHA256;
-        }
-
-        /* has to be last since would pick or 256, 384, or 512 too */
-        else if (XSTRNCMP(type, "SHA", 3) == 0) {
-            WOLFSSL_MSG("sha hmac");
-            ctx->type = WC_SHA;
-        }
-        else {
-            WOLFSSL_MSG("bad init type");
-        }
-    }
-
-    if (key && keylen) {
-        WOLFSSL_MSG("keying hmac");
-
-        if (wc_HmacInit(&ctx->hmac, NULL, INVALID_DEVID) == 0) {
-            wc_HmacSetKey(&ctx->hmac, ctx->type, (const byte*)key,
-                                                        (word32)keylen);
-        }
-        /* OpenSSL compat, no error */
-    }
-}
-
-
-void wolfSSL_HMAC_Init_ex(WOLFSSL_HMAC_CTX* ctx, const void* key, int len,
-                         const EVP_MD* md, void* impl)
-{
-    (void)impl;
-    wolfSSL_HMAC_Init(ctx, key, len, md);
-}
-
-
-void wolfSSL_HMAC_Update(WOLFSSL_HMAC_CTX* ctx, const unsigned char* data,
-                    int len)
-{
-    WOLFSSL_MSG("wolfSSL_HMAC_Update");
-
-    if (ctx && data) {
-        WOLFSSL_MSG("updating hmac");
-        wc_HmacUpdate(&ctx->hmac, data, (word32)len);
-        /* OpenSSL compat, no error */
-    }
-}
-
-
-void wolfSSL_HMAC_Final(WOLFSSL_HMAC_CTX* ctx, unsigned char* hash,
-                   unsigned int* len)
-{
-    WOLFSSL_MSG("wolfSSL_HMAC_Final");
-
-    if (ctx && hash) {
-        WOLFSSL_MSG("final hmac");
-        wc_HmacFinal(&ctx->hmac, hash);
-        /* OpenSSL compat, no error */
-
-        if (len) {
-            WOLFSSL_MSG("setting output len");
-            switch (ctx->type) {
-                case WC_MD5:
-                    *len = WC_MD5_DIGEST_SIZE;
-                    break;
-
-                case WC_SHA:
-                    *len = WC_SHA_DIGEST_SIZE;
-                    break;
-
-                case WC_SHA256:
-                    *len = WC_SHA256_DIGEST_SIZE;
-                    break;
-
-                default:
-                    WOLFSSL_MSG("bad hmac type");
-            }
-        }
-    }
-}
-
-
-void wolfSSL_HMAC_cleanup(WOLFSSL_HMAC_CTX* ctx)
-{
-    WOLFSSL_MSG("wolfSSL_HMAC_cleanup");
-
-    if (ctx)
-        wc_HmacFree(&ctx->hmac);
-}
-
-#endif /* WOLFSSL_SIGNAL */
 
 const WOLFSSL_EVP_MD* wolfSSL_EVP_get_digestbynid(int id)
 {
@@ -25969,7 +25975,9 @@ int wolfSSL_RAND_set_rand_method(const void *meth)
     WOLFSSL_ENTER("wolfSSL_RAND_set_rand_method");
     WOLFSSL_STUB("wolfSSL_RAND_set_rand_method");
 
-    return WOLFSSL_FAILURE;
+    /* if implemented RAND_bytes and RAND_pseudo_bytes need updated
+     * those two functions will call the respective functions from meth */
+    return SSL_FAILURE;
 }
 
 
