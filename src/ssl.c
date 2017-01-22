@@ -24962,6 +24962,19 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
         return wolfSSL_PEM_read_bio_X509(bp, x, cb, u);
     }
 
+    WOLFSSL_X509_NAME_ENTRY* wolfSSL_X509_NAME_ENTRY_create_by_NID(
+            WOLFSSL_X509_NAME_ENTRY** out, const char* field, int type,
+            const unsigned char* data, int dataSz)
+    {
+        (void)out;
+        (void)field;
+        (void)type;
+        (void)data;
+        (void)dataSz;
+        WOLFSSL_STUB("wolfSSL_X509_NAME_ENTRY_create_by_NID()");
+        return NULL;
+    }
+
 
     /* Copies entry into name. With it being copied freeing entry becomes the
      * callers responsibility.

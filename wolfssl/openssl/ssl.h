@@ -321,6 +321,7 @@ typedef WOLFSSL_X509_STORE_CTX X509_STORE_CTX;
 #define X509_STORE_CTX_get_error wolfSSL_X509_STORE_CTX_get_error
 #define X509_STORE_CTX_get_error_depth wolfSSL_X509_STORE_CTX_get_error_depth
 
+#define X509_NAME_ENTRY_create_by_NID wolfSSL_X509_NAME_ENTRY_create_by_NID
 #define X509_NAME_add_entry           wolfSSL_X509_NAME_add_entry
 #define X509_NAME_oneline             wolfSSL_X509_NAME_oneline
 #define X509_get_issuer_name          wolfSSL_X509_get_issuer_name
@@ -559,7 +560,9 @@ typedef WOLFSSL_X509_NAME_ENTRY X509_NAME_ENTRY;
 
 #define PEM_read_bio_DHparams wolfSSL_PEM_read_bio_DHparams
 #define PEM_read_bio_DSAparams wolfSSL_PEM_read_bio_DSAparams
-#define PEM_write_bio_X509 wolfSSL_PEM_write_bio_X509
+#define PEM_write_bio_X509_REQ wolfSSL_PEM_write_bio_X509_REQ
+#define PEM_write_bio_X509_AUX wolfSSL_PEM_write_bio_X509_AUX
+#define PEM_write_bio_X509     wolfSSL_PEM_write_bio_X509
 
 
 #ifdef WOLFSSL_HAPROXY

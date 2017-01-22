@@ -2382,6 +2382,9 @@ WOLFSSL_API long wolfSSL_ctrl(WOLFSSL* ssl, int cmd, long opt, void* pt);
 WOLFSSL_API long wolfSSL_CTX_ctrl(WOLFSSL_CTX* ctx, int cmd, long opt,void* pt);
 
 #ifndef NO_CERTS
+WOLFSSL_X509_NAME_ENTRY* wolfSSL_X509_NAME_ENTRY_create_by_NID(
+            WOLFSSL_X509_NAME_ENTRY** out, const char* field, int type,
+            const unsigned char* data, int dataSz);
 WOLFSSL_API int wolfSSL_X509_NAME_add_entry(WOLFSSL_X509_NAME* name,
                               WOLFSSL_X509_NAME_ENTRY* entry, int idx, int set);
 WOLFSSL_API int wolfSSL_check_private_key(const WOLFSSL* ssl);
@@ -2488,6 +2491,8 @@ WOLFSSL_API WOLFSSL_DH *wolfSSL_PEM_read_bio_DHparams(WOLFSSL_BIO *bp,
     WOLFSSL_DH **x, pem_password_cb *cb, void *u);
 WOLFSSL_API WOLFSSL_DSA *wolfSSL_PEM_read_bio_DSAparams(WOLFSSL_BIO *bp,
     WOLFSSL_DSA **x, pem_password_cb *cb, void *u);
+WOLFSSL_API int wolfSSL_PEM_write_bio_X509_REQ(WOLFSSL_BIO *bp,WOLFSSL_X509 *x);
+WOLFSSL_API int wolfSSL_PEM_write_bio_X509_AUX(WOLFSSL_BIO *bp,WOLFSSL_X509 *x);
 WOLFSSL_API int wolfSSL_PEM_write_bio_X509(WOLFSSL_BIO *bp, WOLFSSL_X509 *x);
 
 #endif /* HAVE_STUNNEL || HAVE_LIGHTY */
