@@ -178,6 +178,10 @@ enum Misc_ASN {
     #endif
                                    /* Max total extensions, id + len + others */
 #endif
+#if defined(WOLFSSL_CERT_EXT) || defined(OPENSSL_EXTRA)
+    MAX_OID_SZ          = 32,      /* Max DER length of OID*/
+    MAX_OID_STRING_SZ   = 64,      /* Max string length representation of OID*/
+#endif
 #ifdef WOLFSSL_CERT_EXT
     MAX_KID_SZ			= 45,	   /* Max encoded KID length (SHA-256 case) */
     MAX_KEYUSAGE_SZ     = 18,      /* Max encoded Key Usage length */
@@ -650,10 +654,12 @@ struct DecodedCert {
     SignatureCtx sigCtx;
 };
 
-
+#define WOLFSSL_MAX_SNAME 40
 struct WOLFSSL_ASN1_OBJECT {
     void*  heap;
     byte*  obj;
+    /* sName is short name i.e sha256 rather than oid (null terminated) */
+    char   sName[WOLFSSL_MAX_SNAME];
     int    type; /* oid */
     word32 objSz;
     byte   dynamic; /* if 1 then obj was dynamiclly created, 0 otherwise */
@@ -753,9 +759,11 @@ WOLFSSL_ASN_API void InitDecodedCert(DecodedCert*, byte*, word32, void*);
 WOLFSSL_ASN_API void FreeDecodedCert(DecodedCert*);
 WOLFSSL_ASN_API int  ParseCert(DecodedCert*, int type, int verify, void* cm);
 
+WOLFSSL_LOCAL int DecodePolicyOID(char *o, word32 oSz, byte *in, word32 inSz);
 WOLFSSL_LOCAL int ParseCertRelative(DecodedCert*,int type,int verify,void* cm);
 WOLFSSL_LOCAL int DecodeToKey(DecodedCert*, int verify);
 
+WOLFSSL_LOCAL const byte* OidFromId(word32 id, word32 type, word32* oidSz);
 WOLFSSL_LOCAL Signer* MakeSigner(void*);
 WOLFSSL_LOCAL void    FreeSigner(Signer*, void*);
 WOLFSSL_LOCAL void    FreeSignerTable(Signer**, int, void*);

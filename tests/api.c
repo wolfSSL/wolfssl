@@ -222,6 +222,7 @@
     #include <wolfssl/openssl/engine.h>
     #include <wolfssl/openssl/crypto.h>
     #include <wolfssl/openssl/hmac.h>
+    #include <wolfssl/openssl/objects.h>
 #ifndef NO_DES3
     #include <wolfssl/openssl/des.h>
 #endif
@@ -14890,6 +14891,30 @@ static void test_wolfSSL_HMAC(void)
 }
 
 
+static void test_wolfSSL_OBJ(void)
+{
+    #if defined(OPENSSL_EXTRA) && !defined(NO_SHA256)
+    ASN1_OBJECT* obj = NULL;
+    char buf[50];
+
+    printf(testingFmt, "wolfSSL_OBJ()");
+
+    AssertIntEQ(OBJ_obj2txt(buf, (int)sizeof(buf), obj, 1), SSL_FAILURE);
+    AssertNotNull(obj = OBJ_nid2obj(NID_any_policy));
+    AssertIntEQ(OBJ_obj2txt(buf, (int)sizeof(buf), obj, 1), 11);
+    AssertIntGT(OBJ_obj2txt(buf, (int)sizeof(buf), obj, 0), 0);
+    ASN1_OBJECT_free(obj);
+
+    AssertNotNull(obj = OBJ_nid2obj(NID_sha256));
+    AssertIntEQ(OBJ_obj2txt(buf, (int)sizeof(buf), obj, 1), 22);
+    AssertIntGT(OBJ_obj2txt(buf, (int)sizeof(buf), obj, 0), 0);
+    ASN1_OBJECT_free(obj);
+
+    printf(resultFmt, passed);
+    #endif
+}
+
+
 static void test_no_op_functions(void)
 {
     #if defined(OPENSSL_EXTRA)
@@ -14901,6 +14926,7 @@ static void test_no_op_functions(void)
     OpenSSL_add_all_ciphers();
     CRYPTO_malloc_init();
 
+    wolfSSL_OBJ_nid2obj(1);
     printf(resultFmt, passed);
     #endif
 }
@@ -15691,6 +15717,7 @@ void ApiTest(void)
     test_wolfSSL_pkcs8();
     test_wolfSSL_ERR_put_error();
     test_wolfSSL_HMAC();
+    test_wolfSSL_OBJ();
 
     /* test the no op functions for compatibility */
     test_no_op_functions();

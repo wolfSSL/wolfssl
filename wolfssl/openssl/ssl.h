@@ -558,6 +558,20 @@ typedef WOLFSSL_X509_NAME_ENTRY X509_NAME_ENTRY;
 
 #define NID_commonName 0x03 /* matchs ASN_COMMON_NAME in asn.h */
 
+/* NIDs */
+enum {
+    NID_des    = 66,
+    NID_des3   = 67,
+    NID_sha256 = 672,
+    NID_sha384 = 673,
+    NID_sha512 = 674,
+    NID_hw_name_oid = 73,
+    NID_id_pkix_OCSP_basic = 74,
+    NID_any_policy = 75,
+    NID_anyExtendedKeyUsage = 76,
+};
+
+
 #define PEM_read_bio_DHparams wolfSSL_PEM_read_bio_DHparams
 #define PEM_read_bio_DSAparams wolfSSL_PEM_read_bio_DSAparams
 #define PEM_write_bio_X509_REQ wolfSSL_PEM_write_bio_X509_REQ

@@ -849,7 +849,7 @@ static const byte pbeSha1Des[] = {42, 134, 72, 134, 247, 13, 1, 5, 10};
 static const byte pbeSha1RC4128[] = {42, 134, 72, 134, 247, 13, 1, 12, 1, 1};
 static const byte pbeSha1Des3[] = {42, 134, 72, 134, 247, 13, 1, 12, 1, 3};
 
-static const byte* OidFromId(word32 id, word32 type, word32* oidSz)
+const byte* OidFromId(word32 id, word32 type, word32* oidSz)
 {
     const byte* oid = NULL;
 
@@ -2484,7 +2484,7 @@ int ToTraditionalEnc(byte* input, word32 sz,const char* password,int passwordSz)
         ERROR_OUT(ASN_PARSE_E, exit_tte);
     }
 
-    if (GetAlgoId(input, &inOutIdx, &oid, oidSigType, sz) < 0) {
+    if (GetAlgoId(input, &inOutIdx, &oid, oidIgnoreType, sz) < 0) {
         ERROR_OUT(ASN_PARSE_E, exit_tte);
     }
 
@@ -2767,7 +2767,7 @@ int DecryptContent(byte* input, word32 sz,const char* password,int passwordSz)
     byte   cbcIv[MAX_IV_SIZE];
 #endif
 
-    if (GetAlgoId(input, &inOutIdx, &oid, oidSigType, sz) < 0) {
+    if (GetAlgoId(input, &inOutIdx, &oid, oidIgnoreType, sz) < 0) {
         ERROR_OUT(ASN_PARSE_E, exit_dc);
     }
 
@@ -5762,8 +5762,7 @@ static int DecodeNameConstraints(byte* input, int sz, DecodedCert* cert)
 }
 #endif /* IGNORE_NAME_CONSTRAINTS */
 
-
-#if defined(WOLFSSL_CERT_EXT) && !defined(WOLFSSL_SEP)
+#if (defined(WOLFSSL_CERT_EXT) && !defined(WOLFSSL_SEP)) || defined(OPENSSL_EXTRA)
 
 static int Word32ToString(char* d, word32 number)
 {
@@ -5799,7 +5798,7 @@ static int Word32ToString(char* d, word32 number)
 
 /* Decode ITU-T X.690 OID format to a string representation
  * return string length */
-static int DecodePolicyOID(char *out, word32 outSz, byte *in, word32 inSz)
+int DecodePolicyOID(char *out, word32 outSz, byte *in, word32 inSz)
 {
     word32 val, idx = 0, nb_bytes;
     size_t w_bytes = 0;
@@ -5846,7 +5845,7 @@ static int DecodePolicyOID(char *out, word32 outSz, byte *in, word32 inSz)
         w_bytes += Word32ToString(out+w_bytes, val);
     }
 
-    return 0;
+    return (int)w_bytes;
 }
 #endif /* WOLFSSL_CERT_EXT && !WOLFSSL_SEP */
 
@@ -5908,8 +5907,8 @@ static int DecodePolicyOID(char *out, word32 outSz, byte *in, word32 inSz)
                 break;
         #elif defined(WOLFSSL_CERT_EXT)
                 /* decode cert policy */
-                if (DecodePolicyOID(cert->extCertPolicies[cert->extCertPoliciesNb],
-                                    MAX_CERTPOL_SZ, input + idx, length) != 0) {
+                if (DecodePolicyOID(cert->extCertPolicies[cert->extCertPoliciesNb], MAX_CERTPOL_SZ,
+                                    input + idx, length) <= 0) {
                     WOLFSSL_MSG("\tCouldn't decode CertPolicy");
                     return ASN_PARSE_E;
                 }

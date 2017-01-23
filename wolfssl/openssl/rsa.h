@@ -35,13 +35,6 @@
 #define RSA_PKCS1_PADDING      WC_RSA_PKCSV15_PAD
 #define RSA_PKCS1_OAEP_PADDING WC_RSA_OAEP_PAD
 
-/* rsaTypes */
-enum {
-    NID_sha256 = 672,
-    NID_sha384 = 673,
-    NID_sha512 = 674
-};
-
 #ifndef WOLFSSL_RSA_TYPE_DEFINED /* guard on redeclaration */
 typedef struct WOLFSSL_RSA            WOLFSSL_RSA;
 #define WOLFSSL_RSA_TYPE_DEFINED

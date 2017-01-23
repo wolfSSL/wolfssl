@@ -154,6 +154,7 @@ enum {
     EVP_PKEY_EC       = 18,
     IDEA_CBC_TYPE     = 19,
     NID_sha1          = 64,
+    NID_sha224        = 65,
     NID_md2           = 3,
     NID_md5           =  4,
     NID_hmac          = 855,

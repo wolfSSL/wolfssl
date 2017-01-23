@@ -38,6 +38,7 @@
 #define OBJ_nid2obj wolfSSL_OBJ_nid2obj
 #define OBJ_obj2txt wolfSSL_OBJ_obj2txt
 #define OBJ_cleanup wolfSSL_OBJ_cleanup
+#define ASN1_OBJECT_free wolfSSL_ASN1_OBJECT_free
 
 
 #ifdef __cplusplus

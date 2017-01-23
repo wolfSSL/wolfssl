@@ -14315,7 +14315,6 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
 
         if (line != NULL) {
             *line = (int)wc_last_error_line;
-
         }
 
         return wc_last_error;
@@ -24989,18 +24988,494 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
         WOLFSSL_STUB("wolfSSL_X509_NAME_add_entry");
         return SSL_FAILURE;
     }
+
+    void wolfSSL_X509_NAME_free(WOLFSSL_X509_NAME* name)
+    {
+        WOLFSSL_ENTER("wolfSSL_X509_NAME_free");
+        FreeX509Name(name, NULL);
+        XFREE(name, NULL, DYNAMIC_TYPE_X509);
+    }
     #endif /* ifndef NO_CERTS */
 
-    #ifndef NO_CERTS
-    void wolfSSL_X509_NAME_free(WOLFSSL_X509_NAME *name){
-        FreeX509Name(name, NULL);
-        WOLFSSL_ENTER("wolfSSL_X509_NAME_free");
-    }
-    #endif /* NO_CERTS */
 
-#if defined(HAVE_LIGHTY)  || defined(WOLFSSL_MYSQL_COMPATIBLE) || \
-    defined(HAVE_STUNNEL) || defined(WOLFSSL_NGINX) || \
-    defined(HAVE_POCO_LIB) || defined (WOLFSSL_HAPROXY)
+    /* NID variables are dependent on compatibility header files currently */
+    WOLFSSL_ASN1_OBJECT* wolfSSL_OBJ_nid2obj(int id)
+    {
+        word32 oidSz = 0;
+        const byte* oid;
+        word32 type = 0;
+        WOLFSSL_ASN1_OBJECT* obj;
+        byte objBuf[MAX_OID_SZ + MAX_LENGTH_SZ + 1]; /* +1 for object tag */
+        word32 objSz = 0;
+        const char* sName;
+
+        WOLFSSL_ENTER("wolfSSL_OBJ_nid2obj()");
+
+        /* get OID type */
+        switch (id) {
+            /* oidHashType */
+        #ifdef WOLFSSL_MD2
+            case NID_md2:
+                id = MD2h;
+                type = oidHashType;
+                sName = "md2";
+                break;
+        #endif
+        #ifndef NO_MD5
+            case NID_md5:
+                id = MD5h;
+                type = oidHashType;
+                sName = "md5";
+                break;
+        #endif
+        #ifndef NO_SHA
+            case NID_sha1:
+                id = SHAh;
+                type = oidHashType;
+                sName = "sha";
+                break;
+        #endif
+            case NID_sha224:
+                id = SHA224h;
+                type = oidHashType;
+                sName = "sha224";
+                break;
+        #ifndef NO_SHA256
+            case NID_sha256:
+                id = SHA256h;
+                type = oidHashType;
+                sName = "sha256";
+                break;
+        #endif
+        #ifdef WOLFSSL_SHA384
+            case NID_sha384:
+                id = SHA384h;
+                type = oidHashType;
+                sName = "sha384";
+                break;
+        #endif
+        #ifdef WOLFSSL_SHA512
+            case NID_sha512:
+                id = SHA512h;
+                type = oidHashType;
+                sName = "sha512";
+                break;
+        #endif
+
+            /*  oidSigType */
+        #ifndef NO_DSA
+            case CTC_SHAwDSA:
+                sName = "shaWithDSA";
+                type = oidSigType;
+                break;
+
+        #endif /* NO_DSA */
+        #ifndef NO_RSA
+            case CTC_MD2wRSA:
+                sName = "md2WithRSA";
+                type = oidSigType;
+                break;
+
+            case CTC_MD5wRSA:
+                sName = "md5WithRSA";
+                type = oidSigType;
+                break;
+
+            case CTC_SHAwRSA:
+                sName = "shaWithRSA";
+                type = oidSigType;
+                break;
+
+            case CTC_SHA224wRSA:
+                sName = "sha224WithRSA";
+                type = oidSigType;
+                break;
+
+            case CTC_SHA256wRSA:
+                sName = "sha256WithRSA";
+                type = oidSigType;
+                break;
+
+            case CTC_SHA384wRSA:
+                sName = "sha384WithRSA";
+                type = oidSigType;
+                break;
+
+            case CTC_SHA512wRSA:
+                sName = "sha512WithRSA";
+                type = oidSigType;
+                break;
+
+        #endif /* NO_RSA */
+        #ifdef HAVE_ECC
+            case CTC_SHAwECDSA:
+                sName = "shaWithECDSA";
+                type = oidSigType;
+                break;
+
+            case CTC_SHA224wECDSA:
+                sName = "sha224WithECDSA";
+                type = oidSigType;
+                break;
+
+            case CTC_SHA256wECDSA:
+                sName = "sha256WithECDSA";
+                type = oidSigType;
+                break;
+
+            case CTC_SHA384wECDSA:
+                sName = "sha384WithECDSA";
+                type = oidSigType;
+                break;
+
+            case CTC_SHA512wECDSA:
+                sName = "sha512WithECDSA";
+                type = oidSigType;
+                break;
+        #endif /* HAVE_ECC */
+
+            /* oidKeyType */
+        #ifndef NO_DSA
+            case DSAk:
+                sName = "DSA key";
+                type = oidKeyType;
+                break;
+        #endif /* NO_DSA */
+        #ifndef NO_RSA
+            case RSAk:
+                sName = "RSA key";
+                type = oidKeyType;
+                break;
+        #endif /* NO_RSA */
+        #ifdef HAVE_NTRU
+            case NTRUk:
+                sName = "NTRU key";
+                type = oidKeyType;
+                break;
+        #endif /* HAVE_NTRU */
+        #ifdef HAVE_ECC
+            case ECDSAk:
+                sName = "ECDSA key";
+                type = oidKeyType;
+                break;
+        #endif /* HAVE_ECC */
+
+            /* oidBlkType */
+            case AES128CBCb:
+                sName = "AES-128-CBC";
+                type = oidBlkType;
+                break;
+
+            case AES192CBCb:
+                sName = "AES-192-CBC";
+                type = oidBlkType;
+                break;
+
+            case AES256CBCb:
+                sName = "AES-256-CBC";
+                type = oidBlkType;
+                break;
+
+            case NID_des:
+                id = DESb;
+                sName = "DES-CBC";
+                type = oidBlkType;
+                break;
+
+            case NID_des3:
+                id = DES3b;
+                sName = "DES3-CBC";
+                type = oidBlkType;
+                break;
+
+        #ifdef HAVE_OCSP
+            case NID_id_pkix_OCSP_basic:
+                id = OCSP_BASIC_OID;
+                sName = "OCSP_basic";
+                type = oidOcspType;
+                break;
+
+            case OCSP_NONCE_OID:
+                sName = "OCSP_nonce";
+                type = oidOcspType;
+                break;
+        #endif /* HAVE_OCSP */
+
+            /* oidCertExtType */
+            case BASIC_CA_OID:
+                sName = "X509 basic ca";
+                type = oidCertExtType;
+                break;
+
+            case ALT_NAMES_OID:
+                sName = "X509 alt names";
+                type = oidCertExtType;
+                break;
+
+            case CRL_DIST_OID:
+                sName = "X509 crl";
+                type = oidCertExtType;
+                break;
+
+            case AUTH_INFO_OID:
+                sName = "X509 auth info";
+                type = oidCertExtType;
+                break;
+
+            case AUTH_KEY_OID:
+                sName = "X509 auth key";
+                type = oidCertExtType;
+                break;
+
+            case SUBJ_KEY_OID:
+                sName = "X509 subject key";
+                type = oidCertExtType;
+                break;
+
+            case KEY_USAGE_OID:
+                sName = "X509 key usage";
+                type = oidCertExtType;
+                break;
+
+            case INHIBIT_ANY_OID:
+                id = INHIBIT_ANY_OID;
+                sName = "X509 inhibit any";
+                type = oidCertExtType;
+                break;
+
+            case NID_ext_key_usage:
+                id = KEY_USAGE_OID;
+                sName = "X509 ext key usage";
+                type = oidCertExtType;
+                break;
+
+            case NID_name_constraints:
+                id = NAME_CONS_OID;
+                sName = "X509 name constraints";
+                type = oidCertExtType;
+                break;
+
+            case NID_certificate_policies:
+                id = CERT_POLICY_OID;
+                sName = "X509 certificate policies";
+                type = oidCertExtType;
+                break;
+
+            /* oidCertAuthInfoType */
+            case AIA_OCSP_OID:
+                sName = "Cert Auth OCSP";
+                type = oidCertAuthInfoType;
+                break;
+
+            case AIA_CA_ISSUER_OID:
+                sName = "Cert Auth CA Issuer";
+                type = oidCertAuthInfoType;
+                break;
+
+            /* oidCertPolicyType */
+            case NID_any_policy:
+                id = CP_ANY_OID;
+                sName = "Cert any policy";
+                type = oidCertPolicyType;
+                break;
+
+                /* oidCertAltNameType */
+            case NID_hw_name_oid:
+                id = HW_NAME_OID;
+                sName = "Hardware name";
+                type = oidCertAltNameType;
+                break;
+
+            /* oidCertKeyUseType */
+            case NID_anyExtendedKeyUsage:
+                id = EKU_ANY_OID;
+                sName = "Cert any extended key";
+                type = oidCertKeyUseType;
+                break;
+
+            case EKU_SERVER_AUTH_OID:
+                sName = "Cert server auth key";
+                type = oidCertKeyUseType;
+                break;
+
+            case EKU_CLIENT_AUTH_OID:
+                sName = "Cert client auth key";
+                type = oidCertKeyUseType;
+                break;
+
+            case EKU_OCSP_SIGN_OID:
+                sName = "Cert OCSP sign key";
+                type = oidCertKeyUseType;
+                break;
+
+            /* oidKdfType */
+            case PBKDF2_OID:
+                sName = "PBKDFv2";
+                type = oidKdfType;
+                break;
+
+                /* oidPBEType */
+            case PBE_SHA1_RC4_128:
+                sName = "PBE shaWithRC4-128";
+                type = oidPBEType;
+                break;
+
+            case PBE_SHA1_DES:
+                sName = "PBE shaWithDES";
+                type = oidPBEType;
+                break;
+
+            case PBE_SHA1_DES3:
+                sName = "PBE shaWithDES3";
+                type = oidPBEType;
+                break;
+
+                /* oidKeyWrapType */
+            case AES128_WRAP:
+                sName = "AES-128 wrap";
+                type = oidKeyWrapType;
+                break;
+
+            case AES192_WRAP:
+                sName = "AES-192 wrap";
+                type = oidKeyWrapType;
+                break;
+
+            case AES256_WRAP:
+                sName = "AES-256 wrap";
+                type = oidKeyWrapType;
+                break;
+
+                /* oidCmsKeyAgreeType */
+            case dhSinglePass_stdDH_sha1kdf_scheme:
+                sName = "DH-SHA kdf";
+                type = oidCmsKeyAgreeType;
+                break;
+
+            case dhSinglePass_stdDH_sha224kdf_scheme:
+                sName = "DH-SHA224 kdf";
+                type = oidCmsKeyAgreeType;
+                break;
+
+            case dhSinglePass_stdDH_sha256kdf_scheme:
+                sName = "DH-SHA256 kdf";
+                type = oidCmsKeyAgreeType;
+                break;
+
+            case dhSinglePass_stdDH_sha384kdf_scheme:
+                sName = "DH-SHA384 kdf";
+                type = oidCmsKeyAgreeType;
+                break;
+
+            case dhSinglePass_stdDH_sha512kdf_scheme:
+                sName = "DH-SHA512 kdf";
+                type = oidCmsKeyAgreeType;
+                break;
+
+            default:
+                WOLFSSL_MSG("NID not in table");
+                return NULL;
+        }
+
+    #ifdef HAVE_ECC
+         if (type == 0 && wc_ecc_get_oid(id, &oid, &oidSz) > 0) {
+             type = oidCurveType;
+         }
+    #endif /* HAVE_ECC */
+
+        if (XSTRLEN(sName) > WOLFSSL_MAX_SNAME - 1) {
+            WOLFSSL_MSG("Attempted short name is too large");
+            return NULL;
+        }
+
+        oid = OidFromId(id, type, &oidSz);
+
+        /* set object ID to buffer */
+        obj = wolfSSL_ASN1_OBJECT_new();
+        if (obj == NULL) {
+            WOLFSSL_MSG("Issue creating WOLFSSL_ASN1_OBJECT struct");
+            return NULL;
+        }
+        obj->type    = id;
+        obj->dynamic = 1;
+        XMEMCPY(obj->sName, (char*)sName, XSTRLEN((char*)sName));
+
+        objBuf[0] = ASN_OBJECT_ID; objSz++;
+        objSz += SetLength(oidSz, objBuf + 1);
+        XMEMCPY(objBuf + objSz, oid, oidSz);
+        objSz     += oidSz;
+        obj->objSz = objSz;
+
+        obj->obj = (byte*)XMALLOC(obj->objSz, NULL, DYNAMIC_TYPE_ASN1);
+        if (obj->obj == NULL) {
+            wolfSSL_ASN1_OBJECT_free(obj);
+            return NULL;
+        }
+        XMEMCPY(obj->obj, objBuf, obj->objSz);
+
+        (void)type;
+
+        return obj;
+    }
+
+
+    /* if no_name is one than use numerical form otherwise can be short name. */
+    int wolfSSL_OBJ_obj2txt(char *buf, int bufLen, WOLFSSL_ASN1_OBJECT *a, int no_name)
+    {
+        int bufSz;
+
+        WOLFSSL_ENTER("wolfSSL_OBJ_obj2txt()");
+
+        if (buf == NULL || bufLen <= 1 || a == NULL) {
+            WOLFSSL_MSG("Bad input argument");
+            return SSL_FAILURE;
+        }
+
+        if (no_name == 1) {
+            int    length;
+            word32 idx = 0;
+
+            if (a->obj[idx++] != ASN_OBJECT_ID) {
+                WOLFSSL_MSG("Bad ASN1 Object");
+                return SSL_FAILURE;
+            }
+
+            if (GetLength((const byte*)a->obj, &idx, &length,
+                           a->objSz) < 0 || length < 0) {
+                return ASN_PARSE_E;
+            }
+
+            if (bufLen < MAX_OID_STRING_SZ) {
+                bufSz = bufLen - 1;
+            }
+            else {
+                bufSz = MAX_OID_STRING_SZ;
+            }
+
+            if ((bufSz = DecodePolicyOID(buf, (word32)bufSz, a->obj + idx,
+                        (word32)length)) <= 0) {
+                WOLFSSL_MSG("Error decoding OID");
+                return SSL_FAILURE;
+            }
+
+        }
+        else { /* return short name */
+            if (XSTRLEN(a->sName) + 1 < (word32)bufLen - 1) {
+                bufSz = (int)XSTRLEN(a->sName);
+            }
+            else {
+                bufSz = bufLen - 1;
+            }
+            XMEMCPY(buf, a->sName, bufSz);
+        }
+
+        buf[bufSz] = '\0';
+        return bufSz;
+    }
+
+#if defined(HAVE_LIGHTY) || defined(WOLFSSL_MYSQL_COMPATIBLE) || \
+    defined(HAVE_STUNNEL) || defined(WOLFSSL_NGINX) || defined(HAVE_POCO_LIB) \
+    || defined(WOLFSSL_HAPROXY)
 
     unsigned char *wolfSSL_SHA1(const unsigned char *d, size_t n, unsigned char *md)
     {
@@ -25123,27 +25598,6 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
         return 0;
     }
 
-    WOLFSSL_ASN1_OBJECT* wolfSSL_OBJ_nid2obj(int n)
-    {
-        (void)n;
-
-        WOLFSSL_STUB("wolfSSL_OBJ_nid2obj");
-
-        return NULL;
-    }
-
-    int wolfSSL_OBJ_obj2txt(char *buf, int buf_len, WOLFSSL_ASN1_OBJECT *a, int no_name)
-    {
-        (void)buf;
-        (void)buf_len;
-        (void)a;
-        (void)no_name;
-
-        WOLFSSL_STUB("wolfSSL_OBJ_obj2txt");
-
-        return 0;
-    }
-
     char * wolfSSL_OBJ_nid2ln(int n)
     {
         (void)n;
@@ -25161,9 +25615,13 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
         return 0;
     }
 
+
+    /* compatibility function. It's intended use is to remove OID's from an
+     * internal table that have been added with OBJ_create. wolfSSL manages it's
+     * own interenal OID values and does not currently support OBJ_create. */
     void wolfSSL_OBJ_cleanup(void)
     {
-        WOLFSSL_STUB("wolfSSL_OBJ_cleanup");
+        WOLFSSL_ENTER("wolfSSL_OBJ_cleanup()");
     }
 
 
