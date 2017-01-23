@@ -3785,9 +3785,9 @@ int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
 
        /* compute u1*mG + u2*mQ = mG */
        if (err == MP_OKAY)
-           err = wc_ecc_mulmod(&u1, mG, mG, curve->Af, curve->prime, 0);
+           err = wc_ecc_mulmod_ex(&u1, mG, mG, curve->Af, curve->prime, 0, key->heap);
        if (err == MP_OKAY)
-           err = wc_ecc_mulmod(&u2, mQ, mQ, curve->Af, curve->prime, 0);
+           err = wc_ecc_mulmod_ex(&u2, mQ, mQ, curve->Af, curve->prime, 0, key->heap);
 
        /* find the montgomery mp */
        if (err == MP_OKAY)
