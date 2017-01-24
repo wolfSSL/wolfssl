@@ -82,7 +82,7 @@ found_free_port=0
 while [ "$counter" -lt 20 ]; do
     echo -e "\nTrying to start openssl server on port $openssl_port...\n"
 
-    openssl s_server -accept $openssl_port -cert ./certs/server-cert.pem -key ./certs/server-key.pem  -quiet -CAfile ./certs/client-ca.pem -www  -dhparam ./certs/dh2048.pem -dcert ./certs/server-ecc.pem -dkey ./certs/ecc-key.pem -verify 10 -verify_return_error -cipher "ALL:eNULL" &
+    openssl s_server -accept $openssl_port -cert ./certs/server-cert.pem -key ./certs/server-key.pem  -quiet -CAfile ./certs/client-ca.pem -www  -dhparam ./certs/dh2048.pem -dcert ./certs/server-ecc.pem -dkey ./certs/ecc-key.pem -verify 10 -verify_return_error -psk 1a2b3c4d -cipher "ALL:eNULL" &
     server_pid=$!
     # wait to see if s_server successfully starts before continuing
     sleep 0.1
@@ -215,12 +215,19 @@ do
             continue
         fi
 
+        # check for psk suite and turn on client psk if so
+        psk = ""
+        case $wolfSuite in
+        *PSK*)
+            psk="-s " ;;
+        esac
+
         if [ $version -lt 4 ]
         then
-            ./examples/client/client -p $openssl_port -g -r -l $wolfSuite -v $version
+            ./examples/client/client -p $openssl_port -g -r -l $wolfSuite -v $version $psk
         else
             # do all versions
-            ./examples/client/client -p $openssl_port -g -r -l $wolfSuite
+            ./examples/client/client -p $openssl_port -g -r -l $wolfSuite $psk
         fi
 
         client_result=$?
