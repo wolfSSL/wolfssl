@@ -195,6 +195,7 @@ struct WOLFSSL_ASN1_TIME {
 
 typedef char   WOLFSSL_EVP_MD;
 typedef struct WOLFSSL_EVP_PKEY {
+    void* heap;
     int type;         /* openssh dereference */
     int save_type;    /* openssh dereference */
     int pkey_sz;
@@ -202,6 +203,10 @@ typedef struct WOLFSSL_EVP_PKEY {
         char* ptr; /* der format of key / or raw for NTRU */
     } pkey;
     #ifdef OPENSSL_EXTRA
+    #ifndef NO_RSA
+        WOLFSSL_RSA* rsa;
+        byte      ownRsa; /* if struct owns RSA and should free it */
+    #endif
     WC_RNG rng;
     #endif
     #ifdef HAVE_ECC
@@ -839,6 +844,7 @@ WOLFSSL_API WOLFSSL_EVP_PKEY* wolfSSL_d2i_PUBKEY_bio(WOLFSSL_BIO* bio,
                                          WOLFSSL_EVP_PKEY** out);
 WOLFSSL_API WOLFSSL_EVP_PKEY* wolfSSL_d2i_PrivateKey(int type,
         WOLFSSL_EVP_PKEY** out, const unsigned char **in, long inSz);
+WOLFSSL_API WOLFSSL_EVP_PKEY* wolfSSL_PKEY_new_ex(void* heap);
 WOLFSSL_API WOLFSSL_EVP_PKEY* wolfSSL_PKEY_new(void);
 WOLFSSL_API void      wolfSSL_EVP_PKEY_free(WOLFSSL_EVP_PKEY*);
 WOLFSSL_API int       wolfSSL_X509_cmp_current_time(const WOLFSSL_ASN1_TIME*);

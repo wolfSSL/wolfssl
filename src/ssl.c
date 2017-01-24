@@ -16892,9 +16892,7 @@ int wolfSSL_PKCS12_parse(WC_PKCS12* pkcs12, const char* psw,
     /* get key type */
     ret = BAD_STATE_E;
     if (pk != NULL) { /* decode key if present */
-        /* using dynamic type public key because of wolfSSL_EVP_PKEY_free */
-        *pkey = (WOLFSSL_EVP_PKEY*)XMALLOC(sizeof(WOLFSSL_EVP_PKEY),
-                                               heap, DYNAMIC_TYPE_PUBLIC_KEY);
+        *pkey = wolfSSL_PKEY_new_ex(heap);
         if (*pkey == NULL) {
             wolfSSL_X509_free(*cert); *cert = NULL;
             if (ca != NULL) {
@@ -16914,8 +16912,33 @@ int wolfSSL_PKCS12_parse(WC_PKCS12* pkcs12, const char* psw,
             else {
                 if ((ret = wc_RsaPrivateKeyDecode(pk, &keyIdx, &key, pkSz))
                                                                          == 0) {
-                    (*pkey)->type = RSAk;
+                    (*pkey)->type = EVP_PKEY_RSA;
+                    (*pkey)->rsa  = wolfSSL_RSA_new();
+                    (*pkey)->ownRsa = 1; /* we own RSA */
+                    if ((*pkey)->rsa == NULL) {
+                        WOLFSSL_MSG("issue creating EVP RSA key");
+                        wolfSSL_X509_free(*cert); *cert = NULL;
+                        if (ca != NULL) {
+                            wolfSSL_sk_X509_free(*ca); *ca = NULL;
+                        }
+                        wolfSSL_EVP_PKEY_free(*pkey); *pkey = NULL;
+                        XFREE(pk, heap, DYNAMIC_TYPE_PKCS);
+                        return SSL_FAILURE;
+                    }
+                    if ((ret = wolfSSL_RSA_LoadDer_ex((*pkey)->rsa, pk, pkSz,
+                                    WOLFSSL_RSA_LOAD_PRIVATE)) != SSL_SUCCESS) {
+                        WOLFSSL_MSG("issue loading RSA key");
+                        wolfSSL_X509_free(*cert); *cert = NULL;
+                        if (ca != NULL) {
+                            wolfSSL_sk_X509_free(*ca); *ca = NULL;
+                        }
+                        wolfSSL_EVP_PKEY_free(*pkey); *pkey = NULL;
+                        XFREE(pk, heap, DYNAMIC_TYPE_PKCS);
+                        return SSL_FAILURE;
+                    }
+
                     WOLFSSL_MSG("Found PKCS12 RSA key");
+                    ret = 0; /* set in success state for upcoming ECC check */
                 }
                 wc_FreeRsaKey(&key);
             }
@@ -16933,8 +16956,8 @@ int wolfSSL_PKCS12_parse(WC_PKCS12* pkcs12, const char* psw,
                     if (ca != NULL) {
                         wolfSSL_sk_X509_free(*ca); *ca = NULL;
                     }
-                    XFREE(*pkey, heap, DYNAMIC_TYPE_PUBLIC_KEY); *pkey = NULL;
-                    XFREE(pk, heap, DYNAMIC_TYPE_PUBLIC_KEY);
+                    wolfSSL_EVP_PKEY_free(*pkey); *pkey = NULL;
+                    XFREE(pk, heap, DYNAMIC_TYPE_PKCS);
                     return 0;
                 }
 
@@ -16944,8 +16967,8 @@ int wolfSSL_PKCS12_parse(WC_PKCS12* pkcs12, const char* psw,
                     if (ca != NULL) {
                         wolfSSL_sk_X509_free(*ca); *ca = NULL;
                     }
-                    XFREE(*pkey, heap, DYNAMIC_TYPE_PUBLIC_KEY); *pkey = NULL;
-                    XFREE(pk, heap, DYNAMIC_TYPE_PUBLIC_KEY);
+                    wolfSSL_EVP_PKEY_free(*pkey); *pkey = NULL;
+                    XFREE(pk, heap, DYNAMIC_TYPE_PKCS);
                     WOLFSSL_MSG("Bad PKCS12 key format");
                     return 0;
                 }
@@ -16961,8 +16984,8 @@ int wolfSSL_PKCS12_parse(WC_PKCS12* pkcs12, const char* psw,
             if (ca != NULL) {
                 wolfSSL_sk_X509_free(*ca); *ca = NULL;
             }
-            XFREE(*pkey, heap, DYNAMIC_TYPE_PUBLIC_KEY); *pkey = NULL;
-            XFREE(pk, heap, DYNAMIC_TYPE_PUBLIC_KEY);
+            wolfSSL_EVP_PKEY_free(*pkey); *pkey = NULL;
+            XFREE(pk, heap, DYNAMIC_TYPE_PKCS);
             WOLFSSL_MSG("Bad PKCS12 key format");
             return 0;
         }
@@ -17256,24 +17279,32 @@ void wolfSSL_X509_OBJECT_free_contents(WOLFSSL_X509_OBJECT* obj)
 }
 
 
-WOLFSSL_EVP_PKEY* wolfSSL_PKEY_new()
+WOLFSSL_EVP_PKEY* wolfSSL_PKEY_new(){
+    return wolfSSL_PKEY_new_ex(NULL);
+}
+
+
+WOLFSSL_EVP_PKEY* wolfSSL_PKEY_new_ex(void* heap)
 {
     WOLFSSL_EVP_PKEY* pkey;
     int ret;
     WOLFSSL_ENTER("wolfSSL_PKEY_new");
-    pkey = (WOLFSSL_EVP_PKEY*)XMALLOC(sizeof(WOLFSSL_EVP_PKEY), NULL,
+    pkey = (WOLFSSL_EVP_PKEY*)XMALLOC(sizeof(WOLFSSL_EVP_PKEY), heap,
             DYNAMIC_TYPE_PUBLIC_KEY);
     if (pkey != NULL) {
         XMEMSET(pkey, 0, sizeof(WOLFSSL_EVP_PKEY));
+        pkey->heap = heap;
         pkey->type = WOLFSSL_EVP_PKEY_DEFAULT;
-        pkey->pkey.ptr = (char*)wolfSSL_RSA_new();
-        ret = wc_InitRng(&(pkey->rng));
-        if((pkey->pkey.ptr == NULL) || (ret != 0)){
-            XFREE(pkey, NULL, DYNAMIC_TYPE_PUBLIC_KEY);
+        ret = wc_InitRng_ex(&(pkey->rng), heap);
+        if (ret != 0){
+            wolfSSL_EVP_PKEY_free(pkey);
             WOLFSSL_MSG("memory falure");
             return NULL;
         }
-    } else WOLFSSL_MSG("memory failure");
+    }
+    else {
+        WOLFSSL_MSG("memory failure");
+    }
 
     return pkey;
 }
@@ -17283,18 +17314,23 @@ void wolfSSL_EVP_PKEY_free(WOLFSSL_EVP_PKEY* key)
 {
     WOLFSSL_ENTER("wolfSSL_PKEY_free");
     if (key != NULL) {
+        wc_FreeRng(&(key->rng));
         if (key->pkey.ptr != NULL)
         {
-            switch(key->type)
-            {
-            case EVP_PKEY_RSA:
-                /*do nothing */
-                break;
-            default:
-                break;
-            }
+            XFREE(key->pkey.ptr, pkey->heap, DYNAMIC_TYPE_PUBLIC_KEY);
         }
-        XFREE(key, NULL, DYNAMIC_TYPE_PUBLIC_KEY);
+        switch(key->type)
+        {
+            case EVP_PKEY_RSA:
+                if (key->rsa != NULL && key->ownRsa == 1) {
+                    wolfSSL_RSA_free(key->rsa);
+                }
+                break;
+
+            default:
+            break;
+        }
+        XFREE(key, pkey->heap, DYNAMIC_TYPE_PUBLIC_KEY);
     }
 }
 
@@ -21608,28 +21644,37 @@ WOLFSSL_API int wolfSSL_RSA_verify(int type, const unsigned char* m,
     sigDec = (unsigned char *)XMALLOC(sigLen, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if(sigRet == NULL){
         WOLFSSL_MSG("Memory failure");
+        XFREE(sigRet, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         return 0;
     }
     /* get non-encrypted signature to be compared with decrypted sugnature*/
     ret = wolfSSL_RSA_sign_ex(type, m, mLen, sigRet, &len, rsa, 0);
     if(ret <= 0){
-         WOLFSSL_MSG("Message Digest Error");
-         return 0;
+        WOLFSSL_MSG("Message Digest Error");
+        XFREE(sigRet, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(sigDec, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        return 0;
     }
     show("Encoded Message", sigRet, len);
     /* decrypt signature */
     ret = wc_RsaSSL_Verify(sig, sigLen, (unsigned char *)sigDec, sigLen, (RsaKey*)rsa->internal);
     if(ret <= 0){
         WOLFSSL_MSG("RSA Decrypt error");
+        XFREE(sigRet, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(sigDec, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         return 0;
     }
     show("Decrypted Signature", sigDec, ret);
 
     if(XMEMCMP(sigRet, sigDec, ret) == 0){
         WOLFSSL_MSG("wolfSSL_RSA_verify success");
+        XFREE(sigRet, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(sigDec, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         return 1;
     } else {
         WOLFSSL_MSG("wolfSSL_RSA_verify failed");
+        XFREE(sigRet, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(sigDec, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         return 0;
     }
 }
@@ -21905,13 +21950,24 @@ WOLFSSL_RSA* wolfSSL_EVP_PKEY_get1_RSA(WOLFSSL_EVP_PKEY* key)
     return NULL;
 }
 
+
+/* with set1 functions the pkey struct does not own the RSA structure */
 WOLFSSL_API int wolfSSL_EVP_PKEY_set1_RSA(WOLFSSL_EVP_PKEY *pkey, WOLFSSL_RSA *key)
 {
     if((pkey == NULL) || (key ==NULL))return 0;
     WOLFSSL_ENTER("wolfSSL_EVP_PKEY_set1_RSA");
-    pkey->pkey.ptr = (char *)key;
+    if (pkey->rsa != NULL && pkey->ownRsa == 1) {
+        wolfSSL_RSA_free(pkey->rsa);
+    }
+    pkey->rsa    = key;
+    pkey->ownRsa = 0; /* pkey does not own RSA */
     pkey->type = EVP_PKEY_RSA;
-    ((RsaKey *)pkey->pkey.ptr)->rng = &(pkey->rng);
+#ifdef WC_RSA_BLINDING
+    if (wc_RsaSetRNG((RsaKey*)(pkey->rsa->internal), &(pkey->rng)) != 0) {
+        WOLFSSL_MSG("Error setting RSA rng");
+        return SSL_FAILURE;
+    }
+#endif
     return 1;
 }
 
@@ -24326,10 +24382,12 @@ int wolfSSL_RSA_LoadDer_ex(WOLFSSL_RSA* rsa, const unsigned char* derBuf,
         ret = wc_RsaPublicKeyDecode(derBuf, &idx, (RsaKey*)rsa->internal, derSz);
 
     if (ret < 0) {
-        if(opt == WOLFSSL_RSA_LOAD_PRIVATE)
+        if(opt == WOLFSSL_RSA_LOAD_PRIVATE) {
              WOLFSSL_MSG("RsaPrivateKeyDecode failed");
-        else
+        }
+        else {
              WOLFSSL_MSG("RsaPublicKeyDecode failed");
+        }
         return SSL_FATAL_ERROR;
     }
 

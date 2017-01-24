@@ -43,6 +43,7 @@ typedef struct WOLFSSL_RSA            WOLFSSL_RSA;
 typedef WOLFSSL_RSA                   RSA;
 
 struct WOLFSSL_RSA {
+    void* heap;
 	WOLFSSL_BIGNUM* n;
 	WOLFSSL_BIGNUM* e;
 	WOLFSSL_BIGNUM* d;

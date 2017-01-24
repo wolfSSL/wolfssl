@@ -14806,6 +14806,7 @@ static void test_wolfSSL_pkcs8(void)
     /* file from wolfssl/certs/ directory */
     AssertNotNull(f = fopen("./certs/ecc-keyPkcs8.pem", "rb"));
     AssertIntGT((bytes = (int)fread(buffer, 1, sizeof(buffer), f)), 0);
+    fclose(f);
     AssertNotNull(bio = BIO_new_mem_buf((void*)buffer, bytes));
     AssertNotNull(pt = d2i_PKCS8_PRIV_KEY_INFO_bio(bio, NULL));
     BIO_free(bio);
@@ -14926,7 +14927,6 @@ static void test_no_op_functions(void)
     OpenSSL_add_all_ciphers();
     CRYPTO_malloc_init();
 
-    wolfSSL_OBJ_nid2obj(1);
     printf(resultFmt, passed);
     #endif
 }

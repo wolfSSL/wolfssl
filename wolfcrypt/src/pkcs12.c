@@ -490,10 +490,6 @@ static int wc_PKCS12_create_mac(WC_PKCS12* pkcs12, byte* data, word32 dataSz,
 
     mac = pkcs12->signData;
 
-#ifdef WOLFSSL_DEBUG_PKCS12
-    printf("Verifying MAC with OID = %d\n", mac->oid);
-#endif
-
     /* unicode set up from asn.c */
     if ((pswSz * 2 + 2) > (int)sizeof(unicodePasswd)) {
         WOLFSSL_MSG("PKCS12 max unicode size too small");
@@ -1908,6 +1904,7 @@ WC_PKCS12* wc_PKCS12_create(char* pass, word32 passSz, char* name,
             wc_FreeRng(&rng);
             return NULL;
         }
+        XMEMSET(mac, 0, sizeof(MacData));
         pkcs12->signData = mac; /* now wc_PKCS12_free will free all mac too */
 
         #ifndef NO_SHA256
@@ -1918,7 +1915,7 @@ WC_PKCS12* wc_PKCS12_create(char* pass, word32 passSz, char* name,
             mac->oid = SHA384;
         #elif defined(WOLFSSL_SHA512)
             mac->oid = SHA512;
-        #elif
+        #else
             WOLFSSL_MSG("No supported hash algorithm compiled in!");
             wc_PKCS12_free(pkcs12);
             wc_FreeRng(&rng);
@@ -1964,6 +1961,9 @@ WC_PKCS12* wc_PKCS12_create(char* pass, word32 passSz, char* name,
             return NULL;
         }
         XMEMCPY(mac->digest, digest, mac->digestSz);
+    }
+    else {
+        pkcs12->signData = NULL;
     }
 
     wc_FreeRng(&rng);

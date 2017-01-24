@@ -598,6 +598,7 @@ WOLFSSL_API int wolfSSL_EVP_PKEY_CTX_free(WOLFSSL_EVP_PKEY_CTX *ctx)
 {
     if (ctx == NULL)return 0;
     WOLFSSL_ENTER("EVP_PKEY_CTX_free");
+    XFREE(ctx, NULL, DYNAMIC_TYPE_PUBLIC_KEY);
     return 1;
 }
 
@@ -636,7 +637,7 @@ WOLFSSL_API int wolfSSL_EVP_PKEY_decrypt(WOLFSSL_EVP_PKEY_CTX *ctx,
     switch(ctx->pkey->type){
     case EVP_PKEY_RSA:
         *outlen = wolfSSL_RSA_private_decrypt((int)inlen, (unsigned char*)in, out,
-              (WOLFSSL_RSA*)ctx->pkey->pkey.ptr, ctx->padding);
+              ctx->pkey->rsa, ctx->padding);
         if(*outlen > 0)
             return 1;
         else
@@ -679,7 +680,7 @@ WOLFSSL_API int wolfSSL_EVP_PKEY_encrypt(WOLFSSL_EVP_PKEY_CTX *ctx,
     switch(ctx->pkey->type){
     case EVP_PKEY_RSA:
         *outlen = wolfSSL_RSA_public_encrypt((int)inlen, (unsigned char *)in, out,
-                  (WOLFSSL_RSA*)ctx->pkey->pkey.ptr, ctx->padding);
+                  ctx->pkey->rsa, ctx->padding);
         return (int)*outlen;
 
     case EVP_PKEY_EC:
@@ -726,7 +727,7 @@ WOLFSSL_API int wolfSSL_EVP_PKEY_size(WOLFSSL_EVP_PKEY *pkey)
 
     switch(pkey->type){
     case EVP_PKEY_RSA:
-        return (int)wolfSSL_RSA_size((const WOLFSSL_RSA*)(pkey->pkey.ptr));
+        return (int)wolfSSL_RSA_size((const WOLFSSL_RSA*)(pkey->rsa));
 
     case EVP_PKEY_EC:
          WOLFSSL_MSG("not implemented");
@@ -779,7 +780,7 @@ WOLFSSL_API int wolfSSL_EVP_SignFinal(WOLFSSL_EVP_MD_CTX *ctx, unsigned char *si
         int nid = md2nid(ctx->macType);
         if(nid < 0)return 0;
         return wolfSSL_RSA_sign(nid, md, mdsize, sigret,
-                                siglen, (WOLFSSL_RSA*)(pkey->pkey.ptr));
+                                siglen, pkey->rsa);
         }
     case EVP_PKEY_DSA:
     case EVP_PKEY_EC:
@@ -823,7 +824,7 @@ WOLFSSL_API int wolfSSL_EVP_VerifyFinal(WOLFSSL_EVP_MD_CTX *ctx,
         int nid = md2nid(ctx->macType);
         if(nid < 0)return 0;
         return wolfSSL_RSA_verify(nid, md, mdsize, sig,
-                (unsigned int)siglen, (WOLFSSL_RSA*)(pkey->pkey.ptr));
+                (unsigned int)siglen, pkey->rsa);
     }
     case EVP_PKEY_DSA:
     case EVP_PKEY_EC:

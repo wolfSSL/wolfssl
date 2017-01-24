@@ -2253,6 +2253,9 @@ int wc_GetKeyOID(byte* key, word32 keySz, const byte** curveOID, word32* oidSz,
         return BAD_FUNC_ARG;
     }
 
+    (void)curveOID;
+    (void)oidSz;
+
     return 1;
 }
 
@@ -2270,7 +2273,7 @@ int UnTraditionalEnc(byte* key, word32 keySz, byte* out, word32* outSz,
 {
     int algoID = 0;
     byte*  tmp;
-    word32 tmpSz;
+    word32 tmpSz = 0;
     word32 sz;
     word32 seqSz;
     word32 inOutIdx = 0;
@@ -2413,6 +2416,7 @@ int UnTraditionalEnc(byte* key, word32 keySz, byte* out, word32* outSz,
         #endif
         return ret;
     }
+    tmpSz = ret;
 
 #ifdef WOLFSSL_SMALL_STACK
     cbcIv = (byte*)XMALLOC(MAX_IV_SIZE, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -2696,13 +2700,19 @@ int EncryptContent(byte* input, word32 inputSz, byte* out, word32* outSz,
 
         if ((ret = wc_RNG_GenerateBlock(rng, saltTmp, saltSz)) != 0) {
             WOLFSSL_MSG("Error generating random salt");
+            #ifdef WOLFSSL_SMALL_STACK
             XFREE(saltTmp, heap, DYNAMIC_TYPE_TMP_BUFFER);
+            #endif
             return ret;
         }
     }
 
-    if (tmpIdx + MAX_LENGTH_SZ + saltSz + MAX_SHORT_SZ > *outSz)
+    if (tmpIdx + MAX_LENGTH_SZ + saltSz + MAX_SHORT_SZ > *outSz) {
+        #ifdef WOLFSSL_SMALL_STACK
+        XFREE(saltTmp, heap, DYNAMIC_TYPE_TMP_BUFFER);
+        #endif
         return BUFFER_E;
+    }
 
     sz = SetLength(saltSz, out + tmpIdx);
     tmpIdx += sz;
@@ -2726,9 +2736,9 @@ int EncryptContent(byte* input, word32 inputSz, byte* out, word32* outSz,
     inOutIdx += sz; totalSz += sz;
 
 #ifdef WOLFSSL_SMALL_STACK
-    cbcIv = (byte*)XMALLOC(MAX_IV_SIZE, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    cbcIv = (byte*)XMALLOC(MAX_IV_SIZE, heap, DYNAMIC_TYPE_TMP_BUFFER);
     if (cbcIv == NULL) {
-        XFREE(salt,  NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(saltTmp, heap, DYNAMIC_TYPE_TMP_BUFFER);
         return MEMORY_E;
     }
 #endif
@@ -2736,8 +2746,17 @@ int EncryptContent(byte* input, word32 inputSz, byte* out, word32* outSz,
     if ((ret = CryptKey(password, passwordSz, salt, saltSz, itt, id,
                    input, inputSz, version, cbcIv, 1)) < 0) {
 
+    #ifdef WOLFSSL_SMALL_STACK
+        XFREE(cbcIv,   heap, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(saltTmp, heap, DYNAMIC_TYPE_TMP_BUFFER);
+    #endif
         return ret;  /* encrypt failure */
     }
+
+#ifdef WOLFSSL_SMALL_STACK
+    XFREE(cbcIv,   heap, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(saltTmp, heap, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
 
     if (inOutIdx + 1 + MAX_LENGTH_SZ + inputSz > *outSz)
         return BUFFER_E;
