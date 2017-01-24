@@ -48,7 +48,6 @@
 #include <wolfssl/wolfcrypt/des3.h>
 #include <wolfssl/wolfcrypt/arc4.h>
 #include <wolfssl/wolfcrypt/hmac.h>
-#include <wolfssl/wolfcrypt/random.h>
 #ifdef HAVE_IDEA
     #include <wolfssl/wolfcrypt/idea.h>
 #endif

@@ -12904,7 +12904,6 @@ static WOLFSSL_EVP_MD *wolfSSL_EVP_get_md(const unsigned char type)
     WOLFSSL_ENTER("EVP_get_md");
     for( ent = md_tbl; ; ent++){
         if(type == ent->macType) {
-            printf("ent->name=%s\n", ent->name);
             return (WOLFSSL_EVP_MD *)ent->name;
         }
     }
@@ -21431,10 +21430,32 @@ int wolfSSL_DSA_do_verify(const unsigned char* d, unsigned char* sig,
 
 
 #ifndef NO_RSA
+
+#ifdef DEBUG_SIGN
+static void show(const char *title, const unsigned char *out, unsigned int outlen)
+{
+    const unsigned char *pt;
+    printf("%s[%d] = \n", title, (int)outlen);
+    outlen = outlen>100?100:outlen;
+    for (pt = out; pt < out + outlen;
+            printf("%c", ((*pt)&0x6f)>='A'?((*pt)&0x6f):'.'), pt++);
+    printf("\n");
+}
+#else
+#define show(a,b,c)
+#endif
+
 /* return SSL_SUCCES on ok, 0 otherwise */
 int wolfSSL_RSA_sign(int type, const unsigned char* m,
                            unsigned int mLen, unsigned char* sigRet,
                            unsigned int* sigLen, WOLFSSL_RSA* rsa)
+{
+    return wolfSSL_RSA_sign_ex(type, m, mLen, sigRet, sigLen, rsa, 1);
+}
+
+int wolfSSL_RSA_sign_ex(int type, const unsigned char* m,
+                           unsigned int mLen, unsigned char* sigRet,
+                           unsigned int* sigLen, WOLFSSL_RSA* rsa, int flag)
 {
     word32  outLen;
     word32  signSz;
@@ -21455,6 +21476,7 @@ int wolfSSL_RSA_sign(int type, const unsigned char* m,
         WOLFSSL_MSG("Bad function arguments");
         return 0;
     }
+    show("Message to Sign", m, mLen);
 
     switch (type) {
     #ifdef WOLFSSL_MD2
@@ -21527,15 +21549,21 @@ int wolfSSL_RSA_sign(int type, const unsigned char* m,
             WOLFSSL_MSG("Bad Encode Signature");
         }
         else {
-            ret = wc_RsaSSL_Sign(encodedSig, signSz, sigRet, outLen,
-                                  (RsaKey*)rsa->internal, rng);
-            if (ret <= 0) {
-                WOLFSSL_MSG("Bad Rsa Sign");
-                ret = 0;
-            }
-            else {
-                ret = WOLFSSL_SUCCESS;
-                *sigLen = ret;
+            show("Encoded Message", encodedSig, signSz);
+            if(flag != 0){
+                ret = wc_RsaSSL_Sign(encodedSig, signSz, sigRet, outLen,
+                                (RsaKey*)rsa->internal, rng);
+                if (ret <= 0)
+                    WOLFSSL_MSG("Bad Rsa Sign");
+                else {
+                    *sigLen = (unsigned int)ret;
+                    ret = SSL_SUCCESS;
+                    show("Signature", sigRet, *sigLen);
+                }
+            } else {
+                ret = SSL_SUCCESS;
+                XMEMCPY(sigRet, encodedSig, signSz);
+                *sigLen = signSz;
             }
         }
 
@@ -21561,10 +21589,10 @@ WOLFSSL_API int wolfSSL_RSA_verify(int type, const unsigned char* m,
                                unsigned int mLen, const unsigned char* sig,
                                unsigned int sigLen, WOLFSSL_RSA* rsa)
 {
-    (void)  type;
-    (void) mLen;
     int     ret;
     unsigned char *sigRet ;
+    unsigned char *sigDec ;
+    unsigned int   len;
 
     WOLFSSL_ENTER("wolfSSL_RSA_verify");
     if((m == NULL) || (sig == NULL)) {
@@ -21577,16 +21605,27 @@ WOLFSSL_API int wolfSSL_RSA_verify(int type, const unsigned char* m,
         WOLFSSL_MSG("Memory failure");
         return 0;
     }
-
-    //ret = wolfSSL_RSA_sign(type, m, mLen, sigRet, &len, rsa);
-    ret = wc_RsaSSL_Verify(sigRet, 0, (unsigned char *)sig, sigLen, (RsaKey*)rsa->internal);
-    //ret = wolfSSL_RSA_public_decrypt(sigLen, sig, sigRet, rsa, rsa->padding)
+    sigDec = (unsigned char *)XMALLOC(sigLen, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if(sigRet == NULL){
+        WOLFSSL_MSG("Memory failure");
+        return 0;
+    }
+    /* get non-encrypted signature to be compared with decrypted sugnature*/
+    ret = wolfSSL_RSA_sign_ex(type, m, mLen, sigRet, &len, rsa, 0);
+    if(ret <= 0){
+         WOLFSSL_MSG("Message Digest Error");
+         return 0;
+    }
+    show("Encoded Message", sigRet, len);
+    /* decrypt signature */
+    ret = wc_RsaSSL_Verify(sig, sigLen, (unsigned char *)sigDec, sigLen, (RsaKey*)rsa->internal);
     if(ret <= 0){
         WOLFSSL_MSG("RSA Decrypt error");
         return 0;
     }
+    show("Decrypted Signature", sigDec, ret);
 
-    if(XMEMCMP(sig, sigRet, sigLen) == 0){
+    if(XMEMCMP(sigRet, sigDec, ret) == 0){
         WOLFSSL_MSG("wolfSSL_RSA_verify success");
         return 1;
     } else {

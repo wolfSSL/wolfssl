@@ -271,6 +271,7 @@ int  openssl_test(void);   /* test mini api */
 int  openssl_pkey_test(void);
 int  openssl_pkey0_test(void);
 int  openSSL_evpMD_test(void);
+int  openssl_evpSig_test(void);
 #endif
 
 int pbkdf1_test(void);
@@ -769,14 +770,19 @@ int wolfcrypt_test(void* args)
         printf( "OPENSSL  test passed!\n");
 
     if ( (ret = openSSL_evpMD_test()) != 0)
-        return err_sys("OPENSSL (openSSL_evpMD_test) test failed!\n", ret);
+        return err_sys("OPENSSL (EVP MD) test failed!\n", ret);
     else
-        printf( "OPENSSL (openSSL_evpMD_test passed!\n");
+        printf( "OPENSSL (EVP MD) passed!\n");
 
     if ( (ret = openssl_pkey0_test()) != 0)
-        return err_sys("OPENSSL (openssl_pkey0_test) test failed!\n", ret);
+        return err_sys("OPENSSL (PKEY) test failed!\n", ret);
     else
-        printf( "OPENSSL (openssl_pkey0_test) passed!\n");
+        printf( "OPENSSL (PKEY) passed!\n");
+
+    if ( (ret = openssl_evpSig_test()) != 0)
+        return err_sys("OPENSSL (EVP Sign/Verify) test failed!\n", ret);
+    else
+        printf( "OPENSSL (EVP Sign/Verify) passed!\n");
 
 #endif
 
@@ -10319,8 +10325,6 @@ int openSSL_evpMD_test(void)
     WOLFSSL_EVP_MD_CTX* ctx;
     WOLFSSL_EVP_MD_CTX* ctx2;
 
-    printf("testing EVP_MD functions\n");
-
     ctx = EVP_MD_CTX_create();
     ctx2 = EVP_MD_CTX_create();
 
@@ -10362,7 +10366,18 @@ int openSSL_evpMD_test(void)
     return 0;
 }
 
-
+#ifdef DEBUG_SIGN
+static void show(const char *title, const char *p, unsigned int s) {
+    char* i;
+    printf("%s: ", title);
+    for (i = p;
+            i < p + s;
+            printf("%c", *i), i++);
+    printf("\n");
+}
+#else
+#define show(a,b,c)
+#endif
 
 #define FOURK_BUFF 4096
 
@@ -10475,13 +10490,7 @@ int openssl_pkey0_test(void)
             return -1;
         }
 
-        {
-            unsigned char* pt;
-            for (printf("encrypted msg[%d] = \n", (int)outlen), pt = out;
-                    pt < out + outlen;
-                    printf("%c", ((*pt)&0x6f)>='A'?((*pt)&0x6f):'.'), pt++);
-            printf("\n");
-        }
+        show("encrypted msg", out, outlen);
 
         memset(plain, 0, sizeof(plain));
         ret = EVP_PKEY_decrypt(dec, plain, &outlen, out, sizeof(out));
@@ -10489,16 +10498,7 @@ int openssl_pkey0_test(void)
             printf("error decrypting msg\n");
             return -1;
         }
-
-        {
-            unsigned char* pt;
-            fflush(stdout);
-            printf("\n");
-            for (printf("decrypted msg = "), pt = plain;
-                    pt < plain + outlen;
-                    printf("%c", *pt), pt++);
-            printf("\n");
-        }
+        show("decrypted msg", plain, outlen);
 
         /* RSA_PKCS1_OAEP_PADDING test */
         ret = EVP_PKEY_decrypt_init(dec);
@@ -10534,13 +10534,7 @@ int openssl_pkey0_test(void)
             return -1;
         }
 
-        {
-            unsigned char* pt;
-            for (printf("encrypted msg[%d] = \n", (int)outlen), pt = out;
-                    pt < out + outlen;
-                    printf("%c", ((*pt)&0x6f)>='A'?((*pt)&0x6f):'.'), pt++);
-            printf("\n");
-        }
+        show("encrypted msg", out, outlen);
 
         memset(plain, 0, sizeof(plain));
         ret = EVP_PKEY_decrypt(dec, plain, &outlen, out, sizeof(out));
@@ -10549,15 +10543,7 @@ int openssl_pkey0_test(void)
             return -1;
         }
 
-        {
-            unsigned char* pt;
-            fflush(stdout);
-            printf("\n");
-            for (printf("decrypted msg = "), pt = plain;
-                    pt < plain + outlen;
-                    printf("%c", *pt), pt++);
-            printf("\n");
-        }
+        show("decrypted msg", plain, outlen);
 
         wolfSSL_RSA_free(prvRsa);
         wolfSSL_RSA_free(pubRsa);
@@ -10572,6 +10558,137 @@ int openssl_pkey0_test(void)
 
 }
 
+int openssl_evpSig_test()
+{
+  	byte*   prvTmp;
+	  byte*   pubTmp;
+	  int prvBytes;
+	  int pubBytes;
+	  RSA *prvRsa;
+	  RSA *pubRsa;
+	  EVP_PKEY *prvPkey;
+	  EVP_PKEY *pubPkey;
+
+    EVP_MD_CTX* sign;
+    EVP_MD_CTX* verf;
+    char msg[] = "see spot run";
+    unsigned char sig[256];
+    unsigned int sigSz;
+    const void* pt;
+    unsigned int count;
+		int ret;
+
+		#if !defined(USE_CERT_BUFFERS_1024) && !defined(USE_CERT_BUFFERS_2048)
+		    FILE    *keyFile, *keypubFile;
+		    char cliKey[]    = "./certs/client-key.der";
+		    char cliKeypub[] = "./certs/client-keypub.der";
+
+		#endif
+#define d2i_X509_fp(a,b) NULL
+
+    prvTmp = (byte*)XMALLOC(FOURK_BUFF, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    if (prvTmp == NULL)
+        return -40;
+    pubTmp = (byte*)XMALLOC(FOURK_BUFF, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    if (pubTmp == NULL)
+        return -40;
+
+#ifdef USE_CERT_BUFFERS_1024
+    XMEMCPY(prvTmp, client_key_der_1024, sizeof_client_key_der_1024);
+    prvBytes = sizeof_client_key_der_1024;
+    XMEMCPY(prvTmp, client_keypub_der_1024, sizeof_client_keypub_der_1024);
+    prvBytes = sizeof_client_keypub_der_2048_der_1024;
+#elif defined(USE_CERT_BUFFERS_2048)
+    XMEMCPY(pubTmp, client_key_der_2048, sizeof_client_key_der_2048);
+    pubBytes = sizeof_client_key_der_2048;
+    XMEMCPY(pubTmp, client_keypub_der_2048, sizeof_client_keypub_der_2048);
+    pubBytes = sizeof_client_keypub_der_2048;
+#else
+    keyFile = fopen(cliKey, "rb");
+    if (!keyFile) {
+        err_sys("can't open ./certs/client-key.der, "
+                "Please run from wolfSSL home dir", -40);
+        XFREE(prvTmp, HEAP_HINT ,DYNAMIC_TYPE_TMP_BUFFER);
+        return -40;
+    }
+    prvBytes = (int)fread(prvTmp, 1, (int)FOURK_BUFF, keyFile);
+    fclose(keyFile);
+    keypubFile = fopen(cliKeypub, "rb");
+    if (!keypubFile) {
+        err_sys("can't open ./certs/client-cert.der, "
+                "Please run from wolfSSL home dir", -41);
+        XFREE(pubTmp, HEAP_HINT ,DYNAMIC_TYPE_TMP_BUFFER);
+        return -41;
+    }
+    pubBytes = (int)fread(pubTmp, 1, (int)FOURK_BUFF, keypubFile);
+    fclose(keypubFile);
+    #endif /* USE_CERT_BUFFERS */
+
+        prvRsa = wolfSSL_RSA_new();
+        pubRsa = wolfSSL_RSA_new();
+        if((prvRsa == NULL) || (pubRsa == NULL)){
+          printf("error with RSA_new\n");
+          return -1;
+        }
+
+        wolfSSL_RSA_LoadDer_ex(prvRsa, prvTmp, prvBytes, WOLFSSL_RSA_LOAD_PRIVATE);
+        wolfSSL_RSA_LoadDer_ex(pubRsa, pubTmp, pubBytes, WOLFSSL_RSA_LOAD_PUBLIC);
+
+        prvPkey = wolfSSL_PKEY_new();
+        pubPkey = wolfSSL_PKEY_new();
+        if((prvPkey == NULL) || (pubPkey == NULL)){
+            printf("error with PKEY_new\n");
+            return -1;
+        }
+        ret  = wolfSSL_EVP_PKEY_set1_RSA(prvPkey, prvRsa);
+        ret += wolfSSL_EVP_PKEY_set1_RSA(pubPkey, pubRsa);
+        if(ret != 2){
+            printf("error with PKEY_set1_RSA\n");
+            return -1;
+        }
+
+    /****************** sign and verify *******************/
+    sign = EVP_MD_CTX_create();
+    verf = EVP_MD_CTX_create();
+
+    EVP_SignInit(sign, EVP_sha1());
+
+    count = sizeof(msg);
+    show("message = ", (char *)msg, count);
+
+    /* sign */
+    memset(sig, 0, sizeof(sig));
+    pt = (const void*)msg;
+    EVP_SignUpdate(sign, pt, count);
+    EVP_SignFinal(sign, sig, &sigSz, prvPkey);
+    show("signature = ", (char *)sig, sigSz);
+
+    /* verify */
+    pt = (const void*)msg;
+    EVP_VerifyInit(verf, EVP_sha1());
+    EVP_VerifyUpdate(verf, pt, count);
+    if (EVP_VerifyFinal(verf, sig, sigSz, pubPkey) != 1) {
+        printf("incorect signature found\n");
+        return -1;
+    }
+
+    /* expect fail without update */
+    EVP_VerifyInit(verf, EVP_sha1());
+    if (EVP_VerifyFinal(verf, sig, sigSz, pubPkey) == 1) {
+        printf("incorect fail signature found\n");
+        return -1;
+    }
+
+    EVP_MD_CTX_destroy(sign);
+    EVP_MD_CTX_destroy(verf);
+
+    wolfSSL_RSA_free(prvRsa);
+    wolfSSL_RSA_free(pubRsa);
+    EVP_PKEY_free(pubPkey);
+    EVP_PKEY_free(prvPkey);
+
+    return 0;
+}
 #endif /* OPENSSL_EXTRA */
 
 
