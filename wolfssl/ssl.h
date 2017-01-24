@@ -201,6 +201,9 @@ typedef struct WOLFSSL_EVP_PKEY {
     union {
         char* ptr; /* der format of key / or raw for NTRU */
     } pkey;
+    #ifdef OPENSSL_EXTRA
+    WC_RNG rng;
+    #endif
     #ifdef HAVE_ECC
         int pkey_curve;
     #endif

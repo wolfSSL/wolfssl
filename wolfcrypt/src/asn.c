@@ -2194,7 +2194,7 @@ int wc_GetKeyOID(byte* key, word32 keySz, const byte** curveOID, word32* oidSz,
 
 #ifdef HAVE_ED25519
     ed25519_key ed25519;
-#endif
+    #endif
 
     #ifndef NO_RSA
     RsaKey rsa;

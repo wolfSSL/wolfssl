@@ -635,9 +635,12 @@ WOLFSSL_API int wolfSSL_EVP_PKEY_decrypt(WOLFSSL_EVP_PKEY_CTX *ctx,
 
     switch(ctx->pkey->type){
     case EVP_PKEY_RSA:
-        *outlen = wolfSSL_RSA_public_encrypt((int)inlen, (unsigned char*)in, out,
+        *outlen = wolfSSL_RSA_private_decrypt((int)inlen, (unsigned char*)in, out,
               (WOLFSSL_RSA*)ctx->pkey->pkey.ptr, ctx->padding);
-        return (int)*outlen;
+        if(*outlen > 0)
+            return 1;
+        else
+            return 0;
 
     case EVP_PKEY_EC:
         WOLFSSL_MSG("not implemented");
@@ -749,6 +752,15 @@ WOLFSSL_API int wolfSSL_EVP_SignUpdate(WOLFSSL_EVP_MD_CTX *ctx, const void *data
     return wolfSSL_EVP_DigestUpdate(ctx, data, len);
 }
 
+static int md2nid(int md)
+{
+    const char * d ;
+    d = (const char *)wolfSSL_EVP_get_md(md);
+    if(XSTRNCMP(d, "SHA", 3) == 0)return NID_sha1;
+    if(XSTRNCMP(d, "MD5", 3) == 0)return NID_md5;
+    return 0;
+}
+
 WOLFSSL_API int wolfSSL_EVP_SignFinal(WOLFSSL_EVP_MD_CTX *ctx, unsigned char *sigret,
                   unsigned int *siglen, WOLFSSL_EVP_PKEY *pkey)
 {
@@ -763,8 +775,12 @@ WOLFSSL_API int wolfSSL_EVP_SignFinal(WOLFSSL_EVP_MD_CTX *ctx, unsigned char *si
 
     switch(pkey->type){
     case EVP_PKEY_RSA:
-        return wolfSSL_RSA_sign(ctx->macType, md, mdsize, sigret,
+        {
+        int nid = md2nid(ctx->macType);
+        if(nid < 0)return 0;
+        return wolfSSL_RSA_sign(nid, md, mdsize, sigret,
                                 siglen, (WOLFSSL_RSA*)(pkey->pkey.ptr));
+        }
     case EVP_PKEY_DSA:
     case EVP_PKEY_EC:
         WOLFSSL_MSG("not implemented");
@@ -803,9 +819,12 @@ WOLFSSL_API int wolfSSL_EVP_VerifyFinal(WOLFSSL_EVP_MD_CTX *ctx,
     if(ret <= 0)return ret;
 
     switch(pkey->type){
-    case EVP_PKEY_RSA:
-        return wolfSSL_RSA_verify(ctx->macType, md, mdsize, sig,
-              (unsigned int)siglen, (WOLFSSL_RSA*)(pkey->pkey.ptr));
+    case EVP_PKEY_RSA:{
+        int nid = md2nid(ctx->macType);
+        if(nid < 0)return 0;
+        return wolfSSL_RSA_verify(nid, md, mdsize, sig,
+                (unsigned int)siglen, (WOLFSSL_RSA*)(pkey->pkey.ptr));
+    }
     case EVP_PKEY_DSA:
     case EVP_PKEY_EC:
         WOLFSSL_MSG("not implemented");

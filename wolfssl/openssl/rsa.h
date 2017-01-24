@@ -80,7 +80,10 @@ WOLFSSL_API int wolfSSL_RSA_public_decrypt(int flen, const unsigned char* from,
                                   unsigned char* to, WOLFSSL_RSA*, int padding);
 WOLFSSL_API int wolfSSL_RSA_GenAdd(WOLFSSL_RSA*);
 WOLFSSL_API int wolfSSL_RSA_LoadDer(WOLFSSL_RSA*, const unsigned char*, int sz);
+WOLFSSL_API int wolfSSL_RSA_LoadDer_ex(WOLFSSL_RSA*, const unsigned char*, int sz, int opt);
 
+#define WOLFSSL_RSA_LOAD_PRIVATE 1
+#define WOLFSSL_RSA_LOAD_PUBLIC  2
 
 #define RSA_new  wolfSSL_RSA_new
 #define RSA_free wolfSSL_RSA_free
