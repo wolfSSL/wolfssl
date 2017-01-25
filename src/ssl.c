@@ -863,6 +863,10 @@ int wolfSSL_CTX_mcast_set_member_id(WOLFSSL_CTX* ctx, word16 id)
     return ret;
 }
 
+int wolfSSL_mcast_get_max_peers(void)
+{
+    return WOLFSSL_MULTICAST_PEERS;
+}
 
 #ifdef WOLFSSL_DTLS
 static INLINE word32 UpdateHighwaterMark(word32 cur, word32 first,
@@ -882,7 +886,7 @@ static INLINE word32 UpdateHighwaterMark(word32 cur, word32 first,
 #endif /* WOLFSSL_DTLS */
 
 
-int wolfSSL_set_secret(WOLFSSL* ssl, unsigned short epoch,
+int wolfSSL_set_secret(WOLFSSL* ssl, word16 epoch,
                        const byte* preMasterSecret, word32 preMasterSz,
                        const byte* clientRandom, const byte* serverRandom,
                        const byte* suite)
@@ -940,6 +944,8 @@ int wolfSSL_set_secret(WOLFSSL* ssl, unsigned short epoch,
                         ssl->ctx->mcastSecondSeq,
                         ssl->ctx->mcastMaxSeq);
             }
+        #else
+            (void)epoch;
         #endif
         }
         ret = SSL_SUCCESS;
