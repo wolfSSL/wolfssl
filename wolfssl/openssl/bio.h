@@ -39,6 +39,7 @@
 
 #define BIO_TYPE_FILE WOLFSSL_BIO_FILE
 #define BIO_TYPE_BIO  WOLFSSL_BIO_BIO
+#define BIO_TYPE_MEM  WOLFSSL_BIO_MEMORY
 
 
 #ifdef __cplusplus
