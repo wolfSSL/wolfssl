@@ -516,6 +516,7 @@ WOLFSSL_API int  wolfSSL_set_secret(WOLFSSL*, unsigned short,
                      const unsigned char*);
 WOLFSSL_API int  wolfSSL_mcast_read(WOLFSSL*, unsigned short*, void*, int);
 WOLFSSL_API int  wolfSSL_mcast_peer_add(WOLFSSL*, unsigned short, int);
+WOLFSSL_API int  wolfSSL_mcast_get_max_peers(void);
 typedef int (*CallbackMcastHighwater)(unsigned short peerId,
                                       unsigned int maxSeq,
                                       unsigned int curSeq, void* ctx);

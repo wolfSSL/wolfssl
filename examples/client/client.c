@@ -861,7 +861,9 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 #ifdef WOLFSSL_EARLY_DATA
     int earlyData = 0;
 #endif
+#ifdef WOLFSSL_MULTICAST
     byte mcastID = 0;
+#endif
 
 #ifdef HAVE_OCSP
     int    useOcsp  = 0;
@@ -903,7 +905,6 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     (void)updateKeysIVs;
     (void)useX25519;
     (void)helloRetry;
-    (void)mcastID;
 
     StackTrap();
 
@@ -1678,8 +1679,10 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     if (doMcast) {
 #ifdef WOLFSSL_MULTICAST
         wolfSSL_CTX_mcast_set_member_id(ctx, mcastID);
-        if (wolfSSL_CTX_set_cipher_list(ctx, "WDM-NULL-SHA256") != SSL_SUCCESS)
+        if (wolfSSL_CTX_set_cipher_list(ctx, "WDM-NULL-SHA256") != SSL_SUCCESS) {
+            wolfSSL_CTX_free(ctx);
             err_sys("Couldn't set multicast cipher list.");
+        }
 #endif
     }
 
@@ -1730,9 +1733,9 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 
     if (doMcast) {
 #ifdef WOLFSSL_MULTICAST
-        byte pms[512];
-        byte cr[32];
-        byte sr[32];
+        byte pms[512]; /* pre master secret */
+        byte cr[32];   /* client random */
+        byte sr[32];   /* server random */
         const byte suite[2] = {0, 0xfe};  /* WDM_WITH_NULL_SHA256 */
 
         XMEMSET(pms, 0x23, sizeof(pms));
@@ -1740,8 +1743,10 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
         XMEMSET(sr, 0x5A, sizeof(sr));
 
         if (wolfSSL_set_secret(ssl, 1, pms, sizeof(pms), cr, sr, suite)
-                != SSL_SUCCESS)
+                                                               != SSL_SUCCESS) {
+            wolfSSL_CTX_free(ctx);
             err_sys("unable to set mcast secret");
+        }
 #endif
     }
 
