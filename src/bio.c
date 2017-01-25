@@ -86,6 +86,32 @@ int wolfSSL_BIO_gets(WOLFSSL_BIO* bio, char* buf, int sz)
             break;
 #endif /* NO_FILESYSTEM */
         case WOLFSSL_BIO_MEMORY:
+            {
+                const byte* c;
+                int   cSz;
+                cSz = wolfSSL_BIO_pending(bio);
+                if (cSz < 0) {
+                    ret = cSz;
+                    break;
+                }
+
+                if (wolfSSL_BIO_get_mem_data(bio, &c) <= 0) {
+                    ret = WOLFSSL_BIO_ERROR;
+                    break;
+                }
+
+                cSz = wolfSSL_getLineLength((char*)c, cSz);
+                /* check case where line was bigger then buffer and buffer
+                 * needs end terminator */
+                if (cSz > sz) {
+                    cSz = sz - 1;
+                    buf[cSz] = '\0';
+                }
+
+                ret = wolfSSL_BIO_read(bio, (void*)buf, cSz);
+                /* ret is read after the switch statment */
+                break;
+            }
         case WOLFSSL_BIO_BIO:
             {
                 char* c;

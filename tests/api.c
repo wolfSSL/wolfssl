@@ -14964,6 +14964,43 @@ static void test_wolfSSL_X509_NAME_ENTRY(void)
     #endif
 }
 
+
+static void test_wolfSSL_BIO_gets(void)
+{
+    #if defined(OPENSSL_EXTRA)
+    BIO* bio;
+    BIO* bio2;
+    char msg[] = "\nhello wolfSSL\n security plus\t---...**adf\na...b.c";
+    char buffer[20];
+    int bufferSz = 20;
+
+    printf(testingFmt, "wolfSSL_X509_BIO_gets()");
+
+    AssertNotNull(bio = BIO_new_mem_buf((void*)msg, sizeof(msg)));
+    XMEMSET(buffer, 0, bufferSz);
+    AssertNotNull(BIO_push(bio, BIO_new(BIO_s_bio())));
+    AssertNull(bio2 = BIO_find_type(bio, BIO_TYPE_FILE));
+    AssertNotNull(bio2 = BIO_find_type(bio, BIO_TYPE_BIO));
+    AssertFalse(bio2 != BIO_next(bio));
+
+    /* BIO_gets reads a line of data */
+    AssertIntEQ(BIO_gets(bio, buffer, -3), 0);
+    AssertIntEQ(BIO_gets(bio, buffer, bufferSz), 1);
+    AssertIntEQ(BIO_gets(bio, buffer, bufferSz), 14);
+    AssertStrEQ(buffer, "hello wolfSSL\n");
+    AssertIntEQ(BIO_gets(bio, buffer, bufferSz), 19);
+    AssertIntEQ(BIO_gets(bio, buffer, bufferSz), 8);
+    AssertIntEQ(BIO_gets(bio, buffer, -1), 0);
+
+
+    BIO_free(bio);
+    BIO_free(bio2);
+
+    printf(resultFmt, passed);
+    #endif
+}
+
+
 static void test_no_op_functions(void)
 {
     #if defined(OPENSSL_EXTRA)
@@ -15767,6 +15804,7 @@ void ApiTest(void)
     test_wolfSSL_HMAC();
     test_wolfSSL_OBJ();
     test_wolfSSL_X509_NAME_ENTRY();
+    test_wolfSSL_BIO_gets();
 
     /* test the no op functions for compatibility */
     test_no_op_functions();

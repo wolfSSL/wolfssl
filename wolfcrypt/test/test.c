@@ -10389,7 +10389,7 @@ static void show(const char *title, const char *p, unsigned int s) {
 #define ERR_BASE_PKEY -5000
 int openssl_pkey0_test(void)
 {
-#if !defined(NO_RSA) && !defined(HAVE_USER_RSA)
+#if !defined(NO_RSA) && !defined(HAVE_USER_RSA) && !defined(NO_SHA)
     byte*   prvTmp;
     byte*   pubTmp;
     int prvBytes;
@@ -10423,11 +10423,11 @@ int openssl_pkey0_test(void)
 #ifdef USE_CERT_BUFFERS_1024
     XMEMCPY(prvTmp, client_key_der_1024, sizeof_client_key_der_1024);
     prvBytes = sizeof_client_key_der_1024;
-    XMEMCPY(prvTmp, client_keypub_der_1024, sizeof_client_keypub_der_1024);
-    prvBytes = sizeof_client_keypub_der_2048_der_1024;
+    XMEMCPY(pubTmp, client_keypub_der_1024, sizeof_client_keypub_der_1024);
+    pubBytes = sizeof_client_keypub_der_1024;
 #elif defined(USE_CERT_BUFFERS_2048)
-    XMEMCPY(pubTmp, client_key_der_2048, sizeof_client_key_der_2048);
-    pubBytes = sizeof_client_key_der_2048;
+    XMEMCPY(prvTmp, client_key_der_2048, sizeof_client_key_der_2048);
+    prvBytes = sizeof_client_key_der_2048;
     XMEMCPY(pubTmp, client_keypub_der_2048, sizeof_client_keypub_der_2048);
     pubBytes = sizeof_client_keypub_der_2048;
 #else
@@ -10582,13 +10582,13 @@ int openssl_evpSig_test()
 {
 #if !defined(NO_RSA) && !defined(NO_SHA) && !defined(HAVE_USER_RSA)
   	byte*   prvTmp;
-	  byte*   pubTmp;
-	  int prvBytes;
-	  int pubBytes;
+	byte*   pubTmp;
+	int prvBytes;
+	int pubBytes;
     RSA *prvRsa;
-	  RSA *pubRsa;
-	  EVP_PKEY *prvPkey;
-	  EVP_PKEY *pubPkey;
+	RSA *pubRsa;
+	EVP_PKEY *prvPkey;
+	EVP_PKEY *pubPkey;
 
     EVP_MD_CTX* sign;
     EVP_MD_CTX* verf;
@@ -10619,11 +10619,11 @@ int openssl_evpSig_test()
 #ifdef USE_CERT_BUFFERS_1024
     XMEMCPY(prvTmp, client_key_der_1024, sizeof_client_key_der_1024);
     prvBytes = sizeof_client_key_der_1024;
-    XMEMCPY(prvTmp, client_keypub_der_1024, sizeof_client_keypub_der_1024);
-    prvBytes = sizeof_client_keypub_der_2048_der_1024;
+    XMEMCPY(pubTmp, client_keypub_der_1024, sizeof_client_keypub_der_1024);
+    pubBytes = sizeof_client_keypub_der_1024;
 #elif defined(USE_CERT_BUFFERS_2048)
-    XMEMCPY(pubTmp, client_key_der_2048, sizeof_client_key_der_2048);
-    pubBytes = sizeof_client_key_der_2048;
+    XMEMCPY(prvTmp, client_key_der_2048, sizeof_client_key_der_2048);
+    prvBytes = sizeof_client_key_der_2048;
     XMEMCPY(pubTmp, client_keypub_der_2048, sizeof_client_keypub_der_2048);
     pubBytes = sizeof_client_keypub_der_2048;
 #else
