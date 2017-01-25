@@ -6833,6 +6833,7 @@ int wolfSSL_CTX_SetTmpDH_file(WOLFSSL_CTX* ctx, const char* fname, int format)
 #endif /* NO_DH */
 
 
+#endif /* NO_FILESYSTEM */
 #ifdef OPENSSL_EXTRA
 /* put SSL type in extra for now, not very common */
 
@@ -7500,6 +7501,7 @@ int wolfSSL_use_certificate(WOLFSSL* ssl, WOLFSSL_X509* x509)
 }
 #endif /* NO_CERTS */
 
+#ifndef NO_FILESYSTEM
 
 int wolfSSL_use_certificate_file(WOLFSSL* ssl, const char* file, int format)
 {
@@ -7581,6 +7583,8 @@ int wolfSSL_use_RSAPrivateKey_file(WOLFSSL* ssl, const char* file, int format)
     return wolfSSL_use_PrivateKey_file(ssl, file, format);
 }
 
+#endif /* NO_FILESYSTEM */
+
 
 /* Copies the master secret over to out buffer. If outSz is 0 returns the size
  * of master secret.
@@ -7624,6 +7628,7 @@ int wolfSSL_SESSION_get_master_key_length(const WOLFSSL_SESSION* ses)
 
 #endif /* OPENSSL_EXTRA */
 
+#ifndef NO_FILESYSTEM
 #ifdef HAVE_NTRU
 
 int wolfSSL_CTX_use_NTRUPrivateKey_file(WOLFSSL_CTX* ctx, const char* file)
@@ -12902,7 +12907,7 @@ static WOLFSSL_EVP_MD *wolfSSL_EVP_get_md(const unsigned char type)
 {
     const struct s_ent *ent ;
     WOLFSSL_ENTER("EVP_get_md");
-    for( ent = md_tbl; ; ent++){
+    for( ent = md_tbl; ent->name != NULL; ent++){
         if(type == ent->macType) {
             return (WOLFSSL_EVP_MD *)ent->name;
         }
@@ -13879,7 +13884,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
 
     /* WOLFSSL_SUCCESS on ok */
     int wolfSSL_EVP_DigestUpdate(WOLFSSL_EVP_MD_CTX* ctx, const void* data,
-                                unsigned long sz)
+                                size_t sz)
     {
         WOLFSSL_ENTER("EVP_DigestUpdate");
 
@@ -21279,6 +21284,7 @@ WOLFSSL_DSA* wolfSSL_DSA_generate_parameters(int bits, unsigned char* seed,
 
     WOLFSSL_ENTER("wolfSSL_DSA_generate_parameters()");
 
+    (void)cb;
     (void)CBArg;
     dsa = wolfSSL_DSA_new();
     if (dsa == NULL) {
@@ -21286,7 +21292,7 @@ WOLFSSL_DSA* wolfSSL_DSA_generate_parameters(int bits, unsigned char* seed,
     }
 
     if (wolfSSL_DSA_generate_parameters_ex(dsa, bits, seed, seedLen,
-                                  counterRet, hRet, (void*)cb) != SSL_SUCCESS) {
+                                  counterRet, hRet, NULL) != SSL_SUCCESS) {
         wolfSSL_DSA_free(dsa);
         return NULL;
     }
@@ -22410,7 +22416,7 @@ int wolfSSL_PEM_write_bio_PrivateKey(WOLFSSL_BIO* bio, WOLFSSL_EVP_PKEY* key,
 }
 #endif /* defined(WOLFSSL_KEY_GEN) || defined(WOLFSSL_CERT_GEN) */
 
-#if defined(WOLFSSL_KEY_GEN) && !defined(NO_RSA)
+#if defined(WOLFSSL_KEY_GEN) && !defined(NO_RSA) && !defined(HAVE_USER_RSA)
 
 /* return code compliant with OpenSSL :
  *   1 if success, 0 if error

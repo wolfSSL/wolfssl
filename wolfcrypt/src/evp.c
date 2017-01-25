@@ -777,7 +777,7 @@ WOLFSSL_API int wolfSSL_EVP_SignUpdate(WOLFSSL_EVP_MD_CTX *ctx, const void *data
 static int md2nid(int md)
 {
     const char * d ;
-    d = (const char *)wolfSSL_EVP_get_md(md);
+    d = (const char *)wolfSSL_EVP_get_md((const unsigned char)md);
     if(XSTRNCMP(d, "SHA", 3) == 0)return NID_sha1;
     if(XSTRNCMP(d, "MD5", 3) == 0)return NID_md5;
     return 0;
@@ -817,7 +817,6 @@ WOLFSSL_API int wolfSSL_EVP_SignFinal(WOLFSSL_EVP_MD_CTX *ctx, unsigned char *si
     default:
         return 0;
     }
-    return 1;
 }
 
 WOLFSSL_API int wolfSSL_EVP_VerifyInit(WOLFSSL_EVP_MD_CTX *ctx, const WOLFSSL_EVP_MD *type)
@@ -825,7 +824,6 @@ WOLFSSL_API int wolfSSL_EVP_VerifyInit(WOLFSSL_EVP_MD_CTX *ctx, const WOLFSSL_EV
     if (ctx == NULL)return 0;
     WOLFSSL_ENTER("EVP_VerifyInit");
     return wolfSSL_EVP_DigestInit(ctx,type);
-    return 1;
 }
 
 WOLFSSL_API int wolfSSL_EVP_VerifyUpdate(WOLFSSL_EVP_MD_CTX *ctx, const void *data, size_t len)
@@ -867,7 +865,6 @@ WOLFSSL_API int wolfSSL_EVP_VerifyFinal(WOLFSSL_EVP_MD_CTX *ctx,
     default:
         return 0;
     }
-    return 1;
 }
 
 WOLFSSL_API int wolfSSL_EVP_add_cipher(const WOLFSSL_EVP_CIPHER *cipher)

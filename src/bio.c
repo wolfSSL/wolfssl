@@ -70,6 +70,7 @@ int wolfSSL_BIO_gets(WOLFSSL_BIO* bio, char* buf, int sz)
     }
 
     switch (bio->type) {
+#ifndef NO_FILESYSTEM
         case WOLFSSL_BIO_FILE:
             #if defined(MICRIUM) || defined(LSR_FS) || defined(EBSNET)
             WOLFSSL_MSG("XFGETS not ported for this system yet");
@@ -83,7 +84,7 @@ int wolfSSL_BIO_gets(WOLFSSL_BIO* bio, char* buf, int sz)
             }
             #endif
             break;
-
+#endif /* NO_FILESYSTEM */
         case WOLFSSL_BIO_MEMORY:
         case WOLFSSL_BIO_BIO:
             {

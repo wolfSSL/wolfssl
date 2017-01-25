@@ -3048,7 +3048,9 @@ struct WOLFSSL_X509 {
     int              serialSz;
     byte             serial[EXTERNAL_SERIAL_SIZE];
     char             subjectCN[ASN_NAME_MAX];        /* common name short cut */
+#ifdef WOLFSSL_CERT_REQ
     char             challengePw[CTC_NAME_SIZE]; /* for REQ certs */
+#endif
 #ifdef WOLFSSL_SEP
     int              deviceTypeSz;
     byte             deviceType[EXTERNAL_SERIAL_SIZE];
