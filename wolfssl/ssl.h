@@ -2391,9 +2391,9 @@ WOLFSSL_API long wolfSSL_ctrl(WOLFSSL* ssl, int cmd, long opt, void* pt);
 WOLFSSL_API long wolfSSL_CTX_ctrl(WOLFSSL_CTX* ctx, int cmd, long opt,void* pt);
 
 #ifndef NO_CERTS
-WOLFSSL_X509_NAME_ENTRY* wolfSSL_X509_NAME_ENTRY_create_by_NID(
-            WOLFSSL_X509_NAME_ENTRY** out, const char* field, int type,
-            const unsigned char* data, int dataSz);
+WOLFSSL_API WOLFSSL_X509_NAME_ENTRY* wolfSSL_X509_NAME_ENTRY_create_by_NID(
+            WOLFSSL_X509_NAME_ENTRY** out, int nid, int type,
+            unsigned char* data, int dataSz);
 WOLFSSL_API int wolfSSL_X509_NAME_add_entry(WOLFSSL_X509_NAME* name,
                               WOLFSSL_X509_NAME_ENTRY* entry, int idx, int set);
 WOLFSSL_API int wolfSSL_check_private_key(const WOLFSSL* ssl);
@@ -2450,7 +2450,7 @@ struct WOLFSSL_ASN1_BIT_STRING {
 
 struct WOLFSSL_ASN1_STRING {
     int length;
-    int type;
+    int type; /* type of string i.e. CTC_UTF8 */
     char* data;
     long flags;
 };
@@ -2461,6 +2461,7 @@ struct WOLFSSL_X509_NAME_ENTRY {
     WOLFSSL_ASN1_OBJECT* object; /* not defined yet */
     WOLFSSL_ASN1_STRING  data;
     WOLFSSL_ASN1_STRING* value;  /* points to data, for lighttpd port */
+    int nid; /* i.e. ASN_COMMON_NAME */
     int set;
     int size;
 };
@@ -2470,6 +2471,8 @@ struct WOLFSSL_X509_NAME_ENTRY {
                          || defined(WOLFSSL_NGINX) \
                          || defined(WOLFSSL_HAPROXY) \
                          || defined(OPENSSL_EXTRA)
+WOLFSSL_API void wolfSSL_X509_NAME_ENTRY_free(WOLFSSL_X509_NAME_ENTRY* ne);
+WOLFSSL_API WOLFSSL_X509_NAME_ENTRY* wolfSSL_X509_NAME_ENTRY_new(void);
 WOLFSSL_API void wolfSSL_X509_NAME_free(WOLFSSL_X509_NAME *name);
 WOLFSSL_API char wolfSSL_CTX_use_certificate(WOLFSSL_CTX *ctx, WOLFSSL_X509 *x);
 WOLFSSL_API int wolfSSL_BIO_read_filename(WOLFSSL_BIO *b, const char *name);

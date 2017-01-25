@@ -10320,7 +10320,7 @@ int openssl_test(void)
 
 int openSSL_evpMD_test(void)
 {
-#ifndef NO_SHA256
+#if !defined(NO_SHA256) && !defined(NO_SHA)
     int ret ;
     WOLFSSL_EVP_MD_CTX* ctx;
     WOLFSSL_EVP_MD_CTX* ctx2;
@@ -10389,6 +10389,7 @@ static void show(const char *title, const char *p, unsigned int s) {
 #define ERR_BASE_PKEY -5000
 int openssl_pkey0_test(void)
 {
+#if !defined(NO_RSA) && !defined(HAVE_USER_RSA)
     byte*   prvTmp;
     byte*   pubTmp;
     int prvBytes;
@@ -10410,9 +10411,6 @@ int openssl_pkey0_test(void)
     char cliKey[]    = "./certs/client-key.der";
     char cliKeypub[] = "./certs/client-keyPub.der";
 
-#endif
-#ifdef WOLFSSL_TEST_CERT
-    DecodedCert cert;
 #endif
 
     prvTmp = (byte*)XMALLOC(FOURK_BUFF, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
@@ -10572,6 +10570,7 @@ int openssl_pkey0_test(void)
         EVP_PKEY_CTX_free(enc);
         XFREE(prvTmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
         XFREE(pubTmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+#endif /* NO_RSA */
 
         return 0;
 
@@ -10581,7 +10580,7 @@ int openssl_pkey0_test(void)
 
 int openssl_evpSig_test()
 {
-#ifndef NO_RSA
+#if !defined(NO_RSA) && !defined(NO_SHA) && !defined(HAVE_USER_RSA)
   	byte*   prvTmp;
 	  byte*   pubTmp;
 	  int prvBytes;

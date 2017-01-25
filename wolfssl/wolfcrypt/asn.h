@@ -103,7 +103,8 @@ enum DN_Tags {
     ASN_LOCALITY_NAME = 0x07,   /* L  */
     ASN_STATE_NAME    = 0x08,   /* ST */
     ASN_ORG_NAME      = 0x0a,   /* O  */
-    ASN_ORGUNIT_NAME  = 0x0b    /* OU */
+    ASN_ORGUNIT_NAME  = 0x0b,   /* OU */
+    ASN_EMAIL_NAME    = 0x98    /* not oid number there is 97 in 2.5.4.0-97 */
 };
 
 enum PBES {
@@ -192,7 +193,8 @@ enum Misc_ASN {
     MAX_CERTPOL_NB      = CTC_MAX_CERTPOL_NB,/* Max number of Cert Policy */
     MAX_CERTPOL_SZ      = CTC_MAX_CERTPOL_SZ,
 #endif
-    OCSP_NONCE_EXT_SZ   = 35,      /* OCSP Nonce Extension size */
+    MAX_NAME_ENTRIES    = 5,       /* extra entries added to x509 name struct */
+    OCSP_NONCE_EXT_SZ   = 37,      /* OCSP Nonce Extension size */
     MAX_OCSP_EXT_SZ     = 58,      /* Max OCSP Extension length */
     MAX_OCSP_NONCE_SZ   = 16,      /* OCSP Nonce size           */
     EIGHTK_BUF          = 8192,    /* Tmp buffer size           */

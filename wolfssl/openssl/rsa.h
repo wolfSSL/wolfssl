@@ -32,8 +32,10 @@
     extern "C" {
 #endif
 
+#if !defined(NO_RSA) && !defined(HAVE_USER_RSA)
 #define RSA_PKCS1_PADDING      WC_RSA_PKCSV15_PAD
 #define RSA_PKCS1_OAEP_PADDING WC_RSA_OAEP_PAD
+#endif
 
 #ifndef WOLFSSL_RSA_TYPE_DEFINED /* guard on redeclaration */
 typedef struct WOLFSSL_RSA            WOLFSSL_RSA;

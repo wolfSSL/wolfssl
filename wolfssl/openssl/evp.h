@@ -155,7 +155,7 @@ enum {
     IDEA_CBC_TYPE     = 19,
     NID_sha1          = 64,
     NID_sha224        = 65,
-    NID_md2           = 3,
+    NID_md2           = 77,
     NID_md5           =  4,
     NID_hmac          = 855,
     EVP_PKEY_HMAC     = NID_hmac

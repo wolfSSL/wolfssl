@@ -1579,7 +1579,7 @@ WC_PKCS12* wc_PKCS12_create(char* pass, word32 passSz, char* name,
     byte*  certBuf = NULL;
     word32 certBufSz;
     byte*  keyBuf;
-    word32 keyBufSz;
+    word32 keyBufSz = 0;
 
     WOLFSSL_ENTER("wc_PKCS12_create()");
 

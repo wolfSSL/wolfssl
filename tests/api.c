@@ -2267,8 +2267,8 @@ static void verify_ALPN_not_matching_continue(WOLFSSL* ssl)
                 wolfSSL_ALPN_GetProtocol(ssl, &proto, &protoSz));
 
     /* check value */
-    AssertIntEQ(1, 0 == protoSz);
-    AssertIntEQ(1, NULL == proto);
+    AssertIntEQ(1, (0 == protoSz));
+    AssertIntEQ(1, (NULL == proto));
 }
 
 static void verify_ALPN_matching_http1(WOLFSSL* ssl)
@@ -14699,7 +14699,8 @@ static void test_wolfSSL_ASN1_TIME_adj(void)
 
 static void test_wolfSSL_X509(void)
 {
-    #if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && !defined(NO_FILESYSTEM)
+    #if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && !defined(NO_FILESYSTEM)\
+    && !defined(NO_RSA)
     X509* x509;
     BIO*  bio;
     X509_STORE_CTX* ctx;
@@ -14915,6 +14916,53 @@ static void test_wolfSSL_OBJ(void)
     #endif
 }
 
+
+static void test_wolfSSL_X509_NAME_ENTRY(void)
+{
+    #if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) \
+    && !defined(NO_FILESYSTEM) && !defined(NO_RSA) && defined(WOLFSSL_CERT_GEN)
+    X509*      x509;
+    BIO*       bio;
+    X509_NAME* nm;
+    X509_NAME_ENTRY* entry;
+    unsigned char cn[] = "another name to add";
+
+
+    printf(testingFmt, "wolfSSL_X509_NAME_ENTRY()");
+
+    AssertNotNull(x509 =
+            wolfSSL_X509_load_certificate_file(cliCertFile, SSL_FILETYPE_PEM));
+    AssertNotNull(bio = BIO_new(BIO_s_mem()));
+    AssertIntEQ(PEM_write_bio_X509_AUX(bio, x509), SSL_SUCCESS);
+
+#ifdef WOLFSSL_CERT_REQ
+    {
+        X509_REQ* req;
+        BIO*      bReq;
+
+        AssertNotNull(req =
+            wolfSSL_X509_load_certificate_file(cliCertFile, SSL_FILETYPE_PEM));
+        AssertNotNull(bReq = BIO_new(BIO_s_mem()));
+        AssertIntEQ(PEM_write_bio_X509_REQ(bReq, req), SSL_SUCCESS);
+
+        BIO_free(bReq);
+        X509_free(req);
+    }
+#endif
+
+    AssertNotNull(nm = X509_get_subject_name(x509));
+    AssertNotNull(entry = X509_NAME_ENTRY_create_by_NID(NULL, NID_commonName,
+                0x0c, cn, (int)sizeof(cn)));
+    AssertIntEQ(X509_NAME_add_entry(nm, entry, -1, 0), SSL_SUCCESS);
+
+
+    X509_NAME_ENTRY_free(entry);
+    BIO_free(bio);
+    X509_free(x509);
+
+    printf(resultFmt, passed);
+    #endif
+}
 
 static void test_no_op_functions(void)
 {
@@ -15718,6 +15766,7 @@ void ApiTest(void)
     test_wolfSSL_ERR_put_error();
     test_wolfSSL_HMAC();
     test_wolfSSL_OBJ();
+    test_wolfSSL_X509_NAME_ENTRY();
 
     /* test the no op functions for compatibility */
     test_no_op_functions();

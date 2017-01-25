@@ -2397,7 +2397,7 @@ int UnTraditionalEnc(byte* key, word32 keySz, byte* out, word32* outSz,
         return LENGTH_ONLY_E;
     }
 
-    tmp = XMALLOC(tmpSz, heap, DYNAMIC_TYPE_TMP_BUFFER);
+    tmp = (byte*)XMALLOC(tmpSz, heap, DYNAMIC_TYPE_TMP_BUFFER);
     if (tmp == NULL) {
         #ifdef WOLFSSL_SMALL_STACK
         if (saltTmp != NULL)

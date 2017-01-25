@@ -58,6 +58,7 @@ typedef WOLFSSL_METHOD   SSL_METHOD;
 typedef WOLFSSL_CTX      SSL_CTX;
 
 typedef WOLFSSL_X509       X509;
+typedef WOLFSSL_X509       X509_REQ;
 typedef WOLFSSL_X509_NAME  X509_NAME;
 typedef WOLFSSL_X509_CHAIN X509_CHAIN;
 
@@ -321,6 +322,7 @@ typedef WOLFSSL_X509_STORE_CTX X509_STORE_CTX;
 #define X509_STORE_CTX_get_error wolfSSL_X509_STORE_CTX_get_error
 #define X509_STORE_CTX_get_error_depth wolfSSL_X509_STORE_CTX_get_error_depth
 
+#define X509_NAME_ENTRY_free          wolfSSL_X509_NAME_ENTRY_free
 #define X509_NAME_ENTRY_create_by_NID wolfSSL_X509_NAME_ENTRY_create_by_NID
 #define X509_NAME_add_entry           wolfSSL_X509_NAME_add_entry
 #define X509_NAME_oneline             wolfSSL_X509_NAME_oneline
@@ -558,6 +560,16 @@ typedef WOLFSSL_X509_NAME_ENTRY X509_NAME_ENTRY;
 
 #define NID_commonName 0x03 /* matchs ASN_COMMON_NAME in asn.h */
 
+ /* matchs ASN_..._NAME in asn.h */
+#define NID_commonName   0x03  /* CN */
+#define NID_surname      0x04,   /* SN */
+#define NID_serialNumber 0x05,   /* serialNumber */
+#define NID_countryName  0x06,   /* C  */
+#define NID_localityName 0x07,   /* L  */
+#define NID_stateOrProvinceName    0x08,   /* ST */
+#define NID_organizationName       0x0a,   /* O  */
+#define NID_organizationalUnitName 0x0b,   /* OU */
+
 /* NIDs */
 enum {
     NID_des    = 66,
@@ -574,9 +586,9 @@ enum {
 
 #define PEM_read_bio_DHparams wolfSSL_PEM_read_bio_DHparams
 #define PEM_read_bio_DSAparams wolfSSL_PEM_read_bio_DSAparams
+#define PEM_write_bio_X509     wolfSSL_PEM_write_bio_X509
 #define PEM_write_bio_X509_REQ wolfSSL_PEM_write_bio_X509_REQ
 #define PEM_write_bio_X509_AUX wolfSSL_PEM_write_bio_X509_AUX
-#define PEM_write_bio_X509     wolfSSL_PEM_write_bio_X509
 
 
 #ifdef WOLFSSL_HAPROXY

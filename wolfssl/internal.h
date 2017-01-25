@@ -3024,6 +3024,7 @@ struct WOLFSSL_X509_NAME {
 #if defined(OPENSSL_EXTRA) && !defined(NO_ASN)
     DecodedName fullName;
     WOLFSSL_X509_NAME_ENTRY cnEntry;
+    WOLFSSL_X509_NAME_ENTRY extra[MAX_NAME_ENTRIES]; /* extra entries added */
     WOLFSSL_X509*           x509;   /* x509 that struct belongs to */
 #endif /* OPENSSL_EXTRA */
 #ifdef WOLFSSL_NGINX
@@ -3047,6 +3048,7 @@ struct WOLFSSL_X509 {
     int              serialSz;
     byte             serial[EXTERNAL_SERIAL_SIZE];
     char             subjectCN[ASN_NAME_MAX];        /* common name short cut */
+    char             challengePw[CTC_NAME_SIZE]; /* for REQ certs */
 #ifdef WOLFSSL_SEP
     int              deviceTypeSz;
     byte             deviceType[EXTERNAL_SERIAL_SIZE];
