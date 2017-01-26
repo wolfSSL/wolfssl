@@ -329,7 +329,8 @@ static INLINE void c16toa(word16 u16, byte* c)
 
 
 #if !defined(NO_OLD_TLS) || defined(HAVE_CHACHA) || defined(HAVE_AESCCM) \
-    || defined(HAVE_AESGCM) || defined(WOLFSSL_SESSION_EXPORT)
+    || defined(HAVE_AESGCM) || defined(WOLFSSL_SESSION_EXPORT) \
+    || defined(WOLFSSL_DTLS)
 /* convert 32 bit integer to opaque */
 static INLINE void c32toa(word32 u32, byte* c)
 {
@@ -3487,6 +3488,9 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
 #ifdef HAVE_ALPN
     ssl->alpn_client_list = NULL;
 #endif
+#ifdef HAVE_SUPPORTED_CURVES
+    ssl->options.userCurves = ctx->userCurves;
+#endif
 #endif /* HAVE_TLS_EXTENSIONS */
 
     /* default alert state (none) */
@@ -3576,6 +3580,7 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
             WOLFSSL_MSG("RNG Memory error");
             return MEMORY_E;
         }
+        XMEMSET(ssl->rng, 0, sizeof(WC_RNG));
         ssl->options.weOwnRng = 1;
 
         /* FIPS RNG API does not accept a heap hint */
@@ -4014,7 +4019,7 @@ void FreeSSL(WOLFSSL* ssl, void* heap)
 
 
 #if !defined(NO_OLD_TLS) || defined(HAVE_CHACHA) || defined(HAVE_AESCCM) \
-    || defined(HAVE_AESGCM)
+    || defined(HAVE_AESGCM) || defined(WOLFSSL_DTLS)
 static INLINE void GetSEQIncrement(WOLFSSL* ssl, int verify, word32 seq[2])
 {
     if (verify) {
@@ -4118,6 +4123,7 @@ DtlsMsg* DtlsMsgNew(word32 sz, void* heap)
 {
     DtlsMsg* msg = NULL;
 
+    (void)heap;
     msg = (DtlsMsg*)XMALLOC(sizeof(DtlsMsg), heap, DYNAMIC_TYPE_DTLS_MSG);
 
     if (msg != NULL) {
@@ -4174,6 +4180,7 @@ static DtlsFrag* CreateFragment(word32* begin, word32 end, const byte* data,
     DtlsFrag* newFrag;
     word32 added = end - *begin + 1;
 
+    (void)heap;
     newFrag = (DtlsFrag*)XMALLOC(sizeof(DtlsFrag), heap,
                                  DYNAMIC_TYPE_DTLS_FRAG);
     if (newFrag != NULL) {

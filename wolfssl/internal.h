@@ -150,6 +150,11 @@
     #endif
 #endif
 
+#ifndef CHAR_BIT
+    /* Needed for DTLS without big math */
+    #include <limits.h>
+#endif
+
 
 #ifdef HAVE_LIBZ
     #include "zlib.h"
@@ -669,8 +674,9 @@ typedef byte word24[3];
     #define BUILD_DES3
 #endif
 
-#ifdef NO_AES
+#if defined(NO_AES) || defined(NO_AES_DECRYPT)
     #define AES_BLOCK_SIZE 16
+    #undef  BUILD_AES
 #else
     #undef  BUILD_AES
     #define BUILD_AES
@@ -2034,6 +2040,9 @@ struct WOLFSSL_CTX {
         void*              ticketEncCtx;  /* session encrypt context */
         int                ticketHint;    /* ticket hint in seconds */
     #endif
+    #ifdef HAVE_SUPPORTED_CURVES
+        byte userCurves;                  /* indicates user called wolfSSL_CTX_UseSupportedCurve */
+    #endif
 #endif
 #ifdef ATOMIC_USER
     CallbackMacEncrypt    MacEncryptCb;    /* Atomic User Mac/Encrypt Cb */
@@ -2447,6 +2456,9 @@ typedef struct Options {
 #endif
 #endif
     word16            haveEMS:1;          /* using extended master secret */
+#if defined(HAVE_TLS_EXTENSIONS) && defined(HAVE_SUPPORTED_CURVES)
+    word16            userCurves:1;       /* indicates user called wolfSSL_UseSupportedCurve */
+#endif
 
     /* need full byte values for this section */
     byte            processReply;           /* nonblocking resume */

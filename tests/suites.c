@@ -361,7 +361,7 @@ static void test_harness(void* vargs)
         fname = args->argv[1];
     }
 
-    file = fopen(fname, "r");
+    file = fopen(fname, "rb");
     if (file == NULL) {
         fprintf(stderr, "unable to open %s\n", fname);
         args->return_code = 1;

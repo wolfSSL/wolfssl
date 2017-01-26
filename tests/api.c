@@ -3790,7 +3790,8 @@ static void test_wolfSSL_CTX_add_extra_chain_cert(void)
 static void test_wolfSSL_ERR_peek_last_error_line(void)
 {
     #if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && \
-       !defined(NO_FILESYSTEM) && defined(DEBUG_WOLFSSL)
+       !defined(NO_FILESYSTEM) && defined(DEBUG_WOLFSSL) && \
+       !defined(NO_OLD_TLS)
     tcp_ready ready;
     func_args client_args;
     func_args server_args;

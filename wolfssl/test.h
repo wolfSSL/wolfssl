@@ -1979,8 +1979,8 @@ static INLINE const char* mymktemp(char *tempfn, int len, int num)
     #include <wolfssl/wolfcrypt/chacha20_poly1305.h>
 
     typedef struct key_ctx {
-        byte name[WOLFSSL_TICKET_NAME_SZ];     /* name for this context */
-        byte key[16];                          /* cipher key */
+        byte name[WOLFSSL_TICKET_NAME_SZ];        /* name for this context */
+        byte key[CHACHA20_POLY1305_AEAD_KEYSIZE]; /* cipher key */
     } key_ctx;
 
     static key_ctx myKey_ctx;

@@ -422,6 +422,10 @@ int wolfSSL_set_fd(WOLFSSL* ssl, int fd)
 
     WOLFSSL_ENTER("SSL_set_fd");
 
+    if (ssl == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
     ret = wolfSSL_set_read_fd(ssl, fd);
     if (ret == SSL_SUCCESS) {
         ret = wolfSSL_set_write_fd(ssl, fd);
@@ -988,10 +992,14 @@ int wolfSSL_SetTmpDH(WOLFSSL* ssl, const unsigned char* p, int pSz,
     if (ssl->options.side != WOLFSSL_SERVER_END)
         return SIDE_ERROR;
 
-    if (ssl->buffers.serverDH_P.buffer && ssl->buffers.weOwnDH)
+    if (ssl->buffers.serverDH_P.buffer && ssl->buffers.weOwnDH) {
         XFREE(ssl->buffers.serverDH_P.buffer, ssl->heap, DYNAMIC_TYPE_DH);
-    if (ssl->buffers.serverDH_G.buffer && ssl->buffers.weOwnDH)
+        ssl->buffers.serverDH_P.buffer = NULL;
+    }
+    if (ssl->buffers.serverDH_G.buffer && ssl->buffers.weOwnDH) {
         XFREE(ssl->buffers.serverDH_G.buffer, ssl->heap, DYNAMIC_TYPE_DH);
+        ssl->buffers.serverDH_G.buffer = NULL;
+    }
 
     ssl->buffers.weOwnDH = 1;  /* SSL owns now */
     ssl->buffers.serverDH_P.buffer = (byte*)XMALLOC(pSz, ssl->heap,
@@ -1003,6 +1011,7 @@ int wolfSSL_SetTmpDH(WOLFSSL* ssl, const unsigned char* p, int pSz,
                                                     DYNAMIC_TYPE_DH);
     if (ssl->buffers.serverDH_G.buffer == NULL) {
         XFREE(ssl->buffers.serverDH_P.buffer, ssl->heap, DYNAMIC_TYPE_DH);
+        ssl->buffers.serverDH_P.buffer = NULL;
         return MEMORY_E;
     }
 
@@ -1392,6 +1401,8 @@ int wolfSSL_UseSupportedCurve(WOLFSSL* ssl, word16 name)
             return BAD_FUNC_ARG;
     }
 
+    ssl->options.userCurves = 1;
+
     return TLSX_UseSupportedCurve(&ssl->extensions, name, ssl->heap);
 }
 
@@ -1421,6 +1432,8 @@ int wolfSSL_CTX_UseSupportedCurve(WOLFSSL_CTX* ctx, word16 name)
         default:
             return BAD_FUNC_ARG;
     }
+
+    ctx->userCurves = 1;
 
     return TLSX_UseSupportedCurve(&ctx->extensions, name, ctx->heap);
 }
@@ -3565,7 +3578,7 @@ static int wolfssl_decrypt_buffer_key(DerBuffer* der, byte* password,
         ret = wc_Des3_CbcDecryptWithKey(der->buffer, der->buffer, der->length,
                                         key, info->iv);
 #endif /* NO_DES3 */
-#if !defined(NO_AES) && defined(HAVE_AES_CBC)
+#if !defined(NO_AES) && defined(HAVE_AES_CBC) && defined(HAVE_AES_DECRYPT)
     if (XSTRNCMP(info->name, EVP_AES_128_CBC, EVP_AES_SIZE) == 0)
         ret = wc_AesCbcDecryptWithKey(der->buffer, der->buffer, der->length,
                                       key, AES_128_KEY_SIZE, info->iv);
@@ -3575,7 +3588,7 @@ static int wolfssl_decrypt_buffer_key(DerBuffer* der, byte* password,
     else if (XSTRNCMP(info->name, EVP_AES_256_CBC, EVP_AES_SIZE) == 0)
         ret = wc_AesCbcDecryptWithKey(der->buffer, der->buffer, der->length,
                                       key, AES_256_KEY_SIZE, info->iv);
-#endif /* !NO_AES && HAVE_AES_CBC */
+#endif /* !NO_AES && HAVE_AES_CBC && HAVE_AES_DECRYPT */
 
 #ifdef WOLFSSL_SMALL_STACK
     XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -4338,6 +4351,7 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
 
         if (DecodeToKey(cert, 0) < 0) {
             WOLFSSL_MSG("Decode to key failed");
+            FreeDecodedCert(cert);
         #ifdef WOLFSSL_SMALL_STACK
             XFREE(cert, heap, DYNAMIC_TYPE_TMP_BUFFER);
         #endif
@@ -7647,6 +7661,7 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
             WOLFSSL_ENTER("DTLSv1_2_client_method_ex");
             if (method)
                 InitSSL_Method(method, MakeDTLSv1_2());
+            (void)heap;
             return method;
         }
     #endif
@@ -7679,6 +7694,9 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
         #ifdef HAVE_ERRNO_H
             errno = 0;
         #endif
+
+        if (ssl == NULL)
+            return BAD_FUNC_ARG;
 
         if (ssl->options.side != WOLFSSL_CLIENT_END) {
             WOLFSSL_ERROR(ssl->error = SIDE_ERROR);
@@ -8001,6 +8019,7 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
                 InitSSL_Method(method, MakeDTLSv1_2());
                 method->side = WOLFSSL_SERVER_END;
             }
+            (void)heap;
             return method;
         }
     #endif
@@ -16554,8 +16573,14 @@ void wolfSSL_RSA_free(WOLFSSL_RSA* rsa)
  * declared and then not used. */
 #if !defined(NO_ASN) || !defined(NO_DSA) || defined(HAVE_ECC) || \
     (!defined(NO_RSA) && !defined(HAVE_USER_RSA) && !defined(HAVE_FAST_RSA))
+/* when calling SetIndividualExternal, mpi should be cleared by caller if no
+ * longer used. ie mp_clear(mpi). This is to free data when fastmath is
+ * disabled since a copy of mpi is made by this function and placed into bn.
+ */
 static int SetIndividualExternal(WOLFSSL_BIGNUM** bn, mp_int* mpi)
 {
+    byte dynamic = 0;
+
     WOLFSSL_MSG("Entering SetIndividualExternal");
 
     if (mpi == NULL || bn == NULL) {
@@ -16569,10 +16594,14 @@ static int SetIndividualExternal(WOLFSSL_BIGNUM** bn, mp_int* mpi)
             WOLFSSL_MSG("SetIndividualExternal alloc failed");
             return SSL_FATAL_ERROR;
         }
+        dynamic = 1;
     }
 
     if (mp_copy(mpi, (mp_int*)((*bn)->internal)) != MP_OKAY) {
         WOLFSSL_MSG("mp_copy error");
+        if (dynamic == 1) {
+            wolfSSL_BN_free(*bn);
+        }
         return SSL_FATAL_ERROR;
     }
 
@@ -16622,10 +16651,14 @@ WOLFSSL_BIGNUM *wolfSSL_ASN1_INTEGER_to_BN(const WOLFSSL_ASN1_INTEGER *ai,
         return NULL;
     }
 
-    if (SetIndividualExternal(&bn, &mpi) != SSL_SUCCESS) {
+    /* mp_clear needs called because mpi is copied and causes memory leak with
+     * --disable-fastmath */
+    ret = SetIndividualExternal(&bn, &mpi);
+    mp_clear(&mpi);
+
+    if (ret != SSL_SUCCESS) {
         return NULL;
     }
-
     return bn;
 }
 #endif /* !NO_ASN */

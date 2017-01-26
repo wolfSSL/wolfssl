@@ -555,7 +555,6 @@ static char *fgets(char *buff, int sz, FILE *fp)
 
 #define NO_WOLFSSL_DIR
 #define NO_WRITEV
-#define WOLFSSL_HAVE_MIN
 #define USE_FAST_MATH
 #define TFM_TIMING_RESISTANT
 #define NO_MAIN_DRIVER
@@ -1464,7 +1463,7 @@ static char *fgets(char *buff, int sz, FILE *fp)
     #if defined(HAVE_IO_POOL) || defined(XMALLOC_USER) || defined(NO_WOLFSSL_MEMORY)
          #error static memory cannot be used with HAVE_IO_POOL, XMALLOC_USER or NO_WOLFSSL_MEMORY
     #endif
-    #ifndef USE_FAST_MATH
+    #if !defined(USE_FAST_MATH) && !defined(NO_BIG_INT)
         #error static memory requires fast math please define USE_FAST_MATH
     #endif
     #ifdef WOLFSSL_SMALL_STACK
