@@ -19104,6 +19104,7 @@ void wolfSSL_BN_CTX_free(WOLFSSL_BN_CTX* ctx)
 static void InitwolfSSL_BigNum(WOLFSSL_BIGNUM* bn)
 {
     if (bn) {
+        XMEMSET(bn, 0, sizeof(WOLFSSL_BIGNUM));
         bn->neg      = 0;
         bn->internal = NULL;
     }
@@ -20446,6 +20447,7 @@ void wolfSSL_DSA_free(WOLFSSL_DSA* dsa)
 static void InitwolfSSL_Rsa(WOLFSSL_RSA* rsa)
 {
     if (rsa) {
+        XMEMSET(rsa, 0, sizeof(WOLFSSL_RSA));
         rsa->n        = NULL;
         rsa->e        = NULL;
         rsa->d        = NULL;
