@@ -5661,10 +5661,10 @@ static int BuildFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
         #ifdef WOLFSSL_SMALL_STACK
         #ifdef WOLFSSL_SHA384
             XFREE(sha384, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        #endif
-        #endif
             /* restore */
             ssl->hsHashes->hashSha384 = sha384[0];
+        #endif
+        #endif
             return ret;
         }
         BuildSHA(ssl, hashes, sender);
