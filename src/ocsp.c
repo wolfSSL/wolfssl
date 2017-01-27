@@ -251,6 +251,7 @@ int CheckOcspRequest(WOLFSSL_OCSP* ocsp, OcspRequest* ocspRequest,
     CertStatus* status         = NULL;
     byte*       request        = NULL;
     int         requestSz      = 2048;
+    int         responseSz     = 0;
     byte*       response       = NULL;
     const char* url            = NULL;
     int         urlSz          = 0;
@@ -319,31 +320,40 @@ int CheckOcspRequest(WOLFSSL_OCSP* ocsp, OcspRequest* ocspRequest,
 #endif
 
     requestSz = EncodeOcspRequest(ocspRequest, request, requestSz);
+    if (requestSz > 0 && ocsp->cm->ocspIOCb) {
+        responseSz = ocsp->cm->ocspIOCb(ocsp->cm->ocspIOCtx, url, urlSz,
+                                        request, requestSz, &response);
+        if (responseSz < 0) {
+            ret = responseSz;  /* because ret was used for multiple purposes */
+        }
+    }
 
-    if (ocsp->cm->ocspIOCb)
-        ret = ocsp->cm->ocspIOCb(ocsp->cm->ocspIOCtx, url, urlSz,
-                                                 request, requestSz, &response);
-
-    if (ret >= 0 && response) {
+    if (responseSz >= 0 && response) {
         XMEMSET(newStatus, 0, sizeof(CertStatus));
 
-        InitOcspResponse(ocspResponse, newStatus, response, ret);
-        OcspResponseDecode(ocspResponse, ocsp->cm, ocsp->cm->heap);
-
-        if (ocspResponse->responseStatus != OCSP_SUCCESSFUL)
+        InitOcspResponse(ocspResponse, newStatus, response, responseSz);
+        if (OcspResponseDecode(ocspResponse, ocsp->cm, ocsp->cm->heap) != 0) {
             ret = OCSP_LOOKUP_FAIL;
+            WOLFSSL_MSG("OcspResponseDecode failed");
+        }
+        else if (ocspResponse->responseStatus != OCSP_SUCCESSFUL) {
+            ret = OCSP_LOOKUP_FAIL;
+            WOLFSSL_MSG("OcspResponse status bad");
+        }
         else {
+            ret = OCSP_LOOKUP_FAIL;  /* make sure in fail state */
             if (CompareOcspReqResp(ocspRequest, ocspResponse) == 0) {
                 if (responseBuffer) {
-                    responseBuffer->buffer = (byte*)XMALLOC(ret, ocsp->cm->heap,
-                                                       DYNAMIC_TYPE_TMP_BUFFER);
+                    responseBuffer->buffer = (byte*)XMALLOC(responseSz,
+                                       ocsp->cm->heap, DYNAMIC_TYPE_TMP_BUFFER);
 
                     if (responseBuffer->buffer) {
-                        responseBuffer->length = ret;
-                        XMEMCPY(responseBuffer->buffer, response, ret);
+                        responseBuffer->length = responseSz;
+                        XMEMCPY(responseBuffer->buffer, response, responseSz);
                     }
                 }
 
+                /* only way to get to good state */
                 ret = xstat2err(ocspResponse->status->status);
 
                 if (wc_LockMutex(&ocsp->ocspLock) != 0)
