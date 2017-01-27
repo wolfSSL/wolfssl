@@ -247,8 +247,8 @@ void WOLFSSL_ERROR(int error)
                 if (error < 0) error = error - (2*error); /*get absolute value*/
                 wc_last_error      = (unsigned long)error;
                 wc_last_error_line = (unsigned long)line;
-                XMEMSET((char*)wc_last_error_file, 0, sizeof(file));
-                if (XSTRLEN(file) < sizeof(file)) {
+                XMEMSET((char*)wc_last_error_file, 0, sizeof(wc_last_error_file));
+                if (XSTRLEN(file) < sizeof(wc_last_error_file)) {
 	                XSTRNCPY((char*)wc_last_error_file, file, XSTRLEN(file));
                 }
                 sprintf(buffer, "wolfSSL error occurred, error = %d line:%d file:%s",
@@ -333,10 +333,26 @@ int wc_AddErrorNode(int error, int line, char* buf, char* file)
         return MEMORY_E;
     }
     else {
+        int sz;
+
         XMEMSET(err, 0, sizeof(struct wc_error_queue));
         err->heap = (void*)wc_error_heap;
-        XMEMCPY(err->error, buf, WOLFSSL_MAX_ERROR_SZ - 1);
-        XMEMCPY(err->file, file, WOLFSSL_MAX_ERROR_SZ - 1);
+        sz = (int)XSTRLEN(buf);
+        if (sz > WOLFSSL_MAX_ERROR_SZ - 1) {
+            sz = WOLFSSL_MAX_ERROR_SZ - 1;
+        }
+        if (sz > 0) {
+            XMEMCPY(err->error, buf, sz);
+        }
+
+        sz = (int)XSTRLEN(file);
+        if (sz > WOLFSSL_MAX_ERROR_SZ - 1) {
+            sz = WOLFSSL_MAX_ERROR_SZ - 1;
+        }
+        if (sz > 0) {
+            XMEMCPY(err->file, file, sz);
+        }
+
         err->value = error;
         err->line  = line;
 
