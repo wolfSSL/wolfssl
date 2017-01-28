@@ -407,7 +407,7 @@ int CheckOcspRequest(WOLFSSL_OCSP* ocsp, OcspRequest* ocspRequest,
         ocsp->cm->ocspRespFreeCb(ocsp->cm->ocspIOCtx, response);
 
     if (ret == 0 && validated == 1) {
-        ret = 0;
+        WOLFSSL_MSG("New OcspResponse validated");
     } else {
         ret = OCSP_LOOKUP_FAIL;
     }
