@@ -52,7 +52,7 @@ class Random(object):
         if ret < 0:
             raise WolfCryptError("RNG generate byte error (%d)" % ret)
 
-        return _ffi.string(result, 1)
+        return _ffi.buffer(result, 1)[:]
 
 
     def bytes(self, length):
@@ -65,4 +65,4 @@ class Random(object):
         if ret < 0:
             raise WolfCryptError("RNG generate block error (%d)" % ret)
 
-        return _ffi.string(result, length)
+        return _ffi.buffer(result, length)[:]
