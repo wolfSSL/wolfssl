@@ -244,6 +244,7 @@ static int GetOcspStatus(WOLFSSL_OCSP* ocsp, OcspRequest* request,
     return ret;
 }
 
+/* 0 on success */
 int CheckOcspRequest(WOLFSSL_OCSP* ocsp, OcspRequest* ocspRequest,
                                                       buffer* responseBuffer)
 {
@@ -256,6 +257,7 @@ int CheckOcspRequest(WOLFSSL_OCSP* ocsp, OcspRequest* ocspRequest,
     const char* url            = NULL;
     int         urlSz          = 0;
     int         ret            = -1;
+    int         validated      = 0;    /* ocsp validation flag */
 
 #ifdef WOLFSSL_SMALL_STACK
     CertStatus* newStatus;
@@ -323,9 +325,6 @@ int CheckOcspRequest(WOLFSSL_OCSP* ocsp, OcspRequest* ocspRequest,
     if (requestSz > 0 && ocsp->cm->ocspIOCb) {
         responseSz = ocsp->cm->ocspIOCb(ocsp->cm->ocspIOCtx, url, urlSz,
                                         request, requestSz, &response);
-        if (responseSz < 0) {
-            ret = responseSz;  /* because ret was used for multiple purposes */
-        }
     }
 
     if (responseSz >= 0 && response) {
@@ -333,15 +332,12 @@ int CheckOcspRequest(WOLFSSL_OCSP* ocsp, OcspRequest* ocspRequest,
 
         InitOcspResponse(ocspResponse, newStatus, response, responseSz);
         if (OcspResponseDecode(ocspResponse, ocsp->cm, ocsp->cm->heap) != 0) {
-            ret = OCSP_LOOKUP_FAIL;
             WOLFSSL_MSG("OcspResponseDecode failed");
         }
         else if (ocspResponse->responseStatus != OCSP_SUCCESSFUL) {
-            ret = OCSP_LOOKUP_FAIL;
             WOLFSSL_MSG("OcspResponse status bad");
         }
         else {
-            ret = OCSP_LOOKUP_FAIL;  /* make sure in fail state */
             if (CompareOcspReqResp(ocspRequest, ocspResponse) == 0) {
                 if (responseBuffer) {
                     responseBuffer->buffer = (byte*)XMALLOC(responseSz,
@@ -355,6 +351,9 @@ int CheckOcspRequest(WOLFSSL_OCSP* ocsp, OcspRequest* ocspRequest,
 
                 /* only way to get to good state */
                 ret = xstat2err(ocspResponse->status->status);
+                if (ret == 0) {
+                    validated = 1;
+                }
 
                 if (wc_LockMutex(&ocsp->ocspLock) != 0)
                     ret = BAD_MUTEX_E;
@@ -396,12 +395,8 @@ int CheckOcspRequest(WOLFSSL_OCSP* ocsp, OcspRequest* ocspRequest,
                     wc_UnLockMutex(&ocsp->ocspLock);
                 }
             }
-            else
-                ret = OCSP_LOOKUP_FAIL;
         }
     }
-    else
-        ret = OCSP_LOOKUP_FAIL;
 
 #ifdef WOLFSSL_SMALL_STACK
     XFREE(newStatus,    NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -410,6 +405,12 @@ int CheckOcspRequest(WOLFSSL_OCSP* ocsp, OcspRequest* ocspRequest,
 
     if (response != NULL && ocsp->cm->ocspRespFreeCb)
         ocsp->cm->ocspRespFreeCb(ocsp->cm->ocspIOCtx, response);
+
+    if (ret == 0 && validated == 1) {
+        ret = 0;
+    } else {
+        ret = OCSP_LOOKUP_FAIL;
+    }
 
     WOLFSSL_LEAVE("CheckOcspRequest", ret);
     return ret;
