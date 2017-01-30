@@ -10757,6 +10757,7 @@ static int DecodeBasicOcspResponse(byte* source, word32* ioIndex,
             return ASN_PARSE_E;
 
         InitDecodedCert(&cert, resp->cert, resp->certSz, heap);
+
         /* Don't verify if we don't have access to Cert Manager. */
         ret = ParseCertRelative(&cert, CERT_TYPE,
                                 noVerify ? NO_VERIFY : VERIFY_OCSP, cm);
@@ -10764,6 +10765,13 @@ static int DecodeBasicOcspResponse(byte* source, word32* ioIndex,
             WOLFSSL_MSG("\tOCSP Responder certificate parsing failed");
             FreeDecodedCert(&cert);
             return ret;
+        }
+
+        if ((cert.extExtKeyUsage & EXTKEYUSE_OCSP_SIGN) == 0) {
+            WOLFSSL_MSG("\tOCSP Responder key usage check failed");
+
+            FreeDecodedCert(&cert);
+            return BAD_OCSP_RESPONDER;
         }
 
         /* ConfirmSignature is blocking here */
