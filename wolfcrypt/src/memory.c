@@ -389,10 +389,19 @@ int wolfSSL_StaticBufferSz(byte* buffer, word32 sz, int flag)
 
     /* creating only IO buffers from memory passed in, max TLS is 16k */
     if (flag & WOLFMEM_IO_POOL || flag & WOLFMEM_IO_POOL_FIXED) {
-        ava = sz % (memSz + padSz + WOLFMEM_IO_SZ);
+        if (ava < (memSz + padSz + WOLFMEM_IO_SZ)) {
+            return 0; /* not enough room for even one bucket */
+        }
+
+        ava = ava % (memSz + padSz + WOLFMEM_IO_SZ);
     }
     else {
         int i, k;
+
+        if (ava < (bucketSz[0] + padSz + memSz)) {
+            return 0; /* not enough room for even one bucket */
+        }
+
         while ((ava >= (bucketSz[0] + padSz + memSz)) && (ava > 0)) {
             /* start at largest and move to smaller buckets */
             for (i = (WOLFMEM_MAX_BUCKETS - 1); i >= 0; i--) {

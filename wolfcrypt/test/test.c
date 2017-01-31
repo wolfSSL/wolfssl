@@ -4338,6 +4338,9 @@ int memory_test(void)
     word32 size[] = { WOLFMEM_BUCKETS };
     word32 dist[] = { WOLFMEM_DIST };
     byte buffer[30000]; /* make large enough to involve many bucket sizes */
+    int pad = -(int)((wolfssl_word)&(buffer[0])) & (WOLFSSL_STATIC_ALIGN - 1);
+              /* pad to account for if head of buffer is not at set memory
+               * alignment when tests are ran */
 
     /* check macro settings */
     if (sizeof(size)/sizeof(word32) != WOLFMEM_MAX_BUCKETS) {
@@ -4362,7 +4365,7 @@ int memory_test(void)
     }
 
     /* check that padding size returned is possible */
-    if (wolfSSL_MemoryPaddingSz() <= WOLFSSL_STATIC_ALIGN) {
+    if (wolfSSL_MemoryPaddingSz() < WOLFSSL_STATIC_ALIGN) {
         return -101; /* no room for wc_Memory struct */
     }
 
@@ -4375,8 +4378,8 @@ int memory_test(void)
     }
 
     /* check function to return optimum buffer size (rounded down) */
-    if ((ret = wolfSSL_StaticBufferSz(buffer, sizeof(buffer), WOLFMEM_GENERAL))
-            % WOLFSSL_STATIC_ALIGN != 0) {
+    ret = wolfSSL_StaticBufferSz(buffer, sizeof(buffer), WOLFMEM_GENERAL);
+    if ((ret - pad) % WOLFSSL_STATIC_ALIGN != 0) {
         return -104; /* not aligned! */
     }
 
@@ -4393,21 +4396,22 @@ int memory_test(void)
     }
 
     ret = wolfSSL_MemoryPaddingSz();
+    ret += pad; /* add space that is going to be needed if buffer not aligned */
     if (wolfSSL_StaticBufferSz(buffer, size[0] + ret + 1, WOLFMEM_GENERAL) !=
             (ret + (int)size[0])) {
         return -108; /* did not round down to nearest bucket value */
     }
 
     ret = wolfSSL_StaticBufferSz(buffer, sizeof(buffer), WOLFMEM_IO_POOL);
-    if (ret < 0) {
+    if ((ret - pad) < 0) {
         return -109;
     }
 
-    if ((ret % (WOLFMEM_IO_SZ + wolfSSL_MemoryPaddingSz())) != 0) {
+    if (((ret - pad) % (WOLFMEM_IO_SZ + wolfSSL_MemoryPaddingSz())) != 0) {
         return -110; /* not even chunks of memory for IO size */
     }
 
-    if ((ret % WOLFSSL_STATIC_ALIGN) != 0) {
+    if (((ret - pad) % WOLFSSL_STATIC_ALIGN) != 0) {
         return -111; /* memory not aligned */
     }
 
