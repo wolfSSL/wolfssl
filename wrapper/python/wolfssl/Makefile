@@ -18,7 +18,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
 
-.PHONY : all clean clean-build clean-pyc clean-test install test upload
+.PHONY : all clean clean-build clean-pyc clean-test install test docs upload
 
 # builds the module
 all :
@@ -52,6 +52,9 @@ check : test
 
 test : clean-pyc
 	tox
+
+docs :
+	$(MAKE) -C docs singlehtml
 
 # publishes module at pypi
 upload : test
