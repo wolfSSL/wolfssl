@@ -9739,10 +9739,8 @@ static INLINE int DtlsUpdateWindow(WOLFSSL* ssl)
     cur_hi = ssl->keys.curSeq_hi;
     cur_lo = ssl->keys.curSeq_lo;
 
-    if (!ssl->options.haveMcast)
-        peerSeq = ssl->keys.peerSeq;
-    else {
 #ifdef WOLFSSL_MULTICAST
+    if (ssl->options.haveMcast) {
         WOLFSSL_DTLS_PEERSEQ* p;
         int i;
 
@@ -9779,8 +9777,8 @@ static INLINE int DtlsUpdateWindow(WOLFSSL* ssl)
                                                    ssl->ctx->mcastSecondSeq,
                                                    ssl->ctx->mcastMaxSeq);
         }
-#endif
     }
+#endif
 
     if (ssl->keys.curEpoch == peerSeq->nextEpoch) {
         next_hi = &peerSeq->nextSeq_hi;
