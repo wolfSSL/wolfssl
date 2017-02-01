@@ -16130,7 +16130,11 @@ WOLFSSL_DH* wolfSSL_DH_new(void)
     }
 
     InitwolfSSL_DH(external);
-    wc_InitDhKey(key);
+    if (wc_InitDhKey(key) != 0) {
+        WOLFSSL_MSG("wolfSSL_DH_new InitDhKey failure");
+        XFREE(key, NULL, DYNAMIC_TYPE_DH);
+        return NULL;
+    }
     external->internal = key;
 
     return external;
@@ -16425,7 +16429,11 @@ WOLFSSL_DSA* wolfSSL_DSA_new(void)
     }
 
     InitwolfSSL_DSA(external);
-    InitDsaKey(key);
+    if (wc_InitDsaKey(key) != 0) {
+        WOLFSSL_MSG("wolfSSL_DSA_new InitDsaKey failure");
+        XFREE(key, NULL, DYNAMIC_TYPE_DSA);
+        return NULL;
+    }
     external->internal = key;
 
     return external;

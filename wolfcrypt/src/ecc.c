@@ -1807,10 +1807,12 @@ int ecc_map(ecc_point* P, mp_int* modulus, mp_digit mp)
 
    /* special case for point at infinity */
    if (mp_cmp_d(P->z, 0) == MP_EQ) {
-       mp_set(P->x, 0);
-       mp_set(P->y, 0);
-       mp_set(P->z, 1);
-       return MP_OKAY;
+       err = mp_set(P->x, 0);
+       if (err == MP_OKAY)
+           err = mp_set(P->y, 0);
+       if (err == MP_OKAY)
+           err = mp_set(P->z, 1);
+       return err;
    }
 
    if ((err = mp_init_multi(&t1, &t2, NULL, NULL, NULL, NULL)) != MP_OKAY) {
@@ -1872,13 +1874,16 @@ int ecc_map(ecc_point* P, mp_int* modulus, mp_digit mp)
        err = mp_montgomery_reduce(y, modulus, mp);
 
    if (err == MP_OKAY)
-       mp_set(z, 1);
+       err = mp_set(z, 1);
 
 #ifdef ALT_ECC_SIZE
    /* return result */
-   mp_copy(x, P->x);
-   mp_copy(y, P->y);
-   mp_copy(z, P->z);
+   if (err == MP_OKAY)
+      err = mp_copy(x, P->x);
+   if (err == MP_OKAY)
+      err = mp_copy(y, P->y);
+   if (err == MP_OKAY)
+      err = mp_copy(z, P->z);
 #endif
 
 done:
@@ -2861,7 +2866,7 @@ int wc_ecc_make_key_ex(WC_RNG* rng, int keysize, ecc_key* key, int curve_id)
     if (err == MP_OKAY)
         err = mp_copy(curve->Gy, base->y);
     if (err == MP_OKAY)
-        mp_set(base->z, 1);
+        err = mp_set(base->z, 1);
 
     /* generate k */
     if (err == MP_OKAY)
@@ -3797,7 +3802,7 @@ int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
    if (err == MP_OKAY)
        err = mp_copy(curve->Gy, mG->y);
    if (err == MP_OKAY)
-       mp_set(mG->z, 1);
+       err = mp_set(mG->z, 1);
 
    if (err == MP_OKAY)
        err = mp_copy(key->pubkey.x, mQ->x);
@@ -3987,7 +3992,7 @@ int wc_ecc_import_point_der(byte* in, word32 inLen, const int curve_idx,
         err = mp_read_unsigned_bin(point->y,
                                    (byte*)in+1+((inLen-1)>>1), (inLen-1)>>1);
     if (err == MP_OKAY)
-        mp_set(point->z, 1);
+        err = mp_set(point->z, 1);
 
     if (err != MP_OKAY) {
         mp_clear(point->x);
@@ -4211,8 +4216,9 @@ int wc_ecc_is_point(ecc_point* ecp, mp_int* a, mp_int* b, mp_int* prime)
 #ifdef WOLFSSL_CUSTOM_CURVES
    if (err == MP_OKAY) {
       /* Use a and prime to determine if a == 3 */
-      mp_set(&t2, 0);
-      err = mp_submod(prime, a, prime, &t2);
+      err = mp_set(&t2, 0);
+      if (err == MP_OKAY)
+          err = mp_submod(prime, a, prime, &t2);
    }
    if (err == MP_OKAY && mp_cmp_d(&t2, 3) != MP_EQ) {
       /* compute y^2 - x^3 + a*x */
@@ -4289,7 +4295,7 @@ static int ecc_check_privkey_gen(ecc_key* key, mp_int* a, mp_int* prime)
     if (err == MP_OKAY)
         err = mp_copy(curve->Gy, base->y);
     if (err == MP_OKAY)
-        mp_set(base->z, 1);
+        err = mp_set(base->z, 1);
 
     if (err == MP_OKAY) {
         res = wc_ecc_new_point_h(key->heap);
@@ -4576,7 +4582,8 @@ int wc_ecc_import_x963_ex(const byte* in, word32 inLen, ecc_key* key,
             else {
                 err = mp_submod(curve->prime, &t2, curve->prime, &t2);
             }
-            mp_copy(&t2, key->pubkey.y);
+            if (err == MP_OKAY)
+                err = mp_copy(&t2, key->pubkey.y);
         }
 
         if (did_init) {
@@ -4594,7 +4601,7 @@ int wc_ecc_import_x963_ex(const byte* in, word32 inLen, ecc_key* key,
         err = mp_read_unsigned_bin(key->pubkey.y, (byte*)in+1+((inLen-1)>>1),
                                                                 (inLen-1)>>1);
     if (err == MP_OKAY)
-        mp_set(key->pubkey.z, 1);
+        err = mp_set(key->pubkey.z, 1);
 
 #ifdef WOLFSSL_VALIDATE_ECC_IMPORT
     if (err == MP_OKAY)
@@ -4935,7 +4942,7 @@ static int wc_ecc_import_raw_private(ecc_key* key, const char* qx,
         err = mp_read_radix(key->pubkey.y, qy, 16);
 
     if (err == MP_OKAY)
-        mp_set(key->pubkey.z, 1);
+        err = mp_set(key->pubkey.z, 1);
 
     /* import private key */
     if (err == MP_OKAY) {
@@ -5886,10 +5893,14 @@ static int accel_fp_mul(int idx, mp_int* k, ecc_point *R, mp_int* a,
             goto done;
          }
       } else {
-         mp_copy(k, &tk);
+         if ((err = mp_copy(k, &tk)) != MP_OKAY) {
+            goto done;
+         }
       }
    } else {
-      mp_copy(k, &tk);
+      if ((err = mp_copy(k, &tk)) != MP_OKAY) {
+         goto done;
+      }
    }
 
    /* get bitlen and round up to next multiple of FP_LUT */
@@ -6035,10 +6046,14 @@ static int accel_fp_mul2add(int idx1, int idx2,
             goto done;
          }
       } else {
-         mp_copy(kA, &tka);
+         if ((err = mp_copy(kA, &tka)) != MP_OKAY) {
+            goto done;
+         }
       }
    } else {
-      mp_copy(kA, &tka);
+      if ((err = mp_copy(kA, &tka)) != MP_OKAY) {
+         goto done;
+      }
    }
 
    /* if it's smaller than modulus we fine */
@@ -6062,10 +6077,14 @@ static int accel_fp_mul2add(int idx1, int idx2,
             goto done;
          }
       } else {
-         mp_copy(kB, &tkb);
+         if ((err = mp_copy(kB, &tkb)) != MP_OKAY) {
+            goto done;
+         }
       }
    } else {
-      mp_copy(kB, &tkb);
+      if ((err = mp_copy(kB, &tkb)) != MP_OKAY) {
+         goto done;
+      }
    }
 
    /* get bitlen and round up to next multiple of FP_LUT */
@@ -7176,8 +7195,7 @@ int mp_sqrtmod_prime(mp_int* n, mp_int* prime, mp_int* ret)
     return MP_OKAY;
   }
   if (mp_cmp_d(n, 1) == MP_EQ) {
-    mp_set(ret, 1);
-    return MP_OKAY;
+    return mp_set(ret, 1);
   }
 
   /* prime must be odd */
@@ -7328,7 +7346,7 @@ int mp_sqrtmod_prime(mp_int* n, mp_int* prime, mp_int* ret)
 
         /* M = i */
         if (res == MP_OKAY)
-          mp_set(&M, i);
+          res = mp_set(&M, i);
       }
     }
   }

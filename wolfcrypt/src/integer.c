@@ -146,7 +146,7 @@ int mp_init (mp_int * a)
   if (a == NULL)
     return MP_VAL;
 
-  /* defer memory allocation */
+  /* defer allocation until mp_grow */
   a->dp = NULL;
 
   /* set the used to zero, allocated digits to the default precision
@@ -175,7 +175,7 @@ void mp_clear (mp_int * a)
     }
 
     /* free ram */
-    XFREE(a->dp, 0, DYNAMIC_TYPE_BIGINT);
+    XFREE(a->dp, NULL, DYNAMIC_TYPE_BIGINT);
 
     /* reset members to make debugging easier */
     a->dp    = NULL;
@@ -195,7 +195,7 @@ void mp_forcezero(mp_int * a)
       ForceZero(a->dp, a->used * sizeof(mp_digit));
 
       /* free ram */
-      XFREE(a->dp, 0, DYNAMIC_TYPE_BIGINT);
+      XFREE(a->dp, NULL, DYNAMIC_TYPE_BIGINT);
 
       /* reset members to make debugging easier */
       a->dp    = NULL;
@@ -317,7 +317,7 @@ int mp_copy (mp_int * a, mp_int * b)
   }
 
   /* grow dest */
-  if (b->alloc < a->used || b->alloc == 0) {
+  if (b->alloc < a->used || a->used == 0) {
      if ((res = mp_grow (b, a->used)) != MP_OKAY) {
         return res;
      }
@@ -371,7 +371,7 @@ int mp_grow (mp_int * a, int size)
      * to overwrite the dp member of a.
      */
     tmp = OPT_CAST(mp_digit) XREALLOC (a->dp, sizeof (mp_digit) * size, NULL,
-                                       DYNAMIC_TYPE_BIGINT);
+                                                           DYNAMIC_TYPE_BIGINT);
     if (tmp == NULL) {
       /* reallocation failed but "a" is still valid [can be freed] */
       return MP_MEM;
@@ -939,7 +939,9 @@ int fast_mp_invmod (mp_int * a, mp_int * b, mp_int * c)
   if ((res = mp_copy (&y, &v)) != MP_OKAY) {
     goto LBL_ERR;
   }
-  mp_set (&D, 1);
+  if ((res = mp_set (&D, 1)) != MP_OKAY) {
+    goto LBL_ERR;
+  }
 
 top:
   /* 4.  while u is even do */
@@ -1093,8 +1095,12 @@ int mp_invmod_slow (mp_int * a, mp_int * b, mp_int * c)
   if ((res = mp_copy (&y, &v)) != MP_OKAY) {
     goto LBL_ERR;
   }
-  mp_set (&A, 1);
-  mp_set (&D, 1);
+  if ((res = mp_set (&A, 1)) != MP_OKAY) {
+    goto LBL_ERR;
+  }
+  if ((res = mp_set (&D, 1)) != MP_OKAY) {
+    goto LBL_ERR;
+  }
 
 top:
   /* 4.  while u is even do */
@@ -1299,12 +1305,16 @@ int mp_cmp_d(mp_int * a, mp_digit b)
 
 
 /* set to a digit */
-void mp_set (mp_int * a, mp_digit b)
+int mp_set (mp_int * a, mp_digit b)
 {
+  int res;
   mp_zero (a);
-  mp_grow(a, 1);
-  a->dp[0] = (mp_digit)(b & MP_MASK);
-  a->used  = (a->dp[0] != 0) ? 1 : 0;
+  res = mp_grow (a, 1);
+  if (res == MP_OKAY) {
+    a->dp[0] = (mp_digit)(b & MP_MASK);
+    a->used  = (a->dp[0] != 0) ? 1 : 0;
+  }
+  return res;
 }
 
 /* chek if a bit is set */
@@ -1372,8 +1382,9 @@ int mp_div(mp_int * a, mp_int * b, mp_int * c, mp_int * d)
      return res;
   }
 
-
-  mp_set(&tq, 1);
+  if ((res = mp_set(&tq, 1)) != MP_OKAY) {
+     return res;
+  }
   n = mp_count_bits(a) - mp_count_bits(b);
   if (((res = mp_abs(a, &ta)) != MP_OKAY) ||
       ((res = mp_abs(b, &tb)) != MP_OKAY) ||
@@ -1931,7 +1942,9 @@ int mp_exptmod_fast (mp_int * G, mp_int * X, mp_int * P, mp_int * Y,
        goto LBL_RES;
      }
   } else {
-     mp_set(&res, 1);
+     if ((err = mp_set(&res, 1)) != MP_OKAY) {
+        goto LBL_RES;
+     }
      if ((err = mp_mod(G, P, &M[1])) != MP_OKAY) {
         goto LBL_RES;
      }
@@ -2159,7 +2172,7 @@ int fast_mp_montgomery_reduce (mp_int * x, mp_int * n, mp_digit rho)
   }
 
 #ifdef WOLFSSL_SMALL_STACK
-  W = (mp_word*)XMALLOC(sizeof(mp_word) * MP_WARRAY, 0, DYNAMIC_TYPE_BIGINT);
+  W = (mp_word*)XMALLOC(sizeof(mp_word) * MP_WARRAY, NULL, DYNAMIC_TYPE_BIGINT);
   if (W == NULL)
     return MP_MEM;
 #endif
@@ -2286,7 +2299,7 @@ int fast_mp_montgomery_reduce (mp_int * x, mp_int * n, mp_digit rho)
   mp_clamp (x);
 
 #ifdef WOLFSSL_SMALL_STACK
-  XFREE(W, 0, DYNAMIC_TYPE_BIGINT);
+  XFREE(W, NULL, DYNAMIC_TYPE_BIGINT);
 #endif
 
   /* if A >= m then A = A - m */
@@ -2883,7 +2896,7 @@ int mp_init_size (mp_int * a, int size)
   size += (MP_PREC * 2) - (size % MP_PREC);
 
   /* alloc mem */
-  a->dp = OPT_CAST(mp_digit) XMALLOC (sizeof (mp_digit) * size, 0,
+  a->dp = OPT_CAST(mp_digit) XMALLOC (sizeof (mp_digit) * size, NULL,
                                       DYNAMIC_TYPE_BIGINT);
   if (a->dp == NULL) {
     return MP_MEM;
@@ -2936,7 +2949,7 @@ int fast_s_mp_sqr (mp_int * a, mp_int * b)
     return MP_RANGE;  /* TAO range check */
 
 #ifdef WOLFSSL_SMALL_STACK
-  W = (mp_digit*)XMALLOC(sizeof(mp_digit) * MP_WARRAY, 0, DYNAMIC_TYPE_BIGINT);
+  W = (mp_digit*)XMALLOC(sizeof(mp_digit) * MP_WARRAY, NULL, DYNAMIC_TYPE_BIGINT);
   if (W == NULL)
     return MP_MEM;
 #endif
@@ -3009,7 +3022,7 @@ int fast_s_mp_sqr (mp_int * a, mp_int * b)
   mp_clamp (b);
 
 #ifdef WOLFSSL_SMALL_STACK
-  XFREE(W, 0, DYNAMIC_TYPE_BIGINT);
+  XFREE(W, NULL, DYNAMIC_TYPE_BIGINT);
 #endif
 
   return MP_OKAY;
@@ -3055,7 +3068,7 @@ int fast_s_mp_mul_digs (mp_int * a, mp_int * b, mp_int * c, int digs)
     return MP_RANGE;  /* TAO range check */
 
 #ifdef WOLFSSL_SMALL_STACK
-  W = (mp_digit*)XMALLOC(sizeof(mp_digit) * MP_WARRAY, 0, DYNAMIC_TYPE_BIGINT);
+  W = (mp_digit*)XMALLOC(sizeof(mp_digit) * MP_WARRAY, NULL, DYNAMIC_TYPE_BIGINT);
   if (W == NULL)
     return MP_MEM;
 #endif
@@ -3113,7 +3126,7 @@ int fast_s_mp_mul_digs (mp_int * a, mp_int * b, mp_int * c, int digs)
   mp_clamp (c);
 
 #ifdef WOLFSSL_SMALL_STACK
-  XFREE(W, 0, DYNAMIC_TYPE_BIGINT);
+  XFREE(W, NULL, DYNAMIC_TYPE_BIGINT);
 #endif
 
   return MP_OKAY;
@@ -3273,7 +3286,9 @@ int mp_montgomery_calc_normalization (mp_int * a, mp_int * b)
         return res;
      }
   } else {
-     mp_set(a, 1);
+     if ((res = mp_set(a, 1)) != MP_OKAY) {
+        return res;
+     }
      bits = 1;
   }
 
@@ -3412,7 +3427,9 @@ int s_mp_exptmod (mp_int * G, mp_int * X, mp_int * P, mp_int * Y, int redmode)
   if ((err = mp_init (&res)) != MP_OKAY) {
     goto LBL_MU;
   }
-  mp_set (&res, 1);
+  if ((err = mp_set (&res, 1)) != MP_OKAY) {
+    goto LBL_MU;
+  }
 
   /* set initial mode and bit cnt */
   mode   = 0;
@@ -3599,7 +3616,8 @@ int mp_reduce (mp_int * x, mp_int * m, mp_int * mu)
 
   /* If x < 0, add b**(k+1) to it */
   if (mp_cmp_d (x, 0) == MP_LT) {
-    mp_set (&q, 1);
+    if ((res = mp_set (&q, 1)) != MP_OKAY)
+        goto CLEANUP;
     if ((res = mp_lshd (&q, um + 1)) != MP_OKAY)
       goto CLEANUP;
     if ((res = mp_add (x, &q, x)) != MP_OKAY)
@@ -3777,7 +3795,7 @@ int fast_s_mp_mul_high_digs (mp_int * a, mp_int * b, mp_int * c, int digs)
     return MP_RANGE;  /* TAO range check */
 
 #ifdef WOLFSSL_SMALL_STACK
-  W = (mp_digit*)XMALLOC(sizeof(mp_digit) * MP_WARRAY, 0, DYNAMIC_TYPE_BIGINT);
+  W = (mp_digit*)XMALLOC(sizeof(mp_digit) * MP_WARRAY, NULL, DYNAMIC_TYPE_BIGINT);
   if (W == NULL)
     return MP_MEM;
 #endif
@@ -3835,7 +3853,7 @@ int fast_s_mp_mul_high_digs (mp_int * a, mp_int * b, mp_int * c, int digs)
   mp_clamp (c);
 
 #ifdef WOLFSSL_SMALL_STACK
-  XFREE(W, 0, DYNAMIC_TYPE_BIGINT);
+  XFREE(W, NULL, DYNAMIC_TYPE_BIGINT);
 #endif
 
   return MP_OKAY;
@@ -4466,7 +4484,9 @@ int mp_prime_is_prime (mp_int * a, int t, int *result)
 
   for (ix = 0; ix < t; ix++) {
     /* set the prime */
-    mp_set (&b, ltm_prime_tab[ix]);
+    if ((err = mp_set (&b, ltm_prime_tab[ix])) != MP_OKAY) {
+        goto LBL_B;
+    }
 
     if ((err = mp_prime_miller_rabin (a, &b, &res)) != MP_OKAY) {
       goto LBL_B;

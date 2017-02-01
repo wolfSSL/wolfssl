@@ -49,12 +49,17 @@
 #endif
 
 
-void wc_InitDhKey(DhKey* key)
+int wc_InitDhKey(DhKey* key)
 {
-    if (key) {
-        mp_init(&key->p);
-        mp_init(&key->g);
-    }
+    int ret = 0;
+
+    if (key == NULL)
+        return BAD_FUNC_ARG;
+
+    if (mp_init_multi(&key->p, &key->g, NULL, NULL, NULL, NULL) != MP_OKAY)
+        ret = MEMORY_E;
+
+    return ret;
 }
 
 

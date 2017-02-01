@@ -50,31 +50,35 @@ enum {
 
 
 
-void wc_InitDsaKey(DsaKey* key)
+int wc_InitDsaKey(DsaKey* key)
 {
     if (key == NULL)
-        return;
+        return BAD_FUNC_ARG;
 
     key->type = -1;  /* haven't decided yet */
     key->heap = NULL;
 
-    /* public  alloc parts */
-    mp_init(&key->p);
-    mp_init(&key->q);
-    mp_init(&key->g);
-    mp_init(&key->y);
+    return mp_init_multi(
+        /* public  alloc parts */
+        &key->p,
+        &key->q,
+        &key->g,
+        &key->y,
 
-    /* private alloc parts */
-    mp_init(&key->x);
+        /* private alloc parts */
+        &key->x,
+        NULL
+    );
 }
 
 
 int wc_InitDsaKey_h(DsaKey* key, void* h)
 {
-    wc_InitDsaKey(key);
-    key->heap = h;
+    int ret = wc_InitDsaKey(key);
+    if (ret == 0)
+        key->heap = h;
 
-    return 0;
+    return ret;
 }
 
 
@@ -317,7 +321,13 @@ int wc_MakeDsaParameters(WC_RNG *rng, int modulus_size, DsaKey *dsa)
     }
 
     /* find a value g for which g^tmp2 != 1 */
-    mp_set(&dsa->g, 1);
+    if (mp_set(&dsa->g, 1) != MP_OKAY) {
+        mp_clear(&dsa->q);
+        mp_clear(&dsa->p);
+        mp_clear(&tmp);
+        mp_clear(&tmp2);
+        return MP_INIT_E;
+    }
 
     do {
         err = mp_add_d(&dsa->g, 1, &dsa->g);
