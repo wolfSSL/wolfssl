@@ -2323,12 +2323,6 @@ ecc_point* wc_ecc_new_point_h(void* heap)
    }
    XMEMSET(p, 0, sizeof(ecc_point));
 
-#ifndef USE_FAST_MATH
-   p->x->dp = NULL;
-   p->y->dp = NULL;
-   p->z->dp = NULL;
-#endif
-
 #ifndef ALT_ECC_SIZE
    if (mp_init_multi(p->x, p->y, p->z, NULL, NULL, NULL) != MP_OKAY) {
       XFREE(p, heap, DYNAMIC_TYPE_ECC);
@@ -3018,17 +3012,20 @@ int wc_ecc_init_ex(ecc_key* key, void* heap, int devId)
     }
 #else
 #ifdef ALT_ECC_SIZE
-    if (mp_init(&key->k) != MP_OKAY) {
-        return MEMORY_E;
-    }
-
     key->pubkey.x = (mp_int*)&key->pubkey.xyz[0];
     key->pubkey.y = (mp_int*)&key->pubkey.xyz[1];
     key->pubkey.z = (mp_int*)&key->pubkey.xyz[2];
     alt_fp_init(key->pubkey.x);
     alt_fp_init(key->pubkey.y);
     alt_fp_init(key->pubkey.z);
+    ret = mp_init(&key->k);
+#else
+    ret = mp_init_multi(&key->k, key->pubkey.x, key->pubkey.y, key->pubkey.z,
+                                                                    NULL, NULL);
 #endif /* ALT_ECC_SIZE */
+    if (ret != MP_OKAY) {
+        return MEMORY_E;
+    }
 #endif /* WOLFSSL_ATECC508A */
 
 #ifdef WOLFSSL_HEAP_TEST

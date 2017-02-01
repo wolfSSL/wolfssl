@@ -214,13 +214,6 @@ int wc_InitRsaKey_ex(RsaKey* key, void* heap, int devId)
     else
 #endif
     {
-    /* For normal math defer the memory allocations */
-    #ifndef USE_FAST_MATH
-        key->n.dp = key->e.dp = 0;  /* public  alloc parts */
-        key->d.dp = key->p.dp  = 0; /* private alloc parts */
-        key->q.dp = key->dP.dp = 0;
-        key->u.dp = key->dQ.dp = 0;
-    #else
         mp_init(&key->n);
         mp_init(&key->e);
         mp_init(&key->d);
@@ -229,7 +222,6 @@ int wc_InitRsaKey_ex(RsaKey* key, void* heap, int devId)
         mp_init(&key->dP);
         mp_init(&key->dQ);
         mp_init(&key->u);
-    #endif /* USE_FAST_MATH */
     }
 
     return ret;
@@ -266,6 +258,12 @@ int wc_FreeRsaKey(RsaKey* key)
             mp_forcezero(&key->p);
             mp_forcezero(&key->d);
         }
+        mp_clear(&key->u);
+        mp_clear(&key->dQ);
+        mp_clear(&key->dP);
+        mp_clear(&key->q);
+        mp_clear(&key->p);
+        mp_clear(&key->d);
         mp_clear(&key->e);
         mp_clear(&key->n);
     }
@@ -907,7 +905,7 @@ static int wc_RsaFunctionSync(const byte* in, word32 inLen, byte* out,
          */
         #define RET_ERR(ret, r, e) \
             ((ret) | (COND_N((ret) == 0, COND_N((r) != MP_OKAY, (e)))))
-    
+
         { /* tmpa/b scope */
         mp_int tmpa, tmpb;
         int r;

@@ -8311,8 +8311,13 @@ int wolfSSL_Cleanup(void)
     if (wc_FreeMutex(&count_mutex) != 0)
         ret = BAD_MUTEX_E;
 
-#if defined(HAVE_ECC) && defined(FP_ECC)
-    wc_ecc_fp_free();
+#ifdef HAVE_ECC
+    #ifdef FP_ECC
+        wc_ecc_fp_free();
+    #endif
+    #ifdef ECC_CACHE_CURVE
+        wc_ecc_curve_cache_free();
+    #endif
 #endif
 
     if (wolfCrypt_Cleanup() != 0) {

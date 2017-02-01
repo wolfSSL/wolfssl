@@ -142,28 +142,17 @@ int mp_init_multi(mp_int* a, mp_int* b, mp_int* c, mp_int* d, mp_int* e,
 /* init a new mp_int */
 int mp_init (mp_int * a)
 {
-  int i;
-
   /* Safeguard against passing in a null pointer */
   if (a == NULL)
     return MP_VAL;
 
-  /* allocate memory required and clear it */
-  a->dp = OPT_CAST(mp_digit) XMALLOC (sizeof (mp_digit) * MP_PREC, 0,
-                                      DYNAMIC_TYPE_BIGINT);
-  if (a->dp == NULL) {
-    return MP_MEM;
-  }
-
-  /* set the digits to zero */
-  for (i = 0; i < MP_PREC; i++) {
-      a->dp[i] = 0;
-  }
+  /* defer memory allocation */
+  a->dp = NULL;
 
   /* set the used to zero, allocated digits to the default precision
    * and sign to positive */
   a->used  = 0;
-  a->alloc = MP_PREC;
+  a->alloc = 0;
   a->sign  = MP_ZPOS;
 
   return MP_OKAY;
@@ -328,7 +317,7 @@ int mp_copy (mp_int * a, mp_int * b)
   }
 
   /* grow dest */
-  if (b->alloc < a->used) {
+  if (b->alloc < a->used || b->alloc == 0) {
      if ((res = mp_grow (b, a->used)) != MP_OKAY) {
         return res;
      }
@@ -371,7 +360,7 @@ int mp_grow (mp_int * a, int size)
   mp_digit *tmp;
 
   /* if the alloc size is smaller alloc more ram */
-  if (a->alloc < size) {
+  if (a->alloc < size || size == 0) {
     /* ensure there are always at least MP_PREC digits extra on top */
     size += (MP_PREC * 2) - (size % MP_PREC);
 
@@ -381,7 +370,7 @@ int mp_grow (mp_int * a, int size)
      * in case the operation failed we don't want
      * to overwrite the dp member of a.
      */
-    tmp = OPT_CAST(mp_digit) XREALLOC (a->dp, sizeof (mp_digit) * size, 0,
+    tmp = OPT_CAST(mp_digit) XREALLOC (a->dp, sizeof (mp_digit) * size, NULL,
                                        DYNAMIC_TYPE_BIGINT);
     if (tmp == NULL) {
       /* reallocation failed but "a" is still valid [can be freed] */
@@ -1313,6 +1302,7 @@ int mp_cmp_d(mp_int * a, mp_digit b)
 void mp_set (mp_int * a, mp_digit b)
 {
   mp_zero (a);
+  mp_grow(a, 1);
   a->dp[0] = (mp_digit)(b & MP_MASK);
   a->used  = (a->dp[0] != 0) ? 1 : 0;
 }
