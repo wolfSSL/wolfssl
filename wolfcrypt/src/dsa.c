@@ -52,18 +52,20 @@ enum {
 
 void wc_InitDsaKey(DsaKey* key)
 {
+    if (key == NULL)
+        return;
+
     key->type = -1;  /* haven't decided yet */
     key->heap = NULL;
 
-/* TomsFastMath doesn't use memory allocation */
-#ifndef USE_FAST_MATH
-    key->p.dp = 0;   /* public  alloc parts */
-    key->q.dp = 0;    
-    key->g.dp = 0;    
-    key->y.dp = 0;    
+    /* public  alloc parts */
+    mp_init(&key->p);
+    mp_init(&key->q);
+    mp_init(&key->g);
+    mp_init(&key->y);
 
-    key->x.dp = 0;   /* private alloc parts */
-#endif
+    /* private alloc parts */
+    mp_init(&key->x);
 }
 
 
@@ -78,11 +80,14 @@ int wc_InitDsaKey_h(DsaKey* key, void* h)
 
 void wc_FreeDsaKey(DsaKey* key)
 {
-    (void)key;
-/* TomsFastMath doesn't use memory allocation */
-#ifndef USE_FAST_MATH
+    if (key == NULL)
+        return;
+
     if (key->type == DSA_PRIVATE)
-        mp_clear(&key->x);
+        mp_forcezero(&key->x);
+
+#ifndef USE_FAST_MATH
+    mp_clear(&key->x);
     mp_clear(&key->y);
     mp_clear(&key->g);
     mp_clear(&key->q);
@@ -148,7 +153,7 @@ int wc_MakeDsaKey(WC_RNG *rng, DsaKey *dsa)
     }
 
     dsa->type = DSA_PRIVATE;
-    
+
     return MP_OKAY;
 }
 
@@ -356,7 +361,7 @@ int wc_DsaSign(const byte* digest, byte* out, DsaKey* key, WC_RNG* rng)
     byte*  tmp = out;  /* initial output pointer */
 
     sz = min((int)sizeof(buffer), mp_unsigned_bin_size(&key->q));
-    
+
     if (mp_init_multi(&k, &kInv, &r, &s, &H, 0) != MP_OKAY)
         return MP_INIT_E;
 
@@ -370,12 +375,12 @@ int wc_DsaSign(const byte* digest, byte* out, DsaKey* key, WC_RNG* rng)
 
         if (mp_read_unsigned_bin(&k, buffer, sz) != MP_OKAY)
             ret = MP_READ_E;
-            
+
         /* k is a random numnber and it should be less than q
          * if k greater than repeat
          */
     } while (mp_cmp(&k, &key->q) != MP_LT);
-    
+
     if (ret == 0 && mp_cmp_d(&k, 1) != MP_GT)
         ret = MP_CMP_E;
 
