@@ -3850,7 +3850,7 @@ void FreeHandshakeResources(WOLFSSL* ssl)
     wc_ShaFree(&ssl->hsHashes->hashSha);
 #endif
 #ifndef NO_SHA256
-    wc_Sha256Free(&ssl->hsHashes->hashSha25);
+    wc_Sha256Free(&ssl->hsHashes->hashSha256);
 #endif
 
 #ifdef HAVE_SECURE_RENEGOTIATION

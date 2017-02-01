@@ -485,6 +485,7 @@ int wc_UnLockMutex(wolfSSL_Mutex *m)
            if( Error_check( &eb )  )
            {
                Error_raise( &eb, Error_E_generic, "Failed to Create the semaphore.",NULL);
+	       return BAD_MUTEX_E;
            } else return 0;
         }
 
