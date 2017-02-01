@@ -317,7 +317,7 @@ int mp_copy (mp_int * a, mp_int * b)
   }
 
   /* grow dest */
-  if (b->alloc < a->used || a->used == 0) {
+  if (b->alloc < a->used) {
      if ((res = mp_grow (b, a->used)) != MP_OKAY) {
         return res;
      }
@@ -360,7 +360,7 @@ int mp_grow (mp_int * a, int size)
   mp_digit *tmp;
 
   /* if the alloc size is smaller alloc more ram */
-  if (a->alloc < size || size == 0) {
+  if (a->alloc < size) {
     /* ensure there are always at least MP_PREC digits extra on top */
     size += (MP_PREC * 2) - (size % MP_PREC);
 
@@ -1283,8 +1283,12 @@ int mp_cmp (mp_int * a, mp_int * b)
 /* compare a digit */
 int mp_cmp_d(mp_int * a, mp_digit b)
 {
+  /* special case for zero*/
+  if (a->used == 0 && b == 0)
+    return MP_EQ;
+
   /* compare based on sign */
-  if (a->sign == MP_NEG) {
+  if ((b && a->used == 0) || a->sign == MP_NEG) {
     return MP_LT;
   }
 
