@@ -258,14 +258,19 @@ int wc_FreeRsaKey(RsaKey* key)
             mp_forcezero(&key->p);
             mp_forcezero(&key->d);
         }
+    #ifndef USE_FAST_MATH
+        /* private part */
         mp_clear(&key->u);
         mp_clear(&key->dQ);
         mp_clear(&key->dP);
         mp_clear(&key->q);
         mp_clear(&key->p);
         mp_clear(&key->d);
+
+        /* public part */
         mp_clear(&key->e);
         mp_clear(&key->n);
+    #endif
     }
 
     return ret;
