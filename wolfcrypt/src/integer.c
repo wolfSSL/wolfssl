@@ -47,6 +47,9 @@
 
 #include <wolfssl/wolfcrypt/integer.h>
 
+#if defined(FREESCALE_LTC_TFM)
+    #include <wolfssl/wolfcrypt/port/nxp/ksdk_port.h>
+#endif
 #ifdef WOLFSSL_DEBUG_MATH
     #include <stdio.h>
 #endif
@@ -261,6 +264,22 @@ int mp_leading_bit (mp_int * a)
     return bit;
 }
 
+int mp_to_unsigned_bin_at_pos(int x, mp_int *t, unsigned char *b)
+{
+  int res = 0;
+  while (mp_iszero(t) == MP_NO) {
+#ifndef MP_8BIT
+      b[x++] = (unsigned char) (t->dp[0] & 255);
+#else
+      b[x++] = (unsigned char) (t->dp[0] | ((t->dp[1] & 0x01) << 7));
+#endif
+    if ((res = mp_div_2d (t, 8, t, NULL)) != MP_OKAY) {
+      return res;
+    }
+    res = x;
+  }
+  return res;
+}
 
 /* store in unsigned [big endian] format */
 int mp_to_unsigned_bin (mp_int * a, unsigned char *b)
@@ -272,21 +291,15 @@ int mp_to_unsigned_bin (mp_int * a, unsigned char *b)
     return res;
   }
 
-  x = 0;
-  while (mp_iszero (&t) == MP_NO) {
-#ifndef MP_8BIT
-      b[x++] = (unsigned char) (t.dp[0] & 255);
-#else
-      b[x++] = (unsigned char) (t.dp[0] | ((t.dp[1] & 0x01) << 7));
-#endif
-    if ((res = mp_div_2d (&t, 8, &t, NULL)) != MP_OKAY) {
-      mp_clear (&t);
-      return res;
-    }
+  x = mp_to_unsigned_bin_at_pos(0, &t, b);
+  if (x < 0) {
+    mp_clear(&t);
+    return x;
   }
+
   bn_reverse (b, x);
   mp_clear (&t);
-  return MP_OKAY;
+  return res;
 }
 
 
@@ -770,7 +783,11 @@ int mp_lshd (mp_int * a, int b)
  * embedded in the normal function but that wasted a lot of stack space
  * for nothing (since 99% of the time the Montgomery code would be called)
  */
+#if defined(FREESCALE_LTC_TFM)
+int wolfcrypt_mp_exptmod (mp_int * G, mp_int * X, mp_int * P, mp_int * Y)
+#else
 int mp_exptmod (mp_int * G, mp_int * X, mp_int * P, mp_int * Y)
+#endif
 {
   int dr;
 
@@ -881,7 +898,11 @@ int mp_abs (mp_int * a, mp_int * b)
 
 
 /* hac 14.61, pp608 */
+#if defined(FREESCALE_LTC_TFM)
+int wolfcrypt_mp_invmod(mp_int * a, mp_int * b, mp_int * c)
+#else
 int mp_invmod (mp_int * a, mp_int * b, mp_int * c)
+#endif
 {
   /* b cannot be negative */
   if (b->sign == MP_NEG || mp_iszero(b) == MP_YES) {
@@ -1331,7 +1352,11 @@ int mp_is_bit_set (mp_int *a, mp_digit b)
 }
 
 /* c = a mod b, 0 <= c < b */
+#if defined(FREESCALE_LTC_TFM)
+int wolfcrypt_mp_mod(mp_int * a, mp_int * b, mp_int * c)
+#else
 int mp_mod (mp_int * a, mp_int * b, mp_int * c)
+#endif
 {
   mp_int  t;
   int     res;
@@ -2654,7 +2679,11 @@ int mp_mul_d (mp_int * a, mp_digit b, mp_int * c)
 
 
 /* d = a * b (mod c) */
+#if defined(FREESCALE_LTC_TFM)
+int wolfcrypt_mp_mulmod(mp_int *a, mp_int *b, mp_int *c, mp_int *d)
+#else
 int mp_mulmod (mp_int * a, mp_int * b, mp_int * c, mp_int * d)
+#endif
 {
   int     res;
   mp_int  t;
@@ -2739,7 +2768,11 @@ int mp_sqr (mp_int * a, mp_int * b)
 
 
 /* high level multiplication (handles sign) */
+#if defined(FREESCALE_LTC_TFM)
+int wolfcrypt_mp_mul(mp_int *a, mp_int *b, mp_int *c)
+#else
 int mp_mul (mp_int * a, mp_int * b, mp_int * c)
+#endif
 {
   int     res, neg;
   neg = (a->sign == b->sign) ? MP_ZPOS : MP_NEG;

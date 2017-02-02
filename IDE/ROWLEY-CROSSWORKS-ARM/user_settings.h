@@ -216,6 +216,8 @@ extern "C" {
             #define FREESCALE_USE_LTC
             #define LTC_MAX_ECC_BITS    (512)
             #define LTC_MAX_INT_BYTES   (256)
+
+            //#define FREESCALE_LTC_TFM_RSA_4096_ENABLE
         #endif
     #endif
 #endif

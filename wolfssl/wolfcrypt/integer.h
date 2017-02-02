@@ -239,6 +239,7 @@ void mp_clear (mp_int * a);
 void mp_forcezero(mp_int * a);
 int  mp_unsigned_bin_size(mp_int * a);
 int  mp_read_unsigned_bin (mp_int * a, const unsigned char *b, int c);
+int  mp_to_unsigned_bin_at_pos(int x, mp_int *t, unsigned char *b);
 int  mp_to_unsigned_bin (mp_int * a, unsigned char *b);
 int  mp_exptmod (mp_int * G, mp_int * X, mp_int * P, mp_int * Y);
 /* end functions needed by Rsa */
