@@ -39,7 +39,11 @@ class Random(object):
 
     def __del__(self):
         if self.native_object:
-            _lib.wc_FreeRng(self.native_object)
+            try:
+                _lib.wc_FreeRng(self.native_object)
+            except AttributeError:
+                # Can occur during interpreter shutdown
+                pass
 
 
     def byte(self):
