@@ -639,6 +639,7 @@ int  mp_cmp_d(mp_int *a, mp_digit b);
 
 int  mp_unsigned_bin_size(mp_int * a);
 int  mp_read_unsigned_bin (mp_int * a, const unsigned char *b, int c);
+int  mp_to_unsigned_bin_at_pos(int x, mp_int *t, unsigned char *b);
 int  mp_to_unsigned_bin (mp_int * a, unsigned char *b);
 
 int  mp_sub_d(fp_int *a, fp_digit b, fp_int *c);
