@@ -10768,10 +10768,16 @@ static int DecodeBasicOcspResponse(byte* source, word32* ioIndex,
         }
 
         if ((cert.extExtKeyUsage & EXTKEYUSE_OCSP_SIGN) == 0) {
-            WOLFSSL_MSG("\tOCSP Responder key usage check failed");
+            if (XMEMCMP(cert.subjectHash,
+                        resp->issuerHash, KEYID_SIZE) == 0) {
+                WOLFSSL_MSG("\tOCSP Response signed by issuer");
+            }
+            else {
+                WOLFSSL_MSG("\tOCSP Responder key usage check failed");
 
-            FreeDecodedCert(&cert);
-            return BAD_OCSP_RESPONDER;
+                FreeDecodedCert(&cert);
+                return BAD_OCSP_RESPONDER;
+            }
         }
 
         /* ConfirmSignature is blocking here */
