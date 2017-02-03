@@ -2703,7 +2703,6 @@ static void test_wolfSSL_ERR_peek_last_error_line(void)
     ERR_print_errors_fp(stdout);
     printf("Done testing print out\n\n");
     fflush(stdout);
-    wolfSSL_Cleanup();
     #endif /* defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && \
              !defined(NO_FILESYSTEM) && !defined(DEBUG_WOLFSSL) */
 }

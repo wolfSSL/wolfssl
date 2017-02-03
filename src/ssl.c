@@ -20469,13 +20469,15 @@ unsigned long wolfSSL_ERR_peek_last_error_line(const char **file, int *line)
     (void)line;
     (void)file;
 #if defined(DEBUG_WOLFSSL)
-    if (line != NULL) {
-        *line = (int)wc_last_error_line;
+    {
+        int ret;
+
+        if ((ret = wc_PeekErrorNode(-1, file, NULL, line)) < 0) {
+            WOLFSSL_MSG("Issue peeking at error node in queue");
+            return 0;
+        }
+        return (unsigned long)ret;
     }
-    if (file != NULL) {
-        *file = (char*)wc_last_error_file;
-    }
-    return wc_last_error;
 #else
     return (unsigned long)(0 - NOT_COMPILED_IN);
 #endif

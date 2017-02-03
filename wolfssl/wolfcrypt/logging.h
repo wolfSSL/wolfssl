@@ -60,6 +60,8 @@ WOLFSSL_API int wolfSSL_SetLoggingCb(wolfSSL_Logging_cb log_function);
     WOLFSSL_LOCAL int wc_LoggingCleanup(void);
     WOLFSSL_LOCAL int wc_AddErrorNode(int error, int line, char* buf,
             char* file);
+    WOLFSSL_LOCAL int wc_PeekErrorNode(int index, const char **file,
+            const char **reason, int *line);
     WOLFSSL_API   int wc_SetLoggingHeap(void* h);
     #if !defined(NO_FILESYSTEM) && !defined(NO_STDIO_FILESYSTEM)
         WOLFSSL_API   void wc_ERR_print_errors_fp(FILE* fp);

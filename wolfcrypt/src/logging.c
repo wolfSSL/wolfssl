@@ -273,7 +273,7 @@ void WOLFSSL_ERROR(int error)
 int wc_LoggingInit(void)
 {
     if (wc_InitMutex(&debug_mutex) != 0) {
-        WOLFSSL_MSG("Bad Init Mutex frnih");
+        WOLFSSL_MSG("Bad Init Mutex");
         return BAD_MUTEX_E;
     }
     XMEMSET((char*)wc_last_error_file, 0, sizeof(wc_last_error_file));
@@ -310,7 +310,7 @@ int wc_LoggingCleanup(void)
 
     wc_UnLockMutex(&debug_mutex);
     if (wc_FreeMutex(&debug_mutex) != 0) {
-        WOLFSSL_MSG("Bad Init Mutex frnih");
+        WOLFSSL_MSG("Bad Mutex free");
         return BAD_MUTEX_E;
     }
     return 0;
@@ -318,6 +318,67 @@ int wc_LoggingCleanup(void)
 
 
 #ifdef DEBUG_WOLFSSL
+/* peek at an error node
+ *
+ * index : if -1 then the most recent node is looked at, otherwise search
+ *         through queue for node at the given index
+ * file  : pointer to internal file string
+ * reason : pointer to internal error reason
+ * line  : line number that error happened at
+ *
+ * Returns a negative value in error case, on success returns the nodes error
+ * value which is positve (absolute value)
+ */
+int wc_PeekErrorNode(int index, const char **file, const char **reason,
+        int *line)
+{
+    struct wc_error_queue* err;
+
+    if (wc_LockMutex(&debug_mutex) != 0) {
+        WOLFSSL_MSG("Lock debug mutex failed");
+        return BAD_MUTEX_E;
+    }
+
+    if (index < 0) {
+        err = wc_last_node;
+        if (err == NULL) {
+            WOLFSSL_MSG("No Errors in queue");
+            wc_UnLockMutex(&debug_mutex);
+            return BAD_STATE_E;
+        }
+    }
+    else {
+        int i;
+
+        err = (struct wc_error_queue*)wc_errors;
+        for (i = 0; i < index; i++) {
+            if (err == NULL) {
+                WOLFSSL_MSG("Error node not found. Bad index?");
+                wc_UnLockMutex(&debug_mutex);
+                return BAD_FUNC_ARG;
+            }
+            err = err->next;
+        }
+    }
+
+    if (file != NULL) {
+        *file = err->file;
+    }
+
+    if (reason != NULL) {
+        *reason = err->error;
+    }
+
+    if (line != NULL) {
+        *line = err->line;
+    }
+
+    wc_UnLockMutex(&debug_mutex);
+
+    return err->value;
+}
+
+
 /* create new error node and add it to the queue
  * buffers are assumed to be of size WOLFSSL_MAX_ERROR_SZ for this internal
  * function */
