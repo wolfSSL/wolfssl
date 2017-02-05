@@ -58,7 +58,7 @@ test : clean-pyc
 	tox
 
 docs :
-	$(MAKE) -C docs html
+	$(MAKE) -C docs singlehtml
 
 # publishes module at pypi
 upload : test

@@ -1,13 +1,8 @@
-.. include:: ../README.rst
-
-Summary
-=======
-
 .. toctree::
     :maxdepth: 2
 
+    installation
     usage
     api
     examples
-
-.. include:: ../LICENSING.rst
+    licensing
