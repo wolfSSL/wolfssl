@@ -187,6 +187,8 @@ class SSLContext(object):
 
         The keyfile string, if present, must point to a file containing the
         private key in.
+
+        The password parameter is not supported yet.
         """
 
         if password is not None:
@@ -453,7 +455,7 @@ class SSLSocket(socket):
             raise ValueError("buffer not allowed in calls to "
                              "read() on %s" % self.__class__)
 
-        data = t2b("\0" * length)
+        data = _ffi.new('byte[%d]' % length)
         length = _lib.wolfSSL_read(self.native_object, data, length)
 
         if length < 0:
@@ -463,7 +465,7 @@ class SSLSocket(socket):
             else:
                 raise SSLError("wolfSSL_read error (%d)" % err)
 
-        return data[:length] if length > 0 else b''
+        return _ffi.buffer(data, length)[:] if length > 0 else b''
 
 
     def recv(self, length=1024, flags=0):
@@ -602,19 +604,13 @@ def wrap_socket(sock, keyfile=None, certfile=None, server_side=False,
                 ciphers=None):
     """
     Takes an instance sock of socket.socket, and returns an instance of
-    wolfssl.SSLSocket, a subtype of socket.socket, which wraps the underlying
-    socket in an SSL context. sock must be a SOCK_STREAM socket; other socket
-    types are unsupported.
+    wolfssl.SSLSocket, wraping the underlying socket in an SSL context.
 
-    For client-side sockets, the context construction is lazy; if the underlying
-    socket isn’t connected yet, the context construction will be performed after
-    connect() is called on the socket. For server-side sockets, if the socket
-    has no remote peer, it is assumed to be a listening socket, and the
-    server-side SSL wrapping is automatically performed on client connections
-    accepted via the accept() method. wrap_socket() may raise SSLError.
+    The sock parameter must be a SOCK_STREAM socket; other socket types are
+    unsupported.
 
-    The keyfile and certfile parameters specify optional files which contain a
-    certificate to be used to identify the local side of the connection.
+    The keyfile and certfile parameters specify optional files whith proper
+    key and the certificates used to identify the local side of the connection.
 
     The parameter server_side is a boolean which identifies whether server-side
     or client-side behavior is desired from this socket.
@@ -622,9 +618,10 @@ def wrap_socket(sock, keyfile=None, certfile=None, server_side=False,
     The parameter cert_reqs specifies whether a certificate is required from the
     other side of the connection, and whether it will be validated if provided.
     It must be one of the three values:
-        CERT_NONE (certificates ignored)
-        CERT_OPTIONAL (not required, but validated if provided)
-        CERT_REQUIRED (required and validated)
+
+        * CERT_NONE (certificates ignored)
+        * CERT_OPTIONAL (not required, but validated if provided)
+        * CERT_REQUIRED (required and validated)
 
     If the value of this parameter is not CERT_NONE, then the ca_certs parameter
     must point to a file of CA certificates.
@@ -642,12 +639,19 @@ def wrap_socket(sock, keyfile=None, certfile=None, server_side=False,
     Here’s a table showing which versions in a client (down the side) can
     connect to which versions in a server (along the top):
 
-    | client \\ server | SSLv3 | TLS | TLSv1 | TLSv1.1 | TLSv1.2 |
+    +------------------+-------+-----+-------+---------+---------+
+    | client \\ server  | SSLv3 | TLS | TLSv1 | TLSv1.1 | TLSv1.2 |
+    +------------------+-------+-----+-------+---------+---------+
     | SSLv3            | yes   | yes | no    | no      | no      |
+    +------------------+-------+-----+-------+---------+---------+
     | TLS (SSLv23)     | yes   | yes | yes   | yes     | yes     |
+    +------------------+-------+-----+-------+---------+---------+
     | TLSv1            | no    | yes | yes   | no      | no      |
+    +------------------+-------+-----+-------+---------+---------+
     | TLSv1.1          | no    | yes | no    | yes     | no      |
+    +------------------+-------+-----+-------+---------+---------+
     | TLSv1.2          | no    | yes | no    | no      | yes     |
+    +------------------+-------+-----+-------+---------+---------+
 
     Note:
         Which connections succeed will vary depending on the versions of the ssl
@@ -663,11 +667,7 @@ def wrap_socket(sock, keyfile=None, certfile=None, server_side=False,
     gives the program control over the blocking behavior of the socket I/O
     involved in the handshake.
 
-    The parameter suppress_ragged_eofs specifies how the SSLSocket.recv() method
-    should signal unexpected EOF from the other end of the connection. If
-    specified as True (the default), it returns a normal EOF (an empty bytes
-    object) in response to unexpected EOF errors raised from the underlying
-    socket; if False, it will raise the exceptions back to the caller.
+    The parameter suppress_ragged_eofs is not supported yet.
     """
     return SSLSocket(sock=sock, keyfile=keyfile, certfile=certfile,
                      server_side=server_side, cert_reqs=cert_reqs,

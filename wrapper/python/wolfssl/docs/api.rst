@@ -1,23 +1,21 @@
-API
-===
+API Documentation
+=================
 
 .. module:: wolfssl
 
+wrap_socket
+-----------
+
+.. autofunction:: wrap_socket
+
 SSL/TLS Context
 ---------------
-
-SSLContext
-~~~~~~~~~~
 
 .. autoclass:: SSLContext
     :members:
 
 SSL/TLS Socket
 --------------
-
-
-SSLSocket
-~~~~~~~~~
 
 .. autoclass:: SSLSocket
     :members:

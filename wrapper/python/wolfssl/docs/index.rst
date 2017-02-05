@@ -1,15 +1,13 @@
 .. include:: ../README.rst
 
 Summary
--------
+=======
 
 .. toctree::
-   :maxdepth: 1
+    :maxdepth: 2
 
-   context
-   socket
-
-.. automodule:: wolfssl
-   :members:
+    usage
+    api
+    examples
 
 .. include:: ../LICENSING.rst

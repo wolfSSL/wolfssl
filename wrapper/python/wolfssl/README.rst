@@ -6,12 +6,12 @@ resource-constrained environments primarily because of its small size, speed,
 and portability.
 
 Installation
-============
+------------
 
 In order to use ``wolfssl Python``, you'll also need to install ``wolfssl C``.
 
 Mac OSX
--------
+~~~~~~~
 
 Installing from ``homebrew`` and ``pip`` package managers:
 
@@ -41,7 +41,7 @@ Installing from ``source code``:
 
 
 Linux
------
+~~~~~
 
 .. code-block:: shell
 
@@ -65,7 +65,7 @@ Linux
 
 
 Testing
-=======
+-------
 
 To run the tox tests in the source code, you'll need ``tox`` and a few other
 requirements. The source code relies at **WOLFSSL_DIR/wrapper/python/wolfssl**
