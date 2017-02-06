@@ -14550,6 +14550,12 @@ static void test_wolfSSL_BIO(void)
 
         BIO_free(f_bio1);
         BIO_free(f_bio2);
+
+        AssertNotNull(f_bio1 = BIO_new_file(svrCert, "rwb"));
+        AssertIntEQ((int)BIO_set_mem_eof_return(f_bio1, -1), 0);
+        AssertIntEQ(BIO_read(f_bio1, cert, sizeof(cert)), sizeof(cert));
+        BIO_free(f_bio1);
+
     }
     #endif /* !defined(NO_FILESYSTEM) */
 
