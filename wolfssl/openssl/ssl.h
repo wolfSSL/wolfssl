@@ -232,6 +232,7 @@ typedef WOLFSSL_X509_STORE_CTX X509_STORE_CTX;
 
 #define DSA_dup_DH            wolfSSL_DSA_dup_DH
 
+#define X509_load_certificate_file wolfSSL_X509_load_certificate_file
 #define X509_NAME_get_text_by_NID wolfSSL_X509_NAME_get_text_by_NID
 #define X509_get_ext_d2i wolfSSL_X509_get_ext_d2i
 #define X509_digest wolfSSL_X509_digest
