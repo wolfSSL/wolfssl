@@ -9641,9 +9641,18 @@ static int DecodeBasicOcspResponse(byte* source, word32* ioIndex,
     /* Obtain pointer to the start of the signature, and save the size */
     if (source[idx++] == ASN_BIT_STRING)
     {
-        int sigLength = 0;
-        if (GetLength(source, &idx, &sigLength, size) < 0)
+        int  sigLength = 0;
+        byte b;
+
+        if (GetLength(source, &idx, &sigLength, size) <= 0)
             return ASN_PARSE_E;
+
+        b = source[idx++];
+        if (b != 0x00) {
+            return ASN_EXPECT_0_E;
+        }
+
+        sigLength--;
         resp->sigSz = sigLength;
         resp->sig = source + idx;
         idx += sigLength;
@@ -9662,8 +9671,11 @@ static int DecodeBasicOcspResponse(byte* source, word32* ioIndex,
 
         InitDecodedCert(&cert, resp->cert, resp->certSz, heap);
         ret = ParseCertRelative(&cert, CERT_TYPE, VERIFY, cm);
-        if (ret < 0)
+        if (ret < 0) {
+            WOLFSSL_MSG("\tOCSP Responder certificate parsing failed");
+            FreeDecodedCert(&cert);
             return ret;
+        }
 
         ret = ConfirmSignature(resp->response, resp->responseSz,
                             cert.publicKey, cert.pubKeySize, cert.keyOID,
