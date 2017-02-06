@@ -7004,14 +7004,10 @@ int wc_ecc_decrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
 #ifdef HAVE_COMP_KEY
 #ifndef WOLFSSL_ATECC508A
 
-/* computes the jacobi c = (a | n) (or Legendre if n is prime)
- * HAC pp. 73 Algorithm 2.149
- * HAC is wrong here, as the special case of (0 | 1) is not
- * handled correctly.
- */
-int mp_jacobi(mp_int* a, mp_int* n, int* c)
+int do_mp_jacobi(mp_int* a, mp_int* n, int* c);
+
+int do_mp_jacobi(mp_int* a, mp_int* n, int* c)
 {
-  mp_int   a1, p1;
   int      k, s, r, res;
   mp_digit residue;
 
@@ -7045,18 +7041,9 @@ int mp_jacobi(mp_int* a, mp_int* n, int* c)
   /* default */
   s = 0;
 
-  /* step 3.  write a = a1 * 2**k  */
-  if ((res = mp_init_multi(&a1, &p1, NULL, NULL, NULL, NULL)) != MP_OKAY) {
-    return res;
-  }
-
-  if ((res = mp_copy(a, &a1)) != MP_OKAY) {
-    goto done;
-  }
-
   /* divide out larger power of two */
-  k = mp_cnt_lsb(&a1);
-  res = mp_div_2d(&a1, k, &a1, NULL);
+  k = mp_cnt_lsb(a);
+  res = mp_div_2d(a, k, a, NULL);
 
   if (res == MP_OKAY) {
     /* step 4.  if e is even set s=1 */
@@ -7073,31 +7060,60 @@ int mp_jacobi(mp_int* a, mp_int* n, int* c)
       }
     }
 
-    /* step 5.  if p == 3 (mod 4) *and* a1 == 3 (mod 4) then s = -s */
-    if ( ((n->dp[0] & 3) == 3) && ((a1.dp[0] & 3) == 3)) {
+    /* step 5.  if p == 3 (mod 4) *and* a == 3 (mod 4) then s = -s */
+    if ( ((n->dp[0] & 3) == 3) && ((a->dp[0] & 3) == 3)) {
       s = -s;
     }
   }
 
   if (res == MP_OKAY) {
-    /* if a1 == 1 we're done */
-    if (mp_cmp_d (&a1, 1) == MP_EQ) {
+    /* if a == 1 we're done */
+    if (mp_cmp_d(a, 1) == MP_EQ) {
       *c = s;
     } else {
-      /* n1 = n mod a1 */
-      res = mp_mod (n, &a1, &p1);
+      /* n1 = n mod a */
+      res = mp_mod (n, a, n);
       if (res == MP_OKAY)
-        res = mp_jacobi (&p1, &a1, &r);
+        res = do_mp_jacobi(n, a, &r);
 
       if (res == MP_OKAY)
         *c = s * r;
     }
   }
 
+  return res;
+}
+
+
+/* computes the jacobi c = (a | n) (or Legendre if n is prime)
+ * HAC pp. 73 Algorithm 2.149
+ * HAC is wrong here, as the special case of (0 | 1) is not
+ * handled correctly.
+ */
+int mp_jacobi(mp_int* a, mp_int* n, int* c)
+{
+    mp_int   a1, n1;
+    int      res;
+
+    /* step 3.  write a = a1 * 2**k  */
+    if ((res = mp_init_multi(&a1, &n1, NULL, NULL, NULL, NULL)) != MP_OKAY) {
+        return res;
+    }
+
+    if ((res = mp_copy(a, &a1)) != MP_OKAY) {
+        goto done;
+    }
+
+    if ((res = mp_copy(n, &n1)) != MP_OKAY) {
+        goto done;
+    }
+
+    res = do_mp_jacobi(&a1, &n1, c);
+
 done:
   /* cleanup */
 #ifndef USE_FAST_MATH
-  mp_clear(&p1);
+  mp_clear(&n1);
   mp_clear(&a1);
 #endif
 
