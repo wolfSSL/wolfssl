@@ -180,6 +180,7 @@ enum {
 
     BAD_KEYWRAP_ALG_E   = -239,
     BAD_KEYWRAP_IV_E    = -240,  /* Decrypted AES key wrap IV incorrect */
+    WC_CLEANUP_E        = -241,  /* wolfcrypt cleanup failed */
 
     MIN_CODE_E          = -300   /* errors -101 - -299 */
 

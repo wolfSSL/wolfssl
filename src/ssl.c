@@ -8296,6 +8296,7 @@ int wolfSSL_Cleanup(void)
 
     if (wolfCrypt_Cleanup() != 0) {
         WOLFSSL_MSG("Error with wolfCrypt_Cleanup call");
+        ret = WC_CLEANUP_E;
     }
 
     return ret;
