@@ -792,39 +792,39 @@ static int GetLength(const byte* input, word32* inOutIdx, int* len,
                            word32 maxIdx)
 {
     int     length = 0;
-    word32  i = *inOutIdx;
+    word32  idx = *inOutIdx;
     byte    b;
 
     *len = 0;    /* default length */
 
-    if ( (i+1) > maxIdx) {   /* for first read */
+    if ( (idx+1) > maxIdx) {   /* for first read */
         USER_DEBUG(("GetLength bad index on input\n"));
         return USER_CRYPTO_ERROR;
     }
 
-    b = input[i++];
+    b = input[idx++];
     if (b >= 0x80) {
         word32 bytes = b & 0x7F;
 
-        if ( (i+bytes) > maxIdx) {   /* for reading bytes */
+        if ( (idx+bytes) > maxIdx) {   /* for reading bytes */
             USER_DEBUG(("GetLength bad long length\n"));
             return USER_CRYPTO_ERROR;
         }
 
         while (bytes--) {
-            b = input[i++];
+            b = input[idx++];
             length = (length << 8) | b;
         }
     }
     else
         length = b;
 
-    if ( (i+length) > maxIdx) {   /* for user of length */
+    if ( (idx+length) > maxIdx) {   /* for user of length */
         USER_DEBUG(("GetLength value exceeds buffer length\n"));
         return USER_CRYPTO_ERROR;
     }
 
-    *inOutIdx = i;
+    *inOutIdx = idx;
     if (length > 0)
         *len = length;
 
@@ -836,21 +836,28 @@ static int GetInt(IppsBigNumState** mpi, const byte* input, word32* inOutIdx,
                   word32 maxIdx)
 {
     IppStatus ret;
-    word32 i = *inOutIdx;
-    byte   b = input[i++];
+    word32 idx = *inOutIdx;
+    byte   b;
     int    length;
     int    ctxSz;
 
+    if ((idx + 1) > maxIdx)
+        return USER_CRYPTO_ERROR;
+
+    b = input[idx++];
     if (b != 0x02)
         return USER_CRYPTO_ERROR;
 
-    if (GetLength(input, &i, &length, maxIdx) < 0)
+    if (GetLength(input, &idx, &length, maxIdx) < 0)
         return USER_CRYPTO_ERROR;
 
-    if ( (b = input[i++]) == 0x00)
-        length--;
-    else
-        i--;
+    if (length > 0) {
+        /* remove leading zero */
+        if ( (b = input[i++]) == 0x00)
+            length--;
+        else
+            idx--;
+    }
 
     ret = ippsBigNumGetSize(length, &ctxSz);
     if (ret != ippStsNoErr)
@@ -864,11 +871,11 @@ static int GetInt(IppsBigNumState** mpi, const byte* input, word32* inOutIdx,
     if (ret != ippStsNoErr)
         return USER_CRYPTO_ERROR;
 
-    ret = ippsSetOctString_BN((Ipp8u*)input + i, length, *mpi);
+    ret = ippsSetOctString_BN((Ipp8u*)input + idx, length, *mpi);
     if (ret != ippStsNoErr)
         return USER_CRYPTO_ERROR;
 
-    *inOutIdx = i + length;
+    *inOutIdx = idx + length;
     return 0;
 }
 
@@ -878,6 +885,9 @@ static int GetSequence(const byte* input, word32* inOutIdx, int* len,
 {
     int    length = -1;
     word32 idx    = *inOutIdx;
+
+    if ((idx + 1) > maxIdx)
+        return USER_CRYPTO_ERROR;
 
     if (input[idx++] != (0x10 | 0x20) ||
             GetLength(input, &idx, &length, maxIdx) < 0)
@@ -894,6 +904,9 @@ static int GetMyVersion(const byte* input, word32* inOutIdx,
                                int* version)
 {
     word32 idx = *inOutIdx;
+
+    if (idx + MIN_VERSION_SZ > maxIdx)
+        return  USER_CRYPTO_ERROR;
 
     if (input[idx++] != 0x02)
         return USER_CRYPTO_ERROR;
