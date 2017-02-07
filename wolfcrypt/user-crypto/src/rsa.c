@@ -853,7 +853,7 @@ static int GetInt(IppsBigNumState** mpi, const byte* input, word32* inOutIdx,
 
     if (length > 0) {
         /* remove leading zero */
-        if ( (b = input[i++]) == 0x00)
+        if ( (b = input[idx++]) == 0x00)
             length--;
         else
             idx--;
@@ -901,11 +901,11 @@ static int GetSequence(const byte* input, word32* inOutIdx, int* len,
 
 
 static int GetMyVersion(const byte* input, word32* inOutIdx,
-                               int* version)
+                               int* version, word32 maxIdx)
 {
     word32 idx = *inOutIdx;
 
-    if ((idx + MIN_VERSION_SZ) > maxIdx)
+    if ((idx + 3) > maxIdx)
         return USER_CRYPTO_ERROR;
 
     if (input[idx++] != 0x02)
@@ -934,7 +934,7 @@ int wc_RsaPrivateKeyDecode(const byte* input, word32* inOutIdx, RsaKey* key,
     if (GetSequence(input, inOutIdx, &length, inSz) < 0)
         return USER_CRYPTO_ERROR;
 
-    if (GetMyVersion(input, inOutIdx, &version) < 0)
+    if (GetMyVersion(input, inOutIdx, &version, inSz) < 0)
         return USER_CRYPTO_ERROR;
 
     key->type = RSA_PRIVATE;
@@ -1074,10 +1074,8 @@ int wc_RsaPublicKeyDecode(const byte* input, word32* inOutIdx, RsaKey* key,
     key->type = RSA_PUBLIC;
 
 #if defined(OPENSSL_EXTRA) || defined(RSA_DECODE_EXTRA)
-    if ((*inOutIdx + 1) > inSz) {
-        printf("wc_RsaPublicKeyDecode error\n");
-        return ASN_PARSE_E;
-    }
+    if ((*inOutIdx + 1) > inSz)
+        return USER_CRYPTO_ERROR;
 
     b = input[*inOutIdx];
     if (b != ASN_INTEGER) {
