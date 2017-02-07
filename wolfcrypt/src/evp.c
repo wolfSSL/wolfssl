@@ -309,7 +309,7 @@ WOLFSSL_API int wolfSSL_EVP_CipherUpdate(WOLFSSL_EVP_CIPHER_CTX *ctx,
         *outl+= ctx->block_size;
         out  += ctx->block_size;
     }
-    if ((ctx->bufUsed == ctx->block_size) || (ctx->flags & WOLFSSL_EVP_CIPH_NO_PADDING)){
+    if (ctx->bufUsed == ctx->block_size){
         /* the buff is full, flash out */
         PRINT_BUF(ctx->buf, ctx->block_size);
         if (evpCipherBlock(ctx, out, ctx->buf, ctx->block_size) == 0)
@@ -328,16 +328,23 @@ WOLFSSL_API int wolfSSL_EVP_CipherUpdate(WOLFSSL_EVP_CIPHER_CTX *ctx,
     blocks = inl / ctx->block_size;
     if (blocks > 0) {
         /* process blocks */
-        if (evpCipherBlock(ctx, out, in, blocks*ctx->block_size) == 0)
+        if (evpCipherBlock(ctx, out, in, blocks * ctx->block_size) == 0)
             return 0;
-        PRINT_BUF(ctx->buf, ctx->block_size);
-        PRINT_BUF(out,      ctx->block_size);
+        PRINT_BUF(in, ctx->block_size);
+        PRINT_BUF(out,ctx->block_size);
         inl  -= ctx->block_size * blocks;
         in   += ctx->block_size * blocks;
         if(ctx->enc == 0){
-            ctx->lastUsed = 1;
-            XMEMCPY(ctx->lastBlock, &out[ctx->block_size * (blocks-1)], ctx->block_size);
-            *outl+= ctx->block_size * (blocks-1);
+            if ((ctx->flags & WOLFSSL_EVP_CIPH_NO_PADDING) ||
+               ((inl % ctx->block_size) == 0)){
+                ctx->lastUsed = 0;
+                XMEMCPY(ctx->lastBlock, &out[ctx->block_size * blocks], ctx->block_size);
+                *outl+= ctx->block_size * blocks;
+            } else {
+                ctx->lastUsed = 1;
+                XMEMCPY(ctx->lastBlock, &out[ctx->block_size * (blocks-1)], ctx->block_size);
+                *outl+= ctx->block_size * (blocks-1);
+            }
         } else {
             *outl+= ctx->block_size * blocks;
         }

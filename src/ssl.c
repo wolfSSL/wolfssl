@@ -26714,7 +26714,7 @@ int wolfSSL_DH_generate_parameters_ex(WOLFSSL_DH* dh, int prime_len, int generat
 void wolfSSL_ERR_load_crypto_strings(void)
 {
     WOLFSSL_ENTER("wolfSSL_ERR_load_crypto_strings");
-    WOLFSSL_ENTER("wolfSSL_ERR_load_crypto_strings");
+    WOLFSSL_STUB("wolfSSL_ERR_load_crypto_strings");
     return;
 }
 
