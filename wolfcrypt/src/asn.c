@@ -3475,6 +3475,21 @@ int ValidateDate(const byte* date, byte format, int dateType)
 #endif
 
     ltime = XTIME(0);
+
+#ifdef WOLFSSL_BEFORE_DATE_CLOCK_SKEW
+    if (dateType == BEFORE) {
+        WOLFSSL_MSG("Skewing local time for before date check");
+        ltime += WOLFSSL_BEFORE_DATE_CLOCK_SKEW;
+    }
+#endif
+
+#ifdef WOLFSSL_AFTER_DATE_CLOCK_SKEW
+    if (dateType == AFTER) {
+        WOLFSSL_MSG("Skewing local time for after date check");
+        ltime -= WOLFSSL_AFTER_DATE_CLOCK_SKEW;
+    }
+#endif
+
     if (!ExtractDate(date, format, &certTime, &i)) {
         WOLFSSL_MSG("Error extracting the date");
         return 0;
@@ -3500,12 +3515,17 @@ int ValidateDate(const byte* date, byte format, int dateType)
     }
 
     if (dateType == BEFORE) {
-        if (DateLessThan(localTime, &certTime))
+        if (DateLessThan(localTime, &certTime)) {
+            WOLFSSL_MSG("Date BEFORE check failed");
             return 0;
+        }
     }
-    else
-        if (DateGreaterThan(localTime, &certTime))
+    else {  /* dateType == AFTER */
+        if (DateGreaterThan(localTime, &certTime)) {
+            WOLFSSL_MSG("Date AFTER check failed");
             return 0;
+        }
+    }
 
     return 1;
 }
