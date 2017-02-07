@@ -797,7 +797,7 @@ static int GetLength(const byte* input, word32* inOutIdx, int* len,
 
     *len = 0;    /* default length */
 
-    if ( (idx+1) > maxIdx) {   /* for first read */
+    if ((idx + 1) > maxIdx) {   /* for first read */
         USER_DEBUG(("GetLength bad index on input\n"));
         return USER_CRYPTO_ERROR;
     }
@@ -806,7 +806,7 @@ static int GetLength(const byte* input, word32* inOutIdx, int* len,
     if (b >= 0x80) {
         word32 bytes = b & 0x7F;
 
-        if ( (idx+bytes) > maxIdx) {   /* for reading bytes */
+        if ((idx + bytes) > maxIdx) {   /* for reading bytes */
             USER_DEBUG(("GetLength bad long length\n"));
             return USER_CRYPTO_ERROR;
         }
@@ -819,7 +819,7 @@ static int GetLength(const byte* input, word32* inOutIdx, int* len,
     else
         length = b;
 
-    if ( (idx+length) > maxIdx) {   /* for user of length */
+    if ((idx + length) > maxIdx) {   /* for user of length */
         USER_DEBUG(("GetLength value exceeds buffer length\n"));
         return USER_CRYPTO_ERROR;
     }
@@ -905,8 +905,8 @@ static int GetMyVersion(const byte* input, word32* inOutIdx,
 {
     word32 idx = *inOutIdx;
 
-    if (idx + MIN_VERSION_SZ > maxIdx)
-        return  USER_CRYPTO_ERROR;
+    if ((idx + MIN_VERSION_SZ) > maxIdx)
+        return USER_CRYPTO_ERROR;
 
     if (input[idx++] != 0x02)
         return USER_CRYPTO_ERROR;
@@ -1059,9 +1059,12 @@ int wc_RsaPrivateKeyDecode(const byte* input, word32* inOutIdx, RsaKey* key,
 int wc_RsaPublicKeyDecode(const byte* input, word32* inOutIdx, RsaKey* key,
                        word32 inSz)
 {
-    int    length;
+    int  length;
     int  ctxSz;
     IppStatus ret;
+#if defined(OPENSSL_EXTRA) || defined(RSA_DECODE_EXTRA)
+    byte b;
+#endif
 
     USER_DEBUG(("Entering wc_RsaPublicKeyDecode\n"));
 
@@ -1071,8 +1074,12 @@ int wc_RsaPublicKeyDecode(const byte* input, word32* inOutIdx, RsaKey* key,
     key->type = RSA_PUBLIC;
 
 #if defined(OPENSSL_EXTRA) || defined(RSA_DECODE_EXTRA)
-    {
-    byte b = input[*inOutIdx];
+    if ((*inOutIdx + 1) > inSz) {
+        printf("wc_RsaPublicKeyDecode error\n");
+        return ASN_PARSE_E;
+    }
+
+    b = input[*inOutIdx];
     if (b != ASN_INTEGER) {
         /* not from decoded cert, will have algo id, skip past */
         if (GetSequence(input, inOutIdx, &length, inSz) < 0)
@@ -1095,16 +1102,17 @@ int wc_RsaPublicKeyDecode(const byte* input, word32* inOutIdx, RsaKey* key,
             if (b != 0)
                 return USER_CRYPTO_ERROR;
         }
-        else
-        /* go back, didn't have it */
+        else {
+            /* go back, didn't have it */
             (*inOutIdx)--;
+        }
 
         /* should have bit tag length and seq next */
         b = input[(*inOutIdx)++];
         if (b != ASN_BIT_STRING)
             return USER_CRYPTO_ERROR;
 
-        if (GetLength(input, inOutIdx, &length, inSz) < 0)
+        if (GetLength(input, inOutIdx, &length, inSz) <= 0)
             return USER_CRYPTO_ERROR;
 
         /* could have 0 */
@@ -1114,12 +1122,13 @@ int wc_RsaPublicKeyDecode(const byte* input, word32* inOutIdx, RsaKey* key,
 
         if (GetSequence(input, inOutIdx, &length, inSz) < 0)
             return USER_CRYPTO_ERROR;
-    }  /* end if */
-    }  /* openssl var block */
-#endif /* OPENSSL_EXTRA */
+    }
+#endif /* OPENSSL_EXTRA || RSA_DECODE_EXTRA */
 
     if (GetInt(&key->n,  input, inOutIdx, inSz) < 0 ||
-        GetInt(&key->e,  input, inOutIdx, inSz) < 0 )  return USER_CRYPTO_ERROR;
+        GetInt(&key->e,  input, inOutIdx, inSz) < 0) {
+        return USER_CRYPTO_ERROR;
+    }
 
     /* get sizes set for IPP BN states */
     ret = ippsGetSize_BN(key->n, &key->nSz);

@@ -595,10 +595,8 @@ WOLFSSL_LOCAL int GetMyVersion(const byte* input, word32* inOutIdx,
 
     WOLFSSL_ENTER("GetMyVersion");
 
-    if (idx + MIN_VERSION_SZ > maxIdx) {
-        WOLFSSL_MSG("GetMyVersion bad index on input");
-        return  ASN_PARSE_E;
-    }
+    if ((idx + MIN_VERSION_SZ) > maxIdx)
+        return ASN_PARSE_E;
 
     if (input[idx++] != ASN_INTEGER)
         return ASN_PARSE_E;
@@ -623,10 +621,8 @@ int GetShortInt(const byte* input, word32* inOutIdx, int* number, word32 maxIdx)
     *number = 0;
 
     /* check for type and length bytes */
-    if ((idx + 2) > maxIdx) {
-        WOLFSSL_MSG("GetShortInt bad index on input");
+    if ((idx + 2) > maxIdx)
         return ASN_PARSE_E;
-    }
 
     if (input[idx++] != ASN_INTEGER)
         return ASN_PARSE_E;
@@ -656,10 +652,8 @@ static int GetExplicitVersion(const byte* input, word32* inOutIdx, int* version,
 
     WOLFSSL_ENTER("GetExplicitVersion");
 
-    if ((idx + 1) > maxIdx) {
-        WOLFSSL_MSG("GetExplicitVersion bad index on input");
+    if ((idx + 1) > maxIdx)
         return ASN_PARSE_E;
-    }
 
     if (input[idx++] == (ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED)) {
         *inOutIdx = ++idx;  /* skip header byte */
@@ -1439,11 +1433,11 @@ static int SkipObjectId(const byte* input, word32* inOutIdx, word32 maxIdx)
     if (input[idx++] != ASN_OBJECT_ID)
         return ASN_OBJECT_ID_E;
 
-    if (GetLength(input, inOutIdx, &length, maxIdx) < 0)
+    if (GetLength(input, &idx, &length, maxIdx) < 0)
         return ASN_PARSE_E;
 
     idx += length;
-    *inOutIdx += idx;
+    *inOutIdx = idx;
 
     return 0;
 }
@@ -2195,7 +2189,6 @@ int wc_RsaPublicKeyDecode(const byte* input, word32* inOutIdx, RsaKey* key,
         if (b != ASN_BIT_STRING)
             return ASN_BITSTR_E;
 
-        /* length should not be 0 */
         if (GetLength(input, inOutIdx, &length, inSz) <= 0)
             return ASN_PARSE_E;
 

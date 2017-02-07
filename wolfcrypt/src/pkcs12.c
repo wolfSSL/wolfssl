@@ -200,7 +200,7 @@ static int GetSafeContent(WC_PKCS12* pkcs12, const byte* input,
         freeSafe(safe, pkcs12->heap);
         return ASN_PARSE_E;
     }
-    if ((ret = GetLength(input, &localIdx, &size, maxIdx)) < 0) {
+    if ((ret = GetLength(input, &localIdx, &size, maxIdx)) <= 0) {
         freeSafe(safe, pkcs12->heap);
         return ret;
     }
@@ -218,7 +218,7 @@ static int GetSafeContent(WC_PKCS12* pkcs12, const byte* input,
                 freeSafe(safe, pkcs12->heap);
                 return ASN_PARSE_E;
             }
-            if ((ret = GetLength(input, &localIdx, &size, maxIdx)) < 0) {
+            if ((ret = GetLength(input, &localIdx, &size, maxIdx)) <= 0) {
                 freeSafe(safe, pkcs12->heap);
                 return ret;
             }
@@ -367,7 +367,7 @@ static int GetSignData(WC_PKCS12* pkcs12, const byte* mem, word32* idx,
         return ASN_PARSE_E;
     }
 
-    if ((ret = GetLength(mem, &curIdx, &size, totalSz)) < 0) {
+    if ((ret = GetLength(mem, &curIdx, &size, totalSz)) <= 0) {
         XFREE(mac, pkcs12->heap, DYNAMIC_TYPE_PKCS);
         return ret;
     }
@@ -398,7 +398,7 @@ static int GetSignData(WC_PKCS12* pkcs12, const byte* mem, word32* idx,
         return ASN_PARSE_E;
     }
 
-    if ((ret = GetLength(mem, &curIdx, &size, totalSz)) < 0) {
+    if ((ret = GetLength(mem, &curIdx, &size, totalSz)) <= 0) {
         XFREE(mac->digest, pkcs12->heap, DYNAMIC_TYPE_PKCS);
         XFREE(mac, pkcs12->heap, DYNAMIC_TYPE_PKCS);
         return ret;
@@ -800,7 +800,7 @@ int wc_PKCS12_parse(WC_PKCS12* pkcs12, const char* psw,
                 freeCertList(certList, pkcs12->heap);
                 return ASN_PARSE_E;
             }
-            if ((ret = GetLength(data, &idx, &size, ci->dataSz)) < 0) {
+            if ((ret = GetLength(data, &idx, &size, ci->dataSz)) <= 0) {
                 freeBuffers(*pkey, buf, pkcs12->heap);
                 freeCertList(certList, pkcs12->heap);
                 return ret;
@@ -851,7 +851,7 @@ int wc_PKCS12_parse(WC_PKCS12* pkcs12, const char* psw,
                         freeCertList(certList, pkcs12->heap);
                         return ASN_PARSE_E;
                     }
-                    if ((ret = GetLength(data, &idx, &size, ci->dataSz)) < 0) {
+                    if ((ret = GetLength(data, &idx, &size, ci->dataSz)) <= 0) {
                         freeBuffers(*pkey, buf, pkcs12->heap);
                         freeCertList(certList, pkcs12->heap);
                         return ASN_PARSE_E;
@@ -987,7 +987,7 @@ int wc_PKCS12_parse(WC_PKCS12* pkcs12, const char* psw,
                                 return ASN_PARSE_E;
                             }
                             if ((ret = GetLength(data, &idx, &size, ci->dataSz))
-                                                                          < 0) {
+                                                                         <= 0) {
                                 freeBuffers(*pkey, buf, pkcs12->heap);
                                 freeCertList(certList, pkcs12->heap);
                                 return ret;
