@@ -656,7 +656,7 @@ static int GetExplicitVersion(const byte* input, word32* inOutIdx, int* version,
         return ASN_PARSE_E;
 
     if (input[idx++] == (ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED)) {
-        *inOutIdx = ++idx;  /* skip header byte */
+        *inOutIdx = ++idx;  /* skip header */
         return GetMyVersion(input, inOutIdx, version, maxIdx);
     }
 
