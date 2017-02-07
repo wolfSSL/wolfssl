@@ -9608,6 +9608,8 @@ static int DecodeResponseData(byte* source,
 }
 
 
+#ifndef WOLFSSL_NO_OCSP_OPTIONAL_CERTS
+
 static int DecodeCerts(byte* source,
                             word32* ioIndex, OcspResponse* resp, word32 size)
 {
@@ -9634,15 +9636,18 @@ static int DecodeCerts(byte* source,
     return 0;
 }
 
+#endif /* WOLFSSL_NO_OCSP_OPTIONAL_CERTS */
+
+
 static int DecodeBasicOcspResponse(byte* source, word32* ioIndex,
                           OcspResponse* resp, word32 size, void* cm, void* heap)
 {
     int length;
     word32 idx = *ioIndex;
     word32 end_index;
-    int ret = -1;
 
     WOLFSSL_ENTER("DecodeBasicOcspResponse");
+    (void)heap;
 
     if (GetSequence(source, &idx, &length, size) < 0)
         return ASN_PARSE_E;
@@ -9682,9 +9687,11 @@ static int DecodeBasicOcspResponse(byte* source, word32* ioIndex,
      * Check the length of the BasicOcspResponse against the current index to
      * see if there are certificates, they are optional.
      */
+#ifndef WOLFSSL_NO_OCSP_OPTIONAL_CERTS
     if (idx < end_index)
     {
         DecodedCert cert;
+        int         ret;
 
         if (DecodeCerts(source, &idx, resp, size) < 0)
             return ASN_PARSE_E;
@@ -9708,7 +9715,9 @@ static int DecodeBasicOcspResponse(byte* source, word32* ioIndex,
             return ASN_OCSP_CONFIRM_E;
         }
     }
-    else {
+    else
+#endif /* WOLFSSL_NO_OCSP_OPTIONAL_CERTS */
+    {
         Signer* ca = NULL;
 
         #ifndef NO_SKID
