@@ -1884,7 +1884,7 @@ static int DecryptKey(const char* password, int passwordSz, byte* salt,
 int ToTraditionalEnc(byte* input, word32 sz,const char* password,int passwordSz)
 {
     word32 inOutIdx = 0, oid;
-    int    ret = 0, first, second, length, version, saltSz, id;
+    int    ret = 0, first, second, length = 0, version, saltSz, id;
     int    iterations = 0;
 #ifdef WOLFSSL_SMALL_STACK
     byte*  salt = NULL;
@@ -2017,7 +2017,7 @@ int DecryptContent(byte* input, word32 sz,const char* password,int passwordSz)
 {
     word32 inOutIdx = 0, oid;
     int    ret = 0;
-    int    first, second, length, version, saltSz, id;
+    int    first, second, length = 0, version, saltSz, id;
     int    iterations = 0;
 #ifdef WOLFSSL_SMALL_STACK
     byte*  salt = NULL;
