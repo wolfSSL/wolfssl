@@ -16,7 +16,7 @@
 
 function Usage() {
     echo "Usage: $0 [platform]"
-    echo "Where \"platform\" is one of linux (default), ios, android, windows, freertos"
+    echo "Where \"platform\" is one of linux (default), ios, android, windows, freertos, openrtos-3.9.2"
 }
 
 LINUX_FIPS_VERSION=v3.2.6
@@ -43,6 +43,11 @@ FREERTOS_FIPS_VERSION=v3.6.1-FreeRTOS
 FREERTOS_FIPS_REPO=git@github.com:wolfSSL/fips.git
 FREERTOS_CTAO_VERSION=v3.6.1
 FREERTOS_CTAO_REPO=git@github.com:cyassl/cyassl.git
+
+OPENRTOS_3_9_2_FIPS_VERSION=v3.9.2-OpenRTOS
+OPENRTOS_3_9_2_FIPS_REPO=git@github.com:wolfSSL/fips.git
+OPENRTOS_3_9_2_CTAO_VERSION=v3.6.1
+OPENRTOS_3_9_2_CTAO_REPO=git@github.com:cyassl/cyassl.git
 
 FIPS_SRCS=( fips.c fips_test.c )
 WC_MODS=( aes des3 sha sha256 sha512 rsa hmac random )
@@ -76,6 +81,13 @@ freertos)
   FIPS_REPO=$FREERTOS_FIPS_REPO
   CTAO_VERSION=$FREERTOS_CTAO_VERSION
   CTAO_REPO=$FREERTOS_CTAO_REPO
+  ;;
+openrtos-3.9.2)
+  FIPS_VERSION=$OPENRTOS_3_9_2_FIPS_VERSION
+  FIPS_REPO=$OPENRTOS_3_9_2_FIPS_REPO
+  CTAO_VERSION=$OPENRTOS_3_9_2_CTAO_VERSION
+  CTAO_REPO=$OPENRTOS_3_9_2_CTAO_REPO
+  FIPS_CONFLICTS=( aes hmac random sha256 )
   ;;
 linux)
   FIPS_VERSION=$LINUX_FIPS_VERSION
@@ -133,6 +145,19 @@ fi
 
 make test
 [ $? -ne 0 ] && echo "\n\nTest failed. Debris left for analysis." && exit 1
+
+if [ ${#FIPS_CONFLICTS[@]} -ne 0 ];
+then
+    echo "Due to the way this package is compiled by the customer duplicate"
+    echo "source file names are an issue, renaming:"
+    for FNAME in ${FIPS_CONFLICTS[@]}
+    do
+        echo "wolfcrypt/src/$FNAME.c to wolfcrypt/src/wc_$FNAME.c"
+        mv ./wolfcrypt/src/$FNAME.c ./wolfcrypt/src/wc_$FNAME.c
+    done
+    echo "Confirming files were renamed..."
+    ls -la ./wolfcrypt/src/wc_*.c
+fi
 
 # Clean up
 popd
