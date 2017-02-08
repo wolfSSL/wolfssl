@@ -7594,7 +7594,9 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
 #else
         m = wolfSSLv23_server_method();
 #endif
-        m->side = WOLFSSL_NEITHER_END;
+        if (m != NULL) {
+            m->side = WOLFSSL_NEITHER_END;
+        }
 
         return m;
     }
@@ -16629,8 +16631,14 @@ WOLFSSL_DH *wolfSSL_DSA_dup_DH(const WOLFSSL_DSA *dsa)
     WOLFSSL_DH* dh;
     DhKey*      key;
 
+    WOLFSSL_ENTER("wolfSSL_DSA_dup_DH");
+
+    if (dsa == NULL) {
+        return NULL;
+    }
+
     dh = wolfSSL_DH_new();
-    if (dh == NULL || dsa == NULL) {
+    if (dh == NULL) {
         return NULL;
     }
     key = (DhKey*)dh->internal;
