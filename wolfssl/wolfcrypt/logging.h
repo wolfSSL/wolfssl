@@ -82,6 +82,11 @@ WOLFSSL_API int wolfSSL_SetLoggingCb(wolfSSL_Logging_cb log_function);
 
 #endif /* DEBUG_WOLFSSL  */
 
+#ifdef USER_DEBUG_WOLFSSL
+    void USER_WOLFSSL_ERROR(int);
+    void USER_WOLFSSL_MSG(const char* msg);
+#endif
+
 #ifdef __cplusplus
 }
 #endif

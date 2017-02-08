@@ -237,3 +237,32 @@ void WOLFSSL_ERROR(int error)
 }
 
 #endif  /* DEBUG_WOLFSSL */
+
+#ifdef USER_DEBUG_WOLFSSL
+void USER_WOLFSSL_MSG(const char* msg)
+{
+#ifdef THREADX
+            dc_log_printf("%s\n", msg);
+#elif defined(MICRIUM)
+        #if (NET_SECURE_MGR_CFG_EN == DEF_ENABLED)
+            NetSecure_TraceOut((CPU_CHAR *)msg);
+        #endif
+#elif defined(WOLFSSL_MDK_ARM)
+            fflush(stdout) ;
+            printf("%s\n", msg);
+            fflush(stdout) ;
+#elif defined(WOLFSSL_LOG_PRINTF)
+            printf("%s\n", msg);
+#else
+            fprintf(stderr, "%s\n", msg);
+#endif
+}
+
+void USER_WOLFSSL_ERROR(int error)
+{
+    char buffer[80];
+    sprintf(buffer, "wolfSSL error occurred, error = %d", error);
+    USER_WOLFSSL_MSG(buffer);
+}
+
+#endif /* USER_DEBUG_WOLFSSL */
