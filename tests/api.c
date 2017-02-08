@@ -13431,8 +13431,11 @@ static void test_wolfSSL_DES(void)
 {
     #if defined(OPENSSL_EXTRA) && !defined(NO_DES3)
     const_DES_cblock myDes;
+    DES_cblock iv;
     DES_key_schedule key;
     word32 i;
+    DES_LONG dl;
+    unsigned char msg[] = "hello wolfssl";
 
     printf(testingFmt, "wolfSSL_DES()");
 
@@ -13446,7 +13449,7 @@ static void test_wolfSSL_DES(void)
     AssertIntNE(key[0], myDes[0]); /* should not have copied over key */
 
     /* set odd parity for success case */
-    myDes[0] = 4;
+    DES_set_odd_parity(&myDes);
     AssertIntEQ(DES_set_key_checked(&myDes, &key), 0);
     for (i = 0; i < sizeof(DES_key_schedule); i++) {
         AssertIntEQ(key[i], myDes[i]);
@@ -13476,6 +13479,13 @@ static void test_wolfSSL_DES(void)
     for (i = 0; i < sizeof(DES_key_schedule); i++) {
         AssertIntEQ(key[i], myDes[i]);
     }
+
+    /* DES_cbc_cksum should return the last 4 of the last 8 bytes after
+     * DES_cbc_encrypt on the input */
+    XMEMSET(iv, 0, sizeof(DES_cblock));
+    XMEMSET(myDes, 5, sizeof(DES_key_schedule));
+    AssertIntGT((dl = DES_cbc_cksum(msg, &key, sizeof(msg), &myDes, &iv)), 0);
+    AssertIntEQ(dl, 480052723);
 
     printf(resultFmt, passed);
     #endif /* defined(OPENSSL_EXTRA) && !defined(NO_DES3) */

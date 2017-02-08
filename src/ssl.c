@@ -14089,16 +14089,77 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
     int wolfSSL_DES_key_sched(WOLFSSL_const_DES_cblock* key,
                               WOLFSSL_DES_key_schedule* schedule)
     {
-        WOLFSSL_ENTER("DES_key_sched");
+        WOLFSSL_ENTER("wolfSSL_DES_key_sched");
 
         if (key == NULL || schedule == NULL) {
             WOLFSSL_MSG("Null argument passed in");
         }
         else {
-            XMEMCPY(schedule, key, sizeof(const_DES_cblock));
+            XMEMCPY(schedule, key, sizeof(WOLFSSL_const_DES_cblock));
         }
 
         return 0;
+    }
+
+
+    /* intended to behave similar to Kerberos mit_des_cbc_cksum
+     * return the last 4 bytes of cipher text */
+    WOLFSSL_DES_LONG wolfSSL_DES_cbc_cksum(const unsigned char* in,
+            WOLFSSL_DES_cblock* out, long length, WOLFSSL_DES_key_schedule* sc,
+            WOLFSSL_const_DES_cblock* iv)
+    {
+        WOLFSSL_DES_LONG ret;
+        unsigned char* tmp;
+        unsigned char* data   = (unsigned char*)in;
+        long           dataSz = length;
+        byte dynamicFlag = 0; /* when padding the buffer created needs free'd */
+
+        WOLFSSL_ENTER("wolfSSL_DES_cbc_cksum");
+
+        if (in == NULL || out == NULL || sc == NULL || iv == NULL) {
+            WOLFSSL_MSG("Bad argument passed in");
+            return 0;
+        }
+
+        /* if input length is not a multiple of DES_BLOCK_SIZE pad with 0s */
+        if (dataSz % DES_BLOCK_SIZE) {
+            dataSz += DES_BLOCK_SIZE - (dataSz % DES_BLOCK_SIZE);
+            data = (unsigned char*)XMALLOC(dataSz, NULL,
+                                           DYNAMIC_TYPE_TMP_BUFFER);
+            if (data == NULL) {
+                WOLFSSL_MSG("Issue creating temporary buffer");
+                return 0;
+            }
+            dynamicFlag = 1; /* set to free buffer at end */
+            XMEMCPY(data, in, length);
+            XMEMSET(data + length, 0, dataSz - length); /* padding */
+        }
+
+        tmp = (unsigned char*)XMALLOC(dataSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        if (tmp == NULL) {
+            WOLFSSL_MSG("Issue creating temporary buffer");
+            if (dynamicFlag == 1) {
+                XFREE(data, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            }
+            return 0;
+        }
+
+        wolfSSL_DES_cbc_encrypt(data, tmp, dataSz, sc,
+                (WOLFSSL_DES_cblock*)iv, 1);
+        XMEMCPY((unsigned char*)out, tmp + (dataSz - DES_BLOCK_SIZE),
+                DES_BLOCK_SIZE);
+
+        ret = (((*((unsigned char*)out + 4) & 0xFF) << 24)|
+               ((*((unsigned char*)out + 5) & 0xFF) << 16)|
+               ((*((unsigned char*)out + 6) & 0xFF) << 8) |
+               (*((unsigned char*)out + 7) & 0xFF));
+
+        XFREE(tmp, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        if (dynamicFlag == 1) {
+            XFREE(data, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        }
+
+        return ret;
     }
 
 
@@ -18555,8 +18616,25 @@ void wolfSSL_DES_set_key_unchecked(WOLFSSL_const_DES_cblock* myDes,
 
 void wolfSSL_DES_set_odd_parity(WOLFSSL_DES_cblock* myDes)
 {
-    (void)myDes;
-    WOLFSSL_STUB("wolfSSL_DES_set_odd_parity");
+    word32 i;
+    word32 sz = sizeof(WOLFSSL_DES_cblock);
+
+    WOLFSSL_ENTER("wolfSSL_DES_set_odd_parity");
+
+    for (i = 0; i < sz; i++) {
+        unsigned char c = *((unsigned char*)myDes + i);
+        if (((c & 0x01) ^
+            ((c >> 1) & 0x01) ^
+            ((c >> 2) & 0x01) ^
+            ((c >> 3) & 0x01) ^
+            ((c >> 4) & 0x01) ^
+            ((c >> 5) & 0x01) ^
+            ((c >> 6) & 0x01) ^
+            ((c >> 7) & 0x01)) != 1) {
+            WOLFSSL_MSG("Setting odd parity bit");
+            *((unsigned char*)myDes + i) = *((unsigned char*)myDes + i) | 0x80;
+        }
+    }
 }
 
 

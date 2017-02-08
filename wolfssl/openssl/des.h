@@ -45,6 +45,7 @@
 typedef unsigned char WOLFSSL_DES_cblock[8];
 typedef /* const */ WOLFSSL_DES_cblock WOLFSSL_const_DES_cblock;
 typedef WOLFSSL_DES_cblock WOLFSSL_DES_key_schedule;
+typedef unsigned int WOLFSSL_DES_LONG;
 
 
 enum {
@@ -54,6 +55,9 @@ enum {
 
 
 WOLFSSL_API int wolfSSL_DES_is_weak_key(WOLFSSL_const_DES_cblock* key);
+WOLFSSL_API WOLFSSL_DES_LONG wolfSSL_DES_cbc_cksum(const unsigned char* in,
+            WOLFSSL_DES_cblock* out, long length, WOLFSSL_DES_key_schedule* sc,
+            WOLFSSL_const_DES_cblock* iv);
 WOLFSSL_API int wolfSSL_DES_set_key(WOLFSSL_const_DES_cblock* myDes,
                                                WOLFSSL_DES_key_schedule* key);
 WOLFSSL_API int wolfSSL_DES_set_key_checked(WOLFSSL_const_DES_cblock* myDes,
@@ -85,6 +89,7 @@ WOLFSSL_API void wolfSSL_DES_ecb_encrypt(WOLFSSL_DES_cblock*, WOLFSSL_DES_cblock
 typedef WOLFSSL_DES_cblock DES_cblock;
 typedef WOLFSSL_const_DES_cblock const_DES_cblock;
 typedef WOLFSSL_DES_key_schedule DES_key_schedule;
+typedef WOLFSSL_DES_LONG DES_LONG;
 
 #define DES_check_key(x) /* Define WOLFSSL_CHECK_DESKEY to check key */
 #define DES_is_weak_key       wolfSSL_DES_is_weak_key
@@ -97,6 +102,7 @@ typedef WOLFSSL_DES_key_schedule DES_key_schedule;
 #define DES_set_odd_parity    wolfSSL_DES_set_odd_parity
 #define DES_ecb_encrypt       wolfSSL_DES_ecb_encrypt
 #define DES_ede3_cbc_encrypt  wolfSSL_DES_ede3_cbc_encrypt
+#define DES_cbc_cksum         wolfSSL_DES_cbc_cksum
 
 #ifdef __cplusplus
     } /* extern "C" */
