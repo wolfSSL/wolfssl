@@ -531,11 +531,6 @@ typedef WOLFSSL_X509_STORE_CTX X509_STORE_CTX;
 /* yassl had set the default to be 500 */
 #define SSL_get_default_timeout(ctx) 500
 
-/* Lighthttp compatibility */
-
-#if defined(HAVE_LIGHTY)  || defined(WOLFSSL_MYSQL_COMPATIBLE) || \
-    defined(HAVE_STUNNEL) || defined(WOLFSSL_NGINX) || \
-    defined(HAVE_POCO_LIB) || defined(WOLFSSL_HAPROXY)
 typedef WOLFSSL_X509_NAME_ENTRY X509_NAME_ENTRY;
 
 #define X509_NAME_free wolfSSL_X509_NAME_free
@@ -604,7 +599,6 @@ enum {
 #define sk_SSL_COMP_zero                  wolfSSL_sk_SSL_COMP_zero
 #define sk_SSL_CIPHER_value               wolfSSL_sk_SSL_CIPHER_value
 #endif /* WOLFSSL_HAPROXY */
-#endif /* HAVE_STUNNEL || HAVE_LIGHTY || WOLFSSL_MYSQL_COMPATIBLE || WOLFSSL_NGINX || HAVE_POCO_LIB || WOLFSSL_HAPROXY */
 
 #define SSL_CTX_set_tmp_dh wolfSSL_CTX_set_tmp_dh
 

@@ -17220,34 +17220,6 @@ WOLFSSL_ASN1_TIME* wolfSSL_X509_CRL_get_nextUpdate(WOLFSSL_X509_CRL* crl)
 
 
 
-WOLFSSL_EVP_PKEY* wolfSSL_X509_get_pubkey(WOLFSSL_X509* x509)
-{
-    WOLFSSL_EVP_PKEY* key = NULL;
-    if (x509 != NULL) {
-        key = (WOLFSSL_EVP_PKEY*)XMALLOC(
-                    sizeof(WOLFSSL_EVP_PKEY), x509->heap,
-                                                       DYNAMIC_TYPE_PUBLIC_KEY);
-        if (key != NULL) {
-            key->type = EVP_PKEY_RSA; /*x509->pubKeyOID;*/
-            key->save_type = 0;
-            key->pkey.ptr = (char*)XMALLOC(
-                        x509->pubKey.length, x509->heap,
-                                                       DYNAMIC_TYPE_PUBLIC_KEY);
-            if (key->pkey.ptr == NULL) {
-                XFREE(key, x509->heap, DYNAMIC_TYPE_PUBLIC_KEY);
-                return NULL;
-            }
-            XMEMCPY(key->pkey.ptr,
-                                  x509->pubKey.buffer, x509->pubKey.length);
-            key->pkey_sz = x509->pubKey.length;
-            #ifdef HAVE_ECC
-                key->pkey_curve = (int)x509->pkCurveOID;
-            #endif /* HAVE_ECC */
-        }
-    }
-    return key;
-}
-
 
 int wolfSSL_X509_CRL_verify(WOLFSSL_X509_CRL* crl, WOLFSSL_EVP_PKEY* key)
 {
@@ -17333,6 +17305,14 @@ void wolfSSL_EVP_PKEY_free(WOLFSSL_EVP_PKEY* key)
                 }
                 break;
             #endif /* NO_RSA */
+
+            #ifdef HAVE_ECC
+            case EVP_PKEY_EC:
+                if (key->ecc != NULL && key->ownEcc == 1) {
+                    wolfSSL_EC_KEY_free(key->ecc);
+                }
+                break;
+            #endif /* HAVE_ECC */
 
             default:
             break;
@@ -24478,6 +24458,91 @@ int wolfSSL_EC_KEY_LoadDer(WOLFSSL_EC_KEY* key,
 }
 #endif /* HAVE_ECC */
 
+
+WOLFSSL_EVP_PKEY* wolfSSL_X509_get_pubkey(WOLFSSL_X509* x509)
+{
+    WOLFSSL_EVP_PKEY* key = NULL;
+    if (x509 != NULL) {
+        key = (WOLFSSL_EVP_PKEY*)XMALLOC(
+                    sizeof(WOLFSSL_EVP_PKEY), x509->heap,
+                                                       DYNAMIC_TYPE_PUBLIC_KEY);
+        if (key != NULL) {
+            XMEMSET(key, 0, sizeof(WOLFSSL_EVP_PKEY));
+            if (x509->pubKeyOID == RSAk) {
+                key->type = EVP_PKEY_RSA;
+            }
+            else {
+                key->type = EVP_PKEY_EC;
+            }
+            key->save_type = 0;
+            key->pkey.ptr = (char*)XMALLOC(
+                        x509->pubKey.length, x509->heap,
+                                                       DYNAMIC_TYPE_PUBLIC_KEY);
+            if (key->pkey.ptr == NULL) {
+                XFREE(key, x509->heap, DYNAMIC_TYPE_PUBLIC_KEY);
+                return NULL;
+            }
+            XMEMCPY(key->pkey.ptr, x509->pubKey.buffer, x509->pubKey.length);
+            key->pkey_sz = x509->pubKey.length;
+
+            #ifdef HAVE_ECC
+                key->pkey_curve = (int)x509->pkCurveOID;
+            #endif /* HAVE_ECC */
+
+            /* decode RSA key */
+            #ifndef NO_RSA
+            if (key->type == EVP_PKEY_RSA) {
+                key->ownRsa = 1;
+                key->rsa = wolfSSL_RSA_new();
+                if (key->rsa == NULL) {
+                    XFREE(key, x509->heap, DYNAMIC_TYPE_PUBLIC_KEY);
+                    return NULL;
+                }
+
+                if (wolfSSL_RSA_LoadDer_ex(key->rsa,
+                            (const unsigned char*)key->pkey.ptr, key->pkey_sz,
+                            WOLFSSL_RSA_LOAD_PUBLIC) != SSL_SUCCESS) {
+                    XFREE(key, x509->heap, DYNAMIC_TYPE_PUBLIC_KEY);
+                    wolfSSL_RSA_free(key->rsa);
+                    return NULL;
+                }
+            }
+            #endif /* NO_RSA */
+
+            /* decode ECC key */
+            #ifdef HAVE_ECC
+            if (key->type == EVP_PKEY_EC) {
+                key->ownEcc = 1;
+                key->ecc = wolfSSL_EC_KEY_new();
+                if (key->ecc == NULL || key->ecc->internal == NULL) {
+                    XFREE(key, x509->heap, DYNAMIC_TYPE_PUBLIC_KEY);
+                    return NULL;
+                }
+
+                /* not using wolfSSL_EC_KEY_LoadDer because public key in x509
+                 * is in the format of x963 (no sequence at start of buffer) */
+                if (wc_ecc_import_x963((const unsigned char*)key->pkey.ptr,
+                            key->pkey_sz, (ecc_key*)key->ecc->internal) < 0) {
+                    WOLFSSL_MSG("wc_ecc_import_x963 failed");
+                    XFREE(key, x509->heap, DYNAMIC_TYPE_PUBLIC_KEY);
+                    wolfSSL_EC_KEY_free(key->ecc);
+                    return NULL;
+                }
+
+                if (SetECKeyExternal(key->ecc) != SSL_SUCCESS) {
+                    WOLFSSL_MSG("SetECKeyExternal failed");
+                    XFREE(key, x509->heap, DYNAMIC_TYPE_PUBLIC_KEY);
+                    wolfSSL_EC_KEY_free(key->ecc);
+                    return NULL;
+                }
+
+                key->ecc->inSet = 1;
+            }
+            #endif /* HAVE_ECC */
+        }
+    }
+    return key;
+}
 #endif /* OPENSSL_EXTRA */
 
 
@@ -26292,7 +26357,7 @@ WOLFSSL_BIO *wolfSSL_BIO_new_file(const char *filename, const char *mode)
     (void)filename;
     (void)mode;
     return NULL;
-#endif
+#endif /* NO_FILESYSTEM */
 }
 
 

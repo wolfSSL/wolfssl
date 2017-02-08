@@ -13716,7 +13716,34 @@ static void test_wolfSSL_CTX_add_extra_chain_cert(void)
 
     x509 = wolfSSL_X509_load_certificate_file(clientFile, WOLFSSL_FILETYPE_PEM);
     AssertNotNull(x509);
-    AssertIntEQ((int)SSL_CTX_add_extra_chain_cert(ctx, x509), WOLFSSL_SUCCESS);
+
+    /* additional test of getting EVP_PKEY key size from X509 */
+    {
+        EVP_PKEY* pkey;
+        #if defined(HAVE_ECC) && defined(USE_CERT_BUFFERS_256)
+        X509* ecX509;
+        #endif /* HAVE_ECC */
+
+        AssertNotNull(pkey = X509_get_pubkey(x509));
+        /* current RSA key is 2048 bit (256 bytes) */
+        AssertIntEQ(EVP_PKEY_size(pkey), 256);
+
+        EVP_PKEY_free(pkey);
+
+        #if defined(HAVE_ECC) && defined(USE_CERT_BUFFERS_256)
+        AssertNotNull(ecX509 = wolfSSL_X509_load_certificate_buffer(
+                    cliecc_cert_der_256, sizeof_cliecc_cert_der_256,
+                    SSL_FILETYPE_ASN1));
+        AssertNotNull(pkey = X509_get_pubkey(ecX509));
+        /* current ECC key is 256 bit (32 bytes) */
+        AssertIntEQ(EVP_PKEY_size(pkey), 32);
+
+        X509_free(ecX509);
+        EVP_PKEY_free(pkey);
+        #endif /* HAVE_ECC */
+    }
+
+    AssertIntEQ((int)SSL_CTX_add_extra_chain_cert(ctx, x509), SSL_SUCCESS);
 
     AssertNull(SSL_CTX_get_default_passwd_cb(ctx));
     AssertNull(SSL_CTX_get_default_passwd_cb_userdata(ctx));
@@ -14551,7 +14578,7 @@ static void test_wolfSSL_BIO(void)
         BIO_free(f_bio1);
         BIO_free(f_bio2);
 
-        AssertNotNull(f_bio1 = BIO_new_file(svrCert, "rwb"));
+        AssertNotNull(f_bio1 = BIO_new_file(svrCertFile, "rwb"));
         AssertIntEQ((int)BIO_set_mem_eof_return(f_bio1, -1), 0);
         AssertIntEQ(BIO_read(f_bio1, cert, sizeof(cert)), sizeof(cert));
         BIO_free(f_bio1);
@@ -14977,6 +15004,7 @@ static void test_wolfSSL_BIO_gets(void)
     BIO* bio;
     BIO* bio2;
     char msg[] = "\nhello wolfSSL\n security plus\t---...**adf\na...b.c";
+    char emp[] = "";
     char buffer[20];
     int bufferSz = 20;
 
@@ -14989,6 +15017,9 @@ static void test_wolfSSL_BIO_gets(void)
     AssertNotNull(bio2 = BIO_find_type(bio, BIO_TYPE_BIO));
     AssertFalse(bio2 != BIO_next(bio));
 
+    /* make buffer filled with no terminating characters */
+    XMEMSET(buffer, 1, bufferSz);
+
     /* BIO_gets reads a line of data */
     AssertIntEQ(BIO_gets(bio, buffer, -3), 0);
     AssertIntEQ(BIO_gets(bio, buffer, bufferSz), 1);
@@ -14998,6 +15029,75 @@ static void test_wolfSSL_BIO_gets(void)
     AssertIntEQ(BIO_gets(bio, buffer, bufferSz), 8);
     AssertIntEQ(BIO_gets(bio, buffer, -1), 0);
 
+    /* check not null terminated string */
+    BIO_free(bio);
+    msg[0] = 0x33;
+    msg[1] = 0x33;
+    msg[2] = 0x33;
+    AssertNotNull(bio = BIO_new_mem_buf((void*)msg, 3));
+    AssertIntEQ(BIO_gets(bio, buffer, 3), 2);
+    AssertIntEQ(buffer[0], msg[0]);
+    AssertIntEQ(buffer[1], msg[1]);
+    AssertIntNE(buffer[2], msg[2]);
+
+    BIO_free(bio);
+    msg[3]    = 0x33;
+    buffer[3] = 0x33;
+    AssertNotNull(bio = BIO_new_mem_buf((void*)msg, 3));
+    AssertIntEQ(BIO_gets(bio, buffer, bufferSz), 3);
+    AssertIntEQ(buffer[0], msg[0]);
+    AssertIntEQ(buffer[1], msg[1]);
+    AssertIntEQ(buffer[2], msg[2]);
+    AssertIntNE(buffer[3], 0x33); /* make sure null terminator was set */
+
+    /* check reading an empty string */
+    BIO_free(bio);
+    AssertNotNull(bio = BIO_new_mem_buf((void*)emp, sizeof(emp)));
+    AssertIntEQ(BIO_gets(bio, buffer, bufferSz), 1); /* just terminator */
+    AssertStrEQ(emp, buffer);
+
+    /* check error cases */
+    BIO_free(bio);
+    AssertIntEQ(BIO_gets(NULL, NULL, 0), SSL_FAILURE);
+    AssertNotNull(bio = BIO_new(BIO_s_mem()));
+    AssertIntEQ(BIO_gets(bio, buffer, 2), -1); /* nothing to read */
+
+#if !defined(NO_FILESYSTEM)
+    {
+        BIO*  f_bio;
+        XFILE f;
+        AssertNotNull(f_bio = BIO_new(BIO_s_file()));
+        AssertIntLE(BIO_gets(f_bio, buffer, bufferSz), 0);
+
+        f = XFOPEN(svrCertFile, "rb");
+        AssertIntEQ((int)BIO_set_fp(f_bio, f, BIO_CLOSE), SSL_SUCCESS);
+        AssertIntGT(BIO_gets(f_bio, buffer, bufferSz), 0);
+
+        BIO_free(f_bio);
+    }
+#endif /* NO_FILESYSTEM */
+
+    BIO_free(bio);
+    BIO_free(bio2);
+
+    /* try with type BIO */
+    XMEMCPY(msg, "\nhello wolfSSL\n security plus\t---...**adf\na...b.c",
+            sizeof(msg));
+    AssertNotNull(bio = BIO_new(BIO_s_bio()));
+    AssertNotNull(bio2 = BIO_new(BIO_s_bio()));
+
+    AssertIntEQ(BIO_set_write_buf_size(bio, 10),           SSL_SUCCESS);
+    AssertIntEQ(BIO_set_write_buf_size(bio2, sizeof(msg)), SSL_SUCCESS);
+    AssertIntEQ(BIO_make_bio_pair(bio, bio2),              SSL_SUCCESS);
+
+    AssertIntEQ(BIO_write(bio2, msg, sizeof(msg)), sizeof(msg));
+    AssertIntEQ(BIO_gets(bio, buffer, -3), 0);
+    AssertIntEQ(BIO_gets(bio, buffer, bufferSz), 1);
+    AssertIntEQ(BIO_gets(bio, buffer, bufferSz), 14);
+    AssertStrEQ(buffer, "hello wolfSSL\n");
+    AssertIntEQ(BIO_gets(bio, buffer, bufferSz), 19);
+    AssertIntEQ(BIO_gets(bio, buffer, bufferSz), 8);
+    AssertIntEQ(BIO_gets(bio, buffer, -1), 0);
 
     BIO_free(bio);
     BIO_free(bio2);

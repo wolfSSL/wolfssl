@@ -38,7 +38,7 @@ WOLFSSL_API long wolfSSL_BIO_ctrl(WOLFSSL_BIO *bio, int cmd, long larg, void *pa
 
 /* helper function for wolfSSL_BIO_gets
  * size till a newline is hit
- * returns the number of bytes
+ * returns the number of bytes including the new line character
  */
 static int wolfSSL_getLineLength(char* in, int inSz)
 {
@@ -46,11 +46,11 @@ static int wolfSSL_getLineLength(char* in, int inSz)
 
     for (i = 0; i < inSz; i++) {
         if (in[i] == '\n') {
-            break;
+            return i + 1; /* includes new line character */
         }
     }
 
-    return i + 1; /* +1 to return number of bytes not index */
+    return inSz; /* rest of buffer is all one line */
 }
 
 
@@ -72,6 +72,10 @@ int wolfSSL_BIO_gets(WOLFSSL_BIO* bio, char* buf, int sz)
     switch (bio->type) {
 #ifndef NO_FILESYSTEM
         case WOLFSSL_BIO_FILE:
+            if (bio->file == NULL) {
+                return WOLFSSL_BIO_ERROR;
+            }
+
             #if defined(MICRIUM) || defined(LSR_FS) || defined(EBSNET)
             WOLFSSL_MSG("XFGETS not ported for this system yet");
             ret = XFGETS(buf, sz, bio->file);
@@ -103,8 +107,13 @@ int wolfSSL_BIO_gets(WOLFSSL_BIO* bio, char* buf, int sz)
                 cSz = wolfSSL_getLineLength((char*)c, cSz);
                 /* check case where line was bigger then buffer and buffer
                  * needs end terminator */
-                if (cSz > sz) {
+                if (cSz >= sz) {
                     cSz = sz - 1;
+                    buf[cSz] = '\0';
+                }
+                else {
+                    /* not minus 1 here because placing terminator after
+                       msg and have checked that sz is large enough */
                     buf[cSz] = '\0';
                 }
 
@@ -125,8 +134,13 @@ int wolfSSL_BIO_gets(WOLFSSL_BIO* bio, char* buf, int sz)
                 cSz = wolfSSL_getLineLength(c, cSz);
                 /* check case where line was bigger then buffer and buffer
                  * needs end terminator */
-                if (cSz > sz) {
+                if (cSz >= sz) {
                     cSz = sz - 1;
+                    buf[cSz] = '\0';
+                }
+                else {
+                    /* not minus 1 here because placing terminator after
+                       msg and have checked that sz is large enough */
                     buf[cSz] = '\0';
                 }
 

@@ -756,8 +756,14 @@ WOLFSSL_API int wolfSSL_EVP_PKEY_size(WOLFSSL_EVP_PKEY *pkey)
 #endif /* NO_RSA */
 
     case EVP_PKEY_EC:
-         WOLFSSL_MSG("not implemented");
-        /* not implemented */
+#ifdef HAVE_ECC
+        if (pkey->ecc == NULL || pkey->ecc->internal == NULL) {
+            WOLFSSL_MSG("No ECC key has been set");
+            return 0;
+        }
+        return wc_ecc_size((ecc_key*)(pkey->ecc->internal));
+#endif /* HAVE_ECC */
+
     default:
         return 0;
     }
