@@ -47,15 +47,6 @@ typedef void (*wolfSSL_Logging_cb)(const int logLevel,
 WOLFSSL_API int wolfSSL_SetLoggingCb(wolfSSL_Logging_cb log_function);
 
 #if defined(OPENSSL_EXTRA) || defined(DEBUG_WOLFSSL_VERBOSE)
-    typedef struct wc_error_queue wc_error_queue;
-
-    /* make these variables global and declare them in logging.c */
-    extern volatile char          wc_last_error_file[80];
-    extern volatile unsigned long wc_last_error_line;
-    extern volatile unsigned long wc_last_error;
-    extern volatile void*         wc_error_heap;
-    extern volatile wc_error_queue* wc_errors;
-
     WOLFSSL_LOCAL int wc_LoggingInit(void);
     WOLFSSL_LOCAL int wc_LoggingCleanup(void);
     WOLFSSL_LOCAL int wc_AddErrorNode(int error, int line, char* buf,

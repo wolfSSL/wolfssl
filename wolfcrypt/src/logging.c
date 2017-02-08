@@ -44,13 +44,9 @@
 #if defined(OPENSSL_EXTRA) || defined(DEBUG_WOLFSSL_VERBOSE)
 static wolfSSL_Mutex debug_mutex; /* mutex for access to debug structure */
 
-/* accessing any of these global variables should be wrapped in a lock of
+/* accessing any node from the queue should be wrapped in a lock of
  * debug_mutex */
-volatile char          wc_last_error_file[WOLFSSL_MAX_ERROR_SZ];
-volatile unsigned long wc_last_error_line;
-volatile unsigned long wc_last_error;
-volatile void*         wc_error_heap;
-
+static void* wc_error_heap;
 struct wc_error_queue {
     void*  heap; /* the heap hint used with nodes creation */
     struct wc_error_queue* next;
@@ -245,16 +241,12 @@ void WOLFSSL_ERROR(int error)
             }
             else {
                 if (error < 0) error = error - (2*error); /*get absolute value*/
-                wc_last_error      = (unsigned long)error;
-                wc_last_error_line = (unsigned long)line;
-                XMEMSET((char*)wc_last_error_file, 0, sizeof(wc_last_error_file));
-                if (XSTRLEN(file) < sizeof(wc_last_error_file)) {
-	                XSTRNCPY((char*)wc_last_error_file, file, XSTRLEN(file));
-                }
                 sprintf(buffer, "wolfSSL error occurred, error = %d line:%d file:%s",
                     error, line, file);
                 if (wc_AddErrorNode(error, line, buffer, (char*)file) != 0) {
                     WOLFSSL_MSG("Error creating logging node");
+                    /* with void function there is no return here, continue on
+                     * to unlock mutex and log what buffer was created. */
                 }
 
                 wc_UnLockMutex(&debug_mutex);
@@ -276,11 +268,7 @@ int wc_LoggingInit(void)
         WOLFSSL_MSG("Bad Init Mutex");
         return BAD_MUTEX_E;
     }
-    XMEMSET((char*)wc_last_error_file, 0, sizeof(wc_last_error_file));
-    wc_last_error_line = 0;
-    wc_last_error      = 0;
     wc_errors          = NULL;
-    wc_error_heap      = NULL;
     wc_last_node       = NULL;
 
     return 0;
@@ -381,7 +369,7 @@ int wc_PeekErrorNode(int index, const char **file, const char **reason,
 
 /* create new error node and add it to the queue
  * buffers are assumed to be of size WOLFSSL_MAX_ERROR_SZ for this internal
- * function */
+ * function. debug_mutex should be locked before a call to this function. */
 int wc_AddErrorNode(int error, int line, char* buf, char* file)
 {
 
@@ -397,7 +385,7 @@ int wc_AddErrorNode(int error, int line, char* buf, char* file)
         int sz;
 
         XMEMSET(err, 0, sizeof(struct wc_error_queue));
-        err->heap = (void*)wc_error_heap;
+        err->heap = wc_error_heap;
         sz = (int)XSTRLEN(buf);
         if (sz > WOLFSSL_MAX_ERROR_SZ - 1) {
             sz = WOLFSSL_MAX_ERROR_SZ - 1;
