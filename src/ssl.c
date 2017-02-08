@@ -10329,7 +10329,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
     }
 
 
-    void wolfSSL_CTX_set_default_passwd_cb(WOLFSSL_CTX* ctx, pem_password_cb cb)
+    void wolfSSL_CTX_set_default_passwd_cb(WOLFSSL_CTX* ctx,pem_password_cb* cb)
     {
         WOLFSSL_ENTER("SSL_CTX_set_default_passwd_cb");
         if (ctx != NULL) {
@@ -12128,7 +12128,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
             return NULL;
         }
 
-        return &(ctx->passwd_cb);
+        return ctx->passwd_cb;
     }
 
 
@@ -20612,7 +20612,8 @@ void* wolfSSL_get_ex_data(const WOLFSSL* ssl, int idx)
 }
 
 #ifndef NO_DSA
-WOLFSSL_DSA *wolfSSL_PEM_read_bio_DSAparams(WOLFSSL_BIO *bp, WOLFSSL_DSA **x, pem_password_cb *cb, void *u)
+WOLFSSL_DSA *wolfSSL_PEM_read_bio_DSAparams(WOLFSSL_BIO *bp, WOLFSSL_DSA **x,
+        pem_password_cb *cb, void *u)
 {
     WOLFSSL_DSA* dsa;
     DsaKey* key;
@@ -20741,7 +20742,8 @@ WOLFSSL_BIO *wolfSSL_BIO_new_file(const char *filename, const char *mode) {
 }
 
 
-WOLFSSL_DH *wolfSSL_PEM_read_bio_DHparams(WOLFSSL_BIO *bp, WOLFSSL_DH **x, pem_password_cb *cb, void *u)
+WOLFSSL_DH *wolfSSL_PEM_read_bio_DHparams(WOLFSSL_BIO *bp, WOLFSSL_DH **x,
+        pem_password_cb *cb, void *u)
 {
     (void) bp;
     (void) x;
