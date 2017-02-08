@@ -13717,7 +13717,10 @@ static void test_wolfSSL_CTX_add_extra_chain_cert(void)
     x509 = wolfSSL_X509_load_certificate_file(clientFile, WOLFSSL_FILETYPE_PEM);
     AssertNotNull(x509);
 
-    /* additional test of getting EVP_PKEY key size from X509 */
+    #if !defined(HAVE_USER_RSA) && !defined(HAVE_FAST_RSA)
+    /* additional test of getting EVP_PKEY key size from X509
+     * Do not run with user RSA because wolfSSL_RSA_size is not currently
+     * allowed with user RSA */
     {
         EVP_PKEY* pkey;
         #if defined(HAVE_ECC) && defined(USE_CERT_BUFFERS_256)
@@ -13742,6 +13745,7 @@ static void test_wolfSSL_CTX_add_extra_chain_cert(void)
         EVP_PKEY_free(pkey);
         #endif /* HAVE_ECC */
     }
+    #endif /* !defined(HAVE_USER_RSA) && !defined(HAVE_FAST_RSA) */
 
     AssertIntEQ((int)SSL_CTX_add_extra_chain_cert(ctx, x509), SSL_SUCCESS);
 
