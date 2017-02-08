@@ -3475,6 +3475,21 @@ int ValidateDate(const byte* date, byte format, int dateType)
 #endif
 
     ltime = XTIME(0);
+
+#ifdef WOLFSSL_BEFORE_DATE_CLOCK_SKEW
+    if (dateType == BEFORE) {
+        WOLFSSL_MSG("Skewing local time for before date check");
+        ltime += WOLFSSL_BEFORE_DATE_CLOCK_SKEW;
+    }
+#endif
+
+#ifdef WOLFSSL_AFTER_DATE_CLOCK_SKEW
+    if (dateType == AFTER) {
+        WOLFSSL_MSG("Skewing local time for after date check");
+        ltime -= WOLFSSL_AFTER_DATE_CLOCK_SKEW;
+    }
+#endif
+
     if (!ExtractDate(date, format, &certTime, &i)) {
         WOLFSSL_MSG("Error extracting the date");
         return 0;
@@ -3500,12 +3515,17 @@ int ValidateDate(const byte* date, byte format, int dateType)
     }
 
     if (dateType == BEFORE) {
-        if (DateLessThan(localTime, &certTime))
+        if (DateLessThan(localTime, &certTime)) {
+            WOLFSSL_MSG("Date BEFORE check failed");
             return 0;
+        }
     }
-    else
-        if (DateGreaterThan(localTime, &certTime))
+    else {  /* dateType == AFTER */
+        if (DateGreaterThan(localTime, &certTime)) {
+            WOLFSSL_MSG("Date AFTER check failed");
             return 0;
+        }
+    }
 
     return 1;
 }
@@ -9588,6 +9608,8 @@ static int DecodeResponseData(byte* source,
 }
 
 
+#ifndef WOLFSSL_NO_OCSP_OPTIONAL_CERTS
+
 static int DecodeCerts(byte* source,
                             word32* ioIndex, OcspResponse* resp, word32 size)
 {
@@ -9614,15 +9636,18 @@ static int DecodeCerts(byte* source,
     return 0;
 }
 
+#endif /* WOLFSSL_NO_OCSP_OPTIONAL_CERTS */
+
+
 static int DecodeBasicOcspResponse(byte* source, word32* ioIndex,
                           OcspResponse* resp, word32 size, void* cm, void* heap)
 {
     int length;
     word32 idx = *ioIndex;
     word32 end_index;
-    int ret = -1;
 
     WOLFSSL_ENTER("DecodeBasicOcspResponse");
+    (void)heap;
 
     if (GetSequence(source, &idx, &length, size) < 0)
         return ASN_PARSE_E;
@@ -9641,9 +9666,18 @@ static int DecodeBasicOcspResponse(byte* source, word32* ioIndex,
     /* Obtain pointer to the start of the signature, and save the size */
     if (source[idx++] == ASN_BIT_STRING)
     {
-        int sigLength = 0;
-        if (GetLength(source, &idx, &sigLength, size) < 0)
+        int  sigLength = 0;
+        byte b;
+
+        if (GetLength(source, &idx, &sigLength, size) <= 0)
             return ASN_PARSE_E;
+
+        b = source[idx++];
+        if (b != 0x00) {
+            return ASN_EXPECT_0_E;
+        }
+
+        sigLength--;
         resp->sigSz = sigLength;
         resp->sig = source + idx;
         idx += sigLength;
@@ -9653,17 +9687,22 @@ static int DecodeBasicOcspResponse(byte* source, word32* ioIndex,
      * Check the length of the BasicOcspResponse against the current index to
      * see if there are certificates, they are optional.
      */
+#ifndef WOLFSSL_NO_OCSP_OPTIONAL_CERTS
     if (idx < end_index)
     {
         DecodedCert cert;
+        int         ret;
 
         if (DecodeCerts(source, &idx, resp, size) < 0)
             return ASN_PARSE_E;
 
         InitDecodedCert(&cert, resp->cert, resp->certSz, heap);
         ret = ParseCertRelative(&cert, CERT_TYPE, VERIFY, cm);
-        if (ret < 0)
+        if (ret < 0) {
+            WOLFSSL_MSG("\tOCSP Responder certificate parsing failed");
+            FreeDecodedCert(&cert);
             return ret;
+        }
 
         ret = ConfirmSignature(resp->response, resp->responseSz,
                             cert.publicKey, cert.pubKeySize, cert.keyOID,
@@ -9676,7 +9715,9 @@ static int DecodeBasicOcspResponse(byte* source, word32* ioIndex,
             return ASN_OCSP_CONFIRM_E;
         }
     }
-    else {
+    else
+#endif /* WOLFSSL_NO_OCSP_OPTIONAL_CERTS */
+    {
         Signer* ca = NULL;
 
         #ifndef NO_SKID
