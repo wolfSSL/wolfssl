@@ -46,6 +46,19 @@ typedef void (*wolfSSL_Logging_cb)(const int logLevel,
 
 WOLFSSL_API int wolfSSL_SetLoggingCb(wolfSSL_Logging_cb log_function);
 
+#if defined(OPENSSL_EXTRA) || defined(DEBUG_WOLFSSL_VERBOSE)
+    WOLFSSL_LOCAL int wc_LoggingInit(void);
+    WOLFSSL_LOCAL int wc_LoggingCleanup(void);
+    WOLFSSL_LOCAL int wc_AddErrorNode(int error, int line, char* buf,
+            char* file);
+    WOLFSSL_LOCAL int wc_PeekErrorNode(int index, const char **file,
+            const char **reason, int *line);
+    WOLFSSL_API   int wc_SetLoggingHeap(void* h);
+    #if !defined(NO_FILESYSTEM) && !defined(NO_STDIO_FILESYSTEM)
+        WOLFSSL_API   void wc_ERR_print_errors_fp(FILE* fp);
+    #endif
+#endif /* defined(OPENSSL_EXTRA) || defined(DEBUG_WOLFSSL_VERBOSE) */
+
 #ifdef DEBUG_WOLFSSL
     /* a is prepended to m and b is appended, creating a log msg a + m + b */
     #define WOLFSSL_LOG_CAT(a, m, b) #a " " m " "  #b
@@ -56,11 +69,6 @@ WOLFSSL_API int wolfSSL_SetLoggingCb(wolfSSL_Logging_cb log_function);
         WOLFSSL_MSG(WOLFSSL_LOG_CAT(wolfSSL Stub, m, not implemented))
 
 #if defined(OPENSSL_EXTRA) || defined(DEBUG_WOLFSSL_VERBOSE)
-    /* make these variables global and declare them in logging.c */
-    extern volatile char          wc_last_error_file[80];
-    extern volatile unsigned long wc_last_error_line;
-    extern volatile unsigned long wc_last_error;
-
     void WOLFSSL_ERROR_LINE(int err, const char* func, unsigned int line,
             const char* file, void* ctx);
     #define WOLFSSL_ERROR(x) WOLFSSL_ERROR_LINE((x), __func__, __LINE__, __FILE__,NULL)

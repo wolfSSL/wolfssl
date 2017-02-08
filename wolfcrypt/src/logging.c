@@ -41,13 +41,27 @@
     } 
 #endif
 
+#if defined(OPENSSL_EXTRA) || defined(DEBUG_WOLFSSL_VERBOSE)
+static wolfSSL_Mutex debug_mutex; /* mutex for access to debug structure */
+
+/* accessing any node from the queue should be wrapped in a lock of
+ * debug_mutex */
+static void* wc_error_heap;
+struct wc_error_queue {
+    void*  heap; /* the heap hint used with nodes creation */
+    struct wc_error_queue* next;
+    char   error[WOLFSSL_MAX_ERROR_SZ];
+    char   file[WOLFSSL_MAX_ERROR_SZ];
+    int    value;
+    int    line;
+};
+volatile struct wc_error_queue* wc_errors;
+static struct wc_error_queue* wc_last_node;
+/* pointer to last node in queue to make insertion O(1) */
+#endif
+
 
 #ifdef DEBUG_WOLFSSL
-    #if defined(OPENSSL_EXTRA) || defined(DEBUG_WOLFSSL_VERBOSE)
-    volatile char          wc_last_error_file[80];
-    volatile unsigned long wc_last_error_line;
-    volatile unsigned long wc_last_error;
-    #endif
 
 /* Set these to default values initially. */
 static wolfSSL_Logging_cb log_function = 0;
@@ -220,15 +234,23 @@ void WOLFSSL_ERROR(int error)
         #if defined(OPENSSL_EXTRA) || defined(DEBUG_WOLFSSL_VERBOSE)
             (void)usrCtx; /* a user ctx for future flexibility */
             (void)func;
-            if (error < 0) error = error - (2*error); /* get absolute value */
-            wc_last_error      = (unsigned long)error;
-            wc_last_error_line = (unsigned long)line;
-            XMEMSET((char*)wc_last_error_file, 0, sizeof(file));
-            if (XSTRLEN(file) < sizeof(file)) {
-	            XSTRNCPY((char*)wc_last_error_file, file, XSTRLEN(file));
+
+            if (wc_LockMutex(&debug_mutex) != 0) {
+                WOLFSSL_MSG("Lock debug mutex failed");
+                sprintf(buffer, "wolfSSL error occurred, error = %d", error);
             }
-            sprintf(buffer, "wolfSSL error occurred, error = %d line:%d file:%s",
+            else {
+                if (error < 0) error = error - (2*error); /*get absolute value*/
+                sprintf(buffer, "wolfSSL error occurred, error = %d line:%d file:%s",
                     error, line, file);
+                if (wc_AddErrorNode(error, line, buffer, (char*)file) != 0) {
+                    WOLFSSL_MSG("Error creating logging node");
+                    /* with void function there is no return here, continue on
+                     * to unlock mutex and log what buffer was created. */
+                }
+
+                wc_UnLockMutex(&debug_mutex);
+            }
         #else
             sprintf(buffer, "wolfSSL error occurred, error = %d", error);
         #endif
@@ -237,3 +259,223 @@ void WOLFSSL_ERROR(int error)
 }
 
 #endif  /* DEBUG_WOLFSSL */
+
+#if defined(OPENSSL_EXTRA) || defined(DEBUG_WOLFSSL_VERBOSE)
+/* Internal function that is called by wolfCrypt_Init() */
+int wc_LoggingInit(void)
+{
+    if (wc_InitMutex(&debug_mutex) != 0) {
+        WOLFSSL_MSG("Bad Init Mutex");
+        return BAD_MUTEX_E;
+    }
+    wc_errors          = NULL;
+    wc_last_node       = NULL;
+
+    return 0;
+}
+
+
+/* internal function that is called by wolfCrypt_Cleanup */
+int wc_LoggingCleanup(void)
+{
+    if (wc_LockMutex(&debug_mutex) != 0) {
+        WOLFSSL_MSG("Lock debug mutex failed");
+        return BAD_MUTEX_E;
+    }
+
+    /* free all nodes from error queue */
+    {
+        struct wc_error_queue* current;
+        struct wc_error_queue* next;
+
+        current = (struct wc_error_queue*)wc_errors;
+        while (current != NULL) {
+            next = current->next;
+            XFREE(current, current->heap, DYNAMIC_TYPE_LOG);
+            current = next;
+        }
+    }
+
+    wc_UnLockMutex(&debug_mutex);
+    if (wc_FreeMutex(&debug_mutex) != 0) {
+        WOLFSSL_MSG("Bad Mutex free");
+        return BAD_MUTEX_E;
+    }
+    return 0;
+}
+
+
+#ifdef DEBUG_WOLFSSL
+/* peek at an error node
+ *
+ * index : if -1 then the most recent node is looked at, otherwise search
+ *         through queue for node at the given index
+ * file  : pointer to internal file string
+ * reason : pointer to internal error reason
+ * line  : line number that error happened at
+ *
+ * Returns a negative value in error case, on success returns the nodes error
+ * value which is positve (absolute value)
+ */
+int wc_PeekErrorNode(int index, const char **file, const char **reason,
+        int *line)
+{
+    struct wc_error_queue* err;
+
+    if (wc_LockMutex(&debug_mutex) != 0) {
+        WOLFSSL_MSG("Lock debug mutex failed");
+        return BAD_MUTEX_E;
+    }
+
+    if (index < 0) {
+        err = wc_last_node;
+        if (err == NULL) {
+            WOLFSSL_MSG("No Errors in queue");
+            wc_UnLockMutex(&debug_mutex);
+            return BAD_STATE_E;
+        }
+    }
+    else {
+        int i;
+
+        err = (struct wc_error_queue*)wc_errors;
+        for (i = 0; i < index; i++) {
+            if (err == NULL) {
+                WOLFSSL_MSG("Error node not found. Bad index?");
+                wc_UnLockMutex(&debug_mutex);
+                return BAD_FUNC_ARG;
+            }
+            err = err->next;
+        }
+    }
+
+    if (file != NULL) {
+        *file = err->file;
+    }
+
+    if (reason != NULL) {
+        *reason = err->error;
+    }
+
+    if (line != NULL) {
+        *line = err->line;
+    }
+
+    wc_UnLockMutex(&debug_mutex);
+
+    return err->value;
+}
+
+
+/* create new error node and add it to the queue
+ * buffers are assumed to be of size WOLFSSL_MAX_ERROR_SZ for this internal
+ * function. debug_mutex should be locked before a call to this function. */
+int wc_AddErrorNode(int error, int line, char* buf, char* file)
+{
+
+    struct wc_error_queue* err;
+
+    err = (struct wc_error_queue*)XMALLOC(
+            sizeof(struct wc_error_queue), wc_error_heap, DYNAMIC_TYPE_LOG);
+    if (err == NULL) {
+        WOLFSSL_MSG("Unable to create error node for log");
+        return MEMORY_E;
+    }
+    else {
+        int sz;
+
+        XMEMSET(err, 0, sizeof(struct wc_error_queue));
+        err->heap = wc_error_heap;
+        sz = (int)XSTRLEN(buf);
+        if (sz > WOLFSSL_MAX_ERROR_SZ - 1) {
+            sz = WOLFSSL_MAX_ERROR_SZ - 1;
+        }
+        if (sz > 0) {
+            XMEMCPY(err->error, buf, sz);
+        }
+
+        sz = (int)XSTRLEN(file);
+        if (sz > WOLFSSL_MAX_ERROR_SZ - 1) {
+            sz = WOLFSSL_MAX_ERROR_SZ - 1;
+        }
+        if (sz > 0) {
+            XMEMCPY(err->file, file, sz);
+        }
+
+        err->value = error;
+        err->line  = line;
+
+        /* make sure is terminated */
+        err->error[WOLFSSL_MAX_ERROR_SZ - 1] = '\0';
+        err->file[WOLFSSL_MAX_ERROR_SZ - 1]  = '\0';
+
+
+        /* since is queue place new node at last of the list */
+        if (wc_last_node == NULL) {
+            /* case of first node added to queue */
+            if (wc_errors != NULL) {
+                /* check for unexpected case before over writing wc_errors */
+                WOLFSSL_MSG("ERROR in adding new node to logging queue!!\n");
+            }
+            else {
+                wc_errors    = err;
+                wc_last_node = err;
+            }
+        }
+        else {
+            wc_last_node->next = err;
+            wc_last_node = err;
+        }
+    }
+
+    return 0;
+}
+#endif /* DEBUG_WOLFSSL */
+
+
+int wc_SetLoggingHeap(void* h)
+{
+    if (wc_LockMutex(&debug_mutex) != 0) {
+        WOLFSSL_MSG("Lock debug mutex failed");
+        return BAD_MUTEX_E;
+    }
+    wc_error_heap = h;
+    wc_UnLockMutex(&debug_mutex);
+    return 0;
+}
+
+#if !defined(NO_FILESYSTEM) && !defined(NO_STDIO_FILESYSTEM)
+/* empties out the error queue into the file */
+void wc_ERR_print_errors_fp(FILE* fp)
+{
+    WOLFSSL_ENTER("wc_ERR_print_errors_fp");
+
+    if (wc_LockMutex(&debug_mutex) != 0) {
+        WOLFSSL_MSG("Lock debug mutex failed");
+    }
+    else {
+        /* free all nodes from error queue and print them to file */
+        {
+            struct wc_error_queue* current;
+            struct wc_error_queue* next;
+
+            current = (struct wc_error_queue*)wc_errors;
+            while (current != NULL) {
+                next = current->next;
+                fprintf(fp, "%s\n", current->error);
+                XFREE(current, current->heap, DYNAMIC_TYPE_LOG);
+                current = next;
+            }
+
+            /* set global pointers to match having been freed */
+            wc_errors    = NULL;
+            wc_last_node = NULL;
+        }
+
+        wc_UnLockMutex(&debug_mutex);
+    }
+}
+#endif /* !defined(NO_FILESYSTEM) && !defined(NO_STDIO_FILESYSTEM) */
+
+#endif /* defined(OPENSSL_EXTRA) || defined(DEBUG_WOLFSSL_VERBOSE) */
+

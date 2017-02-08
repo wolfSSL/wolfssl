@@ -891,6 +891,9 @@ enum {
    since not using thread storage error queue */
 #include <stdio.h>
 WOLFSSL_API void  wolfSSL_ERR_print_errors_fp(FILE*, int err);
+#if defined(OPENSSL_EXTRA) || defined(DEBUG_WOLFSSL_VERBOSE)
+WOLFSSL_API void wolfSSL_ERR_dump_errors_fp(FILE* fp);
+#endif
 #endif
 
 enum { /* ssl Constants */

@@ -101,6 +101,9 @@
 #ifdef WOLFSSL_ASYNC_CRYPT
     #include <wolfssl/wolfcrypt/async.h>
 #endif
+#if defined(OPENSSL_EXTRA) || defined(DEBUG_WOLFSSL_VERBOSE)
+    #include <wolfssl/wolfcrypt/logging.h>
+#endif
 
 #ifdef _MSC_VER
     /* 4996 warning to use MS extensions e.g., strcpy_s instead of strncpy */
@@ -325,6 +328,10 @@ int wolfcrypt_test(void* args)
 #endif
 
     wolfCrypt_Init();
+
+#if defined(OPENSSL_EXTRA) || defined(DEBUG_WOLFSSL_VERBOSE)
+    wc_SetLoggingHeap(HEAP_HINT);
+#endif
 
 #ifdef HAVE_FIPS
     wolfCrypt_SetCb_fips(myFipsCb);
@@ -722,6 +729,10 @@ int wolfcrypt_test(void* args)
     else
         printf( "PKCS7encrypted test passed!\n");
 #endif
+
+    if ((ret = wolfCrypt_Cleanup())!= 0) {
+        return err_sys("Error with wolfCrypt_Cleanup!\n", ret);
+    }
 
 #if defined(USE_WOLFSSL_MEMORY) && defined(WOLFSSL_TRACK_MEMORY)
     ShowMemoryTracker();

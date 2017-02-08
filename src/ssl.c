@@ -2734,6 +2734,12 @@ void wolfSSL_ERR_print_errors_fp(FILE* fp, int err)
     fprintf(fp, "%s", data);
 }
 
+#if defined(OPENSSL_EXTRA) || defined(DEBUG_WOLFSSL_VERBOSE)
+void wolfSSL_ERR_dump_errors_fp(FILE* fp)
+{
+    wc_ERR_print_errors_fp(fp);
+}
+#endif
 #endif
 
 
@@ -8306,6 +8312,11 @@ int wolfSSL_Cleanup(void)
 #if defined(HAVE_ECC) && defined(FP_ECC)
     wc_ecc_fp_free();
 #endif
+
+    if (wolfCrypt_Cleanup() != 0) {
+        WOLFSSL_MSG("Error with wolfCrypt_Cleanup call");
+        ret = WC_CLEANUP_E;
+    }
 
     return ret;
 }
@@ -20492,13 +20503,15 @@ unsigned long wolfSSL_ERR_peek_last_error_line(const char **file, int *line)
     (void)line;
     (void)file;
 #if defined(DEBUG_WOLFSSL)
-    if (line != NULL) {
-        *line = (int)wc_last_error_line;
+    {
+        int ret;
+
+        if ((ret = wc_PeekErrorNode(-1, file, NULL, line)) < 0) {
+            WOLFSSL_MSG("Issue peeking at error node in queue");
+            return 0;
+        }
+        return (unsigned long)ret;
     }
-    if (file != NULL) {
-        *file = (char*)wc_last_error_file;
-    }
-    return wc_last_error;
 #else
     return (unsigned long)(0 - NOT_COMPILED_IN);
 #endif
