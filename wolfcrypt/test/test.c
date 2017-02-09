@@ -327,8 +327,6 @@ int wolfcrypt_test(void* args)
     wolfSSL_Debugging_ON();
 #endif
 
-    wolfCrypt_Init();
-
 #if defined(OPENSSL_EXTRA) || defined(DEBUG_WOLFSSL_VERBOSE)
     wc_SetLoggingHeap(HEAP_HINT);
 #endif
@@ -730,10 +728,6 @@ int wolfcrypt_test(void* args)
         printf( "PKCS7encrypted test passed!\n");
 #endif
 
-    if ((ret = wolfCrypt_Cleanup())!= 0) {
-        return err_sys("Error with wolfCrypt_Cleanup!\n", ret);
-    }
-
 #if defined(USE_WOLFSSL_MEMORY) && defined(WOLFSSL_TRACK_MEMORY)
     ShowMemoryTracker();
 #endif
@@ -762,7 +756,13 @@ int wolfcrypt_test(void* args)
         args.argc = argc;
         args.argv = argv;
 
+        wolfCrypt_Init();
+
         wolfcrypt_test(&args);
+
+        if (wolfCrypt_Cleanup() != 0) {
+            return err_sys("Error with wolfCrypt_Cleanup!\n", -1239);
+        }
 
 #ifdef HAVE_WNR
         if (wc_FreeNetRandom() < 0)
