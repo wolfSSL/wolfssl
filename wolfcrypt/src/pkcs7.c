@@ -1326,6 +1326,7 @@ static int wc_PKCS7_KariGenerateSharedInfo(WC_PKCS7_KARI* kari, int keyWrapOID)
     int keyInfoSz = 0;
     int suppPubInfoSeqSz = 0;
     int entityUInfoOctetSz = 0;
+    int entityUInfoExplicitSz = 0;
     int kekOctetSz = 0;
     int sharedInfoSz = 0;
 
@@ -1335,6 +1336,7 @@ static int wc_PKCS7_KariGenerateSharedInfo(WC_PKCS7_KARI* kari, int keyWrapOID)
     byte keyInfo[MAX_ALGO_SZ];
     byte suppPubInfoSeq[MAX_SEQ_SZ];
     byte entityUInfoOctet[MAX_OCTET_STR_SZ];
+    byte entityUInfoExplicitSeq[MAX_SEQ_SZ];
     byte kekOctet[MAX_OCTET_STR_SZ];
 
     if (kari == NULL)
@@ -1357,6 +1359,11 @@ static int wc_PKCS7_KariGenerateSharedInfo(WC_PKCS7_KARI* kari, int keyWrapOID)
     if (kari->ukmSz > 0) {
         entityUInfoOctetSz = SetOctetString(kari->ukmSz, entityUInfoOctet);
         sharedInfoSz += (entityUInfoOctetSz + kari->ukmSz);
+
+        entityUInfoExplicitSz = SetExplicit(0, entityUInfoOctetSz +
+                                            kari->ukmSz,
+                                            entityUInfoExplicitSeq);
+        sharedInfoSz += entityUInfoExplicitSz;
     }
 
     /* keyInfo */
@@ -1379,6 +1386,9 @@ static int wc_PKCS7_KariGenerateSharedInfo(WC_PKCS7_KARI* kari, int keyWrapOID)
     XMEMCPY(kari->sharedInfo + idx, keyInfo, keyInfoSz);
     idx += keyInfoSz;
     if (kari->ukmSz > 0) {
+        XMEMCPY(kari->sharedInfo + idx, entityUInfoExplicitSeq,
+                entityUInfoExplicitSz);
+        idx += entityUInfoExplicitSz;
         XMEMCPY(kari->sharedInfo + idx, entityUInfoOctet, entityUInfoOctetSz);
         idx += entityUInfoOctetSz;
         XMEMCPY(kari->sharedInfo + idx, kari->ukm, kari->ukmSz);
