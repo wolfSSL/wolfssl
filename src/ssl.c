@@ -10583,12 +10583,15 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
 
     unsigned long wolfSSL_ERR_get_error(void)
     {
-        WOLFSSL_ENTER("wolfSSL_ERR_clear_error");
+        WOLFSSL_ENTER("wolfSSL_ERR_get_error");
 
-#if defined(OPENSSL_ERR_ONE)
-        unsigned long ret = wc_last_error;
-        wc_last_error = 0;
-        return ret;
+#if defined(WOLFSSL_NGINX)
+        {
+            unsigned long ret = wolfSSL_ERR_peek_error_line_data(NULL, NULL,
+                                                                 NULL, NULL);
+            wc_RemoveErrorNode(-1);
+            return ret;
+        }
 #else
         return (unsigned long)(0 - NOT_COMPILED_IN);
 #endif
@@ -12138,8 +12141,8 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
     {
         WOLFSSL_ENTER("wolfSSL_ERR_clear_error");
 
-#if defined(OPENSSL_ERR_ONE)
-        wc_last_error = 0;
+#if defined(WOLFSSL_NGINX)
+        wc_ClearErrorNodes();
 #endif
     }
 
@@ -15019,8 +15022,8 @@ unsigned long wolfSSL_ERR_peek_error(void)
 {
     WOLFSSL_ENTER("wolfSSL_ERR_peek_error");
 
-#if defined(OPENSSL_ERR_ONE)
-    return wc_last_error;
+#ifdef WOLFSSL_NGINX
+    return wolfSSL_ERR_peek_error_line_data(NULL, NULL, NULL, NULL);
 #else
     return 0;
 #endif
@@ -21330,7 +21333,7 @@ void* wolfSSL_GetRsaDecCtx(WOLFSSL* ssl)
             }
         #ifdef WOLFSSL_NGINX
             if (l == 0)
-                wc_last_error = ((ERR_LIB_PEM << 24) | PEM_R_NO_START_LINE);
+                WOLFSSL_ERROR(SSL_NO_PEM_HEADER);
         #endif
             pemSz = (int)i;
         }
@@ -21608,6 +21611,10 @@ unsigned long wolfSSL_ERR_peek_last_error_line(const char **file, int *line)
             WOLFSSL_MSG("Issue peeking at error node in queue");
             return 0;
         }
+    #ifdef WOLFSSL_NGINX
+        if (ret == -SSL_NO_PEM_HEADER)
+            return (ERR_LIB_PEM << 24) | PEM_R_NO_START_LINE;
+    #endif
         return (unsigned long)ret;
     }
 #else
@@ -22032,7 +22039,7 @@ int wolfSSL_PEM_write_bio_X509(WOLFSSL_BIO *bio, WOLFSSL_X509 *cert)
         XFREE(bio->mem, NULL, DYNAMIC_TYPE_OPENSSL);
     }
     bio->mem = (byte*)XMALLOC(pemSz, NULL, DYNAMIC_TYPE_OPENSSL);
-    if (bio->mem != NULL) {
+    if (bio->mem == NULL) {
         return SSL_FAILURE;
     }
     bio->memLen = pemSz;
@@ -22201,8 +22208,18 @@ unsigned long wolfSSL_ERR_peek_last_error(void)
 {
     WOLFSSL_ENTER("wolfSSL_ERR_peek_last_error");
 
-#if defined(OPENSSL_ERR_ONE)
-    return wc_last_error;
+#ifdef WOLFSSL_NGINX
+    {
+        int ret;
+
+        if ((ret = wc_PeekErrorNode(-1, NULL, NULL, NULL)) < 0) {
+            WOLFSSL_MSG("Issue peeking at error node in queue");
+            return 0;
+        }
+        if (ret == -SSL_NO_PEM_HEADER)
+            return (ERR_LIB_PEM << 24) | PEM_R_NO_START_LINE;
+        return (unsigned long)ret;
+    }
 #else
     return (unsigned long)(0 - NOT_COMPILED_IN);
 #endif
@@ -22943,7 +22960,7 @@ int wolfSSL_AsyncPoll(WOLFSSL* ssl, WOLF_EVENT_FLAG flags)
 }
 #endif /* WOLFSSL_ASYNC_CRYPT */
 
-#if defined(WOLFSSL_NGINX)
+#ifdef WOLFSSL_NGINX
 void wolfSSL_OPENSSL_config(char *config_name)
 {
     WOLFSSL_STUB("wolfSSL_OPENSSL_config");
@@ -23210,14 +23227,28 @@ unsigned long wolfSSL_ERR_peek_error_line_data(const char **file, int *line,
         *flags = 0;
     }
 
-#if defined(OPENSSL_ERR_ONE)
-    if (line != NULL) {
-        *line = (int)wc_last_error_line;
+#if defined(WOLFSSL_NGINX)
+    {
+        int ret = 0;
+
+        while (1) {
+            if ((ret = wc_PeekErrorNode(-1, file, NULL, line)) < 0) {
+                WOLFSSL_MSG("Issue peeking at error node in queue");
+                return 0;
+            }
+            ret = -ret;
+
+            if (ret == SSL_NO_PEM_HEADER)
+                return (ERR_LIB_PEM << 24) | PEM_R_NO_START_LINE;
+            if (ret != WANT_READ && ret != WANT_WRITE &&
+                    ret != ZERO_RETURN && ret != SSL_ERROR_ZERO_RETURN)
+                break;
+
+            wc_RemoveErrorNode(-1);
+        }
+
+        return (unsigned long)ret;
     }
-    if (file != NULL) {
-        *file = (char*)wc_last_error_file;
-    }
-    return wc_last_error;
 #else
     return (unsigned long)(0 - NOT_COMPILED_IN);
 #endif

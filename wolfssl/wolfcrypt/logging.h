@@ -53,6 +53,8 @@ WOLFSSL_API int wolfSSL_SetLoggingCb(wolfSSL_Logging_cb log_function);
             char* file);
     WOLFSSL_LOCAL int wc_PeekErrorNode(int index, const char **file,
             const char **reason, int *line);
+    WOLFSSL_LOCAL void wc_RemoveErrorNode(int index);
+    WOLFSSL_LOCAL void wc_ClearErrorNodes(void);
     WOLFSSL_API   int wc_SetLoggingHeap(void* h);
     #if !defined(NO_FILESYSTEM) && !defined(NO_STDIO_FILESYSTEM)
         WOLFSSL_API   void wc_ERR_print_errors_fp(FILE* fp);
@@ -68,13 +70,6 @@ WOLFSSL_API int wolfSSL_SetLoggingCb(wolfSSL_Logging_cb log_function);
     #define WOLFSSL_STUB(m) \
         WOLFSSL_MSG(WOLFSSL_LOG_CAT(wolfSSL Stub, m, not implemented))
 
-#if defined(OPENSSL_EXTRA) || defined(DEBUG_WOLFSSL_VERBOSE)
-    void WOLFSSL_ERROR_LINE(int err, const char* func, unsigned int line,
-            const char* file, void* ctx);
-    #define WOLFSSL_ERROR(x) WOLFSSL_ERROR_LINE((x), __func__, __LINE__, __FILE__,NULL)
-#else
-    void WOLFSSL_ERROR(int);
-#endif
     void WOLFSSL_MSG(const char* msg);
     void WOLFSSL_BUFFER(byte* buffer, word32 length);
 
@@ -84,11 +79,22 @@ WOLFSSL_API int wolfSSL_SetLoggingCb(wolfSSL_Logging_cb log_function);
     #define WOLFSSL_LEAVE(m, r)
     #define WOLFSSL_STUB(m)
 
-    #define WOLFSSL_ERROR(e)
     #define WOLFSSL_MSG(m)
     #define WOLFSSL_BUFFER(b, l)
 
 #endif /* DEBUG_WOLFSSL  */
+
+#if (defined(DEBUG_WOLFSSL) || defined(WOLFSSL_NGINX))
+    #if (defined(OPENSSL_EXTRA) || defined(DEBUG_WOLFSSL_VERBOSE))
+    void WOLFSSL_ERROR_LINE(int err, const char* func, unsigned int line,
+            const char* file, void* ctx);
+    #define WOLFSSL_ERROR(x) WOLFSSL_ERROR_LINE((x), __func__, __LINE__, __FILE__,NULL)
+    #else
+    void WOLFSSL_ERROR(int);
+    #endif
+#else
+    #define WOLFSSL_ERROR(e)
+#endif
 
 #ifdef __cplusplus
 }
