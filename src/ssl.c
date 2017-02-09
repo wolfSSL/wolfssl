@@ -7010,6 +7010,22 @@ WOLFSSL_EVP_PKEY* wolfSSL_d2i_PrivateKey(int type, WOLFSSL_EVP_PKEY** out,
         *out = local;
     }
 
+    if(type == EVP_PKEY_RSA){
+        local->ownRsa = 1;
+        local->rsa = wolfSSL_RSA_new();
+        if (local->rsa == NULL) {
+            XFREE(local, NULL, DYNAMIC_TYPE_PUBLIC_KEY);
+            return NULL;
+        }
+        if (wolfSSL_RSA_LoadDer_ex(local->rsa,
+                  (const unsigned char*)local->pkey.ptr, local->pkey_sz,
+                  WOLFSSL_RSA_LOAD_PRIVATE) != SSL_SUCCESS) {
+            XFREE(local, NULL, DYNAMIC_TYPE_PUBLIC_KEY);
+            wolfSSL_RSA_free(local->rsa);
+            return NULL;
+      }
+    }
+
     return local;
 }
 
@@ -24462,6 +24478,7 @@ int wolfSSL_EC_KEY_LoadDer(WOLFSSL_EC_KEY* key,
 WOLFSSL_EVP_PKEY* wolfSSL_X509_get_pubkey(WOLFSSL_X509* x509)
 {
     WOLFSSL_EVP_PKEY* key = NULL;
+    WOLFSSL_ENTER("X509_get_pubkey");
     if (x509 != NULL) {
         key = (WOLFSSL_EVP_PKEY*)XMALLOC(
                     sizeof(WOLFSSL_EVP_PKEY), x509->heap,
