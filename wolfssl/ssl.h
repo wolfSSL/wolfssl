@@ -767,36 +767,35 @@ WOLFSSL_API long wolfSSL_get_verify_result(const WOLFSSL *ssl);
 
 /* seperated out from other enums because of size */
 enum {
-    /* bit flags (ie 0001 vs 0010) : each is 2 times previous value */
-    SSL_OP_MICROSOFT_SESS_ID_BUG            = 1,
-    SSL_OP_NETSCAPE_CHALLENGE_BUG           = 2,
-    SSL_OP_NETSCAPE_REUSE_CIPHER_CHANGE_BUG = 4,
-    SSL_OP_SSLREF2_REUSE_CERT_TYPE_BUG      = 8,
-    SSL_OP_MICROSOFT_BIG_SSLV3_BUFFER       = 16,
-    SSL_OP_MSIE_SSLV2_RSA_PADDING           = 32,
-    SSL_OP_SSLEAY_080_CLIENT_DH_BUG         = 64,
-    SSL_OP_TLS_D5_BUG                       = 128,
-    SSL_OP_TLS_BLOCK_PADDING_BUG            = 256,
-    SSL_OP_TLS_ROLLBACK_BUG                 = 512,
-    SSL_OP_ALL                              = 1024,
-    SSL_OP_EPHEMERAL_RSA                    = 2048,
-    SSL_OP_NO_SSLv3                         = 4096,
-    SSL_OP_NO_TLSv1                         = 8192,
-    SSL_OP_PKCS1_CHECK_1                    = 16384,
-    SSL_OP_PKCS1_CHECK_2                    = 32768,
-    SSL_OP_NETSCAPE_CA_DN_BUG               = 65536,
-    SSL_OP_NETSCAPE_DEMO_CIPHER_CHANGE_BUG  = 131072,
-    SSL_OP_SINGLE_DH_USE                    = 262144,
-    SSL_OP_NO_TICKET                        = 524288,
-    SSL_OP_DONT_INSERT_EMPTY_FRAGMENTS      = 1048576,
-    SSL_OP_NO_QUERY_MTU                     = 2097152,
-    SSL_OP_COOKIE_EXCHANGE                  = 4194304,
-    SSL_OP_NO_SESSION_RESUMPTION_ON_RENEGOTIATION = 8388608,
-    SSL_OP_SINGLE_ECDH_USE                  = 16777216,
-    SSL_OP_CIPHER_SERVER_PREFERENCE         = 33554432,
-    SSL_OP_NO_TLSv1_1                       = 67108864,
-    SSL_OP_NO_TLSv1_2                       = 134217728,
-    SSL_OP_NO_COMPRESSION                   = 268435456,
+    SSL_OP_MICROSOFT_SESS_ID_BUG                  = 0x00000001,
+    SSL_OP_NETSCAPE_CHALLENGE_BUG                 = 0x00000002,
+    SSL_OP_NETSCAPE_REUSE_CIPHER_CHANGE_BUG       = 0x00000004,
+    SSL_OP_SSLREF2_REUSE_CERT_TYPE_BUG            = 0x00000008,
+    SSL_OP_MICROSOFT_BIG_SSLV3_BUFFER             = 0x00000010,
+    SSL_OP_MSIE_SSLV2_RSA_PADDING                 = 0x00000020,
+    SSL_OP_SSLEAY_080_CLIENT_DH_BUG               = 0x00000040,
+    SSL_OP_TLS_D5_BUG                             = 0x00000080,
+    SSL_OP_TLS_BLOCK_PADDING_BUG                  = 0x00000100,
+    SSL_OP_TLS_ROLLBACK_BUG                       = 0x00000200,
+    SSL_OP_ALL                                    = 0x00000400,
+    SSL_OP_EPHEMERAL_RSA                          = 0x00000800,
+    SSL_OP_NO_SSLv3                               = 0x00001000,
+    SSL_OP_NO_TLSv1                               = 0x00002000,
+    SSL_OP_PKCS1_CHECK_1                          = 0x00004000,
+    SSL_OP_PKCS1_CHECK_2                          = 0x00008000,
+    SSL_OP_NETSCAPE_CA_DN_BUG                     = 0x00010000,
+    SSL_OP_NETSCAPE_DEMO_CIPHER_CHANGE_BUG        = 0x00020000,
+    SSL_OP_SINGLE_DH_USE                          = 0x00040000,
+    SSL_OP_NO_TICKET                              = 0x00080000,
+    SSL_OP_DONT_INSERT_EMPTY_FRAGMENTS            = 0x00100000,
+    SSL_OP_NO_QUERY_MTU                           = 0x00200000,
+    SSL_OP_COOKIE_EXCHANGE                        = 0x00400000,
+    SSL_OP_NO_SESSION_RESUMPTION_ON_RENEGOTIATION = 0x00800000,
+    SSL_OP_SINGLE_ECDH_USE                        = 0x01000000,
+    SSL_OP_CIPHER_SERVER_PREFERENCE               = 0x02000000,
+    SSL_OP_NO_TLSv1_1                             = 0x04000000,
+    SSL_OP_NO_TLSv1_2                             = 0x08000000,
+    SSL_OP_NO_COMPRESSION                         = 0x10000000,
 };
 
 
@@ -1881,7 +1880,7 @@ WOLFSSL_API int wolfSSL_Rehandshake(WOLFSSL* ssl);
 WOLFSSL_API int wolfSSL_UseSessionTicket(WOLFSSL* ssl);
 WOLFSSL_API int wolfSSL_CTX_UseSessionTicket(WOLFSSL_CTX* ctx);
 WOLFSSL_API int wolfSSL_get_SessionTicket(WOLFSSL*, unsigned char*, unsigned int*);
-WOLFSSL_API int wolfSSL_set_SessionTicket(WOLFSSL*, unsigned char*, unsigned int);
+WOLFSSL_API int wolfSSL_set_SessionTicket(WOLFSSL*, const unsigned char*, unsigned int);
 typedef int (*CallbackSessionTicket)(WOLFSSL*, const unsigned char*, int, void*);
 WOLFSSL_API int wolfSSL_set_SessionTicket_cb(WOLFSSL*,
                                                   CallbackSessionTicket, void*);

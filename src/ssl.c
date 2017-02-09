@@ -990,8 +990,10 @@ int wolfSSL_SetTmpDH(WOLFSSL* ssl, const unsigned char* p, int pSz,
     if (pSz < ssl->options.minDhKeySz)
         return DH_KEY_SIZE_E;
 
+    #ifndef WOLFSSL_WPAS
     if (ssl->options.side != WOLFSSL_SERVER_END)
         return SIDE_ERROR;
+    #endif
 
     if (ssl->buffers.serverDH_P.buffer && ssl->buffers.weOwnDH) {
         XFREE(ssl->buffers.serverDH_P.buffer, ssl->heap, DYNAMIC_TYPE_DH);
@@ -1770,7 +1772,8 @@ WOLFSSL_API int wolfSSL_get_SessionTicket(WOLFSSL* ssl,
     return SSL_SUCCESS;
 }
 
-WOLFSSL_API int wolfSSL_set_SessionTicket(WOLFSSL* ssl, byte* buf, word32 bufSz)
+WOLFSSL_API int wolfSSL_set_SessionTicket(WOLFSSL* ssl, const byte* buf,
+                                          word32 bufSz)
 {
     if (ssl == NULL || (buf == NULL && bufSz > 0))
         return BAD_FUNC_ARG;
@@ -2362,6 +2365,7 @@ void wolfSSL_CertManagerFree(WOLFSSL_CERT_MANAGER* cm)
         #ifdef HAVE_OCSP
             if (cm->ocsp)
                 FreeOCSP(cm->ocsp, 1);
+            XFREE(cm->ocspOverrideURL, cm->heap, DYNAMIC_TYPE_URL);
         #if defined(HAVE_CERTIFICATE_STATUS_REQUEST) \
          || defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
             if (cm->ocsp_stapling)
@@ -4478,6 +4482,25 @@ static int ProcessChainBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
         ret = ProcessBuffer(ctx, buff + used, sz - used, format, type, ssl,
                             &consumed, 0);
 
+#ifdef WOLFSSL_WPAS
+#ifdef HAVE_CRL
+        if (ret < 0) {
+            DerBuffer*    der = NULL;
+            EncryptedInfo info;
+
+            WOLFSSL_MSG("Trying a CRL");
+            if (PemToDer(buff + used, sz - used, CRL_TYPE, &der, NULL, &info,
+                         NULL) == 0) {
+                WOLFSSL_MSG("   Proccessed a CRL");
+                wolfSSL_CertManagerLoadCRLBuffer(ctx->cm, der->buffer,
+                                                 der->length,SSL_FILETYPE_ASN1);
+                FreeDer(&der);
+                used += info.consumed;
+                continue;
+            }
+        }
+#endif
+#endif
         if (ret < 0)
         {
             if(consumed > 0) { /* Made progress in file */
@@ -7882,6 +7905,7 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
             }
 #endif /* NO_HANDSHAKE_DONE_CB */
 
+#ifndef WOLFSSL_WPAS
             if (!ssl->options.dtls) {
                 FreeHandshakeResources(ssl);
             }
@@ -7890,6 +7914,7 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
                 ssl->options.dtlsHsRetain = 1;
             }
 #endif /* WOLFSSL_DTLS */
+#endif
 
             WOLFSSL_LEAVE("SSL_connect()", SSL_SUCCESS);
             return SSL_SUCCESS;
@@ -9613,6 +9638,14 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
                 FreeDer(&der);
                 ret = PemToDer(buf, sz, DH_PARAM_TYPE, &der, ctx->heap,
                                NULL, NULL);
+#ifdef WOLFSSL_WPAS
+    #ifndef NO_DSA
+                if (ret < 0) {
+                    ret = PemToDer(buf, sz, DSA_PARAM_TYPE, &der, ctx->heap,
+                               NULL, NULL);
+                }
+    #endif
+#endif
             }
 
             if (ret == 0) {
@@ -9924,6 +9957,27 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         word16 havePSK = 0;
 
         WOLFSSL_ENTER("SSL_set_accept_state");
+        if (ssl->options.side == WOLFSSL_CLIENT_END) {
+            ecc_key key;
+            word32 idx = 0;
+
+            if (ssl->options.haveStaticECC && ssl->buffers.key != NULL) {
+                wc_ecc_init(&key);
+                if (wc_EccPrivateKeyDecode(ssl->buffers.key->buffer, &idx, &key,
+                                               ssl->buffers.key->length) != 0) {
+                    ssl->options.haveECDSAsig = 0;
+                    ssl->options.haveECC = 0;
+                    ssl->options.haveStaticECC = 0;
+                }
+                wc_ecc_free(&key);
+            }
+
+            if (!ssl->options.haveDH && ssl->ctx->haveDH) {
+                ssl->buffers.serverDH_P = ssl->ctx->serverDH_P;
+                ssl->buffers.serverDH_G = ssl->ctx->serverDH_G;
+                ssl->options.haveDH = 1;
+            }
+        }
         ssl->options.side = WOLFSSL_SERVER_END;
         /* reset suites in case user switched */
 
@@ -12206,8 +12260,47 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
 
     int wolfSSL_clear(WOLFSSL* ssl)
     {
-        (void)ssl;
-        /* TODO: GetErrors().Remove(); */
+        ssl->options.isClosed = 0;
+        ssl->options.connReset = 0;
+        ssl->options.sentNotify = 0;
+
+        ssl->options.serverState = NULL_STATE;
+        ssl->options.clientState = NULL_STATE;
+        ssl->options.connectState = CONNECT_BEGIN;
+        ssl->options.acceptState  = ACCEPT_BEGIN;
+        ssl->options.handShakeState  = NULL_STATE;
+        ssl->options.handShakeDone = 0;
+        /* ssl->options.processReply = doProcessInit; */
+
+        ssl->keys.encryptionOn = 0;
+        XMEMSET(&ssl->msgsReceived, 0, sizeof(ssl->msgsReceived));
+
+#ifndef NO_OLD_TLS
+#ifndef NO_MD5
+        wc_InitMd5(&ssl->hsHashes->hashMd5);
+#endif
+#ifndef NO_SHA
+        if (wc_InitSha(&ssl->hsHashes->hashSha) != 0)
+            return SSL_FAILURE;
+#endif
+#endif
+#ifndef NO_SHA256
+        if (wc_InitSha256(&ssl->hsHashes->hashSha256) != 0)
+            return SSL_FAILURE;
+#endif
+#ifdef WOLFSSL_SHA384
+        if (wc_InitSha384(&ssl->hsHashes->hashSha384) != 0)
+            return SSL_FAILURE;
+#endif
+#ifdef WOLFSSL_SHA512
+        if (wc_InitSha512(&ssl->hsHashes->hashSha512) != 0)
+            return SSL_FAILURE;
+#endif
+
+#ifdef KEEP_PEER_CERT
+        FreeX509(&ssl->peerCert);
+#endif
+
         return SSL_SUCCESS;
     }
 
@@ -12699,7 +12792,8 @@ static void ExternalFreeX509(WOLFSSL_X509* x509)
         if (name->fullName.fullName && name->fullName.fullNameLen > 0) {
             switch (nid) {
                 case ASN_COMMON_NAME:
-                    ret = name->fullName.cnIdx;
+                    if (pos != name->fullName.cnIdx)
+                        ret = name->fullName.cnIdx;
                     break;
                 default:
                     WOLFSSL_MSG("NID not yet implemented");
@@ -15029,33 +15123,40 @@ unsigned long wolfSSL_set_options(WOLFSSL* ssl, unsigned long op)
         op |= SSL_OP_DONT_INSERT_EMPTY_FRAGMENTS;
     }
 
+    ssl->options.mask |= op;
 
     /* by default cookie exchange is on with DTLS */
-    if ((op & SSL_OP_COOKIE_EXCHANGE) == SSL_OP_COOKIE_EXCHANGE) {
+    if ((ssl->options.mask & SSL_OP_COOKIE_EXCHANGE) == SSL_OP_COOKIE_EXCHANGE) {
         WOLFSSL_MSG("\tSSL_OP_COOKIE_EXCHANGE : on by default");
     }
 
-    if ((op & SSL_OP_NO_SSLv2) == SSL_OP_NO_SSLv2) {
+    if ((ssl->options.mask & SSL_OP_NO_SSLv2) == SSL_OP_NO_SSLv2) {
         WOLFSSL_MSG("\tSSL_OP_NO_SSLv2 : wolfSSL does not support SSLv2");
     }
 
-    if ((op & SSL_OP_NO_SSLv3) == SSL_OP_NO_SSLv3) {
+    if ((ssl->options.mask & SSL_OP_NO_TLSv1_2) == SSL_OP_NO_TLSv1_2) {
+        WOLFSSL_MSG("\tSSL_OP_NO_TLSv1_2");
+        if (ssl->version.minor == TLSv1_2_MINOR)
+            ssl->version.minor = TLSv1_1_MINOR;
+    }
+
+    if ((ssl->options.mask & SSL_OP_NO_TLSv1_1) == SSL_OP_NO_TLSv1_1) {
+        WOLFSSL_MSG("\tSSL_OP_NO_TLSv1_1");
+        if (ssl->version.minor == TLSv1_1_MINOR)
+            ssl->version.minor = TLSv1_MINOR;
+    }
+
+    if ((ssl->options.mask & SSL_OP_NO_TLSv1) == SSL_OP_NO_TLSv1) {
+        WOLFSSL_MSG("\tSSL_OP_NO_TLSv1");
+        if (ssl->version.minor == TLSv1_MINOR)
+            ssl->version.minor = SSLv3_MINOR;
+    }
+
+    if ((ssl->options.mask & SSL_OP_NO_SSLv3) == SSL_OP_NO_SSLv3) {
         WOLFSSL_MSG("\tSSL_OP_NO_SSLv3");
     }
 
-    if ((op & SSL_OP_NO_TLSv1) == SSL_OP_NO_TLSv1) {
-        WOLFSSL_MSG("\tSSL_OP_NO_TLSv1");
-    }
-
-    if ((op & SSL_OP_NO_TLSv1_1) == SSL_OP_NO_TLSv1_1) {
-        WOLFSSL_MSG("\tSSL_OP_NO_TLSv1_1");
-    }
-
-    if ((op & SSL_OP_NO_TLSv1_2) == SSL_OP_NO_TLSv1_2) {
-        WOLFSSL_MSG("\tSSL_OP_NO_TLSv1_2");
-    }
-
-    if ((op & SSL_OP_NO_COMPRESSION) == SSL_OP_NO_COMPRESSION) {
+    if ((ssl->options.mask & SSL_OP_NO_COMPRESSION) == SSL_OP_NO_COMPRESSION) {
     #ifdef HAVE_LIBZ
         WOLFSSL_MSG("SSL_OP_NO_COMPRESSION");
         ssl->options.usingCompression = 0;
@@ -15063,8 +15164,6 @@ unsigned long wolfSSL_set_options(WOLFSSL* ssl, unsigned long op)
         WOLFSSL_MSG("SSL_OP_NO_COMPRESSION: compression not compiled in");
     #endif
     }
-
-    ssl->options.mask |= op;
 
     return ssl->options.mask;
 }

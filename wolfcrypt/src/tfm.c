@@ -2353,6 +2353,11 @@ int mp_mul_2d(fp_int *a, int b, fp_int *c)
 	return MP_OKAY;
 }
 
+int mp_div(fp_int * a, fp_int * b, fp_int * c, fp_int * d)
+{
+    return fp_div(a, b, c, d);
+}
+
 int mp_div_2d(fp_int* a, int b, fp_int* c, fp_int* d)
 {
     fp_div_2d(a, b, c, d);
@@ -2428,6 +2433,11 @@ int mp_leading_bit (mp_int* a)
 void mp_rshb (mp_int* a, int x)
 {
     fp_rshb(a, x);
+}
+
+void mp_rshd (mp_int* a, int x)
+{
+    fp_rshd(a, x);
 }
 
 int mp_set_int(mp_int *a, mp_digit b)

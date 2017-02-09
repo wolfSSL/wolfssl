@@ -332,6 +332,21 @@ fi
 AM_CONDITIONAL([BUILD_IPV6], [test "x$ENABLED_IPV6" = "xyes"])
 
 
+# wpa_supplicant support
+AC_ARG_ENABLE([wpas],
+    [  --enable-wpas         Enable wpa_supplicant support (default: disabled)],
+    [ ENABLED_WPAS=$enableval ],
+    [ ENABLED_WPAS=no ]
+    )
+if test "$ENABLED_WPAS" = "yes"
+then
+    enable_shared=no
+    enable_static=yes
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_SECRET_CALLBACK -DWOLFSSL_STATIC_RSA"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_WPAS"
+fi
+
+
 # Fortress build
 AC_ARG_ENABLE([fortress],
     [  --enable-fortress       Enable SSL fortress build (default: disabled)],
@@ -339,7 +354,7 @@ AC_ARG_ENABLE([fortress],
     [ ENABLED_FORTRESS=no ]
     )
 
-if test "$ENABLED_OPENSSH" = "yes"
+if test "$ENABLED_OPENSSH" = "yes" || test "$ENABLED_WPAS" = "yes"
 then
     ENABLED_FORTRESS="yes"
 fi
@@ -882,7 +897,7 @@ AC_ARG_ENABLE([dsa],
     [ ENABLED_DSA=no ]
     )
 
-if test "$ENABLED_OPENSSH" = "yes" || test "$ENABLED_NGINX" = "yes"
+if test "$ENABLED_OPENSSH" = "yes" || test "$ENABLED_NGINX" = "yes" || test "$ENABLED_WPAS" = "yes"
 then
     ENABLED_DSA="yes"
 fi
@@ -960,6 +975,10 @@ AC_ARG_ENABLE([compkey],
     [ ENABLED_COMPKEY=no ]
     )
 
+if test "$ENABLED_WPAS" = "yes"
+then
+    ENABLED_COMPKEY=yes
+fi
 if test "$ENABLED_COMPKEY" = "yes"
 then
     AM_CFLAGS="$AM_CFLAGS -DHAVE_COMP_KEY"
@@ -1227,7 +1246,10 @@ AC_ARG_ENABLE([anon],
     [ ENABLED_ANON=no ]
     )
 
-
+if test "x$ENABLED_WPAS" = "xyes"
+then
+    ENABLED_ANON=yes
+fi
 if test "x$ENABLED_ANON" = "xyes"
 then
     if test "x$ENABLED_DH" != "xyes"
@@ -1392,7 +1414,7 @@ AC_ARG_ENABLE([arc4],
     [ ENABLED_ARC4=no ]
     )
 
-if test "$ENABLED_OPENSSH" = "yes"
+if test "$ENABLED_OPENSSH" = "yes" || test "$ENABLED_WPAS" = "yes"
 then
     ENABLED_ARC4="yes"
 fi
@@ -1462,6 +1484,11 @@ AC_ARG_ENABLE([cmac],
     [ ENABLED_CMAC=$enableval ],
     [ ENABLED_CMAC=no ]
     )
+
+if test "$ENABLED_WPAS" = "yes"
+then
+    ENABLED_CMAC=yes
+fi
 
 AS_IF([test "x$ENABLED_CMAC" = "xyes"],
       [AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_CMAC -DWOLFSSL_AES_DIRECT"])
@@ -1735,7 +1762,7 @@ AC_ARG_ENABLE([ocspstapling],
     [ ENABLED_CERTIFICATE_STATUS_REQUEST=no ]
     )
 
-if test "x$ENABLED_NGINX" = "xyes"
+if test "x$ENABLED_NGINX" = "xyes" || test "x$ENABLED_WPAS" = "xyes"
 then
     ENABLED_CERTIFICATE_STATUS_REQUEST=yes
 fi
@@ -1762,7 +1789,7 @@ AC_ARG_ENABLE([ocspstapling2],
     [ ENABLED_CERTIFICATE_STATUS_REQUEST_V2=no ]
     )
 
-if test "x$ENABLED_NGINX" = "xyes"
+if test "x$ENABLED_NGINX" = "xyes" || test "x$ENABLED_WPAS" = "xyes"
 then
     ENABLED_CERTIFICATE_STATUS_REQUEST_V2=yes
 fi
@@ -2067,7 +2094,7 @@ AC_ARG_ENABLE([session-ticket],
     [ ENABLED_SESSION_TICKET=no ]
     )
 
-if test "x$ENABLED_NGINX" = "xyes"
+if test "x$ENABLED_NGINX" = "xyes" || test "$ENABLED_WPAS" = "yes"
 then
     ENABLED_SESSION_TICKET=yes
 fi
@@ -2327,7 +2354,6 @@ then
     fi
 fi
 
-
 # lighty Support
 AC_ARG_ENABLE([lighty],
     [  --enable-lighty         Enable lighttpd/lighty (default: disabled)],
@@ -2361,6 +2387,10 @@ AC_ARG_ENABLE([stunnel],
     [ ENABLED_STUNNEL=$enableval ],
     [ ENABLED_STUNNEL=no ]
     )
+if test "$ENABLED_WPAS" = "yes"
+then
+    ENABLED_STUNNEL="yes"
+fi
 if test "$ENABLED_STUNNEL" = "yes"
 then
     # Requires opensslextra make sure on
@@ -2971,6 +3001,11 @@ AC_ARG_ENABLE([aeskeywrap],
     [ ENABLED_AESKEYWRAP=$enableval ],
     [ ENABLED_AESKEYWRAP=no ]
     )
+
+if test "$ENABLED_WPAS" = "yes"
+then
+    ENABLED_AESKEYWRAP="yes"
+fi
 
 if test "$ENABLED_AESKEYWRAP" = "yes"
 then
