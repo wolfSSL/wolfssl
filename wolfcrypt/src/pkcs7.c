@@ -86,7 +86,7 @@ static int wc_SetContentType(int pkcs7TypeOID, byte* output)
             typeSz = sizeof(signedData);
             typeName = signedData;
             break;
-        
+
         case ENVELOPED_DATA:
             typeSz = sizeof(envelopedData);
             typeName = envelopedData;
@@ -853,7 +853,7 @@ int wc_PKCS7_VerifySignedData(PKCS7* pkcs7, byte* pkiMsg, word32 pkiMsgSz)
     if (pkiMsg[idx++] != (ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC | 0))
         return ASN_PARSE_E;
 
-    if (GetLength(pkiMsg, &idx, &length, pkiMsgSz) < 0)
+    if (GetLength(pkiMsg, &idx, &length, pkiMsgSz) <= 0)
         return ASN_PARSE_E;
 
     if (pkiMsg[idx++] != ASN_OCTET_STRING)
@@ -2735,14 +2735,18 @@ static int wc_PKCS7_KariGetUserKeyingMaterial(WC_PKCS7_KARI* kari,
         return 0;
     }
 
-    kari->ukm = (byte*)XMALLOC(length, kari->heap, DYNAMIC_TYPE_PKCS7);
-    if (kari->ukm == NULL)
-        return MEMORY_E;
+    kari->ukm = NULL;
+    if (length > 0) {
+        kari->ukm = (byte*)XMALLOC(length, kari->heap, DYNAMIC_TYPE_PKCS7);
+        if (kari->ukm == NULL)
+            return MEMORY_E;
 
-    XMEMCPY(kari->ukm, pkiMsg + (*idx), length);
+        XMEMCPY(kari->ukm, pkiMsg + (*idx), length);
+        kari->ukmOwner = 1;
+    }
+
     (*idx) += length;
     kari->ukmSz = length;
-    kari->ukmOwner = 1;
 
     return 0;
 }
@@ -3129,7 +3133,7 @@ WOLFSSL_API int wc_PKCS7_DecodeEnvelopedData(PKCS7* pkcs7, byte* pkiMsg,
     /* walk through RecipientInfo set, find correct recipient */
     if (GetSet(pkiMsg, &idx, &length, pkiMsgSz) < 0)
         return ASN_PARSE_E;
-    
+
 #ifdef WOLFSSL_SMALL_STACK
     decryptedKey = (byte*)XMALLOC(MAX_ENCRYPTED_KEY_SZ, NULL,
                                                        DYNAMIC_TYPE_PKCS7);
@@ -3163,7 +3167,7 @@ WOLFSSL_API int wc_PKCS7_DecodeEnvelopedData(PKCS7* pkcs7, byte* pkiMsg,
 #endif
         return ASN_PARSE_E;
     }
-    
+
     if (wc_GetContentType(pkiMsg, &idx, &contentType, pkiMsgSz) < 0) {
 #ifdef WOLFSSL_SMALL_STACK
         XFREE(decryptedKey, NULL, DYNAMIC_TYPE_PKCS7);
@@ -3201,14 +3205,14 @@ WOLFSSL_API int wc_PKCS7_DecodeEnvelopedData(PKCS7* pkcs7, byte* pkiMsg,
 #endif
         return ASN_PARSE_E;
     }
-    
+
     if (GetLength(pkiMsg, &idx, &length, pkiMsgSz) < 0) {
 #ifdef WOLFSSL_SMALL_STACK
         XFREE(decryptedKey, NULL, DYNAMIC_TYPE_PKCS7);
 #endif
         return ASN_PARSE_E;
     }
-    
+
     if (length != expBlockSz) {
         WOLFSSL_MSG("Incorrect IV length, must be of content alg block size");
 #ifdef WOLFSSL_SMALL_STACK
@@ -3228,7 +3232,7 @@ WOLFSSL_API int wc_PKCS7_DecodeEnvelopedData(PKCS7* pkcs7, byte* pkiMsg,
         return ASN_PARSE_E;
     }
 
-    if (GetLength(pkiMsg, &idx, &encryptedContentSz, pkiMsgSz) < 0) {
+    if (GetLength(pkiMsg, &idx, &encryptedContentSz, pkiMsgSz) <= 0) {
 #ifdef WOLFSSL_SMALL_STACK
         XFREE(decryptedKey, NULL, DYNAMIC_TYPE_PKCS7);
 #endif
@@ -3682,7 +3686,7 @@ int wc_PKCS7_DecodeEncryptedData(PKCS7* pkcs7, byte* pkiMsg, word32 pkiMsgSz,
     if (pkiMsg[idx++] != (ASN_CONTEXT_SPECIFIC | 0))
         return ASN_PARSE_E;
 
-    if (GetLength(pkiMsg, &idx, &encryptedContentSz, pkiMsgSz) < 0)
+    if (GetLength(pkiMsg, &idx, &encryptedContentSz, pkiMsgSz) <= 0)
         return ASN_PARSE_E;
 
     encryptedContent = (byte*)XMALLOC(encryptedContentSz, pkcs7->heap,
