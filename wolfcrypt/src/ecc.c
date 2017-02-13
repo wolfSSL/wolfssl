@@ -3891,9 +3891,9 @@ int wc_ecc_import_point_der(byte* in, word32 inLen, const int curve_idx,
 #ifdef HAVE_COMP_KEY
     if (err == MP_OKAY && compressed == 1) {   /* build y */
         mp_int t1, t2;
-        DECLARE_CURVE_SPECS(3)
-
         int did_init = 0;
+
+        DECLARE_CURVE_SPECS(3)
 
         if (mp_init_multi(&t1, &t2, NULL, NULL, NULL, NULL) != MP_OKAY)
             err = MEMORY_E;
@@ -4495,9 +4495,10 @@ int wc_ecc_import_x963_ex(const byte* in, word32 inLen, ecc_key* key,
 
 #ifdef HAVE_COMP_KEY
     if (err == MP_OKAY && compressed == 1) {   /* build y */
-        DECLARE_CURVE_SPECS(3)
         mp_int t1, t2;
         int did_init = 0;
+
+        DECLARE_CURVE_SPECS(3)
 
         if (mp_init_multi(&t1, &t2, NULL, NULL, NULL, NULL) != MP_OKAY)
             err = MEMORY_E;

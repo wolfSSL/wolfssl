@@ -8501,18 +8501,27 @@ int wc_SetAuthKeyIdFromCert(Cert *cert, const byte *der, int derSz)
     ret = ParseCert(decoded, CERT_TYPE, NO_VERIFY, 0);
     if (ret != 0) {
         FreeDecodedCert(decoded);
+        #ifdef WOLFSSL_SMALL_STACK
+            XFREE(decoded, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        #endif
         return ret;
     }
 
     /* Subject Key Id not found !! */
     if (decoded->extSubjKeyIdSet == 0) {
         FreeDecodedCert(decoded);
+        #ifdef WOLFSSL_SMALL_STACK
+            XFREE(decoded, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        #endif
         return ASN_NO_SKID;
     }
 
     /* SKID invalid size */
     if (sizeof(cert->akid) < sizeof(decoded->extSubjKeyId)) {
         FreeDecodedCert(decoded);
+        #ifdef WOLFSSL_SMALL_STACK
+            XFREE(decoded, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        #endif
         return MEMORY_E;
     }
 
@@ -8521,6 +8530,10 @@ int wc_SetAuthKeyIdFromCert(Cert *cert, const byte *der, int derSz)
     cert->akidSz = KEYID_SIZE;
 
     FreeDecodedCert(decoded);
+    #ifdef WOLFSSL_SMALL_STACK
+        XFREE(decoded, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    #endif
+
     return 0;
 }
 

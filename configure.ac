@@ -6,7 +6,7 @@
 #
 #
 
-AC_INIT([wolfssl],[3.10.0],[https://github.com/wolfssl/wolfssl/issues],[wolfssl],[http://www.wolfssl.com])
+AC_INIT([wolfssl],[3.10.2],[https://github.com/wolfssl/wolfssl/issues],[wolfssl],[http://www.wolfssl.com])
 
 AC_CONFIG_AUX_DIR([build-aux])
 
@@ -35,7 +35,7 @@ AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_HEADERS([config.h:config.in])dnl Keep filename to 8.3 for MS-DOS.
 
 #shared library versioning
-WOLFSSL_LIBRARY_VERSION=9:0:6
+WOLFSSL_LIBRARY_VERSION=10:0:0
 #                       | | |
 #                +------+ | +---+
 #                |        |     |
