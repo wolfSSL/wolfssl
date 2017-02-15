@@ -2421,7 +2421,16 @@ AC_ARG_ENABLE([pwdbased],
 
 if test "$ENABLED_PWDBASED" = "no"
 then
-    if test "$ENABLED_OPENSSLEXTRA" = "yes" || test "$ENABLED_WEBSERVER" = "yes"
+
+    AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
+        #if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
+        #pwdbased should be enabled
+        #endif
+    ]])], [ pwdbased_enable="yes" ], [ pwdbased_enable="no" ])
+
+    if test "$ENABLED_OPENSSLEXTRA" = "yes" \
+       || test "$ENABLED_WEBSERVER" = "yes" \
+       || test "$pwdbased_enable" = "yes"
     then
         # opensslextra and webserver needs pwdbased
         ENABLED_PWDBASED=yes
