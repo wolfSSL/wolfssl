@@ -302,6 +302,15 @@ int wc_ecc_shared_secret_ex(ecc_key* private_key, ecc_point* point,
 #define wc_ecc_shared_secret_ssh wc_ecc_shared_secret_ex /* For backwards compat */
 #endif /* HAVE_ECC_DHE */
 
+#ifdef HAVE_ECC_CDH
+WOLFSSL_API
+int wc_ecc_cdh(ecc_key* private_key, ecc_key* public_key,
+               byte* out, word32* outlen);
+WOLFSSL_API
+int wc_ecc_cdh_ex(ecc_key* private_key, ecc_point* public_point,
+                  byte* out, word32 *outlen);
+#endif /* HAVE_ECC_CDH */
+
 #ifdef HAVE_ECC_SIGN
 WOLFSSL_API
 int wc_ecc_sign_hash(const byte* in, word32 inlen, byte* out, word32 *outlen,

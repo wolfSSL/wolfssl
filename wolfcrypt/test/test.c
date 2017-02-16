@@ -8343,6 +8343,25 @@ static int ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerifyCount,
         ERROR_OUT(-1005, done);
 #endif /* HAVE_ECC_DHE */
 
+#ifdef HAVE_ECC_CDH
+    x = sizeof(sharedA);
+    ret = wc_ecc_cdh(&userA, &userB, sharedA, &x);
+    if (ret != 0) {
+        goto done;
+    }
+
+    y = sizeof(sharedB);
+    ret = wc_ecc_cdh(&userB, &userA, sharedB, &y);
+    if (ret != 0)
+        goto done;
+
+    if (y != x)
+        ERROR_OUT(-1006, done);
+
+    if (XMEMCMP(sharedA, sharedB, x))
+        ERROR_OUT(-1007, done);
+#endif /* HAVE_ECC_CDH */
+
 #ifdef HAVE_ECC_KEY_EXPORT
     x = sizeof(exportBuf);
     ret = wc_ecc_export_x963(&userA, exportBuf, &x);
