@@ -413,6 +413,9 @@ const char* wc_GetErrorString(int error)
     case WC_CLEANUP_E:
         return "wolfcrypt cleanup failed";
 
+    case ECC_CDH_KAT_FIPS_E:
+        return "wolfcrypt FIPS ECC CDH Known Answer Test Failure";
+
     default:
         return "unknown error number";
 
