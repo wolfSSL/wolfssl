@@ -8204,8 +8204,7 @@ static int ecc_test_cdh_vectors(void)
     int ret;
     ecc_key pub_key, priv_key;
     byte    sharedA[32] = {0}, sharedB[32] = {0};
-    word32  x;
-    mp_int  z;
+    word32  x, z;
 
     const char* QCAVSx = "700c48f77f56584c5cc632ca65640db91b6bacce3a4df6b42ce7cc838833d287";
     const char* QCAVSy = "db71e509e3fd9b060ddb20ba5c51dcc5948d46fbf640dfe0441782cab85fa4ac";
@@ -8234,13 +8233,13 @@ static int ecc_test_cdh_vectors(void)
     }
 
     /* read in expected Z */
-    mp_init(&z);
-    mp_read_radix(&z, ZIUT, 16);
-    mp_to_unsigned_bin(&z, sharedB);
-    mp_clear(&z);
+    z = sizeof(sharedB);
+    ret = Base16_Decode((const byte*)ZIUT, (word32)XSTRLEN(ZIUT), sharedB, &z);
+    if (ret != 0)
+        goto done;
 
     /* compare results */
-    if (XMEMCMP(sharedA, sharedB, x)) {
+    if (x != z || XMEMCMP(sharedA, sharedB, x)) {
         ERROR_OUT(-1007, done);
     }
 

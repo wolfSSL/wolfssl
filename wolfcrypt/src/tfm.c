@@ -2254,6 +2254,12 @@ int mp_mul (mp_int * a, mp_int * b, mp_int * c)
   return MP_OKAY;
 }
 
+int mp_mul_d (mp_int * a, mp_digit b, mp_int * c)
+{
+  fp_mul_d(a, b, c);
+  return MP_OKAY;
+}
+
 /* d = a * b (mod c) */
 int mp_mulmod (mp_int * a, mp_int * b, mp_int * c, mp_int * d)
 {

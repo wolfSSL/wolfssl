@@ -622,6 +622,7 @@ int  mp_sub (mp_int * a, mp_int * b, mp_int * c);
 int  mp_add_d (mp_int * a, mp_digit b, mp_int * c);
 
 int  mp_mul (mp_int * a, mp_int * b, mp_int * c);
+int  mp_mul_d (mp_int * a, mp_digit b, mp_int * c);
 int  mp_mulmod (mp_int * a, mp_int * b, mp_int * c, mp_int * d);
 int  mp_submod (mp_int* a, mp_int* b, mp_int* c, mp_int* d);
 int  mp_addmod (mp_int* a, mp_int* b, mp_int* c, mp_int* d);

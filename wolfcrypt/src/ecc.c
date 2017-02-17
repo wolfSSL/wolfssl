@@ -2591,10 +2591,8 @@ static int wc_ecc_shared_secret_gen_sync(ecc_key* private_key, ecc_point* point,
             k = &k_lcl;
             if (mp_init(k) != MP_OKAY)
                 return MEMORY_E;
-            /* multiple cofactor times private key "k" */
-            err = mp_set_int(k, cofactor);
-            if (err == MP_OKAY)
-                err = mp_mul(k, &private_key->k, k);
+            /* multiply cofactor times private key "k" */
+            err = mp_mul_d(&private_key->k, cofactor, k);
             if (err != MP_OKAY) {
                 mp_clear(k);
                 return err;
@@ -2606,6 +2604,7 @@ static int wc_ecc_shared_secret_gen_sync(ecc_key* private_key, ecc_point* point,
     /* make new point */
     result = wc_ecc_new_point_h(private_key->heap);
     if (result == NULL) {
+        mp_clear(k);
         return MEMORY_E;
     }
 
