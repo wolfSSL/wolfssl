@@ -2579,6 +2579,29 @@ static int wc_ecc_shared_secret_gen_sync(ecc_key* private_key, ecc_point* point,
     int err;
     ecc_point* result = NULL;
     word32 x = 0;
+    mp_int* k = &private_key->k;
+#ifdef HAVE_ECC_CDH
+    mp_int k_lcl;
+
+    /* if cofactor flag has been set */
+    if (private_key->flags & WC_ECC_FLAG_COFACTOR) {
+        int cofactor = private_key->dp->cofactor;
+        /* only perform cofactor calc if not equal to 1 */
+        if (cofactor != 1) {
+            k = &k_lcl;
+            if (mp_init(k) != MP_OKAY)
+                return MEMORY_E;
+            /* multiple cofactor times private key "k" */
+            err = mp_set_int(k, cofactor);
+            if (err == MP_OKAY)
+                err = mp_mul(k, &private_key->k, k);
+            if (err != MP_OKAY) {
+                mp_clear(k);
+                return err;
+            }
+        }
+    }
+#endif
 
     /* make new point */
     result = wc_ecc_new_point_h(private_key->heap);
@@ -2586,7 +2609,7 @@ static int wc_ecc_shared_secret_gen_sync(ecc_key* private_key, ecc_point* point,
         return MEMORY_E;
     }
 
-    err = wc_ecc_mulmod_ex(&private_key->k, point, result,
+    err = wc_ecc_mulmod_ex(k, point, result,
         curve->Af, curve->prime, 1, private_key->heap);
     if (err == MP_OKAY) {
         x = mp_unsigned_bin_size(curve->prime);
@@ -2603,6 +2626,10 @@ static int wc_ecc_shared_secret_gen_sync(ecc_key* private_key, ecc_point* point,
     *outlen = x;
 
     wc_ecc_del_point_h(result, private_key->heap);
+#ifdef HAVE_ECC_CDH
+    if (k == &k_lcl)
+        mp_clear(k);
+#endif
 
     return err;
 }
@@ -2693,121 +2720,6 @@ int wc_ecc_shared_secret_ex(ecc_key* private_key, ecc_point* point,
 }
 #endif /* !WOLFSSL_ATECC508A */
 #endif /* HAVE_ECC_DHE */
-
-
-#ifdef HAVE_ECC_CDH
-/*
-Elliptic Curve Cryptography Cofactor Diffie-Hellman (ECC CDH)
-
-A shared secret Z is computed using the domain parameters:
-    (q, FR, a, b{, SEED}, G, n, h), the other party’s public key,
-    and one’s own private key.
-
-Input:
-1. (q, FR, a, b{, SEED}, G, n, h): Domain parameters,
-2. dA : One’s own private key, and
-3. QB : The other party’s public key.
-*/
-
-int wc_ecc_cdh_ex(ecc_key* private_key, ecc_point* public_point,
-                  byte* out, word32 *outlen)
-{
-    int err;
-    int cofactor;
-    ecc_point* result = NULL;
-    mp_int k_lcl;
-    mp_int* k;
-    word32 x = 0;
-    DECLARE_CURVE_SPECS(2)
-
-    if (private_key == NULL || public_point == NULL || out == NULL ||
-                                                            outlen == NULL) {
-        return BAD_FUNC_ARG;
-    }
-
-    /* type valid? */
-    if (private_key->type != ECC_PRIVATEKEY) {
-        return ECC_BAD_ARG_E;
-    }
-
-    /* load curve info */
-    cofactor = private_key->dp->cofactor;
-    err = wc_ecc_curve_load(private_key->dp, &curve,
-        (ECC_CURVE_FIELD_PRIME | ECC_CURVE_FIELD_AF));
-    if (err != MP_OKAY) {
-        return err;
-    }
-
-    /* multiple cofactor times private key "k" */
-    if (cofactor != 1) {
-        k = &k_lcl;
-        if (mp_init(k) != MP_OKAY) {
-            return MEMORY_E;
-        }
-
-        mp_set_int(k, cofactor);
-        mp_mul(k, &private_key->k, k);
-    }
-    else {
-        k = &private_key->k;
-    }
-
-    /* make new point */
-    result = wc_ecc_new_point_h(private_key->heap);
-    if (result == NULL) {
-        return MEMORY_E;
-    }
-
-    /* multiple public and private points */
-    err = wc_ecc_mulmod_ex(k, public_point, result,
-        curve->Af, curve->prime, 1, private_key->heap);
-    if (err == MP_OKAY) {
-        x = mp_unsigned_bin_size(curve->prime);
-        if (*outlen < x) {
-            err = BUFFER_E;
-        }
-    }
-
-    /* return output */
-    if (err == MP_OKAY) {
-        XMEMSET(out, 0, x);
-        err = mp_to_unsigned_bin(result->x,
-            out + (x - mp_unsigned_bin_size(result->x)));
-    }
-    *outlen = x;
-
-    /* clean up */
-    wc_ecc_del_point_h(result, private_key->heap);
-    if (cofactor != 1) {
-        mp_clear(k);
-    }
-    wc_ecc_curve_free(curve);
-
-    return err;
-}
-
-int wc_ecc_cdh(ecc_key* private_key, ecc_key* public_key,
-    byte* out, word32* outlen)
-{
-    if (private_key == NULL || public_key == NULL) {
-        return BAD_FUNC_ARG;
-    }
-
-    /* Verify domain params supplied */
-    if (wc_ecc_is_valid_idx(private_key->idx) == 0 ||
-        wc_ecc_is_valid_idx(public_key->idx)  == 0) {
-        return ECC_BAD_ARG_E;
-    }
-
-    /* Verify curve id matches */
-    if (private_key->dp->id != public_key->dp->id) {
-        return ECC_BAD_ARG_E;
-    }
-
-    return wc_ecc_cdh_ex(private_key, &public_key->pubkey, out, outlen);
-}
-
-#endif /* HAVE_ECC_CDH */
 
 
 #ifndef WOLFSSL_ATECC508A
@@ -3141,6 +3053,14 @@ int wc_ecc_init(ecc_key* key)
     return wc_ecc_init_ex(key, NULL, INVALID_DEVID);
 }
 
+int wc_ecc_set_flags(ecc_key* key, word32 flags)
+{
+    if (key == NULL) {
+        return BAD_FUNC_ARG;
+    }
+    key->flags |= flags;
+    return 0;
+}
 
 #ifdef HAVE_ECC_SIGN
 
