@@ -2585,7 +2585,7 @@ static int wc_ecc_shared_secret_gen_sync(ecc_key* private_key, ecc_point* point,
 
     /* if cofactor flag has been set */
     if (private_key->flags & WC_ECC_FLAG_COFACTOR) {
-        int cofactor = private_key->dp->cofactor;
+        mp_digit cofactor = (mp_digit)private_key->dp->cofactor;
         /* only perform cofactor calc if not equal to 1 */
         if (cofactor != 1) {
             k = &k_lcl;
@@ -2604,7 +2604,10 @@ static int wc_ecc_shared_secret_gen_sync(ecc_key* private_key, ecc_point* point,
     /* make new point */
     result = wc_ecc_new_point_h(private_key->heap);
     if (result == NULL) {
-        mp_clear(k);
+#ifdef HAVE_ECC_CDH
+        if (k == &k_lcl)
+            mp_clear(k);
+#endif
         return MEMORY_E;
     }
 
