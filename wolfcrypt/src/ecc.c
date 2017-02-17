@@ -4899,6 +4899,7 @@ static int wc_ecc_import_raw_private(ecc_key* key, const char* qx,
         return BAD_FUNC_ARG;
     }
 
+    XMEMSET(key, 0, sizeof(ecc_key));
     /* set curve type and index */
     err = wc_ecc_set_curve(key, 0, curve_id);
     if (err != 0) {
