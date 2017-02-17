@@ -8198,6 +8198,63 @@ static int ecc_test_vector(int keySize)
     return 0;
 }
 
+#ifdef HAVE_ECC_CDH
+static int ecc_test_cdh_vectors(void)
+{
+    int ret;
+    ecc_key pub_key, priv_key;
+    byte    sharedA[32] = {0}, sharedB[32] = {0};
+    word32  x, z;
+
+    const char* QCAVSx = "700c48f77f56584c5cc632ca65640db91b6bacce3a4df6b42ce7cc838833d287";
+    const char* QCAVSy = "db71e509e3fd9b060ddb20ba5c51dcc5948d46fbf640dfe0441782cab85fa4ac";
+    const char* dIUT =   "7d7dc5f71eb29ddaf80d6214632eeae03d9058af1fb6d22ed80badb62bc1a534";
+    const char* QIUTx =  "ead218590119e8876b29146ff89ca61770c4edbbf97d38ce385ed281d8a6b230";
+    const char* QIUTy =  "28af61281fd35e2fa7002523acc85a429cb06ee6648325389f59edfce1405141";
+    const char* ZIUT =   "46fc62106420ff012e54a434fbdd2d25ccc5852060561e68040dd7778997bd7b";
+
+    /* setup private and public keys */
+    ret = wc_ecc_init(&pub_key);
+    if (ret != 0)
+        return ret;
+    ret = wc_ecc_init(&priv_key);
+    if (ret != 0) {
+        wc_ecc_free(&pub_key);
+        goto done;
+    }
+    wc_ecc_set_flags(&pub_key, WC_ECC_FLAG_COFACTOR);
+    wc_ecc_set_flags(&priv_key, WC_ECC_FLAG_COFACTOR);
+    ret = wc_ecc_import_raw(&pub_key, QCAVSx, QCAVSy, NULL, "SECP256R1");
+    if (ret != 0)
+        goto done;
+    ret = wc_ecc_import_raw(&priv_key, QIUTx, QIUTy, dIUT, "SECP256R1");
+    if (ret != 0)
+        goto done;
+
+    /* compute ECC Cofactor shared secret */
+    x = sizeof(sharedA);
+    ret = wc_ecc_shared_secret(&priv_key, &pub_key, sharedA, &x);
+    if (ret != 0) {
+        goto done;
+    }
+
+    /* read in expected Z */
+    z = sizeof(sharedB);
+    ret = Base16_Decode((const byte*)ZIUT, (word32)XSTRLEN(ZIUT), sharedB, &z);
+    if (ret != 0)
+        goto done;
+
+    /* compare results */
+    if (x != z || XMEMCMP(sharedA, sharedB, x)) {
+        ERROR_OUT(-1007, done);
+    }
+
+done:
+    wc_ecc_free(&priv_key);
+    wc_ecc_free(&pub_key);
+    return ret;
+}
+#endif /* HAVE_ECC_CDH */
 #endif /* HAVE_ECC_VECTOR_TEST */
 
 #ifdef WOLFSSL_KEY_GEN
@@ -8342,6 +8399,33 @@ static int ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerifyCount,
     if (XMEMCMP(sharedA, sharedB, x))
         ERROR_OUT(-1005, done);
 #endif /* HAVE_ECC_DHE */
+
+#ifdef HAVE_ECC_CDH
+    /* add cofactor flag */
+    wc_ecc_set_flags(&userA, WC_ECC_FLAG_COFACTOR);
+    wc_ecc_set_flags(&userB, WC_ECC_FLAG_COFACTOR);
+
+    x = sizeof(sharedA);
+    ret = wc_ecc_shared_secret(&userA, &userB, sharedA, &x);
+    if (ret != 0) {
+        goto done;
+    }
+
+    y = sizeof(sharedB);
+    ret = wc_ecc_shared_secret(&userB, &userA, sharedB, &y);
+    if (ret != 0)
+        goto done;
+
+    if (y != x)
+        ERROR_OUT(-1006, done);
+
+    if (XMEMCMP(sharedA, sharedB, x))
+        ERROR_OUT(-1007, done);
+
+    /* remove cofactor flag */
+    wc_ecc_set_flags(&userA, 0);
+    wc_ecc_set_flags(&userB, 0);
+#endif /* HAVE_ECC_CDH */
 
 #ifdef HAVE_ECC_KEY_EXPORT
     x = sizeof(exportBuf);
@@ -8577,6 +8661,13 @@ int ecc_test(void)
         }
     }
     #endif
+#endif
+
+#ifdef HAVE_ECC_CDH
+    ret = ecc_test_cdh_vectors();
+    if (ret != 0) {
+        printf("ecc_test_cdh_vectors failed! %d\n", ret);
+    }
 #endif
 
 done:

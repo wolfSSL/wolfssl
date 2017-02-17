@@ -248,6 +248,13 @@ typedef struct {
 #endif
 } ecc_point;
 
+/* ECC Flags */
+enum {
+    WC_ECC_FLAG_NONE = 0x00,
+#ifdef HAVE_ECC_CDH
+    WC_ECC_FLAG_COFACTOR = 0x01,
+#endif
+};
 
 /* An ECC Key */
 typedef struct ecc_key {
@@ -256,6 +263,7 @@ typedef struct ecc_key {
                            this curve if -1, this key is using user supplied
                            curve in dp */
    int   state;
+    word32 flags;
     const ecc_set_type* dp;     /* domain parameters, either points to NIST
                                    curves (idx >= 0) or user supplied */
     void* heap;         /* heap hint */
@@ -326,6 +334,8 @@ WOLFSSL_API
 int wc_ecc_init_ex(ecc_key* key, void* heap, int devId);
 WOLFSSL_API
 void wc_ecc_free(ecc_key* key);
+WOLFSSL_API
+int wc_ecc_set_flags(ecc_key* key, word32 flags);
 WOLFSSL_API
 void wc_ecc_fp_free(void);
 

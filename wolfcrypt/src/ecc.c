@@ -35,6 +35,7 @@ Possible ECC enable options:
  * HAVE_ECC_SIGN:       ECC sign                                default: on
  * HAVE_ECC_VERIFY:     ECC verify                              default: on
  * HAVE_ECC_DHE:        ECC build shared secret                 default: on
+ * HAVE_ECC_CDH:        ECC cofactor DH shared secret           default: off
  * HAVE_ECC_KEY_IMPORT: ECC Key import                          default: on
  * HAVE_ECC_KEY_EXPORT: ECC Key export                          default: on
  * ECC_SHAMIR:          Enables Shamir calc method              default: on
@@ -2578,14 +2579,39 @@ static int wc_ecc_shared_secret_gen_sync(ecc_key* private_key, ecc_point* point,
     int err;
     ecc_point* result = NULL;
     word32 x = 0;
+    mp_int* k = &private_key->k;
+#ifdef HAVE_ECC_CDH
+    mp_int k_lcl;
+
+    /* if cofactor flag has been set */
+    if (private_key->flags & WC_ECC_FLAG_COFACTOR) {
+        mp_digit cofactor = (mp_digit)private_key->dp->cofactor;
+        /* only perform cofactor calc if not equal to 1 */
+        if (cofactor != 1) {
+            k = &k_lcl;
+            if (mp_init(k) != MP_OKAY)
+                return MEMORY_E;
+            /* multiply cofactor times private key "k" */
+            err = mp_mul_d(&private_key->k, cofactor, k);
+            if (err != MP_OKAY) {
+                mp_clear(k);
+                return err;
+            }
+        }
+    }
+#endif
 
     /* make new point */
     result = wc_ecc_new_point_h(private_key->heap);
     if (result == NULL) {
+#ifdef HAVE_ECC_CDH
+        if (k == &k_lcl)
+            mp_clear(k);
+#endif
         return MEMORY_E;
     }
 
-    err = wc_ecc_mulmod_ex(&private_key->k, point, result,
+    err = wc_ecc_mulmod_ex(k, point, result,
         curve->Af, curve->prime, 1, private_key->heap);
     if (err == MP_OKAY) {
         x = mp_unsigned_bin_size(curve->prime);
@@ -2602,6 +2628,10 @@ static int wc_ecc_shared_secret_gen_sync(ecc_key* private_key, ecc_point* point,
     *outlen = x;
 
     wc_ecc_del_point_h(result, private_key->heap);
+#ifdef HAVE_ECC_CDH
+    if (k == &k_lcl)
+        mp_clear(k);
+#endif
 
     return err;
 }
@@ -2692,6 +2722,7 @@ int wc_ecc_shared_secret_ex(ecc_key* private_key, ecc_point* point,
 }
 #endif /* !WOLFSSL_ATECC508A */
 #endif /* HAVE_ECC_DHE */
+
 
 #ifndef WOLFSSL_ATECC508A
 /* return 1 if point is at infinity, 0 if not, < 0 on error */
@@ -3024,6 +3055,14 @@ int wc_ecc_init(ecc_key* key)
     return wc_ecc_init_ex(key, NULL, INVALID_DEVID);
 }
 
+int wc_ecc_set_flags(ecc_key* key, word32 flags)
+{
+    if (key == NULL) {
+        return BAD_FUNC_ARG;
+    }
+    key->flags |= flags;
+    return 0;
+}
 
 #ifdef HAVE_ECC_SIGN
 
@@ -4861,6 +4900,7 @@ static int wc_ecc_import_raw_private(ecc_key* key, const char* qx,
         return BAD_FUNC_ARG;
     }
 
+    XMEMSET(key, 0, sizeof(ecc_key));
     /* set curve type and index */
     err = wc_ecc_set_curve(key, 0, curve_id);
     if (err != 0) {
