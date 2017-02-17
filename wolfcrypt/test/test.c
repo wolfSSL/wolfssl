@@ -8214,8 +8214,14 @@ static int ecc_test_cdh_vectors(void)
     const char* ZIUT =   "46fc62106420ff012e54a434fbdd2d25ccc5852060561e68040dd7778997bd7b";
 
     /* setup private and public keys */
-    wc_ecc_init(&pub_key);
-    wc_ecc_init(&priv_key);
+    ret = wc_ecc_init(&pub_key);
+    if (ret != 0)
+        return ret;
+    ret = wc_ecc_init(&priv_key);
+    if (ret != 0) {
+        wc_ecc_free(&pub_key);
+        goto done;
+    }
     wc_ecc_set_flags(&pub_key, WC_ECC_FLAG_COFACTOR);
     wc_ecc_set_flags(&priv_key, WC_ECC_FLAG_COFACTOR);
     ret = wc_ecc_import_raw(&pub_key, QCAVSx, QCAVSy, NULL, "SECP256R1");
@@ -8244,6 +8250,8 @@ static int ecc_test_cdh_vectors(void)
     }
 
 done:
+    wc_ecc_free(&priv_key);
+    wc_ecc_free(&pub_key);
     return ret;
 }
 #endif /* HAVE_ECC_CDH */
