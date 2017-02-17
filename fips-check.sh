@@ -11,18 +11,23 @@
 #
 #     $ ./fips-check [version]
 #
-#     - version: linux (default), ios, android, windows, freertos
+#     - version: linux (default), ios, android, windows, freertos, linux-ecc
 #
 
 function Usage() {
     echo "Usage: $0 [platform]"
-    echo "Where \"platform\" is one of linux (default), ios, android, windows, freertos, openrtos-3.9.2"
+    echo "Where \"platform\" is one of linux (default), ios, android, windows, freertos, openrtos-3.9.2, linux-ecc"
 }
 
 LINUX_FIPS_VERSION=v3.2.6
 LINUX_FIPS_REPO=git@github.com:wolfSSL/fips.git
 LINUX_CTAO_VERSION=v3.2.6
 LINUX_CTAO_REPO=git@github.com:cyassl/cyassl.git
+
+LINUX_ECC_FIPS_VERSION=v3.10.3
+LINUX_ECC_FIPS_REPO=git@github.com:wolfSSL/fips.git
+LINUX_ECC_CTAO_VERSION=v3.2.6
+LINUX_ECC_CTAO_REPO=git@github.com:cyassl/cyassl.git
 
 IOS_FIPS_VERSION=v3.4.8a
 IOS_FIPS_REPO=git@github.com:wolfSSL/fips.git
@@ -94,6 +99,12 @@ linux)
   FIPS_REPO=$LINUX_FIPS_REPO
   CTAO_VERSION=$LINUX_CTAO_VERSION
   CTAO_REPO=$LINUX_CTAO_REPO
+  ;;
+linux-ecc)
+  FIPS_VERSION=$LINUX_ECC_FIPS_VERSION
+  FIPS_REPO=$LINUX_ECC_FIPS_REPO
+  CTAO_VERSION=$LINUX_ECC_CTAO_VERSION
+  CTAO_REPO=$LINUX_ECC_CTAO_REPO
   ;;
 *)
   Usage
