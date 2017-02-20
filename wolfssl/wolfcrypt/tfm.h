@@ -660,12 +660,15 @@ int mp_radix_size (mp_int * a, int radix, int *size);
 
 #ifdef HAVE_ECC
     int mp_read_radix(mp_int* a, const char* str, int radix);
-    void mp_set(fp_int *a, fp_digit b);
     int mp_sqr(fp_int *a, fp_int *b);
     int mp_montgomery_reduce(fp_int *a, fp_int *m, fp_digit mp);
     int mp_montgomery_setup(fp_int *a, fp_digit *rho);
     int mp_div_2(fp_int * a, fp_int * b);
     int mp_init_copy(fp_int * a, fp_int * b);
+#endif
+
+#if defined(HAVE_ECC) || !defined(NO_RSA) || !defined(NO_DSA)
+    void mp_set(fp_int *a, fp_digit b);
 #endif
 
 #if defined(HAVE_ECC) || defined(WOLFSSL_KEY_GEN)

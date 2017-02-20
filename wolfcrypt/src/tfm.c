@@ -3027,12 +3027,6 @@ int mp_read_radix(mp_int *a, const char *str, int radix)
 }
 
 /* fast math conversion */
-void mp_set(fp_int *a, fp_digit b)
-{
-    fp_set(a,b);
-}
-
-/* fast math conversion */
 int mp_sqr(fp_int *A, fp_int *B)
 {
     fp_sqr(A, B);
@@ -3076,6 +3070,14 @@ int mp_cnt_lsb(fp_int* a)
 #endif /* HAVE_COMP_KEY */
 
 #endif /* HAVE_ECC */
+
+#if defined(HAVE_ECC) || !defined(NO_RSA) || !defined(NO_DSA)
+/* fast math conversion */
+void mp_set(fp_int *a, fp_digit b)
+{
+    fp_set(a,b);
+}
+#endif
 
 #if defined(WOLFSSL_KEY_GEN) || defined(HAVE_COMP_KEY) || \
     defined(WOLFSSL_DEBUG_MATH)
