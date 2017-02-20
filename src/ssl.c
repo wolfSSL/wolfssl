@@ -59,6 +59,7 @@
 
 #ifdef OPENSSL_EXTRA
     /* openssl headers begin */
+    #include <wolfssl/openssl/aes.h>
     #include <wolfssl/openssl/hmac.h>
     #include <wolfssl/openssl/crypto.h>
     #include <wolfssl/openssl/des.h>
@@ -18668,6 +18669,152 @@ void wolfSSL_DES_ecb_encrypt(WOLFSSL_DES_cblock* desa,
 #endif
 
 #endif /* NO_DES3 */
+
+#ifndef NO_AES
+
+#ifdef WOLFSSL_AES_DIRECT
+/* AES encrypt direct, it is expected to be blocks of AES_BLOCK_SIZE for input.
+ *
+ * input  Data to encrypt
+ * output Encrypted data after done
+ * key    AES key to use for encryption
+ */
+void wolfSSL_AES_encrypt(const unsigned char* input, unsigned char* output,
+        AES_KEY *key)
+{
+    WOLFSSL_ENTER("wolfSSL_AES_encrypt");
+
+    if (input == NULL || output == NULL || key == NULL) {
+        WOLFSSL_MSG("Null argument passed in");
+        return;
+    }
+
+    wc_AesEncryptDirect(key, output, input);
+}
+
+
+/* AES decrypt direct, it is expected to be blocks of AES_BLOCK_SIZE for input.
+ *
+ * input  Data to decrypt
+ * output Decrypted data after done
+ * key    AES key to use for encryption
+ */
+void wolfSSL_AES_decrypt(const unsigned char* input, unsigned char* output,
+        AES_KEY *key)
+{
+    WOLFSSL_ENTER("wolfSSL_AES_decrypt");
+
+    if (input == NULL || output == NULL || key == NULL) {
+        WOLFSSL_MSG("Null argument passed in");
+        return;
+    }
+
+    wc_AesDecryptDirect(key, output, input);
+}
+#endif /* WOLFSSL_AES_DIRECT */
+
+/* Setup of an AES key to use for encryption.
+ *
+ * key  key in bytes to use for encryption
+ * bits size of key in bits
+ * aes  AES structure to initialize
+ */
+void wolfSSL_AES_set_encrypt_key(const unsigned char *key, const int bits,
+        AES_KEY *aes)
+{
+    WOLFSSL_ENTER("wolfSSL_AES_set_encrypt_key");
+
+    if (key == NULL || aes == NULL) {
+        WOLFSSL_MSG("Null argument passed in");
+        return;
+    }
+
+    if (wc_AesSetKey(aes, key, ((bits)/8), NULL, AES_ENCRYPTION) != 0) {
+        WOLFSSL_MSG("Error in setting AES key");
+    }
+}
+
+
+/* Setup of an AES key to use for decryption.
+ *
+ * key  key in bytes to use for decryption
+ * bits size of key in bits
+ * aes  AES structure to initialize
+ */
+void wolfSSL_AES_set_decrypt_key(const unsigned char *key, const int bits,
+        AES_KEY *aes)
+{
+    WOLFSSL_ENTER("wolfSSL_AES_set_decrypt_key");
+
+    if (key == NULL || aes == NULL) {
+        WOLFSSL_MSG("Null argument passed in");
+        return;
+    }
+
+    if (wc_AesSetKey(aes, key, ((bits)/8), NULL, AES_DECRYPTION) != 0) {
+        WOLFSSL_MSG("Error in setting AES key");
+    }
+}
+
+
+/* Encrypt data using key and iv passed in. iv gets updated to most recent iv
+ * state after encryptiond/decryption.
+ *
+ * in  buffer to encrypt/decyrpt
+ * out buffer to hold result of encryption/decryption
+ * len length of input buffer
+ * key AES structure to use with encryption/decryption
+ * iv  iv to use with operation
+ * enc AES_ENCRPT for encryption and AES_DECRYPT for decryption
+ */
+void wolfSSL_AES_cbc_encrypt(const unsigned char *in, unsigned char* out,
+        size_t len, AES_KEY *key, unsigned char* iv, const int enc)
+{
+    WOLFSSL_ENTER("wolfSSL_AES_cbc_encrypt");
+
+    if (key == NULL || in == NULL || out == NULL || iv == NULL) {
+        WOLFSSL_MSG("Error, Null argument passed in");
+        return;
+    }
+
+    if (wc_AesSetIV(key, (const byte*)iv) != 0) {
+        WOLFSSL_MSG("Error with setting iv");
+        return;
+    }
+
+    if (enc == AES_ENCRYPT) {
+        if (wc_AesCbcEncrypt(key, out, in, (word32)len) != 0) {
+            WOLFSSL_MSG("Error with AES CBC encrypt");
+        }
+    }
+    else {
+        if (wc_AesCbcDecrypt(key, out, in, (word32)len) != 0) {
+            WOLFSSL_MSG("Error with AES CBC decrypt");
+        }
+    }
+
+    /* to be compatible copy iv to iv buffer after completing operation */
+    XMEMCPY(iv, (byte*)(key->reg), AES_BLOCK_SIZE);
+}
+
+
+/* @TODO
+ * STUB function
+ */
+void wolfSSL_AES_cfb128_encrypt(const unsigned char *in, unsigned char* out,
+        size_t len, AES_KEY *key, unsigned char* iv, int* num,
+        const int enc)
+{
+    (void)in;
+    (void)out;
+    (void)len;
+    (void)key;
+    (void)iv;
+    (void)num;
+    (void)enc;
+    WOLFSSL_STUB("wolfSSL_AES_cfb128_encrypt");
+}
+#endif /* NO_AES */
 
 int wolfSSL_BIO_printf(WOLFSSL_BIO* bio, const char* format, ...)
 {
