@@ -73,6 +73,7 @@
     #include <wolfssl/openssl/ed25519.h>
     #include <wolfssl/openssl/ecdsa.h>
     #include <wolfssl/openssl/ecdh.h>
+    #include <wolfssl/openssl/rc4.h>
     /* openssl headers end, wolfssl internal headers next */
     #include <wolfssl/wolfcrypt/hmac.h>
     #include <wolfssl/wolfcrypt/random.h>
@@ -18669,6 +18670,48 @@ void wolfSSL_DES_ecb_encrypt(WOLFSSL_DES_cblock* desa,
 #endif
 
 #endif /* NO_DES3 */
+
+#ifndef NO_RC4
+/* Set the key state for Arc4 structure.
+ *
+ * key  Arc4 structure to use
+ * len  length of data buffer
+ * data initial state to set Arc4 structure
+ */
+void wolfSSL_RC4_set_key(WOLFSSL_RC4_KEY* key, int len,
+        const unsigned char* data)
+{
+    WOLFSSL_ENTER("wolfSSL_RC4_set_key");
+
+    if (key == NULL || len < 0) {
+        WOLFSSL_MSG("bad argument passed in");
+        return;
+    }
+
+    XMEMSET(key, 0, sizeof(WOLFSSL_RC4_KEY));
+    wc_Arc4SetKey((Arc4*)key, data, (word32)len);
+}
+
+
+/* Encrypt/decrypt with Arc4 structure.
+ *
+ * len length of buffer to encrypt/decrypt (in/out)
+ * in  buffer to encrypt/decrypt
+ * out results of encryption/decryption
+ */
+void wolfSSL_RC4(WOLFSSL_RC4_KEY* key, size_t len,
+        const unsigned char* in, unsigned char* out)
+{
+    WOLFSSL_ENTER("wolfSSL_RC4");
+
+    if (key == NULL || in == NULL || out == NULL) {
+        WOLFSSL_MSG("Bad argument passed in");
+        return;
+    }
+
+    wc_Arc4Process((Arc4*)key, out, in, (word32)len);
+}
+#endif /* NO_RC4 */
 
 #ifndef NO_AES
 
