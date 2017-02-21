@@ -3932,7 +3932,7 @@ static int ProcessUserChain(WOLFSSL_CTX* ctx, const unsigned char* buff,
     #endif
         byte*  chainBuffer = staticBuffer;
         int    dynamicBuffer = 0;
-        word32 bufferSz = FILE_BUFFER_SIZE;
+        word32 bufferSz = sizeof(staticBuffer);
         long   consumed = info->consumed;
         word32 idx = 0;
         int    gotOne = 0;
