@@ -45,7 +45,9 @@ typedef struct WOLFSSL_RSA            WOLFSSL_RSA;
 typedef WOLFSSL_RSA                   RSA;
 
 struct WOLFSSL_RSA {
-    void* heap;
+#ifdef WC_RSA_BLINDING
+    WC_RNG* rng;              /* for PrivateDecrypt blinding */
+#endif
 	WOLFSSL_BIGNUM* n;
 	WOLFSSL_BIGNUM* e;
 	WOLFSSL_BIGNUM* d;
@@ -54,6 +56,7 @@ struct WOLFSSL_RSA {
 	WOLFSSL_BIGNUM* dmp1;      /* dP */
 	WOLFSSL_BIGNUM* dmq1;      /* dQ */
 	WOLFSSL_BIGNUM* iqmp;      /* u */
+    void*          heap;
     void*          internal;  /* our RSA */
     char           inSet;     /* internal set from external ? */
     char           exSet;     /* external set from internal ? */
@@ -69,9 +72,11 @@ WOLFSSL_API int wolfSSL_RSA_generate_key_ex(WOLFSSL_RSA*, int bits, WOLFSSL_BIGN
 
 WOLFSSL_API int wolfSSL_RSA_blinding_on(WOLFSSL_RSA*, WOLFSSL_BN_CTX*);
 WOLFSSL_API int wolfSSL_RSA_public_encrypt(int len, const unsigned char* fr,
-                                 unsigned char* to, WOLFSSL_RSA*, int padding);
+	                               unsigned char* to, WOLFSSL_RSA*, int padding);
 WOLFSSL_API int wolfSSL_RSA_private_decrypt(int len, const unsigned char* fr,
-                                 unsigned char* to, WOLFSSL_RSA*, int padding);
+	                               unsigned char* to, WOLFSSL_RSA*, int padding);
+WOLFSSL_API int wolfSSL_RSA_private_encrypt(int len, unsigned char* in,
+                            unsigned char* out, WOLFSSL_RSA* rsa, int padding);
 
 WOLFSSL_API int wolfSSL_RSA_size(const WOLFSSL_RSA*);
 WOLFSSL_API int wolfSSL_RSA_sign(int type, const unsigned char* m,
@@ -100,6 +105,7 @@ WOLFSSL_API int wolfSSL_RSA_LoadDer_ex(WOLFSSL_RSA*, const unsigned char*, int s
 #define RSA_blinding_on     wolfSSL_RSA_blinding_on
 #define RSA_public_encrypt  wolfSSL_RSA_public_encrypt
 #define RSA_private_decrypt wolfSSL_RSA_private_decrypt
+#define RSA_private_encrypt wolfSSL_RSA_private_encrypt
 
 #define RSA_size           wolfSSL_RSA_size
 #define RSA_sign           wolfSSL_RSA_sign

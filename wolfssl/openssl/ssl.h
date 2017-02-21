@@ -525,9 +525,11 @@ typedef WOLFSSL_X509_STORE_CTX X509_STORE_CTX;
 /* yassl had set the default to be 500 */
 #define SSL_get_default_timeout(ctx) 500
 
+#define X509_NAME_free wolfSSL_X509_NAME_free
+#define X509_NAME_new  wolfSSL_X509_NAME_new
+
 typedef WOLFSSL_X509_NAME_ENTRY X509_NAME_ENTRY;
 
-#define X509_NAME_free wolfSSL_X509_NAME_free
 #define SSL_CTX_use_certificate wolfSSL_CTX_use_certificate
 #define SSL_CTX_use_PrivateKey wolfSSL_CTX_use_PrivateKey
 #define BIO_read_filename wolfSSL_BIO_read_filename

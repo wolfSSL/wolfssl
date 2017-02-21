@@ -20865,6 +20865,14 @@ void wolfSSL_RSA_free(WOLFSSL_RSA* rsa)
         wolfSSL_BN_free(rsa->d);
         wolfSSL_BN_free(rsa->e);
         wolfSSL_BN_free(rsa->n);
+
+    #ifdef WC_RSA_BLINDING
+        if (wc_FreeRng(rsa->rng) != 0) {
+            WOLFSSL_MSG("Issue freeing rng");
+        }
+        XFREE(rsa->rng, NULL, DYNAMIC_TYPE_RNG);
+    #endif
+
         InitwolfSSL_Rsa(rsa);  /* set back to NULLs for safety */
 
         XFREE(rsa, NULL, DYNAMIC_TYPE_RSA);
@@ -21497,6 +21505,71 @@ int wolfSSL_RSA_private_decrypt(int len, const unsigned char* fr,
         ret = WOLFSSL_FATAL_ERROR;
     }
     return ret;
+}
+
+
+/* RSA private encrypt calls wc_RsaSSL_Sign. Similar function set up as RSA
+ * public decrypt.
+ *
+ * len  Length of input buffer
+ * in   Input buffer to sign
+ * out  Output buffer (expected to be greater than or equal to RSA key size)
+ * rsa     Key to use for encryption
+ * padding Type of RSA padding to use.
+ */
+int wolfSSL_RSA_private_encrypt(int len, unsigned char* in,
+                            unsigned char* out, WOLFSSL_RSA* rsa, int padding)
+{
+    int sz = 0;
+    WC_RNG* rng;
+    RsaKey* key;
+
+    WOLFSSL_MSG("wolfSSL_RSA_private_encrypt");
+
+    if (len < 0 || rsa == NULL || rsa->internal == NULL || in == NULL) {
+        WOLFSSL_MSG("Bad function arguments");
+        return 0;
+    }
+
+    if (padding != RSA_PKCS1_PADDING) {
+        WOLFSSL_MSG("wolfSSL_RSA_private_encrypt unsupported padding");
+        return 0;
+    }
+
+    if (rsa->inSet == 0)
+    {
+        WOLFSSL_MSG("Setting internal RSA structure");
+
+        if (SetRsaInternal(rsa) != SSL_SUCCESS) {
+            WOLFSSL_MSG("SetRsaInternal failed");
+            return 0;
+        }
+    }
+
+    key = (RsaKey*)rsa->internal;
+    #ifdef WC_RSA_BLINDING
+    rng = key->rng;
+    #else
+    if (wc_InitRng_ex(rng, key->heap) != 0) {
+        WOLFSSL_MSG("Error with random number");
+        return SSL_FATAL_ERROR;
+    }
+    #endif
+
+    /* size of output buffer must be size of RSA key */
+    sz = wc_RsaSSL_Sign(in, (word32)len, out, wolfSSL_RSA_size(rsa), key, rng);
+    #ifndef WC_RSA_BLINDING
+    if (wc_FreeRng(rng) != 0) {
+        WOLFSSL_MSG("Error freeing random number generator");
+        return SSL_FATAL_ERROR;
+    }
+    #endif
+    if (sz <= 0) {
+        WOLFSSL_LEAVE("wolfSSL_RSA_private_encrypt", sz);
+        return 0;
+    }
+
+    return sz;
 }
 
 /* return compliant with OpenSSL
@@ -25436,6 +25509,42 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
 #ifdef OPENSSL_EXTRA /*Lighttp compatibility*/
 
     #ifndef NO_CERTS
+    void wolfSSL_X509_NAME_free(WOLFSSL_X509_NAME *name){
+        WOLFSSL_ENTER("wolfSSL_X509_NAME_free");
+        FreeX509Name(name, NULL);
+        XFREE(name, NULL, DYNAMIC_TYPE_X509);
+    }
+
+
+    /* Malloc's a new WOLFSSL_X509_NAME structure
+     *
+     * returns NULL on failure, otherwise returns a new structure.
+     */
+    WOLFSSL_X509_NAME* wolfSSL_X509_NAME_new()
+    {
+        WOLFSSL_X509_NAME* name;
+
+        WOLFSSL_ENTER("wolfSSL_X509_NAME_new");
+
+        name = XMALLOC(sizeof(WOLFSSL_X509_NAME), NULL, DYNAMIC_TYPE_X509);
+        if (name != NULL) {
+            InitX509Name(name, 1);
+        }
+        return name;
+    }
+
+
+    int wolfSSL_X509_NAME_cmp(const WOLFSSL_X509_NAME* x,
+            const WOLFSSL_X509_NAME* y)
+    {
+        WOLFSSL_STUB("wolfSSL_X509_NAME_cmp");
+        if (x == NULL || y == NULL) {
+            WOLFSSL_MSG("Bad argument passed in");
+        }
+
+        return 0;
+    }
+
     WOLFSSL_X509 *wolfSSL_PEM_read_bio_X509(WOLFSSL_BIO *bp, WOLFSSL_X509 **x,
                                                  pem_password_cb *cb, void *u)
     {
@@ -25636,13 +25745,6 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
         (void)idx;
         (void)set;
         return SSL_SUCCESS;
-    }
-
-    void wolfSSL_X509_NAME_free(WOLFSSL_X509_NAME* name)
-    {
-        WOLFSSL_ENTER("wolfSSL_X509_NAME_free");
-        FreeX509Name(name, NULL);
-        XFREE(name, NULL, DYNAMIC_TYPE_X509);
     }
     #endif /* ifndef NO_CERTS */
 

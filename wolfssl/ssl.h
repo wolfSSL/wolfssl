@@ -2400,6 +2400,10 @@ WOLFSSL_API WOLFSSL_X509_NAME_ENTRY* wolfSSL_X509_NAME_ENTRY_create_by_NID(
             unsigned char* data, int dataSz);
 WOLFSSL_API int wolfSSL_X509_NAME_add_entry(WOLFSSL_X509_NAME* name,
                               WOLFSSL_X509_NAME_ENTRY* entry, int idx, int set);
+WOLFSSL_API int wolfSSL_X509_NAME_cmp(const WOLFSSL_X509_NAME* x,
+            const WOLFSSL_X509_NAME* y);
+WOLFSSL_API void wolfSSL_X509_NAME_free(WOLFSSL_X509_NAME *name);
+WOLFSSL_API WOLFSSL_X509_NAME* wolfSSL_X509_NAME_new(void);
 WOLFSSL_API int wolfSSL_check_private_key(const WOLFSSL* ssl);
 WOLFSSL_API void* wolfSSL_X509_get_ext_d2i(const WOLFSSL_X509* x509,
                                                      int nid, int* c, int* idx);
@@ -2477,7 +2481,6 @@ struct WOLFSSL_X509_NAME_ENTRY {
                          || defined(OPENSSL_EXTRA)
 WOLFSSL_API void wolfSSL_X509_NAME_ENTRY_free(WOLFSSL_X509_NAME_ENTRY* ne);
 WOLFSSL_API WOLFSSL_X509_NAME_ENTRY* wolfSSL_X509_NAME_ENTRY_new(void);
-WOLFSSL_API void wolfSSL_X509_NAME_free(WOLFSSL_X509_NAME *name);
 WOLFSSL_API char wolfSSL_CTX_use_certificate(WOLFSSL_CTX *ctx, WOLFSSL_X509 *x);
 WOLFSSL_API int wolfSSL_BIO_read_filename(WOLFSSL_BIO *b, const char *name);
 /* These are to be merged shortly */
