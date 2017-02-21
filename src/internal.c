@@ -5475,7 +5475,7 @@ static const byte PAD2[PAD_MD5] =
 #include <wolfssl/wolfcrypt/hash.h>
 #endif
 
-static void BuildMD5(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
+static int BuildMD5(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
 {
 
     byte md5_result[MD5_DIGEST_SIZE];
@@ -5483,6 +5483,16 @@ static void BuildMD5(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
 #ifdef WOLFSSL_SMALL_STACK
         Md5* md5   = (Md5*)XMALLOC(sizeof(Md5), NULL, DYNAMIC_TYPE_TMP_BUFFER);
         Md5* md5_2 = (Md5*)XMALLOC(sizeof(Md5), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
+        if (md5 == NULL || md5_2 == NULL) {
+            if (md5) {
+                XFREE(md5, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            }
+            if (md5_2) {
+                XFREE(md5_2, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            }
+            return MEMORY_E;
+        }
 #else
         Md5 md5[1];
         Md5 md5_2[1];
@@ -5509,17 +5519,28 @@ static void BuildMD5(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
     XFREE(md5_2, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
 
+    return 0;
 }
 
 
 /* calculate SHA hash for finished */
-static void BuildSHA(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
+static int BuildSHA(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
 {
     byte sha_result[SHA_DIGEST_SIZE];
 
 #ifdef WOLFSSL_SMALL_STACK
         Sha* sha = (Sha*)XMALLOC(sizeof(Sha), NULL, DYNAMIC_TYPE_TMP_BUFFER);
         Sha* sha2 = (Sha*)XMALLOC(sizeof(Sha), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
+        if (sha == NULL || sha2 == NULL) {
+            if (sha) {
+                XFREE(sha, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            }
+            if (sha2) {
+                XFREE(sha2, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            }
+            return MEMORY_E;
+        }
 #else
         Sha sha[1];
         Sha sha2[1] ;
@@ -5545,6 +5566,7 @@ static void BuildSHA(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
     XFREE(sha2, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
 
+    return 0;
 }
 #endif
 
@@ -5587,8 +5609,10 @@ static int BuildFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
 #endif
 #ifndef NO_OLD_TLS
     if (!ssl->options.tls) {
-        BuildMD5(ssl, hashes, sender);
-        BuildSHA(ssl, hashes, sender);
+        ret = BuildMD5(ssl, hashes, sender);
+        if (ret == 0) {
+            ret = BuildSHA(ssl, hashes, sender);
+        }
     }
 #endif
 
