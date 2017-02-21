@@ -262,7 +262,7 @@ typedef struct ecc_key {
     int idx;            /* Index into the ecc_sets[] for the parameters of
                            this curve if -1, this key is using user supplied
                            curve in dp */
-   int   state;
+    int    state;
     word32 flags;
     const ecc_set_type* dp;     /* domain parameters, either points to NIST
                                    curves (idx >= 0) or user supplied */
