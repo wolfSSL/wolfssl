@@ -14020,9 +14020,11 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
 #endif
         void* heap = NULL;
 
-        WOLFSSL_ENTER("HMAC");
-        if (!md)
+        WOLFSSL_ENTER("wolfSSL_HMAC");
+        if (!md) {
+            WOLFSSL_MSG("Static buffer not supported, pass in md buffer");
             return NULL;  /* no static buffer support */
+        }
 
         if (XSTRNCMP(evp_md, "MD5", 3) == 0)
             type = WC_MD5;
