@@ -671,7 +671,7 @@ int mp_radix_size (mp_int * a, int radix, int *size);
 #endif
 
 #if defined(HAVE_ECC) || !defined(NO_RSA) || !defined(NO_DSA)
-    void mp_set(fp_int *a, fp_digit b);
+    int mp_set(fp_int *a, fp_digit b);
 #endif
 
 #if defined(HAVE_ECC) || defined(WOLFSSL_KEY_GEN)

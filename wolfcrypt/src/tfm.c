@@ -3078,9 +3078,10 @@ int mp_cnt_lsb(fp_int* a)
 
 #if defined(HAVE_ECC) || !defined(NO_RSA) || !defined(NO_DSA)
 /* fast math conversion */
-void mp_set(fp_int *a, fp_digit b)
+int mp_set(fp_int *a, fp_digit b)
 {
     fp_set(a,b);
+    return MP_OKAY;
 }
 #endif
 
