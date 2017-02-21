@@ -1509,31 +1509,31 @@ int mp_add (mp_int * a, mp_int * b, mp_int * c)
 int s_mp_add (mp_int * a, mp_int * b, mp_int * c)
 {
   mp_int *x;
-  int     olduse, res, min, max;
+  int     olduse, res, min_ab, max_ab;
 
   /* find sizes, we let |a| <= |b| which means we have to sort
    * them.  "x" will point to the input with the most digits
    */
   if (a->used > b->used) {
-    min = b->used;
-    max = a->used;
+    min_ab = b->used;
+    max_ab = a->used;
     x = a;
   } else {
-    min = a->used;
-    max = b->used;
+    min_ab = a->used;
+    max_ab = b->used;
     x = b;
   }
 
   /* init result */
-  if (c->alloc < max + 1) {
-    if ((res = mp_grow (c, max + 1)) != MP_OKAY) {
+  if (c->alloc < max_ab + 1) {
+    if ((res = mp_grow (c, max_ab + 1)) != MP_OKAY) {
       return res;
     }
   }
 
   /* get old used digit count and set new one */
   olduse = c->used;
-  c->used = max + 1;
+  c->used = max_ab + 1;
 
   {
     mp_digit u, *tmpa, *tmpb, *tmpc;
@@ -1552,7 +1552,7 @@ int s_mp_add (mp_int * a, mp_int * b, mp_int * c)
 
     /* zero the carry */
     u = 0;
-    for (i = 0; i < min; i++) {
+    for (i = 0; i < min_ab; i++) {
       /* Compute the sum at one digit, T[i] = A[i] + B[i] + U */
       *tmpc = *tmpa++ + *tmpb++ + u;
 
@@ -1566,8 +1566,8 @@ int s_mp_add (mp_int * a, mp_int * b, mp_int * c)
     /* now copy higher words if any, that is in A+B
      * if A or B has more digits add those in
      */
-    if (min != max) {
-      for (; i < max; i++) {
+    if (min_ab != max_ab) {
+      for (; i < max_ab; i++) {
         /* T[i] = X[i] + U */
         *tmpc = x->dp[i] + u;
 
@@ -1596,20 +1596,20 @@ int s_mp_add (mp_int * a, mp_int * b, mp_int * c)
 /* low level subtraction (assumes |a| > |b|), HAC pp.595 Algorithm 14.9 */
 int s_mp_sub (mp_int * a, mp_int * b, mp_int * c)
 {
-  int     olduse, res, min, max;
+  int     olduse, res, min_b, max_a;
 
   /* find sizes */
-  min = b->used;
-  max = a->used;
+  min_b = b->used;
+  max_a = a->used;
 
   /* init result */
-  if (c->alloc < max) {
-    if ((res = mp_grow (c, max)) != MP_OKAY) {
+  if (c->alloc < max_a) {
+    if ((res = mp_grow (c, max_a)) != MP_OKAY) {
       return res;
     }
   }
   olduse = c->used;
-  c->used = max;
+  c->used = max_a;
 
   {
     mp_digit u, *tmpa, *tmpb, *tmpc;
@@ -1622,7 +1622,7 @@ int s_mp_sub (mp_int * a, mp_int * b, mp_int * c)
 
     /* set carry to zero */
     u = 0;
-    for (i = 0; i < min; i++) {
+    for (i = 0; i < min_b; i++) {
       /* T[i] = A[i] - B[i] - U */
       *tmpc = *tmpa++ - *tmpb++ - u;
 
@@ -1638,7 +1638,7 @@ int s_mp_sub (mp_int * a, mp_int * b, mp_int * c)
     }
 
     /* now copy higher words if any, e.g. if A has more digits than B  */
-    for (; i < max; i++) {
+    for (; i < max_a; i++) {
       /* T[i] = A[i] - U */
       *tmpc = *tmpa++ - u;
 
