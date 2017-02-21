@@ -2009,7 +2009,7 @@ struct WOLFSSL_CTX {
     byte        haveAnon;               /* User wants to allow Anon suites */
 #endif /* HAVE_ANON */
 #if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
-    pem_password_cb passwd_cb;
+    pem_password_cb* passwd_cb;
     void*           userdata;
     WOLFSSL_X509_STORE x509_store; /* points to ctx->cm */
     byte            readAhead;
