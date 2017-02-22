@@ -5155,13 +5155,13 @@ int rsa_test(void)
     } while (ret == WC_PENDING_E);
     if (ret < 0) {
         XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-	wc_FreeRng(&rng);
+    	wc_FreeRng(&rng);
         return -444;
     }
 
     if (XMEMCMP(plain, in, inLen)) {
         XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-	wc_FreeRng(&rng);
+	    wc_FreeRng(&rng);
         return -445;
     }
     #endif /* !HAVE_FAST_RSA && !HAVE_FIPS */
@@ -5181,7 +5181,7 @@ int rsa_test(void)
     file2 = fopen(clientCert, "rb");
     if (!file2) {
         XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-	wc_FreeRng(&rng);
+    	wc_FreeRng(&rng);
         return -49;
     }
 
@@ -5200,7 +5200,7 @@ int rsa_test(void)
     if (ret != 0) {
         FreeDecodedCert(&cert);
         XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-	wc_FreeRng(&rng);
+    	wc_FreeRng(&rng);
         return -491;
     }
 
@@ -5223,7 +5223,7 @@ int rsa_test(void)
         err_sys("can't open ./certs/client-keyPub.der, "
                 "Please run from wolfSSL home dir", -40);
         XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-	wc_FreeRng(&rng);
+    	wc_FreeRng(&rng);
         return -50;
     }
 
@@ -5234,7 +5234,7 @@ int rsa_test(void)
     ret = wc_InitRsaKey(&keypub, HEAP_HINT);
     if (ret != 0) {
         XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-	wc_FreeRng(&rng);
+    	wc_FreeRng(&rng);
         return -51;
     }
     idx = 0;
@@ -5243,7 +5243,7 @@ int rsa_test(void)
     if (ret != 0) {
         XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
         wc_FreeRsaKey(&keypub);
-	wc_FreeRng(&rng);
+    	wc_FreeRng(&rng);
         return -52;
     }
 #endif /* WOLFSSL_CERT_EXT */
@@ -5262,13 +5262,13 @@ int rsa_test(void)
         ret = wc_InitRsaKey(&genKey, HEAP_HINT);
         if (ret != 0) {
             XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-	    wc_FreeRng(&rng);
+    	    wc_FreeRng(&rng);
             return -300;
         }
         ret = wc_MakeRsaKey(&genKey, 1024, 65537, &rng);
         if (ret != 0) {
             XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-	    wc_FreeRng(&rng);
+    	    wc_FreeRng(&rng);
             return -301;
         }
 
@@ -5276,7 +5276,7 @@ int rsa_test(void)
         if (der == NULL) {
             XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             wc_FreeRsaKey(&genKey);
-	    wc_FreeRng(&rng);
+    	    wc_FreeRng(&rng);
             return -307;
         }
         pem = (byte*)XMALLOC(FOURK_BUF, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
@@ -5284,7 +5284,7 @@ int rsa_test(void)
             XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(der, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             wc_FreeRsaKey(&genKey);
-	    wc_FreeRng(&rng);
+    	    wc_FreeRng(&rng);
             return -308;
         }
 
@@ -5293,7 +5293,7 @@ int rsa_test(void)
             XFREE(der, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-	    wc_FreeRng(&rng);
+    	    wc_FreeRng(&rng);
             return -302;
         }
 
@@ -5307,7 +5307,7 @@ int rsa_test(void)
             XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             wc_FreeRsaKey(&genKey);
-	    wc_FreeRng(&rng);
+    	    wc_FreeRng(&rng);
             return -303;
         }
         ret = (int)fwrite(der, 1, derSz, keyFile);
@@ -5317,7 +5317,7 @@ int rsa_test(void)
             XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             wc_FreeRsaKey(&genKey);
-	    wc_FreeRng(&rng);
+    	    wc_FreeRng(&rng);
             return -313;
         }
 
@@ -5327,7 +5327,7 @@ int rsa_test(void)
             XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             wc_FreeRsaKey(&genKey);
-	    wc_FreeRng(&rng);
+    	    wc_FreeRng(&rng);
             return -304;
         }
 
@@ -5341,7 +5341,7 @@ int rsa_test(void)
             XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             wc_FreeRsaKey(&genKey);
-	    wc_FreeRng(&rng);
+    	    wc_FreeRng(&rng);
             return -305;
         }
         ret = (int)fwrite(pem, 1, pemSz, pemFile);
@@ -5351,7 +5351,7 @@ int rsa_test(void)
             XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             wc_FreeRsaKey(&genKey);
-	    wc_FreeRng(&rng);
+    	    wc_FreeRng(&rng);
             return -314;
         }
 
@@ -5361,7 +5361,7 @@ int rsa_test(void)
             XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             wc_FreeRsaKey(&genKey);
-	    wc_FreeRng(&rng);
+    	    wc_FreeRng(&rng);
             return -3060;
         }
         idx = 0;
@@ -5372,7 +5372,7 @@ int rsa_test(void)
             XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             wc_FreeRsaKey(&derIn);
             wc_FreeRsaKey(&genKey);
-	    wc_FreeRng(&rng);
+    	    wc_FreeRng(&rng);
             return -306;
         }
 
@@ -5401,14 +5401,14 @@ int rsa_test(void)
                                                        DYNAMIC_TYPE_TMP_BUFFER);
         if (derCert == NULL) {
             XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-	    wc_FreeRng(&rng);
+    	    wc_FreeRng(&rng);
             return -309;
         }
         pem = (byte*)XMALLOC(FOURK_BUF, HEAP_HINT,DYNAMIC_TYPE_TMP_BUFFER);
         if (pem == NULL) {
             XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(derCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-	    wc_FreeRng(&rng);
+    	    wc_FreeRng(&rng);
             return -310;
         }
 
@@ -5437,7 +5437,7 @@ int rsa_test(void)
             XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(derCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-	    wc_FreeRng(&rng);
+    	    wc_FreeRng(&rng);
             return -398;
         }
 
@@ -5446,7 +5446,7 @@ int rsa_test(void)
             XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(derCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-	    wc_FreeRng(&rng);
+    	    wc_FreeRng(&rng);
             return -399;
         }
 
@@ -5455,7 +5455,7 @@ int rsa_test(void)
             XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(derCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-	    wc_FreeRng(&rng);
+    	    wc_FreeRng(&rng);
             return -400;
         }
 #endif /* WOLFSSL_CERT_EXT */
@@ -5465,7 +5465,7 @@ int rsa_test(void)
             XFREE(derCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-	    wc_FreeRng(&rng);
+    	    wc_FreeRng(&rng);
             return -401;
         }
 
@@ -5476,7 +5476,7 @@ int rsa_test(void)
             XFREE(derCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-	    wc_FreeRng(&rng);
+    	    wc_FreeRng(&rng);
             return -402;
         }
         FreeDecodedCert(&decode);
@@ -5491,7 +5491,7 @@ int rsa_test(void)
             XFREE(derCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-	    wc_FreeRng(&rng);
+    	    wc_FreeRng(&rng);
             return -403;
         }
         ret = (int)fwrite(derCert, 1, certSz, derFile);
@@ -5500,7 +5500,7 @@ int rsa_test(void)
             XFREE(derCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-	    wc_FreeRng(&rng);
+    	    wc_FreeRng(&rng);
             return -414;
         }
 
@@ -5509,7 +5509,7 @@ int rsa_test(void)
             XFREE(derCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-	    wc_FreeRng(&rng);
+    	    wc_FreeRng(&rng);
             return -404;
         }
 
@@ -5522,7 +5522,7 @@ int rsa_test(void)
             XFREE(derCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-	    wc_FreeRng(&rng);
+    	    wc_FreeRng(&rng);
             return -405;
         }
         ret = (int)fwrite(pem, 1, pemSz, pemFile);
@@ -5531,7 +5531,7 @@ int rsa_test(void)
             XFREE(derCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-	    wc_FreeRng(&rng);
+    	    wc_FreeRng(&rng);
             return -406;
         }
         XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
@@ -5558,14 +5558,14 @@ int rsa_test(void)
                                                        DYNAMIC_TYPE_TMP_BUFFER);
         if (derCert == NULL) {
             XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-	    wc_FreeRng(&rng);
+    	    wc_FreeRng(&rng);
             return -311;
         }
         pem = (byte*)XMALLOC(FOURK_BUF, HEAP_HINT,DYNAMIC_TYPE_TMP_BUFFER);
         if (pem == NULL) {
             XFREE(derCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-	    wc_FreeRng(&rng);
+    	    wc_FreeRng(&rng);
             return -312;
         }
 
@@ -5575,7 +5575,7 @@ int rsa_test(void)
             XFREE(derCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-	    wc_FreeRng(&rng);
+    	    wc_FreeRng(&rng);
             return -412;
         }
 
@@ -5587,7 +5587,7 @@ int rsa_test(void)
             XFREE(derCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-	    wc_FreeRng(&rng);
+    	    wc_FreeRng(&rng);
             return -411;
         }
         ret = wc_RsaPrivateKeyDecode(tmp, &idx3, &caKey, (word32)bytes3);
@@ -5596,7 +5596,7 @@ int rsa_test(void)
             XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             wc_FreeRsaKey(&caKey);
-	    wc_FreeRng(&rng);
+    	    wc_FreeRng(&rng);
             return -413;
         }
 
@@ -5625,7 +5625,7 @@ int rsa_test(void)
             XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(derCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-	    wc_FreeRng(&rng);
+    	    wc_FreeRng(&rng);
             return -398;
         }
 
@@ -5634,7 +5634,7 @@ int rsa_test(void)
             XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(derCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-	    wc_FreeRng(&rng);
+    	    wc_FreeRng(&rng);
             return -399;
         }
 
@@ -5643,7 +5643,7 @@ int rsa_test(void)
             XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(derCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-	    wc_FreeRng(&rng);
+    	    wc_FreeRng(&rng);
             return -400;
         }
 #endif /* WOLFSSL_CERT_EXT */
@@ -5654,7 +5654,7 @@ int rsa_test(void)
             XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             wc_FreeRsaKey(&caKey);
-	    wc_FreeRng(&rng);
+    	    wc_FreeRng(&rng);
             return -405;
         }
 
@@ -5664,7 +5664,7 @@ int rsa_test(void)
             XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             wc_FreeRsaKey(&caKey);
-	    wc_FreeRng(&rng);
+    	    wc_FreeRng(&rng);
             return -407;
         }
 
@@ -5675,7 +5675,7 @@ int rsa_test(void)
             XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             wc_FreeRsaKey(&caKey);
-	    wc_FreeRng(&rng);
+    	    wc_FreeRng(&rng);
             return -408;
         }
 
@@ -5687,7 +5687,7 @@ int rsa_test(void)
             XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             wc_FreeRsaKey(&caKey);
-	    wc_FreeRng(&rng);
+    	    wc_FreeRng(&rng);
             return -409;
         }
         FreeDecodedCert(&decode);
@@ -5703,7 +5703,7 @@ int rsa_test(void)
             XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             wc_FreeRsaKey(&caKey);
-	    wc_FreeRng(&rng);
+    	    wc_FreeRng(&rng);
             return -410;
         }
         ret = (int)fwrite(derCert, 1, certSz, derFile);
@@ -5713,7 +5713,7 @@ int rsa_test(void)
             XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             wc_FreeRsaKey(&caKey);
-	    wc_FreeRng(&rng);
+    	    wc_FreeRng(&rng);
             return -416;
         }
 
@@ -5723,7 +5723,7 @@ int rsa_test(void)
             XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             wc_FreeRsaKey(&caKey);
-	    wc_FreeRng(&rng);
+    	    wc_FreeRng(&rng);
             return -411;
         }
 
@@ -5737,7 +5737,7 @@ int rsa_test(void)
             XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             wc_FreeRsaKey(&caKey);
-	    wc_FreeRng(&rng);
+    	    wc_FreeRng(&rng);
             return -412;
         }
         ret = (int)fwrite(pem, 1, pemSz, pemFile);
@@ -5747,7 +5747,7 @@ int rsa_test(void)
             XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             fclose(pemFile);
             wc_FreeRsaKey(&caKey);
-	    wc_FreeRng(&rng);
+    	    wc_FreeRng(&rng);
             return -415;
         }
         fclose(pemFile);
@@ -5780,14 +5780,14 @@ int rsa_test(void)
                                                        DYNAMIC_TYPE_TMP_BUFFER);
         if (derCert == NULL) {
             XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-	    wc_FreeRng(&rng);
+    	    wc_FreeRng(&rng);
             return -5311;
         }
         pem = (byte*)XMALLOC(FOURK_BUF, HEAP_HINT,DYNAMIC_TYPE_TMP_BUFFER);
         if (pem == NULL) {
             XFREE(derCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-	    wc_FreeRng(&rng);
+    	    wc_FreeRng(&rng);
             return -5312;
         }
 
@@ -5797,7 +5797,7 @@ int rsa_test(void)
             XFREE(derCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-	    wc_FreeRng(&rng);
+    	    wc_FreeRng(&rng);
             return -5412;
         }
 
@@ -5810,7 +5810,7 @@ int rsa_test(void)
             XFREE(derCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-	    wc_FreeRng(&rng);
+    	    wc_FreeRng(&rng);
             return -5413;
         }
 
@@ -5839,7 +5839,7 @@ int rsa_test(void)
             XFREE(derCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-	    wc_FreeRng(&rng);
+    	    wc_FreeRng(&rng);
             return -5500;
         }
 
@@ -5851,7 +5851,7 @@ int rsa_test(void)
             XFREE(derCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-	    wc_FreeRng(&rng);
+    	    wc_FreeRng(&rng);
             return -5501;
         }
 
@@ -5862,7 +5862,7 @@ int rsa_test(void)
             XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             wc_ecc_free(&caKeyPub);
-	    wc_FreeRng(&rng);
+    	    wc_FreeRng(&rng);
             return -5502;
         }
 
@@ -5872,7 +5872,7 @@ int rsa_test(void)
             XFREE(derCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             wc_ecc_free(&caKeyPub);
-	    wc_FreeRng(&rng);
+    	    wc_FreeRng(&rng);
             return -5503;
         }
 
@@ -5882,7 +5882,7 @@ int rsa_test(void)
             XFREE(derCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             wc_ecc_free(&caKeyPub);
-	    wc_FreeRng(&rng);
+    	    wc_FreeRng(&rng);
             return -5504;
         }
         wc_ecc_free(&caKeyPub);
@@ -5892,7 +5892,7 @@ int rsa_test(void)
             XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(derCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-	    wc_FreeRng(&rng);
+    	    wc_FreeRng(&rng);
             return -5505;
         }
 #endif /* WOLFSSL_CERT_EXT */
@@ -5903,7 +5903,7 @@ int rsa_test(void)
             XFREE(derCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             wc_ecc_free(&caKey);
             XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-	    wc_FreeRng(&rng);
+    	    wc_FreeRng(&rng);
             return -5405;
         }
 
@@ -5913,7 +5913,7 @@ int rsa_test(void)
             XFREE(derCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             wc_ecc_free(&caKey);
             XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-	    wc_FreeRng(&rng);
+    	    wc_FreeRng(&rng);
             return -5407;
         }
 
@@ -5924,7 +5924,7 @@ int rsa_test(void)
             XFREE(derCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             wc_ecc_free(&caKey);
             XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-	    wc_FreeRng(&rng);
+    	    wc_FreeRng(&rng);
             return -5408;
         }
 
@@ -5936,7 +5936,7 @@ int rsa_test(void)
             XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(derCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             wc_ecc_free(&caKey);
-	    wc_FreeRng(&rng);
+    	    wc_FreeRng(&rng);
             return -5409;
         }
         FreeDecodedCert(&decode);
@@ -5952,7 +5952,7 @@ int rsa_test(void)
             XFREE(derCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             wc_ecc_free(&caKey);
             XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-	    wc_FreeRng(&rng);
+    	    wc_FreeRng(&rng);
             return -5410;
         }
         ret = (int)fwrite(derCert, 1, certSz, derFile);
@@ -5962,7 +5962,7 @@ int rsa_test(void)
             XFREE(derCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             wc_ecc_free(&caKey);
             XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-	    wc_FreeRng(&rng);
+    	    wc_FreeRng(&rng);
             return -5414;
         }
 
@@ -5972,7 +5972,7 @@ int rsa_test(void)
             XFREE(derCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             wc_ecc_free(&caKey);
             XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-	    wc_FreeRng(&rng);
+    	    wc_FreeRng(&rng);
             return -5411;
         }
 
@@ -5986,7 +5986,7 @@ int rsa_test(void)
             XFREE(derCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             wc_ecc_free(&caKey);
             XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-	    wc_FreeRng(&rng);
+    	    wc_FreeRng(&rng);
             return -5412;
         }
         ret = (int)fwrite(pem, 1, pemSz, pemFile);
@@ -5995,7 +5995,7 @@ int rsa_test(void)
             XFREE(derCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             wc_ecc_free(&caKey);
             XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-	    wc_FreeRng(&rng);
+    	    wc_FreeRng(&rng);
             return -5415;
         }
 
@@ -6025,14 +6025,14 @@ int rsa_test(void)
                                                        DYNAMIC_TYPE_TMP_BUFFER);
         if (derCert == NULL) {
             XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-	    wc_FreeRng(&rng);
+    	    wc_FreeRng(&rng);
             return -311;
         }
         pem = (byte*)XMALLOC(FOURK_BUF, HEAP_HINT,DYNAMIC_TYPE_TMP_BUFFER);
         if (pem == NULL) {
             XFREE(derCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-	    wc_FreeRng(&rng);
+    	    wc_FreeRng(&rng);
             return -312;
         }
 
@@ -6050,7 +6050,7 @@ int rsa_test(void)
             XFREE(derCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-	    wc_FreeRng(&rng);
+    	    wc_FreeRng(&rng);
             return -448;
         }
 
@@ -6061,7 +6061,7 @@ int rsa_test(void)
             XFREE(derCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-	    wc_FreeRng(&rng);
+    	    wc_FreeRng(&rng);
             return -449;
         }
 
@@ -6072,7 +6072,7 @@ int rsa_test(void)
             XFREE(derCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-	    wc_FreeRng(&rng);
+    	    wc_FreeRng(&rng);
             return -450;
         }
 
@@ -6082,7 +6082,7 @@ int rsa_test(void)
             XFREE(derCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-	    wc_FreeRng(&rng);
+    	    wc_FreeRng(&rng);
             return -451;
         }
 
@@ -6092,7 +6092,7 @@ int rsa_test(void)
             XFREE(derCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-	    wc_FreeRng(&rng);
+    	    wc_FreeRng(&rng);
             return -452;
         }
 
@@ -6104,7 +6104,7 @@ int rsa_test(void)
             XFREE(derCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-	    wc_FreeRng(&rng);
+    	    wc_FreeRng(&rng);
             return -453;
         }
         ret = wc_RsaPrivateKeyDecode(tmp, &idx3, &caKey, (word32)bytes);
@@ -6112,7 +6112,7 @@ int rsa_test(void)
             XFREE(derCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-	    wc_FreeRng(&rng);
+    	    wc_FreeRng(&rng);
             return -454;
         }
 
@@ -6135,7 +6135,7 @@ int rsa_test(void)
             XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(derCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-	    wc_FreeRng(&rng);
+    	    wc_FreeRng(&rng);
             return -496;
         }
 
@@ -6144,7 +6144,7 @@ int rsa_test(void)
             XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(derCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-	    wc_FreeRng(&rng);
+    	    wc_FreeRng(&rng);
             return -495;
         }
 
@@ -6154,7 +6154,7 @@ int rsa_test(void)
             XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(derCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-	    wc_FreeRng(&rng);
+    	    wc_FreeRng(&rng);
             return -494;
         }
 #endif /* WOLFSSL_CERT_EXT */
@@ -6165,7 +6165,7 @@ int rsa_test(void)
             XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             wc_FreeRsaKey(&caKey);
             XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-	    wc_FreeRng(&rng);
+    	    wc_FreeRng(&rng);
             return -455;
         }
 
@@ -6176,7 +6176,7 @@ int rsa_test(void)
             XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             wc_FreeRsaKey(&caKey);
             XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-	    wc_FreeRng(&rng);
+    	    wc_FreeRng(&rng);
             return -456;
         }
 
@@ -6187,7 +6187,7 @@ int rsa_test(void)
             XFREE(derCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-	    wc_FreeRng(&rng);
+    	    wc_FreeRng(&rng);
             return -457;
         }
 
@@ -6199,7 +6199,7 @@ int rsa_test(void)
             XFREE(derCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-	    wc_FreeRng(&rng);
+    	    wc_FreeRng(&rng);
             return -458;
         }
         FreeDecodedCert(&decode);
@@ -6209,7 +6209,7 @@ int rsa_test(void)
             XFREE(derCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-	    wc_FreeRng(&rng);
+    	    wc_FreeRng(&rng);
             return -459;
         }
         ret = (int)fwrite(derCert, 1, certSz, derFile);
@@ -6218,7 +6218,7 @@ int rsa_test(void)
             XFREE(derCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-	    wc_FreeRng(&rng);
+    	    wc_FreeRng(&rng);
             return -473;
         }
 
@@ -6227,7 +6227,7 @@ int rsa_test(void)
             XFREE(derCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-	    wc_FreeRng(&rng);
+    	    wc_FreeRng(&rng);
             return -460;
         }
 
@@ -6236,7 +6236,7 @@ int rsa_test(void)
             XFREE(derCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-	    wc_FreeRng(&rng);
+    	    wc_FreeRng(&rng);
             return -461;
         }
         ret = (int)fwrite(pem, 1, pemSz, pemFile);
@@ -6245,7 +6245,7 @@ int rsa_test(void)
             XFREE(derCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-	    wc_FreeRng(&rng);
+    	    wc_FreeRng(&rng);
             return -474;
         }
 
@@ -6254,7 +6254,7 @@ int rsa_test(void)
             XFREE(derCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-	    wc_FreeRng(&rng);
+    	    wc_FreeRng(&rng);
             return -462;
         }
         ret = (int)fwrite(private_key, 1, private_key_len, ntruPrivFile);
@@ -6263,7 +6263,7 @@ int rsa_test(void)
             XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(derCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-	    wc_FreeRng(&rng);
+    	    wc_FreeRng(&rng);
             return -475;
         }
         XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
@@ -6282,14 +6282,14 @@ int rsa_test(void)
         der = (byte*)XMALLOC(FOURK_BUF, HEAP_HINT,DYNAMIC_TYPE_TMP_BUFFER);
         if (der == NULL) {
             XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-	    wc_FreeRng(&rng);
+    	    wc_FreeRng(&rng);
             return -463;
         }
         pem = (byte*)XMALLOC(FOURK_BUF, HEAP_HINT,DYNAMIC_TYPE_TMP_BUFFER);
         if (pem == NULL) {
             XFREE(der, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-	    wc_FreeRng(&rng);
+    	    wc_FreeRng(&rng);
             return -464;
         }
 
@@ -6313,7 +6313,7 @@ int rsa_test(void)
             XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(der, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-	    wc_FreeRng(&rng);
+    	    wc_FreeRng(&rng);
             return -496;
         }
 
@@ -6323,7 +6323,7 @@ int rsa_test(void)
             XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(der, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-	    wc_FreeRng(&rng);
+    	    wc_FreeRng(&rng);
             return -494;
         }
 #endif /* WOLFSSL_CERT_EXT */
@@ -6333,7 +6333,7 @@ int rsa_test(void)
             XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(der, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-	    wc_FreeRng(&rng);
+    	    wc_FreeRng(&rng);
             return -465;
         }
 
@@ -6343,7 +6343,7 @@ int rsa_test(void)
             XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(der, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-	    wc_FreeRng(&rng);
+    	    wc_FreeRng(&rng);
             return -466;
         }
 
@@ -6352,7 +6352,7 @@ int rsa_test(void)
             XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(der, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-	    wc_FreeRng(&rng);
+    	    wc_FreeRng(&rng);
             return -467;
         }
 
@@ -6365,7 +6365,7 @@ int rsa_test(void)
             XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(der, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-	    wc_FreeRng(&rng);
+    	    wc_FreeRng(&rng);
             return -468;
         }
 
@@ -6375,7 +6375,7 @@ int rsa_test(void)
             XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(der, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-	    wc_FreeRng(&rng);
+    	    wc_FreeRng(&rng);
             return -471;
         }
 
@@ -6388,7 +6388,7 @@ int rsa_test(void)
             XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(der, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-	    wc_FreeRng(&rng);
+    	    wc_FreeRng(&rng);
             return -469;
         }
         ret = (int)fwrite(pem, 1, pemSz, reqFile);
@@ -6397,7 +6397,7 @@ int rsa_test(void)
             XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(der, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-	    wc_FreeRng(&rng);
+    	    wc_FreeRng(&rng);
             return -470;
         }
 
@@ -6473,8 +6473,13 @@ int dh_test(void)
     (void)tmp;
     (void)bytes;
 
-    wc_InitDhKey(&key);
-    wc_InitDhKey(&key2);
+    ret = wc_InitDhKey(&key);
+    if (ret != 0)
+        return -57;
+    ret = wc_InitDhKey(&key2);
+    if (ret != 0)
+        return -57;
+
 #ifdef NO_ASN
     ret = wc_DhSetKey(&key, dh_p, sizeof(dh_p), dh_g, sizeof(dh_g));
     if (ret != 0)
@@ -6566,7 +6571,9 @@ int dsa_test(void)
     wc_ShaUpdate(&sha, tmp, bytes);
     wc_ShaFinal(&sha, hash);
 
-    wc_InitDsaKey(&key);
+    ret = wc_InitDsaKey(&key);
+    if (ret != 0) return -66;
+
     ret = wc_DsaPrivateKeyDecode(tmp, &idx, &key, bytes);
     if (ret != 0) return -61;
 
@@ -6593,12 +6600,20 @@ int dsa_test(void)
     FILE*  keyFile;
     FILE*  pemFile;
 
-    wc_InitDsaKey(&genKey);
+    ret = wc_InitDsaKey(&genKey);
+    if (ret != 0) return -361;
+
     ret = wc_MakeDsaParameters(&rng, 1024, &genKey);
-    if (ret != 0) return -362;
+    if (ret != 0) {
+        wc_FreeDsaKey(&genKey);
+        return -362;
+    }
 
     ret = wc_MakeDsaKey(&rng, &genKey);
-    if (ret != 0) return -363;
+    if (ret != 0) {
+        wc_FreeDsaKey(&genKey);
+        return -363;
+    }
 
     der = (byte*)XMALLOC(FOURK_BUF, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     if (der == NULL) {
@@ -6667,7 +6682,14 @@ int dsa_test(void)
         return -371;
     }
 
-    wc_InitDsaKey(&derIn);
+    ret = wc_InitDsaKey(&derIn);
+    if (ret != 0) {
+        XFREE(der, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        wc_FreeDsaKey(&genKey);
+        return -374;
+    }
+
     idx = 0;
     ret = wc_DsaPrivateKeyDecode(der, &idx, &derIn, derSz);
     if (ret != 0) {

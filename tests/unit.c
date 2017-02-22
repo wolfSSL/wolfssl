@@ -51,6 +51,10 @@ int unit_test(int argc, char** argv)
     (void)argv;
     printf("starting unit tests...\n");
 
+#if defined(USE_WOLFSSL_MEMORY) && defined(WOLFSSL_TRACK_MEMORY)
+    InitMemoryTracker();
+#endif
+
 #if defined(DEBUG_WOLFSSL) && !defined(HAVE_VALGRIND)
     wolfSSL_Debugging_ON();
 #endif
@@ -84,6 +88,10 @@ int unit_test(int argc, char** argv)
     if (wc_FreeNetRandom() < 0)
         err_sys("Failed to free netRandom context");
 #endif /* HAVE_WNR */
+
+#if defined(USE_WOLFSSL_MEMORY) && defined(WOLFSSL_TRACK_MEMORY)
+    ShowMemoryTracker();
+#endif
 
     return 0;
 }

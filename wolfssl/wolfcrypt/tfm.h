@@ -606,6 +606,8 @@ typedef fp_int mp_int;
 #define MP_OKAY FP_OKAY /* ok result    */
 #define MP_NO   FP_NO   /* yes/no result */
 #define MP_YES  FP_YES  /* yes/no result */
+#define MP_ZPOS FP_ZPOS
+#define MP_NEG  FP_NEG
 
 /* Prototypes */
 #define mp_zero(a)  fp_zero(a)
@@ -637,6 +639,7 @@ int  mp_cmp_d(mp_int *a, mp_digit b);
 
 int  mp_unsigned_bin_size(mp_int * a);
 int  mp_read_unsigned_bin (mp_int * a, const unsigned char *b, int c);
+int  mp_to_unsigned_bin_at_pos(int x, mp_int *t, unsigned char *b);
 int  mp_to_unsigned_bin (mp_int * a, unsigned char *b);
 
 int  mp_sub_d(fp_int *a, fp_digit b, fp_int *c);
@@ -668,7 +671,7 @@ int mp_radix_size (mp_int * a, int radix, int *size);
 #endif
 
 #if defined(HAVE_ECC) || !defined(NO_RSA) || !defined(NO_DSA)
-    void mp_set(fp_int *a, fp_digit b);
+    int mp_set(fp_int *a, fp_digit b);
 #endif
 
 #if defined(HAVE_ECC) || defined(WOLFSSL_KEY_GEN)

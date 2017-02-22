@@ -49,22 +49,28 @@
 #endif
 
 
-void wc_InitDhKey(DhKey* key)
+int wc_InitDhKey(DhKey* key)
 {
-    (void)key;
-/* TomsFastMath doesn't use memory allocation */
-#ifndef USE_FAST_MATH
-    key->p.dp = NULL;
-    key->g.dp = NULL;
-#endif
+    int ret = 0;
+
+    if (key == NULL)
+        return BAD_FUNC_ARG;
+
+    if (mp_init_multi(&key->p, &key->g, NULL, NULL, NULL, NULL) != MP_OKAY)
+        ret = MEMORY_E;
+
+    return ret;
 }
 
 
 void wc_FreeDhKey(DhKey* key)
 {
-    (void)key;
-    mp_clear(&key->p);
-    mp_clear(&key->g);
+    if (key) {
+    #ifndef USE_FAST_MATH
+        mp_clear(&key->p);
+        mp_clear(&key->g);
+    #endif
+    }
 }
 
 

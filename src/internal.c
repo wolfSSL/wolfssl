@@ -3114,12 +3114,14 @@ int DhGenKeyPair(WOLFSSL* ssl,
     int ret;
     DhKey dhKey;
 
-    wc_InitDhKey(&dhKey);
-    ret = wc_DhSetKey(&dhKey, p, pSz, g, gSz);
+    ret = wc_InitDhKey(&dhKey);
     if (ret == 0) {
-        ret = wc_DhGenerateKeyPair(&dhKey, ssl->rng, priv, privSz, pub, pubSz);
+        ret = wc_DhSetKey(&dhKey, p, pSz, g, gSz);
+        if (ret == 0) {
+            ret = wc_DhGenerateKeyPair(&dhKey, ssl->rng, priv, privSz, pub, pubSz);
+        }
+        wc_FreeDhKey(&dhKey);
     }
-    wc_FreeDhKey(&dhKey);
 
     return ret;
 }
@@ -3135,16 +3137,18 @@ int DhAgree(WOLFSSL* ssl,
     int ret;
     DhKey dhKey;
 
-    wc_InitDhKey(&dhKey);
-    ret = wc_DhSetKey(&dhKey, p, pSz, g, gSz);
-    if (ret == 0 && pub) {
-        /* for DH, encSecret is Yc, agree is pre-master */
-        ret = wc_DhGenerateKeyPair(&dhKey, ssl->rng, priv, privSz, pub, pubSz);
-    }
+    ret = wc_InitDhKey(&dhKey);
     if (ret == 0) {
-        ret = wc_DhAgree(&dhKey, agree, agreeSz, priv, *privSz, otherPub, otherPubSz);
+        ret = wc_DhSetKey(&dhKey, p, pSz, g, gSz);
+        if (ret == 0 && pub) {
+            /* for DH, encSecret is Yc, agree is pre-master */
+            ret = wc_DhGenerateKeyPair(&dhKey, ssl->rng, priv, privSz, pub, pubSz);
+        }
+        if (ret == 0) {
+            ret = wc_DhAgree(&dhKey, agree, agreeSz, priv, *privSz, otherPub, otherPubSz);
+        }
+        wc_FreeDhKey(&dhKey);
     }
-    wc_FreeDhKey(&dhKey);
 
     return ret;
 }
