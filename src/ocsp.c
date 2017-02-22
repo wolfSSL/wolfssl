@@ -403,6 +403,8 @@ int CheckOcspRequest(WOLFSSL_OCSP* ocsp, OcspRequest* ocspRequest,
     XFREE(ocspResponse, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
 
+    XFREE(request, NULL, DYNAMIC_TYPE_OCSP);
+
     if (response != NULL && ocsp->cm->ocspRespFreeCb)
         ocsp->cm->ocspRespFreeCb(ocsp->cm->ocspIOCtx, response);
 
