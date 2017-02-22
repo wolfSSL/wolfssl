@@ -6980,16 +6980,10 @@ WOLFSSL_EVP_PKEY* wolfSSL_d2i_PrivateKey(int type, WOLFSSL_EVP_PKEY** out,
     }
 
     if (out != NULL && *out != NULL) {
-        /* reuse structure */
-        WOLFSSL_MSG("Reusing WOLFSSL_EVP_PKEY structure");
-        if ((*out)->pkey.ptr != NULL) {
-            XFREE((*out)->pkey.ptr, NULL, DYNAMIC_TYPE_PUBLIC_KEY);
-        }
+        wolfSSL_EVP_PKEY_free(*out);
         local = *out;
     }
-    else {
-        local = wolfSSL_PKEY_new();
-    }
+    local = wolfSSL_PKEY_new();
 
     if (local == NULL) {
         return NULL;
@@ -7010,7 +7004,8 @@ WOLFSSL_EVP_PKEY* wolfSSL_d2i_PrivateKey(int type, WOLFSSL_EVP_PKEY** out,
         *out = local;
     }
 
-    if(type == EVP_PKEY_RSA){
+#ifndef NO_RSA
+    if (type == EVP_PKEY_RSA){
         local->ownRsa = 1;
         local->rsa = wolfSSL_RSA_new();
         if (local->rsa == NULL) {
@@ -7025,6 +7020,7 @@ WOLFSSL_EVP_PKEY* wolfSSL_d2i_PrivateKey(int type, WOLFSSL_EVP_PKEY** out,
             return NULL;
       }
     }
+#endif /* NO_RSA */
 
     return local;
 }
