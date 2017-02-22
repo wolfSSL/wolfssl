@@ -3008,7 +3008,6 @@ int wc_ecc_init_ex(ecc_key* key, void* heap, int devId)
 #endif
 
     XMEMSET(key, 0, sizeof(ecc_key));
-    key->state = ECC_STATE_NONE;
 
 #ifdef WOLFSSL_ATECC508A
     key->slot = atmel_ecc_alloc();
@@ -4472,6 +4471,7 @@ int wc_ecc_import_x963_ex(const byte* in, word32 inLen, ecc_key* key,
 #ifndef WOLFSSL_ATECC508A
     int compressed = 0;
 #endif /* !WOLFSSL_ATECC508A */
+    void* heap;
 
     if (in == NULL || key == NULL)
         return BAD_FUNC_ARG;
@@ -4481,8 +4481,9 @@ int wc_ecc_import_x963_ex(const byte* in, word32 inLen, ecc_key* key,
         return ECC_BAD_ARG_E;
     }
 
+    heap = key->heap; /* save heap */
     XMEMSET(key, 0, sizeof(ecc_key));
-    key->state = ECC_STATE_NONE;
+    key->heap = heap; /* restore heap */
 
 #ifdef WOLFSSL_ATECC508A
     /* TODO: Implement equiv call to ATECC508A */
@@ -4898,13 +4899,17 @@ static int wc_ecc_import_raw_private(ecc_key* key, const char* qx,
           const char* qy, const char* d, int curve_id)
 {
     int err = MP_OKAY;
+    void* heap;
 
     /* if d is NULL, only import as public key using Qx,Qy */
     if (key == NULL || qx == NULL || qy == NULL) {
         return BAD_FUNC_ARG;
     }
 
+    heap = key->heap; /* save heap */
     XMEMSET(key, 0, sizeof(ecc_key));
+    key->heap = heap; /* restore heap */
+
     /* set curve type and index */
     err = wc_ecc_set_curve(key, 0, curve_id);
     if (err != 0) {
