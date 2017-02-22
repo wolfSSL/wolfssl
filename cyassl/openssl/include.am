@@ -32,6 +32,7 @@ nobase_include_HEADERS+= \
                          cyassl/openssl/rand.h \
                          cyassl/openssl/rsa.h \
                          cyassl/openssl/sha.h \
+                         cyassl/openssl/ssl23.h \
                          cyassl/openssl/ssl.h \
                          cyassl/openssl/stack.h \
                          cyassl/openssl/ui.h \
