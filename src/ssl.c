@@ -6981,7 +6981,6 @@ WOLFSSL_EVP_PKEY* wolfSSL_d2i_PrivateKey(int type, WOLFSSL_EVP_PKEY** out,
 
     if (out != NULL && *out != NULL) {
         wolfSSL_EVP_PKEY_free(*out);
-        local = *out;
     }
     local = wolfSSL_PKEY_new();
 
