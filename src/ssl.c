@@ -15105,6 +15105,7 @@ static void ExternalFreeX509(WOLFSSL_X509* x509)
     }
 
 
+#ifdef XSNPRINTF /* a snprintf function needs to be available */
     /* Writes the human readable form of x509 to bio.
      *
      * bio  WOLFSSL_BIO to write to.
@@ -15739,6 +15740,7 @@ static void ExternalFreeX509(WOLFSSL_X509* x509)
 
         return SSL_SUCCESS;
     }
+#endif /* XSNPRINTF */
 #endif /* OPENSSL_EXTRA */
 
 
