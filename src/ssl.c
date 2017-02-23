@@ -15103,7 +15103,8 @@ static void ExternalFreeX509(WOLFSSL_X509* x509)
             return 0;
         }
     }
-#endif
+
+
     /* Writes the human readable form of x509 to bio.
      *
      * bio  WOLFSSL_BIO to write to.
@@ -15738,6 +15739,7 @@ static void ExternalFreeX509(WOLFSSL_X509* x509)
 
         return SSL_SUCCESS;
     }
+#endif /* OPENSSL_EXTRA */
 
 
     /* copy name into in buffer, at most sz bytes, if buffer is null will
@@ -22236,7 +22238,7 @@ int wolfSSL_RSA_private_encrypt(int len, unsigned char* in,
     }
 
     key = (RsaKey*)rsa->internal;
-    #ifdef WC_RSA_BLINDING
+    #if defined(WC_RSA_BLINDING) && !defined(HAVE_USER_RSA)
     rng = key->rng;
     #else
     if (wc_InitRng_ex(rng, key->heap) != 0) {
@@ -22247,7 +22249,7 @@ int wolfSSL_RSA_private_encrypt(int len, unsigned char* in,
 
     /* size of output buffer must be size of RSA key */
     sz = wc_RsaSSL_Sign(in, (word32)len, out, wolfSSL_RSA_size(rsa), key, rng);
-    #ifndef WC_RSA_BLINDING
+    #if !defined(WC_RSA_BLINDING) || defined(HAVE_USER_RSA)
     if (wc_FreeRng(rng) != 0) {
         WOLFSSL_MSG("Error freeing random number generator");
         return SSL_FATAL_ERROR;
