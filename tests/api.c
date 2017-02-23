@@ -215,6 +215,7 @@
 
 #ifdef OPENSSL_EXTRA
     #include <wolfssl/openssl/ssl.h>
+    #include <wolfssl/openssl/crypto.h>
     #include <wolfssl/openssl/pkcs12.h>
     #include <wolfssl/openssl/evp.h>
     #include <wolfssl/openssl/dh.h>
@@ -13427,6 +13428,64 @@ static int test_wc_ecc_is_valid_idx (void)
  *----------------------------------------------------------------------------*/
 
 
+static void test_wolfSSL_X509_NAME(void)
+{
+    #if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && !defined(NO_FILESYSTEM) \
+        && !defined(NO_RSA) && defined(WOLFSSL_CERT_GEN)
+    X509* x509;
+    const unsigned char* c;
+    unsigned char buf[4096];
+    int bytes;
+    FILE* f;
+    const X509_NAME* a;
+    const X509_NAME* b;
+    int sz;
+    unsigned char* tmp;
+    char file[] = "./certs/ca-cert.der";
+
+    printf(testingFmt, "wolfSSL_X509_NAME()");
+
+    /* test compile of depricated function, returns 0 */
+    AssertIntEQ(CRYPTO_thread_id(), 0);
+
+    AssertNotNull(a = X509_NAME_new());
+    X509_NAME_free((X509_NAME*)a);
+
+    f = fopen(file, "rb");
+    AssertNotNull(f);
+    bytes = (int)fread(buf, 1, sizeof(buf), f);
+    fclose(f);
+
+    c = buf;
+    AssertNotNull(x509 = wolfSSL_X509_load_certificate_buffer(c, bytes,
+                SSL_FILETYPE_ASN1));
+
+    /* test cmp function */
+    AssertNotNull(a = X509_get_issuer_name(x509));
+    AssertNotNull(b = X509_get_subject_name(x509));
+
+    AssertIntEQ(X509_NAME_cmp(a, b), 0); /* self signed should be 0 */
+
+    tmp = buf;
+    AssertIntGT((sz = i2d_X509_NAME((X509_NAME*)a, &tmp)), 0);
+    if (tmp == buf) {
+        printf("\nERROR - %s line %d failed with:", __FILE__, __LINE__);           \
+        printf(" Expected pointer to be incremented\n");
+        abort();
+    }
+
+    /* retry but with the function creating a buffer */
+    tmp = NULL;
+    AssertIntGT((sz = i2d_X509_NAME((X509_NAME*)b, &tmp)), 0);
+    XFREE(tmp, NULL, DYNAMIC_TYPE_OPENSSL);
+
+    X509_free(x509);
+
+    printf(resultFmt, passed);
+    #endif /* defined(OPENSSL_EXTRA) && !defined(NO_DES3) */
+}
+
+
 static void test_wolfSSL_DES(void)
 {
     #if defined(OPENSSL_EXTRA) && !defined(NO_DES3)
@@ -16206,6 +16265,7 @@ void ApiTest(void)
     test_wolfSSL_mcast();
 
     /* compatibility tests */
+    test_wolfSSL_X509_NAME();
     test_wolfSSL_DES();
     test_wolfSSL_certs();
     test_wolfSSL_ASN1_TIME_print();

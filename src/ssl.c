@@ -15184,11 +15184,11 @@ static void ExternalFreeX509(WOLFSSL_X509* x509)
                 }
                 tmp[0] = '\0';
                 for (i = 0; i < sz - 1 && (3 * i) < tmpSz - valSz; i++) {
-                    XSNPRINTF(val, sizeof(val) - 1, "%2x:", serial[i]);
+                    XSNPRINTF(val, sizeof(val) - 1, "%02x:", serial[i]);
                     val[3] = '\0'; /* make sure is null terminated */
                     XSTRNCAT(tmp, val, valSz);
                 }
-                XSNPRINTF(val, sizeof(val) - 1, "%2x\n", serial[i]);
+                XSNPRINTF(val, sizeof(val) - 1, "%02x\n", serial[i]);
                 val[3] = '\0'; /* make sure is null terminated */
                 XSTRNCAT(tmp, val, valSz);
                 if (wolfSSL_BIO_write(bio, tmp, (int)XSTRLEN(tmp)) <= 0) {
@@ -15222,14 +15222,13 @@ static void ExternalFreeX509(WOLFSSL_X509* x509)
         /* print issuer */
         {
             char* issuer;
-        #ifdef WOLFSSL_SMALL_STACK
+        #ifndef WOLFSSL_SMALL_STACK
             char* buff  = NULL;
             int   issSz = 0;
         #else
             char buff[256];
             int  issSz = 256;
         #endif
-            issuer = buff;
 
             issuer  = wolfSSL_X509_NAME_oneline(
                              wolfSSL_X509_get_issuer_name(x509), buff, issSz);
@@ -15303,7 +15302,6 @@ static void ExternalFreeX509(WOLFSSL_X509* x509)
             char buff[256];
             int  subSz = 256;
         #endif
-            subject = buff;
 
             subject  = wolfSSL_X509_NAME_oneline(
                              wolfSSL_X509_get_subject_name(x509), buff, subSz);
@@ -15447,6 +15445,7 @@ static void ExternalFreeX509(WOLFSSL_X509* x509)
                             WOLFSSL_MSG("Memory error");
                             return SSL_FAILURE;
                         }
+                        XMEMSET(rawKey, 0, rawLen);
                         mp_to_unsigned_bin(&rsa.e, rawKey);
                         if ((word32)rawLen <= sizeof(word32)) {
                             idx = *(word32*)rawKey;
@@ -15621,7 +15620,6 @@ static void ExternalFreeX509(WOLFSSL_X509* x509)
                 char buff[256];
                 int  issSz = 256;
             #endif
-                issuer = buff;
 
                 issuer  = wolfSSL_X509_NAME_oneline(
                                wolfSSL_X509_get_issuer_name(x509), buff, issSz);
@@ -15687,7 +15685,7 @@ static void ExternalFreeX509(WOLFSSL_X509* x509)
                 return SSL_FAILURE;
             }
 
-            wolfSSL_X509_get_signature(x509, NULL, &sigSz);
+            sigSz = (int)x509->sig.length;
             sig = (unsigned char*)XMALLOC(sigSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
             if (sig == NULL || sigSz <= 0) {
                 return SSL_FAILURE;
@@ -22212,7 +22210,7 @@ int wolfSSL_RSA_private_encrypt(int len, unsigned char* in,
                             unsigned char* out, WOLFSSL_RSA* rsa, int padding)
 {
     int sz = 0;
-    WC_RNG* rng;
+    WC_RNG* rng = NULL;
     RsaKey* key;
 
     WOLFSSL_MSG("wolfSSL_RSA_private_encrypt");
@@ -26217,7 +26215,8 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
 
         WOLFSSL_ENTER("wolfSSL_X509_NAME_new");
 
-        name = XMALLOC(sizeof(WOLFSSL_X509_NAME), NULL, DYNAMIC_TYPE_X509);
+        name = (WOLFSSL_X509_NAME*)XMALLOC(sizeof(WOLFSSL_X509_NAME), NULL,
+                DYNAMIC_TYPE_X509);
         if (name != NULL) {
             InitX509Name(name, 1);
         }
@@ -26225,6 +26224,8 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
     }
 
 
+#if defined(WOLFSSL_CERT_GEN) && !defined(NO_RSA)
+/* needed SetName function from asn.c is wrapped by NO_RSA */
     /* helper function for CopyX509NameToCertName() */
     static int CopyX509NameEntry(char* out, int max, char* in, int inLen)
     {
@@ -26377,6 +26378,7 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
 
         return sz;
     }
+#endif /* WOLFSSL_CERT_GEN */
 
 
     /* Compares the two X509 names. If the size of x is larger then y then a
