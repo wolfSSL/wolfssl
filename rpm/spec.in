@@ -72,8 +72,8 @@ mkdir -p $RPM_BUILD_ROOT/
 %{_docdir}/wolfssl/README.txt
 %{_libdir}/libwolfssl.la
 %{_libdir}/libwolfssl.so
-%{_libdir}/libwolfssl.so.3
-%{_libdir}/libwolfssl.so.3.6.0
+%{_libdir}/libwolfssl.so.10
+%{_libdir}/libwolfssl.so.10.0.1
 
 %files devel
 %defattr(-,root,root,-)
@@ -229,6 +229,7 @@ mkdir -p $RPM_BUILD_ROOT/
 %{_includedir}/wolfssl/wolfcrypt/visibility.h
 %{_includedir}/wolfssl/wolfcrypt/wc_encrypt.h
 %{_includedir}/wolfssl/wolfcrypt/wolfevent.h
+%{_includedir}/wolfssl/wolfcrypt/wolfmath.h
 %{_includedir}/wolfssl/error-ssl.h
 %{_includedir}/wolfssl/ocsp.h
 %{_includedir}/wolfssl/openssl/aes.h
@@ -276,6 +277,8 @@ mkdir -p $RPM_BUILD_ROOT/
 %{_libdir}/pkgconfig/wolfssl.pc
 
 %changelog
+* Thu Feb 09 2017 Jacob Barthelmeh <jacob@wolfssl.com>
+- Added header for wolfssl/wolfcrypt/wolfmath.h
 * Fri Nov 11 2016 Jacob Barthelmeh <jacob@wolfssl.com>
 - Added header for wolfssl/openssl/aes.h
 * Fri Oct 28 2016 Jacob Barthelmeh <jacob@wolfssl.com>

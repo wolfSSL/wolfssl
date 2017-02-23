@@ -3114,12 +3114,14 @@ int DhGenKeyPair(WOLFSSL* ssl,
     int ret;
     DhKey dhKey;
 
-    wc_InitDhKey(&dhKey);
-    ret = wc_DhSetKey(&dhKey, p, pSz, g, gSz);
+    ret = wc_InitDhKey(&dhKey);
     if (ret == 0) {
-        ret = wc_DhGenerateKeyPair(&dhKey, ssl->rng, priv, privSz, pub, pubSz);
+        ret = wc_DhSetKey(&dhKey, p, pSz, g, gSz);
+        if (ret == 0) {
+            ret = wc_DhGenerateKeyPair(&dhKey, ssl->rng, priv, privSz, pub, pubSz);
+        }
+        wc_FreeDhKey(&dhKey);
     }
-    wc_FreeDhKey(&dhKey);
 
     return ret;
 }
@@ -3135,16 +3137,18 @@ int DhAgree(WOLFSSL* ssl,
     int ret;
     DhKey dhKey;
 
-    wc_InitDhKey(&dhKey);
-    ret = wc_DhSetKey(&dhKey, p, pSz, g, gSz);
-    if (ret == 0 && pub) {
-        /* for DH, encSecret is Yc, agree is pre-master */
-        ret = wc_DhGenerateKeyPair(&dhKey, ssl->rng, priv, privSz, pub, pubSz);
-    }
+    ret = wc_InitDhKey(&dhKey);
     if (ret == 0) {
-        ret = wc_DhAgree(&dhKey, agree, agreeSz, priv, *privSz, otherPub, otherPubSz);
+        ret = wc_DhSetKey(&dhKey, p, pSz, g, gSz);
+        if (ret == 0 && pub) {
+            /* for DH, encSecret is Yc, agree is pre-master */
+            ret = wc_DhGenerateKeyPair(&dhKey, ssl->rng, priv, privSz, pub, pubSz);
+        }
+        if (ret == 0) {
+            ret = wc_DhAgree(&dhKey, agree, agreeSz, priv, *privSz, otherPub, otherPubSz);
+        }
+        wc_FreeDhKey(&dhKey);
     }
-    wc_FreeDhKey(&dhKey);
 
     return ret;
 }
@@ -3853,7 +3857,7 @@ void FreeHandshakeResources(WOLFSSL* ssl)
     wc_ShaFree(&ssl->hsHashes->hashSha);
 #endif
 #ifndef NO_SHA256
-    wc_Sha256Free(&ssl->hsHashes->hashSha25);
+    wc_Sha256Free(&ssl->hsHashes->hashSha256);
 #endif
 
 #ifdef HAVE_SECURE_RENEGOTIATION
@@ -5495,6 +5499,16 @@ static int BuildMD5(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
 #ifdef WOLFSSL_SMALL_STACK
         Md5* md5   = (Md5*)XMALLOC(sizeof(Md5), NULL, DYNAMIC_TYPE_TMP_BUFFER);
         Md5* md5_2 = (Md5*)XMALLOC(sizeof(Md5), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
+        if (md5 == NULL || md5_2 == NULL) {
+            if (md5) {
+                XFREE(md5, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            }
+            if (md5_2) {
+                XFREE(md5_2, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            }
+            return MEMORY_E;
+        }
 #else
         Md5 md5[1];
         Md5 md5_2[1];
@@ -5577,18 +5591,29 @@ static int BuildMD5(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
     XFREE(md5, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(md5_2, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
-    return ret;
+
+    return 0;
 }
 
 
 /* calculate SHA hash for finished */
-static void BuildSHA(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
+static int BuildSHA(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
 {
     byte sha_result[SHA_DIGEST_SIZE];
 
 #ifdef WOLFSSL_SMALL_STACK
         Sha* sha = (Sha*)XMALLOC(sizeof(Sha), NULL, DYNAMIC_TYPE_TMP_BUFFER);
         Sha* sha2 = (Sha*)XMALLOC(sizeof(Sha), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
+        if (sha == NULL || sha2 == NULL) {
+            if (sha) {
+                XFREE(sha, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            }
+            if (sha2) {
+                XFREE(sha2, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            }
+            return MEMORY_E;
+        }
 #else
         Sha sha[1];
         Sha sha2[1] ;
@@ -5614,6 +5639,7 @@ static void BuildSHA(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
     XFREE(sha2, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
 
+    return 0;
 }
 #endif
 
@@ -5657,17 +5683,9 @@ static int BuildFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
 #ifndef NO_OLD_TLS
     if (!ssl->options.tls) {
         ret = BuildMD5(ssl, hashes, sender);
-        if (ret != 0) {
-        #ifdef WOLFSSL_SMALL_STACK
-        #ifdef WOLFSSL_SHA384
-            /* restore */
-            ssl->hsHashes->hashSha384 = sha384[0];
-            XFREE(sha384, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        #endif
-        #endif
-            return ret;
+        if (ret == 0) {
+            ret = BuildSHA(ssl, hashes, sender);
         }
-        BuildSHA(ssl, hashes, sender);
     }
 #endif
 

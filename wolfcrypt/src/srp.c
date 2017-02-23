@@ -310,7 +310,8 @@ int wc_SrpSetParams(Srp* srp, const byte* N,    word32 nSz,
     byte digest1[SRP_MAX_DIGEST_SIZE];
     byte digest2[SRP_MAX_DIGEST_SIZE];
     byte pad = 0;
-    int i, j, r;
+    int i, r;
+    int j = 0;
 
     if (!srp || !N || !g || !salt || nSz < gSz)
         return BAD_FUNC_ARG;

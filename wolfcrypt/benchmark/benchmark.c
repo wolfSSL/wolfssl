@@ -499,6 +499,10 @@ int benchmark_test(void *args)
     }
 #endif
 
+    if (wolfCrypt_Cleanup() != 0) {
+        printf("error with wolfCrypt_Cleanup\n");
+    }
+
 #if defined(USE_WOLFSSL_MEMORY) && defined(WOLFSSL_TRACK_MEMORY)
     ShowMemoryTracker();
 #endif
@@ -1887,7 +1891,11 @@ void bench_dh(void)
 #endif /* USE_CERT_BUFFERS */
 
 
-    wc_InitDhKey(&dhKey);
+    if (wc_InitDhKey(&dhKey) != 0) {
+        printf("InitDhKey failed!\n");
+        return;
+    }
+
 #ifdef NO_ASN
     bytes = wc_DhSetKey(&dhKey, dh_p, sizeof(dh_p), dh_g, sizeof(dh_g));
 #else

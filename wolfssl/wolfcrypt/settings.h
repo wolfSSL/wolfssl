@@ -914,8 +914,9 @@ static char *fgets(char *buff, int sz, FILE *fp)
 #endif /* FREESCALE_USE_LTC */
 
 #ifdef FREESCALE_LTC_TFM_RSA_4096_ENABLE
-    #undef  USE_CERT_BUFFERS_2048
+    #undef  USE_CERT_BUFFERS_4096
     #define USE_CERT_BUFFERS_4096
+    #undef  FP_MAX_BITS
     #define FP_MAX_BITS (8192)
 
     #undef  NO_DH

@@ -63,11 +63,12 @@ typedef struct Sha256 {
 #ifdef FREESCALE_LTC_SHA
     ltc_hash_ctx_t ctx;
 #else
+    /* alignment on digest and buffer speeds up ARMv8 crypto operations */
+    ALIGN16 word32  digest[SHA256_DIGEST_SIZE / sizeof(word32)];
+    ALIGN16 word32  buffer[SHA256_BLOCK_SIZE  / sizeof(word32)];
     word32  buffLen;   /* in bytes          */
     word32  loLen;     /* length in bytes   */
     word32  hiLen;     /* length in bytes   */
-    ALIGN16 word32  digest[SHA256_DIGEST_SIZE / sizeof(word32)];
-    ALIGN16 word32  buffer[SHA256_BLOCK_SIZE  / sizeof(word32)];
     #ifdef WOLFSSL_PIC32MZ_HASH
         pic32mz_desc desc ; /* Crypt Engine descriptor */
     #endif

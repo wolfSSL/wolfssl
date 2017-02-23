@@ -873,9 +873,19 @@ int LoadCRL(WOLFSSL_CRL* crl, const char* path, int type, int monitor)
             pathBuf[pathLen] = '\0'; /* Null Terminate */
 
             if (type == SSL_FILETYPE_PEM) {
+                /* free old path before setting a new one */
+                if (crl->monitors[0].path) {
+                    XFREE(crl->monitors[0].path, crl->heap,
+                            DYNAMIC_TYPE_CRL_MONITOR);
+                }
                 crl->monitors[0].path = pathBuf;
                 crl->monitors[0].type = SSL_FILETYPE_PEM;
             } else {
+                /* free old path before setting a new one */
+                if (crl->monitors[1].path) {
+                    XFREE(crl->monitors[1].path, crl->heap,
+                            DYNAMIC_TYPE_CRL_MONITOR);
+                }
                 crl->monitors[1].path = pathBuf;
                 crl->monitors[1].type = SSL_FILETYPE_ASN1;
             }

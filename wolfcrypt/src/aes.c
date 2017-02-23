@@ -210,6 +210,7 @@ void wc_AesAsyncFree(Aes* aes)
         int ret = 0;
     #ifdef WOLFSSL_STM32_CUBEMX
         CRYP_HandleTypeDef hcryp;
+        XMEMSET(&hcryp, 0, sizeof(CRYP_HandleTypeDef));
 
         /* load key into correct registers */
         switch(aes->rounds) {
@@ -225,8 +226,6 @@ void wc_AesAsyncFree(Aes* aes)
             default:
                 break;
         }
-
-        XMEMSET(&hcryp, 0, sizeof(CRYP_HandleTypeDef));
         hcryp.Instance = CRYP;
         hcryp.Init.DataType = CRYP_DATATYPE_8B;
         hcryp.Init.pKey = (uint8_t*)aes->key;
@@ -330,7 +329,7 @@ void wc_AesAsyncFree(Aes* aes)
         int ret = 0;
     #ifdef WOLFSSL_STM32_CUBEMX
         CRYP_HandleTypeDef hcryp;
-
+        XMEMSET(&hcryp, 0, sizeof(CRYP_HandleTypeDef));
         /* load key into correct registers */
         switch(aes->rounds) {
             case 10: /* 128-bit key */
@@ -345,8 +344,6 @@ void wc_AesAsyncFree(Aes* aes)
             default:
                 break;
         }
-
-        XMEMSET(&hcryp, 0, sizeof(CRYP_HandleTypeDef));
         hcryp.Instance = CRYP;
         hcryp.Init.DataType = CRYP_DATATYPE_8B;
         hcryp.Init.pKey = (uint8_t*)aes->key;
@@ -382,12 +379,12 @@ void wc_AesAsyncFree(Aes* aes)
     #else
         /* if LTC doesn't have GCM, use software with LTC AES ECB mode */
         static int wc_AesEncrypt(Aes* aes, const byte* inBlock, byte* outBlock)
-        {    
+        {
             wc_AesEncryptDirect(aes, outBlock, inBlock);
             return 0;
         }
         static int wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
-        {    
+        {
             wc_AesDecryptDirect(aes, outBlock, inBlock);
             return 0;
         }
@@ -1699,7 +1696,7 @@ int wc_AesSetKey(Aes* aes, const byte* userKey, word32 keylen,
 
         aes->rounds = keylen/4 + 6;
         XMEMCPY(aes->key, userKey, keylen);
-        
+
         #ifdef WOLFSSL_AES_COUNTER
             aes->left = 0;
         #endif /* WOLFSSL_AES_COUNTER */
@@ -1730,7 +1727,7 @@ int wc_AesSetKey(Aes* aes, const byte* userKey, word32 keylen,
         #ifdef WOLFSSL_AES_COUNTER
             aes->left = 0;
         #endif /* WOLFSSL_AES_COUNTER */
-        
+
         aes->rounds = keylen/4 + 6;
 
         ret = wolfSSL_CryptHwMutexLock();
@@ -2086,7 +2083,7 @@ int wc_InitAes_h(Aes* aes, void* h)
     {
         int ret = 0;
         CRYP_HandleTypeDef hcryp;
-
+        XMEMSET(&hcryp, 0, sizeof(CRYP_HandleTypeDef));
         /* load key into correct registers */
         switch(aes->rounds) {
             case 10: /* 128-bit key */
@@ -2101,8 +2098,6 @@ int wc_InitAes_h(Aes* aes, void* h)
             default:
                 break;
         }
-
-        XMEMSET(&hcryp, 0, sizeof(CRYP_HandleTypeDef));
         hcryp.Instance = CRYP;
         hcryp.Init.DataType = CRYP_DATATYPE_8B;
         hcryp.Init.pKey = (uint8_t*)aes->key;
@@ -2512,8 +2507,8 @@ int wc_InitAes_h(Aes* aes, void* h)
         return (wc_AesCbcCrypt(aes, po, pi, sz, SEC_DESC_AES_CBC_DECRYPT));
     }
     #endif /* HAVE_AES_DECRYPT */
-    
-#elif defined(FREESCALE_LTC)    
+
+#elif defined(FREESCALE_LTC)
     int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
     {
         uint32_t keySize;
@@ -2886,7 +2881,7 @@ int wc_AesEcbDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
         void wc_AesCtrEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
         {
             CRYP_HandleTypeDef hcryp;
-
+            XMEMSET(&hcryp, 0, sizeof(CRYP_HandleTypeDef));
             /* load key into correct registers */
             switch(aes->rounds) {
                 case 10: /* 128-bit key */
@@ -2901,8 +2896,6 @@ int wc_AesEcbDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
                 default:
                     break;
             }
-
-            XMEMSET(&hcryp, 0, sizeof(CRYP_HandleTypeDef));
             hcryp.Instance = CRYP;
             hcryp.Init.DataType = CRYP_DATATYPE_8B;
             hcryp.Init.pKey = aes->key;
@@ -3087,7 +3080,7 @@ int wc_AesEcbDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
             uint32_t keySize;
             byte *iv, *enc_key;
             byte* tmp = (byte*)aes->tmp + AES_BLOCK_SIZE - aes->left;
-            
+
             /* consume any unused bytes left in aes->tmp */
             while (aes->left && sz) {
                 *(out++) = *(in++) ^ *(tmp++);

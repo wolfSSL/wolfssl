@@ -37,7 +37,7 @@
     #include <wolfssl/wolfcrypt/tfm.h>
 #else
 
-#include <wolfssl/wolfcrypt/random.h> 
+#include <wolfssl/wolfcrypt/random.h>
 
 #ifndef CHAR_BIT
     #include <limits.h>
@@ -96,7 +96,7 @@ extern "C" {
 #elif defined(MP_16BIT) || defined(NO_64BIT)
    typedef unsigned short     mp_digit;
    typedef unsigned int       mp_word;
-   #define DIGIT_BIT          12 
+   #define DIGIT_BIT          12
 #elif defined(MP_64BIT)
    /* for GCC only on supported platforms */
    typedef unsigned long long mp_digit;  /* 64 bit type, 128 uses mode(TI) */
@@ -239,6 +239,7 @@ void mp_clear (mp_int * a);
 void mp_forcezero(mp_int * a);
 int  mp_unsigned_bin_size(mp_int * a);
 int  mp_read_unsigned_bin (mp_int * a, const unsigned char *b, int c);
+int  mp_to_unsigned_bin_at_pos(int x, mp_int *t, unsigned char *b);
 int  mp_to_unsigned_bin (mp_int * a, unsigned char *b);
 int  mp_exptmod (mp_int * G, mp_int * X, mp_int * P, mp_int * Y);
 /* end functions needed by Rsa */
@@ -265,7 +266,7 @@ int  mp_invmod_slow (mp_int * a, mp_int * b, mp_int * c);
 int  mp_cmp_mag (mp_int * a, mp_int * b);
 int  mp_cmp (mp_int * a, mp_int * b);
 int  mp_cmp_d(mp_int * a, mp_digit b);
-void mp_set (mp_int * a, mp_digit b);
+int  mp_set (mp_int * a, mp_digit b);
 int  mp_is_bit_set (mp_int * a, mp_digit b);
 int  mp_mod (mp_int * a, mp_int * b, mp_int * c);
 int  mp_div(mp_int * a, mp_int * b, mp_int * c, mp_int * d);

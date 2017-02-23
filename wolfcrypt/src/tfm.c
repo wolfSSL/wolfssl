@@ -198,11 +198,7 @@ void s_fp_sub(fp_int *a, fp_int *b, fp_int *c)
 }
 
 /* c = a * b */
-#if defined(FREESCALE_LTC_TFM)
-void wolfcrypt_fp_mul(fp_int *A, fp_int *B, fp_int *C)
-#else
 void fp_mul(fp_int *A, fp_int *B, fp_int *C)
-#endif
 {
     int   y, yy, oldused;
 
@@ -742,11 +738,7 @@ void fp_div_2d(fp_int *a, int b, fp_int *c, fp_int *d)
 }
 
 /* c = a mod b, 0 <= c < b  */
-#if defined(FREESCALE_LTC_TFM)
-int wolfcrypt_fp_mod(fp_int *a, fp_int *b, fp_int *c)
-#else
 int fp_mod(fp_int *a, fp_int *b, fp_int *c)
-#endif
 {
    fp_int t;
    int    err;
@@ -897,11 +889,7 @@ top:
 }
 
 /* c = 1/a (mod b) for odd b only */
-#if defined(FREESCALE_LTC_TFM)
-int wolfcrypt_fp_invmod(fp_int *a, fp_int *b, fp_int *c)
-#else
 int fp_invmod(fp_int *a, fp_int *b, fp_int *c)
-#endif
 {
   fp_int  x, y, u, v, B, D;
   int     neg;
@@ -993,11 +981,7 @@ top:
 }
 
 /* d = a * b (mod c) */
-#if defined(FREESCALE_LTC_TFM)
-int wolfcrypt_fp_mulmod(fp_int *a, fp_int *b, fp_int *c, fp_int *d)
-#else
 int fp_mulmod(fp_int *a, fp_int *b, fp_int *c, fp_int *d)
-#endif
 {
   int err;
   fp_int t;
@@ -1076,11 +1060,7 @@ const wolfssl_word wc_off_on_addr[2] =
    Based on work by Marc Joye, Sung-Ming Yen, "The Montgomery Powering Ladder",
    Cryptographic Hardware and Embedded Systems, CHES 2002
 */
-#if defined(FREESCALE_LTC_TFM)
-int _wolfcrypt_fp_exptmod(fp_int * G, fp_int * X, fp_int * P, fp_int * Y)
-#else
 static int _fp_exptmod(fp_int * G, fp_int * X, fp_int * P, fp_int * Y)
-#endif
 {
 #ifdef WC_NO_CACHE_RESISTANT
   fp_int   R[2];
@@ -2248,14 +2228,28 @@ int mp_sub (mp_int * a, mp_int * b, mp_int * c)
 }
 
 /* high level multiplication (handles sign) */
+#if defined(FREESCALE_LTC_TFM)
+int wolfcrypt_mp_mul(mp_int * a, mp_int * b, mp_int * c)
+#else
 int mp_mul (mp_int * a, mp_int * b, mp_int * c)
+#endif
 {
   fp_mul(a, b, c);
   return MP_OKAY;
 }
 
+int mp_mul_d (mp_int * a, mp_digit b, mp_int * c)
+{
+  fp_mul_d(a, b, c);
+  return MP_OKAY;
+}
+
 /* d = a * b (mod c) */
+#if defined(FREESCALE_LTC_TFM)
+int wolfcrypt_mp_mulmod (mp_int * a, mp_int * b, mp_int * c, mp_int * d)
+#else
 int mp_mulmod (mp_int * a, mp_int * b, mp_int * c, mp_int * d)
+#endif
 {
   return fp_mulmod(a, b, c, d);
 }
@@ -2273,13 +2267,21 @@ int mp_addmod(mp_int *a, mp_int *b, mp_int *c, mp_int *d)
 }
 
 /* c = a mod b, 0 <= c < b */
+#if defined(FREESCALE_LTC_TFM)
+int wolfcrypt_mp_mod (mp_int * a, mp_int * b, mp_int * c)
+#else
 int mp_mod (mp_int * a, mp_int * b, mp_int * c)
+#endif
 {
   return fp_mod (a, b, c);
 }
 
 /* hac 14.61, pp608 */
+#if defined(FREESCALE_LTC_TFM)
+int wolfcrypt_mp_invmod (mp_int * a, mp_int * b, mp_int * c)
+#else
 int mp_invmod (mp_int * a, mp_int * b, mp_int * c)
+#endif
 {
   return fp_invmod(a, b, c);
 }
@@ -2289,7 +2291,11 @@ int mp_invmod (mp_int * a, mp_int * b, mp_int * c)
  * embedded in the normal function but that wasted alot of stack space
  * for nothing (since 99% of the time the Montgomery code would be called)
  */
+#if defined(FREESCALE_LTC_TFM)
+int wolfcrypt_mp_exptmod (mp_int * G, mp_int * X, mp_int * P, mp_int * Y)
+#else
 int mp_exptmod (mp_int * G, mp_int * X, mp_int * P, mp_int * Y)
+#endif
 {
   return fp_exptmod(G, X, P, Y);
 }
@@ -2310,6 +2316,11 @@ int mp_cmp_d(mp_int * a, mp_digit b)
 int mp_unsigned_bin_size (mp_int * a)
 {
   return fp_unsigned_bin_size(a);
+}
+
+int mp_to_unsigned_bin_at_pos(int x, fp_int *t, unsigned char *b)
+{
+    return fp_to_unsigned_bin_at_pos(x, t, b);
 }
 
 /* store in unsigned [big endian] format */
@@ -3021,12 +3032,6 @@ int mp_read_radix(mp_int *a, const char *str, int radix)
 }
 
 /* fast math conversion */
-void mp_set(fp_int *a, fp_digit b)
-{
-    fp_set(a,b);
-}
-
-/* fast math conversion */
 int mp_sqr(fp_int *A, fp_int *B)
 {
     fp_sqr(A, B);
@@ -3070,6 +3075,15 @@ int mp_cnt_lsb(fp_int* a)
 #endif /* HAVE_COMP_KEY */
 
 #endif /* HAVE_ECC */
+
+#if defined(HAVE_ECC) || !defined(NO_RSA) || !defined(NO_DSA)
+/* fast math conversion */
+int mp_set(fp_int *a, fp_digit b)
+{
+    fp_set(a,b);
+    return MP_OKAY;
+}
+#endif
 
 #if defined(WOLFSSL_KEY_GEN) || defined(HAVE_COMP_KEY) || \
     defined(WOLFSSL_DEBUG_MATH)

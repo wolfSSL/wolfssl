@@ -606,6 +606,8 @@ typedef fp_int mp_int;
 #define MP_OKAY FP_OKAY /* ok result    */
 #define MP_NO   FP_NO   /* yes/no result */
 #define MP_YES  FP_YES  /* yes/no result */
+#define MP_ZPOS FP_ZPOS
+#define MP_NEG  FP_NEG
 
 /* Prototypes */
 #define mp_zero(a)  fp_zero(a)
@@ -622,6 +624,7 @@ int  mp_sub (mp_int * a, mp_int * b, mp_int * c);
 int  mp_add_d (mp_int * a, mp_digit b, mp_int * c);
 
 int  mp_mul (mp_int * a, mp_int * b, mp_int * c);
+int  mp_mul_d (mp_int * a, mp_digit b, mp_int * c);
 int  mp_mulmod (mp_int * a, mp_int * b, mp_int * c, mp_int * d);
 int  mp_submod (mp_int* a, mp_int* b, mp_int* c, mp_int* d);
 int  mp_addmod (mp_int* a, mp_int* b, mp_int* c, mp_int* d);
@@ -636,6 +639,7 @@ int  mp_cmp_d(mp_int *a, mp_digit b);
 
 int  mp_unsigned_bin_size(mp_int * a);
 int  mp_read_unsigned_bin (mp_int * a, const unsigned char *b, int c);
+int  mp_to_unsigned_bin_at_pos(int x, mp_int *t, unsigned char *b);
 int  mp_to_unsigned_bin (mp_int * a, unsigned char *b);
 
 int  mp_sub_d(fp_int *a, fp_digit b, fp_int *c);
@@ -659,12 +663,15 @@ int mp_radix_size (mp_int * a, int radix, int *size);
 
 #ifdef HAVE_ECC
     int mp_read_radix(mp_int* a, const char* str, int radix);
-    void mp_set(fp_int *a, fp_digit b);
     int mp_sqr(fp_int *a, fp_int *b);
     int mp_montgomery_reduce(fp_int *a, fp_int *m, fp_digit mp);
     int mp_montgomery_setup(fp_int *a, fp_digit *rho);
     int mp_div_2(fp_int * a, fp_int * b);
     int mp_init_copy(fp_int * a, fp_int * b);
+#endif
+
+#if defined(HAVE_ECC) || !defined(NO_RSA) || !defined(NO_DSA)
+    int mp_set(fp_int *a, fp_digit b);
 #endif
 
 #if defined(HAVE_ECC) || defined(WOLFSSL_KEY_GEN)

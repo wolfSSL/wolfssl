@@ -386,7 +386,7 @@ WOLFSSL_API
 #endif /* SESSION_INDEX && SESSION_CERTS */
 
 typedef int (*VerifyCallback)(int, WOLFSSL_X509_STORE_CTX*);
-typedef int (*pem_password_cb)(char*, int, int, void*);
+typedef int (pem_password_cb)(char*, int, int, void*);
 
 WOLFSSL_API void wolfSSL_CTX_set_verify(WOLFSSL_CTX*, int,
                                       VerifyCallback verify_callback);
@@ -670,7 +670,8 @@ WOLFSSL_API void* wolfSSL_get_ex_data(const WOLFSSL*, int);
 
 WOLFSSL_API void wolfSSL_CTX_set_default_passwd_cb_userdata(WOLFSSL_CTX*,
                                                           void* userdata);
-WOLFSSL_API void wolfSSL_CTX_set_default_passwd_cb(WOLFSSL_CTX*, pem_password_cb);
+WOLFSSL_API void wolfSSL_CTX_set_default_passwd_cb(WOLFSSL_CTX*,
+                                                   pem_password_cb*);
 
 
 WOLFSSL_API void wolfSSL_CTX_set_info_callback(WOLFSSL_CTX*,
@@ -891,6 +892,9 @@ enum {
    since not using thread storage error queue */
 #include <stdio.h>
 WOLFSSL_API void  wolfSSL_ERR_print_errors_fp(FILE*, int err);
+#if defined(OPENSSL_EXTRA) || defined(DEBUG_WOLFSSL_VERBOSE)
+WOLFSSL_API void wolfSSL_ERR_dump_errors_fp(FILE* fp);
+#endif
 #endif
 
 enum { /* ssl Constants */

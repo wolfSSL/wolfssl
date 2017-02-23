@@ -106,8 +106,7 @@ typedef WOLFSSL_X509_STORE_CTX X509_STORE_CTX;
 #define SSL_get_shared_ciphers(ctx,buf,len) \
                                 strncpy(buf, "Not Implemented, SSLv2 only", len)
 
-/* @TODO */
-#define ERR_print_errors_fp(file) wolfSSL_ERR_print_errors_fp((file))
+#define ERR_print_errors_fp(file) wolfSSL_ERR_dump_errors_fp((file))
 
 /* at the moment only returns ok */
 #define SSL_get_verify_result         wolfSSL_get_verify_result
