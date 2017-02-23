@@ -330,7 +330,7 @@ int mp_copy (mp_int * a, mp_int * b)
   }
 
   /* grow dest */
-  if (b->alloc < a->used) {
+  if (b->alloc < a->used || b->dp == NULL) {
      if ((res = mp_grow (b, a->used)) != MP_OKAY) {
         return res;
      }
@@ -1633,7 +1633,7 @@ int s_mp_sub (mp_int * a, mp_int * b, mp_int * c)
   max_a = a->used;
 
   /* init result */
-  if (c->alloc < max_a) {
+  if (c->alloc < max_a || c->dp == NULL) {
     if ((res = mp_grow (c, max_a)) != MP_OKAY) {
       return res;
     }
