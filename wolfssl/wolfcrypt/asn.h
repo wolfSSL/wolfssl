@@ -787,7 +787,8 @@ WOLFSSL_LOCAL int wc_GetKeyOID(byte* key, word32 keySz, const byte** curveOID,
         word32* oidSz, int* algoID, void* heap);
 
 typedef struct tm wolfssl_tm;
-#if defined(WOLFSSL_MYSQL_COMPATIBLE) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
+#if defined(WOLFSSL_MYSQL_COMPATIBLE) || defined(OPENSSL_EXTRA) || \
+    defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
 WOLFSSL_LOCAL int GetTimeString(byte* date, int format, char* buf, int len);
 #endif
 WOLFSSL_LOCAL int ExtractDate(const unsigned char* date, unsigned char format,
@@ -800,6 +801,7 @@ WOLFSSL_ASN_API int SetName(byte* output, word32 outputSz, CertName* name);
 #endif
 WOLFSSL_LOCAL int GetShortInt(const byte* input, word32* inOutIdx, int* number,
                               word32 maxIdx);
+WOLFSSL_LOCAL char* GetSigName(int oid);
 WOLFSSL_LOCAL int GetLength(const byte* input, word32* inOutIdx, int* len,
                            word32 maxIdx);
 WOLFSSL_LOCAL int GetSequence(const byte* input, word32* inOutIdx, int* len,

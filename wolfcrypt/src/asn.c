@@ -399,6 +399,73 @@ static int GetInteger7Bit(const byte* input, word32* inOutIdx, word32 maxIdx)
     return b;
 }
 
+
+#ifndef NO_DSA
+static char sigSha1wDsaName[] = "SHAwDSA";
+#endif /* NO_DSA */
+#ifndef NO_RSA
+static char sigMd2wRsaName[] = "MD2wRSA";
+static char sigMd5wRsaName[] = "MD5wRSA";
+static char sigSha1wRsaName[] = "SHAwRSA";
+static char sigSha224wRsaName[] = "SHA224wRSA";
+static char sigSha256wRsaName[] = "SHA256wRSA";
+static char sigSha384wRsaName[] = "SHA384wRSA";
+static char sigSha512wRsaName[] = "SHA512wRSA";
+#endif /* NO_RSA */
+#ifdef HAVE_ECC
+static char sigSha1wEcdsaName[] = "SHAwECDSA";
+static char sigSha224wEcdsaName[] = "SHA224wECDSA";
+static char sigSha256wEcdsaName[] = "SHA256wECDSA";
+static char sigSha384wEcdsaName[] = "SHA384wECDSA";
+static char sigSha512wEcdsaName[] = "SHA512wECDSA";
+#endif /* HAVE_ECC */
+static char sigUnknownName[] = "Unknown";
+
+
+/* Get the human readable string for a signature type
+ *
+ * oid  Oid value for signature
+ */
+char* GetSigName(int oid) {
+    switch (oid) {
+        #ifndef NO_DSA
+        case CTC_SHAwDSA:
+            return sigSha1wDsaName;
+        #endif /* NO_DSA */
+        #ifndef NO_RSA
+        case CTC_MD2wRSA:
+            return sigMd2wRsaName;
+        case CTC_MD5wRSA:
+            return sigMd5wRsaName;
+        case CTC_SHAwRSA:
+            return sigSha1wRsaName;
+        case CTC_SHA224wRSA:
+            return sigSha224wRsaName;
+        case CTC_SHA256wRSA:
+            return sigSha256wRsaName;
+        case CTC_SHA384wRSA:
+            return sigSha384wRsaName;
+        case CTC_SHA512wRSA:
+            return sigSha512wRsaName;
+        #endif /* NO_RSA */
+        #ifdef HAVE_ECC
+        case CTC_SHAwECDSA:
+            return sigSha1wEcdsaName;
+        case CTC_SHA224wECDSA:
+            return sigSha224wEcdsaName;
+        case CTC_SHA256wECDSA:
+            return sigSha256wEcdsaName;
+        case CTC_SHA384wECDSA:
+            return sigSha384wEcdsaName;
+        case CTC_SHA512wECDSA:
+            return sigSha512wEcdsaName;
+        #endif /* HAVE_ECC */
+        default:
+            return sigUnknownName;
+    }
+}
+
+
 #if !defined(NO_DSA) || defined(HAVE_ECC) || \
    (!defined(NO_RSA) && \
         (defined(WOLFSSL_CERT_GEN) || \
@@ -4102,7 +4169,8 @@ static INLINE int DateLessThan(const struct tm* a, const struct tm* b)
 }
 
 
-#if defined(WOLFSSL_MYSQL_COMPATIBLE) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
+#if defined(WOLFSSL_MYSQL_COMPATIBLE) || defined(OPENSSL_EXTRA) \
+    || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
 int GetTimeString(byte* date, int format, char* buf, int len)
 {
     struct tm t;

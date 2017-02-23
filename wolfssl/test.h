@@ -518,6 +518,17 @@ static INLINE void ShowX509(WOLFSSL_X509* x509, const char* hdr)
 
     XFREE(subject, 0, DYNAMIC_TYPE_OPENSSL);
     XFREE(issuer,  0, DYNAMIC_TYPE_OPENSSL);
+
+#if defined(OPENSSL_EXTRA) && defined(SHOW_CERTS)
+    {
+        WOLFSSL_BIO* bio;
+
+        bio = wolfSSL_BIO_new(wolfSSL_BIO_s_file());
+        wolfSSL_BIO_set_fp(bio, stdout, BIO_NOCLOSE);
+        wolfSSL_X509_print(bio, x509);
+        wolfSSL_BIO_free(bio);
+    }
+#endif
 }
 
 #endif /* KEEP_PEER_CERT || SESSION_CERTS */
