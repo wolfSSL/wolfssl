@@ -513,9 +513,6 @@ static INLINE int Sha512Update(Sha512* sha512, const byte* data, word32 len)
 {
     byte* local;
 
-    if (sha512 == NULL ||(data == NULL && len > 0)) {
-        return BAD_FUNC_ARG;
-    }
     /* do block size increments */
     local = (byte*)sha512->buffer;
     SAVE_XMM_YMM ; /* for Intel AVX */
@@ -550,6 +547,9 @@ static INLINE int Sha512Update(Sha512* sha512, const byte* data, word32 len)
 
 int wc_Sha512Update(Sha512* sha512, const byte* data, word32 len)
 {
+    if (sha512 == NULL ||(data == NULL && len > 0)) {
+        return BAD_FUNC_ARG;
+    }
     return Sha512Update(sha512, data, len);
 }
 
@@ -1349,6 +1349,10 @@ int wc_InitSha384(Sha384* sha384)
 
 int wc_Sha384Update(Sha384* sha384, const byte* data, word32 len)
 {
+    if (sha384 == NULL || (data == NULL && len > 0)) {
+        return BAD_FUNC_ARG;
+    }
+
     return Sha512Update((Sha512 *)sha384, data, len);
 }
 

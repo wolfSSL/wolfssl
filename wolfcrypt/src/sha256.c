@@ -96,7 +96,7 @@ int wc_Sha256Final(Sha256* sha, byte* out)
 #if defined(HAVE_INTEL_AVX2)
 #define HAVE_INTEL_RORX
 #endif
- 
+
 
 /*****
 Intel AVX1/AVX2 Macro Control Structure
@@ -107,16 +107,16 @@ Intel AVX1/AVX2 Macro Control Structure
 #define HAVE_INTEL_RORX
 
 
-int InitSha256(Sha256* sha256) { 
+int InitSha256(Sha256* sha256) {
      Save/Recover XMM, YMM
      ...
 }
 
 #if defined(HAVE_INTEL_AVX1)|| defined(HAVE_INTEL_AVX2)
-  Transform() ; Function prototype 
+  Transform() ; Function prototype
 #else
   Transform() {   }
-  int Sha256Final() { 
+  int Sha256Final() {
      Save/Recover XMM, YMM
      ...
   }
@@ -131,21 +131,21 @@ int InitSha256(Sha256* sha256) {
 #endif
 
 #if defined(HAVE_INTEL_AVX1)
-   
+
    #define XMM Instructions/inline asm
-   
+
    int Transform() {
        Stitched Message Sched/Round
-    } 
-   
+    }
+
 #elif defined(HAVE_INTEL_AVX2)
-  
+
   #define YMM Instructions/inline asm
-  
+
   int Transform() {
       More granural Stitched Message Sched/Round
   }
-  
+
 */
 
 
@@ -173,9 +173,9 @@ int InitSha256(Sha256* sha256) {
 
 #define EAX 0
 #define EBX 1
-#define ECX 2 
+#define ECX 2
 #define EDX 3
-    
+
 #define CPUID_AVX1   0x1
 #define CPUID_AVX2   0x2
 #define CPUID_RDRAND 0x4
@@ -193,15 +193,15 @@ static word32 cpuid_flags = 0 ;
 
 static word32 cpuid_flag(word32 leaf, word32 sub, word32 num, word32 bit) {
     int got_intel_cpu=0;
-    unsigned int reg[5]; 
-    
+    unsigned int reg[5];
+
     reg[4] = '\0' ;
-    cpuid(reg, 0, 0);  
-    if(XMEMCMP((char *)&(reg[EBX]), "Genu", 4) == 0 &&  
-                XMEMCMP((char *)&(reg[EDX]), "ineI", 4) == 0 &&  
-                XMEMCMP((char *)&(reg[ECX]), "ntel", 4) == 0) {  
-        got_intel_cpu = 1;  
-    }    
+    cpuid(reg, 0, 0);
+    if(XMEMCMP((char *)&(reg[EBX]), "Genu", 4) == 0 &&
+                XMEMCMP((char *)&(reg[EDX]), "ineI", 4) == 0 &&
+                XMEMCMP((char *)&(reg[ECX]), "ntel", 4) == 0) {
+        got_intel_cpu = 1;
+    }
     if (got_intel_cpu) {
         cpuid(reg, leaf, sub);
         return((reg[num]>>bit)&0x1) ;
@@ -209,12 +209,12 @@ static word32 cpuid_flag(word32 leaf, word32 sub, word32 num, word32 bit) {
     return 0 ;
 }
 
-static int set_cpuid_flags(void) {  
+static int set_cpuid_flags(void) {
     if(cpuid_check==0) {
         if(cpuid_flag(1, 0, ECX, 28)){ cpuid_flags |= CPUID_AVX1 ;}
         if(cpuid_flag(7, 0, EBX, 5)){  cpuid_flags |= CPUID_AVX2 ; }
         if(cpuid_flag(7, 0, EBX, 8)) { cpuid_flags |= CPUID_BMI2 ; }
-        if(cpuid_flag(1, 0, ECX, 30)){ cpuid_flags |= CPUID_RDRAND ;  } 
+        if(cpuid_flag(1, 0, ECX, 30)){ cpuid_flags |= CPUID_RDRAND ;  }
         if(cpuid_flag(7, 0, EBX, 18)){ cpuid_flags |= CPUID_RDSEED ;  }
         cpuid_check = 1 ;
         return 0 ;
@@ -230,8 +230,8 @@ static int Transform(Sha256* sha256);
 static int Transform_AVX1(Sha256 *sha256) ;
 #endif
 #if defined(HAVE_INTEL_AVX2)
-static int Transform_AVX2(Sha256 *sha256) ; 
-static int Transform_AVX1_RORX(Sha256 *sha256) ; 
+static int Transform_AVX2(Sha256 *sha256) ;
+static int Transform_AVX1_RORX(Sha256 *sha256) ;
 #endif
 
 static int (*Transform_p)(Sha256* sha256) /* = _Transform */;
@@ -242,9 +242,9 @@ static void set_Transform(void) {
      if(set_cpuid_flags())return ;
 
 #if defined(HAVE_INTEL_AVX2)
-     if(IS_INTEL_AVX2 && IS_INTEL_BMI2){ 
-         Transform_p = Transform_AVX1_RORX; return ; 
-         Transform_p = Transform_AVX2      ; 
+     if(IS_INTEL_AVX2 && IS_INTEL_BMI2){
+         Transform_p = Transform_AVX1_RORX; return ;
+         Transform_p = Transform_AVX2      ;
                   /* for avoiding warning,"not used" */
      }
 #endif
@@ -459,10 +459,6 @@ static INLINE int Sha256Update(Sha256* sha256, const byte* data, word32 len)
 {
     byte* local;
 
-    if (sha256 == NULL || (data == NULL && len > 0)) {
-        return BAD_FUNC_ARG;
-    }
-
     /* do block size increments */
     local = (byte*)sha256->buffer;
 
@@ -500,6 +496,10 @@ static INLINE int Sha256Update(Sha256* sha256, const byte* data, word32 len)
 
 int wc_Sha256Update(Sha256* sha256, const byte* data, word32 len)
 {
+    if (sha256 == NULL || (data == NULL && len > 0)) {
+        return BAD_FUNC_ARG;
+    }
+
     return Sha256Update(sha256, data, len);
 }
 
@@ -517,7 +517,7 @@ static INLINE int Sha256Final(Sha256* sha256)
 {
     byte* local = (byte*)sha256->buffer;
     int ret;
-    
+
     SAVE_XMM_YMM ; /* for Intel AVX */
 
     AddLength(sha256, sha256->buffLen);  /* before adding pads */
@@ -633,9 +633,9 @@ int wc_Sha256Final(Sha256* sha256, byte* hash)
 
 
 
-#define S_0 %r15d 
+#define S_0 %r15d
 #define S_1 %r10d
-#define S_2 %r11d       
+#define S_2 %r11d
 #define S_3 %r12d
 #define S_4 %r13d
 #define S_5 %r14d
@@ -671,7 +671,7 @@ __asm__ volatile("rorx  $13, %"#a", %%edi\n\t":::"%edi",SSE_REGs);/* edi = a>>13
 __asm__ volatile("rorx  $22, %"#a", %%edx\n\t":::"%edx",SSE_REGs); /* edx = a>>22 */\
 __asm__ volatile("xorl  %%r8d, %%edi\n\t":::"%edi","%r8",SSE_REGs);/* edi = (a>>2) ^ (a>>13)  */\
 __asm__ volatile("xorl  %%edi, %%edx\n\t":::"%edi","%edx",SSE_REGs);  /* edx = Sigma0(a)      */\
- 
+
 #define RND_STEP_RORX_6(a,b,c,d,e,f,g,h,i)\
 __asm__ volatile("movl  %"#b", %%edi\n\t":::"%edi",SSE_REGs);  /* edi = b          */\
 __asm__ volatile("orl   %"#a", %%edi\n\t":::"%edi",SSE_REGs);  /* edi = a | b      */\
@@ -687,7 +687,7 @@ __asm__ volatile("orl   %%edi, %%r8d\n\t":::"%edi","%r8",SSE_REGs); /* r8d = Maj
 __asm__ volatile("addl  "#h", "#d"\n\t");  /* d += h + w_k + Sigma1(e) + Ch(e,f,g) */\
 __asm__ volatile("addl  %"#h", %%r8d\n\t":::"%r8",SSE_REGs); \
 __asm__ volatile("addl  %%edx, %%r8d\n\t":::"%edx","%r8",SSE_REGs); \
-__asm__ volatile("movl  %r8d, "#h"\n\t");   
+__asm__ volatile("movl  %r8d, "#h"\n\t");
 
 #endif
 
@@ -751,7 +751,7 @@ __asm__ volatile("movl  %%r8d, %"#h"\n\t":::"%r8", SSE_REGs); \
        RND_STEP_5(a,b,c,d,e,f,g,h,i); \
        RND_STEP_6(a,b,c,d,e,f,g,h,i); \
        RND_STEP_7(a,b,c,d,e,f,g,h,i); \
-       RND_STEP_8(a,b,c,d,e,f,g,h,i); 
+       RND_STEP_8(a,b,c,d,e,f,g,h,i);
 
 #define RND_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,_i) RND_X(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,_i);
 #define RND_7(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,_i) RND_X(S_7,S_0,S_1,S_2,S_3,S_4,S_5,S_6,_i);
@@ -818,7 +818,7 @@ __asm__ volatile("movl  %%r8d, %"#h"\n\t":::"%r8", SSE_REGs); \
 #define RND_1_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,_i) RND_7_8(S_1,S_2,S_3,S_4,S_5,S_6,S_7,S_0,_i);
 
 #define FOR(cnt, init, max, inc, loop)  \
-    __asm__ volatile("movl $"#init", %0\n\t"#loop":"::"m"(cnt):) 
+    __asm__ volatile("movl $"#init", %0\n\t"#loop":"::"m"(cnt):)
 #define END(cnt, init, max, inc, loop)  \
     __asm__ volatile("addl $"#inc", %0\n\tcmpl $"#max", %0\n\tjle "#loop"\n\t":"=m"(cnt)::) ;
 
@@ -826,7 +826,7 @@ __asm__ volatile("movl  %%r8d, %"#h"\n\t":::"%r8", SSE_REGs); \
 
 #if defined(HAVE_INTEL_AVX1) /* inline Assember for Intel AVX1 instructions */
 
-#define VPALIGNR(op1,op2,op3,op4) __asm__ volatile("vpalignr $"#op4", %"#op3", %"#op2", %"#op1:::XMM_REGs) 
+#define VPALIGNR(op1,op2,op3,op4) __asm__ volatile("vpalignr $"#op4", %"#op3", %"#op2", %"#op1:::XMM_REGs)
 #define VPADDD(op1,op2,op3)       __asm__ volatile("vpaddd %"#op3", %"#op2", %"#op1:::XMM_REGs)
 #define VPSRLD(op1,op2,op3)       __asm__ volatile("vpsrld $"#op3", %"#op2", %"#op1:::XMM_REGs)
 #define VPSRLQ(op1,op2,op3)       __asm__ volatile("vpsrlq $"#op3", %"#op2", %"#op1:::XMM_REGs)
@@ -1037,49 +1037,49 @@ static int Transform_AVX1(Sha256* sha256)
     W_K_from_buff ; /* X0, X1, X2, X3 = W[0..15] ; */
 
     DigestToReg(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7) ;
-  
+
     SET_W_K_XFER(X0, 0) ;
-    MessageSched(X0, X1, X2, X3, XTMP0, XTMP1, XTMP2, XTMP3, XTMP4, XTMP5, XFER, 
+    MessageSched(X0, X1, X2, X3, XTMP0, XTMP1, XTMP2, XTMP3, XTMP4, XTMP5, XFER,
             SHUF_00BA, SHUF_DC00, S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,0) ;
     SET_W_K_XFER(X1, 4) ;
     MessageSched(X1, X2, X3, X0, XTMP0, XTMP1, XTMP2, XTMP3, XTMP4, XTMP5, XFER,
             SHUF_00BA, SHUF_DC00, S_4,S_5,S_6,S_7,S_0,S_1,S_2,S_3,4) ;
     SET_W_K_XFER(X2, 8) ;
-    MessageSched(X2, X3, X0, X1, XTMP0, XTMP1, XTMP2, XTMP3, XTMP4, XTMP5, XFER, 
+    MessageSched(X2, X3, X0, X1, XTMP0, XTMP1, XTMP2, XTMP3, XTMP4, XTMP5, XFER,
             SHUF_00BA, SHUF_DC00, S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,8) ;
     SET_W_K_XFER(X3, 12) ;
-    MessageSched(X3, X0, X1, X2, XTMP0, XTMP1, XTMP2, XTMP3, XTMP4, XTMP5, XFER, 
+    MessageSched(X3, X0, X1, X2, XTMP0, XTMP1, XTMP2, XTMP3, XTMP4, XTMP5, XFER,
             SHUF_00BA, SHUF_DC00, S_4,S_5,S_6,S_7,S_0,S_1,S_2,S_3,12) ;
     SET_W_K_XFER(X0, 16) ;
-    MessageSched(X0, X1, X2, X3, XTMP0, XTMP1, XTMP2, XTMP3, XTMP4, XTMP5, XFER, 
+    MessageSched(X0, X1, X2, X3, XTMP0, XTMP1, XTMP2, XTMP3, XTMP4, XTMP5, XFER,
             SHUF_00BA, SHUF_DC00, S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,16) ;
     SET_W_K_XFER(X1, 20) ;
-    MessageSched(X1, X2, X3, X0, XTMP0, XTMP1, XTMP2, XTMP3, XTMP4, XTMP5, XFER, 
+    MessageSched(X1, X2, X3, X0, XTMP0, XTMP1, XTMP2, XTMP3, XTMP4, XTMP5, XFER,
             SHUF_00BA, SHUF_DC00, S_4,S_5,S_6,S_7,S_0,S_1,S_2,S_3,20) ;
     SET_W_K_XFER(X2, 24) ;
-    MessageSched(X2, X3, X0, X1, XTMP0, XTMP1, XTMP2, XTMP3, XTMP4, XTMP5, XFER, 
+    MessageSched(X2, X3, X0, X1, XTMP0, XTMP1, XTMP2, XTMP3, XTMP4, XTMP5, XFER,
             SHUF_00BA, SHUF_DC00, S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,24) ;
     SET_W_K_XFER(X3, 28) ;
-    MessageSched(X3, X0, X1, X2, XTMP0, XTMP1, XTMP2, XTMP3, XTMP4, XTMP5, XFER, 
+    MessageSched(X3, X0, X1, X2, XTMP0, XTMP1, XTMP2, XTMP3, XTMP4, XTMP5, XFER,
             SHUF_00BA, SHUF_DC00, S_4,S_5,S_6,S_7,S_0,S_1,S_2,S_3,28) ;
     SET_W_K_XFER(X0, 32) ;
-    MessageSched(X0, X1, X2, X3, XTMP0, XTMP1, XTMP2, XTMP3, XTMP4, XTMP5, XFER, 
+    MessageSched(X0, X1, X2, X3, XTMP0, XTMP1, XTMP2, XTMP3, XTMP4, XTMP5, XFER,
             SHUF_00BA, SHUF_DC00, S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,32) ;
     SET_W_K_XFER(X1, 36) ;
-    MessageSched(X1, X2, X3, X0, XTMP0, XTMP1, XTMP2, XTMP3, XTMP4, XTMP5, XFER, 
+    MessageSched(X1, X2, X3, X0, XTMP0, XTMP1, XTMP2, XTMP3, XTMP4, XTMP5, XFER,
             SHUF_00BA, SHUF_DC00, S_4,S_5,S_6,S_7,S_0,S_1,S_2,S_3,36) ;
     SET_W_K_XFER(X2, 40) ;
-    MessageSched(X2, X3, X0, X1, XTMP0, XTMP1, XTMP2, XTMP3, XTMP4, XTMP5, XFER, 
+    MessageSched(X2, X3, X0, X1, XTMP0, XTMP1, XTMP2, XTMP3, XTMP4, XTMP5, XFER,
             SHUF_00BA, SHUF_DC00, S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,40) ;
     SET_W_K_XFER(X3, 44) ;
-    MessageSched(X3, X0, X1, X2, XTMP0, XTMP1, XTMP2, XTMP3, XTMP4, XTMP5, XFER, 
+    MessageSched(X3, X0, X1, X2, XTMP0, XTMP1, XTMP2, XTMP3, XTMP4, XTMP5, XFER,
             SHUF_00BA, SHUF_DC00, S_4,S_5,S_6,S_7,S_0,S_1,S_2,S_3,44) ;
 
     SET_W_K_XFER(X0, 48) ;
     SET_W_K_XFER(X1, 52) ;
     SET_W_K_XFER(X2, 56) ;
     SET_W_K_XFER(X3, 60) ;
-    
+
     RND_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,48) ;
     RND_7(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,49) ;
     RND_6(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,50) ;
@@ -1090,7 +1090,7 @@ static int Transform_AVX1(Sha256* sha256)
     RND_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,54) ;
     RND_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,55) ;
 
-    RND_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,56) ;     
+    RND_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,56) ;
     RND_7(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,57) ;
     RND_6(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,58) ;
     RND_5(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,59) ;
@@ -1099,9 +1099,9 @@ static int Transform_AVX1(Sha256* sha256)
     RND_3(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,61) ;
     RND_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,62) ;
     RND_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,63) ;
-        
-    RegToDigest(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7) ;  
-        
+
+    RegToDigest(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7) ;
+
 
     return 0;
 }
@@ -1116,34 +1116,34 @@ static int Transform_AVX1_RORX(Sha256* sha256)
 
     DigestToReg(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7) ;
     SET_W_K_XFER(X0, 0) ;
-    MessageSched_RORX(X0, X1, X2, X3, XTMP0, XTMP1, XTMP2, XTMP3, XTMP4, XTMP5, 
+    MessageSched_RORX(X0, X1, X2, X3, XTMP0, XTMP1, XTMP2, XTMP3, XTMP4, XTMP5,
             XFER, SHUF_00BA, SHUF_DC00, S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,0) ;
     SET_W_K_XFER(X1, 4) ;
-    MessageSched_RORX(X1, X2, X3, X0, XTMP0, XTMP1, XTMP2, XTMP3, XTMP4, XTMP5, 
+    MessageSched_RORX(X1, X2, X3, X0, XTMP0, XTMP1, XTMP2, XTMP3, XTMP4, XTMP5,
             XFER, SHUF_00BA, SHUF_DC00, S_4,S_5,S_6,S_7,S_0,S_1,S_2,S_3,4) ;
     SET_W_K_XFER(X2, 8) ;
-    MessageSched_RORX(X2, X3, X0, X1, XTMP0, XTMP1, XTMP2, XTMP3, XTMP4, XTMP5, 
+    MessageSched_RORX(X2, X3, X0, X1, XTMP0, XTMP1, XTMP2, XTMP3, XTMP4, XTMP5,
             XFER, SHUF_00BA, SHUF_DC00, S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,8) ;
     SET_W_K_XFER(X3, 12) ;
-    MessageSched_RORX(X3, X0, X1, X2, XTMP0, XTMP1, XTMP2, XTMP3, XTMP4, XTMP5, 
+    MessageSched_RORX(X3, X0, X1, X2, XTMP0, XTMP1, XTMP2, XTMP3, XTMP4, XTMP5,
             XFER, SHUF_00BA, SHUF_DC00, S_4,S_5,S_6,S_7,S_0,S_1,S_2,S_3,12) ;
     SET_W_K_XFER(X0, 16) ;
-    MessageSched_RORX(X0, X1, X2, X3, XTMP0, XTMP1, XTMP2, XTMP3, XTMP4, XTMP5, 
+    MessageSched_RORX(X0, X1, X2, X3, XTMP0, XTMP1, XTMP2, XTMP3, XTMP4, XTMP5,
             XFER, SHUF_00BA, SHUF_DC00, S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,16) ;
     SET_W_K_XFER(X1, 20) ;
-    MessageSched_RORX(X1, X2, X3, X0, XTMP0, XTMP1, XTMP2, XTMP3, XTMP4, XTMP5, 
+    MessageSched_RORX(X1, X2, X3, X0, XTMP0, XTMP1, XTMP2, XTMP3, XTMP4, XTMP5,
             XFER, SHUF_00BA, SHUF_DC00, S_4,S_5,S_6,S_7,S_0,S_1,S_2,S_3,20) ;
     SET_W_K_XFER(X2, 24) ;
-    MessageSched_RORX(X2, X3, X0, X1, XTMP0, XTMP1, XTMP2, XTMP3, XTMP4, XTMP5, 
+    MessageSched_RORX(X2, X3, X0, X1, XTMP0, XTMP1, XTMP2, XTMP3, XTMP4, XTMP5,
             XFER, SHUF_00BA, SHUF_DC00, S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,24) ;
     SET_W_K_XFER(X3, 28) ;
-    MessageSched_RORX(X3, X0, X1, X2, XTMP0, XTMP1, XTMP2, XTMP3, XTMP4, XTMP5, 
+    MessageSched_RORX(X3, X0, X1, X2, XTMP0, XTMP1, XTMP2, XTMP3, XTMP4, XTMP5,
             XFER, SHUF_00BA, SHUF_DC00, S_4,S_5,S_6,S_7,S_0,S_1,S_2,S_3,28) ;
     SET_W_K_XFER(X0, 32) ;
-    MessageSched_RORX(X0, X1, X2, X3, XTMP0, XTMP1, XTMP2, XTMP3, XTMP4, XTMP5, 
+    MessageSched_RORX(X0, X1, X2, X3, XTMP0, XTMP1, XTMP2, XTMP3, XTMP4, XTMP5,
             XFER, SHUF_00BA, SHUF_DC00, S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,32) ;
     SET_W_K_XFER(X1, 36) ;
-    MessageSched_RORX(X1, X2, X3, X0, XTMP0, XTMP1, XTMP2, XTMP3, XTMP4, XTMP5, 
+    MessageSched_RORX(X1, X2, X3, X0, XTMP0, XTMP1, XTMP2, XTMP3, XTMP4, XTMP5,
             XFER, SHUF_00BA, SHUF_DC00, S_4,S_5,S_6,S_7,S_0,S_1,S_2,S_3,36) ;
     SET_W_K_XFER(X2, 40) ;
     MessageSched_RORX(X2, X3, X0, X1, XTMP0, XTMP1, XTMP2, XTMP3, XTMP4, XTMP5,
@@ -1156,7 +1156,7 @@ static int Transform_AVX1_RORX(Sha256* sha256)
     SET_W_K_XFER(X1, 52) ;
     SET_W_K_XFER(X2, 56) ;
     SET_W_K_XFER(X3, 60) ;
-    
+
     RND_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,48) ;
     RND_7(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,49) ;
     RND_6(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,50) ;
@@ -1167,7 +1167,7 @@ static int Transform_AVX1_RORX(Sha256* sha256)
     RND_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,54) ;
     RND_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,55) ;
 
-    RND_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,56) ;     
+    RND_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,56) ;
     RND_7(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,57) ;
     RND_6(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,58) ;
     RND_5(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,59) ;
@@ -1176,9 +1176,9 @@ static int Transform_AVX1_RORX(Sha256* sha256)
     RND_3(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,61) ;
     RND_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,62) ;
     RND_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,63) ;
-        
-    RegToDigest(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7) ;  
-        
+
+    RegToDigest(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7) ;
+
 
     return 0;
 }
@@ -1225,12 +1225,12 @@ static int Transform_AVX1_RORX(Sha256* sha256)
 #define    _EXTRACT_XMM_7(xmm, mem)  __asm__ volatile("vpextrd $3, %%"#xmm", %0 ":"=r"(mem)::YMM_REGs) ;
 
 #define    _SWAP_YMM_HL(ymm)   __asm__ volatile("vperm2i128 $0x1, %%"#ymm", %%"#ymm", %%"#ymm" ":::YMM_REGs) ;
-#define     SWAP_YMM_HL(ymm)   _SWAP_YMM_HL(ymm) 
+#define     SWAP_YMM_HL(ymm)   _SWAP_YMM_HL(ymm)
 
 #define MOVE_to_REG(ymm, mem)      _MOVE_to_REG(ymm, mem)
 #define MOVE_to_MEM(mem, ymm)      _MOVE_to_MEM(mem, ymm)
 #define BYTE_SWAP(ymm, map)        _BYTE_SWAP(ymm, map)
-#define MOVE_128(ymm0, ymm1, ymm2, map) _MOVE_128(ymm0, ymm1, ymm2, map) 
+#define MOVE_128(ymm0, ymm1, ymm2, map) _MOVE_128(ymm0, ymm1, ymm2, map)
 #define MOVE_BYTE(ymm0, ymm1, map) _MOVE_BYTE(ymm0, ymm1, map)
 #define XOR(dest, src1, src2)      _XOR(dest, src1, src2)
 #define OR(dest, src1, src2)       _OR(dest, src1, src2)
@@ -1238,28 +1238,28 @@ static int Transform_AVX1_RORX(Sha256* sha256)
 #define ADD_MEM(dest, src1, mem)  _ADD_MEM(dest, src1, mem)
 #define BLEND(map, dest, src1, src2) _BLEND(map, dest, src1, src2)
 
-#define S_TMP(dest, src, bits, temp) _S_TEMP(dest, src, bits, temp); 
+#define S_TMP(dest, src, bits, temp) _S_TEMP(dest, src, bits, temp);
 #define AVX2_S(dest, src, bits)      S_TMP(dest, src, bits, S_TEMP)
 #define AVX2_R(dest, src, bits)      _AVX2_R(dest, src, bits)
 
 #define GAMMA0(dest, src)      AVX2_S(dest, src, 7);  AVX2_S(G_TEMP, src, 18); \
     XOR(dest, G_TEMP, dest) ; AVX2_R(G_TEMP, src, 3);  XOR(dest, G_TEMP, dest) ;
-#define GAMMA0_1(dest, src)    AVX2_S(dest, src, 7);  AVX2_S(G_TEMP, src, 18); 
+#define GAMMA0_1(dest, src)    AVX2_S(dest, src, 7);  AVX2_S(G_TEMP, src, 18);
 #define GAMMA0_2(dest, src)    XOR(dest, G_TEMP, dest) ; AVX2_R(G_TEMP, src, 3);  \
     XOR(dest, G_TEMP, dest) ;
 
 #define GAMMA1(dest, src)      AVX2_S(dest, src, 17); AVX2_S(G_TEMP, src, 19); \
     XOR(dest, G_TEMP, dest) ; AVX2_R(G_TEMP, src, 10); XOR(dest, G_TEMP, dest) ;
-#define GAMMA1_1(dest, src)    AVX2_S(dest, src, 17); AVX2_S(G_TEMP, src, 19); 
+#define GAMMA1_1(dest, src)    AVX2_S(dest, src, 17); AVX2_S(G_TEMP, src, 19);
 #define GAMMA1_2(dest, src)    XOR(dest, G_TEMP, dest) ; AVX2_R(G_TEMP, src, 10); \
     XOR(dest, G_TEMP, dest) ;
 
 #define    FEEDBACK1_to_W_I_2    MOVE_BYTE(YMM_TEMP0, W_I, mMAP1toW_I_2[0]) ; \
     BLEND(0x0c, W_I_2, YMM_TEMP0, W_I_2) ;
 #define    FEEDBACK2_to_W_I_2    MOVE_128(YMM_TEMP0, W_I, W_I, 0x08) ;  \
-    MOVE_BYTE(YMM_TEMP0, YMM_TEMP0, mMAP2toW_I_2[0]) ; BLEND(0x30, W_I_2, YMM_TEMP0, W_I_2) ; 
+    MOVE_BYTE(YMM_TEMP0, YMM_TEMP0, mMAP2toW_I_2[0]) ; BLEND(0x30, W_I_2, YMM_TEMP0, W_I_2) ;
 #define    FEEDBACK3_to_W_I_2    MOVE_BYTE(YMM_TEMP0, W_I, mMAP3toW_I_2[0]) ; \
-    BLEND(0xc0, W_I_2, YMM_TEMP0, W_I_2) ; 
+    BLEND(0xc0, W_I_2, YMM_TEMP0, W_I_2) ;
 
 #define    FEEDBACK_to_W_I_7     MOVE_128(YMM_TEMP0, W_I, W_I, 0x08) ;\
     MOVE_BYTE(YMM_TEMP0, YMM_TEMP0, mMAPtoW_I_7[0]) ; BLEND(0x80, W_I_7, YMM_TEMP0, W_I_7) ;
@@ -1359,26 +1359,26 @@ static int Transform_AVX1_RORX(Sha256* sha256)
 #define DumS(S_0, S_1, S_2, S_3, S_4, S_5, S_6, S_7 )\
     _DumpS(S_0, S_1, S_2, S_3, S_4, S_5, S_6, S_7 )
 
-        
+
     /* Byte swap Masks to ensure that rest of the words are filled with zero's. */
-    static const unsigned long mBYTE_FLIP_MASK_16[] =  
+    static const unsigned long mBYTE_FLIP_MASK_16[] =
         { 0x0405060700010203, 0x0c0d0e0f08090a0b, 0x0405060700010203, 0x0c0d0e0f08090a0b } ;
-    static const unsigned long mBYTE_FLIP_MASK_15[] =  
+    static const unsigned long mBYTE_FLIP_MASK_15[] =
         { 0x0405060700010203, 0x0c0d0e0f08090a0b, 0x0405060700010203, 0x0c0d0e0f08090a0b } ;
-    static const unsigned long mBYTE_FLIP_MASK_7 [] =  
+    static const unsigned long mBYTE_FLIP_MASK_7 [] =
         { 0x0405060700010203, 0x0c0d0e0f08090a0b, 0x0405060700010203, 0x8080808008090a0b } ;
-    static const unsigned long mBYTE_FLIP_MASK_2 [] =  
+    static const unsigned long mBYTE_FLIP_MASK_2 [] =
         { 0x0405060700010203, 0x8080808080808080, 0x8080808080808080, 0x8080808080808080 } ;
 
-    static const unsigned long mMAPtoW_I_7[] =  
+    static const unsigned long mMAPtoW_I_7[] =
         { 0x8080808080808080, 0x8080808080808080, 0x8080808080808080, 0x0302010080808080 } ;
-    static const unsigned long mMAP1toW_I_2[] = 
+    static const unsigned long mMAP1toW_I_2[] =
         { 0x8080808080808080, 0x0706050403020100, 0x8080808080808080, 0x8080808080808080 } ;
-    static const unsigned long mMAP2toW_I_2[] = 
+    static const unsigned long mMAP2toW_I_2[] =
         { 0x8080808080808080, 0x8080808080808080, 0x0f0e0d0c0b0a0908, 0x8080808080808080 } ;
-    static const unsigned long mMAP3toW_I_2[] = 
+    static const unsigned long mMAP3toW_I_2[] =
         { 0x8080808080808080, 0x8080808080808080, 0x8080808080808080, 0x0706050403020100 } ;
- 
+
 static int Transform_AVX2(Sha256* sha256)
 {
 
@@ -1400,19 +1400,19 @@ static int Transform_AVX2(Sha256* sha256)
     DigestToReg(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7) ;
 
     ADD_MEM(W_K_TEMP, W_I_16, K[0]) ;
-    MOVE_to_MEM(W_K[0], W_K_TEMP) ; 
+    MOVE_to_MEM(W_K[0], W_K_TEMP) ;
 
     RND_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,0) ;
     RND_7(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,1) ;
     RND_6(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,2) ;
-    RND_5(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,3) ;  
+    RND_5(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,3) ;
     RND_4(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,4) ;
     RND_3(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,5) ;
     RND_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,6) ;
     RND_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,7) ;
 
     ADD_MEM(YMM_TEMP0, W_I, K[8]) ;
-    MOVE_to_MEM(W_K[8], YMM_TEMP0) ; 
+    MOVE_to_MEM(W_K[8], YMM_TEMP0) ;
 
         /* W[i] = Gamma1(W[i-2]) + W[i-7] + Gamma0(W[i-15] + W[i-16]) */
                 RND_0_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,8) ;
@@ -1424,21 +1424,21 @@ static int Transform_AVX2(Sha256* sha256)
                 RND_7_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,9) ;
         ADD(W_I, W_I_7, W_I_TEMP);
                 RND_7_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,9) ;
-        GAMMA1_1(YMM_TEMP0, W_I_2) ; 
+        GAMMA1_1(YMM_TEMP0, W_I_2) ;
                 RND_7_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,9) ;
-        GAMMA1_2(YMM_TEMP0, W_I_2) ; 
+        GAMMA1_2(YMM_TEMP0, W_I_2) ;
                 RND_6_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,10) ;
         ADD(W_I, W_I, YMM_TEMP0) ;/* now W[16..17] are completed */
                 RND_6_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,10) ;
         FEEDBACK1_to_W_I_2 ;
                 RND_6_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,10) ;
-        FEEDBACK_to_W_I_7 ; 
+        FEEDBACK_to_W_I_7 ;
                 RND_5_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,11) ;
         ADD(W_I_TEMP, W_I_7, W_I_TEMP);
                 RND_5_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,11) ;
-        GAMMA1_1(YMM_TEMP0, W_I_2) ; 
+        GAMMA1_1(YMM_TEMP0, W_I_2) ;
                 RND_5_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,11) ;
-        GAMMA1_2(YMM_TEMP0, W_I_2) ; 
+        GAMMA1_2(YMM_TEMP0, W_I_2) ;
                 RND_4_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,12) ;
         ADD(W_I, W_I_TEMP, YMM_TEMP0) ;/* now W[16..19] are completed */
                 RND_4_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,12) ;
@@ -1446,7 +1446,7 @@ static int Transform_AVX2(Sha256* sha256)
                 RND_4_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,12) ;
         GAMMA1_1(YMM_TEMP0, W_I_2) ;
                 RND_3_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,13) ;
-        GAMMA1_2(YMM_TEMP0, W_I_2) ; 
+        GAMMA1_2(YMM_TEMP0, W_I_2) ;
                 RND_3_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,13) ;
         ADD(W_I, W_I_TEMP, YMM_TEMP0) ; /* now W[16..21] are completed */
                 RND_3_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,13) ;
@@ -1458,7 +1458,7 @@ static int Transform_AVX2(Sha256* sha256)
         ADD(W_I, W_I_TEMP, YMM_TEMP0) ; /* now W[16..23] are completed */
                 RND_1_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,15) ;
 
-        MOVE_to_REG(YMM_TEMP0, K[16]) ;    
+        MOVE_to_REG(YMM_TEMP0, K[16]) ;
                 RND_1_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,15) ;
         ROTATE_W(W_I_16, W_I_15, W_I_7, W_I_2, W_I) ;
                 RND_1_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,15) ;
@@ -1475,21 +1475,21 @@ static int Transform_AVX2(Sha256* sha256)
                 RND_7_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,17) ;
         ADD(W_I, W_I_7, W_I_TEMP);
                 RND_7_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,17) ;
-        GAMMA1_1(YMM_TEMP0, W_I_2) ; 
+        GAMMA1_1(YMM_TEMP0, W_I_2) ;
                 RND_7_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,17) ;
-        GAMMA1_2(YMM_TEMP0, W_I_2) ; 
+        GAMMA1_2(YMM_TEMP0, W_I_2) ;
                 RND_6_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,18) ;
         ADD(W_I, W_I, YMM_TEMP0) ;/* now W[16..17] are completed */
                 RND_6_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,18) ;
         FEEDBACK1_to_W_I_2 ;
                 RND_6_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,18) ;
-        FEEDBACK_to_W_I_7 ; 
+        FEEDBACK_to_W_I_7 ;
                 RND_5_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,19) ;
         ADD(W_I_TEMP, W_I_7, W_I_TEMP);
                 RND_5_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,19) ;
-        GAMMA1(YMM_TEMP0, W_I_2) ; 
+        GAMMA1(YMM_TEMP0, W_I_2) ;
                 RND_5_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,19) ;
-        GAMMA1_2(YMM_TEMP0, W_I_2) ; 
+        GAMMA1_2(YMM_TEMP0, W_I_2) ;
                 RND_4_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,20) ;
         ADD(W_I, W_I_TEMP, YMM_TEMP0) ;/* now W[16..19] are completed */
                 RND_4_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,20) ;
@@ -1497,7 +1497,7 @@ static int Transform_AVX2(Sha256* sha256)
                 RND_4_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,20) ;
         GAMMA1_1(YMM_TEMP0, W_I_2) ;
                 RND_3_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,21) ;
-        GAMMA1_2(YMM_TEMP0, W_I_2) ; 
+        GAMMA1_2(YMM_TEMP0, W_I_2) ;
                 RND_3_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,21) ;
         ADD(W_I, W_I_TEMP, YMM_TEMP0) ; /* now W[16..21] are completed */
                 RND_3_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,21) ;
@@ -1505,12 +1505,12 @@ static int Transform_AVX2(Sha256* sha256)
                 RND_2_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,22) ;
         GAMMA1_1(YMM_TEMP0, W_I_2) ;
                 RND_2_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,22) ;
-        GAMMA1_2(YMM_TEMP0, W_I_2) ; 
+        GAMMA1_2(YMM_TEMP0, W_I_2) ;
                 RND_2_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,22) ;
         ADD(W_I, W_I_TEMP, YMM_TEMP0) ; /* now W[16..23] are completed */
                 RND_1_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,23) ;
 
-        MOVE_to_REG(YMM_TEMP0, K[24]) ;    
+        MOVE_to_REG(YMM_TEMP0, K[24]) ;
                 RND_1_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,23) ;
         ROTATE_W(W_I_16, W_I_15, W_I_7, W_I_2, W_I) ;
                 RND_1_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,23) ;
@@ -1527,21 +1527,21 @@ static int Transform_AVX2(Sha256* sha256)
                 RND_7_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,25) ;
         ADD(W_I, W_I_7, W_I_TEMP);
                 RND_7_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,25) ;
-        GAMMA1_1(YMM_TEMP0, W_I_2) ; 
+        GAMMA1_1(YMM_TEMP0, W_I_2) ;
                 RND_7_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,25) ;
-        GAMMA1_2(YMM_TEMP0, W_I_2) ; 
+        GAMMA1_2(YMM_TEMP0, W_I_2) ;
                 RND_6_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,26) ;
         ADD(W_I, W_I, YMM_TEMP0) ;/* now W[16..17] are completed */
                 RND_6_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,26) ;
         FEEDBACK1_to_W_I_2 ;
                 RND_6_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,26) ;
-        FEEDBACK_to_W_I_7 ; 
+        FEEDBACK_to_W_I_7 ;
                 RND_5_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,27) ;
         ADD(W_I_TEMP, W_I_7, W_I_TEMP);
                 RND_5_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,27) ;
-        GAMMA1_1(YMM_TEMP0, W_I_2) ; 
+        GAMMA1_1(YMM_TEMP0, W_I_2) ;
                 RND_5_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,27) ;
-        GAMMA1_2(YMM_TEMP0, W_I_2) ; 
+        GAMMA1_2(YMM_TEMP0, W_I_2) ;
                 RND_4_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,28) ;
         ADD(W_I, W_I_TEMP, YMM_TEMP0) ;/* now W[16..19] are completed */
                 RND_4_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,28) ;
@@ -1549,7 +1549,7 @@ static int Transform_AVX2(Sha256* sha256)
                 RND_4_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,28) ;
         GAMMA1_1(YMM_TEMP0, W_I_2) ;
                 RND_3_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,29) ;
-        GAMMA1_2(YMM_TEMP0, W_I_2) ; 
+        GAMMA1_2(YMM_TEMP0, W_I_2) ;
                 RND_3_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,29) ;
         ADD(W_I, W_I_TEMP, YMM_TEMP0) ; /* now W[16..21] are completed */
                 RND_3_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,29) ;
@@ -1561,14 +1561,14 @@ static int Transform_AVX2(Sha256* sha256)
         ADD(W_I, W_I_TEMP, YMM_TEMP0) ; /* now W[16..23] are completed */
                 RND_1_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,31) ;
 
-        MOVE_to_REG(YMM_TEMP0, K[32]) ;    
+        MOVE_to_REG(YMM_TEMP0, K[32]) ;
                 RND_1_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,31) ;
         ROTATE_W(W_I_16, W_I_15, W_I_7, W_I_2, W_I) ;
                 RND_1_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,31) ;
         ADD(YMM_TEMP0, YMM_TEMP0, W_I) ;
         MOVE_to_MEM(W_K[32], YMM_TEMP0) ;
 
-        
+
                 /* W[i] = Gamma1(W[i-2]) + W[i-7] + Gamma0(W[i-15] + W[i-16]) */
                 RND_0_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,32) ;
         GAMMA0_1(W_I_TEMP, W_I_15) ;
@@ -1581,13 +1581,13 @@ static int Transform_AVX2(Sha256* sha256)
                 RND_7_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,33) ;
         GAMMA1_1(YMM_TEMP0, W_I_2) ;
                 RND_7_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,33) ;
-        GAMMA1_2(YMM_TEMP0, W_I_2) ; 
+        GAMMA1_2(YMM_TEMP0, W_I_2) ;
                 RND_6_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,34) ;
         ADD(W_I, W_I, YMM_TEMP0) ;/* now W[16..17] are completed */
                 RND_6_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,34) ;
         FEEDBACK1_to_W_I_2 ;
                 RND_6_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,34) ;
-        FEEDBACK_to_W_I_7 ; 
+        FEEDBACK_to_W_I_7 ;
                 RND_5_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,35) ;
         ADD(W_I_TEMP, W_I_7, W_I_TEMP);
                 RND_5_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,35) ;
@@ -1614,7 +1614,7 @@ static int Transform_AVX2(Sha256* sha256)
         ADD(W_I, W_I_TEMP, YMM_TEMP0) ; /* now W[16..23] are completed */
                 RND_1_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,39) ;
 
-        MOVE_to_REG(YMM_TEMP0, K[40]) ;    
+        MOVE_to_REG(YMM_TEMP0, K[40]) ;
                 RND_1_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,39) ;
         ROTATE_W(W_I_16, W_I_15, W_I_7, W_I_2, W_I) ;
                 RND_1_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,39) ;
@@ -1639,11 +1639,11 @@ static int Transform_AVX2(Sha256* sha256)
                 RND_6_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,42) ;
         FEEDBACK1_to_W_I_2 ;
                 RND_6_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,42) ;
-        FEEDBACK_to_W_I_7 ; 
+        FEEDBACK_to_W_I_7 ;
                 RND_5_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,43) ;
         ADD(W_I_TEMP, W_I_7, W_I_TEMP);
                 RND_5_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,43) ;
-        GAMMA1_1(YMM_TEMP0, W_I_2) ; 
+        GAMMA1_1(YMM_TEMP0, W_I_2) ;
                 RND_5_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,43) ;
         GAMMA1_2(YMM_TEMP0, W_I_2) ;
                 RND_4_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,44) ;
@@ -1666,13 +1666,13 @@ static int Transform_AVX2(Sha256* sha256)
         ADD(W_I, W_I_TEMP, YMM_TEMP0) ; /* now W[16..23] are completed */
                 RND_1_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,47) ;
 
-        MOVE_to_REG(YMM_TEMP0, K[48]) ;    
+        MOVE_to_REG(YMM_TEMP0, K[48]) ;
                 RND_1_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,47) ;
         ROTATE_W(W_I_16, W_I_15, W_I_7, W_I_2, W_I) ;
                 RND_1_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,47) ;
         ADD(YMM_TEMP0, YMM_TEMP0, W_I) ;
         MOVE_to_MEM(W_K[48], YMM_TEMP0) ;
-        
+
                 /* W[i] = Gamma1(W[i-2]) + W[i-7] + Gamma0(W[i-15] + W[i-16]) */
                 RND_0_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,48) ;
         GAMMA0_1(W_I_TEMP, W_I_15) ;
@@ -1683,7 +1683,7 @@ static int Transform_AVX2(Sha256* sha256)
                 RND_7_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,49) ;
         ADD(W_I, W_I_7, W_I_TEMP);
                 RND_7_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,49) ;
-        GAMMA1_1(YMM_TEMP0, W_I_2) ; 
+        GAMMA1_1(YMM_TEMP0, W_I_2) ;
                 RND_7_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,49) ;
         GAMMA1_2(YMM_TEMP0, W_I_2) ;
                 RND_6_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,50) ;
@@ -1691,7 +1691,7 @@ static int Transform_AVX2(Sha256* sha256)
                 RND_6_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,50) ;
         FEEDBACK1_to_W_I_2 ;
                 RND_6_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,50) ;
-        FEEDBACK_to_W_I_7 ; 
+        FEEDBACK_to_W_I_7 ;
                 RND_5_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,51) ;
         ADD(W_I_TEMP, W_I_7, W_I_TEMP);
                 RND_5_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,51) ;
@@ -1718,13 +1718,13 @@ static int Transform_AVX2(Sha256* sha256)
         ADD(W_I, W_I_TEMP, YMM_TEMP0) ; /* now W[16..23] are completed */
                 RND_1_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,55) ;
 
-        MOVE_to_REG(YMM_TEMP0, K[56]) ;    
+        MOVE_to_REG(YMM_TEMP0, K[56]) ;
                 RND_1_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,55) ;
         ROTATE_W(W_I_16, W_I_15, W_I_7, W_I_2, W_I) ;
                 RND_1_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,55) ;
         ADD(YMM_TEMP0, YMM_TEMP0, W_I) ;
-        MOVE_to_MEM(W_K[56], YMM_TEMP0) ;        
-        
+        MOVE_to_MEM(W_K[56], YMM_TEMP0) ;
+
         RND_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,56) ;
         RND_7(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,57) ;
         RND_6(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,58) ;
@@ -1735,7 +1735,7 @@ static int Transform_AVX2(Sha256* sha256)
         RND_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,62) ;
         RND_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,63) ;
 
-    RegToDigest(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7) ;  
+    RegToDigest(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7) ;
 
 #ifdef WOLFSSL_SMALL_STACK
     XFREE(W_K, NULL, DYNAMIC_TYPE_TMP_BUFFER);
