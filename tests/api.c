@@ -14896,6 +14896,11 @@ static void test_wolfSSL_ERR_put_error(void)
     ERR_put_error(0,SYS_F_SOCKET, 15, "this file", 15);
     AssertIntEQ(ERR_get_error_line(&file, &line), 15);
 
+    /* try reading past end of error queue */
+    file = NULL;
+    AssertIntEQ(ERR_get_error_line(&file, &line), 0);
+    AssertNull(file);
+
     printf(resultFmt, passed);
     #endif
 }

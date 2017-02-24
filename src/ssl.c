@@ -14327,15 +14327,12 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
     unsigned long wolfSSL_ERR_get_error_line(const char** file, int* line)
     {
     #ifdef DEBUG_WOLFSSL
-        if (file != NULL) {
-            *file = (const char*)wc_last_error_file;
+        int ret = wc_PullErrorNode(file, NULL, line);
+        if (ret < 0) {
+            WOLFSSL_MSG("Issue getting error node");
+            return 0;
         }
-
-        if (line != NULL) {
-            *line = (int)wc_last_error_line;
-        }
-
-        return wc_last_error;
+        return (unsigned long)ret;
     #else
         (void)file;
         (void)line;
@@ -24227,7 +24224,7 @@ WOLFSSL_EVP_PKEY* wolfSSL_PEM_read_bio_PrivateKey(WOLFSSL_BIO* bio,
         }
 
         if (cb == NULL) {
-            localCb = &OurPasswordCb;
+            localCb = OurPasswordCb;
         }
         wolfSSL_CTX_set_default_passwd_cb(info->ctx, localCb);
         wolfSSL_CTX_set_default_passwd_cb_userdata(info->ctx, pass);
