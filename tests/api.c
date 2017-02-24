@@ -100,7 +100,7 @@ static const char* passed = "passed";
 static const char* failed = "failed";
 
 #if !defined(NO_FILESYSTEM) && !defined(NO_CERTS)
-    static const char* bogusFile  = 
+    static const char* bogusFile  =
     #ifdef _WIN32
         "NUL"
     #else
@@ -564,7 +564,7 @@ static void test_wolfSSL_SetTmpDH_buffer(void)
 
 
 /* Test function for wolfSSL_SetMinVersion. Sets the minimum downgrade version
- * allowed. 
+ * allowed.
  * POST: return 1 on success.
  */
 static int test_wolfSSL_SetMinVersion(void)
@@ -2279,8 +2279,8 @@ static int test_wc_InitMd5 (void)
 
     /* Test good arg. */
     ret = wc_InitMd5(&md5);
-    if (ret != 0) { 
-        flag = SSL_FATAL_ERROR; 
+    if (ret != 0) {
+        flag = SSL_FATAL_ERROR;
     }
 
     /* Test bad arg. */
@@ -2321,7 +2321,7 @@ static int test_wc_InitSha(void)
     /* Test bad arg. */
     if (!flag) {
         ret = wc_InitSha(NULL);
-        if (ret != BAD_FUNC_ARG) { 
+        if (ret != BAD_FUNC_ARG) {
             flag = SSL_FATAL_ERROR;
         }
     }
@@ -2459,7 +2459,7 @@ static int test_wc_Md5Update (void)
 
     ret = wc_InitMd5(&md5);
     if (ret != 0) {
-        flag = ret;;
+        flag = ret;
     }
 
     printf(testingFmt, "wc_Md5Update()");
@@ -2491,9 +2491,7 @@ static int test_wc_Md5Update (void)
                     "\x72";
         a.inLen = XSTRLEN(a.input);
         a.outLen = XSTRLEN(a.output);
-    }
 
-    if (!flag) {
         ret = wc_Md5Update(&md5, (byte*) a.input, (word32) a.inLen);
         if (ret != 0) {
             flag = ret;
@@ -2508,7 +2506,7 @@ static int test_wc_Md5Update (void)
     }
 
     if (!flag) {
-        if (ret != 0 && XMEMCMP(hash, a.output, MD5_DIGEST_SIZE) != 0) {
+        if (XMEMCMP(hash, a.output, MD5_DIGEST_SIZE) != 0) {
             flag = SSL_FATAL_ERROR;
         }
     }
@@ -2517,9 +2515,7 @@ static int test_wc_Md5Update (void)
     if (!flag) {
         b.input = NULL;
         b.inLen = 0;
-    }
 
-    if (!flag) {
         ret = wc_Md5Update(&md5, (byte*)b.input, (word32)b.inLen);
         if (ret != 0) {
             flag = ret;
@@ -2527,13 +2523,11 @@ static int test_wc_Md5Update (void)
     }
 
     if (!flag) {
-    c.input = NULL;
-    c.inLen = MD5_DIGEST_SIZE;
-    }
+        c.input = NULL;
+        c.inLen = MD5_DIGEST_SIZE;
 
-    if (!flag) {
         ret = wc_Md5Update(&md5, (byte*)c.input, (word32)c.inLen);
-        if (ret == 0) {
+        if (ret != BAD_FUNC_ARG) {
             flag = SSL_FATAL_ERROR;
         }
     }
@@ -2541,9 +2535,7 @@ static int test_wc_Md5Update (void)
     if (!flag) {
         ret = wc_Md5Update(NULL, (byte*)a.input, (word32)a.inLen);
         if (ret != BAD_FUNC_ARG) {
-            flag = SSL_FATAL_ERROR;;
-        } else {
-            flag = 0;
+            flag = SSL_FATAL_ERROR;
         }
     }
 
@@ -2603,9 +2595,7 @@ static int test_wc_ShaUpdate (void)
                     "\x6C\x9C\xD0\xD8\x9D";
         a.inLen = XSTRLEN(a.input);
         a.outLen = XSTRLEN(a.output);
-    }
 
-    if (!flag) {
         ret = wc_ShaUpdate(&sha, (byte*)a.input, (word32)a.inLen);
         if (ret != 0) {
             flag = ret;
@@ -2620,7 +2610,7 @@ static int test_wc_ShaUpdate (void)
     }
 
     if (!flag) {
-        if (ret != 0 && XMEMCMP(hash, a.output, SHA_DIGEST_SIZE) != 0) {
+        if (XMEMCMP(hash, a.output, SHA_DIGEST_SIZE) != 0) {
             flag = SSL_FATAL_ERROR;
         }
     }
@@ -2629,9 +2619,7 @@ static int test_wc_ShaUpdate (void)
     if (!flag) {
         b.input = NULL;
         b.inLen = 0;
-    }
 
-    if (!flag) {
         ret = wc_ShaUpdate(&sha, (byte*)b.input, (word32)b.inLen);
         if (ret != 0) {
             flag = ret;
@@ -2641,11 +2629,9 @@ static int test_wc_ShaUpdate (void)
     if (!flag) {
         c.input = NULL;
         c.inLen = SHA_DIGEST_SIZE;
-    }
 
-    if (!flag) {
         ret = wc_ShaUpdate(&sha, (byte*)c.input, (word32)c.inLen);
-        if (ret == 0) {
+        if (ret != BAD_FUNC_ARG) {
             flag = SSL_FATAL_ERROR;
         }
     }
@@ -2654,8 +2640,6 @@ static int test_wc_ShaUpdate (void)
         ret = wc_ShaUpdate(NULL, (byte*)a.input, (word32)a.inLen);
         if (ret != BAD_FUNC_ARG) {
             flag = SSL_FATAL_ERROR;
-        } else {
-            flag = 0;
         }
     }
 
@@ -2718,9 +2702,7 @@ static int test_wc_Sha256Update (void)
                     "\x15\xAD";
         a.inLen = XSTRLEN(a.input);
         a.outLen = XSTRLEN(a.output);
-    }
 
-    if (!flag) {
         ret = wc_Sha256Update(&sha256, (byte*)a.input, (word32)a.inLen);
         if (ret != 0) {
             flag = ret;
@@ -2735,7 +2717,7 @@ static int test_wc_Sha256Update (void)
     }
 
     if (!flag) {
-        if (ret != 0 && XMEMCMP(hash, a.output, SHA256_DIGEST_SIZE) != 0) {
+        if (XMEMCMP(hash, a.output, SHA256_DIGEST_SIZE) != 0) {
             flag = SSL_FATAL_ERROR;
         }
     }
@@ -2744,9 +2726,7 @@ static int test_wc_Sha256Update (void)
     if (!flag) {
         b.input = NULL;
         b.inLen = 0;
-    }
 
-    if (!flag) {
         ret = wc_Sha256Update(&sha256, (byte*)b.input, (word32)b.inLen);
         if (ret != 0) {
             flag = ret;
@@ -2756,11 +2736,9 @@ static int test_wc_Sha256Update (void)
     if (!flag) {
         c.input = NULL;
         c.inLen = SHA256_DIGEST_SIZE;
-    }
 
-    if (!flag) {
         ret = wc_Sha256Update(&sha256, (byte*)c.input, (word32)c.inLen);
-        if (ret == 0) {
+        if (ret != BAD_FUNC_ARG) {
             flag = SSL_FATAL_ERROR;
         }
     }
@@ -2769,8 +2747,6 @@ static int test_wc_Sha256Update (void)
         ret = wc_Sha256Update(NULL, (byte*)a.input, (word32)a.inLen);
         if (ret != BAD_FUNC_ARG) {
             flag = SSL_FATAL_ERROR;
-        } else {
-            flag = 0;
         }
     }
 
@@ -2832,11 +2808,9 @@ static int test_wc_Sha384Update (void)
                    "\x07\x27\x2c\x32\xab\x0e\xde\xd1\x63\x1a\x8b\x60\x5a\x43\xff"
                    "\x5b\xed\x80\x86\x07\x2b\xa1\xe7\xcc\x23\x58\xba\xec\xa1\x34"
                    "\xc8\x25\xa7";
-    a.inLen = XSTRLEN(a.input);
-    a.outLen = XSTRLEN(a.output);
-    }
+        a.inLen = XSTRLEN(a.input);
+        a.outLen = XSTRLEN(a.output);
 
-    if (!flag) {
         ret = wc_Sha384Update(&sha384, (byte*)a.input, (word32)a.inLen);
         if (ret != 0) {
             flag = ret;
@@ -2851,7 +2825,7 @@ static int test_wc_Sha384Update (void)
     }
 
     if (!flag) {
-        if (ret != 0 && XMEMCMP(hash, a.output, SHA384_DIGEST_SIZE) != 0) {
+        if (XMEMCMP(hash, a.output, SHA384_DIGEST_SIZE) != 0) {
             flag = SSL_FATAL_ERROR;
         }
     }
@@ -2860,9 +2834,7 @@ static int test_wc_Sha384Update (void)
     if (!flag) {
         b.input = NULL;
         b.inLen = 0;
-    }
 
-    if (!flag) {
         ret = wc_Sha384Update(&sha384, (byte*)b.input, (word32)b.inLen);
         if (ret != 0) {
             flag = ret;
@@ -2872,11 +2844,9 @@ static int test_wc_Sha384Update (void)
     if (!flag) {
         c.input = NULL;
         c.inLen = SHA384_DIGEST_SIZE;
-    }
 
-    if (!flag) {
         ret = wc_Sha384Update(&sha384, (byte*)c.input, (word32)c.inLen);
-        if (ret == 0) {
+        if (ret != BAD_FUNC_ARG) {
             flag = SSL_FATAL_ERROR;
         }
     }
@@ -2885,8 +2855,6 @@ static int test_wc_Sha384Update (void)
         ret = wc_Sha384Update(NULL, (byte*)a.input, (word32)a.inLen);
         if (ret != BAD_FUNC_ARG) {
             flag = SSL_FATAL_ERROR;
-        } else {
-            flag = 0;
         }
     }
 
@@ -2950,9 +2918,7 @@ static int test_wc_Sha512Update (void)
                    "\x4c\xa4\x9f";
         a.inLen = XSTRLEN(a.input);
         a.outLen = XSTRLEN(a.output);
-    }
 
-    if (!flag) {
         ret = wc_Sha512Update(&sha512, (byte*) a.input, (word32) a.inLen);
         if (ret != 0) {
             flag = ret;
@@ -2967,7 +2933,7 @@ static int test_wc_Sha512Update (void)
     }
 
     if (!flag) {
-        if (ret != 0 && XMEMCMP(hash, a.output, SHA512_DIGEST_SIZE) != 0) {
+        if (XMEMCMP(hash, a.output, SHA512_DIGEST_SIZE) != 0) {
             flag = SSL_FAILURE;
         }
     }
@@ -2976,9 +2942,7 @@ static int test_wc_Sha512Update (void)
     if (!flag) {
         b.input = NULL;
         b.inLen = 0;
-    }
 
-    if (!flag) {
         ret = wc_Sha512Update(&sha512, (byte*)b.input, (word32)b.inLen);
         if (ret != 0) {
             flag = ret;
@@ -2988,11 +2952,9 @@ static int test_wc_Sha512Update (void)
     if (!flag) {
         c.input = NULL;
         c.inLen = SHA512_DIGEST_SIZE;
-    }
 
-    if (!flag) {
         ret = wc_Sha512Update(&sha512, (byte*)c.input, (word32)c.inLen);
-        if (ret ==0) {
+        if (ret != BAD_FUNC_ARG) {
             flag = SSL_FATAL_ERROR;
         }
     }
@@ -3001,8 +2963,6 @@ static int test_wc_Sha512Update (void)
         ret = wc_Sha512Update(NULL, (byte*)a.input, (word32)a.inLen);
         if (ret != BAD_FUNC_ARG) {
             flag = SSL_FATAL_ERROR;
-        } else {
-            flag = 0;
         }
     }
 
@@ -3016,7 +2976,7 @@ static int test_wc_Sha512Update (void)
 
 } /* END test_wc_Sha512Update  */
 
-/* 
+/*
  *  Unit test on wc_Md5Final() in wolfcrypt/src/md5.c
  */
 static int test_wc_Md5Final (void)
@@ -3188,7 +3148,7 @@ static int test_wc_Sha256Final (void)
     }
 
     times = sizeof(hash_test) / sizeof(byte*);
-    
+
     /* Good test args. */
     printf(testingFmt, "wc_Sha256Final()");
 
@@ -3278,7 +3238,7 @@ static int test_wc_Sha512Final (void)
         if (ret != BAD_FUNC_ARG) {
             flag = SSL_FATAL_ERROR;
         }
-    
+
     if (!flag) {}
         ret = wc_Sha512Final(NULL, hash1);
         if (ret != BAD_FUNC_ARG) {
