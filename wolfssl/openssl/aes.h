@@ -34,14 +34,25 @@
 #ifndef NO_AES
 #include <wolfssl/openssl/ssl.h> /* for size_t */
 
-#include <wolfssl/wolfcrypt/aes.h>
-
 #ifdef __cplusplus
     extern "C" {
 #endif
 
-
-typedef struct Aes AES_KEY;
+/* This structure wrapper is done because there is no aes_new function with
+ * OpenSSL compatibility layer. This makes code working with an AES structure
+ * to need the size of the structure. */
+typedef struct WOLFSSL_AES_KEY {
+    /* aligned and big enough for Aes from wolfssl/wolfcrypt/aes.h */
+    ALIGN16 void* holder[360 / sizeof(void*)];
+    #ifdef WOLFSSL_ASYNC_CRYPT
+        void* additional[64 / sizeof(void*)]; /* async uses additional memory */
+    #endif
+    #ifdef GCM_TABLE
+    /* key-based fast multiplication table. */
+    ALIGN16 void* M0[4096 / sizeof(void*)];
+    #endif /* GCM_TABLE */
+} WOLFSSL_AES_KEY;
+typedef WOLFSSL_AES_KEY AES_KEY;
 
 WOLFSSL_API void wolfSSL_AES_set_encrypt_key
     (const unsigned char *, const int bits, AES_KEY *);
@@ -82,4 +93,4 @@ WOLFSSL_API void wolfSSL_AES_decrypt
 
 #endif /* NO_AES */
 
-#endif /* WOLFSSL_DES_H_ */
+#endif /* WOLFSSL_AES_H_ */

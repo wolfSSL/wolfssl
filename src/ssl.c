@@ -19376,6 +19376,9 @@ void wolfSSL_DES_ecb_encrypt(WOLFSSL_DES_cblock* desa,
 void wolfSSL_RC4_set_key(WOLFSSL_RC4_KEY* key, int len,
         const unsigned char* data)
 {
+    typedef char rc4_test[sizeof(WOLFSSL_RC4_KEY) >= sizeof(Arc4) ? 1 : -1];
+    (void)sizeof(rc4_test);
+
     WOLFSSL_ENTER("wolfSSL_RC4_set_key");
 
     if (key == NULL || len < 0) {
@@ -19427,7 +19430,7 @@ void wolfSSL_AES_encrypt(const unsigned char* input, unsigned char* output,
         return;
     }
 
-    wc_AesEncryptDirect(key, output, input);
+    wc_AesEncryptDirect((Aes*)key, output, input);
 }
 
 
@@ -19447,7 +19450,7 @@ void wolfSSL_AES_decrypt(const unsigned char* input, unsigned char* output,
         return;
     }
 
-    wc_AesDecryptDirect(key, output, input);
+    wc_AesDecryptDirect((Aes*)key, output, input);
 }
 #endif /* WOLFSSL_AES_DIRECT */
 
@@ -19460,6 +19463,9 @@ void wolfSSL_AES_decrypt(const unsigned char* input, unsigned char* output,
 void wolfSSL_AES_set_encrypt_key(const unsigned char *key, const int bits,
         AES_KEY *aes)
 {
+    typedef char aes_test[sizeof(AES_KEY) >= sizeof(Aes) ? 1 : -1];
+    (void)sizeof(aes_test);
+
     WOLFSSL_ENTER("wolfSSL_AES_set_encrypt_key");
 
     if (key == NULL || aes == NULL) {
@@ -19467,7 +19473,8 @@ void wolfSSL_AES_set_encrypt_key(const unsigned char *key, const int bits,
         return;
     }
 
-    if (wc_AesSetKey(aes, key, ((bits)/8), NULL, AES_ENCRYPTION) != 0) {
+    XMEMSET(aes, 0, sizeof(AES_KEY));
+    if (wc_AesSetKey((Aes*)aes, key, ((bits)/8), NULL, AES_ENCRYPTION) != 0) {
         WOLFSSL_MSG("Error in setting AES key");
     }
 }
@@ -19482,6 +19489,9 @@ void wolfSSL_AES_set_encrypt_key(const unsigned char *key, const int bits,
 void wolfSSL_AES_set_decrypt_key(const unsigned char *key, const int bits,
         AES_KEY *aes)
 {
+    typedef char aes_test[sizeof(AES_KEY) >= sizeof(Aes) ? 1 : -1];
+    (void)sizeof(aes_test);
+
     WOLFSSL_ENTER("wolfSSL_AES_set_decrypt_key");
 
     if (key == NULL || aes == NULL) {
@@ -19489,7 +19499,8 @@ void wolfSSL_AES_set_decrypt_key(const unsigned char *key, const int bits,
         return;
     }
 
-    if (wc_AesSetKey(aes, key, ((bits)/8), NULL, AES_DECRYPTION) != 0) {
+    XMEMSET(aes, 0, sizeof(AES_KEY));
+    if (wc_AesSetKey((Aes*)aes, key, ((bits)/8), NULL, AES_DECRYPTION) != 0) {
         WOLFSSL_MSG("Error in setting AES key");
     }
 }
@@ -19508,6 +19519,8 @@ void wolfSSL_AES_set_decrypt_key(const unsigned char *key, const int bits,
 void wolfSSL_AES_cbc_encrypt(const unsigned char *in, unsigned char* out,
         size_t len, AES_KEY *key, unsigned char* iv, const int enc)
 {
+    Aes* aes;
+
     WOLFSSL_ENTER("wolfSSL_AES_cbc_encrypt");
 
     if (key == NULL || in == NULL || out == NULL || iv == NULL) {
@@ -19515,24 +19528,25 @@ void wolfSSL_AES_cbc_encrypt(const unsigned char *in, unsigned char* out,
         return;
     }
 
-    if (wc_AesSetIV(key, (const byte*)iv) != 0) {
+    aes = (Aes*)key;
+    if (wc_AesSetIV(aes, (const byte*)iv) != 0) {
         WOLFSSL_MSG("Error with setting iv");
         return;
     }
 
     if (enc == AES_ENCRYPT) {
-        if (wc_AesCbcEncrypt(key, out, in, (word32)len) != 0) {
+        if (wc_AesCbcEncrypt(aes, out, in, (word32)len) != 0) {
             WOLFSSL_MSG("Error with AES CBC encrypt");
         }
     }
     else {
-        if (wc_AesCbcDecrypt(key, out, in, (word32)len) != 0) {
+        if (wc_AesCbcDecrypt(aes, out, in, (word32)len) != 0) {
             WOLFSSL_MSG("Error with AES CBC decrypt");
         }
     }
 
     /* to be compatible copy iv to iv buffer after completing operation */
-    XMEMCPY(iv, (byte*)(key->reg), AES_BLOCK_SIZE);
+    XMEMCPY(iv, (byte*)(aes->reg), AES_BLOCK_SIZE);
 }
 
 
