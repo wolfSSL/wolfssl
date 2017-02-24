@@ -2748,6 +2748,7 @@ void InitX509Name(WOLFSSL_X509_NAME* name, int dynamicFlag)
 #ifdef OPENSSL_EXTRA
         XMEMSET(&name->fullName, 0, sizeof(DecodedName));
         XMEMSET(&name->cnEntry,  0, sizeof(WOLFSSL_X509_NAME_ENTRY));
+        XMEMSET(&name->extra,    0, sizeof(name->extra));
         name->cnEntry.value = &(name->cnEntry.data); /* point to internal data*/
         name->cnEntry.nid = ASN_COMMON_NAME;
         name->x509 = NULL;
