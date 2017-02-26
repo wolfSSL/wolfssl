@@ -13308,6 +13308,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
                 if (ret != 0)
                     return ret;
             }
+            ret = 0;
         }
         else if (ctx->cipherType == AES_192_CBC_TYPE ||
                  (type && XSTRNCMP(type, EVP_AES_192_CBC, EVP_AES_SIZE) == 0)) {
@@ -13329,6 +13330,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
                 if (ret != 0)
                     return ret;
             }
+            ret = 0;
         }
         else if (ctx->cipherType == AES_256_CBC_TYPE ||
                  (type && XSTRNCMP(type, EVP_AES_256_CBC, EVP_AES_SIZE) == 0)) {
@@ -13354,7 +13356,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
                     return ret;
                 }
             }
-            WOLFSSL_MSG("wolfSSL_EVP_CipherInit() done");
+            ret = 0;
         }
 #ifdef WOLFSSL_AES_COUNTER
         else if (ctx->cipherType == AES_128_CTR_TYPE ||
@@ -13377,6 +13379,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
                 if (ret != 0)
                     return ret;
             }
+            ret = 0;
         }
         else if (ctx->cipherType == AES_192_CTR_TYPE ||
                  (type && XSTRNCMP(type, EVP_AES_192_CTR, EVP_AES_SIZE) == 0)) {
@@ -13398,6 +13401,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
                 if (ret != 0)
                     return ret;
             }
+            ret = 0;
         }
         else if (ctx->cipherType == AES_256_CTR_TYPE ||
                  (type && XSTRNCMP(type, EVP_AES_256_CTR, EVP_AES_SIZE) == 0)) {
@@ -13419,6 +13423,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
                 if (ret != 0)
                     return ret;
             }
+            ret = 0;
         }
 #endif /* WOLFSSL_AES_CTR */
         else if (ctx->cipherType == AES_128_ECB_TYPE ||
@@ -13436,6 +13441,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
             }
             if (ret != 0)
                 return ret;
+            ret = 0;
         }
         else if (ctx->cipherType == AES_192_ECB_TYPE ||
                  (type && XSTRNCMP(type, EVP_AES_192_ECB, EVP_AES_SIZE) == 0)) {
@@ -13452,6 +13458,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
             }
             if (ret != 0)
                 return ret;
+            ret = 0;
         }
         else if (ctx->cipherType == AES_256_ECB_TYPE ||
                  (type && XSTRNCMP(type, EVP_AES_256_ECB, EVP_AES_SIZE) == 0)) {
@@ -13468,6 +13475,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
             }
             if (ret != 0)
                 return ret;
+            ret = 0;
         }
 #endif /* NO_AES */
 
@@ -13490,6 +13498,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
 
             if (iv && key == NULL)
                 wc_Des_SetIV(&ctx->cipher.des, iv);
+            ret = 0;
         }
 #ifdef WOLFSSL_DES_ECB
         else if (ctx->cipherType == DES_ECB_TYPE ||
@@ -13507,6 +13516,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
                 if (ret != 0)
                     return ret;
             }
+            ret = 0;
         }
 #endif
         else if (ctx->cipherType == DES_EDE3_CBC_TYPE ||
@@ -13531,6 +13541,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
                 if (ret != 0)
                     return ret;
             }
+            ret = 0;
         }
         else if (ctx->cipherType == DES_EDE3_ECB_TYPE ||
                  (type &&
@@ -13548,6 +13559,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
                 if (ret != 0)
                     return ret;
             }
+            ret = 0;
         }
 #endif /* NO_DES3 */
 #ifndef NO_RC4
@@ -13584,6 +13596,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
 
             if (iv && key == NULL)
                 wc_IdeaSetIV(&ctx->cipher.idea, iv);
+            ret = 0;
         }
 #endif /* HAVE_IDEA */
         if (ctx->cipherType == NULL_CIPHER_TYPE || (type &&
