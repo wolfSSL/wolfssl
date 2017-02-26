@@ -88,8 +88,8 @@
 
 	/* These platforms have 64-bit CPU registers.  */
 	#if (defined(__alpha__) || defined(__ia64__) || defined(_ARCH_PPC64) || \
-	     defined(__mips64)  || defined(__x86_64__) || defined(_M_X64)) || \
-         defined(__aarch64__)
+	     defined(__mips64)  || defined(__x86_64__) || defined(_M_X64) || \
+	     defined(__aarch64__) || defined(__arm64__))
 	    typedef word64 wolfssl_word;
         #define WC_64BIT_CPU
 	#else

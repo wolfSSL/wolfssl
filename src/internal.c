@@ -6665,6 +6665,10 @@ static int DoCertificate(WOLFSSL* ssl, byte* input, word32* inOutIdx,
         }
         else {
             WOLFSSL_MSG("Verified CA from chain and already had it");
+            if (anyError == ASN_NO_SIGNER_E){
+                WOLFSSL_MSG("Overriding no signer error from higher CAs in chain");
+                anyError = 0;
+            }
         }
 
 #if defined(HAVE_OCSP) || defined(HAVE_CRL)
