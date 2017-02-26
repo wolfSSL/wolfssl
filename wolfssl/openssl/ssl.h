@@ -557,6 +557,8 @@ typedef WOLFSSL_X509_NAME_ENTRY X509_NAME_ENTRY;
 
 
 #define NID_commonName 0x03 /* matchs ASN_COMMON_NAME in asn.h */
+#define NID_domainComponent 0x10
+                            /* matchs ASN_DOMAIN_COMPONENT in asn.h */
 
  /* matchs ASN_..._NAME in asn.h */
 #define NID_commonName   0x03  /* CN */

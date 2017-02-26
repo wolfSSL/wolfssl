@@ -3895,7 +3895,17 @@ static int GetName(DecodedCert* cert, int nameType)
                     dName->snLen = strLen;
                 #endif /* OPENSSL_EXTRA */
             }
-
+            else if (id == ASN_DOMAIN_COMPONENT) {
+                if (!tooBig) {
+                   XMEMCPY(&full[idx], "/domainComponent=", 17);
+                   idx += 17;
+                   copy = TRUE;
+                }
+                #ifdef OPENSSL_EXTRA
+                    dName->snIdx = cert->srcIdx;
+                    dName->snLen = strLen;
+                #endif /* OPENSSL_EXTRA */
+            }
             if (copy && !tooBig) {
                 XMEMCPY(&full[idx], &cert->source[cert->srcIdx], strLen);
                 idx += strLen;

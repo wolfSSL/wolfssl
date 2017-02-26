@@ -103,7 +103,8 @@ enum DN_Tags {
     ASN_LOCALITY_NAME = 0x07,   /* L  */
     ASN_STATE_NAME    = 0x08,   /* ST */
     ASN_ORG_NAME      = 0x0a,   /* O  */
-    ASN_ORGUNIT_NAME  = 0x0b,   /* OU */
+    ASN_ORGUNIT_NAME  = 0x0b,    /* OU */
+    ASN_DOMAIN_COMPONENT = 0x10, /* DC */
     ASN_EMAIL_NAME    = 0x98    /* not oid number there is 97 in 2.5.4.0-97 */
 };
 
