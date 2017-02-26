@@ -14931,6 +14931,10 @@ static void ExternalFreeX509(WOLFSSL_X509* x509)
                 text = name->fullName.fullName + name->fullName.ouIdx;
                 textSz = name->fullName.ouLen;
                 break;
+            case ASN_DOMAIN_COMPONENT:
+                text = name->fullName.fullName + name->fullName.dcIdx;
+                textSz = name->fullName.dcLen;
+            break;
             default:
                 WOLFSSL_MSG("Unknown NID value");
                 return -1;
