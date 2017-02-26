@@ -2533,6 +2533,8 @@ typedef int (*CallbackSniRecv)(WOLFSSL *ssl, int *ret, void* exArg);
 
 WOLFSSL_API int wolfSSL_CRYPTO_set_mem_ex_functions(void *(*m) (size_t, const char *, int),
     void *(*r) (void *, size_t, const char *, int), void (*f) (void *));
+    
+WOLFSSL_API void wolfSSL_CRYPTO_cleanup_all_ex_data(void);
 
 WOLFSSL_API WOLFSSL_DH *wolfSSL_DH_generate_parameters(int prime_len, int generator,
     void (*callback) (int, int, void *), void *cb_arg);

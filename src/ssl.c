@@ -28118,6 +28118,9 @@ int wolfSSL_CRYPTO_set_mem_ex_functions(void *(*m) (size_t, const char *, int),
     return WOLFSSL_FAILURE;
 }
 
+void wolfSSL_CRYPTO_cleanup_all_ex_data(void){
+    WOLFSSL_ENTER("CRYPTO_cleanup_all_ex_data");
+}
 
 WOLFSSL_DH *wolfSSL_DH_generate_parameters(int prime_len, int generator,
                            void (*callback) (int, int, void *), void *cb_arg)
