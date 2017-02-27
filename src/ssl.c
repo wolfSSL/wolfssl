@@ -11127,7 +11127,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
         /* printf("cipherType=%d\n", ctx->cipherType); */
         if (ctx->cipherType == AES_128_CBC_TYPE ||
             (type && XSTRNCMP(type, EVP_AES_128_CBC, EVP_AES_SIZE) == 0)) {
-            WOLFSSL_MSG(EVP_AES_128_CBC);
+            WOLFSSL_MSG("EVP_AES_128_CBC");
             ctx->cipherType = AES_128_CBC_TYPE;
             ctx->flags      = WOLFSSL_EVP_CIPH_CBC_MODE;
             ctx->keyLen     = 16;
@@ -11148,7 +11148,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
         }
         else if (ctx->cipherType == AES_192_CBC_TYPE ||
                  (type && XSTRNCMP(type, EVP_AES_192_CBC, EVP_AES_SIZE) == 0)) {
-            WOLFSSL_MSG(EVP_AES_192_CBC);
+            WOLFSSL_MSG("EVP_AES_192_CBC");
             ctx->cipherType = AES_192_CBC_TYPE;
             ctx->flags      = WOLFSSL_EVP_CIPH_CBC_MODE;
             ctx->keyLen     = 24;
@@ -11169,7 +11169,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
         }
         else if (ctx->cipherType == AES_256_CBC_TYPE ||
                  (type && XSTRNCMP(type, EVP_AES_256_CBC, EVP_AES_SIZE) == 0)) {
-            WOLFSSL_MSG(EVP_AES_256_CBC);
+            WOLFSSL_MSG("EVP_AES_256_CBC");
             ctx->cipherType = AES_256_CBC_TYPE;
             ctx->flags      = WOLFSSL_EVP_CIPH_CBC_MODE;
             ctx->keyLen     = 32;
@@ -11191,7 +11191,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
 #ifdef WOLFSSL_AES_COUNTER
         else if (ctx->cipherType == AES_128_CTR_TYPE ||
                  (type && XSTRNCMP(type, EVP_AES_128_CTR, EVP_AES_SIZE) == 0)) {
-            WOLFSSL_MSG(EVP_AES_128_CTR);
+            WOLFSSL_MSG("EVP_AES_128_CTR");
             ctx->cipherType = AES_128_CTR_TYPE;
             ctx->flags      = WOLFSSL_EVP_CIPH_CTR_MODE;
             ctx->keyLen     = 16;
@@ -11212,7 +11212,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
         }
         else if (ctx->cipherType == AES_192_CTR_TYPE ||
                  (type && XSTRNCMP(type, EVP_AES_192_CTR, EVP_AES_SIZE) == 0)) {
-            WOLFSSL_MSG(EVP_AES_192_CTR);
+            WOLFSSL_MSG("EVP_AES_192_CTR");
             ctx->cipherType = AES_192_CTR_TYPE;
             ctx->flags      = WOLFSSL_EVP_CIPH_CTR_MODE;
             ctx->keyLen     = 24;
@@ -11233,7 +11233,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
         }
         else if (ctx->cipherType == AES_256_CTR_TYPE ||
                  (type && XSTRNCMP(type, EVP_AES_256_CTR, EVP_AES_SIZE) == 0)) {
-            WOLFSSL_MSG(EVP_AES_256_CTR);
+            WOLFSSL_MSG("EVP_AES_256_CTR");
             ctx->cipherType = AES_256_CTR_TYPE;
             ctx->flags      = WOLFSSL_EVP_CIPH_CTR_MODE;
             ctx->keyLen     = 32;
@@ -11255,7 +11255,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
 #endif /* WOLFSSL_AES_CTR */
         else if (ctx->cipherType == AES_128_ECB_TYPE ||
             (type && XSTRNCMP(type, EVP_AES_128_ECB, EVP_AES_SIZE) == 0)) {
-            WOLFSSL_MSG(EVP_AES_128_ECB);
+            WOLFSSL_MSG("EVP_AES_128_ECB");
             ctx->cipherType = AES_128_ECB_TYPE;
             ctx->flags      = WOLFSSL_EVP_CIPH_ECB_MODE;
             ctx->keyLen     = 16;
@@ -11271,7 +11271,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
         }
         else if (ctx->cipherType == AES_192_ECB_TYPE ||
                  (type && XSTRNCMP(type, EVP_AES_192_ECB, EVP_AES_SIZE) == 0)) {
-            WOLFSSL_MSG(EVP_AES_192_ECB);
+            WOLFSSL_MSG("EVP_AES_192_ECB");
             ctx->cipherType = AES_192_ECB_TYPE;
             ctx->flags      = WOLFSSL_EVP_CIPH_ECB_MODE;
             ctx->keyLen     = 24;
@@ -11288,7 +11288,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
         }
         else if (ctx->cipherType == AES_256_ECB_TYPE ||
                  (type && XSTRNCMP(type, EVP_AES_256_ECB, EVP_AES_SIZE) == 0)) {
-            WOLFSSL_MSG(EVP_AES_256_ECB);
+            WOLFSSL_MSG("EVP_AES_256_ECB");
             ctx->cipherType = AES_256_ECB_TYPE;
             ctx->flags      = WOLFSSL_EVP_CIPH_ECB_MODE;
             ctx->keyLen     = 32;
@@ -11307,7 +11307,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
 #ifndef NO_DES3
         if (ctx->cipherType == DES_CBC_TYPE ||
                  (type && XSTRNCMP(type, EVP_DES_CBC, EVP_DES_SIZE) == 0)) {
-            WOLFSSL_MSG(EVP_DES_CBC);
+            WOLFSSL_MSG("EVP_DES_CBC");
             ctx->cipherType = DES_CBC_TYPE;
             ctx->flags      = WOLFSSL_EVP_CIPH_CBC_MODE;
             ctx->keyLen     = 8;
@@ -11327,7 +11327,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
 #ifdef WOLFSSL_DES_ECB
         else if (ctx->cipherType == DES_ECB_TYPE ||
                  (type && XSTRNCMP(type, EVP_DES_ECB, EVP_DES_SIZE) == 0)) {
-            WOLFSSL_MSG(EVP_DES_ECB);
+            WOLFSSL_MSG("EVP_DES_ECB");
             ctx->cipherType = DES_ECB_TYPE;
             ctx->flags      = WOLFSSL_EVP_CIPH_ECB_MODE;
             ctx->keyLen     = 8;
@@ -11345,7 +11345,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
         else if (ctx->cipherType == DES_EDE3_CBC_TYPE ||
                  (type &&
                   XSTRNCMP(type, EVP_DES_EDE3_CBC, EVP_DES_EDE3_SIZE) == 0)) {
-            WOLFSSL_MSG(EVP_DES_EDE3_CBC);
+            WOLFSSL_MSG("EVP_DES_EDE3_CBC");
             ctx->cipherType = DES_EDE3_CBC_TYPE;
             ctx->flags      = WOLFSSL_EVP_CIPH_CBC_MODE;
             ctx->keyLen     = 24;
@@ -11368,7 +11368,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
         else if (ctx->cipherType == DES_EDE3_ECB_TYPE ||
                  (type &&
                   XSTRNCMP(type, EVP_DES_EDE3_ECB, EVP_DES_EDE3_SIZE) == 0)) {
-            WOLFSSL_MSG(EVP_DES_EDE3_ECB);
+            WOLFSSL_MSG("EVP_DES_EDE3_ECB");
             ctx->cipherType = DES_EDE3_ECB_TYPE;
             ctx->flags      = WOLFSSL_EVP_CIPH_ECB_MODE;
             ctx->keyLen     = 24;
@@ -11399,7 +11399,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
 #ifdef HAVE_IDEA
         if (ctx->cipherType == IDEA_CBC_TYPE ||
                  (type && XSTRNCMP(type, EVP_IDEA_CBC, EVP_IDEA_SIZE) == 0)) {
-            WOLFSSL_MSG(EVP_IDEA_CBC);
+            WOLFSSL_MSG("EVP_IDEA_CBC");
             ctx->cipherType = IDEA_CBC_TYPE;
             ctx->flags      = WOLFSSL_EVP_CIPH_CBC_MODE;
             ctx->keyLen     = IDEA_KEY_SIZE;
