@@ -20915,3 +20915,4 @@ int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 #undef ERROR_OUT
 
 #endif /* WOLFCRYPT_ONLY */
+
