@@ -120,7 +120,7 @@ int wc_CmacFinal(Cmac* cmac, byte* out, word32* outSz)
     if (cmac == NULL || out == NULL)
         return BAD_FUNC_ARG;
 
-    if (outSz != NULL && *outSz < AES_BLOCK_SIZE)
+    if (outSz != NULL && (*outSz < 4 || *outSz > AES_BLOCK_SIZE))
         return BUFFER_E;
 
     if (cmac->bufferSz == AES_BLOCK_SIZE) {
