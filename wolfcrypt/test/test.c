@@ -10385,6 +10385,7 @@ done:
     return ret;
 }
 
+#ifdef WOLFSSL_CERT_EXT
 static int ecc_decode_test(void)
 {
     int        ret;
@@ -10520,15 +10521,18 @@ done:
     wc_ecc_free(&key);
     return ret;
 }
+#endif /* WOLFSSL_CERT_EXT */
 
 int ecc_test(void)
 {
     int ret;
     WC_RNG  rng;
 
+#ifdef WOLFSSL_CERT_EXT
     ret = ecc_decode_test();
     if (ret < 0)
         return ret;
+#endif
 
     ret = wc_InitRng(&rng);
     if (ret != 0)

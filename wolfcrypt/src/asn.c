@@ -9190,6 +9190,7 @@ int wc_EccPrivateKeyDecode(const byte* input, word32* inOutIdx, ecc_key* key,
     return ret;
 }
 
+#ifdef WOLFSSL_CERT_EXT
 int wc_EccPublicKeyDecode(const byte* input, word32* inOutIdx,
                           ecc_key* key, word32 inSz)
 {
@@ -9243,6 +9244,7 @@ int wc_EccPublicKeyDecode(const byte* input, word32* inOutIdx,
 
     return 0;
 }
+#endif
 
 
 #ifdef WOLFSSL_KEY_GEN
