@@ -166,7 +166,7 @@ int wc_Hash(enum wc_HashType hash_type, const byte* data,
     if (hash_len < dig_size) {
         return BUFFER_E;
     }
-    
+
     /* Suppress possible unused arg if all hashing is disabled */
     (void)data;
     (void)data_len;
@@ -283,7 +283,7 @@ int wc_HashInit(wc_HashAlg* hash, enum wc_HashType type)
             return BAD_FUNC_ARG;
     };
 
-    return 0;
+    return ret;
 }
 
 int wc_HashUpdate(wc_HashAlg* hash, enum wc_HashType type, const byte* data,
@@ -304,8 +304,8 @@ int wc_HashUpdate(wc_HashAlg* hash, enum wc_HashType type, const byte* data,
 #ifndef NO_SHA
             ret = wc_ShaUpdate(&hash->sha, data, dataSz);
             if (ret != 0)
-#endif
                 return ret;
+#endif
             break;
         case WC_HASH_TYPE_SHA224:
 #ifdef WOLFSSL_SHA224
@@ -345,7 +345,7 @@ int wc_HashUpdate(wc_HashAlg* hash, enum wc_HashType type, const byte* data,
             return BAD_FUNC_ARG;
     };
 
-    return 0;
+    return ret;
 }
 
 int wc_HashFinal(wc_HashAlg* hash, enum wc_HashType type, byte* out)
