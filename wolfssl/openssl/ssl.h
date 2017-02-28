@@ -556,19 +556,7 @@ typedef WOLFSSL_X509_NAME_ENTRY X509_NAME_ENTRY;
 #define SSL_dup_CA_list wolfSSL_dup_CA_list
 
 
-#define NID_commonName 0x03 /* matchs ASN_COMMON_NAME in asn.h */
-#define NID_domainComponent 0x10
-                            /* matchs ASN_DOMAIN_COMPONENT in asn.h */
 
- /* matchs ASN_..._NAME in asn.h */
-#define NID_commonName   0x03  /* CN */
-#define NID_surname      0x04,   /* SN */
-#define NID_serialNumber 0x05,   /* serialNumber */
-#define NID_countryName  0x06,   /* C  */
-#define NID_localityName 0x07,   /* L  */
-#define NID_stateOrProvinceName    0x08,   /* ST */
-#define NID_organizationName       0x0a,   /* O  */
-#define NID_organizationalUnitName 0x0b,   /* OU */
 
 /* NIDs */
 enum {
@@ -779,30 +767,24 @@ typedef WOLFSSL_ASN1_BIT_STRING    ASN1_BIT_STRING;
 #define NID_policy_constraints        150
 #define NID_inhibit_any_policy        168 /* 2.5.29.54 */
 #define NID_tlsfeature                92  /* id-pe 24 */
+#define NID_commonName 0x03 /* matchs ASN_COMMON_NAME in asn.h */
+#define NID_domainComponent 0x19
+                            /* matchs ASN_DOMAIN_COMPONENT in asn.h */
+
+ /* matchs ASN_..._NAME in asn.h */
+#define NID_surname      0x04,   /* SN */
+#define NID_serialNumber 0x05,   /* serialNumber */
+#define NID_countryName  0x06,   /* C  */
+#define NID_localityName 0x07,   /* L  */
+#define NID_stateOrProvinceName    0x08,   /* ST */
+#define NID_organizationName       0x0a,   /* O  */
+#define NID_organizationalUnitName 0x0b,   /* OU */
 
 
 #define SSL_CTX_set_msg_callback        wolfSSL_CTX_set_msg_callback
 #define SSL_set_msg_callback            wolfSSL_set_msg_callback
 #define SSL_CTX_set_msg_callback_arg    wolfSSL_CTX_set_msg_callback_arg
 #define SSL_set_msg_callback_arg        wolfSSL_set_msg_callback_arg
-
-/* certificate extension NIDs */
-#define NID_basic_constraints         133
-#define NID_key_usage                 129  /* 2.5.29.15 */
-#define NID_ext_key_usage             151  /* 2.5.29.37 */
-#define NID_subject_key_identifier    128
-#define NID_authority_key_identifier  149
-#define NID_private_key_usage_period  130  /* 2.5.29.16 */
-#define NID_subject_alt_name          131
-#define NID_issuer_alt_name           132
-#define NID_info_access               69
-#define NID_sinfo_access              79  /* id-pe 11 */
-#define NID_name_constraints          144 /* 2.5.29.30 */
-#define NID_certificate_policies      146
-#define NID_policy_mappings           147
-#define NID_policy_constraints        150
-#define NID_inhibit_any_policy        168 /* 2.5.29.54 */
-#define NID_tlsfeature                92  /* id-pe 24 */
 
 
 #if defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY) || \

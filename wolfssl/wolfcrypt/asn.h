@@ -104,8 +104,12 @@ enum DN_Tags {
     ASN_STATE_NAME    = 0x08,   /* ST */
     ASN_ORG_NAME      = 0x0a,   /* O  */
     ASN_ORGUNIT_NAME  = 0x0b,    /* OU */
-    ASN_DOMAIN_COMPONENT = 0x10, /* DC */
-    ASN_EMAIL_NAME    = 0x98    /* not oid number there is 97 in 2.5.4.0-97 */
+    ASN_EMAIL_NAME    = 0x98,    /* not oid number there is 97 in 2.5.4.0-97 */
+
+    /* pilot attribute types
+     * OID values of 0.9.2342.19200300.100.1.* */
+    ASN_USER_ID          = 0x01, /* UID */
+    ASN_DOMAIN_COMPONENT = 0x19  /* DC */
 };
 
 enum PBES {

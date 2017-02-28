@@ -3895,17 +3895,6 @@ static int GetName(DecodedCert* cert, int nameType)
                     dName->snLen = strLen;
                 #endif /* OPENSSL_EXTRA */
             }
-            else if (id == ASN_DOMAIN_COMPONENT) {
-                if (!tooBig) {
-                   XMEMCPY(&full[idx], "/domainComponent=", 17);
-                   idx += 17;
-                   copy = TRUE;
-                }
-                #ifdef OPENSSL_EXTRA
-                    dName->dcIdx = cert->srcIdx;
-                    dName->dcLen = strLen;
-                #endif /* OPENSSL_EXTRA */
-            }
             if (copy && !tooBig) {
                 XMEMCPY(&full[idx], &cert->source[cert->srcIdx], strLen);
                 idx += strLen;
@@ -3916,14 +3905,18 @@ static int GetName(DecodedCert* cert, int nameType)
         else {
             /* skip */
             byte email = FALSE;
-            byte uid   = FALSE;
+            byte pilot = FALSE;
+            byte id    = 0;
             int  adv;
 
             if (joint[0] == 0x2a && joint[1] == 0x86)  /* email id hdr */
                 email = TRUE;
 
-            if (joint[0] == 0x9  && joint[1] == 0x92)  /* uid id hdr */
-                uid = TRUE;
+            if (joint[0] == 0x9  && joint[1] == 0x92) { /* uid id hdr */
+                /* last value of OID is the type of pilot attribute */
+                id    = cert->source[cert->srcIdx + oidSz - 1];
+                pilot = TRUE;
+            }
 
             cert->srcIdx += oidSz + 1;
 
@@ -3986,22 +3979,38 @@ static int GetName(DecodedCert* cert, int nameType)
                 }
             }
 
-            if (uid) {
+            if (pilot) {
                 if ( (5 + adv) > (int)(ASN_NAME_MAX - idx)) {
                     WOLFSSL_MSG("ASN name too big, skipping");
                     tooBig = TRUE;
                 }
                 if (!tooBig) {
-                    XMEMCPY(&full[idx], "/UID=", 5);
-                    idx += 5;
+                    switch (id) {
+                        case ASN_USER_ID:
+                            XMEMCPY(&full[idx], "/UID=", 5);
+                            idx += 5;
+                        #ifdef OPENSSL_EXTRA
+                            dName->uidIdx = cert->srcIdx;
+                            dName->uidLen = adv;
+                        #endif /* OPENSSL_EXTRA */
+                            break;
 
+                        case ASN_DOMAIN_COMPONENT:
+                            XMEMCPY(&full[idx], "/DC=", 4);
+                            idx += 4;
+                        #ifdef OPENSSL_EXTRA
+                            dName->dcIdx = cert->srcIdx;
+                            dName->dcLen = adv;
+                        #endif /* OPENSSL_EXTRA */
+                            break;
+
+                        default:
+                            WOLFSSL_MSG("Unknown pilot attribute type");
+                            return ASN_PARSE_E;
+                    }
                     XMEMCPY(&full[idx], &cert->source[cert->srcIdx], adv);
                     idx += adv;
                 }
-                #ifdef OPENSSL_EXTRA
-                    dName->uidIdx = cert->srcIdx;
-                    dName->uidLen = adv;
-                #endif /* OPENSSL_EXTRA */
             }
 
             cert->srcIdx += adv;
@@ -4033,6 +4042,8 @@ static int GetName(DecodedCert* cert, int nameType)
             totalLen += dName->uidLen + 5;
         if (dName->serialLen != 0)
             totalLen += dName->serialLen + 14;
+        if (dName->dcLen != 0)
+            totalLen += dName->dcLen + 4;
 
         dName->fullName = (char*)XMALLOC(totalLen + 1, cert->heap,
                                                              DYNAMIC_TYPE_X509);
@@ -4110,6 +4121,15 @@ static int GetName(DecodedCert* cert, int nameType)
                                &cert->source[dName->emailIdx], dName->emailLen);
                 dName->emailIdx = idx;
                 idx += dName->emailLen;
+            }
+            if (dName->dcLen != 0) {
+                dName->entryCount++;
+                XMEMCPY(&dName->fullName[idx], "/DC=", 4);
+                idx += 4;
+                XMEMCPY(&dName->fullName[idx],
+                                   &cert->source[dName->dcIdx], dName->dcLen);
+                dName->dcIdx = idx;
+                idx += dName->dcLen;
             }
             if (dName->uidLen != 0) {
                 dName->entryCount++;
