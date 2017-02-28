@@ -9933,7 +9933,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
             /* Clear pointers so freeing certificate doesn't free memory. */
             XMEMSET(subjectName, 0, sizeof(WOLFSSL_X509_NAME));
 
-            /* Put nod on the front of the list. */
+            /* Put node on the front of the list. */
             node->num  = (list == NULL) ? 1 : list->num + 1;
             node->next = list;
             list = node;
@@ -10585,7 +10585,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
     {
         WOLFSSL_ENTER("wolfSSL_ERR_get_error");
 
-#if defined(WOLFSSL_NGINX)
+#ifdef WOLFSSL_NGINX
         {
             unsigned long ret = wolfSSL_ERR_peek_error_line_data(NULL, NULL,
                                                                  NULL, NULL);
@@ -15022,7 +15022,7 @@ unsigned long wolfSSL_ERR_peek_error(void)
 {
     WOLFSSL_ENTER("wolfSSL_ERR_peek_error");
 
-#ifdef WOLFSSL_NGINX
+#ifdef OPENSSL_EXTRA
     return wolfSSL_ERR_peek_error_line_data(NULL, NULL, NULL, NULL);
 #else
     return 0;
@@ -15406,9 +15406,17 @@ long wolfSSL_CTX_add_extra_chain_cert(WOLFSSL_CTX* ctx, WOLFSSL_X509* x509)
     }
     else {
         /* TODO: Do this elsewhere. */
-        AllocDer(&derBuffer, derSz, CERT_TYPE, ctx->heap);
+        ret = AllocDer(&derBuffer, derSz, CERT_TYPE, ctx->heap);
+        if (ret != 0) {
+            WOLFSSL_MSG("Memory Error");
+            return SSL_FAILURE;
+        }
         XMEMCPY(derBuffer->buffer, der, derSz);
-        AddCA(ctx->cm, &derBuffer, WOLFSSL_USER_CA, !ctx->verifyNone);
+        ret = AddCA(ctx->cm, &derBuffer, WOLFSSL_USER_CA, !ctx->verifyNone);
+        if (ret != SSL_SUCCESS) {
+            WOLFSSL_LEAVE("wolfSSL_CTX_add_extra_chain_cert", ret);
+            return SSL_FAILURE;
+        }
 
         /* adding cert to existing chain */
         if (ctx->certChain != NULL && ctx->certChain->length > 0) {
@@ -22295,13 +22303,18 @@ int wolfSSL_X509_NAME_print_ex(WOLFSSL_BIO* bio, WOLFSSL_X509_NAME* name,
     (void)flags;
     WOLFSSL_ENTER("wolfSSL_X509_NAME_print_ex");
 
-    for (i = 0; i < indent; i++)
-        BIO_write(bio, " ", 1);
+    for (i = 0; i < indent; i++) {
+        if (wolfSSL_BIO_write(bio, " ", 1) != 1)
+            return SSL_FAILURE;
+    }
 
-    if (flags == XN_FLAG_RFC2253)
-        BIO_write(bio, name->name + 1, name->sz - 2);
-    else
-        BIO_write(bio, name->name, name->sz);
+    if (flags == XN_FLAG_RFC2253) {
+        if (wolfSSL_BIO_write(bio, name->name + 1, name->sz - 2)
+                                                                != name->sz - 2)
+            return SSL_FAILURE;
+    }
+    else if (wolfSSL_BIO_write(bio, name->name, name->sz) != name->sz)
+        return SSL_FAILURE;
 
     return SSL_SUCCESS;
 }
@@ -22960,6 +22973,51 @@ int wolfSSL_AsyncPoll(WOLFSSL* ssl, WOLF_EVENT_FLAG flags)
 }
 #endif /* WOLFSSL_ASYNC_CRYPT */
 
+#ifdef OPENSSL_EXTRA
+unsigned long wolfSSL_ERR_peek_error_line_data(const char **file, int *line,
+                                               const char **data, int *flags)
+{
+    WOLFSSL_ENTER("wolfSSL_ERR_peek_error_line_data");
+
+    (void)line;
+    (void)file;
+
+    /* No data or flags stored - error display only in Nginx. */
+    if (data != NULL) {
+        *data = "";
+    }
+    if (flags != NULL) {
+        *flags = 0;
+    }
+
+#if defined(WOLFSSL_NGINX)
+    {
+        int ret = 0;
+
+        while (1) {
+            if ((ret = wc_PeekErrorNode(-1, file, NULL, line)) < 0) {
+                WOLFSSL_MSG("Issue peeking at error node in queue");
+                return 0;
+            }
+            ret = -ret;
+
+            if (ret == SSL_NO_PEM_HEADER)
+                return (ERR_LIB_PEM << 24) | PEM_R_NO_START_LINE;
+            if (ret != WANT_READ && ret != WANT_WRITE &&
+                    ret != ZERO_RETURN && ret != SSL_ERROR_ZERO_RETURN)
+                break;
+
+            wc_RemoveErrorNode(-1);
+        }
+
+        return (unsigned long)ret;
+    }
+#else
+    return (unsigned long)(0 - NOT_COMPILED_IN);
+#endif
+}
+#endif
+
 #ifdef WOLFSSL_NGINX
 void wolfSSL_OPENSSL_config(char *config_name)
 {
@@ -23211,51 +23269,15 @@ int wolfSSL_i2a_ASN1_INTEGER(BIO *bp, const WOLFSSL_ASN1_INTEGER *a)
     return len * 2;
 }
 
-unsigned long wolfSSL_ERR_peek_error_line_data(const char **file, int *line,
-                                               const char **data, int *flags)
-{
-    WOLFSSL_ENTER("wolfSSL_ERR_peek_error_line_data");
-
-    (void)line;
-    (void)file;
-
-    /* No data or flags stored - error display only in Nginx. */
-    if (data != NULL) {
-        *data = "";
-    }
-    if (flags != NULL) {
-        *flags = 0;
-    }
-
-#if defined(WOLFSSL_NGINX)
-    {
-        int ret = 0;
-
-        while (1) {
-            if ((ret = wc_PeekErrorNode(-1, file, NULL, line)) < 0) {
-                WOLFSSL_MSG("Issue peeking at error node in queue");
-                return 0;
-            }
-            ret = -ret;
-
-            if (ret == SSL_NO_PEM_HEADER)
-                return (ERR_LIB_PEM << 24) | PEM_R_NO_START_LINE;
-            if (ret != WANT_READ && ret != WANT_WRITE &&
-                    ret != ZERO_RETURN && ret != SSL_ERROR_ZERO_RETURN)
-                break;
-
-            wc_RemoveErrorNode(-1);
-        }
-
-        return (unsigned long)ret;
-    }
-#else
-    return (unsigned long)(0 - NOT_COMPILED_IN);
-#endif
-
-}
 
 #ifdef HAVE_SESSION_TICKET
+/* Expected return values from implementations of OpenSSL ticket key callback.
+ */
+#define TICKET_KEY_CB_RET_FAILURE    -1
+#define TICKET_KEY_CB_RET_NOT_FOUND   0
+#define TICKET_KEY_CB_RET_OK          1
+#define TICKET_KEY_CB_RET_RENEW       2
+
 /* The ticket key callback as used in OpenSSL is stored here. */
 static int (*ticketKeyCb)(WOLFSSL *ssl, unsigned char *name, unsigned char *iv,
     WOLFSSL_EVP_CIPHER_CTX *ectx, WOLFSSL_HMAC_CTX *hctx, int enc) = NULL;
@@ -23293,10 +23315,13 @@ static int wolfSSL_TicketKeyCb(WOLFSSL* ssl,
 
     (void)ctx;
 
+    if (ticketKeyCb == NULL)
+        return WOLFSSL_TICKET_RET_FATAL;
+
     wolfSSL_EVP_CIPHER_CTX_init(&evpCtx);
     /* Initialize the cipher and HMAC. */
     res = ticketKeyCb(ssl, keyName, iv, &evpCtx, &hmacCtx, enc);
-    if (res != 1 && res != 2)
+    if (res != TICKET_KEY_CB_RET_OK && res != TICKET_KEY_CB_RET_RENEW)
         return WOLFSSL_TICKET_RET_FATAL;
 
     if (enc)
@@ -23335,7 +23360,8 @@ static int wolfSSL_TicketKeyCb(WOLFSSL* ssl,
         *encLen = encTicketLen + len;
     }
 
-    ret = (res == 2) ? WOLFSSL_TICKET_RET_CREATE : WOLFSSL_TICKET_RET_OK;
+    ret = (res == TICKET_KEY_CB_RET_RENEW) ? WOLFSSL_TICKET_RET_CREATE :
+                                             WOLFSSL_TICKET_RET_OK;
 end:
     return ret;
 }

@@ -9708,7 +9708,7 @@ static int DecodeCerts(byte* source,
 
 
 static int DecodeBasicOcspResponse(byte* source, word32* ioIndex,
-                          OcspResponse* resp, word32 size, void* cm, void* heap)
+            OcspResponse* resp, word32 size, void* cm, void* heap, int noVerify)
 {
     int length;
     word32 idx = *ioIndex;
@@ -9766,8 +9766,8 @@ static int DecodeBasicOcspResponse(byte* source, word32* ioIndex,
 
         InitDecodedCert(&cert, resp->cert, resp->certSz, heap);
         /* Don't verify if we don't have access to Cert Manager. */
-        ret = ParseCertRelative(&cert, CERT_TYPE,
-                                cm == NULL ? NO_VERIFY : VERIFY, cm);
+        ret = ParseCertRelative(&cert, CERT_TYPE, noVerify ? NO_VERIFY : VERIFY,
+                                cm);
         if (ret < 0) {
             WOLFSSL_MSG("\tOCSP Responder certificate parsing failed");
             FreeDecodedCert(&cert);
@@ -9824,7 +9824,7 @@ void InitOcspResponse(OcspResponse* resp, CertStatus* status,
 }
 
 
-int OcspResponseDecode(OcspResponse* resp, void* cm, void* heap)
+int OcspResponseDecode(OcspResponse* resp, void* cm, void* heap, int noVerify)
 {
     int ret;
     int length = 0;
@@ -9869,7 +9869,7 @@ int OcspResponseDecode(OcspResponse* resp, void* cm, void* heap)
     if (GetLength(source, &idx, &length, size) < 0)
         return ASN_PARSE_E;
 
-    ret = DecodeBasicOcspResponse(source, &idx, resp, size, cm, heap);
+    ret = DecodeBasicOcspResponse(source, &idx, resp, size, cm, heap, noVerify);
     if (ret < 0)
         return ret;
 

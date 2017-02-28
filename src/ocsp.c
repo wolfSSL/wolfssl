@@ -287,7 +287,7 @@ static int CheckResponse(WOLFSSL_OCSP* ocsp, byte* response, int responseSz,
     XMEMSET(newStatus, 0, sizeof(CertStatus));
 
     InitOcspResponse(ocspResponse, newStatus, response, responseSz);
-    ret = OcspResponseDecode(ocspResponse, ocsp->cm, ocsp->cm->heap);
+    ret = OcspResponseDecode(ocspResponse, ocsp->cm, ocsp->cm->heap, 0);
     if (ret != 0) {
         WOLFSSL_MSG("OcspResponseDecode failed");
         goto end;
@@ -682,7 +682,7 @@ OcspResponse* wolfSSL_d2i_OCSP_RESPONSE(OcspResponse** response,
     XMEMCPY(resp->source, *data, len);
     resp->maxIdx = len;
 
-    if (OcspResponseDecode(resp, NULL, NULL) != 0) {
+    if (OcspResponseDecode(resp, NULL, NULL, 1) != 0) {
         wolfSSL_OCSP_RESPONSE_free(resp);
         return NULL;
     }

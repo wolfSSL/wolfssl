@@ -7360,7 +7360,7 @@ static int DoCertificateStatus(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 
             InitOcspResponse(response, status, input +*inOutIdx, status_length);
 
-            if (OcspResponseDecode(response, ssl->ctx->cm, ssl->heap) != 0)
+            if (OcspResponseDecode(response, ssl->ctx->cm, ssl->heap, 0) != 0)
                 ret = BAD_CERTIFICATE_STATUS_ERROR;
             else if (CompareOcspReqResp(request, response) != 0)
                 ret = BAD_CERTIFICATE_STATUS_ERROR;
@@ -7442,8 +7442,8 @@ static int DoCertificateStatus(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                     InitOcspResponse(response, status, input +*inOutIdx,
                                                                  status_length);
 
-                    if ((OcspResponseDecode(response, ssl->ctx->cm, ssl->heap)
-                                                                           != 0)
+                    if ((OcspResponseDecode(response, ssl->ctx->cm, ssl->heap,
+                                                                        0) != 0)
                     ||  (response->responseStatus != OCSP_SUCCESSFUL)
                     ||  (response->status->status != CERT_GOOD))
                         ret = BAD_CERTIFICATE_STATUS_ERROR;

@@ -2243,6 +2243,11 @@ WOLFSSL_API int wolfSSL_CTX_set_msg_callback_arg(WOLFSSL_CTX *ctx, void* arg);
 WOLFSSL_API int wolfSSL_set_msg_callback_arg(WOLFSSL *ssl, void* arg);
 #endif
 
+#ifdef OPENSSL_EXTRA
+WOLFSSL_API unsigned long wolfSSL_ERR_peek_error_line_data(const char **file,
+    int *line, const char **data, int *flags);
+#endif
+
 #ifdef WOLFSSL_NGINX
 /* Not an OpenSSL API. */
 WOLFSSL_LOCAL int wolfSSL_get_ocsp_response(WOLFSSL* ssl, byte** response);
@@ -2277,9 +2282,6 @@ WOLFSSL_API int wolfSSL_X509_check_host(WOLFSSL_X509 *x, const char *chk,
 
 WOLFSSL_API int wolfSSL_i2a_ASN1_INTEGER(WOLFSSL_BIO *bp,
     const WOLFSSL_ASN1_INTEGER *a);
-
-WOLFSSL_API unsigned long wolfSSL_ERR_peek_error_line_data(const char **file,
-    int *line, const char **data, int *flags);
 
 #ifdef HAVE_SESSION_TICKET
 WOLFSSL_API int wolfSSL_CTX_set_tlsext_ticket_key_cb(WOLFSSL_CTX *, int (*)(
