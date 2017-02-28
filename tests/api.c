@@ -2293,7 +2293,7 @@ static int test_wc_InitMd5 (void)
 
     printf(resultFmt, flag == 0 ? passed : failed);
 
-    return flag;
+    return 0;
 #else
     return 0;
 #endif
@@ -2328,7 +2328,7 @@ static int test_wc_InitSha(void)
 
     printf(resultFmt, flag == 0 ? passed : failed);
 
-    return flag;
+    return 0;
 #else
     return 0;
 #endif
@@ -2364,7 +2364,7 @@ static int test_wc_InitSha256 (void)
 
     printf(resultFmt, flag == 0 ? passed : failed);
 
-    return flag;
+    return 0;
 #else
     return 0;
 #endif
@@ -2400,7 +2400,7 @@ static int test_wc_InitSha512 (void)
 
     printf(resultFmt, flag == 0 ? passed : failed);
 
-    return flag;
+    return 0;
 #else
     return 0;
 #endif
@@ -2436,7 +2436,7 @@ static int test_wc_InitSha384 (void)
 
     printf(resultFmt, flag == 0 ? passed : failed);
 
-    return flag;
+    return 0;
 #else
     return 0;
 #endif
@@ -2541,7 +2541,7 @@ static int test_wc_Md5Update (void)
 
     printf(resultFmt, flag == 0 ? passed : failed);
 
-    return flag;
+    return 0;
 #else
     return 0;
 #endif
@@ -2646,7 +2646,7 @@ static int test_wc_ShaUpdate (void)
     /* If not returned then the unit test passed test vectors. */
     printf(resultFmt, flag == 0 ? passed : failed);
 
-    return flag;
+    return 0;
 #else
     return 0;
 #endif
@@ -2753,7 +2753,7 @@ static int test_wc_Sha256Update (void)
     /* If not returned then the unit test passed. */
     printf(resultFmt, flag == 0 ? passed : failed);
 
-    return flag;
+    return 0;
 #else
     return 0;
 #endif
@@ -2861,7 +2861,7 @@ static int test_wc_Sha384Update (void)
     /* If not returned then the unit test passed test vectors. */
     printf(resultFmt, flag == 0 ? passed : failed);
 
-    return flag;
+    return 0;
 #else
     return 0;
 #endif
@@ -2969,7 +2969,7 @@ static int test_wc_Sha512Update (void)
     /* If not returned then the unit test passed test vectors. */
     printf(resultFmt, flag == 0 ? passed : failed);
 
-    return flag;
+    return 0;
 #else
     return 0;
 #endif
@@ -3043,7 +3043,7 @@ static int test_wc_Md5Final (void)
 
     printf(resultFmt, flag == 0 ? passed : failed);
 
-    return flag;
+    return 0;
 #else
     return 0;
 #endif
@@ -3114,7 +3114,7 @@ static int test_wc_ShaFinal (void)
 
     printf(resultFmt, flag == 0 ? passed : failed);
 
-    return flag;
+    return 0;
 #else
     return 0;
 #endif
@@ -3185,7 +3185,7 @@ static int test_wc_Sha256Final (void)
 
     printf(resultFmt, flag == 0 ? passed : failed);
 
-    return flag;
+    return 0;
 #else
     return 0;
 #endif
@@ -3255,7 +3255,7 @@ static int test_wc_Sha512Final (void)
 
     printf(resultFmt, flag == 0 ? passed : failed);
 
-    return flag;
+    return 0;
 #else
     return 0;
 #endif
@@ -3326,8 +3326,7 @@ static int test_wc_Sha384Final (void)
 
     printf(resultFmt, flag == 0 ? passed : failed);
 
-    return flag;
-
+    return 0;
 #else
     return 0;
 #endif
