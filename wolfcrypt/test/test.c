@@ -10854,6 +10854,7 @@ int ecc_test_buffers() {
     if (XMEMCMP(plain, in, ret))
         return -48;
 
+#ifdef WOLFSSL_CERT_EXT
     idx = 0;
 
     bytes = sizeof_ecc_clikeypub_der_256;
@@ -10862,6 +10863,7 @@ int ecc_test_buffers() {
                                                                (word32) bytes);
     if (ret != 0)
         return -52;
+#endif
 
     return 0;
 }
