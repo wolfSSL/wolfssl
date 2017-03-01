@@ -1396,6 +1396,12 @@ static char *fgets(char *buff, int sz, FILE *fp)
     #define NO_OLD_TLS
 #endif
 
+
+/* Default AES minimum auth tag sz, allow user to override */
+#ifndef WOLFSSL_MIN_AUTH_TAG_SZ
+    #define WOLFSSL_MIN_AUTH_TAG_SZ 12
+#endif
+
 /* If not forcing ARC4 as the DRBG or using custom RNG block gen, enable Hash_DRBG */
 #undef HAVE_HASHDRBG
 #if !defined(WOLFSSL_FORCE_RC4_DRBG) && !defined(CUSTOM_RAND_GENERATE_BLOCK)
