@@ -9958,6 +9958,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
 
         WOLFSSL_ENTER("SSL_set_accept_state");
         if (ssl->options.side == WOLFSSL_CLIENT_END) {
+    #ifdef HAVE_ECC
             ecc_key key;
             word32 idx = 0;
 
@@ -9971,12 +9972,15 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
                 }
                 wc_ecc_free(&key);
             }
+    #endif
 
+    #ifndef NO_DH
             if (!ssl->options.haveDH && ssl->ctx->haveDH) {
                 ssl->buffers.serverDH_P = ssl->ctx->serverDH_P;
                 ssl->buffers.serverDH_G = ssl->ctx->serverDH_G;
                 ssl->options.haveDH = 1;
             }
+    #endif
         }
         ssl->options.side = WOLFSSL_SERVER_END;
         /* reset suites in case user switched */
