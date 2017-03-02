@@ -330,11 +330,15 @@ int mp_copy (mp_int * a, mp_int * b)
   }
 
   /* grow dest */
-  if (b->alloc < a->used || b->dp == NULL) {
+  if (b->alloc < a->used) {
      if ((res = mp_grow (b, a->used)) != MP_OKAY) {
         return res;
      }
   }
+
+  /* sanity check on destination */
+  if (b->dp == NULL)
+     return MP_VAL;
 
   /* zero b and copy the parameters over */
   {
@@ -1633,11 +1637,16 @@ int s_mp_sub (mp_int * a, mp_int * b, mp_int * c)
   max_a = a->used;
 
   /* init result */
-  if (c->alloc < max_a || c->dp == NULL) {
+  if (c->alloc < max_a) {
     if ((res = mp_grow (c, max_a)) != MP_OKAY) {
       return res;
     }
   }
+
+  /* sanity check on destination */
+  if (c->dp == NULL)
+     return MP_VAL;
+
   olduse = c->used;
   c->used = max_a;
 
