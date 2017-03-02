@@ -1672,7 +1672,7 @@ static void InitSuitesHashSigAlgo(Suites* suites, int haveECDSAsig,
             suites->hashSigAlgo[idx++] = sha256_mac;
             suites->hashSigAlgo[idx++] = ecc_dsa_sa_algo;
         #endif
-        #if !defined(NO_SHA) && !defined(NO_OLD_TLS)
+        #if !defined(NO_SHA)
             suites->hashSigAlgo[idx++] = sha_mac;
             suites->hashSigAlgo[idx++] = ecc_dsa_sa_algo;
         #endif
@@ -1691,7 +1691,7 @@ static void InitSuitesHashSigAlgo(Suites* suites, int haveECDSAsig,
             suites->hashSigAlgo[idx++] = sha256_mac;
             suites->hashSigAlgo[idx++] = rsa_sa_algo;
         #endif
-        #if !defined(NO_SHA) && !defined(NO_OLD_TLS)
+        #if !defined(NO_SHA)
             suites->hashSigAlgo[idx++] = sha_mac;
             suites->hashSigAlgo[idx++] = rsa_sa_algo;
         #endif
@@ -14749,7 +14749,7 @@ static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
                                 #endif
                                 break;
                             case sha_mac:
-                                #ifndef NO_OLD_TLS
+                                #ifndef NO_SHA
                                     hashType = WC_HASH_TYPE_SHA;
                                 #endif
                                 break;
@@ -17756,7 +17756,7 @@ int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                                     #endif
                                     break;
                                 case sha_mac:
-                                    #ifndef NO_OLD_TLS
+                                    #ifndef NO_SHA
                                         hashType = WC_HASH_TYPE_SHA;
                                     #endif
                                     break;
@@ -17850,7 +17850,7 @@ int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                                             #endif
                                             break;
                                         case sha_mac:
-                                            #ifndef NO_OLD_TLS
+                                            #ifndef NO_SHA
                                                 typeH    = SHAh;
                                             #endif
                                             break;
@@ -18020,7 +18020,7 @@ int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                                     #endif
                                     break;
                                 case sha_mac:
-                                    #ifndef NO_OLD_TLS
+                                    #ifndef NO_SHA
                                         hashType = WC_HASH_TYPE_SHA;
                                     #endif
                                     break;
@@ -18109,7 +18109,7 @@ int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                                             #endif
                                             break;
                                         case sha_mac:
-                                            #ifndef NO_OLD_TLS
+                                            #ifndef NO_SHA
                                                 typeH    = SHAh;
                                             #endif
                                             break;
