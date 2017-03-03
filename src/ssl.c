@@ -13408,7 +13408,6 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
             if (enc == 0 || enc == 1)
                 ctx->enc = enc ? 1 : 0;
             if (key) {
-                if(ctx->enc)
                 ret = wc_AesSetKey(&ctx->cipher.aes, key, ctx->keyLen, NULL,
                       ctx->enc ? AES_ENCRYPTION : AES_DECRYPTION);
             }
