@@ -336,10 +336,6 @@ int mp_copy (mp_int * a, mp_int * b)
      }
   }
 
-  /* sanity check on destination */
-  if (b->dp == NULL)
-     return MP_VAL;
-
   /* zero b and copy the parameters over */
   {
     mp_digit *tmpa, *tmpb;
@@ -358,7 +354,7 @@ int mp_copy (mp_int * a, mp_int * b)
     }
 
     /* clear high digits */
-    for (; n < b->used; n++) {
+    for (; n < b->used && b->dp; n++) {
       *tmpb++ = 0;
     }
   }
@@ -3776,7 +3772,7 @@ int s_mp_mul_high_digs (mp_int * a, mp_int * b, mp_int * c, int digs)
 
   pa = a->used;
   pb = b->used;
-  for (ix = 0; ix < pa; ix++) {
+  for (ix = 0; ix < pa && a->dp; ix++) {
     /* clear the carry */
     u = 0;
 
@@ -3849,7 +3845,7 @@ int fast_s_mp_mul_high_digs (mp_int * a, mp_int * b, mp_int * c, int digs)
   /* number of output digits to produce */
   pa = a->used + b->used;
   _W = 0;
-  for (ix = digs; ix < pa; ix++) {
+  for (ix = digs; ix < pa && a->dp; ix++) {
       int      tx, ty, iy;
       mp_digit *tmpx, *tmpy;
 
