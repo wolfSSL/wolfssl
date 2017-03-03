@@ -3354,10 +3354,14 @@ int AddCA(WOLFSSL_CERT_MANAGER* cm, DerBuffer** pDer, int type, int verify)
             ret = MEMORY_ERROR;
         else {
             signer->keyOID         = cert->keyOID;
-            signer->publicKey      = cert->publicKey;
-            signer->pubKeySize     = cert->pubKeySize;
-            signer->nameLen        = cert->subjectCNLen;
-            signer->name           = cert->subjectCN;
+            if (cert->pubKeyStored) {
+                signer->publicKey      = cert->publicKey;
+                signer->pubKeySize     = cert->pubKeySize;
+            }
+            if (cert->subjectCNStored) {
+                signer->nameLen        = cert->subjectCNLen;
+                signer->name           = cert->subjectCN;
+            }
             signer->pathLength     = cert->pathLength;
             signer->pathLengthSet  = cert->pathLengthSet;
         #ifndef IGNORE_NAME_CONSTRAINTS
