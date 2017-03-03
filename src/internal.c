@@ -1672,7 +1672,8 @@ static void InitSuitesHashSigAlgo(Suites* suites, int haveECDSAsig,
             suites->hashSigAlgo[idx++] = sha256_mac;
             suites->hashSigAlgo[idx++] = ecc_dsa_sa_algo;
         #endif
-        #if !defined(NO_SHA)
+        #if !defined(NO_SHA) && (!defined(NO_OLD_TLS) || \
+                                                defined(WOLFSSL_ALLOW_TLS_SHA1))
             suites->hashSigAlgo[idx++] = sha_mac;
             suites->hashSigAlgo[idx++] = ecc_dsa_sa_algo;
         #endif
@@ -1691,7 +1692,8 @@ static void InitSuitesHashSigAlgo(Suites* suites, int haveECDSAsig,
             suites->hashSigAlgo[idx++] = sha256_mac;
             suites->hashSigAlgo[idx++] = rsa_sa_algo;
         #endif
-        #if !defined(NO_SHA)
+        #if !defined(NO_SHA) && (!defined(NO_OLD_TLS) || \
+                                                defined(WOLFSSL_ALLOW_TLS_SHA1))
             suites->hashSigAlgo[idx++] = sha_mac;
             suites->hashSigAlgo[idx++] = rsa_sa_algo;
         #endif
@@ -14749,7 +14751,9 @@ static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
                                 #endif
                                 break;
                             case sha_mac:
-                                #ifndef NO_SHA
+                                #if !defined(NO_SHA) && \
+                                      (!defined(NO_OLD_TLS) || \
+                                        defined(WOLFSSL_ALLOW_TLS_SHA1))
                                     hashType = WC_HASH_TYPE_SHA;
                                 #endif
                                 break;
@@ -17756,7 +17760,9 @@ int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                                     #endif
                                     break;
                                 case sha_mac:
-                                    #ifndef NO_SHA
+                                    #if !defined(NO_SHA) && \
+                                            (!defined(NO_OLD_TLS) || \
+                                              defined(WOLFSSL_ALLOW_TLS_SHA1))
                                         hashType = WC_HASH_TYPE_SHA;
                                     #endif
                                     break;
@@ -17850,7 +17856,9 @@ int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                                             #endif
                                             break;
                                         case sha_mac:
-                                            #ifndef NO_SHA
+                                            #if !defined(NO_SHA) && \
+                                              (!defined(NO_OLD_TLS) || \
+                                                defined(WOLFSSL_ALLOW_TLS_SHA1))
                                                 typeH    = SHAh;
                                             #endif
                                             break;
@@ -18020,7 +18028,9 @@ int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                                     #endif
                                     break;
                                 case sha_mac:
-                                    #ifndef NO_SHA
+                                    #if !defined(NO_SHA) && \
+                                            (!defined(NO_OLD_TLS) || \
+                                              defined(WOLFSSL_ALLOW_TLS_SHA1))
                                         hashType = WC_HASH_TYPE_SHA;
                                     #endif
                                     break;
@@ -18109,7 +18119,9 @@ int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                                             #endif
                                             break;
                                         case sha_mac:
-                                            #ifndef NO_SHA
+                                            #if !defined(NO_SHA) && \
+                                              (!defined(NO_OLD_TLS) || \
+                                                defined(WOLFSSL_ALLOW_TLS_SHA1))
                                                 typeH    = SHAh;
                                             #endif
                                             break;
