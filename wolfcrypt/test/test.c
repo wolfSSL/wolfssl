@@ -4454,21 +4454,56 @@ int des3_test(void)
             return -1118;
     #endif
 
+        /* test with data left overs, magic lengths are checking near edges */
         XMEMSET(cipher, 0, sizeof(cipher));
-        ret = wc_AesCfbEncrypt(&enc, cipher, msg3, AES_BLOCK_SIZE * 4);
+        ret = wc_AesCfbEncrypt(&enc, cipher, msg3, 4);
         if (ret != 0)
             return -1119;
 
-        if (XMEMCMP(cipher, cipher3, AES_BLOCK_SIZE * 4))
+        if (XMEMCMP(cipher, cipher3, 4))
             return -1120;
 
-    #ifdef HAVE_AES_DECRYPT
-        ret = wc_AesCfbDecrypt(&dec, plain, cipher, AES_BLOCK_SIZE * 4);
+        ret = wc_AesCfbEncrypt(&enc, cipher + 4, msg3 + 4, 27);
         if (ret != 0)
             return -1121;
 
-        if (XMEMCMP(plain, msg3, AES_BLOCK_SIZE * 4))
+        if (XMEMCMP(cipher + 4, cipher3 + 4, 27))
             return -1122;
+
+        ret = wc_AesCfbEncrypt(&enc, cipher + 31, msg3 + 31,
+                (AES_BLOCK_SIZE * 4) - 31);
+        if (ret != 0)
+            return -1123;
+
+        if (XMEMCMP(cipher, cipher3, AES_BLOCK_SIZE * 4))
+            return -1124;
+
+    #ifdef HAVE_AES_DECRYPT
+        ret = wc_AesCfbDecrypt(&dec, plain, cipher, 4);
+        if (ret != 0)
+            return -1125;
+
+        if (XMEMCMP(plain, msg3, 4))
+            return -1126;
+
+        ret = wc_AesCfbDecrypt(&dec, plain + 4, cipher + 4, 4);
+        if (ret != 0)
+            return -1127;
+
+        ret = wc_AesCfbDecrypt(&dec, plain + 8, cipher + 8, 23);
+        if (ret != 0)
+            return -1128;
+
+        if (XMEMCMP(plain + 4, msg3 + 4, 27))
+            return -1129;
+
+        ret = wc_AesCfbDecrypt(&dec, plain + 31, cipher + 31,
+                (AES_BLOCK_SIZE * 4) - 31);
+        if (ret != 0)
+            return -1130;
+
+        if (XMEMCMP(plain, msg3, AES_BLOCK_SIZE * 4))
+            return -1131;
     #endif /* HAVE_AES_DECRYPT */
 
         return ret;

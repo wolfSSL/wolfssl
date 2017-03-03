@@ -97,7 +97,7 @@ typedef struct Aes {
     word32 asyncIv[AES_BLOCK_SIZE/sizeof(word32)]; /* raw IV */
     WC_ASYNC_DEV asyncDev;
 #endif /* WOLFSSL_ASYNC_CRYPT */
-#ifdef WOLFSSL_AES_COUNTER
+#if defined(WOLFSSL_AES_COUNTER) || defined(HAVE_AES_CFB)
     word32  left;            /* unused bytes left from last call */
 #endif
 #ifdef WOLFSSL_XILINX_CRYPT
