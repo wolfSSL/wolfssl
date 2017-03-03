@@ -343,6 +343,7 @@ then
     enable_shared=no
     enable_static=yes
     AM_CFLAGS="$AM_CFLAGS -DHAVE_SECRET_CALLBACK -DWOLFSSL_STATIC_RSA"
+    AM_CFLAGS="$AM_CFLAGS -DATOMIC_USER"
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_WPAS"
 fi
 
