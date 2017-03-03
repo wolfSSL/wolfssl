@@ -272,8 +272,16 @@ static int evpCipherBlock(WOLFSSL_EVP_CIPHER_CTX *ctx,
         case DES_EDE3_ECB_TYPE:
             ret = wc_Des3_EcbEncrypt(&ctx->cipher.des3, out, in, inl);
             break;
-        #endif /* WOLFSSL_DES_ECB */
-    #endif /* !NO_DES3 */
+        #endif
+    #endif
+    #ifndef NO_RC4
+        case ARC4_TYPE:
+        if (ctx->enc)
+            wc_Arc4Process(&ctx->cipher.arc4, out, in, inl);
+        else
+            wc_Arc4Process(&ctx->cipher.arc4, out, in, inl);
+        break;
+    #endif
         default:
             return 0;
     }
@@ -306,7 +314,6 @@ WOLFSSL_API int wolfSSL_EVP_CipherUpdate(WOLFSSL_EVP_CIPHER_CTX *ctx,
         in  += fill;
     }
     if((ctx->enc == 0)&& (ctx->lastUsed == 1)){
-        //printf("(ctx->enc == 0)&& (ctx->lastUsed == 1)\n");
         PRINT_BUF(ctx->lastBlock, ctx->block_size);
         XMEMCPY(out, ctx->lastBlock, ctx->block_size);
         *outl+= ctx->block_size;
@@ -329,24 +336,20 @@ WOLFSSL_API int wolfSSL_EVP_CipherUpdate(WOLFSSL_EVP_CIPHER_CTX *ctx,
     }
 
     blocks = inl / ctx->block_size;
-    //printf("blocks=%d\n", blocks);
     if (blocks > 0) {
         /* process blocks */
         if (evpCipherBlock(ctx, out, in, blocks * ctx->block_size) == 0)
             return 0;
-        PRINT_BUF(in, ctx->block_size);
-        PRINT_BUF(out,ctx->block_size);
+        PRINT_BUF(in, ctx->block_size*blocks);
+        PRINT_BUF(out,ctx->block_size*blocks);
         inl  -= ctx->block_size * blocks;
         in   += ctx->block_size * blocks;
         if(ctx->enc == 0){
-            //printf("(ctx->enc == 0)\n");
-            if ((ctx->flags & WOLFSSL_EVP_CIPH_NO_PADDING) /* ||
-               ((inl % ctx->block_size) == 0)*/){
+            if ((ctx->flags & WOLFSSL_EVP_CIPH_NO_PADDING)){
                 ctx->lastUsed = 0;
                 XMEMCPY(ctx->lastBlock, &out[ctx->block_size * blocks], ctx->block_size);
                 *outl+= ctx->block_size * blocks;
             } else {
-                //printf("blocks=%d, ctx->lastUsed = 1;\n", blocks);
                 ctx->lastUsed = 1;
                 XMEMCPY(ctx->lastBlock, &out[ctx->block_size * (blocks-1)], ctx->block_size);
                 *outl+= ctx->block_size * (blocks-1);
@@ -562,6 +565,10 @@ unsigned long WOLFSSL_CIPHER_mode(const WOLFSSL_EVP_CIPHER *cipher)
         case DES_ECB_TYPE:
         case DES_EDE3_ECB_TYPE:
             return WOLFSSL_EVP_CIPH_ECB_MODE ;
+    #endif
+    #ifndef NO_RC4
+        case ARC4_TYPE:
+            return EVP_CIPH_STREAM_CIPHER;
     #endif
         default:
             return 0;
