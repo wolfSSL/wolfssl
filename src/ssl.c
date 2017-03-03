@@ -23004,7 +23004,8 @@ unsigned long wolfSSL_ERR_peek_error_line_data(const char **file, int *line,
             if (ret == SSL_NO_PEM_HEADER)
                 return (ERR_LIB_PEM << 24) | PEM_R_NO_START_LINE;
             if (ret != WANT_READ && ret != WANT_WRITE &&
-                    ret != ZERO_RETURN && ret != SSL_ERROR_ZERO_RETURN)
+                    ret != ZERO_RETURN && ret != SSL_ERROR_ZERO_RETURN &&
+                    ret != SOCKET_PEER_CLOSED_E && ret != SOCKET_ERROR_E)
                 break;
 
             wc_RemoveErrorNode(-1);
