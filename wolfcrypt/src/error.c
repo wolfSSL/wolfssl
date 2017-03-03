@@ -416,6 +416,9 @@ const char* wc_GetErrorString(int error)
     case ECC_CDH_KAT_FIPS_E:
         return "wolfcrypt FIPS ECC CDH Known Answer Test Failure";
 
+    case DH_CHECK_PUB_E:
+        return "DH Check Public Key failure";
+
     default:
         return "unknown error number";
 
