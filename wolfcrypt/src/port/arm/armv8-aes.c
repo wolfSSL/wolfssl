@@ -2532,6 +2532,11 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
         return BAD_FUNC_ARG;
     }
 
+    if (authTagSz < WOLFSSL_MIN_AUTH_TAG_SZ) {
+        WOLFSSL_MSG("GcmEncrypt authTagSz too small error");
+        return BAD_FUNC_ARG;
+    }
+
     switch (aes->rounds) {
         case 10:
             return Aes128GcmEncrypt(aes, out, in, sz, iv, ivSz,
