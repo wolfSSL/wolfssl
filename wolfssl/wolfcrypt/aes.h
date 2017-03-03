@@ -145,6 +145,15 @@ WOLFSSL_API int  wc_AesCbcEncrypt(Aes* aes, byte* out,
 WOLFSSL_API int  wc_AesCbcDecrypt(Aes* aes, byte* out,
                                   const byte* in, word32 sz);
 
+#ifdef HAVE_AES_CFB
+WOLFSSL_API int wc_AesCfbEncrypt(Aes* aes, byte* out,
+                                    const byte* in, word32 sz);
+#ifdef HAVE_AES_DECRYPT
+WOLFSSL_API int wc_AesCfbDecrypt(Aes* aes, byte* out,
+                                    const byte* in, word32 sz);
+#endif /* HAVE_AES_DECRYPT */
+#endif /* HAVE_AES_CFB */
+
 #ifdef HAVE_AES_ECB
 WOLFSSL_API int wc_AesEcbEncrypt(Aes* aes, byte* out,
                                   const byte* in, word32 sz);

@@ -143,6 +143,7 @@
 #define BENCH_CHACHA20_POLY1305  0x00002000
 #define BENCH_DES                0x00004000
 #define BENCH_IDEA               0x00008000
+#define BENCH_AES_CFB            0x00010000
 /* Digest algorithms. */
 #define BENCH_MD5                0x00000001
 #define BENCH_POLY1305           0x00000002
@@ -230,6 +231,9 @@ static const bench_alg bench_cipher_opt[] = {
 #endif
 #ifdef WOLFSSL_AES_XTS
     { "-aes-xts",            BENCH_AES_XTS           },
+#endif
+#ifdef HAVE_AES_CFB
+    { "-aes-cfb",            BENCH_AES_CFB           },
 #endif
 #ifdef WOLFSSL_AES_COUNTER
     { "-aes-ctr",            BENCH_AES_CTR           },
@@ -1077,6 +1081,10 @@ static void* benchmarks_do(void* args)
     if (bench_all || (bench_cipher_algs & BENCH_AES_XTS))
         bench_aesxts();
 #endif
+#ifdef HAVE_AES_CFB
+    if (bench_all || (bench_cipher_algs & BENCH_AES_CFB))
+        bench_aescfb();
+#endif
 #ifdef WOLFSSL_AES_COUNTER
     if (bench_all || (bench_cipher_algs & BENCH_AES_CTR))
         bench_aesctr();
@@ -1904,8 +1912,43 @@ void bench_aesecb(int doAsync)
     bench_aesecb_internal(doAsync, bench_key, 32,
                  "AES-256-ECB-enc", "AES-256-ECB-dec");
 }
-
 #endif /* WOLFSSL_AES_DIRECT */
+
+#ifdef HAVE_AES_CFB
+static void bench_aescfb_internal(const byte* key, word32 keySz, const byte* iv,
+                                  const char* label)
+{
+    Aes    enc;
+    double start;
+    int    i, ret, count;
+
+    ret = wc_AesSetKey(&enc, key, keySz, iv, AES_ENCRYPTION);
+    if (ret != 0) {
+        printf("AesSetKey failed, ret = %d\n", ret);
+        return;
+    }
+
+    bench_stats_start(&count, &start);
+    do {
+        for (i = 0; i < numBlocks; i++) {
+            if((ret = wc_AesCfbEncrypt(&enc, bench_plain, bench_cipher,
+                            BENCH_SIZE)) != 0) {
+                printf("wc_AesCfbEncrypt failed, ret = %d\n", ret);
+                return;
+            }
+        }
+        count += i;
+    } while (bench_stats_sym_check(start));
+    bench_stats_sym_finish(label, 0, count, bench_size, start, ret);
+}
+
+void bench_aescfb(void)
+{
+    bench_aescfb_internal(bench_key, 16, bench_iv, "AES-128-CFB");
+    bench_aescfb_internal(bench_key, 24, bench_iv, "AES-192-CFB");
+    bench_aescfb_internal(bench_key, 32, bench_iv, "AES-256-CFB");
+}
+#endif /* HAVE_AES_CFB */
 
 
 #ifdef WOLFSSL_AES_XTS

@@ -3049,6 +3049,54 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
 #endif /* AES-CBC block */
 #endif /* HAVE_AES_CBC */
 
+#ifdef HAVE_AES_CFB
+/* CFB 128 */
+int wc_AesCfbEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
+{
+    word32 blocks = sz / AES_BLOCK_SIZE;
+
+    WOLFSSL_ENTER("wc_AesCfbEncrypt");
+
+    if (aes == NULL || out == NULL || in == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    while (blocks--) {
+        wc_AesEncrypt(aes, (byte*)aes->reg, out);
+        xorbuf(out, in, AES_BLOCK_SIZE);
+        XMEMCPY(aes->reg, out, AES_BLOCK_SIZE);
+        out += AES_BLOCK_SIZE;
+        in  += AES_BLOCK_SIZE;
+    }
+
+    return 0;
+}
+
+
+#ifdef HAVE_AES_DECRYPT
+int wc_AesCfbDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
+{
+    word32 blocks = sz / AES_BLOCK_SIZE;
+
+    WOLFSSL_ENTER("wc_AesCfbDecrypt");
+
+    if (aes == NULL || out == NULL || in == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    while (blocks--) {
+        wc_AesEncrypt(aes, (byte*)aes->reg, out);
+        xorbuf(out, in, AES_BLOCK_SIZE);
+        XMEMCPY(aes->reg, in, AES_BLOCK_SIZE);
+        out += AES_BLOCK_SIZE;
+        in  += AES_BLOCK_SIZE;
+    }
+
+    return 0;
+}
+#endif /* HAVE_AES_DECRYPT */
+#endif /* HAVE_AES_CFB */
+
 #ifdef HAVE_AES_ECB
 #if defined(WOLFSSL_IMX6_CAAM) && !defined(NO_IMX6_CAAM_AES)
     /* implemented in wolfcrypt/src/port/caam/caam_aes.c */
