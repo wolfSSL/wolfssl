@@ -16137,6 +16137,7 @@ WOLFSSL_DH* wolfSSL_DH_new(void)
     if (wc_InitDhKey(key) != 0) {
         WOLFSSL_MSG("wolfSSL_DH_new InitDhKey failure");
         XFREE(key, NULL, DYNAMIC_TYPE_DH);
+        XFREE(external, NULL, DYNAMIC_TYPE_DH);
         return NULL;
     }
     external->internal = key;

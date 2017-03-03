@@ -78,6 +78,7 @@ int wolfCrypt_Init(void)
             WOLFSSL_MSG(ippGetStatusString(ret));
             WOLFSSL_MSG("Using default fast IPP library");
             ret = 0;
+            (void)ret; /* suppress not read warning */
         }
     #endif
 
