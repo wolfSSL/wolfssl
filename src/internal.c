@@ -15728,7 +15728,7 @@ int SendClientKeyExchange(WOLFSSL* ssl)
         case KEYSHARE_BUILD:
         {
             encSz = MAX_ENCRYPT_SZ;
-            encSecret = (byte*)XMALLOC(MAX_ENCRYPT_SZ, NULL,
+            encSecret = (byte*)XMALLOC(MAX_ENCRYPT_SZ, ssl->heap,
                                                    DYNAMIC_TYPE_TMP_BUFFER);
             if (encSecret == NULL) {
                 ERROR_OUT(MEMORY_E, exit_scke);
@@ -15755,8 +15755,8 @@ int SendClientKeyExchange(WOLFSSL* ssl)
                 case diffie_hellman_kea:
                 {
                     ssl->buffers.sig.length = ENCRYPT_LEN;
-                    ssl->buffers.sig.buffer = (byte*)XMALLOC(ENCRYPT_LEN, NULL,
-                                                   DYNAMIC_TYPE_TMP_BUFFER);
+                    ssl->buffers.sig.buffer = (byte*)XMALLOC(ENCRYPT_LEN,
+                                            ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
                     if (ssl->buffers.sig.buffer == NULL) {
                         ERROR_OUT(MEMORY_E, exit_scke);
                     }
@@ -15816,8 +15816,8 @@ int SendClientKeyExchange(WOLFSSL* ssl)
                     }
 
                     ssl->buffers.sig.length = ENCRYPT_LEN;
-                    ssl->buffers.sig.buffer = (byte*)XMALLOC(ENCRYPT_LEN, NULL,
-                                                       DYNAMIC_TYPE_TMP_BUFFER);
+                    ssl->buffers.sig.buffer = (byte*)XMALLOC(ENCRYPT_LEN,
+                                            ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
                     if (ssl->buffers.sig.buffer == NULL) {
                         ERROR_OUT(MEMORY_E, exit_scke);
                     }
