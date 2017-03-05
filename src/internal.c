@@ -18841,7 +18841,7 @@ int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         if (ssl->suites == NULL)
             return SUITES_ERROR;
 
-#ifdef OPENSSL_EXTRA
+#ifdef WOLFSSL_WPAS
         if (ssl->options.mask | SSL_OP_CIPHER_SERVER_PREFERENCE) {
             /* Server order */
             for (i = 0; i < ssl->suites->suiteSz; i += 2) {
