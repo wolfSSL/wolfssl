@@ -149,14 +149,11 @@ void FreeCRL(WOLFSSL_CRL* crl, int dynamic)
 }
 
 
-/* Is the cert ok with CRL, return 0 on success */
-int CheckCertCRL(WOLFSSL_CRL* crl, DecodedCert* cert)
+static int CheckCertCRLList(WOLFSSL_CRL* crl, DecodedCert* cert, int *pFoundEntry)
 {
     CRL_Entry* crle;
     int        foundEntry = 0;
     int        ret = 0;
-
-    WOLFSSL_ENTER("CheckCertCRL");
 
     if (wc_LockMutex(&crl->crlLock) != 0) {
         WOLFSSL_MSG("wc_LockMutex failed");
@@ -204,9 +201,39 @@ int CheckCertCRL(WOLFSSL_CRL* crl, DecodedCert* cert)
 
     wc_UnLockMutex(&crl->crlLock);
 
+    *pFoundEntry = foundEntry;
+
+    return ret;
+}
+
+/* Is the cert ok with CRL, return 0 on success */
+int CheckCertCRL(WOLFSSL_CRL* crl, DecodedCert* cert)
+{
+    int        foundEntry = 0;
+    int        ret = 0;
+
+    WOLFSSL_ENTER("CheckCertCRL");
+
+    ret = CheckCertCRLList(crl, cert, &foundEntry);
+
+#ifdef HAVE_CRL_IO
+    if (foundEntry == 0) {
+        /* perform embedded lookup */
+        if (crl->crlIOCb) {
+            ret = crl->crlIOCb(crl, (const char*)cert->extCrlInfo,
+                                                        cert->extCrlInfoSz);
+            if (ret >= 0) {
+                /* try again */
+                ret = CheckCertCRLList(crl, cert, &foundEntry);
+            }
+        }
+    }
+#endif
+
     if (foundEntry == 0) {
         WOLFSSL_MSG("Couldn't find CRL for status check");
         ret = CRL_MISSING;
+
         if (crl->cm->cbMissingCRL) {
             char url[256];
 
@@ -219,10 +246,10 @@ int CheckCertCRL(WOLFSSL_CRL* crl, DecodedCert* cert)
             else  {
                 WOLFSSL_MSG("CRL url too long");
             }
+
             crl->cm->cbMissingCRL(url);
         }
     }
-
 
     return ret;
 }

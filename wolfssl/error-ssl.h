@@ -152,6 +152,7 @@ enum wolfSSL_ErrorCodes {
     EXT_MASTER_SECRET_NEEDED_E   = -414,   /* need EMS enabled to resume */
     DTLS_POOL_SZ_E               = -415,   /* exceeded DTLS pool size */
     DECODE_E                     = -416,   /* decode handshake message error */
+    HTTP_TIMEOUT                 = -417,   /* HTTP timeout for OCSP or CRL req */
     /* add strings to wolfSSL_ERR_reason_error_string in internal.c !!!!! */
 
     /* begin negotiation parameter errors */
