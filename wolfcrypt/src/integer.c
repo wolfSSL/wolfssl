@@ -4133,7 +4133,7 @@ static const int lnz[16] = {
 int mp_cnt_lsb(mp_int *a)
 {
     int x;
-    mp_digit q, qq;
+    mp_digit q = 0, qq;
 
     /* easy out */
     if (mp_iszero(a) == MP_YES) {
@@ -4142,7 +4142,8 @@ int mp_cnt_lsb(mp_int *a)
 
     /* scan lower digits until non-zero */
     for (x = 0; x < a->used && a->dp[x] == 0; x++) {}
-    q = a->dp[x];
+    if (a->dp)
+        q = a->dp[x];
     x *= DIGIT_BIT;
 
     /* now scan this digit until a 1 is found */
