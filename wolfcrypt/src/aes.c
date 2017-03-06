@@ -4238,6 +4238,11 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     uint32_t keySize;
     status_t status;
 
+    if (authTagSz < WOLFSSL_MIN_AUTH_TAG_SZ) {
+        WOLFSSL_MSG("GcmEncrypt authTagSz too small error");
+        return BAD_FUNC_ARG;
+    }
+
     key = (byte*)aes->key;
 
     status = wc_AesGetKeySize(aes, &keySize);
@@ -4264,6 +4269,11 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     /* Sanity check for XMEMCPY in GHASH function and local xorbuf call */
     if (authTagSz > AES_BLOCK_SIZE)
         return BAD_FUNC_ARG;
+
+    if (authTagSz < WOLFSSL_MIN_AUTH_TAG_SZ) {
+        WOLFSSL_MSG("GcmEncrypt authTagSz too small error");
+        return BAD_FUNC_ARG;
+    }
 
 #ifdef WOLFSSL_AESNI
     if (haveAESNI) {
