@@ -2209,7 +2209,7 @@ static void wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
             checkAESNI = 1;
         }
         if (haveAESNI) {
-            #ifdef WOLFSSL_AES_COUNTER
+            #if defined(WOLFSSL_AES_COUNTER) || defined(HAVE_AES_CFB)
                 aes->left = 0;
             #endif /* WOLFSSL_AES_COUNTER */
             aes->use_aesni = 1;
@@ -3062,8 +3062,8 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
 /* CFB 128 */
 int wc_AesCfbEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
 {
+    byte*  tmp = NULL;
     byte*  reg = NULL;
-    byte*  tmp;
 
     WOLFSSL_ENTER("wc_AesCfbEncrypt");
 

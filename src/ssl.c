@@ -19567,13 +19567,23 @@ void wolfSSL_AES_cbc_encrypt(const unsigned char *in, unsigned char* out,
 }
 
 
-/* @TODO
- * STUB function
+/* Encrypt data using CFB mode with key and iv passed in. iv gets updated to
+ * most recent iv state after encryptiond/decryption.
+ *
+ * in  buffer to encrypt/decyrpt
+ * out buffer to hold result of encryption/decryption
+ * len length of input buffer
+ * key AES structure to use with encryption/decryption
+ * iv  iv to use with operation
+ * num contains the amount of block used
+ * enc AES_ENCRPT for encryption and AES_DECRYPT for decryption
  */
 void wolfSSL_AES_cfb128_encrypt(const unsigned char *in, unsigned char* out,
         size_t len, AES_KEY *key, unsigned char* iv, int* num,
         const int enc)
 {
+#ifndef HAVE_AES_CFB
+    WOLFSSL_MSG("CFB mode not enabled please use macro HAVE_AES_CFB");
     (void)in;
     (void)out;
     (void)len;
@@ -19581,7 +19591,40 @@ void wolfSSL_AES_cfb128_encrypt(const unsigned char *in, unsigned char* out,
     (void)iv;
     (void)num;
     (void)enc;
-    WOLFSSL_STUB("wolfSSL_AES_cfb128_encrypt");
+
+    return;
+#else
+    Aes* aes;
+
+    WOLFSSL_ENTER("wolfSSL_AES_cbc_encrypt");
+    if (key == NULL || in == NULL || out == NULL || iv == NULL) {
+        WOLFSSL_MSG("Error, Null argument passed in");
+        return;
+    }
+
+    aes = (Aes*)key;
+    if (wc_AesSetIV(aes, (const byte*)iv) != 0) {
+        WOLFSSL_MSG("Error with setting iv");
+        return;
+    }
+
+    if (enc == AES_ENCRYPT) {
+        if (wc_AesCfbEncrypt(aes, out, in, (word32)len) != 0) {
+            WOLFSSL_MSG("Error with AES CBC encrypt");
+        }
+    }
+    else {
+        if (wc_AesCfbDecrypt(aes, out, in, (word32)len) != 0) {
+            WOLFSSL_MSG("Error with AES CBC decrypt");
+        }
+    }
+
+    /* to be compatible copy iv to iv buffer after completing operation */
+    XMEMCPY(iv, (byte*)(aes->reg), AES_BLOCK_SIZE);
+
+    /* store number of left over bytes to num */
+    *num = (aes->left)? AES_BLOCK_SIZE - aes->left : 0;
+#endif /* HAVE_AES_CFB */
 }
 #endif /* NO_AES */
 
