@@ -184,6 +184,57 @@ int wc_DhGenerateKeyPair(DhKey* key, WC_RNG* rng, byte* priv, word32* privSz,
     return (ret != 0) ? ret : GeneratePublic(key, priv, *privSz, pub, pubSz);
 }
 
+
+/* Check DH Public Key for invalid numbers
+ *
+ * key   DH key group parameters.
+ * pub   Public Key.
+ * pubSz Public Key size.
+ *
+ *  returns 0 on success or error code
+ */
+int wc_DhCheckPubKey(DhKey* key, const byte* pub, word32 pubSz)
+{
+    int ret = 0;
+
+    mp_int x;
+    mp_int y;
+
+    if (key == NULL || pub == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    if (mp_init_multi(&x, &y, NULL, NULL, NULL, NULL) != MP_OKAY) {
+        return MP_INIT_E;
+    }
+
+    if (mp_read_unsigned_bin(&x, pub, pubSz) != MP_OKAY) {
+        ret = MP_READ_E;
+    }
+
+    /* pub should not be 0 or 1 */
+    if (ret == 0 && mp_cmp_d(&x, 2) == MP_LT) {
+        ret = MP_CMP_E;
+    }
+
+    /* pub shouldn't be greater than or equal to p - 1 */
+    if (ret == 0 && mp_copy(&key->p, &y) != MP_OKAY) {
+        ret = MP_INIT_E;
+    }
+    if (ret == 0 && mp_sub_d(&y, 2, &y) != MP_OKAY) {
+        ret = MP_SUB_E;
+    }
+    if (ret == 0 && mp_cmp(&x, &y) == MP_GT) {
+        ret = MP_CMP_E;
+    }
+
+    mp_clear(&y);
+    mp_clear(&x);
+
+    return ret;
+}
+
+
 int wc_DhAgree(DhKey* key, byte* agree, word32* agreeSz, const byte* priv,
             word32 privSz, const byte* otherPub, word32 pubSz)
 {
@@ -192,6 +243,11 @@ int wc_DhAgree(DhKey* key, byte* agree, word32* agreeSz, const byte* priv,
     mp_int x;
     mp_int y;
     mp_int z;
+
+    if (wc_DhCheckPubKey(key, otherPub, pubSz) != 0) {
+        WOLFSSL_MSG("wc_DhAgree wc_DhCheckPubKey failed");
+        return DH_CHECK_PUB_E;
+    }
 
     if (mp_init_multi(&x, &y, &z, 0, 0, 0) != MP_OKAY)
         return MP_INIT_E;
