@@ -404,7 +404,7 @@ int CheckOcspRequest(WOLFSSL_OCSP* ocsp, OcspRequest* ocspRequest,
 
 #ifdef WOLFSSL_NGINX
     if (ocsp->statusCb != NULL && ocspRequest->ssl != NULL) {
-        ret = ocsp->statusCb((WOLFSSL*)ocspRequest->ssl, NULL);
+        ret = ocsp->statusCb((WOLFSSL*)ocspRequest->ssl, ocsp->cm->ocspIOCtx);
         if (ret == 0) {
             ret = wolfSSL_get_ocsp_response((WOLFSSL*)ocspRequest->ssl,
                                             &response);
