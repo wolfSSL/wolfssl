@@ -2494,6 +2494,7 @@ typedef struct Options {
 #if defined(HAVE_TLS_EXTENSIONS) && defined(HAVE_SUPPORTED_CURVES)
     word16            userCurves:1;       /* indicates user called wolfSSL_UseSupportedCurve */
 #endif
+    word16            keepResources:1;    /* Keep resources after handshake */
 
     /* need full byte values for this section */
     byte            processReply;           /* nonblocking resume */

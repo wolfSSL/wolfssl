@@ -990,10 +990,8 @@ int wolfSSL_SetTmpDH(WOLFSSL* ssl, const unsigned char* p, int pSz,
     if (pSz < ssl->options.minDhKeySz)
         return DH_KEY_SIZE_E;
 
-    #ifndef WOLFSSL_WPAS
     if (ssl->options.side != WOLFSSL_SERVER_END)
         return SIDE_ERROR;
-    #endif
 
     if (ssl->buffers.serverDH_P.buffer && ssl->buffers.weOwnDH) {
         XFREE(ssl->buffers.serverDH_P.buffer, ssl->heap, DYNAMIC_TYPE_DH);
@@ -2063,6 +2061,20 @@ void wolfSSL_FreeArrays(WOLFSSL* ssl)
     }
 }
 
+/* Set option to indicate that the resources are not to be freed after
+ * handshake.
+ *
+ * ssl  The SSL/TLS object.
+ */
+int wolfSSL_KeepResources(WOLFSSL* ssl)
+{
+    if (ssl == NULL)
+        return BAD_FUNC_ARG;
+
+    ssl->options.keepResources = 1;
+
+    return 0;
+}
 
 const byte* wolfSSL_GetMacSecret(WOLFSSL* ssl, int verify)
 {
@@ -7905,16 +7917,16 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
             }
 #endif /* NO_HANDSHAKE_DONE_CB */
 
-#ifndef WOLFSSL_WPAS
             if (!ssl->options.dtls) {
-                FreeHandshakeResources(ssl);
+                if (!ssl->options.keepResources) {
+                    FreeHandshakeResources(ssl);
+                }
             }
 #ifdef WOLFSSL_DTLS
             else {
                 ssl->options.dtlsHsRetain = 1;
             }
 #endif /* WOLFSSL_DTLS */
-#endif
 
             WOLFSSL_LEAVE("SSL_connect()", SSL_SUCCESS);
             return SSL_SUCCESS;
@@ -23758,5 +23770,6 @@ int wolfSSL_set_msg_callback_arg(WOLFSSL *ssl, void* arg)
     return SSL_FAILURE;
 }
 #endif
+
 
 #endif /* WOLFCRYPT_ONLY */

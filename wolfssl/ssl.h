@@ -1650,6 +1650,7 @@ WOLFSSL_API void* wolfSSL_GetRsaDecCtx(WOLFSSL* ssl);
 WOLFSSL_API void wolfSSL_KeepArrays(WOLFSSL*);
 WOLFSSL_API void wolfSSL_FreeArrays(WOLFSSL*);
 
+WOLFSSL_API int wolfSSL_KeepResources(WOLFSSL* ssl);
 
 /* async additions */
 WOLFSSL_API int wolfSSL_UseAsync(WOLFSSL*, int devId);
