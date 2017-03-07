@@ -1984,6 +1984,7 @@ struct WOLFSSL_CTX {
     byte        groupMessages;    /* group handshake messages before sending */
     byte        minDowngrade;     /* minimum downgrade version */
     byte        haveEMS;          /* have extended master secret extension */
+    byte        useClientOrder;   /* Use client's cipher preference order */
 #if defined(WOLFSSL_SCTP) && defined(WOLFSSL_DTLS)
     byte        dtlsSctp;         /* DTLS-over-SCTP mode */
     word16      dtlsMtuSz;        /* DTLS MTU size */
@@ -2495,6 +2496,7 @@ typedef struct Options {
     word16            userCurves:1;       /* indicates user called wolfSSL_UseSupportedCurve */
 #endif
     word16            keepResources:1;    /* Keep resources after handshake */
+    word16            useClientOrder:1;   /* Use client's cipher order */
 
     /* need full byte values for this section */
     byte            processReply;           /* nonblocking resume */

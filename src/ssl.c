@@ -2065,13 +2065,59 @@ void wolfSSL_FreeArrays(WOLFSSL* ssl)
  * handshake.
  *
  * ssl  The SSL/TLS object.
+ * returns BAD_FUNC_ARG when ssl is NULL and 0 on success.
  */
-int wolfSSL_KeepResources(WOLFSSL* ssl)
+int wolfSSL_KeepHandshakeResources(WOLFSSL* ssl)
 {
     if (ssl == NULL)
         return BAD_FUNC_ARG;
 
     ssl->options.keepResources = 1;
+
+    return 0;
+}
+
+/* Free the handshake resources after handshake.
+ *
+ * ssl  The SSL/TLS object.
+ * returns BAD_FUNC_ARG when ssl is NULL and 0 on success.
+ */
+int wolfSSL_FreeHandshakeResources(WOLFSSL* ssl)
+{
+    if (ssl == NULL)
+        return BAD_FUNC_ARG;
+
+    FreeHandshakeResources(ssl);
+
+    return 0;
+}
+
+/* Use the client's order of preference when matching cipher suites.
+ *
+ * ssl  The SSL/TLS context object.
+ * returns BAD_FUNC_ARG when ssl is NULL and 0 on success.
+ */
+int wolfSSL_CTX_UseClientSuites(WOLFSSL_CTX* ctx)
+{
+    if (ctx == NULL)
+        return BAD_FUNC_ARG;
+
+    ctx->useClientOrder = 1;
+
+    return 0;
+}
+
+/* Use the client's order of preference when matching cipher suites.
+ *
+ * ssl  The SSL/TLS object.
+ * returns BAD_FUNC_ARG when ssl is NULL and 0 on success.
+ */
+int wolfSSL_UseClientSuites(WOLFSSL* ssl)
+{
+    if (ssl == NULL)
+        return BAD_FUNC_ARG;
+
+    ssl->options.useClientOrder = 1;
 
     return 0;
 }
@@ -8225,7 +8271,9 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
 #endif /* NO_HANDSHAKE_DONE_CB */
 
             if (!ssl->options.dtls) {
-                FreeHandshakeResources(ssl);
+                if (!ssl->options.keepResources) {
+                    FreeHandshakeResources(ssl);
+                }
             }
 #ifdef WOLFSSL_DTLS
             else {

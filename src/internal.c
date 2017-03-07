@@ -3513,6 +3513,7 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
 #ifdef HAVE_EXTENDED_MASTER
     ssl->options.haveEMS = ctx->haveEMS;
 #endif
+    ssl->options.useClientOrder = ctx->useClientOrder;
 
 #ifdef HAVE_TLS_EXTENSIONS
 #ifdef HAVE_MAX_FRAGMENT
@@ -18841,8 +18842,7 @@ int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         if (ssl->suites == NULL)
             return SUITES_ERROR;
 
-#ifdef WOLFSSL_WPAS
-        if (ssl->options.mask | SSL_OP_CIPHER_SERVER_PREFERENCE) {
+        if (!ssl->options.useClientOrder) {
             /* Server order */
             for (i = 0; i < ssl->suites->suiteSz; i += 2) {
                 for (j = 0; j < peerSuites->suiteSz; j += 2) {
@@ -18862,16 +18862,6 @@ int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                 }
             }
         }
-#else
-        /* Server order */
-        for (i = 0; i < ssl->suites->suiteSz; i += 2) {
-            for (j = 0; j < peerSuites->suiteSz; j += 2) {
-                ret = CompareSuites(ssl, peerSuites, i, j);
-                if (ret != MATCH_SUITE_ERROR)
-                    return ret;
-            }
-        }
-#endif
 
         return MATCH_SUITE_ERROR;
     }
