@@ -4249,8 +4249,8 @@ static int mp_div_d (mp_int * a, mp_digit b, mp_int * c, mp_digit * d)
   if (c != NULL) {
      mp_clamp(&q);
      mp_exch(&q, c);
-     mp_clear(&q);
   }
+  mp_clear(&q);
 
   return res;
 }
