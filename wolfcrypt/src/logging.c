@@ -570,6 +570,38 @@ int wc_SetLoggingHeap(void* h)
     return 0;
 }
 
+
+/* frees all nodes in the queue
+ *
+ * id  this is the thread id
+ */
+int wc_ERR_remove_state(void)
+{
+    struct wc_error_queue* current;
+    struct wc_error_queue* next;
+
+    if (wc_LockMutex(&debug_mutex) != 0) {
+        WOLFSSL_MSG("Lock debug mutex failed");
+        return BAD_MUTEX_E;
+    }
+
+    /* free all nodes from error queue */
+    current = (struct wc_error_queue*)wc_errors;
+    while (current != NULL) {
+        next = current->next;
+        XFREE(current, current->heap, DYNAMIC_TYPE_LOG);
+        current = next;
+    }
+
+    wc_errors          = NULL;
+    wc_last_node       = NULL;
+
+    wc_UnLockMutex(&debug_mutex);
+
+    return 0;
+}
+
+
 #if !defined(NO_FILESYSTEM) && !defined(NO_STDIO_FILESYSTEM)
 /* empties out the error queue into the file */
 void wc_ERR_print_errors_fp(FILE* fp)

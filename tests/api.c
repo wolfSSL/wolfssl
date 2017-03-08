@@ -14189,6 +14189,36 @@ static void test_wolfSSL_ERR_peek_last_error_line(void)
 
     FreeTcpReady(&ready);
 
+    /* check clearing error state */
+    ERR_remove_state(0);
+    AssertIntEQ((int)ERR_peek_last_error_line(NULL, NULL), 0);
+    ERR_peek_last_error_line(NULL, &line);
+    AssertIntEQ(line, 0);
+    ERR_peek_last_error_line(&file, NULL);
+    AssertNull(file);
+
+    /* retry connection to fill error queue */
+    XMEMSET(&client_args, 0, sizeof(func_args));
+    XMEMSET(&server_args, 0, sizeof(func_args));
+
+    StartTCP();
+    InitTcpReady(&ready);
+
+    client_cb.method  = wolfTLSv1_1_client_method;
+    server_cb.method  = wolfTLSv1_2_server_method;
+
+    server_args.signal    = &ready;
+    server_args.callbacks = &server_cb;
+    client_args.signal    = &ready;
+    client_args.callbacks = &client_cb;
+
+    start_thread(test_server_nofail, &server_args, &serverThread);
+    wait_tcp_ready(&server_args);
+    test_client_nofail(&client_args);
+    join_thread(serverThread);
+
+    FreeTcpReady(&ready);
+
     /* check that error code was stored */
     AssertIntNE((int)ERR_peek_last_error_line(NULL, NULL), 0);
     ERR_peek_last_error_line(NULL, &line);

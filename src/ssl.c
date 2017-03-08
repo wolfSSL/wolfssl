@@ -14138,6 +14138,21 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
     }
 
 
+    /* frees all nodes in the current threads error queue
+     *
+     * id  thread id. ERR_remove_state is depriciated and id is ignored. The
+     *     current threads queue will be free'd.
+     */
+    void wolfSSL_ERR_remove_state(unsigned long id)
+    {
+        WOLFSSL_ENTER("wolfSSL_ERR_remove_state");
+        (void)id;
+        if (wc_ERR_remove_state() != 0) {
+            WOLFSSL_MSG("Error with removing the state");
+        }
+    }
+
+
     int wolfSSL_RAND_status(void)
     {
         return WOLFSSL_SUCCESS;  /* wolfCrypt provides enough seed internally */
@@ -14310,13 +14325,6 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
     void wolfSSL_ERR_free_strings(void)
     {
         /* handled internally */
-    }
-
-
-    void wolfSSL_ERR_remove_state(unsigned long state)
-    {
-        /* TODO: GetErrors().Remove(); */
-        (void)state;
     }
 
 
