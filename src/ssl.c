@@ -93,18 +93,6 @@
     #include <wolfssl/wolfcrypt/dh.h>
 #endif
 
-#ifndef NO_FILESYSTEM
-    #if !defined(USE_WINDOWS_API) && !defined(NO_WOLFSSL_DIR) \
-            && !defined(EBSNET)
-        #include <dirent.h>
-        #include <sys/stat.h>
-    #endif
-    #ifdef EBSNET
-        #include "vfapi.h"
-        #include "vfile.h"
-    #endif
-#endif /* NO_FILESYSTEM */
-
 
 #if defined(WOLFSSL_DTLS) && !defined(WOLFSSL_HAVE_MAX)
 #define WOLFSSL_HAVE_MAX
@@ -5079,7 +5067,6 @@ int wolfSSL_CTX_load_verify_locations(WOLFSSL_CTX* ctx, const char* file,
     int ret = SSL_SUCCESS;
 
     WOLFSSL_ENTER("wolfSSL_CTX_load_verify_locations");
-    (void)path;
 
     if (ctx == NULL || (file == NULL && path == NULL) )
         return SSL_FAILURE;
@@ -5088,94 +5075,30 @@ int wolfSSL_CTX_load_verify_locations(WOLFSSL_CTX* ctx, const char* file,
         ret = ProcessFile(ctx, file, SSL_FILETYPE_PEM, CA_TYPE, NULL, 0, NULL);
 
     if (ret == SSL_SUCCESS && path) {
-        /* try to load each regular file in path */
-    #ifdef USE_WINDOWS_API
-        WIN32_FIND_DATAA FindFileData;
-        HANDLE hFind;
+        char* name = NULL;
     #ifdef WOLFSSL_SMALL_STACK
-        char*  name = NULL;
-    #else
-        char   name[MAX_FILENAME_SZ];
-    #endif
-
-    #ifdef WOLFSSL_SMALL_STACK
-        name = (char*)XMALLOC(MAX_FILENAME_SZ, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        ReadDirCtx* readCtx = NULL;
+        readCtx = (ReadDirCtx*)XMALLOC(sizeof(ReadDirCtx), ctx->heap,
+                                                       DYNAMIC_TYPE_TMP_BUFFER);
         if (name == NULL)
             return MEMORY_E;
-    #endif
-
-        XMEMSET(name, 0, MAX_FILENAME_SZ);
-        XSTRNCPY(name, path, MAX_FILENAME_SZ - 4);
-        XSTRNCAT(name, "\\*", 3);
-
-        hFind = FindFirstFileA(name, &FindFileData);
-        if (hFind == INVALID_HANDLE_VALUE) {
-            WOLFSSL_MSG("FindFirstFile for path verify locations failed");
-        #ifdef WOLFSSL_SMALL_STACK
-            XFREE(name, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        #endif
-            return BAD_PATH_ERROR;
-        }
-
-        do {
-            if (FindFileData.dwFileAttributes != FILE_ATTRIBUTE_DIRECTORY) {
-                XSTRNCPY(name, path, MAX_FILENAME_SZ/2 - 3);
-                XSTRNCAT(name, "\\", 2);
-                XSTRNCAT(name, FindFileData.cFileName, MAX_FILENAME_SZ/2);
-
-                ret = ProcessFile(ctx, name, SSL_FILETYPE_PEM, CA_TYPE,
-                                  NULL, 0, NULL);
-            }
-        } while (ret == SSL_SUCCESS && FindNextFileA(hFind, &FindFileData));
-
-    #ifdef WOLFSSL_SMALL_STACK
-        XFREE(name, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    #endif
-
-        FindClose(hFind);
-    #elif !defined(NO_WOLFSSL_DIR)
-        struct dirent* entry;
-        DIR*   dir = opendir(path);
-    #ifdef WOLFSSL_SMALL_STACK
-        char*  name = NULL;
     #else
-        char   name[MAX_FILENAME_SZ];
+        ReadDirCtx readCtx[1];
     #endif
 
-        if (dir == NULL) {
-            WOLFSSL_MSG("opendir path verify locations failed");
-            return BAD_PATH_ERROR;
+        /* try to load each regular file in path */
+        ret = wc_ReadDirFirst(readCtx, path, &name);
+        while (ret == 0 && name) {
+            ret = ProcessFile(ctx, name, SSL_FILETYPE_PEM, CA_TYPE,
+                                                          NULL, 0, NULL);
+            if (ret != SSL_SUCCESS)
+                break;
+            ret = wc_ReadDirNext(readCtx, path, &name);
         }
+        wc_ReadDirClose(readCtx);
 
     #ifdef WOLFSSL_SMALL_STACK
-        name = (char*)XMALLOC(MAX_FILENAME_SZ, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        if (name == NULL) {
-            closedir(dir);
-            return MEMORY_E;
-        }
-    #endif
-
-        while ( ret == SSL_SUCCESS && (entry = readdir(dir)) != NULL) {
-            struct stat s;
-
-            XMEMSET(name, 0, MAX_FILENAME_SZ);
-            XSTRNCPY(name, path, MAX_FILENAME_SZ/2 - 2);
-            XSTRNCAT(name, "/", 1);
-            XSTRNCAT(name, entry->d_name, MAX_FILENAME_SZ/2);
-
-            if (stat(name, &s) != 0) {
-                WOLFSSL_MSG("stat on name failed");
-                ret = BAD_PATH_ERROR;
-            } else if (s.st_mode & S_IFREG)
-                ret = ProcessFile(ctx, name, SSL_FILETYPE_PEM, CA_TYPE,
-                                  NULL, 0, NULL);
-        }
-
-    #ifdef WOLFSSL_SMALL_STACK
-        XFREE(name, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    #endif
-
-        closedir(dir);
+        XFREE(readCtx, ctx->heap, DYNAMIC_TYPE_TMP_BUFFER);
     #endif
     }
 

@@ -2044,7 +2044,7 @@ static word16 TLSX_CSR_Write(CertificateStatusRequest* csr, byte* output,
 
                 /* request extensions */
                 if (csr->request.ocsp.nonceSz)
-                    length = EncodeOcspRequestExtensions(
+                    length = (word16)EncodeOcspRequestExtensions(
                                                  &csr->request.ocsp,
                                                  output + offset + OPAQUE16_LEN,
                                                  OCSP_NONCE_EXT_SZ);
@@ -2397,7 +2397,7 @@ static word16 TLSX_CSR2_Write(CertificateStatusRequestItemV2* csr2,
                     length = 0;
 
                     if (csr2->request.ocsp[0].nonceSz)
-                        length = EncodeOcspRequestExtensions(
+                        length = (word16)EncodeOcspRequestExtensions(
                                                  &csr2->request.ocsp[0],
                                                  output + offset + OPAQUE16_LEN,
                                                  OCSP_NONCE_EXT_SZ);

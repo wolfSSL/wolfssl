@@ -1285,10 +1285,6 @@ static INLINE void CaCb(unsigned char* der, int sz, int type)
 /* Wolf Root Directory Helper */
 /* KEIL-RL File System does not support relative directory */
 #if !defined(WOLFSSL_MDK_ARM) && !defined(WOLFSSL_KEIL_FS) && !defined(WOLFSSL_TIRTOS)
-    #ifndef MAX_PATH
-        #define MAX_PATH 256
-    #endif
-
     /* Maximum depth to search for WolfSSL root */
     #define MAX_WOLF_ROOT_DEPTH 5
 

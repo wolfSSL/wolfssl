@@ -192,6 +192,9 @@ WOLFSSL_API int wolfCrypt_Cleanup(void);
 #ifndef NO_FILESYSTEM
 
 #if defined(EBSNET)
+    #include "vfapi.h"
+    #include "vfile.h"
+
     #define XFILE                    int
     #define XFOPEN(NAME, MODE)       vf_open((const char *)NAME, VO_RDONLY, 0);
     #define XFSEEK                   vf_lseek
@@ -202,6 +205,7 @@ WOLFSSL_API int wolfCrypt_Cleanup(void);
     #define XFCLOSE                  vf_close
     #define XSEEK_END                VSEEK_END
     #define XBADFILE                 -1
+    #define XFGETS(b,s,f)            -2 /* Not ported yet */
 #elif defined(LSR_FS)
     #include <fs.h>
     #define XFILE                   struct fs_file*
@@ -214,6 +218,7 @@ WOLFSSL_API int wolfCrypt_Cleanup(void);
     #define XFCLOSE                 fs_close
     #define XSEEK_END               0
     #define XBADFILE                NULL
+    #define XFGETS(b,s,f)            -2 /* Not ported yet */
 #elif defined(FREESCALE_MQX) || defined(FREESCALE_KSDK_MQX)
     #define XFILE                   MQX_FILE_PTR
     #define XFOPEN                  fopen
@@ -225,6 +230,7 @@ WOLFSSL_API int wolfCrypt_Cleanup(void);
     #define XFCLOSE                 fclose
     #define XSEEK_END               IO_SEEK_END
     #define XBADFILE                NULL
+    #define XFGETS                  fgets
 #elif defined(MICRIUM)
     #include <fs.h>
     #define XFILE      FS_FILE*
@@ -237,6 +243,7 @@ WOLFSSL_API int wolfCrypt_Cleanup(void);
     #define XFCLOSE    fs_fclose
     #define XSEEK_END  FS_SEEK_END
     #define XBADFILE   NULL
+    #define XFGETS(b,s,f) -2 /* Not ported yet */
 #else
     /* stdio, default case */
     #include <stdio.h>
@@ -255,9 +262,41 @@ WOLFSSL_API int wolfCrypt_Cleanup(void);
     #define XFCLOSE    fclose
     #define XSEEK_END  SEEK_END
     #define XBADFILE   NULL
+    #define XFGETS     fgets
+
+    #if !defined(USE_WINDOWS_API) && !defined(NO_WOLFSSL_DIR)
+        #include <dirent.h>
+        #include <unistd.h>
+        #include <sys/stat.h>
+    #endif
 #endif
 
-#endif /* NO_FILESYSTEM */
+    #ifndef MAX_FILENAME_SZ
+        #define MAX_FILENAME_SZ  256 /* max file name length */
+    #endif
+    #ifndef MAX_PATH
+        #define MAX_PATH 256
+    #endif
+
+#if !defined(NO_WOLFSSL_DIR)
+    typedef struct ReadDirCtx {
+    #ifdef USE_WINDOWS_API
+        WIN32_FIND_DATAA FindFileData;
+        HANDLE hFind;
+    #else
+        struct dirent* entry;
+        DIR*   dir;
+        struct stat s;
+    #endif
+        char name[MAX_FILENAME_SZ];
+    } ReadDirCtx;
+
+    WOLFSSL_API int wc_ReadDirFirst(ReadDirCtx* ctx, const char* path, char** name);
+    WOLFSSL_API int wc_ReadDirNext(ReadDirCtx* ctx, const char* path, char** name);
+    WOLFSSL_API void wc_ReadDirClose(ReadDirCtx* ctx);
+#endif /* !NO_WOLFSSL_DIR */
+
+#endif /* !NO_FILESYSTEM */
 
 
 /* Windows API defines its own min() macro. */
