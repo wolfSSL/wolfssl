@@ -274,10 +274,9 @@ typedef struct ecc_key {
     ecc_point pubkey;   /* public key */
     mp_int    k;        /* private key */
 #endif
+#ifdef WOLFSSL_ASYNC_CRYPT
     mp_int*   r;        /* sign/verify temps */
     mp_int*   s;
-
-#ifdef WOLFSSL_ASYNC_CRYPT
     AsyncCryptDev asyncDev;
 #endif
 } ecc_key;
