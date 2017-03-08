@@ -28,6 +28,7 @@
 #include <wolfssl/wolfcrypt/types.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
 #include <wolfssl/wolfcrypt/logging.h>
+#include <wolfssl/wolfcrypt/wc_port.h>
 
 /* IPP header files for library initialization */
 #ifdef HAVE_FAST_RSA
@@ -125,6 +126,138 @@ int wolfCrypt_Cleanup(void)
 
     return ret;
 }
+
+#if !defined(NO_FILESYSTEM) && !defined(NO_WOLFSSL_DIR)
+
+/* File Handling Helpers */
+int wc_ReadDirFirst(ReadDirCtx* ctx, const char* path, char** name)
+{
+    int ret = 0;
+
+    if (name)
+        *name = NULL;
+
+    if (ctx == NULL || path == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    XMEMSET(ctx->name, 0, MAX_FILENAME_SZ);
+
+#ifdef USE_WINDOWS_API
+    XSTRNCPY(ctx->name, path, MAX_FILENAME_SZ - 4);
+    XSTRNCAT(ctx->name, "\\*", 3);
+
+    ctx->hFind = FindFirstFileA(ctx->name, &ctx->FindFileData);
+    if (ctx->hFind == INVALID_HANDLE_VALUE) {
+        WOLFSSL_MSG("FindFirstFile for path verify locations failed");
+        return BAD_PATH_ERROR;
+    }
+
+    do {
+        if (ctx->FindFileData.dwFileAttributes != FILE_ATTRIBUTE_DIRECTORY) {
+            XSTRNCPY(ctx->name, path, MAX_FILENAME_SZ/2 - 3);
+            XSTRNCAT(ctx->name, "\\", 2);
+            XSTRNCAT(ctx->name, ctx->FindFileData.cFileName, MAX_FILENAME_SZ/2);
+            if (name)
+                *name = ctx->name;
+            return 0;
+        }
+    } while (FindNextFileA(ctx->hFind, &ctx->FindFileData));
+#else
+    ctx->dir = opendir(path);
+    if (ctx->dir == NULL) {
+        WOLFSSL_MSG("opendir path verify locations failed");
+        return BAD_PATH_ERROR;
+    }
+
+    while ((ctx->entry = readdir(ctx->dir)) != NULL) {
+        XSTRNCPY(ctx->name, path, MAX_FILENAME_SZ/2 - 2);
+        XSTRNCAT(ctx->name, "/", 1);
+        XSTRNCAT(ctx->name, ctx->entry->d_name, MAX_FILENAME_SZ/2);
+
+        if (stat(ctx->name, &ctx->s) != 0) {
+            WOLFSSL_MSG("stat on name failed");
+            ret = BAD_PATH_ERROR;
+            break;
+        } else if (ctx->s.st_mode & S_IFREG) {
+            if (name)
+                *name = ctx->name;
+            return 0;
+        }
+    }
+#endif
+    wc_ReadDirClose(ctx);
+
+    return ret;
+}
+
+int wc_ReadDirNext(ReadDirCtx* ctx, const char* path, char** name)
+{
+    int ret = -1;
+
+    if (name)
+        *name = NULL;
+
+    if (ctx == NULL || path == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    XMEMSET(ctx->name, 0, MAX_FILENAME_SZ);
+
+#ifdef USE_WINDOWS_API
+    while (FindNextFileA(ctx->hFind, &ctx->FindFileData)) {
+        if (ctx->FindFileData.dwFileAttributes != FILE_ATTRIBUTE_DIRECTORY) {
+            XSTRNCPY(ctx->name, path, MAX_FILENAME_SZ/2 - 3);
+            XSTRNCAT(ctx->name, "\\", 2);
+            XSTRNCAT(ctx->name, ctx->FindFileData.cFileName, MAX_FILENAME_SZ/2);
+            if (name)
+                *name = ctx->name;
+            return 0;
+        }
+    }
+#else
+    while ((ctx->entry = readdir(ctx->dir)) != NULL) {
+        XSTRNCPY(ctx->name, path, MAX_FILENAME_SZ/2 - 2);
+        XSTRNCAT(ctx->name, "/", 1);
+        XSTRNCAT(ctx->name, ctx->entry->d_name, MAX_FILENAME_SZ/2);
+
+        if (stat(ctx->name, &ctx->s) != 0) {
+            WOLFSSL_MSG("stat on name failed");
+            ret = BAD_PATH_ERROR;
+            break;
+        } else if (ctx->s.st_mode & S_IFREG) {
+            if (name)
+                *name = ctx->name;
+            return 0;
+        }
+    }
+#endif
+
+    wc_ReadDirClose(ctx);
+
+    return ret;
+}
+
+void wc_ReadDirClose(ReadDirCtx* ctx)
+{
+    if (ctx == NULL) {
+        return;
+    }
+
+#ifdef USE_WINDOWS_API
+    if (ctx->hFind != INVALID_HANDLE_VALUE) {
+        FindClose(ctx->hFind);
+        ctx->hFind = INVALID_HANDLE_VALUE;
+    }
+#else
+    if (ctx->dir) {
+        closedir(ctx->dir);
+        ctx->dir = NULL;
+    }
+#endif
+}
+
+#endif /* !NO_FILESYSTEM && !NO_WOLFSSL_DIR */
 
 
 wolfSSL_Mutex* wc_InitAndAllocMutex()

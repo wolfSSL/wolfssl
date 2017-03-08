@@ -11201,7 +11201,7 @@ int SendCertificateStatus(WOLFSSL* ssl)
             if (responses[0].buffer) {
                 if (ret == 0)
                     ret = BuildCertificateStatus(ssl, status_type,
-                                                              responses, i + 1);
+                                                        responses, (byte)i + 1);
 
                 for (i = 0; i < 1 + MAX_CHAIN_DEPTH; i++)
                     if (responses[i].buffer)
@@ -11713,8 +11713,6 @@ const char* wolfSSL_ERR_reason_error_string(unsigned long e)
     case NOT_CA_ERROR:
         return "Not a CA by basic constraint error";
 
-    case BAD_PATH_ERROR:
-        return "Bad path for opendir error";
 
     case BAD_CERT_MANAGER_ERROR:
         return "Bad Cert Manager error";

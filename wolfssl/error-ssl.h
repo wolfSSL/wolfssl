@@ -90,7 +90,7 @@ enum wolfSSL_ErrorCodes {
     ECC_EXPORT_ERROR             = -354,   /* Bad ECC Export Key */
     ECC_SHARED_ERROR             = -355,   /* Bad ECC Shared Secret */
     NOT_CA_ERROR                 = -357,   /* Not a CA cert error */
-    BAD_PATH_ERROR               = -358,   /* Bad path for opendir */
+
     BAD_CERT_MANAGER_ERROR       = -359,   /* Bad Cert Manager */
     OCSP_CERT_REVOKED            = -360,   /* OCSP Certificate revoked */
     CRL_CERT_REVOKED             = -361,   /* CRL Certificate revoked */

@@ -419,6 +419,9 @@ const char* wc_GetErrorString(int error)
     case DH_CHECK_PUB_E:
         return "DH Check Public Key failure";
 
+    case BAD_PATH_ERROR:
+        return "Bad path for opendir error";
+
     default:
         return "unknown error number";
 
