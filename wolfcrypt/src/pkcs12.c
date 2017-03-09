@@ -709,6 +709,10 @@ int wc_PKCS12_parse(WC_PKCS12* pkcs12, const char* psw,
         }
     }
 
+    if (pkcs12->safe == NULL) {
+        WOLFSSL_MSG("No PKCS12 safes to parse");
+        return BAD_FUNC_ARG;
+    }
 
     /* Decode content infos */
     ci = pkcs12->safe->CI;

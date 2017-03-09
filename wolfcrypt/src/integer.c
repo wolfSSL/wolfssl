@@ -4229,6 +4229,10 @@ static int mp_div_d (mp_int * a, mp_digit b, mp_int * c, mp_digit * d)
       q.used = a->used;
       q.sign = a->sign;
   }
+  else {
+      mp_init(&q); /* initialize to help static analysis */
+  }
+
 
   w = 0;
   for (ix = a->used - 1; ix >= 0; ix--) {
@@ -4251,8 +4255,8 @@ static int mp_div_d (mp_int * a, mp_digit b, mp_int * c, mp_digit * d)
   if (c != NULL) {
      mp_clamp(&q);
      mp_exch(&q, c);
-     mp_clear(&q);
   }
+  mp_clear(&q);
 
   return res;
 }

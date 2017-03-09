@@ -7107,7 +7107,8 @@ int do_mp_jacobi(mp_int* a, mp_int* n, int* c);
 
 int do_mp_jacobi(mp_int* a, mp_int* n, int* c)
 {
-  int      k, s, r, res;
+  int      k, s, res;
+  int      r = 0; /* initialize to help static analysis out */
   mp_digit residue;
 
   /* if a < 0 return MP_VAL */
