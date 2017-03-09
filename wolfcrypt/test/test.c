@@ -881,7 +881,7 @@ int error_test()
      * APIs. Check that the values that are not errors map to the unknown
      * string.
      */
-    for (i = OPEN_RAN_E; i >= ECC_CDH_KAT_FIPS_E; i--) {
+    for (i = OPEN_RAN_E; i >= BAD_PATH_ERROR; i--) {
         errStr = wc_GetErrorString(i);
         wc_ErrorString(i, out);
 
@@ -1555,7 +1555,7 @@ int sha224_test(void)
     ret = wc_Sha224GetHash(&sha, hash);
     if (ret != 0)
         return -22;
-    ret = wc_Sha224Update(&sha, (byte*)a.input + 1, a.inLen - 1);
+    ret = wc_Sha224Update(&sha, (byte*)a.input + 1, (word32)(a.inLen - 1));
     if (ret != 0)
         return -23;
     ret = wc_Sha224Final(&sha, hash);
@@ -1563,7 +1563,7 @@ int sha224_test(void)
         return -24;
     if (XMEMCMP(hash, a.output, a.outLen) != 0)
         return -25;
-    ret = wc_Sha224Hash((byte*)a.input, a.inLen, hash);
+    ret = wc_Sha224Hash((byte*)a.input, (word32)a.inLen, hash);
     if (ret != 0)
         return -26;
     if (XMEMCMP(hash, a.output, a.outLen) != 0)
@@ -1799,7 +1799,7 @@ int sha384_test(void)
     ret = wc_Sha384GetHash(&sha, hash);
     if (ret != 0)
         return -22;
-    ret = wc_Sha384Update(&sha, (byte*)a.input + 1, a.inLen - 1);
+    ret = wc_Sha384Update(&sha, (byte*)a.input + 1, (word32)(a.inLen - 1));
     if (ret != 0)
         return -23;
     ret = wc_Sha384Final(&sha, hash);
@@ -1808,7 +1808,7 @@ int sha384_test(void)
     if (XMEMCMP(hash, a.output, a.outLen) != 0)
         return -25;
     XMEMSET(hash, 0, a.outLen);
-    ret = wc_Sha384Hash((byte*)a.input, a.inLen, hash);
+    ret = wc_Sha384Hash((byte*)a.input, (word32)a.inLen, hash);
     if (ret != 0)
         return -26;
     if (XMEMCMP(hash, a.output, a.outLen) != 0)

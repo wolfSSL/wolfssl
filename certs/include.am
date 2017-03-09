@@ -58,4 +58,5 @@ dist_doc_DATA+= certs/taoCert.txt
 
 EXTRA_DIST+= certs/ntru-key.raw
 
+include certs/test/include.am
 include certs/test-pathlen/include.am
