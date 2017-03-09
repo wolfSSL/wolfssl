@@ -9190,11 +9190,12 @@ int wc_EccPrivateKeyDecode(const byte* input, word32* inOutIdx, ecc_key* key,
     return ret;
 }
 
+#ifdef WOLFSSL_CERT_EXT
 int wc_EccPublicKeyDecode(const byte* input, word32* inOutIdx,
                           ecc_key* key, word32 inSz)
 {
     int    length;
-    int    ret = 0;
+    byte   b;
 
     if (input == NULL || inOutIdx == NULL || key == NULL || inSz == 0)
         return BAD_FUNC_ARG;
@@ -9202,57 +9203,48 @@ int wc_EccPublicKeyDecode(const byte* input, word32* inOutIdx,
     if (GetSequence(input, inOutIdx, &length, inSz) < 0)
         return ASN_PARSE_E;
 
-#if defined(OPENSSL_EXTRA) || defined(ECC_DECODE_EXTRA)
-    {
-        byte b = input[*inOutIdx];
-        if (b != ASN_INTEGER) {
-            /* not from decoded cert, will have algo id, skip past */
-            if (GetSequence(input, inOutIdx, &length, inSz) < 0)
-                return ASN_PARSE_E;
+    if (GetSequence(input, inOutIdx, &length, inSz) < 0)
+        return ASN_PARSE_E;
 
-            b = input[(*inOutIdx)++];
-            if (b != ASN_OBJECT_ID)
-                return ASN_OBJECT_ID_E;
+    b = input[(*inOutIdx)++];
+    if (b != ASN_OBJECT_ID)
+        return ASN_OBJECT_ID_E;
 
-            if (GetLength(input, inOutIdx, &length, inSz) < 0)
-                return ASN_PARSE_E;
+    if (GetLength(input, inOutIdx, &length, inSz) < 0)
+        return ASN_PARSE_E;
 
-            *inOutIdx += length;   /* skip past */
+    *inOutIdx += length;   /* skip past */
 
-            /* ecc params information */
-            b = input[(*inOutIdx)++];
-            if (b != ASN_OBJECT_ID)
-                return ASN_OBJECT_ID_E;
+    /* ecc params information */
+    b = input[(*inOutIdx)++];
+    if (b != ASN_OBJECT_ID)
+        return ASN_OBJECT_ID_E;
 
-            if (GetLength(input, inOutIdx, &length, inSz) <= 0)
-                return ASN_PARSE_E;
+    if (GetLength(input, inOutIdx, &length, inSz) <= 0)
+        return ASN_PARSE_E;
 
-            *inOutIdx += length;   /* skip past */
+    *inOutIdx += length;   /* skip past */
 
-            /* key header */
-            b = input[*inOutIdx];
-            *inOutIdx += 1;
+    /* key header */
+    b = input[*inOutIdx];
+    *inOutIdx += 1;
 
-            if (b != ASN_BIT_STRING)
-                ret = ASN_BITSTR_E;
-            else if (GetLength(input, inOutIdx, &length, inSz) <= 0)
-                ret = ASN_PARSE_E;
-            else {
-                b = input[*inOutIdx];
-                *inOutIdx += 1;
+    if (b != ASN_BIT_STRING)
+        return ASN_BITSTR_E;
+    if (GetLength(input, inOutIdx, &length, inSz) <= 0)
+        return ASN_PARSE_E;
 
-                if (b != 0x00)
-                    ret = ASN_EXPECT_0_E;
-            }
-        }
-    }  /* openssl var block */
-#endif /* OPENSSL_EXTRA */
+    b = input[(*inOutIdx)++];
+    if (b != 0x00)
+        return ASN_EXPECT_0_E;
 
+    /* This is the raw point data compressed or uncompressed. */
     if (wc_ecc_import_x963(input+*inOutIdx, inSz - *inOutIdx, key) != 0)
         return ASN_ECC_KEY_E;
 
-    return ret;
+    return 0;
 }
+#endif
 
 
 #ifdef WOLFSSL_KEY_GEN

@@ -264,7 +264,7 @@ wolfSSL_Mutex* wc_InitAndAllocMutex()
 {
     wolfSSL_Mutex* m = (wolfSSL_Mutex*) XMALLOC(sizeof(wolfSSL_Mutex), NULL,
             DYNAMIC_TYPE_MUTEX);
-    if(m && wc_InitMutex(m))
+    if(m && wc_InitMutex(m) == 0)
         return m;
     XFREE(m, NULL, DYNAMIC_TYPE_MUTEX);
     m = NULL;
