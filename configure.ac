@@ -190,6 +190,7 @@ then
     enable_jni=yes
     enable_lighty=yes
     enable_stunnel=yes
+    enable_nginx=yes
     enable_pwdbased=yes
 fi
 AM_CONDITIONAL([BUILD_DISTRO], [test "x$ENABLED_DISTRO" = "xyes"])
@@ -268,6 +269,12 @@ AC_ARG_ENABLE([openssh],
     [ENABLED_OPENSSH=$enableval],
     [ENABLED_OPENSSH=no])
 
+# nginx compatibility build
+AC_ARG_ENABLE([nginx],
+    [  --enable-nginx          Enable nginx (default: disabled)],
+    [ ENABLED_NGINX=$enableval ],
+    [ ENABLED_NGINX=no ]
+    )
 
 # OPENSSL Extra Compatibility
 AC_ARG_ENABLE([opensslextra],
@@ -275,7 +282,7 @@ AC_ARG_ENABLE([opensslextra],
     [ ENABLED_OPENSSLEXTRA=$enableval ],
     [ ENABLED_OPENSSLEXTRA=no ]
     )
-if test "$ENABLED_OPENSSH" = "yes"
+if test "$ENABLED_OPENSSH" = "yes" || test "$ENABLED_NGINX" = "yes"
 then
     ENABLED_OPENSSLEXTRA="yes"
 fi
@@ -761,6 +768,11 @@ AC_ARG_ENABLE([sessioncerts],
     [ ENABLED_SESSIONCERTS=no ]
     )
 
+if test "x$ENABLED_NGINX" = "xyes"
+then
+    ENABLED_SESSIONCERTS=yes
+fi
+
 if test "$ENABLED_SESSIONCERTS" = "yes"
 then
     AM_CFLAGS="$AM_CFLAGS -DSESSION_CERTS"
@@ -870,7 +882,7 @@ AC_ARG_ENABLE([dsa],
     [ ENABLED_DSA=no ]
     )
 
-if test "$ENABLED_OPENSSH" = "yes"
+if test "$ENABLED_OPENSSH" = "yes" || test "$ENABLED_NGINX" = "yes"
 then
     ENABLED_DSA="yes"
 fi
@@ -912,7 +924,7 @@ then
     ENABLED_ECC=no
 fi
 
-if test "$ENABLED_OPENSSH" = "yes"
+if test "$ENABLED_OPENSSH" = "yes" || test "$ENABLED_NGINX" = "yes"
 then
     ENABLED_ECC="yes"
 fi
@@ -1689,6 +1701,11 @@ AC_ARG_ENABLE([ocsp],
     [ ENABLED_OCSP=no ],
     )
 
+if test "x$ENABLED_NGINX" = "xyes"
+then
+    ENABLED_OCSP=yes
+fi
+
 if test "$ENABLED_OCSP" = "yes"
 then
     AM_CFLAGS="$AM_CFLAGS -DHAVE_OCSP"
@@ -1718,6 +1735,11 @@ AC_ARG_ENABLE([ocspstapling],
     [ ENABLED_CERTIFICATE_STATUS_REQUEST=no ]
     )
 
+if test "x$ENABLED_NGINX" = "xyes"
+then
+    ENABLED_CERTIFICATE_STATUS_REQUEST=yes
+fi
+
 if test "x$ENABLED_CERTIFICATE_STATUS_REQUEST" = "xyes"
 then
     AM_CFLAGS="$AM_CFLAGS -DHAVE_TLS_EXTENSIONS -DHAVE_CERTIFICATE_STATUS_REQUEST"
@@ -1740,6 +1762,11 @@ AC_ARG_ENABLE([ocspstapling2],
     [ ENABLED_CERTIFICATE_STATUS_REQUEST_V2=no ]
     )
 
+if test "x$ENABLED_NGINX" = "xyes"
+then
+    ENABLED_CERTIFICATE_STATUS_REQUEST_V2=yes
+fi
+
 if test "x$ENABLED_CERTIFICATE_STATUS_REQUEST_V2" = "xyes"
 then
     AM_CFLAGS="$AM_CFLAGS -DHAVE_TLS_EXTENSIONS -DHAVE_CERTIFICATE_STATUS_REQUEST_V2"
@@ -1761,6 +1788,12 @@ AC_ARG_ENABLE([crl],
     [ ENABLED_CRL=$enableval ],
     [ ENABLED_CRL=no ],
     )
+
+
+if test "x$ENABLED_NGINX" = "xyes"
+then
+    ENABLED_CRL=yes
+fi
 
 if test "$ENABLED_CRL" = "yes"
 then
@@ -2034,6 +2067,11 @@ AC_ARG_ENABLE([session-ticket],
     [ ENABLED_SESSION_TICKET=no ]
     )
 
+if test "x$ENABLED_NGINX" = "xyes"
+then
+    ENABLED_SESSION_TICKET=yes
+fi
+
 if test "x$ENABLED_SESSION_TICKET" = "xyes"
 then
     AM_CFLAGS="$AM_CFLAGS -DHAVE_TLS_EXTENSIONS -DHAVE_SESSION_TICKET"
@@ -2057,6 +2095,11 @@ AC_ARG_ENABLE([tlsx],
     [ ENABLED_TLSX=$enableval ],
     [ ENABLED_TLSX=no ]
     )
+
+if test "x$ENABLED_NGINX" = "xyes"
+then
+    ENABLED_TLSX=yes
+fi
 
 if test "x$ENABLED_TLSX" = "xyes"
 then
@@ -2302,6 +2345,16 @@ then
     AM_CFLAGS="$AM_CFLAGS -DHAVE_LIGHTY -DHAVE_WOLFSSL_SSL_H=1"
 fi
 
+if test "$ENABLED_NGINX" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NGINX"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ALWAYS_VERIFY_CB"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ALWAYS_KEEP_SNI"
+    AM_CFLAGS="$AM_CFLAGS -DKEEP_OUR_CERT -DKEEP_PEER_CERT"
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_EXT_CACHE -DHAVE_EX_DATA"
+fi
+
+
 # stunnel Support
 AC_ARG_ENABLE([stunnel],
     [  --enable-stunnel        Enable stunnel (default: disabled)],
@@ -2374,7 +2427,7 @@ then
     fi
 
     AM_CFLAGS="$AM_CFLAGS -DHAVE_STUNNEL -DWOLFSSL_ALWAYS_VERIFY_CB"
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ALWAYS_KEEP_SNI"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ALWAYS_KEEP_SNI -DHAVE_EX_DATA"
 fi
 
 if test "$ENABLED_PSK" = "no" && test "$ENABLED_LEANPSK" = "no" \
@@ -3352,6 +3405,7 @@ echo "   * MEMORY:                     $ENABLED_MEMORY"
 echo "   * I/O POOL:                   $ENABLED_IOPOOL"
 echo "   * LIGHTY:                     $ENABLED_LIGHTY"
 echo "   * STUNNEL:                    $ENABLED_STUNNEL"
+echo "   * NGINX:                      $ENABLED_NGINX"
 echo "   * ERROR_STRINGS:              $ENABLED_ERROR_STRINGS"
 echo "   * DTLS:                       $ENABLED_DTLS"
 echo "   * SCTP:                       $ENABLED_SCTP"

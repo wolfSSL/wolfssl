@@ -1058,8 +1058,8 @@ enum Misc {
 
     MAX_WOLFSSL_FILE_SIZE = 1024 * 1024 * 4,  /* 4 mb file size alloc limit */
 
-#if defined(FORTRESS) || defined (HAVE_STUNNEL)
-    MAX_EX_DATA        =   3,  /* allow for three items of ex_data */
+#if defined(HAVE_EX_DATA) || defined(FORTRESS)
+    MAX_EX_DATA        =   5,  /* allow for five items of ex_data */
 #endif
 
     MAX_X509_SIZE      = 2048, /* max static x509 buffer size */
@@ -1462,6 +1462,9 @@ struct WOLFSSL_OCSP {
     WOLFSSL_CERT_MANAGER* cm;            /* pointer back to cert manager */
     OcspEntry*            ocspList;      /* OCSP response list */
     wolfSSL_Mutex         ocspLock;      /* OCSP list lock */
+#ifdef WOLFSSL_NGINX
+    int(*statusCb)(WOLFSSL*, void*);
+#endif
 };
 
 #ifndef MAX_DATE_SIZE
@@ -1943,11 +1946,18 @@ struct WOLFSSL_CTX {
     DerBuffer*  certificate;
     DerBuffer*  certChain;
                  /* chain after self, in DER, with leading size for each cert */
+    #ifdef OPENSSL_EXTRA
+    STACK_OF(WOLFSSL_X509_NAME)* ca_names;
+    #endif
+    #ifdef WOLFSSL_NGINX
+    STACK_OF(WOLFSSL_X509)* x509Chain;
+    #endif
     DerBuffer*  privateKey;
     WOLFSSL_CERT_MANAGER* cm;      /* our cert manager, ctx owns SSL will use */
 #endif
 #ifdef KEEP_OUR_CERT
     WOLFSSL_X509*    ourCert;     /* keep alive a X509 struct of cert */
+    int              ownOurCert;  /* Dispose of certificate if we own */
 #endif
     Suites*     suites;           /* make dynamic, user may not need/set */
     void*       heap;             /* for user memory overrides */
@@ -1957,6 +1967,9 @@ struct WOLFSSL_CTX {
     byte        failNoCertxPSK;   /* fail if no cert with the exception of PSK*/
     byte        sessionCacheOff;
     byte        sessionCacheFlushOff;
+#ifdef HAVE_EXT_CACHE
+    byte        internalCacheOff;
+#endif
     byte        sendVerify;       /* for client side */
     byte        haveRSA;          /* RSA available */
     byte        haveECC;          /* ECC available */
@@ -1982,6 +1995,9 @@ struct WOLFSSL_CTX {
 #ifdef HAVE_ECC
     short       minEccKeySz;      /* minimum ECC key size */
 #endif
+#ifdef OPENSSL_EXTRA
+    unsigned long     mask;       /* store SSL_OP_ flags */
+#endif
     CallbackIORecv CBIORecv;
     CallbackIOSend CBIOSend;
 #ifdef WOLFSSL_DTLS
@@ -1996,6 +2012,7 @@ struct WOLFSSL_CTX {
     word32          timeout;            /* session timeout */
 #ifdef HAVE_ECC
     word16          eccTempKeySz;       /* in octets 20 - 66 */
+    word32          ecdhCurveOID;       /* curve Ecc_Sum */
     word32          pkCurveOID;         /* curve Ecc_Sum */
 #endif
 #ifndef NO_PSK
@@ -2014,8 +2031,14 @@ struct WOLFSSL_CTX {
     byte            readAhead;
     void*           userPRFArg; /* passed to prf callback */
 #endif /* OPENSSL_EXTRA */
-#ifdef HAVE_STUNNEL
+#ifdef HAVE_EX_DATA
     void*           ex_data[MAX_EX_DATA];
+#endif
+#if defined(HAVE_ALPN) && defined(WOLFSSL_NGINX)
+    CallbackALPNSelect alpnSelect;
+    void*              alpnSelectArg;
+#endif
+#if defined(HAVE_STUNNEL) || defined(WOLFSSL_NGINX)
     CallbackSniRecv sniRecvCb;
     void*           sniRecvCbArg;
 #endif
@@ -2063,6 +2086,11 @@ struct WOLFSSL_CTX {
 #ifdef HAVE_WOLF_EVENT
         WOLF_EVENT_QUEUE event_queue;
 #endif /* HAVE_WOLF_EVENT */
+#ifdef HAVE_EXT_CACHE
+        WOLFSSL_SESSION*(*get_sess_cb)(WOLFSSL*, unsigned char*, int, int*);
+        int (*new_sess_cb)(WOLFSSL*, WOLFSSL_SESSION*);
+        void (*rem_sess_cb)(WOLFSSL_CTX*, WOLFSSL_SESSION*);
+#endif
 };
 
 
@@ -2260,30 +2288,33 @@ struct WOLFSSL_X509_CHAIN {
 
 /* wolfSSL session type */
 struct WOLFSSL_SESSION {
-    word32          bornOn;                        /* create time in seconds   */
-    word32          timeout;                       /* timeout in seconds       */
-    byte            sessionID[ID_LEN];             /* id for protocol */
-    byte            sessionIDSz;
-    byte            masterSecret[SECRET_LEN];      /* stored secret */
-    word16          haveEMS;                       /* ext master secret flag */
+    word32             bornOn;                    /* create time in seconds   */
+    word32             timeout;                   /* timeout in seconds       */
+    byte               sessionID[ID_LEN];         /* id for protocol          */
+    byte               sessionIDSz;
+    byte               masterSecret[SECRET_LEN];  /* stored secret            */
+    word16             haveEMS;                   /* ext master secret flag   */
 #ifdef SESSION_CERTS
-    WOLFSSL_X509_CHAIN chain;                    /* peer cert chain, static  */
-    ProtocolVersion version;                    /* which version was used */
-    byte            cipherSuite0;               /* first byte, normally 0 */
-    byte            cipherSuite;                /* 2nd byte, actual suite */
+    WOLFSSL_X509_CHAIN chain;                     /* peer cert chain, static  */
+    ProtocolVersion    version;                   /* which version was used   */
+    byte               cipherSuite0;              /* first byte, normally 0   */
+    byte               cipherSuite;               /* 2nd byte, actual suite   */
 #endif
 #ifndef NO_CLIENT_CACHE
-    word16          idLen;                         /* serverID length */
-    byte            serverID[SERVER_ID_LEN];       /* for easier client lookup */
+    word16             idLen;                     /* serverID length          */
+    byte               serverID[SERVER_ID_LEN];   /* for easier client lookup */
 #endif
 #ifdef HAVE_SESSION_TICKET
-    byte*           ticket;
-    word16          ticketLen;
-    byte            staticTicket[SESSION_TICKET_LEN];
-    byte            isDynamic;
+    byte*              ticket;
+    word16             ticketLen;
+    byte               staticTicket[SESSION_TICKET_LEN];
+    byte               isDynamic;
 #endif
-#ifdef HAVE_STUNNEL
-    void*           ex_data[MAX_EX_DATA];
+#ifdef HAVE_EXT_CACHE
+    byte               isAlloced;
+#endif
+#ifdef HAVE_EX_DATA
+    void*              ex_data[MAX_EX_DATA];
 #endif
 };
 
@@ -2401,6 +2432,9 @@ typedef struct Options {
     word16            sendVerify:2;     /* false = 0, true = 1, sendBlank = 2 */
     word16            sessionCacheOff:1;
     word16            sessionCacheFlushOff:1;
+#ifdef HAVE_EXT_CACHE
+    word16            internalCacheOff:1;
+#endif
     word16            side:1;             /* client or server end */
     word16            verifyPeer:1;
     word16            verifyNone:1;
@@ -2521,9 +2555,11 @@ struct WOLFSSL_STACK {
     unsigned long num; /* number of nodes in stack
                         * (saftey measure for freeing and shortcut for count) */
     union {
-        WOLFSSL_X509* x509;
-        WOLFSSL_BIO*  bio;
+        WOLFSSL_X509*        x509;
+        WOLFSSL_X509_NAME*   name;
+        WOLFSSL_BIO*         bio;
         WOLFSSL_ASN1_OBJECT* obj;
+        char*                string;
     } data;
     WOLFSSL_STACK* next;
 };
@@ -2592,6 +2628,9 @@ struct WOLFSSL_X509 {
     int              certPoliciesNb;
 #endif /* WOLFSSL_CERT_EXT */
 #ifdef OPENSSL_EXTRA
+#ifdef HAVE_EX_DATA
+    void*            ex_data[MAX_EX_DATA];
+#endif
     word32           pathLength;
     word16           keyUsage;
     byte             CRLdistSet;
@@ -2751,6 +2790,9 @@ struct WOLFSSL {
     Ciphers         decrypt;
     Buffers         buffers;
     WOLFSSL_SESSION session;
+#ifdef HAVE_EXT_CACHE
+    WOLFSSL_SESSION* extSession;
+#endif
     WOLFSSL_ALERT_HISTORY alert_history;
     int             error;
     int             rfd;                /* read  file descriptor */
@@ -2802,6 +2844,7 @@ struct WOLFSSL {
     ecc_key*        peerEccDsaKey;           /* peer's  ECDSA key */
     ecc_key*        eccTempKey;              /* private ECDHE key */
     word32          pkCurveOID;              /* curve Ecc_Sum     */
+    word32          ecdhCurveOID;            /* curve Ecc_Sum     */
     word16          eccTempKeySz;            /* in octets 20 - 66 */
     byte            peerEccKeyPresent;
     byte            peerEccDsaKeyPresent;
@@ -2846,8 +2889,8 @@ struct WOLFSSL {
                                             flag found in buffers.weOwnCert) */
 #endif
     byte             keepCert;           /* keep certificate after handshake */
-#if defined(FORTRESS) || defined(HAVE_STUNNEL)
-    void*           ex_data[MAX_EX_DATA]; /* external data, for Fortress */
+#if defined(HAVE_EX_DATA) || defined(FORTRESS)
+    void*            ex_data[MAX_EX_DATA]; /* external data, for Fortress */
 #endif
     int              devId;             /* async device id to use */
 #ifdef HAVE_ONE_TIME_AUTH
@@ -2873,6 +2916,10 @@ struct WOLFSSL {
     #endif                                         /* user turned on */
     #ifdef HAVE_ALPN
         char*   alpn_client_list;  /* keep the client's list */
+        #ifdef WOLFSSL_NGINX
+            CallbackALPNSelect alpnSelect;
+            void*              alpnSelectArg;
+        #endif
     #endif                         /* of accepted protocols */
     #if !defined(NO_WOLFSSL_CLIENT) && defined(HAVE_SESSION_TICKET)
         CallbackSessionTicket session_ticket_cb;
@@ -2880,6 +2927,13 @@ struct WOLFSSL {
         byte                  expect_session_ticket;
     #endif
 #endif /* HAVE_TLS_EXTENSIONS */
+#ifdef OPENSSL_EXTRA
+    byte*           ocspResp;
+    int             ocspRespSz;
+#ifdef WOLFSSL_NGINX
+    char*           url;
+#endif
+#endif
 #ifdef HAVE_NETX
     NetX_Ctx        nxCtx;             /* NetX IO Context */
 #endif
@@ -2956,6 +3010,11 @@ typedef struct EncryptedInfo {
     WOLFSSL_LOCAL int ProcessFile(WOLFSSL_CTX* ctx, const char* fname, int format,
                                  int type, WOLFSSL* ssl, int userChain,
                                 WOLFSSL_CRL* crl);
+
+    #ifdef OPENSSL_EXTRA
+    WOLFSSL_LOCAL int CheckHostName(DecodedCert* dCert, char *domainName,
+                                    size_t domainNameLen);
+    #endif
 #endif
 
 

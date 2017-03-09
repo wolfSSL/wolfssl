@@ -1095,22 +1095,41 @@ static int TLSX_ALPN_ParseAndSet(WOLFSSL *ssl, byte *input, word16 length,
     TLSX    *extension;
     ALPN    *alpn = NULL, *list;
 
+    if (OPAQUE16_LEN > length)
+        return BUFFER_ERROR;
+
+    ato16(input, &size);
+    offset += OPAQUE16_LEN;
+
     extension = TLSX_Find(ssl->extensions, TLSX_APPLICATION_LAYER_PROTOCOL);
     if (extension == NULL)
         extension = TLSX_Find(ssl->ctx->extensions,
                                                TLSX_APPLICATION_LAYER_PROTOCOL);
+
+#ifdef WOLFSSL_NGINX
+    if (ssl->alpnSelect != NULL) {
+        const byte* out;
+        unsigned char outLen;
+
+        if (ssl->alpnSelect(ssl, &out, &outLen, input + offset, size,
+                            ssl->alpnSelectArg) == 0) {
+            WOLFSSL_MSG("ALPN protocol match");
+            if (TLSX_UseALPN(&ssl->extensions, (char*)out, outLen, 0, ssl->heap)
+                                                               == SSL_SUCCESS) {
+                if (extension == NULL) {
+                    extension = TLSX_Find(ssl->extensions,
+                                          TLSX_APPLICATION_LAYER_PROTOCOL);
+                }
+            }
+        }
+    }
+#endif
 
     if (extension == NULL || extension->data == NULL) {
         WOLFSSL_MSG("No ALPN extensions not used or bad");
         return isRequest ? 0             /* not using ALPN */
                          : BUFFER_ERROR; /* unexpected ALPN response */
     }
-
-    if (OPAQUE16_LEN > length)
-        return BUFFER_ERROR;
-
-    ato16(input, &size);
-    offset += OPAQUE16_LEN;
 
     /* validating alpn list length */
     if (length != OPAQUE16_LEN + size)
@@ -2232,9 +2251,13 @@ int TLSX_CSR_ForceRequest(WOLFSSL* ssl)
     if (csr) {
         switch (csr->status_type) {
             case WOLFSSL_CSR_OCSP:
-                if (ssl->ctx->cm->ocspEnabled)
+                if (ssl->ctx->cm->ocspEnabled) {
+                #ifdef WOLFSSL_NGINX
+                    csr->request.ocsp.ssl = ssl;
+                #endif
                     return CheckOcspRequest(ssl->ctx->cm->ocsp,
                                                       &csr->request.ocsp, NULL);
+                }
                 else
                     return OCSP_LOOKUP_FAIL;
         }
@@ -2640,9 +2663,13 @@ int TLSX_CSR2_ForceRequest(WOLFSSL* ssl)
                 /* followed by */
 
             case WOLFSSL_CSR2_OCSP_MULTI:
-                if (ssl->ctx->cm->ocspEnabled)
+                if (ssl->ctx->cm->ocspEnabled) {
+                #ifdef WOLFSSL_NGINX
+                    csr2->request.ocsp[0].ssl = ssl;
+                #endif
                     return CheckOcspRequest(ssl->ctx->cm->ocsp,
                                                   &csr2->request.ocsp[0], NULL);
+                }
                 else
                     return OCSP_LOOKUP_FAIL;
         }
@@ -2861,12 +2888,10 @@ int TLSX_ValidateEllipticCurves(WOLFSSL* ssl, byte first, byte second) {
                              : NULL;
     EllipticCurve* curve     = NULL;
     word32         oid       = 0;
-    word16         octets    = 0; /* according to 'ecc_set_type ecc_sets[];' */
     int            sig       = 0; /* validate signature */
     int            key       = 0; /* validate key       */
 
     (void)oid;
-    (void)octets;
 
     if (!extension)
         return 1; /* no suite restriction */
@@ -2879,62 +2904,65 @@ int TLSX_ValidateEllipticCurves(WOLFSSL* ssl, byte first, byte second) {
         switch (curve->name) {
     #if defined(HAVE_ECC160) || defined(HAVE_ALL_CURVES)
         #ifndef NO_ECC_SECP
-            case WOLFSSL_ECC_SECP160R1: oid = ECC_SECP160R1_OID; octets = 20; break;
+            case WOLFSSL_ECC_SECP160R1: oid = ECC_SECP160R1_OID; break;
         #endif /* !NO_ECC_SECP */
         #ifdef HAVE_ECC_SECPR2
-            case WOLFSSL_ECC_SECP160R2: oid = ECC_SECP160R2_OID; octets = 20; break;
+            case WOLFSSL_ECC_SECP160R2: oid = ECC_SECP160R2_OID; break;
         #endif /* HAVE_ECC_SECPR2 */
         #ifdef HAVE_ECC_KOBLITZ
-            case WOLFSSL_ECC_SECP160K1: oid = ECC_SECP160K1_OID; octets = 20; break;
+            case WOLFSSL_ECC_SECP160K1: oid = ECC_SECP160K1_OID; break;
         #endif /* HAVE_ECC_KOBLITZ */
     #endif
     #if defined(HAVE_ECC192) || defined(HAVE_ALL_CURVES)
         #ifndef NO_ECC_SECP
-            case WOLFSSL_ECC_SECP192R1: oid = ECC_SECP192R1_OID; octets = 24; break;
+            case WOLFSSL_ECC_SECP192R1: oid = ECC_SECP192R1_OID; break;
         #endif /* !NO_ECC_SECP */
         #ifdef HAVE_ECC_KOBLITZ
-            case WOLFSSL_ECC_SECP192K1: oid = ECC_SECP192K1_OID; octets = 24; break;
+            case WOLFSSL_ECC_SECP192K1: oid = ECC_SECP192K1_OID; break;
         #endif /* HAVE_ECC_KOBLITZ */
     #endif
     #if defined(HAVE_ECC224) || defined(HAVE_ALL_CURVES)
         #ifndef NO_ECC_SECP
-            case WOLFSSL_ECC_SECP224R1: oid = ECC_SECP224R1_OID; octets = 28; break;
+            case WOLFSSL_ECC_SECP224R1: oid = ECC_SECP224R1_OID; break;
         #endif /* !NO_ECC_SECP */
         #ifdef HAVE_ECC_KOBLITZ
-            case WOLFSSL_ECC_SECP224K1: oid = ECC_SECP224K1_OID; octets = 28; break;
+            case WOLFSSL_ECC_SECP224K1: oid = ECC_SECP224K1_OID; break;
         #endif /* HAVE_ECC_KOBLITZ */
     #endif
     #if !defined(NO_ECC256)  || defined(HAVE_ALL_CURVES)
         #ifndef NO_ECC_SECP
-            case WOLFSSL_ECC_SECP256R1: oid = ECC_SECP256R1_OID; octets = 32; break;
+            case WOLFSSL_ECC_SECP256R1: oid = ECC_SECP256R1_OID; break;
         #endif /* !NO_ECC_SECP */
         #ifdef HAVE_ECC_KOBLITZ
-            case WOLFSSL_ECC_SECP256K1: oid = ECC_SECP256K1_OID; octets = 32; break;
+            case WOLFSSL_ECC_SECP256K1: oid = ECC_SECP256K1_OID; break;
         #endif /* HAVE_ECC_KOBLITZ */
         #ifdef HAVE_ECC_BRAINPOOL
-            case WOLFSSL_ECC_BRAINPOOLP256R1: oid = ECC_BRAINPOOLP256R1_OID; octets = 32; break;
+            case WOLFSSL_ECC_BRAINPOOLP256R1: oid = ECC_BRAINPOOLP256R1_OID; break;
         #endif /* HAVE_ECC_BRAINPOOL */
     #endif
     #if defined(HAVE_ECC384) || defined(HAVE_ALL_CURVES)
         #ifndef NO_ECC_SECP
-            case WOLFSSL_ECC_SECP384R1: oid = ECC_SECP384R1_OID; octets = 48; break;
+            case WOLFSSL_ECC_SECP384R1: oid = ECC_SECP384R1_OID; break;
         #endif /* !NO_ECC_SECP */
         #ifdef HAVE_ECC_BRAINPOOL
-            case WOLFSSL_ECC_BRAINPOOLP384R1: oid = ECC_BRAINPOOLP384R1_OID; octets = 48; break;
+            case WOLFSSL_ECC_BRAINPOOLP384R1: oid = ECC_BRAINPOOLP384R1_OID; break;
         #endif /* HAVE_ECC_BRAINPOOL */
     #endif
     #if defined(HAVE_ECC512) || defined(HAVE_ALL_CURVES)
         #ifdef HAVE_ECC_BRAINPOOL
-            case WOLFSSL_ECC_BRAINPOOLP512R1: oid = ECC_BRAINPOOLP512R1_OID; octets = 64; break;
+            case WOLFSSL_ECC_BRAINPOOLP512R1: oid = ECC_BRAINPOOLP512R1_OID; break;
         #endif /* HAVE_ECC_BRAINPOOL */
     #endif
     #if defined(HAVE_ECC521) || defined(HAVE_ALL_CURVES)
         #ifndef NO_ECC_SECP
-            case WOLFSSL_ECC_SECP521R1: oid = ECC_SECP521R1_OID; octets = 66; break;
+            case WOLFSSL_ECC_SECP521R1: oid = ECC_SECP521R1_OID; break;
         #endif /* !NO_ECC_SECP */
     #endif
             default: continue; /* unsupported curve */
         }
+
+        if (ssl->ecdhCurveOID == 0)
+            ssl->ecdhCurveOID = oid;
 
         if (first == ECC_BYTE) {
         switch (second) {
@@ -2950,7 +2978,7 @@ int TLSX_ValidateEllipticCurves(WOLFSSL* ssl, byte first, byte second) {
             case TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8:
             case TLS_ECDHE_ECDSA_WITH_AES_256_CCM_8:
                 sig |= ssl->pkCurveOID == oid;
-                key |= ssl->eccTempKeySz == octets;
+                key |= ssl->ecdhCurveOID == oid;
             break;
 
 #ifdef WOLFSSL_STATIC_DH
@@ -2978,7 +3006,7 @@ int TLSX_ValidateEllipticCurves(WOLFSSL* ssl, byte first, byte second) {
             case TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256:
             case TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384:
                 sig = 1;
-                key |= ssl->eccTempKeySz == octets;
+                key |= ssl->ecdhCurveOID == oid;
             break;
 
 #ifdef WOLFSSL_STATIC_DH
@@ -3010,14 +3038,14 @@ int TLSX_ValidateEllipticCurves(WOLFSSL* ssl, byte first, byte second) {
             case TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256 :
             case TLS_ECDHE_ECDSA_WITH_CHACHA20_OLD_POLY1305_SHA256 :
                 sig |= ssl->pkCurveOID == oid;
-                key |= ssl->eccTempKeySz == octets;
+                key |= ssl->ecdhCurveOID == oid;
             break;
 #ifndef NO_RSA
             /* ECDHE_RSA */
             case TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256 :
             case TLS_ECDHE_RSA_WITH_CHACHA20_OLD_POLY1305_SHA256 :
                 sig = 1;
-                key |= ssl->eccTempKeySz == octets;
+                key |= ssl->ecdhCurveOID == oid;
             break;
 #endif
             default:
@@ -4568,6 +4596,7 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
 
 #if defined(HAVE_ECC) && defined(HAVE_SUPPORTED_CURVES)
         if (!ssl->options.userCurves && !ssl->ctx->userCurves) {
+    #ifndef HAVE_FIPS
         #if defined(HAVE_ECC160) || defined(HAVE_ALL_CURVES)
             #ifndef NO_ECC_SECP
                 ret = TLSX_UseSupportedCurve(&ssl->extensions, WOLFSSL_ECC_SECP160R1, ssl->heap);
@@ -4592,6 +4621,7 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
                 if (ret != SSL_SUCCESS) return ret;
             #endif
         #endif
+    #endif
         #if defined(HAVE_ECC224) || defined(HAVE_ALL_CURVES)
             #ifndef NO_ECC_SECP
                 ret = TLSX_UseSupportedCurve(&ssl->extensions, WOLFSSL_ECC_SECP224R1, ssl->heap);
