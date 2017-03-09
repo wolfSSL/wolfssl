@@ -67,6 +67,16 @@
     extern "C" {
 #endif
 
+#ifndef WC_RNG_TYPE_DEFINED /* guard on redeclaration */
+    #ifdef HAVE_FIPS
+        /* use typedef struct from CTaoCrypt */
+        #include <cyassl/ctaocrypt/random.h>
+    #else
+        typedef struct WC_RNG WC_RNG;
+    #endif
+    #define WC_RNG_TYPE_DEFINED
+#endif
+
 typedef struct WOLFSSL          WOLFSSL;
 typedef struct WOLFSSL_SESSION  WOLFSSL_SESSION;
 typedef struct WOLFSSL_METHOD   WOLFSSL_METHOD;
@@ -88,11 +98,6 @@ typedef struct WOLFSSL_SOCKADDR     WOLFSSL_SOCKADDR;
 #ifndef WOLFSSL_RSA_TYPE_DEFINED /* guard on redeclaration */
 typedef struct WOLFSSL_RSA            WOLFSSL_RSA;
 #define WOLFSSL_RSA_TYPE_DEFINED
-#endif
-
-#ifndef WC_RNG_TYPE_DEFINED /* guard on redeclaration */
-    typedef struct WC_RNG WC_RNG;
-    #define WC_RNG_TYPE_DEFINED
 #endif
 
 typedef struct WOLFSSL_DSA            WOLFSSL_DSA;
