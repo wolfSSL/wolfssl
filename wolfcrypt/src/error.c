@@ -204,7 +204,7 @@ const char* wc_GetErrorString(int error)
         return "ASN NTRU key decode error, invalid input";
 
     case ASN_CRIT_EXT_E:
-        return "X.509 Critical extension ignored";
+        return "X.509 Critical extension ignored or invalid";
 
     case ECC_BAD_ARG_E :
         return "ECC input argument wrong type, invalid input";
