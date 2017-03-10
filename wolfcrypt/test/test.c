@@ -381,7 +381,7 @@ int wolfcrypt_test(void* args)
     else
         printf( "error    test passed!\n");
 
-#ifndef NO_CODING
+#if !defined(NO_CODING) && defined(WOLFSSL_BASE64_ENCODE)
     if ( (ret = base64_test()) != 0)
         return err_sys("base64   test failed!\n", ret);
     else
@@ -914,7 +914,7 @@ int error_test()
     return 0;
 }
 
-#ifndef NO_CODING
+#if !defined(NO_CODING) && defined(WOLFSSL_BASE64_ENCODE)
 int base64_test()
 {
     int        ret;
