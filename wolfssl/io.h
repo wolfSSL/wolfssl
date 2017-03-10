@@ -90,7 +90,7 @@
         #include <netdb.h>
         #include <netinet/in.h>
         #include <io.h>
-    #else
+    #elif !defined(WOLFSSL_NO_SOCK)
         #include <sys/types.h>
         #include <errno.h>
         #ifndef EBSNET
@@ -224,7 +224,9 @@
 #else
     #define SEND_FUNCTION send
     #define RECV_FUNCTION recv
-    #define HAVE_SOCKADDR
+    #if !defined(HAVE_SOCKADDR) && !defined(WOLFSSL_NO_SOCK)
+        #define HAVE_SOCKADDR
+    #endif
 #endif
 
 #ifdef USE_WINDOWS_API
@@ -233,38 +235,30 @@
     typedef int SOCKET_T;
 #endif
 
-/* Socket Addr Support */
-#ifdef HAVE_SOCKADDR
-    typedef struct sockaddr         SOCKADDR;
-    typedef struct sockaddr_storage SOCKADDR_S;
-    typedef struct sockaddr_in      SOCKADDR_IN;
-    typedef struct sockaddr_in6     SOCKADDR_IN6;
-    typedef struct hostent          HOSTENT;
-#endif /* HAVE_SOCKADDR */
+#ifndef WOLFSSL_NO_SOCK
+    #ifndef XSOCKLENT
+        #ifdef USE_WINDOWS_API
+            #define XSOCKLENT int
+        #else
+            #define XSOCKLENT socklen_t
+        #endif
+    #endif
 
-#ifdef HAVE_GETADDRINFO
-    typedef struct addrinfo         ADDRINFO;
-#endif
+    /* Socket Addr Support */
+    #ifdef HAVE_SOCKADDR
+        typedef struct sockaddr         SOCKADDR;
+        typedef struct sockaddr_storage SOCKADDR_S;
+        typedef struct sockaddr_in      SOCKADDR_IN;
+        #ifdef TEST_IPV6
+            typedef struct sockaddr_in6 SOCKADDR_IN6;
+        #endif
+        typedef struct hostent          HOSTENT;
+    #endif /* HAVE_SOCKADDR */
 
-#ifndef XINET_NTOP
-    #define XINET_NTOP(a,b,c,d) inet_ntop((a),(b),(c),(d))
-#endif
-#ifndef XINET_PTON
-    #define XINET_PTON(a,b,c)   inet_pton((a),(b),(c))
-#endif
-#ifndef XHTONS
-    #define XHTONS(a) htons((a))
-#endif
-#ifndef XNTOHS
-    #define XNTOHS(a) ntohs((a))
-#endif
-
-#ifndef WOLFSSL_IP4
-    #define WOLFSSL_IP4 AF_INET
-#endif
-#ifndef WOLFSSL_IP6
-    #define WOLFSSL_IP6 AF_INET6
-#endif
+    #ifdef HAVE_GETADDRINFO
+        typedef struct addrinfo         ADDRINFO;
+    #endif
+#endif /* WOLFSSL_NO_SOCK */
 
 
 /* IO API's */
@@ -376,6 +370,28 @@ WOLFSSL_API void wolfSSL_SetIOWriteFlags(WOLFSSL* ssl, int flags);
         WOLFSSL_API void wolfSSL_CTX_SetIOGetPeer(WOLFSSL_CTX*, CallbackGetPeer);
         WOLFSSL_API void wolfSSL_CTX_SetIOSetPeer(WOLFSSL_CTX*, CallbackSetPeer);
     #endif /* WOLFSSL_SESSION_EXPORT */
+#endif
+
+
+
+#ifndef XINET_NTOP
+    #define XINET_NTOP(a,b,c,d) inet_ntop((a),(b),(c),(d))
+#endif
+#ifndef XINET_PTON
+    #define XINET_PTON(a,b,c)   inet_pton((a),(b),(c))
+#endif
+#ifndef XHTONS
+    #define XHTONS(a) htons((a))
+#endif
+#ifndef XNTOHS
+    #define XNTOHS(a) ntohs((a))
+#endif
+
+#ifndef WOLFSSL_IP4
+    #define WOLFSSL_IP4 AF_INET
+#endif
+#ifndef WOLFSSL_IP6
+    #define WOLFSSL_IP6 AF_INET6
 #endif
 
 

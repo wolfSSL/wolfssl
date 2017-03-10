@@ -219,12 +219,6 @@ int EmbedSend(WOLFSSL* ssl, char *buf, int sz, void *ctx)
 
 #include <wolfssl/wolfcrypt/sha.h>
 
-#ifdef USE_WINDOWS_API
-   #define XSOCKLENT int
-#else
-   #define XSOCKLENT socklen_t
-#endif
-
 #define SENDTO_FUNCTION sendto
 #define RECVFROM_FUNCTION recvfrom
 
@@ -608,7 +602,7 @@ static int wolfIO_Word16ToString(char* d, word16 number)
 
 int wolfIO_TcpConnect(SOCKET_T* sockfd, const char* ip, word16 port, int to_sec)
 {
-#if defined(HAVE_GETADDRINFO) || defined(HAVE_SOCKADDR)
+#ifdef HAVE_SOCKADDR
     int ret = 0;
     SOCKADDR_S addr;
     int sockaddr_len = sizeof(SOCKADDR_IN);
@@ -653,14 +647,12 @@ int wolfIO_TcpConnect(SOCKET_T* sockfd, const char* ip, word16 port, int to_sec)
     if (entry) {
         sin->sin_family = AF_INET;
         sin->sin_port = XHTONS(port);
-        XMEMCPY(&sin->sin_addr.s_addr, entry->h_addr_list[0],
-                                                           entry->h_length);
+        XMEMCPY(&sin->sin_addr.s_addr, entry->h_addr_list[0], entry->h_length);
     }
     else {
         WOLFSSL_MSG("no addr info for responder");
         return -1;
     }
-}
 #endif
 
     *sockfd = (SOCKET_T)socket(addr.ss_family, SOCK_STREAM, 0);
@@ -709,7 +701,7 @@ int wolfIO_TcpConnect(SOCKET_T* sockfd, const char* ip, word16 port, int to_sec)
     (void)port;
     (void)to_sec;
     return -1;
-#endif /* HAVE_GETADDRINFO || HAVE_SOCKADDR */
+#endif /* HAVE_SOCKADDR */
 }
 
 int wolfIO_Recv(SOCKET_T sd, char *buf, int sz, int rdFlags)
