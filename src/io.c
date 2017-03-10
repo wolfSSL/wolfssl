@@ -239,7 +239,7 @@ int EmbedReceiveFrom(WOLFSSL *ssl, char *buf, int sz, void *ctx)
     int err;
     int sd = dtlsCtx->rfd;
     int dtls_timeout = wolfSSL_dtls_get_current_timeout(ssl);
-    struct sockaddr_storage peer;
+    SOCKADDR_S peer;
     XSOCKLENT peerSz = sizeof(peer);
 
     WOLFSSL_ENTER("EmbedReceiveFrom()");
@@ -262,7 +262,7 @@ int EmbedReceiveFrom(WOLFSSL *ssl, char *buf, int sz, void *ctx)
     }
 
     recvd = (int)RECVFROM_FUNCTION(sd, buf, sz, ssl->rflags,
-                                  (struct sockaddr*)&peer, &peerSz);
+                                  (SOCKADDR*)&peer, &peerSz);
 
     recvd = TranslateReturnCode(recvd, sd);
 
@@ -324,7 +324,7 @@ int EmbedSendTo(WOLFSSL* ssl, char *buf, int sz, void *ctx)
     WOLFSSL_ENTER("EmbedSendTo()");
 
     sent = (int)SENDTO_FUNCTION(sd, &buf[sz - len], len, ssl->wflags,
-                                (const struct sockaddr*)dtlsCtx->peer.sa,
+                                (const SOCKADDR*)dtlsCtx->peer.sa,
                                 dtlsCtx->peer.sz);
 
     sent = TranslateReturnCode(sent, sd);
@@ -365,7 +365,7 @@ int EmbedSendTo(WOLFSSL* ssl, char *buf, int sz, void *ctx)
 int EmbedGenerateCookie(WOLFSSL* ssl, byte *buf, int sz, void *ctx)
 {
     int sd = ssl->wfd;
-    struct sockaddr_storage peer;
+    SOCKADDR_S peer;
     XSOCKLENT peerSz = sizeof(peer);
     byte digest[SHA_DIGEST_SIZE];
     int  ret = 0;
@@ -373,7 +373,7 @@ int EmbedGenerateCookie(WOLFSSL* ssl, byte *buf, int sz, void *ctx)
     (void)ctx;
 
     XMEMSET(&peer, 0, sizeof(peer));
-    if (getpeername(sd, (struct sockaddr*)&peer, &peerSz) != 0) {
+    if (getpeername(sd, (SOCKADDR*)&peer, &peerSz) != 0) {
         WOLFSSL_MSG("getpeername failed in EmbedGenerateCookie");
         return GEN_COOKIE_E;
     }
@@ -390,29 +390,6 @@ int EmbedGenerateCookie(WOLFSSL* ssl, byte *buf, int sz, void *ctx)
 }
 
 #ifdef WOLFSSL_SESSION_EXPORT
-    #ifndef XINET_NTOP
-        #define XINET_NTOP(a,b,c,d) inet_ntop((a),(b),(c),(d))
-    #endif
-    #ifndef XINET_PTON
-        #define XINET_PTON(a,b,c)   inet_pton((a),(b),(c))
-    #endif
-    #ifndef XHTONS
-        #define XHTONS(a) htons((a))
-    #endif
-    #ifndef XNTOHS
-        #define XNTOHS(a) ntohs((a))
-    #endif
-
-    #ifndef WOLFSSL_IP4
-        #define WOLFSSL_IP4 AF_INET
-    #endif
-    #ifndef WOLFSSL_IP6
-        #define WOLFSSL_IP6 AF_INET6
-    #endif
-
-    typedef struct sockaddr_storage SOCKADDR_S;
-    typedef struct sockaddr_in      SOCKADDR_IN;
-    typedef struct sockaddr_in6     SOCKADDR_IN6;
 
     /* get the peer information in human readable form (ip, port, family)
      * default function assumes BSD sockets
@@ -532,79 +509,75 @@ int EmbedGenerateCookie(WOLFSSL* ssl, byte *buf, int sz, void *ctx)
 
 #if defined(USE_WOLFSSL_IO)
 
-#ifndef DEFAULT_TIMEOUT_SEC
-    #define DEFAULT_TIMEOUT_SEC 0 /* no timeout */
-#endif
-
-#ifdef HAVE_IO_TIMEOUT
-    static int io_timeout_sec = DEFAULT_TIMEOUT_SEC;
+#ifndef HAVE_IO_TIMEOUT
+    #define io_timeout_sec 0
 #else
-    #define io_timeout_sec DEFAULT_TIMEOUT_SEC
-#endif
 
-
-void wolfIO_SetTimeout(int to_sec)
-{
-#ifdef HAVE_IO_TIMEOUT
-    io_timeout_sec = to_sec;
-#else
-    (void)to_sec;
-#endif
-}
-
-int wolfIO_SetBlockingMode(SOCKET_T sockfd, int non_blocking)
-{
-    int ret = 0;
-
-#ifdef USE_WINDOWS_API
-    unsigned long blocking = non_blocking;
-    ret = ioctlsocket(sockfd, FIONBIO, &blocking);
-    if (ret == SOCKET_ERROR)
-        ret = -1;
-#else
-    ret = fcntl(sockfd, F_GETFL, 0);
-    if (ret >= 0) {
-        if (non_blocking)
-            ret |= O_NONBLOCK;
-        else
-            ret &= ~O_NONBLOCK;
-        ret = fcntl(sockfd, F_SETFL, ret);
-    }
-#endif
-    if (ret < 0) {
-        WOLFSSL_MSG("wolfIO_SetBlockingMode failed");
-    }
-
-    return ret;
-}
-
-#ifdef _MSC_VER
-    /* 4204: non-constant aggregate initializer (nfds = sockfd + 1) */
-    #pragma warning(disable: 4204)
-#endif
-int wolfIO_Select(SOCKET_T sockfd, int to_sec)
-{
-    fd_set fds;
-    SOCKET_T nfds = sockfd + 1;
-    struct timeval timeout = { (to_sec > 0) ? to_sec : 0, 0};
-    int ret;
-
-    FD_ZERO(&fds);
-    FD_SET(sockfd, &fds);
-
-    ret = select(nfds, &fds, &fds, NULL, &timeout);
-    if (ret == 0) {
-    #ifdef DEBUG_HTTP
-        printf("Timeout: %d\n", ret);
+    #ifndef DEFAULT_TIMEOUT_SEC
+        #define DEFAULT_TIMEOUT_SEC 0 /* no timeout */
     #endif
-        return HTTP_TIMEOUT;
+
+    static int io_timeout_sec = DEFAULT_TIMEOUT_SEC;
+
+    void wolfIO_SetTimeout(int to_sec)
+    {
+        io_timeout_sec = to_sec;
     }
-    else if (ret > 0) {
-        if (FD_ISSET(sockfd, &fds))
-            return 0;
+
+    int wolfIO_SetBlockingMode(SOCKET_T sockfd, int non_blocking)
+    {
+        int ret = 0;
+
+    #ifdef USE_WINDOWS_API
+        unsigned long blocking = non_blocking;
+        ret = ioctlsocket(sockfd, FIONBIO, &blocking);
+        if (ret == SOCKET_ERROR)
+            ret = -1;
+    #else
+        ret = fcntl(sockfd, F_GETFL, 0);
+        if (ret >= 0) {
+            if (non_blocking)
+                ret |= O_NONBLOCK;
+            else
+                ret &= ~O_NONBLOCK;
+            ret = fcntl(sockfd, F_SETFL, ret);
+        }
+    #endif
+        if (ret < 0) {
+            WOLFSSL_MSG("wolfIO_SetBlockingMode failed");
+        }
+
+        return ret;
     }
-    return SOCKET_ERROR_E;
-}
+
+    #ifdef _MSC_VER
+        /* 4204: non-constant aggregate initializer (nfds = sockfd + 1) */
+        #pragma warning(disable: 4204)
+    #endif
+    int wolfIO_Select(SOCKET_T sockfd, int to_sec)
+    {
+        fd_set fds;
+        SOCKET_T nfds = sockfd + 1;
+        struct timeval timeout = { (to_sec > 0) ? to_sec : 0, 0};
+        int ret;
+
+        FD_ZERO(&fds);
+        FD_SET(sockfd, &fds);
+
+        ret = select(nfds, &fds, &fds, NULL, &timeout);
+        if (ret == 0) {
+        #ifdef DEBUG_HTTP
+            printf("Timeout: %d\n", ret);
+        #endif
+            return HTTP_TIMEOUT;
+        }
+        else if (ret > 0) {
+            if (FD_ISSET(sockfd, &fds))
+                return 0;
+        }
+        return SOCKET_ERROR_E;
+    }
+#endif /* HAVE_IO_TIMEOUT */
 
 static int wolfIO_Word16ToString(char* d, word16 number)
 {
@@ -635,9 +608,19 @@ static int wolfIO_Word16ToString(char* d, word16 number)
 
 int wolfIO_TcpConnect(SOCKET_T* sockfd, const char* ip, word16 port, int to_sec)
 {
+#if defined(HAVE_GETADDRINFO) || defined(HAVE_SOCKADDR)
     int ret = 0;
-    struct sockaddr_storage addr;
-    int sockaddr_len = sizeof(struct sockaddr_in);
+    SOCKADDR_S addr;
+    int sockaddr_len = sizeof(SOCKADDR_IN);
+#ifdef HAVE_GETADDRINFO
+    ADDRINFO hints;
+    ADDRINFO* answer = NULL;
+    char strPort[6];
+#else
+    HOSTENT* entry;
+    SOCKADDR_IN *sin;
+#endif
+
     XMEMSET(&addr, 0, sizeof(addr));
 
 #ifdef WOLFIO_DEBUG
@@ -645,11 +628,6 @@ int wolfIO_TcpConnect(SOCKET_T* sockfd, const char* ip, word16 port, int to_sec)
 #endif
 
 #ifdef HAVE_GETADDRINFO
-{
-    struct addrinfo hints;
-    struct addrinfo* answer = NULL;
-    char strPort[6];
-
     XMEMSET(&hints, 0, sizeof(hints));
     hints.ai_family = AF_UNSPEC;
     hints.ai_socktype = SOCK_STREAM;
@@ -668,16 +646,13 @@ int wolfIO_TcpConnect(SOCKET_T* sockfd, const char* ip, word16 port, int to_sec)
     sockaddr_len = answer->ai_addrlen;
     XMEMCPY(&addr, answer->ai_addr, sockaddr_len);
     freeaddrinfo(answer);
-
-}
-#else /* HAVE_GETADDRINFO */
-{
-    struct hostent* entry = gethostbyname(ip);
-    struct sockaddr_in *sin = (struct sockaddr_in *)&addr;
+#else
+    entry = gethostbyname(ip);
+    sin = (SOCKADDR_IN *)&addr;
 
     if (entry) {
         sin->sin_family = AF_INET;
-        sin->sin_port = htons(port);
+        sin->sin_port = XHTONS(port);
         XMEMCPY(&sin->sin_addr.s_addr, entry->h_addr_list[0],
                                                            entry->h_length);
     }
@@ -686,7 +661,7 @@ int wolfIO_TcpConnect(SOCKET_T* sockfd, const char* ip, word16 port, int to_sec)
         return -1;
     }
 }
-#endif /* HAVE_GETADDRINFO */
+#endif
 
     *sockfd = (SOCKET_T)socket(addr.ss_family, SOCK_STREAM, 0);
 
@@ -711,7 +686,7 @@ int wolfIO_TcpConnect(SOCKET_T* sockfd, const char* ip, word16 port, int to_sec)
     (void)to_sec;
 #endif
 
-    ret = connect(*sockfd, (struct sockaddr *)&addr, sockaddr_len);
+    ret = connect(*sockfd, (SOCKADDR *)&addr, sockaddr_len);
 #ifdef HAVE_IO_TIMEOUT
     if (ret != 0) {
         if ((errno == EINPROGRESS) && (to_sec > 0)) {
@@ -727,8 +702,14 @@ int wolfIO_TcpConnect(SOCKET_T* sockfd, const char* ip, word16 port, int to_sec)
         WOLFSSL_MSG("Responder tcp connect failed");
         return -1;
     }
-
     return ret;
+#else
+    (void)sockfd;
+    (void)ip;
+    (void)port;
+    (void)to_sec;
+    return -1;
+#endif /* HAVE_GETADDRINFO || HAVE_SOCKADDR */
 }
 
 int wolfIO_Recv(SOCKET_T sd, char *buf, int sz, int rdFlags)

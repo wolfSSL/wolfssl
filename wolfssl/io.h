@@ -224,6 +224,7 @@
 #else
     #define SEND_FUNCTION send
     #define RECV_FUNCTION recv
+    #define HAVE_SOCKADDR
 #endif
 
 #ifdef USE_WINDOWS_API
@@ -232,10 +233,46 @@
     typedef int SOCKET_T;
 #endif
 
+/* Socket Addr Support */
+#ifdef HAVE_SOCKADDR
+    typedef struct sockaddr         SOCKADDR;
+    typedef struct sockaddr_storage SOCKADDR_S;
+    typedef struct sockaddr_in      SOCKADDR_IN;
+    typedef struct sockaddr_in6     SOCKADDR_IN6;
+    typedef struct hostent          HOSTENT;
+#endif /* HAVE_SOCKADDR */
+
+#ifdef HAVE_GETADDRINFO
+    typedef struct addrinfo         ADDRINFO;
+#endif
+
+#ifndef XINET_NTOP
+    #define XINET_NTOP(a,b,c,d) inet_ntop((a),(b),(c),(d))
+#endif
+#ifndef XINET_PTON
+    #define XINET_PTON(a,b,c)   inet_pton((a),(b),(c))
+#endif
+#ifndef XHTONS
+    #define XHTONS(a) htons((a))
+#endif
+#ifndef XNTOHS
+    #define XNTOHS(a) ntohs((a))
+#endif
+
+#ifndef WOLFSSL_IP4
+    #define WOLFSSL_IP4 AF_INET
+#endif
+#ifndef WOLFSSL_IP6
+    #define WOLFSSL_IP6 AF_INET6
+#endif
+
+
 /* IO API's */
-WOLFSSL_API  int wolfIO_SetBlockingMode(SOCKET_T sockfd, int non_blocking);
-WOLFSSL_API void wolfIO_SetTimeout(int to_sec);;
-WOLFSSL_API  int wolfIO_Select(SOCKET_T sockfd, int to_sec);
+#ifdef HAVE_IO_TIMEOUT
+    WOLFSSL_API  int wolfIO_SetBlockingMode(SOCKET_T sockfd, int non_blocking);
+    WOLFSSL_API void wolfIO_SetTimeout(int to_sec);;
+    WOLFSSL_API  int wolfIO_Select(SOCKET_T sockfd, int to_sec);
+#endif
 WOLFSSL_API  int wolfIO_TcpConnect(SOCKET_T* sockfd, const char* ip,
     unsigned short port, int to_sec);
 WOLFSSL_API  int wolfIO_Send(SOCKET_T sd, char *buf, int sz, int wrFlags);
