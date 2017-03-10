@@ -5105,7 +5105,8 @@ static int DecodePolicyOID(char *out, word32 outSz, byte *in, word32 inSz)
     {
         word32 idx = 0;
         int total_length = 0, policy_length = 0, length = 0;
-    #if defined(WOLFSSL_CERT_EXT) && !defined(WOLFSSL_DUP_CERTPOL)
+    #if !defined(WOLFSSL_SEP) && defined(WOLFSSL_CERT_EXT) && \
+        !defined(WOLFSSL_DUP_CERTPOL)
         int i;
     #endif
 
