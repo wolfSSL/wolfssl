@@ -1956,7 +1956,7 @@ int wc_RsaFlattenPublicKey(RsaKey* key, byte* e, word32* eSz, byte* n,
         return USER_CRYPTO_ERROR;
 
     /* sz is in bits change to bytes */
-    sz = (sz / bytSz) + (sz % bytSz);
+    sz = (sz / bytSz) + ((sz % bytSz)? 1 : 0);
 
     if (*eSz < (word32)sz)
         return USER_CRYPTO_ERROR;
@@ -1973,7 +1973,7 @@ int wc_RsaFlattenPublicKey(RsaKey* key, byte* e, word32* eSz, byte* n,
         return USER_CRYPTO_ERROR;
 
     /* sz is in bits change to bytes */
-    sz = (sz / bytSz) + (sz % bytSz);
+    sz = (sz / bytSz) + ((sz % bytSz)? 1: 0);
 
     if (*nSz < (word32)sz)
         return USER_CRYPTO_ERROR;
