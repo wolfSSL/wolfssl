@@ -1883,7 +1883,7 @@ int hash_test(void)
         ret = wc_HashUpdate(&hash, typesBad[i], data, sizeof(data));
         if (ret != BAD_FUNC_ARG)
             return -4120 - i;
-        ret = wc_HashFinal(&hash, typesBad[i], data);
+        ret = wc_HashFinal(&hash, typesBad[i], out);
         if (ret != BAD_FUNC_ARG)
             return -4130 - i;
     }
@@ -1902,7 +1902,7 @@ int hash_test(void)
         ret = wc_HashUpdate(&hash, typesGood[i], data, sizeof(data));
         if (ret != exp_ret)
             return -4150 - i;
-        ret = wc_HashFinal(&hash, typesGood[i], data);
+        ret = wc_HashFinal(&hash, typesGood[i], out);
         if (ret != exp_ret)
             return -4160 - i;
         ret = wc_HashGetOID(typesGood[i]);
@@ -10178,7 +10178,7 @@ static int ecc_sig_test(WC_RNG* rng, ecc_key* key)
     int     ret;
     word32  sigSz;
     int     size;
-    byte    out[65];
+    byte    out[75];
     byte   in[] = "Everyone gets Friday off.";
     word32 inLen = (word32)XSTRLEN((char*)in);
 
