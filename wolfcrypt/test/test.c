@@ -10178,7 +10178,7 @@ static int ecc_sig_test(WC_RNG* rng, ecc_key* key)
     int     ret;
     word32  sigSz;
     int     size;
-    byte    out[75];
+    byte    out[ECC_MAX_SIG_SIZE];
     byte   in[] = "Everyone gets Friday off.";
     word32 inLen = (word32)XSTRLEN((char*)in);
 
