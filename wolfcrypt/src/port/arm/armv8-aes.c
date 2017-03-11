@@ -4658,5 +4658,31 @@ int wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len)
     #endif /* HAVE_AES_DECRYPT */
 #endif /* WOLFSSL_AES_DIRECT */
 
+int wc_AesGetKeySize(Aes* aes, word32* keySize)
+{
+    int ret = 0;
+
+    if (aes == NULL || keySize == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    switch (aes->rounds) {
+    case 10:
+        *keySize = 16;
+        break;
+    case 12:
+        *keySize = 24;
+        break;
+    case 14:
+        *keySize = 32;
+        break;
+    default:
+        *keySize = 0;
+        ret = BAD_FUNC_ARG;
+    }
+
+    return ret;
+}
+
 #endif /* NO_AES */
 
