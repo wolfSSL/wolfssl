@@ -608,6 +608,7 @@ typedef fp_int mp_int;
 #define MP_YES  FP_YES  /* yes/no result */
 #define MP_ZPOS FP_ZPOS
 #define MP_NEG  FP_NEG
+#define MP_MASK FP_MASK
 
 /* Prototypes */
 #define mp_zero(a)  fp_zero(a)
