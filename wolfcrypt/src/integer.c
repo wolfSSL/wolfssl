@@ -4103,7 +4103,7 @@ int mp_sub_d (mp_int * a, mp_digit b, mp_int * c)
      /* subtract first digit */
      *tmpc     = *tmpa - b;
      if (b > *tmpa++)
-         mu    = ((-*tmpc) >> DIGIT_BIT) + 1;
+         mu    = (mp_digit)(((-*tmpc) >> DIGIT_BIT) + 1);
      else
          mu    = *tmpc >> DIGIT_BIT;
      *tmpc++ &= MP_MASK;
