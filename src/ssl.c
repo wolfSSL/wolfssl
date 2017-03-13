@@ -18532,7 +18532,7 @@ void wolfSSL_CTX_set_info_callback(WOLFSSL_CTX* ctx,
 {
     (void)ctx;
     (void)f;
-    WOLFSSL_STUB("CTX_set_info_callback");
+    WOLFSSL_STUB("SSL_CTX_set_info_callback");
 
 }
 #endif
