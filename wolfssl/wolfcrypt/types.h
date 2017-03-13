@@ -133,7 +133,8 @@
 
 
     /* set up rotate style */
-    #if (defined(_MSC_VER) || defined(__BCPLUSPLUS__)) && !defined(WOLFSSL_SGX)
+    #if (defined(_MSC_VER) || defined(__BCPLUSPLUS__)) && \
+        !defined(WOLFSSL_SGX) && !defined(INTIME_RTOS)
         #define INTEL_INTRINSICS
         #define FAST_ROTATE
     #elif defined(__MWERKS__) && TARGET_CPU_PPC
@@ -148,7 +149,10 @@
 
 	/* set up thread local storage if available */
 	#ifdef HAVE_THREAD_LS
-	    #if defined(_MSC_VER)
+        #if defined(INTIME_RTOS)
+            /* Thread local storage not supported */
+            #define THREAD_LS_T
+	    #elif defined(_MSC_VER)
 	        #define THREAD_LS_T __declspec(thread)
 	    /* Thread local storage only in FreeRTOS v8.2.1 and higher */
 	    #elif defined(FREERTOS)
@@ -163,7 +167,8 @@
 
 	/* Micrium will use Visual Studio for compilation but not the Win32 API */
 	#if defined(_WIN32) && !defined(MICRIUM) && !defined(FREERTOS) && \
-		!defined(FREERTOS_TCP) && !defined(EBSNET) && !defined(WOLFSSL_UTASKER)
+		!defined(FREERTOS_TCP) && !defined(EBSNET) && \
+        !defined(WOLFSSL_UTASKER) && !defined(INTIME_RTOS)
 	    #define USE_WINDOWS_API
 	#endif
 
@@ -252,7 +257,7 @@
 
         #if defined(WOLFSSL_CERT_EXT) || defined(HAVE_ALPN)
             /* use only Thread Safe version of strtok */
-            #ifndef USE_WINDOWS_API
+            #if !defined(USE_WINDOWS_API) && !defined(INTIME_RTOS)
                 #define XSTRTOK strtok_r
             #else
                 #define XSTRTOK strtok_s

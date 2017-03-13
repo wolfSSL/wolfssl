@@ -38,14 +38,14 @@
         #ifndef WIN32_LEAN_AND_MEAN
             #define WIN32_LEAN_AND_MEAN
         #endif
-    #ifndef WOLFSSL_SGX
-        #if defined(_WIN32_WCE) || defined(WIN32_LEAN_AND_MEAN)
-            /* On WinCE winsock2.h must be included before windows.h */
-            #include <winsock2.h>
-        #endif
-        #include <windows.h>
+        #ifndef WOLFSSL_SGX
+            #if defined(_WIN32_WCE) || defined(WIN32_LEAN_AND_MEAN)
+                /* On WinCE winsock2.h must be included before windows.h */
+                #include <winsock2.h>
+            #endif
+            #include <windows.h>
+        #endif /* WOLFSSL_SGX */
     #endif
-    #endif /* WOLFSSL_SGX */
 #elif defined(THREADX)
     #ifndef SINGLE_THREADED
         #include "tx_api.h"
@@ -61,12 +61,13 @@
 #elif defined(FREESCALE_FREE_RTOS)
     #include "fsl_os_abstraction.h"
 #elif defined(WOLFSSL_uITRON4)
+    #include "stddef.h"
     #include "kernel.h"
 #elif  defined(WOLFSSL_uTKERNEL2)
     #include "tk/tkernel.h"
 #elif defined(WOLFSSL_MDK_ARM)
     #if defined(WOLFSSL_MDK5)
-         #include "cmsis_os.h"
+        #include "cmsis_os.h"
     #else
         #include <rtl.h>
     #endif
@@ -77,6 +78,9 @@
     #include <ti/sysbios/knl/Semaphore.h>
 #elif defined(WOLFSSL_FROSTED)
     #include <semaphore.h>
+#elif defined(INTIME_RTOS)
+    #include <rt.h>
+    #include <io.h>
 #else
     #ifndef SINGLE_THREADED
         #define WOLFSSL_PTHREADS
@@ -146,6 +150,8 @@
         typedef ti_sysbios_knl_Semaphore_Handle wolfSSL_Mutex;
     #elif defined(WOLFSSL_FROSTED)
         typedef mutex_t * wolfSSL_Mutex;
+    #elif defined(INTIME_RTOS)
+        typedef RTHANDLE wolfSSL_Mutex;
     #else
         #error Need a mutex type in multithreaded mode
     #endif /* USE_WINDOWS_API */

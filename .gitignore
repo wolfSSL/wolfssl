@@ -190,3 +190,4 @@ wrapper/CSharp/x64/
 
 # Visual Studio Code Workspace Files
 *.vscode
+IDE/INTIME-RTOS/Debug_*

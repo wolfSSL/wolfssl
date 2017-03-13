@@ -71,9 +71,9 @@ WOLFSSL_LOCAL void fe_tobytes(unsigned char *, const fe);
 WOLFSSL_LOCAL void fe_sq(fe, const fe);
 WOLFSSL_LOCAL void fe_sq2(fe,const fe);
 WOLFSSL_LOCAL void fe_frombytes(fe,const unsigned char *);
-WOLFSSL_LOCAL void fe_cswap(fe,fe,unsigned int);
+WOLFSSL_LOCAL void fe_cswap(fe, fe, int);
 WOLFSSL_LOCAL void fe_mul121666(fe,fe);
-WOLFSSL_LOCAL void fe_cmov(fe,const fe,unsigned int);
+WOLFSSL_LOCAL void fe_cmov(fe,const fe, int);
 WOLFSSL_LOCAL void fe_pow22523(fe,const fe);
 
 /* 64 type needed for SHA512 */

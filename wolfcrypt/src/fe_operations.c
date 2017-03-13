@@ -942,7 +942,7 @@ replace (f,g) with (f,g) if b == 0.
 Preconditions: b in {0,1}.
 */
 
-void fe_cswap(fe f,fe g,unsigned int b)
+void fe_cswap(fe f, fe g, int b)
 {
   int32_t f0 = f[0];
   int32_t f1 = f[1];
@@ -1353,7 +1353,7 @@ replace (f,g) with (f,g) if b == 0.
 Preconditions: b in {0,1}.
 */
 
-void fe_cmov(fe f,const fe g,unsigned int b)
+void fe_cmov(fe f, const fe g, int b)
 {
   int32_t f0 = f[0];
   int32_t f1 = f[1];
