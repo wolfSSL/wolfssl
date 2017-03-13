@@ -24,18 +24,6 @@ Global
 		{1731767D-573F-45C9-A466-191DA0D180CF}.Debug|INtime.Build.0 = Debug|INtime
 		{1731767D-573F-45C9-A466-191DA0D180CF}.Release|INtime.ActiveCfg = Release|INtime
 		{1731767D-573F-45C9-A466-191DA0D180CF}.Release|INtime.Build.0 = Release|INtime
-		{AA35919C-9D2D-4753-8FD1-E5D1644ABE65}.Debug|INtime.ActiveCfg = Debug|INtime
-		{AA35919C-9D2D-4753-8FD1-E5D1644ABE65}.Debug|INtime.Build.0 = Debug|INtime
-		{AA35919C-9D2D-4753-8FD1-E5D1644ABE65}.Release|INtime.ActiveCfg = Release|INtime
-		{AA35919C-9D2D-4753-8FD1-E5D1644ABE65}.Release|INtime.Build.0 = Release|INtime
-		{A7A65D11-2A66-4936-9476-16646CF896CA}.Debug|INtime.ActiveCfg = Debug|INtime
-		{A7A65D11-2A66-4936-9476-16646CF896CA}.Debug|INtime.Build.0 = Debug|INtime
-		{A7A65D11-2A66-4936-9476-16646CF896CA}.Release|INtime.ActiveCfg = Release|INtime
-		{A7A65D11-2A66-4936-9476-16646CF896CA}.Release|INtime.Build.0 = Release|INtime
-		{2359342B-C023-4443-8170-3471928C9334}.Debug|INtime.ActiveCfg = Debug|INtime
-		{2359342B-C023-4443-8170-3471928C9334}.Debug|INtime.Build.0 = Debug|INtime
-		{2359342B-C023-4443-8170-3471928C9334}.Release|INtime.ActiveCfg = Release|INtime
-		{2359342B-C023-4443-8170-3471928C9334}.Release|INtime.Build.0 = Release|INtime
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

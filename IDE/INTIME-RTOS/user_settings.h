@@ -17,7 +17,7 @@ extern "C" {
 #define INTIME_RTOS_MUTEX_MAX       10
 
 #undef  WOLF_EXAMPLES_STACK
-#define WOLF_EXAMPLES_STACK         131072
+#define WOLF_EXAMPLES_STACK         65536
 
 #undef  WOLFSSL_GENERAL_ALIGNMENT
 #define WOLFSSL_GENERAL_ALIGNMENT   4
@@ -32,9 +32,11 @@ extern "C" {
 #undef  NO_WOLFSSL_DIR
 #define NO_WOLFSSL_DIR
 
+/* disable writev */
 #undef  NO_WRITEV
 #define NO_WRITEV
 
+/* we provide main entry point */
 #undef  NO_MAIN_DRIVER
 #define NO_MAIN_DRIVER
 
@@ -83,8 +85,13 @@ extern "C" {
     #undef  HAVE_ALL_CURVES
     //#define HAVE_ALL_CURVES
     #ifndef HAVE_ALL_CURVES
+        /* allows enabling custom curve sizes */
         #undef  ECC_USER_CURVES
         #define ECC_USER_CURVES
+
+        //#define HAVE_ECC112
+        //#define HAVE_ECC128
+        //#define HAVE_ECC160
         #define HAVE_ECC192
         #define HAVE_ECC224
         //#define NO_ECC256
@@ -478,9 +485,9 @@ extern "C" {
 /* ------------------------------------------------------------------------- */
 /* Debugging */
 /* ------------------------------------------------------------------------- */
-#undef  WOLFSSL_DEBUG
-#define WOLFSSL_DEBUG
-#ifdef WOLFSSL_DEBUG
+#undef  DEBUG_WOLFSSL
+//#define DEBUG_WOLFSSL
+#ifdef DEBUG_WOLFSSL
     /* Use this to measure / print heap usage */
     #if 0
         #undef  USE_WOLFSSL_MEMORY

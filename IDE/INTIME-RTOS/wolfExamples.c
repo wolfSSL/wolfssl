@@ -59,11 +59,6 @@ int wolfExample_TLSClient(const char* ip, int port)
     struct sockaddr_in servAddr;    /* struct for server address */
     char sendBuff[TLS_MAXDATASIZE], rcvBuff[TLS_MAXDATASIZE];
 
-    /* wait for server to be ready */
-    while (gServerReady != 1) {
-        RtSleep(0);
-    }
-
     sockFd = socket(AF_INET, SOCK_STREAM, 0);
     if (sockFd < 0) {
         printf("Failed to create socket. Error: %d\n", errno);
@@ -297,6 +292,11 @@ int wolfExample_TLSLocal(int port)
     if (srvHandle == BAD_RTHANDLE) {
         Fail("Cannot create server thread");
         return -1;
+    }
+
+    /* wait for server to be ready */
+    while (gServerReady != 1) {
+        RtSleep(0);
     }
 
     /* run client */

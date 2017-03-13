@@ -62,8 +62,12 @@ WOLFSSL_API int wolfSSL_SetLoggingCb(wolfSSL_Logging_cb log_function);
 #endif /* defined(OPENSSL_EXTRA) || defined(DEBUG_WOLFSSL_VERBOSE) */
 
 #ifdef DEBUG_WOLFSSL
-    #if defined ( WIN32 )
-        #define __func__ __FUNCTION__
+    #if defined(_WIN32)
+        #if defined(INTIME_RTOS)
+            #define __func__ NULL
+        #else
+            #define __func__ __FUNCTION__
+        #endif
     #endif
 
     /* a is prepended to m and b is appended, creating a log msg a + m + b */
