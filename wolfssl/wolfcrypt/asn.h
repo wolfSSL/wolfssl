@@ -113,6 +113,12 @@ enum PBES {
     PBE_SHA1_DES     = 1,
     PBE_SHA1_DES3    = 2,
     PBE_SHA1_RC4_128 = 3,
+    PBE_SHA256_DES   = 4,
+    PBE_SHA384_DES   = 5,
+    PBE_SHA512_DES   = 6,
+    PBE_SHA256_DES3  = 7,
+    PBE_SHA384_DES3  = 8,
+    PBE_SHA512_DES3  = 9,
     PBES2            = 13       /* algo ID */
 };
 
