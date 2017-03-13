@@ -278,8 +278,6 @@ static int CheckResponse(WOLFSSL_OCSP* ocsp, byte* response, int responseSz,
         if (newStatus) XFREE(newStatus, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         if (ocspResponse) XFREE(ocspResponse, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
-        XFREE(request, NULL, DYNAMIC_TYPE_OCSP);
-
         WOLFSSL_LEAVE("CheckCertOCSP", MEMORY_ERROR);
         return MEMORY_E;
     }

@@ -254,7 +254,7 @@ int scrypt_test(void);
     int pkcs7signed_test(void);
     int pkcs7encrypted_test(void);
 #endif
-#if !defined(NO_ASN_TIME) && defined(WOLFSSL_TEST_CERT)
+#if !defined(NO_ASN_TIME) && !defined(NO_RSA) && defined(WOLFSSL_TEST_CERT)
 int cert_test(void);
 #endif
 #if defined(WOLFSSL_CERT_EXT) && defined(WOLFSSL_TEST_CERT)
@@ -660,7 +660,7 @@ int wolfcrypt_test(void* args)
         printf( "RSA      test passed!\n");
 #endif
 
-#if !defined(NO_ASN_TIME) && defined(WOLFSSL_TEST_CERT)
+#if !defined(NO_ASN_TIME) && !defined(NO_RSA) && defined(WOLFSSL_TEST_CERT)
     if ( (ret = cert_test()) != 0)
         return err_sys("CERT     test failed!\n", ret);
     else
@@ -12522,6 +12522,7 @@ int mp_test()
             ret = wc_RNG_GenerateBlock(&rng, (byte*)&d, sizeof(d));
             if (ret != 0)
                 return -11003;
+            d &= MP_MASK;
 
             /* Ensure sqrmod produce same result as mulmod. */
             ret = mp_sqrmod(&a, &p, &r1);
@@ -12558,7 +12559,7 @@ int mp_test()
              *        - if p and a are even it will fail.
              */
             ret = mp_invmod(&a, &p, &r1);
-            if (ret != 0 && ret != FP_VAL)
+            if (ret != 0 && ret != MP_VAL)
                 return -11019;
             ret = 0;
 
@@ -12577,7 +12578,8 @@ int mp_test()
         }
     }
 
-    /* Check that setting a digit works. */
+    /* Check that setting a 32-bit digit works. */
+    d &= 0xffffffff;
     mp_set_int(&a, d);
     if (a.used != 1 || a.dp[0] != d)
         return -11025;
@@ -12595,6 +12597,7 @@ done:
     mp_clear(&p);
     mp_clear(&r2);
     mp_clear(&r1);
+    mp_clear(&b);
     mp_clear(&a);
     wc_FreeRng(&rng);
     return ret;

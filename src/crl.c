@@ -790,12 +790,12 @@ static int StartMonitorCRL(WOLFSSL_CRL* crl)
 /* Load CRL path files of type, SSL_SUCCESS on ok */
 int LoadCRL(WOLFSSL_CRL* crl, const char* path, int type, int monitor)
 {
-    int            ret = SSL_SUCCESS;
-    char* name = NULL;
+    int         ret = SSL_SUCCESS;
+    char*       name = NULL;
 #ifdef WOLFSSL_SMALL_STACK
     ReadDirCtx* readCtx = NULL;
 #else
-    ReadDirCtx readCtx[1];
+    ReadDirCtx  readCtx[1];
 #endif
 
     WOLFSSL_ENTER("LoadCRL");
@@ -803,10 +803,9 @@ int LoadCRL(WOLFSSL_CRL* crl, const char* path, int type, int monitor)
         return BAD_FUNC_ARG;
 
 #ifdef WOLFSSL_SMALL_STACK
-    ReadDirCtx* readCtx = NULL;
-    readCtx = (char*)XMALLOC(sizeof(ReadDirCtx), ctx->heap,
-                                                   DYNAMIC_TYPE_TMP_BUFFER);
-    if (name == NULL)
+    readCtx = (ReadDirCtx*)XMALLOC(sizeof(ReadDirCtx), crl->heap,
+                                                       DYNAMIC_TYPE_TMP_BUFFER);
+    if (readCtx == NULL)
         return MEMORY_E;
 #endif
 

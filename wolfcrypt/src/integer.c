@@ -542,6 +542,7 @@ void mp_rshb (mp_int *c, int x)
       /* set the carry to the carry bits of the current word found above */
       r = rr;
     }
+    mp_clamp(c);
 }
 
 
@@ -4100,14 +4101,17 @@ int mp_sub_d (mp_int * a, mp_digit b, mp_int * c)
      c->used = a->used;
 
      /* subtract first digit */
-     *tmpc    = *tmpa++ - b;
-     mu       = *tmpc >> (sizeof(mp_digit) * CHAR_BIT - 1);
+     *tmpc     = *tmpa - b;
+     if (b > *tmpa++)
+         mu    = ((-*tmpc) >> DIGIT_BIT) + 1;
+     else
+         mu    = *tmpc >> DIGIT_BIT;
      *tmpc++ &= MP_MASK;
 
      /* handle rest of the digits */
      for (ix = 1; ix < a->used; ix++) {
         *tmpc    = *tmpa++ - mu;
-        mu       = *tmpc >> (sizeof(mp_digit) * CHAR_BIT - 1);
+        mu       = *tmpc >> DIGIT_BIT;
         *tmpc++ &= MP_MASK;
      }
   }
