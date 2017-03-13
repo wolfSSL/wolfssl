@@ -5879,11 +5879,19 @@ static int rsa_decode_test(void)
         ret = -525;
         goto done;
     }
+    wc_FreeRsaKey(&keyPub);
+    ret = wc_InitRsaKey(&keyPub, NULL);
+    if (ret != 0)
+        return -520;
     ret = wc_RsaPublicKeyDecodeRaw(n, sizeof(n), e, -1, &keyPub);
     if (ret != 0) {
         ret = -526;
         goto done;
     }
+    wc_FreeRsaKey(&keyPub);
+    ret = wc_InitRsaKey(&keyPub, NULL);
+    if (ret != 0)
+        return -520;
 
     /* Use API. */
     ret = wc_RsaPublicKeyDecodeRaw(n, sizeof(n), e, sizeof(e), &keyPub);
@@ -5891,6 +5899,10 @@ static int rsa_decode_test(void)
         ret = -527;
         goto done;
     }
+    wc_FreeRsaKey(&keyPub);
+    ret = wc_InitRsaKey(&keyPub, NULL);
+    if (ret != 0)
+        return -520;
 
     /* Parameter Validation testing. */
     inSz = sizeof(good);
@@ -5984,6 +5996,10 @@ static int rsa_decode_test(void)
         goto done;
     }
     /* TODO: Shouldn't ignore object id's data. */
+    wc_FreeRsaKey(&keyPub);
+    ret = wc_InitRsaKey(&keyPub, NULL);
+    if (ret != 0)
+        return -520;
 
     /* Valid data cases. */
     inSz = sizeof(good);
@@ -5997,6 +6013,10 @@ static int rsa_decode_test(void)
         ret = -551;
         goto done;
     }
+    wc_FreeRsaKey(&keyPub);
+    ret = wc_InitRsaKey(&keyPub, NULL);
+    if (ret != 0)
+        return -520;
 
     inSz = sizeof(goodAlgId);
     inOutIdx = 0;
@@ -6009,6 +6029,10 @@ static int rsa_decode_test(void)
         ret = -553;
         goto done;
     }
+    wc_FreeRsaKey(&keyPub);
+    ret = wc_InitRsaKey(&keyPub, NULL);
+    if (ret != 0)
+        return -520;
 
     inSz = sizeof(goodAlgIdNull);
     inOutIdx = 0;
@@ -6021,6 +6045,10 @@ static int rsa_decode_test(void)
         ret = -555;
         goto done;
     }
+    wc_FreeRsaKey(&keyPub);
+    ret = wc_InitRsaKey(&keyPub, NULL);
+    if (ret != 0)
+        return -520;
 
     inSz = sizeof(goodBitStrNoZero);
     inOutIdx = 0;
@@ -10239,6 +10267,9 @@ static int ecc_exp_imp_test(ecc_key* key)
         goto done;
     }
 
+    wc_ecc_free(&keyImp);
+    wc_ecc_init(&keyImp);
+
     ret = wc_ecc_import_raw_ex(&keyImp, qx, qy, d, ECC_SECP256R1);
     if (ret != 0) {
         ret = -1073;
@@ -12558,7 +12589,7 @@ int mp_test()
              *        - if p and a are even it will fail.
              */
             ret = mp_invmod(&a, &p, &r1);
-            if (ret != 0 && ret != FP_VAL)
+            if (ret != 0 && ret != MP_VAL)
                 return -11019;
             ret = 0;
 

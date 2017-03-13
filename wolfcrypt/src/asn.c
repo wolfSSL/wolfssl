@@ -2220,8 +2220,10 @@ int wc_RsaPublicKeyDecode(const byte* input, word32* inOutIdx, RsaKey* key,
     }
 #endif /* OPENSSL_EXTRA */
 
-    if (GetInt(&key->n,  input, inOutIdx, inSz) < 0 ||
-        GetInt(&key->e,  input, inOutIdx, inSz) < 0) {
+    if (GetInt(&key->n,  input, inOutIdx, inSz) < 0)
+        return ASN_RSA_KEY_E;
+    if (GetInt(&key->e,  input, inOutIdx, inSz) < 0) {
+        mp_clear(&key->n);
         return ASN_RSA_KEY_E;
     }
 
