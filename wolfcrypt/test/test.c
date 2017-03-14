@@ -10032,7 +10032,7 @@ static int ecc_test_curve(WC_RNG* rng, int keySize)
 
 #if !defined(WOLFSSL_ATECC508A) && defined(HAVE_ECC_KEY_IMPORT) && \
      defined(HAVE_ECC_KEY_EXPORT)
-static int ecc_point_test()
+static int ecc_point_test(void)
 {
     int        ret;
     ecc_point* point;
