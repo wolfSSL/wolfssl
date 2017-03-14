@@ -542,6 +542,7 @@ void mp_rshb (mp_int *c, int x)
       /* set the carry to the carry bits of the current word found above */
       r = rr;
     }
+    mp_clamp(c);
 }
 
 
