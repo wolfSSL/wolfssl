@@ -149,10 +149,7 @@
 
 	/* set up thread local storage if available */
 	#ifdef HAVE_THREAD_LS
-        #if defined(INTIME_RTOS)
-            /* Thread local storage not supported */
-            #define THREAD_LS_T
-	    #elif defined(_MSC_VER)
+	    #if defined(_MSC_VER)
 	        #define THREAD_LS_T __declspec(thread)
 	    /* Thread local storage only in FreeRTOS v8.2.1 and higher */
 	    #elif defined(FREERTOS)

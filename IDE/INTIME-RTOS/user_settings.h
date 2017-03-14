@@ -43,6 +43,7 @@ extern "C" {
 /* if using in single threaded mode */
 #undef  SINGLE_THREADED
 //#define SINGLE_THREADED
+/* Note: HAVE_THREAD_LS is not support for INtime RTOS */
 
 /* reduces stack usage, by using malloc/free for stack variables over 100 bytes */
 #undef  WOLFSSL_SMALL_STACK
