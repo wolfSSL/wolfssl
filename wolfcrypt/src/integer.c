@@ -4101,17 +4101,14 @@ int mp_sub_d (mp_int * a, mp_digit b, mp_int * c)
      c->used = a->used;
 
      /* subtract first digit */
-     *tmpc     = *tmpa - b;
-     if (b > *tmpa++)
-         mu    = ((0 - *tmpc) >> DIGIT_BIT) + 1;
-     else
-         mu    = *tmpc >> DIGIT_BIT;
+     *tmpc    = *tmpa++ - b;
+     mu       = *tmpc >> (sizeof(mp_digit) * CHAR_BIT - 1);
      *tmpc++ &= MP_MASK;
 
      /* handle rest of the digits */
      for (ix = 1; ix < a->used; ix++) {
         *tmpc    = *tmpa++ - mu;
-        mu       = *tmpc >> DIGIT_BIT;
+        mu       = *tmpc >> (sizeof(mp_digit) * CHAR_BIT - 1);
         *tmpc++ &= MP_MASK;
      }
   }
