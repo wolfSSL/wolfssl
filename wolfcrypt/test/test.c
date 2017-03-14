@@ -10020,6 +10020,11 @@ static int ecc_point_test()
                             0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
                             0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
                             0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07 };
+    int curve_idx = wc_ecc_get_curve_idx(ECC_SECP256R1);
+
+    /* if curve P256 is not enabled then test should not fail */
+    if (curve_idx == ECC_CURVE_INVALID)
+        return 0;
 
     outLen = sizeof(out);
     point = wc_ecc_new_point();
@@ -10033,17 +10038,17 @@ static int ecc_point_test()
 
     /* Parameter Validation testing. */
     wc_ecc_del_point(NULL);
-    ret = wc_ecc_import_point_der(NULL, sizeof(der), 6, point);
+    ret = wc_ecc_import_point_der(NULL, sizeof(der), curve_idx, point);
     if (ret != ECC_BAD_ARG_E) {
         ret = -1037;
         goto done;
     }
-    ret = wc_ecc_import_point_der(der, sizeof(der), -1, point);
+    ret = wc_ecc_import_point_der(der, sizeof(der), ECC_CURVE_INVALID, point);
     if (ret != ECC_BAD_ARG_E) {
         ret = -1038;
         goto done;
     }
-    ret = wc_ecc_import_point_der(der, sizeof(der), 6, NULL);
+    ret = wc_ecc_import_point_der(der, sizeof(der), curve_idx, NULL);
     if (ret != ECC_BAD_ARG_E) {
         ret = -1039;
         goto done;
@@ -10053,23 +10058,23 @@ static int ecc_point_test()
         ret = -1040;
         goto done;
     }
-    ret = wc_ecc_export_point_der(6, NULL, out, &outLen);
+    ret = wc_ecc_export_point_der(curve_idx, NULL, out, &outLen);
     if (ret != ECC_BAD_ARG_E) {
         ret = -1041;
         goto done;
     }
-    ret = wc_ecc_export_point_der(6, point, NULL, &outLen);
+    ret = wc_ecc_export_point_der(curve_idx, point, NULL, &outLen);
     if (ret != LENGTH_ONLY_E || outLen != sizeof(out)) {
-        ret = -1043;
+        ret = -1042;
         goto done;
     }
-    ret = wc_ecc_export_point_der(6, point, out, NULL);
+    ret = wc_ecc_export_point_der(curve_idx, point, out, NULL);
     if (ret != ECC_BAD_ARG_E) {
         ret = -1043;
         goto done;
     }
     outLen = 0;
-    ret = wc_ecc_export_point_der(6, point, out, &outLen);
+    ret = wc_ecc_export_point_der(curve_idx, point, out, &outLen);
     if (ret != BUFFER_E) {
         ret = -1044;
         goto done;
@@ -10106,14 +10111,14 @@ static int ecc_point_test()
     }
 
     /* Use API. */
-    ret = wc_ecc_import_point_der(der, sizeof(der), 6, point);
+    ret = wc_ecc_import_point_der(der, sizeof(der), curve_idx, point);
     if (ret != 0) {
         ret = -1051;
         goto done;
     }
 
     outLen = sizeof(out);
-    ret = wc_ecc_export_point_der(6, point, out, &outLen);
+    ret = wc_ecc_export_point_der(curve_idx, point, out, &outLen);
     if (ret != 0) {
         ret = -1052;
         goto done;
@@ -10138,7 +10143,7 @@ static int ecc_point_test()
         goto done;
     }
 
-    ret = wc_ecc_import_point_der(altDer, sizeof(altDer), 6, point2);
+    ret = wc_ecc_import_point_der(altDer, sizeof(altDer), curve_idx, point2);
     if (ret != 0) {
         ret = -1057;
         goto done;
@@ -10151,13 +10156,13 @@ static int ecc_point_test()
 
 #ifdef HAVE_COMP_KEY
     /* TODO: Doesn't work. */
-    ret = wc_ecc_import_point_der(derComp0, sizeof(der), 6, point);
+    ret = wc_ecc_import_point_der(derComp0, sizeof(der), curve_idx, point);
     if (ret != 0) {
         ret = -1059;
         goto done;
     }
 
-    ret = wc_ecc_import_point_der(derComp1, sizeof(der), 6, point);
+    ret = wc_ecc_import_point_der(derComp1, sizeof(der), curve_idx, point);
     if (ret != 0) {
         ret = -1060;
         goto done;

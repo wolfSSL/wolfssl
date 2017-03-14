@@ -110,7 +110,8 @@ enum {
 
 /* Curve Types */
 typedef enum ecc_curve_id {
-    ECC_CURVE_DEF, /* NIST or SECP */
+    ECC_CURVE_INVALID = -1,
+    ECC_CURVE_DEF = 0, /* NIST or SECP */
 
     /* NIST Prime Curves */
     ECC_SECP192R1,
@@ -343,7 +344,10 @@ void wc_ecc_fp_free(void);
 WOLFSSL_API
 int wc_ecc_is_valid_idx(int n);
 WOLFSSL_API
-const char* wc_ecc_get_curve_name_from_id(int curve_id);
+int wc_ecc_get_curve_idx(int curve_id);
+WOLFSSL_API
+int wc_ecc_get_curve_id(int curve_idx);
+#define wc_ecc_get_curve_name_from_id wc_ecc_get_name
 WOLFSSL_API
 int wc_ecc_get_curve_size_from_id(int curve_id);
 
