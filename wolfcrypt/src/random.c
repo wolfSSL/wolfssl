@@ -1674,6 +1674,24 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     	return ret;
     }
 
+#elif defined(INTIME_RTOS)
+    int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
+    {
+        int ret = 0;
+
+        (void)os;
+
+        if (output == NULL) {
+            return BUFFER_E;
+        }
+
+        /* Note: Investigate better solution */
+        /* no return to check */
+        arc4random_buf(output, sz);
+
+        return ret;
+    }
+
 #elif defined(NO_DEV_RANDOM)
 
 #error "you need to write an os specific wc_GenerateSeed() here"

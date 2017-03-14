@@ -140,6 +140,8 @@
 #elif defined(MBED)
 #elif defined(WOLFSSL_TIRTOS)
     /* do nothing */
+#elif defined(INTIME_RTOS)
+    #include <rt.h>
 #else
     #ifndef SINGLE_THREADED
         #define WOLFSSL_PTHREADS

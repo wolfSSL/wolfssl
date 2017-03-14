@@ -2545,7 +2545,7 @@ void bench_ed25519KeySign(void)
 #endif /* HAVE_ED25519 */
 
 
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(INTIME_RTOS)
 
     #define WIN32_LEAN_AND_MEAN
     #include <windows.h>

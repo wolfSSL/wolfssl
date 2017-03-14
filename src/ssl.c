@@ -5089,6 +5089,7 @@ int wolfSSL_CTX_load_verify_locations(WOLFSSL_CTX* ctx, const char* file,
         ret = ProcessFile(ctx, file, SSL_FILETYPE_PEM, CA_TYPE, NULL, 0, NULL);
 
     if (ret == SSL_SUCCESS && path) {
+#ifndef NO_WOLFSSL_DIR
         char* name = NULL;
     #ifdef WOLFSSL_SMALL_STACK
         ReadDirCtx* readCtx = NULL;
@@ -5114,6 +5115,9 @@ int wolfSSL_CTX_load_verify_locations(WOLFSSL_CTX* ctx, const char* file,
     #ifdef WOLFSSL_SMALL_STACK
         XFREE(readCtx, ctx->heap, DYNAMIC_TYPE_TMP_BUFFER);
     #endif
+#else
+        ret = NOT_COMPILED_IN;
+#endif
     }
 
     return ret;

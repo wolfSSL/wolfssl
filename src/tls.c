@@ -1390,7 +1390,7 @@ static word16 TLSX_SNI_GetSize(SNI* list)
 
         switch (sni->type) {
             case WOLFSSL_SNI_HOST_NAME:
-                length += XSTRLEN((char*)sni->data.host_name);
+                length += (word16)XSTRLEN((char*)sni->data.host_name);
             break;
         }
     }
@@ -1412,7 +1412,7 @@ static word16 TLSX_SNI_Write(SNI* list, byte* output)
 
         switch (sni->type) {
             case WOLFSSL_SNI_HOST_NAME:
-                length = XSTRLEN((char*)sni->data.host_name);
+                length = (word16)XSTRLEN((char*)sni->data.host_name);
 
                 c16toa(length, output + offset); /* sni length */
                 offset += OPAQUE16_LEN;
@@ -1675,7 +1675,7 @@ word16 TLSX_SNI_GetRequest(TLSX* extensions, byte type, void** data)
         switch (sni->type) {
             case WOLFSSL_SNI_HOST_NAME:
                 *data = sni->data.host_name;
-                return XSTRLEN((char*)*data);
+                return (word16)XSTRLEN((char*)*data);
         }
     }
 

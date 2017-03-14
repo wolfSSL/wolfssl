@@ -183,7 +183,7 @@ static void raw_add(byte *x, const byte *p)
 
 	for (i = 0; i < F25519_SIZE; i++) {
 		c += ((word16)x[i]) + ((word16)p[i]);
-		x[i] = c;
+		x[i] = (byte)c;
 		c >>= 8;
 	}
 }
@@ -197,11 +197,11 @@ static void raw_try_sub(byte *x, const byte *p)
 
 	for (i = 0; i < F25519_SIZE; i++) {
 		c = ((word16)x[i]) - ((word16)p[i]) - c;
-		minusp[i] = c;
+		minusp[i] = (byte)c;
 		c = (c >> 8) & 1;
 	}
 
-	fprime_select(x, minusp, x, c);
+	fprime_select(x, minusp, x, (byte)c);
 }
 
 
@@ -271,7 +271,7 @@ void fprime_mul(byte *r, const byte *a, const byte *b,
 
 	    for (j = 0; j < F25519_SIZE; j++) {
 		    c |= ((word16)r[j]) << 1;
-		    r[j] = c;
+		    r[j] = (byte)c;
 		    c >>= 8;
 	    }
 		raw_try_sub(r, modulus);
@@ -310,7 +310,7 @@ void fe_normalize(byte *x)
 
 	for (i = 0; i < F25519_SIZE; i++) {
 		c += x[i];
-		x[i] = c;
+		x[i] = (byte)c;
 		c >>= 8;
 	}
 
@@ -322,12 +322,12 @@ void fe_normalize(byte *x)
 
 	for (i = 0; i + 1 < F25519_SIZE; i++) {
 		c += x[i];
-		minusp[i] = c;
+		minusp[i] = (byte)c;
 		c >>= 8;
 	}
 
 	c += ((word16)x[i]) - 128;
-	minusp[31] = c;
+	minusp[31] = (byte)c;
 
 	/* Load x-p if no underflow */
 	fe_select(x, minusp, x, (c >> 15) & 1);
@@ -355,7 +355,7 @@ void fe_add(fe r, const fe a, const fe b)
 	for (i = 0; i < F25519_SIZE; i++) {
 		c >>= 8;
 		c += ((word16)a[i]) + ((word16)b[i]);
-		r[i] = c;
+		r[i] = (byte)c;
 	}
 
 	/* Reduce with 2^255 = 19 mod p */
@@ -364,7 +364,7 @@ void fe_add(fe r, const fe a, const fe b)
 
 	for (i = 0; i < F25519_SIZE; i++) {
 		c += r[i];
-		r[i] = c;
+		r[i] = (byte)c;
 		c >>= 8;
 	}
 }

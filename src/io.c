@@ -82,6 +82,15 @@
         #include <errno.h>
     #elif defined(WOLFSSL_ATMEL)
         #include "socket/include/socket.h"
+    #elif defined(INTIME_RTOS)
+        #undef MIN
+        #undef MAX
+        #include <rt.h>
+        #include <sys/types.h>
+        #include <sys/socket.h>
+        #include <netdb.h>
+        #include <netinet/in.h>
+        #include <io.h>
     #else
         #include <sys/types.h>
         #include <errno.h>
