@@ -299,6 +299,10 @@ static int ClientBenchmarkThroughput(WOLFSSL_CTX* ctx, char* host, word16 port,
 
                     /* Compare TX and RX buffers */
                     if(XMEMCMP(tx_buffer, rx_buffer, len) != 0) {
+                        free(tx_buffer);
+                        tx_buffer = NULL;
+                        free(rx_buffer);
+                        rx_buffer = NULL;
                         err_sys("Compare TX and RX buffers failed");
                     }
 
