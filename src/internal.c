@@ -1063,12 +1063,12 @@ static int ImportPeerInfo(WOLFSSL* ssl, byte* buf, word32 len, byte ver)
 
     /* import ip address idx, and ipSz are unsigned but cast for enum */
     ato16(buf + idx, &ipSz); idx += DTLS_EXPORT_LEN;
-    if (ipSz > sizeof(ip) || (word16)(idx + ipSz + DTLS_EXPORT_LEN) > len) {
+    if (ipSz >= sizeof(ip) || (word16)(idx + ipSz + DTLS_EXPORT_LEN) > len) {
         return BUFFER_E;
     }
     XMEMSET(ip, 0, sizeof(ip));
     XMEMCPY(ip, buf + idx, ipSz); idx += ipSz;
-    ip[ipSz] = '\0';
+    ip[ipSz] = '\0'; /* with check that ipSz less than ip this is valid */
     ato16(buf + idx, &port); idx += DTLS_EXPORT_LEN;
 
     /* sanity check for a function to call, then use it to import peer info */

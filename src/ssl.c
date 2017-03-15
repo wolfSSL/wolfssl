@@ -12832,8 +12832,10 @@ static void ExternalFreeX509(WOLFSSL_X509* x509)
 
         if (buf != NULL && text != NULL) {
             textSz = min(textSz, len);
-            XMEMCPY(buf, text, textSz);
-            buf[textSz] = '\0';
+            if (textSz > 0) {
+                XMEMCPY(buf, text, textSz - 1);
+                buf[textSz - 1] = '\0';
+            }
         }
 
         WOLFSSL_LEAVE("wolfSSL_X509_NAME_get_text_by_NID", textSz);
