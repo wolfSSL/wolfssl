@@ -6983,7 +6983,6 @@ WOLFSSL_EVP_PKEY* wolfSSL_d2i_PrivateKey(int type, WOLFSSL_EVP_PKEY** out,
         wolfSSL_EVP_PKEY_free(*out);
     }
     local = wolfSSL_PKEY_new();
-
     if (local == NULL) {
         return NULL;
     }
@@ -7595,7 +7594,6 @@ int wolfSSL_use_RSAPrivateKey_file(WOLFSSL* ssl, const char* file, int format)
 }
 
 #endif /* NO_FILESYSTEM */
-
 
 /* Copies the master secret over to out buffer. If outSz is 0 returns the size
  * of master secret.
@@ -12076,9 +12074,6 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
             return (int)XFREAD(buf, 1, len, bio->file);
         }
     #endif
-        if (bio && bio->type == WOLFSSL_BIO_MEMORY) {
-            return wolfSSL_BIO_MEMORY_read(bio, buf, len);
-        }
 
         /* already got eof, again is error */
         if (bio && front->eof)
@@ -12177,7 +12172,6 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         int  ret;
         WOLFSSL* ssl = 0;
         WOLFSSL_BIO* front = bio;
-        byte* p;
 
         WOLFSSL_ENTER("wolfSSL_BIO_write");
 
@@ -12194,32 +12188,6 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
             return (int)XFWRITE(data, 1, len, bio->file);
         }
     #endif
-
-        if (bio && bio->type == WOLFSSL_BIO_MEMORY) {
-            /* Make buffer big enough to hold new data. */
-            if (bio->mem == NULL) {
-                bio->mem = (byte*)XMALLOC(len, bio->heap, DYNAMIC_TYPE_OPENSSL);
-                if (bio->mem == NULL)
-                    return -1;
-                p = bio->mem;
-            }
-            else {
-                p = (byte*)XMALLOC(len + bio->memLen, bio->heap,
-                                   DYNAMIC_TYPE_OPENSSL);
-                if (p == NULL)
-                    return -1;
-                XMEMCPY(p, bio->mem, bio->memLen);
-                XFREE(bio->mem, bio->heap, DYNAMIC_TYPE_OPENSSL);
-                bio->mem = p;
-                p += bio->memLen;
-            }
-
-            /* Put data on the end of the buffer. */
-            XMEMCPY(p, data, len);
-            bio->memLen += len;
-
-            return len;
-        }
 
         /* already got eof, again is error */
         if (bio && front->eof)
@@ -19973,6 +19941,7 @@ int wolfSSL_BN_print_fp(FILE *fp, const WOLFSSL_BIGNUM *bn)
         return WOLFSSL_FAILURE;
     }
 
+    fprintf(fp, "%s", buf);
     XFREE(buf, NULL, DYNAMIC_TYPE_ECC);
 
     return WOLFSSL_SUCCESS;
@@ -26021,7 +25990,6 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
 
 #endif /* HAVE_LIGHTY || WOLFSSL_MYSQL_COMPATIBLE || HAVE_STUNNEL || WOLFSSL_NGINX || HAVE_POCO_LIB || WOLFSSL_HAPROXY */
 #endif /* OPENSSL_EXTRA */
-
 
 #ifdef OPENSSL_EXTRA
 

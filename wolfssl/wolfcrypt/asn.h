@@ -194,7 +194,7 @@ enum Misc_ASN {
     MAX_CERTPOL_SZ      = CTC_MAX_CERTPOL_SZ,
 #endif
     MAX_NAME_ENTRIES    = 5,       /* extra entries added to x509 name struct */
-    OCSP_NONCE_EXT_SZ   = 37,      /* OCSP Nonce Extension size */
+    OCSP_NONCE_EXT_SZ   = 35,      /* OCSP Nonce Extension size */
     MAX_OCSP_EXT_SZ     = 58,      /* Max OCSP Extension length */
     MAX_OCSP_NONCE_SZ   = 16,      /* OCSP Nonce size           */
     EIGHTK_BUF          = 8192,    /* Tmp buffer size           */
