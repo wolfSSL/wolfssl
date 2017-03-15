@@ -1205,7 +1205,7 @@ const char* wc_ecc_get_name(int curve_id)
     return ecc_sets[curve_idx].name;
 }
 
-static int wc_ecc_set_curve(ecc_key* key, int keysize, int curve_id)
+int wc_ecc_set_curve(ecc_key* key, int keysize, int curve_id)
 {
     if (keysize <= 0 && curve_id <= 0) {
         return BAD_FUNC_ARG;

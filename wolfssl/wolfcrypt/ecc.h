@@ -342,6 +342,9 @@ WOLFSSL_API
 void wc_ecc_fp_free(void);
 
 WOLFSSL_API
+int wc_ecc_set_curve(ecc_key* key, int keysize, int curve_id);
+
+WOLFSSL_API
 int wc_ecc_is_valid_idx(int n);
 WOLFSSL_API
 int wc_ecc_get_curve_idx(int curve_id);

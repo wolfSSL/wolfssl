@@ -634,6 +634,7 @@ int  mp_invmod(mp_int *a, mp_int *b, mp_int *c);
 int  mp_exptmod (mp_int * g, mp_int * x, mp_int * p, mp_int * y);
 int  mp_mul_2d(mp_int *a, int b, mp_int *c);
 
+int  mp_div(mp_int * a, mp_int * b, mp_int * c, mp_int * d);
 
 int  mp_cmp(mp_int *a, mp_int *b);
 int  mp_cmp_d(mp_int *a, mp_digit b);
@@ -653,6 +654,7 @@ int  mp_set_int(mp_int *a, mp_digit b);
 int  mp_is_bit_set (mp_int * a, mp_digit b);
 int  mp_set_bit (mp_int * a, mp_digit b);
 void mp_rshb(mp_int *a, int x);
+void mp_rshd(mp_int *a, int x);
 int mp_toradix (mp_int *a, char *str, int radix);
 int mp_radix_size (mp_int * a, int radix, int *size);
 

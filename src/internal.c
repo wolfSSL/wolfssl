@@ -3513,6 +3513,7 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
 #ifdef HAVE_EXTENDED_MASTER
     ssl->options.haveEMS = ctx->haveEMS;
 #endif
+    ssl->options.useClientOrder = ctx->useClientOrder;
 
 #ifdef HAVE_TLS_EXTENSIONS
 #ifdef HAVE_MAX_FRAGMENT
@@ -7234,7 +7235,11 @@ static int DoCertificate(WOLFSSL* ssl, byte* input, word32* inOutIdx,
             int ok;
 
             store->error = ret;
+#ifdef WOLFSSL_WPAS
+            store->error_depth = 0;
+#else
             store->error_depth = totalCerts;
+#endif
             store->discardSessionCerts = 0;
             store->domain = domain;
             store->userCtx = ssl->verifyCbCtx;
@@ -18798,8 +18803,34 @@ int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     }
 
 #ifndef NO_WOLFSSL_SERVER
+    static int CompareSuites(WOLFSSL* ssl, Suites* peerSuites, word16 i,
+                             word16 j)
+    {
+        if (ssl->suites->suites[i]   == peerSuites->suites[j] &&
+            ssl->suites->suites[i+1] == peerSuites->suites[j+1] ) {
+
+            if (VerifyServerSuite(ssl, i)) {
+                int result;
+                WOLFSSL_MSG("Verified suite validity");
+                ssl->options.cipherSuite0 = ssl->suites->suites[i];
+                ssl->options.cipherSuite  = ssl->suites->suites[i+1];
+                result = SetCipherSpecs(ssl);
+                if (result == 0)
+                    PickHashSigAlgo(ssl, peerSuites->hashSigAlgo,
+                                         peerSuites->hashSigAlgoSz);
+                return result;
+            }
+            else {
+                WOLFSSL_MSG("Could not verify suite validity, continue");
+            }
+        }
+
+        return MATCH_SUITE_ERROR;
+    }
+
     static int MatchSuite(WOLFSSL* ssl, Suites* peerSuites)
     {
+        int ret;
         word16 i, j;
 
         WOLFSSL_ENTER("MatchSuite");
@@ -18810,27 +18841,27 @@ int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
         if (ssl->suites == NULL)
             return SUITES_ERROR;
-        /* start with best, if a match we are good */
-        for (i = 0; i < ssl->suites->suiteSz; i += 2)
-            for (j = 0; j < peerSuites->suiteSz; j += 2)
-                if (ssl->suites->suites[i]   == peerSuites->suites[j] &&
-                    ssl->suites->suites[i+1] == peerSuites->suites[j+1] ) {
 
-                    if (VerifyServerSuite(ssl, i)) {
-                        int result;
-                        WOLFSSL_MSG("Verified suite validity");
-                        ssl->options.cipherSuite0 = ssl->suites->suites[i];
-                        ssl->options.cipherSuite  = ssl->suites->suites[i+1];
-                        result = SetCipherSpecs(ssl);
-                        if (result == 0)
-                            PickHashSigAlgo(ssl, peerSuites->hashSigAlgo,
-                                                 peerSuites->hashSigAlgoSz);
-                        return result;
-                    }
-                    else {
-                        WOLFSSL_MSG("Could not verify suite validity, continue");
-                    }
+        if (!ssl->options.useClientOrder) {
+            /* Server order */
+            for (i = 0; i < ssl->suites->suiteSz; i += 2) {
+                for (j = 0; j < peerSuites->suiteSz; j += 2) {
+                    ret = CompareSuites(ssl, peerSuites, i, j);
+                    if (ret != MATCH_SUITE_ERROR)
+                        return ret;
                 }
+            }
+        }
+        else {
+            /* Client order */
+            for (j = 0; j < peerSuites->suiteSz; j += 2) {
+                for (i = 0; i < ssl->suites->suiteSz; i += 2) {
+                    ret = CompareSuites(ssl, peerSuites, i, j);
+                    if (ret != MATCH_SUITE_ERROR)
+                        return ret;
+                }
+            }
+        }
 
         return MATCH_SUITE_ERROR;
     }
