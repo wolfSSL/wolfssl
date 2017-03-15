@@ -1980,11 +1980,12 @@ void fp_set_int(fp_int *a, unsigned long b)
   fp_zero (a);
 
   /* set chunk bits at a time */
-  for (x = 0; x < (int)(sizeof(long) * 8) / MP_SET_CHUNK_BITS; x++) {
+  for (x = 0; x < (int)(sizeof(b) * 8) / MP_SET_CHUNK_BITS; x++) {
     fp_mul_2d (a, MP_SET_CHUNK_BITS, a);
 
     /* OR in the top bits of the source */
-    a->dp[0] |= (b >> (32 - MP_SET_CHUNK_BITS)) & ((1 << MP_SET_CHUNK_BITS) - 1);
+    a->dp[0] |= (b >> ((sizeof(b) * 8) - MP_SET_CHUNK_BITS)) &
+                                  ((1 << MP_SET_CHUNK_BITS) - 1);
 
     /* shift the source up to the next chunk bits */
     b <<= MP_SET_CHUNK_BITS;

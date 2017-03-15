@@ -3918,14 +3918,15 @@ int mp_set_int (mp_int * a, unsigned long b)
   mp_zero (a);
 
   /* set chunk bits at a time */
-  for (x = 0; x < (int)(sizeof(long) * 8) / MP_SET_CHUNK_BITS; x++) {
+  for (x = 0; x < (int)(sizeof(b) * 8) / MP_SET_CHUNK_BITS; x++) {
     /* shift the number up chunk bits */
     if ((res = mp_mul_2d (a, MP_SET_CHUNK_BITS, a)) != MP_OKAY) {
       return res;
     }
 
     /* OR in the top bits of the source */
-    a->dp[0] |= (b >> (32 - MP_SET_CHUNK_BITS)) & ((1 << MP_SET_CHUNK_BITS) - 1);
+    a->dp[0] |= (b >> ((sizeof(b) * 8) - MP_SET_CHUNK_BITS)) &
+                                  ((1 << MP_SET_CHUNK_BITS) - 1);
 
     /* shift the source up to the next chunk bits */
     b <<= MP_SET_CHUNK_BITS;
