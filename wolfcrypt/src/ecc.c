@@ -1102,12 +1102,8 @@ static int wc_ecc_curve_load(const ecc_set_type* dp, ecc_curve_spec** pCurve,
         return BAD_FUNC_ARG;
 
 #ifdef ECC_CACHE_CURVE
-    /* find ecc_set index based on curve_id */
-    for (x = 0; ecc_sets[x].size != 0; x++) {
-        if (dp->id == ecc_sets[x].id)
-            break; /* found index */
-    }
-    if (ecc_sets[x].size == 0)
+    x = wc_ecc_get_curve_idx(dp->id);
+    if (x == ECC_CURVE_INVALID)
         return ECC_BAD_ARG_E;
 
     /* make sure cache has been allocated */
@@ -1195,6 +1191,7 @@ void wc_ecc_curve_cache_free(void)
 
 #endif /* WOLFSSL_ATECC508A */
 
+
 /* Retrieve the curve name for the ECC curve id.
  *
  * curve_id  The id of the curve.
@@ -1202,14 +1199,10 @@ void wc_ecc_curve_cache_free(void)
  */
 const char* wc_ecc_get_name(int curve_id)
 {
-    int x;
-
-    for (x = 0; ecc_sets[x].size != 0; x++) {
-        if (curve_id == ecc_sets[x].id)
-            return ecc_sets[x].name;
-    }
-
-    return NULL;
+    int curve_idx = wc_ecc_get_curve_idx(curve_id);
+    if (curve_idx == ECC_CURVE_INVALID)
+        return NULL;
+    return ecc_sets[curve_idx].name;
 }
 
 static int wc_ecc_set_curve(ecc_key* key, int keysize, int curve_id)
@@ -2468,52 +2461,38 @@ int wc_ecc_is_valid_idx(int n)
    return 0;
 }
 
-
-/*
- * Returns the curve name that corresponds to an ecc_curve_id identifier
- *
- * id      curve id, from ecc_curve_id enum in ecc.h
- * return  const char* representing curve name, from ecc_sets[] on success,
- *         otherwise NULL if id not found.
- */
-const char* wc_ecc_get_curve_name_from_id(int id)
+int wc_ecc_get_curve_idx(int curve_id)
 {
-    int i;
-
-    for (i = 0; ecc_sets[i].size != 0; i++) {
-        if (id == ecc_sets[i].id)
+    int curve_idx;
+    for (curve_idx = 0; ecc_sets[curve_idx].size != 0; curve_idx++) {
+        if (curve_id == ecc_sets[curve_idx].id)
             break;
     }
-
-    if (ecc_sets[i].size == 0) {
-        WOLFSSL_MSG("ecc_set curve not found");
-        return NULL;
+    if (ecc_sets[curve_idx].size == 0) {
+        return ECC_CURVE_INVALID;
     }
-
-    return ecc_sets[i].name;
+    return curve_idx;
 }
 
+int wc_ecc_get_curve_id(int curve_idx)
+{
+    if (wc_ecc_is_valid_idx(curve_idx)) {
+        return ecc_sets[curve_idx].id;
+    }
+    return ECC_CURVE_INVALID;
+}
 
 /* Returns the curve size that corresponds to a given ecc_curve_id identifier
  *
  * id      curve id, from ecc_curve_id enum in ecc.h
  * return  curve size, from ecc_sets[] on success, negative on error
  */
-int wc_ecc_get_curve_size_from_id(int id)
+int wc_ecc_get_curve_size_from_id(int curve_id)
 {
-    int i;
-
-    for (i = 0; ecc_sets[i].size != 0; i++) {
-        if (id == ecc_sets[i].id)
-            break;
-    }
-
-    if (ecc_sets[i].size == 0) {
-        WOLFSSL_MSG("ecc_set curve not found");
+    int curve_idx = wc_ecc_get_curve_idx(curve_id);
+    if (curve_idx == ECC_CURVE_INVALID)
         return ECC_BAD_ARG_E;
-    }
-
-    return ecc_sets[i].size;
+    return ecc_sets[curve_idx].size;
 }
 
 
