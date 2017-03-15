@@ -1484,7 +1484,7 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
     if ((err = mp_init_multi(&p, &q, &tmp1, &tmp2, &tmp3, NULL)) != MP_OKAY)
         return err;
 
-    err = mp_set_int(&tmp3, (mp_digit)e);
+    err = mp_set_int(&tmp3, e);
 
     /* make p */
     if (err == MP_OKAY) {

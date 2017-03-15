@@ -3903,25 +3903,32 @@ int fast_s_mp_mul_high_digs (mp_int * a, mp_int * b, mp_int * c, int digs)
 }
 
 
-/* set a 32-bit const */
+#ifndef MP_SET_CHUNK_BITS
+    #define MP_SET_CHUNK_BITS 4
+#endif
 int mp_set_int (mp_int * a, unsigned long b)
 {
-  int     x, res;
+  int x, res;
+
+  /* use direct mp_set if b is less than mp_digit max */
+  if (b < MP_DIGIT_MAX) {
+    return mp_set (a, b);
+  }
 
   mp_zero (a);
 
-  /* set four bits at a time */
-  for (x = 0; x < 8; x++) {
-    /* shift the number up four bits */
-    if ((res = mp_mul_2d (a, 4, a)) != MP_OKAY) {
+  /* set chunk bits at a time */
+  for (x = 0; x < (int)(sizeof(long) * 8) / MP_SET_CHUNK_BITS; x++) {
+    /* shift the number up chunk bits */
+    if ((res = mp_mul_2d (a, MP_SET_CHUNK_BITS, a)) != MP_OKAY) {
       return res;
     }
 
-    /* OR in the top four bits of the source */
-    a->dp[0] |= (b >> 28) & 15;
+    /* OR in the top bits of the source */
+    a->dp[0] |= (b >> (32 - MP_SET_CHUNK_BITS)) & ((1 << MP_SET_CHUNK_BITS) - 1);
 
-    /* shift the source up to the next four bits */
-    b <<= 4;
+    /* shift the source up to the next chunk bits */
+    b <<= MP_SET_CHUNK_BITS;
 
     /* ensure that digits are not clamped off */
     a->used += 1;
