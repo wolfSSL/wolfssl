@@ -326,7 +326,7 @@ AC_ARG_ENABLE([ipv6],
 
 if test "$ENABLED_IPV6" = "yes"
 then
-    AM_CFLAGS="$AM_CFLAGS -DTEST_IPV6"
+    AM_CFLAGS="$AM_CFLAGS -DTEST_IPV6 -DWOLFSSL_IPV6"
 fi
 
 AM_CONDITIONAL([BUILD_IPV6], [test "x$ENABLED_IPV6" = "xyes"])
@@ -3340,7 +3340,7 @@ echo "#endif /* WOLFSSL_OPTIONS_H */" >> $OPTION_FILE
 echo "" >> $OPTION_FILE
 echo
 
-#backwards compatability for those who have included options or version
+#backwards compatibility for those who have included options or version
 touch cyassl/options.h
 echo "/* cyassl options.h" > cyassl/options.h
 echo " * generated from wolfssl/options.h" >> cyassl/options.h

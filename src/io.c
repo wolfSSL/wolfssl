@@ -50,6 +50,7 @@ Possible IO enable options:
  * USE_WOLFSSL_IO:      Enables the wolfSSL IO functions          default: off
  * HAVE_HTTP_CLIENT:    Enables HTTP client API's                 default: off
                                      (unless HAVE_OCSP or HAVE_CRL_IO defined)
+ * HAVE_IO_TIMEOUT:     Enables support for connect timeout       default: off
  */
 
 
@@ -421,12 +422,14 @@ int EmbedGenerateCookie(WOLFSSL* ssl, byte *buf, int sz, void *ctx)
                 break;
 
             case WOLFSSL_IP6:
+            #ifdef WOLFSSL_IPV6
                 if (XINET_NTOP(*fam, &(((SOCKADDR_IN6*)&peer)->sin6_addr),
                                                            ip, *ipSz) == NULL) {
                     WOLFSSL_MSG("XINET_NTOP error");
                     return SOCKET_ERROR_E;
                 }
                 *port = XNTOHS(((SOCKADDR_IN6*)&peer)->sin6_port);
+            #endif /* WOLFSSL_IPV6 */
                 break;
 
             default:
@@ -473,6 +476,7 @@ int EmbedGenerateCookie(WOLFSSL* ssl, byte *buf, int sz, void *ctx)
                 break;
 
             case WOLFSSL_IP6:
+            #ifdef WOLFSSL_IPV6
                 if (XINET_PTON(addr.ss_family, ip,
                                    &(((SOCKADDR_IN6*)&addr)->sin6_addr)) <= 0) {
                     WOLFSSL_MSG("XINET_PTON error");
@@ -486,6 +490,7 @@ int EmbedGenerateCookie(WOLFSSL* ssl, byte *buf, int sz, void *ctx)
                     WOLFSSL_MSG("Import DTLS peer info error");
                     return ret;
                 }
+            #endif /* WOLFSSL_IPV6 */
                 break;
 
             default:
@@ -498,10 +503,32 @@ int EmbedGenerateCookie(WOLFSSL* ssl, byte *buf, int sz, void *ctx)
 #endif /* WOLFSSL_SESSION_EXPORT */
 #endif /* WOLFSSL_DTLS */
 
+
+int wolfIO_Recv(SOCKET_T sd, char *buf, int sz, int rdFlags)
+{
+    int recvd;
+
+    recvd = (int)RECV_FUNCTION(sd, buf, sz, rdFlags);
+    recvd = TranslateReturnCode(recvd, sd);
+
+    return recvd;
+}
+
+int wolfIO_Send(SOCKET_T sd, char *buf, int sz, int wrFlags)
+{
+    int sent;
+    int len = sz;
+
+    sent = (int)SEND_FUNCTION(sd, &buf[sz - len], len, wrFlags);
+    sent = TranslateReturnCode(sent, sd);
+
+    return sent;
+}
+
 #endif /* USE_WOLFSSL_IO */
 
 
-#if defined(USE_WOLFSSL_IO)
+#ifdef HAVE_HTTP_CLIENT
 
 #ifndef HAVE_IO_TIMEOUT
     #define io_timeout_sec 0
@@ -703,32 +730,6 @@ int wolfIO_TcpConnect(SOCKET_T* sockfd, const char* ip, word16 port, int to_sec)
     return -1;
 #endif /* HAVE_SOCKADDR */
 }
-
-int wolfIO_Recv(SOCKET_T sd, char *buf, int sz, int rdFlags)
-{
-    int recvd;
-
-    recvd = (int)RECV_FUNCTION(sd, buf, sz, rdFlags);
-    recvd = TranslateReturnCode(recvd, sd);
-
-    return recvd;
-}
-
-int wolfIO_Send(SOCKET_T sd, char *buf, int sz, int wrFlags)
-{
-    int sent;
-    int len = sz;
-
-    sent = (int)SEND_FUNCTION(sd, &buf[sz - len], len, wrFlags);
-    sent = TranslateReturnCode(sent, sd);
-
-    return sent;
-}
-
-#endif /* USE_WOLFSSL_IO */
-
-
-#if defined(HAVE_HTTP_CLIENT)
 
 #ifndef HTTP_SCRATCH_BUFFER_SIZE
     #define HTTP_SCRATCH_BUFFER_SIZE 512

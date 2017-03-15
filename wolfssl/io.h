@@ -249,7 +249,7 @@
         typedef struct sockaddr         SOCKADDR;
         typedef struct sockaddr_storage SOCKADDR_S;
         typedef struct sockaddr_in      SOCKADDR_IN;
-        #ifdef TEST_IPV6
+        #ifdef WOLFSSL_IPV6
             typedef struct sockaddr_in6 SOCKADDR_IN6;
         #endif
         typedef struct hostent          HOSTENT;
