@@ -260,6 +260,7 @@
 #endif
 
 #define FP_MASK    (fp_digit)(-1)
+#define FP_DIGIT_MAX FP_MASK
 #define FP_SIZE    (FP_MAX_SIZE/DIGIT_BIT)
 
 /* signs */
@@ -382,6 +383,7 @@ void fp_clear(fp_int *a); /* uses ForceZero to clear sensitive memory */
 
 /* set to a small digit */
 void fp_set(fp_int *a, fp_digit b);
+void fp_set_int(fp_int *a, unsigned long b);
 
 /* check if a bit is set */
 int fp_is_bit_set(fp_int *a, fp_digit b);
@@ -650,7 +652,7 @@ int  mp_isodd(mp_int* a);
 int  mp_iszero(mp_int* a);
 int  mp_count_bits(mp_int *a);
 int  mp_leading_bit(mp_int *a);
-int  mp_set_int(mp_int *a, mp_digit b);
+int  mp_set_int(mp_int *a, unsigned long b);
 int  mp_is_bit_set (mp_int * a, mp_digit b);
 int  mp_set_bit (mp_int * a, mp_digit b);
 void mp_rshb(mp_int *a, int x);
