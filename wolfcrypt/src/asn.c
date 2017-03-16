@@ -1520,36 +1520,77 @@ int wc_RsaPrivateKeyDecode(const byte* input, word32* inOutIdx, RsaKey* key,
 #endif /* HAVE_USER_RSA */
 #endif /* NO_RSA */
 
+/* Remove PKCS8 header, place inOutIdx at beginning of traditional,
+ * return traditional length on success, negative on error */
+int ToTraditionalInline(const byte* input, word32* inOutIdx, word32 sz)
+{
+    word32 idx, oid;
+    int    version, length;
+
+    if (input == NULL || inOutIdx == NULL)
+        return BAD_FUNC_ARG;
+
+    idx = *inOutIdx;
+
+    if (GetSequence(input, &idx, &length, sz) < 0)
+        return ASN_PARSE_E;
+
+    if (GetMyVersion(input, &idx, &version, sz) < 0)
+        return ASN_PARSE_E;
+
+    if (GetAlgoId(input, &idx, &oid, oidKeyType, sz) < 0)
+        return ASN_PARSE_E;
+
+    if (input[idx] == ASN_OBJECT_ID) {
+        /* pkcs8 ecc uses slightly different format */
+        idx++;  /* past id */
+        if (GetLength(input, &idx, &length, sz) < 0)
+            return ASN_PARSE_E;
+        idx += length;  /* over sub id, key input will verify */
+    }
+
+    if (input[idx++] != ASN_OCTET_STRING)
+        return ASN_PARSE_E;
+
+    if (GetLength(input, &idx, &length, sz) < 0)
+        return ASN_PARSE_E;
+
+    *inOutIdx = idx;
+
+    return length;
+}
+
 /* Remove PKCS8 header, move beginning of traditional to beginning of input */
 int ToTraditional(byte* input, word32 sz)
 {
-    word32 inOutIdx = 0, oid;
-    int    version, length;
+    word32 inOutIdx = 0;
+    int    length;
 
-    if (GetSequence(input, &inOutIdx, &length, sz) < 0)
-        return ASN_PARSE_E;
+    if (input == NULL)
+        return BAD_FUNC_ARG;
 
-    if (GetMyVersion(input, &inOutIdx, &version, sz) < 0)
-        return ASN_PARSE_E;
-
-    if (GetAlgoId(input, &inOutIdx, &oid, oidKeyType, sz) < 0)
-        return ASN_PARSE_E;
-
-    if (input[inOutIdx] == ASN_OBJECT_ID) {
-        /* pkcs8 ecc uses slightly different format */
-        inOutIdx++;  /* past id */
-        if (GetLength(input, &inOutIdx, &length, sz) < 0)
-            return ASN_PARSE_E;
-        inOutIdx += length;  /* over sub id, key input will verify */
-    }
-
-    if (input[inOutIdx++] != ASN_OCTET_STRING)
-        return ASN_PARSE_E;
-
-    if (GetLength(input, &inOutIdx, &length, sz) < 0)
-        return ASN_PARSE_E;
+    length = ToTraditionalInline(input, &inOutIdx, sz);
+    if (length < 0)
+        return length;
 
     XMEMMOVE(input, input + inOutIdx, length);
+
+    return length;
+}
+
+
+/* find beginning of traditional key inside PKCS#8 unencrypted buffer
+ * return traditional length on success, with inOutIdx at beginning of
+ * traditional
+ * return negative on failure/error */
+int wc_GetPkcs8TraditionalOffset(byte* input, word32* inOutIdx, word32 sz)
+{
+    int length;
+
+    if (input == NULL || inOutIdx == NULL || (*inOutIdx > sz))
+        return BAD_FUNC_ARG;
+
+    length = ToTraditionalInline(input, inOutIdx, sz);
 
     return length;
 }
