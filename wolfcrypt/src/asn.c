@@ -9510,8 +9510,11 @@ static int DecodeSingleResponse(byte* source,
     if (GetBasicDate(source, &idx, cs->thisDate,
                                                 &cs->thisDateFormat, size) < 0)
         return ASN_PARSE_E;
+
+#ifndef NO_ASN_TIME
     if (!XVALIDATE_DATE(cs->thisDate, cs->thisDateFormat, BEFORE))
         return ASN_BEFORE_DATE_E;
+#endif
 
     /* The following items are optional. Only check for them if there is more
      * unprocessed data in the singleResponse wrapper. */
@@ -9528,8 +9531,11 @@ static int DecodeSingleResponse(byte* source,
         if (GetBasicDate(source, &idx, cs->nextDate,
                                                 &cs->nextDateFormat, size) < 0)
             return ASN_PARSE_E;
+
+#ifndef NO_ASN_TIME
         if (!XVALIDATE_DATE(cs->nextDate, cs->nextDateFormat, AFTER))
             return ASN_AFTER_DATE_E;
+#endif
     }
     if (((int)(idx - prevIndex) < wrapperSz) &&
         (source[idx] == (ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC | 1)))
@@ -10369,10 +10375,13 @@ int ParseCRL(DecodedCRL* dcrl, const byte* buff, word32 sz, void* cm)
 #endif
     }
 
-    if (doNextDate && !XVALIDATE_DATE(dcrl->nextDate, dcrl->nextDateFormat,
-                                      AFTER)) {
-        WOLFSSL_MSG("CRL after date is no longer valid");
-        return ASN_AFTER_DATE_E;
+    if (doNextDate) {
+#ifndef NO_ASN_TIME
+        if (!XVALIDATE_DATE(dcrl->nextDate, dcrl->nextDateFormat, AFTER)) {
+            WOLFSSL_MSG("CRL after date is no longer valid");
+            return ASN_AFTER_DATE_E;
+        }
+#endif
     }
 
     if (idx != dcrl->sigIndex && buff[idx] != CRL_EXTENSIONS) {
