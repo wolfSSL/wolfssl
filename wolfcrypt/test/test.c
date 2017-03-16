@@ -124,6 +124,16 @@
 #endif
 
 
+#if defined(NO_FILESYSTEM)
+    #if !defined(USE_CERT_BUFFERS_1024) && !defined(USE_CERT_BUFFERS_2048) && \
+        !defined(USE_CERT_BUFFERS_4096)
+        #define USE_CERT_BUFFERS_2048
+    #endif
+    #if !defined(USE_CERT_BUFFERS_256)
+        #define USE_CERT_BUFFERS_256
+    #endif
+#endif
+
 #include <wolfssl/certs_test.h>
 
 #if defined(WOLFSSL_MDK_ARM)
@@ -5258,6 +5268,8 @@ byte GetEntropy(ENTROPY_CMD cmd, byte* out)
 #endif /* HAVE_NTRU */
 
 
+#ifndef NO_FILESYSTEM
+
 /* Cert Paths */
 #ifdef FREESCALE_MQX
     #define CERT_PREFIX "a:\\"
@@ -5343,6 +5355,8 @@ byte GetEntropy(ENTROPY_CMD cmd, byte* out)
         static const char* certReqPemFile = CERT_PREFIX "certreq.pem";
     #endif
 #endif /* !NO_RSA */
+
+#endif /* !NO_FILESYSTEM */
 
 #ifndef NO_RSA
 
@@ -6074,7 +6088,8 @@ int rsa_test(void)
     byte   out[256];
     byte   plain[256];
     byte*  res;
-#if !defined(USE_CERT_BUFFERS_1024) && !defined(USE_CERT_BUFFERS_2048)
+#if !defined(USE_CERT_BUFFERS_1024) && !defined(USE_CERT_BUFFERS_2048) \
+                                    && !defined(NO_FILESYSTEM)
     FILE    *file, *file2;
 #endif
 #ifdef WOLFSSL_TEST_CERT
@@ -6097,7 +6112,7 @@ int rsa_test(void)
 #elif defined(USE_CERT_BUFFERS_2048)
     XMEMCPY(tmp, client_key_der_2048, sizeof_client_key_der_2048);
     bytes = sizeof_client_key_der_2048;
-#else
+#elif !defined(NO_FILESYSTEM)
     file = fopen(clientKey, "rb");
     if (!file) {
         err_sys("can't open ./certs/client-key.der, "
@@ -6108,6 +6123,9 @@ int rsa_test(void)
 
     bytes = fread(tmp, 1, FOURK_BUF, file);
     fclose(file);
+#else
+    /* No key to use. */
+    return -40;
 #endif /* USE_CERT_BUFFERS */
 
     ret = wc_InitRsaKey_ex(&key, HEAP_HINT, devId);
@@ -6539,7 +6557,7 @@ int rsa_test(void)
 #elif defined(USE_CERT_BUFFERS_2048)
     XMEMCPY(tmp, client_cert_der_2048, sizeof_client_cert_der_2048);
     bytes = sizeof_client_cert_der_2048;
-#else
+#elif !defined(NO_FILESYSTEM)
     file2 = fopen(clientCert, "rb");
     if (!file2) {
         XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
@@ -6549,6 +6567,9 @@ int rsa_test(void)
 
     bytes = fread(tmp, 1, FOURK_BUF, file2);
     fclose(file2);
+#else
+    /* No certificate to use. */
+    return -49;
 #endif
 
 #ifdef sizeof
@@ -7902,13 +7923,16 @@ int dh_test(void)
     bytes = sizeof_dh_key_der_2048;
 #elif defined(NO_ASN)
     /* don't use file, no DER parsing */
-#else
+#elif !defined(NO_FILESYSTEM)
     FILE*  file = fopen(dhKey, "rb");
     if (!file)
         return -50;
 
     bytes = (word32) fread(tmp, 1, sizeof(tmp), file);
     fclose(file);
+#else
+    /* No DH key to use. */
+    return -50;
 #endif /* USE_CERT_BUFFERS */
 
     (void)idx;
