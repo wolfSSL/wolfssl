@@ -4790,10 +4790,38 @@ int wc_ecc_export_private_raw(ecc_key* key, byte* qx, word32* qxLen,
 #endif /* HAVE_ECC_KEY_EXPORT */
 
 #ifdef HAVE_ECC_KEY_IMPORT
-int wc_ecc_import_private_key_ex(const byte* priv, word32 privSz, const byte* pub,
-                           word32 pubSz, ecc_key* key, int curve_id)
+/* import private key, public part optional if (pub) passed as NULL */
+int wc_ecc_import_private_key_ex(const byte* priv, word32 privSz,
+                                 const byte* pub, word32 pubSz, ecc_key* key,
+                                 int curve_id)
 {
-    int ret = wc_ecc_import_x963_ex(pub, pubSz, key, curve_id);
+    int ret;
+    void* heap;
+
+    /* public optional, NULL if only importing private */
+    if (pub != NULL) {
+
+        ret = wc_ecc_import_x963_ex(pub, pubSz, key, curve_id);
+
+    } else {
+
+        if (key == NULL || priv == NULL)
+            return BAD_FUNC_ARG;
+
+        /* init key */
+        heap = key->heap;
+        ret = wc_ecc_init_ex(key, NULL, INVALID_DEVID);
+        key->heap = heap;
+
+        key->state = ECC_STATE_NONE;
+
+        if (ret != 0)
+            return ret;
+
+        /* set key size */
+        ret = wc_ecc_set_curve(key, privSz-1, curve_id);
+    }
+
     if (ret != 0)
         return ret;
 

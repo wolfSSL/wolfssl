@@ -10261,6 +10261,7 @@ static int ecc_sig_test(WC_RNG* rng, ecc_key* key)
 static int ecc_exp_imp_test(ecc_key* key)
 {
     int        ret;
+    int        curve_id;
     ecc_key    keyImp;
     byte       priv[32];
     word32     privLen;
@@ -10301,6 +10302,19 @@ static int ecc_exp_imp_test(ecc_key* key)
         ret = -1073;
         goto done;
     }
+
+    wc_ecc_free(&keyImp);
+    wc_ecc_init(&keyImp);
+
+    curve_id = wc_ecc_get_curve_id(key->idx);
+    if (curve_id < 0)
+        return -1074;
+
+    /* test import private only */
+    ret = wc_ecc_import_private_key_ex(priv, privLen, NULL, 0, &keyImp,
+                                       curve_id);
+    if (ret != 0)
+        return -1075;
 
 done:
     wc_ecc_free(&keyImp);
