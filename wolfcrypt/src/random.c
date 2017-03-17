@@ -634,8 +634,7 @@ int wc_RNG_GenerateBlock(WC_RNG* rng, byte* output, word32 sz)
         ret = RNG_FAILURE_E;
         rng->status = DRBG_FAILED;
     }
-    return ret;
-#endif /* HAVE_HASHDRBG */
+#else
 
     /* try using the generate seed direectly */
     ret = wc_GenerateSeed(&rng->seed, output, sz);
@@ -643,9 +642,10 @@ int wc_RNG_GenerateBlock(WC_RNG* rng, byte* output, word32 sz)
         return 0;
 
     /* if we get here then there is an RNG configuration error */
-    (void)ret;
-    (void)sz;
-    return RNG_FAILURE_E;
+    ret = RNG_FAILURE_E;
+#endif /* HAVE_HASHDRBG */
+
+    return ret;
 }
 
 

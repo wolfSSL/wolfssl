@@ -45,9 +45,14 @@
     #define CUSTOM_RAND_TYPE    byte
 #endif
 
+/* make sure Hash DRBG is enabled, unless WC_NO_HASHDRBG is defined */
+#ifndef WC_NO_HASHDRBG
+    #undef  HAVE_HASHDRBG
+    #define HAVE_HASHDRBG
+#endif
+
 
 #ifndef HAVE_FIPS /* avoid redefining structs and macros */
-
 
 /* RNG supports the following sources (in order):
  * 1. CUSTOM_RAND_GENERATE_BLOCK: Defines name of function as RNG source and
@@ -77,7 +82,11 @@
 #elif defined(HAVE_INTEL_RDRAND)
 #elif defined(HAVE_WNR)
 #else
-     #warning No RNG source defined. Using wc_GenerateSeed directly
+    #ifndef _MSC_VER
+        #warning "No RNG source defined. Using wc_GenerateSeed directly"
+    #else
+        #pragma message("Warning: No RNG source defined. Using wc_GenerateSeed directly")
+    #endif
 #endif
 
 #ifdef HAVE_WNR

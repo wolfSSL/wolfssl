@@ -1690,11 +1690,13 @@ if test "x$ENABLED_HASHDRBG" = "xyes"
 then
     AM_CFLAGS="$AM_CFLAGS -DHAVE_HASHDRBG"
 else
-    # turn on Hash DRBG if FIPS is on or ARC4 is off
+    # turn on Hash DRBG if FIPS is on
     if test "x$ENABLED_FIPS" = "xyes"
     then
         AM_CFLAGS="$AM_CFLAGS -DHAVE_HASHDRBG"
         ENABLED_HASHDRBG=yes
+    else
+        AM_CFLAGS="$AM_CFLAGS -DWC_NO_HASHDRBG"
     fi
 fi
 
