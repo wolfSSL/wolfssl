@@ -36,6 +36,9 @@
 #ifdef HAVE_ECC
     #include <wolfssl/wolfcrypt/ecc.h>   /* wc_ecc_fp_free */
 #endif
+#ifndef NO_ASN
+    #include <wolfssl/wolfcrypt/asn_public.h>
+#endif
 #include <wolfssl/error-ssl.h>
 
 #include <stdlib.h>
@@ -3027,6 +3030,52 @@ static void test_wolfSSL_BIO(void)
 
 
 /*----------------------------------------------------------------------------*
+ | wolfCrypt ASN
+ *----------------------------------------------------------------------------*/
+
+static void test_wc_GetPkcs8TraditionalOffset(void)
+{
+#if !defined(NO_ASN) && !defined(NO_FILESYSTEM)
+    int length, derSz;
+    word32 inOutIdx;
+    const char* path = "./certs/server-keyPkcs8.der";
+    FILE* file;
+    byte der[2048];
+
+    printf(testingFmt, "wc_GetPkcs8TraditionalOffset");
+
+    file = fopen(path, "rb");
+    AssertNotNull(file);
+    derSz = (int)fread(der, 1, sizeof(der), file);
+    fclose(file);
+
+    /* valid case */
+    inOutIdx = 0;
+    length = wc_GetPkcs8TraditionalOffset(der, &inOutIdx, derSz);
+    AssertIntGT(length, 0);
+
+    /* inOutIdx > sz */
+    inOutIdx = 4000;
+    length = wc_GetPkcs8TraditionalOffset(der, &inOutIdx, derSz);
+    AssertIntEQ(length, BAD_FUNC_ARG);
+
+    /* null input */
+    inOutIdx = 0;
+    length = wc_GetPkcs8TraditionalOffset(NULL, &inOutIdx, 0);
+    AssertIntEQ(length, BAD_FUNC_ARG);
+
+    /* invalid input, fill buffer with 1's */
+    XMEMSET(der, 1, sizeof(der));
+    inOutIdx = 0;
+    length = wc_GetPkcs8TraditionalOffset(der, &inOutIdx, derSz);
+    AssertIntEQ(length, ASN_PARSE_E);
+
+    printf(resultFmt, passed);
+#endif /* NO_ASN */
+}
+
+
+/*----------------------------------------------------------------------------*
  | Main
  *----------------------------------------------------------------------------*/
 
@@ -3086,6 +3135,10 @@ void ApiTest(void)
     test_wolfSSL_BIO();
 
     AssertIntEQ(test_wolfSSL_Cleanup(), SSL_SUCCESS);
+
+    /* wolfCrypt ASN tests */
+    test_wc_GetPkcs8TraditionalOffset();
+
     printf(" End API Tests\n");
 
 }
