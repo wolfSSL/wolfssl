@@ -47,6 +47,12 @@
     extern "C" {
 #endif
 
+#ifdef WOLFSSL_PUBLIC_MP
+    #define MP_API   WOLFSSL_API
+#else
+    #define MP_API
+#endif
+
 #ifndef MIN
    #define MIN(x,y) ((x)<(y)?(x):(y))
 #endif
@@ -370,8 +376,8 @@ typedef struct fp_int {
 
 /* initialize [or zero] an fp int */
 void fp_init(fp_int *a);
-void fp_zero(fp_int *a);
-void fp_clear(fp_int *a); /* uses ForceZero to clear sensitive memory */
+MP_API void fp_zero(fp_int *a);
+MP_API void fp_clear(fp_int *a); /* uses ForceZero to clear sensitive memory */
 
 /* zero/even/odd ? */
 #define fp_iszero(a) (((a)->used == 0) ? FP_YES : FP_NO)
@@ -617,85 +623,86 @@ typedef fp_int mp_int;
 #define mp_isone(a)  fp_isone(a)
 #define mp_iseven(a)  fp_iseven(a)
 #define mp_isneg(a)   fp_isneg(a)
-int  mp_init (mp_int * a);
-void mp_clear (mp_int * a);
+MP_API int  mp_init (mp_int * a);
+MP_API void mp_clear (mp_int * a);
 #define mp_forcezero(a) fp_clear(a)
-int mp_init_multi(mp_int* a, mp_int* b, mp_int* c, mp_int* d, mp_int* e, mp_int* f);
+MP_API int mp_init_multi(mp_int* a, mp_int* b, mp_int* c, mp_int* d, mp_int* e,
+                         mp_int* f);
 
-int  mp_add (mp_int * a, mp_int * b, mp_int * c);
-int  mp_sub (mp_int * a, mp_int * b, mp_int * c);
-int  mp_add_d (mp_int * a, mp_digit b, mp_int * c);
+MP_API int  mp_add (mp_int * a, mp_int * b, mp_int * c);
+MP_API int  mp_sub (mp_int * a, mp_int * b, mp_int * c);
+MP_API int  mp_add_d (mp_int * a, mp_digit b, mp_int * c);
 
-int  mp_mul (mp_int * a, mp_int * b, mp_int * c);
-int  mp_mul_d (mp_int * a, mp_digit b, mp_int * c);
-int  mp_mulmod (mp_int * a, mp_int * b, mp_int * c, mp_int * d);
-int  mp_submod (mp_int* a, mp_int* b, mp_int* c, mp_int* d);
-int  mp_addmod (mp_int* a, mp_int* b, mp_int* c, mp_int* d);
-int  mp_mod(mp_int *a, mp_int *b, mp_int *c);
-int  mp_invmod(mp_int *a, mp_int *b, mp_int *c);
-int  mp_exptmod (mp_int * g, mp_int * x, mp_int * p, mp_int * y);
-int  mp_mul_2d(mp_int *a, int b, mp_int *c);
+MP_API int  mp_mul (mp_int * a, mp_int * b, mp_int * c);
+MP_API int  mp_mul_d (mp_int * a, mp_digit b, mp_int * c);
+MP_API int  mp_mulmod (mp_int * a, mp_int * b, mp_int * c, mp_int * d);
+MP_API int  mp_submod (mp_int* a, mp_int* b, mp_int* c, mp_int* d);
+MP_API int  mp_addmod (mp_int* a, mp_int* b, mp_int* c, mp_int* d);
+MP_API int  mp_mod(mp_int *a, mp_int *b, mp_int *c);
+MP_API int  mp_invmod(mp_int *a, mp_int *b, mp_int *c);
+MP_API int  mp_exptmod (mp_int * g, mp_int * x, mp_int * p, mp_int * y);
+MP_API int  mp_mul_2d(mp_int *a, int b, mp_int *c);
 
-int  mp_div(mp_int * a, mp_int * b, mp_int * c, mp_int * d);
+MP_API int  mp_div(mp_int * a, mp_int * b, mp_int * c, mp_int * d);
 
-int  mp_cmp(mp_int *a, mp_int *b);
-int  mp_cmp_d(mp_int *a, mp_digit b);
+MP_API int  mp_cmp(mp_int *a, mp_int *b);
+MP_API int  mp_cmp_d(mp_int *a, mp_digit b);
 
-int  mp_unsigned_bin_size(mp_int * a);
-int  mp_read_unsigned_bin (mp_int * a, const unsigned char *b, int c);
-int  mp_to_unsigned_bin_at_pos(int x, mp_int *t, unsigned char *b);
-int  mp_to_unsigned_bin (mp_int * a, unsigned char *b);
+MP_API int  mp_unsigned_bin_size(mp_int * a);
+MP_API int  mp_read_unsigned_bin (mp_int * a, const unsigned char *b, int c);
+MP_API int  mp_to_unsigned_bin_at_pos(int x, mp_int *t, unsigned char *b);
+MP_API int  mp_to_unsigned_bin (mp_int * a, unsigned char *b);
 
-int  mp_sub_d(fp_int *a, fp_digit b, fp_int *c);
-int  mp_copy(fp_int* a, fp_int* b);
-int  mp_isodd(mp_int* a);
-int  mp_iszero(mp_int* a);
-int  mp_count_bits(mp_int *a);
-int  mp_leading_bit(mp_int *a);
-int  mp_set_int(mp_int *a, unsigned long b);
-int  mp_is_bit_set (mp_int * a, mp_digit b);
-int  mp_set_bit (mp_int * a, mp_digit b);
-void mp_rshb(mp_int *a, int x);
-void mp_rshd(mp_int *a, int x);
-int mp_toradix (mp_int *a, char *str, int radix);
-int mp_radix_size (mp_int * a, int radix, int *size);
+MP_API int  mp_sub_d(fp_int *a, fp_digit b, fp_int *c);
+MP_API int  mp_copy(fp_int* a, fp_int* b);
+MP_API int  mp_isodd(mp_int* a);
+MP_API int  mp_iszero(mp_int* a);
+MP_API int  mp_count_bits(mp_int *a);
+MP_API int  mp_leading_bit(mp_int *a);
+MP_API int  mp_set_int(mp_int *a, unsigned long b);
+MP_API int  mp_is_bit_set (mp_int * a, mp_digit b);
+MP_API int  mp_set_bit (mp_int * a, mp_digit b);
+MP_API void mp_rshb(mp_int *a, int x);
+MP_API void mp_rshd(mp_int *a, int x);
+MP_API int mp_toradix (mp_int *a, char *str, int radix);
+MP_API int mp_radix_size (mp_int * a, int radix, int *size);
 
 #ifdef WOLFSSL_DEBUG_MATH
-    void mp_dump(const char* desc, mp_int* a, byte verbose);
+    MP_API void mp_dump(const char* desc, mp_int* a, byte verbose);
 #else
     #define mp_dump(desc, a, verbose)
 #endif
 
 #ifdef HAVE_ECC
-    int mp_read_radix(mp_int* a, const char* str, int radix);
-    int mp_sqr(fp_int *a, fp_int *b);
-    int mp_montgomery_reduce(fp_int *a, fp_int *m, fp_digit mp);
-    int mp_montgomery_setup(fp_int *a, fp_digit *rho);
-    int mp_div_2(fp_int * a, fp_int * b);
-    int mp_init_copy(fp_int * a, fp_int * b);
+    MP_API int mp_read_radix(mp_int* a, const char* str, int radix);
+    MP_API int mp_sqr(fp_int *a, fp_int *b);
+    MP_API int mp_montgomery_reduce(fp_int *a, fp_int *m, fp_digit mp);
+    MP_API int mp_montgomery_setup(fp_int *a, fp_digit *rho);
+    MP_API int mp_div_2(fp_int * a, fp_int * b);
+    MP_API int mp_init_copy(fp_int * a, fp_int * b);
 #endif
 
 #if defined(HAVE_ECC) || !defined(NO_RSA) || !defined(NO_DSA)
-    int mp_set(fp_int *a, fp_digit b);
+    MP_API int mp_set(fp_int *a, fp_digit b);
 #endif
 
 #if defined(HAVE_ECC) || defined(WOLFSSL_KEY_GEN)
-    int mp_sqrmod(mp_int* a, mp_int* b, mp_int* c);
-    int mp_montgomery_calc_normalization(mp_int *a, mp_int *b);
+    MP_API int mp_sqrmod(mp_int* a, mp_int* b, mp_int* c);
+    MP_API int mp_montgomery_calc_normalization(mp_int *a, mp_int *b);
 #endif
 
 #ifdef WOLFSSL_KEY_GEN
-int  mp_gcd(fp_int *a, fp_int *b, fp_int *c);
-int  mp_lcm(fp_int *a, fp_int *b, fp_int *c);
-int  mp_prime_is_prime(mp_int* a, int t, int* result);
-int  mp_rand_prime(mp_int* N, int len, WC_RNG* rng, void* heap);
-int  mp_exch(mp_int *a, mp_int *b);
+MP_API int  mp_gcd(fp_int *a, fp_int *b, fp_int *c);
+MP_API int  mp_lcm(fp_int *a, fp_int *b, fp_int *c);
+MP_API int  mp_prime_is_prime(mp_int* a, int t, int* result);
+MP_API int  mp_rand_prime(mp_int* N, int len, WC_RNG* rng, void* heap);
+MP_API int  mp_exch(mp_int *a, mp_int *b);
 #endif /* WOLFSSL_KEY_GEN */
 
-int  mp_cnt_lsb(fp_int *a);
-int  mp_div_2d(fp_int *a, int b, fp_int *c, fp_int *d);
-int  mp_mod_d(fp_int* a, fp_digit b, fp_digit* c);
-int  mp_lshd (mp_int * a, int b);
+MP_API int  mp_cnt_lsb(fp_int *a);
+MP_API int  mp_div_2d(fp_int *a, int b, fp_int *c, fp_int *d);
+MP_API int  mp_mod_d(fp_int* a, fp_digit b, fp_digit* c);
+MP_API int  mp_lshd (mp_int * a, int b);
 
 WOLFSSL_API word32 CheckRunTimeFastMath(void);
 
