@@ -953,11 +953,6 @@ static int wc_ecc_export_x963_compressed(ecc_key*, byte* out, word32* outLen);
 
 #ifndef WOLFSSL_ATECC508A
 
-int  ecc_map(ecc_point*, mp_int*, mp_digit);
-int  ecc_projective_add_point(ecc_point* P, ecc_point* Q, ecc_point* R,
-                              mp_int* a, mp_int* modulus, mp_digit mp);
-int  ecc_projective_dbl_point(ecc_point* P, ecc_point* R, mp_int* a,
-                              mp_int* modulus, mp_digit mp);
 static int ecc_check_pubkey_order(ecc_key* key, mp_int* a, mp_int* prime, mp_int* order);
 #ifdef ECC_SHAMIR
 static int ecc_mul2add(ecc_point* A, mp_int* kA, ecc_point* B, mp_int* kB,

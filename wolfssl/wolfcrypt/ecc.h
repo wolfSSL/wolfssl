@@ -289,6 +289,22 @@ extern const ecc_set_type ecc_sets[];
 WOLFSSL_API
 const char* wc_ecc_get_name(int curve_id);
 
+#ifndef WOLFSSL_ATECC508A
+
+#ifdef WOLFSSL_PUBLIC_ECC_ADD_DBL
+    #define ECC_API    WOLFSSL_API
+#else
+    #define ECC_API    WOLFSSL_LOCAL
+#endif
+
+ECC_API int ecc_map(ecc_point*, mp_int*, mp_digit);
+ECC_API int ecc_projective_add_point(ecc_point* P, ecc_point* Q, ecc_point* R,
+                                     mp_int* a, mp_int* modulus, mp_digit mp);
+ECC_API int ecc_projective_dbl_point(ecc_point* P, ecc_point* R, mp_int* a,
+                                     mp_int* modulus, mp_digit mp);
+
+#endif
+
 WOLFSSL_API
 int wc_ecc_make_key(WC_RNG* rng, int keysize, ecc_key* key);
 WOLFSSL_API
