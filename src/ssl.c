@@ -4709,7 +4709,12 @@ int wolfSSL_CertManagerEnableCRL(WOLFSSL_CERT_MANAGER* cm, int options)
                 cm->crl = NULL;
                 return SSL_FAILURE;
             }
+
+        #ifdef HAVE_CRL_IO
+            cm->crl->crlIOCb = EmbedCrlLookup;
+        #endif
         }
+
         cm->crlEnabled = 1;
         if (options & WOLFSSL_CRL_CHECKALL)
             cm->crlCheckAll = 1;
@@ -5377,6 +5382,17 @@ int wolfSSL_CertManagerSetCRL_Cb(WOLFSSL_CERT_MANAGER* cm, CbMissingCRL cb)
     return SSL_SUCCESS;
 }
 
+#ifdef HAVE_CRL_IO
+int wolfSSL_CertManagerSetCRL_IOCb(WOLFSSL_CERT_MANAGER* cm, CbCrlIO cb)
+{
+    if (cm == NULL)
+        return BAD_FUNC_ARG;
+
+    cm->crl->crlIOCb = cb;
+
+    return SSL_SUCCESS;
+}
+#endif
 
 int wolfSSL_CertManagerLoadCRL(WOLFSSL_CERT_MANAGER* cm, const char* path,
                               int type, int monitor)
@@ -5435,6 +5451,16 @@ int wolfSSL_SetCRL_Cb(WOLFSSL* ssl, CbMissingCRL cb)
         return BAD_FUNC_ARG;
 }
 
+#ifdef HAVE_CRL_IO
+int wolfSSL_SetCRL_IOCb(WOLFSSL* ssl, CbCrlIO cb)
+{
+    WOLFSSL_ENTER("wolfSSL_SetCRL_Cb");
+    if (ssl)
+        return wolfSSL_CertManagerSetCRL_IOCb(ssl->ctx->cm, cb);
+    else
+        return BAD_FUNC_ARG;
+}
+#endif
 
 int wolfSSL_CTX_EnableCRL(WOLFSSL_CTX* ctx, int options)
 {
@@ -5475,6 +5501,17 @@ int wolfSSL_CTX_SetCRL_Cb(WOLFSSL_CTX* ctx, CbMissingCRL cb)
     else
         return BAD_FUNC_ARG;
 }
+
+#ifdef HAVE_CRL_IO
+int wolfSSL_CTX_SetCRL_IOCb(WOLFSSL_CTX* ctx, CbCrlIO cb)
+{
+    WOLFSSL_ENTER("wolfSSL_CTX_SetCRL_IOCb");
+    if (ctx)
+        return wolfSSL_CertManagerSetCRL_IOCb(ctx->cm, cb);
+    else
+        return BAD_FUNC_ARG;
+}
+#endif
 
 
 #endif /* HAVE_CRL */

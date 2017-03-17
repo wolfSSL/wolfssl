@@ -624,7 +624,7 @@ static INLINE void build_addr(SOCKADDR_IN_T* addr, const char* peer,
     #else
         addr->sin_family = AF_INET_V;
     #endif
-    addr->sin_port = htons(port);
+    addr->sin_port = XHTONS(port);
     if (peer == INADDR_ANY)
         addr->sin_addr.s_addr = INADDR_ANY;
     else {
@@ -633,7 +633,7 @@ static INLINE void build_addr(SOCKADDR_IN_T* addr, const char* peer,
     }
 #else
     addr->sin6_family = AF_INET_V;
-    addr->sin6_port = htons(port);
+    addr->sin6_port = XHTONS(port);
     if (peer == INADDR_ANY)
         addr->sin6_addr = in6addr_any;
     else {
@@ -824,9 +824,9 @@ static INLINE void tcp_listen(SOCKET_T* sockfd, word16* port, int useAnyAddr,
             socklen_t len = sizeof(addr);
             if (getsockname(*sockfd, (struct sockaddr*)&addr, &len) == 0) {
                 #ifndef TEST_IPV6
-                    *port = ntohs(addr.sin_port);
+                    *port = XNTOHS(addr.sin_port);
                 #else
-                    *port = ntohs(addr.sin6_port);
+                    *port = XNTOHS(addr.sin6_port);
                 #endif
             }
         }
@@ -885,9 +885,9 @@ static INLINE void udp_accept(SOCKET_T* sockfd, SOCKET_T* clientfd,
             socklen_t len = sizeof(addr);
             if (getsockname(*sockfd, (struct sockaddr*)&addr, &len) == 0) {
                 #ifndef TEST_IPV6
-                    port = ntohs(addr.sin_port);
+                    port = XNTOHS(addr.sin_port);
                 #else
-                    port = ntohs(addr.sin6_port);
+                    port = XNTOHS(addr.sin6_port);
                 #endif
             }
         }
@@ -2028,7 +2028,7 @@ static INLINE const char* mymktemp(char *tempfn, int len, int num)
         (void)userCtx;
 
         int ret;
-        word16 sLen = htons(inLen);
+        word16 sLen = XHTONS(inLen);
         byte aad[WOLFSSL_TICKET_NAME_SZ + WOLFSSL_TICKET_IV_SZ + 2];
         int  aadSz = WOLFSSL_TICKET_NAME_SZ + WOLFSSL_TICKET_IV_SZ + 2;
         byte* tmp = aad;

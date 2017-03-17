@@ -81,9 +81,12 @@ typedef struct WOLFSSL_X509_CHAIN WOLFSSL_X509_CHAIN;
 
 typedef struct WOLFSSL_CERT_MANAGER WOLFSSL_CERT_MANAGER;
 typedef struct WOLFSSL_SOCKADDR     WOLFSSL_SOCKADDR;
+typedef struct WOLFSSL_CRL          WOLFSSL_CRL;
 
 /* redeclare guard */
 #define WOLFSSL_TYPES_DEFINED
+
+#include <wolfssl/io.h>
 
 
 #ifndef WOLFSSL_RSA_TYPE_DEFINED /* guard on redeclaration */
@@ -1295,9 +1298,6 @@ WOLFSSL_API int wolfSSL_make_eap_keys(WOLFSSL*, void* key, unsigned int len,
 WOLFSSL_API int wolfSSL_CTX_set_group_messages(WOLFSSL_CTX*);
 WOLFSSL_API int wolfSSL_set_group_messages(WOLFSSL*);
 
-/* I/O callbacks */
-typedef int (*CallbackIORecv)(WOLFSSL *ssl, char *buf, int sz, void *ctx);
-typedef int (*CallbackIOSend)(WOLFSSL *ssl, char *buf, int sz, void *ctx);
 
 #ifdef HAVE_FUZZER
 enum fuzzer_type {
@@ -1314,64 +1314,7 @@ typedef int (*CallbackFuzzer)(WOLFSSL* ssl, const unsigned char* buf, int sz,
 WOLFSSL_API void wolfSSL_SetFuzzerCb(WOLFSSL* ssl, CallbackFuzzer cbf, void* fCtx);
 #endif
 
-WOLFSSL_API void wolfSSL_SetIORecv(WOLFSSL_CTX*, CallbackIORecv);
-WOLFSSL_API void wolfSSL_SetIOSend(WOLFSSL_CTX*, CallbackIOSend);
 
-WOLFSSL_API void wolfSSL_SetIOReadCtx( WOLFSSL* ssl, void *ctx);
-WOLFSSL_API void wolfSSL_SetIOWriteCtx(WOLFSSL* ssl, void *ctx);
-
-WOLFSSL_API void* wolfSSL_GetIOReadCtx( WOLFSSL* ssl);
-WOLFSSL_API void* wolfSSL_GetIOWriteCtx(WOLFSSL* ssl);
-
-WOLFSSL_API void wolfSSL_SetIOReadFlags( WOLFSSL* ssl, int flags);
-WOLFSSL_API void wolfSSL_SetIOWriteFlags(WOLFSSL* ssl, int flags);
-
-#ifndef WOLFSSL_USER_IO
-    /* default IO callbacks */
-    WOLFSSL_API int EmbedReceive(WOLFSSL* ssl, char* buf, int sz, void* ctx);
-    WOLFSSL_API int EmbedSend(WOLFSSL* ssl, char* buf, int sz, void* ctx);
-
-    #ifdef HAVE_OCSP
-        WOLFSSL_API int EmbedOcspLookup(void*, const char*, int, unsigned char*,
-                                       int, unsigned char**);
-        WOLFSSL_API void EmbedOcspRespFree(void*, unsigned char*);
-    #endif
-
-    #ifdef WOLFSSL_DTLS
-        WOLFSSL_API int EmbedReceiveFrom(WOLFSSL* ssl, char* buf, int sz, void*);
-        WOLFSSL_API int EmbedSendTo(WOLFSSL* ssl, char* buf, int sz, void* ctx);
-        WOLFSSL_API int EmbedGenerateCookie(WOLFSSL* ssl, unsigned char* buf,
-                                           int sz, void*);
-        #ifdef WOLFSSL_SESSION_EXPORT
-            WOLFSSL_API int EmbedGetPeer(WOLFSSL* ssl, char* ip, int* ipSz,
-                                                unsigned short* port, int* fam);
-            WOLFSSL_API int EmbedSetPeer(WOLFSSL* ssl, char* ip, int ipSz,
-                                                  unsigned short port, int fam);
-
-            typedef int (*CallbackGetPeer)(WOLFSSL* ssl, char* ip, int* ipSz,
-                                                unsigned short* port, int* fam);
-            typedef int (*CallbackSetPeer)(WOLFSSL* ssl, char* ip, int ipSz,
-                                                  unsigned short port, int fam);
-
-            WOLFSSL_API void wolfSSL_CTX_SetIOGetPeer(WOLFSSL_CTX*,
-                                                               CallbackGetPeer);
-            WOLFSSL_API void wolfSSL_CTX_SetIOSetPeer(WOLFSSL_CTX*,
-                                                               CallbackSetPeer);
-        #endif /* WOLFSSL_SESSION_EXPORT */
-    #endif /* WOLFSSL_DTLS */
-#endif /* WOLFSSL_USER_IO */
-
-
-#ifdef HAVE_NETX
-    WOLFSSL_API void wolfSSL_SetIO_NetX(WOLFSSL* ssl, NX_TCP_SOCKET* nxsocket,
-                                      ULONG waitoption);
-#endif
-
-typedef int (*CallbackGenCookie)(WOLFSSL* ssl, unsigned char* buf, int sz,
-                                 void* ctx);
-WOLFSSL_API void  wolfSSL_CTX_SetGenCookie(WOLFSSL_CTX*, CallbackGenCookie);
-WOLFSSL_API void  wolfSSL_SetCookieCtx(WOLFSSL* ssl, void *ctx);
-WOLFSSL_API void* wolfSSL_GetCookieCtx(WOLFSSL* ssl);
 WOLFSSL_API int   wolfSSL_DTLS_SetCookieSecret(WOLFSSL*,
                                                const unsigned char*,
                                                unsigned int);
@@ -1428,6 +1371,10 @@ typedef void (*CbMissingCRL)(const char* url);
 typedef int  (*CbOCSPIO)(void*, const char*, int,
                                          unsigned char*, int, unsigned char**);
 typedef void (*CbOCSPRespFree)(void*,unsigned char*);
+
+#ifdef HAVE_CRL_IO
+typedef int  (*CbCrlIO)(WOLFSSL_CRL* crl, const char* url, int urlSz);
+#endif
 
 /* User Atomic Record Layer CallBacks */
 typedef int (*CallbackMacEncrypt)(WOLFSSL* ssl, unsigned char* macOut,
@@ -1600,6 +1547,10 @@ WOLFSSL_API void* wolfSSL_GetRsaDecCtx(WOLFSSL* ssl);
                                             const unsigned char*, long sz, int);
     WOLFSSL_API int wolfSSL_CertManagerSetCRL_Cb(WOLFSSL_CERT_MANAGER*,
                                                                   CbMissingCRL);
+#ifdef HAVE_CRL_IO
+    WOLFSSL_API int wolfSSL_CertManagerSetCRL_IOCb(WOLFSSL_CERT_MANAGER*,
+                                                                       CbCrlIO);
+#endif
     WOLFSSL_API int wolfSSL_CertManagerCheckOCSP(WOLFSSL_CERT_MANAGER*,
                                                         unsigned char*, int sz);
     WOLFSSL_API int wolfSSL_CertManagerEnableOCSP(WOLFSSL_CERT_MANAGER*,
@@ -1619,6 +1570,9 @@ WOLFSSL_API void* wolfSSL_GetRsaDecCtx(WOLFSSL* ssl);
     WOLFSSL_API int wolfSSL_LoadCRLBuffer(WOLFSSL*,
                                           const unsigned char*, long sz, int);
     WOLFSSL_API int wolfSSL_SetCRL_Cb(WOLFSSL*, CbMissingCRL);
+#ifdef HAVE_CRL_IO
+    WOLFSSL_API int wolfSSL_SetCRL_IOCb(WOLFSSL* ssl, CbCrlIO cb);
+#endif
     WOLFSSL_API int wolfSSL_EnableOCSP(WOLFSSL*, int options);
     WOLFSSL_API int wolfSSL_DisableOCSP(WOLFSSL*);
     WOLFSSL_API int wolfSSL_SetOCSP_OverrideURL(WOLFSSL*, const char*);
@@ -1630,6 +1584,9 @@ WOLFSSL_API void* wolfSSL_GetRsaDecCtx(WOLFSSL* ssl);
     WOLFSSL_API int wolfSSL_CTX_LoadCRLBuffer(WOLFSSL_CTX*,
                                             const unsigned char*, long sz, int);
     WOLFSSL_API int wolfSSL_CTX_SetCRL_Cb(WOLFSSL_CTX*, CbMissingCRL);
+#ifdef HAVE_CRL_IO
+    WOLFSSL_API int wolfSSL_CTX_SetCRL_IOCb(WOLFSSL_CTX*, CbCrlIO);
+#endif
     WOLFSSL_API int wolfSSL_CTX_EnableOCSP(WOLFSSL_CTX*, int options);
     WOLFSSL_API int wolfSSL_CTX_DisableOCSP(WOLFSSL_CTX*);
     WOLFSSL_API int wolfSSL_CTX_SetOCSP_OverrideURL(WOLFSSL_CTX*, const char*);

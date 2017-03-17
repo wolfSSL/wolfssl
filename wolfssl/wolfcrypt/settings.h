@@ -1497,6 +1497,11 @@ static char *fgets(char *buff, int sz, FILE *fp)
     #error old TLS requires MD5 and SHA
 #endif
 
+/* for backwards compatibility */
+#if defined(TEST_IPV6) && !defined(WOLFSSL_IPV6)
+    #define WOLFSSL_IPV6
+#endif
+
 
 /* Place any other flags or defines here */
 

@@ -11853,6 +11853,8 @@ const char* wolfSSL_ERR_reason_error_string(unsigned long e)
     case NOT_CA_ERROR:
         return "Not a CA by basic constraint error";
 
+    case HTTP_TIMEOUT:
+        return "HTTP timeout for OCSP or CRL req";
 
     case BAD_CERT_MANAGER_ERROR:
         return "Bad Cert Manager error";

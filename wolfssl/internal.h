@@ -189,13 +189,6 @@
 #endif
 
 
-#ifdef USE_WINDOWS_API
-    typedef unsigned int SOCKET_T;
-#else
-    typedef int SOCKET_T;
-#endif
-
-
 typedef byte word24[3];
 
 /* Define or comment out the cipher suites you'd like to be compiled in
@@ -1421,11 +1414,6 @@ int  SetCipherList(Suites*, const char* list);
                    unsigned char* exportBuffer, unsigned int sz, void* userCtx);
 #endif
 
-#ifdef HAVE_NETX
-    WOLFSSL_LOCAL int NetX_Receive(WOLFSSL *ssl, char *buf, int sz, void *ctx);
-    WOLFSSL_LOCAL int NetX_Send(WOLFSSL *ssl, char *buf, int sz, void *ctx);
-#endif /* HAVE_NETX */
-
 
 /* wolfSSL Cipher type just points back to SSL */
 struct WOLFSSL_CIPHER {
@@ -1521,6 +1509,9 @@ struct CRL_Monitor {
 struct WOLFSSL_CRL {
     WOLFSSL_CERT_MANAGER* cm;            /* pointer back to cert manager */
     CRL_Entry*            crlList;       /* our CRL list */
+#ifdef HAVE_CRL_IO
+    CbCrlIO               crlIOCb;
+#endif
     wolfSSL_Mutex         crlLock;       /* CRL list lock */
     CRL_Monitor           monitors[2];   /* PEM and DER possible */
 #ifdef HAVE_CRL_MONITOR
