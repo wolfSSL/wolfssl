@@ -5047,7 +5047,7 @@ exit:
     return ret;
 }
 
-#if (defined(HAVE_HASHDRBG) || defined(NO_RC4)) && !defined(CUSTOM_RAND_GENERATE_BLOCK)
+#if defined(HAVE_HASHDRBG) && !defined(CUSTOM_RAND_GENERATE_BLOCK)
 
 int random_test(void)
 {
@@ -5126,17 +5126,15 @@ int random_test(void)
     return 0;
 }
 
-#else /* (HAVE_HASHDRBG || NO_RC4) && !CUSTOM_RAND_GENERATE_BLOCK */
+#else
 
 int random_test(void)
 {
     /* Basic RNG generate block test */
-    random_rng_test();
-
-    return 0;
+    return random_rng_test();
 }
 
-#endif /* (HAVE_HASHDRBG || NO_RC4) && !CUSTOM_RAND_GENERATE_BLOCK */
+#endif /* HAVE_HASHDRBG && !CUSTOM_RAND_GENERATE_BLOCK */
 #endif /* WC_NO_RNG */
 
 

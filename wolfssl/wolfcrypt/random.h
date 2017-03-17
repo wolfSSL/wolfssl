@@ -36,42 +36,58 @@
 #endif
 
 /* Maximum generate block length */
-#define RNG_MAX_BLOCK_LEN (0x10000)
+#ifndef RNG_MAX_BLOCK_LEN
+    #define RNG_MAX_BLOCK_LEN (0x10000)
+#endif
+
+#if defined(CUSTOM_RAND_GENERATE) && !defined(CUSTOM_RAND_TYPE)
+    /* To maintain compatibility the default is byte */
+    #define CUSTOM_RAND_TYPE    byte
+#endif
+
 
 #ifndef HAVE_FIPS /* avoid redefining structs and macros */
-
-#if defined(WOLFSSL_FORCE_RC4_DRBG) && defined(NO_RC4)
-    #error Cannot have WOLFSSL_FORCE_RC4_DRBG and NO_RC4 defined.
-#endif /* WOLFSSL_FORCE_RC4_DRBG && NO_RC4 */
 
 
 /* RNG supports the following sources (in order):
  * 1. CUSTOM_RAND_GENERATE_BLOCK: Defines name of function as RNG source and
- *     bypasses the P-RNG.
- * 2. HAVE_HASHDRBG && !NO_SHA256 (SHA256 enabled): Uses SHA256 based P-RNG
+ *     bypasses the options below.
+ * 2. HAVE_INTEL_RDRAND: Uses the Intel RDRAND if supported by CPU.
+ * 3. HAVE_HASHDRBG (requires SHA256 enabled): Uses SHA256 based P-RNG
  *     seeded via wc_GenerateSeed. This is the default source.
- * 3. !NO_RC4 (RC4 enabled): Uses RC4
+ * 4. Fallback to using wc_GenerateSeed directly.
  */
+
+ /* Seed source can be overriden by defining one of these:
+      CUSTOM_RAND_GENERATE_SEED
+      CUSTOM_RAND_GENERATE_SEED_OS
+      CUSTOM_RAND_GENERATE */
+
 
 #if defined(CUSTOM_RAND_GENERATE_BLOCK)
     /* To use define the following:
      * #define CUSTOM_RAND_GENERATE_BLOCK myRngFunc
      * extern int myRngFunc(byte* output, word32 sz);
      */
-#elif (defined(HAVE_HASHDRBG) || defined(NO_RC4))
+#elif defined(HAVE_HASHDRBG)
     #ifdef NO_SHA256
         #error "Hash DRBG requires SHA-256."
     #endif /* NO_SHA256 */
-
     #include <wolfssl/wolfcrypt/sha256.h>
+#elif defined(HAVE_INTEL_RDRAND)
+#elif defined(HAVE_WNR)
 #else
-    #include <wolfssl/wolfcrypt/arc4.h>
+     #warning No RNG source defined. Using wc_GenerateSeed directly
 #endif
-
 
 #ifdef HAVE_WNR
     #include <wnr.h>
 #endif
+
+#ifdef WOLFSSL_ASYNC_CRYPT
+    #include <wolfssl/wolfcrypt/async.h>
+#endif
+
 
 #if defined(USE_WINDOWS_API)
     #if defined(_WIN64)
@@ -98,46 +114,26 @@ typedef struct OS_Seed {
     #define WC_RNG_TYPE_DEFINED
 #endif
 
-#if (defined(HAVE_HASHDRBG) || defined(NO_RC4)) && !defined(CUSTOM_RAND_GENERATE_BLOCK)
+#ifndef CUSTOM_RAND_GENERATE_BLOCK
 
 #define DRBG_SEED_LEN (440/8)
 
-
 struct DRBG; /* Private DRBG state */
-
 
 /* Hash-based Deterministic Random Bit Generator */
 struct WC_RNG {
+#ifdef HAVE_HASHDRBG
     struct DRBG* drbg;
+    byte status;
+#endif
     OS_Seed seed;
     void* heap;
-    byte status;
-};
-
-
-
-#else /* (HAVE_HASHDRBG || NO_RC4) && !CUSTOM_RAND_GENERATE_BLOCK */
-
-#ifdef WOLFSSL_ASYNC_CRYPT
-    #include <wolfssl/wolfcrypt/async.h>
-#endif
-
-/* secure Random Number Generator */
-
-
-struct WC_RNG {
-    OS_Seed seed;
-#ifndef NO_RC4
-    Arc4    cipher;
-#endif
 #ifdef WOLFSSL_ASYNC_CRYPT
     AsyncCryptDev asyncDev;
 #endif
 };
 
-
-
-#endif /* (HAVE_HASHDRBG || NO_RC4) && !CUSTOM_RAND_GENERATE_BLOCK */
+#endif /* !CUSTOM_RAND_GENERATE_BLOCK */
 #endif /* HAVE_FIPS */
 
 /* NO_OLD_RNGNAME removes RNG struct name to prevent possible type conflicts,

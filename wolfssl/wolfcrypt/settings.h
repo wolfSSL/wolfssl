@@ -1405,12 +1405,6 @@ extern void uITRON4_free(void *p) ;
     #define WOLFSSL_MIN_AUTH_TAG_SZ 12
 #endif
 
-/* If not forcing ARC4 as the DRBG or using custom RNG block gen, enable Hash_DRBG */
-#undef HAVE_HASHDRBG
-#if !defined(WOLFSSL_FORCE_RC4_DRBG) && !defined(CUSTOM_RAND_GENERATE_BLOCK)
-    #define HAVE_HASHDRBG
-#endif
-
 
 /* sniffer requires:
  * static RSA cipher suites

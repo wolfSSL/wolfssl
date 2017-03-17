@@ -228,7 +228,7 @@ fi
 
 
 AC_ARG_ENABLE([rng],
-    [AS_HELP_STRING([  --enable-rng       Enable compiling and using RNG (default: enabled)])],
+    [AS_HELP_STRING([--enable-rng            Enable compiling and using RNG (default: enabled)])],
     [ ENABLED_RNG=$enableval ],
     [ ENABLED_RNG=yes ]
     )
@@ -334,7 +334,7 @@ AM_CONDITIONAL([BUILD_IPV6], [test "x$ENABLED_IPV6" = "xyes"])
 
 # wpa_supplicant support
 AC_ARG_ENABLE([wpas],
-    [  --enable-wpas         Enable wpa_supplicant support (default: disabled)],
+    [  --enable-wpas           Enable wpa_supplicant support (default: disabled)],
     [ ENABLED_WPAS=$enableval ],
     [ ENABLED_WPAS=no ]
     )
@@ -612,7 +612,7 @@ fi
 
 AM_CONDITIONAL([BUILD_ARMASM], [test "x$ENABLED_ARMASM" = "xyes"])
 
-# AES-NI
+# INTEL AES-NI
 AC_ARG_ENABLE([aesni],
     [AS_HELP_STRING([--enable-aesni],[Enable wolfSSL AES-NI support (default: disabled)])],
     [ ENABLED_AESNI=$enableval ],
@@ -625,6 +625,7 @@ AC_ARG_ENABLE([intelasm],
     [ ENABLED_INTELASM=$enableval ],
     [ ENABLED_INTELASM=no ]
     )
+
 
 if test "$ENABLED_AESNI" = "yes" || test "$ENABLED_INTELASM" = "yes"
 then
@@ -643,8 +644,20 @@ fi
 
 if test "$ENABLED_INTELASM" = "yes"
 then
-    AM_CFLAGS="$AM_CFLAGS -DHAVE_INTEL_RDGEN -DUSE_INTEL_SPEEDUP"
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_INTEL_RDSEED -DUSE_INTEL_SPEEDUP"
     ENABLED_AESNI=yes
+fi
+
+# INTEL RDRAND
+AC_ARG_ENABLE([intelrand],
+    [AS_HELP_STRING([--enable-intelrand],[Enable Intel rdrand as preferred RNG source (default: disabled)])],
+    [ ENABLED_INTELRDRAND=$enableval ],
+    [ ENABLED_INTELRDRAND=no ]
+    )
+
+if test "$ENABLED_INTELRDRAND" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_INTEL_RDRAND"
 fi
 
 AM_CONDITIONAL([BUILD_AESNI], [test "x$ENABLED_AESNI" = "xyes"])
@@ -1678,7 +1691,7 @@ then
     AM_CFLAGS="$AM_CFLAGS -DHAVE_HASHDRBG"
 else
     # turn on Hash DRBG if FIPS is on or ARC4 is off
-    if test "x$ENABLED_FIPS" = "xyes" || test "x$ENABLED_ARC4" = "xno"
+    if test "x$ENABLED_FIPS" = "xyes"
     then
         AM_CFLAGS="$AM_CFLAGS -DHAVE_HASHDRBG"
         ENABLED_HASHDRBG=yes
@@ -2018,7 +2031,7 @@ AC_ARG_ENABLE([maxfragment],
 
 # ALPN
 AC_ARG_ENABLE([alpn],
-    [  --enable-alpn            Enable ALPN (default: disabled)],
+    [  --enable-alpn           Enable ALPN (default: disabled)],
     [ ENABLED_ALPN=$enableval ],
     [ ENABLED_ALPN=no ]
     )
@@ -2956,7 +2969,7 @@ AM_CONDITIONAL([BUILD_MCAPI], [test "x$ENABLED_MCAPI" = "xyes"])
 
 # Asynchronous Crypto
 AC_ARG_ENABLE([asynccrypt],
-    [  --enable-asynccrypt    Enable Asynchronous Crypto (default: disabled)],
+    [  --enable-asynccrypt     Enable Asynchronous Crypto (default: disabled)],
     [ ENABLED_ASYNCCRYPT=$enableval ],
     [ ENABLED_ASYNCCRYPT=no ]
     )
