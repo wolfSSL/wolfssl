@@ -291,12 +291,17 @@ const char* wc_ecc_get_name(int curve_id);
 
 #ifndef WOLFSSL_ATECC508A
 
-WOLFSSL_API int ecc_map(ecc_point*, mp_int*, mp_digit);
-WOLFSSL_API int ecc_projective_add_point(ecc_point* P, ecc_point* Q,
-                                         ecc_point* R, mp_int* a,
-                                         mp_int* modulus, mp_digit mp);
-WOLFSSL_API int ecc_projective_dbl_point(ecc_point* P, ecc_point* R, mp_int* a,
-                                         mp_int* modulus, mp_digit mp);
+#ifdef WOLFSSL_PUBLIC_ECC_ADD_DBL
+    #define ECC_API    WOLFSSL_API
+#else
+    #define ECC_API    WOLFSSL_LOCAL
+#endif
+
+ECC_API int ecc_map(ecc_point*, mp_int*, mp_digit);
+ECC_API int ecc_projective_add_point(ecc_point* P, ecc_point* Q, ecc_point* R,
+                                     mp_int* a, mp_int* modulus, mp_digit mp);
+ECC_API int ecc_projective_dbl_point(ecc_point* P, ecc_point* R, mp_int* a,
+                                     mp_int* modulus, mp_digit mp);
 
 #endif
 
