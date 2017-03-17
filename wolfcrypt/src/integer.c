@@ -3912,7 +3912,7 @@ int mp_set_int (mp_int * a, unsigned long b)
 
   /* use direct mp_set if b is less than mp_digit max */
   if (b < MP_DIGIT_MAX) {
-    return mp_set (a, b);
+    return mp_set (a, (mp_digit)b);
   }
 
   mp_zero (a);
