@@ -45,8 +45,9 @@
     #define CUSTOM_RAND_TYPE    byte
 #endif
 
-/* make sure Hash DRBG is enabled, unless WC_NO_HASHDRBG is defined */
-#ifndef WC_NO_HASHDRBG
+/* make sure Hash DRBG is enabled, unless WC_NO_HASHDRBG is defined
+    or CUSTOM_RAND_GENERATE_BLOCK is defined*/
+#if !defined(WC_NO_HASHDRBG) || !defined(CUSTOM_RAND_GENERATE_BLOCK)
     #undef  HAVE_HASHDRBG
     #define HAVE_HASHDRBG
 #endif
@@ -79,8 +80,8 @@
         #error "Hash DRBG requires SHA-256."
     #endif /* NO_SHA256 */
     #include <wolfssl/wolfcrypt/sha256.h>
-#elif defined(HAVE_INTEL_RDRAND)
 #elif defined(HAVE_WNR)
+     /* allow whitewood as direct RNG source using wc_GenerateSeed directly */
 #else
     #ifndef _MSC_VER
         #warning "No RNG source defined. Using wc_GenerateSeed directly"
@@ -169,12 +170,12 @@ WOLFSSL_API int  wc_RNG_GenerateByte(WC_RNG*, byte*);
 WOLFSSL_API int  wc_FreeRng(WC_RNG*);
 
 
-#if defined(HAVE_HASHDRBG) || defined(NO_RC4)
+#ifdef HAVE_HASHDRBG
     WOLFSSL_API int wc_RNG_HealthTest(int reseed,
                                         const byte* entropyA, word32 entropyASz,
                                         const byte* entropyB, word32 entropyBSz,
                                         byte* output, word32 outputSz);
-#endif /* HAVE_HASHDRBG || NO_RC4 */
+#endif /* HAVE_HASHDRBG */
 
 #ifdef __cplusplus
     } /* extern "C" */

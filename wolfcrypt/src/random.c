@@ -79,45 +79,6 @@ int  wc_RNG_GenerateByte(WC_RNG* rng, byte* b)
 #ifndef WC_NO_RNG /* if not FIPS and RNG is disabled then do not compile */
 
 #include <wolfssl/wolfcrypt/error-crypt.h>
-
-
-/* Allow custom RNG system */
-#ifdef CUSTOM_RAND_GENERATE_BLOCK
-
-int wc_InitRng_ex(WC_RNG* rng, void* heap)
-{
-    (void)rng;
-    (void)heap;
-    return 0;
-}
-
-int wc_InitRng(WC_RNG* rng)
-{
-    return wc_InitRng_ex(rng, NULL);
-}
-
-int wc_RNG_GenerateBlock(WC_RNG* rng, byte* output, word32 sz)
-{
-    (void)rng;
-    XMEMSET(output, 0, sz);
-    return CUSTOM_RAND_GENERATE_BLOCK(output, sz);
-}
-
-
-int wc_RNG_GenerateByte(WC_RNG* rng, byte* b)
-{
-    return wc_RNG_GenerateBlock(rng, b, 1);
-}
-
-
-int wc_FreeRng(WC_RNG* rng)
-{
-    (void)rng;
-    return 0;
-}
-
-#else
-
 #include <wolfssl/wolfcrypt/sha256.h>
 
 #ifdef NO_INLINE
@@ -592,6 +553,11 @@ int wc_RNG_GenerateBlock(WC_RNG* rng, byte* output, word32 sz)
     if (aes->asyncDev.marker == WOLFSSL_ASYNC_MARKER_RNG) {
         return NitroxRngGenerateBlock(rng, output, sz);
     }
+#endif
+
+#ifdef CUSTOM_RAND_GENERATE_BLOCK
+    XMEMSET(output, 0, sz);
+    return CUSTOM_RAND_GENERATE_BLOCK(output, sz);
 #endif
 
 #ifdef HAVE_HASHDRBG
@@ -1624,15 +1590,21 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
         return 0;
     }
 
-#elif defined(WOLFSSL_SAFERTOS) || defined(WOLFSSL_LEANPSK) \
-    || defined(WOLFSSL_IAR_ARM)  || defined(WOLFSSL_MDK_ARM) \
-    || defined(WOLFSSL_uITRON4)  || defined(WOLFSSL_uTKERNEL2) \
-    || defined(WOLFSSL_LPC43xx) || defined(WOLFSSL_STM32F2xx) \
-    || defined(MBED) || defined(WOLFSSL_EMBOS) \
-    || defined(WOLFSSL_GENSEED_FORTEST)
+#elif defined(WOLFSSL_SAFERTOS)
+#elif defined(WOLFSSL_LEANPSK)
+#elif defined(WOLFSSL_IAR_ARM)
+#elif defined(WOLFSSL_MDK_ARM)
+#elif defined(WOLFSSL_uITRON4)
+#elif defined(WOLFSSL_uTKERNEL2)
+#elif defined(WOLFSSL_LPC43xx)
+#elif defined(WOLFSSL_STM32F2xx)
+#elif defined(MBED)
+#elif defined(WOLFSSL_EMBOS)
+#elif defined(WOLFSSL_GENSEED_FORTEST)
 
     /* these platforms do not have a default random seed and
-       you need to implement your own wc_GenerateSeed */
+       you'll need to implement your own wc_GenerateSeed or define via
+       CUSTOM_RAND_GENERATE_BLOCK */
 
     #define USE_TEST_GENSEED
 
@@ -1727,6 +1699,5 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 
 /* End wc_GenerateSeed */
 
-#endif /* CUSTOM_RAND_GENERATE_BLOCK */
 #endif /* WC_NO_RNG */
 #endif /* HAVE_FIPS */
