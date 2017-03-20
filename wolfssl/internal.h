@@ -2754,6 +2754,22 @@ typedef struct HS_Hashes {
 } HS_Hashes;
 
 
+#ifdef HAVE_WRITE_DUP
+
+    #define WRITE_DUP_SIDE 1
+    #define READ_DUP_SIDE 2
+
+    typedef struct WriteDup {
+        wolfSSL_Mutex   dupMutex;       /* reference count mutex */
+        int             dupCount;       /* reference count */
+        int             dupErr;         /* under dupMutex, pass to other side */
+    } WriteDup;
+
+    WOLFSSL_LOCAL void FreeWriteDup(WOLFSSL* ssl);
+    WOLFSSL_LOCAL int  NotifyWriteSide(WOLFSSL* ssl, int err);
+#endif /* HAVE_WRITE_DUP */
+
+
 /* wolfSSL ssl type */
 struct WOLFSSL {
     WOLFSSL_CTX*    ctx;
@@ -2766,6 +2782,11 @@ struct WOLFSSL {
     void*           verifyCbCtx;        /* cert verify callback user ctx*/
     VerifyCallback  verifyCallback;     /* cert verification callback */
     void*           heap;               /* for user overrides */
+#ifdef HAVE_WRITE_DUP
+    WriteDup*       dupWrite;           /* valid pointer indicates ON */
+             /* side that decrements dupCount to zero frees overall structure */
+    byte            dupSide;            /* write side or read side */
+#endif
 #ifdef WOLFSSL_STATIC_MEMORY
     WOLFSSL_HEAP_HINT heap_hint;
 #endif
@@ -2967,9 +2988,9 @@ struct WOLFSSL {
 
 
 WOLFSSL_LOCAL
-int  SetSSL_CTX(WOLFSSL*, WOLFSSL_CTX*);
+int  SetSSL_CTX(WOLFSSL*, WOLFSSL_CTX*, int);
 WOLFSSL_LOCAL
-int  InitSSL(WOLFSSL*, WOLFSSL_CTX*);
+int  InitSSL(WOLFSSL*, WOLFSSL_CTX*, int);
 WOLFSSL_LOCAL
 void FreeSSL(WOLFSSL*, void* heap);
 WOLFSSL_API void SSL_ResourceFree(WOLFSSL*);   /* Micrium uses */

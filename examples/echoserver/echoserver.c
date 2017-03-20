@@ -241,7 +241,8 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
     SignalReady(args, port);
 
     while (!shutDown) {
-        CYASSL* ssl = 0;
+        CYASSL* ssl = NULL;
+        CYASSL* write_ssl = NULL;   /* may have separate w/ HAVE_WRITE_DUP */
         char    command[SVR_COMMAND_SIZE+1];
         int     echoSz = 0;
         int     clientfd;
@@ -308,6 +309,18 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
         showPeer(ssl);
 #endif
 
+#ifdef HAVE_WRITE_DUP
+        write_ssl = wolfSSL_write_dup(ssl);
+        if (write_ssl == NULL) {
+            printf("wolfSSL_write_dup failed\n");
+            CyaSSL_free(ssl);
+            CloseSocket(clientfd);
+            continue;
+        }
+#else
+        write_ssl = ssl;
+#endif
+
         while ( (echoSz = CyaSSL_read(ssl, command, sizeof(command)-1)) > 0) {
 
             if (firstRead == 1) {
@@ -354,7 +367,7 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
                 strncpy(&command[echoSz], footer, sizeof(footer));
                 echoSz += (int)sizeof(footer);
 
-                if (CyaSSL_write(ssl, command, echoSz) != echoSz)
+                if (CyaSSL_write(write_ssl, command, echoSz) != echoSz)
                     err_sys("SSL_write failed");
                 break;
             }
@@ -364,11 +377,14 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
                 fputs(command, fout);
             #endif
 
-            if (CyaSSL_write(ssl, command, echoSz) != echoSz)
+            if (CyaSSL_write(write_ssl, command, echoSz) != echoSz)
                 err_sys("SSL_write failed");
         }
 #ifndef CYASSL_DTLS
         CyaSSL_shutdown(ssl);
+#endif
+#ifdef HAVE_WRITE_DUP
+        CyaSSL_free(write_ssl);
 #endif
         CyaSSL_free(ssl);
         CloseSocket(clientfd);
