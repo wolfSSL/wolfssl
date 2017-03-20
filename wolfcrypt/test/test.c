@@ -5329,7 +5329,8 @@ byte GetEntropy(ENTROPY_CMD cmd, byte* out)
         static const char* eccPubKeyDerFile = CERT_PREFIX "ecc-public-key.der";
     #endif
     #if defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_KEY_GEN)
-        static const char* eccCaKeyFile  = CERT_PREFIX "ecc-key.der";
+        static const char* eccCaKeyFile  = CERT_ROOT   "ecc-key.der";
+        static const char* eccCaKeyTemp  = CERT_PREFIX "ecc-key.der";
     #endif
     #if defined(WOLFSSL_CERT_GEN) || \
             (defined(WOLFSSL_CERT_EXT) && defined(WOLFSSL_TEST_CERT))
@@ -9767,7 +9768,7 @@ static int ecc_test_key_gen(WC_RNG* rng, int keySize)
     }
 
 #ifndef NO_FILESYSTEM
-    keyFile = fopen(eccCaKeyFile, "wb");
+    keyFile = fopen(eccCaKeyTemp, "wb");
     if (!keyFile) {
         ERROR_OUT(-1025, done);
     }
