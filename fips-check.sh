@@ -9,14 +9,17 @@
 # This should check out all the approved versions. The command line
 # option selects the version.
 #
-#     $ ./fips-check [version]
+#     $ ./fips-check [version] [keep]
 #
 #     - version: linux (default), ios, android, windows, freertos, linux-ecc
 #
+#     - keep: (default off) XXX-fips-test temp dir around for inspection
+#
 
 function Usage() {
-    echo "Usage: $0 [platform]"
+    echo "Usage: $0 [platform] [keep]"
     echo "Where \"platform\" is one of linux (default), ios, android, windows, freertos, openrtos-3.9.2, linux-ecc"
+    echo "Where \"keep\" means keep (default off) XXX-fips-test temp dir around for inspection"
 }
 
 LINUX_FIPS_VERSION=v3.2.6
@@ -61,6 +64,8 @@ WC_INC_PATH=cyassl/ctaocrypt
 WC_SRC_PATH=ctaocrypt/src
 
 if [ "x$1" == "x" ]; then PLATFORM="linux"; else PLATFORM=$1; fi
+
+if [ "x$2" == "xkeep" ]; then KEEP="yes"; else KEEP="no"; fi
 
 case $PLATFORM in
 ios)
@@ -172,5 +177,7 @@ fi
 
 # Clean up
 popd
-rm -rf $TEST_DIR
-
+if [ "x$KEEP" == "xno" ];
+then
+    rm -rf $TEST_DIR
+fi
