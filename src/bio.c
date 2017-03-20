@@ -99,7 +99,7 @@ int wolfSSL_BIO_gets(WOLFSSL_BIO* bio, char* buf, int sz)
                     break;
                 }
 
-                if (wolfSSL_BIO_get_mem_data(bio, &c) <= 0) {
+                if (wolfSSL_BIO_get_mem_data(bio, (void*)&c) <= 0) {
                     ret = WOLFSSL_BIO_ERROR;
                     break;
                 }

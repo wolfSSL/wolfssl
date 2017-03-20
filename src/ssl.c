@@ -6840,7 +6840,7 @@ int wolfSSL_CTX_SetTmpDH_file(WOLFSSL_CTX* ctx, const char* fname, int format)
 WOLFSSL_PKCS8_PRIV_KEY_INFO* wolfSSL_d2i_PKCS8_PKEY_bio(WOLFSSL_BIO* bio,
         WOLFSSL_PKCS8_PRIV_KEY_INFO** pkey)
 {
-    const unsigned char* mem;
+    unsigned char* mem;
     int memSz;
     int keySz;
 
@@ -6856,8 +6856,7 @@ WOLFSSL_PKCS8_PRIV_KEY_INFO* wolfSSL_d2i_PKCS8_PKEY_bio(WOLFSSL_BIO* bio,
         return NULL;
     }
 
-    if ((keySz = wolfSSL_KeyPemToDer(mem, memSz, (unsigned char*)mem, memSz,
-                    NULL)) < 0) {
+    if ((keySz = wolfSSL_KeyPemToDer(mem, memSz, mem, memSz, NULL)) < 0) {
         WOLFSSL_MSG("Not PEM format");
         keySz = memSz;
         if ((keySz = ToTraditional((byte*)mem, (word32)keySz)) < 0) {
@@ -6897,7 +6896,7 @@ WOLFSSL_EVP_PKEY* wolfSSL_d2i_PUBKEY_bio(WOLFSSL_BIO* bio,
     }
     (void)out;
 
-    if ((memSz = wolfSSL_BIO_get_mem_data(bio, &mem)) < 0) {
+    if ((memSz = wolfSSL_BIO_get_mem_data(bio, (void*)&mem)) < 0) {
         return NULL;
     }
     if (mem == NULL) {
@@ -12145,7 +12144,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         }
 
         /* check if will fit in current buffer size */
-        if ((ret = wolfSSL_BIO_get_mem_data(bio, &buf)) < sz + len) {
+        if ((ret = wolfSSL_BIO_get_mem_data(bio, (void*)&buf)) < sz + len) {
             if (ret <= 0) {
                 return WOLFSSL_BIO_ERROR;
             }
