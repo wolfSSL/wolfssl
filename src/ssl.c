@@ -3220,6 +3220,8 @@ const WOLFSSL_EVP_CIPHER *wolfSSL_EVP_get_cipherbyname(const char *name)
         {"DES-CBC", "des"},
         {"DES-EDE3-CBC", "DES3"},
         {"DES-EDE3-CBC", "des3"},
+        {"DES-EDE3-ECB", "DES-EDE3"},
+        {"DES-EDE3-ECB", "des-ede3"},
         {"DES-EDE3-ECB", "des-ede3-ecb"},
         {"IDEA-CBC", "IDEA"},
         {"IDEA-CBC", "idea"},
