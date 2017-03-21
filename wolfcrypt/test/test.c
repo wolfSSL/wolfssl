@@ -10061,6 +10061,10 @@ static int ecc_point_test(void)
     int        ret;
     ecc_point* point;
     ecc_point* point2;
+#ifdef HAVE_COMP_KEY
+    ecc_point* point3;
+    ecc_point* point4;
+#endif
     word32     outLen;
     byte       out[65];
     byte       der[] = { 0x04, /* = Uncompressed */
@@ -10108,6 +10112,21 @@ static int ecc_point_test(void)
         wc_ecc_del_point(point);
         return -1036;
     }
+#ifdef HAVE_COMP_KEY
+    point3 = wc_ecc_new_point();
+    if (point3 == NULL) {
+        wc_ecc_del_point(point2);
+        wc_ecc_del_point(point);
+        return -1061;
+    }
+    point4 = wc_ecc_new_point();
+    if (point4 == NULL) {
+        wc_ecc_del_point(point3);
+        wc_ecc_del_point(point2);
+        wc_ecc_del_point(point);
+        return -1062;
+    }
+#endif
 
     /* Parameter Validation testing. */
     wc_ecc_del_point(NULL);
@@ -10228,14 +10247,13 @@ static int ecc_point_test(void)
     }
 
 #ifdef HAVE_COMP_KEY
-    /* TODO: Doesn't work. */
-    ret = wc_ecc_import_point_der(derComp0, sizeof(der), curve_idx, point);
+    ret = wc_ecc_import_point_der(derComp0, sizeof(der), curve_idx, point3);
     if (ret != 0) {
         ret = -1059;
         goto done;
     }
 
-    ret = wc_ecc_import_point_der(derComp1, sizeof(der), curve_idx, point);
+    ret = wc_ecc_import_point_der(derComp1, sizeof(der), curve_idx, point4);
     if (ret != 0) {
         ret = -1060;
         goto done;
@@ -10243,6 +10261,10 @@ static int ecc_point_test(void)
 #endif
 
 done:
+#ifdef HAVE_COMP_KEY
+    wc_ecc_del_point(point4);
+    wc_ecc_del_point(point3);
+#endif
     wc_ecc_del_point(point2);
     wc_ecc_del_point(point);
 
