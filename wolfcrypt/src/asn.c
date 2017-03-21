@@ -5146,6 +5146,10 @@ static int DecodePolicyOID(char *out, word32 outSz, byte *in, word32 inSz)
     {
         word32 idx = 0;
         int total_length = 0, policy_length = 0, length = 0;
+    #if !defined(WOLFSSL_SEP) && defined(WOLFSSL_CERT_EXT) && \
+        !defined(WOLFSSL_DUP_CERTPOL)
+        int i;
+    #endif
 
         WOLFSSL_ENTER("DecodeCertPolicy");
 
@@ -5203,6 +5207,22 @@ static int DecodePolicyOID(char *out, word32 outSz, byte *in, word32 inSz)
                     WOLFSSL_MSG("\tCouldn't decode CertPolicy");
                     return ASN_PARSE_E;
                 }
+                #ifndef WOLFSSL_DUP_CERTPOL
+                /* From RFC 5280 section 4.2.1.3 "A certificate policy OID MUST
+                 * NOT appear more than once in a certificate policies
+                 * extension". This is a sanity check for duplicates.
+                 * extCertPolicies should only have OID values, additional
+                 * qualifiers need to be stored in a seperate array. */
+                for (i = 0; i < cert->extCertPoliciesNb; i++) {
+                    if (XMEMCMP(cert->extCertPolicies[i],
+                            cert->extCertPolicies[cert->extCertPoliciesNb],
+                            MAX_CERTPOL_SZ) == 0) {
+                            WOLFSSL_MSG("Duplicate policy OIDs not allowed");
+                            WOLFSSL_MSG("Use WOLFSSL_DUP_CERTPOL if wanted");
+                            return CERTPOLICIES_E;
+                    }
+                }
+                #endif /* !defined(WOLFSSL_DUP_CERTPOL) */
                 cert->extCertPoliciesNb++;
     #else
                 WOLFSSL_LEAVE("DecodeCertPolicy : unsupported mode", 0);
