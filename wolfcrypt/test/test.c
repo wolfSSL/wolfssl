@@ -1132,7 +1132,6 @@ int md5_test(void)
     testVector a, b, c, d, e;
     testVector test_md5[5];
     int times = sizeof(test_md5) / sizeof(testVector), i;
-    int ret;
 
     a.input  = "abc";
     a.output = "\x90\x01\x50\x98\x3c\xd2\x4f\xb0\xd6\x96\x3f\x7d\x28\xe1\x7f"
@@ -1172,21 +1171,11 @@ int md5_test(void)
     test_md5[3] = d;
     test_md5[4] = e;
 
-    ret = wc_InitMd5(&md5);
-    if (ret != 0) {
-        return ret;
-    }
+    wc_InitMd5(&md5);
 
     for (i = 0; i < times; ++i) {
-        ret = wc_Md5Update(&md5, (byte*)test_md5[i].input,
-                                                (word32)test_md5[i].inLen);
-        if (ret != 0) {
-            return ret;
-        }
-        ret = wc_Md5Final(&md5, hash);
-        if (ret != 0){
-            return ret;
-        }
+        wc_Md5Update(&md5, (byte*)test_md5[i].input, (word32)test_md5[i].inLen);
+        wc_Md5Final(&md5, hash);
 
         if (XMEMCMP(hash, test_md5[i].output, MD5_DIGEST_SIZE) != 0)
             return -5 - i;

@@ -3576,10 +3576,7 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
 
 #ifndef NO_OLD_TLS
 #ifndef NO_MD5
-    ret = wc_InitMd5(&ssl->hsHashes->hashMd5);
-    if (ret != 0) {
-        return ret;
-    }
+    wc_InitMd5(&ssl->hsHashes->hashMd5);
 #endif
 #ifndef NO_SHA
     ret = wc_InitSha(&ssl->hsHashes->hashSha);
@@ -4800,10 +4797,7 @@ static int HashOutputRaw(WOLFSSL* ssl, const byte* output, int sz)
     wc_ShaUpdate(&ssl->hsHashes->hashSha, output, sz);
 #endif
 #ifndef NO_MD5
-    ret = wc_Md5Update(&ssl->hsHashes->hashMd5, output, sz);
-    if (ret != 0) {
-        return ret;
-    }
+    wc_Md5Update(&ssl->hsHashes->hashMd5, output, sz);
 #endif
 #endif /* NO_OLD_TLS */
 
@@ -4851,16 +4845,10 @@ static int HashOutput(WOLFSSL* ssl, const byte* output, int sz, int ivSz)
 #endif
 #ifndef NO_OLD_TLS
 #ifndef NO_SHA
-    ret = wc_ShaUpdate(&ssl->hsHashes->hashSha, adj, sz);
-    if (ret != 0) {
-        return ret;
-    }
+    wc_ShaUpdate(&ssl->hsHashes->hashSha, adj, sz);
 #endif
 #ifndef NO_MD5
-    ret = wc_Md5Update(&ssl->hsHashes->hashMd5, adj, sz);
-    if (ret != 0) {
-        return ret;
-    }
+    wc_Md5Update(&ssl->hsHashes->hashMd5, adj, sz);
 #endif
 #endif
 
@@ -5530,7 +5518,7 @@ static const byte PAD2[PAD_MD5] =
 
 static int BuildMD5(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
 {
-    int ret;
+
     byte md5_result[MD5_DIGEST_SIZE];
 
 #ifdef WOLFSSL_SMALL_STACK
@@ -5554,75 +5542,18 @@ static int BuildMD5(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
     /* make md5 inner */
     md5[0] = ssl->hsHashes->hashMd5 ; /* Save current position */
 
-    ret = wc_Md5Update(&ssl->hsHashes->hashMd5, sender, SIZEOF_SENDER);
-    if (ret != 0) {
-    #ifdef WOLFSSL_SMALL_STACK
-        XFREE(md5, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        XFREE(md5_2, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    #endif
-        return ret;
-    }
-    ret = wc_Md5Update(&ssl->hsHashes->hashMd5, ssl->arrays->masterSecret,
-                                                                SECRET_LEN);
-    if (ret != 0) {
-    #ifdef WOLFSSL_SMALL_STACK
-        XFREE(md5, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        XFREE(md5_2, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    #endif
-        return ret;
-    }
-    ret = wc_Md5Update(&ssl->hsHashes->hashMd5, PAD1, PAD_MD5);
-    if (ret != 0) {
-    #ifdef WOLFSSL_SMALL_STACK
-        XFREE(md5, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        XFREE(md5_2, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    #endif
-        return ret;
-    }
+    wc_Md5Update(&ssl->hsHashes->hashMd5, sender, SIZEOF_SENDER);
+    wc_Md5Update(&ssl->hsHashes->hashMd5, ssl->arrays->masterSecret,SECRET_LEN);
+    wc_Md5Update(&ssl->hsHashes->hashMd5, PAD1, PAD_MD5);
     wc_Md5GetHash(&ssl->hsHashes->hashMd5, md5_result);
     wc_Md5RestorePos(&ssl->hsHashes->hashMd5, md5) ; /* Restore current position */
 
     /* make md5 outer */
-    ret = wc_InitMd5(md5_2) ;
-    if (ret != 0) {
-    #ifdef WOLFSSL_SMALL_STACK
-        XFREE(md5, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        XFREE(md5_2, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    #endif
-        return ret;
-    }
-    ret = wc_Md5Update(md5_2, ssl->arrays->masterSecret,SECRET_LEN);
-    if (ret != 0) {
-    #ifdef WOLFSSL_SMALL_STACK
-        XFREE(md5, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        XFREE(md5_2, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    #endif
-        return ret;
-    }
-    ret = wc_Md5Update(md5_2, PAD2, PAD_MD5);
-    if (ret != 0) {
-    #ifdef WOLFSSL_SMALL_STACK
-        XFREE(md5, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        XFREE(md5_2, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    #endif
-        return ret;
-    }
-    ret = wc_Md5Update(md5_2, md5_result, MD5_DIGEST_SIZE);
-    if (ret != 0) {
-    #ifdef WOLFSSL_SMALL_STACK
-        XFREE(md5, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        XFREE(md5_2, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    #endif
-        return ret;
-    }
-    ret = wc_Md5Final(md5_2, hashes->md5);
-    if (ret != 0) {
-    #ifdef WOLFSSL_SMALL_STACK
-        XFREE(md5, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        XFREE(md5_2, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    #endif
-        return ret;
-    }
+    wc_InitMd5(md5_2) ;
+    wc_Md5Update(md5_2, ssl->arrays->masterSecret,SECRET_LEN);
+    wc_Md5Update(md5_2, PAD2, PAD_MD5);
+    wc_Md5Update(md5_2, md5_result, MD5_DIGEST_SIZE);
+    wc_Md5Final(md5_2, hashes->md5);
 
 #ifdef WOLFSSL_SMALL_STACK
     XFREE(md5, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -10217,9 +10148,10 @@ static int SSL_hmac(WOLFSSL* ssl, byte* digest, const byte* in, word32 sz,
     byte   result[MAX_DIGEST_SIZE];
     word32 digestSz = ssl->specs.hash_size;            /* actual sizes */
     word32 padSz    = ssl->specs.pad_size;
+    int    ret      = 0;
+
     Md5 md5;
     Sha sha;
-    int ret;
 
     /* data */
     byte seq[SEQ_SZ];
@@ -10237,109 +10169,45 @@ static int SSL_hmac(WOLFSSL* ssl, byte* digest, const byte* in, word32 sz,
     WriteSEQ(ssl, verify, seq);
 
     if (ssl->specs.mac_algorithm == md5_mac) {
-        ret = wc_InitMd5(&md5);
-        if (ret != 0) {
-            return ret;
-        }
+        wc_InitMd5(&md5);
         /* inner */
-        ret = wc_Md5Update(&md5, macSecret, digestSz);
-        if (ret != 0) {
-            return ret;
-        }
-        ret = wc_Md5Update(&md5, PAD1, padSz);
-        if (ret != 0) {
-            return ret;
-        }
-        ret = wc_Md5Update(&md5, seq, SEQ_SZ);
-        if (ret != 0) {
-            return ret;
-        }
-        ret = wc_Md5Update(&md5, conLen, sizeof(conLen));
-        if (ret != 0) {
-            return ret;
-        }
+        wc_Md5Update(&md5, macSecret, digestSz);
+        wc_Md5Update(&md5, PAD1, padSz);
+        wc_Md5Update(&md5, seq, SEQ_SZ);
+        wc_Md5Update(&md5, conLen, sizeof(conLen));
         /* in buffer */
-        ret = wc_Md5Update(&md5, in, sz);
-        if (ret != 0) {
-            return ret;
-        }
-        ret = wc_Md5Final(&md5, result);
-        if (ret != 0) {
-            return ret;
-        }
+        wc_Md5Update(&md5, in, sz);
+        wc_Md5Final(&md5, result);
         /* outer */
-        ret = wc_Md5Update(&md5, macSecret, digestSz);
-        if (ret != 0) {
-            return ret;
-        }
-        ret = wc_Md5Update(&md5, PAD2, padSz);
-        if (ret != 0) {
-            return ret;
-        }
-        ret = wc_Md5Update(&md5, result, digestSz);
-        if (ret != 0) {
-            return ret;
-        }
-        ret = wc_Md5Final(&md5, digest);
-        if (ret != 0) {
-            return ret;
-        }
+        wc_Md5Update(&md5, macSecret, digestSz);
+        wc_Md5Update(&md5, PAD2, padSz);
+        wc_Md5Update(&md5, result, digestSz);
+        wc_Md5Final(&md5, digest);
     }
     else {
         ret = wc_InitSha(&sha);
         if (ret != 0)
             return ret;
         /* inner */
-        ret = wc_ShaUpdate(&sha, macSecret, digestSz);
-        if (ret != 0) {
-            return ret;
-        }
-        ret = wc_ShaUpdate(&sha, PAD1, padSz);
-        if (ret != 0) {
-            return ret;
-        }
-        ret = wc_ShaUpdate(&sha, seq, SEQ_SZ);
-        if (ret != 0) {
-            return ret;
-        }
-        ret = wc_ShaUpdate(&sha, conLen, sizeof(conLen));
-        if (ret != 0) {
-            return ret;
-        }
+        wc_ShaUpdate(&sha, macSecret, digestSz);
+        wc_ShaUpdate(&sha, PAD1, padSz);
+        wc_ShaUpdate(&sha, seq, SEQ_SZ);
+        wc_ShaUpdate(&sha, conLen, sizeof(conLen));
         /* in buffer */
-        ret = wc_ShaUpdate(&sha, in, sz);
-        if (ret != 0) {
-            return ret;
-        }
-        ret = wc_ShaFinal(&sha, result);
-        if (ret != 0) {
-            return ret;
-        }
+        wc_ShaUpdate(&sha, in, sz);
+        wc_ShaFinal(&sha, result);
         /* outer */
-        ret = wc_ShaUpdate(&sha, macSecret, digestSz);
-        if (ret != 0) {
-            return ret;
-        }
-        ret = wc_ShaUpdate(&sha, PAD2, padSz);
-        if (ret != 0) {
-            return ret;
-        }
-        ret = wc_ShaUpdate(&sha, result, digestSz);
-        if (ret != 0) {
-            return ret;
-        }
-        ret = wc_ShaFinal(&sha, digest);
-        if (ret != 0) {
-            return ret;
-        }
+        wc_ShaUpdate(&sha, macSecret, digestSz);
+        wc_ShaUpdate(&sha, PAD2, padSz);
+        wc_ShaUpdate(&sha, result, digestSz);
+        wc_ShaFinal(&sha, digest);
     }
-    return ret;
+    return 0;
 }
 
 #ifndef NO_CERTS
-static int BuildMD5_CertVerify(WOLFSSL* ssl, byte* digest)
+static void BuildMD5_CertVerify(WOLFSSL* ssl, byte* digest)
 {
-    int ret;
     byte md5_result[MD5_DIGEST_SIZE];
 
 #ifdef WOLFSSL_SMALL_STACK
@@ -10352,75 +10220,23 @@ static int BuildMD5_CertVerify(WOLFSSL* ssl, byte* digest)
 
     /* make md5 inner */
     md5[0] = ssl->hsHashes->hashMd5 ; /* Save current position */
-    ret = wc_Md5Update(&ssl->hsHashes->hashMd5, ssl->arrays->masterSecret,
-                                                                SECRET_LEN);
-    if (ret != 0) {
-    #ifdef WOLFSSL_SMALL_STACK
-        XFREE(md5, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        XFREE(md5_2, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    #endif
-        return ret;
-    }
-    ret = wc_Md5Update(&ssl->hsHashes->hashMd5, PAD1, PAD_MD5);
-    if (ret != 0) {
-    #ifdef WOLFSSL_SMALL_STACK
-        XFREE(md5, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        XFREE(md5_2, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    #endif
-        return ret;
-    }
+    wc_Md5Update(&ssl->hsHashes->hashMd5, ssl->arrays->masterSecret,SECRET_LEN);
+    wc_Md5Update(&ssl->hsHashes->hashMd5, PAD1, PAD_MD5);
     wc_Md5GetHash(&ssl->hsHashes->hashMd5, md5_result);
     wc_Md5RestorePos(&ssl->hsHashes->hashMd5, md5) ; /* Restore current position */
 
     /* make md5 outer */
-    ret = wc_InitMd5(md5_2) ;
-    if (ret != 0) {
-    #ifdef WOLFSSL_SMALL_STACK
-        XFREE(md5, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        XFREE(md5_2, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    #endif
-        return ret;
-    }
-    ret = wc_Md5Update(md5_2, ssl->arrays->masterSecret, SECRET_LEN);
-    if (ret != 0) {
-    #ifdef WOLFSSL_SMALL_STACK
-        XFREE(md5, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        XFREE(md5_2, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    #endif
-        return ret;
-    }
-    ret = wc_Md5Update(md5_2, PAD2, PAD_MD5);
-    if (ret != 0) {
-    #ifdef WOLFSSL_SMALL_STACK
-        XFREE(md5, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        XFREE(md5_2, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    #endif
-        return ret;
-    }
-    ret = wc_Md5Update(md5_2, md5_result, MD5_DIGEST_SIZE);
-    if (ret != 0) {
-    #ifdef WOLFSSL_SMALL_STACK
-        XFREE(md5, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        XFREE(md5_2, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    #endif
-        return ret;
-    }
+    wc_InitMd5(md5_2) ;
+    wc_Md5Update(md5_2, ssl->arrays->masterSecret, SECRET_LEN);
+    wc_Md5Update(md5_2, PAD2, PAD_MD5);
+    wc_Md5Update(md5_2, md5_result, MD5_DIGEST_SIZE);
 
-    ret = wc_Md5Final(md5_2, digest);
-    if (ret != 0) {
-    #ifdef WOLFSSL_SMALL_STACK
-        XFREE(md5, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        XFREE(md5_2, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    #endif
-        return ret;
-    }
+    wc_Md5Final(md5_2, digest);
 
 #ifdef WOLFSSL_SMALL_STACK
     XFREE(md5, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(md5_2, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
-
-    return ret;
 }
 
 
@@ -10497,10 +10313,7 @@ static int BuildCertHashes(WOLFSSL* ssl, Hashes* hashes)
     }
 #if ! defined( NO_OLD_TLS )
     else {
-        ret = BuildMD5_CertVerify(ssl, hashes->md5);
-        if (ret  != 0) {
-            return ret;
-        }
+        BuildMD5_CertVerify(ssl, hashes->md5);
         BuildSHA_CertVerify(ssl, hashes->sha);
     }
 #endif
