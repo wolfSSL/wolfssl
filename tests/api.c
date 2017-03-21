@@ -13800,6 +13800,8 @@ static void test_wolfSSL_private_keys(void)
 
     /* reuse PKEY structure and test
      * this should be checked with a memory management sanity checker */
+    AssertFalse(server_key == (const unsigned char*)server_key_der_2048);
+    server_key = (const unsigned char*)server_key_der_2048;
     AssertNotNull(wolfSSL_d2i_PrivateKey(EVP_PKEY_RSA, &pkey,
                 &server_key, (long)sizeof_server_key_der_2048));
     AssertIntEQ(SSL_use_PrivateKey(ssl, pkey), WOLFSSL_SUCCESS);

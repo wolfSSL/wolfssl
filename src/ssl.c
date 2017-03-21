@@ -7041,16 +7041,31 @@ WOLFSSL_EVP_PKEY* wolfSSL_d2i_PUBKEY(WOLFSSL_EVP_PKEY** out, unsigned char** in,
 }
 
 
+/* Reads in a DER format key. If PKCS8 headers are found they are stripped off.
+ *
+ * type  type of key
+ * out   newly created WOLFSSL_EVP_PKEY structure
+ * in    pointer to input key DER
+ * inSz  size of in buffer
+ *
+ * On success a non null pointer is returned and the pointer in is advanced the
+ * same number of bytes read.
+ */
 WOLFSSL_EVP_PKEY* wolfSSL_d2i_PrivateKey(int type, WOLFSSL_EVP_PKEY** out,
         const unsigned char **in, long inSz)
 {
     WOLFSSL_EVP_PKEY* local;
+    word32 idx = 0;
 
     WOLFSSL_ENTER("wolfSSL_d2i_PrivateKey");
 
     if (in == NULL || inSz < 0) {
         WOLFSSL_MSG("Bad argument");
         return NULL;
+    }
+
+    if (ToTraditionalInline((const byte*)(*in), &idx, inSz) > 0) {
+        WOLFSSL_MSG("Found and removed PKCS8 header");
     }
 
     if (out != NULL && *out != NULL) {
@@ -7061,15 +7076,23 @@ WOLFSSL_EVP_PKEY* wolfSSL_d2i_PrivateKey(int type, WOLFSSL_EVP_PKEY** out,
         return NULL;
     }
 
+    /* sanity check on idx before use */
+    if ((int)idx > inSz) {
+        WOLFSSL_MSG("Issue with index pointer");
+        wolfSSL_EVP_PKEY_free(local);
+        local = NULL;
+        return NULL;
+    }
+
     local->type     = type;
-    local->pkey_sz  = (int)inSz;
-    local->pkey.ptr = (char*)XMALLOC(inSz, NULL, DYNAMIC_TYPE_PUBLIC_KEY);
+    local->pkey_sz  = (int)inSz - idx;
+    local->pkey.ptr = (char*)XMALLOC(inSz - idx, NULL, DYNAMIC_TYPE_PUBLIC_KEY);
     if (local->pkey.ptr == NULL) {
         wolfSSL_EVP_PKEY_free(local);
         local = NULL;
     }
     else {
-        XMEMCPY(local->pkey.ptr, *in, inSz);
+        XMEMCPY(local->pkey.ptr, *in + idx, inSz - idx);
     }
 
     if (out != NULL) {
@@ -7077,7 +7100,7 @@ WOLFSSL_EVP_PKEY* wolfSSL_d2i_PrivateKey(int type, WOLFSSL_EVP_PKEY** out,
     }
 
 #ifndef NO_RSA
-    if (type == EVP_PKEY_RSA){
+    if (type == EVP_PKEY_RSA && local != NULL){
         local->ownRsa = 1;
         local->rsa = wolfSSL_RSA_new();
         if (local->rsa == NULL) {
@@ -7093,6 +7116,13 @@ WOLFSSL_EVP_PKEY* wolfSSL_d2i_PrivateKey(int type, WOLFSSL_EVP_PKEY** out,
       }
     }
 #endif /* NO_RSA */
+
+    /* advance pointer with success */
+    if (local != NULL) {
+        if ((idx + local->pkey_sz) <= inSz) {
+            *in = *in + idx + local->pkey_sz;
+        }
+    }
 
     return local;
 }
@@ -25643,6 +25673,7 @@ WOLFSSL_EVP_PKEY* wolfSSL_PEM_read_bio_PrivateKey(WOLFSSL_BIO* bio,
     }
     else {
         int type;
+        const unsigned char* ptr = der->buffer;
 
         /* write left over data back to bio */
         if ((memSz - (int)info->consumed) > 0) {
@@ -25664,8 +25695,7 @@ WOLFSSL_EVP_PKEY* wolfSSL_PEM_read_bio_PrivateKey(WOLFSSL_BIO* bio,
             pkey = *key;
         }
 
-        wolfSSL_d2i_PrivateKey(type, &pkey,
-                (const unsigned char**)&der->buffer, der->length);
+        wolfSSL_d2i_PrivateKey(type, &pkey, &ptr, der->length);
         if (pkey == NULL) {
             WOLFSSL_MSG("Error loading DER buffer into WOLFSSL_EVP_PKEY");
         }
