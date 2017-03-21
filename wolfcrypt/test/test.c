@@ -6198,7 +6198,7 @@ int rsa_test(void)
     }
     do {
 #if defined(WOLFSSL_ASYNC_CRYPT)
-        ret = wc_RsaAsyncWait(ret, key);
+        ret = wc_RsaAsyncWait(ret, &key);
 #endif
         if (ret >= 0) {
             ret = wc_RsaPrivateDecryptInline(out, idx, &res, &key);
@@ -6333,7 +6333,7 @@ int rsa_test(void)
 
     do {
 #if defined(WOLFSSL_ASYNC_CRYPT)
-        ret = wc_RsaAsyncWait(ret, key);
+        ret = wc_RsaAsyncWait(ret, &key);
 #endif
         if (ret >= 0) {
             ret = wc_RsaPrivateDecryptInline_ex(out, idx, &res, &key,

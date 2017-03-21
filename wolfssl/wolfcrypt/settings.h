@@ -1493,7 +1493,8 @@ static char *fgets(char *buff, int sz, FILE *fp)
     #endif
 #endif
 
-#if !defined(NO_OLD_TLS) && (defined(NO_SHA) || defined(NO_MD5))
+#if !defined(WOLFCRYPT_ONLY) && !defined(NO_OLD_TLS) && \
+        (defined(NO_SHA) || defined(NO_MD5))
     #error old TLS requires MD5 and SHA
 #endif
 
