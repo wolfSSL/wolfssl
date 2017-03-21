@@ -166,7 +166,7 @@ int wc_Hash(enum wc_HashType hash_type, const byte* data,
     if (hash_len < dig_size) {
         return BUFFER_E;
     }
-    
+
     /* Suppress possible unused arg if all hashing is disabled */
     (void)data;
     (void)data_len;
@@ -236,41 +236,32 @@ int wc_HashInit(wc_HashAlg* hash, enum wc_HashType type)
         case WC_HASH_TYPE_MD5:
 #ifndef NO_MD5
             wc_InitMd5(&hash->md5);
+            ret = 0;
 #endif
             break;
         case WC_HASH_TYPE_SHA:
 #ifndef NO_SHA
             ret = wc_InitSha(&hash->sha);
-            if (ret != 0)
-                return ret;
 #endif
             break;
         case WC_HASH_TYPE_SHA224:
 #ifdef WOLFSSL_SHA224
             ret = wc_InitSha224(&hash->sha224);
-            if (ret != 0)
-                return ret;
 #endif
             break;
         case WC_HASH_TYPE_SHA256:
 #ifndef NO_SHA256
             ret = wc_InitSha256(&hash->sha256);
-            if (ret != 0)
-                return ret;
 #endif
             break;
         case WC_HASH_TYPE_SHA384:
 #ifdef WOLFSSL_SHA384
             ret = wc_InitSha384(&hash->sha384);
-            if (ret != 0)
-                return ret;
 #endif
             break;
         case WC_HASH_TYPE_SHA512:
 #ifdef WOLFSSL_SHA512
             ret = wc_InitSha512(&hash->sha512);
-            if (ret != 0)
-                return ret;
 #endif
             break;
 
@@ -280,10 +271,10 @@ int wc_HashInit(wc_HashAlg* hash, enum wc_HashType type)
         case WC_HASH_TYPE_MD4:
         case WC_HASH_TYPE_NONE:
         default:
-            return BAD_FUNC_ARG;
+            ret = BAD_FUNC_ARG;
     };
 
-    return 0;
+    return ret;
 }
 
 int wc_HashUpdate(wc_HashAlg* hash, enum wc_HashType type, const byte* data,
@@ -298,41 +289,34 @@ int wc_HashUpdate(wc_HashAlg* hash, enum wc_HashType type, const byte* data,
         case WC_HASH_TYPE_MD5:
 #ifndef NO_MD5
             wc_Md5Update(&hash->md5, data, dataSz);
+            ret = 0;
 #endif
             break;
         case WC_HASH_TYPE_SHA:
 #ifndef NO_SHA
             ret = wc_ShaUpdate(&hash->sha, data, dataSz);
             if (ret != 0)
-#endif
                 return ret;
+#endif
             break;
         case WC_HASH_TYPE_SHA224:
 #ifdef WOLFSSL_SHA224
             ret = wc_Sha224Update(&hash->sha224, data, dataSz);
-            if (ret != 0)
-                return ret;
 #endif
             break;
         case WC_HASH_TYPE_SHA256:
 #ifndef NO_SHA256
             ret = wc_Sha256Update(&hash->sha256, data, dataSz);
-            if (ret != 0)
-                return ret;
 #endif
             break;
         case WC_HASH_TYPE_SHA384:
 #ifdef WOLFSSL_SHA384
             ret = wc_Sha384Update(&hash->sha384, data, dataSz);
-            if (ret != 0)
-                return ret;
 #endif
             break;
         case WC_HASH_TYPE_SHA512:
 #ifdef WOLFSSL_SHA512
             ret = wc_Sha512Update(&hash->sha512, data, dataSz);
-            if (ret != 0)
-                return ret;
 #endif
             break;
 
@@ -342,10 +326,10 @@ int wc_HashUpdate(wc_HashAlg* hash, enum wc_HashType type, const byte* data,
         case WC_HASH_TYPE_MD4:
         case WC_HASH_TYPE_NONE:
         default:
-            return BAD_FUNC_ARG;
+            ret = BAD_FUNC_ARG;
     };
 
-    return 0;
+    return ret;
 }
 
 int wc_HashFinal(wc_HashAlg* hash, enum wc_HashType type, byte* out)
@@ -359,41 +343,32 @@ int wc_HashFinal(wc_HashAlg* hash, enum wc_HashType type, byte* out)
         case WC_HASH_TYPE_MD5:
 #ifndef NO_MD5
             wc_Md5Final(&hash->md5, out);
+            ret = 0;
 #endif
             break;
         case WC_HASH_TYPE_SHA:
 #ifndef NO_SHA
             ret = wc_ShaFinal(&hash->sha, out);
-            if (ret != 0)
-                return ret;
 #endif
             break;
         case WC_HASH_TYPE_SHA224:
 #ifdef WOLFSSL_SHA224
             ret = wc_Sha224Final(&hash->sha224, out);
-            if (ret != 0)
-                return ret;
 #endif
             break;
         case WC_HASH_TYPE_SHA256:
 #ifndef NO_SHA256
             ret = wc_Sha256Final(&hash->sha256, out);
-            if (ret != 0)
-                return ret;
 #endif
             break;
         case WC_HASH_TYPE_SHA384:
 #ifdef WOLFSSL_SHA384
             ret = wc_Sha384Final(&hash->sha384, out);
-            if (ret != 0)
-                return ret;
 #endif
             break;
         case WC_HASH_TYPE_SHA512:
 #ifdef WOLFSSL_SHA512
             ret = wc_Sha512Final(&hash->sha512, out);
-            if (ret != 0)
-                return ret;
 #endif
             break;
 
@@ -403,10 +378,10 @@ int wc_HashFinal(wc_HashAlg* hash, enum wc_HashType type, byte* out)
         case WC_HASH_TYPE_MD4:
         case WC_HASH_TYPE_NONE:
         default:
-            return BAD_FUNC_ARG;
+            ret = BAD_FUNC_ARG;
     };
 
-    return 0;
+    return ret;
 }
 
 

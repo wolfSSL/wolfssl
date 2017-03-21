@@ -240,7 +240,8 @@ WOLFSSL_API int wc_SetKeyUsage(Cert *cert, const char *value);
     #endif /* WOLFSSL_PEMPUBKEY_TODER_DEFINED */
 #endif /* WOLFSSL_CERT_EXT || WOLFSSL_PUB_PEM_TO_DER */
 
-#if defined(WOLFSSL_KEY_GEN) || defined(WOLFSSL_CERT_GEN) || !defined(NO_DSA)
+#if defined(WOLFSSL_KEY_GEN) || defined(WOLFSSL_CERT_GEN) || !defined(NO_DSA) \
+                             || defined(OPENSSL_EXTRA)
     WOLFSSL_API int wc_DerToPem(const byte* der, word32 derSz, byte* output,
                                 word32 outputSz, int type);
     WOLFSSL_API int wc_DerToPemEx(const byte* der, word32 derSz, byte* output,
@@ -266,6 +267,9 @@ WOLFSSL_API int wc_SetKeyUsage(Cert *cert, const char *value);
 WOLFSSL_API word32 wc_EncodeSignature(byte* out, const byte* digest,
                                       word32 digSz, int hashOID);
 WOLFSSL_API int wc_GetCTC_HashOID(int type);
+
+WOLFSSL_API int wc_GetPkcs8TraditionalOffset(byte* input,
+                                             word32* inOutIdx, word32 sz);
 
 /* Time */
 /* Returns seconds (Epoch/UTC)

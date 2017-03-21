@@ -232,14 +232,17 @@ extern "C" {
 #undef  USE_CERT_BUFFERS_2048
 #define USE_CERT_BUFFERS_2048
 
+#undef  USE_CERT_BUFFERS_256
+#define USE_CERT_BUFFERS_256
+
 
 /* ------------------------------------------------------------------------- */
 /* Debugging */
 /* ------------------------------------------------------------------------- */
-#undef  WOLFSSL_DEBUG
-//#define WOLFSSL_DEBUG
+#undef  DEBUG_WOLFSSL
+//#define DEBUG_WOLFSSL
 
-#ifdef WOLFSSL_DEBUG
+#ifdef DEBUG_WOLFSSL
     #define fprintf(file, format, ...)   printf(format, ##__VA_ARGS__)
 
     /* Use this to measure / print heap usage */
@@ -255,7 +258,7 @@ extern "C" {
     #define NO_WOLFSSL_MEMORY
 
     #undef  NO_ERROR_STRINGS
-    #define NO_ERROR_STRINGS
+    //#define NO_ERROR_STRINGS
 #endif
 
 

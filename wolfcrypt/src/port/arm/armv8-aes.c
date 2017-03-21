@@ -2532,6 +2532,11 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
         return BAD_FUNC_ARG;
     }
 
+    if (authTagSz < WOLFSSL_MIN_AUTH_TAG_SZ) {
+        WOLFSSL_MSG("GcmEncrypt authTagSz too small error");
+        return BAD_FUNC_ARG;
+    }
+
     switch (aes->rounds) {
         case 10:
             return Aes128GcmEncrypt(aes, out, in, sz, iv, ivSz,
@@ -4652,6 +4657,32 @@ int wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len)
         }
     #endif /* HAVE_AES_DECRYPT */
 #endif /* WOLFSSL_AES_DIRECT */
+
+int wc_AesGetKeySize(Aes* aes, word32* keySize)
+{
+    int ret = 0;
+
+    if (aes == NULL || keySize == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    switch (aes->rounds) {
+    case 10:
+        *keySize = 16;
+        break;
+    case 12:
+        *keySize = 24;
+        break;
+    case 14:
+        *keySize = 32;
+        break;
+    default:
+        *keySize = 0;
+        ret = BAD_FUNC_ARG;
+    }
+
+    return ret;
+}
 
 #endif /* NO_AES */
 

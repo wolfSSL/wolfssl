@@ -1520,36 +1520,77 @@ int wc_RsaPrivateKeyDecode(const byte* input, word32* inOutIdx, RsaKey* key,
 #endif /* HAVE_USER_RSA */
 #endif /* NO_RSA */
 
+/* Remove PKCS8 header, place inOutIdx at beginning of traditional,
+ * return traditional length on success, negative on error */
+int ToTraditionalInline(const byte* input, word32* inOutIdx, word32 sz)
+{
+    word32 idx, oid;
+    int    version, length;
+
+    if (input == NULL || inOutIdx == NULL)
+        return BAD_FUNC_ARG;
+
+    idx = *inOutIdx;
+
+    if (GetSequence(input, &idx, &length, sz) < 0)
+        return ASN_PARSE_E;
+
+    if (GetMyVersion(input, &idx, &version, sz) < 0)
+        return ASN_PARSE_E;
+
+    if (GetAlgoId(input, &idx, &oid, oidKeyType, sz) < 0)
+        return ASN_PARSE_E;
+
+    if (input[idx] == ASN_OBJECT_ID) {
+        /* pkcs8 ecc uses slightly different format */
+        idx++;  /* past id */
+        if (GetLength(input, &idx, &length, sz) < 0)
+            return ASN_PARSE_E;
+        idx += length;  /* over sub id, key input will verify */
+    }
+
+    if (input[idx++] != ASN_OCTET_STRING)
+        return ASN_PARSE_E;
+
+    if (GetLength(input, &idx, &length, sz) < 0)
+        return ASN_PARSE_E;
+
+    *inOutIdx = idx;
+
+    return length;
+}
+
 /* Remove PKCS8 header, move beginning of traditional to beginning of input */
 int ToTraditional(byte* input, word32 sz)
 {
-    word32 inOutIdx = 0, oid;
-    int    version, length;
+    word32 inOutIdx = 0;
+    int    length;
 
-    if (GetSequence(input, &inOutIdx, &length, sz) < 0)
-        return ASN_PARSE_E;
+    if (input == NULL)
+        return BAD_FUNC_ARG;
 
-    if (GetMyVersion(input, &inOutIdx, &version, sz) < 0)
-        return ASN_PARSE_E;
-
-    if (GetAlgoId(input, &inOutIdx, &oid, oidKeyType, sz) < 0)
-        return ASN_PARSE_E;
-
-    if (input[inOutIdx] == ASN_OBJECT_ID) {
-        /* pkcs8 ecc uses slightly different format */
-        inOutIdx++;  /* past id */
-        if (GetLength(input, &inOutIdx, &length, sz) < 0)
-            return ASN_PARSE_E;
-        inOutIdx += length;  /* over sub id, key input will verify */
-    }
-
-    if (input[inOutIdx++] != ASN_OCTET_STRING)
-        return ASN_PARSE_E;
-
-    if (GetLength(input, &inOutIdx, &length, sz) < 0)
-        return ASN_PARSE_E;
+    length = ToTraditionalInline(input, &inOutIdx, sz);
+    if (length < 0)
+        return length;
 
     XMEMMOVE(input, input + inOutIdx, length);
+
+    return length;
+}
+
+
+/* find beginning of traditional key inside PKCS#8 unencrypted buffer
+ * return traditional length on success, with inOutIdx at beginning of
+ * traditional
+ * return negative on failure/error */
+int wc_GetPkcs8TraditionalOffset(byte* input, word32* inOutIdx, word32 sz)
+{
+    int length;
+
+    if (input == NULL || inOutIdx == NULL || (*inOutIdx > sz))
+        return BAD_FUNC_ARG;
+
+    length = ToTraditionalInline(input, inOutIdx, sz);
 
     return length;
 }
@@ -2220,8 +2261,10 @@ int wc_RsaPublicKeyDecode(const byte* input, word32* inOutIdx, RsaKey* key,
     }
 #endif /* OPENSSL_EXTRA */
 
-    if (GetInt(&key->n,  input, inOutIdx, inSz) < 0 ||
-        GetInt(&key->e,  input, inOutIdx, inSz) < 0) {
+    if (GetInt(&key->n,  input, inOutIdx, inSz) < 0)
+        return ASN_RSA_KEY_E;
+    if (GetInt(&key->e,  input, inOutIdx, inSz) < 0) {
+        mp_clear(&key->n);
         return ASN_RSA_KEY_E;
     }
 
@@ -3418,7 +3461,7 @@ static INLINE int DateLessThan(const struct tm* a, const struct tm* b)
 }
 
 
-#if defined(WOLFSSL_MYSQL_COMPATIBLE)
+#if defined(WOLFSSL_MYSQL_COMPATIBLE) || defined(WOLFSSL_NGINX)
 int GetTimeString(byte* date, int format, char* buf, int len)
 {
     struct tm t;
@@ -5300,6 +5343,18 @@ static int DecodeCertExtensions(DecodedCert* cert)
                 #ifdef OPENSSL_EXTRA
                     cert->extSubjKeyIdCrit = critical;
                 #endif
+                #ifndef WOLFSSL_ALLOW_CRIT_SKID
+                    /* This check is added due to RFC 5280 section 4.2.1.2
+                     * stating that conforming CA's must mark this extension
+                     * as non-critical. When parsing extensions check that
+                     * certificate was made in compliance with this. */
+                    if (critical) {
+                        WOLFSSL_MSG("Critical Subject Key ID is not allowed");
+                        WOLFSSL_MSG("Use macro WOLFSSL_ALLOW_CRIT_SKID if wanted");
+                        return ASN_CRIT_EXT_E;
+                    }
+                #endif
+
                 if (DecodeSubjKeyId(&input[idx], length, cert) < 0)
                     return ASN_PARSE_E;
                 break;
@@ -5808,7 +5863,7 @@ const char* END_DSA_PRIV       = "-----END DSA PRIVATE KEY-----";
 const char* BEGIN_PUB_KEY      = "-----BEGIN PUBLIC KEY-----";
 const char* END_PUB_KEY        = "-----END PUBLIC KEY-----";
 
-#if defined(WOLFSSL_KEY_GEN) || defined(WOLFSSL_CERT_GEN)
+#if defined(WOLFSSL_KEY_GEN) || defined(WOLFSSL_CERT_GEN) || defined(OPENSSL_EXTRA)
 
 /* Used for compatibility API */
 int wc_DerToPem(const byte* der, word32 derSz,
@@ -9190,11 +9245,12 @@ int wc_EccPrivateKeyDecode(const byte* input, word32* inOutIdx, ecc_key* key,
     return ret;
 }
 
+
 int wc_EccPublicKeyDecode(const byte* input, word32* inOutIdx,
                           ecc_key* key, word32 inSz)
 {
     int    length;
-    int    ret = 0;
+    byte   b;
 
     if (input == NULL || inOutIdx == NULL || key == NULL || inSz == 0)
         return BAD_FUNC_ARG;
@@ -9202,56 +9258,46 @@ int wc_EccPublicKeyDecode(const byte* input, word32* inOutIdx,
     if (GetSequence(input, inOutIdx, &length, inSz) < 0)
         return ASN_PARSE_E;
 
-#if defined(OPENSSL_EXTRA) || defined(ECC_DECODE_EXTRA)
-    {
-        byte b = input[*inOutIdx];
-        if (b != ASN_INTEGER) {
-            /* not from decoded cert, will have algo id, skip past */
-            if (GetSequence(input, inOutIdx, &length, inSz) < 0)
-                return ASN_PARSE_E;
+    if (GetSequence(input, inOutIdx, &length, inSz) < 0)
+        return ASN_PARSE_E;
 
-            b = input[(*inOutIdx)++];
-            if (b != ASN_OBJECT_ID)
-                return ASN_OBJECT_ID_E;
+    b = input[(*inOutIdx)++];
+    if (b != ASN_OBJECT_ID)
+        return ASN_OBJECT_ID_E;
 
-            if (GetLength(input, inOutIdx, &length, inSz) < 0)
-                return ASN_PARSE_E;
+    if (GetLength(input, inOutIdx, &length, inSz) < 0)
+        return ASN_PARSE_E;
 
-            *inOutIdx += length;   /* skip past */
+    *inOutIdx += length;   /* skip past */
 
-            /* ecc params information */
-            b = input[(*inOutIdx)++];
-            if (b != ASN_OBJECT_ID)
-                return ASN_OBJECT_ID_E;
+    /* ecc params information */
+    b = input[(*inOutIdx)++];
+    if (b != ASN_OBJECT_ID)
+        return ASN_OBJECT_ID_E;
 
-            if (GetLength(input, inOutIdx, &length, inSz) <= 0)
-                return ASN_PARSE_E;
+    if (GetLength(input, inOutIdx, &length, inSz) <= 0)
+        return ASN_PARSE_E;
 
-            *inOutIdx += length;   /* skip past */
+    *inOutIdx += length;   /* skip past */
 
-            /* key header */
-            b = input[*inOutIdx];
-            *inOutIdx += 1;
+    /* key header */
+    b = input[*inOutIdx];
+    *inOutIdx += 1;
 
-            if (b != ASN_BIT_STRING)
-                ret = ASN_BITSTR_E;
-            else if (GetLength(input, inOutIdx, &length, inSz) <= 0)
-                ret = ASN_PARSE_E;
-            else {
-                b = input[*inOutIdx];
-                *inOutIdx += 1;
+    if (b != ASN_BIT_STRING)
+        return ASN_BITSTR_E;
+    if (GetLength(input, inOutIdx, &length, inSz) <= 0)
+        return ASN_PARSE_E;
 
-                if (b != 0x00)
-                    ret = ASN_EXPECT_0_E;
-            }
-        }
-    }  /* openssl var block */
-#endif /* OPENSSL_EXTRA */
+    b = input[(*inOutIdx)++];
+    if (b != 0x00)
+        return ASN_EXPECT_0_E;
 
+    /* This is the raw point data compressed or uncompressed. */
     if (wc_ecc_import_x963(input+*inOutIdx, inSz - *inOutIdx, key) != 0)
         return ASN_ECC_KEY_E;
 
-    return ret;
+    return 0;
 }
 
 
@@ -9498,11 +9544,17 @@ static int DecodeSingleResponse(byte* source,
             return ASN_PARSE_E;
     }
 
+#ifdef WOLFSSL_NGINX
+    cs->thisDateAsn = source + idx;
+#endif
     if (GetBasicDate(source, &idx, cs->thisDate,
                                                 &cs->thisDateFormat, size) < 0)
         return ASN_PARSE_E;
+
+#ifndef NO_ASN_TIME
     if (!XVALIDATE_DATE(cs->thisDate, cs->thisDateFormat, BEFORE))
         return ASN_BEFORE_DATE_E;
+#endif
 
     /* The following items are optional. Only check for them if there is more
      * unprocessed data in the singleResponse wrapper. */
@@ -9513,11 +9565,17 @@ static int DecodeSingleResponse(byte* source,
         idx++;
         if (GetLength(source, &idx, &length, size) < 0)
             return ASN_PARSE_E;
+#ifdef WOLFSSL_NGINX
+        cs->nextDateAsn = source + idx;
+#endif
         if (GetBasicDate(source, &idx, cs->nextDate,
                                                 &cs->nextDateFormat, size) < 0)
             return ASN_PARSE_E;
+
+#ifndef NO_ASN_TIME
         if (!XVALIDATE_DATE(cs->nextDate, cs->nextDateFormat, AFTER))
             return ASN_AFTER_DATE_E;
+#endif
     }
     if (((int)(idx - prevIndex) < wrapperSz) &&
         (source[idx] == (ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC | 1)))
@@ -9702,7 +9760,7 @@ static int DecodeCerts(byte* source,
 
 
 static int DecodeBasicOcspResponse(byte* source, word32* ioIndex,
-                          OcspResponse* resp, word32 size, void* cm, void* heap)
+            OcspResponse* resp, word32 size, void* cm, void* heap, int noVerify)
 {
     int length;
     word32 idx = *ioIndex;
@@ -9759,7 +9817,9 @@ static int DecodeBasicOcspResponse(byte* source, word32* ioIndex,
             return ASN_PARSE_E;
 
         InitDecodedCert(&cert, resp->cert, resp->certSz, heap);
-        ret = ParseCertRelative(&cert, CERT_TYPE, VERIFY, cm);
+        /* Don't verify if we don't have access to Cert Manager. */
+        ret = ParseCertRelative(&cert, CERT_TYPE, noVerify ? NO_VERIFY : VERIFY,
+                                cm);
         if (ret < 0) {
             WOLFSSL_MSG("\tOCSP Responder certificate parsing failed");
             FreeDecodedCert(&cert);
@@ -9816,8 +9876,9 @@ void InitOcspResponse(OcspResponse* resp, CertStatus* status,
 }
 
 
-int OcspResponseDecode(OcspResponse* resp, void* cm, void* heap)
+int OcspResponseDecode(OcspResponse* resp, void* cm, void* heap, int noVerify)
 {
+    int ret;
     int length = 0;
     word32 idx = 0;
     byte* source = resp->source;
@@ -9860,8 +9921,9 @@ int OcspResponseDecode(OcspResponse* resp, void* cm, void* heap)
     if (GetLength(source, &idx, &length, size) < 0)
         return ASN_PARSE_E;
 
-    if (DecodeBasicOcspResponse(source, &idx, resp, size, cm, heap) < 0)
-        return ASN_PARSE_E;
+    ret = DecodeBasicOcspResponse(source, &idx, resp, size, cm, heap, noVerify);
+    if (ret < 0)
+        return ret;
 
     return 0;
 }
@@ -9871,8 +9933,8 @@ word32 EncodeOcspRequestExtensions(OcspRequest* req, byte* output, word32 size)
 {
     static const byte NonceObjId[] = { 0x2b, 0x06, 0x01, 0x05, 0x05, 0x07,
                                        0x30, 0x01, 0x02 };
-    byte seqArray[6][MAX_SEQ_SZ];
-    word32 seqSz[6], totalSz = (word32)sizeof(NonceObjId);
+    byte seqArray[5][MAX_SEQ_SZ];
+    word32 seqSz[5], totalSz = (word32)sizeof(NonceObjId);
 
     WOLFSSL_ENTER("SetOcspReqExtensions");
 
@@ -9886,15 +9948,11 @@ word32 EncodeOcspRequestExtensions(OcspRequest* req, byte* output, word32 size)
     totalSz += seqSz[2] = 1 + SetLength(sizeof(NonceObjId), &seqArray[2][1]);
     totalSz += seqSz[3] = SetSequence(totalSz, seqArray[3]);
     totalSz += seqSz[4] = SetSequence(totalSz, seqArray[4]);
-    totalSz += seqSz[5] = SetExplicit(2, totalSz, seqArray[5]);
 
     if (totalSz > size)
         return 0;
 
     totalSz = 0;
-
-    XMEMCPY(output + totalSz, seqArray[5], seqSz[5]);
-    totalSz += seqSz[5];
 
     XMEMCPY(output + totalSz, seqArray[4], seqSz[4]);
     totalSz += seqSz[4];
@@ -9946,8 +10004,14 @@ int EncodeOcspRequest(OcspRequest* req, byte* output, word32 size)
     snSz        = SetSerialNumber(req->serial,  req->serialSz, snArray);
     extSz       = 0;
 
-    if (req->nonceSz)
-        extSz = EncodeOcspRequestExtensions(req, extArray, OCSP_NONCE_EXT_SZ);
+    if (req->nonceSz) {
+        /* TLS Extensions use this function too - put extensions after
+         * ASN.1: Context Specific [2].
+         */
+        extSz = EncodeOcspRequestExtensions(req, extArray + 2,
+                                            OCSP_NONCE_EXT_SZ);
+        extSz += SetExplicit(2, extSz, extArray);
+    }
 
     totalSz = algoSz + issuerSz + issuerKeySz + snSz;
     for (i = 4; i >= 0; i--) {
@@ -9956,6 +10020,8 @@ int EncodeOcspRequest(OcspRequest* req, byte* output, word32 size)
         if (i == 2) totalSz += extSz;
     }
 
+    if (output == NULL)
+        return totalSz;
     if (totalSz > size)
         return BUFFER_E;
 
@@ -10349,10 +10415,13 @@ int ParseCRL(DecodedCRL* dcrl, const byte* buff, word32 sz, void* cm)
 #endif
     }
 
-    if (doNextDate && !XVALIDATE_DATE(dcrl->nextDate, dcrl->nextDateFormat,
-                                      AFTER)) {
-        WOLFSSL_MSG("CRL after date is no longer valid");
-        return ASN_AFTER_DATE_E;
+    if (doNextDate) {
+#ifndef NO_ASN_TIME
+        if (!XVALIDATE_DATE(dcrl->nextDate, dcrl->nextDateFormat, AFTER)) {
+            WOLFSSL_MSG("CRL after date is no longer valid");
+            return ASN_AFTER_DATE_E;
+        }
+#endif
     }
 
     if (idx != dcrl->sigIndex && buff[idx] != CRL_EXTENSIONS) {

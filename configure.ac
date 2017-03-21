@@ -190,6 +190,7 @@ then
     enable_jni=yes
     enable_lighty=yes
     enable_stunnel=yes
+    enable_nginx=yes
     enable_pwdbased=yes
 fi
 AM_CONDITIONAL([BUILD_DISTRO], [test "x$ENABLED_DISTRO" = "xyes"])
@@ -268,6 +269,12 @@ AC_ARG_ENABLE([openssh],
     [ENABLED_OPENSSH=$enableval],
     [ENABLED_OPENSSH=no])
 
+# nginx compatibility build
+AC_ARG_ENABLE([nginx],
+    [  --enable-nginx          Enable nginx (default: disabled)],
+    [ ENABLED_NGINX=$enableval ],
+    [ ENABLED_NGINX=no ]
+    )
 
 # OPENSSL Extra Compatibility
 AC_ARG_ENABLE([opensslextra],
@@ -275,7 +282,7 @@ AC_ARG_ENABLE([opensslextra],
     [ ENABLED_OPENSSLEXTRA=$enableval ],
     [ ENABLED_OPENSSLEXTRA=no ]
     )
-if test "$ENABLED_OPENSSH" = "yes"
+if test "$ENABLED_OPENSSH" = "yes" || test "$ENABLED_NGINX" = "yes"
 then
     ENABLED_OPENSSLEXTRA="yes"
 fi
@@ -319,10 +326,25 @@ AC_ARG_ENABLE([ipv6],
 
 if test "$ENABLED_IPV6" = "yes"
 then
-    AM_CFLAGS="$AM_CFLAGS -DTEST_IPV6"
+    AM_CFLAGS="$AM_CFLAGS -DTEST_IPV6 -DWOLFSSL_IPV6"
 fi
 
 AM_CONDITIONAL([BUILD_IPV6], [test "x$ENABLED_IPV6" = "xyes"])
+
+
+# wpa_supplicant support
+AC_ARG_ENABLE([wpas],
+    [  --enable-wpas         Enable wpa_supplicant support (default: disabled)],
+    [ ENABLED_WPAS=$enableval ],
+    [ ENABLED_WPAS=no ]
+    )
+if test "$ENABLED_WPAS" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_SECRET_CALLBACK -DWOLFSSL_STATIC_RSA"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_PUBLIC_MP -DWOLFSSL_PUBLIC_ECC_ADD_DBL"
+    AM_CFLAGS="$AM_CFLAGS -DATOMIC_USER"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_WPAS"
+fi
 
 
 # Fortress build
@@ -332,7 +354,7 @@ AC_ARG_ENABLE([fortress],
     [ ENABLED_FORTRESS=no ]
     )
 
-if test "$ENABLED_OPENSSH" = "yes"
+if test "$ENABLED_OPENSSH" = "yes" || test "$ENABLED_WPAS" = "yes"
 then
     ENABLED_FORTRESS="yes"
 fi
@@ -761,6 +783,11 @@ AC_ARG_ENABLE([sessioncerts],
     [ ENABLED_SESSIONCERTS=no ]
     )
 
+if test "x$ENABLED_NGINX" = "xyes"
+then
+    ENABLED_SESSIONCERTS=yes
+fi
+
 if test "$ENABLED_SESSIONCERTS" = "yes"
 then
     AM_CFLAGS="$AM_CFLAGS -DSESSION_CERTS"
@@ -870,7 +897,7 @@ AC_ARG_ENABLE([dsa],
     [ ENABLED_DSA=no ]
     )
 
-if test "$ENABLED_OPENSSH" = "yes"
+if test "$ENABLED_OPENSSH" = "yes" || test "$ENABLED_NGINX" = "yes" || test "$ENABLED_WPAS" = "yes"
 then
     ENABLED_DSA="yes"
 fi
@@ -912,7 +939,7 @@ then
     ENABLED_ECC=no
 fi
 
-if test "$ENABLED_OPENSSH" = "yes"
+if test "$ENABLED_OPENSSH" = "yes" || test "$ENABLED_NGINX" = "yes"
 then
     ENABLED_ECC="yes"
 fi
@@ -948,6 +975,10 @@ AC_ARG_ENABLE([compkey],
     [ ENABLED_COMPKEY=no ]
     )
 
+if test "$ENABLED_WPAS" = "yes"
+then
+    ENABLED_COMPKEY=yes
+fi
 if test "$ENABLED_COMPKEY" = "yes"
 then
     AM_CFLAGS="$AM_CFLAGS -DHAVE_COMP_KEY"
@@ -1215,7 +1246,10 @@ AC_ARG_ENABLE([anon],
     [ ENABLED_ANON=no ]
     )
 
-
+if test "x$ENABLED_WPAS" = "xyes"
+then
+    ENABLED_ANON=yes
+fi
 if test "x$ENABLED_ANON" = "xyes"
 then
     if test "x$ENABLED_DH" != "xyes"
@@ -1380,7 +1414,7 @@ AC_ARG_ENABLE([arc4],
     [ ENABLED_ARC4=no ]
     )
 
-if test "$ENABLED_OPENSSH" = "yes"
+if test "$ENABLED_OPENSSH" = "yes" || test "$ENABLED_WPAS" = "yes"
 then
     ENABLED_ARC4="yes"
 fi
@@ -1450,6 +1484,11 @@ AC_ARG_ENABLE([cmac],
     [ ENABLED_CMAC=$enableval ],
     [ ENABLED_CMAC=no ]
     )
+
+if test "$ENABLED_WPAS" = "yes"
+then
+    ENABLED_CMAC=yes
+fi
 
 AS_IF([test "x$ENABLED_CMAC" = "xyes"],
       [AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_CMAC -DWOLFSSL_AES_DIRECT"])
@@ -1689,6 +1728,11 @@ AC_ARG_ENABLE([ocsp],
     [ ENABLED_OCSP=no ],
     )
 
+if test "x$ENABLED_NGINX" = "xyes"
+then
+    ENABLED_OCSP=yes
+fi
+
 if test "$ENABLED_OCSP" = "yes"
 then
     AM_CFLAGS="$AM_CFLAGS -DHAVE_OCSP"
@@ -1718,6 +1762,11 @@ AC_ARG_ENABLE([ocspstapling],
     [ ENABLED_CERTIFICATE_STATUS_REQUEST=no ]
     )
 
+if test "x$ENABLED_NGINX" = "xyes" || test "x$ENABLED_WPAS" = "xyes"
+then
+    ENABLED_CERTIFICATE_STATUS_REQUEST=yes
+fi
+
 if test "x$ENABLED_CERTIFICATE_STATUS_REQUEST" = "xyes"
 then
     AM_CFLAGS="$AM_CFLAGS -DHAVE_TLS_EXTENSIONS -DHAVE_CERTIFICATE_STATUS_REQUEST"
@@ -1740,6 +1789,11 @@ AC_ARG_ENABLE([ocspstapling2],
     [ ENABLED_CERTIFICATE_STATUS_REQUEST_V2=no ]
     )
 
+if test "x$ENABLED_NGINX" = "xyes" || test "x$ENABLED_WPAS" = "xyes"
+then
+    ENABLED_CERTIFICATE_STATUS_REQUEST_V2=yes
+fi
+
 if test "x$ENABLED_CERTIFICATE_STATUS_REQUEST_V2" = "xyes"
 then
     AM_CFLAGS="$AM_CFLAGS -DHAVE_TLS_EXTENSIONS -DHAVE_CERTIFICATE_STATUS_REQUEST_V2"
@@ -1761,6 +1815,12 @@ AC_ARG_ENABLE([crl],
     [ ENABLED_CRL=$enableval ],
     [ ENABLED_CRL=no ],
     )
+
+
+if test "x$ENABLED_NGINX" = "xyes"
+then
+    ENABLED_CRL=yes
+fi
 
 if test "$ENABLED_CRL" = "yes"
 then
@@ -2034,6 +2094,11 @@ AC_ARG_ENABLE([session-ticket],
     [ ENABLED_SESSION_TICKET=no ]
     )
 
+if test "x$ENABLED_NGINX" = "xyes" || test "$ENABLED_WPAS" = "yes"
+then
+    ENABLED_SESSION_TICKET=yes
+fi
+
 if test "x$ENABLED_SESSION_TICKET" = "xyes"
 then
     AM_CFLAGS="$AM_CFLAGS -DHAVE_TLS_EXTENSIONS -DHAVE_SESSION_TICKET"
@@ -2057,6 +2122,11 @@ AC_ARG_ENABLE([tlsx],
     [ ENABLED_TLSX=$enableval ],
     [ ENABLED_TLSX=no ]
     )
+
+if test "x$ENABLED_NGINX" = "xyes"
+then
+    ENABLED_TLSX=yes
+fi
 
 if test "x$ENABLED_TLSX" = "xyes"
 then
@@ -2284,7 +2354,6 @@ then
     fi
 fi
 
-
 # lighty Support
 AC_ARG_ENABLE([lighty],
     [  --enable-lighty         Enable lighttpd/lighty (default: disabled)],
@@ -2302,12 +2371,26 @@ then
     AM_CFLAGS="$AM_CFLAGS -DHAVE_LIGHTY -DHAVE_WOLFSSL_SSL_H=1"
 fi
 
+if test "$ENABLED_NGINX" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NGINX"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ALWAYS_VERIFY_CB"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ALWAYS_KEEP_SNI"
+    AM_CFLAGS="$AM_CFLAGS -DKEEP_OUR_CERT -DKEEP_PEER_CERT"
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_EXT_CACHE -DHAVE_EX_DATA"
+fi
+
+
 # stunnel Support
 AC_ARG_ENABLE([stunnel],
     [  --enable-stunnel        Enable stunnel (default: disabled)],
     [ ENABLED_STUNNEL=$enableval ],
     [ ENABLED_STUNNEL=no ]
     )
+if test "$ENABLED_WPAS" = "yes"
+then
+    ENABLED_STUNNEL="yes"
+fi
 if test "$ENABLED_STUNNEL" = "yes"
 then
     # Requires opensslextra make sure on
@@ -2374,7 +2457,7 @@ then
     fi
 
     AM_CFLAGS="$AM_CFLAGS -DHAVE_STUNNEL -DWOLFSSL_ALWAYS_VERIFY_CB"
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ALWAYS_KEEP_SNI"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ALWAYS_KEEP_SNI -DHAVE_EX_DATA"
 fi
 
 if test "$ENABLED_PSK" = "no" && test "$ENABLED_LEANPSK" = "no" \
@@ -2919,6 +3002,11 @@ AC_ARG_ENABLE([aeskeywrap],
     [ ENABLED_AESKEYWRAP=no ]
     )
 
+if test "$ENABLED_WPAS" = "yes"
+then
+    ENABLED_AESKEYWRAP="yes"
+fi
+
 if test "$ENABLED_AESKEYWRAP" = "yes"
 then
     AM_CFLAGS="$AM_CFLAGS -DHAVE_AES_KEYWRAP -DWOLFSSL_AES_DIRECT"
@@ -3251,7 +3339,7 @@ echo "#endif /* WOLFSSL_OPTIONS_H */" >> $OPTION_FILE
 echo "" >> $OPTION_FILE
 echo
 
-#backwards compatability for those who have included options or version
+#backwards compatibility for those who have included options or version
 touch cyassl/options.h
 echo "/* cyassl options.h" > cyassl/options.h
 echo " * generated from wolfssl/options.h" >> cyassl/options.h
@@ -3352,6 +3440,7 @@ echo "   * MEMORY:                     $ENABLED_MEMORY"
 echo "   * I/O POOL:                   $ENABLED_IOPOOL"
 echo "   * LIGHTY:                     $ENABLED_LIGHTY"
 echo "   * STUNNEL:                    $ENABLED_STUNNEL"
+echo "   * NGINX:                      $ENABLED_NGINX"
 echo "   * ERROR_STRINGS:              $ENABLED_ERROR_STRINGS"
 echo "   * DTLS:                       $ENABLED_DTLS"
 echo "   * SCTP:                       $ENABLED_SCTP"

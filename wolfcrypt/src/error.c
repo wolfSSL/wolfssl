@@ -204,7 +204,7 @@ const char* wc_GetErrorString(int error)
         return "ASN NTRU key decode error, invalid input";
 
     case ASN_CRIT_EXT_E:
-        return "X.509 Critical extension ignored";
+        return "X.509 Critical extension ignored or invalid";
 
     case ECC_BAD_ARG_E :
         return "ECC input argument wrong type, invalid input";
@@ -415,6 +415,12 @@ const char* wc_GetErrorString(int error)
 
     case ECC_CDH_KAT_FIPS_E:
         return "wolfcrypt FIPS ECC CDH Known Answer Test Failure";
+
+    case DH_CHECK_PUB_E:
+        return "DH Check Public Key failure";
+
+    case BAD_PATH_ERROR:
+        return "Bad path for opendir error";
 
     default:
         return "unknown error number";

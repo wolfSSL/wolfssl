@@ -3,7 +3,6 @@
 #ifndef WOLFSSL_EC_H_
 #define WOLFSSL_EC_H_
 
-#include <wolfssl/openssl/ssl.h>
 #include <wolfssl/openssl/bn.h>
 #include <wolfssl/wolfcrypt/ecc.h>
 
@@ -44,6 +43,17 @@ enum {
     OPENSSL_EC_NAMED_CURVE  = 0x001
 };
 
+#ifndef WOLFSSL_EC_TYPE_DEFINED /* guard on redeclaration */
+typedef struct WOLFSSL_EC_KEY         WOLFSSL_EC_KEY;
+typedef struct WOLFSSL_EC_POINT       WOLFSSL_EC_POINT;
+typedef struct WOLFSSL_EC_GROUP       WOLFSSL_EC_GROUP;
+#define WOLFSSL_EC_TYPE_DEFINED
+#endif
+
+typedef WOLFSSL_EC_KEY                EC_KEY;
+typedef WOLFSSL_EC_GROUP              EC_GROUP;
+typedef WOLFSSL_EC_POINT              EC_POINT;
+
 struct WOLFSSL_EC_POINT {
     WOLFSSL_BIGNUM *X;
     WOLFSSL_BIGNUM *Y;
@@ -57,6 +67,7 @@ struct WOLFSSL_EC_POINT {
 struct WOLFSSL_EC_GROUP {
     int curve_idx; /* index of curve, used by WolfSSL as reference */
     int curve_nid; /* NID of curve, used by OpenSSL/OpenSSH as reference */
+    int curve_oid; /* OID of curve, used by OpenSSL/OpenSSH as reference */
 };
 
 struct WOLFSSL_EC_KEY {

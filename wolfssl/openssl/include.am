@@ -33,6 +33,7 @@ nobase_include_HEADERS+= \
                          wolfssl/openssl/rand.h \
                          wolfssl/openssl/rsa.h \
                          wolfssl/openssl/sha.h \
+                         wolfssl/openssl/ssl23.h \
                          wolfssl/openssl/ssl.h \
                          wolfssl/openssl/stack.h \
                          wolfssl/openssl/ui.h \

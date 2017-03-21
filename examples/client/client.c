@@ -57,6 +57,8 @@
     static int devId = INVALID_DEVID;
 #endif
 
+#define DEFAULT_TIMEOUT_SEC 2
+
 /* Note on using port 0: the client standalone example doesn't utilize the
  * port 0 port sharing; that is used by (1) the server in external control
  * test mode and (2) the testsuite which uses this code and sets up the correct
@@ -277,7 +279,7 @@ static int ClientBenchmarkThroughput(WOLFSSL_CTX* ctx, char* host, word16 port,
                     tx_time += current_time(0) - start;
 
                     /* Perform RX */
-                    select_ret = tcp_select(sockfd, 1); /* Timeout=1 second */
+                    select_ret = tcp_select(sockfd, DEFAULT_TIMEOUT_SEC);
                     if (select_ret == TEST_RECV_READY) {
                         start = current_time(1);
                         rx_pos = 0;
@@ -299,6 +301,10 @@ static int ClientBenchmarkThroughput(WOLFSSL_CTX* ctx, char* host, word16 port,
 
                     /* Compare TX and RX buffers */
                     if(XMEMCMP(tx_buffer, rx_buffer, len) != 0) {
+                        free(tx_buffer);
+                        tx_buffer = NULL;
+                        free(rx_buffer);
+                        rx_buffer = NULL;
                         err_sys("Compare TX and RX buffers failed");
                     }
 
@@ -1178,6 +1184,10 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 
 #ifdef HAVE_OCSP
     if (useOcsp) {
+    #ifdef HAVE_IO_TIMEOUT
+        wolfIO_SetTimeout(DEFAULT_TIMEOUT_SEC);
+    #endif
+
         if (ocspUrl != NULL) {
             wolfSSL_CTX_SetOCSP_OverrideURL(ctx, ocspUrl);
             wolfSSL_CTX_EnableOCSP(ctx, WOLFSSL_OCSP_NO_NONCE
@@ -1454,6 +1464,10 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 
 #ifdef HAVE_CRL
     if (disableCRL == 0) {
+    #ifdef HAVE_IO_TIMEOUT
+        wolfIO_SetTimeout(DEFAULT_TIMEOUT_SEC);
+    #endif
+
         if (wolfSSL_EnableCRL(ssl, WOLFSSL_CRL_CHECKALL) != SSL_SUCCESS) {
             wolfSSL_free(ssl);
             wolfSSL_CTX_free(ctx);
@@ -1523,7 +1537,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
         }
     }
 #else
-    timeout.tv_sec  = 2;
+    timeout.tv_sec  = DEFAULT_TIMEOUT_SEC;
     timeout.tv_usec = 0;
     NonBlockingSSL_Connect(ssl);  /* will keep retrying on timeout */
 #endif
@@ -1787,7 +1801,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
             err_sys("SSL resume failed");
         }
 #else
-        timeout.tv_sec  = 2;
+        timeout.tv_sec  = DEFAULT_TIMEOUT_SEC;
         timeout.tv_usec = 0;
         NonBlockingSSL_Connect(ssl);  /* will keep retrying on timeout */
 #endif
@@ -1844,32 +1858,33 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
             #endif
         }
 
-    input = wolfSSL_read(sslResume, reply, sizeof(reply)-1);
+        input = wolfSSL_read(sslResume, reply, sizeof(reply)-1);
 
-    if (input > 0) {
-        reply[input] = 0;
-        printf("Server resume response: %s\n", reply);
+        if (input > 0) {
+            reply[input] = 0;
+            printf("Server resume response: %s\n", reply);
 
-        if (sendGET) {  /* get html */
-            while (1) {
-                input = wolfSSL_read(sslResume, reply, sizeof(reply)-1);
-                if (input > 0) {
-                    reply[input] = 0;
-                    printf("%s\n", reply);
+            if (sendGET) {  /* get html */
+                while (1) {
+                    input = wolfSSL_read(sslResume, reply, sizeof(reply)-1);
+                    if (input > 0) {
+                        reply[input] = 0;
+                        printf("%s\n", reply);
+                    }
+                    else
+                        break;
                 }
-                else
-                    break;
             }
         }
-    } else if (input < 0) {
-        int readErr = wolfSSL_get_error(sslResume, 0);
-        if (readErr != SSL_ERROR_WANT_READ) {
-            printf("wolfSSL_read error %d!\n", readErr);
-            wolfSSL_free(sslResume);
-            wolfSSL_CTX_free(ctx);
-            err_sys("wolfSSL_read failed");
+        else if (input < 0) {
+            int readErr = wolfSSL_get_error(sslResume, 0);
+            if (readErr != SSL_ERROR_WANT_READ) {
+                printf("wolfSSL_read error %d!\n", readErr);
+                wolfSSL_free(sslResume);
+                wolfSSL_CTX_free(ctx);
+                err_sys("wolfSSL_read failed");
+            }
         }
-    }
 
         /* try to send session break */
         wolfSSL_write(sslResume, msg, msgSz);

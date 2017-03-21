@@ -90,7 +90,7 @@ enum wolfSSL_ErrorCodes {
     ECC_EXPORT_ERROR             = -354,   /* Bad ECC Export Key */
     ECC_SHARED_ERROR             = -355,   /* Bad ECC Shared Secret */
     NOT_CA_ERROR                 = -357,   /* Not a CA cert error */
-    BAD_PATH_ERROR               = -358,   /* Bad path for opendir */
+
     BAD_CERT_MANAGER_ERROR       = -359,   /* Bad Cert Manager */
     OCSP_CERT_REVOKED            = -360,   /* OCSP Certificate revoked */
     CRL_CERT_REVOKED             = -361,   /* CRL Certificate revoked */
@@ -152,6 +152,7 @@ enum wolfSSL_ErrorCodes {
     EXT_MASTER_SECRET_NEEDED_E   = -414,   /* need EMS enabled to resume */
     DTLS_POOL_SZ_E               = -415,   /* exceeded DTLS pool size */
     DECODE_E                     = -416,   /* decode handshake message error */
+    HTTP_TIMEOUT                 = -417,   /* HTTP timeout for OCSP or CRL req */
     /* add strings to wolfSSL_ERR_reason_error_string in internal.c !!!!! */
 
     /* begin negotiation parameter errors */

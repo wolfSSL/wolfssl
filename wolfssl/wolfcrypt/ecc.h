@@ -110,7 +110,8 @@ enum {
 
 /* Curve Types */
 typedef enum ecc_curve_id {
-    ECC_CURVE_DEF, /* NIST or SECP */
+    ECC_CURVE_INVALID = -1,
+    ECC_CURVE_DEF = 0, /* NIST or SECP */
 
     /* NIST Prime Curves */
     ECC_SECP192R1,
@@ -274,10 +275,9 @@ typedef struct ecc_key {
     ecc_point pubkey;   /* public key */
     mp_int    k;        /* private key */
 #endif
+#ifdef WOLFSSL_ASYNC_CRYPT
     mp_int*   r;        /* sign/verify temps */
     mp_int*   s;
-
-#ifdef WOLFSSL_ASYNC_CRYPT
     AsyncCryptDev asyncDev;
 #endif
 } ecc_key;
@@ -286,6 +286,24 @@ typedef struct ecc_key {
 /* ECC predefined curve sets  */
 extern const ecc_set_type ecc_sets[];
 
+WOLFSSL_API
+const char* wc_ecc_get_name(int curve_id);
+
+#ifndef WOLFSSL_ATECC508A
+
+#ifdef WOLFSSL_PUBLIC_ECC_ADD_DBL
+    #define ECC_API    WOLFSSL_API
+#else
+    #define ECC_API    WOLFSSL_LOCAL
+#endif
+
+ECC_API int ecc_map(ecc_point*, mp_int*, mp_digit);
+ECC_API int ecc_projective_add_point(ecc_point* P, ecc_point* Q, ecc_point* R,
+                                     mp_int* a, mp_int* modulus, mp_digit mp);
+ECC_API int ecc_projective_dbl_point(ecc_point* P, ecc_point* R, mp_int* a,
+                                     mp_int* modulus, mp_digit mp);
+
+#endif
 
 WOLFSSL_API
 int wc_ecc_make_key(WC_RNG* rng, int keysize, ecc_key* key);
@@ -340,9 +358,15 @@ WOLFSSL_API
 void wc_ecc_fp_free(void);
 
 WOLFSSL_API
+int wc_ecc_set_curve(ecc_key* key, int keysize, int curve_id);
+
+WOLFSSL_API
 int wc_ecc_is_valid_idx(int n);
 WOLFSSL_API
-const char* wc_ecc_get_curve_name_from_id(int curve_id);
+int wc_ecc_get_curve_idx(int curve_id);
+WOLFSSL_API
+int wc_ecc_get_curve_id(int curve_idx);
+#define wc_ecc_get_curve_name_from_id wc_ecc_get_name
 WOLFSSL_API
 int wc_ecc_get_curve_size_from_id(int curve_id);
 

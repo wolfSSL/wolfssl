@@ -875,15 +875,11 @@ int wc_HKDF(int type, const byte* inKey, word32 inKeySz,
         saltSz    = hashSz;
     }
 
-    do {
     ret = wc_HmacSetKey(&myHmac, type, localSalt, saltSz);
-    if (ret != 0)
-        break;
-    ret = wc_HmacUpdate(&myHmac, inKey, inKeySz);
-    if (ret != 0)
-        break;
-    ret = wc_HmacFinal(&myHmac,  prk);
-    } while (0);
+    if (ret == 0)
+        ret = wc_HmacUpdate(&myHmac, inKey, inKeySz);
+    if (ret == 0)
+        ret = wc_HmacFinal(&myHmac,  prk);
 
     if (ret == 0) {
         while (outIdx < outSz) {

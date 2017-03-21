@@ -354,7 +354,7 @@ int mp_copy (mp_int * a, mp_int * b)
     }
 
     /* clear high digits */
-    for (; n < b->used; n++) {
+    for (; n < b->used && b->dp; n++) {
       *tmpb++ = 0;
     }
   }
@@ -542,6 +542,7 @@ void mp_rshb (mp_int *c, int x)
       /* set the carry to the carry bits of the current word found above */
       r = rr;
     }
+    mp_clamp(c);
 }
 
 
@@ -1638,6 +1639,11 @@ int s_mp_sub (mp_int * a, mp_int * b, mp_int * c)
       return res;
     }
   }
+
+  /* sanity check on destination */
+  if (c->dp == NULL)
+     return MP_VAL;
+
   olduse = c->used;
   c->used = max_a;
 
@@ -3767,7 +3773,7 @@ int s_mp_mul_high_digs (mp_int * a, mp_int * b, mp_int * c, int digs)
 
   pa = a->used;
   pb = b->used;
-  for (ix = 0; ix < pa; ix++) {
+  for (ix = 0; ix < pa && a->dp; ix++) {
     /* clear the carry */
     u = 0;
 
@@ -3840,7 +3846,7 @@ int fast_s_mp_mul_high_digs (mp_int * a, mp_int * b, mp_int * c, int digs)
   /* number of output digits to produce */
   pa = a->used + b->used;
   _W = 0;
-  for (ix = digs; ix < pa; ix++) {
+  for (ix = digs; ix < pa && a->dp; ix++) {
       int      tx, ty, iy;
       mp_digit *tmpx, *tmpy;
 
@@ -3897,25 +3903,33 @@ int fast_s_mp_mul_high_digs (mp_int * a, mp_int * b, mp_int * c, int digs)
 }
 
 
-/* set a 32-bit const */
+#ifndef MP_SET_CHUNK_BITS
+    #define MP_SET_CHUNK_BITS 4
+#endif
 int mp_set_int (mp_int * a, unsigned long b)
 {
-  int     x, res;
+  int x, res;
+
+  /* use direct mp_set if b is less than mp_digit max */
+  if (b < MP_DIGIT_MAX) {
+    return mp_set (a, (mp_digit)b);
+  }
 
   mp_zero (a);
 
-  /* set four bits at a time */
-  for (x = 0; x < 8; x++) {
-    /* shift the number up four bits */
-    if ((res = mp_mul_2d (a, 4, a)) != MP_OKAY) {
+  /* set chunk bits at a time */
+  for (x = 0; x < (int)(sizeof(b) * 8) / MP_SET_CHUNK_BITS; x++) {
+    /* shift the number up chunk bits */
+    if ((res = mp_mul_2d (a, MP_SET_CHUNK_BITS, a)) != MP_OKAY) {
       return res;
     }
 
-    /* OR in the top four bits of the source */
-    a->dp[0] |= (b >> 28) & 15;
+    /* OR in the top bits of the source */
+    a->dp[0] |= (b >> ((sizeof(b) * 8) - MP_SET_CHUNK_BITS)) &
+                                  ((1 << MP_SET_CHUNK_BITS) - 1);
 
-    /* shift the source up to the next four bits */
-    b <<= 4;
+    /* shift the source up to the next chunk bits */
+    b <<= MP_SET_CHUNK_BITS;
 
     /* ensure that digits are not clamped off */
     a->used += 1;
@@ -4128,7 +4142,7 @@ static const int lnz[16] = {
 int mp_cnt_lsb(mp_int *a)
 {
     int x;
-    mp_digit q, qq;
+    mp_digit q = 0, qq;
 
     /* easy out */
     if (mp_iszero(a) == MP_YES) {
@@ -4137,7 +4151,8 @@ int mp_cnt_lsb(mp_int *a)
 
     /* scan lower digits until non-zero */
     for (x = 0; x < a->used && a->dp[x] == 0; x++) {}
-    q = a->dp[x];
+    if (a->dp)
+        q = a->dp[x];
     x *= DIGIT_BIT;
 
     /* now scan this digit until a 1 is found */
@@ -4223,6 +4238,10 @@ static int mp_div_d (mp_int * a, mp_digit b, mp_int * c, mp_digit * d)
       q.used = a->used;
       q.sign = a->sign;
   }
+  else {
+      mp_init(&q); /* initialize to help static analysis */
+  }
+
 
   w = 0;
   for (ix = a->used - 1; ix >= 0; ix--) {
@@ -4245,8 +4264,8 @@ static int mp_div_d (mp_int * a, mp_digit b, mp_int * c, mp_digit * d)
   if (c != NULL) {
      mp_clamp(&q);
      mp_exch(&q, c);
-     mp_clear(&q);
   }
+  mp_clear(&q);
 
   return res;
 }

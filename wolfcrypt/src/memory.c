@@ -539,7 +539,9 @@ void* wolfSSL_Malloc(size_t size, void* heap, int type)
         }
 
         /* case of using fixed IO buffers */
-        if (mem->flag & WOLFMEM_IO_POOL_FIXED) {
+        if (mem->flag & WOLFMEM_IO_POOL_FIXED &&
+                                             (type == DYNAMIC_TYPE_OUT_BUFFER ||
+                                              type == DYNAMIC_TYPE_IN_BUFFER)) {
             if (type == DYNAMIC_TYPE_OUT_BUFFER) {
                 pt = hint->outBuf;
             }
@@ -547,25 +549,26 @@ void* wolfSSL_Malloc(size_t size, void* heap, int type)
                 pt = hint->inBuf;
             }
         }
-
-        /* check if using IO pool flag */
-        if (mem->flag & WOLFMEM_IO_POOL && pt == NULL &&
+        else {
+            /* check if using IO pool flag */
+            if (mem->flag & WOLFMEM_IO_POOL &&
                                              (type == DYNAMIC_TYPE_OUT_BUFFER ||
                                               type == DYNAMIC_TYPE_IN_BUFFER)) {
-            if (mem->io != NULL) {
-                pt      = mem->io;
-                mem->io = pt->next;
+                if (mem->io != NULL) {
+                    pt      = mem->io;
+                    mem->io = pt->next;
+                }
             }
-        }
 
-        /* general static memory */
-        if (pt == NULL) {
-            for (i = 0; i < WOLFMEM_MAX_BUCKETS; i++) {
-                if ((word32)size < mem->sizeList[i]) {
-                    if (mem->ava[i] != NULL) {
-                        pt = mem->ava[i];
-                        mem->ava[i] = pt->next;
-                        break;
+            /* general static memory */
+            if (pt == NULL) {
+                for (i = 0; i < WOLFMEM_MAX_BUCKETS; i++) {
+                    if ((word32)size < mem->sizeList[i]) {
+                        if (mem->ava[i] != NULL) {
+                            pt = mem->ava[i];
+                            mem->ava[i] = pt->next;
+                            break;
+                        }
                     }
                 }
             }
@@ -672,7 +675,7 @@ void wolfSSL_Free(void *ptr, void* heap, int type)
                 /* fixed IO pools are free'd at the end of SSL lifetime
                    using FreeFixedIO(WOLFSSL_HEAP* heap, wc_Memory** io) */
             }
-            else if (mem->flag & WOLFMEM_IO_POOL &&
+            else if (mem->flag & WOLFMEM_IO_POOL && pt->sz == WOLFMEM_IO_SZ &&
                                              (type == DYNAMIC_TYPE_OUT_BUFFER ||
                                               type == DYNAMIC_TYPE_IN_BUFFER)) {
                 pt->next = mem->io;

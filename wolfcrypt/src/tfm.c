@@ -1963,6 +1963,41 @@ void fp_set(fp_int *a, fp_digit b)
    a->used  = a->dp[0] ? 1 : 0;
 }
 
+
+#ifndef MP_SET_CHUNK_BITS
+    #define MP_SET_CHUNK_BITS 4
+#endif
+void fp_set_int(fp_int *a, unsigned long b)
+{
+  int x;
+
+  /* use direct fp_set if b is less than fp_digit max */
+  if (b < FP_DIGIT_MAX) {
+    fp_set (a, b);
+    return;
+  }
+
+  fp_zero (a);
+
+  /* set chunk bits at a time */
+  for (x = 0; x < (int)(sizeof(b) * 8) / MP_SET_CHUNK_BITS; x++) {
+    fp_mul_2d (a, MP_SET_CHUNK_BITS, a);
+
+    /* OR in the top bits of the source */
+    a->dp[0] |= (b >> ((sizeof(b) * 8) - MP_SET_CHUNK_BITS)) &
+                                  ((1 << MP_SET_CHUNK_BITS) - 1);
+
+    /* shift the source up to the next chunk bits */
+    b <<= MP_SET_CHUNK_BITS;
+
+    /* ensure that digits are not clamped off */
+    a->used += 1;
+  }
+
+  /* clamp digits */
+  fp_clamp(a);
+}
+
 /* check if a bit is set */
 int fp_is_bit_set (fp_int *a, fp_digit b)
 {
@@ -2043,26 +2078,26 @@ int fp_leading_bit(fp_int *a)
 
 void fp_lshd(fp_int *a, int x)
 {
-   int y;
+    int y;
 
-   /* move up and truncate as required */
-   y = MIN(a->used + x - 1, (int)(FP_SIZE-1));
+    /* move up and truncate as required */
+    y = MIN(a->used + x - 1, (int)(FP_SIZE-1));
 
-   /* store new size */
-   a->used = y + 1;
+    /* store new size */
+    a->used = y + 1;
 
-   /* move digits */
-   for (; y >= x; y--) {
-       a->dp[y] = a->dp[y-x];
-   }
+    /* move digits */
+    for (; y >= x; y--) {
+        a->dp[y] = a->dp[y-x];
+    }
 
-   /* zero lower digits */
-   for (; y >= 0; y--) {
-       a->dp[y] = 0;
-   }
+    /* zero lower digits */
+    for (; y >= 0; y--) {
+        a->dp[y] = 0;
+    }
 
-   /* clamp digits */
-   fp_clamp(a);
+    /* clamp digits */
+    fp_clamp(a);
 }
 
 
@@ -2095,6 +2130,9 @@ void fp_rshb(fp_int *c, int x)
       /* set the carry to the carry bits of the current word found above */
       r = rr;
     }
+
+    /* clamp digits */
+    fp_clamp(c);
 }
 
 
@@ -2350,6 +2388,11 @@ int mp_mul_2d(fp_int *a, int b, fp_int *c)
 	return MP_OKAY;
 }
 
+int mp_div(fp_int * a, fp_int * b, fp_int * c, fp_int * d)
+{
+    return fp_div(a, b, c, d);
+}
+
 int mp_div_2d(fp_int* a, int b, fp_int* c, fp_int* d)
 {
     fp_div_2d(a, b, c, d);
@@ -2427,9 +2470,14 @@ void mp_rshb (mp_int* a, int x)
     fp_rshb(a, x);
 }
 
-int mp_set_int(mp_int *a, mp_digit b)
+void mp_rshd (mp_int* a, int x)
 {
-    fp_set(a, b);
+    fp_rshd(a, x);
+}
+
+int mp_set_int(mp_int *a, unsigned long b)
+{
+    fp_set_int(a, b);
     return MP_OKAY;
 }
 

@@ -3,13 +3,19 @@
 #ifndef WOLFSSL_ECDSA_H_
 #define WOLFSSL_ECDSA_H_
 
-#include <wolfssl/openssl/ssl.h>
 #include <wolfssl/openssl/bn.h>
 
 
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+#ifndef WOLFSSL_ECDSA_TYPE_DEFINED /* guard on redeclaration */
+typedef struct WOLFSSL_ECDSA_SIG      WOLFSSL_ECDSA_SIG;
+#define WOLFSSL_ECDSA_TYPE_DEFINED
+#endif
+
+typedef WOLFSSL_ECDSA_SIG             ECDSA_SIG;
 
 struct WOLFSSL_ECDSA_SIG {
     WOLFSSL_BIGNUM *r;

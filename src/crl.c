@@ -34,11 +34,6 @@
 #include <wolfssl/internal.h>
 #include <wolfssl/error-ssl.h>
 
-#ifndef NO_FILESYSTEM
-    #include <dirent.h>
-    #include <sys/stat.h>
-#endif
-
 #include <string.h>
 
 #ifdef HAVE_CRL_MONITOR
@@ -154,14 +149,11 @@ void FreeCRL(WOLFSSL_CRL* crl, int dynamic)
 }
 
 
-/* Is the cert ok with CRL, return 0 on success */
-int CheckCertCRL(WOLFSSL_CRL* crl, DecodedCert* cert)
+static int CheckCertCRLList(WOLFSSL_CRL* crl, DecodedCert* cert, int *pFoundEntry)
 {
     CRL_Entry* crle;
     int        foundEntry = 0;
     int        ret = 0;
-
-    WOLFSSL_ENTER("CheckCertCRL");
 
     if (wc_LockMutex(&crl->crlLock) != 0) {
         WOLFSSL_MSG("wc_LockMutex failed");
@@ -182,13 +174,17 @@ int CheckCertCRL(WOLFSSL_CRL* crl, DecodedCert* cert)
                     doNextDate = 0;  /* skip */
             #endif
 
-            if (doNextDate && !ValidateDate(crle->nextDate,
-                                            crle->nextDateFormat, AFTER)) {
-                WOLFSSL_MSG("CRL next date is no longer valid");
-                ret = ASN_AFTER_DATE_E;
+            if (doNextDate) {
+            #ifndef NO_ASN_TIME
+                if (!ValidateDate(crle->nextDate,crle->nextDateFormat, AFTER)) {
+                    WOLFSSL_MSG("CRL next date is no longer valid");
+                    ret = ASN_AFTER_DATE_E;
+                }
+            #endif
             }
-            else
+            if (ret == 0) {
                 foundEntry = 1;
+            }
             break;
         }
         crle = crle->next;
@@ -209,9 +205,39 @@ int CheckCertCRL(WOLFSSL_CRL* crl, DecodedCert* cert)
 
     wc_UnLockMutex(&crl->crlLock);
 
+    *pFoundEntry = foundEntry;
+
+    return ret;
+}
+
+/* Is the cert ok with CRL, return 0 on success */
+int CheckCertCRL(WOLFSSL_CRL* crl, DecodedCert* cert)
+{
+    int        foundEntry = 0;
+    int        ret = 0;
+
+    WOLFSSL_ENTER("CheckCertCRL");
+
+    ret = CheckCertCRLList(crl, cert, &foundEntry);
+
+#ifdef HAVE_CRL_IO
+    if (foundEntry == 0) {
+        /* perform embedded lookup */
+        if (crl->crlIOCb) {
+            ret = crl->crlIOCb(crl, (const char*)cert->extCrlInfo,
+                                                        cert->extCrlInfoSz);
+            if (ret >= 0) {
+                /* try again */
+                ret = CheckCertCRLList(crl, cert, &foundEntry);
+            }
+        }
+    }
+#endif
+
     if (foundEntry == 0) {
         WOLFSSL_MSG("Couldn't find CRL for status check");
         ret = CRL_MISSING;
+
         if (crl->cm->cbMissingCRL) {
             char url[256];
 
@@ -224,10 +250,10 @@ int CheckCertCRL(WOLFSSL_CRL* crl, DecodedCert* cert)
             else  {
                 WOLFSSL_MSG("CRL url too long");
             }
+
             crl->cm->cbMissingCRL(url);
         }
     }
-
 
     return ret;
 }
@@ -790,74 +816,61 @@ static int StartMonitorCRL(WOLFSSL_CRL* crl)
 
 #endif  /* HAVE_CRL_MONITOR */
 
-#ifndef NO_FILESYSTEM
+#if !defined(NO_FILESYSTEM) && !defined(NO_WOLFSSL_DIR)
 
 /* Load CRL path files of type, SSL_SUCCESS on ok */
 int LoadCRL(WOLFSSL_CRL* crl, const char* path, int type, int monitor)
 {
-    struct dirent* entry;
-    DIR*           dir;
-    int            ret = SSL_SUCCESS;
+    int         ret = SSL_SUCCESS;
+    char*       name = NULL;
 #ifdef WOLFSSL_SMALL_STACK
-    char*          name;
+    ReadDirCtx* readCtx = NULL;
 #else
-    char           name[MAX_FILENAME_SZ];
+    ReadDirCtx  readCtx[1];
 #endif
 
     WOLFSSL_ENTER("LoadCRL");
     if (crl == NULL)
         return BAD_FUNC_ARG;
 
-    dir = opendir(path);
-    if (dir == NULL) {
-        WOLFSSL_MSG("opendir path crl load failed");
-        return BAD_PATH_ERROR;
-    }
-
 #ifdef WOLFSSL_SMALL_STACK
-    name = (char*)XMALLOC(MAX_FILENAME_SZ, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    if (name == NULL)
+    readCtx = (ReadDirCtx*)XMALLOC(sizeof(ReadDirCtx), crl->heap,
+                                                       DYNAMIC_TYPE_TMP_BUFFER);
+    if (readCtx == NULL)
         return MEMORY_E;
 #endif
 
-    while ( (entry = readdir(dir)) != NULL) {
-        struct stat s;
-
-        XMEMSET(name, 0, MAX_FILENAME_SZ);
-        XSTRNCPY(name, path, MAX_FILENAME_SZ/2 - 2);
-        XSTRNCAT(name, "/", 1);
-        XSTRNCAT(name, entry->d_name, MAX_FILENAME_SZ/2);
-
-        if (stat(name, &s) != 0) {
-            WOLFSSL_MSG("stat on name failed");
-            continue;
-        }
-        if (s.st_mode & S_IFREG) {
-
-            if (type == SSL_FILETYPE_PEM) {
-                if (XSTRSTR(entry->d_name, ".pem") == NULL) {
-                    WOLFSSL_MSG("not .pem file, skipping");
-                    continue;
-                }
-            }
-            else {
-                if (XSTRSTR(entry->d_name, ".der") == NULL &&
-                    XSTRSTR(entry->d_name, ".crl") == NULL) {
-
-                    WOLFSSL_MSG("not .der or .crl file, skipping");
-                    continue;
-                }
-            }
-
-            if (ProcessFile(NULL, name, type, CRL_TYPE, NULL, 0, crl)
-                                                               != SSL_SUCCESS) {
-                WOLFSSL_MSG("CRL file load failed, continuing");
+    /* try to load each regular file in path */
+    ret = wc_ReadDirFirst(readCtx, path, &name);
+    while (ret == 0 && name) {
+        int skip = 0;
+        if (type == SSL_FILETYPE_PEM) {
+            if (XSTRSTR(name, ".pem") == NULL) {
+                WOLFSSL_MSG("not .pem file, skipping");
+                skip = 1;
             }
         }
+        else {
+            if (XSTRSTR(name, ".der") == NULL &&
+                XSTRSTR(name, ".crl") == NULL)
+            {
+                WOLFSSL_MSG("not .der or .crl file, skipping");
+                skip = 1;
+            }
+        }
+
+        if (!skip && ProcessFile(NULL, name, type, CRL_TYPE, NULL, 0, crl)
+                                                           != SSL_SUCCESS) {
+            WOLFSSL_MSG("CRL file load failed, continuing");
+        }
+
+        ret = wc_ReadDirNext(readCtx, path, &name);
     }
+    wc_ReadDirClose(readCtx);
+    ret = SSL_SUCCESS; /* load failures not reported, for backwards compat */
 
 #ifdef WOLFSSL_SMALL_STACK
-    XFREE(name, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(readCtx, ctx->heap, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
 
     if (monitor & WOLFSSL_CRL_MONITOR) {
@@ -901,12 +914,21 @@ int LoadCRL(WOLFSSL_CRL* crl, const char* path, int type, int monitor)
         }
     }
 
-    closedir(dir);
-
     return ret;
 }
 
-#endif /* NO_FILESYSTEM */
+#else
+int LoadCRL(WOLFSSL_CRL* crl, const char* path, int type, int monitor)
+{
+	(void)crl;
+	(void)path;
+	(void)type;
+	(void)monitor;
+
+    /* stub for scenario where file system is not supported */
+    return NOT_COMPILED_IN;
+}
+#endif /* !NO_FILESYSTEM && !NO_WOLFSSL_DIR */
 
 #endif /* HAVE_CRL */
 #endif /* !WOLFCRYPT_ONLY */

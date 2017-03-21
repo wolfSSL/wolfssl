@@ -514,6 +514,12 @@ static INLINE void showPeer(WOLFSSL* ssl)
 {
 
     WOLFSSL_CIPHER* cipher;
+#ifdef HAVE_ECC
+    const char *name;
+#endif
+#ifndef NO_DH
+    int bits;
+#endif
 #ifdef KEEP_PEER_CERT
     WOLFSSL_X509* peer = wolfSSL_get_peer_certificate(ssl);
     if (peer)
@@ -535,6 +541,16 @@ static INLINE void showPeer(WOLFSSL* ssl)
 #else
     printf("SSL cipher suite is %s\n", wolfSSL_CIPHER_get_name(cipher));
 #endif
+#ifdef HAVE_ECC
+    if ((name = wolfSSL_get_curve_name(ssl)) != NULL)
+        printf("SSL curve name is %s\n", name);
+#endif
+#ifndef NO_DH
+    if ((bits = wolfSSL_GetDhKey_Sz(ssl)) > 0)
+        printf("SSL DH size is %d bits\n", bits);
+#endif
+    if (wolfSSL_session_reused(ssl))
+        printf("SSL reused session\n");
 
 #if defined(SESSION_CERTS) && defined(SHOW_CERTS)
     {
@@ -608,7 +624,7 @@ static INLINE void build_addr(SOCKADDR_IN_T* addr, const char* peer,
     #else
         addr->sin_family = AF_INET_V;
     #endif
-    addr->sin_port = htons(port);
+    addr->sin_port = XHTONS(port);
     if (peer == INADDR_ANY)
         addr->sin_addr.s_addr = INADDR_ANY;
     else {
@@ -617,7 +633,7 @@ static INLINE void build_addr(SOCKADDR_IN_T* addr, const char* peer,
     }
 #else
     addr->sin6_family = AF_INET_V;
-    addr->sin6_port = htons(port);
+    addr->sin6_port = XHTONS(port);
     if (peer == INADDR_ANY)
         addr->sin6_addr = in6addr_any;
     else {
@@ -808,9 +824,9 @@ static INLINE void tcp_listen(SOCKET_T* sockfd, word16* port, int useAnyAddr,
             socklen_t len = sizeof(addr);
             if (getsockname(*sockfd, (struct sockaddr*)&addr, &len) == 0) {
                 #ifndef TEST_IPV6
-                    *port = ntohs(addr.sin_port);
+                    *port = XNTOHS(addr.sin_port);
                 #else
-                    *port = ntohs(addr.sin6_port);
+                    *port = XNTOHS(addr.sin6_port);
                 #endif
             }
         }
@@ -869,9 +885,9 @@ static INLINE void udp_accept(SOCKET_T* sockfd, SOCKET_T* clientfd,
             socklen_t len = sizeof(addr);
             if (getsockname(*sockfd, (struct sockaddr*)&addr, &len) == 0) {
                 #ifndef TEST_IPV6
-                    port = ntohs(addr.sin_port);
+                    port = XNTOHS(addr.sin_port);
                 #else
-                    port = ntohs(addr.sin6_port);
+                    port = XNTOHS(addr.sin6_port);
                 #endif
             }
         }
@@ -1285,10 +1301,6 @@ static INLINE void CaCb(unsigned char* der, int sz, int type)
 /* Wolf Root Directory Helper */
 /* KEIL-RL File System does not support relative directory */
 #if !defined(WOLFSSL_MDK_ARM) && !defined(WOLFSSL_KEIL_FS) && !defined(WOLFSSL_TIRTOS)
-    #ifndef MAX_PATH
-        #define MAX_PATH 256
-    #endif
-
     /* Maximum depth to search for WolfSSL root */
     #define MAX_WOLF_ROOT_DEPTH 5
 
@@ -2016,7 +2028,7 @@ static INLINE const char* mymktemp(char *tempfn, int len, int num)
         (void)userCtx;
 
         int ret;
-        word16 sLen = htons(inLen);
+        word16 sLen = XHTONS(inLen);
         byte aad[WOLFSSL_TICKET_NAME_SZ + WOLFSSL_TICKET_IV_SZ + 2];
         int  aadSz = WOLFSSL_TICKET_NAME_SZ + WOLFSSL_TICKET_IV_SZ + 2;
         byte* tmp = aad;

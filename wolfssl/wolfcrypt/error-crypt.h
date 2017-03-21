@@ -183,6 +183,8 @@ enum {
     BAD_KEYWRAP_IV_E    = -240,  /* Decrypted AES key wrap IV incorrect */
     WC_CLEANUP_E        = -241,  /* wolfcrypt cleanup failed */
     ECC_CDH_KAT_FIPS_E  = -242,  /* ECC CDH Known Answer Test failure */
+    DH_CHECK_PUB_E      = -243,  /* DH Check Pub Key error */
+    BAD_PATH_ERROR      = -244,  /* Bad path for opendir */
 
     MIN_CODE_E          = -300   /* errors -101 - -299 */
 

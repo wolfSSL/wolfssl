@@ -61,6 +61,7 @@
 
 #ifdef OPENSSL_EXTRA
     #include <wolfssl/openssl/bn.h>
+    #include <wolfssl/openssl/hmac.h>
 #endif
 
 #ifdef __cplusplus
@@ -80,9 +81,12 @@ typedef struct WOLFSSL_X509_CHAIN WOLFSSL_X509_CHAIN;
 
 typedef struct WOLFSSL_CERT_MANAGER WOLFSSL_CERT_MANAGER;
 typedef struct WOLFSSL_SOCKADDR     WOLFSSL_SOCKADDR;
+typedef struct WOLFSSL_CRL          WOLFSSL_CRL;
 
 /* redeclare guard */
 #define WOLFSSL_TYPES_DEFINED
+
+#include <wolfssl/io.h>
 
 
 #ifndef WOLFSSL_RSA_TYPE_DEFINED /* guard on redeclaration */
@@ -95,15 +99,28 @@ typedef struct WOLFSSL_RSA            WOLFSSL_RSA;
     #define WC_RNG_TYPE_DEFINED
 #endif
 
+#ifndef WOLFSSL_DSA_TYPE_DEFINED /* guard on redeclaration */
 typedef struct WOLFSSL_DSA            WOLFSSL_DSA;
+#define WOLFSSL_DSA_TYPE_DEFINED
+#endif
+
+#ifndef WOLFSSL_EC_TYPE_DEFINED /* guard on redeclaration */
 typedef struct WOLFSSL_EC_KEY         WOLFSSL_EC_KEY;
 typedef struct WOLFSSL_EC_POINT       WOLFSSL_EC_POINT;
 typedef struct WOLFSSL_EC_GROUP       WOLFSSL_EC_GROUP;
+#define WOLFSSL_EC_TYPE_DEFINED
+#endif
+
+#ifndef WOLFSSL_ECDSA_TYPE_DEFINED /* guard on redeclaration */
 typedef struct WOLFSSL_ECDSA_SIG      WOLFSSL_ECDSA_SIG;
+#define WOLFSSL_ECDSA_TYPE_DEFINED
+#endif
+
 typedef struct WOLFSSL_CIPHER         WOLFSSL_CIPHER;
 typedef struct WOLFSSL_X509_LOOKUP    WOLFSSL_X509_LOOKUP;
 typedef struct WOLFSSL_X509_LOOKUP_METHOD WOLFSSL_X509_LOOKUP_METHOD;
 typedef struct WOLFSSL_X509_CRL       WOLFSSL_X509_CRL;
+typedef struct WOLFSSL_X509_STORE     WOLFSSL_X509_STORE;
 typedef struct WOLFSSL_BIO            WOLFSSL_BIO;
 typedef struct WOLFSSL_BIO_METHOD     WOLFSSL_BIO_METHOD;
 typedef struct WOLFSSL_X509_EXTENSION WOLFSSL_X509_EXTENSION;
@@ -117,7 +134,8 @@ typedef struct WOLFSSL_DH               WOLFSSL_DH;
 typedef struct WOLFSSL_ASN1_BIT_STRING  WOLFSSL_ASN1_BIT_STRING;
 typedef unsigned char*                  WOLFSSL_BUF_MEM;
 
-#define WOLFSSL_ASN1_UTCTIME WOLFSSL_ASN1_TIME
+#define WOLFSSL_ASN1_UTCTIME          WOLFSSL_ASN1_TIME
+#define WOLFSSL_ASN1_GENERALIZEDTIME  WOLFSSL_ASN1_TIME
 
 struct WOLFSSL_ASN1_INTEGER {
     /* size can be increased set at 20 for tag, length then to hold at least 16
@@ -126,18 +144,16 @@ struct WOLFSSL_ASN1_INTEGER {
     /* ASN_INTEGER | LENGTH | hex of number */
 };
 
-typedef char   WOLFSSL_EVP_MD;
-typedef struct WOLFSSL_EVP_PKEY {
-    int type;         /* openssh dereference */
-    int save_type;    /* openssh dereference */
-    int pkey_sz;
-    union {
-        char* ptr; /* der format of key / or raw for NTRU */
-    } pkey;
-    #ifdef HAVE_ECC
-        int pkey_curve;
-    #endif
-} WOLFSSL_EVP_PKEY;
+struct WOLFSSL_ASN1_TIME {
+    /* MAX_DATA_SIZE is 32 */
+    unsigned char data[32 + 2];
+    /* ASN_TIME | LENGTH | date bytes */
+};
+
+#ifndef WOLFSSL_EVP_PKEY_TYPE_DEFINED /* guard on redeclaration */
+typedef struct WOLFSSL_EVP_PKEY     WOLFSSL_EVP_PKEY;
+#define WOLFSSL_EVP_PKEY_TYPE_DEFINED
+#endif
 
 typedef struct WOLFSSL_MD4_CTX {
     int buffer[32];      /* big enough to hold, check size in Init */
@@ -148,11 +164,22 @@ typedef struct WOLFSSL_COMP_METHOD {
     int type;            /* stunnel dereference */
 } WOLFSSL_COMP_METHOD;
 
+struct WOLFSSL_X509_LOOKUP_METHOD {
+    int type;
+};
 
-typedef struct WOLFSSL_X509_STORE {
-    int                  cache;          /* stunnel dereference */
+struct WOLFSSL_X509_LOOKUP {
+    WOLFSSL_X509_STORE *store;
+};
+
+struct WOLFSSL_X509_STORE {
+    int                   cache;          /* stunnel dereference */
     WOLFSSL_CERT_MANAGER* cm;
-} WOLFSSL_X509_STORE;
+    WOLFSSL_X509_LOOKUP   lookup;
+#ifdef OPENSSL_EXTRA
+    int                   isDynamic;
+#endif
+};
 
 typedef struct WOLFSSL_ALERT {
     int code;
@@ -196,6 +223,7 @@ typedef struct WOLFSSL_X509_STORE_CTX {
     WOLFSSL_BUFFER_INFO* certs;  /* peer certs */
 } WOLFSSL_X509_STORE_CTX;
 
+typedef char* WOLFSSL_STRING;
 
 /* Valid Alert types from page 16/17 */
 enum AlertDescription {
@@ -347,6 +375,9 @@ WOLFSSL_API int  wolfSSL_set_read_fd (WOLFSSL*, int);
 WOLFSSL_API char* wolfSSL_get_cipher_list(int priority);
 WOLFSSL_API int  wolfSSL_get_ciphers(char*, int);
 WOLFSSL_API const char* wolfSSL_get_cipher_name(WOLFSSL* ssl);
+WOLFSSL_API const char* wolfSSL_get_shared_ciphers(WOLFSSL* ssl, char* buf,
+    int len);
+WOLFSSL_API const char* wolfSSL_get_curve_name(WOLFSSL* ssl);
 WOLFSSL_API int  wolfSSL_get_fd(const WOLFSSL*);
 WOLFSSL_API void wolfSSL_set_using_nonblock(WOLFSSL*, int);
 WOLFSSL_API int  wolfSSL_get_using_nonblock(WOLFSSL*);
@@ -475,7 +506,7 @@ WOLFSSL_API int  wolfSSL_is_init_finished(WOLFSSL*);
 WOLFSSL_API const char*  wolfSSL_get_version(WOLFSSL*);
 WOLFSSL_API int  wolfSSL_get_current_cipher_suite(WOLFSSL* ssl);
 WOLFSSL_API WOLFSSL_CIPHER*  wolfSSL_get_current_cipher(WOLFSSL*);
-WOLFSSL_API char*        wolfSSL_CIPHER_description(WOLFSSL_CIPHER*, char*, int);
+WOLFSSL_API char* wolfSSL_CIPHER_description(const WOLFSSL_CIPHER*, char*, int);
 WOLFSSL_API const char*  wolfSSL_CIPHER_get_name(const WOLFSSL_CIPHER* cipher);
 WOLFSSL_API const char*  wolfSSL_SESSION_CIPHER_get_name(WOLFSSL_SESSION* session);
 WOLFSSL_API const char*  wolfSSL_get_cipher(WOLFSSL*);
@@ -517,7 +548,7 @@ WOLFSSL_API WOLFSSL_BIO_METHOD* wolfSSL_BIO_s_mem(void);
 WOLFSSL_API WOLFSSL_BIO_METHOD* wolfSSL_BIO_f_base64(void);
 WOLFSSL_API void wolfSSL_BIO_set_flags(WOLFSSL_BIO*, int);
 
-WOLFSSL_API int wolfSSL_BIO_get_mem_data(WOLFSSL_BIO* bio,const unsigned char** p);
+WOLFSSL_API int wolfSSL_BIO_get_mem_data(WOLFSSL_BIO* bio,void* p);
 WOLFSSL_API WOLFSSL_BIO* wolfSSL_BIO_new_mem_buf(void* buf, int len);
 
 
@@ -662,6 +693,8 @@ WOLFSSL_API WOLFSSL_BIGNUM *wolfSSL_ASN1_INTEGER_to_BN(const WOLFSSL_ASN1_INTEGE
 WOLFSSL_API STACK_OF(WOLFSSL_X509_NAME)* wolfSSL_load_client_CA_file(const char*);
 #endif
 
+WOLFSSL_API STACK_OF(WOLFSSL_X509_NAME)* wolfSSL_SSL_CTX_get_client_CA_list(
+        const WOLFSSL_CTX *s);
 WOLFSSL_API void  wolfSSL_CTX_set_client_CA_list(WOLFSSL_CTX*,
                                                STACK_OF(WOLFSSL_X509_NAME)*);
 WOLFSSL_API void* wolfSSL_X509_STORE_CTX_get_ex_data(WOLFSSL_X509_STORE_CTX*, int);
@@ -737,36 +770,35 @@ WOLFSSL_API long wolfSSL_get_verify_result(const WOLFSSL *ssl);
 
 /* seperated out from other enums because of size */
 enum {
-    /* bit flags (ie 0001 vs 0010) : each is 2 times previous value */
-    SSL_OP_MICROSOFT_SESS_ID_BUG            = 1,
-    SSL_OP_NETSCAPE_CHALLENGE_BUG           = 2,
-    SSL_OP_NETSCAPE_REUSE_CIPHER_CHANGE_BUG = 4,
-    SSL_OP_SSLREF2_REUSE_CERT_TYPE_BUG      = 8,
-    SSL_OP_MICROSOFT_BIG_SSLV3_BUFFER       = 16,
-    SSL_OP_MSIE_SSLV2_RSA_PADDING           = 32,
-    SSL_OP_SSLEAY_080_CLIENT_DH_BUG         = 64,
-    SSL_OP_TLS_D5_BUG                       = 128,
-    SSL_OP_TLS_BLOCK_PADDING_BUG            = 256,
-    SSL_OP_TLS_ROLLBACK_BUG                 = 512,
-    SSL_OP_ALL                              = 1024,
-    SSL_OP_EPHEMERAL_RSA                    = 2048,
-    SSL_OP_NO_SSLv3                         = 4096,
-    SSL_OP_NO_TLSv1                         = 8192,
-    SSL_OP_PKCS1_CHECK_1                    = 16384,
-    SSL_OP_PKCS1_CHECK_2                    = 32768,
-    SSL_OP_NETSCAPE_CA_DN_BUG               = 65536,
-    SSL_OP_NETSCAPE_DEMO_CIPHER_CHANGE_BUG  = 131072,
-    SSL_OP_SINGLE_DH_USE                    = 262144,
-    SSL_OP_NO_TICKET                        = 524288,
-    SSL_OP_DONT_INSERT_EMPTY_FRAGMENTS      = 1048576,
-    SSL_OP_NO_QUERY_MTU                     = 2097152,
-    SSL_OP_COOKIE_EXCHANGE                  = 4194304,
-    SSL_OP_NO_SESSION_RESUMPTION_ON_RENEGOTIATION = 8388608,
-    SSL_OP_SINGLE_ECDH_USE                  = 16777216,
-    SSL_OP_CIPHER_SERVER_PREFERENCE         = 33554432,
-    SSL_OP_NO_TLSv1_1                       = 67108864,
-    SSL_OP_NO_TLSv1_2                       = 134217728,
-    SSL_OP_NO_COMPRESSION                   = 268435456,
+    SSL_OP_MICROSOFT_SESS_ID_BUG                  = 0x00000001,
+    SSL_OP_NETSCAPE_CHALLENGE_BUG                 = 0x00000002,
+    SSL_OP_NETSCAPE_REUSE_CIPHER_CHANGE_BUG       = 0x00000004,
+    SSL_OP_SSLREF2_REUSE_CERT_TYPE_BUG            = 0x00000008,
+    SSL_OP_MICROSOFT_BIG_SSLV3_BUFFER             = 0x00000010,
+    SSL_OP_MSIE_SSLV2_RSA_PADDING                 = 0x00000020,
+    SSL_OP_SSLEAY_080_CLIENT_DH_BUG               = 0x00000040,
+    SSL_OP_TLS_D5_BUG                             = 0x00000080,
+    SSL_OP_TLS_BLOCK_PADDING_BUG                  = 0x00000100,
+    SSL_OP_TLS_ROLLBACK_BUG                       = 0x00000200,
+    SSL_OP_ALL                                    = 0x00000400,
+    SSL_OP_EPHEMERAL_RSA                          = 0x00000800,
+    SSL_OP_NO_SSLv3                               = 0x00001000,
+    SSL_OP_NO_TLSv1                               = 0x00002000,
+    SSL_OP_PKCS1_CHECK_1                          = 0x00004000,
+    SSL_OP_PKCS1_CHECK_2                          = 0x00008000,
+    SSL_OP_NETSCAPE_CA_DN_BUG                     = 0x00010000,
+    SSL_OP_NETSCAPE_DEMO_CIPHER_CHANGE_BUG        = 0x00020000,
+    SSL_OP_SINGLE_DH_USE                          = 0x00040000,
+    SSL_OP_NO_TICKET                              = 0x00080000,
+    SSL_OP_DONT_INSERT_EMPTY_FRAGMENTS            = 0x00100000,
+    SSL_OP_NO_QUERY_MTU                           = 0x00200000,
+    SSL_OP_COOKIE_EXCHANGE                        = 0x00400000,
+    SSL_OP_NO_SESSION_RESUMPTION_ON_RENEGOTIATION = 0x00800000,
+    SSL_OP_SINGLE_ECDH_USE                        = 0x01000000,
+    SSL_OP_CIPHER_SERVER_PREFERENCE               = 0x02000000,
+    SSL_OP_NO_TLSv1_1                             = 0x04000000,
+    SSL_OP_NO_TLSv1_2                             = 0x08000000,
+    SSL_OP_NO_COMPRESSION                         = 0x10000000,
 };
 
 
@@ -830,18 +862,25 @@ enum {
     X509_LU_X509      = 9,
     X509_LU_CRL       = 12,
 
-    X509_V_OK = 0,
-    X509_V_ERR_CRL_SIGNATURE_FAILURE = 13,
-    X509_V_ERR_ERROR_IN_CRL_NEXT_UPDATE_FIELD = 14,
-    X509_V_ERR_CRL_HAS_EXPIRED                = 15,
-    X509_V_ERR_CERT_REVOKED                   = 16,
-    X509_V_ERR_CERT_CHAIN_TOO_LONG            = 17,
-    X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT      = 18,
-    X509_V_ERR_CERT_NOT_YET_VALID             = 19,
-    X509_V_ERR_ERROR_IN_CERT_NOT_BEFORE_FIELD = 20,
-    X509_V_ERR_CERT_HAS_EXPIRED               = 21,
-    X509_V_ERR_ERROR_IN_CERT_NOT_AFTER_FIELD  = 22,
-    X509_V_ERR_CERT_REJECTED                  = 23,
+    X509_V_OK                                    = 0,
+    X509_V_ERR_CRL_SIGNATURE_FAILURE             = 13,
+    X509_V_ERR_ERROR_IN_CRL_NEXT_UPDATE_FIELD    = 14,
+    X509_V_ERR_CRL_HAS_EXPIRED                   = 15,
+    X509_V_ERR_CERT_REVOKED                      = 16,
+    X509_V_ERR_CERT_CHAIN_TOO_LONG               = 17,
+    X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT         = 18,
+    X509_V_ERR_CERT_NOT_YET_VALID                = 19,
+    X509_V_ERR_ERROR_IN_CERT_NOT_BEFORE_FIELD    = 20,
+    X509_V_ERR_CERT_HAS_EXPIRED                  = 21,
+    X509_V_ERR_ERROR_IN_CERT_NOT_AFTER_FIELD     = 22,
+    X509_V_ERR_CERT_REJECTED                     = 23,
+    /* Required for Nginx  */
+    X509_V_ERR_DEPTH_ZERO_SELF_SIGNED_CERT       = 24,
+    X509_V_ERR_SELF_SIGNED_CERT_IN_CHAIN         = 25,
+    X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT_LOCALLY = 26,
+    X509_V_ERR_CERT_UNTRUSTED                    = 27,
+    X509_V_ERR_UNABLE_TO_VERIFY_LEAF_SIGNATURE   = 28,
+    X509_V_ERR_SUBJECT_ISSUER_MISMATCH           = 29,
     /* additional X509_V_ERR_* enums not used in wolfSSL */
     X509_V_ERR_UNABLE_TO_GET_CRL,
     X509_V_ERR_UNABLE_TO_DECRYPT_CERT_SIGNATURE,
@@ -851,15 +890,9 @@ enum {
     X509_V_ERR_CRL_NOT_YET_VALID,
     X509_V_ERR_ERROR_IN_CRL_LAST_UPDATE_FIELD,
     X509_V_ERR_OUT_OF_MEM,
-    X509_V_ERR_DEPTH_ZERO_SELF_SIGNED_CERT,
-    X509_V_ERR_SELF_SIGNED_CERT_IN_CHAIN,
-    X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT_LOCALLY,
-    X509_V_ERR_UNABLE_TO_VERIFY_LEAF_SIGNATURE,
     X509_V_ERR_INVALID_CA,
     X509_V_ERR_PATH_LENGTH_EXCEEDED,
     X509_V_ERR_INVALID_PURPOSE,
-    X509_V_ERR_CERT_UNTRUSTED,
-    X509_V_ERR_SUBJECT_ISSUER_MISMATCH,
     X509_V_ERR_AKID_SKID_MISMATCH,
     X509_V_ERR_AKID_ISSUER_SERIAL_MISMATCH,
     X509_V_ERR_KEYUSAGE_NO_CERTSIGN,
@@ -878,6 +911,7 @@ enum {
 
     XN_FLAG_SPC_EQ  = (1 << 23),
     XN_FLAG_ONELINE = 0,
+    XN_FLAG_RFC2253 = 1,
 
     CRYPTO_LOCK = 1,
     CRYPTO_NUM_LOCKS = 10,
@@ -924,12 +958,14 @@ enum { /* ssl Constants */
     SSL_VERIFY_CLIENT_ONCE          = 4,
     SSL_VERIFY_FAIL_EXCEPT_PSK      = 8,
 
-    SSL_SESS_CACHE_OFF                = 30,
-    SSL_SESS_CACHE_CLIENT             = 31,
-    SSL_SESS_CACHE_SERVER             = 32,
-    SSL_SESS_CACHE_BOTH               = 33,
-    SSL_SESS_CACHE_NO_AUTO_CLEAR      = 34,
-    SSL_SESS_CACHE_NO_INTERNAL_LOOKUP = 35,
+    SSL_SESS_CACHE_OFF                = 0x0000,
+    SSL_SESS_CACHE_CLIENT             = 0x0001,
+    SSL_SESS_CACHE_SERVER             = 0x0002,
+    SSL_SESS_CACHE_BOTH               = 0x0003,
+    SSL_SESS_CACHE_NO_AUTO_CLEAR      = 0x0008,
+    SSL_SESS_CACHE_NO_INTERNAL_LOOKUP = 0x0100,
+    SSL_SESS_CACHE_NO_INTERNAL_STORE  = 0x0200,
+    SSL_SESS_CACHE_NO_INTERNAL        = 0x0300,
 
     SSL_ERROR_WANT_READ        =  2,
     SSL_ERROR_WANT_WRITE       =  3,
@@ -1037,6 +1073,8 @@ WOLFSSL_API int wolfSSL_want_write(WOLFSSL*);
 WOLFSSL_API int wolfSSL_BIO_printf(WOLFSSL_BIO*, const char*, ...);
 WOLFSSL_API int wolfSSL_ASN1_UTCTIME_print(WOLFSSL_BIO*,
                                          const WOLFSSL_ASN1_UTCTIME*);
+WOLFSSL_API int wolfSSL_ASN1_GENERALIZEDTIME_print(WOLFSSL_BIO*,
+                                         const WOLFSSL_ASN1_GENERALIZEDTIME*);
 WOLFSSL_API int   wolfSSL_sk_num(WOLFSSL_X509_REVOKED*);
 WOLFSSL_API void* wolfSSL_sk_value(WOLFSSL_X509_REVOKED*, int);
 
@@ -1260,9 +1298,6 @@ WOLFSSL_API int wolfSSL_make_eap_keys(WOLFSSL*, void* key, unsigned int len,
 WOLFSSL_API int wolfSSL_CTX_set_group_messages(WOLFSSL_CTX*);
 WOLFSSL_API int wolfSSL_set_group_messages(WOLFSSL*);
 
-/* I/O callbacks */
-typedef int (*CallbackIORecv)(WOLFSSL *ssl, char *buf, int sz, void *ctx);
-typedef int (*CallbackIOSend)(WOLFSSL *ssl, char *buf, int sz, void *ctx);
 
 #ifdef HAVE_FUZZER
 enum fuzzer_type {
@@ -1279,64 +1314,7 @@ typedef int (*CallbackFuzzer)(WOLFSSL* ssl, const unsigned char* buf, int sz,
 WOLFSSL_API void wolfSSL_SetFuzzerCb(WOLFSSL* ssl, CallbackFuzzer cbf, void* fCtx);
 #endif
 
-WOLFSSL_API void wolfSSL_SetIORecv(WOLFSSL_CTX*, CallbackIORecv);
-WOLFSSL_API void wolfSSL_SetIOSend(WOLFSSL_CTX*, CallbackIOSend);
 
-WOLFSSL_API void wolfSSL_SetIOReadCtx( WOLFSSL* ssl, void *ctx);
-WOLFSSL_API void wolfSSL_SetIOWriteCtx(WOLFSSL* ssl, void *ctx);
-
-WOLFSSL_API void* wolfSSL_GetIOReadCtx( WOLFSSL* ssl);
-WOLFSSL_API void* wolfSSL_GetIOWriteCtx(WOLFSSL* ssl);
-
-WOLFSSL_API void wolfSSL_SetIOReadFlags( WOLFSSL* ssl, int flags);
-WOLFSSL_API void wolfSSL_SetIOWriteFlags(WOLFSSL* ssl, int flags);
-
-#ifndef WOLFSSL_USER_IO
-    /* default IO callbacks */
-    WOLFSSL_API int EmbedReceive(WOLFSSL* ssl, char* buf, int sz, void* ctx);
-    WOLFSSL_API int EmbedSend(WOLFSSL* ssl, char* buf, int sz, void* ctx);
-
-    #ifdef HAVE_OCSP
-        WOLFSSL_API int EmbedOcspLookup(void*, const char*, int, unsigned char*,
-                                       int, unsigned char**);
-        WOLFSSL_API void EmbedOcspRespFree(void*, unsigned char*);
-    #endif
-
-    #ifdef WOLFSSL_DTLS
-        WOLFSSL_API int EmbedReceiveFrom(WOLFSSL* ssl, char* buf, int sz, void*);
-        WOLFSSL_API int EmbedSendTo(WOLFSSL* ssl, char* buf, int sz, void* ctx);
-        WOLFSSL_API int EmbedGenerateCookie(WOLFSSL* ssl, unsigned char* buf,
-                                           int sz, void*);
-        #ifdef WOLFSSL_SESSION_EXPORT
-            WOLFSSL_API int EmbedGetPeer(WOLFSSL* ssl, char* ip, int* ipSz,
-                                                unsigned short* port, int* fam);
-            WOLFSSL_API int EmbedSetPeer(WOLFSSL* ssl, char* ip, int ipSz,
-                                                  unsigned short port, int fam);
-
-            typedef int (*CallbackGetPeer)(WOLFSSL* ssl, char* ip, int* ipSz,
-                                                unsigned short* port, int* fam);
-            typedef int (*CallbackSetPeer)(WOLFSSL* ssl, char* ip, int ipSz,
-                                                  unsigned short port, int fam);
-
-            WOLFSSL_API void wolfSSL_CTX_SetIOGetPeer(WOLFSSL_CTX*,
-                                                               CallbackGetPeer);
-            WOLFSSL_API void wolfSSL_CTX_SetIOSetPeer(WOLFSSL_CTX*,
-                                                               CallbackSetPeer);
-        #endif /* WOLFSSL_SESSION_EXPORT */
-    #endif /* WOLFSSL_DTLS */
-#endif /* WOLFSSL_USER_IO */
-
-
-#ifdef HAVE_NETX
-    WOLFSSL_API void wolfSSL_SetIO_NetX(WOLFSSL* ssl, NX_TCP_SOCKET* nxsocket,
-                                      ULONG waitoption);
-#endif
-
-typedef int (*CallbackGenCookie)(WOLFSSL* ssl, unsigned char* buf, int sz,
-                                 void* ctx);
-WOLFSSL_API void  wolfSSL_CTX_SetGenCookie(WOLFSSL_CTX*, CallbackGenCookie);
-WOLFSSL_API void  wolfSSL_SetCookieCtx(WOLFSSL* ssl, void *ctx);
-WOLFSSL_API void* wolfSSL_GetCookieCtx(WOLFSSL* ssl);
 WOLFSSL_API int   wolfSSL_DTLS_SetCookieSecret(WOLFSSL*,
                                                const unsigned char*,
                                                unsigned int);
@@ -1393,6 +1371,10 @@ typedef void (*CbMissingCRL)(const char* url);
 typedef int  (*CbOCSPIO)(void*, const char*, int,
                                          unsigned char*, int, unsigned char**);
 typedef void (*CbOCSPRespFree)(void*,unsigned char*);
+
+#ifdef HAVE_CRL_IO
+typedef int  (*CbCrlIO)(WOLFSSL_CRL* crl, const char* url, int urlSz);
+#endif
 
 /* User Atomic Record Layer CallBacks */
 typedef int (*CallbackMacEncrypt)(WOLFSSL* ssl, unsigned char* macOut,
@@ -1565,6 +1547,10 @@ WOLFSSL_API void* wolfSSL_GetRsaDecCtx(WOLFSSL* ssl);
                                             const unsigned char*, long sz, int);
     WOLFSSL_API int wolfSSL_CertManagerSetCRL_Cb(WOLFSSL_CERT_MANAGER*,
                                                                   CbMissingCRL);
+#ifdef HAVE_CRL_IO
+    WOLFSSL_API int wolfSSL_CertManagerSetCRL_IOCb(WOLFSSL_CERT_MANAGER*,
+                                                                       CbCrlIO);
+#endif
     WOLFSSL_API int wolfSSL_CertManagerCheckOCSP(WOLFSSL_CERT_MANAGER*,
                                                         unsigned char*, int sz);
     WOLFSSL_API int wolfSSL_CertManagerEnableOCSP(WOLFSSL_CERT_MANAGER*,
@@ -1584,6 +1570,9 @@ WOLFSSL_API void* wolfSSL_GetRsaDecCtx(WOLFSSL* ssl);
     WOLFSSL_API int wolfSSL_LoadCRLBuffer(WOLFSSL*,
                                           const unsigned char*, long sz, int);
     WOLFSSL_API int wolfSSL_SetCRL_Cb(WOLFSSL*, CbMissingCRL);
+#ifdef HAVE_CRL_IO
+    WOLFSSL_API int wolfSSL_SetCRL_IOCb(WOLFSSL* ssl, CbCrlIO cb);
+#endif
     WOLFSSL_API int wolfSSL_EnableOCSP(WOLFSSL*, int options);
     WOLFSSL_API int wolfSSL_DisableOCSP(WOLFSSL*);
     WOLFSSL_API int wolfSSL_SetOCSP_OverrideURL(WOLFSSL*, const char*);
@@ -1595,6 +1584,9 @@ WOLFSSL_API void* wolfSSL_GetRsaDecCtx(WOLFSSL* ssl);
     WOLFSSL_API int wolfSSL_CTX_LoadCRLBuffer(WOLFSSL_CTX*,
                                             const unsigned char*, long sz, int);
     WOLFSSL_API int wolfSSL_CTX_SetCRL_Cb(WOLFSSL_CTX*, CbMissingCRL);
+#ifdef HAVE_CRL_IO
+    WOLFSSL_API int wolfSSL_CTX_SetCRL_IOCb(WOLFSSL_CTX*, CbCrlIO);
+#endif
     WOLFSSL_API int wolfSSL_CTX_EnableOCSP(WOLFSSL_CTX*, int options);
     WOLFSSL_API int wolfSSL_CTX_DisableOCSP(WOLFSSL_CTX*);
     WOLFSSL_API int wolfSSL_CTX_SetOCSP_OverrideURL(WOLFSSL_CTX*, const char*);
@@ -1615,6 +1607,11 @@ WOLFSSL_API void* wolfSSL_GetRsaDecCtx(WOLFSSL* ssl);
 WOLFSSL_API void wolfSSL_KeepArrays(WOLFSSL*);
 WOLFSSL_API void wolfSSL_FreeArrays(WOLFSSL*);
 
+WOLFSSL_API int wolfSSL_KeepHandshakeResources(WOLFSSL* ssl);
+WOLFSSL_API int wolfSSL_FreeHandshakeResources(WOLFSSL* ssl);
+
+WOLFSSL_API int wolfSSL_CTX_UseClientSuites(WOLFSSL_CTX* ctx);
+WOLFSSL_API int wolfSSL_UseClientSuites(WOLFSSL* ssl);
 
 /* async additions */
 WOLFSSL_API int wolfSSL_UseAsync(WOLFSSL*, int devId);
@@ -1689,6 +1686,12 @@ enum {
     WOLFSSL_MAX_ALPN_PROTO_NAME_LEN = 255,
     WOLFSSL_MAX_ALPN_NUMBER = 257
 };
+
+#ifdef WOLFSSL_NGINX
+typedef int (*CallbackALPNSelect)(WOLFSSL* ssl, const unsigned char** out,
+    unsigned char* outLen, const unsigned char* in, unsigned int inLen,
+    void *arg);
+#endif
 
 WOLFSSL_API int wolfSSL_UseALPN(WOLFSSL* ssl, char *protocol_name_list,
                                 unsigned int protocol_name_listSz,
@@ -1839,7 +1842,7 @@ WOLFSSL_API int wolfSSL_Rehandshake(WOLFSSL* ssl);
 WOLFSSL_API int wolfSSL_UseSessionTicket(WOLFSSL* ssl);
 WOLFSSL_API int wolfSSL_CTX_UseSessionTicket(WOLFSSL_CTX* ctx);
 WOLFSSL_API int wolfSSL_get_SessionTicket(WOLFSSL*, unsigned char*, unsigned int*);
-WOLFSSL_API int wolfSSL_set_SessionTicket(WOLFSSL*, unsigned char*, unsigned int);
+WOLFSSL_API int wolfSSL_set_SessionTicket(WOLFSSL*, const unsigned char*, unsigned int);
 typedef int (*CallbackSessionTicket)(WOLFSSL*, const unsigned char*, int, void*);
 WOLFSSL_API int wolfSSL_set_SessionTicket_cb(WOLFSSL*,
                                                   CallbackSessionTicket, void*);
@@ -1960,7 +1963,7 @@ WOLFSSL_API int wolfSSL_accept_ex(WOLFSSL*, HandShakeCallBack, TimeoutCallBack,
     WOLFSSL_API void wolfSSL_cert_service(void);
 #endif
 
-#if defined(WOLFSSL_MYSQL_COMPATIBLE)
+#if defined(WOLFSSL_MYSQL_COMPATIBLE) || defined(WOLFSSL_NGINX)
 WOLFSSL_API char* wolfSSL_ASN1_TIME_to_string(WOLFSSL_ASN1_TIME* time,
                                                             char* buf, int len);
 #endif /* WOLFSSL_MYSQL_COMPATIBLE */
@@ -2028,7 +2031,10 @@ struct WOLFSSL_X509_NAME_ENTRY {
     int size;
 };
 
-#if defined(HAVE_LIGHTY) || defined(WOLFSSL_MYSQL_COMPATIBLE) || defined(HAVE_STUNNEL)
+#if defined(HAVE_LIGHTY) || defined(WOLFSSL_MYSQL_COMPATIBLE) \
+                         || defined(HAVE_STUNNEL) \
+                         || defined(WOLFSSL_NGINX) \
+                         || defined(OPENSSL_EXTRA)
 WOLFSSL_API void wolfSSL_X509_NAME_free(WOLFSSL_X509_NAME *name);
 WOLFSSL_API char wolfSSL_CTX_use_certificate(WOLFSSL_CTX *ctx, WOLFSSL_X509 *x);
 WOLFSSL_API int wolfSSL_BIO_read_filename(WOLFSSL_BIO *b, const char *name);
@@ -2037,6 +2043,7 @@ WOLFSSL_API const char *  wolfSSL_OBJ_nid2sn(int n);
 WOLFSSL_API int wolfSSL_OBJ_obj2nid(const WOLFSSL_ASN1_OBJECT *o);
 WOLFSSL_API int wolfSSL_OBJ_sn2nid(const char *sn);
 WOLFSSL_API void wolfSSL_CTX_set_verify_depth(WOLFSSL_CTX *ctx,int depth);
+WOLFSSL_API void wolfSSL_set_verify_depth(WOLFSSL *ssl,int depth);
 WOLFSSL_API void* wolfSSL_get_app_data( const WOLFSSL *ssl);
 WOLFSSL_API void wolfSSL_set_app_data(WOLFSSL *ssl, void *arg);
 WOLFSSL_API WOLFSSL_ASN1_OBJECT * wolfSSL_X509_NAME_ENTRY_get_object(WOLFSSL_X509_NAME_ENTRY *ne);
@@ -2070,7 +2077,7 @@ WOLFSSL_API long wolfSSL_CTX_get_options(WOLFSSL_CTX* ctx);
 #endif /* HAVE_STUNNEL || HAVE_LIGHTY */
 
 
-#ifdef HAVE_STUNNEL
+#if defined(HAVE_STUNNEL) || defined(WOLFSSL_NGINX)
 
 #include <wolfssl/openssl/crypto.h>
 
@@ -2145,6 +2152,8 @@ WOLFSSL_API VerifyCallback wolfSSL_CTX_get_verify_callback(WOLFSSL_CTX*);
 
 WOLFSSL_API void wolfSSL_CTX_set_servername_callback(WOLFSSL_CTX *,
         CallbackSniRecv);
+WOLFSSL_API int wolfSSL_CTX_set_tlsext_servername_callback(WOLFSSL_CTX *,
+        CallbackSniRecv);
 
 WOLFSSL_API void wolfSSL_CTX_set_servername_arg(WOLFSSL_CTX *, void*);
 
@@ -2160,13 +2169,14 @@ WOLFSSL_API void wolfSSL_THREADID_set_callback(void (*threadid_func)(void*));
 
 WOLFSSL_API void wolfSSL_THREADID_set_numeric(void* id, unsigned long val);
 
-WOLFSSL_API WOLFSSL_X509* wolfSSL_X509_STORE_get1_certs(WOLFSSL_X509_STORE_CTX*,
-                                                        WOLFSSL_X509_NAME*);
+WOLFSSL_API STACK_OF(WOLFSSL_X509)* wolfSSL_X509_STORE_get1_certs(
+                               WOLFSSL_X509_STORE_CTX*, WOLFSSL_X509_NAME*);
 
 WOLFSSL_API void wolfSSL_sk_X509_pop_free(STACK_OF(WOLFSSL_X509)* sk, void f (WOLFSSL_X509*));
-#endif /* HAVE_STUNNEL */
+#endif /* HAVE_STUNNEL || WOLFSSL_NGINX */
 
-#if defined(HAVE_STUNNEL) || defined(WOLFSSL_MYSQL_COMPATIBLE)
+#if defined(HAVE_STUNNEL) || defined(WOLFSSL_MYSQL_COMPATIBLE) \
+                          || defined(WOLFSSL_NGINX)
 
 WOLFSSL_API int wolfSSL_CTX_get_verify_mode(WOLFSSL_CTX* ctx);
 
@@ -2194,6 +2204,91 @@ WOLFSSL_API int wolfSSL_CTX_set_msg_callback_arg(WOLFSSL_CTX *ctx, void* arg);
 WOLFSSL_API int wolfSSL_set_msg_callback_arg(WOLFSSL *ssl, void* arg);
 #endif
 
+#ifdef OPENSSL_EXTRA
+WOLFSSL_API unsigned long wolfSSL_ERR_peek_error_line_data(const char **file,
+    int *line, const char **data, int *flags);
+#endif
+
+#ifdef WOLFSSL_NGINX
+/* Not an OpenSSL API. */
+WOLFSSL_LOCAL int wolfSSL_get_ocsp_response(WOLFSSL* ssl, byte** response);
+/* Not an OpenSSL API. */
+WOLFSSL_LOCAL char* wolfSSL_get_ocsp_url(WOLFSSL* ssl);
+/* Not an OpenSSL API. */
+WOLFSSL_API int wolfSSL_set_ocsp_url(WOLFSSL* ssl, char* url);
+
+WOLFSSL_API void wolfSSL_OPENSSL_config(char *config_name);
+WOLFSSL_API int wolfSSL_X509_get_ex_new_index(int idx, void *arg, void *a,
+    void *b, void *c);
+WOLFSSL_API void *wolfSSL_X509_get_ex_data(WOLFSSL_X509 *x509, int idx);
+WOLFSSL_API int wolfSSL_X509_set_ex_data(WOLFSSL_X509 *x509, int idx,
+    void *data);
+
+WOLFSSL_API int wolfSSL_X509_NAME_digest(const WOLFSSL_X509_NAME *data,
+    const WOLFSSL_EVP_MD *type, unsigned char *md, unsigned int *len);
+
+WOLFSSL_API long wolfSSL_SSL_CTX_get_timeout(const WOLFSSL_CTX *ctx);
+WOLFSSL_API int wolfSSL_SSL_CTX_set_tmp_ecdh(WOLFSSL_CTX *ctx,
+    WOLFSSL_EC_KEY *ecdh);
+WOLFSSL_API int wolfSSL_SSL_CTX_remove_session(WOLFSSL_CTX *,
+    WOLFSSL_SESSION *c);
+
+WOLFSSL_API WOLFSSL_BIO *wolfSSL_SSL_get_rbio(const WOLFSSL *s);
+WOLFSSL_API WOLFSSL_BIO *wolfSSL_SSL_get_wbio(const WOLFSSL *s);
+WOLFSSL_API int wolfSSL_SSL_do_handshake(WOLFSSL *s);
+WOLFSSL_API int wolfSSL_SSL_in_init(WOLFSSL *a); /* #define in OpenSSL */
+WOLFSSL_API WOLFSSL_SESSION *wolfSSL_SSL_get0_session(const WOLFSSL *s);
+WOLFSSL_API int wolfSSL_X509_check_host(WOLFSSL_X509 *x, const char *chk,
+    size_t chklen, unsigned int flags, char **peername);
+
+WOLFSSL_API int wolfSSL_i2a_ASN1_INTEGER(WOLFSSL_BIO *bp,
+    const WOLFSSL_ASN1_INTEGER *a);
+
+#ifdef HAVE_SESSION_TICKET
+WOLFSSL_API int wolfSSL_CTX_set_tlsext_ticket_key_cb(WOLFSSL_CTX *, int (*)(
+    WOLFSSL *ssl, unsigned char *name, unsigned char *iv,
+    WOLFSSL_EVP_CIPHER_CTX *ectx, WOLFSSL_HMAC_CTX *hctx, int enc));
+#endif
+
+#ifdef HAVE_OCSP
+WOLFSSL_API int wolfSSL_CTX_get_extra_chain_certs(WOLFSSL_CTX* ctx,
+    STACK_OF(X509)** chain);
+WOLFSSL_API int wolfSSL_CTX_set_tlsext_status_cb(WOLFSSL_CTX* ctx,
+    int(*)(WOLFSSL*, void*));
+
+WOLFSSL_API int wolfSSL_X509_STORE_CTX_get1_issuer(WOLFSSL_X509 **issuer,
+    WOLFSSL_X509_STORE_CTX *ctx, WOLFSSL_X509 *x);
+
+WOLFSSL_API void wolfSSL_X509_email_free(STACK_OF(WOLFSSL_STRING) *sk);
+WOLFSSL_API STACK_OF(WOLFSSL_STRING) *wolfSSL_X509_get1_ocsp(WOLFSSL_X509 *x);
+
+WOLFSSL_API int wolfSSL_X509_check_issued(WOLFSSL_X509 *issuer,
+    WOLFSSL_X509 *subject);
+
+WOLFSSL_API WOLFSSL_X509* wolfSSL_X509_dup(WOLFSSL_X509 *x);
+
+WOLFSSL_API char* wolfSSL_sk_WOLFSSL_STRING_value(
+    STACK_OF(WOLFSSL_STRING)* strings, int idx);
+#endif /* HAVE_OCSP */
+
+WOLFSSL_API int PEM_write_bio_WOLFSSL_X509(WOLFSSL_BIO *bio,
+    WOLFSSL_X509 *cert);
+#endif /* WOLFSSL_NGINX */
+
+WOLFSSL_API void wolfSSL_get0_alpn_selected(const WOLFSSL *ssl,
+    const unsigned char **data, unsigned int *len);
+WOLFSSL_API int wolfSSL_select_next_proto(unsigned char **out,
+                          unsigned char *outlen,
+                          const unsigned char *in, unsigned int inlen,
+                          const unsigned char *client,
+                          unsigned int client_len);
+WOLFSSL_API void wolfSSL_CTX_set_alpn_select_cb(WOLFSSL_CTX *ctx,
+                                                int (*cb) (WOLFSSL *ssl,
+                                                      const unsigned char **out,
+                                                      unsigned char *outlen,
+                                                      const unsigned char *in,
+                                                      unsigned int inlen,
+                                                      void *arg), void *arg);
 
 #ifdef __cplusplus
     }  /* extern "C" */

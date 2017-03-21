@@ -440,7 +440,7 @@
 /* Micrium will use Visual Studio for compilation but not the Win32 API */
 #if defined(_WIN32) && !defined(MICRIUM) && !defined(FREERTOS) && \
 	!defined(FREERTOS_TCP) && !defined(EBSNET) && !defined(WOLFSSL_EROAD) && \
-	!defined(WOLFSSL_UTASKER)
+	!defined(WOLFSSL_UTASKER) && !defined(INTIME_RTOS)
     #define USE_WINDOWS_API
 #endif
 
@@ -730,12 +730,12 @@ static char *fgets(char *buff, int sz, FILE *fp)
     /* WOLFSSL_DH_CONST */
     #define NO_FILESYSTEM
     #define WOLFSSL_CRYPT_HW_MUTEX 1
-        
+
     #if !defined(XMALLOC_USER) && !defined(NO_WOLFSSL_MEMORY)
         #define XMALLOC(s, h, type)  pvPortMalloc((s))
         #define XFREE(p, h, type)    vPortFree((p))
     #endif
-    
+
     //#define USER_TICKS
     /* Allows use of DH with fixed points if uncommented and NO_DH is removed */
     /* WOLFSSL_DH_CONST */
@@ -854,7 +854,7 @@ static char *fgets(char *buff, int sz, FILE *fp)
         #if defined(FSL_FEATURE_LTC_HAS_GCM) && FSL_FEATURE_LTC_HAS_GCM
             #define FREESCALE_LTC_AES_GCM
         #endif
-        
+
         #if defined(FSL_FEATURE_LTC_HAS_SHA) && FSL_FEATURE_LTC_HAS_SHA
             #define FREESCALE_LTC_SHA
         #endif
@@ -869,12 +869,12 @@ static char *fgets(char *buff, int sz, FILE *fp)
                 #define LTC_MAX_INT_BYTES (256)
             #endif
 
-            /* This FREESCALE_LTC_TFM_RSA_4096_ENABLE macro can be defined. 
+            /* This FREESCALE_LTC_TFM_RSA_4096_ENABLE macro can be defined.
              * In such a case both software and hardware algorithm
              * for TFM is linked in. The decision for which algorithm is used is determined at runtime
              * from size of inputs. If inputs and result can fit into LTC (see LTC_MAX_INT_BYTES)
              * then we call hardware algorithm, otherwise we call software algorithm.
-             * 
+             *
              * Chinese reminder theorem is used to break RSA 4096 exponentiations (both public and private key)
              * into several computations with 2048-bit modulus and exponents.
              */
@@ -886,7 +886,7 @@ static char *fgets(char *buff, int sz, FILE *fp)
                 #define ECC_TIMING_RESISTANT
 
                 /* the LTC PKHA hardware limit is 512 bits (64 bytes) for ECC.
-                   the LTC_MAX_ECC_BITS defines the size of local variables that hold ECC parameters 
+                   the LTC_MAX_ECC_BITS defines the size of local variables that hold ECC parameters
                    and point coordinates */
                 #ifndef LTC_MAX_ECC_BITS
                     #define LTC_MAX_ECC_BITS (384)
@@ -1396,6 +1396,12 @@ static char *fgets(char *buff, int sz, FILE *fp)
     #define NO_OLD_TLS
 #endif
 
+
+/* Default AES minimum auth tag sz, allow user to override */
+#ifndef WOLFSSL_MIN_AUTH_TAG_SZ
+    #define WOLFSSL_MIN_AUTH_TAG_SZ 12
+#endif
+
 /* If not forcing ARC4 as the DRBG or using custom RNG block gen, enable Hash_DRBG */
 #undef HAVE_HASHDRBG
 #if !defined(WOLFSSL_FORCE_RC4_DRBG) && !defined(CUSTOM_RAND_GENERATE_BLOCK)
@@ -1487,6 +1493,15 @@ static char *fgets(char *buff, int sz, FILE *fp)
     #endif
 #endif
 
+#if !defined(NO_OLD_TLS) && (defined(NO_SHA) || defined(NO_MD5))
+    #error old TLS requires MD5 and SHA
+#endif
+
+/* for backwards compatibility */
+#if defined(TEST_IPV6) && !defined(WOLFSSL_IPV6)
+    #define WOLFSSL_IPV6
+#endif
+
 
 /* Place any other flags or defines here */
 
@@ -1495,6 +1510,27 @@ static char *fgets(char *buff, int sz, FILE *fp)
     #undef HAVE_GMTIME_R /* don't trust macro with windows */
 #endif /* WOLFSSL_MYSQL_COMPATIBLE */
 
+#ifdef WOLFSSL_NGINX
+    #define SSL_OP_NO_COMPRESSION    SSL_OP_NO_COMPRESSION
+    #define OPENSSL_NO_ENGINE
+    #define X509_CHECK_FLAG_ALWAYS_CHECK_SUBJECT
+    #ifndef OPENSSL_EXTRA
+        #define OPENSSL_EXTRA
+    #endif
+    #ifndef HAVE_SESSION_TICKET
+        #define HAVE_SESSION_TICKET
+    #endif
+    #ifndef HAVE_OCSP
+        #define HAVE_OCSP
+    #endif
+    #ifndef KEEP_OUR_CERT
+        #define KEEP_OUR_CERT
+    #endif
+    #ifndef HAVE_SNI
+        #define HAVE_SNI
+    #endif
+    #define SSL_CTRL_SET_TLSEXT_HOSTNAME
+#endif
 
 #ifdef __cplusplus
     }   /* extern "C" */

@@ -246,7 +246,7 @@
 
 /* Micrium will use Visual Studio for compilation but not the Win32 API */
 #if defined(_WIN32) && !defined(MICRIUM) && !defined(FREERTOS) \
-        && !defined(EBSNET) && !defined(CYASSL_EROAD)
+        && !defined(EBSNET) && !defined(CYASSL_EROAD) && !defined(INTIME_RTOS)
     #define USE_WINDOWS_API
 #endif
 
