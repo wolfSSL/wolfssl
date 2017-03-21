@@ -5299,6 +5299,9 @@ byte GetEntropy(ENTROPY_CMD cmd, byte* out)
         #ifdef WOLFSSL_CERT_GEN
             static const char* caKeyFile  = CERT_ROOT "ca-key.der";
             static const char* caCertFile = CERT_ROOT "ca-cert.pem";
+            #ifdef HAVE_ECC
+                static const char* eccCaKeyFile  = CERT_ROOT   "ecc-key.der";
+            #endif
         #endif
     #endif /* !NO_RSA */
     #ifndef NO_DH
@@ -5327,10 +5330,7 @@ byte GetEntropy(ENTROPY_CMD cmd, byte* out)
     #ifdef WOLFSSL_KEY_GEN
         static const char* eccCaKeyPemFile  = CERT_PREFIX "ecc-key.pem";
         static const char* eccPubKeyDerFile = CERT_PREFIX "ecc-public-key.der";
-    #endif
-    #if defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_KEY_GEN)
-        static const char* eccCaKeyFile  = CERT_ROOT   "ecc-key.der";
-        static const char* eccCaKeyTemp  = CERT_PREFIX "ecc-key.der";
+        static const char* eccCaKeyTempFile = CERT_PREFIX "ecc-key.der";
     #endif
     #if defined(WOLFSSL_CERT_GEN) || \
             (defined(WOLFSSL_CERT_EXT) && defined(WOLFSSL_TEST_CERT))
@@ -9768,7 +9768,7 @@ static int ecc_test_key_gen(WC_RNG* rng, int keySize)
     }
 
 #ifndef NO_FILESYSTEM
-    keyFile = fopen(eccCaKeyTemp, "wb");
+    keyFile = fopen(eccCaKeyTempFile, "wb");
     if (!keyFile) {
         ERROR_OUT(-1025, done);
     }
