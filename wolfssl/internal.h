@@ -1497,10 +1497,6 @@ struct CRL_Monitor {
 };
 
 
-#ifndef HAVE_CRL
-    typedef struct WOLFSSL_CRL WOLFSSL_CRL;
-#endif
-
 #if defined(HAVE_CRL) && defined(NO_FILESYSTEM)
     #undef HAVE_CRL_MONITOR
 #endif
