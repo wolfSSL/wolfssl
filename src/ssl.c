@@ -7064,7 +7064,7 @@ WOLFSSL_EVP_PKEY* wolfSSL_d2i_PrivateKey(int type, WOLFSSL_EVP_PKEY** out,
         return NULL;
     }
 
-    if (ToTraditionalInline((const byte*)(*in), &idx, inSz) > 0) {
+    if (ToTraditionalInline((const byte*)(*in), &idx, (word32)inSz) > 0) {
         WOLFSSL_MSG("Found and removed PKCS8 header");
     }
 
