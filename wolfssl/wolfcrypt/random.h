@@ -35,10 +35,16 @@
     extern "C" {
 #endif
 
-/* Maximum generate block length */
+ /* Maximum generate block length */
 #ifndef RNG_MAX_BLOCK_LEN
     #define RNG_MAX_BLOCK_LEN (0x10000)
 #endif
+
+/* Size of the BRBG seed */
+#ifndef DRBG_SEED_LEN
+    #define DRBG_SEED_LEN (440/8)
+#endif
+
 
 #if defined(CUSTOM_RAND_GENERATE) && !defined(CUSTOM_RAND_TYPE)
     /* To maintain compatibility the default is byte */
@@ -61,7 +67,6 @@
  * 2. HAVE_INTEL_RDRAND: Uses the Intel RDRAND if supported by CPU.
  * 3. HAVE_HASHDRBG (requires SHA256 enabled): Uses SHA256 based P-RNG
  *     seeded via wc_GenerateSeed. This is the default source.
- * 4. Fallback to using wc_GenerateSeed directly.
  */
 
  /* Seed source can be overriden by defining one of these:
@@ -83,11 +88,7 @@
 #elif defined(HAVE_WNR)
      /* allow whitewood as direct RNG source using wc_GenerateSeed directly */
 #else
-    #ifndef _MSC_VER
-        #warning "No RNG source defined. Using wc_GenerateSeed directly"
-    #else
-        #pragma message("Warning: No RNG source defined. Using wc_GenerateSeed directly")
-    #endif
+    #error No RNG source defined!
 #endif
 
 #ifdef HAVE_WNR
@@ -124,26 +125,25 @@ typedef struct OS_Seed {
     #define WC_RNG_TYPE_DEFINED
 #endif
 
-#ifndef CUSTOM_RAND_GENERATE_BLOCK
-
-#define DRBG_SEED_LEN (440/8)
-
-struct DRBG; /* Private DRBG state */
-
-/* Hash-based Deterministic Random Bit Generator */
-struct WC_RNG {
 #ifdef HAVE_HASHDRBG
+    /* Private DRBG state */
+    struct DRBG;
+#endif
+
+/* RNG context */
+struct WC_RNG {
+    OS_Seed seed;
+    void* heap;
+#ifdef HAVE_HASHDRBG
+    /* Hash-based Deterministic Random Bit Generator */
     struct DRBG* drbg;
     byte status;
 #endif
-    OS_Seed seed;
-    void* heap;
 #ifdef WOLFSSL_ASYNC_CRYPT
     AsyncCryptDev asyncDev;
 #endif
 };
 
-#endif /* !CUSTOM_RAND_GENERATE_BLOCK */
 #endif /* HAVE_FIPS */
 
 /* NO_OLD_RNGNAME removes RNG struct name to prevent possible type conflicts,
@@ -151,6 +151,7 @@ struct WC_RNG {
 #if !defined(NO_OLD_RNGNAME) && !defined(HAVE_FIPS)
     #define RNG WC_RNG
 #endif
+
 
 WOLFSSL_LOCAL
 int wc_GenerateSeed(OS_Seed* os, byte* seed, word32 sz);

@@ -122,12 +122,26 @@
         recurse="Yes" />
       <file file_name="user_settings.h" />
       <file file_name="README.md" />
-      <folder
-        Name="source"
-        exclude=""
-        filter=""
-        path="../../src"
-        recurse="No" />
+      <folder Name="source">
+        <file file_name="../../src/bio.c">
+          <configuration Name="ARM_Debug" build_exclude_from_build="Yes" />
+        </file>
+        <file file_name="../../src/crl.c" />
+        <file file_name="../../src/include.am" />
+        <file file_name="../../src/internal.c" />
+        <file file_name="../../src/io.c" />
+        <file file_name="../../src/keys.c" />
+        <file file_name="../../src/libwolfssl.la" />
+        <file file_name="../../src/ocsp.c" />
+        <file file_name="../../src/sniffer.c" />
+        <file file_name="../../src/src_libwolfssl_la-internal.lo" />
+        <file file_name="../../src/src_libwolfssl_la-io.lo" />
+        <file file_name="../../src/src_libwolfssl_la-keys.lo" />
+        <file file_name="../../src/src_libwolfssl_la-ssl.lo" />
+        <file file_name="../../src/src_libwolfssl_la-tls.lo" />
+        <file file_name="../../src/ssl.c" />
+        <file file_name="../../src/tls.c" />
+      </folder>
     </folder>
   </project>
   <project Name="test">

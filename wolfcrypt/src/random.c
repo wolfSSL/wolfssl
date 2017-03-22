@@ -103,20 +103,25 @@ int  wc_RNG_GenerateByte(WC_RNG* rng, byte* b)
     int wnr_timeout     = 0;    /* entropy timeout, mililseconds */
     int wnr_mutex_init  = 0;    /* flag for mutex init */
     wnr_context*  wnr_ctx;      /* global netRandom context */
-#elif !defined(NO_DEV_RANDOM) && !defined(CUSTOM_RAND_GENERATE) && \
-      !defined(WOLFSSL_GENSEED_FORTEST) && !defined(WOLFSSL_MDK_ARM) && \
-      !defined(WOLFSSL_IAR_ARM) && !defined(WOLFSSL_ROWLEY_ARM) && \
-      !defined(WOLFSSL_EMBOS)
-        #include <fcntl.h>
-    #ifndef EBSNET
-        #include <unistd.h>
-    #endif
 #elif defined(FREESCALE_KSDK_2_0_TRNG)
     #include "fsl_trng.h"
 #elif defined(FREESCALE_KSDK_2_0_RNGA)
     #include "fsl_rnga.h"
+
+#elif defined(NO_DEV_RANDOM)
+#elif defined(CUSTOM_RAND_GENERATE)
+#elif defined(CUSTOM_RAND_GENERATE_BLOCK)
+#elif defined(WOLFSSL_GENSEED_FORTEST)
+#elif defined(WOLFSSL_MDK_ARM)
+#elif defined(WOLFSSL_IAR_ARM)
+#elif defined(WOLFSSL_ROWLEY_ARM)
+#elif defined(WOLFSSL_EMBOS)
 #else
     /* include headers that may be needed to get good seed */
+    #include <fcntl.h>
+    #ifndef EBSNET
+        #include <unistd.h>
+    #endif
 #endif
 
 
@@ -602,13 +607,9 @@ int wc_RNG_GenerateBlock(WC_RNG* rng, byte* output, word32 sz)
     }
 #else
 
-    /* try using the generate seed direectly */
-    ret = wc_GenerateSeed(&rng->seed, output, sz);
-    if (ret == 0)
-        return 0;
-
     /* if we get here then there is an RNG configuration error */
     ret = RNG_FAILURE_E;
+
 #endif /* HAVE_HASHDRBG */
 
     return ret;
@@ -1589,6 +1590,11 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 
         return 0;
     }
+
+#elif defined(CUSTOM_RAND_GENERATE_BLOCK)
+    /* #define CUSTOM_RAND_GENERATE_BLOCK myRngFunc
+     * extern int myRngFunc(byte* output, word32 sz);
+     */
 
 #elif defined(WOLFSSL_SAFERTOS)
 #elif defined(WOLFSSL_LEANPSK)

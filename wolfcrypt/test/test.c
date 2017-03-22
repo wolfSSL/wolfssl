@@ -1025,8 +1025,7 @@ int base64_test()
 int asn_test()
 {
 #ifndef NO_ASN_TIME
-    {
-    time_t now;
+    long now;
 
     /* Parameter Validation tests. */
     if (wc_GetTime(NULL, sizeof(now)) != BAD_FUNC_ARG)
@@ -1039,7 +1038,6 @@ int asn_test()
         return -102;
     if (now == 0)
         return -103;
-    }
 #endif
 
     return 0;
