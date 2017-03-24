@@ -206,7 +206,8 @@ enum Misc_ASN {
     HEADER_ENCRYPTED_KEY_SIZE = 88,/* Extra header size for encrypted key */
     TRAILING_ZERO       = 1,       /* Used for size of zero pad */
     MIN_VERSION_SZ      = 3,       /* Min bytes needed for GetMyVersion */
-#if defined(WOLFSSL_MYSQL_COMPATIBLE) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
+#if defined(WOLFSSL_MYSQL_COMPATIBLE) || defined(WOLFSSL_NGINX) || \
+    defined(WOLFSSL_HAPROXY) || defined(OPENSSL_EXTRA)
     MAX_TIME_STRING_SZ  = 25,      /* Max length of formatted time string */
 #endif
 };

@@ -237,7 +237,16 @@ enum BIO_TYPE {
     WOLFSSL_BIO_SSL    = 3,
     WOLFSSL_BIO_MEMORY = 4,
     WOLFSSL_BIO_BIO    = 5,
-    WOLFSSL_BIO_FILE   = 6
+    WOLFSSL_BIO_FILE   = 6,
+    WOLFSSL_BIO_BASE64 = 7
+};
+
+enum BIO_FLAGS {
+    WOLFSSL_BIO_FLAG_BASE64_NO_NL = 0x01,
+    WOLFSSL_BIO_FLAG_READ         = 0x02,
+    WOLFSSL_BIO_FLAG_WRITE        = 0x04,
+    WOLFSSL_BIO_FLAG_IO_SPECIAL   = 0x08,
+    WOLFSSL_BIO_FLAG_RETRY        = 0x10
 };
 
 typedef struct WOLFSSL_COMP_METHOD {
@@ -548,6 +557,24 @@ WOLFSSL_API
 
 typedef int (*VerifyCallback)(int, WOLFSSL_X509_STORE_CTX*);
 typedef int (pem_password_cb)(char*, int, int, void*);
+#ifdef OPENSSL_EXTRA
+typedef void (CallbackInfoState)(WOLFSSL*, int, int);
+
+typedef struct WOLFSSL_CRYPTO_EX_DATA {
+    WOLFSSL_STACK* data;
+} WOLFSSL_CRYPTO_EX_DATA;
+
+typedef int  (WOLFSSL_CRYPTO_EX_new)(void* p, void* ptr,
+        WOLFSSL_CRYPTO_EX_DATA* a, int idx, long argValue, void* arg);
+typedef int  (WOLFSSL_CRYPTO_EX_dup)(WOLFSSL_CRYPTO_EX_DATA* out,
+        WOLFSSL_CRYPTO_EX_DATA* in, void* inPtr, int idx, long argV, void* arg);
+typedef void (WOLFSSL_CRYPTO_EX_free)(void* p, void* ptr,
+        WOLFSSL_CRYPTO_EX_DATA* a, int idx, long argValue, void* arg);
+
+WOLFSSL_API int  wolfSSL_get_ex_new_index(long argValue, void* arg,
+        WOLFSSL_CRYPTO_EX_new* a, WOLFSSL_CRYPTO_EX_dup* b,
+        WOLFSSL_CRYPTO_EX_free* c);
+#endif
 
 WOLFSSL_API void wolfSSL_CTX_set_verify(WOLFSSL_CTX*, int,
                                       VerifyCallback verify_callback);
@@ -759,8 +786,7 @@ WOLFSSL_API WOLFSSL_COMP_METHOD* wolfSSL_COMP_zlib(void);
 WOLFSSL_API WOLFSSL_COMP_METHOD* wolfSSL_COMP_rle(void);
 WOLFSSL_API int wolfSSL_COMP_add_compression_method(int, void*);
 
-WOLFSSL_API int wolfSSL_get_ex_new_index(long, void*, void*, void*, void*);
-
+WOLFSSL_API unsigned long wolfSSL_thread_id(void);
 WOLFSSL_API void wolfSSL_set_id_callback(unsigned long (*f)(void));
 WOLFSSL_API void wolfSSL_set_locking_callback(void (*f)(int, int, const char*,
                                                       int));
@@ -898,7 +924,7 @@ WOLFSSL_API void wolfSSL_CTX_set_default_passwd_cb(WOLFSSL_CTX*,
 
 
 WOLFSSL_API void wolfSSL_CTX_set_info_callback(WOLFSSL_CTX*,
-                          void (*)(const WOLFSSL* ssl, int type, int val));
+                          void (*)(WOLFSSL* ssl, int type, int val));
 
 WOLFSSL_API unsigned long wolfSSL_ERR_peek_error(void);
 WOLFSSL_API int           wolfSSL_GET_REASON(int);

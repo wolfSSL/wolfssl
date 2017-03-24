@@ -536,6 +536,7 @@ void wc_RemoveErrorNode(int idx)
  */
 void wc_ClearErrorNodes(void)
 {
+#if defined(DEBUG_WOLFSSL) || defined(WOLFSSL_NGINX)
     if (wc_LockMutex(&debug_mutex) != 0) {
         WOLFSSL_MSG("Lock debug mutex failed");
         return;
@@ -557,6 +558,7 @@ void wc_ClearErrorNodes(void)
     wc_errors    = NULL;
     wc_last_node = NULL;
     wc_UnLockMutex(&debug_mutex);
+#endif /* DEBUG_WOLFSSL || WOLFSSL_NGINX */
 }
 
 int wc_SetLoggingHeap(void* h)

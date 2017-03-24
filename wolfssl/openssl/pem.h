@@ -34,7 +34,8 @@
     extern "C" {
 #endif
 
-#define PEM_write_bio_PrivateKey wolfSSL_PEM_write_bio_PrivateKey
+#define PEM_write_bio_PrivateKey    wolfSSL_PEM_write_bio_PrivateKey
+#define PEM_write_bio_RSAPrivateKey wolfSSL_PEM_write_bio_RSAPrivateKey
 
 /* RSA */
 WOLFSSL_API
