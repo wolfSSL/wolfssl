@@ -4114,6 +4114,7 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
     int           ret = 0;
     int           eccKey = 0;
     int           rsaKey = 0;
+    int           resetSuites = 0;
     void*         heap = ctx ? ctx->heap : ((ssl) ? ssl->heap : NULL);
 #ifdef WOLFSSL_SMALL_STACK
     EncryptedInfo* info = NULL;
@@ -4355,19 +4356,8 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
                     (void)rsaKey;  /* for no ecc builds */
 
                     if (ssl && ssl->options.side == WOLFSSL_SERVER_END) {
-                        int havePSK = 0;
-                        #ifndef NO_PSK
-                            if (ssl->options.havePSK) {
-                                havePSK = 1;
-                            }
-                        #endif
-
-                        /* CTX may have been ECC key, let's reset suites */
                         ssl->options.haveStaticECC = 0;
-                        InitSuites(ssl->suites, ssl->version, 1, havePSK,
-                             ssl->options.haveDH, ssl->options.haveNTRU,
-                             ssl->options.haveECDSAsig, ssl->options.haveECC,
-                             ssl->options.haveStaticECC, ssl->options.side);
+                        resetSuites = 1;
                     }
                 }
             }
@@ -4421,22 +4411,7 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
             }
 
             if (ssl && ssl->options.side == WOLFSSL_SERVER_END) {
-                int havePSK = 0;
-                int haveRSA = 0;
-                #ifndef NO_PSK
-                    if (ssl->options.havePSK) {
-                        havePSK = 1;
-                    }
-                #endif
-                #ifndef NO_RSA
-                    haveRSA = 1;
-                #endif
-
-                /* let's reset suites with ecc key */
-                InitSuites(ssl->suites, ssl->version, haveRSA, havePSK,
-                           ssl->options.haveDH, ssl->options.haveNTRU,
-                           ssl->options.haveECDSAsig, ssl->options.haveECC,
-                           ssl->options.haveStaticECC, ssl->options.side);
+                resetSuites = 1;
             }
         }
     #endif /* HAVE_ECC */
@@ -4467,6 +4442,9 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
             return SSL_BAD_FILE;
         }
 
+        if (ssl && ssl->options.side == WOLFSSL_SERVER_END) {
+            resetSuites = 1;
+        }
         if (ssl && ssl->ctx->haveECDSAsig) {
             WOLFSSL_MSG("SSL layer setting cert, CTX had ECDSA, turning off");
             ssl->options.haveECDSAsig = 0;   /* may turn back on next */
@@ -4563,6 +4541,26 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
         if (ret != 0) {
             return ret;
         }
+    }
+
+    if (ssl && resetSuites) {
+        int havePSK = 0;
+        int haveRSA = 0;
+
+        #ifndef NO_PSK
+        if (ssl->options.havePSK) {
+            havePSK = 1;
+        }
+        #endif
+        #ifndef NO_RSA
+            haveRSA = 1;
+        #endif
+
+        /* let's reset suites */
+        InitSuites(ssl->suites, ssl->version, haveRSA, havePSK,
+                   ssl->options.haveDH, ssl->options.haveNTRU,
+                   ssl->options.haveECDSAsig, ssl->options.haveECC,
+                   ssl->options.haveStaticECC, ssl->options.side);
     }
 
     return SSL_SUCCESS;
