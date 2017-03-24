@@ -5299,9 +5299,6 @@ byte GetEntropy(ENTROPY_CMD cmd, byte* out)
         #ifdef WOLFSSL_CERT_GEN
             static const char* caKeyFile  = CERT_ROOT "ca-key.der";
             static const char* caCertFile = CERT_ROOT "ca-cert.pem";
-            #ifdef HAVE_ECC
-                static const char* eccCaKeyFile  = CERT_ROOT   "ecc-key.der";
-            #endif
         #endif
     #endif /* !NO_RSA */
     #ifndef NO_DH
@@ -5315,6 +5312,7 @@ byte GetEntropy(ENTROPY_CMD cmd, byte* out)
     #ifdef HAVE_ECC
         #ifdef WOLFSSL_CERT_GEN
             static const char* eccCaCertFile = CERT_ROOT "server-ecc.pem";
+            static const char* eccCaKeyFile  = CERT_ROOT   "ecc-key.der";
         #endif
         #ifdef WOLFSSL_CERT_EXT
             static const char* eccCaKeyPubFile  = CERT_ROOT "ecc-keyPub.der";
