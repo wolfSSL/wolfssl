@@ -20603,8 +20603,7 @@ int wolfSSL_RAND_egd(const char* nm)
         if (ret == SSL_SUCCESS) {
             buf[idx]     = WOLFSSL_EGD_NBLOCK;
             buf[idx + 1] = 255 - bytes; /* request 255 bytes from server */
-            printf("requesting %d %d\n", *(buf + idx), *(buf + idx + 1));
-            ret = write(fd, buf + idx, 2);
+            ret = (int)write(fd, buf + idx, 2);
             if (ret <= 0 || ret != 2) {
                 if (errno == EAGAIN) {
                     ret = SSL_SUCCESS;
@@ -20618,8 +20617,7 @@ int wolfSSL_RAND_egd(const char* nm)
 
         /* attempting to read */
         buf[idx] = 0;
-        ret = read(fd, buf + idx, 256 - bytes);
-        printf("after read ret = %d , buf = %d\n", ret, *(buf+idx));
+        ret = (int)read(fd, buf + idx, 256 - bytes);
         if (ret == 0) {
             WOLFSSL_MSG("error reading entropy from egd server");
             ret = SSL_FATAL_ERROR;

@@ -214,6 +214,7 @@
 #endif
 
 #ifdef OPENSSL_EXTRA
+    #include <wolfssl/openssl/asn1.h>
     #include <wolfssl/openssl/ssl.h>
     #include <wolfssl/openssl/crypto.h>
     #include <wolfssl/openssl/pkcs12.h>

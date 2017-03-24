@@ -193,12 +193,6 @@ struct WOLFSSL_ASN1_TIME {
     /* ASN_TIME | LENGTH | date bytes */
 };
 
-#ifndef WOLFSSL_EVP_TYPE_DEFINED
-typedef struct WOLFSSL_EVP_PKEY WOLFSSL_EVP_PKEY;
-typedef char   WOLFSSL_EVP_MD;
-#define WOLFSSL_EVP_TYPE_DEFINED
-#endif
-
 struct WOLFSSL_EVP_PKEY {
     void* heap;
     int type;         /* openssh dereference */
@@ -223,6 +217,12 @@ struct WOLFSSL_EVP_PKEY {
     #endif
 };
 typedef struct WOLFSSL_EVP_PKEY WOLFSSL_PKCS8_PRIV_KEY_INFO;
+
+#ifndef WOLFSSL_EVP_TYPE_DEFINED /* guard on redeclaration */
+typedef struct WOLFSSL_EVP_PKEY     WOLFSSL_EVP_PKEY;
+typedef char   WOLFSSL_EVP_MD;
+#define WOLFSSL_EVP_TYPE_DEFINED
+#endif
 
 #define WOLFSSL_EVP_PKEY_DEFAULT EVP_PKEY_RSA /* default key type */
 
