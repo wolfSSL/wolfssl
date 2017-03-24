@@ -4544,8 +4544,8 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
     }
 
     if (ssl && resetSuites) {
-        int havePSK = 0;
-        int haveRSA = 0;
+        word16 havePSK = 0;
+        word16 haveRSA = 0;
 
         #ifndef NO_PSK
         if (ssl->options.havePSK) {
