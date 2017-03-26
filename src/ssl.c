@@ -7129,7 +7129,7 @@ WOLFSSL_EVP_PKEY* wolfSSL_d2i_PrivateKey(int type, WOLFSSL_EVP_PKEY** out,
 
     /* advance pointer with success */
     if (local != NULL) {
-        if ((idx + local->pkey_sz) <= inSz) {
+        if ((idx + local->pkey_sz) <= (word32)inSz) {
             *in = *in + idx + local->pkey_sz;
         }
     }
