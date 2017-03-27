@@ -1961,7 +1961,7 @@ void InitSuites(Suites* suites, ProtocolVersion pv, word16 haveRSA,
 #endif
 
 #ifdef BUILD_TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256
-    if (tls1_2 && haveRSAsig) {
+    if (tls1_2 && haveRSA) {
         suites->suites[idx++] = ECC_BYTE;
         suites->suites[idx++] = TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256;
     }
@@ -1989,7 +1989,7 @@ void InitSuites(Suites* suites, ProtocolVersion pv, word16 haveRSA,
 #endif
 
 #ifdef BUILD_TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384
-    if (tls1_2 && haveRSAsig) {
+    if (tls1_2 && haveRSA) {
         suites->suites[idx++] = ECC_BYTE;
         suites->suites[idx++] = TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384;
     }
@@ -5910,8 +5910,6 @@ static int BuildFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
         case TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256 :
         case TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384 :
             if (requirement == REQUIRES_RSA)
-                return 1;
-            if (requirement == REQUIRES_RSA_SIG)
                 return 1;
             break;
 
