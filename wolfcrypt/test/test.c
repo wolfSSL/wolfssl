@@ -5310,7 +5310,8 @@ byte GetEntropy(ENTROPY_CMD cmd, byte* out)
 #endif /* !USE_CERT_BUFFER_* */
 #if !defined(USE_CERT_BUFFERS_256) && !defined(NO_ASN)
     #ifdef HAVE_ECC
-        #ifdef WOLFSSL_CERT_GEN
+        /* cert files to be used in rsa cert gen test, check if RSA enabled */
+        #if defined(WOLFSSL_CERT_GEN) && !defined(NO_RSA)
             static const char* eccCaCertFile = CERT_ROOT "server-ecc.pem";
             static const char* eccCaKeyFile  = CERT_ROOT   "ecc-key.der";
         #endif
@@ -5320,9 +5321,9 @@ byte GetEntropy(ENTROPY_CMD cmd, byte* out)
     #endif /* HAVE_ECC */
 #endif /* !USE_CERT_BUFFER_* */
 
-/* Temporary Cert Files */
 #ifdef HAVE_ECC
-    #ifdef WOLFSSL_CERT_GEN
+    /* Temporary Cert Files to be used in rsa cert gen test, is RSA enabled */
+    #if defined(WOLFSSL_CERT_GEN) && !defined(NO_RSA)
         static const char* certEccPemFile = CERT_PREFIX "certecc.pem";
     #endif
     #ifdef WOLFSSL_KEY_GEN
@@ -5330,9 +5331,11 @@ byte GetEntropy(ENTROPY_CMD cmd, byte* out)
         static const char* eccPubKeyDerFile = CERT_PREFIX "ecc-public-key.der";
         static const char* eccCaKeyTempFile = CERT_PREFIX "ecc-key.der";
     #endif
-    #if defined(WOLFSSL_CERT_GEN) || \
+    #ifndef NO_RSA
+      #if defined(WOLFSSL_CERT_GEN) || \
             (defined(WOLFSSL_CERT_EXT) && defined(WOLFSSL_TEST_CERT))
         static const char* certEccDerFile = CERT_PREFIX "certecc.der";
+      #endif
     #endif
 #endif /* HAVE_ECC */
 
