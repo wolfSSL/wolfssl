@@ -15198,6 +15198,16 @@ static void test_wolfSSL_RAND(void)
     RAND_seed(seed, sizeof(seed));
     RAND_cleanup();
 
+    AssertIntEQ(RAND_egd(NULL), -1);
+#ifndef NO_FILESYSTEM
+    {
+        char fname[100];
+
+        AssertNotNull(RAND_file_name(fname, sizeof(fname)));
+        AssertIntEQ(RAND_write_file(NULL), 0);
+    }
+#endif
+
     printf(resultFmt, passed);
     #endif
 }
@@ -15529,6 +15539,54 @@ static void test_wolfSSL_BIO_gets(void)
     BIO_free(bio);
     BIO_free(bio2);
 
+    printf(resultFmt, passed);
+    #endif
+}
+
+
+static void test_wolfSSL_BIO_write(void)
+{
+    #if defined(OPENSSL_EXTRA)
+    BIO* bio;
+    BIO* bio64;
+    BIO* ptr;
+    int  sz;
+    char msg[] = "conversion test";
+    char out[25];
+    char expected[] = "Y29udmVyc2lvbiB0ZXN0AA==\n";
+
+    printf(testingFmt, "BIO_write()");
+
+    AssertNotNull(bio64 = BIO_new(BIO_f_base64()));
+    AssertNotNull(bio   = BIO_push(bio64, BIO_new(BIO_s_mem())));
+
+    /* now should convert to base64 then write to memory */
+    AssertIntEQ(BIO_write(bio, msg, sizeof(msg)), 25);
+    BIO_flush(bio);
+    AssertNotNull(ptr = BIO_find_type(bio, BIO_TYPE_MEM));
+    sz = sizeof(out);
+    XMEMSET(out, 0, sz);
+    AssertIntEQ((sz = BIO_read(ptr, out, sz)), 25);
+    AssertIntEQ(XMEMCMP(out, expected, sz), 0);
+
+    /* now try encoding with no line ending */
+    BIO_set_flags(bio64, BIO_FLAG_BASE64_NO_NL);
+    AssertIntEQ(BIO_write(bio, msg, sizeof(msg)), 24);
+    BIO_flush(bio);
+    sz = sizeof(out);
+    XMEMSET(out, 0, sz);
+    AssertIntEQ((sz = BIO_read(ptr, out, sz)), 24);
+    AssertIntEQ(XMEMCMP(out, expected, sz), 0);
+
+    BIO_free_all(bio); /* frees bio64 also */
+    printf(resultFmt, passed);
+    #endif
+}
+
+static void test_wolfSSL_SESSION(void)
+{
+    #if defined(OPENSSL_EXTRA)
+    printf(testingFmt, "no_op_functions()");
     printf(resultFmt, passed);
     #endif
 }
@@ -16368,12 +16426,10 @@ void ApiTest(void)
     test_wolfSSL_X509_STORE_CTX();
     test_wolfSSL_PEM_read_bio();
     test_wolfSSL_BIO();
-    test_wolfSSL_DES_ecb_encrypt();
     test_wolfSSL_ASN1_STRING();
     test_wolfSSL_X509();
     test_wolfSSL_RAND();
     test_wolfSSL_BUF();
-    test_wolfSSL_DES_ecb_encrypt();
     test_wolfSSL_set_tlsext_status_type();
     test_wolfSSL_ASN1_TIME_adj();
     test_wolfSSL_CTX_set_client_CA_list();
@@ -16388,6 +16444,9 @@ void ApiTest(void)
     test_wolfSSL_X509_NAME_ENTRY();
     test_wolfSSL_BIO_gets();
     test_wolfSSL_d2i_PUBKEY();
+    test_wolfSSL_BIO_write();
+    test_wolfSSL_SESSION();
+    test_wolfSSL_DES_ecb_encrypt();
 
     /* test the no op functions for compatibility */
     test_no_op_functions();

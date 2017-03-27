@@ -12117,240 +12117,6 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
     }
 
 
-    static int wolfSSL_BIO_BIO_read(WOLFSSL_BIO* bio, void* buf, int len)
-    {
-        int   sz;
-        char* pt;
-
-        sz = wolfSSL_BIO_nread(bio, &pt, len);
-
-        if (sz > 0) {
-            XMEMCPY(buf, pt, sz);
-        }
-
-        return sz;
-    }
-
-    /* Handles reading from a memory type BIO and advancing the state.
-     *
-     * bio  WOLFSSL_BIO to read from
-     * buf  buffer to put data from bio in
-     * len  amount of data to be read
-     *
-     * returns size read on success
-     */
-    static int wolfSSL_BIO_MEMORY_read(WOLFSSL_BIO* bio, void* buf, int len)
-    {
-        int   sz;
-
-        sz = (int)wolfSSL_BIO_ctrl_pending(bio);
-        if (sz > 0) {
-            byte* pt = NULL;
-            int memSz;
-
-            if (sz > len) {
-                sz = len;
-            }
-            memSz = wolfSSL_BIO_get_mem_data(bio, (void*)&pt);
-            if (memSz >= sz && pt != NULL) {
-                byte* tmp;
-
-                XMEMCPY(buf, pt, sz);
-                if (memSz - sz > 0) {
-                    tmp = (byte*)XMALLOC(memSz-sz, bio->heap,
-                            DYNAMIC_TYPE_OPENSSL);
-                    if (tmp == NULL) {
-                        WOLFSSL_MSG("Memory error");
-                        return WOLFSSL_BIO_ERROR;
-                    }
-                    XMEMCPY(tmp, pt + sz, memSz - sz);
-
-                    /* reset internal bio->mem, tmp gets free'd with
-                     * wolfSSL_BIO_free */
-                    XFREE(bio->mem, bio->heap, DYNAMIC_TYPE_OPENSSL);
-                    bio->mem = tmp;
-                }
-                bio->wrSz  -= sz;
-                bio->memLen = memSz - sz;
-            }
-            else {
-                WOLFSSL_MSG("Issue with getting bio mem pointer");
-                return 0;
-            }
-        }
-        else {
-            return WOLFSSL_BIO_ERROR;
-        }
-
-        return sz;
-    }
-
-
-    int wolfSSL_BIO_read(WOLFSSL_BIO* bio, void* buf, int len)
-    {
-        int  ret;
-        WOLFSSL* ssl = 0;
-        WOLFSSL_BIO* front = bio;
-
-        WOLFSSL_ENTER("wolfSSL_BIO_read");
-
-        if (bio && bio->type == WOLFSSL_BIO_BIO) {
-            return wolfSSL_BIO_BIO_read(bio, buf, len);
-        }
-
-        if (bio && bio->type == WOLFSSL_BIO_MEMORY) {
-            return wolfSSL_BIO_MEMORY_read(bio, buf, len);
-        }
-
-    #ifndef NO_FILESYSTEM
-        if (bio && bio->type == WOLFSSL_BIO_FILE) {
-            return (int)XFREAD(buf, 1, len, bio->file);
-        }
-    #endif
-
-        /* already got eof, again is error */
-        if (bio && front->eof)
-            return WOLFSSL_FATAL_ERROR;
-
-        while(bio && ((ssl = bio->ssl) == 0) )
-            bio = bio->next;
-
-        if (ssl == 0) return BAD_FUNC_ARG;
-
-        ret = wolfSSL_read(ssl, buf, len);
-        if (ret == 0)
-            front->eof = 1;
-        else if (ret < 0) {
-            int err = wolfSSL_get_error(ssl, 0);
-            if ( !(err == WOLFSSL_ERROR_WANT_READ || err == WOLFSSL_ERROR_WANT_WRITE) )
-                front->eof = 1;
-        }
-        return ret;
-    }
-
-
-    static int wolfSSL_BIO_BIO_write(WOLFSSL_BIO* bio, const void* data,
-            int len)
-    {
-        /* internal function where arguments have already been sanity checked */
-        int   sz;
-        char* buf;
-
-        sz = wolfSSL_BIO_nwrite(bio, &buf, len);
-
-        /* test space for write */
-        if (sz <= 0) {
-            WOLFSSL_MSG("No room left to write");
-            return sz;
-        }
-
-        XMEMCPY(buf, data, sz);
-
-        return sz;
-    }
-
-
-    /* for complete compatibility a bio memory write allocs its own memory
-     * until the application runs out ....
-     *
-     * bio  structure to hold incoming data
-     * data buffer holding the data to be written
-     * len  length of data buffer
-     *
-     * returns the amount of data written on success and WOLFSSL_FAILURE or
-     *         WOLFSSL_BIO_ERROR for failure cases.
-     */
-    static int wolfSSL_BIO_MEMORY_write(WOLFSSL_BIO* bio, const void* data,
-            int len)
-    {
-        /* internal function where arguments have already been sanity checked */
-        int   sz;
-        int   ret;
-        const unsigned char* buf;
-
-        sz = wolfSSL_BIO_pending(bio);
-        if (sz < 0) {
-            WOLFSSL_MSG("Error getting memory data");
-            return sz;
-        }
-
-        if (bio->mem == NULL) {
-            bio->mem = (byte*)XMALLOC(len, bio->heap,
-                DYNAMIC_TYPE_OPENSSL);
-            if (bio->mem == NULL) {
-                WOLFSSL_MSG("Error on malloc");
-                return WOLFSSL_FAILURE;
-            }
-            bio->memLen = len;
-        }
-
-        /* check if will fit in current buffer size */
-        if ((ret = wolfSSL_BIO_get_mem_data(bio, (void*)&buf)) < sz + len) {
-            if (ret < 0) {
-                return WOLFSSL_BIO_ERROR;
-            }
-            else {
-                bio->mem = (byte*)XREALLOC(bio->mem, sz + len, bio->heap,
-                    DYNAMIC_TYPE_OPENSSL);
-                if (bio->mem == NULL) {
-                    WOLFSSL_MSG("Error on realloc");
-                    return WOLFSSL_FAILURE;
-                }
-                bio->memLen = sz + len;
-            }
-        }
-
-        XMEMCPY(bio->mem + sz, data, len);
-        bio->wrSz += len;
-
-        return len;
-    }
-
-
-    int wolfSSL_BIO_write(WOLFSSL_BIO* bio, const void* data, int len)
-    {
-        int  ret;
-        WOLFSSL* ssl = 0;
-        WOLFSSL_BIO* front = bio;
-
-        WOLFSSL_ENTER("wolfSSL_BIO_write");
-
-        if (bio && bio->type == WOLFSSL_BIO_BIO) {
-            return wolfSSL_BIO_BIO_write(bio, data, len);
-        }
-
-        if (bio && bio->type == WOLFSSL_BIO_MEMORY) {
-            return wolfSSL_BIO_MEMORY_write(bio, data, len);
-        }
-
-    #ifndef NO_FILESYSTEM
-        if (bio && bio->type == WOLFSSL_BIO_FILE) {
-            return (int)XFWRITE(data, 1, len, bio->file);
-        }
-    #endif
-
-        /* already got eof, again is error */
-        if (bio && front->eof)
-            return WOLFSSL_FATAL_ERROR;
-
-        while(bio && ((ssl = bio->ssl) == 0) )
-            bio = bio->next;
-
-        if (ssl == 0) return BAD_FUNC_ARG;
-
-        ret = wolfSSL_write(ssl, data, len);
-        if (ret == 0)
-            front->eof = 1;
-        else if (ret < 0) {
-            int err = wolfSSL_get_error(ssl, 0);
-            if ( !(err == WOLFSSL_ERROR_WANT_READ || err == WOLFSSL_ERROR_WANT_WRITE) )
-                front->eof = 1;
-        }
-
-        return ret;
-    }
-
-
     WOLFSSL_BIO* wolfSSL_BIO_push(WOLFSSL_BIO* top, WOLFSSL_BIO* append)
     {
         WOLFSSL_ENTER("BIO_push");
@@ -17227,7 +16993,7 @@ WOLFSSL_BIO_METHOD* wolfSSL_BIO_f_base64(void)
 {
     static WOLFSSL_BIO_METHOD meth;
 
-    WOLFSSL_STUB("wolfSSL_BIO_f_base64");
+    WOLFSSL_ENTER("wolfSSL_BIO_f_base64");
     meth.type = WOLFSSL_BIO_BASE64;
 
     return &meth;
@@ -17241,7 +17007,7 @@ WOLFSSL_BIO_METHOD* wolfSSL_BIO_f_base64(void)
  */
 void wolfSSL_BIO_set_flags(WOLFSSL_BIO* bio, int flags)
 {
-    WOLFSSL_STUB("wolfSSL_BIO_set_flags");
+    WOLFSSL_ENTER("wolfSSL_BIO_set_flags");
 
     if (bio != NULL) {
         bio->flags |= flags;
@@ -20576,6 +20342,10 @@ int wolfSSL_RAND_egd(const char* nm)
         return SSL_FATAL_ERROR;
     }
 #endif
+
+    if (nm == NULL) {
+        return SSL_FATAL_ERROR;
+    }
 
     fd = socket(AF_UNIX, SOCK_STREAM, 0);
     if (fd <= 0) {
