@@ -12192,12 +12192,16 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
     {
         WOLFSSL_ENTER("wolfSSL_ERR_get_error");
 
+#if defined(WOLFSSL_NGINX) || defined(OPENSSL_EXTRA)
         {
             unsigned long ret = wolfSSL_ERR_peek_error_line_data(NULL, NULL,
                                                                  NULL, NULL);
             wc_RemoveErrorNode(-1);
             return ret;
         }
+#else
+        return (unsigned long)(0 - NOT_COMPILED_IN);
+#endif
     }
 
 #ifndef NO_MD5
@@ -23492,6 +23496,7 @@ const WOLFSSL_EVP_MD* wolfSSL_EVP_get_digestbynid(int id)
 }
 
 
+#ifndef NO_RSA
 WOLFSSL_RSA* wolfSSL_EVP_PKEY_get1_RSA(WOLFSSL_EVP_PKEY* key)
 {
     WOLFSSL_RSA* local;
@@ -23522,12 +23527,10 @@ WOLFSSL_RSA* wolfSSL_EVP_PKEY_get1_RSA(WOLFSSL_EVP_PKEY* key)
         wolfSSL_RSA_free(local);
         local = NULL;
     }
-
     return local;
 }
 
 
-#ifndef NO_RSA
 /* with set1 functions the pkey struct does not own the RSA structure
  *
  * returns WOLFSSL_SUCCESS on success and WOLFSSL_FAILURE on failure
