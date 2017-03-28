@@ -21713,21 +21713,13 @@ void* wolfSSL_GetRsaDecCtx(WOLFSSL* ssl)
 
     }
 
-    void* wolfSSL_get_app_data( const WOLFSSL *ssl)
-    {
+    void* wolfSSL_get_app_data( const WOLFSSL *ssl) {
         /* checkout exdata stuff... */
-        (void)ssl;
-        WOLFSSL_ENTER("wolfSSL_get_app_data");
-        WOLFSSL_STUB("wolfSSL_get_app_data");
-
-        return 0;
+        return wolfSSL_get_ex_data(ssl,0);
     }
 
-    void wolfSSL_set_app_data(WOLFSSL *ssl, void *arg) {
-        (void)ssl;
-        (void)arg;
-        WOLFSSL_ENTER("wolfSSL_set_app_data");
-        WOLFSSL_STUB("wolfSSL_set_app_data");
+    int wolfSSL_set_app_data(WOLFSSL *ssl, void *arg) {
+        return wolfSSL_set_ex_data(ssl,0,(char *)arg);
     }
 
     WOLFSSL_ASN1_OBJECT * wolfSSL_X509_NAME_ENTRY_get_object(WOLFSSL_X509_NAME_ENTRY *ne) {

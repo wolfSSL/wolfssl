@@ -189,6 +189,7 @@ then
     enable_certservice=yes
     enable_jni=yes
     enable_lighty=yes
+    enable_haproxy=yes
     enable_stunnel=yes
     enable_nginx=yes
     enable_pwdbased=yes
@@ -2380,6 +2381,24 @@ then
     AM_CFLAGS="$AM_CFLAGS -DHAVE_EXT_CACHE -DHAVE_EX_DATA"
 fi
 
+# haproxy Support
+AC_ARG_ENABLE([haproxy],
+    [  --enable-haproxy         Enable haproxy (default: disabled)],
+    [ ENABLED_HAPROXY=$enableval ],
+    [ ENABLED_HAPROXY=no ]
+    )
+
+if test "$ENABLED_HAPROXY" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_HAPROXY"
+    # Requires opensslextra make sure on
+    if test "x$ENABLED_OPENSSLEXTRA" = "xno"
+    then
+        ENABLED_OPENSSLEXTRA="yes"
+        AM_CFLAGS="-DOPENSSL_EXTRA $AM_CFLAGS"
+    fi
+fi
+
 
 # stunnel Support
 AC_ARG_ENABLE([stunnel],
@@ -3439,6 +3458,7 @@ echo "   * CODING:                     $ENABLED_CODING"
 echo "   * MEMORY:                     $ENABLED_MEMORY"
 echo "   * I/O POOL:                   $ENABLED_IOPOOL"
 echo "   * LIGHTY:                     $ENABLED_LIGHTY"
+echo "   * HAPROXY:                    $ENABLED_HAPROXY"
 echo "   * STUNNEL:                    $ENABLED_STUNNEL"
 echo "   * NGINX:                      $ENABLED_NGINX"
 echo "   * ERROR_STRINGS:              $ENABLED_ERROR_STRINGS"
