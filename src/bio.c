@@ -328,30 +328,41 @@ int wolfSSL_BIO_write(WOLFSSL_BIO* bio, const void* data, int len)
     while (bio != NULL && ret >= 0) {
         /* check for formating */
         if (bio && bio->type == WOLFSSL_BIO_BASE64) {
-
 #if defined(WOLFSSL_BASE64_ENCODE)
+            word32 sz = 0;
+
             if (bio->flags & WOLFSSL_BIO_FLAG_BASE64_NO_NL) {
                 if (Base64_Encode_NoNl((const byte*)data, len, NULL,
-                            &frmtSz) != LENGTH_ONLY_E) {
+                            &sz) != LENGTH_ONLY_E) {
                     WOLFSSL_MSG("Error with base 64 get length");
                     ret = SSL_FATAL_ERROR;
                 }
             }
             else {
-                if (Base64_Encode((const byte*)data, len, NULL, &frmtSz) !=
+                if (Base64_Encode((const byte*)data, len, NULL, &sz) !=
                     LENGTH_ONLY_E) {
                     WOLFSSL_MSG("Error with base 64 get length");
                     ret = SSL_FATAL_ERROR;
                 }
             }
 
-            if (frmt == NULL && frmtSz > 0 && ret != SSL_FATAL_ERROR) {
-                frmt = (void*)XMALLOC(frmtSz, bio->heap,
+            if (frmt == NULL && sz > 0 && ret != SSL_FATAL_ERROR) {
+                frmt = (void*)XMALLOC(sz, front->heap,
                         DYNAMIC_TYPE_TMP_BUFFER);
                 if (frmt == NULL) {
                     WOLFSSL_MSG("Memory error");
                     ret = SSL_FATAL_ERROR;
                 }
+                frmtSz = sz;
+            }
+            else if (sz > frmtSz) {
+                frmt = (void*)XREALLOC(frmt, sz, front->heap,
+                        DYNAMIC_TYPE_TMP_BUFFER);
+                if (frmt == NULL) {
+                    WOLFSSL_MSG("Memory error");
+                    ret = SSL_FATAL_ERROR;
+                }
+                frmtSz = sz;
             }
 #endif /* defined(WOLFSSL_BASE64_ENCODE) */
 
@@ -394,7 +405,7 @@ int wolfSSL_BIO_write(WOLFSSL_BIO* bio, const void* data, int len)
     }
 
     if (frmt != NULL) {
-        XFREE(frmt, bio->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(frmt, front->heap, DYNAMIC_TYPE_TMP_BUFFER);
     }
 
     return ret;

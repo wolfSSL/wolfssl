@@ -15579,6 +15579,21 @@ static void test_wolfSSL_BIO_write(void)
     AssertIntEQ(XMEMCMP(out, expected, sz), 0);
 
     BIO_free_all(bio); /* frees bio64 also */
+
+    /* test with more than one bio64 in list */
+    AssertNotNull(bio64 = BIO_new(BIO_f_base64()));
+    AssertNotNull(bio   = BIO_push(bio64, BIO_new(BIO_f_base64())));
+    AssertNotNull(bio   = BIO_push(bio, BIO_new(BIO_s_mem())));
+
+    /* now should convert to base64(x2) when stored and then decode with read */
+    AssertIntEQ(BIO_write(bio, msg, sizeof(msg)), 25);
+    BIO_flush(bio);
+    sz = sizeof(out);
+    XMEMSET(out, 0, sz);
+    AssertIntEQ((sz = BIO_read(bio, out, sz)), 16);
+    AssertIntEQ(XMEMCMP(out, msg, sz), 0);
+    BIO_free_all(bio); /* frees bio64s also */
+
     printf(resultFmt, passed);
     #endif
 }
