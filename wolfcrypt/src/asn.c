@@ -1949,6 +1949,14 @@ static int DecryptKey(const char* password, int passwordSz, byte* salt,
  *  PrivateKeyAlgorithmIdentifier ::= AlgorithmIdentifier
  *  PrivateKey ::= OCTET STRING
  *
+ * out      buffer to place result in
+ * outSz    size of out buffer
+ * key      buffer with DER key
+ * keySz    size of key buffer
+ * algoID   algorithm ID i.e. RSAk
+ * curveOID ECC curve oid if used. Should be NULL for RSA keys.
+ * oidSz    size of curve oid. Is set to 0 if curveOID is NULL.
+ *
  * Returns the size of PKCS#8 placed into out. In error cases returns negative
  * values.
  */
@@ -1987,6 +1995,7 @@ int wc_CreatePKCS8Key(byte* out, word32* outSz, byte* key, word32 keySz,
                 return BUFFER_E;
         }
         else {
+            oidSz = 0; /* with no curveOID oid size must be 0 */
             if (*outSz < (keySz + MAX_SEQ_SZ + MAX_VERSION_SZ + MAX_ALGO_SZ
                       + MAX_LENGTH_SZ + MAX_LENGTH_SZ + 2))
                 return BUFFER_E;
@@ -2001,7 +2010,13 @@ int wc_CreatePKCS8Key(byte* out, word32* outSz, byte* key, word32 keySz,
         tmpSz += sz; keyIdx += sz;
 
         /*  privateKeyAlgorithm PrivateKeyAlgorithmIdentifier */
-        sz = SetAlgoID(algoID, out + keyIdx, oidKeyType, 0);
+        sz = 0; /* set sz to 0 and get privateKey oid buffer size needed */
+        if (curveOID != NULL && oidSz > 0) {
+            byte buf[MAX_LENGTH_SZ];
+            sz = SetLength(oidSz, buf);
+            sz += 1; /* plus one for ASN object id */
+        }
+        sz = SetAlgoID(algoID, out + keyIdx, oidKeyType, oidSz + sz);
         tmpSz += sz; keyIdx += sz;
 
         /*  privateKey          PrivateKey *
