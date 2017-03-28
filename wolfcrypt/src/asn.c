@@ -2012,7 +2012,7 @@ int wc_CreatePKCS8Key(byte* out, word32* outSz, byte* key, word32 keySz,
             sz = SetLength(oidSz, out + keyIdx);
             keyIdx += sz; tmpSz += sz;
             XMEMCPY(out + keyIdx, curveOID, oidSz);
-            keyIdx += oidSz; tmpSz += keyIdx;
+            keyIdx += oidSz; tmpSz += oidSz;
         }
 
         out[keyIdx] = ASN_OCTET_STRING;
@@ -2042,10 +2042,16 @@ int wc_GetKeyOID(byte* key, word32 keySz, const byte** curveOID, word32* oidSz,
     #ifdef HAVE_ECC
     ecc_key ecc;
     #endif
-
     #ifndef NO_RSA
     RsaKey rsa;
+    #endif
 
+    if (algoID == NULL) {
+        return BAD_FUNC_ARG;
+    }
+    *algoID = 0;
+
+    #ifndef NO_RSA
     wc_InitRsaKey(&rsa, heap);
     if (wc_RsaPrivateKeyDecode(key, &tmpIdx, &rsa, keySz) == 0) {
         *algoID = RSAk;
@@ -2056,11 +2062,18 @@ int wc_GetKeyOID(byte* key, word32 keySz, const byte** curveOID, word32* oidSz,
     wc_FreeRsaKey(&rsa);
     #endif /* NO_RSA */
     #ifdef HAVE_ECC
-    if (algoID == 0) {
+    if (*algoID != RSAk) {
         tmpIdx = 0;
         wc_ecc_init_ex(&ecc, heap, INVALID_DEVID);
         if (wc_EccPrivateKeyDecode(key, &tmpIdx, &ecc, keySz) == 0) {
             *algoID = ECDSAk;
+
+            /* sanity check on arguments */
+            if (curveOID == NULL || oidSz == NULL) {
+                WOLFSSL_MSG("Error getting ECC curve OID");
+                wc_ecc_free(&ecc);
+                return BAD_FUNC_ARG;
+            }
 
             /* now find oid */
             if (wc_ecc_get_oid(ecc.dp->oidSum, curveOID, oidSz) < 0) {
