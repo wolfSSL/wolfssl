@@ -20941,11 +20941,14 @@ WOLFSSL_EVP_PKEY* wolfSSL_PEM_read_bio_PrivateKey(WOLFSSL_BIO* bio,
 
 int wolfSSL_EVP_PKEY_type(int type)
 {
-    (void)type;
+    // XXX FIXME
+    (void) type;
+    return EVP_PKEY_RSA;
+}
 
-    WOLFSSL_MSG("wolfSSL_EVP_PKEY_type not implemented");
-
-    return SSL_FATAL_ERROR;
+int wolfSSL_EVP_PKEY_base_id(const EVP_PKEY *pkey)
+{
+    return EVP_PKEY_type(pkey->type);
 }
 
 
@@ -21626,12 +21629,30 @@ void* wolfSSL_GetRsaDecCtx(WOLFSSL* ssl)
     }
 
     int wolfSSL_BIO_read_filename(WOLFSSL_BIO *b, const char *name) {
-        (void)b;
-        (void)name;
-        WOLFSSL_ENTER("wolfSSL_BIO_read_filename");
-        WOLFSSL_STUB("wolfSSL_BIO_read_filename");
+    #ifndef NO_FILESYSTEM
+        XFILE fp;
+    
+        WOLFSSL_ENTER("wolfSSL_BIO_new_file");
 
-        return 0;
+        if ((wolfSSL_BIO_get_fp(b, &fp) == SSL_SUCCESS) && (fp != NULL))
+        {
+            XFCLOSE(fp);
+        }
+    
+        fp = XFOPEN(name, "r");
+        if (fp == NULL)
+            return SSL_BAD_FILE;
+    
+        if (wolfSSL_BIO_set_fp(b, fp, BIO_CLOSE) != SSL_SUCCESS) {
+            return SSL_BAD_FILE;
+        }
+    
+        return SSL_SUCCESS;
+    #else
+        (void)name;
+        (void)b;
+        return SSL_NOT_IMPLEMENTED;
+    #endif
     }
 
 #ifdef HAVE_ECC

@@ -322,6 +322,8 @@ typedef WOLFSSL_X509_STORE_CTX X509_STORE_CTX;
 #define X509_OBJECT_free_contents wolfSSL_X509_OBJECT_free_contents
 #define EVP_PKEY_new              wolfSSL_PKEY_new
 #define EVP_PKEY_free             wolfSSL_EVP_PKEY_free
+#define EVP_PKEY_type             wolfSSL_EVP_PKEY_type
+#define EVP_PKEY_base_id          wolfSSL_EVP_PKEY_base_id
 #define X509_cmp_current_time     wolfSSL_X509_cmp_current_time
 #define sk_X509_REVOKED_num       wolfSSL_sk_X509_REVOKED_num
 #define X509_CRL_get_REVOKED      wolfSSL_X509_CRL_get_REVOKED

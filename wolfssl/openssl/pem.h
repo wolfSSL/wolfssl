@@ -99,6 +99,9 @@ int wolfSSL_PEM_write_bio_PrivateKey(WOLFSSL_BIO* bio, WOLFSSL_EVP_PKEY* key,
 WOLFSSL_API
 int wolfSSL_EVP_PKEY_type(int type);
 
+WOLFSSL_API
+int wolfSSL_EVP_PKEY_base_id(const EVP_PKEY *pkey);
+
 #if !defined(NO_FILESYSTEM)
 WOLFSSL_API
 WOLFSSL_EVP_PKEY *wolfSSL_PEM_read_PUBKEY(FILE *fp, EVP_PKEY **x,
