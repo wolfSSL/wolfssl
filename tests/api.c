@@ -15546,13 +15546,13 @@ static void test_wolfSSL_BIO_gets(void)
 
 static void test_wolfSSL_BIO_write(void)
 {
-    #if defined(OPENSSL_EXTRA)
+    #if defined(OPENSSL_EXTRA) && defined(WOLFSSL_BASE64_ENCODE)
     BIO* bio;
     BIO* bio64;
     BIO* ptr;
     int  sz;
     char msg[] = "conversion test";
-    char out[25];
+    char out[40];
     char expected[] = "Y29udmVyc2lvbiB0ZXN0AA==\n";
 
     printf(testingFmt, "BIO_write()");
@@ -15569,6 +15569,13 @@ static void test_wolfSSL_BIO_write(void)
     AssertIntEQ((sz = BIO_read(ptr, out, sz)), 25);
     AssertIntEQ(XMEMCMP(out, expected, sz), 0);
 
+    /* write then read should return the same message */
+    AssertIntEQ(BIO_write(bio, msg, sizeof(msg)), 25);
+    sz = sizeof(out);
+    XMEMSET(out, 0, sz);
+    AssertIntEQ(BIO_read(bio, out, sz), 16);
+    AssertIntEQ(XMEMCMP(out, msg, sizeof(msg)), 0);
+
     /* now try encoding with no line ending */
     BIO_set_flags(bio64, BIO_FLAG_BASE64_NO_NL);
     AssertIntEQ(BIO_write(bio, msg, sizeof(msg)), 24);
@@ -15582,11 +15589,11 @@ static void test_wolfSSL_BIO_write(void)
 
     /* test with more than one bio64 in list */
     AssertNotNull(bio64 = BIO_new(BIO_f_base64()));
-    AssertNotNull(bio   = BIO_push(bio64, BIO_new(BIO_f_base64())));
-    AssertNotNull(bio   = BIO_push(bio, BIO_new(BIO_s_mem())));
+    AssertNotNull(bio   = BIO_push(BIO_new(BIO_f_base64()), bio64));
+    AssertNotNull(BIO_push(bio64, BIO_new(BIO_s_mem())));
 
     /* now should convert to base64(x2) when stored and then decode with read */
-    AssertIntEQ(BIO_write(bio, msg, sizeof(msg)), 25);
+    AssertIntEQ(BIO_write(bio, msg, sizeof(msg)), 37);
     BIO_flush(bio);
     sz = sizeof(out);
     XMEMSET(out, 0, sz);
@@ -15600,10 +15607,110 @@ static void test_wolfSSL_BIO_write(void)
 
 static void test_wolfSSL_SESSION(void)
 {
-    #if defined(OPENSSL_EXTRA)
-    printf(testingFmt, "no_op_functions()");
+#if defined(OPENSSL_EXTRA) && !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && \
+    !defined(NO_RSA) && defined(HAVE_EXT_CACHE) && \
+    defined(HAVE_IO_TESTS_DEPENDENCIES)
+
+    WOLFSSL*     ssl;
+    WOLFSSL_CTX* ctx;
+    WOLFSSL_SESSION* sess;
+    const unsigned char context[] = "user app context";
+    unsigned char* sessDer = NULL;
+    unsigned char* ptr     = NULL;
+    unsigned int contextSz = (unsigned int)sizeof(context);
+    int ret, err, sockfd, sz;
+    tcp_ready ready;
+    func_args server_args;
+    THREAD_TYPE serverThread;
+
+    printf(testingFmt, "wolfSSL_SESSION()");
+    AssertNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+
+    AssertTrue(wolfSSL_CTX_use_certificate_file(ctx, cliCertFile, SSL_FILETYPE_PEM));
+    AssertTrue(wolfSSL_CTX_use_PrivateKey_file(ctx, cliKeyFile, SSL_FILETYPE_PEM));
+    AssertIntEQ(wolfSSL_CTX_load_verify_locations(ctx, caCertFile, 0), SSL_SUCCESS);
+    wolfSSL_CTX_set_default_passwd_cb(ctx, PasswordCallBack);
+
+
+    XMEMSET(&server_args, 0, sizeof(func_args));
+#ifdef WOLFSSL_TIRTOS
+    fdOpenSession(Task_self());
+#endif
+
+    StartTCP();
+    InitTcpReady(&ready);
+
+#if defined(USE_WINDOWS_API)
+    /* use RNG to get random port if using windows */
+    ready.port = GetRandomPort();
+#endif
+
+    server_args.signal = &ready;
+    start_thread(test_server_nofail, &server_args, &serverThread);
+    wait_tcp_ready(&server_args);
+
+    /* client connection */
+    ssl = wolfSSL_new(ctx);
+    tcp_connect(&sockfd, wolfSSLIP, ready.port, 0, 0, ssl);
+    AssertIntEQ(wolfSSL_set_fd(ssl, sockfd), SSL_SUCCESS);
+
+    do {
+#ifdef WOLFSSL_ASYNC_CRYPT
+        if (err == WC_PENDING_E) {
+            ret = wolfSSL_AsyncPoll(ssl, WOLF_POLL_FLAG_CHECK_HW);
+            if (ret < 0) { break; } else if (ret == 0) { continue; }
+        }
+#endif
+
+        err = 0; /* Reset error */
+        ret = wolfSSL_connect(ssl);
+        if (ret != SSL_SUCCESS) {
+            err = wolfSSL_get_error(ssl, 0);
+        }
+    } while (ret != SSL_SUCCESS && err == WC_PENDING_E);
+    AssertIntEQ(ret, SSL_SUCCESS);
+    sess = wolfSSL_get_session(ssl);
+    wolfSSL_shutdown(ssl);
+    wolfSSL_free(ssl);
+
+    join_thread(serverThread);
+
+    FreeTcpReady(&ready);
+
+#ifdef WOLFSSL_TIRTOS
+    fdOpenSession(Task_self());
+#endif
+
+    /* get session from DER and update the timeout */
+    AssertIntEQ(wolfSSL_i2d_SSL_SESSION(NULL, &sessDer), BAD_FUNC_ARG);
+    AssertIntGT((sz = wolfSSL_i2d_SSL_SESSION(sess, &sessDer)), 0);
+    wolfSSL_SESSION_free(sess);
+    ptr = sessDer;
+    AssertNull(sess = wolfSSL_d2i_SSL_SESSION(NULL, NULL, sz));
+    AssertNotNull(sess = wolfSSL_d2i_SSL_SESSION(NULL,
+                (const unsigned char**)&ptr, sz));
+    XFREE(sessDer, NULL, DYNAMIC_TYPE_OPENSSL);
+    AssertIntGT(wolfSSL_SESSION_get_time(sess), 0);
+    AssertIntEQ(wolfSSL_SSL_SESSION_set_timeout(sess, 500), SSL_SUCCESS);
+
+    /* successful set session test */
+    AssertNotNull(ssl = wolfSSL_new(ctx));
+    AssertIntEQ(wolfSSL_set_session(ssl, sess), SSL_SUCCESS);
+    wolfSSL_free(ssl);
+
+    /* fail case with miss match session context IDs (use compatibility API) */
+    AssertIntEQ(SSL_CTX_set_session_id_context(NULL, context, contextSz),
+            SSL_FAILURE);
+    AssertIntEQ(SSL_CTX_set_session_id_context(ctx, context, contextSz),
+            SSL_SUCCESS);
+    AssertNotNull(ssl = wolfSSL_new(ctx));
+    AssertIntEQ(wolfSSL_set_session(ssl, sess), SSL_FAILURE);
+    wolfSSL_free(ssl);
+
+    wolfSSL_SESSION_free(sess);
+    wolfSSL_CTX_free(ctx);
     printf(resultFmt, passed);
-    #endif
+#endif
 }
 
 

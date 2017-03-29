@@ -2682,6 +2682,10 @@ struct WOLFSSL_SESSION {
     word16             idLen;                     /* serverID length          */
     byte               serverID[SERVER_ID_LEN];   /* for easier client lookup */
 #endif
+#ifdef OPENSSL_EXTRA
+    byte               sessionCtxSz;              /* sessionCtx length        */
+    byte               sessionCtx[ID_LEN];        /* app specific context id  */
+#endif
 #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
     #ifdef WOLFSSL_TLS13
     byte               namedGroup;
@@ -2694,6 +2698,8 @@ struct WOLFSSL_SESSION {
     #ifdef WOLFSSL_EARLY_DATA
     word32             maxEarlyDataSz;
     #endif
+#endif
+#ifdef HAVE_SESSION_TICKET
     byte*              ticket;
     word16             ticketLen;
     byte               staticTicket[SESSION_TICKET_LEN];
@@ -3319,8 +3325,10 @@ struct WOLFSSL {
     CallbackInfoState* CBIS;             /* used to get info about SSL state */
     WOLFSSL_BIO*     biord;              /* socket bio read  to free/close */
     WOLFSSL_BIO*     biowr;              /* socket bio write to free/close */
+    byte             sessionCtx[ID_LEN]; /* app session context ID */
     unsigned long    peerVerifyRet;
     byte             readAhead;
+    byte             sessionCtxSz;       /* size of sessionCtx stored */
 #ifdef HAVE_PK_CALLBACKS
     void*            loggingCtx;         /* logging callback argument */
 #endif

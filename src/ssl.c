@@ -10143,6 +10143,17 @@ int SetSession(WOLFSSL* ssl, WOLFSSL_SESSION* session)
     if (ssl->options.sessionCacheOff)
         return WOLFSSL_FAILURE;
 
+#ifdef OPENSSL_EXTRA
+    /* check for application context id */
+    if (ssl->sessionCtxSz > 0) {
+        if (XMEMCMP(ssl->sessionCtx, session->sessionCtx, ssl->sessionCtxSz)) {
+            /* context id did not match! */
+            WOLFSSL_MSG("Session context did not match");
+            return SSL_FAILURE;
+        }
+    }
+#endif /* OPENSSL_EXTRA */
+
     if (LowResTimer() < (session->bornOn + session->timeout)) {
         int ret = GetDeepCopySession(ssl, session);
         if (ret == WOLFSSL_SUCCESS) {
@@ -10250,6 +10261,14 @@ int AddSession(WOLFSSL* ssl)
     session->haveEMS = ssl->options.haveEMS;
     XMEMCPY(session->sessionID, ssl->arrays->sessionID, ID_LEN);
     session->sessionIDSz = ssl->arrays->sessionIDSz;
+
+#ifdef OPENSSL_EXTRA
+    /* If using compatibilty layer then check for and copy over session context
+     * id. */
+    if (ssl->sessionCtxSz > 0 && ssl->sessionCtxSz < ID_LEN) {
+        XMEMCPY(session->sessionCtx, ssl->sessionCtx, ssl->sessionCtxSz);
+    }
+#endif
 
     session->timeout = ssl->timeout;
     session->bornOn  = LowResTimer();
@@ -14292,8 +14311,16 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
     #endif
 
 
-    /* @TODO storing app session context id, now needs to tie in with InitSSL_CTX
-     * and with handshake. */
+    /* Storing app session context id, this value is inherited by WOLFSSL
+     * objects created from WOLFSSL_CTX. Any session that is imported with a
+     * different session context id will be rejected.
+     *
+     * ctx         structure to set context in
+     * sid_ctx     value of context to set
+     * sid_ctx_len length of sid_ctx buffer
+     *
+     * Returns SSL_SUCCESS in success case and SSL_FAILURE when failing
+     */
     int wolfSSL_CTX_set_session_id_context(WOLFSSL_CTX* ctx,
                                            const unsigned char* sid_ctx,
                                            unsigned int sid_ctx_len)
@@ -14305,6 +14332,8 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
             return SSL_FAILURE;
         }
         XMEMCPY(ctx->sessionCtx, sid_ctx, sid_ctx_len);
+        ctx->sessionCtxSz = sid_ctx_len;
+
         return SSL_SUCCESS;
     }
 
@@ -19805,6 +19834,10 @@ int wolfSSL_i2d_SSL_SESSION(WOLFSSL_SESSION* sess, unsigned char** p)
 #endif
     unsigned char *data;
 
+    if (sess == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
     /* bornOn | timeout | sessionID len | sessionID | masterSecret | haveEMS */
     size += OPAQUE32_LEN + OPAQUE32_LEN + OPAQUE8_LEN + sess->sessionIDSz +
             SECRET_LEN + OPAQUE8_LEN;
@@ -19823,6 +19856,10 @@ int wolfSSL_i2d_SSL_SESSION(WOLFSSL_SESSION* sess, unsigned char** p)
 #ifdef HAVE_SESSION_TICKET
     /* ticket len | ticket */
     size += OPAQUE16_LEN + sess->ticketLen;
+#endif
+#ifdef OPENSSL_EXTRA
+    /* session context ID len | session context ID */
+    size += OPAQUE8_LEN + sess->sessionCtxSz;
 #endif
 
     if (p != NULL) {
@@ -19862,6 +19899,11 @@ int wolfSSL_i2d_SSL_SESSION(WOLFSSL_SESSION* sess, unsigned char** p)
         c16toa(sess->ticketLen, data + idx); idx += OPAQUE16_LEN;
         XMEMCPY(data + idx, sess->ticket, sess->ticketLen);
         idx += sess->ticketLen;
+#endif
+#ifdef OPENSSL_EXTRA
+        data[idx++] = sess->sessionCtxSz;
+        XMEMCPY(data + idx, sess->sessionCtx, sess->sessionCtxSz);
+        idx += sess->sessionCtxSz;
 #endif
     }
 #endif
@@ -20008,6 +20050,21 @@ WOLFSSL_SESSION* wolfSSL_d2i_SSL_SESSION(WOLFSSL_SESSION** sess,
         goto end;
     }
     XMEMCPY(s->ticket, data + idx, s->ticketLen); idx += s->ticketLen;
+#endif
+#ifdef OPENSSL_EXTRA
+    /* byte for length of session context ID */
+    if (i - idx < OPAQUE8_LEN) {
+        ret = BUFFER_ERROR;
+        goto end;
+    }
+    s->sessionCtxSz = data[idx++];
+
+    /* app session context ID */
+    if (i - idx < s->sessionCtxSz) {
+        ret = BUFFER_ERROR;
+        goto end;
+    }
+    XMEMCPY(s->sessionCtx, data + idx, s->sessionCtxSz); idx += s->sessionCtxSz;
 #endif
     (void)idx;
 
