@@ -1934,6 +1934,159 @@ static int DecryptKey(const char* password, int passwordSz, byte* salt,
 }
 
 
+/* PKCS#8 from RFC 5208
+ * This function takes in a DER key and converts it to PKCS#8 format. Used
+ * in creating PKCS#12 shrouded key bags.
+ * Reverse of ToTraditional
+ *
+ * PrivateKeyInfo ::= SEQUENCE {
+ *  version Version,
+ *  privateKeyAlgorithm PrivateKeyAlgorithmIdentifier,
+ *  privateKey          PrivateKey,
+ *  attributes          optional
+ *  }
+ *  Version ::= INTEGER
+ *  PrivateKeyAlgorithmIdentifier ::= AlgorithmIdentifier
+ *  PrivateKey ::= OCTET STRING
+ *
+ * Returns the size of PKCS#8 placed into out. In error cases returns negative
+ * values.
+ */
+int wc_CreatePKCS8Key(byte* out, word32* outSz, byte* key, word32 keySz,
+        int algoID, const byte* curveOID, word32 oidSz)
+{
+        word32 keyIdx = 0;
+        word32 tmpSz  = 0;
+        word32 sz;
+
+
+        /* If out is NULL then return the max size needed
+         * + 2 for ASN_OBJECT_ID and ASN_OCTET_STRING tags */
+        if (out == NULL && outSz != NULL) {
+            *outSz = keySz + MAX_SEQ_SZ + MAX_VERSION_SZ + MAX_ALGO_SZ
+                     + MAX_LENGTH_SZ + MAX_LENGTH_SZ + 2;
+
+            if (curveOID != NULL)
+                *outSz += oidSz + MAX_LENGTH_SZ + 1;
+
+            WOLFSSL_MSG("Checking size of PKCS8");
+
+            return LENGTH_ONLY_E;
+        }
+
+        WOLFSSL_ENTER("wc_CreatePKCS8Key()");
+
+        if (key == NULL || out == NULL || outSz == NULL) {
+            return BAD_FUNC_ARG;
+        }
+
+        /* check the buffer has enough room for largest possible size */
+        if (curveOID != NULL) {
+            if (*outSz < (keySz + MAX_SEQ_SZ + MAX_VERSION_SZ + MAX_ALGO_SZ
+                   + MAX_LENGTH_SZ + MAX_LENGTH_SZ + 3 + oidSz + MAX_LENGTH_SZ))
+                return BUFFER_E;
+        }
+        else {
+            if (*outSz < (keySz + MAX_SEQ_SZ + MAX_VERSION_SZ + MAX_ALGO_SZ
+                      + MAX_LENGTH_SZ + MAX_LENGTH_SZ + 2))
+                return BUFFER_E;
+        }
+
+        /* PrivateKeyInfo ::= SEQUENCE */
+        keyIdx += MAX_SEQ_SZ; /* save room for sequence */
+
+        /*  version Version
+         *  no header information just INTEGER */
+        sz = SetMyVersion(PKCS8v0, out + keyIdx, 0);
+        tmpSz += sz; keyIdx += sz;
+
+        /*  privateKeyAlgorithm PrivateKeyAlgorithmIdentifier */
+        sz = SetAlgoID(algoID, out + keyIdx, oidKeyType, 0);
+        tmpSz += sz; keyIdx += sz;
+
+        /*  privateKey          PrivateKey *
+         * pkcs8 ecc uses slightly different format. Places curve oid in
+         * buffer */
+        if (curveOID != NULL && oidSz > 0) {
+            out[keyIdx++] = ASN_OBJECT_ID; tmpSz++;
+            sz = SetLength(oidSz, out + keyIdx);
+            keyIdx += sz; tmpSz += sz;
+            XMEMCPY(out + keyIdx, curveOID, oidSz);
+            keyIdx += oidSz; tmpSz += keyIdx;
+        }
+
+        out[keyIdx] = ASN_OCTET_STRING;
+        keyIdx++; tmpSz++;
+
+        sz = SetLength(keySz, out + keyIdx);
+        keyIdx += sz; tmpSz += sz;
+        XMEMCPY(out + keyIdx, key, keySz);
+        tmpSz += keySz;
+
+        /*  attributes          optional
+         * No attributes currently added */
+
+        /* rewind and add sequence */
+        sz = SetSequence(tmpSz, out);
+        XMEMMOVE(out + sz, out + MAX_SEQ_SZ, tmpSz);
+
+        return tmpSz + sz;
+}
+
+
+int wc_GetKeyOID(byte* key, word32 keySz, const byte** curveOID, word32* oidSz,
+        int* algoID, void* heap)
+{
+    word32 tmpIdx = 0;
+
+    #ifdef HAVE_ECC
+    ecc_key ecc;
+    #endif
+
+    #ifndef NO_RSA
+    RsaKey rsa;
+
+    wc_InitRsaKey(&rsa, heap);
+    if (wc_RsaPrivateKeyDecode(key, &tmpIdx, &rsa, keySz) == 0) {
+        *algoID = RSAk;
+    }
+    else {
+        WOLFSSL_MSG("Not RSA DER key");
+    }
+    wc_FreeRsaKey(&rsa);
+    #endif /* NO_RSA */
+    #ifdef HAVE_ECC
+    if (algoID == 0) {
+        tmpIdx = 0;
+        wc_ecc_init_ex(&ecc, heap, INVALID_DEVID);
+        if (wc_EccPrivateKeyDecode(key, &tmpIdx, &ecc, keySz) == 0) {
+            *algoID = ECDSAk;
+
+            /* now find oid */
+            if (wc_ecc_get_oid(ecc.dp->oidSum, curveOID, oidSz) < 0) {
+                WOLFSSL_MSG("Error getting ECC curve OID");
+                wc_ecc_free(&ecc);
+                return BAD_FUNC_ARG;
+            }
+        }
+        else {
+            WOLFSSL_MSG("Not ECC DER key either");
+        }
+        wc_ecc_free(&ecc);
+    }
+    #endif /* HAVE_ECC */
+
+    /* if flag is not set then is neither RSA or ECC key that could be
+     * found */
+    if (*algoID == 0) {
+        WOLFSSL_MSG("Bad key DER or compile options");
+        return BAD_FUNC_ARG;
+    }
+
+    return 1;
+}
+
+
 /* Remove Encrypted PKCS8 header, move beginning of traditional to beginning
    of input */
 int ToTraditionalEnc(byte* input, word32 sz,const char* password,int passwordSz)
