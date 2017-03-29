@@ -2111,6 +2111,9 @@ int wc_GetKeyOID(byte* key, word32 keySz, const byte** curveOID, word32* oidSz,
         return BAD_FUNC_ARG;
     }
 
+    (void)curveOID;
+    (void)oidSz;
+
     return 1;
 }
 
