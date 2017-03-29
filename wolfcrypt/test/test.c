@@ -5277,6 +5277,9 @@ byte GetEntropy(ENTROPY_CMD cmd, byte* out)
 #elif defined(WOLFSSL_MKD_SHELL)
     #define CERT_PREFIX ""
     #define CERT_PATH_SEP "/"
+#elif defined(WOLFSSL_uTKERNEL2)
+    #define CERT_PREFIX "/uda/"
+    #define CERT_PATH_SEP "/"
 #else
     #define CERT_PREFIX "./"
     #define CERT_PATH_SEP "/"
@@ -6106,7 +6109,7 @@ int rsa_test(void)
 
     tmp = (byte*)XMALLOC(FOURK_BUF, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     if (tmp == NULL)
-        return -40;
+        return -38;
 
 #ifdef USE_CERT_BUFFERS_1024
     XMEMCPY(tmp, client_key_der_1024, sizeof_client_key_der_1024);

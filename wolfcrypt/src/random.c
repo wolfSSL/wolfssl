@@ -1170,6 +1170,38 @@ static int wc_GenerateRand_IntelRD(OS_Seed* os, byte* output, word32 sz)
         return CUSTOM_RAND_GENERATE_SEED_OS(os, output, sz);
     }
 
+
+#elif defined(CUSTOM_RAND_GENERATE)
+
+   /* Implement your own random generation function
+    * word32 rand_gen(void);
+    * #define CUSTOM_RAND_GENERATE  rand_gen  */
+
+    int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
+    {
+        word32 i = 0;
+
+        (void)os;
+
+        while (i < sz)
+        {
+            /* If not aligned or there is odd/remainder */
+            if( (i + sizeof(CUSTOM_RAND_TYPE)) > sz ||
+                ((wolfssl_word)&output[i] % sizeof(CUSTOM_RAND_TYPE)) != 0
+            ) {
+                /* Single byte at a time */
+                output[i++] = (byte)CUSTOM_RAND_GENERATE();
+            }
+            else {
+                /* Use native 8, 16, 32 or 64 copy instruction */
+                *((CUSTOM_RAND_TYPE*)&output[i]) = CUSTOM_RAND_GENERATE();
+                i += sizeof(CUSTOM_RAND_TYPE);
+            }
+        }
+
+        return 0;
+    }
+
 #elif defined(WOLFSSL_SGX)
 
 int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
@@ -1392,7 +1424,7 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
                 return RAN_BLOCK_E;
             }
         }
-        
+
     #elif defined(FREESCALE_KSDK_2_0_RNGA)
 
         int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
@@ -1626,40 +1658,9 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
         return 0;
     }
 
-#elif defined(CUSTOM_RAND_GENERATE)
-
-   /* Implement your own random generation function
-    * word32 rand_gen(void);
-    * #define CUSTOM_RAND_GENERATE  rand_gen  */
-
-    int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
-    {
-        word32 i = 0;
-
-        (void)os;
-
-        while (i < sz)
-        {
-            /* If not aligned or there is odd/remainder */
-            if( (i + sizeof(CUSTOM_RAND_TYPE)) > sz ||
-                ((wolfssl_word)&output[i] % sizeof(CUSTOM_RAND_TYPE)) != 0
-            ) {
-                /* Single byte at a time */
-                output[i++] = (byte)CUSTOM_RAND_GENERATE();
-            }
-            else {
-                /* Use native 8, 16, 32 or 64 copy instruction */
-                *((CUSTOM_RAND_TYPE*)&output[i]) = CUSTOM_RAND_GENERATE();
-                i += sizeof(CUSTOM_RAND_TYPE);
-            }
-        }
-
-        return 0;
-    }
-
 #elif defined(WOLFSSL_ATMEL)
     #include <wolfssl/wolfcrypt/port/atmel/atmel.h>
-    
+
     int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     {
     	int ret = 0;

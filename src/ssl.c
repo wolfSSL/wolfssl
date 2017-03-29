@@ -94,17 +94,6 @@
 #endif
 
 
-#if defined(WOLFSSL_DTLS) && !defined(WOLFSSL_HAVE_MAX)
-#define WOLFSSL_HAVE_MAX
-
-    static INLINE word32 max(word32 a, word32 b)
-    {
-        return a > b ? a : b;
-    }
-
-#endif /* WOLFSSL_DTLS && !WOLFSSL_HAVE_MAX */
-
-
 #ifndef WOLFSSL_LEANPSK
 char* mystrnstr(const char* s1, const char* s2, unsigned int n)
 {
@@ -12577,7 +12566,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
         cert = (DecodedCert*)XMALLOC(sizeof(DecodedCert), NULL,
                                      DYNAMIC_TYPE_TMP_BUFFER);
         if (cert == NULL)
-            return NULL;
+            return MEMORY_E;
     #endif
 
         /* Create a DecodedCert object and copy fields into WOLFSSL_X509 object.
@@ -16540,6 +16529,8 @@ int wolfSSL_BN_mod_exp(WOLFSSL_BIGNUM *r, const WOLFSSL_BIGNUM *a,
     }
 
     WOLFSSL_LEAVE("wolfSSL_BN_mod_exp", ret);
+    (void)ret;
+
     return SSL_FAILURE;
 }
 
@@ -21199,6 +21190,7 @@ WOLFSSL_X509* wolfSSL_get_chain_X509(WOLFSSL_X509_CHAIN* chain, int idx)
         #endif
         }
     }
+    (void)ret;
 
     return x509;
 }
@@ -21568,16 +21560,16 @@ void* wolfSSL_GetRsaDecCtx(WOLFSSL* ssl)
     }
     #endif /* ifndef NO_CERTS */
 
-#if defined(HAVE_LIGHTY) || defined(WOLFSSL_MYSQL_COMPATIBLE) || defined(HAVE_STUNNEL) || defined(WOLFSSL_NGINX) || defined(OPENSSL_EXTRA)
     #ifndef NO_CERTS
     void wolfSSL_X509_NAME_free(WOLFSSL_X509_NAME *name){
         FreeX509Name(name, NULL);
         WOLFSSL_ENTER("wolfSSL_X509_NAME_free");
     }
     #endif /* NO_CERTS */
-#endif
 
-#if defined(HAVE_LIGHTY) || defined(WOLFSSL_MYSQL_COMPATIBLE) || defined(HAVE_STUNNEL) || defined(WOLFSSL_NGINX)
+#if defined(HAVE_LIGHTY)  || defined(WOLFSSL_MYSQL_COMPATIBLE) || \
+    defined(HAVE_STUNNEL) || defined(WOLFSSL_NGINX) || \
+    defined(HAVE_POCO_LIB)
 
     unsigned char *wolfSSL_SHA1(const unsigned char *d, size_t n, unsigned char *md)
     {
@@ -21772,8 +21764,8 @@ void* wolfSSL_GetRsaDecCtx(WOLFSSL* ssl)
         return NULL;
     }
 
-#endif /* HAVE_LIGHTY || WOLFSSL_MYSQL_COMPATIBLE || HAVE_STUNNEL */
-#endif
+#endif /* HAVE_LIGHTY || WOLFSSL_MYSQL_COMPATIBLE || HAVE_STUNNEL || WOLFSSL_NGINX || HAVE_POCO_LIB */
+#endif /* OPENSSL_EXTRA */
 
 
 #ifdef OPENSSL_EXTRA

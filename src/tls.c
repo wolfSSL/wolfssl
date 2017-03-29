@@ -3564,19 +3564,19 @@ int TLSX_UseSessionTicket(TLSX** extensions, SessionTicket* ticket, void* heap)
     return SSL_SUCCESS;
 }
 
-#define STK_VALIDATE_REQUEST TLSX_SessionTicket_ValidateRequest
-#define STK_GET_SIZE         TLSX_SessionTicket_GetSize
-#define STK_WRITE            TLSX_SessionTicket_Write
-#define STK_PARSE            TLSX_SessionTicket_Parse
-#define STK_FREE(stk, heap)  TLSX_SessionTicket_Free((SessionTicket*)stk,(heap))
+#define WOLF_STK_VALIDATE_REQUEST TLSX_SessionTicket_ValidateRequest
+#define WOLF_STK_GET_SIZE         TLSX_SessionTicket_GetSize
+#define WOLF_STK_WRITE            TLSX_SessionTicket_Write
+#define WOLF_STK_PARSE            TLSX_SessionTicket_Parse
+#define WOLF_STK_FREE(stk, heap)  TLSX_SessionTicket_Free((SessionTicket*)stk,(heap))
 
 #else
 
-#define STK_FREE(a, b)
-#define STK_VALIDATE_REQUEST(a)
-#define STK_GET_SIZE(a, b)      0
-#define STK_WRITE(a, b, c)      0
-#define STK_PARSE(a, b, c, d)   0
+#define WOLF_STK_FREE(a, b)
+#define WOLF_STK_VALIDATE_REQUEST(a)
+#define WOLF_STK_GET_SIZE(a, b)      0
+#define WOLF_STK_WRITE(a, b, c)      0
+#define WOLF_STK_PARSE(a, b, c, d)   0
 
 #endif /* HAVE_SESSION_TICKET */
 
@@ -4229,7 +4229,7 @@ void TLSX_FreeAll(TLSX* list, void* heap)
                 break;
 
             case TLSX_SESSION_TICKET:
-                STK_FREE(extension->data, heap);
+                WOLF_STK_FREE(extension->data, heap);
                 break;
 
             case TLSX_QUANTUM_SAFE_HYBRID:
@@ -4310,7 +4310,7 @@ static word16 TLSX_GetSize(TLSX* list, byte* semaphore, byte isRequest)
                 break;
 
             case TLSX_SESSION_TICKET:
-                length += STK_GET_SIZE((SessionTicket*)extension->data,
+                length += WOLF_STK_GET_SIZE((SessionTicket*)extension->data,
                         isRequest);
                 break;
 
@@ -4393,7 +4393,7 @@ static word16 TLSX_Write(TLSX* list, byte* output, byte* semaphore,
                 break;
 
             case TLSX_SESSION_TICKET:
-                offset += STK_WRITE((SessionTicket*)extension->data,
+                offset += WOLF_STK_WRITE((SessionTicket*)extension->data,
                         output + offset, isRequest);
                 break;
 
@@ -4797,7 +4797,7 @@ word16 TLSX_GetRequestSize(WOLFSSL* ssl)
 
         EC_VALIDATE_REQUEST(ssl, semaphore);
         QSH_VALIDATE_REQUEST(ssl, semaphore);
-        STK_VALIDATE_REQUEST(ssl);
+        WOLF_STK_VALIDATE_REQUEST(ssl);
 
         if (ssl->extensions)
             length += TLSX_GetSize(ssl->extensions, semaphore, 1);
@@ -4832,7 +4832,7 @@ word16 TLSX_WriteRequest(WOLFSSL* ssl, byte* output)
         offset += OPAQUE16_LEN; /* extensions length */
 
         EC_VALIDATE_REQUEST(ssl, semaphore);
-        STK_VALIDATE_REQUEST(ssl);
+        WOLF_STK_VALIDATE_REQUEST(ssl);
         QSH_VALIDATE_REQUEST(ssl, semaphore);
 
         if (ssl->extensions)
@@ -5031,7 +5031,7 @@ int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte isRequest,
             case TLSX_SESSION_TICKET:
                 WOLFSSL_MSG("Session Ticket extension received");
 
-                ret = STK_PARSE(ssl, input + offset, size, isRequest);
+                ret = WOLF_STK_PARSE(ssl, input + offset, size, isRequest);
                 break;
 
             case TLSX_QUANTUM_SAFE_HYBRID:

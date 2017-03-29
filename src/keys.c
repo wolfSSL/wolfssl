@@ -2681,6 +2681,7 @@ static int SetAuthKeys(OneTimeAuth* authentication, Keys* keys,
         if (authentication)
             authentication->setup = 1;
 #endif
+        (void)authentication;
         (void)heap;
         (void)keys;
         (void)specs;

@@ -233,8 +233,11 @@ void bench_ntruKeyGen(void);
 void bench_rng(void);
 #endif /* WC_NO_RNG */
 
-double current_time(int);
-
+#ifdef WOLFSSL_CURRTIME_REMAP
+    #define current_time WOLFSSL_CURRTIME_REMAP
+#else
+    double current_time(int);
+#endif
 
 #if defined(DEBUG_WOLFSSL) && !defined(HAVE_VALGRIND)
     WOLFSSL_API int wolfSSL_Debugging_ON();
@@ -2592,8 +2595,9 @@ void bench_ed25519KeySign(void)
         return ( ns / CLOCK * 2.0);
     }
 
-#elif defined(WOLFSSL_IAR_ARM_TIME) || defined (WOLFSSL_MDK_ARM) || defined(WOLFSSL_USER_CURRTIME)
-    /* declared above at line 189 */
+#elif defined(WOLFSSL_IAR_ARM_TIME) || defined (WOLFSSL_MDK_ARM) || \
+      defined(WOLFSSL_USER_CURRTIME) || defined(WOLFSSL_CURRTIME_REMAP)
+    /* declared above at line 239 */
     /* extern   double current_time(int reset); */
 
 #elif defined FREERTOS
