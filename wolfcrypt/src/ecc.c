@@ -4073,6 +4073,26 @@ int wc_ecc_verify_hash(const byte* sig, word32 siglen, const byte* hash,
         return ECC_BAD_ARG_E;
     }
 
+#ifdef WOLFSSL_ASYNC_CRYPT
+    if (key->asyncDev.marker == WOLFSSL_ASYNC_MARKER_ECC) {
+    #ifdef HAVE_CAVIUM
+        /* TODO: Not implemented */
+    #else
+        AsyncCryptTestDev* testDev = &key->asyncDev.dev;
+        if (testDev->type == ASYNC_TEST_NONE) {
+            testDev->type = ASYNC_TEST_ECC_VERIFY;
+            testDev->eccVerify.in = sig;
+            testDev->eccVerify.inSz = siglen;
+            testDev->eccVerify.out = hash;
+            testDev->eccVerify.outSz = hashlen;
+            testDev->eccVerify.stat = state;
+            testDev->eccVerify.key = key;
+            return WC_PENDING_E;
+        }
+    #endif
+    }
+#endif
+
     switch(key->state) {
         case ECC_STATE_NONE:
         case ECC_STATE_VERIFY_DECODE:
