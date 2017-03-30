@@ -270,6 +270,8 @@ WOLFSSL_API int wc_GetCTC_HashOID(int type);
 
 WOLFSSL_API int wc_GetPkcs8TraditionalOffset(byte* input,
                                              word32* inOutIdx, word32 sz);
+WOLFSSL_API int wc_CreatePKCS8Key(byte* out, word32* outSz,
+       byte* key, word32 keySz, int algoID, const byte* curveOID, word32 oidSz);
 
 /* Time */
 /* Returns seconds (Epoch/UTC)
