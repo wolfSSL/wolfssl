@@ -369,6 +369,10 @@ int wc_ecc_get_curve_id(int curve_idx);
 #define wc_ecc_get_curve_name_from_id wc_ecc_get_name
 WOLFSSL_API
 int wc_ecc_get_curve_size_from_id(int curve_id);
+WOLFSSL_API
+int wc_ecc_get_curve_size_from_name(const char* curveName);
+WOLFSSL_API
+int wc_ecc_get_curve_id_from_name(const char* curveName);
 
 #ifndef WOLFSSL_ATECC508A
 
