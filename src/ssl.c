@@ -25918,6 +25918,43 @@ WOLFSSL_EVP_PKEY* wolfSSL_PEM_read_bio_PrivateKey(WOLFSSL_BIO* bio,
             return NULL;
         }
     }
+    else if (bio->type == WOLFSSL_BIO_FILE) {
+        int sz  = 100; /* read from file by 100 byte chuncks */
+        int idx = 0;
+        char* tmp = (char*)XMALLOC(sz, bio->heap, DYNAMIC_TYPE_OPENSSL);
+
+        memSz = 0;
+        if (tmp == NULL) {
+            WOLFSSL_MSG("Memory error");
+            return NULL;
+        }
+
+        while ((sz = wolfSSL_BIO_read(bio, tmp, sz)) > 0) {
+            if (memSz + sz < 0) {
+                /* sanity check */
+                break;
+            }
+            mem = (char*)XREALLOC(mem, memSz + sz, bio->heap,
+                    DYNAMIC_TYPE_OPENSSL);
+            if (mem == NULL) {
+                WOLFSSL_MSG("Memory error");
+                XFREE(tmp, bio->heap, DYNAMIC_TYPE_OPENSSL);
+                return NULL;
+            }
+            XMEMCPY(mem + idx, tmp, sz);
+            memSz += sz;
+            idx   += sz;
+            sz = 100; /* read another 100 byte chunck from file */
+        }
+        XFREE(tmp, bio->heap, DYNAMIC_TYPE_OPENSSL);
+        if (memSz <= 0) {
+            WOLFSSL_MSG("No data to read from bio");
+            if (mem != NULL) {
+                XFREE(mem, bio->heap, DYNAMIC_TYPE_OPENSSL);
+            }
+            return NULL;
+        }
+    }
     else {
         WOLFSSL_MSG("No data to read from bio");
         return NULL;
