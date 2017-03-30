@@ -3214,6 +3214,10 @@ static struct cipher{
     {DES_EDE3_ECB_TYPE, "DES-EDE3-ECB"},
 #endif
 
+#ifndef NO_RC4
+    {ARC4_TYPE, "RC4"},
+#endif
+
 #ifdef HAVE_IDEA
     {IDEA_CBC_TYPE, "IDEA-CBC"},
 #endif
