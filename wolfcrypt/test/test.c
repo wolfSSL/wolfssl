@@ -7865,9 +7865,15 @@ static int dh_generate_test(WC_RNG *rng)
     DhKey  smallKey;
     byte   p[2] = { 0, 5 };
     byte   g[2] = { 0, 2 };
+#ifdef WOLFSSL_DH_CONST
+    /* the table for constant DH lookup will round to the lowest byte size 21 */
+    byte   priv[21];
+    byte   pub[21];
+#else
     byte   priv[2];
-    word32 privSz = sizeof(priv);
     byte   pub[2];
+#endif
+    word32 privSz = sizeof(priv);
     word32 pubSz = sizeof(pub);
 
     wc_InitDhKey(&smallKey);
