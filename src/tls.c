@@ -2914,11 +2914,6 @@ int TLSX_ValidateEllipticCurves(WOLFSSL* ssl, byte first, byte second) {
             case WOLFSSL_ECC_SECP160R1:
                 oid = ECC_SECP160R1_OID;
                 octets = 20;
-                /* Default for 160-bits. */
-                if (ssl->eccTempKeySz <= octets && defSz > octets) {
-                    defOid = oid;
-                    defSz = octets;
-                }
                 break;
         #endif /* !NO_ECC_SECP */
         #ifdef HAVE_ECC_SECPR2
@@ -2939,11 +2934,6 @@ int TLSX_ValidateEllipticCurves(WOLFSSL* ssl, byte first, byte second) {
             case WOLFSSL_ECC_SECP192R1:
                 oid = ECC_SECP192R1_OID;
                 octets = 24;
-                /* Default for 192-bits. */
-                if (ssl->eccTempKeySz <= octets && defSz > octets) {
-                    defOid = oid;
-                    defSz = octets;
-                }
                 break;
         #endif /* !NO_ECC_SECP */
         #ifdef HAVE_ECC_KOBLITZ
@@ -2958,11 +2948,6 @@ int TLSX_ValidateEllipticCurves(WOLFSSL* ssl, byte first, byte second) {
             case WOLFSSL_ECC_SECP224R1:
                 oid = ECC_SECP224R1_OID;
                 octets = 28;
-                /* Default for 224-bits. */
-                if (ssl->eccTempKeySz <= octets && defSz > octets) {
-                    defOid = oid;
-                    defSz = octets;
-                }
                 break;
         #endif /* !NO_ECC_SECP */
         #ifdef HAVE_ECC_KOBLITZ
@@ -2972,16 +2957,11 @@ int TLSX_ValidateEllipticCurves(WOLFSSL* ssl, byte first, byte second) {
                 break;
         #endif /* HAVE_ECC_KOBLITZ */
     #endif
-    #if !defined(NO_ECC256)  || defined(HAVE_ALL_CURVES)
+    #if !defined(NO_ECC256) || defined(HAVE_ALL_CURVES)
         #ifndef NO_ECC_SECP
             case WOLFSSL_ECC_SECP256R1:
                 oid = ECC_SECP256R1_OID;
                 octets = 32;
-                /* Default for 256-bits. */
-                if (ssl->eccTempKeySz <= octets && defSz > octets) {
-                    defOid = oid;
-                    defSz = octets;
-                }
                 break;
         #endif /* !NO_ECC_SECP */
         #ifdef HAVE_ECC_KOBLITZ
@@ -3002,11 +2982,6 @@ int TLSX_ValidateEllipticCurves(WOLFSSL* ssl, byte first, byte second) {
             case WOLFSSL_ECC_SECP384R1:
                 oid = ECC_SECP384R1_OID;
                 octets = 48;
-                /* Default for 384-bits. */
-                if (ssl->eccTempKeySz <= octets && defSz > octets) {
-                    defOid = oid;
-                    defSz = octets;
-                }
                 break;
         #endif /* !NO_ECC_SECP */
         #ifdef HAVE_ECC_BRAINPOOL
@@ -3033,6 +3008,12 @@ int TLSX_ValidateEllipticCurves(WOLFSSL* ssl, byte first, byte second) {
         #endif /* !NO_ECC_SECP */
     #endif
             default: continue; /* unsupported curve */
+        }
+
+        /* Set default Oid */
+        if (defOid == 0 && ssl->eccTempKeySz <= octets && defSz > octets) {
+            defOid = oid;
+            defSz = octets;
         }
 
         if (currOid == 0 && ssl->eccTempKeySz == octets)
