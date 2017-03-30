@@ -15707,7 +15707,7 @@ static void test_wolfSSL_SESSION(void)
     AssertIntEQ(wolfSSL_set_session(ssl, sess), SSL_FAILURE);
     wolfSSL_free(ssl);
 
-    wolfSSL_SESSION_free(sess);
+    SSL_SESSION_free(sess);
     wolfSSL_CTX_free(ctx);
     printf(resultFmt, passed);
 #endif
