@@ -7203,7 +7203,10 @@ static int DoCertificate(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                 store->certs = certs;
                 store->totalCerts = totalCerts;
 #ifdef KEEP_PEER_CERT
-                store->current_cert = &ssl->peerCert;
+                if (ssl->peerCert.subject.sz > 0)
+                    store->current_cert = &ssl->peerCert;
+                else
+                    store->current_cert = NULL;
 #else
                 store->current_cert = NULL;
 #endif
@@ -7246,7 +7249,10 @@ static int DoCertificate(WOLFSSL* ssl, byte* input, word32* inOutIdx,
             store->certs = certs;
             store->totalCerts = totalCerts;
 #ifdef KEEP_PEER_CERT
-            store->current_cert = &ssl->peerCert;
+            if (ssl->peerCert.subject.sz > 0)
+                store->current_cert = &ssl->peerCert;
+            else
+                store->current_cert = NULL;
 #endif
             store->ex_data = ssl;
 
