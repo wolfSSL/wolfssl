@@ -1596,6 +1596,121 @@ int wc_GetPkcs8TraditionalOffset(byte* input, word32* inOutIdx, word32 sz)
 }
 
 
+/* PKCS#8 from RFC 5208
+ * This function takes in a DER key and converts it to PKCS#8 format. Used
+ * in creating PKCS#12 shrouded key bags.
+ * Reverse of ToTraditional
+ *
+ * PrivateKeyInfo ::= SEQUENCE {
+ *  version Version,
+ *  privateKeyAlgorithm PrivateKeyAlgorithmIdentifier,
+ *  privateKey          PrivateKey,
+ *  attributes          optional
+ *  }
+ *  Version ::= INTEGER
+ *  PrivateKeyAlgorithmIdentifier ::= AlgorithmIdentifier
+ *  PrivateKey ::= OCTET STRING
+ *
+ * out      buffer to place result in
+ * outSz    size of out buffer
+ * key      buffer with DER key
+ * keySz    size of key buffer
+ * algoID   algorithm ID i.e. RSAk
+ * curveOID ECC curve oid if used. Should be NULL for RSA keys.
+ * oidSz    size of curve oid. Is set to 0 if curveOID is NULL.
+ *
+ * Returns the size of PKCS#8 placed into out. In error cases returns negative
+ * values.
+ */
+int wc_CreatePKCS8Key(byte* out, word32* outSz, byte* key, word32 keySz,
+        int algoID, const byte* curveOID, word32 oidSz)
+{
+        word32 keyIdx = 0;
+        word32 tmpSz  = 0;
+        word32 sz;
+
+
+        /* If out is NULL then return the max size needed
+         * + 2 for ASN_OBJECT_ID and ASN_OCTET_STRING tags */
+        if (out == NULL && outSz != NULL) {
+            *outSz = keySz + MAX_SEQ_SZ + MAX_VERSION_SZ + MAX_ALGO_SZ
+                     + MAX_LENGTH_SZ + MAX_LENGTH_SZ + 2;
+
+            if (curveOID != NULL)
+                *outSz += oidSz + MAX_LENGTH_SZ + 1;
+
+            WOLFSSL_MSG("Checking size of PKCS8");
+
+            return LENGTH_ONLY_E;
+        }
+
+        WOLFSSL_ENTER("wc_CreatePKCS8Key()");
+
+        if (key == NULL || out == NULL || outSz == NULL) {
+            return BAD_FUNC_ARG;
+        }
+
+        /* check the buffer has enough room for largest possible size */
+        if (curveOID != NULL) {
+            if (*outSz < (keySz + MAX_SEQ_SZ + MAX_VERSION_SZ + MAX_ALGO_SZ
+                   + MAX_LENGTH_SZ + MAX_LENGTH_SZ + 3 + oidSz + MAX_LENGTH_SZ))
+                return BUFFER_E;
+        }
+        else {
+            oidSz = 0; /* with no curveOID oid size must be 0 */
+            if (*outSz < (keySz + MAX_SEQ_SZ + MAX_VERSION_SZ + MAX_ALGO_SZ
+                      + MAX_LENGTH_SZ + MAX_LENGTH_SZ + 2))
+                return BUFFER_E;
+        }
+
+        /* PrivateKeyInfo ::= SEQUENCE */
+        keyIdx += MAX_SEQ_SZ; /* save room for sequence */
+
+        /*  version Version
+         *  no header information just INTEGER */
+        sz = SetMyVersion(PKCS8v0, out + keyIdx, 0);
+        tmpSz += sz; keyIdx += sz;
+
+        /*  privateKeyAlgorithm PrivateKeyAlgorithmIdentifier */
+        sz = 0; /* set sz to 0 and get privateKey oid buffer size needed */
+        if (curveOID != NULL && oidSz > 0) {
+            byte buf[MAX_LENGTH_SZ];
+            sz = SetLength(oidSz, buf);
+            sz += 1; /* plus one for ASN object id */
+        }
+        sz = SetAlgoID(algoID, out + keyIdx, oidKeyType, oidSz + sz);
+        tmpSz += sz; keyIdx += sz;
+
+        /*  privateKey          PrivateKey *
+         * pkcs8 ecc uses slightly different format. Places curve oid in
+         * buffer */
+        if (curveOID != NULL && oidSz > 0) {
+            out[keyIdx++] = ASN_OBJECT_ID; tmpSz++;
+            sz = SetLength(oidSz, out + keyIdx);
+            keyIdx += sz; tmpSz += sz;
+            XMEMCPY(out + keyIdx, curveOID, oidSz);
+            keyIdx += oidSz; tmpSz += oidSz;
+        }
+
+        out[keyIdx] = ASN_OCTET_STRING;
+        keyIdx++; tmpSz++;
+
+        sz = SetLength(keySz, out + keyIdx);
+        keyIdx += sz; tmpSz += sz;
+        XMEMCPY(out + keyIdx, key, keySz);
+        tmpSz += keySz;
+
+        /*  attributes          optional
+         * No attributes currently added */
+
+        /* rewind and add sequence */
+        sz = SetSequence(tmpSz, out);
+        XMEMMOVE(out + sz, out + MAX_SEQ_SZ, tmpSz);
+
+        return tmpSz + sz;
+}
+
+
 /* check that the private key is a pair for the public key in certificate
  * return 1 (true) on match
  * return 0 or negative value on failure/error
@@ -1931,121 +2046,6 @@ static int DecryptKey(const char* password, int passwordSz, byte* salt,
 #endif
 
     return 0;
-}
-
-
-/* PKCS#8 from RFC 5208
- * This function takes in a DER key and converts it to PKCS#8 format. Used
- * in creating PKCS#12 shrouded key bags.
- * Reverse of ToTraditional
- *
- * PrivateKeyInfo ::= SEQUENCE {
- *  version Version,
- *  privateKeyAlgorithm PrivateKeyAlgorithmIdentifier,
- *  privateKey          PrivateKey,
- *  attributes          optional
- *  }
- *  Version ::= INTEGER
- *  PrivateKeyAlgorithmIdentifier ::= AlgorithmIdentifier
- *  PrivateKey ::= OCTET STRING
- *
- * out      buffer to place result in
- * outSz    size of out buffer
- * key      buffer with DER key
- * keySz    size of key buffer
- * algoID   algorithm ID i.e. RSAk
- * curveOID ECC curve oid if used. Should be NULL for RSA keys.
- * oidSz    size of curve oid. Is set to 0 if curveOID is NULL.
- *
- * Returns the size of PKCS#8 placed into out. In error cases returns negative
- * values.
- */
-int wc_CreatePKCS8Key(byte* out, word32* outSz, byte* key, word32 keySz,
-        int algoID, const byte* curveOID, word32 oidSz)
-{
-        word32 keyIdx = 0;
-        word32 tmpSz  = 0;
-        word32 sz;
-
-
-        /* If out is NULL then return the max size needed
-         * + 2 for ASN_OBJECT_ID and ASN_OCTET_STRING tags */
-        if (out == NULL && outSz != NULL) {
-            *outSz = keySz + MAX_SEQ_SZ + MAX_VERSION_SZ + MAX_ALGO_SZ
-                     + MAX_LENGTH_SZ + MAX_LENGTH_SZ + 2;
-
-            if (curveOID != NULL)
-                *outSz += oidSz + MAX_LENGTH_SZ + 1;
-
-            WOLFSSL_MSG("Checking size of PKCS8");
-
-            return LENGTH_ONLY_E;
-        }
-
-        WOLFSSL_ENTER("wc_CreatePKCS8Key()");
-
-        if (key == NULL || out == NULL || outSz == NULL) {
-            return BAD_FUNC_ARG;
-        }
-
-        /* check the buffer has enough room for largest possible size */
-        if (curveOID != NULL) {
-            if (*outSz < (keySz + MAX_SEQ_SZ + MAX_VERSION_SZ + MAX_ALGO_SZ
-                   + MAX_LENGTH_SZ + MAX_LENGTH_SZ + 3 + oidSz + MAX_LENGTH_SZ))
-                return BUFFER_E;
-        }
-        else {
-            oidSz = 0; /* with no curveOID oid size must be 0 */
-            if (*outSz < (keySz + MAX_SEQ_SZ + MAX_VERSION_SZ + MAX_ALGO_SZ
-                      + MAX_LENGTH_SZ + MAX_LENGTH_SZ + 2))
-                return BUFFER_E;
-        }
-
-        /* PrivateKeyInfo ::= SEQUENCE */
-        keyIdx += MAX_SEQ_SZ; /* save room for sequence */
-
-        /*  version Version
-         *  no header information just INTEGER */
-        sz = SetMyVersion(PKCS8v0, out + keyIdx, 0);
-        tmpSz += sz; keyIdx += sz;
-
-        /*  privateKeyAlgorithm PrivateKeyAlgorithmIdentifier */
-        sz = 0; /* set sz to 0 and get privateKey oid buffer size needed */
-        if (curveOID != NULL && oidSz > 0) {
-            byte buf[MAX_LENGTH_SZ];
-            sz = SetLength(oidSz, buf);
-            sz += 1; /* plus one for ASN object id */
-        }
-        sz = SetAlgoID(algoID, out + keyIdx, oidKeyType, oidSz + sz);
-        tmpSz += sz; keyIdx += sz;
-
-        /*  privateKey          PrivateKey *
-         * pkcs8 ecc uses slightly different format. Places curve oid in
-         * buffer */
-        if (curveOID != NULL && oidSz > 0) {
-            out[keyIdx++] = ASN_OBJECT_ID; tmpSz++;
-            sz = SetLength(oidSz, out + keyIdx);
-            keyIdx += sz; tmpSz += sz;
-            XMEMCPY(out + keyIdx, curveOID, oidSz);
-            keyIdx += oidSz; tmpSz += oidSz;
-        }
-
-        out[keyIdx] = ASN_OCTET_STRING;
-        keyIdx++; tmpSz++;
-
-        sz = SetLength(keySz, out + keyIdx);
-        keyIdx += sz; tmpSz += sz;
-        XMEMCPY(out + keyIdx, key, keySz);
-        tmpSz += keySz;
-
-        /*  attributes          optional
-         * No attributes currently added */
-
-        /* rewind and add sequence */
-        sz = SetSequence(tmpSz, out);
-        XMEMMOVE(out + sz, out + MAX_SEQ_SZ, tmpSz);
-
-        return tmpSz + sz;
 }
 
 
