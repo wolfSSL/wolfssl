@@ -856,4 +856,3 @@ WOLFSSL_OCSP_ONEREQ* wolfSSL_OCSP_request_add0_id(OcspRequest *req,
 
 #endif /* HAVE_OCSP */
 #endif /* WOLFCRYPT_ONLY */
-
