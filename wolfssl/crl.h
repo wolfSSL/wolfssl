@@ -34,8 +34,6 @@
     extern "C" {
 #endif
 
-typedef struct WOLFSSL_CRL WOLFSSL_CRL;
-
 WOLFSSL_LOCAL int  InitCRL(WOLFSSL_CRL*, WOLFSSL_CERT_MANAGER*);
 WOLFSSL_LOCAL void FreeCRL(WOLFSSL_CRL*, int dynamic);
 
