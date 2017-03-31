@@ -9507,13 +9507,15 @@ int wc_EccPublicKeyDecode(const byte* input, word32* inOutIdx,
 
 #ifdef WOLFSSL_KEY_GEN
 
-/* Write a Private ecc key to DER format, length on success else < 0 */
-int wc_EccKeyToDer(ecc_key* key, byte* output, word32 inLen)
+/* build DER formatted ECC key, include optional public key if requested,
+ * return length on success, negative on error */
+static int wc_BuildEccKeyDer(ecc_key* key, byte* output, word32 inLen,
+                             int public)
 {
     byte   curve[MAX_ALGO_SZ+2];
     byte   ver[MAX_VERSION_SZ];
     byte   seq[MAX_SEQ_SZ];
-    byte   *prv, *pub;
+    byte   *prv = NULL, *pub = NULL;
     int    ret, totalSz, curveSz, verSz;
     int    privHdrSz  = ASN_ECC_HEADER_SZ;
     int    pubHdrSz   = ASN_ECC_CONTEXT_SZ + ASN_ECC_HEADER_SZ;
@@ -9551,34 +9553,36 @@ int wc_EccKeyToDer(ecc_key* key, byte* output, word32 inLen)
     prvidx += privSz;
 
     /* public */
-    ret = wc_ecc_export_x963(key, NULL, &pubSz);
-    if (ret != LENGTH_ONLY_E) {
-        XFREE(prv, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
-        return ret;
-    }
+    if (public) {
+        ret = wc_ecc_export_x963(key, NULL, &pubSz);
+        if (ret != LENGTH_ONLY_E) {
+            XFREE(prv, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+            return ret;
+        }
 
-    pub = (byte*)XMALLOC(pubSz + pubHdrSz + MAX_SEQ_SZ,
-                         key->heap, DYNAMIC_TYPE_TMP_BUFFER);
-    if (pub == NULL) {
-        XFREE(prv, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
-        return MEMORY_E;
-    }
+        pub = (byte*)XMALLOC(pubSz + pubHdrSz + MAX_SEQ_SZ,
+                             key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        if (pub == NULL) {
+            XFREE(prv, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+            return MEMORY_E;
+        }
 
-    pub[pubidx++] = ECC_PREFIX_1;
-    if (pubSz > 128) /* leading zero + extra size byte */
-        pubidx += SetLength(pubSz + ASN_ECC_CONTEXT_SZ + 2, pub+pubidx);
-    else /* leading zero */
-        pubidx += SetLength(pubSz + ASN_ECC_CONTEXT_SZ + 1, pub+pubidx);
-    pub[pubidx++] = ASN_BIT_STRING;
-    pubidx += SetLength(pubSz + 1, pub+pubidx);
-    pub[pubidx++] = (byte)0; /* leading zero */
-    ret = wc_ecc_export_x963(key, pub + pubidx, &pubSz);
-    if (ret != 0) {
-        XFREE(prv, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
-        XFREE(pub, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
-        return ret;
+        pub[pubidx++] = ECC_PREFIX_1;
+        if (pubSz > 128) /* leading zero + extra size byte */
+            pubidx += SetLength(pubSz + ASN_ECC_CONTEXT_SZ + 2, pub+pubidx);
+        else /* leading zero */
+            pubidx += SetLength(pubSz + ASN_ECC_CONTEXT_SZ + 1, pub+pubidx);
+        pub[pubidx++] = ASN_BIT_STRING;
+        pubidx += SetLength(pubSz + 1, pub+pubidx);
+        pub[pubidx++] = (byte)0; /* leading zero */
+        ret = wc_ecc_export_x963(key, pub + pubidx, &pubSz);
+        if (ret != 0) {
+            XFREE(prv, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(pub, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+            return ret;
+        }
+        pubidx += pubSz;
     }
-    pubidx += pubSz;
 
     /* make headers */
     verSz = SetMyVersion(1, ver, FALSE);
@@ -9587,7 +9591,9 @@ int wc_EccKeyToDer(ecc_key* key, byte* output, word32 inLen)
     totalSz = prvidx + pubidx + curveidx + verSz + seqSz;
     if (totalSz > (int)inLen) {
         XFREE(prv, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
-        XFREE(pub, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        if (public) {
+            XFREE(pub, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        }
         return BAD_FUNC_ARG;
     }
 
@@ -9610,11 +9616,29 @@ int wc_EccKeyToDer(ecc_key* key, byte* output, word32 inLen)
     idx += curveidx;
 
     /* public */
-    XMEMCPY(output + idx, pub, pubidx);
-    /* idx += pubidx;  not used after write, if more data remove comment */
-    XFREE(pub, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    if (public) {
+        XMEMCPY(output + idx, pub, pubidx);
+        /* idx += pubidx;  not used after write, if more data remove comment */
+        XFREE(pub, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    }
 
     return totalSz;
+}
+
+
+/* Write a Private ecc key, including public to DER format,
+ * length on success else < 0 */
+int wc_EccKeyToDer(ecc_key* key, byte* output, word32 inLen)
+{
+    return wc_BuildEccKeyDer(key, output, inLen, 1);
+}
+
+
+/* Write only private ecc key to DER format,
+ * length on success else < 0 */
+int wc_EccPrivateKeyToDer(ecc_key* key, byte* output, word32 inLen)
+{
+    return wc_BuildEccKeyDer(key, output, inLen, 0);
 }
 
 #endif /* WOLFSSL_KEY_GEN */
