@@ -608,7 +608,7 @@ extern const char* END_PUB_KEY;
 #endif
 
 /* CA Signers */
-/* if change layout change PERSIST_CERT_CACHE functions too */
+/* If struct changes then PERSIST_CERT_CACHE functions must change too */
 struct Signer {
     word32  pubKeySize;
     word32  keyOID;                  /* key type */
@@ -924,6 +924,9 @@ WOLFSSL_LOCAL void FreeDecodedCRL(DecodedCRL*);
 
 #endif /* HAVE_CRL */
 
+#ifdef WOLFSSL_CERT_SIGNER_INFO
+    WOLFSSL_LOCAL int wc_SignerExport(Signer* signer, CertSigner* cert);
+#endif
 
 #ifdef __cplusplus
     } /* extern "C" */

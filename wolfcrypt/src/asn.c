@@ -10712,6 +10712,32 @@ int ParseCRL(DecodedCRL* dcrl, const byte* buff, word32 sz, void* cm)
 
 #endif /* HAVE_CRL */
 
+#ifdef WOLFSSL_CERT_SIGNER_INFO
+    int wc_SignerExport(Signer* signer, CertSigner* cert)
+    {
+        if (signer == NULL || cert == NULL)
+            return BAD_FUNC_ARG;
+
+        XMEMSET(cert, 0, sizeof(CertSigner));
+        cert->pubKeySize = signer->pubKeySize;
+        cert->publicKey = signer->publicKey;
+        cert->keyOID = signer->keyOID;
+        cert->keyUsage = signer->keyUsage;
+        cert->pathLength = signer->pathLength;
+        cert->pathLengthSet = signer->pathLengthSet;
+        cert->commonNameLen = signer->nameLen;
+        cert->commonName = signer->name;
+        cert->subjectNameHashLen = sizeof(signer->subjectNameHash);
+        cert->subjectNameHash = signer->subjectNameHash;
+    #ifndef NO_SKID
+        cert->subjectKeyIdHashLen = sizeof(signer->subjectKeyIdHash);
+        cert->subjectKeyIdHash = signer->subjectKeyIdHash;
+    #endif
+
+        return 0;
+    }
+#endif /* WOLFSSL_CERT_SIGNER_INFO */
+
 #undef ERROR_OUT
 
 #endif /* !NO_ASN */

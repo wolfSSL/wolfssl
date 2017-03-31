@@ -166,7 +166,7 @@ static int ClientBenchmarkConnections(WOLFSSL_CTX* ctx, char* host, word16 port,
     /* time passed in number of connects give average */
     int times = benchmark;
     int loops = resumeSession ? 2 : 1;
-    int i = 0;    
+    int i = 0;
 #ifndef NO_SESSION_CACHE
     WOLFSSL_SESSION* benchSession = NULL;
 #endif
@@ -1199,7 +1199,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 #endif
 
 #ifdef USER_CA_CB
-    wolfSSL_CTX_SetCACb(ctx, CaCb);
+    wolfSSL_CTX_SetCACb(ctx, CaDerCallback);
 #endif
 
 #ifdef VERIFY_CALLBACK
@@ -1263,6 +1263,10 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     if (!usePsk && !useAnon && overrideDateErrors == 1)
         wolfSSL_CTX_set_verify(ctx, SSL_VERIFY_PEER, myDateCb);
 #endif /* !defined(NO_CERTS) */
+
+#ifdef WOLFSSL_CERT_SIGNER_INFO
+    wolfSSL_CTX_show_cert_cache(ctx, CaCertSignerCallback);
+#endif
 
 #ifdef WOLFSSL_ASYNC_CRYPT
     ret = wolfAsync_DevOpen(&devId);
