@@ -2490,6 +2490,74 @@ int wc_ecc_get_curve_size_from_id(int curve_id)
     return ecc_sets[curve_idx].size;
 }
 
+/* Returns the curve index that corresponds to a given curve name in
+ * ecc_sets[] of ecc.c
+ *
+ * name    curve name, from ecc_sets[].name in ecc.c
+ * return  curve index in ecc_sets[] on success, negative on error
+ */
+int wc_ecc_get_curve_idx_from_name(const char* curveName)
+{
+    int curve_idx;
+    word32 len;
+
+    if (curveName == NULL)
+        return BAD_FUNC_ARG;
+
+    len = XSTRLEN(curveName);
+
+    for (curve_idx = 0; ecc_sets[curve_idx].size != 0; curve_idx++) {
+        if (XSTRNCASECMP(ecc_sets[curve_idx].name, curveName, len) == 0) {
+            break;
+        }
+    }
+    if (ecc_sets[curve_idx].size == 0) {
+        WOLFSSL_MSG("ecc_set curve name not found");
+        return ECC_CURVE_INVALID;
+    }
+    return curve_idx;
+}
+
+/* Returns the curve size that corresponds to a given curve name,
+ * as listed in ecc_sets[] of ecc.c.
+ *
+ * name    curve name, from ecc_sets[].name in ecc.c
+ * return  curve size, from ecc_sets[] on success, negative on error
+ */
+int wc_ecc_get_curve_size_from_name(const char* curveName)
+{
+    int curve_idx;
+
+    if (curveName == NULL)
+        return BAD_FUNC_ARG;
+
+    curve_idx = wc_ecc_get_curve_idx_from_name(curveName);
+    if (curve_idx < 0)
+        return curve_idx;
+
+    return ecc_sets[curve_idx].size;
+}
+
+/* Returns the curve id that corresponds to a given curve name,
+ * as listed in ecc_sets[] of ecc.c.
+ *
+ * name   curve name, from ecc_sets[].name in ecc.c
+ * return curve id, from ecc_sets[] on success, negative on error
+ */
+int wc_ecc_get_curve_id_from_name(const char* curveName)
+{
+    int curve_idx;
+
+    if (curveName == NULL)
+        return BAD_FUNC_ARG;
+
+    curve_idx = wc_ecc_get_curve_idx_from_name(curveName);
+    if (curve_idx < 0)
+        return curve_idx;
+
+    return ecc_sets[curve_idx].id;
+}
+
 
 #ifdef HAVE_ECC_DHE
 /**
