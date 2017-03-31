@@ -1354,6 +1354,7 @@ struct WOLFSSL_BIO_METHOD {
 
 /* wolfSSL BIO type */
 struct WOLFSSL_BIO {
+    WOLFSSL_BUF_MEM* mem_buf;
     WOLFSSL*     ssl;           /* possible associated ssl */
 #ifndef NO_FILESYSTEM
     XFILE        file;

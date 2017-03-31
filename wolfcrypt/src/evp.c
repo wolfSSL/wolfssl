@@ -345,7 +345,8 @@ WOLFSSL_API int wolfSSL_EVP_CipherUpdate(WOLFSSL_EVP_CIPHER_CTX *ctx,
         inl  -= ctx->block_size * blocks;
         in   += ctx->block_size * blocks;
         if(ctx->enc == 0){
-            if ((ctx->flags & WOLFSSL_EVP_CIPH_NO_PADDING)){
+            if ((ctx->flags & WOLFSSL_EVP_CIPH_NO_PADDING) ||
+                    (ctx->block_size == 1)){
                 ctx->lastUsed = 0;
                 XMEMCPY(ctx->lastBlock, &out[ctx->block_size * blocks], ctx->block_size);
                 *outl+= ctx->block_size * blocks;

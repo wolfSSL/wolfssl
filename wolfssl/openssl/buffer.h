@@ -30,12 +30,6 @@
     extern "C" {
 #endif
 
-struct WOLFSSL_BUF_MEM {
-    char*  data;
-    size_t length; /* current length */
-    size_t max;    /* maximum length */
-};
-
 
 WOLFSSL_API WOLFSSL_BUF_MEM* wolfSSL_BUF_MEM_new(void);
 WOLFSSL_API int wolfSSL_BUF_MEM_grow(WOLFSSL_BUF_MEM* buf, size_t len);

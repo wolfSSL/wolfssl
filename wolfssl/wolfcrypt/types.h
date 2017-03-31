@@ -337,6 +337,12 @@
             #define XSNPRINTF _snprintf
         #endif
 
+        #ifdef OPENSSL_EXTRA
+            #ifndef XGETENV
+                #define XGETENV getenv
+            #endif
+        #endif /* OPENSSL_EXTRA */
+
         #if defined(WOLFSSL_CERT_EXT) || defined(HAVE_ALPN)
             /* use only Thread Safe version of strtok */
             #if defined(__MINGW32__) || defined(WOLFSSL_TIRTOS) || \

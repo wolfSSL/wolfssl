@@ -249,6 +249,12 @@ enum BIO_FLAGS {
     WOLFSSL_BIO_FLAG_RETRY        = 0x10
 };
 
+typedef struct WOLFSSL_BUF_MEM {
+    char*  data;   /* dereferenced */
+    size_t length; /* current length */
+    size_t max;    /* maximum length */
+} WOLFSSL_BUF_MEM;
+
 typedef struct WOLFSSL_COMP_METHOD {
     int type;            /* stunnel dereference */
 } WOLFSSL_COMP_METHOD;
