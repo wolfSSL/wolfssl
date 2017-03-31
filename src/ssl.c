@@ -3215,7 +3215,7 @@ static struct cipher{
 #endif
 
 #ifndef NO_RC4
-    {ARC4_TYPE, "RC4"},
+    {ARC4_TYPE, "ARC4"},
 #endif
 
 #ifdef HAVE_IDEA
@@ -3247,6 +3247,7 @@ const WOLFSSL_EVP_CIPHER *wolfSSL_EVP_get_cipherbyname(const char *name)
         {"AES-192-CBC", "aes192"},
         {"AES-256-CBC", "AES256"},
         {"AES-256-CBC", "aes256"},
+        {"ARC4", "RC4"},
         { NULL, NULL}
     };
 
