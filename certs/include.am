@@ -24,6 +24,7 @@ EXTRA_DIST += \
 	     certs/server-ecc-rsa.pem \
 	     certs/server-keyEnc.pem \
 	     certs/server-key.pem \
+	     certs/server-keyPkcs8.der \
 	     certs/server-keyPkcs8Enc12.pem \
 	     certs/server-keyPkcs8Enc2.pem \
 	     certs/server-keyPkcs8Enc.pem \
@@ -60,3 +61,4 @@ EXTRA_DIST+= certs/ntru-key.raw
 
 include certs/test/include.am
 include certs/test-pathlen/include.am
+include certs/test/include.am

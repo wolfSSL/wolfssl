@@ -778,7 +778,7 @@ int wolfSSL_CryptHwMutexUnLock(void) {
 
     int wc_FreeMutex(wolfSSL_Mutex* m)
     {
-        tk_del_sem( m->id );
+        tk_del_sem(m->id);
         return 0;
     }
 
@@ -796,9 +796,12 @@ int wolfSSL_CryptHwMutexUnLock(void) {
 
     /****  uT-Kernel malloc/free ***/
     static ID ID_wolfssl_MPOOL = 0;
-    static T_CMPL wolfssl_MPOOL =
-                 {(void *)NULL,
-    TA_TFIFO , 0,   "wolfSSL_MPOOL"};
+    static T_CMPL wolfssl_MPOOL = {
+        NULL,       /* Extended information */
+        TA_TFIFO,   /* Memory pool attribute */
+        0,          /* Size of whole memory pool (byte) */
+        "wolfSSL"   /* Object name (max 8-char) */
+    };
 
     int uTKernel_init_mpool(unsigned int sz) {
         ER ercd;
@@ -808,7 +811,7 @@ int wolfSSL_CryptHwMutexUnLock(void) {
             ID_wolfssl_MPOOL = ercd;
             return 0;
         } else {
-            return -1;
+            return (int)ercd;
         }
     }
 
@@ -826,7 +829,7 @@ int wolfSSL_CryptHwMutexUnLock(void) {
     void *uTKernel_realloc(void *p, unsigned int sz) {
       ER ercd;
       void *newp;
-      if(p) {
+      if (p) {
           ercd = tk_get_mpl(ID_wolfssl_MPOOL, sz, (VP)&newp, TMO_FEVR);
           if (ercd == E_OK) {
               XMEMCPY(newp, p, sz);

@@ -90,6 +90,14 @@
         #include <netdb.h>
         #include <netinet/in.h>
         #include <io.h>
+    #elif defined(WOLFSSL_PRCONNECT_PRO)
+        #include <prconnect_pro/prconnect_pro.h>
+        #include <sys/types.h>
+        #include <errno.h>
+        #include <unistd.h>
+        #include <fcntl.h>
+        #include <netdb.h>
+        #include <sys/ioctl.h>
     #elif !defined(WOLFSSL_NO_SOCK)
         #include <sys/types.h>
         #include <errno.h>

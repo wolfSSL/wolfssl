@@ -68,11 +68,19 @@ void   ByteReverseWords64(word64*, const word64*, word32);
 #endif /* WORD64_AVAILABLE */
 
 #ifndef WOLFSSL_HAVE_MIN
-    #if defined(HAVE_FIPS) && !defined(min)
+    #if defined(HAVE_FIPS) && !defined(min) /* so ifdef check passes */
         #define min min
     #endif
     WOLFSSL_LOCAL word32 min(word32 a, word32 b);
 #endif
+
+#ifndef WOLFSSL_HAVE_MAX
+    #if defined(HAVE_FIPS) && !defined(max) /* so ifdef check passes */
+        #define max max
+    #endif
+    WOLFSSL_LOCAL word32 max(word32 a, word32 b);
+#endif /* WOLFSSL_HAVE_MAX */
+
 
 #endif /* NO_INLINE */
 

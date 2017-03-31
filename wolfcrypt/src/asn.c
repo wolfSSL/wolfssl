@@ -1596,6 +1596,121 @@ int wc_GetPkcs8TraditionalOffset(byte* input, word32* inOutIdx, word32 sz)
 }
 
 
+/* PKCS#8 from RFC 5208
+ * This function takes in a DER key and converts it to PKCS#8 format. Used
+ * in creating PKCS#12 shrouded key bags.
+ * Reverse of ToTraditional
+ *
+ * PrivateKeyInfo ::= SEQUENCE {
+ *  version Version,
+ *  privateKeyAlgorithm PrivateKeyAlgorithmIdentifier,
+ *  privateKey          PrivateKey,
+ *  attributes          optional
+ *  }
+ *  Version ::= INTEGER
+ *  PrivateKeyAlgorithmIdentifier ::= AlgorithmIdentifier
+ *  PrivateKey ::= OCTET STRING
+ *
+ * out      buffer to place result in
+ * outSz    size of out buffer
+ * key      buffer with DER key
+ * keySz    size of key buffer
+ * algoID   algorithm ID i.e. RSAk
+ * curveOID ECC curve oid if used. Should be NULL for RSA keys.
+ * oidSz    size of curve oid. Is set to 0 if curveOID is NULL.
+ *
+ * Returns the size of PKCS#8 placed into out. In error cases returns negative
+ * values.
+ */
+int wc_CreatePKCS8Key(byte* out, word32* outSz, byte* key, word32 keySz,
+        int algoID, const byte* curveOID, word32 oidSz)
+{
+        word32 keyIdx = 0;
+        word32 tmpSz  = 0;
+        word32 sz;
+
+
+        /* If out is NULL then return the max size needed
+         * + 2 for ASN_OBJECT_ID and ASN_OCTET_STRING tags */
+        if (out == NULL && outSz != NULL) {
+            *outSz = keySz + MAX_SEQ_SZ + MAX_VERSION_SZ + MAX_ALGO_SZ
+                     + MAX_LENGTH_SZ + MAX_LENGTH_SZ + 2;
+
+            if (curveOID != NULL)
+                *outSz += oidSz + MAX_LENGTH_SZ + 1;
+
+            WOLFSSL_MSG("Checking size of PKCS8");
+
+            return LENGTH_ONLY_E;
+        }
+
+        WOLFSSL_ENTER("wc_CreatePKCS8Key()");
+
+        if (key == NULL || out == NULL || outSz == NULL) {
+            return BAD_FUNC_ARG;
+        }
+
+        /* check the buffer has enough room for largest possible size */
+        if (curveOID != NULL) {
+            if (*outSz < (keySz + MAX_SEQ_SZ + MAX_VERSION_SZ + MAX_ALGO_SZ
+                   + MAX_LENGTH_SZ + MAX_LENGTH_SZ + 3 + oidSz + MAX_LENGTH_SZ))
+                return BUFFER_E;
+        }
+        else {
+            oidSz = 0; /* with no curveOID oid size must be 0 */
+            if (*outSz < (keySz + MAX_SEQ_SZ + MAX_VERSION_SZ + MAX_ALGO_SZ
+                      + MAX_LENGTH_SZ + MAX_LENGTH_SZ + 2))
+                return BUFFER_E;
+        }
+
+        /* PrivateKeyInfo ::= SEQUENCE */
+        keyIdx += MAX_SEQ_SZ; /* save room for sequence */
+
+        /*  version Version
+         *  no header information just INTEGER */
+        sz = SetMyVersion(PKCS8v0, out + keyIdx, 0);
+        tmpSz += sz; keyIdx += sz;
+
+        /*  privateKeyAlgorithm PrivateKeyAlgorithmIdentifier */
+        sz = 0; /* set sz to 0 and get privateKey oid buffer size needed */
+        if (curveOID != NULL && oidSz > 0) {
+            byte buf[MAX_LENGTH_SZ];
+            sz = SetLength(oidSz, buf);
+            sz += 1; /* plus one for ASN object id */
+        }
+        sz = SetAlgoID(algoID, out + keyIdx, oidKeyType, oidSz + sz);
+        tmpSz += sz; keyIdx += sz;
+
+        /*  privateKey          PrivateKey *
+         * pkcs8 ecc uses slightly different format. Places curve oid in
+         * buffer */
+        if (curveOID != NULL && oidSz > 0) {
+            out[keyIdx++] = ASN_OBJECT_ID; tmpSz++;
+            sz = SetLength(oidSz, out + keyIdx);
+            keyIdx += sz; tmpSz += sz;
+            XMEMCPY(out + keyIdx, curveOID, oidSz);
+            keyIdx += oidSz; tmpSz += oidSz;
+        }
+
+        out[keyIdx] = ASN_OCTET_STRING;
+        keyIdx++; tmpSz++;
+
+        sz = SetLength(keySz, out + keyIdx);
+        keyIdx += sz; tmpSz += sz;
+        XMEMCPY(out + keyIdx, key, keySz);
+        tmpSz += keySz;
+
+        /*  attributes          optional
+         * No attributes currently added */
+
+        /* rewind and add sequence */
+        sz = SetSequence(tmpSz, out);
+        XMEMMOVE(out + sz, out + MAX_SEQ_SZ, tmpSz);
+
+        return tmpSz + sz;
+}
+
+
 /* check that the private key is a pair for the public key in certificate
  * return 1 (true) on match
  * return 0 or negative value on failure/error
@@ -1931,6 +2046,75 @@ static int DecryptKey(const char* password, int passwordSz, byte* salt,
 #endif
 
     return 0;
+}
+
+
+int wc_GetKeyOID(byte* key, word32 keySz, const byte** curveOID, word32* oidSz,
+        int* algoID, void* heap)
+{
+    word32 tmpIdx = 0;
+
+    #ifdef HAVE_ECC
+    ecc_key ecc;
+    #endif
+    #ifndef NO_RSA
+    RsaKey rsa;
+    #endif
+
+    if (algoID == NULL) {
+        return BAD_FUNC_ARG;
+    }
+    *algoID = 0;
+
+    #ifndef NO_RSA
+    wc_InitRsaKey(&rsa, heap);
+    if (wc_RsaPrivateKeyDecode(key, &tmpIdx, &rsa, keySz) == 0) {
+        *algoID = RSAk;
+    }
+    else {
+        WOLFSSL_MSG("Not RSA DER key");
+    }
+    wc_FreeRsaKey(&rsa);
+    #endif /* NO_RSA */
+    #ifdef HAVE_ECC
+    if (*algoID != RSAk) {
+        tmpIdx = 0;
+        wc_ecc_init_ex(&ecc, heap, INVALID_DEVID);
+        if (wc_EccPrivateKeyDecode(key, &tmpIdx, &ecc, keySz) == 0) {
+            *algoID = ECDSAk;
+
+            /* sanity check on arguments */
+            if (curveOID == NULL || oidSz == NULL) {
+                WOLFSSL_MSG("Error getting ECC curve OID");
+                wc_ecc_free(&ecc);
+                return BAD_FUNC_ARG;
+            }
+
+            /* now find oid */
+            if (wc_ecc_get_oid(ecc.dp->oidSum, curveOID, oidSz) < 0) {
+                WOLFSSL_MSG("Error getting ECC curve OID");
+                wc_ecc_free(&ecc);
+                return BAD_FUNC_ARG;
+            }
+        }
+        else {
+            WOLFSSL_MSG("Not ECC DER key either");
+        }
+        wc_ecc_free(&ecc);
+    }
+    #endif /* HAVE_ECC */
+
+    /* if flag is not set then is neither RSA or ECC key that could be
+     * found */
+    if (*algoID == 0) {
+        WOLFSSL_MSG("Bad key DER or compile options");
+        return BAD_FUNC_ARG;
+    }
+
+    (void)curveOID;
+    (void)oidSz;
+
+    return 1;
 }
 
 
@@ -5146,6 +5330,10 @@ static int DecodePolicyOID(char *out, word32 outSz, byte *in, word32 inSz)
     {
         word32 idx = 0;
         int total_length = 0, policy_length = 0, length = 0;
+    #if !defined(WOLFSSL_SEP) && defined(WOLFSSL_CERT_EXT) && \
+        !defined(WOLFSSL_DUP_CERTPOL)
+        int i;
+    #endif
 
         WOLFSSL_ENTER("DecodeCertPolicy");
 
@@ -5203,6 +5391,22 @@ static int DecodePolicyOID(char *out, word32 outSz, byte *in, word32 inSz)
                     WOLFSSL_MSG("\tCouldn't decode CertPolicy");
                     return ASN_PARSE_E;
                 }
+                #ifndef WOLFSSL_DUP_CERTPOL
+                /* From RFC 5280 section 4.2.1.3 "A certificate policy OID MUST
+                 * NOT appear more than once in a certificate policies
+                 * extension". This is a sanity check for duplicates.
+                 * extCertPolicies should only have OID values, additional
+                 * qualifiers need to be stored in a seperate array. */
+                for (i = 0; i < cert->extCertPoliciesNb; i++) {
+                    if (XMEMCMP(cert->extCertPolicies[i],
+                            cert->extCertPolicies[cert->extCertPoliciesNb],
+                            MAX_CERTPOL_SZ) == 0) {
+                            WOLFSSL_MSG("Duplicate policy OIDs not allowed");
+                            WOLFSSL_MSG("Use WOLFSSL_DUP_CERTPOL if wanted");
+                            return CERTPOLICIES_E;
+                    }
+                }
+                #endif /* !defined(WOLFSSL_DUP_CERTPOL) */
                 cert->extCertPoliciesNb++;
     #else
                 WOLFSSL_LEAVE("DecodeCertPolicy : unsupported mode", 0);
@@ -8238,7 +8442,7 @@ static int WriteCertReqBody(DerCert* der, byte* buffer)
     /* extensions */
     if (der->extensionsSz) {
         XMEMCPY(buffer + idx, der->extensions, min(der->extensionsSz,
-                                                   sizeof(der->extensions)));
+                                               (int)sizeof(der->extensions)));
         idx += der->extensionsSz;
     }
 
@@ -9303,13 +9507,15 @@ int wc_EccPublicKeyDecode(const byte* input, word32* inOutIdx,
 
 #ifdef WOLFSSL_KEY_GEN
 
-/* Write a Private ecc key to DER format, length on success else < 0 */
-int wc_EccKeyToDer(ecc_key* key, byte* output, word32 inLen)
+/* build DER formatted ECC key, include optional public key if requested,
+ * return length on success, negative on error */
+static int wc_BuildEccKeyDer(ecc_key* key, byte* output, word32 inLen,
+                             int public)
 {
     byte   curve[MAX_ALGO_SZ+2];
     byte   ver[MAX_VERSION_SZ];
     byte   seq[MAX_SEQ_SZ];
-    byte   *prv, *pub;
+    byte   *prv = NULL, *pub = NULL;
     int    ret, totalSz, curveSz, verSz;
     int    privHdrSz  = ASN_ECC_HEADER_SZ;
     int    pubHdrSz   = ASN_ECC_CONTEXT_SZ + ASN_ECC_HEADER_SZ;
@@ -9347,34 +9553,36 @@ int wc_EccKeyToDer(ecc_key* key, byte* output, word32 inLen)
     prvidx += privSz;
 
     /* public */
-    ret = wc_ecc_export_x963(key, NULL, &pubSz);
-    if (ret != LENGTH_ONLY_E) {
-        XFREE(prv, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
-        return ret;
-    }
+    if (public) {
+        ret = wc_ecc_export_x963(key, NULL, &pubSz);
+        if (ret != LENGTH_ONLY_E) {
+            XFREE(prv, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+            return ret;
+        }
 
-    pub = (byte*)XMALLOC(pubSz + pubHdrSz + MAX_SEQ_SZ,
-                         key->heap, DYNAMIC_TYPE_TMP_BUFFER);
-    if (pub == NULL) {
-        XFREE(prv, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
-        return MEMORY_E;
-    }
+        pub = (byte*)XMALLOC(pubSz + pubHdrSz + MAX_SEQ_SZ,
+                             key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        if (pub == NULL) {
+            XFREE(prv, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+            return MEMORY_E;
+        }
 
-    pub[pubidx++] = ECC_PREFIX_1;
-    if (pubSz > 128) /* leading zero + extra size byte */
-        pubidx += SetLength(pubSz + ASN_ECC_CONTEXT_SZ + 2, pub+pubidx);
-    else /* leading zero */
-        pubidx += SetLength(pubSz + ASN_ECC_CONTEXT_SZ + 1, pub+pubidx);
-    pub[pubidx++] = ASN_BIT_STRING;
-    pubidx += SetLength(pubSz + 1, pub+pubidx);
-    pub[pubidx++] = (byte)0; /* leading zero */
-    ret = wc_ecc_export_x963(key, pub + pubidx, &pubSz);
-    if (ret != 0) {
-        XFREE(prv, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
-        XFREE(pub, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
-        return ret;
+        pub[pubidx++] = ECC_PREFIX_1;
+        if (pubSz > 128) /* leading zero + extra size byte */
+            pubidx += SetLength(pubSz + ASN_ECC_CONTEXT_SZ + 2, pub+pubidx);
+        else /* leading zero */
+            pubidx += SetLength(pubSz + ASN_ECC_CONTEXT_SZ + 1, pub+pubidx);
+        pub[pubidx++] = ASN_BIT_STRING;
+        pubidx += SetLength(pubSz + 1, pub+pubidx);
+        pub[pubidx++] = (byte)0; /* leading zero */
+        ret = wc_ecc_export_x963(key, pub + pubidx, &pubSz);
+        if (ret != 0) {
+            XFREE(prv, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(pub, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+            return ret;
+        }
+        pubidx += pubSz;
     }
-    pubidx += pubSz;
 
     /* make headers */
     verSz = SetMyVersion(1, ver, FALSE);
@@ -9383,7 +9591,9 @@ int wc_EccKeyToDer(ecc_key* key, byte* output, word32 inLen)
     totalSz = prvidx + pubidx + curveidx + verSz + seqSz;
     if (totalSz > (int)inLen) {
         XFREE(prv, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
-        XFREE(pub, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        if (public) {
+            XFREE(pub, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        }
         return BAD_FUNC_ARG;
     }
 
@@ -9406,11 +9616,29 @@ int wc_EccKeyToDer(ecc_key* key, byte* output, word32 inLen)
     idx += curveidx;
 
     /* public */
-    XMEMCPY(output + idx, pub, pubidx);
-    /* idx += pubidx;  not used after write, if more data remove comment */
-    XFREE(pub, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    if (public) {
+        XMEMCPY(output + idx, pub, pubidx);
+        /* idx += pubidx;  not used after write, if more data remove comment */
+        XFREE(pub, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    }
 
     return totalSz;
+}
+
+
+/* Write a Private ecc key, including public to DER format,
+ * length on success else < 0 */
+int wc_EccKeyToDer(ecc_key* key, byte* output, word32 inLen)
+{
+    return wc_BuildEccKeyDer(key, output, inLen, 1);
+}
+
+
+/* Write only private ecc key to DER format,
+ * length on success else < 0 */
+int wc_EccPrivateKeyToDer(ecc_key* key, byte* output, word32 inLen)
+{
+    return wc_BuildEccKeyDer(key, output, inLen, 0);
 }
 
 #endif /* WOLFSSL_KEY_GEN */

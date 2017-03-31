@@ -4176,6 +4176,59 @@ static void test_wc_GetPkcs8TraditionalOffset(void)
 
 
 /*----------------------------------------------------------------------------*
+ | wolfCrypt ECC
+ *----------------------------------------------------------------------------*/
+
+static void test_wc_ecc_get_curve_size_from_name(void)
+{
+#ifdef HAVE_ECC
+    int ret;
+
+    printf(testingFmt, "wc_ecc_get_curve_size_from_name");
+
+    #if !defined(NO_ECC256) && !defined(NO_ECC_SECP)
+        ret = wc_ecc_get_curve_size_from_name("SECP256R1");
+        AssertIntEQ(ret, 32);
+    #endif
+
+    /* invalid case */
+    ret = wc_ecc_get_curve_size_from_name("BADCURVE");
+    AssertIntEQ(ret, -1);
+
+    /* NULL input */
+    ret = wc_ecc_get_curve_size_from_name(NULL);
+    AssertIntEQ(ret, BAD_FUNC_ARG);
+
+    printf(resultFmt, passed);
+#endif /* HAVE_ECC */
+}
+
+static void test_wc_ecc_get_curve_id_from_name(void)
+{
+#ifdef HAVE_ECC
+    int id;
+
+    printf(testingFmt, "wc_ecc_get_curve_id_from_name");
+
+    #if !defined(NO_ECC256) && !defined(NO_ECC_SECP)
+        id = wc_ecc_get_curve_id_from_name("SECP256R1");
+        AssertIntEQ(id, ECC_SECP256R1);
+    #endif
+
+    /* invalid case */
+    id = wc_ecc_get_curve_id_from_name("BADCURVE");
+    AssertIntEQ(id, -1);
+
+    /* NULL input */
+    id = wc_ecc_get_curve_id_from_name(NULL);
+    AssertIntEQ(id, BAD_FUNC_ARG);
+
+    printf(resultFmt, passed);
+#endif /* HAVE_ECC */
+}
+
+
+/*----------------------------------------------------------------------------*
  | Main
  *----------------------------------------------------------------------------*/
 
@@ -4237,6 +4290,10 @@ void ApiTest(void)
 
     /* wolfCrypt ASN tests */
     test_wc_GetPkcs8TraditionalOffset();
+
+    /* wolfCrypt ECC tests */
+    test_wc_ecc_get_curve_size_from_name();
+    test_wc_ecc_get_curve_id_from_name();
 
     /*wolfcrypt */
     printf("\n-----------------wolfcrypt unit tests------------------\n");

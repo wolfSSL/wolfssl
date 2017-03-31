@@ -988,10 +988,13 @@ int fp_mulmod(fp_int *a, fp_int *b, fp_int *c, fp_int *d)
 
   fp_init(&t);
   fp_mul(a, b, &t);
+#if defined(ALT_ECC_SIZE) || defined(WOLFSSL_ASYNC_CRYPT)
   if (d->size < FP_SIZE) {
     err = fp_mod(&t, c, &t);
     fp_copy(&t, d);
-  } else {
+  } else
+#endif
+  {
     err = fp_mod(&t, c, d);
   }
 
@@ -1006,10 +1009,13 @@ int fp_submod(fp_int *a, fp_int *b, fp_int *c, fp_int *d)
 
   fp_init(&t);
   fp_sub(a, b, &t);
+#if defined(ALT_ECC_SIZE) || defined(WOLFSSL_ASYNC_CRYPT)
   if (d->size < FP_SIZE) {
     err = fp_mod(&t, c, &t);
     fp_copy(&t, d);
-  } else {
+  } else
+#endif
+  {
     err = fp_mod(&t, c, d);
   }
 
@@ -1024,10 +1030,13 @@ int fp_addmod(fp_int *a, fp_int *b, fp_int *c, fp_int *d)
 
   fp_init(&t);
   fp_add(a, b, &t);
+#if defined(ALT_ECC_SIZE) || defined(WOLFSSL_ASYNC_CRYPT)
   if (d->size < FP_SIZE) {
     err = fp_mod(&t, c, &t);
     fp_copy(&t, d);
-  } else {
+  } else
+#endif
+  {
     err = fp_mod(&t, c, d);
   }
 
@@ -2185,10 +2194,13 @@ void fp_sub_d(fp_int *a, fp_digit b, fp_int *c)
    fp_int tmp;
    fp_init(&tmp);
    fp_set(&tmp, b);
+#if defined(ALT_ECC_SIZE) || defined(WOLFSSL_ASYNC_CRYPT)
    if (c->size < FP_SIZE) {
      fp_sub(a, &tmp, &tmp);
      fp_copy(&tmp, c);
-   } else {
+   } else
+#endif
+   {
      fp_sub(a, &tmp, c);
    }
 }
@@ -2206,22 +2218,32 @@ int mp_init (mp_int * a)
 
 void fp_init(fp_int *a)
 {
+#if defined(ALT_ECC_SIZE) || defined(WOLFSSL_ASYNC_CRYPT)
     a->size = FP_SIZE;
+#endif
     fp_zero(a);
 }
 
 void fp_zero(fp_int *a)
 {
+    int size = FP_SIZE;
     a->used = 0;
     a->sign = FP_ZPOS;
-    XMEMSET(a->dp, 0, a->size * sizeof(fp_digit));
+#if defined(ALT_ECC_SIZE) || defined(WOLFSSL_ASYNC_CRYPT)
+    size = a->size;
+#endif
+    XMEMSET(a->dp, 0, size * sizeof(fp_digit));
 }
 
 void fp_clear(fp_int *a)
 {
+    int size = FP_SIZE;
     a->used = 0;
     a->sign = FP_ZPOS;
-    ForceZero(a->dp, a->size * sizeof(fp_digit));
+#if defined(ALT_ECC_SIZE) || defined(WOLFSSL_ASYNC_CRYPT)
+    size = a->size;
+#endif
+    ForceZero(a->dp, size * sizeof(fp_digit));
 }
 
 
@@ -2403,7 +2425,7 @@ void fp_copy(fp_int *a, fp_int *b)
 {
     /* if source and destination are different */
     if (a != b) {
-#ifdef ALT_ECC_SIZE
+#if defined(ALT_ECC_SIZE) || defined(WOLFSSL_ASYNC_CRYPT)
         /* verify a will fit in b */
         if (b->size >= a->used) {
             int x, oldused;
@@ -2502,11 +2524,14 @@ int fp_sqrmod(fp_int *a, fp_int *b, fp_int *c)
   fp_init(&t);
   fp_sqr(a, &t);
 
+#if defined(ALT_ECC_SIZE) || defined(WOLFSSL_ASYNC_CRYPT)
   if (c->size < FP_SIZE) {
     err = fp_mod(&t, b, &t);
     fp_copy(&t, c);
   }
-  else {
+  else
+#endif
+  {
     err = fp_mod(&t, b, c);
   }
 
@@ -2716,10 +2741,8 @@ int mp_rand_prime(mp_int* N, int len, WC_RNG* rng, void* heap)
     switch(err) {
         case FP_VAL:
             return MP_VAL;
-            break;
         case FP_MEM:
             return MP_MEM;
-            break;
         default:
             break;
     }
@@ -3246,9 +3269,14 @@ int mp_toradix (mp_int *a, char *str, int radix)
 void mp_dump(const char* desc, mp_int* a, byte verbose)
 {
   char buffer[FP_SIZE * sizeof(fp_digit) * 2];
+  int size = FP_SIZE;
+
+#if defined(ALT_ECC_SIZE) || defined(WOLFSSL_ASYNC_CRYPT)
+  size = a->size;
+#endif
 
   printf("%s: ptr=%p, used=%d, sign=%d, size=%d, fpd=%d\n",
-    desc, a, a->used, a->sign, a->size, (int)sizeof(fp_digit));
+    desc, a, a->used, a->sign, size, (int)sizeof(fp_digit));
 
   mp_toradix(a, buffer, 16);
   printf("  %s\n  ", buffer);

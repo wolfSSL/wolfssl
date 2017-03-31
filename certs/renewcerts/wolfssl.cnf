@@ -148,6 +148,21 @@ subjectKeyIdentifier=hash
 authorityKeyIdentifier=keyid,issuer
 proxyCertInfo=critical,language:id-ppl-anyLanguage,pathlen:3,policy:foo
 
+# Test of rejecting duplicate policy extension OIDs
+[ policy_test ]
+subjectKeyIdentifier=hash
+authorityKeyIdentifier=keyid:always,issuer:always
+basicConstraints=CA:FALSE
+certificatePolicies=1.2.3.4,@policy_add
+
+[ policy_add ]
+policyIdentifier=1.2.3.4
+CPS.1="www.wolfssl.com"
+userNotice.1=@policy_usr
+
+[ policy_usr ]
+explicitText="Test of duplicate OIDs with different qualifiers"
+
 #tsa default
 [ tsa ]
 default_tsa = tsa_config1

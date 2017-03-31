@@ -128,6 +128,23 @@ function run_renewcerts(){
     cat ca_tmp.pem >> server-revoked-cert.pem
     rm ca_tmp.pem
     ###########################################################
+    ########## update and sign server-duplicate-policy.pem ####
+    ###########################################################
+    echo "Updating server-duplicate-policy.pem"
+    echo ""
+    #pipe the following arguments to openssl req...
+    echo -e "US\nMontana\nBozeman\nwolfSSL\ntesting duplicate policy\nwww.wolfssl.com\ninfo@wolfssl.com\n.\n.\n" | openssl req -new -key server-key.pem -nodes > ./test/server-duplicate-policy-req.pem
+
+    openssl x509 -req -in ./test/server-duplicate-policy-req.pem -extfile wolfssl.cnf -extensions policy_test -days 1000 -CA ca-cert.pem -CAkey ca-key.pem -set_serial 02 > ./test/server-duplicate-policy.pem
+
+    rm ./test/server-duplicate-policy-req.pem
+
+    openssl x509 -in ca-cert.pem -text > ca_tmp.pem
+    openssl x509 -in ./test/server-duplicate-policy.pem -text > srv_tmp.pem
+    mv srv_tmp.pem ./test/server-duplicate-policy.pem
+    cat ca_tmp.pem >> ./test/server-duplicate-policy.pem
+    rm ca_tmp.pem
+    ###########################################################
     #### update and sign (1024-bit) server-cert.pem ###########
     ###########################################################
     echo "Updating 1024-bit server-cert.pem"

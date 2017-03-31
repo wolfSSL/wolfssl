@@ -94,17 +94,6 @@
 #endif
 
 
-#if defined(WOLFSSL_DTLS) && !defined(WOLFSSL_HAVE_MAX)
-#define WOLFSSL_HAVE_MAX
-
-    static INLINE word32 max(word32 a, word32 b)
-    {
-        return a > b ? a : b;
-    }
-
-#endif /* WOLFSSL_DTLS && !WOLFSSL_HAVE_MAX */
-
-
 #ifndef WOLFSSL_LEANPSK
 char* mystrnstr(const char* s1, const char* s2, unsigned int n)
 {
@@ -4114,6 +4103,7 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
     int           ret = 0;
     int           eccKey = 0;
     int           rsaKey = 0;
+    int           resetSuites = 0;
     void*         heap = ctx ? ctx->heap : ((ssl) ? ssl->heap : NULL);
 #ifdef WOLFSSL_SMALL_STACK
     EncryptedInfo* info = NULL;
@@ -4338,6 +4328,7 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
                 } else {
                     /* check that the size of the RSA key is enough */
                     int RsaSz = wc_RsaEncryptSize((RsaKey*)key);
+
                     if (ssl) {
                         if (RsaSz < ssl->options.minRsaKeySz) {
                             ret = RSA_KEY_SIZE_E;
@@ -4352,6 +4343,11 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
                     }
                     rsaKey = 1;
                     (void)rsaKey;  /* for no ecc builds */
+
+                    if (ssl && ssl->options.side == WOLFSSL_SERVER_END) {
+                        ssl->options.haveStaticECC = 0;
+                        resetSuites = 1;
+                    }
                 }
             }
 
@@ -4396,10 +4392,16 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
 
             wc_ecc_free(&key);
             eccKey = 1;
-            if (ctx)
-                ctx->haveStaticECC = 1;
-            if (ssl)
+            if (ssl) {
                 ssl->options.haveStaticECC = 1;
+            }
+            else if (ctx) {
+                ctx->haveStaticECC = 1;
+            }
+
+            if (ssl && ssl->options.side == WOLFSSL_SERVER_END) {
+                resetSuites = 1;
+            }
         }
     #endif /* HAVE_ECC */
     }
@@ -4428,16 +4430,25 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
         #endif
             return SSL_BAD_FILE;
         }
+
+        if (ssl && ssl->options.side == WOLFSSL_SERVER_END) {
+            resetSuites = 1;
+        }
+        if (ssl && ssl->ctx->haveECDSAsig) {
+            WOLFSSL_MSG("SSL layer setting cert, CTX had ECDSA, turning off");
+            ssl->options.haveECDSAsig = 0;   /* may turn back on next */
+        }
+
         switch (cert->signatureOID) {
             case CTC_SHAwECDSA:
             case CTC_SHA256wECDSA:
             case CTC_SHA384wECDSA:
             case CTC_SHA512wECDSA:
                 WOLFSSL_MSG("ECDSA cert signature");
-                if (ctx)
-                    ctx->haveECDSAsig = 1;
                 if (ssl)
                     ssl->options.haveECDSAsig = 1;
+                else if (ctx)
+                    ctx->haveECDSAsig = 1;
                 break;
             default:
                 WOLFSSL_MSG("Not ECDSA cert signature");
@@ -4445,16 +4456,6 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
         }
 
     #ifdef HAVE_ECC
-        if (ctx) {
-            ctx->pkCurveOID = cert->pkCurveOID;
-        #ifndef WC_STRICT_SIG
-            if (cert->keyOID == ECDSAk) {
-                ctx->haveECC = 1;
-            }
-        #else
-            ctx->haveECC = ctx->haveECDSAsig;
-        #endif
-        }
         if (ssl) {
             ssl->pkCurveOID = cert->pkCurveOID;
         #ifndef WC_STRICT_SIG
@@ -4463,6 +4464,16 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
             }
         #else
             ssl->options.haveECC = ssl->options.haveECDSAsig;
+        #endif
+        }
+        else if (ctx) {
+            ctx->pkCurveOID = cert->pkCurveOID;
+        #ifndef WC_STRICT_SIG
+            if (cert->keyOID == ECDSAk) {
+                ctx->haveECC = 1;
+            }
+        #else
+            ctx->haveECC = ctx->haveECDSAsig;
         #endif
         }
     #endif
@@ -4519,6 +4530,26 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
         if (ret != 0) {
             return ret;
         }
+    }
+
+    if (ssl && resetSuites) {
+        word16 havePSK = 0;
+        word16 haveRSA = 0;
+
+        #ifndef NO_PSK
+        if (ssl->options.havePSK) {
+            havePSK = 1;
+        }
+        #endif
+        #ifndef NO_RSA
+            haveRSA = 1;
+        #endif
+
+        /* let's reset suites */
+        InitSuites(ssl->suites, ssl->version, haveRSA, havePSK,
+                   ssl->options.haveDH, ssl->options.haveNTRU,
+                   ssl->options.haveECDSAsig, ssl->options.haveECC,
+                   ssl->options.haveStaticECC, ssl->options.side);
     }
 
     return SSL_SUCCESS;
@@ -12535,7 +12566,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
         cert = (DecodedCert*)XMALLOC(sizeof(DecodedCert), NULL,
                                      DYNAMIC_TYPE_TMP_BUFFER);
         if (cert == NULL)
-            return NULL;
+            return MEMORY_E;
     #endif
 
         /* Create a DecodedCert object and copy fields into WOLFSSL_X509 object.
@@ -16498,6 +16529,8 @@ int wolfSSL_BN_mod_exp(WOLFSSL_BIGNUM *r, const WOLFSSL_BIGNUM *a,
     }
 
     WOLFSSL_LEAVE("wolfSSL_BN_mod_exp", ret);
+    (void)ret;
+
     return SSL_FAILURE;
 }
 
@@ -21157,6 +21190,7 @@ WOLFSSL_X509* wolfSSL_get_chain_X509(WOLFSSL_X509_CHAIN* chain, int idx)
         #endif
         }
     }
+    (void)ret;
 
     return x509;
 }
@@ -21526,16 +21560,16 @@ void* wolfSSL_GetRsaDecCtx(WOLFSSL* ssl)
     }
     #endif /* ifndef NO_CERTS */
 
-#if defined(HAVE_LIGHTY) || defined(WOLFSSL_MYSQL_COMPATIBLE) || defined(HAVE_STUNNEL) || defined(WOLFSSL_NGINX) || defined(OPENSSL_EXTRA)
     #ifndef NO_CERTS
     void wolfSSL_X509_NAME_free(WOLFSSL_X509_NAME *name){
         FreeX509Name(name, NULL);
         WOLFSSL_ENTER("wolfSSL_X509_NAME_free");
     }
     #endif /* NO_CERTS */
-#endif
 
-#if defined(HAVE_LIGHTY) || defined(WOLFSSL_MYSQL_COMPATIBLE) || defined(HAVE_STUNNEL) || defined(WOLFSSL_NGINX)
+#if defined(HAVE_LIGHTY)  || defined(WOLFSSL_MYSQL_COMPATIBLE) || \
+    defined(HAVE_STUNNEL) || defined(WOLFSSL_NGINX) || \
+    defined(HAVE_POCO_LIB)
 
     unsigned char *wolfSSL_SHA1(const unsigned char *d, size_t n, unsigned char *md)
     {
@@ -21730,8 +21764,8 @@ void* wolfSSL_GetRsaDecCtx(WOLFSSL* ssl)
         return NULL;
     }
 
-#endif /* HAVE_LIGHTY || WOLFSSL_MYSQL_COMPATIBLE || HAVE_STUNNEL */
-#endif
+#endif /* HAVE_LIGHTY || WOLFSSL_MYSQL_COMPATIBLE || HAVE_STUNNEL || WOLFSSL_NGINX || HAVE_POCO_LIB */
+#endif /* OPENSSL_EXTRA */
 
 
 #ifdef OPENSSL_EXTRA
