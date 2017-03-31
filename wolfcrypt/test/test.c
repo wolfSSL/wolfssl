@@ -110,6 +110,14 @@
     #include <wolfssl/wolfcrypt/logging.h>
 #endif
 
+/* only for stack size check */
+#ifdef HAVE_STACK_SIZE
+    #include <wolfssl/ssl.h>
+    #define err_sys err_sys_remap /* remap err_sys */
+    #include <wolfssl/test.h>
+    #undef err_sys
+#endif
+
 #ifdef _MSC_VER
     /* 4996 warning to use MS extensions e.g., strcpy_s instead of strncpy */
     #pragma warning(disable: 4996)
@@ -295,22 +303,25 @@ int memcb_test(void);
 
 #define ERROR_OUT(err, eLabel) { ret = (err); goto eLabel; }
 
-
+#ifdef HAVE_STACK_SIZE
+static THREAD_RETURN err_sys(const char* msg, int es)
+#else
 static int err_sys(const char* msg, int es)
-
+#endif
 {
     printf("%s error = %d\n", msg, es);
 
     EXIT_TEST(-1);
 }
 
-/* func_args from test.h, so don't have to pull in other junk */
+#ifndef HAVE_STACK_SIZE
+/* func_args from test.h, so don't have to pull in other stuff */
 typedef struct func_args {
     int    argc;
     char** argv;
     int    return_code;
 } func_args;
-
+#endif /* !HAVE_STACK_SIZE */
 
 #ifdef HAVE_FIPS
 
@@ -328,21 +339,26 @@ static void myFipsCb(int ok, int err, const char* hash)
 
 #endif /* HAVE_FIPS */
 
-int wolfcrypt_test(void* args)
-{
-    int ret = 0;
 #ifdef WOLFSSL_STATIC_MEMORY
     #ifdef BENCH_EMBEDDED
-        byte memory[10000];
+        static byte gTestMemory[10000];
     #else
-        byte memory[100000];
+        static byte gTestMemory[100000];
     #endif
 #endif
+
+#ifdef HAVE_STACK_SIZE
+THREAD_RETURN WOLFSSL_THREAD wolfcrypt_test(void* args)
+#else
+int wolfcrypt_test(void* args)
+#endif
+{
+    int ret;
 
     ((func_args*)args)->return_code = -1; /* error state */
 
 #ifdef WOLFSSL_STATIC_MEMORY
-    if (wc_LoadStaticMemory(&HEAP_HINT, memory, sizeof(memory),
+    if (wc_LoadStaticMemory(&HEAP_HINT, gTestMemory, sizeof(gTestMemory),
                                                 WOLFMEM_GENERAL, 1) != 0) {
         printf("unable to load static memory");
         exit(EXIT_FAILURE);
@@ -821,7 +837,7 @@ int wolfcrypt_test(void* args)
 
     ((func_args*)args)->return_code = ret;
 
-    return ret;
+    EXIT_TEST(ret);
 }
 
 
@@ -845,10 +861,14 @@ int wolfcrypt_test(void* args)
 
         wolfCrypt_Init();
 
+    #ifdef HAVE_STACK_SIZE
+        StackSizeCheck(&args, wolfcrypt_test);
+    #else
         wolfcrypt_test(&args);
+    #endif
 
         if (wolfCrypt_Cleanup() != 0) {
-            return err_sys("Error with wolfCrypt_Cleanup!\n", -1239);
+            err_sys("Error with wolfCrypt_Cleanup!\n", -1239);
         }
 
 #ifdef HAVE_WNR
@@ -856,7 +876,7 @@ int wolfcrypt_test(void* args)
             err_sys("Failed to free netRandom context", -1238);
 #endif /* HAVE_WNR */
 
-        EXIT_TEST(args.return_code);
+        return args.return_code;
     }
 
 #endif /* NO_MAIN_DRIVER */
@@ -4937,7 +4957,11 @@ int idea_test(void)
         rnd[1000], enc[1000], dec[1000];
 
         /* random values */
+    #ifndef HAVE_FIPS
+        ret = wc_InitRng_ex(&rng, HEAP_HINT);
+    #else
         ret = wc_InitRng(&rng);
+    #endif
         if (ret != 0)
             return -39;
 
@@ -5011,7 +5035,11 @@ static int random_rng_test(void)
     byte block[32];
     int ret, i;
 
+#ifndef HAVE_FIPS
+    ret = wc_InitRng_ex(&rng, HEAP_HINT);
+#else
     ret = wc_InitRng(&rng);
+#endif
     if (ret != 0) return -39;
 
     XMEMSET(block, 0, sizeof(block));
@@ -6144,7 +6172,12 @@ int rsa_test(void)
         XFREE(tmp, HEAP_HINT ,DYNAMIC_TYPE_TMP_BUFFER);
         return -41;
     }
+
+#ifndef HAVE_FIPS
+    ret = wc_InitRng_ex(&rng, HEAP_HINT);
+#else
     ret = wc_InitRng(&rng);
+#endif
     if (ret != 0) {
         XFREE(tmp, HEAP_HINT ,DYNAMIC_TYPE_TMP_BUFFER);
         return -42;
@@ -7991,7 +8024,11 @@ int dh_test(void)
         return -52;
 #endif
 
+#ifndef HAVE_FIPS
+    ret = wc_InitRng_ex(&rng, HEAP_HINT);
+#else
     ret = wc_InitRng(&rng);
+#endif
     if (ret != 0)
         return -53;
 
@@ -8063,7 +8100,11 @@ int dsa_test(void)
     ret = wc_DsaPrivateKeyDecode(tmp, &idx, &key, bytes);
     if (ret != 0) return -61;
 
+#ifndef HAVE_FIPS
+    ret = wc_InitRng_ex(&rng, HEAP_HINT);
+#else
     ret = wc_InitRng(&rng);
+#endif
     if (ret != 0) return -62;
 
     ret = wc_DsaSign(hash, signature, &key, &rng);
@@ -10651,7 +10692,11 @@ int ecc_test(void)
         return ret;
 #endif
 
+#ifndef HAVE_FIPS
+    ret = wc_InitRng_ex(&rng, HEAP_HINT);
+#else
     ret = wc_InitRng(&rng);
+#endif
     if (ret != 0)
         return -1001;
 
@@ -10779,7 +10824,11 @@ int ecc_encrypt_test(void)
     word32  plainSz = sizeof(plain);
     int     i;
 
+#ifndef HAVE_FIPS
+    ret = wc_InitRng_ex(&rng, HEAP_HINT);
+#else
     ret = wc_InitRng(&rng);
+#endif
     if (ret != 0)
         return -3001;
 
@@ -10930,7 +10979,11 @@ int ecc_test_buffers() {
     if (ret != 0)
         return -41;
 
+#ifndef HAVE_FIPS
+    ret = wc_InitRng_ex(&rng, HEAP_HINT);
+#else
     ret = wc_InitRng(&rng);
+#endif
     if (ret != 0)
         return -42;
 
@@ -10990,6 +11043,7 @@ int ecc_test_buffers() {
 int curve25519_test(void)
 {
     WC_RNG  rng;
+    int ret;
 #ifdef HAVE_CURVE25519_SHARED_SECRET
     byte    sharedA[32];
     byte    sharedB[32];
@@ -11047,7 +11101,12 @@ int curve25519_test(void)
     };
 #endif /* HAVE_CURVE25519_SHARED_SECRET */
 
-    if (wc_InitRng(&rng) != 0)
+#ifndef HAVE_FIPS
+    ret = wc_InitRng_ex(&rng, HEAP_HINT);
+#else
+    ret = wc_InitRng(&rng);
+#endif
+    if (ret != 0)
         return -1001;
 
     wc_curve25519_init(&userA);
@@ -11175,7 +11234,7 @@ int ed25519_test(void)
     byte   exportSKey[ED25519_KEY_SIZE];
     word32 exportPSz;
     word32 exportSSz;
-    int    i;
+    int    i, ret;
     word32 outlen;
 #ifdef HAVE_ED25519_VERIFY
     int    verify;
@@ -11502,7 +11561,14 @@ int ed25519_test(void)
 #endif /* HAVE_ED25519_SIGN && HAVE_ED25519_KEY_EXPORT && HAVE_ED25519_KEY_IMPORT */
 
     /* create ed25519 keys */
-    wc_InitRng(&rng);
+#ifndef HAVE_FIPS
+    ret = wc_InitRng_ex(&rng, HEAP_HINT);
+#else
+    ret = wc_InitRng(&rng);
+#endif
+    if (ret != 0)
+        return -1020;
+
     wc_ed25519_init(&key);
     wc_ed25519_init(&key2);
     wc_ed25519_make_key(&rng, ED25519_KEY_SIZE, &key);
@@ -12508,7 +12574,11 @@ int pkcs7signed_test(void)
     fclose(file);
 #endif /* USE_CERT_BUFFER_ */
 
+#ifndef HAVE_FIPS
+    ret = wc_InitRng_ex(&rng, HEAP_HINT);
+#else
     ret = wc_InitRng(&rng);
+#endif
     if (ret != 0) {
         XFREE(certDer, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
         XFREE(keyDer, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
@@ -12682,7 +12752,11 @@ int mp_test()
 
     mp_init_copy(&p, &a);
 
+#ifndef HAVE_FIPS
+    ret = wc_InitRng_ex(&rng, HEAP_HINT);
+#else
     ret = wc_InitRng(&rng);
+#endif
     if (ret != 0)
         goto done;
 

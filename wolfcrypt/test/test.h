@@ -28,7 +28,11 @@
     extern "C" {
 #endif
 
+#ifdef HAVE_STACK_SIZE
+THREAD_RETURN WOLFSSL_THREAD wolfcrypt_test(void* args);
+#else
 int wolfcrypt_test(void* args);
+#endif
 
 #ifdef __cplusplus
     }  /* extern "C" */
