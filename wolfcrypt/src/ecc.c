@@ -2504,7 +2504,7 @@ int wc_ecc_get_curve_idx_from_name(const char* curveName)
     if (curveName == NULL)
         return BAD_FUNC_ARG;
 
-    len = XSTRLEN(curveName);
+    len = (word32)XSTRLEN(curveName);
 
     for (curve_idx = 0; ecc_sets[curve_idx].size != 0; curve_idx++) {
         if (XSTRNCASECMP(ecc_sets[curve_idx].name, curveName, len) == 0) {
