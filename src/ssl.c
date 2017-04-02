@@ -19567,7 +19567,7 @@ void wolfSSL_AES_decrypt(const unsigned char* input, unsigned char* output,
  * bits size of key in bits
  * aes  AES structure to initialize
  */
-void wolfSSL_AES_set_encrypt_key(const unsigned char *key, const int bits,
+int wolfSSL_AES_set_encrypt_key(const unsigned char *key, const int bits,
         AES_KEY *aes)
 {
     typedef char aes_test[sizeof(AES_KEY) >= sizeof(Aes) ? 1 : -1];
@@ -19577,13 +19577,15 @@ void wolfSSL_AES_set_encrypt_key(const unsigned char *key, const int bits,
 
     if (key == NULL || aes == NULL) {
         WOLFSSL_MSG("Null argument passed in");
-        return;
+        return -1;
     }
 
     XMEMSET(aes, 0, sizeof(AES_KEY));
     if (wc_AesSetKey((Aes*)aes, key, ((bits)/8), NULL, AES_ENCRYPTION) != 0) {
         WOLFSSL_MSG("Error in setting AES key");
+        return -1;
     }
+    return 0;
 }
 
 
@@ -19593,7 +19595,7 @@ void wolfSSL_AES_set_encrypt_key(const unsigned char *key, const int bits,
  * bits size of key in bits
  * aes  AES structure to initialize
  */
-void wolfSSL_AES_set_decrypt_key(const unsigned char *key, const int bits,
+int wolfSSL_AES_set_decrypt_key(const unsigned char *key, const int bits,
         AES_KEY *aes)
 {
     typedef char aes_test[sizeof(AES_KEY) >= sizeof(Aes) ? 1 : -1];
@@ -19603,13 +19605,15 @@ void wolfSSL_AES_set_decrypt_key(const unsigned char *key, const int bits,
 
     if (key == NULL || aes == NULL) {
         WOLFSSL_MSG("Null argument passed in");
-        return;
+        return -1;
     }
 
     XMEMSET(aes, 0, sizeof(AES_KEY));
     if (wc_AesSetKey((Aes*)aes, key, ((bits)/8), NULL, AES_DECRYPTION) != 0) {
         WOLFSSL_MSG("Error in setting AES key");
+        return -1;
     }
+    return 0;
 }
 
 
