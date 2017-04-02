@@ -28844,14 +28844,12 @@ int wolfSSL_DH_generate_parameters_ex(WOLFSSL_DH* dh, int prime_len, int generat
 }
 #endif
 
-#ifndef NO_WOLFSSL_STUB
 void wolfSSL_ERR_load_crypto_strings(void)
 {
     WOLFSSL_ENTER("wolfSSL_ERR_load_crypto_strings");
-    WOLFSSL_STUB("wolfSSL_ERR_load_crypto_strings");
+    /* Do nothing */
     return;
 }
-#endif
 
 #ifndef NO_WOLFSSL_STUB
 unsigned long wolfSSL_ERR_peek_last_error(void)
