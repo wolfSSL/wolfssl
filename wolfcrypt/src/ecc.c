@@ -4882,7 +4882,7 @@ int wc_ecc_import_private_key_ex(const byte* priv, word32 privSz,
             return ret;
 
         /* set key size */
-        ret = wc_ecc_set_curve(key, privSz-1, curve_id);
+        ret = wc_ecc_set_curve(key, privSz, curve_id);
     }
 
     if (ret != 0)
