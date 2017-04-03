@@ -1339,9 +1339,10 @@ static INLINE void CaCb(unsigned char* der, int sz, int type)
 typedef THREAD_RETURN WOLFSSL_THREAD (*thread_func)(void* args);
 
 
-static INLINE void StackSizeCheck(func_args* args, thread_func tf)
+static INLINE int StackSizeCheck(func_args* args, thread_func tf)
 {
     int            ret, i, used;
+    void*          status;
     unsigned char* myStack = NULL;
     int            stackSize = 1024*128;
     pthread_attr_t myAttr;
@@ -1372,7 +1373,7 @@ static INLINE void StackSizeCheck(func_args* args, thread_func tf)
         exit(EXIT_FAILURE);
     }
 
-    ret = pthread_join(threadId, NULL);
+    ret = pthread_join(threadId, &status);
     if (ret != 0)
         err_sys("pthread_join failed");
 
@@ -1384,6 +1385,8 @@ static INLINE void StackSizeCheck(func_args* args, thread_func tf)
 
     used = stackSize - i;
     printf("stack used = %d\n", used);
+
+    return (int)((size_t)status);
 }
 
 

@@ -440,6 +440,8 @@
 
     #ifdef WOLFSSL_RIOT_OS
         #define EXIT_TEST(ret) exit(ret)
+    #elif defined(HAVE_STACK_SIZE)
+        #define EXIT_TEST(ret) return (void*)((size_t)(ret))
     #else
         #define EXIT_TEST(ret) return ret
     #endif

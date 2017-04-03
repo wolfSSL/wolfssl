@@ -210,7 +210,7 @@ int testsuite_test(int argc, char** argv)
 #endif /* HAVE_WNR */
 
     printf("\nAll tests passed!\n");
-    EXIT_TEST(EXIT_SUCCESS);
+    return EXIT_SUCCESS;
 }
 
 void simple_test(func_args* args)
