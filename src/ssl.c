@@ -502,6 +502,11 @@ WOLFSSL* wolfSSL_write_dup(WOLFSSL* ssl)
         return NULL;
     }
 
+    if (ssl->dupWrite) {
+        WOLFSSL_MSG("wolfSSL_write_dup already called once");
+        return NULL;
+    }
+
     dup = (WOLFSSL*) XMALLOC(sizeof(WOLFSSL), ssl->ctx->heap, DYNAMIC_TYPE_SSL);
     if (dup) {
         if ( (ret = InitSSL(dup, ssl->ctx, 1)) < 0) {
