@@ -10244,7 +10244,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
                                                     WOLFSSL_X509_STORE_CTX* ctx)
     {
         WOLFSSL_ENTER("wolfSSL_X509_STORE_CTX_get_current_cert");
-        if(ctx)
+        if (ctx)
             return ctx->current_cert;
         return NULL;
     }
@@ -12431,6 +12431,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
 
 #ifdef KEEP_PEER_CERT
         FreeX509(&ssl->peerCert);
+        InitX509(&ssl->peerCert, 0, ssl->heap);
 #endif
 
         return SSL_SUCCESS;
@@ -13703,8 +13704,23 @@ int wolfSSL_set_session_id_context(WOLFSSL* ssl, const unsigned char* id,
 
 void wolfSSL_set_connect_state(WOLFSSL* ssl)
 {
-    (void)ssl;
-    /* client by default */
+    word16 haveRSA = 1;
+    word16 havePSK = 0;
+
+    if (ssl->options.side == WOLFSSL_SERVER_END) {
+        ssl->options.side = WOLFSSL_CLIENT_END;
+
+        #ifdef NO_RSA
+            haveRSA = 0;
+        #endif
+        #ifndef NO_PSK
+            havePSK = ssl->options.havePSK;
+        #endif
+        InitSuites(ssl->suites, ssl->version, haveRSA, havePSK,
+                   ssl->options.haveDH, ssl->options.haveNTRU,
+                   ssl->options.haveECDSAsig, ssl->options.haveECC,
+                   ssl->options.haveStaticECC, ssl->options.side);
+    }
 }
 #endif
 
