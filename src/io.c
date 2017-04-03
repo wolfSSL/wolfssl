@@ -417,7 +417,7 @@ int EmbedGenerateCookie(WOLFSSL* ssl, byte *buf, int sz, void *ctx)
     int sd = ssl->wfd;
     SOCKADDR_S peer;
     XSOCKLENT peerSz = sizeof(peer);
-    byte digest[SHA_DIGEST_SIZE];
+    byte digest[SHA256_DIGEST_SIZE];
     int  ret = 0;
 
     (void)ctx;
@@ -428,12 +428,12 @@ int EmbedGenerateCookie(WOLFSSL* ssl, byte *buf, int sz, void *ctx)
         return GEN_COOKIE_E;
     }
 
-    ret = wc_ShaHash((byte*)&peer, peerSz, digest);
+    ret = wc_Sha256Hash((byte*)&peer, peerSz, digest);
     if (ret != 0)
         return ret;
 
-    if (sz > SHA_DIGEST_SIZE)
-        sz = SHA_DIGEST_SIZE;
+    if (sz > SHA256_DIGEST_SIZE)
+        sz = SHA256_DIGEST_SIZE;
     XMEMCPY(buf, digest, sz);
 
     return sz;
