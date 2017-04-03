@@ -1020,7 +1020,7 @@ static int wc_GenerateSeed_IntelRD(OS_Seed* os, byte* output, word32 sz)
 #ifdef HAVE_INTEL_RDRAND
 
 /* return 0 on success */
-static INLINE int IntelRDrand32(unsigned int *rnd)
+static INLINE int IntelRDrand64(word64 *rnd)
 {
     unsigned char ok;
 
@@ -1030,11 +1030,11 @@ static INLINE int IntelRDrand32(unsigned int *rnd)
 }
 
 /* return 0 on success */
-static INLINE int IntelRDrand32_r(unsigned int *rnd)
+static INLINE int IntelRDrand64_r(word64 *rnd)
 {
     int i;
     for (i = 0; i < INTELRD_RETRY; i++) {
-        if (IntelRDrand32(rnd) == 0)
+        if (IntelRDrand64(rnd) == 0)
             return 0;
     }
     return -1;
@@ -1044,16 +1044,16 @@ static INLINE int IntelRDrand32_r(unsigned int *rnd)
 static int wc_GenerateRand_IntelRD(OS_Seed* os, byte* output, word32 sz)
 {
     int ret;
-    unsigned int rndTmp;
+    word64 rndTmp;
 
     (void)os;
 
     if (!IS_INTEL_RDRAND)
         return -1;
 
-    for (; (sz / sizeof(word32)) > 0; sz -= sizeof(word32),
-                                                    output += sizeof(word32)) {
-        ret = IntelRDrand32_r((word32 *)output);
+    for (; (sz / sizeof(word64)) > 0; sz -= sizeof(word64),
+                                                    output += sizeof(word64)) {
+        ret = IntelRDrand64_r((word64 *)output);
         if (ret != 0)
             return ret;
     }
@@ -1061,7 +1061,7 @@ static int wc_GenerateRand_IntelRD(OS_Seed* os, byte* output, word32 sz)
         return 0;
 
     /* handle unaligned remainder */
-    ret = IntelRDrand32_r(&rndTmp);
+    ret = IntelRDrand64_r(&rndTmp);
     if (ret != 0)
         return ret;
 
