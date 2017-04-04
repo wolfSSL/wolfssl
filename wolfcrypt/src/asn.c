@@ -547,54 +547,65 @@ WOLFSSL_LOCAL int GetLength(const byte* input, word32* inOutIdx, int* len,
 }
 
 
-WOLFSSL_LOCAL int GetSequence(const byte* input, word32* inOutIdx, int* len,
-                           word32 maxIdx)
+/* Get the DER/BER encoding of an ASN.1 header.
+ *
+ * input     Buffer holding DER/BER encoded data.
+ * tag       ASN.1 tag value expected in header.
+ * inOutIdx  Current index into buffer to parse.
+ * len       The number of bytes in the ASN.1 data.
+ * maxIdx    Length of data in buffer.
+ * returns BUFFER_E when there is not enough data to parse.
+ *         ASN_PARSE_E when the expected tag is not found or length is invalid.
+ *         Otherwise, the number of bytes in the ASN.1 data.
+ */
+static int GetASNHeader(const byte* input, byte tag, word32* inOutIdx, int* len,
+                        word32 maxIdx)
 {
-    int    length = -1;
-    word32 idx    = *inOutIdx;
+    word32 idx = *inOutIdx;
+    byte   b;
+    int    length;
 
     if ((idx + 1) > maxIdx)
         return BUFFER_E;
 
-    if (input[idx++] != (ASN_SEQUENCE | ASN_CONSTRUCTED) ||
-            GetLength(input, &idx, &length, maxIdx) < 0) {
+    b = input[idx++];
+    if (b != tag)
         return ASN_PARSE_E;
-    }
 
-    /* make sure length exists in buffer */
-    if ((idx + length) > maxIdx)
-        return BUFFER_E;
+    if (GetLength(input, &idx, &length, maxIdx) < 0)
+        return ASN_PARSE_E;
 
     *len      = length;
     *inOutIdx = idx;
-
     return length;
+}
+
+WOLFSSL_LOCAL int GetSequence(const byte* input, word32* inOutIdx, int* len,
+                           word32 maxIdx)
+{
+    return GetASNHeader(input, ASN_SEQUENCE | ASN_CONSTRUCTED, inOutIdx, len,
+                        maxIdx);
 }
 
 
 WOLFSSL_LOCAL int GetSet(const byte* input, word32* inOutIdx, int* len,
                         word32 maxIdx)
 {
-    int    length = -1;
-    word32 idx    = *inOutIdx;
-
-    if ((idx + 1) > maxIdx)
-        return BUFFER_E;
-
-    if (input[idx++] != (ASN_SET | ASN_CONSTRUCTED) ||
-            GetLength(input, &idx, &length, maxIdx) < 0)
-        return ASN_PARSE_E;
-
-    /* make sure length exists in buffer */
-    if ((idx + length) > maxIdx)
-        return BUFFER_E;
-
-    *len      = length;
-    *inOutIdx = idx;
-
-    return length;
+    return GetASNHeader(input, ASN_SET | ASN_CONSTRUCTED, inOutIdx, len,
+                        maxIdx);
 }
 
+/* Get the DER/BER encoded ASN.1 NULL element.
+ * Ensure that the all fields are as expected and move index past the element.
+ *
+ * input     Buffer holding DER/BER encoded data.
+ * inOutIdx  Current index into buffer to parse.
+ * maxIdx    Length of data in buffer.
+ * returns BUFFER_E when there is not enough data to parse.
+ *         ASN_TAG_NULL_E when the NULL tag is not found.
+ *         ASN_EXPECT_0_E when the length is not zero.
+ *         Otherwise, 0 to indicate success.
+ */
 static int GetASNNull(const byte* input, word32* inOutIdx, word32 maxIdx)
 {
     word32 idx = *inOutIdx;
@@ -605,7 +616,7 @@ static int GetASNNull(const byte* input, word32* inOutIdx, word32 maxIdx)
 
     b = input[idx++];
     if (b != ASN_TAG_NULL)
-        return ASN_PARSE_E;
+        return ASN_TAG_NULL_E;
 
     if (input[idx++] != 0)
         return ASN_EXPECT_0_E;
@@ -614,6 +625,11 @@ static int GetASNNull(const byte* input, word32* inOutIdx, word32 maxIdx)
     return 0;
 }
 
+/* Set the DER/BER encoding of the ASN.1 NULL element.
+ *
+ * output  Buffer to write into.
+ * returns the number of bytes added to the buffer.
+ */
 static int SetASNNull(byte* output)
 {
     output[0] = ASN_TAG_NULL;
@@ -622,6 +638,15 @@ static int SetASNNull(byte* output)
     return 2;
 }
 
+/* Get the DER/BER encoding of an ASN.1 BOOLEAN.
+ *
+ * input     Buffer holding DER/BER encoded data.
+ * inOutIdx  Current index into buffer to parse.
+ * maxIdx    Length of data in buffer.
+ * returns BUFFER_E when there is not enough data to parse.
+ *         ASN_PARSE_E when the BOOLEAN tag is not found or length is not 1.
+ *         Otherwise, 0 to indicate the value was false and 1 to indicate true.
+ */
 static int GetBoolean(const byte* input, word32* inOutIdx, word32 maxIdx)
 {
     word32 idx = *inOutIdx;
@@ -644,6 +669,13 @@ static int GetBoolean(const byte* input, word32* inOutIdx, word32 maxIdx)
 }
 
 #ifdef ASN1_SET_BOOLEAN
+/* Set the DER/BER encoding of the ASN.1 NULL element.
+ * Note: Function not required as yet.
+ *
+ * val     Boolean value to encode.
+ * output  Buffer to write into.
+ * returns the number of bytes added to the buffer.
+ */
 static int SetBoolean(int val, byte* output)
 {
     output[0] = ASN_BOOLEAN;
@@ -654,58 +686,69 @@ static int SetBoolean(int val, byte* output)
 }
 #endif
 
+/* Get the DER/BER encoding of an ASN.1 OCTET_STRING header.
+ *
+ * input     Buffer holding DER/BER encoded data.
+ * inOutIdx  Current index into buffer to parse.
+ * len       The number of bytes in the ASN.1 data.
+ * maxIdx    Length of data in buffer.
+ * returns BUFFER_E when there is not enough data to parse.
+ *         ASN_PARSE_E when the OCTET_STRING tag is not found or length is
+ *         invalid.
+ *         Otherwise, the number of bytes in the ASN.1 data.
+ */
 static int GetOctetString(const byte* input, word32* inOutIdx, int* len,
                           word32 maxIdx)
 {
-    word32 idx = *inOutIdx;
-    byte   b;
-    int    length;
-
-    if ((idx + 1) > maxIdx)
-        return BUFFER_E;
-
-    b = input[idx++];
-    if (b != ASN_OCTET_STRING)
-        return ASN_PARSE_E;
-
-    if (GetLength(input, &idx, &length, maxIdx) < 0)
-        return ASN_PARSE_E;
-
-    *len = length;
-    *inOutIdx = idx;
-    return 0;
+    return GetASNHeader(input, ASN_OCTET_STRING, inOutIdx, len, maxIdx);
 }
 
+/* Get the DER/BER encoding of an ASN.1 INTEGER header.
+ * Removes the leading zero byte when found.
+ *
+ * input     Buffer holding DER/BER encoded data.
+ * inOutIdx  Current index into buffer to parse.
+ * len       The number of bytes in the ASN.1 data (excluding any leading zero).
+ * maxIdx    Length of data in buffer.
+ * returns BUFFER_E when there is not enough data to parse.
+ *         ASN_PARSE_E when the INTEGER tag is not found, length is invalid,
+ *         or invalid use of or missing leading zero.
+ *         Otherwise, 0 to indicate success.
+ */
 static int GetASNInt(const byte* input, word32* inOutIdx, int* len,
                      word32 maxIdx)
 {
-    word32 idx = *inOutIdx;
-    byte   b;
-    int    length;
+    int    ret;
 
-    if ((idx + 1) > maxIdx)
-        return BUFFER_E;
+    ret = GetASNHeader(input, ASN_INTEGER, inOutIdx, len, maxIdx);
+    if (ret < 0)
+        return ret;
 
-    b = input[idx++];
-    if (b != ASN_INTEGER)
-        return ASN_PARSE_E;
+    if (*len > 0) {
+        if (input[*inOutIdx] == 0x00) {
+            (*inOutIdx)++;
+            (*len)--;
 
-    if (GetLength(input, &idx, &length, maxIdx) < 0)
-        return ASN_PARSE_E;
-
-    if (length > 0 && input[idx] == 0x00) {
-        idx++;
-        length--;
-
-        if (length > 0 && (input[idx] & 0x80) == 0)
+            if (*len > 0 && (input[*inOutIdx] & 0x80) == 0)
+                return ASN_PARSE_E;
+        }
+        else if ((input[*inOutIdx] & 0x80) == 0x80)
             return ASN_PARSE_E;
     }
 
-    *len = length;
-    *inOutIdx = idx;
     return 0;
 }
 
+/* Get the DER/BER encoding of an ASN.1 INTEGER that has a value of no more than
+ * 7 bits.
+ *
+ * input     Buffer holding DER/BER encoded data.
+ * inOutIdx  Current index into buffer to parse.
+ * maxIdx    Length of data in buffer.
+ * returns BUFFER_E when there is not enough data to parse.
+ *         ASN_PARSE_E when the INTEGER tag is not found or length is invalid.
+ *         Otherwise, the 7-bit value.
+ */
 static int GetInteger7Bit(const byte* input, word32* inOutIdx, word32 maxIdx)
 {
     word32 idx = *inOutIdx;
@@ -725,6 +768,13 @@ static int GetInteger7Bit(const byte* input, word32* inOutIdx, word32 maxIdx)
 }
 
 #if !defined(NO_DSA) || defined(HAVE_ECC) || (!defined(NO_RSA) && (defined(WOLFSSL_CERT_GEN) || (defined(WOLFSSL_KEY_GEN) && !defined(HAVE_USER_RSA))))
+/* Set the DER/BER encoding of the ASN.1 INTEGER header.
+ *
+ * len        Length of data to encode.
+ * firstByte  First byte of data, most significant byte of integer, to encode.
+ * output     Buffer to write into.
+ * returns the number of bytes added to the buffer.
+ */
 static int SetASNInt(int len, byte firstByte, byte* output)
 {
     word32 idx = 0;
@@ -735,55 +785,75 @@ static int SetASNInt(int len, byte firstByte, byte* output)
     idx += SetLength(len, output + idx);
     if (firstByte & 0x80)
         output[idx++] = 0x00;
- 
+
     return idx;
 }
 #endif
 
 #if !defined(NO_DSA) || defined(HAVE_ECC) || (defined(WOLFSSL_KEY_GEN) && !defined(NO_RSA) && !defined(HAVE_USER_RSA))
-static int SetASNIntMP(mp_int* n, byte* output)
+/* Set the DER/BER encoding of the ASN.1 INTEGER element with an mp_int.
+ * The number is assumed to be positive.
+ *
+ * n       Multi-precision integer to encode.
+ * maxSz   Maximum size of the encoded integer.
+ *         A negative value indicates no check of length requested.
+ * output  Buffer to write into.
+ * returns BUFFER_E when the data is too long for the buffer.
+ *         MP_TO_E when encoding the integer fails.
+ *         Otherwise, the number of bytes added to the buffer.
+ */
+static int SetASNIntMP(mp_int* n, int maxSz, byte* output)
 {
-    int nSz = 0;
+    int idx = 0;
     int leadingBit;
-    int rawLen;
+    int length;
     int err;
 
     leadingBit = mp_leading_bit(n);
-    rawLen = mp_unsigned_bin_size(n);
-    nSz = SetASNInt(rawLen, leadingBit ? 0x80 : 0x00, output);
-    if ((nSz + rawLen) > MAX_RSA_INT_SZ)
+    length = mp_unsigned_bin_size(n);
+    idx = SetASNInt(length, leadingBit ? 0x80 : 0x00, output);
+    if (maxSz >= 0 && (idx + length) > maxSz)
         return BUFFER_E;
 
-    err = mp_to_unsigned_bin(n, output + nSz);
+    err = mp_to_unsigned_bin(n, output + idx);
     if (err != MP_OKAY)
         return MP_TO_E;
-    nSz += rawLen;
+    idx += length;
 
-    return nSz;
+    return idx;
 }
 #endif
 
 #if !defined(NO_RSA) && defined(HAVE_USER_RSA) && defined(WOLFSSL_CERT_GEN)
+/* Set the DER/BER encoding of the ASN.1 INTEGER element with an mp_int from
+ * an RSA key.
+ * The number is assumed to be positive.
+ *
+ * n       Multi-precision integer to encode.
+ * output  Buffer to write into.
+ * returns BUFFER_E when the data is too long for the buffer.
+ *         MP_TO_E when encoding the integer fails.
+ *         Otherwise, the number of bytes added to the buffer.
+ */
 static int SetASNIntRSA(mp_int* n, byte* output)
 {
-    int nSz = 0;
+    int idx = 0;
     int leadingBit;
-    int rawLen;
+    int length;
     int err;
 
     leadingBit = wc_Rsa_leading_bit(n);
-    rawLen = wc_Rsa_unsigned_bin_size(n);
-    nSz = SetASNInt(rawLen, leadingBit ? 0x80 : 0x00, output);
-
-    if ((nSz + rawLen) > MAX_RSA_INT_SZ)
+    length = wc_Rsa_unsigned_bin_size(n);
+    idx = SetASNInt(length, leadingBit ? 0x80 : 0x00, output);
+    if ((idx + length) > MAX_RSA_INT_SZ)
         return BUFFER_E;
 
-    err = wc_Rsa_to_unsigned_bin(n, output + nSz, rawLen);
+    err = wc_Rsa_to_unsigned_bin(n, output + idx, length);
     if (err != MP_OKAY)
         return MP_TO_E;
-    nSz += rawLen;
+    idx += length;
 
-    return nSz;
+    return idx;
 }
 #endif /* !NO_RSA && (WOLFSSL_CERT_GEN || (WOLFSSL_KEY_GEN &&
                                            !HAVE_USER_RSA))) */
@@ -929,6 +999,15 @@ static int CheckBitString(const byte* input, word32* inOutIdx, int* len,
 }
 
 #if !defined(NO_RSA) && (defined(WOLFSSL_CERT_GEN) || (defined(WOLFSSL_KEY_GEN) && !defined(HAVE_USER_RSA)))
+/* Set the DER/BER encoding of the ASN.1 BIT_STRING header.
+ *
+ * len         Length of data to encode.
+ * unusedBits  The number of unused bits in the last byte of data.
+ *             That is, the number of least significant zero bits before a one.
+ *             The last byte is the most-significant non-zero byte of a number.
+ * output      Buffer to write into.
+ * returns the number of bytes added to the buffer.
+ */
 static word32 SetBitString(word32 len, byte unusedBits, byte* output)
 {
     word32 idx = 0;
@@ -936,12 +1015,18 @@ static word32 SetBitString(word32 len, byte unusedBits, byte* output)
     output[idx++] = ASN_BIT_STRING;
     idx += SetLength(len + 1, output + idx);
     output[idx++] = unusedBits;
- 
+
     return idx;
 }
 
 #ifdef WOLFSSL_CERT_EXT
-static word32 SetBitString16(word16 val, byte* output)
+/* Set the DER/BER encoding of the ASN.1 BIT_STRING with a 16-bit value.
+ *
+ * val         16-bit value to encode.
+ * output      Buffer to write into.
+ * returns the number of bytes added to the buffer.
+ */
+static word32 SetBitString16Bit(word16 val, byte* output)
 {
     word32 idx;
     int    len;
@@ -1586,6 +1671,17 @@ int DecodeObjectId(const byte* in, word32 inSz, word16* out, word32* outSz)
 }
 #endif /* HAVE_OID_DECODING */
 
+/* Get the DER/BER encoding of an ASN.1 OBJECT_ID header.
+ *
+ * input     Buffer holding DER/BER encoded data.
+ * inOutIdx  Current index into buffer to parse.
+ * len       The number of bytes in the ASN.1 data.
+ * maxIdx    Length of data in buffer.
+ * returns BUFFER_E when there is not enough data to parse.
+ *         ASN_OBJECt_ID_E when the OBJECT_ID tag is not found.
+ *         ASN_PARSE_E when length is invalid.
+ *         Otherwise, 0 to indicate success.
+ */
 static int GetASNObjectId(const byte* input, word32* inOutIdx, int* len,
                           word32 maxIdx)
 {
@@ -1605,10 +1701,15 @@ static int GetASNObjectId(const byte* input, word32* inOutIdx, int* len,
 
     *len = length;
     *inOutIdx = idx;
-
     return 0;
 }
 
+/* Set the DER/BER encoding of the ASN.1 OBJECT_ID header.
+ *
+ * len         Length of the OBJECT_ID data.
+ * output      Buffer to write into.
+ * returns the number of bytes added to the buffer.
+ */
 static int SetObjectId(int len, byte* output)
 {
     int idx = 0;
@@ -1807,7 +1908,7 @@ int ToTraditionalInline(const byte* input, word32* inOutIdx, word32 sz)
     }
 
     ret = GetOctetString(input, &idx, &length, sz);
-    if (ret != 0)
+    if (ret < 0)
         return ret;
 
     *inOutIdx = idx;
@@ -2418,7 +2519,7 @@ int ToTraditionalEnc(byte* input, word32 sz,const char* password,int passwordSz)
     }
 
     ret = GetOctetString(input, &inOutIdx, &saltSz, sz);
-    if (ret != 0)
+    if (ret < 0)
         goto exit_tte;
 
     if (saltSz > MAX_SALT_SIZE) {
@@ -2458,7 +2559,7 @@ int ToTraditionalEnc(byte* input, word32 sz,const char* password,int passwordSz)
         }
 
         ret = GetOctetString(input, &inOutIdx, &length, sz);
-        if (ret != 0)
+        if (ret < 0)
             goto exit_tte;
 
         if (length > MAX_IV_SIZE) {
@@ -2470,7 +2571,7 @@ int ToTraditionalEnc(byte* input, word32 sz,const char* password,int passwordSz)
     }
 
     ret = GetOctetString(input, &inOutIdx, &length, sz);
-    if (ret != 0)
+    if (ret < 0)
         goto exit_tte;
 
     ret = DecryptKey(password, passwordSz, salt, saltSz, iterations, id,
@@ -2535,7 +2636,7 @@ int DecryptContent(byte* input, word32 sz,const char* password,int passwordSz)
     }
 
     ret = GetOctetString(input, &inOutIdx, &saltSz, sz);
-    if (ret != 0)
+    if (ret < 0)
         goto exit_dc;
 
     if (saltSz > MAX_SALT_SIZE) {
@@ -2575,7 +2676,7 @@ int DecryptContent(byte* input, word32 sz,const char* password,int passwordSz)
         }
 
         ret = GetOctetString(input, &inOutIdx, &length, sz);
-        if (ret != 0)
+        if (ret < 0)
             goto exit_dc;
 
         XMEMCPY(cbcIv, &input[inOutIdx], length);
@@ -2864,7 +2965,7 @@ int wc_DsaKeyToDer(DsaKey* key, byte* output, word32 inLen)
             break;
         }
 
-        mpSz = SetASNIntMP(keyInt, tmps[i]);
+        mpSz = SetASNIntMP(keyInt, -1, tmps[i]);
         if (mpSz < 0) {
             ret = mpSz;
             break;
@@ -4899,7 +5000,7 @@ static int DecodeAltNames(byte* input, int sz, DecodedCert* cert)
             idx += strLen;
 
             ret = GetOctetString(input, &idx, &strLen, sz);
-            if (ret != 0)
+            if (ret < 0)
                 return ret;
 
             cert->hwSerialNum = (byte*)XMALLOC(strLen + 1, cert->heap,
@@ -5159,7 +5260,7 @@ static int DecodeSubjKeyId(byte* input, int sz, DecodedCert* cert)
         return ASN_PARSE_E;
 
     ret = GetOctetString(input, &idx, &length, sz);
-    if (ret != 0)
+    if (ret < 0)
         return ret;
 
     #ifdef OPENSSL_EXTRA
@@ -5588,7 +5689,7 @@ static int DecodeCertExtensions(DecodedCert* cert)
 
         /* process the extension based on the OID */
         ret = GetOctetString(input, &idx, &length, sz);
-        if (ret != 0) {
+        if (ret < 0) {
             WOLFSSL_MSG("\tfail: bad OCTET STRING");
             return ret;
         }
@@ -6356,7 +6457,7 @@ static int SetRsaPublicKey(byte* output, RsaKey* key,
 #ifdef HAVE_USER_RSA
     nSz = SetASNIntRSA(key->n, n);
 #else
-    nSz = SetASNIntMP(&key->n, n);
+    nSz = SetASNIntMP(&key->n, MAX_RSA_INT_SZ, n);
 #endif
     if (nSz < 0) {
 #ifdef WOLFSSL_SMALL_STACK
@@ -6379,7 +6480,7 @@ static int SetRsaPublicKey(byte* output, RsaKey* key,
 #ifdef HAVE_USER_RSA
     eSz = SetASNIntRSA(key->e, e);
 #else
-    eSz = SetASNIntMP(&key->e, e);
+    eSz = SetASNIntMP(&key->e, MAX_RSA_INT_SZ, e);
 #endif
     if (eSz < 0) {
 #ifdef WOLFSSL_SMALL_STACK
@@ -6536,7 +6637,7 @@ int wc_RsaKeyToDer(RsaKey* key, byte* output, word32 inLen)
             break;
         }
 
-        mpSz = SetASNIntMP(keyInt, tmps[i]);
+        mpSz = SetASNIntMP(keyInt, MAX_RSA_INT_SZ, tmps[i]);
         if (mpSz < 0) {
             ret = mpSz;
             break;
@@ -7316,7 +7417,7 @@ static int SetKeyUsage(byte* output, word32 outSz, word16 input)
     if (output == NULL)
         return BAD_FUNC_ARG;
 
-    idx = SetBitString16(input, ku);
+    idx = SetBitString16Bit(input, ku);
     return SetOidValue(output, outSz, keyusage_oid, sizeof(keyusage_oid),
                        ku, idx);
 }
@@ -9218,13 +9319,13 @@ int StoreECC_DSA_Sig(byte* out, word32* outLen, mp_int* r, mp_int* s)
     idx = SetSequence(rLen+rLeadingZero+sLen+sLeadingZero+headerSz, out);
 
     /* store r */
-    rSz = SetASNIntMP(r, &out[idx]);
+    rSz = SetASNIntMP(r, -1, &out[idx]);
     if (rSz < 0)
         return rSz;
     idx += rSz;
 
     /* store s */
-    sSz = SetASNIntMP(s, &out[idx]);
+    sSz = SetASNIntMP(s, -1, &out[idx]);
     if (sSz < 0)
         return sSz;
     idx += sSz;
@@ -9650,13 +9751,13 @@ static int DecodeSingleResponse(byte* source,
         return ASN_PARSE_E;
     /* Save reference to the hash of CN */
     ret = GetOctetString(source, &idx, &length, size);
-    if (ret != 0)
+    if (ret < 0)
         return ret;
     resp->issuerHash = source + idx;
     idx += length;
     /* Save reference to the hash of the issuer public key */
     ret = GetOctetString(source, &idx, &length, size);
-    if (ret != 0)
+    if (ret < 0)
         return ret;
     resp->issuerKeyHash = source + idx;
     idx += length;
@@ -9779,13 +9880,13 @@ static int DecodeOcspRespExtensions(byte* source,
         }
 
         ret = GetOctetString(source, &idx, &length, sz);
-        if (ret != 0)
+        if (ret < 0)
             return ret;
 
         if (oid == OCSP_NONCE_OID) {
             /* get data inside extra OCTET_STRING */
             ret = GetOctetString(source, &idx, &length, sz);
-            if (ret != 0)
+            if (ret < 0)
                 return ret;
 
             resp->nonce = source + idx;
@@ -10037,7 +10138,7 @@ int OcspResponseDecode(OcspResponse* resp, void* cm, void* heap, int noVerify)
     if (oid != OCSP_BASIC_OID)
         return ASN_PARSE_E;
     ret = GetOctetString(source, &idx, &length, size);
-    if (ret != 0)
+    if (ret < 0)
         return ret;
 
     ret = DecodeBasicOcspResponse(source, &idx, resp, size, cm, heap, noVerify);
