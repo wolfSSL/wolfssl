@@ -41,6 +41,9 @@
     #include <wolfcrypt/src/misc.c>
 #endif
 
+#ifdef FE_128BIT
+#include "fe_x25519.c"
+#else
 /*
 fe means field element.
 Here the field is \Z/(2^255-19).
@@ -1407,6 +1410,7 @@ void fe_cmov(fe f, const fe g, int b)
   f[8] = f8 ^ x8;
   f[9] = f9 ^ x9;
 }
+#endif
 #endif /* HAVE ED25519 or CURVE25519 */
 #endif /* not defined CURVED25519_SMALL */
 

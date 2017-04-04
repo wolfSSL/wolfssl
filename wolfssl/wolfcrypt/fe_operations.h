@@ -43,6 +43,8 @@ Bounds on each t[i] vary depending on context.
 #ifdef CURVED25519_SMALL
     #define F25519_SIZE	32
     typedef byte     fe[32];
+#elif defined(FE_128BIT)
+    typedef int64_t  fe[5];
 #else
     typedef int32_t  fe[10];
 #endif
