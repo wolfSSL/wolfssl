@@ -1100,6 +1100,8 @@ static INLINE unsigned int my_psk_server_cb(WOLFSSL* ssl, const char* identity,
 
 
 #if !defined(NO_CERTS)
+    #if !defined(NO_FILESYSTEM) || \
+        (defined(NO_FILESYSTEM) && defined(FORCE_BUFFER_TEST))
 
     /* reads file size, allocates buffer, reads into buffer, returns buffer */
     static INLINE int load_file(const char* fname, byte** buf, size_t* bufLen)
@@ -1145,7 +1147,6 @@ static INLINE unsigned int my_psk_server_cb(WOLFSSL* ssl, const char* identity,
         return ret;
     }
 
-    #if defined(NO_FILESYSTEM) && defined(FORCE_BUFFER_TEST)
     enum {
         WOLFSSL_CA   = 1,
         WOLFSSL_CERT = 2,
@@ -1159,8 +1160,7 @@ static INLINE unsigned int my_psk_server_cb(WOLFSSL* ssl, const char* identity,
         byte* buff = NULL;
         size_t sz = 0;
 
-        ret = load_file(fname, &buff, &sz);
-        if (ret != 0) {
+        if (load_file(fname, &buff, &sz) != 0) {
             err_sys("can't open file for buffer load "
                     "Please run from wolfSSL home directory if not");
         }
@@ -1193,8 +1193,7 @@ static INLINE unsigned int my_psk_server_cb(WOLFSSL* ssl, const char* identity,
         if (buff)
             free(buff);
     }
-    #endif /* NO_FILESYSTEM && FORCE_BUFFER_TEST */
-
+    #endif /* !NO_FILESYSTEM || (NO_FILESYSTEM && FORCE_BUFFER_TEST) */
 #endif /* !NO_CERTS */
 
 #ifdef VERIFY_CALLBACK
