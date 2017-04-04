@@ -534,14 +534,14 @@ static int ExportKeyState(WOLFSSL* ssl, byte* exp, word32 len, byte ver)
     c32toa(keys->sequence_number_hi, exp + idx);      idx += OPAQUE32_LEN;
     c32toa(keys->sequence_number_lo, exp + idx);      idx += OPAQUE32_LEN;
 
-    c16toa(keys->nextEpoch, exp + idx);  idx += OPAQUE16_LEN;
-    c16toa(keys->nextSeq_hi, exp + idx); idx += OPAQUE16_LEN;
-    c32toa(keys->nextSeq_lo, exp + idx); idx += OPAQUE32_LEN;
+    c16toa(keys->peerSeq[0].nextEpoch, exp + idx);  idx += OPAQUE16_LEN;
+    c16toa(keys->peerSeq[0].nextSeq_hi, exp + idx); idx += OPAQUE16_LEN;
+    c32toa(keys->peerSeq[0].nextSeq_lo, exp + idx); idx += OPAQUE32_LEN;
     c16toa(keys->curEpoch, exp + idx);   idx += OPAQUE16_LEN;
     c16toa(keys->curSeq_hi, exp + idx);  idx += OPAQUE16_LEN;
     c32toa(keys->curSeq_lo, exp + idx);  idx += OPAQUE32_LEN;
-    c16toa(keys->prevSeq_hi, exp + idx); idx += OPAQUE16_LEN;
-    c32toa(keys->prevSeq_lo, exp + idx); idx += OPAQUE32_LEN;
+    c16toa(keys->peerSeq[0].prevSeq_hi, exp + idx); idx += OPAQUE16_LEN;
+    c32toa(keys->peerSeq[0].prevSeq_lo, exp + idx); idx += OPAQUE32_LEN;
 
     c16toa(keys->dtls_peer_handshake_number, exp + idx); idx += OPAQUE16_LEN;
     c16toa(keys->dtls_expected_peer_handshake_number, exp + idx);
@@ -563,12 +563,12 @@ static int ExportKeyState(WOLFSSL* ssl, byte* exp, word32 len, byte ver)
 
         c16toa(WOLFSSL_DTLS_WINDOW_WORDS, exp + idx); idx += OPAQUE16_LEN;
         for (i = 0; i < WOLFSSL_DTLS_WINDOW_WORDS; i++) {
-            c32toa(keys->window[i], exp + idx);
+            c32toa(keys->peerSeq[0].window[i], exp + idx);
             idx += OPAQUE32_LEN;
         }
         c16toa(WOLFSSL_DTLS_WINDOW_WORDS, exp + idx); idx += OPAQUE16_LEN;
         for (i = 0; i < WOLFSSL_DTLS_WINDOW_WORDS; i++) {
-            c32toa(keys->prevWindow[i], exp + idx);
+            c32toa(keys->peerSeq[0].prevWindow[i], exp + idx);
             idx += OPAQUE32_LEN;
         }
     }
@@ -672,14 +672,14 @@ static int ImportKeyState(WOLFSSL* ssl, byte* exp, word32 len, byte ver)
     ato32(exp + idx, &keys->sequence_number_hi);      idx += OPAQUE32_LEN;
     ato32(exp + idx, &keys->sequence_number_lo);      idx += OPAQUE32_LEN;
 
-    ato16(exp + idx, &keys->nextEpoch);  idx += OPAQUE16_LEN;
-    ato16(exp + idx, &keys->nextSeq_hi); idx += OPAQUE16_LEN;
-    ato32(exp + idx, &keys->nextSeq_lo); idx += OPAQUE32_LEN;
+    ato16(exp + idx, &keys->peerSeq[0].nextEpoch);  idx += OPAQUE16_LEN;
+    ato16(exp + idx, &keys->peerSeq[0].nextSeq_hi); idx += OPAQUE16_LEN;
+    ato32(exp + idx, &keys->peerSeq[0].nextSeq_lo); idx += OPAQUE32_LEN;
     ato16(exp + idx, &keys->curEpoch);   idx += OPAQUE16_LEN;
     ato16(exp + idx, &keys->curSeq_hi);  idx += OPAQUE16_LEN;
     ato32(exp + idx, &keys->curSeq_lo);  idx += OPAQUE32_LEN;
-    ato16(exp + idx, &keys->prevSeq_hi); idx += OPAQUE16_LEN;
-    ato32(exp + idx, &keys->prevSeq_lo); idx += OPAQUE32_LEN;
+    ato16(exp + idx, &keys->peerSeq[0].prevSeq_hi); idx += OPAQUE16_LEN;
+    ato32(exp + idx, &keys->peerSeq[0].prevSeq_lo); idx += OPAQUE32_LEN;
 
     ato16(exp + idx, &keys->dtls_peer_handshake_number); idx += OPAQUE16_LEN;
     ato16(exp + idx, &keys->dtls_expected_peer_handshake_number);
@@ -708,9 +708,9 @@ static int ImportKeyState(WOLFSSL* ssl, byte* exp, word32 len, byte ver)
             wordAdj = (WOLFSSL_DTLS_WINDOW_WORDS - wordCount) * sizeof(word32);
         }
 
-        XMEMSET(keys->window, 0xFF, DTLS_SEQ_SZ);
+        XMEMSET(keys->peerSeq[0].window, 0xFF, DTLS_SEQ_SZ);
         for (i = 0; i < wordCount; i++) {
-            ato32(exp + idx, &keys->window[i]);
+            ato32(exp + idx, &keys->peerSeq[0].window[i]);
             idx += OPAQUE32_LEN;
         }
         idx += wordAdj;
@@ -724,9 +724,9 @@ static int ImportKeyState(WOLFSSL* ssl, byte* exp, word32 len, byte ver)
             wordAdj = (WOLFSSL_DTLS_WINDOW_WORDS - wordCount) * sizeof(word32);
         }
 
-        XMEMSET(keys->prevWindow, 0xFF, DTLS_SEQ_SZ);
+        XMEMSET(keys->peerSeq[0].prevWindow, 0xFF, DTLS_SEQ_SZ);
         for (i = 0; i < wordCount; i++) {
-            ato32(exp + idx, &keys->prevWindow[i]);
+            ato32(exp + idx, &keys->peerSeq[0].prevWindow[i]);
             idx += OPAQUE32_LEN;
         }
         idx += wordAdj;
