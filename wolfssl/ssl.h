@@ -2564,7 +2564,7 @@ typedef int (*CallbackSniRecv)(WOLFSSL *ssl, int *ret, void* exArg);
 
 WOLFSSL_API int wolfSSL_CRYPTO_set_mem_ex_functions(void *(*m) (size_t, const char *, int),
     void *(*r) (void *, size_t, const char *, int), void (*f) (void *));
-    
+
 WOLFSSL_API void wolfSSL_CRYPTO_cleanup_all_ex_data(void);
 
 WOLFSSL_API WOLFSSL_DH *wolfSSL_DH_generate_parameters(int prime_len, int generator,
@@ -2678,12 +2678,8 @@ typedef void (*SSL_Msg_Cb)(int write_p, int version, int content_type,
 
 WOLFSSL_API int wolfSSL_CTX_set_msg_callback(WOLFSSL_CTX *ctx, SSL_Msg_Cb cb);
 WOLFSSL_API int wolfSSL_set_msg_callback(WOLFSSL *ssl, SSL_Msg_Cb cb);
-WOLFSSL_API void wolfSSL_CTX_set_msg_callback_arg(WOLFSSL_CTX *ctx, void* arg);
-WOLFSSL_API void wolfSSL_set_msg_callback_arg(WOLFSSL *ssl, void* arg);
-
-#endif
-
-#ifdef OPENSSL_EXTRA
+WOLFSSL_API int wolfSSL_CTX_set_msg_callback_arg(WOLFSSL_CTX *ctx, void* arg);
+WOLFSSL_API int wolfSSL_set_msg_callback_arg(WOLFSSL *ssl, void* arg);
 WOLFSSL_API unsigned long wolfSSL_ERR_peek_error_line_data(const char **file,
     int *line, const char **data, int *flags);
 WOLFSSL_API int wolfSSL_CTX_set_alpn_protos(WOLFSSL_CTX *ctx,
@@ -2693,7 +2689,12 @@ WOLFSSL_API void *wolfSSL_OPENSSL_memdup(const void *data,
 WOLFSSL_API void wolfSSL_ERR_load_BIO_strings(void);
 #endif
 
-#if defined WOLFSSL_NGINX || defined WOLFSSL_HAPROXY
+#if defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY) || \
+    defined(OPENSSL_EXTRA)
+WOLFSSL_API void wolfSSL_OPENSSL_config(char *config_name);
+#endif
+
+#if defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
 /* Not an OpenSSL API. */
 WOLFSSL_LOCAL int wolfSSL_get_ocsp_response(WOLFSSL* ssl, byte** response);
 /* Not an OpenSSL API. */
@@ -2702,7 +2703,6 @@ WOLFSSL_LOCAL char* wolfSSL_get_ocsp_url(WOLFSSL* ssl);
 WOLFSSL_API int wolfSSL_set_ocsp_url(WOLFSSL* ssl, char* url);
 
 WOLFSSL_API WOLF_STACK_OF(WOLFSSL_CIPHER) *wolfSSL_get_ciphers_compat(const WOLFSSL *ssl);
-WOLFSSL_API void wolfSSL_OPENSSL_config(char *config_name);
 WOLFSSL_API int wolfSSL_X509_get_ex_new_index(int idx, void *arg, void *a,
     void *b, void *c);
 WOLFSSL_API void *wolfSSL_X509_get_ex_data(WOLFSSL_X509 *x509, int idx);

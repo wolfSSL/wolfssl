@@ -14224,7 +14224,6 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
         /* nothing to do here */
     }
 
-    #ifndef NO_WOLFSSL_STUB
     int wolfSSL_clear(WOLFSSL* ssl)
     {
         if (ssl == NULL) {
@@ -14277,7 +14276,6 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
 
         return WOLFSSL_SUCCESS;
     }
-    #endif
 
     long wolfSSL_SSL_SESSION_set_timeout(WOLFSSL_SESSION* ses, long t)
     {
@@ -14349,7 +14347,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
                                            const unsigned char* sid_ctx,
                                            unsigned int sid_ctx_len)
     {
-        WOLFSSL_STUB("SSL_CTX_set_session_id_context");
+        WOLFSSL_ENTER("SSL_CTX_set_session_id_context");
 
         /* No application specific context needed for wolfSSL */
         if (sid_ctx_len > ID_LEN || ctx == NULL || sid_ctx == NULL) {
@@ -17164,7 +17162,6 @@ int wolfSSL_X509_LOOKUP_add_dir(WOLFSSL_X509_LOOKUP* lookup, const char* dir,
 }
 #endif
 
-#ifndef NO_WOLFSSL_STUB
 int wolfSSL_X509_LOOKUP_load_file(WOLFSSL_X509_LOOKUP* lookup,
                                  const char* file, long type)
 {
@@ -17255,16 +17252,13 @@ end:
     return WOLFSSL_FAILURE;
 #endif
 }
-#endif
 
-#ifndef NO_WOLFSSL_STUB
 WOLFSSL_X509_LOOKUP_METHOD* wolfSSL_X509_LOOKUP_hash_dir(void)
 {
     /* Method implementation in functions. */
     static WOLFSSL_X509_LOOKUP_METHOD meth = { 1 };
     return &meth;
 }
-#endif
 
 WOLFSSL_X509_LOOKUP_METHOD* wolfSSL_X509_LOOKUP_file(void)
 {
@@ -19005,7 +18999,6 @@ WOLFSSL_API long wolfSSL_get_tlsext_status_ocsp_resp(WOLFSSL *s, unsigned char *
     *resp = s->ocspResp;
     return s->ocspRespSz;
 }
-#endif
 
 WOLFSSL_API long wolfSSL_set_tlsext_status_ocsp_resp(WOLFSSL *s, unsigned char *resp, int len)
 {
@@ -19017,6 +19010,7 @@ WOLFSSL_API long wolfSSL_set_tlsext_status_ocsp_resp(WOLFSSL *s, unsigned char *
 
     return WOLFSSL_SUCCESS;
 }
+#endif /* HAVE_OCSP */
 
 long wolfSSL_get_verify_result(const WOLFSSL *ssl)
 {
@@ -19804,7 +19798,6 @@ void* wolfSSL_sk_value(WOLFSSL_X509_REVOKED* rev, int i)
 #endif
 
 /* stunnel 4.28 needs */
-#ifndef NO_WOLFSSL_STUB
 void wolfSSL_CTX_sess_set_get_cb(WOLFSSL_CTX* ctx,
                     WOLFSSL_SESSION*(*f)(WOLFSSL*, unsigned char*, int, int*))
 {
@@ -19815,9 +19808,7 @@ void wolfSSL_CTX_sess_set_get_cb(WOLFSSL_CTX* ctx,
     (void)f;
 #endif
 }
-#endif
 
-#ifndef NO_WOLFSSL_STUB
 void wolfSSL_CTX_sess_set_new_cb(WOLFSSL_CTX* ctx,
                              int (*f)(WOLFSSL*, WOLFSSL_SESSION*))
 {
@@ -19828,9 +19819,7 @@ void wolfSSL_CTX_sess_set_new_cb(WOLFSSL_CTX* ctx,
     (void)f;
 #endif
 }
-#endif
 
-#ifndef NO_WOLFSSL_STUB
 void wolfSSL_CTX_sess_set_remove_cb(WOLFSSL_CTX* ctx, void (*f)(WOLFSSL_CTX*,
                                                         WOLFSSL_SESSION*))
 {
@@ -19841,7 +19830,6 @@ void wolfSSL_CTX_sess_set_remove_cb(WOLFSSL_CTX* ctx, void (*f)(WOLFSSL_CTX*,
     (void)f;
 #endif
 }
-#endif
 
 /*
  *
@@ -27915,7 +27903,7 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
     int wolfSSL_OBJ_obj2nid(const WOLFSSL_ASN1_OBJECT *o) {
         (void)o;
         WOLFSSL_ENTER("wolfSSL_OBJ_obj2nid");
-        WOLFSSL_STUB("wolfSSL_OBJ_obj2nid");
+        WOLFSSL_STUB("OBJ_obj2nid");
 
         return 0;
     }
@@ -27926,7 +27914,7 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
     {
         (void)n;
         WOLFSSL_ENTER("wolfSSL_OBJ_nid2ln");
-        WOLFSSL_STUB("wolfSSL_OBJ_nid2ln");
+        WOLFSSL_STUB("OBJ_nid2ln");
 
         return NULL;
     }
@@ -27936,12 +27924,11 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
     int wolfSSL_OBJ_txt2nid(const char* s)
     {
         (void)s;
-        WOLFSSL_STUB("wolfSSL_OBJ_txt2nid");
+        WOLFSSL_STUB("OBJ_txt2nid");
 
         return 0;
     }
 #endif
-
 
     /* compatibility function. It's intended use is to remove OID's from an
      * internal table that have been added with OBJ_create. wolfSSL manages it's
@@ -28944,7 +28931,6 @@ int wolfSSL_sk_X509_num(const WOLF_STACK_OF(WOLFSSL_X509) *s)
     return (int)s->num;
 }
 
-
 int wolfSSL_X509_NAME_print_ex(WOLFSSL_BIO* bio, WOLFSSL_X509_NAME* name,
                 int indent, unsigned long flags)
 {
@@ -29667,19 +29653,25 @@ unsigned long wolfSSL_ERR_peek_error_line_data(const char **file, int *line,
 
 #if defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
 
+#ifndef NO_WOLFSSL_STUB
 WOLF_STACK_OF(WOLFSSL_CIPHER) *wolfSSL_get_ciphers_compat(const WOLFSSL *ssl)
 {
     (void)ssl;
     WOLFSSL_STUB("wolfSSL_get_ciphers_compat");
     return NULL;
 }
+#endif
 
+#ifndef NO_WOLFSSL_STUB
 void wolfSSL_OPENSSL_config(char *config_name)
 {
-    WOLFSSL_STUB("wolfSSL_OPENSSL_config");
     (void)config_name;
+    WOLFSSL_STUB("OPENSSL_config");
 }
+#endif
+#endif
 
+#ifdef WOLFSSL_NGINX
 int wolfSSL_X509_get_ex_new_index(int idx, void *arg, void *a, void *b, void *c)
 {
     static int x509_idx = 0;
@@ -30471,20 +30463,20 @@ int wolfSSL_set_msg_callback(WOLFSSL *ssl, SSL_Msg_Cb cb)
 }
 
 #ifndef NO_WOLFSSL_STUB
-void wolfSSL_CTX_set_msg_callback_arg(WOLFSSL_CTX *ctx, void* arg)
+int wolfSSL_CTX_set_msg_callback_arg(WOLFSSL_CTX *ctx, void* arg)
 {
     WOLFSSL_STUB("SSL_CTX_set_msg_callback_arg");
     (void)ctx;
     (void)arg;
-    return;
+    return WOLFSSL_FAILURE;
 }
 #endif
 
-void wolfSSL_set_msg_callback_arg(WOLFSSL *ssl, void* arg)
+int wolfSSL_set_msg_callback_arg(WOLFSSL *ssl, void* arg)
 {
     WOLFSSL_ENTER("wolfSSL_set_msg_callback_arg");
     ssl->protoMsgCtx = arg;
-    return;
+    return WOLFSSL_SUCCESS;
 }
 
 void *wolfSSL_OPENSSL_memdup(const void *data, size_t siz, const char* file, int line)
