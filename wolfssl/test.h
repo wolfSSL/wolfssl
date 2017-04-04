@@ -1104,12 +1104,21 @@ static INLINE unsigned int my_psk_server_cb(WOLFSSL* ssl, const char* identity,
     /* reads file size, allocates buffer, reads into buffer, returns buffer */
     static INLINE int load_file(const char* fname, byte** buf, size_t* bufLen)
     {
-        int ret = 0;
-        FILE* file = fopen(fname, "rb");
+        int ret;
+        FILE* file;
 
+        if (fname == NULL || buf == NULL || bufLen == NULL)
+            return BAD_FUNC_ARG;
+
+        /* set defaults */
+        *buf = NULL;
+        *bufLen = 0;
+
+        /* open file (read-only binary) */
+        file = fopen(fname, "rb");
         if (!file) {
             printf("Error loading %s\n", fname);
-            return -1;
+            return BAD_PATH_ERROR;
         }
 
         fseek(file, 0, SEEK_END);
@@ -1127,6 +1136,9 @@ static INLINE unsigned int my_psk_server_cb(WOLFSSL* ssl, const char* identity,
                 /* check response code */
                 ret = (readLen > 0) ? 0 : -1;
             }
+        }
+        else {
+            ret = BUFFER_E;
         }
         fclose(file);
 
