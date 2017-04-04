@@ -13944,7 +13944,7 @@ static void test_wolfSSL_PEM_PrivateKey(void)
     #ifdef HAVE_ECC
     {
         unsigned char buf[2048];
-        int bytes;
+        size_t bytes;
         XFILE f;
         SSL_CTX* ctx;
 
