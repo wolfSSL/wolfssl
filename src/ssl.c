@@ -7110,32 +7110,47 @@ WOLFSSL_EVP_PKEY* wolfSSL_d2i_PrivateKey(int type, WOLFSSL_EVP_PKEY** out,
         XMEMCPY(local->pkey.ptr, *in + idx, inSz - idx);
     }
 
-    if (out != NULL) {
-        *out = local;
-    }
-
 #ifndef NO_RSA
     if (type == EVP_PKEY_RSA && local != NULL){
         local->ownRsa = 1;
         local->rsa = wolfSSL_RSA_new();
         if (local->rsa == NULL) {
-            XFREE(local, NULL, DYNAMIC_TYPE_PUBLIC_KEY);
+            wolfSSL_EVP_PKEY_free(local);
             return NULL;
         }
         if (wolfSSL_RSA_LoadDer_ex(local->rsa,
                   (const unsigned char*)local->pkey.ptr, local->pkey_sz,
                   WOLFSSL_RSA_LOAD_PRIVATE) != SSL_SUCCESS) {
-            XFREE(local, NULL, DYNAMIC_TYPE_PUBLIC_KEY);
-            wolfSSL_RSA_free(local->rsa);
+            wolfSSL_EVP_PKEY_free(local);
             return NULL;
       }
     }
 #endif /* NO_RSA */
+#ifdef HAVE_ECC
+    if (type == EVP_PKEY_EC && local != NULL){
+        local->ownEcc = 1;
+        local->ecc = wolfSSL_EC_KEY_new();
+        if (local->ecc == NULL) {
+            wolfSSL_EVP_PKEY_free(local);
+            return NULL;
+        }
+        if (wolfSSL_EC_KEY_LoadDer(local->ecc,
+                  (const unsigned char*)local->pkey.ptr, local->pkey_sz)
+                  != SSL_SUCCESS) {
+            wolfSSL_EVP_PKEY_free(local);
+            return NULL;
+      }
+    }
+#endif /* HAVE_ECC */
 
     /* advance pointer with success */
     if (local != NULL) {
         if ((idx + local->pkey_sz) <= (word32)inSz) {
             *in = *in + idx + local->pkey_sz;
+        }
+
+        if (out != NULL) {
+            *out = local;
         }
     }
 
@@ -26022,7 +26037,8 @@ WOLFSSL_EVP_PKEY* wolfSSL_PEM_read_bio_PrivateKey(WOLFSSL_BIO* bio,
         const unsigned char* ptr = der->buffer;
 
         /* write left over data back to bio */
-        if ((memSz - (int)info->consumed) > 0) {
+        if ((memSz - (int)info->consumed) > 0 &&
+                bio->type != WOLFSSL_BIO_FILE) {
             if (wolfSSL_BIO_write(bio, mem + (int)info->consumed,
                                    memSz - (int)info->consumed) <= 0) {
                 WOLFSSL_MSG("Unable to advance bio read pointer");
@@ -26030,10 +26046,10 @@ WOLFSSL_EVP_PKEY* wolfSSL_PEM_read_bio_PrivateKey(WOLFSSL_BIO* bio,
         }
 
         if (eccFlag) {
-            type = ECDSAk;
+            type = EVP_PKEY_EC;
         }
         else {
-            type = RSAk;
+            type = EVP_PKEY_RSA;
         }
 
         /* handle case where reuse is attempted */
@@ -26062,12 +26078,30 @@ WOLFSSL_EVP_PKEY* wolfSSL_PEM_read_bio_PrivateKey(WOLFSSL_BIO* bio,
 }
 
 
+/* return of pkey->type which will be EVP_PKEY_RSA for example.
+ *
+ * type  type of EVP_PKEY
+ *
+ * returns type or if type is not found then NID_undef
+ */
 int wolfSSL_EVP_PKEY_type(int type)
 {
-    (void) type;
-    WOLFSSL_MSG("wolfSSL_EVP_PKEY_type always returns EVP_PKEY_RSA");
-    return EVP_PKEY_RSA;
+    WOLFSSL_MSG("wolfSSL_EVP_PKEY_type");
+
+    switch (type) {
+    #ifdef OPENSSL_EXTRA
+        case EVP_PKEY_RSA:
+            return EVP_PKEY_RSA;
+        case EVP_PKEY_DSA:
+            return EVP_PKEY_DSA;
+        case EVP_PKEY_EC:
+            return EVP_PKEY_EC;
+    #endif
+        default:
+            return NID_undef;
+    }
 }
+
 
 int wolfSSL_EVP_PKEY_base_id(const EVP_PKEY *pkey)
 {
@@ -28084,9 +28118,15 @@ int wolfSSL_CTX_use_PrivateKey(WOLFSSL_CTX *ctx, WOLFSSL_EVP_PKEY *pkey)
         return WOLFSSL_FAILURE;
     }
 
-    return wolfSSL_CTX_use_PrivateKey_buffer(ctx,
+    if (pkey->pkey.ptr != NULL) {
+        /* ptr for WOLFSSL_EVP_PKEY struct is expected to be DER format */
+        return wolfSSL_CTX_use_PrivateKey_buffer(ctx,
                                        (const unsigned char*)pkey->pkey.ptr,
-                                       pkey->pkey_sz, PRIVATEKEY_TYPE);
+                                       pkey->pkey_sz, SSL_FILETYPE_ASN1);
+    }
+
+    WOLFSSL_MSG("wolfSSL private key not set");
+    return BAD_FUNC_ARG;
 }
 #endif /* !NO_CERTS */
 

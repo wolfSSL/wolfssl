@@ -472,8 +472,14 @@ static INLINE int PasswordCallBack(char* passwd, int sz, int rw, void* userdata)
 {
     (void)rw;
     (void)userdata;
-    strncpy(passwd, "yassl123", sz);
-    return 8;
+    if (userdata != NULL) {
+        strncpy(passwd, (char*)userdata, sz);
+        return (int)XSTRLEN((char*)userdata);
+    }
+    else {
+        strncpy(passwd, "yassl123", sz);
+        return 8;
+    }
 }
 
 #endif

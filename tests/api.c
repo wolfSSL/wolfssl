@@ -13872,6 +13872,10 @@ static void test_wolfSSL_PEM_PrivateKey(void)
     AssertNotNull(bio = wolfSSL_BIO_new(wolfSSL_BIO_s_mem()));
     AssertIntEQ(BIO_set_write_buf_size(bio, 4096), SSL_FAILURE);
 
+    AssertNull(d2i_PrivateKey(EVP_PKEY_EC, &pkey,
+            &server_key, (long)sizeof_server_key_der_2048));
+    AssertNull(pkey);
+
     AssertNotNull(wolfSSL_d2i_PrivateKey(EVP_PKEY_RSA, &pkey,
             &server_key, (long)sizeof_server_key_der_2048));
     AssertIntEQ(PEM_write_bio_PrivateKey(bio, pkey, NULL, NULL, 0, NULL, NULL),
@@ -13899,6 +13903,68 @@ static void test_wolfSSL_PEM_PrivateKey(void)
     BIO_free(bio);
     EVP_PKEY_free(pkey);
     EVP_PKEY_free(pkey2);
+
+    #if !defined(NO_DES3) /* key is DES encrypted */
+    {
+        pem_password_cb* passwd_cb;
+        void* passwd_cb_userdata;
+        SSL_CTX* ctx;
+        char passwd[] = "bad password";
+
+        AssertNotNull(ctx = SSL_CTX_new(TLSv1_2_server_method()));
+
+        AssertNotNull(bio = BIO_new_file("./certs/server-keyEnc.pem", "rb"));
+        SSL_CTX_set_default_passwd_cb(ctx, &PasswordCallBack);
+        AssertNotNull(passwd_cb = SSL_CTX_get_default_passwd_cb(ctx));
+        AssertNull(passwd_cb_userdata =
+            SSL_CTX_get_default_passwd_cb_userdata(ctx));
+
+        /* fail case with password call back */
+        AssertNull(pkey = PEM_read_bio_PrivateKey(bio, NULL, NULL,
+                    (void*)passwd));
+        BIO_free(bio);
+        AssertNotNull(bio = BIO_new_file("./certs/server-keyEnc.pem", "rb"));
+        AssertNull(pkey = PEM_read_bio_PrivateKey(bio, NULL, passwd_cb,
+                    (void*)passwd));
+        BIO_free(bio);
+        AssertNotNull(bio = BIO_new_file("./certs/server-keyEnc.pem", "rb"));
+
+        /* use callback that works */
+        AssertNotNull(pkey = PEM_read_bio_PrivateKey(bio, NULL, passwd_cb,
+                (void*)"yassl123"));
+
+        AssertIntEQ(SSL_CTX_use_PrivateKey(ctx, pkey), SSL_SUCCESS);
+
+        EVP_PKEY_free(pkey);
+        BIO_free(bio);
+        SSL_CTX_free(ctx);
+    }
+    #endif /* !defined(NO_DES3) */
+
+    #ifdef HAVE_ECC
+    {
+        unsigned char buf[2048];
+        int bytes;
+        XFILE f;
+        SSL_CTX* ctx;
+
+        AssertNotNull(ctx = SSL_CTX_new(TLSv1_2_server_method()));
+
+        AssertNotNull(f = XFOPEN("./certs/ecc-key.der", "rb"));
+        bytes = XFREAD(buf, 1, sizeof(buf), f);
+        XFCLOSE(f);
+
+        server_key = buf;
+        pkey = NULL;
+        AssertNull(d2i_PrivateKey(EVP_PKEY_RSA, &pkey, &server_key, bytes));
+        AssertNull(pkey);
+        AssertNotNull(d2i_PrivateKey(EVP_PKEY_EC, &pkey, &server_key, bytes));
+        AssertIntEQ(SSL_CTX_use_PrivateKey(ctx, pkey), SSL_SUCCESS);
+
+        EVP_PKEY_free(pkey);
+        SSL_CTX_free(ctx);
+    }
+    #endif
 
     printf(resultFmt, passed);
     #endif /* defined(OPENSSL_EXTRA) && !defined(NO_CERTS) */
@@ -14109,7 +14175,7 @@ static void test_wolfSSL_CTX_add_extra_chain_cert(void)
      * allowed with user RSA */
     {
         EVP_PKEY* pkey;
-        #if defined(HAVE_ECC) && defined(USE_CERT_BUFFERS_256)
+        #if defined(HAVE_ECC)
         X509* ecX509;
         #endif /* HAVE_ECC */
 
@@ -14119,10 +14185,15 @@ static void test_wolfSSL_CTX_add_extra_chain_cert(void)
 
         EVP_PKEY_free(pkey);
 
-        #if defined(HAVE_ECC) && defined(USE_CERT_BUFFERS_256)
+        #if defined(HAVE_ECC)
+        #if defined(USE_CERT_BUFFERS_256)
         AssertNotNull(ecX509 = wolfSSL_X509_load_certificate_buffer(
                     cliecc_cert_der_256, sizeof_cliecc_cert_der_256,
                     SSL_FILETYPE_ASN1));
+        #else
+        AssertNotNull(ecX509 = wolfSSL_X509_load_certificate_file(cliEccCertFile,
+                    SSL_FILETYPE_PEM));
+        #endif
         AssertNotNull(pkey = X509_get_pubkey(ecX509));
         /* current ECC key is 256 bit (32 bytes) */
         AssertIntEQ(EVP_PKEY_size(pkey), 32);
@@ -15555,7 +15626,7 @@ static void test_wolfSSL_BIO_write(void)
     char out[40];
     char expected[] = "Y29udmVyc2lvbiB0ZXN0AA==\n";
 
-    printf(testingFmt, "BIO_write()");
+    printf(testingFmt, "wolfSSL_BIO_write()");
 
     AssertNotNull(bio64 = BIO_new(BIO_f_base64()));
     AssertNotNull(bio   = BIO_push(bio64, BIO_new(BIO_s_mem())));

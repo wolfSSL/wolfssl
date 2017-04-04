@@ -2572,6 +2572,11 @@ int ToTraditionalEnc(byte* input, word32 sz,const char* password,int passwordSz)
     byte   cbcIv[MAX_IV_SIZE];
 #endif
 
+    if (passwordSz < 0) {
+        WOLFSSL_MSG("Bad password size");
+        return BAD_FUNC_ARG;
+    }
+
     if (GetSequence(input, &inOutIdx, &length, sz) < 0) {
         ERROR_OUT(ASN_PARSE_E, exit_tte);
     }
