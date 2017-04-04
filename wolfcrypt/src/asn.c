@@ -4164,13 +4164,13 @@ int wc_GetCTC_HashOID(int type)
     };
 }
 
-/* return true (1) or false (0) for Confirmation */
+/* return 0=success, else failure */
 static int ConfirmSignature(const byte* buf, word32 bufSz,
     const byte* key, word32 keySz, word32 keyOID,
     const byte* sig, word32 sigSz, word32 sigOID,
     void* heap)
 {
-    int  typeH = 0, digestSz = 0, ret = 0;
+    int  typeH = 0, digestSz = 0, ret = -1;
 #ifdef WOLFSSL_SMALL_STACK
     byte* digest;
 #else
@@ -4180,7 +4180,7 @@ static int ConfirmSignature(const byte* buf, word32 bufSz,
 #ifdef WOLFSSL_SMALL_STACK
     digest = (byte*)XMALLOC(WC_MAX_DIGEST_SIZE, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (digest == NULL)
-        return 0; /* not confirmed */
+        return MEMORY_E;
 #endif
 
     (void)key;
@@ -4260,7 +4260,7 @@ static int ConfirmSignature(const byte* buf, word32 bufSz,
 #ifdef WOLFSSL_SMALL_STACK
         XFREE(digest, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
-        return 0; /* not confirmed */
+        return ALGO_ID_E;
     }
 
     switch (keyOID) {
@@ -4328,21 +4328,26 @@ static int ConfirmSignature(const byte* buf, word32 bufSz,
                     WOLFSSL_MSG("Rsa SSL verify error");
                 }
                 else {
+                #ifdef WOLFSSL_DEBUG_ENCODING
+                    int x;
+                #endif
                     verifySz = ret;
-                    /* make sure we're right justified */
-                    encodedSigSz =
-                        wc_EncodeSignature(encodedSig, digest, digestSz, typeH);
-                    if (encodedSigSz != verifySz ||
-                                XMEMCMP(out, encodedSig, encodedSigSz) != 0) {
-                        WOLFSSL_MSG("Rsa SSL verify match encode error");
-                    }
-                    else
-                        ret = 1; /* match */
+
+                    ret = wc_EncodeSignature(encodedSig, digest, digestSz, typeH);
+                    if (ret > 0) {
+                        encodedSigSz = ret;
+
+                        /* check length to make sure we're right justified */
+                        if (encodedSigSz == verifySz &&
+                                XMEMCMP(out, encodedSig, encodedSigSz) == 0) {
+                            ret = 0; /* match */
+                        }
+                        else {
+                            WOLFSSL_MSG("Rsa SSL verify match encode error");
+                            ret = SIG_VERIFY_E;
+                        }
 
                     #ifdef WOLFSSL_DEBUG_ENCODING
-                    {
-                        int x;
-
                         printf("wolfssl encodedSig:\n");
 
                         for (x = 0; x < encodedSigSz; x++) {
@@ -4361,11 +4366,9 @@ static int ConfirmSignature(const byte* buf, word32 bufSz,
                         }
 
                         printf("\n");
-                    }
                     #endif /* WOLFSSL_DEBUG_ENCODING */
-
+                    }
                 }
-
             }
 
             wc_FreeRsaKey(pubKey);
@@ -4406,15 +4409,17 @@ static int ConfirmSignature(const byte* buf, word32 bufSz,
                 WOLFSSL_MSG("ASN Key import error ECC");
             }
             else {
-                if (wc_ecc_verify_hash(sig, sigSz, digest, digestSz, &verify,
-                                                                pubKey) != 0) {
+                ret = wc_ecc_verify_hash(sig, sigSz, digest, digestSz, &verify,
+                                                                        pubKey);
+                if (ret != 0) {
                     WOLFSSL_MSG("ECC verify hash error");
                 }
-                else if (1 != verify) {
+                else if (verify != 1) {
                     WOLFSSL_MSG("ECC Verify didn't match");
-                } else
-                    ret = 1; /* match */
-
+                    ret = SIG_VERIFY_E;
+                } else {
+                    ret = 0; /* match */
+                }
             }
             wc_ecc_free(pubKey);
 
@@ -5802,11 +5807,11 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
 
             if (verify == VERIFY) {
                 /* try to confirm/verify signature */
-                if (!ConfirmSignature(cert->source + cert->certBegin,
+                if (ConfirmSignature(cert->source + cert->certBegin,
                             cert->sigIndex - cert->certBegin,
                         ca->publicKey, ca->pubKeySize, ca->keyOID,
                         cert->signature, cert->sigLength, cert->signatureOID,
-                        cert->heap)) {
+                        cert->heap) != 0) {
                     WOLFSSL_MSG("Confirm signature failed");
                     return ASN_SIG_CONFIRM_E;
                 }
@@ -10059,8 +10064,7 @@ static int DecodeBasicOcspResponse(byte* source, word32* ioIndex,
                             resp->sig, resp->sigSz, resp->sigOID, NULL);
         FreeDecodedCert(&cert);
 
-        if (ret == 0)
-        {
+        if (ret != 0) {
             WOLFSSL_MSG("\tOCSP Confirm signature failed");
             return ASN_OCSP_CONFIRM_E;
         }
@@ -10076,9 +10080,9 @@ static int DecodeBasicOcspResponse(byte* source, word32* ioIndex,
             ca = GetCA(cm, resp->issuerHash);
         #endif
 
-        if (!ca || !ConfirmSignature(resp->response, resp->responseSz,
-                                     ca->publicKey, ca->pubKeySize, ca->keyOID,
-                                  resp->sig, resp->sigSz, resp->sigOID, NULL)) {
+        if (!ca || ConfirmSignature(resp->response, resp->responseSz,
+                    ca->publicKey, ca->pubKeySize, ca->keyOID,
+                    resp->sig, resp->sigSz, resp->sigOID, NULL) != 0) {
             WOLFSSL_MSG("\tOCSP Confirm signature failed");
             return ASN_OCSP_CONFIRM_E;
         }
@@ -10694,10 +10698,10 @@ int ParseCRL(DecodedCRL* dcrl, const byte* buff, word32 sz, void* cm)
                 return ASN_CRL_NO_SIGNER_E;
             }
         #endif /* IGNORE_KEY_EXTENSIONS */
-        if (!ConfirmSignature(buff + dcrl->certBegin,
-                dcrl->sigIndex - dcrl->certBegin,
-                ca->publicKey, ca->pubKeySize, ca->keyOID,
-                dcrl->signature, dcrl->sigLength, dcrl->signatureOID, NULL)) {
+        if (ConfirmSignature(buff + dcrl->certBegin,
+                dcrl->sigIndex - dcrl->certBegin, ca->publicKey,
+                ca->pubKeySize, ca->keyOID, dcrl->signature, dcrl->sigLength,
+                                            dcrl->signatureOID, NULL) != 0) {
             WOLFSSL_MSG("CRL Confirm signature failed");
             return ASN_CRL_CONFIRM_E;
         }
