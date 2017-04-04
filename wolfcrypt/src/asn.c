@@ -5058,7 +5058,7 @@ static int DecodeBasicCaConstraint(byte* input, int sz, DecodedCert* cert)
         return ret;
     }
 
-    cert->isCA = ret;
+    cert->isCA = (byte)ret;
 
     /* If there isn't any more data, return. */
     if (idx >= (word32)sz)
@@ -5068,7 +5068,7 @@ static int DecodeBasicCaConstraint(byte* input, int sz, DecodedCert* cert)
     if (ret < 0)
         return ret;
 
-    cert->pathLength = ret;
+    cert->pathLength = (byte)ret;
     cert->pathLengthSet = 1;
 
     return 0;
@@ -5684,7 +5684,7 @@ static int DecodeCertExtensions(DecodedCert* cert)
                 return ret;
             }
 
-            critical = ret;
+            critical = (byte)ret;
         }
 
         /* process the extension based on the OID */
