@@ -998,7 +998,11 @@ static int CheckBitString(const byte* input, word32* inOutIdx, int* len,
     return 0;
 }
 
-#if !defined(NO_RSA) && (defined(WOLFSSL_CERT_GEN) || (defined(WOLFSSL_KEY_GEN) && !defined(HAVE_USER_RSA)))
+#if (!defined(NO_RSA) && (defined(WOLFSSL_CERT_GEN) || \
+                          (defined(WOLFSSL_KEY_GEN) && \
+                           !defined(HAVE_USER_RSA)))) || \
+    (defined(HAVE_ECC) && (defined(WOLFSSL_CERT_GEN) || \
+                           defined(WOLFSSL_KEY_GEN)))
 /* Set the DER/BER encoding of the ASN.1 BIT_STRING header.
  *
  * len         Length of data to encode.
