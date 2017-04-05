@@ -1155,7 +1155,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 
     if (useAnon) {
 #ifdef HAVE_ANON
-        if (cipherList == NULL) {
+        if (cipherList == NULL || (cipherList && useDefCipherList)) {
             wolfSSL_CTX_allow_anon_cipher(ctx);
             if (wolfSSL_CTX_set_cipher_list(ctx,"ADH-AES128-SHA")
                                                                != SSL_SUCCESS) {
