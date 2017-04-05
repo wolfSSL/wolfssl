@@ -41,8 +41,8 @@
     #include <wolfcrypt/src/misc.c>
 #endif
 
-#ifdef FE_128BIT
-#include "fe_x25519.c"
+#ifdef HAVE___UINT128_T
+#include "fe_x25519_128.i"
 #else
 /*
 fe means field element.
