@@ -1099,7 +1099,53 @@ static INLINE unsigned int my_psk_server_cb(WOLFSSL* ssl, const char* identity,
 #endif /* USE_WINDOWS_API */
 
 
-#if defined(NO_FILESYSTEM) && !defined(NO_CERTS) && defined(FORCE_BUFFER_TEST)
+#if !defined(NO_CERTS)
+    #if !defined(NO_FILESYSTEM) || \
+        (defined(NO_FILESYSTEM) && defined(FORCE_BUFFER_TEST))
+
+    /* reads file size, allocates buffer, reads into buffer, returns buffer */
+    static INLINE int load_file(const char* fname, byte** buf, size_t* bufLen)
+    {
+        int ret;
+        FILE* file;
+
+        if (fname == NULL || buf == NULL || bufLen == NULL)
+            return BAD_FUNC_ARG;
+
+        /* set defaults */
+        *buf = NULL;
+        *bufLen = 0;
+
+        /* open file (read-only binary) */
+        file = fopen(fname, "rb");
+        if (!file) {
+            printf("Error loading %s\n", fname);
+            return BAD_PATH_ERROR;
+        }
+
+        fseek(file, 0, SEEK_END);
+        *bufLen = ftell(file);
+        rewind(file);
+        if (*bufLen > 0) {
+            *buf = (byte*)malloc(*bufLen);
+            if (*buf == NULL) {
+                ret = MEMORY_E;
+                printf("Error allocating %lu bytes\n", *bufLen);
+            }
+            else {
+                size_t readLen = fread(*buf, *bufLen, 1, file);
+
+                /* check response code */
+                ret = (readLen > 0) ? 0 : -1;
+            }
+        }
+        else {
+            ret = BUFFER_E;
+        }
+        fclose(file);
+
+        return ret;
+    }
 
     enum {
         WOLFSSL_CA   = 1,
@@ -1111,49 +1157,44 @@ static INLINE unsigned int my_psk_server_cb(WOLFSSL* ssl, const char* identity,
     static INLINE void load_buffer(WOLFSSL_CTX* ctx, const char* fname, int type)
     {
         int format = SSL_FILETYPE_PEM;
+        byte* buff = NULL;
+        size_t sz = 0;
 
-        /* test buffer load */
-        long  sz = 0;
-        byte  buff[10000];
-        FILE* file = fopen(fname, "rb");
-
-        if (!file)
+        if (load_file(fname, &buff, &sz) != 0) {
             err_sys("can't open file for buffer load "
                     "Please run from wolfSSL home directory if not");
-        fseek(file, 0, SEEK_END);
-        sz = ftell(file);
-        rewind(file);
-        fread(buff, sizeof(buff), 1, file);
+        }
 
         /* determine format */
         if (strstr(fname, ".der"))
             format = SSL_FILETYPE_ASN1;
 
         if (type == WOLFSSL_CA) {
-            if (wolfSSL_CTX_load_verify_buffer(ctx, buff, sz, format)
+            if (wolfSSL_CTX_load_verify_buffer(ctx, buff, (long)sz, format)
                                               != SSL_SUCCESS)
                 err_sys("can't load buffer ca file");
         }
         else if (type == WOLFSSL_CERT) {
-            if (wolfSSL_CTX_use_certificate_buffer(ctx, buff, sz,
+            if (wolfSSL_CTX_use_certificate_buffer(ctx, buff, (long)sz,
                         format) != SSL_SUCCESS)
                 err_sys("can't load buffer cert file");
         }
         else if (type == WOLFSSL_KEY) {
-            if (wolfSSL_CTX_use_PrivateKey_buffer(ctx, buff, sz,
+            if (wolfSSL_CTX_use_PrivateKey_buffer(ctx, buff, (long)sz,
                         format) != SSL_SUCCESS)
                 err_sys("can't load buffer key file");
         }
         else if (type == WOLFSSL_CERT_CHAIN) {
-            if (wolfSSL_CTX_use_certificate_chain_buffer_format(ctx, buff, sz,
-                        format) != SSL_SUCCESS)
+            if (wolfSSL_CTX_use_certificate_chain_buffer_format(ctx, buff,
+                    (long)sz, format) != SSL_SUCCESS)
                 err_sys("can't load cert chain buffer");
         }
 
-        fclose(file);
+        if (buff)
+            free(buff);
     }
-
-#endif /* NO_FILESYSTEM */
+    #endif /* !NO_FILESYSTEM || (NO_FILESYSTEM && FORCE_BUFFER_TEST) */
+#endif /* !NO_CERTS */
 
 #ifdef VERIFY_CALLBACK
 

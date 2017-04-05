@@ -77,7 +77,7 @@ static const char* passed = "passed";
 static const char* failed = "failed";
 
 #if !defined(NO_FILESYSTEM) && !defined(NO_CERTS)
-    static const char* bogusFile  = 
+    static const char* bogusFile  =
     #ifdef _WIN32
         "NUL"
     #else
@@ -85,6 +85,12 @@ static const char* failed = "failed";
     #endif
     ;
 #endif
+
+enum {
+    TESTING_RSA = 1,
+    TESTING_ECC = 2
+};
+
 
 /*----------------------------------------------------------------------------*
  | Setup
@@ -541,7 +547,7 @@ static void test_wolfSSL_SetTmpDH_buffer(void)
 
 
 /* Test function for wolfSSL_SetMinVersion. Sets the minimum downgrade version
- * allowed. 
+ * allowed.
  * POST: return 1 on success.
  */
 static int test_wolfSSL_SetMinVersion(void)
@@ -3225,6 +3231,111 @@ static void test_wc_ecc_get_curve_id_from_params(void)
 
 
 /*----------------------------------------------------------------------------*
+ | Certficate Failure Checks
+ *----------------------------------------------------------------------------*/
+#ifndef NO_CERTS
+    /* Use the Cert Manager(CM) API to generate the error ASN_SIG_CONFIRM_E */
+    static int verify_sig_cm(const char* ca, byte* cert_buf, size_t cert_sz,
+        int type)
+    {
+        int ret;
+        WOLFSSL_CERT_MANAGER* cm = NULL;
+
+        switch (type) {
+            case TESTING_RSA:
+            #ifdef NO_RSA
+                printf("RSA disabled, skipping test\n");
+                return ASN_SIG_CONFIRM_E;
+            #else
+                break;
+            #endif
+            case TESTING_ECC:
+            #ifndef HAVE_ECC
+                printf("ECC disabled, skipping test\n");
+                return ASN_SIG_CONFIRM_E;
+            #else
+                break;
+            #endif
+            default:
+                printf("Bad function argument\n");
+                return BAD_FUNC_ARG;
+        }
+        cm = wolfSSL_CertManagerNew();
+        if (cm == NULL) {
+            printf("wolfSSL_CertManagerNew failed\n");
+            return -1;
+        }
+
+        ret = wolfSSL_CertManagerLoadCA(cm, ca, 0);
+        if (ret != SSL_SUCCESS) {
+            printf("wolfSSL_CertManagerLoadCA failed\n");
+            wolfSSL_CertManagerFree(cm);
+            return ret;
+        }
+
+        ret = wolfSSL_CertManagerVerifyBuffer(cm, cert_buf, cert_sz, SSL_FILETYPE_ASN1);
+        /* Let AssertIntEQ handle return code */
+
+        wolfSSL_CertManagerFree(cm);
+
+        return ret;
+    }
+
+    static int test_RsaSigFailure_cm(void)
+    {
+        int ret = 0;
+        const char* ca_cert = "./certs/ca-cert.pem";
+        const char* server_cert = "./certs/server-cert.der";
+        byte* cert_buf = NULL;
+        size_t cert_sz = 0;
+
+        ret = load_file(server_cert, &cert_buf, &cert_sz);
+        if (ret == 0) {
+            /* corrupt DER - invert last byte, which is signature */
+            cert_buf[cert_sz-1] = ~cert_buf[cert_sz-1];
+
+            /* test bad cert */
+            ret = verify_sig_cm(ca_cert, cert_buf, cert_sz, TESTING_RSA);
+        }
+
+        printf("Signature failure test: RSA: Ret %d\n", ret);
+
+        if (cert_buf)
+            free(cert_buf);
+
+        return ret;
+    }
+
+    static int test_EccSigFailure_cm(void)
+    {
+        int ret = 0;
+        /* self-signed ECC cert, so use server cert as CA */
+        const char* ca_cert = "./certs/server-ecc.pem";
+        const char* server_cert = "./certs/server-ecc.der";
+        byte* cert_buf = NULL;
+        size_t cert_sz = 0;
+
+        ret = load_file(server_cert, &cert_buf, &cert_sz);
+        if (ret == 0) {
+            /* corrupt DER - invert last byte, which is signature */
+            cert_buf[cert_sz-1] = ~cert_buf[cert_sz-1];
+
+            /* test bad cert */
+            ret = verify_sig_cm(ca_cert, cert_buf, cert_sz, TESTING_ECC);
+        }
+
+        printf("Signature failure test: ECC: Ret %d\n", ret);
+
+        if (cert_buf)
+            free(cert_buf);
+
+        return ret;
+    }
+
+#endif /* NO_CERTS */
+
+
+/*----------------------------------------------------------------------------*
  | Main
  *----------------------------------------------------------------------------*/
 
@@ -3292,6 +3403,12 @@ void ApiTest(void)
     test_wc_ecc_get_curve_size_from_name();
     test_wc_ecc_get_curve_id_from_name();
     test_wc_ecc_get_curve_id_from_params();
+
+#ifndef NO_CERTS
+    /* Bad certificate signature tests */
+    AssertIntEQ(test_EccSigFailure_cm(), ASN_SIG_CONFIRM_E);
+    AssertIntEQ(test_RsaSigFailure_cm(), ASN_SIG_CONFIRM_E);
+#endif /* NO_CERTS */
 
     printf(" End API Tests\n");
 
