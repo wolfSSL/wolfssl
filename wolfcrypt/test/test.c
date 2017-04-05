@@ -293,7 +293,8 @@ int mutex_test(void);
 int memcb_test(void);
 #endif
 
-#if defined(DEBUG_WOLFSSL) && !defined(HAVE_VALGRIND) && !defined(OPENSSL_EXTRA)
+#if defined(DEBUG_WOLFSSL) && !defined(HAVE_VALGRIND) && \
+        !defined(OPENSSL_EXTRA) && !defined(HAVE_STACK_SIZE)
     int  wolfSSL_Debugging_ON(void);
 #endif
 
