@@ -3140,6 +3140,14 @@ static void test_wc_ecc_get_curve_id_from_params(void)
         0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF
     };
 
+    const byte primeInvalid[] =
+    {
+        0xFF,0xFF,0xFF,0xFF,0x00,0x00,0x00,0x01,
+        0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+        0x00,0x00,0x00,0x00,0xFF,0xFF,0xFF,0xFF,
+        0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0x01,0x01
+    };
+
     const byte Af[] =
     {
         0xFF,0xFF,0xFF,0xFF,0x00,0x00,0x00,0x01,
@@ -3198,11 +3206,18 @@ static void test_wc_ecc_get_curve_id_from_params(void)
             Gx, sizeof(Gx), Gy, sizeof(Gy), cofactor);
     AssertIntEQ(id, ECC_CURVE_INVALID);
 
-    /* invalid  case, NULL prime */
+    /* invalid case, NULL prime */
     id = wc_ecc_get_curve_id_from_params(fieldSize, NULL, sizeof(prime),
             Af, sizeof(Af), Bf, sizeof(Bf), order, sizeof(order),
             Gx, sizeof(Gx), Gy, sizeof(Gy), cofactor);
     AssertIntEQ(id, BAD_FUNC_ARG);
+
+    /* invalid case, invalid prime */
+    id = wc_ecc_get_curve_id_from_params(fieldSize,
+            primeInvalid, sizeof(primeInvalid),
+            Af, sizeof(Af), Bf, sizeof(Bf), order, sizeof(order),
+            Gx, sizeof(Gx), Gy, sizeof(Gy), cofactor);
+    AssertIntEQ(id, ECC_CURVE_INVALID);
 
     printf(resultFmt, passed);
 #endif
