@@ -594,6 +594,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     char*  alpnList = NULL;
     unsigned char alpn_opt = 0;
     char*  cipherList = NULL;
+    int    useDefCipherList = 0;
     const char* verifyCert = caCertFile;
     const char* ourCert    = cliCertFile;
     const char* ourKey     = cliKeyFile;
@@ -662,9 +663,10 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     StackTrap();
 
 #ifndef WOLFSSL_VXWORKS
-    while ((ch = mygetopt(argc, argv,
-          "?gdeDuGsmNrwRitfxXUPCVh:p:v:l:A:c:k:Z:b:zS:F:L:TnoO:aB:W:E:M:q:"))
-            != -1) {
+    /* Not used: j, y, I, J, K, Q, Y */
+    while ((ch = mygetopt(argc, argv, "?"
+            "ab:c:defgh:ik:l:mnop:q:rstuv:wxz"
+            "A:B:CDE:F:GHL:M:NO:PRS:TUVW:XZ:")) != -1) {
         switch (ch) {
             case '?' :
                 Usage();
@@ -775,6 +777,10 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 
             case 'l' :
                 cipherList = myoptarg;
+                break;
+
+            case 'H' :
+                useDefCipherList = 1;
                 break;
 
             case 'A' :
@@ -1097,7 +1103,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     }
 #endif
 
-    if (cipherList) {
+    if (cipherList && !useDefCipherList) {
         if (wolfSSL_CTX_set_cipher_list(ctx, cipherList) != SSL_SUCCESS) {
             wolfSSL_CTX_free(ctx);
             err_sys("client can't set cipher list 1");

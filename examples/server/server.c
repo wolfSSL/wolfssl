@@ -392,8 +392,10 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
 #ifdef WOLFSSL_VXWORKS
     useAnyAddr = 1;
 #else
-    while ((ch = mygetopt(argc, argv,
-               "?jdbstnNuGfrawPIR:p:v:l:A:c:k:Z:S:oO:D:L:ieB:E:q:gC:U")) != -1) {
+    /* Not Used: h, m, x, y, z, F, J, K, M, Q, T, U, V, W, X, Y */
+    while ((ch = mygetopt(argc, argv, "?"
+                "abc:defgijk:l:nop:q:rstuv:w"
+                "A:B:C:D:E:GHIL:NO:PR:S:YZ:")) != -1) {
         switch (ch) {
             case '?' :
                 Usage();
@@ -477,7 +479,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
                 cipherList = myoptarg;
                 break;
 
-            case 'U' :
+            case 'H' :
                 useDefCipherList = 1;
                 break;
 

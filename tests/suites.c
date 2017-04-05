@@ -54,7 +54,7 @@ static char flagSep[] = " ";
     static char portFlag[] = "-p";
     static char svrPort[] = "0";
 #endif
-static char forceDefCipherListFlag[] = "-U";
+static char forceDefCipherListFlag[] = "-H";
 
 
 #ifndef WOLFSSL_ALLOW_SSLV3
@@ -156,7 +156,8 @@ static int IsValidCipherSuite(const char* line, char* suite)
 static int execute_test_case(int svr_argc, char** svr_argv,
                               int cli_argc, char** cli_argv,
                               int addNoVerify, int addNonBlocking,
-                              int addDisableEMS, int forceSrvDefCipherList)
+                              int addDisableEMS, int forceSrvDefCipherList,
+                              int forceCliDefCipherList)
 {
 #ifdef WOLFSSL_TIRTOS
     func_args cliArgs = {0};
@@ -300,6 +301,12 @@ static int execute_test_case(int svr_argc, char** svr_argv,
         }
     }
 #endif
+    if (forceCliDefCipherList) {
+        if (cliArgs.argc >= MAX_ARGS)
+            printf("cannot add the force def cipher list flag to client\n");
+        else
+            cli_argv[cliArgs.argc++] = forceDefCipherListFlag;
+    }
 
     commandLine[0] = '\0';
     added = 0;
@@ -456,28 +463,31 @@ static void test_harness(void* vargs)
 
         if (do_it) {
             ret = execute_test_case(svrArgsSz, svrArgs,
-                                    cliArgsSz, cliArgs, 0, 0, 0, 0);
+                                    cliArgsSz, cliArgs, 0, 0, 0, 0, 0);
             /* don't repeat if not supported in build */
             if (ret == 0) {
                 /* test with default cipher list on server side */
                 execute_test_case(svrArgsSz, svrArgs,
-                                  cliArgsSz, cliArgs, 0, 0, 0, 1);
+                                  cliArgsSz, cliArgs, 0, 0, 0, 1, 0);
+                /* test with default cipher list on client side */
+                execute_test_case(svrArgsSz, svrArgs,
+                                  cliArgsSz, cliArgs, 0, 0, 0, 0, 1);
 
                 execute_test_case(svrArgsSz, svrArgs,
-                                  cliArgsSz, cliArgs, 0, 1, 0, 0);
+                                  cliArgsSz, cliArgs, 0, 1, 0, 0, 0);
                 execute_test_case(svrArgsSz, svrArgs,
-                                  cliArgsSz, cliArgs, 1, 0, 0, 0);
+                                  cliArgsSz, cliArgs, 1, 0, 0, 0, 0);
                 execute_test_case(svrArgsSz, svrArgs,
-                                  cliArgsSz, cliArgs, 1, 1, 0, 0);
+                                  cliArgsSz, cliArgs, 1, 1, 0, 0, 0);
 #ifdef HAVE_EXTENDED_MASTER
                 execute_test_case(svrArgsSz, svrArgs,
-                                  cliArgsSz, cliArgs, 0, 0, 1, 0);
+                                  cliArgsSz, cliArgs, 0, 0, 1, 0, 0);
                 execute_test_case(svrArgsSz, svrArgs,
-                                  cliArgsSz, cliArgs, 0, 1, 1, 0);
+                                  cliArgsSz, cliArgs, 0, 1, 1, 0, 0);
                 execute_test_case(svrArgsSz, svrArgs,
-                                  cliArgsSz, cliArgs, 1, 0, 1, 0);
+                                  cliArgsSz, cliArgs, 1, 0, 1, 0, 0);
                 execute_test_case(svrArgsSz, svrArgs,
-                                  cliArgsSz, cliArgs, 1, 1, 1, 0);
+                                  cliArgsSz, cliArgs, 1, 1, 1, 0, 0);
 #endif
             }
             svrArgsSz = 1;
