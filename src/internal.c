@@ -2202,14 +2202,14 @@ void InitSuites(Suites* suites, ProtocolVersion pv, word16 haveRSA,
 #endif
 
 #ifdef BUILD_TLS_RSA_WITH_AES_256_CBC_SHA256
-    if (tls1_2 && haveRSA) {
+    if (tls && haveRSA) {
         suites->suites[idx++] = 0;
         suites->suites[idx++] = TLS_RSA_WITH_AES_256_CBC_SHA256;
     }
 #endif
 
 #ifdef BUILD_TLS_RSA_WITH_AES_128_CBC_SHA256
-    if (tls1_2 && haveRSA) {
+    if (tls && haveRSA) {
         suites->suites[idx++] = 0;
         suites->suites[idx++] = TLS_RSA_WITH_AES_128_CBC_SHA256;
     }
@@ -3626,6 +3626,7 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
         WOLFSSL_MSG("HS_Hashes Memory error");
         return MEMORY_E;
     }
+    XMEMSET(ssl->hsHashes, 0, sizeof(HS_Hashes));
 
 #ifndef NO_OLD_TLS
 #ifndef NO_MD5
@@ -10320,10 +10321,12 @@ static int BuildCertHashes(WOLFSSL* ssl, Hashes* hashes)
     (void)hashes;
 
     if (ssl->options.tls) {
-#if ! defined( NO_OLD_TLS )
+    #if !defined(NO_MD5) && !defined(NO_OLD_TLS)
         wc_Md5GetHash(&ssl->hsHashes->hashMd5, hashes->md5);
+    #endif
+    #if !defined(NO_SHA)
         wc_ShaGetHash(&ssl->hsHashes->hashSha, hashes->sha);
-#endif
+    #endif
         if (IsAtLeastTLSv1_2(ssl)) {
             #ifndef NO_SHA256
                 ret = wc_Sha256GetHash(&ssl->hsHashes->hashSha256,
@@ -10345,7 +10348,7 @@ static int BuildCertHashes(WOLFSSL* ssl, Hashes* hashes)
             #endif
         }
     }
-#if ! defined( NO_OLD_TLS )
+#if !defined(NO_OLD_TLS)
     else {
         BuildMD5_CertVerify(ssl, hashes->md5);
         BuildSHA_CertVerify(ssl, hashes->sha);
@@ -13537,7 +13540,18 @@ static void PickHashSigAlgo(WOLFSSL* ssl,
     word32 i;
 
     ssl->suites->sigAlgo = ssl->specs.sig_algo;
-    ssl->suites->hashAlgo = sha_mac;
+
+    /* set defaults */
+    if (IsAtLeastTLSv1_2(ssl)) {
+    #ifdef WOLFSSL_ALLOW_TLS_SHA1
+        ssl->suites->hashAlgo = sha_mac;
+    #else
+        ssl->suites->hashAlgo = sha256_mac;
+    #endif
+    }
+    else {
+        ssl->suites->hashAlgo = sha_mac;
+    }
 
     /* i+1 since peek a byte ahead for type */
     for (i = 0; (i+1) < hashSigAlgoSz; i += 2) {
@@ -16752,7 +16766,6 @@ int SendCertificateVerify(WOLFSSL* ssl)
                 }
         #endif
             }
-
 
             /* idx is used to track verify pointer offset to output */
             idx = RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ;

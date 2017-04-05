@@ -2246,10 +2246,12 @@ WOLFSSL_LOCAL void FreeCiphers(WOLFSSL* ssl);
 
 /* hashes type */
 typedef struct Hashes {
-    #ifndef NO_OLD_TLS
+    #if !defined(NO_MD5) && !defined(NO_OLD_TLS)
         byte md5[MD5_DIGEST_SIZE];
     #endif
-    byte sha[SHA_DIGEST_SIZE];
+    #if !defined(NO_SHA)
+        byte sha[SHA_DIGEST_SIZE];
+    #endif
     #ifndef NO_SHA256
         byte sha256[SHA256_DIGEST_SIZE];
     #endif
@@ -2730,14 +2732,12 @@ typedef struct MsgsReceived {
 typedef struct HS_Hashes {
     Hashes          verifyHashes;
     Hashes          certHashes;         /* for cert verify */
-#ifndef NO_OLD_TLS
 #ifndef NO_SHA
     Sha             hashSha;            /* sha hash of handshake msgs */
 #endif
-#ifndef NO_MD5
+#if !defined(NO_MD5) && !defined(NO_OLD_TLS)
     Md5             hashMd5;            /* md5 hash of handshake msgs */
 #endif
-#endif /* NO_OLD_TLS */
 #ifndef NO_SHA256
     Sha256          hashSha256;         /* sha256 hash of handshake msgs */
 #endif
