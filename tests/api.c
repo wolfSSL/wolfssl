@@ -3185,7 +3185,7 @@ static void test_wc_ecc_get_curve_id_from_name(void)
         return ret;
     }
 
-    static int test_RsaConfirmSig_cm(void)
+    static int test_RsaSigFailure_cm(void)
     {
         int ret = 0;
         const char* ca_cert = "./certs/ca-cert.pem";
@@ -3202,7 +3202,7 @@ static void test_wc_ecc_get_curve_id_from_name(void)
             ret = verify_sig_cm(ca_cert, cert_buf, cert_sz, TESTING_RSA);
         }
 
-        printf("Verify signature exception test: RSA: Ret %d\n", ret);
+        printf("Signature failure test: RSA: Ret %d\n", ret);
 
         if (cert_buf)
             free(cert_buf);
@@ -3210,7 +3210,7 @@ static void test_wc_ecc_get_curve_id_from_name(void)
         return ret;
     }
 
-    static int test_EccConfirmSig_cm(void)
+    static int test_EccSigFailure_cm(void)
     {
         int ret = 0;
         /* self-signed ECC cert, so use server cert as CA */
@@ -3228,7 +3228,7 @@ static void test_wc_ecc_get_curve_id_from_name(void)
             ret = verify_sig_cm(ca_cert, cert_buf, cert_sz, TESTING_ECC);
         }
 
-        printf("Verify signature exception test: ECC: Ret %d\n", ret);
+        printf("Signature failure test: ECC: Ret %d\n", ret);
 
         if (cert_buf)
             free(cert_buf);
@@ -3308,9 +3308,9 @@ void ApiTest(void)
     test_wc_ecc_get_curve_id_from_name();
 
 #ifndef NO_CERTS
-    /* Bad certificate tests */
-    AssertIntEQ(test_EccConfirmSig_cm(), ASN_SIG_CONFIRM_E);
-    AssertIntEQ(test_RsaConfirmSig_cm(), ASN_SIG_CONFIRM_E);
+    /* Bad certificate signature tests */
+    AssertIntEQ(test_EccSigFailure_cm(), ASN_SIG_CONFIRM_E);
+    AssertIntEQ(test_RsaSigFailure_cm(), ASN_SIG_CONFIRM_E);
 #endif /* NO_CERTS */
 
     printf(" End API Tests\n");
