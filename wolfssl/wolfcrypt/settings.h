@@ -1233,6 +1233,12 @@ extern void uITRON4_free(void *p) ;
     #endif
 #endif
 
+/* write dup cannot be used with secure renegotiation because write dup
+ * make write side write only and read side read only */
+#if defined(HAVE_WRITE_DUP) && defined(HAVE_SECURE_RENEGOTIATION)
+    #error "WRITE DUP and SECURE RENEGOTIATION cannot both be on"
+#endif
+
 #ifdef WOLFSSL_SGX
     #define WOLFCRYPT_ONLY   /* limitation until IO resolved */
     #define SINGLE_THREADED

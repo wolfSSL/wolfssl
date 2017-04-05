@@ -3187,8 +3187,14 @@ int DhAgree(WOLFSSL* ssl,
 /* This function inherits a WOLFSSL_CTX's fields into an SSL object.
    It is used during initialization and to switch an ssl's CTX with
    wolfSSL_Set_SSL_CTX.  Requires ssl->suites alloc and ssl-arrays with PSK
+   unless writeDup is on.
+
+   ssl      object to initialize
+   ctx      parent factory
+   writeDup flag indicating this is a write dup only
+
    SSL_SUCCESS return value on success */
-int SetSSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
+int SetSSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
 {
     byte havePSK = 0;
     byte haveAnon = 0;
@@ -3196,13 +3202,16 @@ int SetSSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
     byte haveRSA = 0;
     (void) haveAnon; /* Squash unused var warnings */
 
-    if(!ssl || !ctx || ssl->suites == NULL)
+    if (!ssl || !ctx)
+        return BAD_FUNC_ARG;
+
+    if (ssl->suites == NULL && !writeDup)
         return BAD_FUNC_ARG;
 
     newSSL = ssl->ctx == NULL; /* Assign after null check */
 
 #ifndef NO_PSK
-    if (ctx->server_hint[0] && ssl->arrays == NULL) {
+    if (ctx->server_hint[0] && ssl->arrays == NULL && !writeDup) {
         return BAD_FUNC_ARG;  /* needed for copy below */
     }
 #endif
@@ -3307,40 +3316,44 @@ int SetSSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
     ssl->devId = ctx->devId;
 #endif
 
+    if (writeDup == 0) {
+
 #ifndef NO_PSK
-    if (ctx->server_hint[0]) {   /* set in CTX */
-        XSTRNCPY(ssl->arrays->server_hint, ctx->server_hint, MAX_PSK_ID_LEN);
-        ssl->arrays->server_hint[MAX_PSK_ID_LEN - 1] = '\0';
-    }
+        if (ctx->server_hint[0]) {   /* set in CTX */
+            XSTRNCPY(ssl->arrays->server_hint, ctx->server_hint,MAX_PSK_ID_LEN);
+            ssl->arrays->server_hint[MAX_PSK_ID_LEN - 1] = '\0';
+        }
 #endif /* NO_PSK */
 
-    if (ctx->suites)
-        *ssl->suites = *ctx->suites;
-    else
-        XMEMSET(ssl->suites, 0, sizeof(Suites));
+        if (ctx->suites)
+            *ssl->suites = *ctx->suites;
+        else
+            XMEMSET(ssl->suites, 0, sizeof(Suites));
 
-    /* make sure server has DH parms, and add PSK if there, add NTRU too */
-    if (ssl->options.side == WOLFSSL_SERVER_END)
-        InitSuites(ssl->suites, ssl->version, haveRSA, havePSK,
+        /* make sure server has DH parms, and add PSK if there, add NTRU too */
+        if (ssl->options.side == WOLFSSL_SERVER_END)
+            InitSuites(ssl->suites, ssl->version, haveRSA, havePSK,
                    ssl->options.haveDH, ssl->options.haveNTRU,
                    ssl->options.haveECDSAsig, ssl->options.haveECC,
                    ssl->options.haveStaticECC, ssl->options.side);
-    else
-        InitSuites(ssl->suites, ssl->version, haveRSA, havePSK, TRUE,
+        else
+            InitSuites(ssl->suites, ssl->version, haveRSA, havePSK, TRUE,
                    ssl->options.haveNTRU, ssl->options.haveECDSAsig,
                    ssl->options.haveECC, ssl->options.haveStaticECC,
                    ssl->options.side);
 
 #if !defined(NO_CERTS) && !defined(WOLFSSL_SESSION_EXPORT)
-    /* make sure server has cert and key unless using PSK or Anon
-     * This should be true even if just switching ssl ctx */
-    if (ssl->options.side == WOLFSSL_SERVER_END && !havePSK && !haveAnon)
-        if (!ssl->buffers.certificate || !ssl->buffers.certificate->buffer ||
-            !ssl->buffers.key || !ssl->buffers.key->buffer) {
-            WOLFSSL_MSG("Server missing certificate and/or private key");
-            return NO_PRIVATE_KEY;
-        }
+        /* make sure server has cert and key unless using PSK or Anon
+        * This should be true even if just switching ssl ctx */
+        if (ssl->options.side == WOLFSSL_SERVER_END && !havePSK && !haveAnon)
+            if (!ssl->buffers.certificate || !ssl->buffers.certificate->buffer
+                     || !ssl->buffers.key || !ssl->buffers.key->buffer) {
+                WOLFSSL_MSG("Server missing certificate and/or private key");
+                return NO_PRIVATE_KEY;
+            }
 #endif
+
+    }  /* writeDup check */
 
 #ifdef WOLFSSL_SESSION_EXPORT
     #ifdef WOLFSSL_DTLS
@@ -3358,8 +3371,13 @@ int SetSSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
 
 /* init everything to 0, NULL, default values before calling anything that may
    fail so that destructor has a "good" state to cleanup
+
+   ssl      object to initialize
+   ctx      parent factory
+   writeDup flag indicating this is a write dup only
+
    0 on success */
-int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
+int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
 {
     int  ret;
 
@@ -3542,29 +3560,64 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
 
     /* all done with init, now can return errors, call other stuff */
 
-    /* arrays */
-    ssl->arrays = (Arrays*)XMALLOC(sizeof(Arrays), ssl->heap,
+    if (!writeDup) {
+        /* arrays */
+        ssl->arrays = (Arrays*)XMALLOC(sizeof(Arrays), ssl->heap,
                                                            DYNAMIC_TYPE_ARRAYS);
-    if (ssl->arrays == NULL) {
-        WOLFSSL_MSG("Arrays Memory error");
-        return MEMORY_E;
-    }
-    XMEMSET(ssl->arrays, 0, sizeof(Arrays));
+        if (ssl->arrays == NULL) {
+            WOLFSSL_MSG("Arrays Memory error");
+            return MEMORY_E;
+        }
+        XMEMSET(ssl->arrays, 0, sizeof(Arrays));
 
-    /* suites */
-    ssl->suites = (Suites*)XMALLOC(sizeof(Suites), ssl->heap,
+        /* suites */
+        ssl->suites = (Suites*)XMALLOC(sizeof(Suites), ssl->heap,
                                    DYNAMIC_TYPE_SUITES);
-    if (ssl->suites == NULL) {
-        WOLFSSL_MSG("Suites Memory error");
-        return MEMORY_E;
+        if (ssl->suites == NULL) {
+            WOLFSSL_MSG("Suites Memory error");
+            return MEMORY_E;
+        }
     }
 
     /* Initialize SSL with the appropriate fields from it's ctx */
-    /* requires valid arrays and suites */
-    if((ret =  SetSSL_CTX(ssl, ctx)) != SSL_SUCCESS)
+    /* requires valid arrays and suites unless writeDup ing */
+    if ((ret =  SetSSL_CTX(ssl, ctx, writeDup)) != SSL_SUCCESS)
         return ret;
 
     ssl->options.dtls = ssl->version.major == DTLS_MAJOR;
+
+#ifdef SINGLE_THREADED
+    ssl->rng = ctx->rng;   /* CTX may have one, if so use it */
+#endif
+
+    if (ssl->rng == NULL) {
+        /* RNG */
+        ssl->rng = (WC_RNG*)XMALLOC(sizeof(WC_RNG), ssl->heap,DYNAMIC_TYPE_RNG);
+        if (ssl->rng == NULL) {
+            WOLFSSL_MSG("RNG Memory error");
+            return MEMORY_E;
+        }
+        XMEMSET(ssl->rng, 0, sizeof(WC_RNG));
+        ssl->options.weOwnRng = 1;
+
+        /* FIPS RNG API does not accept a heap hint */
+#ifndef HAVE_FIPS
+        if ( (ret = wc_InitRng_ex(ssl->rng, ssl->heap)) != 0) {
+            WOLFSSL_MSG("RNG Init error");
+            return ret;
+        }
+#else
+        if ( (ret = wc_InitRng(ssl->rng)) != 0) {
+            WOLFSSL_MSG("RNG Init error");
+            return ret;
+        }
+#endif
+    }
+
+    if (writeDup) {
+        /* all done */
+        return 0;
+    }
 
     /* hsHashes */
     ssl->hsHashes = (HS_Hashes*)XMALLOC(sizeof(HS_Hashes), ssl->heap,
@@ -3603,34 +3656,6 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
         return ret;
     }
 #endif
-
-#ifdef SINGLE_THREADED
-    ssl->rng = ctx->rng;   /* CTX may have one, if so use it */
-#endif
-
-    if (ssl->rng == NULL) {
-        /* RNG */
-        ssl->rng = (WC_RNG*)XMALLOC(sizeof(WC_RNG), ssl->heap,DYNAMIC_TYPE_RNG);
-        if (ssl->rng == NULL) {
-            WOLFSSL_MSG("RNG Memory error");
-            return MEMORY_E;
-        }
-        XMEMSET(ssl->rng, 0, sizeof(WC_RNG));
-        ssl->options.weOwnRng = 1;
-
-        /* FIPS RNG API does not accept a heap hint */
-#ifndef HAVE_FIPS
-        if ( (ret = wc_InitRng_ex(ssl->rng, ssl->heap)) != 0) {
-            WOLFSSL_MSG("RNG Init error");
-            return ret;
-        }
-#else
-        if ( (ret = wc_InitRng(ssl->rng)) != 0) {
-            WOLFSSL_MSG("RNG Init error");
-            return ret;
-        }
-#endif
-    }
 
 #if defined(WOLFSSL_DTLS) && !defined(NO_WOLFSSL_SERVER)
     if (ssl->options.dtls && ssl->options.side == WOLFSSL_SERVER_END) {
@@ -3841,6 +3866,11 @@ void SSL_ResourceFree(WOLFSSL* ssl)
 #endif
 #ifdef HAVE_EXT_CACHE
     wolfSSL_SESSION_free(ssl->extSession);
+#endif
+#ifdef HAVE_WRITE_DUP
+    if (ssl->dupWrite) {
+        FreeWriteDup(ssl);
+    }
 #endif
 
 #ifdef WOLFSSL_STATIC_MEMORY
@@ -11592,6 +11622,26 @@ int SendAlert(WOLFSSL* ssl, int severity, int type)
     int  outputSz;
     int  dtlsExtra = 0;
 
+#ifdef HAVE_WRITE_DUP
+    if (ssl->dupWrite && ssl->dupSide == READ_DUP_SIDE) {
+        int notifyErr = 0;
+
+        WOLFSSL_MSG("Read dup side cannot write alerts, notifying sibling");
+
+        if (type == close_notify) {
+            notifyErr = ZERO_RETURN;
+        } else if (severity == alert_fatal) {
+            notifyErr = FATAL_ERROR;
+        }
+
+        if (notifyErr != 0) {
+            return NotifyWriteSide(ssl, notifyErr);
+        }
+
+        return 0;
+    }
+#endif
+
     /* if sendalert is called again for nonblocking */
     if (ssl->options.sendAlertState != 0) {
         ret = SendBuffered(ssl);
@@ -12027,6 +12077,12 @@ const char* wolfSSL_ERR_reason_error_string(unsigned long e)
 
     case DECODE_E:
         return "Decode handshake message error";
+
+    case WRITE_DUP_READ_E:
+        return "Write dup write side can't read error";
+
+    case WRITE_DUP_WRITE_E:
+        return "Write dup read side can't write error";
 
     default :
         return "unknown error number";

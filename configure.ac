@@ -477,6 +477,19 @@ then
 fi
 
 
+# Write duplicate WOLFSSL object
+AC_ARG_ENABLE([writedup],
+    [  --enable-writedup       Enable write duplication of WOLFSSL objects (default: disabled)],
+    [ ENABLED_WRITEDUP=$enableval ],
+    [ ENABLED_WRITEDUP=no ]
+    )
+
+if test "$ENABLED_WRITEDUP" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_WRITE_DUP"
+fi
+
+
 # Atomic User Record Layer
 AC_ARG_ENABLE([atomicuser],
     [  --enable-atomicuser     Enable Atomic User Record Layer (default: disabled)],
@@ -3501,6 +3514,7 @@ echo "   * Async Crypto:               $ENABLED_ASYNCCRYPT"
 echo "   * Cavium:                     $ENABLED_CAVIUM"
 echo "   * ARM ASM:                    $ENABLED_ARMASM"
 echo "   * AES Key Wrap:               $ENABLED_AESKEYWRAP"
+echo "   * Write duplicate:            $ENABLED_WRITEDUP"
 echo ""
 echo "---"
 
