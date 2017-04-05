@@ -23601,10 +23601,7 @@ WOLFSSL_RSA* wolfSSL_EVP_PKEY_get1_RSA(WOLFSSL_EVP_PKEY* key)
         return NULL;
     }
 
-    if (key->rsa != NULL) {
-        XMEMCPY(local, key->rsa, sizeof(WOLFSSL_RSA));
-    }
-    else if (key->type == EVP_PKEY_RSA) {
+    if (key->type == EVP_PKEY_RSA) {
         if (wolfSSL_RSA_LoadDer(local, (const unsigned char*)key->pkey.ptr,
                     key->pkey_sz) != SSL_SUCCESS) {
             /* now try public key */
@@ -23617,9 +23614,11 @@ WOLFSSL_RSA* wolfSSL_EVP_PKEY_get1_RSA(WOLFSSL_EVP_PKEY* key)
         }
     }
     else {
+        WOLFSSL_MSG("WOLFSSL_EVP_PKEY does not hold an RSA key");
         wolfSSL_RSA_free(local);
         local = NULL;
     }
+
     return local;
 }
 
