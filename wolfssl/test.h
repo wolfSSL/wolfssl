@@ -1170,23 +1170,23 @@ static INLINE unsigned int my_psk_server_cb(WOLFSSL* ssl, const char* identity,
             format = SSL_FILETYPE_ASN1;
 
         if (type == WOLFSSL_CA) {
-            if (wolfSSL_CTX_load_verify_buffer(ctx, buff, sz, format)
+            if (wolfSSL_CTX_load_verify_buffer(ctx, buff, (long)sz, format)
                                               != SSL_SUCCESS)
                 err_sys("can't load buffer ca file");
         }
         else if (type == WOLFSSL_CERT) {
-            if (wolfSSL_CTX_use_certificate_buffer(ctx, buff, sz,
+            if (wolfSSL_CTX_use_certificate_buffer(ctx, buff, (long)sz,
                         format) != SSL_SUCCESS)
                 err_sys("can't load buffer cert file");
         }
         else if (type == WOLFSSL_KEY) {
-            if (wolfSSL_CTX_use_PrivateKey_buffer(ctx, buff, sz,
+            if (wolfSSL_CTX_use_PrivateKey_buffer(ctx, buff, (long)sz,
                         format) != SSL_SUCCESS)
                 err_sys("can't load buffer key file");
         }
         else if (type == WOLFSSL_CERT_CHAIN) {
-            if (wolfSSL_CTX_use_certificate_chain_buffer_format(ctx, buff, sz,
-                        format) != SSL_SUCCESS)
+            if (wolfSSL_CTX_use_certificate_chain_buffer_format(ctx, buff,
+                    (long)sz, format) != SSL_SUCCESS)
                 err_sys("can't load cert chain buffer");
         }
 
