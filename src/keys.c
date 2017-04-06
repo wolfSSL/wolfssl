@@ -2940,9 +2940,9 @@ int DeriveKeys(WOLFSSL* ssl)
 #endif
 
     ret = wc_InitMd5(md5);
-
-    ret = wc_InitSha(sha);
-
+    if (ret == 0) {
+        ret = wc_InitSha(sha);
+    }
     if (ret == 0) {
         XMEMCPY(md5Input, ssl->arrays->masterSecret, SECRET_LEN);
 
@@ -2968,7 +2968,9 @@ int DeriveKeys(WOLFSSL* ssl)
             XMEMCPY(md5Input + SECRET_LEN, shaOutput, SHA_DIGEST_SIZE);
 
             ret = wc_Md5Update(md5, md5Input, SECRET_LEN + SHA_DIGEST_SIZE);
-            ret = wc_Md5Final(md5, keyData + i * MD5_DIGEST_SIZE);
+            if (ret == 0) {
+                ret = wc_Md5Final(md5, keyData + i * MD5_DIGEST_SIZE);
+            }
         }
 
         if (ret == 0)
@@ -3060,9 +3062,9 @@ static int MakeSslMasterSecret(WOLFSSL* ssl)
 #endif
 
     ret = wc_InitMd5(md5);
-
-    ret = wc_InitSha(sha);
-
+    if (ret == 0) {
+        ret = wc_InitSha(sha);
+    }
     if (ret == 0) {
         XMEMCPY(md5Input, ssl->arrays->preMasterSecret, pmsSz);
 
@@ -3091,7 +3093,10 @@ static int MakeSslMasterSecret(WOLFSSL* ssl)
             idx += SHA_DIGEST_SIZE;
 
             ret = wc_Md5Update(md5, md5Input, idx);
-            ret = wc_Md5Final(md5, &ssl->arrays->masterSecret[i * MD5_DIGEST_SIZE]);
+            if (ret == 0) {
+                ret = wc_Md5Final(md5,
+                            &ssl->arrays->masterSecret[i * MD5_DIGEST_SIZE]);
+            }
         }
 
 #ifdef SHOW_SECRETS
