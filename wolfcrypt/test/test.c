@@ -11025,6 +11025,10 @@ int ecc_test_buffers() {
         return -52;
 #endif
 
+    wc_ecc_free(&cliKey);
+    wc_ecc_free(&servKey);
+    wc_FreeRng(&rng);
+
     return 0;
 }
 #endif /* USE_CERT_BUFFERS_256 */

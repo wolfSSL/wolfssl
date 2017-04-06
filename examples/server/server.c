@@ -213,12 +213,12 @@ static void Usage(void)
     printf("-v <num>    SSL version [0-3], SSLv3(0) - TLS1.2(3)), default %d\n",
                                  SERVER_DEFAULT_VERSION);
     printf("-l <str>    Cipher suite list (: delimited)\n");
-    printf("-c <file>   Certificate file,           default %s\n", svrCert);
-    printf("-k <file>   Key file,                   default %s\n", svrKey);
-    printf("-A <file>   Certificate Authority file, default %s\n", cliCert);
+    printf("-c <file>   Certificate file,           default %s\n", svrCertFile);
+    printf("-k <file>   Key file,                   default %s\n", svrKeyFile);
+    printf("-A <file>   Certificate Authority file, default %s\n", cliCertFile);
     printf("-R <file>   Create Ready file for external monitor default none\n");
 #ifndef NO_DH
-    printf("-D <file>   Diffie-Hellman Params file, default %s\n", dhParam);
+    printf("-D <file>   Diffie-Hellman Params file, default %s\n", dhParamFile);
     printf("-Z <num>    Minimum DH key bits,        default %d\n",
                                  DEFAULT_MIN_DHKEY_BITS);
 #endif
@@ -319,10 +319,10 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     char*  alpnList = NULL;
     unsigned char alpn_opt = 0;
     char*  cipherList = NULL;
-    const char* verifyCert = cliCert;
-    const char* ourCert    = svrCert;
-    const char* ourKey     = svrKey;
-    const char* ourDhParam = dhParam;
+    const char* verifyCert = cliCertFile;
+    const char* ourCert    = svrCertFile;
+    const char* ourKey     = svrKeyFile;
+    const char* ourDhParam = dhParamFile;
     tcp_ready*  readySignal = NULL;
     int    argc = ((func_args*)args)->argc;
     char** argv = ((func_args*)args)->argv;
@@ -363,9 +363,9 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     ((func_args*)args)->return_code = -1; /* error state */
 
 #ifdef NO_RSA
-    verifyCert = (char*)cliEccCert;
-    ourCert    = (char*)eccCert;
-    ourKey     = (char*)eccKey;
+    verifyCert = (char*)cliEccCertFile;
+    ourCert    = (char*)eccCertFile;
+    ourKey     = (char*)eccKeyFile;
 #endif
     (void)pkCallbacks;
     (void)needDH;

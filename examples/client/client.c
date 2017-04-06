@@ -452,9 +452,9 @@ static void Usage(void)
                                  CLIENT_DEFAULT_VERSION);
     printf("-V          Prints valid ssl version numbers, SSLv3(0) - TLS1.2(3)\n");
     printf("-l <str>    Cipher suite list (: delimited)\n");
-    printf("-c <file>   Certificate file,           default %s\n", cliCert);
-    printf("-k <file>   Key file,                   default %s\n", cliKey);
-    printf("-A <file>   Certificate Authority file, default %s\n", caCert);
+    printf("-c <file>   Certificate file,           default %s\n", cliCertFile);
+    printf("-k <file>   Key file,                   default %s\n", cliKeyFile);
+    printf("-A <file>   Certificate Authority file, default %s\n", caCertFile);
 #ifndef NO_DH
     printf("-Z <num>    Minimum DH key bits,        default %d\n",
                                  DEFAULT_MIN_DHKEY_BITS);
@@ -594,9 +594,9 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     char*  alpnList = NULL;
     unsigned char alpn_opt = 0;
     char*  cipherList = NULL;
-    const char* verifyCert = caCert;
-    const char* ourCert    = cliCert;
-    const char* ourKey     = cliKey;
+    const char* verifyCert = caCertFile;
+    const char* ourCert    = cliCertFile;
+    const char* ourKey     = cliKeyFile;
 
     int   doSTARTTLS    = 0;
     char* starttlsProt = NULL;
@@ -638,9 +638,9 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     ((func_args*)args)->return_code = -1; /* error state */
 
 #ifdef NO_RSA
-    verifyCert = (char*)eccCert;
-    ourCert    = (char*)cliEccCert;
-    ourKey     = (char*)cliEccKey;
+    verifyCert = (char*)eccCertFile;
+    ourCert    = (char*)cliEccCertFile;
+    ourKey     = (char*)cliEccKeyFile;
 #endif
     (void)resumeSz;
     (void)session;
@@ -1240,12 +1240,12 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 #ifdef HAVE_ECC
         /* load ecc verify too, echoserver uses it by default w/ ecc */
 #if !defined(NO_FILESYSTEM)
-        if (wolfSSL_CTX_load_verify_locations(ctx, eccCert, 0) != SSL_SUCCESS) {
+        if (wolfSSL_CTX_load_verify_locations(ctx, eccCertFile, 0) != SSL_SUCCESS) {
             wolfSSL_CTX_free(ctx);
             err_sys("can't load ecc ca file, Please run from wolfSSL home dir");
         }
 #else
-        load_buffer(ctx, eccCert, WOLFSSL_CA);
+        load_buffer(ctx, eccCertFile, WOLFSSL_CA);
 #endif  /* !defined(NO_FILESYSTEM) */
 #endif /* HAVE_ECC */
 #if defined(WOLFSSL_TRUST_PEER_CERT) && !defined(NO_FILESYSTEM)
