@@ -1226,7 +1226,7 @@ int wolfIO_HttpProcessResponseCrl(WOLFSSL_CRL* crl, int sfd, byte* httpBuf,
     result = wolfIO_HttpProcessResponse(sfd, "application/pkix-crl",
         &respBuf, httpBuf, httpBufSz, DYNAMIC_TYPE_CRL, crl->heap);
     if (result >= 0) {
-        result = BufferLoadCRL(crl, respBuf, result, SSL_FILETYPE_ASN1);
+        result = BufferLoadCRL(crl, respBuf, result, SSL_FILETYPE_ASN1, 0);
     }
     XFREE(respBuf, crl->heap, DYNAMIC_TYPE_CRL);
 

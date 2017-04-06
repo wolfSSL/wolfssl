@@ -293,7 +293,8 @@ static int AddCRL(WOLFSSL_CRL* crl, DecodedCRL* dcrl)
 
 
 /* Load CRL File of type, SSL_SUCCESS on ok */
-int BufferLoadCRL(WOLFSSL_CRL* crl, const byte* buff, long sz, int type)
+int BufferLoadCRL(WOLFSSL_CRL* crl, const byte* buff, long sz, int type,
+                  int noVerify)
 {
     int          ret = SSL_SUCCESS;
     const byte*  myBuffer = buff;    /* if DER ok, otherwise switch */
@@ -336,7 +337,7 @@ int BufferLoadCRL(WOLFSSL_CRL* crl, const byte* buff, long sz, int type)
 
     InitDecodedCRL(dcrl, crl->heap);
     ret = ParseCRL(dcrl, myBuffer, (word32)sz, crl->cm);
-    if (ret != 0) {
+    if (ret != 0 && !(ret == ASN_CRL_NO_SIGNER_E && noVerify)) {
         WOLFSSL_MSG("ParseCRL error");
     }
     else {

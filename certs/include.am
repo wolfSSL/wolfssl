@@ -53,7 +53,7 @@ EXTRA_DIST += \
 	     certs/server-ecc-comp.der \
 	     certs/server-ecc.der \
 	     certs/server-ecc-rsa.der \
-         certs/server-cert-chain.der
+	     certs/server-cert-chain.der
 
 dist_doc_DATA+= certs/taoCert.txt
 

@@ -2752,6 +2752,26 @@ static void test_wolfSSL_X509_STORE_set_flags(void)
              !defined(NO_FILESYSTEM) && !defined(NO_RSA) */
 }
 
+static void test_wolfSSL_X509_LOOKUP_load_file(void)
+{
+    #if defined(OPENSSL_EXTRA) && defined(HAVE_CRL) && \
+       !defined(NO_FILESYSTEM) && !defined(NO_RSA)
+    WOLFSSL_X509_STORE*  store;
+    WOLFSSL_X509_LOOKUP* lookup;
+
+    printf(testingFmt, "wolfSSL_X509_LOOKUP_load_file()");
+
+    AssertNotNull(store = wolfSSL_X509_STORE_new());
+    AssertNotNull(lookup = X509_STORE_add_lookup(store, X509_LOOKUP_file()));
+    AssertIntEQ(wolfSSL_X509_LOOKUP_load_file(lookup, "certs/crl/crl2.pem",
+                                                         X509_FILETYPE_PEM), 1);
+    wolfSSL_X509_STORE_free(store);
+
+    printf(resultFmt, passed);
+    #endif /* defined(OPENSSL_EXTRA) && defined(HAVE_CRL) && \
+             !defined(NO_FILESYSTEM) && !defined(NO_RSA) */
+}
+
 
 static void test_wolfSSL_BN(void)
 {
@@ -2836,7 +2856,6 @@ static void test_wolfSSL_set_options(void)
     #endif /* defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && \
              !defined(NO_FILESYSTEM) && !defined(NO_RSA) */
 }
-
 
 static void test_wolfSSL_PEM_read_bio(void)
 {
@@ -3426,6 +3445,7 @@ void ApiTest(void)
     test_wolfSSL_CTX_add_extra_chain_cert();
     test_wolfSSL_ERR_peek_last_error_line();
     test_wolfSSL_X509_STORE_set_flags();
+    test_wolfSSL_X509_LOOKUP_load_file();
     test_wolfSSL_BN();
     test_wolfSSL_set_options();
     test_wolfSSL_PEM_read_bio();
