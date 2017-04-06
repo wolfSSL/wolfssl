@@ -1053,7 +1053,7 @@ int SetCipherSpecs(WOLFSSL* ssl)
         return UNSUPPORTED_SUITE;
     }   /* switch */
     }   /* if     */
-    if (ssl->options.cipherSuite0 != ECC_BYTE && 
+    if (ssl->options.cipherSuite0 != ECC_BYTE &&
             ssl->options.cipherSuite0 != CHACHA_BYTE) {   /* normal suites */
     switch (ssl->options.cipherSuite) {
 
@@ -1653,7 +1653,7 @@ int SetCipherSpecs(WOLFSSL* ssl)
 
         break;
 #endif
-            
+
 #ifdef BUILD_TLS_RSA_WITH_HC_128_SHA
         case TLS_RSA_WITH_HC_128_SHA :
             ssl->specs.bulk_cipher_algorithm = wolfssl_hc128;
@@ -1667,7 +1667,7 @@ int SetCipherSpecs(WOLFSSL* ssl)
             ssl->specs.key_size              = HC_128_KEY_SIZE;
             ssl->specs.block_size            = 0;
             ssl->specs.iv_size               = HC_128_IV_SIZE;
-            
+
             break;
 #endif
 
@@ -1684,7 +1684,7 @@ int SetCipherSpecs(WOLFSSL* ssl)
             ssl->specs.key_size              = HC_128_KEY_SIZE;
             ssl->specs.block_size            = 0;
             ssl->specs.iv_size               = HC_128_IV_SIZE;
-            
+
             break;
 #endif
 
@@ -1701,7 +1701,7 @@ int SetCipherSpecs(WOLFSSL* ssl)
             ssl->specs.key_size              = AES_128_KEY_SIZE;
             ssl->specs.iv_size               = AES_IV_SIZE;
             ssl->specs.block_size            = AES_BLOCK_SIZE;
-            
+
             break;
 #endif
 
@@ -1718,7 +1718,7 @@ int SetCipherSpecs(WOLFSSL* ssl)
             ssl->specs.key_size              = AES_256_KEY_SIZE;
             ssl->specs.iv_size               = AES_IV_SIZE;
             ssl->specs.block_size            = AES_BLOCK_SIZE;
-            
+
             break;
 #endif
 
@@ -1827,7 +1827,7 @@ int SetCipherSpecs(WOLFSSL* ssl)
 
         break;
 #endif
-    
+
 #ifdef BUILD_TLS_RSA_WITH_CAMELLIA_256_CBC_SHA
     case TLS_RSA_WITH_CAMELLIA_256_CBC_SHA :
         ssl->specs.bulk_cipher_algorithm = wolfssl_camellia;
@@ -1978,7 +1978,7 @@ int SetCipherSpecs(WOLFSSL* ssl)
             ssl->specs.key_size              = IDEA_KEY_SIZE;
             ssl->specs.block_size            = IDEA_BLOCK_SIZE;
             ssl->specs.iv_size               = IDEA_IV_SIZE;
-            
+
             break;
 #endif
 
@@ -2049,7 +2049,7 @@ static int SetPrefix(byte* sha_input, int idx)
         break;
     default:
         WOLFSSL_MSG("Set Prefix error, bad input");
-        return 0; 
+        return 0;
     }
     return 1;
 }
@@ -2105,7 +2105,7 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
     }
 #endif
 
-    
+
 #if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
     /* Check that the max implicit iv size is suffecient */
     #if (AEAD_MAX_IMP_SZ < 12) /* CHACHA20_IMP_IV_SZ */
@@ -2215,7 +2215,7 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
             dec->setup = 1;
     }
 #endif
-    
+
 #ifdef BUILD_RABBIT
     /* check that buffer sizes are sufficient */
     #if (MAX_WRITE_IV_SZ < 8) /* RABBIT_IV_SIZE */
@@ -2264,7 +2264,7 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
             dec->setup = 1;
     }
 #endif
-    
+
 #ifdef BUILD_DES3
     /* check that buffer sizes are sufficient */
     #if (MAX_WRITE_IV_SZ < 8) /* DES_IV_SIZE */
@@ -2892,7 +2892,7 @@ int StoreKeys(WOLFSSL* ssl, const byte* keyData)
 #ifndef NO_OLD_TLS
 int DeriveKeys(WOLFSSL* ssl)
 {
-    int    length = 2 * ssl->specs.hash_size + 
+    int    length = 2 * ssl->specs.hash_size +
                     2 * ssl->specs.key_size  +
                     2 * ssl->specs.iv_size;
     int    rounds = (length + MD5_DIGEST_SIZE - 1 ) / MD5_DIGEST_SIZE, i;
@@ -2915,7 +2915,7 @@ int DeriveKeys(WOLFSSL* ssl)
 #endif
 
 #ifdef WOLFSSL_SMALL_STACK
-    shaOutput = (byte*)XMALLOC(SHA_DIGEST_SIZE, 
+    shaOutput = (byte*)XMALLOC(SHA_DIGEST_SIZE,
                                             NULL, DYNAMIC_TYPE_TMP_BUFFER);
     md5Input  = (byte*)XMALLOC(SECRET_LEN + SHA_DIGEST_SIZE,
                                             NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -2940,17 +2940,6 @@ int DeriveKeys(WOLFSSL* ssl)
 #endif
 
     ret = wc_InitMd5(md5);
-    if (ret != 0) {
-    #ifdef WOLFSSL_SMALL_STACK
-        XFREE(shaOutput, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        XFREE(md5Input,  NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        XFREE(shaInput,  NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        XFREE(keyData,   NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        XFREE(md5,       NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        XFREE(sha,       NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    #endif
-        return ret;
-    }
 
     ret = wc_InitSha(sha);
 
@@ -2977,30 +2966,9 @@ int DeriveKeys(WOLFSSL* ssl)
             wc_ShaFinal(sha, shaOutput);
 
             XMEMCPY(md5Input + SECRET_LEN, shaOutput, SHA_DIGEST_SIZE);
+
             ret = wc_Md5Update(md5, md5Input, SECRET_LEN + SHA_DIGEST_SIZE);
-            if (ret != 0) {
-            #ifdef WOLFSSL_SMALL_STACK
-                XFREE(shaOutput, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-                XFREE(md5Input,  NULL, DYNAMIC_TYPE_TMP_BUFFER);
-                XFREE(shaInput,  NULL, DYNAMIC_TYPE_TMP_BUFFER);
-                XFREE(keyData,   NULL, DYNAMIC_TYPE_TMP_BUFFER);
-                XFREE(md5,       NULL, DYNAMIC_TYPE_TMP_BUFFER);
-                XFREE(sha,       NULL, DYNAMIC_TYPE_TMP_BUFFER);
-            #endif
-                return ret;
-            }
             ret = wc_Md5Final(md5, keyData + i * MD5_DIGEST_SIZE);
-            if (ret != 0) {
-            #ifdef WOLFSSL_SMALL_STACK
-                XFREE(shaOutput, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-                XFREE(md5Input,  NULL, DYNAMIC_TYPE_TMP_BUFFER);
-                XFREE(shaInput,  NULL, DYNAMIC_TYPE_TMP_BUFFER);
-                XFREE(keyData,   NULL, DYNAMIC_TYPE_TMP_BUFFER);
-                XFREE(md5,       NULL, DYNAMIC_TYPE_TMP_BUFFER);
-                XFREE(sha,       NULL, DYNAMIC_TYPE_TMP_BUFFER);
-            #endif
-                return ret;
-            }
         }
 
         if (ret == 0)
@@ -3092,16 +3060,6 @@ static int MakeSslMasterSecret(WOLFSSL* ssl)
 #endif
 
     ret = wc_InitMd5(md5);
-    if (ret != 0) {
-    #ifdef WOLFSSL_SMALL_STACK
-        XFREE(shaOutput, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        XFREE(md5Input,  NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        XFREE(shaInput,  NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        XFREE(md5,       NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        XFREE(sha,       NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    #endif
-        return ret;
-    }
 
     ret = wc_InitSha(sha);
 
@@ -3131,28 +3089,9 @@ static int MakeSslMasterSecret(WOLFSSL* ssl)
             idx = pmsSz;  /* preSz */
             XMEMCPY(md5Input + idx, shaOutput, SHA_DIGEST_SIZE);
             idx += SHA_DIGEST_SIZE;
+
             ret = wc_Md5Update(md5, md5Input, idx);
-            if (ret != 0) {
-            #ifdef WOLFSSL_SMALL_STACK
-                XFREE(shaOutput, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-                XFREE(md5Input,  NULL, DYNAMIC_TYPE_TMP_BUFFER);
-                XFREE(shaInput,  NULL, DYNAMIC_TYPE_TMP_BUFFER);
-                XFREE(md5,       NULL, DYNAMIC_TYPE_TMP_BUFFER);
-                XFREE(sha,       NULL, DYNAMIC_TYPE_TMP_BUFFER);
-            #endif
-                return ret;
-            }
             ret = wc_Md5Final(md5, &ssl->arrays->masterSecret[i * MD5_DIGEST_SIZE]);
-            if (ret != 0) {
-            #ifdef WOLFSSL_SMALL_STACK
-                XFREE(shaOutput, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-                XFREE(md5Input,  NULL, DYNAMIC_TYPE_TMP_BUFFER);
-                XFREE(shaInput,  NULL, DYNAMIC_TYPE_TMP_BUFFER);
-                XFREE(md5,       NULL, DYNAMIC_TYPE_TMP_BUFFER);
-                XFREE(sha,       NULL, DYNAMIC_TYPE_TMP_BUFFER);
-            #endif
-                return ret;
-            }
         }
 
 #ifdef SHOW_SECRETS
