@@ -2296,10 +2296,8 @@ static int test_wc_InitMd5 (void)
 
     printf(resultFmt, flag == 0 ? passed : failed);
 
-    return 0;
-#else
-    return 0;
 #endif
+    return 0;
 }     /* END test_wc_InitMd5 */
 
 /*
@@ -2331,10 +2329,8 @@ static int test_wc_InitSha(void)
 
     printf(resultFmt, flag == 0 ? passed : failed);
 
-    return 0;
-#else
-    return 0;
 #endif
+    return 0;
 
 } /* END test_wc_InitSha */
 
@@ -2367,10 +2363,8 @@ static int test_wc_InitSha256 (void)
 
     printf(resultFmt, flag == 0 ? passed : failed);
 
-    return 0;
-#else
-    return 0;
 #endif
+    return 0;
 } /* END test_wc_InitSha256 */
 
 
@@ -2403,10 +2397,8 @@ static int test_wc_InitSha512 (void)
 
     printf(resultFmt, flag == 0 ? passed : failed);
 
-    return 0;
-#else
-    return 0;
 #endif
+    return 0;
 
 } /* END test_wc_InitSha512 */
 
@@ -2439,10 +2431,8 @@ static int test_wc_InitSha384 (void)
 
     printf(resultFmt, flag == 0 ? passed : failed);
 
-    return 0;
-#else
-    return 0;
 #endif
+    return 0;
 } /* END test_wc_InitSha384 */
 
 
@@ -2544,10 +2534,8 @@ static int test_wc_Md5Update (void)
 
     printf(resultFmt, flag == 0 ? passed : failed);
 
-    return 0;
-#else
-    return 0;
 #endif
+    return 0;
 } /* END test_wc_Md5Update()  */
 
 /*
@@ -2649,10 +2637,8 @@ static int test_wc_ShaUpdate (void)
     /* If not returned then the unit test passed test vectors. */
     printf(resultFmt, flag == 0 ? passed : failed);
 
-    return 0;
-#else
-    return 0;
 #endif
+    return 0;
 
 } /* END test_wc_ShaUpdate() */
 
@@ -2756,10 +2742,8 @@ static int test_wc_Sha256Update (void)
     /* If not returned then the unit test passed. */
     printf(resultFmt, flag == 0 ? passed : failed);
 
-    return 0;
-#else
-    return 0;
 #endif
+    return 0;
 
 } /* END test_wc_Sha256Update */
 
@@ -2864,10 +2848,8 @@ static int test_wc_Sha384Update (void)
     /* If not returned then the unit test passed test vectors. */
     printf(resultFmt, flag == 0 ? passed : failed);
 
-    return 0;
-#else
-    return 0;
 #endif
+    return 0;
 } /* END test_wc_Sha384Update */
 
 /*
@@ -2972,10 +2954,8 @@ static int test_wc_Sha512Update (void)
     /* If not returned then the unit test passed test vectors. */
     printf(resultFmt, flag == 0 ? passed : failed);
 
-    return 0;
-#else
-    return 0;
 #endif
+    return 0;
 
 } /* END test_wc_Sha512Update  */
 
@@ -3046,10 +3026,8 @@ static int test_wc_Md5Final (void)
 
     printf(resultFmt, flag == 0 ? passed : failed);
 
-    return 0;
-#else
-    return 0;
 #endif
+    return 0;
 }
 
 /*
@@ -3117,10 +3095,8 @@ static int test_wc_ShaFinal (void)
 
     printf(resultFmt, flag == 0 ? passed : failed);
 
-    return 0;
-#else
-    return 0;
 #endif
+    return 0;
 } /* END test_wc_ShaFinal */
 
 /*
@@ -3188,10 +3164,8 @@ static int test_wc_Sha256Final (void)
 
     printf(resultFmt, flag == 0 ? passed : failed);
 
-    return 0;
-#else
-    return 0;
 #endif
+    return 0;
 
 } /* END test_wc_Sha256Final */
 
@@ -3258,10 +3232,8 @@ static int test_wc_Sha512Final (void)
 
     printf(resultFmt, flag == 0 ? passed : failed);
 
-    return 0;
-#else
-    return 0;
 #endif
+    return 0;
 } /* END test_wc_Sha512Final */
 
 /*
@@ -3329,10 +3301,8 @@ static int test_wc_Sha384Final (void)
 
     printf(resultFmt, flag == 0 ? passed : failed);
 
-    return 0;
-#else
-    return 0;
 #endif
+    return 0;
 
 } /* END test_wc_Sha384Final */
 
