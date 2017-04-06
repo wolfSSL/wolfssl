@@ -740,6 +740,7 @@ typedef WOLFSSL_ASN1_BIT_STRING    ASN1_BIT_STRING;
 #define X509_STORE_get1_certs            wolfSSL_X509_STORE_get1_certs
 #define sk_X509_pop_free                 wolfSSL_sk_X509_pop_free
 
+#define SSL3_AL_FATAL                        2
 #define SSL_TLSEXT_ERR_OK                    0
 #define SSL_TLSEXT_ERR_ALERT_FATAL           alert_fatal
 #define SSL_TLSEXT_ERR_NOACK                 alert_warning

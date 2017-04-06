@@ -18488,32 +18488,279 @@ int wolfSSL_ERR_GET_REASON(unsigned long err)
     return ret;
 }
 
-#ifndef NO_WOLFSSL_STUB
-char* wolfSSL_alert_type_string_long(int alertID)
-{
-    (void)alertID;
-    WOLFSSL_STUB("SSL_aalert_type_string_long");
-    return 0;
-}
-#endif
 
-#ifndef NO_WOLFSSL_STUB
-char* wolfSSL_alert_desc_string_long(int alertID)
+/* returns a string that describes the alert
+ *
+ * alertID the alert value to look up
+ */
+const char* wolfSSL_alert_type_string_long(int alertID)
 {
-    (void)alertID;
-    WOLFSSL_STUB("SSL_alert_desc_string_long");
-    return 0;
-}
-#endif
+    WOLFSSL_ENTER("wolfSSL_aalert_type_string_long");
 
-#ifndef NO_WOLFSSL_STUB
-char* wolfSSL_state_string_long(const WOLFSSL* ssl)
-{
-    (void)ssl;
-    WOLFSSL_STUB("SSL_state_string_long");
-    return 0;
+    switch (alertID) {
+        case close_notify:
+            {
+                static const char close_notify_str[] =
+                    "close_notify";
+                return close_notify_str;
+            }
+
+        case unexpected_message:
+            {
+                static const char unexpected_message_str[] =
+                    "unexpected_message";
+                return unexpected_message_str;
+            }
+
+        case bad_record_mac:
+            {
+                static const char bad_record_mac_str[] =
+                    "bad_record_mac";
+                return bad_record_mac_str;
+            }
+
+        case record_overflow:
+            {
+                static const char record_overflow_str[] =
+                    "record_overflow";
+                return record_overflow_str;
+            }
+
+        case decompression_failure:
+            {
+                static const char decompression_failure_str[] =
+                    "decompression_failure";
+                return decompression_failure_str;
+            }
+
+        case handshake_failure:
+            {
+                static const char handshake_failure_str[] =
+                    "handshake_failure";
+                return handshake_failure_str;
+            }
+
+        case no_certificate:
+            {
+                static const char no_certificate_str[] =
+                    "no_certificate";
+                return no_certificate_str;
+            }
+
+        case bad_certificate:
+            {
+                static const char bad_certificate_str[] =
+                    "bad_certificate";
+                return bad_certificate_str;
+            }
+
+        case unsupported_certificate:
+            {
+                static const char unsupported_certificate_str[] =
+                    "unsupported_certificate";
+                return unsupported_certificate_str;
+            }
+
+        case certificate_revoked:
+            {
+                static const char certificate_revoked_str[] =
+                    "certificate_revoked";
+                return certificate_revoked_str;
+            }
+
+        case certificate_expired:
+            {
+                static const char certificate_expired_str[] =
+                    "certificate_expired";
+                return certificate_expired_str;
+            }
+
+        case certificate_unknown:
+            {
+                static const char certificate_unknown_str[] =
+                    "certificate_unknown";
+                return certificate_unknown_str;
+            }
+
+        case illegal_parameter:
+            {
+                static const char illegal_parameter_str[] =
+                    "illegal_parameter";
+                return illegal_parameter_str;
+            }
+
+        case decode_error:
+            {
+                static const char decode_error_str[] =
+                    "decode_error";
+                return decode_error_str;
+            }
+
+        case decrypt_error:
+            {
+                static const char decrypt_error_str[] =
+                    "decrypt_error";
+                return decrypt_error_str;
+            }
+
+    #ifdef WOLFSSL_MYSQL_COMPATIBLE
+    /* catch name conflict for enum protocol with MYSQL build */
+        case wc_protocol_version:
+            {
+                static const char wc_protocol_version_str[] =
+                    "wc_protocol_version";
+                return wc_protocol_version_str;
+            }
+
+    #else
+        case protocol_version:
+            {
+                static const char protocol_version_str[] =
+                    "protocol_version";
+                return protocol_version_str;
+            }
+
+    #endif
+        case no_renegotiation:
+            {
+                static const char no_renegotiation_str[] =
+                    "no_renegotiation";
+                return no_renegotiation_str;
+            }
+
+        case unrecognized_name:
+            {
+                static const char unrecognized_name_str[] =
+                    "unrecognized_name";
+                return unrecognized_name_str;
+            }
+
+        case bad_certificate_status_response:
+            {
+                static const char bad_certificate_status_response_str[] =
+                    "bad_certificate_status_response";
+                return bad_certificate_status_response_str;
+            }
+
+        case no_application_protocol:
+            {
+                static const char no_application_protocol_str[] =
+                    "no_application_protocol";
+                return no_application_protocol_str;
+            }
+
+        default:
+            WOLFSSL_MSG("Unknown Alert");
+            return NULL;
+    }
 }
-#endif
+
+
+const char* wolfSSL_alert_desc_string_long(int alertID)
+{
+    WOLFSSL_ENTER("wolfSSL_alert_desc_string_long");
+    return wolfSSL_alert_type_string_long(alertID);
+}
+
+
+/* Gets the current state of the WOLFSSL structure
+ *
+ * ssl WOLFSSL structure to get state of
+ *
+ * Retruns a human readable string of the WOLFSSL structure state
+ */
+const char* wolfSSL_state_string_long(const WOLFSSL* ssl)
+{
+    WOLFSSL_ENTER("wolfSSL_state_string_long");
+
+    if (ssl == NULL) {
+        WOLFSSL_MSG("Null argument passed in");
+        return NULL;
+    }
+
+    switch (wolfSSL_get_state(ssl)) {
+        case NULL_STATE:
+            {
+                static const char NL_ST[] = "Null State";
+                return NL_ST;
+            }
+
+        case SERVER_HELLOVERIFYREQUEST_COMPLETE:
+            {
+                static const char SHVC_ST[] =
+                    "Server Hello Verify Request Complete";
+                return SHVC_ST;
+            }
+
+        case SERVER_HELLO_COMPLETE:
+            {
+                static const char SHC_ST[] =
+                    "Server Hello Complete";
+                return SHC_ST;
+            }
+
+        case SERVER_CERT_COMPLETE:
+            {
+                static const char SCC_ST[] =
+                    "Server Certificate Complete";
+                return SCC_ST;
+            }
+
+        case SERVER_KEYEXCHANGE_COMPLETE:
+            {
+                static const char SKC_ST[] =
+                    "Server Key Exchange Complete";
+                return SKC_ST;
+            }
+
+        case SERVER_HELLODONE_COMPLETE:
+            {
+                static const char SHDC_ST[] =
+                    "Server Hello Done Complete";
+                return SHDC_ST;
+            }
+
+        case SERVER_FINISHED_COMPLETE:
+            {
+                static const char SFC_ST[] =
+                    "Server Finished Complete";
+                return SFC_ST;
+            }
+
+        case CLIENT_HELLO_COMPLETE:
+            {
+                static const char CHC_ST[] =
+                    "Client Hello Complete";
+                return CHC_ST;
+            }
+
+        case CLIENT_KEYEXCHANGE_COMPLETE:
+            {
+                static const char CKC_ST[] =
+                    "Client Key Exchange Complete";
+                return CKC_ST;
+            }
+
+        case CLIENT_FINISHED_COMPLETE:
+            {
+                static const char CFC_ST[] =
+                    "Client Finished Complete";
+                return CFC_ST;
+            }
+
+        case HANDSHAKE_DONE:
+            {
+                static const char HD_ST[] =
+                    "Handshake Done";
+                return HD_ST;
+            }
+
+        default:
+            WOLFSSL_MSG("Unknown State");
+            return NULL;
+    }
+}
+
 
 #ifndef NO_WOLFSSL_STUB
 int wolfSSL_PEM_def_callback(char* name, int num, int w, void* key)
@@ -28756,7 +29003,24 @@ long wolfSSL_CTX_set_tmp_dh(WOLFSSL_CTX* ctx, WOLFSSL_DH* dh)
     return pSz > 0 && gSz > 0 ? ret : WOLFSSL_FATAL_ERROR;
 }
 #endif /* OPENSSL_EXTRA && !NO_DH */
-#endif /* HAVE_LIGHTY || HAVE_STUNNEL || WOLFSSL_MYSQL_COMPATIBLE || WOLFSSL_HAPROXY */
+
+
+/* returns the enum value associated with handshake state
+ *
+ * ssl the WOLFSSL structure to get state of
+ */
+int wolfSSL_get_state(const WOLFSSL* ssl)
+{
+    WOLFSSL_ENTER("wolfSSL_get_state");
+
+    if (ssl == NULL) {
+        WOLFSSL_MSG("Null argument passed in");
+        return SSL_FAILURE;
+    }
+
+    return ssl->options.handShakeState;
+}
+#endif /* HAVE_LIGHTY || HAVE_STUNNEL || WOLFSSL_MYSQL_COMPATIBLE */
 
 
 /* stunnel compatibility functions*/
@@ -29013,17 +29277,6 @@ int wolfSSL_CTX_add_session(WOLFSSL_CTX* ctx, WOLFSSL_SESSION* session)
     WOLFSSL_STUB("SSL_CTX_add_session");
 
     return WOLFSSL_SUCCESS;
-}
-#endif
-
-#ifndef NO_WOLFSSL_STUB
-int wolfSSL_get_state(const WOLFSSL* ssl)
-{
-    (void)ssl;
-    WOLFSSL_ENTER("wolfSSL_get_state");
-    WOLFSSL_STUB("SSL_get_state");
-
-    return WOLFSSL_FAILURE;
 }
 #endif
 
