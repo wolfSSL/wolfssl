@@ -899,12 +899,25 @@ static int md2nid(int md)
 {
     const char * d ;
     d = (const char *)wolfSSL_EVP_get_md((const unsigned char)md);
-    if (d == NULL) {
-        return MEMORY_E;
+    if (XSTRNCMP(d, "SHA", 3) == 0) {
+        if (XSTRLEN(d) > 3) {
+            if (XSTRNCMP(d, "SHA256", 6) == 0) {
+                return NID_sha256;
+            }
+            if (XSTRNCMP(d, "SHA384", 6) == 0) {
+                return NID_sha384;
+            }
+            if (XSTRNCMP(d, "SHA512", 6) == 0) {
+                return NID_sha512;
+            }
+            WOLFSSL_MSG("Unknown SHA type");
+            return 0;
+        }
+        else {
+            return NID_sha1;
+        }
     }
-
-    if (XSTRNCMP(d, "SHA", 3) == 0) return NID_sha1;
-    if (XSTRNCMP(d, "MD5", 3) == 0) return NID_md5;
+    if(XSTRNCMP(d, "MD5", 3) == 0)return NID_md5;
     return 0;
 }
 #endif /* NO_RSA */
