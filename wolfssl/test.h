@@ -245,37 +245,37 @@
 
 /* all certs relative to wolfSSL home directory now */
 #if defined(WOLFSSL_NO_CURRDIR) || defined(WOLFSSL_MDK_SHELL)
-#define caCert     "certs/ca-cert.pem"
-#define eccCert    "certs/server-ecc.pem"
-#define eccKey     "certs/ecc-key.pem"
-#define svrCert    "certs/server-cert.pem"
-#define svrKey     "certs/server-key.pem"
-#define cliCert    "certs/client-cert.pem"
-#define cliKey     "certs/client-key.pem"
-#define ntruCert   "certs/ntru-cert.pem"
-#define ntruKey    "certs/ntru-key.raw"
-#define dhParam    "certs/dh2048.pem"
-#define cliEccKey  "certs/ecc-client-key.pem"
-#define cliEccCert "certs/client-ecc-cert.pem"
-#define crlPemDir  "certs/crl"
+#define caCertFile     "certs/ca-cert.pem"
+#define eccCertFile    "certs/server-ecc.pem"
+#define eccKeyFile     "certs/ecc-key.pem"
+#define svrCertFile    "certs/server-cert.pem"
+#define svrKeyFile     "certs/server-key.pem"
+#define cliCertFile    "certs/client-cert.pem"
+#define cliKeyFile     "certs/client-key.pem"
+#define ntruCertFile   "certs/ntru-cert.pem"
+#define ntruKeyFile    "certs/ntru-key.raw"
+#define dhParamFile    "certs/dh2048.pem"
+#define cliEccKeyFile  "certs/ecc-client-key.pem"
+#define cliEccCertFile "certs/client-ecc-cert.pem"
+#define crlPemDir      "certs/crl"
 #ifdef HAVE_WNR
     /* Whitewood netRandom default config file */
     #define wnrConfig  "wnr-example.conf"
 #endif
 #else
-#define caCert     "./certs/ca-cert.pem"
-#define eccCert    "./certs/server-ecc.pem"
-#define eccKey     "./certs/ecc-key.pem"
-#define svrCert    "./certs/server-cert.pem"
-#define svrKey     "./certs/server-key.pem"
-#define cliCert    "./certs/client-cert.pem"
-#define cliKey     "./certs/client-key.pem"
-#define ntruCert   "./certs/ntru-cert.pem"
-#define ntruKey    "./certs/ntru-key.raw"
-#define dhParam    "./certs/dh2048.pem"
-#define cliEccKey  "./certs/ecc-client-key.pem"
-#define cliEccCert "./certs/client-ecc-cert.pem"
-#define crlPemDir  "./certs/crl"
+#define caCertFile     "./certs/ca-cert.pem"
+#define eccCertFile    "./certs/server-ecc.pem"
+#define eccKeyFile     "./certs/ecc-key.pem"
+#define svrCertFile    "./certs/server-cert.pem"
+#define svrKeyFile     "./certs/server-key.pem"
+#define cliCertFile    "./certs/client-cert.pem"
+#define cliKeyFile     "./certs/client-key.pem"
+#define ntruCertFile   "./certs/ntru-cert.pem"
+#define ntruKeyFile    "./certs/ntru-key.raw"
+#define dhParamFile    "./certs/dh2048.pem"
+#define cliEccKeyFile  "./certs/ecc-client-key.pem"
+#define cliEccCertFile "./certs/client-ecc-cert.pem"
+#define crlPemDir      "./certs/crl"
 #ifdef HAVE_WNR
     /* Whitewood netRandom default config file */
     #define wnrConfig  "./wnr-example.conf"
@@ -1351,7 +1351,7 @@ static INLINE void CaCb(unsigned char* der, int sz, int type)
             int depth, res;
             FILE* file;
             for(depth = 0; depth <= MAX_WOLF_ROOT_DEPTH; depth++) {
-                file = fopen(ntruKey, "rb");
+                file = fopen(ntruKeyFile, "rb");
                 if (file != NULL) {
                     fclose(file);
                     return depth;

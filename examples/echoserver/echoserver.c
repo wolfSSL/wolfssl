@@ -165,23 +165,23 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
     if (doPSK == 0) {
     #if defined(HAVE_NTRU) && defined(WOLFSSL_STATIC_RSA)
         /* ntru */
-        if (CyaSSL_CTX_use_certificate_file(ctx, ntruCert, SSL_FILETYPE_PEM)
+        if (CyaSSL_CTX_use_certificate_file(ctx, ntruCertFile, SSL_FILETYPE_PEM)
                 != SSL_SUCCESS)
             err_sys("can't load ntru cert file, "
                     "Please run from wolfSSL home dir");
 
-        if (CyaSSL_CTX_use_NTRUPrivateKey_file(ctx, ntruKey)
+        if (CyaSSL_CTX_use_NTRUPrivateKey_file(ctx, ntruKeyFile)
                 != SSL_SUCCESS)
             err_sys("can't load ntru key file, "
                     "Please run from wolfSSL home dir");
     #elif defined(HAVE_ECC) && !defined(CYASSL_SNIFFER)
         /* ecc */
-        if (CyaSSL_CTX_use_certificate_file(ctx, eccCert, SSL_FILETYPE_PEM)
+        if (CyaSSL_CTX_use_certificate_file(ctx, eccCertFile, SSL_FILETYPE_PEM)
                 != SSL_SUCCESS)
             err_sys("can't load server cert file, "
                     "Please run from wolfSSL home dir");
 
-        if (CyaSSL_CTX_use_PrivateKey_file(ctx, eccKey, SSL_FILETYPE_PEM)
+        if (CyaSSL_CTX_use_PrivateKey_file(ctx, eccKeyFile, SSL_FILETYPE_PEM)
                 != SSL_SUCCESS)
             err_sys("can't load server key file, "
                     "Please run from wolfSSL home dir");
@@ -189,12 +189,12 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
         /* do nothing, just don't load cert files */
     #else
         /* normal */
-        if (CyaSSL_CTX_use_certificate_file(ctx, svrCert, SSL_FILETYPE_PEM)
+        if (CyaSSL_CTX_use_certificate_file(ctx, svrCertFile, SSL_FILETYPE_PEM)
                 != SSL_SUCCESS)
             err_sys("can't load server cert file, "
                     "Please run from wolfSSL home dir");
 
-        if (CyaSSL_CTX_use_PrivateKey_file(ctx, svrKey, SSL_FILETYPE_PEM)
+        if (CyaSSL_CTX_use_PrivateKey_file(ctx, svrKeyFile, SSL_FILETYPE_PEM)
                 != SSL_SUCCESS)
             err_sys("can't load server key file, "
                     "Please run from wolfSSL home dir");
@@ -202,8 +202,8 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
     } /* doPSK */
 #elif !defined(NO_CERTS)
     if (!doPSK) {
-        load_buffer(ctx, svrCert, WOLFSSL_CERT);
-        load_buffer(ctx, svrKey,  WOLFSSL_KEY);
+        load_buffer(ctx, svrCertFile, WOLFSSL_CERT);
+        load_buffer(ctx, svrKeyFile,  WOLFSSL_KEY);
     }
 #endif
 
@@ -277,7 +277,7 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
             wolfSSL_dtls_set_peer(ssl, &client, client_len);
         #endif
         #if !defined(NO_FILESYSTEM) && !defined(NO_DH) && !defined(NO_ASN)
-            CyaSSL_SetTmpDH_file(ssl, dhParam, SSL_FILETYPE_PEM);
+            CyaSSL_SetTmpDH_file(ssl, dhParamFile, SSL_FILETYPE_PEM);
         #elif !defined(NO_DH)
             SetDH(ssl);  /* will repick suites with DHE, higher than PSK */
         #endif
