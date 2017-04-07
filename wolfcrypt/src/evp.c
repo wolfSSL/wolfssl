@@ -703,6 +703,7 @@ WOLFSSL_API int wolfSSL_EVP_PKEY_encrypt(WOLFSSL_EVP_PKEY_CTX *ctx,
                      unsigned char *out, size_t *outlen,
                      const unsigned char *in, size_t inlen)
 {
+    int len;
     if (ctx == NULL)return 0;
     WOLFSSL_ENTER("EVP_PKEY_encrypt");
     if(ctx->op != EVP_PKEY_OP_ENCRYPT)return 0;
@@ -711,13 +712,17 @@ WOLFSSL_API int wolfSSL_EVP_PKEY_encrypt(WOLFSSL_EVP_PKEY_CTX *ctx,
     (void)outlen;
     (void)in;
     (void)inlen;
-
+    (void)len;
     switch(ctx->pkey->type){
 #if !defined(NO_RSA) && !defined(HAVE_USER_RSA)
     case EVP_PKEY_RSA:
-        *outlen = wolfSSL_RSA_public_encrypt((int)inlen, (unsigned char *)in, out,
+        len = wolfSSL_RSA_public_encrypt((int)inlen, (unsigned char *)in, out,
                   ctx->pkey->rsa, ctx->padding);
-        return (int)*outlen;
+        if(len < 0)return 0;
+        else {
+            *outlen = len ;
+            return len;
+        }
 #endif /* NO_RSA */
 
     case EVP_PKEY_EC:
