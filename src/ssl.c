@@ -14769,7 +14769,7 @@ int wolfSSL_X509_LOOKUP_load_file(WOLFSSL_X509_LOOKUP* lookup,
             goto end;
 
         curr++;
-        sz -= curr - prev;
+        sz -= (long)(curr - prev);
         prev = curr;
     }
     while (ret == SSL_SUCCESS);
