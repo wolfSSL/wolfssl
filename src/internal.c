@@ -7573,7 +7573,7 @@ static int DoCertificate(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                 #ifdef WOLFSSL_WPAS
                     store->error_depth = 0;
                 #else
-                    store->error_depth = totalCerts;
+                    store->error_depth = args->totalCerts;
                 #endif
                     store->discardSessionCerts = 0;
                     store->domain = args->domain;
