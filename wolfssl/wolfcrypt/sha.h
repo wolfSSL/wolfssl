@@ -56,11 +56,7 @@ enum {
 #endif
     SHA              =  1,    /* hash type unique */
     SHA_BLOCK_SIZE   = 64,
-#ifdef WOLFSSL_PIC32MZ_HASH
-    SHA_DIGEST_SIZE  = PIC32_HASH_SIZE,
-#else
     SHA_DIGEST_SIZE  = 20,
-#endif
     SHA_PAD_SIZE     = 56
 };
 
@@ -75,7 +71,11 @@ typedef struct Sha {
         word32  loLen;     /* length in bytes   */
         word32  hiLen;     /* length in bytes   */
         word32  buffer[SHA_BLOCK_SIZE  / sizeof(word32)];
+    #ifndef WOLFSSL_PIC32MZ_HASH
         word32  digest[SHA_DIGEST_SIZE / sizeof(word32)];
+    #else
+        word32  digest[PIC32_HASH_SIZE / sizeof(word32)];
+    #endif
         void*   heap;
     #ifdef WOLFSSL_PIC32MZ_HASH
         pic32mz_desc desc; /* Crypt Engine descriptor */

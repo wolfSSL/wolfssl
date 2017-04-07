@@ -3626,16 +3626,17 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
         /* arrays */
         ssl->arrays = (Arrays*)XMALLOC(sizeof(Arrays), ssl->heap,
                                                            DYNAMIC_TYPE_ARRAYS);
-    if (ssl->arrays == NULL) {
-        WOLFSSL_MSG("Arrays Memory error");
-        return MEMORY_E;
-    }
-    XMEMSET(ssl->arrays, 0, sizeof(Arrays));
-    ssl->arrays->preMasterSecret = (byte*)XMALLOC(ENCRYPT_LEN, ssl->heap,
-        DYNAMIC_TYPE_TMP_BUFFER);
-    if (ssl->arrays->preMasterSecret == NULL) {
-        return MEMORY_E;
-    }
+        if (ssl->arrays == NULL) {
+            WOLFSSL_MSG("Arrays Memory error");
+            return MEMORY_E;
+        }
+        XMEMSET(ssl->arrays, 0, sizeof(Arrays));
+        ssl->arrays->preMasterSecret = (byte*)XMALLOC(ENCRYPT_LEN, ssl->heap,
+            DYNAMIC_TYPE_TMP_BUFFER);
+        if (ssl->arrays->preMasterSecret == NULL) {
+            return MEMORY_E;
+        }
+        XMEMSET(ssl->arrays->preMasterSecret, 0, ENCRYPT_LEN);
 
         /* suites */
         ssl->suites = (Suites*)XMALLOC(sizeof(Suites), ssl->heap,
