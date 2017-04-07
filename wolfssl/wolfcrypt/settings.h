@@ -162,6 +162,9 @@
 /* Uncomment next line if building for using XILINX */
 /* #define WOLFSSL_XILINX */
 
+/* Uncomment next line if building for Nucleus */
+/* #define WOLFSSL_NUCLEUS */
+
 #include <wolfssl/wolfcrypt/visibility.h>
 
 #ifdef WOLFSSL_USER_SETTINGS
@@ -445,6 +448,26 @@
 #ifdef WOLFSSL_CHIBIOS
     /* ChibiOS definitions. This file is distributed with chibiOS. */
     #include "wolfssl_chibios.h"
+#endif
+
+#ifdef WOLFSSL_NUCLEUS
+    #define NO_WRITEV
+    #define NO_WOLFSSL_DIR
+
+    #ifndef USER_TIME
+        #error User must define XTIME, see manual
+    #endif
+
+    #if !defined(XMALLOC_OVERRIDE) && !defined(XMALLOC_USER)
+        extern void* nucleus_malloc(unsigned long size, void* heap, int type);
+        extern void* nucleus_realloc(void* ptr, unsigned long size, void* heap,
+                                     int type);
+        extern void  nucleus_free(void* ptr, void* heap, int type);
+
+        #define XMALLOC(s, h, type)  nucleus_malloc
+        #define XREALLOC(p, n, h, t) nucleus_realloc
+        #define XFREE(p, h, type)    nucleus_free
+    #endif
 #endif
 
 #ifdef WOLFSSL_NRF5x

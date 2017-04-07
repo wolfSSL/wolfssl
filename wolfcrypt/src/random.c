@@ -142,6 +142,7 @@ int wc_RNG_GenerateByte(WC_RNG* rng, byte* b)
 #elif defined(WOLFSSL_ROWLEY_ARM)
 #elif defined(WOLFSSL_EMBOS)
 #elif defined(MICRIUM)
+#elif defined(WOLFSSL_NUCLEUS)
 #else
     /* include headers that may be needed to get good seed */
     #include <fcntl.h>
@@ -1613,6 +1614,20 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 
         return 0;
     }
+
+#elif defined(WOLFSSL_PB)
+
+    int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
+    {
+        word32 i;
+        for (i = 0; i < sz; i++)
+            output[i] = UTL_Rand();
+
+        (void)os;
+
+        return 0;
+    }
+
 #elif defined(WOLFSSL_NUCLEUS)
 #include "nucleus.h"
 #include "kernel/plus_common.h"
