@@ -74,7 +74,8 @@ int InitCRL(WOLFSSL_CRL* crl, WOLFSSL_CERT_MANAGER* cm)
 
 
 /* Initialize CRL Entry */
-static int InitCRL_Entry(CRL_Entry* crle, DecodedCRL* dcrl)
+static int InitCRL_Entry(CRL_Entry* crle, DecodedCRL* dcrl, const byte* buff,
+                         int verified, void* heap)
 {
     WOLFSSL_ENTER("InitCRL_Entry");
 
@@ -89,6 +90,34 @@ static int InitCRL_Entry(CRL_Entry* crle, DecodedCRL* dcrl)
     crle->certs = dcrl->certs;   /* take ownsership */
     dcrl->certs = NULL;
     crle->totalCerts = dcrl->totalCerts;
+    crle->verified = verified;
+    if (!verified) {
+        crle->tbsSz = dcrl->sigIndex - dcrl->certBegin;
+        crle->signatureSz = dcrl->sigLength;
+        crle->signatureOID = dcrl->signatureOID;
+        crle->toBeSigned = XMALLOC(crle->tbsSz, heap, DYNAMIC_TYPE_CRL_ENTRY);
+        if (crle->toBeSigned == NULL)
+            return -1;
+        crle->signature = XMALLOC(crle->signatureSz, heap,
+                                  DYNAMIC_TYPE_CRL_ENTRY);
+        if (crle->signature == NULL) {
+            XFREE(crle->signature, crl->heap, DYNAMIC_TYPE_CRL_ENTRY);
+            return -1;
+        }
+        XMEMCPY(crle->toBeSigned, buff + dcrl->certBegin, crle->tbsSz);
+        XMEMCPY(crle->signature, dcrl->signature, crle->signatureSz);
+    #if !defined(NO_SKID) && defined(CRL_SKID_READY)
+        crle->extAuthKeyIdSet = dcrl->extAuthKeyIdSet;
+        if (crle->extAuthKeyIdSet)
+            XMEMCPY(crle->extAuthKeyId, dcrl->extAuthKeyId, KEYID_SIZE);
+    #endif
+    }
+    else {
+        crle->toBeSigned = NULL;
+        crle->signature = NULL;
+    }
+
+    (void)verified;
 
     return 0;
 }
@@ -106,6 +135,10 @@ static void FreeCRL_Entry(CRL_Entry* crle, void* heap)
         XFREE(tmp, heap, DYNAMIC_TYPE_REVOKED);
         tmp = next;
     }
+    if (crle->signature != NULL)
+        XFREE(crle->signature, heap, DYNAMIC_TYPE_REVOKED);
+    if (crle->toBeSigned != NULL)
+        XFREE(crle->toBeSigned, heap, DYNAMIC_TYPE_REVOKED);
 
     (void)heap;
 }
@@ -167,6 +200,46 @@ static int CheckCertCRLList(WOLFSSL_CRL* crl, DecodedCert* cert, int *pFoundEntr
             int doNextDate = 1;
 
             WOLFSSL_MSG("Found CRL Entry on list");
+
+            if (crle->verified == 0) {
+                Signer* ca;
+
+                wc_UnLockMutex(&crl->crlLock);
+
+            #if !defined(NO_SKID) && defined(CRL_SKID_READY)
+                if (crle->extAuthKeyIdSet)
+                    ca = GetCA(crl->cm, crle->extAuthKeyId);
+                if (ca == NULL)
+                    ca = GetCAByName(crl->cm, crle->issuerHash);
+            #else /* NO_SKID */
+                ca = GetCA(crl->cm, crle->issuerHash);
+            #endif /* NO_SKID */
+                if (ca == NULL) {
+                    WOLFSSL_MSG("Did NOT find CRL issuer CA");
+                    return ASN_CRL_NO_SIGNER_E;
+                }
+
+                ret = VerifyCRL_Signature(crle->toBeSigned, crle->tbsSz,
+                    crle->signature, crle->signatureSz, crle->signatureOID, ca);
+
+                if (wc_LockMutex(&crl->crlLock) != 0) {
+                    WOLFSSL_MSG("wc_LockMutex failed");
+                    return BAD_MUTEX_E;
+                }
+
+                if (ret == 0)
+                    crle->verified = 1;
+                else {
+                    crle->verified = ret;
+                    break;
+                }
+            }
+            else if (crle->verified < 0) {
+                WOLFSSL_MSG("Cannot use CRL as it didn't verify");
+                ret = crle->verified;
+                break;
+            }
+
             WOLFSSL_MSG("Checking next date validity");
 
             #ifdef WOLFSSL_NO_CRL_NEXT_DATE
@@ -260,7 +333,8 @@ int CheckCertCRL(WOLFSSL_CRL* crl, DecodedCert* cert)
 
 
 /* Add Decoded CRL, 0 on success */
-static int AddCRL(WOLFSSL_CRL* crl, DecodedCRL* dcrl)
+static int AddCRL(WOLFSSL_CRL* crl, DecodedCRL* dcrl, const byte* buff,
+                  int verified)
 {
     CRL_Entry* crle;
 
@@ -272,7 +346,7 @@ static int AddCRL(WOLFSSL_CRL* crl, DecodedCRL* dcrl)
         return -1;
     }
 
-    if (InitCRL_Entry(crle, dcrl) < 0) {
+    if (InitCRL_Entry(crle, dcrl, buff, verified, crl->heap) < 0) {
         WOLFSSL_MSG("Init CRL Entry failed");
         XFREE(crle, crl->heap, DYNAMIC_TYPE_CRL_ENTRY);
         return -1;
@@ -341,7 +415,7 @@ int BufferLoadCRL(WOLFSSL_CRL* crl, const byte* buff, long sz, int type,
         WOLFSSL_MSG("ParseCRL error");
     }
     else {
-        ret = AddCRL(crl, dcrl);
+        ret = AddCRL(crl, dcrl, myBuffer, ret != ASN_CRL_NO_SIGNER_E);
         if (ret != 0) {
             WOLFSSL_MSG("AddCRL error");
         }

@@ -1571,6 +1571,16 @@ struct CRL_Entry {
     byte    nextDateFormat;          /* next date format */
     RevokedCert* certs;              /* revoked cert list  */
     int          totalCerts;         /* number on list     */
+    int     verified;
+    byte*   toBeSigned;
+    word32  tbsSz;
+    byte*   signature;
+    word32  signatureSz;
+    word32  signatureOID;
+#if !defined(NO_SKID) && defined(CRL_SKID_READY)
+    byte    extAuthKeyIdSet;
+    byte    extAuthKeyId[KEYID_SIZE];
+#endif
 };
 
 

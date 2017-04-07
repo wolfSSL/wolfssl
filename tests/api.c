@@ -2763,8 +2763,20 @@ static void test_wolfSSL_X509_LOOKUP_load_file(void)
 
     AssertNotNull(store = wolfSSL_X509_STORE_new());
     AssertNotNull(lookup = X509_STORE_add_lookup(store, X509_LOOKUP_file()));
+    AssertIntEQ(wolfSSL_X509_LOOKUP_load_file(lookup, "certs/client-ca.pem",
+                                              X509_FILETYPE_PEM), 1);
     AssertIntEQ(wolfSSL_X509_LOOKUP_load_file(lookup, "certs/crl/crl2.pem",
                                                          X509_FILETYPE_PEM), 1);
+
+    AssertIntEQ(wolfSSL_CertManagerVerify(store->cm, cliCert, SSL_FILETYPE_PEM),
+                1);
+    AssertIntEQ(wolfSSL_CertManagerVerify(store->cm, svrCert, SSL_FILETYPE_PEM),
+                ASN_NO_SIGNER_E);
+    AssertIntEQ(wolfSSL_X509_LOOKUP_load_file(lookup, "certs/ca-cert.pem",
+                                              X509_FILETYPE_PEM), 1);
+    AssertIntEQ(wolfSSL_CertManagerVerify(store->cm, svrCert, SSL_FILETYPE_PEM),
+                1);
+
     wolfSSL_X509_STORE_free(store);
 
     printf(resultFmt, passed);
