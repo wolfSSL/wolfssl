@@ -1424,6 +1424,8 @@ static INLINE int StackSizeCheck(func_args* args, thread_func tf)
         }
     }
 
+    free(myStack);
+
     used = stackSize - i;
     printf("stack used = %d\n", used);
 

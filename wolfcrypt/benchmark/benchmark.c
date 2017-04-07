@@ -250,7 +250,8 @@ void bench_rng(void);
     double current_time(int);
 #endif
 
-#if defined(DEBUG_WOLFSSL) && !defined(HAVE_VALGRIND)
+#if defined(DEBUG_WOLFSSL) && !defined(HAVE_VALGRIND) && \
+        !defined(HAVE_STACK_SIZE)
     WOLFSSL_API int wolfSSL_Debugging_ON();
 #endif
 
