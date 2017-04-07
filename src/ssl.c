@@ -23865,7 +23865,7 @@ WOLFSSL_RSA* wolfSSL_EVP_PKEY_get1_RSA(WOLFSSL_EVP_PKEY* key)
         wolfSSL_RSA_free(local);
         local = NULL;
     }
-
+    key->rsa = local;
     return local;
 }
 
