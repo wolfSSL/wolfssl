@@ -2960,14 +2960,18 @@ int DeriveKeys(WOLFSSL* ssl)
             XMEMCPY(shaInput + idx, ssl->arrays->serverRandom, RAN_LEN);
             idx += RAN_LEN;
             XMEMCPY(shaInput + idx, ssl->arrays->clientRandom, RAN_LEN);
-
-            wc_ShaUpdate(sha, shaInput, (KEY_PREFIX + SECRET_LEN + 2 * RAN_LEN)
-                                                              - KEY_PREFIX + j);
-            wc_ShaFinal(sha, shaOutput);
+            if (ret == 0) { /* ret could be PREFIX_ERROR. */
+                ret = wc_ShaUpdate(sha, shaInput,
+                    (KEY_PREFIX + SECRET_LEN + 2 * RAN_LEN) - KEY_PREFIX + j);
+            }
+            if (ret == 0) {
+                ret = wc_ShaFinal(sha, shaOutput);
+            }
 
             XMEMCPY(md5Input + SECRET_LEN, shaOutput, SHA_DIGEST_SIZE);
-
-            ret = wc_Md5Update(md5, md5Input, SECRET_LEN + SHA_DIGEST_SIZE);
+            if (ret == 0) {
+                ret = wc_Md5Update(md5, md5Input, SECRET_LEN + SHA_DIGEST_SIZE);
+            }
             if (ret == 0) {
                 ret = wc_Md5Final(md5, keyData + i * MD5_DIGEST_SIZE);
             }
@@ -3085,14 +3089,18 @@ static int MakeSslMasterSecret(WOLFSSL* ssl)
             idx += RAN_LEN;
             XMEMCPY(shaInput + idx, ssl->arrays->serverRandom, RAN_LEN);
             idx += RAN_LEN;
-            wc_ShaUpdate(sha, shaInput, idx);
-            wc_ShaFinal(sha, shaOutput);
-
+            if (ret == 0) { /* ret could be PREFIX_ERROR. */
+                ret = wc_ShaUpdate(sha, shaInput, idx);
+            }
+            if (ret == 0) {
+                ret = wc_ShaFinal(sha, shaOutput);
+            }
             idx = pmsSz;  /* preSz */
             XMEMCPY(md5Input + idx, shaOutput, SHA_DIGEST_SIZE);
             idx += SHA_DIGEST_SIZE;
-
-            ret = wc_Md5Update(md5, md5Input, idx);
+            if (ret == 0) {
+                ret = wc_Md5Update(md5, md5Input, idx);
+            }
             if (ret == 0) {
                 ret = wc_Md5Final(md5,
                             &ssl->arrays->masterSecret[i * MD5_DIGEST_SIZE]);
