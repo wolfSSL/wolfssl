@@ -148,11 +148,6 @@ int wc_RsaFlattenPublicKey(RsaKey* key, byte* a, word32* aSz, byte* b,
 #define ERROR_OUT(x) { ret = (x); goto done;}
 
 
-#ifdef WOLFSSL_ASYNC_CRYPT
-    static int InitAsyncRsaKey(RsaKey* key);
-    static int FreeAsyncRsaKey(RsaKey* key);
-#endif /* WOLFSSL_ASYNC_CRYPT */
-
 enum {
     RSA_STATE_NONE = 0,
 
@@ -167,18 +162,18 @@ enum {
 
 static void wc_RsaCleanup(RsaKey* key)
 {
-    if (key && key->tmp) {
+    if (key && key->data) {
         /* make sure any allocated memory is free'd */
-        if (key->tmpIsAlloc) {
+        if (key->dataIsAlloc) {
             if (key->type == RSA_PRIVATE_DECRYPT ||
                 key->type == RSA_PRIVATE_ENCRYPT) {
-                ForceZero(key->tmp, key->tmpLen);
+                ForceZero(key->data, key->dataLen);
             }
-            XFREE(key->tmp, key->heap, DYNAMIC_TYPE_RSA);
-            key->tmpIsAlloc = 0;
+            XFREE(key->data, key->heap, DYNAMIC_TYPE_WOLF_BIGINT);
+            key->dataIsAlloc = 0;
         }
-        key->tmp = NULL;
-        key->tmpLen = 0;
+        key->data = NULL;
+        key->dataLen = 0;
     }
 }
 
@@ -190,39 +185,35 @@ int wc_InitRsaKey_ex(RsaKey* key, void* heap, int devId)
         return BAD_FUNC_ARG;
     }
 
-    (void)devId;
-
     key->type = RSA_TYPE_UNKNOWN;
     key->state = RSA_STATE_NONE;
     key->heap = heap;
-    key->tmp = NULL;
-    key->tmpLen = 0;
-    key->tmpIsAlloc = 0;
+    key->data = NULL;
+    key->dataLen = 0;
+    key->dataIsAlloc = 0;
 #ifdef WC_RSA_BLINDING
     key->rng = NULL;
 #endif
 
-#ifdef WOLFSSL_ASYNC_CRYPT
-    if (devId != INVALID_DEVID) {
-        /* handle as async */
-        ret = wolfAsync_DevCtxInit(&key->asyncDev, WOLFSSL_ASYNC_MARKER_RSA,
-                                                                        devId);
-        if (ret == 0) {
-            ret = InitAsyncRsaKey(key);
-        }
-    }
-    else
+#if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_RSA)
+    /* handle as async */
+    ret = wolfAsync_DevCtxInit(&key->asyncDev, WOLFSSL_ASYNC_MARKER_RSA,
+                                                            key->heap, devId);
+    #ifdef WOLFSSL_CERT_GEN
+        XMEMSET(&key->certSignCtx, 0, sizeof(CertSignCtx));
+    #endif
+#else
+    (void)devId;
 #endif
-    {
-        mp_init(&key->n);
-        mp_init(&key->e);
-        mp_init(&key->d);
-        mp_init(&key->p);
-        mp_init(&key->q);
-        mp_init(&key->dP);
-        mp_init(&key->dQ);
-        mp_init(&key->u);
-    }
+
+    mp_init(&key->n);
+    mp_init(&key->e);
+    mp_init(&key->d);
+    mp_init(&key->p);
+    mp_init(&key->q);
+    mp_init(&key->dP);
+    mp_init(&key->dQ);
+    mp_init(&key->u);
 
     return ret;
 }
@@ -242,36 +233,29 @@ int wc_FreeRsaKey(RsaKey* key)
 
     wc_RsaCleanup(key);
 
-#ifdef WOLFSSL_ASYNC_CRYPT
-    if (key->asyncDev.marker == WOLFSSL_ASYNC_MARKER_RSA) {
-        ret = FreeAsyncRsaKey(key);
-        wolfAsync_DevCtxFree(&key->asyncDev);
-    }
-    else
+#if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_RSA)
+    wolfAsync_DevCtxFree(&key->asyncDev, WOLFSSL_ASYNC_MARKER_RSA);
 #endif
-    {
-        if (key->type == RSA_PRIVATE) {
-            mp_forcezero(&key->u);
-            mp_forcezero(&key->dQ);
-            mp_forcezero(&key->dP);
-            mp_forcezero(&key->q);
-            mp_forcezero(&key->p);
-            mp_forcezero(&key->d);
-        }
-    #ifndef USE_FAST_MATH
-        /* private part */
-        mp_clear(&key->u);
-        mp_clear(&key->dQ);
-        mp_clear(&key->dP);
-        mp_clear(&key->q);
-        mp_clear(&key->p);
-        mp_clear(&key->d);
 
-        /* public part */
-        mp_clear(&key->e);
-        mp_clear(&key->n);
-    #endif
+    if (key->type == RSA_PRIVATE) {
+        mp_forcezero(&key->u);
+        mp_forcezero(&key->dQ);
+        mp_forcezero(&key->dP);
+        mp_forcezero(&key->q);
+        mp_forcezero(&key->p);
+        mp_forcezero(&key->d);
     }
+    /* private part */
+    mp_clear(&key->u);
+    mp_clear(&key->dQ);
+    mp_clear(&key->dP);
+    mp_clear(&key->q);
+    mp_clear(&key->p);
+    mp_clear(&key->d);
+
+    /* public part */
+    mp_clear(&key->e);
+    mp_clear(&key->n);
 
     return ret;
 }
@@ -656,7 +640,7 @@ static int wc_RsaPad_ex(const byte* input, word32 inputLen, byte* pkcsBlock,
 
     #ifndef WC_NO_RSA_OAEP
         case WC_RSA_OAEP_PAD:
-            //WOLFSSL_MSG("wolfSSL Using RSA OAEP padding");
+            WOLFSSL_MSG("wolfSSL Using RSA OAEP padding");
             ret = RsaPad_OAEP(input, inputLen, pkcsBlock, pkcsBlockLen,
                          padValue, rng, hType, mgf, optLabel, labelLen, heap);
             break;
@@ -795,7 +779,7 @@ static int RsaUnPad(const byte *pkcsBlock, unsigned int pkcsBlockLen,
         while (i<pkcsBlockLen && pkcsBlock[i++]) {/* Null body */}
     }
 
-    if(!(i==pkcsBlockLen || pkcsBlock[i-1]==0)) {
+    if (!(i==pkcsBlockLen || pkcsBlock[i-1]==0)) {
         WOLFSSL_MSG("RsaUnPad error, bad formatting");
         return RSA_PAD_E;
     }
@@ -804,7 +788,7 @@ static int RsaUnPad(const byte *pkcsBlock, unsigned int pkcsBlockLen,
     invalid = (outputLen > maxOutputLen) || invalid;
 
     if (invalid) {
-        WOLFSSL_MSG("RsaUnPad error, bad formatting");
+        WOLFSSL_MSG("RsaUnPad error, invalid formatting");
         return RSA_PAD_E;
     }
 
@@ -819,16 +803,15 @@ static int wc_RsaUnPad_ex(byte* pkcsBlock, word32 pkcsBlockLen, byte** out,
 {
     int ret;
 
-    switch (padType)
-    {
+    switch (padType) {
         case WC_RSA_PKCSV15_PAD:
-            WOLFSSL_MSG("wolfSSL Using RSA PKCSV15 padding");
+            //WOLFSSL_MSG("wolfSSL Using RSA PKCSV15 un-padding");
             ret = RsaUnPad(pkcsBlock, pkcsBlockLen, out, padValue);
             break;
 
     #ifndef WC_NO_RSA_OAEP
         case WC_RSA_OAEP_PAD:
-            WOLFSSL_MSG("wolfSSL Using RSA OAEP padding");
+            WOLFSSL_MSG("wolfSSL Using RSA OAEP un-padding");
             ret = RsaUnPad_OAEP((byte*)pkcsBlock, pkcsBlockLen, out,
                                         hType, mgf, optLabel, labelLen, heap);
             break;
@@ -884,7 +867,7 @@ static int wc_RsaFunctionSync(const byte* in, word32 inLen, byte* out,
         /* blind */
         ret = mp_rand(&rnd, get_digit_count(&key->n), rng);
         if (ret != MP_OKAY)
-            ERROR_OUT(ret);
+            goto done;
 
         /* rndi = 1/rnd mod n */
         if (mp_invmod(&rnd, &key->n, &rndi) != MP_OKAY)
@@ -1000,9 +983,6 @@ done:
         mp_clear(&rnd);
     }
 #endif
-    if (ret == MP_EXPTMOD_E) {
-        WOLFSSL_MSG("RSA_FUNCTION MP_EXPTMOD_E: memory/config problem");
-    }
     return ret;
 }
 
@@ -1012,8 +992,10 @@ static int wc_RsaFunctionAsync(const byte* in, word32 inLen, byte* out,
 {
     int ret = 0;
 
+    (void)rng;
+
 #ifdef WOLFSSL_ASYNC_CRYPT_TEST
-    AsyncCryptTestDev* testDev = &key->asyncDev.dev;
+    WC_ASYNC_TEST* testDev = &key->asyncDev.test;
     if (testDev->type == ASYNC_TEST_NONE) {
         testDev->type = ASYNC_TEST_RSA_FUNC;
         testDev->rsaFunc.in = in;
@@ -1031,11 +1013,22 @@ static int wc_RsaFunctionAsync(const byte* in, word32 inLen, byte* out,
     case RSA_PRIVATE_DECRYPT:
     case RSA_PRIVATE_ENCRYPT:
     #ifdef HAVE_CAVIUM
-        ret = NitroxRsaExptMod(in, inLen, key->d.dpraw, key->d.used,
-                               key->n.dpraw, key->n.used, out, outLen, key);
+        ret = NitroxRsaExptMod(in, inLen,
+                               key->d.raw.buf, key->d.raw.len,
+                               key->n.raw.buf, key->n.raw.len,
+                               out, outLen, key);
     #elif defined(HAVE_INTEL_QA)
-        /* TODO: Add support for Intel Quick Assist */
-        ret = -1;
+        #ifdef RSA_LOW_MEM
+            ret = IntelQaRsaPrivate(&key->asyncDev, in, inLen,
+                                    &key->d.raw, &key->n.raw,
+                                    out, outLen);
+        #else
+            ret = IntelQaRsaCrtPrivate(&key->asyncDev, in, inLen,
+                                &key->p.raw, &key->q.raw,
+                                &key->dP.raw, &key->dQ.raw,
+                                &key->u.raw,
+                                out, outLen);
+        #endif
     #else /* WOLFSSL_ASYNC_CRYPT_TEST */
         ret = wc_RsaFunctionSync(in, inLen, out, outLen, type, key, rng);
     #endif
@@ -1044,11 +1037,14 @@ static int wc_RsaFunctionAsync(const byte* in, word32 inLen, byte* out,
     case RSA_PUBLIC_ENCRYPT:
     case RSA_PUBLIC_DECRYPT:
     #ifdef HAVE_CAVIUM
-        ret = NitroxRsaExptMod(in, inLen, key->e.dpraw, key->e.used,
-                               key->n.dpraw, key->n.used, out, outLen, key);
+        ret = NitroxRsaExptMod(in, inLen,
+                               key->e.raw.buf, key->e.raw.len,
+                               key->n.raw.buf, key->n.raw.len,
+                               out, outLen, key);
     #elif defined(HAVE_INTEL_QA)
-        /* TODO: Add support for Intel Quick Assist */
-        ret = -1;
+        ret = IntelQaRsaPublic(&key->asyncDev, in, inLen,
+                               &key->e.raw, &key->n.raw,
+                               out, outLen);
     #else /* WOLFSSL_ASYNC_CRYPT_TEST */
         ret = wc_RsaFunctionSync(in, inLen, out, outLen, type, key, rng);
     #endif
@@ -1072,8 +1068,9 @@ int wc_RsaFunction(const byte* in, word32 inLen, byte* out,
         return BAD_FUNC_ARG;
     }
 
-#ifdef WOLFSSL_ASYNC_CRYPT
-    if (key->asyncDev.marker == WOLFSSL_ASYNC_MARKER_RSA) {
+#if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_RSA)
+    if (key->asyncDev.marker == WOLFSSL_ASYNC_MARKER_RSA &&
+                                                        key->n.raw.len > 0) {
         ret = wc_RsaFunctionAsync(in, inLen, out, outLen, type, key, rng);
     }
     else
@@ -1082,10 +1079,17 @@ int wc_RsaFunction(const byte* in, word32 inLen, byte* out,
         ret = wc_RsaFunctionSync(in, inLen, out, outLen, type, key, rng);
     }
 
-    if (ret == MP_EXPTMOD_E) {
-        /* This can happen due to incorrectly set FP_MAX_BITS or missing XREALLOC */
-        WOLFSSL_MSG("RSA_FUNCTION MP_EXPTMOD_E: memory/config problem");
+    /* handle error */
+    if (ret < 0 && ret != WC_PENDING_E) {
+        if (ret == MP_EXPTMOD_E) {
+            /* This can happen due to incorrectly set FP_MAX_BITS or missing XREALLOC */
+            WOLFSSL_MSG("RSA_FUNCTION MP_EXPTMOD_E: memory/config problem");
+        }
+
+        key->state = RSA_STATE_NONE;
+        wc_RsaCleanup(key);
     }
+
     return ret;
 }
 
@@ -1112,10 +1116,10 @@ static int RsaPublicEncryptEx(const byte* in, word32 inLen, byte* out,
                             enum wc_HashType hash, int mgf,
                             byte* label, word32 labelSz, WC_RNG* rng)
 {
-    int ret = BAD_FUNC_ARG, sz;
+    int ret = RSA_WRONG_TYPE_E, sz;
 
     if (in == NULL || inLen == 0 || out == NULL || key == NULL) {
-        return ret;
+        return BAD_FUNC_ARG;
     }
 
     sz = wc_RsaEncryptSize(key);
@@ -1134,42 +1138,47 @@ static int RsaPublicEncryptEx(const byte* in, word32 inLen, byte* out,
     switch (key->state) {
     case RSA_STATE_NONE:
     case RSA_STATE_ENCRYPT_PAD:
+        key->state = RSA_STATE_ENCRYPT_PAD;
 
-    #if defined(WOLFSSL_ASYNC_CRYPT) && defined(HAVE_CAVIUM)
-        if (key->asyncDev.marker == WOLFSSL_ASYNC_MARKER_RSA) {
-            if (rsa_type == RSA_PUBLIC_ENCRYPT && pad_value == RSA_BLOCK_TYPE_2) {
-                key->state = RSA_STATE_ENCRYPT_RES;
-                key->tmpLen = key->n.used;
-                return NitroxRsaPublicEncrypt(in, inLen, out, outLen, key);
+    #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_RSA) && \
+            defined(HAVE_CAVIUM)
+        if (key->asyncDev.marker == WOLFSSL_ASYNC_MARKER_RSA && key->n.raw.buf) {
+            /* Async operations that include padding */
+            if (rsa_type == RSA_PUBLIC_ENCRYPT &&
+                                                pad_value == RSA_BLOCK_TYPE_2) {
+                key->state = RSA_STATE_ENCRYPT_EXPTMOD;
+                key->dataLen = key->n.raw.len;
+                ret = NitroxRsaPublicEncrypt(in, inLen, out, outLen, key);
+                break;
             }
-            else if (rsa_type == RSA_PRIVATE_ENCRYPT && pad_value == RSA_BLOCK_TYPE_1) {
-                key->state = RSA_STATE_ENCRYPT_RES;
-                key->tmpLen = key->n.used;
-                return NitroxRsaSSL_Sign(in, inLen, out, outLen, key);
+            else if (rsa_type == RSA_PRIVATE_ENCRYPT &&
+                                                pad_value == RSA_BLOCK_TYPE_1) {
+                key->state = RSA_STATE_ENCRYPT_EXPTMOD;
+                key->dataLen = key->n.raw.len;
+                ret = NitroxRsaSSL_Sign(in, inLen, out, outLen, key);
+                break;
             }
         }
     #endif
 
-        key->state = RSA_STATE_ENCRYPT_EXPTMOD;
-
-        ret = wc_RsaPad_ex(in, inLen, out, sz, pad_value, rng,
-                               pad_type, hash, mgf, label, labelSz, key->heap);
+        ret = wc_RsaPad_ex(in, inLen, out, sz, pad_value, rng, pad_type, hash,
+                                                mgf, label, labelSz, key->heap);
         if (ret < 0) {
             break;
         }
         /* fall through */
     case RSA_STATE_ENCRYPT_EXPTMOD:
-        key->state = RSA_STATE_ENCRYPT_RES;
+        key->state = RSA_STATE_ENCRYPT_EXPTMOD;
 
-        key->tmpLen = outLen;
-        ret = wc_RsaFunction(out, sz, out, &key->tmpLen, rsa_type, key, rng);
+        key->dataLen = outLen;
+        ret = wc_RsaFunction(out, sz, out, &key->dataLen, rsa_type, key, rng);
         if (ret < 0) {
             break;
         }
         /* fall through */
     case RSA_STATE_ENCRYPT_RES:
-        key->state = RSA_STATE_NONE;
-        ret = key->tmpLen;
+        key->state = RSA_STATE_ENCRYPT_RES;
+        ret = key->dataLen;
         break;
 
     default:
@@ -1178,10 +1187,12 @@ static int RsaPublicEncryptEx(const byte* in, word32 inLen, byte* out,
 
     /* if async pending then return and skip done cleanup below */
     if (ret == WC_PENDING_E) {
+        key->state++;
         return ret;
     }
 
     key->state = RSA_STATE_NONE;
+    wc_RsaCleanup(key);
 
     return ret;
 }
@@ -1207,58 +1218,63 @@ static int RsaPrivateDecryptEx(byte* in, word32 inLen, byte* out,
                             enum wc_HashType hash, int mgf,
                             byte* label, word32 labelSz, WC_RNG* rng)
 {
-    int ret = BAD_FUNC_ARG;
+    int ret = RSA_WRONG_TYPE_E;
 
     if (in == NULL || inLen == 0 || out == NULL || key == NULL) {
-        return ret;
+        return BAD_FUNC_ARG;
     }
 
     switch (key->state) {
     case RSA_STATE_NONE:
     case RSA_STATE_DECRYPT_EXPTMOD:
-    #if defined(WOLFSSL_ASYNC_CRYPT) && defined(HAVE_CAVIUM)
+        key->state = RSA_STATE_DECRYPT_EXPTMOD;
+
+    #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_RSA) && \
+            defined(HAVE_CAVIUM)
+        /* Async operations that include padding */
         if (key->asyncDev.marker == WOLFSSL_ASYNC_MARKER_RSA) {
-            key->tmpLen = 0;
-            if (rsa_type == RSA_PRIVATE_DECRYPT && pad_value == RSA_BLOCK_TYPE_2) {
-                key->state = RSA_STATE_DECRYPT_RES;
-                key->tmp = NULL;
+            key->dataLen = 0;
+            if (rsa_type == RSA_PRIVATE_DECRYPT &&
+                                                pad_value == RSA_BLOCK_TYPE_2) {
+                key->state = RSA_STATE_DECRYPT_UNPAD;
+                key->data = NULL;
                 ret = NitroxRsaPrivateDecrypt(in, inLen, out, outLen, key);
                 if (ret > 0) {
                     if (outPtr)
                         *outPtr = in;
                 }
-                return ret;
+                break;
             }
-            else if (rsa_type == RSA_PUBLIC_DECRYPT && pad_value == RSA_BLOCK_TYPE_1) {
-                key->state = RSA_STATE_DECRYPT_RES;
-                key->tmp = NULL;
-                return NitroxRsaSSL_Verify(in, inLen, out, outLen, key);
+            else if (rsa_type == RSA_PUBLIC_DECRYPT &&
+                                                pad_value == RSA_BLOCK_TYPE_1) {
+                key->state = RSA_STATE_DECRYPT_UNPAD;
+                key->data = NULL;
+                ret = NitroxRsaSSL_Verify(in, inLen, out, outLen, key);
+                break;
             }
         }
     #endif
 
-        key->state = RSA_STATE_DECRYPT_UNPAD;
-
         /* verify the tmp ptr is NULL, otherwise indicates bad state */
-        if (key->tmp != NULL) {
+        if (key->data != NULL) {
             ERROR_OUT(BAD_STATE_E);
         }
 
         /* if not doing this inline then allocate a buffer for it */
-        key->tmpLen = inLen;
+        key->dataLen = inLen;
         if (outPtr == NULL) {
-            key->tmp = (byte*)XMALLOC(inLen, key->heap, DYNAMIC_TYPE_RSA);
-            key->tmpIsAlloc = 1;
-            if (key->tmp == NULL) {
+            key->data = (byte*)XMALLOC(inLen, key->heap, DYNAMIC_TYPE_WOLF_BIGINT);
+            key->dataIsAlloc = 1;
+            if (key->data == NULL) {
                 ERROR_OUT(MEMORY_E);
             }
-            XMEMCPY(key->tmp, in, inLen);
+            XMEMCPY(key->data, in, inLen);
         }
         else {
-            key->tmp = out;
+            key->data = out;
         }
-        ret = wc_RsaFunction(key->tmp, inLen, key->tmp, &key->tmpLen,
-                                                        rsa_type, key, rng);
+        ret = wc_RsaFunction(key->data, inLen, key->data, &key->dataLen, rsa_type,
+                                                                      key, rng);
         if (ret < 0) {
             break;
         }
@@ -1266,9 +1282,9 @@ static int RsaPrivateDecryptEx(byte* in, word32 inLen, byte* out,
     case RSA_STATE_DECRYPT_UNPAD:
     {
         byte* pad = NULL;
-        key->state = RSA_STATE_DECRYPT_RES;
-        ret = wc_RsaUnPad_ex(key->tmp, key->tmpLen, &pad, pad_value, pad_type,
-                                        hash, mgf, label, labelSz, key->heap);
+        key->state = RSA_STATE_DECRYPT_UNPAD;
+        ret = wc_RsaUnPad_ex(key->data, key->dataLen, &pad, pad_value, pad_type,
+                                          hash, mgf, label, labelSz, key->heap);
         if (ret > 0 && ret <= (int)outLen && pad != NULL) {
             /* only copy output if not inline */
             if (outPtr == NULL) {
@@ -1287,10 +1303,12 @@ static int RsaPrivateDecryptEx(byte* in, word32 inLen, byte* out,
         /* fall through */
     }
     case RSA_STATE_DECRYPT_RES:
-        key->state = RSA_STATE_NONE;
-    #if defined(WOLFSSL_ASYNC_CRYPT) && defined(HAVE_CAVIUM)
+        key->state = RSA_STATE_DECRYPT_RES;
+    #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_RSA) && \
+            defined(HAVE_CAVIUM)
         if (key->asyncDev.marker == WOLFSSL_ASYNC_MARKER_RSA) {
-            ret = key->tmpLen;
+            /* return event ret */
+            ret = key->asyncDev.event.ret;
         }
     #endif
         break;
@@ -1298,12 +1316,13 @@ static int RsaPrivateDecryptEx(byte* in, word32 inLen, byte* out,
         ret = BAD_STATE_E;
     }
 
+done:
+
     /* if async pending then return and skip done cleanup below */
     if (ret == WC_PENDING_E) {
+        key->state++;
         return ret;
     }
-
-done:
 
     key->state = RSA_STATE_NONE;
     wc_RsaCleanup(key);
@@ -1427,11 +1446,6 @@ int wc_RsaSSL_Sign(const byte* in, word32 inLen, byte* out, word32 outLen,
 
 int wc_RsaEncryptSize(RsaKey* key)
 {
-#if defined(WOLFSSL_ASYNC_CRYPT) && defined(HAVE_CAVIUM)
-    if (key->asyncDev.marker == WOLFSSL_ASYNC_MARKER_RSA) {
-        return key->n.used;
-    }
-#endif
     return mp_unsigned_bin_size(&key->n);
 }
 
@@ -1480,6 +1494,26 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
 
     if (e < 3 || (e & 1) == 0)
         return BAD_FUNC_ARG;
+
+#if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_RSA)
+    if (key->asyncDev.marker == WOLFSSL_ASYNC_MARKER_RSA) {
+    #ifdef HAVE_CAVIUM
+        /* TODO: Not implemented */
+    #elif defined(HAVE_INTEL_QA)
+        /* TODO: Not implemented */
+    #else
+        WC_ASYNC_TEST* testDev = &key->asyncDev.test;
+        if (testDev->type == ASYNC_TEST_NONE) {
+            testDev->type = ASYNC_TEST_RSA_MAKE;
+            testDev->rsaMake.rng = rng;
+            testDev->rsaMake.key = key;
+            testDev->rsaMake.size = size;
+            testDev->rsaMake.e = e;
+            return WC_PENDING_E;
+        }
+    #endif
+    }
+#endif
 
     if ((err = mp_init_multi(&p, &q, &tmp1, &tmp2, &tmp3, NULL)) != MP_OKAY)
         return err;
@@ -1588,116 +1622,6 @@ int wc_RsaSetRNG(RsaKey* key, WC_RNG* rng)
 
 #endif /* WC_RSA_BLINDING */
 
-
-#ifdef WOLFSSL_ASYNC_CRYPT
-int wc_RsaAsyncHandle(RsaKey* key, WOLF_EVENT_QUEUE* queue, WOLF_EVENT* event)
-{
-    int ret;
-
-    if (key == NULL || queue == NULL || event == NULL) {
-        return BAD_FUNC_ARG;
-    }
-
-    /* make sure this rsa context had "wc_RsaAsyncInit" called on it */
-    if (key->asyncDev.marker != WOLFSSL_ASYNC_MARKER_RSA) {
-        return ASYNC_INIT_E;
-    }
-
-    /* setup the event and push to queue */
-    ret = wolfAsync_EventInit(event, WOLF_EVENT_TYPE_ASYNC_WOLFCRYPT, &key->asyncDev);
-    if (ret == 0) {
-        ret = wolfEventQueue_Push(queue, event);
-    }
-
-    /* check for error (helps with debugging) */
-    if (ret != 0) {
-        WOLFSSL_MSG("wc_RsaAsyncHandle failed");
-    }
-    return ret;
-}
-
-int wc_RsaAsyncWait(int ret, RsaKey* key)
-{
-    if (ret == WC_PENDING_E) {
-        WOLF_EVENT event;
-        XMEMSET(&event, 0, sizeof(event));
-        ret = wolfAsync_EventInit(&event, WOLF_EVENT_TYPE_ASYNC_WOLFCRYPT, &key->asyncDev);
-        if (ret == 0) {
-            ret = wolfAsync_EventWait(&event);
-            if (ret == 0 && event.ret >= 0) {
-                ret = event.ret;
-            }
-        }
-    }
-    return ret;
-}
-
-/* Initialize async RSA key */
-static int InitAsyncRsaKey(RsaKey* key)
-{
-    XMEMSET(&key->n,  0, sizeof(key->n));
-    XMEMSET(&key->e,  0, sizeof(key->e));
-    XMEMSET(&key->d,  0, sizeof(key->d));
-    XMEMSET(&key->p,  0, sizeof(key->p));
-    XMEMSET(&key->q,  0, sizeof(key->q));
-    XMEMSET(&key->dP, 0, sizeof(key->dP));
-    XMEMSET(&key->dQ, 0, sizeof(key->dQ));
-    XMEMSET(&key->u,  0, sizeof(key->u));
-
-    return 0;
-}
-
-/* Free async RSA key */
-static int FreeAsyncRsaKey(RsaKey* key)
-{
-    if (key->type == RSA_PRIVATE) {
-        if (key->d.dpraw) {
-            ForceZero(key->d.dpraw, key->d.used);
-        #ifndef USE_FAST_MATH
-            XFREE(key->d.dpraw,  key->heap, DYNAMIC_TYPE_ASYNC_RSA);
-        #endif
-        }
-        if (key->p.dpraw) {
-            ForceZero(key->p.dpraw, key->p.used);
-        #ifndef USE_FAST_MATH
-            XFREE(key->p.dpraw,  key->heap, DYNAMIC_TYPE_ASYNC_RSA);
-        #endif
-        }
-        if (key->q.dpraw) {
-            ForceZero(key->q.dpraw, key->q.used);
-        #ifndef USE_FAST_MATH
-            XFREE(key->q.dpraw,  key->heap, DYNAMIC_TYPE_ASYNC_RSA);
-        #endif
-        }
-        if (key->dP.dpraw) {
-            ForceZero(key->dP.dpraw, key->dP.used);
-        #ifndef USE_FAST_MATH
-            XFREE(key->dP.dpraw, key->heap, DYNAMIC_TYPE_ASYNC_RSA);
-        #endif
-        }
-        if (key->dQ.dpraw) {
-            ForceZero(key->dQ.dpraw, key->dQ.used);
-        #ifndef USE_FAST_MATH
-            XFREE(key->dQ.dpraw, key->heap, DYNAMIC_TYPE_ASYNC_RSA);
-        #endif
-        }
-        if (key->u.dpraw) {
-            ForceZero(key->u.dpraw, key->u.used);
-        #ifndef USE_FAST_MATH
-            XFREE(key->u.dpraw,  key->heap, DYNAMIC_TYPE_ASYNC_RSA);
-        #endif
-        }
-    }
-
-#ifndef USE_FAST_MATH
-    XFREE(key->n.dpraw,  key->heap, DYNAMIC_TYPE_ASYNC_RSA);
-    XFREE(key->e.dpraw,  key->heap, DYNAMIC_TYPE_ASYNC_RSA);
-#endif
-
-    return InitAsyncRsaKey(key);  /* reset pointers */
-}
-
-#endif /* WOLFSSL_ASYNC_CRYPT */
 
 #undef ERROR_OUT
 

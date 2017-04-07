@@ -527,6 +527,9 @@ static int wc_PKCS12_verify(WC_PKCS12* pkcs12, byte* data, word32 dataSz,
     }
 
     /* now that key has been created use it to get HMAC hash on data */
+    if ((ret = wc_HmacInit(&hmac, NULL, INVALID_DEVID)) != 0) {
+        return ret;
+    }
     if ((ret = wc_HmacSetKey(&hmac, typeH, key, kLen)) != 0) {
         return ret;
     }
@@ -536,6 +539,7 @@ static int wc_PKCS12_verify(WC_PKCS12* pkcs12, byte* data, word32 dataSz,
     if ((ret = wc_HmacFinal(&hmac, digest)) != 0) {
         return ret;
     }
+    wc_HmacFree(&hmac);
 #ifdef WOLFSSL_DEBUG_PKCS12
     {
         byte* p;

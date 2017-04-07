@@ -45,15 +45,11 @@ int main(int argc, char** argv)
 
 int unit_test(int argc, char** argv)
 {
-    int ret;
+    int ret = 0;
 
     (void)argc;
     (void)argv;
     printf("starting unit tests...\n");
-
-#if defined(USE_WOLFSSL_MEMORY) && defined(WOLFSSL_TRACK_MEMORY)
-    InitMemoryTracker();
-#endif
 
 #if defined(DEBUG_WOLFSSL) && !defined(HAVE_VALGRIND)
     wolfSSL_Debugging_ON();
@@ -72,28 +68,25 @@ int unit_test(int argc, char** argv)
 
     if ( (ret = HashTest()) != 0){
         printf("hash test failed with %d\n", ret);
-        return ret;
+        goto exit;
     }
 
 #ifndef SINGLE_THREADED
     if ( (ret = SuiteTest()) != 0){
         printf("suite test failed with %d\n", ret);
-        return ret;
+        goto exit;
     }
 #endif
 
     SrpTest();
 
+exit:
 #ifdef HAVE_WNR
     if (wc_FreeNetRandom() < 0)
         err_sys("Failed to free netRandom context");
 #endif /* HAVE_WNR */
 
-#if defined(USE_WOLFSSL_MEMORY) && defined(WOLFSSL_TRACK_MEMORY)
-    ShowMemoryTracker();
-#endif
-
-    return 0;
+    return ret;
 }
 
 

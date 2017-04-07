@@ -7,6 +7,9 @@ library and the example applications.
 Also read TI-RTOS Getting Started Guide and TI-RTOS User Guide to learn more
 about TI-RTOS (http://www.ti.com/tool/ti-rtos).
 
+For more information see:
+(https://github.com/wolfSSL/wolfssl-examples/blob/master/tirtos_ccs_examples/README.md)
+
 ## Example Application
 
 A simple "TCP echo server with TLS" example application is provided with TI-RTOS

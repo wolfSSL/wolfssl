@@ -22,6 +22,20 @@ if test -e .git; then
   # touch async crypt files
   touch ./wolfcrypt/src/async.c
   touch ./wolfssl/wolfcrypt/async.h
+
+  # touch async port files
+  touch ./wolfcrypt/src/port/intel/quickassist.c
+  touch ./wolfcrypt/src/port/intel/quickassist_mem.c
+  touch ./wolfcrypt/src/port/cavium/cavium_nitrox.c
+  if [ ! -d ./wolfssl/wolfcrypt/port/intel ]; then
+    mkdir ./wolfssl/wolfcrypt/port/intel
+  fi
+  touch ./wolfssl/wolfcrypt/port/intel/quickassist.h
+  touch ./wolfssl/wolfcrypt/port/intel/quickassist_mem.h
+  if [ ! -d ./wolfssl/wolfcrypt/port/cavium ]; then
+    mkdir ./wolfssl/wolfcrypt/port/cavium
+  fi
+  touch ./wolfssl/wolfcrypt/port/cavium/cavium_nitrox.h
 else
   WARNINGS="all"
 fi

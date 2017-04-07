@@ -103,16 +103,7 @@ int wolfEventQueue_Push(WOLF_EVENT_QUEUE* queue, WOLF_EVENT* event)
     event->next = NULL;
     event->pending = 1;
 
-    if (queue->tail == NULL)  {
-        queue->head = event;
-    }
-    else {
-        queue->tail->next = event;
-        event->prev = queue->tail;
-    }
-    queue->tail = event;      /* add to the end either way */
-    queue->count++;
-    ret = 0;
+    ret = wolfEventQueue_Add(queue, event);
 
 #ifndef SINGLE_THREADED
     wc_UnLockMutex(&queue->lock);
@@ -145,6 +136,26 @@ int wolfEventQueue_Pop(WOLF_EVENT_QUEUE* queue, WOLF_EVENT** event)
 #endif
 
     return ret;
+}
+
+/* assumes queue is locked by caller */
+int wolfEventQueue_Add(WOLF_EVENT_QUEUE* queue, WOLF_EVENT* event)
+{
+    if (queue == NULL || event == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    if (queue->tail == NULL)  {
+        queue->head = event;
+    }
+    else {
+        queue->tail->next = event;
+        event->prev = queue->tail;
+    }
+    queue->tail = event;      /* add to the end either way */
+    queue->count++;
+
+    return 0;
 }
 
 /* assumes queue is locked by caller */

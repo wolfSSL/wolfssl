@@ -56,6 +56,10 @@ static char flagSep[] = " ";
 #endif
 static char forceDefCipherListFlag[] = "-H";
 
+#ifdef WOLFSSL_ASYNC_CRYPT
+    static int devId = INVALID_DEVID;
+#endif
+
 
 #ifndef WOLFSSL_ALLOW_SSLV3
 /* if the protocol version is sslv3 return 1, else 0 */
@@ -533,9 +537,17 @@ int SuiteTest(void)
                                                    memory, sizeof(memory), 0, 1)
             != SSL_SUCCESS) {
         printf("unable to load static memory and create ctx");
-        exit(EXIT_FAILURE);
+        args.return_code = EXIT_FAILURE; goto exit;
     }
 #endif
+
+#ifdef WOLFSSL_ASYNC_CRYPT
+    if (wolfAsync_DevOpen(&devId) < 0) {
+        printf("Async device open failed");
+        args.return_code = EXIT_FAILURE; goto exit;
+    }
+    wolfSSL_CTX_UseAsync(cipherSuiteCtx, devId);
+#endif /* WOLFSSL_ASYNC_CRYPT */
 
     /* default case */
     args.argc = 1;
@@ -543,7 +555,7 @@ int SuiteTest(void)
     test_harness(&args);
     if (args.return_code != 0) {
         printf("error from script %d\n", args.return_code);
-        exit(EXIT_FAILURE);
+        args.return_code = EXIT_FAILURE; goto exit;
     }
 
     /* any extra cases will need another argument */
@@ -556,7 +568,7 @@ int SuiteTest(void)
     test_harness(&args);
     if (args.return_code != 0) {
         printf("error from script %d\n", args.return_code);
-        exit(EXIT_FAILURE);
+        args.return_code = EXIT_FAILURE; goto exit;
     }
 #endif
 #ifdef WOLFSSL_SCTP
@@ -566,7 +578,7 @@ int SuiteTest(void)
     test_harness(&args);
     if (args.return_code != 0) {
         printf("error from script %d\n", args.return_code);
-        exit(EXIT_FAILURE);
+        args.return_code = EXIT_FAILURE; goto exit;
     }
 #endif
 #ifndef WC_STRICT_SIG
@@ -577,7 +589,7 @@ int SuiteTest(void)
     test_harness(&args);
     if (args.return_code != 0) {
         printf("error from script %d\n", args.return_code);
-        exit(EXIT_FAILURE);
+        args.return_code = EXIT_FAILURE; goto exit;
     }
 #endif /* HAVE_RSA and HAVE_ECC */
 #endif /* !WC_STRICT_SIG */
@@ -588,7 +600,7 @@ int SuiteTest(void)
     test_harness(&args);
     if (args.return_code != 0) {
         printf("error from script %d\n", args.return_code);
-        exit(EXIT_FAILURE);
+        args.return_code = EXIT_FAILURE; goto exit;
     }
 #endif
 
@@ -599,14 +611,19 @@ int SuiteTest(void)
     test_harness(&args);
     if (args.return_code != 0) {
         printf("error from script %d\n", args.return_code);
-        exit(EXIT_FAILURE);
+        args.return_code = EXIT_FAILURE; goto exit;
     }
 #endif
 
+exit:
     printf(" End Cipher Suite Tests\n");
 
     wolfSSL_CTX_free(cipherSuiteCtx);
     wolfSSL_Cleanup();
+
+#ifdef WOLFSSL_ASYNC_CRYPT
+    wolfAsync_DevClose(&devId);
+#endif
 
     return args.return_code;
 }

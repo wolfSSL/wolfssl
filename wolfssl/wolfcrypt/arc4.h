@@ -45,17 +45,16 @@ typedef struct Arc4 {
     byte y;
     byte state[ARC4_STATE_SIZE];
 #ifdef WOLFSSL_ASYNC_CRYPT
-    AsyncCryptDev asyncDev;
+    WC_ASYNC_DEV asyncDev;
 #endif
+    void* heap;
 } Arc4;
 
-WOLFSSL_API void wc_Arc4Process(Arc4*, byte*, const byte*, word32);
-WOLFSSL_API void wc_Arc4SetKey(Arc4*, const byte*, word32);
+WOLFSSL_API int wc_Arc4Process(Arc4*, byte*, const byte*, word32);
+WOLFSSL_API int wc_Arc4SetKey(Arc4*, const byte*, word32);
 
-#ifdef WOLFSSL_ASYNC_CRYPT
-    WOLFSSL_API int  wc_Arc4AsyncInit(Arc4*, int);
-    WOLFSSL_API void wc_Arc4AsyncFree(Arc4*);
-#endif
+WOLFSSL_API int  wc_Arc4Init(Arc4*, void*, int);
+WOLFSSL_API void wc_Arc4Free(Arc4*);
 
 #ifdef __cplusplus
     } /* extern "C" */
