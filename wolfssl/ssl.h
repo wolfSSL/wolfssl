@@ -398,6 +398,7 @@ WOLFSSL_API WOLFSSL_METHOD *wolfSSLv23_client_method_ex(void* heap);
 WOLFSSL_API WOLFSSL_METHOD *wolfSSLv23_method(void);
 WOLFSSL_API WOLFSSL_METHOD *wolfSSLv3_server_method(void);
 WOLFSSL_API WOLFSSL_METHOD *wolfSSLv3_client_method(void);
+WOLFSSL_API WOLFSSL_METHOD* wolfTLSv1_method(void);
 WOLFSSL_API WOLFSSL_METHOD *wolfTLSv1_server_method(void);
 WOLFSSL_API WOLFSSL_METHOD *wolfTLSv1_client_method(void);
 WOLFSSL_API WOLFSSL_METHOD *wolfTLSv1_1_server_method(void);
@@ -673,6 +674,9 @@ WOLFSSL_API int wolfSSL_sk_X509_push(WOLF_STACK_OF(WOLFSSL_X509_NAME)* sk,
                                                             WOLFSSL_X509* x509);
 WOLFSSL_API WOLFSSL_X509* wolfSSL_sk_X509_pop(WOLF_STACK_OF(WOLFSSL_X509_NAME)* sk);
 WOLFSSL_API void wolfSSL_sk_X509_free(WOLF_STACK_OF(WOLFSSL_X509_NAME)* sk);
+WOLFSSL_API WOLFSSL_ASN1_OBJECT* wolfSSL_sk_GENERAL_NAME_value(
+        WOLFSSL_STACK* sk, int i);
+WOLFSSL_API int wolfSSL_sk_GENERAL_NAME_num(WOLFSSL_STACK* sk);
 WOLFSSL_API WOLFSSL_ASN1_OBJECT* wolfSSL_ASN1_OBJECT_new(void);
 WOLFSSL_API void wolfSSL_ASN1_OBJECT_free(WOLFSSL_ASN1_OBJECT* obj);
 WOLFSSL_API int wolfSSL_sk_ASN1_OBJECT_push(WOLF_STACK_OF(WOLFSSL_ASN1_OBJEXT)* sk,

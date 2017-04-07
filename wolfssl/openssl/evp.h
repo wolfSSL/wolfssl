@@ -265,6 +265,7 @@ WOLFSSL_API int  wolfSSL_EVP_CIPHER_CTX_cleanup(WOLFSSL_EVP_CIPHER_CTX* ctx);
 
 WOLFSSL_API int  wolfSSL_EVP_CIPHER_CTX_iv_length(const WOLFSSL_EVP_CIPHER_CTX*);
 WOLFSSL_API int  wolfSSL_EVP_CIPHER_iv_length(const WOLFSSL_EVP_CIPHER*);
+WOLFSSL_API int wolfSSL_EVP_Cipher_key_length(const WOLFSSL_EVP_CIPHER* c);
 
 
 WOLFSSL_API int  wolfSSL_EVP_CipherInit(WOLFSSL_EVP_CIPHER_CTX* ctx,
@@ -276,7 +277,6 @@ WOLFSSL_API int  wolfSSL_EVP_CipherInit_ex(WOLFSSL_EVP_CIPHER_CTX* ctx,
                                     WOLFSSL_ENGINE *impl,
                                     unsigned char* key, unsigned char* iv,
                                     int enc);
-#ifdef WOLFSSL_SIGNAL
 WOLFSSL_API int  wolfSSL_EVP_EncryptInit(WOLFSSL_EVP_CIPHER_CTX* ctx,
                                     const WOLFSSL_EVP_CIPHER* type,
                                     const unsigned char* key,
@@ -295,22 +295,6 @@ WOLFSSL_API int  wolfSSL_EVP_DecryptInit_ex(WOLFSSL_EVP_CIPHER_CTX* ctx,
                                     WOLFSSL_ENGINE *impl,
                                     const unsigned char* key,
                                     const unsigned char* iv);
-#else
-WOLFSSL_API int  wolfSSL_EVP_EncryptInit(WOLFSSL_EVP_CIPHER_CTX* ctx,
-                                         const WOLFSSL_EVP_CIPHER* type,
-                                         unsigned char* key, unsigned char* iv);
-WOLFSSL_API int  wolfSSL_EVP_EncryptInit_ex(WOLFSSL_EVP_CIPHER_CTX* ctx,
-                                            const WOLFSSL_EVP_CIPHER* type,
-                                            WOLFSSL_ENGINE *impl,
-                                            unsigned char* key, unsigned char* iv);
-WOLFSSL_API int  wolfSSL_EVP_DecryptInit(WOLFSSL_EVP_CIPHER_CTX* ctx,
-                                            const WOLFSSL_EVP_CIPHER* type,
-                                            unsigned char* key, unsigned char* iv);
-WOLFSSL_API int  wolfSSL_EVP_DecryptInit_ex(WOLFSSL_EVP_CIPHER_CTX* ctx,
-                                            const WOLFSSL_EVP_CIPHER* type,
-                                            WOLFSSL_ENGINE *impl,
-                                            unsigned char* key, unsigned char* iv);
-#endif  /* WOLFSSL_SIGNAL */
 WOLFSSL_API int wolfSSL_EVP_CipherUpdate(WOLFSSL_EVP_CIPHER_CTX *ctx,
                                    unsigned char *out, int *outl,
                                    const unsigned char *in, int inl);
@@ -488,6 +472,7 @@ typedef WOLFSSL_EVP_CIPHER_CTX EVP_CIPHER_CTX;
 #define EVP_CIPHER_CTX_mode           wolfSSL_EVP_CIPHER_CTX_mode
 
 #define EVP_CIPHER_iv_length          wolfSSL_EVP_CIPHER_iv_length
+#define EVP_CIPHER_key_length         wolfSSL_EVP_Cipher_key_length
 
 #define EVP_CipherInit                wolfSSL_EVP_CipherInit
 #define EVP_CipherInit_ex             wolfSSL_EVP_CipherInit_ex

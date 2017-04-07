@@ -25,7 +25,52 @@
 
 static unsigned int cipherType(const WOLFSSL_EVP_CIPHER *cipher);
 
-#ifdef WOLFSSL_SIGNAL
+
+/* Getter function for cipher key length
+ *
+ * c  WOLFSSL_EVP_CIPHER structure to get key length from
+ *
+ * NOTE: OpenSSL_add_all_ciphers() should be called first before using this
+ *       function
+ *
+ * Returns size of key in bytes
+ */
+int wolfSSL_EVP_Cipher_key_length(const WOLFSSL_EVP_CIPHER* c)
+{
+    WOLFSSL_ENTER("wolfSSL_EVP_Cipher_key_length");
+
+    if (c == NULL) {
+        return 0;
+    }
+
+    switch (cipherType(c)) {
+    #if !defined(NO_AES) && defined(HAVE_AES_CBC)
+      case AES_128_CBC_TYPE: return 16;
+      case AES_192_CBC_TYPE: return 24;
+      case AES_256_CBC_TYPE: return 32;
+  #endif
+  #if !defined(NO_AES) && defined(WOLFSSL_AES_COUNTER)
+      case AES_128_CTR_TYPE: return 16;
+      case AES_192_CTR_TYPE: return 24;
+      case AES_256_CTR_TYPE: return 32;
+  #endif
+  #if !defined(NO_AES) && defined(HAVE_AES_ECB)
+      case AES_128_ECB_TYPE: return 16;
+      case AES_192_ECB_TYPE: return 24;
+      case AES_256_ECB_TYPE: return 32;
+  #endif
+  #ifndef NO_DES3
+      case DES_CBC_TYPE:      return 8;
+      case DES_EDE3_CBC_TYPE: return 24;
+      case DES_ECB_TYPE:      return 8;
+      case DES_EDE3_ECB_TYPE: return 24;
+  #endif
+      default:
+          return 0;
+      }
+}
+
+
 WOLFSSL_API int  wolfSSL_EVP_EncryptInit(WOLFSSL_EVP_CIPHER_CTX* ctx,
                                         const WOLFSSL_EVP_CIPHER* type,
                                         const unsigned char* key,
@@ -64,43 +109,6 @@ WOLFSSL_API int  wolfSSL_EVP_DecryptInit_ex(WOLFSSL_EVP_CIPHER_CTX* ctx,
     return wolfSSL_EVP_CipherInit(ctx, type, (byte*)key, (byte*)iv, 0);
 }
 
-#else /* WOLFSSL_SIGNAL */
-
-WOLFSSL_API int  wolfSSL_EVP_EncryptInit(WOLFSSL_EVP_CIPHER_CTX* ctx,
-                                        const WOLFSSL_EVP_CIPHER* type,
-                                        unsigned char* key, unsigned char* iv)
-{
-    return wolfSSL_EVP_CipherInit(ctx, type, key, iv, 1);
-}
-
-WOLFSSL_API int  wolfSSL_EVP_EncryptInit_ex(WOLFSSL_EVP_CIPHER_CTX* ctx,
-                                        const WOLFSSL_EVP_CIPHER* type,
-                                        WOLFSSL_ENGINE *impl,
-                                        unsigned char* key, unsigned char* iv)
-{
-    (void) impl;
-    return wolfSSL_EVP_CipherInit(ctx, type, key, iv, 1);
-}
-
-WOLFSSL_API int  wolfSSL_EVP_DecryptInit(WOLFSSL_EVP_CIPHER_CTX* ctx,
-                                        const WOLFSSL_EVP_CIPHER* type,
-                                        unsigned char* key, unsigned char* iv)
-{
-    WOLFSSL_ENTER("wolfSSL_EVP_CipherInit");
-    return wolfSSL_EVP_CipherInit(ctx, type, key, iv, 0);
-}
-
-WOLFSSL_API int  wolfSSL_EVP_DecryptInit_ex(WOLFSSL_EVP_CIPHER_CTX* ctx,
-                                        const WOLFSSL_EVP_CIPHER* type,
-                                        WOLFSSL_ENGINE *impl,
-                                        unsigned char* key, unsigned char* iv)
-{
-    (void) impl;
-    WOLFSSL_ENTER("wolfSSL_EVP_DecryptInit");
-    return wolfSSL_EVP_CipherInit(ctx, type, key, iv, 0);
-}
-
-#endif /* WOLFSSL_SIGNAL */
 
 WOLFSSL_API WOLFSSL_EVP_CIPHER_CTX *wolfSSL_EVP_CIPHER_CTX_new(void)
 {
