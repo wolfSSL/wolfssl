@@ -2164,14 +2164,14 @@ void InitSuites(Suites* suites, ProtocolVersion pv, word16 haveRSA,
 #endif
 
 #ifdef BUILD_TLS_DHE_RSA_WITH_AES_256_CBC_SHA256
-    if (tls1_2 && haveDH && haveRSA) {
+    if (tls && haveDH && haveRSA) {
         suites->suites[idx++] = 0;
         suites->suites[idx++] = TLS_DHE_RSA_WITH_AES_256_CBC_SHA256;
     }
 #endif
 
 #ifdef BUILD_TLS_DHE_RSA_WITH_AES_128_CBC_SHA256
-    if (tls1_2 && haveDH && haveRSA) {
+    if (tls && haveDH && haveRSA) {
         suites->suites[idx++] = 0;
         suites->suites[idx++] = TLS_DHE_RSA_WITH_AES_128_CBC_SHA256;
     }
@@ -2202,14 +2202,14 @@ void InitSuites(Suites* suites, ProtocolVersion pv, word16 haveRSA,
 #endif
 
 #ifdef BUILD_TLS_RSA_WITH_AES_256_CBC_SHA256
-    if (tls1_2 && haveRSA) {
+    if (tls && haveRSA) {
         suites->suites[idx++] = 0;
         suites->suites[idx++] = TLS_RSA_WITH_AES_256_CBC_SHA256;
     }
 #endif
 
 #ifdef BUILD_TLS_RSA_WITH_AES_128_CBC_SHA256
-    if (tls1_2 && haveRSA) {
+    if (tls && haveRSA) {
         suites->suites[idx++] = 0;
         suites->suites[idx++] = TLS_RSA_WITH_AES_128_CBC_SHA256;
     }
@@ -2510,7 +2510,7 @@ void InitSuites(Suites* suites, ProtocolVersion pv, word16 haveRSA,
     }
 #endif
 
-#ifdef BUILD_TLS_DHE_WITH_RSA_CAMELLIA_256_CBC_SHA
+#ifdef BUILD_TLS_DHE_RSA_WITH_CAMELLIA_256_CBC_SHA
     if (tls && haveDH && haveRSA) {
         suites->suites[idx++] = 0;
         suites->suites[idx++] = TLS_DHE_RSA_WITH_CAMELLIA_256_CBC_SHA;
@@ -3626,6 +3626,7 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
         WOLFSSL_MSG("HS_Hashes Memory error");
         return MEMORY_E;
     }
+    XMEMSET(ssl->hsHashes, 0, sizeof(HS_Hashes));
 
 #ifndef NO_OLD_TLS
 #ifndef NO_MD5
@@ -10320,10 +10321,12 @@ static int BuildCertHashes(WOLFSSL* ssl, Hashes* hashes)
     (void)hashes;
 
     if (ssl->options.tls) {
-#if ! defined( NO_OLD_TLS )
+    #if !defined(NO_MD5) && !defined(NO_OLD_TLS)
         wc_Md5GetHash(&ssl->hsHashes->hashMd5, hashes->md5);
+    #endif
+    #if !defined(NO_SHA)
         wc_ShaGetHash(&ssl->hsHashes->hashSha, hashes->sha);
-#endif
+    #endif
         if (IsAtLeastTLSv1_2(ssl)) {
             #ifndef NO_SHA256
                 ret = wc_Sha256GetHash(&ssl->hsHashes->hashSha256,
@@ -10345,12 +10348,15 @@ static int BuildCertHashes(WOLFSSL* ssl, Hashes* hashes)
             #endif
         }
     }
-#if ! defined( NO_OLD_TLS )
     else {
+    #if !defined(NO_MD5) && !defined(NO_OLD_TLS)
         BuildMD5_CertVerify(ssl, hashes->md5);
+    #endif
+    #if !defined(NO_SHA) && (!defined(NO_OLD_TLS) || \
+                              defined(WOLFSSL_ALLOW_TLS_SHA1))
         BuildSHA_CertVerify(ssl, hashes->sha);
+    #endif
     }
-#endif
 
     return ret;
 }
@@ -13463,7 +13469,7 @@ Set the enabled cipher suites.
 
 @return true on success, else false.
 */
-int SetCipherList(Suites* suites, const char* list)
+int SetCipherList(WOLFSSL_CTX* ctx, Suites* suites, const char* list)
 {
     int       ret          = 0;
     int       idx          = 0;
@@ -13497,12 +13503,25 @@ int SetCipherList(Suites* suites, const char* list)
 
         for (i = 0; i < suiteSz; i++) {
             if (XSTRNCMP(name, cipher_names[i], sizeof(name)) == 0) {
+            #ifdef WOLFSSL_DTLS
+                /* don't allow stream ciphers with DTLS */
+                if (ctx->method->version.major == DTLS_MAJOR) {
+                    if (XSTRSTR(name, "RC4") ||
+                        XSTRSTR(name, "HC128") ||
+                        XSTRSTR(name, "RABBIT"))
+                    {
+                        WOLFSSL_MSG("Stream ciphers not supported with DTLS");
+                        continue;
+                    }
+
+                }
+            #endif /* WOLFSSL_DTLS */
+
                 suites->suites[idx++] = (XSTRSTR(name, "CHACHA")) ? CHACHA_BYTE
                                       : (XSTRSTR(name, "QSH"))    ? QSH_BYTE
                                       : (XSTRSTR(name, "EC"))     ? ECC_BYTE
                                       : (XSTRSTR(name, "CCM"))    ? ECC_BYTE
                                       : 0x00; /* normal */
-
                 suites->suites[idx++] = (byte)cipher_name_idx[i];
 
                 /* The suites are either ECDSA, RSA, PSK, or Anon. The RSA
@@ -13527,6 +13546,8 @@ int SetCipherList(Suites* suites, const char* list)
         InitSuitesHashSigAlgo(suites, haveECDSAsig, haveRSAsig, haveAnon);
     }
 
+    (void)ctx;
+
     return ret;
 }
 
@@ -13537,7 +13558,18 @@ static void PickHashSigAlgo(WOLFSSL* ssl,
     word32 i;
 
     ssl->suites->sigAlgo = ssl->specs.sig_algo;
-    ssl->suites->hashAlgo = sha_mac;
+
+    /* set defaults */
+    if (IsAtLeastTLSv1_2(ssl)) {
+    #ifdef WOLFSSL_ALLOW_TLS_SHA1
+        ssl->suites->hashAlgo = sha_mac;
+    #else
+        ssl->suites->hashAlgo = sha256_mac;
+    #endif
+    }
+    else {
+        ssl->suites->hashAlgo = sha_mac;
+    }
 
     /* i+1 since peek a byte ahead for type */
     for (i = 0; (i+1) < hashSigAlgoSz; i += 2) {
@@ -16753,7 +16785,6 @@ int SendCertificateVerify(WOLFSSL* ssl)
         #endif
             }
 
-
             /* idx is used to track verify pointer offset to output */
             idx = RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ;
             verify = &output[RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ];
@@ -19674,10 +19705,25 @@ int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
             #ifdef HAVE_ECC
                 if (ssl->peerEccDsaKeyPresent) {
-                    ssl->buffers.digest.buffer = ssl->hsHashes->certHashes.sha;
-                    ssl->buffers.digest.length = SHA_DIGEST_SIZE;
 
                     WOLFSSL_MSG("Doing ECC peer cert verify");
+
+                /* make sure a default is defined */
+                #if !defined(NO_SHA)
+                    ssl->buffers.digest.buffer = ssl->hsHashes->certHashes.sha;
+                    ssl->buffers.digest.length = SHA_DIGEST_SIZE;
+                #elif !defined(NO_SHA256)
+                    ssl->buffers.digest.buffer = ssl->hsHashes->certHashes.sha256;
+                    ssl->buffers.digest.length = SHA256_DIGEST_SIZE;
+                #elif defined(WOLFSSL_SHA384)
+                    ssl->buffers.digest.buffer = ssl->hsHashes->certHashes.sha384;
+                    ssl->buffers.digest.length = SHA384_DIGEST_SIZE;
+                #elif defined(WOLFSSL_SHA512)
+                    ssl->buffers.digest.buffer = ssl->hsHashes->certHashes.sha512;
+                    ssl->buffers.digest.length = SHA512_DIGEST_SIZE;
+                #else
+                    #error No digest enabled for ECC sig verify
+                #endif
 
                     if (IsAtLeastTLSv1_2(ssl)) {
                         if (sigAlgo != ecc_dsa_sa_algo) {
@@ -19775,8 +19821,22 @@ int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                     #endif
                         int    typeH = SHAh;
 
+                    /* make sure a default is defined */
+                    #if !defined(NO_SHA)
                         ssl->buffers.digest.buffer = ssl->hsHashes->certHashes.sha;
                         ssl->buffers.digest.length = SHA_DIGEST_SIZE;
+                    #elif !defined(NO_SHA256)
+                        ssl->buffers.digest.buffer = ssl->hsHashes->certHashes.sha256;
+                        ssl->buffers.digest.length = SHA256_DIGEST_SIZE;
+                    #elif defined(WOLFSSL_SHA384)
+                        ssl->buffers.digest.buffer = ssl->hsHashes->certHashes.sha384;
+                        ssl->buffers.digest.length = SHA384_DIGEST_SIZE;
+                    #elif defined(WOLFSSL_SHA512)
+                        ssl->buffers.digest.buffer = ssl->hsHashes->certHashes.sha512;
+                        ssl->buffers.digest.length = SHA512_DIGEST_SIZE;
+                    #else
+                        #error No digest enabled for RSA sig verify
+                    #endif
 
                     #ifdef WOLFSSL_SMALL_STACK
                         encodedSig = (byte*)XMALLOC(MAX_ENCODED_SIG_SZ, NULL,

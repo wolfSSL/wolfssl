@@ -267,6 +267,7 @@ static void Usage(void)
 #endif
     printf("-g          Return basic HTML web page\n");
     printf("-C <num>    The number of connections to accept, default: 1\n");
+    printf("-U          Force use of the default cipher suite list\n");
 }
 
 THREAD_RETURN CYASSL_THREAD server_test(void* args)
@@ -319,6 +320,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     char*  alpnList = NULL;
     unsigned char alpn_opt = 0;
     char*  cipherList = NULL;
+    int    useDefCipherList = 0;
     const char* verifyCert = cliCertFile;
     const char* ourCert    = svrCertFile;
     const char* ourKey     = svrKeyFile;
@@ -390,8 +392,10 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
 #ifdef WOLFSSL_VXWORKS
     useAnyAddr = 1;
 #else
-    while ((ch = mygetopt(argc, argv,
-               "?jdbstnNuGfrawPIR:p:v:l:A:c:k:Z:S:oO:D:L:ieB:E:q:gC:")) != -1) {
+    /* Not Used: h, m, x, y, z, F, J, K, M, Q, T, U, V, W, X, Y */
+    while ((ch = mygetopt(argc, argv, "?"
+                "abc:defgijk:l:nop:q:rstuv:w"
+                "A:B:C:D:E:GHIL:NO:PR:S:YZ:")) != -1) {
         switch (ch) {
             case '?' :
                 Usage();
@@ -473,6 +477,10 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
 
             case 'l' :
                 cipherList = myoptarg;
+                break;
+
+            case 'H' :
+                useDefCipherList = 1;
                 break;
 
             case 'A' :
@@ -716,9 +724,10 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     wolfSSL_CTX_set_TicketEncCb(ctx, myTicketEncCb);
 #endif
 
-    if (cipherList)
+    if (cipherList && !useDefCipherList) {
         if (SSL_CTX_set_cipher_list(ctx, cipherList) != SSL_SUCCESS)
             err_sys("server can't set cipher list 1");
+    }
 
 #ifdef CYASSL_LEANPSK
     if (!usePsk) {
@@ -822,7 +831,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     if (useAnon) {
 #ifdef HAVE_ANON
         CyaSSL_CTX_allow_anon_cipher(ctx);
-        if (cipherList == NULL) {
+        if (cipherList == NULL || (cipherList && useDefCipherList)) {
             if (SSL_CTX_set_cipher_list(ctx, "ADH-AES128-SHA") != SSL_SUCCESS)
                 err_sys("server can't set cipher list 4");
         }

@@ -7774,14 +7774,14 @@ int wolfSSL_CTX_set_cipher_list(WOLFSSL_CTX* ctx, const char* list)
         XMEMSET(ctx->suites, 0, sizeof(Suites));
     }
 
-    return (SetCipherList(ctx->suites, list)) ? SSL_SUCCESS : SSL_FAILURE;
+    return (SetCipherList(ctx, ctx->suites, list)) ? SSL_SUCCESS : SSL_FAILURE;
 }
 
 
 int wolfSSL_set_cipher_list(WOLFSSL* ssl, const char* list)
 {
     WOLFSSL_ENTER("wolfSSL_set_cipher_list");
-    return (SetCipherList(ssl->suites, list)) ? SSL_SUCCESS : SSL_FAILURE;
+    return (SetCipherList(ssl->ctx, ssl->suites, list)) ? SSL_SUCCESS : SSL_FAILURE;
 }
 
 
