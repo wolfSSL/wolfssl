@@ -15794,7 +15794,7 @@ void wolfSSL_DES_set_odd_parity(WOLFSSL_DES_cblock* myDes)
 
 
 void wolfSSL_DES_ecb_encrypt(WOLFSSL_DES_cblock* desa,
-             WOLFSSL_DES_cblock* desb, WOLFSSL_DES_key_schedule* key, int len)
+             WOLFSSL_DES_cblock* desb, WOLFSSL_DES_key_schedule* key, int dir)
 {
 #ifdef WOLFSSL_DES_ECB
     WOLFSSL_ENTER("wolfSSL_DES_ecb_encrypt");
@@ -15803,10 +15803,10 @@ void wolfSSL_DES_ecb_encrypt(WOLFSSL_DES_cblock* desa,
     if (desa == NULL || key == NULL){
         WOLFSSL_MSG("Bad argument passed to wolfSSL_DES_ecb_encrypt");
     } else {
-      if (wc_Des3_SetKey(&enc, (const byte*) key, (const byte*) NULL, DES_ENCRYPTION) != 0){
+      if (wc_Des3_SetKey(&enc, (const byte*) key, (const byte*) NULL, dir) != 0){
         WOLFSSL_MSG("wc_Des3_SetKey return error.");
       }
-      if (wc_Des3_EcbEncrypt(&enc, (byte*) desb, (const byte*) desa, len) != 0){
+      if (wc_Des3_EcbEncrypt(&enc, (byte*) desb, (const byte*) desa, sizeof(desb)) != 0){
         WOLFSSL_MSG("wc_Des3_EcbEncrpyt return error.");
       }
     }
