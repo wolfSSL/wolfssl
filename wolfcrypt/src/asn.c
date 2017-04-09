@@ -9481,7 +9481,7 @@ int wc_EccPrivateKeyDecode(const byte* input, word32* inOutIdx, ecc_key* key,
 {
     word32 oidSum;
     int    version, length;
-    int    privSz, pubSz;
+    int    privSz, pubSz = 0;
     byte   b;
     int    ret = 0;
     int    curve_id = ECC_CURVE_DEF;
@@ -9492,6 +9492,7 @@ int wc_EccPrivateKeyDecode(const byte* input, word32* inOutIdx, ecc_key* key,
     byte priv[ECC_MAXSIZE+1];
     byte pub[2*(ECC_MAXSIZE+1)]; /* public key has two parts plus header */
 #endif
+    byte* pubData = NULL;
 
     if (input == NULL || inOutIdx == NULL || key == NULL || inSz == 0)
         return BAD_FUNC_ARG;
@@ -9560,7 +9561,7 @@ int wc_EccPrivateKeyDecode(const byte* input, word32* inOutIdx, ecc_key* key,
         }
     }
 
-    if (ret == 0) {
+    if (ret == 0 && (*inOutIdx + 1) < inSz) {
         /* prefix 1 */
         b = input[*inOutIdx];
         *inOutIdx += 1;
@@ -9580,13 +9581,16 @@ int wc_EccPrivateKeyDecode(const byte* input, word32* inOutIdx, ecc_key* key,
                 if (pubSz < 2*(ECC_MAXSIZE+1)) {
                     XMEMCPY(pub, &input[*inOutIdx], pubSz);
                     *inOutIdx += length;
-                    ret = wc_ecc_import_private_key_ex(priv, privSz, pub,
-                                                    pubSz, key, curve_id);
                 }
                 else
                     ret = BUFFER_E;
             }
         }
+    }
+
+    if (ret == 0) {
+        ret = wc_ecc_import_private_key_ex(priv, privSz, pubData, pubSz, key,
+                                                                      curve_id);
     }
 
 #ifdef WOLFSSL_SMALL_STACK
