@@ -101,7 +101,7 @@ static int InitCRL_Entry(CRL_Entry* crle, DecodedCRL* dcrl, const byte* buff,
         crle->signature = XMALLOC(crle->signatureSz, heap,
                                   DYNAMIC_TYPE_CRL_ENTRY);
         if (crle->signature == NULL) {
-            XFREE(crle->signature, crl->heap, DYNAMIC_TYPE_CRL_ENTRY);
+            XFREE(crle->toBeSigned, crl->heap, DYNAMIC_TYPE_CRL_ENTRY);
             return -1;
         }
         XMEMCPY(crle->toBeSigned, buff + dcrl->certBegin, crle->tbsSz);
@@ -203,24 +203,52 @@ static int CheckCertCRLList(WOLFSSL_CRL* crl, DecodedCert* cert, int *pFoundEntr
 
             if (crle->verified == 0) {
                 Signer* ca;
+            #if !defined(NO_SKID) && defined(CRL_SKID_READY)
+                byte extAuthKeyId[KEYID_SIZE]
+            #endif
+                byte issuerHash[CRL_DIGEST_SIZE];
+                byte* tbs = NULL;
+                word32 tbsSz = crle->tbsSz;
+                byte* sig = NULL;
+                word32 sigSz = crle->signatureSz;
+                word32 sigOID = crle->signatureOID;
+
+                tbs = XMALLOC(tbsSz, crl->heap, DYNAMIC_TYPE_CRL_ENTRY);
+                if (tbs == NULL)
+                    return MEMORY_E;
+                sig = XMALLOC(sigSz, crl->heap, DYNAMIC_TYPE_CRL_ENTRY);
+                if (sig == NULL) {
+                    XFREE(tbs, crl->heap, DYNAMIC_TYPE_CRL_ENTRY);
+                    return MEMORY_E;
+                }
+
+                XMEMCPY(tbs, crle->toBeSigned, tbsSz);
+                XMEMCPY(sig, crle->signature, sigSz);
+            #if !defined(NO_SKID) && defined(CRL_SKID_READY)
+                XMEMCMPY(extAuthKeyId, crle->extAuthKeyId,
+                                                          sizeof(extAuthKeyId));
+            #endif
+                XMEMCPY(issuerHash, crle->issuerHash, sizeof(issuerHash));
 
                 wc_UnLockMutex(&crl->crlLock);
 
             #if !defined(NO_SKID) && defined(CRL_SKID_READY)
                 if (crle->extAuthKeyIdSet)
-                    ca = GetCA(crl->cm, crle->extAuthKeyId);
+                    ca = GetCA(crl->cm, extAuthKeyId);
                 if (ca == NULL)
-                    ca = GetCAByName(crl->cm, crle->issuerHash);
+                    ca = GetCAByName(crl->cm, issuerHash);
             #else /* NO_SKID */
-                ca = GetCA(crl->cm, crle->issuerHash);
+                ca = GetCA(crl->cm, issuerHash);
             #endif /* NO_SKID */
                 if (ca == NULL) {
                     WOLFSSL_MSG("Did NOT find CRL issuer CA");
                     return ASN_CRL_NO_SIGNER_E;
                 }
 
-                ret = VerifyCRL_Signature(crle->toBeSigned, crle->tbsSz,
-                    crle->signature, crle->signatureSz, crle->signatureOID, ca);
+                ret = VerifyCRL_Signature(tbs, tbsSz, sig, sigSz, sigOID, ca);
+
+                XFREE(sig, crl->heap, DYNAMIC_TYPE_CRL_ENTRY);
+                XFREE(tbs, crl->heap, DYNAMIC_TYPE_CRL_ENTRY);
 
                 if (wc_LockMutex(&crl->crlLock) != 0) {
                     WOLFSSL_MSG("wc_LockMutex failed");
@@ -233,6 +261,11 @@ static int CheckCertCRLList(WOLFSSL_CRL* crl, DecodedCert* cert, int *pFoundEntr
                     crle->verified = ret;
                     break;
                 }
+
+                XFREE(crle->toBeSigned, crl->heap, DYNAMIC_TYPE_CRL_ENTRY);
+                crle->toBeSigned = NULL;
+                XFREE(crle->signature, crl->heap, DYNAMIC_TYPE_CRL_ENTRY);
+                crle->signature = NULL;
             }
             else if (crle->verified < 0) {
                 WOLFSSL_MSG("Cannot use CRL as it didn't verify");
