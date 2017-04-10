@@ -1130,7 +1130,7 @@ static INLINE unsigned int my_psk_server_cb(WOLFSSL* ssl, const char* identity,
             *buf = (byte*)malloc(*bufLen);
             if (*buf == NULL) {
                 ret = MEMORY_E;
-                printf("Error allocating %lu bytes\n", *bufLen);
+                printf("Error allocating %lu bytes\n", (unsigned long)*bufLen);
             }
             else {
                 size_t readLen = fread(*buf, *bufLen, 1, file);
