@@ -5325,8 +5325,8 @@ byte GetEntropy(ENTROPY_CMD cmd, byte* out)
             static const char* clientKeyPub  = CERT_ROOT "client-keyPub.der";
         #endif
         #ifdef WOLFSSL_CERT_GEN
-            static const char* caKeyFile  = CERT_ROOT "ca-key.der";
-            static const char* caCertFile = CERT_ROOT "ca-cert.pem";
+            static const char* rsaCaKeyFile  = CERT_ROOT "ca-key.der";
+            static const char* rsaCaCertFile = CERT_ROOT "ca-cert.pem";
         #endif
     #endif /* !NO_RSA */
     #ifndef NO_DH
@@ -6993,7 +6993,7 @@ int rsa_test(void)
         XMEMCPY(tmp, ca_key_der_2048, sizeof_ca_key_der_2048);
         bytes3 = sizeof_ca_key_der_2048;
     #else
-        file3 = fopen(caKeyFile, "rb");
+        file3 = fopen(rsaCaKeyFile, "rb");
         if (!file3) {
             XFREE(derCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
@@ -7061,7 +7061,7 @@ int rsa_test(void)
         ret = wc_SetAuthKeyIdFromCert(&myCert, ca_cert_der_1024,
                                             sizeof_ca_cert_der_1024);
     #else
-        ret = wc_SetAuthKeyId(&myCert, caCertFile);
+        ret = wc_SetAuthKeyId(&myCert, rsaCaCertFile);
     #endif
         if (ret != 0) {
             XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
@@ -7088,7 +7088,7 @@ int rsa_test(void)
         ret = wc_SetIssuerBuffer(&myCert, ca_cert_der_1024,
                                             sizeof_ca_cert_der_1024);
     #else
-        ret = wc_SetIssuer(&myCert, caCertFile);
+        ret = wc_SetIssuer(&myCert, rsaCaCertFile);
     #endif
         if (ret < 0) {
             XFREE(derCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
@@ -7547,7 +7547,7 @@ int rsa_test(void)
         XMEMCPY(tmp, ca_key_der_2048, sizeof_ca_key_der_2048);
         bytes = sizeof_ca_key_der_2048;
     #else
-        caFile = fopen(caKeyFile, "rb");
+        caFile = fopen(rsaCaKeyFile, "rb");
         if (!caFile) {
             XFREE(derCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
@@ -7607,7 +7607,7 @@ int rsa_test(void)
         ret = wc_SetAuthKeyIdFromCert(&myCert, ca_cert_der_1024,
                                             sizeof_ca_cert_der_1024);
     #else
-        ret = wc_SetAuthKeyId(&myCert, caCertFile);
+        ret = wc_SetAuthKeyId(&myCert, rsaCaCertFile);
     #endif
         if (ret != 0) {
             XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
@@ -7635,7 +7635,7 @@ int rsa_test(void)
         ret = wc_SetIssuerBuffer(&myCert, ca_cert_der_1024,
                                             sizeof_ca_cert_der_1024);
     #else
-        ret = wc_SetIssuer(&myCert, caCertFile);
+        ret = wc_SetIssuer(&myCert, rsaCaCertFile);
     #endif
         if (ret < 0) {
             XFREE(derCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
