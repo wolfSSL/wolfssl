@@ -15241,7 +15241,7 @@ static void ExternalFreeX509(WOLFSSL_X509* x509)
         /* print issuer */
         {
             char* issuer;
-        #ifndef WOLFSSL_SMALL_STACK
+        #ifdef WOLFSSL_SMALL_STACK
             char* buff  = NULL;
             int   issSz = 0;
         #else
