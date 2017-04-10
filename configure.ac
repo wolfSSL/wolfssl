@@ -151,6 +151,7 @@ then
     enable_camellia=yes
     enable_ripemd=yes
     enable_sha512=yes
+    enable_sha224=yes
     enable_sessioncerts=yes
     enable_keygen=yes
     enable_certgen=yes
@@ -192,6 +193,9 @@ then
     enable_stunnel=yes
     enable_nginx=yes
     enable_pwdbased=yes
+    enable_aeskeywrap=yes
+    enable_x963kdf=yes
+    enable_scrypt=yes
 fi
 AM_CONDITIONAL([BUILD_DISTRO], [test "x$ENABLED_DISTRO" = "xyes"])
 
@@ -992,6 +996,12 @@ AC_ARG_ENABLE([ecccustcurves],
 if test "$ENABLED_ECCCUSTCURVES" = "yes"
 then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_CUSTOM_CURVES"
+
+    # For distro build, enable all curve types
+    if test "$ENABLED_DISTRO" = "yes"
+    then
+        AM_CFLAGS="$AM_CFLAGS -DHAVE_ECC_SECPR2 -DHAVE_ECC_SECPR3 -DHAVE_ECC_BRAINPOOL -DHAVE_ECC_KOBLITZ"
+    fi
 fi
 
 
