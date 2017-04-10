@@ -15800,10 +15800,16 @@ void wolfSSL_DES_ecb_encrypt(WOLFSSL_DES_cblock* desa,
     WOLFSSL_ENTER("wolfSSL_DES_ecb_encrypt");
 
     Des3 enc;
-    if (desa == NULL || key == NULL){
+    if (desa == NULL || key == NULL || desb == NULL || (dir != DES_ENCRYPT && dir != DES_DECRYPT)){
         WOLFSSL_MSG("Bad argument passed to wolfSSL_DES_ecb_encrypt");
     } else {
-      if (wc_Des3_SetKey(&enc, (const byte*) key, (const byte*) NULL, dir) != 0){
+      int cdir;
+      if (dir == DES_ENCRYPT){
+        cdir = DES_ENCRYPTION;
+      }else if (dir == DES_DECRYPT){
+        cdir = DES_DECRYPTION;
+      }
+      if (wc_Des3_SetKey(&enc, (const byte*) key, (const byte*) NULL, cdir) != 0){
         WOLFSSL_MSG("wc_Des3_SetKey return error.");
       }
       if (wc_Des3_EcbEncrypt(&enc, (byte*) desb, (const byte*) desa, sizeof(desb)) != 0){
