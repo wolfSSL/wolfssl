@@ -192,6 +192,28 @@ struct WOLFSSL_ASN1_TIME {
     /* ASN_TIME | LENGTH | date bytes */
 };
 
+struct WOLFSSL_ASN1_STRING {
+    int length;
+    int type; /* type of string i.e. CTC_UTF8 */
+    char* data;
+    long flags;
+};
+
+#define WOLFSSL_MAX_SNAME 40
+struct WOLFSSL_ASN1_OBJECT {
+    void*  heap;
+    unsigned char* obj;
+    /* sName is short name i.e sha256 rather than oid (null terminated) */
+    char   sName[WOLFSSL_MAX_SNAME];
+    int    type; /* oid */
+    unsigned int  objSz;
+    unsigned char dynamic; /* if 1 then obj was dynamiclly created, 0 otherwise */
+    struct d { /* derefrenced */
+        WOLFSSL_ASN1_STRING  ia5_internal;
+        WOLFSSL_ASN1_STRING* ia5; /* points to ia5_internal */
+    } d;
+};
+
 struct WOLFSSL_EVP_PKEY {
     void* heap;
     int type;         /* openssh dereference */
@@ -677,6 +699,8 @@ WOLFSSL_API void wolfSSL_sk_X509_free(WOLF_STACK_OF(WOLFSSL_X509_NAME)* sk);
 WOLFSSL_API WOLFSSL_ASN1_OBJECT* wolfSSL_sk_GENERAL_NAME_value(
         WOLFSSL_STACK* sk, int i);
 WOLFSSL_API int wolfSSL_sk_GENERAL_NAME_num(WOLFSSL_STACK* sk);
+WOLFSSL_API void wolfSSL_sk_GENERAL_NAME_pop_free(WOLFSSL_STACK* sk,
+        void f (WOLFSSL_ASN1_OBJECT*));
 WOLFSSL_API WOLFSSL_ASN1_OBJECT* wolfSSL_ASN1_OBJECT_new(void);
 WOLFSSL_API void wolfSSL_ASN1_OBJECT_free(WOLFSSL_ASN1_OBJECT* obj);
 WOLFSSL_API int wolfSSL_sk_ASN1_OBJECT_push(WOLF_STACK_OF(WOLFSSL_ASN1_OBJEXT)* sk,
@@ -2496,13 +2520,6 @@ WOLFSSL_API WOLFSSL_X509 *wolfSSL_PEM_read_bio_X509_AUX
 struct WOLFSSL_ASN1_BIT_STRING {
     int length;
     int type;
-    char* data;
-    long flags;
-};
-
-struct WOLFSSL_ASN1_STRING {
-    int length;
-    int type; /* type of string i.e. CTC_UTF8 */
     char* data;
     long flags;
 };

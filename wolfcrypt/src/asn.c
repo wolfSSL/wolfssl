@@ -3963,6 +3963,7 @@ static int GetName(DecodedCert* cert, int nameType)
                             WOLFSSL_MSG("\tOut of Memory");
                             return MEMORY_E;
                         }
+                        emailName->type = 0;
                         emailName->name = (char*)XMALLOC(adv + 1,
                                               cert->heap, DYNAMIC_TYPE_ALTNAME);
                         if (emailName->name == NULL) {
@@ -5362,6 +5363,7 @@ static int DecodeAltNames(byte* input, int sz, DecodedCert* cert)
                 return MEMORY_E;
             }
 
+            dnsEntry->type = ASN_DNS_TYPE;
             dnsEntry->name = (char*)XMALLOC(strLen + 1, cert->heap,
                                          DYNAMIC_TYPE_ALTNAME);
             if (dnsEntry->name == NULL) {
@@ -5398,6 +5400,7 @@ static int DecodeAltNames(byte* input, int sz, DecodedCert* cert)
                 return MEMORY_E;
             }
 
+            emailEntry->type = ASN_RFC822_TYPE;
             emailEntry->name = (char*)XMALLOC(strLen + 1, cert->heap,
                                          DYNAMIC_TYPE_ALTNAME);
             if (emailEntry->name == NULL) {
@@ -5415,8 +5418,45 @@ static int DecodeAltNames(byte* input, int sz, DecodedCert* cert)
             length -= strLen;
             idx    += strLen;
         }
-    #endif /* IGNORE_NAME_CONSTRAINTS */
-    #ifdef WOLFSSL_SEP
+        else if (b == (ASN_CONTEXT_SPECIFIC | ASN_URI_TYPE)) {
+            DNS_entry* uriEntry;
+            int strLen;
+            word32 lenStartIdx = idx;
+
+            WOLFSSL_MSG("\tPutting URI into list but not using");
+            if (GetLength(input, &idx, &strLen, sz) < 0) {
+                WOLFSSL_MSG("\tfail: str length");
+                return ASN_PARSE_E;
+            }
+            length -= (idx - lenStartIdx);
+
+            uriEntry = (DNS_entry*)XMALLOC(sizeof(DNS_entry), cert->heap,
+                                        DYNAMIC_TYPE_ALTNAME);
+            if (uriEntry == NULL) {
+                WOLFSSL_MSG("\tOut of Memory");
+                return MEMORY_E;
+            }
+
+            uriEntry->type = ASN_URI_TYPE;
+            uriEntry->name = (char*)XMALLOC(strLen + 1, cert->heap,
+                                         DYNAMIC_TYPE_ALTNAME);
+            if (uriEntry->name == NULL) {
+                WOLFSSL_MSG("\tOut of Memory");
+                XFREE(uriEntry, cert->heap, DYNAMIC_TYPE_ALTNAME);
+                return MEMORY_E;
+            }
+
+            XMEMCPY(uriEntry->name, &input[idx], strLen);
+            uriEntry->name[strLen] = '\0';
+
+            uriEntry->next = cert->altNames;
+            cert->altNames = uriEntry;
+
+            length -= strLen;
+            idx    += strLen;
+        }
+#endif /* IGNORE_NAME_CONSTRAINTS */
+#ifdef WOLFSSL_SEP
         else if (b == (ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED | ASN_OTHER_TYPE))
         {
             int strLen;

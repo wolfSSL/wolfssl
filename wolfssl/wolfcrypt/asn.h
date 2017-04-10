@@ -81,6 +81,7 @@ enum ASN_Tags {
     ASN_RFC822_TYPE       = 0x01,
     ASN_DNS_TYPE          = 0x02,
     ASN_DIR_TYPE          = 0x04,
+    ASN_URI_TYPE          = 0x06, /* the value 6 is from GeneralName OID */
     ASN_GENERALIZED_TIME  = 0x18,
     CRL_EXTENSIONS        = 0xa0,
     ASN_EXTENSIONS        = 0xa3,
@@ -407,6 +408,7 @@ typedef struct DNS_entry   DNS_entry;
 
 struct DNS_entry {
     DNS_entry* next;   /* next on DNS list */
+    int        type;   /* i.e. ASN_DNS_TYPE */
     char*      name;   /* actual DNS name */
 };
 
@@ -660,17 +662,6 @@ struct DecodedCert {
 
     Signer* ca;
     SignatureCtx sigCtx;
-};
-
-#define WOLFSSL_MAX_SNAME 40
-struct WOLFSSL_ASN1_OBJECT {
-    void*  heap;
-    byte*  obj;
-    /* sName is short name i.e sha256 rather than oid (null terminated) */
-    char   sName[WOLFSSL_MAX_SNAME];
-    int    type; /* oid */
-    word32 objSz;
-    byte   dynamic; /* if 1 then obj was dynamiclly created, 0 otherwise */
 };
 
 

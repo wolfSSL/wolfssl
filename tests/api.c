@@ -15819,6 +15819,63 @@ static void test_wolfSSL_d2i_PUBKEY(void)
     #endif
 }
 
+static void test_wolfSSL_sk_GENERAL_NAME(void)
+{
+#if defined(OPENSSL_EXTRA) && !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && \
+    !defined(NO_RSA)
+    X509* x509;
+    unsigned char buf[4096];
+    const unsigned char* bufPt;
+    int bytes;
+    XFILE f;
+    STACK_OF(GENERAL_NAME)* sk;
+
+    printf(testingFmt, "wolfSSL_sk_GENERAL_NAME()");
+
+    AssertNotNull(f = XFOPEN(cliCertDerFile, "rb"));
+    AssertIntGT((bytes = XFREAD(buf, 1, sizeof(buf), f)), 0);
+    XFCLOSE(f);
+
+    bufPt = buf;
+    AssertNotNull(x509 = d2i_X509(NULL, &bufPt, bytes));
+
+    /* current cert has no alt names */
+    AssertNull(sk = X509_get_ext_d2i(x509, NID_subject_alt_name, NULL, NULL));
+
+    AssertIntEQ(sk_GENERAL_NAME_num(sk), 0);
+#if 0
+    for (i = 0; i < sk_GENERAL_NAME_num(sk); i++) {
+        GENERAL_NAME* gn = sk_GENERAL_NAME_value(sk, i);
+        if (gn == NULL) {
+            printf("massive falure\n");
+            return -1;
+        }
+
+        if (gn->type == GEN_DNS) {
+            printf("found type GEN_DNS\n");
+            printf("length = %d\n", gn->d.ia5->length);
+            printf("data = %s\n", (char*)gn->d.ia5->data);
+        }
+
+        if (gn->type == GEN_EMAIL) {
+            printf("found type GEN_EMAIL\n");
+            printf("length = %d\n", gn->d.ia5->length);
+            printf("data = %s\n", (char*)gn->d.ia5->data);
+        }
+
+        if (gn->type == GEN_URI) {
+            printf("found type GEN_URI\n");
+            printf("length = %d\n", gn->d.ia5->length);
+            printf("data = %s\n", (char*)gn->d.ia5->data);
+        }
+    }
+#endif
+    X509_free(x509);
+    sk_GENERAL_NAME_pop_free(sk, GENERAL_NAME_free);
+
+    printf(resultFmt, passed);
+#endif
+}
 
 static void test_no_op_functions(void)
 {
@@ -16640,6 +16697,7 @@ void ApiTest(void)
     test_wolfSSL_BIO_write();
     test_wolfSSL_SESSION();
     test_wolfSSL_DES_ecb_encrypt();
+    test_wolfSSL_sk_GENERAL_NAME();
 
     /* test the no op functions for compatibility */
     test_no_op_functions();

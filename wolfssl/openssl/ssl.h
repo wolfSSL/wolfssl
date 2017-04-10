@@ -104,6 +104,8 @@ typedef WOLFSSL_X509_STORE_CTX X509_STORE_CTX;
 #define CRYPTO_EX_dup  WOLFSSL_CRYPTO_EX_dup
 #define CRYPTO_EX_free WOLFSSL_CRYPTO_EX_free
 
+#define STACK_OF(x) WOLFSSL_STACK
+
 /* this function was used to set the default malloc, free, and realloc */
 #define CRYPTO_malloc_init() /* CRYPTO_malloc_init is not needed */
 
@@ -581,6 +583,12 @@ enum {
     NID_anyExtendedKeyUsage = 76,
 };
 
+enum {
+    GEN_DNS   = 0x02, /* ASN_DNS_TYPE */
+    GEN_EMAIL = 0x01, /* ASN_RFC822_TYPE */
+    GEN_URI   = 0x06  /* ASN_URI_TYPE */
+};
+
 #define PEM_write_bio_X509_REQ wolfSSL_PEM_write_bio_X509_REQ
 #define PEM_write_bio_X509_AUX wolfSSL_PEM_write_bio_X509_AUX
 
@@ -699,7 +707,8 @@ enum {
 #define X509_V_FLAG_USE_CHECK_TIME WOLFSSL_USE_CHECK_TIME
 #define X509_V_FLAG_NO_CHECK_TIME  WOLFSSL_NO_CHECK_TIME
 
-#if defined(HAVE_STUNNEL) || defined(WOLFSSL_NGINX)
+#define SSL3_RANDOM_SIZE                 32 /* same as RAN_LEN in internal.h */
+#if defined(HAVE_STUNNEL) || defined(WOLFSSL_NGINX) || defined(OPENSSL_EXTRA)
 #include <wolfssl/openssl/asn1.h>
 
 #define SSL2_VERSION                     0x0002
@@ -717,6 +726,7 @@ enum {
 #define SSL_alert_type_string_long       wolfSSL_alert_type_string_long
 #define SSL_CIPHER_get_bits              wolfSSL_CIPHER_get_bits
 #define sk_X509_NAME_num                 wolfSSL_sk_X509_NAME_num
+#define sk_GENERAL_NAME_num              wolfSSL_sk_GENERAL_NAME_num
 #define sk_X509_num                      wolfSSL_sk_X509_num
 #define X509_NAME_print_ex               wolfSSL_X509_NAME_print_ex
 #define X509_get0_pubkey_bitstr          wolfSSL_X509_get0_pubkey_bitstr
@@ -731,6 +741,7 @@ enum {
 
 #define sk_X509_NAME_value               wolfSSL_sk_X509_NAME_value
 #define sk_X509_value                    wolfSSL_sk_X509_value
+#define sk_GENERAL_NAME_value            wolfSSL_sk_GENERAL_NAME_value
 #define SSL_SESSION_get_ex_data          wolfSSL_SESSION_get_ex_data
 #define SSL_SESSION_set_ex_data          wolfSSL_SESSION_set_ex_data
 #define SSL_SESSION_get_ex_new_index     wolfSSL_SESSION_get_ex_new_index
@@ -739,6 +750,8 @@ enum {
 typedef WOLFSSL_ASN1_BIT_STRING    ASN1_BIT_STRING;
 #define X509_STORE_get1_certs            wolfSSL_X509_STORE_get1_certs
 #define sk_X509_pop_free                 wolfSSL_sk_X509_pop_free
+#define sk_GENERAL_NAME_pop_free         wolfSSL_sk_GENERAL_NAME_pop_free
+#define GENERAL_NAME_free                NULL
 
 #define SSL3_AL_FATAL                        2
 #define SSL_TLSEXT_ERR_OK                    0
