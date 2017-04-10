@@ -3034,6 +3034,8 @@ static void test_wolfSSL_DES_ecb_encrypt(void)
     WOLFSSL_DES_cblock input1,input2,output1,output2,back1,back2;
     WOLFSSL_DES_key_schedule key;
 
+    printf(testingFmt, "wolfSSL_DES_ecb_encrypt()");
+
     memcpy(key,"12345678",sizeof(WOLFSSL_DES_key_schedule));
     memcpy(input1, "Iamhuman",sizeof(WOLFSSL_DES_cblock));
     memcpy(input2, "Whoisit?",sizeof(WOLFSSL_DES_cblock));
@@ -3054,6 +3056,8 @@ static void test_wolfSSL_DES_ecb_encrypt(void)
     wolfSSL_DES_ecb_encrypt(&output2,&back2,&key,DES_DECRYPT);
     ret2 = memcmp((unsigned char *) back2,(unsigned char *) input2,sizeof(WOLFSSL_DES_cblock));
     AssertIntEQ(ret2,0);
+
+    printf(resultFmt, passed);
     #endif
 }
 /*----------------------------------------------------------------------------*
