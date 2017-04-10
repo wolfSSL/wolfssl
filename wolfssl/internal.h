@@ -2500,7 +2500,7 @@ typedef struct Options {
     byte            minDowngrade;       /* minimum downgrade version */
     byte            connectState;       /* nonblocking resume */
     byte            acceptState;        /* nonblocking resume */
-    byte            keyShareState;      /* sub-state for enum keyShareState */
+    byte            asyncState;         /* sub-state for enum asyncState */
     byte            buildMsgState;      /* sub-state for enum buildMsgState */
 #ifndef NO_DH
     word16          minDhKeySz;         /* minimum DH key size */

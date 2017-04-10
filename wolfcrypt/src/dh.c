@@ -205,7 +205,7 @@ static int wc_DhGenerateKeyPair_Sync(DhKey* key, WC_RNG* rng,
     return (ret != 0) ? ret : GeneratePublicDh(key, priv, *privSz, pub, pubSz);
 }
 
-#ifdef WOLFSSL_ASYNC_CRYPT
+#if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_DH)
 static int wc_DhGenerateKeyPair_Async(DhKey* key, WC_RNG* rng,
     byte* priv, word32* privSz, byte* pub, word32* pubSz)
 {
@@ -372,7 +372,7 @@ static int wc_DhAgree_Sync(DhKey* key, byte* agree, word32* agreeSz,
     return ret;
 }
 
-#ifdef WOLFSSL_ASYNC_CRYPT
+#if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_DH)
 static int wc_DhAgree_Async(DhKey* key, byte* agree, word32* agreeSz,
     const byte* priv, word32 privSz, const byte* otherPub, word32 pubSz)
 {

@@ -868,8 +868,6 @@ WOLFSSL_LOCAL int GetMyVersion(const byte* input, word32* inOutIdx,
 {
     word32 idx = *inOutIdx;
 
-    //WOLFSSL_ENTER("GetMyVersion");
-
     if ((idx + MIN_VERSION_SZ) > maxIdx)
         return ASN_PARSE_E;
 

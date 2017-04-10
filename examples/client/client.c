@@ -48,7 +48,7 @@
 
 #include "examples/client/client.h"
 
-#ifndef HAVE_FIPS
+#ifdef WOLFSSL_ASYNC_CRYPT
     static int devId = INVALID_DEVID;
 #endif
 
@@ -274,7 +274,7 @@ static int ClientBenchmarkThroughput(WOLFSSL_CTX* ctx, char* host, word16 port,
             WC_RNG rng;
 
             /* Startup the RNG */
-        #ifndef HAVE_FIPS
+        #if !defined(HAVE_FIPS) && defined(WOLFSSL_ASYNC_CRYPT)
             ret = wc_InitRng_ex(&rng, NULL, devId);
         #else
             ret = wc_InitRng(&rng);

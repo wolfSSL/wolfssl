@@ -2730,7 +2730,6 @@ static int SetAuthKeys(OneTimeAuth* authentication, Keys* keys,
         (void)keys;
         (void)specs;
         (void)devId;
-        (void)authentication;
 
         return 0;
 }

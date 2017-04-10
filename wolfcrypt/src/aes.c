@@ -1664,24 +1664,24 @@ static void wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
         const byte* iv, int dir)
     {
         if (AESBuffIn == NULL) {
-            #if defined (HAVE_THREADX)
-			    int s1, s2, s3, s4, s5;
-                s5 = tx_byte_allocate(&mp_ncached,(void *)&secDesc,
-                                      sizeof(SECdescriptorType), TX_NO_WAIT);
-                s1 = tx_byte_allocate(&mp_ncached, (void *)&AESBuffIn,
-                                      AES_BUFFER_SIZE, TX_NO_WAIT);
-                s2 = tx_byte_allocate(&mp_ncached, (void *)&AESBuffOut,
-                                      AES_BUFFER_SIZE, TX_NO_WAIT);
-                s3 = tx_byte_allocate(&mp_ncached, (void *)&secKey,
-                                      AES_BLOCK_SIZE*2, TX_NO_WAIT);
-                s4 = tx_byte_allocate(&mp_ncached, (void *)&secReg,
-                                      AES_BLOCK_SIZE, TX_NO_WAIT);
+        #if defined (HAVE_THREADX)
+            int s1, s2, s3, s4, s5;
+            s5 = tx_byte_allocate(&mp_ncached,(void *)&secDesc,
+                                  sizeof(SECdescriptorType), TX_NO_WAIT);
+            s1 = tx_byte_allocate(&mp_ncached, (void *)&AESBuffIn,
+                                  AES_BUFFER_SIZE, TX_NO_WAIT);
+            s2 = tx_byte_allocate(&mp_ncached, (void *)&AESBuffOut,
+                                  AES_BUFFER_SIZE, TX_NO_WAIT);
+            s3 = tx_byte_allocate(&mp_ncached, (void *)&secKey,
+                                  AES_BLOCK_SIZE*2, TX_NO_WAIT);
+            s4 = tx_byte_allocate(&mp_ncached, (void *)&secReg,
+                                  AES_BLOCK_SIZE, TX_NO_WAIT);
 
-                if(s1 || s2 || s3 || s4 || s5)
-                    return BAD_FUNC_ARG;
-            #else
-                #warning "Allocate non-Cache buffers"
-            #endif
+            if (s1 || s2 || s3 || s4 || s5)
+                return BAD_FUNC_ARG;
+        #else
+            #warning "Allocate non-Cache buffers"
+        #endif
 
             wc_InitMutex(&Mutex_AesSEC);
         }

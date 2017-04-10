@@ -149,13 +149,13 @@ enum cipherState {
 };
 
 /* sub-states for send/do key share (key exchange) */
-enum keyShareState {
-    KEYSHARE_BEGIN = 0,
-    KEYSHARE_BUILD,
-    KEYSHARE_DO,
-    KEYSHARE_VERIFY,
-    KEYSHARE_FINALIZE,
-    KEYSHARE_END
+enum asyncState {
+    TLS_ASYNC_BEGIN = 0,
+    TLS_ASYNC_BUILD,
+    TLS_ASYNC_DO,
+    TLS_ASYNC_VERIFY,
+    TLS_ASYNC_FINALIZE,
+    TLS_ASYNC_END
 };
 
 
@@ -897,7 +897,7 @@ static int dtls_export_new(WOLFSSL* ssl, byte* exp, word32 len, byte ver)
     exp[idx++] = options->minDowngrade;
     exp[idx++] = options->connectState;
     exp[idx++] = options->acceptState;
-    exp[idx++] = options->keyShareState;
+    exp[idx++] = options->asyncState;
 
     /* version of connection */
     exp[idx++] = ssl->version.major;
@@ -1018,7 +1018,7 @@ static int dtls_export_load(WOLFSSL* ssl, byte* exp, word32 len, byte ver)
     options->minDowngrade   = exp[idx++];
     options->connectState   = exp[idx++];
     options->acceptState    = exp[idx++];
-    options->keyShareState  = exp[idx++];
+    options->asyncState     = exp[idx++];
 
     /* version of connection */
     if (ssl->version.major != exp[idx++] || ssl->version.minor != exp[idx++]) {
@@ -3561,7 +3561,7 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
     ssl->options.acceptState  = ACCEPT_BEGIN;
     ssl->options.handShakeState  = NULL_STATE;
     ssl->options.processReply = doProcessInit;
-    ssl->options.keyShareState = KEYSHARE_BEGIN;
+    ssl->options.asyncState = TLS_ASYNC_BEGIN;
     ssl->options.buildMsgState = BUILD_MSG_BEGIN;
     ssl->encrypt.state = CIPHER_STATE_BEGIN;
     ssl->decrypt.state = CIPHER_STATE_BEGIN;
@@ -3809,21 +3809,21 @@ int AllocKey(WOLFSSL* ssl, int type, void** pKey)
 
     /* Determine size */
     switch (type) {
-    #ifndef NO_RSA
         case DYNAMIC_TYPE_RSA:
+        #ifndef NO_RSA
             sz = sizeof(RsaKey);
+        #endif /* ! NO_RSA */
             break;
-    #endif /* ! NO_RSA */
-    #ifdef HAVE_ECC
         case DYNAMIC_TYPE_ECC:
+        #ifdef HAVE_ECC
             sz = sizeof(ecc_key);
+        #endif /* HAVE_ECC */
             break;
-    #endif /* HAVE_ECC */
-    #ifndef NO_DH
         case DYNAMIC_TYPE_DH:
+        #ifndef NO_DH
             sz = sizeof(DhKey);
+        #endif /* !NO_DH */
             break;
-    #endif /* !NO_DH */
         default:
             return BAD_FUNC_ARG;
     }
@@ -6762,7 +6762,7 @@ static int DoCertificate(WOLFSSL* ssl, byte* input, word32* inOutIdx,
     WOLFSSL_ENTER("DoCertificate");
 
 #ifdef WOLFSSL_ASYNC_CRYPT
-    ret = wolfSSL_AsyncPop(ssl, &ssl->options.keyShareState);
+    ret = wolfSSL_AsyncPop(ssl, &ssl->options.asyncState);
     if (ret != WC_NOT_PENDING_E) {
         /* Check for error */
         if (ret < 0)
@@ -6773,7 +6773,7 @@ static int DoCertificate(WOLFSSL* ssl, byte* input, word32* inOutIdx,
     {
         /* Reset state */
         ret = 0;
-        ssl->options.keyShareState = KEYSHARE_BEGIN;
+        ssl->options.asyncState = TLS_ASYNC_BEGIN;
         XMEMSET(args, 0, sizeof(DoCertArgs));
         args->idx = *inOutIdx;
         args->begin = *inOutIdx;
@@ -6782,9 +6782,9 @@ static int DoCertificate(WOLFSSL* ssl, byte* input, word32* inOutIdx,
     #endif
     }
 
-    switch(ssl->options.keyShareState)
+    switch(ssl->options.asyncState)
     {
-        case KEYSHARE_BEGIN:
+        case TLS_ASYNC_BEGIN:
         {
             word32 listSz;
 
@@ -6877,10 +6877,10 @@ static int DoCertificate(WOLFSSL* ssl, byte* input, word32* inOutIdx,
             }
 
             /* Advance state and proceed */
-            ssl->options.keyShareState = KEYSHARE_BUILD;
-        } /* case KEYSHARE_BEGIN */
+            ssl->options.asyncState = TLS_ASYNC_BUILD;
+        } /* case TLS_ASYNC_BEGIN */
 
-        case KEYSHARE_BUILD:
+        case TLS_ASYNC_BUILD:
         {
             if (args->count > 0) {
             #ifdef WOLFSSL_TRUST_PEER_CERT
@@ -7103,10 +7103,10 @@ static int DoCertificate(WOLFSSL* ssl, byte* input, word32* inOutIdx,
             }
 
             /* Advance state and proceed */
-            ssl->options.keyShareState = KEYSHARE_DO;
-        } /* case KEYSHARE_BUILD */
+            ssl->options.asyncState = TLS_ASYNC_DO;
+        } /* case TLS_ASYNC_BUILD */
 
-        case KEYSHARE_DO:
+        case TLS_ASYNC_DO:
         {
             /* peer's, may not have one if blank client cert sent by TLSv1.2 */
             if (args->count > 0) {
@@ -7310,10 +7310,10 @@ static int DoCertificate(WOLFSSL* ssl, byte* input, word32* inOutIdx,
             }
 
             /* Advance state and proceed */
-            ssl->options.keyShareState = KEYSHARE_VERIFY;
-        } /* case KEYSHARE_DO */
+            ssl->options.asyncState = TLS_ASYNC_VERIFY;
+        } /* case TLS_ASYNC_DO */
 
-        case KEYSHARE_VERIFY:
+        case TLS_ASYNC_VERIFY:
         {
             if (args->count > 0) {
                 args->domain = (char*)XMALLOC(ASN_NAME_MAX, ssl->heap,
@@ -7494,10 +7494,10 @@ static int DoCertificate(WOLFSSL* ssl, byte* input, word32* inOutIdx,
             }
 
             /* Advance state and proceed */
-            ssl->options.keyShareState = KEYSHARE_FINALIZE;
-        } /* case KEYSHARE_VERIFY */
+            ssl->options.asyncState = TLS_ASYNC_FINALIZE;
+        } /* case TLS_ASYNC_VERIFY */
 
-        case KEYSHARE_FINALIZE:
+        case TLS_ASYNC_FINALIZE:
         {
         #ifdef WOLFSSL_SMALL_STACK
             WOLFSSL_X509_STORE_CTX* store = (WOLFSSL_X509_STORE_CTX*)XMALLOC(
@@ -7623,10 +7623,10 @@ static int DoCertificate(WOLFSSL* ssl, byte* input, word32* inOutIdx,
             XFREE(store, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
         #endif
             /* Advance state and proceed */
-            ssl->options.keyShareState = KEYSHARE_END;
-        } /* case KEYSHARE_FINALIZE */
+            ssl->options.asyncState = TLS_ASYNC_END;
+        } /* case TLS_ASYNC_FINALIZE */
 
-        case KEYSHARE_END:
+        case TLS_ASYNC_END:
         {
             /* Set final index */
             *inOutIdx = args->idx;
@@ -7636,7 +7636,7 @@ static int DoCertificate(WOLFSSL* ssl, byte* input, word32* inOutIdx,
         default:
             ret = INPUT_CASE_ERROR;
             break;
-    } /* switch(ssl->options.keyShareState) */
+    } /* switch(ssl->options.asyncState) */
 
 exit_dc:
 
@@ -15214,7 +15214,7 @@ static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
     WOLFSSL_ENTER("DoServerKeyExchange");
 
 #ifdef WOLFSSL_ASYNC_CRYPT
-    ret = wolfSSL_AsyncPop(ssl, &ssl->options.keyShareState);
+    ret = wolfSSL_AsyncPop(ssl, &ssl->options.asyncState);
     if (ret != WC_NOT_PENDING_E) {
         /* Check for error */
         if (ret < 0)
@@ -15225,7 +15225,7 @@ static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
     {
         /* Reset state */
         ret = 0;
-        ssl->options.keyShareState = KEYSHARE_BEGIN;
+        ssl->options.asyncState = TLS_ASYNC_BEGIN;
         XMEMSET(args, 0, sizeof(DskeArgs));
         args->idx = *inOutIdx;
         args->begin = *inOutIdx;
@@ -15235,9 +15235,9 @@ static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
     #endif
     }
 
-    switch(ssl->options.keyShareState)
+    switch(ssl->options.asyncState)
     {
-        case KEYSHARE_BEGIN:
+        case TLS_ASYNC_BEGIN:
         {
         #ifdef WOLFSSL_CALLBACKS
             if (ssl->hsInfoOn)
@@ -15627,10 +15627,10 @@ static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
             }
 
             /* Advance state and proceed */
-            ssl->options.keyShareState = KEYSHARE_BUILD;
-        } /* case KEYSHARE_BEGIN */
+            ssl->options.asyncState = TLS_ASYNC_BUILD;
+        } /* case TLS_ASYNC_BEGIN */
 
-        case KEYSHARE_BUILD:
+        case TLS_ASYNC_BUILD:
         {
             switch(ssl->specs.kea)
             {
@@ -15800,10 +15800,10 @@ static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
             }
 
             /* Advance state and proceed */
-            ssl->options.keyShareState = KEYSHARE_DO;
-        } /* case KEYSHARE_BUILD */
+            ssl->options.asyncState = TLS_ASYNC_DO;
+        } /* case TLS_ASYNC_BUILD */
 
-        case KEYSHARE_DO:
+        case TLS_ASYNC_DO:
         {
             switch(ssl->specs.kea)
             {
@@ -15897,10 +15897,10 @@ static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
             }
 
             /* Advance state and proceed */
-            ssl->options.keyShareState = KEYSHARE_VERIFY;
-        } /* case KEYSHARE_DO */
+            ssl->options.asyncState = TLS_ASYNC_VERIFY;
+        } /* case TLS_ASYNC_DO */
 
-        case KEYSHARE_VERIFY:
+        case TLS_ASYNC_VERIFY:
         {
             switch(ssl->specs.kea)
             {
@@ -15992,10 +15992,10 @@ static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
             }
 
             /* Advance state and proceed */
-            ssl->options.keyShareState = KEYSHARE_FINALIZE;
-        } /* case KEYSHARE_VERIFY */
+            ssl->options.asyncState = TLS_ASYNC_FINALIZE;
+        } /* case TLS_ASYNC_VERIFY */
 
-        case KEYSHARE_FINALIZE:
+        case TLS_ASYNC_FINALIZE:
         {
             if (IsEncryptionOn(ssl, 0)) {
                 args->idx += ssl->keys.padSz;
@@ -16033,10 +16033,10 @@ static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
             }
 
             /* Advance state and proceed */
-            ssl->options.keyShareState = KEYSHARE_END;
-        } /* case KEYSHARE_FINALIZE */
+            ssl->options.asyncState = TLS_ASYNC_END;
+        } /* case TLS_ASYNC_FINALIZE */
 
-        case KEYSHARE_END:
+        case TLS_ASYNC_END:
         {
             /* return index */
             *inOutIdx = args->idx;
@@ -16046,7 +16046,7 @@ static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
         }
         default:
             ret = INPUT_CASE_ERROR;
-    } /* switch(ssl->options.keyShareState) */
+    } /* switch(ssl->options.asyncState) */
 
 exit_dske:
 
@@ -16492,7 +16492,7 @@ int SendClientKeyExchange(WOLFSSL* ssl)
     WOLFSSL_ENTER("SendClientKeyExchange");
 
 #ifdef WOLFSSL_ASYNC_CRYPT
-    ret = wolfSSL_AsyncPop(ssl, &ssl->options.keyShareState);
+    ret = wolfSSL_AsyncPop(ssl, &ssl->options.asyncState);
     if (ret != WC_NOT_PENDING_E) {
         /* Check for error */
         if (ret < 0)
@@ -16503,16 +16503,16 @@ int SendClientKeyExchange(WOLFSSL* ssl)
     {
         /* Reset state */
         ret = 0;
-        ssl->options.keyShareState = KEYSHARE_BEGIN;
+        ssl->options.asyncState = TLS_ASYNC_BEGIN;
         XMEMSET(args, 0, sizeof(SckeArgs));
     #ifdef WOLFSSL_ASYNC_CRYPT
         ssl->async.freeArgs = FreeSckeArgs;
     #endif
     }
 
-    switch(ssl->options.keyShareState)
+    switch(ssl->options.asyncState)
     {
-        case KEYSHARE_BEGIN:
+        case TLS_ASYNC_BEGIN:
         {
             switch (ssl->specs.kea) {
             #ifndef NO_RSA
@@ -16650,10 +16650,10 @@ int SendClientKeyExchange(WOLFSSL* ssl)
             }
 
             /* Advance state and proceed */
-            ssl->options.keyShareState = KEYSHARE_BUILD;
-        } /* case KEYSHARE_BEGIN */
+            ssl->options.asyncState = TLS_ASYNC_BUILD;
+        } /* case TLS_ASYNC_BEGIN */
 
-        case KEYSHARE_BUILD:
+        case TLS_ASYNC_BUILD:
         {
             args->encSz = MAX_ENCRYPT_SZ;
             args->encSecret = (byte*)XMALLOC(args->encSz, ssl->heap,
@@ -16898,10 +16898,10 @@ int SendClientKeyExchange(WOLFSSL* ssl)
             }
 
             /* Advance state and proceed */
-            ssl->options.keyShareState = KEYSHARE_DO;
-        } /* case KEYSHARE_BUILD */
+            ssl->options.asyncState = TLS_ASYNC_DO;
+        } /* case TLS_ASYNC_BUILD */
 
-        case KEYSHARE_DO:
+        case TLS_ASYNC_DO:
         {
             switch(ssl->specs.kea)
             {
@@ -17030,10 +17030,10 @@ int SendClientKeyExchange(WOLFSSL* ssl)
             }
 
             /* Advance state and proceed */
-            ssl->options.keyShareState = KEYSHARE_VERIFY;
-        } /* case KEYSHARE_DO */
+            ssl->options.asyncState = TLS_ASYNC_VERIFY;
+        } /* case TLS_ASYNC_DO */
 
-        case KEYSHARE_VERIFY:
+        case TLS_ASYNC_VERIFY:
         {
             switch(ssl->specs.kea)
             {
@@ -17140,10 +17140,10 @@ int SendClientKeyExchange(WOLFSSL* ssl)
             }
 
             /* Advance state and proceed */
-            ssl->options.keyShareState = KEYSHARE_FINALIZE;
-        } /* case KEYSHARE_VERIFY */
+            ssl->options.asyncState = TLS_ASYNC_FINALIZE;
+        } /* case TLS_ASYNC_VERIFY */
 
-        case KEYSHARE_FINALIZE:
+        case TLS_ASYNC_FINALIZE:
         {
             word32 tlsSz = 0;
             word32 idx = 0;
@@ -17248,10 +17248,10 @@ int SendClientKeyExchange(WOLFSSL* ssl)
             }
 
             /* Advance state and proceed */
-            ssl->options.keyShareState = KEYSHARE_END;
-        } /* case KEYSHARE_FINALIZE */
+            ssl->options.asyncState = TLS_ASYNC_END;
+        } /* case TLS_ASYNC_FINALIZE */
 
-        case KEYSHARE_END:
+        case TLS_ASYNC_END:
         {
             if (IsEncryptionOn(ssl, 1)) {
                 ret = BuildMessage(ssl, args->output, args->sendSz,
@@ -17312,7 +17312,7 @@ int SendClientKeyExchange(WOLFSSL* ssl)
         }
         default:
             ret = INPUT_CASE_ERROR;
-    } /* switch(ssl->options.keyShareState) */
+    } /* switch(ssl->options.asyncState) */
 
 exit_scke:
 
@@ -17385,7 +17385,7 @@ int SendCertificateVerify(WOLFSSL* ssl)
     WOLFSSL_ENTER("SendCertificateVerify");
 
 #ifdef WOLFSSL_ASYNC_CRYPT
-    ret = wolfSSL_AsyncPop(ssl, &ssl->options.keyShareState);
+    ret = wolfSSL_AsyncPop(ssl, &ssl->options.asyncState);
     if (ret != WC_NOT_PENDING_E) {
         /* Check for error */
         if (ret < 0)
@@ -17396,16 +17396,16 @@ int SendCertificateVerify(WOLFSSL* ssl)
     {
         /* Reset state */
         ret = 0;
-        ssl->options.keyShareState = KEYSHARE_BEGIN;
+        ssl->options.asyncState = TLS_ASYNC_BEGIN;
         XMEMSET(args, 0, sizeof(ScvArgs));
     #ifdef WOLFSSL_ASYNC_CRYPT
         ssl->async.freeArgs = FreeScvArgs;
     #endif
     }
 
-    switch(ssl->options.keyShareState)
+    switch(ssl->options.asyncState)
     {
-        case KEYSHARE_BEGIN:
+        case TLS_ASYNC_BEGIN:
         {
             if (ssl->options.sendVerify == SEND_BLANK_CERT) {
                 return 0;  /* sent blank cert, can't verify */
@@ -17426,10 +17426,10 @@ int SendCertificateVerify(WOLFSSL* ssl)
                            ssl->buffers.outputBuffer.length;
 
             /* Advance state and proceed */
-            ssl->options.keyShareState = KEYSHARE_BUILD;
-        } /* case KEYSHARE_BEGIN */
+            ssl->options.asyncState = TLS_ASYNC_BUILD;
+        } /* case TLS_ASYNC_BEGIN */
 
-        case KEYSHARE_BUILD:
+        case TLS_ASYNC_BUILD:
         {
             int keySz;
             int typeH = 0;
@@ -17610,10 +17610,10 @@ int SendCertificateVerify(WOLFSSL* ssl)
         #endif /* !NO_RSA */
 
             /* Advance state and proceed */
-            ssl->options.keyShareState = KEYSHARE_DO;
-        } /* case KEYSHARE_BUILD */
+            ssl->options.asyncState = TLS_ASYNC_DO;
+        } /* case TLS_ASYNC_BUILD */
 
-        case KEYSHARE_DO:
+        case TLS_ASYNC_DO:
         {
         #ifdef HAVE_ECC
            if (ssl->hsType == DYNAMIC_TYPE_ECC) {
@@ -17661,10 +17661,10 @@ int SendCertificateVerify(WOLFSSL* ssl)
             }
 
             /* Advance state and proceed */
-            ssl->options.keyShareState = KEYSHARE_VERIFY;
-        } /* case KEYSHARE_DO */
+            ssl->options.asyncState = TLS_ASYNC_VERIFY;
+        } /* case TLS_ASYNC_DO */
 
-        case KEYSHARE_VERIFY:
+        case TLS_ASYNC_VERIFY:
         {
             /* restore verify pointer */
             args->verify = &args->output[args->idx];
@@ -17708,10 +17708,10 @@ int SendCertificateVerify(WOLFSSL* ssl)
             }
 
             /* Advance state and proceed */
-            ssl->options.keyShareState = KEYSHARE_FINALIZE;
-        } /* case KEYSHARE_VERIFY */
+            ssl->options.asyncState = TLS_ASYNC_FINALIZE;
+        } /* case TLS_ASYNC_VERIFY */
 
-        case KEYSHARE_FINALIZE:
+        case TLS_ASYNC_FINALIZE:
         {
             if (args->output == NULL) {
                 ERROR_OUT(BUFFER_ERROR, exit_scv);
@@ -17747,10 +17747,10 @@ int SendCertificateVerify(WOLFSSL* ssl)
             }
 
             /* Advance state and proceed */
-            ssl->options.keyShareState = KEYSHARE_END;
-        } /* case KEYSHARE_FINALIZE */
+            ssl->options.asyncState = TLS_ASYNC_END;
+        } /* case TLS_ASYNC_FINALIZE */
 
-        case KEYSHARE_END:
+        case TLS_ASYNC_END:
         {
             if (IsEncryptionOn(ssl, 1)) {
                 ret = BuildMessage(ssl, args->output,
@@ -17806,7 +17806,7 @@ int SendCertificateVerify(WOLFSSL* ssl)
         }
         default:
             ret = INPUT_CASE_ERROR;
-    } /* switch(ssl->options.keyShareState) */
+    } /* switch(ssl->options.asyncState) */
 
 exit_scv:
 
@@ -18232,7 +18232,7 @@ int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         WOLFSSL_ENTER("SendServerKeyExchange");
 
     #ifdef WOLFSSL_ASYNC_CRYPT
-        ret = wolfSSL_AsyncPop(ssl, &ssl->options.keyShareState);
+        ret = wolfSSL_AsyncPop(ssl, &ssl->options.asyncState);
         if (ret != WC_NOT_PENDING_E) {
             /* Check for error */
             if (ret < 0)
@@ -18243,16 +18243,16 @@ int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         {
             /* Reset state */
             ret = 0;
-            ssl->options.keyShareState = KEYSHARE_BEGIN;
+            ssl->options.asyncState = TLS_ASYNC_BEGIN;
             XMEMSET(args, 0, sizeof(SskeArgs));
         #ifdef WOLFSSL_ASYNC_CRYPT
             ssl->async.freeArgs = FreeSskeArgs;
         #endif
         }
 
-        switch(ssl->options.keyShareState)
+        switch(ssl->options.asyncState)
         {
-            case KEYSHARE_BEGIN:
+            case TLS_ASYNC_BEGIN:
             {
             #ifdef HAVE_QSH
                 if (ssl->peerQSHKeyPresent) {
@@ -18399,10 +18399,10 @@ int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                 }
 
                 /* Advance state and proceed */
-                ssl->options.keyShareState = KEYSHARE_BUILD;
-            } /* case KEYSHARE_BEGIN */
+                ssl->options.asyncState = TLS_ASYNC_BUILD;
+            } /* case TLS_ASYNC_BEGIN */
 
-            case KEYSHARE_BUILD:
+            case TLS_ASYNC_BUILD:
             {
             #if (!defined(NO_DH) && !defined(NO_RSA)) || defined(HAVE_ECC)
                 word32 preSigSz, preSigIdx;
@@ -19181,10 +19181,10 @@ int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                 }
 
                 /* Advance state and proceed */
-                ssl->options.keyShareState = KEYSHARE_DO;
-            } /* case KEYSHARE_BUILD */
+                ssl->options.asyncState = TLS_ASYNC_DO;
+            } /* case TLS_ASYNC_BUILD */
 
-            case KEYSHARE_DO:
+            case TLS_ASYNC_DO:
             {
                 switch(ssl->specs.kea)
                 {
@@ -19303,10 +19303,10 @@ int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                 }
 
                 /* Advance state and proceed */
-                ssl->options.keyShareState = KEYSHARE_VERIFY;
-            } /* case KEYSHARE_DO */
+                ssl->options.asyncState = TLS_ASYNC_VERIFY;
+            } /* case TLS_ASYNC_DO */
 
-            case KEYSHARE_VERIFY:
+            case TLS_ASYNC_VERIFY:
             {
                 switch(ssl->specs.kea)
                 {
@@ -19432,10 +19432,10 @@ int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                 }
 
                 /* Advance state and proceed */
-                ssl->options.keyShareState = KEYSHARE_FINALIZE;
-            } /* case KEYSHARE_VERIFY */
+                ssl->options.asyncState = TLS_ASYNC_FINALIZE;
+            } /* case TLS_ASYNC_VERIFY */
 
-            case KEYSHARE_FINALIZE:
+            case TLS_ASYNC_FINALIZE:
             {
             #ifdef HAVE_QSH
                 if (ssl->peerQSHKeyPresent) {
@@ -19506,10 +19506,10 @@ int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                 }
 
                 /* Advance state and proceed */
-                ssl->options.keyShareState = KEYSHARE_END;
-            } /* case KEYSHARE_FINALIZE */
+                ssl->options.asyncState = TLS_ASYNC_END;
+            } /* case TLS_ASYNC_FINALIZE */
 
-            case KEYSHARE_END:
+            case TLS_ASYNC_END:
             {
                 ssl->buffers.outputBuffer.length += args->sendSz;
                 if (!ssl->options.groupMessages) {
@@ -19521,7 +19521,7 @@ int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             }
             default:
                 ret = INPUT_CASE_ERROR;
-        } /* switch(ssl->options.keyShareState) */
+        } /* switch(ssl->options.asyncState) */
 
     exit_sske:
 
@@ -20423,7 +20423,7 @@ int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         WOLFSSL_ENTER("DoCertificateVerify");
 
     #ifdef WOLFSSL_ASYNC_CRYPT
-        ret = wolfSSL_AsyncPop(ssl, &ssl->options.keyShareState);
+        ret = wolfSSL_AsyncPop(ssl, &ssl->options.asyncState);
         if (ret != WC_NOT_PENDING_E) {
             /* Check for error */
             if (ret < 0)
@@ -20434,7 +20434,7 @@ int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         {
             /* Reset state */
             ret = 0;
-            ssl->options.keyShareState = KEYSHARE_BEGIN;
+            ssl->options.asyncState = TLS_ASYNC_BEGIN;
             XMEMSET(args, 0, sizeof(DcvArgs));
             args->hashAlgo = sha_mac;
             args->sigAlgo = anonymous_sa_algo;
@@ -20445,9 +20445,9 @@ int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         #endif
         }
 
-        switch(ssl->options.keyShareState)
+        switch(ssl->options.asyncState)
         {
-            case KEYSHARE_BEGIN:
+            case TLS_ASYNC_BEGIN:
             {
             #ifdef WOLFSSL_CALLBACKS
                 if (ssl->hsInfoOn)
@@ -20457,10 +20457,10 @@ int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             #endif
 
                 /* Advance state and proceed */
-                ssl->options.keyShareState = KEYSHARE_BUILD;
-            } /* case KEYSHARE_BEGIN */
+                ssl->options.asyncState = TLS_ASYNC_BUILD;
+            } /* case TLS_ASYNC_BEGIN */
 
-            case KEYSHARE_BUILD:
+            case TLS_ASYNC_BUILD:
             {
                 if (IsAtLeastTLSv1_2(ssl)) {
                     if ((args->idx - args->begin) + ENUM_LEN + ENUM_LEN > size) {
@@ -20535,10 +20535,10 @@ int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             #endif /* HAVE_ECC */
 
                 /* Advance state and proceed */
-                ssl->options.keyShareState = KEYSHARE_DO;
-            } /* case KEYSHARE_BUILD */
+                ssl->options.asyncState = TLS_ASYNC_DO;
+            } /* case TLS_ASYNC_BUILD */
 
-            case KEYSHARE_DO:
+            case TLS_ASYNC_DO:
             {
             #ifndef NO_RSA
                 if (ssl->peerRsaKey != NULL && ssl->peerRsaKeyPresent != 0) {
@@ -20588,10 +20588,10 @@ int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                 }
 
                 /* Advance state and proceed */
-                ssl->options.keyShareState = KEYSHARE_VERIFY;
-            } /* case KEYSHARE_DO */
+                ssl->options.asyncState = TLS_ASYNC_VERIFY;
+            } /* case TLS_ASYNC_DO */
 
-            case KEYSHARE_VERIFY:
+            case TLS_ASYNC_VERIFY:
             {
             #ifndef NO_RSA
                 if (ssl->peerRsaKey != NULL && ssl->peerRsaKeyPresent != 0) {
@@ -20681,10 +20681,10 @@ int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             #endif /* !NO_RSA */
 
                 /* Advance state and proceed */
-                ssl->options.keyShareState = KEYSHARE_FINALIZE;
-            } /* case KEYSHARE_VERIFY */
+                ssl->options.asyncState = TLS_ASYNC_FINALIZE;
+            } /* case TLS_ASYNC_VERIFY */
 
-            case KEYSHARE_FINALIZE:
+            case TLS_ASYNC_FINALIZE:
             {
                 ssl->options.havePeerVerify = 1;
 
@@ -20693,16 +20693,16 @@ int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                 *inOutIdx = args->idx;
 
                 /* Advance state and proceed */
-                ssl->options.keyShareState = KEYSHARE_END;
-            } /* case KEYSHARE_FINALIZE */
+                ssl->options.asyncState = TLS_ASYNC_END;
+            } /* case TLS_ASYNC_FINALIZE */
 
-            case KEYSHARE_END:
+            case TLS_ASYNC_END:
             {
                 break;
             }
             default:
                 ret = INPUT_CASE_ERROR;
-        } /* switch(ssl->options.keyShareState) */
+        } /* switch(ssl->options.asyncState) */
 
     exit_dcv:
 
@@ -21076,7 +21076,7 @@ int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         WOLFSSL_ENTER("DoClientKeyExchange");
 
     #ifdef WOLFSSL_ASYNC_CRYPT
-        ret = wolfSSL_AsyncPop(ssl, &ssl->options.keyShareState);
+        ret = wolfSSL_AsyncPop(ssl, &ssl->options.asyncState);
         if (ret != WC_NOT_PENDING_E) {
             /* Check for error */
             if (ret < 0)
@@ -21087,7 +21087,7 @@ int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         {
             /* Reset state */
             ret = 0;
-            ssl->options.keyShareState = KEYSHARE_BEGIN;
+            ssl->options.asyncState = TLS_ASYNC_BEGIN;
             XMEMSET(args, 0, sizeof(DckeArgs));
             args->idx = *inOutIdx;
             args->begin = *inOutIdx;
@@ -21097,9 +21097,9 @@ int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         }
 
         /* Do Client Key Exchange State Machine */
-        switch(ssl->options.keyShareState)
+        switch(ssl->options.asyncState)
         {
-            case KEYSHARE_BEGIN:
+            case TLS_ASYNC_BEGIN:
             {
                 /* Sanity checks */
                 if (ssl->options.side != WOLFSSL_SERVER_END) {
@@ -21219,10 +21219,10 @@ int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                 }
 
                 /* Advance state and proceed */
-                ssl->options.keyShareState = KEYSHARE_BUILD;
-            } /* KEYSHARE_BEGIN */
+                ssl->options.asyncState = TLS_ASYNC_BUILD;
+            } /* TLS_ASYNC_BEGIN */
 
-            case KEYSHARE_BUILD:
+            case TLS_ASYNC_BUILD:
             {
                 switch (ssl->specs.kea) {
                 #ifndef NO_RSA
@@ -21629,10 +21629,10 @@ int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                 }
 
                 /* Advance state and proceed */
-                ssl->options.keyShareState = KEYSHARE_DO;
-            } /* KEYSHARE_BUILD */
+                ssl->options.asyncState = TLS_ASYNC_DO;
+            } /* TLS_ASYNC_BUILD */
 
-            case KEYSHARE_DO:
+            case TLS_ASYNC_DO:
             {
                 switch (ssl->specs.kea) {
                 #ifndef NO_RSA
@@ -21747,10 +21747,10 @@ int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                 }
 
                 /* Advance state and proceed */
-                ssl->options.keyShareState = KEYSHARE_VERIFY;
-            } /* KEYSHARE_DO */
+                ssl->options.asyncState = TLS_ASYNC_VERIFY;
+            } /* TLS_ASYNC_DO */
 
-            case KEYSHARE_VERIFY:
+            case TLS_ASYNC_VERIFY:
             {
                 switch (ssl->specs.kea) {
                 #ifndef NO_RSA
@@ -21875,10 +21875,10 @@ int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                 }
 
                 /* Advance state and proceed */
-                ssl->options.keyShareState = KEYSHARE_FINALIZE;
-            } /* KEYSHARE_VERIFY */
+                ssl->options.asyncState = TLS_ASYNC_FINALIZE;
+            } /* TLS_ASYNC_VERIFY */
 
-            case KEYSHARE_FINALIZE:
+            case TLS_ASYNC_FINALIZE:
             {
             #ifdef HAVE_QSH
                 word16 name;
@@ -21913,10 +21913,10 @@ int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                 }
 
                 /* Advance state and proceed */
-                ssl->options.keyShareState = KEYSHARE_END;
-            } /* KEYSHARE_FINALIZE */
+                ssl->options.asyncState = TLS_ASYNC_END;
+            } /* TLS_ASYNC_FINALIZE */
 
-            case KEYSHARE_END:
+            case TLS_ASYNC_END:
             {
                 /* Set final index */
                 *inOutIdx = args->idx;
@@ -21928,10 +21928,10 @@ int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                 }
             #endif
                 break;
-            } /* KEYSHARE_END */
+            } /* TLS_ASYNC_END */
             default:
                 ret = INPUT_CASE_ERROR;
-        } /* switch(ssl->options.keyShareState) */
+        } /* switch(ssl->options.asyncState) */
 
     exit_dcke:
 

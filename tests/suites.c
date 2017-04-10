@@ -537,14 +537,16 @@ int SuiteTest(void)
                                                    memory, sizeof(memory), 0, 1)
             != SSL_SUCCESS) {
         printf("unable to load static memory and create ctx");
-        args.return_code = EXIT_FAILURE; goto exit;
+        args.return_code = EXIT_FAILURE;
+        goto exit;
     }
 #endif
 
 #ifdef WOLFSSL_ASYNC_CRYPT
     if (wolfAsync_DevOpen(&devId) < 0) {
         printf("Async device open failed");
-        args.return_code = EXIT_FAILURE; goto exit;
+        args.return_code = EXIT_FAILURE;
+        goto exit;
     }
     wolfSSL_CTX_UseAsync(cipherSuiteCtx, devId);
 #endif /* WOLFSSL_ASYNC_CRYPT */
@@ -555,7 +557,8 @@ int SuiteTest(void)
     test_harness(&args);
     if (args.return_code != 0) {
         printf("error from script %d\n", args.return_code);
-        args.return_code = EXIT_FAILURE; goto exit;
+        args.return_code = EXIT_FAILURE;
+        goto exit;
     }
 
     /* any extra cases will need another argument */
@@ -568,7 +571,8 @@ int SuiteTest(void)
     test_harness(&args);
     if (args.return_code != 0) {
         printf("error from script %d\n", args.return_code);
-        args.return_code = EXIT_FAILURE; goto exit;
+        args.return_code = EXIT_FAILURE;
+        goto exit;
     }
 #endif
 #ifdef WOLFSSL_SCTP
@@ -578,7 +582,8 @@ int SuiteTest(void)
     test_harness(&args);
     if (args.return_code != 0) {
         printf("error from script %d\n", args.return_code);
-        args.return_code = EXIT_FAILURE; goto exit;
+        args.return_code = EXIT_FAILURE;
+        goto exit;
     }
 #endif
 #ifndef WC_STRICT_SIG
@@ -589,7 +594,8 @@ int SuiteTest(void)
     test_harness(&args);
     if (args.return_code != 0) {
         printf("error from script %d\n", args.return_code);
-        args.return_code = EXIT_FAILURE; goto exit;
+        args.return_code = EXIT_FAILURE;
+        goto exit;
     }
 #endif /* HAVE_RSA and HAVE_ECC */
 #endif /* !WC_STRICT_SIG */
@@ -600,7 +606,8 @@ int SuiteTest(void)
     test_harness(&args);
     if (args.return_code != 0) {
         printf("error from script %d\n", args.return_code);
-        args.return_code = EXIT_FAILURE; goto exit;
+        args.return_code = EXIT_FAILURE;
+        goto exit;
     }
 #endif
 
@@ -611,7 +618,8 @@ int SuiteTest(void)
     test_harness(&args);
     if (args.return_code != 0) {
         printf("error from script %d\n", args.return_code);
-        args.return_code = EXIT_FAILURE; goto exit;
+        args.return_code = EXIT_FAILURE;
+        goto exit;
     }
 #endif
 

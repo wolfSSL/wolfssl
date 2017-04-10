@@ -633,7 +633,7 @@ static int wc_RsaPad_ex(const byte* input, word32 inputLen, byte* pkcsBlock,
     switch (padType)
     {
         case WC_RSA_PKCSV15_PAD:
-            //WOLFSSL_MSG("wolfSSL Using RSA PKCSV15 padding");
+            /*WOLFSSL_MSG("wolfSSL Using RSA PKCSV15 padding");*/
             ret = RsaPad(input, inputLen, pkcsBlock, pkcsBlockLen,
                                                              padValue, rng);
             break;
@@ -805,7 +805,7 @@ static int wc_RsaUnPad_ex(byte* pkcsBlock, word32 pkcsBlockLen, byte** out,
 
     switch (padType) {
         case WC_RSA_PKCSV15_PAD:
-            //WOLFSSL_MSG("wolfSSL Using RSA PKCSV15 un-padding");
+            /*WOLFSSL_MSG("wolfSSL Using RSA PKCSV15 un-padding");*/
             ret = RsaUnPad(pkcsBlock, pkcsBlockLen, out, padValue);
             break;
 
@@ -986,7 +986,7 @@ done:
     return ret;
 }
 
-#ifdef WOLFSSL_ASYNC_CRYPT
+#if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_RSA)
 static int wc_RsaFunctionAsync(const byte* in, word32 inLen, byte* out,
                           word32* outLen, int type, RsaKey* key, WC_RNG* rng)
 {
@@ -1056,7 +1056,7 @@ static int wc_RsaFunctionAsync(const byte* in, word32 inLen, byte* out,
 
     return ret;
 }
-#endif /* WOLFSSL_ASYNC_CRYPT */
+#endif /* WOLFSSL_ASYNC_CRYPT && WC_ASYNC_ENABLE_RSA */
 
 int wc_RsaFunction(const byte* in, word32 inLen, byte* out,
                           word32* outLen, int type, RsaKey* key, WC_RNG* rng)

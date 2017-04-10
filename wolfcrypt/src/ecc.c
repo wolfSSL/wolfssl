@@ -2785,7 +2785,7 @@ static int wc_ecc_shared_secret_gen_sync(ecc_key* private_key, ecc_point* point,
     return err;
 }
 
-#ifdef WOLFSSL_ASYNC_CRYPT
+#if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_ECC)
 static int wc_ecc_shared_secret_gen_async(ecc_key* private_key,
             ecc_point* point, byte* out, word32 *outlen,
             ecc_curve_spec* curve)
