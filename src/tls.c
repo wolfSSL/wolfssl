@@ -149,37 +149,41 @@ static int p_hash(byte* result, word32 resLen, const byte* secret,
 
     lastTime = times - 1;
 
-    XMEMSET(hmac, 0, sizeof(Hmac));
-    if ((ret = wc_HmacSetKey(hmac, hash, secret, secLen)) == 0) {
-        if ((ret = wc_HmacUpdate(hmac, seed, seedLen)) == 0) { /* A0 = seed */
-            if ((ret = wc_HmacFinal(hmac, previous)) == 0) {   /* A1 */
-                for (i = 0; i < times; i++) {
+    ret = wc_HmacInit(hmac, NULL, INVALID_DEVID);
+    if (ret == 0) {
+        ret = wc_HmacSetKey(hmac, hash, secret, secLen);
+        if (ret == 0)
+            ret = wc_HmacUpdate(hmac, seed, seedLen); /* A0 = seed */
+        if (ret == 0)
+            ret = wc_HmacFinal(hmac, previous);       /* A1 */
+        if (ret == 0) {
+            for (i = 0; i < times; i++) {
+                ret = wc_HmacUpdate(hmac, previous, len);
+                if (ret != 0)
+                    break;
+                ret = wc_HmacUpdate(hmac, seed, seedLen);
+                if (ret != 0)
+                    break;
+                ret = wc_HmacFinal(hmac, current);
+                if (ret != 0)
+                    break;
+
+                if ((i == lastTime) && lastLen)
+                    XMEMCPY(&result[idx], current,
+                                             min(lastLen, P_HASH_MAX_SIZE));
+                else {
+                    XMEMCPY(&result[idx], current, len);
+                    idx += len;
                     ret = wc_HmacUpdate(hmac, previous, len);
                     if (ret != 0)
                         break;
-                    ret = wc_HmacUpdate(hmac, seed, seedLen);
+                    ret = wc_HmacFinal(hmac, previous);
                     if (ret != 0)
                         break;
-                    ret = wc_HmacFinal(hmac, current);
-                    if (ret != 0)
-                        break;
-
-                    if ((i == lastTime) && lastLen)
-                        XMEMCPY(&result[idx], current,
-                                                 min(lastLen, P_HASH_MAX_SIZE));
-                    else {
-                        XMEMCPY(&result[idx], current, len);
-                        idx += len;
-                        ret = wc_HmacUpdate(hmac, previous, len);
-                        if (ret != 0)
-                            break;
-                        ret = wc_HmacFinal(hmac, previous);
-                        if (ret != 0)
-                            break;
-                    }
                 }
             }
         }
+        wc_HmacFree(hmac);
     }
 
     ForceZero(previous,  P_HASH_MAX_SIZE);
@@ -795,7 +799,7 @@ int TLS_hmac(WOLFSSL* ssl, byte* digest, const byte* in, word32 sz,
               int content, int verify)
 {
     Hmac hmac;
-    int  ret;
+    int  ret = 0;
     byte myInner[WOLFSSL_TLS_HMAC_INNER_SZ];
 
     if (ssl == NULL)
@@ -808,22 +812,22 @@ int TLS_hmac(WOLFSSL* ssl, byte* digest, const byte* in, word32 sz,
 
     wolfSSL_SetTlsHmacInner(ssl, myInner, sz, content, verify);
 
-    XMEMSET(&hmac, 0, sizeof(Hmac));
-    ret = wc_HmacSetKey(&hmac, wolfSSL_GetHmacType(ssl),
-                     wolfSSL_GetMacSecret(ssl, verify), ssl->specs.hash_size);
-    if (ret != 0)
-        return ret;
-    ret = wc_HmacUpdate(&hmac, myInner, sizeof(myInner));
-    if (ret != 0)
-        return ret;
-    ret = wc_HmacUpdate(&hmac, in, sz);                                /* content */
-    if (ret != 0)
-        return ret;
-    ret = wc_HmacFinal(&hmac, digest);
+    ret = wc_HmacInit(&hmac, NULL, ssl->devId);
     if (ret != 0)
         return ret;
 
-    return 0;
+    ret = wc_HmacSetKey(&hmac, wolfSSL_GetHmacType(ssl),
+                     wolfSSL_GetMacSecret(ssl, verify), ssl->specs.hash_size);
+    if (ret == 0) {
+        ret = wc_HmacUpdate(&hmac, myInner, sizeof(myInner));
+        if (ret == 0)
+            ret = wc_HmacUpdate(&hmac, in, sz);                    /* content */
+        if (ret == 0)
+            ret = wc_HmacFinal(&hmac, digest);
+    }
+    wc_HmacFree(&hmac);
+
+    return ret;
 }
 
 #ifdef HAVE_TLS_EXTENSIONS

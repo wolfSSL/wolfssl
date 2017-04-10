@@ -12469,6 +12469,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
 #else
         Hmac  hmac[1];
 #endif
+        void* heap = NULL;
 
         WOLFSSL_ENTER("HMAC");
         if (!md)
@@ -12482,23 +12483,27 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
             return NULL;
 
     #ifdef WOLFSSL_SMALL_STACK
-        hmac = (Hmac*)XMALLOC(sizeof(Hmac), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        hmac = (Hmac*)XMALLOC(sizeof(Hmac), heap, DYNAMIC_TYPE_TMP_BUFFER);
         if (hmac == NULL)
             return NULL;
     #endif
 
-        XMEMSET(hmac, 0, sizeof(Hmac));
-        if (wc_HmacSetKey(hmac, type, (const byte*)key, key_len) == 0)
-            if (wc_HmacUpdate(hmac, d, n) == 0)
-                if (wc_HmacFinal(hmac, md) == 0) {
-                    if (md_len)
-                        *md_len = (type == MD5) ? (int)MD5_DIGEST_SIZE
-                                                : (int)SHA_DIGEST_SIZE;
-                    ret = md;
+        if (wc_HmacInit(hmac, heap, INVALID_DEVID) == 0) {
+            if (wc_HmacSetKey(hmac, type, (const byte*)key, key_len) == 0) {
+                if (wc_HmacUpdate(hmac, d, n) == 0) {
+                    if (wc_HmacFinal(hmac, md) == 0) {
+                        if (md_len)
+                            *md_len = (type == MD5) ? (int)MD5_DIGEST_SIZE
+                                                    : (int)SHA_DIGEST_SIZE;
+                        ret = md;
+                    }
                 }
+            }
+            wc_HmacFree(hmac);
+        }
 
     #ifdef WOLFSSL_SMALL_STACK
-        XFREE(hmac, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(hmac, heap, DYNAMIC_TYPE_TMP_BUFFER);
     #endif
 
         return ret;
@@ -18911,8 +18916,11 @@ void wolfSSL_HMAC_Init(WOLFSSL_HMAC_CTX* ctx, const void* key, int keylen,
 
     if (key && keylen) {
         WOLFSSL_MSG("keying hmac");
-        XMEMSET(&ctx->hmac, 0, sizeof(Hmac));
-        wc_HmacSetKey(&ctx->hmac, ctx->type, (const byte*)key, (word32)keylen);
+
+        if (wc_HmacInit(&ctx->hmac, NULL, INVALID_DEVID) == 0) {
+            wc_HmacSetKey(&ctx->hmac, ctx->type, (const byte*)key,
+                                                        (word32)keylen);
+        }
         /* OpenSSL compat, no error */
     }
 }
@@ -18974,9 +18982,10 @@ void wolfSSL_HMAC_Final(WOLFSSL_HMAC_CTX* ctx, unsigned char* hash,
 
 void wolfSSL_HMAC_cleanup(WOLFSSL_HMAC_CTX* ctx)
 {
-    (void)ctx;
-
     WOLFSSL_MSG("wolfSSL_HMAC_cleanup");
+
+    if (ctx)
+        wc_HmacFree(&ctx->hmac);
 }
 
 

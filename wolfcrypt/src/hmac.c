@@ -732,6 +732,7 @@ int wc_HmacInit(Hmac* hmac, void* heap, int devId)
     if (hmac == NULL)
         return BAD_FUNC_ARG;
 
+    XMEMSET(hmac, 0, sizeof(Hmac));
     hmac->heap = heap;
 
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_HMAC)

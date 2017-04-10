@@ -7199,16 +7199,17 @@ int wc_ecc_encrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
            case ecHMAC_SHA256:
                {
                    Hmac hmac;
-                   ret = wc_HmacSetKey(&hmac, SHA256, macKey, SHA256_DIGEST_SIZE);
-                   if (ret != 0)
-                       break;
-                   ret = wc_HmacUpdate(&hmac, out, msgSz);
-                   if (ret != 0)
-                       break;
-                   ret = wc_HmacUpdate(&hmac, ctx->macSalt, ctx->macSaltSz);
-                   if (ret != 0)
-                       break;
-                   ret = wc_HmacFinal(&hmac, out+msgSz);
+                   ret = wc_HmacInit(&hmac, NULL, INVALID_DEVID);
+                   if (ret == 0) {
+                       ret = wc_HmacSetKey(&hmac, SHA256, macKey, SHA256_DIGEST_SIZE);
+                       if (ret == 0)
+                           ret = wc_HmacUpdate(&hmac, out, msgSz);
+                       if (ret == 0)
+                           ret = wc_HmacUpdate(&hmac, ctx->macSalt, ctx->macSaltSz);
+                       if (ret == 0)
+                           ret = wc_HmacFinal(&hmac, out+msgSz);
+                       wc_HmacFree(&hmac);
+                   }
                }
                break;
 
@@ -7330,25 +7331,28 @@ int wc_ecc_decrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
 
        switch (ctx->macAlgo) {
            case ecHMAC_SHA256:
-               {
-                   byte verify[SHA256_DIGEST_SIZE];
-                   Hmac hmac;
+           {
+               byte verify[SHA256_DIGEST_SIZE];
+               Hmac hmac;
+
+               ret = wc_HmacInit(&hmac, NULL, INVALID_DEVID);
+               if (ret == 0) {
                    ret = wc_HmacSetKey(&hmac, SHA256, macKey, SHA256_DIGEST_SIZE);
-                   if (ret != 0)
-                       break;
-                   ret = wc_HmacUpdate(&hmac, msg, msgSz-digestSz);
-                   if (ret != 0)
-                       break;
-                   ret = wc_HmacUpdate(&hmac, ctx->macSalt, ctx->macSaltSz);
-                   if (ret != 0)
-                       break;
-                   ret = wc_HmacFinal(&hmac, verify);
-                   if (ret != 0)
-                       break;
-                   if (XMEMCMP(verify, msg + msgSz - digestSz, digestSz) != 0)
-                       ret = -1;
+                   if (ret == 0)
+                       ret = wc_HmacUpdate(&hmac, msg, msgSz-digestSz);
+                   if (ret == 0)
+                       ret = wc_HmacUpdate(&hmac, ctx->macSalt, ctx->macSaltSz);
+                   if (ret == 0)
+                       ret = wc_HmacFinal(&hmac, verify);
+                   if (ret == 0) {
+                      if (XMEMCMP(verify, msg + msgSz - digestSz, digestSz) != 0)
+                          ret = -1;
+                   }
+
+                   wc_HmacFree(&hmac);
                }
                break;
+           }
 
            default:
                ret = BAD_FUNC_ARG;
