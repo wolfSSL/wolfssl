@@ -3030,7 +3030,7 @@ static void test_wolfSSL_BIO(void)
 
 static void test_wolfSSL_DES_ecb_encrypt(void)
 {
-    #if defined(OPENSSL_EXTRA) && !defined(NO_DES3)
+    #if defined(OPENSSL_EXTRA) && !defined(NO_DES3) && defined(WOLFSSL_DES_ECB)
     WOLFSSL_DES_cblock input1,input2,output1,output2,back1,back2;
     WOLFSSL_DES_key_schedule key;
 

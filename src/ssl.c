@@ -15793,10 +15793,10 @@ void wolfSSL_DES_set_odd_parity(WOLFSSL_DES_cblock* myDes)
 }
 
 
+#ifdef WOLFSSL_DES_ECB
 void wolfSSL_DES_ecb_encrypt(WOLFSSL_DES_cblock* desa,
              WOLFSSL_DES_cblock* desb, WOLFSSL_DES_key_schedule* key, int dir)
 {
-#ifdef WOLFSSL_DES_ECB
     WOLFSSL_ENTER("wolfSSL_DES_ecb_encrypt");
 
     Des3 enc;
@@ -15810,8 +15810,8 @@ void wolfSSL_DES_ecb_encrypt(WOLFSSL_DES_cblock* desa,
         WOLFSSL_MSG("wc_Des3_EcbEncrpyt return error.");
       }
     }
-#endif
 }
+#endif
 
 #endif /* NO_DES3 */
 
