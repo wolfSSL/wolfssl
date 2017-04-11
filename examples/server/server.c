@@ -175,7 +175,7 @@ int ServerEchoData(SSL* ssl, int clientfd, int echoData, int throughput)
             /* Read data */
             while (rx_pos < len) {
                 ret = SSL_read(ssl, &buffer[rx_pos], len - rx_pos);
-                if (ret <= 0) {
+                if (ret < 0) {
                     err = SSL_get_error(ssl, 0);
                 #ifdef WOLFSSL_ASYNC_CRYPT
                     if (err == WC_PENDING_E) {
@@ -1152,7 +1152,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
             do {
                 err = 0; /* reset error */
                 ret = SSL_read(ssl, input, sizeof(input)-1);
-                if (ret <= 0) {
+                if (ret < 0) {
                     err = SSL_get_error(ssl, 0);
 
                 #ifdef WOLFSSL_ASYNC_CRYPT

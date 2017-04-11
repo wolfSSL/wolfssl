@@ -399,6 +399,7 @@ int BuildTlsFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
     byte*       handshake_hash;
     word32      hashSz = HSHASH_SZ;
 
+    /* using allocate here to allow async hardware to use buffer directly */
     handshake_hash = (byte*)XMALLOC(hashSz, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
     if (handshake_hash == NULL)
         return MEMORY_E;

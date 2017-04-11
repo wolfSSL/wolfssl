@@ -3185,6 +3185,10 @@ static INLINE int wc_ecc_alloc_rs(ecc_key* key, mp_int** r, mp_int** s)
 {
     int err = 0;
 
+#ifndef WOLFSSL_ASYNC_CRYPT
+    (void)key;
+#endif
+
     if (*r == NULL) {
     #ifdef WOLFSSL_ASYNC_CRYPT
         *r = (mp_int*)XMALLOC(sizeof(mp_int), key->heap, DYNAMIC_TYPE_BIGINT);
@@ -3193,8 +3197,6 @@ static INLINE int wc_ecc_alloc_rs(ecc_key* key, mp_int** r, mp_int** s)
         }
         key->r = *r;
     #endif
-
-        XMEMSET(*r, 0, sizeof(mp_int));
     }
     if (*s == NULL) {
     #ifdef WOLFSSL_ASYNC_CRYPT
@@ -3205,10 +3207,13 @@ static INLINE int wc_ecc_alloc_rs(ecc_key* key, mp_int** r, mp_int** s)
         }
         key->s = *s;
     #endif
-
-        XMEMSET(*s, 0, sizeof(mp_int));
     }
-    (void)key;
+
+    /* initialize mp_int */
+    if (*r)
+        XMEMSET(*r, 0, sizeof(mp_int));
+    if (*s)
+        XMEMSET(*s, 0, sizeof(mp_int));
 
     return err;
 }

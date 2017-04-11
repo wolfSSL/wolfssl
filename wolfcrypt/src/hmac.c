@@ -322,10 +322,10 @@ int wc_HmacSetKey(Hmac* hmac, int type, const byte* key, word32 length)
             else {
                 ret = wc_Sha224Update(&hmac->hash.sha224, key, length);
                 if (ret != 0)
-                    return ret;
+                    break;
                 ret = wc_Sha224Final(&hmac->hash.sha224, ip);
                 if (ret != 0)
-                    return ret;
+                    break;
 
                 length = SHA224_DIGEST_SIZE;
             }
@@ -577,7 +577,6 @@ int wc_HmacFinal(Hmac* hmac, byte* hash)
         return IntelQaHmac(&hmac->asyncDev, hmac->macType,
             hmac->keyRaw, hmac->keyLen, hash, NULL, hashLen);
     #endif
-        (void)hashLen;
     }
 #endif /* WOLFSSL_ASYNC_CRYPT */
 
@@ -627,18 +626,18 @@ int wc_HmacFinal(Hmac* hmac, byte* hash)
         {
             ret = wc_Sha224Final(&hmac->hash.sha224, (byte*)hmac->innerHash);
             if (ret != 0)
-                return ret;
+                break;
             ret = wc_Sha224Update(&hmac->hash.sha224, (byte*)hmac->opad,
                                                              SHA224_BLOCK_SIZE);
             if (ret != 0)
-                return ret;
+                break;
             ret = wc_Sha224Update(&hmac->hash.sha224, (byte*)hmac->innerHash,
                                                             SHA224_DIGEST_SIZE);
             if (ret != 0)
-                return ret;
+                break;
             ret = wc_Sha224Final(&hmac->hash.sha224, hash);
             if (ret != 0)
-                return ret;
+                break;
         }
         break;
     #endif /* WOLFSSL_SHA224 */
