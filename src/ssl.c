@@ -15803,7 +15803,7 @@ void wolfSSL_DES_ecb_encrypt(WOLFSSL_DES_cblock* desa,
     if (desa == NULL || key == NULL || desb == NULL || (enc != DES_ENCRYPT && enc != DES_DECRYPT)){
         WOLFSSL_MSG("Bad argument passed to wolfSSL_DES_ecb_encrypt");
     } else {
-      if (wc_Des3_SetKey(&myDes, (const byte*) key, (const byte*) NULL, enc) != 0){
+      if (wc_Des3_SetKey(&myDes, (const byte*) key, (const byte*) NULL, !enc) != 0){
         WOLFSSL_MSG("wc_Des3_SetKey return error.");
       }
       if (enc){
