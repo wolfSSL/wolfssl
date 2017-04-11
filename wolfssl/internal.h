@@ -1452,7 +1452,7 @@ struct WOLFSSL_OCSP {
     WOLFSSL_CERT_MANAGER* cm;            /* pointer back to cert manager */
     OcspEntry*            ocspList;      /* OCSP response list */
     wolfSSL_Mutex         ocspLock;      /* OCSP list lock */
-#ifdef WOLFSSL_NGINX
+#if defined(WOLFSSL_NGINX) || defined (WOLFSSL_HAPROXY)
     int(*statusCb)(WOLFSSL*, void*);
 #endif
 };
@@ -1938,7 +1938,7 @@ struct WOLFSSL_CTX {
     #ifdef OPENSSL_EXTRA
     STACK_OF(WOLFSSL_X509_NAME)* ca_names;
     #endif
-    #ifdef WOLFSSL_NGINX
+    #if defined(WOLFSSL_NGINX) || defined (WOLFSSL_HAPROXY)
     STACK_OF(WOLFSSL_X509)* x509Chain;
     #endif
     DerBuffer*  privateKey;
@@ -2024,11 +2024,11 @@ struct WOLFSSL_CTX {
 #ifdef HAVE_EX_DATA
     void*           ex_data[MAX_EX_DATA];
 #endif
-#if defined(HAVE_ALPN) && defined(WOLFSSL_NGINX)
+#if defined(HAVE_ALPN) && (defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY))
     CallbackALPNSelect alpnSelect;
     void*              alpnSelectArg;
 #endif
-#if defined(HAVE_STUNNEL) || defined(WOLFSSL_NGINX)
+#if defined(HAVE_STUNNEL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
     CallbackSniRecv sniRecvCb;
     void*           sniRecvCbArg;
 #endif
@@ -2908,7 +2908,7 @@ struct WOLFSSL {
     #endif                                         /* user turned on */
     #ifdef HAVE_ALPN
         char*   alpn_client_list;  /* keep the client's list */
-        #ifdef WOLFSSL_NGINX
+        #if defined(WOLFSSL_NGINX)  || defined(WOLFSSL_HAPROXY)
             CallbackALPNSelect alpnSelect;
             void*              alpnSelectArg;
         #endif
@@ -2922,7 +2922,7 @@ struct WOLFSSL {
 #ifdef OPENSSL_EXTRA
     byte*           ocspResp;
     int             ocspRespSz;
-#ifdef WOLFSSL_NGINX
+#if defined(WOLFSSL_NGINX)  || defined(WOLFSSL_HAPROXY)
     char*           url;
 #endif
 #endif

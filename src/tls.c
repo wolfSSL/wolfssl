@@ -1106,7 +1106,7 @@ static int TLSX_ALPN_ParseAndSet(WOLFSSL *ssl, byte *input, word16 length,
         extension = TLSX_Find(ssl->ctx->extensions,
                                                TLSX_APPLICATION_LAYER_PROTOCOL);
 
-#ifdef WOLFSSL_NGINX
+#if defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
     if (ssl->alpnSelect != NULL) {
         const byte* out;
         unsigned char outLen;
@@ -2252,7 +2252,7 @@ int TLSX_CSR_ForceRequest(WOLFSSL* ssl)
         switch (csr->status_type) {
             case WOLFSSL_CSR_OCSP:
                 if (ssl->ctx->cm->ocspEnabled) {
-                #ifdef WOLFSSL_NGINX
+                #if defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
                     csr->request.ocsp.ssl = ssl;
                 #endif
                     return CheckOcspRequest(ssl->ctx->cm->ocsp,
@@ -2664,7 +2664,7 @@ int TLSX_CSR2_ForceRequest(WOLFSSL* ssl)
 
             case WOLFSSL_CSR2_OCSP_MULTI:
                 if (ssl->ctx->cm->ocspEnabled) {
-                #ifdef WOLFSSL_NGINX
+                #if defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
                     csr2->request.ocsp[0].ssl = ssl;
                 #endif
                     return CheckOcspRequest(ssl->ctx->cm->ocsp,

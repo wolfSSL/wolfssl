@@ -475,6 +475,7 @@ typedef WOLFSSL_X509_STORE_CTX X509_STORE_CTX;
 
 #if defined(HAVE_LIGHTY) || defined(WOLFSSL_MYSQL_COMPATIBLE) \
                          || defined(HAVE_STUNNEL) \
+                         || defined(WOLFSSL_HAPROXY) \
                          || defined(WOLFSSL_NGINX)
 typedef WOLFSSL_X509_NAME_ENTRY X509_NAME_ENTRY;
 
@@ -507,6 +508,7 @@ typedef WOLFSSL_X509_NAME_ENTRY X509_NAME_ENTRY;
 
 #if defined(HAVE_LIGHTY) || defined(WOLFSSL_MYSQL_COMPATIBLE) \
                          || defined(HAVE_STUNNEL) \
+                         || defined(WOLFSSL_HAPROXY) \
                          || defined(WOLFSSL_NGINX)
 
 #define OBJ_nid2ln wolfSSL_OBJ_nid2ln
@@ -515,7 +517,7 @@ typedef WOLFSSL_X509_NAME_ENTRY X509_NAME_ENTRY;
 #define PEM_read_bio_DSAparams wolfSSL_PEM_read_bio_DSAparams
 #define PEM_write_bio_X509 wolfSSL_PEM_write_bio_X509
 
-#endif /* HAVE_STUNNEL || HAVE_LIGHTY || WOLFSSL_MYSQL_COMPATIBLE || WOLFSSL_NGINX */
+#endif /* HAVE_STUNNEL || HAVE_LIGHTY || WOLFSSL_MYSQL_COMPATIBLE || WOLFSSL_NGINX || WOLFSSL_HAPROXY */
 #define SSL_CTX_set_tmp_dh wolfSSL_CTX_set_tmp_dh
 
 #define BIO_new_file        wolfSSL_BIO_new_file
@@ -709,7 +711,7 @@ typedef WOLFSSL_ASN1_BIT_STRING    ASN1_BIT_STRING;
 #define NID_inhibit_any_policy        168 /* 2.5.29.54 */
 #define NID_tlsfeature                92  /* id-pe 24 */
 
-#ifdef WOLFSSL_NGINX
+#if defined(WOLFSSL_NGINX)  || defined(WOLFSSL_HAPROXY)
 #include <wolfssl/error-ssl.h>
 
 #define OPENSSL_STRING    WOLFSSL_STRING
