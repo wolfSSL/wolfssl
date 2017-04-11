@@ -95,6 +95,27 @@ enum Ctc_Misc {
 #endif /* WOLFSSL_CERT_EXT */
 };
 
+#ifdef WOLFSSL_CERT_SIGNER_INFO
+    /* CertSigner information */
+    typedef struct CertSigner {
+        word32  pubKeySize;
+        byte*   publicKey;
+        word32  keyOID;                     /* key type */
+        word16  keyUsage;
+        byte    pathLength;
+        byte    pathLengthSet;
+        int     commonNameLen;
+        char*   commonName;                    /* common name */
+        word32  subjectNameHashLen;
+        byte*   subjectNameHash; /* sha hash of names in certificate */
+    #ifndef NO_SKID
+        word32  subjectKeyIdHashLen;
+        byte*   subjectKeyIdHash;
+    #endif
+    } CertSigner;
+#endif
+
+
 #ifdef WOLFSSL_CERT_GEN
 
 #ifndef HAVE_ECC

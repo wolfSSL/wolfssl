@@ -45,6 +45,10 @@
     #endif
 #endif
 
+#if !defined(NO_ASN) && defined(WOLFSSL_CERT_SIGNER_INFO)
+    #include <wolfssl/wolfcrypt/asn_public.h>
+#endif
+
 #ifdef WOLFSSL_PREFIX
     #include "prefix_ssl.h"
 #endif
@@ -1367,7 +1371,10 @@ WOLFSSL_API int wolfSSL_CertPemToDer(const unsigned char*, int,
     #endif /* WOLFSSL_PEMPUBKEY_TODER_DEFINED */
 #endif /* WOLFSSL_CERT_EXT || WOLFSSL_PUB_PEM_TO_DER*/
 
-typedef void (*CallbackCACache)(unsigned char* der, int sz, int type);
+#ifdef WOLFSSL_CERT_SIGNER_INFO
+    typedef void (*CbCaCert)(const CertSigner* cert);
+#endif
+typedef void (*CbCaDer)(unsigned char* der, int sz, int type);
 typedef void (*CbMissingCRL)(const char* url);
 typedef int  (*CbOCSPIO)(void*, const char*, int,
                                          unsigned char*, int, unsigned char**);
@@ -1519,7 +1526,10 @@ WOLFSSL_API void* wolfSSL_GetRsaDecCtx(WOLFSSL* ssl);
 
 
 #ifndef NO_CERTS
-    WOLFSSL_API void wolfSSL_CTX_SetCACb(WOLFSSL_CTX*, CallbackCACache);
+    WOLFSSL_API void wolfSSL_CTX_SetCACb(WOLFSSL_CTX*, CbCaDer);
+    #ifdef WOLFSSL_CERT_SIGNER_INFO
+        WOLFSSL_API int wolfSSL_CTX_show_cert_cache(WOLFSSL_CTX*, CbCaCert);
+    #endif
 
     WOLFSSL_API WOLFSSL_CERT_MANAGER* wolfSSL_CertManagerNew_ex(void* heap);
     WOLFSSL_API WOLFSSL_CERT_MANAGER* wolfSSL_CertManagerNew(void);

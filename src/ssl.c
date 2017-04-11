@@ -3658,8 +3658,8 @@ int AddCA(WOLFSSL_CERT_MANAGER* cm, DerBuffer** pDer, int type, int verify)
                 signer->next = cm->caTable[row];
                 cm->caTable[row] = signer;   /* takes ownership */
                 wc_UnLockMutex(&cm->caLock);
-                if (cm->caCacheCallback)
-                    cm->caCacheCallback(der->buffer, (int)der->length, type);
+                if (cm->cbCaCache)
+                    cm->cbCaCache(der->buffer, (int)der->length, type);
             }
             else {
                 WOLFSSL_MSG("    CA Mutex Lock failed");
@@ -6835,12 +6835,39 @@ void wolfSSL_SetCertCbCtx(WOLFSSL* ssl, void* ctx)
 
 
 /* store context CA Cache addition callback */
-void wolfSSL_CTX_SetCACb(WOLFSSL_CTX* ctx, CallbackCACache cb)
+void wolfSSL_CTX_SetCACb(WOLFSSL_CTX* ctx, CbCaDer cb)
 {
     if (ctx && ctx->cm)
-        ctx->cm->caCacheCallback = cb;
+        ctx->cm->cbCaCache = cb;
 }
 
+#ifdef WOLFSSL_CERT_SIGNER_INFO
+int wolfSSL_CTX_show_cert_cache(WOLFSSL_CTX* ctx, CbCaCert cb)
+{
+    int ret, i;
+
+    if (ctx == NULL || ctx->cm == NULL || cb == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    for (i=0; i<CA_TABLE_SIZE; i++) {
+        Signer* row = ctx->cm->caTable[i];
+        while (row != NULL) {
+            CertSigner cert;
+
+            ret = wc_SignerExport(row, &cert);
+            if (ret == 0) {
+                if (cb)
+                    cb(&cert);
+            }
+
+            row = row->next;
+        }
+    }
+
+    return SSL_SUCCESS;
+}
+#endif /* WOLFSSL_CERT_SIGNER_INFO */
 
 #if defined(PERSIST_CERT_CACHE)
 
