@@ -2293,6 +2293,37 @@ WOLFSSL_API void wolfSSL_CTX_set_alpn_select_cb(WOLFSSL_CTX *ctx,
                                                       unsigned int inlen,
                                                       void *arg), void *arg);
 
+
+
+WOLFSSL_API int sk_SSL_COMP_zero(WOLFSSL* st);
+
+#ifdef WOLFSSL_HAPROXY
+WOLFSSL_API const unsigned char *SSL_SESSION_get0_id_context(
+        const WOLFSSL_SESSION *sess, unsigned int *sid_ctx_length);
+#endif
+
+int SSL_SESSION_set1_id(WOLFSSL_SESSION *s, const unsigned char *sid, unsigned int sid_len);
+int SSL_SESSION_set1_id_context(WOLFSSL_SESSION *s, const unsigned char *sid_ctx, unsigned int sid_ctx_len);
+void *X509_get0_tbs_sigalg(const WOLFSSL_X509 *x);
+void X509_ALGOR_get0(WOLFSSL_ASN1_OBJECT **paobj, int *pptype, const void **ppval, const void *algor);
+void *X509_get_X509_PUBKEY(void * x);
+int X509_PUBKEY_get0_param(WOLFSSL_ASN1_OBJECT **ppkalg, const unsigned char **pk, int *ppklen, void **pa, WOLFSSL_EVP_PKEY *pub);
+struct evp_pkey_st *SSL_get_privatekey(const WOLFSSL *ssl);
+int EVP_PKEY_bits(WOLFSSL_EVP_PKEY *pkey);
+int i2d_X509(WOLFSSL_X509 *x, unsigned char **out);
+int i2t_ASN1_OBJECT(char *buf, int buf_len, WOLFSSL_ASN1_OBJECT *a);
+size_t SSL_get_finished(const WOLFSSL *s, void *buf, size_t count);
+size_t SSL_get_peer_finished(const WOLFSSL *s, void *buf, size_t count);
+void SSL_CTX_set_tmp_dh_callback(WOLFSSL_CTX *ctx, WOLFSSL_DH *(*dh) (WOLFSSL *ssl, int is_export, int keylength));
+STACK_OF(SSL_COMP) *SSL_COMP_get_compression_methods(void);
+int sk_SSL_CIPHER_num(const void * p);
+int X509_STORE_load_locations(WOLFSSL_X509_STORE *ctx, const char *file, const char *dir);
+int sk_SSL_CIPHER_value(void *ciphers, int idx);
+void ERR_load_SSL_strings(void);
+
+WOLFSSL_X509 *PEM_read_X509(FILE *fp, WOLFSSL_X509 **x, pem_password_cb *cb, void *u);
+WOLFSSL_EVP_PKEY *PEM_read_PrivateKey(FILE *fp, WOLFSSL_EVP_PKEY **x, pem_password_cb *cb, void *u);
+
 #ifdef __cplusplus
     }  /* extern "C" */
 #endif

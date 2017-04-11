@@ -14288,6 +14288,11 @@ WOLFSSL_COMP_METHOD* wolfSSL_COMP_rle(void)
     return 0;
 }
 
+int sk_SSL_COMP_zero(WOLFSSL* st)
+{
+    wolfSSL_set_options(st, SSL_OP_NO_COMPRESSION);
+    return 0;
+}
 
 int wolfSSL_COMP_add_compression_method(int method, void* data)
 {
@@ -15392,6 +15397,14 @@ long wolfSSL_set_tlsext_debug_arg(WOLFSSL* ssl, void *arg)
 }
 #endif /* HAVE_PK_CALLBACKS */
 
+#ifdef WOLFSSL_HAPROXY
+const unsigned char *SSL_SESSION_get0_id_context(const SSL_SESSION *sess, unsigned int *sid_ctx_length)
+{
+    const byte *c = wolfSSL_SESSION_get_id((SSL_SESSION *)sess, sid_ctx_length);
+    return c;
+}
+#endif
+
 /*** TBD ***/
 WOLFSSL_API long wolfSSL_set_tlsext_status_type(WOLFSSL *s, int type)
 {
@@ -15430,6 +15443,169 @@ WOLFSSL_API long wolfSSL_set_tlsext_status_ids(WOLFSSL *s, void *arg)
     (void)s;
     (void)arg;
     return 0;
+}
+
+/*** TBD ***/
+int SSL_SESSION_set1_id(WOLFSSL_SESSION *s, const unsigned char *sid, unsigned int sid_len)
+{
+    (void)s;
+    (void)sid;
+    (void)sid_len;
+    return 1;
+}
+
+/*** TBD ***/
+int SSL_SESSION_set1_id_context(SSL_SESSION *s, const unsigned char *sid_ctx, unsigned int sid_ctx_len)
+{
+    (void)s;
+    (void)sid_ctx;
+    (void)sid_ctx_len;
+    return 1;
+}
+
+/*** TBD ***/
+void *X509_get0_tbs_sigalg(const X509 *x)
+{
+    (void)x;
+    return NULL;
+}
+
+/*** TBD ***/
+void X509_ALGOR_get0(ASN1_OBJECT **paobj, int *pptype, const void **ppval, const void *algor)
+{
+    (void)paobj;
+    (void)pptype;
+    (void)ppval;
+    (void)algor;
+}
+
+/*** TBD ***/
+void *X509_get_X509_PUBKEY(void * x)
+{
+    (void)x;
+    return NULL;
+}
+
+/*** TBD ***/
+int X509_PUBKEY_get0_param(ASN1_OBJECT **ppkalg, const unsigned char **pk, int *ppklen, void **pa, WOLFSSL_EVP_PKEY *pub)
+{
+    (void)ppkalg;
+    (void)pk;
+    (void)ppklen;
+    (void)pa;
+    (void)pub;
+    return 1;
+}
+
+/*** TBD ***/
+struct evp_pkey_st *SSL_get_privatekey(const SSL *ssl)
+{
+    (void)ssl;
+    return NULL;
+}
+
+/*** TBD ***/
+int EVP_PKEY_bits(EVP_PKEY *pkey)
+{
+    (void)pkey;
+    return -1;
+}
+
+/*** TBD ***/
+int i2d_X509(X509 *x, unsigned char **out)
+{
+    (void)x;
+    (void)out;
+    return -1;
+}
+
+/*** TBD ***/
+int i2t_ASN1_OBJECT(char *buf, int buf_len, ASN1_OBJECT *a)
+{
+    (void)buf;
+    (void)buf_len;
+    (void)a;
+    return -1;
+}
+
+/*** TBD ***/
+size_t SSL_get_finished(const SSL *s, void *buf, size_t count)
+{
+    (void)s;
+    (void)buf;
+    (void)count;
+    return 0;
+}
+
+/*** TBD ***/
+size_t SSL_get_peer_finished(const SSL *s, void *buf, size_t count)
+{
+    (void)s;
+    (void)buf;
+    (void)count;
+    return 0;
+}
+
+/*** TBD ***/
+void SSL_CTX_set_tmp_dh_callback(SSL_CTX *ctx, DH *(*dh) (SSL *ssl, int is_export, int keylength))
+{
+    (void)ctx;
+    (void)dh;
+}
+
+/*** TBD ***/
+STACK_OF(SSL_COMP) *SSL_COMP_get_compression_methods(void)
+{
+    return NULL;
+}
+
+/*** TBD ***/
+int sk_SSL_CIPHER_num(const void * p)
+{
+    (void)p;
+    return -1;
+}
+
+/*** TBD ***/
+X509 *PEM_read_X509(FILE *fp, X509 **x, pem_password_cb *cb, void *u)
+{
+    (void)fp;
+    (void)x;
+    (void)cb;
+    (void)u;
+    return NULL;
+}
+
+/*** TBD ***/
+EVP_PKEY *PEM_read_PrivateKey(FILE *fp, EVP_PKEY **x, pem_password_cb *cb, void *u)
+{
+    (void)fp;
+    (void)x;
+    (void)cb;
+    (void)u;
+    return NULL;
+}
+
+/*** TBD ***/
+int X509_STORE_load_locations(X509_STORE *ctx, const char *file, const char *dir)
+{
+    (void)ctx;
+    (void)file;
+    (void)dir;
+    return -1;
+}
+
+/*** TBD ***/
+int sk_SSL_CIPHER_value(void *ciphers, int idx)
+{
+    (void)ciphers;
+    (void)idx;
+    return 0;
+}
+    
+void ERR_load_SSL_strings(void)
+{
+
 }
 
 WOLFSSL_API long wolfSSL_get_tlsext_status_ocsp_resp(WOLFSSL *s, unsigned char **resp)
@@ -22655,6 +22831,13 @@ const char * wolfSSL_get_servername(WOLFSSL* ssl, byte type)
 }
 #endif /* NO_WOLFSSL_SERVER */
 #endif /* HAVE_SNI */
+
+
+#if defined(WOLFSSL_HAPROXY)
+
+
+
+#endif
 
 
 WOLFSSL_CTX* wolfSSL_set_SSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx)

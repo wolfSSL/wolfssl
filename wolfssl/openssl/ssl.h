@@ -518,6 +518,17 @@ typedef WOLFSSL_X509_NAME_ENTRY X509_NAME_ENTRY;
 #define PEM_write_bio_X509 wolfSSL_PEM_write_bio_X509
 
 #endif /* HAVE_STUNNEL || HAVE_LIGHTY || WOLFSSL_MYSQL_COMPATIBLE || WOLFSSL_NGINX || WOLFSSL_HAPROXY */
+
+#ifdef WOLFSSL_HAPROXY
+#define SSL_get_rbio                      wolfSSL_SSL_get_rbio
+#define SSL_get_wbio                      wolfSSL_SSL_get_wbio
+#define SSL_do_handshake                  wolfSSL_SSL_do_handshake
+#define SSL_get_ciphers(x)                wolfSSL_get_ciphers(x, sizeof(x))
+#define SSL_SESSION_get_id                wolfSSL_SESSION_get_id
+#define ASN1_STRING_get0_data             wolfSSL_ASN1_STRING_data
+#define SSL_get_cipher_bits(s,np)         wolfSSL_CIPHER_get_bits(SSL_get_current_cipher(s),np)
+#endif
+
 #define SSL_CTX_set_tmp_dh wolfSSL_CTX_set_tmp_dh
 
 #define BIO_new_file        wolfSSL_BIO_new_file
