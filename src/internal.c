@@ -330,7 +330,7 @@ static INLINE void c16toa(word16 u16, byte* c)
 
 #if !defined(NO_OLD_TLS) || defined(HAVE_CHACHA) || defined(HAVE_AESCCM) \
     || defined(HAVE_AESGCM) || defined(WOLFSSL_SESSION_EXPORT) \
-    || defined(WOLFSSL_DTLS)
+    || defined(WOLFSSL_DTLS) || defined(HAVE_SESSION_TICKET)
 /* convert 32 bit integer to opaque */
 static INLINE void c32toa(word32 u32, byte* c)
 {
