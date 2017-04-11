@@ -3005,6 +3005,11 @@ int wc_ecc_make_key_ex(WC_RNG* rng, int keysize, ecc_key* key, int curve_id)
         return BAD_FUNC_ARG;
     }
 
+    /* make sure required key variables are reset */
+    key->state = ECC_STATE_NONE;
+    key->idx = 0;
+    key->dp = NULL;
+
     err = wc_ecc_set_curve(key, keysize, curve_id);
     if (err != 0) {
         return err;
@@ -3255,6 +3260,7 @@ int wc_ecc_init_ex(ecc_key* key, void* heap, int devId)
 #endif
 
     XMEMSET(key, 0, sizeof(ecc_key));
+    key->state = ECC_STATE_NONE;
 
 #ifdef WOLFSSL_ATECC508A
     key->slot = atmel_ecc_alloc();
@@ -5083,7 +5089,6 @@ int wc_ecc_import_private_key_ex(const byte* priv, word32 privSz,
                                  int curve_id)
 {
     int ret;
-    void* heap;
 
     /* public optional, NULL if only importing private */
     if (pub != NULL) {
@@ -5095,15 +5100,10 @@ int wc_ecc_import_private_key_ex(const byte* priv, word32 privSz,
         if (key == NULL || priv == NULL)
             return BAD_FUNC_ARG;
 
-        /* init key */
-        heap = key->heap;
-        ret = wc_ecc_init_ex(key, NULL, INVALID_DEVID);
-        key->heap = heap;
-
+        /* make sure required key variables are reset */
         key->state = ECC_STATE_NONE;
-
-        if (ret != 0)
-            return ret;
+        key->idx = 0;
+        key->dp = NULL;
 
         /* set key size */
         ret = wc_ecc_set_curve(key, privSz, curve_id);
