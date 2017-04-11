@@ -255,17 +255,28 @@ static int CheckCertCRLList(WOLFSSL_CRL* crl, DecodedCert* cert, int *pFoundEntr
                     return BAD_MUTEX_E;
                 }
 
-                if (ret == 0)
-                    crle->verified = 1;
-                else {
-                    crle->verified = ret;
-                    break;
-                }
+                crle = crl->crlList;
+                while (crle) {
+                    if (XMEMCMP(crle->issuerHash, cert->issuerHash,
+                        CRL_DIGEST_SIZE) == 0) {
 
-                XFREE(crle->toBeSigned, crl->heap, DYNAMIC_TYPE_CRL_ENTRY);
-                crle->toBeSigned = NULL;
-                XFREE(crle->signature, crl->heap, DYNAMIC_TYPE_CRL_ENTRY);
-                crle->signature = NULL;
+                        if (ret == 0)
+                            crle->verified = 1;
+                        else
+                            crle->verified = ret;
+
+                        XFREE(crle->toBeSigned, crl->heap,
+                                                        DYNAMIC_TYPE_CRL_ENTRY);
+                        crle->toBeSigned = NULL;
+                        XFREE(crle->signature, crl->heap,
+                                                        DYNAMIC_TYPE_CRL_ENTRY);
+                        crle->signature = NULL;
+                        break;
+                    }
+                    crle = crle->next;
+                }
+                if (crle == NULL || crle->verified < 0)
+                    break;
             }
             else if (crle->verified < 0) {
                 WOLFSSL_MSG("Cannot use CRL as it didn't verify");
