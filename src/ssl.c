@@ -15795,27 +15795,27 @@ void wolfSSL_DES_set_odd_parity(WOLFSSL_DES_cblock* myDes)
 
 #ifdef WOLFSSL_DES_ECB
 void wolfSSL_DES_ecb_encrypt(WOLFSSL_DES_cblock* desa,
-             WOLFSSL_DES_cblock* desb, WOLFSSL_DES_key_schedule* key, int dir)
+             WOLFSSL_DES_cblock* desb, WOLFSSL_DES_key_schedule* key, int enc)
 {
     WOLFSSL_ENTER("wolfSSL_DES_ecb_encrypt");
 
-    Des3 enc;
-    if (desa == NULL || key == NULL || desb == NULL || (dir != DES_ENCRYPT && dir != DES_DECRYPT)){
+    Des3 myDes;
+    if (desa == NULL || key == NULL || desb == NULL || (enc != DES_ENCRYPT && enc != DES_DECRYPT)){
         WOLFSSL_MSG("Bad argument passed to wolfSSL_DES_ecb_encrypt");
     } else {
-      int cdir;
-      if (dir == DES_ENCRYPT){
-        cdir = DES_ENCRYPTION;
-      }else if (dir == DES_DECRYPT){
-        cdir = DES_DECRYPTION;
-      }
-      if (wc_Des3_SetKey(&enc, (const byte*) key, (const byte*) NULL, cdir) != 0){
+      if (wc_Des3_SetKey(&myDes, (const byte*) key, (const byte*) NULL, enc) != 0){
         WOLFSSL_MSG("wc_Des3_SetKey return error.");
       }
-      if (wc_Des3_EcbEncrypt(&enc, (byte*) desb, (const byte*) desa, sizeof(desb)) != 0){
-        WOLFSSL_MSG("wc_Des3_EcbEncrpyt return error.");
-      }
-    }
+      if (enc){
+         if (wc_Des3_EcbEncrypt(&myDes, (byte*) desb, (const byte*) desa, sizeof(desa)) != 0){
+             WOLFSSL_MSG("wc_Des3_EcbEncrpyt return error.");
+         }
+     } else {
+         if (wc_Des3_EcbDecrypt(&myDes, (byte*) desb, (const byte*) desa, sizeof(desa)) != 0){
+             WOLFSSL_MSG("wc_Des3_EcbDecrpyt return error.");
+         }
+     }
+   }
 }
 #endif
 
