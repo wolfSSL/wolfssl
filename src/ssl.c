@@ -7284,7 +7284,7 @@ void* wolfSSL_X509_get_ext_d2i(const WOLFSSL_X509* x509,
 
                         /* set app derefrenced pointers */
                         obj->d.ia5_internal.data   = dns->name;
-                        obj->d.ia5_internal.length = XSTRLEN(dns->name);
+                        obj->d.ia5_internal.length = (int)XSTRLEN(dns->name);
                         dns = dns->next;
                         /* last dns in list add at end of function */
                         if (dns != NULL) {
@@ -15057,12 +15057,12 @@ static void ExternalFreeX509(WOLFSSL_X509* x509)
     }
 
 
-    char* wolfSSL_ASN1_STRING_data(WOLFSSL_ASN1_STRING* asn)
+    unsigned char* wolfSSL_ASN1_STRING_data(WOLFSSL_ASN1_STRING* asn)
     {
         WOLFSSL_ENTER("wolfSSL_ASN1_STRING_data");
 
         if (asn) {
-            return asn->data;
+            return (unsigned char*)asn->data;
         }
         else {
             return NULL;

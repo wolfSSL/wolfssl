@@ -867,7 +867,7 @@ WOLFSSL_API WOLFSSL_ASN1_STRING* wolfSSL_ASN1_STRING_type_new(int type);
 WOLFSSL_API void wolfSSL_ASN1_STRING_free(WOLFSSL_ASN1_STRING* asn1);
 WOLFSSL_API int wolfSSL_ASN1_STRING_set(WOLFSSL_ASN1_STRING* asn1,
                                                   const void* data, int dataSz);
-WOLFSSL_API char* wolfSSL_ASN1_STRING_data(WOLFSSL_ASN1_STRING*);
+WOLFSSL_API unsigned char* wolfSSL_ASN1_STRING_data(WOLFSSL_ASN1_STRING*);
 WOLFSSL_API int wolfSSL_ASN1_STRING_length(WOLFSSL_ASN1_STRING*);
 WOLFSSL_API int         wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX*);
 WOLFSSL_API const char* wolfSSL_X509_verify_cert_error_string(long);
@@ -1171,6 +1171,8 @@ enum {
     X509_V_ERR_INVALID_POLICY_EXTENSION,
     X509_V_ERR_NO_EXPLICIT_POLICY,
     X509_V_ERR_UNNESTED_RESOURCE,
+
+    X509_R_CERT_ALREADY_IN_HASH_TABLE,
 
     XN_FLAG_SPC_EQ  = (1 << 23),
     XN_FLAG_ONELINE = 0,

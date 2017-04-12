@@ -148,6 +148,8 @@ typedef WOLFSSL_X509_STORE_CTX X509_STORE_CTX;
 #define TLSv1_2_server_method wolfTLSv1_2_server_method
 #define TLSv1_2_client_method wolfTLSv1_2_client_method
 
+#define X509_FILETYPE_ASN1 SSL_FILETYPE_ASN1
+
 #ifdef WOLFSSL_DTLS
     #define DTLSv1_client_method wolfDTLSv1_client_method
     #define DTLSv1_server_method wolfDTLSv1_server_method
@@ -718,7 +720,6 @@ enum {
 #define SSL23_ST_SR_CLNT_HELLO_A        (0x210|0x2000)
 #define SSL3_ST_SR_CLNT_HELLO_A         (0x110|0x2000)
 #define ASN1_STRFLGS_ESC_MSB             4
-#define X509_V_ERR_CERT_REJECTED         28
 
 #define SSL_MAX_MASTER_KEY_LENGTH        WOLFSSL_MAX_MASTER_KEY_LENGTH
 
