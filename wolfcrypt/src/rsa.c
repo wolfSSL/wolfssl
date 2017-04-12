@@ -1116,7 +1116,7 @@ static int RsaPublicEncryptEx(const byte* in, word32 inLen, byte* out,
                             enum wc_HashType hash, int mgf,
                             byte* label, word32 labelSz, WC_RNG* rng)
 {
-    int ret = RSA_WRONG_TYPE_E, sz;
+    int ret, sz;
 
     if (in == NULL || inLen == 0 || out == NULL || key == NULL) {
         return BAD_FUNC_ARG;
@@ -1166,28 +1166,35 @@ static int RsaPublicEncryptEx(const byte* in, word32 inLen, byte* out,
         if (ret < 0) {
             break;
         }
-        /* fall through */
-    case RSA_STATE_ENCRYPT_EXPTMOD:
+
         key->state = RSA_STATE_ENCRYPT_EXPTMOD;
+        /* fall through */
+
+    case RSA_STATE_ENCRYPT_EXPTMOD:
 
         key->dataLen = outLen;
         ret = wc_RsaFunction(out, sz, out, &key->dataLen, rsa_type, key, rng);
+
+        if (ret >= 0 || ret == WC_PENDING_E) {
+            key->state = RSA_STATE_ENCRYPT_RES;
+        }
         if (ret < 0) {
             break;
         }
+
         /* fall through */
+
     case RSA_STATE_ENCRYPT_RES:
-        key->state = RSA_STATE_ENCRYPT_RES;
         ret = key->dataLen;
         break;
 
     default:
         ret = BAD_STATE_E;
+        break;
     }
 
     /* if async pending then return and skip done cleanup below */
     if (ret == WC_PENDING_E) {
-        key->state++;
         return ret;
     }
 
@@ -1257,7 +1264,8 @@ static int RsaPrivateDecryptEx(byte* in, word32 inLen, byte* out,
 
         /* verify the tmp ptr is NULL, otherwise indicates bad state */
         if (key->data != NULL) {
-            ERROR_OUT(BAD_STATE_E);
+            ret = BAD_STATE_E;
+            break;
         }
 
         /* if not doing this inline then allocate a buffer for it */
@@ -1266,7 +1274,8 @@ static int RsaPrivateDecryptEx(byte* in, word32 inLen, byte* out,
             key->data = (byte*)XMALLOC(inLen, key->heap, DYNAMIC_TYPE_WOLF_BIGINT);
             key->dataIsAlloc = 1;
             if (key->data == NULL) {
-                ERROR_OUT(MEMORY_E);
+                ret = MEMORY_E;
+                break;
             }
             XMEMCPY(key->data, in, inLen);
         }
@@ -1275,14 +1284,19 @@ static int RsaPrivateDecryptEx(byte* in, word32 inLen, byte* out,
         }
         ret = wc_RsaFunction(key->data, inLen, key->data, &key->dataLen, rsa_type,
                                                                       key, rng);
+
+        if (ret >= 0 || ret == WC_PENDING_E) {
+            key->state = RSA_STATE_DECRYPT_UNPAD;
+        }
         if (ret < 0) {
             break;
         }
+
         /* fall through */
+
     case RSA_STATE_DECRYPT_UNPAD:
     {
         byte* pad = NULL;
-        key->state = RSA_STATE_DECRYPT_UNPAD;
         ret = wc_RsaUnPad_ex(key->data, key->dataLen, &pad, pad_value, pad_type,
                                           hash, mgf, label, labelSz, key->heap);
         if (ret > 0 && ret <= (int)outLen && pad != NULL) {
@@ -1300,10 +1314,11 @@ static int RsaPrivateDecryptEx(byte* in, word32 inLen, byte* out,
         if (ret < 0) {
             break;
         }
+
+        key->state = RSA_STATE_DECRYPT_RES;
         /* fall through */
     }
     case RSA_STATE_DECRYPT_RES:
-        key->state = RSA_STATE_DECRYPT_RES;
     #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_RSA) && \
             defined(HAVE_CAVIUM)
         if (key->asyncDev.marker == WOLFSSL_ASYNC_MARKER_RSA) {
@@ -1312,15 +1327,14 @@ static int RsaPrivateDecryptEx(byte* in, word32 inLen, byte* out,
         }
     #endif
         break;
+
     default:
         ret = BAD_STATE_E;
+        break;
     }
-
-done:
 
     /* if async pending then return and skip done cleanup below */
     if (ret == WC_PENDING_E) {
-        key->state++;
         return ret;
     }
 

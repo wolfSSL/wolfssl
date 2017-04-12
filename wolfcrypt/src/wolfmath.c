@@ -122,7 +122,7 @@ int mp_rand(mp_int* a, int digits, WC_RNG* rng)
 #ifdef HAVE_WOLF_BIGINT
 void wc_bigint_init(WC_BIGINT* a)
 {
-    if (a) {
+    if (a != NULL) {
         a->buf = NULL;
         a->len = 0;
         a->heap = NULL;
@@ -142,12 +142,12 @@ int wc_bigint_alloc(WC_BIGINT* a, word32 sz)
         }
         if (a->buf == NULL) {
             a->buf = (byte*)XMALLOC(sz, a->heap, DYNAMIC_TYPE_WOLF_BIGINT);
-            if (a->buf) {
-                XMEMSET(a->buf, 0, sz);
-            }
-            else {
-                err = MP_MEM;
-            }
+        }
+        if (a->buf == NULL) {
+            err = MP_MEM;
+        }
+        else {
+            XMEMSET(a->buf, 0, sz);
         }
     }
     a->len = sz;

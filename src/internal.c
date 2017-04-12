@@ -8437,6 +8437,7 @@ static int DoHandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
         ret = DECODE_E;
     }
 
+#ifdef WOLFSSL_ASYNC_CRYPT
     /* if async, offset index so this msg will be processed again */
     if (ret == WC_PENDING_E) {
         *inOutIdx -= HANDSHAKE_HEADER_SZ;
@@ -8446,6 +8447,7 @@ static int DoHandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
         }
     #endif
     }
+#endif
 
     WOLFSSL_LEAVE("DoHandShakeMsgType()", ret);
     return ret;
@@ -9304,9 +9306,11 @@ static INLINE int Encrypt(WOLFSSL* ssl, byte* out, const byte* input, word16 sz,
 {
     int ret = 0;
 
+#ifdef WOLFSSL_ASYNC_CRYPT
     if (asyncOkay && ssl->error == WC_PENDING_E) {
         ssl->error = 0; /* clear async */
     }
+#endif
 
     switch (ssl->encrypt.state) {
         case CIPHER_STATE_BEGIN:
@@ -9350,10 +9354,12 @@ static INLINE int Encrypt(WOLFSSL* ssl, byte* out, const byte* input, word16 sz,
             /* Advance state */
             ssl->encrypt.state = CIPHER_STATE_END;
 
+        #ifdef WOLFSSL_ASYNC_CRYPT
             /* If pending, then leave and return will resume below */
             if (ret == WC_PENDING_E) {
                 return ret;
             }
+        #endif
         }
 
         case CIPHER_STATE_END:
@@ -9581,10 +9587,12 @@ static INLINE int Decrypt(WOLFSSL* ssl, byte* plain, const byte* input,
             /* Advance state */
             ssl->decrypt.state = CIPHER_STATE_END;
 
+        #ifdef WOLFSSL_ASYNC_CRYPT
             /* If pending, leave and return below */
             if (ret == WC_PENDING_E) {
                 return ret;
             }
+        #endif
         }
 
         case CIPHER_STATE_END:
@@ -10393,10 +10401,11 @@ int ProcessReply(WOLFSSL* ssl)
                                     ssl->buffers.inputBuffer.idx,
                                     ssl->curSize, ssl->curRL.type,
                                     &ssl->keys.padSz);
+                #ifdef WOLFSSL_ASYNC_CRYPT
+                    if (ret == WC_PENDING_E)
+                        return ret;
+                #endif
                     if (ret < 0) {
-                        if (ret == WC_PENDING_E)
-                            return ret;
-
                         WOLFSSL_MSG("VerifyMac failed");
                         WOLFSSL_ERROR(ret);
                         return DECRYPT_ERROR;
@@ -10714,11 +10723,11 @@ static int SSL_hmac(WOLFSSL* ssl, byte* digest, const byte* in, word32 sz,
 
         /* inner */
         ret =  wc_Md5Update(&md5, macSecret, digestSz);
-        ret += wc_Md5Update(&md5, PAD1, padSz);
-        ret += wc_Md5Update(&md5, seq, SEQ_SZ);
-        ret += wc_Md5Update(&md5, conLen, sizeof(conLen));
+        ret |= wc_Md5Update(&md5, PAD1, padSz);
+        ret |= wc_Md5Update(&md5, seq, SEQ_SZ);
+        ret |= wc_Md5Update(&md5, conLen, sizeof(conLen));
         /* in buffer */
-        ret += wc_Md5Update(&md5, in, sz);
+        ret |= wc_Md5Update(&md5, in, sz);
         if (ret != 0)
             return VERIFY_MAC_ERROR;
         ret = wc_Md5Final(&md5, result);
@@ -10733,8 +10742,8 @@ static int SSL_hmac(WOLFSSL* ssl, byte* digest, const byte* in, word32 sz,
 
         /* outer */
         ret =  wc_Md5Update(&md5, macSecret, digestSz);
-        ret += wc_Md5Update(&md5, PAD2, padSz);
-        ret += wc_Md5Update(&md5, result, digestSz);
+        ret |= wc_Md5Update(&md5, PAD2, padSz);
+        ret |= wc_Md5Update(&md5, result, digestSz);
         if (ret != 0)
             return VERIFY_MAC_ERROR;
         ret =  wc_Md5Final(&md5, digest);
@@ -10756,11 +10765,11 @@ static int SSL_hmac(WOLFSSL* ssl, byte* digest, const byte* in, word32 sz,
 
         /* inner */
         ret =  wc_ShaUpdate(&sha, macSecret, digestSz);
-        ret += wc_ShaUpdate(&sha, PAD1, padSz);
-        ret += wc_ShaUpdate(&sha, seq, SEQ_SZ);
-        ret += wc_ShaUpdate(&sha, conLen, sizeof(conLen));
+        ret |= wc_ShaUpdate(&sha, PAD1, padSz);
+        ret |= wc_ShaUpdate(&sha, seq, SEQ_SZ);
+        ret |= wc_ShaUpdate(&sha, conLen, sizeof(conLen));
         /* in buffer */
-        ret += wc_ShaUpdate(&sha, in, sz);
+        ret |= wc_ShaUpdate(&sha, in, sz);
         if (ret != 0)
             return VERIFY_MAC_ERROR;
         ret = wc_ShaFinal(&sha, result);
@@ -10775,8 +10784,8 @@ static int SSL_hmac(WOLFSSL* ssl, byte* digest, const byte* in, word32 sz,
 
         /* outer */
         ret =  wc_ShaUpdate(&sha, macSecret, digestSz);
-        ret += wc_ShaUpdate(&sha, PAD2, padSz);
-        ret += wc_ShaUpdate(&sha, result, digestSz);
+        ret |= wc_ShaUpdate(&sha, PAD2, padSz);
+        ret |= wc_ShaUpdate(&sha, result, digestSz);
         if (ret != 0)
             return VERIFY_MAC_ERROR;
         ret =  wc_ShaFinal(&sha, digest);
@@ -11181,9 +11190,11 @@ exit_buildmsg:
 
     WOLFSSL_LEAVE("BuildMessage", ret);
 
+#ifdef WOLFSSL_ASYNC_CRYPT
     if (ret == WC_PENDING_E) {
         return ret;
     }
+#endif
 
     /* make sure build message state is reset */
     ssl->options.buildMsgState = BUILD_MSG_BEGIN;
@@ -12170,8 +12181,10 @@ int SendData(WOLFSSL* ssl, const void* data, int sz)
         sendSz = BuildMessage(ssl, out, outputSz, sendBuffer, buffSz,
                                                   application_data, 0, 0, 1);
         if (sendSz < 0) {
+        #ifdef WOLFSSL_ASYNC_CRYPT
             if (sendSz == WC_PENDING_E)
                 ssl->error = sendSz;
+        #endif
             return BUILD_MSG_ERROR;
         }
 
@@ -12230,10 +12243,12 @@ int ReceiveData(WOLFSSL* ssl, byte* output, int sz, int peek)
         int err;
         WOLFSSL_MSG("Handshake not complete, trying to finish");
         if ( (err = wolfSSL_negotiate(ssl)) != SSL_SUCCESS) {
+        #ifdef WOLFSSL_ASYNC_CRYPT
             /* if async would block return WANT_WRITE */
             if (ssl->error == WC_PENDING_E) {
                 return WOLFSSL_CBIO_ERR_WANT_READ;
             }
+        #endif
             return  err;
         }
     }
