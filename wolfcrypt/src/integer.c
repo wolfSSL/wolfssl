@@ -157,6 +157,9 @@ int mp_init (mp_int * a)
   a->used  = 0;
   a->alloc = 0;
   a->sign  = MP_ZPOS;
+#ifdef HAVE_WOLF_BIGINT
+  wc_bigint_init(&a->raw);
+#endif
 
   return MP_OKAY;
 }
@@ -178,13 +181,26 @@ void mp_clear (mp_int * a)
     }
 
     /* free ram */
-    XFREE(a->dp, NULL, DYNAMIC_TYPE_BIGINT);
+    mp_free(a);
 
     /* reset members to make debugging easier */
-    a->dp    = NULL;
     a->alloc = a->used = 0;
     a->sign  = MP_ZPOS;
   }
+}
+
+void mp_free (mp_int * a)
+{
+  /* only do anything if a hasn't been freed previously */
+  if (a->dp != NULL) {
+    /* free ram */
+    XFREE(a->dp, 0, DYNAMIC_TYPE_BIGINT);
+    a->dp    = NULL;
+  }
+
+#ifdef HAVE_WOLF_BIGINT
+  wc_bigint_free(&a->raw);
+#endif
 }
 
 void mp_forcezero(mp_int * a)
@@ -198,10 +214,9 @@ void mp_forcezero(mp_int * a)
       ForceZero(a->dp, a->used * sizeof(mp_digit));
 
       /* free ram */
-      XFREE(a->dp, NULL, DYNAMIC_TYPE_BIGINT);
+      mp_free(a);
 
       /* reset members to make debugging easier */
-      a->dp    = NULL;
       a->alloc = a->used = 0;
       a->sign  = MP_ZPOS;
     }
@@ -330,7 +345,7 @@ int mp_copy (mp_int * a, mp_int * b)
   }
 
   /* grow dest */
-  if (b->alloc < a->used) {
+  if (b->alloc < a->used || b->alloc == 0) {
      if ((res = mp_grow (b, a->used)) != MP_OKAY) {
         return res;
      }
@@ -373,7 +388,7 @@ int mp_grow (mp_int * a, int size)
   mp_digit *tmp;
 
   /* if the alloc size is smaller alloc more ram */
-  if (a->alloc < size) {
+  if (a->alloc < size || size == 0) {
     /* ensure there are always at least MP_PREC digits extra on top */
     size += (MP_PREC * 2) - (size % MP_PREC);
 
@@ -469,6 +484,9 @@ void mp_zero (mp_int * a)
 
   a->sign = MP_ZPOS;
   a->used = 0;
+#ifdef HAVE_WOLF_BIGINT
+  wc_bigint_zero(&a->raw);
+#endif
 
   tmp = a->dp;
   for (n = 0; n < a->alloc; n++) {
@@ -2949,6 +2967,9 @@ int mp_init_size (mp_int * a, int size)
   a->used  = 0;
   a->alloc = size;
   a->sign  = MP_ZPOS;
+#ifdef HAVE_WOLF_BIGINT
+  wc_bigint_init(&a->raw);
+#endif
 
   /* zero the digits */
   for (x = 0; x < size; x++) {

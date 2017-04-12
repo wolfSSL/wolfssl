@@ -70,10 +70,14 @@
     #endif /* WOLFSSL_DEBUG_MEMORY */
 #endif /* WOLFSSL_STATIC_MEMORY */
 
-/* Public set function */
-WOLFSSL_API int wolfSSL_SetAllocators(wolfSSL_Malloc_cb  malloc_function,
-                                    wolfSSL_Free_cb    free_function,
-                                    wolfSSL_Realloc_cb realloc_function);
+/* Public get/set functions */
+WOLFSSL_API int wolfSSL_SetAllocators(wolfSSL_Malloc_cb,
+                                      wolfSSL_Free_cb,
+                                      wolfSSL_Realloc_cb);
+
+WOLFSSL_API int wolfSSL_GetAllocators(wolfSSL_Malloc_cb*,
+                                      wolfSSL_Free_cb*,
+                                      wolfSSL_Realloc_cb*);
 
 #ifdef WOLFSSL_STATIC_MEMORY
     #define WOLFSSL_STATIC_TIMEOUT 1
@@ -95,7 +99,7 @@ WOLFSSL_API int wolfSSL_SetAllocators(wolfSSL_Malloc_cb  malloc_function,
         #endif
     #endif
     #ifndef WOLFMEM_DIST
-        #define WOLFMEM_DIST    8,4,4,12,4,5,2,1,1
+        #define WOLFMEM_DIST    8,4,4,12,4,5,8,1,1
     #endif
 
     /* flags for loading static memory (one hot bit) */

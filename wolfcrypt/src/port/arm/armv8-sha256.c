@@ -55,7 +55,8 @@ static const ALIGN32 word32 K[64] = {
     0x90BEFFFAL, 0xA4506CEBL, 0xBEF9A3F7L, 0xC67178F2L
 };
 
-int wc_InitSha256(Sha256* sha256)
+
+int wc_InitSha256_ex(Sha256* sha256, void* heap, int devId)
 {
     int ret = 0;
 
@@ -76,9 +77,21 @@ int wc_InitSha256(Sha256* sha256)
     sha256->loLen   = 0;
     sha256->hiLen   = 0;
 
+    (void)heap;
+    (void)devId;
+
     return ret;
 }
 
+int wc_InitSha256(Sha256* sha256)
+{
+    return wc_InitSha256_ex(sha256, NULL, INVALID_DEVID);
+}
+
+void wc_Sha256Free(Sha256* sha256)
+{
+    (void)sha256;
+}
 
 static INLINE void AddLength(Sha256* sha256, word32 len)
 {
@@ -1287,7 +1300,35 @@ int wc_Sha256Final(Sha256* sha256, byte* hash)
 
     return wc_InitSha256(sha256);  /* reset state */
 }
+
 #endif /* __aarch64__ */
 
-#endif /* NO_SHA256 and WOLFSSL_ARMASM */
 
+int wc_Sha256GetHash(Sha256* sha256, byte* hash)
+{
+    int ret;
+    Sha256 tmpSha256;
+
+    if (sha256 == NULL || hash == NULL)
+        return BAD_FUNC_ARG;
+
+    ret = wc_Sha256Copy(sha256, &tmpSha256);
+    if (ret == 0) {
+        ret = wc_Sha256Final(&tmpSha256, hash);
+    }
+    return ret;
+}
+
+int wc_Sha256Copy(Sha256* src, Sha256* dst)
+{
+    int ret = 0;
+
+    if (src == NULL || dst == NULL)
+        return BAD_FUNC_ARG;
+
+    XMEMCPY(dst, src, sizeof(Sha256));
+
+    return ret;
+}
+
+#endif /* NO_SHA256 and WOLFSSL_ARMASM */

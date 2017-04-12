@@ -681,6 +681,7 @@ int wc_ecc_mulmod_ex(mp_int *k, ecc_point *G, ecc_point *R, mp_int* a,
     int res;
 
     (void)a;
+    (void)heap;
 
     uint8_t Gxbin[LTC_MAX_ECC_BITS / 8];
     uint8_t Gybin[LTC_MAX_ECC_BITS / 8];
