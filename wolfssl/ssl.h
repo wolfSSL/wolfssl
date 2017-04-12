@@ -490,6 +490,7 @@ WOLFSSL_API int wolfSSL_sk_ASN1_OBJECT_push(STACK_OF(WOLFSSL_ASN1_OBJEXT)* sk,
 WOLFSSL_API WOLFSSL_ASN1_OBJECT* wolfSSL_sk_ASN1_OBJCET_pop(
                                             STACK_OF(WOLFSSL_ASN1_OBJECT)* sk);
 WOLFSSL_API void wolfSSL_sk_ASN1_OBJECT_free(STACK_OF(WOLFSSL_ASN1_OBJECT)* sk);
+WOLFSSL_API int wolfSSL_ASN1_STRING_to_UTF8(unsigned char **out, WOLFSSL_ASN1_STRING *in);
 
 WOLFSSL_API int  wolfSSL_set_ex_data(WOLFSSL*, int, void*);
 WOLFSSL_API int  wolfSSL_get_shutdown(const WOLFSSL*);
@@ -2279,20 +2280,33 @@ WOLFSSL_API int PEM_write_bio_WOLFSSL_X509(WOLFSSL_BIO *bio,
 #endif /* WOLFSSL_NGINX */
 
 WOLFSSL_API void wolfSSL_get0_alpn_selected(const WOLFSSL *ssl,
-    const unsigned char **data, unsigned int *len);
+        const unsigned char **data, unsigned int *len);
 WOLFSSL_API int wolfSSL_select_next_proto(unsigned char **out,
-                          unsigned char *outlen,
-                          const unsigned char *in, unsigned int inlen,
-                          const unsigned char *client,
-                          unsigned int client_len);
+        unsigned char *outlen,
+        const unsigned char *in, unsigned int inlen,
+        const unsigned char *client,
+        unsigned int client_len);
 WOLFSSL_API void wolfSSL_CTX_set_alpn_select_cb(WOLFSSL_CTX *ctx,
-                                                int (*cb) (WOLFSSL *ssl,
-                                                      const unsigned char **out,
-                                                      unsigned char *outlen,
-                                                      const unsigned char *in,
-                                                      unsigned int inlen,
-                                                      void *arg), void *arg);
-
+        int (*cb) (WOLFSSL *ssl,
+            const unsigned char **out,
+            unsigned char *outlen,
+            const unsigned char *in,
+            unsigned int inlen,
+            void *arg), void *arg);
+WOLFSSL_API void wolfSSL_CTX_set_next_protos_advertised_cb(WOLFSSL_CTX *s,
+        int (*cb) (WOLFSSL *ssl,
+            const unsigned char **out,
+            unsigned int *outlen,
+            void *arg), void *arg);
+WOLFSSL_API void wolfSSL_CTX_set_next_proto_select_cb(WOLFSSL_CTX *s,
+        int (*cb) (WOLFSSL *ssl,
+            unsigned char **out,
+            unsigned char *outlen,
+            const unsigned char *in,
+            unsigned int inlen,
+            void *arg), void *arg);
+WOLFSSL_API void wolfSSL_get0_next_proto_negotiated(const WOLFSSL *s, const unsigned char **data,
+        unsigned *len);
 
 
 WOLFSSL_API int sk_SSL_COMP_zero(WOLFSSL* st);

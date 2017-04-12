@@ -13700,6 +13700,20 @@ void wolfSSL_sk_ASN1_OBJECT_free(STACK_OF(WOLFSSL_ASN1_OBJECT)* sk)
     }
     XFREE(sk, NULL, DYNAMIC_TYPE_ASN1);
 }
+
+int wolfSSL_ASN1_STRING_to_UTF8(unsigned char **out, WOLFSSL_ASN1_STRING *in)
+{
+    /*
+       ASN1_STRING_to_UTF8() converts the string in to UTF8 format,
+       the converted data is allocated in a buffer in *out.
+       The length of out is returned or a negative error code.
+       The buffer *out should be free using OPENSSL_free().
+       */
+    (void)out;
+    (void)in;
+    WOLFSSL_STUB("ASN1_STRING_to_UTF8");
+    return -1;
+}
 #endif /* NO_ASN */
 
 
@@ -24061,6 +24075,42 @@ void wolfSSL_CTX_set_alpn_select_cb(WOLFSSL_CTX *ctx,
         ctx->alpnSelect = cb;
         ctx->alpnSelectArg = arg;
     }
+}
+
+void wolfSSL_CTX_set_next_protos_advertised_cb(WOLFSSL_CTX *s,
+                                           int (*cb) (WOLFSSL *ssl,
+                                                      const unsigned char
+                                                      **out,
+                                                      unsigned int *outlen,
+                                                      void *arg), void *arg)
+{
+    (void)s;
+    (void)cb;
+    (void)arg;
+    WOLFSSL_STUB("wolfSSL_CTX_set_next_protos_advertised_cb");
+}
+
+void wolfSSL_CTX_set_next_proto_select_cb(WOLFSSL_CTX *s,
+                                      int (*cb) (WOLFSSL *ssl,
+                                                 unsigned char **out,
+                                                 unsigned char *outlen,
+                                                 const unsigned char *in,
+                                                 unsigned int inlen,
+                                                 void *arg), void *arg)
+{
+    (void)s;
+    (void)cb;
+    (void)arg;
+    WOLFSSL_STUB("wolfSSL_CTX_set_next_proto_select_cb");
+}
+
+void wolfSSL_get0_next_proto_negotiated(const WOLFSSL *s, const unsigned char **data,
+                                    unsigned *len)
+{
+    (void)s;
+    (void)data;
+    (void)len;
+    WOLFSSL_STUB("wolfSSL_get0_next_proto_negotiated");
 }
 #endif /* HAVE_ALPN */
 

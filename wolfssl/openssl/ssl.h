@@ -340,6 +340,7 @@ typedef WOLFSSL_X509_STORE_CTX X509_STORE_CTX;
 #define ASN1_INTEGER_cmp wolfSSL_ASN1_INTEGER_cmp
 #define ASN1_INTEGER_get wolfSSL_ASN1_INTEGER_get
 #define ASN1_INTEGER_to_BN wolfSSL_ASN1_INTEGER_to_BN
+#define ASN1_STRING_to_UTF8 wolfSSL_ASN1_STRING_to_UTF8
 
 #define SSL_load_client_CA_file wolfSSL_load_client_CA_file
 
@@ -722,7 +723,9 @@ typedef WOLFSSL_ASN1_BIT_STRING    ASN1_BIT_STRING;
 #define NID_inhibit_any_policy        168 /* 2.5.29.54 */
 #define NID_tlsfeature                92  /* id-pe 24 */
 
-#if defined(WOLFSSL_NGINX)  || defined(WOLFSSL_HAPROXY)
+
+#if defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
+
 #include <wolfssl/error-ssl.h>
 
 #define OPENSSL_STRING    WOLFSSL_STRING
@@ -732,7 +735,6 @@ typedef WOLFSSL_ASN1_BIT_STRING    ASN1_BIT_STRING;
 #define OPENSSL_NPN_UNSUPPORTED 0
 #define OPENSSL_NPN_NEGOTIATED  1
 #define OPENSSL_NPN_NO_OVERLAP  2
-
 
 /* Nginx checks these to see if the error was a handshake error. */
 #define SSL_R_BAD_CHANGE_CIPHER_SPEC               LENGTH_ERROR
@@ -794,6 +796,9 @@ typedef WOLFSSL_ASN1_BIT_STRING    ASN1_BIT_STRING;
 #define SSL_get0_alpn_selected            wolfSSL_get0_alpn_selected
 #define SSL_select_next_proto             wolfSSL_select_next_proto
 #define SSL_CTX_set_alpn_select_cb        wolfSSL_CTX_set_alpn_select_cb
+#define SSL_CTX_set_next_protos_advertised_cb wolfSSL_CTX_set_next_protos_advertised_cb
+#define SSL_CTX_set_next_proto_select_cb  wolfSSL_CTX_set_next_proto_select_cb
+#define SSL_get0_next_proto_negotiated    wolfSSL_get0_next_proto_negotiated
 
 #endif
 

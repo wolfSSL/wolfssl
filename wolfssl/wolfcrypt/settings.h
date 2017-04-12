@@ -1530,6 +1530,9 @@ static char *fgets(char *buff, int sz, FILE *fp)
     #ifndef HAVE_SNI
         #define HAVE_SNI
     #endif
+#endif
+
+#if defined(WOLFSSL_NGINX)
     #define SSL_CTRL_SET_TLSEXT_HOSTNAME
 #endif
 
