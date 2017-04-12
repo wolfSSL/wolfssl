@@ -699,6 +699,16 @@ WOLFSSL_API int wolfSSL_EVP_PKEY_decrypt_init(WOLFSSL_EVP_PKEY_CTX *ctx)
     }
 }
 
+/* Use a WOLFSSL_EVP_PKEY_CTX structure to encrypt data
+ *
+ * ctx    WOLFSSL_EVP_PKEY_CTX structure to use with encryption
+ * out    buffer to hold encrypted data
+ * outlen length of out buffer
+ * in     data to be encrypted
+ * inlen  length of in buffer
+ *
+ * Returns 0 on failure and 1 on success
+ */
 WOLFSSL_API int wolfSSL_EVP_PKEY_encrypt(WOLFSSL_EVP_PKEY_CTX *ctx,
                      unsigned char *out, size_t *outlen,
                      const unsigned char *in, size_t inlen)
@@ -721,7 +731,7 @@ WOLFSSL_API int wolfSSL_EVP_PKEY_encrypt(WOLFSSL_EVP_PKEY_CTX *ctx,
         if(len < 0)return 0;
         else {
             *outlen = len ;
-            return len;
+            return 1;
         }
 #endif /* NO_RSA */
 
