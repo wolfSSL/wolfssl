@@ -15446,7 +15446,7 @@ WOLFSSL_API long wolfSSL_set_tlsext_status_ids(WOLFSSL *s, void *arg)
 }
 
 /*** TBD ***/
-int SSL_SESSION_set1_id(WOLFSSL_SESSION *s, const unsigned char *sid, unsigned int sid_len)
+WOLFSSL_API int SSL_SESSION_set1_id(WOLFSSL_SESSION *s, const unsigned char *sid, unsigned int sid_len)
 {
     (void)s;
     (void)sid;
@@ -15455,7 +15455,7 @@ int SSL_SESSION_set1_id(WOLFSSL_SESSION *s, const unsigned char *sid, unsigned i
 }
 
 /*** TBD ***/
-int SSL_SESSION_set1_id_context(SSL_SESSION *s, const unsigned char *sid_ctx, unsigned int sid_ctx_len)
+WOLFSSL_API int SSL_SESSION_set1_id_context(SSL_SESSION *s, const unsigned char *sid_ctx, unsigned int sid_ctx_len)
 {
     (void)s;
     (void)sid_ctx;
@@ -15464,14 +15464,14 @@ int SSL_SESSION_set1_id_context(SSL_SESSION *s, const unsigned char *sid_ctx, un
 }
 
 /*** TBD ***/
-void *X509_get0_tbs_sigalg(const X509 *x)
+WOLFSSL_API void *X509_get0_tbs_sigalg(const X509 *x)
 {
     (void)x;
     return NULL;
 }
 
 /*** TBD ***/
-void X509_ALGOR_get0(ASN1_OBJECT **paobj, int *pptype, const void **ppval, const void *algor)
+WOLFSSL_API void X509_ALGOR_get0(ASN1_OBJECT **paobj, int *pptype, const void **ppval, const void *algor)
 {
     (void)paobj;
     (void)pptype;
@@ -15480,14 +15480,14 @@ void X509_ALGOR_get0(ASN1_OBJECT **paobj, int *pptype, const void **ppval, const
 }
 
 /*** TBD ***/
-void *X509_get_X509_PUBKEY(void * x)
+WOLFSSL_API void *X509_get_X509_PUBKEY(void * x)
 {
     (void)x;
     return NULL;
 }
 
 /*** TBD ***/
-int X509_PUBKEY_get0_param(ASN1_OBJECT **ppkalg, const unsigned char **pk, int *ppklen, void **pa, WOLFSSL_EVP_PKEY *pub)
+WOLFSSL_API int X509_PUBKEY_get0_param(ASN1_OBJECT **ppkalg, const unsigned char **pk, int *ppklen, void **pa, WOLFSSL_EVP_PKEY *pub)
 {
     (void)ppkalg;
     (void)pk;
@@ -15498,21 +15498,21 @@ int X509_PUBKEY_get0_param(ASN1_OBJECT **ppkalg, const unsigned char **pk, int *
 }
 
 /*** TBD ***/
-struct evp_pkey_st *SSL_get_privatekey(const SSL *ssl)
+WOLFSSL_API struct evp_pkey_st *SSL_get_privatekey(const SSL *ssl)
 {
     (void)ssl;
     return NULL;
 }
 
 /*** TBD ***/
-int EVP_PKEY_bits(EVP_PKEY *pkey)
+WOLFSSL_API int EVP_PKEY_bits(EVP_PKEY *pkey)
 {
     (void)pkey;
     return -1;
 }
 
 /*** TBD ***/
-int i2d_X509(X509 *x, unsigned char **out)
+WOLFSSL_API int i2d_X509(X509 *x, unsigned char **out)
 {
     (void)x;
     (void)out;
@@ -15520,7 +15520,7 @@ int i2d_X509(X509 *x, unsigned char **out)
 }
 
 /*** TBD ***/
-int i2t_ASN1_OBJECT(char *buf, int buf_len, ASN1_OBJECT *a)
+WOLFSSL_API int i2t_ASN1_OBJECT(char *buf, int buf_len, ASN1_OBJECT *a)
 {
     (void)buf;
     (void)buf_len;
@@ -15529,7 +15529,7 @@ int i2t_ASN1_OBJECT(char *buf, int buf_len, ASN1_OBJECT *a)
 }
 
 /*** TBD ***/
-size_t SSL_get_finished(const SSL *s, void *buf, size_t count)
+WOLFSSL_API size_t SSL_get_finished(const SSL *s, void *buf, size_t count)
 {
     (void)s;
     (void)buf;
@@ -15538,7 +15538,7 @@ size_t SSL_get_finished(const SSL *s, void *buf, size_t count)
 }
 
 /*** TBD ***/
-size_t SSL_get_peer_finished(const SSL *s, void *buf, size_t count)
+WOLFSSL_API size_t SSL_get_peer_finished(const SSL *s, void *buf, size_t count)
 {
     (void)s;
     (void)buf;
@@ -15547,27 +15547,27 @@ size_t SSL_get_peer_finished(const SSL *s, void *buf, size_t count)
 }
 
 /*** TBD ***/
-void SSL_CTX_set_tmp_dh_callback(SSL_CTX *ctx, DH *(*dh) (SSL *ssl, int is_export, int keylength))
+WOLFSSL_API void SSL_CTX_set_tmp_dh_callback(SSL_CTX *ctx, DH *(*dh) (SSL *ssl, int is_export, int keylength))
 {
     (void)ctx;
     (void)dh;
 }
 
 /*** TBD ***/
-STACK_OF(SSL_COMP) *SSL_COMP_get_compression_methods(void)
+WOLFSSL_API STACK_OF(SSL_COMP) *SSL_COMP_get_compression_methods(void)
 {
     return NULL;
 }
 
 /*** TBD ***/
-int sk_SSL_CIPHER_num(const void * p)
+WOLFSSL_API int sk_SSL_CIPHER_num(const void * p)
 {
     (void)p;
     return -1;
 }
 
 /*** TBD ***/
-X509 *PEM_read_X509(FILE *fp, X509 **x, pem_password_cb *cb, void *u)
+WOLFSSL_API X509 *PEM_read_X509(FILE *fp, X509 **x, pem_password_cb *cb, void *u)
 {
     (void)fp;
     (void)x;
@@ -15577,7 +15577,7 @@ X509 *PEM_read_X509(FILE *fp, X509 **x, pem_password_cb *cb, void *u)
 }
 
 /*** TBD ***/
-EVP_PKEY *PEM_read_PrivateKey(FILE *fp, EVP_PKEY **x, pem_password_cb *cb, void *u)
+WOLFSSL_API EVP_PKEY *PEM_read_PrivateKey(FILE *fp, EVP_PKEY **x, pem_password_cb *cb, void *u)
 {
     (void)fp;
     (void)x;
@@ -15587,7 +15587,7 @@ EVP_PKEY *PEM_read_PrivateKey(FILE *fp, EVP_PKEY **x, pem_password_cb *cb, void 
 }
 
 /*** TBD ***/
-int X509_STORE_load_locations(X509_STORE *ctx, const char *file, const char *dir)
+WOLFSSL_API int X509_STORE_load_locations(X509_STORE *ctx, const char *file, const char *dir)
 {
     (void)ctx;
     (void)file;
@@ -15596,14 +15596,14 @@ int X509_STORE_load_locations(X509_STORE *ctx, const char *file, const char *dir
 }
 
 /*** TBD ***/
-int sk_SSL_CIPHER_value(void *ciphers, int idx)
+WOLFSSL_API int sk_SSL_CIPHER_value(void *ciphers, int idx)
 {
     (void)ciphers;
     (void)idx;
     return 0;
 }
     
-void ERR_load_SSL_strings(void)
+WOLFSSL_API void ERR_load_SSL_strings(void)
 {
 
 }
