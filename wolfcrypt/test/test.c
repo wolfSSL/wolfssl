@@ -1042,11 +1042,15 @@ int asn_test()
     if (wc_GetTime(&now, 0) != BUFFER_E)
         return -101;
 
-    now = 0;
-    if (wc_GetTime(&now, sizeof(now)) != 0)
-        return -102;
-    if (now == 0)
-        return -103;
+    if (sizeof(long) >= sizeof(time_t)) {
+        now = 0;
+        if (wc_GetTime(&now, sizeof(now)) != 0) {
+            return -102;
+        }
+        if (now == 0) {
+            return -103;
+        }
+    }
 #endif
 
     return 0;
@@ -8071,8 +8075,9 @@ int dh_test(void)
         ret = -55; goto done;
     }
 
-    if (agreeSz != agreeSz2 || XMEMCMP(agree, agree2, agreeSz))
+    if (agreeSz != agreeSz2 || XMEMCMP(agree, agree2, agreeSz)) {
         ret = -56; goto done;
+    }
 
     ret = dh_generate_test(&rng);
     if (ret != 0)
