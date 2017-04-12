@@ -23067,14 +23067,6 @@ const char * wolfSSL_get_servername(WOLFSSL* ssl, byte type)
 #endif /* NO_WOLFSSL_SERVER */
 #endif /* HAVE_SNI */
 
-
-#if defined(WOLFSSL_HAPROXY)
-
-
-
-#endif
-
-
 WOLFSSL_CTX* wolfSSL_set_SSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
 {
     if (ssl && ctx && SetSSL_CTX(ssl, ctx, 0) == SSL_SUCCESS)
