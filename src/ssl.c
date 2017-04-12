@@ -18767,12 +18767,16 @@ int wolfSSL_RSA_sign(int type, const unsigned char* m,
             WOLFSSL_MSG("Bad Encode Signature");
         }
         else {
-            *sigLen = wc_RsaSSL_Sign(encodedSig, signSz, sigRet, outLen,
+            ret = wc_RsaSSL_Sign(encodedSig, signSz, sigRet, outLen,
                                   (RsaKey*)rsa->internal, rng);
-            if (*sigLen <= 0)
+            if (ret <= 0) {
                 WOLFSSL_MSG("Bad Rsa Sign");
-            else
+                ret = 0;
+            }
+            else {
                 ret = SSL_SUCCESS;
+                *sigLen = ret;
+            }
         }
 
     }
