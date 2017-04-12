@@ -1401,7 +1401,7 @@ WOLFSSL_LOCAL
 void InitSuites(Suites*, ProtocolVersion, word16, word16, word16, word16,
                 word16, word16, word16, int);
 WOLFSSL_LOCAL
-int  SetCipherList(Suites*, const char* list);
+int  SetCipherList(WOLFSSL_CTX*, Suites*, const char* list);
 
 #ifndef PSK_TYPES_DEFINED
     typedef unsigned int (*wc_psk_client_callback)(WOLFSSL*, const char*, char*,
@@ -2246,10 +2246,12 @@ WOLFSSL_LOCAL void FreeCiphers(WOLFSSL* ssl);
 
 /* hashes type */
 typedef struct Hashes {
-    #ifndef NO_OLD_TLS
+    #if !defined(NO_MD5) && !defined(NO_OLD_TLS)
         byte md5[MD5_DIGEST_SIZE];
     #endif
-    byte sha[SHA_DIGEST_SIZE];
+    #if !defined(NO_SHA)
+        byte sha[SHA_DIGEST_SIZE];
+    #endif
     #ifndef NO_SHA256
         byte sha256[SHA256_DIGEST_SIZE];
     #endif
@@ -2730,14 +2732,12 @@ typedef struct MsgsReceived {
 typedef struct HS_Hashes {
     Hashes          verifyHashes;
     Hashes          certHashes;         /* for cert verify */
-#ifndef NO_OLD_TLS
 #ifndef NO_SHA
     Sha             hashSha;            /* sha hash of handshake msgs */
 #endif
-#ifndef NO_MD5
+#if !defined(NO_MD5) && !defined(NO_OLD_TLS)
     Md5             hashMd5;            /* md5 hash of handshake msgs */
 #endif
-#endif /* NO_OLD_TLS */
 #ifndef NO_SHA256
     Sha256          hashSha256;         /* sha256 hash of handshake msgs */
 #endif
@@ -2748,6 +2748,22 @@ typedef struct HS_Hashes {
     Sha512          hashSha512;         /* sha512 hash of handshake msgs */
 #endif
 } HS_Hashes;
+
+
+#ifdef HAVE_WRITE_DUP
+
+    #define WRITE_DUP_SIDE 1
+    #define READ_DUP_SIDE 2
+
+    typedef struct WriteDup {
+        wolfSSL_Mutex   dupMutex;       /* reference count mutex */
+        int             dupCount;       /* reference count */
+        int             dupErr;         /* under dupMutex, pass to other side */
+    } WriteDup;
+
+    WOLFSSL_LOCAL void FreeWriteDup(WOLFSSL* ssl);
+    WOLFSSL_LOCAL int  NotifyWriteSide(WOLFSSL* ssl, int err);
+#endif /* HAVE_WRITE_DUP */
 
 
 /* wolfSSL ssl type */
@@ -2762,6 +2778,11 @@ struct WOLFSSL {
     void*           verifyCbCtx;        /* cert verify callback user ctx*/
     VerifyCallback  verifyCallback;     /* cert verification callback */
     void*           heap;               /* for user overrides */
+#ifdef HAVE_WRITE_DUP
+    WriteDup*       dupWrite;           /* valid pointer indicates ON */
+             /* side that decrements dupCount to zero frees overall structure */
+    byte            dupSide;            /* write side or read side */
+#endif
 #ifdef WOLFSSL_STATIC_MEMORY
     WOLFSSL_HEAP_HINT heap_hint;
 #endif
@@ -2963,9 +2984,9 @@ struct WOLFSSL {
 
 
 WOLFSSL_LOCAL
-int  SetSSL_CTX(WOLFSSL*, WOLFSSL_CTX*);
+int  SetSSL_CTX(WOLFSSL*, WOLFSSL_CTX*, int);
 WOLFSSL_LOCAL
-int  InitSSL(WOLFSSL*, WOLFSSL_CTX*);
+int  InitSSL(WOLFSSL*, WOLFSSL_CTX*, int);
 WOLFSSL_LOCAL
 void FreeSSL(WOLFSSL*, void* heap);
 WOLFSSL_API void SSL_ResourceFree(WOLFSSL*);   /* Micrium uses */

@@ -179,7 +179,14 @@ static int GeneratePublic(DhKey* key, const byte* priv, word32 privSz,
 int wc_DhGenerateKeyPair(DhKey* key, WC_RNG* rng, byte* priv, word32* privSz,
                       byte* pub, word32* pubSz)
 {
-    int ret = GeneratePrivate(key, rng, priv, privSz);
+    int ret;
+
+    if (key == NULL || rng == NULL || priv == NULL || privSz == NULL ||
+            pub == NULL || pubSz == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    ret = GeneratePrivate(key, rng, priv, privSz);
 
     return (ret != 0) ? ret : GeneratePublic(key, priv, *privSz, pub, pubSz);
 }

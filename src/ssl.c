@@ -94,17 +94,6 @@
 #endif
 
 
-#if defined(WOLFSSL_DTLS) && !defined(WOLFSSL_HAVE_MAX)
-#define WOLFSSL_HAVE_MAX
-
-    static INLINE word32 max(word32 a, word32 b)
-    {
-        return a > b ? a : b;
-    }
-
-#endif /* WOLFSSL_DTLS && !WOLFSSL_HAVE_MAX */
-
-
 #ifndef WOLFSSL_LEANPSK
 char* mystrnstr(const char* s1, const char* s2, unsigned int n)
 {
@@ -372,7 +361,7 @@ WOLFSSL* wolfSSL_new(WOLFSSL_CTX* ctx)
 
     ssl = (WOLFSSL*) XMALLOC(sizeof(WOLFSSL), ctx->heap, DYNAMIC_TYPE_SSL);
     if (ssl)
-        if ( (ret = InitSSL(ssl, ctx)) < 0) {
+        if ( (ret = InitSSL(ssl, ctx, 0)) < 0) {
             FreeSSL(ssl, ctx->heap);
             ssl = 0;
         }
@@ -389,6 +378,167 @@ void wolfSSL_free(WOLFSSL* ssl)
         FreeSSL(ssl, ssl->ctx->heap);
     WOLFSSL_LEAVE("SSL_free", 0);
 }
+
+
+#ifdef HAVE_WRITE_DUP
+
+/*
+ * Release resources around WriteDup object
+ *
+ * ssl WOLFSSL object
+ *
+ * no return, destruction so make best attempt
+*/
+void FreeWriteDup(WOLFSSL* ssl)
+{
+    int doFree = 0;
+
+    WOLFSSL_ENTER("FreeWriteDup");
+
+    if (ssl->dupWrite) {
+        if (wc_LockMutex(&ssl->dupWrite->dupMutex) == 0) {
+            ssl->dupWrite->dupCount--;
+            if (ssl->dupWrite->dupCount == 0) {
+                doFree = 1;
+            } else {
+                WOLFSSL_MSG("WriteDup count not zero, no full free");
+            }
+            wc_UnLockMutex(&ssl->dupWrite->dupMutex);
+        }
+    }
+
+    if (doFree) {
+        WOLFSSL_MSG("Doing WriteDup full free, count to zero");
+        wc_FreeMutex(&ssl->dupWrite->dupMutex);
+        XFREE(ssl->dupWrite, ssl->heap, DYNAMIC_TYPE_WRITEDUP);
+    }
+}
+
+
+/*
+ * duplicate existing ssl members into dup needed for writing
+ *
+ * dup write only WOLFSSL
+ * ssl exisiting WOLFSSL
+ *
+ * 0 on success
+*/
+static int DupSSL(WOLFSSL* dup, WOLFSSL* ssl)
+{
+    /* shared dupWrite setup */
+    ssl->dupWrite = (WriteDup*)XMALLOC(sizeof(WriteDup), ssl->heap,
+                                       DYNAMIC_TYPE_WRITEDUP);
+    if (ssl->dupWrite == NULL) {
+        return MEMORY_E;
+    }
+    XMEMSET(ssl->dupWrite, 0, sizeof(WriteDup));
+
+    if (wc_InitMutex(&ssl->dupWrite->dupMutex) != 0) {
+        XFREE(ssl->dupWrite, ssl->heap, DYNAMIC_TYPE_WRITEDUP);
+        ssl->dupWrite = NULL;
+        return BAD_MUTEX_E;
+    }
+    ssl->dupWrite->dupCount = 2;    /* both sides have a count to start */
+    dup->dupWrite = ssl->dupWrite ; /* each side uses */
+
+    /* copy write parts over to dup writer */
+    XMEMCPY(&dup->specs,   &ssl->specs,   sizeof(CipherSpecs));
+    XMEMCPY(&dup->options, &ssl->options, sizeof(Options));
+    XMEMCPY(&dup->keys,    &ssl->keys,    sizeof(Keys));
+    XMEMCPY(&dup->encrypt, &ssl->encrypt, sizeof(Ciphers));
+    /* dup side now owns encrypt/write ciphers */
+    XMEMSET(&ssl->encrypt, 0, sizeof(Ciphers));
+
+    dup->IOCB_WriteCtx = ssl->IOCB_WriteCtx;
+    dup->wfd    = ssl->wfd;
+    dup->wflags = ssl->wflags;
+    dup->hmac   = ssl->hmac;
+#ifdef HAVE_TRUNCATED_HMAC
+    dup->truncated_hmac = ssl->truncated_hmac;
+#endif
+
+    /* unique side dup setup */
+    dup->dupSide = WRITE_DUP_SIDE;
+    ssl->dupSide = READ_DUP_SIDE;
+
+    return 0;
+}
+
+
+/*
+ * duplicate a WOLFSSL object post handshake for writing only
+ * turn exisitng object into read only.  Allows concurrent access from two
+ * different threads.
+ *
+ * ssl exisiting WOLFSSL object
+ *
+ * return dup'd WOLFSSL object on success
+*/
+WOLFSSL* wolfSSL_write_dup(WOLFSSL* ssl)
+{
+    WOLFSSL* dup = NULL;
+    int ret = 0;
+
+    (void)ret;
+    WOLFSSL_ENTER("wolfSSL_write_dup");
+
+    if (ssl == NULL) {
+        return ssl;
+    }
+
+    if (ssl->options.handShakeDone == 0) {
+        WOLFSSL_MSG("wolfSSL_write_dup called before handshake complete");
+        return NULL;
+    }
+
+    if (ssl->dupWrite) {
+        WOLFSSL_MSG("wolfSSL_write_dup already called once");
+        return NULL;
+    }
+
+    dup = (WOLFSSL*) XMALLOC(sizeof(WOLFSSL), ssl->ctx->heap, DYNAMIC_TYPE_SSL);
+    if (dup) {
+        if ( (ret = InitSSL(dup, ssl->ctx, 1)) < 0) {
+            FreeSSL(dup, ssl->ctx->heap);
+            dup = NULL;
+        } else if ( (ret = DupSSL(dup, ssl) < 0)) {
+            FreeSSL(dup, ssl->ctx->heap);
+            dup = NULL;
+        }
+    }
+
+    WOLFSSL_LEAVE("wolfSSL_write_dup", ret);
+
+    return dup;
+}
+
+
+/*
+ * Notify write dup side of fatal error or close notify
+ *
+ * ssl WOLFSSL object
+ * err Notify err
+ *
+ * 0 on success
+*/
+int NotifyWriteSide(WOLFSSL* ssl, int err)
+{
+    int ret;
+
+    WOLFSSL_ENTER("NotifyWriteSide");
+
+    ret = wc_LockMutex(&ssl->dupWrite->dupMutex);
+    if (ret == 0) {
+        ssl->dupWrite->dupErr = err;
+        ret = wc_UnLockMutex(&ssl->dupWrite->dupMutex);
+    }
+
+    return ret;
+}
+
+
+#endif /* HAVE_WRITE_DUP */
+
 
 #ifdef HAVE_POLY1305
 /* set if to use old poly 1 for yes 0 to use new poly */
@@ -1114,6 +1264,36 @@ int wolfSSL_write(WOLFSSL* ssl, const void* data, int sz)
     if (ssl == NULL || data == NULL || sz < 0)
         return BAD_FUNC_ARG;
 
+#ifdef HAVE_WRITE_DUP
+    { /* local variable scope */
+        int dupErr = 0;   /* local copy */
+
+        ret = 0;
+
+        if (ssl->dupWrite && ssl->dupSide == READ_DUP_SIDE) {
+            WOLFSSL_MSG("Read dup side cannot write");
+            return WRITE_DUP_WRITE_E;
+        }
+        if (ssl->dupWrite) {
+            if (wc_LockMutex(&ssl->dupWrite->dupMutex) != 0) {
+                return BAD_MUTEX_E;
+            }
+            dupErr = ssl->dupWrite->dupErr;
+            ret = wc_UnLockMutex(&ssl->dupWrite->dupMutex);
+        }
+
+        if (ret != 0) {
+            ssl->error = ret;  /* high priority fatal error */
+            return SSL_FATAL_ERROR;
+        }
+        if (dupErr != 0) {
+            WOLFSSL_MSG("Write dup error from other side");
+            ssl->error = dupErr;
+            return SSL_FATAL_ERROR;
+        }
+    }
+#endif
+
 #ifdef HAVE_ERRNO_H
     errno = 0;
 #endif
@@ -1138,6 +1318,13 @@ static int wolfSSL_read_internal(WOLFSSL* ssl, void* data, int sz, int peek)
     if (ssl == NULL || data == NULL || sz < 0)
         return BAD_FUNC_ARG;
 
+#ifdef HAVE_WRITE_DUP
+    if (ssl->dupWrite && ssl->dupSide == WRITE_DUP_SIDE) {
+        WOLFSSL_MSG("Write dup side cannot read");
+        return WRITE_DUP_READ_E;
+    }
+#endif
+
 #ifdef HAVE_ERRNO_H
         errno = 0;
 #endif
@@ -1157,6 +1344,21 @@ static int wolfSSL_read_internal(WOLFSSL* ssl, void* data, int sz, int peek)
     sz = min(sz, ssl->max_fragment);
 #endif
     ret = ReceiveData(ssl, (byte*)data, sz, peek);
+
+#ifdef HAVE_WRITE_DUP
+    if (ssl->dupWrite) {
+        if (ssl->error != 0 && ssl->error != WANT_READ &&
+                               ssl->error != WC_PENDING_E) {
+            int notifyErr;
+
+            WOLFSSL_MSG("Notifying write side of fatal read error");
+            notifyErr  = NotifyWriteSide(ssl, ssl->error);
+            if (notifyErr < 0) {
+                ret = ssl->error = notifyErr;
+            }
+        }
+    }
+#endif
 
     WOLFSSL_LEAVE("wolfSSL_read_internal()", ret);
 
@@ -7573,14 +7775,14 @@ int wolfSSL_CTX_set_cipher_list(WOLFSSL_CTX* ctx, const char* list)
         XMEMSET(ctx->suites, 0, sizeof(Suites));
     }
 
-    return (SetCipherList(ctx->suites, list)) ? SSL_SUCCESS : SSL_FAILURE;
+    return (SetCipherList(ctx, ctx->suites, list)) ? SSL_SUCCESS : SSL_FAILURE;
 }
 
 
 int wolfSSL_set_cipher_list(WOLFSSL* ssl, const char* list)
 {
     WOLFSSL_ENTER("wolfSSL_set_cipher_list");
-    return (SetCipherList(ssl->suites, list)) ? SSL_SUCCESS : SSL_FAILURE;
+    return (SetCipherList(ssl->ctx, ssl->suites, list)) ? SSL_SUCCESS : SSL_FAILURE;
 }
 
 
@@ -10256,7 +10458,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
                                                     WOLFSSL_X509_STORE_CTX* ctx)
     {
         WOLFSSL_ENTER("wolfSSL_X509_STORE_CTX_get_current_cert");
-        if(ctx)
+        if (ctx)
             return ctx->current_cert;
         return NULL;
     }
@@ -12443,6 +12645,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
 
 #ifdef KEEP_PEER_CERT
         FreeX509(&ssl->peerCert);
+        InitX509(&ssl->peerCert, 0, ssl->heap);
 #endif
 
         return SSL_SUCCESS;
@@ -12578,7 +12781,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
         cert = (DecodedCert*)XMALLOC(sizeof(DecodedCert), NULL,
                                      DYNAMIC_TYPE_TMP_BUFFER);
         if (cert == NULL)
-            return NULL;
+            return MEMORY_E;
     #endif
 
         /* Create a DecodedCert object and copy fields into WOLFSSL_X509 object.
@@ -13729,8 +13932,23 @@ int wolfSSL_set_session_id_context(WOLFSSL* ssl, const unsigned char* id,
 
 void wolfSSL_set_connect_state(WOLFSSL* ssl)
 {
-    (void)ssl;
-    /* client by default */
+    word16 haveRSA = 1;
+    word16 havePSK = 0;
+
+    if (ssl->options.side == WOLFSSL_SERVER_END) {
+        ssl->options.side = WOLFSSL_CLIENT_END;
+
+        #ifdef NO_RSA
+            haveRSA = 0;
+        #endif
+        #ifndef NO_PSK
+            havePSK = ssl->options.havePSK;
+        #endif
+        InitSuites(ssl->suites, ssl->version, haveRSA, havePSK,
+                   ssl->options.haveDH, ssl->options.haveNTRU,
+                   ssl->options.haveECDSAsig, ssl->options.haveECC,
+                   ssl->options.haveStaticECC, ssl->options.side);
+    }
 }
 #endif
 
@@ -16731,6 +16949,8 @@ int wolfSSL_BN_mod_exp(WOLFSSL_BIGNUM *r, const WOLFSSL_BIGNUM *a,
     }
 
     WOLFSSL_LEAVE("wolfSSL_BN_mod_exp", ret);
+    (void)ret;
+
     return SSL_FAILURE;
 }
 
@@ -21393,6 +21613,7 @@ WOLFSSL_X509* wolfSSL_get_chain_X509(WOLFSSL_X509_CHAIN* chain, int idx)
         #endif
         }
     }
+    (void)ret;
 
     return x509;
 }
@@ -21762,16 +21983,16 @@ void* wolfSSL_GetRsaDecCtx(WOLFSSL* ssl)
     }
     #endif /* ifndef NO_CERTS */
 
-#if defined(HAVE_LIGHTY) || defined(WOLFSSL_MYSQL_COMPATIBLE) || defined(HAVE_STUNNEL) || defined(WOLFSSL_NGINX) || defined(OPENSSL_EXTRA) || defined(WOLFSSL_HAPROXY)
     #ifndef NO_CERTS
     void wolfSSL_X509_NAME_free(WOLFSSL_X509_NAME *name){
         FreeX509Name(name, NULL);
         WOLFSSL_ENTER("wolfSSL_X509_NAME_free");
     }
     #endif /* NO_CERTS */
-#endif
 
-#if defined(HAVE_LIGHTY) || defined(WOLFSSL_MYSQL_COMPATIBLE) || defined(HAVE_STUNNEL) || defined(WOLFSSL_NGINX) || defined (WOLFSSL_HAPROXY)
+#if defined(HAVE_LIGHTY)  || defined(WOLFSSL_MYSQL_COMPATIBLE) || \
+    defined(HAVE_STUNNEL) || defined(WOLFSSL_NGINX) || \
+    defined(HAVE_POCO_LIB) || defined (WOLFSSL_HAPROXY)
 
     unsigned char *wolfSSL_SHA1(const unsigned char *d, size_t n, unsigned char *md)
     {
@@ -21976,8 +22197,8 @@ void* wolfSSL_GetRsaDecCtx(WOLFSSL* ssl)
         return NULL;
     }
 
-#endif /* HAVE_LIGHTY || WOLFSSL_MYSQL_COMPATIBLE || HAVE_STUNNEL || WOLFSSL_HAPROXY */
-#endif
+#endif /* HAVE_LIGHTY || WOLFSSL_MYSQL_COMPATIBLE || HAVE_STUNNEL || WOLFSSL_NGINX || HAVE_POCO_LIB || WOLFSSL_HAPROXY */
+#endif /* OPENSSL_EXTRA */
 
 
 #ifdef OPENSSL_EXTRA
@@ -22856,7 +23077,7 @@ const char * wolfSSL_get_servername(WOLFSSL* ssl, byte type)
 
 WOLFSSL_CTX* wolfSSL_set_SSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
 {
-    if (ssl && ctx && SetSSL_CTX(ssl, ctx) == SSL_SUCCESS)
+    if (ssl && ctx && SetSSL_CTX(ssl, ctx, 0) == SSL_SUCCESS)
         return ssl->ctx;
     return NULL;
 }

@@ -166,7 +166,7 @@ static int ClientBenchmarkConnections(WOLFSSL_CTX* ctx, char* host, word16 port,
     /* time passed in number of connects give average */
     int times = benchmark;
     int loops = resumeSession ? 2 : 1;
-    int i = 0;    
+    int i = 0;
 #ifndef NO_SESSION_CACHE
     WOLFSSL_SESSION* benchSession = NULL;
 #endif
@@ -452,9 +452,9 @@ static void Usage(void)
                                  CLIENT_DEFAULT_VERSION);
     printf("-V          Prints valid ssl version numbers, SSLv3(0) - TLS1.2(3)\n");
     printf("-l <str>    Cipher suite list (: delimited)\n");
-    printf("-c <file>   Certificate file,           default %s\n", cliCert);
-    printf("-k <file>   Key file,                   default %s\n", cliKey);
-    printf("-A <file>   Certificate Authority file, default %s\n", caCert);
+    printf("-c <file>   Certificate file,           default %s\n", cliCertFile);
+    printf("-k <file>   Key file,                   default %s\n", cliKeyFile);
+    printf("-A <file>   Certificate Authority file, default %s\n", caCertFile);
 #ifndef NO_DH
     printf("-Z <num>    Minimum DH key bits,        default %d\n",
                                  DEFAULT_MIN_DHKEY_BITS);
@@ -594,9 +594,10 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     char*  alpnList = NULL;
     unsigned char alpn_opt = 0;
     char*  cipherList = NULL;
-    const char* verifyCert = caCert;
-    const char* ourCert    = cliCert;
-    const char* ourKey     = cliKey;
+    int    useDefCipherList = 0;
+    const char* verifyCert = caCertFile;
+    const char* ourCert    = cliCertFile;
+    const char* ourKey     = cliKeyFile;
 
     int   doSTARTTLS    = 0;
     char* starttlsProt = NULL;
@@ -638,9 +639,9 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     ((func_args*)args)->return_code = -1; /* error state */
 
 #ifdef NO_RSA
-    verifyCert = (char*)eccCert;
-    ourCert    = (char*)cliEccCert;
-    ourKey     = (char*)cliEccKey;
+    verifyCert = (char*)eccCertFile;
+    ourCert    = (char*)cliEccCertFile;
+    ourKey     = (char*)cliEccKeyFile;
 #endif
     (void)resumeSz;
     (void)session;
@@ -662,9 +663,10 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     StackTrap();
 
 #ifndef WOLFSSL_VXWORKS
-    while ((ch = mygetopt(argc, argv,
-          "?gdeDuGsmNrwRitfxXUPCVh:p:v:l:A:c:k:Z:b:zS:F:L:TnoO:aB:W:E:M:q:"))
-            != -1) {
+    /* Not used: j, y, I, J, K, Q, Y */
+    while ((ch = mygetopt(argc, argv, "?"
+            "ab:c:defgh:ik:l:mnop:q:rstuv:wxz"
+            "A:B:CDE:F:GHL:M:NO:PRS:TUVW:XZ:")) != -1) {
         switch (ch) {
             case '?' :
                 Usage();
@@ -775,6 +777,10 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 
             case 'l' :
                 cipherList = myoptarg;
+                break;
+
+            case 'H' :
+                useDefCipherList = 1;
                 break;
 
             case 'A' :
@@ -1097,7 +1103,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     }
 #endif
 
-    if (cipherList) {
+    if (cipherList && !useDefCipherList) {
         if (wolfSSL_CTX_set_cipher_list(ctx, cipherList) != SSL_SUCCESS) {
             wolfSSL_CTX_free(ctx);
             err_sys("client can't set cipher list 1");
@@ -1149,7 +1155,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 
     if (useAnon) {
 #ifdef HAVE_ANON
-        if (cipherList == NULL) {
+        if (cipherList == NULL || (cipherList && useDefCipherList)) {
             wolfSSL_CTX_allow_anon_cipher(ctx);
             if (wolfSSL_CTX_set_cipher_list(ctx,"ADH-AES128-SHA")
                                                                != SSL_SUCCESS) {
@@ -1240,12 +1246,12 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 #ifdef HAVE_ECC
         /* load ecc verify too, echoserver uses it by default w/ ecc */
 #if !defined(NO_FILESYSTEM)
-        if (wolfSSL_CTX_load_verify_locations(ctx, eccCert, 0) != SSL_SUCCESS) {
+        if (wolfSSL_CTX_load_verify_locations(ctx, eccCertFile, 0) != SSL_SUCCESS) {
             wolfSSL_CTX_free(ctx);
             err_sys("can't load ecc ca file, Please run from wolfSSL home dir");
         }
 #else
-        load_buffer(ctx, eccCert, WOLFSSL_CA);
+        load_buffer(ctx, eccCertFile, WOLFSSL_CA);
 #endif  /* !defined(NO_FILESYSTEM) */
 #endif /* HAVE_ECC */
 #if defined(WOLFSSL_TRUST_PEER_CERT) && !defined(NO_FILESYSTEM)

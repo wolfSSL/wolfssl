@@ -460,36 +460,38 @@ extern void uITRON4_free(void *p) ;
 #endif
 
 #if defined(WOLFSSL_uTKERNEL2)
-#define WOLFSSL_CLOSESOCKET
-#define XMALLOC_USER
-int uTKernel_init_mpool(unsigned int sz) ; /* initializing malloc pool */
-void *uTKernel_malloc(unsigned int sz) ;
-void *uTKernel_realloc(void *p, unsigned int sz) ;
-void   uTKernel_free(void *p) ;
-#define XMALLOC(s, h, type) uTKernel_malloc((s))
-#define XREALLOC(p, n, h, t)  uTKernel_realloc((p), (n))
-#define XFREE(p, h, type)  uTKernel_free((p))
+  #ifndef NO_TKERNEL_MEM_POOL
+    #define XMALLOC_OVERRIDE
+    int   uTKernel_init_mpool(unsigned int sz); /* initializing malloc pool */
+    void* uTKernel_malloc(unsigned int sz);
+    void* uTKernel_realloc(void *p, unsigned int sz);
+    void  uTKernel_free(void *p);
+    #define XMALLOC(s, h, type)  uTKernel_malloc((s))
+    #define XREALLOC(p, n, h, t) uTKernel_realloc((p), (n))
+    #define XFREE(p, h, type)    uTKernel_free((p))
+  #endif
 
-#include <stdio.h>
-#include    "tm/tmonitor.h"
-static char *fgets(char *buff, int sz, FILE *fp)
-/*static char * gets(char *buff)*/
-{
-    char * p = buff ;
-    *p = '\0' ;
-    while(1) {
-        *p = tm_getchar(-1) ;
-        tm_putchar(*p) ;
-        if(*p == '\r') {
-            tm_putchar('\n') ;
-            *p = '\0' ;
-            break ;
+  #ifndef NO_STDIO_FGETS_REMAP
+    #include <stdio.h>
+    #include "tm/tmonitor.h"
+
+    /* static char* gets(char *buff); */
+    static char* fgets(char *buff, int sz, FILE *fp) {
+        char * p = buff;
+        *p = '\0';
+        while (1) {
+            *p = tm_getchar(-1);
+            tm_putchar(*p);
+            if (*p == '\r') {
+                tm_putchar('\n');
+                *p = '\0';
+                break;
+            }
+            p++;
         }
-        p ++ ;
+        return buff;
     }
-    return buff ;
-}
-
+  #endif /* !NO_STDIO_FGETS_REMAP */
 #endif
 
 
@@ -1210,7 +1212,8 @@ static char *fgets(char *buff, int sz, FILE *fp)
 
 
 #if !defined(XMALLOC_USER) && !defined(MICRIUM_MALLOC) && \
-    !defined(WOLFSSL_LEANPSK) && !defined(NO_WOLFSSL_MEMORY)
+    !defined(WOLFSSL_LEANPSK) && !defined(NO_WOLFSSL_MEMORY) && \
+    !defined(XMALLOC_OVERRIDE)
     #define USE_WOLFSSL_MEMORY
 #endif
 
@@ -1228,6 +1231,12 @@ static char *fgets(char *buff, int sz, FILE *fp)
     #else
         #define XSTREAM_ALIGN
     #endif
+#endif
+
+/* write dup cannot be used with secure renegotiation because write dup
+ * make write side write only and read side read only */
+#if defined(HAVE_WRITE_DUP) && defined(HAVE_SECURE_RENEGOTIATION)
+    #error "WRITE DUP and SECURE RENEGOTIATION cannot both be on"
 #endif
 
 #ifdef WOLFSSL_SGX
@@ -1400,12 +1409,6 @@ static char *fgets(char *buff, int sz, FILE *fp)
 /* Default AES minimum auth tag sz, allow user to override */
 #ifndef WOLFSSL_MIN_AUTH_TAG_SZ
     #define WOLFSSL_MIN_AUTH_TAG_SZ 12
-#endif
-
-/* If not forcing ARC4 as the DRBG or using custom RNG block gen, enable Hash_DRBG */
-#undef HAVE_HASHDRBG
-#if !defined(WOLFSSL_FORCE_RC4_DRBG) && !defined(CUSTOM_RAND_GENERATE_BLOCK)
-    #define HAVE_HASHDRBG
 #endif
 
 

@@ -61,6 +61,7 @@ int get_rand_digit(WC_RNG* rng, mp_digit* d)
     return wc_RNG_GenerateBlock(rng, (byte*)d, sizeof(mp_digit));
 }
 
+#ifdef WC_RSA_BLINDING
 int mp_rand(mp_int* a, int digits, WC_RNG* rng)
 {
     int ret;
@@ -103,5 +104,6 @@ int mp_rand(mp_int* a, int digits, WC_RNG* rng)
 
     return ret;
 }
+#endif /* WC_RSA_BLINDING */
 
-#endif
+#endif /* USE_FAST_MATH || !NO_BIG_INT */

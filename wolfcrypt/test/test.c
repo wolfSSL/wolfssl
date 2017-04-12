@@ -110,6 +110,14 @@
     #include <wolfssl/wolfcrypt/logging.h>
 #endif
 
+/* only for stack size check */
+#ifdef HAVE_STACK_SIZE
+    #include <wolfssl/ssl.h>
+    #define err_sys err_sys_remap /* remap err_sys */
+    #include <wolfssl/test.h>
+    #undef err_sys
+#endif
+
 #ifdef _MSC_VER
     /* 4996 warning to use MS extensions e.g., strcpy_s instead of strncpy */
     #pragma warning(disable: 4996)
@@ -285,7 +293,8 @@ int mutex_test(void);
 int memcb_test(void);
 #endif
 
-#if defined(DEBUG_WOLFSSL) && !defined(HAVE_VALGRIND) && !defined(OPENSSL_EXTRA)
+#if defined(DEBUG_WOLFSSL) && !defined(HAVE_VALGRIND) && \
+        !defined(OPENSSL_EXTRA) && !defined(HAVE_STACK_SIZE)
     int  wolfSSL_Debugging_ON(void);
 #endif
 
@@ -295,22 +304,25 @@ int memcb_test(void);
 
 #define ERROR_OUT(err, eLabel) { ret = (err); goto eLabel; }
 
-
+#ifdef HAVE_STACK_SIZE
+static THREAD_RETURN err_sys(const char* msg, int es)
+#else
 static int err_sys(const char* msg, int es)
-
+#endif
 {
     printf("%s error = %d\n", msg, es);
 
     EXIT_TEST(-1);
 }
 
-/* func_args from test.h, so don't have to pull in other junk */
+#ifndef HAVE_STACK_SIZE
+/* func_args from test.h, so don't have to pull in other stuff */
 typedef struct func_args {
     int    argc;
     char** argv;
     int    return_code;
 } func_args;
-
+#endif /* !HAVE_STACK_SIZE */
 
 #ifdef HAVE_FIPS
 
@@ -328,21 +340,26 @@ static void myFipsCb(int ok, int err, const char* hash)
 
 #endif /* HAVE_FIPS */
 
-int wolfcrypt_test(void* args)
-{
-    int ret = 0;
 #ifdef WOLFSSL_STATIC_MEMORY
     #ifdef BENCH_EMBEDDED
-        byte memory[10000];
+        static byte gTestMemory[10000];
     #else
-        byte memory[100000];
+        static byte gTestMemory[100000];
     #endif
 #endif
+
+#ifdef HAVE_STACK_SIZE
+THREAD_RETURN WOLFSSL_THREAD wolfcrypt_test(void* args)
+#else
+int wolfcrypt_test(void* args)
+#endif
+{
+    int ret;
 
     ((func_args*)args)->return_code = -1; /* error state */
 
 #ifdef WOLFSSL_STATIC_MEMORY
-    if (wc_LoadStaticMemory(&HEAP_HINT, memory, sizeof(memory),
+    if (wc_LoadStaticMemory(&HEAP_HINT, gTestMemory, sizeof(gTestMemory),
                                                 WOLFMEM_GENERAL, 1) != 0) {
         printf("unable to load static memory");
         exit(EXIT_FAILURE);
@@ -821,7 +838,7 @@ int wolfcrypt_test(void* args)
 
     ((func_args*)args)->return_code = ret;
 
-    return ret;
+    EXIT_TEST(ret);
 }
 
 
@@ -845,10 +862,14 @@ int wolfcrypt_test(void* args)
 
         wolfCrypt_Init();
 
+    #ifdef HAVE_STACK_SIZE
+        StackSizeCheck(&args, wolfcrypt_test);
+    #else
         wolfcrypt_test(&args);
+    #endif
 
         if (wolfCrypt_Cleanup() != 0) {
-            return err_sys("Error with wolfCrypt_Cleanup!\n", -1239);
+            err_sys("Error with wolfCrypt_Cleanup!\n", -1239);
         }
 
 #ifdef HAVE_WNR
@@ -856,7 +877,7 @@ int wolfcrypt_test(void* args)
             err_sys("Failed to free netRandom context", -1238);
 #endif /* HAVE_WNR */
 
-        EXIT_TEST(args.return_code);
+        return args.return_code;
     }
 
 #endif /* NO_MAIN_DRIVER */
@@ -1025,8 +1046,7 @@ int base64_test()
 int asn_test()
 {
 #ifndef NO_ASN_TIME
-    {
-    time_t now;
+    long now;
 
     /* Parameter Validation tests. */
     if (wc_GetTime(NULL, sizeof(now)) != BAD_FUNC_ARG)
@@ -1039,7 +1059,6 @@ int asn_test()
         return -102;
     if (now == 0)
         return -103;
-    }
 #endif
 
     return 0;
@@ -4937,7 +4956,11 @@ int idea_test(void)
         rnd[1000], enc[1000], dec[1000];
 
         /* random values */
+    #ifndef HAVE_FIPS
+        ret = wc_InitRng_ex(&rng, HEAP_HINT);
+    #else
         ret = wc_InitRng(&rng);
+    #endif
         if (ret != 0)
             return -39;
 
@@ -5011,7 +5034,11 @@ static int random_rng_test(void)
     byte block[32];
     int ret, i;
 
+#ifndef HAVE_FIPS
+    ret = wc_InitRng_ex(&rng, HEAP_HINT);
+#else
     ret = wc_InitRng(&rng);
+#endif
     if (ret != 0) return -39;
 
     XMEMSET(block, 0, sizeof(block));
@@ -5047,7 +5074,7 @@ exit:
     return ret;
 }
 
-#if (defined(HAVE_HASHDRBG) || defined(NO_RC4)) && !defined(CUSTOM_RAND_GENERATE_BLOCK)
+#if defined(HAVE_HASHDRBG) && !defined(CUSTOM_RAND_GENERATE_BLOCK)
 
 int random_test(void)
 {
@@ -5126,17 +5153,15 @@ int random_test(void)
     return 0;
 }
 
-#else /* (HAVE_HASHDRBG || NO_RC4) && !CUSTOM_RAND_GENERATE_BLOCK */
+#else
 
 int random_test(void)
 {
     /* Basic RNG generate block test */
-    random_rng_test();
-
-    return 0;
+    return random_rng_test();
 }
 
-#endif /* (HAVE_HASHDRBG || NO_RC4) && !CUSTOM_RAND_GENERATE_BLOCK */
+#endif /* HAVE_HASHDRBG && !CUSTOM_RAND_GENERATE_BLOCK */
 #endif /* WC_NO_RNG */
 
 
@@ -5277,6 +5302,9 @@ byte GetEntropy(ENTROPY_CMD cmd, byte* out)
 #elif defined(WOLFSSL_MKD_SHELL)
     #define CERT_PREFIX ""
     #define CERT_PATH_SEP "/"
+#elif defined(WOLFSSL_uTKERNEL2)
+    #define CERT_PREFIX "/uda/"
+    #define CERT_PATH_SEP "/"
 #else
     #define CERT_PREFIX "./"
     #define CERT_PATH_SEP "/"
@@ -5321,6 +5349,7 @@ byte GetEntropy(ENTROPY_CMD cmd, byte* out)
     #endif /* HAVE_ECC */
 #endif /* !USE_CERT_BUFFER_* */
 
+#ifndef NO_WRITE_TEMP_FILES
 #ifdef HAVE_ECC
     /* Temporary Cert Files to be used in rsa cert gen test, is RSA enabled */
     #if defined(WOLFSSL_CERT_GEN) && !defined(NO_RSA)
@@ -5357,7 +5386,7 @@ byte GetEntropy(ENTROPY_CMD cmd, byte* out)
         static const char* certReqPemFile = CERT_PREFIX "certreq.pem";
     #endif
 #endif /* !NO_RSA */
-
+#endif /* !NO_WRITE_TEMP_FILES */
 #endif /* !NO_FILESYSTEM */
 
 #ifndef NO_RSA
@@ -5838,8 +5867,6 @@ static int rsa_decode_test(void)
     const byte good[] = { 0x30, 0x06, 0x02, 0x01, 0x23, 0x02, 0x1, 0x03 };
     const byte goodAlgId[] = { 0x30, 0x0f, 0x30, 0x0d, 0x06, 0x00,
             0x03, 0x09, 0x00, 0x30, 0x06, 0x02, 0x01, 0x23, 0x02, 0x1, 0x03 };
-    const byte goodBitStrNoZero[] = { 0x30, 0x0e, 0x30, 0x0c, 0x06, 0x00,
-            0x03, 0x08, 0x30, 0x06, 0x02, 0x01, 0x23, 0x02, 0x1, 0x03 };
     const byte goodAlgIdNull[] = { 0x30, 0x11, 0x30, 0x0f, 0x06, 0x00,
             0x05, 0x00, 0x03, 0x09, 0x00, 0x30, 0x06, 0x02, 0x01, 0x23,
             0x02, 0x1, 0x03 };
@@ -5858,6 +5885,8 @@ static int rsa_decode_test(void)
     const byte badIntN[] = { 0x30, 0x06, 0x02, 0x05, 0x23, 0x02, 0x1, 0x03 };
     const byte badNotIntE[] = { 0x30, 0x06, 0x02, 0x01, 0x23, 0x04, 0x1, 0x03 };
     const byte badLength[] = { 0x30, 0x04, 0x02, 0x01, 0x23, 0x02, 0x1, 0x03 };
+    const byte badBitStrNoZero[] = { 0x30, 0x0e, 0x30, 0x0c, 0x06, 0x00,
+            0x03, 0x08, 0x30, 0x06, 0x02, 0x01, 0x23, 0x02, 0x1, 0x03 };
 
     ret = wc_InitRsaKey(&keyPub, NULL);
     if (ret != 0)
@@ -6056,17 +6085,14 @@ static int rsa_decode_test(void)
     if (ret != 0)
         return -520;
 
-    inSz = sizeof(goodBitStrNoZero);
+    inSz = sizeof(badBitStrNoZero);
     inOutIdx = 0;
-    ret = wc_RsaPublicKeyDecode(goodBitStrNoZero, &inOutIdx, &keyPub, inSz);
-    if (ret != 0) {
+    ret = wc_RsaPublicKeyDecode(badBitStrNoZero, &inOutIdx, &keyPub, inSz);
+    if (ret != ASN_EXPECT_0_E) {
         ret = -556;
         goto done;
     }
-    if (inOutIdx != inSz) {
-        ret = -557;
-        goto done;
-    }
+    ret = 0;
 
 done:
     wc_FreeRsaKey(&keyPub);
@@ -6106,7 +6132,7 @@ int rsa_test(void)
 
     tmp = (byte*)XMALLOC(FOURK_BUF, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     if (tmp == NULL)
-        return -40;
+        return -38;
 
 #ifdef USE_CERT_BUFFERS_1024
     XMEMCPY(tmp, client_key_der_1024, sizeof_client_key_der_1024);
@@ -6140,7 +6166,12 @@ int rsa_test(void)
         XFREE(tmp, HEAP_HINT ,DYNAMIC_TYPE_TMP_BUFFER);
         return -41;
     }
+
+#ifndef HAVE_FIPS
+    ret = wc_InitRng_ex(&rng, HEAP_HINT);
+#else
     ret = wc_InitRng(&rng);
+#endif
     if (ret != 0) {
         XFREE(tmp, HEAP_HINT ,DYNAMIC_TYPE_TMP_BUFFER);
         return -42;
@@ -6641,7 +6672,7 @@ int rsa_test(void)
         int    pemSz = 0;
         RsaKey derIn;
         RsaKey genKey;
-    #ifndef NO_FILESYSTEM
+    #if !defined(NO_FILESYSTEM) && !defined(NO_WRITE_TEMP_FILES)
         FILE*  keyFile;
         FILE*  pemFile;
     #endif
@@ -6684,7 +6715,7 @@ int rsa_test(void)
             return -302;
         }
 
-    #ifndef NO_FILESYSTEM
+    #if !defined(NO_FILESYSTEM) && !defined(NO_WRITE_TEMP_FILES)
         keyFile = fopen(keyDerFile, "wb");
         if (!keyFile) {
             XFREE(der, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
@@ -6716,7 +6747,7 @@ int rsa_test(void)
             return -304;
         }
 
-    #ifndef NO_FILESYSTEM
+    #if !defined(NO_FILESYSTEM) && !defined(NO_WRITE_TEMP_FILES)
         pemFile = fopen(keyPemFile, "wb");
         if (!pemFile) {
             XFREE(der, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
@@ -6772,13 +6803,15 @@ int rsa_test(void)
         Cert        myCert;
         byte*       derCert;
         byte*       pem;
+    #if !defined(NO_FILESYSTEM) && !defined(NO_WRITE_TEMP_FILES)
         FILE*       derFile;
         FILE*       pemFile;
+    #endif
         int         certSz;
         int         pemSz;
-#ifdef WOLFSSL_TEST_CERT
+    #ifdef WOLFSSL_TEST_CERT
         DecodedCert decode;
-#endif
+    #endif
 
         derCert = (byte*)XMALLOC(FOURK_BUF, HEAP_HINT,
                                                        DYNAMIC_TYPE_TMP_BUFFER);
@@ -6865,7 +6898,7 @@ int rsa_test(void)
         FreeDecodedCert(&decode);
     #endif
 
-    #ifndef NO_FILESYSTEM
+    #if !defined(NO_FILESYSTEM) && !defined(NO_WRITE_TEMP_FILES)
         derFile = fopen(certDerFile, "wb");
         if (!derFile) {
             XFREE(derCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
@@ -6894,7 +6927,7 @@ int rsa_test(void)
             return -404;
         }
 
-    #ifndef NO_FILESYSTEM
+    #if !defined(NO_FILESYSTEM) && !defined(NO_WRITE_TEMP_FILES)
         pemFile = fopen(certPemFile, "wb");
         if (!pemFile) {
             XFREE(derCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
@@ -6923,8 +6956,10 @@ int rsa_test(void)
         Cert        myCert;
         byte*       derCert;
         byte*       pem;
+    #if !defined(NO_FILESYSTEM) && !defined(NO_WRITE_TEMP_FILES)
         FILE*       derFile;
         FILE*       pemFile;
+    #endif
         int         certSz;
         int         pemSz;
         size_t      bytes3;
@@ -7099,7 +7134,7 @@ int rsa_test(void)
         FreeDecodedCert(&decode);
     #endif
 
-#ifndef NO_FILESYSTEM
+    #if !defined(NO_FILESYSTEM) && !defined(NO_WRITE_TEMP_FILES)
         derFile = fopen(otherCertDerFile, "wb");
         if (!derFile) {
             XFREE(derCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
@@ -7119,6 +7154,7 @@ int rsa_test(void)
             wc_FreeRng(&rng);
             return -416;
         }
+    #endif
 
         pemSz = wc_DerToPem(derCert, certSz, pem, FOURK_BUF, CERT_TYPE);
         if (pemSz < 0) {
@@ -7130,6 +7166,7 @@ int rsa_test(void)
             return -411;
         }
 
+    #if !defined(NO_FILESYSTEM) && !defined(NO_WRITE_TEMP_FILES)
         pemFile = fopen(otherCertPemFile, "wb");
         if (!pemFile) {
             XFREE(derCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
@@ -7150,7 +7187,7 @@ int rsa_test(void)
             return -415;
         }
         fclose(pemFile);
-#endif /* !NO_FILESYSTEM */
+    #endif
 
         XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
         XFREE(derCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
@@ -7163,8 +7200,10 @@ int rsa_test(void)
         Cert        myCert;
         byte*       derCert;
         byte*       pem;
+    #if !defined(NO_FILESYSTEM) && !defined(NO_WRITE_TEMP_FILES)
         FILE*       derFile;
         FILE*       pemFile;
+    #endif
         int         certSz;
         int         pemSz;
         size_t      bytes3;
@@ -7345,7 +7384,7 @@ int rsa_test(void)
             return -5408;
         }
 
-#ifdef WOLFSSL_TEST_CERT
+    #ifdef WOLFSSL_TEST_CERT
         InitDecodedCert(&decode, derCert, certSz, 0);
         ret = ParseCert(&decode, CERT_TYPE, NO_VERIFY, 0);
         if (ret != 0) {
@@ -7357,8 +7396,9 @@ int rsa_test(void)
             return -5409;
         }
         FreeDecodedCert(&decode);
-#endif
+    #endif
 
+    #if !defined(NO_FILESYSTEM) && !defined(NO_WRITE_TEMP_FILES)
         derFile = fopen(certEccDerFile, "wb");
         if (!derFile) {
             XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
@@ -7378,6 +7418,7 @@ int rsa_test(void)
             wc_FreeRng(&rng);
             return -5414;
         }
+    #endif
 
         pemSz = wc_DerToPem(derCert, certSz, pem, FOURK_BUF, CERT_TYPE);
         if (pemSz < 0) {
@@ -7389,6 +7430,7 @@ int rsa_test(void)
             return -5411;
         }
 
+    #if !defined(NO_FILESYSTEM) && !defined(NO_WRITE_TEMP_FILES)
         pemFile = fopen(certEccPemFile, "wb");
         if (!pemFile) {
             XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
@@ -7407,8 +7449,9 @@ int rsa_test(void)
             wc_FreeRng(&rng);
             return -5415;
         }
-
         fclose(pemFile);
+    #endif
+
         XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
         XFREE(derCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
         wc_ecc_free(&caKey);
@@ -7639,7 +7682,7 @@ int rsa_test(void)
         FreeDecodedCert(&decode);
     #endif
 
-    #ifndef NO_FILESYSTEM
+    #if !defined(NO_FILESYSTEM) && !defined(NO_WRITE_TEMP_FILES)
         derFile = fopen("./ntru-cert.der", "wb");
         if (!derFile) {
             XFREE(derCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
@@ -7668,7 +7711,7 @@ int rsa_test(void)
             return -460;
         }
 
-    #ifndef NO_FILESYSTEM
+    #if !defined(NO_FILESYSTEM) && !defined(NO_WRITE_TEMP_FILES)
         pemFile = fopen("./ntru-cert.pem", "wb");
         if (!pemFile) {
             XFREE(derCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
@@ -7717,7 +7760,9 @@ int rsa_test(void)
         byte*       pem;
         int         derSz;
         int         pemSz;
+    #if !defined(NO_FILESYSTEM) && !defined(NO_WRITE_TEMP_FILES)
         FILE*       reqFile;
+    #endif
 
         der = (byte*)XMALLOC(FOURK_BUF, HEAP_HINT,DYNAMIC_TYPE_TMP_BUFFER);
         if (der == NULL) {
@@ -7796,7 +7841,7 @@ int rsa_test(void)
             return -467;
         }
 
-    #ifndef NO_FILESYSTEM
+    #if !defined(NO_FILESYSTEM) && !defined(NO_WRITE_TEMP_FILES)
         reqFile = fopen(certReqDerFile, "wb");
         if (!reqFile) {
             XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
@@ -7865,9 +7910,15 @@ static int dh_generate_test(WC_RNG *rng)
     DhKey  smallKey;
     byte   p[2] = { 0, 5 };
     byte   g[2] = { 0, 2 };
+#ifdef WOLFSSL_DH_CONST
+    /* the table for constant DH lookup will round to the lowest byte size 21 */
+    byte   priv[21];
+    byte   pub[21];
+#else
     byte   priv[2];
-    word32 privSz = sizeof(priv);
     byte   pub[2];
+#endif
+    word32 privSz = sizeof(priv);
     word32 pubSz = sizeof(pub);
 
     wc_InitDhKey(&smallKey);
@@ -7967,7 +8018,11 @@ int dh_test(void)
         return -52;
 #endif
 
+#ifndef HAVE_FIPS
+    ret = wc_InitRng_ex(&rng, HEAP_HINT);
+#else
     ret = wc_InitRng(&rng);
+#endif
     if (ret != 0)
         return -53;
 
@@ -8039,7 +8094,11 @@ int dsa_test(void)
     ret = wc_DsaPrivateKeyDecode(tmp, &idx, &key, bytes);
     if (ret != 0) return -61;
 
+#ifndef HAVE_FIPS
+    ret = wc_InitRng_ex(&rng, HEAP_HINT);
+#else
     ret = wc_InitRng(&rng);
+#endif
     if (ret != 0) return -62;
 
     ret = wc_DsaSign(hash, signature, &key, &rng);
@@ -8059,7 +8118,7 @@ int dsa_test(void)
     int    pemSz = 0;
     DsaKey derIn;
     DsaKey genKey;
-#ifndef NO_FILESYSTEM
+#if !defined(NO_FILESYSTEM) && !defined(NO_WRITE_TEMP_FILES)
     FILE*  keyFile;
     FILE*  pemFile;
 #endif
@@ -8098,7 +8157,7 @@ int dsa_test(void)
         return -366;
     }
 
-#ifndef NO_FILESYSTEM
+#if !defined(NO_FILESYSTEM) && !defined(NO_WRITE_TEMP_FILES)
     keyFile = fopen(keyDerFile, "wb");
     if (!keyFile) {
         XFREE(der, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
@@ -8124,7 +8183,7 @@ int dsa_test(void)
         return -369;
     }
 
-#ifndef NO_FILESYSTEM
+#if !defined(NO_FILESYSTEM) && !defined(NO_WRITE_TEMP_FILES)
     pemFile = fopen(keyPemFile, "wb");
     if (!pemFile) {
         XFREE(der, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
@@ -9746,7 +9805,7 @@ static int ecc_test_key_gen(WC_RNG* rng, int keySize)
     int   derSz, pemSz;
     byte  der[FOURK_BUF];
     byte  pem[FOURK_BUF];
-#ifndef NO_FILESYSTEM
+#if !defined(NO_FILESYSTEM) && !defined(NO_WRITE_TEMP_FILES)
     FILE* keyFile;
     FILE* pemFile;
 #endif
@@ -9768,7 +9827,7 @@ static int ecc_test_key_gen(WC_RNG* rng, int keySize)
         ERROR_OUT(derSz, done);
     }
 
-#ifndef NO_FILESYSTEM
+#if !defined(NO_FILESYSTEM) && !defined(NO_WRITE_TEMP_FILES)
     keyFile = fopen(eccCaKeyTempFile, "wb");
     if (!keyFile) {
         ERROR_OUT(-1025, done);
@@ -9785,7 +9844,7 @@ static int ecc_test_key_gen(WC_RNG* rng, int keySize)
         ERROR_OUT(pemSz, done);
     }
 
-#ifndef NO_FILESYSTEM
+#if !defined(NO_FILESYSTEM) && !defined(NO_WRITE_TEMP_FILES)
     pemFile = fopen(eccCaKeyPemFile, "wb");
     if (!pemFile) {
         ERROR_OUT(-1028, done);
@@ -9806,7 +9865,7 @@ static int ecc_test_key_gen(WC_RNG* rng, int keySize)
         ERROR_OUT(-5416, done);
     }
 
-#ifndef NO_FILESYSTEM
+#if !defined(NO_FILESYSTEM) && !defined(NO_WRITE_TEMP_FILES)
     keyFile = fopen(eccPubKeyDerFile, "wb");
     if (!keyFile) {
         ERROR_OUT(-5417, done);
@@ -10627,7 +10686,11 @@ int ecc_test(void)
         return ret;
 #endif
 
+#ifndef HAVE_FIPS
+    ret = wc_InitRng_ex(&rng, HEAP_HINT);
+#else
     ret = wc_InitRng(&rng);
+#endif
     if (ret != 0)
         return -1001;
 
@@ -10755,7 +10818,11 @@ int ecc_encrypt_test(void)
     word32  plainSz = sizeof(plain);
     int     i;
 
+#ifndef HAVE_FIPS
+    ret = wc_InitRng_ex(&rng, HEAP_HINT);
+#else
     ret = wc_InitRng(&rng);
+#endif
     if (ret != 0)
         return -3001;
 
@@ -10906,7 +10973,11 @@ int ecc_test_buffers() {
     if (ret != 0)
         return -41;
 
+#ifndef HAVE_FIPS
+    ret = wc_InitRng_ex(&rng, HEAP_HINT);
+#else
     ret = wc_InitRng(&rng);
+#endif
     if (ret != 0)
         return -42;
 
@@ -10955,6 +11026,10 @@ int ecc_test_buffers() {
         return -52;
 #endif
 
+    wc_ecc_free(&cliKey);
+    wc_ecc_free(&servKey);
+    wc_FreeRng(&rng);
+
     return 0;
 }
 #endif /* USE_CERT_BUFFERS_256 */
@@ -10966,6 +11041,7 @@ int ecc_test_buffers() {
 int curve25519_test(void)
 {
     WC_RNG  rng;
+    int ret;
 #ifdef HAVE_CURVE25519_SHARED_SECRET
     byte    sharedA[32];
     byte    sharedB[32];
@@ -11023,7 +11099,12 @@ int curve25519_test(void)
     };
 #endif /* HAVE_CURVE25519_SHARED_SECRET */
 
-    if (wc_InitRng(&rng) != 0)
+#ifndef HAVE_FIPS
+    ret = wc_InitRng_ex(&rng, HEAP_HINT);
+#else
+    ret = wc_InitRng(&rng);
+#endif
+    if (ret != 0)
         return -1001;
 
     wc_curve25519_init(&userA);
@@ -11151,7 +11232,7 @@ int ed25519_test(void)
     byte   exportSKey[ED25519_KEY_SIZE];
     word32 exportPSz;
     word32 exportSSz;
-    int    i;
+    int    i, ret;
     word32 outlen;
 #ifdef HAVE_ED25519_VERIFY
     int    verify;
@@ -11478,7 +11559,14 @@ int ed25519_test(void)
 #endif /* HAVE_ED25519_SIGN && HAVE_ED25519_KEY_EXPORT && HAVE_ED25519_KEY_IMPORT */
 
     /* create ed25519 keys */
-    wc_InitRng(&rng);
+#ifndef HAVE_FIPS
+    ret = wc_InitRng_ex(&rng, HEAP_HINT);
+#else
+    ret = wc_InitRng(&rng);
+#endif
+    if (ret != 0)
+        return -1020;
+
     wc_ed25519_init(&key);
     wc_ed25519_init(&key2);
     wc_ed25519_make_key(&rng, ED25519_KEY_SIZE, &key);
@@ -12484,7 +12572,11 @@ int pkcs7signed_test(void)
     fclose(file);
 #endif /* USE_CERT_BUFFER_ */
 
+#ifndef HAVE_FIPS
+    ret = wc_InitRng_ex(&rng, HEAP_HINT);
+#else
     ret = wc_InitRng(&rng);
+#endif
     if (ret != 0) {
         XFREE(certDer, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
         XFREE(keyDer, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
@@ -12658,7 +12750,11 @@ int mp_test()
 
     mp_init_copy(&p, &a);
 
+#ifndef HAVE_FIPS
+    ret = wc_InitRng_ex(&rng, HEAP_HINT);
+#else
     ret = wc_InitRng(&rng);
+#endif
     if (ret != 0)
         goto done;
 

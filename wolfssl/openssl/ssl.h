@@ -474,10 +474,9 @@ typedef WOLFSSL_X509_STORE_CTX X509_STORE_CTX;
 
 /* Lighthttp compatibility */
 
-#if defined(HAVE_LIGHTY) || defined(WOLFSSL_MYSQL_COMPATIBLE) \
-                         || defined(HAVE_STUNNEL) \
-                         || defined(WOLFSSL_HAPROXY) \
-                         || defined(WOLFSSL_NGINX)
+#if defined(HAVE_LIGHTY)  || defined(WOLFSSL_MYSQL_COMPATIBLE) || \
+    defined(HAVE_STUNNEL) || defined(WOLFSSL_NGINX) || \
+    defined(HAVE_POCO_LIB) || defined(WOLFSSL_HAPROXY) 
 typedef WOLFSSL_X509_NAME_ENTRY X509_NAME_ENTRY;
 
 #define X509_NAME_free wolfSSL_X509_NAME_free
@@ -505,12 +504,6 @@ typedef WOLFSSL_X509_NAME_ENTRY X509_NAME_ENTRY;
 #define SSL_dup_CA_list wolfSSL_dup_CA_list
 
 #define NID_commonName 0x03 /* matchs ASN_COMMON_NAME in asn.h */
-#endif
-
-#if defined(HAVE_LIGHTY) || defined(WOLFSSL_MYSQL_COMPATIBLE) \
-                         || defined(HAVE_STUNNEL) \
-                         || defined(WOLFSSL_HAPROXY) \
-                         || defined(WOLFSSL_NGINX)
 
 #define OBJ_nid2ln wolfSSL_OBJ_nid2ln
 #define OBJ_txt2nid wolfSSL_OBJ_txt2nid
@@ -518,7 +511,6 @@ typedef WOLFSSL_X509_NAME_ENTRY X509_NAME_ENTRY;
 #define PEM_read_bio_DSAparams wolfSSL_PEM_read_bio_DSAparams
 #define PEM_write_bio_X509 wolfSSL_PEM_write_bio_X509
 
-#endif /* HAVE_STUNNEL || HAVE_LIGHTY || WOLFSSL_MYSQL_COMPATIBLE || WOLFSSL_NGINX || WOLFSSL_HAPROXY */
 
 #ifdef WOLFSSL_HAPROXY
 #define SSL_get_rbio                      wolfSSL_SSL_get_rbio
@@ -528,7 +520,8 @@ typedef WOLFSSL_X509_NAME_ENTRY X509_NAME_ENTRY;
 #define SSL_SESSION_get_id                wolfSSL_SESSION_get_id
 #define ASN1_STRING_get0_data             wolfSSL_ASN1_STRING_data
 #define SSL_get_cipher_bits(s,np)         wolfSSL_CIPHER_get_bits(SSL_get_current_cipher(s),np)
-#endif
+#endif /* WOLFSSL_HAPROXY */
+#endif /* HAVE_STUNNEL || HAVE_LIGHTY || WOLFSSL_MYSQL_COMPATIBLE || WOLFSSL_NGINX || HAVE_POCO_LIB || WOLFSSL_HAPROXY */
 
 #define SSL_CTX_set_tmp_dh wolfSSL_CTX_set_tmp_dh
 

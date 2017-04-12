@@ -2490,6 +2490,168 @@ int wc_ecc_get_curve_size_from_id(int curve_id)
     return ecc_sets[curve_idx].size;
 }
 
+/* Returns the curve index that corresponds to a given curve name in
+ * ecc_sets[] of ecc.c
+ *
+ * name    curve name, from ecc_sets[].name in ecc.c
+ * return  curve index in ecc_sets[] on success, negative on error
+ */
+int wc_ecc_get_curve_idx_from_name(const char* curveName)
+{
+    int curve_idx;
+    word32 len;
+
+    if (curveName == NULL)
+        return BAD_FUNC_ARG;
+
+    len = (word32)XSTRLEN(curveName);
+
+    for (curve_idx = 0; ecc_sets[curve_idx].size != 0; curve_idx++) {
+        if (XSTRNCASECMP(ecc_sets[curve_idx].name, curveName, len) == 0) {
+            break;
+        }
+    }
+    if (ecc_sets[curve_idx].size == 0) {
+        WOLFSSL_MSG("ecc_set curve name not found");
+        return ECC_CURVE_INVALID;
+    }
+    return curve_idx;
+}
+
+/* Returns the curve size that corresponds to a given curve name,
+ * as listed in ecc_sets[] of ecc.c.
+ *
+ * name    curve name, from ecc_sets[].name in ecc.c
+ * return  curve size, from ecc_sets[] on success, negative on error
+ */
+int wc_ecc_get_curve_size_from_name(const char* curveName)
+{
+    int curve_idx;
+
+    if (curveName == NULL)
+        return BAD_FUNC_ARG;
+
+    curve_idx = wc_ecc_get_curve_idx_from_name(curveName);
+    if (curve_idx < 0)
+        return curve_idx;
+
+    return ecc_sets[curve_idx].size;
+}
+
+/* Returns the curve id that corresponds to a given curve name,
+ * as listed in ecc_sets[] of ecc.c.
+ *
+ * name   curve name, from ecc_sets[].name in ecc.c
+ * return curve id, from ecc_sets[] on success, negative on error
+ */
+int wc_ecc_get_curve_id_from_name(const char* curveName)
+{
+    int curve_idx;
+
+    if (curveName == NULL)
+        return BAD_FUNC_ARG;
+
+    curve_idx = wc_ecc_get_curve_idx_from_name(curveName);
+    if (curve_idx < 0)
+        return curve_idx;
+
+    return ecc_sets[curve_idx].id;
+}
+
+/* Compares a curve parameter (hex, from ecc_sets[]) to given input
+ * parameter (byte array) for equality.
+ *
+ * Returns MP_EQ on success, negative on error */
+static int wc_ecc_cmp_param(const char* curveParam,
+                            const byte* param, word32 paramSz)
+{
+    int err = MP_OKAY;
+    mp_int a, b;
+
+    if (param == NULL || curveParam == NULL)
+        return BAD_FUNC_ARG;
+
+    if ((err = mp_init_multi(&a, &b, NULL, NULL, NULL, NULL)) != MP_OKAY)
+        return err;
+
+    if (err == MP_OKAY)
+        err = mp_read_unsigned_bin(&a, param, paramSz);
+
+    if (err == MP_OKAY)
+        err = mp_read_radix(&b, curveParam, 16);
+
+    if (err == MP_OKAY) {
+        if (mp_cmp(&a, &b) != MP_EQ) {
+            err = -1;
+        } else {
+            err = MP_EQ;
+        }
+    }
+
+#ifndef USE_FAST_MATH
+    mp_clear(&a);
+    mp_clear(&b);
+#endif
+
+    return err;
+}
+
+/* Returns the curve id in ecc_sets[] that corresponds to a given set of
+ * curve parameters.
+ *
+ * fieldSize  the field size in bits
+ * prime      prime of the finite field
+ * primeSz    size of prime in octets
+ * Af         first coefficient a of the curve
+ * AfSz       size of Af in octets
+ * Bf         second coefficient b of the curve
+ * BfSz       size of Bf in octets
+ * order      curve order
+ * orderSz    size of curve in octets
+ * Gx         affine x coordinate of base point
+ * GxSz       size of Gx in octets
+ * Gy         affine y coordinate of base point
+ * GySz       size of Gy in octets
+ * cofactor   curve cofactor
+ *
+ * return curve id, from ecc_sets[] on success, negative on error
+ */
+int wc_ecc_get_curve_id_from_params(int fieldSize,
+        const byte* prime, word32 primeSz, const byte* Af, word32 AfSz,
+        const byte* Bf, word32 BfSz, const byte* order, word32 orderSz,
+        const byte* Gx, word32 GxSz, const byte* Gy, word32 GySz, int cofactor)
+{
+    int idx;
+    int curveSz;
+
+    if (prime == NULL || Af == NULL || Bf == NULL || order == NULL ||
+        Gx == NULL || Gy == NULL)
+        return BAD_FUNC_ARG;
+
+    curveSz = (fieldSize + 1) / 8;    /* round up */
+
+    for (idx = 0; ecc_sets[idx].size != 0; idx++) {
+        if (curveSz == ecc_sets[idx].size) {
+            if ((wc_ecc_cmp_param(ecc_sets[idx].prime, prime,
+                            primeSz) == MP_EQ) &&
+                (wc_ecc_cmp_param(ecc_sets[idx].Af, Af, AfSz) == MP_EQ) &&
+                (wc_ecc_cmp_param(ecc_sets[idx].Bf, Bf, BfSz) == MP_EQ) &&
+                (wc_ecc_cmp_param(ecc_sets[idx].order, order,
+                                  orderSz) == MP_EQ) &&
+                (wc_ecc_cmp_param(ecc_sets[idx].Gx, Gx, GxSz) == MP_EQ) &&
+                (wc_ecc_cmp_param(ecc_sets[idx].Gy, Gy, GySz) == MP_EQ) &&
+                (cofactor == ecc_sets[idx].cofactor)) {
+                    break;
+            }
+        }
+    }
+
+    if (ecc_sets[idx].size == 0)
+        return ECC_CURVE_INVALID;
+
+    return ecc_sets[idx].id;
+}
+
 
 #ifdef HAVE_ECC_DHE
 /**
@@ -4814,7 +4976,7 @@ int wc_ecc_import_private_key_ex(const byte* priv, word32 privSz,
             return ret;
 
         /* set key size */
-        ret = wc_ecc_set_curve(key, privSz-1, curve_id);
+        ret = wc_ecc_set_curve(key, privSz, curve_id);
     }
 
     if (ret != 0)

@@ -165,23 +165,23 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
     if (doPSK == 0) {
     #if defined(HAVE_NTRU) && defined(WOLFSSL_STATIC_RSA)
         /* ntru */
-        if (CyaSSL_CTX_use_certificate_file(ctx, ntruCert, SSL_FILETYPE_PEM)
+        if (CyaSSL_CTX_use_certificate_file(ctx, ntruCertFile, SSL_FILETYPE_PEM)
                 != SSL_SUCCESS)
             err_sys("can't load ntru cert file, "
                     "Please run from wolfSSL home dir");
 
-        if (CyaSSL_CTX_use_NTRUPrivateKey_file(ctx, ntruKey)
+        if (CyaSSL_CTX_use_NTRUPrivateKey_file(ctx, ntruKeyFile)
                 != SSL_SUCCESS)
             err_sys("can't load ntru key file, "
                     "Please run from wolfSSL home dir");
     #elif defined(HAVE_ECC) && !defined(CYASSL_SNIFFER)
         /* ecc */
-        if (CyaSSL_CTX_use_certificate_file(ctx, eccCert, SSL_FILETYPE_PEM)
+        if (CyaSSL_CTX_use_certificate_file(ctx, eccCertFile, SSL_FILETYPE_PEM)
                 != SSL_SUCCESS)
             err_sys("can't load server cert file, "
                     "Please run from wolfSSL home dir");
 
-        if (CyaSSL_CTX_use_PrivateKey_file(ctx, eccKey, SSL_FILETYPE_PEM)
+        if (CyaSSL_CTX_use_PrivateKey_file(ctx, eccKeyFile, SSL_FILETYPE_PEM)
                 != SSL_SUCCESS)
             err_sys("can't load server key file, "
                     "Please run from wolfSSL home dir");
@@ -189,12 +189,12 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
         /* do nothing, just don't load cert files */
     #else
         /* normal */
-        if (CyaSSL_CTX_use_certificate_file(ctx, svrCert, SSL_FILETYPE_PEM)
+        if (CyaSSL_CTX_use_certificate_file(ctx, svrCertFile, SSL_FILETYPE_PEM)
                 != SSL_SUCCESS)
             err_sys("can't load server cert file, "
                     "Please run from wolfSSL home dir");
 
-        if (CyaSSL_CTX_use_PrivateKey_file(ctx, svrKey, SSL_FILETYPE_PEM)
+        if (CyaSSL_CTX_use_PrivateKey_file(ctx, svrKeyFile, SSL_FILETYPE_PEM)
                 != SSL_SUCCESS)
             err_sys("can't load server key file, "
                     "Please run from wolfSSL home dir");
@@ -202,8 +202,8 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
     } /* doPSK */
 #elif !defined(NO_CERTS)
     if (!doPSK) {
-        load_buffer(ctx, svrCert, WOLFSSL_CERT);
-        load_buffer(ctx, svrKey,  WOLFSSL_KEY);
+        load_buffer(ctx, svrCertFile, WOLFSSL_CERT);
+        load_buffer(ctx, svrKeyFile,  WOLFSSL_KEY);
     }
 #endif
 
@@ -241,7 +241,8 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
     SignalReady(args, port);
 
     while (!shutDown) {
-        CYASSL* ssl = 0;
+        CYASSL* ssl = NULL;
+        CYASSL* write_ssl = NULL;   /* may have separate w/ HAVE_WRITE_DUP */
         char    command[SVR_COMMAND_SIZE+1];
         int     echoSz = 0;
         int     clientfd;
@@ -276,7 +277,7 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
             wolfSSL_dtls_set_peer(ssl, &client, client_len);
         #endif
         #if !defined(NO_FILESYSTEM) && !defined(NO_DH) && !defined(NO_ASN)
-            CyaSSL_SetTmpDH_file(ssl, dhParam, SSL_FILETYPE_PEM);
+            CyaSSL_SetTmpDH_file(ssl, dhParamFile, SSL_FILETYPE_PEM);
         #elif !defined(NO_DH)
             SetDH(ssl);  /* will repick suites with DHE, higher than PSK */
         #endif
@@ -306,6 +307,18 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
         }
 #if defined(PEER_INFO)
         showPeer(ssl);
+#endif
+
+#ifdef HAVE_WRITE_DUP
+        write_ssl = wolfSSL_write_dup(ssl);
+        if (write_ssl == NULL) {
+            printf("wolfSSL_write_dup failed\n");
+            CyaSSL_free(ssl);
+            CloseSocket(clientfd);
+            continue;
+        }
+#else
+        write_ssl = ssl;
 #endif
 
         while ( (echoSz = CyaSSL_read(ssl, command, sizeof(command)-1)) > 0) {
@@ -354,7 +367,7 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
                 strncpy(&command[echoSz], footer, sizeof(footer));
                 echoSz += (int)sizeof(footer);
 
-                if (CyaSSL_write(ssl, command, echoSz) != echoSz)
+                if (CyaSSL_write(write_ssl, command, echoSz) != echoSz)
                     err_sys("SSL_write failed");
                 break;
             }
@@ -364,11 +377,14 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
                 fputs(command, fout);
             #endif
 
-            if (CyaSSL_write(ssl, command, echoSz) != echoSz)
+            if (CyaSSL_write(write_ssl, command, echoSz) != echoSz)
                 err_sys("SSL_write failed");
         }
 #ifndef CYASSL_DTLS
         CyaSSL_shutdown(ssl);
+#endif
+#ifdef HAVE_WRITE_DUP
+        CyaSSL_free(write_ssl);
 #endif
         CyaSSL_free(ssl);
         CloseSocket(clientfd);

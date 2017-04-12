@@ -77,7 +77,7 @@ static const char* passed = "passed";
 static const char* failed = "failed";
 
 #if !defined(NO_FILESYSTEM) && !defined(NO_CERTS)
-    static const char* bogusFile  = 
+    static const char* bogusFile  =
     #ifdef _WIN32
         "NUL"
     #else
@@ -85,6 +85,12 @@ static const char* failed = "failed";
     #endif
     ;
 #endif
+
+enum {
+    TESTING_RSA = 1,
+    TESTING_ECC = 2
+};
+
 
 /*----------------------------------------------------------------------------*
  | Setup
@@ -202,20 +208,20 @@ static void test_wolfSSL_CTX_use_certificate_file(void)
     AssertNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_server_method()));
 
     /* invalid context */
-    AssertFalse(wolfSSL_CTX_use_certificate_file(NULL, svrCert,
+    AssertFalse(wolfSSL_CTX_use_certificate_file(NULL, svrCertFile,
                                                              SSL_FILETYPE_PEM));
     /* invalid cert file */
     AssertFalse(wolfSSL_CTX_use_certificate_file(ctx, bogusFile,
                                                              SSL_FILETYPE_PEM));
     /* invalid cert type */
-    AssertFalse(wolfSSL_CTX_use_certificate_file(ctx, svrCert, 9999));
+    AssertFalse(wolfSSL_CTX_use_certificate_file(ctx, svrCertFile, 9999));
 
 #ifdef NO_RSA
     /* rsa needed */
-    AssertFalse(wolfSSL_CTX_use_certificate_file(ctx, svrCert,SSL_FILETYPE_PEM));
+    AssertFalse(wolfSSL_CTX_use_certificate_file(ctx, svrCertFile,SSL_FILETYPE_PEM));
 #else
     /* success */
-    AssertTrue(wolfSSL_CTX_use_certificate_file(ctx, svrCert, SSL_FILETYPE_PEM));
+    AssertTrue(wolfSSL_CTX_use_certificate_file(ctx, svrCertFile, SSL_FILETYPE_PEM));
 #endif
 
     wolfSSL_CTX_free(ctx);
@@ -257,21 +263,21 @@ static void test_wolfSSL_CTX_use_PrivateKey_file(void)
     AssertNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_server_method()));
 
     /* invalid context */
-    AssertFalse(wolfSSL_CTX_use_PrivateKey_file(NULL, svrKey,
+    AssertFalse(wolfSSL_CTX_use_PrivateKey_file(NULL, svrKeyFile,
                                                              SSL_FILETYPE_PEM));
     /* invalid key file */
     AssertFalse(wolfSSL_CTX_use_PrivateKey_file(ctx, bogusFile,
                                                              SSL_FILETYPE_PEM));
     /* invalid key type */
-    AssertFalse(wolfSSL_CTX_use_PrivateKey_file(ctx, svrKey, 9999));
+    AssertFalse(wolfSSL_CTX_use_PrivateKey_file(ctx, svrKeyFile, 9999));
 
     /* success */
 #ifdef NO_RSA
     /* rsa needed */
-    AssertFalse(wolfSSL_CTX_use_PrivateKey_file(ctx, svrKey, SSL_FILETYPE_PEM));
+    AssertFalse(wolfSSL_CTX_use_PrivateKey_file(ctx, svrKeyFile, SSL_FILETYPE_PEM));
 #else
     /* success */
-    AssertTrue(wolfSSL_CTX_use_PrivateKey_file(ctx, svrKey, SSL_FILETYPE_PEM));
+    AssertTrue(wolfSSL_CTX_use_PrivateKey_file(ctx, svrKeyFile, SSL_FILETYPE_PEM));
 #endif
 
     wolfSSL_CTX_free(ctx);
@@ -293,11 +299,11 @@ static void test_wolfSSL_CTX_trust_peer_cert(void)
                                               SSL_FILETYPE_PEM) != SSL_SUCCESS);
     assert(wolfSSL_CTX_trust_peer_cert(ctx, bogusFile,
                                               SSL_FILETYPE_PEM) != SSL_SUCCESS);
-    assert(wolfSSL_CTX_trust_peer_cert(ctx, cliCert,
+    assert(wolfSSL_CTX_trust_peer_cert(ctx, cliCertFile,
                                              SSL_FILETYPE_ASN1) != SSL_SUCCESS);
 
     /* success */
-    assert(wolfSSL_CTX_trust_peer_cert(ctx, cliCert, SSL_FILETYPE_PEM)
+    assert(wolfSSL_CTX_trust_peer_cert(ctx, cliCertFile, SSL_FILETYPE_PEM)
                                                                 == SSL_SUCCESS);
 
     /* unload cert */
@@ -338,7 +344,7 @@ static void test_wolfSSL_CTX_load_verify_locations(void)
     AssertNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
 
     /* invalid context */
-    AssertFalse(wolfSSL_CTX_load_verify_locations(NULL, caCert, 0));
+    AssertFalse(wolfSSL_CTX_load_verify_locations(NULL, caCertFile, 0));
 
     /* invalid ca file */
     AssertFalse(wolfSSL_CTX_load_verify_locations(ctx, NULL,      0));
@@ -347,11 +353,11 @@ static void test_wolfSSL_CTX_load_verify_locations(void)
 #ifndef WOLFSSL_TIRTOS
     /* invalid path */
     /* not working... investigate! */
-    /* AssertFalse(wolfSSL_CTX_load_verify_locations(ctx, caCert, bogusFile)); */
+    /* AssertFalse(wolfSSL_CTX_load_verify_locations(ctx, caCertFile, bogusFile)); */
 #endif
 
     /* success */
-    AssertTrue(wolfSSL_CTX_load_verify_locations(ctx, caCert, 0));
+    AssertTrue(wolfSSL_CTX_load_verify_locations(ctx, caCertFile, 0));
 
     wolfSSL_CTX_free(ctx);
 #endif
@@ -366,16 +372,16 @@ static void test_wolfSSL_CTX_SetTmpDH_file(void)
 
     /* invalid context */
     AssertIntNE(SSL_SUCCESS, wolfSSL_CTX_SetTmpDH_file(NULL,
-                dhParam, SSL_FILETYPE_PEM));
+                dhParamFile, SSL_FILETYPE_PEM));
 
-    /* invalid dhParam file */
+    /* invalid dhParamFile file */
     AssertIntNE(SSL_SUCCESS, wolfSSL_CTX_SetTmpDH_file(ctx,
                 NULL, SSL_FILETYPE_PEM));
     AssertIntNE(SSL_SUCCESS, wolfSSL_CTX_SetTmpDH_file(ctx,
                 bogusFile, SSL_FILETYPE_PEM));
 
     /* success */
-    AssertIntEQ(SSL_SUCCESS, wolfSSL_CTX_SetTmpDH_file(ctx, dhParam,
+    AssertIntEQ(SSL_SUCCESS, wolfSSL_CTX_SetTmpDH_file(ctx, dhParamFile,
                 SSL_FILETYPE_PEM));
 
     wolfSSL_CTX_free(ctx);
@@ -393,7 +399,7 @@ static void test_wolfSSL_CTX_SetTmpDH_buffer(void)
     AssertIntNE(SSL_SUCCESS, wolfSSL_CTX_SetTmpDH_buffer(NULL, dh_key_der_2048,
                 sizeof_dh_key_der_2048, SSL_FILETYPE_ASN1));
 
-    /* invalid dhParam file */
+    /* invalid dhParamFile file */
     AssertIntNE(SSL_SUCCESS, wolfSSL_CTX_SetTmpDH_buffer(NULL, NULL,
                 0, SSL_FILETYPE_ASN1));
     AssertIntNE(SSL_SUCCESS, wolfSSL_CTX_SetTmpDH_buffer(ctx, dsa_key_der_2048,
@@ -421,8 +427,8 @@ static void test_server_wolfSSL_new(void)
     AssertNotNull(ctx_nocert = wolfSSL_CTX_new(wolfSSLv23_server_method()));
     AssertNotNull(ctx        = wolfSSL_CTX_new(wolfSSLv23_server_method()));
 
-    AssertTrue(wolfSSL_CTX_use_certificate_file(ctx, svrCert, SSL_FILETYPE_PEM));
-    AssertTrue(wolfSSL_CTX_use_PrivateKey_file(ctx, svrKey, SSL_FILETYPE_PEM));
+    AssertTrue(wolfSSL_CTX_use_certificate_file(ctx, svrCertFile, SSL_FILETYPE_PEM));
+    AssertTrue(wolfSSL_CTX_use_PrivateKey_file(ctx, svrKeyFile, SSL_FILETYPE_PEM));
 
     /* invalid context */
     AssertNull(ssl = wolfSSL_new(NULL));
@@ -450,7 +456,7 @@ static void test_client_wolfSSL_new(void)
     AssertNotNull(ctx_nocert = wolfSSL_CTX_new(wolfSSLv23_client_method()));
     AssertNotNull(ctx        = wolfSSL_CTX_new(wolfSSLv23_client_method()));
 
-    AssertTrue(wolfSSL_CTX_load_verify_locations(ctx, caCert, 0));
+    AssertTrue(wolfSSL_CTX_load_verify_locations(ctx, caCertFile, 0));
 
     /* invalid context */
     AssertNull(ssl = wolfSSL_new(NULL));
@@ -476,30 +482,30 @@ static void test_wolfSSL_SetTmpDH_file(void)
 
     AssertNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_server_method()));
 #ifndef NO_RSA
-    AssertTrue(wolfSSL_CTX_use_certificate_file(ctx, svrCert,
+    AssertTrue(wolfSSL_CTX_use_certificate_file(ctx, svrCertFile,
                 SSL_FILETYPE_PEM));
-    AssertTrue(wolfSSL_CTX_use_PrivateKey_file(ctx, svrKey,
+    AssertTrue(wolfSSL_CTX_use_PrivateKey_file(ctx, svrKeyFile,
                 SSL_FILETYPE_PEM));
 #else
-    AssertTrue(wolfSSL_CTX_use_certificate_file(ctx, eccCert,
+    AssertTrue(wolfSSL_CTX_use_certificate_file(ctx, eccCertFile,
                 SSL_FILETYPE_PEM));
-    AssertTrue(wolfSSL_CTX_use_PrivateKey_file(ctx, eccKey,
+    AssertTrue(wolfSSL_CTX_use_PrivateKey_file(ctx, eccKeyFile,
                 SSL_FILETYPE_PEM));
 #endif
     AssertNotNull(ssl = wolfSSL_new(ctx));
 
     /* invalid ssl */
     AssertIntNE(SSL_SUCCESS, wolfSSL_SetTmpDH_file(NULL,
-                dhParam, SSL_FILETYPE_PEM));
+                dhParamFile, SSL_FILETYPE_PEM));
 
-    /* invalid dhParam file */
+    /* invalid dhParamFile file */
     AssertIntNE(SSL_SUCCESS, wolfSSL_SetTmpDH_file(ssl,
                 NULL, SSL_FILETYPE_PEM));
     AssertIntNE(SSL_SUCCESS, wolfSSL_SetTmpDH_file(ssl,
                 bogusFile, SSL_FILETYPE_PEM));
 
     /* success */
-    AssertIntEQ(SSL_SUCCESS, wolfSSL_SetTmpDH_file(ssl, dhParam,
+    AssertIntEQ(SSL_SUCCESS, wolfSSL_SetTmpDH_file(ssl, dhParamFile,
                 SSL_FILETYPE_PEM));
 
     wolfSSL_free(ssl);
@@ -524,7 +530,7 @@ static void test_wolfSSL_SetTmpDH_buffer(void)
     AssertIntNE(SSL_SUCCESS, wolfSSL_SetTmpDH_buffer(NULL, dh_key_der_2048,
                 sizeof_dh_key_der_2048, SSL_FILETYPE_ASN1));
 
-    /* invalid dhParam file */
+    /* invalid dhParamFile file */
     AssertIntNE(SSL_SUCCESS, wolfSSL_SetTmpDH_buffer(NULL, NULL,
                 0, SSL_FILETYPE_ASN1));
     AssertIntNE(SSL_SUCCESS, wolfSSL_SetTmpDH_buffer(ssl, dsa_key_der_2048,
@@ -541,7 +547,7 @@ static void test_wolfSSL_SetTmpDH_buffer(void)
 
 
 /* Test function for wolfSSL_SetMinVersion. Sets the minimum downgrade version
- * allowed. 
+ * allowed.
  * POST: return 1 on success.
  */
 static int test_wolfSSL_SetMinVersion(void)
@@ -666,19 +672,19 @@ static THREAD_RETURN WOLFSSL_THREAD test_server_nofail(void* args)
     wolfSSL_CTX_set_default_passwd_cb(ctx, PasswordCallBack);
 #endif
 
-    if (wolfSSL_CTX_load_verify_locations(ctx, cliCert, 0) != SSL_SUCCESS)
+    if (wolfSSL_CTX_load_verify_locations(ctx, cliCertFile, 0) != SSL_SUCCESS)
     {
         /*err_sys("can't load ca file, Please run from wolfSSL home dir");*/
         goto done;
     }
-    if (wolfSSL_CTX_use_certificate_file(ctx, svrCert, SSL_FILETYPE_PEM)
+    if (wolfSSL_CTX_use_certificate_file(ctx, svrCertFile, SSL_FILETYPE_PEM)
             != SSL_SUCCESS)
     {
         /*err_sys("can't load server cert chain file, "
                 "Please run from wolfSSL home dir");*/
         goto done;
     }
-    if (wolfSSL_CTX_use_PrivateKey_file(ctx, svrKey, SSL_FILETYPE_PEM)
+    if (wolfSSL_CTX_use_PrivateKey_file(ctx, svrKeyFile, SSL_FILETYPE_PEM)
             != SSL_SUCCESS)
     {
         /*err_sys("can't load server key file, "
@@ -697,7 +703,7 @@ static THREAD_RETURN WOLFSSL_THREAD test_server_nofail(void* args)
 
 #ifdef NO_PSK
     #if !defined(NO_FILESYSTEM) && !defined(NO_DH)
-        wolfSSL_SetTmpDH_file(ssl, dhParam, SSL_FILETYPE_PEM);
+        wolfSSL_SetTmpDH_file(ssl, dhParamFile, SSL_FILETYPE_PEM);
     #elif !defined(NO_DH)
         SetDH(ssl);  /* will repick suites with DHE, higher priority than PSK */
     #endif
@@ -800,19 +806,19 @@ static void test_client_nofail(void* args)
     wolfSSL_CTX_set_default_passwd_cb(ctx, PasswordCallBack);
 #endif
 
-    if (wolfSSL_CTX_load_verify_locations(ctx, caCert, 0) != SSL_SUCCESS)
+    if (wolfSSL_CTX_load_verify_locations(ctx, caCertFile, 0) != SSL_SUCCESS)
     {
         /* err_sys("can't load ca file, Please run from wolfSSL home dir");*/
         goto done2;
     }
-    if (wolfSSL_CTX_use_certificate_file(ctx, cliCert, SSL_FILETYPE_PEM)
+    if (wolfSSL_CTX_use_certificate_file(ctx, cliCertFile, SSL_FILETYPE_PEM)
             != SSL_SUCCESS)
     {
         /*err_sys("can't load client cert file, "
                 "Please run from wolfSSL home dir");*/
         goto done2;
     }
-    if (wolfSSL_CTX_use_PrivateKey_file(ctx, cliKey, SSL_FILETYPE_PEM)
+    if (wolfSSL_CTX_use_PrivateKey_file(ctx, cliKeyFile, SSL_FILETYPE_PEM)
             != SSL_SUCCESS)
     {
         /*err_sys("can't load client key file, "
@@ -923,13 +929,13 @@ static THREAD_RETURN WOLFSSL_THREAD run_wolfssl_server(void* args)
 #endif
 
 
-    AssertIntEQ(SSL_SUCCESS, wolfSSL_CTX_load_verify_locations(ctx, cliCert, 0));
+    AssertIntEQ(SSL_SUCCESS, wolfSSL_CTX_load_verify_locations(ctx, cliCertFile, 0));
 
     AssertIntEQ(SSL_SUCCESS,
-               wolfSSL_CTX_use_certificate_file(ctx, svrCert, SSL_FILETYPE_PEM));
+               wolfSSL_CTX_use_certificate_file(ctx, svrCertFile, SSL_FILETYPE_PEM));
 
     AssertIntEQ(SSL_SUCCESS,
-                 wolfSSL_CTX_use_PrivateKey_file(ctx, svrKey, SSL_FILETYPE_PEM));
+                 wolfSSL_CTX_use_PrivateKey_file(ctx, svrKeyFile, SSL_FILETYPE_PEM));
 
     if (callbacks->ctx_ready)
         callbacks->ctx_ready(ctx);
@@ -955,7 +961,7 @@ static THREAD_RETURN WOLFSSL_THREAD run_wolfssl_server(void* args)
 
 #ifdef NO_PSK
     #if !defined(NO_FILESYSTEM) && !defined(NO_DH)
-        wolfSSL_SetTmpDH_file(ssl, dhParam, SSL_FILETYPE_PEM);
+        wolfSSL_SetTmpDH_file(ssl, dhParamFile, SSL_FILETYPE_PEM);
     #elif !defined(NO_DH)
         SetDH(ssl);  /* will repick suites with DHE, higher priority than PSK */
     #endif
@@ -1059,13 +1065,13 @@ static void run_wolfssl_client(void* args)
     wolfSSL_CTX_set_default_passwd_cb(ctx, PasswordCallBack);
 #endif
 
-    AssertIntEQ(SSL_SUCCESS, wolfSSL_CTX_load_verify_locations(ctx, caCert, 0));
+    AssertIntEQ(SSL_SUCCESS, wolfSSL_CTX_load_verify_locations(ctx, caCertFile, 0));
 
     AssertIntEQ(SSL_SUCCESS,
-               wolfSSL_CTX_use_certificate_file(ctx, cliCert, SSL_FILETYPE_PEM));
+               wolfSSL_CTX_use_certificate_file(ctx, cliCertFile, SSL_FILETYPE_PEM));
 
     AssertIntEQ(SSL_SUCCESS,
-                 wolfSSL_CTX_use_PrivateKey_file(ctx, cliKey, SSL_FILETYPE_PEM));
+                 wolfSSL_CTX_use_PrivateKey_file(ctx, cliKeyFile, SSL_FILETYPE_PEM));
 
     if (callbacks->ctx_ready)
         callbacks->ctx_ready(ctx);
@@ -2012,7 +2018,7 @@ static void test_wolfSSL_X509_NAME_get_entry(void)
         int idx;
 
     #ifndef NO_FILESYSTEM
-        x509 = wolfSSL_X509_load_certificate_file(cliCert, SSL_FILETYPE_PEM);
+        x509 = wolfSSL_X509_load_certificate_file(cliCertFile, SSL_FILETYPE_PEM);
         AssertNotNull(x509);
 
         name = X509_get_subject_name(x509);
@@ -2298,8 +2304,8 @@ static void test_wolfSSL_certs(void)
     printf(testingFmt, "wolfSSL_certs()");
 
     AssertNotNull(ctx = SSL_CTX_new(wolfSSLv23_server_method()));
-    AssertTrue(SSL_CTX_use_certificate_file(ctx, svrCert, SSL_FILETYPE_PEM));
-    AssertTrue(SSL_CTX_use_PrivateKey_file(ctx, svrKey, SSL_FILETYPE_PEM));
+    AssertTrue(SSL_CTX_use_certificate_file(ctx, svrCertFile, SSL_FILETYPE_PEM));
+    AssertTrue(SSL_CTX_use_PrivateKey_file(ctx, svrKeyFile, SSL_FILETYPE_PEM));
     AssertNotNull(ssl = SSL_new(ctx));
 
     AssertIntEQ(wolfSSL_check_private_key(ssl), SSL_SUCCESS);
@@ -2309,7 +2315,7 @@ static void test_wolfSSL_certs(void)
     #endif /* HAVE_PK_CALLBACKS */
 
     /* create and use x509 */
-    x509 = wolfSSL_X509_load_certificate_file(cliCert, SSL_FILETYPE_PEM);
+    x509 = wolfSSL_X509_load_certificate_file(cliCertFile, SSL_FILETYPE_PEM);
     AssertNotNull(x509);
     AssertIntEQ(SSL_use_certificate(ssl, x509), SSL_SUCCESS);
 
@@ -2465,8 +2471,8 @@ static void test_wolfSSL_private_keys(void)
     OpenSSL_add_all_algorithms();
 
     AssertNotNull(ctx = SSL_CTX_new(wolfSSLv23_server_method()));
-    AssertTrue(SSL_CTX_use_certificate_file(ctx, svrCert, SSL_FILETYPE_PEM));
-    AssertTrue(SSL_CTX_use_PrivateKey_file(ctx, svrKey, SSL_FILETYPE_PEM));
+    AssertTrue(SSL_CTX_use_certificate_file(ctx, svrCertFile, SSL_FILETYPE_PEM));
+    AssertTrue(SSL_CTX_use_PrivateKey_file(ctx, svrKeyFile, SSL_FILETYPE_PEM));
     AssertNotNull(ssl = SSL_new(ctx));
 
     AssertIntEQ(wolfSSL_check_private_key(ssl), SSL_SUCCESS);
@@ -2559,8 +2565,8 @@ static void test_wolfSSL_tmp_dh(void)
     printf(testingFmt, "wolfSSL_tmp_dh()");
 
     AssertNotNull(ctx = SSL_CTX_new(wolfSSLv23_server_method()));
-    AssertTrue(SSL_CTX_use_certificate_file(ctx, svrCert, SSL_FILETYPE_PEM));
-    AssertTrue(SSL_CTX_use_PrivateKey_file(ctx, svrKey, SSL_FILETYPE_PEM));
+    AssertTrue(SSL_CTX_use_certificate_file(ctx, svrCertFile, SSL_FILETYPE_PEM));
+    AssertTrue(SSL_CTX_use_PrivateKey_file(ctx, svrKeyFile, SSL_FILETYPE_PEM));
     AssertNotNull(ssl = SSL_new(ctx));
 
     f = fopen(file, "rb");
@@ -2723,7 +2729,7 @@ static void test_wolfSSL_X509_STORE_set_flags(void)
     printf(testingFmt, "wolfSSL_ERR_peek_last_error_line()");
     AssertNotNull((store = wolfSSL_X509_STORE_new()));
     AssertNotNull((x509 =
-                wolfSSL_X509_load_certificate_file(svrCert, SSL_FILETYPE_PEM)));
+                wolfSSL_X509_load_certificate_file(svrCertFile, SSL_FILETYPE_PEM)));
     AssertIntEQ(X509_STORE_add_cert(store, x509), SSL_SUCCESS);
 
 #ifdef HAVE_CRL
@@ -2802,8 +2808,8 @@ static void test_wolfSSL_set_options(void)
     printf(testingFmt, "wolfSSL_set_options()");
 
     AssertNotNull(ctx = SSL_CTX_new(wolfSSLv23_server_method()));
-    AssertTrue(SSL_CTX_use_certificate_file(ctx, svrCert, SSL_FILETYPE_PEM));
-    AssertTrue(SSL_CTX_use_PrivateKey_file(ctx, svrKey, SSL_FILETYPE_PEM));
+    AssertTrue(SSL_CTX_use_certificate_file(ctx, svrCertFile, SSL_FILETYPE_PEM));
+    AssertTrue(SSL_CTX_use_PrivateKey_file(ctx, svrKeyFile, SSL_FILETYPE_PEM));
     AssertNotNull(ssl = SSL_new(ctx));
 
     AssertTrue(SSL_set_options(ssl, SSL_OP_NO_TLSv1) == SSL_OP_NO_TLSv1);
@@ -2839,7 +2845,7 @@ static void test_wolfSSL_PEM_read_bio(void)
 
     printf(testingFmt, "wolfSSL_PEM_read_bio()");
 
-    AssertNotNull(f = fopen(cliCert, "rb"));
+    AssertNotNull(f = fopen(cliCertFile, "rb"));
     bytes = (int)fread(buffer, 1, sizeof(buffer), f);
     fclose(f);
 
@@ -3006,7 +3012,7 @@ static void test_wolfSSL_BIO(void)
         AssertIntEQ((int)BIO_set_mem_eof_return(f_bio1, -1), 0);
         AssertIntEQ((int)BIO_set_mem_eof_return(NULL, -1),   0);
 
-        f1 = XFOPEN(svrCert, "rwb");
+        f1 = XFOPEN(svrCertFile, "rwb");
         AssertIntEQ((int)BIO_set_fp(f_bio1, f1, BIO_CLOSE), SSL_SUCCESS);
         AssertIntEQ(BIO_write_filename(f_bio2, testFile),
                 SSL_SUCCESS);
@@ -3076,6 +3082,260 @@ static void test_wc_GetPkcs8TraditionalOffset(void)
 
 
 /*----------------------------------------------------------------------------*
+ | wolfCrypt ECC
+ *----------------------------------------------------------------------------*/
+
+static void test_wc_ecc_get_curve_size_from_name(void)
+{
+#ifdef HAVE_ECC
+    int ret;
+
+    printf(testingFmt, "wc_ecc_get_curve_size_from_name");
+
+    #if !defined(NO_ECC256) && !defined(NO_ECC_SECP)
+        ret = wc_ecc_get_curve_size_from_name("SECP256R1");
+        AssertIntEQ(ret, 32);
+    #endif
+
+    /* invalid case */
+    ret = wc_ecc_get_curve_size_from_name("BADCURVE");
+    AssertIntEQ(ret, -1);
+
+    /* NULL input */
+    ret = wc_ecc_get_curve_size_from_name(NULL);
+    AssertIntEQ(ret, BAD_FUNC_ARG);
+
+    printf(resultFmt, passed);
+#endif /* HAVE_ECC */
+}
+
+static void test_wc_ecc_get_curve_id_from_name(void)
+{
+#ifdef HAVE_ECC
+    int id;
+
+    printf(testingFmt, "wc_ecc_get_curve_id_from_name");
+
+    #if !defined(NO_ECC256) && !defined(NO_ECC_SECP)
+        id = wc_ecc_get_curve_id_from_name("SECP256R1");
+        AssertIntEQ(id, ECC_SECP256R1);
+    #endif
+
+    /* invalid case */
+    id = wc_ecc_get_curve_id_from_name("BADCURVE");
+    AssertIntEQ(id, -1);
+
+    /* NULL input */
+    id = wc_ecc_get_curve_id_from_name(NULL);
+    AssertIntEQ(id, BAD_FUNC_ARG);
+
+    printf(resultFmt, passed);
+#endif /* HAVE_ECC */
+}
+
+static void test_wc_ecc_get_curve_id_from_params(void)
+{
+#ifdef HAVE_ECC
+    int id;
+
+    const byte prime[] =
+    {
+        0xFF,0xFF,0xFF,0xFF,0x00,0x00,0x00,0x01,
+        0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+        0x00,0x00,0x00,0x00,0xFF,0xFF,0xFF,0xFF,
+        0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF
+    };
+
+    const byte primeInvalid[] =
+    {
+        0xFF,0xFF,0xFF,0xFF,0x00,0x00,0x00,0x01,
+        0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+        0x00,0x00,0x00,0x00,0xFF,0xFF,0xFF,0xFF,
+        0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0x01,0x01
+    };
+
+    const byte Af[] =
+    {
+        0xFF,0xFF,0xFF,0xFF,0x00,0x00,0x00,0x01,
+        0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+        0x00,0x00,0x00,0x00,0xFF,0xFF,0xFF,0xFF,
+        0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFC
+    };
+
+    const byte Bf[] =
+    {
+        0x5A,0xC6,0x35,0xD8,0xAA,0x3A,0x93,0xE7,
+        0xB3,0xEB,0xBD,0x55,0x76,0x98,0x86,0xBC,
+        0x65,0x1D,0x06,0xB0,0xCC,0x53,0xB0,0xF6,
+        0x3B,0xCE,0x3C,0x3E,0x27,0xD2,0x60,0x4B
+    };
+
+    const byte order[] =
+    {
+        0xFF,0xFF,0xFF,0xFF,0x00,0x00,0x00,0x00,
+        0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,
+        0xBC,0xE6,0xFA,0xAD,0xA7,0x17,0x9E,0x84,
+        0xF3,0xB9,0xCA,0xC2,0xFC,0x63,0x25,0x51
+    };
+
+    const byte Gx[] =
+    {
+        0x6B,0x17,0xD1,0xF2,0xE1,0x2C,0x42,0x47,
+        0xF8,0xBC,0xE6,0xE5,0x63,0xA4,0x40,0xF2,
+        0x77,0x03,0x7D,0x81,0x2D,0xEB,0x33,0xA0,
+        0xF4,0xA1,0x39,0x45,0xD8,0x98,0xC2,0x96
+    };
+
+    const byte Gy[] =
+    {
+        0x4F,0xE3,0x42,0xE2,0xFE,0x1A,0x7F,0x9B,
+        0x8E,0xE7,0xEB,0x4A,0x7C,0x0F,0x9E,0x16,
+        0x2B,0xCE,0x33,0x57,0x6B,0x31,0x5E,0xCE,
+        0xCB,0xB6,0x40,0x68,0x37,0xBF,0x51,0xF5
+    };
+
+    int cofactor = 1;
+    int fieldSize = 256;
+
+    printf(testingFmt, "wc_ecc_get_curve_id_from_params");
+
+    #if !defined(NO_ECC256) && !defined(NO_ECC_SECP)
+        id = wc_ecc_get_curve_id_from_params(fieldSize, prime, sizeof(prime),
+                Af, sizeof(Af), Bf, sizeof(Bf), order, sizeof(order),
+                Gx, sizeof(Gx), Gy, sizeof(Gy), cofactor);
+        AssertIntEQ(id, ECC_SECP256R1);
+    #endif
+
+    /* invalid case, fieldSize = 0 */
+    id = wc_ecc_get_curve_id_from_params(0, prime, sizeof(prime),
+            Af, sizeof(Af), Bf, sizeof(Bf), order, sizeof(order),
+            Gx, sizeof(Gx), Gy, sizeof(Gy), cofactor);
+    AssertIntEQ(id, ECC_CURVE_INVALID);
+
+    /* invalid case, NULL prime */
+    id = wc_ecc_get_curve_id_from_params(fieldSize, NULL, sizeof(prime),
+            Af, sizeof(Af), Bf, sizeof(Bf), order, sizeof(order),
+            Gx, sizeof(Gx), Gy, sizeof(Gy), cofactor);
+    AssertIntEQ(id, BAD_FUNC_ARG);
+
+    /* invalid case, invalid prime */
+    id = wc_ecc_get_curve_id_from_params(fieldSize,
+            primeInvalid, sizeof(primeInvalid),
+            Af, sizeof(Af), Bf, sizeof(Bf), order, sizeof(order),
+            Gx, sizeof(Gx), Gy, sizeof(Gy), cofactor);
+    AssertIntEQ(id, ECC_CURVE_INVALID);
+
+    printf(resultFmt, passed);
+#endif
+}
+
+
+/*----------------------------------------------------------------------------*
+ | Certficate Failure Checks
+ *----------------------------------------------------------------------------*/
+#ifndef NO_CERTS
+    /* Use the Cert Manager(CM) API to generate the error ASN_SIG_CONFIRM_E */
+    static int verify_sig_cm(const char* ca, byte* cert_buf, size_t cert_sz,
+        int type)
+    {
+        int ret;
+        WOLFSSL_CERT_MANAGER* cm = NULL;
+
+        switch (type) {
+            case TESTING_RSA:
+            #ifdef NO_RSA
+                printf("RSA disabled, skipping test\n");
+                return ASN_SIG_CONFIRM_E;
+            #else
+                break;
+            #endif
+            case TESTING_ECC:
+            #ifndef HAVE_ECC
+                printf("ECC disabled, skipping test\n");
+                return ASN_SIG_CONFIRM_E;
+            #else
+                break;
+            #endif
+            default:
+                printf("Bad function argument\n");
+                return BAD_FUNC_ARG;
+        }
+        cm = wolfSSL_CertManagerNew();
+        if (cm == NULL) {
+            printf("wolfSSL_CertManagerNew failed\n");
+            return -1;
+        }
+
+        ret = wolfSSL_CertManagerLoadCA(cm, ca, 0);
+        if (ret != SSL_SUCCESS) {
+            printf("wolfSSL_CertManagerLoadCA failed\n");
+            wolfSSL_CertManagerFree(cm);
+            return ret;
+        }
+
+        ret = wolfSSL_CertManagerVerifyBuffer(cm, cert_buf, cert_sz, SSL_FILETYPE_ASN1);
+        /* Let AssertIntEQ handle return code */
+
+        wolfSSL_CertManagerFree(cm);
+
+        return ret;
+    }
+
+    static int test_RsaSigFailure_cm(void)
+    {
+        int ret = 0;
+        const char* ca_cert = "./certs/ca-cert.pem";
+        const char* server_cert = "./certs/server-cert.der";
+        byte* cert_buf = NULL;
+        size_t cert_sz = 0;
+
+        ret = load_file(server_cert, &cert_buf, &cert_sz);
+        if (ret == 0) {
+            /* corrupt DER - invert last byte, which is signature */
+            cert_buf[cert_sz-1] = ~cert_buf[cert_sz-1];
+
+            /* test bad cert */
+            ret = verify_sig_cm(ca_cert, cert_buf, cert_sz, TESTING_RSA);
+        }
+
+        printf("Signature failure test: RSA: Ret %d\n", ret);
+
+        if (cert_buf)
+            free(cert_buf);
+
+        return ret;
+    }
+
+    static int test_EccSigFailure_cm(void)
+    {
+        int ret = 0;
+        /* self-signed ECC cert, so use server cert as CA */
+        const char* ca_cert = "./certs/server-ecc.pem";
+        const char* server_cert = "./certs/server-ecc.der";
+        byte* cert_buf = NULL;
+        size_t cert_sz = 0;
+
+        ret = load_file(server_cert, &cert_buf, &cert_sz);
+        if (ret == 0) {
+            /* corrupt DER - invert last byte, which is signature */
+            cert_buf[cert_sz-1] = ~cert_buf[cert_sz-1];
+
+            /* test bad cert */
+            ret = verify_sig_cm(ca_cert, cert_buf, cert_sz, TESTING_ECC);
+        }
+
+        printf("Signature failure test: ECC: Ret %d\n", ret);
+
+        if (cert_buf)
+            free(cert_buf);
+
+        return ret;
+    }
+
+#endif /* NO_CERTS */
+
+
+/*----------------------------------------------------------------------------*
  | Main
  *----------------------------------------------------------------------------*/
 
@@ -3138,6 +3398,17 @@ void ApiTest(void)
 
     /* wolfCrypt ASN tests */
     test_wc_GetPkcs8TraditionalOffset();
+
+    /* wolfCrypt ECC tests */
+    test_wc_ecc_get_curve_size_from_name();
+    test_wc_ecc_get_curve_id_from_name();
+    test_wc_ecc_get_curve_id_from_params();
+
+#ifndef NO_CERTS
+    /* Bad certificate signature tests */
+    AssertIntEQ(test_EccSigFailure_cm(), ASN_SIG_CONFIRM_E);
+    AssertIntEQ(test_RsaSigFailure_cm(), ASN_SIG_CONFIRM_E);
+#endif /* NO_CERTS */
 
     printf(" End API Tests\n");
 

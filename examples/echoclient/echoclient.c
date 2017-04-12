@@ -130,16 +130,16 @@ void echoclient_test(void* args)
 
 #ifndef NO_FILESYSTEM
     #ifndef NO_RSA
-    if (SSL_CTX_load_verify_locations(ctx, caCert, 0) != SSL_SUCCESS)
+    if (SSL_CTX_load_verify_locations(ctx, caCertFile, 0) != SSL_SUCCESS)
         err_sys("can't load ca file, Please run from wolfSSL home dir");
     #endif
     #ifdef HAVE_ECC
-        if (SSL_CTX_load_verify_locations(ctx, eccCert, 0) != SSL_SUCCESS)
+        if (SSL_CTX_load_verify_locations(ctx, eccCertFile, 0) != SSL_SUCCESS)
             err_sys("can't load ca file, Please run from wolfSSL home dir");
     #endif
 #elif !defined(NO_CERTS)
     if (!doPSK)
-        load_buffer(ctx, caCert, WOLFSSL_CA);
+        load_buffer(ctx, caCertFile, WOLFSSL_CA);
 #endif
 
 #if defined(CYASSL_SNIFFER)

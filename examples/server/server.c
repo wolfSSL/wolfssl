@@ -213,12 +213,12 @@ static void Usage(void)
     printf("-v <num>    SSL version [0-3], SSLv3(0) - TLS1.2(3)), default %d\n",
                                  SERVER_DEFAULT_VERSION);
     printf("-l <str>    Cipher suite list (: delimited)\n");
-    printf("-c <file>   Certificate file,           default %s\n", svrCert);
-    printf("-k <file>   Key file,                   default %s\n", svrKey);
-    printf("-A <file>   Certificate Authority file, default %s\n", cliCert);
+    printf("-c <file>   Certificate file,           default %s\n", svrCertFile);
+    printf("-k <file>   Key file,                   default %s\n", svrKeyFile);
+    printf("-A <file>   Certificate Authority file, default %s\n", cliCertFile);
     printf("-R <file>   Create Ready file for external monitor default none\n");
 #ifndef NO_DH
-    printf("-D <file>   Diffie-Hellman Params file, default %s\n", dhParam);
+    printf("-D <file>   Diffie-Hellman Params file, default %s\n", dhParamFile);
     printf("-Z <num>    Minimum DH key bits,        default %d\n",
                                  DEFAULT_MIN_DHKEY_BITS);
 #endif
@@ -267,6 +267,7 @@ static void Usage(void)
 #endif
     printf("-g          Return basic HTML web page\n");
     printf("-C <num>    The number of connections to accept, default: 1\n");
+    printf("-U          Force use of the default cipher suite list\n");
 }
 
 THREAD_RETURN CYASSL_THREAD server_test(void* args)
@@ -319,10 +320,11 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     char*  alpnList = NULL;
     unsigned char alpn_opt = 0;
     char*  cipherList = NULL;
-    const char* verifyCert = cliCert;
-    const char* ourCert    = svrCert;
-    const char* ourKey     = svrKey;
-    const char* ourDhParam = dhParam;
+    int    useDefCipherList = 0;
+    const char* verifyCert = cliCertFile;
+    const char* ourCert    = svrCertFile;
+    const char* ourKey     = svrKeyFile;
+    const char* ourDhParam = dhParamFile;
     tcp_ready*  readySignal = NULL;
     int    argc = ((func_args*)args)->argc;
     char** argv = ((func_args*)args)->argv;
@@ -363,9 +365,9 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     ((func_args*)args)->return_code = -1; /* error state */
 
 #ifdef NO_RSA
-    verifyCert = (char*)cliEccCert;
-    ourCert    = (char*)eccCert;
-    ourKey     = (char*)eccKey;
+    verifyCert = (char*)cliEccCertFile;
+    ourCert    = (char*)eccCertFile;
+    ourKey     = (char*)eccKeyFile;
 #endif
     (void)pkCallbacks;
     (void)needDH;
@@ -390,8 +392,10 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
 #ifdef WOLFSSL_VXWORKS
     useAnyAddr = 1;
 #else
-    while ((ch = mygetopt(argc, argv,
-               "?jdbstnNuGfrawPIR:p:v:l:A:c:k:Z:S:oO:D:L:ieB:E:q:gC:")) != -1) {
+    /* Not Used: h, m, x, y, z, F, J, K, M, Q, T, U, V, W, X, Y */
+    while ((ch = mygetopt(argc, argv, "?"
+                "abc:defgijk:l:nop:q:rstuv:w"
+                "A:B:C:D:E:GHIL:NO:PR:S:YZ:")) != -1) {
         switch (ch) {
             case '?' :
                 Usage();
@@ -473,6 +477,10 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
 
             case 'l' :
                 cipherList = myoptarg;
+                break;
+
+            case 'H' :
+                useDefCipherList = 1;
                 break;
 
             case 'A' :
@@ -716,9 +724,10 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     wolfSSL_CTX_set_TicketEncCb(ctx, myTicketEncCb);
 #endif
 
-    if (cipherList)
+    if (cipherList && !useDefCipherList) {
         if (SSL_CTX_set_cipher_list(ctx, cipherList) != SSL_SUCCESS)
             err_sys("server can't set cipher list 1");
+    }
 
 #ifdef CYASSL_LEANPSK
     if (!usePsk) {
@@ -822,7 +831,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     if (useAnon) {
 #ifdef HAVE_ANON
         CyaSSL_CTX_allow_anon_cipher(ctx);
-        if (cipherList == NULL) {
+        if (cipherList == NULL || (cipherList && useDefCipherList)) {
             if (SSL_CTX_set_cipher_list(ctx, "ADH-AES128-SHA") != SSL_SUCCESS)
                 err_sys("server can't set cipher list 4");
         }

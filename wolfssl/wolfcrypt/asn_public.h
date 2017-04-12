@@ -253,6 +253,8 @@ WOLFSSL_API int wc_SetKeyUsage(Cert *cert, const char *value);
     WOLFSSL_API int wc_EccPrivateKeyDecode(const byte*, word32*,
                                            ecc_key*, word32);
     WOLFSSL_API int wc_EccKeyToDer(ecc_key*, byte* output, word32 inLen);
+    WOLFSSL_API int wc_EccPrivateKeyToDer(ecc_key* key, byte* output,
+                                          word32 inLen);
 
     /* public key helper */
     WOLFSSL_API int wc_EccPublicKeyDecode(const byte*, word32*,
@@ -270,6 +272,8 @@ WOLFSSL_API int wc_GetCTC_HashOID(int type);
 
 WOLFSSL_API int wc_GetPkcs8TraditionalOffset(byte* input,
                                              word32* inOutIdx, word32 sz);
+WOLFSSL_API int wc_CreatePKCS8Key(byte* out, word32* outSz,
+       byte* key, word32 keySz, int algoID, const byte* curveOID, word32 oidSz);
 
 /* Time */
 /* Returns seconds (Epoch/UTC)

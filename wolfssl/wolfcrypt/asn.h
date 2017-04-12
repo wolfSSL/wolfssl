@@ -134,6 +134,7 @@ enum Misc_ASN {
     MAX_KEY_SIZE        =  64,     /* MAX PKCS Key  length */
     PKCS5               =   5,     /* PKCS oid tag */
     PKCS5v2             =   6,     /* PKCS #5 v2.0 */
+    PKCS8v0             =   0,     /* default PKCS#8 version */
     PKCS12              =  12,     /* PKCS #12 */
     MAX_UNICODE_SZ      = 256,
     ASN_BOOL_SIZE       =   2,     /* including type */
@@ -684,6 +685,8 @@ WOLFSSL_LOCAL int ToTraditionalInline(const byte* input, word32* inOutIdx,
                                       word32 length);
 WOLFSSL_LOCAL int ToTraditionalEnc(byte* buffer, word32 length,const char*,int);
 WOLFSSL_LOCAL int DecryptContent(byte* input, word32 sz,const char* psw,int pswSz);
+WOLFSSL_LOCAL int wc_GetKeyOID(byte* key, word32 keySz, const byte** curveOID,
+        word32* oidSz, int* algoID, void* heap);
 
 typedef struct tm wolfssl_tm;
 #if defined(WOLFSSL_MYSQL_COMPATIBLE) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)

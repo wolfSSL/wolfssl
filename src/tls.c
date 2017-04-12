@@ -2914,11 +2914,6 @@ int TLSX_ValidateEllipticCurves(WOLFSSL* ssl, byte first, byte second) {
             case WOLFSSL_ECC_SECP160R1:
                 oid = ECC_SECP160R1_OID;
                 octets = 20;
-                /* Default for 160-bits. */
-                if (ssl->eccTempKeySz <= octets && defSz > octets) {
-                    defOid = oid;
-                    defSz = octets;
-                }
                 break;
         #endif /* !NO_ECC_SECP */
         #ifdef HAVE_ECC_SECPR2
@@ -2939,11 +2934,6 @@ int TLSX_ValidateEllipticCurves(WOLFSSL* ssl, byte first, byte second) {
             case WOLFSSL_ECC_SECP192R1:
                 oid = ECC_SECP192R1_OID;
                 octets = 24;
-                /* Default for 192-bits. */
-                if (ssl->eccTempKeySz <= octets && defSz > octets) {
-                    defOid = oid;
-                    defSz = octets;
-                }
                 break;
         #endif /* !NO_ECC_SECP */
         #ifdef HAVE_ECC_KOBLITZ
@@ -2958,11 +2948,6 @@ int TLSX_ValidateEllipticCurves(WOLFSSL* ssl, byte first, byte second) {
             case WOLFSSL_ECC_SECP224R1:
                 oid = ECC_SECP224R1_OID;
                 octets = 28;
-                /* Default for 224-bits. */
-                if (ssl->eccTempKeySz <= octets && defSz > octets) {
-                    defOid = oid;
-                    defSz = octets;
-                }
                 break;
         #endif /* !NO_ECC_SECP */
         #ifdef HAVE_ECC_KOBLITZ
@@ -2972,16 +2957,11 @@ int TLSX_ValidateEllipticCurves(WOLFSSL* ssl, byte first, byte second) {
                 break;
         #endif /* HAVE_ECC_KOBLITZ */
     #endif
-    #if !defined(NO_ECC256)  || defined(HAVE_ALL_CURVES)
+    #if !defined(NO_ECC256) || defined(HAVE_ALL_CURVES)
         #ifndef NO_ECC_SECP
             case WOLFSSL_ECC_SECP256R1:
                 oid = ECC_SECP256R1_OID;
                 octets = 32;
-                /* Default for 256-bits. */
-                if (ssl->eccTempKeySz <= octets && defSz > octets) {
-                    defOid = oid;
-                    defSz = octets;
-                }
                 break;
         #endif /* !NO_ECC_SECP */
         #ifdef HAVE_ECC_KOBLITZ
@@ -3002,11 +2982,6 @@ int TLSX_ValidateEllipticCurves(WOLFSSL* ssl, byte first, byte second) {
             case WOLFSSL_ECC_SECP384R1:
                 oid = ECC_SECP384R1_OID;
                 octets = 48;
-                /* Default for 384-bits. */
-                if (ssl->eccTempKeySz <= octets && defSz > octets) {
-                    defOid = oid;
-                    defSz = octets;
-                }
                 break;
         #endif /* !NO_ECC_SECP */
         #ifdef HAVE_ECC_BRAINPOOL
@@ -3033,6 +3008,12 @@ int TLSX_ValidateEllipticCurves(WOLFSSL* ssl, byte first, byte second) {
         #endif /* !NO_ECC_SECP */
     #endif
             default: continue; /* unsupported curve */
+        }
+
+        /* Set default Oid */
+        if (defOid == 0 && ssl->eccTempKeySz <= octets && defSz > octets) {
+            defOid = oid;
+            defSz = octets;
         }
 
         if (currOid == 0 && ssl->eccTempKeySz == octets)
@@ -3418,6 +3399,7 @@ int TLSX_AddEmptyRenegotiationInfo(TLSX** extensions, void* heap)
 
 #ifdef HAVE_SESSION_TICKET
 
+#ifndef NO_WOLFSSL_CLIENT
 static void TLSX_SessionTicket_ValidateRequest(WOLFSSL* ssl)
 {
     TLSX*          extension = TLSX_Find(ssl->extensions, TLSX_SESSION_TICKET);
@@ -3432,6 +3414,7 @@ static void TLSX_SessionTicket_ValidateRequest(WOLFSSL* ssl)
         }
     }
 }
+#endif /* NO_WOLFSSL_CLIENT */
 
 
 static word16 TLSX_SessionTicket_GetSize(SessionTicket* ticket, int isRequest)
@@ -3466,7 +3449,9 @@ static int TLSX_SessionTicket_Parse(WOLFSSL* ssl, byte* input, word16 length,
         if (length != 0)
             return BUFFER_ERROR;
 
+#ifndef NO_WOLFSSL_CLIENT
         ssl->expect_session_ticket = 1;
+#endif
     }
 #ifndef NO_WOLFSSL_SERVER
     else {
@@ -3564,19 +3549,19 @@ int TLSX_UseSessionTicket(TLSX** extensions, SessionTicket* ticket, void* heap)
     return SSL_SUCCESS;
 }
 
-#define STK_VALIDATE_REQUEST TLSX_SessionTicket_ValidateRequest
-#define STK_GET_SIZE         TLSX_SessionTicket_GetSize
-#define STK_WRITE            TLSX_SessionTicket_Write
-#define STK_PARSE            TLSX_SessionTicket_Parse
-#define STK_FREE(stk, heap)  TLSX_SessionTicket_Free((SessionTicket*)stk,(heap))
+#define WOLF_STK_VALIDATE_REQUEST TLSX_SessionTicket_ValidateRequest
+#define WOLF_STK_GET_SIZE         TLSX_SessionTicket_GetSize
+#define WOLF_STK_WRITE            TLSX_SessionTicket_Write
+#define WOLF_STK_PARSE            TLSX_SessionTicket_Parse
+#define WOLF_STK_FREE(stk, heap)  TLSX_SessionTicket_Free((SessionTicket*)stk,(heap))
 
 #else
 
-#define STK_FREE(a, b)
-#define STK_VALIDATE_REQUEST(a)
-#define STK_GET_SIZE(a, b)      0
-#define STK_WRITE(a, b, c)      0
-#define STK_PARSE(a, b, c, d)   0
+#define WOLF_STK_FREE(a, b)
+#define WOLF_STK_VALIDATE_REQUEST(a)
+#define WOLF_STK_GET_SIZE(a, b)      0
+#define WOLF_STK_WRITE(a, b, c)      0
+#define WOLF_STK_PARSE(a, b, c, d)   0
 
 #endif /* HAVE_SESSION_TICKET */
 
@@ -4229,7 +4214,7 @@ void TLSX_FreeAll(TLSX* list, void* heap)
                 break;
 
             case TLSX_SESSION_TICKET:
-                STK_FREE(extension->data, heap);
+                WOLF_STK_FREE(extension->data, heap);
                 break;
 
             case TLSX_QUANTUM_SAFE_HYBRID:
@@ -4310,7 +4295,7 @@ static word16 TLSX_GetSize(TLSX* list, byte* semaphore, byte isRequest)
                 break;
 
             case TLSX_SESSION_TICKET:
-                length += STK_GET_SIZE((SessionTicket*)extension->data,
+                length += WOLF_STK_GET_SIZE((SessionTicket*)extension->data,
                         isRequest);
                 break;
 
@@ -4393,7 +4378,7 @@ static word16 TLSX_Write(TLSX* list, byte* output, byte* semaphore,
                 break;
 
             case TLSX_SESSION_TICKET:
-                offset += STK_WRITE((SessionTicket*)extension->data,
+                offset += WOLF_STK_WRITE((SessionTicket*)extension->data,
                         output + offset, isRequest);
                 break;
 
@@ -4797,7 +4782,7 @@ word16 TLSX_GetRequestSize(WOLFSSL* ssl)
 
         EC_VALIDATE_REQUEST(ssl, semaphore);
         QSH_VALIDATE_REQUEST(ssl, semaphore);
-        STK_VALIDATE_REQUEST(ssl);
+        WOLF_STK_VALIDATE_REQUEST(ssl);
 
         if (ssl->extensions)
             length += TLSX_GetSize(ssl->extensions, semaphore, 1);
@@ -4832,7 +4817,7 @@ word16 TLSX_WriteRequest(WOLFSSL* ssl, byte* output)
         offset += OPAQUE16_LEN; /* extensions length */
 
         EC_VALIDATE_REQUEST(ssl, semaphore);
-        STK_VALIDATE_REQUEST(ssl);
+        WOLF_STK_VALIDATE_REQUEST(ssl);
         QSH_VALIDATE_REQUEST(ssl, semaphore);
 
         if (ssl->extensions)
@@ -5031,7 +5016,7 @@ int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte isRequest,
             case TLSX_SESSION_TICKET:
                 WOLFSSL_MSG("Session Ticket extension received");
 
-                ret = STK_PARSE(ssl, input + offset, size, isRequest);
+                ret = WOLF_STK_PARSE(ssl, input + offset, size, isRequest);
                 break;
 
             case TLSX_QUANTUM_SAFE_HYBRID:

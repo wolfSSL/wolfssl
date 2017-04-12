@@ -32,6 +32,10 @@
 /* Macro to disable benchmark */
 #ifndef NO_CRYPT_BENCHMARK
 
+#ifdef XMALLOC_USER
+    #include <stdlib.h>  /* we're using malloc / free direct here */
+#endif
+
 #ifdef WOLFSSL_STATIC_MEMORY
     #include <wolfssl/wolfcrypt/memory.h>
     static WOLFSSL_HEAP_HINT* HEAP_HINT;
@@ -92,6 +96,12 @@
 #endif
 #include <wolfssl/wolfcrypt/random.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
+
+/* only for stack size check */
+#ifdef HAVE_STACK_SIZE
+    #include <wolfssl/ssl.h>
+    #include <wolfssl/test.h>
+#endif
 
 #ifdef WOLFSSL_ASYNC_CRYPT
     #include <wolfssl/wolfcrypt/async.h>
@@ -158,7 +168,7 @@
 #if defined(USE_CERT_BUFFERS_1024) || defined(USE_CERT_BUFFERS_2048) \
                                    || !defined(NO_DH)
     /* include test cert and key buffers for use with NO_FILESYSTEM */
-        #include <wolfssl/certs_test.h>
+    #include <wolfssl/certs_test.h>
 #endif
 
 
@@ -177,6 +187,7 @@
 #ifdef USE_WOLFSSL_MEMORY
     #include "wolfssl/wolfcrypt/mem_track.h"
 #endif
+
 
 void bench_des(void);
 void bench_idea(void);
@@ -233,10 +244,14 @@ void bench_ntruKeyGen(void);
 void bench_rng(void);
 #endif /* WC_NO_RNG */
 
-double current_time(int);
+#ifdef WOLFSSL_CURRTIME_REMAP
+    #define current_time WOLFSSL_CURRTIME_REMAP
+#elif !defined(HAVE_STACK_SIZE)
+    double current_time(int);
+#endif
 
-
-#if defined(DEBUG_WOLFSSL) && !defined(HAVE_VALGRIND)
+#if defined(DEBUG_WOLFSSL) && !defined(HAVE_VALGRIND) && \
+        !defined(HAVE_STACK_SIZE)
     WOLFSSL_API int wolfSSL_Debugging_ON();
 #endif
 
@@ -279,28 +294,24 @@ static const XGEN_ALIGN byte iv[] =
 };
 
 
-/* so embedded projects can pull in tests on their own */
-#if !defined(NO_MAIN_DRIVER)
-
-int main(int argc, char** argv)
-
-{
-    (void)argc;
-    (void)argv;
-#else
-int benchmark_test(void *args)
-{
-    (void)args;
-#endif
-
 #ifdef WOLFSSL_STATIC_MEMORY
     #ifdef BENCH_EMBEDDED
-        byte memory[50000];
+        static byte gBenchMemory[50000];
     #else
-        byte memory[400000];
+        static byte gBenchMemory[400000];
     #endif
+#endif
 
-    if (wc_LoadStaticMemory(&HEAP_HINT, memory, sizeof(memory),
+#ifdef HAVE_STACK_SIZE
+THREAD_RETURN WOLFSSL_THREAD benchmark_test(void* args)
+#else
+int benchmark_test(void *args)
+#endif
+{
+    (void)args;
+
+#ifdef WOLFSSL_STATIC_MEMORY
+    if (wc_LoadStaticMemory(&HEAP_HINT, gBenchMemory, sizeof(gBenchMemory),
                                                 WOLFMEM_GENERAL, 1) != 0) {
         printf("unable to load static memory");
         exit(EXIT_FAILURE);
@@ -311,7 +322,6 @@ int benchmark_test(void *args)
     InitMemoryTracker();
 #endif
 
-    wolfCrypt_Init();
     INIT_CYCLE_COUNTER
 
 #if defined(DEBUG_WOLFSSL) && !defined(HAVE_VALGRIND)
@@ -330,13 +340,6 @@ int benchmark_test(void *args)
     }
 #endif /* WOLFSSL_ASYNC_CRYPT */
 
-#ifdef HAVE_WNR
-    if (wc_InitNetRandom(wnrConfigFile, NULL, 5000) != 0) {
-        printf("Whitewood netRandom config init failed\n");
-        exit(-1);
-    }
-#endif /* HAVE_WNR */
-
 #if defined(HAVE_LOCAL_RNG)
     {
         int rngRet;
@@ -348,7 +351,7 @@ int benchmark_test(void *args)
 #endif
         if (rngRet < 0) {
             printf("InitRNG failed\n");
-            return rngRet;
+            EXIT_TEST(rngRet);
         }
     }
 #endif
@@ -492,23 +495,52 @@ int benchmark_test(void *args)
     wolfAsync_DevClose(&devId);
 #endif
 
-#ifdef HAVE_WNR
-    if (wc_FreeNetRandom() < 0) {
-        printf("Failed to free netRandom context\n");
-        exit(-1);
-    }
-#endif
-
-    if (wolfCrypt_Cleanup() != 0) {
-        printf("error with wolfCrypt_Cleanup\n");
-    }
-
 #if defined(USE_WOLFSSL_MEMORY) && defined(WOLFSSL_TRACK_MEMORY)
     ShowMemoryTracker();
 #endif
 
     EXIT_TEST(0);
 }
+
+
+#ifndef NO_MAIN_DRIVER
+int main(int argc, char** argv)
+{
+    int ret;
+
+    (void)argc;
+    (void)argv;
+
+#ifdef HAVE_WNR
+    if (wc_InitNetRandom(wnrConfigFile, NULL, 5000) != 0) {
+        printf("Whitewood netRandom config init failed\n");
+        exit(-1);
+    }
+#endif /* HAVE_WNR */
+
+    wolfCrypt_Init();
+
+#ifdef HAVE_STACK_SIZE
+    ret = StackSizeCheck(NULL, benchmark_test);
+#else
+    ret = benchmark_test(NULL);
+#endif
+
+    if (wolfCrypt_Cleanup() != 0) {
+        printf("Error with wolfCrypt_Cleanup!\n");
+        exit(-1);
+    }
+
+#ifdef HAVE_WNR
+    if (wc_FreeNetRandom() < 0) {
+        printf("Failed to free netRandom context\n");
+        exit(-1);
+    }
+#endif /* HAVE_WNR */
+
+    return ret;
+}
+#endif /* NO_MAIN_DRIVER */
 
 
 #ifdef BENCH_EMBEDDED
@@ -2544,7 +2576,7 @@ void bench_ed25519KeySign(void)
 }
 #endif /* HAVE_ED25519 */
 
-
+#ifndef HAVE_STACK_SIZE
 #if defined(_WIN32) && !defined(INTIME_RTOS)
 
     #define WIN32_LEAN_AND_MEAN
@@ -2592,8 +2624,9 @@ void bench_ed25519KeySign(void)
         return ( ns / CLOCK * 2.0);
     }
 
-#elif defined(WOLFSSL_IAR_ARM_TIME) || defined (WOLFSSL_MDK_ARM) || defined(WOLFSSL_USER_CURRTIME)
-    /* declared above at line 189 */
+#elif defined(WOLFSSL_IAR_ARM_TIME) || defined (WOLFSSL_MDK_ARM) || \
+      defined(WOLFSSL_USER_CURRTIME) || defined(WOLFSSL_CURRTIME_REMAP)
+    /* declared above at line 239 */
     /* extern   double current_time(int reset); */
 
 #elif defined FREERTOS
@@ -2655,6 +2688,7 @@ void bench_ed25519KeySign(void)
     }
 
 #endif /* _WIN32 */
+#endif /* !HAVE_STACK_SIZE */
 
 #if defined(HAVE_GET_CYCLES)
 

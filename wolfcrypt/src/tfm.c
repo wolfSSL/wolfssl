@@ -2741,10 +2741,8 @@ int mp_rand_prime(mp_int* N, int len, WC_RNG* rng, void* heap)
     switch(err) {
         case FP_VAL:
             return MP_VAL;
-            break;
         case FP_MEM:
             return MP_MEM;
-            break;
         default:
             break;
     }

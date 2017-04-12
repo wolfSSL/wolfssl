@@ -184,6 +184,8 @@
 	    extern void *XMALLOC(size_t n, void* heap, int type);
 	    extern void *XREALLOC(void *p, size_t n, void* heap, int type);
 	    extern void XFREE(void *p, void* heap, int type);
+    #elif defined(XMALLOC_OVERRIDE)
+        /* override the XMALLOC, XFREE and XREALLOC macros */
 	#elif defined(NO_WOLFSSL_MEMORY)
 	    /* just use plain C stdlib stuff if desired */
 	    #include <stdlib.h>
@@ -194,7 +196,7 @@
 	        && !defined(WOLFSSL_SAFERTOS) && !defined(FREESCALE_MQX) \
 	        && !defined(FREESCALE_KSDK_MQX) && !defined(FREESCALE_FREE_RTOS) \
             && !defined(WOLFSSL_LEANPSK) && !defined(FREERTOS) && !defined(FREERTOS_TCP)\
-            && !defined(WOLFSSL_uITRON4) && !defined(WOLFSSL_uTKERNEL2)
+            && !defined(WOLFSSL_uITRON4)
 	    /* default C runtime, can install different routines at runtime via cbs */
 	    #include <wolfssl/wolfcrypt/memory.h>
         #ifdef WOLFSSL_STATIC_MEMORY
@@ -343,7 +345,8 @@
         DYNAMIC_TYPE_MUTEX        = 59,
         DYNAMIC_TYPE_PKCS7        = 60,
         DYNAMIC_TYPE_ASN1         = 61,
-        DYNAMIC_TYPE_LOG          = 62
+        DYNAMIC_TYPE_LOG          = 62,
+        DYNAMIC_TYPE_WRITEDUP     = 63
 	};
 
 	/* max error buffer string size */
@@ -438,6 +441,8 @@
 
     #ifdef WOLFSSL_RIOT_OS
         #define EXIT_TEST(ret) exit(ret)
+    #elif defined(HAVE_STACK_SIZE)
+        #define EXIT_TEST(ret) return (void*)((size_t)(ret))
     #else
         #define EXIT_TEST(ret) return ret
     #endif
