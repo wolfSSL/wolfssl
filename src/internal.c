@@ -17202,6 +17202,8 @@ int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         int                sendSz;
         int                ret;
         byte               sessIdSz = ID_LEN;
+        byte               echoId   = 0;  /* ticket echo id flag */
+        byte               cacheOff = 0;  /* session cache off flag */
 
         length = VERSION_SZ + RAN_LEN
                + ID_LEN + ENUM_LEN
@@ -17219,6 +17221,7 @@ int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                 return BUFFER_ERROR;
             }
             length -= (ID_LEN - sessIdSz);  /* adjust ID_LEN assumption */
+            echoId = 1;
         }
     #endif /* HAVE_SESSION_TICKET */
 #else
@@ -17226,6 +17229,22 @@ int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             length += HELLO_EXT_SZ_SZ + HELLO_EXT_SZ;
         }
 #endif
+
+        /* is the session cahce off at build or runtime */
+#ifdef NO_SESSION_CACHE
+        cacheOff = 1;
+#else
+        if (ssl->options.sessionCacheOff == 1) {
+            cacheOff = 1;
+        }
+#endif
+
+        /* if no session cache don't send a session ID unless we're echoing
+         * an ID as part of session tickets */
+        if (echoId == 0 && cacheOff == 1) {
+            length -= ID_LEN;    /* adjust ID_LEN assumption */
+            sessIdSz = 0;
+        }
 
         /* check for avalaible size */
         if ((ret = CheckAvailableSize(ssl, MAX_HELLO_SZ)) != 0)
