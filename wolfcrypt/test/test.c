@@ -222,6 +222,8 @@ int  chacha20_poly1305_aead_test(void);
 int  des_test(void);
 int  des3_test(void);
 int  aes_test(void);
+int  aes192_test(void);
+int  aes256_test(void);
 int  cmac_test(void);
 int  poly1305_test(void);
 int  aesgcm_test(void);
@@ -624,6 +626,16 @@ int wolfcrypt_test(void* args)
         return err_sys("AES      test failed!\n", ret);
     else
         printf( "AES      test passed!\n");
+
+    if ( (ret = aes192_test()) != 0)
+        return err_sys("AES192   test failed!\n", ret);
+    else
+        printf( "AES192   test passed!\n");
+
+    if ( (ret = aes256_test()) != 0)
+        return err_sys("AES256   test failed!\n", ret);
+    else
+        printf( "AES256   test passed!\n");
 
 #ifdef HAVE_AESGCM
     if ( (ret = aesgcm_test()) != 0)
@@ -4003,6 +4015,156 @@ int aes_test(void)
 #endif
 
     return ret;
+}
+
+int aes192_test(void)
+{
+#ifdef HAVE_AES_CBC
+    Aes enc;
+    byte cipher[AES_BLOCK_SIZE];
+#ifdef HAVE_AES_DECRYPT
+    Aes dec;
+    byte plain [AES_BLOCK_SIZE];
+#endif
+#endif /* HAVE_AES_CBC */
+    int  ret = 0;
+
+#ifdef HAVE_AES_CBC
+    /*
+     * http://www.inconteam.com/software-development/41-encryption/
+     *                                         55-aes-test-vectors#aes-cbc-192
+     */
+    const byte msg[] = {
+        0x6b,0xc1,0xbe,0xe2,0x2e,0x40,0x9f,0x96,
+        0xe9,0x3d,0x7e,0x11,0x73,0x93,0x17,0x2a
+    };
+
+    const byte verify[] =
+    {
+        0x4f,0x02,0x1d,0xb2,0x43,0xbc,0x63,0x3d,
+        0x71,0x78,0x18,0x3a,0x9f,0xa0,0x71,0xe8
+    };
+
+    byte key[] = {
+        0x8e,0x73,0xb0,0xf7,0xda,0x0e,0x64,0x52,
+        0xc8,0x10,0xf3,0x2b,0x80,0x90,0x79,0xe5,
+        0x62,0xf8,0xea,0xd2,0x52,0x2c,0x6b,0x7b
+    };
+    byte iv[]  = {
+        0x00,0x01,0x02,0x03,0x04,0x05,0x06,0x07,
+        0x08,0x09,0x0A,0x0B,0x0C,0x0D,0x0E,0x0F
+    };
+
+
+    if (wc_AesInit(&enc, HEAP_HINT, devId) != 0)
+        return -21000;
+#ifdef HAVE_AES_DECRYPT
+    if (wc_AesInit(&dec, HEAP_HINT, devId) != 0)
+        return -21001;
+#endif
+
+
+    ret = wc_AesSetKey(&enc, key, (int) sizeof(key), iv, AES_ENCRYPTION);
+    if (ret != 0)
+        return -21002;
+#ifdef HAVE_AES_DECRYPT
+    ret = wc_AesSetKey(&dec, key, (int) sizeof(key), iv, AES_DECRYPTION);
+    if (ret != 0)
+        return -21003;
+#endif
+
+    ret = wc_AesCbcEncrypt(&enc, cipher, msg, (int) sizeof(msg));
+    if (ret != 0)
+        return -21005;
+#ifdef HAVE_AES_DECRYPT
+    ret = wc_AesCbcDecrypt(&dec, plain, cipher, (int) sizeof(cipher));
+    if (ret != 0)
+        return -21006;
+    if (XMEMCMP(plain, msg, (int) sizeof(plain))) {
+        return -21060;
+    }
+#endif
+
+    if (XMEMCMP(cipher, verify, (int) sizeof(cipher)))
+        return -21061;
+#endif
+
+    return ret;
+}
+
+int aes256_test(void)
+{
+#ifdef HAVE_AES_CBC
+    Aes enc;
+    byte cipher[AES_BLOCK_SIZE];
+#ifdef HAVE_AES_DECRYPT
+    Aes dec;
+    byte plain [AES_BLOCK_SIZE];
+#endif
+#endif /* HAVE_AES_CBC */
+    int  ret = 0;
+
+#ifdef HAVE_AES_CBC
+    /*
+     * http://www.inconteam.com/software-development/41-encryption/
+     *                                      55-aes-test-vectors#aes-cbc-256
+     */
+    const byte msg[] = { /* "Now is the time for all " w/o trailing 0 */
+        0x6b,0xc1,0xbe,0xe2,0x2e,0x40,0x9f,0x96,
+        0xe9,0x3d,0x7e,0x11,0x73,0x93,0x17,0x2a
+    };
+
+    const byte verify[] =
+    {
+        0xf5,0x8c,0x4c,0x04,0xd6,0xe5,0xf1,0xba,
+        0x77,0x9e,0xab,0xfb,0x5f,0x7b,0xfb,0xd6
+    };
+
+    byte key[] = {
+        0x60,0x3d,0xeb,0x10,0x15,0xca,0x71,0xbe,
+        0x2b,0x73,0xae,0xf0,0x85,0x7d,0x77,0x81,
+        0x1f,0x35,0x2c,0x07,0x3b,0x61,0x08,0xd7,
+        0x2d,0x98,0x10,0xa3,0x09,0x14,0xdf,0xf4
+    };
+    byte iv[]  = {
+        0x00,0x01,0x02,0x03,0x04,0x05,0x06,0x07,
+        0x08,0x09,0x0A,0x0B,0x0C,0x0D,0x0E,0x0F
+    };
+
+
+    if (wc_AesInit(&enc, HEAP_HINT, devId) != 0)
+        return -22000;
+#ifdef HAVE_AES_DECRYPT
+    if (wc_AesInit(&dec, HEAP_HINT, devId) != 0)
+        return -22001;
+#endif
+
+
+    ret = wc_AesSetKey(&enc, key, (int) sizeof(key), iv, AES_ENCRYPTION);
+    if (ret != 0)
+        return -22003;
+#ifdef HAVE_AES_DECRYPT
+    ret = wc_AesSetKey(&dec, key, (int) sizeof(key), iv, AES_DECRYPTION);
+    if (ret != 0)
+        return -22004;
+#endif
+
+    ret = wc_AesCbcEncrypt(&enc, cipher, msg, (int) sizeof(msg));
+    if (ret != 0)
+        return -22005;
+#ifdef HAVE_AES_DECRYPT
+    ret = wc_AesCbcDecrypt(&dec, plain, cipher, (int) sizeof(cipher));
+    if (ret != 0)
+        return -22006;
+    if (XMEMCMP(plain, msg, (int) sizeof(plain))) {
+        return -22060;
+    }
+#endif
+
+    if (XMEMCMP(cipher, verify, (int) sizeof(cipher)))
+        return -22061;
+#endif
+    return 0;
 }
 
 
