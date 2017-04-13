@@ -28,7 +28,11 @@
     extern "C" {
 #endif
 
-int benchmark_test(void* args);
+#ifdef HAVE_STACK_SIZE
+THREAD_RETURN WOLFSSL_THREAD benchmark_test(void* args);
+#else
+int benchmark_test(void *args);
+#endif
 
 #ifdef __cplusplus
     }  /* extern "C" */

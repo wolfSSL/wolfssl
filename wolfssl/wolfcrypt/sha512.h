@@ -42,6 +42,10 @@
 
 #ifndef HAVE_FIPS /* avoid redefinition of structs */
 
+#ifdef WOLFSSL_ASYNC_CRYPT
+    #include <wolfssl/wolfcrypt/async.h>
+#endif
+
 /* in bytes */
 enum {
     SHA512              =   4,   /* hash type unique */
@@ -58,13 +62,22 @@ typedef struct Sha512 {
     word64  hiLen;     /* length in bytes   */
     word64  digest[SHA512_DIGEST_SIZE / sizeof(word64)];
     word64  buffer[SHA512_BLOCK_SIZE  / sizeof(word64)];
+    void*   heap;
+#ifdef WOLFSSL_ASYNC_CRYPT
+    WC_ASYNC_DEV asyncDev;
+#endif /* WOLFSSL_ASYNC_CRYPT */
 } Sha512;
 
 #endif /* HAVE_FIPS */
 
 WOLFSSL_API int wc_InitSha512(Sha512*);
+WOLFSSL_API int wc_InitSha512_ex(Sha512*, void*, int);
 WOLFSSL_API int wc_Sha512Update(Sha512*, const byte*, word32);
 WOLFSSL_API int wc_Sha512Final(Sha512*, byte*);
+WOLFSSL_API void wc_Sha512Free(Sha512*);
+
+WOLFSSL_API int wc_Sha512GetHash(Sha512*, byte*);
+WOLFSSL_API int wc_Sha512Copy(Sha512* src, Sha512* dst);
 
 #if defined(WOLFSSL_SHA384)
 
@@ -81,8 +94,13 @@ typedef Sha512 Sha384;
 #endif /* HAVE_FIPS */
 
 WOLFSSL_API int wc_InitSha384(Sha384*);
+WOLFSSL_API int wc_InitSha384_ex(Sha384*, void*, int);
 WOLFSSL_API int wc_Sha384Update(Sha384*, const byte*, word32);
 WOLFSSL_API int wc_Sha384Final(Sha384*, byte*);
+WOLFSSL_API void wc_Sha384Free(Sha384*);
+
+WOLFSSL_API int wc_Sha384GetHash(Sha384*, byte*);
+WOLFSSL_API int wc_Sha384Copy(Sha384* src, Sha384* dst);
 
 #endif /* WOLFSSL_SHA384 */
 

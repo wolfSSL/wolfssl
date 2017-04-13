@@ -369,6 +369,7 @@ WOLFSSL_API int wolfSSL_use_RSAPrivateKey_file(WOLFSSL*, const char*, int);
 
 WOLFSSL_API WOLFSSL_CTX* wolfSSL_CTX_new(WOLFSSL_METHOD*);
 WOLFSSL_API WOLFSSL* wolfSSL_new(WOLFSSL_CTX*);
+WOLFSSL_API WOLFSSL* wolfSSL_write_dup(WOLFSSL*);
 WOLFSSL_API int  wolfSSL_set_fd (WOLFSSL*, int);
 WOLFSSL_API int  wolfSSL_set_write_fd (WOLFSSL*, int);
 WOLFSSL_API int  wolfSSL_set_read_fd (WOLFSSL*, int);

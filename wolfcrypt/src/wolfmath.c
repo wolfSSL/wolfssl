@@ -40,6 +40,18 @@
 
 #if defined(USE_FAST_MATH) || !defined(NO_BIG_INT)
 
+#ifdef WOLFSSL_ASYNC_CRYPT
+    #include <wolfssl/wolfcrypt/async.h>
+#endif
+
+#ifdef NO_INLINE
+    #include <wolfssl/wolfcrypt/misc.h>
+#else
+    #define WOLFSSL_MISC_INCLUDED
+    #include <wolfcrypt/src/misc.c>
+#endif
+
+
 int get_digit_count(mp_int* a)
 {
     if (a == NULL)
@@ -61,6 +73,7 @@ int get_rand_digit(WC_RNG* rng, mp_digit* d)
     return wc_RNG_GenerateBlock(rng, (byte*)d, sizeof(mp_digit));
 }
 
+#ifdef WC_RSA_BLINDING
 int mp_rand(mp_int* a, int digits, WC_RNG* rng)
 {
     int ret;
@@ -103,5 +116,134 @@ int mp_rand(mp_int* a, int digits, WC_RNG* rng)
 
     return ret;
 }
+#endif /* WC_RSA_BLINDING */
 
-#endif
+
+#ifdef HAVE_WOLF_BIGINT
+void wc_bigint_init(WC_BIGINT* a)
+{
+    if (a != NULL) {
+        a->buf = NULL;
+        a->len = 0;
+        a->heap = NULL;
+    }
+}
+
+int wc_bigint_alloc(WC_BIGINT* a, word32 sz)
+{
+    int err = MP_OKAY;
+
+    if (a == NULL)
+        return BAD_FUNC_ARG;
+
+    if (sz > 0) {
+        if (a->buf && sz > a->len) {
+            wc_bigint_free(a);
+        }
+        if (a->buf == NULL) {
+            a->buf = (byte*)XMALLOC(sz, a->heap, DYNAMIC_TYPE_WOLF_BIGINT);
+        }
+        if (a->buf == NULL) {
+            err = MP_MEM;
+        }
+        else {
+            XMEMSET(a->buf, 0, sz);
+        }
+    }
+    a->len = sz;
+
+    return err;
+}
+
+/* assumes input is big endian format */
+int wc_bigint_from_unsigned_bin(WC_BIGINT* a, const byte* in, word32 inlen)
+{
+    int err;
+
+    if (a == NULL || in == NULL || inlen == 0)
+        return BAD_FUNC_ARG;
+
+    err = wc_bigint_alloc(a, inlen);
+    if (err == 0) {
+        XMEMCPY(a->buf, in, inlen);
+    }
+
+    return err;
+}
+
+int wc_bigint_to_unsigned_bin(WC_BIGINT* a, byte* out, word32* outlen)
+{
+    word32 sz;
+
+    if (a == NULL || out == NULL || outlen == NULL || *outlen == 0)
+        return BAD_FUNC_ARG;
+
+    /* trim to fit into output buffer */
+    sz = a->len;
+    if (a->len > *outlen) {
+        WOLFSSL_MSG("wc_bigint_export: Truncating output");
+        sz = *outlen;
+    }
+
+    if (a->buf) {
+        XMEMCPY(out, a->buf, sz);
+    }
+
+    *outlen = sz;
+
+    return MP_OKAY;
+}
+
+void wc_bigint_zero(WC_BIGINT* a)
+{
+    if (a && a->buf) {
+        ForceZero(a->buf, a->len);
+    }
+}
+
+void wc_bigint_free(WC_BIGINT* a)
+{
+    if (a) {
+        if (a->buf) {
+          XFREE(a->buf, a->heap, DYNAMIC_TYPE_WOLF_BIGINT);
+        }
+        a->buf = NULL;
+        a->len = 0;
+    }
+}
+
+int wc_mp_to_bigint(mp_int* src, WC_BIGINT* dst)
+{
+    int err;
+    word32 sz;
+
+    if (src == NULL || dst == NULL)
+        return BAD_FUNC_ARG;
+
+    sz = mp_unsigned_bin_size(src);
+    err = wc_bigint_alloc(dst, sz);
+    if (err == MP_OKAY)
+        err = mp_to_unsigned_bin(src, dst->buf);
+
+    return err;
+}
+
+int wc_bigint_to_mp(WC_BIGINT* src, mp_int* dst)
+{
+    int err;
+
+    if (src == NULL || dst == NULL)
+        return BAD_FUNC_ARG;
+
+    if (src->buf == NULL)
+        return BAD_FUNC_ARG;
+
+    err = mp_read_unsigned_bin(dst, src->buf, src->len);
+    wc_bigint_free(src);
+
+    return err;
+}
+
+#endif /* HAVE_WOLF_BIGINT */
+
+#endif /* USE_FAST_MATH || !NO_BIG_INT */

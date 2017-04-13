@@ -47,6 +47,8 @@
 #ifdef HAVE_QSH
     static int TLSX_AddQSHKey(QSHKey** list, QSHKey* key);
     static byte* TLSX_QSHKeyFind_Pub(QSHKey* qsh, word16* pubLen, word16 name);
+#endif
+#if defined(HAVE_NTRU) || defined(HAVE_QSH)
     static int TLSX_CreateNtruKey(WOLFSSL* ssl, int type);
 #endif
 
@@ -71,6 +73,7 @@
 #else
     #define P_HASH_MAX_SIZE SHA256_DIGEST_SIZE
 #endif
+
 
 /* compute p_hash for MD5, SHA-1, SHA-256, or SHA-384 for TLSv1 PRF */
 static int p_hash(byte* result, word32 resLen, const byte* secret,
@@ -146,36 +149,41 @@ static int p_hash(byte* result, word32 resLen, const byte* secret,
 
     lastTime = times - 1;
 
-    if ((ret = wc_HmacSetKey(hmac, hash, secret, secLen)) == 0) {
-        if ((ret = wc_HmacUpdate(hmac, seed, seedLen)) == 0) { /* A0 = seed */
-            if ((ret = wc_HmacFinal(hmac, previous)) == 0) {   /* A1 */
-                for (i = 0; i < times; i++) {
+    ret = wc_HmacInit(hmac, NULL, INVALID_DEVID);
+    if (ret == 0) {
+        ret = wc_HmacSetKey(hmac, hash, secret, secLen);
+        if (ret == 0)
+            ret = wc_HmacUpdate(hmac, seed, seedLen); /* A0 = seed */
+        if (ret == 0)
+            ret = wc_HmacFinal(hmac, previous);       /* A1 */
+        if (ret == 0) {
+            for (i = 0; i < times; i++) {
+                ret = wc_HmacUpdate(hmac, previous, len);
+                if (ret != 0)
+                    break;
+                ret = wc_HmacUpdate(hmac, seed, seedLen);
+                if (ret != 0)
+                    break;
+                ret = wc_HmacFinal(hmac, current);
+                if (ret != 0)
+                    break;
+
+                if ((i == lastTime) && lastLen)
+                    XMEMCPY(&result[idx], current,
+                                             min(lastLen, P_HASH_MAX_SIZE));
+                else {
+                    XMEMCPY(&result[idx], current, len);
+                    idx += len;
                     ret = wc_HmacUpdate(hmac, previous, len);
                     if (ret != 0)
                         break;
-                    ret = wc_HmacUpdate(hmac, seed, seedLen);
+                    ret = wc_HmacFinal(hmac, previous);
                     if (ret != 0)
                         break;
-                    ret = wc_HmacFinal(hmac, current);
-                    if (ret != 0)
-                        break;
-
-                    if ((i == lastTime) && lastLen)
-                        XMEMCPY(&result[idx], current,
-                                                 min(lastLen, P_HASH_MAX_SIZE));
-                    else {
-                        XMEMCPY(&result[idx], current, len);
-                        idx += len;
-                        ret = wc_HmacUpdate(hmac, previous, len);
-                        if (ret != 0)
-                            break;
-                        ret = wc_HmacFinal(hmac, previous);
-                        if (ret != 0)
-                            break;
-                    }
                 }
             }
         }
+        wc_HmacFree(hmac);
     }
 
     ForceZero(previous,  P_HASH_MAX_SIZE);
@@ -388,21 +396,29 @@ int BuildTlsFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
 {
     int         ret;
     const byte* side;
-    byte        handshake_hash[HSHASH_SZ];
+    byte*       handshake_hash;
     word32      hashSz = HSHASH_SZ;
 
+    /* using allocate here to allow async hardware to use buffer directly */
+    handshake_hash = (byte*)XMALLOC(hashSz, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    if (handshake_hash == NULL)
+        return MEMORY_E;
+
     ret = BuildTlsHandshakeHash(ssl, handshake_hash, &hashSz);
-    if (ret < 0)
-        return ret;
+    if (ret == 0) {
+        if ( XSTRNCMP((const char*)sender, (const char*)client, SIZEOF_SENDER) == 0)
+            side = tls_client;
+        else
+            side = tls_server;
 
-    if ( XSTRNCMP((const char*)sender, (const char*)client, SIZEOF_SENDER) == 0)
-        side = tls_client;
-    else
-        side = tls_server;
+        ret = PRF((byte*)hashes, TLS_FINISHED_SZ, ssl->arrays->masterSecret,
+                   SECRET_LEN, side, FINISHED_LABEL_SZ, handshake_hash, hashSz,
+                   IsAtLeastTLSv1_2(ssl), ssl->specs.mac_algorithm);
+    }
 
-    return PRF((byte*)hashes, TLS_FINISHED_SZ, ssl->arrays->masterSecret,
-               SECRET_LEN, side, FINISHED_LABEL_SZ, handshake_hash, hashSz,
-               IsAtLeastTLSv1_2(ssl), ssl->specs.mac_algorithm);
+    XFREE(handshake_hash, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
+
+    return ret;
 }
 
 
@@ -533,20 +549,27 @@ int MakeTlsMasterSecret(WOLFSSL* ssl)
 {
     int    ret;
 #ifdef HAVE_EXTENDED_MASTER
-    byte   handshake_hash[HSHASH_SZ];
-    word32 hashSz = HSHASH_SZ;
-
     if (ssl->options.haveEMS) {
+        byte*  handshake_hash;
+        word32 hashSz = HSHASH_SZ;
+
+        handshake_hash = (byte*)XMALLOC(HSHASH_SZ, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        if (handshake_hash == NULL)
+            return MEMORY_E;
 
         ret = BuildTlsHandshakeHash(ssl, handshake_hash, &hashSz);
-        if (ret < 0)
+        if (ret < 0) {
+            XFREE(handshake_hash, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
             return ret;
+        }
 
         ret = wolfSSL_MakeTlsExtendedMasterSecret(
                 ssl->arrays->masterSecret, SECRET_LEN,
                 ssl->arrays->preMasterSecret, ssl->arrays->preMasterSz,
                 handshake_hash, hashSz,
                 IsAtLeastTLSv1_2(ssl), ssl->specs.mac_algorithm);
+
+        XFREE(handshake_hash, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
     } else
 #endif
     ret = wolfSSL_MakeTlsMasterSecret(ssl->arrays->masterSecret, SECRET_LEN,
@@ -777,7 +800,7 @@ int TLS_hmac(WOLFSSL* ssl, byte* digest, const byte* in, word32 sz,
               int content, int verify)
 {
     Hmac hmac;
-    int  ret;
+    int  ret = 0;
     byte myInner[WOLFSSL_TLS_HMAC_INNER_SZ];
 
     if (ssl == NULL)
@@ -790,21 +813,22 @@ int TLS_hmac(WOLFSSL* ssl, byte* digest, const byte* in, word32 sz,
 
     wolfSSL_SetTlsHmacInner(ssl, myInner, sz, content, verify);
 
-    ret = wc_HmacSetKey(&hmac, wolfSSL_GetHmacType(ssl),
-                     wolfSSL_GetMacSecret(ssl, verify), ssl->specs.hash_size);
-    if (ret != 0)
-        return ret;
-    ret = wc_HmacUpdate(&hmac, myInner, sizeof(myInner));
-    if (ret != 0)
-        return ret;
-    ret = wc_HmacUpdate(&hmac, in, sz);                                /* content */
-    if (ret != 0)
-        return ret;
-    ret = wc_HmacFinal(&hmac, digest);
+    ret = wc_HmacInit(&hmac, NULL, ssl->devId);
     if (ret != 0)
         return ret;
 
-    return 0;
+    ret = wc_HmacSetKey(&hmac, wolfSSL_GetHmacType(ssl),
+                     wolfSSL_GetMacSecret(ssl, verify), ssl->specs.hash_size);
+    if (ret == 0) {
+        ret = wc_HmacUpdate(&hmac, myInner, sizeof(myInner));
+        if (ret == 0)
+            ret = wc_HmacUpdate(&hmac, in, sz);                    /* content */
+        if (ret == 0)
+            ret = wc_HmacFinal(&hmac, digest);
+    }
+    wc_HmacFree(&hmac);
+
+    return ret;
 }
 
 #ifdef HAVE_TLS_EXTENSIONS
@@ -2105,7 +2129,8 @@ static int TLSX_CSR_Parse(WOLFSSL* ssl, byte* input, word16 length,
 
             /* enable extension at ssl level */
             ret = TLSX_UseCertificateStatusRequest(&ssl->extensions,
-                                     csr->status_type, csr->options, ssl->heap);
+                                     csr->status_type, csr->options, ssl->heap,
+                                     ssl->devId);
             if (ret != SSL_SUCCESS)
                 return ret;
 
@@ -2181,7 +2206,7 @@ static int TLSX_CSR_Parse(WOLFSSL* ssl, byte* input, word16 length,
 
         /* accept the first good status_type and return */
         ret = TLSX_UseCertificateStatusRequest(&ssl->extensions, status_type,
-                                                                  0, ssl->heap);
+                                                      0, ssl->heap, ssl->devId);
         if (ret != SSL_SUCCESS)
             return ret; /* throw error */
 
@@ -2267,7 +2292,7 @@ int TLSX_CSR_ForceRequest(WOLFSSL* ssl)
 }
 
 int TLSX_UseCertificateStatusRequest(TLSX** extensions, byte status_type,
-                                                       byte options, void* heap)
+                                           byte options, void* heap, int devId)
 {
     CertificateStatusRequest* csr = NULL;
     int ret = 0;
@@ -2290,11 +2315,13 @@ int TLSX_UseCertificateStatusRequest(TLSX** extensions, byte status_type,
             if (options & WOLFSSL_CSR_OCSP_USE_NONCE) {
                 WC_RNG rng;
 
-#ifdef WOLFSSL_STATIC_MEMORY
-                if (wc_InitRng_ex(&rng, heap) == 0) {
-#else
-                if (wc_InitRng(&rng) == 0) {
-#endif
+            #ifndef HAVE_FIPS
+                ret = wc_InitRng_ex(&rng, heap, devId);
+            #else
+                ret = wc_InitRng(&rng);
+                (void)devId;
+            #endif
+                if (ret == 0) {
                     if (wc_RNG_GenerateBlock(&rng, csr->request.ocsp.nonce,
                                                         MAX_OCSP_NONCE_SZ) == 0)
                         csr->request.ocsp.nonceSz = MAX_OCSP_NONCE_SZ;
@@ -2467,7 +2494,7 @@ static int TLSX_CSR2_Parse(WOLFSSL* ssl, byte* input, word16 length,
             /* enable extension at ssl level */
             for (; csr2; csr2 = csr2->next) {
                 ret = TLSX_UseCertificateStatusRequestV2(&ssl->extensions,
-                                   csr2->status_type, csr2->options, ssl->heap);
+                       csr2->status_type, csr2->options, ssl->heap, ssl->devId);
                 if (ret != SSL_SUCCESS)
                     return ret;
 
@@ -2566,7 +2593,7 @@ static int TLSX_CSR2_Parse(WOLFSSL* ssl, byte* input, word16 length,
 
             /* accept the first good status_type and return */
             ret = TLSX_UseCertificateStatusRequestV2(&ssl->extensions,
-                                                     status_type, 0, ssl->heap);
+                                         status_type, 0, ssl->heap, ssl->devId);
             if (ret != SSL_SUCCESS)
                 return ret; /* throw error */
 
@@ -2679,7 +2706,7 @@ int TLSX_CSR2_ForceRequest(WOLFSSL* ssl)
 }
 
 int TLSX_UseCertificateStatusRequestV2(TLSX** extensions, byte status_type,
-                                                       byte options, void* heap)
+                                           byte options, void* heap, int devId)
 {
     TLSX* extension = NULL;
     CertificateStatusRequestItemV2* csr2 = NULL;
@@ -2709,11 +2736,13 @@ int TLSX_UseCertificateStatusRequestV2(TLSX** extensions, byte status_type,
             if (options & WOLFSSL_CSR2_OCSP_USE_NONCE) {
                 WC_RNG rng;
 
-#ifdef WOLFSSL_STATIC_MEMORY
-                if (wc_InitRng_ex(&rng, heap) == 0) {
-#else
-                if (wc_InitRng(&rng) == 0) {
-#endif
+            #ifndef HAVE_FIPS
+                ret = wc_InitRng_ex(&rng, heap, devId);
+            #else
+                ret = wc_InitRng(&rng);
+                (void)devId;
+            #endif
+                if (ret == 0) {
                     if (wc_RNG_GenerateBlock(&rng, csr2->request.ocsp[0].nonce,
                                                         MAX_OCSP_NONCE_SZ) == 0)
                         csr2->request.ocsp[0].nonceSz = MAX_OCSP_NONCE_SZ;
@@ -3399,6 +3428,7 @@ int TLSX_AddEmptyRenegotiationInfo(TLSX** extensions, void* heap)
 
 #ifdef HAVE_SESSION_TICKET
 
+#ifndef NO_WOLFSSL_CLIENT
 static void TLSX_SessionTicket_ValidateRequest(WOLFSSL* ssl)
 {
     TLSX*          extension = TLSX_Find(ssl->extensions, TLSX_SESSION_TICKET);
@@ -3413,6 +3443,7 @@ static void TLSX_SessionTicket_ValidateRequest(WOLFSSL* ssl)
         }
     }
 }
+#endif /* NO_WOLFSSL_CLIENT */
 
 
 static word16 TLSX_SessionTicket_GetSize(SessionTicket* ticket, int isRequest)
@@ -3447,7 +3478,9 @@ static int TLSX_SessionTicket_Parse(WOLFSSL* ssl, byte* input, word16 length,
         if (length != 0)
             return BUFFER_ERROR;
 
+#ifndef NO_WOLFSSL_CLIENT
         ssl->expect_session_ticket = 1;
+#endif
     }
 #ifndef NO_WOLFSSL_SERVER
     else {
@@ -3565,10 +3598,12 @@ int TLSX_UseSessionTicket(TLSX** extensions, SessionTicket* ticket, void* heap)
 /* Quantum-Safe-Hybrid                                                        */
 /******************************************************************************/
 
-#ifdef HAVE_QSH
+#if defined(HAVE_NTRU) && defined(HAVE_QSH)
 static WC_RNG* rng;
 static wolfSSL_Mutex* rngMutex;
+#endif
 
+#ifdef HAVE_QSH
 static void TLSX_QSH_FreeAll(QSHScheme* list, void* heap)
 {
     QSHScheme* current;
@@ -4440,6 +4475,8 @@ static int TLSX_CreateQSHKey(WOLFSSL* ssl, int type)
 {
     int ret;
 
+    (void)ssl;
+
     switch (type) {
 #ifdef HAVE_NTRU
         case WOLFSSL_NTRU_EESS439:
@@ -4488,10 +4525,11 @@ static int TLSX_AddQSHKey(QSHKey** list, QSHKey* key)
 }
 
 
-#ifdef HAVE_NTRU
+#if defined(HAVE_NTRU) || defined(HAVE_QSH)
 int TLSX_CreateNtruKey(WOLFSSL* ssl, int type)
 {
-    int ret;
+    int ret = -1;
+#ifdef HAVE_NTRU
     int ntruType;
 
     /* variable declarations for NTRU*/
@@ -4554,6 +4592,10 @@ int TLSX_CreateNtruKey(WOLFSSL* ssl, int type)
     temp->next = NULL;
 
     TLSX_AddQSHKey(&ssl->QSH_Key, temp);
+#endif
+
+    (void)ssl;
+    (void)type;
 
     return ret;
 }

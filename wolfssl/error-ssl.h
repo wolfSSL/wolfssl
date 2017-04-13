@@ -153,6 +153,8 @@ enum wolfSSL_ErrorCodes {
     DTLS_POOL_SZ_E               = -415,   /* exceeded DTLS pool size */
     DECODE_E                     = -416,   /* decode handshake message error */
     HTTP_TIMEOUT                 = -417,   /* HTTP timeout for OCSP or CRL req */
+    WRITE_DUP_READ_E             = -418,   /* Write dup write side can't read */
+    WRITE_DUP_WRITE_E            = -419,   /* Write dup read side can't write */
     /* add strings to wolfSSL_ERR_reason_error_string in internal.c !!!!! */
 
     /* begin negotiation parameter errors */

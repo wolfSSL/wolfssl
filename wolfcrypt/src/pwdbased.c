@@ -200,10 +200,11 @@ int wc_PBKDF2(byte* output, const byte* passwd, int pLen, const byte* salt,
         return MEMORY_E;
 #endif
 
-    ret = wc_HmacSetKey(&hmac, hashType, passwd, pLen);
-
+    ret = wc_HmacInit(&hmac, NULL, INVALID_DEVID);
     if (ret == 0) {
-        while (kLen) {
+        ret = wc_HmacSetKey(&hmac, hashType, passwd, pLen);
+
+        while (ret == 0 && kLen) {
             int currentLen;
 
             ret = wc_HmacUpdate(&hmac, salt, sLen);
@@ -248,6 +249,7 @@ int wc_PBKDF2(byte* output, const byte* passwd, int pLen, const byte* salt,
             kLen   -= currentLen;
             i++;
         }
+        wc_HmacFree(&hmac);
     }
 
 #ifdef WOLFSSL_SMALL_STACK

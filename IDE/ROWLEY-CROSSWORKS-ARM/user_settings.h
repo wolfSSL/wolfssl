@@ -278,17 +278,21 @@ extern "C" {
 /* Size of returned HW RNG value */
 #define CUSTOM_RAND_TYPE      unsigned int
 
+/* Seed source */
+extern unsigned int custom_rand_generate(void);
+#undef  CUSTOM_RAND_GENERATE
+#define CUSTOM_RAND_GENERATE  custom_rand_generate
+
 /* Choose RNG method */
 #if 1
     /* Use built-in P-RNG (SHA256 based) with HW RNG */
     /* P-RNG + HW RNG (P-RNG is ~8K) */
     #undef  HAVE_HASHDRBG
     #define HAVE_HASHDRBG
-
-    extern unsigned int custom_rand_generate(void);
-    #undef  CUSTOM_RAND_GENERATE
-    #define CUSTOM_RAND_GENERATE  custom_rand_generate
 #else
+    #undef  WC_NO_HASHDRBG
+    #define WC_NO_HASHDRBG
+
     /* Bypass P-RNG and use only HW RNG */
     extern int custom_rand_generate_block(unsigned char* output, unsigned int sz);
     #undef  CUSTOM_RAND_GENERATE_BLOCK

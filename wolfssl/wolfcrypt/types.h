@@ -140,7 +140,7 @@
     #elif defined(__MWERKS__) && TARGET_CPU_PPC
         #define PPC_INTRINSICS
         #define FAST_ROTATE
-    #elif defined(__GNUC__) && defined(__i386__)
+    #elif defined(__GNUC__)  && (defined(__i386__) || defined(__x86_64__))
         /* GCC does peephole optimizations which should result in using rotate
            instructions  */
         #define FAST_ROTATE
@@ -178,7 +178,19 @@
 		WOLFSSL_API void* XMALLOC(size_t n, void* heap, int type);
 		WOLFSSL_API void* XREALLOC(void *p, size_t n, void* heap, int type);
 		WOLFSSL_API void XFREE(void *p, void* heap, int type);
-	#elif defined(XMALLOC_USER)
+	#elif defined(WOLFSSL_ASYNC_CRYPT) && defined(HAVE_INTEL_QA)
+        #include <wolfssl/wolfcrypt/port/intel/quickassist_mem.h>
+        #undef USE_WOLFSSL_MEMORY
+        #ifdef WOLFSSL_DEBUG_MEMORY
+            #define XMALLOC(s, h, t)     IntelQaMalloc((s), (h), (t), __func__, __LINE__)
+            #define XFREE(p, h, t)       IntelQaFree((p), (h), (t), __func__, __LINE__)
+            #define XREALLOC(p, n, h, t) IntelQaRealloc((p), (n), (h), (t), __func__, __LINE__)
+        #else
+            #define XMALLOC(s, h, t)     IntelQaMalloc((s), (h), (t))
+            #define XFREE(p, h, t)       IntelQaFree((p), (h), (t))
+            #define XREALLOC(p, n, h, t) IntelQaRealloc((p), (n), (h), (t))
+        #endif /* WOLFSSL_DEBUG_MEMORY */
+    #elif defined(XMALLOC_USER)
 	    /* prototypes for user heap override functions */
 	    #include <stddef.h>  /* for size_t */
 	    extern void *XMALLOC(size_t n, void* heap, int type);
@@ -221,6 +233,41 @@
             #endif /* WOLFSSL_DEBUG_MEMORY */
         #endif /* WOLFSSL_STATIC_MEMORY */
 	#endif
+
+    /* declare/free variable handling for async */
+    #ifdef WOLFSSL_ASYNC_CRYPT
+        #define DECLARE_VAR(VAR_NAME, VAR_TYPE, VAR_SIZE, HEAP) \
+            VAR_TYPE* VAR_NAME = (VAR_TYPE*)XMALLOC(sizeof(VAR_TYPE) * VAR_SIZE, HEAP, DYNAMIC_TYPE_WOLF_BIGINT);
+        #define DECLARE_VAR_INIT(VAR_NAME, VAR_TYPE, VAR_SIZE, INIT_VALUE, HEAP) \
+            VAR_TYPE* VAR_NAME = ({ \
+                VAR_TYPE* ptr = XMALLOC(sizeof(VAR_TYPE) * VAR_SIZE, HEAP, DYNAMIC_TYPE_WOLF_BIGINT); \
+                if (ptr && INIT_VALUE) { \
+                    XMEMCPY(ptr, INIT_VALUE, sizeof(VAR_TYPE) * VAR_SIZE); \
+                } \
+                ptr; \
+            })
+        #define DECLARE_ARRAY(VAR_NAME, VAR_TYPE, VAR_ITEMS, VAR_SIZE, HEAP) \
+            VAR_TYPE* VAR_NAME[VAR_ITEMS]; \
+            int idx##VAR_NAME; \
+            for (idx##VAR_NAME=0; idx##VAR_NAME<VAR_ITEMS; idx##VAR_NAME++) { \
+                VAR_NAME[idx##VAR_NAME] = (VAR_TYPE*)XMALLOC(VAR_SIZE, HEAP, DYNAMIC_TYPE_WOLF_BIGINT); \
+            }
+        #define FREE_VAR(VAR_NAME, HEAP) \
+            XFREE(VAR_NAME, HEAP, DYNAMIC_TYPE_WOLF_BIGINT);
+        #define FREE_ARRAY(VAR_NAME, VAR_ITEMS, HEAP) \
+            for (idx##VAR_NAME=0; idx##VAR_NAME<VAR_ITEMS; idx##VAR_NAME++) { \
+                XFREE(VAR_NAME[idx##VAR_NAME], HEAP, DYNAMIC_TYPE_WOLF_BIGINT); \
+            }
+    #else
+        #define DECLARE_VAR(VAR_NAME, VAR_TYPE, VAR_SIZE, HEAP) \
+            VAR_TYPE VAR_NAME[VAR_SIZE]
+        #define DECLARE_VAR_INIT(VAR_NAME, VAR_TYPE, VAR_SIZE, INIT_VALUE, HEAP) \
+            VAR_TYPE* VAR_NAME = (VAR_TYPE*)INIT_VALUE
+        #define DECLARE_ARRAY(VAR_NAME, VAR_TYPE, VAR_ITEMS, VAR_SIZE, HEAP) \
+            VAR_TYPE VAR_NAME[VAR_ITEMS][VAR_SIZE]
+        #define FREE_VAR(VAR_NAME, HEAP) /* nothing to free, its stack */
+        #define FREE_ARRAY(VAR_NAME, VAR_ITEMS, HEAP)  /* nothing to free, its stack */
+    #endif
 
 
 	#ifndef STRING_USER
@@ -284,68 +331,74 @@
 
 	/* memory allocation types for user hints */
 	enum {
-	    DYNAMIC_TYPE_CA           = 1,
-	    DYNAMIC_TYPE_CERT         = 2,
-	    DYNAMIC_TYPE_KEY          = 3,
-	    DYNAMIC_TYPE_FILE         = 4,
-	    DYNAMIC_TYPE_SUBJECT_CN   = 5,
-	    DYNAMIC_TYPE_PUBLIC_KEY   = 6,
-	    DYNAMIC_TYPE_SIGNER       = 7,
-	    DYNAMIC_TYPE_NONE         = 8,
-	    DYNAMIC_TYPE_BIGINT       = 9,
-	    DYNAMIC_TYPE_RSA          = 10,
-	    DYNAMIC_TYPE_METHOD       = 11,
-	    DYNAMIC_TYPE_OUT_BUFFER   = 12,
-	    DYNAMIC_TYPE_IN_BUFFER    = 13,
-	    DYNAMIC_TYPE_INFO         = 14,
-	    DYNAMIC_TYPE_DH           = 15,
-	    DYNAMIC_TYPE_DOMAIN       = 16,
-	    DYNAMIC_TYPE_SSL          = 17,
-	    DYNAMIC_TYPE_CTX          = 18,
-	    DYNAMIC_TYPE_WRITEV       = 19,
-	    DYNAMIC_TYPE_OPENSSL      = 20,
-	    DYNAMIC_TYPE_DSA          = 21,
-	    DYNAMIC_TYPE_CRL          = 22,
-	    DYNAMIC_TYPE_REVOKED      = 23,
-	    DYNAMIC_TYPE_CRL_ENTRY    = 24,
-	    DYNAMIC_TYPE_CERT_MANAGER = 25,
-	    DYNAMIC_TYPE_CRL_MONITOR  = 26,
-	    DYNAMIC_TYPE_OCSP_STATUS  = 27,
-	    DYNAMIC_TYPE_OCSP_ENTRY   = 28,
-	    DYNAMIC_TYPE_ALTNAME      = 29,
-	    DYNAMIC_TYPE_SUITES       = 30,
-	    DYNAMIC_TYPE_CIPHER       = 31,
-	    DYNAMIC_TYPE_RNG          = 32,
-	    DYNAMIC_TYPE_ARRAYS       = 33,
-	    DYNAMIC_TYPE_DTLS_POOL    = 34,
-	    DYNAMIC_TYPE_SOCKADDR     = 35,
-	    DYNAMIC_TYPE_LIBZ         = 36,
-	    DYNAMIC_TYPE_ECC          = 37,
-	    DYNAMIC_TYPE_TMP_BUFFER   = 38,
-	    DYNAMIC_TYPE_DTLS_MSG     = 39,
-	    DYNAMIC_TYPE_ASYNC_TMP    = 40,
-	    DYNAMIC_TYPE_ASYNC_RSA    = 41,
-	    DYNAMIC_TYPE_X509         = 42,
-	    DYNAMIC_TYPE_TLSX         = 43,
-	    DYNAMIC_TYPE_OCSP         = 44,
-	    DYNAMIC_TYPE_SIGNATURE    = 45,
-	    DYNAMIC_TYPE_HASHES       = 46,
-        DYNAMIC_TYPE_SRP          = 47,
-        DYNAMIC_TYPE_COOKIE_PWD   = 48,
-        DYNAMIC_TYPE_USER_CRYPTO  = 49,
-        DYNAMIC_TYPE_OCSP_REQUEST = 50,
-        DYNAMIC_TYPE_X509_EXT     = 51,
-        DYNAMIC_TYPE_X509_STORE   = 52,
-        DYNAMIC_TYPE_X509_CTX     = 53,
-        DYNAMIC_TYPE_URL          = 54,
-        DYNAMIC_TYPE_DTLS_FRAG    = 55,
-        DYNAMIC_TYPE_DTLS_BUFFER  = 56,
-        DYNAMIC_TYPE_SESSION_TICK = 57,
-        DYNAMIC_TYPE_PKCS         = 58,
-        DYNAMIC_TYPE_MUTEX        = 59,
-        DYNAMIC_TYPE_PKCS7        = 60,
+        DYNAMIC_TYPE_CA           = 1,
+        DYNAMIC_TYPE_CERT         = 2,
+        DYNAMIC_TYPE_KEY          = 3,
+        DYNAMIC_TYPE_FILE         = 4,
+        DYNAMIC_TYPE_SUBJECT_CN   = 5,
+        DYNAMIC_TYPE_PUBLIC_KEY   = 6,
+        DYNAMIC_TYPE_SIGNER       = 7,
+        DYNAMIC_TYPE_NONE         = 8,
+        DYNAMIC_TYPE_BIGINT       = 9,
+        DYNAMIC_TYPE_RSA          = 10,
+        DYNAMIC_TYPE_METHOD       = 11,
+        DYNAMIC_TYPE_OUT_BUFFER   = 12,
+        DYNAMIC_TYPE_IN_BUFFER    = 13,
+        DYNAMIC_TYPE_INFO         = 14,
+        DYNAMIC_TYPE_DH           = 15,
+        DYNAMIC_TYPE_DOMAIN       = 16,
+        DYNAMIC_TYPE_SSL          = 17,
+        DYNAMIC_TYPE_CTX          = 18,
+        DYNAMIC_TYPE_WRITEV       = 19,
+        DYNAMIC_TYPE_OPENSSL      = 20,
+        DYNAMIC_TYPE_DSA          = 21,
+        DYNAMIC_TYPE_CRL          = 22,
+        DYNAMIC_TYPE_REVOKED      = 23,
+        DYNAMIC_TYPE_CRL_ENTRY    = 24,
+        DYNAMIC_TYPE_CERT_MANAGER = 25,
+        DYNAMIC_TYPE_CRL_MONITOR  = 26,
+        DYNAMIC_TYPE_OCSP_STATUS  = 27,
+        DYNAMIC_TYPE_OCSP_ENTRY   = 28,
+        DYNAMIC_TYPE_ALTNAME      = 29,
+        DYNAMIC_TYPE_SUITES       = 30,
+        DYNAMIC_TYPE_CIPHER       = 31,
+        DYNAMIC_TYPE_RNG          = 32,
+        DYNAMIC_TYPE_ARRAYS       = 33,
+        DYNAMIC_TYPE_DTLS_POOL    = 34,
+        DYNAMIC_TYPE_SOCKADDR     = 35,
+        DYNAMIC_TYPE_LIBZ         = 36,
+        DYNAMIC_TYPE_ECC          = 37,
+        DYNAMIC_TYPE_TMP_BUFFER   = 38,
+        DYNAMIC_TYPE_DTLS_MSG     = 39,
+        DYNAMIC_TYPE_X509         = 40,
+        DYNAMIC_TYPE_TLSX         = 41,
+        DYNAMIC_TYPE_OCSP         = 42,
+        DYNAMIC_TYPE_SIGNATURE    = 43,
+        DYNAMIC_TYPE_HASHES       = 44,
+        DYNAMIC_TYPE_SRP          = 45,
+        DYNAMIC_TYPE_COOKIE_PWD   = 46,
+        DYNAMIC_TYPE_USER_CRYPTO  = 47,
+        DYNAMIC_TYPE_OCSP_REQUEST = 48,
+        DYNAMIC_TYPE_X509_EXT     = 49,
+        DYNAMIC_TYPE_X509_STORE   = 50,
+        DYNAMIC_TYPE_X509_CTX     = 51,
+        DYNAMIC_TYPE_URL          = 52,
+        DYNAMIC_TYPE_DTLS_FRAG    = 53,
+        DYNAMIC_TYPE_DTLS_BUFFER  = 54,
+        DYNAMIC_TYPE_SESSION_TICK = 55,
+        DYNAMIC_TYPE_PKCS         = 56,
+        DYNAMIC_TYPE_MUTEX        = 57,
+        DYNAMIC_TYPE_PKCS7        = 58,
+        DYNAMIC_TYPE_AES          = 59,
+        DYNAMIC_TYPE_WOLF_BIGINT  = 60,
         DYNAMIC_TYPE_ASN1         = 61,
-        DYNAMIC_TYPE_LOG          = 62
+        DYNAMIC_TYPE_LOG          = 62,
+        DYNAMIC_TYPE_WRITEDUP     = 63,
+        DYNAMIC_TYPE_DH_BUFFER    = 64,
+        DYNAMIC_TYPE_HMAC         = 65,
+        DYNAMIC_TYPE_ASYNC        = 66,
+        DYNAMIC_TYPE_ASYNC_NUMA   = 67,
+        DYNAMIC_TYPE_ASYNC_NUMA64 = 68,
 	};
 
 	/* max error buffer string size */
@@ -396,7 +449,7 @@
 
 
     /* AESNI requires alignment and ARMASM gains some performance from it */
-    #if defined(WOLFSSL_AESNI) || defined(WOLFSSL_ARMASM)
+    #if defined(WOLFSSL_AESNI) || defined(WOLFSSL_ARMASM) || defined(USE_INTEL_SPEEDUP)
         #if !defined(ALIGN16)
             #if defined(__GNUC__)
                 #define ALIGN16 __attribute__ ( (aligned (16)))
@@ -408,6 +461,18 @@
                 #define ALIGN16
             #endif
         #endif /* !ALIGN16 */
+
+        #if !defined (ALIGN32)
+            #if defined (__GNUC__)
+                #define ALIGN32 __attribute__ ( (aligned (32)))
+            #elif defined(_MSC_VER)
+                /* disable align warning, we want alignment ! */
+                #pragma warning(disable: 4324)
+                #define ALIGN32 __declspec (align (32))
+            #else
+                #define ALIGN32
+            #endif
+        #endif
 
        #if !defined(ALIGN32)
             #if defined(__GNUC__)
@@ -440,6 +505,8 @@
 
     #ifdef WOLFSSL_RIOT_OS
         #define EXIT_TEST(ret) exit(ret)
+    #elif defined(HAVE_STACK_SIZE)
+        #define EXIT_TEST(ret) return (void*)((size_t)(ret))
     #else
         #define EXIT_TEST(ret) return ret
     #endif

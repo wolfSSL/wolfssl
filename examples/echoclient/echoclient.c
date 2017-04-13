@@ -23,7 +23,7 @@
 #ifdef HAVE_CONFIG_H
     #include <config.h>
 #endif
- 
+
 #include <cyassl/ctaocrypt/settings.h>
 
 /* let's use cyassl layer AND cyassl openssl layer */
@@ -35,7 +35,7 @@
         #include <string.h>
 
         #if !defined(WOLFSSL_MDK_ARM)
-            #include "cmsis_os.h" 
+            #include "cmsis_os.h"
             #include "rl_net.h"
         #else
             #include "rtl.h"
@@ -81,16 +81,17 @@ void echoclient_test(void* args)
     int argc    = 0;
     char** argv = 0;
     word16 port = yasslPort;
+    char buffer[CYASSL_MAX_ERROR_SZ];
 
     ((func_args*)args)->return_code = -1; /* error state */
-    
+
 #ifndef WOLFSSL_MDK_SHELL
     argc = ((func_args*)args)->argc;
     argv = ((func_args*)args)->argv;
 #endif
 
     if (argc >= 2) {
-        fin  = fopen(argv[1], "r"); 
+        fin  = fopen(argv[1], "r");
         inCreated = 1;
     }
     if (argc >= 3) {
@@ -105,7 +106,7 @@ void echoclient_test(void* args)
     doDTLS  = 1;
 #endif
 
-#ifdef CYASSL_LEANPSK 
+#ifdef CYASSL_LEANPSK
     doPSK = 1;
 #endif
 
@@ -130,16 +131,16 @@ void echoclient_test(void* args)
 
 #ifndef NO_FILESYSTEM
     #ifndef NO_RSA
-    if (SSL_CTX_load_verify_locations(ctx, caCert, 0) != SSL_SUCCESS)
+    if (SSL_CTX_load_verify_locations(ctx, caCertFile, 0) != SSL_SUCCESS)
         err_sys("can't load ca file, Please run from wolfSSL home dir");
     #endif
     #ifdef HAVE_ECC
-        if (SSL_CTX_load_verify_locations(ctx, eccCert, 0) != SSL_SUCCESS)
+        if (SSL_CTX_load_verify_locations(ctx, eccCertFile, 0) != SSL_SUCCESS)
             err_sys("can't load ca file, Please run from wolfSSL home dir");
     #endif
 #elif !defined(NO_CERTS)
     if (!doPSK)
-        load_buffer(ctx, caCert, WOLFSSL_CA);
+        load_buffer(ctx, caCertFile, WOLFSSL_CA);
 #endif
 
 #if defined(CYASSL_SNIFFER)
@@ -173,15 +174,15 @@ void echoclient_test(void* args)
 
 #ifdef WOLFSSL_ASYNC_CRYPT
     ret = wolfAsync_DevOpen(&devId);
-    if (ret != 0) {
-        err_sys("Async device open failed");
+    if (ret < 0) {
+        printf("Async device open failed\nRunning without async\n");
     }
     wolfSSL_CTX_UseAsync(ctx, devId);
 #endif /* WOLFSSL_ASYNC_CRYPT */
 
     ssl = SSL_new(ctx);
     tcp_connect(&sockfd, yasslIP, port, doDTLS, 0, ssl);
-        
+
     SSL_set_fd(ssl, sockfd);
 #if defined(USE_WINDOWS_API) && defined(CYASSL_DTLS) && defined(NO_MAIN_DRIVER)
     /* let echoserver bind first, TODO: add Windows signal like pthreads does */
@@ -189,31 +190,46 @@ void echoclient_test(void* args)
 #endif
 
     do {
-#ifdef WOLFSSL_ASYNC_CRYPT
-        if (err == WC_PENDING_E) {
-            ret = wolfSSL_AsyncPoll(ssl, WOLF_POLL_FLAG_CHECK_HW);
-            if (ret < 0) { break; } else if (ret == 0) { continue; }
-        }
-#endif
         err = 0; /* Reset error */
         ret = SSL_connect(ssl);
         if (ret != SSL_SUCCESS) {
             err = SSL_get_error(ssl, 0);
+        #ifdef WOLFSSL_ASYNC_CRYPT
+            if (err == WC_PENDING_E) {
+                ret = wolfSSL_AsyncPoll(ssl, WOLF_POLL_FLAG_CHECK_HW);
+                if (ret < 0) break;
+            }
+        #endif
         }
-    } while (ret != SSL_SUCCESS && err == WC_PENDING_E);
-
+    } while (err == WC_PENDING_E);
     if (ret != SSL_SUCCESS) {
-        char buffer[CYASSL_MAX_ERROR_SZ];
-        printf("err = %d, %s\n", err, ERR_error_string(err, buffer));
+        printf("SSL_connect error %d, %s\n", err,
+            ERR_error_string(err, buffer));
         err_sys("SSL_connect failed");
     }
 
     while (fgets(msg, sizeof(msg), fin) != 0) {
-     
+
         sendSz = (int)XSTRLEN(msg);
 
-        if (SSL_write(ssl, msg, sendSz) != sendSz)
+        do {
+            err = 0; /* reset error */
+            ret = SSL_write(ssl, msg, sendSz);
+            if (ret <= 0) {
+                err = SSL_get_error(ssl, 0);
+            #ifdef WOLFSSL_ASYNC_CRYPT
+                if (err == WC_PENDING_E) {
+                    ret = wolfSSL_AsyncPoll(ssl, WOLF_POLL_FLAG_CHECK_HW);
+                    if (ret < 0) break;
+                }
+            #endif
+            }
+        } while (err == WC_PENDING_E);
+        if (ret != sendSz) {
+            printf("SSL_write msg error %d, %s\n", err,
+                ERR_error_string(err, buffer));
             err_sys("SSL_write failed");
+        }
 
         if (strncmp(msg, "quit", 4) == 0) {
             fputs("sending server shutdown command: quit!\n", fout);
@@ -225,29 +241,39 @@ void echoclient_test(void* args)
             break;
         }
 
-        #ifndef WOLFSSL_MDK_SHELL
-        while (sendSz) {
-            int got;
-            if ( (got = SSL_read(ssl, reply, sizeof(reply)-1)) > 0) {
-                reply[got] = 0;
-                fputs(reply, fout);
-                fflush(fout) ;
-                sendSz -= got;
-            }
-            else
-                break;
-        }
-        #else
+    #ifndef WOLFSSL_MDK_SHELL
+        while (sendSz)
+    #endif
         {
-            int got;
-            if ( (got = SSL_read(ssl, reply, sizeof(reply)-1)) > 0) {
-                reply[got] = 0;
+            do {
+                err = 0; /* reset error */
+                ret = SSL_read(ssl, reply, sizeof(reply)-1);
+                if (ret <= 0) {
+                    err = SSL_get_error(ssl, 0);
+                #ifdef WOLFSSL_ASYNC_CRYPT
+                    if (err == WC_PENDING_E) {
+                        ret = wolfSSL_AsyncPoll(ssl, WOLF_POLL_FLAG_CHECK_HW);
+                        if (ret < 0) break;
+                    }
+                #endif
+                }
+            } while (err == WC_PENDING_E);
+            if (ret > 0) {
+                reply[ret] = 0;
                 fputs(reply, fout);
                 fflush(fout) ;
-                sendSz -= got;
+                sendSz -= ret;
+            }
+            else {
+                printf("SSL_read msg error %d, %s\n", err,
+                    ERR_error_string(err, buffer));
+                err_sys("SSL_read failed");
+
+            #ifndef WOLFSSL_MDK_SHELL
+                break;
+            #endif
             }
         }
-        #endif
     }
 
 
@@ -255,7 +281,19 @@ void echoclient_test(void* args)
     strncpy(msg, "break", 6);
     sendSz = (int)strlen(msg);
     /* try to tell server done */
-    SSL_write(ssl, msg, sendSz);
+    do {
+        err = 0; /* reset error */
+        ret = SSL_write(ssl, msg, sendSz);
+        if (ret <= 0) {
+            err = SSL_get_error(ssl, 0);
+        #ifdef WOLFSSL_ASYNC_CRYPT
+            if (err == WC_PENDING_E) {
+                ret = wolfSSL_AsyncPoll(ssl, WOLF_POLL_FLAG_CHECK_HW);
+                if (ret < 0) break;
+            }
+        #endif
+        }
+    } while (err == WC_PENDING_E);
 #else
     SSL_shutdown(ssl);
 #endif
@@ -272,7 +310,7 @@ void echoclient_test(void* args)
     if (outCreated) fclose(fout);
 
     CloseSocket(sockfd);
-    ((func_args*)args)->return_code = 0; 
+    ((func_args*)args)->return_code = 0;
 }
 
 
@@ -311,7 +349,7 @@ void echoclient_test(void* args)
 
         return args.return_code;
     }
-        
+
 #endif /* NO_MAIN_DRIVER */
 
 

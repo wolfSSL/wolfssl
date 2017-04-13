@@ -1233,6 +1233,12 @@ extern void uITRON4_free(void *p) ;
     #endif
 #endif
 
+/* write dup cannot be used with secure renegotiation because write dup
+ * make write side write only and read side read only */
+#if defined(HAVE_WRITE_DUP) && defined(HAVE_SECURE_RENEGOTIATION)
+    #error "WRITE DUP and SECURE RENEGOTIATION cannot both be on"
+#endif
+
 #ifdef WOLFSSL_SGX
     #define WOLFCRYPT_ONLY   /* limitation until IO resolved */
     #define SINGLE_THREADED
@@ -1405,12 +1411,6 @@ extern void uITRON4_free(void *p) ;
     #define WOLFSSL_MIN_AUTH_TAG_SZ 12
 #endif
 
-/* If not forcing ARC4 as the DRBG or using custom RNG block gen, enable Hash_DRBG */
-#undef HAVE_HASHDRBG
-#if !defined(WOLFSSL_FORCE_RC4_DRBG) && !defined(CUSTOM_RAND_GENERATE_BLOCK)
-    #define HAVE_HASHDRBG
-#endif
-
 
 /* sniffer requires:
  * static RSA cipher suites
@@ -1455,11 +1455,25 @@ extern void uITRON4_free(void *p) ;
     #undef HAVE_WOLF_EVENT
     #define HAVE_WOLF_EVENT
 
+    #ifdef WOLFSSL_ASYNC_CRYPT_TEST
+        #define WC_ASYNC_DEV_SIZE 320+24
+    #else
+        #define WC_ASYNC_DEV_SIZE 320
+    #endif
+
     #if !defined(HAVE_CAVIUM) && !defined(HAVE_INTEL_QA) && \
         !defined(WOLFSSL_ASYNC_CRYPT_TEST)
         #error No async hardware defined with WOLFSSL_ASYNC_CRYPT!
     #endif
+
+    /* Enable ECC_CACHE_CURVE for ASYNC */
+    #if !defined(ECC_CACHE_CURVE)
+        #define ECC_CACHE_CURVE
+    #endif
 #endif /* WOLFSSL_ASYNC_CRYPT */
+#ifndef WC_ASYNC_DEV_SIZE
+    #define WC_ASYNC_DEV_SIZE 0
+#endif
 
 /* leantls checks */
 #ifdef WOLFSSL_LEANTLS

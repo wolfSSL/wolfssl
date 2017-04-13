@@ -36,6 +36,9 @@
 
 #ifdef WOLFSSL_ASYNC_CRYPT
     #include <wolfssl/wolfcrypt/async.h>
+    #ifdef WOLFSSL_CERT_GEN
+        #include <wolfssl/wolfcrypt/asn.h>
+    #endif
 #endif
 
 #ifdef WOLFSSL_ATECC508A
@@ -105,7 +108,7 @@ enum {
     ECC_MAXSIZE_GEN = 74,   /* MAX Buffer size required when generating ECC keys*/
     ECC_MAX_PAD_SZ  = 4,    /* ECC maximum padding size */
     ECC_MAX_OID_LEN = 16,
-    ECC_MAX_SIG_SIZE= ((MAX_ECC_BYTES * 2) + SIG_HEADER_SZ)
+    ECC_MAX_SIG_SIZE= ((MAX_ECC_BYTES * 2) + ECC_MAX_PAD_SZ + SIG_HEADER_SZ)
 };
 
 /* Curve Types */
@@ -234,6 +237,7 @@ typedef struct alt_fp_int {
 } alt_fp_int;
 #endif /* ALT_ECC_SIZE */
 
+
 /* A point on an ECC curve, stored in Jacbobian format such that (x,y,z) =>
    (x/z^2, y/z^3, 1) when interpreted as affine */
 typedef struct {
@@ -276,10 +280,13 @@ typedef struct ecc_key {
     mp_int    k;        /* private key */
 #endif
 #ifdef WOLFSSL_ASYNC_CRYPT
-    mp_int*   r;        /* sign/verify temps */
-    mp_int*   s;
-    AsyncCryptDev asyncDev;
-#endif
+    mp_int* r;          /* sign/verify temps */
+    mp_int* s;
+    WC_ASYNC_DEV asyncDev;
+    #ifdef WOLFSSL_CERT_GEN
+        CertSignCtx certSignCtx; /* context info for cert sign (MakeSignature) */
+    #endif
+#endif /* WOLFSSL_ASYNC_CRYPT */
 } ecc_key;
 
 
@@ -376,6 +383,11 @@ WOLFSSL_API
 int wc_ecc_get_curve_size_from_name(const char* curveName);
 WOLFSSL_API
 int wc_ecc_get_curve_id_from_name(const char* curveName);
+WOLFSSL_API
+int wc_ecc_get_curve_id_from_params(int fieldSize,
+        const byte* prime, word32 primeSz, const byte* Af, word32 AfSz,
+        const byte* Bf, word32 BfSz, const byte* order, word32 orderSz,
+        const byte* Gx, word32 GxSz, const byte* Gy, word32 GySz, int cofactor);
 
 #ifndef WOLFSSL_ATECC508A
 
@@ -542,14 +554,10 @@ WOLFSSL_API int wc_X963_KDF(enum wc_HashType type, const byte* secret,
 #endif
 
 #ifdef ECC_CACHE_CURVE
+WOLFSSL_API int wc_ecc_curve_cache_init(void);
 WOLFSSL_API void wc_ecc_curve_cache_free(void);
 #endif
 
-#ifdef WOLFSSL_ASYNC_CRYPT
-    WOLFSSL_API int wc_ecc_async_handle(ecc_key* key,
-        WOLF_EVENT_QUEUE* queue, WOLF_EVENT* event);
-    WOLFSSL_API int wc_ecc_async_wait(int ret, ecc_key* key);
-#endif
 
 #ifdef __cplusplus
     }    /* extern "C" */

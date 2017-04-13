@@ -2070,22 +2070,20 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
             dec->arc4 = (Arc4*)XMALLOC(sizeof(Arc4), heap, DYNAMIC_TYPE_CIPHER);
         if (dec && dec->arc4 == NULL)
             return MEMORY_E;
-#ifdef WOLFSSL_ASYNC_CRYPT
-        if (devId != INVALID_DEVID) {
-            if (enc) {
-                if (wc_Arc4AsyncInit(enc->arc4, devId) != 0) {
-                    WOLFSSL_MSG("Arc4AsyncInit failed in SetKeys");
-                    return ASYNC_INIT_E;
-                }
-            }
-            if (dec) {
-                if (wc_Arc4AsyncInit(dec->arc4, devId) != 0) {
-                    WOLFSSL_MSG("Arc4AsyncInit failed in SetKeys");
-                    return ASYNC_INIT_E;
-                }
+
+        if (enc) {
+            if (wc_Arc4Init(enc->arc4, heap, devId) != 0) {
+                WOLFSSL_MSG("Arc4Init failed in SetKeys");
+                return ASYNC_INIT_E;
             }
         }
-#endif
+        if (dec) {
+            if (wc_Arc4Init(dec->arc4, heap, devId) != 0) {
+                WOLFSSL_MSG("Arc4Init failed in SetKeys");
+                return ASYNC_INIT_E;
+            }
+        }
+
         if (side == WOLFSSL_CLIENT_END) {
             if (enc)
                 wc_Arc4SetKey(enc->arc4, keys->client_write_key, sz);
@@ -2103,7 +2101,7 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
         if (dec)
             dec->setup = 1;
     }
-#endif
+#endif /* BUILD_ARC4 */
 
 
 #if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
@@ -2165,7 +2163,8 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
         if (dec)
             dec->setup = 1;
     }
-#endif
+#endif /* HAVE_CHACHA && HAVE_POLY1305 */
+
 
 #ifdef HAVE_HC128
     /* check that buffer sizes are sufficient */
@@ -2214,7 +2213,7 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
         if (dec)
             dec->setup = 1;
     }
-#endif
+#endif /* HAVE_HC128 */
 
 #ifdef BUILD_RABBIT
     /* check that buffer sizes are sufficient */
@@ -2263,7 +2262,7 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
         if (dec)
             dec->setup = 1;
     }
-#endif
+#endif /* BUILD_RABBIT */
 
 #ifdef BUILD_DES3
     /* check that buffer sizes are sufficient */
@@ -2274,30 +2273,34 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
     if (specs->bulk_cipher_algorithm == wolfssl_triple_des) {
         int desRet = 0;
 
-        if (enc && enc->des3 == NULL)
-            enc->des3 = (Des3*)XMALLOC(sizeof(Des3), heap, DYNAMIC_TYPE_CIPHER);
-        if (enc && enc->des3 == NULL)
-            return MEMORY_E;
-        if (dec && dec->des3 == NULL)
-            dec->des3 = (Des3*)XMALLOC(sizeof(Des3), heap, DYNAMIC_TYPE_CIPHER);
-        if (dec && dec->des3 == NULL)
-            return MEMORY_E;
-#ifdef WOLFSSL_ASYNC_CRYPT
-        if (devId != INVALID_DEVID) {
-            if (enc) {
-                if (wc_Des3AsyncInit(enc->des3, devId) != 0) {
-                    WOLFSSL_MSG("Des3AsyncInit failed in SetKeys");
-                    return ASYNC_INIT_E;
-                }
-            }
-            if (dec) {
-                if (wc_Des3AsyncInit(dec->des3, devId) != 0) {
-                    WOLFSSL_MSG("Des3AsyncInit failed in SetKeys");
-                    return ASYNC_INIT_E;
-                }
+        if (enc) {
+            if (enc->des3 == NULL)
+                enc->des3 = (Des3*)XMALLOC(sizeof(Des3), heap, DYNAMIC_TYPE_CIPHER);
+            if (enc->des3 == NULL)
+                return MEMORY_E;
+            XMEMSET(enc->des3, 0, sizeof(Aes));
+        }
+        if (dec) {
+            if (dec->des3 == NULL)
+                dec->des3 = (Des3*)XMALLOC(sizeof(Des3), heap, DYNAMIC_TYPE_CIPHER);
+            if (dec->des3 == NULL)
+                return MEMORY_E;
+            XMEMSET(dec->des3, 0, sizeof(Des3));
+        }
+
+        if (enc) {
+            if (wc_Des3Init(enc->des3, heap, devId) != 0) {
+                WOLFSSL_MSG("Des3Init failed in SetKeys");
+                return ASYNC_INIT_E;
             }
         }
-#endif
+        if (dec) {
+            if (wc_Des3Init(dec->des3, heap, devId) != 0) {
+                WOLFSSL_MSG("Des3Init failed in SetKeys");
+                return ASYNC_INIT_E;
+            }
+        }
+
         if (side == WOLFSSL_CLIENT_END) {
             if (enc) {
                 desRet = wc_Des3_SetKey(enc->des3, keys->client_write_key,
@@ -2327,7 +2330,7 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
         if (dec)
             dec->setup = 1;
     }
-#endif
+#endif /* BUILD_DES3 */
 
 #ifdef BUILD_AES
     /* check that buffer sizes are sufficient */
@@ -2338,30 +2341,33 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
     if (specs->bulk_cipher_algorithm == wolfssl_aes) {
         int aesRet = 0;
 
-        if (enc && enc->aes == NULL)
-            enc->aes = (Aes*)XMALLOC(sizeof(Aes), heap, DYNAMIC_TYPE_CIPHER);
-        if (enc && enc->aes == NULL)
-            return MEMORY_E;
-        if (dec && dec->aes == NULL)
-            dec->aes = (Aes*)XMALLOC(sizeof(Aes), heap, DYNAMIC_TYPE_CIPHER);
-        if (dec && dec->aes == NULL)
-            return MEMORY_E;
-#ifdef WOLFSSL_ASYNC_CRYPT
-        if (devId != INVALID_DEVID) {
-            if (enc) {
-                if (wc_AesAsyncInit(enc->aes, devId) != 0) {
-                    WOLFSSL_MSG("AesAsyncInit failed in SetKeys");
-                    return ASYNC_INIT_E;
-                }
-            }
-            if (dec) {
-                if (wc_AesAsyncInit(dec->aes, devId) != 0) {
-                    WOLFSSL_MSG("AesAsyncInit failed in SetKeys");
-                    return ASYNC_INIT_E;
-                }
+        if (enc) {
+            if (enc->aes == NULL)
+                enc->aes = (Aes*)XMALLOC(sizeof(Aes), heap, DYNAMIC_TYPE_CIPHER);
+            if (enc->aes == NULL)
+                return MEMORY_E;
+            XMEMSET(enc->aes, 0, sizeof(Aes));
+        }
+        if (dec) {
+            if (dec->aes == NULL)
+                dec->aes = (Aes*)XMALLOC(sizeof(Aes), heap, DYNAMIC_TYPE_CIPHER);
+            if (dec->aes == NULL)
+                return MEMORY_E;
+            XMEMSET(dec->aes, 0, sizeof(Aes));
+        }
+        if (enc) {
+            if (wc_AesInit(enc->aes, heap, devId) != 0) {
+                WOLFSSL_MSG("AesInit failed in SetKeys");
+                return ASYNC_INIT_E;
             }
         }
-#endif
+        if (dec) {
+            if (wc_AesInit(dec->aes, heap, devId) != 0) {
+                WOLFSSL_MSG("AesInit failed in SetKeys");
+                return ASYNC_INIT_E;
+            }
+        }
+
         if (side == WOLFSSL_CLIENT_END) {
             if (enc) {
                 aesRet = wc_AesSetKey(enc->aes, keys->client_write_key,
@@ -2395,7 +2401,7 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
         if (dec)
             dec->setup = 1;
     }
-#endif
+#endif /* BUILD_AES */
 
 #ifdef BUILD_AESGCM
     /* check that buffer sizes are sufficient */
@@ -2412,14 +2418,33 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
     if (specs->bulk_cipher_algorithm == wolfssl_aes_gcm) {
         int gcmRet;
 
-        if (enc && enc->aes == NULL)
-            enc->aes = (Aes*)XMALLOC(sizeof(Aes), heap, DYNAMIC_TYPE_CIPHER);
-        if (enc && enc->aes == NULL)
-            return MEMORY_E;
-        if (dec && dec->aes == NULL)
-            dec->aes = (Aes*)XMALLOC(sizeof(Aes), heap, DYNAMIC_TYPE_CIPHER);
-        if (dec && dec->aes == NULL)
-            return MEMORY_E;
+        if (enc) {
+            if (enc->aes == NULL)
+                enc->aes = (Aes*)XMALLOC(sizeof(Aes), heap, DYNAMIC_TYPE_CIPHER);
+            if (enc->aes == NULL)
+                return MEMORY_E;
+            XMEMSET(enc->aes, 0, sizeof(Aes));
+        }
+        if (dec) {
+            if (dec->aes == NULL)
+                dec->aes = (Aes*)XMALLOC(sizeof(Aes), heap, DYNAMIC_TYPE_CIPHER);
+            if (dec->aes == NULL)
+                return MEMORY_E;
+            XMEMSET(dec->aes, 0, sizeof(Aes));
+        }
+
+        if (enc) {
+            if (wc_AesInit(enc->aes, heap, devId) != 0) {
+                WOLFSSL_MSG("AesInit failed in SetKeys");
+                return ASYNC_INIT_E;
+            }
+        }
+        if (dec) {
+            if (wc_AesInit(dec->aes, heap, devId) != 0) {
+                WOLFSSL_MSG("AesInit failed in SetKeys");
+                return ASYNC_INIT_E;
+            }
+        }
 
         if (side == WOLFSSL_CLIENT_END) {
             if (enc) {
@@ -2458,7 +2483,7 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
         if (dec)
             dec->setup = 1;
     }
-#endif
+#endif /* BUILD_AESGCM */
 
 #ifdef HAVE_AESCCM
     /* check that buffer sizes are sufficient (CCM is same size as GCM) */
@@ -2475,14 +2500,33 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
     if (specs->bulk_cipher_algorithm == wolfssl_aes_ccm) {
         int CcmRet;
 
-        if (enc && enc->aes == NULL)
-            enc->aes = (Aes*)XMALLOC(sizeof(Aes), heap, DYNAMIC_TYPE_CIPHER);
-        if (enc && enc->aes == NULL)
-            return MEMORY_E;
-        if (dec && dec->aes == NULL)
-            dec->aes = (Aes*)XMALLOC(sizeof(Aes), heap, DYNAMIC_TYPE_CIPHER);
-        if (dec && dec->aes == NULL)
-            return MEMORY_E;
+        if (enc) {
+            if (enc->aes == NULL)
+                enc->aes = (Aes*)XMALLOC(sizeof(Aes), heap, DYNAMIC_TYPE_CIPHER);
+            if (enc->aes == NULL)
+                return MEMORY_E;
+            XMEMSET(enc->aes, 0, sizeof(Aes));
+        }
+        if (dec) {
+            if (dec->aes == NULL)
+                dec->aes = (Aes*)XMALLOC(sizeof(Aes), heap, DYNAMIC_TYPE_CIPHER);
+            if (dec->aes == NULL)
+                return MEMORY_E;
+            XMEMSET(dec->aes, 0, sizeof(Aes));
+        }
+
+        if (enc) {
+            if (wc_AesInit(enc->aes, heap, devId) != 0) {
+                WOLFSSL_MSG("AesInit failed in SetKeys");
+                return ASYNC_INIT_E;
+            }
+        }
+        if (dec) {
+            if (wc_AesInit(dec->aes, heap, devId) != 0) {
+                WOLFSSL_MSG("AesInit failed in SetKeys");
+                return ASYNC_INIT_E;
+            }
+        }
 
         if (side == WOLFSSL_CLIENT_END) {
             if (enc) {
@@ -2529,7 +2573,7 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
         if (dec)
             dec->setup = 1;
     }
-#endif
+#endif /* HAVE_AESCCM */
 
 #ifdef HAVE_CAMELLIA
     /* check that buffer sizes are sufficient */
@@ -2581,7 +2625,7 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
         if (dec)
             dec->setup = 1;
     }
-#endif
+#endif /* HAVE_CAMELLIA */
 
 #ifdef HAVE_IDEA
     /* check that buffer sizes are sufficient */
@@ -2635,7 +2679,7 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
         if (dec)
             dec->setup = 1;
     }
-#endif
+#endif /* HAVE_IDEA */
 
 #ifdef HAVE_NULL_CIPHER
     if (specs->bulk_cipher_algorithm == wolfssl_cipher_null) {

@@ -34,7 +34,7 @@
  *
  * On startup call:
  * InitMemoryTracker();
- * 
+ *
  * When ready to dump the memory report call:
  * ShowMemoryTracker();
  *
@@ -196,6 +196,7 @@
         return ret;
     }
 
+#ifdef WOLFSSL_TRACK_MEMORY
     STATIC INLINE int InitMemoryTracker(void)
     {
         int ret = wolfSSL_SetAllocators(TrackMalloc, TrackFree, TrackRealloc);
@@ -230,6 +231,7 @@
                                        (unsigned long)ourMemStats.currentBytes);
     #endif
     }
+#endif
 
 #endif /* USE_WOLFSSL_MEMORY */
 

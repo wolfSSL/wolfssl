@@ -422,6 +422,9 @@ const char* wc_GetErrorString(int error)
     case BAD_PATH_ERROR:
         return "Bad path for opendir error";
 
+    case ASYNC_OP_E:
+        return "Async operation error";
+
     default:
         return "unknown error number";
 

@@ -35,7 +35,7 @@
 
 #define MAX_ARGS 40
 #define MAX_COMMAND_SZ 240
-#define MAX_SUITE_SZ 80 
+#define MAX_SUITE_SZ 80
 #define NOT_BUILT_IN -123
 #if defined(NO_OLD_TLS) || !defined(WOLFSSL_ALLOW_SSLV3)
     #define VERSION_TOO_OLD -124
@@ -53,6 +53,11 @@ static char flagSep[] = " ";
 #if !defined(USE_WINDOWS_API) && !defined(WOLFSSL_TIRTOS)
     static char portFlag[] = "-p";
     static char svrPort[] = "0";
+#endif
+static char forceDefCipherListFlag[] = "-H";
+
+#ifdef WOLFSSL_ASYNC_CRYPT
+    static int devId = INVALID_DEVID;
 #endif
 
 
@@ -155,7 +160,8 @@ static int IsValidCipherSuite(const char* line, char* suite)
 static int execute_test_case(int svr_argc, char** svr_argv,
                               int cli_argc, char** cli_argv,
                               int addNoVerify, int addNonBlocking,
-                              int addDisableEMS)
+                              int addDisableEMS, int forceSrvDefCipherList,
+                              int forceCliDefCipherList)
 {
 #ifdef WOLFSSL_TIRTOS
     func_args cliArgs = {0};
@@ -174,20 +180,22 @@ static int execute_test_case(int svr_argc, char** svr_argv,
     char        commandLine[MAX_COMMAND_SZ];
     char        cipherSuite[MAX_SUITE_SZ+1];
     int         i;
-    size_t      added = 0;
+    size_t      added;
     static      int tests = 1;
 
+    /* Is Valid Cipher and Version Checks */
+    /* build command list for the Is checks below */
     commandLine[0] = '\0';
-    for (i = 0; i < svr_argc; i++) {
+    added = 0;
+    for (i = 0; i < svrArgs.argc; i++) {
         added += XSTRLEN(svr_argv[i]) + 2;
         if (added >= MAX_COMMAND_SZ) {
-            printf("server command line too long\n"); 
+            printf("server command line too long\n");
             break;
         }
         strcat(commandLine, svr_argv[i]);
         strcat(commandLine, flagSep);
     }
-
     if (IsValidCipherSuite(commandLine, cipherSuite) == 0) {
         #ifdef DEBUG_SUITE_TESTS
             printf("cipher suite %s not supported in build\n", cipherSuite);
@@ -203,7 +211,6 @@ static int execute_test_case(int svr_argc, char** svr_argv,
         return VERSION_TOO_OLD;
     }
 #endif
-
 #ifdef NO_OLD_TLS
     if (IsOldTlsVersion(commandLine) == 1) {
         #ifdef DEBUG_SUITE_TESTS
@@ -213,78 +220,52 @@ static int execute_test_case(int svr_argc, char** svr_argv,
     }
 #endif
 
+    /* Build Client Command */
     if (addNoVerify) {
-        printf("repeating test with client cert request off\n"); 
-        added += 4;   /* -d plus space plus terminator */
-        if (added >= MAX_COMMAND_SZ || svr_argc >= MAX_ARGS)
+        printf("repeating test with client cert request off\n");
+        if (svrArgs.argc >= MAX_ARGS)
             printf("server command line too long\n");
-        else {
-            svr_argv[svr_argc++] = noVerifyFlag;
-            svrArgs.argc = svr_argc;
-            strcat(commandLine, noVerifyFlag);
-            strcat(commandLine, flagSep);
-        }
+        else
+            svr_argv[svrArgs.argc++] = noVerifyFlag;
     }
     if (addNonBlocking) {
-        printf("repeating test with non blocking on\n"); 
-        added += 4;   /* -N plus terminator */
-        if (added >= MAX_COMMAND_SZ || svr_argc >= MAX_ARGS)
+        printf("repeating test with non blocking on\n");
+        if (svrArgs.argc >= MAX_ARGS)
             printf("server command line too long\n");
-        else {
-            svr_argv[svr_argc++] = nonblockFlag;
-            svrArgs.argc = svr_argc;
-            strcat(commandLine, nonblockFlag);
-            strcat(commandLine, flagSep);
-        }
+        else
+            svr_argv[svrArgs.argc++] = nonblockFlag;
     }
     #if !defined(USE_WINDOWS_API) && !defined(WOLFSSL_TIRTOS)
-        /* add port 0 */
-        if (svr_argc + 2 > MAX_ARGS)
+        /* add port */
+        if (svrArgs.argc + 2 > MAX_ARGS)
             printf("cannot add the magic port number flag to server\n");
-        else
-        {
-            svr_argv[svr_argc++] = portFlag;
-            svr_argv[svr_argc++] = svrPort;
-            svrArgs.argc = svr_argc;
+        else {
+            svr_argv[svrArgs.argc++] = portFlag;
+            svr_argv[svrArgs.argc++] = svrPort;
         }
     #endif
-    printf("trying server command line[%d]: %s\n", tests, commandLine);
+    if (forceSrvDefCipherList) {
+        if (svrArgs.argc >= MAX_ARGS)
+            printf("cannot add the force def cipher list flag to server\n");
+        else
+            svr_argv[svrArgs.argc++] = forceDefCipherListFlag;
+    }
 
+    /* update server flags list */
     commandLine[0] = '\0';
     added = 0;
-    for (i = 0; i < cli_argc; i++) {
-        added += XSTRLEN(cli_argv[i]) + 2;
+    for (i = 0; i < svrArgs.argc; i++) {
+        added += XSTRLEN(svr_argv[i]) + 2;
         if (added >= MAX_COMMAND_SZ) {
-            printf("client command line too long\n"); 
+            printf("server command line too long\n");
             break;
         }
-        strcat(commandLine, cli_argv[i]);
+        strcat(commandLine, svr_argv[i]);
         strcat(commandLine, flagSep);
     }
-    if (addNonBlocking) {
-        added += 4;   /* -N plus space plus terminator  */
-        if (added >= MAX_COMMAND_SZ)
-            printf("client command line too long\n");
-        else  {
-            cli_argv[cli_argc++] = nonblockFlag;
-            strcat(commandLine, nonblockFlag);
-            strcat(commandLine, flagSep);
-            cliArgs.argc = cli_argc;
-        }
-    }
-    if (addDisableEMS) {
-        printf("repeating test without extended master secret\n");
-        added += 4;   /* -n plus terminator */
-        if (added >= MAX_COMMAND_SZ)
-            printf("client command line too long\n");
-        else {
-            cli_argv[cli_argc++] = disableEMSFlag;
-            strcat(commandLine, disableEMSFlag);
-            strcat(commandLine, flagSep);
-            cliArgs.argc = cli_argc;
-        }
-    }
-    printf("trying client command line[%d]: %s\n", tests++, commandLine);
+    printf("trying server command line[%d]: %s\n", tests, commandLine);
+
+    tests++; /* test count */
 
     InitTcpReady(&ready);
 
@@ -296,31 +277,65 @@ static int execute_test_case(int svr_argc, char** svr_argv,
     svrArgs.signal = &ready;
     start_thread(server_test, &svrArgs, &serverThread);
     wait_tcp_ready(&svrArgs);
-    #if !defined(USE_WINDOWS_API) && !defined(WOLFSSL_TIRTOS)
-        if (ready.port != 0)
-        {
-            if (cli_argc + 2 > MAX_ARGS)
-                printf("cannot add the magic port number flag to client\n");
-            else {
-                char portNumber[8];
-                snprintf(portNumber, sizeof(portNumber), "%d", ready.port);
-                cli_argv[cli_argc++] = portFlag;
-                cli_argv[cli_argc++] = portNumber;
-                cliArgs.argc = cli_argc;
-            }
+
+
+    /* Build Client Command */
+    if (addNonBlocking) {
+        if (cliArgs.argc >= MAX_ARGS)
+            printf("cannot add the non block flag to client\n");
+        else
+            cli_argv[cliArgs.argc++] = nonblockFlag;
+    }
+    if (addDisableEMS) {
+        printf("repeating test without extended master secret\n");
+        if (cliArgs.argc >= MAX_ARGS)
+            printf("cannot add the disable EMS flag to client\n");
+        else
+            cli_argv[cliArgs.argc++] = disableEMSFlag;
+    }
+#if !defined(USE_WINDOWS_API) && !defined(WOLFSSL_TIRTOS)
+    if (ready.port != 0) {
+        if (cliArgs.argc + 2 > MAX_ARGS)
+            printf("cannot add the magic port number flag to client\n");
+        else {
+            char portNumber[8];
+            snprintf(portNumber, sizeof(portNumber), "%d", ready.port);
+            cli_argv[cliArgs.argc++] = portFlag;
+            cli_argv[cliArgs.argc++] = portNumber;
         }
-    #endif
+    }
+#endif
+    if (forceCliDefCipherList) {
+        if (cliArgs.argc >= MAX_ARGS)
+            printf("cannot add the force def cipher list flag to client\n");
+        else
+            cli_argv[cliArgs.argc++] = forceDefCipherListFlag;
+    }
+
+    commandLine[0] = '\0';
+    added = 0;
+    for (i = 0; i < cliArgs.argc; i++) {
+        added += XSTRLEN(cli_argv[i]) + 2;
+        if (added >= MAX_COMMAND_SZ) {
+            printf("client command line too long\n");
+            break;
+        }
+        strcat(commandLine, cli_argv[i]);
+        strcat(commandLine, flagSep);
+    }
+    printf("trying client command line[%d]: %s\n", tests, commandLine);
+
     /* start client */
     client_test(&cliArgs);
 
-    /* verify results */ 
+    /* verify results */
     if (cliArgs.return_code != 0) {
         printf("client_test failed\n");
         exit(EXIT_FAILURE);
     }
 
     join_thread(serverThread);
-    if (svrArgs.return_code != 0) { 
+    if (svrArgs.return_code != 0) {
         printf("server_test failed\n");
         exit(EXIT_FAILURE);
     }
@@ -329,7 +344,7 @@ static int execute_test_case(int svr_argc, char** svr_argv,
     fdCloseSession(Task_self());
 #endif
     FreeTcpReady(&ready);
-    
+
     return 0;
 }
 
@@ -393,7 +408,7 @@ static void test_harness(void* vargs)
         args->return_code = 1;
         return;
     }
-    
+
     fclose(file);
     script[sz] = 0;
 
@@ -442,7 +457,7 @@ static void test_harness(void* vargs)
                 else
                     svrArgs[svrArgsSz++] = strsep(&cursor, "\n");
                 if (*cursor == 0)  /* eof */
-                    do_it = 1; 
+                    do_it = 1;
         }
 
         if (svrArgsSz == MAX_ARGS || cliArgsSz == MAX_ARGS) {
@@ -452,24 +467,31 @@ static void test_harness(void* vargs)
 
         if (do_it) {
             ret = execute_test_case(svrArgsSz, svrArgs,
-                                    cliArgsSz, cliArgs, 0, 0, 0);
+                                    cliArgsSz, cliArgs, 0, 0, 0, 0, 0);
             /* don't repeat if not supported in build */
             if (ret == 0) {
+                /* test with default cipher list on server side */
                 execute_test_case(svrArgsSz, svrArgs,
-                                  cliArgsSz, cliArgs, 0, 1, 0);
+                                  cliArgsSz, cliArgs, 0, 0, 0, 1, 0);
+                /* test with default cipher list on client side */
                 execute_test_case(svrArgsSz, svrArgs,
-                                  cliArgsSz, cliArgs, 1, 0, 0);
+                                  cliArgsSz, cliArgs, 0, 0, 0, 0, 1);
+
                 execute_test_case(svrArgsSz, svrArgs,
-                                  cliArgsSz, cliArgs, 1, 1, 0);
+                                  cliArgsSz, cliArgs, 0, 1, 0, 0, 0);
+                execute_test_case(svrArgsSz, svrArgs,
+                                  cliArgsSz, cliArgs, 1, 0, 0, 0, 0);
+                execute_test_case(svrArgsSz, svrArgs,
+                                  cliArgsSz, cliArgs, 1, 1, 0, 0, 0);
 #ifdef HAVE_EXTENDED_MASTER
                 execute_test_case(svrArgsSz, svrArgs,
-                                  cliArgsSz, cliArgs, 0, 0, 1);
+                                  cliArgsSz, cliArgs, 0, 0, 1, 0, 0);
                 execute_test_case(svrArgsSz, svrArgs,
-                                  cliArgsSz, cliArgs, 0, 1, 1);
+                                  cliArgsSz, cliArgs, 0, 1, 1, 0, 0);
                 execute_test_case(svrArgsSz, svrArgs,
-                                  cliArgsSz, cliArgs, 1, 0, 1);
+                                  cliArgsSz, cliArgs, 1, 0, 1, 0, 0);
                 execute_test_case(svrArgsSz, svrArgs,
-                                  cliArgsSz, cliArgs, 1, 1, 1);
+                                  cliArgsSz, cliArgs, 1, 1, 1, 0, 0);
 #endif
             }
             svrArgsSz = 1;
@@ -515,9 +537,19 @@ int SuiteTest(void)
                                                    memory, sizeof(memory), 0, 1)
             != SSL_SUCCESS) {
         printf("unable to load static memory and create ctx");
-        exit(EXIT_FAILURE);
+        args.return_code = EXIT_FAILURE;
+        goto exit;
     }
 #endif
+
+#ifdef WOLFSSL_ASYNC_CRYPT
+    if (wolfAsync_DevOpen(&devId) < 0) {
+        printf("Async device open failed");
+        args.return_code = EXIT_FAILURE;
+        goto exit;
+    }
+    wolfSSL_CTX_UseAsync(cipherSuiteCtx, devId);
+#endif /* WOLFSSL_ASYNC_CRYPT */
 
     /* default case */
     args.argc = 1;
@@ -525,7 +557,8 @@ int SuiteTest(void)
     test_harness(&args);
     if (args.return_code != 0) {
         printf("error from script %d\n", args.return_code);
-        exit(EXIT_FAILURE);
+        args.return_code = EXIT_FAILURE;
+        goto exit;
     }
 
     /* any extra cases will need another argument */
@@ -538,7 +571,8 @@ int SuiteTest(void)
     test_harness(&args);
     if (args.return_code != 0) {
         printf("error from script %d\n", args.return_code);
-        exit(EXIT_FAILURE);
+        args.return_code = EXIT_FAILURE;
+        goto exit;
     }
 #endif
 #ifdef WOLFSSL_SCTP
@@ -548,7 +582,8 @@ int SuiteTest(void)
     test_harness(&args);
     if (args.return_code != 0) {
         printf("error from script %d\n", args.return_code);
-        exit(EXIT_FAILURE);
+        args.return_code = EXIT_FAILURE;
+        goto exit;
     }
 #endif
 #ifndef WC_STRICT_SIG
@@ -559,7 +594,8 @@ int SuiteTest(void)
     test_harness(&args);
     if (args.return_code != 0) {
         printf("error from script %d\n", args.return_code);
-        exit(EXIT_FAILURE);
+        args.return_code = EXIT_FAILURE;
+        goto exit;
     }
 #endif /* HAVE_RSA and HAVE_ECC */
 #endif /* !WC_STRICT_SIG */
@@ -570,7 +606,8 @@ int SuiteTest(void)
     test_harness(&args);
     if (args.return_code != 0) {
         printf("error from script %d\n", args.return_code);
-        exit(EXIT_FAILURE);
+        args.return_code = EXIT_FAILURE;
+        goto exit;
     }
 #endif
 
@@ -581,14 +618,20 @@ int SuiteTest(void)
     test_harness(&args);
     if (args.return_code != 0) {
         printf("error from script %d\n", args.return_code);
-        exit(EXIT_FAILURE);
+        args.return_code = EXIT_FAILURE;
+        goto exit;
     }
 #endif
 
+exit:
     printf(" End Cipher Suite Tests\n");
 
     wolfSSL_CTX_free(cipherSuiteCtx);
     wolfSSL_Cleanup();
+
+#ifdef WOLFSSL_ASYNC_CRYPT
+    wolfAsync_DevClose(&devId);
+#endif
 
     return args.return_code;
 }
