@@ -3036,18 +3036,19 @@ static void test_wolfSSL_DES_ecb_encrypt(void)
 
     printf(testingFmt, "wolfSSL_DES_ecb_encrypt()");
 
-    memcpy(key,"12345678",sizeof(WOLFSSL_DES_key_schedule));
-    memcpy(input1, "Iamhuman",sizeof(WOLFSSL_DES_cblock));
-    memcpy(input2, "Whoisit?",sizeof(WOLFSSL_DES_cblock));
-    memset(output1, 0, sizeof(WOLFSSL_DES_cblock));
-    memset(output2, 0, sizeof(WOLFSSL_DES_cblock));
-    memset(back1, 0, sizeof(WOLFSSL_DES_cblock));
-    memset(back2, 0, sizeof(WOLFSSL_DES_cblock));
+    XMEMCPY(key,"12345678",sizeof(WOLFSSL_DES_key_schedule));
+    XMEMCPY(input1, "Iamhuman",sizeof(WOLFSSL_DES_cblock));
+    XMEMCPY(input2, "Whoisit?",sizeof(WOLFSSL_DES_cblock));
+    XMEMSET(output1, 0, sizeof(WOLFSSL_DES_cblock));
+    XMEMSET(output2, 0, sizeof(WOLFSSL_DES_cblock));
+    XMEMSET(back1, 0, sizeof(WOLFSSL_DES_cblock));
+    XMEMSET(back2, 0, sizeof(WOLFSSL_DES_cblock));
 
+    /* Encrypt messages */
     wolfSSL_DES_ecb_encrypt(&input1,&output1,&key,DES_ENCRYPT);
     wolfSSL_DES_ecb_encrypt(&input2,&output2,&key,DES_ENCRYPT);
 
-    // Decrypt messages
+    /* Decrypt messages */
     int ret1 = 0;
     int ret2 = 0; 
     wolfSSL_DES_ecb_encrypt(&output1,&back1,&key,DES_DECRYPT);
