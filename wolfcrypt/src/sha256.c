@@ -38,7 +38,7 @@
 
     int wc_InitSha256(Sha256* sha)
     {
-   		if (sha == NULL) {
+   	    if (sha == NULL) {
         	return BAD_FUNC_ARG;
     	}
         return InitSha256_fips(sha);
