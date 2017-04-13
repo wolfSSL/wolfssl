@@ -58,7 +58,7 @@
     extern "C" {
 #endif
 #ifndef HAVE_FIPS
-        
+
 #ifdef WOLFSSL_ASYNC_CRYPT
     #include <wolfssl/wolfcrypt/async.h>
 #endif
@@ -95,7 +95,7 @@ enum {
 /* Select the largest available hash for the buffer size. */
 #if defined(WOLFSSL_SHA512)
     MAX_DIGEST_SIZE = SHA512_DIGEST_SIZE,
-    HMAC_BLOCK_SIZE = SHA512_BLOCK_SIZE
+    HMAC_BLOCK_SIZE = SHA512_BLOCK_SIZE,
 #elif defined(HAVE_BLAKE2)
     MAX_DIGEST_SIZE = BLAKE2B_OUTBYTES,
     HMAC_BLOCK_SIZE = BLAKE2B_BLOCKBYTES,
@@ -110,10 +110,10 @@ enum {
     HMAC_BLOCK_SIZE = SHA224_BLOCK_SIZE
 #elif !defined(NO_SHA)
     MAX_DIGEST_SIZE = SHA_DIGEST_SIZE,
-    HMAC_BLOCK_SIZE = SHA_BLOCK_SIZE
+    HMAC_BLOCK_SIZE = SHA_BLOCK_SIZE,
 #elif !defined(NO_MD5)
     MAX_DIGEST_SIZE = MD5_DIGEST_SIZE,
-    HMAC_BLOCK_SIZE = MD5_BLOCK_SIZE
+    HMAC_BLOCK_SIZE = MD5_BLOCK_SIZE,
 #else
     #error "You have to have some kind of hash if you want to use HMAC."
 #endif
@@ -122,27 +122,27 @@ enum {
 
 /* hash union */
 typedef union {
-    #ifndef NO_MD5
-        Md5 md5;
-    #endif
-    #ifndef NO_SHA
-        Sha sha;
-    #endif
-    #ifdef WOLFSSL_SHA224
-        Sha224 sha224;
-    #endif
-    #ifndef NO_SHA256
-        Sha256 sha256;
-    #endif
-    #ifdef WOLFSSL_SHA384
-        Sha384 sha384;
-    #endif
-    #ifdef WOLFSSL_SHA512
-        Sha512 sha512;
-    #endif
-    #ifdef HAVE_BLAKE2
-        Blake2b blake2b;
-    #endif
+#ifndef NO_MD5
+    Md5 md5;
+#endif
+#ifndef NO_SHA
+    Sha sha;
+#endif
+#ifdef WOLFSSL_SHA224
+    Sha224 sha224;
+#endif
+#ifndef NO_SHA256
+    Sha256 sha256;
+#endif
+#ifdef WOLFSSL_SHA512
+#ifdef WOLFSSL_SHA384
+    Sha384 sha384;
+#endif
+    Sha512 sha512;
+#endif
+#ifdef HAVE_BLAKE2
+    Blake2b blake2b;
+#endif
 } Hash;
 
 /* Hmac digest */
@@ -154,13 +154,14 @@ typedef struct Hmac {
     void*   heap;                 /* heap hint */
     byte    macType;              /* md5 sha or sha256 */
     byte    innerHashKeyed;       /* keyed flag */
+
 #ifdef WOLFSSL_ASYNC_CRYPT
-    AsyncCryptDev asyncDev;
+    WC_ASYNC_DEV asyncDev;
+    byte         keyRaw[HMAC_BLOCK_SIZE];
+    word16       keyLen;          /* hmac key length */
     #ifdef HAVE_CAVIUM
-        word16   keyLen;          /* hmac key length */
-        word16   dataLen;
-        HashType type;            /* hmac key type */
         byte*    data;            /* buffered input data for one call */
+        word16   dataLen;
     #endif /* HAVE_CAVIUM */
 #endif /* WOLFSSL_ASYNC_CRYPT */
 } Hmac;
@@ -172,23 +173,17 @@ WOLFSSL_API int wc_HmacSetKey(Hmac*, int type, const byte* key, word32 keySz);
 WOLFSSL_API int wc_HmacUpdate(Hmac*, const byte*, word32);
 WOLFSSL_API int wc_HmacFinal(Hmac*, byte*);
 WOLFSSL_API int wc_HmacSizeByType(int type);
-#ifdef WOLFSSL_ASYNC_CRYPT
-    WOLFSSL_API int  wc_HmacAsyncInit(Hmac*, int);
-    WOLFSSL_API void wc_HmacAsyncFree(Hmac*);
-#endif
 
-
+WOLFSSL_API int wc_HmacInit(Hmac* hmac, void* heap, int devId);
+WOLFSSL_API void wc_HmacFree(Hmac*);
 
 WOLFSSL_API int wolfSSL_GetHmacMaxSize(void);
 
-
 #ifdef HAVE_HKDF
-
-WOLFSSL_API int wc_HKDF(int type, const byte* inKey, word32 inKeySz,
-                    const byte* salt, word32 saltSz,
-                    const byte* info, word32 infoSz,
-                    byte* out, word32 outSz);
-
+    WOLFSSL_API int wc_HKDF(int type, const byte* inKey, word32 inKeySz,
+                        const byte* salt, word32 saltSz,
+                        const byte* info, word32 infoSz,
+                        byte* out, word32 outSz);
 #endif /* HAVE_HKDF */
 
 #ifdef __cplusplus

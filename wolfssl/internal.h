@@ -81,17 +81,23 @@
 #ifdef WOLFSSL_SHA512
     #include <wolfssl/wolfcrypt/sha512.h>
 #endif
-
 #ifdef HAVE_AESGCM
     #include <wolfssl/wolfcrypt/sha512.h>
 #endif
-
 #ifdef WOLFSSL_RIPEMD
     #include <wolfssl/wolfcrypt/ripemd.h>
 #endif
-
 #ifdef HAVE_IDEA
     #include <wolfssl/wolfcrypt/idea.h>
+#endif
+#ifndef NO_RSA
+    #include <wolfssl/wolfcrypt/rsa.h>
+#endif
+#ifdef HAVE_ECC
+    #include <wolfssl/wolfcrypt/ecc.h>
+#endif
+#ifndef NO_DH
+    #include <wolfssl/wolfcrypt/dh.h>
 #endif
 
 #include <wolfssl/wolfcrypt/hash.h>
@@ -1778,7 +1784,7 @@ typedef struct {
 } CertificateStatusRequest;
 
 WOLFSSL_LOCAL int   TLSX_UseCertificateStatusRequest(TLSX** extensions,
-                                    byte status_type, byte options, void* heap);
+                                    byte status_type, byte options, void* heap, int devId);
 WOLFSSL_LOCAL int   TLSX_CSR_InitRequest(TLSX* extensions, DecodedCert* cert,
                                                                     void* heap);
 WOLFSSL_LOCAL void* TLSX_CSR_GetRequest(TLSX* extensions);
@@ -1800,7 +1806,7 @@ typedef struct CSRIv2 {
 } CertificateStatusRequestItemV2;
 
 WOLFSSL_LOCAL int   TLSX_UseCertificateStatusRequestV2(TLSX** extensions,
-                                    byte status_type, byte options, void* heap);
+                                    byte status_type, byte options, void* heap, int devId);
 WOLFSSL_LOCAL int   TLSX_CSR2_InitRequests(TLSX* extensions, DecodedCert* cert,
                                                        byte isPeer, void* heap);
 WOLFSSL_LOCAL void* TLSX_CSR2_GetRequest(TLSX* extensions, byte status_type,
@@ -2208,6 +2214,10 @@ typedef struct Ciphers {
 #endif
 #if defined(BUILD_AES) || defined(BUILD_AESGCM)
     Aes*    aes;
+    #if defined(BUILD_AESGCM) || defined(HAVE_AESCCM)
+        byte* additional;
+        byte* nonce;
+    #endif
 #endif
 #ifdef HAVE_CAMELLIA
     Camellia* cam;
@@ -2224,6 +2234,7 @@ typedef struct Ciphers {
 #ifdef HAVE_IDEA
     Idea* idea;
 #endif
+    byte    state;
     byte    setup;       /* have we set it up flag for detection */
 } Ciphers;
 
@@ -2356,16 +2367,6 @@ enum AcceptState {
     ACCEPT_THIRD_REPLY_DONE
 };
 
-/* sub-states for send/do key share (key exchange) */
-enum KeyShareState {
-    KEYSHARE_BEGIN = 0,
-    KEYSHARE_BUILD,
-    KEYSHARE_DO,
-    KEYSHARE_VERIFY,
-    KEYSHARE_FINALIZE,
-    KEYSHARE_END
-};
-
 /* buffers for struct WOLFSSL */
 typedef struct Buffers {
     bufferStatic    inputBuffer;
@@ -2387,6 +2388,7 @@ typedef struct Buffers {
     buffer          serverDH_G;            /* WOLFSSL_CTX owns, unless we own */
     buffer          serverDH_Pub;
     buffer          serverDH_Priv;
+    DhKey*          serverDH_Key;
 #endif
 #ifndef NO_CERTS
     DerBuffer*      certificate;           /* WOLFSSL_CTX owns, unless we own */
@@ -2498,8 +2500,8 @@ typedef struct Options {
     byte            minDowngrade;       /* minimum downgrade version */
     byte            connectState;       /* nonblocking resume */
     byte            acceptState;        /* nonblocking resume */
-    byte            keyShareState;      /* sub-state for key share (key exchange).
-                                           See enum KeyShareState. */
+    byte            asyncState;         /* sub-state for enum asyncState */
+    byte            buildMsgState;      /* sub-state for enum buildMsgState */
 #ifndef NO_DH
     word16          minDhKeySz;         /* minimum DH key size */
     word16          dhKeySz;            /* actual DH key size */
@@ -2515,6 +2517,7 @@ typedef struct Options {
 
 typedef struct Arrays {
     byte*           pendingMsg;         /* defrag buffer */
+    byte*           preMasterSecret;
     word32          preMasterSz;        /* differs for DH, actual size */
     word32          pendingMsgSz;       /* defrag buffer size */
     word32          pendingMsgOffset;   /* current offset into defrag buffer */
@@ -2528,7 +2531,6 @@ typedef struct Arrays {
     byte            serverRandom[RAN_LEN];
     byte            sessionID[ID_LEN];
     byte            sessionIDSz;
-    byte            preMasterSecret[ENCRYPT_LEN];
     byte            masterSecret[SECRET_LEN];
 #ifdef WOLFSSL_DTLS
     byte            cookie[MAX_COOKIE_LEN];
@@ -2750,6 +2752,17 @@ typedef struct HS_Hashes {
 } HS_Hashes;
 
 
+#ifdef WOLFSSL_ASYNC_CRYPT
+    #define MAX_ASYNC_ARGS 16
+    typedef void (*FreeArgsCb)(struct WOLFSSL* ssl, void* pArgs);
+
+    struct WOLFSSL_ASYNC {
+        WC_ASYNC_DEV* dev;
+        FreeArgsCb    freeArgs; /* function pointer to cleanup args */
+        word32        args[MAX_ASYNC_ARGS]; /* holder for current args */
+    };
+#endif
+
 #ifdef HAVE_WRITE_DUP
 
     #define WRITE_DUP_SIDE 1
@@ -2791,12 +2804,10 @@ struct WOLFSSL {
     void*           hsDoneCtx;         /*  user handshake cb context  */
 #endif
 #ifdef WOLFSSL_ASYNC_CRYPT
-    AsyncCryptSSLState  async;
-    AsyncCryptDev       asyncDev;
+    struct WOLFSSL_ASYNC async;
 #endif
-    void*           sigKey;             /* RsaKey or ecc_key allocated from heap */
-    word32          sigType;            /* Type of sigKey */
-    word32          sigLen;             /* Actual signature length */
+    void*           hsKey;              /* Handshake key (RsaKey or ecc_key) allocated from heap */
+    word32          hsType;             /* Type of Handshake key (hsKey) */
     WOLFSSL_CIPHER  cipher;
     hmacfp          hmac;
     Ciphers         encrypt;
@@ -2856,6 +2867,7 @@ struct WOLFSSL {
     ecc_key*        peerEccKey;              /* peer's  ECDHE key */
     ecc_key*        peerEccDsaKey;           /* peer's  ECDSA key */
     ecc_key*        eccTempKey;              /* private ECDHE key */
+    int             eccVerifyRes;
     word32          pkCurveOID;              /* curve Ecc_Sum     */
     word32          ecdhCurveOID;            /* curve Ecc_Sum     */
     word16          eccTempKeySz;            /* in octets 20 - 66 */
@@ -2977,9 +2989,6 @@ struct WOLFSSL {
 #ifdef WOLFSSL_JNI
         void* jObjectRef;     /* reference to WolfSSLSession in JNI wrapper */
 #endif /* WOLFSSL_JNI */
-#ifdef HAVE_WOLF_EVENT
-    WOLF_EVENT event;
-#endif /* HAVE_WOLF_EVENT */
 };
 
 
@@ -3241,7 +3250,7 @@ WOLFSSL_LOCAL word32  LowResTimer(void);
     WOLFSSL_LOCAL int  CopyDecodedToX509(WOLFSSL_X509*, DecodedCert*);
 #endif
 
-/* used by ssl.c and wolfssl_int.c */
+/* used by ssl.c and internal.c */
 WOLFSSL_LOCAL void c32to24(word32 in, word24 out);
 
 WOLFSSL_LOCAL const char* const* GetCipherNames(void);
@@ -3261,19 +3270,14 @@ WOLFSSL_LOCAL int SetKeysSide(WOLFSSL*, enum encrypt_side);
 
 
 #ifndef NO_DH
-    WOLFSSL_LOCAL int DhGenKeyPair(WOLFSSL* ssl,
-        byte* p, word32 pSz,
-        byte* g, word32 gSz,
+    WOLFSSL_LOCAL int DhGenKeyPair(WOLFSSL* ssl, DhKey* dhKey,
         byte* priv, word32* privSz,
         byte* pub, word32* pubSz);
-    WOLFSSL_LOCAL int DhAgree(WOLFSSL* ssl,
-        byte* p, word32 pSz,
-        byte* g, word32 gSz,
-        byte* priv, word32* privSz,
-        byte* pub, word32* pubSz,
+    WOLFSSL_LOCAL int DhAgree(WOLFSSL* ssl, DhKey* dhKey,
+        const byte* priv, word32 privSz,
         const byte* otherPub, word32 otherPubSz,
         byte* agree, word32* agreeSz);
-#endif
+#endif /* !NO_DH */
 
 #ifdef HAVE_ECC
     WOLFSSL_LOCAL int EccMakeKey(WOLFSSL* ssl, ecc_key* key, ecc_key* peer);
@@ -3281,7 +3285,17 @@ WOLFSSL_LOCAL int SetKeysSide(WOLFSSL*, enum encrypt_side);
 
 WOLFSSL_LOCAL int BuildMessage(WOLFSSL* ssl, byte* output, int outSz,
                         const byte* input, int inSz, int type, int hashOutput,
-                        int sizeOnly);
+                        int sizeOnly, int asyncOkay);
+
+WOLFSSL_LOCAL int AllocKey(WOLFSSL* ssl, int type, void** pKey);
+WOLFSSL_LOCAL void FreeKey(WOLFSSL* ssl, int type, void** pKey);
+
+#ifdef WOLFSSL_ASYNC_CRYPT
+    WOLFSSL_LOCAL int wolfSSL_AsyncPop(WOLFSSL* ssl, byte* state);
+    WOLFSSL_LOCAL int wolfSSL_AsyncPush(WOLFSSL* ssl, WC_ASYNC_DEV* asyncDev,
+                                        word32 flags);
+#endif
+
 
 #ifdef __cplusplus
     }  /* extern "C" */

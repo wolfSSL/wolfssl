@@ -151,6 +151,7 @@ then
     enable_camellia=yes
     enable_ripemd=yes
     enable_sha512=yes
+    enable_sha224=yes
     enable_sessioncerts=yes
     enable_keygen=yes
     enable_certgen=yes
@@ -193,6 +194,9 @@ then
     enable_stunnel=yes
     enable_nginx=yes
     enable_pwdbased=yes
+    enable_aeskeywrap=yes
+    enable_x963kdf=yes
+    enable_scrypt=yes
 fi
 AM_CONDITIONAL([BUILD_DISTRO], [test "x$ENABLED_DISTRO" = "xyes"])
 
@@ -1001,6 +1005,12 @@ AC_ARG_ENABLE([ecccustcurves],
 if test "$ENABLED_ECCCUSTCURVES" = "yes"
 then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_CUSTOM_CURVES"
+
+    # For distro build, enable all curve types
+    if test "$ENABLED_DISTRO" = "yes"
+    then
+        AM_CFLAGS="$AM_CFLAGS -DHAVE_ECC_SECPR2 -DHAVE_ECC_SECPR3 -DHAVE_ECC_BRAINPOOL -DHAVE_ECC_KOBLITZ"
+    fi
 fi
 
 
@@ -2751,6 +2761,7 @@ AC_ARG_WITH([cavium],
     [
         AC_MSG_CHECKING([for cavium])
         CPPFLAGS="$CPPFLAGS -DHAVE_CAVIUM"
+        LIB_ADD="-lrt $LIB_ADD"
 
         if test "x$withval" == "xyes" ; then
             AC_MSG_ERROR([need a PATH for --with-cavium])
@@ -2767,6 +2778,8 @@ AC_ARG_WITH([cavium],
         if test "x$cavium_linked" == "xno" ; then
             AC_MSG_ERROR([cavium isn't found.
             If it's already installed, specify its path using --with-cavium=/dir/])
+        else
+            AM_CFLAGS="$AM_CFLAGS -DHAVE_CAVIUM"
         fi
         AC_MSG_RESULT([yes])
         enable_shared=no
@@ -2783,6 +2796,7 @@ AC_ARG_WITH([cavium-v],
     [
         AC_MSG_CHECKING([for cavium])
         CPPFLAGS="$CPPFLAGS -DHAVE_CAVIUM -DHAVE_CAVIUM_V"
+        LIB_ADD="-lrt $LIB_ADD"
 
         if test "x$withval" == "xyes" ; then
             AC_MSG_ERROR([need a PATH for --with-cavium])
@@ -2791,7 +2805,7 @@ AC_ARG_WITH([cavium-v],
             trycaviumdir=$withval
         fi
 
-        LDFLAGS="$AM_LDFLAGS $trycaviumdir/utils/sample_tests/cavium_common.o $trycaviumdir/utils/sample_tests/cavium_sym_crypto.o $trycaviumdir/utils/sample_tests/cavium_asym_crypto.o"
+        LDFLAGS="$AM_LDFLAGS $trycaviumdir/api/obj/cavium_common.o $trycaviumdir/api/obj/cavium_sym_crypto.o $trycaviumdir/api/obj/cavium_asym_crypto.o"
         CPPFLAGS="$CPPFLAGS -I$trycaviumdir/include"
 
         #AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include "cavium_common.h"]], [[ CspShutdown(0); ]])],[ cavium_linked=yes ],[ cavium_linked=no ])
@@ -2799,6 +2813,8 @@ AC_ARG_WITH([cavium-v],
         if test "x$cavium_linked" == "xno" ; then
             AC_MSG_ERROR([cavium isn't found.
             If it's already installed, specify its path using --with-cavium-v=/dir/])
+        else
+            AM_CFLAGS="$AM_CFLAGS -DHAVE_CAVIUM -DHAVE_CAVIUM_V"
         fi
         AC_MSG_RESULT([yes])
 
@@ -2814,6 +2830,46 @@ AC_ARG_WITH([cavium-v],
 )
 
 AM_CONDITIONAL([BUILD_CAVIUM], [test "x$ENABLED_CAVIUM" = "xyes"])
+
+
+# Intel Quick Assist
+tryqatdir=""
+AC_ARG_WITH([intelqa],
+    [  --with-intelqa=PATH     PATH to Intel QuickAssit (QAT) driver dir ],
+    [
+        AC_MSG_CHECKING([for intelqa])
+        CPPFLAGS="$CPPFLAGS -DHAVE_INTEL_QA -DDO_CRYPTO -DUSER_SPACE"
+
+        if test "x$withval" == "xyes" ; then
+            AC_MSG_ERROR([need a PATH for --with-intelqa])
+        fi
+        if test "x$withval" != "xno" ; then
+            tryqatdir=$withval
+        fi
+
+        CPPFLAGS="$CPPFLAGS -I$tryqatdir/quickassist/include -I$tryqatdir/quickassist/include/lac -I$tryqatdir/quickassist/utilities/osal/include -I$tryqatdir/quickassist/utilities/osal/src/linux/user_space/include -I$tryqatdir/quickassist/lookaside/access_layer/include -I$tryqatdir/quickassist/lookaside/access_layer/src/common/include -I$srcdir/wolfssl -I$srcdir/wolfssl/wolfcrypt/port/intel"
+        LDFLAGS="$LDFLAGS -L$tryqatdir/build -Wl,-Map=output.map"
+        LIBS="$LIBS -licp_qa_al_s"
+        LIB_ADD="-ladf_proxy -losal -lrt $LIB_ADD"
+
+        AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include "cpa_cy_common.h"]], [[ Cpa16U count = 0; cpaCyGetNumInstances(&count); ]])],[ intelqa_linked=yes ],[ intelqa_linked=no ])
+
+        if test "x$intelqa_linked" == "xno" ; then
+            AC_MSG_ERROR([Intel QuickAssist not found.
+            If it's already installed, specify its path using --with-intelqa=/dir/])
+        else
+            AM_CFLAGS="$AM_CFLAGS -DHAVE_INTEL_QA -DDO_CRYPTO -DUSER_SPACE"
+        fi
+        AC_MSG_RESULT([yes])
+
+        ENABLED_INTEL_QA=yes
+    ],
+    [
+        ENABLED_INTEL_QA=no
+    ]
+)
+
+AM_CONDITIONAL([BUILD_INTEL_QA], [test "x$ENABLED_INTEL_QA" = "xyes"])
 
 
 # Fast RSA using Intel IPP
@@ -3022,11 +3078,12 @@ AC_ARG_ENABLE([asynccrypt],
 
 if test "$ENABLED_ASYNCCRYPT" = "yes"
 then
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ASYNC_CRYPT -DHAVE_WOLF_EVENT"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ASYNC_CRYPT -DHAVE_WOLF_EVENT -DHAVE_WOLF_BIGINT"
 
-    # if Cavium not enabled the use async simulator for testing
-    if test "x$ENABLED_CAVIUM" = "xno"
+    # if no async hardware then use simulator for testing
+    if test "x$ENABLED_CAVIUM" = "xno" && test "x$ENABLED_INTEL_QA" = "xno"
     then
+        # Async threading is Linux specific
         AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ASYNC_CRYPT_TEST"
     fi
 fi
@@ -3035,6 +3092,35 @@ AM_CONDITIONAL([BUILD_ASYNCCRYPT], [test "x$ENABLED_ASYNCCRYPT" = "xyes"])
 
 AM_CONDITIONAL([BUILD_WOLFEVENT], [test "x$ENABLED_ASYNCCRYPT" = "xyes"])
 
+# check for async if using Intel QuckAssist or Cavium
+if test "x$ENABLED_INTEL_QA" = "xyes" || test "x$ENABLED_CAVIUM" = "xyes" ; then
+    if test "x$ENABLED_ASYNCCRYPT" = "xno" ; then
+        AC_MSG_ERROR([Please enable enable asynchronous support using --enable-asynccrypt])
+    fi
+fi
+
+
+# Asynchronous threading
+AC_ARG_ENABLE([asyncthreads],
+    [  --enable-asyncthreads   Enable Asynchronous Threading (default: enabled)],
+    [ ENABLED_ASYNCTHREADS=$enableval ],
+    [ ENABLED_ASYNCTHREADS=yes ]
+    )
+
+if test "$ENABLED_ASYNCCRYPT" = "yes" && test "$ENABLED_ASYNCTHREADS" = "yes"
+then
+    AX_PTHREAD([ENABLED_ASYNCTHREADS=yes],[ENABLED_ASYNCTHREADS=no])
+else
+    ENABLED_ASYNCTHREADS=no
+fi
+
+if test "$ENABLED_ASYNCTHREADS" = "yes"
+then
+    LIB_ADD="-lpthread $LIB_ADD"
+    AM_CFLAGS="$AM_CFLAGS -D_GNU_SOURCE"
+else
+    AM_CFLAGS="$AM_CFLAGS -DWC_NO_ASYNC_THREADING"
+fi
 
 
 # Session Export
@@ -3541,6 +3627,7 @@ echo "   * Cavium:                     $ENABLED_CAVIUM"
 echo "   * ARM ASM:                    $ENABLED_ARMASM"
 echo "   * AES Key Wrap:               $ENABLED_AESKEYWRAP"
 echo "   * Write duplicate:            $ENABLED_WRITEDUP"
+echo "   * Intel Quick Assist:         $ENABLED_INTEL_QA"
 echo ""
 echo "---"
 

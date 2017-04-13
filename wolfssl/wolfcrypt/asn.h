@@ -28,9 +28,6 @@
 #ifndef NO_ASN
 
 #include <wolfssl/wolfcrypt/integer.h>
-#ifndef NO_RSA
-    #include <wolfssl/wolfcrypt/rsa.h>
-#endif
 
 /* fips declare of RsaPrivateKeyDecode @wc_fips */
 #if defined(HAVE_FIPS) && !defined(NO_RSA)
@@ -51,9 +48,7 @@
 #endif
 #include <wolfssl/wolfcrypt/sha256.h>
 #include <wolfssl/wolfcrypt/asn_public.h>   /* public interface */
-#ifdef HAVE_ECC
-    #include <wolfssl/wolfcrypt/ecc.h>
-#endif
+
 
 #ifdef __cplusplus
     extern "C" {
@@ -418,6 +413,60 @@ struct DecodedName {
     int     serialLen;
 };
 
+enum SignatureState {
+    SIG_STATE_BEGIN,
+    SIG_STATE_HASH,
+    SIG_STATE_KEY,
+    SIG_STATE_DO,
+    SIG_STATE_CHECK,
+};
+
+struct SignatureCtx {
+    void* heap;
+    byte* digest;
+#ifndef NO_RSA
+    byte* out;
+    byte* plain;
+#endif
+#ifdef HAVE_ECC
+    int verify;
+#endif
+    union {
+    #ifndef NO_RSA
+        struct RsaKey* rsa;
+    #endif
+    #ifdef HAVE_ECC
+        struct ecc_key* ecc;
+    #endif
+        void* ptr;
+    } key;
+    int devId;
+    int state;
+    int typeH;
+    int digestSz;
+    word32 keyOID;
+#ifdef WOLFSSL_ASYNC_CRYPT
+    WC_ASYNC_DEV* asyncDev;
+#endif
+};
+
+enum CertSignState {
+    CERTSIGN_STATE_BEGIN,
+    CERTSIGN_STATE_DIGEST,
+    CERTSIGN_STATE_ENCODE,
+    CERTSIGN_STATE_DO,
+};
+
+struct CertSignCtx {
+    byte* sig;
+    byte* digest;
+    #ifndef NO_RSA
+        byte* encSig;
+        int encSigSz;
+    #endif
+    int state; /* enum CertSignState */
+};
+
 
 typedef struct DecodedCert DecodedCert;
 typedef struct DecodedName DecodedName;
@@ -425,6 +474,8 @@ typedef struct Signer      Signer;
 #ifdef WOLFSSL_TRUST_PEER_CERT
 typedef struct TrustedPeerCert TrustedPeerCert;
 #endif /* WOLFSSL_TRUST_PEER_CERT */
+typedef struct SignatureCtx SignatureCtx;
+typedef struct CertSignCtx  CertSignCtx;
 
 
 struct DecodedCert {
@@ -566,6 +617,9 @@ struct DecodedCert {
     char    extCertPolicies[MAX_CERTPOL_NB][MAX_CERTPOL_SZ];
     int     extCertPoliciesNb;
 #endif /* WOLFSSL_CERT_EXT */
+
+    Signer* ca;
+    SignatureCtx sigCtx;
 };
 
 
@@ -746,6 +800,10 @@ WOLFSSL_LOCAL int wc_CheckPrivateKey(byte* key, word32 keySz, DecodedCert* der);
     WOLFSSL_LOCAL int DecodeECC_DSA_Sig(const byte* sig, word32 sigLen,
                                        mp_int* r, mp_int* s);
 #endif
+
+WOLFSSL_LOCAL void InitSignatureCtx(SignatureCtx* sigCtx, void* heap, int devId);
+WOLFSSL_LOCAL void FreeSignatureCtx(SignatureCtx* sigCtx);
+
 
 #ifdef WOLFSSL_CERT_GEN
 

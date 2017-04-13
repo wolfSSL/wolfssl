@@ -10,7 +10,6 @@
 #include <wolfssl/wolfcrypt/types.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
 #include <wolfssl/wolfcrypt/random.h>
-#include <wolfssl/wolfcrypt/mem_track.h>
 
 #ifdef ATOMIC_USER
     #include <wolfssl/wolfcrypt/aes.h>
@@ -19,6 +18,9 @@
 #endif
 #ifdef HAVE_PK_CALLBACKS
     #include <wolfssl/wolfcrypt/asn.h>
+    #ifndef NO_RSA
+        #include <wolfssl/wolfcrypt/rsa.h>
+    #endif
     #ifdef HAVE_ECC
         #include <wolfssl/wolfcrypt/ecc.h>
     #endif /* HAVE_ECC */
@@ -1130,7 +1132,7 @@ static INLINE unsigned int my_psk_server_cb(WOLFSSL* ssl, const char* identity,
             *buf = (byte*)malloc(*bufLen);
             if (*buf == NULL) {
                 ret = MEMORY_E;
-                printf("Error allocating %lu bytes\n", *bufLen);
+                printf("Error allocating %lu bytes\n", (unsigned long)*bufLen);
             }
             else {
                 size_t readLen = fread(*buf, *bufLen, 1, file);

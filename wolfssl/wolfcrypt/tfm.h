@@ -43,6 +43,9 @@
 
 #include <wolfssl/wolfcrypt/random.h>
 
+/* wolf big int and common functions */
+#include <wolfssl/wolfcrypt/wolfmath.h>
+
 #ifdef __cplusplus
     extern "C" {
 #endif
@@ -288,16 +291,21 @@
 #define FP_YES        1   /* yes response */
 #define FP_NO         0   /* no response */
 
+#ifdef HAVE_WOLF_BIGINT
+    struct WC_BIGINT;
+#endif
+
 /* a FP type */
 typedef struct fp_int {
     int      used;
     int      sign;
-#if defined(ALT_ECC_SIZE) || defined(WOLFSSL_ASYNC_CRYPT)
+#if defined(ALT_ECC_SIZE) || defined(HAVE_WOLF_BIGINT)
     int      size;
 #endif
     fp_digit dp[FP_SIZE];
-#ifdef WOLFSSL_ASYNC_CRYPT
-    byte *dpraw; /* Used for hardware crypto */
+
+#ifdef HAVE_WOLF_BIGINT
+    struct WC_BIGINT raw; /* unsigned binary (big endian) */
 #endif
 } fp_int;
 
@@ -380,6 +388,8 @@ typedef struct fp_int {
 void fp_init(fp_int *a);
 MP_API void fp_zero(fp_int *a);
 MP_API void fp_clear(fp_int *a); /* uses ForceZero to clear sensitive memory */
+MP_API void fp_forcezero (fp_int * a);
+MP_API void fp_free(fp_int* a);
 
 /* zero/even/odd ? */
 #define fp_iszero(a) (((a)->used == 0) ? FP_YES : FP_NO)
@@ -605,6 +615,7 @@ void fp_sqr_comba64(fp_int *a, fp_int *b);
 typedef fp_digit mp_digit;
 typedef fp_word  mp_word;
 typedef fp_int mp_int;
+#define MP_INT_DEFINED
 
 /* Constants */
 #define MP_LT   FP_LT   /* less than    */
@@ -627,8 +638,9 @@ typedef fp_int mp_int;
 #define mp_isneg(a)   fp_isneg(a)
 MP_API int  mp_init (mp_int * a);
 MP_API void mp_clear (mp_int * a);
-#define mp_forcezero(a) fp_clear(a)
-MP_API int mp_init_multi(mp_int* a, mp_int* b, mp_int* c, mp_int* d, mp_int* e,
+MP_API void mp_free (mp_int * a);
+MP_API void mp_forcezero (mp_int * a);
+MP_API int  mp_init_multi(mp_int* a, mp_int* b, mp_int* c, mp_int* d, mp_int* e,
                          mp_int* f);
 
 MP_API int  mp_add (mp_int * a, mp_int * b, mp_int * c);

@@ -38,83 +38,79 @@
 #endif
 
 
+/* fips wrapper calls, user can call direct */
 #ifdef HAVE_FIPS
-/* does init */
-int wc_HmacSetKey(Hmac* hmac, int type, const byte* key, word32 keySz)
-{
-    return HmacSetKey_fips(hmac, type, key, keySz);
-}
-
-
-int wc_HmacUpdate(Hmac* hmac, const byte* in, word32 sz)
-{
-    return HmacUpdate_fips(hmac, in, sz);
-}
-
-
-int wc_HmacFinal(Hmac* hmac, byte* out)
-{
-    return HmacFinal_fips(hmac, out);
-}
-
-
-#ifdef WOLFSSL_ASYNC_CRYPT
-    int  wc_HmacAsyncInit(Hmac* hmac, int i)
+    /* does init */
+    int wc_HmacSetKey(Hmac* hmac, int type, const byte* key, word32 keySz)
     {
-        return HmacAsyncInit(hmac, i);
+        return HmacSetKey_fips(hmac, type, key, keySz);
+    }
+    int wc_HmacUpdate(Hmac* hmac, const byte* in, word32 sz)
+    {
+        return HmacUpdate_fips(hmac, in, sz);
+    }
+    int wc_HmacFinal(Hmac* hmac, byte* out)
+    {
+        return HmacFinal_fips(hmac, out);
+    }
+    int wolfSSL_GetHmacMaxSize(void)
+    {
+        return CyaSSL_GetHmacMaxSize();
     }
 
-
-    void wc_HmacAsyncFree(Hmac* hmac)
+    int wc_HmacInit(Hmac* hmac, void* heap, int devId)
     {
-        HmacAsyncFree(hmac);
+        (void)hmac;
+        (void)heap;
+        (void)devId;
+        /* FIPS doesn't support:
+            return HmacInit(hmac, heap, devId); */
+        return 0;
     }
-#endif
+    void wc_HmacFree(Hmac* hmac)
+    {
+        (void)hmac;
+        /* FIPS doesn't support:
+            HmacFree(hmac); */
+    }
 
-int wolfSSL_GetHmacMaxSize(void)
-{
-    return CyaSSL_GetHmacMaxSize();
-}
-
-#ifdef HAVE_HKDF
-
-int wc_HKDF(int type, const byte* inKey, word32 inKeySz,
+    #ifdef HAVE_HKDF
+        int wc_HKDF(int type, const byte* inKey, word32 inKeySz,
                     const byte* salt, word32 saltSz,
                     const byte* info, word32 infoSz,
                     byte* out, word32 outSz)
-{
-    return HKDF(type, inKey, inKeySz, salt, saltSz, info, infoSz, out, outSz);
-}
+        {
+            return HKDF(type, inKey, inKeySz, salt, saltSz,
+                info, infoSz, out, outSz);
+        }
+    #endif /* HAVE_HKDF */
 
-
-#endif /* HAVE_HKDF */
 #else /* else build without fips */
-#ifdef WOLFSSL_PIC32MZ_HASH
 
-#define wc_InitMd5   wc_InitMd5_sw
-#define wc_Md5Update wc_Md5Update_sw
-#define wc_Md5Final  wc_Md5Final_sw
-
-#define wc_InitSha   wc_InitSha_sw
-#define wc_ShaUpdate wc_ShaUpdate_sw
-#define wc_ShaFinal  wc_ShaFinal_sw
-
-#define wc_InitSha256   wc_InitSha256_sw
-#define wc_Sha256Update wc_Sha256Update_sw
-#define wc_Sha256Final  wc_Sha256Final_sw
-
-#endif
-
-#ifdef HAVE_FIPS
-    /* set NO_WRAPPERS before headers, use direct internal f()s not wrappers */
-    #define FIPS_NO_WRAPPERS
-#endif
 
 #include <wolfssl/wolfcrypt/error-crypt.h>
 
 
+#ifdef WOLFSSL_PIC32MZ_HASH
+    #define wc_InitMd5   wc_InitMd5_sw
+    #define wc_Md5Update wc_Md5Update_sw
+    #define wc_Md5Final  wc_Md5Final_sw
+
+    #define wc_InitSha   wc_InitSha_sw
+    #define wc_ShaUpdate wc_ShaUpdate_sw
+    #define wc_ShaFinal  wc_ShaFinal_sw
+
+    #define wc_InitSha256   wc_InitSha256_sw
+    #define wc_Sha256Update wc_Sha256Update_sw
+    #define wc_Sha256Final  wc_Sha256Final_sw
+#endif /* WOLFSSL_PIC32MZ_HASH */
+
+
+
 int wc_HmacSizeByType(int type)
 {
+    int ret;
+
     if (!(type == MD5 || type == SHA    || type == SHA256 || type == SHA384
                       || type == SHA512 || type == BLAKE2B_ID
                       || type == SHA224)) {
@@ -124,102 +120,110 @@ int wc_HmacSizeByType(int type)
     switch (type) {
     #ifndef NO_MD5
         case MD5:
-            return MD5_DIGEST_SIZE;
-    #endif
+            ret = MD5_DIGEST_SIZE;
+            break;
+    #endif /* !NO_MD5 */
 
     #ifndef NO_SHA
         case SHA:
-            return SHA_DIGEST_SIZE;
-    #endif
+            ret = SHA_DIGEST_SIZE;
+            break;
+    #endif /* !NO_SHA */
 
     #ifdef WOLFSSL_SHA224
         case SHA224:
-            return SHA224_DIGEST_SIZE;
-    #endif
+            ret = SHA224_DIGEST_SIZE;
+            break;
+    #endif /* WOLFSSL_SHA224 */
 
     #ifndef NO_SHA256
         case SHA256:
-            return SHA256_DIGEST_SIZE;
-    #endif
-
-    #ifdef WOLFSSL_SHA384
-        case SHA384:
-            return SHA384_DIGEST_SIZE;
-    #endif
+            ret = SHA256_DIGEST_SIZE;
+            break;
+    #endif /* !NO_SHA256 */
 
     #ifdef WOLFSSL_SHA512
+    #ifdef WOLFSSL_SHA384
+        case SHA384:
+            ret = SHA384_DIGEST_SIZE;
+            break;
+    #endif /* WOLFSSL_SHA384 */
         case SHA512:
-            return SHA512_DIGEST_SIZE;
-    #endif
+            ret = SHA512_DIGEST_SIZE;
+            break;
+    #endif /* WOLFSSL_SHA512 */
 
     #ifdef HAVE_BLAKE2
         case BLAKE2B_ID:
-            return BLAKE2B_OUTBYTES;
-    #endif
+            ret = BLAKE2B_OUTBYTES;
+            break;
+    #endif /* HAVE_BLAKE2 */
 
         default:
-            return BAD_FUNC_ARG;
+            ret = BAD_FUNC_ARG;
+            break;
     }
+
+    return ret;
 }
 
-static int InitHmac(Hmac* hmac, int type)
+static int _InitHmac(Hmac* hmac, int type, void* heap)
 {
     int ret = 0;
 
-    hmac->innerHashKeyed = 0;
-    hmac->macType = (byte)type;
-
-    if (!(type == MD5 || type == SHA    || type == SHA256 || type == SHA384
-                      || type == SHA512 || type == BLAKE2B_ID
-                      || type == SHA224))
-        return BAD_FUNC_ARG;
-
     switch (type) {
-        #ifndef NO_MD5
+    #ifndef NO_MD5
         case MD5:
-            wc_InitMd5(&hmac->hash.md5);
-        break;
-        #endif
+            ret = wc_InitMd5(&hmac->hash.md5);
+            break;
+    #endif /* !NO_MD5 */
 
-        #ifndef NO_SHA
+    #ifndef NO_SHA
         case SHA:
             ret = wc_InitSha(&hmac->hash.sha);
-        break;
-        #endif
+            break;
+    #endif /* !NO_SHA */
 
-        #ifdef WOLFSSL_SHA224
+    #ifdef WOLFSSL_SHA224
         case SHA224:
             ret = wc_InitSha224(&hmac->hash.sha224);
-        break;
-        #endif
+            break;
+    #endif /* WOLFSSL_SHA224 */
 
-        #ifndef NO_SHA256
+    #ifndef NO_SHA256
         case SHA256:
             ret = wc_InitSha256(&hmac->hash.sha256);
-        break;
-        #endif
+            break;
+    #endif /* !NO_SHA256 */
 
-        #ifdef WOLFSSL_SHA384
+    #ifdef WOLFSSL_SHA512
+    #ifdef WOLFSSL_SHA384
         case SHA384:
             ret = wc_InitSha384(&hmac->hash.sha384);
-        break;
-        #endif
-
-        #ifdef WOLFSSL_SHA512
+            break;
+    #endif /* WOLFSSL_SHA384 */
         case SHA512:
             ret = wc_InitSha512(&hmac->hash.sha512);
-        break;
-        #endif
+            break;
+    #endif /* WOLFSSL_SHA512 */
 
-        #ifdef HAVE_BLAKE2
+    #ifdef HAVE_BLAKE2
         case BLAKE2B_ID:
             ret = wc_InitBlake2b(&hmac->hash.blake2b, BLAKE2B_256);
-        break;
-        #endif
+            break;
+    #endif /* HAVE_BLAKE2 */
 
         default:
-            return BAD_FUNC_ARG;
+            ret = BAD_FUNC_ARG;
+            break;
     }
+
+    /* default to NULL heap hint or test value */
+#ifdef WOLFSSL_HEAP_TEST
+    hmac->heap = (void)WOLFSSL_HEAP_TEST;
+#else
+    hmac->heap = heap;
+#endif /* WOLFSSL_HEAP_TEST */
 
     return ret;
 }
@@ -227,18 +231,38 @@ static int InitHmac(Hmac* hmac, int type)
 
 int wc_HmacSetKey(Hmac* hmac, int type, const byte* key, word32 length)
 {
-    byte*  ip = (byte*) hmac->ipad;
-    byte*  op = (byte*) hmac->opad;
+    byte*  ip;
+    byte*  op;
     word32 i, hmac_block_size = 0;
-    int    ret;
+    int    ret = 0;
+    void*  heap = NULL;
 
-#if defined(WOLFSSL_ASYNC_CRYPT) && defined(HAVE_CAVIUM)
-    if (hmac->asyncDev.marker == WOLFSSL_ASYNC_MARKER_HMAC) {
-        return NitroxHmacSetKey(hmac, type, key, length);
+    if (hmac == NULL || key == NULL ||
+        !(type == MD5 || type == SHA    || type == SHA256 || type == SHA384
+                      || type == SHA512 || type == BLAKE2B_ID
+                      || type == SHA224)) {
+        return BAD_FUNC_ARG;
     }
-#endif
 
-    ret = InitHmac(hmac, type);
+    hmac->innerHashKeyed = 0;
+    hmac->macType = (byte)type;
+
+#if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_HMAC)
+    if (hmac->asyncDev.marker == WOLFSSL_ASYNC_MARKER_HMAC) {
+    #if defined(HAVE_CAVIUM) || defined(HAVE_INTEL_QA)
+        if (length > HMAC_BLOCK_SIZE) {
+            return WC_KEY_SIZE_E;
+        }
+
+        XMEMCPY(hmac->keyRaw, key, length);
+        hmac->keyLen = (word16)length;
+
+        return 0; /* nothing to do here */
+    #endif /* HAVE_CAVIUM || HAVE_INTEL_QA */
+    }
+#endif /* WOLFSSL_ASYNC_CRYPT */
+
+    ret = _InitHmac(hmac, type, heap);
     if (ret != 0)
         return ret;
 
@@ -247,40 +271,48 @@ int wc_HmacSetKey(Hmac* hmac, int type, const byte* key, word32 length)
         return HMAC_MIN_KEYLEN_E;
 #endif
 
+    ip = (byte*)hmac->ipad;
+    op = (byte*)hmac->opad;
+
     switch (hmac->macType) {
-        #ifndef NO_MD5
+    #ifndef NO_MD5
         case MD5:
-        {
             hmac_block_size = MD5_BLOCK_SIZE;
             if (length <= MD5_BLOCK_SIZE) {
                 XMEMCPY(ip, key, length);
             }
             else {
-                wc_Md5Update(&hmac->hash.md5, key, length);
-                wc_Md5Final(&hmac->hash.md5, ip);
+                ret = wc_Md5Update(&hmac->hash.md5, key, length);
+                if (ret != 0)
+                    break;
+                ret = wc_Md5Final(&hmac->hash.md5, ip);
+                if (ret != 0)
+                    break;
                 length = MD5_DIGEST_SIZE;
             }
-        }
-        break;
-        #endif
+            break;
+    #endif /* !NO_MD5 */
 
-        #ifndef NO_SHA
+    #ifndef NO_SHA
         case SHA:
-        {
             hmac_block_size = SHA_BLOCK_SIZE;
             if (length <= SHA_BLOCK_SIZE) {
                 XMEMCPY(ip, key, length);
             }
             else {
-                wc_ShaUpdate(&hmac->hash.sha, key, length);
-                wc_ShaFinal(&hmac->hash.sha, ip);
+                ret = wc_ShaUpdate(&hmac->hash.sha, key, length);
+                if (ret != 0)
+                    break;
+                ret = wc_ShaFinal(&hmac->hash.sha, ip);
+                if (ret != 0)
+                    break;
+
                 length = SHA_DIGEST_SIZE;
             }
-        }
-        break;
-        #endif
+            break;
+    #endif /* !NO_SHA */
 
-        #ifdef WOLFSSL_SHA224
+    #ifdef WOLFSSL_SHA224
         case SHA224:
         {
             hmac_block_size = SHA224_BLOCK_SIZE;
@@ -290,21 +322,19 @@ int wc_HmacSetKey(Hmac* hmac, int type, const byte* key, word32 length)
             else {
                 ret = wc_Sha224Update(&hmac->hash.sha224, key, length);
                 if (ret != 0)
-                    return ret;
-
+                    break;
                 ret = wc_Sha224Final(&hmac->hash.sha224, ip);
                 if (ret != 0)
-                    return ret;
+                    break;
 
                 length = SHA224_DIGEST_SIZE;
             }
         }
         break;
-        #endif
+    #endif /* WOLFSSL_SHA224 */
 
-        #ifndef NO_SHA256
+    #ifndef NO_SHA256
         case SHA256:
-        {
     		hmac_block_size = SHA256_BLOCK_SIZE;
             if (length <= SHA256_BLOCK_SIZE) {
                 XMEMCPY(ip, key, length);
@@ -312,21 +342,19 @@ int wc_HmacSetKey(Hmac* hmac, int type, const byte* key, word32 length)
             else {
                 ret = wc_Sha256Update(&hmac->hash.sha256, key, length);
                 if (ret != 0)
-                    return ret;
-
+                    break;
                 ret = wc_Sha256Final(&hmac->hash.sha256, ip);
                 if (ret != 0)
-                    return ret;
+                    break;
 
                 length = SHA256_DIGEST_SIZE;
             }
-        }
-        break;
-        #endif
+            break;
+    #endif /* !NO_SHA256 */
 
-        #ifdef WOLFSSL_SHA384
+    #ifdef WOLFSSL_SHA512
+    #ifdef WOLFSSL_SHA384
         case SHA384:
-        {
             hmac_block_size = SHA384_BLOCK_SIZE;
             if (length <= SHA384_BLOCK_SIZE) {
                 XMEMCPY(ip, key, length);
@@ -334,21 +362,16 @@ int wc_HmacSetKey(Hmac* hmac, int type, const byte* key, word32 length)
             else {
                 ret = wc_Sha384Update(&hmac->hash.sha384, key, length);
                 if (ret != 0)
-                    return ret;
-
+                    break;
                 ret = wc_Sha384Final(&hmac->hash.sha384, ip);
                 if (ret != 0)
-                    return ret;
+                    break;
 
                 length = SHA384_DIGEST_SIZE;
             }
-        }
-        break;
-        #endif
-
-        #ifdef WOLFSSL_SHA512
+            break;
+    #endif /* WOLFSSL_SHA384 */
         case SHA512:
-        {
             hmac_block_size = SHA512_BLOCK_SIZE;
             if (length <= SHA512_BLOCK_SIZE) {
                 XMEMCPY(ip, key, length);
@@ -356,21 +379,18 @@ int wc_HmacSetKey(Hmac* hmac, int type, const byte* key, word32 length)
             else {
                 ret = wc_Sha512Update(&hmac->hash.sha512, key, length);
                 if (ret != 0)
-                    return ret;
-
+                    break;
                 ret = wc_Sha512Final(&hmac->hash.sha512, ip);
                 if (ret != 0)
-                    return ret;
+                    break;
 
                 length = SHA512_DIGEST_SIZE;
             }
-        }
-        break;
-        #endif
+            break;
+    #endif /* WOLFSSL_SHA512 */
 
-        #ifdef HAVE_BLAKE2
+    #ifdef HAVE_BLAKE2
         case BLAKE2B_ID:
-        {
             hmac_block_size = BLAKE2B_BLOCKBYTES;
             if (length <= BLAKE2B_BLOCKBYTES) {
                 XMEMCPY(ip, key, length);
@@ -378,29 +398,31 @@ int wc_HmacSetKey(Hmac* hmac, int type, const byte* key, word32 length)
             else {
                 ret = wc_Blake2bUpdate(&hmac->hash.blake2b, key, length);
                 if (ret != 0)
-                    return ret;
-
+                    break;
                 ret = wc_Blake2bFinal(&hmac->hash.blake2b, ip, BLAKE2B_256);
                 if (ret != 0)
-                    return ret;
+                    break;
 
                 length = BLAKE2B_256;
             }
-        }
-        break;
-        #endif
+            break;
+    #endif /* HAVE_BLAKE2 */
 
         default:
             return BAD_FUNC_ARG;
     }
-    if (length < hmac_block_size)
-        XMEMSET(ip + length, 0, hmac_block_size - length);
 
-    for(i = 0; i < hmac_block_size; i++) {
-        op[i] = ip[i] ^ OPAD;
-        ip[i] ^= IPAD;
+    if (ret == 0) {
+        if (length < hmac_block_size)
+            XMEMSET(ip + length, 0, hmac_block_size - length);
+
+        for(i = 0; i < hmac_block_size; i++) {
+            op[i] = ip[i] ^ OPAD;
+            ip[i] ^= IPAD;
+        }
     }
-    return 0;
+
+    return ret;
 }
 
 
@@ -409,68 +431,60 @@ static int HmacKeyInnerHash(Hmac* hmac)
     int ret = 0;
 
     switch (hmac->macType) {
-        #ifndef NO_MD5
+    #ifndef NO_MD5
         case MD5:
-            wc_Md5Update(&hmac->hash.md5, (byte*) hmac->ipad, MD5_BLOCK_SIZE);
-        break;
-        #endif
+            ret = wc_Md5Update(&hmac->hash.md5, (byte*)hmac->ipad,
+                                                                MD5_BLOCK_SIZE);
+            break;
+    #endif /* !NO_MD5 */
 
-        #ifndef NO_SHA
+    #ifndef NO_SHA
         case SHA:
-            wc_ShaUpdate(&hmac->hash.sha, (byte*) hmac->ipad, SHA_BLOCK_SIZE);
-        break;
-        #endif
+            ret = wc_ShaUpdate(&hmac->hash.sha, (byte*)hmac->ipad,
+                                                                SHA_BLOCK_SIZE);
+            break;
+    #endif /* !NO_SHA */
 
-        #ifdef WOLFSSL_SHA224
+    #ifdef WOLFSSL_SHA224
         case SHA224:
-            ret = wc_Sha224Update(&hmac->hash.sha224,
-                                         (byte*) hmac->ipad, SHA224_BLOCK_SIZE);
-            if (ret != 0)
-                return ret;
-        break;
-        #endif
+            ret = wc_Sha224Update(&hmac->hash.sha224, (byte*)hmac->ipad,
+                                                             SHA224_BLOCK_SIZE);
+            break;
+    #endif /* WOLFSSL_SHA224 */
 
-        #ifndef NO_SHA256
+    #ifndef NO_SHA256
         case SHA256:
-            ret = wc_Sha256Update(&hmac->hash.sha256,
-                                         (byte*) hmac->ipad, SHA256_BLOCK_SIZE);
-            if (ret != 0)
-                return ret;
-        break;
-        #endif
+            ret = wc_Sha256Update(&hmac->hash.sha256, (byte*)hmac->ipad,
+                                                             SHA256_BLOCK_SIZE);
+            break;
+    #endif /* !NO_SHA256 */
 
-        #ifdef WOLFSSL_SHA384
+    #ifdef WOLFSSL_SHA512
+    #ifdef WOLFSSL_SHA384
         case SHA384:
-            ret = wc_Sha384Update(&hmac->hash.sha384,
-                                         (byte*) hmac->ipad, SHA384_BLOCK_SIZE);
-            if (ret != 0)
-                return ret;
-        break;
-        #endif
-
-        #ifdef WOLFSSL_SHA512
+            ret = wc_Sha384Update(&hmac->hash.sha384, (byte*)hmac->ipad,
+                                                             SHA384_BLOCK_SIZE);
+            break;
+    #endif /* WOLFSSL_SHA384 */
         case SHA512:
-            ret = wc_Sha512Update(&hmac->hash.sha512,
-                                         (byte*) hmac->ipad, SHA512_BLOCK_SIZE);
-            if (ret != 0)
-                return ret;
-        break;
-        #endif
+            ret = wc_Sha512Update(&hmac->hash.sha512, (byte*)hmac->ipad,
+                                                             SHA512_BLOCK_SIZE);
+            break;
+    #endif /* WOLFSSL_SHA512 */
 
-        #ifdef HAVE_BLAKE2
+    #ifdef HAVE_BLAKE2
         case BLAKE2B_ID:
-            ret = wc_Blake2bUpdate(&hmac->hash.blake2b,
-                                         (byte*) hmac->ipad,BLAKE2B_BLOCKBYTES);
-            if (ret != 0)
-                return ret;
-        break;
-        #endif
+            ret = wc_Blake2bUpdate(&hmac->hash.blake2b, (byte*)hmac->ipad,
+                                                            BLAKE2B_BLOCKBYTES);
+            break;
+    #endif /* HAVE_BLAKE2 */
 
         default:
-        break;
+            break;
     }
 
-    hmac->innerHashKeyed = 1;
+    if (ret == 0)
+        hmac->innerHashKeyed = 1;
 
     return ret;
 }
@@ -478,13 +492,18 @@ static int HmacKeyInnerHash(Hmac* hmac)
 
 int wc_HmacUpdate(Hmac* hmac, const byte* msg, word32 length)
 {
-    int ret;
+    int ret = 0;
 
-#if defined(WOLFSSL_ASYNC_CRYPT) && defined(HAVE_CAVIUM)
+#if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_HMAC)
     if (hmac->asyncDev.marker == WOLFSSL_ASYNC_MARKER_HMAC) {
+    #if defined(HAVE_CAVIUM)
         return NitroxHmacUpdate(hmac, msg, length);
+    #elif defined(HAVE_INTEL_QA)
+        return IntelQaHmac(&hmac->asyncDev, hmac->macType,
+            hmac->keyRaw, hmac->keyLen, NULL, msg, length);
+    #endif
     }
-#endif
+#endif /* WOLFSSL_ASYNC_CRYPT */
 
     if (!hmac->innerHashKeyed) {
         ret = HmacKeyInnerHash(hmac);
@@ -493,63 +512,52 @@ int wc_HmacUpdate(Hmac* hmac, const byte* msg, word32 length)
     }
 
     switch (hmac->macType) {
-        #ifndef NO_MD5
+    #ifndef NO_MD5
         case MD5:
-            wc_Md5Update(&hmac->hash.md5, msg, length);
-        break;
-        #endif
+            ret = wc_Md5Update(&hmac->hash.md5, msg, length);
+            break;
+    #endif /* !NO_MD5 */
 
-        #ifndef NO_SHA
+    #ifndef NO_SHA
         case SHA:
-            wc_ShaUpdate(&hmac->hash.sha, msg, length);
-        break;
-        #endif
+            ret = wc_ShaUpdate(&hmac->hash.sha, msg, length);
+            break;
+    #endif /* !NO_SHA */
 
-        #ifdef WOLFSSL_SHA224
+    #ifdef WOLFSSL_SHA224
         case SHA224:
             ret = wc_Sha224Update(&hmac->hash.sha224, msg, length);
-            if (ret != 0)
-                return ret;
-        break;
-        #endif
+            break;
+    #endif /* WOLFSSL_SHA224 */
 
-        #ifndef NO_SHA256
+    #ifndef NO_SHA256
         case SHA256:
             ret = wc_Sha256Update(&hmac->hash.sha256, msg, length);
-            if (ret != 0)
-                return ret;
-        break;
-        #endif
+            break;
+    #endif /* !NO_SHA256 */
 
-        #ifdef WOLFSSL_SHA384
+    #ifdef WOLFSSL_SHA512
+    #ifdef WOLFSSL_SHA384
         case SHA384:
             ret = wc_Sha384Update(&hmac->hash.sha384, msg, length);
-            if (ret != 0)
-                return ret;
-        break;
-        #endif
-
-        #ifdef WOLFSSL_SHA512
+            break;
+    #endif /* WOLFSSL_SHA384 */
         case SHA512:
             ret = wc_Sha512Update(&hmac->hash.sha512, msg, length);
-            if (ret != 0)
-                return ret;
-        break;
-        #endif
+            break;
+    #endif /* WOLFSSL_SHA512 */
 
-        #ifdef HAVE_BLAKE2
+    #ifdef HAVE_BLAKE2
         case BLAKE2B_ID:
             ret = wc_Blake2bUpdate(&hmac->hash.blake2b, msg, length);
-            if (ret != 0)
-                return ret;
-        break;
-        #endif
+            break;
+    #endif /* HAVE_BLAKE2 */
 
         default:
-        break;
+            break;
     }
 
-    return 0;
+    return ret;
 }
 
 
@@ -557,11 +565,20 @@ int wc_HmacFinal(Hmac* hmac, byte* hash)
 {
     int ret;
 
-#if defined(WOLFSSL_ASYNC_CRYPT) && defined(HAVE_CAVIUM)
+#if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_HMAC)
     if (hmac->asyncDev.marker == WOLFSSL_ASYNC_MARKER_HMAC) {
-        return NitroxHmacFinal(hmac, hash);
+        int hashLen = wc_HmacSizeByType(hmac->macType);
+        if (hashLen <= 0)
+            return hashLen;
+
+    #if defined(HAVE_CAVIUM)
+        return NitroxHmacFinal(hmac, hmac->macType, hash, hashLen);
+    #elif defined(HAVE_INTEL_QA)
+        return IntelQaHmac(&hmac->asyncDev, hmac->macType,
+            hmac->keyRaw, hmac->keyLen, hash, NULL, hashLen);
+    #endif
     }
-#endif
+#endif /* WOLFSSL_ASYNC_CRYPT */
 
     if (!hmac->innerHashKeyed) {
         ret = HmacKeyInnerHash(hmac);
@@ -570,216 +587,184 @@ int wc_HmacFinal(Hmac* hmac, byte* hash)
     }
 
     switch (hmac->macType) {
-        #ifndef NO_MD5
+    #ifndef NO_MD5
         case MD5:
-        {
-            wc_Md5Final(&hmac->hash.md5, (byte*) hmac->innerHash);
+            ret = wc_Md5Final(&hmac->hash.md5, (byte*)hmac->innerHash);
+            if (ret != 0)
+                break;
+            ret = wc_Md5Update(&hmac->hash.md5, (byte*)hmac->opad,
+                                                                MD5_BLOCK_SIZE);
+            if (ret != 0)
+                break;
+            ret = wc_Md5Update(&hmac->hash.md5, (byte*)hmac->innerHash,
+                                                               MD5_DIGEST_SIZE);
+            if (ret != 0)
+                break;
+            ret = wc_Md5Final(&hmac->hash.md5, hash);
+            break;
+    #endif /* !NO_MD5 */
 
-            wc_Md5Update(&hmac->hash.md5, (byte*) hmac->opad, MD5_BLOCK_SIZE);
-            wc_Md5Update(&hmac->hash.md5,
-                                     (byte*) hmac->innerHash, MD5_DIGEST_SIZE);
-
-            wc_Md5Final(&hmac->hash.md5, hash);
-        }
-        break;
-        #endif
-
-        #ifndef NO_SHA
+    #ifndef NO_SHA
         case SHA:
-        {
-            wc_ShaFinal(&hmac->hash.sha, (byte*) hmac->innerHash);
+            ret = wc_ShaFinal(&hmac->hash.sha, (byte*)hmac->innerHash);
+            if (ret != 0)
+                break;
+            ret = wc_ShaUpdate(&hmac->hash.sha, (byte*)hmac->opad,
+                                                                SHA_BLOCK_SIZE);
+            if (ret != 0)
+                break;
+            ret = wc_ShaUpdate(&hmac->hash.sha, (byte*)hmac->innerHash,
+                                                               SHA_DIGEST_SIZE);
+            if (ret != 0)
+                break;
+            ret = wc_ShaFinal(&hmac->hash.sha, hash);
+            break;
+    #endif /* !NO_SHA */
 
-            wc_ShaUpdate(&hmac->hash.sha, (byte*) hmac->opad, SHA_BLOCK_SIZE);
-            wc_ShaUpdate(&hmac->hash.sha,
-                                     (byte*) hmac->innerHash, SHA_DIGEST_SIZE);
-
-            wc_ShaFinal(&hmac->hash.sha, hash);
-        }
-        break;
-        #endif
-
-        #ifdef WOLFSSL_SHA224
+    #ifdef WOLFSSL_SHA224
         case SHA224:
         {
-            ret = wc_Sha224Final(&hmac->hash.sha224, (byte*) hmac->innerHash);
+            ret = wc_Sha224Final(&hmac->hash.sha224, (byte*)hmac->innerHash);
             if (ret != 0)
-                return ret;
-
-            ret = wc_Sha224Update(&hmac->hash.sha224,
-                                 (byte*) hmac->opad, SHA224_BLOCK_SIZE);
+                break;
+            ret = wc_Sha224Update(&hmac->hash.sha224, (byte*)hmac->opad,
+                                                             SHA224_BLOCK_SIZE);
             if (ret != 0)
-                return ret;
-
-            ret = wc_Sha224Update(&hmac->hash.sha224,
-                                 (byte*) hmac->innerHash, SHA224_DIGEST_SIZE);
+                break;
+            ret = wc_Sha224Update(&hmac->hash.sha224, (byte*)hmac->innerHash,
+                                                            SHA224_DIGEST_SIZE);
             if (ret != 0)
-                return ret;
-
+                break;
             ret = wc_Sha224Final(&hmac->hash.sha224, hash);
             if (ret != 0)
-                return ret;
+                break;
         }
         break;
-        #endif
+    #endif /* WOLFSSL_SHA224 */
 
-        #ifndef NO_SHA256
+    #ifndef NO_SHA256
         case SHA256:
-        {
-            ret = wc_Sha256Final(&hmac->hash.sha256, (byte*) hmac->innerHash);
+            ret = wc_Sha256Final(&hmac->hash.sha256, (byte*)hmac->innerHash);
             if (ret != 0)
-                return ret;
-
-            ret = wc_Sha256Update(&hmac->hash.sha256,
-                                (byte*) hmac->opad, SHA256_BLOCK_SIZE);
+                break;
+            ret = wc_Sha256Update(&hmac->hash.sha256, (byte*)hmac->opad,
+                                                             SHA256_BLOCK_SIZE);
             if (ret != 0)
-                return ret;
-
-            ret = wc_Sha256Update(&hmac->hash.sha256,
-                                (byte*) hmac->innerHash, SHA256_DIGEST_SIZE);
+                break;
+            ret = wc_Sha256Update(&hmac->hash.sha256, (byte*)hmac->innerHash,
+                                                            SHA256_DIGEST_SIZE);
             if (ret != 0)
-                return ret;
-
+                break;
             ret = wc_Sha256Final(&hmac->hash.sha256, hash);
-            if (ret != 0)
-                return ret;
-        }
-        break;
-        #endif
+            break;
+    #endif /* !NO_SHA256 */
 
-        #ifdef WOLFSSL_SHA384
+    #ifdef WOLFSSL_SHA512
+    #ifdef WOLFSSL_SHA384
         case SHA384:
-        {
-            ret = wc_Sha384Final(&hmac->hash.sha384, (byte*) hmac->innerHash);
+            ret = wc_Sha384Final(&hmac->hash.sha384, (byte*)hmac->innerHash);
             if (ret != 0)
-                return ret;
-
-            ret = wc_Sha384Update(&hmac->hash.sha384,
-                                 (byte*) hmac->opad, SHA384_BLOCK_SIZE);
+                break;
+            ret = wc_Sha384Update(&hmac->hash.sha384, (byte*)hmac->opad,
+                                                             SHA384_BLOCK_SIZE);
             if (ret != 0)
-                return ret;
-
-            ret = wc_Sha384Update(&hmac->hash.sha384,
-                                 (byte*) hmac->innerHash, SHA384_DIGEST_SIZE);
+                break;
+            ret = wc_Sha384Update(&hmac->hash.sha384, (byte*)hmac->innerHash,
+                                                            SHA384_DIGEST_SIZE);
             if (ret != 0)
-                return ret;
-
+                break;
             ret = wc_Sha384Final(&hmac->hash.sha384, hash);
-            if (ret != 0)
-                return ret;
-        }
-        break;
-        #endif
-
-        #ifdef WOLFSSL_SHA512
+            break;
+    #endif /* WOLFSSL_SHA384 */
         case SHA512:
-        {
-            ret = wc_Sha512Final(&hmac->hash.sha512, (byte*) hmac->innerHash);
+            ret = wc_Sha512Final(&hmac->hash.sha512, (byte*)hmac->innerHash);
             if (ret != 0)
-                return ret;
-
-            ret = wc_Sha512Update(&hmac->hash.sha512,
-                                 (byte*) hmac->opad, SHA512_BLOCK_SIZE);
+                break;
+            ret = wc_Sha512Update(&hmac->hash.sha512, (byte*)hmac->opad,
+                                                             SHA512_BLOCK_SIZE);
             if (ret != 0)
-                return ret;
-
-            ret = wc_Sha512Update(&hmac->hash.sha512,
-                                 (byte*) hmac->innerHash, SHA512_DIGEST_SIZE);
+                break;
+            ret = wc_Sha512Update(&hmac->hash.sha512, (byte*)hmac->innerHash,
+                                                            SHA512_DIGEST_SIZE);
             if (ret != 0)
-                return ret;
-
+                break;
             ret = wc_Sha512Final(&hmac->hash.sha512, hash);
-            if (ret != 0)
-                return ret;
-        }
-        break;
-        #endif
+            break;
+    #endif /* WOLFSSL_SHA512 */
 
-        #ifdef HAVE_BLAKE2
+    #ifdef HAVE_BLAKE2
         case BLAKE2B_ID:
-        {
-            ret = wc_Blake2bFinal(&hmac->hash.blake2b, (byte*) hmac->innerHash,
-                         BLAKE2B_256);
+            ret = wc_Blake2bFinal(&hmac->hash.blake2b, (byte*)hmac->innerHash,
+                                                                   BLAKE2B_256);
             if (ret != 0)
-                return ret;
-
-            ret = wc_Blake2bUpdate(&hmac->hash.blake2b,
-                                 (byte*) hmac->opad, BLAKE2B_BLOCKBYTES);
+                break;
+            ret = wc_Blake2bUpdate(&hmac->hash.blake2b, (byte*)hmac->opad,
+                                                            BLAKE2B_BLOCKBYTES);
             if (ret != 0)
-                return ret;
-
-            ret = wc_Blake2bUpdate(&hmac->hash.blake2b,
-                                 (byte*) hmac->innerHash, BLAKE2B_256);
+                break;
+            ret = wc_Blake2bUpdate(&hmac->hash.blake2b, (byte*)hmac->innerHash,
+                                                                   BLAKE2B_256);
             if (ret != 0)
-                return ret;
-
+                break;
             ret = wc_Blake2bFinal(&hmac->hash.blake2b, hash, BLAKE2B_256);
-            if (ret != 0)
-                return ret;
-        }
-        break;
-        #endif
+            break;
+    #endif /* HAVE_BLAKE2 */
 
         default:
-        break;
+            ret = BAD_FUNC_ARG;
+            break;
     }
 
-    hmac->innerHashKeyed = 0;
+    if (ret == 0) {
+        hmac->innerHashKeyed = 0;
+    }
 
-    return 0;
+    return ret;
 }
 
 
-#ifdef WOLFSSL_ASYNC_CRYPT
-
-/* Initialize Hmac for use with Nitrox device */
-int wc_HmacAsyncInit(Hmac* hmac, int devId)
+/* Initialize Hmac for use with async device */
+int wc_HmacInit(Hmac* hmac, void* heap, int devId)
 {
     int ret = 0;
 
     if (hmac == NULL)
-        return -1;
+        return BAD_FUNC_ARG;
 
-    ret = wolfAsync_DevCtxInit(&hmac->asyncDev, WOLFSSL_ASYNC_MARKER_HMAC, devId);
-    if (ret != 0) {
-        return ret;
-    }
+    XMEMSET(hmac, 0, sizeof(Hmac));
+    hmac->heap = heap;
 
-#ifdef HAVE_CAVIUM
-    hmac->keyLen  = 0;
-    hmac->dataLen = 0;
-    hmac->type    = 0;
-    hmac->data    = NULL;        /* buffered input data */
+#if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_HMAC)
+    hmac->keyLen = 0;
+    #ifdef HAVE_CAVIUM
+        hmac->dataLen = 0;
+        hmac->data    = NULL;        /* buffered input data */
+    #endif /* HAVE_CAVIUM */
 
-    hmac->innerHashKeyed = 0;
-#endif /* HAVE_CAVIUM */
-
-    /* default to NULL heap hint or test value */
-#ifdef WOLFSSL_HEAP_TEST
-    hmac->heap = (void)WOLFSSL_HEAP_TEST;
+    ret = wolfAsync_DevCtxInit(&hmac->asyncDev, WOLFSSL_ASYNC_MARKER_HMAC,
+                                                         hmac->heap, devId);
 #else
-    hmac->heap = NULL;
-#endif /* WOLFSSL_HEAP_TEST */
+    (void)devId;
+#endif /* WOLFSSL_ASYNC_CRYPT */
 
-    return 0;
+    return ret;
 }
 
-
-/* Free Hmac from use with Nitrox device */
-void wc_HmacAsyncFree(Hmac* hmac)
+/* Free Hmac from use with async device */
+void wc_HmacFree(Hmac* hmac)
 {
     if (hmac == NULL)
         return;
 
-    wolfAsync_DevCtxFree(&hmac->asyncDev);
+#if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_HMAC)
+    wolfAsync_DevCtxFree(&hmac->asyncDev, WOLFSSL_ASYNC_MARKER_HMAC);
 
 #ifdef HAVE_CAVIUM
-    XFREE(hmac->data, hmac->heap, DYNAMIC_TYPE_ASYNC_TMP);
+    XFREE(hmac->data, hmac->heap, DYNAMIC_TYPE_HMAC);
     hmac->data = NULL;
-#endif
-}
-
+#endif /* HAVE_CAVIUM */
 #endif /* WOLFSSL_ASYNC_CRYPT */
-
+}
 
 int wolfSSL_GetHmacMaxSize(void)
 {
@@ -787,91 +772,90 @@ int wolfSSL_GetHmacMaxSize(void)
 }
 
 #ifdef HAVE_HKDF
+    /* HMAC-KDF with hash type, optional salt and info, return 0 on success */
+    int wc_HKDF(int type, const byte* inKey, word32 inKeySz,
+                       const byte* salt,  word32 saltSz,
+                       const byte* info,  word32 infoSz,
+                       byte* out,         word32 outSz)
+    {
+        Hmac   myHmac;
+    #ifdef WOLFSSL_SMALL_STACK
+        byte* tmp;
+        byte* prk;
+    #else
+        byte   tmp[MAX_DIGEST_SIZE]; /* localSalt helper and T */
+        byte   prk[MAX_DIGEST_SIZE];
+    #endif
+        const  byte* localSalt;  /* either points to user input or tmp */
+        int    hashSz = wc_HmacSizeByType(type);
+        word32 outIdx = 0;
+        byte   n = 0x1;
+        int    ret;
 
-/* HMAC-KDF with hash type, optional salt and info, return 0 on success */
-int wc_HKDF(int type, const byte* inKey, word32 inKeySz,
-                   const byte* salt,  word32 saltSz,
-                   const byte* info,  word32 infoSz,
-                   byte* out,         word32 outSz)
-{
-    Hmac   myHmac;
-#ifdef WOLFSSL_SMALL_STACK
-    byte* tmp;
-    byte* prk;
-#else
-    byte   tmp[MAX_DIGEST_SIZE]; /* localSalt helper and T */
-    byte   prk[MAX_DIGEST_SIZE];
-#endif
-    const  byte* localSalt;  /* either points to user input or tmp */
-    int    hashSz = wc_HmacSizeByType(type);
-    word32 outIdx = 0;
-    byte   n = 0x1;
-    int    ret;
+        if (hashSz < 0)
+            return BAD_FUNC_ARG;
 
-    if (hashSz < 0)
-        return BAD_FUNC_ARG;
+    #ifdef WOLFSSL_SMALL_STACK
+        tmp = (byte*)XMALLOC(MAX_DIGEST_SIZE, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        if (tmp == NULL)
+            return MEMORY_E;
 
-#ifdef WOLFSSL_SMALL_STACK
-    tmp = (byte*)XMALLOC(MAX_DIGEST_SIZE, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    if (tmp == NULL)
-        return MEMORY_E;
-
-    prk = (byte*)XMALLOC(MAX_DIGEST_SIZE, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    if (prk == NULL) {
-        XFREE(tmp, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        return MEMORY_E;
-    }
-#endif
-
-    localSalt = salt;
-    if (localSalt == NULL) {
-        XMEMSET(tmp, 0, hashSz);
-        localSalt = tmp;
-        saltSz    = hashSz;
-    }
-
-    ret = wc_HmacSetKey(&myHmac, type, localSalt, saltSz);
-    if (ret == 0)
-        ret = wc_HmacUpdate(&myHmac, inKey, inKeySz);
-    if (ret == 0)
-        ret = wc_HmacFinal(&myHmac,  prk);
-
-    if (ret == 0) {
-        while (outIdx < outSz) {
-            int    tmpSz = (n == 1) ? 0 : hashSz;
-            word32 left = outSz - outIdx;
-
-            ret = wc_HmacSetKey(&myHmac, type, prk, hashSz);
-            if (ret != 0)
-                break;
-            ret = wc_HmacUpdate(&myHmac, tmp, tmpSz);
-            if (ret != 0)
-                break;
-            ret = wc_HmacUpdate(&myHmac, info, infoSz);
-            if (ret != 0)
-                break;
-            ret = wc_HmacUpdate(&myHmac, &n, 1);
-            if (ret != 0)
-                break;
-            ret = wc_HmacFinal(&myHmac, tmp);
-            if (ret != 0)
-                break;
-
-            left = min(left, (word32)hashSz);
-            XMEMCPY(out+outIdx, tmp, left);
-
-            outIdx += hashSz;
-            n++;
+        prk = (byte*)XMALLOC(MAX_DIGEST_SIZE, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        if (prk == NULL) {
+            XFREE(tmp, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            return MEMORY_E;
         }
+    #endif
+
+        localSalt = salt;
+        if (localSalt == NULL) {
+            XMEMSET(tmp, 0, hashSz);
+            localSalt = tmp;
+            saltSz    = hashSz;
+        }
+
+        ret = wc_HmacSetKey(&myHmac, type, localSalt, saltSz);
+        if (ret == 0)
+            ret = wc_HmacUpdate(&myHmac, inKey, inKeySz);
+        if (ret == 0)
+            ret = wc_HmacFinal(&myHmac,  prk);
+
+        if (ret == 0) {
+            while (outIdx < outSz) {
+                int    tmpSz = (n == 1) ? 0 : hashSz;
+                word32 left = outSz - outIdx;
+
+                ret = wc_HmacSetKey(&myHmac, type, prk, hashSz);
+                if (ret != 0)
+                    break;
+                ret = wc_HmacUpdate(&myHmac, tmp, tmpSz);
+                if (ret != 0)
+                    break;
+                ret = wc_HmacUpdate(&myHmac, info, infoSz);
+                if (ret != 0)
+                    break;
+                ret = wc_HmacUpdate(&myHmac, &n, 1);
+                if (ret != 0)
+                    break;
+                ret = wc_HmacFinal(&myHmac, tmp);
+                if (ret != 0)
+                    break;
+
+                left = min(left, (word32)hashSz);
+                XMEMCPY(out+outIdx, tmp, left);
+
+                outIdx += hashSz;
+                n++;
+            }
+        }
+
+    #ifdef WOLFSSL_SMALL_STACK
+        XFREE(tmp, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(prk, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    #endif
+
+        return ret;
     }
-
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(tmp, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    XFREE(prk, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
-
-    return ret;
-}
 
 #endif /* HAVE_HKDF */
 

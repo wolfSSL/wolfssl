@@ -38,7 +38,7 @@
     WOLFSSL_API int  wolfSSL_Debugging_ON(void);
     WOLFSSL_API void wolfSSL_Debugging_OFF(void);
 #ifdef __cplusplus
-    } 
+    }
 #endif
 
 #if defined(OPENSSL_EXTRA) || defined(DEBUG_WOLFSSL_VERBOSE)
@@ -233,7 +233,7 @@ void WOLFSSL_ERROR(int error)
     #endif
 {
     #if defined(DEBUG_WOLFSSL) && !defined(WOLFSSL_NGINX)
-    if (loggingEnabled)
+    if (loggingEnabled && error != WC_PENDING_E)
     #endif
     {
         char buffer[80];

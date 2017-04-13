@@ -44,6 +44,12 @@ src/async.c
 wolfssl/async.h
 wolfcrypt/src/async.c
 wolfssl/wolfcrypt/async.h
+wolfcrypt/src/port/intel/quickassist.c
+wolfcrypt/src/port/intel/quickassist_mem.c
+wolfcrypt/src/port/cavium/cavium_nitrox.c
+wolfssl/wolfcrypt/port/intel/quickassist.h
+wolfssl/wolfcrypt/port/intel/quickassist_mem.h
+wolfssl/wolfcrypt/port/cavium/cavium_nitrox.h
 ctaocrypt/benchmark/benchmark
 ctaocrypt/test/testctaocrypt
 wolfcrypt/benchmark/benchmark
@@ -191,3 +197,6 @@ wrapper/CSharp/x64/
 # Visual Studio Code Workspace Files
 *.vscode
 IDE/INTIME-RTOS/Debug_*
+
+# Binaries
+wolfcrypt/src/port/intel/qat_test

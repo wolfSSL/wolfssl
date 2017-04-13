@@ -34,13 +34,21 @@
 
 #ifdef FREESCALE_LTC_SHA
     #include "fsl_ltc.h"
-#endif 
+#endif
 
 #ifdef __cplusplus
     extern "C" {
 #endif
 
 #ifndef HAVE_FIPS /* avoid redefining structs */
+
+#ifdef WOLFSSL_PIC32MZ_HASH
+    #include "port/pic32/pic32mz-crypt.h"
+#endif
+#ifdef WOLFSSL_ASYNC_CRYPT
+    #include <wolfssl/wolfcrypt/async.h>
+#endif
+
 /* in bytes */
 enum {
 #if defined(STM32F2_HASH) || defined(STM32F4_HASH)
@@ -52,12 +60,8 @@ enum {
     SHA_PAD_SIZE     = 56
 };
 
-#ifdef WOLFSSL_PIC32MZ_HASH
-#include "port/pic32/pic32mz-crypt.h"
-#endif
 
 #ifndef WOLFSSL_TI_HASH
-      
 /* Sha digest */
 typedef struct Sha {
     #ifdef FREESCALE_LTC_SHA
@@ -67,24 +71,36 @@ typedef struct Sha {
         word32  loLen;     /* length in bytes   */
         word32  hiLen;     /* length in bytes   */
         word32  buffer[SHA_BLOCK_SIZE  / sizeof(word32)];
-        #ifndef WOLFSSL_PIC32MZ_HASH
-            word32  digest[SHA_DIGEST_SIZE / sizeof(word32)];
-        #else
-            word32  digest[PIC32_HASH_SIZE / sizeof(word32)];
-            pic32mz_desc desc; /* Crypt Engine descriptor */
-        #endif
-    #endif /* FREESCALE_LTC_SHA */
+    #ifndef WOLFSSL_PIC32MZ_HASH
+        word32  digest[SHA_DIGEST_SIZE / sizeof(word32)];
+    #else
+        word32  digest[PIC32_HASH_SIZE / sizeof(word32)];
+    #endif
+        void*   heap;
+    #ifdef WOLFSSL_PIC32MZ_HASH
+        pic32mz_desc desc; /* Crypt Engine descriptor */
+    #endif
+    #ifdef WOLFSSL_ASYNC_CRYPT
+        WC_ASYNC_DEV asyncDev;
+    #endif /* WOLFSSL_ASYNC_CRYPT */
+#endif /* FREESCALE_LTC_SHA */
 } Sha;
 
-#else /* WOLFSSL_TI_HASH */
+#else
     #include "wolfssl/wolfcrypt/port/ti/ti-hash.h"
-#endif
+#endif /* WOLFSSL_TI_HASH */
+
 
 #endif /* HAVE_FIPS */
 
 WOLFSSL_API int wc_InitSha(Sha*);
+WOLFSSL_API int wc_InitSha_ex(Sha* sha, void* heap, int devId);
 WOLFSSL_API int wc_ShaUpdate(Sha*, const byte*, word32);
 WOLFSSL_API int wc_ShaFinal(Sha*, byte*);
+WOLFSSL_API void wc_ShaFree(Sha*);
+
+WOLFSSL_API int wc_ShaGetHash(Sha*, byte*);
+WOLFSSL_API int wc_ShaCopy(Sha*, Sha*);
 
 #ifdef __cplusplus
     } /* extern "C" */

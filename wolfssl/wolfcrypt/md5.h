@@ -50,10 +50,15 @@ enum {
 };
 
 #if defined(WOLFSSL_PIC32MZ_HASH)
-#include "port/pic32/pic32mz-crypt.h"
+    #include "port/pic32/pic32mz-crypt.h"
+#endif
+#ifdef WOLFSSL_ASYNC_CRYPT
+    #include <wolfssl/wolfcrypt/async.h>
 #endif
 
-#ifndef WOLFSSL_TI_HASH
+#ifdef WOLFSSL_TI_HASH
+    #include "wolfssl/wolfcrypt/port/ti/ti-hash.h"
+#else
 
 /* MD5 digest */
 typedef struct Md5 {
@@ -61,22 +66,29 @@ typedef struct Md5 {
     word32  loLen;     /* length in bytes   */
     word32  hiLen;     /* length in bytes   */
     word32  buffer[MD5_BLOCK_SIZE  / sizeof(word32)];
-    #if !defined(WOLFSSL_PIC32MZ_HASH)
+#if !defined(WOLFSSL_PIC32MZ_HASH)
     word32  digest[MD5_DIGEST_SIZE / sizeof(word32)];
-    #else
+#else
     word32  digest[PIC32_HASH_SIZE / sizeof(word32)];
-    pic32mz_desc desc ; /* Crypt Engine descriptor */
-    #endif
+    pic32mz_desc desc; /* Crypt Engine descriptor */
+#endif
+    void*   heap;
+#ifdef WOLFSSL_ASYNC_CRYPT
+    WC_ASYNC_DEV asyncDev;
+#endif /* WOLFSSL_ASYNC_CRYPT */
 } Md5;
 
-#else /* WOLFSSL_TI_HASH */
-    #include "wolfssl/wolfcrypt/port/ti/ti-hash.h"
-#endif
+#endif /* WOLFSSL_TI_HASH */
 
-WOLFSSL_API void wc_InitMd5(Md5*);
-WOLFSSL_API void wc_Md5Update(Md5*, const byte*, word32);
-WOLFSSL_API void wc_Md5Final(Md5*, byte*);
-WOLFSSL_API int  wc_Md5Hash(const byte*, word32, byte*);
+WOLFSSL_API int wc_InitMd5(Md5*);
+WOLFSSL_API int wc_InitMd5_ex(Md5*, void*, int);
+WOLFSSL_API int wc_Md5Update(Md5*, const byte*, word32);
+WOLFSSL_API int wc_Md5Final(Md5*, byte*);
+WOLFSSL_API void wc_Md5Free(Md5*);
+
+WOLFSSL_API int  wc_Md5GetHash(Md5*, byte*);
+WOLFSSL_API int  wc_Md5Copy(Md5*, Md5*);
+
 
 #ifdef __cplusplus
     } /* extern "C" */

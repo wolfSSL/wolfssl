@@ -31,6 +31,12 @@
 #include <wolfssl/wolfcrypt/pkcs7.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
 #include <wolfssl/wolfcrypt/logging.h>
+#ifndef NO_RSA
+    #include <wolfssl/wolfcrypt/rsa.h>
+#endif
+#ifdef HAVE_ECC
+    #include <wolfssl/wolfcrypt/ecc.h>
+#endif
 #ifdef NO_INLINE
     #include <wolfssl/wolfcrypt/misc.h>
 #else
@@ -2259,7 +2265,7 @@ int wc_PKCS7_EncodeEnvelopedData(PKCS7* pkcs7, byte* output, word32 outputSz)
     }
 
     /* generate random content encryption key */
-    ret = wc_InitRng_ex(&rng, pkcs7->heap);
+    ret = wc_InitRng_ex(&rng, pkcs7->heap, INVALID_DEVID);
     if (ret != 0)
         return ret;
 
