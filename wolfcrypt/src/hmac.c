@@ -237,7 +237,7 @@ int wc_HmacSetKey(Hmac* hmac, int type, const byte* key, word32 length)
     int    ret = 0;
     void*  heap = NULL;
 
-    if (hmac == NULL || key == NULL ||
+    if (hmac == NULL || (key == NULL && length != 0) ||
         !(type == MD5 || type == SHA    || type == SHA256 || type == SHA384
                       || type == SHA512 || type == BLAKE2B_ID
                       || type == SHA224)) {
