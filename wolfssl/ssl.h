@@ -588,7 +588,7 @@ WOLFSSL_API
 typedef int (*VerifyCallback)(int, WOLFSSL_X509_STORE_CTX*);
 typedef int (pem_password_cb)(char*, int, int, void*);
 #ifdef OPENSSL_EXTRA
-typedef void (CallbackInfoState)(WOLFSSL*, int, int);
+typedef void (CallbackInfoState)(const WOLFSSL*, int, int);
 
 typedef struct WOLFSSL_CRYPTO_EX_DATA {
     WOLFSSL_STACK* data;
@@ -959,7 +959,7 @@ WOLFSSL_API void wolfSSL_CTX_set_default_passwd_cb(WOLFSSL_CTX*,
 
 
 WOLFSSL_API void wolfSSL_CTX_set_info_callback(WOLFSSL_CTX*,
-                          void (*)(WOLFSSL* ssl, int type, int val));
+                          void (*)(const WOLFSSL* ssl, int type, int val));
 
 WOLFSSL_API unsigned long wolfSSL_ERR_peek_error(void);
 WOLFSSL_API int           wolfSSL_GET_REASON(int);

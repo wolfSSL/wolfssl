@@ -13198,8 +13198,8 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
 
     /* return WOLFSSL_SUCCESS on ok, 0 on failure to match API compatibility */
     int  wolfSSL_EVP_CipherInit(WOLFSSL_EVP_CIPHER_CTX* ctx,
-                               const WOLFSSL_EVP_CIPHER* type, byte* key,
-                               byte* iv, int enc)
+                               const WOLFSSL_EVP_CIPHER* type, const byte* key,
+                               const byte* iv, int enc)
     {
         int ret = -1;  /* failure local, during function 0 means success
                           because internal functions work that way */
@@ -18528,7 +18528,7 @@ int wolfSSL_get_ex_data_X509_STORE_CTX_idx(void)
  * f   callback function to use
  */
 void wolfSSL_CTX_set_info_callback(WOLFSSL_CTX* ctx,
-       void (*f)(WOLFSSL* ssl, int type, int val))
+       void (*f)(const WOLFSSL* ssl, int type, int val))
 {
     WOLFSSL_ENTER("wolfSSL_CTX_set_info_callback");
     if (ctx == NULL) {
