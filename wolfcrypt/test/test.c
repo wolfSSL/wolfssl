@@ -8071,8 +8071,9 @@ int dh_test(void)
         ret = -55; goto done;
     }
 
-    if (agreeSz != agreeSz2 || XMEMCMP(agree, agree2, agreeSz))
+    if (agreeSz != agreeSz2 || XMEMCMP(agree, agree2, agreeSz)) {
         ret = -56; goto done;
+    }
 
     ret = dh_generate_test(&rng);
     if (ret != 0)
