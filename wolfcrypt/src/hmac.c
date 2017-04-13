@@ -254,7 +254,9 @@ int wc_HmacSetKey(Hmac* hmac, int type, const byte* key, word32 length)
             return WC_KEY_SIZE_E;
         }
 
-        XMEMCPY(hmac->keyRaw, key, length);
+        if (key != NULL) {
+            XMEMCPY(hmac->keyRaw, key, length);
+        }
         hmac->keyLen = (word16)length;
 
         return 0; /* nothing to do here */
@@ -279,7 +281,9 @@ int wc_HmacSetKey(Hmac* hmac, int type, const byte* key, word32 length)
         case MD5:
             hmac_block_size = MD5_BLOCK_SIZE;
             if (length <= MD5_BLOCK_SIZE) {
-                XMEMCPY(ip, key, length);
+                if (key != NULL) {
+                    XMEMCPY(ip, key, length);
+                }
             }
             else {
                 ret = wc_Md5Update(&hmac->hash.md5, key, length);
@@ -297,7 +301,9 @@ int wc_HmacSetKey(Hmac* hmac, int type, const byte* key, word32 length)
         case SHA:
             hmac_block_size = SHA_BLOCK_SIZE;
             if (length <= SHA_BLOCK_SIZE) {
-                XMEMCPY(ip, key, length);
+                if (key != NULL) {
+                    XMEMCPY(ip, key, length);
+                }
             }
             else {
                 ret = wc_ShaUpdate(&hmac->hash.sha, key, length);
@@ -317,7 +323,9 @@ int wc_HmacSetKey(Hmac* hmac, int type, const byte* key, word32 length)
         {
             hmac_block_size = SHA224_BLOCK_SIZE;
             if (length <= SHA224_BLOCK_SIZE) {
-                XMEMCPY(ip, key, length);
+                if (key != NULL) {
+                    XMEMCPY(ip, key, length);
+                }
             }
             else {
                 ret = wc_Sha224Update(&hmac->hash.sha224, key, length);
@@ -337,7 +345,9 @@ int wc_HmacSetKey(Hmac* hmac, int type, const byte* key, word32 length)
         case SHA256:
     		hmac_block_size = SHA256_BLOCK_SIZE;
             if (length <= SHA256_BLOCK_SIZE) {
-                XMEMCPY(ip, key, length);
+                if (key != NULL) {
+                    XMEMCPY(ip, key, length);
+                }
             }
             else {
                 ret = wc_Sha256Update(&hmac->hash.sha256, key, length);
@@ -357,7 +367,9 @@ int wc_HmacSetKey(Hmac* hmac, int type, const byte* key, word32 length)
         case SHA384:
             hmac_block_size = SHA384_BLOCK_SIZE;
             if (length <= SHA384_BLOCK_SIZE) {
-                XMEMCPY(ip, key, length);
+                if (key != NULL) {
+                    XMEMCPY(ip, key, length);
+                }
             }
             else {
                 ret = wc_Sha384Update(&hmac->hash.sha384, key, length);
@@ -374,7 +386,9 @@ int wc_HmacSetKey(Hmac* hmac, int type, const byte* key, word32 length)
         case SHA512:
             hmac_block_size = SHA512_BLOCK_SIZE;
             if (length <= SHA512_BLOCK_SIZE) {
-                XMEMCPY(ip, key, length);
+                if (key != NULL) {
+                    XMEMCPY(ip, key, length);
+                }
             }
             else {
                 ret = wc_Sha512Update(&hmac->hash.sha512, key, length);
@@ -393,7 +407,9 @@ int wc_HmacSetKey(Hmac* hmac, int type, const byte* key, word32 length)
         case BLAKE2B_ID:
             hmac_block_size = BLAKE2B_BLOCKBYTES;
             if (length <= BLAKE2B_BLOCKBYTES) {
-                XMEMCPY(ip, key, length);
+                if (key != NULL) {
+                    XMEMCPY(ip, key, length);
+                }
             }
             else {
                 ret = wc_Blake2bUpdate(&hmac->hash.blake2b, key, length);
