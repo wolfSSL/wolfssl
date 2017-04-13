@@ -15877,6 +15877,29 @@ static void test_wolfSSL_sk_GENERAL_NAME(void)
 #endif
 }
 
+static void test_wolfSSL_MD4(void)
+{
+#if defined(OPENSSL_EXTRA) && !defined(NO_MD4)
+    MD4_CTX md4;
+    unsigned char out[16]; /* MD4_DIGEST_SIZE */
+    const char* msg  = "12345678901234567890123456789012345678901234567890123456"
+                       "789012345678901234567890";
+    const char* test = "\xe3\x3b\x4d\xdc\x9c\x38\xf2\x19\x9c\x3e\x7b\x16\x4f"
+                       "\xcc\x05\x36";
+    int msgSz        = (int)XSTRLEN(msg);
+
+    printf(testingFmt, "wolfSSL_MD4()");
+
+    XMEMSET(out, 0, sizeof(out));
+    MD4_Init(&md4);
+    MD4_Update(&md4, (const void*)msg, (unsigned long)msgSz);
+    MD4_Final(out, &md4);
+    AssertIntEQ(XMEMCMP(out, test, sizeof(out)), 0);
+
+    printf(resultFmt, passed);
+#endif
+}
+
 static void test_no_op_functions(void)
 {
     #if defined(OPENSSL_EXTRA)
@@ -16698,6 +16721,7 @@ void ApiTest(void)
     test_wolfSSL_SESSION();
     test_wolfSSL_DES_ecb_encrypt();
     test_wolfSSL_sk_GENERAL_NAME();
+    test_wolfSSL_MD4();
 
     /* test the no op functions for compatibility */
     test_no_op_functions();

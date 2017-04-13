@@ -247,10 +247,6 @@ typedef char   WOLFSSL_EVP_MD;
 
 #define WOLFSSL_EVP_PKEY_DEFAULT EVP_PKEY_RSA /* default key type */
 
-typedef struct WOLFSSL_MD4_CTX {
-    int buffer[32];      /* big enough to hold, check size in Init */
-} WOLFSSL_MD4_CTX;
-
 
 enum BIO_TYPE {
     WOLFSSL_BIO_BUFFER = 1,
@@ -747,11 +743,6 @@ WOLFSSL_API int wolfSSL_OCSP_parse_url(char* url, char** host, char** port,
 WOLFSSL_API WOLFSSL_METHOD* wolfSSLv23_client_method(void);
 WOLFSSL_API WOLFSSL_METHOD* wolfSSLv2_client_method(void);
 WOLFSSL_API WOLFSSL_METHOD* wolfSSLv2_server_method(void);
-
-WOLFSSL_API void wolfSSL_MD4_Init(WOLFSSL_MD4_CTX*);
-WOLFSSL_API void wolfSSL_MD4_Update(WOLFSSL_MD4_CTX*, const void*, unsigned long);
-WOLFSSL_API void wolfSSL_MD4_Final(unsigned char*, WOLFSSL_MD4_CTX*);
-
 
 WOLFSSL_API WOLFSSL_BIO* wolfSSL_BIO_new(WOLFSSL_BIO_METHOD*);
 WOLFSSL_API int  wolfSSL_BIO_free(WOLFSSL_BIO*);

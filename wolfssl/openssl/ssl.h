@@ -91,7 +91,6 @@ typedef WOLFSSL_ASN1_OBJECT BASIC_CONSTRAINTS;
 #define ASN1_UTCTIME         WOLFSSL_ASN1_TIME
 #define ASN1_GENERALIZEDTIME WOLFSSL_ASN1_TIME
 
-typedef WOLFSSL_MD4_CTX        MD4_CTX;
 typedef WOLFSSL_COMP_METHOD    COMP_METHOD;
 typedef WOLFSSL_X509_REVOKED   X509_REVOKED;
 typedef WOLFSSL_X509_OBJECT    X509_OBJECT;
@@ -251,9 +250,9 @@ typedef WOLFSSL_X509_STORE_CTX X509_STORE_CTX;
 #define SSLv2_client_method wolfSSLv2_client_method
 #define SSLv2_server_method wolfSSLv2_server_method
 
-#define MD4_Init wolfSSL_MD4_Init
-#define MD4_Update  wolfSSL_MD4_Update
-#define MD4_Final wolfSSL_MD4_Final
+#define MD4_Init   wolfSSL_MD4_Init
+#define MD4_Update wolfSSL_MD4_Update
+#define MD4_Final  wolfSSL_MD4_Final
 
 #define BIO_new      wolfSSL_BIO_new
 #define BIO_free     wolfSSL_BIO_free
