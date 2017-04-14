@@ -2142,8 +2142,8 @@ void bench_cmac(void)
 void bench_scrypt(void)
 {
     byte   derived[64];
-    double start, total, each, milliEach;
-    int    ret, i;
+    double start;
+    int    ret, i, count;
 
     bench_stats_start(&count, &start);
     do {
