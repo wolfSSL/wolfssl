@@ -434,6 +434,352 @@ static int FlattenAttributes(byte* output, EncodedAttrib* ea, int eaSz)
 }
 
 
+/* returns size of signature put into out, negative on error */
+static int wc_PKCS7_RsaSign(PKCS7* pkcs7, byte* in, word32 inSz, ESD* esd)
+{
+    int ret;
+    word32 idx;
+#ifdef WOLFSSL_SMALL_STACK
+    RsaKey* privKey;
+#else
+    RsaKey  stack_privKey;
+    RsaKey* privKey = &stack_privKey;
+#endif
+
+    if (pkcs7 == NULL || pkcs7->privateKey == NULL || pkcs7->rng == NULL ||
+        in == NULL || esd == NULL || esd->encContentDigest == NULL)
+        return BAD_FUNC_ARG;
+
+#ifdef WOLFSSL_SMALL_STACK
+    privKey = (RsaKey*)XMALLOC(sizeof(RsaKey), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (privKey == NULL)
+        return MEMORY_E;
+#endif
+
+    ret = wc_InitRsaKey(privKey, pkcs7->heap);
+
+    if (ret == 0) {
+        ret = wc_RsaPrivateKeyDecode(pkcs7->privateKey, &idx, privKey,
+                                     pkcs7->privateKeySz);
+    }
+
+    if (ret == 0) {
+        ret = wc_RsaSSL_Sign(in, inSz, esd->encContentDigest,
+                             sizeof(esd->encContentDigest),
+                             privKey, pkcs7->rng);
+    }
+
+    wc_FreeRsaKey(privKey);
+#ifdef WOLFSSL_SMALL_STACK
+    XFREE(privKey, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+
+    return ret;
+}
+
+
+/* returns size of signature put into out, negative on error */
+static int wc_PKCS7_EcdsaSign(PKCS7* pkcs7, byte* in, word32 inSz, ESD* esd)
+{
+    int ret;
+    word32 outSz, idx;
+#ifdef WOLFSSL_SMALL_STACK
+    ecc_key* privKey;
+#else
+    ecc_key  stack_privKey;
+    ecc_key* privKey = &stack_privKey;
+#endif
+
+    if (pkcs7 == NULL || pkcs7->privateKey == NULL || pkcs7->rng == NULL ||
+        in == NULL || esd == NULL || esd->encContentDigest == NULL)
+        return BAD_FUNC_ARG;
+
+#ifdef WOLFSSL_SMALL_STACK
+    privKey = (ecc_key*)XMALLOC(sizeof(ecc_key), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (privKey == NULL)
+        return MEMORY_E;
+#endif
+
+    ret = wc_ecc_init_ex(privKey, pkcs7->heap, INVALID_DEVID);
+
+    if (ret == 0) {
+        idx = 0;
+        ret = wc_EccPrivateKeyDecode(pkcs7->privateKey, &idx, privKey,
+                                     pkcs7->privateKeySz);
+    }
+
+    if (ret == 0) {
+        outSz = sizeof(esd->encContentDigest);
+        ret = wc_ecc_sign_hash(in, inSz, esd->encContentDigest,
+                               &outSz, pkcs7->rng, privKey);
+        if (ret == 0)
+            ret = (int)outSz;
+    }
+
+    wc_ecc_free(privKey);
+#ifdef WOLFSSL_SMALL_STACK
+    XFREE(privKey, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+
+    return ret;
+}
+
+
+/* builds up SignedData signed attributes, including default ones.
+ *
+ * pkcs7 - pointer to initialized PKCS7 structure
+ * esd   - pointer to initialized ESD structure, used for output
+ *
+ * return 0 on success, negative on error */
+static int wc_PKCS7_BuildSignedAttributes(PKCS7* pkcs7, ESD* esd)
+{
+
+    byte contentTypeOid[] =
+            { ASN_OBJECT_ID, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xF7, 0x0d, 0x01,
+                             0x09, 0x03 };
+    byte contentType[] =
+            { ASN_OBJECT_ID, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01,
+                             0x07, 0x01 };
+    byte messageDigestOid[] =
+            { ASN_OBJECT_ID, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01,
+                             0x09, 0x04 };
+
+    PKCS7Attrib cannedAttribs[2];
+    word32 cannedAttribsCount;
+
+    if (pkcs7 == NULL || esd == NULL)
+        return BAD_FUNC_ARG;
+
+    cannedAttribsCount = sizeof(cannedAttribs)/sizeof(PKCS7Attrib);
+
+    cannedAttribs[0].oid     = contentTypeOid;
+    cannedAttribs[0].oidSz   = sizeof(contentTypeOid);
+    cannedAttribs[0].value   = contentType;
+    cannedAttribs[0].valueSz = sizeof(contentType);
+    cannedAttribs[1].oid     = messageDigestOid;
+    cannedAttribs[1].oidSz   = sizeof(messageDigestOid);
+    cannedAttribs[1].value   = esd->contentDigest;
+    cannedAttribs[1].valueSz = sizeof(esd->contentDigest);
+
+    esd->signedAttribsCount += cannedAttribsCount;
+    esd->signedAttribsSz += EncodeAttributes(&esd->signedAttribs[0], 2,
+                                         cannedAttribs, cannedAttribsCount);
+
+    esd->signedAttribsCount += pkcs7->signedAttribsSz;
+    esd->signedAttribsSz += EncodeAttributes(&esd->signedAttribs[2], 4,
+                              pkcs7->signedAttribs, pkcs7->signedAttribsSz);
+
+    return 0;
+}
+
+
+/* gets correct encryption algo ID for SignedData, either RSAk or
+ * CTC_<hash>wECDSA, from pkcs7->publicKeyOID.
+ *
+ * pkcs7          - pointer to PKCS7 structure
+ * digEncAlgoId   - [OUT] output int to store correct algo ID in
+ * digEncAlgoType - [OUT] output for algo ID type
+ *
+ * return 0 on success, negative on error */
+static int wc_PKCS7_SignedDataGetEncAlgoId(PKCS7* pkcs7, int* digEncAlgoId,
+                                           int* digEncAlgoType)
+{
+    int algoId   = 0;
+    int algoType = 0;
+
+    if (pkcs7 == NULL || digEncAlgoId == NULL || digEncAlgoType == NULL)
+        return BAD_FUNC_ARG;
+
+    if (pkcs7->publicKeyOID == RSAk) {
+
+        algoId = pkcs7->encryptOID;
+        algoType = oidKeyType;
+
+    } else if (pkcs7->publicKeyOID == ECDSAk) {
+
+        algoType = oidSigType;
+
+        switch (pkcs7->hashOID) {
+            case SHAh:
+                algoId = CTC_SHAwECDSA;
+                break;
+
+            case SHA224h:
+                algoId = CTC_SHA224wECDSA;
+                break;
+
+            case SHA256h:
+                algoId = CTC_SHA256wECDSA;
+                break;
+
+            case SHA384h:
+                algoId = CTC_SHA384wECDSA;
+                break;
+
+            case SHA512h:
+                algoId = CTC_SHA512wECDSA;
+                break;
+        }
+    }
+
+    if (algoId == 0) {
+        WOLFSSL_MSG("Invalid signature algorithm type");
+        return BAD_FUNC_ARG;
+    }
+
+    *digEncAlgoId = algoId;
+    *digEncAlgoType = algoType;
+
+    return 0;
+}
+
+
+/* build SignedData DigestInfo for use with PKCS#7/RSA
+ *
+ * pkcs7 - pointer to initialized PKCS7 struct
+ * flatSignedAttribs - flattened, signed attributes
+ * flatSignedAttrbsSz - size of flatSignedAttribs, octets
+ * esd - pointer to initialized ESD struct
+ * digestInfo - [OUT] output array for DigestInfo
+ * digestInfoSz - [IN/OUT] - input size of array, size of digestInfo
+ *
+ * return 0 on success, negative on error */
+static int wc_PKCS7_BuildDigestInfo(PKCS7* pkcs7, byte* flatSignedAttribs,
+                                    word32 flatSignedAttribsSz, ESD* esd,
+                                    byte* digestInfo, word32* digestInfoSz)
+{
+    int ret, digIdx = 0;
+    byte digestInfoSeq[MAX_SEQ_SZ];
+    byte digestStr[MAX_OCTET_STR_SZ];
+    byte attribSet[MAX_SET_SZ];
+    word32 digestInfoSeqSz, digestStrSz;
+    word32 attribSetSz;
+
+    if (pkcs7 == NULL || esd == NULL || &esd->sha == NULL ||
+        esd->contentDigest == NULL || esd->signerDigAlgoId == NULL ||
+        digestInfo == NULL || digestInfoSz == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    if (pkcs7->signedAttribsSz != 0) {
+
+        if (flatSignedAttribs == NULL)
+            return BAD_FUNC_ARG;
+
+        attribSetSz = SetSet(flatSignedAttribsSz, attribSet);
+
+        ret = wc_InitSha(&esd->sha);
+        if (ret < 0)
+            return ret;
+
+        wc_ShaUpdate(&esd->sha, attribSet, attribSetSz);
+        wc_ShaUpdate(&esd->sha, flatSignedAttribs, flatSignedAttribsSz);
+        wc_ShaFinal(&esd->sha, esd->contentAttribsDigest);
+
+    } else {
+        /* when no attrs, digest is contentDigest without tag and length */
+        XMEMCPY(esd->contentAttribsDigest, esd->contentDigest + 2,
+                SHA_DIGEST_SIZE);
+    }
+
+    digestStrSz = SetOctetString(SHA_DIGEST_SIZE, digestStr);
+    digestInfoSeqSz = SetSequence(esd->signerDigAlgoIdSz +
+                                  digestStrSz + SHA_DIGEST_SIZE,
+                                  digestInfoSeq);
+
+    if (*digestInfoSz < (digestInfoSeqSz + esd->signerDigAlgoIdSz +
+                         digestStrSz + SHA_DIGEST_SIZE)) {
+        return BUFFER_E;
+    }
+
+    XMEMCPY(digestInfo + digIdx, digestInfoSeq, digestInfoSeqSz);
+    digIdx += digestInfoSeqSz;
+    XMEMCPY(digestInfo + digIdx, esd->signerDigAlgoId, esd->signerDigAlgoIdSz);
+    digIdx += esd->signerDigAlgoIdSz;
+    XMEMCPY(digestInfo + digIdx, digestStr, digestStrSz);
+    digIdx += digestStrSz;
+    XMEMCPY(digestInfo + digIdx, esd->contentAttribsDigest, SHA_DIGEST_SIZE);
+    digIdx += SHA_DIGEST_SIZE;
+
+    *digestInfoSz = digIdx;
+
+    return 0;
+}
+
+
+/* build SignedData signature over DigestInfo or content digest
+ *
+ * pkcs7 - pointer to initizlied PKCS7 struct
+ * flatSignedAttribs - flattened, signed attributes
+ * flatSignedAttribsSz - size of flatSignedAttribs, octets
+ * esd - pointer to initialized ESD struct
+ *
+ * returns length of signature on success, negative on error */
+static int wc_PKCS7_SignedDataBuildSignature(PKCS7* pkcs7,
+                                             byte* flatSignedAttribs,
+                                             word32 flatSignedAttribsSz,
+                                             ESD* esd)
+{
+    int ret;
+    word32 digestInfoSz = MAX_SEQ_SZ + MAX_ALGO_SZ +
+                          MAX_OCTET_STR_SZ + SHA_DIGEST_SIZE;
+#ifdef WOLFSSL_SMALL_STACK
+    byte* digestInfo;
+#else
+    byte digestInfo[digestInfoSz];
+#endif
+
+    if (pkcs7 == NULL || esd == NULL || esd->contentAttribsDigest == NULL)
+        return BAD_FUNC_ARG;
+
+#ifdef WOLFSSL_SMALL_STACK
+    digestInfo = (byte*)XMALLOC(digestInfoSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (digestInfo == NULL) {
+        return MEMORY_E;
+    }
+#endif
+
+    ret = wc_PKCS7_BuildDigestInfo(pkcs7, flatSignedAttribs,
+                                   flatSignedAttribsSz, esd, digestInfo,
+                                   &digestInfoSz);
+    if (ret < 0) {
+#ifdef WOLFSSL_SMALL_STACK
+        XFREE(digestInfo, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+        return ret;
+    }
+
+    /* sign digestInfo */
+    switch (pkcs7->publicKeyOID) {
+
+        case RSAk:
+            ret = wc_PKCS7_RsaSign(pkcs7, digestInfo, digestInfoSz, esd);
+            break;
+
+        case ECDSAk:
+            /* CMS with ECDSA does not sign DigestInfo structure
+             * like PKCS#7 with RSA does */
+            ret = wc_PKCS7_EcdsaSign(pkcs7, esd->contentAttribsDigest,
+                                        SHA_DIGEST_SIZE, esd);
+            break;
+
+        default:
+            WOLFSSL_MSG("Unsupported public key type");
+            ret = BAD_FUNC_ARG;
+    }
+
+#ifdef WOLFSSL_SMALL_STACK
+    XFREE(digestInfo, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+
+    if (ret >= 0) {
+        esd->encContentDigestSz = (word32)ret;
+    }
+
+    return ret;
+}
+
+
 /* build PKCS#7 signedData content type */
 int wc_PKCS7_EncodeSignedData(PKCS7* pkcs7, byte* output, word32 outputSz)
 {
@@ -454,6 +800,7 @@ int wc_PKCS7_EncodeSignedData(PKCS7* pkcs7, byte* output, word32 outputSz)
     word32 signerInfoSz = 0;
     word32 totalSz = 0;
     int idx = 0, ret = 0;
+    int digEncAlgoId, digEncAlgoType;
     byte* flatSignedAttribs = NULL;
     word32 flatSignedAttribsSz = 0;
     word32 innerOidSz = sizeof(innerOid);
@@ -508,40 +855,24 @@ int wc_PKCS7_EncodeSignedData(PKCS7* pkcs7, byte* output, word32 outputSz)
     esd->signerDigAlgoIdSz = SetAlgoID(pkcs7->hashOID, esd->signerDigAlgoId,
                                       oidHashType, 0);
     signerInfoSz += esd->signerDigAlgoIdSz;
-    esd->digEncAlgoIdSz = SetAlgoID(pkcs7->encryptOID, esd->digEncAlgoId,
-                                   oidKeyType, 0);
+
+    /* set signatureAlgorithm */
+    ret = wc_PKCS7_SignedDataGetEncAlgoId(pkcs7, &digEncAlgoId,
+                                          &digEncAlgoType);
+    if (ret < 0) {
+#ifdef WOLFSSL_SMALL_STACK
+        XFREE(esd, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+        return ret;
+    }
+    esd->digEncAlgoIdSz = SetAlgoID(digEncAlgoId, esd->digEncAlgoId,
+                                    digEncAlgoType, 0);
     signerInfoSz += esd->digEncAlgoIdSz;
 
     if (pkcs7->signedAttribsSz != 0) {
-        byte contentTypeOid[] =
-                { ASN_OBJECT_ID, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xF7, 0x0d, 0x01,
-                                 0x09, 0x03 };
-        byte contentType[] =
-                { ASN_OBJECT_ID, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01,
-                                 0x07, 0x01 };
-        byte messageDigestOid[] =
-                { ASN_OBJECT_ID, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01,
-                                 0x09, 0x04 };
 
-        PKCS7Attrib cannedAttribs[2] ;
-
-        word32 cannedAttribsCount = sizeof(cannedAttribs)/sizeof(PKCS7Attrib);
-				cannedAttribs[0].oid =  contentTypeOid ;
-				cannedAttribs[0].oidSz =  sizeof(contentTypeOid) ;
-				cannedAttribs[0].value = contentType ;
-				cannedAttribs[0].valueSz = sizeof(contentType) ;
-				cannedAttribs[1].oid = messageDigestOid ;
-				cannedAttribs[1].oidSz = sizeof(messageDigestOid) ;
-        cannedAttribs[1].value = esd->contentDigest ;
-        cannedAttribs[1].valueSz = sizeof(esd->contentDigest) ;
-
-        esd->signedAttribsCount += cannedAttribsCount;
-        esd->signedAttribsSz += EncodeAttributes(&esd->signedAttribs[0], 2,
-                                             cannedAttribs, cannedAttribsCount);
-
-        esd->signedAttribsCount += pkcs7->signedAttribsSz;
-        esd->signedAttribsSz += EncodeAttributes(&esd->signedAttribs[2], 4,
-                                  pkcs7->signedAttribs, pkcs7->signedAttribsSz);
+        /* build up signed attributes */
+        ret = wc_PKCS7_BuildSignedAttributes(pkcs7, esd);
 
         flatSignedAttribs = (byte*)XMALLOC(esd->signedAttribsSz, pkcs7->heap,
                                                          DYNAMIC_TYPE_PKCS);
@@ -552,130 +883,25 @@ int wc_PKCS7_EncodeSignedData(PKCS7* pkcs7, byte* output, word32 outputSz)
 #endif
             return MEMORY_E;
         }
+
         FlattenAttributes(flatSignedAttribs,
                                    esd->signedAttribs, esd->signedAttribsCount);
         esd->signedAttribSetSz = SetImplicit(ASN_SET, 0, esd->signedAttribsSz,
                                                           esd->signedAttribSet);
     }
+
     /* Calculate the final hash and encrypt it. */
-    {
-        int result;
-        word32 scratch = 0;
-
+    ret = wc_PKCS7_SignedDataBuildSignature(pkcs7, flatSignedAttribs,
+                                            flatSignedAttribsSz, esd);
+    if (ret < 0) {
+        if (pkcs7->signedAttribsSz != 0)
+            XFREE(flatSignedAttribs, 0, NULL);
 #ifdef WOLFSSL_SMALL_STACK
-        byte* digestInfo;
-        RsaKey* privKey;
-#else
-        RsaKey stack_privKey;
-        RsaKey* privKey = &stack_privKey;
-        byte digestInfo[MAX_SEQ_SZ + MAX_ALGO_SZ +
-                        MAX_OCTET_STR_SZ + SHA_DIGEST_SIZE];
+        XFREE(esd, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
-        byte digestInfoSeq[MAX_SEQ_SZ];
-        byte digestStr[MAX_OCTET_STR_SZ];
-        word32 digestInfoSeqSz, digestStrSz;
-        int digIdx = 0;
-
-        if (pkcs7->signedAttribsSz != 0) {
-            byte attribSet[MAX_SET_SZ];
-            word32 attribSetSz;
-
-            attribSetSz = SetSet(flatSignedAttribsSz, attribSet);
-
-            ret = wc_InitSha(&esd->sha);
-            if (ret < 0) {
-                XFREE(flatSignedAttribs, pkcs7->heap, DYNAMIC_TYPE_PKCS);
-#ifdef WOLFSSL_SMALL_STACK
-                XFREE(esd, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
-                return ret;
-            }
-            wc_ShaUpdate(&esd->sha, attribSet, attribSetSz);
-            wc_ShaUpdate(&esd->sha, flatSignedAttribs, flatSignedAttribsSz);
-            wc_ShaFinal(&esd->sha, esd->contentAttribsDigest);
-        } else {
-            /* when no attrs, digest is contentDigest without tag and length */
-            XMEMCPY(esd->contentAttribsDigest, esd->contentDigest + 2,
-                    SHA_DIGEST_SIZE);
-        }
-
-        digestStrSz = SetOctetString(SHA_DIGEST_SIZE, digestStr);
-        digestInfoSeqSz = SetSequence(esd->signerDigAlgoIdSz +
-                                      digestStrSz + SHA_DIGEST_SIZE,
-                                      digestInfoSeq);
-
-#ifdef WOLFSSL_SMALL_STACK
-        digestInfo = (byte*)XMALLOC(MAX_SEQ_SZ + MAX_ALGO_SZ +
-                                    MAX_OCTET_STR_SZ + SHA_DIGEST_SIZE,
-                                    NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        if (digestInfo == NULL) {
-            if (pkcs7->signedAttribsSz != 0)
-                XFREE(flatSignedAttribs, 0, NULL);
-            XFREE(esd, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-            return MEMORY_E;
-        }
-#endif
-
-        XMEMCPY(digestInfo + digIdx, digestInfoSeq, digestInfoSeqSz);
-        digIdx += digestInfoSeqSz;
-        XMEMCPY(digestInfo + digIdx,
-                                  esd->signerDigAlgoId, esd->signerDigAlgoIdSz);
-        digIdx += esd->signerDigAlgoIdSz;
-        XMEMCPY(digestInfo + digIdx, digestStr, digestStrSz);
-        digIdx += digestStrSz;
-        XMEMCPY(digestInfo + digIdx, esd->contentAttribsDigest,
-                                                               SHA_DIGEST_SIZE);
-        digIdx += SHA_DIGEST_SIZE;
-
-#ifdef WOLFSSL_SMALL_STACK
-        privKey = (RsaKey*)XMALLOC(sizeof(RsaKey), NULL,
-                                                       DYNAMIC_TYPE_TMP_BUFFER);
-        if (privKey == NULL) {
-            if (pkcs7->signedAttribsSz != 0)
-                XFREE(flatSignedAttribs, 0, NULL);
-            XFREE(digestInfo, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-            XFREE(esd,        NULL, DYNAMIC_TYPE_TMP_BUFFER);
-            return MEMORY_E;
-        }
-#endif
-
-        result = wc_InitRsaKey(privKey, pkcs7->heap);
-        if (result == 0)
-            result = wc_RsaPrivateKeyDecode(pkcs7->privateKey, &scratch, privKey,
-                                         pkcs7->privateKeySz);
-        if (result < 0) {
-            if (pkcs7->signedAttribsSz != 0)
-                XFREE(flatSignedAttribs, pkcs7->heap, DYNAMIC_TYPE_PKCS);
-#ifdef WOLFSSL_SMALL_STACK
-            XFREE(privKey,    NULL, DYNAMIC_TYPE_TMP_BUFFER);
-            XFREE(digestInfo, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-            XFREE(esd,        NULL, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
-            return PUBLIC_KEY_E;
-        }
-
-        result = wc_RsaSSL_Sign(digestInfo, digIdx,
-                             esd->encContentDigest,
-                             sizeof(esd->encContentDigest),
-                             privKey, pkcs7->rng);
-
-        wc_FreeRsaKey(privKey);
-
-#ifdef WOLFSSL_SMALL_STACK
-        XFREE(privKey,    NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        XFREE(digestInfo, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
-
-        if (result < 0) {
-            if (pkcs7->signedAttribsSz != 0)
-                XFREE(flatSignedAttribs, pkcs7->heap, DYNAMIC_TYPE_PKCS);
-#ifdef WOLFSSL_SMALL_STACK
-            XFREE(esd, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
-            return result;
-        }
-        esd->encContentDigestSz = (word32)result;
+        return ret;
     }
+
     signerInfoSz += flatSignedAttribsSz + esd->signedAttribSetSz;
 
     esd->signerDigestSz = SetOctetString(esd->encContentDigestSz,
@@ -788,6 +1014,226 @@ int wc_PKCS7_EncodeSignedData(PKCS7* pkcs7, byte* output, word32 outputSz)
 }
 
 
+/* returns size of signature put into out, negative on error */
+static int wc_PKCS7_RsaVerify(PKCS7* pkcs7, byte* sig, int sigSz,
+                              byte* hash, word32 hashSz)
+{
+    (void)hash;
+    (void)hashSz;
+
+    int ret = 0;
+    word32 scratch = 0;
+    #define  MAX_PKCS7_DIGEST_SZ (MAX_SEQ_SZ + MAX_ALGO_SZ +\
+                                  MAX_OCTET_STR_SZ + SHA_DIGEST_SIZE)
+
+    if (pkcs7 == NULL || pkcs7->publicKey == NULL || sig == NULL ||
+        hash == NULL)
+        return BAD_FUNC_ARG;
+
+#ifdef WOLFSSL_SMALL_STACK
+    byte* digest;
+    RsaKey* key;
+
+    digest = (byte*)XMALLOC(MAX_PKCS7_DIGEST_SZ, NULL,
+                            DYNAMIC_TYPE_TMP_BUFFER);
+
+    if (digest == NULL)
+        return MEMORY_E;
+
+    key = (RsaKey*)XMALLOC(sizeof(RsaKey), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (key == NULL) {
+        XFREE(digest, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        return MEMORY_E;
+    }
+#else
+    byte digest[MAX_PKCS7_DIGEST_SZ];
+    RsaKey stack_key;
+    RsaKey* key = &stack_key;
+#endif
+
+    XMEMSET(digest, 0, MAX_PKCS7_DIGEST_SZ);
+
+    ret = wc_InitRsaKey(key, pkcs7->heap);
+    if (ret != 0) {
+#ifdef WOLFSSL_SMALL_STACK
+        XFREE(digest, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(key,    NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+        return ret;
+    }
+    if (wc_RsaPublicKeyDecode(pkcs7->publicKey, &scratch, key,
+                              pkcs7->publicKeySz) < 0) {
+        WOLFSSL_MSG("ASN RSA key decode error");
+#ifdef WOLFSSL_SMALL_STACK
+        XFREE(digest, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(key,    NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+        return PUBLIC_KEY_E;
+    }
+
+    ret = wc_RsaSSL_Verify(sig, sigSz, digest, MAX_PKCS7_DIGEST_SZ, key);
+
+    wc_FreeRsaKey(key);
+
+    if (XMEMCMP(digest, hash, ret) != 0)
+        ret = SIG_VERIFY_E;
+
+#ifdef WOLFSSL_SMALL_STACK
+    XFREE(digest, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(key,    NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+
+    return ret;
+}
+
+
+/* returns size of signature put into out, negative on error */
+static int wc_PKCS7_EcdsaVerify(PKCS7* pkcs7, byte* sig, int sigSz,
+                                byte* hash, word32 hashSz)
+{
+    int ret = 0;
+    int stat = 0;
+    #define  MAX_PKCS7_DIGEST_SZ (MAX_SEQ_SZ + MAX_ALGO_SZ +\
+                                  MAX_OCTET_STR_SZ + SHA_DIGEST_SIZE)
+
+    if (pkcs7 == NULL || pkcs7->publicKey == NULL || sig == NULL)
+        return BAD_FUNC_ARG;
+
+#ifdef WOLFSSL_SMALL_STACK
+    byte* digest;
+    ecc_key* key;
+
+    digest = (byte*)XMALLOC(MAX_PKCS7_DIGEST_SZ, NULL,
+                            DYNAMIC_TYPE_TMP_BUFFER);
+
+    if (digest == NULL)
+        return MEMORY_E;
+
+    key = (ecc_key*)XMALLOC(sizeof(ecc_key), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (key == NULL) {
+        XFREE(digest, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        return MEMORY_E;
+    }
+#else
+    byte digest[MAX_PKCS7_DIGEST_SZ];
+    ecc_key stack_key;
+    ecc_key* key = &stack_key;
+#endif
+
+    XMEMSET(digest, 0, MAX_PKCS7_DIGEST_SZ);
+
+    ret = wc_ecc_init_ex(key, pkcs7->heap, INVALID_DEVID);
+    if (ret != 0) {
+#ifdef WOLFSSL_SMALL_STACK
+        XFREE(digest, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(key,    NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+        return ret;
+    }
+    if (wc_ecc_import_x963(pkcs7->publicKey, pkcs7->publicKeySz, key) < 0) {
+        WOLFSSL_MSG("ASN ECDSA key decode error");
+#ifdef WOLFSSL_SMALL_STACK
+        XFREE(digest, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(key,    NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+        return PUBLIC_KEY_E;
+    }
+
+    ret = wc_ecc_verify_hash(sig, sigSz, hash, hashSz, &stat, key);
+
+    wc_ecc_free(key);
+
+    if (ret == 0 && stat != 1) {
+        ret = SIG_VERIFY_E;
+    }
+
+#ifdef WOLFSSL_SMALL_STACK
+    XFREE(digest, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(key,    NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+
+    return ret;
+}
+
+
+static int wc_PKCS7_BuildSignedDataDigest(PKCS7* pkcs7, byte* signedAttrib,
+                                          word32 signedAttribSz, byte* digAlgId,
+                                          word32 digAlgIdSz, byte* out,
+                                          word32 outSz)
+{
+    int ret = 0;
+    word32 attribSetSz;
+    byte attribSet[MAX_SET_SZ];
+
+    byte digest[SHA_DIGEST_SIZE];
+
+    byte digestInfo[MAX_SEQ_SZ + MAX_ALGO_SZ + MAX_OCTET_STR_SZ +
+                    SHA_DIGEST_SIZE];
+    byte digestInfoSeq[MAX_SEQ_SZ];
+    byte digestStr[MAX_OCTET_STR_SZ];
+    word32 digestInfoSeqSz, digestStrSz;
+    int digIdx = 0;
+
+    Sha sha;
+
+    if (pkcs7 == NULL || digAlgId == NULL || out == NULL)
+        return BAD_FUNC_ARG;
+
+    XMEMSET(out, 0, outSz);
+    XMEMSET(digest, 0, SHA_DIGEST_SIZE);
+
+    /* calculate digest */
+    ret = wc_InitSha(&sha);
+    if (ret < 0)
+        return ret;
+
+    if (signedAttribSz > 0) {
+
+        if (signedAttrib == NULL)
+            return BAD_FUNC_ARG;
+
+        attribSetSz = SetSet(signedAttribSz, attribSet);
+        wc_ShaUpdate(&sha, attribSet, attribSetSz);
+        wc_ShaUpdate(&sha, signedAttrib, signedAttribSz);
+        wc_ShaFinal(&sha, digest);
+
+    } else {
+
+        if (pkcs7->content == NULL)
+            return BAD_FUNC_ARG;
+
+        wc_ShaUpdate(&sha, pkcs7->content, pkcs7->contentSz);
+        wc_ShaFinal(&sha, digest);
+    }
+
+    /* form input to verify operation */
+    if (pkcs7->publicKeyOID == RSAk) {
+
+        digestStrSz = SetOctetString(SHA_DIGEST_SIZE, digestStr);
+        digestInfoSeqSz = SetSequence(digAlgIdSz + digestStrSz +
+                                      SHA_DIGEST_SIZE, digestInfoSeq);
+
+        XMEMCPY(digestInfo + digIdx, digestInfoSeq, digestInfoSeqSz);
+        digIdx += digestInfoSeqSz;
+        XMEMCPY(digestInfo + digIdx, digAlgId, digAlgIdSz);
+        digIdx += digAlgIdSz;
+        XMEMCPY(digestInfo + digIdx, digestStr, digestStrSz);
+        digIdx += digestStrSz;
+        XMEMCPY(digestInfo + digIdx, digest, SHA_DIGEST_SIZE);
+        digIdx += SHA_DIGEST_SIZE;
+
+        XMEMCPY(out, digestInfo, digIdx);
+
+    } else if (pkcs7->publicKeyOID == ECDSAk) {
+
+        XMEMCPY(out, digest, SHA_DIGEST_SIZE);
+        digIdx = SHA_DIGEST_SIZE;
+    }
+
+    return digIdx;
+}
+
+
 /* Finds the certificates in the message and saves it. */
 int wc_PKCS7_VerifySignedData(PKCS7* pkcs7, byte* pkiMsg, word32 pkiMsgSz)
 {
@@ -796,7 +1242,10 @@ int wc_PKCS7_VerifySignedData(PKCS7* pkcs7, byte* pkiMsg, word32 pkiMsgSz)
     byte* content = NULL;
     byte* sig = NULL;
     byte* cert = NULL;
-    int contentSz = 0, sigSz = 0, certSz = 0;
+    byte* signedAttrib = NULL;
+    byte* digAlgId = NULL;
+    int contentSz = 0, sigSz = 0, certSz = 0, signedAttribSz = 0;
+    int digAlgIdSz = 0;
 
     if (pkcs7 == NULL || pkiMsg == NULL || pkiMsgSz == 0)
         return BAD_FUNC_ARG;
@@ -938,9 +1387,15 @@ int wc_PKCS7_VerifySignedData(PKCS7* pkcs7, byte* pkiMsg, word32 pkiMsgSz)
         /* Skip it */
         idx += length;
 
-        /* Get the sequence of digestAlgorithm */
+        /* Get the sequence of digestAlgorithm, saving pointer */
+        digAlgId = &pkiMsg[idx];
+        digAlgIdSz = idx;
+
         if (GetSequence(pkiMsg, &idx, &length, pkiMsgSz) < 0)
             return ASN_PARSE_E;
+
+        /* update digAlgIdSz with sequence and length */
+        digAlgIdSz = length + (idx - digAlgIdSz);
 
         /* Skip it */
         idx += length;
@@ -951,6 +1406,10 @@ int wc_PKCS7_VerifySignedData(PKCS7* pkcs7, byte* pkiMsg, word32 pkiMsgSz)
 
             if (GetLength(pkiMsg, &idx, &length, pkiMsgSz) < 0)
                 return ASN_PARSE_E;
+
+            /* save pointer and length */
+            signedAttrib = &pkiMsg[idx];
+            signedAttribSz = length;
 
             idx += length;
         }
@@ -979,66 +1438,36 @@ int wc_PKCS7_VerifySignedData(PKCS7* pkcs7, byte* pkiMsg, word32 pkiMsgSz)
         pkcs7->content = content;
         pkcs7->contentSz = contentSz;
 
-        {
-            word32 scratch = 0;
-            int plainSz = 0;
-            #define  MAX_PKCS7_DIGEST_SZ (MAX_SEQ_SZ + MAX_ALGO_SZ +\
-                           MAX_OCTET_STR_SZ + SHA_DIGEST_SIZE)
+    #define  MAX_PKCS7_DIGEST_SZ (MAX_SEQ_SZ + MAX_ALGO_SZ +\
+                                  MAX_OCTET_STR_SZ + SHA_DIGEST_SIZE)
 
-#ifdef WOLFSSL_SMALL_STACK
-            byte* digest;
-            RsaKey* key;
+        /* build hash to verify against */
+        byte finalDigest[MAX_PKCS7_DIGEST_SZ];
 
-            digest = (byte*)XMALLOC(MAX_PKCS7_DIGEST_SZ, NULL,
-                                    DYNAMIC_TYPE_TMP_BUFFER);
+        ret = wc_PKCS7_BuildSignedDataDigest(pkcs7, signedAttrib,
+                                             signedAttribSz, digAlgId,
+                                             digAlgIdSz, finalDigest,
+                                             SHA_DIGEST_SIZE);
+        if (ret < 0)
+            return ret;
 
-            if (digest == NULL)
-                return MEMORY_E;
+        switch (pkcs7->publicKeyOID) {
 
-            key = (RsaKey*)XMALLOC(sizeof(RsaKey), NULL,
-                                                       DYNAMIC_TYPE_TMP_BUFFER);
-            if (key == NULL) {
-                XFREE(digest, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-                return MEMORY_E;
-            }
-#else
-            byte digest[MAX_PKCS7_DIGEST_SZ];
-            RsaKey stack_key;
-            RsaKey* key = &stack_key;
-#endif
+            case RSAk:
+                ret = wc_PKCS7_RsaVerify(pkcs7, sig, sigSz, finalDigest, ret);
+                break;
 
-            XMEMSET(digest, 0, MAX_PKCS7_DIGEST_SZ);
+            case ECDSAk:
+                ret = wc_PKCS7_EcdsaVerify(pkcs7, sig, sigSz, finalDigest, ret);
+                break;
 
-            ret = wc_InitRsaKey(key, pkcs7->heap);
-            if (ret != 0) {
-#ifdef WOLFSSL_SMALL_STACK
-                XFREE(digest, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-                XFREE(key,    NULL, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
-                return ret;
-            }
-            if (wc_RsaPublicKeyDecode(pkcs7->publicKey, &scratch, key,
-                                   pkcs7->publicKeySz) < 0) {
-                WOLFSSL_MSG("ASN RSA key decode error");
-#ifdef WOLFSSL_SMALL_STACK
-                XFREE(digest, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-                XFREE(key,    NULL, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
-                return PUBLIC_KEY_E;
-            }
-
-            plainSz = wc_RsaSSL_Verify(sig, sigSz, digest, MAX_PKCS7_DIGEST_SZ,
-                                       key);
-            wc_FreeRsaKey(key);
-
-#ifdef WOLFSSL_SMALL_STACK
-            XFREE(digest, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-            XFREE(key,    NULL, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
-
-            if (plainSz < 0)
-                return plainSz;
+            default:
+                WOLFSSL_MSG("Unsupported public key type");
+                ret = BAD_FUNC_ARG;
         }
+
+        if (ret < 0)
+            return ret;
     }
 
     return 0;
