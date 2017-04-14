@@ -64,6 +64,11 @@ Possible IO enable options:
 /* Translates return codes returned from
  * send() and recv() if need be.
  */
+
+#if defined(FREERTOS_TCP)
+	int freertos_errno;
+#endif
+
 static INLINE int TranslateReturnCode(int old, int sd)
 {
     (void)sd;
@@ -83,6 +88,14 @@ static INLINE int TranslateReturnCode(int old, int sd)
         if (errno == RTCSERR_TCP_TIMED_OUT)
             errno = SOCKET_EAGAIN;
     }
+#elif defined( FREERTOS_TCP )
+	/* When using 'ipconfigSUPPORT_SIGNALS', the TCP API's can get interrupted
+	by calling 'FreeRTOS_SignalSocket()' or 'FreeRTOS_SignalSocketFromISR()'.
+	The interrupted API call will return '-pdFREERTOS_ERRNO_EINTR'. */
+	if( old == -pdFREERTOS_ERRNO_EINTR ) {
+		freertos_errno = SOCKET_EINTR;
+		return -1;
+	}
 #endif
 
     return old;
@@ -94,6 +107,8 @@ static INLINE int LastError(void)
     return WSAGetLastError();
 #elif defined(EBSNET)
     return xn_getlasterror();
+#elif defined(FREERTOS_TCP)
+    return freertos_errno;
 #else
     return errno;
 #endif

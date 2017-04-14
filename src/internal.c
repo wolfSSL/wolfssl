@@ -5216,6 +5216,8 @@ retry:
                             return WANT_READ;
                         }
                     }
+				#elif defined(FREERTOS_TCP)
+					return WANT_READ;	/* want read, call again    */
                 #endif
                 goto retry;
 
@@ -5319,6 +5321,8 @@ int SendBuffered(WOLFSSL* ssl)
                                 return WANT_WRITE;
                             }
                         }
+					#elif defined( FREERTOS_TCP )
+						return WANT_WRITE;	/* want write, call again   */
                     #endif
                     continue;
 

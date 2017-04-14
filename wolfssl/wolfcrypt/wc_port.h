@@ -104,7 +104,7 @@
 #else /* MULTI_THREADED */
     /* FREERTOS comes first to enable use of FreeRTOS Windows simulator only */
     #if defined(FREERTOS)
-        typedef xSemaphoreHandle wolfSSL_Mutex;
+        typedef SemaphoreHandle_t wolfSSL_Mutex;
     #elif defined(FREERTOS_TCP)
         #include "FreeRTOS.h"
         #include "semphr.h"
@@ -112,7 +112,7 @@
     #elif defined(WOLFSSL_SAFERTOS)
         typedef struct wolfSSL_Mutex {
             signed char mutexBuffer[portQUEUE_OVERHEAD_BYTES];
-            xSemaphoreHandle mutex;
+            SemaphoreHandle_t mutex;
         } wolfSSL_Mutex;
     #elif defined(USE_WINDOWS_API)
         typedef CRITICAL_SECTION wolfSSL_Mutex;
@@ -225,6 +225,26 @@ WOLFSSL_API int wolfCrypt_Cleanup(void);
     #define XSEEK_END               0
     #define XBADFILE                NULL
     #define XFGETS(b,s,f)            -2 /* Not ported yet */
+#elif defined(FREERTOS_TCP)
+	#ifndef NO_FILESYSTEM
+		/* Using the FreeRTOS+FAT driver. */
+		#include "ff_headers.h"
+		#include "ff_stdio.h"
+		/*
+		 * FF_FILE *ff_fopen( const char *pcFile, const char *pcMode );
+		 * XFILE  file = XFOPEN(fname, "rb");
+		 */
+	    #define XFILE                   FF_FILE *
+	    #define XFOPEN                  ff_fopen
+	    #define XFSEEK                  ff_fseek
+	    #define XFTELL                  ff_ftell
+	    #define XREWIND(F)              ff_fseek(F, 0, FF_SEEK_SET)
+	    #define XFREAD                  ff_fread
+	    #define XFWRITE                 ff_fwrite
+	    #define XFCLOSE                 ff_fclose
+	    #define XSEEK_END               FF_SEEK_END
+	    #define XBADFILE                NULL
+	#endif
 #elif defined(FREESCALE_MQX) || defined(FREESCALE_KSDK_MQX)
     #define XFILE                   MQX_FILE_PTR
     #define XFOPEN                  fopen

@@ -176,6 +176,22 @@ ASN Options:
     #define XTIME(t1)       windows_time((t1))
     #define WOLFSSL_GMTIME
 
+#elif defined(FREERTOS_TCP) && !defined(NO_FILESYSTEM)
+	/* Using the FreeRTOS+FAT driver. */
+   	#include "ff_headers.h"
+	/*
+		time_t FreeRTOS_time( time_t *pxTime );
+		FF_TimeStruct_t *FreeRTOS_gmtime_r( const time_t *pxTime, FF_TimeStruct_t *pxTimeBuf );
+	*/
+	#define	tm							xTIME_STRUCT
+	#define XTIME( tl )					FreeRTOS_time((tl))
+	#define XGMTIME( c, t )				FreeRTOS_gmtime_r((c), (t))
+	#define XVALIDATE_DATE(d, f, t)		ValidateDate((d), (f), (t))
+	int ValidateDate(const byte* date, byte format, int dateType)
+	{
+		return 1;
+	}
+
 #else
     /* default */
     /* uses complete <time.h> facility */

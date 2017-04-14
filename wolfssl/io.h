@@ -73,7 +73,9 @@
     #elif defined(WOLFSSL_TIRTOS)
         #include <sys/socket.h>
     #elif defined(FREERTOS_TCP)
+        #include "FreeRTOS.h"
         #include "FreeRTOS_Sockets.h"
+		extern int freertos_errno;
     #elif defined(WOLFSSL_IAR_ARM)
         /* nothing */
     #elif defined(WOLFSSL_VXWORKS)
@@ -196,10 +198,10 @@
     #define SOCKET_ECONNREFUSED PICO_ERR_ECONNREFUSED
     #define SOCKET_ECONNABORTED PICO_ERR_ESHUTDOWN
 #elif defined(FREERTOS_TCP)
-    #define SOCKET_EWOULDBLOCK FREERTOS_EWOULDBLOCK
-    #define SOCKET_EAGAIN       FREERTOS_EWOULDBLOCK
-    #define SOCKET_ECONNRESET   FREERTOS_SOCKET_ERROR
-    #define SOCKET_EINTR        FREERTOS_SOCKET_ERROR
+    #define SOCKET_EWOULDBLOCK  pdFREERTOS_ERRNO_EWOULDBLOCK
+    #define SOCKET_EAGAIN       pdFREERTOS_ERRNO_EWOULDBLOCK
+    #define SOCKET_ECONNRESET   pdFREERTOS_ERRNO_ENOTCONN
+    #define SOCKET_EINTR        pdFREERTOS_ERRNO_EINTR
     #define SOCKET_EPIPE        FREERTOS_SOCKET_ERROR
     #define SOCKET_ECONNREFUSED FREERTOS_SOCKET_ERROR
     #define SOCKET_ECONNABORTED FREERTOS_SOCKET_ERROR
@@ -227,8 +229,31 @@
     #define SEND_FUNCTION pico_send
     #define RECV_FUNCTION pico_recv
 #elif defined(FREERTOS_TCP)
-    #define RECV_FUNCTION(a,b,c,d)  FreeRTOS_recv((Socket_t)(a),(void*)(b), (size_t)(c), (BaseType_t)(d))
-    #define SEND_FUNCTION(a,b,c,d)  FreeRTOS_send((Socket_t)(a),(void*)(b), (size_t)(c), (BaseType_t)(d))
+	static __inline BaseType_t _FreeRTOS_recv( Socket_t xSocket, void *pvBuffer, size_t xBufferLength, BaseType_t xFlags )
+	{
+	BaseType_t result;
+		/* FreeRTOS+TCP functions return 'errno' as a negative value. */
+		result = FreeRTOS_recv( xSocket, pvBuffer, xBufferLength, xFlags );
+		if (result < 0) {
+			freertos_errno = -result;
+		} else {
+			freertos_errno = 0;
+		}
+		return result;
+	}
+	static __inline BaseType_t _FreeRTOS_send( Socket_t xSocket, const void *pvBuffer, size_t xDataLength, BaseType_t xFlags )
+	{
+	BaseType_t result;
+		result = FreeRTOS_send( xSocket, pvBuffer, xDataLength, xFlags );
+		if (result < 0) {
+			freertos_errno = -result;
+		} else {
+			freertos_errno = 0;
+		}
+		return result;
+	}
+    #define RECV_FUNCTION(a,b,c,d)  _FreeRTOS_recv((Socket_t)(a),(void*)(b), (size_t)(c), (BaseType_t)(d))
+    #define SEND_FUNCTION(a,b,c,d)  _FreeRTOS_send((Socket_t)(a),(void*)(b), (size_t)(c), (BaseType_t)(d))
 #else
     #define SEND_FUNCTION send
     #define RECV_FUNCTION recv
