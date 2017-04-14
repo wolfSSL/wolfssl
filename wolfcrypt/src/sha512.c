@@ -540,11 +540,12 @@ static INLINE void AddLength(Sha512* sha512, word32 len)
 static INLINE int Sha512Update(Sha512* sha512, const byte* data, word32 len)
 {
     int ret = 0;
+    /* do block size increments */
+    byte* local = (byte*)sha512->buffer;
+
     if (sha512 == NULL || (data == NULL && len > 0)) {
         return BAD_FUNC_ARG;
     }
-    /* do block size increments */
-    byte* local = (byte*)sha512->buffer;
 
     /* check that internal buffLen is valid */
     if (sha512->buffLen > SHA512_BLOCK_SIZE)
