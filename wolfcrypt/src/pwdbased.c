@@ -322,25 +322,25 @@ int DoPKCS12Hash(int hashType, byte* buffer, word32 totalLen,
                 Md5 md5;
                 ret = wc_InitMd5(&md5);
                 if (ret != 0) {
-                    return ret;
+                    break;
                 }
                 ret = wc_Md5Update(&md5, buffer, totalLen);
                 if (ret != 0) {
-                    return ret;
+                    break;
                 }
                 ret = wc_Md5Final(&md5, Ai);
                 if (ret != 0) {
-                    return ret;
+                    break;
                 }
 
                 for (i = 1; i < iterations; i++) {
                     ret = wc_Md5Update(&md5, Ai, u);
                     if (ret != 0) {
-                        return ret;
+                        break;
                     }
                     ret = wc_Md5Final(&md5, Ai);
                     if (ret != 0) {
-                        return ret;
+                        break;
                     }
                 }
             }
@@ -353,12 +353,24 @@ int DoPKCS12Hash(int hashType, byte* buffer, word32 totalLen,
                 ret = wc_InitSha(&sha);
                 if (ret != 0)
                     break;
-                wc_ShaUpdate(&sha, buffer, totalLen);
-                wc_ShaFinal(&sha, Ai);
+                ret = wc_ShaUpdate(&sha, buffer, totalLen);
+                if (ret != 0) {
+                    break;
+                }
+                ret = wc_ShaFinal(&sha, Ai);
+                if (ret != 0) {
+                    break;
+                }
 
                 for (i = 1; i < iterations; i++) {
-                    wc_ShaUpdate(&sha, Ai, u);
-                    wc_ShaFinal(&sha, Ai);
+                    ret = wc_ShaUpdate(&sha, Ai, u);
+                    if (ret != 0) {
+                        break;
+                    }
+                    ret = wc_ShaFinal(&sha, Ai);
+                    if (ret != 0) {
+                        break;
+                    }
                 }
             }
             break;

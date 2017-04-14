@@ -305,10 +305,6 @@ static int _InitMd5(Md5* md5)
 {
     int ret = 0;
 
-	if (md5 == NULL) {
-        return BAD_FUNC_ARG;
-    }
-
     md5->digest[0] = 0x67452301L;
     md5->digest[1] = 0xefcdab89L;
     md5->digest[2] = 0x98badcfeL;

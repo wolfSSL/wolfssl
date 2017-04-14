@@ -220,26 +220,21 @@ static int check_md5(void)
 
     CRYPT_MD5_Initialize(&mcMd5);
     ret = wc_InitMd5(&defMd5);
-    if (ret != 0) {
-        return ret;
+
+    if (ret == 0) {
+        CRYPT_MD5_DataAdd(&mcMd5, ourData, OUR_DATA_SIZE);
+        ret = wc_Md5Update(&defMd5, ourData, OUR_DATA_SIZE);
     }
 
-    CRYPT_MD5_DataAdd(&mcMd5, ourData, OUR_DATA_SIZE);
-    ret = wc_Md5Update(&defMd5, ourData, OUR_DATA_SIZE);
-    if (ret != 0) {
-        return ret;
-    }
-
-    CRYPT_MD5_Finalize(&mcMd5, mcDigest);
-    ret = wc_Md5Final(&defMd5, defDigest);
-    if (ret != 0) {
-        return ret;
+    if (ret == 0) {
+        CRYPT_MD5_Finalize(&mcMd5, mcDigest);
+        ret = wc_Md5Final(&defMd5, defDigest);
     }
 
     if (memcmp(mcDigest, defDigest, CRYPT_MD5_DIGEST_SIZE) != 0) {
         printf("md5 final memcmp fialed\n");
         return -1;
-    } 
+    }
     printf("md5         mcapi test passed\n");
 
     return ret;
@@ -271,7 +266,7 @@ static int check_sha(void)
     if (memcmp(mcDigest, defDigest, CRYPT_SHA_DIGEST_SIZE) != 0) {
         printf("sha final memcmp failed\n");
         return -1;
-    } 
+    }
     printf("sha         mcapi test passed\n");
 
     return 0;
@@ -311,7 +306,7 @@ static int check_sha256(void)
     if (memcmp(mcDigest, defDigest, CRYPT_SHA256_DIGEST_SIZE) != 0) {
         printf("sha256 final memcmp fialed\n");
         return -1;
-    } 
+    }
     printf("sha256      mcapi test passed\n");
 
     return 0;
@@ -351,7 +346,7 @@ static int check_sha384(void)
     if (memcmp(mcDigest, defDigest, CRYPT_SHA384_DIGEST_SIZE) != 0) {
         printf("sha384 final memcmp fialed\n");
         return -1;
-    } 
+    }
     printf("sha384      mcapi test passed\n");
 
     return 0;
@@ -391,7 +386,7 @@ static int check_sha512(void)
     if (memcmp(mcDigest, defDigest, CRYPT_SHA512_DIGEST_SIZE) != 0) {
         printf("sha512 final memcmp fialed\n");
         return -1;
-    } 
+    }
     printf("sha512      mcapi test passed\n");
 
     return 0;
@@ -434,7 +429,7 @@ static int check_hmac(void)
     if (memcmp(mcDigest, defDigest, CRYPT_SHA_DIGEST_SIZE) != 0) {
         printf("hmac sha final memcmp fialed\n");
         return -1;
-    } 
+    }
     printf("hmac sha    mcapi test passed\n");
 
     /* SHA-256 */
@@ -462,7 +457,7 @@ static int check_hmac(void)
     if (memcmp(mcDigest, defDigest, CRYPT_SHA256_DIGEST_SIZE) != 0) {
         printf("hmac sha256 final memcmp fialed\n");
         return -1;
-    } 
+    }
     printf("hmac sha256 mcapi test passed\n");
 
     /* SHA-384 */
@@ -490,7 +485,7 @@ static int check_hmac(void)
     if (memcmp(mcDigest, defDigest, CRYPT_SHA384_DIGEST_SIZE) != 0) {
         printf("hmac sha384 final memcmp fialed\n");
         return -1;
-    } 
+    }
     printf("hmac sha384 mcapi test passed\n");
 
     /* SHA-512 */
@@ -518,7 +513,7 @@ static int check_hmac(void)
     if (memcmp(mcDigest, defDigest, CRYPT_SHA512_DIGEST_SIZE) != 0) {
         printf("hmac sha512 final memcmp fialed\n");
         return -1;
-    } 
+    }
     printf("hmac sha512 mcapi test passed\n");
 
     return 0;
@@ -631,7 +626,7 @@ static int check_compress(void)
 static int check_rng(void)
 {
     int           ret;
-    int           i; 
+    int           i;
     byte          in[RANDOM_BYTE_SZ];
     byte          out[RANDOM_BYTE_SZ];
 
@@ -1336,7 +1331,7 @@ static int check_rsa(void)
         return -1;
     }
 
-    ret = CRYPT_RSA_PrivateDecrypt(&mcRsa, out2, sizeof(out2), out1, ret); 
+    ret = CRYPT_RSA_PrivateDecrypt(&mcRsa, out2, sizeof(out2), out1, ret);
     if (ret < 0) {
         printf("mcapi rsa private derypt failed\n");
         return -1;
@@ -1358,7 +1353,7 @@ static int check_rsa(void)
         printf("mcapi rsa free failed\n");
         return -1;
     }
-    
+
     printf("rsa         mcapi test passed\n");
 
     return 0;
@@ -1368,7 +1363,7 @@ static int check_rsa(void)
 /* check mcapi ecc */
 static int check_ecc(void)
 {
-    CRYPT_ECC_CTX userA; 
+    CRYPT_ECC_CTX userA;
     CRYPT_ECC_CTX userB;
     int           ret;
     byte          sharedA[100];
@@ -1473,7 +1468,7 @@ static int check_ecc(void)
         printf("mcapi ecc public export failed\n");
         return -1;
     }
-  
+
     ret = CRYPT_ECC_PublicImport(&userB, sharedA, usedA);
     if (ret != 0) {
         printf("mcapi ecc public import failed\n");
