@@ -130,7 +130,7 @@ enum Misc_ASN {
     PKCS5               =   5,     /* PKCS oid tag */
     PKCS5v2             =   6,     /* PKCS #5 v2.0 */
     PKCS8v0             =   0,     /* default PKCS#8 version */
-    PKCS12              =  12,     /* PKCS #12 */
+    PKCS12v1_1          =  12,     /* PKCS #12 */
     MAX_UNICODE_SZ      = 256,
     ASN_BOOL_SIZE       =   2,     /* including type */
     ASN_ECC_HEADER_SZ   =   2,     /* String type + 1 byte len */

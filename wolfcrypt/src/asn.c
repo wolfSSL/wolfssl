@@ -2144,11 +2144,11 @@ static int CheckAlgo(int first, int second, int* id, int* version)
         switch (second) {
         case 1:
             *id = PBE_SHA1_RC4_128;
-            *version = PKCS12;
+            *version = PKCS12v1_1;
             return 0;
         case 3:
             *id = PBE_SHA1_DES3;
-            *version = PKCS12;
+            *version = PKCS12v1_1;
             return 0;
         default:
             return ALGO_ID_E;
@@ -2256,7 +2256,7 @@ static int DecryptKey(const char* password, int passwordSz, byte* salt,
         ret = wc_PBKDF1(key, (byte*)password, passwordSz,
                         salt, saltSz, iterations, derivedLen, typeH);
 #endif
-    else if (version == PKCS12) {
+    else if (version == PKCS12v1_1) {
         int  i, idx = 0;
         byte unicodePasswd[MAX_UNICODE_SZ];
 
@@ -2302,7 +2302,7 @@ static int DecryptKey(const char* password, int passwordSz, byte* salt,
             Des    dec;
             byte*  desIv = key + 8;
 
-            if (version == PKCS5v2 || version == PKCS12)
+            if (version == PKCS5v2 || version == PKCS12v1_1)
                 desIv = cbcIv;
 
             ret = wc_Des_SetKey(&dec, key, desIv, DES_DECRYPTION);
@@ -2322,7 +2322,7 @@ static int DecryptKey(const char* password, int passwordSz, byte* salt,
             Des3   dec;
             byte*  desIv = key + 24;
 
-            if (version == PKCS5v2 || version == PKCS12)
+            if (version == PKCS5v2 || version == PKCS12v1_1)
                 desIv = cbcIv;
             ret = wc_Des3_SetKey(&dec, key, desIv, DES_DECRYPTION);
             if (ret != 0) {
