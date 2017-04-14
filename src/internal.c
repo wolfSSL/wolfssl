@@ -5313,11 +5313,6 @@ int SendBuffered(WOLFSSL* ssl)
         return SOCKET_ERROR_E;
     }
 
-    if (ssl->buffers.outputBuffer.idx == 0) {
-        WOLFSSL_MSG("Data to send");
-        WOLFSSL_BUFFER(ssl->buffers.outputBuffer.buffer,
-                       ssl->buffers.outputBuffer.length);
-    }
     while (ssl->buffers.outputBuffer.length > 0) {
         int sent = ssl->ctx->CBIOSend(ssl,
                                       (char*)ssl->buffers.outputBuffer.buffer +
@@ -10243,12 +10238,6 @@ static int GetInputData(WOLFSSL *ssl, word32 size)
 
     } while (ssl->buffers.inputBuffer.length < size);
 
-    if (ssl->buffers.inputBuffer.idx == 0) {
-        WOLFSSL_MSG("Data received");
-        WOLFSSL_BUFFER(ssl->buffers.inputBuffer.buffer,
-                       ssl->buffers.inputBuffer.length);
-    }
-
     return 0;
 }
 
@@ -10538,7 +10527,7 @@ int ProcessReply(WOLFSSL* ssl)
                     return ret;
             #endif
 
-                if (ret == 0) {
+                if (ret >= 0) {
                     /* handle success */
                     if (ssl->options.tls1_1 && ssl->specs.cipher_type == block)
                         ssl->buffers.inputBuffer.idx += ssl->specs.block_size;
@@ -12417,10 +12406,10 @@ int SendData(WOLFSSL* ssl, const void* data, int sz)
 #endif
         }
         if (sendSz < 0) {
-#ifdef WOLFSSL_ASYNC_CRYPT
+        #ifdef WOLFSSL_ASYNC_CRYPT
             if (sendSz == WC_PENDING_E)
                 ssl->error = sendSz;
-#endif
+        #endif
             return BUILD_MSG_ERROR;
         }
 

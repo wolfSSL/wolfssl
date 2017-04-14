@@ -3281,16 +3281,12 @@ typedef struct Scv13Args {
     byte*  verify; /* not allocated */
     byte*  input;
     word32 idx;
-    word32 extraSz;
-    word32 sigSz;
+    word32 sigLen;
     int    sendSz;
-    int    length;
-    int    inputSz;
+    word16 length;
 
     byte   sigData[MAX_SIG_DATA_SZ];
     word16 sigDataSz;
-
-    word16 keySz;
 } Scv13Args;
 
 static void FreeScv13Args(WOLFSSL* ssl, void* pArgs)
@@ -3323,6 +3319,7 @@ static void FreeScv13Args(WOLFSSL* ssl, void* pArgs)
 int SendTls13CertificateVerify(WOLFSSL* ssl)
 {
     int ret = 0;
+    buffer* sig = &ssl->buffers.sig;
 #ifdef WOLFSSL_ASYNC_CRYPT
     Scv13Args* args = (Scv13Args*)ssl->async.args;
     typedef char args_test[sizeof(ssl->async.args) >= sizeof(*args) ? 1 : -1];
@@ -3383,7 +3380,7 @@ int SendTls13CertificateVerify(WOLFSSL* ssl)
             args->idx = RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ;
             args->verify = &args->output[RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ];
 
-            ret = DecodePrivateKey(ssl, &args->keySz);
+            ret = DecodePrivateKey(ssl, &args->length);
             if (ret != 0)
                 goto exit_scv;
 
@@ -3395,27 +3392,26 @@ int SendTls13CertificateVerify(WOLFSSL* ssl)
 
         #ifndef NO_RSA
             if (ssl->hsType == DYNAMIC_TYPE_RSA) {
-                args->sigSz = ENCRYPT_LEN;
-
                 /* build encoded signature buffer */
-                ssl->buffers.sig.length = MAX_ENCODED_SIG_SZ;
-                ssl->buffers.sig.buffer = (byte*)XMALLOC(ssl->buffers.sig.length,
+                sig->length = MAX_ENCODED_SIG_SZ;
+                sig->buffer = (byte*)XMALLOC(sig->length,
                     ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
-                if (ssl->buffers.sig.buffer == NULL)
+                if (sig->buffer == NULL)
                     return MEMORY_E;
 
                 /* Digest the signature data and encode. Used in verify too. */
-                ssl->buffers.sig.length = CreateRSAEncodedSig(
-                    ssl->buffers.sig.buffer, args->sigData, args->sigDataSz,
-                    ssl->suites->hashAlgo);
+                sig->length = CreateRSAEncodedSig(sig->buffer, args->sigData,
+                    args->sigDataSz, ssl->suites->hashAlgo);
                 if (ret != 0)
                     goto exit_scv;
+
+                /* Maximum size of RSA Signature. */
+                args->sigLen = args->length;
             }
         #endif /* !NO_RSA */
         #ifdef HAVE_ECC
             if (ssl->hsType == DYNAMIC_TYPE_ECC)
-                ssl->buffers.sig.length = args->sendSz - args->idx -
-                    HASH_SIG_SIZE - VERIFY_HEADER;
+                sig->length = args->sendSz - args->idx - HASH_SIG_SIZE - VERIFY_HEADER;
         #endif /* HAVE_ECC */
 
             /* Advance state and proceed */
@@ -3428,7 +3424,7 @@ int SendTls13CertificateVerify(WOLFSSL* ssl)
            if (ssl->hsType == DYNAMIC_TYPE_ECC) {
                 ret = EccSign(ssl, args->sigData, args->sigDataSz,
                     args->verify + HASH_SIG_SIZE + VERIFY_HEADER,
-                    &ssl->buffers.sig.length, (ecc_key*)ssl->hsKey,
+                    &sig->length, (ecc_key*)ssl->hsKey,
             #if defined(HAVE_PK_CALLBACKS)
                     ssl->buffers.key->buffer, ssl->buffers.key->length,
                     ssl->EccSignCtx
@@ -3436,6 +3432,7 @@ int SendTls13CertificateVerify(WOLFSSL* ssl)
                     NULL, 0, NULL
             #endif
                 );
+                args->length = sig->length;
             }
         #endif /* HAVE_ECC */
         #ifndef NO_RSA
@@ -3443,8 +3440,8 @@ int SendTls13CertificateVerify(WOLFSSL* ssl)
                 /* restore verify pointer */
                 args->verify = &args->output[args->idx];
 
-                ret = RsaSign(ssl, ssl->buffers.sig.buffer, ssl->buffers.sig.length,
-                    args->verify + HASH_SIG_SIZE + VERIFY_HEADER, &args->sigSz,
+                ret = RsaSign(ssl, sig->buffer, sig->length,
+                    args->verify + HASH_SIG_SIZE + VERIFY_HEADER, &args->sigLen,
                     (RsaKey*)ssl->hsKey,
                     ssl->buffers.key->buffer, ssl->buffers.key->length,
                 #ifdef HAVE_PK_CALLBACKS
@@ -3453,7 +3450,7 @@ int SendTls13CertificateVerify(WOLFSSL* ssl)
                     NULL
                 #endif
                 );
-                args->keySz = ssl->buffers.sig.length;
+                args->length = args->sigLen;
             }
         #endif /* !NO_RSA */
 
@@ -3463,7 +3460,7 @@ int SendTls13CertificateVerify(WOLFSSL* ssl)
             }
 
             /* Add signature length. */
-            c16toa(args->keySz, args->verify + HASH_SIG_SIZE);
+            c16toa(args->length, args->verify + HASH_SIG_SIZE);
 
             /* Advance state and proceed */
             ssl->options.asyncState = TLS_ASYNC_VERIFY;
@@ -3477,18 +3474,19 @@ int SendTls13CertificateVerify(WOLFSSL* ssl)
         #ifndef NO_RSA
             if (ssl->hsType == DYNAMIC_TYPE_RSA) {
                 if (args->verifySig == NULL) {
-                    args->verifySig = (byte*)XMALLOC(args->sigSz, ssl->heap,
+                    args->verifySig = (byte*)XMALLOC(args->sigLen, ssl->heap,
                                                DYNAMIC_TYPE_TMP_BUFFER);
                     if (args->verifySig == NULL) {
                         ERROR_OUT(MEMORY_E, exit_scv);
                     }
-                    XMEMCPY(args->verifySig, args->verify + HASH_SIG_SIZE + VERIFY_HEADER,
-                                                                args->sigSz);
+                    XMEMCPY(args->verifySig,
+                        args->verify + HASH_SIG_SIZE + VERIFY_HEADER,
+                        args->sigLen);
                 }
 
                 /* check for signature faults */
-                ret = VerifyRsaSign(ssl, args->verifySig, args->sigSz,
-                    ssl->buffers.sig.buffer, ssl->buffers.sig.length, (RsaKey*)ssl->hsKey);
+                ret = VerifyRsaSign(ssl, args->verifySig, args->sigLen,
+                    sig->buffer, sig->length, (RsaKey*)ssl->hsKey);
             }
         #endif /* !NO_RSA */
 
@@ -3504,10 +3502,10 @@ int SendTls13CertificateVerify(WOLFSSL* ssl)
         case TLS_ASYNC_FINALIZE:
         {
             /* Put the record and handshake headers on. */
-            AddTls13Headers(args->output, args->keySz + HASH_SIG_SIZE + VERIFY_HEADER,
+            AddTls13Headers(args->output, args->length + HASH_SIG_SIZE + VERIFY_HEADER,
                             certificate_verify, ssl);
 
-            args->sendSz = RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ + args->keySz +
+            args->sendSz = RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ + args->length +
                      HASH_SIG_SIZE + VERIFY_HEADER;
 
             /* This message is always encrypted. */
@@ -4339,6 +4337,29 @@ static int DoTls13Certificate(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 }
 
 #if !defined(NO_RSA) || defined(HAVE_ECC)
+
+typedef struct Dcv13Args {
+    byte*  output; /* not allocated */
+    word32 sendSz;
+    word16 sz;
+    word32 sigSz;
+    word32 idx;
+    word32 begin;
+    byte   hashAlgo;
+    byte   sigAlgo;
+
+    byte   sigData[MAX_SIG_DATA_SZ];
+    word16 sigDataSz;
+} Dcv13Args;
+
+static void FreeDcv13Args(WOLFSSL* ssl, void* pArgs)
+{
+    Dcv13Args* args = (Dcv13Args*)pArgs;
+
+    (void)ssl;
+    (void)args;
+}
+
 /* Parse and handle a TLS v1.3 CertificateVerify message.
  *
  * ssl       The SSL/TLS object.
@@ -4353,52 +4374,38 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
                                     word32* inOutIdx, word32 totalSz)
 {
     int         ret = 0;
-    byte*       output = NULL;
-    word32      sendSz = 0;
-    word16      sz = 0;
-    byte        hashAlgo = sha_mac;
-    byte        sigAlgo = anonymous_sa_algo;
-    word32      idx = *inOutIdx, begin = *inOutIdx;
     buffer*     sig = &ssl->buffers.sig;
+#ifdef WOLFSSL_ASYNC_CRYPT
+    Dcv13Args* args = (Dcv13Args*)ssl->async.args;
+    typedef char args_test[sizeof(ssl->async.args) >= sizeof(*args) ? 1 : -1];
+    (void)sizeof(args_test);
+#else
+    Dcv13Args  args[1];
+#endif
 
     WOLFSSL_ENTER("DoTls13CertificateVerify");
 
-    (void)output;
-    (void)sendSz;
-
-    #ifdef WOLFSSL_ASYNC_CRYPT
-    ret = wolfAsync_EventPop(&ssl->event, WOLF_EVENT_TYPE_ASYNC_ANY);
+#ifdef WOLFSSL_ASYNC_CRYPT
+    ret = wolfSSL_AsyncPop(ssl, &ssl->options.asyncState);
     if (ret != WC_NOT_PENDING_E) {
-        WOLF_EVENT_TYPE eType = ssl->event.type;
-
-        /* Clear event */
-        XMEMSET(&ssl->event, 0, sizeof(ssl->event));
-
         /* Check for error */
-        if (ret < 0) {
+        if (ret < 0)
             goto exit_dcv;
-        }
-        else  {
-            /* Restore variables needed for async */
-            output = ssl->async.output;
-            sendSz = ssl->async.sendSz;
-            idx = ssl->async.idx;
-            sz = ssl->async.length;
-            sigAlgo = ssl->async.sigAlgo;
-            hashAlgo = ssl->async.hashAlgo;
-
-            /* Advance key share state if not wolfCrypt */
-            if (eType == WOLF_EVENT_TYPE_ASYNC_WOLFSSL) {
-                ssl->options.asyncState++;
-            }
-        }
     }
     else
-    #endif
+#endif
     {
         /* Reset state */
         ret = 0;
         ssl->options.asyncState = TLS_ASYNC_BEGIN;
+        XMEMSET(args, 0, sizeof(Dcv13Args));
+        args->hashAlgo = sha_mac;
+        args->sigAlgo = anonymous_sa_algo;
+        args->idx = *inOutIdx;
+        args->begin = *inOutIdx;
+    #ifdef WOLFSSL_ASYNC_CRYPT
+        ssl->async.freeArgs = FreeDcv13Args;
+    #endif
     }
 
     switch(ssl->options.asyncState)
@@ -4419,30 +4426,30 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
         case TLS_ASYNC_BUILD:
         {
             /* Signature algorithm. */
-            if ((idx - begin) + ENUM_LEN + ENUM_LEN > totalSz) {
+            if ((args->idx - args->begin) + ENUM_LEN + ENUM_LEN > totalSz) {
                 ERROR_OUT(BUFFER_ERROR, exit_dcv);
             }
-            DecodeSigAlg(input + idx, &hashAlgo, &sigAlgo);
-            idx += OPAQUE16_LEN;
+            DecodeSigAlg(input + args->idx, &args->hashAlgo, &args->sigAlgo);
+            args->idx += OPAQUE16_LEN;
             /* TODO: [TLS13] was it in SignatureAlgorithms extension? */
 
             /* Signature length. */
-            if ((idx - begin) + OPAQUE16_LEN > totalSz) {
+            if ((args->idx - args->begin) + OPAQUE16_LEN > totalSz) {
                 ERROR_OUT(BUFFER_ERROR, exit_dcv);
             }
-            ato16(input + idx, &sz);
-            idx += OPAQUE16_LEN;
+            ato16(input + args->idx, &args->sz);
+            args->idx += OPAQUE16_LEN;
 
             /* Signature data. */
-            if ((idx - begin) + sz > totalSz || sz > ENCRYPT_LEN) {
+            if ((args->idx - args->begin) + args->sz > totalSz || args->sz > ENCRYPT_LEN) {
                 ERROR_OUT(BUFFER_ERROR, exit_dcv);
             }
 
             /* Check for public key of required type. */
-            if (sigAlgo == ecc_dsa_sa_algo && !ssl->peerEccDsaKeyPresent) {
+            if (args->sigAlgo == ecc_dsa_sa_algo && !ssl->peerEccDsaKeyPresent) {
                 WOLFSSL_MSG("Oops, peer sent ECC key but not in verify");
             }
-            if (sigAlgo == rsa_sa_algo &&
+            if (args->sigAlgo == rsa_sa_algo &&
                 (ssl->peerRsaKey == NULL || !ssl->peerRsaKeyPresent)) {
                 WOLFSSL_MSG("Oops, peer sent RSA key but not in verify");
             }
@@ -4453,17 +4460,17 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
 
         case TLS_ASYNC_DO:
         {
-            sig->buffer = XMALLOC(sz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            sig->buffer = XMALLOC(args->sz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
             if (sig->buffer == NULL)
                 ERROR_OUT(MEMORY_E, exit_dcv);
-            sig->length = sz;
-            XMEMCPY(sig->buffer, input + idx, sz);
+            sig->length = args->sz;
+            XMEMCPY(sig->buffer, input + args->idx, args->sz);
 
         #ifndef NO_RSA
             if (ssl->peerRsaKey != NULL && ssl->peerRsaKeyPresent) {
                 WOLFSSL_MSG("Doing RSA peer cert verify");
 
-                ret = RsaVerify(ssl, sig->buffer, sig->length, &output,
+                ret = RsaVerify(ssl, sig->buffer, sig->length, &args->output,
                     ssl->peerRsaKey,
                 #ifdef HAVE_PK_CALLBACKS
                     ssl->buffers.peerRsaKey.buffer,
@@ -4474,21 +4481,19 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
                 #endif
                 );
                 if (ret >= 0) {
-                    sendSz = ret;
+                    args->sendSz = ret;
                     ret = 0;
                 }
             }
         #endif /* !NO_RSA */
         #ifdef HAVE_ECC
             if (ssl->peerEccDsaKeyPresent) {
-                byte   sigData[MAX_SIG_DATA_SZ];
-                word16 sigDataSz;
-
                 WOLFSSL_MSG("Doing ECC peer cert verify");
 
-                CreateSigData(ssl, sigData, &sigDataSz, 1);
+                CreateSigData(ssl, args->sigData, &args->sigDataSz, 1);
 
-                ret = EccVerify(ssl, input + idx, sz, sigData, sigDataSz,
+                ret = EccVerify(ssl, input + args->idx, args->sz,
+                    args->sigData, args->sigDataSz,
                     ssl->peerEccDsaKey,
                 #ifdef HAVE_PK_CALLBACKS
                     ssl->buffers.peerEccDsaKey.buffer,
@@ -4514,7 +4519,7 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
         {
         #ifndef NO_RSA
             if (ssl->peerRsaKey != NULL && ssl->peerRsaKeyPresent != 0) {
-                ret = CheckRSASignature(ssl, hashAlgo, output, sendSz);
+                ret = CheckRSASignature(ssl, args->hashAlgo, args->output, args->sendSz);
                 if (ret != 0)
                     goto exit_dcv;
             }
@@ -4529,8 +4534,8 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
             ssl->options.havePeerVerify = 1;
 
             /* Set final index */
-            idx += sz;
-            *inOutIdx = idx;
+            args->idx += args->sz;
+            *inOutIdx = args->idx;
 
             /* Encryption is always on: add padding */
             *inOutIdx += ssl->keys.padSz;
@@ -4551,33 +4556,18 @@ exit_dcv:
 
     WOLFSSL_LEAVE("DoTls13CertificateVerify", ret);
 
-    /* Handle cleanup for stack variables here */
-
-
-    #ifdef WOLFSSL_ASYNC_CRYPT
-    /* Handle WC_PENDING_E */
+#ifdef WOLFSSL_ASYNC_CRYPT
+    /* Handle async operation */
     if (ret == WC_PENDING_E) {
-        /* Store variables needed for async */
-        XMEMSET(&ssl->async, 0, sizeof(ssl->async));
-        ssl->async.output = output;
-        ssl->async.sendSz = sendSz;
-        ssl->async.idx = idx;
-        ssl->async.length = sz;
-        ssl->async.sigAlgo = sigAlgo;
-        ssl->async.hashAlgo = hashAlgo;
-
         /* Mark message as not recevied so it can process again */
         ssl->msgsReceived.got_certificate_verify = 0;
 
-        /* Push event to queue */
-        ret = wolfAsync_EventQueuePush(&ssl->ctx->event_queue, &ssl->event);
-        if (ret == 0) {
-            return WC_PENDING_E;
-        }
+        return ret;
     }
-    #endif /* WOLFSSL_ASYNC_CRYPT */
+#endif /* WOLFSSL_ASYNC_CRYPT */
 
     /* Final cleanup */
+    FreeDcv13Args(ssl, args);
     FreeKeyExchange(ssl);
 
     return ret;
@@ -5393,10 +5383,12 @@ int DoTls13HandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 #endif
     }
 
+#ifdef WOLFSSL_ASYNC_CRYPT
     /* if async, offset index so this msg will be processed again */
     if (ret == WC_PENDING_E) {
         *inOutIdx -= HANDSHAKE_HEADER_SZ;
     }
+#endif
 
     WOLFSSL_LEAVE("DoTls13HandShakeMsgType()", ret);
     return ret;

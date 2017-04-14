@@ -618,7 +618,7 @@ static void Usage(void)
 #endif
     printf("-H          Force use of the default cipher suite list\n");
 #ifdef WOLFSSL_TLS13
-    printf("-t          Use HelloRetryRequest to choose group for KE\n");
+    printf("-J          Use HelloRetryRequest to choose group for KE\n");
     printf("-K          Key Exchange for PSK not using (EC)DHE\n");
     printf("-I          Update keys and IVs before sending data\n");
 #ifndef NO_DH
@@ -767,10 +767,10 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     StackTrap();
 
 #ifndef WOLFSSL_VXWORKS
-    /* Not used: j, J, Q */
+    /* Not used: j, t, Q */
     while ((ch = mygetopt(argc, argv, "?"
-            "ab:c:defgh:ik:l:mnop:q:rstuv:wxyz"
-            "A:B:CDE:F:GHIKL:M:NO:PRS:TUVW:XYZ:")) != -1) {
+            "ab:c:defgh:ik:l:mnop:q:rsuv:wxyz"
+            "A:B:CDE:F:GHIJKL:M:NO:PRS:TUVW:XYZ:")) != -1) {
         switch (ch) {
             case '?' :
                 Usage();
@@ -1040,7 +1040,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
                 #endif
                 break;
 
-            case 't' :
+            case 'J' :
                 #ifdef WOLFSSL_TLS13
                     helloRetry = 1;
                 #endif

@@ -85,7 +85,7 @@ port=0
 ./examples/server/server -v 4 -R $ready_file -p $port &
 server_pid=$!
 create_port
-./examples/client/client -v 4 -H -p $port
+./examples/client/client -v 4 -J -p $port
 RESULT=$?
 remove_ready_file
 if [ $RESULT -ne 0 ]; then
