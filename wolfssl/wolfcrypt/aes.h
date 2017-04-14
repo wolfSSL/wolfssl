@@ -73,6 +73,7 @@ typedef struct Aes {
     /* AESNI needs key first, rounds 2nd, not sure why yet */
     ALIGN16 word32 key[60];
     word32  rounds;
+    int     keylen;
 
     ALIGN16 word32 reg[AES_BLOCK_SIZE / sizeof(word32)];      /* for CBC mode */
     ALIGN16 word32 tmp[AES_BLOCK_SIZE / sizeof(word32)];      /* same         */
@@ -88,10 +89,9 @@ typedef struct Aes {
     byte use_aesni;
 #endif /* WOLFSSL_AESNI */
 #ifdef WOLFSSL_ASYNC_CRYPT
-    AsyncCryptDev asyncDev;
-    #ifdef HAVE_CAVIUM
-        AesType type;                       /* aes key type */
-    #endif
+    const byte* asyncKey;
+    const byte* asyncIv;
+    WC_ASYNC_DEV asyncDev;
 #endif /* WOLFSSL_ASYNC_CRYPT */
 #ifdef WOLFSSL_AES_COUNTER
     word32  left;            /* unused bytes left from last call */
@@ -99,10 +99,6 @@ typedef struct Aes {
 #ifdef WOLFSSL_PIC32MZ_CRYPT
     word32 key_ce[AES_BLOCK_SIZE*2/sizeof(word32)] ;
     word32 iv_ce [AES_BLOCK_SIZE  /sizeof(word32)] ;
-    int    keylen ;
-#endif
-#ifdef WOLFSSL_TI_CRYPT
-    int    keylen ;
 #endif
     void*  heap; /* memory hint to use */
 } Aes;
@@ -115,7 +111,20 @@ typedef struct Gmac {
 #endif /* HAVE_AESGCM */
 #endif /* HAVE_FIPS */
 
-WOLFSSL_LOCAL int  wc_InitAes_h(Aes* aes, void* h);
+
+/* Authenticate cipher function prototypes */
+typedef int (*wc_AesAuthEncryptFunc)(Aes* aes, byte* out,
+                                   const byte* in, word32 sz,
+                                   const byte* iv, word32 ivSz,
+                                   byte* authTag, word32 authTagSz,
+                                   const byte* authIn, word32 authInSz);
+typedef int (*wc_AesAuthDecryptFunc)(Aes* aes, byte* out,
+                                   const byte* in, word32 sz,
+                                   const byte* iv, word32 ivSz,
+                                   const byte* authTag, word32 authTagSz,
+                                   const byte* authIn, word32 authInSz);
+
+/* AES-CBC */
 WOLFSSL_API int  wc_AesSetKey(Aes* aes, const byte* key, word32 len,
                               const byte* iv, int dir);
 WOLFSSL_API int  wc_AesSetIV(Aes* aes, const byte* iv);
@@ -187,10 +196,8 @@ WOLFSSL_API int wc_AesEcbDecrypt(Aes* aes, byte* out,
 
 WOLFSSL_API int wc_AesGetKeySize(Aes* aes, word32* keySize);
 
-#ifdef WOLFSSL_ASYNC_CRYPT
-     WOLFSSL_API int  wc_AesAsyncInit(Aes*, int);
-     WOLFSSL_API void wc_AesAsyncFree(Aes*);
-#endif
+WOLFSSL_API int  wc_AesInit(Aes*, void*, int);
+WOLFSSL_API void wc_AesFree(Aes*);
 
 #ifdef __cplusplus
     } /* extern "C" */

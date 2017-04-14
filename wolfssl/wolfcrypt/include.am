@@ -69,6 +69,16 @@ noinst_HEADERS+= \
                          wolfssl/wolfcrypt/port/nxp/ksdk_port.h \
                          wolfssl/wolfcrypt/port/atmel/atmel.h
 
-if BUILD_CAVIUM
-noinst_HEADERS+=         wolfssl/wolfcrypt/port/cavium/cavium_nitrox.h
+if BUILD_ASYNCCRYPT
+nobase_include_HEADERS+= wolfssl/wolfcrypt/async.h
 endif
+
+if BUILD_CAVIUM
+nobase_include_HEADERS+= wolfssl/wolfcrypt/port/cavium/cavium_nitrox.h
+endif
+
+if BUILD_INTEL_QA
+nobase_include_HEADERS+= wolfssl/wolfcrypt/port/intel/quickassist.h
+nobase_include_HEADERS+= wolfssl/wolfcrypt/port/intel/quickassist_mem.h
+endif
+

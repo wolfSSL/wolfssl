@@ -29,6 +29,12 @@
 #include <wolfssl/wolfcrypt/error-crypt.h>
 #include <wolfssl/wolfcrypt/logging.h>
 #include <wolfssl/wolfcrypt/wc_port.h>
+#ifdef HAVE_ECC
+    #include <wolfssl/wolfcrypt/ecc.h>
+#endif
+#ifdef WOLFSSL_ASYNC_CRYPT
+    #include <wolfssl/wolfcrypt/async.h>
+#endif
 
 /* IPP header files for library initialization */
 #ifdef HAVE_FAST_RSA
@@ -48,6 +54,10 @@
     #include <wolfssl/openssl/evp.h>
 #endif
 
+#if defined(USE_WOLFSSL_MEMORY) && defined(WOLFSSL_TRACK_MEMORY)
+    #include <wolfssl/wolfcrypt/mem_track.h>
+#endif
+
 #ifdef _MSC_VER
     /* 4996 warning to use MS extensions e.g., strcpy_s instead of strncpy */
     #pragma warning(disable: 4996)
@@ -64,6 +74,14 @@ int wolfCrypt_Init(void)
     int ret = 0;
 
     if (initRefCount == 0) {
+    #ifdef WOLFSSL_ASYNC_CRYPT
+        wolfAsync_HardwareStart();
+    #endif
+
+    #if defined(WOLFSSL_TRACK_MEMORY) && !defined(WOLFSSL_STATIC_MEMORY)
+        InitMemoryTracker();
+    #endif
+
     #if WOLFSSL_CRYPT_HW_MUTEX
         /* If crypto hardware mutex protection is enabled, then initialize it */
         wolfSSL_CryptHwMutexInit();
@@ -96,7 +114,7 @@ int wolfCrypt_Init(void)
     #endif
 
     #if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
-            wolfSSL_EVP_init();
+        wolfSSL_EVP_init();
     #endif
 
     #if defined(OPENSSL_EXTRA) || defined(DEBUG_WOLFSSL_VERBOSE)
@@ -104,6 +122,15 @@ int wolfCrypt_Init(void)
             WOLFSSL_MSG("Error creating logging mutex");
             return ret;
         }
+    #endif
+
+    #ifdef HAVE_ECC
+        #ifdef ECC_CACHE_CURVE
+            if ((ret = wc_ecc_curve_cache_init()) != 0) {
+                WOLFSSL_MSG("Error creating curve cache");
+                return ret;
+            }
+        #endif
     #endif
 
         initRefCount = 1;
@@ -120,9 +147,28 @@ int wolfCrypt_Cleanup(void)
 
     WOLFSSL_ENTER("wolfCrypt_Cleanup");
 
-    #if defined(OPENSSL_EXTRA) || defined(DEBUG_WOLFSSL_VERBOSE)
-        ret = wc_LoggingCleanup();
+#ifdef HAVE_ECC
+    #ifdef FP_ECC
+        wc_ecc_fp_free();
     #endif
+    #ifdef ECC_CACHE_CURVE
+        wc_ecc_curve_cache_free();
+    #endif
+#endif
+
+#if defined(OPENSSL_EXTRA) || defined(DEBUG_WOLFSSL_VERBOSE)
+    ret = wc_LoggingCleanup();
+#endif
+
+#if defined(WOLFSSL_TRACK_MEMORY) && !defined(WOLFSSL_STATIC_MEMORY)
+    ShowMemoryTracker();
+#endif
+
+#ifdef WOLFSSL_ASYNC_CRYPT
+    wolfAsync_HardwareStop();
+#endif
+
+    initRefCount = 0; /* allow re-init */
 
     return ret;
 }

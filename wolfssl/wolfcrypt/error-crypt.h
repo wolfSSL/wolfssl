@@ -186,6 +186,9 @@ enum {
     DH_CHECK_PUB_E      = -243,  /* DH Check Pub Key error */
     BAD_PATH_ERROR      = -244,  /* Bad path for opendir */
 
+    ASYNC_OP_E          = -245,  /* Async operation error */
+
+    WC_LAST_E           = -245,  /* Update this to indicate last error */
     MIN_CODE_E          = -300   /* errors -101 - -299 */
 
     /* add new companion error id strings for any new error codes

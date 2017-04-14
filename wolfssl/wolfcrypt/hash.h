@@ -114,58 +114,31 @@ WOLFSSL_API int wc_HashFinal(wc_HashAlg* hash, enum wc_HashType type,
 
 #ifndef NO_MD5
 #include <wolfssl/wolfcrypt/md5.h>
-WOLFSSL_API void wc_Md5GetHash(Md5*, byte*);
-WOLFSSL_API void wc_Md5RestorePos(Md5*, Md5*);
-#if defined(WOLFSSL_TI_HASH)
-    WOLFSSL_API void wc_Md5Free(Md5*);
-#else
-    #define wc_Md5Free(d)
-#endif
+WOLFSSL_API int wc_Md5Hash(const byte* data, word32 len, byte* hash);
 #endif
 
 #ifndef NO_SHA
 #include <wolfssl/wolfcrypt/sha.h>
-WOLFSSL_API int wc_ShaGetHash(Sha*, byte*);
-WOLFSSL_API void wc_ShaRestorePos(Sha*, Sha*);
 WOLFSSL_API int wc_ShaHash(const byte*, word32, byte*);
-#if defined(WOLFSSL_TI_HASH)
-     WOLFSSL_API void wc_ShaFree(Sha*);
-#else
-    #define wc_ShaFree(d)
-#endif
 #endif
 
 #ifndef NO_SHA256
 #include <wolfssl/wolfcrypt/sha256.h>
-WOLFSSL_API int wc_Sha256GetHash(Sha256*, byte*);
-WOLFSSL_API void wc_Sha256RestorePos(Sha256*, Sha256*);
 WOLFSSL_API int wc_Sha256Hash(const byte*, word32, byte*);
-#if defined(WOLFSSL_TI_HASH)
-    WOLFSSL_API void wc_Sha256Free(Sha256*);
-#else
-    #define wc_Sha256Free(d)
-#endif
 
     #if defined(WOLFSSL_SHA224)
-        WOLFSSL_API int wc_Sha224GetHash(Sha224*, byte*);
         WOLFSSL_API int wc_Sha224Hash(const byte*, word32, byte*);
-        #define wc_Sha224Free(d)
     #endif /* defined(WOLFSSL_SHA224) */
 #endif
 
 #ifdef WOLFSSL_SHA512
 #include <wolfssl/wolfcrypt/sha512.h>
-WOLFSSL_API int wc_Sha512GetHash(Sha512*, byte*);
 WOLFSSL_API int wc_Sha512Hash(const byte*, word32, byte*);
-#define wc_Sha512Free(d)
 
     #if defined(WOLFSSL_SHA384)
-        WOLFSSL_API int wc_Sha384GetHash(Sha384*, byte*);
         WOLFSSL_API int wc_Sha384Hash(const byte*, word32, byte*);
-        #define wc_Sha384Free(d)
     #endif /* defined(WOLFSSL_SHA384) */
 #endif /* WOLFSSL_SHA512 */
-
 
 #ifdef __cplusplus
     } /* extern "C" */

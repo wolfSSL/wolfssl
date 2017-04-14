@@ -49,26 +49,43 @@
 #endif
 
 
-int wc_InitDhKey(DhKey* key)
+int wc_InitDhKey_ex(DhKey* key, void* heap, int devId)
 {
     int ret = 0;
 
     if (key == NULL)
         return BAD_FUNC_ARG;
 
+    key->heap = heap; /* for XMALLOC/XFREE in future */
+
     if (mp_init_multi(&key->p, &key->g, NULL, NULL, NULL, NULL) != MP_OKAY)
-        ret = MEMORY_E;
+        return MEMORY_E;
+
+#if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_DH)
+    /* handle as async */
+    ret = wolfAsync_DevCtxInit(&key->asyncDev, WOLFSSL_ASYNC_MARKER_DH,
+        key->heap, devId);
+#else
+    (void)devId;
+#endif
 
     return ret;
+}
+
+int wc_InitDhKey(DhKey* key)
+{
+    return wc_InitDhKey_ex(key, NULL, INVALID_DEVID);
 }
 
 
 void wc_FreeDhKey(DhKey* key)
 {
     if (key) {
-    #ifndef USE_FAST_MATH
         mp_clear(&key->p);
         mp_clear(&key->g);
+
+    #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_DH)
+        wolfAsync_DevCtxFree(&key->asyncDev, WOLFSSL_ASYNC_MARKER_DH);
     #endif
     }
 }
@@ -76,15 +93,15 @@ void wc_FreeDhKey(DhKey* key)
 
 /* if defined to not use floating point values do not compile in */
 #ifndef WOLFSSL_DH_CONST
-static word32 DiscreteLogWorkFactor(word32 n)
-{
-    /* assuming discrete log takes about the same time as factoring */
-    if (n<5)
-        return 0;
-    else
-        return (word32)(2.4 * XPOW((double)n, 1.0/3.0) *
-                XPOW(XLOG((double)n), 2.0/3.0) - 5);
-}
+    static word32 DiscreteLogWorkFactor(word32 n)
+    {
+        /* assuming discrete log takes about the same time as factoring */
+        if (n < 5)
+            return 0;
+        else
+            return (word32)(2.4 * XPOW((double)n, 1.0/3.0) *
+                    XPOW(XLOG((double)n), 2.0/3.0) - 5);
+    }
 #endif /* WOLFSSL_DH_CONST*/
 
 
@@ -104,9 +121,9 @@ static word32 DiscreteLogWorkFactor(word32 n)
 #endif
 
 
-static int GeneratePrivate(DhKey* key, WC_RNG* rng, byte* priv, word32* privSz)
+static int GeneratePrivateDh(DhKey* key, WC_RNG* rng, byte* priv, word32* privSz)
 {
-    int ret;
+    int ret = 0;
     word32 sz = mp_unsigned_bin_size(&key->p);
 
     /* Table of predetermined values from the operation
@@ -124,33 +141,31 @@ static int GeneratePrivate(DhKey* key, WC_RNG* rng, byte* priv, word32* privSz)
         case 896:  sz = 49; break;
         case 1024: sz = 52; break;
         default:
-            #ifndef WOLFSSL_DH_CONST
-                /* if using floating points and size of p is not in table */
-                sz = min(sz, 2 * DiscreteLogWorkFactor(sz * WOLFSSL_BIT_SIZE) /
-                                           WOLFSSL_BIT_SIZE + 1);
-                break;
-            #else
-                return BAD_FUNC_ARG;
-            #endif
+        #ifndef WOLFSSL_DH_CONST
+            /* if using floating points and size of p is not in table */
+            sz = min(sz, 2 * DiscreteLogWorkFactor(sz * WOLFSSL_BIT_SIZE) /
+                                       WOLFSSL_BIT_SIZE + 1);
+            break;
+        #else
+            return BAD_FUNC_ARG;
+        #endif
     }
 
     ret = wc_RNG_GenerateBlock(rng, priv, sz);
-    if (ret != 0)
-        return ret;
 
-    priv[0] |= 0x0C;
+    if (ret == 0) {
+        priv[0] |= 0x0C;
+        *privSz = sz;
+    }
 
-    *privSz = sz;
-
-    return 0;
+    return ret;
 }
 
 
-static int GeneratePublic(DhKey* key, const byte* priv, word32 privSz,
-                          byte* pub, word32* pubSz)
+static int GeneratePublicDh(DhKey* key, byte* priv, word32 privSz,
+    byte* pub, word32* pubSz)
 {
     int ret = 0;
-
     mp_int x;
     mp_int y;
 
@@ -175,21 +190,74 @@ static int GeneratePublic(DhKey* key, const byte* priv, word32 privSz,
     return ret;
 }
 
-
-int wc_DhGenerateKeyPair(DhKey* key, WC_RNG* rng, byte* priv, word32* privSz,
-                      byte* pub, word32* pubSz)
+static int wc_DhGenerateKeyPair_Sync(DhKey* key, WC_RNG* rng,
+    byte* priv, word32* privSz, byte* pub, word32* pubSz)
 {
     int ret;
 
     if (key == NULL || rng == NULL || priv == NULL || privSz == NULL ||
-            pub == NULL || pubSz == NULL) {
+        pub == NULL || pubSz == NULL) {
         return BAD_FUNC_ARG;
     }
 
-    ret = GeneratePrivate(key, rng, priv, privSz);
+    ret = GeneratePrivateDh(key, rng, priv, privSz);
 
-    return (ret != 0) ? ret : GeneratePublic(key, priv, *privSz, pub, pubSz);
+    return (ret != 0) ? ret : GeneratePublicDh(key, priv, *privSz, pub, pubSz);
 }
+
+#if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_DH)
+static int wc_DhGenerateKeyPair_Async(DhKey* key, WC_RNG* rng,
+    byte* priv, word32* privSz, byte* pub, word32* pubSz)
+{
+    int ret;
+
+#if defined(HAVE_INTEL_QA)
+    mp_int x;
+
+    ret = mp_init(&x);
+    if (ret != MP_OKAY)
+        return ret;
+
+    ret = GeneratePrivateDh(key, rng, priv, privSz);
+    if (ret == 0)
+        ret = mp_read_unsigned_bin(&x, priv, *privSz);
+    if (ret == MP_OKAY)
+        ret = wc_mp_to_bigint(&x, &x.raw);
+    if (ret == MP_OKAY)
+        ret = wc_mp_to_bigint(&key->p, &key->p.raw);
+    if (ret == MP_OKAY)
+        ret = wc_mp_to_bigint(&key->g, &key->g.raw);
+    if (ret == MP_OKAY)
+        ret = IntelQaDhKeyGen(&key->asyncDev, &key->p.raw, &key->g.raw,
+            &x.raw, pub, pubSz);
+    mp_clear(&x);
+
+#else
+
+    #if defined(HAVE_CAVIUM)
+        /* TODO: Not implemented - use software for now */
+
+    #else /* WOLFSSL_ASYNC_CRYPT_TEST */
+        WC_ASYNC_TEST* testDev = &key->asyncDev.test;
+        if (testDev->type == ASYNC_TEST_NONE) {
+            testDev->type = ASYNC_TEST_DH_GEN;
+            testDev->dhGen.key = key;
+            testDev->dhGen.rng = rng;
+            testDev->dhGen.priv = priv;
+            testDev->dhGen.privSz = privSz;
+            testDev->dhGen.pub = pub;
+            testDev->dhGen.pubSz = pubSz;
+            return WC_PENDING_E;
+        }
+    #endif
+
+    ret = wc_DhGenerateKeyPair_Sync(key, rng, priv, privSz, pub, pubSz);
+
+#endif /* HAVE_INTEL_QA */
+
+    return ret;
+}
+#endif /* WOLFSSL_ASYNC_CRYPT && WC_ASYNC_ENABLE_DH */
 
 
 /* Check DH Public Key for invalid numbers
@@ -242,11 +310,34 @@ int wc_DhCheckPubKey(DhKey* key, const byte* pub, word32 pubSz)
 }
 
 
-int wc_DhAgree(DhKey* key, byte* agree, word32* agreeSz, const byte* priv,
-            word32 privSz, const byte* otherPub, word32 pubSz)
+int wc_DhGenerateKeyPair(DhKey* key, WC_RNG* rng,
+    byte* priv, word32* privSz, byte* pub, word32* pubSz)
+{
+    int ret;
+
+    if (key == NULL || rng == NULL || priv == NULL || privSz == NULL ||
+                                                pub == NULL || pubSz == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+#if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_DH)
+    if (key->asyncDev.marker == WOLFSSL_ASYNC_MARKER_DH) {
+        ret = wc_DhGenerateKeyPair_Async(key, rng, priv, privSz, pub, pubSz);
+    }
+    else
+#endif
+    {
+        ret = wc_DhGenerateKeyPair_Sync(key, rng, priv, privSz, pub, pubSz);
+    }
+
+    return ret;
+}
+
+
+static int wc_DhAgree_Sync(DhKey* key, byte* agree, word32* agreeSz,
+    const byte* priv, word32 privSz, const byte* otherPub, word32 pubSz)
 {
     int ret = 0;
-
     mp_int x;
     mp_int y;
     mp_int z;
@@ -276,7 +367,65 @@ int wc_DhAgree(DhKey* key, byte* agree, word32* agreeSz, const byte* priv,
 
     mp_clear(&z);
     mp_clear(&y);
-    mp_clear(&x);
+    mp_forcezero(&x);
+
+    return ret;
+}
+
+#if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_DH)
+static int wc_DhAgree_Async(DhKey* key, byte* agree, word32* agreeSz,
+    const byte* priv, word32 privSz, const byte* otherPub, word32 pubSz)
+{
+    int ret;
+
+#ifdef HAVE_CAVIUM
+    /* TODO: Not implemented - use software for now */
+    ret = wc_DhAgree_Sync(key, agree, agreeSz, priv, privSz, otherPub, pubSz);
+
+#elif defined(HAVE_INTEL_QA)
+    ret = wc_mp_to_bigint(&key->p, &key->p.raw);
+    if (ret == MP_OKAY)
+        ret = IntelQaDhAgree(&key->asyncDev, &key->p.raw,
+            agree, agreeSz, priv, privSz, otherPub, pubSz);
+#else /* WOLFSSL_ASYNC_CRYPT_TEST */
+    WC_ASYNC_TEST* testDev = &key->asyncDev.test;
+    if (testDev->type == ASYNC_TEST_NONE) {
+        testDev->type = ASYNC_TEST_DH_AGREE;
+        testDev->dhAgree.key = key;
+        testDev->dhAgree.agree = agree;
+        testDev->dhAgree.agreeSz = agreeSz;
+        testDev->dhAgree.priv = priv;
+        testDev->dhAgree.privSz = privSz;
+        testDev->dhAgree.otherPub = otherPub;
+        testDev->dhAgree.pubSz = pubSz;
+        return WC_PENDING_E;
+    }
+    ret = wc_DhAgree_Sync(key, agree, agreeSz, priv, privSz, otherPub, pubSz);
+#endif
+
+    return ret;
+}
+#endif /* WOLFSSL_ASYNC_CRYPT */
+
+int wc_DhAgree(DhKey* key, byte* agree, word32* agreeSz, const byte* priv,
+            word32 privSz, const byte* otherPub, word32 pubSz)
+{
+    int ret = 0;
+
+    if (key == NULL || agree == NULL || agreeSz == NULL || priv == NULL ||
+                                                            otherPub == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+#if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_DH)
+    if (key->asyncDev.marker == WOLFSSL_ASYNC_MARKER_DH) {
+        ret = wc_DhAgree_Async(key, agree, agreeSz, priv, privSz, otherPub, pubSz);
+    }
+    else
+#endif
+    {
+        ret = wc_DhAgree_Sync(key, agree, agreeSz, priv, privSz, otherPub, pubSz);
+    }
 
     return ret;
 }
@@ -286,8 +435,9 @@ int wc_DhAgree(DhKey* key, byte* agree, word32* agreeSz, const byte* priv,
 int wc_DhSetKey(DhKey* key, const byte* p, word32 pSz, const byte* g,
                 word32 gSz)
 {
-    if (key == NULL || p == NULL || g == NULL || pSz == 0 || gSz == 0)
+    if (key == NULL || p == NULL || g == NULL || pSz == 0 || gSz == 0) {
         return BAD_FUNC_ARG;
+    }
 
     /* may have leading 0 */
     if (p[0] == 0) {
@@ -318,6 +468,4 @@ int wc_DhSetKey(DhKey* key, const byte* p, word32 pSz, const byte* g,
     return 0;
 }
 
-
 #endif /* NO_DH */
-

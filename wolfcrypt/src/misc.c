@@ -31,7 +31,7 @@
 
 #include <wolfssl/wolfcrypt/misc.h>
 
-/* inlining these functions is a huge speed increase and a small size decrease, 
+/* inlining these functions is a huge speed increase and a small size decrease,
    because the functions are smaller than function call setup/cleanup, e.g.,
    md5 benchmark is twice as fast with inline.  If you don't want it, then
    define NO_INLINE and compile this file into wolfssl, otherwise it's used as
@@ -79,7 +79,7 @@
     STATIC INLINE word32 rotlFixed(word32 x, word32 y)
     {
         return (x << y) | (x >> (sizeof(y) * 8 - y));
-    }   
+    }
 
 
     STATIC INLINE word32 rotrFixed(word32 x, word32 y)
@@ -128,7 +128,7 @@ STATIC INLINE void ByteReverseWords(word32* out, const word32* in,
 STATIC INLINE word64 rotlFixed64(word64 x, word64 y)
 {
     return (x << y) | (x >> (sizeof(y) * 8 - y));
-}  
+}
 
 
 STATIC INLINE word64 rotrFixed64(word64 x, word64 y)
@@ -139,8 +139,8 @@ STATIC INLINE word64 rotrFixed64(word64 x, word64 y)
 
 STATIC INLINE word64 ByteReverseWord64(word64 value)
 {
-#ifdef WOLFCRYPT_SLOW_WORD64
-	return (word64)(ByteReverseWord32((word32)value)) << 32 | 
+#if defined(WOLFCRYPT_SLOW_WORD64)
+	return (word64)(ByteReverseWord32((word32)value)) << 32 |
                     ByteReverseWord32((word32)(value>>32));
 #else
 	value = ((value & W64LIT(0xFF00FF00FF00FF00)) >> 8) |

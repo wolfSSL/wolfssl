@@ -140,7 +140,8 @@ struct WC_RNG {
     byte status;
 #endif
 #ifdef WOLFSSL_ASYNC_CRYPT
-    AsyncCryptDev asyncDev;
+    WC_ASYNC_DEV asyncDev;
+    int devId;
 #endif
 };
 
@@ -165,7 +166,7 @@ int wc_GenerateSeed(OS_Seed* os, byte* seed, word32 sz);
 
 
 WOLFSSL_API int  wc_InitRng(WC_RNG*);
-WOLFSSL_API int  wc_InitRng_ex(WC_RNG* rng, void* heap);
+WOLFSSL_API int  wc_InitRng_ex(WC_RNG* rng, void* heap, int devId);
 WOLFSSL_API int  wc_RNG_GenerateBlock(WC_RNG*, byte*, word32 sz);
 WOLFSSL_API int  wc_RNG_GenerateByte(WC_RNG*, byte*);
 WOLFSSL_API int  wc_FreeRng(WC_RNG*);

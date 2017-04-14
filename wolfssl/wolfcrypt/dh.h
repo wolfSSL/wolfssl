@@ -34,14 +34,22 @@
     extern "C" {
 #endif
 
+#ifdef WOLFSSL_ASYNC_CRYPT
+    #include <wolfssl/wolfcrypt/async.h>
+#endif
 
 /* Diffie-Hellman Key */
 typedef struct DhKey {
     mp_int p, g;                            /* group parameters  */
+    void* heap;
+#ifdef WOLFSSL_ASYNC_CRYPT
+    WC_ASYNC_DEV asyncDev;
+#endif
 } DhKey;
 
 
 WOLFSSL_API int wc_InitDhKey(DhKey* key);
+WOLFSSL_API int wc_InitDhKey_ex(DhKey* key, void* heap, int devId);
 WOLFSSL_API void wc_FreeDhKey(DhKey* key);
 
 WOLFSSL_API int wc_DhGenerateKeyPair(DhKey* key, WC_RNG* rng, byte* priv,
@@ -57,7 +65,6 @@ WOLFSSL_API int wc_DhSetKey(DhKey* key, const byte* p, word32 pSz, const byte* g
 WOLFSSL_API int wc_DhParamsLoad(const byte* input, word32 inSz, byte* p,
                             word32* pInOutSz, byte* g, word32* gInOutSz);
 WOLFSSL_API int wc_DhCheckPubKey(DhKey* key, const byte* pub, word32 pubSz);
-
 
 #ifdef __cplusplus
     } /* extern "C" */

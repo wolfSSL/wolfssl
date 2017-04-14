@@ -1467,11 +1467,25 @@ extern void uITRON4_free(void *p) ;
     #undef HAVE_WOLF_EVENT
     #define HAVE_WOLF_EVENT
 
+    #ifdef WOLFSSL_ASYNC_CRYPT_TEST
+        #define WC_ASYNC_DEV_SIZE 320+24
+    #else
+        #define WC_ASYNC_DEV_SIZE 320
+    #endif
+
     #if !defined(HAVE_CAVIUM) && !defined(HAVE_INTEL_QA) && \
         !defined(WOLFSSL_ASYNC_CRYPT_TEST)
         #error No async hardware defined with WOLFSSL_ASYNC_CRYPT!
     #endif
+
+    /* Enable ECC_CACHE_CURVE for ASYNC */
+    #if !defined(ECC_CACHE_CURVE)
+        #define ECC_CACHE_CURVE
+    #endif
 #endif /* WOLFSSL_ASYNC_CRYPT */
+#ifndef WC_ASYNC_DEV_SIZE
+    #define WC_ASYNC_DEV_SIZE 0
+#endif
 
 /* leantls checks */
 #ifdef WOLFSSL_LEANTLS

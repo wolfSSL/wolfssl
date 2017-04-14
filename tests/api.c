@@ -2663,7 +2663,9 @@ static void test_wolfSSL_ERR_peek_last_error_line(void)
     tcp_ready ready;
     func_args client_args;
     func_args server_args;
+#ifndef SINGLE_THREADED
     THREAD_TYPE serverThread;
+#endif
     callback_functions client_cb;
     callback_functions server_cb;
     int         line = 0;
@@ -2689,10 +2691,12 @@ static void test_wolfSSL_ERR_peek_last_error_line(void)
     client_args.signal    = &ready;
     client_args.callbacks = &client_cb;
 
+#ifndef SINGLE_THREADED
     start_thread(test_server_nofail, &server_args, &serverThread);
     wait_tcp_ready(&server_args);
     test_client_nofail(&client_args);
     join_thread(serverThread);
+#endif
 
     FreeTcpReady(&ready);
 

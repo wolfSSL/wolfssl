@@ -29,6 +29,9 @@
 #ifndef SINGLE_THREADED
     #include <wolfssl/wolfcrypt/wc_port.h>
 #endif
+#ifdef HAVE_CAVIUM
+    #include <wolfssl/wolfcrypt/port/cavium/cavium_nitrox.h>
+#endif
 
 typedef struct WOLFSSL WOLFSSL;
 typedef struct WOLF_EVENT WOLF_EVENT;
@@ -38,13 +41,12 @@ typedef unsigned short WOLF_EVENT_FLAG;
 
 typedef enum WOLF_EVENT_TYPE {
     WOLF_EVENT_TYPE_NONE,
-    #ifdef WOLFSSL_ASYNC_CRYPT
-        WOLF_EVENT_TYPE_ASYNC_ANY,
-        WOLF_EVENT_TYPE_ASYNC_WOLFSSL,
-        WOLF_EVENT_TYPE_ASYNC_WOLFCRYPT,
-        WOLF_EVENT_TYPE_ASYNC_FIRST = WOLF_EVENT_TYPE_ASYNC_WOLFSSL,
-        WOLF_EVENT_TYPE_ASYNC_LAST = WOLF_EVENT_TYPE_ASYNC_WOLFCRYPT,
-    #endif
+#ifdef WOLFSSL_ASYNC_CRYPT
+    WOLF_EVENT_TYPE_ASYNC_WOLFSSL,    /* context is WOLFSSL* */
+    WOLF_EVENT_TYPE_ASYNC_WOLFCRYPT,  /* context is WC_ASYNC_DEV */
+    WOLF_EVENT_TYPE_ASYNC_FIRST = WOLF_EVENT_TYPE_ASYNC_WOLFSSL,
+    WOLF_EVENT_TYPE_ASYNC_LAST = WOLF_EVENT_TYPE_ASYNC_WOLFCRYPT,
+#endif /* WOLFSSL_ASYNC_CRYPT */
 } WOLF_EVENT_TYPE;
 
 struct WOLF_EVENT {
@@ -53,11 +55,20 @@ struct WOLF_EVENT {
     WOLF_EVENT*         prev;
 
     void*               context;
+    union {
+        void* ptr;
+#ifdef WOLFSSL_ASYNC_CRYPT
+        struct WC_ASYNC_DEV* async;
+#endif
+    } dev;
 #ifdef HAVE_CAVIUM
-    word64              reqId;
+    CavReqId            reqId;
 #endif
     int                 ret;    /* Async return code */
+    unsigned int        flags;
     WOLF_EVENT_TYPE     type;
+
+    /* event flags */
     WOLF_EVENT_FLAG     pending:1;
     WOLF_EVENT_FLAG     done:1;
     /* Future event flags can go here */
@@ -87,11 +98,15 @@ WOLFSSL_API int wolfEvent_Poll(WOLF_EVENT* event, WOLF_EVENT_FLAG flags);
 WOLFSSL_API int wolfEventQueue_Init(WOLF_EVENT_QUEUE* queue);
 WOLFSSL_API int wolfEventQueue_Push(WOLF_EVENT_QUEUE* queue, WOLF_EVENT* event);
 WOLFSSL_API int wolfEventQueue_Pop(WOLF_EVENT_QUEUE* queue, WOLF_EVENT** event);
-WOLFSSL_API int wolfEventQueue_Remove(WOLF_EVENT_QUEUE* queue, WOLF_EVENT* event);
 WOLFSSL_API int wolfEventQueue_Poll(WOLF_EVENT_QUEUE* queue, void* context_filter,
     WOLF_EVENT** events, int maxEvents, WOLF_EVENT_FLAG flags, int* eventCount);
 WOLFSSL_API int wolfEventQueue_Count(WOLF_EVENT_QUEUE* queue);
 WOLFSSL_API void wolfEventQueue_Free(WOLF_EVENT_QUEUE* queue);
+
+/* the queue mutex must be locked prior to calling these */
+WOLFSSL_API int wolfEventQueue_Add(WOLF_EVENT_QUEUE* queue, WOLF_EVENT* event);
+WOLFSSL_API int wolfEventQueue_Remove(WOLF_EVENT_QUEUE* queue, WOLF_EVENT* event);
+
 
 #endif /* HAVE_WOLF_EVENT */
 

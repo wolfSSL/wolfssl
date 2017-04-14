@@ -34,7 +34,7 @@
 
 /* MD5 */
 typedef struct CRYPT_MD5_CTX {
-    int holder[24];   /* big enough to hold internal, but check on init */
+    int holder[28];   /* big enough to hold internal, but check on init */
 } CRYPT_MD5_CTX;
 
 int CRYPT_MD5_Initialize(CRYPT_MD5_CTX*);
@@ -42,13 +42,13 @@ int CRYPT_MD5_DataAdd(CRYPT_MD5_CTX*, const unsigned char*, unsigned int);
 int CRYPT_MD5_Finalize(CRYPT_MD5_CTX*, unsigned char*);
 
 enum {
-    CRYPT_MD5_DIGEST_SIZE = 16 
+    CRYPT_MD5_DIGEST_SIZE = 16
 };
 
 
 /* SHA */
 typedef struct CRYPT_SHA_CTX {
-    int holder[24];   /* big enough to hold internal, but check on init */
+    int holder[28];   /* big enough to hold internal, but check on init */
 } CRYPT_SHA_CTX;
 
 int CRYPT_SHA_Initialize(CRYPT_SHA_CTX*);
@@ -62,7 +62,7 @@ enum {
 
 /* SHA-256 */
 typedef struct CRYPT_SHA256_CTX {
-    int holder[28];   /* big enough to hold internal, but check on init */
+    int holder[32];   /* big enough to hold internal, but check on init */
 } CRYPT_SHA256_CTX;
 
 int CRYPT_SHA256_Initialize(CRYPT_SHA256_CTX*);
@@ -70,13 +70,13 @@ int CRYPT_SHA256_DataAdd(CRYPT_SHA256_CTX*, const unsigned char*, unsigned int);
 int CRYPT_SHA256_Finalize(CRYPT_SHA256_CTX*, unsigned char*);
 
 enum {
-    CRYPT_SHA256_DIGEST_SIZE = 32 
+    CRYPT_SHA256_DIGEST_SIZE = 32
 };
 
 
 /* SHA-384 */
 typedef struct CRYPT_SHA384_CTX {
-    long long holder[32];   /* big enough to hold internal, but check on init */
+    long long holder[36];   /* big enough to hold internal, but check on init */
 } CRYPT_SHA384_CTX;
 
 int CRYPT_SHA384_Initialize(CRYPT_SHA384_CTX*);
@@ -98,13 +98,13 @@ int CRYPT_SHA512_DataAdd(CRYPT_SHA512_CTX*, const unsigned char*, unsigned int);
 int CRYPT_SHA512_Finalize(CRYPT_SHA512_CTX*, unsigned char*);
 
 enum {
-    CRYPT_SHA512_DIGEST_SIZE = 64 
+    CRYPT_SHA512_DIGEST_SIZE = 64
 };
 
 
 /* HMAC */
 typedef struct CRYPT_HMAC_CTX {
-    long long holder[69];   /* big enough to hold internal, but check on init */
+    long long holder[72];   /* big enough to hold internal, but check on init */
 } CRYPT_HMAC_CTX;
 
 int CRYPT_HMAC_SetKey(CRYPT_HMAC_CTX*, int, const unsigned char*, unsigned int);
@@ -113,10 +113,10 @@ int CRYPT_HMAC_Finalize(CRYPT_HMAC_CTX*, unsigned char*);
 
 /* HMAC types */
 enum {
-    CRYPT_HMAC_SHA    = 1, 
-    CRYPT_HMAC_SHA256 = 2, 
-    CRYPT_HMAC_SHA384 = 5, 
-    CRYPT_HMAC_SHA512 = 4 
+    CRYPT_HMAC_SHA    = 1,
+    CRYPT_HMAC_SHA256 = 2,
+    CRYPT_HMAC_SHA384 = 5,
+    CRYPT_HMAC_SHA512 = 4
 };
 
 
@@ -128,7 +128,7 @@ int CRYPT_HUFFMAN_DeCompress(unsigned char*, unsigned int, const unsigned char*,
 
 /* flag to use static huffman */
 enum {
-    CRYPT_HUFFMAN_COMPRESS_STATIC = 1 
+    CRYPT_HUFFMAN_COMPRESS_STATIC = 1
 };
 
 
@@ -144,7 +144,7 @@ int CRYPT_RNG_BlockGenerate(CRYPT_RNG_CTX*, unsigned char*, unsigned int);
 
 /* TDES */
 typedef struct CRYPT_TDES_CTX {
-    int holder[100];   /* big enough to hold internal, but check on init */
+    int holder[104];   /* big enough to hold internal, but check on init */
 } CRYPT_TDES_CTX;
 
 int CRYPT_TDES_KeySet(CRYPT_TDES_CTX*, const unsigned char*,
@@ -158,13 +158,13 @@ int CRYPT_TDES_CBC_Decrypt(CRYPT_TDES_CTX*, unsigned char*,
 /* key direction flags for setup */
 enum {
     CRYPT_TDES_ENCRYPTION = 0,
-    CRYPT_TDES_DECRYPTION = 1 
+    CRYPT_TDES_DECRYPTION = 1
 };
 
 
 /* AES */
 typedef struct CRYPT_AES_CTX {
-    int holder[76];   /* big enough to hold internal, but check on init */
+    int holder[78];   /* big enough to hold internal, but check on init */
 } CRYPT_AES_CTX;
 
 /* key */
@@ -262,7 +262,7 @@ int CRYPT_ERROR_StringGet(int, char*);
 
 
 #ifdef __cplusplus
-    }  /* extern "C" */ 
+    }  /* extern "C" */
 #endif
 
 
