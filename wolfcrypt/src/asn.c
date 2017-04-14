@@ -183,10 +183,10 @@ ASN Options:
 		time_t FreeRTOS_time( time_t *pxTime );
 		FF_TimeStruct_t *FreeRTOS_gmtime_r( const time_t *pxTime, FF_TimeStruct_t *pxTimeBuf );
 	*/
-	#define	tm							xTIME_STRUCT
-	#define XTIME( tl )					FreeRTOS_time((tl))
-	#define XGMTIME( c, t )				FreeRTOS_gmtime_r((c), (t))
-	#define XVALIDATE_DATE(d, f, t)		ValidateDate((d), (f), (t))
+	#define	tm                          xTIME_STRUCT
+	#define XTIME( tl )                 FreeRTOS_time((tl))
+	#define XGMTIME( c, t )             FreeRTOS_gmtime_r((c), (t))
+	#define XVALIDATE_DATE(d, f, t)     ValidateDate((d), (f), (t))
 	int ValidateDate(const byte* date, byte format, int dateType)
 	{
 		return 1;
