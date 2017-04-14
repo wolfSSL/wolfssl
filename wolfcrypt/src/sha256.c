@@ -45,6 +45,9 @@
     }
     int wc_InitSha256_ex(Sha256* sha, void* heap, int devId)
     {
+        if (sha == NULL) {
+            return BAD_FUNC_ARG;
+        }
         (void)heap;
         (void)devId;
         return InitSha256_fips(sha);
@@ -562,8 +565,13 @@ static int InitSha256(Sha256* sha256)
 
     static INLINE int Sha256Final(Sha256* sha256)
     {
+
         int ret;
         byte* local = (byte*)sha256->buffer;
+
+        if (sha256 == NULL) {
+            return BAD_FUNC_ARG;
+        }
 
         SAVE_XMM_YMM; /* for Intel AVX */
 
@@ -1918,6 +1926,9 @@ static int Transform_AVX2(Sha256* sha256)
 
 int wc_InitSha256(Sha256* sha256)
 {
+    if (sha256 == NULL) {
+        return BAD_FUNC_ARG;
+    }
     return wc_InitSha256_ex(sha256, NULL, INVALID_DEVID);
 }
 

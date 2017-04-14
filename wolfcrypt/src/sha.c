@@ -42,6 +42,9 @@
 	}
     int wc_InitSha_ex(Sha* sha, void* heap, int devId)
     {
+        if (sha == NULL) {
+            return BAD_FUNC_ARG;
+        }
         (void)heap;
         (void)devId;
         return InitSha_fips(sha);
@@ -543,6 +546,9 @@ int wc_ShaFinal(Sha* sha, byte* hash)
 
 int wc_InitSha(Sha* sha)
 {
+    if (sha == NULL) {
+        return BAD_FUNC_ARG;
+    }
     return wc_InitSha_ex(sha, NULL, INVALID_DEVID);
 }
 

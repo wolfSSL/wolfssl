@@ -44,6 +44,9 @@
     }
     int wc_InitSha512_ex(Sha512* sha, void* heap, int devId)
     {
+        if (sha == NULL) {
+            return BAD_FUNC_ARG;
+        }
         (void)heap;
         (void)devId;
         return InitSha512_fips(sha);
@@ -537,7 +540,9 @@ static INLINE void AddLength(Sha512* sha512, word32 len)
 static INLINE int Sha512Update(Sha512* sha512, const byte* data, word32 len)
 {
     int ret = 0;
-
+    if (sha512 == NULL || (data == NULL && len > 0)) {
+        return BAD_FUNC_ARG;
+    }
     /* do block size increments */
     byte* local = (byte*)sha512->buffer;
 
@@ -597,6 +602,10 @@ static INLINE int Sha512Final(Sha512* sha512)
 {
     byte* local = (byte*)sha512->buffer;
     int ret;
+
+    if (sha512 == NULL) {
+        return BAD_FUNC_ARG;
+    }
 
     SAVE_XMM_YMM ; /* for Intel AVX */
     AddLength(sha512, sha512->buffLen);               /* before adding pads */
