@@ -64,6 +64,7 @@ typedef WOLFSSL_DH DH;
 #define DH_size         wolfSSL_DH_size
 #define DH_generate_key wolfSSL_DH_generate_key
 #define DH_compute_key  wolfSSL_DH_compute_key
+#define get_rfc3526_prime_1536 wolfSSL_DH_1536_prime
 
 
 #ifdef __cplusplus
