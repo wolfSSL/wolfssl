@@ -451,7 +451,7 @@ static int wc_PKCS7_RsaSign(PKCS7* pkcs7, byte* in, word32 inSz, ESD* esd)
 #endif
 
     if (pkcs7 == NULL || pkcs7->privateKey == NULL || pkcs7->rng == NULL ||
-        in == NULL || esd == NULL || esd->encContentDigest == NULL)
+        in == NULL || esd == NULL)
         return BAD_FUNC_ARG;
 
 #ifdef WOLFSSL_SMALL_STACK
@@ -500,7 +500,7 @@ static int wc_PKCS7_EcdsaSign(PKCS7* pkcs7, byte* in, word32 inSz, ESD* esd)
 #endif
 
     if (pkcs7 == NULL || pkcs7->privateKey == NULL || pkcs7->rng == NULL ||
-        in == NULL || esd == NULL || esd->encContentDigest == NULL)
+        in == NULL || esd == NULL)
         return BAD_FUNC_ARG;
 
 #ifdef WOLFSSL_SMALL_STACK
@@ -559,7 +559,7 @@ static int wc_PKCS7_BuildSignedAttributes(PKCS7* pkcs7, ESD* esd)
     PKCS7Attrib cannedAttribs[2];
     word32 cannedAttribsCount;
 
-    if (pkcs7 == NULL || esd == NULL || &esd->hash == NULL)
+    if (pkcs7 == NULL || esd == NULL)
         return BAD_FUNC_ARG;
 
     hashSz = wc_HashGetDigestSize(esd->hashType);
@@ -672,9 +672,8 @@ static int wc_PKCS7_BuildDigestInfo(PKCS7* pkcs7, byte* flatSignedAttribs,
     word32 digestInfoSeqSz, digestStrSz, algoIdSz;
     word32 attribSetSz;
 
-    if (pkcs7 == NULL || esd == NULL || &esd->hash == NULL ||
-        esd->contentDigest == NULL || esd->signerDigAlgoId == NULL ||
-        digestInfo == NULL || digestInfoSz == NULL) {
+    if (pkcs7 == NULL || esd == NULL || digestInfo == NULL ||
+        digestInfoSz == NULL) {
         return BAD_FUNC_ARG;
     }
 
@@ -764,7 +763,7 @@ static int wc_PKCS7_SignedDataBuildSignature(PKCS7* pkcs7,
     byte digestInfo[digestInfoSz];
 #endif
 
-    if (pkcs7 == NULL || esd == NULL || esd->contentAttribsDigest == NULL)
+    if (pkcs7 == NULL || esd == NULL)
         return BAD_FUNC_ARG;
 
 #ifdef WOLFSSL_SMALL_STACK
@@ -1114,7 +1113,7 @@ int wc_PKCS7_EncodeSignedData(PKCS7* pkcs7, byte* output, word32 outputSz)
     idx += esd->signerDigAlgoIdSz;
 
     /* SignerInfo:Attributes */
-    if (pkcs7->signedAttribsSz != 0) {
+    if (flatSignedAttribsSz > 0) {
         XMEMCPY(output + idx, esd->signedAttribSet, esd->signedAttribSetSz);
         idx += esd->signedAttribSetSz;
         XMEMCPY(output + idx, flatSignedAttribs, flatSignedAttribsSz);
@@ -1156,8 +1155,7 @@ static int wc_PKCS7_RsaVerify(PKCS7* pkcs7, byte* sig, int sigSz,
     RsaKey* key = &stack_key;
 #endif
 
-    if (pkcs7 == NULL || pkcs7->publicKey == NULL ||
-        sig == NULL || hash == NULL) {
+    if (pkcs7 == NULL || sig == NULL || hash == NULL) {
         return BAD_FUNC_ARG;
     }
 
@@ -1234,7 +1232,7 @@ static int wc_PKCS7_EcdsaVerify(PKCS7* pkcs7, byte* sig, int sigSz,
     ecc_key* key = &stack_key;
 #endif
 
-    if (pkcs7 == NULL || pkcs7->publicKey == NULL || sig == NULL)
+    if (pkcs7 == NULL || sig == NULL)
         return BAD_FUNC_ARG;
 
 #ifdef WOLFSSL_SMALL_STACK

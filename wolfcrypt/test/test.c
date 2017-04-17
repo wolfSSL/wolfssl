@@ -12205,7 +12205,7 @@ static int pkcs7_load_certs_keys(byte* rsaCert, word32* rsaCertSz,
     if (!certFile)
         return -203;
 
-    *rsaCertSz = fread(rsaCert, 1, *rsaCertSz, certFile);
+    *rsaCertSz = (word32)fread(rsaCert, 1, *rsaCertSz, certFile);
     fclose(certFile);
 #endif
 
@@ -12226,7 +12226,7 @@ static int pkcs7_load_certs_keys(byte* rsaCert, word32* rsaCertSz,
     if (!keyFile)
         return -204;
 
-    *rsaPrivKeySz = fread(rsaPrivKey, 1, *rsaPrivKeySz, keyFile);
+    *rsaPrivKeySz = (word32)fread(rsaPrivKey, 1, *rsaPrivKeySz, keyFile);
     fclose(keyFile);
 #endif /* USE_CERT_BUFFERS */
 
@@ -12246,7 +12246,7 @@ static int pkcs7_load_certs_keys(byte* rsaCert, word32* rsaCertSz,
     if (!certFile)
         return -207;
 
-    *eccCertSz = fread(eccCert, 1, *eccCertSz, certFile);
+    *eccCertSz = (word32)fread(eccCert, 1, *eccCertSz, certFile);
     fclose(certFile);
 #endif /* USE_CERT_BUFFERS_256 */
 
@@ -12261,7 +12261,7 @@ static int pkcs7_load_certs_keys(byte* rsaCert, word32* rsaCertSz,
     if (!keyFile)
         return -208;
 
-    *eccPrivKeySz = fread(eccPrivKey, 1, *eccPrivKeySz, keyFile);
+    *eccPrivKeySz = (word32)fread(eccPrivKey, 1, *eccPrivKeySz, keyFile);
     fclose(keyFile);
 #endif /* USE_CERT_BUFFERS_256 */
 #endif /* HAVE_ECC */
