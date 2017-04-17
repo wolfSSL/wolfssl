@@ -6336,16 +6336,15 @@ int wolfSSL_CertManagerLoadCA(WOLFSSL_CERT_MANAGER* cm, const char* file,
 }
 
 
-
-
+#ifndef NO_WOLFSSL_STUB
 int wolfSSL_CTX_check_private_key(WOLFSSL_CTX* ctx)
 {
     /* TODO: check private against public for RSA match */
     (void)ctx;
-    WOLFSSL_ENTER("SSL_CTX_check_private_key");
-    return WOLFSSL_SUCCESS;
+    WOLFSSL_STUB("SSL_CTX_check_private_key");
+    return SSL_SUCCESS;
 }
-
+#endif
 
 #ifdef HAVE_CRL
 
