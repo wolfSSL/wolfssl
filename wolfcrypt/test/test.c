@@ -1034,7 +1034,11 @@ int base64_test()
 int asn_test()
 {
 #ifndef NO_ASN_TIME
-    long now;
+    #ifdef WORD64_AVAILABLE
+        word64 now;
+    #else
+        word32 now;
+    #endif
 
     /* Parameter Validation tests. */
     if (wc_GetTime(NULL, sizeof(now)) != BAD_FUNC_ARG)
@@ -1043,10 +1047,12 @@ int asn_test()
         return -101;
 
     now = 0;
-    if (wc_GetTime(&now, sizeof(now)) != 0)
+    if (wc_GetTime(&now, sizeof(now)) != 0) {
         return -102;
-    if (now == 0)
+    }
+    if (now == 0) {
         return -103;
+    }
 #endif
 
     return 0;
@@ -5724,7 +5730,8 @@ static int rsa_sig_test(RsaKey* key, word32 keyLen, int modLen, WC_RNG* rng)
 #elif defined(WOLFSSL_ASYNC_CRYPT)
     /* async may not require RNG */
     if (ret != 0 && ret != MISSING_RNG_E)
-#elif defined(HAVE_FIPS) || defined(WOLFSSL_ASYNC_CRYPT)
+#elif defined(HAVE_FIPS) || defined(WOLFSSL_ASYNC_CRYPT) || \
+     !defined(WC_RSA_BLINDING)
     /* FIPS140 implementation does not do blinding */
     if (ret != 0)
 #else
@@ -8071,8 +8078,9 @@ int dh_test(void)
         ret = -55; goto done;
     }
 
-    if (agreeSz != agreeSz2 || XMEMCMP(agree, agree2, agreeSz))
+    if (agreeSz != agreeSz2 || XMEMCMP(agree, agree2, agreeSz)) {
         ret = -56; goto done;
+    }
 
     ret = dh_generate_test(&rng);
     if (ret != 0)
