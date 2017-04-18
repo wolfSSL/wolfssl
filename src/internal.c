@@ -8882,6 +8882,20 @@ static int Poly1305TagOld(WOLFSSL* ssl, byte* additional, const byte* out,
 }
 
 
+/* When the flag oldPoly is not set this follows RFC7905. When oldPoly is set
+ * the implmentation follows an older draft for creating the nonce and MAC.
+ * The flag oldPoly gets set automaticlly depending on what cipher suite was
+ * negotiated in the handshake. This is able to be done because the IDs for the
+ * cipher suites was updated in RFC7905 giving unique values for the older
+ * draft in comparision to the more recent RFC.
+ *
+ * ssl   WOLFSSL structure to get cipher and TLS state from
+ * out   output buffer to hold encrypted data
+ * input data to encrypt
+ * sz    size of input
+ *
+ * Return 0 on success negative values in error case
+ */
 static int  ChachaAEADEncrypt(WOLFSSL* ssl, byte* out, const byte* input,
                               word16 sz)
 {
@@ -8901,13 +8915,13 @@ static int  ChachaAEADEncrypt(WOLFSSL* ssl, byte* out, const byte* input,
     XMEMSET(poly,  0, sizeof(poly));
     XMEMSET(add,   0, sizeof(add));
 
-    if (ssl->options.oldPoly != 0) {
-        /* get nonce */
-        WriteSEQ(ssl, CUR_ORDER, nonce + CHACHA20_OLD_OFFSET);
-    }
-
     /* opaque SEQ number stored for AD */
     WriteSEQ(ssl, CUR_ORDER, add);
+
+    if (ssl->options.oldPoly != 0) {
+        /* get nonce. SEQ should not be incremented again here */
+        XMEMCPY(nonce + CHACHA20_OLD_OFFSET, add, OPAQUE32_LEN * 2);
+    }
 
     /* Store the type, version. Unfortunately, they are in
      * the input buffer ahead of the plaintext. */
@@ -9019,6 +9033,20 @@ static int  ChachaAEADEncrypt(WOLFSSL* ssl, byte* out, const byte* input,
 }
 
 
+/* When the flag oldPoly is not set this follows RFC7905. When oldPoly is set
+ * the implmentation follows an older draft for creating the nonce and MAC.
+ * The flag oldPoly gets set automaticlly depending on what cipher suite was
+ * negotiated in the handshake. This is able to be done because the IDs for the
+ * cipher suites was updated in RFC7905 giving unique values for the older
+ * draft in comparision to the more recent RFC.
+ *
+ * ssl   WOLFSSL structure to get cipher and TLS state from
+ * plain output buffer to hold decrypted data
+ * input data to decrypt
+ * sz    size of input
+ *
+ * Return 0 on success negative values in error case
+ */
 static int ChachaAEADDecrypt(WOLFSSL* ssl, byte* plain, const byte* input,
                            word16 sz)
 {
@@ -9045,13 +9073,13 @@ static int ChachaAEADDecrypt(WOLFSSL* ssl, byte* plain, const byte* input,
     XMEMSET(nonce, 0, sizeof(nonce));
     XMEMSET(add,   0, sizeof(add));
 
-    if (ssl->options.oldPoly != 0) {
-        /* get nonce */
-        WriteSEQ(ssl, PEER_ORDER, nonce + CHACHA20_OLD_OFFSET);
-    }
-
     /* sequence number field is 64-bits */
     WriteSEQ(ssl, PEER_ORDER, add);
+
+    if (ssl->options.oldPoly != 0) {
+        /* get nonce, SEQ should not be incremented again here */
+        XMEMCPY(nonce + CHACHA20_OLD_OFFSET, add, OPAQUE32_LEN * 2);
+    }
 
     /* get AD info */
     /* Store the type, version. */
