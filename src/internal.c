@@ -5637,7 +5637,8 @@ static int GetDtlsHandShakeHeader(WOLFSSL* ssl, const byte* input,
 #endif
 
 
-#ifndef NO_OLD_TLS
+#if !defined(NO_OLD_TLS) || \
+    (defined(NO_OLD_TLS) && defined(WOLFSSL_ALLOW_TLS_SHA1))
 /* fill with MD5 pad size since biggest required */
 static const byte PAD1[PAD_MD5] =
                               { 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36,
@@ -5655,6 +5656,9 @@ static const byte PAD2[PAD_MD5] =
                                 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c,
                                 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c
                               };
+#endif /* !NO_OLD_TLS || (NO_OLD_TLS && WOLFSSL_ALLOW_TLS_SHA1) */
+
+#ifndef NO_OLD_TLS
 
 /* calculate MD5 hash for finished */
 #ifdef WOLFSSL_TI_HASH
@@ -10802,8 +10806,12 @@ static int SSL_hmac(WOLFSSL* ssl, byte* digest, const byte* in, word32 sz,
     }
     return 0;
 }
+#endif /* NO_OLD_TLS */
+
 
 #ifndef NO_CERTS
+
+#if !defined(NO_MD5) && !defined(NO_OLD_TLS)
 static int BuildMD5_CertVerify(WOLFSSL* ssl, byte* digest)
 {
     int ret;
@@ -10844,8 +10852,10 @@ static int BuildMD5_CertVerify(WOLFSSL* ssl, byte* digest)
 
     return ret;
 }
+#endif /* !NO_MD5 && !NO_OLD_TLS */
 
-
+#if !defined(NO_SHA) && (!defined(NO_OLD_TLS) || \
+                              defined(WOLFSSL_ALLOW_TLS_SHA1))
 static int BuildSHA_CertVerify(WOLFSSL* ssl, byte* digest)
 {
     int ret;
@@ -10886,11 +10896,7 @@ static int BuildSHA_CertVerify(WOLFSSL* ssl, byte* digest)
 
     return ret;
 }
-#endif /* NO_CERTS */
-#endif /* NO_OLD_TLS */
-
-
-#ifndef NO_CERTS
+#endif /* !NO_SHA && (!NO_OLD_TLS || WOLFSSL_ALLOW_TLS_SHA1) */
 
 static int BuildCertHashes(WOLFSSL* ssl, Hashes* hashes)
 {
