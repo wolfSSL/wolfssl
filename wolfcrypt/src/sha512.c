@@ -44,11 +44,11 @@
     }
     int wc_InitSha512_ex(Sha512* sha, void* heap, int devId)
     {
+        (void)heap;
+        (void)devId;
         if (sha == NULL) {
             return BAD_FUNC_ARG;
         }
-        (void)heap;
-        (void)devId;
         return InitSha512_fips(sha);
     }
     int wc_Sha512Update(Sha512* sha, const byte* data, word32 len)
