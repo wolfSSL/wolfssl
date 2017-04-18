@@ -1433,10 +1433,11 @@ int wc_Sha384Update(Sha384* sha384, const byte* data, word32 len)
 
 int wc_Sha384Final(Sha384* sha384, byte* hash)
 {
+    int ret;
+
     if (sha384 == NULL || hash == NULL) {
         return BAD_FUNC_ARG;
     }
-    int ret;
 
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_SHA384)
     if (sha384->asyncDev.marker == WOLFSSL_ASYNC_MARKER_SHA384) {
