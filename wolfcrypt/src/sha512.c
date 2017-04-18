@@ -76,20 +76,32 @@
     #if defined(WOLFSSL_SHA384) || defined(HAVE_AESGCM)
         int wc_InitSha384(Sha384* sha)
         {
+            if (sha == NULL) {
+                return BAD_FUNC_ARG;
+            }
             return InitSha384_fips(sha);
         }
         int wc_InitSha384_ex(Sha384* sha, void* heap, int devId)
         {
             (void)heap;
             (void)devId;
+            if (sha == NULL) {
+                return BAD_FUNC_ARG;
+            }
             return InitSha384_fips(sha);
         }
         int wc_Sha384Update(Sha384* sha, const byte* data, word32 len)
         {
+            if (sha == NULL || (data == NULL && len > 0)) {
+                return BAD_FUNC_ARG;
+            }
             return Sha384Update_fips(sha, data, len);
         }
         int wc_Sha384Final(Sha384* sha, byte* out)
         {
+            if (sha == NULL || out == NULL) {
+                return BAD_FUNC_ARG;
+            }
             return Sha384Final_fips(sha, out);
         }
         void wc_Sha384Free(Sha384* sha)
