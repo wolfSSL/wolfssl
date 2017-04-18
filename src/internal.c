@@ -6763,6 +6763,10 @@ static int DoCertificate(WOLFSSL* ssl, byte* input, word32* inOutIdx,
     DoCertArgs  args[1];
 #endif
 
+#ifdef WOLFSSL_TRUST_PEER_CERT
+    byte haveTrustPeer = 0; /* was cert verified by loaded trusted peer cert */
+#endif
+
     WOLFSSL_ENTER("DoCertificate");
 
 #ifdef WOLFSSL_ASYNC_CRYPT
