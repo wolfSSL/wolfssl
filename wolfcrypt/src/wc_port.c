@@ -310,11 +310,17 @@ wolfSSL_Mutex* wc_InitAndAllocMutex()
 {
     wolfSSL_Mutex* m = (wolfSSL_Mutex*) XMALLOC(sizeof(wolfSSL_Mutex), NULL,
             DYNAMIC_TYPE_MUTEX);
-    if (m && wc_InitMutex(m) == 0)
-        return m;
+    if (m != NULL) {
+        if (wc_InitMutex(m) != 0) {
+            WOLFSSL_MSG("Init Mutex failed");
+            XFREE(m, NULL, DYNAMIC_TYPE_MUTEX);
+            m = NULL;
+        }
+    }
+    else {
+        WOLFSSL_MSG("Memory error with Mutex allocation");
+    }
 
-    XFREE(m, NULL, DYNAMIC_TYPE_MUTEX);
-    m = NULL;
     return m;
 }
 
