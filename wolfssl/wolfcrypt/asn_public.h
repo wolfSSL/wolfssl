@@ -33,7 +33,10 @@
 /* Opaque keys. Only key pointers are used for arguments */
 typedef struct ecc_key ecc_key;
 typedef struct RsaKey RsaKey;
-typedef struct WC_RNG WC_RNG;
+#ifndef WC_RNG_TYPE_DEFINED /* guard on redeclaration */
+    typedef struct WC_RNG WC_RNG;
+    #define WC_RNG_TYPE_DEFINED
+#endif
 
 /* Certificate file Type */
 enum CertType {
