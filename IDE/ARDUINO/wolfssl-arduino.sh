@@ -17,10 +17,10 @@ fi
 #UPDATED: 19 Apr 2017 to remove bio.c and evp.c from the root directory since
 #         they are included inline and should not be compiled directly
 
-PWD=${PWD}
+ARDUINO_DIR=${PWD}
 cd ../../
 rm bio.c
 rm evp.c
-cd $PWD
-
+cd $ARDUINO_DIR
+# end script in the origin directory for any future functionality that may be added.
 #End UPDATE: 19 Apr 2017
