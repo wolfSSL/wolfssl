@@ -4036,10 +4036,9 @@ int aes192_test(void)
     int  ret = 0;
 
 #ifdef HAVE_AES_CBC
-    /*
-     * http://www.inconteam.com/software-development/41-encryption/
-     *                                         55-aes-test-vectors#aes-cbc-192
-     */
+    /* Test vectors from NIST Special Publication 800-38A, 2001 Edition
+     * Appendix F.2.3  */
+
     const byte msg[] = {
         0x6b,0xc1,0xbe,0xe2,0x2e,0x40,0x9f,0x96,
         0xe9,0x3d,0x7e,0x11,0x73,0x93,0x17,0x2a
@@ -4111,11 +4110,9 @@ int aes256_test(void)
     int  ret = 0;
 
 #ifdef HAVE_AES_CBC
-    /*
-     * http://www.inconteam.com/software-development/41-encryption/
-     *                                      55-aes-test-vectors#aes-cbc-256
-     */
-    const byte msg[] = { /* "Now is the time for all " w/o trailing 0 */
+    /* Test vectors from NIST Special Publication 800-38A, 2001 Edition,
+     * Appendix F.2.5  */
+    const byte msg[] = {
         0x6b,0xc1,0xbe,0xe2,0x2e,0x40,0x9f,0x96,
         0xe9,0x3d,0x7e,0x11,0x73,0x93,0x17,0x2a
     };
