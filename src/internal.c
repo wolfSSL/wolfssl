@@ -5637,7 +5637,8 @@ static int GetDtlsHandShakeHeader(WOLFSSL* ssl, const byte* input,
 #endif
 
 
-#ifndef NO_OLD_TLS
+#if !defined(NO_OLD_TLS) || \
+    (defined(NO_OLD_TLS) && defined(WOLFSSL_ALLOW_TLS_SHA1))
 /* fill with MD5 pad size since biggest required */
 static const byte PAD1[PAD_MD5] =
                               { 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36,
@@ -5655,6 +5656,9 @@ static const byte PAD2[PAD_MD5] =
                                 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c,
                                 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c
                               };
+#endif /* !NO_OLD_TLS || (NO_OLD_TLS && WOLFSSL_ALLOW_TLS_SHA1) */
+
+#ifndef NO_OLD_TLS
 
 /* calculate MD5 hash for finished */
 #ifdef WOLFSSL_TI_HASH
@@ -8878,6 +8882,20 @@ static int Poly1305TagOld(WOLFSSL* ssl, byte* additional, const byte* out,
 }
 
 
+/* When the flag oldPoly is not set this follows RFC7905. When oldPoly is set
+ * the implmentation follows an older draft for creating the nonce and MAC.
+ * The flag oldPoly gets set automaticlly depending on what cipher suite was
+ * negotiated in the handshake. This is able to be done because the IDs for the
+ * cipher suites was updated in RFC7905 giving unique values for the older
+ * draft in comparision to the more recent RFC.
+ *
+ * ssl   WOLFSSL structure to get cipher and TLS state from
+ * out   output buffer to hold encrypted data
+ * input data to encrypt
+ * sz    size of input
+ *
+ * Return 0 on success negative values in error case
+ */
 static int  ChachaAEADEncrypt(WOLFSSL* ssl, byte* out, const byte* input,
                               word16 sz)
 {
@@ -8897,13 +8915,13 @@ static int  ChachaAEADEncrypt(WOLFSSL* ssl, byte* out, const byte* input,
     XMEMSET(poly,  0, sizeof(poly));
     XMEMSET(add,   0, sizeof(add));
 
-    if (ssl->options.oldPoly != 0) {
-        /* get nonce */
-        WriteSEQ(ssl, CUR_ORDER, nonce + CHACHA20_OLD_OFFSET);
-    }
-
     /* opaque SEQ number stored for AD */
     WriteSEQ(ssl, CUR_ORDER, add);
+
+    if (ssl->options.oldPoly != 0) {
+        /* get nonce. SEQ should not be incremented again here */
+        XMEMCPY(nonce + CHACHA20_OLD_OFFSET, add, OPAQUE32_LEN * 2);
+    }
 
     /* Store the type, version. Unfortunately, they are in
      * the input buffer ahead of the plaintext. */
@@ -9015,6 +9033,20 @@ static int  ChachaAEADEncrypt(WOLFSSL* ssl, byte* out, const byte* input,
 }
 
 
+/* When the flag oldPoly is not set this follows RFC7905. When oldPoly is set
+ * the implmentation follows an older draft for creating the nonce and MAC.
+ * The flag oldPoly gets set automaticlly depending on what cipher suite was
+ * negotiated in the handshake. This is able to be done because the IDs for the
+ * cipher suites was updated in RFC7905 giving unique values for the older
+ * draft in comparision to the more recent RFC.
+ *
+ * ssl   WOLFSSL structure to get cipher and TLS state from
+ * plain output buffer to hold decrypted data
+ * input data to decrypt
+ * sz    size of input
+ *
+ * Return 0 on success negative values in error case
+ */
 static int ChachaAEADDecrypt(WOLFSSL* ssl, byte* plain, const byte* input,
                            word16 sz)
 {
@@ -9041,13 +9073,13 @@ static int ChachaAEADDecrypt(WOLFSSL* ssl, byte* plain, const byte* input,
     XMEMSET(nonce, 0, sizeof(nonce));
     XMEMSET(add,   0, sizeof(add));
 
-    if (ssl->options.oldPoly != 0) {
-        /* get nonce */
-        WriteSEQ(ssl, PEER_ORDER, nonce + CHACHA20_OLD_OFFSET);
-    }
-
     /* sequence number field is 64-bits */
     WriteSEQ(ssl, PEER_ORDER, add);
+
+    if (ssl->options.oldPoly != 0) {
+        /* get nonce, SEQ should not be incremented again here */
+        XMEMCPY(nonce + CHACHA20_OLD_OFFSET, add, OPAQUE32_LEN * 2);
+    }
 
     /* get AD info */
     /* Store the type, version. */
@@ -10802,8 +10834,12 @@ static int SSL_hmac(WOLFSSL* ssl, byte* digest, const byte* in, word32 sz,
     }
     return 0;
 }
+#endif /* NO_OLD_TLS */
+
 
 #ifndef NO_CERTS
+
+#if !defined(NO_MD5) && !defined(NO_OLD_TLS)
 static int BuildMD5_CertVerify(WOLFSSL* ssl, byte* digest)
 {
     int ret;
@@ -10844,8 +10880,10 @@ static int BuildMD5_CertVerify(WOLFSSL* ssl, byte* digest)
 
     return ret;
 }
+#endif /* !NO_MD5 && !NO_OLD_TLS */
 
-
+#if !defined(NO_SHA) && (!defined(NO_OLD_TLS) || \
+                              defined(WOLFSSL_ALLOW_TLS_SHA1))
 static int BuildSHA_CertVerify(WOLFSSL* ssl, byte* digest)
 {
     int ret;
@@ -10886,11 +10924,7 @@ static int BuildSHA_CertVerify(WOLFSSL* ssl, byte* digest)
 
     return ret;
 }
-#endif /* NO_CERTS */
-#endif /* NO_OLD_TLS */
-
-
-#ifndef NO_CERTS
+#endif /* !NO_SHA && (!NO_OLD_TLS || WOLFSSL_ALLOW_TLS_SHA1) */
 
 static int BuildCertHashes(WOLFSSL* ssl, Hashes* hashes)
 {
