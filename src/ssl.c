@@ -955,6 +955,7 @@ int wolfSSL_set_secret(WOLFSSL* ssl, word16 epoch,
             (void)epoch;
         #endif
         }
+        FreeHandshakeResources(ssl);
         ret = SSL_SUCCESS;
     }
     else {
