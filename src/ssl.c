@@ -895,8 +895,8 @@ int wolfSSL_set_secret(WOLFSSL* ssl, word16 epoch,
 
     WOLFSSL_ENTER("wolfSSL_set_secret()");
 
-    if (ssl == NULL || preMasterSecret == NULL || preMasterSz == 0 ||
-        preMasterSz > sizeof(ssl->arrays->preMasterSecret) ||
+    if (ssl == NULL || preMasterSecret == NULL ||
+        preMasterSz == 0 || preMasterSz > ENCRYPT_LEN ||
         clientRandom == NULL || serverRandom == NULL || suite == NULL) {
 
         ret = BAD_FUNC_ARG;
