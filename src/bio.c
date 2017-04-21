@@ -966,7 +966,7 @@ int wolfSSL_BIO_reset(WOLFSSL_BIO *bio)
             bio->rdIdx = 0;
             bio->wrIdx = 0;
             bio->wrSz  = 0;
-            XFREE(bio->mem, bio->heap, DYNAMIC_TYPE_BIO);
+            XFREE(bio->mem, bio->heap, DYNAMIC_TYPE_OPENSSL);
             bio->mem = NULL;
             bio->memLen = 0;
             if (bio->mem_buf != NULL) {
