@@ -1054,7 +1054,7 @@ enum Misc {
     DTLS_TIMEOUT_MAX        = 64, /* default max timeout for DTLS receive */
     DTLS_TIMEOUT_MULTIPLIER =  2, /* default timeout multiplier for DTLS recv */
 
-    MAX_PSK_ID_LEN     = 128,  /* max psk identity/hint supported */
+    MAX_PSK_ID_LEN     = 129,  /* max psk identity/hint supported */
     MAX_PSK_KEY_LEN    =  64,  /* max psk key supported */
 
     MAX_WOLFSSL_FILE_SIZE = 1024 * 1024 * 4,  /* 4 mb file size alloc limit */
