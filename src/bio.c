@@ -295,7 +295,6 @@ static int wolfSSL_BIO_MEMORY_write(WOLFSSL_BIO* bio, const void* data,
 {
     /* internal function where arguments have already been sanity checked */
     int   sz;
-    int   ret;
     const unsigned char* buf;
 
     WOLFSSL_ENTER("wolfSSL_BIO_MEMORY_write");
@@ -307,8 +306,7 @@ static int wolfSSL_BIO_MEMORY_write(WOLFSSL_BIO* bio, const void* data,
     }
 
     if (bio->mem == NULL) {
-        bio->mem = (byte*)XMALLOC(len, bio->heap,
-            DYNAMIC_TYPE_OPENSSL);
+        bio->mem = (byte*)XMALLOC(len, bio->heap, DYNAMIC_TYPE_OPENSSL);
         if (bio->mem == NULL) {
             WOLFSSL_MSG("Error on malloc");
             return SSL_FAILURE;
@@ -321,22 +319,20 @@ static int wolfSSL_BIO_MEMORY_write(WOLFSSL_BIO* bio, const void* data,
     }
 
     /* check if will fit in current buffer size */
-    if ((ret = wolfSSL_BIO_get_mem_data(bio, (void*)&buf)) < sz + len) {
-        if (ret <= 0) {
-            return WOLFSSL_BIO_ERROR;
+    if (wolfSSL_BIO_get_mem_data(bio, (void*)&buf) < 0) {
+        return WOLFSSL_BIO_ERROR;
+    }
+    if (bio->memLen < sz + len) {
+        bio->mem = (byte*)XREALLOC(bio->mem, sz + len, bio->heap,
+            DYNAMIC_TYPE_OPENSSL);
+        if (bio->mem == NULL) {
+            WOLFSSL_MSG("Error on realloc");
+            return SSL_FAILURE;
         }
-        else {
-            bio->mem = (byte*)XREALLOC(bio->mem, sz + len, bio->heap,
-                DYNAMIC_TYPE_OPENSSL);
-            if (bio->mem == NULL) {
-                WOLFSSL_MSG("Error on realloc");
-                return SSL_FAILURE;
-            }
-            bio->memLen = sz + len;
-            if (bio->mem_buf != NULL) {
-                bio->mem_buf->data = (char*)bio->mem;
-                bio->mem_buf->length = bio->memLen;
-            }
+        bio->memLen = sz + len;
+        if (bio->mem_buf != NULL) {
+            bio->mem_buf->data = (char*)bio->mem;
+            bio->mem_buf->length = bio->memLen;
         }
     }
 
@@ -964,6 +960,19 @@ int wolfSSL_BIO_reset(WOLFSSL_BIO *bio)
         case WOLFSSL_BIO_BIO:
             bio->rdIdx = 0;
             bio->wrIdx = 0;
+            return 0;
+
+        case WOLFSSL_BIO_MEMORY:
+            bio->rdIdx = 0;
+            bio->wrIdx = 0;
+            bio->wrSz  = 0;
+            XFREE(bio->mem, bio->heap, DYNAMIC_TYPE_BIO);
+            bio->mem = NULL;
+            bio->memLen = 0;
+            if (bio->mem_buf != NULL) {
+                bio->mem_buf->data = (char*)bio->mem;
+                bio->mem_buf->length = bio->memLen;
+            }
             return 0;
 
         default:
