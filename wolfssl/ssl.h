@@ -2336,11 +2336,6 @@ WOLFSSL_API int X509_STORE_load_locations(WOLFSSL_X509_STORE *ctx, const char *f
 WOLFSSL_API int sk_SSL_CIPHER_value(void *ciphers, int idx);
 WOLFSSL_API void ERR_load_SSL_strings(void);
 
-#ifndef NO_FILESYSTEM
-WOLFSSL_X509 *PEM_read_X509(FILE *fp, WOLFSSL_X509 **x, pem_password_cb *cb, void *u);
-WOLFSSL_EVP_PKEY *PEM_read_PrivateKey(FILE *fp, WOLFSSL_EVP_PKEY **x, pem_password_cb *cb, void *u);
-#endif
-
 #ifdef __cplusplus
     }  /* extern "C" */
 #endif

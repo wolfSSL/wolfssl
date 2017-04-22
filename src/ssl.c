@@ -15684,7 +15684,8 @@ WOLFSSL_API long wolfSSL_set_tlsext_status_type(WOLFSSL *s, int type)
 {
     (void)s;
     (void)type;
-    return 0;
+    WOLFSSL_STUB("wolfSSL_set_tlsext_status_type");
+    return SSL_FAILURE;
 }
 
 /*** TBD ***/
@@ -15692,7 +15693,8 @@ WOLFSSL_API long wolfSSL_get_tlsext_status_exts(WOLFSSL *s, void *arg)
 {
     (void)s;
     (void)arg;
-    return 0;
+    WOLFSSL_STUB("wolfSSL_get_tlsext_status_exts");
+    return SSL_FAILURE;
 }
 
 /*** TBD ***/
@@ -15700,7 +15702,8 @@ WOLFSSL_API long wolfSSL_set_tlsext_status_exts(WOLFSSL *s, void *arg)
 {
     (void)s;
     (void)arg;
-    return 0;
+    WOLFSSL_STUB("wolfSSL_set_tlsext_status_exts");
+    return SSL_FAILURE;
 }
 
 /*** TBD ***/
@@ -15708,7 +15711,8 @@ WOLFSSL_API long wolfSSL_get_tlsext_status_ids(WOLFSSL *s, void *arg)
 {
     (void)s;
     (void)arg;
-    return 0;
+    WOLFSSL_STUB("wolfSSL_get_tlsext_status_ids");
+    return SSL_FAILURE;
 }
 
 /*** TBD ***/
@@ -15716,7 +15720,8 @@ WOLFSSL_API long wolfSSL_set_tlsext_status_ids(WOLFSSL *s, void *arg)
 {
     (void)s;
     (void)arg;
-    return 0;
+    WOLFSSL_STUB("wolfSSL_set_tlsext_status_ids");
+    return SSL_FAILURE;
 }
 
 /*** TBD ***/
@@ -15725,7 +15730,8 @@ WOLFSSL_API int SSL_SESSION_set1_id(WOLFSSL_SESSION *s, const unsigned char *sid
     (void)s;
     (void)sid;
     (void)sid_len;
-    return 1;
+    WOLFSSL_STUB("SSL_SESSION_set1_id");
+    return SSL_FAILURE;
 }
 
 /*** TBD ***/
@@ -15734,13 +15740,15 @@ WOLFSSL_API int SSL_SESSION_set1_id_context(WOLFSSL_SESSION *s, const unsigned c
     (void)s;
     (void)sid_ctx;
     (void)sid_ctx_len;
-    return 1;
+    WOLFSSL_STUB("SSL_SESSION_set1_id_context");
+    return SSL_FAILURE;
 }
 
 /*** TBD ***/
 WOLFSSL_API void *X509_get0_tbs_sigalg(const WOLFSSL_X509 *x)
 {
     (void)x;
+    WOLFSSL_STUB("X509_get0_tbs_sigalg");
     return NULL;
 }
 
@@ -15751,12 +15759,14 @@ WOLFSSL_API void X509_ALGOR_get0(WOLFSSL_ASN1_OBJECT **paobj, int *pptype, const
     (void)pptype;
     (void)ppval;
     (void)algor;
+    WOLFSSL_STUB("X509_ALGOR_get0");
 }
 
 /*** TBD ***/
 WOLFSSL_API void *X509_get_X509_PUBKEY(void * x)
 {
     (void)x;
+    WOLFSSL_STUB("X509_get_X509_PUBKEY");
     return NULL;
 }
 
@@ -15768,13 +15778,15 @@ WOLFSSL_API int X509_PUBKEY_get0_param(WOLFSSL_ASN1_OBJECT **ppkalg, const unsig
     (void)ppklen;
     (void)pa;
     (void)pub;
-    return 1;
+    WOLFSSL_STUB("X509_PUBKEY_get0_param");
+    return SSL_FAILURE;
 }
 
 /*** TBD ***/
 WOLFSSL_API struct evp_pkey_st *SSL_get_privatekey(const WOLFSSL *ssl)
 {
     (void)ssl;
+    WOLFSSL_STUB("SSL_get_privatekey");
     return NULL;
 }
 
@@ -15782,7 +15794,8 @@ WOLFSSL_API struct evp_pkey_st *SSL_get_privatekey(const WOLFSSL *ssl)
 WOLFSSL_API int EVP_PKEY_bits(WOLFSSL_EVP_PKEY *pkey)
 {
     (void)pkey;
-    return -1;
+    WOLFSSL_STUB("EVP_PKEY_bits");
+    return SSL_FAILURE;
 }
 
 /*** TBD ***/
@@ -15790,6 +15803,7 @@ WOLFSSL_API int i2d_X509(WOLFSSL_X509 *x, unsigned char **out)
 {
     (void)x;
     (void)out;
+    WOLFSSL_STUB("i2d_X509");
     return -1;
 }
 
@@ -15799,6 +15813,7 @@ WOLFSSL_API int i2t_ASN1_OBJECT(char *buf, int buf_len, WOLFSSL_ASN1_OBJECT *a)
     (void)buf;
     (void)buf_len;
     (void)a;
+    WOLFSSL_STUB("i2t_ASN1_OBJECT");
     return -1;
 }
 
@@ -15808,7 +15823,8 @@ WOLFSSL_API size_t SSL_get_finished(const WOLFSSL *s, void *buf, size_t count)
     (void)s;
     (void)buf;
     (void)count;
-    return 0;
+    WOLFSSL_STUB("SSL_get_finished");
+    return SSL_FAILURE;
 }
 
 /*** TBD ***/
@@ -15817,7 +15833,8 @@ WOLFSSL_API size_t SSL_get_peer_finished(const WOLFSSL *s, void *buf, size_t cou
     (void)s;
     (void)buf;
     (void)count;
-    return 0;
+    WOLFSSL_STUB("SSL_get_peer_finished");
+    return SSL_FAILURE;
 }
 
 /*** TBD ***/
@@ -15825,11 +15842,13 @@ WOLFSSL_API void SSL_CTX_set_tmp_dh_callback(WOLFSSL_CTX *ctx, WOLFSSL_DH *(*dh)
 {
     (void)ctx;
     (void)dh;
+    WOLFSSL_STUB("SSL_CTX_set_tmp_dh_callback");
 }
 
 /*** TBD ***/
 WOLFSSL_API STACK_OF(SSL_COMP) *SSL_COMP_get_compression_methods(void)
 {
+    WOLFSSL_STUB("SSL_COMP_get_compression_methods");
     return NULL;
 }
 
@@ -15837,27 +15856,30 @@ WOLFSSL_API STACK_OF(SSL_COMP) *SSL_COMP_get_compression_methods(void)
 WOLFSSL_API int sk_SSL_CIPHER_num(const void * p)
 {
     (void)p;
+    WOLFSSL_STUB("sk_SSL_CIPHER_num");
     return -1;
 }
 
 #if !defined(NO_FILESYSTEM)
 /*** TBD ***/
-WOLFSSL_X509 *PEM_read_X509(FILE *fp, WOLFSSL_X509 **x, pem_password_cb *cb, void *u)
+WOLFSSL_API WOLFSSL_X509 *wolfSSL_PEM_read_X509(FILE *fp, WOLFSSL_X509 **x, pem_password_cb *cb, void *u)
 {
     (void)fp;
     (void)x;
     (void)cb;
     (void)u;
+    WOLFSSL_STUB("PEM_read_X509");
     return NULL;
 }
 
 /*** TBD ***/
-WOLFSSL_EVP_PKEY *PEM_read_PrivateKey(FILE *fp, WOLFSSL_EVP_PKEY **x, pem_password_cb *cb, void *u)
+WOLFSSL_API WOLFSSL_EVP_PKEY *wolfSSL_PEM_read_PrivateKey(FILE *fp, WOLFSSL_EVP_PKEY **x, pem_password_cb *cb, void *u)
 {
     (void)fp;
     (void)x;
     (void)cb;
     (void)u;
+    WOLFSSL_STUB("PEM_read_PrivateKey");
     return NULL;
 }
 #endif
@@ -15868,7 +15890,8 @@ WOLFSSL_API int X509_STORE_load_locations(WOLFSSL_X509_STORE *ctx, const char *f
     (void)ctx;
     (void)file;
     (void)dir;
-    return -1;
+    WOLFSSL_STUB("X509_STORE_load_locations");
+    return SSL_FAILURE;
 }
 
 /*** TBD ***/
@@ -15876,7 +15899,8 @@ WOLFSSL_API int sk_SSL_CIPHER_value(void *ciphers, int idx)
 {
     (void)ciphers;
     (void)idx;
-    return 0;
+    WOLFSSL_STUB("sk_SSL_CIPHER_value");
+    return SSL_FAILURE;
 }
     
 WOLFSSL_API void ERR_load_SSL_strings(void)
@@ -21404,8 +21428,8 @@ WOLFSSL_EVP_PKEY* wolfSSL_PEM_read_bio_PrivateKey(WOLFSSL_BIO* bio,
 
 int wolfSSL_EVP_PKEY_type(int type)
 {
-    // XXX FIXME
     (void) type;
+    WOLFSSL_MSG("wolfSSL_EVP_PKEY_type always returns EVP_PKEY_RSA");
     return EVP_PKEY_RSA;
 }
 
