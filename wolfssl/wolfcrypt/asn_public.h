@@ -25,14 +25,23 @@
 #define WOLF_CRYPT_ASN_PUBLIC_H
 
 #include <wolfssl/wolfcrypt/types.h>
+#ifdef HAVE_ECC
+    #include <wolfssl/wolfcrypt/ecc.h>
+#endif
+#if defined(WOLFSSL_CERT_GEN) && !defined(NO_RSA)
+    #include <wolfssl/wolfcrypt/rsa.h>
+#endif
 
 #ifdef __cplusplus
     extern "C" {
 #endif
 
-/* Opaque keys. Only key pointers are used for arguments */
-typedef struct ecc_key ecc_key;
-typedef struct RsaKey RsaKey;
+#ifndef HAVE_ECC
+    typedef struct ecc_key ecc_key;
+#endif
+#ifdef NO_RSA
+    typedef struct RsaKey RsaKey;
+#endif
 #ifndef WC_RNG_TYPE_DEFINED /* guard on redeclaration */
     typedef struct WC_RNG WC_RNG;
     #define WC_RNG_TYPE_DEFINED
