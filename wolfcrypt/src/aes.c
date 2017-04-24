@@ -4443,7 +4443,7 @@ int  wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
 
     /* argument checks */
     if (aes == NULL || out == NULL || in == NULL || sz == 0 || iv == NULL ||
-        authTag == NULL || authIn == NULL || authTagSz > AES_BLOCK_SIZE) {
+        authTag == NULL || authTagSz > AES_BLOCK_SIZE) {
         return BAD_FUNC_ARG;
     }
 

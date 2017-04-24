@@ -1362,7 +1362,9 @@ WOLFSSL_LOCAL void FreeKeyExchange(WOLFSSL* ssl);
 WOLFSSL_LOCAL int  ProcessPeerCerts(WOLFSSL* ssl, buffer *certs, buffer *exts,
                                     int totalCerts);
 WOLFSSL_LOCAL int  MatchDomainName(const char* pattern, int len, const char* str);
+#ifndef NO_CERTS
 WOLFSSL_LOCAL int  CheckAltNames(DecodedCert* dCert, char* domain);
+#endif
 WOLFSSL_LOCAL int  CreateTicket(WOLFSSL* ssl);
 WOLFSSL_LOCAL int  HashOutputRaw(WOLFSSL* ssl, const byte* output, int sz);
 WOLFSSL_LOCAL int  HashOutput(WOLFSSL* ssl, const byte* output, int sz,
@@ -1880,8 +1882,10 @@ typedef struct {
 
 WOLFSSL_LOCAL int   TLSX_UseCertificateStatusRequest(TLSX** extensions,
                                     byte status_type, byte options, void* heap, int devId);
+#ifndef NO_CERTS
 WOLFSSL_LOCAL int   TLSX_CSR_InitRequest(TLSX* extensions, DecodedCert* cert,
                                                                     void* heap);
+#endif
 WOLFSSL_LOCAL void* TLSX_CSR_GetRequest(TLSX* extensions);
 WOLFSSL_LOCAL int   TLSX_CSR_ForceRequest(WOLFSSL* ssl);
 
@@ -1902,8 +1906,10 @@ typedef struct CSRIv2 {
 
 WOLFSSL_LOCAL int   TLSX_UseCertificateStatusRequestV2(TLSX** extensions,
                                     byte status_type, byte options, void* heap, int devId);
+#ifndef NO_CERTS
 WOLFSSL_LOCAL int   TLSX_CSR2_InitRequests(TLSX* extensions, DecodedCert* cert,
                                                        byte isPeer, void* heap);
+#endif
 WOLFSSL_LOCAL void* TLSX_CSR2_GetRequest(TLSX* extensions, byte status_type,
                                                                     byte index);
 WOLFSSL_LOCAL int   TLSX_CSR2_ForceRequest(WOLFSSL* ssl);

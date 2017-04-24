@@ -5313,6 +5313,14 @@ int SendBuffered(WOLFSSL* ssl)
         return SOCKET_ERROR_E;
     }
 
+#ifdef WOLFSSL_DEBUG_TLS
+    if (ssl->buffers.outputBuffer.idx == 0) {
+        WOLFSSL_MSG("Data to send");
+        WOLFSSL_BUFFER(ssl->buffers.outputBuffer.buffer,
+                       ssl->buffers.outputBuffer.length);
+    }
+#endif
+
     while (ssl->buffers.outputBuffer.length > 0) {
         int sent = ssl->ctx->CBIOSend(ssl,
                                       (char*)ssl->buffers.outputBuffer.buffer +
@@ -10237,6 +10245,14 @@ static int GetInputData(WOLFSSL *ssl, word32 size)
         inSz -= in;
 
     } while (ssl->buffers.inputBuffer.length < size);
+
+#ifdef WOLFSSL_DEBUG_TLS
+    if (ssl->buffers.inputBuffer.idx == 0) {
+        WOLFSSL_MSG("Data received");
+        WOLFSSL_BUFFER(ssl->buffers.inputBuffer.buffer,
+                       ssl->buffers.inputBuffer.length);
+    }
+#endif
 
     return 0;
 }

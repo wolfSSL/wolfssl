@@ -209,15 +209,19 @@ static int Tls13_HKDF_Extract(byte* prk, const byte* salt, int saltLen,
         XMEMSET(ikm, 0, len);
     }
 
+#ifdef WOLFSSL_DEBUG_TLS
     WOLFSSL_MSG("Salt");
     WOLFSSL_BUFFER(salt, saltLen);
     WOLFSSL_MSG("IKM");
     WOLFSSL_BUFFER(ikm, ikmLen);
+#endif
 
     ret = wc_HKDF_Extract(hash, salt, saltLen, ikm, ikmLen, prk);
 
+#ifdef WOLFSSL_DEBUG_TLS
     WOLFSSL_MSG("PRK");
     WOLFSSL_BUFFER(prk, len);
+#endif
 
     return ret;
 }
@@ -263,15 +267,19 @@ static int HKDF_Expand_Label(byte* okm, word32 okmLen,
     XMEMCPY(&data[idx], info, infoLen);
     idx += infoLen;
 
+#ifdef WOLFSSL_DEBUG_TLS
     WOLFSSL_MSG("PRK");
     WOLFSSL_BUFFER(prk, prkLen);
     WOLFSSL_MSG("Info");
     WOLFSSL_BUFFER(data, idx);
+#endif
 
     ret = wc_HKDF_Expand(digest, prk, prkLen, data, idx, okm, okmLen);
 
+#ifdef WOLFSSL_DEBUG_TLS
     WOLFSSL_MSG("OKM");
     WOLFSSL_BUFFER(okm, okmLen);
+#endif
 
     ForceZero(data, idx);
 
@@ -1381,9 +1389,10 @@ static int EncryptTls13(WOLFSSL* ssl, byte* output, const byte* input,
     (void)dataSz;
     (void)macSz;
 
-
+#ifdef WOLFSSL_DEBUG_TLS
     WOLFSSL_MSG("Data to encrypt");
     WOLFSSL_BUFFER(input, dataSz);
+#endif
 
     BuildTls13Nonce(ssl, nonce, ssl->keys.aead_enc_imp_IV, CUR_ORDER);
 
@@ -1416,10 +1425,12 @@ static int EncryptTls13(WOLFSSL* ssl, byte* output, const byte* input,
 
     ForceZero(nonce, AEAD_NONCE_SZ);
 
+#ifdef WOLFSSL_DEBUG_TLS
     WOLFSSL_MSG("Encrypted data");
     WOLFSSL_BUFFER(output, dataSz);
     WOLFSSL_MSG("Authentication Tag");
     WOLFSSL_BUFFER(output + dataSz, macSz);
+#endif
 
     return ret;
 }
@@ -1500,10 +1511,12 @@ int DecryptTls13(WOLFSSL* ssl, byte* output, const byte* input, word16 sz)
     (void)dataSz;
     (void)macSz;
 
+#ifdef WOLFSSL_DEBUG_TLS
     WOLFSSL_MSG("Data to decrypt");
     WOLFSSL_BUFFER(input, dataSz);
     WOLFSSL_MSG("Authentication tag");
     WOLFSSL_BUFFER(input + dataSz, macSz);
+#endif
 
     BuildTls13Nonce(ssl, nonce, ssl->keys.aead_dec_imp_IV, PEER_ORDER);
 
@@ -1540,8 +1553,10 @@ int DecryptTls13(WOLFSSL* ssl, byte* output, const byte* input, word16 sz)
         ret = VERIFY_MAC_ERROR;
     }
 
+#ifdef WOLFSSL_DEBUG_TLS
     WOLFSSL_MSG("Decrypted data");
     WOLFSSL_BUFFER(output, dataSz);
+#endif
 
     return ret;
 }
@@ -2371,8 +2386,10 @@ static int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     XMEMCPY(ssl->arrays->clientRandom, input + i, RAN_LEN);
     i += RAN_LEN;
 
+#ifdef WOLFSSL_DEBUG_TLS
     WOLFSSL_MSG("client random");
     WOLFSSL_BUFFER(ssl->arrays->clientRandom, RAN_LEN);
+#endif
 
 
     /* Session id - empty in TLS v1.3 */
@@ -2597,9 +2614,10 @@ int SendTls13ServerHello(WOLFSSL* ssl)
     XMEMCPY(ssl->arrays->serverRandom, output + idx, RAN_LEN);
     idx += RAN_LEN;
 
+#ifdef WOLFSSL_DEBUG_TLS
     WOLFSSL_MSG("Server random");
     WOLFSSL_BUFFER(ssl->arrays->serverRandom, RAN_LEN);
-
+#endif
 
     /* Chosen cipher suite */
     output[idx++] = ssl->options.cipherSuite0;

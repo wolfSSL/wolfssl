@@ -4510,8 +4510,11 @@ static int TLSX_KeyShare_GenDhKey(WOLFSSL *ssl, KeyShareEntry* kse)
     kse->key = key;
     kse->keyLen = keySz;
 
+#ifdef WOLFSSL_DEBUG_TLS
     WOLFSSL_MSG("Public DH Key");
     WOLFSSL_BUFFER(keyData, params->p_len);
+#endif
+
 end:
 
     wc_FreeDhKey(&dhKey);
@@ -4624,8 +4627,11 @@ static int TLSX_KeyShare_GenEccKey(WOLFSSL *ssl, KeyShareEntry* kse)
     kse->keLen = dataSize;
     kse->key = eccKey;
 
+#ifdef WOLFSSL_DEBUG_TLS
     WOLFSSL_MSG("Public ECC Key");
     WOLFSSL_BUFFER(keyData, dataSize);
+#endif
+
 end:
     if (ret != 0) {
         /* Data owned by key share entry otherwise. */
@@ -4791,8 +4797,10 @@ static int TLSX_KeyShare_ProcessDh(WOLFSSL* ssl, KeyShareEntry* keyShareEntry)
             return PEER_KEY_ERROR;
     }
 
+#ifdef WOLFSSL_DEBUG_TLS
     WOLFSSL_MSG("Peer DH Key");
     WOLFSSL_BUFFER(keyShareEntry->ke, keyShareEntry->keLen);
+#endif
 
     if (params->p_len != keyShareEntry->keLen)
         return BUFFER_ERROR;
@@ -4912,8 +4920,10 @@ static int TLSX_KeyShare_ProcessEcc(WOLFSSL* ssl, KeyShareEntry* keyShareEntry)
             return ECC_PEERKEY_ERROR;
     }
 
+#ifdef WOLFSSL_DEBUG_TLS
     WOLFSSL_MSG("Peer ECC Key");
     WOLFSSL_BUFFER(keyShareEntry->ke, keyShareEntry->keLen);
+#endif
 
     /* Point is validated by import function. */
     if (wc_ecc_import_x963_ex(keyShareEntry->ke, keyShareEntry->keLen,
@@ -4921,7 +4931,7 @@ static int TLSX_KeyShare_ProcessEcc(WOLFSSL* ssl, KeyShareEntry* keyShareEntry)
         return ECC_PEERKEY_ERROR;
     }
 
-    ssl->arrays->preMasterSz = sizeof(ssl->arrays->preMasterSecret);
+    ssl->arrays->preMasterSz = ENCRYPT_LEN;
     return EccSharedSecret(ssl, keyShareEntry->key, ssl->peerEccKey,
         keyShareEntry->ke, &keyShareEntry->keLen,
         ssl->arrays->preMasterSecret, &ssl->arrays->preMasterSz,
@@ -4956,8 +4966,10 @@ static int TLSX_KeyShare_Process(WOLFSSL* ssl, KeyShareEntry* keyShareEntry)
     else
         ret = TLSX_KeyShare_ProcessEcc(ssl, keyShareEntry);
 
+#ifdef WOLFSSL_DEBUG_TLS
     WOLFSSL_MSG("KE Secret");
     WOLFSSL_BUFFER(ssl->arrays->preMasterSecret, ssl->arrays->preMasterSz);
+#endif
 
     return ret;
 }
