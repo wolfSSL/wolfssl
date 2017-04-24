@@ -15783,7 +15783,7 @@ WOLFSSL_API int X509_PUBKEY_get0_param(WOLFSSL_ASN1_OBJECT **ppkalg, const unsig
 }
 
 /*** TBD ***/
-WOLFSSL_API struct evp_pkey_st *SSL_get_privatekey(const WOLFSSL *ssl)
+WOLFSSL_API WOLFSSL_EVP_PKEY *wolfSSL_get_privatekey(const WOLFSSL *ssl)
 {
     (void)ssl;
     WOLFSSL_STUB("SSL_get_privatekey");

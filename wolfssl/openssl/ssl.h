@@ -118,6 +118,7 @@ typedef WOLFSSL_X509_STORE_CTX X509_STORE_CTX;
 #define SSL_use_PrivateKey         wolfSSL_use_PrivateKey
 #define SSL_use_PrivateKey_ASN1    wolfSSL_use_PrivateKey_ASN1
 #define SSL_use_RSAPrivateKey_ASN1 wolfSSL_use_RSAPrivateKey_ASN1
+#define SSL_get_privatekey         wolfSSL_get_privatekey
 
 #define SSLv23_method       wolfSSLv23_method
 #define SSLv3_server_method wolfSSLv3_server_method
@@ -516,7 +517,7 @@ typedef WOLFSSL_X509_NAME_ENTRY X509_NAME_ENTRY;
 #define SSL_get_rbio                      wolfSSL_SSL_get_rbio
 #define SSL_get_wbio                      wolfSSL_SSL_get_wbio
 #define SSL_do_handshake                  wolfSSL_SSL_do_handshake
-#define SSL_get_ciphers(x)                wolfSSL_get_ciphers(x, sizeof(x))
+#define SSL_get_ciphers(x)                wolfSSL_get_ciphers((char *)x, sizeof(x))
 #define SSL_SESSION_get_id                wolfSSL_SESSION_get_id
 #define ASN1_STRING_get0_data             wolfSSL_ASN1_STRING_data
 #define SSL_get_cipher_bits(s,np)         wolfSSL_CIPHER_get_bits(SSL_get_current_cipher(s),np)

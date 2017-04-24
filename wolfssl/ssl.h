@@ -1993,6 +1993,7 @@ WOLFSSL_API int wolfSSL_use_certificate_ASN1(WOLFSSL* ssl, unsigned char* der,
 WOLFSSL_API int wolfSSL_use_PrivateKey(WOLFSSL* ssl, WOLFSSL_EVP_PKEY* pkey);
 WOLFSSL_API int wolfSSL_use_PrivateKey_ASN1(int pri, WOLFSSL* ssl,
                                             unsigned char* der, long derSz);
+WOLFSSL_API WOLFSSL_EVP_PKEY *wolfSSL_get_privatekey(const WOLFSSL *ssl);
 #ifndef NO_RSA
 WOLFSSL_API int wolfSSL_use_RSAPrivateKey_ASN1(WOLFSSL* ssl, unsigned char* der,
                                                                 long derSz);
@@ -2322,7 +2323,6 @@ WOLFSSL_API void *X509_get0_tbs_sigalg(const WOLFSSL_X509 *x);
 WOLFSSL_API void X509_ALGOR_get0(WOLFSSL_ASN1_OBJECT **paobj, int *pptype, const void **ppval, const void *algor);
 WOLFSSL_API void *X509_get_X509_PUBKEY(void * x);
 WOLFSSL_API int X509_PUBKEY_get0_param(WOLFSSL_ASN1_OBJECT **ppkalg, const unsigned char **pk, int *ppklen, void **pa, WOLFSSL_EVP_PKEY *pub);
-WOLFSSL_API struct evp_pkey_st *SSL_get_privatekey(const WOLFSSL *ssl);
 WOLFSSL_API int EVP_PKEY_bits(WOLFSSL_EVP_PKEY *pkey);
 WOLFSSL_API int i2d_X509(WOLFSSL_X509 *x, unsigned char **out);
 WOLFSSL_API int i2t_ASN1_OBJECT(char *buf, int buf_len, WOLFSSL_ASN1_OBJECT *a);
