@@ -30,7 +30,6 @@
 /* for users not using preprocessor flags*/
 #include <wolfssl/wolfcrypt/settings.h>
 #include <wolfssl/version.h>
-#include <wolfssl/wolfcrypt/types.h> /* for XFILE */
 
 #ifdef HAVE_WOLF_EVENT
     #include <wolfssl/wolfcrypt/wolfevent.h>
