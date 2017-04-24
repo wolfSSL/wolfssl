@@ -14562,12 +14562,6 @@ WOLFSSL_COMP_METHOD* wolfSSL_COMP_rle(void)
     return 0;
 }
 
-int sk_SSL_COMP_zero(WOLFSSL* st)
-{
-    wolfSSL_set_options(st, SSL_OP_NO_COMPRESSION);
-    return 0;
-}
-
 int wolfSSL_COMP_add_compression_method(int method, void* data)
 {
     (void)method;
@@ -15680,6 +15674,16 @@ const unsigned char *SSL_SESSION_get0_id_context(const SSL_SESSION *sess, unsign
 #endif
 
 /*** TBD ***/
+WOLFSSL_API int wolfSSL_sk_SSL_COMP_zero(WOLFSSL_STACK* st)
+{
+    (void)st;
+    WOLFSSL_STUB("wolfSSL_sk_SSL_COMP_zero");
+    //wolfSSL_set_options(ssl, SSL_OP_NO_COMPRESSION);
+    return SSL_FAILURE;
+}
+
+
+/*** TBD ***/
 WOLFSSL_API long wolfSSL_set_tlsext_status_type(WOLFSSL *s, int type)
 {
     (void)s;
@@ -15853,10 +15857,10 @@ WOLFSSL_API STACK_OF(SSL_COMP) *SSL_COMP_get_compression_methods(void)
 }
 
 /*** TBD ***/
-WOLFSSL_API int sk_SSL_CIPHER_num(const void * p)
+WOLFSSL_API int wolfSSL_sk_SSL_CIPHER_num(const void * p)
 {
     (void)p;
-    WOLFSSL_STUB("sk_SSL_CIPHER_num");
+    WOLFSSL_STUB("wolfSSL_sk_SSL_CIPHER_num");
     return -1;
 }
 
@@ -15895,12 +15899,12 @@ WOLFSSL_API int X509_STORE_load_locations(WOLFSSL_X509_STORE *ctx, const char *f
 }
 
 /*** TBD ***/
-WOLFSSL_API int sk_SSL_CIPHER_value(void *ciphers, int idx)
+WOLFSSL_API WOLFSSL_CIPHER* wolfSSL_sk_SSL_CIPHER_value(void *ciphers, int idx)
 {
     (void)ciphers;
     (void)idx;
-    WOLFSSL_STUB("sk_SSL_CIPHER_value");
-    return SSL_FAILURE;
+    WOLFSSL_STUB("wolfSSL_sk_SSL_CIPHER_value");
+    return NULL;
 }
     
 WOLFSSL_API void ERR_load_SSL_strings(void)
@@ -23721,6 +23725,14 @@ unsigned long wolfSSL_ERR_peek_error_line_data(const char **file, int *line,
 #endif
 
 #if defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
+
+STACK_OF(WOLFSSL_CIPHER) *wolfSSL_get_ciphers_compat(const WOLFSSL *ssl)
+{
+    (void)ssl;
+    WOLFSSL_STUB("wolfSSL_get_ciphers_compat");
+    return NULL;
+}
+
 void wolfSSL_OPENSSL_config(char *config_name)
 {
     WOLFSSL_STUB("wolfSSL_OPENSSL_config");

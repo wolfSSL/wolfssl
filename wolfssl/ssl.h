@@ -2310,11 +2310,10 @@ WOLFSSL_API void wolfSSL_get0_next_proto_negotiated(const WOLFSSL *s, const unsi
         unsigned *len);
 
 
-WOLFSSL_API int sk_SSL_COMP_zero(WOLFSSL* st);
-
 #ifdef WOLFSSL_HAPROXY
 WOLFSSL_API const unsigned char *SSL_SESSION_get0_id_context(
         const WOLFSSL_SESSION *sess, unsigned int *sid_ctx_length);
+WOLFSSL_API STACK_OF(WOLFSSL_CIPHER) *wolfSSL_get_ciphers_compat(const WOLFSSL *ssl);
 #endif
 
 WOLFSSL_API int SSL_SESSION_set1_id(WOLFSSL_SESSION *s, const unsigned char *sid, unsigned int sid_len);
@@ -2330,9 +2329,10 @@ WOLFSSL_API size_t SSL_get_finished(const WOLFSSL *s, void *buf, size_t count);
 WOLFSSL_API size_t SSL_get_peer_finished(const WOLFSSL *s, void *buf, size_t count);
 WOLFSSL_API void SSL_CTX_set_tmp_dh_callback(WOLFSSL_CTX *ctx, WOLFSSL_DH *(*dh) (WOLFSSL *ssl, int is_export, int keylength));
 WOLFSSL_API STACK_OF(SSL_COMP) *SSL_COMP_get_compression_methods(void);
-WOLFSSL_API int sk_SSL_CIPHER_num(const void * p);
 WOLFSSL_API int X509_STORE_load_locations(WOLFSSL_X509_STORE *ctx, const char *file, const char *dir);
-WOLFSSL_API int sk_SSL_CIPHER_value(void *ciphers, int idx);
+WOLFSSL_API int wolfSSL_sk_SSL_CIPHER_num(const void * p);
+WOLFSSL_API int wolfSSL_sk_SSL_COMP_zero(WOLFSSL_STACK* st);
+WOLFSSL_API WOLFSSL_CIPHER* wolfSSL_sk_SSL_CIPHER_value(void *ciphers, int idx);
 WOLFSSL_API void ERR_load_SSL_strings(void);
 
 #ifdef __cplusplus
