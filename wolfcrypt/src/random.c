@@ -533,7 +533,8 @@ int wc_InitRng_ex(WC_RNG* rng, void* heap, int devId)
 
     /* configure async RNG source if available */
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(HAVE_CAVIUM)
-    ret = wolfAsync_DevCtxInit(&rng->asyncDev, WOLFSSL_ASYNC_MARKER_RNG, devId);
+    ret = wolfAsync_DevCtxInit(&rng->asyncDev, WOLFSSL_ASYNC_MARKER_RNG,
+                                                        rng->heap, rng->devId);
     if (ret != 0)
         return ret;
 #endif
@@ -612,7 +613,7 @@ int wc_RNG_GenerateBlock(WC_RNG* rng, byte* output, word32 sz)
 #endif
 
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(HAVE_CAVIUM)
-    if (aes->asyncDev.marker == WOLFSSL_ASYNC_MARKER_RNG) {
+    if (rng->asyncDev.marker == WOLFSSL_ASYNC_MARKER_RNG) {
         return NitroxRngGenerateBlock(rng, output, sz);
     }
 #endif
@@ -687,7 +688,7 @@ int wc_FreeRng(WC_RNG* rng)
         return BAD_FUNC_ARG;
 
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(HAVE_CAVIUM)
-    wolfAsync_DevCtxFree(&rng->asyncDev);
+    wolfAsync_DevCtxFree(&rng->asyncDev, WOLFSSL_ASYNC_MARKER_RNG);
 #endif
 
 #ifdef HAVE_HASHDRBG
