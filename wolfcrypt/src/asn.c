@@ -9681,8 +9681,9 @@ static int wc_BuildEccKeyDer(ecc_key* key, byte* output, word32 inLen,
             pubidx += SetLength(pubSz + ASN_ECC_CONTEXT_SZ + 2, pub+pubidx);
         else /* leading zero */
             pubidx += SetLength(pubSz + ASN_ECC_CONTEXT_SZ + 1, pub+pubidx);
+
+        /* SetBitString adds leading zero */
         pubidx += SetBitString(pubSz, 0, pub + pubidx);
-        pub[pubidx++] = (byte)0; /* leading zero */
         ret = wc_ecc_export_x963(key, pub + pubidx, &pubSz);
         if (ret != 0) {
             XFREE(prv, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
