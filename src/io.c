@@ -1221,7 +1221,6 @@ int EmbedCrlLookup(WOLFSSL_CRL* crl, const char* url, int urlSz)
     domainName = (char*)XMALLOC(MAX_URL_ITEM_SIZE, crl->heap,
                                                        DYNAMIC_TYPE_TMP_BUFFER);
     if (domainName == NULL) {
-        XFREE(path, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         return MEMORY_E;
     }
 #endif
