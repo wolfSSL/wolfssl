@@ -127,6 +127,7 @@ autoscan.log
 TAGS
 .DS_Store
 support/cyassl.pc
+support/wolfssl.pc
 cyassl/ctaocrypt/stamp-h1
 swig/_cyassl.so
 swig/_wolfssl.so
