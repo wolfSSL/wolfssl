@@ -9319,10 +9319,12 @@ static INLINE int DtlsCheckWindow(WOLFSSL* ssl)
         WOLFSSL_MSG("Current record sequence number from the past.");
         return 0;
     }
+#ifndef WOLFSSL_DTLS_ALLOW_FUTURE
     else if (!curLT && (diff > DTLS_SEQ_BITS)) {
         WOLFSSL_MSG("Rejecting message too far into the future.");
         return 0;
     }
+#endif
     else if (curLT) {
         word32 idx = diff / DTLS_WORD_BITS;
         word32 newDiff = diff % DTLS_WORD_BITS;
