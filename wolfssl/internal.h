@@ -924,6 +924,10 @@ enum {
     #define WOLFSSL_DTLS_PEERSEQ_SZ WOLFSSL_MULTICAST_PEERS
 #endif /* WOLFSSL_MULTICAST */
 
+#ifndef WOLFSSL_MAX_MTU
+    #define WOLFSSL_MAX_MTU 1500
+#endif /* WOLFSSL_MAX_MTU */
+
 
 
 enum Misc {
@@ -970,7 +974,7 @@ enum Misc {
                                 /* RECORD_HEADER_SZ + BLOCK_SZ (pad) + Max
                                    digest sz + BLOC_SZ (iv) + pad byte (1) */
     MAX_COMP_EXTRA  = 1024,     /* max compression extra */
-    MAX_MTU         = 1500,     /* max expected MTU */
+    MAX_MTU         = WOLFSSL_MAX_MTU,     /* max expected MTU */
     MAX_UDP_SIZE    = 8192 - 100, /* was MAX_MTU - 100 */
     MAX_DH_SZ       = 1036,     /* 4096 p, pub, g + 2 byte size for each */
     MAX_STR_VERSION = 8,        /* string rep of protocol version */
