@@ -95,6 +95,7 @@ WOLFSSL_API int wolfSSL_BN_lshift(WOLFSSL_BIGNUM*, const WOLFSSL_BIGNUM*, int);
 WOLFSSL_API int wolfSSL_BN_add_word(WOLFSSL_BIGNUM*, WOLFSSL_BN_ULONG);
 WOLFSSL_API int wolfSSL_BN_set_bit(WOLFSSL_BIGNUM*, int);
 WOLFSSL_API int wolfSSL_BN_set_word(WOLFSSL_BIGNUM*, WOLFSSL_BN_ULONG);
+WOLFSSL_API unsigned long wolfSSL_BN_get_word(const WOLFSSL_BIGNUM*);
 
 WOLFSSL_API int wolfSSL_BN_add(WOLFSSL_BIGNUM*, WOLFSSL_BIGNUM*,
                                WOLFSSL_BIGNUM*);
@@ -151,6 +152,7 @@ typedef WOLFSSL_BN_GENCB BN_GENCB;
 #define BN_dup  wolfSSL_BN_dup
 #define BN_copy wolfSSL_BN_copy
 
+#define BN_get_word wolfSSL_BN_get_word
 #define BN_set_word wolfSSL_BN_set_word
 
 #define BN_dec2bn wolfSSL_BN_dec2bn

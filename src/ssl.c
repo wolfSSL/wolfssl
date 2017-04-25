@@ -11884,20 +11884,61 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         return WOLFSSL_SUCCESS;
     }
 
-    #ifndef NO_WOLFSSL_STUB
-    WOLFSSL_RSA* wolfSSL_RSA_generate_key(int len, unsigned long bits,
+
+    /* Generates a RSA key of length len
+     *
+     * len  length of RSA key i.e. 2048
+     * e    e to use when generating RSA key
+     * f    callback function for generation details
+     * data user callback argument
+     *
+     * Note: Because of wc_MakeRsaKey an RSA key size generated can be slightly
+     *       rounded down. For example generating a key of size 2999 with e =
+     *       65537 will make a key of size 374 instead of 375.
+     * Returns a new RSA key on success and NULL on failure
+     */
+    WOLFSSL_RSA* wolfSSL_RSA_generate_key(int len, unsigned long e,
                                           void(*f)(int, int, void*), void* data)
     {
-        /* no tmp key needed, actual generation not supported */
-        WOLFSSL_STUB("RSA_generate_key");
-        WOLFSSL_ENTER("RSA_generate_key");
-        (void)len;
-        (void)bits;
+        WOLFSSL_RSA*    rsa = NULL;
+        WOLFSSL_BIGNUM* bn  = NULL;
+
+        WOLFSSL_ENTER("wolfSSL_RSA_generate_key");
+
         (void)f;
         (void)data;
-        return NULL;
+
+        if (len < 0) {
+            WOLFSSL_MSG("Bad argument: length was less than 0");
+            return NULL;
+        }
+
+        bn = wolfSSL_BN_new();
+        if (bn == NULL) {
+            WOLFSSL_MSG("Error creating big number");
+            return NULL;
+        }
+
+        if (wolfSSL_BN_set_word(bn, (WOLFSSL_BN_ULONG)e) != SSL_SUCCESS) {
+            WOLFSSL_MSG("Error using e value");
+            wolfSSL_BN_free(bn);
+            return NULL;
+        }
+
+        rsa = wolfSSL_RSA_new();
+        if (rsa == NULL) {
+            WOLFSSL_MSG("memory error");
+        }
+        else {
+            if (wolfSSL_RSA_generate_key_ex(rsa, len, bn, NULL) != SSL_SUCCESS){
+                wolfSSL_RSA_free(rsa);
+                rsa = NULL;
+            }
+        }
+        wolfSSL_BN_free(bn);
+
+        return rsa;
     }
-    #endif
 
 
 #ifndef NO_CERTS
@@ -21683,6 +21724,33 @@ int wolfSSL_BN_set_word(WOLFSSL_BIGNUM* bn, WOLFSSL_BN_ULONG w)
     return WOLFSSL_SUCCESS;
 }
 
+
+/* Returns the big number as an unsigned long if possible.
+ *
+ * bn  big number structure to get value from
+ *
+ * Returns value or 0xFFFFFFFFL if bigger than unsigned long.
+ */
+unsigned long wolfSSL_BN_get_word(const WOLFSSL_BIGNUM* bn)
+{
+    mp_int* mp;
+
+    WOLFSSL_MSG("wolfSSL_BN_get_word");
+
+    if (bn == NULL) {
+        WOLFSSL_MSG("Invalid argument");
+        return 0;
+    }
+
+    if (wolfSSL_BN_num_bytes(bn) > (int)sizeof(unsigned long)) {
+        WOLFSSL_MSG("bignum is larger than unsigned long");
+        return 0xFFFFFFFFL;
+    }
+    mp = (mp_int*)bn->internal;
+
+    return (unsigned long)(mp->dp[0]);
+}
+
 /* return code compliant with OpenSSL :
  *   number length in decimal if success, 0 if error
  */
@@ -22957,7 +23025,6 @@ int wolfSSL_RSA_generate_key_ex(WOLFSSL_RSA* rsa, int bits, WOLFSSL_BIGNUM* bn,
     int ret = WOLFSSL_FAILURE;
 
     (void)cb;
-    (void)bn;
     (void)bits;
 
     WOLFSSL_ENTER("wolfSSL_RSA_generate_key_ex");
@@ -22984,8 +23051,8 @@ int wolfSSL_RSA_generate_key_ex(WOLFSSL_RSA* rsa, int bits, WOLFSSL_BIGNUM* bn,
 
         if (wc_InitRng(rng) < 0)
             WOLFSSL_MSG("RNG init failed");
-        else if (wc_MakeRsaKey((RsaKey*)rsa->internal,
-                               bits, WC_RSA_EXPONENT, rng) != MP_OKAY)
+        else if (wc_MakeRsaKey((RsaKey*)rsa->internal, bits,
+                    wolfSSL_BN_get_word(bn), rng) != MP_OKAY)
             WOLFSSL_MSG("wc_MakeRsaKey failed");
         else if (SetRsaExternal(rsa) != WOLFSSL_SUCCESS)
             WOLFSSL_MSG("SetRsaExternal failed");
@@ -29429,6 +29496,9 @@ int wolfSSL_CIPHER_get_bits(const WOLFSSL_CIPHER *c, int *alg_bits)
 #endif /* #if defined(OPENSSL_EXTRA) && (defined(HAVE_STUNNEL) || defined(WOLFSSL_NGINX)) */
 
 
+/* stunnel compatibility functions*/
+#if defined(OPENSSL_EXTRA) && (defined(HAVE_STUNNEL) || defined(WOLFSSL_NGINX))
+
 int wolfSSL_sk_X509_NAME_num(const WOLF_STACK_OF(WOLFSSL_X509_NAME) *s)
 {
     WOLFSSL_ENTER("wolfSSL_sk_X509_NAME_num");
@@ -29447,9 +29517,6 @@ int wolfSSL_sk_X509_num(const WOLF_STACK_OF(WOLFSSL_X509) *s)
         return -1;
     return (int)s->num;
 }
-
-/* stunnel compatibility functions*/
-#if defined(OPENSSL_EXTRA) && (defined(HAVE_STUNNEL) || defined(WOLFSSL_NGINX))
 
 int wolfSSL_X509_NAME_print_ex(WOLFSSL_BIO* bio, WOLFSSL_X509_NAME* name,
                 int indent, unsigned long flags)

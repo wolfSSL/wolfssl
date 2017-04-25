@@ -14635,6 +14635,13 @@ static void test_wolfSSL_BN(void)
     AssertIntEQ((int)(value[0] & 0x03), 3);
     BN_free(val);
 
+    AssertIntEQ(BN_set_word(a, 1), SSL_SUCCESS);
+    AssertIntEQ(BN_set_word(b, 5), SSL_SUCCESS);
+    AssertIntEQ(BN_sub(c, a, b), SSL_SUCCESS);
+    AssertNotNull(BN_bn2dec(c));
+    AssertIntEQ(XMEMCMP(BN_bn2dec(c), "-4", sizeof("-4")), 0);
+    AssertIntEQ(BN_get_word(c), 4);
+
     BN_free(a);
     BN_free(b);
     BN_free(c);
@@ -15900,6 +15907,33 @@ static void test_wolfSSL_MD4(void)
 #endif
 }
 
+
+static void test_wolfSSL_RSA(void)
+{
+#if defined(OPENSSL_EXTRA) && !defined(NO_RSA)
+    RSA* rsa;
+
+    printf(testingFmt, "wolfSSL_RSA()");
+
+    AssertNotNull(rsa = RSA_generate_key(2048, 3, NULL, NULL));
+    AssertIntEQ(RSA_size(rsa), 256);
+    RSA_free(rsa);
+
+    AssertNotNull(rsa = RSA_generate_key(3072, 17, NULL, NULL));
+    AssertIntEQ(RSA_size(rsa), 384);
+    RSA_free(rsa);
+
+    AssertNotNull(rsa = RSA_generate_key(2999, 65537, NULL, NULL));
+    RSA_free(rsa);
+
+    AssertNull(RSA_generate_key(-1, 3, NULL, NULL));
+    AssertNull(RSA_generate_key(511, 3, NULL, NULL)); /* RSA_MIN_SIZE - 1 */
+    AssertNull(RSA_generate_key(4097, 3, NULL, NULL)); /* RSA_MAX_SIZE + 1 */
+    AssertNull(RSA_generate_key(2048, 0, NULL, NULL));
+
+    printf(resultFmt, passed);
+#endif
+}
 static void test_no_op_functions(void)
 {
     #if defined(OPENSSL_EXTRA)
@@ -16722,6 +16756,7 @@ void ApiTest(void)
     test_wolfSSL_DES_ecb_encrypt();
     test_wolfSSL_sk_GENERAL_NAME();
     test_wolfSSL_MD4();
+    test_wolfSSL_RSA();
 
     /* test the no op functions for compatibility */
     test_no_op_functions();
