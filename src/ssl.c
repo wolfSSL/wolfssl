@@ -9836,8 +9836,8 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         if (hint == 0)
             ctx->server_hint[0] = 0;
         else {
-            XSTRNCPY(ctx->server_hint, hint, MAX_PSK_ID_LEN);
-            ctx->server_hint[MAX_PSK_ID_LEN - 1] = '\0';
+            XSTRNCPY(ctx->server_hint, hint, sizeof(ctx->server_hint));
+            ctx->server_hint[MAX_PSK_ID_LEN] = '\0'; /* null term */
         }
         return SSL_SUCCESS;
     }
@@ -9853,8 +9853,9 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         if (hint == 0)
             ssl->arrays->server_hint[0] = 0;
         else {
-            XSTRNCPY(ssl->arrays->server_hint, hint, MAX_PSK_ID_LEN);
-            ssl->arrays->server_hint[MAX_PSK_ID_LEN - 1] = '\0';
+            XSTRNCPY(ssl->arrays->server_hint, hint,
+                                            sizeof(ssl->arrays->server_hint));
+            ssl->arrays->server_hint[MAX_PSK_ID_LEN] = '\0'; /* null term */
         }
         return SSL_SUCCESS;
     }
