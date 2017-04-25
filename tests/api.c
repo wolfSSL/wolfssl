@@ -14638,8 +14638,10 @@ static void test_wolfSSL_BN(void)
     AssertIntEQ(BN_set_word(a, 1), SSL_SUCCESS);
     AssertIntEQ(BN_set_word(b, 5), SSL_SUCCESS);
     AssertIntEQ(BN_sub(c, a, b), SSL_SUCCESS);
+#if defined(WOLFSSL_KEY_GEN) || defined(HAVE_COMP_KEY)
     AssertNotNull(BN_bn2dec(c));
     AssertIntEQ(XMEMCMP(BN_bn2dec(c), "-4", sizeof("-4")), 0);
+#endif
     AssertIntEQ(BN_get_word(c), 4);
 
     BN_free(a);
@@ -15910,7 +15912,7 @@ static void test_wolfSSL_MD4(void)
 
 static void test_wolfSSL_RSA(void)
 {
-#if defined(OPENSSL_EXTRA) && !defined(NO_RSA)
+#if defined(OPENSSL_EXTRA) && !defined(NO_RSA) && defined(WOLFSSL_KEY_GEN)
     RSA* rsa;
 
     printf(testingFmt, "wolfSSL_RSA()");

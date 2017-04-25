@@ -19490,86 +19490,138 @@ long wolfSSL_get_verify_result(const WOLFSSL *ssl)
 }
 
 
+#ifndef NO_WOLFSSL_STUB
+/* shows the number of accepts attempted by CTX in it's lifetime */
 long wolfSSL_CTX_sess_accept(WOLFSSL_CTX* ctx)
 {
+    WOLFSSL_STUB("wolfSSL_CTX_sess_accept");
     (void)ctx;
     return 0;
 }
+#endif
 
+#ifndef NO_WOLFSSL_STUB
+/* shows the number of connects attempted CTX in it's lifetime */
 long wolfSSL_CTX_sess_connect(WOLFSSL_CTX* ctx)
 {
+    WOLFSSL_STUB("wolfSSL_CTX_sess_connect");
     (void)ctx;
     return 0;
 }
+#endif
 
 
+#ifndef NO_WOLFSSL_STUB
+/* shows the number of accepts completed by CTX in it's lifetime */
 long wolfSSL_CTX_sess_accept_good(WOLFSSL_CTX* ctx)
 {
+    WOLFSSL_STUB("wolfSSL_CTX_sess_accept_good");
     (void)ctx;
     return 0;
 }
+#endif
 
 
+#ifndef NO_WOLFSSL_STUB
+/* shows the number of connects completed by CTX in it's lifetime */
 long wolfSSL_CTX_sess_connect_good(WOLFSSL_CTX* ctx)
 {
+    WOLFSSL_STUB("wolfSSL_CTX_sess_connect_good");
     (void)ctx;
     return 0;
 }
+#endif
 
 
+#ifndef NO_WOLFSSL_STUB
+/* shows the number of renegotiation accepts attempted by CTX */
 long wolfSSL_CTX_sess_accept_renegotiate(WOLFSSL_CTX* ctx)
 {
+    WOLFSSL_STUB("wolfSSL_CTX_sess_accept_renegotiate");
     (void)ctx;
     return 0;
 }
+#endif
 
 
+#ifndef NO_WOLFSSL_STUB
+/* shows the number of renegotiation accepts attempted by CTX */
 long wolfSSL_CTX_sess_connect_renegotiate(WOLFSSL_CTX* ctx)
 {
+    WOLFSSL_STUB("wolfSSL_CTX_sess_connect_renegotiate");
     (void)ctx;
     return 0;
 }
+#endif
 
 
+#ifndef NO_WOLFSSL_STUB
 long wolfSSL_CTX_sess_hits(WOLFSSL_CTX* ctx)
 {
+    WOLFSSL_STUB("wolfSSL_CTX_sess_hits");
     (void)ctx;
     return 0;
 }
+#endif
 
 
+#ifndef NO_WOLFSSL_STUB
 long wolfSSL_CTX_sess_cb_hits(WOLFSSL_CTX* ctx)
 {
+    WOLFSSL_STUB("wolfSSL_CTX_sess_cb_hits");
     (void)ctx;
     return 0;
 }
+#endif
 
 
+#ifndef NO_WOLFSSL_STUB
 long wolfSSL_CTX_sess_cache_full(WOLFSSL_CTX* ctx)
 {
+    WOLFSSL_STUB("wolfSSL_CTX_sess_cache_full");
     (void)ctx;
     return 0;
 }
+#endif
 
 
+#ifndef NO_WOLFSSL_STUB
 long wolfSSL_CTX_sess_misses(WOLFSSL_CTX* ctx)
 {
+    WOLFSSL_STUB("wolfSSL_CTX_sess_misses");
     (void)ctx;
     return 0;
 }
+#endif
 
 
+#ifndef NO_WOLFSSL_STUB
 long wolfSSL_CTX_sess_timeouts(WOLFSSL_CTX* ctx)
 {
+    WOLFSSL_STUB("wolfSSL_CTX_sess_timeouts");
     (void)ctx;
     return 0;
 }
+#endif
 
 
+/* Return the total number of sessions */
 long wolfSSL_CTX_sess_number(WOLFSSL_CTX* ctx)
 {
+    word32 total = 0;
+
+    WOLFSSL_ENTER("wolfSSL_CTX_sess_number");
     (void)ctx;
-    return 0;
+
+#ifdef WOLFSSL_SESSION_STATS
+    if (wolfSSL_get_session_stats(NULL, &total, NULL, NULL) != SSL_SUCCESS) {
+        WOLFSSL_MSG("Error getting session stats");
+    }
+#else
+    WOLFSSL_MSG("Please use macro WOLFSSL_SESSION_STATS for session stats");
+#endif
+
+    return (long)total;
 }
 
 
@@ -19673,11 +19725,36 @@ long wolfSSL_CTX_set_tlsext_status_arg(WOLFSSL_CTX* ctx, void* arg)
 #endif /* NO_CERTS */
 
 
-/*** TBC ***/
+/* Get the session cache mode for CTX
+ *
+ * ctx  WOLFSSL_CTX struct to get cache mode from
+ *
+ * Returns a bit mask that has the session cache mode */
 WOLFSSL_API long wolfSSL_CTX_get_session_cache_mode(WOLFSSL_CTX* ctx)
 {
-    (void)ctx;
-    return 0;
+    long m = 0;
+
+    WOLFSSL_ENTER("SSL_CTX_set_session_cache_mode");
+
+    if (ctx == NULL) {
+        return m;
+    }
+
+    if (ctx->sessionCacheOff != 1) {
+        m |= SSL_SESS_CACHE_SERVER;
+    }
+
+    if (ctx->sessionCacheFlushOff == 1) {
+        m |= SSL_SESS_CACHE_NO_AUTO_CLEAR;
+    }
+
+#ifdef HAVE_EXT_CACHE
+    if (ctx->internalCacheOff == 1) {
+        m |= SSL_SESS_CACHE_NO_INTERNAL_STORE;
+    }
+#endif
+
+    return m;
 }
 
 
@@ -23025,6 +23102,7 @@ int wolfSSL_RSA_generate_key_ex(WOLFSSL_RSA* rsa, int bits, WOLFSSL_BIGNUM* bn,
     int ret = WOLFSSL_FAILURE;
 
     (void)cb;
+    (void)bn;
     (void)bits;
 
     WOLFSSL_ENTER("wolfSSL_RSA_generate_key_ex");
