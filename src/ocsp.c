@@ -742,11 +742,15 @@ WOLFSSL_OCSP_BASICRESP* wolfSSL_OCSP_response_get1_basic(OcspResponse* response)
                                       DYNAMIC_TYPE_TMP_BUFFER);
     bs->source = (byte*)XMALLOC(bs->maxIdx, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (bs->status == NULL || bs->source == NULL) {
+        if (bs->status) XFREE(bs->status, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        if (bs->source) XFREE(bs->source, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         wolfSSL_OCSP_RESPONSE_free(bs);
         bs = NULL;
     }
-    XMEMCPY(bs->status, response->status, sizeof(CertStatus));
-    XMEMCPY(bs->source, response->source, response->maxIdx);
+    else {
+        XMEMCPY(bs->status, response->status, sizeof(CertStatus));
+        XMEMCPY(bs->source, response->source, response->maxIdx);
+    }
     return bs;
 }
 
@@ -765,7 +769,7 @@ OcspRequest* wolfSSL_OCSP_REQUEST_new(void)
 void wolfSSL_OCSP_REQUEST_free(OcspRequest* request)
 {
     FreeOcspRequest(request);
-    XFREE(request, 0, DYNAMIC_TYPE_OPENSSL);
+    XFREE(request, NULL, DYNAMIC_TYPE_OPENSSL);
 }
 
 int wolfSSL_i2d_OCSP_REQUEST(OcspRequest* request, unsigned char** data)
