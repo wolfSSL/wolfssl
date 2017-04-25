@@ -23996,7 +23996,7 @@ int wolfSSL_X509_STORE_CTX_get1_issuer(WOLFSSL_X509 **issuer,
     cert = (DecodedCert*)XMALLOC(sizeof(DecodedCert), NULL,
                                  DYNAMIC_TYPE_TMP_BUFFER);
     if (cert == NULL)
-        return NULL;
+        return SSL_FAILURE;
 #endif
 
     /* Use existing CA retrieval APIs that use DecodedCert. */

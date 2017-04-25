@@ -2278,7 +2278,7 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
                 enc->des3 = (Des3*)XMALLOC(sizeof(Des3), heap, DYNAMIC_TYPE_CIPHER);
             if (enc->des3 == NULL)
                 return MEMORY_E;
-            XMEMSET(enc->des3, 0, sizeof(Aes));
+            XMEMSET(enc->des3, 0, sizeof(Des3));
         }
         if (dec) {
             if (dec->des3 == NULL)
