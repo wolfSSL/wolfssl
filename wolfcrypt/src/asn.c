@@ -7700,7 +7700,6 @@ int SetName(byte* output, word32 outputSz, CertName* name)
                 firstSz  = SetObjectId(JOINT_LEN + 1, firstLen);
             }
             thisLen += firstSz;
-            thisLen++;                                /* object id */
 
             seqSz = SetSequence(thisLen, sequence);
             thisLen += seqSz;
