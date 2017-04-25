@@ -6336,15 +6336,49 @@ int wolfSSL_CertManagerLoadCA(WOLFSSL_CERT_MANAGER* cm, const char* file,
 }
 
 
-#ifndef NO_WOLFSSL_STUB
-int wolfSSL_CTX_check_private_key(WOLFSSL_CTX* ctx)
+/* Check private against public in certificate for match
+ *
+ * ctx  WOLFSSL_CTX structure to check private key in
+ *
+ * Returns SSL_SUCCESS on good private key and SSL_FAILURE if miss matched. */
+int wolfSSL_CTX_check_private_key(const WOLFSSL_CTX* ctx)
 {
-    /* TODO: check private against public for RSA match */
-    (void)ctx;
-    WOLFSSL_STUB("SSL_CTX_check_private_key");
-    return SSL_SUCCESS;
-}
+    DecodedCert der;
+    word32 size;
+    byte*  buff;
+    int    ret;
+
+    WOLFSSL_ENTER("wolfSSL_CTX_check_private_key");
+
+    if (ctx == NULL) {
+        return SSL_FAILURE;
+    }
+
+#ifndef NO_CERTS
+    size = ctx->certificate->length;
+    buff = ctx->certificate->buffer;
+    InitDecodedCert(&der, buff, size, ctx->heap);
+    if (ParseCertRelative(&der, CERT_TYPE, NO_VERIFY, NULL) != 0) {
+        FreeDecodedCert(&der);
+        return SSL_FAILURE;
+    }
+
+    size = ctx->privateKey->length;
+    buff = ctx->privateKey->buffer;
+    ret  = wc_CheckPrivateKey(buff, size, &der);
+    FreeDecodedCert(&der);
+
+    if (ret == 1) {
+        return SSL_SUCCESS;
+    }
+    else {
+        return SSL_FAILURE;
+    }
+#else
+    WOLFSSL_MSG("NO_CERTS is defined, can not check private key");
+    return SSL_FAILURE;
 #endif
+}
 
 #ifdef HAVE_CRL
 

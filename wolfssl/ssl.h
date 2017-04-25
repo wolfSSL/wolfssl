@@ -1369,7 +1369,7 @@ WOLFSSL_API long wolfSSL_CTX_get_options(WOLFSSL_CTX* ctx);
 WOLFSSL_API long wolfSSL_CTX_clear_options(WOLFSSL_CTX*, long);
 
 #ifndef NO_CERTS
-  WOLFSSL_API int  wolfSSL_CTX_check_private_key(WOLFSSL_CTX*);
+  WOLFSSL_API int  wolfSSL_CTX_check_private_key(const WOLFSSL_CTX*);
 #endif /* !NO_CERTS */
 
 WOLFSSL_API void wolfSSL_ERR_free_strings(void);
