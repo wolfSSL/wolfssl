@@ -2258,6 +2258,7 @@ struct WOLFSSL_CTX {
 #endif
     Suites*     suites;           /* make dynamic, user may not need/set */
     void*       heap;             /* for user memory overrides */
+    int         verifyDepth;
     byte        verifyPeer;
     byte        verifyNone;
     byte        failNoCert;
@@ -2310,7 +2311,6 @@ struct WOLFSSL_CTX {
     unsigned long     mask;             /* store SSL_OP_ flags */
     const unsigned char *alpn_cli_protos;/* ALPN client protocol list */
     unsigned int         alpn_cli_protos_len;
-    byte              verifyDepth;      /* maximum verification depth */
     byte              sessionCtxSz;
     CallbackInfoState* CBIS;      /* used to get info about SSL state */
 #endif
@@ -3310,6 +3310,7 @@ struct WOLFSSL {
     WOLFSSL_SESSION* extSession;
 #endif
     WOLFSSL_ALERT_HISTORY alert_history;
+    int             verifyDepth;
     int             error;
     int             rfd;                /* read  file descriptor */
     int             wfd;                /* write file descriptor */

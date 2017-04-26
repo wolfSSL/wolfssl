@@ -15952,6 +15952,39 @@ static void test_wolfSSL_RSA(void)
     printf(resultFmt, passed);
 #endif
 }
+
+static void test_wolfSSL_verify_depth(void)
+{
+#if defined(OPENSSL_EXTRA) && !defined(NO_RSA)
+    WOLFSSL*     ssl;
+    WOLFSSL_CTX* ctx;
+    long         depth;
+
+    AssertNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+
+    AssertTrue(wolfSSL_CTX_use_certificate_file(ctx, cliCertFile, SSL_FILETYPE_PEM));
+    AssertTrue(wolfSSL_CTX_use_PrivateKey_file(ctx, cliKeyFile, SSL_FILETYPE_PEM));
+    AssertIntEQ(wolfSSL_CTX_load_verify_locations(ctx, caCertFile, 0), SSL_SUCCESS);
+
+    AssertIntGT((depth = SSL_CTX_get_verify_depth(ctx)), 0);
+    AssertNotNull(ssl = SSL_new(ctx));
+    AssertIntEQ(SSL_get_verify_depth(ssl), SSL_CTX_get_verify_depth(ctx));
+    SSL_free(ssl);
+
+    SSL_CTX_set_verify_depth(ctx, -1);
+    AssertIntEQ(depth, SSL_CTX_get_verify_depth(ctx));
+
+    SSL_CTX_set_verify_depth(ctx, 2);
+    AssertIntEQ(2, SSL_CTX_get_verify_depth(ctx));
+    AssertNotNull(ssl = SSL_new(ctx));
+    AssertIntEQ(2, SSL_get_verify_depth(ssl));
+
+    SSL_free(ssl);
+    SSL_CTX_free(ctx);
+    printf(resultFmt, passed);
+#endif
+}
+
 static void test_no_op_functions(void)
 {
     #if defined(OPENSSL_EXTRA)
@@ -16775,6 +16808,7 @@ void ApiTest(void)
     test_wolfSSL_sk_GENERAL_NAME();
     test_wolfSSL_MD4();
     test_wolfSSL_RSA();
+    test_wolfSSL_verify_depth();
 
     /* test the no op functions for compatibility */
     test_no_op_functions();
