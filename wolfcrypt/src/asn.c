@@ -1049,19 +1049,19 @@ static word32 SetBitString16Bit(word16 val, byte* output)
 
     if ((val >> 8) != 0) {
         len = 2;
-        lastByte = val >> 8;
+        lastByte = (byte)(val >> 8);
     }
     else {
         len = 1;
-        lastByte = val;
+        lastByte = (byte)val;
     }
 
     while (((lastByte >> unusedBits) & 0x01) == 0x00)
         unusedBits++;
 
     idx = SetBitString(len, unusedBits, output);
-    output[idx++] = val;
-    output[idx++] = val >> 8;
+    output[idx++] = (byte)val;
+    output[idx++] = (byte)(val >> 8);
 
     return idx;
 }
@@ -4686,7 +4686,7 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
                     }
 
                 #ifdef WOLFSSL_SMALL_STACK
-                    XFREE(encodedSig, heap, DYNAMIC_TYPE_TMP_BUFFER);
+                    XFREE(encodedSig, sigCtx->heap, DYNAMIC_TYPE_TMP_BUFFER);
                 #endif
                     break;
                 }

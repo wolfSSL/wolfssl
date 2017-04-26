@@ -52,6 +52,9 @@ typedef enum {
     WC_PKCS7_DECODE
 } pkcs7Direction;
 
+#define MAX_PKCS7_DIGEST_SZ (MAX_SEQ_SZ + MAX_ALGO_SZ + \
+                             MAX_OCTET_STR_SZ + WC_MAX_DIGEST_SIZE)
+
 
 /* placed ASN.1 contentType OID into *output, return idx on success,
  * 0 upon failure */
@@ -755,12 +758,11 @@ static int wc_PKCS7_SignedDataBuildSignature(PKCS7* pkcs7,
 #ifdef HAVE_ECC
     int hashSz;
 #endif
-    word32 digestInfoSz = MAX_SEQ_SZ + MAX_ALGO_SZ +
-                          MAX_OCTET_STR_SZ + WC_MAX_DIGEST_SIZE;
+    word32 digestInfoSz = MAX_PKCS7_DIGEST_SZ;
 #ifdef WOLFSSL_SMALL_STACK
     byte* digestInfo;
 #else
-    byte digestInfo[digestInfoSz];
+    byte digestInfo[MAX_PKCS7_DIGEST_SZ];
 #endif
 
     if (pkcs7 == NULL || esd == NULL)
@@ -1142,8 +1144,6 @@ int wc_PKCS7_EncodeSignedData(PKCS7* pkcs7, byte* output, word32 outputSz)
 static int wc_PKCS7_RsaVerify(PKCS7* pkcs7, byte* sig, int sigSz,
                               byte* hash, word32 hashSz)
 {
-    #define  MAX_PKCS7_DIGEST_SZ (MAX_SEQ_SZ + MAX_ALGO_SZ +\
-                                  MAX_OCTET_STR_SZ + WC_MAX_DIGEST_SIZE)
     int ret = 0;
     word32 scratch = 0;
 #ifdef WOLFSSL_SMALL_STACK
@@ -1219,8 +1219,6 @@ static int wc_PKCS7_RsaVerify(PKCS7* pkcs7, byte* sig, int sigSz,
 static int wc_PKCS7_EcdsaVerify(PKCS7* pkcs7, byte* sig, int sigSz,
                                 byte* hash, word32 hashSz)
 {
-    #define  MAX_PKCS7_DIGEST_SZ (MAX_SEQ_SZ + MAX_ALGO_SZ +\
-                                  MAX_OCTET_STR_SZ + WC_MAX_DIGEST_SIZE)
     int ret = 0;
     int stat = 0;
 #ifdef WOLFSSL_SMALL_STACK
@@ -1301,7 +1299,7 @@ static int wc_PKCS7_EcdsaVerify(PKCS7* pkcs7, byte* sig, int sigSz,
  *
  * returns 0 on success, negative on error */
 static int wc_PKCS7_BuildSignedDataDigest(PKCS7* pkcs7, byte* signedAttrib,
-                                      word32 signedAttribSz, byte* pkcs7Digest, 
+                                      word32 signedAttribSz, byte* pkcs7Digest,
                                       word32* pkcs7DigestSz, byte** plainDigest,
                                       word32* plainDigestSz)
 {
@@ -1313,12 +1311,10 @@ static int wc_PKCS7_BuildSignedDataDigest(PKCS7* pkcs7, byte* signedAttrib,
     byte digestStr[MAX_OCTET_STR_SZ];
     byte algoId[MAX_ALGO_SZ];
     word32 digestInfoSeqSz, digestStrSz, algoIdSz;
-    word32 digestInfoSz = MAX_SEQ_SZ + MAX_ALGO_SZ + MAX_OCTET_STR_SZ +
-                          WC_MAX_DIGEST_SIZE;
 #ifdef WOLFSSL_SMALL_STACK
     byte* digestInfo;
 #else
-    byte digestInfo[digestInfoSz];
+    byte digestInfo[MAX_PKCS7_DIGEST_SZ];
 #endif
 
     wc_HashAlg hash;
@@ -1330,14 +1326,14 @@ static int wc_PKCS7_BuildSignedDataDigest(PKCS7* pkcs7, byte* signedAttrib,
     }
 
 #ifdef WOLFSSL_SMALL_STACK
-    digestInfo = (byte*)XMALLOC(digestInfoSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    digestInfo = (byte*)XMALLOC(MAX_PKCS7_DIGEST_SZ, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (digestInfo == NULL)
         return MEMORY_E;
 #endif
 
     XMEMSET(pkcs7Digest, 0, *pkcs7DigestSz);
     XMEMSET(digest,      0, WC_MAX_DIGEST_SIZE);
-    XMEMSET(digestInfo,  0, digestInfoSz);
+    XMEMSET(digestInfo,  0, MAX_PKCS7_DIGEST_SZ);
 
     hashSz = wc_PKCS7_SetHashType(pkcs7, &hashType);
     if (hashSz < 0) {
@@ -1462,27 +1458,25 @@ static int wc_PKCS7_SignedDataVerifySignature(PKCS7* pkcs7, byte* sig,
 {
     int ret = 0;
     word32 plainDigestSz, pkcs7DigestSz;
-    word32 maxDigestSz = MAX_SEQ_SZ + MAX_ALGO_SZ + MAX_OCTET_STR_SZ +
-                         WC_MAX_DIGEST_SIZE;
 
     byte* plainDigest; /* offset into pkcs7Digest */
 #ifdef WOLFSSL_SMALL_STACK
     byte* pkcs7Digest;
 #else
-    byte  pkcs7Digest[maxDigestSz];
+    byte  pkcs7Digest[MAX_PKCS7_DIGEST_SZ];
 #endif
 
     if (pkcs7 == NULL)
         return BAD_FUNC_ARG;
 
 #ifdef WOLFSSL_SMALL_STACK
-    pkcs7Digest = (byte*)XMALLOC(maxDigestSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    pkcs7Digest = (byte*)XMALLOC(MAX_PKCS7_DIGEST_SZ, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (pkcs7Digest == NULL)
         return MEMORY_E;
 #endif
 
     /* build hash to verify against */
-    pkcs7DigestSz = maxDigestSz;
+    pkcs7DigestSz = MAX_PKCS7_DIGEST_SZ;
     ret = wc_PKCS7_BuildSignedDataDigest(pkcs7, signedAttrib,
                                          signedAttribSz, pkcs7Digest,
                                          &pkcs7DigestSz, &plainDigest,

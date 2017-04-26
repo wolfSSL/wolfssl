@@ -12356,17 +12356,17 @@ static int pkcs7_load_certs_keys(byte* rsaCert, word32* rsaCertSz,
 #ifndef NO_RSA
 
 #ifdef USE_CERT_BUFFERS_1024
-    if (*rsaCertSz < sizeof_client_cert_der_1024)
+    if (*rsaCertSz < (word32)sizeof_client_cert_der_1024)
         return -201;
 
     XMEMCPY(rsaCert, client_cert_der_1024, sizeof_client_cert_der_1024);
     *rsaCertSz = sizeof_client_cert_der_1024;
 #elif defined(USE_CERT_BUFFERS_2048)
-    if (*rsaCertSz < sizeof_client_cert_der_2048)
+    if (*rsaCertSz < (word32)sizeof_client_cert_der_2048)
         return -202;
 
     XMEMCPY(rsaCert, client_cert_der_2048, sizeof_client_cert_der_2048);
-    rsaCertSz = sizeof_client_cert_der_2048;
+    *rsaCertSz = sizeof_client_cert_der_2048;
 #else
     certFile = fopen(clientCert, "rb");
     if (!certFile)
@@ -12377,13 +12377,13 @@ static int pkcs7_load_certs_keys(byte* rsaCert, word32* rsaCertSz,
 #endif
 
 #ifdef USE_CERT_BUFFERS_1024
-    if (*rsaKeySz < sizeof_client_key_der_1024)
+    if (*rsaPrivKeySz < (word32)sizeof_client_key_der_1024)
         return -204;
 
     XMEMCPY(rsaPrivKey, client_key_der_1024, sizeof_client_key_der_1024);
     *rsaPrivKeySz = sizeof_client_key_der_1024;
 #elif defined(USE_CERT_BUFFERS_2048)
-    if (*rsaKeySz < sizeof_client_key_der_2048)
+    if (*rsaPrivKeySz < (word32)sizeof_client_key_der_2048)
         return -205;
 
     XMEMCPY(rsaPrivKey, client_key_der_2048, sizeof_client_key_der_2048);
@@ -12403,7 +12403,7 @@ static int pkcs7_load_certs_keys(byte* rsaCert, word32* rsaCertSz,
 #ifdef HAVE_ECC
 
 #ifdef USE_CERT_BUFFERS_256
-    if (*eccCertSz < sizeof_cliecc_cert_der_256)
+    if (*eccCertSz < (word32)sizeof_cliecc_cert_der_256)
         return -206;
 
     XMEMCPY(eccCert, cliecc_cert_der_256, sizeof_cliecc_cert_der_256);
@@ -12418,7 +12418,7 @@ static int pkcs7_load_certs_keys(byte* rsaCert, word32* rsaCertSz,
 #endif /* USE_CERT_BUFFERS_256 */
 
 #ifdef USE_CERT_BUFFERS_256
-    if (*eccPrivKeySz < sizeof_ecc_clikey_der_256)
+    if (*eccPrivKeySz < (word32)sizeof_ecc_clikey_der_256)
         return -208;
 
     XMEMCPY(eccPrivKey, ecc_clikey_der_256, sizeof_ecc_clikey_der_256);
