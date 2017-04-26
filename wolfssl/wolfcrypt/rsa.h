@@ -81,7 +81,7 @@ enum {
 
 
 /* RSA */
-typedef struct RsaKey {
+struct RsaKey {
     mp_int n, e, d, p, q, dP, dQ, u;
     void* heap;                               /* for user memory overrides */
     byte* data;                               /* temp buffer for async RSA */
@@ -98,7 +98,13 @@ typedef struct RsaKey {
     #endif
 #endif /* WOLFSSL_ASYNC_CRYPT */
     byte   dataIsAlloc;
-} RsaKey;
+};
+
+#ifndef WC_RSAKEY_TYPE_DEFINED
+    typedef struct RsaKey RsaKey;
+    #define WC_RSAKEY_TYPE_DEFINED
+#endif
+
 #endif /*HAVE_FIPS */
 
 WOLFSSL_API int  wc_InitRsaKey(RsaKey* key, void* heap);
