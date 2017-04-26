@@ -1233,7 +1233,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
                     }
                 #endif
                 }
-            } while (err == WC_PENDING_E);
+            } while (err == WC_PENDING_E || err == SSL_ERROR_WANT_WRITE);
             if (ret != write_msg_sz) {
                 printf("SSL_write msg error %d, %s\n", err,
                                                 ERR_error_string(err, buffer));

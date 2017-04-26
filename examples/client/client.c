@@ -1812,7 +1812,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
             }
         #endif
         }
-    } while (err == WC_PENDING_E);
+    } while (err == WC_PENDING_E || err == SSL_ERROR_WANT_READ);
     if (ret > 0) {
         reply[ret] = 0;
         printf("Server response: %s\n", reply);
