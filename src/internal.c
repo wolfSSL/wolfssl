@@ -6803,8 +6803,11 @@ int CopyDecodedToX509(WOLFSSL_X509* x509, DecodedCert* dCert)
 
 #endif /* KEEP_PEER_CERT || SESSION_CERTS */
 
-typedef struct DoCertArgs {
+typedef struct ProcPeerCertArgs {
     buffer*      certs;
+#ifdef WOLFSSL_TLS13
+    buffer*      exts; /* extentions */
+#endif
     DecodedCert* dCert;
     char*  domain;
     word32 idx;
@@ -6813,14 +6816,17 @@ typedef struct DoCertArgs {
     int    count;
     int    dCertInit;
     int    certIdx;
+#ifdef WOLFSSL_TLS13
+    byte   ctxSz;
+#endif
 #ifdef WOLFSSL_TRUST_PEER_CERT
     byte haveTrustPeer; /* was cert verified by loaded trusted peer cert */
 #endif
-} DoCertArgs;
+} ProcPeerCertArgs;
 
-static void FreeDoCertArgs(WOLFSSL* ssl, void* pArgs)
+static void FreeProcPeerCertArgs(WOLFSSL* ssl, void* pArgs)
 {
-    DoCertArgs* args = (DoCertArgs*)pArgs;
+    ProcPeerCertArgs* args = (ProcPeerCertArgs*)pArgs;
 
     (void)ssl;
 
@@ -6832,6 +6838,12 @@ static void FreeDoCertArgs(WOLFSSL* ssl, void* pArgs)
         XFREE(args->certs, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
         args->certs = NULL;
     }
+#ifdef WOLFSSL_TLS13
+    if (args->exts) {
+        XFREE(args->exts, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        args->exts = NULL;
+    }
+#endif
     if (args->dCert) {
         if (args->dCertInit) {
             FreeDecodedCert(args->dCert);
@@ -6842,30 +6854,29 @@ static void FreeDoCertArgs(WOLFSSL* ssl, void* pArgs)
     }
 }
 
-static int DoCertificate(WOLFSSL* ssl, byte* input, word32* inOutIdx,
-                                                                word32 size)
+int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx, word32 totalSz)
 {
     int ret = 0, lastErr = 0;
 #ifdef WOLFSSL_ASYNC_CRYPT
-    DoCertArgs* args = (DoCertArgs*)ssl->async.args;
+    ProcPeerCertArgs* args = (ProcPeerCertArgs*)ssl->async.args;
     typedef char args_test[sizeof(ssl->async.args) >= sizeof(*args) ? 1 : -1];
     (void)sizeof(args_test);
 #else
-    DoCertArgs  args[1];
+    ProcPeerCertArgs  args[1];
 #endif
 
 #ifdef WOLFSSL_TRUST_PEER_CERT
     byte haveTrustPeer = 0; /* was cert verified by loaded trusted peer cert */
 #endif
 
-    WOLFSSL_ENTER("DoCertificate");
+    WOLFSSL_ENTER("ProcessPeerCerts");
 
 #ifdef WOLFSSL_ASYNC_CRYPT
     ret = wolfSSL_AsyncPop(ssl, &ssl->options.asyncState);
     if (ret != WC_NOT_PENDING_E) {
         /* Check for error */
         if (ret < 0)
-            goto exit_dc;
+            goto exit_ppc;
     }
     else
 #endif
@@ -6873,15 +6884,15 @@ static int DoCertificate(WOLFSSL* ssl, byte* input, word32* inOutIdx,
         /* Reset state */
         ret = 0;
         ssl->options.asyncState = TLS_ASYNC_BEGIN;
-        XMEMSET(args, 0, sizeof(DoCertArgs));
+        XMEMSET(args, 0, sizeof(ProcPeerCertArgs));
         args->idx = *inOutIdx;
         args->begin = *inOutIdx;
     #ifdef WOLFSSL_ASYNC_CRYPT
-        ssl->async.freeArgs = FreeDoCertArgs;
+        ssl->async.freeArgs = FreeProcPeerCertArgs;
     #endif
     }
 
-    switch(ssl->options.asyncState)
+    switch (ssl->options.asyncState)
     {
         case TLS_ASYNC_BEGIN:
         {
@@ -6894,27 +6905,65 @@ static int DoCertificate(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                 AddLateName("Certificate", &ssl->timeoutInfo);
         #endif
 
+        #ifdef WOLFSSL_TLS13
+            if (ssl->options.tls1_3) {
+                byte ctxSz;
+
+                /* Certificate Request Context */
+                if ((args->idx - args->begin) + OPAQUE8_LEN > totalSz)
+                    return BUFFER_ERROR;
+                ctxSz = *(input + args->idx);
+                args->idx++;
+                if ((args->idx - args->begin) + ctxSz > totalSz)
+                    return BUFFER_ERROR;
+            #ifndef NO_WOLFSSL_CLIENT
+                /* Must be empty when received from server. */
+                if (ssl->options.side == WOLFSSL_CLIENT_END) {
+                    if (ctxSz != 0) {
+                        return INVALID_CERT_CTX_E;
+                    }
+                }
+            #endif
+            #ifndef NO_WOLFSSL_SERVER
+                /* Must contain value sent in request when received from client. */
+                if (ssl->options.side == WOLFSSL_SERVER_END) {
+                    if (ssl->clientCertCtx.length != ctxSz ||
+                        XMEMCMP(ssl->clientCertCtx.buffer,
+                            input + args->idx, ctxSz) != 0) {
+                        return INVALID_CERT_CTX_E;
+                    }
+                }
+            #endif
+                args->idx += ctxSz;
+
+                /* allocate buffer for cert extensions */
+                args->exts = (buffer*)XMALLOC(sizeof(buffer) * MAX_CHAIN_DEPTH,
+                                            ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
+                if (args->exts == NULL) {
+                    ERROR_OUT(MEMORY_E, exit_ppc);
+                }
+            }
+        #endif
+
             /* allocate buffer for certs */
             args->certs = (buffer*)XMALLOC(sizeof(buffer) * MAX_CHAIN_DEPTH,
                                             ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
             if (args->certs == NULL) {
-                ERROR_OUT(MEMORY_E, exit_dc);
+                ERROR_OUT(MEMORY_E, exit_ppc);
             }
             XMEMSET(args->certs, 0, sizeof(buffer) * MAX_CHAIN_DEPTH);
 
-            if ((args->idx - args->begin) + OPAQUE24_LEN > size) {
-                ERROR_OUT(BUFFER_ERROR, exit_dc);
+            /* Certificate List */
+            if ((args->idx - args->begin) + OPAQUE24_LEN > totalSz) {
+                ERROR_OUT(BUFFER_ERROR, exit_ppc);
             }
-
             c24to32(input + args->idx, &listSz);
             args->idx += OPAQUE24_LEN;
-
             if (listSz > MAX_RECORD_SIZE) {
-                ERROR_OUT(BUFFER_ERROR, exit_dc);
+                ERROR_OUT(BUFFER_ERROR, exit_ppc);
             }
-
-            if ((args->idx - args->begin) + listSz != size) {
-                ERROR_OUT(BUFFER_ERROR, exit_dc);
+            if ((args->idx - args->begin) + listSz != totalSz) {
+                ERROR_OUT(BUFFER_ERROR, exit_ppc);
             }
 
             WOLFSSL_MSG("Loading peer's cert chain");
@@ -6927,18 +6976,18 @@ static int DoCertificate(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                 #ifdef OPENSSL_EXTRA
                     ssl->peerVerifyRet = X509_V_ERR_CERT_CHAIN_TOO_LONG;
                 #endif
-                    ERROR_OUT(MAX_CHAIN_ERROR, exit_dc);
+                    ERROR_OUT(MAX_CHAIN_ERROR, exit_ppc);
                 }
 
-                if ((args->idx - args->begin) + OPAQUE24_LEN > size) {
-                    ERROR_OUT(BUFFER_ERROR, exit_dc);
+                if ((args->idx - args->begin) + OPAQUE24_LEN > totalSz) {
+                    ERROR_OUT(BUFFER_ERROR, exit_ppc);
                 }
 
                 c24to32(input + args->idx, &certSz);
                 args->idx += OPAQUE24_LEN;
 
-                if ((args->idx - args->begin) + certSz > size) {
-                    ERROR_OUT(BUFFER_ERROR, exit_dc);
+                if ((args->idx - args->begin) + certSz > totalSz) {
+                    ERROR_OUT(BUFFER_ERROR, exit_ppc);
                 }
 
                 args->certs[args->totalCerts].length = certSz;
@@ -6962,6 +7011,25 @@ static int DoCertificate(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                 args->idx += certSz;
                 listSz -= certSz + CERT_HEADER_SZ;
 
+            #ifdef WOLFSSL_TLS13
+                /* Extensions */
+                if (ssl->options.tls1_3) {
+                    word16 extSz;
+
+                    if ((args->idx - args->begin) + OPAQUE16_LEN > totalSz)
+                        return BUFFER_ERROR;
+                    ato16(input + args->idx, &extSz);
+                    args->idx += OPAQUE16_LEN;
+                    if ((args->idx - args->begin) + extSz > totalSz)
+                        return BUFFER_ERROR;
+                    /* Store extension data info for later processing. */
+                    args->exts[args->totalCerts].length = extSz;
+                    args->exts[args->totalCerts].buffer = input + args->idx;
+                    args->idx += extSz;
+                    listSz -= extSz + OPAQUE16_LEN;
+                }
+            #endif
+
                 args->totalCerts++;
                 WOLFSSL_MSG("\tPut another cert into chain");
             } /* while (listSz) */
@@ -6973,7 +7041,7 @@ static int DoCertificate(WOLFSSL* ssl, byte* input, word32* inOutIdx,
             args->dCert = (DecodedCert*)XMALLOC(sizeof(DecodedCert), ssl->heap,
                                                        DYNAMIC_TYPE_TMP_BUFFER);
             if (args->dCert == NULL) {
-                ERROR_OUT(MEMORY_E, exit_dc);
+                ERROR_OUT(MEMORY_E, exit_ppc);
             }
 
             /* Advance state and proceed */
@@ -7007,7 +7075,7 @@ static int DoCertificate(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                                 WC_ASYNC_FLAG_CALL_AGAIN);
                         }
                     #endif
-                        goto exit_dc;
+                        goto exit_ppc;
                     }
 
                 #ifndef NO_SKID
@@ -7123,7 +7191,7 @@ static int DoCertificate(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                         ret = AllocDer(&add, args->certs[args->certIdx].length,
                                                             CA_TYPE, ssl->heap);
                         if (ret < 0)
-                            goto exit_dc;
+                            goto exit_ppc;
 
                         WOLFSSL_MSG("Adding CA from chain");
 
@@ -7197,7 +7265,7 @@ static int DoCertificate(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 
             /* Check for error */
             if (ret != 0) {
-                goto exit_dc;
+                goto exit_ppc;
             }
 
             /* Advance state and proceed */
@@ -7394,7 +7462,7 @@ static int DoCertificate(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                 #ifdef OPENSSL_EXTRA
                     ssl->peerVerifyRet = X509_V_ERR_CERT_REJECTED;
                 #endif
-                    goto exit_dc;
+                    goto exit_ppc;
                 }
 
                 ssl->options.havePeerCert = 1;
@@ -7402,7 +7470,7 @@ static int DoCertificate(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 
             /* Check for error */
             if (ret != 0) {
-                goto exit_dc;
+                goto exit_ppc;
             }
 
             /* Advance state and proceed */
@@ -7415,7 +7483,7 @@ static int DoCertificate(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                 args->domain = (char*)XMALLOC(ASN_NAME_MAX, ssl->heap,
                                                     DYNAMIC_TYPE_TMP_BUFFER);
                 if (args->domain == NULL) {
-                    ERROR_OUT(MEMORY_E, exit_dc);
+                    ERROR_OUT(MEMORY_E, exit_ppc);
                 }
 
                 /* store for callback use */
@@ -7586,7 +7654,7 @@ static int DoCertificate(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 
             /* Check for error */
             if (ret != 0) {
-                goto exit_dc;
+                goto exit_ppc;
             }
 
             /* Advance state and proceed */
@@ -7600,7 +7668,7 @@ static int DoCertificate(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                                     sizeof(WOLFSSL_X509_STORE_CTX), ssl->heap,
                                                     DYNAMIC_TYPE_TMP_BUFFER);
             if (store == NULL) {
-                ERROR_OUT(MEMORY_E, exit_dc);
+                ERROR_OUT(MEMORY_E, exit_ppc);
             }
         #else
             WOLFSSL_X509_STORE_CTX  store[1];
@@ -7734,9 +7802,9 @@ static int DoCertificate(WOLFSSL* ssl, byte* input, word32* inOutIdx,
             break;
     } /* switch(ssl->options.asyncState) */
 
-exit_dc:
+exit_ppc:
 
-    WOLFSSL_LEAVE("DoCertificate", ret);
+    WOLFSSL_LEAVE("ProcessPeerCerts", ret);
 
 #ifdef WOLFSSL_ASYNC_CRYPT
     /* Handle WC_PENDING_E */
@@ -7748,12 +7816,17 @@ exit_dc:
     }
 #endif /* WOLFSSL_ASYNC_CRYPT */
 
-    FreeDoCertArgs(ssl, args);
+    FreeProcPeerCertArgs(ssl, args);
     FreeKeyExchange(ssl);
 
     return ret;
 }
 
+static int DoCertificate(WOLFSSL* ssl, byte* input, word32* inOutIdx,
+                                                                word32 size)
+{
+    return ProcessPeerCerts(ssl, input, inOutIdx, size);
+}
 
 static int DoCertificateStatus(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                                                                     word32 size)

@@ -1359,8 +1359,7 @@ WOLFSSL_LOCAL void PickHashSigAlgo(WOLFSSL* ssl, const byte* hashSigAlgo,
                                    word32 hashSigAlgoSz);
 WOLFSSL_LOCAL int  DecodePrivateKey(WOLFSSL *ssl, word16* length);
 WOLFSSL_LOCAL void FreeKeyExchange(WOLFSSL* ssl);
-WOLFSSL_LOCAL int  ProcessPeerCerts(WOLFSSL* ssl, buffer *certs, buffer *exts,
-                                    int totalCerts);
+WOLFSSL_LOCAL int  ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx, word32 size);
 WOLFSSL_LOCAL int  MatchDomainName(const char* pattern, int len, const char* str);
 #ifndef NO_CERTS
 WOLFSSL_LOCAL int  CheckAltNames(DecodedCert* dCert, char* domain);

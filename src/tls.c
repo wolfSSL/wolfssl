@@ -4606,6 +4606,12 @@ static int TLSX_KeyShare_GenEccKey(WOLFSSL *ssl, KeyShareEntry* kse)
     if (ret != 0)
         goto end;
     ret = wc_ecc_make_key_ex(ssl->rng, keySize, eccKey, curveId);
+#ifdef WOLFSSL_ASYNC_CRYPT
+    /* TODO: Make this function non-blocking */
+    if (ret == WC_PENDING_E) {
+        ret = wc_AsyncWait(ret, &eccKey->asyncDev, WC_ASYNC_FLAG_NONE);
+    }
+#endif
     if (ret != 0)
         goto end;
 
@@ -4868,6 +4874,7 @@ static int TLSX_KeyShare_ProcessEcc(WOLFSSL* ssl, KeyShareEntry* keyShareEntry)
 #ifndef NO_ECC
     int ret;
     int curveId;
+    ecc_key* keyShareKey = (ecc_key*)keyShareEntry->key;
 
     if (ssl->peerEccKey != NULL)
         wc_ecc_free(ssl->peerEccKey);
@@ -4932,7 +4939,18 @@ static int TLSX_KeyShare_ProcessEcc(WOLFSSL* ssl, KeyShareEntry* keyShareEntry)
     }
 
     ssl->arrays->preMasterSz = ENCRYPT_LEN;
-    return EccSharedSecret(ssl, keyShareEntry->key, ssl->peerEccKey,
+    do {
+    #if defined(WOLFSSL_ASYNC_CRYPT)
+        ret = wc_AsyncWait(ret, &keyShareKey->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
+    #endif
+        if (ret >= 0)
+            ret = wc_ecc_shared_secret(keyShareKey, ssl->peerEccKey,
+                ssl->arrays->preMasterSecret, &ssl->arrays->preMasterSz);
+    } while (ret == WC_PENDING_E);
+
+#if 0
+    /* TODO: Switch to support async here and use: */
+    ret = EccSharedSecret(ssl, keyShareEntry->key, ssl->peerEccKey,
         keyShareEntry->ke, &keyShareEntry->keLen,
         ssl->arrays->preMasterSecret, &ssl->arrays->preMasterSz,
         ssl->options.side,
@@ -4942,6 +4960,9 @@ static int TLSX_KeyShare_ProcessEcc(WOLFSSL* ssl, KeyShareEntry* keyShareEntry)
         NULL
     #endif
     );
+#endif
+
+    return ret;
 #else
     return PEER_KEY_ERROR;
 #endif
