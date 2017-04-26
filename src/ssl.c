@@ -14549,6 +14549,31 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
     }
 
 
+
+    /* Storing app session context id. Any session that is imported with a
+     * different session context id will be rejected.
+     *
+     * ssl  structure to set context in
+     * id   value of context to set
+     * len  length of sid_ctx buffer
+     *
+     * Returns SSL_SUCCESS in success case and SSL_FAILURE when failing
+     */
+    int wolfSSL_set_session_id_context(WOLFSSL* ssl, const unsigned char* id,
+                                   unsigned int len)
+    {
+        WOLFSSL_STUB("wolfSSL_set_session_id_context");
+
+        if (len > ID_LEN || ssl == NULL || id == NULL) {
+            return SSL_FAILURE;
+        }
+        XMEMCPY(ssl->sessionCtx, id, len);
+        ssl->sessionCtxSz = len;
+
+        return SSL_SUCCESS;
+    }
+
+
     long wolfSSL_CTX_sess_get_cache_size(WOLFSSL_CTX* ctx)
     {
         (void)ctx;
@@ -16771,18 +16796,6 @@ int wolfSSL_ASN1_STRING_to_UTF8(unsigned char **out, WOLFSSL_ASN1_STRING *in)
     return -1;
 }
 #endif /* NO_ASN */
-
-#ifndef NO_WOLFSSL_STUB
-int wolfSSL_set_session_id_context(WOLFSSL* ssl, const unsigned char* id,
-                               unsigned int len)
-{
-    (void)ssl;
-    (void)id;
-    (void)len;
-    WOLFSSL_STUB("SSL_set_session_id_context");
-    return 0;
-}
-#endif
 
 void wolfSSL_set_connect_state(WOLFSSL* ssl)
 {
@@ -20626,7 +20639,9 @@ WOLFSSL_SESSION* wolfSSL_d2i_SSL_SESSION(WOLFSSL_SESSION** sess,
         if (s == NULL)
             return NULL;
         s->isAlloced = 1;
+#ifdef HAVE_SESSION_TICKET
         s->isDynamic = 0;
+#endif
     }
 
     idx = 0;

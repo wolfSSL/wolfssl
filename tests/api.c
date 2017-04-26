@@ -15792,9 +15792,12 @@ static void test_wolfSSL_SESSION(void)
     /* successful set session test */
     AssertNotNull(ssl = wolfSSL_new(ctx));
     AssertIntEQ(wolfSSL_set_session(ssl, sess), SSL_SUCCESS);
-    wolfSSL_free(ssl);
 
     /* fail case with miss match session context IDs (use compatibility API) */
+    AssertIntEQ(SSL_set_session_id_context(ssl, context, contextSz),
+            SSL_SUCCESS);
+    AssertIntEQ(wolfSSL_set_session(ssl, sess), SSL_FAILURE);
+    wolfSSL_free(ssl);
     AssertIntEQ(SSL_CTX_set_session_id_context(NULL, context, contextSz),
             SSL_FAILURE);
     AssertIntEQ(SSL_CTX_set_session_id_context(ctx, context, contextSz),
