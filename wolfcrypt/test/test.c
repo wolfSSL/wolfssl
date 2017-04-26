@@ -12366,7 +12366,7 @@ static int pkcs7_load_certs_keys(byte* rsaCert, word32* rsaCertSz,
         return -202;
 
     XMEMCPY(rsaCert, client_cert_der_2048, sizeof_client_cert_der_2048);
-    rsaCertSz = sizeof_client_cert_der_2048;
+    *rsaCertSz = sizeof_client_cert_der_2048;
 #else
     certFile = fopen(clientCert, "rb");
     if (!certFile)
@@ -12377,13 +12377,13 @@ static int pkcs7_load_certs_keys(byte* rsaCert, word32* rsaCertSz,
 #endif
 
 #ifdef USE_CERT_BUFFERS_1024
-    if (*rsaKeySz < sizeof_client_key_der_1024)
+    if (*rsaPrivKeySz < sizeof_client_key_der_1024)
         return -204;
 
     XMEMCPY(rsaPrivKey, client_key_der_1024, sizeof_client_key_der_1024);
     *rsaPrivKeySz = sizeof_client_key_der_1024;
 #elif defined(USE_CERT_BUFFERS_2048)
-    if (*rsaKeySz < sizeof_client_key_der_2048)
+    if (*rsaPrivKeySz < sizeof_client_key_der_2048)
         return -205;
 
     XMEMCPY(rsaPrivKey, client_key_der_2048, sizeof_client_key_der_2048);

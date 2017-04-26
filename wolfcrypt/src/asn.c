@@ -4686,7 +4686,7 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
                     }
 
                 #ifdef WOLFSSL_SMALL_STACK
-                    XFREE(encodedSig, heap, DYNAMIC_TYPE_TMP_BUFFER);
+                    XFREE(encodedSig, sigCtx->heap, DYNAMIC_TYPE_TMP_BUFFER);
                 #endif
                     break;
                 }
