@@ -1012,9 +1012,6 @@ int wolfSSL_CryptHwMutexUnLock(void) {
     }
 
 #elif defined(INTIME_RTOS)
-    #ifndef INTIME_RTOS_MUTEX_MAX
-        #define INTIME_RTOS_MUTEX_MAX 10
-    #endif
 
     int wc_InitMutex(wolfSSL_Mutex* m)
     {
@@ -1025,7 +1022,7 @@ int wolfSSL_CryptHwMutexUnLock(void) {
 
         *m = CreateRtSemaphore(
             1,                      /* initial unit count */
-            INTIME_RTOS_MUTEX_MAX,  /* maximum unit count */
+            1,                      /* maximum unit count */
             PRIORITY_QUEUING        /* creation flags: FIFO_QUEUING or PRIORITY_QUEUING */
         );
         if (*m == BAD_RTHANDLE) {
