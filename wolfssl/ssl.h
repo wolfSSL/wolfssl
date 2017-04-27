@@ -206,6 +206,7 @@ struct WOLFSSL_ASN1_OBJECT {
     /* sName is short name i.e sha256 rather than oid (null terminated) */
     char   sName[WOLFSSL_MAX_SNAME];
     int    type; /* oid */
+    int    grp;  /* type of OID, i.e. oidCertPolicyType */
     unsigned int  objSz;
     unsigned char dynamic; /* if 1 then obj was dynamiclly created, 0 otherwise */
     struct d { /* derefrenced */

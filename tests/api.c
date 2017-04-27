@@ -15474,11 +15474,13 @@ static void test_wolfSSL_OBJ(void)
 
     AssertIntEQ(OBJ_obj2txt(buf, (int)sizeof(buf), obj, 1), SSL_FAILURE);
     AssertNotNull(obj = OBJ_nid2obj(NID_any_policy));
+    AssertIntEQ(OBJ_obj2nid(obj), NID_any_policy);
     AssertIntEQ(OBJ_obj2txt(buf, (int)sizeof(buf), obj, 1), 11);
     AssertIntGT(OBJ_obj2txt(buf, (int)sizeof(buf), obj, 0), 0);
     ASN1_OBJECT_free(obj);
 
     AssertNotNull(obj = OBJ_nid2obj(NID_sha256));
+    AssertIntEQ(OBJ_obj2nid(obj), NID_sha256);
     AssertIntEQ(OBJ_obj2txt(buf, (int)sizeof(buf), obj, 1), 22);
     AssertIntGT(OBJ_obj2txt(buf, (int)sizeof(buf), obj, 0), 0);
     ASN1_OBJECT_free(obj);
