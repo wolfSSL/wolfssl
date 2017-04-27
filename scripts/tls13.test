@@ -18,7 +18,7 @@ ready_file=`pwd`/wolfssl_psk_ready$$
 echo "ready file $ready_file"
 
 create_port() {
-    while [ ! -s $ready_file -a "$counter" -lt 20 ]; do
+    while [ ! -s $ready_file -a "$counter" -lt 50 ]; do
         echo -e "waiting for ready file..."
         sleep 0.1
         counter=$((counter+ 1))
