@@ -729,7 +729,8 @@ static int GetASNInt(const byte* input, word32* inOutIdx, int* len,
         return ret;
 
     if (*len > 0) {
-        if (input[*inOutIdx] == 0x00) {
+        /* remove leading zero, unless there is only one 0x00 byte */
+        if ((input[*inOutIdx] == 0x00) && (*len > 1)) {
             (*inOutIdx)++;
             (*len)--;
 
