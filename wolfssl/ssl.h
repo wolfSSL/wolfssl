@@ -68,10 +68,16 @@
     extern "C" {
 #endif
 
+#ifndef WOLFSSL_WOLFSSL_TYPE_DEFINED
+#define WOLFSSL_WOLFSSL_TYPE_DEFINED
 typedef struct WOLFSSL          WOLFSSL;
+#endif
 typedef struct WOLFSSL_SESSION  WOLFSSL_SESSION;
 typedef struct WOLFSSL_METHOD   WOLFSSL_METHOD;
+#ifndef WOLFSSL_WOLFSSL_CTX_TYPE_DEFINED
+#define WOLFSSL_WOLFSSL_CTX_TYPE_DEFINED
 typedef struct WOLFSSL_CTX      WOLFSSL_CTX;
+#endif
 
 typedef struct WOLFSSL_STACK      WOLFSSL_STACK;
 typedef struct WOLFSSL_X509       WOLFSSL_X509;
