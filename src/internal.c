@@ -3399,6 +3399,12 @@ int InitHandshakeHashes(WOLFSSL* ssl)
 {
     int ret;
 
+    /* make sure existing handshake hashes are free'd */
+    if (ssl->hsHashes != NULL) {
+        FreeHandshakeHashes(ssl);
+    }
+
+    /* allocate handshake hashes */
     ssl->hsHashes = (HS_Hashes*)XMALLOC(sizeof(HS_Hashes), ssl->heap,
                                                            DYNAMIC_TYPE_HASHES);
     if (ssl->hsHashes == NULL) {
