@@ -14674,20 +14674,30 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
     }
 
 
-    #ifndef NO_WOLFSSL_STUB
+    /* Similar to wolfSSL_ERR_get_error_line but takes in a flags argument for
+     * more flexability.
+     *
+     * file  output pointer to file where error happened
+     * line  output to line number of error
+     * data  output data. Is a string if ERR_TXT_STRING flag is used
+     * flags bit flag to adjust data output
+     *
+     * Returns the error value
+     */
     unsigned long wolfSSL_ERR_get_error_line_data(const char** file, int* line,
                                                   const char** data, int *flags)
     {
-        /* Not implemented */
-        (void)file;
-        (void)line;
-        (void)data;
-        (void)flags;
-        WOLFSSL_STUB("ERR_get_error_line_data");
+        WOLFSSL_STUB("wolfSSL_ERR_get_error_line_data");
 
-        return 0;
+        if (flags != NULL) {
+            if ((*flags & ERR_TXT_STRING) == ERR_TXT_STRING) {
+                return wc_PullErrorNode(file, data, line);
+            }
+        }
+
+        return wc_PullErrorNode(file, NULL, line);
     }
-    #endif
+
 
     WOLFSSL_API pem_password_cb* wolfSSL_CTX_get_default_passwd_cb(
                                                                WOLFSSL_CTX *ctx)
