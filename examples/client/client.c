@@ -538,7 +538,6 @@ static void Usage(void)
 #endif
     printf("-B <num>    Benchmark throughput using <num> bytes and print stats\n");
     printf("-s          Use pre Shared keys\n");
-    printf("-t          Track wolfSSL memory use\n");
     printf("-d          Disable peer checks\n");
     printf("-D          Override Date Errors example\n");
     printf("-e          List Every cipher suite available, \n");
