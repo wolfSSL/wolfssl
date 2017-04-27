@@ -904,7 +904,6 @@ static int DeriveTls13Keys(WOLFSSL* ssl, int secret, int side)
 
 end:
 #ifdef WOLFSSL_SMALL_STACK
-    XFREE(serverData, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(key_data, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
 
