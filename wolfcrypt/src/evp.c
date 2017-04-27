@@ -60,7 +60,7 @@ WOLFSSL_API WOLFSSL_EVP_CIPHER_CTX *wolfSSL_EVP_CIPHER_CTX_new(void)
 	WOLFSSL_EVP_CIPHER_CTX *ctx = (WOLFSSL_EVP_CIPHER_CTX*)XMALLOC(sizeof *ctx,
                                                  NULL, DYNAMIC_TYPE_TMP_BUFFER);
 	if (ctx){
-      WOLFSSL_ENTER("wolfSSL_EVP_CIPHER_CTX_new");  
+      WOLFSSL_ENTER("wolfSSL_EVP_CIPHER_CTX_new");
 		  wolfSSL_EVP_CIPHER_CTX_init(ctx);
   }
 	return ctx;
@@ -327,7 +327,7 @@ WOLFSSL_API int  wolfSSL_EVP_CipherFinal(WOLFSSL_EVP_CIPHER_CTX *ctx,
                                    unsigned char *out, int *outl)
 {
     int fl ;
-    if (ctx == NULL) return BAD_FUNC_ARG;
+    if (ctx == NULL || out == NULL) return BAD_FUNC_ARG;
     WOLFSSL_ENTER("wolfSSL_EVP_CipherFinal");
     if (ctx->flags & WOLFSSL_EVP_CIPH_NO_PADDING) {
         *outl = 0;

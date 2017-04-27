@@ -6809,6 +6809,7 @@ static int DoCertificate(WOLFSSL* ssl, byte* input, word32* inOutIdx,
             if (args->certs == NULL) {
                 ERROR_OUT(MEMORY_E, exit_dc);
             }
+            XMEMSET(args->certs, 0, sizeof(buffer) * MAX_CHAIN_DEPTH);
 
             if ((args->idx - args->begin) + OPAQUE24_LEN > size) {
                 ERROR_OUT(BUFFER_ERROR, exit_dc);
