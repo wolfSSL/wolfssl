@@ -1675,6 +1675,9 @@ int wolfSSL_mcast_read(WOLFSSL* ssl, word16* id, void* data, int sz)
 
     WOLFSSL_ENTER("wolfSSL_mcast_read()");
 
+    if (ssl == NULL)
+        return BAD_FUNC_ARG;
+
     ret = wolfSSL_read_internal(ssl, data, sz, FALSE);
     if (ssl->options.dtls && ssl->options.haveMcast && id != NULL)
         *id = ssl->keys.curPeerId;
