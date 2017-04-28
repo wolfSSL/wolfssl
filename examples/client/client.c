@@ -408,15 +408,13 @@ static int StartTLS_Init(SOCKET_T* sockfd)
     if (sockfd == NULL)
         return BAD_FUNC_ARG;
 
-    XMEMSET(tmpBuf, 0, sizeof(tmpBuf));
-
     /* S: 220 <host> SMTP service ready */
-    if (recv(*sockfd, tmpBuf, sizeof(tmpBuf), 0) < 0)
+    XMEMSET(tmpBuf, 0, sizeof(tmpBuf));
+    if (recv(*sockfd, tmpBuf, sizeof(tmpBuf)-1, 0) < 0)
         err_sys("failed to read STARTTLS command\n");
 
     if (!XSTRNCMP(tmpBuf, starttlsCmd[0], XSTRLEN(starttlsCmd[0]))) {
         printf("%s\n", tmpBuf);
-        XMEMSET(tmpBuf, 0, sizeof(tmpBuf));
     } else {
         err_sys("incorrect STARTTLS command received");
     }
@@ -427,12 +425,12 @@ static int StartTLS_Init(SOCKET_T* sockfd)
         err_sys("failed to send STARTTLS EHLO command\n");
 
     /* S: 250 <host> offers a warm hug of welcome */
-    if (recv(*sockfd, tmpBuf, sizeof(tmpBuf), 0) < 0)
+    XMEMSET(tmpBuf, 0, sizeof(tmpBuf));
+    if (recv(*sockfd, tmpBuf, sizeof(tmpBuf)-1, 0) < 0)
         err_sys("failed to read STARTTLS command\n");
 
     if (!XSTRNCMP(tmpBuf, starttlsCmd[2], XSTRLEN(starttlsCmd[2]))) {
         printf("%s\n", tmpBuf);
-        XMEMSET(tmpBuf, 0, sizeof(tmpBuf));
     } else {
         err_sys("incorrect STARTTLS command received");
     }
@@ -444,12 +442,12 @@ static int StartTLS_Init(SOCKET_T* sockfd)
     }
 
     /* S: 220 Go ahead */
-    if (recv(*sockfd, tmpBuf, sizeof(tmpBuf), 0) < 0)
+    XMEMSET(tmpBuf, 0, sizeof(tmpBuf));
+    if (recv(*sockfd, tmpBuf, sizeof(tmpBuf)-1, 0) < 0)
         err_sys("failed to read STARTTLS command\n");
 
     if (!XSTRNCMP(tmpBuf, starttlsCmd[4], XSTRLEN(starttlsCmd[4]))) {
         printf("%s\n", tmpBuf);
-        XMEMSET(tmpBuf, 0, sizeof(tmpBuf));
     } else {
         err_sys("incorrect STARTTLS command received, expected 220");
     }

@@ -1024,45 +1024,72 @@ int wolfIO_HttpBuildRequest(const char* reqType, const char* domainName,
     word32 reqTypeLen, domainNameLen, reqSzStrLen, contentTypeLen, maxLen;
     char reqSzStr[6];
     char* req = (char*)buf;
+    const char* blankStr = " ";
+    const char* http11Str = " HTTP/1.1";
+    const char* hostStr = "\r\nHost: ";
+    const char* contentLenStr = "\r\nContent-Length: ";
+    const char* contentTypeStr = "\r\nContent-Type: ";
+    const char* doubleCrLfStr = "\r\n\r\n";
+    word32 blankStrLen, http11StrLen, hostStrLen, contentLenStrLen,
+        contentTypeStrLen, doubleCrLfStrLen;
 
     reqTypeLen = (word32)XSTRLEN(reqType);
     domainNameLen = (word32)XSTRLEN(domainName);
     reqSzStrLen = wolfIO_Word16ToString(reqSzStr, (word16)reqSz);
     contentTypeLen = (word32)XSTRLEN(contentType);
 
-    /* determine max length */
-    maxLen = reqTypeLen + domainNameLen + pathLen + reqSzStrLen + contentTypeLen + 56;
+    blankStrLen = (word32)XSTRLEN(blankStr);
+    http11StrLen = (word32)XSTRLEN(http11Str);
+    hostStrLen = (word32)XSTRLEN(hostStr);
+    contentLenStrLen = (word32)XSTRLEN(contentLenStr);
+    contentTypeStrLen = (word32)XSTRLEN(contentTypeStr);
+    doubleCrLfStrLen = (word32)XSTRLEN(doubleCrLfStr);
+
+    /* determine max length and check it */
+    maxLen =
+        reqTypeLen +
+        blankStrLen +
+        pathLen +
+        http11StrLen +
+        hostStrLen +
+        domainNameLen +
+        contentLenStrLen +
+        reqSzStrLen +
+        contentTypeStrLen +
+        contentTypeLen +
+        doubleCrLfStrLen +
+        1 /* null term */;
     if (maxLen > (word32)bufSize)
         return 0;
 
     XSTRNCPY((char*)buf, reqType, reqTypeLen);
     buf += reqTypeLen;
-    XSTRNCPY((char*)buf, " ", 1);
-    buf += 1;
+    XSTRNCPY((char*)buf, blankStr, blankStrLen+1);
+    buf += blankStrLen;
     XSTRNCPY((char*)buf, path, pathLen);
     buf += pathLen;
-    XSTRNCPY((char*)buf, " HTTP/1.1", 9);
-    buf += 9;
+    XSTRNCPY((char*)buf, http11Str, http11StrLen+1);
+    buf += http11StrLen;
     if (domainNameLen > 0) {
-        XSTRNCPY((char*)buf, "\r\nHost: ", 8);
-        buf += 8;
+        XSTRNCPY((char*)buf, hostStr, hostStrLen+1);
+        buf += hostStrLen;
         XSTRNCPY((char*)buf, domainName, domainNameLen);
         buf += domainNameLen;
     }
     if (reqSz > 0 && reqSzStrLen > 0) {
-        XSTRNCPY((char*)buf, "\r\nContent-Length: ", 18);
-        buf += 18;
+        XSTRNCPY((char*)buf, contentLenStr, contentLenStrLen+1);
+        buf += contentLenStrLen;
         XSTRNCPY((char*)buf, reqSzStr, reqSzStrLen);
         buf += reqSzStrLen;
     }
     if (contentTypeLen > 0) {
-        XSTRNCPY((char*)buf, "\r\nContent-Type: ", 16);
-        buf += 16;
+        XSTRNCPY((char*)buf, contentTypeStr, contentTypeStrLen+1);
+        buf += contentTypeStrLen;
         XSTRNCPY((char*)buf, contentType, contentTypeLen);
         buf += contentTypeLen;
     }
-    XSTRNCPY((char*)buf, "\r\n\r\n", 4);
-    buf += 4;
+    XSTRNCPY((char*)buf, doubleCrLfStr, doubleCrLfStrLen+1);
+    buf += doubleCrLfStrLen;
 
 #ifdef WOLFIO_DEBUG
     printf("HTTP %s: %s", reqType, req);

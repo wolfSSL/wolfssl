@@ -224,10 +224,10 @@ static int evpCipherBlock(WOLFSSL_EVP_CIPHER_CTX *ctx,
             if (ctx->enc)
                 wc_Des3_EcbEncrypt(&ctx->cipher.des3, out, in, inl);
             else
-                wc_Des3_EcbEncrypt(&ctx->cipher.des3, out, in, inl);
+                wc_Des3_EcbDecrypt(&ctx->cipher.des3, out, in, inl);
             break;
-        #endif
-    #endif
+        #endif /* WOLFSSL_DES_ECB */
+    #endif /* !NO_DES3 */
         default:
             return 0;
         }

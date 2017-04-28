@@ -286,25 +286,10 @@ int wc_LoggingInit(void)
 /* internal function that is called by wolfCrypt_Cleanup */
 int wc_LoggingCleanup(void)
 {
-    if (wc_LockMutex(&debug_mutex) != 0) {
-        WOLFSSL_MSG("Lock debug mutex failed");
-        return BAD_MUTEX_E;
-    }
+    /* clear logging entries */
+    wc_ClearErrorNodes();
 
-    /* free all nodes from error queue */
-    {
-        struct wc_error_queue* current;
-        struct wc_error_queue* next;
-
-        current = (struct wc_error_queue*)wc_errors;
-        while (current != NULL) {
-            next = current->next;
-            XFREE(current, current->heap, DYNAMIC_TYPE_LOG);
-            current = next;
-        }
-    }
-
-    wc_UnLockMutex(&debug_mutex);
+    /* free mutex */
     if (wc_FreeMutex(&debug_mutex) != 0) {
         WOLFSSL_MSG("Bad Mutex free");
         return BAD_MUTEX_E;
@@ -473,6 +458,8 @@ void wc_RemoveErrorNode(int index)
     wc_UnLockMutex(&debug_mutex);
 }
 
+#endif /* DEBUG_WOLFSSL || WOLFSSL_NGINX */
+
 /* Clears out the list of error nodes.
  */
 void wc_ClearErrorNodes(void)
@@ -499,8 +486,6 @@ void wc_ClearErrorNodes(void)
     wc_last_node = NULL;
     wc_UnLockMutex(&debug_mutex);
 }
-#endif /* DEBUG_WOLFSSL || WOLFSSL_NGINX || WOLFSSL_HAPROXY */
-
 
 int wc_SetLoggingHeap(void* h)
 {

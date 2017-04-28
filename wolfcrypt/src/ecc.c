@@ -6562,9 +6562,13 @@ done:
    mp_clear(&tka);
    mp_clear(&order);
 
+#ifdef WOLFSSL_SMALL_STACK
    if (kb[0])
+#endif
       ForceZero(kb[0], KB_SIZE);
+#ifdef WOLFSSL_SMALL_STACK
    if (kb[1])
+#endif
       ForceZero(kb[1], KB_SIZE);
 
 #ifdef WOLFSSL_SMALL_STACK

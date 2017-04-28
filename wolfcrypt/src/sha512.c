@@ -529,7 +529,7 @@ static INLINE int Sha512Update(Sha512* sha512, const byte* data, word32 len)
     byte* local = (byte*)sha512->buffer;
 
     /* check that internal buffLen is valid */
-    if (sha512->buffLen > SHA512_BLOCK_SIZE)
+    if (sha512->buffLen >= SHA512_BLOCK_SIZE)
         return BUFFER_E;
 
     SAVE_XMM_YMM; /* for Intel AVX */
