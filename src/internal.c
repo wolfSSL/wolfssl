@@ -7746,7 +7746,7 @@ static int DoCertificateStatus(WOLFSSL* ssl, byte* input, word32* inOutIdx,
         case WOLFSSL_CSR2_OCSP_MULTI: {
             OcspRequest* request;
             word32 list_length = status_length;
-            byte   index = 0;
+            byte   idx = 0;
 
             #ifdef WOLFSSL_SMALL_STACK
                 CertStatus* status;
@@ -7808,13 +7808,13 @@ static int DoCertificateStatus(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 
                     while (ret == 0) {
                         request = (OcspRequest*)TLSX_CSR2_GetRequest(
-                                ssl->extensions, status_type, index++);
+                                ssl->extensions, status_type, idx++);
 
                         if (request == NULL)
                             ret = BAD_CERTIFICATE_STATUS_ERROR;
                         else if (CompareOcspReqResp(request, response) == 0)
                             break;
-                        else if (index == 1) /* server cert must be OK */
+                        else if (idx == 1) /* server cert must be OK */
                             ret = BAD_CERTIFICATE_STATUS_ERROR;
                     }
 

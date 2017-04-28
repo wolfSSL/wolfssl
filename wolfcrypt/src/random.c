@@ -209,7 +209,7 @@ static int Hash_df(DRBG* drbg, byte* out, word32 outSz, byte type,
                                                   const byte* inA, word32 inASz,
                                                   const byte* inB, word32 inBSz)
 {
-    int ret;
+    int ret = DRBG_FAILURE;
     byte ctr;
     int i;
     int len;

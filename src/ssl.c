@@ -15388,15 +15388,15 @@ int wolfSSL_ASN1_TIME_print(WOLFSSL_BIO* bio, const WOLFSSL_ASN1_TIME* asnTime)
 
 
 #if defined(WOLFSSL_MYSQL_COMPATIBLE) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
-char* wolfSSL_ASN1_TIME_to_string(WOLFSSL_ASN1_TIME* time, char* buf, int len)
+char* wolfSSL_ASN1_TIME_to_string(WOLFSSL_ASN1_TIME* t, char* buf, int len)
 {
     int format;
     int dateLen;
-    byte* date = (byte*)time;
+    byte* date = (byte*)t;
 
     WOLFSSL_ENTER("wolfSSL_ASN1_TIME_to_string");
 
-    if (time == NULL || buf == NULL || len < 5) {
+    if (t == NULL || buf == NULL || len < 5) {
         WOLFSSL_MSG("Bad argument");
         return NULL;
     }
@@ -16324,9 +16324,10 @@ void wolfSSL_DES_set_odd_parity(WOLFSSL_DES_cblock* myDes)
 void wolfSSL_DES_ecb_encrypt(WOLFSSL_DES_cblock* desa,
              WOLFSSL_DES_cblock* desb, WOLFSSL_DES_key_schedule* key, int enc)
 {
+    Des myDes;
+
     WOLFSSL_ENTER("wolfSSL_DES_ecb_encrypt");
 
-    Des myDes;
     if (desa == NULL || key == NULL || desb == NULL ||
         (enc != DES_ENCRYPT && enc != DES_DECRYPT)) {
         WOLFSSL_MSG("Bad argument passed to wolfSSL_DES_ecb_encrypt");
@@ -16338,12 +16339,12 @@ void wolfSSL_DES_ecb_encrypt(WOLFSSL_DES_cblock* desa,
         }
         if (enc){
             if (wc_Des_EcbEncrypt(&myDes, (byte*) desb,
-                                   (const byte*) desa, sizeof(desa)) != 0){
+                                   (const byte*) desa, sizeof(WOLFSSL_DES_cblock)) != 0){
                 WOLFSSL_MSG("wc_Des_EcbEncrpyt return error.");
             }
         } else {
             if (wc_Des_EcbDecrypt(&myDes, (byte*) desb,
-                                   (const byte*) desa, sizeof(desa)) != 0){
+                                   (const byte*) desa, sizeof(WOLFSSL_DES_cblock)) != 0){
                 WOLFSSL_MSG("wc_Des_EcbDecrpyt return error.");
             }
         }

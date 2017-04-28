@@ -2652,7 +2652,7 @@ int TLSX_CSR2_InitRequests(TLSX* extensions, DecodedCert* cert, byte isPeer,
     return ret;
 }
 
-void* TLSX_CSR2_GetRequest(TLSX* extensions, byte status_type, byte index)
+void* TLSX_CSR2_GetRequest(TLSX* extensions, byte status_type, byte idx)
 {
     TLSX* extension = TLSX_Find(extensions, TLSX_STATUS_REQUEST_V2);
     CertificateStatusRequestItemV2* csr2 = extension ?
@@ -2666,8 +2666,8 @@ void* TLSX_CSR2_GetRequest(TLSX* extensions, byte status_type, byte index)
 
                 case WOLFSSL_CSR2_OCSP_MULTI:
                     /* requests are initialized in the reverse order */
-                    return index < csr2->requests
-                         ? &csr2->request.ocsp[csr2->requests - index - 1]
+                    return idx < csr2->requests
+                         ? &csr2->request.ocsp[csr2->requests - idx - 1]
                          : NULL;
                 break;
             }
