@@ -1457,9 +1457,8 @@ static int wc_PKCS7_SignedDataVerifySignature(PKCS7* pkcs7, byte* sig,
                                               word32 signedAttribSz)
 {
     int ret = 0;
-    word32 plainDigestSz, pkcs7DigestSz;
-
-    byte* plainDigest; /* offset into pkcs7Digest */
+    word32 plainDigestSz = 0, pkcs7DigestSz;
+    byte* plainDigest = NULL; /* offset into pkcs7Digest */
 #ifdef WOLFSSL_SMALL_STACK
     byte* pkcs7Digest;
 #else
