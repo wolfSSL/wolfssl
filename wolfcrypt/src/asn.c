@@ -2318,13 +2318,12 @@ int UnTraditionalEnc(byte* key, word32 keySz, byte* out, word32* outSz,
 
         if (salt == NULL || saltSz <= 0) {
             saltSz = 8;
-            salt = saltTmp;
-
             #ifdef WOLFSSL_SMALL_STACK
             saltTmp = (byte*)XMALLOC(saltSz, heap, DYNAMIC_TYPE_TMP_BUFFER);
             if (saltTmp == NULL)
                 return MEMORY_E;
             #endif
+            salt = saltTmp;
 
             if ((ret = wc_RNG_GenerateBlock(rng, saltTmp, saltSz)) != 0) {
                 WOLFSSL_MSG("Error generating random salt");
@@ -2344,7 +2343,7 @@ int UnTraditionalEnc(byte* key, word32 keySz, byte* out, word32* outSz,
         out[inOutIdx++] = ASN_OCTET_STRING; sz++;
         tmpSz = SetLength(saltSz, out + inOutIdx);
         inOutIdx += tmpSz; sz += tmpSz;
-        XMEMCPY(&out[inOutIdx], salt, saltSz);
+        XMEMCPY(out + inOutIdx, salt, saltSz);
         inOutIdx += saltSz; sz += saltSz;
 
         /* place itteration count in buffer */
@@ -2690,13 +2689,12 @@ int EncryptContent(byte* input, word32 inputSz, byte* out, word32* outSz,
     /* create random salt if one not provided */
     if (salt == NULL || saltSz <= 0) {
         saltSz = 8;
-        salt = saltTmp;
-
         #ifdef WOLFSSL_SMALL_STACK
         saltTmp = (byte*)XMALLOC(saltSz, heap, DYNAMIC_TYPE_TMP_BUFFER);
         if (saltTmp == NULL)
             return MEMORY_E;
         #endif
+        salt = saltTmp;
 
         if ((ret = wc_RNG_GenerateBlock(rng, saltTmp, saltSz)) != 0) {
             WOLFSSL_MSG("Error generating random salt");
