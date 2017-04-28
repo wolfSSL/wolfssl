@@ -13,9 +13,6 @@ extern "C" {
 #undef  INTIME_RTOS
 #define INTIME_RTOS
 
-#undef  INTIME_RTOS_MUTEX_MAX
-#define INTIME_RTOS_MUTEX_MAX       10
-
 #undef  WOLF_EXAMPLES_STACK
 #define WOLF_EXAMPLES_STACK         65536
 

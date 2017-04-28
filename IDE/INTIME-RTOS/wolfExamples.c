@@ -122,7 +122,7 @@ int wolfExample_TLSClient(const char* ip, int port)
             printf("Read error. Error: %d\n", ret);
             goto exit;
         }
-        printf("Recieved: \t%s\n", rcvBuff);
+        printf("Received: \t%s\n", rcvBuff);
     }
 
 exit:
